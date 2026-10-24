@@ -20,10 +20,9 @@
 //! In:  esi the device
 //! Out: ebp = esi; the rest kept; the flags of the copy (no caller reads them)
 //!
-//! Callers: `race::tyre_change_gauge` (twice), which calls the Rust version directly. Its
-//! calls by place: 1 lock, 2 unlock, 3 `draw_text_keep_regs`, 4 `draw_string_by_id` (keep
-//! regs, 0x402368), 5 `fill_rect`, 6 the copy; the text is built with the Rust versions
-//! of `strings::append_string_by_id` and `append_time`.
+//! Callers: `race::tyre_change_gauge` (twice), which calls the Rust version directly. The
+//! text is built with the Rust versions of `strings::append_string_by_id` and
+//! `append_time`.
 //! Refuses a text longer than the text buffer, and what its calls refuse.
 //! Shadow mode runs the original alone (it writes a surface). Self-test: a copy whose
 //! lock, unlock, draws, fills and copy go to stand-ins that note them (the lock failing or
@@ -35,15 +34,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
-use crate::race::frame::Part;
-
-pub const LOCK: u32 = 1;
-pub const UNLOCK: u32 = 2;
-pub const TEXT: u32 = 3;
-pub const BY_ID: u32 = 4;
-pub const FILL: u32 = 5;
-pub const COPY: u32 = 6;
+use crate::framework::{game_addr, game_read, game_write, rva};
 
 const TEXTURE: usize = 0x5BEBE0; // dword_5BEBE0
 const DEVICE_TEXTURE: usize = 0x5BEBE4; // dword_5BEBE4
@@ -60,7 +51,6 @@ const PALETTE: usize = 0x5BEC2C; // unk_5BEC2C
 const TEXT_BUFFER: usize = 0x93E430; // text
 const CLIP_LEFT: usize = 0x4F503C; // g_clipLeft
 const CLIP_RIGHT: usize = 0x4F5040; // g_clipRight
-const COPY_RVA: usize = rva(0x41A8F9); // d3d::copy_to_device_texture
 
 fn g(x: usize) -> u32 {
     unsafe { game_read(rva(x)) }
@@ -90,96 +80,88 @@ unsafe fn build_text(id: u32, time: Option<u32>) -> Result<(), Refused> {
     Ok(())
 }
 
-/// The rectangle at `dword_5C2A1C` and its fill (eax 0, ebx it, esi the palette).
-fn fill(
-    w: &mut Regs,
-    part: &mut Part,
-    x: u32,
-    y: u32,
-    width: u32,
-    height: u32,
-) -> Result<(), Refused> {
-    w.eax = 0;
-    w.ebx = a(RECT);
-    w.esi = a(PALETTE);
+/// The rectangle at `dword_5C2A1C` filled with colour 0 (`gfx::fill_rect`, palette
+/// `unk_5BEC2C`).
+fn fill(x: u32, y: u32, width: u32, height: u32) -> Result<(), Refused> {
     for (k, v) in [x, y, width, height].into_iter().enumerate() {
         p(RECT + 4 * k, v);
     }
-    part(FILL, w)
+    unsafe { crate::gfx::rect::fill_rect(a(RECT), 0, a(PALETTE)) }
 }
 
-/// A text drawn three times, each 0x78 to the left and a line down.
-fn three_times(w: &mut Regs, part: &mut Part, x: u32, y: u32) -> Result<(), Refused> {
-    w.eax = a(FONT);
+/// A text (`text::draw_text_keep_regs` on the game's surface) in `font` at (`x`, `y`).
+fn text(font: u32, text: u32, x: u32, y: u32) -> Result<(), Refused> {
+    unsafe { crate::race::name_plates::draw_text_in_game(font, text, x, y) }?;
+    Ok(())
+}
+
+/// The text buffer drawn three times, each 0x78 to the left and a line down.
+fn three_times(x: u32, y: u32) -> Result<(), Refused> {
     p(FONT + 0x1C, 0x168);
-    w.ebx = a(TEXT_BUFFER);
-    w.ecx = x;
-    w.edx = y;
-    part(TEXT, w)?;
+    let (mut x, mut y) = (x, y);
+    text(a(FONT), a(TEXT_BUFFER), x, y)?;
     for _ in 0..2 {
-        w.ecx = w.ecx.wrapping_sub(0x78);
-        w.edx = w.edx.wrapping_add(g(LINE));
-        part(TEXT, w)?;
+        x = x.wrapping_sub(0x78);
+        y = y.wrapping_add(g(LINE));
+        text(a(FONT), a(TEXT_BUFFER), x, y)?;
     }
     Ok(())
 }
 
-/// The steps on `r` (it leaves ebp = esi).
-pub unsafe fn draw_tyre_change_in(r: &mut Regs, mut part: Part) -> Result<(), Refused> {
-    let device = r.esi;
+/// The Rust version, for the device `device` (esi). The registers it leaves (ebp = esi,
+/// the copy's flags) are read by no caller.
+pub unsafe fn draw_tyre_change(device: u32) -> Result<(), Refused> {
     let clips = (g(CLIP_LEFT), g(CLIP_RIGHT));
-    r.ebp = device;
-    let mut w = *r;
     let done = (|| -> Result<(), Refused> {
-        w.eax = g(TEXTURE);
-        part(LOCK, &mut w)?;
-        if !w.carry() && g(DRAWN) != 1 {
-            for (n, (id, font, x, y)) in [
-                (0x129u32, FONT, 4u32, 0x80u32),
-                (0x12A, FONT_B, 0xFC, 0),
-                (0x12B, FONT_C, 0x84, 0),
+        let failed = unsafe { crate::d3d::lock_texture::lock_texture(g(TEXTURE)) }?.carry;
+        if !failed && g(DRAWN) != 1 {
+            let mut y = 0u32;
+            for (n, (id, font, x)) in [
+                (0x129u32, FONT, 4u32),
+                (0x12A, FONT_B, 0xFC),
+                (0x12B, FONT_C, 0x84),
             ]
             .into_iter()
             .enumerate()
             {
-                w.eax = id;
-                w.ebx = a(font);
-                w.ecx = x;
                 match n {
                     0 => {
                         p(FONT + 0x1C, 0xF8);
-                        w.edx = y;
+                        y = 0x80;
                     }
-                    1 => w.edx = 0,
-                    _ => w.edx = w.edx.wrapping_add(g(LINE)),
+                    1 => y = 0,
+                    _ => y = y.wrapping_add(g(LINE)),
                 }
-                part(BY_ID, &mut w)?;
+                unsafe {
+                    crate::text::draw_string_by_id::draw_string_by_id_at(
+                        id,
+                        a(font) as *mut crate::text::font::Font,
+                        x as i32,
+                        y as i32,
+                        &mut crate::text::draw_text::GameCanvas,
+                    )
+                }?;
                 if n == 0 {
                     p(CLIP_LEFT, 0x80);
                 }
             }
         }
         p(CLIP_LEFT, 0x80);
-        fill(&mut w, &mut part, 0x80, 0x32, 0x80, 0x4B)?;
+        fill(0x80, 0x32, 0x80, 0x4B)?;
         unsafe { build_text(0x12E, Some(g(RECORD))) }?;
-        three_times(&mut w, &mut part, 0x84, 0x32)?;
+        three_times(0x84, 0x32)?;
         p(CLIP_LEFT, 0);
-        fill(&mut w, &mut part, 0, 0x99, 0x100, 0x19)?;
-        w.eax = a(FONT);
+        fill(0, 0x99, 0x100, 0x19)?;
         p(FONT + 0x1C, 0xF8);
-        w.ebx = a(RECORD_NAME);
-        w.ecx = 4;
-        w.edx = 0x99;
-        part(TEXT, &mut w)?;
-        if g(PLAYER) == 0 {
-            w.ecx = 0;
+        text(a(FONT), a(RECORD_NAME), 4, 0x99)?;
+        let x = if g(PLAYER) == 0 {
             p(CLIP_RIGHT, 0x7F);
+            0
         } else {
-            w.ecx = 0x80;
             p(CLIP_LEFT, 0x80);
-        }
-        let x = w.ecx;
-        fill(&mut w, &mut part, x, 0xB2, 0x80, 0x4B)?;
+            0x80
+        };
+        fill(x, 0xB2, 0x80, 0x4B)?;
         let state = unsafe { ((device + 0x4F0) as *const u32).read_unaligned() };
         if state == 1 {
             let time = unsafe { ((device + 0x4F4) as *const u32).read_unaligned() };
@@ -187,52 +169,14 @@ pub unsafe fn draw_tyre_change_in(r: &mut Regs, mut part: Part) -> Result<(), Re
         } else {
             unsafe { build_text(0x12C, None) }?;
         }
-        three_times(&mut w, &mut part, x.wrapping_add(4), 0xB2)?;
-        w.eax = g(TEXTURE);
-        part(UNLOCK, &mut w)?;
-        w.eax = g(TEXTURE);
-        w.ebx = g(DEVICE_TEXTURE);
-        part(COPY, &mut w)?;
+        three_times(x.wrapping_add(4), 0xB2)?;
+        unsafe { crate::d3d::unlock_texture::unlock_texture(g(TEXTURE)) }?;
+        // The platform's (Direct3D).
+        crate::d3d::copy_to_device_texture::copy_to_device_texture(g(TEXTURE), g(DEVICE_TEXTURE));
         p(DRAWN, 1);
         Ok(())
     })();
     p(CLIP_LEFT, clips.0);
     p(CLIP_RIGHT, clips.1);
-    done?;
-    r.eflags = w.eflags;
-    Ok(())
-}
-
-/// The calls in the game: the Rust versions, the copy the platform's.
-pub fn draw_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    unsafe {
-        match place {
-            LOCK => {
-                let g = crate::d3d::lock_texture::lock_texture(r)?;
-                r.eflags = g.eflags;
-            }
-            UNLOCK => {
-                let g = crate::d3d::unlock_texture::unlock_texture(r)?;
-                r.eflags = g.eflags;
-            }
-            TEXT => crate::race::name_plates::text_in_game(r)?,
-            BY_ID => {
-                crate::text::draw_string_by_id::draw_string_by_id_at(
-                    r.eax,
-                    r.ebx as *mut crate::text::font::Font,
-                    r.ecx as i32,
-                    r.edx as i32,
-                    &mut crate::text::draw_text::GameCanvas,
-                )?;
-            }
-            FILL => crate::gfx::rect::fill_rect(r.ebx, r.eax, r.esi)?,
-            _ => {
-                // The platform's (Direct3D): called in the game.
-                let mut c = *r;
-                crate::calls::call(COPY_RVA, &mut c);
-                r.eflags = c.eflags;
-            }
-        }
-    }
-    Ok(())
+    done
 }

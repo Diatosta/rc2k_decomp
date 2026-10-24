@@ -11,7 +11,7 @@
 //! (`dword_5D1E10`) and `g_polygonVertexCount` 4.
 //!
 //! In:  nothing (`g_marksSettings`)
-//! Out: the registers as the path leaves them
+//! Out: nothing (its caller reads no register after it)
 //!
 //! Caller: `sub_4C74DA` (0x4C7539). The x87 runs are the original's instructions over the
 //! game's variables; the vector helpers their Rust versions; its other calls through
@@ -26,7 +26,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::marks::setup::SETTINGS_RVA;
 use crate::math::x87;
 use crate::scene::cross_product3::cross_product3;
@@ -202,9 +202,8 @@ unsafe fn point_turned(b: u32, p: u32) {
     }
 }
 
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn hexagons_top(entry: &Regs) -> Result<Regs, Refused> {
-    let mut g = *entry;
+/// The Rust version (see the header).
+pub unsafe fn hexagons_top() -> Result<(), Refused> {
     unsafe {
         let s: u32 = game_read(SETTINGS_RVA);
         if s == 0 {
@@ -212,24 +211,19 @@ pub unsafe fn hexagons_top(entry: &Regs) -> Result<Regs, Refused> {
         }
         let b = addr(0);
         game_write(BUFFER_RVA, addr(BUFFER_START));
-        g.esi = s;
         frame_axes(b, s);
         let [a0, a1, a2] = AXES.map(addr);
         normalise_vector3(a0);
         frame_up(b, s);
         normalise_vector3(a1);
-        [g.esi, g.edi, g.ebp] = [a1, a0, a2];
         cross_product3(a1, a0, a2)?;
         normalise_vector3(a2);
-        [g.esi, g.edi, g.ebp] = [a0, a2, a1];
         cross_product3(a0, a2, a1)?;
-        g.esi = s;
         frame_place(b, s);
         normalise_vector3(addr(PLACE_RVA));
-        [g.esi, g.edi] = [addr(PLACE_RVA), a2];
         frame_facing(b);
         if game_read::<u32>(FACING_RVA) & 0x8000_0000 == 0 {
-            return Ok(g);
+            return Ok(());
         }
         let [kx, ky] = SHARES.map(|r| game_read::<u32>(r));
         for n in 0..POINTS as usize {
@@ -242,56 +236,28 @@ pub unsafe fn hexagons_top(entry: &Regs) -> Result<Regs, Refused> {
         for n in 0..POINTS {
             point_turned(b, addr(SCALED_RVA) + 12 * n);
         }
-        [g.esi, g.edi] = [
-            addr(SCALED_RVA) + 12 * POINTS,
-            addr(SCALED_RVA) + 12 * POINTS,
-        ];
-        g.eax = POINTS;
         if game_read::<u32>(RATE_RVA) != 0 {
-            crate::marks::hexagons_top::game_part(1, &mut g)?;
+            crate::marks::hexagons_frame::hexagons_frame()?;
             let at_now: u32 = game_read(BUFFER_RVA);
             if at_now != addr(BUFFER_START) {
-                g.eax = x87::int_over_int_to_int(
+                let quads = x87::int_over_int_to_int(
                     at_now.wrapping_sub(addr(BUFFER_START)) as i32,
                     game_read(PER_VERTEX_RVA),
                 ) as u32;
                 game_write(BUFFER_RVA, addr(BUFFER_START));
-                g.ebx = g.eax.wrapping_mul(6);
-                g.eax = g.eax.wrapping_mul(12);
-                game_write(BATCH[0], g.eax);
-                game_write(BATCH[1], g.ebx);
-                crate::marks::hexagons_top::game_part(2, &mut g)?;
+                game_write(BATCH[0], quads.wrapping_mul(12));
+                game_write(BATCH[1], quads.wrapping_mul(6));
+                crate::marks::hexagons_frame::draw_batch()?;
             }
-            g.esi = game_read(SETTINGS_RVA);
-            if ((g.esi + 0x2744) as *const u32).read_unaligned() != 0
+            let settings: u32 = game_read(SETTINGS_RVA);
+            if ((settings + 0x2744) as *const u32).read_unaligned() != 0
                 && game_read::<u32>(DRIFTING_RVA) != 0
             {
-                crate::marks::hexagons_top::game_part(3, &mut g)?;
+                crate::marks::hexagons_step::hexagons_step();
             }
         }
-        g.eax = game_read(TEXTURE_RVA);
-        crate::marks::hexagons_top::game_part(4, &mut g)?;
+        crate::scene::set_texture::set_texture(game_read(TEXTURE_RVA));
         game_write(COUNT_RVA, 4u32);
-    }
-    Ok(g)
-}
-
-/// In the game: the calls' Rust versions (the batch's draw through the game).
-pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    use crate::marks::{hexagons_frame, hexagons_step};
-    unsafe {
-        match place {
-            1 => {
-                let left = hexagons_frame::hexagons_frame(r)?;
-                *r = Regs { esp: r.esp, ..left };
-            }
-            2 => crate::calls::call(rva(0x41ADB9), r),
-            3 => {
-                let left = hexagons_step::hexagons_step(r);
-                *r = Regs { esp: r.esp, ..left };
-            }
-            _ => crate::scene::set_texture::set_texture(r.eax),
-        }
     }
     Ok(())
 }

@@ -8,8 +8,7 @@
 //! `lea ebx` and a call.
 //!
 //! In:  nothing (`g_marksSettings`)
-//! Out: eax the cars' count, ebx `g_marksLinksList`, ebp the last car's +0x29C (the
-//!      settings when there is none); the rest kept
+//! Out: nothing (the stage's unload reads no register it leaves)
 //!
 //! `sub_4D06F3` tests `memory::free_list`'s carry (`jb`), which is always clear (its last
 //! flag-setting instruction is a `test`), so its other path (a `push` left on the stack
@@ -27,10 +26,10 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, rva};
+use crate::framework::{game_addr, game_read, rva};
 use crate::marks::lines::{SETTINGS_RVA, TAKEN_RVA};
 use crate::memory::free_list::free_list;
-use crate::memory::{MemoryList, OWN_HEAP_RVA};
+use crate::memory::{MemoryList, own_heap};
 
 const CAR_LEN: u32 = 0x4C8;
 const CAR_PART: u32 = 0x29C; // `sub_4D06F3`'s ebp: the car's +0x29C
@@ -63,9 +62,8 @@ unsafe fn all_lists(settings: u32) -> Vec<u32> {
     }
 }
 
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn tidy_marks(entry: &Regs) -> Result<Regs, Refused> {
-    let mut g = *entry;
+/// The Rust version (see the header).
+pub unsafe fn tidy_marks() -> Result<(), Refused> {
     unsafe {
         let settings: u32 = game_read(SETTINGS_RVA);
         if settings == 0 {
@@ -75,7 +73,7 @@ pub unsafe fn tidy_marks(entry: &Regs) -> Result<Regs, Refused> {
         if !(0..=MOST_CARS).contains(&count) {
             return Err(BadInput("a cars' count below 0 or above 8").into());
         }
-        if game_read::<u32>(OWN_HEAP_RVA) == 1
+        if own_heap() == 1
             && all_lists(settings)
                 .iter()
                 .any(|&l| (*(l as *const MemoryList)).head != 0)
@@ -84,18 +82,14 @@ pub unsafe fn tidy_marks(entry: &Regs) -> Result<Regs, Refused> {
                 BadInput("the game's own heap is in use with a list holding blocks").into(),
             );
         }
-        g.ebp = settings;
         for n in 0..count as u32 {
-            g.ebp = settings + n * CAR_LEN + CAR_PART;
-            g.ebx = g.ebp + 0x4C;
-            free_list(g.ebx as *mut MemoryList)?;
-            ((g.ebp + 0x8C) as *mut u32).write_unaligned(game_read(TAKEN_RVA));
+            let car = settings + n * CAR_LEN + CAR_PART;
+            free_list((car + 0x4C) as *mut MemoryList)?;
+            ((car + 0x8C) as *mut u32).write_unaligned(game_read(TAKEN_RVA));
         }
-        g.eax = count as u32;
         for a in LISTS_RVA {
-            g.ebx = game_addr(a) as u32;
-            free_list(g.ebx as *mut MemoryList)?;
+            free_list(game_addr(a) as *mut MemoryList)?;
         }
     }
-    Ok(g)
+    Ok(())
 }

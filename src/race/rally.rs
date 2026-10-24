@@ -2,7 +2,7 @@
 //! (`race::copy_rally_times`).
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, rva};
+use crate::framework::{game_addr, rva};
 
 fn at(a: usize) -> u32 {
     game_addr(rva(a)) as u32
@@ -59,9 +59,9 @@ pub unsafe fn rally_times_places() -> Option<(u32, u32)> {
 /// the race's (0x50 each, `dword_7556F4`): +0xC, +4, +8, +0 from +0x14, +8, +0x10, +0xC
 /// and 0x40 bytes from +0x5C at +0x10; each logged (the count, "GB_Timed", the sixteen
 /// "CTs", "GB_Shaun", the name, the sixteen again, rules). Every register kept. Refuses,
-/// before anything, a null pointer on the way (the original reads through it).
-pub unsafe fn copy_rally_times(entry: &Regs) -> Result<Regs, Refused> {
-    let g = entry;
+/// before anything, a null pointer on the way (the original reads through it). The logs
+/// read only eax (their text or number).
+pub unsafe fn copy_rally_times() -> Result<(), Refused> {
     unsafe {
         let Some((mut esi, mut edi)) = rally_times_places() else {
             return Err(BadInput("a null pointer to the rally's times").into());
@@ -73,21 +73,7 @@ pub unsafe fn copy_rally_times(entry: &Regs) -> Result<Regs, Refused> {
             for (k, &v) in time.iter().enumerate() {
                 put(edi + 4 * k as u32, v);
             }
-            let eax = time[0];
-            // The registers inside each `pusha`: the loop's, eax as last loaded.
-            // ebx `dword_7558D0` from the way in (the times' place).
-            let regs = Regs {
-                eax,
-                ebx: get(at(0x7558D0)),
-                ecx,
-                esi,
-                edi,
-                ..*g
-            };
-            let log = |place: u32, value: u32| -> Result<(), Refused> {
-                let mut r = Regs { eax: value, ..regs };
-                crate::race::rally::log_part(place, &mut r)
-            };
+            let log = |place: u32, value: u32| -> Result<(), Refused> { log_part(place, value) };
             let word = |n: usize| at(WORDS[n]);
             log(WRITE_NL, word(0))?;
             log(WRITE_NL, word(1))?;
@@ -126,16 +112,16 @@ pub unsafe fn copy_rally_times(entry: &Regs) -> Result<Regs, Refused> {
             }
         }
     }
-    Ok(*g)
+    Ok(())
 }
 
 /// The log calls in the game.
-pub fn log_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
+fn log_part(place: u32, value: u32) -> Result<(), Refused> {
     use crate::logfile::{log_int::log_int, log_write::log_write};
     unsafe {
         match place {
-            WRITE | WRITE_NL => log_write(r.eax as *const u8, place == WRITE_NL, 1),
-            _ => log_int(r.eax as i32, place == INT_NL, 1),
+            WRITE | WRITE_NL => log_write(value as *const u8, place == WRITE_NL, 1),
+            _ => log_int(value as i32, place == INT_NL, 1),
         }
     }
     Ok(())

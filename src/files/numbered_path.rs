@@ -12,17 +12,15 @@
 //! registers above are the original's, for reference.
 
 use crate::errors::{BadInput, FatalError, Refused};
-use crate::framework::{game_ptr, rva};
 use std::ffi::{CStr, c_char};
 use std::ptr::copy_nonoverlapping;
 
 // ---- game data ----
 
-const BUFFER_RVA: usize = rva(0x94E8B0); // byte_94E8B0
 const BUFFER_LEN: usize = 0x100; // up to the path buffer at 0x94E9B0
 
 pub fn buffer() -> *mut u8 {
-    game_ptr(BUFFER_RVA)
+    crate::files::state::PATHS.ptr().cast()
 }
 
 // ---- Rust version ----

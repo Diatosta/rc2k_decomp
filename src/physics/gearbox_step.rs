@@ -13,23 +13,19 @@
 //! Refuses what the steps refuse; what was written is put back.
 //! Self-test: `physics/gearbox.rs` (`test_gearbox`), with gears asked for and not.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::math::x87;
-use crate::physics::auto_gearbox::auto_gearbox_in;
+use crate::physics::auto_gearbox::auto_gearbox;
 use crate::physics::gearbox::*;
-use crate::physics::manual_gearbox::manual_gearbox_in;
+use crate::physics::manual_gearbox::manual_gearbox;
 use crate::physics::take_asked_gear::take_asked_gear;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 /// The steps on `r`.
 // Converted: `rc2k_core::physics::gearbox::gearbox_turn`.
-pub fn gearbox_step_in(r: &mut Regs) -> Result<(), Refused> {
+pub fn gearbox_step() -> Result<(), Refused> {
     use rc2k_core::physics::gearbox::{GearboxTurn, gearbox_turn};
     let turn = gearbox_turn(
         g(0x71A080),
@@ -41,30 +37,15 @@ pub fn gearbox_step_in(r: &mut Regs) -> Result<(), Refused> {
     );
     match turn {
         GearboxTurn::Idle => {}
-        GearboxTurn::Manual => manual_gearbox_in(r)?,
+        GearboxTurn::Manual => manual_gearbox()?,
         GearboxTurn::Asked => {
-            unsafe { take_asked_gear() }?.apply(r);
+            unsafe { take_asked_gear() }?;
             return Ok(());
         }
-        GearboxTurn::Auto => auto_gearbox_in(r)?,
+        GearboxTurn::Auto => auto_gearbox()?,
     }
     if g(CHANGED) == 1 {
         p(ENGINE, x87::mul(g(ENGINE), g(0x613E9C)));
     }
-    wheels(r)
-}
-
-/// The Rust version.
-pub unsafe fn gearbox_step(entry: &Regs) -> Result<Left, Refused> {
-    guarded(entry, &gearbox_step_in)
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { gearbox_step(r) }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
+    wheels()
 }

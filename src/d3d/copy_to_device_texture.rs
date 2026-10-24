@@ -13,10 +13,7 @@
 //! do it (`platform_3d::hold_texture`, as `scene::load_texture` there; before 2026-10-19
 //! the standalone skipped it: the viewer's panel did not show). No self-test.
 
-use crate::framework::Regs;
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    crate::platform_3d::hold_texture("d3d::copy_to_device_texture", r.eax, r.ebx);
-    Ok(())
+/// System texture `system`'s levels into video texture `video`.
+pub fn copy_to_device_texture(system: u32, video: u32) {
+    crate::platform_3d::hold_texture("d3d::copy_to_device_texture", system, video);
 }

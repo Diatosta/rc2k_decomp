@@ -7,30 +7,9 @@
 //! Caller: `sub_45CF95`.
 //! Self-test: `sound_bands::test_twin`.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
-use crate::errors::Refused;
-use crate::framework::Regs;
-use crate::physics::sound_bands::{Twin, band_plain};
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
+use crate::physics::sound_bands::Twin;
 
 pub const TWIN: Twin = (0x45D121, 0x71A19C, 0x6D1AE4, 1);
-
-/// The converted version (plain floats).
-// Converted: `rc2k_core::physics::sound_bands::sound_band`.
-pub unsafe fn sound_band_4_plain() -> Left {
-    unsafe { band_plain(TWIN) }
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    Ok(unsafe { sound_band_4_plain() })
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
-}

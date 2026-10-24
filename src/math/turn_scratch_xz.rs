@@ -10,52 +10,61 @@
 //! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; the
 //! registers above are the original's, for reference.
 
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, rva};
 
-pub const Z_RVA: usize = rva(0x5C5F4C); // dword_5C5F4C
-pub const X_RVA: usize = rva(0x5C5F50); // dword_5C5F50
-pub const Y_RVA: usize = rva(0x5C5F54); // dword_5C5F54
+/// The scratch point (`g_scratchZ`, `X`, `Y`: 0x5C5F4C .. in the image until 2026-10-24):
+/// written and read back by each of the four that turn a point (their other users,
+/// 0x41FEA2 .. 0x41FEF0, are unreached), so now each one's local.
+#[derive(Clone, Copy, Default)]
+#[repr(C)]
+pub struct Scratch {
+    pub z: u32,
+    pub x: u32,
+    pub y: u32,
+}
+
+// Still the image's: `scene::fill_engine_tables` makes them, many read them.
 const SINES_RVA: usize = rva(0xA23AE4); // g_sines
 const COSINES_RVA: usize = rva(0xA24AE4); // g_cosines
 
 /// `math::turn_scratch_xz` exactly as the original (the x87, at whatever precision it is
 /// set to): what the Rust callers in modules not yet converted use, so that their own
 /// comparisons stay exact. The entry left in edx.
-pub unsafe fn turn_scratch_xz(angle: u32) -> u32 {
+pub unsafe fn turn_scratch_xz(point: &mut Scratch, angle: u32) -> u32 {
     let entry = angle.wrapping_add(0x8_0000) >> 20;
     unsafe {
-        x87_turn(entry);
+        x87_turn(point, entry);
     }
     entry
 }
 
-unsafe fn x87_turn(entry: u32) {
+unsafe fn x87_turn(point: &mut Scratch, entry: u32) {
     let a = |r: usize| game_addr(r + 4 * entry as usize);
     unsafe {
         crate::math::x87::turn_in_place(
             a(SINES_RVA) as *const u32,
             a(COSINES_RVA) as *const u32,
-            game_addr(X_RVA) as *mut u32,
-            game_addr(Z_RVA) as *mut u32,
+            &raw mut point.x,
+            &raw mut point.z,
         )
     };
 }
 
 /// The converted version (`rc2k_core::math::geometry`, plain floats): the hook's, and what
 /// converted callers use. The entry left in edx.
-pub unsafe fn turn_scratch_xz_plain(angle: u32) -> u32 {
+pub unsafe fn turn_scratch_xz_plain(point: &mut Scratch, angle: u32) -> u32 {
     use rc2k_core::math::geometry;
     let entry = geometry::turn_entry(angle);
     unsafe {
         let float = |rva: usize| f32::from_bits(game_read(rva));
         let (x, z) = geometry::turn_xz(
-            float(X_RVA),
-            float(Z_RVA),
+            f32::from_bits(point.x),
+            f32::from_bits(point.z),
             float(SINES_RVA + 4 * entry as usize),
             float(COSINES_RVA + 4 * entry as usize),
         );
-        game_write(X_RVA, x.to_bits());
-        game_write(Z_RVA, z.to_bits());
+        point.x = x.to_bits();
+        point.z = z.to_bits();
     }
     entry
 }

@@ -15,7 +15,6 @@ use crate::errors::Refused;
 use crate::framework::{game_addr, game_read, rva};
 use crate::menu::disable_item::disable_item;
 use crate::menu::enable_item::enable_item;
-use crate::screens::harness::Left;
 use crate::text::draw_text::Canvas;
 
 fn k(a: u32) -> u32 {
@@ -34,10 +33,10 @@ const NAMES: [(u32, u32, i32); 8] = [
     (0x755668, 0x394, 8),
 ];
 
-/// The Rust version: the registers the last name leaves.
-pub unsafe fn draw_graphics_settings(canvas: &mut dyn Canvas) -> Result<Left, Refused> {
+/// The Rust version (the registers the last name leaves: the menus read none of them).
+pub unsafe fn draw_graphics_settings(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     // Converted: `rc2k_core::screens::settings_pages::{graphics_item, graphics}`.
-    use crate::screens::game_screen::{SettingsScreen, left_of};
+    use crate::screens::game_screen::SettingsScreen;
     unsafe {
         if rc2k_core::screens::settings_pages::graphics_item(k(0x4F50D4), k(0x4F50D8)) {
             enable_item(2)?;
@@ -47,11 +46,11 @@ pub unsafe fn draw_graphics_settings(canvas: &mut dyn Canvas) -> Result<Left, Re
         let mode = game_addr(rva(0x4F50E8)) as u32 + 0x10 * k(0x4F50C8);
         let v = |i: u32| ((mode + 4 * i) as *const u32).read_unaligned();
         let ids = NAMES.map(|(setting, first, _)| k(setting).wrapping_add(first));
-        let out = rc2k_core::screens::settings_pages::graphics(
+        rc2k_core::screens::settings_pages::graphics(
             &mut SettingsScreen::new(canvas),
             ids,
             [v(0), v(1), v(2)],
         )?;
-        Ok(left_of(out))
+        Ok(())
     }
 }

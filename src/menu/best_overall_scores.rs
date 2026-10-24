@@ -14,7 +14,8 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
+use crate::menu::screen_loop::{Carried, run_screen};
 use crate::menu::standings::*;
 
 const CURRENT_RVA: usize = rva(0x75598C); // dword_75598C
@@ -23,50 +24,31 @@ const ENTERED_RVA: usize = rva(0x755920); // dword_755920
 // dword_7558F8
 // g_yesNoAnswer
 
-/// A call by place: 1 the page.
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
 /// The Rust version (see the header): the registers it leaves.
-pub unsafe fn best_overall_scores(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub unsafe fn best_overall_scores(c: &Carried) -> Result<(), Refused> {
     unsafe {
         let players = counted_players()?;
         let table: u32 = game_read(BEST_SCORES_RVA);
         if table == 0 {
             return Err(BadInput("no best-score table").into());
         }
-        let mut g = *entry;
+        let mut g = *c;
         game_write(ENTERED_RVA, 0u32);
         for (n, &p) in players.iter().enumerate() {
             game_write(CURRENT_RVA, n as u32);
-            g.eax = get(p + 0xCC);
-            g.ebx = 4 * 0x258 + 0x21C;
-            g.esi = table + g.ebx;
+            g.arg = get(p + 0xCC);
+            g.palette = 4 * 0x258 + 0x21C;
+            g.cars = table + g.palette;
             // Converted: `rc2k_core::menu::bests::makes_score`.
-            if rc2k_core::menu::bests::makes_score(g.eax, get(g.esi + 0x38)) {
+            if rc2k_core::menu::bests::makes_score(g.arg, get(g.cars + 0x38)) {
                 enter_best(Some(4), 0xCC)?;
                 game_write(ENTERED_RVA, 1u32);
             }
         }
-        g.ecx = players.len() as u32;
+        g.measure_x = players.len() as u32;
         if game_read::<u32>(ENTERED_RVA) == 1 {
-            let mut r = g;
-            part(1, &mut r)?;
+            run_screen(&crate::menu::best_overall_scores_loop::SCREEN, &g)?;
         }
     }
-    Ok(*entry)
-}
-
-/// In the game: the page's Rust version.
-pub fn game_part(_place: u32, r: &mut Regs) -> Result<(), Refused> {
-    unsafe {
-        crate::menu::screen_loop::run_screen(&crate::menu::best_overall_scores_loop::SCREEN, r)
-    };
-    Ok(())
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { best_overall_scores(r, &mut game_part) }?;
-    *r = Regs { esp: r.esp, ..left };
     Ok(())
 }

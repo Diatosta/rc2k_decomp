@@ -64,8 +64,6 @@ const CLEARED_RVA: usize = rva(0x624138); // dword_624138: the rectangle to clea
 const SCREEN_WIDTH_RVA: usize = rva(0x4F494C); // g_screenWidth
 const SCREEN_HEIGHT_RVA: usize = rva(0x4F4950); // g_screenHeight
 const RELEASE_TEXT_RVA: usize = rva(0x5C2DDF); // "SVM: Release all textures"
-const SET_STATE_RVA: usize = rva(0x41AB5B); // d3d::set_render_state
-const SET_TEXTURE_RVA: usize = rva(0x41ACF5); // d3d::set_texture
 const NO_TEXTURE: u32 = 0xFFFF_FC43;
 /// A `DDERR`, for a surface that is not there.
 const NOT_THERE: i32 = 0x8876_0000u32 as i32 | 0x1C2;
@@ -709,6 +707,21 @@ pub unsafe fn draw_indexed_list(vertices: u32, vertex_count: u32, indices: u32, 
     }
 }
 
+/// `sub_41ADF5` (`d3d::draw_indexed`), the platform's draw of the race's batches: the same
+/// call as `draw_indexed_list` (DrawIndexedPrimitive, type 4, flags 0x1C; the original takes
+/// edx the index count, ecx the indices, eax the vertex count, ebx the vertices). Returns
+/// Direct3D's result: 0, drawn. Its edx leftover is read by no caller (`lq.py -s`: the
+/// three sites read eax only, as `race::flush_draw_batch` and the two batch flushes do).
+pub unsafe fn draw_indexed(
+    vertices: u32,
+    vertex_count: u32,
+    indices: u32,
+    index_count: u32,
+) -> u32 {
+    unsafe { draw_indexed_list(vertices, vertex_count, indices, index_count) };
+    0
+}
+
 // ---- gfx::allocate_textures (0x4051ED) ----
 
 static ALLOCATE_ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -844,6 +857,27 @@ extern "C" fn allocate(r: &mut Regs) {
     }
 }
 
+/// `gfx::allocate_textures` for Rust callers, as a call by its address: the first new
+/// video and system textures' numbers; a failure raises its fatal error (`allocate`).
+pub fn allocate_textures_for(
+    video: u32,
+    system: u32,
+    sizes: u32,
+    kind: u32,
+    mips: u32,
+) -> (u32, u32) {
+    let mut r = Regs {
+        eax: video,
+        ebx: system,
+        ecx: sizes,
+        edx: kind,
+        ebp: mips,
+        ..Regs::default()
+    };
+    allocate(&mut r);
+    (r.eax, r.ebx)
+}
+
 /// `gfx::allocate_textures`: `video` textures more in the video pool and `system` in the
 /// system one, of the sizes (`sizes`: the width's number in the low byte, with 0x1000 the
 /// height's in the next), pixel kind (`kind`) and, with mipmaps on, `mips` levels more;
@@ -910,6 +944,11 @@ unsafe fn release_pool(pool: usize) {
 }
 
 extern "C" fn release(_r: &mut Regs) {
+    release_textures();
+}
+
+/// `gfx::release_all_textures` for Rust callers, as a call by its address.
+pub fn release_textures() {
     RELEASE.count_call();
     release_all_textures();
 }
@@ -939,8 +978,14 @@ hook_asm!(load_thunk, dispatch = load);
 /// eax = the system texture, ebx = the video one: the video one holds it, level for
 /// level where both have the level.
 extern "C" fn load(r: &mut Regs) {
+    load_texture(r.eax, r.ebx);
+}
+
+/// `scene::load_texture` for Rust callers: video texture `video` holds system texture
+/// `system`. Every register kept.
+pub fn load_texture(system: u32, video: u32) {
     LOAD.count_call();
-    hold_texture("scene::load_texture", r.eax, r.ebx);
+    hold_texture("scene::load_texture", system, video);
 }
 
 /// Video texture `video` made to hold system texture `system` (`scene::load_texture`,
@@ -1004,26 +1049,28 @@ const BEGIN_STATES: [(u32, u32); 12] = [
 ];
 
 extern "C" fn begin(r: &mut Regs) {
+    begin_layer();
+    r.eax = 0;
+    r.set_carry(false);
+    r.set_zero(true);
+}
+
+/// `d3d::begin_scene` for Rust callers: the layer's states at a scene's beginning, no
+/// texture set. It cannot fail (the original leaves eax 0, the carry clear, zero set).
+pub fn begin_layer() {
     BEGIN.count_call();
     unsafe {
         game_write(IN_SCENE_RVA, 1u32);
-        let mut work = *r;
         for (value, state) in BEGIN_STATES
             .into_iter()
             .chain([(game_read(FOG_STATE_RVA), 0x1A)])
         {
-            work.eax = value;
-            work.ebx = state;
-            crate::calls::call(SET_STATE_RVA, &mut work);
+            crate::d3d::set_render_state::set_render_state(value, state);
         }
         // `sub_41ACDE`: no texture is the current one, then none is set.
         game_write(CURRENT_TEXTURE_RVA, 0xFFFF_FC44u32);
-        work.eax = NO_TEXTURE;
-        crate::calls::call(SET_TEXTURE_RVA, &mut work);
-        r.eax = 0;
+        crate::d3d::set_texture::set_texture(NO_TEXTURE);
     }
-    r.set_carry(false);
-    r.set_zero(true);
 }
 
 static END_ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -1031,16 +1078,25 @@ static END: RawHook = RawHook::new("d3d::end_scene", rva(0x41AB8A), end_thunk, &
 hook_asm!(end_thunk, dispatch = end);
 
 extern "C" fn end(r: &mut Regs) {
+    if end_layer() {
+        r.eax = 0;
+        r.set_zero(true);
+    }
+    r.set_carry(false);
+}
+
+/// `d3d::end_scene` for Rust callers: true when a scene was open and is ended (the
+/// original then leaves eax 0 and the zero flag set; the carry always clear).
+pub fn end_layer() -> bool {
     END.count_call();
     flush();
     unsafe {
         if game_read::<u32>(IN_SCENE_RVA) == 1 {
             game_write(IN_SCENE_RVA, 0u32);
-            r.eax = 0;
-            r.set_zero(true);
+            return true;
         }
     }
-    r.set_carry(false);
+    false
 }
 
 // ---- d3d::clear_viewport (0x44E9D9) ----
@@ -1086,11 +1142,17 @@ pub fn with_depth<R>(f: impl FnOnce(&mut Depth) -> R) -> R {
 }
 
 extern "C" fn clear(r: &mut Regs) {
+    clear_viewport();
+    r.eax = 0;
+}
+
+/// `d3d::clear_viewport` for Rust callers: the depth buffer cleared over the rectangle
+/// `CLEARED_RVA` holds (the original leaves eax 0).
+pub fn clear_viewport() {
     CLEAR.count_call();
     let [left, top, right, bottom]: [i32; 4] = unsafe { game_read(CLEARED_RVA) };
     let c = |v: i32| v.max(0) as usize;
     note(Noted::Clear([c(left), c(top), c(right), c(bottom)]));
-    r.eax = 0;
 }
 
 /// `platform::by_address` for the 3D hooks.

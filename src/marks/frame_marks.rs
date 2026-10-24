@@ -7,8 +7,7 @@
 //! cycles this step took over the frame's, by `flt_93C8C0`.
 //!
 //! In:  nothing (`g_marksSettings`)
-//! Out: the registers as `view_frame` leaves them (edx before the calls the counter's high
-//!      half)
+//! Out: nothing (no caller reads the registers it leaves: none after 0x446403, 0x456464)
 //!
 //! Callers: race init (0x446403) and 0x456464. Refuses null settings before anything, and
 //! its steps' refusals (all it may write is put back first). Shadow mode and the
@@ -20,11 +19,10 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 use crate::marks::lines::SETTINGS_RVA;
 use crate::marks::{morph_object_points, scale_vectors_by, view_frame};
 use crate::math::x87;
-use crate::service::harness::{Region, at};
 
 const LAST_RVA: usize = rva(0x765110); // dword_765110
 const FRAME_CYCLES_RVA: usize = rva(0x765114); // dword_765114
@@ -44,51 +42,24 @@ fn rdtsc() -> (u32, u32) {
     (t as u32, (t >> 32) as u32)
 }
 
-/// What it may write but the timing variables.
-fn regions() -> Vec<Region> {
-    let settings: u32 = unsafe { game_read(SETTINGS_RVA) };
-    let mut r: Vec<Region> = COPIES.map(|c| at(c.1)).to_vec();
-    r.push(at(STEPS_RVA));
-    if settings != 0 {
-        r.push((settings + 0x18, 4));
-    }
-    r.extend(scale_vectors_by::regions());
-    r.extend(morph_object_points::regions(settings));
-    r.extend(view_frame::regions());
-    r
-}
-
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn frame_marks(entry: &Regs) -> Result<Regs, Refused> {
+/// The Rust version (see the header).
+pub unsafe fn frame_marks() -> Result<(), Refused> {
     let settings: u32 = unsafe { game_read(SETTINGS_RVA) };
     if settings == 0 {
         return Err(BadInput("no marks settings").into());
     }
-    let mut written = regions();
-    written.extend([LAST_RVA, FRAME_CYCLES_RVA, SHARE_RVA].map(at));
-
-    unsafe { run(entry, settings) }
-}
-
-unsafe fn run(entry: &Regs, settings: u32) -> Result<Regs, Refused> {
-    let mut g = *entry;
     unsafe {
         let (start, _) = rdtsc();
-        let (now, high) = rdtsc();
-        g.ebx = game_read(LAST_RVA);
+        let (now, _) = rdtsc();
+        let last: u32 = game_read(LAST_RVA);
         game_write(LAST_RVA, now);
-        g.eax = now.wrapping_sub(g.ebx);
-        g.edx = high;
-        game_write(FRAME_CYCLES_RVA, g.eax);
-        g.esi = settings;
+        game_write(FRAME_CYCLES_RVA, now.wrapping_sub(last));
         for (from, to) in COPIES {
-            g.eax = ((settings + from) as *const u32).read_unaligned();
-            game_write(to, g.eax);
+            game_write(to, ((settings + from) as *const u32).read_unaligned());
         }
         scale_vectors_by::scale_vectors_by();
-        g = morph_object_points::morph_object_points(&g)?;
-        g = view_frame::view_frame(&g)?;
-        g.esi = settings;
+        morph_object_points::morph_object_points()?;
+        view_frame::view_frame()?;
         ((settings + 0x18) as *mut u32).write_unaligned(0);
         game_write(STEPS_RVA, game_read::<u32>(STEPS_RVA).wrapping_add(1));
         let (end, _) = rdtsc();
@@ -99,5 +70,5 @@ unsafe fn run(entry: &Regs, settings: u32) -> Result<Regs, Refused> {
         );
         game_write(SHARE_RVA, share);
     }
-    Ok(g)
+    Ok(())
 }

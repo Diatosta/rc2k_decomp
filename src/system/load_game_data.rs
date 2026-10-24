@@ -29,7 +29,7 @@
 //! `routes.rs`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::menu::name_lists::{NAME_LEN, REPLAY_NAMES_RVA, SAVEGAME_NAMES_RVA};
 use crate::menu::remove_secret_cars::CHEATS_RVA;
 use crate::strings::append_string_by_id::push_string;
@@ -213,7 +213,7 @@ fn in_game(call: Call) -> Result<u32, Refused> {
                 crate::install::read_sku::PATH_RVA,
             ) as *const u8)?,
             Call::ReadDriverNames => crate::settings::read_driver_names::read_driver_names(
-                game_addr(crate::settings::read_driver_names::PATH_RVA) as *const u8,
+                crate::settings::read_driver_names::path(),
             )?,
             Call::ApplyPatches => crate::physics::apply_patches::apply_patches(),
             Call::RemoveSecretCars => crate::menu::remove_secret_cars::remove_secret_cars()?,
@@ -242,8 +242,7 @@ fn in_game(call: Call) -> Result<u32, Refused> {
     Ok(0)
 }
 
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(_: &mut Regs) -> Result<(), crate::errors::Refused> {
-    unsafe { load_game_data(&mut in_game) }?;
-    Ok(())
+/// The Rust version on the game's own calls.
+pub fn load_in_game() -> Result<(), Refused> {
+    unsafe { load_game_data(&mut in_game) }
 }

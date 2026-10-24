@@ -21,57 +21,51 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::physics::flow::{a, g, p};
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
 use rc2k_core::drive::roaming::{roam_distance, roam_turn};
 
 const B: usize = 0x70F3EC; // g_carBlockStore
 
-/// The Rust version.
+/// The Rust version. The registers it leaves are read by no caller (liveness: ecx, edi
+/// and esi after `drive::race_tick`'s call have no read point).
 // Converted: `rc2k_core::drive::roaming::{roam_distance, roam_turn}`.
-pub unsafe fn simple_car_step(entry: &Regs) -> Result<Left, Refused> {
-    let mut r = *entry;
+pub unsafe fn simple_car_step() -> Result<(), Refused> {
     unsafe {
-        crate::drive::car_input_words::car_input_words(&r)?.apply(&mut r);
-        let mut c = r;
-        crate::drive::read_car_controls::read_car_controls(&mut c)?;
-        r.eax = c.eax;
-        r.esi = c.esi;
-        crate::drive::steer_inputs::steer_inputs(&r).apply(&mut r);
-        crate::drive::pedal_inputs::pedal_inputs().apply(&mut r);
-        r = crate::drive::reset_request::reset_request(&r)?;
+        crate::drive::car_input_words::car_input_words()?;
+        crate::drive::read_car_controls::read_car_controls()?;
+        crate::drive::steer_inputs::steer_inputs();
+        crate::drive::pedal_inputs::pedal_inputs();
     }
-    r.eax = 0;
-    r.ecx = roam_distance(
+    // The keys `drive::pedal_inputs` leaves in ebx (`reset_request` loads the same again
+    // before `physics::reset_car`): the turn's y.
+    let keys = g(0x71A440);
+    unsafe { crate::drive::reset_request::reset_request() }?;
+    let distance = roam_distance(
         g(B + 0x638),
         g(B + 0x63C),
         unsafe { (a(0x4F6B79) as *const u8).read() } != 0,
     );
-    r.edx = g(B + 0x9C0);
-    let [x, _, z, edx] =
-        unsafe { crate::math::turn_point_xz::turn_point_xz(0, r.ebx as i32, r.ecx as i32, r.edx) };
-    r.eax = x;
-    r.ecx = z;
-    r.edx = edx;
+    let [x, _, z, _] = unsafe {
+        crate::math::turn_point_xz::turn_point_xz(0, keys as i32, distance as i32, g(B + 0x9C0))
+    };
     p(B + 0x134, g(B + 0x134).wrapping_add(x));
     p(B + 0x13C, g(B + 0x13C).wrapping_add(z));
-    r.eax = roam_turn(g(B + 0x644));
-    p(B + 0x9C0, g(B + 0x9C0).wrapping_add(r.eax));
-    unsafe { crate::physics::wheel_surfaces::wheel_surfaces() }?.apply(&mut r);
-    r.eax = g(0x5CCDA0);
-    p(0x639824, r.eax);
-    r.eax = g(0x5CCDE0);
-    p(0x63982C, r.eax);
+    p(
+        B + 0x9C0,
+        g(B + 0x9C0).wrapping_add(roam_turn(g(B + 0x644))),
+    );
+    unsafe { crate::physics::wheel_surfaces::wheel_surfaces() }?;
+    p(0x639824, g(0x5CCDA0));
+    p(0x63982C, g(0x5CCDE0));
     unsafe { crate::physics::find_ground::find_ground() }?;
     if g(0x5CCC74) != u32::MAX {
-        r.eax = g(0x639828).wrapping_add(g(0x613FC4));
-        p(0x5CCDC0, r.eax);
-        p(B + 0x138, r.eax);
+        let y = g(0x639828).wrapping_add(g(0x613FC4));
+        p(0x5CCDC0, y);
+        p(B + 0x138, y);
     }
     p(B + 0x9C4, 0);
     p(B + 0x9C8, 0);
-    r = unsafe { crate::race::stage_prefs::get_mat_crash(&r) };
-    Ok(left_of(&r))
+    // `race::get_mat_crash` reads no register at entry (liveness): a scratch.
+    unsafe { crate::race::stage_prefs::get_mat_crash() };
+    Ok(())
 }

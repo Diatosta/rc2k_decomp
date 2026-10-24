@@ -36,8 +36,9 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{FatalError, Refused};
-use crate::files::read_whole_file::{BYTES_READ_RVA, read_whole_file};
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::files::read_whole_file::read_whole_file;
+use crate::files::state::BYTES_READ;
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::scene::add_object_shape::{MASK_RVA, add_object_shape};
 use crate::scene::list_object_textures::list_object_textures;
 use crate::scene::measure_object::{MEASURES_RVA, measure_object};
@@ -147,18 +148,6 @@ const NO_FACE_ROOM: FatalError = FatalError {
     message: "out of poly ptr space - max 40960",
 };
 
-/// What the function calls.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Call {
-    /// `scene::set_object_file_names`, with the kind.
-    Names(u32),
-    /// `files::read_whole_file` of the `.ro3` file.
-    Read,
-    Textures,
-    Shape,
-    Measure,
-}
-
 // ---- Rust version ----
 
 /// `scene::find_object_kind` (0x41F4BD): the place of a kind, or of the kind before
@@ -176,10 +165,9 @@ unsafe fn mask(at: usize) -> u32 {
     unsafe { game_read(MASKS_RVA + at) }
 }
 
-pub unsafe fn load_object(
-    r: &mut Regs,
-    call: &mut dyn FnMut(Call) -> Result<(), Refused>,
-) -> Result<(), Refused> {
+/// The Rust version. The registers the original leaves (eax the kind, ebx the slot) are read
+/// by no caller (liveness; its one caller is `load_front_end_objects`).
+pub unsafe fn load_object() -> Result<(), Refused> {
     unsafe {
         let kind: u32 = game_read(KIND_RVA);
         if kind == 0 {
@@ -190,23 +178,26 @@ pub unsafe fn load_object(
             return Err(crate::errors::BadInput("an object's slot past the tables").into());
         }
         game_write(OBJECT_KINDS_RVA + slot as usize * 4, kind);
-        r.eax = kind;
-        r.ebx = slot;
-        call(Call::Names(kind))?;
+        set_object_file_names(kind);
         let name = |n: usize| game_read::<u32>(NAMES_RVA + n * 4);
         // The file read is the `.ro3` one, whatever the name's last character was.
         ((name(0) + 7) as *mut u8).write(b'3');
-        game_write(BYTES_READ_RVA, 0u32);
-        call(Call::Read)?;
-        if game_read::<u32>(BYTES_READ_RVA) == 0 {
+        BYTES_READ.store(0, std::sync::atomic::Ordering::Relaxed);
+        read_whole_file(
+            game_read::<u32>(NAMES_RVA + 4) as *const u8,
+            game_addr(FILE_RVA) as *mut u8,
+            FILE_ROOM as u32,
+            0,
+        )?;
+        if BYTES_READ.load(std::sync::atomic::Ordering::Relaxed) == 0 {
             return Ok(());
         }
         ((name(0) + 7) as *mut u8).write(b'3');
         if slot <= 0x40 {
-            call(Call::Textures)?;
+            list_object_textures()?;
         }
         if slot < 0x50 {
-            shape(call, u32::MAX)?;
+            shape(u32::MAX)?;
             return check();
         }
         game_write(MASK_RVA, u32::MAX);
@@ -239,14 +230,14 @@ pub unsafe fn load_object(
             0 => {
                 for (n, &at) in FIRST_FIVE.iter().enumerate() {
                     game_write(SLOT_RVA, first + n as u32);
-                    shape(call, mask(at))?;
+                    shape(mask(at))?;
                 }
                 game_write(SLOT_RVA, first + 5);
                 for &(offset, at) in &MEASURED {
                     let slot = first + offset;
                     game_write(SLOT_RVA, slot);
-                    shape(call, mask(at))?;
-                    call(Call::Measure)?;
+                    shape(mask(at))?;
+                    measure_object()?;
                     let measures: [u32; 6] = game_read(MEASURES_RVA);
                     for (table, &measure) in measures.iter().enumerate() {
                         game_write(
@@ -256,8 +247,8 @@ pub unsafe fn load_object(
                     }
                 }
             }
-            0xA => shape(call, rest)?,
-            0xB => shape(call, u32::MAX)?,
+            0xA => shape(rest)?,
+            0xB => shape(u32::MAX)?,
             _ => {}
         }
         check()
@@ -265,12 +256,9 @@ pub unsafe fn load_object(
 }
 
 /// One `scene::add_object_shape` with a mask.
-unsafe fn shape(
-    call: &mut dyn FnMut(Call) -> Result<(), Refused>,
-    mask: u32,
-) -> Result<(), Refused> {
+unsafe fn shape(mask: u32) -> Result<(), Refused> {
     unsafe { game_write(MASK_RVA, mask) };
-    call(Call::Shape)
+    Ok(unsafe { add_object_shape(game_addr(FILE_RVA)) }?)
 }
 
 /// The three fatal errors at the end, in the original's order.
@@ -286,32 +274,5 @@ unsafe fn check() -> Result<(), Refused> {
             return Err(NO_FACE_ROOM.into());
         }
         Ok(())
-    }
-}
-
-/// With the Rust versions of what it calls.
-pub unsafe fn load_object_in_game(r: &mut Regs) -> Result<(), Refused> {
-    unsafe {
-        load_object(r, &mut |call| {
-            match call {
-                Call::Names(kind) => {
-                    set_object_file_names(kind);
-                }
-                Call::Read => {
-                    read_whole_file(
-                        game_read::<u32>(NAMES_RVA + 4) as *const u8,
-                        game_addr(FILE_RVA) as *mut u8,
-                        FILE_ROOM as u32,
-                        0,
-                    )?;
-                }
-                Call::Textures => list_object_textures()?,
-                Call::Shape => add_object_shape(game_addr(FILE_RVA))?,
-                Call::Measure => {
-                    measure_object()?;
-                }
-            }
-            Ok(())
-        })
     }
 }

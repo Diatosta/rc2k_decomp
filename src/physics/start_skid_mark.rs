@@ -10,11 +10,10 @@
 //! Caller: `sub_43B635` (0x43B6FB), every physics step.
 //! Self-test: `physics/copy_hooks_test.rs` (a copy on test variables), 12 cases.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
-use crate::framework::{Regs, game_addr, rva};
+use crate::framework::{game_addr, rva};
 use crate::physics::cells::{get, put_changed};
 use rc2k_core::physics::ground::SkidStart;
 
@@ -23,9 +22,9 @@ const VARIABLES: [usize; 11] = [
     0x719FE0, 0x71A668,
 ];
 
-/// The Rust version on the variables at `v`; `r` as the original leaves it.
+/// The Rust version on the variables at `v`. The registers the original leaves are read by none of its callers (eax).
 // Converted: `rc2k_core::physics::ground::SkidStart::start`.
-pub unsafe fn start_at(v: &[u32], r: &mut Regs) {
+pub unsafe fn start_at(v: &[u32]) {
     unsafe {
         let wheels = [get(v[0]), get(v[1]), get(v[2]), get(v[3])];
         let was = SkidStart {
@@ -37,9 +36,7 @@ pub unsafe fn start_at(v: &[u32], r: &mut Regs) {
             step: get(v[10]),
         };
         let mut s = was;
-        if let Some(eax) = s.start(wheels, || get(v[9])) {
-            r.eax = eax;
-        }
+        s.start(wheels, || get(v[9]));
         for (k, before, now) in [
             (5, was.from, s.from),
             (6, was.on, s.on),
@@ -60,7 +57,7 @@ fn game() -> Vec<u32> {
         .collect()
 }
 
-/// The Rust version; `r` as the original leaves it.
-pub unsafe fn start_skid_mark(r: &mut Regs) {
-    unsafe { start_at(&game(), r) }
+/// The Rust version.
+pub unsafe fn start_skid_mark() {
+    unsafe { start_at(&game()) }
 }

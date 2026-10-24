@@ -11,8 +11,7 @@
 //! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; the
 //! registers above are the original's, for reference.
 
-use crate::framework::{game_read, game_write};
-use crate::math::turn_scratch_xz::{X_RVA, Y_RVA, Z_RVA, turn_scratch_xz, turn_scratch_xz_plain};
+use crate::math::turn_scratch_xz::{Scratch, turn_scratch_xz, turn_scratch_xz_plain};
 
 /// The Rust version: x', y, z' and the entry left in edx.
 pub unsafe fn turn_float_point_xz(x: u32, y: u32, z: u32, angle: u32) -> [u32; 4] {
@@ -29,13 +28,9 @@ unsafe fn turn_float_with(
     y: u32,
     z: u32,
     angle: u32,
-    turn: unsafe fn(u32) -> u32,
+    turn: unsafe fn(&mut Scratch, u32) -> u32,
 ) -> [u32; 4] {
-    unsafe {
-        game_write(X_RVA, x);
-        game_write(Y_RVA, y);
-        game_write(Z_RVA, z);
-        let entry = turn(angle);
-        [game_read(X_RVA), game_read(Y_RVA), game_read(Z_RVA), entry]
-    }
+    let mut point = Scratch { x, y, z };
+    let entry = unsafe { turn(&mut point, angle) };
+    [point.x, point.y, point.z, entry]
 }

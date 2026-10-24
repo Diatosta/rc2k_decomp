@@ -12,17 +12,10 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::hud::draw_stage_bars_1::bars_with;
 
 /// The Rust version (see the header).
 // Converted: `rc2k_core::hud::stage_bars` (through `draw_stage_bar::bars`)
 pub unsafe fn draw_stage_bars_2(record: u32) -> Result<(), Refused> {
     unsafe { bars_with(record, 0x11E) }
-}
-
-/// For the typed tables' calls by address: ebp the record. What the original leaves is
-/// read by none of its callers (register liveness, 2026-10-23).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    unsafe { draw_stage_bars_2(r.ebp) }
 }

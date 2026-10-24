@@ -19,7 +19,6 @@
 
 use crate::framework::{game_read, game_write, rva};
 use crate::math::x87;
-use crate::service::harness::{Region, at};
 
 const NOW_RVA: usize = rva(0x76927A); // flt_76927A .. flt_769282
 const LAST_RVA: usize = rva(0x769296); // flt_769296 .. flt_76929E
@@ -39,10 +38,4 @@ pub unsafe fn view_step() {
             game_write(LAST_RVA + 4 * k, game_read::<u32>(NOW_RVA + 4 * k));
         }
     }
-}
-
-pub fn regions() -> Vec<Region> {
-    (0..3)
-        .flat_map(|k| [at(STEP_RVA + 4 * k), at(LAST_RVA + 4 * k)])
-        .collect()
 }

@@ -6,19 +6,19 @@
 //! face by `physics::face_under_point` (its edges by `physics::edge_side`; when inside,
 //! `physics::face_shares` and `physics::plane_height`).
 //!
-//! The cores here work on a register model (`Regs`, changed as the original's
-//! instructions change them), so that every hook leaves what the original leaves. The
+//! Plain since 2026-10-23 (phase 3): the cores take what they read (the face, the record,
+//! the point) and return the carry; the registers the originals leave are read by none of
+//! their callers (`ground_search` keeps them all: `pusha` / `popa`). The
 //! variables are reached through `Ground`: the game's, or a self-test's copies of the
 //! game's ranges (`TestGround`), against copies of the originals whose references to
 //! those ranges are patched and whose calls go to each other (the ground variables are
 //! the game's every frame).
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, rva};
+use crate::framework::{game_addr, rva};
 use crate::physics::edge_side::{EdgePlaces, edge_side_at};
 use crate::physics::find_course_record::{RecordPlaces, find_course_record_at};
 use crate::physics::plane_height::{Plane, plane_height_at};
-use crate::screens::harness::Left;
 use rc2k_core::physics::ground_search::{self, FaceTest};
 
 /// The game's ranges the search uses (IDA addresses, end exclusive): the course tables
@@ -111,24 +111,12 @@ unsafe fn at(a: u32) -> u32 {
     unsafe { (a as *const u32).read_unaligned() }
 }
 
-/// Every register as the model left it, and the carry.
-pub fn left_of(g: &Regs, carry: bool) -> Left {
-    use crate::framework::{EAX, EBP, EBX, ECX, EDI, EDX, ESI};
-    Left::carry(carry)
-        .with(EAX, g.eax)
-        .with(EBX, g.ebx)
-        .with(ECX, g.ecx)
-        .with(EDX, g.edx)
-        .with(ESI, g.esi)
-        .with(EDI, g.edi)
-        .with(EBP, g.ebp)
-}
-
 /// `physics::face_shares` (0x442323): the three corners named by `dword_639890` ..
 /// `98` copied (0x639708 ..), the point (0x6396FC, 0x639704), the differences, and the
 /// shares by the x87 (`math::x87_run::face_shares`; the `rcpss` way with the SSE switch).
-/// Leaves eax the last difference (0x63974C), ebx, ecx the third corner's y, z.
-pub unsafe fn face_shares_at(g: &Ground, r: &mut Regs) {
+/// The registers it leaves (eax the last difference, ebx, ecx the third corner's y, z)
+/// are read by none of its callers.
+pub unsafe fn face_shares_at(g: &Ground) {
     unsafe {
         let mut corner = [[0u32; 3]; 3];
         for (k, c) in corner.iter_mut().enumerate() {
@@ -154,9 +142,6 @@ pub unsafe fn face_shares_at(g: &Ground, r: &mut Regs) {
         for &(v, value) in &d {
             g.put(v, value);
         }
-        r.eax = d[7].1;
-        r.ebx = corner[2][1];
-        r.ecx = corner[2][2];
         let sse = g.get(0x621A58) != 0;
         let i = [
             d[0].1,
@@ -193,29 +178,21 @@ pub unsafe fn face_refusal(g: &Ground, face: u32) -> Option<&'static str> {
         .map(|e| e.0)
 }
 
-/// `physics::face_under_point` (0x442006): whether the point is inside face ebx (see
-/// `physics/face_under_point.rs`). Returns the carry; `r` as the original leaves it.
+/// `physics::face_under_point` (0x442006): whether the point is inside face `number`
+/// (ebx; see `physics/face_under_point.rs`): the carry. The registers it leaves are read
+/// by none of its callers (`search_record_faces`, `try_last_face`).
 // Converted: `rc2k_core::physics::ground_search::face_under_point`.
-pub unsafe fn face_under_point_at(g: &Ground, r: &mut Regs) -> Result<bool, Refused> {
+pub unsafe fn face_under_point_at(g: &Ground, number: u32) -> Result<bool, Refused> {
     unsafe {
-        if let Some(why) = face_refusal(g, r.ebx) {
+        if let Some(why) = face_refusal(g, number) {
             return Err(BadInput(why).into());
         }
-        g.put(0x5CCC70, r.ebx);
-        let face = (r.ebx << 6).wrapping_add(g.get(FACES));
-        r.esi = face;
+        g.put(0x5CCC70, number);
+        let face = (number << 6).wrapping_add(g.get(FACES));
         let kind = (face as *const u8).read();
-        let entry_eax = r.eax;
-        // One edge, the registers as the original's edge code leaves them.
+        // One edge.
         let side = |from: u32, to: u32| -> Option<bool> {
-            r.ecx = face;
-            r.ebx = at(face + from);
-            r.ebp = g.point(r.ebx);
-            r.ebx = at(face + to);
-            r.edi = g.point(r.ebx);
-            r.esi = face;
-            let s = edge_side_at(&g.edge(), r.ebp, r.edi);
-            r.eax = s.eax;
+            let s = edge_side_at(&g.edge(), g.point(at(face + from)), g.point(at(face + to)));
             (s.zero == Some(true)).then_some(s.carry)
         };
         let test = ground_search::face_under_point(
@@ -226,32 +203,21 @@ pub unsafe fn face_under_point_at(g: &Ground, r: &mut Regs) -> Result<bool, Refu
             side,
         );
         let (half, corners) = match test {
-            FaceTest::Kind => {
-                r.eax = (entry_eax & !0xFF) | u32::from(kind);
-                return Ok(false);
-            }
-            FaceTest::Flags(f) => {
-                r.eax = f;
-                return Ok(false);
-            }
-            FaceTest::Edge => return Ok(false),
+            FaceTest::Kind | FaceTest::Flags(_) | FaceTest::Edge => return Ok(false),
             FaceTest::Inside { half, corners } => (half, corners),
         };
         let number = g.get(0x5CCC70);
-        r.ebx = number;
         g.put(0x5CCC74, number);
         let face = (number << 6).wrapping_add(g.get(FACES));
-        r.esi = face;
         g.put(0x5CCC6C, half);
         for (k, &o) in corners.iter().enumerate() {
-            r.eax = at(face + o);
-            g.put(0x639890 + 4 * k as u32, r.eax);
-            g.put(0x5CCC60 + 4 * k as u32, r.eax);
+            let corner = at(face + o);
+            g.put(0x639890 + 4 * k as u32, corner);
+            g.put(0x5CCC60 + 4 * k as u32, corner);
         }
-        face_shares_at(g, r);
+        face_shares_at(g);
         g.put(0x639820, 1);
         plane_height_at(&g.plane());
-        r.ebx = number;
         Ok(true)
     }
 }
@@ -269,61 +235,49 @@ pub unsafe fn record_refusal(g: &Ground, record: u32) -> Option<&'static str> {
     }
 }
 
-/// `physics::search_record_faces` (0x441FD9): faces +8 ..= +0xC of course record ebx,
-/// each by `face_under_point` (ebx and esi kept around it); the carry when one has the
-/// point.
+/// `physics::search_record_faces` (0x441FD9): faces +8 ..= +0xC of course record
+/// `record` (ebx), each by `face_under_point`; the carry when one has the point.
 // Converted: `rc2k_core::physics::ground_search::search_faces`.
-pub unsafe fn search_record_faces_at(g: &Ground, r: &mut Regs) -> Result<bool, Refused> {
+pub unsafe fn search_record_faces_at(g: &Ground, record: u32) -> Result<bool, Refused> {
     unsafe {
-        if let Some(why) = record_refusal(g, r.ebx) {
+        if let Some(why) = record_refusal(g, record) {
             return Err(BadInput(why).into());
         }
-        let rec = (r.ebx << 5).wrapping_add(g.get(RECORDS));
-        r.esi = rec;
-        let (found, ebx) = ground_search::search_faces(at(rec + 8), at(rec + 0xC), |face| {
-            r.ebx = face;
-            let found = face_under_point_at(g, r)?;
-            r.esi = rec;
-            r.ebx = face;
-            Ok::<_, Refused>(found)
+        let rec = (record << 5).wrapping_add(g.get(RECORDS));
+        let (found, _) = ground_search::search_faces(at(rec + 8), at(rec + 0xC), |face| {
+            face_under_point_at(g, face)
         })?;
-        r.ebx = ebx;
         Ok(found)
     }
 }
 
-/// `physics::search_cell` (0x441FBA): the cell of (eax, ecx) (each >> 21; key z << 11 +
-/// x), its record by `find_course_record`, then its faces. The carry when found.
+/// `physics::search_cell` (0x441FBA): the cell of (`x`, `z`) (eax, ecx; each >> 21; key
+/// z << 11 + x), its record by `find_course_record`, then its faces. The carry when
+/// found.
 // Converted: `rc2k_core::physics::ground_search::cell_key`.
-pub unsafe fn search_cell_at(g: &Ground, r: &mut Regs) -> Result<bool, Refused> {
+pub unsafe fn search_cell_at(g: &Ground, x: u32, z: u32) -> Result<bool, Refused> {
     unsafe {
-        (r.eax, r.ecx) = ground_search::cell_key(r.eax, r.ecx);
-        let left = find_course_record_at(&g.records(), r)?;
-        let mut after = *r;
-        left.apply(&mut after);
-        if after.carry() {
-            *r = after;
+        let (key, _) = ground_search::cell_key(x, z);
+        let Some(record) = find_course_record_at(&g.records(), key)? else {
             return Ok(false);
-        }
-        *r = after;
-        if let Some(why) = record_refusal(g, r.ebx) {
+        };
+        if let Some(why) = record_refusal(g, record) {
             return Err(BadInput(why).into());
         }
-        search_record_faces_at(g, r)
+        search_record_faces_at(g, record)
     }
 }
 
 /// `physics::try_last_face` (0x441E0C): ebx = `dword_5CCC78`; when it is a face (not -1,
 /// below the count) `face_under_point` on it inside `pusha`/`popa`. The carry when found.
 // Converted: `rc2k_core::physics::ground_search::last_face`.
-pub unsafe fn try_last_face_at(g: &Ground, r: &mut Regs) -> Result<bool, Refused> {
+pub unsafe fn try_last_face_at(g: &Ground) -> Result<bool, Refused> {
     unsafe {
-        r.ebx = g.get(LAST_FACE);
-        if ground_search::last_face(r.ebx, g.get(FACE_COUNT)).is_none() {
+        let last = g.get(LAST_FACE);
+        if ground_search::last_face(last, g.get(FACE_COUNT)).is_none() {
             return Ok(false);
         }
-        let mut inner = *r;
-        face_under_point_at(g, &mut inner)
+        face_under_point_at(g, last)
     }
 }
 
@@ -334,22 +288,16 @@ const FOUND: u32 = 0x639830; // g_groundFound
 /// `dword_5CCC74` = -1 and `search_cell` on the point plus each of `CELLS` until one
 /// finds it. `g_groundFound` 1 when found, else 0. Registers kept; the carry the found.
 // Converted: `rc2k_core::physics::ground_search::ground_search`.
-pub unsafe fn ground_search_at(g: &Ground, r: &mut Regs) -> Result<bool, Refused> {
+pub unsafe fn ground_search_at(g: &Ground) -> Result<bool, Refused> {
     unsafe {
         if let Some(why) = ground_refusal(g) {
             return Err(BadInput(why).into());
         }
-        let inner = std::cell::RefCell::new(*r);
         let found = ground_search::ground_search(
-            || try_last_face_at(g, &mut inner.borrow_mut()),
+            || try_last_face_at(g),
             || g.put(0x5CCC74, ground_search::NO_FACE),
             || (g.get(0x639824), g.get(0x63982C)),
-            |x, z| {
-                let mut r = inner.borrow_mut();
-                r.eax = x;
-                r.ecx = z;
-                search_cell_at(g, &mut r)
-            },
+            |x, z| search_cell_at(g, x, z),
         )?;
         g.put(FOUND, u32::from(found));
         Ok(found)
@@ -364,20 +312,14 @@ pub unsafe fn ground_refusal(g: &Ground) -> Option<&'static str> {
         for (dx, dz) in CELLS {
             let x = g.get(0x639824).wrapping_add(dx);
             let z = g.get(0x63982C).wrapping_add(dz);
-            let mut r = Regs {
-                eax: ground_search::cell_key(x, z).0,
-                ..Regs::default()
-            };
-            match find_course_record_at(&records, &r) {
+            match find_course_record_at(&records, ground_search::cell_key(x, z).0) {
                 Err(_) => return Some("a cell's kind runs past g_courseRecordCount"),
-                Ok(left) => {
-                    left.apply(&mut r);
-                    if !r.carry()
-                        && let Some(why) = record_refusal(g, r.ebx)
-                    {
+                Ok(Some(record)) => {
+                    if let Some(why) = record_refusal(g, record) {
                         return Some(why);
                     }
                 }
+                Ok(None) => {}
             }
         }
         None

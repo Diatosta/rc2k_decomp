@@ -41,7 +41,7 @@
 //! by then.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, game_write, rva};
+use crate::framework::{game_addr, game_write, rva};
 use crate::scene::allocate_point_records::allocate_point_records_in_game;
 use crate::scene::clear_fog::clear_fog;
 use crate::scene::clear_slot_kinds::clear_slot_kinds;
@@ -49,10 +49,10 @@ use crate::scene::fill_light_tables::fill_light_tables;
 use crate::scene::fill_scene_light_tables::fill_scene_light_tables;
 use crate::scene::known_kind::known_kind;
 use crate::scene::known_kind_picture::known_kind_picture;
-use crate::scene::reload_slot_textures::reload_slot_textures_in_game;
+use crate::scene::reload_slot_textures::reload_slot_textures;
 use crate::scene::reset_texture_places::reset_texture_places;
 use crate::scene::reset_texture_tables::reset_texture_tables;
-use crate::scene::set_up_object_memory::set_up_object_memory_in_game;
+use crate::scene::set_up_object_memory::set_up_object_memory;
 use crate::scene::texture_needs::{SYSTEM_LEVELS_RVA, TAGS_RVA, VIDEO_LEVELS_RVA};
 use crate::scene::view_matrix::set_view_matrices;
 
@@ -102,30 +102,6 @@ fn picture_places() -> impl Iterator<Item = u32> {
     (0..0x22).filter(|&place| place != 0x1E)
 }
 
-/// What it calls, in the order of their first calls.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Call {
-    ShowLoadingPicture,
-    ResetTextureTables,
-    SetUpTextures,
-    SetUpObjectMemory,
-    ClearSlotKinds,
-    ClearFog,
-    FillLightTables,
-    /// eax = the place -> eax = the kind; nothing else may change.
-    KnownKind,
-    /// `sub_4433DA`: the objects loaded and the log's lines.
-    LoadObjects,
-    ResetTexturePlaces,
-    /// eax = the place -> eax = the picture; nothing else may change.
-    KnownKindPicture,
-    ReloadSystemTextures,
-    AllocatePointRecords,
-    FillSceneLightTables,
-    SetViewMatrices,
-    ReloadSlotTextures,
-}
-
 // ---- Rust version ----
 
 unsafe fn colours(dark_third: u32) {
@@ -135,35 +111,31 @@ unsafe fn colours(dark_third: u32) {
     }
 }
 
-/// `step`: what stands for each call; it is entered with the registers as they are by
-/// then.
-pub unsafe fn set_up_front_end_scene(
-    r: &mut Regs,
-    step: &mut dyn FnMut(Call, &mut Regs) -> Result<(), Refused>,
-) -> Result<(), Refused> {
+/// The Rust version. The original keeps every register (`pusha` .. `popa`), and its
+/// registers at entry (edx, esi) reach only the game's own code (`liveness`: the readers
+/// are `fill_light_tables`, `fill_scene_light_tables`, `race::textures_alloc` and
+/// `sub_443478`), none of the Rust versions it calls.
+pub unsafe fn set_up_front_end_scene() -> Result<(), Refused> {
     unsafe {
-        let entry = *r;
         game_write(BAR_FROM_RVA, [0u32, 100]);
-        step(Call::ShowLoadingPicture, r)?;
-        step(Call::ResetTextureTables, r)?;
+        crate::menu::show_loading_picture::show_loading_picture()?;
+        reset_texture_tables();
         for (count, first, levels, tag) in NEEDS {
             for texture in first..first + count {
                 game_write(levels + texture * 4, 0u32);
                 game_write(TAGS_RVA + texture * 4, tag);
             }
-            r.ecx = 0;
-            r.ebx = (first + count) as u32;
         }
-        step(Call::SetUpTextures, r)?;
-        step(Call::SetUpObjectMemory, r)?;
-        step(Call::ClearSlotKinds, r)?;
+        crate::scene::set_up_textures::set_up_textures()?;
+        set_up_object_memory()?;
+        clear_slot_kinds();
         colours(0);
         for (place, value) in FIRST_STORES {
             game_write(place, value);
         }
-        step(Call::ClearFog, r)?;
+        clear_fog();
         game_write(OTHER_WAY_RVA, 1u32);
-        step(Call::FillLightTables, r)?;
+        fill_light_tables();
 
         game_write(SLOT_KINDS_RVA, 1u32);
         for slot in 1..0x29 {
@@ -172,82 +144,38 @@ pub unsafe fn set_up_front_end_scene(
         for slot in 0x29..0x2D {
             game_write(SLOT_KINDS_RVA + slot * 4, 0x262 + slot as u32);
         }
-        r.edi = 0;
-        while r.edi != 0x22 {
-            r.eax = r.edi;
-            step(Call::KnownKind, r)?;
-            game_write(SLOT_KINDS_RVA + (0x2D + r.edi as usize) * 4, r.eax);
-            r.edi += 1;
+        for place in 0..0x22usize {
+            game_write(
+                SLOT_KINDS_RVA + (0x2D + place) * 4,
+                known_kind(place as u32),
+            );
         }
-        step(Call::LoadObjects, r)?;
-        step(Call::ResetTexturePlaces, r)?;
+        crate::scene::load_front_end_objects_logged::load_front_end_objects_logged()?;
+        reset_texture_places();
 
         game_write(KIND_PICTURES_RVA + 0x87 * 4, 0x82Au32);
         game_write(KIND_PICTURES_RVA + 0x258 * 4, MENU_PICTURES);
-        r.edi = game_addr(KIND_PICTURES_RVA + 0x2BC * 4) as u32;
         for place in picture_places() {
-            r.eax = place;
-            step(Call::KnownKindPicture, r)?;
+            let mut picture = known_kind_picture(place);
             for k in 0..8 {
                 game_write(
                     KIND_PICTURES_RVA + (0x2BC + place as usize * 8 + k) * 4,
-                    r.eax,
+                    picture,
                 );
-                r.eax = r.eax.wrapping_add(1);
+                picture = picture.wrapping_add(1);
             }
         }
         game_write(BAR_FUNCTION_RVA, game_addr(SHOW_BAR_RVA) as u32);
-        step(Call::ReloadSystemTextures, r)?;
-        step(Call::AllocatePointRecords, r)?;
+        crate::scene::reload_system_textures::reload_system_textures()?;
+        allocate_point_records_in_game()?;
         colours(0);
-        step(Call::FillSceneLightTables, r)?;
-        step(Call::SetViewMatrices, r)?;
-        step(Call::ReloadSlotTextures, r)?;
+        fill_scene_light_tables();
+        set_view_matrices();
+        reload_slot_textures()?;
         colours(0x7F);
         game_write(OTHER_WAY_RVA, 1u32);
-        step(Call::FillLightTables, r)?;
+        fill_light_tables();
         game_write(SET_UP_RVA, 1u32);
-        *r = entry;
         Ok(())
     }
-}
-
-/// With the Rust versions of what it calls, or their hooks.
-pub unsafe fn set_up_front_end_scene_in_game(r: &mut Regs) -> Result<(), Refused> {
-    unsafe {
-        set_up_front_end_scene(r, &mut |call, r| {
-            match call {
-                Call::ShowLoadingPicture => crate::calls::call(rva(0x47CEA8), r),
-                Call::ResetTextureTables => reset_texture_tables().apply(r),
-                Call::SetUpTextures => crate::calls::call(rva(0x44E7A5), r),
-                Call::SetUpObjectMemory => set_up_object_memory_in_game(r)?,
-                Call::ClearSlotKinds => clear_slot_kinds().apply(r),
-                Call::ClearFog => clear_fog().apply(r),
-                Call::FillLightTables => fill_light_tables().apply(r),
-                Call::KnownKind => r.eax = known_kind(r.eax),
-                Call::LoadObjects => {
-                    use crate::scene::load_front_end_objects_logged as logged;
-                    *r = logged::load_front_end_objects_logged(r, &mut logged::game_part)?;
-                }
-                Call::ResetTexturePlaces => reset_texture_places().apply(r),
-                Call::KnownKindPicture => r.eax = known_kind_picture(r.eax),
-                Call::ReloadSystemTextures => crate::calls::call(rva(0x4254B4), r),
-                Call::AllocatePointRecords => allocate_point_records_in_game()?.apply(r),
-                Call::FillSceneLightTables => fill_scene_light_tables().apply(r),
-                Call::SetViewMatrices => set_view_matrices().apply(r),
-                Call::ReloadSlotTextures => reload_slot_textures_in_game(r)?,
-            }
-            Ok(())
-        })
-    }
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let entry = *r;
-    if let Err(e) = unsafe { set_up_front_end_scene_in_game(r) } {
-        *r = entry;
-        return Err(e);
-    }
-    Ok(())
 }

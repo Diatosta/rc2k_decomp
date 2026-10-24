@@ -16,11 +16,9 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::gfx::pixel_format::PixelFormat;
 use crate::physics::flow::a;
-use crate::race::viewer::{get, put, regs_entry};
+use crate::race::viewer::{get, put};
 
 const FONT_PALETTES: usize = 0x51DEB0; // g_fontPalettes
 const COLOURS: usize = 0x960FA0; // unk_960FA0: 256 dwords
@@ -61,15 +59,4 @@ pub unsafe fn viewer_palettes() {
             to.add(n).write_unaligned(colour);
         }
     }
-}
-
-fn rust(r: &Regs) -> Result<Regs, Refused> {
-    unsafe { viewer_palettes() };
-    Ok(*r)
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    regs_entry(r, &rust)
 }

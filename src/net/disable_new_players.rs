@@ -4,61 +4,26 @@
 //! set (`SetSessionDesc`, flags 0); its result logged.
 //!
 //! In:  nothing
-//! Out: every register kept (`pusha` .. `popa`); carry set if not the host, no object or it
-//!      failed, else the flags of `test eax, eax`
-//! Caller: `net::close_if_host`. Its calls through `part`; `SetSessionDesc` from Rust
-//! (`net::dplay`). Shadow mode runs the original alone. Self-test: a copy whose calls go to
-//! stand-ins and whose DirectPlay is a test object, against the Rust version: not the host,
-//! no object, failing, done.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Out: nothing (every register kept, `pusha` .. `popa`; the carry it sets when not the
+//!      host, with no object or on a failure is read by no caller: `lq -s 0x418D8A`)
+//! Caller: `net::close_if_host`.
 
-use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::net::dplay::{SET_SESSION_DESC, call};
-use crate::net::lobby::{
-    DPLAY, LOG_HEX_L2_NL, LOG_L2, OWN, Part, SESSION_DESC, a, cmp_flags, g, gb, lobby_entry,
-    log_text, p, set_sign, test_eax,
-};
+use crate::net::lobby::{DPLAY, OWN, SESSION_DESC, a, g, gb, log, log_hex, p};
 
 const TEXT: usize = 0x5C2F26; // "NET: Disable new players"
 const CLOSED: u32 = 0x21; // DPSESSION_NEWPLAYERSDISABLED | DPSESSION_JOINDISABLED
 
-/// The Rust version: the registers it leaves (the entry's, the flags).
-pub fn disable_new_players(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    let mut r = *entry;
-    let left = |r: &Regs| Regs {
-        eflags: r.eflags,
-        ..*entry
-    };
+/// The Rust version.
+pub fn disable_new_players() {
     if gb(OWN) & 0x10 == 0 {
-        // The flags of `test byte_52AD64, 10h`, and the carry.
-        r.set_zero(true);
-        set_sign(&mut r, 0);
-        r.set_carry(true);
-        return Ok(left(&r));
+        return;
     }
-    log_text(LOG_L2, a(TEXT), &r, part)?;
-    cmp_flags(&mut r, g(DPLAY), 0);
+    log(a(TEXT), false, 2);
     if g(DPLAY) == 0 {
-        r.set_carry(true);
-        return Ok(left(&r));
+        return;
     }
     p(SESSION_DESC + 4, g(SESSION_DESC + 4) | CLOSED);
-    r.eax = unsafe { call(DPLAY, SET_SESSION_DESC, &[a(SESSION_DESC), 0]) };
-    let mut l = r;
-    part(LOG_HEX_L2_NL, &mut l)?;
-    test_eax(&mut r);
-    if r.eax != 0 {
-        r.set_carry(true);
-    }
-    Ok(left(&r))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    lobby_entry(r, disable_new_players)
+    let result = unsafe { call(DPLAY, SET_SESSION_DESC, &[a(SESSION_DESC), 0]) };
+    log_hex(result, true);
 }

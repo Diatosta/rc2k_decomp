@@ -11,42 +11,43 @@
 //! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
-use crate::menu::screen_loop::{Env, List, Screen, Step, popa, pusha, screen_entry};
+use crate::errors::Refused;
+use crate::framework::{game_read, game_write, rva};
+use crate::menu::screen_loop::{
+    Carried, List, Screen, Step, carousel, log_line, prepare_scene, screen_entry,
+};
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
-unsafe fn set_up_first(g: &mut Regs, env: &mut dyn Env) {
+unsafe fn set_up_first(c: &mut Carried) -> Result<(), Refused> {
     unsafe {
-        let mut all = Vec::new();
-        pusha(g, &mut all);
-        g.eax = game_addr(rva(0x4DEAD0)) as u32;
-        env.call(rva(0x40142B), g);
-        popa(g, &mut all);
+        // Between `pusha` and `popa`: no register changes.
+        log_line(rva(0x4DEAD0));
         game_write(rva(0x623FB0), 0xFFFFFF64u32);
         game_write(rva(0x623FB4), 0x27u32);
         game_write(rva(0x624080), 0x140u32);
-        env.call(rva(0x46F7FD), g);
+        prepare_scene(c);
         game_write(rva(0x6241DC), 0xFFFFFFD8u32);
         game_write(rva(0x6241E0), 0x2F8u32);
         game_write(rva(0x6241EC), game_read::<i32>(rva(0x6241DC)) as f32);
         game_write(rva(0x6241F0), game_read::<i32>(rva(0x6241E0)) as f32);
         game_write(rva(0x7554EC), 0x1u32);
         game_write(rva(0x75AA74), 0x9u32);
-        env.call(rva(0x4904DD), g);
-        g.eax = game_read(rva(0x7476BC));
-        game_write(rva(0x755525), g.eax);
-        g.eax = g.eax.wrapping_add(0xFFFFFFFF);
-        game_write(rva(0x75AA7C), g.eax);
+        carousel(c)?;
+        c.arg = game_read(rva(0x7476BC));
+        game_write(rva(0x755525), c.arg);
+        c.arg = c.arg.wrapping_sub(1);
+        game_write(rva(0x75AA7C), c.arg);
     }
+    Ok(())
 }
 
-unsafe fn after(g: &mut Regs, env: &mut dyn Env) {
-    let mut all = Vec::new();
-    pusha(g, &mut all);
-    g.eax = game_addr(rva(0x4DEADF)) as u32;
-    env.call(rva(0x40142B), g);
-    popa(g, &mut all);
+unsafe fn after(_c: &mut Carried) -> Result<(), Refused> {
+    // Between `pusha` and `popa`: no register changes.
+    unsafe {
+        log_line(rva(0x4DEADF));
+    }
+    Ok(())
 }
 
 pub const SCREEN: Screen = Screen {
@@ -78,7 +79,7 @@ pub const SCREEN: Screen = Screen {
     after_lists: &[],
     background: &[
         Step::Write(rva(0x7558D8), 0x1),
-        Step::EaxAddr(rva(0x731DB4)),
+        Step::ArgAddr(rva(0x731DB4)),
         Step::CallOrFatal(rva(0x47EFFF), 0x80712345),
     ],
     after_first_frame: &[],
@@ -112,6 +113,6 @@ pub const SCREEN: Screen = Screen {
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    screen_entry("menu::information_loop", r, &SCREEN)
+pub fn run() -> Result<(), crate::errors::Refused> {
+    screen_entry("menu::information_loop", &SCREEN)
 }

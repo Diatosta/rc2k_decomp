@@ -15,7 +15,7 @@
 //! (`dword_8BD111` .. [k], `fistp`). `dword_8BC405` 1.
 //!
 //! In:  nothing (`g_marksSettings`)
-//! Out: the registers as the path leaves them
+//! Out: nothing (its caller reads no register after it)
 //!
 //! Caller: `marks::run_frame` (0x4D1569). Its calls through `part` (1 `place_view`, 2
 //! `depth_buffer_off`, 3 a render state, 4 `clear_texture`, 5 `drift_offsets`, 6
@@ -31,7 +31,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::marks::setup::SETTINGS_RVA;
 use crate::math::{x87, x87_run};
 use crate::scene::vector3::STATUS_RVA;
@@ -61,9 +61,6 @@ const KEPT_RVA: [usize; 3] = [rva(0x8BD111), rva(0x8BD511), rva(0x8BD911)];
 /// The render states set (value, state).
 const STATES: [(u32, u32); 5] = [(4, 0x15), (5, 0x13), (6, 0x14), (0, 0x1C), (1, 0x1B)];
 const COLOURS: [u32; 4] = [0xFF_FFFF, 0, 0x2800_0000, 0x28FF_FFFF];
-
-/// A call by place (see the header), with the x87 values it takes (st(0) first).
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs, &[[u8; 10]]) -> Result<(), Refused>;
 
 unsafe fn get(a: u32) -> u32 {
     unsafe { (a as *const u32).read_unaligned() }
@@ -160,9 +157,9 @@ unsafe fn keep_y(b: u32, e: u32) {
     }
 }
 
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn run_rain(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    let mut g = *entry;
+/// The Rust version (see the header).
+pub unsafe fn run_rain() -> Result<(), Refused> {
+    use crate::scene::set_render_state::set_render_state;
     unsafe {
         let s: u32 = game_read(SETTINGS_RVA);
         if s == 0 {
@@ -172,12 +169,11 @@ pub unsafe fn run_rain(entry: &Regs, part: Part) -> Result<Regs, Refused> {
             return Err(BadInput("a rain view entry past the five").into());
         }
         let b = game_addr(0) as u32;
-        g.esi = s;
         let mut drops = get(s + 0x2764) as i32;
         game_write(DROPS_RVA, drops);
         if drops == 0 {
             game_write(DRAWN_RVA, 0u32);
-            return Ok(g);
+            return Ok(());
         }
         if drops > MOST_DROPS {
             drops = MOST_DROPS;
@@ -189,37 +185,32 @@ pub unsafe fn run_rain(entry: &Regs, part: Part) -> Result<Regs, Refused> {
         for n in 0..3 {
             game_write(COPIES_B + 4 * n, get(s + 0x1C + 4 * n as u32));
         }
-        part(1, &mut g, &[])?;
-        part(2, &mut g, &[])?;
+        crate::marks::place_view::place_view()?;
+        crate::scene::depth_buffer_on::depth_buffer(false);
         for (value, state) in STATES {
-            g.eax = value;
-            g.ebx = state;
-            part(3, &mut g, &[])?;
+            set_render_state(value, state);
         }
-        part(4, &mut g, &[])?;
-        g.edi = game_addr(VERTICES_RVA) as u32;
-        g.eax = game_read(RHW_RVA);
+        // `clear_texture`: what it returns went only to eax, which nothing here reads.
+        crate::scene::clear_texture::clear_texture();
+        let rhw: u32 = game_read(RHW_RVA);
         for (n, colour) in COLOURS.into_iter().enumerate() {
             let v = VERTICES_RVA + 0x20 * n;
-            game_write(SCRATCH_RVA, g.eax);
-            game_write(v + 0xC, x87::int_to_float(g.eax as i32));
+            game_write(SCRATCH_RVA, rhw);
+            game_write(v + 0xC, x87::int_to_float(rhw as i32));
             game_write(v + 0x10, colour);
             for o in [0x14, 0x18, 0x1C] {
                 game_write(v + o, 0u32);
             }
         }
         game_write(COUNT_RVA, 4u32);
-        let drifting = game_read::<u32>(DRIFTING_RVA) != 0;
-        if drifting {
-            part(5, &mut g, &[])?;
+        if game_read::<u32>(DRIFTING_RVA) != 0 {
+            crate::marks::drift_offsets::drift_offsets();
         }
         let s: u32 = game_read(SETTINGS_RVA);
-        g.ebp = s;
         let e = get(s + 8) * 12;
         if get(s + 0xC) != 0 || game_read::<u32>(DRIFTING_RVA) != 0 {
             box_moved(b, e);
         }
-        g.ebp = e;
         for n in 0..3 {
             game_write(
                 MOVE_RVA + 4 * n,
@@ -236,39 +227,29 @@ pub unsafe fn run_rain(entry: &Regs, part: Part) -> Result<Regs, Refused> {
         keep_y(b, e);
         game_write(LAST_RVA + e as usize + 8, game_read::<u32>(VIEW_RVA + 8));
         if game_read::<u32>(DRIFTING_RVA) != 0 {
-            g.eax = game_read::<u32>(CLOCK_RVA) & 0xF_FFFF;
+            let clock = game_read::<u32>(CLOCK_RVA) & 0xF_FFFF;
             game_write(
                 DRIFT_RVA,
-                x87::int_times_to_int(g.eax as i32, game_read(DRIFT_K_RVA)),
+                x87::int_times_to_int(clock as i32, game_read(DRIFT_K_RVA)),
             );
         }
         for k in (0..drops.max(0) as usize).rev() {
-            g.esi = k as u32;
             let drift: u32 = game_read(DRIFT_RVA);
             let spread: u32 = game_read(SPREAD_RVA);
             let view = |n: usize| game_read::<u32>(VIEW_RVA + 4 * n);
-            g.eax = game_read::<u32>(NOISE_RVA[0] + 4 * k);
-            g.ebx = game_read::<u32>(NOISE_RVA[1] + 4 * k);
-            g.ecx = game_read::<u32>(NOISE_RVA[2] + 4 * k);
-            g.ebx = g.ebx.wrapping_add(drift);
-            g.eax = g.eax.wrapping_add(view(0));
-            g.ebx = g.ebx.wrapping_add(view(1));
-            g.ecx = g.ecx.wrapping_add(view(2));
-            g.eax = g.eax.wrapping_add(spread);
-            g.ecx = g.ecx.wrapping_add(spread);
-            for r in [&mut g.eax, &mut g.ebx, &mut g.ecx] {
-                *r = (*r & 0x3_FFFF).wrapping_sub(0x1_FFFF);
-            }
+            let noise = |n: usize| game_read::<u32>(NOISE_RVA[n] + 4 * k);
+            let x = noise(0).wrapping_add(view(0)).wrapping_add(spread);
+            let y = noise(1).wrapping_add(drift).wrapping_add(view(1));
+            let z = noise(2).wrapping_add(view(2)).wrapping_add(spread);
+            let [x, y, z] = [x, y, z].map(|v| (v & 0x3_FFFF).wrapping_sub(0x1_FFFF));
             let place = [
-                x87_run::int_80(g.ecx as i32, false),
-                x87_run::int_80(g.ebx as i32, false),
-                x87_run::int_80(g.eax as i32, false),
+                x87_run::int_80(z as i32, false),
+                x87_run::int_80(y as i32, false),
+                x87_run::int_80(x as i32, false),
             ];
-            part(6, &mut g, &place)?;
+            crate::marks::draw_streak::draw_streak(place)?;
             let s: u32 = game_read(SETTINGS_RVA);
-            g.esi = s;
             if get(s + 0x10) != 0 {
-                g.esi = k as u32;
                 for (n, kept) in KEPT_RVA.into_iter().enumerate() {
                     let v: u32 = game_read(TURNED_RVA + 4 * n);
                     game_write(kept + 4 * k, x87::to_int(v));
@@ -276,34 +257,6 @@ pub unsafe fn run_rain(entry: &Regs, part: Part) -> Result<Regs, Refused> {
             }
         }
         game_write(DRAWN_RVA, 1u32);
-    }
-    Ok(g)
-}
-
-/// In the game: the calls' Rust versions.
-pub fn game_part(place: u32, r: &mut Regs, v: &[[u8; 10]]) -> Result<(), Refused> {
-    unsafe {
-        match place {
-            1 => {
-                let left = crate::marks::place_view::place_view(r)?;
-                *r = Regs { esp: r.esp, ..left };
-            }
-            2 => crate::scene::depth_buffer_on::depth_buffer(false),
-            3 => {
-                let (value, state) = (r.eax, r.ebx);
-                crate::scene::set_render_state::set_render_state(value, state);
-            }
-            4 => crate::scene::clear_texture::clear_texture_in_game(r),
-            5 => {
-                let left = crate::marks::drift_offsets::drift_offsets(r);
-                *r = Regs { esp: r.esp, ..left };
-            }
-            _ => {
-                use crate::marks::draw_streak as streak;
-                let left = streak::draw_streak(r, [v[0], v[1], v[2]])?;
-                *r = Regs { esp: r.esp, ..left };
-            }
-        }
     }
     Ok(())
 }

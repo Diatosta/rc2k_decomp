@@ -15,14 +15,12 @@
 
 pub unsafe fn seed_random() {
     crate::math::next_random::wait_for_random();
-    use crate::bridge::Global;
-    static TIME: Global<u32> = Global::at(0x51_83A4);
-    static DATE: Global<u32> = Global::at(0x51_83A0);
-    static WEEKDAY: Global<u8> = Global::at(0x51_839F);
+    // `byte_51839F`, `dword_5183A0`, `dword_5183A4` (`system::keep_start_time`).
+    let kept = crate::system::keep_start_time::start_time();
     let clock = rc2k_core::math::random::StartClock {
-        time: TIME.get(),
-        date: DATE.get(),
-        weekday: WEEKDAY.get(),
+        time: u32::from_le_bytes([kept[5], kept[6], kept[7], kept[8]]),
+        date: u32::from_le_bytes([kept[1], kept[2], kept[3], kept[4]]),
+        weekday: kept[0],
     };
     crate::math::next_random::with_random(|r| r.seed(clock));
 }

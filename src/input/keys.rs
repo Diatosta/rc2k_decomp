@@ -7,7 +7,7 @@
 //! that went down this frame, or auto-repeat (`g_keyRepeat`, 0x4F6D5C: a key held 0x41
 //! frames is pressed again each frame).
 
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{Regs, game_read, game_write, rva};
 
 pub const MOUSE_WORD_RVA: usize = rva(0x4F6DF0); // g_mouseWord: buttons, x << 8, y << 20
 pub const MOUSE_RVA: usize = rva(0x5C6924); // g_mouseX, g_mouseY
@@ -163,21 +163,6 @@ pub fn update_input(shot: Screenshot) -> (u32, u32) {
         let right = take_mouse_clicks();
         end_frame(&mut || screenshot_if_key(&mut *shot));
         (right, edx)
-    }
-}
-
-/// `update_input` with the registers the original leaves: eax the right click, ebx 0x80,
-/// ecx 0, edx the last key dword, esi `g_keysNow`, edi `g_keysBefore`.
-pub fn update(entry: &Regs, shot: Screenshot) -> Regs {
-    let (eax, edx) = update_input(shot);
-    Regs {
-        eax,
-        ebx: KEYS,
-        ecx: 0,
-        edx,
-        esi: game_addr(NOW_RVA) as u32,
-        edi: game_addr(BEFORE_RVA) as u32,
-        ..*entry
     }
 }
 

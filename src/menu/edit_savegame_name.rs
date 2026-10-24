@@ -28,7 +28,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 use crate::input::key_to_char::{has_layout, key_to_char};
 use crate::input::take_key::take_key;
 use crate::menu::add_text_length::add_text_length;
@@ -39,16 +39,13 @@ use crate::menu::restore_text::restore_text;
 use crate::menu::text_entry::{ENTERING_RVA, MAX_LENGTH_RVA, length, set_length};
 use crate::saves::write_savegame_slot::write_savegame_slot;
 use crate::screens::font_at;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 use crate::service::state::menu_item;
 use crate::strings::append_string_by_id::push_string;
-use crate::text::draw_text::{Canvas, GameCanvas};
+use crate::text::draw_text::Canvas;
 use crate::text::measure_text::measure_text_at;
 
 // ---- game data ----
 
-const SAVE_GAME_RVA: usize = rva(0x4AB558); // saves::write_savegame_slot: ebx = slot
 const CURSOR_ON_RVA: usize = rva(0x7559A8); // dword_7559A8: 1 in the visible half of the cursor's blink
 
 const CURSOR_STRING: u32 = 4;
@@ -69,14 +66,15 @@ fn highlighted_slot() -> u32 {
 }
 
 /// Saves the game in `slot`. Whether it worked is not looked at, as in the original. A slot
-/// or a state the Rust writer refuses goes to the original's.
+/// or a state the Rust writer refuses ends the program with the reason (before 2026-10-24
+/// it called the original's writer by address, which the standalone does not have: it
+/// ended as "not ported").
 pub fn save_game(slot: u32) {
-    if unsafe { write_savegame_slot(slot) }.is_err() {
-        let mut regs = Regs {
-            ebx: slot,
-            ..Regs::default()
-        };
-        crate::calls::call(SAVE_GAME_RVA, &mut regs);
+    if let Err(why) = unsafe { write_savegame_slot(slot) } {
+        crate::standalone::finish(
+            &format!("saves::write_savegame_slot (slot {slot}) refused: {why:?}"),
+            1,
+        );
     }
 }
 
@@ -140,18 +138,6 @@ pub unsafe fn edit_savegame_name(
         std::ptr::copy_nonoverlapping(tail.as_ptr(), name.offset(length() as isize), tail.len());
     }
     Ok(())
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { edit_savegame_name(&mut GameCanvas, &mut save_game) }?;
-
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }
 
 // pusha; call take_key

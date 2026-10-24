@@ -11,18 +11,15 @@
 //! Caller: `sub_437A53`.
 //! Self-test: `physics/camera_view.rs` (`view_test_floats`), as `take_view_a`'s.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
-use crate::framework::{EAX, EBX, Regs};
 use crate::physics::camera_view::rd;
 use crate::physics::flow::{base, g, p, x87_run};
-use crate::screens::harness::Left;
 
-/// The Rust version (the exact one, for `physics::update_camera`).
-pub unsafe fn take_view_b(entry: &Regs) -> Left {
-    let s = entry.esi;
+/// The Rust version (the exact one, for `physics::update_camera`): `s` the view's record
+/// (esi). The eax and ebx it leaves are read by none of its callers.
+pub unsafe fn take_view_b(s: u32) {
     x87_run!(
         "fld dword ptr [{s} + 0x4]",
         "fadd dword ptr [{b} + 0x237638]",
@@ -46,7 +43,6 @@ pub unsafe fn take_view_b(entry: &Regs) -> Left {
     }
     p(0x608B70, eax);
     p(0x608B6C, ebx);
-    Left::nothing().with(EAX, eax).with(EBX, ebx)
 }
 
 /// Where the record's +0x10 .. +0x38 go.

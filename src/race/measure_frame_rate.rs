@@ -7,17 +7,14 @@
 //! In:  nothing
 //! Out: unchanged but on the 16th: eax and edx the counter, ebx the cycles; no flags read
 //!
-//! Caller: `sub_4547AE` (0x4547FD); `flt_6214F0` is shown by `race::draw_frame_rate`.
-//! The counter through `tsc` (in the game `rdtsc`). Self-test: a copy of the original
-//! (its own `rdtsc`), then the Rust version given the value the copy read; counts before,
-//! at and past the 16th, cycles above and below 0, at the test precisions (the rate
-//! within `FLOAT` at extended). The Rust version is `measure_frame_rate_plain`.
+//! Caller: `sub_4547AE` (0x4547FD, `race::show_frame`); `flt_6214F0` is shown by
+//! `race::draw_frame_rate`. The rate is worked out in plain floats.
 //!
 //! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::{Regs, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 
 const COUNT_RVA: usize = rva(0x613838); // dword_613838
 const NOW_RVA: usize = rva(0x6214E8); // dword_6214E8
@@ -40,45 +37,27 @@ fn frame_rate_plain() {
     }
 }
 
-/// The converted version: the hook's and `race::show_frame`'s (the exact x87 version went
-/// once its one Rust caller took this): the registers it leaves; `tsc` gives the counter's
-/// low and high halves.
-pub unsafe fn measure_frame_rate_plain(entry: &Regs, tsc: &mut dyn FnMut() -> (u32, u32)) -> Regs {
+/// The Rust version: the eax the original leaves when it changes it (on the 16th call, the
+/// time-stamp counter's low half, `dword_6214E8`); its edx and ebx (the counter's high
+/// half, the cycles) are read by no caller.
+pub unsafe fn measure_frame_rate() -> Option<u32> {
     // Converted: `rc2k_core::race::frame_rate::{count_frame, cycles_since}`.
     use rc2k_core::race::frame_rate::{count_frame, cycles_since};
-    let mut r = *entry;
     unsafe {
         let (count, due) = count_frame(game_read(COUNT_RVA));
         game_write(COUNT_RVA, count);
         if !due {
-            return r;
+            return None;
         }
-        (r.eax, r.edx) = tsc();
-        game_write(NOW_RVA, r.eax);
+        let now = core::arch::x86::_rdtsc() as u32;
+        game_write(NOW_RVA, now);
         let last: u32 = game_read(LAST_RVA);
-        r.ebx = r.eax.wrapping_sub(last);
-        if let Some(cycles) = cycles_since(r.eax, last) {
+        if let Some(cycles) = cycles_since(now, last) {
             game_write(CYCLES_RVA, cycles);
             frame_rate_plain();
         }
-        r.eax = game_read(NOW_RVA);
-        game_write(LAST_RVA, r.eax);
+        let now: u32 = game_read(NOW_RVA);
+        game_write(LAST_RVA, now);
+        Some(now)
     }
-    r
-}
-
-/// The time-stamp counter, as `rdtsc` gives it.
-pub fn rdtsc() -> (u32, u32) {
-    let t = unsafe { core::arch::x86::_rdtsc() };
-    (t as u32, (t >> 32) as u32)
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    // Shadow mode runs the original alone: two reads of the counter never agree.
-    *r = Regs {
-        esp: r.esp,
-        ..unsafe { measure_frame_rate_plain(r, &mut rdtsc) }
-    };
-    Ok(())
 }

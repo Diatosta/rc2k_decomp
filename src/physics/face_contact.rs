@@ -28,12 +28,10 @@
 //! stage's own faces (everything written saved and put back), the car where it is and
 //! moved onto each object face's point (so the paths inside are taken), both directions.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::math::x87::int_hypot;
 use crate::math::x87_run::compare_80;
 use crate::physics::contact_force::{RECORD, contact_force};
@@ -42,8 +40,6 @@ use crate::physics::point_hits_car::KIND;
 use crate::physics::touch_face::{FACES, touch_face};
 use crate::physics::vector_length::vector_length;
 use crate::race::norms::normalise_work_vector;
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
 use rc2k_core::physics::face_contacts::{self as contacts, FaceObject, Inside};
 
 const WORK: usize = 0x5C5F60; // g_workVector
@@ -53,76 +49,64 @@ fn byte(x: u32) -> u32 {
     unsafe { (x as *const u8).read() as u32 }
 }
 
-fn low(r: &mut Regs, v: u32) {
-    r.eax = (r.eax & !0xFF) | v;
+fn rd(x: u32) -> u32 {
+    unsafe { (x as *const u32).read_unaligned() }
 }
 
-fn touch(r: &mut Regs, _face: u32) -> Result<(), Refused> {
-    unsafe { touch_face() }?.apply(r);
+fn touch() -> Result<(), Refused> {
+    unsafe { touch_face() }?;
     Ok(())
 }
 
-/// The steps: `r` as the original leaves it.
+/// The steps for face `number` (ebx). The registers the original leaves are read by none
+/// of its callers.
 // Converted: `rc2k_core::physics::face_contacts` (the x87 steps stay).
-pub fn steps(r: &mut Regs) -> Result<(), Refused> {
-    p(0x6D3218, r.ebx);
-    r.esi = (r.ebx << 6).wrapping_add(g(FACES));
-    let face = r.esi;
+pub fn steps(number: u32) -> Result<(), Refused> {
+    p(0x6D3218, number);
+    let face = (number << 6).wrapping_add(g(FACES));
     if unsafe { crate::scene::kind_hidden_at::kind_hidden_at(face) } {
         return Ok(());
     }
-    low(r, byte(face));
     let object = match contacts::face_object(byte(face), || byte(face + 1)) {
         FaceObject::NotObject => return Ok(()),
         FaceObject::TouchOnly => {
-            low(r, contacts::TOUCH_ONLY);
             p(KIND, 0xFF);
-            return touch(r, face);
+            return touch();
         }
         FaceObject::Object(object) => object,
     };
-    r.eax = object;
     p(OBJECT, object);
     let kind = g(0x5CD27C + 4 * object as usize);
     contacts::check_material(kind)?;
     p(KIND, byte(a(0x97DF30) + 0x80 * kind + 0x1C));
-    if let Err(eax) = contacts::object_tried(byte(face + 0x25), g(0x71B400), object) {
-        r.eax = eax;
+    if contacts::object_tried(byte(face + 0x25), g(0x71B400), object).is_err() {
         return Ok(());
     }
-    r.eax = object;
     for (k, o) in [8u32, 0xC, 0x10].iter().enumerate() {
-        r.eax = contacts::turn_word(byte(face + o));
-        p(0x63503C + 4 * k, r.eax);
+        p(0x63503C + 4 * k, contacts::turn_word(byte(face + o)));
     }
-    r.eax = byte(face + 0x18);
-    p(0x635038, r.eax);
-    r.ebp = face;
-    let (inside, ebx, esi) =
-        unsafe { crate::physics::scene_point_hits_car::scene_point_hits_car(r.esi, r.ebp) };
-    r.ebx = ebx;
-    r.esi = esi;
+    p(0x635038, byte(face + 0x18));
+    // esi and ebp both the face here.
+    let (inside, _, point) =
+        unsafe { crate::physics::scene_point_hits_car::scene_point_hits_car(face, face) };
     if !inside {
         if !contacts::tries_points(g(KIND)) {
             return Ok(());
         }
-        let rd = |x: u32| unsafe { (x as *const u32).read_unaligned() };
-        r.eax = rd(r.esi)
-            .wrapping_add(rd(r.ebp + 0x30))
+        let dx = rd(point)
+            .wrapping_add(rd(face + 0x30))
             .wrapping_sub(g(0x71A10C));
-        r.ecx = rd(r.esi + 8)
-            .wrapping_add(rd(r.ebp + 0x38))
+        let dz = rd(point + 8)
+            .wrapping_add(rd(face + 0x38))
             .wrapping_sub(g(0x71A114));
-        let distance = int_hypot(r.eax as i32, r.ecx as i32) as u32;
+        let distance = int_hypot(dx as i32, dz as i32) as u32;
         p(0x62400C, distance);
-        r.ebx = g(OBJECT);
-        (r.eax, r.edx) = contacts::reach(g(0x634BA0 + 4 * r.ebx as usize), g(0x635038));
-        if contacts::out_of_reach(r.eax, distance) {
+        let (reach, _) = contacts::reach(g(0x634BA0 + 4 * g(OBJECT) as usize), g(0x635038));
+        if contacts::out_of_reach(reach, distance) {
             return Ok(());
         }
-        let left = unsafe { crate::physics::object_hits_car::object_hits_car(r) }?;
-        left.apply(r);
-        if !left.carry.unwrap_or(false) {
+        // esi the scene point, ebp the face.
+        if !unsafe { crate::physics::object_hits_car::object_hits_car(point, face) }? {
             return Ok(());
         }
     }
@@ -160,15 +144,14 @@ pub fn steps(r: &mut Regs) -> Result<(), Refused> {
         "fstp dword ptr [{b} + 0x2D3B60]";
         b = base()
     );
-    r.eax = g(KIND);
-    match contacts::inside(r.eax) {
+    match contacts::inside(g(KIND)) {
         Inside::PushBack => {}
-        Inside::Touch => return touch(r, face),
+        Inside::Touch => return touch(),
         Inside::Nothing => return Ok(()),
     }
-    unsafe { crate::physics::restore_saved_car::restore_saved_car() }?.apply(r);
-    unsafe { crate::physics::feel_ground::feel_ground(r) }?;
-    touch(r, face)?;
+    unsafe { crate::physics::restore_saved_car::restore_saved_car() }?;
+    unsafe { crate::physics::feel_ground::feel_ground() }?;
+    touch()?;
     // 0x45E62A: pushed back against the motion, level.
     copy3(WORK, 0x71A170);
     negate(WORK);
@@ -186,24 +169,6 @@ pub fn steps(r: &mut Regs) -> Result<(), Refused> {
     p(0x6D3094, 0);
     p(0x6D3100, 0);
     p(RECORD, a(0x614A50));
-    unsafe { contact_force() }.apply(r);
+    unsafe { contact_force() };
     Ok(())
-}
-
-/// `f` on a copy of `entry`.
-pub fn guarded(
-    entry: &Regs,
-    f: impl FnOnce(&mut Regs) -> Result<(), Refused>,
-) -> Result<Left, Refused> {
-    let mut r = *entry;
-    f(&mut r)?;
-    Ok(left_of(&r))
-}
-
-/// `dispatch_faces` without its hook (Rust callers; a refusal is the caller's).
-pub fn faces_entry(
-    r: &mut Regs,
-    steps: fn(&mut Regs) -> Result<(), Refused>,
-) -> Result<(), Refused> {
-    crate::service::harness::state_entry(r, &|e| guarded(e, steps))
 }

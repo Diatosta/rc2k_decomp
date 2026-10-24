@@ -4,10 +4,9 @@
 //! thunk keeps the angle (80 bits) for the Rust version and loads it again for the original.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::Regs;
 use crate::math::x87;
 use crate::math::x87::x87;
-use crate::scene::vector3::{read_floats, write_floats};
+use crate::scene::vector3::write_floats;
 
 /// `scene::identity_matrix3` (0x46574E): the matrix at esi the identity (1.0 from `fld1`).
 /// Every register kept.
@@ -15,99 +14,47 @@ pub unsafe fn identity_matrix3(at: u32) {
     unsafe { write_floats(at, &rc2k_core::math::vector::IDENTITY) };
 }
 
-/// `scene::multiply_matrices3` (0x4657EC): ebp = esi x edi, column by column, each written
-/// as made (so an ebp that is one of the two behaves as there). Leaves ecx and edx 0, edi
-/// and ebp 12 on.
-pub unsafe fn multiply_matrices3(entry: &Regs) -> Regs {
-    let mut g = *entry;
+/// `scene::multiply_matrices3` (0x4657EC): `out` = `a` x `b`, column by column, each written
+/// as made (so an `out` that is one of the two behaves as there). The registers the
+/// original leaves (ecx and edx 0, edi and ebp 12 on) are read by no caller (liveness at the
+/// five call sites, all `marks`', which are Rust).
+pub unsafe fn multiply_matrices3(a: u32, b: u32, out: u32) {
     unsafe {
         for column in 0..3 {
             for row in 0..3 {
                 x87::row_times_column_3(
-                    (g.esi + 12 * row) as *const u32,
-                    (g.edi + 4 * column) as *const u32,
-                    (g.ebp + 12 * row + 4 * column) as *mut u32,
+                    (a + 12 * row) as *const u32,
+                    (b + 4 * column) as *const u32,
+                    (out + 12 * row + 4 * column) as *mut u32,
                 );
             }
         }
     }
-    g.ecx = 0;
-    g.edx = 0;
-    g.edi = g.edi.wrapping_add(12);
-    g.ebp = g.ebp.wrapping_add(12);
-    g
 }
 
-/// The converted `multiply_matrices3` (`rc2k_core::math::vector`, plain floats): the hook's.
-pub unsafe fn multiply_matrices3_plain(entry: &Regs) -> Regs {
-    use rc2k_core::math::vector::row_times_column;
-    let mut g = *entry;
-    unsafe {
-        for column in 0..3 {
-            for row in 0..3 {
-                let a: [f32; 3] = read_floats(g.esi + 12 * row);
-                let b = g.edi + 4 * column;
-                let b = [b, b + 0xC, b + 0x18].map(|at| read_floats::<1>(at)[0]);
-                write_floats(g.ebp + 12 * row + 4 * column, &[row_times_column(a, b)]);
-            }
-        }
-    }
-    g.ecx = 0;
-    g.edx = 0;
-    g.edi = g.edi.wrapping_add(12);
-    g.ebp = g.ebp.wrapping_add(12);
-    g
-}
-
-/// `scene::transform_int_points` (0x465829): ecx points of three whole numbers from esi
-/// turned by the matrix at ebp into edi (`math::x87::turn_int_point`). Leaves ecx -1 (one
-/// less than it was when negative), esi and edi past them. Refuses ecx 0x80000000 (the
-/// count would run away).
-pub unsafe fn transform_int_points(entry: &Regs) -> Result<Regs, Refused> {
-    let mut g = *entry;
-    if g.ecx == 0x8000_0000 {
+/// `scene::transform_int_points` (0x465829): `count` points of three whole numbers from
+/// `from` turned by the matrix at `matrix` into `to` (`math::x87::turn_int_point`). The
+/// registers it leaves (ecx -1, esi and edi past the points) are read by no caller. Refuses
+/// a count of 0x80000000 (the count would run away).
+pub unsafe fn transform_int_points(
+    from: u32,
+    to: u32,
+    count: u32,
+    matrix: u32,
+) -> Result<(), Refused> {
+    if count == 0x8000_0000 {
         return Err(BadInput("a count of 0x80000000: the original runs away").into());
     }
     unsafe {
-        for _ in 0..(g.ecx as i32).max(0) {
-            x87::turn_int_point(g.esi as *const i32, g.ebp as *const u32, g.edi as *mut i32);
-            g.esi = g.esi.wrapping_add(12);
-            g.edi = g.edi.wrapping_add(12);
+        for n in 0..(count as i32).max(0) as u32 {
+            x87::turn_int_point(
+                from.wrapping_add(12 * n) as *const i32,
+                matrix as *const u32,
+                to.wrapping_add(12 * n) as *mut i32,
+            );
         }
     }
-    g.ecx = if (g.ecx as i32) < 0 {
-        g.ecx - 1
-    } else {
-        u32::MAX
-    };
-    Ok(g)
-}
-
-/// The converted `transform_int_points`: the hook's.
-pub unsafe fn transform_int_points_plain(entry: &Regs) -> Result<Regs, Refused> {
-    let mut g = *entry;
-    if g.ecx == 0x8000_0000 {
-        return Err(BadInput("a count of 0x80000000: the original runs away").into());
-    }
-    unsafe {
-        for _ in 0..(g.ecx as i32).max(0) {
-            let m: [f32; 9] = read_floats(g.ebp);
-            let p: [i32; 3] =
-                std::array::from_fn(|n| ((g.esi + 4 * n as u32) as *const i32).read_unaligned());
-            let out = rc2k_core::math::vector::turn_int_point(p, &m);
-            for (n, v) in out.into_iter().enumerate() {
-                ((g.edi + 4 * n as u32) as *mut i32).write_unaligned(v);
-            }
-            g.esi = g.esi.wrapping_add(12);
-            g.edi = g.edi.wrapping_add(12);
-        }
-    }
-    g.ecx = if (g.ecx as i32) < 0 {
-        g.ecx - 1
-    } else {
-        u32::MAX
-    };
-    Ok(g)
+    Ok(())
 }
 
 /// The axis a turn is about.

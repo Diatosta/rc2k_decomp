@@ -7,8 +7,7 @@
 //! each of `g_marksSplinePlace` splines, the last first.
 //!
 //! In:  nothing (`g_marksSettings`)
-//! Out: the registers as the last `place_spline` leaves them (eax the random's byte less
-//!      0x80, esi the settings, with none)
+//! Out: nothing (no caller reads a register it leaves)
 //!
 //! Caller: `sub_4C1270`. Refuses null settings and more than 8 splines (before anything),
 //! and `place_spline`'s refusals (all it may write is put back first). Self-test: the
@@ -20,13 +19,12 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 use crate::marks::lines::SETTINGS_RVA;
-use crate::marks::place_spline::{self, place_spline};
+use crate::marks::place_spline::place_spline;
 use crate::marks::setup::SEED_RVA;
 use crate::marks::splines::{MADE_RVA, PLACE_RVA};
 use crate::math::x87;
-use crate::service::harness::{Region, at};
 
 const TICKS_RVA: usize = rva(0x764FD0); // g_marksFrameTicks
 const ANGLE_RVA: usize = rva(0x7695B6); // flt_7695B6
@@ -41,19 +39,6 @@ unsafe fn get(a: u32) -> u32 {
 
 unsafe fn put(a: u32, v: u32) {
     unsafe { (a as *mut u32).write_unaligned(v) }
-}
-
-/// What it may write.
-pub fn regions(settings: u32) -> Vec<Region> {
-    let mut r: Vec<Region> = [MADE_RVA, SEED_RVA, ANGLE_RVA, WAVE_RVA].map(at).to_vec();
-    if settings != 0 {
-        r.push((settings + 0x26FC, 4));
-    }
-    let places: i32 = unsafe { game_read(PLACE_RVA) };
-    for n in 0..places.clamp(0, MOST_SPLINES) as u32 {
-        r.extend(place_spline::regions(n));
-    }
-    r
 }
 
 /// The made counter's step (see the header).
@@ -97,8 +82,8 @@ unsafe fn step_made(settings: u32, half: u32) {
     }
 }
 
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn run_splines(entry: &Regs) -> Result<Regs, Refused> {
+/// The Rust version (see the header).
+pub unsafe fn run_splines() -> Result<(), Refused> {
     let settings: u32 = unsafe { game_read(SETTINGS_RVA) };
     if settings == 0 {
         return Err(BadInput("no marks settings").into());
@@ -107,31 +92,25 @@ pub unsafe fn run_splines(entry: &Regs) -> Result<Regs, Refused> {
     if places > MOST_SPLINES {
         return Err(BadInput("more than 8 splines").into());
     }
-
-    unsafe { run(entry, settings, places) }
-}
-
-unsafe fn run(entry: &Regs, settings: u32, places: i32) -> Result<Regs, Refused> {
-    let mut g = Regs {
-        esi: settings,
-        ..*entry
-    };
     unsafe {
         step_made(settings, game_read::<u32>(TICKS_RVA) >> 1);
         let s = game_read::<u32>(SEED_RVA)
             .wrapping_mul(0x9D)
             .wrapping_add(0x47);
         game_write(SEED_RVA, s);
-        g.eax = (s & 0xFF).wrapping_sub(0x80);
         let k = WAVE_K.map(|r| game_read::<u32>(r));
-        let (angle, wave) =
-            x87::angle_and_wave(game_read(ANGLE_RVA), g.eax as i32, k[0], k[1], k[2]);
+        let (angle, wave) = x87::angle_and_wave(
+            game_read(ANGLE_RVA),
+            (s & 0xFF).wrapping_sub(0x80) as i32,
+            k[0],
+            k[1],
+            k[2],
+        );
         game_write(ANGLE_RVA, angle);
         game_write(WAVE_RVA, wave);
         for n in (0..places.max(0) as u32).rev() {
-            g.eax = n;
-            g = place_spline(&g)?;
+            place_spline(n)?;
         }
     }
-    Ok(g)
+    Ok(())
 }

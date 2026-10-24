@@ -11,8 +11,7 @@
 //! and `g_polygonVertexCount` 4. Rain, by the look of it (a reading).
 //!
 //! In:  st(0) .. st(2) the point (popped)
-//! Out: the registers as they come when not drawn; else as `clip_quad` / `draw_fan` leave
-//!      them (edi `flt_8BDE3D`, esi `flt_8BDE49` going in)
+//! Out: nothing (its caller reads no register after it)
 //!
 //! Caller: `sub_4C16F9` (0x4C1AD0). The arithmetic is the original's instructions over the
 //! game's variables (register forms as bytes); the clip its Rust version (the copy's call
@@ -26,8 +25,8 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
-use crate::marks::clip_quad::clip_quad;
+use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::marks::clip_quad::{clip_quad, draw_fan};
 
 // flt_8BDD29 .. flt_8BDE51
 const DEPTH_RVA: usize = rva(0x8BDD5D); // flt_8BDD5D
@@ -225,9 +224,8 @@ unsafe fn project(b: u32) {
     }
 }
 
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn draw_streak(entry: &Regs, place: [[u8; 10]; 3]) -> Result<Regs, Refused> {
-    let mut g = *entry;
+/// The Rust version (see the header).
+pub unsafe fn draw_streak(place: [[u8; 10]; 3]) -> Result<(), Refused> {
     unsafe {
         if game_read::<u32>(crate::marks::setup::SETTINGS_RVA) == 0 {
             return Err(BadInput("no marks settings").into());
@@ -238,24 +236,14 @@ pub unsafe fn draw_streak(entry: &Regs, place: [[u8; 10]; 3]) -> Result<Regs, Re
             || game_read::<u32>(SWITCH_RVA) == 0
             || game_read::<i32>(FAR_RVA) <= 0x4800_0000
         {
-            return Ok(g);
+            return Ok(());
         }
         project(b);
-        g.edi = game_addr(rva(0x8BDE3D)) as u32;
-        g.esi = game_addr(rva(0x8BDE49)) as u32;
-        g.ebp = game_addr(VERTICES_RVA) as u32;
-        g = clip_quad(&g)?;
-        if g.carry() {
-            return Ok(g);
+        if clip_quad(game_addr(VERTICES_RVA) as u32)? {
+            return Ok(());
         }
-        crate::marks::draw_streak::game_part(1, &mut g)?;
+        draw_fan();
         game_write(COUNT_RVA, 4u32);
     }
-    Ok(g)
-}
-
-/// In the game: `draw_fan`'s Rust version.
-pub fn game_part(_place: u32, r: &mut Regs) -> Result<(), Refused> {
-    unsafe { crate::scene::draw_fan::draw_fan(r, &mut crate::scene::draw_fan::game_part) };
     Ok(())
 }

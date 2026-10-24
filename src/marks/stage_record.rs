@@ -3,7 +3,7 @@
 //! `sub_4616AA`'s clamp to 0x33, the stages: a reading).
 //!
 //! In:  nothing
-//! Out: eax the number, esi its record
+//! Out: the record (the original's esi; returned, read by no caller)
 //!
 //! One caller, `marks::run_frame`. Refuses a number past the table (unsigned). Self-test:
 //! the original and the Rust version on numbers 0, 1, 0x1F and 0x33 and the game's own;
@@ -14,19 +14,17 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_read, rva};
+use crate::framework::{game_read, rva};
 
 const NUMBER_RVA: usize = rva(0x64165C); // dword_64165C
 const RECORDS_RVA: usize = rva(0x606320); // off_606320: 0x34 pointers
 
-/// The Rust version (see the header).
+/// The Rust version (see the header): the record's pointer (the original's esi; read by
+/// no caller).
 // Converted: `rc2k_core::marks::race::stage_record`
-pub unsafe fn stage_record(entry: &Regs) -> Result<Regs, Refused> {
-    let mut g = *entry;
+pub unsafe fn stage_record() -> Result<u32, Refused> {
     unsafe {
-        g.eax = game_read(NUMBER_RVA);
-        let n = rc2k_core::marks::race::stage_record(g.eax)?;
-        g.esi = game_read(RECORDS_RVA + 4 * n);
+        let n = rc2k_core::marks::race::stage_record(game_read(NUMBER_RVA))?;
+        Ok(game_read(RECORDS_RVA + 4 * n))
     }
-    Ok(g)
 }

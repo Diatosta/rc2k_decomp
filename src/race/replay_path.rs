@@ -16,7 +16,6 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::physics::flow::a;
 
 pub const LAST_RACE_PATH: usize = 0x5295F0; // "var\tmprpl"
@@ -24,28 +23,41 @@ const SAVED_TEMPLATE: usize = 0x52974B; // "savedata\replay\replay00"
 const OWN_TEMPLATE: usize = 0x529764; // "files\replay\replay00"
 // `numbered_path`'s buffer
 
-/// The Rust version: the registers and flags it leaves.
-pub fn replay_path(entry: &Regs) -> Result<Regs, Refused> {
-    let mut r = *entry;
+/// What the original leaves in its registers: eax the path (0 for none), ebx the number
+/// the path was made with (for a file of the game's own), and whether it is the last
+/// race's file (the zero flag).
+#[derive(Clone, Copy, Debug)]
+pub struct ReplayPath {
+    pub path: u32,
+    pub number: u32,
+    pub last_race: bool,
+}
+
+/// The Rust version. `slot` the replay (ebx).
+pub fn replay_path(slot: u32) -> Result<ReplayPath, Refused> {
     // Converted: `rc2k_core::race::viewer::ReplayFile`.
     use rc2k_core::race::viewer::ReplayFile;
-    r.eax = a(LAST_RACE_PATH);
-    r.set_carry(false);
-    let template = match ReplayFile::of(r.ebx) {
+    let mut number = slot;
+    let template = match ReplayFile::of(slot) {
         ReplayFile::LastRace => {
-            r.set_zero(true);
-            return Ok(r);
+            return Ok(ReplayPath {
+                path: a(LAST_RACE_PATH),
+                number,
+                last_race: true,
+            });
         }
         ReplayFile::Saved(_) => SAVED_TEMPLATE,
         ReplayFile::Own(n) => {
-            r.ebx = n;
+            number = n;
             OWN_TEMPLATE
         }
     };
     let path = unsafe {
-        crate::files::numbered_path::numbered_path_in_game(a(template) as *const u8, r.ebx)
+        crate::files::numbered_path::numbered_path_in_game(a(template) as *const u8, number)
     }?;
-    r.eax = path as u32;
-    r.set_zero(r.eax == 0);
-    Ok(r)
+    Ok(ReplayPath {
+        path: path as u32,
+        number,
+        last_race: path as u32 == 0,
+    })
 }

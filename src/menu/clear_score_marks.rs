@@ -12,32 +12,19 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_read, rva};
+use crate::framework::{game_read, rva};
 use crate::menu::standings::*;
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 const TABLE_RVA: usize = rva(0x7556D4); // dword_7556D4
 const ENTRIES: u32 = 50;
 
 /// The Rust version (see the header): the registers it leaves.
-pub unsafe fn clear_score_marks(entry: &Regs) -> Result<Regs, Refused> {
+pub unsafe fn clear_score_marks() -> Result<(), Refused> {
     let first: u32 = unsafe { game_read(TABLE_RVA) };
     if first == 0 {
         return Err(BadInput("no best-score table").into());
     }
     // Converted: `rc2k_core::menu::standings::BEST_MARKS`, stored in each entry.
     unsafe { table(first, 0x3C, ENTRIES) }.store_all(&rc2k_core::menu::standings::BEST_MARKS);
-    Ok(*entry)
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(left_of(&unsafe { clear_score_marks(r) }?))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
+    Ok(())
 }

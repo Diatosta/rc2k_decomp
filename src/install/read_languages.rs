@@ -12,22 +12,22 @@
 //! Refuses a value of 0x80 bytes or more (the original writes on into the next slot).
 //! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
 //! `routes.rs`); the registers above are the original's, for reference.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
+//! are the original's.
 
 use crate::bridge::Raw;
-use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_write, rva};
+use crate::errors::BadInput;
+use crate::framework::{game_addr, game_write, rva};
 use crate::install::choose_language::{
     LANGUAGE_COUNT_RVA, LANGUAGE_SLOT, LANGUAGE_SLOTS, LANGUAGES_RVA, choose_language,
 };
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 use crate::settings::read_text::read_text;
 use crate::strings::same_text::case_table;
 use rc2k_core::install::config;
 
 // ---- game data ----
 
-const PATH_RVA: usize = rva(0x51C36E); // "lang.cfg"
+pub const PATH_RVA: usize = rva(0x51C36E); // "lang.cfg"
 
 // ---- Rust version ----
 
@@ -52,14 +52,4 @@ pub unsafe fn read_languages(path: *const u8) -> Result<(), BadInput> {
         game_write(LANGUAGE_COUNT_RVA, kept);
         choose_language(1)
     }
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { read_languages(game_addr(PATH_RVA) as *const u8) }?;
-    Ok(Left::nothing())
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

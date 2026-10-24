@@ -14,8 +14,8 @@
 //! Self-test: a redirected copy whose two calls note themselves.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_read, game_write, rva};
-use crate::scene::load_object::load_object_in_game;
+use crate::framework::{game_read, game_write, rva};
+use crate::scene::load_object::load_object;
 use crate::scene::objects::{FACE_CURSOR_RVA, KIND_RVA, POINT_COUNT_RVA, SLOT_RVA, SLOTS};
 use crate::scene::reset_objects::reset_objects;
 
@@ -29,64 +29,25 @@ const USED_RVA: usize = rva(0x634FA4);
 
 // ---- Rust version ----
 
-/// `reset`: what stands for `scene::reset_objects`; `load`: for `scene::load_object`.
-pub unsafe fn load_front_end_objects(
-    r: &mut Regs,
-    reset: &mut dyn FnMut(&mut Regs) -> Result<(), Refused>,
-    load: &mut dyn FnMut(&mut Regs) -> Result<(), Refused>,
-) -> Result<(), Refused> {
+/// The Rust version. The registers the original leaves (eax the faces' memory used, ecx
+/// 0x100, edi, ebx) are read by no caller (taint at its sites: `race::set_object_kinds`' and
+/// `load_front_end_objects_logged`'s).
+pub unsafe fn load_front_end_objects() -> Result<(), Refused> {
     unsafe {
-        reset(r)?;
+        reset_objects()?;
         game_write(TEXTURE_COUNT_RVA, 0u32);
         game_write(NO_NORMALS_RVA, 0u32);
         for slot in 0..SLOTS {
-            r.ecx = slot;
-            r.eax = game_read(SLOT_KINDS_RVA + slot as usize * 4);
-            game_write(KIND_RVA, r.eax);
+            let kind: u32 = game_read(SLOT_KINDS_RVA + slot as usize * 4);
+            game_write(KIND_RVA, kind);
             game_write(SLOT_RVA, slot);
-            load(r)?;
+            load_object()?;
         }
-        r.ecx = SLOTS;
         let cursor: u32 = game_read(FACE_CURSOR_RVA);
         game_write(
             USED_RVA,
             [game_read::<u32>(POINT_COUNT_RVA).wrapping_mul(12), cursor],
         );
-        r.eax = cursor;
         Ok(())
     }
-}
-
-/// With the Rust versions of its two callees, for Rust callers.
-pub unsafe fn load_front_end_objects_in_game(r: &mut Regs) -> Result<(), Refused> {
-    unsafe {
-        load_front_end_objects(
-            r,
-            &mut |r| {
-                reset_objects()?.apply(r);
-                Ok(())
-            },
-            &mut |r| load_object_in_game(r),
-        )
-    }
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let entry = *r;
-    let done = unsafe {
-        load_front_end_objects(
-            r,
-            &mut |r| {
-                reset_objects()?.apply(r);
-                Ok(())
-            },
-            &mut |r| load_object_in_game(r),
-        )
-    };
-    if let Err(e) = done {
-        *r = entry;
-        return Err(e);
-    }
-    Ok(())
 }

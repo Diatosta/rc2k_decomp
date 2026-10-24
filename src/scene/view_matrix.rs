@@ -8,8 +8,8 @@ use crate::framework::{EAX, EBP, EBX, ECX, EDI, EDX, ESI, game_addr, game_read, 
 use crate::math::x87;
 use crate::scene::draw_polygon::CHECKED_RVA;
 use crate::scene::matrix::{
-    self, GamePlaces, LIT_RVA, PLACED_RVA, TURN_X_RVA, TURN_X_WORK_RVA, TURN_Y_RVA,
-    TURN_Y_WORK_RVA, VIEW_TURN_RVA,
+    self, LIT_RVA, PLACED_RVA, TURN_X_RVA, TURN_X_WORK_RVA, TURN_Y_RVA, TURN_Y_WORK_RVA,
+    VIEW_TURN_RVA,
 };
 use crate::screens::harness::Left;
 
@@ -229,77 +229,3 @@ pub unsafe fn set_view_matrices() -> Left {
 }
 
 // ---- the converted versions (`rc2k_core::scene::matrices`) ----
-
-fn core_axis(axis: Axis) -> rc2k_core::scene::matrices::Axis {
-    use rc2k_core::scene::matrices::Axis as A;
-    match axis {
-        Axis::X => A::X,
-        Axis::Y => A::Y,
-        Axis::Z => A::Z,
-    }
-}
-
-/// The converted `set_fine_turn` (plain floats): the hooks'.
-// Converted: `rc2k_core::scene::matrices::set_fine_turn`
-pub unsafe fn set_fine_turn_plain(axis: Axis, angle: u32) -> Left {
-    let p = &mut unsafe { GamePlaces::new() };
-    let t = rc2k_core::scene::matrices::set_fine_turn(p, &matrix::layout(), core_axis(axis), angle);
-    Left::nothing()
-        .with(EAX, t.sine)
-        .with(EBX, t.cosine)
-        .with(ECX, t.negated())
-        .with(EDI, game_addr(axis.matrix()) as u32)
-}
-
-/// The converted `unit_vector` (plain floats): the hook's.
-// Converted: `rc2k_core::scene::matrices::unit_vector`
-pub unsafe fn unit_vector_plain(from: usize, out: usize) {
-    let p = &mut unsafe { GamePlaces::new() };
-    rc2k_core::scene::matrices::unit_vector(p, &matrix::layout(), from as u32, out as u32);
-}
-
-/// The converted `cross_product` (plain floats): the hook's.
-// Converted: `rc2k_core::scene::matrices::cross`
-pub unsafe fn cross_product_plain(b: usize, c: usize, out: usize) {
-    let p = &mut unsafe { GamePlaces::new() };
-    rc2k_core::scene::matrices::cross(p, b as u32, c as u32, out as u32);
-}
-
-/// The converted `square_matrix` (plain floats): the hook's.
-// Converted: `rc2k_core::scene::matrices::square`
-pub unsafe fn square_matrix_plain(at: usize) {
-    let p = &mut unsafe { GamePlaces::new() };
-    rc2k_core::scene::matrices::square(p, &matrix::layout(), at as u32);
-}
-
-/// The converted `invert_turn` (plain floats): the hook's.
-// Converted: `rc2k_core::scene::matrices::invert_turn`
-pub unsafe fn invert_turn_plain(from: usize, out: usize) {
-    let p = &mut unsafe { GamePlaces::new() };
-    rc2k_core::scene::matrices::invert_turn(p, &matrix::layout(), from as u32, out as u32);
-}
-
-/// The converted `set_view_matrices` (plain floats): the hook's.
-// Converted: `rc2k_core::scene::matrices::set_view_matrices`
-pub unsafe fn set_view_matrices_plain() -> Left {
-    unsafe {
-        // The angles and the place are read after the identity is copied, as there; the
-        // copy cannot reach them.
-        let angles: [u32; 3] = game_read(VIEW_ANGLES_RVA);
-        let place: [u32; 3] = game_read(VIEW_PLACE_RVA);
-        let place = rc2k_core::scene::matrices::set_view_matrices(
-            &mut GamePlaces::new(),
-            &matrix::layout(),
-            angles,
-            place,
-        );
-        Left::nothing()
-            .with(EAX, place[0])
-            .with(EBX, place[1])
-            .with(ECX, 0)
-            .with(EDX, 0)
-            .with(ESI, game_addr(VIEW_TURN_RVA) as u32)
-            .with(EDI, game_addr(VIEW_BACK_RVA) as u32)
-            .with(EBP, game_addr(VIEW_RVA) as u32)
-    }
-}

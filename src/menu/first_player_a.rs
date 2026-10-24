@@ -14,13 +14,13 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::menu::standings::*;
 
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn first_player_a(entry: &Regs) -> Result<Regs, Refused> {
+/// The first player of `group` (ebx) in the table from `from` (edi).
+pub unsafe fn first_player_a(from: u32, group: u32) -> Result<Found, Refused> {
     first_player(
-        entry,
+        from,
+        group,
         A_ENTRY,
         0x1C,
         0x44,

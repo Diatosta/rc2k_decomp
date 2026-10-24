@@ -10,15 +10,17 @@
 //! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
 //! `routes.rs`); the registers above are the original's, for reference.
 
-use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, rva};
-use crate::install::outside::{Game, Outside};
+use crate::errors::BadInput;
+use crate::framework::{game_addr, game_read};
+use crate::install::outside::Outside;
 use crate::install::read_registry::{SOURCE_RVA, STATUS_RVA};
 use crate::strings::same_text::compare_texts;
 use std::cmp::Ordering;
 
 /// byte_94E8B0: the scratch path (also `files::numbered_path`'s buffer).
-pub const SCRATCH_PATH_RVA: usize = rva(0x94E8B0);
+pub fn scratch_path() -> *mut u8 {
+    crate::files::numbered_path::buffer()
+}
 
 // ---- Rust version ----
 
@@ -32,7 +34,7 @@ pub unsafe fn source_against_directory(
         if game_read::<u8>(STATUS_RVA) != 1 || game_read::<u8>(SOURCE_RVA) == 0 {
             return Ok(None);
         }
-        let directory = game_addr(SCRATCH_PATH_RVA) as *mut u8;
+        let directory = scratch_path();
         if !outside.current_directory(directory)? {
             return Ok(None);
         }
@@ -45,20 +47,4 @@ pub unsafe fn source_against_directory(
 
 pub unsafe fn runs_from_source(outside: &mut dyn Outside) -> Result<bool, BadInput> {
     Ok(unsafe { source_against_directory(outside) }? == Some(Ordering::Equal))
-}
-
-/// (zero, carry) as the original leaves them.
-fn flags(found: Option<Ordering>) -> (bool, bool) {
-    (
-        found == Some(Ordering::Equal),
-        found == Some(Ordering::Less),
-    )
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let mine = flags(unsafe { source_against_directory(&mut Game) }.map_err(Refused::from)?);
-    r.set_zero(mine.0);
-    r.set_carry(mine.1);
-    Ok(())
 }

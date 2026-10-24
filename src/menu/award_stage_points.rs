@@ -22,10 +22,8 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::menu::standings::*;
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
 
 const POINTS_RVA: usize = rva(0x7559AC); // seconds
 const CLASS_RVA: usize = rva(0x7558F4); // dword_7558F4
@@ -38,17 +36,11 @@ enum Owner {
     Player(u32),
 }
 
-unsafe fn owner(entry: &Regs, e: u32) -> Result<Owner, Refused> {
+unsafe fn owner(e: u32) -> Result<Owner, Refused> {
     match get(e + 4) {
         0 => {
-            let g = unsafe {
-                crate::menu::find_cpu_team::find_cpu_team(&Regs {
-                    eax: get(e),
-                    edi: e,
-                    ..*entry
-                })
-            }?;
-            Ok(Owner::Driver(g.esi))
+            let driver = unsafe { crate::menu::find_cpu_team::find_cpu_team(get(e)) }?;
+            Ok(Owner::Driver(driver))
         }
         n if n <= 4 && player(n - 1) != 0 => Ok(Owner::Player(player(n - 1))),
         _ => Err(BadInput("a player past 4 or missing").into()),
@@ -56,7 +48,7 @@ unsafe fn owner(entry: &Regs, e: u32) -> Result<Owner, Refused> {
 }
 
 /// The Rust version (see the header): the registers it leaves.
-pub unsafe fn award_stage_points(entry: &Regs) -> Result<Regs, Refused> {
+pub unsafe fn award_stage_points() -> Result<(), Refused> {
     unsafe {
         let classes: u32 = game_read(CLASSES_RVA);
         let section: u32 = game_read(SECTION_RVA);
@@ -70,7 +62,7 @@ pub unsafe fn award_stage_points(entry: &Regs) -> Result<Regs, Refused> {
         let all = entries(table, B_ENTRY)?;
         let mut owners = Vec::with_capacity(all.len());
         for &e in &all {
-            owners.push(owner(entry, e)?);
+            owners.push(owner(e)?);
         }
         // Converted: `rc2k_core::menu::points` (`Points`, `kept`, `total`).
         use rc2k_core::menu::points::{Points, kept, total};
@@ -108,14 +100,5 @@ pub unsafe fn award_stage_points(entry: &Regs) -> Result<Regs, Refused> {
             }
         }
     }
-    Ok(*entry)
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(left_of(&unsafe { award_stage_points(r) }?))
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    crate::service::harness::state_entry(r, &rust)
+    Ok(())
 }

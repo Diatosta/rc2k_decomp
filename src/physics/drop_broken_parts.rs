@@ -11,42 +11,25 @@
 //! Self-test: the original and the Rust version on the game's variables (saved and put
 //! back): damage about the limits, the switch.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::physics::fill_race_slot::g;
-use crate::physics::fill_slot_on_bit::fill_slot_on_bit_in;
-use crate::screens::harness::Left;
+use crate::physics::fill_slot_on_bit::fill_slot_on_bit;
 use rc2k_core::physics::parts::{BROKEN_BITS, breaks, broken_checked};
 
-/// The steps on `r`.
+/// The Rust version. The registers the original leaves are read by none of its callers.
 // Converted: `rc2k_core::physics::parts::{BROKEN_BITS, broken_checked, breaks}`.
-pub fn drop_broken_parts_in(r: &mut Regs) -> Result<(), Refused> {
+pub fn drop_broken_parts() -> Result<(), Refused> {
     for (k, &bit) in BROKEN_BITS.iter().enumerate() {
         if !broken_checked(k, || g(0x62DAD0) != 0) {
             continue;
         }
-        let limit = || {
-            r.eax = g(0x71BA2C + 4 * k);
-            r.eax
-        };
-        if !breaks(g(0x71AA14 + 4 * k), limit) {
+        if !breaks(g(0x71AA14 + 4 * k), || g(0x71BA2C + 4 * k)) {
             continue;
         }
-        r.ecx = bit;
-        fill_slot_on_bit_in(r)?;
+        fill_slot_on_bit(bit)?;
     }
     Ok(())
-}
-
-/// The Rust version.
-pub unsafe fn drop_broken_parts(entry: &Regs) -> Result<Left, Refused> {
-    let mut r = *entry;
-    match drop_broken_parts_in(&mut r) {
-        Ok(()) => Ok(crate::race::stage_prefs::left_of(&r)),
-        Err(e) => Err(e),
-    }
 }

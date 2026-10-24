@@ -15,58 +15,39 @@
 //! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
+//! are the original's.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::install::installer::{
-    CHOOSE_LANGUAGE, LANGUAGE_COUNT, LIST_ANSWER, LOAD_LANGUAGE, SAME_VERSION, at, g, gb, logic,
-    rb, wb,
+    LANGUAGE_COUNT, LIST_ANSWER, SAME_VERSION, g, gb, load_language, rb, wb,
 };
-use crate::race::viewer::regs_entry;
 use rc2k_core::install::pages;
 
-pub fn language_page(entry: &Regs) -> Result<Regs, Refused> {
-    let mut r = *entry;
-    if r.ebx == 0 {
-        // The same version, or at most one language (unsigned): the item itself hidden
-        // (`or byte ptr [edi], 40h`, its flags). Else on to the hide loop (`loc_4141B4`).
+/// `state` the list action's (ebx), `list` the page's.
+pub fn language_page(state: u32, list: u32) -> Result<(), Refused> {
+    if state == 0 {
+        // The same version, or at most one language (unsigned): the page itself hidden
+        // (`or byte ptr [edi], 40h`). Else on to the hide loop (`loc_4141B4`).
         // Converted: `rc2k_core::install::pages` (`language_page_skipped`,
         // `hidden_languages`).
         if pages::language_page_skipped(g(SAME_VERSION) == 1, g(LANGUAGE_COUNT)) {
-            let v = rb(r.edi) | pages::HIDDEN;
-            wb(r.edi, v);
-            logic(&mut r, v as u32);
-            return Ok(r);
+            wb(list, rb(list) | pages::HIDDEN);
+            return Ok(());
         }
-    } else if (r.ebx as i32) < 0 {
-        r.eax = gb(LIST_ANSWER) as u32;
-        if r.eax != 0 {
-            crate::install::installer::game_part(at(CHOOSE_LANGUAGE), &mut r)?;
-            crate::install::installer::game_part(at(LOAD_LANGUAGE), &mut r)?;
+    } else if (state as i32) < 0 {
+        let answer = gb(LIST_ANSWER) as u32;
+        if answer != 0 {
+            unsafe { crate::install::choose_language::choose_language(answer) }?;
+            load_language()?;
         }
     }
     // hide the items past the languages
     let (first, hidden) = pages::hidden_languages(g(LANGUAGE_COUNT));
-    r.edx = first.wrapping_add(r.edi).wrapping_add(0x18);
-    r.ecx = hidden;
-    let c = r.ecx;
-    logic(&mut r, c);
-    if r.ecx != 0 {
-        loop {
-            wb(r.edx, rb(r.edx) | pages::HIDDEN);
-            r.edx = r.edx.wrapping_add(0x10);
-            r.ecx = r.ecx.wrapping_sub(1);
-            if r.ecx == 0 {
-                break;
-            }
-        }
-        logic(&mut r, 0);
+    let mut item = first.wrapping_add(list).wrapping_add(0x18);
+    for _ in 0..hidden {
+        wb(item, rb(item) | pages::HIDDEN);
+        item = item.wrapping_add(0x10);
     }
-    Ok(r)
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    regs_entry(r, &|r| language_page(r))
+    Ok(())
 }

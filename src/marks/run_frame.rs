@@ -8,10 +8,10 @@
 //! `flt_765134` (the draw), `flt_76511C` (the ring) and `flt_765120` (the whole).
 //!
 //! In:  nothing
-//! Out: the registers as `depth_test_on` leaves them
+//! Out: nothing (no caller reads the registers it leaves: none after 0x446408, 0x456472)
 //!
-//! Caller: the race's frame (0x456464 ..). Its calls through `part` (places 1 .. 14, in the
-//! order above); in the game their Rust versions. Shadow mode runs the original alone (it
+//! Caller: the race's frame (0x456464 ..). Its calls the Rust versions, in the order
+//! above. Shadow mode runs the original alone (it
 //! draws). It begins with a call: private copy (its 21 calls relocated), manual patch.
 //! Self-test: a copy whose calls go to stand-ins, against the Rust version, the
 //! calls and their registers compared (the three times are not: `rdtsc`).
@@ -21,7 +21,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 use crate::math::x87;
 
 const FRAME_CYCLES_RVA: usize = rva(0x765114); // dword_765114
@@ -40,9 +40,6 @@ const STATES: [(u32, u32); 6] = [
     (1, 3),
 ];
 
-/// A call by place (see the header).
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
 fn rdtsc() -> u32 {
     unsafe { core::arch::x86::_rdtsc() as u32 }
 }
@@ -58,78 +55,35 @@ unsafe fn share(at: usize, start: u32) {
     }
 }
 
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn run_frame(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    let mut g = *entry;
+/// The Rust version (see the header).
+pub unsafe fn run_frame() -> Result<(), Refused> {
+    use crate::marks::*;
+    use crate::scene::set_render_state::set_render_state;
     unsafe {
-        part(1, &mut g)?;
-        part(2, &mut g)?;
+        swap_mask::swap_mask()?;
+        setup::tick_clock();
         let whole = rdtsc();
         for (value, state) in STATES {
-            [g.eax, g.ebx] = [value, state];
-            part(3, &mut g)?;
+            set_render_state(value, state);
         }
-        part(4, &mut g)?;
-        part(5, &mut g)?;
+        run_rain::run_rain()?;
+        run_snow::run_snow()?;
         let start = rdtsc();
         share(0, start);
-        part(6, &mut g)?;
+        draw_frame::draw_frame()?;
         let start = rdtsc();
-        part(7, &mut g)?;
+        ring_frame::ring_frame()?;
         share(1, start);
-        [g.eax, g.ebx] = [2, 0x14];
-        part(3, &mut g)?;
-        part(8, &mut g)?;
-        [g.eax, g.ebx] = [1, 3];
-        part(3, &mut g)?;
-        part(9, &mut g)?;
-        part(10, &mut g)?;
+        set_render_state(2, 0x14);
+        flare_frame::flare_frame()?;
+        set_render_state(1, 3);
+        draw_mark_slots::draw_mark_slots()?;
+        run_particles::run_particles()?;
         share(2, whole);
-        for place in 11..=14 {
-            part(place, &mut g)?;
-        }
+        stage_record::stage_record()?;
+        draw_glow::draw_glow()?;
+        crate::scene::depth_buffer_on::depth_buffer(true);
+        crate::scene::depth_test_on::depth_test_on();
     }
-    Ok(g)
-}
-
-/// In the game: the calls' Rust versions.
-pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    use crate::marks::*;
-    unsafe {
-        let left = match place {
-            1 => swap_mask::swap_mask(r)?,
-            2 => setup::tick_clock(r),
-            4 => run_rain::run_rain(r, &mut |p, g, v| run_rain::game_part(p, g, v))?,
-            5 => run_snow::run_snow(r)?,
-            6 => draw_frame::draw_frame(r, &mut draw_frame::game_part)?,
-            7 => ring_frame::ring_frame(r)?,
-            8 => flare_frame::flare_frame(r)?,
-            9 => draw_mark_slots::draw_mark_slots(r)?,
-            10 => {
-                run_particles::run_particles(r, &mut |p, g, v| run_particles::game_part(p, g, v))?
-            }
-            11 => stage_record::stage_record(r)?,
-            12 => draw_glow::draw_glow(r, &mut |p, g, v| draw_glow::game_part(p, g, v))?,
-            _ => {
-                match place {
-                    3 => {
-                        let (value, state) = (r.eax, r.ebx);
-                        crate::scene::set_render_state::set_render_state(value, state);
-                    }
-                    13 => crate::scene::depth_buffer_on::depth_buffer(true),
-                    _ => crate::scene::depth_test_on::depth_test_on(),
-                }
-                return Ok(());
-            }
-        };
-        *r = Regs { esp: r.esp, ..left };
-    }
-    Ok(())
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { run_frame(r, &mut game_part) }?;
-    *r = Regs { esp: r.esp, ..left };
     Ok(())
 }

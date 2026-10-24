@@ -4,26 +4,7 @@
 //! clock restarted and the race's starting values; each step logged and indented.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
-
-/// A step's calls by callee (`CALLEES`' index).
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
-/// The callees, as IDA shows them.
-pub const CALLEES: [usize; 10] = [
-    0x4013DE, // 0 logfile::log_newline_l1
-    0x40142B, // 1 logfile::log_write_l1_nl
-    0x47CEA8, // 2 menu::show_loading_picture
-    0x45D255, // 3 race::wake_car_sounds
-    0x44426F, // 4 race::loadlevel_init
-    0x470F8A, // 5 race::game_music
-    0x470378, // 6 race::game_music_8
-    0x40941A, // 7 race::create_controls
-    0x4462B9, // 8 sub_4462B9 (race init: the game's)
-    0x450381, // 9 scene::restart_clock
-];
-const NEWLINE: u32 = 0;
-const LOG: u32 = 1;
+use crate::framework::{game_addr, game_read, game_write, rva};
 
 /// "------", "SHAUNINITEVERYTHING - START", ": loading screen / ..", ": loadlevel_init",
 /// ": doingamemusic", ": createcontrols", ": race init", "- FINIS", "------".
@@ -61,90 +42,65 @@ unsafe fn put(at: usize, v: u32) {
     unsafe { (game_addr(rva(at)) as *mut u32).write_unaligned(v) };
 }
 
-struct Steps<'a> {
-    g: Regs,
-    indent: u32,
-    part: Part<'a>,
-    word: usize,
-}
-
-impl Steps<'_> {
-    fn log(&mut self) -> Result<(), Refused> {
-        let mut r = Regs {
-            eax: game_addr(rva(WORDS[self.word])) as u32,
-            ..self.g
-        };
-        self.word += 1;
-        (self.part)(LOG, &mut r)
-    }
-
-    fn newline(&mut self) -> Result<(), Refused> {
-        let mut r = self.g;
-        (self.part)(NEWLINE, &mut r)
-    }
-
-    fn indent(&mut self, by: i32) {
-        unsafe {
-            let at = self.indent as *mut u32;
-            at.write_unaligned(at.read_unaligned().wrapping_add(by as u32));
-        }
-    }
-
-    fn call(&mut self, callee: u32) -> Result<(), Refused> {
-        (self.part)(callee, &mut self.g)
-    }
-}
-
 /// `race::load_stage` (0x444040): a line break, a rule, "START", "loading screen" (indent
-/// in): the loading picture unless `dword_71C3E0`, `dword_70F3E8` -1, `wake_car_sounds`;
-/// then each with its word and the indent round it: `loadlevel_init`, the music
-/// (`game_music` with `dword_64BB18`, else `game_music_8`), `create_controls`, race init
-/// and `restart_clock`; the starting values (`STARTS` with the clock, the blocks' +0xFB4
-/// 3 and +0xFB0 8, `LAST_STARTS`); "FINIS", a rule, a line break. Leaves eax the clock,
-/// the rest as race init and the clock leave them; carry clear. `indent` is
-/// `g_logIndent`'s address (the test's own in the self-test).
-pub unsafe fn load_stage(entry: &Regs, indent: u32, part: Part) -> Result<Regs, Refused> {
-    let mut s = Steps {
-        g: *entry,
-        indent,
-        part,
-        word: 0,
+/// in): the loading picture (`menu::show_loading_picture`) unless `dword_71C3E0`,
+/// `dword_70F3E8` -1, `race::wake_car_sounds`; then each with its word and the indent round
+/// it: `loadlevel_init`, the music (`game_music` with `dword_64BB18`, else
+/// `game_music_8`), `create_controls`, race init (`drive::race_init`) and
+/// `scene::restart_clock`; the starting values (`STARTS` with the clock, the blocks'
+/// +0xFB4 3 and +0xFB0 8, `LAST_STARTS`); "FINIS", a rule, a line break. The registers
+/// and flags it leaves (eax the clock, carry clear) are read by none of its seven callers
+/// (`taint.py` at each site: no read point; conversion phase 3, 2026-10-24).
+pub unsafe fn load_stage() -> Result<(), Refused> {
+    use crate::logfile::log_write::log_write;
+    let indent = |by: i32| unsafe {
+        let at = crate::logfile::write_line::indent_place() as *mut u32; // g_logIndent
+        at.write_unaligned(at.read_unaligned().wrapping_add(by as u32));
     };
+    let mut word = 0;
+    let mut log = || {
+        unsafe { log_write(game_addr(rva(WORDS[word])) as *const u8, true, 1) };
+        word += 1;
+    };
+    let newline = || unsafe { log_write(game_addr(EMPTY_TEXT_RVA) as *const u8, true, 1) };
     unsafe {
-        s.newline()?;
-        s.log()?;
-        s.log()?;
-        s.log()?;
-        s.indent(3);
+        newline();
+        log();
+        log();
+        log();
+        indent(3);
         if game_read::<u32>(REPLAY_RVA) == 0 {
-            s.call(2)?;
+            // As `menu::show_loading_picture`.
+            crate::gfx::show_picture_file::show_picture_file(
+                game_addr(LOADING_PICTURE_RVA) as *mut u8
+            )?;
         }
         game_write(CAR_MINUS_4_RVA, u32::MAX);
-        s.call(3)?;
-        s.indent(-3);
-        s.log()?;
-        s.indent(3);
-        s.call(4)?;
-        s.indent(-3);
-        s.log()?;
-        s.indent(3);
-        s.call(if game_read::<u32>(NO_PLACE_RVA) != 0 {
-            5
+        crate::race::sounds::wake_car_sounds()?;
+        indent(-3);
+        log();
+        indent(3);
+        crate::race::loadlevel::loadlevel_init()?;
+        indent(-3);
+        log();
+        indent(3);
+        if game_read::<u32>(NO_PLACE_RVA) != 0 {
+            crate::race::music::game_music();
         } else {
-            6
-        })?;
-        s.indent(-3);
-        s.log()?;
-        s.indent(3);
-        s.call(7)?;
-        s.indent(-3);
-        s.log()?;
-        s.indent(3);
-        s.call(8)?;
-        s.call(9)?;
-        s.g.eax = game_read(CLOCK_RVA);
+            crate::race::music::game_music_8();
+        }
+        indent(-3);
+        log();
+        indent(3);
+        crate::race::create_controls::create_controls();
+        indent(-3);
+        log();
+        indent(3);
+        crate::drive::race_init::race_init()?;
+        crate::scene::restart_clock::restart_clock(crate::system::tick_count::tick_count());
+        let clock: u32 = game_read(CLOCK_RVA);
         for (at, value) in STARTS {
-            put(at, value.unwrap_or(s.g.eax));
+            put(at, value.unwrap_or(clock));
         }
         for n in 0..8 {
             put(BLOCK_FB4 + n * 0xFE0, 3);
@@ -155,56 +111,10 @@ pub unsafe fn load_stage(entry: &Regs, indent: u32, part: Part) -> Result<Regs, 
         for (at, value) in LAST_STARTS {
             put(at, value);
         }
-        s.indent(-3);
-        s.log()?;
-        s.log()?;
-        s.newline()?;
-        s.g.set_carry(false);
-    }
-    Ok(s.g)
-}
-
-/// The calls in the game: the Rust versions; race init the
-/// game's.
-pub fn game_part(callee: u32, r: &mut Regs) -> Result<(), Refused> {
-    step_part(callee, r)
-}
-
-fn step_part(callee: u32, r: &mut Regs) -> Result<(), Refused> {
-    use crate::logfile::log_write::log_write;
-    unsafe {
-        match callee {
-            NEWLINE => log_write(game_addr(EMPTY_TEXT_RVA) as *const u8, true, 1),
-            LOG => log_write(r.eax as *const u8, true, 1),
-            2 => {
-                // As `menu::show_loading_picture`'s dispatch.
-                r.eax = crate::gfx::show_picture_file::show_picture_file(game_addr(
-                    LOADING_PICTURE_RVA,
-                )
-                    as *mut u8)?;
-            }
-            3 => {
-                if let Some((count, last)) = crate::race::sounds::wake_car_sounds()? {
-                    (r.ebx, r.edi) = (count, last);
-                }
-            }
-            4 => {
-                *r = crate::race::loadlevel::loadlevel_init(
-                    r,
-                    crate::race::loadlevel::LoadVars::game(),
-                    &mut crate::race::loadlevel::game_part,
-                )?
-            }
-            5 => crate::race::music::game_music(),
-            6 => crate::race::music::game_music_8(),
-            7 => crate::race::create_controls::create_controls(),
-            8 => crate::calls::call(rva(CALLEES[8]), r),
-            _ => {
-                r.eax = crate::scene::restart_clock::restart_clock(
-                    crate::system::tick_count::tick_count(),
-                )
-            }
-        }
+        indent(-3);
+        log();
+        log();
+        newline();
     }
     Ok(())
 }

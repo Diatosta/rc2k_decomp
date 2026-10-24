@@ -13,11 +13,4 @@
 //! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; the
 //! registers above are the original's, for reference.
 
-use crate::framework::rva;
-
-// ---- game data ----
-
-/// byte_4F0BC8: a character's lower case, 256 entries (A .. Z and the accented capitals).
-pub const LOWER_RVA: usize = rva(0x4F0BC8);
-
 // ---- Rust version ----

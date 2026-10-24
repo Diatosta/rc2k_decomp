@@ -12,28 +12,19 @@
 //! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
+//! are the original's.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
-use crate::install::installer::{COPY_PICTURE, LOCK, SHOW, UNLOCK, at};
-use crate::race::viewer::regs_entry;
+use crate::install::installer::{copy_picture, lock, show, unlock};
 
-/// The surface locked, the backdrop drawn, the frame shown; the registers as the calls
-/// leave them.
-pub fn backdrop_frame(entry: &Regs) -> Result<Regs, Refused> {
-    let mut r = *entry;
-    crate::install::installer::game_part(at(LOCK), &mut r)?;
-    if r.carry() {
-        return Ok(r);
+/// The surface locked, the backdrop drawn, the frame shown; the carry it leaves (the
+/// lock's or the show's).
+pub fn backdrop_frame() -> Result<bool, Refused> {
+    if !lock() {
+        return Ok(true);
     }
-    for callee in [COPY_PICTURE, UNLOCK, SHOW] {
-        crate::install::installer::game_part(at(callee), &mut r)?;
-    }
-    Ok(r)
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    regs_entry(r, &|r| backdrop_frame(r))
+    copy_picture()?;
+    unlock();
+    Ok(!show())
 }

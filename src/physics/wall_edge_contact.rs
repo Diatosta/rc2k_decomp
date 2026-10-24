@@ -23,12 +23,10 @@
 //! (`g_courseFaces`, `g_scenePoints` pointed at them), every edge shared and none, under
 //! three precisions.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::math::turn_float_point_xz::turn_float_point_xz;
 use crate::math::x87::mul;
 use crate::physics::contact_force::{RECORD, contact_force};
@@ -76,37 +74,25 @@ pub fn edge_normal(first: u32, second: u32) -> [u32; 4] {
     out
 }
 
-/// The steps, not guarded.
+/// The steps, not guarded. The registers the original leaves are read by none of its
+/// callers.
 // Converted: `rc2k_core::physics::walls::shared_edge` (the edge's heading stays x87).
-pub fn steps(r: &mut Regs) -> Result<(), Refused> {
-    r.ebp = (g(0x6D3170) << 6).wrapping_add(g(FACES));
-    r.esi = (g(0x6D3174) << 6).wrapping_add(g(FACES));
-    let corners = [
-        rd(r.esi + 4),
-        rd(r.esi + 8),
-        rd(r.esi + 0xC),
-        rd(r.esi + 0x10),
-    ];
-    let wall = r.ebp;
-    let shared;
-    (shared, r.eax, r.ebx) = walls::shared_edge(|j| rd(wall + 4 + 4 * j as u32), corners);
+pub fn steps() -> Result<(), Refused> {
+    let wall = (g(0x6D3170) << 6).wrapping_add(g(FACES));
+    let face = (g(0x6D3174) << 6).wrapping_add(g(FACES));
+    let corners = [rd(face + 4), rd(face + 8), rd(face + 0xC), rd(face + 0x10)];
+    let (shared, to, from) = walls::shared_edge(|j| rd(wall + 4 + 4 * j as u32), corners);
     if !shared {
-        return crate::physics::wall_push_back::steps(r);
+        return crate::physics::wall_push_back::steps();
     }
     // 0x45DA9E: along the edge.
     let n = g(0x6D3214);
     walls::check_probe(n)?;
-    let (from, to) = (r.ebx, r.eax);
     p(0x6D3178, from);
     p(0x6D317C, to);
-    let [x, y, z, edx] = edge_normal(to, from);
-    r.eax = x;
-    r.ebx = y;
-    r.ecx = z;
-    r.edx = edx;
+    edge_normal(to, from);
     copy3(0x6D30A8, 0x71A170);
     copy3(0x6D30B4, 0x71A15C);
-    r.ebx = n;
     let n = n as usize;
     p(0x6D3090, g(0x6D2214 + 4 * n));
     p(0x6D3094, g(0x6D2314 + 4 * n));
@@ -114,7 +100,7 @@ pub fn steps(r: &mut Regs) -> Result<(), Refused> {
     p(0x6D3094, mul(g(0x6D3094), g(0x5C5DD0)));
     p(0x6D3100, 0);
     p(RECORD, a(WALL_RECORD));
-    unsafe { contact_force() }.apply(r);
+    unsafe { contact_force() };
     unsafe { crate::physics::place_sound_e1::place_sound_e1() }?;
     Ok(())
 }

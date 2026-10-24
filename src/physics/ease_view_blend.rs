@@ -12,23 +12,19 @@
 //! Self-test: `physics/camera_view.rs` (`view_test_floats`), modes and times by lot,
 //! exact at double precision.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
-use crate::framework::{EAX, ESI, Regs};
 use crate::physics::camera_view::{rd, record, share_done};
 use crate::physics::flow::{base, x87_run};
-use crate::screens::harness::Left;
 
 /// The Rust version (the exact one, for `physics::update_camera`).
-pub unsafe fn ease_view_blend(_: &Regs) -> Left {
+pub unsafe fn ease_view_blend() {
     let esi = record();
-    let left = Left::nothing().with(ESI, esi);
     if rd(esi + 0x58) == 0 || rd(esi + 0x3C) == 0 {
-        return left;
+        return;
     }
-    let eax = share_done(esi);
+    share_done(esi);
     if (rd(esi + 0x58) as i32) < 0 {
         x87_run!(
             ".byte 0xD9, 0xE8", // fld1
@@ -52,5 +48,4 @@ pub unsafe fn ease_view_blend(_: &Regs) -> Left {
         "fistp dword ptr [{b} + 0x208B38]";
         b = base()
     );
-    left.with(EAX, eax)
 }

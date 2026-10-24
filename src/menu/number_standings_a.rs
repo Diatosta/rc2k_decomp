@@ -13,17 +13,18 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_read};
+use crate::framework::game_read;
 use crate::menu::standings::*;
 
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn number_standings_a(entry: &Regs) -> Result<Regs, Refused> {
-    let mut g = *entry;
+/// The Rust version (see the header); what it leaves in the registers as `Numbered`.
+pub unsafe fn number_standings_a(class: u32) -> Result<Numbered, Refused> {
+    let mut last_number = 0;
+    let mut last_player = None;
     let first: u32 = unsafe { game_read(TABLE_A_RVA) };
     let all = entries(first, A_ENTRY)?;
     // Converted: `rc2k_core::menu::standings::{Numbering, number}`.
     use rc2k_core::menu::standings::{Numbering, number};
-    let which = Numbering::Group(g.ebx);
+    let which = Numbering::Group(class);
     let groups: Vec<u32> = all.iter().map(|&e| get(e + 0x1C)).collect();
     for (&e, &group) in all.iter().zip(&groups) {
         let p = get(e + 4);
@@ -31,19 +32,23 @@ pub unsafe fn number_standings_a(entry: &Regs) -> Result<Regs, Refused> {
             return Err(BadInput("a standings player past 4 or missing").into());
         }
     }
-    g.ecx = 0;
     for (&e, n) in all.iter().zip(number(&groups, which)) {
         let Some(n) = n else {
             continue;
         };
-        g.ecx = n;
+        last_number = n;
         if get(e + 4) != 0 {
-            g.eax = get(e + 4) - 1;
-            g.esi = player(g.eax);
-            put(g.esi + 0x14C, n);
+            let index = get(e + 4) - 1;
+            let record = player(index);
+            put(record + 0x14C, n);
+            last_player = Some((index, record));
         }
         put(e + 0x44, n);
     }
-    g.edi = first + A_ENTRY * all.len() as u32;
-    Ok(g)
+    let end = first + A_ENTRY * all.len() as u32;
+    Ok(Numbered {
+        last_number,
+        last_player,
+        end,
+    })
 }

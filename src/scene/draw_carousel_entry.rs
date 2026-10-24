@@ -34,7 +34,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 
 // ---- game data ----
 
@@ -110,12 +110,15 @@ unsafe fn settings(entry: u32, row: u32) -> Result<Settings, BadInput> {
     }
 }
 
+/// Carousel entry `entry` in row place `row` (ebx and ecx at the original's entry) set
+/// up and drawn by `draw`.
 pub unsafe fn draw_carousel_entry(
-    r: &Regs,
-    draw: &mut dyn FnMut(&mut Regs) -> Result<(), Refused>,
+    entry: u32,
+    row: u32,
+    draw: &mut dyn FnMut() -> Result<(), Refused>,
 ) -> Result<(), Refused> {
     unsafe {
-        let set = settings(r.ebx, r.ecx)?;
+        let set = settings(entry, row)?;
         game_write(PLACE_RVA, set.place);
         if let Some(size) = set.size {
             game_write(SIZE_RVA, size);
@@ -125,11 +128,6 @@ pub unsafe fn draw_carousel_entry(
         game_write(CLEARED_RVA, [0u32; 2]);
         game_write(KIND_RVA, set.kind);
         game_write(OBJECT_RVA, set.object);
-        // The registers the drawing is entered with; they are put back afterwards.
-        let mut inner = Regs {
-            eax: set.object,
-            ..*r
-        };
-        draw(&mut inner)
+        draw()
     }
 }

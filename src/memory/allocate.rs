@@ -16,8 +16,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, FatalError, Refused};
-use crate::framework::game_read;
-use crate::memory::{HEADER_LEN, MemoryList, OWN_HEAP_RVA, with_figures};
+use crate::memory::{HEADER_LEN, MemoryList, own_heap, with_figures};
 use rc2k_core::memory::block_size;
 use windows_sys::Win32::System::Memory::{MEM_COMMIT, MEM_RESERVE, PAGE_READWRITE, VirtualAlloc};
 
@@ -26,7 +25,7 @@ use windows_sys::Win32::System::Memory::{MEM_COMMIT, MEM_RESERVE, PAGE_READWRITE
 /// The block's memory.
 pub unsafe fn allocate(list: *mut MemoryList, bytes: u32) -> Result<*mut u8, Refused> {
     unsafe {
-        if game_read::<u32>(OWN_HEAP_RVA) == 1 {
+        if own_heap() == 1 {
             return Err(BadInput("the game's own heap is in use (altmemenable)").into());
         }
         // Converted: `rc2k_core::memory` (`block_size`, `List::add`, `Figures::taken`).

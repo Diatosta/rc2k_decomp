@@ -9,30 +9,26 @@
 //! Self-test: `physics::engine_torque`'s (`test_engine_floats`), the converted version,
 //! with the clutch word set.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::Regs;
 use crate::physics::engine_torque::g;
 use crate::physics::free_rev::free_rev;
 use crate::physics::gearing::{GearPlaces, wheels_from_revs_at};
-use crate::screens::harness::Left;
 
 /// The Rust version (the exact one, for `physics::car_physics_step`).
-pub unsafe fn free_rev_clutch(entry: &Regs) -> Result<Left, Refused> {
+pub unsafe fn free_rev_clutch() -> Result<(), Refused> {
     let gear = g(0x71A1AC);
     if gear == 0 || g(0x71A228) == 0 {
-        return Ok(Left::nothing());
+        return Ok(());
     }
     if !(-1..=7).contains(&(gear as i32)) {
         return Err(BadInput("a gear outside g_gearRatios (-1 ..= 7)").into());
     }
-    let mut r = *entry;
     unsafe {
-        free_rev().apply(&mut r);
-        wheels_from_revs_at(&GearPlaces::game())?.apply(&mut r);
+        free_rev();
+        wheels_from_revs_at(&GearPlaces::game())?;
     }
-    Ok(crate::race::stage_prefs::left_of(&r))
+    Ok(())
 }

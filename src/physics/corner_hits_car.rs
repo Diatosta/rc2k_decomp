@@ -15,17 +15,14 @@
 //! on the game's variables (saved and put back) with test car blocks, corners inside and
 //! out, under three precisions.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::math::x87_run::{abs_compare, ext_times};
 use crate::physics::flow::{a, base, g, p, x87_run};
 use crate::scene::matrix3::extended;
 use crate::scene::rotate_point::rotate_point;
-use crate::screens::harness::Left;
 
 /// Whether the corner is inside (`flt_6D3BC8` .. written either way).
 pub fn corner_inside() -> bool {
@@ -43,14 +40,14 @@ pub fn corner_inside() -> bool {
     (0..3).all(|n| abs_compare(g(0x6D3BC8 + 4 * n), g(0x6D3BBC + 4 * n)) & 0x100 != 0)
 }
 
-/// The Rust version.
-pub unsafe fn corner_hits_car(entry: &Regs) -> Result<Left, Refused> {
-    (|| -> Result<_, crate::errors::Refused> {
-        if !corner_inside() {
-            return Ok(Left::nothing());
-        }
-        p(0x6D3BB4, 1);
-        unsafe { crate::physics::restore_saved_car::restore_saved_car() }?;
-        unsafe { crate::physics::bump_cars::bump_cars(entry.edi) }
-    })()
+/// The Rust version: `block` the other car's block (edi). The registers it leaves are
+/// read by none of its callers.
+pub unsafe fn corner_hits_car(block: u32) -> Result<(), Refused> {
+    if !corner_inside() {
+        return Ok(());
+    }
+    p(0x6D3BB4, 1);
+    unsafe { crate::physics::restore_saved_car::restore_saved_car() }?;
+    unsafe { crate::physics::bump_cars::bump_cars(block) }?;
+    Ok(())
 }

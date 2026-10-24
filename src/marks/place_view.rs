@@ -5,8 +5,7 @@
 //! dwords copied to `dword_8BDD89`; the point put back to (0, 0, 0x20000).
 //!
 //! In:  nothing
-//! Out: as `scene::transform_int_points` leaves them (ecx -1, esi and edi 0x8BDD7D, ebp
-//!      the matrix)
+//! Out: nothing (its caller reads no register after it)
 //!
 //! One caller, `sub_4C16F9` (the marks' frame). Self-test: the original and the Rust
 //! version on matrices and places by lot; put back afterwards.
@@ -22,7 +21,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::math::x87;
 
 /// One of the two near-copies' variables (`place_view`'s and `place_view_2`'s).
@@ -48,16 +47,12 @@ pub const FIRST: ViewPlace = ViewPlace {
 };
 
 /// The shared body (see the header), on `v`'s variables.
-pub unsafe fn place_view_with(entry: &Regs, v: &ViewPlace) -> Result<Regs, Refused> {
-    let mut g = *entry;
+pub unsafe fn place_view_with(v: &ViewPlace) -> Result<(), Refused> {
     let start = [0, 0, v.start_z];
     unsafe {
         game_write(v.point, start);
-        g.esi = game_addr(v.point) as u32;
-        g.edi = g.esi;
-        g.ecx = 1;
-        g.ebp = game_addr(v.matrix) as u32;
-        g = crate::scene::matrix3::transform_int_points(&g)?;
+        let point = game_addr(v.point) as u32;
+        crate::marks::splines::transform(point, point, 1, game_addr(v.matrix) as u32)?;
         let point: [i32; 3] = game_read(v.point);
         let place: [i32; 3] = game_read(v.place);
         game_write(
@@ -71,10 +66,10 @@ pub unsafe fn place_view_with(entry: &Regs, v: &ViewPlace) -> Result<Regs, Refus
         game_write(v.matrix_copy, game_read::<[u32; 9]>(v.matrix));
         game_write(v.point, start);
     }
-    Ok(g)
+    Ok(())
 }
 
 /// The Rust version (see the header). Refuses as `transform_int_points` (never, ecx 1).
-pub unsafe fn place_view(entry: &Regs) -> Result<Regs, Refused> {
-    unsafe { place_view_with(entry, &FIRST) }
+pub unsafe fn place_view() -> Result<(), Refused> {
+    unsafe { place_view_with(&FIRST) }
 }

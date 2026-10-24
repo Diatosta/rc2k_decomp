@@ -8,7 +8,7 @@
 //! are left as they are (`marks::set_quad_uvs` sets the places once a frame).
 //!
 //! In:  st(0) .. st(2) the place (popped), ecx the colour, edx the size
-//! Out: ebp the turned depth's bits; the rest as `draw_fan` leaves them when drawn
+//! Out: nothing (no caller reads a register it leaves but esi, which it keeps)
 //!
 //! Callers: the ring's update (code at 0x4D03E7, 0x4D04BE, 0x4D05AC). Its call through
 //! `part` (1 `draw_fan`); in the game its Rust version (the device's through the game).
@@ -20,8 +20,7 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::math::x87;
 
 const VIEW_RVA: usize = rva(0x5EA2CC); // g_viewMatrix
@@ -33,25 +32,16 @@ const CENTRE_RVA: [usize; 2] = [rva(0x62409C), rva(0x6240A0)];
 const Z_K_RVA: usize = rva(0x8EB96D); // flt_8EB96D
 const VERTICES_RVA: usize = rva(0x9605A0); // g_polygonVertices: TLVertex[4]
 
-/// A call by place: 1 `draw_fan`.
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn draw_particle(
-    entry: &Regs,
-    place: [[u8; 10]; 3],
-    part: Part,
-) -> Result<Regs, Refused> {
-    let mut g = *entry;
+/// The Rust version (see the header): `colour` (ecx), `size` (edx).
+pub unsafe fn draw_particle(place: [[u8; 10]; 3], colour: u32, size: u32) {
     unsafe {
         let turned = x87::column_turn(&place, game_addr(VIEW_RVA) as u32);
         for (n, v) in turned.into_iter().enumerate() {
             game_write(TURNED_RVA + 4 * n, v);
         }
         let [a, b, c] = turned;
-        g.ebp = c;
         if (c as i32) <= game_read::<i32>(NEAR_RVA) {
-            return Ok(g);
+            return;
         }
         let k = [
             game_read(FOCAL_RVA),
@@ -59,23 +49,16 @@ pub unsafe fn draw_particle(
             game_read(CENTRE_RVA[1]),
             game_read(Z_K_RVA),
         ];
-        let sq = x87::particle_square(a, b, c, k, g.edx as i32);
+        let sq = x87::particle_square(a, b, c, k, size as i32);
         for n in 0..4 {
             let v = VERTICES_RVA + 0x20 * n;
-            game_write(v + 0x10, g.ecx);
+            game_write(v + 0x10, colour);
             game_write(v + 8, sq[1]);
             game_write(v, sq[6 + n]);
             game_write(v + 4, sq[2 + n]);
         }
         game_write(HALF_RVA, sq[0]);
         game_write(HALF_RVA + 4, sq[0]);
-        part(1, &mut g)?;
+        crate::marks::clip_quad::draw_fan();
     }
-    Ok(g)
-}
-
-/// In the game: `draw_fan`'s Rust version.
-pub fn game_part(_place: u32, r: &mut Regs) -> Result<(), Refused> {
-    unsafe { crate::scene::draw_fan::draw_fan(r, &mut crate::scene::draw_fan::game_part) };
-    Ok(())
 }

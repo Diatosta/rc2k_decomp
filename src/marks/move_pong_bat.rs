@@ -5,7 +5,7 @@
 //! never moves (section 16).
 //!
 //! In:  nothing
-//! Out: as `pong_bat_back` leaves them (eax / ebx the bat's place going in)
+//! Out: nothing (the Rust callers read no register)
 //!
 //! Caller: `marks::run_pong`. The call is its Rust version. Self-test: the original and
 //! the Rust version on balls and bats by lot; put back.
@@ -19,18 +19,15 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::{Regs, game_read, game_write};
+use crate::framework::{game_read, game_write};
 use crate::marks::pong;
 use crate::marks::pong_bat_back::pong_bat_back;
 
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn move_pong_bat(entry: &Regs) -> Regs {
-    let mut g = *entry;
+/// The Rust version (see the header).
+pub unsafe fn move_pong_bat() {
     unsafe {
-        g.eax = game_read(pong::BAT[0]);
-        g.ebx = game_read(pong::BAT[1]);
-        game_write(pong::SAVED_BAT[0], g.eax);
-        game_write(pong::SAVED_BAT[1], g.ebx);
-        pong_bat_back(&g)
+        game_write(pong::SAVED_BAT[0], game_read::<u32>(pong::BAT[0]));
+        game_write(pong::SAVED_BAT[1], game_read::<u32>(pong::BAT[1]));
+        pong_bat_back()
     }
 }

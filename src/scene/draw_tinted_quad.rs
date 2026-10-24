@@ -21,7 +21,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::math::x87;
 
 const DRAWN_RVA: usize = rva(0x624134); // g_polygonDrawn
@@ -46,9 +46,9 @@ fn set(r: usize, v: u32) {
     unsafe { game_write(r, v) };
 }
 
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn draw_tinted_quad(entry: &Regs) -> Result<Regs, Refused> {
-    let mut g = *entry;
+/// The Rust version (see the header). It reads no register, and what it leaves is read by
+/// none of its 856 call sites (register liveness, 2026-10-23).
+pub unsafe fn draw_tinted_quad() -> Result<(), Refused> {
     unsafe {
         set(DRAWN_RVA, 0);
         for n in 0..4 {
@@ -94,28 +94,26 @@ pub unsafe fn draw_tinted_quad(entry: &Regs) -> Result<Regs, Refused> {
             game_write(rec + 0x20, 0xFFu8);
         }
         set(COUNT_RVA, 4);
-        g.esi = game_addr(POOL_RVA) as u32;
-        set(NEXT_RECORD_RVA, g.esi);
+        set(NEXT_RECORD_RVA, game_addr(POOL_RVA) as u32);
         for n in 0..4u32 {
             set(LIST_RVA + 4 * n as usize, n);
         }
         set(LIST_RVA + 16, 0);
         set(NEXT_ENTRY_RVA, 4);
-        [g.eax, g.ecx] = [0xFF, 4];
-        crate::scene::draw_flat_quad::game_part(2, &mut g)?;
+        crate::scene::draw_flat_quad::part(2)?;
         if game_read::<u32>(COUNT_RVA) >= 3 {
-            crate::scene::draw_flat_quad::game_part(3, &mut g)?;
+            crate::scene::draw_flat_quad::part(3)?;
             set(MODE_RVA, 3);
             set(TEXTURES_RVA[0], 0xFFFF_FFFF);
             set(TEXTURES_RVA[1], 0xFFFF_FFFF);
             set(SIDES_RVA[0], 0);
             set(SIDES_RVA[1], 1);
-            crate::scene::draw_flat_quad::game_part(4, &mut g)?;
+            crate::scene::draw_flat_quad::part(4)?;
             set(MODE_RVA, 0);
             set(DRAWN_RVA, 1);
-            crate::scene::draw_flat_quad::game_part(5, &mut g)?;
+            crate::scene::draw_flat_quad::part(5)?;
         }
         set(COLOUR_RVA, 0xFF_FFFF);
     }
-    Ok(g)
+    Ok(())
 }

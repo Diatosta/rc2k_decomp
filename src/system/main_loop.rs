@@ -59,7 +59,7 @@ pub struct Vars(pub [*mut u32; 12]);
 
 impl Vars {
     fn game() -> Self {
-        Self(VARS.map(|at| game_addr(rva(at)) as *mut u32))
+        Self(VARS.map(|at| crate::moved::place(at) as *mut u32))
     }
 
     unsafe fn get(&self, n: usize) -> u32 {
@@ -161,58 +161,44 @@ pub unsafe fn main_loop(vars: &Vars, stack: u32, outside: Outside) -> Result<(),
     }
 }
 
-/// The calls: the Rust versions of what is ported, the game for the rest (the front end
-/// through its own hook).
+/// The calls: the Rust versions, those still taking registers by their address (a
+/// local register set, their scratch: none of them reads one).
 fn in_game(call: Call) -> Result<(), Refused> {
-    let game = |at: usize, eax: u32| {
-        crate::calls::call(
-            rva(at),
-            &mut Regs {
-                eax,
-                ..Regs::default()
-            },
-        )
-    };
+    let game = |at: usize| crate::calls::call(rva(at), &mut Regs::default());
     unsafe {
         match call {
             Call::Log(0) => crate::menu::text_entry::log_l1(c"".as_ptr() as *const u8, true),
             Call::Log(text) => crate::menu::text_entry::log_l1(text as *const u8, true),
             Call::Sleep(milliseconds) => crate::system::sleep::sleep(milliseconds),
-            Call::Sub404823 => game(0x404823, 0),
-            Call::Sub40EFF3 => game(0x40EFF3, 0),
-            Call::Sub4075F3 => game(0x4075F3, 0),
-            Call::Sub4165F1 => game(0x4165F1, 0),
-            Call::RunsFromSource => game(0x412DA3, 0),
-            Call::Installer => {
-                crate::install::run_installer::run_installer(&Regs::default()).map(|_| ())?
-            }
-            Call::Sub40FCAA => game(0x40FCAA, 0),
+            Call::Sub404823 => game(0x404823),
+            Call::Sub40EFF3 => crate::sound::apply_settings::apply_settings()?,
+            Call::Sub4075F3 => crate::gfx::load_jade::load_jade_in_game()?,
+            Call::Sub4165F1 => game(0x4165F1),
+            Call::RunsFromSource => game(0x412DA3),
+            Call::Installer => crate::install::run_installer::run_installer()?,
+            Call::Sub40FCAA => crate::sound::stop_cd_audio::stop_cd_audio(),
             // Its answer is not read.
             Call::IsCdDrive(drive) => {
                 crate::files::is_cd_drive::is_cd_drive(drive);
             }
             // `net::lobby_launched_game`'s Rust version (a case it refuses through its hook).
-            Call::Sub418DF4 => {
-                let r = &mut Regs::default();
-                *r = crate::net::lobby_launched_game::lobby_launched_game(
-                    r,
-                    &mut crate::net::lobby::game_part,
-                )?;
+            Call::Sub418DF4 => crate::net::lobby_launched_game::lobby_launched_game()?,
+            Call::RunFrontEnd => game(0x47486C),
+            Call::Sub40F826 => crate::sound::stop_music::stop_music(),
+            Call::SaveGameData => {
+                crate::saves::save_game_data::save_in_game()?;
             }
-            Call::RunFrontEnd => game(0x47486C, 0),
-            Call::Sub40F826 => game(0x40F826, 0),
-            Call::SaveGameData => game(0x411499, 0),
-            Call::FreeBestTimes => game(0x47C627, 0),
-            Call::RequestQuit => game(0x410BF9, 0),
+            Call::FreeBestTimes => crate::saves::free_best_times::free_in_game()?,
+            Call::RequestQuit => crate::threading::request_quit::request_quit_logged()?,
         }
     }
     Ok(())
 }
 
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's). The
-/// stack pointer it keeps in `dword_518390` is only the game's way out's (0x4154B5), which
-/// no Rust code takes: any value but 0 does, so this frame's.
-pub fn entry(_: &mut Regs) -> Result<(), crate::errors::Refused> {
+/// The Rust version on the game's own calls. The stack pointer it keeps in
+/// `dword_518390` is only the game's way out's (0x4154B5), which no Rust code takes: any
+/// value but 0 does, so this frame's.
+pub fn main_loop_in_game() -> Result<(), Refused> {
     log("system::main_loop: the Rust version runs");
     let here = 0u32;
     let stack = &raw const here as u32;

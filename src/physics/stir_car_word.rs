@@ -8,15 +8,11 @@
 //! Self-test: a copy of the original on a test word (its call to `noise_step` kept),
 //! 64 words.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
-use crate::errors::Refused;
-use crate::framework::{EAX, Regs, game_addr, rva};
+use crate::framework::{game_addr, rva};
 use crate::scene::next_noise::noise_step;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 const WORD_RVA: usize = rva(0x719FE4); // dword_719FE4
 
@@ -33,14 +29,4 @@ pub unsafe fn stir_word_at(at: u32) -> u32 {
 /// The Rust version.
 pub unsafe fn stir_car_word() -> u32 {
     unsafe { stir_word_at(game_addr(WORD_RVA) as u32) }
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    Ok(Left::nothing().with(EAX, unsafe { stir_car_word() }))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

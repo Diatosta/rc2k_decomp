@@ -22,8 +22,9 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
+use crate::errors::BadInput;
 use crate::errors::Refused;
-use crate::framework::{Regs, game_read, rva};
+use crate::framework::{game_read, rva};
 use crate::scene::draw_object_face::draw_object_face_in_game;
 use crate::scene::draw_object_faces::draw_object_faces;
 use crate::scene::list_object_face::list_object_face;
@@ -36,11 +37,8 @@ use crate::scene::sort_listed_faces::sort_listed_faces;
 
 // ---- game data ----
 
-const OBJECT_RVA: usize = rva(0x6214FC); // g_objectNumber
 const USE_3DNOW_RVA: usize = rva(0x621A5C); // g_use3dNow
 const USE_SSE_RVA: usize = rva(0x621A58); // g_useSse
-const PLACE_3DNOW_RVA: usize = rva(0x45BF89); // sub_45BF89
-const PLACE_SSE_RVA: usize = rva(0x45C04E); // sub_45C04E
 
 /// The seven calls, in their order.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -56,52 +54,53 @@ pub enum Step {
 
 // ---- Rust version ----
 
-/// `step`: what stands for each call, with the registers it is entered with.
+/// `step`: what stands for each call. The registers between the calls carry nothing
+/// a later call reads (the object's number goes to each through `g_objectNumber`).
 pub unsafe fn draw_object(
-    r: &mut Regs,
-    step: &mut dyn FnMut(Step, &mut Regs) -> Result<(), Refused>,
+    step: &mut dyn FnMut(Step) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
-    unsafe {
-        r.eax = game_read(OBJECT_RVA);
-        step(Step::Light, r)?;
-        step(Step::Material, r)?;
-        step(Step::Fade, r)?;
-        r.ebx = game_read(OBJECT_RVA);
-        step(Step::Points, r)?;
-        step(Step::List, r)?;
-        step(Step::Sort, r)?;
-        step(Step::Faces, r)
+    for s in [
+        Step::Light,
+        Step::Material,
+        Step::Fade,
+        Step::Points,
+        Step::List,
+        Step::Sort,
+        Step::Faces,
+    ] {
+        step(s)?;
     }
+    Ok(())
 }
 
-/// `scene::place_object_points_any` (0x45BDE1).
-unsafe fn place_object_points_any(r: &mut Regs) -> Result<(), Refused> {
+/// `scene::place_object_points_any` (0x45BDE1). The 3DNow and SSE ways (`sub_45BF89`,
+/// `sub_45C04E`) are not ported: a call of either ended the program ("not ported"), a
+/// refusal ends it now.
+unsafe fn place_object_points_any() -> Result<(), Refused> {
     unsafe {
-        if game_read::<u32>(USE_3DNOW_RVA) != 0 {
-            crate::calls::call(PLACE_3DNOW_RVA, r);
-        } else if game_read::<u32>(USE_SSE_RVA) != 0 {
-            crate::calls::call(PLACE_SSE_RVA, r);
-        } else {
-            place_object_points(r)?.apply(r);
+        if game_read::<u32>(USE_3DNOW_RVA) != 0 || game_read::<u32>(USE_SSE_RVA) != 0 {
+            return Err(BadInput("the 3DNow and SSE ways of placing points are not ported").into());
         }
+        place_object_points()?;
         Ok(())
     }
 }
 
 /// With the steps' Rust versions.
-pub unsafe fn draw_object_in_game(r: &mut Regs) -> Result<(), Refused> {
+pub unsafe fn draw_object_in_game() -> Result<(), Refused> {
     unsafe {
-        draw_object(r, &mut |step, r| {
+        draw_object(&mut |step| {
             match step {
                 Step::Light => set_object_light_in_game()?,
                 Step::Material => set_object_material()?,
                 Step::Fade => set_object_fade()?,
-                Step::Points => place_object_points_any(r)?,
-                Step::List => list_object_faces(&mut |face| list_object_face(face))?.apply(r),
+                Step::Points => place_object_points_any()?,
+                Step::List => {
+                    list_object_faces(&mut |face| list_object_face(face))?;
+                }
                 Step::Sort => sort_listed_faces()?,
                 Step::Faces => {
-                    let entry = *r;
-                    draw_object_faces(&mut |face| draw_object_face_in_game(face, &entry))?.apply(r)
+                    draw_object_faces(&mut |face| draw_object_face_in_game(face))?;
                 }
             }
             Ok(())

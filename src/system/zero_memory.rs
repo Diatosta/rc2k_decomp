@@ -10,7 +10,6 @@
 //! and the self-test was the hook's.
 
 use crate::errors::BadInput;
-use crate::framework::Regs;
 
 // The original's last instruction that sets flags is `and ebx, 3` on the length.
 // ---- Rust version ----
@@ -23,14 +22,5 @@ pub unsafe fn zero_memory(block: *mut u8, length: u32) -> Result<(), BadInput> {
         return Err(BadInput("no block to zero"));
     }
     unsafe { std::ptr::write_bytes(block, 0, length as usize) };
-    Ok(())
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let (block, length) = (r.ebx as *mut u8, r.ecx);
-    if let Err(e) = unsafe { zero_memory(block, length) } {
-        return Err(e.into());
-    }
     Ok(())
 }

@@ -19,22 +19,18 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{FatalError, Refused};
-use crate::framework::{Regs, game_addr, game_read, rva};
-use crate::menu::parts::{Part, parted_entry};
+use crate::framework::{game_addr, game_read, rva};
+use crate::menu::screen_loop::{Carried, run_screen_carried};
 
-const CALLEES: [usize; 3] = [
-    0x480D35, // 0 menu::secret_car_list
-    0x47AF4C, // 1 menu::car_specs_47af4c_loop
-    0x47B29D, // 2 menu::take_shown_car
-];
 const KIND_RVA: usize = rva(0x755954); // dword_755954
 const LEFT_RVA: usize = rva(0x758806); // dword_758806
 
-/// The Rust version: the registers it leaves.
-pub unsafe fn show_car_specs(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+/// The Rust version. `c` the carried values the item gets. (The original leaves the
+/// registers its callees leave, esi the list; an item's caller reads none.)
+pub unsafe fn show_car_specs(c: &Carried) -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::cars::specs_list`.
     use rc2k_core::menu::cars::{SpecsList, specs_list};
-    let mut r = *entry;
+    let mut r = *c;
     let kind: u32 = unsafe { game_read(KIND_RVA) };
     let Some((list, choice)) = specs_list(kind) else {
         return Err(FatalError {
@@ -43,34 +39,19 @@ pub unsafe fn show_car_specs(entry: &Regs, part: Part) -> Result<Regs, Refused> 
         }
         .into());
     };
-    r.esi = game_addr(rva(match list {
+    r.cars = game_addr(rva(match list {
         SpecsList::Events => 0x75A042,
         SpecsList::Kind4 => 0x759CAE,
         SpecsList::Kind5 => 0x759D16,
     })) as u32;
     if !choice {
-        part(1, &mut r)?;
-        return Ok(r);
+        unsafe { run_screen_carried(&crate::menu::car_specs_47af4c_loop::SCREEN, &mut r) }?;
+        return Ok(());
     }
-    part(0, &mut r)?;
-    part(1, &mut r)?;
+    crate::menu::cheat_car_list::carry_on(crate::menu::cheat_car_list::cheat_car_list(), &mut r);
+    unsafe { run_screen_carried(&crate::menu::car_specs_47af4c_loop::SCREEN, &mut r) }?;
     if unsafe { game_read::<u32>(LEFT_RVA) } != 1 {
-        part(2, &mut r)?;
-    }
-    Ok(r)
-}
-
-pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    match place {
-        0 => crate::menu::arcade_steps::secret_car_list().apply(r),
-        2 => unsafe { crate::menu::take_shown_car::take_shown_car(r.esi) }?,
-        _ => crate::calls::call(rva(CALLEES[place as usize]), r),
+        unsafe { crate::menu::take_shown_car::take_shown_car(r.cars) }?;
     }
     Ok(())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    parted_entry(r, &|r, part| unsafe { show_car_specs(r, part) }, game_part)
 }

@@ -13,24 +13,12 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::physics::listed_car_flags::set_flag;
 use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 const FLAG: usize = 0x51659C; // dword_51659C
 
 /// The Rust version.
 pub unsafe fn set_flag_51659c() -> Result<Left, Refused> {
     unsafe { set_flag(FLAG) }
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { set_flag_51659c() }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

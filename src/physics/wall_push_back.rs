@@ -14,12 +14,10 @@
 //! on the game's variables (saved and put back), speeds and figures by lot (standing
 //! still too), under three precisions.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::math::x87_run::compare_80;
 use crate::physics::contact_force::{RECORD, contact_force};
 use crate::physics::flow::{a, copy3, fill3, g, negate, p};
@@ -27,8 +25,9 @@ use crate::physics::vector_length::vector_length;
 use crate::physics::wall_contacts::{WALL_RECORD, WORK};
 use crate::race::norms::normalise_work_vector;
 
-/// The steps, not guarded.
-pub fn steps(r: &mut Regs) -> Result<(), Refused> {
+/// The steps, not guarded. The registers the original leaves are read by none of its
+/// callers.
+pub fn steps() -> Result<(), Refused> {
     copy3(WORK, 0x71A170);
     negate(WORK);
     negate(WORK + 4);
@@ -43,7 +42,7 @@ pub fn steps(r: &mut Regs) -> Result<(), Refused> {
     fill3(0x6D3090, 0);
     p(0x6D3100, 0);
     p(RECORD, a(WALL_RECORD));
-    unsafe { contact_force() }.apply(r);
+    unsafe { contact_force() };
     unsafe { crate::physics::place_sound_e1::place_sound_e1() }?;
     p(0x6141C8, u32::MAX);
     Ok(())

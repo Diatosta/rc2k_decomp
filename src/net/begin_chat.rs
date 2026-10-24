@@ -12,27 +12,14 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::Regs;
-use crate::net::lobby::{CHAT_INPUT, CHOICE, Part, a, g, lobby_entry, pb};
+use crate::net::lobby::{CHAT_INPUT, CHOICE, a, g, pb};
 
-const BEGIN_EDIT: u32 = 0x416E1A; // net::begin_edit
 const CHAT_FONT: usize = 0x51E424; // dword_51E424
 
-/// The Rust version: the registers it leaves.
-pub fn begin_chat(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    let mut r = *entry;
-    r.eax = g(CHOICE);
-    r.ebx = a(CHAT_INPUT);
+/// The Rust version. The registers the original leaves (eax the item, ebx the input, ecx
+/// 0x30C, edx the font) are read by no caller (`lobby_loop` only; liveness: ebp, edi, edx,
+/// esi live after, edx the caller's own).
+pub fn begin_chat() {
     pb(CHAT_INPUT, 0);
-    r.ecx = 0x30C;
-    r.edx = a(CHAT_FONT);
-    part(BEGIN_EDIT, &mut r)?;
-    Ok(r)
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    lobby_entry(r, begin_chat)
+    crate::net::begin_edit::begin_edit(g(CHOICE), a(CHAT_INPUT), 0x30C, a(CHAT_FONT));
 }

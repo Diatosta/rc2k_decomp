@@ -23,6 +23,15 @@ pub unsafe fn first_device_state() -> [u32; 4] {
     unsafe { device_state(k(0x4F6EE8)) }
 }
 
+/// `first_device_state` where there is a device (`g_inputDevices` not 0), else refused:
+/// the calls by address (`routes.rs`; the original would read through 0).
+pub fn first_device_state_checked() -> Result<[u32; 4], crate::errors::Refused> {
+    if k(0x4F6EE8) == 0 {
+        return Err(crate::errors::BadInput("no input device").into());
+    }
+    Ok(unsafe { first_device_state() })
+}
+
 /// What `input::axis_moved` leaves: the carry (none), eax.
 pub struct Moved {
     pub carry: bool,

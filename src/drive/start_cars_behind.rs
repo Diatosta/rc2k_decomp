@@ -38,21 +38,12 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 use crate::math::x87;
-use crate::race::car_starts::Part;
 use rc2k_core::drive::pace_cars::{
     ahead_of_lead, ease_jump, ease_step, first_starts, gap_start, gaps, passed, push_apart,
     wanted_gap,
 };
-
-const LOAD: u32 = 0;
-const STORE: u32 = 1;
-const START: u32 = 2;
-const TAKEN: u32 = 3;
-const CLEAR: u32 = 4;
-const BEHIND: u32 = 5;
-const AHEAD: u32 = 6;
 
 fn g(x: u32) -> u32 {
     unsafe { game_read(rva(x as usize)) }
@@ -94,9 +85,7 @@ fn refusal() -> Option<&'static str> {
 
 /// One car moved: its slot `from_slot` emptied into the other's (`shift`), a new car at
 /// start `start` with `dist` checkpoints on.
-fn put_car(
-    r: &mut Regs,
-    part: &mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>,
+unsafe fn put_car(
     start: u32,
     slot: u32,
     number: u32,
@@ -105,36 +94,39 @@ fn put_car(
 ) -> Result<(), Refused> {
     p(number, start);
     p(0x6051A0, start);
-    r.ebx = start;
-    r.eax = g(CARS_BY_START + 4 * start);
-    p(CURRENT, r.eax);
-    p(slot, r.eax);
-    part(LOAD, r)?;
-    p(0x6051B0, speed);
-    r.ebx = dist;
-    part(START, r)?;
-    part(STORE, r)
+    let car = g(CARS_BY_START + 4 * start);
+    p(CURRENT, car);
+    p(slot, car);
+    unsafe {
+        crate::drive::load_car::load_car()?;
+        p(0x6051B0, speed);
+        crate::drive::start_car_on_line::start_car_on_line(dist)?;
+        crate::drive::store_car::store_car()?;
+    }
+    Ok(())
 }
 
-/// The Rust core, the calls through `part` (`PLACES`).
-pub unsafe fn start_cars_behind(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+/// A car taken off the line: made the work car, its start values cleared, stored back.
+unsafe fn clear_car(car: u32) -> Result<(), Refused> {
+    p(CURRENT, car);
+    unsafe {
+        crate::drive::load_car::load_car()?;
+        crate::drive::clear_start_state::clear_start_state();
+        crate::drive::store_car::store_car()?;
+    }
+    Ok(())
+}
+
+/// The Rust version. The registers it leaves are read by no caller (liveness: the
+/// callers' after-sets are kept or dead).
+// Converted: `rc2k_core::drive::pace_cars` (the rules; the moves and calls stay here).
+pub unsafe fn start_cars_behind() -> Result<(), Refused> {
     if let Some(why) = refusal() {
         return Err(BadInput(why).into());
     }
-    let mut r = *entry;
-    let result = unsafe { run(&mut r, part) };
-    match result {
-        Ok(()) => Ok(r),
-        Err(e) => Err(e),
-    }
-}
-
-// Converted: `rc2k_core::drive::pace_cars` (the rules; the moves and calls stay here).
-unsafe fn run(r: &mut Regs, part: Part) -> Result<(), Refused> {
     unsafe {
         if g(0x70FA58) == 0 {
             let [(a, a_dist), (b, b_dist)] = first_starts(g(0x6051BC));
-            r.ebx = b;
             p(0x6051C4, a);
             p(0x6051C8, b);
             p(0x6051CC, a_dist);
@@ -143,42 +135,31 @@ unsafe fn run(r: &mut Regs, part: Part) -> Result<(), Refused> {
                 (0x6051C4, 0x70FA48, 0x6051CC),
                 (0x6051C8, 0x70FA4C, 0x6051D0),
             ] {
-                put_car(r, part, g(start), slot, 0x70FA50, g(dist), 0)?;
+                put_car(g(start), slot, 0x70FA50, g(dist), 0)?;
             }
             p(0x70FA58, 1);
         }
         let count = g(COUNT);
-        r.eax = gap_start(g(0x70FA40), count);
-        let word = g(0x605034 + 4 * r.eax);
-        r.ebx = word & 0xF;
+        let start = gap_start(g(0x70FA40), count);
+        let word = g(0x605034 + 4 * start);
         let (pass, back, sum) = gaps(word);
         p(0x6051D4, pass);
         p(0x6051D8, back);
-        r.eax = sum;
-        p(0x6051DC, r.eax);
+        p(0x6051DC, sum);
         'moves: {
             if g(0x70FA44) != 0 {
-                r.ebx = g(0x70FA48);
-                r.esi = block(r.ebx);
-                r.eax = at(r.esi + 0x98).wrapping_sub(g(LEAD));
-                if passed(r.eax, g(0x6051D4)) {
-                    r.eax = g(LEAD).wrapping_sub(g(0x6051D8));
-                    part(TAKEN, r)?;
-                    if r.carry() {
+                let car = g(0x70FA48);
+                let gone = at(block(car) + 0x98).wrapping_sub(g(LEAD));
+                if passed(gone, g(0x6051D4)) {
+                    let to = g(LEAD).wrapping_sub(g(0x6051D8));
+                    if crate::drive::checkpoint_taken::checkpoint_taken(to) {
                         break 'moves;
                     }
-                    p(CURRENT, r.ebx);
-                    part(LOAD, r)?;
-                    part(CLEAR, r)?;
-                    part(STORE, r)?;
-                    r.eax = g(0x70FA4C);
-                    p(0x70FA48, r.eax);
-                    r.eax = g(0x70FA54);
-                    p(0x70FA50, r.eax);
+                    clear_car(car)?;
+                    p(0x70FA48, g(0x70FA4C));
+                    p(0x70FA50, g(0x70FA54));
                     let start = g(COUNT).wrapping_sub(g(0x70FA44));
                     put_car(
-                        r,
-                        part,
                         start,
                         0x70FA4C,
                         0x70FA54,
@@ -188,137 +169,84 @@ unsafe fn run(r: &mut Regs, part: Part) -> Result<(), Refused> {
                     p(0x70FA44, g(0x70FA44).wrapping_sub(1));
                 }
             }
-            r.eax = g(COUNT).wrapping_sub(3);
-            if g(0x70FA44) == r.eax {
+            if g(0x70FA44) == g(COUNT).wrapping_sub(3) {
                 break 'moves;
             }
-            r.eax = g(COUNT).wrapping_sub(2).wrapping_sub(g(0x6051C0));
-            if g(0x70FA44) >= r.eax {
+            if g(0x70FA44) >= g(COUNT).wrapping_sub(2).wrapping_sub(g(0x6051C0)) {
                 break 'moves;
             }
-            r.ebx = g(0x70FA4C);
-            r.esi = block(r.ebx);
-            r.eax = g(LEAD).wrapping_sub(at(r.esi + 0x98));
-            if !passed(r.eax, g(0x6051D4)) {
+            let car = g(0x70FA4C);
+            let ahead = g(LEAD).wrapping_sub(at(block(car) + 0x98));
+            if !passed(ahead, g(0x6051D4)) {
                 break 'moves;
             }
-            r.eax = g(LEAD).wrapping_add(g(0x6051D8));
-            part(TAKEN, r)?;
-            if r.carry() {
+            let to = g(LEAD).wrapping_add(g(0x6051D8));
+            if crate::drive::checkpoint_taken::checkpoint_taken(to) {
                 break 'moves;
             }
-            p(CURRENT, r.ebx);
-            part(LOAD, r)?;
-            part(CLEAR, r)?;
-            part(STORE, r)?;
-            r.eax = g(0x70FA50);
-            p(0x70FA54, r.eax);
-            r.eax = g(0x70FA48);
-            p(0x70FA4C, r.eax);
+            clear_car(car)?;
+            p(0x70FA54, g(0x70FA50));
+            p(0x70FA4C, g(0x70FA48));
             let start = g(COUNT).wrapping_sub(3).wrapping_sub(g(0x70FA44));
-            put_car(r, part, start, 0x70FA48, 0x70FA50, g(0x6051D8), g(0x5C5D0C))?;
+            put_car(start, 0x70FA48, 0x70FA50, g(0x6051D8), g(0x5C5D0C))?;
             p(0x70FA44, g(0x70FA44).wrapping_add(1));
         }
         if g(0x70F494) == 0 {
             p(0x70FA14, u32::MAX);
             p(0x70FA18, u32::MAX);
-            r.ebp = g(COUNT).wrapping_sub(g(0x70FA44));
-            r.eax = g(LEAD);
-            r.edx = g(0x70FA10);
+            let mut behind = g(COUNT).wrapping_sub(g(0x70FA44));
+            let lead = g(LEAD);
+            // edx: `dword_70FA10` for the first car, then the gap the first car's note
+            // left (the original's register, read again for the second car).
+            let mut edx = g(0x70FA10);
             for slot in [0x70FA4C, 0x70FA48] {
-                r.ebx = g(slot);
-                r.esi = block(r.ebx);
-                let esi = r.esi;
-                if ahead_of_lead(r.eax, at(esi + 0x98), r.edx, || at(esi + 0x624)) {
-                    part(AHEAD, r)?;
+                let b = block(g(slot));
+                edx = if ahead_of_lead(lead, at(b + 0x98), edx, || at(b + 0x624)) {
+                    crate::drive::note_gap_ahead::note_gap_ahead(b)
                 } else {
-                    r.ebp = r.ebp.wrapping_sub(1);
-                    part(BEHIND, r)?;
-                }
+                    behind = behind.wrapping_sub(1);
+                    crate::drive::note_gap_behind::note_gap_behind(b)
+                };
             }
-            p(0x70FA40, r.ebp);
-            let gap = |r: &mut Regs, other: u32| {
-                r.eax = wanted_gap(g(0x6051DC), g(other), g(0x6051D8));
-                r.eax
-            };
+            p(0x70FA40, behind);
+            let gap = |other: u32| wanted_gap(g(0x6051DC), g(other), g(0x6051D8));
             let mut to_ease = true;
             if g(0x70FA18) == u32::MAX {
                 if g(0x70FA44) == 0 {
                     to_ease = false;
                 } else {
-                    let v = gap(r, 0x70FA14);
-                    p(0x70FA18, v);
+                    p(0x70FA18, gap(0x70FA14));
                 }
             }
             if to_ease && g(0x70FA14) == u32::MAX && g(0x70FA40) != 1 {
-                let v = gap(r, 0x70FA18);
-                p(0x70FA14, v);
+                p(0x70FA14, gap(0x70FA18));
             }
             for (wanted, eased) in [(0x70FA18, 0x70FA20), (0x70FA14, 0x70FA1C)] {
-                let jumped;
-                (r.eax, jumped) = ease_jump(g(wanted), g(eased));
-                if let Some(v) = jumped {
+                if let (_, Some(v)) = ease_jump(g(wanted), g(eased)) {
                     p(eased, v);
                 }
             }
             for (wanted, eased) in [(0x70FA18, 0x70FA20), (0x70FA14, 0x70FA1C)] {
-                let next;
-                (r.eax, next) = ease_step(g(wanted), g(eased));
-                p(eased, next);
+                p(eased, ease_step(g(wanted), g(eased)).1);
             }
         }
         for v in [0x70FA60, 0x710A40, 0x711A20, 0x712A00] {
             p(v, 0);
         }
-        r.ebx = g(0x70FA48);
-        r.esi = block(r.ebx);
-        r.ebx = g(0x70FA4C);
-        r.edi = block(r.ebx);
-        r.eax = at(r.esi + 0x98).wrapping_sub(at(r.edi + 0x98));
-        p(0x70FA5C, r.eax);
-        let Some(push) = push_apart(r.eax) else {
+        let first = block(g(0x70FA48));
+        let second = block(g(0x70FA4C));
+        let apart = at(first + 0x98).wrapping_sub(at(second + 0x98));
+        p(0x70FA5C, apart);
+        let Some(push) = push_apart(apart) else {
             return Ok(());
         };
-        r.eax = push;
         let put = |a: u32, v: u32| (a as *mut u32).write_unaligned(v);
-        put(r.esi + 0x674, r.eax);
-        r.eax = r.eax.wrapping_neg();
-        put(r.edi + 0x674, r.eax);
+        put(first + 0x674, push);
+        put(second + 0x674, push.wrapping_neg());
         let k = g(0x604EC4);
-        for b in [r.esi, r.edi] {
+        for b in [first, second] {
             put(b + 0x674, x87::int_times(at(b + 0x674) as i32, k));
         }
         Ok(())
     }
 }
-
-/// The calls in the game: the Rust versions.
-pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    unsafe {
-        match place {
-            LOAD => crate::drive::load_car::load_car()?.apply(r),
-            STORE => crate::drive::store_car::store_car()?.apply(r),
-            START => *r = crate::drive::start_car_on_line::start_car_on_line(r)?,
-            TAKEN => crate::drive::checkpoint_taken::checkpoint_taken(r).apply(r),
-            CLEAR => crate::drive::clear_start_state::clear_start_state(),
-            BEHIND => crate::drive::note_gap_behind::note_gap_behind(r.esi).apply(r),
-            _ => crate::drive::note_gap_ahead::note_gap_ahead(r.esi).apply(r),
-        }
-    }
-    Ok(())
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    {
-        let g = unsafe { start_cars_behind(r, &mut game_part) }?;
-        *r = Regs {
-            esp: r.esp,
-            eflags: r.eflags,
-            ..g
-        }
-    }
-    Ok(())
-}
-
-// ---- the self-test's stand-ins ----

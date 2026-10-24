@@ -15,67 +15,44 @@
 //! Refuses what the calls refuse; what was written is put back.
 //! Self-test: `physics/gearbox.rs` (`test_gearbox`), gears made 0 first.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::math::x87;
 use crate::math::x87_run::sub_mul_add;
 use crate::physics::copy_car_word_8::copy_car_word_8;
 use crate::physics::gearbox::*;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 use rc2k_core::physics::gear_shifts as shifts;
 
 /// The steps on `r`.
 // Converted: `rc2k_core::physics::gear_shifts::pick_start` (the engine's sums and compares
 // stay x87).
-pub fn pick_start_gear_in(r: &mut Regs) -> Result<(), Refused> {
-    unsafe { copy_car_word_8() }.apply(r);
+pub fn pick_start_gear() -> Result<(), Refused> {
+    unsafe { copy_car_word_8() };
     p(0x614144, g(ENGINE));
-    revs_speed(r)?;
-    r.ebx = 1;
+    revs_speed()?;
     p(0x614140, 0);
     p(0x61413C, x87::loaded(g(0x5C5D14)));
     let taken = shifts::pick_start(|gear| {
-        r.ebx = gear;
-        if bit(r, gear)? {
+        if bit(gear)? {
             return Ok::<_, Refused>(false);
         }
         p(GEAR, gear);
-        revs_speed(r)?;
+        revs_speed()?;
         p(ENGINE, over_top());
         Ok(below(g(ENGINE), g(0x5CB958)))
     })?;
     let Some(gear) = taken else {
-        r.ebx = 7;
         return Ok(());
     };
-    r.ebx = gear;
-    p(GEAR, r.ebx);
-    revs_speed(r)?;
+    p(GEAR, gear);
+    revs_speed()?;
     p(
         ENGINE,
         sub_mul_add(g(0x614144), g(ENGINE), g(0x613FE0), g(ENGINE)),
     );
-    wheels(r)?;
+    wheels()?;
     settle();
     Ok(())
-}
-
-/// The Rust version.
-pub unsafe fn pick_start_gear(entry: &Regs) -> Result<Left, Refused> {
-    guarded(entry, &pick_start_gear_in)
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { pick_start_gear(r) }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

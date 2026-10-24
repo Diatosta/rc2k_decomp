@@ -21,25 +21,22 @@
 //! physics' variables and the tables saved and put back), the car as it is and with its
 //! drive force by lot, under three precisions.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{EAX, EBX, ECX, EDX, Regs};
 use crate::physics::flow::{a, base, c0, g, p, x87_run};
-use crate::screens::harness::Left;
 
 const DRIVE: usize = 0x71A190; // g_carDriveSpeed
 const GEAR: usize = 0x71A1AC; // g_carGear
-const STEPS: u32 = 0x1388;
+pub const STEPS: u32 = 0x1388;
 
-/// One step (0x42189D .., in `pusha` / `popa`): `r` the registers there (ebx the step).
-fn step(mut r: Regs) -> Result<(), Refused> {
+/// One step (0x42189D .., in `pusha` / `popa`).
+fn step() -> Result<(), Refused> {
     p(0x71A184, crate::math::x87::loaded(g(DRIVE)));
     unsafe {
-        crate::physics::count_down_timers::count_down_timers(&mut r);
-        crate::physics::gearbox_step::gearbox_step(&r)?;
+        crate::physics::count_down_timers::count_down_timers();
+        crate::physics::gearbox_step::gearbox_step()?;
         crate::physics::engine_torque::engine_torque();
     }
     let gear = g(GEAR);
@@ -74,30 +71,27 @@ fn step(mut r: Regs) -> Result<(), Refused> {
     Ok(())
 }
 
-fn steps(entry: &Regs) -> Result<Left, Refused> {
+fn steps() -> Result<(), Refused> {
     for x in [0x5CB97C, 0x5CB980, 0x5CB984, DRIVE, 0x71A194, 0x71A1B0] {
         p(x, 0);
     }
     p(GEAR, 1);
     p(0x71A010, 1);
-    let (mut eax, mut edx) = (0, 0);
-    for ebx in 0..STEPS {
-        step(Regs { ebx, ..*entry })?;
+    for n in 0..STEPS {
+        step()?;
         if g(0x5CB97C) == 0 && !c0(g(DRIVE), g(0x5CB988)) {
-            p(0x5CB97C, ebx);
+            p(0x5CB97C, n);
         }
         if g(0x5CB980) == 0 && !c0(g(DRIVE), g(0x5CB98C)) {
-            p(0x5CB980, ebx);
+            p(0x5CB980, n);
         }
-        eax = ebx / 20;
-        edx = ebx % 20;
-        if edx == 0 {
+        if n % 20 == 0 {
+            let slot = 4 * (n / 20) as usize;
             p(
-                0x5CB990 + 4 * eax as usize,
+                0x5CB990 + slot,
                 crate::math::x87::mul(g(DRIVE), g(0x5C5D00)),
             );
-            edx = g(GEAR);
-            p(0x5CBD90 + 4 * eax as usize, edx);
+            p(0x5CBD90 + slot, g(GEAR));
         }
     }
     x87_run!(
@@ -112,14 +106,10 @@ fn steps(entry: &Regs) -> Result<Left, Refused> {
         "fstp dword ptr [{b} + 0x1CB980]";
         b = base()
     );
-    Ok(Left::nothing()
-        .with(EAX, eax)
-        .with(EBX, STEPS)
-        .with(ECX, 20)
-        .with(EDX, edx))
+    Ok(())
 }
 
-/// The Rust version; everything written put back when it refuses.
-pub unsafe fn test_drive_run(entry: &Regs) -> Result<Left, Refused> {
-    steps(entry)
+/// The Rust version.
+pub fn test_drive_run() -> Result<(), Refused> {
+    steps()
 }

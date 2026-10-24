@@ -29,7 +29,7 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 use crate::gfx::blit_bar::{Bar, blit_bar};
 use crate::gfx::blit_glyph::BlitCall;
 use crate::gfx::blit_marker_pair::sprite_table;
@@ -144,11 +144,7 @@ pub unsafe fn draw_service_area(canvas: &mut dyn Canvas) -> Result<bool, Refused
 
         // The markers get the car in edi and, as their palette, the ebx the repair times leave.
         let times = draw_repair_times(canvas)?;
-        let regs = Regs {
-            ebx: times.text as u32,
-            edi: player,
-            ..Regs::default()
-        };
+        let palette = times.text as u32;
         for marker in [
             draw_brake_balance_marker::MARKER,
             draw_steering_sensitivity_marker::MARKER,
@@ -157,8 +153,8 @@ pub unsafe fn draw_service_area(canvas: &mut dyn Canvas) -> Result<bool, Refused
             draw_ride_height_marker::MARKER,
             draw_suspension_stiffness_marker::MARKER,
         ] {
-            draw_marker(marker, &regs, canvas)?;
+            draw_marker(marker, palette, player, canvas)?;
         }
-        Ok(draw_inspection_status(regs.ebx, canvas)?.carry == Some(true))
+        draw_inspection_status(palette, canvas)
     }
 }

@@ -18,7 +18,6 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::physics::flow::a;
 use crate::race::viewer::{
     PICTURE_RATE, PICTURE_TIME, PICTURES_STARTED, PICTURES_STARTED_2, RECORDING, get, put,
@@ -26,32 +25,24 @@ use crate::race::viewer::{
 
 const FOLDER: usize = 0x5C2CD8; // "rpl"
 
-/// The Rust version.
-pub fn start_frame_pictures(entry: &Regs) -> Result<Regs, Refused> {
+/// The Rust version. `eax` the ms a picture, or 0 for the rate's.
+pub fn start_frame_pictures(eax: u32) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::viewer::{picture_rate, picture_time}`.
     use rc2k_core::race::viewer::{picture_rate, picture_time};
     let rate = picture_rate(get(PICTURE_RATE));
     if get(PICTURE_RATE) != rate {
         put(PICTURE_RATE, rate);
     }
-    let mut r = *entry;
-    r.eax = picture_time(r.eax, rate);
-    put(PICTURE_TIME, r.eax);
-    r.edx = a(FOLDER);
-    crate::race::start_frame_pictures::game_part(1, &mut r)?;
-    put(RECORDING, 1);
-    put(PICTURES_STARTED, 0);
-    put(PICTURES_STARTED_2, 0);
-    Ok(*entry)
-}
-
-/// In the game: the folder made.
-pub fn game_part(_place: u32, r: &mut Regs) -> Result<(), Refused> {
+    put(PICTURE_TIME, picture_time(eax, rate));
+    // The folder made.
     unsafe {
         windows_sys::Win32::Storage::FileSystem::CreateDirectoryA(
-            r.edx as *const u8,
+            a(FOLDER) as *const u8,
             std::ptr::null(),
         )
     };
+    put(RECORDING, 1);
+    put(PICTURES_STARTED, 0);
+    put(PICTURES_STARTED_2, 0);
     Ok(())
 }

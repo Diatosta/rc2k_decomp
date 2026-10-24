@@ -17,9 +17,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{EAX, Regs, game_read, rva};
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
+use crate::framework::{game_read, rva};
 
 const SWITCH_RVA: usize = rva(0x71C3E0); // dword_71C3E0
 const MODE_RVA: usize = rva(0x62389C); // dword_62389C
@@ -37,15 +35,4 @@ pub unsafe fn kind_is_hidden(object: u32) -> Result<(bool, u32), Refused> {
         object,
         |n| unsafe { game_read(KINDS_RVA + 4 * n) },
     )?)
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    let (hidden, eax) = unsafe { kind_is_hidden(r.eax) }?;
-    Ok(Left::carry(hidden).with(EAX, eax))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

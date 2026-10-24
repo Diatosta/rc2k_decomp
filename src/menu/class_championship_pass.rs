@@ -19,7 +19,8 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
+use crate::menu::screen_loop::Carried;
 use crate::menu::standings::*;
 use rc2k_core::menu::class_pages;
 
@@ -30,10 +31,6 @@ const ANSWER_RVA: usize = rva(0x75524C); // g_yesNoAnswer
 const MODE_RVA: usize = rva(0x75AB40); // dword_75AB40
 const EVENT_MODE_RVA: usize = rva(0x7556D0); // g_eventMode
 
-/// A call by place: 1 the page (passed to `show_class_championship_standings`), 2 the page wrapper itself (the
-/// tests' stand-in).
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
 /// The first class (see the header).
 fn first_class() -> u32 {
     unsafe {
@@ -41,8 +38,8 @@ fn first_class() -> u32 {
     }
 }
 
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn class_championship_pass(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+/// The Rust version (see the header). `c` the carried values (registers the pages' screens are run with).
+pub unsafe fn class_championship_pass(c: &Carried) -> Result<(), Refused> {
     unsafe {
         let first = first_class();
         // Converted: `rc2k_core::menu::class_pages` (`classes`, `has_player`).
@@ -60,32 +57,20 @@ pub unsafe fn class_championship_pass(entry: &Regs, part: Part) -> Result<Regs, 
                 continue;
             }
             game_write(FLAG_RVA, 1u32);
-            let mut g = crate::menu::number_standings_b::number_standings_b(&Regs {
-                ebx: class,
-                ..*entry
-            })?;
-            game_write(COUNT_RVA, g.ecx);
-            part(2, &mut g)?;
+            let numbered = crate::menu::number_standings_b::number_standings_b(class)?;
+            let mut g = Carried {
+                palette: class,
+                ..*c
+            };
+            numbered.carry_on(&mut g);
+            game_write(COUNT_RVA, numbered.last_number);
+            crate::menu::show_class_championship_standings::show_class_championship_standings(
+                class, &g,
+            )?;
             if game_read::<u32>(ANSWER_RVA) == 1 {
                 break;
             }
         }
     }
-    Ok(*entry)
-}
-
-/// In the game: the page wrapper's Rust version (its page the game's Rust version).
-pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    use crate::menu::show_class_championship_standings as page;
-    if place == 2 {
-        *r = unsafe { page::show_class_championship_standings(r) }?;
-    }
-    Ok(())
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { class_championship_pass(r, &mut game_part) }?;
-    *r = Regs { esp: r.esp, ..left };
     Ok(())
 }

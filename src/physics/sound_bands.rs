@@ -16,9 +16,7 @@
 //! against the converted version (exact: the product of two floats fits an `f64`): values
 //! by lot about the band's ends, at the test control words (0x027F, 0x037F).
 
-use crate::framework::EBX;
 use crate::math::x87;
-use crate::screens::harness::Left;
 use rc2k_core::physics::sound_bands::sound_band;
 
 pub const SCRATCH: usize = 0x6D1AEC; // dword_6D1AEC
@@ -68,9 +66,4 @@ pub unsafe fn band_at_plain(value: u32, factor: u32, scratch: u32, step: u32) ->
 pub unsafe fn band_value_plain(twin: Twin) -> u32 {
     let g = |a: usize| crate::framework::game_addr(crate::framework::rva(a)) as u32;
     unsafe { band_at_plain(g(twin.1), g(twin.2), g(SCRATCH), twin.3) }
-}
-
-/// The converted version on the game's variables: the hooks'.
-pub unsafe fn band_plain(twin: Twin) -> Left {
-    Left::nothing().with(EBX, unsafe { band_value_plain(twin) })
 }

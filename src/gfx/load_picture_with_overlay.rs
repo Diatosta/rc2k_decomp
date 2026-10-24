@@ -21,7 +21,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, game_write};
+use crate::framework::{game_addr, game_read, game_write};
 use crate::gfx::build_glyphs::WORK_MEMORY_RVA;
 use crate::gfx::load_picture::load_picture;
 use crate::gfx::pcx::{DECODED_HEIGHT_RVA, DECODED_WIDTH_RVA, STRIDE_RVA};
@@ -86,13 +86,4 @@ pub unsafe fn load_picture_with_overlay(path: *mut u8, overlay: *mut u8) -> Resu
         free_list(list)?;
         Ok(false)
     }
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    {
-        let carry = unsafe { load_picture_with_overlay(r.eax as *mut u8, r.ebx as *mut u8) }?;
-        r.set_carry(carry)
-    }
-    Ok(())
 }

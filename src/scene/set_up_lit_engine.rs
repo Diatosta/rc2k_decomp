@@ -20,11 +20,8 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_write, rva};
+use crate::framework::{game_write, rva};
 
-pub const ENGINE: u32 = 0;
-pub const COURSES: u32 = 1;
-pub const LIGHTS: u32 = 2;
 /// `g_lightLowest`, `g_lightHighest`, `g_lightLevel`, `g_lightStrength`, `dword_635094`,
 /// `dword_635098` and their values.
 const SETTINGS: [(usize, u32); 6] = [
@@ -36,36 +33,15 @@ const SETTINGS: [(usize, u32); 6] = [
     (0x635098, 0x1E),
 ];
 
-/// The steps (the registers kept).
-pub fn set_up_lit_engine_in(r: &mut Regs) -> Result<(), Refused> {
-    let mut g = *r;
-    crate::scene::set_up_lit_engine::lit_part(ENGINE, &mut g)?;
-    crate::scene::set_up_lit_engine::lit_part(COURSES, &mut g)?;
-    for (at, v) in SETTINGS {
-        unsafe { game_write(rva(at), v) };
-    }
-    crate::scene::set_up_lit_engine::lit_part(LIGHTS, &mut g)
-}
-
-/// The calls in the game: the Rust versions.
-pub fn lit_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
+/// The Rust version (the original keeps every register: `pusha` / `popa`).
+pub fn set_up_lit_engine() -> Result<(), Refused> {
     unsafe {
-        match place {
-            ENGINE => crate::scene::set_up_engine::set_up_engine_in_game(r),
-            COURSES => match crate::race::find_present_courses::find_present_courses(r) {
-                Ok(left) => left.apply(r),
-                // Its hook refuses it again and runs the original.
-                Err(_) => crate::calls::call(rva(0x4394F8), r),
-            },
-            _ => crate::scene::fill_light_tables::fill_light_tables().apply(r),
+        crate::scene::set_up_engine::set_up_engine()?;
+        crate::race::find_present_courses::find_present_courses()?;
+        for (at, v) in SETTINGS {
+            game_write(rva(at), v);
         }
+        crate::scene::fill_light_tables::fill_light_tables();
     }
-    Ok(())
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let mut g = *r;
-    set_up_lit_engine_in(&mut g)?;
     Ok(())
 }

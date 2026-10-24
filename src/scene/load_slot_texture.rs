@@ -18,12 +18,8 @@
 //! and the self-test was the hook's.
 
 use crate::errors::BadInput;
-use crate::framework::{Regs, game_read, game_write, rva};
+use crate::framework::{game_read, game_write};
 use crate::scene::textures::{LOADED_RVA, LOADS_RVA, WANTED_RVA, entry as slot_entry};
-
-// ---- game data ----
-
-const LOAD_RVA: usize = rva(0x44E778); // scene::load_texture
 
 // ---- Rust version ----
 
@@ -46,17 +42,7 @@ pub unsafe fn load_slot_texture(slot: u32, load: &mut dyn FnMut(u32, u32)) -> Re
     }
 }
 
-/// With the game's loading, entered with the registers the original has there.
-pub unsafe fn load_slot_texture_in_game(slot: u32, entry_regs: &Regs) -> Result<(), BadInput> {
-    unsafe {
-        load_slot_texture(slot, &mut |texture, slot| {
-            let mut r = Regs {
-                eax: texture,
-                ebx: slot,
-                ecx: slot,
-                ..*entry_regs
-            };
-            crate::calls::call(LOAD_RVA, &mut r);
-        })
-    }
+/// With the game's loading (`scene::load_texture`, the platform's).
+pub unsafe fn load_slot_texture_in_game(slot: u32) -> Result<(), BadInput> {
+    unsafe { load_slot_texture(slot, &mut crate::platform_3d::load_texture) }
 }

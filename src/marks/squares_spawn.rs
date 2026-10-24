@@ -8,8 +8,7 @@
 //! stack's top on, with the stack already empty: kept.)
 //!
 //! In:  nothing
-//! Out: eax the fraction's share, ebx the random's bits (and the picks' registers), when
-//!      the rate is high enough
+//! Out: nothing (no caller reads a register it leaves)
 //!
 //! Caller: `sub_4BFFEC` (0x4C0052). The x87 run is the original's instructions over the
 //! game's variables; the picks their Rust versions (under the same rounding). Self-test:
@@ -19,7 +18,7 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::marks::pick_square::pick_square;
 use crate::math::x87;
 use crate::scene::vector3::STATUS_RVA;
@@ -62,9 +61,8 @@ unsafe fn rate(b: u32) {
     }
 }
 
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn squares_spawn(entry: &Regs) -> Regs {
-    let mut g = *entry;
+/// The Rust version (see the header).
+pub unsafe fn squares_spawn() {
     unsafe {
         game_write(FRAMES_RVA, game_read::<u32>(FRAMES_RVA).wrapping_add(1));
         let old = x87::set_chop();
@@ -75,19 +73,17 @@ pub unsafe fn squares_spawn(entry: &Regs) -> Regs {
             let v: u32 = game_read(RATE_RVA);
             let n = x87::to_int(v).min(MOST);
             for _ in 0..n.max(0) {
-                g = pick_square(&g);
+                pick_square();
             }
-            g.eax = x87::fraction_times_to_int(v, game_read(SHARE_K_RVA)) as u32;
+            let share = x87::fraction_times_to_int(v, game_read(SHARE_K_RVA));
             let s = game_read::<u32>(RANDOM_RVA)
                 .wrapping_mul(0xC5)
                 .wrapping_add(0x5D);
             game_write(RANDOM_RVA, s);
-            g.ebx = (s >> 8) & 0xFFFF;
-            if g.ebx as i32 <= g.eax as i32 {
-                g = pick_square(&g);
+            if ((s >> 8) & 0xFFFF) as i32 <= share {
+                pick_square();
             }
         }
         x87::set_control(old);
     }
-    g
 }

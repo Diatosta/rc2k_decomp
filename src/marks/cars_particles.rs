@@ -28,7 +28,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 use crate::marks::emit_car_particles::emit_car_particles;
 use crate::marks::emitters::*;
 use crate::marks::lines::SETTINGS_RVA;
@@ -90,30 +90,20 @@ unsafe fn refusal(settings: u32) -> Option<&'static str> {
     }
 }
 
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn cars_particles(entry: &Regs) -> Result<Regs, Refused> {
+/// The Rust version (see the header).
+pub unsafe fn cars_particles() -> Result<(), Refused> {
     let settings: u32 = unsafe { game_read(SETTINGS_RVA) };
     if let Some(why) = unsafe { refusal(settings) } {
         return Err(BadInput(why).into());
     }
-
-    unsafe { run(entry, settings) }
-}
-
-unsafe fn run(entry: &Regs, settings: u32) -> Result<Regs, Refused> {
-    let mut g = *entry;
-    g.ebp = settings;
     let count = unsafe { cars(settings) }.len() as u32;
     unsafe {
         for n in (0..count).rev() {
-            g.ebp = settings;
-            g.esi = n;
             game_write(
                 TAG_RVA,
                 x87::int_times_int_to_int(n as i32, game_read(TAG_K_RVA)),
             );
             let car = settings + 0x60 + n * CAR_LEN;
-            g.esi = car;
             game_write(OBJECT_RVA, car);
             let m = at(car + 0x24);
             adjugate_matrix(m, car + 0x94);
@@ -122,9 +112,7 @@ unsafe fn run(entry: &Regs, settings: u32) -> Result<Regs, Refused> {
                 for (k, x) in v.iter().enumerate() {
                     put(car + to + 4 * k as u32, *x);
                 }
-                [g.eax, g.ebx, g.ecx] = v;
             }
-            g.ebp = m;
             for k in 0..3 {
                 let k4 = 4 * k;
                 put(
@@ -146,10 +134,9 @@ unsafe fn run(entry: &Regs, settings: u32) -> Result<Regs, Refused> {
                     ),
                 );
             }
-            [g.eax, g.ebx, g.ecx] = [at(m + 0x30), at(m + 0x34), at(m + 0x38)];
-            put(car + 0x40, g.eax);
-            put(car + 0x44, g.ebx);
-            put(car + 0x48, g.ecx);
+            put(car + 0x40, at(m + 0x30));
+            put(car + 0x44, at(m + 0x34));
+            put(car + 0x48, at(m + 0x38));
             let [k1, k2, k3] = RATE_K.map(|r| game_read::<u32>(r));
             let one: u32 = game_read(ONE_RVA);
             let (length, rate) = x87::length_and_rate(
@@ -167,7 +154,6 @@ unsafe fn run(entry: &Regs, settings: u32) -> Result<Regs, Refused> {
                 }
             }
             let w = at(car + 0x28);
-            g.edi = w;
             let up: [u32; 3] = game_read(UP_RVA);
             let across = [
                 x87::product_difference(up[1], at(w + 8), up[2], at(w + 4)),
@@ -185,20 +171,23 @@ unsafe fn run(entry: &Regs, settings: u32) -> Result<Regs, Refused> {
             ];
             game_write(SIDE_A_RVA, a);
             let model = at(car + 4);
-            g.eax = model;
-            g.ebx = game_read(LOOKS_TABLE_RVA + 8 * model as usize);
-            g.ecx = game_read(LOOKS_TABLE_RVA + 8 + 8 * model as usize);
-            game_write(LOOKS_RVA[0], g.ebx);
-            game_write(LOOKS_RVA[1], g.ecx);
+            game_write(
+                LOOKS_RVA[0],
+                game_read::<u32>(LOOKS_TABLE_RVA + 8 * model as usize),
+            );
+            game_write(
+                LOOKS_RVA[1],
+                game_read::<u32>(LOOKS_TABLE_RVA + 8 + 8 * model as usize),
+            );
             if at(car + 0x30) != 0 {
                 put(car + 0x30, at(car + 0x30).wrapping_sub(1));
             } else {
-                g = emit_car_particles(&g)?;
+                emit_car_particles(car)?;
             }
             emit_particle_13::emit_particle_13(car)?;
             emit_particle_19::emit_particle_19(car)?;
             emit_particle_22::emit_particle_22(car)?;
         }
     }
-    Ok(g)
+    Ok(())
 }

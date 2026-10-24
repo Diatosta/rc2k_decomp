@@ -4,7 +4,7 @@
 //! `dword_623918` into `dword_62391C`, both 0, and `race::update_mud_texture`.
 //!
 //! In:  nothing
-//! Out: the registers as `update_mud_texture` leaves them; no flags read
+//! Out: nothing its caller reads (conversion phase 3, 2026-10-24)
 //!
 //! See `race/mud.rs`. One caller, `race::mud_frame`. Its call through `part` (0, in the
 //! game the Rust version with its own calls). Refuses what `update_mud_texture` refuses,
@@ -17,7 +17,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 use crate::race::muddy_texel::texture_and_mud;
 use crate::race::tint_to_mud_colour::mud_colour;
 
@@ -27,32 +27,20 @@ const MOVED: [(usize, usize); 2] = [
     (rva(0x623918), rva(0x62391C)), // dword_623918 into dword_62391C
 ];
 
-/// A call by place: 0 `race::update_mud_texture`.
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn mud_texture_turn(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+/// The Rust version (see the header).
+pub unsafe fn mud_texture_turn() -> Result<(), Refused> {
     texture_and_mud()?;
-    let mut r = *entry;
     let [red, green, blue] = mud_colour();
-    // Converted: `rc2k_core::race::mud::packed_colour`.
-    r.eax = rc2k_core::race::mud::packed_colour([red, green, blue]);
-    r.ebx = green;
-    r.ecx = blue;
     unsafe {
-        game_write(PACKED_RVA, r.eax);
+        // Converted: `rc2k_core::race::mud::packed_colour`.
+        game_write(
+            PACKED_RVA,
+            rc2k_core::race::mud::packed_colour([red, green, blue]),
+        );
         for (from, to) in MOVED {
             game_write(to, game_read::<u32>(from));
             game_write(from, 0u32);
         }
+        crate::race::update_mud_texture::update_mud_texture()
     }
-    part(0, &mut r)?;
-    Ok(r)
-}
-
-/// In the game: `update_mud_texture`'s Rust version with its own calls.
-pub fn game_part(_place: u32, r: &mut Regs) -> Result<(), Refused> {
-    use crate::race::update_mud_texture::{game_part, update_mud_texture};
-    *r = unsafe { update_mud_texture(r, &mut game_part) }?;
-    Ok(())
 }

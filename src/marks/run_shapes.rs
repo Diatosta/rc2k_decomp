@@ -8,7 +8,7 @@
 //! not 0), its bits 16 .. 23, and `pick_shapes` again.
 //!
 //! In:  nothing (`g_marksSettings`)
-//! Out: the registers as the path's last step leaves them
+//! Out: nothing (no caller reads a register it leaves)
 //!
 //! Caller: `sub_4C1148`. Refuses null settings, a +0x2748 of 9 or more when it is read
 //! (`dword_844E34` holds 9), and its steps' refusals; on a refusal nothing stays written
@@ -20,13 +20,12 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 use crate::marks::emitters::next_c5;
 use crate::marks::lines::SETTINGS_RVA;
 use crate::marks::pick_shapes::pick_shapes;
 use crate::marks::shape_points::turn_all_shapes;
 use crate::math::x87;
-use crate::service::harness::{Region, at};
 
 const CLOCK_RVA: usize = rva(0x613830); // g_sceneClock
 const NEXT_RVA: usize = rva(0x844E30); // dword_844E30
@@ -40,73 +39,39 @@ const COUNT_RVA: usize = rva(0x82E38A); // dword_82E38A
 const TICKS_RVA: usize = rva(0x764FD0); // g_marksFrameTicks
 const RATE_RVA: [usize; 2] = [rva(0x89C99C), rva(0x89C9A0)];
 
-fn own() -> Vec<Region> {
-    [
-        NEXT_RVA,
-        TIME_RANDOM_RVA,
-        MOVE_RANDOM_RVA,
-        MOVING_RVA,
-        INDEX_RVA,
-        COUNT_RVA,
-    ]
-    .map(at)
-    .to_vec()
-}
-
-pub fn regions() -> Vec<Region> {
-    let mut r = own();
-    r.extend(crate::marks::pick_shapes::regions());
-    r.extend(crate::marks::turn_all_shapes::regions());
-    r
-}
-
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn run_shapes(entry: &Regs) -> Result<Regs, Refused> {
+/// The Rust version (see the header).
+pub unsafe fn run_shapes() -> Result<(), Refused> {
     let settings: u32 = unsafe { game_read(SETTINGS_RVA) };
     if settings == 0 {
         return Err(BadInput("no marks settings").into());
     }
-
-    unsafe { run(entry, settings) }
-}
-
-unsafe fn run(entry: &Regs, settings: u32) -> Result<Regs, Refused> {
     let get = |o: u32| unsafe { ((settings + o) as *const u32).read_unaligned() };
-    let mut g = Regs {
-        esi: settings,
-        ..*entry
-    };
     unsafe {
-        g = pick_shapes(&g)?;
-        g = turn_all_shapes(&g)?;
-        g.eax = game_read(CLOCK_RVA);
-        if g.eax as i32 >= game_read::<i32>(NEXT_RVA) {
+        pick_shapes()?;
+        turn_all_shapes()?;
+        let clock: u32 = game_read(CLOCK_RVA);
+        if clock as i32 >= game_read::<i32>(NEXT_RVA) {
             let r = next_c5(TIME_RANDOM_RVA);
-            g.ebx = (r & 0xFF).wrapping_add(game_read(CLOCK_RVA));
-            game_write(NEXT_RVA, g.ebx);
-            g.esi = settings;
+            game_write(NEXT_RVA, (r & 0xFF).wrapping_add(game_read(CLOCK_RVA)));
             let mask = get(0x2748);
             if mask >= MASKS {
                 return Err(BadInput("a mask number past dword_844E34's 9").into());
             }
-            g.ebx = next_c5(MOVE_RANDOM_RVA)
+            let moving = next_c5(MOVE_RANDOM_RVA)
                 .rotate_right(16)
-                .wrapping_add(g.eax)
+                .wrapping_add(clock)
                 & game_read::<u32>(MASKS_RVA + 4 * mask as usize);
-            g.eax = mask;
             game_write(MOVING_RVA, 1u32);
-            if g.ebx == 0 {
+            if moving == 0 {
                 game_write(MOVING_RVA, 0u32);
-                return Ok(g);
+                return Ok(());
             }
         }
         if game_read::<u32>(MOVING_RVA) == 0 {
-            return Ok(g);
+            return Ok(());
         }
-        g.esi = settings;
         let rate = if get(0x274C) == 1 {
-            g.eax = game_read::<u32>(INDEX_RVA) >> 3;
-            (g.eax != 0).then_some(RATE_RVA[0])
+            (game_read::<u32>(INDEX_RVA) >> 3 != 0).then_some(RATE_RVA[0])
         } else {
             Some(RATE_RVA[1])
         };
@@ -119,7 +84,7 @@ unsafe fn run(entry: &Regs, settings: u32) -> Result<Regs, Refused> {
             game_write(COUNT_RVA, count);
             game_write(INDEX_RVA, (count as u32 >> 16) & 0xFF);
         }
-        g = pick_shapes(&g)?;
+        pick_shapes()?;
     }
-    Ok(g)
+    Ok(())
 }

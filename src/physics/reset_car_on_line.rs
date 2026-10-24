@@ -11,7 +11,7 @@
 //! hand-made patch.
 //! Caller: `physics::reset_car` (its end).
 //! Refuses what the three calls refuse. Shadow mode runs the original alone
-//! (`physics/reset_parts.rs`).
+//! (its calls then went through `physics/reset_parts.rs`, gone).
 //! Self-test: a copy whose calls go to the stand-ins, against the Rust version with the
 //! same, on stream A's cases; the work car and the start's variables put back.
 //!
@@ -20,28 +20,23 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_write, rva};
-use crate::physics::reset_parts::reset_entry;
+use crate::framework::{game_write, rva};
 
-/// The Rust version, the calls through `part` (places 8, 6, 9).
-pub unsafe fn reset_car_on_line(entry: &Regs) -> Result<Regs, Refused> {
-    let mut g = *entry;
+/// The Rust version: the nearest checkpoint (`race::nearest_checkpoint`), the car placed
+/// there (`race::place_car_on_line`) and its motion reset (`race::reset_car_motion`).
+/// Those take no register (they are called with none); the registers left are read by
+/// none of the callers.
+pub unsafe fn reset_car_on_line() -> Result<(), Refused> {
     unsafe {
-        crate::physics::reset_parts::game_part(8, &mut g)?;
+        let nearest = crate::race::start_place::nearest_checkpoint()?;
         for v in [0x71A070usize, 0x71A06C, 0x71A074, 0x6365E4, 0x6365EC] {
-            game_write(rva(v), g.eax);
+            game_write(rva(v), nearest);
         }
-        crate::physics::reset_parts::game_part(6, &mut g)?;
-        crate::physics::reset_parts::game_part(9, &mut g)?;
+        crate::race::start_place::place_car_on_line()?;
+        crate::race::car_starts::reset_car_motion()?;
         game_write(rva(0x71AF88), 8u32);
         game_write(rva(0x71AF8C), 8u32);
         game_write(rva(0x71AF84), 10u32);
     }
-    Ok(g)
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    reset_entry(r, reset_car_on_line)
+    Ok(())
 }

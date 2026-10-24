@@ -8,7 +8,7 @@
 //! `dword_5CC3B0` = the clock, `sound::race_turn_if`, `dword_5CC3B8` counts up.
 //! 28 callers, all in the race's frame (`sub_4541BF`, `sub_45429B`, `sub_4547AE`,
 //! `sub_4557AB`, `sub_4559A6`, `sub_442D49`): for the Rust ones, the Rust version
-//! (`race_sound_tick_in` with `turn_parts::game_part`); `race_turn`'s quit jump then
+//! (`race_sound_tick`); `race_turn`'s quit jump then
 //! skips their frames (held for the owner: notes/open_items_full.md).
 //! Ungated: the quit jump never comes back.
 //! Shadow mode runs the original alone (sounds are sent).
@@ -19,7 +19,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 
 /// g_sceneClock, dword_5CC3B0 the last tick, dword_5CC3B8 the ticks counted.
 const CLOCK: usize = 0x613830;
@@ -31,18 +31,15 @@ fn g(x: usize) -> u32 {
 
 // ---- Rust version ----
 
-pub fn race_sound_tick_in(r: &mut Regs) -> Result<(), Refused> {
-    r.eax = g(CLOCK).wrapping_sub(g(LAST));
+/// No caller reads what the original leaves in eax and ebx (every call site's live
+/// registers, 2026-10-23): the Rust version leaves nothing.
+pub fn race_sound_tick() -> Result<(), Refused> {
     // Converted: `rc2k_core::sound::turn::tick_due`.
     if !rc2k_core::sound::turn::tick_due(g(CLOCK), g(LAST)) {
         return Ok(());
     }
-    r.eax = g(CLOCK);
-    unsafe { game_write(rva(LAST), r.eax) };
-    if crate::sound::race_turn_if::race_turn_if()? {
-        // `race_turn_if` leaves a constant in ebx when it calls.
-        r.ebx = 0x531_7707;
-    }
+    unsafe { game_write(rva(LAST), g(CLOCK)) };
+    crate::sound::race_turn_if::race_turn_if()?;
     unsafe { game_write(rva(TICKS), g(TICKS).wrapping_add(1)) };
     Ok(())
 }

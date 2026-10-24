@@ -5,7 +5,7 @@
 //! all of it.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::marks::masks::{CURSOR_RVA, RUNS_RVA, WORK_RVA};
 use crate::math::x87;
 
@@ -72,13 +72,13 @@ unsafe fn room(cursor: u32, rows: Option<u32>) -> Result<(), Refused> {
 /// at edi (8 bytes: x, length) for each whole row from y0 rounded up to y1: both x's at
 /// the row's middle by the slopes, the two put in order (swapped also when equal), the left
 /// rounded and the length the right less it. The x87's rounding as it is set (the triangle
-/// sets toward zero). Leaves eax and ebx the last check's row and end, edi past the rows.
-/// Refuses rows past the work block or more than 0x1000, before writing.
-pub unsafe fn span_edges(entry: &Regs) -> Result<Regs, Refused> {
-    let mut g = *entry;
+/// sets toward zero). Gives where the next row would go (the original's edi). Refuses
+/// rows past the work block or more than 0x1000, before writing.
+pub unsafe fn span_edges(to: u32) -> Result<u32, Refused> {
+    let mut to = to;
     unsafe {
         let e: [u32; 6] = game_read(EDGE_RVA);
-        room(g.edi, edge_rows(&e))?;
+        room(to, edge_rows(&e))?;
         let [y0, y1, xa0, xb0, xa1, xb1] = e;
         let ones: [u32; 3] = game_read(ONES_RVA);
         let height = x87::sub(y1, y0);
@@ -94,11 +94,11 @@ pub unsafe fn span_edges(entry: &Regs) -> Result<Regs, Refused> {
         game_write(ROW_INT_RVA, n);
         let mut row = x87::round_float(y0);
         loop {
-            g.eax = x87::to_int(row) as u32;
-            g.ebx = x87::to_int(y1) as u32;
-            game_write(SCRATCH_RVA, g.ebx);
+            let r = x87::to_int(row);
+            let end = x87::to_int(y1);
+            game_write(SCRATCH_RVA, end as u32);
             row = x87::add(row, ones[2]);
-            if g.eax as i32 >= g.ebx as i32 {
+            if r >= end {
                 break;
             }
             let mut a = x87::loaded(xa);
@@ -111,14 +111,14 @@ pub unsafe fn span_edges(entry: &Regs) -> Result<Regs, Refused> {
                 (a, b) = (b, a);
             }
             let left = x87::to_int(a);
-            put(g.edi, left as u32);
-            put(g.edi + 4, x87::float_less_int_to_int(b, left) as u32);
-            g.edi += 8;
+            put(to, left as u32);
+            put(to + 4, x87::float_less_int_to_int(b, left) as u32);
+            to += 8;
         }
         game_write(ROW_RVA, row);
         game_write(XS_RVA, [xa, xb]);
     }
-    Ok(g)
+    Ok(to)
 }
 
 /// The corners sorted by y, the original's way: pass after pass, a pair swapped when the
@@ -180,19 +180,19 @@ pub unsafe fn spans_fit(triangles: u32, rows: Option<u32>) -> Result<(), Refused
     }
 }
 
-/// `marks::span_triangle` (0x4BE14D): the triangle at ebp (three x, y floats) copied to
+/// `marks::span_triangle` (0x4BE14D): the triangle at `at` (three x, y floats) copied to
 /// 0x833D2E and sorted by y; a run (`g_marksMaskRuns`, 16 bytes on) at the cursor; its top
 /// half and its bottom (split at the middle corner's height, x by `x87::split_x`) spanned
 /// (`span_edges`); the run's first row (the top y rounded) and count noted, the cursor on,
 /// `dword_82E342` counting the spans. All with the x87 rounding toward zero; its control
-/// word put back after. Every register kept. Refuses runs past their table, and spans past
-/// the work block or away, before writing.
-pub unsafe fn span_triangle(entry: &Regs) -> Result<Regs, Refused> {
+/// word put back after. Refuses runs past their table, and spans past the work block or
+/// away, before writing.
+pub unsafe fn span_triangle(at: u32) -> Result<(), Refused> {
     unsafe {
         let came = x87::control_word();
         let own = (came & 0xF3FF) | 0xC00;
         x87::set_control_word(own);
-        let (t, status) = sorted((entry.ebp as *const [u32; 6]).read_unaligned());
+        let (t, status) = sorted((at as *const [u32; 6]).read_unaligned());
         let y0 = t[1];
         let (halves, split) = halves(&t);
         let runs: u32 = game_read(RUNS_RVA);
@@ -211,19 +211,14 @@ pub unsafe fn span_triangle(entry: &Regs) -> Result<Regs, Refused> {
         game_write(TRIANGLE_RVA, t);
         game_write(RUNS_RVA, runs + 16);
         put(runs, cursor);
-        let mut g = Regs {
-            esi: runs,
-            edi: cursor,
-            ebp: game_addr(TRIANGLE_RVA) as u32,
-            ..*entry
-        };
+        let mut to = cursor;
         game_write(SPLIT_RVA, split);
         for half in halves {
             game_write(EDGE_RVA, half);
-            g = span_edges(&g)?;
+            to = span_edges(to)?;
         }
-        game_write(CURSOR_RVA, g.edi);
-        let count = (g.edi - cursor) >> 3;
+        game_write(CURSOR_RVA, to);
+        let count = (to - cursor) >> 3;
         // Through `dword_71C880`, as the original's `fistp`.
         let first = x87::to_int(y0) as u32;
         game_write(SCRATCH_RVA, first);
@@ -235,15 +230,15 @@ pub unsafe fn span_triangle(entry: &Regs) -> Result<Regs, Refused> {
         );
         x87::set_control_word(came);
     }
-    Ok(*entry)
+    Ok(())
 }
 
-/// `marks::span_quad` (0x4BE0C6): the quad at ebp (four x, y floats) as two triangles, its
-/// corners 0, 1, 2 and then 2, 3, 0 (through 0x833D46), each `span_triangle`d. Every
-/// register kept. Refuses as `span_triangle` (the second only after the first is made).
-pub unsafe fn span_quad(entry: &Regs) -> Result<Regs, Refused> {
+/// `marks::span_quad` (0x4BE0C6): the quad at `at` (four x, y floats) as two triangles, its
+/// corners 0, 1, 2 and then 2, 3, 0 (through 0x833D46), each `span_triangle`d. Refuses as
+/// `span_triangle` (the second only after the first is made).
+pub unsafe fn span_quad(at: u32) -> Result<(), Refused> {
     unsafe {
-        let q = (entry.ebp as *const [u32; 8]).read_unaligned();
+        let q = (at as *const [u32; 8]).read_unaligned();
         for corners in [[0usize, 1, 2], [2, 3, 0]] {
             let mut t = [0u32; 6];
             for (k, &c) in corners.iter().enumerate() {
@@ -251,13 +246,10 @@ pub unsafe fn span_quad(entry: &Regs) -> Result<Regs, Refused> {
                 t[2 * k + 1] = q[2 * c + 1];
             }
             game_write(QUAD_TRIANGLE_RVA, t);
-            span_triangle(&Regs {
-                ebp: game_addr(QUAD_TRIANGLE_RVA) as u32,
-                ..*entry
-            })?;
+            span_triangle(game_addr(QUAD_TRIANGLE_RVA) as u32)?;
         }
     }
-    Ok(*entry)
+    Ok(())
 }
 
 // ---- for the self-tests ----

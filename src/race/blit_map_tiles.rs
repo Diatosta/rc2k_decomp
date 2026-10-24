@@ -6,24 +6,15 @@
 //! tile's place on the locked surface (`g_surface`); the gap between a tile's rows kept in
 //! `dword_5BE9AD`; unlocked (`d3d::unlock_texture`, eax as the lock left it).
 //!
-//! In:  eax = the texture, ecx / edx = the first tile's column and row
+//! In:  `texture` (eax), `first_x` / `first_y` (ecx / edx) the first tile's column and row
 //! Out: every register kept (`pusha` .. `popa`)
 //!
-//! Callers: `race::map_tiles_stub`, so `race::map_tiles` (the map's scroll). It begins with
-//! a call: a private copy (its two calls relocated) and a manual patch. The lock and the
-//! unlock through `part` (0, 1; in the game through the game: the platform's, section 15).
-//! Refuses (after the lock, unlocking first) a null surface, and a null tile table with a
-//! tile inside the 0x80 x 0x80. Shadow mode runs the original alone (it tells the device).
-//! Self-test: a copy whose two calls go to stand-ins (the lock failing or not), against the
-//! Rust version, on a surface and tiles of the test's: 2 and 4 bytes a pixel, tiles inside,
-//! across the edge and outside.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Callers: `race::map_tiles_stub`, so `race::map_tiles` (the map's scroll). Refuses (after
+//! the lock, unlocking first) a null surface, and a null tile table with a tile inside the
+//! 0x80 x 0x80. Hook removed 2026-10-23 (conversion phase 4).
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 use rc2k_core::race::map::TILE;
 
 const BYTES_RVA: usize = rva(0x4F49AC); // g_surface.bytes_per_pixel
@@ -32,39 +23,31 @@ const PIXELS_RVA: usize = rva(0x4F49C0); // g_surface.pixels
 const TILES_RVA: usize = rva(0x5BE991); // g_mapTiles
 const BLACK_RVA: usize = rva(0x5BE9B1); // g_mapBlack
 const GAP_RVA: usize = rva(0x5BE9AD); // dword_5BE9AD
-const LOCK_RVA: usize = rva(0x41AA4B); // d3d::lock_texture
-const UNLOCK_RVA: usize = rva(0x41AB02); // d3d::unlock_texture
 
 fn g(a: usize) -> u32 {
     unsafe { game_read(a) }
 }
 
-/// The Rust version (see the header): the registers it leaves (`popa`'s: the entry's).
-pub unsafe fn blit_map_tiles(entry: &Regs) -> Result<Regs, Refused> {
-    let mut r = *entry;
-    crate::race::blit_map_tiles::game_part(0, &mut r)?;
-    if r.carry() {
-        return Ok(*entry);
-    }
+/// The Rust version (see the header).
+pub unsafe fn blit_map_tiles(texture: u32, first_x: u32, first_y: u32) -> Result<(), Refused> {
+    use crate::d3d::{lock_texture::lock_texture, unlock_texture::unlock_texture};
     // Converted: `rc2k_core::race::map::{any_inside, check_tiles, row_gap, tile_offset,
     // tile_index, pixel_width}`.
     use rc2k_core::race::map::{
         BLITTED, any_inside, check_tiles, pixel_width, row_gap, tile_index, tile_offset,
     };
+    if unsafe { lock_texture(texture) }?.carry {
+        return Ok(());
+    }
     let (bytes, pitch, pixels) = (g(BYTES_RVA), g(PITCH_RVA), g(PIXELS_RVA));
     let tiles = g(TILES_RVA);
-    let (first_x, first_y) = (entry.ecx, entry.edx);
     if let Err(e) = check_tiles(pixels, tiles, any_inside(first_x, first_y)) {
-        let mut u = r;
-        crate::race::blit_map_tiles::game_part(1, &mut u)?;
+        unsafe { unlock_texture(texture) }?;
         return Err(e.into());
     }
     let gap = row_gap(pitch, bytes);
     unsafe { game_write(GAP_RVA, gap) };
     let black = g(BLACK_RVA);
-    // The registers the loops leave for the unlock: esi and edi where the last tile left
-    // them, ebp the gap, ebx the rows done, ecx back at the first column, edx past the rows.
-    let (mut last_from, mut last_to) = (0u32, 0u32);
     for row in 0..BLITTED {
         for col in 0..BLITTED {
             let (x, y) = (first_x.wrapping_add(col), first_y.wrapping_add(row));
@@ -99,27 +82,9 @@ pub unsafe fn blit_map_tiles(entry: &Regs) -> Result<Regs, Refused> {
                 }
                 to = to.wrapping_add(gap);
             }
-            (last_from, last_to) = (if tile != 0 { from } else { 0 }, to);
         }
     }
-    r.esi = last_from;
-    r.edi = last_to;
-    r.ebp = gap;
-    r.ebx = BLITTED;
-    r.ecx = first_x;
-    r.edx = first_y.wrapping_add(BLITTED);
-    crate::race::blit_map_tiles::game_part(1, &mut r)?;
-    Ok(*entry)
-}
-
-/// In the game: the platform's lock and unlock through the game.
-pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    crate::calls::call(if place == 0 { LOCK_RVA } else { UNLOCK_RVA }, r);
-    Ok(())
-}
-
-/// The Rust version with the game's calls: for Rust callers.
-pub unsafe fn blit_map_tiles_in_game(r: &mut Regs) -> Result<(), Refused> {
-    *r = unsafe { blit_map_tiles(r) }?;
+    // eax at the unlock: the texture, as the lock left it.
+    unsafe { unlock_texture(texture) }?;
     Ok(())
 }

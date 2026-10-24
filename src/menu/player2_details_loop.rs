@@ -13,20 +13,21 @@
 //! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
-use crate::framework::{Regs, game_read, rva};
-use crate::menu::screen_loop::{Env, Flow, List, Screen, Step, screen_entry};
+use crate::errors::Refused;
+use crate::framework::{game_read, rva};
+use crate::menu::screen_loop::{Carried, Flow, List, Screen, Step, call, screen_entry};
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
-unsafe fn each_frame(g: &mut Regs, env: &mut dyn Env) -> Flow {
+unsafe fn each_frame(c: &mut Carried) -> Result<Flow, Refused> {
     unsafe {
         if game_read::<u32>(rva(0x7556A8)) == 0x1 {
-            env.call(rva(0x467C63), g);
+            call(rva(0x467C63), c)?;
             if game_read::<u32>(rva(0x7556A8)) != 0x0 {
-                return Flow::NextFrame;
+                return Ok(Flow::NextFrame);
             }
         }
-        Flow::On
+        Ok(Flow::On)
     }
 }
 
@@ -74,7 +75,7 @@ pub const SCREEN: Screen = Screen {
     prepare: &[],
     after_lists: &[],
     background: &[
-        Step::EaxAddr(rva(0x731D06)),
+        Step::ArgAddr(rva(0x731D06)),
         Step::CallOrFatal(rva(0x47EFFF), 0x80712345),
     ],
     after_first_frame: &[Step::Write(rva(0x75598C), 0x1)],
@@ -108,6 +109,6 @@ pub const SCREEN: Screen = Screen {
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    screen_entry("menu::player2_details_loop", r, &SCREEN)
+pub fn run() -> Result<(), crate::errors::Refused> {
+    screen_entry("menu::player2_details_loop", &SCREEN)
 }

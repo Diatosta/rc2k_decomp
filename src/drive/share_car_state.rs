@@ -30,11 +30,10 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{EAX, EBX, ECX, EDX, Regs, game_addr, game_read, rva};
+use crate::framework::{game_addr, game_read, rva};
 use crate::math::x87;
 use crate::math::x87_run::{compare_full, sub_div_to_int};
 use crate::race::mud::car_file_number;
-use crate::screens::harness::Left;
 use rc2k_core::drive::sharing;
 
 const SCRATCH: usize = 0x62400C; // dword_62400C
@@ -58,7 +57,7 @@ unsafe fn light_record(s: u32) -> Result<u32, Refused> {
 
 /// The Rust core: block `s`, record `o`, sound object `p`, the scratch at `scratch`.
 // Converted: `rc2k_core::drive::sharing` (the levels' x87 sums stay).
-pub unsafe fn share_car_state_at(s: u32, o: u32, p: u32, scratch: u32) -> Result<Left, Refused> {
+pub unsafe fn share_car_state_at(s: u32, o: u32, p: u32, scratch: u32) -> Result<(), Refused> {
     unsafe {
         let n = light_record(s)?;
         if let Some(count) = sharing::count_down(at(s + 0xFAC)) {
@@ -137,15 +136,14 @@ pub unsafe fn share_car_state_at(s: u32, o: u32, p: u32, scratch: u32) -> Result
         for k in 0..0x11 {
             put(s + 0xA5C + 4 * k, at(o + 0x3F4 + 4 * k));
         }
-        Ok(Left::nothing()
-            .with(EAX, at(s + if switched { 0x1A0 } else { 0x1BC }))
-            .with(EBX, at(s + 0x1A4))
-            .with(ECX, at(s + 0x1AC))
-            .with(EDX, at(s + 0x92C)))
+        Ok(())
     }
 }
 
 /// The Rust version.
-pub unsafe fn share_car_state(r: &Regs) -> Result<Left, Refused> {
-    unsafe { share_car_state_at(r.esi, r.edi, r.ebp, game_addr(rva(SCRATCH)) as u32) }
+/// The Rust version: the car block `block` (esi), its record `record` (edi), its sound
+/// object `sound` (ebp). The registers it leaves are read by no caller (liveness: only
+/// DF after `share_all_cars`' call).
+pub unsafe fn share_car_state(block: u32, record: u32, sound: u32) -> Result<(), Refused> {
+    unsafe { share_car_state_at(block, record, sound, game_addr(rva(SCRATCH)) as u32) }
 }

@@ -9,8 +9,7 @@
 //! and `g_polygonVertexCount` 4.
 //!
 //! In:  st(0) .. st(2) the place (popped), ebx the angle, ecx the colour, edx the size
-//! Out: ebp the depth's bits when too near; else as `clip_quad` / `draw_fan` leave them
-//!      (ecx the colour | 0xFFFFFF and edi the half side's bits going in)
+//! Out: nothing (no caller reads a register it leaves)
 //!
 //! Callers: `sub_4D2DED` and its two siblings (0x4D2ECF, 0x4D2F00). The clip is its Rust
 //! version (the copy's call goes to its hook); the draw through `part` (1 `draw_fan`), in
@@ -24,8 +23,8 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
-use crate::marks::clip_quad::clip_quad;
+use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::marks::clip_quad::{clip_quad, draw_fan};
 use crate::math::x87;
 use crate::scene::matrix3::rounded;
 
@@ -42,10 +41,15 @@ const SINES_RVA: usize = rva(0xA23AE4); // g_sines
 const COSINES_RVA: usize = rva(0xA24AE4); // g_cosines: 0x1000 entries
 const ANGLES: u32 = 0x1000;
 
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn draw_turned_sprite(entry: &Regs, place: [[u8; 10]; 3]) -> Result<Regs, Refused> {
-    let mut g = *entry;
-    if g.ebx >= ANGLES {
+/// The Rust version (see the header): `angle` (the original's ebx), `colour` (ecx, its
+/// low three bytes made 0xFF), `size` (edx), `place` (st(0) .. st(2)).
+pub unsafe fn draw_turned_sprite(
+    angle: u32,
+    colour: u32,
+    size: u32,
+    place: [[u8; 10]; 3],
+) -> Result<(), Refused> {
+    if angle >= ANGLES {
         return Err(BadInput("an angle past the sine tables").into());
     }
     unsafe {
@@ -59,23 +63,22 @@ pub unsafe fn draw_turned_sprite(entry: &Regs, place: [[u8; 10]; 3]) -> Result<R
         for (n, v) in [a, b, c].into_iter().enumerate() {
             game_write(PLACE_RVA + 4 * n, v);
         }
-        g.ebp = c;
         if (c as i32) <= game_read::<i32>(NEAR_RVA) {
-            return Ok(g);
+            return Ok(());
         }
-        g.ecx |= 0xFF_FFFF;
+        let colour = colour | 0xFF_FFFF;
         let k = [
             game_read(FOCAL_RVA),
             game_read(CENTRE_RVA[0]),
             game_read(CENTRE_RVA[1]),
             game_read(Z_K_RVA),
         ];
-        let sin = game_read(SINES_RVA + 4 * g.ebx as usize);
-        let cos = game_read(COSINES_RVA + 4 * g.ebx as usize);
-        let sq = x87::turned_sprite(a, b, c, k, g.edx as i32, sin, cos);
+        let sin = game_read(SINES_RVA + 4 * angle as usize);
+        let cos = game_read(COSINES_RVA + 4 * angle as usize);
+        let sq = x87::turned_sprite(a, b, c, k, size as i32, sin, cos);
         for n in 0..4 {
             let v = VERTICES_RVA + 0x20 * n;
-            game_write(v + 0x10, g.ecx);
+            game_write(v + 0x10, colour);
             game_write(v + 0x18, x87::loaded(game_read(UV_RVA + 8 * n)));
             game_write(v + 0x1C, x87::loaded(game_read(UV_RVA + 8 * n + 4)));
             game_write(v + 8, sq[1]);
@@ -85,20 +88,11 @@ pub unsafe fn draw_turned_sprite(entry: &Regs, place: [[u8; 10]; 3]) -> Result<R
         for (n, v) in sq[2..6].iter().enumerate() {
             game_write(HALF_RVA + 4 * n, *v);
         }
-        g.edi = sq[0];
-        g.ebp = game_addr(VERTICES_RVA) as u32;
-        g = clip_quad(&g)?;
-        if g.carry() {
-            return Ok(g);
+        if clip_quad(game_addr(VERTICES_RVA) as u32)? {
+            return Ok(());
         }
-        crate::marks::draw_turned_sprite::game_part(1, &mut g)?;
+        draw_fan();
         game_write(COUNT_RVA, 4u32);
     }
-    Ok(g)
-}
-
-/// In the game: `draw_fan`'s Rust version.
-pub fn game_part(_place: u32, r: &mut Regs) -> Result<(), Refused> {
-    unsafe { crate::scene::draw_fan::draw_fan(r, &mut crate::scene::draw_fan::game_part) };
     Ok(())
 }

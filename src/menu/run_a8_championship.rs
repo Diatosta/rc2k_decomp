@@ -22,18 +22,10 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
-use crate::menu::event_flow::{Call, game_call};
 use crate::menu::run_championship::run_event;
+use crate::menu::screen_loop::Carried;
 
-pub unsafe fn run_a8_championship(entry: &Regs, call: Call) -> Result<Regs, Refused> {
+pub unsafe fn run_a8_championship(c: &Carried) -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::championship::run` (`a8`).
-    unsafe { run_event(entry, call, true) }
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { run_a8_championship(r, &mut game_call) }?;
-    *r = Regs { esp: r.esp, ..left };
-    Ok(())
+    unsafe { run_event(c, true) }
 }

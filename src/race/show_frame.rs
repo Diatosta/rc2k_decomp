@@ -7,101 +7,66 @@
 //! rate measured (`race::measure_frame_rate`); carry clear.
 //!
 //! In:  nothing
-//! Out: carry set when the frame was lost (the lock or the showing failed), else clear; the
-//!      registers as the last call leaves them
+//! Out: carry set when the frame was lost (the lock or the showing failed), else clear;
+//!      eax as the last call leaves it (read: `drive::race_frame` hands it on to
+//!      `drive::quit_question`'s `input::yes_no_key`, taint from 0x4541FF); no other
+//!      register is read after it
 //!
-//! Caller: `drive::race_frame` (its part 7). It begins with a call: a private copy (its
-//! nine calls relocated) and a manual patch. Its calls through `part` by place
-//! (`CALLEES`); in the game the sound tick's and the measuring's Rust versions, the others
-//! (all hooked) through the game. Shadow mode runs the original alone (it shows the
-//! frame). Self-test: a copy whose calls go to stand-ins (the lock and the showing failing
-//! or not), against the Rust version, with and without the credits.
+//! Caller: `drive::race_frame`. Its calls are the Rust versions: `scene::lock_frame`
+//! (0x44E837), `sound::race_sound_tick` (0x421BA9), `race::roll_credits` (0x415FC2),
+//! `race::draw_frame_rate` (0x4562B2), `scene::unlock_frame` (0x44E851),
+//! `scene::present_frame` (0x44E895), `scene::restart_clock` (0x450381),
+//! `race::measure_frame_rate` (0x42009E).
 //!
 //! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_read, game_write, rva};
-
-/// The calls by place, as IDA shows them.
-pub const CALLEES: [usize; 8] = [
-    0x44E837, // 0 scene::lock_frame
-    0x421BA9, // 1 sound::race_sound_tick
-    0x415FC2, // 2 race::roll_credits
-    0x4562B2, // 3 race::draw_frame_rate
-    0x44E851, // 4 scene::unlock_frame
-    0x44E895, // 5 scene::present_frame
-    0x450381, // 6 scene::restart_clock
-    0x42009E, // 7 race::measure_frame_rate
-];
+use crate::framework::{game_read, game_write, rva};
 
 const CREDITS_RVA: usize = rva(0x71C3E0); // dword_71C3E0
 const CLOCK_BASE_RVA: usize = rva(0x63DC38); // dword_63DC38
 const FRAME_TIME_RVA: usize = rva(0x63DC3C); // dword_63DC3C
 
-/// A call by place (`CALLEES`).
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
+/// What `show_frame` leaves: whether the frame was lost (the carry) and eax.
+pub struct Shown {
+    pub lost: bool,
+    pub eax: u32,
+}
 
-/// The Rust version (see the header): the registers and carry it leaves.
-pub unsafe fn show_frame(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    let mut r = *entry;
-    part(0, &mut r)?;
-    if r.carry() {
-        return Ok(r);
+/// The Rust version (see the header).
+pub unsafe fn show_frame() -> Result<Shown, Refused> {
+    let (locked, kept) = crate::scene::lock_frame::lock_frame();
+    if locked < 1 {
+        return Ok(Shown {
+            lost: true,
+            eax: kept,
+        });
     }
-    r.eax = 0x13;
-    part(1, &mut r)?;
+    // The sound tick with eax 0x13 (it reads no register).
+    crate::sound::race_sound_tick::race_sound_tick()?;
     if unsafe { game_read::<u32>(CREDITS_RVA) } != 0 {
-        r.eax = 1;
-        part(2, &mut r)?;
+        unsafe {
+            crate::race::frame_text::roll_credits(
+                1,
+                &mut crate::text::draw_text::GameCanvas,
+                &mut crate::race::frame_text::credits_tune,
+            )
+        }?;
     }
-    for place in [3, 4, 5] {
-        part(place, &mut r)?;
+    unsafe { crate::race::frame_text::draw_frame_rate(&mut crate::text::draw_text::GameCanvas) }?;
+    // `scene::unlock_frame` leaves eax 0 (its carry is `present_frame`'s next).
+    crate::scene::unlock_frame::unlock_frame();
+    if !crate::scene::present_frame::present_frame() {
+        return Ok(Shown { lost: true, eax: 0 });
     }
-    if r.carry() {
-        return Ok(r);
-    }
-    r.eax = 0x14;
-    part(1, &mut r)?;
-    part(6, &mut r)?;
-    r.eax = r.eax.wrapping_sub(unsafe { game_read(CLOCK_BASE_RVA) });
-    unsafe { game_write(FRAME_TIME_RVA, r.eax) };
-    part(7, &mut r)?;
-    r.set_carry(false);
-    Ok(r)
-}
-
-/// In the game: the sound tick's and the measuring's Rust versions, the others' through
-/// the game (their hooks).
-pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    match place {
-        1 => crate::sound::race_sound_tick::race_sound_tick_in(r),
-        7 => {
-            let flags = r.eflags;
-            *r = Regs {
-                eflags: flags,
-                ..unsafe {
-                    // Converted: the measuring's `_plain` version (the frame's comparison
-                    // runs the original alone).
-                    crate::race::measure_frame_rate::measure_frame_rate_plain(
-                        r,
-                        &mut crate::race::measure_frame_rate::rdtsc,
-                    )
-                }
-            };
-            Ok(())
-        }
-        _ => {
-            crate::calls::call(rva(CALLEES[place as usize]), r);
-            Ok(())
-        }
-    }
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { show_frame(r, &mut game_part) }?;
-    *r = Regs { esp: r.esp, ..left };
-    Ok(())
+    // The sound tick with eax 0x14.
+    crate::sound::race_sound_tick::race_sound_tick()?;
+    let clock = crate::scene::restart_clock::restart_clock(crate::system::tick_count::tick_count());
+    let time = clock.wrapping_sub(unsafe { game_read(CLOCK_BASE_RVA) });
+    unsafe { game_write(FRAME_TIME_RVA, time) };
+    // The measuring leaves eax the counter's low half on the 16th call, else as it was.
+    let eax = unsafe { crate::race::measure_frame_rate::measure_frame_rate() }.unwrap_or(time);
+    Ok(Shown { lost: false, eax })
 }

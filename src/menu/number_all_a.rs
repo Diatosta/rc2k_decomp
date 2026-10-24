@@ -14,17 +14,15 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 use crate::menu::standings::*;
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 const MODE_RVA: usize = rva(0x75AB40); // dword_75AB40
 const COUNT_RVA: usize = rva(0x75597C); // dword_75597C
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn number_all_a(entry: &Regs) -> Result<Regs, Refused> {
-    let mut g = *entry;
+/// The Rust version (see the header); what it leaves in the registers as `Numbered`.
+pub unsafe fn number_all_a() -> Result<Numbered, Refused> {
+    let mut last_number = 0;
+    let mut last_player = None;
     let first: u32 = unsafe { game_read(TABLE_A_RVA) };
     let grouped = unsafe { game_read::<u32>(MODE_RVA) } == 2;
     let all = entries(first, A_ENTRY)?;
@@ -38,30 +36,24 @@ pub unsafe fn number_all_a(entry: &Regs) -> Result<Regs, Refused> {
             return Err(BadInput("a standings player past 4 or missing").into());
         }
     }
-    g.ecx = 0;
     for (&e, n) in all.iter().zip(number(&groups, which)) {
         let Some(n) = n else {
             continue;
         };
-        g.ecx = n;
+        last_number = n;
         if get(e + 4) != 0 {
-            g.eax = get(e + 4) - 1;
-            g.esi = player(g.eax);
-            put(g.esi + 0x150, n);
+            let index = get(e + 4) - 1;
+            let record = player(index);
+            put(record + 0x150, n);
+            last_player = Some((index, record));
         }
         put(e + 0x44, n);
     }
-    g.edi = first + A_ENTRY * all.len() as u32;
-    unsafe { game_write(COUNT_RVA, g.ecx) };
-    Ok(g)
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(left_of(&unsafe { number_all_a(r) }?))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
+    let end = first + A_ENTRY * all.len() as u32;
+    unsafe { game_write(COUNT_RVA, last_number) };
+    Ok(Numbered {
+        last_number,
+        last_player,
+        end,
+    })
 }

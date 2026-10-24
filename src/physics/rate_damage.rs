@@ -39,7 +39,6 @@ use crate::math::x87_run::{compare_full, ext_times, mul3, one_less_products, ram
 use crate::physics::mirror::Mirror;
 use crate::scene::matrix3::rounded;
 use crate::screens::harness::Left;
-use rc2k_core::physics::handling::{At, Figures};
 
 const K: u32 = 0x75B388;
 const LOW: u32 = 0x75B350;
@@ -84,39 +83,6 @@ const FAILURES: [(u32, u32, u32, u32); 7] = [
     (0x71A3F8, 0x75B434, 0x75B418, 9),
     (0x71A3FC, 0x75B438, 0x75B41C, 0xA),
 ];
-
-/// The variables of `rc2k_core::physics::handling` where `m` has them.
-pub struct OnMirror<'a>(pub &'a Mirror);
-
-/// The IDA address of a variable.
-pub fn ida(at: At) -> u32 {
-    match at {
-        At::Car(o) => 0x719FD8 + o,
-        At::Grades(o) => 0x75B340 + o,
-        At::Handling(o) => 0x613E00 + o,
-        At::Scale => 0x5C5E2C,
-    }
-}
-
-impl Figures for OnMirror<'_> {
-    fn get(&self, at: At) -> u32 {
-        unsafe { self.0.get(ida(at)) }
-    }
-    fn put(&mut self, at: At, v: u32) {
-        unsafe { self.0.put(ida(at), v) }
-    }
-}
-
-/// The converted version (`rc2k_core::physics::handling`, plain floats) on the variables
-/// `m` reaches: the hook's.
-// Converted: `rc2k_core::physics::handling::rate_damage`.
-pub fn rate_damage_plain_at(m: &Mirror) -> Left {
-    let bits = rc2k_core::physics::handling::rate_damage(&mut OnMirror(m));
-    Left::nothing()
-        .with(EAX, bits)
-        .with(ECX, rc2k_core::physics::handling::GEARS)
-        .with(ESI, m.a(ida(rc2k_core::physics::handling::LAST_TABLE)))
-}
 
 /// The Rust core on the variables `m` reaches; what it leaves in the registers (the
 /// exact one, for `physics::grade_or_reset` and `physics::rate_current_car`).
@@ -223,9 +189,4 @@ pub unsafe fn rate_damage_at(m: &Mirror) -> Left {
             .with(ECX, 9)
             .with(ESI, m.a(0x75B568))
     }
-}
-
-/// The Rust version (the exact one, for `physics::rate_current_car`).
-pub unsafe fn rate_damage() -> Left {
-    unsafe { rate_damage_at(&Mirror::game()) }
 }

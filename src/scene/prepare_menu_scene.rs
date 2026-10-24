@@ -11,12 +11,10 @@
 //! 29 callers (the screen loops' set-up).
 //! Self-test: 20 settings by lot on the game's variables.
 
-use crate::errors::Refused;
-use crate::framework::{Regs, game_write, rva};
+use crate::framework::{game_write, rva};
 use crate::scene::set_view_window::{SIZE_RVA, set_view_window};
 use crate::scene::view_matrix::{VIEW_ANGLES_RVA, VIEW_PLACE_RVA, set_view_matrices};
 use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 // ---- game data ----
 
@@ -35,13 +33,4 @@ pub unsafe fn prepare_menu_scene() -> Left {
         game_write(LIGHT_ANGLES_RVA, [0x6Eu32, 0x1E]);
         set_view_matrices()
     }
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    Ok(unsafe { prepare_menu_scene() })
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

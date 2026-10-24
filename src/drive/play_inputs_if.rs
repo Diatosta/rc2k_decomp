@@ -12,15 +12,12 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::Regs;
 use crate::physics::flow::g;
-use crate::screens::harness::Left;
 
 /// The Rust version.
 // Converted: `rc2k_core::drive::replay_frames::plays_inputs`.
-pub unsafe fn play_inputs_if(entry: &Regs) -> Left {
+pub unsafe fn play_inputs_if() {
     if rc2k_core::drive::replay_frames::plays_inputs(g(0x5C5CE0)) {
-        return unsafe { crate::drive::play_inputs::play_inputs(entry) };
+        unsafe { crate::drive::play_inputs::play_inputs() };
     }
-    Left::nothing()
 }

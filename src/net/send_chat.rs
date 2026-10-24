@@ -2,52 +2,28 @@
 //! (`net::add_chat_line`, under the received messages' lock) and sent to everyone
 //! (`g_netSendTo`, DirectPlay's `Send` through `net::dplay_send`) as '"' and the text, no NUL.
 //!
-//! In:  eax = the player, ebx = the message
-//! Out: every register kept (`pusha` .. `popa`); the flags of `test eax, eax` on the send's
-//!      eax (no caller reads them)
-//! Caller: `net::send_chat_regs`. Its calls through `part` (`net::lobby_calls`: the Rust
-//! versions, the send through the game). Shadow mode runs the original alone (it sends).
-//! Self-test: a copy whose calls go to stand-ins (`str_append` done), against the Rust
-//! version.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! In:  `player` (eax), `message` (ebx). The original reads ecx too, only for
+//!      `net::add_chat_line`'s first measure (see there): dropped.
+//! Out: nothing (every register kept, `pusha` .. `popa`; the flags of `test eax, eax` on
+//!      the send's eax are read by no caller: `lq -s 0x4193C8`)
+//! Callers: `net::chat_key` (the original through `net::send_chat_regs`, 0x41819B: this
+//! inside `pusha` .. `popa`, folded in). Refuses what `net::add_chat_line` refuses.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
-use crate::net::lobby::{
-    LOCK_RECEIVED, Part, SEND, SEND_BUFFER, SEND_TO, STR_APPEND, UNLOCK_RECEIVED, a, g,
-    lobby_entry, test_eax,
-};
+use crate::net::add_chat_line::add_chat_line;
+use crate::net::dplay_send::dplay_send;
+use crate::net::lobby::{SEND_BUFFER, SEND_TO, a, g};
+use crate::net::{lock_received::lock_received, unlock_received::unlock_received};
+use crate::strings::str_append::str_append;
 
-const ADD_CHAT_LINE: u32 = 0x419428; // net::add_chat_line
-
-/// The Rust version: the registers it leaves (the entry's).
-pub fn send_chat(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    let mut r = *entry;
-    part(LOCK_RECEIVED, &mut r)?;
-    part(ADD_CHAT_LINE, &mut r)?;
-    part(UNLOCK_RECEIVED, &mut r)?;
-    r.eax = r.ebx;
+/// The Rust version.
+pub fn send_chat(player: u32, message: *const u8) -> Result<(), Refused> {
+    lock_received();
+    add_chat_line(player, message)?;
+    unlock_received();
     let buffer = a(SEND_BUFFER);
     unsafe { (buffer as *mut u8).write(b'"') };
-    r.ebx = buffer + 1;
-    part(STR_APPEND, &mut r)?;
-    r.ecx = r.ebx.wrapping_sub(buffer);
-    r.ebx = buffer;
-    r.eax = g(SEND_TO);
-    r.edx = 0;
-    part(SEND, &mut r)?;
-    test_eax(&mut r);
-    Ok(Regs {
-        eflags: r.eflags,
-        ..*entry
-    })
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    lobby_entry(r, send_chat)
+    let end = unsafe { str_append(message, (buffer + 1) as *mut u8) } as u32;
+    dplay_send(g(SEND_TO), 0, buffer, end.wrapping_sub(buffer));
+    Ok(())
 }

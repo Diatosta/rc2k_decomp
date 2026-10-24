@@ -11,18 +11,9 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
-use crate::screens::best_scores::*;
-use crate::screens::harness::{Left, draw_entry};
-use crate::text::draw_text::Canvas;
+use crate::text::draw_text::GameCanvas;
 
-fn rust(_: &Regs, canvas: &mut dyn Canvas) -> Result<Left, Refused> {
-    unsafe { draw_record_heading(canvas) }?;
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    draw_entry("screens::draw_record_heading", r, &rust)
+/// The Rust version (`best_scores::draw_record_heading`), on the game's screen.
+pub unsafe fn draw_record_heading() -> Result<(), Refused> {
+    unsafe { crate::screens::best_scores::draw_record_heading(&mut GameCanvas) }
 }

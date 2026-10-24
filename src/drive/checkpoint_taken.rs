@@ -17,31 +17,24 @@
 //! and the self-test was the hook's.
 
 use crate::drive::car_near_checkpoint::near_at;
-use crate::framework::{Regs, game_addr, game_read, rva};
-use crate::physics::flag_result::FlagResult;
+use crate::framework::{game_addr, game_read, rva};
 use rc2k_core::physics::line_places;
 
 /// The four cars' blocks (IDA addresses).
 const CARS: [usize; 4] = [0x70F3EC, 0x7103CC, 0x7113AC, 0x71238C];
 const COUNT_RVA: usize = rva(0x623640); // g_checkpointCount
 
-/// The Rust core: the four cars at `cars`, the count `count`; `r` at entry.
+/// The Rust core: the four cars at `cars`, the count `count`, the checkpoint
+/// `checkpoint` (eax): whether it is taken (the CF).
 // Converted: `rc2k_core::physics::line_places::checkpoint_taken`.
-pub unsafe fn taken_at(cars: [u32; 4], count: u32, r: &Regs) -> FlagResult {
-    let result = |carry| FlagResult {
-        eax: r.eax,
-        ecx: None,
-        ebx: None,
-        carry,
-        zero: None,
-    };
-    result(line_places::checkpoint_taken(r.eax, count, || {
-        cars.iter().any(|&car| unsafe { near_at(car, r) }.carry)
-    }))
+pub unsafe fn taken_at(cars: [u32; 4], count: u32, checkpoint: u32) -> bool {
+    line_places::checkpoint_taken(checkpoint, count, || {
+        cars.iter().any(|&car| unsafe { near_at(car, checkpoint) })
+    })
 }
 
-/// The Rust version.
-pub unsafe fn checkpoint_taken(r: &Regs) -> FlagResult {
+/// The Rust version: whether `checkpoint` is taken (the CF; every register kept).
+pub unsafe fn checkpoint_taken(checkpoint: u32) -> bool {
     let cars = CARS.map(|a| game_addr(rva(a)) as u32);
-    unsafe { taken_at(cars, game_read(COUNT_RVA), r) }
+    unsafe { taken_at(cars, game_read(COUNT_RVA), checkpoint) }
 }

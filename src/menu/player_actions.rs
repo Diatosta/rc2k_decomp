@@ -26,8 +26,8 @@
 //! Hooks removed 2026-10-22 (typed tables): the menus run their `entry` (`menu::table_calls`).
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
-use crate::menu::parts::Part;
+use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::menu::screen_loop::Carried;
 use rc2k_core::menu::player::Player;
 use rc2k_core::menu::steps;
 
@@ -37,7 +37,6 @@ const SCORES_PAGE_RVA: usize = rva(0x755240); // dword_755240
 const REPLAY_RANGE_RVA: usize = rva(0x755248); // dword_755248
 const CHOICE_RVA: usize = rva(0x75AB30); // dword_75AB30
 const CAPTION_RVA: usize = rva(0xA8BE54); // g_captionText
-const SHOW_CAR_SPECS: usize = 0x46FD31; // menu::show_car_specs
 
 fn g(a: usize) -> u32 {
     unsafe { game_read(a) }
@@ -151,19 +150,14 @@ pub fn leave_with_carry() {
     crate::menu::leaving::with_leaving(|l| l.leave_with_carry());
 }
 
-pub unsafe fn player_car_specs(n: u32, entry: &Regs, part: Part) -> Result<Regs, Refused> {
+/// `menu::player_N_car_specs`: the car specifications screen with player `n` the current
+/// one. `c` the carried values the item gets.
+pub unsafe fn player_car_specs(n: u32, c: &Carried) -> Result<(), Refused> {
     let kept = g(CURRENT_PLAYER_RVA);
     p(CURRENT_PLAYER_RVA, n);
-    let mut r = *entry;
-    let done = part(0, &mut r);
+    let done = unsafe { crate::menu::show_car_specs::show_car_specs(c) };
     p(CURRENT_PLAYER_RVA, kept);
-    done?;
-    Ok(r)
-}
-
-fn car_specs_part(_: u32, r: &mut Regs) -> Result<(), Refused> {
-    crate::calls::call(rva(SHOW_CAR_SPECS), r);
-    Ok(())
+    done
 }
 
 // ---- by number: what the typed tables run ----
@@ -250,12 +244,8 @@ macro_rules! car_specs {
             use super::*;
             /// The Rust version where the typed tables run it (`menu::table_calls`; hook removed
             /// 2026-10-22).
-            pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-                crate::menu::parts::parted_entry(
-                    r,
-                    &|r, part| unsafe { player_car_specs($n, r, part) },
-                    car_specs_part,
-                )
+            pub fn run(c: &Carried) -> Result<(), crate::errors::Refused> {
+                unsafe { player_car_specs($n, c) }
             }
         }
     };

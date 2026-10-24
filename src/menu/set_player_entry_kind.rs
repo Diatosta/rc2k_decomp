@@ -12,16 +12,13 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_read, rva};
+use crate::framework::{game_read, rva};
 use crate::menu::standings::*;
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 const CURRENT_RVA: usize = rva(0x75598C); // dword_75598C
 const SCORE_RVA: usize = rva(0x75AC80); // dword_75AC80
 /// The Rust version (see the header): the registers it leaves.
-pub unsafe fn set_player_entry_kind(entry: &Regs) -> Result<Regs, Refused> {
+pub unsafe fn set_player_entry_kind() -> Result<(), Refused> {
     let n: u32 = unsafe { game_read(CURRENT_RVA) };
     if n >= 4 || player(n) == 0 {
         return Err(BadInput("a current player past 3 or missing").into());
@@ -29,15 +26,5 @@ pub unsafe fn set_player_entry_kind(entry: &Regs) -> Result<Regs, Refused> {
     // Converted: `rc2k_core::menu::player::entry_kind`.
     let score: i32 = unsafe { game_read(SCORE_RVA) };
     put(player(n) + 0xD0, rc2k_core::menu::player::entry_kind(score));
-    Ok(*entry)
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(left_of(&unsafe { set_player_entry_kind(r) }?))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
+    Ok(())
 }

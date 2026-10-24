@@ -4,7 +4,7 @@
 //! of 0x22 three-float entries.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 use crate::math::x87;
 
 pub const KIND_RVA: usize = rva(0x769232); // g_marksKind
@@ -130,10 +130,8 @@ pub const SECOND: KindTables = KindTables {
     divisor_copy: None,
 };
 
-/// The kind's values of one set. eax, ebx, ecx are left the copied three, ebp the kind
-/// times 12. Refuses a kind past the tables (0x22).
-pub unsafe fn set_kind_values(entry: &Regs, k: &KindTables) -> Result<Regs, Refused> {
-    let mut g = *entry;
+/// The kind's values of one set. Refuses a kind past the tables (0x22).
+pub unsafe fn set_kind_values(k: &KindTables) -> Result<(), Refused> {
     unsafe {
         let kind: u32 = game_read(KIND_RVA);
         if kind >= KINDS {
@@ -169,9 +167,8 @@ pub unsafe fn set_kind_values(entry: &Regs, k: &KindTables) -> Result<Regs, Refu
         if let Some(copy) = k.divisor_copy {
             game_write(copy, divisor);
         }
-        g.ebp = kind * 12;
-        let triple =
-            |n: usize, part: usize| -> u32 { game_read(k.triples[n] + g.ebp as usize + 4 * part) };
+        let row = kind as usize * 12;
+        let triple = |n: usize, part: usize| -> u32 { game_read(k.triples[n] + row + 4 * part) };
         let lerp = |part: usize, less: Option<u32>| {
             x87::lerp_scaled_less(
                 triple(0, part),
@@ -184,76 +181,9 @@ pub unsafe fn set_kind_values(entry: &Regs, k: &KindTables) -> Result<Regs, Refu
         game_write(k.place[0], lerp(2, None));
         game_write(k.place[1], lerp(1, Some(c(13))));
         game_write(k.place[2], lerp(0, None));
-        g.eax = triple(2, 0);
-        g.ebx = triple(2, 1);
-        g.ecx = triple(2, 2);
-        game_write(k.copied, [g.eax, g.ebx, g.ecx, 0]);
+        game_write(k.copied, [triple(2, 0), triple(2, 1), triple(2, 2), 0]);
         game_write(k.copied + 16, x87::sub(triple(0, 1), triple(1, 1)));
         game_write(k.copied + 20, x87::negated_sub(triple(0, 0), triple(1, 0)));
     }
-    Ok(g)
-}
-
-/// The converted version (plain floats): the hooks'. The x87 version above stays for
-/// `marks::init_marks` (unconverted).
-// Converted: `rc2k_core::marks::kind_values::values`
-pub unsafe fn set_kind_values_plain(entry: &Regs, k: &KindTables) -> Result<Regs, Refused> {
-    use rc2k_core::marks::kind_values::{Row, Triples, kind_entry, values};
-    unsafe {
-        let kind = kind_entry(game_read(KIND_RVA))?;
-        let t = |n: usize| -> u32 { game_read(k.tables[n] + 4 * kind) };
-        let f = |n: usize| f32::from_bits(t(n));
-        let row = Row {
-            count: t(0),
-            size: f(1),
-            divisor: f(2),
-            low: t(3),
-            high: t(4),
-            start: f(5),
-            middle: f(6),
-            end: f(7),
-            spread: f(8),
-            extra: f(9),
-        };
-        let triple = |n: usize| -> [u32; 3] { game_read(k.triples[n] + 12 * kind) };
-        let triples = Triples {
-            to: triple(0).map(f32::from_bits),
-            from: triple(1).map(f32::from_bits),
-            copied: triple(2),
-        };
-        let c = k.constants.map(|a| f32::from_bits(game_read(a)));
-        let v = values(&row, &triples, &c);
-        let outs = [
-            v.count,
-            v.size.to_bits(),
-            v.ratio.to_bits(),
-            v.low,
-            v.high,
-            v.start.to_bits(),
-            v.step.to_bits(),
-            v.middle.to_bits(),
-            v.slope.to_bits(),
-            v.spread.to_bits(),
-            v.extra.to_bits(),
-        ];
-        for (&to, v) in k.outs.iter().zip(outs) {
-            game_write(to, v);
-        }
-        if let Some(copy) = k.divisor_copy {
-            game_write(copy, t(2));
-        }
-        for (&to, p) in k.place.iter().zip(v.place) {
-            game_write(to, p.to_bits());
-        }
-        let [eax, ebx, ecx] = triples.copied;
-        game_write(k.copied, [eax, ebx, ecx, 0]);
-        game_write(k.copied + 16, v.differences.map(f32::to_bits));
-        Ok(Regs {
-            eax,
-            ebx,
-            ecx,
-            ebp: kind as u32 * 12,
-            ..*entry
-        })
-    }
+    Ok(())
 }

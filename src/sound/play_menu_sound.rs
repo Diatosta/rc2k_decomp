@@ -13,7 +13,7 @@
 //! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
 //! `routes.rs`); the registers above are the original's, for reference.
 
-use crate::framework::{Regs, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 use crate::system::tick_count::tick_count;
 
 // ---- game data ----
@@ -52,10 +52,4 @@ pub unsafe fn play_menu_sound(sound: u32, now: &mut dyn FnMut() -> u32) {
 /// With the game's clock: what other Rust code calls.
 pub fn play_menu_sound_in_game(sound: u32) {
     unsafe { play_menu_sound(sound, &mut tick_count) };
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    play_menu_sound_in_game(r.eax);
-    Ok(())
 }

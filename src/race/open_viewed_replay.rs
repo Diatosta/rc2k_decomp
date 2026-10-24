@@ -30,101 +30,78 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
+use crate::files::handle;
 use crate::physics::flow::a;
 use crate::race::replay_path::{LAST_RACE_PATH, replay_path};
 use crate::race::viewer::{
     BLOCK, BLOCK_CURSOR, BLOCK_DATA, BLOCKS, CAMERAS, CAR_HEADER, FRAME, HANDLE, HEADER, INDEX,
-    MARK_IN, MARK_OUT, OPEN, Part, get, put, regs_entry,
+    MARK_IN, MARK_OUT, OPEN, get, put,
 };
 
 const RECORDED: usize = 0x5BEC84; // dword_5BEC84: a replay was recorded
 const CARS_FROM: usize = 0x528534; // unk_528534
-use rc2k_core::race::replay::HEADER_VERSION as VERSION;
 use rc2k_core::race::viewer_flow::{HEADER_LEN, INDEX_LEN};
 
-/// The Rust version: the registers and flags it leaves.
-pub fn open_viewed_replay(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+/// The Rust version: whether it failed (the carry the original leaves; it keeps the
+/// registers and leaves the zero flag `opened_zero(0)`, which no caller reads). `slot` the
+/// replay (the original's ebx).
+pub fn open_viewed_replay(slot: u32) -> Result<bool, Refused> {
     // Converted: `rc2k_core::race::viewer_flow::{last_race_missing, copied_first,
-    // read_good, version_good, index_blocks, opened_marks, opened_zero}`.
+    // read_good, version_good, index_blocks, opened_marks}`.
     use rc2k_core::race::viewer_flow::{
         Blocks, CAMERA_DWORDS, CAR_HEADER_LEN, copied_first, index_blocks, last_race_missing,
-        opened_marks, opened_zero, read_good, version_good,
+        opened_marks, read_good, version_good,
     };
-    let mut out = *entry;
-    let failed = |part: Part, out: &mut Regs, r: &Regs| -> Result<Regs, Refused> {
-        let mut s = *r;
-        part(6, &mut s)?;
-        out.set_carry(true);
-        Ok(*out)
+    let failed = || -> Result<bool, Refused> {
+        crate::race::close_viewed_replay::close_viewed_replay()?;
+        Ok(true)
     };
-    let mut r = replay_path(entry)?;
-    let is_last_race = r.eflags & crate::framework::ZERO_FLAG != 0;
-    if last_race_missing(is_last_race, || get(RECORDED)) {
-        return failed(part, &mut out, &r);
+    let found = replay_path(slot)?;
+    let mut path = found.path;
+    if last_race_missing(found.last_race, || get(RECORDED)) {
+        return failed();
     }
-    if copied_first(r.ebx) {
-        r.ebx = a(LAST_RACE_PATH);
-        part(1, &mut r)?;
-        if r.carry() {
-            return failed(part, &mut out, &r);
+    if copied_first(found.number) {
+        // A saved replay is copied over the last race's first.
+        let copied = unsafe {
+            crate::files::copy_file::copy_file(path as _, a(LAST_RACE_PATH) as *const u8)?
+        };
+        if !copied {
+            return failed();
         }
-        r.eax = a(LAST_RACE_PATH);
+        path = a(LAST_RACE_PATH);
     }
-    r.ebx = 0;
-    part(2, &mut r)?;
-    if r.carry() {
-        return failed(part, &mut out, &r);
-    }
-    put(HANDLE, r.eax);
+    let Some(file) = (unsafe { handle::open_by_mode(path as _, 0)? }) else {
+        return failed();
+    };
+    put(HANDLE, file);
     put(OPEN, 1);
     put(BLOCK, 0);
     put(FRAME, 0);
-    let read = |part: Part, r: &mut Regs, buffer: usize, len: u32| -> Result<bool, Refused> {
-        r.eax = get(HANDLE);
-        r.ebx = a(buffer);
-        r.ecx = len;
-        part(3, r)?;
-        Ok(read_good(
-            r.carry(),
-            r.eax,
-            r.ecx,
-            get(buffer),
-            buffer == HEADER,
-        ))
+    // A buffer read whole; whether the read is good (`read_good`).
+    let read = |buffer: usize, len: u32| -> bool {
+        let (n, ok) = unsafe { handle::read(get(HANDLE), a(buffer) as *mut u8, len) };
+        read_good(!ok, n, len, get(buffer), buffer == HEADER)
     };
-    if !read(part, &mut r, HEADER, HEADER_LEN)? {
-        return failed(part, &mut out, &r);
+    if !read(HEADER, HEADER_LEN) || !version_good(get(HEADER + 8)) {
+        return failed();
     }
-    // `files::version_differs` (eax the version, kept): on another version the close gets
-    // eax 0x50400.
-    r.eax = VERSION;
-    if !version_good(get(HEADER + 8)) {
-        return failed(part, &mut out, &r);
-    }
-    r.eax = get(HANDLE);
-    r.ebx = 2;
-    r.ecx = INDEX_LEN.wrapping_neg();
-    part(4, &mut r)?;
-    if r.carry() || !read(part, &mut r, INDEX, INDEX_LEN)? {
-        return failed(part, &mut out, &r);
+    // The index is the file's last 0x3850 bytes.
+    let at = unsafe { handle::seek(get(HANDLE), INDEX_LEN.wrapping_neg() as i32, 2) };
+    if at.is_none() || !read(INDEX, INDEX_LEN) {
+        return failed();
     }
     match index_blocks(get(BLOCKS)) {
-        Blocks::Bad => return failed(part, &mut out, &r),
+        Blocks::Bad => return failed(),
         Blocks::Held(n) => put(BLOCKS, n),
         Blocks::Kept => {}
     }
     let mut block = 0u32;
     loop {
-        r.eax = block;
-        part(5, &mut r)?;
-        if r.carry() {
-            return failed(part, &mut out, &r);
+        if unsafe { crate::drive::read_replay_frame_0::read_replay_frame_0(block) }? {
+            return failed();
         }
         crate::race::viewer::move_dwords(CAMERAS + 8 * block as usize, BLOCK_DATA, CAMERA_DWORDS);
-        r.ecx = 0;
-        r.esi = a(BLOCK_DATA) + 8;
-        r.edi = a(CAMERAS) + 8 * block + 8;
         block += 1;
         if block == get(BLOCKS) {
             break;
@@ -134,10 +111,8 @@ pub fn open_viewed_replay(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     put(MARK_IN, mark_in);
     put(MARK_OUT, mark_out);
     put(BLOCK_CURSOR, a(BLOCK_DATA));
-    r.eax = 0;
-    part(5, &mut r)?;
-    if r.carry() {
-        return failed(part, &mut out, &r);
+    if unsafe { crate::drive::read_replay_frame_0::read_replay_frame_0(0) }? {
+        return failed();
     }
     unsafe {
         std::ptr::copy_nonoverlapping(
@@ -146,56 +121,6 @@ pub fn open_viewed_replay(entry: &Regs, part: Part) -> Result<Regs, Refused> {
             CAR_HEADER_LEN,
         )
     };
-    r.ecx = 0;
-    r.esi = a(CARS_FROM) + CAR_HEADER_LEN as u32;
-    r.edi = a(CAR_HEADER) + CAR_HEADER_LEN as u32;
-    part(7, &mut r)?;
-    out.set_carry(false);
-    out.set_zero(opened_zero(r.eax));
-    Ok(out)
-}
-
-/// In the game: the Rust versions.
-pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    use crate::files::handle;
-    unsafe {
-        match place {
-            1 => {
-                let done = crate::files::copy_file::copy_file(r.eax as _, r.ebx as _)?;
-                r.set_carry(!done);
-            }
-            2 => match handle::open_by_mode(r.eax as _, r.ebx)? {
-                Some(file) => {
-                    r.eax = file;
-                    r.set_carry(false);
-                }
-                None => {
-                    r.eax = u32::MAX;
-                    r.set_carry(true);
-                }
-            },
-            3 => {
-                let (n, ok) = handle::read(r.eax, r.ebx as *mut u8, r.ecx);
-                r.eax = n;
-                r.set_carry(!ok);
-            }
-            4 => {
-                let at = handle::seek(r.eax, r.ecx as i32, r.ebx);
-                r.set_carry(at.is_none());
-            }
-            5 => {
-                let failed = crate::drive::read_replay_frame_0::read_replay_frame_0(r.eax)?;
-                r.set_carry(failed);
-            }
-            6 => *r = crate::race::close_viewed_replay::close_viewed_replay(r)?,
-            _ => *r = crate::race::replay_patches::apply_replay_patches(r)?,
-        }
-    }
-    Ok(())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    regs_entry(r, &|r| open_viewed_replay(r, &mut game_part))
+    crate::race::replay_patches::apply_replay_patches()?;
+    Ok(false)
 }

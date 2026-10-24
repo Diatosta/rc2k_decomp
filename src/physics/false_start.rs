@@ -13,7 +13,7 @@
 //!
 //! Caller: `sub_43B635` (0x43B9A9), every physics step.
 //! Refuses what `start_car` refuses. Shadow mode runs the original alone
-//! (`physics/reset_parts.rs`).
+//! (its calls then went through `physics/reset_parts.rs`, gone).
 //! Self-test: a copy whose call goes to the stand-ins, against the Rust version with the
 //! same: the set flag, gear, count and timer across their branches; all put back.
 //!
@@ -22,8 +22,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_read, game_write, rva};
-use crate::physics::reset_parts::reset_entry;
+use crate::framework::{game_read, game_write, rva};
 use rc2k_core::physics::notices::Notice;
 use rc2k_core::physics::start::CarStart;
 
@@ -40,10 +39,10 @@ fn p(a: usize, v: u32) {
     unsafe { game_write(a, v) }
 }
 
-/// The Rust version, `start_car` through `part` (place 11).
+/// The Rust version, then `race::start_car` (it takes no register: called with none). The
+/// registers it leaves (eax the timer when set) are read by none of its callers.
 // Converted: `rc2k_core::physics::start::CarStart::false_start`.
-pub unsafe fn false_start(entry: &Regs) -> Result<Regs, Refused> {
-    let mut r = *entry;
+pub unsafe fn false_start() -> Result<(), Refused> {
     let was = CarStart {
         timer: g(TIMER),
         held: g(HELD),
@@ -61,9 +60,6 @@ pub unsafe fn false_start(entry: &Regs) -> Result<Regs, Refused> {
     };
     let (mut car, mut notice) = (was, notice_was);
     let done = car.false_start(g(GEAR), &mut notice);
-    if let Some(timer) = done.timer {
-        r.eax = timer;
-    }
     for (at, before, now) in [
         (HELD, was.held, car.held),
         (COUNT, was.count, car.count),
@@ -81,13 +77,7 @@ pub unsafe fn false_start(entry: &Regs) -> Result<Regs, Refused> {
         }
     }
     if done.put_back {
-        crate::physics::reset_parts::game_part(11, &mut r)?;
+        unsafe { crate::race::car_starts::start_car() }?;
     }
-    Ok(r)
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    reset_entry(r, false_start)
+    Ok(())
 }

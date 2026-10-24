@@ -25,7 +25,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::math::x87;
 
 const DRAWN_RVA: usize = rva(0x624134); // g_polygonDrawn
@@ -51,10 +51,8 @@ fn set(r: usize, v: u32) {
 }
 
 /// The Rust version (see the header). It reads no register, and what it leaves is read by
-/// none of its callers (register liveness, 2026-10-23); `g` carries the registers the
-/// scene calls not yet plain are given.
+/// none of its callers (register liveness, 2026-10-23).
 pub unsafe fn draw_flat_quad() -> Result<(), Refused> {
-    let mut g = Regs::default();
     unsafe {
         set(DRAWN_RVA, 0);
         for n in 0..4 {
@@ -97,39 +95,41 @@ pub unsafe fn draw_flat_quad() -> Result<(), Refused> {
             set(RECORDS_RVA + RECORD * n + 0x18, 0);
         }
         set(COUNT_RVA, 4);
-        g.esi = game_addr(POOL_RVA) as u32;
-        set(NEXT_RECORD_RVA, g.esi);
+        set(NEXT_RECORD_RVA, game_addr(POOL_RVA) as u32);
         for n in 0..4u32 {
             set(LIST_RVA + 4 * n as usize, n);
         }
         set(LIST_RVA + 16, 0);
         set(NEXT_ENTRY_RVA, 4);
-        [g.eax, g.ecx] = [0, 4];
-        crate::scene::draw_flat_quad::game_part(1, &mut g)?;
-        crate::scene::draw_flat_quad::game_part(2, &mut g)?;
+        crate::scene::draw_flat_quad::part(1)?;
+        crate::scene::draw_flat_quad::part(2)?;
         if game_read::<u32>(COUNT_RVA) >= 3 {
             set(MODE_RVA, 6);
             set(SIDES_RVA[0], 1);
             set(SIDES_RVA[1], 0);
-            crate::scene::draw_flat_quad::game_part(3, &mut g)?;
-            crate::scene::draw_flat_quad::game_part(4, &mut g)?;
+            crate::scene::draw_flat_quad::part(3)?;
+            crate::scene::draw_flat_quad::part(4)?;
             set(DRAWN_RVA, 1);
-            crate::scene::draw_flat_quad::game_part(5, &mut g)?;
+            crate::scene::draw_flat_quad::part(5)?;
         }
         set(COLOUR_RVA, 0xFF_FFFF);
     }
     Ok(())
 }
 
-/// In the game: the calls' Rust versions.
-pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
+/// The calls' Rust versions, by place: 1 the texture coordinates scaled, 2 the polygon
+/// clipped to the screen, 3 the depth buffer off, 4 the polygon drawn, 5 the depth buffer
+/// on. What the first leaves in the registers was carried in a scratch set nobody read.
+pub fn part(place: u32) -> Result<(), Refused> {
     use crate::scene::*;
     unsafe {
         match place {
-            1 => scale_texture_coordinates::scale_texture_coordinates()?.apply(r),
+            1 => {
+                scale_texture_coordinates::scale_texture_coordinates()?;
+            }
             2 => clip_polygon_to_screen::clip_polygon_to_screen()?,
             3 => depth_buffer_on::depth_buffer(false),
-            4 => draw_polygon::draw_polygon_in_game(r)?,
+            4 => draw_polygon::draw_polygon_in_game()?,
             _ => depth_buffer_on::depth_buffer(true),
         }
     }

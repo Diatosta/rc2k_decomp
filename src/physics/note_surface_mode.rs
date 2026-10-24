@@ -7,15 +7,11 @@
 //! Caller: `physics::feel_ground` (0x43F1A8), first.
 //! Self-test: `physics/copy_hooks_test.rs` (a copy on test variables), modes 0 .. 5.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
-use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, rva};
+use crate::framework::{game_addr, rva};
 use crate::physics::cells::{get, put};
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 use rc2k_core::physics::ground::surface_flag;
 
 const VARIABLES: [usize; 2] = [0x71A65C, 0x71A6C8];
@@ -36,15 +32,4 @@ fn game() -> Vec<u32> {
 /// The Rust version.
 pub unsafe fn note_surface_mode() {
     unsafe { note_at(&game()) }
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { note_surface_mode() };
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

@@ -1,8 +1,6 @@
 //! What the game reads about its installation: the record `var\ral.zog`, the languages
 //! file `lang.cfg`, the edition file `files\d\gfx\sku`.
 
-use crate::framework::rva;
-
 pub mod check_at_start;
 pub mod check_clio_disc;
 pub mod check_test;
@@ -87,8 +85,3 @@ pub mod value_down;
 pub mod value_up;
 pub mod write_record;
 pub mod write_registry;
-
-/// byte_5189A8: base directory A (`cdrom` in the record), and byte_518AA8: what a `%` in a
-/// path stands for (the language's directory). 0x100 bytes each.
-pub const BASE_DIRECTORY_RVA: usize = rva(0x5189A8);
-pub const LOCALE_RVA: usize = rva(0x518AA8);

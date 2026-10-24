@@ -12,29 +12,15 @@
 //! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
+//! are the original's.
 
 use crate::bridge::{Raw, read_through};
-use crate::errors::Refused;
-use crate::framework::Regs;
-use crate::race::viewer::regs_entry;
 
-pub fn check_folder_name(entry: &Regs) -> Regs {
-    let mut r = *entry;
+/// Whether `path` has a bad character or `\\` (the original's carry).
+pub fn check_folder_name(path: u32) -> bool {
     // Converted: `rc2k_core::install::paths::bad_folder_name` (the characters, RAL.EXE's
     // `unk_51DE18`, as its constant).
-    let path = unsafe { Raw::new(r.edx as *const u8) };
-    r.set_carry(read_through(rc2k_core::install::paths::bad_folder_name(
-        &path,
-    )));
-    r
-}
-
-fn rust(r: &Regs) -> Result<Regs, Refused> {
-    Ok(check_folder_name(r))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    regs_entry(r, &rust)
+    let path = unsafe { Raw::new(path as *const u8) };
+    read_through(rc2k_core::install::paths::bad_folder_name(&path))
 }

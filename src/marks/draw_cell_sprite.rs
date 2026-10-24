@@ -10,9 +10,7 @@
 //!
 //! In:  st(0) .. st(2) the place (popped), eax the cell, ebx the angle, ecx the alpha (top
 //!      byte), edx the size, esi the entry
-//! Out: ebp the depth's bits when too near; else as `clip_quad` / `draw_fan` leave them
-//!      (eax the cell times 16, ecx / edx the cell's third and fourth places, edi the
-//!      turned half side going in)
+//! Out: nothing (the original keeps every register but ebp, which no caller reads after it)
 //!
 //! Callers: the ring's kinds 1, 5, 6, 0xD, 0x13, 0x15, 0x16 (`sub_4CB64D`) and 0x4D0D80.
 //! The x87 blocks are the original's instructions over the game's variables; the fog and
@@ -27,8 +25,8 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
-use crate::marks::clip_quad::clip_quad;
+use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::marks::clip_quad::{clip_quad, draw_fan};
 use crate::scene::fog_at::fog_at;
 
 const DEPTH_RVA: usize = rva(0x8EB8DD); // flt_8EB8DD
@@ -187,16 +185,23 @@ unsafe fn square(b: u32, k: u32, s: u32) -> u32 {
     edi
 }
 
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn draw_cell_sprite(entry: &Regs, place: [[u8; 10]; 3]) -> Result<Regs, Refused> {
-    let mut g = *entry;
-    if g.eax >= CELLS {
+/// The Rust version (see the header): `cell` (eax), `angle` (ebx), `alpha` (ecx, its top
+/// byte), `size` (edx), `entry` (esi). No caller reads a register it leaves.
+pub unsafe fn draw_cell_sprite(
+    cell: u32,
+    angle: u32,
+    alpha: u32,
+    size: u32,
+    entry: u32,
+    place: [[u8; 10]; 3],
+) -> Result<(), Refused> {
+    if cell >= CELLS {
         return Err(BadInput("a mark cell past g_marksCellPlaces").into());
     }
-    if g.ebx >= ANGLES {
+    if angle >= ANGLES {
         return Err(BadInput("an angle past the sine tables").into());
     }
-    if g.esi == 0 {
+    if entry == 0 {
         return Err(BadInput("a null ring entry").into());
     }
     unsafe {
@@ -207,44 +212,32 @@ pub unsafe fn draw_cell_sprite(entry: &Regs, place: [[u8; 10]; 3]) -> Result<Reg
         }
         let b = game_addr(0) as u32;
         turn(b, &place);
-        g.ebp = game_read(DEPTH_RVA);
-        if (g.ebp as i32) <= game_read::<i32>(NEAR_RVA) {
-            return Ok(g);
+        if game_read::<i32>(DEPTH_RVA) <= game_read::<i32>(NEAR_RVA) {
+            return Ok(());
         }
         let fog = fog_at(game_read(WHOLE_RVA))?;
-        g.ecx = (g.ecx & 0xFF00_0000) | ((g.esi + 0x90) as *const u32).read_unaligned();
+        let colour = (alpha & 0xFF00_0000) | ((entry + 0x90) as *const u32).read_unaligned();
         for n in 0..4 {
             game_write(VERTICES_RVA + 0x20 * n + 0x14, fog);
-            game_write(VERTICES_RVA + 0x20 * n + 0x10, g.ecx);
+            game_write(VERTICES_RVA + 0x20 * n + 0x10, colour);
         }
-        game_write(HALF_RVA, g.edx);
-        g.eax <<= 4;
-        let cell = |n: usize| game_read::<u32>(CELLS_RVA + g.eax as usize + 4 * n);
-        [g.ebp, g.edi, g.ecx, g.edx] = [cell(0), cell(1), cell(2), cell(3)];
-        let uv = [
-            (g.ebp, g.edi),
-            (g.ecx, g.edi),
-            (g.ecx, g.edx),
-            (g.ebp, g.edx),
-        ];
-        for (n, (u, v)) in uv.into_iter().enumerate() {
+        game_write(HALF_RVA, size);
+        let at = cell << 4;
+        let place = |n: usize| game_read::<u32>(CELLS_RVA + at as usize + 4 * n);
+        let [u0, v0, u1, v1] = [place(0), place(1), place(2), place(3)];
+        for (n, (u, v)) in [(u0, v0), (u1, v0), (u1, v1), (u0, v1)]
+            .into_iter()
+            .enumerate()
+        {
             game_write(VERTICES_RVA + 0x20 * n + 0x18, u);
             game_write(VERTICES_RVA + 0x20 * n + 0x1C, v);
         }
-        g.edi = square(b, g.eax, 4 * g.ebx);
-        g.ebp = game_addr(VERTICES_RVA) as u32;
-        g = clip_quad(&g)?;
-        if g.carry() {
-            return Ok(g);
+        square(b, at, 4 * angle);
+        if clip_quad(game_addr(VERTICES_RVA) as u32)? {
+            return Ok(());
         }
-        crate::marks::draw_cell_sprite::game_part(1, &mut g)?;
+        draw_fan();
         game_write(VERTEX_COUNT_RVA, 4u32);
     }
-    Ok(g)
-}
-
-/// In the game: `draw_fan`'s Rust version.
-pub fn game_part(_place: u32, r: &mut Regs) -> Result<(), Refused> {
-    unsafe { crate::scene::draw_fan::draw_fan(r, &mut crate::scene::draw_fan::game_part) };
     Ok(())
 }

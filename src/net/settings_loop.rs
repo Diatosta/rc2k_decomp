@@ -12,7 +12,7 @@
 //! `g_listChoice` -1.
 //!
 //! In:  nothing
-//! Out: every register kept (`pusha` .. `popa`)
+//! Out: nothing (the original keeps every register: `pusha` .. `popa`)
 //! Its calls through `part` (the frames through the game). The whole screen runs inside it:
 //! ungated. Shadow mode runs the original alone. Self-test: a copy whose calls go to
 //! stand-ins (the keys scripted, Escape at the end), against the Rust version.
@@ -22,41 +22,30 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::net::lobby::{
-    CHOICE, CLOCK, EDITED, FRAME_CLOCK, KEY_CLOCK, LIST_TAKE_KEY, MAYBE_LEXICON, MODE, MOVE_CLOCK,
-    Part, QUITTING, RUN_FRAME, SCREENSHOT, SCREENSHOTS_ON, g, game, lobby_entry, p,
+    CHOICE, CLOCK, EDITED, FRAME_CLOCK, KEY_CLOCK, MODE, MOVE_CLOCK, QUITTING, g, list_key,
+    other_key, p, run_frame,
 };
 
-const SHOW_BACKGROUND: u32 = 0x4173E7; // net::show_background
-const SETTINGS_DONE: u32 = 0x416F0B; // net::settings_done
-const SETTINGS_FRAME: u32 = 0x4169E2; // net::settings_frame
-const SETTING_KEY: u32 = 0x416C76; // net::setting_key
-const SETTINGS_LINK: u32 = 0x416EEC; // net::settings_link
-const BEGIN_SETTING_EDIT: u32 = 0x416C26; // net::begin_setting_edit
-
-/// The Rust version: the registers it leaves (the entry's).
-pub fn settings_loop(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    let mut r = *entry;
+/// The Rust version.
+pub fn settings_loop() -> Result<(), Refused> {
     p(MODE, 0);
-    part(SHOW_BACKGROUND, &mut r)?;
-    part(SETTINGS_DONE, &mut r)?;
-    r.eax = g(CLOCK);
-    p(MOVE_CLOCK, r.eax);
-    p(KEY_CLOCK, r.eax);
+    crate::net::show_background::show_background()?;
+    crate::net::settings_done::settings_done()?;
+    let now = g(CLOCK);
+    p(MOVE_CLOCK, now);
+    p(KEY_CLOCK, now);
     p(EDITED, u32::MAX);
     p(CHOICE, 0);
     loop {
-        r.eax = game(SETTINGS_FRAME);
-        part(RUN_FRAME, &mut r)?;
-        r.eax = g(CLOCK);
-        p(FRAME_CLOCK, r.eax);
-        part(LIST_TAKE_KEY, &mut r)?;
+        run_frame(crate::net::settings_frame::settings_frame)?;
+        p(FRAME_CLOCK, g(CLOCK));
+        let key = list_key()?;
         let mut moved = false;
         if g(EDITED) != u32::MAX {
-            part(SETTING_KEY, &mut r)?;
+            crate::net::setting_key::setting_key(key)?;
         } else {
-            match r.eax as u8 {
+            match key {
                 0x66 => {
                     let c = g(CHOICE).wrapping_sub(1);
                     p(CHOICE, if (c as i32) < 0 { 0 } else { c });
@@ -72,39 +61,24 @@ pub fn settings_loop(entry: &Regs, part: Part) -> Result<Regs, Refused> {
                         break;
                     }
                     if g(CHOICE) == 0 {
-                        part(SETTINGS_LINK, &mut r)?;
+                        crate::net::settings_link::settings_link()?;
                         p(CHOICE, 0);
                     } else {
-                        part(BEGIN_SETTING_EDIT, &mut r)?;
+                        crate::net::begin_setting_edit::begin_setting_edit();
                     }
                     moved = true;
                 }
                 1 => break,
-                key => {
-                    if g(SCREENSHOTS_ON) != 0 && key == 0x52 {
-                        part(SCREENSHOT, &mut r)?;
-                    }
-                    part(MAYBE_LEXICON, &mut r)?;
-                }
+                key => other_key(key)?,
             }
         }
         if moved {
-            r.ebx = g(FRAME_CLOCK);
-            p(MOVE_CLOCK, r.ebx);
+            p(MOVE_CLOCK, g(FRAME_CLOCK));
         }
         if g(QUITTING) == 1 {
             break;
         }
     }
     p(CHOICE, u32::MAX);
-    Ok(Regs {
-        eflags: r.eflags,
-        ..*entry
-    })
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    lobby_entry(r, settings_loop)
+    Ok(())
 }

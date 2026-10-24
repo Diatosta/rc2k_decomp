@@ -11,7 +11,7 @@
 //! program, and for a recording that swallows, the number is kept and nothing more.
 //! No self-test.
 
-use crate::framework::{Regs, game_write, rva};
+use crate::framework::{game_write, rva};
 
 pub const CURRENT_RVA: usize = rva(0x5AB93C); // g_currentTexture
 
@@ -20,10 +20,4 @@ pub const CURRENT_RVA: usize = rva(0x5AB93C); // g_currentTexture
 /// 2026-10-23).
 pub fn set_texture(texture: u32) {
     unsafe { game_write(CURRENT_RVA, texture) };
-}
-
-/// For the typed tables' calls by address: eax the texture.
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    set_texture(r.eax);
-    Ok(())
 }

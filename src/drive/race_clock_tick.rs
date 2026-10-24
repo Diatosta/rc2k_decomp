@@ -16,27 +16,24 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::{EAX, EBX, EDX};
 use crate::physics::flow::{g, p};
-use crate::screens::harness::Left;
 use rc2k_core::drive::clocks::RaceClock;
 
 /// The Rust version after the clock's reading `now` (already in `g_sceneClock`).
 // Converted: `rc2k_core::drive::clocks::RaceClock::tick`.
-pub fn tick_from(now: u32) -> Left {
+pub fn tick_from(now: u32) {
     let mut c = RaceClock {
         counted: g(0x613840),
         ..RaceClock::default()
     };
-    let (eax, edx) = c.tick(now);
+    c.tick(now);
     p(0x61383C, c.now);
     p(0x613844, c.tenths);
     p(0x613840, c.counted);
-    Left::nothing().with(EAX, eax).with(EBX, 10).with(EDX, edx)
 }
 
 /// The Rust version.
-pub unsafe fn race_clock_tick() -> Left {
+pub unsafe fn race_clock_tick() {
     let now = crate::scene::restart_clock::restart_clock(crate::system::tick_count::tick_count());
     tick_from(now)
 }

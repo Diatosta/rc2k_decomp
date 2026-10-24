@@ -17,8 +17,8 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::BadInput;
-use crate::framework::{Regs, game_read, game_write, rva};
+use crate::errors::{BadInput, Refused};
+use crate::framework::{game_addr, game_read, game_write, rva};
 
 // ---- game data ----
 
@@ -26,6 +26,8 @@ use crate::framework::{Regs, game_read, game_write, rva};
 const ENDS_RVA: usize = rva(0x623634);
 const PROGRESS_RVA: usize = rva(0x623700); // dword_623700
 const SHOW_RVA: usize = rva(0x623704); // dword_623704
+const BAR_RVA: usize = rva(0x4467C7); // race::loading_bar_frame
+const NOTHING_RVA: usize = rva(0x4467C6); // nullsub_8
 const SYSTEM_TEXTURES_RVA: usize = rva(0x5DC974); // dword_5DC974
 
 // ---- Rust version ----
@@ -42,23 +44,25 @@ unsafe fn progress(done: u32) -> Option<u32> {
     ends().progress(done, textures)
 }
 
-/// `show`: what stands for the function `dword_623704` names, entered with the
-/// registers given.
-pub unsafe fn step_loading_bar(r: &Regs, show: &mut dyn FnMut(&mut Regs)) -> Result<(), BadInput> {
+/// The Rust version: `done` of the system textures are done. The function
+/// `dword_623704` names is one of the two the loading puts there: `race::loading_bar_frame`
+/// (0x4467C7) or the empty function after it (0x4467C6); they read no register, so none of
+/// the original's (ebp the span, eax / edx / ebx the progress, esi the function) is passed.
+pub unsafe fn step_loading_bar(done: u32) -> Result<(), Refused> {
     unsafe {
-        if game_read::<u32>(SHOW_RVA) == 0 {
-            return Err(BadInput("no function to show the loading with"));
+        let show: u32 = game_read(SHOW_RVA);
+        if show == 0 {
+            return Err(BadInput("no function to show the loading with").into());
         }
-        let mut inner = *r;
-        inner.ebp = ends().span();
-        if let Some(progress) = progress(r.eax) {
+        if let Some(progress) = progress(done) {
             game_write(PROGRESS_RVA, progress);
-            inner.eax = progress.wrapping_sub(1);
-            inner.edx = 0;
-            inner.ebx = game_read(SYSTEM_TEXTURES_RVA);
         }
-        inner.esi = game_read(SHOW_RVA);
-        show(&mut inner);
-        Ok(())
+        if show == game_addr(BAR_RVA) as u32 {
+            crate::race::loading_bar_frame::loading_bar_frame()
+        } else if show == game_addr(NOTHING_RVA) as u32 {
+            Ok(())
+        } else {
+            Err(BadInput("a loading bar function that is neither of the loading's").into())
+        }
     }
 }

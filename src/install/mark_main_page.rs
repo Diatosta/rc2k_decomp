@@ -11,15 +11,14 @@
 //! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
-use crate::errors::Refused;
-use crate::framework::Regs;
-use crate::install::installer::{OFFER_REGISTRATION, SAME_VERSION, STATUS, cmp, g, gb, rb, rw, wb};
-use crate::race::viewer::regs_entry;
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
+//! are the original's.
+
+use crate::install::installer::{OFFER_REGISTRATION, SAME_VERSION, STATUS, g, gb, rb, rw, wb};
 use rc2k_core::install::pages;
 
-pub fn mark_main_page(entry: &Regs) -> Regs {
-    let mut r = *entry;
-    let title = rw(r.edi + 0x2A);
+pub fn mark_main_page(list: u32) {
+    let title = rw(list + 0x2A);
     // Converted: `rc2k_core::install::pages::main_page_marks`.
     let marks = pages::main_page_marks(
         g(SAME_VERSION) == 1,
@@ -28,18 +27,6 @@ pub fn mark_main_page(entry: &Regs) -> Regs {
         title,
     );
     for (offset, or, and) in marks {
-        wb(r.edi + offset, (rb(r.edi + offset) | or) & and);
+        wb(list + offset, (rb(list + offset) | or) & and);
     }
-    cmp(&mut r, title as u32, pages::UPDATE_TITLE as u32);
-    r
-}
-
-fn rust(r: &Regs) -> Result<Regs, Refused> {
-    Ok(mark_main_page(r))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    regs_entry(r, &rust)
 }

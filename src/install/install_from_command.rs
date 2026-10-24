@@ -16,51 +16,30 @@
 //! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
+//! are the original's.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::install::installer::{
-    BASE_B, CHOOSE_LANGUAGE, GAME_DIR, GIVEN_LANGUAGE, GIVEN_MODE, INSTALLED, LOAD_LANGUAGE,
-    MEDIA_MODE, NORMALISE, SET_CD, TYPED, a, at, g, p,
+    BASE_B, GAME_DIR, GIVEN_LANGUAGE, GIVEN_MODE, INSTALLED, MEDIA_MODE, TYPED, a, g,
+    load_language, logged, normalise, p, set_cd,
 };
 
-const INSTALL_FILES: usize = 0x4130CD;
-
-pub fn install_from_command(entry: &Regs) -> Result<Regs, Refused> {
-    let mut r = *entry;
-    r.edx = a(GAME_DIR);
-    crate::install::installer::game_part(at(SET_CD), &mut r)?;
-    if r.carry() {
-        return Ok(*entry);
+pub fn install_from_command() -> Result<(), Refused> {
+    if !set_cd(a(GAME_DIR)) || !normalise(a(BASE_B), a(GAME_DIR))? {
+        return Ok(());
     }
-    r.esi = a(BASE_B);
-    r.edx = a(GAME_DIR);
-    crate::install::installer::game_part(at(NORMALISE), &mut r)?;
-    if r.carry() {
-        return Ok(*entry);
-    }
-    r.esi = a(INSTALLED);
-    r.edx = a(TYPED);
-    crate::install::installer::game_part(at(NORMALISE), &mut r)?;
+    normalise(a(INSTALLED), a(TYPED))?;
     // A given media mode (above 0) is taken, held to 3, and only then a given language
-    // (above 0): a mode of 0 or less goes straight to the install. eax as the original has
-    // it at each call.
-    r.eax = g(GIVEN_MODE);
-    if (r.eax as i32) > 0 {
-        r.eax = (r.eax as i32).min(3) as u32;
-        p(MEDIA_MODE, r.eax);
-        r.eax = g(GIVEN_LANGUAGE);
-        if (r.eax as i32) > 0 {
-            crate::install::installer::game_part(at(CHOOSE_LANGUAGE), &mut r)?;
-            crate::install::installer::game_part(at(LOAD_LANGUAGE), &mut r)?;
+    // (above 0): a mode of 0 or less goes straight to the install.
+    let mode = g(GIVEN_MODE);
+    if (mode as i32) > 0 {
+        p(MEDIA_MODE, (mode as i32).min(3) as u32);
+        let language = g(GIVEN_LANGUAGE);
+        if (language as i32) > 0 {
+            unsafe { crate::install::choose_language::choose_language(language) }?;
+            load_language()?;
         }
     }
-    crate::install::installer::game_part(at(INSTALL_FILES), &mut r)?;
-    Ok(Regs { ..*entry })
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    crate::race::viewer::regs_entry(r, &|r| install_from_command(r))
+    logged("install", crate::install::install_files::install_files())
 }

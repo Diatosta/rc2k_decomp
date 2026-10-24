@@ -12,41 +12,30 @@
 //! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
+//! are the original's.
 
-use crate::errors::Refused;
-use crate::framework::Regs;
-use crate::install::installer::{NEXT_EDIT, PATH_PROBLEM, at, cmp, g, p, rb, wb};
-use crate::race::viewer::regs_entry;
+use crate::install::installer::{PATH_PROBLEM, g, p, rb, wb};
 use rc2k_core::install::pages;
 
-pub fn folder_page(entry: &Regs) -> Result<Regs, Refused> {
-    let mut r = *entry;
-    if r.ebx == 0 {
-        r.ebx = 0;
-        crate::install::installer::game_part(at(NEXT_EDIT), &mut r)?;
+/// `state` the list action's (ebx), `list` the page's.
+pub fn folder_page(state: u32, list: u32) {
+    if state == 0 {
+        crate::install::next_edit::next_edit(0, list);
     }
-    if (entry.ebx as i32) < 0 {
+    if (state as i32) < 0 {
         p(PATH_PROBLEM, 0);
     }
     // Converted: `rc2k_core::install::pages::hidden_notices`.
-    let hide = |r: &Regs, offsets: [u32; 2]| {
+    let hide = |offsets: [u32; 2]| {
         for o in offsets {
-            wb(r.edi + o, rb(r.edi + o) | pages::HIDDEN);
+            wb(list + o, rb(list + o) | pages::HIDDEN);
         }
     };
-    cmp(&mut r, g(PATH_PROBLEM), pages::BAD_FOLDER);
     if pages::hidden_notices(g(PATH_PROBLEM)).0 {
-        hide(&r, [0x38, 0x48]);
+        hide([0x38, 0x48]);
     }
-    cmp(&mut r, g(PATH_PROBLEM), pages::NO_ROOM);
     if pages::hidden_notices(g(PATH_PROBLEM)).1 {
-        hide(&r, [0x58, 0x68]);
+        hide([0x58, 0x68]);
     }
-    Ok(r)
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    regs_entry(r, &|r| folder_page(r))
 }

@@ -9,8 +9,6 @@
 //! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; the
 //! registers above are the original's, for reference.
 
-use crate::framework::game_read;
-use crate::settings::find_key::LOWER_RVA;
 use windows_sys::Win32::Storage::FileSystem::GetDriveTypeA;
 
 // ---- Rust version ----
@@ -18,9 +16,7 @@ use windows_sys::Win32::Storage::FileSystem::GetDriveTypeA;
 /// The root that is asked about: `x:\`, or none for the current drive.
 pub unsafe fn drive_root(letter: u8) -> Option<[u8; 4]> {
     // Converted: `rc2k_core::files::paths::drive_root`.
-    rc2k_core::files::paths::drive_root(letter, |l| unsafe {
-        game_read::<u8>(LOWER_RVA + l as usize)
-    })
+    rc2k_core::files::paths::drive_root(letter, crate::strings::same_text::lower)
 }
 
 pub unsafe fn drive_type(letter: u8) -> u32 {

@@ -18,29 +18,13 @@
 
 use crate::drive::tyre_parts::*;
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::physics::flow::p;
-use crate::race::car_starts::Part;
 use rc2k_core::drive::tyre_screen::quad_corners;
 
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    {
-        let g = unsafe { tyre_quad(r, &mut game_part) }?;
-        let esp = r.esp;
-        *r = Regs {
-            eflags: r.eflags,
-            ..g
-        };
-        r.esp = esp;
-    }
-    Ok(())
-}
-
-/// The Rust version, the draw through `part`.
+/// The Rust version: the texture rectangle at `uv` (eax), the screen rectangle at `rect`
+/// (ebx), the colour `colour` (ecx); every register kept.
 // Converted: `rc2k_core::drive::tyre_screen::quad_corners` (the shared tail stays x87).
-pub unsafe fn tyre_quad(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    let (uv, rect, colour) = (entry.eax, entry.ebx, entry.ecx);
+pub unsafe fn tyre_quad(uv: u32, rect: u32, colour: u32) -> Result<(), Refused> {
     let at = |o: u32| unsafe { ((rect + o) as *const u32).read_unaligned() };
     let corners = quad_corners([at(0), at(4), at(8), at(0xC)]);
     for (k, [x, y]) in corners.into_iter().enumerate() {
@@ -49,13 +33,5 @@ pub unsafe fn tyre_quad(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     }
     quad_words(colour);
     quad_tail(uv);
-    draw(
-        &Regs {
-            esi: uv,
-            edi: rect,
-            ..*entry
-        },
-        part,
-    )?;
-    Ok(*entry)
+    draw()
 }

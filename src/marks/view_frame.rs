@@ -3,7 +3,7 @@
 //! `marks::shapes_frame`, `marks::run_splines`.
 //!
 //! In:  nothing (`g_marksSettings`)
-//! Out: the registers as `run_splines` leaves them
+//! Out: nothing (no caller reads a register it leaves)
 //!
 //! Caller: `sub_4D14B4`. It begins with its call: a private copy (0x24 bytes, its seven
 //! calls relocated) with a manual patch. Refuses null settings before anything, and its
@@ -16,44 +16,24 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_read};
+use crate::framework::game_read;
 use crate::marks::lines::SETTINGS_RVA;
 use crate::marks::{
-    aim_vector, keep_vectors, run_splines, scale_kept_vectors, shapes_frame, turn_kept_vectors,
-    view_step,
+    aim_vector, keep_vectors, run_splines, scale_kept_vectors, shapes_frame, view_step,
 };
-use crate::service::harness::Region;
 
-/// What its first five steps write (the last two put back their own).
-fn early_regions() -> Vec<Region> {
-    let mut r = keep_vectors::regions();
-    r.extend(turn_kept_vectors::regions());
-    r.extend(scale_kept_vectors::regions());
-    r.extend(view_step::regions());
-    r.extend(aim_vector::regions());
-    r
-}
-
-/// What it may write.
-pub fn regions() -> Vec<Region> {
-    let mut r = early_regions();
-    r.extend(shapes_frame::regions());
-    r.extend(run_splines::regions(unsafe { game_read(SETTINGS_RVA) }));
-    r
-}
-
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn view_frame(entry: &Regs) -> Result<Regs, Refused> {
+/// The Rust version (see the header).
+pub unsafe fn view_frame() -> Result<(), Refused> {
     if unsafe { game_read::<u32>(SETTINGS_RVA) } == 0 {
         return Err(BadInput("no marks settings").into());
     }
-
     unsafe {
         keep_vectors::keep_vectors();
         crate::marks::kept_turns::turn_kept_vectors();
         scale_kept_vectors::scale_kept_vectors();
         view_step::view_step();
-        let g = aim_vector::aim_vector(entry);
-        shapes_frame::shapes_frame(&g).and_then(|g| run_splines::run_splines(&g))
+        aim_vector::aim_vector();
+        shapes_frame::shapes_frame()?;
+        run_splines::run_splines()
     }
 }

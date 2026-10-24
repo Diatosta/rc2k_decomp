@@ -16,22 +16,15 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{EDI, ESI, Regs};
 use crate::physics::flow::{a, p};
-use crate::screens::harness::Left;
 
 const B: usize = 0x70F3EC;
 
 /// The Rust version.
-pub unsafe fn countdown_beeps(entry: &Regs) -> Result<Left, Refused> {
-    let mut r = *entry;
+pub unsafe fn countdown_beeps() -> Result<(), Refused> {
     for (car, block, to) in [(0u32, B, 0x6D1482usize), (1, B + 0xFE0, 0x6D1492)] {
         p(0x71B3F8, car);
-        r.esi = a(block);
-        r.edi = a(to);
-        unsafe { crate::drive::countdown_beep::countdown_beep(r.esi, r.edi) }?.apply(&mut r);
+        unsafe { crate::drive::countdown_beep::countdown_beep(a(block), a(to)) }?;
     }
-    Ok(crate::race::stage_prefs::left_of(&r)
-        .with(ESI, r.esi)
-        .with(EDI, r.edi))
+    Ok(())
 }

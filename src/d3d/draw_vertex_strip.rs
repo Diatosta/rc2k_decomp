@@ -13,25 +13,21 @@
 
 use crate::d3d::recorder::{Call, note};
 use crate::d3d::{VERTEX_LEN, Vertex};
-use crate::framework::Regs;
 
 /// Direct3D takes at most this many vertices in one primitive.
 const MOST: u32 = 0x400;
 
-fn vertices(r: &Regs) -> Vec<Vertex> {
-    (0..r.eax.min(MOST) as usize)
-        .map(|n| unsafe { ((r.ebx as usize + n * VERTEX_LEN) as *const Vertex).read_unaligned() })
+unsafe fn vertices(at: u32, count: u32) -> Vec<Vertex> {
+    (0..count.min(MOST) as usize)
+        .map(|n| unsafe { ((at as usize + n * VERTEX_LEN) as *const Vertex).read_unaligned() })
         .collect()
 }
 
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let swallowed = note(|| Call::Fan(vertices(r)));
-    if swallowed {
-        r.eax = 0;
-        return Ok(());
+/// The strip of `count` vertices at `at` drawn: Direct3D's result, always 0 here.
+pub unsafe fn draw_vertex_strip(at: u32, count: u32) -> u32 {
+    let swallowed = note(|| Call::Fan(unsafe { vertices(at, count) }));
+    if !swallowed {
+        crate::platform_3d::draw_strip(&unsafe { vertices(at, count) });
     }
-    crate::platform_3d::draw_strip(&vertices(r));
-    r.eax = 0;
-    Ok(())
+    0
 }

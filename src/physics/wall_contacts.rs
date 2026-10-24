@@ -21,16 +21,12 @@
 //! version on the stage's own faces (everything written saved and put back): probe
 //! lists of faces chosen by their wall bits, none met, a wall met, the 0xC00 fallback.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::physics::flow::{g, p};
 use crate::physics::touch_face::FACES;
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
 use rc2k_core::physics::walls;
 
 /// `g_workVector`.
@@ -43,33 +39,26 @@ fn word(face: u32) -> u32 {
     unsafe { (at as *const u16).read_unaligned() as u32 }
 }
 
-fn after(r: &mut Regs) -> Result<(), Refused> {
+fn after() -> Result<(), Refused> {
     p(0x71A20C, 1);
     p(0x71A1CC, 0x32);
-    unsafe { crate::physics::restore_saved_car::restore_saved_car() }?.apply(r);
-    unsafe { crate::physics::feel_ground::feel_ground(r) }
+    unsafe { crate::physics::restore_saved_car::restore_saved_car() }?;
+    unsafe { crate::physics::feel_ground::feel_ground() }
 }
 
-/// The steps, not guarded (`check` before).
+/// The steps, not guarded (`check` before). The registers the original leaves are read by
+/// none of its callers.
 // Converted: `rc2k_core::physics::walls::walk`.
-pub fn steps(r: &mut Regs) -> Result<(), Refused> {
-    r.edx = 0;
-    r.ebp = 0;
+pub fn steps() -> Result<(), Refused> {
     let walked = walls::walk(g(0x71A238), |k| {
-        r.ebp = k;
         let k = k as usize;
-        r.ebx = g(0x71ADC8 + 4 * k);
-        p(0x6D3174, r.ebx);
-        r.esi = (r.ebx << 6).wrapping_add(g(FACES));
-        let now_word = word(r.ebx);
-        r.eax = now_word;
+        let now = g(0x71ADC8 + 4 * k);
+        p(0x6D3174, now);
+        let now_word = word(now);
         let before = g(0x6D2814 + 4 * k);
-        let before_word = (r.ebx != before).then(|| {
+        let before_word = (now != before).then(|| {
             p(0x6D3170, before);
-            r.esi = (before << 6).wrapping_add(g(FACES));
-            r.ebx = word(before);
-            r.eax = (now_word | r.ebx) & 0xC00;
-            r.ebx
+            word(before)
         });
         Ok::<_, Refused>(walls::ProbeFaces {
             now_word,
@@ -77,37 +66,33 @@ pub fn steps(r: &mut Regs) -> Result<(), Refused> {
         })
     })?;
     match walked {
-        walls::Walk::Met { probe, words } => {
+        walls::Walk::Met { probe, .. } => {
             // 0x45D83E: a wall met.
-            r.edx = words;
             let k = probe as usize;
-            p(0x6D3214, r.ebp);
+            p(0x6D3214, probe);
             p(0x71A1FC, g(0x71AAC8 + 4 * k));
             p(0x71A200, g(0x71ABC8 + 4 * k));
             p(0x71A204, g(0x71ACC8 + 4 * k));
-            crate::physics::wall_edge_contact::steps(r)?;
+            crate::physics::wall_edge_contact::steps()?;
             if let Some(hit) = rc2k_core::physics::walls::raised_hit(
                 f32::from_bits(g(0x6D3108)),
                 f32::from_bits(g(0x71A208)),
             ) {
                 p(0x71A208, hit.to_bits());
             }
-            after(r)
+            after()
         }
         walls::Walk::Clear { bits } => {
-            r.ebp = u32::MAX;
-            r.eax = g(0x6D3170);
-            p(0x6D3174, r.eax);
-            r.edx = bits;
-            p(0x6D3038, r.edx);
-            if r.edx != walls::WALL_BITS {
+            p(0x6D3174, g(0x6D3170));
+            p(0x6D3038, bits);
+            if bits != walls::WALL_BITS {
                 return Ok(());
             }
             p(0x71A1FC, g(0x71A17C));
             p(0x71A200, g(0x71A180));
             p(0x71A204, g(0x71A184));
-            crate::physics::wall_push_back::steps(r)?;
-            after(r)
+            crate::physics::wall_push_back::steps()?;
+            after()
         }
     }
 }
@@ -118,11 +103,7 @@ pub fn check() -> Result<(), Refused> {
 }
 
 /// The Rust version.
-pub unsafe fn wall_contacts(entry: &Regs) -> Result<Left, Refused> {
+pub fn wall_contacts() -> Result<(), Refused> {
     check()?;
-    {
-        let mut r = *entry;
-        steps(&mut r)?;
-        Ok(left_of(&r))
-    }
+    steps()
 }

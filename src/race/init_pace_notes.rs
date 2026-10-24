@@ -7,10 +7,7 @@
 //! a NUL after each group but the last) and their count.
 //!
 //! In:  nothing
-//! Out: fewer than two checkpoints: every register kept; else eax, ebx, esi as the last
-//!      walk left them, ecx the groups less one, edx the notes' count plus one, edi the
-//!      text's end, ebp the search's end or a corner's flags; no flags read (loadlevel
-//!      goes on with its log)
+//! Out: every register kept (liveness)
 //!
 //! Caller: `race::loadlevel_init` (its step 25), which calls the Rust version directly.
 //! Refuses what `race/pace_notes.rs` refuses: places outside the tables or the course,
@@ -24,30 +21,19 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::race::pace_notes::{Course, Machine};
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
-/// The Rust version on a course.
-pub fn init_pace_notes_on(r: &Regs, course: Course) -> Result<Left, Refused> {
+/// The Rust version on a course. The original reads no register at entry and keeps them
+/// all (liveness): the walk's registers start from nothing.
+pub fn init_pace_notes_on(course: Course) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::pace_notes::Notes::init`.
-    let mut m = Machine::load(r, course);
+    let mut m = Machine::load(course);
     m.init()?;
     m.commit();
-    Ok(m.left())
-}
-
-/// The Rust version on the game's course: the registers it leaves.
-pub fn init_pace_notes(r: &mut Regs) -> Result<(), Refused> {
-    init_pace_notes_on(r, crate::race::pace_notes::game_course())?.apply(r);
     Ok(())
 }
 
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &|r| {
-        init_pace_notes_on(r, crate::race::pace_notes::game_course())
-    })
+/// The Rust version on the game's course.
+pub fn init_pace_notes() -> Result<(), Refused> {
+    init_pace_notes_on(crate::race::pace_notes::game_course())
 }

@@ -12,30 +12,17 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::screens::buttons::{HIGHLIGHTED, draw_button};
-use crate::screens::harness::{Left, draw_entry};
-use crate::text::draw_text::Canvas;
+use crate::text::draw_text::GameCanvas;
 
-// ---- Rust version: `buttons::draw_button` with `HIGHLIGHTED` ----
-
-fn rust(r: &Regs, canvas: &mut dyn Canvas) -> Result<Left, Refused> {
-    unsafe {
-        draw_button(
-            &HIGHLIGHTED,
-            r.eax,
-            r.ebx as i32,
-            r.ecx as i32,
-            r.edx,
-            r.edi,
-            canvas,
-        )
-    }?;
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    draw_entry("screens::draw_button_highlighted", r, &rust)
+/// The Rust version: `buttons::draw_button` with `HIGHLIGHTED` on the game's screen; `width`
+/// (eax), `x` (ebx), `y` (ecx), `align` (edx), `item` (edi).
+pub unsafe fn draw_button_highlighted(
+    width: u32,
+    x: i32,
+    y: i32,
+    align: u32,
+    item: u32,
+) -> Result<(), Refused> {
+    unsafe { draw_button(&HIGHLIGHTED, width, x, y, align, item, &mut GameCanvas) }
 }

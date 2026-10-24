@@ -4,8 +4,8 @@
 //! Out: without SSE eax = the squares' sum as a float's bits (the original pops it
 //!      from the slot it kept eax in); everything else preserved
 //!
-//! The vector is the three floats at `xmmword_5C5F60`; its length is left in
-//! `flt_6D18C8`. Two ways, by the switch `dword_621A58` (a key's toggle and the
+//! The vector is the three floats at `xmmword_5C5F60`; the original leaves its length in
+//! `flt_6D18C8` (not kept here: nothing reached reads it). Two ways, by the switch `dword_621A58` (a key's toggle and the
 //! processor's SSE together, set at 0x43B471; 0 as the game starts, so the x87 way is
 //! the one in use):
 //! - x87: the squares' sum as a float; its square root from two tables (the float's
@@ -28,14 +28,18 @@ use crate::framework::{game_read, game_write, rva};
 
 // ---- game data ----
 
+// Still the image's: the work vector and the SSE switch (the race's), the root tables
+// (`scene::fill_engine_tables` makes them), `dword_62400C` (scratch many functions share).
 pub const VECTOR_RVA: usize = rva(0x5C5F60); // xmmword_5C5F60
-const SQUARES_RVA: usize = rva(0x5C5F70); // xmmword_5C5F70
-pub const LENGTH_RVA: usize = rva(0x6D18C8); // flt_6D18C8
 const SSE_RVA: usize = rva(0x621A58); // dword_621A58
 const ROOTS_RVA: usize = rva(0x5C70F8); // flt_5C70F8
 const EXPONENT_ROOTS_RVA: usize = rva(0x5C74F8); // flt_5C74F8
-const NOTHING_RVA: usize = rva(0x5C5D90); // flt_5C5D90
 const CHECKED_RVA: usize = rva(0x62400C); // dword_62400C
+// The squares (`xmmword_5C5F70`) and the length (`g_workVectorLength`, 0x6D18C8) are no
+// longer stored (2026-10-24, phase 5): no function the game reaches reads them (IDA: the
+// length's one reader, 0x4517F3, is unreached).
+/// `flt_5C5D90`: 0.0.
+const NOTHING: u32 = 0;
 
 // ---- Rust version ----
 
@@ -70,8 +74,6 @@ pub unsafe fn normalise(sse: bool) -> Result<Option<u32>, BadInput> {
                 out("xmm0") _, out("xmm1") _, out("xmm2") _,
                 options(nostack),
             );
-            game_write(SQUARES_RVA, [w[4], w[5], w[6], w[7]]);
-            game_write(LENGTH_RVA, w[8]);
             game_write(VECTOR_RVA, [w[0], w[1], w[2], w[3]]);
             return Ok(None);
         }
@@ -97,7 +99,7 @@ pub unsafe fn normalise(sse: bool) -> Result<Option<u32>, BadInput> {
             game_read(EXPONENT_ROOTS_RVA + ((sum & 0x7F80_0000) >> 23) as usize * 4);
         // The product of two floats is exact in a double, as it is in the x87.
         let length = f32::from_bits(root) as f64 * f32::from_bits(exponent_root) as f64;
-        let nothing = f32::from_bits(game_read(NOTHING_RVA)) as f64;
+        let nothing = f32::from_bits(NOTHING) as f64;
         if length
             .partial_cmp(&nothing)
             .is_none_or(|order| order.is_eq())
@@ -127,10 +129,18 @@ pub unsafe fn normalise(sse: bool) -> Result<Option<u32>, BadInput> {
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
             options(nostack),
         );
-        game_write(LENGTH_RVA, w[5]);
         let unsigned_zero = |bits: u32| if bits == 0x8000_0000 { 0 } else { bits };
         game_write(VECTOR_RVA, [w[0], w[1], w[2]].map(unsigned_zero));
         game_write(CHECKED_RVA, w[6]);
         Ok(Some(sum))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn nothing_is_the_games() {
+        let d = crate::moved::image_bytes(0x5C5D90, 4);
+        assert_eq!(u32::from_le_bytes(d.try_into().unwrap()), super::NOTHING);
     }
 }

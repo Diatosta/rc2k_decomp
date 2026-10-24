@@ -10,29 +10,13 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
-use crate::screens::service_boxes::{Part, quad, quad_part, rd};
+use crate::screens::service_boxes::{quad, rd};
 
 /// The Rust version: every register kept.
-pub unsafe fn draw_bottom_panel(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub unsafe fn draw_bottom_panel() -> Result<(), Refused> {
     // Converted: `rc2k_core::screens::panels::bottom_panel`.
-    let mut part = part;
     for a in rc2k_core::screens::panels::bottom_panel(rd(0x75AA94)) {
-        // Each inside `pusha` .. `popa`.
-        let mut g = *entry;
-        quad(&mut g, a.x, a.y, a.w, a.h, a.colour, a.see, &mut part)?;
+        quad(a.x, a.y, a.w, a.h, a.colour, a.see)?;
     }
-    Ok(*entry)
-}
-
-pub fn game_part(_place: u32, r: &mut Regs) -> Result<(), Refused> {
-    quad_part(r)
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { draw_bottom_panel(r, &mut game_part) }?;
-    *r = Regs { esp: r.esp, ..left };
     Ok(())
 }

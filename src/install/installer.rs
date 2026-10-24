@@ -1,36 +1,25 @@
 //! The installer that `RAL.EXE` also is (`sub_412DE0` and its tree, read 2026-10-19): the
-//! variables its parts share, the calls they make (`Part`, by the callee's address), the
-//! Win32 calls (`Api`), and the tools of their self-tests.
+//! variables its parts share, the calls they make, the functions its tables hold, the Win32
+//! calls (`Api`).
 //!
 //! The installer runs only with its script set up (`-i`, `-u`, `-p`, or the update and Clio
 //! discs: `install::check_at_start`, `check_clio_disc`). Its pages are list menus
 //! (`sub_4144CF`): a list of 0x18 bytes (+0 flags, +1 items, +2 title, +4 the item chosen,
-//! +8 the list's action with ebx 0 at the start, 1 after a key, -1 at the end, +0x10 the
-//! neighbours for `menu::list_step`, +0x14 a key action) and its items of 0x10 bytes from
-//! +0x18 (+0 kind and marks, +1 the next list or the choices, +2 the text, +8 and +0xC the
-//! kind's pointers). `sub_4144AA` goes from list to list by the answer.
+//! +8 the list's action with the state 0 at the start, 1 after a key, -1 at the end, +0x10
+//! the neighbours for `menu::list_step`, +0x14 a key action) and its items of 0x10 bytes
+//! from +0x18 (+0 kind and marks, +1 the next list or the choices, +2 the text, +8 and +0xC
+//! the kind's pointers). `sub_4144AA` goes from list to list by the answer.
 //!
-//! The Rust versions call everything with effects through `part` (the IDA address of the
-//! callee, or for a list's action the address it holds), so that a self-test can stand in
-//! for it; pure text work (`str_append` and the like) is done in place. In the game,
-//! `game_part` gives each call its Rust version (or, for the platform and a few drawing
-//! functions, the game's hooked function through `call_game`). The Win32 calls go through
-//! `api` (`game_api` in the game).
-//!
-//! The self-tests: a copy of the original whose calls with effects go to noting stand-ins
-//! (`Copy`), and jumps to the fatal stubs to landings that note the code; `both` runs it
-//! and the Rust version (with `test_part`) from the same state and compares the registers,
-//! the flags, the calls (place, registers, and a text a call gets) and memory.
+//! Conversion phase 3 (2026-10-23): the parts call each other and the game's other
+//! functions directly with typed arguments; the functions the tables hold (by address in
+//! RAL.EXE's data) are run by `page_action`, `key_action`, `item_action_at`, `text_action`
+//! and `draw_action`, each knowing the functions the game's tables put in that place.
 
-use crate::errors::{FatalError, Refused};
-use crate::framework::{Regs, ZERO_FLAG, game_addr, rva};
+use crate::errors::{BadInput, FatalError, Refused};
+use crate::framework::{Regs, game_addr};
 
-/// A call by place: the callee's address in the game (or a stand-in's in a test).
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
 /// A Win32 call by the address of its import (`jmp` thunk), the arguments in, eax out.
 pub type Api<'a> = &'a mut dyn FnMut(u32, &[u32]) -> u32;
-
-pub const ZF: u32 = ZERO_FLAG;
 
 // ---- the variables (IDA addresses) ----
 
@@ -127,9 +116,9 @@ pub fn wd(at: u32, v: u32) {
     unsafe { (at as *mut u32).write_unaligned(v) }
 }
 
-/// The game's address of IDA address `x`.
+/// The game's address of IDA address `x` (where its variable lives now, if it has moved).
 pub fn a(x: usize) -> u32 {
-    game_addr(rva(x)) as u32
+    crate::moved::place(x) as u32
 }
 
 /// The game's dword at IDA address `x`.
@@ -149,466 +138,343 @@ pub fn pb(x: usize, v: u8) {
     wb(a(x), v)
 }
 
-/// The place of IDA address `x`: its address in the game.
-pub fn at(x: usize) -> u32 {
-    a(x)
-}
-
-/// The flags of `cmp x, y` as `jb`, `jz` (unsigned) read them.
-pub fn cmp(r: &mut Regs, x: u32, y: u32) {
-    r.set_carry(x < y);
-    r.set_zero(x == y);
-}
-
-/// The flags of `test`/`or`/`and` on a result: carry clear, zero by the result.
-pub fn logic(r: &mut Regs, result: u32) {
-    r.set_carry(false);
-    r.set_zero(result == 0);
-}
-
 pub fn fatal(code: u32) -> Refused {
     FatalError { code, message: "" }.into()
 }
 
-// ---- pure text work, as the originals leave the registers ----
-
-/// `strings::str_append` (eax the text, ebx the cursor): ebx past it; the flags of the
-/// NUL's `test`.
-pub fn str_append(r: &mut Regs) {
-    r.ebx = unsafe { crate::strings::str_append::str_append(r.eax as *const u8, r.ebx as *mut u8) }
-        as u32;
-    logic(r, 0);
+/// The IDA address of a game address (for the dispatchers).
+fn ida_of(place: u32) -> usize {
+    (place as usize)
+        .wrapping_sub(game_addr(0))
+        .wrapping_add(0x40_0000)
 }
 
-/// `strings::str_append_indexed` (eax the table, ecx the index, ebx the cursor).
-pub fn str_append_indexed(r: &mut Regs) {
-    r.ebx = unsafe {
+// ---- pure text work ----
+
+/// `strings::str_append`: `text` appended at `cursor`; the cursor past it.
+pub fn str_append(text: u32, cursor: u32) -> u32 {
+    unsafe { crate::strings::str_append::str_append(text as *const u8, cursor as *mut u8) as u32 }
+}
+
+/// `strings::str_append_indexed`: text `index` of `table` appended at `cursor`.
+pub fn str_append_indexed(table: u32, index: u32, cursor: u32) -> u32 {
+    unsafe {
         crate::strings::str_append_indexed::str_append_indexed(
-            r.eax as *const u8,
-            r.ecx as i32,
-            r.ebx as *mut u8,
-        )
-    } as u32;
-    logic(r, 0);
+            table as *const u8,
+            index as i32,
+            cursor as *mut u8,
+        ) as u32
+    }
 }
 
 /// `strings::append_nul` and the other one-byte cursor helpers.
-pub fn append_byte(r: &mut Regs, b: u8) {
-    wb(r.ebx, b);
-    r.ebx = r.ebx.wrapping_add(1);
+pub fn append_byte(cursor: u32, b: u8) -> u32 {
+    wb(cursor, b);
+    cursor.wrapping_add(1)
 }
 
-/// `strings::append_string_by_id` (eax the id, ebx the cursor): ebx past it, eax as the
-/// original leaves it.
-pub fn append_string_by_id(r: &mut Regs) {
-    let mut out = r.ebx as *mut u8;
-    r.eax = unsafe {
-        crate::strings::append_string_by_id::append_string_by_id(r.eax, &mut |from, n| {
+/// `strings::append_string_by_id`: string `id` appended at `cursor`; the cursor past it.
+pub fn append_string_by_id(id: u32, cursor: u32) -> u32 {
+    let mut out = cursor as *mut u8;
+    unsafe {
+        crate::strings::append_string_by_id::append_string_by_id(id, &mut |from, n| {
             std::ptr::copy(from, out, n);
             out = out.add(n);
-        })
-    };
-    r.ebx = out as u32;
-}
-
-// ---- the callees, by IDA address ----
-
-pub const READ_LANGUAGES: usize = 0x413908; // install::read_languages
-pub const BUILD_FONTS: usize = 0x415563; // gfx::build_fonts
-pub const FREE_FONTS: usize = 0x415C55; // gfx::free_fonts
-pub const READ_RECORD: usize = 0x4110C9; // install::read_record
-pub const READ_REGISTRY: usize = 0x413D14; // install::read_registry
-pub const LOAD_LANGUAGE: usize = 0x40331F; // strings::load_language
-pub const CHOOSE_LANGUAGE: usize = 0x41397A; // install::choose_language (eax)
-pub const NORMALISE: usize = 0x4139EC; // install::normalise_path (esi to edx; carry)
-pub const SET_CD: usize = 0x403105; // files::set_current_directory (edx; carry)
-pub const MAKE_DIR: usize = 0x403113; // files::make_directory (edx; carry)
-pub const REMOVE_DIR: usize = 0x403123; // sub_403123 (edx; carry)
-pub const DELETE_FILE: usize = 0x402E8C; // files::delete_file (eax; carry)
-pub const IS_CD: usize = 0x403310; // files::is_cd_drive (al; zero)
-pub const DRIVE_TYPE: usize = 0x4031D8; // files::drive_type (al -> eax)
-pub const FREE_SPACE: usize = 0x40317D; // files::drive_free_space_kb (al -> eax; carry)
-pub const OPEN: usize = 0x402DE8; // files::open_by_mode (eax, ebx -> eax; carry)
-pub const READ: usize = 0x402E3D; // files::read (eax, ebx, ecx -> eax; carry)
-pub const CLOSE: usize = 0x402E23; // files::close (eax; carry)
-pub const READ_FILE: usize = 0x402BB6; // files::read_file
-pub const WRITE_FILE: usize = 0x402BFB; // files::write_file
-pub const COPY_FILE: usize = 0x402C28; // files::copy_file (eax to ebx; carry)
-pub const RESOLVE_PATH: usize = 0x403206; // files::resolve_path (eax -> eax)
-pub const FIND_FIRST: usize = 0x402FC2; // files::find_first (eax; carry)
-pub const FIND_NEXT: usize = 0x402FF6; // files::find_next_wanted (carry)
-pub const CLOSE_SEARCH: usize = 0x40301F; // files::close_search
-pub const ZERO_MEMORY: usize = 0x401829; // system::zero_memory (ebx, ecx)
-pub const ALLOCATE: usize = 0x4028A7; // memory::allocate (eax, ebx -> eax; carry)
-pub const FREE_LIST: usize = 0x4028F5; // memory::free_list (ebx)
-pub const SLEEP: usize = 0x41100C; // system::sleep (eax)
-pub const SLEEP_1MS: usize = 0x410FFE; // sleep_1ms
-pub const TAKE_KEY: usize = 0x407F95; // input::take_key (-> al; zero)
-pub const PUMP: usize = 0x410535; // system::pump_messages (platform)
-pub const RUN_FRAME: usize = 0x405A71; // screens::run_frame (eax the frame; platform)
-pub const LOCK: usize = 0x4058AD; // gfx::lock_surface (carry; platform)
-pub const UNLOCK: usize = 0x405949; // gfx::unlock_surface (platform)
-pub const SHOW: usize = 0x4057D1; // gfx::show_frame (platform)
-pub const COPY_PICTURE: usize = 0x4060E3; // gfx::copy_picture_to_surface
-pub const FILL_RECT: usize = 0x406869; // gfx::fill_rect
-pub const FRAME_RECT: usize = 0x4066DF; // gfx::frame_rect
-pub const BLIT_GLYPH: usize = 0x4069B2; // gfx::blit_glyph
-pub const DRAW_STRING: usize = 0x40234A; // text::draw_string_by_id
-pub const DRAW_TEXT: usize = 0x4023D5; // text::draw_text
-pub const MEASURE_TEXT: usize = 0x40230B; // text::measure_text
-pub const MEASURE_STRING: usize = 0x40232C; // text::measure_string_by_id
-pub const KEY_TO_CHAR: usize = 0x407E43; // input::key_to_char
-pub const SCREENSHOT: usize = 0x407897; // gfx::take_screenshot
-pub const PALETTE_TO_DWORDS: usize = 0x405DDE; // gfx::palette_to_dwords
-pub const COMPONENTS_TO_PIXELS: usize = 0x405E02; // gfx::components_to_pixels
-pub const LOAD_PICTURE: usize = 0x411863; // gfx::load_picture
-pub const CONVERT_PICTURE: usize = 0x406126; // gfx::convert_picture
-pub const PICTURE_AS_SURFACE: usize = 0x405FE7; // gfx::picture_as_surface
-pub const LIST_TAKE_KEY: usize = 0x41469A; // menu::list_take_key
-pub const LIST_STEP: usize = 0x414A55; // menu::list_step
-pub const LIST_CLEAR_MARKS: usize = 0x414AC9; // menu::list_clear_marks
-pub const LIST_UNUSABLE: usize = 0x414C1B; // menu::list_item_unusable
-pub const NEXT_EDIT: usize = 0x41530F; // install::next_edit
-pub const LIST_FOLDER: usize = 0x413876; // install::list_folder
-pub const LIST_FILES: usize = 0x4138B2; // install::list_files
-pub const LIST_FOLDER_TREE: usize = 0x41371C; // install::list_folder_tree
-pub const RUN_SCRIPT: usize = 0x41365D; // install::run_script
-pub const MAKE_FOLDERS: usize = 0x413A97; // install::make_folders
-pub const COPY_COUNTED: usize = 0x4139DA; // install::copy_counted
-
-/// The flags of `cmp eax, 1` after a Win32 call that gives a BOOL in eax: carry when it
-/// failed (0), zero when it is 1.
-pub fn bool_flags(r: &mut Regs, result: u32) {
-    r.eax = result;
-    cmp(r, result, 1);
-}
-
-/// Whether the standalone's install is running (its calls are logged).
-static INSTALL_TRACE: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
-
-/// The calls of the installer's Rust versions in the game: each by its callee's address.
-pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    use crate::install as i;
-    let ida = (place as usize)
-        .wrapping_sub(game_addr(0))
-        .wrapping_add(0x40_0000);
-    // The standalone notes each call of the install (`install_files`) in its log.
-    if INSTALL_TRACE.load(std::sync::atomic::Ordering::Relaxed) {
-        crate::framework::log(&format!(
-            "install: call {ida:#x} eax={:#x} ebx={:#x} ecx={:#x} edx={:#x} esi={:#x} edi={:#x}",
-            r.eax, r.ebx, r.ecx, r.edx, r.esi, r.edi
-        ));
+        });
     }
+    out as u32
+}
+
+// ---- the game's other functions the installer calls ----
+
+pub const QUIT: usize = 0x51837C; // g_quitting
+
+/// `files::set_current_directory` (0x403105): whether it worked.
+pub fn set_cd(path: u32) -> bool {
+    unsafe { crate::files::directories::set_current_directory(path as *const u8) != 0 }
+}
+
+/// `files::make_directory` (0x403113): whether it worked.
+pub fn make_dir(path: u32) -> bool {
+    unsafe { crate::files::directories::make_directory(path as *const u8) != 0 }
+}
+
+/// `sub_403123` (remove a directory): whether it worked.
+pub fn remove_dir(path: u32) -> bool {
+    unsafe { crate::files::directories::remove_directory(path as *const u8) != 0 }
+}
+
+/// `files::delete_file` (0x402E8C): whether it worked.
+pub fn delete_file(path: u32) -> bool {
+    unsafe { crate::files::directories::delete_file(path as *const u8) != 0 }
+}
+
+/// `install::normalise_path` (0x4139EC): `path` written at `to`; whether it was.
+pub fn normalise(path: u32, to: u32) -> Result<bool, Refused> {
+    Ok(
+        unsafe {
+            crate::install::normalise_path::normalise_path(path as *const u8, to as *mut u8)
+        }?,
+    )
+}
+
+/// `files::copy_file` (0x402C28): whether it worked.
+pub fn copy_file(from: u32, to: u32) -> Result<bool, Refused> {
+    Ok(unsafe { crate::files::copy_file::copy_file(from as *const u8, to as *const u8) }?)
+}
+
+/// `files::resolve_path` (0x403206): the path the game opens.
+pub fn resolve_path(path: u32) -> Result<u32, Refused> {
+    Ok(unsafe { crate::files::resolve_path::resolve_path_in_game(path as *const u8) }? as u32)
+}
+
+/// `files::find_first` (0x402FC2): whether a file was found.
+pub fn find_first(pattern: u32) -> bool {
+    unsafe { crate::race::find_snapshot_number::find_first(pattern) }
+}
+
+/// `files::find_next_wanted` (0x402FF6): whether a file was found.
+pub fn find_next() -> bool {
+    unsafe { crate::race::find_snapshot_number::find_next_wanted() }
+}
+
+/// `files::close_search` (0x40301F).
+pub fn close_search() {
+    unsafe { crate::race::find_snapshot_number::close_search() }
+}
+
+/// `system::sleep` (0x41100C).
+pub fn sleep(milliseconds: u32) {
+    crate::system::sleep::sleep(milliseconds)
+}
+
+/// `input::take_key` (0x407F95): the pending key (0: none).
+pub fn take_key() -> u8 {
+    crate::input::take_key::take_key()
+}
+
+/// `gfx::lock_surface` (0x4058AD): whether the surface is locked (the original's carry
+/// clear).
+pub fn lock() -> bool {
+    crate::platform::lock_surface() >= 1
+}
+
+/// `gfx::unlock_surface` (0x405949).
+pub fn unlock() {
+    crate::platform::unlock_surface();
+}
+
+/// `gfx::show_frame` (0x4057D1): whether it was shown (the original's carry clear).
+pub fn show() -> bool {
+    crate::platform::show_frame_now()
+}
+
+/// `system::pump_messages` (0x410535).
+pub fn pump() {
+    crate::platform::pump_messages_now()
+}
+
+/// A frame of the installer's for `screens::run_frame`: its carry.
+pub type Frame = fn() -> Result<bool, Refused>;
+
+/// `screens::run_frame` (0x405A71): the window's messages, then (unless quitting) the
+/// frame; the carry it leaves (the frame's, else clear).
+pub fn run_frame(frame: Option<Frame>) -> Result<bool, Refused> {
+    // The platform's run_frame with eax 0 (no frame) takes the window's messages only; its
+    // registers are this scratch's.
+    crate::platform::by_address(0x405A71, &mut Regs::default());
+    match frame {
+        Some(frame) if g(QUIT) != 1 => frame(),
+        _ => Ok(false),
+    }
+}
+
+/// `gfx::copy_picture_to_surface` (0x4060E3).
+pub fn copy_picture() -> Result<(), Refused> {
     unsafe {
-        match ida {
-            // the installer's own (this module's neighbours)
-            0x412F34 => i::install_from_command::install_from_command(r).map(|_| ())?,
-            0x4130CD => {
-                INSTALL_TRACE.store(true, std::sync::atomic::Ordering::Relaxed);
-                let done = i::install_files::install_files(r, &mut game_part);
-                INSTALL_TRACE.store(false, std::sync::atomic::Ordering::Relaxed);
-                crate::framework::log(&format!(
-                    "install: the install ended: {:?}",
-                    done.as_ref().map(|_| ())
-                ));
-                done.map(|_| ())?
-            }
-            0x4134DF => {
-                INSTALL_TRACE.store(true, std::sync::atomic::Ordering::Relaxed);
-                let done = i::uninstall::uninstall(r);
-                INSTALL_TRACE.store(false, std::sync::atomic::Ordering::Relaxed);
-                crate::framework::log(&format!(
-                    "install: the uninstall ended: {:?}",
-                    done.as_ref().map(|_| ())
-                ));
-                done.map(|_| ())?
-            }
-            0x413629 => *r = i::open_installed::open_installed(r)?,
-            0x41365D => i::run_script::run_script(r).map(|_| ())?,
-            0x41371C => i::list_folder_tree::list_folder_tree(r).map(|_| ())?,
-            0x413876 => i::list_folder::list_folder(r).map(|_| ())?,
-            0x4138B2 => i::list_files::list_files(r).map(|_| ())?,
-            0x413650 => *r = i::ask_registration::ask_registration(r),
-            0x41370C => *r = i::script_name::script_name(r)?,
-            0x4139DA => *r = i::copy_counted::copy_counted(r)?,
-            0x413A6C => *r = i::check_folder_name::check_folder_name(r),
-            0x413A97 => *r = i::make_folders::make_folders(r)?,
-            0x413B0B => i::check_installed_version::check_installed_version(r).map(|_| ())?,
-            0x413C27 => *r = i::list_drives::list_drives(r)?,
-            0x413DC5 => *r = i::write_registry::write_registry(r, &mut game_api)?,
-            0x414199 => *r = i::language_page::language_page(r)?,
-            0x4141EF => *r = i::mark_main_page::mark_main_page(r),
-            0x41422B => *r = i::mode_page::mode_page(r),
-            0x41425E => *r = i::drive_page::drive_page(r),
-            0x4142C7 => *r = i::room_page::room_page(r),
-            0x4142DA => *r = i::ignore_room::ignore_room(r),
-            0x4142F5 => *r = i::folder_page::folder_page(r)?,
-            0x41432F => *r = i::dxsetup_page::dxsetup_page(r),
-            0x414347 => *r = i::finish_page::finish_page(r),
-            0x414490 => *r = i::close_installer::close_installer(r)?,
-            0x414363 => i::open_installer::open_installer(r, &mut game_part).map(|_| ())?,
-            0x4144AA => *r = i::run_pages::run_pages(r)?,
-            0x4144CF => *r = i::run_page::run_page(r, &mut game_part)?,
-            0x4146E4 => *r = i::page_key::page_key(r, &mut game_part)?,
-            0x4147FE => *r = i::item_enter::item_enter(r)?,
-            0x414784 => *r = i::key_up::key_up(r)?,
-            0x414794 => *r = i::key_down::key_down(r)?,
-            0x4147A4 => *r = i::key_left::key_left(r)?,
-            0x4147C0 => *r = i::key_right::key_right(r)?,
-            0x4147DC => *r = i::key_number::key_number(r)?,
-            0x414826 => *r = i::choice_back::choice_back(r)?,
-            0x414848 => *r = i::choice_on::choice_on(r)?,
-            0x414881 => *r = i::value_down::value_down(r)?,
-            0x41489C => *r = i::value_up::value_up(r)?,
-            0x41486A => *r = i::choice_by_number::choice_by_number(r)?,
-            0x4148B7 => *r = i::value_by_number::value_by_number(r)?,
-            0x4148D6 => *r = i::start_edit::start_edit(r),
-            0x4148F7 => *r = i::edit_key::edit_key(r)?,
-            0x414A28 => *r = i::item_link::item_link(r)?,
-            0x414A4B => *r = i::item_action::item_action(r)?,
-            0x414B53 => *r = i::mark_page::mark_page(r),
-            0x414C7E => *r = i::lay_out_pieces::lay_out_pieces(r)?,
-            0x414DF5 => *r = i::measure_pieces::measure_pieces(r)?,
-            0x414ED1 => *r = i::place_pieces::place_pieces(r)?,
-            0x414F11 => *r = i::place_row::place_row(r)?,
-            0x415058 => *r = i::draw_pieces::draw_pieces(r)?,
-            0x41525D => *r = i::show_backdrop::show_backdrop(r)?,
-            0x415273 => *r = i::backdrop_frame::backdrop_frame(r)?,
-            0x415304 => {
-                append_byte(r, b'\n');
-                append_byte(r, 0);
-            }
-            0x41530F => *r = i::next_edit::next_edit(r),
-            0x41534E => *r = i::folder_key::folder_key(r),
-            0x419030 => *r = i::register_lobby::register_lobby(r, &mut game_part, &mut game_api)?,
-            0x41675B => i::install_clio::install_clio(r).map(|_| ())?,
-            0x4190E9 => *r = i::unregister_lobby::unregister_lobby(r, &mut game_api)?,
-            0x402370 => *r = i::draw_string_list::draw_string_list(r)?,
-            0x402628 => *r = i::blit_glyph_list::blit_glyph_list(r)?,
-            0x40317D => *r = crate::files::drive_free_space_kb::free_space_regs(r, &mut game_api),
-            0x411186 => *r = i::write_record::write_record(r, &mut game_part)?,
-            // the game's, Rust
-            READ_LANGUAGES => i::read_languages::read_languages(a(0x51C36E) as *const u8)?,
-            READ_RECORD => i::read_record::read_record(a(0x5295C0) as *const u8)?,
-            // the registry, or in the standalone the portable record
-            READ_REGISTRY => i::read_registry::read_registry_here(),
-            CHOOSE_LANGUAGE => i::choose_language::choose_language(r.eax)?,
-            NORMALISE => {
-                let written =
-                    i::normalise_path::normalise_path(r.esi as *const u8, r.edx as *mut u8)?;
-                r.set_carry(!written);
-            }
-            SET_CD | MAKE_DIR | REMOVE_DIR | DELETE_FILE => {
-                let path = if ida == DELETE_FILE { r.eax } else { r.edx };
-                let done = crate::files::directories::by_place(ida, path as *const u8);
-                bool_flags(r, done);
-            }
-            IS_CD => {
-                let (carry, zero) = crate::files::is_cd_drive::is_cd_drive(r.eax as u8);
-                r.set_zero(zero);
-                r.set_carry(carry);
-            }
-            DRIVE_TYPE => r.eax = crate::files::drive_type::drive_type(r.eax as u8),
-            OPEN => match crate::files::handle::open_by_mode(r.eax as *const u8, r.ebx)? {
-                Some(h) => {
-                    r.eax = h;
-                    r.set_carry(false);
-                }
-                None => {
-                    r.eax = crate::files::handle::NO_HANDLE;
-                    r.set_carry(true);
-                }
-            },
-            READ => {
-                let (n, ok) = crate::files::handle::read(r.eax, r.ebx as *mut u8, r.ecx);
-                r.eax = n;
-                r.set_carry(!ok);
-            }
-            CLOSE => {
-                let ok = crate::files::handle::close(r.eax);
-                bool_flags(r, ok as u32);
-            }
-            COPY_FILE => {
-                let done =
-                    crate::files::copy_file::copy_file(r.eax as *const u8, r.ebx as *const u8)?;
-                r.set_carry(!done);
-            }
-            FIND_FIRST => {
-                let found = crate::race::find_snapshot_number::find_first(r.eax);
-                r.set_carry(!found);
-            }
-            FIND_NEXT => {
-                let found = crate::race::find_snapshot_number::find_next_wanted();
-                r.set_carry(!found);
-            }
-            CLOSE_SEARCH => crate::race::find_snapshot_number::close_search(),
-            ZERO_MEMORY => crate::system::zero_memory::zero_memory(r.ebx as *mut u8, r.ecx)?,
-            ALLOCATE => {
-                r.eax = crate::memory::allocate::allocate(r.ebx as *mut _, r.eax)? as u32;
-                r.set_carry(false);
-            }
-            FREE_LIST => crate::memory::free_list::free_list(r.ebx as *mut _)?,
-            FREE_FONTS => crate::gfx::free_fonts::free_fonts(
-                game_addr(crate::gfx::glyph_tables::TABLES_LIST_RVA) as *mut _,
-                game_addr(crate::gfx::build_fonts::PALETTES_RVA) as *mut u32,
-            )?,
-            SLEEP => crate::system::sleep::sleep(r.eax),
-            SLEEP_1MS => crate::system::sleep::sleep(1),
-            TAKE_KEY => {
-                let key = crate::input::take_key::take_key();
-                r.eax = r.eax & !0xFF | key as u32;
-                logic(r, key as u32);
-            }
-            LIST_TAKE_KEY => *r = crate::menu::list_take_key::list_take_key(r)?,
-            LIST_STEP => *r = crate::menu::list_step::list_step(r),
-            LIST_CLEAR_MARKS => crate::menu::list_clear_marks::list_clear_marks(r.edi),
-            LIST_UNUSABLE => {
-                let unusable = crate::menu::list_item_unusable::list_item_unusable(r.edi);
-                r.set_carry(unusable);
-            }
-            SCREENSHOT => crate::gfx::take_screenshot::take_screenshot()?,
-            KEY_TO_CHAR => r.eax = crate::input::key_to_char::key_to_char(r.eax)?,
-            DRAW_TEXT => draw_text(r)?,
-            DRAW_STRING => draw_string(r)?,
-            MEASURE_TEXT => measure_text(r)?,
-            MEASURE_STRING => measure_string(r)?,
-            READ_FILE => read_file(r)?,
-            WRITE_FILE => write_file(r)?,
-            RESOLVE_PATH => {
-                r.eax = crate::files::resolve_path::resolve_path_in_game(r.eax as *const u8)? as u32
-            }
-            PALETTE_TO_DWORDS => crate::gfx::palette_to_dwords::palette_to_dwords(
-                r.esi as *const u8,
-                r.edi as *mut u32,
-            )?,
-            COMPONENTS_TO_PIXELS => components_to_pixels(r),
-            LOAD_LANGUAGE => crate::strings::load_language::load_language(&mut || {
-                crate::strings::compile_lexicon::compile_lexicon()
-            })?,
-            // the platform, and drawing whose Rust versions take their own surfaces: the
-            // game's hooked functions
-            RUN_FRAME | LOCK | UNLOCK | SHOW | PUMP | BUILD_FONTS | COPY_PICTURE | FILL_RECT
-            | FRAME_RECT | BLIT_GLYPH | LOAD_PICTURE | CONVERT_PICTURE | PICTURE_AS_SURFACE => {
-                crate::menu::table_calls::call_any(place, r)
-            }
-            // a list's action that is not the installer's: the game's
-            _ => crate::menu::table_calls::call_any(place, r),
-        }
-    }
+        crate::gfx::copy_picture_to_surface::copy_picture_to_surface(
+            &mut crate::gfx::copy_picture_to_surface::GameSurface,
+        )
+    }?;
     Ok(())
 }
 
-/// `gfx::components_to_pixels` (0x405E02, not hooked: gfx's): 0x100 colours of esi made
-/// pixels of the format ebx into edi; every register kept.
-pub unsafe fn components_to_pixels(r: &Regs) {
-    let format = unsafe { &*(r.ebx as *const crate::gfx::pixel_format::PixelFormat) };
-    for n in 0..0x100u32 {
-        let components = rd(r.esi + 4 * n);
-        let pixel =
-            unsafe { crate::gfx::components_to_pixel::components_to_pixel(format, components) };
-        wd(r.edi + 4 * n, pixel);
-    }
+/// `text::draw_string_by_id` (0x40234A): string `id` in `font` at (x, y).
+pub fn draw_string(id: u32, font: u32, x: u32, y: u32) -> Result<(), Refused> {
+    use crate::text::draw_text::GameCanvas;
+    unsafe {
+        crate::text::draw_string_by_id::draw_string_by_id_at(
+            id,
+            font as *mut crate::text::font::Font,
+            x as i32,
+            y as i32,
+            &mut GameCanvas,
+        )
+    }?;
+    Ok(())
 }
 
-unsafe fn draw_text(r: &mut Regs) -> Result<(), Refused> {
+/// `text::draw_text` (0x4023D5): `text` in `font` at (x, y); the font object written back
+/// when the drawing changed it.
+pub fn draw_text(font: u32, text: u32, x: u32, y: u32) -> Result<(), Refused> {
     use crate::text::draw_text::GameCanvas;
     use crate::text::font::Font;
     unsafe {
-        let font = r.eax as *mut Font;
+        let font = font as *mut Font;
         let mut copy = font.read_unaligned();
-        let out = crate::text::draw_text::draw_text(
+        crate::text::draw_text::draw_text(
             &mut copy,
-            r.ebx as *const u8,
-            r.ecx as i32,
-            r.edx as i32,
+            text as *const u8,
+            x as i32,
+            y as i32,
             &mut GameCanvas,
         )?;
         if copy != font.read_unaligned() {
             font.write_unaligned(copy);
         }
-        (r.eax, r.ebx, r.ecx, r.edx) = (0, out.text as u32, out.x as u32, out.y as u32);
-        r.set_carry(out.too_wide);
-        r.set_zero(!out.too_wide);
     }
     Ok(())
 }
 
-unsafe fn draw_string(r: &mut Regs) -> Result<(), Refused> {
+/// `text::measure_text` (0x40230B), ecx `x`: (the widest line, the last line's y).
+pub fn measure_text(font: u32, text: u32, x: u32) -> Result<(u32, u32), Refused> {
     use crate::text::draw_text::GameCanvas;
-    use crate::text::font::Font;
-    let out = unsafe {
-        crate::text::draw_string_by_id::draw_string_by_id_at(
-            r.eax,
-            r.ebx as *mut Font,
-            r.ecx as i32,
-            r.edx as i32,
-            &mut GameCanvas,
-        )
-    }?;
-    (r.eax, r.ebx, r.ecx, r.edx) = (0, out.text as u32, out.x as u32, out.y as u32);
-    r.set_carry(out.too_wide);
-    r.set_zero(!out.too_wide);
-    Ok(())
-}
-
-unsafe fn measure_text(r: &mut Regs) -> Result<(), Refused> {
-    use crate::text::draw_text::GameCanvas;
-    use crate::text::font::Font;
     let m = unsafe {
         crate::text::measure_text::measure_text_at(
-            r.eax as *mut Font,
-            r.ebx as *const u8,
-            r.ecx as i32,
+            font as *mut crate::text::font::Font,
+            text as *const u8,
+            x as i32,
             &mut GameCanvas,
         )
     }?;
-    (r.eax, r.ebx, r.ecx, r.edx) = (0, m.lines, m.width, m.outcome.y as u32);
-    r.set_carry(m.outcome.too_wide);
-    r.set_zero(!m.outcome.too_wide);
-    Ok(())
+    Ok((m.width, m.outcome.y as u32))
 }
 
-unsafe fn measure_string(r: &mut Regs) -> Result<(), Refused> {
+/// `text::measure_string_by_id` (0x40232C), ecx `x`: (the widest line, the last line's y).
+pub fn measure_string(id: u32, font: u32, x: u32) -> Result<(u32, u32), Refused> {
     use crate::text::draw_text::GameCanvas;
-    use crate::text::font::Font;
     let m = unsafe {
         crate::text::measure_string_by_id::measure_string_by_id_at(
-            r.eax,
-            r.ebx as *mut Font,
-            r.ecx as i32,
+            id,
+            font as *mut crate::text::font::Font,
+            x as i32,
             &mut GameCanvas,
         )
     }?;
-    (r.eax, r.ebx, r.ecx, r.edx) = (0, m.lines, m.width, m.outcome.y as u32);
-    r.set_carry(m.outcome.too_wide);
-    r.set_zero(!m.outcome.too_wide);
-    Ok(())
+    Ok((m.width, m.outcome.y as u32))
 }
 
-unsafe fn read_file(r: &mut Regs) -> Result<(), Refused> {
-    let read = unsafe {
-        crate::files::read_file::read_file(r.eax as *const u8, r.ebx as *mut u8, r.ecx, r.edx)
-    }?;
-    apply_file_result(r, (read.ok, read.bytes_read));
-    Ok(())
-}
-
-unsafe fn write_file(r: &mut Regs) -> Result<(), Refused> {
-    let written = unsafe {
-        crate::files::write_file::write_file(r.eax as *const u8, r.ebx as *const u8, r.ecx)
-    }?;
-    apply_file_result(r, (written.ok, written.bytes_written));
-    Ok(())
-}
-
-/// What `read_file` and `write_file` leave: (whether it worked, the bytes if the read or
-/// write was reached).
-fn apply_file_result(r: &mut Regs, (ok, bytes): (bool, Option<u32>)) {
-    if let Some(n) = bytes {
-        r.eax = n;
+/// `gfx::components_to_pixels` (0x405E02): 0x100 colours of `from` made pixels of the
+/// format `format` into `to`.
+pub unsafe fn components_to_pixels(from: u32, to: u32, format: u32) {
+    let format = unsafe { &*(format as *const crate::gfx::pixel_format::PixelFormat) };
+    for n in 0..0x100u32 {
+        let components = rd(from + 4 * n);
+        let pixel =
+            unsafe { crate::gfx::components_to_pixel::components_to_pixel(format, components) };
+        wd(to + 4 * n, pixel);
     }
-    r.set_carry(!ok);
-    r.set_zero(ok);
+}
+
+/// `strings::load_language` (0x40331F).
+pub fn load_language() -> Result<(), Refused> {
+    unsafe {
+        crate::strings::load_language::load_language(&mut || {
+            crate::strings::compile_lexicon::compile_lexicon()
+        })
+    }
+}
+
+/// `menu::list_take_key` (0x41469A): the key (0: none).
+pub fn list_take_key() -> Result<u8, Refused> {
+    Ok(crate::menu::list_take_key::list_take_key().key)
+}
+
+/// `menu::list_step` (0x414A55): `key` moving the highlight of `list` by the neighbours
+/// table `table`; whether it moved (the original's zero).
+pub fn list_step(key: u32, table: u32, list: u32) -> bool {
+    unsafe { crate::menu::list_step::list_step(key as u8, table, list) }.zero
+}
+
+/// `menu::list_clear_marks` (0x414AC9).
+pub fn list_clear_marks(list: u32) {
+    unsafe { crate::menu::list_clear_marks::list_clear_marks(list) }
+}
+
+/// `menu::list_item_unusable` (0x414C1B): whether the highlighted item cannot be chosen.
+pub fn list_item_unusable(list: u32) -> bool {
+    unsafe { crate::menu::list_item_unusable::list_item_unusable(list) }
+}
+
+/// Whether the standalone's install or uninstall ended, logged.
+pub fn logged(what: &str, done: Result<(), Refused>) -> Result<(), Refused> {
+    crate::framework::log(&format!(
+        "install: the {what} ended: {:?}",
+        done.as_ref().map(|_| ())
+    ));
+    done
+}
+
+// ---- the functions the installer's tables hold, by place ----
+
+/// A list's action (+8): the page told where it is (`state` 0 at the start, 1 after a key,
+/// -1 at the end). The game's lists hold the pages' actions and, in lists of nothing else
+/// (flags 0x40), the install, the uninstall, the installed copy's start (or the Clio
+/// disc's install) and the registration.
+pub fn page_action(place: u32, state: u32, list: u32) -> Result<(), Refused> {
+    use crate::install as i;
+    match ida_of(place) {
+        0x414199 => i::language_page::language_page(state, list)?,
+        0x4141EF => i::mark_main_page::mark_main_page(list),
+        0x41422B => i::mode_page::mode_page(state),
+        0x41425E => i::drive_page::drive_page(state, list),
+        0x4142C7 => i::room_page::room_page(state),
+        0x4142F5 => i::folder_page::folder_page(state, list),
+        0x41432F => i::dxsetup_page::dxsetup_page(state),
+        0x414347 => i::finish_page::finish_page(state),
+        0x4130CD => logged("install", i::install_files::install_files())?,
+        0x4134DF => logged("uninstall", i::uninstall::uninstall())?,
+        0x413629 => i::open_installed::open_installed()?,
+        0x413650 => i::ask_registration::ask_registration(),
+        0x41675B => i::install_clio::install_clio()?,
+        _ => return Err(BadInput("a list action that is not one of the installer's").into()),
+    }
+    Ok(())
+}
+
+/// A list's key action (+0x14): `key` (eax: al the key, ah its bits); whether it took the
+/// key (the original's zero). The game's lists hold only the folder page's.
+pub fn key_action(place: u32, key: u32, list: u32) -> Result<bool, Refused> {
+    match ida_of(place) {
+        0x41534E => Ok(crate::install::folder_key::folder_key(key, list)),
+        _ => Err(BadInput("a key action that is not one of the installer's").into()),
+    }
+}
+
+/// A link's or an action item's action (+8); the original's zero after it. The game's items
+/// hold only the not-enough-room page's "go on anyway".
+pub fn item_action_at(place: u32) -> Result<bool, Refused> {
+    match ida_of(place) {
+        0x4142DA => {
+            crate::install::ignore_room::ignore_room();
+            Ok(true)
+        }
+        _ => Err(BadInput("an item action that is not one of the installer's").into()),
+    }
+}
+
+/// A text item's action (+0xC), eax its +8: more text at `cursor`; the cursor after. The
+/// game's items hold only `install::end_text_line`.
+pub fn text_action(place: u32, cursor: u32) -> Result<u32, Refused> {
+    match ida_of(place) {
+        0x415304 => Ok(unsafe { crate::install::end_text_line::end_text_line(cursor) }),
+        _ => Err(BadInput("a text action that is not one of the installer's").into()),
+    }
+}
+
+/// An action item's drawing (+0xC): the game's lists have no action items.
+pub fn draw_action(_place: u32) -> Result<(), Refused> {
+    Err(BadInput("an action item's drawing (the game's lists have none)").into())
 }
 
 // ---- Win32 by import ----
@@ -644,5 +510,3 @@ pub fn game_api(place: u32, x: &[u32]) -> u32 {
         }
     }
 }
-
-// ---- self-tests ----

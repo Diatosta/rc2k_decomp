@@ -15,28 +15,29 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::net::draw_button::item_font;
-use crate::net::lobby::{DRAW_STRING, Part, lobby_entry};
+use crate::text::draw_text::GameCanvas;
+use crate::text::font::Font;
 
 const PLAIN: usize = 0x51E744; // unk_51E744
 const LIT: usize = 0x51E684; // stru_51E684
 
-/// The Rust version: the registers it leaves.
-pub fn draw_centred_item(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    let mut r = *entry;
+/// The Rust version: the string `string` for item `item` at (`x`, `y`) in the item's font;
+/// returns the next y (y plus the font's line height; the original's ebp). The registers it
+/// leaves (ebx the font, edx the y, eax .. edx as the drawing leaves them) are read by no
+/// caller (`net::settings_frame` only).
+pub fn draw_centred_item(string: u32, item: u32, x: u32, y: u32) -> Result<u32, Refused> {
     // Converted: `rc2k_core::net::screens::item_lit` (in `item_font`).
-    r.ebx = item_font(r.esi, PLAIN, LIT);
-    r.edx = r.ebp;
-    r.ebp = r
-        .ebp
-        .wrapping_add(unsafe { ((r.ebx + 8) as *const u32).read_unaligned() });
-    part(DRAW_STRING, &mut r)?;
-    Ok(r)
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    lobby_entry(r, draw_centred_item)
+    let font = item_font(item, PLAIN, LIT);
+    let next = y.wrapping_add(unsafe { ((font + 8) as *const u32).read_unaligned() });
+    unsafe {
+        crate::text::draw_string_by_id::draw_string_by_id_at(
+            string,
+            font as *mut Font,
+            x as i32,
+            y as i32,
+            &mut GameCanvas,
+        )
+    }?;
+    Ok(next)
 }

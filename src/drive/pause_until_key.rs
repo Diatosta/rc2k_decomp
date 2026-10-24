@@ -23,10 +23,7 @@ use crate::drive::race_parts::{
     input_update, race_frame, race_keys, stop_race_sounds, take_key, wake_car_sounds,
 };
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::physics::flow::{a, g, p};
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
 use rc2k_core::drive::race_ticks;
 
 const B: usize = 0x70F3EC;
@@ -43,11 +40,12 @@ fn any_ending_key() -> u32 {
 
 /// The Rust version.
 // Converted: `rc2k_core::drive::race_ticks::{ends_pause, held_wait}`.
-pub unsafe fn pause_until_key(entry: &Regs) -> Result<Left, Refused> {
-    let mut r = *entry;
+/// The Rust version. The registers it leaves are read by no caller (liveness: nothing
+/// live after `race_loop`'s call).
+pub unsafe fn pause_until_key() -> Result<(), Refused> {
     p(0x6235EC, 0x19);
     for _ in 0..5 {
-        take_key(&mut r);
+        take_key();
     }
     stop_race_sounds()?;
     p(0x6235E8, 1);
@@ -66,23 +64,20 @@ pub unsafe fn pause_until_key(entry: &Regs) -> Result<Left, Refused> {
                 p(0x6235F0, race_ticks::held_wait(wait));
             }
         }
-        take_key(&mut r);
-        race_frame(&mut r);
+        take_key();
+        race_frame()?;
         if g(0x518374) == 0 {
             hold = true;
             continue;
         }
         hold = false;
-        input_update(&mut r);
+        input_update();
         if g(0x6235F0) != 0 {
             p(0x6235F0, g(0x6235F0) - 1);
             continue;
         }
-        race_keys(&mut r)?;
-        r.eax = any_ending_key();
-        r.esi = a(KEYS);
-        r.ecx = 0x80;
-        if r.eax != 0 {
+        race_keys()?;
+        if any_ending_key() != 0 {
             break;
         }
     }
@@ -93,7 +88,7 @@ pub unsafe fn pause_until_key(entry: &Regs) -> Result<Left, Refused> {
     }
     p(0x6235E8, 0);
     wake_car_sounds()?;
-    take_key(&mut r);
+    take_key();
     p(B + 0x468, 0);
-    Ok(left_of(&r))
+    Ok(())
 }

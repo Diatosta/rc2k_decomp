@@ -14,17 +14,12 @@
 //! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
+
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_read, game_write};
-use crate::gfx::harness::pixels_entry;
+use crate::framework::{game_read, game_write};
 use crate::gfx::texture_pixels::{
     self, GRADES_RVA, READING_RVA, SATURATION_RVA, SCALE_RVA, grading,
 };
-use crate::screens::harness::Left;
-
-fn count(r: &Regs) -> u32 {
-    r.ecx.wrapping_mul(r.edx)
-}
 
 fn settings() -> [u32; 3] {
     unsafe {
@@ -36,31 +31,20 @@ fn settings() -> [u32; 3] {
     }
 }
 
-fn rust(r: &Regs) -> Result<Left, Refused> {
+/// The Rust version: `pixels` `width` by `height`, `key` the colour keyed.
+pub fn grade_texture(key: u32, pixels: u32, width: u32, height: u32) -> Result<(), Refused> {
     let [reading, scale, saturation] = settings();
     if !grading(reading, scale, saturation) {
-        return Ok(Left::nothing());
+        return Ok(());
     }
-    if r.ebx == 0 || count(r) == 0 {
+    let count = width.wrapping_mul(height);
+    if pixels == 0 || count == 0 {
         return Err(BadInput("no pixels, or a null pointer").into());
     }
     unsafe {
         let mut table = [0u8; 0x100];
-        texture_pixels::grade_texture(
-            r.ebx as *mut u8,
-            count(r),
-            r.eax,
-            scale,
-            saturation,
-            &mut table,
-        );
+        texture_pixels::grade_texture(pixels as *mut u8, count, key, scale, saturation, &mut table);
         game_write(GRADES_RVA, table);
     }
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    pixels_entry(r, &rust)
+    Ok(())
 }

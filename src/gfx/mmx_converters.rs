@@ -36,8 +36,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{EBX, ECX, EDI, EDX, ESI, Regs, game_read, rva};
-use crate::screens::harness::Left;
+use crate::framework::{game_read, rva};
 
 /// A converter: the format it makes and where its constants are (IDA addresses).
 #[derive(Clone, Copy)]
@@ -56,10 +55,19 @@ fn masks(c: &Converter) -> [u64; 5] {
     std::array::from_fn(|n| constant(c.constants + 8 * n))
 }
 
-/// The Rust version: what it leaves (see the header).
-pub fn convert_rows(entry: &Regs, c: Converter) -> Result<Left, Refused> {
-    let steps = entry.ecx >> 2;
-    if steps == 0 || entry.edx == 0 {
+/// The Rust version: `rows` rows of `pixels` pixels (the original's ecx, edx) from `from`
+/// (esi) to `to` (edi), `gap` (ebp) bytes after each row made. Its one caller,
+/// `gfx::convert_picture`, reads nothing it leaves in the registers.
+pub fn convert_rows(
+    from: u32,
+    to: u32,
+    pixels: u32,
+    rows: u32,
+    gap: u32,
+    c: Converter,
+) -> Result<(), Refused> {
+    let steps = pixels >> 2;
+    if steps == 0 || rows == 0 {
         return Err(BadInput(
             "fewer than four pixels a row or no rows (the original's dec counts on)",
         )
@@ -68,8 +76,8 @@ pub fn convert_rows(entry: &Regs, c: Converter) -> Result<Left, Refused> {
     // Converted: `rc2k_core::gfx::converters` (`step`, `next_row`).
     use rc2k_core::gfx::converters::{next_row, step};
     let k = masks(&c);
-    let (mut from, mut to) = (entry.esi, entry.edi);
-    for _ in 0..entry.edx {
+    let (mut from, mut to) = (from, to);
+    for _ in 0..rows {
         for _ in 0..steps {
             unsafe {
                 let q0 = (from as *const u64).read_unaligned();
@@ -79,18 +87,9 @@ pub fn convert_rows(entry: &Regs, c: Converter) -> Result<Left, Refused> {
             from = from.wrapping_add(0x10);
             to = to.wrapping_add(8);
         }
-        to = next_row(to, entry.ebp, c.format, c.three_dnow);
+        to = next_row(to, gap, c.format, c.three_dnow);
     }
-    let left = Left::nothing().with(ECX, steps).with(EDX, 0).with(EDI, to);
-    let left = if c.three_dnow {
-        left.with(EBX, from).with(ESI, steps)
-    } else {
-        left.with(EBX, steps).with(ESI, from)
-    };
-    Ok(Left {
-        zero: Some(true),
-        ..left
-    })
+    Ok(())
 }
 
 /// The eight converters by their IDA address (hooks removed 2026-10-23: `gfx::convert_picture`

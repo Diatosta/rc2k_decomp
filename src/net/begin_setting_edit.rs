@@ -14,49 +14,26 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::net::lobby::{
-    CHOICE, FORMAT_U32, HOST_ADDRESS, MACHINE_NAME, MOST_PLAYERS, NUMBER_TEXT, PALETTE, Part, a, g,
-    lobby_entry,
+    CHOICE, Cursor, HOST_ADDRESS, MACHINE_NAME, MOST_PLAYERS, NUMBER_TEXT, PALETTE, a, g,
 };
 use rc2k_core::net::editing::{self, Setting};
 
-const BEGIN_EDIT: u32 = 0x416E1A; // net::begin_edit
-
-/// The Rust version: the registers it leaves.
-pub fn begin_setting_edit(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    let mut r = *entry;
+/// The Rust version. The registers the original leaves when an edit starts (eax the item,
+/// ebx the text, ecx the width, edx the font) are read by no caller (`settings_loop`).
+pub fn begin_setting_edit() {
     // Converted: `rc2k_core::net::editing` (`Setting`, `WIDTH`).
-    r.eax = g(CHOICE);
-    let setting = Setting::of(r.eax);
-    r.ebx = match setting {
+    let item = g(CHOICE);
+    let text = match Setting::of(item) {
         Setting::Name => a(MACHINE_NAME),
         Setting::HostAddress => a(HOST_ADDRESS),
-        _ => g(MOST_PLAYERS),
-    };
-    match setting {
-        Setting::Name | Setting::HostAddress => {}
         Setting::MostPlayers => {
-            let item = r.eax;
-            r.eax = r.ebx;
-            r.ebx = a(NUMBER_TEXT);
-            r.ecx = 0;
-            part(FORMAT_U32, &mut r)?;
-            unsafe { (r.ebx as *mut u8).write(0) };
-            r.ebx = a(NUMBER_TEXT);
-            r.eax = item;
+            let mut cursor = Cursor(a(NUMBER_TEXT));
+            cursor.bytes(&crate::strings::format_u32::format_u32(g(MOST_PLAYERS), 0));
+            cursor.nul();
+            a(NUMBER_TEXT)
         }
-        Setting::None => return Ok(r),
-    }
-    r.ecx = editing::WIDTH;
-    r.edx = a(PALETTE);
-    part(BEGIN_EDIT, &mut r)?;
-    Ok(r)
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    lobby_entry(r, begin_setting_edit)
+        Setting::None => return,
+    };
+    crate::net::begin_edit::begin_edit(item, text, editing::WIDTH, a(PALETTE));
 }

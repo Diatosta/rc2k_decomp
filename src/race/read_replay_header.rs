@@ -17,11 +17,9 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::physics::flow::a;
 use crate::race::race_end::{HEADER, setting_place};
-use crate::race::viewer::{Part, get, put, regs_entry};
+use crate::race::viewer::{get, put};
 use rc2k_core::race::replay::{HEADER_SETTINGS, Setting, read_logged};
 
 /// The race's places a header setting goes back to, in the original's order (a kind
@@ -40,14 +38,16 @@ const NAMES: [usize; 12] = [
 ];
 const TITLE: usize = 0x4DDDEA; // "READREPLAYHEADER"
 
-/// The Rust version: the registers it leaves (the entry's).
-pub fn read_replay_header(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    let call = |part: Part, place: u32, eax: u32| -> Result<(), Refused> {
-        let mut r = Regs { eax, ..*entry };
-        part(place, &mut r)
-    };
+/// `log_write_l1` (with a line break for the title) of a text.
+fn log_text(text: u32, newline: bool) {
+    unsafe { crate::logfile::log_write::log_write(text as *const u8, newline, 1) }
+}
+
+/// The Rust version. Reads no register and keeps every one (liveness), so its only
+/// caller, `race::viewer_load_stage`, calls it plainly.
+pub fn read_replay_header() {
     // Converted: `rc2k_core::race::replay::{HEADER_SETTINGS, read_logged}`.
-    call(part, 1, a(TITLE))?;
+    log_text(a(TITLE), true);
     let from = |s: Setting| HEADER + s.offset() as usize;
     for s in HEADER_SETTINGS {
         for to in targets(s) {
@@ -55,25 +55,7 @@ pub fn read_replay_header(entry: &Regs, part: Part) -> Result<Regs, Refused> {
         }
     }
     for (&text, &s) in NAMES.iter().zip(read_logged()) {
-        call(part, 2, a(text))?;
-        call(part, 3, get(from(s)))?;
+        log_text(a(text), false);
+        crate::logfile::log_int::log_int(get(from(s)) as i32, true, 1);
     }
-    Ok(*entry)
-}
-
-/// In the game: the logs' Rust versions.
-pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    unsafe {
-        match place {
-            1 | 2 => crate::logfile::log_write::log_write(r.eax as *const u8, place == 1, 1),
-            _ => crate::logfile::log_int::log_int(r.eax as i32, true, 1),
-        }
-    }
-    Ok(())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    regs_entry(r, &|r| read_replay_header(r, &mut game_part))
 }

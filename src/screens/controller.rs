@@ -23,9 +23,9 @@ const FOUND: usize = 0x7559EC; // dword_7559EC
 /// (`dword_7551E4` ..: a 1 for "under 0x80"); a direction held over 0x1D of the last 32 polls
 /// while the others were not (its history empty) gives 0x400 / 0x800 / 0x100 / 0x200 with the
 /// button, else 0; into `dword_7559EC`. Every register kept.
-pub unsafe fn classify_controller(eax: u32, ebx: u32, ecx: u32, edx: u32) {
+pub unsafe fn classify_controller(z: u32, buttons: u32, x: u32, y: u32) {
     // Converted: `rc2k_core::input::devices::classify`.
-    let (history, found) = rc2k_core::input::devices::classify(ebx, ecx, edx, eax, HISTORY.map(k));
+    let (history, found) = rc2k_core::input::devices::classify(buttons, x, y, z, HISTORY.map(k));
     for (var, v) in HISTORY.into_iter().zip(history) {
         w(var, v);
     }
@@ -102,10 +102,10 @@ pub unsafe fn learn_axis() -> Result<(), Refused> {
 }
 
 /// `screens::draw_no_controller` (0x46AEAA): string 0x56D at (0x1BC, 0xD5) in the font at
-/// 0x51E8C4. Gives the registers `draw_string_by_id` leaves.
+/// 0x51E8C4. What `draw_string_by_id` leaves (the route puts it in the registers).
 pub unsafe fn draw_no_controller(
     canvas: &mut dyn crate::text::draw_text::Canvas,
-) -> Result<crate::screens::harness::Left, Refused> {
+) -> Result<rc2k_core::screens::screen::Drawn, Refused> {
     // Converted: `rc2k_core::screens::notes::NO_CONTROLLER`.
     crate::screens::game_screen::draw_note(canvas, &rc2k_core::screens::notes::NO_CONTROLLER)
 }

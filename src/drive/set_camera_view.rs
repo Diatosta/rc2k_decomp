@@ -18,8 +18,7 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::{EAX, rva};
-use crate::screens::harness::Left;
+use crate::framework::rva;
 use rc2k_core::drive::camera_views::CameraView;
 
 pub const STEP_RVA: usize = rva(0x719FE0); // dword_719FE0
@@ -29,18 +28,17 @@ unsafe fn put(a: u32, v: u32) {
 
 /// The Rust version on the block at `s`, the step count at `step`.
 // Converted: `rc2k_core::drive::camera_views::CameraView::take_wanted`.
-pub unsafe fn set_view_at(s: u32, step: u32) -> Left {
+pub unsafe fn set_view_at(s: u32, step: u32) {
     unsafe {
         let mut v = CameraView {
             wanted: (s.wrapping_add(0x688) as *const u32).read_unaligned(),
             ..CameraView::default()
         };
-        let n = v.take_wanted((step as *const u32).read_unaligned());
+        v.take_wanted((step as *const u32).read_unaligned());
         put(s + 0x684, v.view);
         put(s + 0x694, v.held);
         put(s + 0x69C, v.w69c);
         put(s + 0x698, v.w698);
         put(s + 0x690, v.taken_at);
-        Left::nothing().with(EAX, n)
     }
 }

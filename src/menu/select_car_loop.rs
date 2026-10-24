@@ -22,51 +22,55 @@
 //! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
 //! `routes.rs`); the registers above are the original's, for reference.
 
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
-use crate::menu::screen_loop::{Env, Flow, List, Screen, Step, read_at, screen_entry};
+use crate::errors::Refused;
+use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::menu::screen_loop::{
+    Carried, Flow, List, Screen, Step, call, carousel, prepare_scene, quitting, read_at,
+};
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
-unsafe fn set_up_first(g: &mut Regs, env: &mut dyn Env) {
+unsafe fn set_up_first(c: &mut Carried) -> Result<(), Refused> {
     unsafe {
-        let mut stack: Vec<u32> = Vec::new();
-        stack.push(g.eax);
-        g.eax = game_read(rva(0x75598C));
-        g.edi = read_at((game_addr(rva(0x75647C)) as u32).wrapping_add(g.eax.wrapping_mul(4)));
-        g.eax = stack.pop().expect("a pop without its push");
-        g.eax = read_at(g.edi.wrapping_add(0x30));
-        game_write(rva(0x7554F0), g.eax);
+        // The current player's +0x30 (its car).
+        let current: u32 = game_read(rva(0x75598C));
+        let player =
+            read_at((game_addr(rva(0x75647C)) as u32).wrapping_add(current.wrapping_mul(4)));
+        c.arg = read_at(player.wrapping_add(0x30));
+        game_write(rva(0x7554F0), c.arg);
         game_write(rva(0x7554EC), 0x1u32);
         game_write(rva(0x75AA74), 0xDu32);
-        env.call(rva(0x4904DD), g);
-        g.eax = game_read(rva(0x7476DC));
-        game_write(rva(0x755525), g.eax);
-        g.eax = g.eax.wrapping_add(0xFFFFFFFF);
-        game_write(rva(0x75AA7C), g.eax);
+        carousel(c)?;
+        c.arg = game_read(rva(0x7476DC));
+        game_write(rva(0x755525), c.arg);
+        c.arg = c.arg.wrapping_sub(1);
+        game_write(rva(0x75AA7C), c.arg);
         game_write(rva(0x7554EC), 0x0u32);
         game_write(rva(0x75AA7C), 0x0u32);
         game_write(rva(0x755990), 0x0u32);
-        env.call(rva(0x4708FD), g);
+        crate::menu::car_choice::find_player_car()?;
         game_write(rva(0x623FB0), 0x7u32);
         game_write(rva(0x623FB4), 0xFFFFFFCEu32);
         game_write(rva(0x624080), 0x100u32);
-        env.call(rva(0x46F7FD), g);
+        prepare_scene(c);
     }
+    Ok(())
 }
 
-unsafe fn after_first_frame(_g: &mut Regs, env: &mut dyn Env) -> Flow {
-    if env.quitting() as u32 == 0x1 {
-        return Flow::Leave;
+unsafe fn after_first_frame(_c: &mut Carried) -> Result<Flow, Refused> {
+    if quitting() as u32 == 0x1 {
+        return Ok(Flow::Leave);
     }
-    Flow::On
+    Ok(Flow::On)
 }
 
-unsafe fn leaving(g: &mut Regs, env: &mut dyn Env) {
+unsafe fn leaving(c: &mut Carried) -> Result<(), Refused> {
     unsafe {
         if game_read::<u32>(rva(0x758806)) == 0x1 {
-            env.call(rva(0x471C82), g);
+            call(rva(0x471C82), c)?;
         }
     }
+    Ok(())
 }
 
 pub const SCREEN: Screen = Screen {
@@ -102,7 +106,7 @@ pub const SCREEN: Screen = Screen {
     prepare: &[],
     after_lists: &[],
     background: &[
-        Step::EaxAddr(rva(0x731F19)),
+        Step::ArgAddr(rva(0x731F19)),
         Step::CallOrFatal(rva(0x47EFFF), 0x80712345),
     ],
     after_first_frame: &[Step::DoFlow(after_first_frame)],
@@ -133,9 +137,3 @@ pub const SCREEN: Screen = Screen {
     restart_action_check: false,
     always_asks: false,
 };
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    screen_entry("menu::select_car_loop", r, &SCREEN)
-}

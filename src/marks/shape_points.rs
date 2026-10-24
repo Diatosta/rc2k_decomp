@@ -4,13 +4,10 @@
 //! and the two farthest apart of each list on one face.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::marks::masks::{POINTS_A, POINTS_B, PointList};
 use crate::math::x87;
-use crate::scene::matrix3::{
-    Axis, extended, multiply_matrices3, transform_int_points, turn_matrix3, turnable,
-};
-use crate::service::harness::{Region, at};
+use crate::scene::matrix3::{Axis, extended, turn_matrix3, turnable};
 
 pub const SET_RVA: usize = rva(0x885A6C); // g_marksShapeSet
 pub const TURNED_RVA: [usize; 2] = [rva(0x8853F4), rva(0x8856F4)]; // g_marksTurnedA, _B
@@ -39,11 +36,9 @@ unsafe fn put(at: u32, v: u32) {
 /// `marks::find_farthest_pairs` (0x4BDD1D): for points lists A and B, of the pairs of
 /// their points on one face (`g_marksPointsAFaces`), the farthest apart by
 /// `g_marksTurnedA` / `B` (the length rounded; a later pair as far wins) into
-/// `g_marksFarthestA` / `B` (the inner then the outer number). Leaves the registers as
-/// the last pair looked at leaves them (edx the farthest of B). Refuses a list of more
+/// `g_marksFarthestA` / `B` (the inner then the outer number). Refuses a list of more
 /// than 0x40.
-pub unsafe fn find_farthest_pairs(entry: &Regs) -> Result<Regs, Refused> {
-    let mut g = *entry;
+pub unsafe fn find_farthest_pairs() -> Result<(), Refused> {
     unsafe {
         let lists: [&PointList; 2] = [&POINTS_A, &POINTS_B];
         for list in lists {
@@ -55,39 +50,29 @@ pub unsafe fn find_farthest_pairs(entry: &Regs) -> Result<Regs, Refused> {
             let faces = game_addr(list.faces) as u32;
             let points = game_addr(TURNED_RVA[n]) as u32;
             let count = (game_read::<u32>(list.count) as i32).max(0) as u32;
-            g.edx = 0;
+            let mut farthest = 0i32;
             for j in (0..count).rev() {
                 for i in (0..count).rev() {
-                    g.esi = i;
-                    g.edi = j;
-                    if i == j {
+                    if i == j || get(faces + 4 * i) != get(faces + 4 * j) {
                         continue;
                     }
-                    g.eax = get(faces + 4 * i);
-                    if g.eax != get(faces + 4 * j) {
+                    let d =
+                        |o: u32| get(points + i * 12 + o).wrapping_sub(get(points + j * 12 + o));
+                    let length = x87::int_length3(d(0) as i32, d(4) as i32, d(8) as i32);
+                    if farthest > length {
                         continue;
                     }
-                    g.esi = i * 12;
-                    g.edi = j * 12;
-                    let d = |o: u32| get(points + g.esi + o).wrapping_sub(get(points + g.edi + o));
-                    [g.eax, g.ebx, g.ecx] = [d(0), d(4), d(8)];
-                    g.ebp = x87::int_length3(g.eax as i32, g.ebx as i32, g.ecx as i32) as u32;
-                    if g.edx as i32 > g.ebp as i32 {
-                        continue;
-                    }
-                    g.edx = g.ebp;
-                    g.eax = i;
-                    g.ebx = j;
+                    farthest = length;
                     game_write(FARTHEST_RVA[n], [i, j]);
                 }
             }
         }
     }
-    Ok(g)
+    Ok(())
 }
 
-/// What `turn_shape_points` refuses for turns ebx, ecx.
-pub unsafe fn turn_shape_checks(ebx: u32, ecx: u32) -> Result<(), Refused> {
+/// What `turn_shape_points` refuses for turns `a`, `b`.
+pub unsafe fn turn_shape_checks(a: u32, b: u32) -> Result<(), Refused> {
     unsafe {
         let set = game_addr(SET_RVA) as u32;
         for c in COUNT {
@@ -96,95 +81,58 @@ pub unsafe fn turn_shape_checks(ebx: u32, ecx: u32) -> Result<(), Refused> {
                 return Err(BadInput("a shape list of more than 0x40").into());
             }
         }
-        for a in [extended(game_read(TILT_RVA)), extended(ebx), extended(ecx)] {
-            turnable(&a)?;
+        for t in [extended(game_read(TILT_RVA)), extended(a), extended(b)] {
+            turnable(&t)?;
         }
     }
     Ok(())
 }
 
 /// `marks::turn_shape_points` (0x4BD5ED): the turn about X by `g_marksShapeTilt` and about
-/// Z by ebx and by ecx (floats; `dword_764F40` left holding ecx); X times each into the
-/// shape set's two matrices; its two lists of points turned by them into `g_marksTurnedA` /
-/// `B`, and each turned point plus the list's offset (`fiadd`) into the point its target
-/// names (the last first). Leaves eax the set, the rest as the last list leaves them.
-/// Refuses a list of more than 0x40 or of 0x80000000, or an angle `fsincos` cannot take,
-/// before writing.
-pub unsafe fn turn_shape_points(entry: &Regs) -> Result<Regs, Refused> {
-    let mut g = *entry;
+/// Z by `a` and by `b` (floats; the original's ebx and ecx; `dword_764F40` left holding
+/// `b`); X times each into the shape set's two matrices; its two lists of points turned by
+/// them into `g_marksTurnedA` / `B`, and each turned point plus the list's offset
+/// (`fiadd`) into the point its target names (the last first). Refuses a list of more than
+/// 0x40 or of 0x80000000, or an angle `fsincos` cannot take, before writing.
+pub unsafe fn turn_shape_points(a: u32, b: u32) -> Result<(), Refused> {
+    use crate::marks::splines::{multiply, transform};
     unsafe {
-        turn_shape_checks(g.ebx, g.ecx)?;
+        turn_shape_checks(a, b)?;
         let set = game_addr(SET_RVA) as u32;
-        let angles = [
-            extended(game_read(TILT_RVA)),
-            extended(g.ebx),
-            extended(g.ecx),
-        ];
-        g.eax = set;
-        let a = |r: usize| game_addr(r) as u32;
-        turn_matrix3(Axis::X, a(TURN_X_RVA), angles[0])?;
-        game_write(SCRATCH_RVA, g.ebx);
-        turn_matrix3(Axis::Z, a(TURN_RVA[0]), angles[1])?;
-        game_write(SCRATCH_RVA, g.ecx);
-        turn_matrix3(Axis::Z, a(TURN_RVA[1]), angles[2])?;
+        let angles = [extended(game_read(TILT_RVA)), extended(a), extended(b)];
+        let at = |r: usize| game_addr(r) as u32;
+        turn_matrix3(Axis::X, at(TURN_X_RVA), angles[0])?;
+        game_write(SCRATCH_RVA, a);
+        turn_matrix3(Axis::Z, at(TURN_RVA[0]), angles[1])?;
+        game_write(SCRATCH_RVA, b);
+        turn_matrix3(Axis::Z, at(TURN_RVA[1]), angles[2])?;
         for n in 0..2 {
-            g = multiply_matrices3(&Regs {
-                esi: a(TURN_X_RVA),
-                edi: a(TURN_RVA[n]),
-                ebp: set + MATRIX[n],
-                ..g
-            });
+            multiply(at(TURN_X_RVA), at(TURN_RVA[n]), set + MATRIX[n]);
         }
         for n in 0..2 {
-            g = transform_int_points(&Regs {
-                ebp: set + MATRIX[n],
-                esi: set + POINTS[n],
-                edi: a(TURNED_RVA[n]),
-                ecx: get(set + COUNT[n]),
-                ..g
-            })?;
+            transform(
+                set + POINTS[n],
+                at(TURNED_RVA[n]),
+                get(set + COUNT[n]),
+                set + MATRIX[n],
+            )?;
         }
         for n in 0..2 {
-            let turned = a(TURNED_RVA[n]);
+            let turned = at(TURNED_RVA[n]);
             for k in (0..(get(set + COUNT[n]) as i32).max(0) as u32).rev() {
-                g.edi = get(set + TARGETS[n] + 4 * k);
-                g.esi = turned + 12 * k;
+                let target = get(set + TARGETS[n] + 4 * k);
+                let point = turned + 12 * k;
                 for c in 0..3 {
                     let v = x87::int_sum(
-                        get(g.esi + 4 * c) as i32,
+                        get(point + 4 * c) as i32,
                         get(set + OFFSET[n] + 4 * c) as i32,
                     );
-                    put(g.edi + 4 * c, v as u32);
+                    put(target + 4 * c, v as u32);
                 }
             }
         }
     }
-    Ok(g)
-}
-
-/// What `turn_shape_points` writes besides the targets.
-pub fn turn_regions() -> Vec<Region> {
-    let a = |r: usize| game_addr(r) as u32;
-    vec![
-        (a(TURN_X_RVA), 0x24),
-        (a(TURN_RVA[0]), 0x54),
-        at(SCRATCH_RVA),
-        (a(SET_RVA) + MATRIX[0], 0x54),
-        (a(TURNED_RVA[0]), 0x600),
-    ]
-}
-
-/// The targets `turn_shape_points` writes (12 bytes each).
-pub unsafe fn target_regions() -> Vec<Region> {
-    let set = game_addr(SET_RVA) as u32;
-    let mut r = Vec::new();
-    for n in 0..2 {
-        let count = unsafe { (get(set + COUNT[n]) as i32).clamp(0, MOST_POINTS as i32) as u32 };
-        for k in 0..count {
-            r.push((unsafe { get(set + TARGETS[n] + 4 * k) }, 12));
-        }
-    }
-    r
+    Ok(())
 }
 
 /// The two shapes' steps and ends for `turn_all_shapes`: the step (each shape's +0), a, b,
@@ -199,51 +147,36 @@ const ALL_STEPS: [(usize, usize, usize, usize); 2] = [
 /// `dword_884FC4` / `_C8` by each shape's +0), the second result of each unless its switch
 /// (`dword_844604` / `_08`) is 0, and `turn_shape_points` with them. The object's offset
 /// (times 0xAB8) is worked out and not used: the one set is turned every time (section
-/// 16). Leaves esi that offset (the settings with none), the rest as the last turn.
-/// Refuses what `turn_shape_points` would, before writing.
-pub unsafe fn turn_all_shapes(entry: &Regs) -> Result<Regs, Refused> {
+/// 16). Refuses what `turn_shape_points` would, before writing.
+pub unsafe fn turn_all_shapes() -> Result<(), Refused> {
     use crate::marks::turns::{smooth_pair, smooth_steps};
-    let mut g = *entry;
     unsafe {
         let settings: u32 = game_read(crate::marks::lines::SETTINGS_RVA);
-        g.esi = settings;
         let count = get(settings + 0x26B8) as i32;
-        let pick = |n: usize, g: &Regs| -> u32 {
+        let pick = |n: usize, (first, second): (u32, u32)| -> u32 {
             if game_read::<u32>(ALL_STEPS[n].3) == 0 {
-                g.ecx
+                first
             } else {
-                g.ebx
+                second
             }
         };
         if count > 0 {
             let mut turns = [0u32; 2];
             for (n, &(step, a, b, _)) in ALL_STEPS.iter().enumerate() {
-                let (ecx, ebx) = smooth_pair(game_read(step), game_read(a), game_read(b));
-                turns[n] = pick(n, &Regs { ecx, ebx, ..g });
+                turns[n] = pick(n, smooth_pair(game_read(step), game_read(a), game_read(b)));
             }
             turn_shape_checks(turns[0], turns[1])?;
         }
-        for k in (0..count.max(0) as u32).rev() {
-            g.esi = k * 0xAB8;
+        for _ in 0..count.max(0) {
             let mut turns = [0u32; 2];
             for (n, &(step, a, b, _)) in ALL_STEPS.iter().enumerate() {
-                g.eax = game_read(step);
-                g.ebx = game_read(a);
-                g.ecx = game_read(b);
-                g = smooth_steps(&g);
-                turns[n] = pick(n, &g);
+                turns[n] = pick(n, smooth_steps(game_read(step), game_read(a), game_read(b)));
             }
-            g.ebx = turns[0];
-            g.ecx = turns[1];
-            g.eax = k;
-            let esi = g.esi;
-            g = turn_shape_points(&g)?;
-            g.esi = esi;
+            turn_shape_points(turns[0], turns[1])?;
         }
     }
-    Ok(g)
+    Ok(())
 }
-
 /// The working block a shape set is made in (`g_marksFarthestA` .. 0x885A6C, a
 /// `MarkShapes` image) and the sets it is copied to.
 pub const BLOCK_RVA: usize = rva(0x884FB4);
@@ -294,21 +227,19 @@ unsafe fn shape_set_checks(object: u32) -> Result<(), Refused> {
 /// `g_marksTurnedA` / `B`, each list's lowest point (y, the first found lowest) taken from
 /// all of it (kept at +0xA40 / +0xA4C), all 0x40 turned about X by minus the tilts
 /// (`turn_matrix3_x`, `transform_int_points`); `find_farthest_pairs`; the block copied to
-/// set n (`memory::move_bytes`), n counted. Leaves edi the set, the rest as
-/// `find_farthest_pairs` leaves them. Refuses a set count past 0x22, an object past 0xFF
-/// or faces past `g_faces`, a tilt `fsincos` cannot take, before writing.
-pub unsafe fn make_shape_set(entry: &Regs) -> Result<Regs, Refused> {
+/// set n (`memory::move_bytes`), n counted. Refuses a set count past 0x22, an object past
+/// 0xFF or faces past `g_faces`, a tilt `fsincos` cannot take, before writing.
+pub unsafe fn make_shape_set(object: u32) -> Result<(), Refused> {
     use crate::marks::masks::collect_points;
     use crate::scene::objects::{
         FACE_COUNTS_RVA, FACES_RVA, FIRST_FACE_RVA, FIRST_POINT_RVA as OBJECT_FIRST_POINT_RVA,
         POINTS_RVA,
     };
-    let mut g = *entry;
     unsafe {
-        shape_set_checks(g.ebp)?;
+        shape_set_checks(object)?;
         let made: u32 = game_read(SET_COUNT_RVA);
         if made == SETS {
-            return Ok(g);
+            return Ok(());
         }
         let block = game_addr(BLOCK_RVA) as u32;
         let inputs: [u32; 6] = [
@@ -335,56 +266,53 @@ pub unsafe fn make_shape_set(entry: &Regs) -> Result<Regs, Refused> {
         for list in [&POINTS_A, &POINTS_B] {
             game_write(list.count, 0u32);
         }
-        let object = g.ebp as usize;
-        g.esi = game_read(FIRST_FACE_RVA + 4 * object);
+        let object = object as usize;
+        let first: u32 = game_read(FIRST_FACE_RVA + 4 * object);
         game_write(
             FIRST_POINT_RVA,
             game_read::<u32>(OBJECT_FIRST_POINT_RVA + 4 * object),
         );
         let faces: u32 = game_read(FACE_COUNTS_RVA + 4 * object);
         let kinds: [u32; 2] = KINDS_RVA.map(|r| game_read(r));
-        for _ in 0..faces {
-            g.edi = game_read(FACES_RVA + 4 * g.esi as usize);
-            let kind = *((g.edi + 7) as *const u8);
+        for f in first..first + faces {
+            let face: u32 = game_read(FACES_RVA + 4 * f as usize);
+            let kind = *((face + 7) as *const u8);
             if kind == kinds[0] as u8 {
-                g = collect_points(&g, &POINTS_A)?;
+                collect_points(&POINTS_A, face)?;
             } else if kind == kinds[1] as u8 {
-                g = collect_points(&g, &POINTS_B)?;
+                collect_points(&POINTS_B, face)?;
             }
-            g.esi += 1;
         }
         let lists = [&POINTS_A, &POINTS_B];
         let points: u32 = game_read(POINTS_RVA);
         for list in lists {
             let ids = game_addr(list.ids) as u32;
             for k in (0..game_read::<u32>(list.count)).rev() {
-                g.ebx = k;
-                g.ecx = get(ids + 4 * k).wrapping_mul(12).wrapping_add(points);
-                put(ids + 4 * k, g.ecx);
+                put(
+                    ids + 4 * k,
+                    get(ids + 4 * k).wrapping_mul(12).wrapping_add(points),
+                );
             }
         }
         for (list, n) in lists.into_iter().zip(0..) {
             let ids = game_addr(list.ids) as u32;
             let turned = game_addr(TURNED_RVA[n]) as u32;
             for k in (0..game_read::<u32>(list.count)).rev() {
-                g.esi = get(ids + 4 * k);
-                g.edi = k * 12;
+                let from = get(ids + 4 * k);
                 for c in 0..3 {
-                    put(turned + g.edi + 4 * c, get(g.esi + 4 * c));
+                    put(turned + k * 12 + 4 * c, get(from + 4 * c));
                 }
             }
         }
         for (list, n) in lists.into_iter().zip(0..) {
             let turned = game_addr(TURNED_RVA[n]) as u32;
-            g.eax = 0x7FFF_FFFF;
-            g.ebx = 0;
+            let mut lowest = 0x7FFF_FFFF;
             for k in (0..game_read::<u32>(list.count)).rev() {
-                g.esi = k * 12;
-                if (get(turned + g.esi + 4) as i32) < g.eax as i32 {
-                    g.eax = get(turned + g.esi + 4);
-                    g.ebx = k;
+                let p = turned + k * 12;
+                if (get(p + 4) as i32) < lowest {
+                    lowest = get(p + 4) as i32;
                     for c in 0..3 {
-                        put(block + LOW_POINT[n] + 4 * c, get(turned + g.esi + 4 * c));
+                        put(block + LOW_POINT[n] + 4 * c, get(p + 4 * c));
                     }
                 }
             }
@@ -392,13 +320,12 @@ pub unsafe fn make_shape_set(entry: &Regs) -> Result<Regs, Refused> {
         for (list, n) in lists.into_iter().zip(0..) {
             let turned = game_addr(TURNED_RVA[n]) as u32;
             for k in (0..game_read::<u32>(list.count)).rev() {
-                g.esi = k * 12;
-                let p = turned + g.esi;
+                let p = turned + k * 12;
                 let d = |c: u32| get(p + 4 * c).wrapping_sub(get(block + LOW_POINT[n] + 4 * c));
-                [g.eax, g.ebx, g.ecx] = [d(0), d(1), d(2)];
-                put(p, g.eax);
-                put(p + 4, g.ebx);
-                put(p + 8, g.ecx);
+                let v = [d(0), d(1), d(2)];
+                for (c, x) in v.into_iter().enumerate() {
+                    put(p + 4 * c as u32, x);
+                }
             }
         }
         let turn_x = game_addr(TURN_X_RVA) as u32;
@@ -407,20 +334,14 @@ pub unsafe fn make_shape_set(entry: &Regs) -> Result<Regs, Refused> {
             angle[9] ^= 0x80;
             turn_matrix3(Axis::X, turn_x, angle)?;
             let turned = game_addr(TURNED_RVA[n]) as u32;
-            g = transform_int_points(&Regs {
-                ebp: turn_x,
-                esi: turned,
-                edi: turned,
-                ecx: MOST_POINTS,
-                ..g
-            })?;
+            crate::marks::splines::transform(turned, turned, MOST_POINTS, turn_x)?;
         }
-        g = find_farthest_pairs(&g)?;
-        g.edi = game_addr(SET_RVA) as u32 + made * SET_LEN;
-        std::ptr::copy(block as *const u8, g.edi as *mut u8, SET_LEN as usize);
+        find_farthest_pairs()?;
+        let set = game_addr(SET_RVA) as u32 + made * SET_LEN;
+        std::ptr::copy(block as *const u8, set as *mut u8, SET_LEN as usize);
         game_write(SET_COUNT_RVA, made + 1);
     }
-    Ok(g)
+    Ok(())
 }
 
 /// The kind's two face kinds and the set's ends (`dword_89C72C`, `_7B4`, `_8C4`, `_83C` by
@@ -431,11 +352,9 @@ const SET_ENDS_RVA: [usize; 2] = [rva(0x89C96C), rva(0x89C970)];
 /// `marks::make_shape_sets` (0x4BD019): no sets made; the two face kinds of `g_marksKind`
 /// into `dword_89C724`, `_28`; for each of the settings' objects (the last first) the set's
 /// inputs (the tilt twice into 0x764F60, _64; the kind's two values and two floats into
-/// 0x764F6C .. _78) and `make_shape_set`. Leaves esi the settings, the rest as the last set
-/// (eax the kind with none). Refuses a kind of 0x22 or more, more than 19 objects, what
-/// `make_shape_set` refuses for any of them, before writing.
-pub unsafe fn make_shape_sets(entry: &Regs) -> Result<Regs, Refused> {
-    let mut g = *entry;
+/// 0x764F6C .. _78) and `make_shape_set`. Refuses a kind of 0x22 or more, more than 19
+/// objects, what `make_shape_set` refuses for any of them, before writing.
+pub unsafe fn make_shape_sets() -> Result<(), Refused> {
     unsafe {
         let kind: u32 = game_read(crate::marks::kind_values::KIND_RVA);
         if kind >= SETS {
@@ -470,17 +389,13 @@ pub unsafe fn make_shape_sets(entry: &Regs) -> Result<Regs, Refused> {
         game_write(SET_COUNT_RVA, 0u32);
         game_write(KINDS_RVA[0], by_kind[0]);
         game_write(KINDS_RVA[1], by_kind[1]);
-        g.eax = kind;
-        g.esi = settings;
         for o in objects {
-            g.ebp = o;
             game_write(STEPS_IN_RVA, tilts);
             game_write(STEPS_IN_RVA + 0xC, ends);
-            g = make_shape_set(&g)?;
-            g.esi = settings;
+            make_shape_set(o)?;
         }
     }
-    Ok(g)
+    Ok(())
 }
 
 // ---- for the self-tests ----

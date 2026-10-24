@@ -15,8 +15,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::Regs;
-use crate::net::lobby::{BLOCK, PLAYERS, Part, RECEIVED, SORTED, a, g, movsb};
+use crate::net::lobby::{BLOCK, PLAYERS, RECEIVED, SORTED, a, g, movsb};
 use rc2k_core::net::players::{self, Standing};
 
 const ALL: u32 = 8 * BLOCK;
@@ -46,8 +45,8 @@ pub fn swap_blocks(x: u32) {
     }
 }
 
-/// The Rust version: the registers it leaves (the entry's).
-pub fn sort_players(entry: &Regs, _: Part) -> Result<Regs, Refused> {
+/// The Rust version (the original keeps every register).
+pub fn sort_players() -> Result<(), Refused> {
     let players = g(PLAYERS);
     if players > players::MOST {
         return Err(BadInput("more than eight players").into());
@@ -60,11 +59,5 @@ pub fn sort_players(entry: &Regs, _: Part) -> Result<Regs, Refused> {
         |k| players::goes_after(standing(x(k)), standing(x(k) + BLOCK)),
         |k| swap_blocks(x(k)),
     );
-    Ok(*entry)
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    crate::race::viewer::regs_entry(r, &|r| sort_players(r, &mut crate::net::lobby::game_part))
+    Ok(())
 }

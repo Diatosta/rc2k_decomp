@@ -7,7 +7,7 @@
 //! `g_marksFrameTicks` (`fidiv`).
 //!
 //! In:  nothing
-//! Out: esi the view matrix; edi and ebp its stack scratch (not compared); the rest kept
+//! Out: nothing (no caller reads a register it leaves)
 //!
 //! Caller: `sub_4C3EEE`. Shadow mode and the self-test set edi and ebp back to the
 //! caller's on both sides (the original's are addresses on its stack). Self-test: view
@@ -22,7 +22,7 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::math::x87;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
@@ -34,9 +34,8 @@ const STEP_RVA: usize = rva(0x8EB951); // flt_8EB951 .. flt_8EB959
 const FACING_RVA: usize = rva(0x8F397D); // flt_8F397D
 const TICKS_RVA: usize = rva(0x764FD0); // g_marksFrameTicks
 
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn view_motion(entry: &Regs) -> Regs {
-    let mut g = *entry;
+/// The Rust version (see the header).
+pub unsafe fn view_motion() {
     unsafe {
         let m = game_addr(VIEW_RVA) as u32;
         let get = |a: u32| (a as *const u32).read_unaligned();
@@ -63,7 +62,5 @@ pub unsafe fn view_motion(entry: &Regs) -> Regs {
             let a = STEP_RVA + 4 * k;
             game_write(a, x87::over_int(game_read(a), ticks));
         }
-        g.esi = m;
     }
-    g
 }

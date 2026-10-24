@@ -132,7 +132,7 @@ pub unsafe fn draw_stage_results(canvas: &mut dyn Canvas) -> Result<(), Refused>
         };
         let mut seal_code = |a: u32, b: u32| {
             crate::strings::format_seal_code::format_seal_code(a, b);
-            let code = game_addr(rva(0x4E0544)) as *const u8;
+            let code = crate::strings::format_seal_code::SEAL_TEXT.ptr() as *const u8;
             std::ffi::CStr::from_ptr(code as *const std::ffi::c_char)
                 .to_bytes()
                 .to_vec()

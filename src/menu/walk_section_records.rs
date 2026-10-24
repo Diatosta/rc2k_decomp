@@ -19,10 +19,8 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::menu::standings::*;
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
 use rc2k_core::menu::section_walk::Step;
 
 const FIRST_RVA: usize = rva(0x755944); // dword_755944
@@ -50,7 +48,7 @@ fn walk() -> Result<Vec<(u32, Step)>, Refused> {
 }
 
 /// The Rust version (see the header): the registers it leaves.
-pub unsafe fn walk_section_records(entry: &Regs) -> Result<Regs, Refused> {
+pub unsafe fn walk_section_records() -> Result<(), Refused> {
     use crate::menu::{reset_driver_condition as rdc, reset_player_totals as rpt};
     let records = walk()?;
     unsafe {
@@ -63,10 +61,10 @@ pub unsafe fn walk_section_records(entry: &Regs) -> Result<Regs, Refused> {
             }
             match step {
                 Step::CpuTimes => {
-                    crate::menu::calc_cpu_times::calc_cpu_times(entry)?;
+                    crate::menu::calc_cpu_times::calc_cpu_times()?;
                 }
                 Step::Condition => {
-                    rdc::reset_driver_condition(entry)?;
+                    rdc::reset_driver_condition()?;
                 }
                 _ => {}
             }
@@ -75,18 +73,9 @@ pub unsafe fn walk_section_records(entry: &Regs) -> Result<Regs, Refused> {
             }
             game_write(INDEX_RVA, game_read::<u32>(INDEX_RVA).wrapping_add(1));
             game_write(COUNTER_RVA, game_read::<u32>(COUNTER_RVA).wrapping_add(1));
-            rpt::reset_player_totals(entry)?;
+            rpt::reset_player_totals()?;
         }
-        rdc::reset_driver_condition(entry)?;
+        rdc::reset_driver_condition()?;
     }
-    Ok(*entry)
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(left_of(&unsafe { walk_section_records(r) }?))
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    crate::service::harness::state_entry(r, &rust)
+    Ok(())
 }

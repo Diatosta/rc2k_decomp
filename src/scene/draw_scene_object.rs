@@ -27,7 +27,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, FatalError, Refused};
-use crate::framework::{Regs, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 use crate::scene::draw_object::draw_object_in_game;
 use crate::scene::draw_shown_object::draw_shown_object;
 
@@ -52,17 +52,16 @@ pub use rc2k_core::scene::shown::Way;
 
 // ---- Rust version ----
 
-/// The texture set and the registers the choosing leaves. Writes only `r`.
+/// The texture set for `g_objectNumber`; the object's number.
 // Converted: `rc2k_core::scene::shown::texture_set`
-unsafe fn texture_set(r: &mut Regs) -> Result<u32, Refused> {
+unsafe fn texture_set() -> Result<(u32, u32), Refused> {
     use rc2k_core::scene::shown::SetError;
     unsafe {
         let object: u32 = game_read(OBJECT_RVA);
-        r.ebx = object;
         let t = rc2k_core::scene::shown::texture_set(
             object,
             game_read::<u32>(IN_RACE_RVA) != 0,
-            r.eax,
+            0,
             |object| game_read(KINDS_RVA + object as usize * 4),
             |car| {
                 let block: u32 = game_read(BLOCKS_RVA + car as usize * 4);
@@ -75,44 +74,38 @@ unsafe fn texture_set(r: &mut Regs) -> Result<u32, Refused> {
                 SetError::NoBlock => BadInput("a car without its block").into(),
             }
         })?;
-        r.eax = t.eax;
-        r.edx = t.edx.unwrap_or(r.edx);
-        Ok(t.set)
+        Ok((t.set, object))
     }
 }
 
-/// `draw`: what stands for the two calls.
+/// `draw`: what stands for the two calls. What the original leaves in the registers (ebx
+/// the object's number among them) none of its callers reads (register liveness,
+/// 2026-10-23: only the unreached `sub_49081A` after `scene::draw_menu_object`).
 // Converted: `rc2k_core::scene::shown::way`
 pub unsafe fn draw_scene_object(
-    r: &mut Regs,
-    draw: &mut dyn FnMut(Way, &mut Regs) -> Result<(), Refused>,
+    draw: &mut dyn FnMut(Way) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
     unsafe {
-        let mut left = *r;
-        let set = texture_set(&mut left)?;
-        *r = left;
+        let (set, object) = texture_set()?;
         game_write(TEXTURE_SET_RVA, set);
-        let faces: u32 = game_read(FACE_COUNTS_RVA + r.ebx as usize * 4);
+        let faces: u32 = game_read(FACE_COUNTS_RVA + object as usize * 4);
         match rc2k_core::scene::shown::way(faces, game_read(MODE_RVA)) {
-            Some(way) => draw(way, r),
+            Some(way) => draw(way),
             None => Ok(()),
         }
     }
 }
 
 /// `draw_scene_object` with the game's parts (`scene::draw_shown_object` and its drawing;
-/// `scene::draw_described_object`), for Rust callers.
-pub unsafe fn draw_scene_object_in_game(r: &mut Regs) -> Result<(), Refused> {
+/// `scene::draw_described_object`, given `description`, esi at the original's entry: the
+/// object's description, read only on that way, the scene's mode 1 or 2).
+pub unsafe fn draw_scene_object_in_game(description: u32) -> Result<(), Refused> {
     unsafe {
-        draw_scene_object(r, &mut |way, r| match way {
-            Way::Shown => draw_shown_object(r, &mut |r| draw_object_in_game(r)).map(|_| ()),
-            Way::Described => crate::scene::draw_described_object::draw_described_object(r),
+        draw_scene_object(&mut |way| match way {
+            Way::Shown => draw_shown_object(&mut || draw_object_in_game()).map(|_| ()),
+            Way::Described => {
+                crate::scene::draw_described_object::draw_described_object(description)
+            }
         })
     }
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    unsafe { draw_scene_object_in_game(r) }?;
-    Ok(())
 }

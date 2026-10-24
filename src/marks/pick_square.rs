@@ -3,7 +3,7 @@
 //! 23) for `marks::spawn_square`.
 //!
 //! In:  nothing
-//! Out: eax, ebx the place; ecx the kind (as `spawn_square` leaves it)
+//! Out: nothing (no caller reads a register it leaves)
 //!
 //! Caller: `marks::squares_spawn` (twice). The call is `spawn_square`'s Rust version.
 //! Self-test: the original and the Rust version on the game's items, randoms by lot.
@@ -16,23 +16,18 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::{Regs, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 use crate::marks::spawn_square::spawn_square;
 
 const RANDOM_RVA: usize = rva(0x8BC256); // dword_8BC256
 
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn pick_square(entry: &Regs) -> Regs {
-    let mut g = *entry;
+/// The Rust version (see the header).
+pub unsafe fn pick_square() {
     unsafe {
         let s = game_read::<u32>(RANDOM_RVA)
             .wrapping_mul(0xC5)
             .wrapping_add(0x5D);
         game_write(RANDOM_RVA, s);
-        g.eax = s & 0x7FF;
-        g.ebx = (s >> 11) & 0x3FF;
-        g.ecx = (s >> 21) & 7;
-        g.ecx = spawn_square(g.eax, g.ebx, g.ecx);
+        spawn_square(s & 0x7FF, (s >> 11) & 0x3FF, (s >> 21) & 7);
     }
-    g
 }

@@ -14,50 +14,48 @@
 //! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
+//! are the original's.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::install::installer::{
-    CLOSE_SEARCH, FILE_COUNT, FILE_CURSOR, FILES, FIND_FIRST, FIND_NEXT, RESOLVE_PATH, a,
-    append_byte, at, fatal, g, p, str_append,
+    FILE_COUNT, FILE_CURSOR, FILES, append_byte, close_search, fatal, find_first, find_next, g, p,
+    resolve_path, str_append,
 };
 use rc2k_core::install::script;
 
-const FIND_NAME: usize = 0x4E05A8 + 0x2C; // FindFileData.cFileName
-
-pub fn list_files(entry: &Regs) -> Result<Regs, Refused> {
-    let mut r = *entry;
-    crate::install::installer::game_part(at(RESOLVE_PATH), &mut r)?;
-    r.edx = r.eax;
-    crate::install::installer::game_part(at(FIND_FIRST), &mut r)?;
-    if r.carry() {
-        crate::install::installer::game_part(at(CLOSE_SEARCH), &mut r)?;
-        return Ok(*entry);
-    }
-    loop {
-        r.ebx = g(FILE_CURSOR);
-        // append_directory(edx = the pattern's path, ebx = the cursor): pure, called direct
-        r = unsafe { crate::files::append_directory::append_directory_regs(&r) }?;
-        r.eax = a(FIND_NAME);
-        str_append(&mut r);
-        append_byte(&mut r, 0);
-        p(FILE_CURSOR, r.ebx);
-        p(FILE_COUNT, g(FILE_COUNT).wrapping_add(1));
-        // `sub ebx, [table]`: find_next gets the bytes used in ebx.
-        r.ebx = r.ebx.wrapping_sub(g(FILES));
-        // Converted: `rc2k_core::install::script::room_left`.
-        script::room_left(r.ebx, script::FILES_ROOM, script::FILES_FULL).map_err(fatal)?;
-        crate::install::installer::game_part(at(FIND_NEXT), &mut r)?;
-        if r.carry() {
-            break;
-        }
-    }
-    crate::install::installer::game_part(at(CLOSE_SEARCH), &mut r)?;
-    Ok(Regs { ..*entry })
+/// FindFileData.cFileName (the search record: `files::state`).
+fn find_name() -> u32 {
+    unsafe { (&raw const (*crate::files::state::find_data()).cFileName) as u32 }
 }
 
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    crate::race::viewer::regs_entry(r, &|r| list_files(r))
+/// The files of `pattern` (eax) added to the files' table.
+pub fn list_files(pattern: u32) -> Result<(), Refused> {
+    let pattern = resolve_path(pattern)?;
+    if find_first(pattern) {
+        loop {
+            // append_directory (edx the pattern's path, ebx the cursor)
+            let (cursor, _) = unsafe {
+                crate::files::append_directory::append_directory(
+                    pattern as *const u8,
+                    g(FILE_CURSOR) as *mut u8,
+                )
+            }?;
+            let cursor = append_byte(str_append(find_name(), cursor as u32), 0);
+            p(FILE_CURSOR, cursor);
+            p(FILE_COUNT, g(FILE_COUNT).wrapping_add(1));
+            // Converted: `rc2k_core::install::script::room_left` (`sub ebx, [table]`).
+            script::room_left(
+                cursor.wrapping_sub(g(FILES)),
+                script::FILES_ROOM,
+                script::FILES_FULL,
+            )
+            .map_err(fatal)?;
+            if !find_next() {
+                break;
+            }
+        }
+    }
+    close_search();
+    Ok(())
 }

@@ -19,20 +19,17 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{EAX, EBX, ECX, EDX, ESI, Regs};
 use crate::physics::flow::{g, p};
-use crate::screens::harness::Left;
 
 const WORDS: usize = 0x6138C4;
 const CURRENT: usize = 0x71B3F8;
 
 /// The Rust version.
 // Converted: `rc2k_core::drive::inputs::{check_car, device_words, replay_words}`.
-pub unsafe fn car_input_words(entry: &Regs) -> Result<Left, Refused> {
+pub unsafe fn car_input_words() -> Result<(), Refused> {
     use rc2k_core::drive::inputs::{NO_DEVICE, ReplayWords, check_car, device_words, replay_words};
     let car = g(CURRENT);
     check_car(car)?;
-    let mut r = *entry;
     let device = g(0x641680 + 4 * car as usize);
     let readings = if device != NO_DEVICE {
         Some(unsafe { crate::drive::device_axes::device_axes(device) }?)
@@ -43,14 +40,8 @@ pub unsafe fn car_input_words(entry: &Regs) -> Result<Left, Refused> {
     for (k, v) in words.iter().enumerate() {
         p(WORDS + 4 * k, *v);
     }
-    r.esi = device;
-    if let Some([eax, ebx, ecx, edx]) = readings {
-        (r.eax, r.ebx, r.ecx, r.edx) = (eax, ebx, ecx, edx);
-    }
     if g(0x52A910) != 0 {
-        r.esi = g(0x71B3B8 + 4 * car as usize);
-        r.eax = car;
-        let block = (r.esi + 0xFD0) as *mut u32;
+        let block = (g(0x71B3B8 + 4 * car as usize) + 0xFD0) as *mut u32;
         for k in 0..4 {
             let at = unsafe { block.add(k) };
             match replay_words(car, g(0x52A920)) {
@@ -59,10 +50,5 @@ pub unsafe fn car_input_words(entry: &Regs) -> Result<Left, Refused> {
             }
         }
     }
-    Ok(Left::nothing()
-        .with(EAX, r.eax)
-        .with(EBX, r.ebx)
-        .with(ECX, r.ecx)
-        .with(EDX, r.edx)
-        .with(ESI, r.esi))
+    Ok(())
 }

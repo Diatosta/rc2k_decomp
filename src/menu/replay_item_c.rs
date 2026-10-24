@@ -10,25 +10,9 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
-use crate::menu::parts::{Part, parted_entry};
+use crate::menu::screen_loop::Carried;
 
-// race::replay_mode_2
-
-/// The Rust version: the registers it leaves.
-pub unsafe fn replay_item_c(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    let mut r = *entry;
-    part(0, &mut r)?;
-    Ok(r)
-}
-
-fn game_part(_: u32, r: &mut Regs) -> Result<(), Refused> {
-    *r = crate::race::replay_mode_2::replay_mode_2(r, &mut crate::race::replay_mode::game_part)?;
-    Ok(())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    parted_entry(r, &|r, part| unsafe { replay_item_c(r, part) }, game_part)
+/// The Rust version (`c` the carried values the item gets).
+pub unsafe fn replay_item_c(c: &Carried) -> Result<(), Refused> {
+    crate::race::replay_mode_2::replay_mode_2(c)
 }

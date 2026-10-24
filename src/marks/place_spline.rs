@@ -7,8 +7,8 @@
 //! `flt_788F31`, `dword_7695CA` 1, C by `place_graded_points`. Each compare's C0 .. C2 into
 //! `g_fpuStatus`.
 //!
-//! In:  eax the spline (`g_marksSettings`)
-//! Out: ebp C's record, the rest as its last `place_graded_points` leaves them
+//! In:  `n` the spline (`g_marksSettings`)
+//! Out: nothing (no caller reads the registers it leaves)
 //!
 //! Caller: `sub_4B978A`. Refuses null settings, a spline number of 8 or more (before
 //! anything), and its steps' refusals (all it may write is put back first). Self-test: the
@@ -20,14 +20,12 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::marks::lines::SETTINGS_RVA;
-use crate::marks::place_graded_points::{self, place_graded_points};
-use crate::marks::place_shape_points;
+use crate::marks::place_graded_points::place_graded_points;
 use crate::marks::splines::{OFFSET_RVA, SPLINE_LEN, TABLES, place_shape_points as place_shape};
 use crate::math::x87;
 use crate::scene::vector3::STATUS_RVA;
-use crate::service::harness::{Region, at};
 
 const SPLINES: u32 = 8;
 const SWITCH_RVA: usize = rva(0x7695CA); // dword_7695CA
@@ -63,40 +61,18 @@ fn sizes(a: u32, k: u32, k2: u32) -> (u32, u32) {
     (abc, d)
 }
 
-/// What it may write, for spline `n`.
-pub fn regions(n: u32) -> Vec<Region> {
-    let mut r: Vec<Region> = [OFFSET_RVA, SWITCH_RVA, STATUS_RVA].map(at).to_vec();
-    if n < SPLINES {
-        let [a, b, c, d] = records(n);
-        r.extend(place_shape_points::regions(a));
-        r.extend(place_shape_points::regions(d));
-        r.extend(place_graded_points::regions(b));
-        r.extend(place_graded_points::regions(c));
-    }
-    r
-}
-
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn place_spline(entry: &Regs) -> Result<Regs, Refused> {
+/// The Rust version (see the header).
+pub unsafe fn place_spline(n: u32) -> Result<(), Refused> {
     let settings: u32 = unsafe { game_read(SETTINGS_RVA) };
     if settings == 0 {
         return Err(BadInput("no marks settings").into());
     }
-    if entry.eax >= SPLINES {
+    if n >= SPLINES {
         return Err(BadInput("a spline number of 8 or more").into());
     }
-
-    unsafe { run(entry, settings) }
-}
-
-unsafe fn run(entry: &Regs, settings: u32) -> Result<Regs, Refused> {
-    let mut g = *entry;
     unsafe {
-        g.esi = settings;
         let k = K.map(|r| game_read::<u32>(r));
-        let n = g.eax;
-        g.eax = n * SPLINE_LEN;
-        game_write(OFFSET_RVA, g.eax);
+        game_write(OFFSET_RVA, n * SPLINE_LEN);
         let [a, b, c, d] = records(n);
         let (abc, dsize) = sizes(get(settings + 0x26DC), k[0], k[1]);
         for r in [a, b, c] {
@@ -104,23 +80,20 @@ unsafe fn run(entry: &Regs, settings: u32) -> Result<Regs, Refused> {
         }
         put(d + 0x24, dsize);
         for r in [a, d] {
-            g.ebp = r;
-            g = place_shape(&g)?;
+            place_shape(r)?;
         }
-        g.ebp = b;
         let status = x87::compare_status(get(b + 0x24), k[2]);
         game_write(STATUS_RVA, status as u32);
         let f = if status == 0x100 { k[4] } else { k[3] };
         put(b + 0x2C, x87::mul(get(b + 0x24), f));
         game_write(SWITCH_RVA, 0u32);
-        g = place_graded_points(&g)?;
-        g.ebp = c;
+        place_graded_points(b)?;
         let status = x87::compare_status(get(c + 0x24), k[5]);
         game_write(STATUS_RVA, status as u32);
         let f = if status == 0 { k[7] } else { k[6] };
         put(c + 0x2C, x87::mul(get(c + 0x24), f));
         game_write(SWITCH_RVA, 1u32);
-        g = place_graded_points(&g)?;
+        place_graded_points(c)?;
     }
-    Ok(g)
+    Ok(())
 }

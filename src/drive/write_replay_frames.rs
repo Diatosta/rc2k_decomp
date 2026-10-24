@@ -18,13 +18,12 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::physics::flow::{a, g, p};
 use rc2k_core::drive::replay_frames::written_view;
 
 /// The Rust version.
 // Converted: `rc2k_core::drive::replay_frames::written_view`.
-pub unsafe fn write_replay_frames(entry: &Regs) -> Result<(), Refused> {
+pub unsafe fn write_replay_frames() -> Result<(), Refused> {
     if g(0x5BEC88) != 1 {
         return Ok(());
     }
@@ -37,7 +36,8 @@ pub unsafe fn write_replay_frames(entry: &Regs) -> Result<(), Refused> {
         let v = written_view(unsafe { at.read() });
         unsafe { at.write(v) };
     }
-    unsafe { crate::race::replay::write_replay_block(entry) }?;
+    // `race::write_replay_block` reads no register at entry (liveness: DF only).
+    unsafe { crate::race::replay::write_replay_block() }?;
     p(0x9613A0, a(0x9613A4));
     p(0x5C252C, 0);
     Ok(())

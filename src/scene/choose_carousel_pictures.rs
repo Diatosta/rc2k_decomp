@@ -14,11 +14,9 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::{Regs, game_read, rva};
+use crate::errors::BadInput;
+use crate::framework::{game_read, rva};
 use crate::scene::carousel_pictures::update;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 // ---- game data ----
 
@@ -28,26 +26,13 @@ const FRONT_RVA: usize = rva(0x75AA7C); // g_carouselFront
 
 // ---- Rust version ----
 
-pub unsafe fn choose_carousel_pictures() -> Result<Left, Refused> {
+pub unsafe fn choose_carousel_pictures() -> Result<(), BadInput> {
     // Converted: `rc2k_core::scene::carousel::{shows_pictures, visible_entries}`.
     use rc2k_core::scene::carousel::{shows_pictures, visible_entries};
     unsafe {
         if !shows_pictures(game_read(MENU_RVA)) {
-            return Ok(Left::nothing());
+            return Ok(());
         }
-        Ok(update(visible_entries(
-            game_read(FRONT_RVA),
-            game_read(COUNT_RVA),
-        ))?)
+        update(visible_entries(game_read(FRONT_RVA), game_read(COUNT_RVA)))
     }
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { choose_carousel_pictures() }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

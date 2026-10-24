@@ -11,38 +11,19 @@
 //! This file: the places, the quads' shared steps and the tests' frame.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, rva};
 use crate::physics::flow::{a, base, p, x87_run};
-use crate::race::car_starts::Part;
-
-pub const TEXTURE: u32 = 0;
-pub const STATE: u32 = 1;
-pub const QUAD: u32 = 2;
-pub const TURNED: u32 = 3;
-pub const PARTS: u32 = 4;
-pub const DRAW: u32 = 5;
-pub const SCREEN: u32 = 6;
-
-/// The places' functions (IDA addresses), by place.
-pub const PLACES: [usize; 7] = [
-    0x41ACF5, 0x41AB5B, 0x41DD3B, 0x41C969, 0x41C790, 0x41ADE1, 0x41C5FA,
-];
 
 /// `g_polygonVertices`: the four vertices (0x20 bytes each) a quad draws.
 pub const VERTS: usize = 0x9605A0;
 
-/// The calls in the game.
-pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    unsafe {
-        match place {
-            QUAD => *r = crate::drive::tyre_quad::tyre_quad(r, &mut game_part)?,
-            TURNED => *r = crate::drive::tyre_turned_quad::tyre_turned_quad(r, &mut game_part)?,
-            PARTS => *r = crate::drive::tyre_screen_parts::tyre_screen_parts(r)?,
-            SCREEN => *r = crate::drive::tyre_screen::tyre_screen(r)?,
-            _ => crate::calls::call(rva(PLACES[place as usize]), r),
-        }
-    }
-    Ok(())
+/// `d3d::set_texture` (0x41ACF5): eax the texture.
+pub fn set_texture(texture: u32) {
+    crate::d3d::set_texture::set_texture(texture);
+}
+
+/// `d3d::set_render_state` (0x41AB5B): eax the value, ebx the state.
+pub fn set_render_state(value: u32, state: u32) {
+    crate::d3d::set_render_state::set_render_state(value, state);
 }
 
 /// The quads' fixed words (0x41DD68 .. / 0x41CA49 ..): z 0, rhw 1.0, the colour, the
@@ -115,14 +96,10 @@ pub fn quad_tail(uv: u32) {
     );
 }
 
-/// The draw (`sub_41ADE1`): eax 4 vertices, ebx `g_polygonVertices`.
-pub fn draw(r: &Regs, part: Part) -> Result<(), Refused> {
-    let mut d = Regs {
-        eax: 4,
-        ebx: a(VERTS),
-        ..*r
-    };
-    part(DRAW, &mut d)
+/// The draw (`d3d::draw_vertex_strip`, 0x41ADE1) of 4 vertices at `g_polygonVertices`;
+/// its result (Direct3D's, always 0) is read by no one: the quads keep every register
+/// round it (`pusha` / `popa`).
+pub fn draw() -> Result<(), Refused> {
+    unsafe { crate::d3d::draw_vertex_strip::draw_vertex_strip(a(VERTS), 4) };
+    Ok(())
 }
-
-// ---- for the self-tests ----

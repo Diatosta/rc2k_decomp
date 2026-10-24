@@ -12,20 +12,18 @@
 //! test's (its calls to the game's `move_slot`) against the Rust version, slots in use
 //! and not; every game variable `move_slot` writes saved and put back.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{ECX, ESI, Regs, game_addr, rva};
+use crate::framework::{game_addr, rva};
 use crate::physics::move_slot::{SLOT_LEN, move_slot_at, slot_refusal};
-use crate::screens::harness::Left;
 
 const SLOTS_RVA: usize = rva(0x71BAC8); // g_raceSlots
 const COUNT_RVA: usize = rva(0x71BE88); // dword_71BE88
 
 /// The Rust core: the slots at `slots`, the count at `count`.
-pub unsafe fn move_slots_at(slots: u32, count: u32, r: &Regs) -> Result<Left, Refused> {
+pub unsafe fn move_slots_at(slots: u32, count: u32) -> Result<(), Refused> {
     unsafe {
         for k in 0..8 {
             let s = slots + SLOT_LEN * k;
@@ -41,20 +39,15 @@ pub unsafe fn move_slots_at(slots: u32, count: u32, r: &Regs) -> Result<Left, Re
             if (s as *const u32).read_unaligned() != 0 {
                 n += 1;
                 (count as *mut u32).write_unaligned(n);
-                let mut g = Regs {
-                    esi: s,
-                    ecx: k,
-                    ..*r
-                };
-                move_slot_at(&mut g)?;
+                move_slot_at(s)?;
             }
         }
         (count as *mut u32).write_unaligned(n);
-        Ok(Left::nothing().with(ESI, slots + 8 * SLOT_LEN).with(ECX, 8))
+        Ok(())
     }
 }
 
 /// The Rust version.
-pub unsafe fn move_slots(r: &Regs) -> Result<Left, Refused> {
-    unsafe { move_slots_at(game_addr(SLOTS_RVA) as u32, game_addr(COUNT_RVA) as u32, r) }
+pub unsafe fn move_slots() -> Result<(), Refused> {
+    unsafe { move_slots_at(game_addr(SLOTS_RVA) as u32, game_addr(COUNT_RVA) as u32) }
 }

@@ -1,24 +1,13 @@
 //! What the event flows share (IDA, 2026-10-19): the championship drivers
 //! (`menu::run_championship`, `menu::run_a8_championship`), their starters, the single
 //! rally's and the time trial's multi-player events. Each of them is a sequence of calls
-//! and of tests of the game's variables, so their Rust versions take every callee through
-//! a `Call` (the callee by its address as IDA shows it, with the registers the original
-//! has there), and `game_call` is that in the game: the Rust versions of the callees, the
-//! screens through `menu::screen_loop`, and the race, the repairs' clock, the sound commands
-//! and the frame through their hooks (the platform's or long runners: their hooks choose).
-//!
-//! For the self-tests, `test_flow`: a copy of the original whose every call goes to a
-//! stand-in that notes the callee with eax .. ebp and gives a scripted answer (variables
-//! written, eax, al, edi, the carry and zero flags, a record for `records::find_record`),
-//! against the Rust version given the same answers. The game's variables are used as they
-//! are and put back.
+//! and of tests of the game's variables. The flows run on `menu::flow_game::Game`
+//! (the callees' Rust versions, the screens through `menu::screen_loop`), and carry the
+//! registers the originals hand from call to call in a `Flow`.
 
-use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
-use crate::menu::screen_loop::run_screen;
-
-/// A callee by its address as IDA shows it, with the registers it gets and leaves.
-pub type Call<'a> = &'a mut dyn FnMut(usize, &mut Regs) -> Result<(), Refused>;
+use crate::errors::BadInput;
+use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::menu::screen_loop::Carried;
 
 /// A game variable (its address as IDA shows it).
 pub fn get(v: usize) -> u32 {
@@ -150,355 +139,28 @@ pub fn stage_times() -> Result<u32, BadInput> {
     Ok(base.wrapping_add(dword(record + 0x3C).wrapping_mul(TIMES_LEN)))
 }
 
-// ---- the callees ----
+// ---- the registers the flows carry ----
 
-pub const BEGIN_EVENT: usize = 0x472BAA;
-pub const SHUFFLE_DRIVERS: usize = 0x470AB9;
-pub const CLEAR_RESULT_SLOTS: usize = 0x470DDA;
-pub const RESET_DRIVERS: usize = 0x470399;
-pub const RESET_DRIVER_CONDITION: usize = 0x47E7BC;
-pub const CLEAR_PLAYERS_284: usize = 0x4A9679;
-pub const TAKE_PLAYER1_UNITS: usize = 0x467EA8;
-pub const RESET_CARS_750724: usize = 0x46FC52;
-pub const CHAMPIONSHIP_WELCOME: usize = 0x47F314;
-pub const A8_WELCOME: usize = 0x47F3C7;
-pub const STOP_STREAM: usize = 0x40F757;
-pub const START_STREAM: usize = 0x40F743;
-pub const WAIT_FOR_COMMANDS: usize = 0x409C1E;
-pub const FIND_RECORD: usize = 0x47255D;
-pub const WELCOME_LOOP: usize = 0x4721F0;
-pub const STANDINGS_B_FROM_ALL: usize = 0x4A44A0;
-pub const SORT_B_BY_FIGURE: usize = 0x4A467A;
-pub const AWARD_STAGE_POINTS: usize = 0x4A47EA;
-pub const SORT_B_BY_POINTS: usize = 0x4A5B07;
-pub const CLASS_CHAMPIONSHIP_PASS: usize = 0x4A4A1C;
-pub const AWARD_OVERALL_POINTS: usize = 0x4A4933;
-pub const CLEAR_STANDINGS_B: usize = 0x4A5A2F;
-pub const SORT_B_BY_SCORE: usize = 0x4A5C77;
-pub const NUMBER_ALL_B: usize = 0x4A5A98;
-pub const SHOW_CHAMPIONSHIP_STANDINGS: usize = 0x4A5A47;
-pub const SECTION_FINISH: usize = 0x4A9439;
-pub const REVIEW_480D46: usize = 0x480D46;
-pub const RALLY_STAGES_LOOP: usize = 0x472596;
-pub const RESET_PLAYER_TIMES: usize = 0x4813D6;
-pub const NEXT_STAGE_LOOP: usize = 0x473B21;
-pub const SERVICE_PASS: usize = 0x4A15E3;
-pub const WALK_SECTION_RECORDS: usize = 0x471F0D;
-pub const STANDINGS_A_FROM_ALL: usize = 0x4A2B75;
-pub const CLASS_RALLY_RESULTS_PASS: usize = 0x4A32A5;
-pub const CLEAR_STANDINGS_A: usize = 0x4A5A14;
-pub const NUMBER_ALL_A: usize = 0x4A2090;
-pub const SHOW_OVERALL_RALLY_RESULTS: usize = 0x4A3BA2;
-pub const RUN_EVENT_RACES: usize = 0x473126;
-pub const ADD_PLAYER_TIMES: usize = 0x4A25AD;
-pub const CLASS_STAGE_RESULTS_PASS: usize = 0x4A1EE6;
-pub const SHOW_OVERALL_STAGE_RESULTS: usize = 0x4A1FE5;
-pub const NEXT_RECORD_KIND: usize = 0x470D08;
-pub const KEEP_RECORD_BEST: usize = 0x4A3E8B;
-pub const RECORD_ENTRIES_PASS: usize = 0x4A3BE0;
-pub const BEST_TIMES_LOOP: usize = 0x4A3EF3;
-pub const INSPECTION_PASS: usize = 0x4A8556;
-pub const REVIEW_47D5A5: usize = 0x47D5A5;
-pub const REVIEW_48108E: usize = 0x48108E;
-pub const CHAMPIONSHIP_FINISH: usize = 0x4A14CB;
-pub const CLEAR_SCORE_MARKS: usize = 0x4A919A;
-pub const BEST_CLASS_SCORES: usize = 0x4A8608;
-pub const BEST_OVERALL_SCORES: usize = 0x4A91BF;
-pub const REVIEW_481429: usize = 0x481429;
-pub const SHOW_IN_GAME_OPTIONS: usize = 0x46FBE3;
-pub const HIDE_IN_GAME_OPTIONS: usize = 0x46FB63;
-pub const RESET_SINGLE_EVENT: usize = 0x4AAA2F;
-pub const REPAIR_CAR: usize = 0x486F63;
-pub const SELECT_CAR_LOOP: usize = 0x47AC0C;
-pub const TAKE_SHOWN_CAR: usize = 0x47B29D;
-pub const RUN_CHAMPIONSHIP: usize = 0x4A0E60;
-pub const RUN_A8_CHAMPIONSHIP: usize = 0x4AA4D7;
-pub const CLEAR_EVENT_STATE: usize = 0x486C2C;
-pub const READY_PLAYERS: usize = 0x471F7E;
-pub const SELECT_STAGE_LOOP: usize = 0x482099;
-pub const RACE: usize = 0x4843EC; // race::single_rally_race
-pub const RESULTS_48584B: usize = 0x48584B;
-pub const REVIEW_485F5E: usize = 0x485F5E;
-pub const RELOAD_FRONT_END: usize = 0x48140D;
-pub const RESULTS_482E9B: usize = 0x482E9B;
-pub const SCREEN_483163: usize = 0x483163;
-pub const CHEAT_CAR_LIST: usize = 0x480D35;
-pub const TIME_TRIAL_SELECT_STAGE: usize = 0x48BFCB;
-pub const TIME_TRIAL_SERVICE: usize = 0x48E093;
-pub const STAGE_RESULT_LOOP: usize = 0x48558D;
-pub const KEEP_STAGE_BEST: usize = 0x48E02D;
-pub const TIME_TRIAL_QUALIFIES: usize = 0x48C7CE;
-pub const CLEAR_TIME_TRIAL_MARKS: usize = 0x48C85C;
-pub const ENTER_TIME_TRIAL_BEST: usize = 0x48C8B6;
-pub const RANK_TIME_TRIAL_BEST: usize = 0x48CC51;
-pub const SEALED_PLAYER_TIME: usize = 0x4A3D38;
-pub const TIME_TRIAL_BEST_TIMES_LOOP: usize = 0x48CE48;
-pub const TIME_TRIAL_RESULTS_LOOP: usize = 0x48DB7D;
-pub const INSPECTION_SCREEN: usize = 0x4A1BBF;
-pub const SLEEP: usize = 0x41100C;
-pub const FADE_IN: usize = 0x4A1CFA;
-pub const DRIVER_STATS: usize = 0x4A73D8;
-pub const SERVICE_AREA_LOOP: usize = 0x47284A;
-pub const APPLY_REPAIRS: usize = 0x46C14D;
-pub const SET_PLAYER_ENTRY_KIND: usize = 0x4A1922;
-pub const INSPECTION_FAULTS: usize = 0x4A1733;
-pub const INSPECTION_AREA_LOOP: usize = 0x47DBF3;
-pub const LOAD_PICTURE_WITH_OVERLAY: usize = 0x4118D1;
-pub const CONVERT_PICTURE: usize = 0x406126;
-pub const TAKE_KEY: usize = 0x407F95;
-pub const RUN_FRAME: usize = 0x405A71;
-pub const WAIT_OR_KEY: usize = 0x407F69;
-pub const STREAM_PLAYING: usize = 0x40C4D5;
-pub const CONFIRM_LEAVING: usize = 0x46FA90;
-pub const PICTURE_FRAME: usize = 0x46F3FA; // menu::picture_frame, handed to the frame
+/// The registers an event flow carries from one callee to the next (the originals are
+/// `pusha` .. `popa` bodies whose registers go on to every call): the values the screens
+/// are run with (`Carried`: eax `arg`, ebx `palette`, ecx `measure_x`, edx `clock`, esi
+/// `cars`, the carry), the zero flag, and edi, the record the last search or walk left
+/// (`record`).
+#[derive(Clone, Copy, Debug, Default)]
+pub struct Flow {
+    pub c: Carried,
+    pub zero: bool,
+    pub record: u32,
+}
 
-/// In the game: a callee by its address (see the header). An address not listed is a
-/// slip of a Rust version's and refused.
-pub fn game_call(callee: usize, r: &mut Regs) -> Result<(), Refused> {
-    use crate::menu as m;
-    unsafe {
-        match callee {
-            BEGIN_EVENT => m::begin_event::begin_event()?,
-            SHUFFLE_DRIVERS => *r = keep_esp(r, m::shuffle_drivers::shuffle_drivers(r)?),
-            CLEAR_RESULT_SLOTS => *r = keep_esp(r, m::clear_result_slots::clear_result_slots(r)?),
-            RESET_DRIVERS => *r = keep_esp(r, m::reset_drivers::reset_drivers(r)?),
-            RESET_DRIVER_CONDITION => {
-                *r = keep_esp(r, m::reset_driver_condition::reset_driver_condition(r)?)
-            }
-            CLEAR_PLAYERS_284 => m::clear_players_284::clear_players_284()?,
-            TAKE_PLAYER1_UNITS => m::take_player1_units::take_player1_units()?,
-            RESET_CARS_750724 => *r = keep_esp(r, m::reset_cars_750724::reset_cars_750724(r)?),
-            CHAMPIONSHIP_WELCOME => {
-                *r = keep_esp(
-                    r,
-                    m::championship_welcome::championship_welcome(r, &mut game_call)?,
-                )
-            }
-            A8_WELCOME => *r = keep_esp(r, m::a8_welcome::a8_welcome(r, &mut game_call)?),
-            FIND_RECORD => {
-                use crate::records::find_record::{find_record_in, has_section};
-                // The original has no end-of-table check: a section past the table's is
-                // refused.
-                if !has_section(r.edi, r.ebx, 600) {
-                    return Err(BadInput("a record section past the table").into());
-                }
-                r.edi = find_record_in(r.edi, r.eax as i32, r.ebx)
-            }
-            STANDINGS_B_FROM_ALL => {
-                *r = keep_esp(r, m::standings_b_from_all::standings_b_from_all(r)?)
-            }
-            SORT_B_BY_FIGURE => {
-                *r = keep_esp(
-                    r,
-                    m::sort_standings_b_by_figure::sort_standings_b_by_figure(r)?,
-                )
-            }
-            AWARD_STAGE_POINTS => *r = keep_esp(r, m::award_stage_points::award_stage_points(r)?),
-            SORT_B_BY_POINTS => {
-                *r = keep_esp(
-                    r,
-                    m::sort_standings_b_by_points::sort_standings_b_by_points(r)?,
-                )
-            }
-            CLASS_CHAMPIONSHIP_PASS => {
-                use m::class_championship_pass as f;
-                *r = keep_esp(r, f::class_championship_pass(r, &mut f::game_part)?)
-            }
-            AWARD_OVERALL_POINTS => {
-                *r = keep_esp(r, m::award_overall_points::award_overall_points(r)?)
-            }
-            CLEAR_STANDINGS_B => *r = keep_esp(r, m::clear_standings_b::clear_standings_b(r)?),
-            SORT_B_BY_SCORE => {
-                *r = keep_esp(
-                    r,
-                    m::sort_standings_b_by_score::sort_standings_b_by_score(r)?,
-                )
-            }
-            NUMBER_ALL_B => *r = keep_esp(r, m::number_all_b::number_all_b(r)?),
-            SHOW_CHAMPIONSHIP_STANDINGS => {
-                use m::show_championship_standings as f;
-                *r = keep_esp(r, f::show_championship_standings(r, &mut f::game_part)?)
-            }
-            SECTION_FINISH => {
-                *r = keep_esp(
-                    r,
-                    m::section_finish::section_finish(r, &mut m::finish_calls::game_part)?,
-                )
-            }
-            CHAMPIONSHIP_FINISH => {
-                *r = keep_esp(
-                    r,
-                    m::championship_finish::championship_finish(
-                        r,
-                        &mut m::finish_calls::game_part,
-                    )?,
-                )
-            }
-            RESET_PLAYER_TIMES => *r = keep_esp(r, m::reset_player_times::reset_player_times(r)?),
-            SERVICE_PASS => {
-                use m::service_pass as f;
-                *r = keep_esp(r, f::service_pass(r, &mut f::game_part)?)
-            }
-            WALK_SECTION_RECORDS => {
-                *r = keep_esp(r, m::walk_section_records::walk_section_records(r)?)
-            }
-            STANDINGS_A_FROM_ALL => {
-                *r = keep_esp(r, m::standings_a_from_all::standings_a_from_all(r)?)
-            }
-            CLASS_RALLY_RESULTS_PASS => {
-                use m::class_rally_results_pass as f;
-                *r = keep_esp(r, f::class_rally_results_pass(r, &mut f::game_part)?)
-            }
-            CLEAR_STANDINGS_A => *r = keep_esp(r, m::clear_standings_a::clear_standings_a(r)?),
-            NUMBER_ALL_A => *r = keep_esp(r, m::number_all_a::number_all_a(r)?),
-            SHOW_OVERALL_RALLY_RESULTS => {
-                use m::show_overall_rally_results as f;
-                *r = keep_esp(r, f::show_overall_rally_results(r, &mut f::game_part)?)
-            }
-            RUN_EVENT_RACES => {
-                use m::run_event_races as f;
-                *r = keep_esp(r, f::run_event_races(r, &mut f::game_part)?)
-            }
-            ADD_PLAYER_TIMES => *r = keep_esp(r, m::add_player_times::add_player_times(r)?),
-            CLASS_STAGE_RESULTS_PASS => {
-                use m::class_stage_results_pass as f;
-                *r = keep_esp(r, f::class_stage_results_pass(r, &mut f::game_part)?)
-            }
-            SHOW_OVERALL_STAGE_RESULTS => {
-                use m::show_overall_stage_results as f;
-                *r = keep_esp(r, f::show_overall_stage_results(r, &mut f::game_part)?)
-            }
-            NEXT_RECORD_KIND => *r = keep_esp(r, m::next_record_kind::next_record_kind(r)?),
-            KEEP_RECORD_BEST => *r = keep_esp(r, m::keep_record_best::keep_record_best(r)?),
-            RECORD_ENTRIES_PASS => m::record_entries_pass::record_entries_pass()?,
-            INSPECTION_PASS => {
-                use m::inspection_pass as f;
-                *r = keep_esp(r, f::inspection_pass(r, &mut f::game_part)?)
-            }
-            CLEAR_SCORE_MARKS => *r = keep_esp(r, m::clear_score_marks::clear_score_marks(r)?),
-            BEST_CLASS_SCORES => {
-                use m::best_class_scores as f;
-                *r = keep_esp(r, f::best_class_scores(r, &mut f::game_part)?)
-            }
-            BEST_OVERALL_SCORES => {
-                use m::best_overall_scores as f;
-                *r = keep_esp(r, f::best_overall_scores(r, &mut f::game_part)?)
-            }
-            SHOW_IN_GAME_OPTIONS => m::in_game_options_items::show_in_game_options(),
-            HIDE_IN_GAME_OPTIONS => m::in_game_options_items::hide_in_game_options(r.eax),
-            RESET_SINGLE_EVENT => *r = keep_esp(r, m::reset_single_event::reset_single_event(r)?),
-            REPAIR_CAR => crate::service::repair_parts::repair_car()?,
-            TAKE_SHOWN_CAR => m::take_shown_car::take_shown_car(r.esi)?,
-            RUN_CHAMPIONSHIP => {
-                *r = keep_esp(r, m::run_championship::run_championship(r, &mut game_call)?)
-            }
-            RUN_A8_CHAMPIONSHIP => {
-                *r = keep_esp(
-                    r,
-                    m::run_a8_championship::run_a8_championship(r, &mut game_call)?,
-                )
-            }
-            CLEAR_EVENT_STATE => m::clear_event_state::clear_event_state(),
-            READY_PLAYERS => m::ready_players::ready_players()?,
-            CHEAT_CAR_LIST => m::cheat_car_list::cheat_car_list(r),
-            TIME_TRIAL_SERVICE => {
-                *r = keep_esp(
-                    r,
-                    m::time_trial_service::time_trial_service(r, &mut game_call)?,
-                )
-            }
-            KEEP_STAGE_BEST => m::keep_stage_best::keep_stage_best()?,
-            TIME_TRIAL_QUALIFIES => m::time_trial_qualifies::time_trial_qualifies()?,
-            CLEAR_TIME_TRIAL_MARKS => m::clear_time_trial_marks::clear_time_trial_marks()?,
-            ENTER_TIME_TRIAL_BEST => m::enter_time_trial_best::enter_time_trial_best()?,
-            RANK_TIME_TRIAL_BEST => m::rank_time_trial_best::rank_time_trial_best()?,
-            SEALED_PLAYER_TIME => {
-                [r.eax, r.ebx] = m::sealed_player_time::sealed_player_time(r.eax)?
-            }
-            INSPECTION_SCREEN => m::inspection_pass::game_part(5, r)?,
-            FADE_IN => m::inspection_pass::game_part(3, r)?,
-            SLEEP => crate::system::sleep::sleep(r.eax),
-            DRIVER_STATS => *r = keep_esp(r, m::driver_stats::driver_stats(r)?),
-            SET_PLAYER_ENTRY_KIND => {
-                *r = keep_esp(r, m::set_player_entry_kind::set_player_entry_kind(r)?)
-            }
-            INSPECTION_FAULTS => *r = keep_esp(r, m::inspection_faults::inspection_faults(r)?),
-            LOAD_PICTURE_WITH_OVERLAY => {
-                let carry = crate::gfx::load_picture_with_overlay::load_picture_with_overlay(
-                    r.eax as *mut u8,
-                    r.ebx as *mut u8,
-                )?;
-                r.set_carry(carry);
-            }
-            CONVERT_PICTURE => crate::gfx::convert_picture::convert_picture_now()?,
-            TAKE_KEY => {
-                let key = crate::input::take_key::take_key();
-                r.eax = (r.eax & !0xFF) | u32::from(key);
-                r.set_zero(key == 0);
-            }
-            WAIT_OR_KEY => {
-                use crate::system::wait_or_key as f;
-                *r = keep_esp(r, f::wait_or_key(r)?)
-            }
-            STREAM_PLAYING => {
-                let (zero, carry) = crate::sound::stream_playing::stream_playing();
-                r.set_zero(zero);
-                r.set_carry(carry);
-            }
-            CONFIRM_LEAVING => m::confirm_leaving::confirm_leaving(r, &mut |r| {
-                run_screen(&m::leave_question_loop::SCREEN, r)
-            }),
-            // The screens.
-            WELCOME_LOOP => run_screen(&m::welcome_loop::SCREEN, r),
-            REVIEW_480D46 => run_screen(&m::review_options_480d46_loop::SCREEN, r),
-            RALLY_STAGES_LOOP => run_screen(&m::rally_stages_loop::SCREEN, r),
-            NEXT_STAGE_LOOP => run_screen(&m::next_stage_loop::SCREEN, r),
-            BEST_TIMES_LOOP => run_screen(&m::best_times_loop::SCREEN, r),
-            REVIEW_47D5A5 => run_screen(&m::review_options_47d5a5_loop::SCREEN, r),
-            REVIEW_48108E => run_screen(&m::review_options_48108e_loop::SCREEN, r),
-            REVIEW_481429 => run_screen(&m::review_options_481429_loop::SCREEN, r),
-            SELECT_CAR_LOOP => run_screen(&m::select_car_loop::SCREEN, r),
-            SELECT_STAGE_LOOP => run_screen(&m::select_stage_loop::SCREEN, r),
-            RESULTS_48584B => run_screen(&m::results_48584b_loop::SCREEN, r),
-            REVIEW_485F5E => run_screen(&m::review_options_485f5e_loop::SCREEN, r),
-            RESULTS_482E9B => run_screen(&m::results_482e9b_loop::SCREEN, r),
-            SCREEN_483163 => run_screen(&m::screen_483163_loop::SCREEN, r),
-            TIME_TRIAL_SELECT_STAGE => run_screen(&m::time_trial_select_stage_loop::SCREEN, r),
-            STAGE_RESULT_LOOP => run_screen(&m::stage_result_loop::SCREEN, r),
-            TIME_TRIAL_BEST_TIMES_LOOP => run_screen(&m::time_trial_best_times_loop::SCREEN, r),
-            TIME_TRIAL_RESULTS_LOOP => run_screen(&m::time_trial_results_loop::SCREEN, r),
-            INSPECTION_AREA_LOOP => run_screen(&m::inspection_area_loop::SCREEN, r),
-            SERVICE_AREA_LOOP => run_screen(&crate::service::service_area_loop::SCREEN, r),
-            APPLY_REPAIRS => crate::service::apply_repairs::apply_repairs_in_game(r),
-            // Through their hooks: the race and the front end's set-up after it, the sound
-            // commands (the audio thread's queue), the frame (the platform's).
-            RACE | RELOAD_FRONT_END | STOP_STREAM | START_STREAM | WAIT_FOR_COMMANDS
-            | RUN_FRAME => crate::calls::call(rva(callee), r),
-            _ => return Err(BadInput("a callee the event flows do not know").into()),
+impl Flow {
+    /// The flow of a caller whose carried values are `c` (flags and edi clear, as the
+    /// menus' items get them).
+    pub fn new(c: &Carried) -> Self {
+        Self {
+            c: *c,
+            zero: false,
+            record: 0,
         }
     }
-    Ok(())
 }
-
-/// A Rust version's registers, the stack pointer kept.
-fn keep_esp(r: &Regs, left: Regs) -> Regs {
-    Regs { esp: r.esp, ..left }
-}
-
-// ---- for the self-tests ----
-
-/// An event flow's hook file: the hook (ungated, with the patch options given), its
-/// dispatch (shadow mode runs the original alone; the Rust version with `game_call`) and
-/// its self-test.
-macro_rules! flow_hook {
-    ($name:literal, $address:literal, $rust:path, $test:path $(, copy($len:expr, $calls:expr))?) => {
-        /// The Rust version where the typed tables run it (`menu::table_calls`; hook removed
-        /// 2026-10-22).
-        pub fn entry(r: &mut $crate::framework::Regs) -> Result<(), $crate::errors::Refused> {
-            let left = unsafe { $rust(r, &mut $crate::menu::event_flow::game_call) }?;
-            *r = $crate::framework::Regs { esp: r.esp, ..left };
-            Ok(())
-        }
-    };
-}
-pub(crate) use flow_hook;

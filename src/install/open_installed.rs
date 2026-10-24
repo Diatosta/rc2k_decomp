@@ -11,35 +11,17 @@
 //! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
+//! are the original's.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
-use crate::install::installer::{INSTALLED, INSTALLING, NORMALISE, SET_CD, a, at, p};
-use crate::race::viewer::regs_entry;
+use crate::install::installer::{INSTALLED, INSTALLING, a, normalise, p, set_cd};
 
 const SOURCE_PATH: usize = 0x51BB8D; // g_installSource
 
-pub fn open_installed(entry: &Regs) -> Result<Regs, Refused> {
-    let mut r = Regs {
-        esi: a(SOURCE_PATH),
-        edx: a(INSTALLED),
-        ..*entry
-    };
-    crate::install::installer::game_part(at(NORMALISE), &mut r)?;
-    if r.carry() {
-        return Ok(*entry);
+pub fn open_installed() -> Result<(), Refused> {
+    if normalise(a(SOURCE_PATH), a(INSTALLED))? && set_cd(a(INSTALLED)) {
+        p(INSTALLING, 1);
     }
-    r.edx = a(INSTALLED);
-    crate::install::installer::game_part(at(SET_CD), &mut r)?;
-    if r.carry() {
-        return Ok(*entry);
-    }
-    p(INSTALLING, 1);
-    Ok(*entry)
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    regs_entry(r, &|r| open_installed(r))
+    Ok(())
 }

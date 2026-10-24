@@ -11,7 +11,7 @@
 
 use crate::errors::BadInput;
 use crate::framework::{game_ptr, game_read, game_write, rva};
-use crate::memory::OWN_HEAP_RVA;
+use crate::memory::own_heap;
 
 const FLAGS_RVA: usize = rva(0x4F49CC); // g_pictureFlags
 const BUFFER_RVA: usize = rva(0x4F49DC); // g_pictureBuffer
@@ -20,7 +20,7 @@ const LIST_RVA: usize = rva(0x4F49E4); // stru_4F49E4
 /// The Rust version (see the header).
 pub fn free_picture_buffer() -> Result<(), BadInput> {
     unsafe {
-        if game_read::<u32>(LIST_RVA) != 0 && game_read::<u32>(OWN_HEAP_RVA) == 1 {
+        if game_read::<u32>(LIST_RVA) != 0 && own_heap() == 1 {
             return Err(BadInput("the game's own heap is in use (altmemenable)"));
         }
         game_write(FLAGS_RVA, 0u32);

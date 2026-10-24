@@ -13,11 +13,8 @@
 //! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
-
-use crate::errors::Refused;
-use crate::framework::{EBX, Regs};
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
+//! are the original's.
 
 /// The Rust version: the cursor after the two bytes.
 pub unsafe fn end_text_line(cursor: u32) -> u32 {
@@ -26,13 +23,4 @@ pub unsafe fn end_text_line(cursor: u32) -> u32 {
         ((cursor + 1) as *mut u8).write(0);
     }
     cursor + 2
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(Left::nothing().with(EBX, unsafe { end_text_line(r.ebx) }))
-}
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

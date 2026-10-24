@@ -3,7 +3,7 @@
 //! for `marks::spawn_hexagon`.
 //!
 //! In:  nothing
-//! Out: eax, ebx, ecx the place and the kind
+//! Out: nothing (its caller reads no register after it)
 //!
 //! Caller: `marks::hexagons_spawn` (twice). The call is `spawn_hexagon`'s Rust version.
 //! Self-test: the original and the Rust version on the game's items, seeds by lot; put back.
@@ -16,22 +16,21 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::{Regs, game_read, game_write};
+use crate::framework::{game_read, game_write};
 use crate::marks::setup::SEED_RVA;
 use crate::marks::spawn_hexagon::spawn_hexagon;
 
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn pick_hexagon(entry: &Regs) -> Regs {
-    let mut g = *entry;
+/// The Rust version (see the header).
+pub unsafe fn pick_hexagon() {
     unsafe {
         let s = game_read::<u32>(SEED_RVA)
             .wrapping_mul(0x9D)
             .wrapping_add(0x47);
         game_write(SEED_RVA, s);
-        g.eax = s & 0x7FF;
-        g.ebx = s.rotate_right(11) & 0x3FF;
-        g.ecx = s.rotate_right(22) & 7;
-        spawn_hexagon(g.eax, g.ebx, g.ecx);
+        spawn_hexagon(
+            s & 0x7FF,
+            s.rotate_right(11) & 0x3FF,
+            s.rotate_right(22) & 7,
+        );
     }
-    g
 }

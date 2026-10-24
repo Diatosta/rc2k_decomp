@@ -833,6 +833,14 @@ extern "C" fn run_frame(r: &mut Regs) {
     }
 }
 
+/// `screens::run_frame` for Rust callers with a frame of their own (the screen loops,
+/// 2026-10-24): the messages, then the frame unless quitting (None then).
+pub fn run_frame_now<T>(frame: impl FnOnce() -> T) -> Option<T> {
+    RUN_FRAME.count_call();
+    pump();
+    if quitting() { None } else { Some(frame()) }
+}
+
 /// For Rust callers that name a platform hook's function by its address
 /// (`menu::table_calls`): its Rust side run directly, not through the fault handler and
 /// the thunk (conversion phase 3, 2026-10-23). `at` is the address as IDA shows it.

@@ -17,16 +17,14 @@
 //! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
+//! are the original's.
 
-use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::install::installer::{CHOICE, FRAME_CLOCK, MOVE_CLOCK, g, rb, rd, wb};
-use crate::race::viewer::regs_entry;
 use rc2k_core::install::items::{self, MARKS};
 use rc2k_core::install::pages::UNUSABLE;
 
-pub fn mark_page(entry: &Regs) -> Regs {
-    let list = entry.edi;
+pub fn mark_page(list: u32) {
     let mut cl = 0u8;
     let mut esi = list + 0x18;
     // Converted: `rc2k_core::install::items` (`walked`, `mark_choices`, `lone_choice`,
@@ -53,11 +51,7 @@ pub fn mark_page(entry: &Regs) -> Regs {
             if byte & 0xF == 4 {
                 let record = rd(esi + 0xC);
                 if rb(record) & 4 != 0 {
-                    crate::install::next_edit::next_edit(&Regs {
-                        ebx: 0,
-                        edi: list,
-                        ..*entry
-                    });
+                    crate::install::next_edit::next_edit(0, list);
                 }
                 editing = Some(rb(record) & 1 != 0);
             }
@@ -81,18 +75,4 @@ pub fn mark_page(entry: &Regs) -> Regs {
             break;
         }
     }
-    let mut r = *entry;
-    r.set_zero(true);
-    r.set_carry(false);
-    r
-}
-
-fn rust(r: &Regs) -> Result<Regs, Refused> {
-    Ok(mark_page(r))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    regs_entry(r, &rust)
 }

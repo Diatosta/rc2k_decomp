@@ -11,25 +11,15 @@
 //! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
+//! are the original's.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
-use crate::install::installer::{BUFFERS, DIRS, FILES, FREE_LIST, a, at, p};
-use crate::race::viewer::regs_entry;
+use crate::install::installer::{BUFFERS, DIRS, FILES, a, p};
 
-pub fn close_installer(entry: &Regs) -> Result<Regs, Refused> {
-    let mut r = Regs {
-        ebx: a(BUFFERS),
-        ..*entry
-    };
-    crate::install::installer::game_part(at(FREE_LIST), &mut r)?;
+pub fn close_installer() -> Result<(), Refused> {
+    unsafe { crate::memory::free_list::free_list(a(BUFFERS) as *mut _) }?;
     p(DIRS, 0);
     p(FILES, 0);
-    Ok(*entry)
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    regs_entry(r, &|r| close_installer(r))
+    Ok(())
 }

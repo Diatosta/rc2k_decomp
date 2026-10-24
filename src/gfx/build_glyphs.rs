@@ -39,7 +39,7 @@
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::files::file_exists::file_exists;
 use crate::files::numbered_path::numbered_path_in_game;
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::gfx::components_to_pixel::components_to_pixel;
 use crate::gfx::fill_row_table::fill_row_table;
 use crate::gfx::glyph_builder::{
@@ -57,7 +57,7 @@ use crate::logfile::log_hex8::log_hex8;
 use crate::logfile::log_int::log_int;
 use crate::logfile::log_int_fmt::log_int_fmt;
 use crate::logfile::log_write::log_write;
-use crate::logfile::write_line::LOG_LEVEL_RVA;
+use crate::logfile::write_line::level;
 use crate::memory::MemoryList;
 use crate::memory::take_from_list::{rewind_list, take_from_list};
 
@@ -174,7 +174,7 @@ unsafe fn log_glyph(glyph: &Glyph, number: u32, flags: u32, pixel_size: u32) {
 unsafe fn append_to_table(sheet: u32, size: u32) -> Result<(), Refused> {
     unsafe {
         let (table, held): (u32, u32) = (game_read(TABLE_RVA), game_read(TABLE_SIZE_RVA));
-        if game_read::<i32>(LOG_LEVEL_RVA) >= 3 {
+        if level() as i32 >= 3 {
             text(b"Appending:\0", false);
             log_hex8(table, false, 1);
             log_int(held as i32, false, 1);
@@ -243,7 +243,7 @@ unsafe fn read_alpha_sheet(template: *const u8) -> Result<(), Refused> {
             game_write(BACKDROP_RVA, backdrop);
             let transparent = transparent_of(flags, backdrop, PALETTE_RVA);
             game_write(TRANSPARENT_RVA, transparent);
-            if game_read::<i32>(LOG_LEVEL_RVA) >= 3 {
+            if level() as i32 >= 3 {
                 let path = numbered_path_in_game(template, number)?;
                 log_sheet(path, false, backdrop, transparent);
             }
@@ -329,7 +329,7 @@ pub unsafe fn build_glyphs(template: *const u8, list: *mut MemoryList) -> Result
             game_write(BACKDROP_RVA, sheet.backdrop);
             sheet.transparent = transparent_of(flags, sheet.backdrop, PALETTE_RVA);
             game_write(TRANSPARENT_RVA, sheet.transparent);
-            let logging = game_read::<i32>(LOG_LEVEL_RVA) >= 3;
+            let logging = level() as i32 >= 3;
             if logging {
                 // The original makes the path anew for the line.
                 let path = match flags & ONE_FILE {
@@ -392,10 +392,4 @@ pub unsafe fn build_glyphs(template: *const u8, list: *mut MemoryList) -> Result
             game_write(NUMBER_RVA, game_read::<u32>(NUMBER_RVA).wrapping_add(1));
         }
     }
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let (template, list) = (r.eax as *const u8, r.ebx as *mut MemoryList);
-    unsafe { build_glyphs(template, list) }
 }

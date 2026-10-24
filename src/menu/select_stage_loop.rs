@@ -13,18 +13,19 @@
 //! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
 //! `routes.rs`); the registers above are the original's, for reference.
 
-use crate::framework::{Regs, game_read, game_write, rva};
-use crate::menu::screen_loop::{Env, Flow, List, Screen, Step, screen_entry};
+use crate::errors::Refused;
+use crate::framework::{game_read, game_write, rva};
+use crate::menu::screen_loop::{Carried, Flow, List, Screen, Step};
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
-unsafe fn after_first_frame(_g: &mut Regs, _env: &mut dyn Env) -> Flow {
+unsafe fn after_first_frame(_c: &mut Carried) -> Result<Flow, Refused> {
     unsafe {
         if game_read::<u32>(rva(0x758806)) == 0x1 {
             game_write(rva(0x758806), 0x0u32);
-            return Flow::SetUp;
+            return Ok(Flow::SetUp);
         }
-        Flow::On
+        Ok(Flow::On)
     }
 }
 
@@ -89,9 +90,3 @@ pub const SCREEN: Screen = Screen {
     restart_action_check: false,
     always_asks: false,
 };
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    screen_entry("menu::select_stage_loop", r, &SCREEN)
-}

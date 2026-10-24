@@ -8,7 +8,7 @@
 //! `dword_8BC232`), shifted left 24). Last `scene::depth_buffer_on`.
 //!
 //! In:  nothing
-//! Out: esi past the items, edi `g_polygonVertices`; the rest as the walk leaves them
+//! Out: nothing (its caller reads no register after it)
 //!
 //! Caller: `sub_4BF60F` (0x4BF7E9). The spawning is its Rust version; the set-up, the
 //! drawing and the depth buffer through `part` (1 `squares_setup`, 2 `draw_square` with
@@ -21,8 +21,7 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::marks::expire_squares::{ITEM_LEN, ITEMS, ITEMS_RVA};
 use crate::marks::squares_spawn::squares_spawn;
 use crate::math::x87;
@@ -37,9 +36,6 @@ const FADE_RVA: usize = rva(0x8BC232); // dword_8BC232
 const LIGHT_RVA: usize = rva(0x6415E4); // g_viewLight
 const FAR_RVA: usize = rva(0x8BC236); // flt_8BC236
 const LIFE: i32 = 0xFA0;
-
-/// A call by place (see the header), with its x87 values (st(0) first).
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs, &[[u8; 10]]) -> Result<(), Refused>;
 
 /// `fld k; fsub z`, kept extended.
 fn less(k: u32, z: u32) -> [u8; 10] {
@@ -58,76 +54,52 @@ fn less(k: u32, z: u32) -> [u8; 10] {
     out
 }
 
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn run_squares(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+/// The Rust version (see the header).
+pub unsafe fn run_squares() {
     let old = x87::set_chop();
-    let done = unsafe { run(entry, part) };
+    unsafe { run() };
     x87::set_control(old);
-    done
 }
 
-unsafe fn run(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    let mut g = *entry;
+unsafe fn run() {
     unsafe {
-        part(1, &mut g, &[])?;
-        g.edi = game_addr(VERTICES_RVA) as u32;
+        crate::marks::squares_setup::squares_setup();
         let [a, b, c, d]: [u32; 4] = game_read(PLACES_RVA);
         for (n, (u, v)) in [(a, b), (c, b), (c, d), (a, d)].into_iter().enumerate() {
             game_write(VERTICES_RVA + 0x20 * n + 0x18, u);
             game_write(VERTICES_RVA + 0x20 * n + 0x1C, v);
         }
-        [g.eax, g.ebx, g.ecx, g.edx] = [a, b, c, d];
         if game_read::<u32>(RUNNING_RVA) != 0 {
-            g = squares_spawn(&g);
+            squares_spawn();
         }
         let base = game_addr(ITEMS_RVA) as u32;
         for n in 0..ITEMS {
             let e = base + n * ITEM_LEN;
-            g.esi = e;
             let get = |o: u32| ((e + o) as *const u32).read_unaligned();
             if get(0) != 1 {
                 continue;
             }
             if game_read::<u32>(RUNNING_RVA) != 0 {
-                g.edx = game_read(TICKS_RVA);
-                let age = get(8).wrapping_add(g.edx);
+                let age = get(8).wrapping_add(game_read(TICKS_RVA));
                 ((e + 8) as *mut u32).write_unaligned(age);
                 if age as i32 >= LIFE {
                     (e as *mut u32).write_unaligned(0);
                     continue;
                 }
             }
-            g.edx = get(8);
             let x = x87::to_int(get(0x20)) as u32;
             let z = x87::to_int(get(0x24)) as u32;
-            g.eax = (x >> 3) & 0xFF;
-            g.ebx = (((z >> 3) & 0x7F) << 8) + g.eax;
-            if game_read::<u8>(EDGE_RVA + g.ebx as usize) != 0 {
+            let column = (x >> 3) & 0xFF;
+            let cell = (((z >> 3) & 0x7F) << 8) + column;
+            if game_read::<u8>(EDGE_RVA + cell as usize) != 0 {
                 (e as *mut u32).write_unaligned(0);
                 continue;
             }
-            let alpha = x87::int_over_int_to_int(g.edx as i32, game_read(FADE_RVA)) as u32;
-            g.ecx = game_read::<u32>(LIGHT_RVA) & 0xFF_FFFF;
-            g.edx = ((!alpha) << 24) | g.ecx;
+            let alpha = x87::int_over_int_to_int(get(8) as i32, game_read(FADE_RVA)) as u32;
+            let colour = ((!alpha) << 24) | (game_read::<u32>(LIGHT_RVA) & 0xFF_FFFF);
             let values = [less(game_read(FAR_RVA), get(0x24)), extended(get(0x20))];
-            part(2, &mut g, &values)?;
-            g.esi = e;
+            crate::marks::draw_square::draw_square(e, colour, values);
         }
-        g.esi = base + ITEMS * ITEM_LEN;
-        part(3, &mut g, &[])?;
+        crate::scene::depth_buffer_on::depth_buffer(true);
     }
-    Ok(g)
-}
-
-/// In the game: the calls' Rust versions.
-pub fn game_part(place: u32, r: &mut Regs, v: &[[u8; 10]]) -> Result<(), Refused> {
-    use crate::marks::{draw_square, squares_setup};
-    unsafe {
-        match place {
-            1 => *r = squares_setup::squares_setup(r)?,
-            2 => *r = draw_square::draw_square(r, [v[0], v[1]])?,
-            _ => crate::scene::depth_buffer_on::depth_buffer(true),
-        }
-    }
-    Ok(())
 }

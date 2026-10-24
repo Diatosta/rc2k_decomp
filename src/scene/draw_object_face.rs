@@ -46,7 +46,7 @@
 
 use crate::d3d::draw_fan_unclipped::COUNT_RVA;
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::scene::cached_reflection_coordinates::cached_reflection_coordinates;
 use crate::scene::draw_clipped_polygon::draw_clipped_polygon_in_game;
 use crate::scene::draw_object_polygon::{self, draw_object_polygon};
@@ -55,7 +55,6 @@ use crate::scene::polygon::{ENTRIES_RVA, ENTRY_LEN, dword, put};
 use crate::scene::project_point::RECORDS_RVA;
 use crate::scene::project_polygon::project_polygon;
 use crate::scene::reflection_coordinates::{COORDINATES_RVA, NORMAL_NUMBER_RVA, POINT_NUMBER_RVA};
-use crate::scene::submit_polygon;
 use crate::scene::vertex_light::vertex_light;
 
 // ---- game data ----
@@ -219,19 +218,19 @@ pub unsafe fn draw_object_face(
 }
 
 /// The function with its parts' Rust versions, drawing for real.
-pub unsafe fn draw_object_face_in_game(face: usize, entry: &Regs) -> Result<(), Refused> {
+pub unsafe fn draw_object_face_in_game(face: usize) -> Result<(), Refused> {
     unsafe {
         draw_object_face(face, &mut |step| match step {
             Step::Draw => draw_object_polygon(&mut |step| match step {
                 draw_object_polygon::Step::Project => project_polygon().map(|_| ()),
-                draw_object_polygon::Step::Draw => draw_clipped_polygon_in_game(entry),
+                draw_object_polygon::Step::Draw => draw_clipped_polygon_in_game(),
             }),
             Step::DepthTestOff => {
-                Game(submit_polygon::Game(entry)).state(0xE, 0);
+                Game.state(0xE, 0);
                 Ok(())
             }
             Step::DepthTestOn => {
-                Game(submit_polygon::Game(entry)).state(0xE, 1);
+                Game.state(0xE, 1);
                 Ok(())
             }
         })

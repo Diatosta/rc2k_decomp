@@ -3,8 +3,8 @@
 //! c's weight, then b's, then a's): each of x, y, z a ka + (b kb + c kc), left unrounded in
 //! st(2) .. st(0) (x deepest).
 //!
-//! In:  eax, ebx, ecx the points, dl the entry
-//! Out: st(0) z, st(1) y, st(2) x; edx the entry times 12; the rest kept
+//! In:  `a`, `b`, `c` the points, `entry` the entry
+//! Out: x, y, z (the original's st(2) .. st(0))
 //!
 //! Thunk by `out3_hook!`. Caller: `sub_4BA646`. Self-test: points of the test's and
 //! entries by lot (weights the game's file's, or put by the test when the file is empty),
@@ -19,20 +19,17 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::{Regs, game_read};
+use crate::framework::game_read;
 use crate::marks::splines::FILE_RVA;
 use crate::math::x87;
 
-/// The Rust version (see the header): the three values (x, y, z) and the registers.
-pub unsafe fn blend_points(entry: &Regs) -> ([[u8; 10]; 3], Regs) {
-    let mut g = *entry;
-    g.edx = (g.edx & 0xFF) * 12;
-    let at = FILE_RVA + g.edx as usize;
+/// The Rust version (see the header): the three values (x, y, z).
+pub unsafe fn blend_points(a: u32, b: u32, c: u32, entry: u8) -> [[u8; 10]; 3] {
+    let at = FILE_RVA + 12 * entry as usize;
     let k: [u32; 3] = unsafe { [game_read(at + 8), game_read(at + 4), game_read(at)] };
     let p = |r: u32, c: u32| unsafe { ((r + 4 * c) as *const i32).read_unaligned() };
-    let v = std::array::from_fn(|c| {
-        let c = c as u32;
-        x87::blend3_80(p(g.eax, c), p(g.ebx, c), p(g.ecx, c), k)
-    });
-    (v, g)
+    std::array::from_fn(|n| {
+        let n = n as u32;
+        x87::blend3_80(p(a, n), p(b, n), p(c, n), k)
+    })
 }

@@ -14,44 +14,20 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::Regs;
+use crate::errors::BadInput;
 use crate::scene::assign_kind_textures::assign_kind_textures;
-use crate::scene::load_slot_texture::load_slot_texture_in_game;
-use crate::scene::load_slot_textures::load_slot_textures;
+use crate::scene::load_slot_textures::load_slot_textures_in_game;
 use crate::scene::map_texture_places::map_texture_places;
-
-/// The calls made, as places in `CALLEES`.
-const ORDER: [usize; 3] = [0, 1, 2];
 
 // ---- Rust version ----
 
-/// `step`: what stands for each call, by its place in `ORDER`; it is entered with the
-/// registers the call before left.
-pub unsafe fn load_wanted_textures(
-    r: &mut Regs,
-    step: &mut dyn FnMut(usize, &mut Regs) -> Result<(), Refused>,
-) -> Result<(), Refused> {
-    for n in 0..ORDER.len() {
-        step(n, r)?;
-    }
-    Ok(())
-}
-
-/// With the Rust versions of what it calls.
-pub unsafe fn load_wanted_textures_in_game(r: &mut Regs) -> Result<(), Refused> {
+/// Its three calls in order. What they leave in the registers no caller reads (register
+/// liveness, 2026-10-23: `scene::reload_slot_textures`, whose caller reads none).
+pub unsafe fn load_wanted_textures() -> Result<(), BadInput> {
     unsafe {
-        load_wanted_textures(r, &mut |n, r| {
-            match n {
-                0 => assign_kind_textures()?.apply(r),
-                1 => map_texture_places().apply(r),
-                _ => {
-                    let entry = *r;
-                    load_slot_textures(&mut |slot| load_slot_texture_in_game(slot, &entry))?
-                        .apply(r)
-                }
-            }
-            Ok(())
-        })
+        assign_kind_textures()?;
+        map_texture_places();
+        load_slot_textures_in_game()?;
+        Ok(())
     }
 }

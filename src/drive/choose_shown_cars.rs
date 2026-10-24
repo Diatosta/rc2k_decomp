@@ -18,9 +18,7 @@
 //! `routes.rs`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{EAX, Regs, game_addr, rva};
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
+use crate::framework::{game_addr, rva};
 use rc2k_core::drive::shown_cars::{ShownCars, ShownSetup};
 
 /// The variables (IDA addresses), in the order the core uses them.
@@ -41,7 +39,8 @@ unsafe fn put(v: &[u32], k: usize, x: u32) {
 
 /// The Rust version on the variables at `v` (`VARIABLES`' order).
 // Converted: `rc2k_core::drive::shown_cars::ShownCars::choose`.
-pub unsafe fn choose_at(v: &[u32]) -> Result<Left, Refused> {
+/// The eax it leaves is read by no caller (liveness at its five call sites).
+pub unsafe fn choose_at(v: &[u32]) -> Result<(), Refused> {
     unsafe {
         let setup = ShownSetup {
             players: get(v, 2),
@@ -55,7 +54,7 @@ pub unsafe fn choose_at(v: &[u32]) -> Result<Left, Refused> {
             split,
             ..ShownCars::default()
         };
-        let eax = shown.choose(&setup, game_addr(rva(FIRST_BLOCK)) as u32)?;
+        shown.choose(&setup, game_addr(rva(FIRST_BLOCK)) as u32)?;
         put(v, 0, shown.cars[0]);
         put(v, 1, shown.cars[1]);
         put(v, 3, shown.views);
@@ -67,7 +66,7 @@ pub unsafe fn choose_at(v: &[u32]) -> Result<Left, Refused> {
         for (k, &x) in shown.listed.iter().enumerate() {
             put(v, 11 + k, x);
         }
-        Ok(Left::nothing().with(EAX, eax))
+        Ok(())
     }
 }
 
@@ -79,15 +78,6 @@ fn game() -> Vec<u32> {
 }
 
 /// The Rust version.
-pub unsafe fn choose_shown_cars() -> Result<Left, Refused> {
+pub unsafe fn choose_shown_cars() -> Result<(), Refused> {
     unsafe { choose_at(&game()) }
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { choose_shown_cars() }
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

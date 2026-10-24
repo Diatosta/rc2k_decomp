@@ -17,43 +17,39 @@
 //! (the original's `div` would fault); what was written is put back.
 //! Self-test: `physics/splits.rs` (`test_splits`), mode 1.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, rva};
-use crate::physics::fill_rival_table::fill_rival_table_in;
-use crate::physics::splits::{COUNT, FIGURE, SPLIT, TEXT, TIME, g, guarded, p};
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
+use crate::framework::rva;
+use crate::physics::fill_rival_table::fill_rival_table;
+use crate::physics::splits::{COUNT, FIGURE, SPLIT, TEXT, TIME, g, p};
 use crate::strings::append_string_by_id::append_string_by_id;
 use rc2k_core::physics::splits::{RIVALS, gap, rank, scaled_time, split_scale};
 
 /// A name into `text` (eight blanks first), its first eight bytes into `to`.
-fn name(r: &mut Regs, id: u32, to: usize) {
+fn name(id: u32, to: usize) {
     let text = crate::framework::game_addr(rva(TEXT)) as u32;
     p(TEXT, 0x2020_2020);
     p(TEXT + 4, 0x2020_2020);
     let mut cursor = text;
-    r.eax = unsafe {
+    unsafe {
         append_string_by_id(id, &mut |s, n| {
             std::ptr::copy_nonoverlapping(s, cursor as *mut u8, n);
             cursor += n as u32;
         })
     };
-    r.ebx = cursor;
     p(to, g(TEXT));
     p(to + 4, g(TEXT + 4));
 }
 
-/// The steps on `r`.
+/// The Rust version. The registers the original leaves are read by none of its callers.
 // Converted: `rc2k_core::physics::splits::{split_scale, scaled_time, rank, gap}`.
-pub fn rank_split_time_in(r: &mut Regs) -> Result<(), Refused> {
+pub fn rank_split_time() -> Result<(), Refused> {
     let (split, count) = (g(SPLIT), g(COUNT));
     if split > 0x40 || count > 0x40 {
         return Err(BadInput("a split or a split count past 0x40").into());
     }
-    fill_rival_table_in(r)?;
+    fill_rival_table()?;
     for k in 0..5 {
         p(FIGURE + 4 * k, u32::MAX);
     }
@@ -62,64 +58,32 @@ pub fn rank_split_time_in(r: &mut Regs) -> Result<(), Refused> {
     }
     let base = g(0x601030 + 4 * split as usize);
     let d = g(0x60102C + 4 * count as usize);
-    let (scale, rest) = split_scale(base, d)?;
-    r.eax = scale;
-    r.edx = rest;
-    r.ebx = scale;
+    let (scale, _) = split_scale(base, d)?;
     for c in 0..RIVALS {
-        r.ecx = c as u32;
-        let (q, rest) = scaled_time(g(0x601ED0 + 4 * c), scale)?;
-        r.eax = q;
-        r.edx = rest;
+        let (q, _) = scaled_time(g(0x601ED0 + 4 * c), scale)?;
         p(0x6021A0 + 4 * c, q);
     }
-    r.ebp = 1000;
-    // A loop whose work was cut out: only its registers are left.
-    r.eax = 0x58 / 10;
-    r.edx = 0x58 % 10;
-    r.ebx = 10;
+    // (A loop whose work was cut out: it left only registers, read by no one.)
     let time = g(TIME);
-    let (c, last) = rank(time, |c| g(0x6021A0 + 4 * c));
-    r.eax = last;
-    r.ecx = c;
+    let (c, _) = rank(time, |c| g(0x6021A0 + 4 * c));
     p(FIGURE, c);
-    r.eax = time;
     p(0x602308, time);
     let c = c as usize;
     if c != 1 {
         // The one ahead: rival c - 2 (its scaled time, car and name).
-        r.eax = gap(g(0x6021A0 + 4 * (c - 2)), time);
-        p(FIGURE + 4, r.eax);
-        r.eax = g(0x602038 + 4 * (c - 2));
-        p(FIGURE + 0xC, r.eax);
-        r.eax = g(0x601D68 + 4 * (c - 2));
-        p(FIGURE + 0x14, r.eax);
-        name(r, r.eax, 0x6D1844);
+        p(FIGURE + 4, gap(g(0x6021A0 + 4 * (c - 2)), time));
+        p(FIGURE + 0xC, g(0x602038 + 4 * (c - 2)));
+        let id = g(0x601D68 + 4 * (c - 2));
+        p(FIGURE + 0x14, id);
+        name(id, 0x6D1844);
     }
     if c != RIVALS {
         // The one behind: rival c - 1.
-        r.eax = gap(time, g(0x6021A0 + 4 * (c - 1)));
-        p(FIGURE + 8, r.eax);
-        r.eax = g(0x602038 + 4 * (c - 1));
-        p(FIGURE + 0x10, r.eax);
-        r.eax = g(0x601D68 + 4 * (c - 1));
-        p(FIGURE + 0x18, r.eax);
-        name(r, r.eax, 0x6D1838);
+        p(FIGURE + 8, gap(time, g(0x6021A0 + 4 * (c - 1))));
+        p(FIGURE + 0x10, g(0x602038 + 4 * (c - 1)));
+        let id = g(0x601D68 + 4 * (c - 1));
+        p(FIGURE + 0x18, id);
+        name(id, 0x6D1838);
     }
     Ok(())
-}
-
-/// The Rust version.
-pub unsafe fn rank_split_time(entry: &Regs) -> Result<Left, Refused> {
-    guarded(entry, &rank_split_time_in)
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { rank_split_time(r) }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

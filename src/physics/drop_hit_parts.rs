@@ -13,15 +13,13 @@
 //! Self-test: the original and the Rust version on the game's variables (saved and put
 //! back): words, timers and bits by lot.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 use crate::math::x87;
-use crate::physics::fill_slot_on_bit::fill_slot_on_bit_in;
-use crate::physics::test_car_word::test_word;
+use crate::physics::fill_slot_on_bit::fill_slot_on_bit;
 use rc2k_core::physics::parts::{self, DROP_TESTS, Hit, HitTest};
 
 pub fn g(x: usize) -> u32 {
@@ -36,26 +34,22 @@ pub fn p(x: usize, v: u32) {
 pub type Timers = [usize; 4];
 
 /// The shared steps (`rc2k_core::physics::parts::hit_tests`): `act` the bit's step (with
-/// ecx the bit).
+/// the bit, the original's ecx). The registers left are read by none of the callers.
 pub fn hit_tests(
-    r: &mut Regs,
     tests: &[HitTest; 4],
     timers: &Timers,
-    act: &mut dyn FnMut(&mut Regs) -> Result<(), Refused>,
+    act: &mut dyn FnMut(u32) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
     let word = g(0x719FE4);
-    let (last, hit) = parts::hit_tests(
+    let (_, hit) = parts::hit_tests(
         tests,
         word,
         |k| f32::from_bits(g(timers[k])),
         || f32::from_bits(g(0x5C5D14)),
         || g(0x71A270),
     );
-    r.ecx = tests[last].0 as u32;
-    test_word(word, tests[last].0).apply(r);
     if let Hit::Act(k) = hit {
-        r.ecx = tests[k].1;
-        act(r)?;
+        act(tests[k].1)?;
         p(timers[k], x87::loaded(g(0x5C5E2C)));
     }
     Ok(())
@@ -63,11 +57,11 @@ pub fn hit_tests(
 
 const TIMERS: Timers = [0x71A2D0, 0x71A2D4, 0x71A2D8, 0x71A2DC];
 
-/// The steps on `r`.
+/// The Rust version.
 // Converted: `rc2k_core::physics::parts::{hit_tests, DROP_TESTS}`.
-pub fn drop_hit_parts_in(r: &mut Regs) -> Result<(), Refused> {
+pub fn drop_hit_parts() -> Result<(), Refused> {
     if g(0x719FFC) >= 0x17 {
         return Ok(());
     }
-    hit_tests(r, &DROP_TESTS, &TIMERS, &mut |r| fill_slot_on_bit_in(r))
+    hit_tests(&DROP_TESTS, &TIMERS, &mut fill_slot_on_bit)
 }

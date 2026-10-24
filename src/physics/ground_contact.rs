@@ -23,12 +23,10 @@
 //! listed (no sound), under three precisions. Not reached: a depth below 0
 //! (`restore_saved_car` and `feel_ground` need the stage; their own tests cover them).
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::physics::contact_force::{RECORD, contact_force};
 use crate::physics::crash_contact::{point_number, sign, take_contact};
 use crate::physics::feel_ground::feel_ground;
@@ -36,24 +34,20 @@ use crate::physics::flow::{a, copy3, g, p};
 use crate::physics::lowest_body_point::lowest_body_point;
 use crate::physics::place_sound_e1::place_sound_e1;
 use crate::physics::restore_saved_car::restore_saved_car;
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
 
 /// Contact record 2 (`g_contactRecords` + 0x40).
 const FORCE: usize = 0x614A90;
 
 // Converted: `rc2k_core::physics::contacts::touches` and `walls::raised_hit` (the x87 steps stay).
-fn steps(r: &mut Regs) -> Result<(), Refused> {
+fn steps() -> Result<(), Refused> {
     p(0x6D3028, 0);
-    unsafe { lowest_body_point(r) }?;
+    unsafe { lowest_body_point() }?;
     let depth = g(0x6D3068);
-    r.eax = depth;
     let limit = rc2k_core::physics::contacts::GROUND_LIMIT;
     if !rc2k_core::physics::contacts::touches(depth, limit, g(0x71A22C) != 0) {
         return Ok(());
     }
     let n = point_number()?;
-    r.ebx = n as u32;
     p(0x6D3028, 1);
     p(0x71A1FC, g(0x71AAC8 + 4 * n));
     p(0x71A200, g(0x71ABC8 + 4 * n));
@@ -61,7 +55,7 @@ fn steps(r: &mut Regs) -> Result<(), Refused> {
     take_contact(n);
     p(0x6D3100, 0);
     p(RECORD, a(FORCE));
-    unsafe { contact_force() }.apply(r);
+    unsafe { contact_force() };
     unsafe { place_sound_e1() }?;
     if let Some(hit) = rc2k_core::physics::walls::raised_hit(
         f32::from_bits(g(0x6D3108)),
@@ -70,19 +64,14 @@ fn steps(r: &mut Regs) -> Result<(), Refused> {
         p(0x71A208, hit.to_bits());
     }
     copy3(0x6D3018, FORCE);
-    r.eax = g(0x6D3068);
-    if sign(r.eax) {
-        unsafe { restore_saved_car() }?.apply(r);
-        unsafe { feel_ground(r) }?;
+    if sign(g(0x6D3068)) {
+        unsafe { restore_saved_car() }?;
+        unsafe { feel_ground() }?;
     }
     Ok(())
 }
 
-/// The Rust version.
-pub unsafe fn ground_contact(entry: &Regs) -> Result<Left, Refused> {
-    {
-        let mut r = *entry;
-        steps(&mut r)?;
-        Ok(left_of(&r))
-    }
+/// The Rust version. The registers it leaves are read by none of its callers.
+pub fn ground_contact() -> Result<(), Refused> {
+    steps()
 }

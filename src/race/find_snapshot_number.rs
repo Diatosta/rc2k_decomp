@@ -17,31 +17,24 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::Regs;
+use crate::files::state::{FIND_HANDLE, LAST_FILE_PATH, SKIPPED_ATTRIBUTES, find_data};
 use crate::physics::flow::a;
-use crate::race::viewer::{get, put, regs_entry};
-use windows_sys::Win32::Storage::FileSystem::{
-    FindClose, FindFirstFileA, FindNextFileA, WIN32_FIND_DATAA,
-};
+use std::sync::atomic::Ordering::Relaxed;
+use windows_sys::Win32::Storage::FileSystem::{FindClose, FindFirstFileA, FindNextFileA};
 
 pub const SNAPSHOT_PATH: usize = 0x529731; // "savedata\snapshot\000.pcx"
 pub const SNAPSHOT_DIGITS: usize = SNAPSHOT_PATH + 0x12;
-const FIND_DATA: usize = 0x4E05A8; // FindFileData
-const FIND_HANDLE: usize = 0x4E05A4; // hFindFile
-const SKIPPED: usize = 0x4E06E6; // the attributes a search passes over
-const LAST_PATH: usize = 0x4F52B0; // g_lastFilePath
 const NO_SEARCH: u32 = u32::MAX;
 
 /// `files::find_next_wanted` (0x402FF6): the next name not of the skipped attributes;
 /// false (carry) when there is none.
 pub unsafe fn find_next_wanted() -> bool {
-    let record = a(FIND_DATA) as *mut WIN32_FIND_DATAA;
+    let record = find_data();
     loop {
-        if unsafe { FindNextFileA(get(FIND_HANDLE) as _, record) } == 0 {
+        if unsafe { FindNextFileA(FIND_HANDLE.load(Relaxed) as _, record) } == 0 {
             return false;
         }
-        if get(FIND_DATA) & get(SKIPPED) == 0 {
+        if unsafe { (*record).dwFileAttributes } & SKIPPED_ATTRIBUTES.load(Relaxed) == 0 {
             return true;
         }
     }
@@ -50,14 +43,14 @@ pub unsafe fn find_next_wanted() -> bool {
 /// `files::find_first` (0x402FC2): the first name matching `pattern` (not resolved; it
 /// becomes `g_lastFilePath`) not of the skipped attributes; false (carry) when none.
 pub unsafe fn find_first(pattern: u32) -> bool {
-    put(LAST_PATH, pattern);
-    let record = a(FIND_DATA) as *mut WIN32_FIND_DATAA;
+    LAST_FILE_PATH.store(pattern, Relaxed);
+    let record = find_data();
     let search = unsafe { FindFirstFileA(pattern as *const u8, record) } as u32;
-    put(FIND_HANDLE, search);
+    FIND_HANDLE.store(search, Relaxed);
     if search == NO_SEARCH {
         return false;
     }
-    if get(FIND_DATA) & get(SKIPPED) != 0 {
+    if unsafe { (*record).dwFileAttributes } & SKIPPED_ATTRIBUTES.load(Relaxed) != 0 {
         return unsafe { find_next_wanted() };
     }
     true
@@ -65,9 +58,9 @@ pub unsafe fn find_first(pattern: u32) -> bool {
 
 /// `files::close_search` (0x40301F): the search closed, if there is one.
 pub unsafe fn close_search() {
-    if get(FIND_HANDLE) != NO_SEARCH {
-        unsafe { FindClose(get(FIND_HANDLE) as _) };
-        put(FIND_HANDLE, NO_SEARCH);
+    if FIND_HANDLE.load(Relaxed) != NO_SEARCH {
+        unsafe { FindClose(FIND_HANDLE.load(Relaxed) as _) };
+        FIND_HANDLE.store(NO_SEARCH, Relaxed);
     }
 }
 
@@ -79,7 +72,7 @@ pub unsafe fn find_snapshot_number() {
         if find_first(a(SNAPSHOT_PATH)) {
             loop {
                 // Converted: `rc2k_core::race::viewer::snapshot_number`.
-                let name = &(*(a(FIND_DATA) as *const WIN32_FIND_DATAA)).cFileName;
+                let name = &(*find_data()).cFileName;
                 if let Some(number) = rc2k_core::race::viewer::snapshot_number(|n| name[n] as u8)
                     && number > highest
                 {
@@ -94,15 +87,4 @@ pub unsafe fn find_snapshot_number() {
         let digits = crate::strings::format_u32::format_u32(highest, 0x13);
         std::ptr::copy_nonoverlapping(digits.as_ptr(), a(SNAPSHOT_DIGITS) as *mut u8, digits.len());
     }
-}
-
-fn rust(r: &Regs) -> Result<Regs, Refused> {
-    unsafe { find_snapshot_number() };
-    Ok(*r)
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    regs_entry(r, &rust)
 }

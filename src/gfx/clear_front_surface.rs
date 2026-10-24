@@ -15,7 +15,7 @@
 //! the menus), by address (`net::lobby`'s `CLEAR_FRONT`, the typed tables).
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_read, rva};
+use crate::framework::{game_read, rva};
 
 const FRONT_RVA: usize = rva(0x4F32B4); // g_frontSurface
 const HEIGHT_RVA: usize = rva(0x4F4950); // g_screenHeight
@@ -29,9 +29,4 @@ pub fn clear_front_surface() -> Result<(), Refused> {
         }
     }
     Ok(())
-}
-
-/// The Rust version where the typed tables run it (a refusal is the caller's).
-pub fn entry(_: &mut Regs) -> Result<(), Refused> {
-    clear_front_surface()
 }

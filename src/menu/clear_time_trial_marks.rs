@@ -13,24 +13,10 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 pub fn clear_time_trial_marks() -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::bests::clear_marks`.
     let mut list = crate::menu::rank_time_trial_best::stage_list()?;
     rc2k_core::menu::bests::clear_marks(&mut list);
     Ok(())
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    clear_time_trial_marks()?;
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

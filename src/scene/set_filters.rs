@@ -6,10 +6,10 @@
 //! With `dword_623898` at 0 render states 0x11 and 0x12 (the filters for a texture
 //! made larger and smaller) both 2; else 2 and 6. Then state 0x31 = 1. Each through
 //! `scene::set_render_state`. Five callers, `scene::begin_scene` among them.
-//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
-//! `routes.rs`); the registers above are the original's, for reference.
+//! Hook removed 2026-10-22; plain Rust since 2026-10-23 (phase 3): the registers above
+//! are the original's; a call by address goes through `routes.rs`, which maps them.
 
-use crate::framework::{Regs, game_read, rva};
+use crate::framework::{game_read, rva};
 use crate::scene::set_render_state::set_render_state;
 
 // ---- game data ----
@@ -25,10 +25,4 @@ pub fn set_filters() {
             set_render_state(s.value, s.state);
         }
     }
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(_r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    set_filters();
-    Ok(())
 }

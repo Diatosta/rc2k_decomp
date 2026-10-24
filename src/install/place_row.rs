@@ -17,18 +17,19 @@
 //! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
+//! are the original's.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::install::installer::{a, rb, rd, wd};
 use crate::install::lay_out_pieces::PIECE;
-use crate::race::viewer::regs_entry;
 use rc2k_core::install::layout::{self, Area, Piece};
 
 const TITLE_BOX: usize = 0x51DD98; // unk_51DD98
 
-pub fn place_row(entry: &Regs) -> Result<Regs, Refused> {
-    let (first, count, the_box) = (entry.ebx, entry.ecx, entry.esi);
+/// `first` the first piece, `count` the pieces, `the_box` the box, `eax` as it comes (the
+/// wrap reads it before setting it).
+pub fn place_row(first: u32, count: u32, the_box: u32, eax: u32) -> Result<(), Refused> {
     let at = |k: u32| first.wrapping_add(PIECE * k);
     // Converted: `rc2k_core::install::layout::place_row`, on the pieces' fields it reads;
     // their x and y written back.
@@ -49,24 +50,10 @@ pub fn place_row(entry: &Regs) -> Result<Regs, Refused> {
         height: rd(the_box + 0xC),
     };
     let title = the_box == a(TITLE_BOX);
-    let placed = layout::place_row(&mut pieces, area, title, entry.eax)?;
+    layout::place_row(&mut pieces, area, title, eax)?;
     for (k, p) in (0..).zip(&pieces) {
         wd(at(k) + 8, p.x);
         wd(at(k) + 0xC, p.y);
     }
-    Ok(Regs {
-        eax: placed.x,
-        ebx: at(count),
-        ecx: 0,
-        edx: placed.down,
-        edi: placed.height,
-        ebp: placed.across,
-        ..*entry
-    })
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    regs_entry(r, &place_row)
+    Ok(())
 }

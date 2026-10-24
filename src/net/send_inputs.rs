@@ -1,24 +1,18 @@
 //! `net::send_inputs` (0x464194): "send j", the player and the step logged, and the
 //! message 'JGSM' (0x4D53474A) with the car's four input dwords (the current car's block
-//! +0xFD0 .. +0xFDC) built in `unk_71C4D0` and sent (`net::send_race_message`).
+//! +0xFD0 .. +0xFDC) built in `unk_71C4D0` and sent (`net::send_race_message`, which is
+//! `call net::send_message; retn`: `net::send_message` here).
 //!
 //! In:  nothing
-//! Out: as `send_race_message` leaves them (in: eax the last dword, ebx the message, ecx
-//!      its bytes, the rest kept)
+//! Out: nothing (the original's registers, as the send leaves them, are read by no caller:
+//!      `lq -s 0x464194`, esi only, kept)
 //!
 //! See `net/mod.rs`; `send_position` and `send_extra` are the same with other dwords (this
-//! file has their shared body). One caller, `net::send_turn` (every fourth step). Its
-//! calls through `part` (the log's and the send). Shadow mode runs the original alone.
-//! Self-test: a copy whose car block and message are the test's and whose calls go to
-//! noting stand-ins, against the Rust version (also the other two's tests).
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! file has their shared body). One caller, `net::send_turn` (every fourth step).
 
 use crate::errors::Refused;
-use crate::framework::Regs;
-use crate::net::{CAR, MESSAGE, Part, SEND_RACE, a, log_send, net_entry};
+use crate::net::send_message::send_message;
+use crate::net::{CAR, MESSAGE, a, log_send};
 use rc2k_core::net::race::Kind;
 
 /// What one of the three sends: its log text (an RVA as IDA shows it) and its kind (the
@@ -33,15 +27,10 @@ pub const INPUTS: Message = Message {
     kind: Kind::Inputs,
 };
 
-/// The shared body on a car block and a message buffer at the addresses given.
-pub fn send_fields_with(
-    r: &mut Regs,
-    m: &Message,
-    car: u32,
-    message: u32,
-    part: Part,
-) -> Result<(), Refused> {
-    log_send(m.text, r, part)?;
+/// The shared body: the car block `net::CAR`, the message built at `net::MESSAGE`.
+pub fn send_fields(m: &Message) -> Result<(), Refused> {
+    let (car, message) = (a(CAR), a(MESSAGE));
+    log_send(m.text);
     // Converted: `rc2k_core::net::race::Kind::pack`.
     let dwords = m
         .kind
@@ -50,24 +39,10 @@ pub fn send_fields_with(
     for (n, &v) in dwords.iter().enumerate() {
         unsafe { out.add(n).write_unaligned(v) };
     }
-    r.eax = *dwords.last().unwrap_or(&0);
-    r.ebx = message;
-    r.ecx = 4 * dwords.len() as u32;
-    part(SEND_RACE, r)
-}
-
-/// In the game.
-pub fn send_fields(r: &mut Regs, m: &Message, part: Part) -> Result<(), Refused> {
-    send_fields_with(r, m, a(CAR), a(MESSAGE), part)
+    send_message(message as *const u8, 4 * dwords.len() as u32)
 }
 
 /// The Rust version.
-pub fn send_inputs(r: &mut Regs, part: Part) -> Result<(), Refused> {
-    send_fields(r, &INPUTS, part)
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    net_entry(r, send_inputs)
+pub fn send_inputs() -> Result<(), Refused> {
+    send_fields(&INPUTS)
 }

@@ -22,10 +22,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::Regs;
 use crate::menu::event_flow::*;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 const STAGE_SLOT: usize = 0x7559EC; // dword_7559EC
 // hhmm
@@ -60,16 +57,4 @@ pub unsafe fn enter_time_trial_best() -> Result<(), Refused> {
     };
     bests::enter_tenth(&mut crate::menu::rank_time_trial_best::stage_list()?, &best);
     crate::menu::rank_time_trial_best::rank_time_trial_best()
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    let _ = r;
-    unsafe { enter_time_trial_best()? };
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

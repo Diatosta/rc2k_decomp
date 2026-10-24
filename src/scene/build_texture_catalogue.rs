@@ -31,7 +31,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{FatalError, Refused};
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::logfile::log_int::log_int;
 use crate::logfile::log_write::log_write;
 use crate::scene::count_texture_needs::count_texture_needs_in_game;
@@ -46,8 +46,6 @@ const COUNTERS_RVA: usize = rva(0x5DC97C); // dword_5DC97C, 0x100 dwords
 const COUNTERS_LEN: usize = 0x100 * 4;
 /// `dword_5DCD7C` .. `dword_5DCD98`: which of the eight cars keep their size.
 const FLAGS_RVA: usize = rva(0x5DCD7C);
-const RELEASE_RVA: usize = rva(0x4051D3); // gfx::release_all_textures
-
 const NOT_ENOUGH: FatalError = FatalError {
     code: 0x8060_0403,
     message: "",
@@ -155,7 +153,7 @@ pub unsafe fn build_texture_catalogue_in_game() -> Result<(), Refused> {
                     raise_texture_needs(level, tag);
                 }
                 Call::Try => return Ok(try_allocate_textures_in_game()?),
-                Call::Release => crate::calls::call(RELEASE_RVA, &mut Regs::default()),
+                Call::Release => crate::platform_3d::release_textures(),
                 Call::CountNeeds => {
                     count_texture_needs_in_game()?;
                 }
@@ -163,13 +161,4 @@ pub unsafe fn build_texture_catalogue_in_game() -> Result<(), Refused> {
             Ok(false)
         })
     }
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    match unsafe { build_texture_catalogue_in_game() } {
-        Ok(()) => r.set_carry(false),
-        Err(e) => return Err(e),
-    }
-    Ok(())
 }

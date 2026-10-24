@@ -8,26 +8,23 @@
 //!
 //! Caller: `sub_43B635` (0x43B900), every physics step.
 //! Refuses what `reset_car` refuses. Shadow mode runs the original alone
-//! (`physics/reset_parts.rs`).
+//! (its calls then went through `physics/reset_parts.rs`, gone).
 //! Self-test: a copy whose call goes to a stand-in (place 15), against the Rust version
 //! with the same: modes 0 .. 3 and counts about 700.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_read, game_write, rva};
-use crate::physics::reset_parts::{RESET_CAR, reset_entry};
+use crate::framework::{game_read, game_write, rva};
 use rc2k_core::physics::start::stuck_tick;
 
 const MODE: usize = rva(0x71A234); // g_car + 0x25C
 const STUCK: usize = rva(0x71A1C0); // g_car + 0x1E8
 
-/// The Rust version, `reset_car` through `part` (place 15).
+/// The Rust version. The registers it leaves are read by none of its callers.
 // Converted: `rc2k_core::physics::start::stuck_tick`.
-pub unsafe fn reset_when_stuck(entry: &Regs) -> Result<Regs, Refused> {
-    let mut r = *entry;
+pub unsafe fn reset_when_stuck() -> Result<(), Refused> {
     unsafe {
         let mode: u32 = game_read(MODE);
         let mut stuck = if mode == 2 || mode == 0 {
@@ -38,14 +35,8 @@ pub unsafe fn reset_when_stuck(entry: &Regs) -> Result<Regs, Refused> {
         let reset = stuck_tick(mode, &mut stuck);
         game_write(STUCK, stuck);
         if reset {
-            crate::physics::reset_parts::game_part(RESET_CAR, &mut r)?;
+            crate::physics::reset_car::reset_car()?;
         }
     }
-    Ok(r)
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    reset_entry(r, reset_when_stuck)
+    Ok(())
 }

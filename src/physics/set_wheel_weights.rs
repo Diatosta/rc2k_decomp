@@ -13,11 +13,10 @@
 //! Self-test: a copy of the original on test records (its eight calls to
 //! `turn_by_inverse` kept), shares below, in and above the range under three precisions.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
-use crate::framework::{Regs, game_addr, game_read, rva};
+use crate::framework::{game_addr, game_read, rva};
 use crate::math::x87;
 use crate::math::x87_run::{compare_full, weight_force};
 use crate::physics::turn_by_inverse::turn_by_inverse;
@@ -50,8 +49,8 @@ unsafe fn put(a: u32, v: u32) {
     unsafe { (a as *mut u32).write_unaligned(v) }
 }
 
-/// The Rust core on the variables at `p`; `r` as the original leaves it.
-pub unsafe fn weights_at(p: &Places, r: &mut Regs) {
+/// The Rust core on the variables at `p`. The registers the original leaves are read by none of its callers (esi).
+pub unsafe fn weights_at(p: &Places) {
     unsafe {
         let one: u32 = game_read(rva(0x5C5D38));
         let high: u32 = game_read(rva(0x5C5D48));
@@ -85,13 +84,12 @@ pub unsafe fn weights_at(p: &Places, r: &mut Regs) {
             put(p.records + o, minus);
         }
         for c in 0..4 {
-            r.esi = p.records + 0x20 * c + 0xC;
-            turn_by_inverse(r.esi);
+            turn_by_inverse(p.records + 0x20 * c + 0xC);
         }
     }
 }
 
-/// The Rust version; `r` as the original leaves it.
-pub unsafe fn set_wheel_weights(r: &mut Regs) {
-    unsafe { weights_at(&Places::game(), r) }
+/// The Rust version.
+pub unsafe fn set_wheel_weights() {
+    unsafe { weights_at(&Places::game()) }
 }

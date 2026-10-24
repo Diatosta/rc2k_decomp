@@ -32,12 +32,10 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::{EAX, EBX, EDX, Regs, game_read, game_write, rva};
+use crate::framework::{EAX, EBX, EDX, game_read, game_write, rva};
 use crate::math::x87;
 use crate::scene::draw_polygon::CHECKED_RVA;
 use crate::screens::harness::Left;
-use crate::service::floats::floats_entry;
 
 // ---- game data ----
 
@@ -200,14 +198,4 @@ pub unsafe fn set_view_window_plain() -> Left {
             .with(EBX, 0x1_0000)
             .with(EDX, (w.product >> 32) as u32)
     }
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    Ok(unsafe { set_view_window_plain() })
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    floats_entry(r, &rust)
 }

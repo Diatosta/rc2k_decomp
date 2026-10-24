@@ -16,40 +16,31 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::BadInput;
-use crate::framework::Regs;
+use crate::errors::{BadInput, Refused};
 
 const END: u32 = u32::MAX;
 const LIST_LIMIT: u32 = 256;
 
 // ---- Rust version ----
 
-/// Calls one function of a list with the registers given.
-pub type Call<'a> = &'a mut dyn FnMut(u32, &mut Regs);
-
 unsafe fn list_entry(at: u32) -> u32 {
     unsafe { (at as *const u32).read_unaligned() }
 }
 
-/// `entry_regs` are the registers at entry.
-pub unsafe fn run_list(list: u32, entry_regs: &Regs, call: Call) -> Result<(), BadInput> {
+/// Runs the functions of `list` in order. They are the typed tables' screen functions
+/// (`menu::table_calls::call_listed`), which take no register: the registers the original
+/// hands each (esi the place in the list, the rest as the one before left them) are
+/// nobody's (2026-10-24).
+pub unsafe fn run_list(list: u32) -> Result<(), Refused> {
     unsafe {
         if !(0..LIST_LIMIT).any(|n| list_entry(list.wrapping_add(4 * n)) == END) {
-            return Err(BadInput("a function list without an end"));
+            return Err(BadInput("a function list without an end").into());
         }
-        let mut g = *entry_regs;
-        g.esi = list;
-        while list_entry(g.esi) != END {
-            call(list_entry(g.esi), &mut g);
-            g.esi = g.esi.wrapping_add(4);
+        let mut at = list;
+        while list_entry(at) != END {
+            crate::menu::table_calls::call_listed(list_entry(at))?;
+            at = at.wrapping_add(4);
         }
     }
-    Ok(())
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let entry_regs = *r;
-    unsafe { run_list(r.esi, &entry_regs, &mut crate::menu::table_calls::call) }?;
     Ok(())
 }

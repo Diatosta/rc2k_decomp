@@ -12,7 +12,6 @@
 //! and the self-test was the hook's.
 
 use crate::framework::{game_read, game_write, rva};
-use crate::service::harness::at;
 
 /// (from, to): the point's three floats, then `dword_7692F6`.
 const MOVES: [(usize, usize); 4] = [
@@ -27,9 +26,4 @@ pub unsafe fn copy_first_point() {
     for (from, to) in MOVES {
         unsafe { game_write(to, game_read::<u32>(from)) };
     }
-}
-
-/// What it writes.
-pub fn regions() -> Vec<crate::service::harness::Region> {
-    MOVES.map(|m| at(m.1)).to_vec()
 }

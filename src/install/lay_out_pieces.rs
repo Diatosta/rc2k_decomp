@@ -18,11 +18,11 @@
 //! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
+//! are the original's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::Regs;
 use crate::install::installer::{LAYOUT, a, fatal, rb, rw, wb, wd, ww};
-use crate::race::viewer::regs_entry;
 use rc2k_core::install::layout;
 use rc2k_core::install::pieces::{self, LayoutError, ListMemory};
 
@@ -48,9 +48,9 @@ impl ListMemory for GameList {
     }
 }
 
-pub fn lay_out_pieces(entry: &Regs) -> Result<Regs, Refused> {
+pub fn lay_out_pieces(list: u32) -> Result<(), Refused> {
     // Converted: `rc2k_core::install::pieces::lay_out`; the pieces written here.
-    let made = match pieces::lay_out(entry.edi, a(TITLE), &GameList) {
+    let made = match pieces::lay_out(list, a(TITLE), &GameList) {
         Ok(made) => made,
         Err(LayoutError::UnknownKind) => return Err(fatal(pieces::UNKNOWN_KIND)),
         Err(LayoutError::TooMany) => {
@@ -71,11 +71,5 @@ pub fn lay_out_pieces(entry: &Regs) -> Result<Regs, Refused> {
         }
     }
     wd(base, made.len() as u32);
-    Ok(*entry)
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    regs_entry(r, &lay_out_pieces)
+    Ok(())
 }

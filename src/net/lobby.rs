@@ -24,12 +24,11 @@
 //! that note each call with its seven registers and answer what the test says, and test
 //! COM objects whose methods note their arguments.
 
-use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, rva};
+use crate::errors::Refused;
+use crate::framework::{Regs, game_addr};
 
-pub use crate::net::{Part, a, g, p};
+pub use crate::net::{a, g, p};
 
-pub const SIGN_FLAG: u32 = 1 << 7;
 // ---- game data (IDA addresses) ----
 
 pub const SESSION: usize = 0x52A910; // g_netSession: 1 while a network game runs
@@ -108,7 +107,6 @@ pub const APP_GUID: usize = 0x5AB300; // dword_5AB300: the game's guid
 pub const QUITTING: usize = 0x51837C; // g_quitting
 pub const SCREENSHOTS_ON: usize = 0x4F52B4; // g_screenshotsOn
 pub const TEXT: usize = 0x93E430; // text: the game's text buffer
-pub const NOTICE_KIND: usize = 0x4E07A0; // g_noticeKind (a byte)
 pub const SPRITES: usize = 0x755581; // g_spriteTable
 pub const PALETTE: usize = 0x51E624; // palette: the measuring font
 pub const FONT: usize = 0x51E6A4; // font
@@ -119,112 +117,7 @@ pub use crate::race::viewer::{
     CHOICE, CHOICE_BEFORE, CLOCK, FRAME_CLOCK, KEY_CLOCK, MOVE_CLOCK, gb, pb,
 };
 
-// ---- the calls by place ----
-
-pub const LOG_L2: u32 = 0x401432; // logfile::log_write_l2
-pub const LOG_L2_NL: u32 = 0x401439; // logfile::log_write_l2_nl
-pub const LOG_L1: u32 = 0x401427; // logfile::log_write_l1
-pub const LOG_L1_NL: u32 = 0x40142B; // logfile::log_write_l1_nl
-pub const LOG_INT_L1_NL: u32 = 0x401476; // logfile::log_int_l1_nl
-pub const LOG_INT_L2_NL: u32 = 0x401484; // logfile::log_int_l2_nl
-pub const LOG_HEX_L2: u32 = 0x40162D; // logfile::log_hex8_l2
-pub const LOG_HEX_L2_NL: u32 = 0x401634; // logfile::log_hex8_l2_nl
-pub const LOG_NEWLINE_L2: u32 = 0x4013F1; // logfile::log_newline_l2
-pub const SAME_GUID: u32 = 0x4016F9; // system::same_guid
-pub const COPY_PRINTABLE: u32 = 0x4017F2; // strings::copy_printable
-pub const ZERO_MEMORY: u32 = 0x401829; // system::zero_memory
-pub const NEXT_RANDOM: u32 = 0x4018B4; // math::next_random
-pub const APPEND_TIME: u32 = 0x401A39; // strings::append_time
-pub const SAME_TEXT: u32 = 0x401EDE; // strings::same_text
-pub const STR_APPEND: u32 = 0x401F7D; // strings::str_append
-pub const APPEND_STRING: u32 = 0x401FA3; // strings::append_string_by_id
-pub const FORMAT_U32: u32 = 0x40204A; // strings::format_u32
-pub const TEXT_LENGTH: u32 = 0x4022B8; // strings::text_length
-pub const DRAW_KEEP: u32 = 0x402303; // text::draw_text_keep_regs
-pub const MEASURE_TEXT: u32 = 0x40230B; // text::measure_text
-pub const MEASURE_STRING: u32 = 0x40232C; // text::measure_string_by_id
-pub const DRAW_STRING: u32 = 0x40234A; // text::draw_string_by_id
-pub const DRAW_TIME: u32 = 0x402395; // text::draw_time_text
-pub const DRAW_TEXT: u32 = 0x4023D5; // text::draw_text
-pub const ALLOCATE: u32 = 0x4028A7; // memory::allocate
-pub const MAYBE_LEXICON: u32 = 0x403555; // strings::maybe_compile_lexicon
-pub const SET_MENU_MODE: u32 = 0x404823; // gfx::set_menu_screen_mode
-pub const SET_RACE_MODE: u32 = 0x404830; // race::set_race_screen_mode
-pub const SHOW_FRAME: u32 = 0x4057D1; // gfx::show_frame
-pub const LOCK: u32 = 0x4058AD; // gfx::lock_surface
-pub const UNLOCK: u32 = 0x405949; // gfx::unlock_surface
-pub const CLEAR_FRONT: u32 = 0x4059F4; // gfx::clear_front_surface
-pub const RESTORE_WINDOW: u32 = 0x405A33; // system::restore_window
-pub const RUN_FRAME: u32 = 0x405A71; // screens::run_frame
-pub const PICTURE_AS_SURFACE: u32 = 0x405FE7; // gfx::picture_as_surface
-pub const COPY_PICTURE: u32 = 0x4060E3; // gfx::copy_picture_to_surface
-pub const CONVERT_PICTURE: u32 = 0x406126; // gfx::convert_picture
-pub const DRAW_HLINE: u32 = 0x406710; // gfx::draw_hline
-pub const BLIT: u32 = 0x4069B2; // gfx::blit_glyph
-pub const SCREENSHOT: u32 = 0x407897; // gfx::take_screenshot
-pub const KEY_TO_CHAR: u32 = 0x407E43; // input::key_to_char
-pub const TAKE_KEY: u32 = 0x407F95; // input::take_key
-pub const APPLY_SOUND: u32 = 0x40EFF3; // sound::apply_settings
-pub const RACE_SOUNDS: u32 = 0x40F02E; // sound::set_up_race_sounds
-pub const TUNE_3: u32 = 0x40F780; // sound::play_tune_3
-pub const TUNE_4: u32 = 0x40F792; // sound::play_tune_4
-pub const STOP_MUSIC: u32 = 0x40F826; // sound::stop_music
-pub const PUMP: u32 = 0x410535; // system::pump_messages
-pub const SLEEP: u32 = 0x41100C; // system::sleep
-pub const TICK: u32 = 0x411024; // system::tick_count
-pub const PARSE_NUMBER: u32 = 0x411623; // settings::parse_number
-pub const LOAD_PICTURE: u32 = 0x411863; // gfx::load_picture
-pub const LIST_TAKE_KEY: u32 = 0x41469A; // menu::list_take_key
-pub const CLEAR_RACE_SOUNDS: u32 = 0x415C6D; // race::clear_race_sound_objects
-pub const SET_UP_RACE_SOUNDS: u32 = 0x415C93; // race::set_up_race_sound_objects
-pub const COPY_RECEIVED: u32 = 0x4173A0; // net::copy_received
-pub const STOP: u32 = 0x41838C; // net::stop
-pub const LOCK_RECEIVED: u32 = 0x418474; // net::lock_received
-pub const UNLOCK_RECEIVED: u32 = 0x418481; // net::unlock_received
-pub const POST_CALL: u32 = 0x4184F8; // net::post_call
-pub const SEND: u32 = 0x4196FF; // net::dplay_send (DirectPlay's Send)
-pub const SET_UP_ENGINE: u32 = 0x442AF6; // scene::set_up_engine
-pub const RELEASE_TEXTURES: u32 = 0x443396; // race::release_textures
-pub const RENDER3D_TIDY: u32 = 0x4433A7; // race::render3d_tidy
-pub const OBJECTS_TIDY: u32 = 0x44346B; // race::objects_tidy
-pub const NULLSUB_6: u32 = 0x44347E; // nullsub_6
-pub const LOAD_STAGE: u32 = 0x444040; // race::load_stage
-pub const TIDY_EVERYTHING: u32 = 0x444AC7; // race::tidy_everything
-pub const PLAY_RACE: u32 = 0x444CEE; // drive::play_race
-pub const ARCADE_CARS: u32 = 0x4468FB; // race::set_up_arcade_cars
-pub const START_STATES: u32 = 0x446D2E; // race::set_start_states
-pub const FRONT_END_SCENE: u32 = 0x474E04; // scene::set_up_front_end_scene
-pub const SELECT_CAR: u32 = 0x47AC0C; // menu::select_car_loop
-pub const TAKE_SHOWN_CAR: u32 = 0x47B29D; // menu::take_shown_car
-pub const LOADING_PICTURE: u32 = 0x47CEA8; // menu::show_loading_picture
-pub const SELECT_STAGE: u32 = 0x482099; // menu::select_stage_loop
-pub const START_FRONT_END: u32 = 0x4154CD; // sub_4154CD (agent F's)
-/// `CoCreateInstance` (its import thunk): eax the class, ebx the interface, ecx where.
-pub const CO_CREATE: u32 = 0x4D7CCE;
-
 // ---- small pieces ----
-
-/// The flags of `test eax, eax`.
-pub fn test_eax(r: &mut Regs) {
-    r.set_carry(false);
-    r.set_zero(r.eax == 0);
-    set_sign(r, r.eax as i32);
-}
-
-/// The flags of `cmp a, b`: carry, zero, sign.
-pub fn cmp_flags(r: &mut Regs, a: u32, b: u32) {
-    r.set_carry(a < b);
-    r.set_zero(a == b);
-    set_sign(r, a.wrapping_sub(b) as i32);
-}
-
-pub fn set_sign(r: &mut Regs, v: i32) {
-    if v < 0 {
-        r.eflags |= SIGN_FLAG;
-    } else {
-        r.eflags &= !SIGN_FLAG;
-    }
-}
 
 /// The address of a player's block of `g_netReceived`.
 pub fn block(player: u32) -> u32 {
@@ -238,10 +131,173 @@ pub fn movsb(to: u32, from: u32, n: u32) {
     }
 }
 
-/// A logged text: `pusha; lea eax, text; call place; popa`.
-pub fn log_text(place: u32, text: u32, r: &Regs, part: Part) -> Result<(), Refused> {
-    let mut l = Regs { eax: text, ..*r };
-    part(place, &mut l)
+/// The address of a function or label of the game.
+pub fn game(x: u32) -> u32 {
+    game_addr(crate::framework::rva(x as usize)) as u32
+}
+
+/// A cursor into a text buffer: what the original's `ebx` is while it builds a line with
+/// `strings::str_append`, `append_string_by_id`, `format_u32`, `append_time` and
+/// `append_nul`.
+#[derive(Clone, Copy)]
+pub struct Cursor(pub u32);
+
+impl Cursor {
+    /// The start of the game's text buffer.
+    pub fn text() -> Self {
+        Self(a(TEXT))
+    }
+
+    /// `strings::str_append`: the NUL-ended text at `from`, its end the new cursor.
+    pub fn string(&mut self, from: u32) {
+        self.0 =
+            unsafe { crate::strings::str_append::str_append(from as *const u8, self.0 as *mut u8) }
+                as u32;
+    }
+
+    /// `strings::append_string_by_id`: the string `id`.
+    pub fn string_id(&mut self, id: u32) {
+        let mut out = self.0 as *mut u8;
+        unsafe {
+            crate::strings::append_string_by_id::append_string_by_id(id, &mut |from, n| {
+                std::ptr::copy_nonoverlapping(from, out, n);
+                out = out.add(n);
+            });
+        }
+        self.0 = out as u32;
+    }
+
+    /// The bytes written at the cursor (`format_u32`'s, `append_time`'s).
+    pub fn bytes(&mut self, bytes: &[u8]) {
+        unsafe { std::ptr::copy_nonoverlapping(bytes.as_ptr(), self.0 as *mut u8, bytes.len()) };
+        self.0 = self.0.wrapping_add(bytes.len() as u32);
+    }
+
+    /// `strings::append_nul`: a NUL written, the cursor past it.
+    pub fn nul(&mut self) {
+        unsafe { (self.0 as *mut u8).write(0) };
+        self.0 = self.0.wrapping_add(1);
+    }
+}
+
+/// `gfx::blit_glyph` of the sprite `glyph` of the sprite table (`g_spriteTable`) at (`x`,
+/// `y`) with the palette at `palette`; the ebx it leaves (the next blit's palette in the
+/// original, which hands each the one before leaves).
+pub fn blit(glyph: u32, x: u32, y: u32, palette: u32) -> Result<u32, Refused> {
+    let exit = unsafe {
+        crate::gfx::blit_glyph::blit_glyph_on_surface(
+            glyph,
+            g(SPRITES) as *const u8,
+            x as i32,
+            y as i32,
+            palette as *const u32,
+        )
+    }?;
+    Ok(exit.ebx)
+}
+
+/// `logfile::log_write_l<level>[_nl]` on the text at the address `text`.
+pub fn log(text: u32, newline: bool, level: u8) {
+    unsafe { crate::logfile::log_write::log_write(text as *const u8, newline, level) };
+}
+
+/// `logfile::log_hex8_l2[_nl]`.
+pub fn log_hex(value: u32, newline: bool) {
+    crate::logfile::log_hex8::log_hex8(value, newline, 2);
+}
+
+/// `logfile::log_int_l<level>_nl`.
+pub fn log_int_nl(value: u32, level: u8) {
+    crate::logfile::log_int::log_int(value as i32, true, level);
+}
+
+/// `memory::allocate` on the network's list (`g_netMemory`): the memory's address.
+pub fn net_allocate(bytes: u32) -> Result<u32, Refused> {
+    Ok(unsafe { crate::memory::allocate::allocate(a(NET_MEMORY) as *mut _, bytes) }? as u32)
+}
+
+/// `strings::copy_printable` (addresses).
+pub fn copy_printable(text: u32, to: u32, room: u32) -> Result<(), Refused> {
+    unsafe {
+        crate::strings::copy_printable::copy_printable(text as *const u8, to as *mut u8, room)
+    }?;
+    Ok(())
+}
+
+/// `system::zero_memory` (an address).
+pub fn zero(at: u32, length: u32) -> Result<(), Refused> {
+    unsafe { crate::system::zero_memory::zero_memory(at as *mut u8, length) }?;
+    Ok(())
+}
+
+/// `CoCreateInstance` (`net::dplay::create_instance`): its result.
+pub fn co_create(class: u32, interface: u32, out: u32) -> u32 {
+    unsafe { crate::net::dplay::create_instance(class, interface, out) as u32 }
+}
+
+/// `screens::run_frame` with the frame `frame` (`platform::run_frame_now`: the window's
+/// messages, then the frame unless the game is quitting).
+pub fn run_frame<T>(frame: impl FnOnce() -> Result<T, Refused>) -> Result<(), Refused> {
+    match crate::platform::run_frame_now(frame) {
+        Some(done) => done.map(|_| ()),
+        None => Ok(()),
+    }
+}
+
+/// `menu::list_take_key`: the key.
+pub fn list_key() -> Result<u8, Refused> {
+    Ok(crate::menu::list_take_key::list_take_key().key)
+}
+
+/// A list screen's other keys: a screenshot (R, when they are on), the lexicon.
+pub fn other_key(key: u8) -> Result<(), Refused> {
+    if g(SCREENSHOTS_ON) != 0 && key == 0x52 {
+        crate::gfx::take_screenshot::take_screenshot()?;
+    }
+    unsafe { crate::strings::maybe_compile_lexicon::maybe_compile_lexicon() }
+}
+
+/// `gfx::lock_surface`: whether it is locked (the original's carry clear).
+pub fn lock_surface() -> bool {
+    crate::platform::lock_surface() >= 1
+}
+
+/// `gfx::copy_picture_to_surface`.
+pub fn copy_picture() -> Result<(), Refused> {
+    unsafe {
+        crate::gfx::copy_picture_to_surface::copy_picture_to_surface(
+            &mut crate::gfx::copy_picture_to_surface::GameSurface,
+        )
+    }?;
+    Ok(())
+}
+
+/// `text::draw_string_by_id` with the font at the IDA address `font`.
+pub fn draw_string(id: u32, font: usize, x: u32, y: u32) -> Result<(), Refused> {
+    unsafe {
+        crate::text::draw_string_by_id::draw_string_by_id_at(
+            id,
+            a(font) as *mut _,
+            x as i32,
+            y as i32,
+            &mut crate::text::draw_text::GameCanvas,
+        )
+    }?;
+    Ok(())
+}
+
+/// `text::draw_text` with the font at the address `font`.
+pub fn draw_text(font: u32, text: u32, x: u32, y: u32) -> Result<(), Refused> {
+    unsafe {
+        crate::text::draw_text::draw_text_at(
+            font as *mut _,
+            text as *const u8,
+            x as i32,
+            y as i32,
+            &mut crate::text::draw_text::GameCanvas,
+        )
+    }?;
+    Ok(())
 }
 
 /// A fatal error with no message.
@@ -289,80 +345,24 @@ pub fn session(index: u32) -> Result<u32, Refused> {
     )
 }
 
-// ---- the calls in the game ----
-
-/// The calls by place in the game: the Rust versions; the frames' platform through the game.
-pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    crate::net::lobby_calls::call(place, r)
-}
-
-/// `dispatch_lobby` without its hook (typed tables).
-pub fn lobby_entry(
-    r: &mut Regs,
-    rust: fn(&Regs, Part) -> Result<Regs, Refused>,
-) -> Result<(), Refused> {
-    let left = rust(r, &mut game_part)?;
-    *r = Regs { esp: r.esp, ..left };
-    Ok(())
-}
-
-/// The address of a function or label of the game.
-pub fn game(x: u32) -> u32 {
-    game_addr(rva(x as usize)) as u32
-}
-
-/// A call into the game through its address (the hook's Rust version where there is one).
-pub fn in_game(place: u32, r: &mut Regs) {
-    crate::calls::call(rva(place as usize), r)
-}
-
-pub fn not_known(_: u32) -> Refused {
-    BadInput("a lobby call with no version").into()
-}
-
 // ---- DirectPlay's callbacks (`stdcall`, their arguments on the stack) ----
 
-/// Calls a `stdcall` function of up to six dword arguments at `code`: its eax.
-pub unsafe fn call_stdcall(code: usize, args: &[u32]) -> u32 {
-    type F4 = unsafe extern "system" fn(u32, u32, u32, u32) -> u32;
-    type F5 = unsafe extern "system" fn(u32, u32, u32, u32, u32) -> u32;
-    type F6 = unsafe extern "system" fn(u32, u32, u32, u32, u32, u32) -> u32;
-    unsafe {
-        match *args {
-            [a, b, c, d] => std::mem::transmute::<usize, F4>(code)(a, b, c, d),
-            [a, b, c, d, e] => std::mem::transmute::<usize, F5>(code)(a, b, c, d, e),
-            [a, b, c, d, e, f] => std::mem::transmute::<usize, F6>(code)(a, b, c, d, e, f),
-            _ => unreachable!("the callbacks take four to six arguments"),
-        }
-    }
-}
-
 /// A callback's Rust version: its arguments in, its eax out.
-pub type Callback = fn(&[u32], Part) -> Result<u32, Refused>;
+pub type Callback = fn(&[u32]) -> Result<u32, Refused>;
 
 thread_local!(static CALLBACK_ARGS: std::cell::RefCell<(usize, Vec<u32>)> =
     const { std::cell::RefCell::new((0, Vec::new())) });
 
-/// A callback's Rust version where DirectPlay calls it (no hook; 2026-10-23): shadow mode
-/// runs the game's callback at `ral` (an IDA address); a refused input runs it too (logged
-/// once, as `menu::table_calls` does), a fatal error is raised.
+/// A callback's Rust version where DirectPlay calls it (no hook; 2026-10-23): a refused
+/// input ends the program with its reason (there is no game code to run in its place:
+/// before 2026-10-23 it called the game's callback at `ral`, which in the standalone would
+/// fault), a fatal error is raised.
 pub fn callback_entry(name: &str, ral: u32, args: &[u32], rust: Callback) -> u32 {
-    let result = rust(args, &mut game_part);
+    let result = rust(args);
     match result {
         Ok(eax) => eax,
         Err(Refused::BadInput(why)) => {
-            static SEEN: std::sync::Mutex<Vec<(u32, &'static str)>> =
-                std::sync::Mutex::new(Vec::new());
-            let mut seen = SEEN.lock().unwrap();
-            if !seen.contains(&(ral, why.0)) {
-                seen.push((ral, why.0));
-                crate::framework::log(&format!(
-                    "{name}: refused (first time, the game's runs): {}",
-                    why.0
-                ));
-            }
-            drop(seen);
-            unsafe { call_stdcall(game(ral) as usize, args) }
+            crate::standalone::finish(&format!("{name} ({ral:#x}) refused: {}", why.0), 1)
         }
         Err(Refused::Fatal(error)) => {
             crate::framework::log(&format!(

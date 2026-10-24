@@ -35,29 +35,27 @@
 //! 6, places and turns by lot over the test's grid, the switch bits, under three
 //! precisions; the points found counted; the refusal.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{EAX, EBX, ECX, EDX, ESI, Regs, rva};
+use crate::framework::rva;
 use crate::math::x87;
 use crate::math::x87_run::{int_times_times_over_to_int, less_plus_less_product_80};
 use crate::physics::ground::*;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 use rc2k_core::physics::ground;
 
 pub const MOST_POINTS: u32 = 0x40;
 const COUNT: u32 = 0x71A238; // dword_71A238
 const NOISE: u32 = 0xA2AAE4; // g_noiseBytes, 0x1000
 
-/// The Rust core; `r` as the original leaves it.
+/// The Rust core. The registers the original leaves (ebx the count, eax, ecx, edx, esi
+/// the last point's) are read by none of its callers.
 // Converted: `rc2k_core::physics::ground::{wheel_lifted, noise_cell, bump_noise}` (the
 // turns and the bump's scaling stay x87).
-pub unsafe fn probe_ground_at(g: &Ground, r: &mut Regs) -> Result<(), Refused> {
+pub unsafe fn probe_ground_at(g: &Ground) -> Result<(), Refused> {
     unsafe {
         let n = g.get(COUNT);
         if n < 1 {
@@ -67,23 +65,22 @@ pub unsafe fn probe_ground_at(g: &Ground, r: &mut Regs) -> Result<(), Refused> {
             return Err(BadInput("more than 0x40 probe points (the lists' room)").into());
         }
 
-        probe_points(g, r, n)
+        probe_points(g, n)
     }
 }
 
-unsafe fn probe_points(g: &Ground, r: &mut Regs, n: u32) -> Result<(), Refused> {
+unsafe fn probe_points(g: &Ground, n: u32) -> Result<(), Refused> {
     unsafe {
         let k65536 = g.get(0x5C5D98);
         g.put(0x6D3B84, u32::MAX);
         for b in 0..n {
-            r.ebx = b;
             let at = |base: u32| base + 4 * b;
             let z = g.get(at(0x71ACC8));
             let y = g.get(at(0x71ABC8));
             let y = if b < 4 {
                 g.put(0x62400C, x87::loaded(y));
                 let add;
-                (add, r.ecx) = ground::wheel_lifted(g.get(0x71A270), b);
+                (add, _) = ground::wheel_lifted(g.get(0x71A270), b);
                 less_plus_less_product_80(
                     g.get(0x71ABE0),
                     g.get(0x614BF4),
@@ -95,8 +92,7 @@ unsafe fn probe_points(g: &Ground, r: &mut Regs, n: u32) -> Result<(), Refused> 
                 extended(y)
             };
             let x = extended(g.get(at(0x71AAC8)));
-            r.esi = g.a(0x71A08C);
-            let out = rotate_point(r.esi, [x, y, extended(z)]);
+            let out = rotate_point(g.a(0x71A08C), [x, y, extended(z)]);
             let (ox, oy, oz) = (rounded(out[0]), rounded(out[1]), rounded(out[2]));
             g.put(0x6D3628, ox);
             g.put(at(0x6D2214), ox);
@@ -113,11 +109,9 @@ unsafe fn probe_points(g: &Ground, r: &mut Regs, n: u32) -> Result<(), Refused> 
             }
             g.put(0x639824, g.get(at(0x6D1E14)));
             g.put(0x63982C, g.get(at(0x6D2014)));
-            r.eax = g.get(at(0x71ADC8));
-            g.put(0x5CCC78, r.eax);
+            g.put(0x5CCC78, g.get(at(0x71ADC8)));
             g.put(0x620470, 0x80);
-            let mut inner = *r;
-            ground_search_at(g, &mut inner)?;
+            ground_search_at(g)?;
             g.put(at(0x6D2114), 0);
             if g.get(0x639830) == 0 {
                 g.put(0x6D3B84, b);
@@ -129,7 +123,6 @@ unsafe fn probe_points(g: &Ground, r: &mut Regs, n: u32) -> Result<(), Refused> 
             let cell = ground::noise_cell(g.get(0x639824), g.get(0x63982C));
             g.put(0x6D3060, cell.row);
             g.put(0x6D3064, cell.row_offset);
-            let esi = cell.below;
             let noise = |i: u32| {
                 u32::from(
                     (crate::framework::game_addr(rva(NOISE as usize) + i as usize) as *const u8)
@@ -140,8 +133,7 @@ unsafe fn probe_points(g: &Ground, r: &mut Regs, n: u32) -> Result<(), Refused> 
             for (v, x) in [0x6D3044, 0x6D3048, 0x6D3050, 0x6D304C].into_iter().zip(n) {
                 g.put(v, x);
             }
-            let (n58, n54, n5c, high) = ground::bump_noise(n, g.get(0x639824), g.get(0x63982C));
-            let fz = g.get(0x63982C) & 0x3FFF;
+            let (n58, n54, n5c, _) = ground::bump_noise(n, g.get(0x639824), g.get(0x63982C));
             g.put(0x6D3058, n58);
             g.put(0x6D3054, n54);
             g.put(0x6D305C, n5c);
@@ -170,40 +162,18 @@ unsafe fn probe_points(g: &Ground, r: &mut Regs, n: u32) -> Result<(), Refused> 
                     x87::int_times_to_int(d as i32, g.get(0x62400C)) as u32,
                 );
             }
-            r.eax = g.get(0x5CCC74);
-            g.put(at(0x71ADC8), r.eax);
-            r.ecx = fz;
-            r.esi = esi;
-            r.edx = high;
+            g.put(at(0x71ADC8), g.get(0x5CCC74));
         }
         for k in 0..4u32 {
             g.put(0x71AEE8 + 4 * k, g.get(0x6D1E14 + 4 * k));
             g.put(0x71AEF8 + 4 * k, g.get(0x6D2114 + 4 * k));
             g.put(0x71AF08 + 4 * k, g.get(0x6D2014 + 4 * k));
         }
-        r.ebx = n;
         Ok(())
     }
 }
 
-/// The Rust version: `r` as the original leaves it.
-pub unsafe fn probe_ground(r: &mut Regs) -> Result<(), Refused> {
-    unsafe { probe_ground_at(&Ground::game(), r) }
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    let mut g = *r;
-    unsafe { probe_ground(&mut g) }?;
-    Ok(Left::nothing()
-        .with(EAX, g.eax)
-        .with(EBX, g.ebx)
-        .with(ECX, g.ecx)
-        .with(EDX, g.edx)
-        .with(ESI, g.esi))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
+/// The Rust version.
+pub unsafe fn probe_ground() -> Result<(), Refused> {
+    unsafe { probe_ground_at(&Ground::game()) }
 }

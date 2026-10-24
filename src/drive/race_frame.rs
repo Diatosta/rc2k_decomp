@@ -24,105 +24,51 @@ use crate::framework::{Regs, game_read, rva};
 const QUITTING_RVA: usize = rva(0x51837C); // g_quitting
 const ACTIVE_RVA: usize = rva(0x518374); // g_windowActive
 const LOST_RVA: usize = rva(0x518380); // dword_518380
-
-/// The calls by place, as IDA shows them.
-const CALLED: [usize; 9] = [
-    0, 0x410535, // 1 system::pump_messages
-    0x44E8A1, // 2 scene::begin_scene
-    0x45429B, // 3 race::draw_race_scene
-    0x44E952, // 4 scene::end_scene
-    0x421BA9, // 5 sound::race_sound_tick
-    0x41F3DB, // 6 race::replay_screenshot
-    0x4547AE, // 7 race::show_frame
-    0x405B10, // 8 sub_405B10: the surfaces restored
-];
-
-/// A call by place (`CALLED`).
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
+const PUMP: usize = 0x410535; // system::pump_messages (the platform's)
+const RESTORE: usize = 0x405B10; // sub_405B10: the surfaces restored (the platform's)
 
 fn g(a: usize) -> u32 {
     unsafe { game_read(a) }
 }
 
-/// The Rust version (see the header): the registers and flags it leaves.
-pub fn race_frame(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    let mut r = *entry;
-    let cmp_one = |r: &mut Regs, v: u32| {
-        r.set_carry(v < 1);
-        r.set_zero(v == 1);
+/// The Rust version (see the header): `eax` in, the eax its calls leave out (`mov eax,
+/// 12h` and `race::show_frame` when the frame is drawn, else what the window's messages
+/// and the restore leave of it). Only `drive::quit_question` reads it (into
+/// `input::yes_no_key`, liveness: 0x44520A); its flags and other registers are read by
+/// no caller (only DF live after the other four calls).
+pub fn race_frame(eax: u32) -> Result<u32, Refused> {
+    // The calls below that still take the registers read none at entry (liveness:
+    // `pump_messages`, `race_sound_tick`, `replay_screenshot`,
+    // `show_frame`, `sub_405B10`): one local scratch, as the original's registers run
+    // from call to call. Only `show_frame`'s carry is read.
+    let r = &mut Regs {
+        eax,
+        ..Regs::default()
     };
-    part(1, &mut r)?;
+    crate::calls::call(rva(PUMP), r);
     if g(QUITTING_RVA) == 1 {
         // The game is closing. In the game its shutdown thread (`threading::request_quit`)
         // ends the program meanwhile; the standalone, which has none, ends it here.
         crate::standalone::leave_from_race();
     }
-    'lost: {
-        if g(ACTIVE_RVA) == 0 || g(LOST_RVA) == 1 {
-            break 'lost;
-        }
-        part(2, &mut r)?;
-        if r.carry() {
-            break 'lost;
-        }
-        part(3, &mut r)?;
-        part(4, &mut r)?;
+    if g(ACTIVE_RVA) != 0 && g(LOST_RVA) != 1 {
+        // `scene::begin_scene` leaves the carry clear: the frame is never lost there.
+        crate::scene::begin_scene::begin_scene();
+        unsafe { crate::race::draw_race_scene::draw_race_scene() }?;
+        crate::scene::end_scene::end_scene();
         r.eax = 0x12;
-        part(5, &mut r)?;
-        part(6, &mut r)?;
-        part(7, &mut r)?;
-        if r.carry() {
-            break 'lost;
+        crate::sound::race_sound_tick::race_sound_tick()?;
+        unsafe { crate::race::replay_screenshot::replay_screenshot() }?;
+        let shown = unsafe { crate::race::show_frame::show_frame() }?;
+        r.eax = shown.eax;
+        if !shown.lost {
+            return Ok(r.eax);
         }
-        r.set_carry(false);
-        return Ok(r);
     }
     if g(QUITTING_RVA) == 1 {
-        cmp_one(&mut r, 1);
-        return Ok(r);
+        return Ok(r.eax);
     }
     r.ebx = g(LOST_RVA);
-    part(8, &mut r)?;
-    r.ebx = (r.ebx ^ 1) | g(LOST_RVA);
-    let v = r.ebx;
-    cmp_one(&mut r, v);
-    Ok(r)
-}
-
-/// In the game: the Rust versions of the drawing, the sound tick, the replay screenshot and
-/// the showing; the rest (the messages, the scene's begin and end, the surfaces' restore)
-/// through the game.
-pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    if place == 5 {
-        use crate::sound::race_sound_tick::race_sound_tick_in;
-        return race_sound_tick_in(r);
-    }
-    if place == 3 {
-        use crate::race::draw_race_scene::{draw_race_scene, game_part};
-        *r = unsafe { draw_race_scene(r, &mut game_part) }?;
-        return Ok(());
-    }
-    if place == 6 {
-        use crate::race::replay_screenshot::{game_part, replay_screenshot};
-        *r = unsafe { replay_screenshot(r, &mut game_part) }?;
-        return Ok(());
-    }
-    if place == 7 {
-        use crate::race::show_frame::{game_part, show_frame};
-        *r = unsafe { show_frame(r, &mut game_part) }?;
-        return Ok(());
-    }
-    crate::calls::call(rva(CALLED[place as usize]), r);
-    Ok(())
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    // The thunk is ungated (a frame is long) and the Rust frame calls the Rust versions
-    // directly, past every gate: one gate per frame, so that a `selftest`'s pause waits for
-    // the frame under way and holds the next (as the audio thread's turns).
-    let done = race_frame(r, &mut game_part);
-    let left = done?;
-    *r = Regs { esp: r.esp, ..left };
-    Ok(())
+    crate::calls::call(rva(RESTORE), r);
+    Ok(r.eax)
 }

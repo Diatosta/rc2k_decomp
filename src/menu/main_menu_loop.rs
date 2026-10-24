@@ -26,12 +26,15 @@
 //! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
 //! `routes.rs`); the registers above are the original's, for reference.
 
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
-use crate::menu::screen_loop::{Env, Flow, List, Screen, Step, UPDATE_BLINK, screen_entry};
+use crate::errors::Refused;
+use crate::framework::{game_addr, game_read, game_write, log, rva};
+use crate::menu::screen_loop::{Carried, Flow, List, Screen, Step, call, carousel, prepare_scene};
+use crate::menu::update_blink::update_blink;
 use crate::menu::update_frame_clock::CLOCK_RVA;
 
 // ---- game data ----
 
+const MENU_RVA: usize = rva(0x748CB8); // off_748CB8
 const SAVED_ITEM_RVA: usize = rva(0x74769C); // dword_74769C
 const IDLE_RVA: usize = rva(0x755551); // dword_755551: 1 after a long time without a key
 const IDLE_FRAMES_RVA: usize = rva(0x755555); // dword_755555
@@ -43,64 +46,68 @@ const BACKGROUND_PATH_RVA: usize = rva(0x731C7A); // "files\g\graphics\screens\m
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
-unsafe fn set_up_first(g: &mut Regs, env: &mut dyn Env) {
+unsafe fn set_up_first(c: &mut Carried) -> Result<(), Refused> {
     unsafe {
         game_write(rva(0x755980), 0u32);
-        g.eax = game_addr(BACKGROUND_PATH_RVA) as u32;
-        env.call(rva(0x47EFFF), g); // menu::load_background
+        c.arg = game_addr(BACKGROUND_PATH_RVA) as u32;
+        call(rva(0x47EFFF), c)?; // menu::load_background (its carry not looked at)
         game_write(rva(0x623FB0), 7u32);
         game_write(rva(0x623FB4), 0xAu32);
         game_write(rva(0x624080), 0x100u32);
-        env.call(rva(0x46F7FD), g); // scene::prepare_menu_scene
+        prepare_scene(c); // scene::prepare_menu_scene
         game_write(rva(0x755569), 0u32);
-        env.call(rva(0x407F95), g); // input::take_key
+        call(rva(0x407F95), c)?; // input::take_key
         game_write(rva(0x755A3C), 0u32);
         game_write(rva(0x7556A4), 0x6Fu32);
         game_write(rva(0x7554EC), 1u32);
         game_write(rva(0x75AA74), 0u32);
-        env.call(rva(0x4904DD), g);
-        g.eax = game_read(SAVED_ITEM_RVA);
-        game_write(rva(0x755525), g.eax);
-        g.eax = g.eax.wrapping_sub(1);
-        game_write(rva(0x75AA7C), g.eax);
+        carousel(c)?;
+        c.arg = game_read(SAVED_ITEM_RVA);
+        game_write(rva(0x755525), c.arg);
+        c.arg = c.arg.wrapping_sub(1);
+        game_write(rva(0x75AA7C), c.arg);
     }
+    Ok(())
 }
 
-/// With the clock in eax.
-unsafe fn before_first_frame(g: &mut Regs, _env: &mut dyn Env) {
+/// With the clock in `Carried::arg`.
+unsafe fn before_first_frame(c: &mut Carried) -> Result<(), Refused> {
     unsafe {
-        game_write(BLINK_TIME_RVA, g.eax);
+        game_write(BLINK_TIME_RVA, c.arg);
         game_write(FRAME_FLAG_RVA, 1u32);
     }
+    Ok(())
 }
 
-unsafe fn idle(g: &mut Regs, env: &mut dyn Env) -> Flow {
+unsafe fn idle(c: &mut Carried) -> Result<Flow, Refused> {
     unsafe {
         if game_read::<u32>(IDLE_RVA) == 0 {
-            return Flow::On;
+            return Ok(Flow::On);
         }
         game_write(
             IDLE_FRAMES_RVA,
             game_read::<u32>(IDLE_FRAMES_RVA).wrapping_add(1),
         );
         if game_read::<u32>(IDLE_HELD_RVA) == 1 {
-            return Flow::On;
+            return Ok(Flow::On);
         }
-        g.eax = 1;
-        env.note("menu::main_menu_loop: idle, sub_4161CD is called");
-        env.call(rva(0x4161CD), g);
-        env.note("menu::main_menu_loop: sub_4161CD has come back");
+        c.arg = 1;
+        log("menu::main_menu_loop: idle, sub_4161CD is called");
+        // `menu::play_films` with mode 1 in eax; it keeps every register. edi is the menu
+        // here (the loop's last store to it); ebp it does not read.
+        crate::menu::play_films::play_films(true)?;
+        log("menu::main_menu_loop: sub_4161CD has come back");
         game_write(IDLE_RVA, 0u32);
-        env.call(UPDATE_BLINK, g);
-        g.eax = game_read(CLOCK_RVA);
-        game_write(BLINK_TIME_RVA, g.eax);
-        game_write(SETUP_TIME_RVA, g.eax);
-        Flow::SetUp
+        update_blink();
+        c.arg = game_read(CLOCK_RVA);
+        game_write(BLINK_TIME_RVA, c.arg);
+        game_write(SETUP_TIME_RVA, c.arg);
+        Ok(Flow::SetUp)
     }
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: rva(0x748CB8),
+    menu: MENU_RVA,
     saved_item: SAVED_ITEM_RVA,
     lists: &[
         List {
@@ -186,8 +193,3 @@ pub const SCREEN: Screen = Screen {
     restart_action_check: true,
     always_asks: true,
 };
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    screen_entry("menu::main_menu_loop", r, &SCREEN)
-}

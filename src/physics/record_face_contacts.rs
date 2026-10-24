@@ -14,12 +14,10 @@
 //! stage (everything written saved and put back): the records of the car's cell where it
 //! is and of object faces with the car moved onto them.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::physics::face_contact;
 use crate::physics::flow::g;
 use rc2k_core::physics::ground_search;
@@ -36,17 +34,11 @@ pub fn record_faces(n: u32) -> (u32, u32) {
     (rd(at + 8), rd(at + 0xC))
 }
 
-/// The steps, not guarded.
+/// The steps for course record `record` (ebx), not guarded: each of its faces by
+/// `face_contact`. The registers left are read by none of the callers.
 // Converted: `rc2k_core::physics::ground_search::each_face`.
-pub fn steps(r: &mut Regs) -> Result<(), Refused> {
-    let (first, last) = record_faces(r.ebx);
-    let record = (r.ebx << 5).wrapping_add(g(RECORDS));
-    r.esi = record;
-    r.ebx = ground_search::each_face(first, last, g(0x5CCD1C), |face| {
-        r.ebx = face;
-        face_contact::steps(r)?;
-        r.esi = record;
-        Ok::<_, Refused>(())
-    })?;
+pub fn steps(record: u32) -> Result<(), Refused> {
+    let (first, last) = record_faces(record);
+    ground_search::each_face(first, last, g(0x5CCD1C), face_contact::steps)?;
     Ok(())
 }

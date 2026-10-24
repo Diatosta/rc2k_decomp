@@ -10,25 +10,16 @@
 //! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
+//! are the original's.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
-use crate::install::installer::{COPY_FILE, FILES_COPIED, at, g, p};
-use crate::race::viewer::regs_entry;
+use crate::install::installer::{FILES_COPIED, copy_file, g, p};
 
-pub fn copy_counted(entry: &Regs) -> Result<Regs, Refused> {
+/// `from` (esi) copied to `to` (edi); whether it was all done (the original leaves
+/// `copy_file`'s carry through its `pusha` / `popa`: the game's files' copies and the
+/// Clio's stop on it). Until 2026-10-23 the port dropped it, so a failed copy went unseen.
+pub fn copy_counted(from: u32, to: u32) -> Result<bool, Refused> {
     p(FILES_COPIED, g(FILES_COPIED).wrapping_add(1));
-    let mut r = Regs {
-        eax: entry.esi,
-        ebx: entry.edi,
-        ..*entry
-    };
-    crate::install::installer::game_part(at(COPY_FILE), &mut r)?;
-    Ok(*entry)
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    regs_entry(r, &|r| copy_counted(r))
+    copy_file(from, to)
 }

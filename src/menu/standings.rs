@@ -6,7 +6,7 @@
 //! (`g_players`, four pointers).
 
 use crate::errors::{BadInput, FatalError, Refused};
-use crate::framework::{Regs, game_addr, game_read, rva};
+use crate::framework::{game_addr, game_read, rva};
 use rc2k_core::menu::standings::{self, Entries, NAME_LEN};
 
 pub const TABLE_A_RVA: usize = rva(0x7556EC); // dword_7556EC
@@ -52,38 +52,53 @@ pub fn entries(first: u32, size: u32) -> Result<Vec<u32>, BadInput> {
     }
 }
 
-/// The original's search for the first player (`find1stplayer`): from edi on, the entries
-/// of `group` (`ANY_GROUP`: any entry whose group is not 0) whose player (+4) is not 0;
+/// The original's search for the first player (`find1stplayer`): from `from` (edi) on, the
+/// entries of `group` (ebx) (`ANY_GROUP`: any entry whose group is not 0) whose player (+4) is not 0;
 /// ecx counts the group's computer drivers before it, edx its figure, edi the entry. None:
 /// the fatal error `code` with `message`.
 pub fn first_player(
-    entry: &Regs,
+    from: u32,
+    group: u32,
     size: u32,
     group_at: u32,
     figure_at: u32,
     code: u32,
     message: &'static str,
-) -> Result<Regs, Refused> {
+) -> Result<Found, Refused> {
     // Converted: `rc2k_core::menu::standings::first_player`, over the entries walked.
-    let walked = entries(entry.edi, size)?;
-    let bytes = unsafe { table_bytes(entry.edi, walked.len() as u32 * size) };
+    let walked = entries(from, size)?;
+    let bytes = unsafe { table_bytes(from, walked.len() as u32 * size) };
     let t = Entries {
         bytes,
         size: size as usize,
     };
-    match rc2k_core::menu::standings::first_player(
-        &t,
-        entry.ebx,
-        group_at as usize,
-        figure_at as usize,
-    ) {
-        Some(f) => Ok(Regs {
-            ecx: f.computers,
-            edx: f.figure,
-            edi: walked[f.entry],
-            ..*entry
+    match rc2k_core::menu::standings::first_player(&t, group, group_at as usize, figure_at as usize)
+    {
+        Some(f) => Ok(Found {
+            computers: f.computers,
+            figure: f.figure,
+            entry: walked[f.entry],
         }),
         None => Err(FatalError { code, message }.into()),
+    }
+}
+
+/// What the first-player searches find, as the original leaves it in the registers: ecx
+/// (`computers`, the group's computer drivers before it; the player's number for
+/// `first_player_unplaced`), edx its figure, edi the entry.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Found {
+    pub computers: u32,
+    pub figure: u32,
+    pub entry: u32,
+}
+
+impl Found {
+    /// The carried values as the original leaves them (ecx the screens' `measure_x`, edx
+    /// their `clock`; edi, the entry, is nothing a screen reads).
+    pub fn carry_on(&self, c: &mut crate::menu::screen_loop::Carried) {
+        c.measure_x = self.computers;
+        c.clock = self.figure;
     }
 }
 
@@ -272,4 +287,27 @@ pub const PENALTIES_RVA: usize = rva(0x75AC48); // dword_75AC48: 14
 pub fn past_limit(p: u32, k: u32) -> bool {
     let limit: i32 = unsafe { game_read(LIMITS_RVA + 4 * k as usize) };
     get(p + 0xD4 + 4 * k) as i32 >= limit
+}
+
+/// What the numbering functions (`number_all_a`, `number_all_b`, `number_standings_a`,
+/// `number_standings_b`) leave in the registers, which their callers' later calls may read:
+/// the last number given (ecx), the last numbered player as (index, record) when there was
+/// one (eax, esi; else they are kept), the end of the table (edi).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Numbered {
+    pub last_number: u32,
+    pub last_player: Option<(u32, u32)>,
+    pub end: u32,
+}
+
+impl Numbered {
+    /// The carried values as the original leaves them (eax, ecx, esi; edi is nothing a
+    /// screen reads).
+    pub fn carry_on(&self, c: &mut crate::menu::screen_loop::Carried) {
+        c.measure_x = self.last_number;
+        if let Some((index, record)) = self.last_player {
+            c.arg = index;
+            c.cars = record;
+        }
+    }
 }

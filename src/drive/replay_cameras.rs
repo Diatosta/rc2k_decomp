@@ -22,9 +22,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{EAX, ESI, Regs};
 use crate::physics::flow::{a, g, p};
-use crate::screens::harness::Left;
 use rc2k_core::drive::replay_views::{WishStep, wish_step};
 
 const B: usize = 0x70F3EC; // g_carBlockStore
@@ -35,35 +33,30 @@ fn byte(x: usize) -> u32 {
 }
 
 // Converted: `rc2k_core::drive::replay_views::wish_step`.
-fn steps(entry: &Regs) -> Result<Left, Refused> {
-    let mut r = *entry;
+fn steps() -> Result<(), Refused> {
     p(0x6EF7D0, g(B));
     p(0x6EF7D4, g(B + 4));
     for c in 0..2usize {
         let block = B + NEXT * c;
         let wish = g(0x719F14 + 4 * byte(B + c) as usize);
-        r.eax = wish;
         match wish_step(wish, g(0x5C2530), g(0x719FD0 + 4 * c), || g(block + 0x684)) {
-            WishStep::Draw(since) => {
-                r.ebx = since;
+            WishStep::Draw(_) => {
                 p(0x719FD0 + 4 * c, g(0x5C2530));
-                unsafe { crate::drive::pick_replay_camera::pick_replay_camera(&r) }?.apply(&mut r);
-                p(block + 0x684, r.edx);
-                p(block + 0x694, 0);
-                r.eax = g(block + 8);
-                p(block + 0x690, r.eax);
-            }
-            WishStep::Nothing(since) => {
-                if let Some(since) = since {
-                    r.ebx = since;
+                // `Draw` comes only for the wishes that draw: the mode is there.
+                if let Some(mode) =
+                    unsafe { crate::drive::pick_replay_camera::pick_replay_camera(wish) }?
+                {
+                    p(block + 0x684, mode);
                 }
+                p(block + 0x694, 0);
+                p(block + 0x690, g(block + 8));
             }
+            WishStep::Nothing(_) => {}
             WishStep::Set => {
                 p(block + 0x688, wish);
                 p(block + 0x684, wish);
                 p(block + 0x694, 0);
-                r.eax = g(block + 8);
-                p(block + 0x690, r.eax);
+                p(block + 0x690, g(block + 8));
                 p(0x719FD0 + 4 * c, 0);
             }
         }
@@ -74,18 +67,12 @@ fn steps(entry: &Regs) -> Result<Left, Refused> {
         .iter()
         .enumerate()
     {
-        r.eax = byte(B + 2 + k);
-        p(*to, r.eax);
+        p(*to, byte(B + 2 + k));
     }
-    r.esi = a(B);
-    Ok(Left::nothing()
-        .with(EAX, r.eax)
-        .with(crate::framework::EBX, r.ebx)
-        .with(crate::framework::EDX, r.edx)
-        .with(ESI, r.esi))
+    Ok(())
 }
 
 /// The Rust version.
-pub unsafe fn replay_cameras(entry: &Regs) -> Result<Left, Refused> {
-    steps(entry)
+pub unsafe fn replay_cameras() -> Result<(), Refused> {
+    steps()
 }

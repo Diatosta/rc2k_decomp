@@ -15,7 +15,7 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 use crate::menu::standings::*;
 
 const CURRENT_RVA: usize = rva(0x75598C); // dword_75598C
@@ -23,7 +23,7 @@ const FLAGS_RVA: usize = rva(0x759B6E); // dword_759B6E
 const SUM_RVA: usize = rva(0x7559EC); // dword_7559EC
 const SCORE_RVA: usize = rva(0x75AC80); // dword_75AC80
 /// The Rust version (see the header): the registers it leaves.
-pub unsafe fn inspection_verdict(entry: &Regs) -> Result<Regs, Refused> {
+pub unsafe fn inspection_verdict() -> Result<(), Refused> {
     let n: u32 = unsafe { game_read(CURRENT_RVA) };
     if n >= 4 || player(n) == 0 {
         return Err(BadInput("a current player past 3 or missing").into());
@@ -40,5 +40,5 @@ pub unsafe fn inspection_verdict(entry: &Regs) -> Result<Regs, Refused> {
         game_write(SCORE_RVA, v.score);
         put(p + 0xD0, v.kind);
     }
-    Ok(*entry)
+    Ok(())
 }

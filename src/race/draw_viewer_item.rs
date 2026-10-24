@@ -22,11 +22,8 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::physics::flow::{a, g, p};
-use crate::race::viewer::{
-    BLOCK, CAMERA_EDIT, CAMERAS, CHOICE, FRAME_CLOCK, MOVE_CLOCK, gb, regs_entry,
-};
+use crate::race::viewer::{BLOCK, CAMERA_EDIT, CAMERAS, CHOICE, FRAME_CLOCK, MOVE_CLOCK, gb};
 
 const SWITCH_A: usize = 0x5C2C70; // off_5C2C70: by camera byte 2 or 3
 const SWITCH_B: usize = 0x5C2C78; // off_5C2C78: by byte 5
@@ -37,13 +34,13 @@ fn camera_byte(byte: usize) -> u32 {
     gb((CAMERAS + byte).wrapping_add(8 * g(BLOCK) as usize)) as u32
 }
 
-/// The Rust version: the registers it leaves (the entry's).
-pub fn draw_viewer_item(entry: &Regs) -> Result<Regs, Refused> {
-    let item = entry.esi;
+/// The Rust version. `item` the list item (the original's esi), `index` its number
+/// (ecx). The original keeps every register.
+pub fn draw_viewer_item(item: u32, index: u32) -> Result<(), Refused> {
     let byte = |n: u32| unsafe { ((item + n) as *const u8).read() };
     let word = |at: u32| unsafe { (at as *const u32).read_unaligned() };
     if byte(0) & 0x40 != 0 {
-        return Ok(*entry);
+        return Ok(());
     }
     let mut picture = word(item + 0xC);
     // Converted: `rc2k_core::race::viewer::{switch_byte, centred, item_colour}`.
@@ -66,31 +63,9 @@ pub fn draw_viewer_item(entry: &Regs) -> Result<Regs, Refused> {
     p(PLACE + 0xC, word(place + 0xC));
     let colour = item_colour(
         byte(0),
-        entry.ecx == g(CHOICE),
+        index == g(CHOICE),
         || g(CAMERA_EDIT) != 0,
         || g(FRAME_CLOCK).wrapping_sub(g(MOVE_CLOCK)),
     );
-    let mut r = Regs {
-        eax: picture,
-        ebx: a(PLACE),
-        ecx: colour,
-        edx: picture,
-        edi: place,
-        ..*entry
-    };
-    crate::race::draw_viewer_item::game_part(1, &mut r)?;
-    Ok(*entry)
-}
-
-/// In the game: `tyre_quad`'s Rust version.
-pub fn game_part(_place: u32, r: &mut Regs) -> Result<(), Refused> {
-    *r =
-        unsafe { crate::drive::tyre_quad::tyre_quad(r, &mut crate::drive::tyre_parts::game_part) }?;
-    Ok(())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    regs_entry(r, &|r| draw_viewer_item(r))
+    unsafe { crate::drive::tyre_quad::tyre_quad(picture, a(PLACE), colour) }
 }

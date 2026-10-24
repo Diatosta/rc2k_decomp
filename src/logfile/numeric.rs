@@ -10,17 +10,19 @@
 //! `_l2_nl`) and jump to it, so they go through its hook.
 
 use crate::errors::BadInput;
-use crate::framework::rva;
-use crate::framework::{Regs, game_addr, game_ptr, game_read};
-use crate::logfile::write_line::{LOG_LEVEL_RVA, acquire, write_line_regs};
+use crate::framework::{Regs, game_addr};
+use crate::logfile::write_line::{acquire, enabled, level, write_line_regs};
+use crate::moved::Place;
 
-const LOG_ENABLED_RVA: usize = rva(0x4E0094); // g_logEnabled
-const SCRATCH_RVA: usize = rva(0x93E030); // dst: 0x50 bytes below the log's line buffer
+/// `dst` (0x93E030 in the image, 0x50 bytes below the log's line buffer): where a number's
+/// text is made, and `start_log`'s date. Written under the log's lock.
+pub const SCRATCH_LEN: usize = 0x50;
+pub static SCRATCH: Place<[u8; SCRATCH_LEN]> = Place::new([0; SCRATCH_LEN]);
 /// The longest text accepted: the scratch buffer with room for the NUL.
-const SCRATCH_TEXT: usize = 0x4F;
+const SCRATCH_TEXT: usize = SCRATCH_LEN - 1;
 
-fn scratch() -> *mut u8 {
-    game_ptr(SCRATCH_RVA)
+pub fn scratch() -> *mut u8 {
+    SCRATCH.ptr().cast()
 }
 
 /// The text of a number, as it is left in the scratch buffer.
@@ -43,22 +45,22 @@ impl NumberText {
 pub struct Body {
     /// The address after its call to the lock function: what eax holds if `g_logLevel` is 0.
     pub after_lock_call_rva: usize,
-    /// The text for the registers at entry (the number is in eax, some take ecx too).
-    pub text: fn(&Regs) -> Result<NumberText, BadInput>,
+    /// The text of the number (eax at entry) and the second value some take (ecx).
+    pub text: fn(u32, u32) -> Result<NumberText, BadInput>,
 }
 
 /// The function with the original's registers in and out. Refuses a text that does not fit
 /// the scratch buffer, before anything is done.
 pub unsafe fn log_number_regs(body: &Body, r: &mut Regs) -> Result<(), BadInput> {
     unsafe {
-        if game_read::<i32>(LOG_ENABLED_RVA) <= 0 {
+        if enabled() <= 0 {
             return Ok(());
         }
-        if game_read::<u32>(LOG_LEVEL_RVA) == 0 {
+        if level() == 0 {
             r.eax = game_addr(body.after_lock_call_rva) as u32;
             return Ok(());
         }
-        let text = (body.text)(r)?;
+        let text = (body.text)(r.eax, r.ecx)?;
         if text.bytes.len() > SCRATCH_TEXT || text.nul_at > SCRATCH_TEXT {
             return Err(BadInput(
                 "the number's text does not fit the scratch buffer",
@@ -79,14 +81,9 @@ pub unsafe fn log_number_regs(body: &Body, r: &mut Regs) -> Result<(), BadInput>
 /// written: the original logs the scratch buffer's leftovers there (`log_float` with more
 /// decimals than its text has; `notes/bugs.md`, fixed here).
 pub fn log_number(body: &Body, eax: u32, ecx: u32, newline: bool, level: u8) {
-    let r = Regs {
-        eax,
-        ecx,
-        ..Regs::default()
-    };
     // A text the scratch buffer cannot hold the original refuses (not logged): none of the
     // six makes one from a number.
-    let Ok(text) = (body.text)(&r) else {
+    let Ok(text) = (body.text)(eax, ecx) else {
         return;
     };
     let end = text.nul_at.min(text.bytes.len());

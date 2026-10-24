@@ -2,7 +2,7 @@
 //! that roll over the race (`dword_71C3E0`), also used by the credits' screen.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 use crate::screens::font_at;
 use crate::screens::harness::Left;
 use crate::strings::text_from_ids::text;
@@ -137,9 +137,4 @@ pub unsafe fn roll_credits(
 /// `roll_credits`' tune in the game: `sound::play_tune_2`'s command, sent and waited for.
 pub fn credits_tune() {
     crate::sound::play_tune_2::play_tune_2();
-}
-
-/// `credit_line` for the hook of 0x4161BA (`race::credit_line`).
-pub unsafe fn credit_line_at(r: &Regs, canvas: &mut dyn Canvas) -> Result<Left, Refused> {
-    unsafe { credit_line(r.eax, r.ebx, r.ecx as i32, r.edx as i32, canvas) }
 }

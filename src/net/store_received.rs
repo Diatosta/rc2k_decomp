@@ -15,37 +15,29 @@
 //! (the move's `rep movsd`): a message stored between others keeps no length or bytes
 //! (the game's slip, section 16).
 //!
-//! In:  al = the sequence byte, edi = the player's block, edx = the time, ecx = the length,
-//!      ebx = the bytes
-//! Out: every register kept (`pusha` .. `popa`); the flags not modelled (the one caller
-//!      calls `net::unlock_received` next, which sets its own)
+//! In:  `sequence` (al), `block` (edi: the player's block), `time` (edx), `bytes` (ebx) and
+//!      `length` (ecx)
+//! Out: nothing (every register kept, `pusha` .. `popa`; the flags not read: the one
+//!      caller calls `net::unlock_received` next)
 //! Caller: `net::take_messages` (under the lock). Refuses (before anything) a count above
 //! 0x40 and a length above 0xFE (the original writes past the block or the record; its
-//! caller sends neither). Shadow mode runs the original alone (the caller's lock).
-//! Self-test: a copy against the Rust version on a test block: empty, appended, inserted,
-//! first, too old, full, the sequence wrapping, lengths 0 and 0xFE; the refusals.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! caller sends neither).
 
 use crate::errors::Refused;
-use crate::framework::Regs;
-use crate::net::{Part, net_entry};
 use rc2k_core::net::inbox;
 
 /// The Rust version.
-pub fn store_received(r: &mut Regs, _part: Part) -> Result<(), Refused> {
-    let base = r.edi.wrapping_add(0x34);
+pub fn store_received(
+    sequence: u8,
+    block: u32,
+    time: u32,
+    bytes: *const u8,
+    length: u32,
+) -> Result<(), Refused> {
+    let base = block.wrapping_add(0x34);
     // Converted: `rc2k_core::net::inbox::store`, on the block's inbox and the message.
     let inbox = unsafe { std::slice::from_raw_parts_mut(base as *mut u8, inbox::INBOX) };
-    let message = unsafe { std::slice::from_raw_parts(r.ebx as *const u8, r.ecx as usize) };
-    inbox::store(inbox, r.eax as u8, r.edx, message)?;
+    let message = unsafe { std::slice::from_raw_parts(bytes, length as usize) };
+    inbox::store(inbox, sequence, time, message)?;
     Ok(())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    net_entry(r, store_received)
 }

@@ -16,30 +16,23 @@
 //! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
+
 use crate::errors::{BadInput, Refused};
-use crate::framework::{ECX, EDX, Regs};
-use crate::gfx::harness::pixels_entry;
 use crate::gfx::texture_pixels::{self, halvable};
-use crate::screens::harness::Left;
 
-fn usable(r: &Regs) -> bool {
-    r.eax == 0 || (r.ebx != 0 && halvable(r.ecx, r.edx, r.eax))
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    if !usable(r) {
+/// The Rust version: `pixels` `width` by `height` halved `times` times; the size after
+/// the last time (the original's ecx, edx).
+pub fn halve_texture(
+    times: u32,
+    pixels: u32,
+    width: u32,
+    height: u32,
+) -> Result<(u32, u32), Refused> {
+    if !(times == 0 || (pixels != 0 && halvable(width, height, times))) {
         return Err(BadInput("a size that halves to nothing, or a null pointer").into());
     }
-    if r.eax == 0 {
-        return Ok(Left::nothing());
+    if times == 0 {
+        return Ok((width, height));
     }
-    let (width, height) =
-        unsafe { texture_pixels::halve_texture(r.ebx as *mut u32, r.ecx, r.edx, r.eax) };
-    Ok(Left::nothing().with(ECX, width).with(EDX, height))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    pixels_entry(r, &rust)
+    Ok(unsafe { texture_pixels::halve_texture(pixels as *mut u32, width, height, times) })
 }

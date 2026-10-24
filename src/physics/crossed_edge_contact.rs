@@ -22,12 +22,10 @@
 //! version on the game's variables (saved and put back) with a test face and scene
 //! points, paths across each edge, under three precisions.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::math::x87::mul;
 use crate::physics::contact_force::{RECORD, contact_force};
 use crate::physics::flow::{a, copy3, g, p};
@@ -44,9 +42,8 @@ fn rd(x: u32) -> u32 {
 }
 
 /// Which side of the probe's path the point (x, z) lies: true for not left of it (the
-/// 64-bit difference not below 0, `jns` / `stc`). `qword_620460` the first product, eax
-/// the difference's low dword.
-fn side(r: &mut Regs, x: u32, z: u32) -> bool {
+/// 64-bit difference not below 0, `jns` / `stc`). `qword_620460` the first product.
+fn side(x: u32, z: u32) -> bool {
     let (first, difference) = walls::path_side(
         (g(0x6D31A0), g(0x6D31A4)),
         (g(0x6D31A8), g(0x6D31AC)),
@@ -54,15 +51,14 @@ fn side(r: &mut Regs, x: u32, z: u32) -> bool {
     );
     p(0x620460, first as u32);
     p(0x620464, (first >> 32) as u32);
-    r.eax = difference as u32;
     difference >= 0
 }
 
-/// The steps, not guarded (the probe checked before).
+/// The steps, not guarded (the probe checked before). The registers the original leaves
+/// are read by none of its callers.
 // Converted: `rc2k_core::physics::walls::{path_side, crossed_edge}`.
-pub fn steps(r: &mut Regs) -> Result<(), Refused> {
+pub fn steps() -> Result<(), Refused> {
     let n = g(CROSSED);
-    r.ebx = n;
     p(0x6D3214, n);
     let k = n as usize;
     for (to, from) in [
@@ -72,47 +68,36 @@ pub fn steps(r: &mut Regs) -> Result<(), Refused> {
         (0x6D31AC, 0x6D2014),
         (0x6D31B0, 0x6D2F14),
     ] {
-        r.eax = g(from + 4 * k);
-        p(to, r.eax);
+        p(to, g(from + 4 * k));
     }
-    r.ebx = g(0x6D31B0);
-    let face = (r.ebx << 6).wrapping_add(g(FACES));
-    r.ebp = face;
+    let face = (g(0x6D31B0) << 6).wrapping_add(g(FACES));
     for j in 0..4u32 {
-        r.ebx = rd(face + 4 + 4 * j);
-        r.esi = r.ebx.wrapping_mul(12).wrapping_add(g(SCENE_POINTS));
-        r.eax = rd(r.esi);
-        p(0x6D3180 + 8 * j as usize, r.eax);
-        r.eax = rd(r.esi + 8);
-        p(0x6D3184 + 8 * j as usize, r.eax);
+        let point = rd(face + 4 + 4 * j)
+            .wrapping_mul(12)
+            .wrapping_add(g(SCENE_POINTS));
+        p(0x6D3180 + 8 * j as usize, rd(point));
+        p(0x6D3184 + 8 * j as usize, rd(point + 8));
     }
-    r.esi = face;
     let corner = |j: usize| (g(0x6D3180 + 8 * j), g(0x6D3184 + 8 * j));
     // The original's order of tests (each computed, `qword_620460` the last one's).
     let (first, second) = walls::crossed_edge(|j| {
         let (x, z) = corner(j);
-        side(r, x, z)
+        side(x, z)
     });
-    r.eax = rd(face + first);
-    r.ebx = rd(face + second);
-    p(0x6141BC, r.eax);
-    p(0x6141C0, r.ebx);
-    let [x, y, z, edx] = edge_normal(r.eax, r.ebx);
+    let (from, to) = (rd(face + first), rd(face + second));
+    p(0x6141BC, from);
+    p(0x6141C0, to);
+    edge_normal(from, to);
     p(0x6D31B4, g(0x6141C8));
-    r.eax = x;
-    r.ebx = y;
-    r.ecx = z;
-    r.edx = edx;
     copy3(0x6D30A8, 0x71A170);
     copy3(0x6D30B4, 0x71A15C);
-    r.ebx = n;
     p(0x6D3090, g(0x6D2214 + 4 * k));
     p(0x6D3094, g(0x6D2314 + 4 * k));
     p(0x6D3098, g(0x6D2414 + 4 * k));
     p(0x6D3094, mul(g(0x6D3094), g(0x5C5DD0)));
     p(0x6D3100, 0);
     p(RECORD, a(0x614A70));
-    unsafe { contact_force() }.apply(r);
+    unsafe { contact_force() };
     unsafe { crate::physics::place_sound_e1::place_sound_e1() }?;
     Ok(())
 }

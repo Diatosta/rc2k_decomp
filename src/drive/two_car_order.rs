@@ -15,9 +15,7 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::{EBX, Regs};
 use crate::physics::flow::{g, p};
-use crate::screens::harness::Left;
 use rc2k_core::drive::places;
 
 const B: usize = 0x70F3EC; // g_carBlockStore
@@ -25,12 +23,12 @@ const NEXT: usize = 0xFE0;
 
 /// The Rust version.
 // Converted: `rc2k_core::drive::places::two_car_order`.
-pub fn two_car_order(entry: &Regs) -> Left {
+pub fn two_car_order() {
     let figure = |car: usize, o: u32| g(B + car * NEXT + o as usize);
-    let order = places::two_car_order(g(0x62389C), g(0x63DB94), figure, entry.ebx);
+    // The last argument is only handed back as `last` (ebx), which no caller reads.
+    let order = places::two_car_order(g(0x62389C), g(0x63DB94), figure, 0);
     if let Some([x, y]) = order.places {
         p(B + 0xFA4, x);
         p(B + NEXT + 0xFA4, y);
     }
-    Left::nothing().with(EBX, order.last)
 }

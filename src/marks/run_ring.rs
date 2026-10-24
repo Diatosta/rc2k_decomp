@@ -16,7 +16,7 @@
 //! to just before the cursor (or that moved on past it).
 //!
 //! In:  nothing (`g_marksSettings`)
-//! Out: the registers as the walk leaves them
+//! Out: nothing (its one caller reads no register after it)
 //!
 //! Caller: `marks::run_frame` (0x4D163B, after `run_ribbons`' set-up). The longer x87 runs
 //! are the original's instructions over the entries and the game's variables; the draws
@@ -33,7 +33,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::marks::emitters::{RING_COUNT_RVA, RING_CURSOR_RVA};
 use crate::marks::setup::SETTINGS_RVA;
 use crate::math::x87;
@@ -49,9 +49,6 @@ const PULL_LIMIT_RVA: usize = rva(0x765140); // dword_765140
 const PULL_TO_RVA: usize = rva(0x7651DC); // flt_7651DC
 const TOP_RVA: usize = rva(0x935670); // flt_935670
 const FRAME_K_RVA: usize = rva(0x76515C); // flt_76515C
-
-/// A call by place (see the header), with its three values (st(0) first).
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs, &[[u8; 10]]) -> Result<(), Refused>;
 
 unsafe fn get(a: u32) -> u32 {
     unsafe { (a as *const u32).read_unaligned() }
@@ -411,24 +408,16 @@ unsafe fn refusal() -> Option<&'static str> {
     }
 }
 
-/// The life and the ground: whether the entry dies (eax -1).
-unsafe fn aged(g: &mut Regs, e: u32, ground: bool) -> bool {
+/// The life and the ground: whether the entry dies.
+unsafe fn aged(e: u32, ground: bool) -> bool {
     unsafe {
-        g.eax = game_read(TICKS_RVA);
+        let t: u32 = game_read(TICKS_RVA);
         let life = get(e + 0x84);
-        put(e + 0x84, life.wrapping_sub(g.eax));
-        if life < g.eax {
-            g.eax = 0xFFFF_FFFF;
+        put(e + 0x84, life.wrapping_sub(t));
+        if life < t {
             return true;
         }
-        if ground {
-            g.eax = u32::from(x87::compare_status(get(e + 0x14), get(e + 0x28)));
-            if g.eax == 0x100 {
-                g.eax = 0xFFFF_FFFF;
-                return true;
-            }
-        }
-        false
+        ground && x87::compare_status(get(e + 0x14), get(e + 0x28)) == 0x100
     }
 }
 
@@ -455,37 +444,37 @@ unsafe fn at_place(e: u32) -> [[u8; 10]; 3] {
 }
 
 /// The settings' flag for the entry.
-unsafe fn shown(g: &mut Regs, e: u32) -> bool {
+unsafe fn shown(e: u32) -> bool {
     unsafe {
-        g.eax = get(e + 8);
-        g.ebx = game_read(SETTINGS_RVA);
-        get(g.eax.wrapping_add(g.ebx).wrapping_add(0x60)) != 0
+        let settings: u32 = game_read(SETTINGS_RVA);
+        get(get(e + 8).wrapping_add(settings).wrapping_add(0x60)) != 0
     }
 }
 
-/// The alpha (top byte) and the size as whole numbers (`fistp` through `dword_9356C0`).
-unsafe fn whole_alpha(g: &mut Regs, e: u32) {
+/// The alpha (top byte) as a whole number (`fistp` through `dword_9356C0`).
+unsafe fn whole_alpha(e: u32) -> u32 {
     unsafe {
         let a = x87::to_int(get(e + 0x74));
         game_write(WHOLE_RVA, a);
-        g.ecx = (a as u32) << 24;
+        (a as u32) << 24
     }
 }
 
-unsafe fn whole(g: &mut Regs, v: i32) {
+/// The size as a whole number (through `dword_9356C0`).
+unsafe fn whole(v: i32) -> u32 {
     unsafe {
         game_write(WHOLE_RVA, v);
-        g.edx = v as u32;
+        v as u32
     }
 }
 
 /// The angle on and the place moved.
-unsafe fn spin_and_move(g: &mut Regs, e: u32, spin: bool) {
+unsafe fn spin_and_move(e: u32, spin: bool) {
     unsafe {
         let t: i32 = game_read(TICKS_RVA);
         if spin {
-            g.eax = x87::int_times_to_int(get(e + 0x54) as i32, game_read(SPIN_K_RVA)) as u32;
-            put(e + 0x50, get(e + 0x50).wrapping_add(g.eax) & 0xFFF);
+            let turn = x87::int_times_to_int(get(e + 0x54) as i32, game_read(SPIN_K_RVA)) as u32;
+            put(e + 0x50, get(e + 0x50).wrapping_add(turn) & 0xFFF);
         }
         for o in [0x10u32, 0x14, 0x18] {
             put(e + o, x87::plus_times_int(get(e + o), get(e + o + 0x1C), t));
@@ -501,7 +490,7 @@ unsafe fn gain_y(e: u32, k_addr: usize) {
 }
 
 /// The three dampings (a part that changes sign stops at 0).
-unsafe fn damp3(g: &mut Regs, e: u32, ks: [usize; 3]) {
+unsafe fn damp3(e: u32, ks: [usize; 3]) {
     unsafe {
         let t: i32 = game_read(TICKS_RVA);
         for (o, kk) in [0x2Cu32, 0x30, 0x34].into_iter().zip(ks) {
@@ -509,7 +498,6 @@ unsafe fn damp3(g: &mut Regs, e: u32, ks: [usize; 3]) {
             game_write(WHOLE_RVA, old);
             let new = x87::damp(old, k(kk), t);
             put(e + o, new);
-            g.eax = (old ^ new).wrapping_add(old ^ new);
             if (old ^ new) & 0x8000_0000 != 0 {
                 put(e + o, 0);
             }
@@ -518,13 +506,12 @@ unsafe fn damp3(g: &mut Regs, e: u32, ks: [usize; 3]) {
 }
 
 /// The size pulled toward +0x70.
-unsafe fn pull_size(g: &mut Regs, e: u32, k_addr: usize) {
+unsafe fn pull_size(e: u32, k_addr: usize) {
     unsafe {
         let t: i32 = game_read(TICKS_RVA);
         let (w, f) = x87::approach(get(e + 0x70) as i32, get(e + 0x60), k(k_addr), t);
         game_write(WHOLE_RVA, w);
         put(e + 0x60, f);
-        g.eax = w as u32;
         if w > get(e + 0x70) as i32 {
             put(e + 0x60, x87::int_to_float(get(e + 0x70) as i32));
         }
@@ -542,48 +529,54 @@ unsafe fn fade(e: u32) {
 }
 
 /// The box test of kinds 6 and 0x15: whether the size is pulled.
-unsafe fn outside_and_away(g: &mut Regs, e: u32) -> bool {
+unsafe fn outside_and_away(e: u32) -> bool {
     unsafe {
         let b = game_addr(0) as u32;
         let obj = get(e + 0x68);
-        g.ebp = get(obj + 0x24);
-        g.eax = obj + 0x94;
-        box_(b, e, g.ebp, g.eax);
-        g.eax = get(e + 0x7C);
-        let mut outside = (g.eax as i32) < game_read::<i32>(BOX_RVA[0]);
-        if !outside {
-            g.eax = get(e + 0x80);
-            outside = (g.eax as i32) < game_read::<i32>(BOX_RVA[1]);
-        }
+        box_(b, e, get(obj + 0x24), obj + 0x94);
+        let outside = (get(e + 0x7C) as i32) < game_read::<i32>(BOX_RVA[0])
+            || (get(e + 0x80) as i32) < game_read::<i32>(BOX_RVA[1]);
         if !outside {
             return false;
         }
-        g.ebp = obj;
         facing(b, obj);
         game_read::<i32>(FACING_RVA) <= 0
     }
 }
 
-/// Kinds 5 and 0xB (part 1 or 2; their y gain, size and alpha gains).
-unsafe fn drift_kind(
-    g: &mut Regs,
-    e: u32,
-    part: &mut Part,
+/// The draws: 1 `draw_cell_sprite`, 2 its twin (the same Rust version), 3
+/// `draw_subcell_sprite`; `cell` is the (sub)cell, `size` the size.
+unsafe fn draw(
     place: u32,
-    ks: [usize; 3],
+    cell: u32,
+    angle: u32,
+    alpha: u32,
+    size: u32,
+    e: u32,
+    p: [[u8; 10]; 3],
 ) -> Result<(), Refused> {
+    use crate::marks::{draw_cell_sprite as c, draw_subcell_sprite as s};
     unsafe {
-        if aged(g, e, true) {
-            return Ok(());
+        match place {
+            3 => s::draw_subcell_sprite(cell, size, e, p),
+            _ => c::draw_cell_sprite(cell, angle, alpha, size, e, p),
         }
-        if shown(g, e) {
-            g.eax = get(get(e + 0x68) + 0x24);
+    }
+}
+
+/// Kinds 5 and 0xB (draw 1 or 2; their y gain, size and alpha gains): whether it dies.
+unsafe fn drift_kind(e: u32, place: u32, ks: [usize; 3]) -> Result<bool, Refused> {
+    unsafe {
+        if aged(e, true) {
+            return Ok(true);
+        }
+        if shown(e) {
             let p = on_object(e);
-            [g.eax, g.ebx, g.ecx, g.edx] =
+            let [cell, angle, alpha, size] =
                 [get(e + 0x58), get(e + 0x50), get(e + 0x74), get(e + 0x60)];
-            part(place, g, &p)?;
+            draw(place, cell, angle, alpha, size, e, p)?;
         }
-        spin_and_move(g, e, true);
+        spin_and_move(e, true);
         gain_y(e, ks[0]);
         let t: i32 = game_read(TICKS_RVA);
         put(
@@ -594,68 +587,54 @@ unsafe fn drift_kind(
             e + 0x74,
             x87::int_times_int_plus_int(k(ks[2]) as i32, t, get(e + 0x74) as i32) as u32,
         );
-        g.eax = 0;
     }
-    Ok(())
+    Ok(false)
 }
 
-/// Kinds 6, 0x15, 1, 0xD, 0x13, 0x16 (drawn by part 1).
-unsafe fn fading_kind(
-    g: &mut Regs,
-    e: u32,
-    part: &mut Part,
-    kind: u32,
-    c: &Kind,
-) -> Result<(), Refused> {
+/// Kinds 6, 0x15, 1, 0xD, 0x13, 0x16 (draw 1): whether it dies.
+unsafe fn fading_kind(e: u32, kind: u32, c: &Kind) -> Result<bool, Refused> {
     unsafe {
-        if aged(g, e, true) {
-            return Ok(());
+        if aged(e, true) {
+            return Ok(true);
         }
         if (get(e + 0x74) as i32) < 0 {
             put(e + 0x74, 0);
         }
-        if matches!(kind, 0x13 | 0x16) {
-            g.ebp = get(e + 0x68);
-        }
-        if shown(g, e) {
-            if kind == 1 {
-                g.ebp = get(e + 0x68);
-            }
+        if shown(e) {
             let p = if kind == 0xD {
-                g.eax = get(get(e + 0x68) + 0x24);
                 on_object(e)
             } else {
                 at_place(e)
             };
-            [g.eax, g.ebx] = [get(e + 0x58), get(e + 0x50)];
-            whole_alpha(g, e);
+            let [cell, angle] = [get(e + 0x58), get(e + 0x50)];
+            let alpha = whole_alpha(e);
             let size = if kind == 1 {
                 x87::plus_product_to_int(get(e + 0x60), get(e + 0x64), k(0x93A512))
             } else {
                 x87::to_int(get(e + 0x60))
             };
-            whole(g, size);
-            part(1, g, &p)?;
+            let size = whole(size);
+            draw(1, cell, angle, alpha, size, e, p)?;
         }
-        spin_and_move(g, e, true);
+        spin_and_move(e, true);
         if c.gain != 0 && kind == 0xD {
             gain_y(e, c.gain);
         }
-        damp3(g, e, c.damp);
+        damp3(e, c.damp);
         match kind {
             6 | 0x15 => {
-                if outside_and_away(g, e) {
-                    pull_size(g, e, c.pull);
+                if outside_and_away(e) {
+                    pull_size(e, c.pull);
                 }
                 fade(e);
             }
             1 => {
-                pull_size(g, e, c.pull);
+                pull_size(e, c.pull);
                 fade(e);
-                pull_toward(g, e);
+                pull_toward(e);
             }
             0xD => {
-                pull_size(g, e, c.pull);
+                pull_size(e, c.pull);
                 fade(e);
             }
             _ => {
@@ -664,153 +643,113 @@ unsafe fn fading_kind(
                 put(e + 0x60, x87::plus_times_int(get(e + 0x60), k(c.gain), t));
             }
         }
-        g.eax = 0;
     }
-    Ok(())
+    Ok(false)
 }
 
 /// Kind 1's pull of its +0x64 when near and facing.
-unsafe fn pull_toward(g: &mut Regs, e: u32) {
+unsafe fn pull_toward(e: u32) {
     unsafe {
         let b = game_addr(0) as u32;
         let obj = get(e + 0x68);
-        g.eax = obj;
-        g.ebp = get(obj + 0x24);
         let mut length = [0u8; 10];
         let l = length.as_mut_ptr() as u32;
-        pull_length(b, e, g.ebp, l);
+        pull_length(b, e, get(obj + 0x24), l);
         if game_read::<i32>(NEAR_RVA) < 0 {
             return;
         }
-        g.ebp = obj;
         pull_facing(b, obj, l);
         if game_read::<i32>(FACING_RVA) <= 0 {
             return;
         }
         pull_strength(b, e, obj);
-        g.eax = game_read(WHOLE_RVA);
-        if (g.eax as i32) > game_read::<i32>(PULL_LIMIT_RVA) {
+        if game_read::<i32>(WHOLE_RVA) > game_read::<i32>(PULL_LIMIT_RVA) {
             put(e + 0x64, x87::loaded(game_read(PULL_TO_RVA)));
         }
     }
 }
 
-/// Kinds 0x10, 0x11 (part 3): boxed, no ground test of their own first.
-unsafe fn boxed_kind(
-    g: &mut Regs,
-    e: u32,
-    part: &mut Part,
-    gain: usize,
-    both: bool,
-) -> Result<(), Refused> {
+/// Kinds 0x10, 0x11 (draw 3): boxed, no ground test of their own first. Whether it dies.
+unsafe fn boxed_kind(e: u32, gain: usize, both: bool) -> Result<bool, Refused> {
     unsafe {
-        if aged(g, e, true) {
-            return Ok(());
+        if aged(e, true) {
+            return Ok(true);
         }
-        spin_and_move(g, e, false);
+        spin_and_move(e, false);
         gain_y(e, gain);
-        if shown(g, e) {
-            g.eax = get(get(e + 0x68) + 0x24);
+        if shown(e) {
             let p = on_object(e);
-            g.edx = get(e + 0x60);
+            let size = get(e + 0x60);
             let f = x87::int_times_times_to_int(
                 get(e + 0x84) as i32,
                 game_read(FRAME_K_RVA),
                 get(e + 0x5C),
             );
             game_write(WHOLE_RVA, f);
-            g.eax = ((f as u32) & 3).wrapping_add(get(e + 0x58));
-            part(3, g, &p)?;
+            let subcell = ((f as u32) & 3).wrapping_add(get(e + 0x58));
+            draw(3, subcell, 0, 0, size, e, p)?;
         }
         let b = game_addr(0) as u32;
-        g.eax = get(e + 0x68) + 0x94;
-        box_place(b, e, g.eax);
-        g.eax = get(e + 0x7C);
-        let mut outside = (g.eax as i32) < game_read::<i32>(BOX_RVA[0]);
+        box_place(b, e, get(e + 0x68) + 0x94);
+        let mut outside = (get(e + 0x7C) as i32) < game_read::<i32>(BOX_RVA[0]);
         if !outside && both {
-            g.eax = get(e + 0x80);
-            outside = (g.eax as i32) < game_read::<i32>(BOX_RVA[1]);
+            outside = (get(e + 0x80) as i32) < game_read::<i32>(BOX_RVA[1]);
         }
-        if !outside {
-            g.eax = u32::from(x87::compare_status(get(e + 0x14), game_read(TOP_RVA)));
-            if g.eax == 0 {
-                g.eax = 0xFFFF_FFFF;
-                return Ok(());
-            }
+        if !outside && x87::compare_status(get(e + 0x14), game_read(TOP_RVA)) == 0 {
+            return Ok(true);
         }
-        g.eax = u32::from(x87::compare_status(get(e + 0x14), get(e + 0x28)));
-        g.eax = if g.eax == 0x100 { 0xFFFF_FFFF } else { 0 };
+        Ok(x87::compare_status(get(e + 0x14), get(e + 0x28)) == 0x100)
     }
-    Ok(())
 }
 
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn run_ring(entry: &Regs, mut part: Part) -> Result<Regs, Refused> {
+/// The Rust version (see the header).
+pub unsafe fn run_ring() -> Result<(), Refused> {
     if let Some(why) = unsafe { refusal() } {
         return Err(BadInput(why).into());
     }
-    let mut g = *entry;
     unsafe {
-        g.esi = game_read(RING_CURSOR_RVA);
+        let mut e: u32 = game_read(RING_CURSOR_RVA);
         let mut counter = game_read::<u32>(RING_COUNT_RVA) as i32;
         loop {
             counter = counter.wrapping_sub(1);
             if counter < 0 {
                 break;
             }
-            let e = g.esi;
             let next = get(e + 4);
-            match get(e + 0xC) {
-                5 => drift_kind(&mut g, e, &mut part, 1, [0x93A4DA, 0x93A4DE, 0x93A4E2])?,
-                0xB => drift_kind(&mut g, e, &mut part, 2, [0x93A4E6, 0x93A4EA, 0x93A4EE])?,
-                6 => fading_kind(&mut g, e, &mut part, 6, &K6)?,
-                0x15 => fading_kind(&mut g, e, &mut part, 0x15, &K15)?,
-                1 => fading_kind(&mut g, e, &mut part, 1, &K1)?,
-                0xD => fading_kind(&mut g, e, &mut part, 0xD, &KD)?,
-                0x13 => fading_kind(&mut g, e, &mut part, 0x13, &K13)?,
-                0x16 => fading_kind(&mut g, e, &mut part, 0x16, &K16)?,
-                0x10 => boxed_kind(&mut g, e, &mut part, 0x93A566, true)?,
-                0x11 => boxed_kind(&mut g, e, &mut part, 0x93A56A, false)?,
-                _ => g.eax = 0,
-            }
-            g.esi = e;
-            if g.eax != 0 {
+            let dies = match get(e + 0xC) {
+                5 => drift_kind(e, 1, [0x93A4DA, 0x93A4DE, 0x93A4E2])?,
+                0xB => drift_kind(e, 2, [0x93A4E6, 0x93A4EA, 0x93A4EE])?,
+                6 => fading_kind(e, 6, &K6)?,
+                0x15 => fading_kind(e, 0x15, &K15)?,
+                1 => fading_kind(e, 1, &K1)?,
+                0xD => fading_kind(e, 0xD, &KD)?,
+                0x13 => fading_kind(e, 0x13, &K13)?,
+                0x16 => fading_kind(e, 0x16, &K16)?,
+                0x10 => boxed_kind(e, 0x93A566, true)?,
+                0x11 => boxed_kind(e, 0x93A56A, false)?,
+                _ => false,
+            };
+            if dies {
                 game_write(
                     RING_COUNT_RVA,
                     game_read::<u32>(RING_COUNT_RVA).wrapping_sub(1),
                 );
                 if e == game_read::<u32>(RING_CURSOR_RVA) {
-                    g.eax = get(e + 4);
-                    game_write(RING_CURSOR_RVA, g.eax);
+                    game_write(RING_CURSOR_RVA, get(e + 4));
                 } else {
-                    g.ebx = get(e);
-                    g.ecx = get(e + 4);
-                    put(g.ebx + 4, g.ecx);
-                    put(g.ecx, g.ebx);
-                    g.ebx = game_read(RING_CURSOR_RVA);
-                    g.ecx = get(g.ebx);
-                    put(g.ebx, e);
-                    put(g.ecx + 4, e);
-                    put(e, g.ecx);
-                    put(e + 4, g.ebx);
+                    let (before, after) = (get(e), get(e + 4));
+                    put(before + 4, after);
+                    put(after, before);
+                    let cursor: u32 = game_read(RING_CURSOR_RVA);
+                    let last = get(cursor);
+                    put(cursor, e);
+                    put(last + 4, e);
+                    put(e, last);
+                    put(e + 4, cursor);
                 }
             }
-            g.esi = next;
+            e = next;
         }
     }
-    Ok(g)
-}
-
-/// In the game: the draws' Rust versions.
-pub fn game_part(place: u32, r: &mut Regs, v: &[[u8; 10]]) -> Result<(), Refused> {
-    use crate::marks::{draw_cell_sprite as cell, draw_subcell_sprite as sub};
-    let p = [v[0], v[1], v[2]];
-    let left = unsafe {
-        match place {
-            3 => sub::draw_subcell_sprite(r, p)?,
-            _ => cell::draw_cell_sprite(r, p)?,
-        }
-    };
-    *r = Regs { esp: r.esp, ..left };
     Ok(())
 }

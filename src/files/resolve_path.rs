@@ -9,18 +9,14 @@
 //! registers above are the original's, for reference.
 
 use crate::errors::BadInput;
-use crate::framework::{game_ptr, game_read, rva};
+use crate::framework::{game_ptr, rva};
 use crate::threading::find_thread_slot::find_thread_slot;
 use std::ffi::{CStr, c_char};
 use std::ptr::copy_nonoverlapping;
 
 // ---- game data ----
 
-const MEDIA_MODE_RVA: usize = rva(0x5189A4); // g_mediaMode
-const BASE_A_RVA: usize = rva(0x5189A8); // base directory A (string)
 const BASE_B_RVA: usize = rva(0x5295B4); // base directory B (string)
-const PCT_RVA: usize = rva(0x518AA8); // string that replaces each '%'
-const GLOBAL_BUF_RVA: usize = rva(0x94E9B0); // output buffer for threads without a slot
 
 const BUF_LEN: usize = 0x100; // ThreadSlot + 0x10 .. + 0x110
 
@@ -37,10 +33,10 @@ struct Globals<'a> {
 unsafe fn globals<'a>() -> Globals<'a> {
     unsafe {
         Globals {
-            mode: game_read(MEDIA_MODE_RVA),
-            a: cstr(game_ptr(BASE_A_RVA)),
+            mode: crate::files::state::MEDIA_MODE.load(std::sync::atomic::Ordering::Relaxed),
+            a: cstr(crate::files::state::base_directory()), // g_baseDirectory
             b: cstr(game_ptr(BASE_B_RVA)),
-            pct: cstr(game_ptr(PCT_RVA)),
+            pct: cstr(crate::files::state::locale_directory()), // g_localeDirectory: replaces each '%'
         }
     }
 }
@@ -49,7 +45,7 @@ unsafe fn globals<'a>() -> Globals<'a> {
 fn out_buffer() -> *mut u8 {
     let slot = unsafe { find_thread_slot() };
     if slot.is_null() {
-        game_ptr(GLOBAL_BUF_RVA)
+        unsafe { (crate::files::state::PATHS.ptr().cast::<u8>()).add(0x100) }
     } else {
         unsafe { (slot as *mut u8).add(0x10) }
     }

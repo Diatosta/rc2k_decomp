@@ -5,106 +5,57 @@
 //! (sixteen rows), Enter (0x1C) chooses, Escape (1) or the game closing gives -1; 'R' takes a
 //! screenshot (with screenshots on), any other key may compile the lexicon again.
 //!
-//! In:  nothing
-//! Out: eax = the connection chosen (`g_listChoice`), carry set if negative (else the flags
-//!      of `test eax, eax`); the rest kept (`pusha` .. `popa`)
-//! Callers: `net::start_link`, `net::settings_link`. Its calls through `part` (the frames
-//! through the game). The whole screen runs inside it: ungated. Shadow mode runs the
-//! original alone. Self-test: a copy whose calls go to stand-ins (the keys scripted),
-//! against the Rust version.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! In:  nothing (the registers it is given reach only its frame, `net::connections_frame`,
+//!      which reads none, and `menu::list_take_key`, which reads none)
+//! Out: the connection chosen (`g_listChoice`; negative: none, the original's carry); the
+//!      original keeps the rest (`pusha` .. `popa`)
+//! Callers: `net::settings_link`, `net::start_link`.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::net::lobby::{
-    CHOICE, CHOICE_BEFORE, CLOCK, CONNECTIONS, FRAME_CLOCK, KEY_CLOCK, LIST_TAKE_KEY,
-    MAYBE_LEXICON, MOVE_CLOCK, Part, QUITTING, RUN_FRAME, SCREENSHOT, SCREENSHOTS_ON, g, game,
-    lobby_entry, p, test_eax,
+    CHOICE, CHOICE_BEFORE, CLOCK, CONNECTIONS, FRAME_CLOCK, KEY_CLOCK, MOVE_CLOCK, QUITTING, g,
+    list_key, other_key, p, run_frame,
 };
 use rc2k_core::net::screens::{self, ListKey};
 
-const FRAME: u32 = 0x4175C7; // net::connections_frame
-
 /// A list's up (0x66) or down (0x6B) on a list of `count` items: the highlight and the top
-/// moved, as the original's eax and ebx leave them; false for another key.
-pub fn list_move(r: &mut Regs, key: u8, count: u32) -> bool {
+/// moved; false for another key.
+pub fn list_move(key: u8, count: u32) -> bool {
     // Converted: `rc2k_core::net::screens` (`ListKey`, `up`, `down`).
-    match ListKey::of(key) {
-        ListKey::Up => {
-            let (choice, top) = screens::up(g(CHOICE), g(CHOICE_BEFORE));
-            p(CHOICE, choice);
-            p(CHOICE_BEFORE, top);
-            r.eax = top;
-            true
-        }
-        ListKey::Down => {
-            let (choice, top) = screens::down(g(CHOICE), g(CHOICE_BEFORE), count);
-            p(CHOICE, choice);
-            p(CHOICE_BEFORE, top);
-            r.eax = top;
-            r.ebx = choice.wrapping_sub(screens::LIST_ROWS - 1);
-            true
-        }
-        _ => false,
-    }
-}
-
-/// The end of the list screens: eax the choice, carry if negative.
-pub fn chosen(entry: &Regs, r: &Regs) -> Regs {
-    let mut left = Regs {
-        eflags: r.eflags,
-        ..*entry
+    let (choice, top) = match ListKey::of(key) {
+        ListKey::Up => screens::up(g(CHOICE), g(CHOICE_BEFORE)),
+        ListKey::Down => screens::down(g(CHOICE), g(CHOICE_BEFORE), count),
+        _ => return false,
     };
-    left.eax = g(CHOICE);
-    test_eax(&mut left);
-    if (left.eax as i32) < 0 {
-        left.set_carry(true);
-    }
-    left
+    p(CHOICE, choice);
+    p(CHOICE_BEFORE, top);
+    true
 }
 
-/// The Rust version: the registers it leaves.
-pub fn choose_connection(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    let mut r = *entry;
-    r.eax = g(CLOCK);
-    p(MOVE_CLOCK, r.eax);
-    p(KEY_CLOCK, r.eax);
+/// The Rust version.
+pub fn choose_connection() -> Result<u32, Refused> {
+    let now = g(CLOCK);
+    p(MOVE_CLOCK, now);
+    p(KEY_CLOCK, now);
     p(CHOICE_BEFORE, 0);
     p(CHOICE, 0);
     loop {
-        r.eax = game(FRAME);
-        part(RUN_FRAME, &mut r)?;
-        r.eax = g(CLOCK);
-        p(FRAME_CLOCK, r.eax);
-        part(LIST_TAKE_KEY, &mut r)?;
-        let key = r.eax as u8;
-        if list_move(&mut r, key, g(CONNECTIONS)) {
-            r.ebx = g(FRAME_CLOCK);
-            p(MOVE_CLOCK, r.ebx);
+        run_frame(crate::net::connections_frame::connections_frame)?;
+        p(FRAME_CLOCK, g(CLOCK));
+        let key = list_key()?;
+        if list_move(key, g(CONNECTIONS)) {
+            p(MOVE_CLOCK, g(FRAME_CLOCK));
         } else if ListKey::of(key) == ListKey::Enter {
-            r.eax = g(CHOICE);
-            return Ok(chosen(entry, &r));
+            return Ok(g(CHOICE));
         } else if ListKey::of(key) == ListKey::Escape {
             break;
         } else {
-            if g(SCREENSHOTS_ON) != 0 && key == 0x52 {
-                part(SCREENSHOT, &mut r)?;
-            }
-            part(MAYBE_LEXICON, &mut r)?;
+            other_key(key)?;
         }
         if g(QUITTING) == 1 {
             break;
         }
     }
     p(CHOICE, u32::MAX);
-    Ok(chosen(entry, &r))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    lobby_entry(r, choose_connection)
+    Ok(g(CHOICE))
 }

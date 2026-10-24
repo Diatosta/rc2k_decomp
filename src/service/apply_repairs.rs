@@ -154,12 +154,9 @@ pub unsafe fn apply_repairs(driver: &mut dyn Driver) -> Result<(), Refused> {
     rc2k_core::service::workshop::apply_repairs(&mut Game { player, driver })
 }
 
-/// For Rust callers: the Rust version, or, for a missing player or a refusal, the original
-/// (as the hook did; it has not written anything then). Every register kept.
-pub unsafe fn apply_repairs_in_game(r: &mut Regs) {
-    unsafe {
-        if current_player().is_none() || apply_repairs(&mut GameDriver).is_err() {
-            crate::calls::call(rva(0x46C14D), r);
-        }
-    }
+/// For Rust callers: the Rust version with the game's clock, frames and sleep. Every
+/// register kept. A refusal is the caller's (before 2026-10-23 the original was called,
+/// which the standalone does not have: it ended there).
+pub unsafe fn apply_repairs_in_game() -> Result<(), Refused> {
+    unsafe { apply_repairs(&mut GameDriver) }
 }

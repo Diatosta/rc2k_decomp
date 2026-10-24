@@ -16,14 +16,11 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::Regs;
 use crate::sound::race_clock::step_race_clock;
 use crate::system::tick_count::tick_count;
 
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let due = unsafe { step_race_clock(tick_count()) };
-    r.set_carry(!due);
-    r.set_zero(false);
-    Ok(())
+/// With the game's clock: whether the race clock's step was due (the original's carry
+/// clear).
+pub fn step_race_clock_now() -> bool {
+    unsafe { step_race_clock(tick_count()) }
 }

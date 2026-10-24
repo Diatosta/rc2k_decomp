@@ -10,8 +10,6 @@
 use crate::errors::{FatalError, Refused};
 use crate::framework::{Regs, game_addr, rva};
 
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
 /// A register of the table's.
 #[derive(Clone, Copy, Debug)]
 pub enum R {
@@ -134,10 +132,15 @@ fn reg(g: &mut Regs, r: R) -> &mut u32 {
     }
 }
 
-/// The table from the first op, with eax and ebx the caller's (the run's start and kind).
-/// Leaves the registers as it was entered (`pusha` .. `popa`).
-pub unsafe fn run(ops: &[Op], entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    let mut g = *entry;
+/// The table from the first op, with eax and ebx the run's start and kind. The registers
+/// are the table's own scratch (a local `Regs`: the original is `pusha` .. `popa`, it
+/// leaves every register of its caller as it was).
+unsafe fn run(ops: &[Op], start: u32, kind: u32) -> Result<(), Refused> {
+    let mut g = Regs {
+        eax: start,
+        ebx: kind,
+        ..Regs::default()
+    };
     let mut stack: Vec<u32> = Vec::new();
     let mut saved: Vec<Regs> = Vec::new();
     let mut zero = false;
@@ -210,7 +213,7 @@ pub unsafe fn run(ops: &[Op], entry: &Regs, part: Part) -> Result<Regs, Refused>
                         .iter()
                         .position(|&c| c == a)
                         .expect("a call the table has");
-                    part(n as u32 + 1, &mut g)?;
+                    step(n as u32 + 1, &mut g)?;
                 }
                 RepMovsb => {
                     std::ptr::copy(g.esi as *const u8, g.edi as *mut u8, g.ecx as usize);
@@ -243,22 +246,22 @@ pub unsafe fn run(ops: &[Op], entry: &Regs, part: Part) -> Result<Regs, Refused>
                     g.eax = q as u32;
                 }
                 RoundEaxToEbx => g.ebx = crate::math::x87::to_int(g.eax) as u32,
-                Return => return Ok(g),
+                Return => return Ok(()),
             }
         }
     }
 }
 
-/// `race::single_rally_race` (0x4843EC): `SINGLE_RALLY`. eax the run's start (1 for none
-/// of the loading picture after), ebx the kind (3: the rally's times copied first).
-/// Refuses, before anything, a missing player record (`g_players`[1] or
+/// `race::single_rally_race` (0x4843EC): `SINGLE_RALLY`. `start` (eax) the run's start (1
+/// for none of the loading picture after), `kind` (ebx) the kind (3: the rally's times
+/// copied first). Refuses, before anything, a missing player record (`g_players`[1] or
 /// [`dword_75598C`]; the original reads and writes through it).
-pub unsafe fn single_rally_race(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub unsafe fn single_rally_race(start: u32, kind: u32) -> Result<(), Refused> {
     unsafe {
         if player(1) == 0 || player(mem(0x75598C).read_unaligned()) == 0 {
             return Err(crate::errors::BadInput("a player's record missing").into());
         }
-        run(&SINGLE_RALLY, entry, part)
+        run(&SINGLE_RALLY, start, kind)
     }
 }
 
@@ -270,27 +273,40 @@ pub unsafe fn player(n: u32) -> u32 {
     }
 }
 
-/// The calls in the game: the race's Rust versions; the sound, scene, input and screen
-/// ones through their hooks (`call_game`; the screen mode is the platform's).
-pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    let address = CALLS[place as usize - 1];
-    {
-        unsafe {
-            match place {
-                1 => *r = crate::race::rally::copy_rally_times(r)?,
-                3 => crate::race::race_shell::set_race_screen_mode(
-                    r,
-                    &mut crate::race::race_shell::game_screen_mode,
-                ),
-                5 => crate::race::sound_tables::set_up_race_sound_objects(
-                    &crate::race::sound_tables::ObjectVars::game(),
-                )?,
-                7 => *r = crate::race::race_end::race_from_menu(r)?,
-                9 => crate::race::sound_tables::clear_race_sound_objects()?,
-                _ => crate::calls::call(rva(address), r),
+/// The table's call at `place` (its index in `CALLS` + 1): the Rust versions; `g` the
+/// table's registers (`show_loading_picture` leaves its result in eax, `take_key` the
+/// key in al).
+fn step(place: u32, g: &mut Regs) -> Result<(), Refused> {
+    unsafe {
+        match place {
+            // Keeps every register.
+            1 => crate::race::rally::copy_rally_times()?,
+            2 => crate::sound::stop_music::stop_music(),
+            // Keeps every register (liveness).
+            3 => crate::race::race_shell::set_race_screen_mode(),
+            4 => g.eax = crate::menu::show_loading_picture::show_loading_picture()?,
+            5 => crate::race::sound_tables::set_up_race_sound_objects(
+                &crate::race::sound_tables::ObjectVars::game(),
+            )?,
+            6 => crate::sound::set_up_race_sounds::set_up_race_sounds()?,
+            // Its caller reads esi after it, which it keeps (`lq -s 0x485570`).
+            7 => crate::race::race_end::race_from_menu()?,
+            8 => {
+                crate::platform::set_menu_mode_now();
             }
-            Ok(())
+            9 => crate::race::sound_tables::clear_race_sound_objects()?,
+            10 => crate::sound::apply_settings::apply_settings()?,
+            11 => {
+                crate::scene::set_up_engine::set_up_engine()?;
+                // The registers the original leaves (eax, ebx, ecx, edx).
+                [g.eax, g.ebx, g.ecx, g.edx] = crate::physics::test_drive::LEFT;
+            }
+            // Keeps every register (`pusha` / `popa`).
+            12 => crate::scene::set_up_front_end_scene::set_up_front_end_scene()?,
+            13 => g.eax = (g.eax & !0xFF) | u32::from(crate::input::take_key::take_key()),
+            _ => crate::sound::play_tune_3::play_tune_3(),
         }
+        Ok(())
     }
 }
 

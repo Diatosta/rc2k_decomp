@@ -14,25 +14,21 @@
 //! Refuses what the steps refuse; what was written is put back.
 //! Self-test: `physics/splits.rs` (`test_splits`), every mode.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::physics::count_down_start::count_down_start;
 use crate::physics::count_start_second::count_start_second;
 use crate::physics::count_stop_timers::count_stop_timers;
 use crate::physics::mark_car_started::mark_car_started;
-use crate::physics::splits::{DONE, MODE, g, guarded, p};
+use crate::physics::splits::{DONE, MODE, g, p};
 use crate::physics::start_go_notice::start_go_notice;
-use crate::physics::take_split::take_split_in;
-use crate::physics::take_split_counted::take_split_counted_in;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
+use crate::physics::take_split::take_split;
+use crate::physics::take_split_counted::take_split_counted;
 
-/// The steps on `r`.
+/// The Rust version. The registers the original leaves are read by none of its callers.
 // Converted: `rc2k_core::physics::splits::{timer_rate, timer_run}`.
-pub fn race_timers_in(r: &mut Regs) -> Result<(), Refused> {
+pub fn race_timers() -> Result<(), Refused> {
     use rc2k_core::physics::splits::{TimerRun, timer_rate, timer_run};
     p(0x614170, 1.0f32.to_bits());
     let finished = g(DONE) != 0;
@@ -46,31 +42,16 @@ pub fn race_timers_in(r: &mut Regs) -> Result<(), Refused> {
         return Ok(());
     }
     unsafe {
-        count_start_second().apply(r);
+        count_start_second();
         if run == TimerRun::Start {
-            count_down_start()?.apply(r);
-            take_split_counted_in(r)?;
-            start_go_notice()?.apply(r);
+            count_down_start()?;
+            take_split_counted()?;
+            start_go_notice()?;
         } else {
-            take_split_in(r)?;
+            take_split()?;
         }
         count_stop_timers();
-        mark_car_started().apply(r);
+        mark_car_started();
     }
     Ok(())
-}
-
-/// The Rust version.
-pub unsafe fn race_timers(entry: &Regs) -> Result<Left, Refused> {
-    guarded(entry, &race_timers_in)
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { race_timers(r) }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

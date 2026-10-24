@@ -22,15 +22,12 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{EBX, ESI, Regs};
+use crate::framework::EBX;
 use crate::math::x87;
 use crate::math::x87_run::int_lerp;
-use crate::physics::grade_or_reset::{MODE, grade_or_reset_at};
+use crate::physics::grade_or_reset::grade_or_reset_at;
 use crate::physics::mirror::Mirror;
-use crate::physics::rate_damage::{OnMirror, rate_damage_plain_at};
-use crate::physics::reset_car_grades::reset_grades_at;
 use crate::screens::harness::Left;
-use crate::service::floats::floats_entry;
 
 const KIND: u32 = 0x71A018; // g_carDriveKind
 const K256: u32 = 0x5C5E2C; // flt_5C5E2C, 256.0
@@ -48,22 +45,6 @@ const AFTER: [(u32, u32, u32, u32); 4] = [
     (0x614C00, 0x71A00C, 0x613F78, 0x613F74),
     (0x614C04, 0x71A00C, 0x613F80, 0x613F7C),
 ];
-
-/// The converted version (`rc2k_core::physics::handling`, plain floats) on the variables
-/// `m` reaches: the hook's. `physics::grade_or_reset` as there, its rating converted.
-// Converted: `rc2k_core::physics::handling::set_handling`.
-pub fn set_handling_plain_at(m: &Mirror) -> Result<Left, Refused> {
-    let grade = |_: &mut OnMirror| unsafe {
-        if m.get(MODE) == 2 {
-            let car = m.a(0x719FD8);
-            reset_grades_at(car, m.a(0x71A00C), m.a(0x71A008)).with(ESI, car)
-        } else {
-            rate_damage_plain_at(m)
-        }
-    };
-    let (left, kind) = rc2k_core::physics::handling::set_handling(&mut OnMirror(m), grade)?;
-    Ok(left.with(EBX, kind))
-}
 
 /// The Rust core on the variables `m` reaches (the exact one, for `race::settle_car` and
 /// `physics::car_physics_step`).
@@ -93,14 +74,4 @@ pub unsafe fn set_handling_at(m: &Mirror) -> Result<Left, Refused> {
 /// The Rust version (the exact one).
 pub unsafe fn set_handling() -> Result<Left, Refused> {
     unsafe { set_handling_at(&Mirror::game()) }
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    set_handling_plain_at(&Mirror::game())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    floats_entry(r, &rust)
 }

@@ -6,8 +6,7 @@
 //! (`marks::emit_particle_18`) and kind 3 (the bursts of kind 2: section 16).
 //!
 //! In:  edi the record, esi the car object
-//! Out: eax, ebx, ecx the record's +0x28 .. +0x30 when copied (else eax the random's low
-//!      word); every other register kept
+//! Out: nothing (no caller reads a register it leaves)
 //!
 //! Caller: `sub_4C9E2E`'s end. Refuses a null record or object and the emitters'
 //! refusals; on a refusal nothing stays written (all it may write is put back).
@@ -19,7 +18,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 use crate::marks::emit_wheel_particles::{Table, emit};
 use crate::marks::emitters::*;
 use crate::math::x87;
@@ -31,10 +30,9 @@ const CHANCE_K_RVA: usize = rva(0x7651DC); // flt_7651DC
 const CHANCE_RANDOM_RVA: usize = rva(0x935526); // dword_935526
 const PACE: u32 = 0x386A0;
 
-/// The first part (see the header), written; the chance's random returned.
-unsafe fn prepare(g: &mut Regs) -> u32 {
+/// The first part (see the header), written.
+unsafe fn prepare(record: u32, object: u32) {
     unsafe {
-        let (record, object) = (g.edi, g.esi);
         let size = x87::int_times_to_int(at(object + 0x90) as i32, game_read(SIZE_K_RVA));
         ((object + 0x90) as *mut i32).write_unaligned(size);
         ((record + 4) as *mut u32).write_unaligned(at(record + 4).wrapping_add(PACE));
@@ -48,28 +46,23 @@ unsafe fn prepare(g: &mut Regs) -> u32 {
         let chance = x87::mul_to_int(at(record + 0x34), game_read(CHANCE_K_RVA));
         game_write(CHANCE_RVA, chance);
         let r = next_c5(CHANCE_RANDOM_RVA);
-        g.eax = r & 0xFFFF;
         if ((r & 0xFFFF) as i32) < chance {
             let surface = [at(record + 0x28), at(record + 0x2C), at(record + 0x30)];
             for (n, v) in surface.iter().enumerate() {
                 ((record + 0x1C + 4 * n as u32) as *mut u32).write_unaligned(*v);
             }
-            [g.eax, g.ebx, g.ecx] = surface;
         }
-        r
     }
 }
 
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn emit_body_particles(entry: &Regs) -> Result<Regs, Refused> {
-    let mut g = *entry;
-    if g.edi == 0 || g.esi == 0 {
+/// The Rust version (see the header): `record` the body's record (the original's edi),
+/// `object` the car's object (esi).
+pub unsafe fn emit_body_particles(record: u32, object: u32) -> Result<(), Refused> {
+    if record == 0 || object == 0 {
         return Err(BadInput("a null record or object").into());
     }
-    let done = unsafe {
-        prepare(&mut g);
-        emit(Table::Body, at(g.edi + 0x1C), g.edi, g.esi)
-    };
-    done?;
-    Ok(g)
+    unsafe {
+        prepare(record, object);
+        emit(Table::Body, at(record + 0x1C), record, object)
+    }
 }

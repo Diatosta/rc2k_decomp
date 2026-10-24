@@ -20,14 +20,11 @@
 //! Self-test: in a race only: a copy of the original (its calls the game's) against the
 //! Rust version on the game's own state with the work car's switches by lot; all put back.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{EAX, EBX, ECX, EDX, ESI, Regs, game_read, game_write, rva};
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
+use crate::framework::{game_read, game_write, rva};
 use rc2k_core::physics::walls::WheelsOff;
 
 fn g(x: u32) -> u32 {
@@ -38,50 +35,31 @@ fn p(x: u32, v: u32) {
     unsafe { game_write(rva(x as usize), v) }
 }
 
-/// The Rust version; `r` as the original leaves it.
+/// The Rust version. The registers it leaves (eax the face's word +0x26, ebx the face,
+/// esi its address) are read by none of its callers.
 // Converted: `rc2k_core::physics::walls::WheelsOff`.
-pub unsafe fn feel_ground(r: &mut Regs) -> Result<(), Refused> {
+pub unsafe fn feel_ground() -> Result<(), Refused> {
     unsafe {
         if g(0x71A238) > rc2k_core::physics::walls::PROBE_ROOM {
             return Err(BadInput("more than 0x40 probe points").into());
         }
         crate::physics::note_surface_mode::note_surface_mode();
-        crate::physics::probe_ground::probe_ground(r)?;
-        crate::physics::lowest_body_point::lowest_body_point(r)?;
+        crate::physics::probe_ground::probe_ground()?;
+        crate::physics::lowest_body_point::lowest_body_point()?;
         let off = WheelsOff::of([g(0x71A5D8), g(0x71A5DC), g(0x71A5E0), g(0x71A5E4)]);
         p(0x71A220, u32::from(off.front));
         p(0x71A224, u32::from(off.back));
         p(0x71A22C, u32::from(off.all));
-        r.eax = u32::from(off.driven(g(0x71A018)));
-        p(0x71A228, r.eax);
-        if r.eax == 0 {
+        let driven = u32::from(off.driven(g(0x71A018)));
+        p(0x71A228, driven);
+        if driven == 0 {
             p(0x71A1C0, 0);
         }
-        r.ebx = g(0x71ADD8);
-        r.esi = (r.ebx << 6).wrapping_add(g(0x5CCCBC));
-        r.eax = u32::from(((r.esi + 0x26) as *const u16).read_unaligned());
-        p(0x6141DC, r.eax);
+        let face = (g(0x71ADD8) << 6).wrapping_add(g(0x5CCCBC));
+        p(
+            0x6141DC,
+            u32::from(((face + 0x26) as *const u16).read_unaligned()),
+        );
         Ok(())
     }
-}
-
-fn left_of(g: &Regs) -> Left {
-    Left::nothing()
-        .with(EAX, g.eax)
-        .with(EBX, g.ebx)
-        .with(ECX, g.ecx)
-        .with(EDX, g.edx)
-        .with(ESI, g.esi)
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    let mut gr = *r;
-    unsafe { feel_ground(&mut gr) }?;
-    Ok(left_of(&gr))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

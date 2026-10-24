@@ -3,9 +3,8 @@
 //! `scene::choose_carousel_pictures` and `scene::update_carousel_pictures`.
 
 use crate::errors::BadInput;
-use crate::framework::{EAX, EBX, ECX, EDI, ESI, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 use crate::scene::textures::{KIND_SLOT_RVA, KIND_TEXTURE_RVA, SLOTS, WANTED_RVA};
-use crate::screens::harness::Left;
 
 pub const WANTED_PICTURES_RVA: usize = rva(0x75AAA8); // dword_75AAA8 .. dword_75AAB4
 pub const SHOWN_RVA: usize = rva(0x75AAB8); // dword_75AAB8 .. dword_75AAC4
@@ -22,7 +21,7 @@ const ENTRIES: u32 = 0x100;
 /// the newly wanted ones (`scene::keep_held_pictures` 0x49036F); and each held
 /// picture's eight textures go to its eight slots (`scene::assign_picture_slots`
 /// 0x4903E3). Nothing is written before a refusal.
-pub unsafe fn update(entries: [u32; 4]) -> Result<Left, BadInput> {
+pub unsafe fn update(entries: [u32; 4]) -> Result<(), BadInput> {
     unsafe {
         let table: u32 = game_read(ENTRIES_RVA);
         if table == 0 {
@@ -53,11 +52,9 @@ pub unsafe fn update(entries: [u32; 4]) -> Result<Left, BadInput> {
         game_write(HELD_RVA, held);
         let textures = rc2k_core::scene::carousel::picture_textures(held, first_texture);
         game_write(WANTED_RVA + first_slot as usize * 4, textures);
-        Ok(Left::nothing()
-            .with(EAX, textures[31].wrapping_add(1))
-            .with(EBX, first_slot + 32)
-            .with(ECX, 0)
-            .with(ESI, 24)
-            .with(EDI, record))
+        // What the original leaves in eax, ebx, ecx, esi and edi its callers' later calls
+        // overwrite or never read (the carousel takes ebx and ecx anew).
+        let _ = record;
+        Ok(())
     }
 }

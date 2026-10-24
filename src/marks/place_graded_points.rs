@@ -5,8 +5,8 @@
 //! through the record's pointer for it (+0x454); for grade 1 the same with +0x2C for the y
 //! turn, its start +4 and count +0x10, and no bend.
 //!
-//! In:  ebp a spline record (`g_marksSplinesC`)
-//! Out: eax grade 1's count, the rest as its last point leaves them
+//! In:  `s` a spline record (`g_marksSplinesC`)
+//! Out: nothing (no caller reads the registers it leaves)
 //!
 //! Callers: 0x4B99D4, 0x4B9A2C. Refuses (before anything) a negative count (the loop
 //! runs on), points past the record's 0x80, a null pointer among them, an angle
@@ -19,13 +19,11 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_read, rva};
+use crate::framework::{game_read, rva};
 use crate::marks::bend_points::bend_points;
 use crate::marks::splines::{
-    CHOSEN_RVA, MOST_POINTS, SPLINE_LEN, transform_int_points_from, turn_record, turnable_record,
-    work_regions, write_point,
+    CHOSEN_RVA, MOST_POINTS, transform_int_points_from, turn_record, turnable_record, write_point,
 };
-use crate::service::harness::Region;
 
 const SWITCH_RVA: usize = rva(0x7695CA); // dword_7695CA
 const POINTERS: u32 = 0x454;
@@ -63,43 +61,21 @@ unsafe fn refusal(s: u32) -> Result<(), Refused> {
     Ok(())
 }
 
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn place_graded_points(entry: &Regs) -> Result<Regs, Refused> {
-    let mut g = *entry;
+/// The Rust version (see the header).
+pub unsafe fn place_graded_points(s: u32) -> Result<(), Refused> {
     unsafe {
-        let s = g.ebp;
         refusal(s)?;
         for (n, (start, count, turns)) in GRADES.into_iter().enumerate() {
             let (first, points) = (get(s + start), get(s + count));
-            g = turn_record(&g, s, turns)?;
-            g = transform_int_points_from(&g, s + COORDS + 12 * first, points)?;
+            turn_record(s, turns)?;
+            transform_int_points_from(s + COORDS + 12 * first, points)?;
             if n == 0 {
-                g = bend_points(&g)?;
+                bend_points(s)?;
             }
             for k in 0..points {
-                g = write_point(&g, s, k, k + first);
-            }
-            g.eax = points;
-        }
-    }
-    Ok(g)
-}
-
-pub fn regions(spline: u32) -> Vec<Region> {
-    let mut r = work_regions();
-    r.push((spline, SPLINE_LEN as usize));
-    r.extend(crate::marks::bend_points::regions(spline));
-    for (start, count, _) in GRADES {
-        let (first, n) = unsafe { (get(spline + start), get(spline + count) as i32) };
-        for k in 0..n.clamp(0, MOST_POINTS as i32) as u32 {
-            let i = first.wrapping_add(k);
-            if i < MOST_POINTS {
-                let p = unsafe { get(spline + POINTERS + 4 * i) };
-                if p != 0 {
-                    r.push((p, 12));
-                }
+                write_point(s, k, k + first);
             }
         }
     }
-    r
+    Ok(())
 }

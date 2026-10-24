@@ -9,8 +9,7 @@
 //! `flt_9206DA` (`fistp`), angle 0, colour 0xFFFFFF, that alpha.
 //!
 //! In:  nothing (`g_marksSettings`)
-//! Out: esi 0, ebp the alpha, edx the alpha product's high half; the rest kept (each part
-//!      inside `pusha` .. `popa`)
+//! Out: nothing (no caller reads the registers it leaves)
 //!
 //! Caller: `sub_4C4EA2`. The normalising is its Rust version (the copy's call goes to its
 //! hook); the parts through `part` (1 with the two values), in the game the Rust version.
@@ -23,7 +22,8 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::marks::draw_flare_part::draw_flare_part;
 use crate::marks::setup::{SETTINGS_RVA, WAVE_LEVELS_RVA};
 use crate::math::x87;
 
@@ -41,9 +41,8 @@ unsafe fn get(a: u32) -> u32 {
     unsafe { (a as *const u32).read_unaligned() }
 }
 
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn draw_lens_flare(entry: &Regs) -> Result<Regs, Refused> {
-    let mut g = *entry;
+/// The Rust version (see the header).
+pub unsafe fn draw_lens_flare() -> Result<(), Refused> {
     unsafe {
         let settings: u32 = game_read(SETTINGS_RVA);
         if settings == 0 {
@@ -60,37 +59,26 @@ pub unsafe fn draw_lens_flare(entry: &Regs) -> Result<Regs, Refused> {
         game_write(UNIT_RVA, x87::loaded(dx));
         game_write(UNIT_RVA + 4, x87::loaded(dy));
         game_write(UNIT_RVA + 8, 0u32);
-        g.esi = game_addr(UNIT_RVA) as u32;
-        crate::scene::vector3::normalise_vector3(g.esi);
+        crate::scene::vector3::normalise_vector3(game_addr(UNIT_RVA) as u32);
         let length = crate::math::x87_load::float_hypot(dx, dy);
         game_write(LENGTH_RVA, length);
         let alpha = x87::times_subr_to_int(length, game_read(FADE[0]), game_read(FADE[1])).max(0);
         let product = u64::from(get(settings + 0x2754)) * u64::from(alpha as u32);
-        g.edx = (product >> 32) as u32;
-        g.ebp = (product as u32) >> 8;
+        let alpha = (product as u32) >> 8;
         let size_k: u32 = game_read(SIZE_K_RVA);
         for k in (0..PARTS as usize).rev() {
             let level: u32 = game_read(WAVE_LEVELS_RVA + 4 * k);
             let y = x87::times_plus_80(dy, level, cy, false);
             let x = x87::times_plus_80(dx, level, cx, true);
-            let mut p = Regs {
-                eax: game_read(CORNER_RVA + 4 * k),
-                ebx: 0,
-                ecx: g.ebp,
-                edx: x87::int_times_to_int(game_read(SIZE_RVA + 4 * k), size_k) as u32,
-                esi: 0xFF_FFFF,
-                ..g
-            };
-            crate::marks::draw_lens_flare::game_part(1, &mut p, &[x, y])?;
+            draw_flare_part(
+                game_read(CORNER_RVA + 4 * k),
+                0,
+                alpha,
+                x87::int_times_to_int(game_read(SIZE_RVA + 4 * k), size_k) as u32,
+                0xFF_FFFF,
+                [x, y],
+            )?;
         }
-        g.esi = 0;
     }
-    Ok(g)
-}
-
-/// In the game: `draw_flare_part`'s Rust version.
-pub fn game_part(_place: u32, r: &mut Regs, v: &[[u8; 10]]) -> Result<(), Refused> {
-    use crate::marks::draw_flare_part as fp;
-    unsafe { fp::draw_flare_part(r, [v[0], v[1]]) }?;
     Ok(())
 }

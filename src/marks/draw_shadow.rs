@@ -13,7 +13,7 @@
 //! `scene::draw_fan`.
 //!
 //! In:  nothing
-//! Out: the registers as the path leaves them
+//! Out: nothing (its caller reads no register after it)
 //!
 //! Caller: the race's frame (0x456330). The long x87 runs are the original's instructions
 //! over the game's variables; the vector helpers their Rust versions; the device calls
@@ -29,7 +29,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::marks::setup::SETTINGS_RVA;
 use crate::math::{x87, x87_run};
 use crate::scene::cross_product3::cross_product3;
@@ -114,9 +114,6 @@ pub const SECOND: Shadow = Shadow {
 /// Each vertex's texture place: the corner entry's word offsets (u, v).
 const UV_WORDS: [(u32, u32); 4] = [(0xC, 0xE), (8, 0xA), (0, 2), (4, 6)];
 const STATES: [(u32, u32); 5] = [(4, 0x15), (5, 0x13), (6, 0x14), (0, 0x1C), (1, 0x1B)];
-
-/// A call by place (see the header).
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
 
 fn addr(r: usize) -> u32 {
     game_addr(r) as u32
@@ -787,14 +784,14 @@ unsafe fn projected_2(b: u32) {
 }
 
 /// The z turn's angle (see the header), 80 bits.
-unsafe fn angle(g: &mut Regs, sh: &Shadow) -> [u8; 10] {
+unsafe fn angle(sh: &Shadow) -> [u8; 10] {
     unsafe {
-        g.esi = game_read(SETTINGS_RVA);
-        g.eax = game_read(sh.split);
-        let v = ((g.esi + sh.field) as *const u32).read_unaligned();
-        if (g.eax as i32) <= v as i32 {
+        let settings: u32 = game_read(SETTINGS_RVA);
+        let split: u32 = game_read(sh.split);
+        let v = ((settings + sh.field) as *const u32).read_unaligned();
+        if (split as i32) <= v as i32 {
             let (k, c) = sh.lines[1];
-            x87::less_times_plus_negated_80(v, g.eax, game_read(k), game_read(c))
+            x87::less_times_plus_negated_80(v, split, game_read(k), game_read(c))
         } else {
             let (k, c) = sh.lines[0];
             x87::times_plus_negated_80(v, game_read(k), game_read(c))
@@ -802,9 +799,9 @@ unsafe fn angle(g: &mut Regs, sh: &Shadow) -> [u8; 10] {
     }
 }
 
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn draw_shadow(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    unsafe { draw_shadow_with(entry, &FIRST, true, part) }
+/// The Rust version (see the header).
+pub unsafe fn draw_shadow() -> Result<(), Refused> {
+    unsafe { draw_shadow_with(&FIRST, true) }
 }
 
 impl Shadow {
@@ -815,22 +812,17 @@ impl Shadow {
 
     /// The angle's refusal, if any (for a caller that checks before drawing).
     pub fn angle_refuses(&self) -> Option<Refused> {
-        unsafe { turnable(&angle(&mut Regs::default(), self)) }.err()
+        unsafe { turnable(&angle(self)) }.err()
     }
 }
 
 /// A shadow (see the header) on `sh`'s variables; `depth` the two depth calls first.
-pub unsafe fn draw_shadow_with(
-    entry: &Regs,
-    sh: &Shadow,
-    depth: bool,
-    part: Part,
-) -> Result<Regs, Refused> {
-    let mut g = *entry;
+pub unsafe fn draw_shadow_with(sh: &Shadow, depth: bool) -> Result<(), Refused> {
+    use crate::scene::set_render_state::set_render_state;
     unsafe {
         let corner: u32 = game_read(sh.corner);
         if corner == 0xFFFF_FFFF {
-            return Ok(g);
+            return Ok(());
         }
         if corner >= 0x100 {
             return Err(BadInput("a shadow corner past g_marksCorners").into());
@@ -838,89 +830,73 @@ pub unsafe fn draw_shadow_with(
         if game_read::<u32>(SETTINGS_RVA) == 0 {
             return Err(BadInput("no marks settings").into());
         }
-        turnable(&angle(&mut g.clone(), sh))?;
+        turnable(&angle(sh))?;
         let b = addr(0);
         let mut temps = [0u32; 2];
         let t = temps.as_mut_ptr() as u32;
         if depth {
-            part(1, &mut g)?;
-            part(2, &mut g)?;
+            crate::scene::depth_buffer_on::depth_buffer(true);
+            crate::scene::depth_test_on::depth_test_on();
         }
         for (value, state) in STATES {
-            [g.eax, g.ebx] = [value, state];
-            part(3, &mut g)?;
+            set_render_state(value, state);
         }
         for (n, from) in sh.sides.into_iter().enumerate() {
             let v: [u32; 3] = game_read(from);
-            [g.eax, g.ebx, g.ecx] = v;
             for (k, x) in v.into_iter().enumerate() {
                 game_write(sh.side[n] + 4 * k, x);
             }
         }
         let [s0, s1, s2] = sh.side.map(addr);
-        g.esi = s0;
         normalise_vector3(s0);
-        g.esi = s1;
         normalise_vector3(s1);
-        [g.esi, g.edi, g.ebp] = [s0, s1, s2];
         cross_product3(s0, s1, s2)?;
-        [g.esi, g.edi, g.ebp] = [s2, s0, s1];
         cross_product3(s2, s0, s1)?;
-        g.esi = s1;
         normalise_vector3(s1);
-        g.esi = s2;
         normalise_vector3(s2);
-        let a = angle(&mut g, sh);
-        g.esi = addr(sh.matrix);
-        turn_matrix3(Axis::Z, g.esi, a)?;
-        (sh.light_turned)(b, g.esi, t);
-        let m = g.esi;
+        let a = angle(sh);
+        let m = addr(sh.matrix);
+        turn_matrix3(Axis::Z, m, a)?;
+        (sh.light_turned)(b, m, t);
         for (n, side) in sh.side.into_iter().enumerate() {
             let v: [u32; 3] = game_read(side);
-            [g.eax, g.ebx, g.ecx] = v;
             for (k, x) in v.into_iter().enumerate() {
                 ((m + 4 * n as u32 + 0xC * k as u32) as *mut u32).write_unaligned(x);
             }
         }
         (sh.second_turned)(b, m, t);
-        [g.esi, g.edi, g.ebp] = [s2, s1, s0];
         cross_product3(s2, s1, s0)?;
-        [g.esi, g.edi, g.ebp] = [s2, s0, s1];
         cross_product3(s2, s0, s1)?;
         (sh.corners_block)(b);
-        g.esi = addr(sh.way);
-        normalise_vector3(g.esi);
+        normalise_vector3(addr(sh.way));
         (sh.corners_in)(b);
-        g.esi = addr(VIEW_RVA);
+        let view = addr(VIEW_RVA);
         for n in 0..4 {
             let c = sh.corners + 12 * n;
             let p: [u32; 3] = game_read(c);
-            let turned = rotate_point(g.esi, p.map(extended));
+            let turned = rotate_point(view, p.map(extended));
             for (k, v) in turned.into_iter().enumerate() {
                 game_write(c + 4 * k, rounded(v));
             }
         }
-        g.eax = addr(MARK_CORNERS_RVA) + corner * 0x80;
-        let word = |off: u32| ((g.eax + off) as *const u16).read_unaligned() as u32;
+        let at = addr(MARK_CORNERS_RVA) + corner * 0x80;
+        let word = |off: u32| ((at + off) as *const u16).read_unaligned() as u32;
         let uv_k: u32 = game_read(UV_K_RVA);
         for (n, (u, v)) in UV_WORDS.into_iter().enumerate() {
             let vertex = VERTICES_RVA + 0x20 * n;
             game_write(vertex + 0x18, x87::int_times(word(u) as i32, uv_k));
             game_write(vertex + 0x1C, x87::int_times(word(v) as i32, uv_k));
         }
-        [g.ebp, g.edi] = [word(8), word(0xA)];
         let mut c = game_read::<u32>(TINT_RVA) | 0xFF00_0000;
         let half = |shift: u32| ((!(c >> shift) & 0xFF) >> 1) << shift;
         let (r, gr, bl) = (half(16), half(8), half(0));
         c = c.wrapping_add(r).wrapping_add(gr).wrapping_add(bl);
-        g.ecx = c;
         for n in 0..4 {
             game_write(VERTICES_RVA + 0x20 * n + 0x10, c);
         }
         for n in 0..4 {
-            g.ecx = game_read(sh.corners + 12 * n + 8);
-            if (g.ecx as i32) <= game_read::<i32>(NEAR_RVA) {
-                return Ok(g);
+            if game_read::<i32>(sh.corners + 12 * n + 8) <= game_read::<i32>(NEAR_RVA) {
+                return Ok(());
             }
         }
         (sh.projected)(b);
@@ -928,29 +904,12 @@ pub unsafe fn draw_shadow_with(
         for n in 0..4 {
             let c = sh.corners + 12 * n;
             let vertex = VERTICES_RVA + 0x20 * n;
-            [g.eax, g.ebx] = [game_read(c), game_read(c + 4)];
-            game_write(vertex, g.eax);
-            game_write(vertex + 4, g.ebx);
+            game_write(vertex, game_read::<u32>(c));
+            game_write(vertex + 4, game_read::<u32>(c + 4));
             let depth = x87_run::sub_mul(game_read(c + 8), game_read(sh.lifts + 4 * n), z_k);
             game_write(vertex + 8, depth);
         }
-        part(4, &mut g)?;
-    }
-    Ok(g)
-}
-
-/// In the game: the device calls' Rust versions.
-pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    unsafe {
-        match place {
-            1 => crate::scene::depth_buffer_on::depth_buffer(true),
-            2 => crate::scene::depth_test_on::depth_test_on(),
-            3 => {
-                let (value, state) = (r.eax, r.ebx);
-                crate::scene::set_render_state::set_render_state(value, state);
-            }
-            _ => crate::scene::draw_fan::draw_fan(r, &mut crate::scene::draw_fan::game_part),
-        }
+        crate::marks::clip_quad::draw_fan();
     }
     Ok(())
 }

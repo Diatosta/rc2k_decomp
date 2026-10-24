@@ -22,22 +22,13 @@
 //! (`menu::table_calls`).
 
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::menu::event_flow::*;
 use crate::menu::flow_game::Game;
+use crate::menu::screen_loop::Carried;
 use rc2k_core::menu::rounds;
 
-flow_hook!(
-    "menu::time_trial_one",
-    0x48AE39,
-    time_trial_one,
-    test,
-    copy(0x197, CALLS)
-);
-
-pub unsafe fn time_trial_one(entry: &Regs, call: Call) -> Result<Regs, Refused> {
+pub unsafe fn time_trial_one(c: &Carried) -> Result<(), Refused> {
     players_there(1)?;
     // Converted: `rc2k_core::menu::rounds::time_trial_one`.
-    rounds::time_trial_one(&mut Game::new(entry, call))?;
-    Ok(*entry)
+    rounds::time_trial_one(&mut Game::new(c))
 }

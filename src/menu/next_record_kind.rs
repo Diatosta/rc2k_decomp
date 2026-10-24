@@ -13,33 +13,21 @@
 
 use crate::bridge::Raw;
 use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
+use crate::framework::{game_addr, game_read, game_write, rva};
 
 const SECTION_RVA: usize = rva(0x75595C); // section
 const INDEX_RVA: usize = rva(0x755958); // index
 const RECORDS_RVA: usize = rva(0x735576); // g_recordTable
 const KIND_RVA: usize = rva(0x7559EC); // dword_7559EC
 
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn next_record_kind(entry: &Regs) -> Result<Regs, Refused> {
-    let mut g = *entry;
+/// The Rust version (see the header): the kind (eax in the original), also kept in
+/// `dword_7559EC`.
+pub unsafe fn next_record_kind() -> Result<u32, Refused> {
     let section: u32 = unsafe { game_read(SECTION_RVA) };
     let index: u32 = unsafe { game_read(INDEX_RVA) };
     let table = unsafe { Raw::new(game_addr(RECORDS_RVA) as *const u8) };
     // Converted: `rc2k_core::menu::record_kinds::next_record_kind`.
-    g.eax = rc2k_core::menu::record_kinds::next_record_kind(&table, section, index)?;
-    unsafe { game_write(KIND_RVA, g.eax) };
-    Ok(g)
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(left_of(&unsafe { next_record_kind(r) }?))
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
+    let kind = rc2k_core::menu::record_kinds::next_record_kind(&table, section, index)?;
+    unsafe { game_write(KIND_RVA, kind) };
+    Ok(kind)
 }

@@ -13,13 +13,12 @@
 
 use crate::drive::note_gaps::note_gap_at;
 use crate::framework::{game_addr, rva};
-use crate::screens::harness::Left;
 
 const BEST_RVA: usize = rva(0x70FA14);
 const LEAD_RVA: usize = rva(0x70F484); // dword_70F484: car block 0's +0x98
 
 /// The Rust version.
-pub unsafe fn note_gap_ahead(car: u32) -> Left {
+pub unsafe fn note_gap_ahead(car: u32) -> u32 {
     unsafe {
         note_gap_at(
             car,

@@ -15,7 +15,7 @@
 //! with the game's records.
 
 use crate::errors::{FatalError, Refused};
-use crate::framework::{Regs, game_read, rva};
+use crate::framework::{game_read, rva};
 use crate::menu::car_description::{read, shown_description};
 use crate::menu::load_background::load_background;
 use crate::text::draw_text::GameCanvas;
@@ -57,17 +57,12 @@ pub unsafe fn load_car_background(
     }
 }
 
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let done = unsafe {
+/// In the game: the background through `menu::load_background` (its carry is never set).
+pub unsafe fn load_car_background_in_game() -> Result<(), Refused> {
+    unsafe {
         load_car_background(&mut |path, car| {
             load_background(path as *mut u8, car, &mut GameCanvas)?;
             Ok(false)
         })
-    };
-    match done {
-        Ok(()) => r.set_carry(false),
-        Err(e) => return Err(e),
     }
-    Ok(())
 }

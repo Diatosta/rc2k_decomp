@@ -3,7 +3,7 @@
 //! `DrawPrimitive`), and a quad over the view window.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 
 fn k(a: u32) -> u32 {
     unsafe { game_read(rva(a as usize)) }
@@ -55,82 +55,41 @@ pub const TEXTURED: Batch = Batch {
 };
 
 /// `race::flush_triangle_batch` (0x45FDCF) / `race::flush_texture_batch` (0x45FEFE): the
-/// first sets texture `dword_5D1D04` (part 1, `scene::set_texture`); the render states
-/// (part 2 each, eax the value, ebx the state); with triangles in the batch (its count also
-/// into its kept count) the second looks up its texture (`scene::look_up_texture`) and sets
-/// it (part 1) inside `pusha`; the draw (part 3: `sub_41ADF5`, edx the count, eax the word,
-/// ebx the vertices, ecx the indices), a failure (eax not 0) logged as "drawtri" (part 4,
-/// eax the text) and its code (part 5); the count and word 0. Gives the registers it leaves.
-pub unsafe fn flush_batch(
-    entry: &Regs,
-    b: &Batch,
-    textured: bool,
-    part: crate::race::frame::Part,
-) -> Result<Regs, Refused> {
+/// first sets texture `dword_5D1D04` (`scene::set_texture`); the render states
+/// (eax the value, ebx the state); with triangles in the batch (its count also into its
+/// kept count) the second looks up its texture (`scene::look_up_texture`) and sets it
+/// inside `pusha`; the draw (`sub_41ADF5`, the platform's, through the game: edx the
+/// count, eax the word, ebx the vertices, ecx the indices), a failure (eax not 0) logged as
+/// "drawtri" and its code (level 1); the count and word 0. Its one caller,
+/// `race::draw_race_scene`, reads no register it leaves.
+pub unsafe fn flush_batch(b: &Batch, textured: bool) -> Result<(), Refused> {
+    use crate::scene::{set_render_state::set_render_state, set_texture::set_texture};
     unsafe {
-        let mut r = *entry;
         if !textured {
-            r.eax = k(0x5D1D04);
-            part(1, &mut r)?;
+            set_texture(k(0x5D1D04));
         }
         for (value, state) in STATES {
-            r.eax = value;
-            r.ebx = state;
-            if state == 0x14 {
-                r.eax = b.blend;
-            }
-            part(2, &mut r)?;
+            set_render_state(if state == 0x14 { b.blend } else { value }, state);
         }
-        r.edx = k(b.count);
-        w(b.kept, r.edx);
-        if r.edx != 0 {
-            r.ecx = ga(b.indices);
-            r.ebx = ga(b.vertices);
-            r.eax = k(b.word);
-            let mut d = r;
+        let count = k(b.count);
+        w(b.kept, count);
+        if count != 0 {
             if textured {
-                // `pusha`; eax `dword_6EDF5C` (which the look-up does not read).
-                let mut t = r;
+                // Inside `pusha`: the look-up, then its texture set.
                 crate::scene::look_up_texture::look_up_texture();
-                t.eax = k(0x6240D4);
-                part(1, &mut t)?;
+                set_texture(k(0x6240D4));
             }
-            part(3, &mut d)?;
-            if d.eax != 0 {
-                let mut log = Regs {
-                    eax: ga(b.text),
-                    ..d
-                };
-                part(4, &mut log)?;
-                let mut log = d;
-                part(5, &mut log)?;
-            }
-            // The second's draw is inside `pusha` .. `popa`.
-            if !textured {
-                r = d;
+            let result =
+                crate::platform_3d::draw_indexed(ga(b.vertices), k(b.word), ga(b.indices), count);
+            if result != 0 {
+                crate::logfile::log_write::log_write(ga(b.text) as *const u8, false, 1);
+                crate::logfile::log_hex8::log_hex8(result, false, 1);
             }
         }
         w(b.count, 0);
         w(b.word, 0);
-        Ok(r)
+        Ok(())
     }
-}
-
-/// The batches' parts in the game: 1 `scene::set_texture`, 2 `scene::set_render_state`,
-/// 3 the device (`sub_41ADF5`), 4 / 5 the log's text and code (`sub_401427`, `sub_401622`).
-pub fn batch_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    match place {
-        1 => crate::scene::set_texture::set_texture(r.eax),
-        2 => {
-            let (v, s) = (r.eax, r.ebx);
-            crate::scene::set_render_state::set_render_state(v, s)
-        }
-        p => {
-            let at = [0x41ADF5usize, 0x401427, 0x401622][p as usize - 3];
-            crate::calls::call(rva(at), r);
-        }
-    }
-    Ok(())
 }
 
 /// `fild i; fadd/fsub one; fstp`.
@@ -179,10 +138,10 @@ fn int_over_two(i: u32, a: u32, b: u32) -> u32 {
 /// one pixel wider each way; its corners kept in `dword_623E10` .. `dword_623E24`) with
 /// texture place (0xF80000, 0x80000) / `flt_5C5E2C` / `flt_5C5D98` at every corner (kept in
 /// `dword_623DF0` / `dword_623E00`), colour 0xFF000000, `g_polygonVertexCount` 4; drawn with
-/// the glow's render states (part 1, `sub_44E44D`), texture `dword_5D1DE8` (part 2,
-/// `scene::set_texture`), the device's unclipped fan (part 3, `d3d::draw_fan_unclipped`),
-/// then the depth buffer on (part 4).
-pub unsafe fn draw_view_backdrop(r: &mut Regs) -> Result<(), Refused> {
+/// the glow's render states (`sub_44E44D`), texture `dword_5D1DE8` (`scene::set_texture`),
+/// the device's unclipped fan (`d3d::draw_fan_unclipped`), then the depth buffer on. Its one
+/// caller, `race::draw_mirror_view`, reads no register it leaves.
+pub unsafe fn draw_view_backdrop() {
     w(0x623DF0, 0xF8_0000);
     w(0x623E00, 0x8_0000);
     let left = k(0x623FB0);
@@ -190,8 +149,7 @@ pub unsafe fn draw_view_backdrop(r: &mut Regs) -> Result<(), Refused> {
     w(0x623E14, left.wrapping_add(k(0x62408C)));
     let top = k(0x623FB4);
     w(0x623E20, top);
-    r.eax = top.wrapping_add(k(0x624090));
-    w(0x623E24, r.eax);
+    w(0x623E24, top.wrapping_add(k(0x624090)));
     let v = |o: u32| 0x9605A0 + o;
     let x0 = int_and_one(k(0x623E10), false);
     w(v(0), x0);
@@ -212,25 +170,12 @@ pub unsafe fn draw_view_backdrop(r: &mut Regs) -> Result<(), Refused> {
     for n in 0..4 {
         w(v(0x1C + 0x20 * n), int_over_two(k(0x623E00), a, b));
     }
-    r.eax = 0xFF00_0000;
     for n in 0..4 {
-        w(v(0x10 + 0x20 * n), r.eax);
+        w(v(0x10 + 0x20 * n), 0xFF00_0000);
     }
     w(0x6240F8, 4);
-    crate::race::frame_flush::backdrop_part(1, r)?;
-    r.eax = k(0x5D1DE8);
-    crate::race::frame_flush::backdrop_part(2, r)?;
-    crate::race::frame_flush::backdrop_part(3, r)?;
-    crate::race::frame_flush::backdrop_part(4, r)
-}
-
-/// Its parts in the game.
-pub fn backdrop_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    match place {
-        1 => crate::scene::glow_render_states::glow_render_states(),
-        2 => crate::scene::set_texture::set_texture(r.eax),
-        3 => crate::calls::call(rva(0x41AD9C), r),
-        _ => crate::scene::depth_buffer_on::depth_buffer(true),
-    }
-    Ok(())
+    crate::scene::glow_render_states::glow_render_states();
+    crate::scene::set_texture::set_texture(k(0x5D1DE8));
+    crate::d3d::draw_fan_unclipped::draw_fan_unclipped();
+    crate::scene::depth_buffer_on::depth_buffer(true);
 }

@@ -36,7 +36,6 @@ use crate::input::di_harness::{
 use crate::input::types::{Controller, DiDevCaps, DiDeviceInstance};
 
 pub const NO_FORCE_RVA: usize = rva(0x4F68F4); // dword_4F68F4: force feedback turned off
-pub const KEEP_CASE_RVA: usize = rva(0x4E0144); // dword_4E0144
 
 /// Looks the joystick over and fills the entry: false at the first failure.
 fn look_over(instance: u32, entry: u32) -> bool {
@@ -97,8 +96,9 @@ fn look_over(instance: u32, entry: u32) -> bool {
     let name = name_prefix(count);
     let at_name = entry + field!(Controller, name);
     unsafe { std::ptr::copy(name.as_ptr(), at_name as *mut u8, name.len()) };
-    let kept = g(KEEP_CASE_RVA);
-    p(KEEP_CASE_RVA, 0);
+    use crate::strings::copy_printable::KEEP_CASE; // dword_4E0144
+    use std::sync::atomic::Ordering::Relaxed;
+    let kept = KEEP_CASE.swap(0, Relaxed);
     let to = at_name as usize + name.len();
     // room 0x19 is never refused
     let _ = unsafe {
@@ -108,7 +108,7 @@ fn look_over(instance: u32, entry: u32) -> bool {
             NAME_ROOM,
         )
     };
-    p(KEEP_CASE_RVA, kept);
+    KEEP_CASE.store(kept, Relaxed);
     let caps = |offset: u32| g(CAPS_RVA + offset as usize);
     let f = rc2k_core::input::joystick::found(
         caps(field!(DiDevCaps, flags)),

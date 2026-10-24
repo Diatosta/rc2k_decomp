@@ -14,14 +14,12 @@
 //! Self-test: the original and the Rust version on the game's variables (saved and put
 //! back): maps, places and ranges by lot.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::math::x87_run::{ext_div2, int_80};
 use crate::race::frame_draw::sample_noise;
-use crate::screens::harness::Left;
 use rc2k_core::physics::ground::{noise_level, rough_floor};
 
 fn g(x: usize) -> u32 {
@@ -32,33 +30,27 @@ fn p(x: usize, v: u32) {
     unsafe { game_write(rva(x), v) }
 }
 
-/// lo + (hi - lo) x sample >> 16, held to 0 ..= 0xFF; ebx the range, edx the product's
-/// high half.
-fn scaled(r: &mut Regs, lo: u32, hi: u32) -> u32 {
-    let (v, range, high) = noise_level(r.eax, lo, hi);
-    r.ebx = range;
-    r.edx = high;
-    v
+/// lo + (hi - lo) x sample >> 16, held to 0 ..= 0xFF.
+fn scaled(sample: u32, lo: u32, hi: u32) -> u32 {
+    noise_level(sample, lo, hi).0
+}
+
+/// The noise map `x`'s sample under the work car (what `race::sample_noise` leaves in eax).
+unsafe fn sample(x: usize) -> u32 {
+    unsafe { sample_noise(game_addr(rva(x)) as u32) }
 }
 
 /// The Rust version.
 // Converted: `rc2k_core::physics::ground::{noise_level, rough_floor}` (the share / 256
 // stays x87).
-pub unsafe fn surface_noise(entry: &Regs) -> Left {
-    let mut r = *entry;
-    let a = |x: usize| game_addr(rva(x)) as u32;
+pub unsafe fn surface_noise() {
     unsafe {
-        r.esi = a(0xA2AB34);
-        sample_noise(r.esi).apply(&mut r);
-        r.eax = scaled(&mut r, g(0x609344), g(0x609348));
-        p(0x71A8D8, r.eax);
-        p(0x71A8DC, r.eax);
-        r.esi = a(0xA2AB04);
-        sample_noise(r.esi).apply(&mut r);
-        r.eax = scaled(&mut r, g(0x60AD18), g(0x60AD1C));
-        p(0x71A8E0, r.eax);
-        let floor = rough_floor(r.eax, g(0x60AD10));
-        r.eax = floor;
+        let first = scaled(sample(0xA2AB34), g(0x609344), g(0x609348));
+        p(0x71A8D8, first);
+        p(0x71A8DC, first);
+        let second = scaled(sample(0xA2AB04), g(0x60AD18), g(0x60AD1C));
+        p(0x71A8E0, second);
+        let floor = rough_floor(second, g(0x60AD10));
         p(0x62400C, floor);
         p(
             0x71A258,
@@ -70,5 +62,4 @@ pub unsafe fn surface_noise(entry: &Regs) -> Left {
             p(0x71A8DC, 0);
         }
     }
-    crate::race::stage_prefs::left_of(&r)
 }

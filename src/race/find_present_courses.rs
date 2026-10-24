@@ -6,8 +6,8 @@
 //! `files\levels\levelNN\cdat00c.sq` (0x60B07A).
 //!
 //! In:  nothing
-//! Out: eax 0x30, edx 0x30, ebx 10 (`set_cdat_number`'s), ecx 100, esi `dword_623FB8`,
-//!      edi `dword_621518`; the rest kept; no flags read (a store follows)
+//! Out: nothing its callers read (conversion phase 3, 2026-10-24: `scene::set_up_lit_engine`
+//!      works on a copy of its registers; the code at 0x442BF3 is not reached in Rust)
 //!
 //! Callers: `scene::set_up_lit_engine`, and code at 0x442BF3 (not a function in IDA).
 //! Refuses what `files::read_whole_file` refuses (nothing written then).
@@ -19,12 +19,11 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::files::read_whole_file::{BYTES_READ_RVA, read_whole_file};
-use crate::framework::{EAX, EBX, ECX, EDI, EDX, ESI, Regs, game_addr, game_read, game_write, rva};
+use crate::files::read_whole_file::read_whole_file;
+use crate::files::state::BYTES_READ;
+use crate::framework::{game_addr, game_write, rva};
 use crate::race::course_data::set_cdat_number;
 use crate::race::level_init::set_course_number;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 const FLAGS_RVA: usize = rva(0x621518); // dword_621518, 100 flags
 const BUFFER_RVA: usize = rva(0x623FB8); // dword_623FB8
@@ -32,51 +31,26 @@ const BUFFER_RVA: usize = rva(0x623FB8); // dword_623FB8
 const PATHS_RVA: [usize; 2] = [rva(0x60B02B), rva(0x60B07A)];
 use rc2k_core::race::stage_objects::COURSES;
 
-unsafe fn steps(entry: &Regs) -> Result<Regs, Refused> {
+/// The Rust version (nothing written when it refuses).
+pub fn find_present_courses() -> Result<(), Refused> {
     // Converted: `rc2k_core::race::stage_objects::{COURSES, course_present, PROBE_BYTES}`.
     use rc2k_core::race::stage_objects::{PROBE_BYTES, course_present};
-    let mut g = *entry;
-    g.edi = game_addr(FLAGS_RVA) as u32;
     for n in 0..COURSES {
-        g.ecx = n;
-        g.eax = n;
         unsafe {
-            set_course_number(g.eax);
-            g.eax = 0;
-            g = set_cdat_number(&g);
+            set_course_number(n);
+            set_cdat_number(0);
             game_write(FLAGS_RVA + 4 * n as usize, 0u32);
             let present = course_present(PATHS_RVA.len() as u32, |file| {
-                game_write(BYTES_READ_RVA, 0u32);
-                g.esi = game_addr(BUFFER_RVA) as u32;
+                BYTES_READ.store(0, std::sync::atomic::Ordering::Relaxed);
+                let buffer = game_addr(BUFFER_RVA) as u32;
                 let path = game_addr(PATHS_RVA[file as usize]) as *const u8;
-                read_whole_file(path, g.esi as *mut u8, PROBE_BYTES, g.esi)?;
-                Ok::<u32, Refused>(game_read(BYTES_READ_RVA))
+                read_whole_file(path, buffer as *mut u8, PROBE_BYTES, buffer)?;
+                Ok::<u32, Refused>(BYTES_READ.load(std::sync::atomic::Ordering::Relaxed))
             })?;
             if present {
                 game_write(FLAGS_RVA + 4 * n as usize, 1u32);
             }
         }
     }
-    g.ecx = COURSES;
-    Ok(g)
-}
-
-/// The Rust version (nothing written when it refuses).
-pub fn find_present_courses(entry: &Regs) -> Result<Left, Refused> {
-    match unsafe { steps(entry) } {
-        Ok(g) => Ok(Left::nothing()
-            .with(EAX, g.eax)
-            .with(EBX, g.ebx)
-            .with(ECX, g.ecx)
-            .with(EDX, g.edx)
-            .with(ESI, g.esi)
-            .with(EDI, g.edi)),
-        Err(e) => Err(e),
-    }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &find_present_courses)
+    Ok(())
 }

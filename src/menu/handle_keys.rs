@@ -31,14 +31,13 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{EAX, EDI, EDX, Regs, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 use crate::input::key_to_char::has_layout;
 use crate::input::take_key::take_key;
 use crate::menu::handle_yes_no::{ASKING_RVA, LEAVING_RVA, handle_yes_no};
-use crate::menu::navigation::{Direction, Outside};
+use crate::menu::navigation::{Direction, move_highlight};
 use crate::menu::update_blink::LAST_KEY_TIME_RVA;
 use crate::menu::update_frame_clock::CLOCK_RVA;
-use crate::screens::harness::Left;
 use crate::service::state::{EDIT_MODE_RVA, TIME_BUDGET_RVA};
 
 // ---- game data ----
@@ -54,11 +53,27 @@ const MENU_RVA: usize = rva(0x731BBB); // dword_731BBB
 
 // ---- Rust version ----
 
-/// `entry` are the registers at entry. Returns what is left in the registers.
-pub unsafe fn handle_keys(entry: &Regs, out: &mut dyn Outside) -> Result<Left, Refused> {
+/// What `handle_keys` leaves for its caller (the original's eax, edx and edi).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Keys {
+    /// 1 nothing to do, 2 Escape, 3 Enter.
+    pub result: u32,
+    /// The frame clock, after Enter and after any key not named first (edx).
+    pub clock: Option<u32>,
+    /// `dword_731BBB`, after one of the four moves (edi).
+    pub menu: Option<u32>,
+}
+
+/// `eax` is the caller's eax, whose bits 8 .. 15 are read on Enter (the screen loops: the
+/// elapsed time).
+pub unsafe fn handle_keys(eax: u32) -> Result<Keys, Refused> {
     // Converted: `rc2k_core::menu::keys` (`keys_off`, `action`, `entered_with_4`).
     use rc2k_core::menu::keys::{self, Action, Move};
-    let nothing = Left::nothing().with(EAX, keys::NOTHING);
+    let nothing = Keys {
+        result: keys::NOTHING,
+        clock: None,
+        menu: None,
+    };
     unsafe {
         if keys::keys_off(game_read(EDIT_MODE_RVA), || game_read(KEYS_OFF_RVA)) {
             return Ok(nothing);
@@ -72,7 +87,7 @@ pub unsafe fn handle_keys(entry: &Regs, out: &mut dyn Outside) -> Result<Left, R
         if key == 0 {
             return Ok(nothing);
         }
-        let eax = entry.eax & !0xFF | key as u32;
+        let eax = eax & !0xFF | key as u32;
         handle_yes_no(eax)?;
         let action = keys::action(key, || game_read(SWITCHES_RVA));
         match action {
@@ -81,35 +96,37 @@ pub unsafe fn handle_keys(entry: &Regs, out: &mut dyn Outside) -> Result<Left, R
                 game_write(BACK_RVA, 1u32);
                 game_write(ESCAPED_RVA, 1u32);
                 game_write(LEAVING_RVA, 1u32);
-                return Ok(Left::nothing().with(EAX, keys::ESCAPED));
+                return Ok(Keys {
+                    result: keys::ESCAPED,
+                    ..nothing
+                });
             }
             _ => {}
         }
         let clock: u32 = game_read(CLOCK_RVA);
-        let regs = Regs {
-            eax,
-            edx: clock,
-            ..*entry
-        };
         if action == Action::Enter {
             game_write(SOUND_RVA, keys::ENTER_SOUND);
             game_write(LAST_KEY_TIME_RVA, clock);
             game_write(ENTER_WITH_4_RVA, keys::entered_with_4(eax));
-            out.click(&Regs {
-                eax: keys::ENTER_CLICK,
-                ..regs
+            crate::sound::play_menu_sound::play_menu_sound_in_game(keys::ENTER_CLICK);
+            return Ok(Keys {
+                result: keys::ENTERED,
+                clock: Some(clock),
+                menu: None,
             });
-            return Ok(Left::nothing().with(EAX, keys::ENTERED).with(EDX, clock));
         }
         game_write(LAST_KEY_TIME_RVA, clock);
-        let nothing = nothing.with(EDX, clock);
+        let nothing = Keys {
+            clock: Some(clock),
+            ..nothing
+        };
         let direction = match action {
             Action::Move(Move::Up) => Direction::Up,
             Action::Move(Move::Down) => Direction::Down,
             Action::Move(Move::Right) => Direction::Right,
             Action::Move(Move::Left) => Direction::Left,
             Action::Screenshot => {
-                out.screenshot(&regs);
+                crate::gfx::take_screenshot::take_screenshot()?;
                 return Ok(nothing);
             }
             Action::Toggle => {
@@ -126,14 +143,10 @@ pub unsafe fn handle_keys(entry: &Regs, out: &mut dyn Outside) -> Result<Left, R
             _ => return Ok(nothing),
         };
         let menu: u32 = game_read(MENU_RVA);
-        out.move_highlight(direction, &Regs { edi: menu, ..regs })?;
-        Ok(nothing.with(EDI, menu))
+        move_highlight(direction)?;
+        Ok(Keys {
+            menu: Some(menu),
+            ..nothing
+        })
     }
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    crate::menu::navigation::outside_entry(r, &|r: &Regs, out: &mut dyn Outside| unsafe {
-        handle_keys(r, out)
-    })
 }

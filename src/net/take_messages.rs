@@ -18,134 +18,112 @@
 //! - others dropped.
 //!
 //! In:  nothing
-//! Out: every register kept (`pusha` .. `popa`); the flags of the end's compare (zero set,
-//!      carry and sign clear)
+//! Out: nothing (every register kept, `pusha` .. `popa`; the flags of the end's compare are
+//!      read by no caller: the receiving thread goes on to its own stores and compares)
 //! Caller: `net::receive_thread` (with a network session, when its event is signalled).
-//! The registers go on from call to call as in the original. Its calls through `part` (in
-//! the game the Rust versions). Refuses (before anything) more than 16 players (the
-//! blocks' room). A loop target in its first five bytes: private copy (the whole function,
-//! its nine calls relocated), manual patch. Shadow mode runs the original alone (messages
-//! are taken). Self-test: a copy whose variables are the test's and whose calls go to
-//! noting stand-ins (the receive one giving a script of messages), against the Rust
-//! version: no object, no message, each kind of message, on the host and not.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Refuses (before anything) more than 16 players (the blocks' room).
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::Regs;
-use crate::net::lobby::set_sign;
-use crate::net::message_vars::{MessageVars, get, get8, set, set8};
-use crate::net::{
-    CHAT_LINE, LOCK, Part, RECEIVE, RECEIVED_LEN, SEND, STORE, SYSTEM_MESSAGE, TICK, UNLOCK,
-    net_entry,
+use crate::net::chat_line_locked::chat_line_locked;
+use crate::net::dplay_send::dplay_send;
+use crate::net::lobby::{
+    ALL_RACED, DPLAY, OWN, PLAYERS, RACE_OVER, RECEIVED, SYNC, SYNCED, a, g, gb, p, pb,
 };
+use crate::net::receive_message::receive_message;
+use crate::net::store_received::store_received;
+use crate::net::system_message::system_message;
+use crate::net::{RECEIVED_LEN, lock_received::lock_received, unlock_received::unlock_received};
 use rc2k_core::net::messages::{self, Kind};
 
 /// The players the blocks have room for.
 pub const MOST_PLAYERS: u32 = 16;
+/// dword_52A91C: the messages taken, counted.
+const TAKEN: usize = 0x52A91C;
+/// word_52A916: the race-sync answer sent (0x41 or 0x51, the round).
+const ANSWER: usize = 0x52A916;
 
-/// The Rust version on the variables at `v`.
-pub fn take_messages_with(r: &mut Regs, v: &MessageVars, part: Part) -> Result<(), Refused> {
-    if get(v.players) > MOST_PLAYERS {
+fn get(at: u32) -> u32 {
+    unsafe { (at as *const u32).read_volatile() }
+}
+
+fn get8(at: u32) -> u8 {
+    unsafe { (at as *const u8).read_volatile() }
+}
+
+/// The Rust version.
+pub fn take_messages() -> Result<(), Refused> {
+    if g(PLAYERS) > MOST_PLAYERS {
         return Err(BadInput("take_messages: more than 16 players").into());
     }
-    let mut c = *r;
-    while get(v.dplay) != 0 {
-        part(RECEIVE, &mut c)?;
-        if c.ecx == 0 {
+    while g(DPLAY) != 0 {
+        let m = receive_message();
+        if m.size == 0 {
             break;
         }
-        set(v.taken, get(v.taken).wrapping_add(1));
-        if c.eax == 0 {
-            part(SYSTEM_MESSAGE, &mut c)?;
+        p(TAKEN, g(TAKEN).wrapping_add(1));
+        if m.from == 0 {
+            system_message(m.bytes)?;
             continue;
         }
-        c.edi = v.received;
-        c.edx = 0;
+        // The sender among the players (the first compared even with none).
+        let mut block = a(RECEIVED);
+        let mut player = 0;
         let found = loop {
-            if c.eax == get(c.edi + 0x20) {
+            if m.from == get(block + 0x20) {
                 break true;
             }
-            c.edi = c.edi.wrapping_add(RECEIVED_LEN);
-            c.edx += 1;
-            if c.edx >= get(v.players) {
+            block = block.wrapping_add(RECEIVED_LEN);
+            player += 1;
+            if player >= g(PLAYERS) {
                 break false;
             }
         };
         if !found {
             continue;
         }
-        c.eax = get8(c.ebx) as u32;
+        let first = get8(m.bytes);
         // Converted: `rc2k_core::net::messages` (`Kind`, `this_round`, `answers_call`,
         // `notes_answer`, `answer`, `race_fits`).
-        let own_state = get8(v.own);
-        let round = |c: &mut Regs| {
-            messages::this_round(c.ecx, || {
-                c.eax = get8(c.ebx + 1) as u32;
-                (c.eax as u8, get8(v.sync))
-            })
-        };
-        match Kind::of(c.eax as u8) {
+        let own_state = gb(OWN);
+        let round = || messages::this_round(m.size, || (get8(m.bytes + 1), gb(SYNC)));
+        match Kind::of(first) {
             Kind::Chat => {
-                c.eax = c.edx;
-                set8(c.ecx.wrapping_add(c.ebx), 0);
-                c.ebx = c.ebx.wrapping_add(1);
-                part(CHAT_LINE, &mut c)?;
+                unsafe { (m.size.wrapping_add(m.bytes) as *mut u8).write_volatile(0) };
+                chat_line_locked(player, m.bytes.wrapping_add(1) as *const u8)?;
             }
             Kind::Call { reply, ready } => {
-                let same = round(&mut c);
-                if !messages::answers_call(same, own_state) {
+                if !messages::answers_call(round(), own_state) {
                     continue;
                 }
-                c.eax = get(c.edi + 0x20);
-                c.ebx = v.answer;
-                c.ecx = (c.ecx & 0xFFFF_0000) | messages::answer(reply, get8(v.sync)) as u32;
-                unsafe { (c.ebx as *mut u16).write_unaligned(c.ecx as u16) };
-                c.ecx = 2;
-                c.edx = 0;
-                part(SEND, &mut c)?;
-                set(if ready { v.all_raced } else { v.race_over }, 1);
+                let answer = messages::answer(reply, gb(SYNC));
+                unsafe { (a(ANSWER) as *mut u16).write_unaligned(answer) };
+                dplay_send(get(block + 0x20), 0, a(ANSWER), 2);
+                p(if ready { ALL_RACED } else { RACE_OVER }, 1);
             }
             Kind::Answer => {
-                let same = round(&mut c);
-                if !messages::notes_answer(same, own_state) {
+                if !messages::notes_answer(round(), own_state) {
                     continue;
                 }
-                set8(v.synced.wrapping_add(c.edx), 1);
+                pb(SYNCED + player as usize, 1);
             }
             Kind::Race => {
-                c.ebx = c.ebx.wrapping_add(1);
-                c.ecx = c.ecx.wrapping_sub(1);
-                if !messages::race_fits(c.ecx) {
+                let length = m.size.wrapping_sub(1);
+                if !messages::race_fits(length) {
                     continue;
                 }
-                let first = c.eax;
-                part(TICK, &mut c)?;
-                c.edx = c.eax;
-                c.eax = first;
-                part(LOCK, &mut c)?;
-                part(STORE, &mut c)?;
-                part(UNLOCK, &mut c)?;
+                let time = crate::system::tick_count::tick_count();
+                lock_received();
+                store_received(
+                    first,
+                    block,
+                    time,
+                    m.bytes.wrapping_add(1) as *const u8,
+                    length,
+                )?;
+                unlock_received();
             }
             Kind::Other => {}
         }
     }
-    // popa; the flags of `cmp g_dplay, 0` or `test ecx, ecx` on 0.
-    r.set_carry(false);
-    r.set_zero(true);
-    set_sign(r, 0);
     Ok(())
-}
-
-/// The Rust version.
-pub fn take_messages(r: &mut Regs, part: Part) -> Result<(), Refused> {
-    take_messages_with(r, &MessageVars::game(), part)
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    net_entry(r, take_messages)
 }

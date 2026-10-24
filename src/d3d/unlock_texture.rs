@@ -9,39 +9,29 @@
 //!
 //! Callers: those of `d3d::lock_texture`. The unlock is the surface's own method. Refuses
 //! a texture past the pool's 0x140, before anything.
-//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
+//! Hook removed 2026-10-22 (direct calls): Rust callers run `unlock_texture` (by address:
 //! `routes.rs`); the registers above are the original's, for reference.
 
 use crate::d3d::texture_lock::*;
 use crate::errors::{BadInput, Refused};
-use crate::framework::Regs;
+use crate::framework::Flags;
 
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn unlock_texture(entry: &Regs) -> Result<Regs, Refused> {
+/// The Rust version (see the header): texture `texture` unlocked; the flags it leaves
+/// (every register is kept).
+pub unsafe fn unlock_texture(texture: u32) -> Result<Flags, Refused> {
     use rc2k_core::d3d::textures::{UNLOCK_FAILED, Unlock, unlock};
     // Converted: `rc2k_core::d3d::textures::unlock`.
-    let r = record(entry.eax);
-    let surface = if entry.eax < 0x140 { get(r + 0x14) } else { 0 };
-    let mut g = *entry;
-    let (carry, zero) =
-        match unlock(entry.eax, surface, || get(r + 0x60)).map_err(BadInput::from)? {
-            Unlock::Flags(carry, zero) => (carry, zero),
-            Unlock::Unlock => {
-                if unsafe { method(surface, 0x80, &[0]) } != 0 {
-                    return Err(fatal(UNLOCK_FAILED).into());
-                }
-                put(r + 0x60, 0);
-                (false, true)
+    let r = record(texture);
+    let surface = if texture < 0x140 { get(r + 0x14) } else { 0 };
+    let (carry, zero) = match unlock(texture, surface, || get(r + 0x60)).map_err(BadInput::from)? {
+        Unlock::Flags(carry, zero) => (carry, zero),
+        Unlock::Unlock => {
+            if unsafe { method(surface, 0x80, &[0]) } != 0 {
+                return Err(fatal(UNLOCK_FAILED).into());
             }
-        };
-    g.set_carry(carry);
-    g.set_zero(zero);
-    Ok(g)
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { unlock_texture(r) }?;
-    *r = Regs { esp: r.esp, ..left };
-    Ok(())
+            put(r + 0x60, 0);
+            (false, true)
+        }
+    };
+    Ok(Flags { carry, zero })
 }

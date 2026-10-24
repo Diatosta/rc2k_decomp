@@ -14,30 +14,18 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, ZERO_FLAG};
-use crate::net::lobby::{CHAT_INPUT, PLAYER, Part, a, g, gb, lobby_entry, pb};
+use crate::net::lobby::{CHAT_INPUT, PLAYER, a, g, gb, pb};
 
-const EDIT_KEY: u32 = 0x416E43; // net::edit_key
-const SEND_CHAT: u32 = 0x41819B; // net::send_chat_regs
-
-/// The Rust version: the registers it leaves.
-pub fn chat_key(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    let mut r = *entry;
-    part(EDIT_KEY, &mut r)?;
-    if r.eflags & ZERO_FLAG == 0 {
-        return Ok(r);
+/// The Rust version: the key `key` for the chat message being typed; once it ends the
+/// editing, a message typed is sent and the input cleared. The registers the original
+/// leaves (eax the player, ebx the input) are read by no caller (`lobby_loop`).
+pub fn chat_key(key: u8) -> Result<(), Refused> {
+    if !crate::net::edit_key::edit_key(key)? {
+        return Ok(());
     }
-    r.eax = g(PLAYER);
-    r.ebx = a(CHAT_INPUT);
     if gb(CHAT_INPUT) != 0 {
-        part(SEND_CHAT, &mut r)?;
+        crate::net::send_chat::send_chat(g(PLAYER), a(CHAT_INPUT) as *const u8)?;
         pb(CHAT_INPUT, 0);
     }
-    Ok(r)
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    lobby_entry(r, chat_key)
+    Ok(())
 }

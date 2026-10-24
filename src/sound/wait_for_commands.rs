@@ -10,7 +10,7 @@
 //! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
 //! `routes.rs`); the registers above are the original's, for reference.
 
-use crate::framework::{Regs, game_read, rva};
+use crate::framework::{game_read, rva};
 use crate::sound::queue::{END_OF_TURN, Queue, pending, send_command};
 
 // ---- game data ----
@@ -40,7 +40,7 @@ impl Parts for Game {
     }
 
     fn pump_messages(&mut self) {
-        crate::calls::call(rva(0x410535), &mut Regs::default());
+        crate::platform::pump_messages_now();
     }
 
     fn quitting(&mut self) -> bool {
@@ -48,8 +48,7 @@ impl Parts for Game {
     }
 }
 
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(_: &mut Regs) -> Result<(), crate::errors::Refused> {
+/// With the game's parts: what `start` and the route call.
+pub fn wait_in_game() {
     wait_for_commands(&mut Game([0; 7]));
-    Ok(())
 }

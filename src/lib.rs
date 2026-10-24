@@ -24,6 +24,7 @@ mod marks;
 mod math;
 mod memory;
 mod menu;
+mod moved;
 mod net;
 mod physics;
 mod platform;

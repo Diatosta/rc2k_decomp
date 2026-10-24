@@ -16,11 +16,8 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::menu::standings::*;
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 const CURRENT_RVA: usize = rva(0x75598C); // dword_75598C
 
@@ -42,7 +39,7 @@ fn current_record() -> Result<u32, BadInput> {
     ))
 }
 /// The Rust version (see the header): the registers it leaves.
-pub unsafe fn keep_record_best(entry: &Regs) -> Result<Regs, Refused> {
+pub unsafe fn keep_record_best() -> Result<(), Refused> {
     let players = counted_players()?;
     if players.iter().any(|&p| get(p + 0x18) == 0) {
         return Err(BadInput("a player without a name").into());
@@ -65,15 +62,5 @@ pub unsafe fn keep_record_best(entry: &Regs) -> Result<Regs, Refused> {
         };
         bests::take_record(&mut r, 0, &bests::RECORD_HOLDER, &holder);
     }
-    Ok(*entry)
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(left_of(&unsafe { keep_record_best(r) }?))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
+    Ok(())
 }

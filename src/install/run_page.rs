@@ -26,199 +26,154 @@
 //! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
+//! are the original's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::Regs;
 use crate::install::installer::{
-    CHOICE, CHOICE_BEFORE, CLOCK, COPY_PICTURE, FRAME_CLOCK, KEY_CLOCK, LIST_ANSWER, LIST_LEAVE,
-    LOCK, MOVE_CLOCK, Part, QUITTING, RUN_FRAME, SHOW, UNLOCK, ZF, at, g, gb, p, pb, rb, rd, wd,
+    CHOICE, CHOICE_BEFORE, CLOCK, FRAME_CLOCK, KEY_CLOCK, LIST_ANSWER, LIST_LEAVE, MOVE_CLOCK,
+    QUITTING, copy_picture, g, gb, key_action, list_clear_marks, list_item_unusable, list_step,
+    list_take_key, lock, p, page_action, pb, rb, rd, run_frame, show, unlock, wd,
 };
-use crate::race::viewer::regs_entry;
 
-const CLEAR_MARKS: usize = 0x414AC9; // menu::list_clear_marks
-const MARK_PAGE: usize = 0x414B53; // install::mark_page
-const UNUSABLE: usize = 0x414C1B; // menu::list_item_unusable (carry)
-const SHOW_BACKDROP: usize = 0x41525D; // install::show_backdrop
-const LAY_OUT: usize = 0x414C7E; // install::lay_out_pieces
-const MEASURE: usize = 0x414DF5; // install::measure_pieces
-const PLACE: usize = 0x414ED1; // install::place_pieces
-const DRAW: usize = 0x415058; // install::draw_pieces
-const TAKE_KEY: usize = 0x41469A; // menu::list_take_key
-const PAGE_KEY: usize = 0x4146E4; // install::page_key (zero)
-const STEP: usize = 0x414A55; // menu::list_step (zero)
+const NO_CHOICE: BadInput = BadInput("a page whose every item cannot be chosen");
 
-fn zero(r: &Regs) -> bool {
-    r.eflags & ZF != 0
-}
-
-/// A list's action (+8) told where the page is (ebx), eax kept.
-fn tell(r: &mut Regs, list: u32, ebx: u32, part: Part) -> Result<(), Refused> {
+/// The list's action (+8) told where the page is.
+fn tell(list: u32, state: u32) -> Result<(), Refused> {
     let action = rd(list + 8);
     if action != 0 {
-        r.ebx = ebx;
-        let eax = r.eax;
-        part(action, r)?;
-        r.eax = eax;
+        page_action(action, state, list)?;
     }
     Ok(())
 }
 
-pub fn run_page(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    let mut r = *entry;
-    let list = entry.edi;
-    let call = |r: &mut Regs, x: usize, part: Part| part(at(x), r);
+/// The page of `list` run until it is left; its answer.
+pub fn run_page(list: u32) -> Result<u32, Refused> {
+    use crate::install as i;
     pb(LIST_ANSWER, 1);
     pb(LIST_LEAVE, 0);
-    r.eax = g(CLOCK);
-    p(MOVE_CLOCK, r.eax);
-    p(KEY_CLOCK, r.eax);
-    r.eax = rd(list + 4);
-    p(CHOICE, r.eax);
+    p(MOVE_CLOCK, g(CLOCK));
+    p(KEY_CLOCK, g(CLOCK));
+    p(CHOICE, rd(list + 4));
     let count = rb(list + 1) as u32;
     let round = 2 * count as usize + 2;
     if count != 0 {
-        call(&mut r, CLEAR_MARKS, part)?;
+        list_clear_marks(list);
     }
-    tell(&mut r, list, 0, part)?;
+    tell(list, 0)?;
     'page: {
         if rb(list) & 0xC0 != 0 {
             break 'page;
         }
-        call(&mut r, MARK_PAGE, part)?;
-        r.eax = g(CHOICE);
-        r.ecx = count;
+        i::mark_page::mark_page(list);
         let mut steps = 0;
-        loop {
-            call(&mut r, UNUSABLE, part)?;
-            if !r.carry() {
-                break;
-            }
+        while list_item_unusable(list) {
             steps += 1;
             if steps > round {
-                return Err(BadInput("a page whose every item cannot be chosen").into());
+                return Err(NO_CHOICE.into());
             }
             p(CHOICE, g(CHOICE).wrapping_add(1));
-            if r.ecx == g(CHOICE) {
+            if count == g(CHOICE) {
                 p(CHOICE, 0);
             }
         }
-        r.set_carry(true);
-        call(&mut r, SHOW_BACKDROP, part)?;
+        i::show_backdrop::show_backdrop()?;
         loop {
-            for x in [LAY_OUT, MEASURE, PLACE] {
-                call(&mut r, x, part)?;
+            i::lay_out_pieces::lay_out_pieces(list)?;
+            i::measure_pieces::measure_pieces()?;
+            i::place_pieces::place_pieces()?;
+            run_frame(None)?;
+            if lock() {
+                copy_picture()?;
+                i::draw_pieces::draw_pieces()?;
+                unlock();
+                show();
             }
-            let mut f = Regs { eax: 0, ..r };
-            call(&mut f, RUN_FRAME, part)?;
-            call(&mut r, LOCK, part)?;
-            if !r.carry() {
-                for x in [COPY_PICTURE, DRAW, UNLOCK, SHOW] {
-                    call(&mut r, x, part)?;
-                }
-            }
-            r.eax = g(CLOCK);
-            p(FRAME_CLOCK, r.eax);
-            r.eax = g(CHOICE);
-            p(CHOICE_BEFORE, r.eax);
-            call(&mut r, TAKE_KEY, part)?;
+            p(FRAME_CLOCK, g(CLOCK));
+            p(CHOICE_BEFORE, g(CHOICE));
+            // eax: the key, as the callees leave it (`install::edit_key` changes it)
+            let mut key = list_take_key()? as u32;
             if g(QUITTING) == 1 {
                 break 'page;
             }
-            let key = r.eax as u8;
-            if key != 0 && key & 0x80 == 0 {
+            if key as u8 != 0 && key & 0x80 == 0 {
                 let mut again = 0;
                 loop {
-                    r.esi = list + 0x18 + 0x10 * g(CHOICE);
-                    call(&mut r, PAGE_KEY, part)?;
-                    let mut took = zero(&r);
+                    let item = list + 0x18 + 0x10 * g(CHOICE);
+                    let (left, mut took) = i::page_key::page_key(key, item, list)?;
+                    key = left;
                     if !took {
                         let keys = rd(list + 0x14);
                         if keys != 0 {
-                            part(keys, &mut r)?;
-                            took = zero(&r);
+                            took = key_action(keys, key, list)?;
                         }
                     }
-                    let mut moved = true;
-                    if !took {
-                        r.ebx = rd(list + 0x10);
-                        call(&mut r, STEP, part)?;
-                        moved = zero(&r);
-                    }
+                    let moved = took || list_step(key, rd(list + 0x10), list);
                     if moved {
-                        r.ebx = g(FRAME_CLOCK);
-                        p(MOVE_CLOCK, r.ebx);
+                        p(MOVE_CLOCK, g(FRAME_CLOCK));
                     }
-                    call(&mut r, CLEAR_MARKS, part)?;
-                    tell(&mut r, list, 1, part)?;
-                    call(&mut r, MARK_PAGE, part)?;
-                    call(&mut r, UNUSABLE, part)?;
-                    if !r.carry() {
+                    list_clear_marks(list);
+                    tell(list, 1)?;
+                    i::mark_page::mark_page(list);
+                    if !list_item_unusable(list) {
                         break;
                     }
-                    r.ebx = g(CHOICE);
-                    let arrow = matches!(r.eax as u8, 0x66 | 0x6B | 0x68 | 0x69);
-                    if arrow && r.ebx != g(CHOICE_BEFORE) {
+                    let arrow = matches!(key as u8, 0x66 | 0x6B | 0x68 | 0x69);
+                    if arrow && g(CHOICE) != g(CHOICE_BEFORE) {
                         again += 1;
                         if again > round {
-                            return Err(BadInput("a page whose every item cannot be chosen").into());
+                            return Err(NO_CHOICE.into());
                         }
                         continue;
                     }
-                    r.ecx = count;
                     let mut steps = 0;
                     loop {
-                        let k = r.eax as u8;
+                        let k = key as u8;
                         if k == 0x66 || k == 0x68 {
                             let c = g(CHOICE).wrapping_sub(1);
                             p(CHOICE, c);
-                            if c as i32 >= 0 {
-                            } else {
-                                p(CHOICE, r.ecx.wrapping_sub(1));
+                            if (c as i32) < 0 {
+                                p(CHOICE, count.wrapping_sub(1));
                             }
                         } else {
                             let c = g(CHOICE).wrapping_add(1);
                             p(CHOICE, c);
-                            if r.ecx == c {
+                            if count == c {
                                 p(CHOICE, 0);
                             }
                         }
-                        call(&mut r, UNUSABLE, part)?;
-                        if !r.carry() {
+                        if !list_item_unusable(list) {
                             break;
                         }
                         steps += 1;
                         if steps > round {
-                            return Err(BadInput("a page whose every item cannot be chosen").into());
+                            return Err(NO_CHOICE.into());
                         }
                     }
                     break;
                 }
             } else {
-                call(&mut r, CLEAR_MARKS, part)?;
-                tell(&mut r, list, 1, part)?;
-                call(&mut r, MARK_PAGE, part)?;
-                call(&mut r, UNUSABLE, part)?;
-                if r.carry() {
-                    r.ebx = g(CHOICE);
-                    let arrow = matches!(r.eax as u8, 0x66 | 0x6B | 0x68 | 0x69);
-                    if arrow && r.ebx != g(CHOICE_BEFORE) {
+                list_clear_marks(list);
+                tell(list, 1)?;
+                i::mark_page::mark_page(list);
+                if list_item_unusable(list) {
+                    let arrow = matches!(key as u8, 0x66 | 0x6B | 0x68 | 0x69);
+                    if arrow && g(CHOICE) != g(CHOICE_BEFORE) {
                         return Err(BadInput("an arrow that is no key").into());
                     }
-                    r.ecx = count;
                     let mut steps = 0;
                     loop {
                         let c = g(CHOICE).wrapping_add(1);
                         p(CHOICE, c);
-                        if r.ecx == c {
+                        if count == c {
                             p(CHOICE, 0);
                         }
-                        call(&mut r, UNUSABLE, part)?;
-                        if !r.carry() {
+                        if !list_item_unusable(list) {
                             break;
                         }
                         steps += 1;
                         if steps > round {
-                            return Err(BadInput("a page whose every item cannot be chosen").into());
+                            return Err(NO_CHOICE.into());
                         }
                     }
                 }
@@ -227,27 +182,12 @@ pub fn run_page(entry: &Regs, part: Part) -> Result<Regs, Refused> {
                 break;
             }
         }
-        r.set_carry(false);
-        call(&mut r, SHOW_BACKDROP, part)?;
-        tell(&mut r, list, u32::MAX, part)?;
+        i::show_backdrop::show_backdrop()?;
+        tell(list, u32::MAX)?;
     }
     if count != 0 {
-        call(&mut r, CLEAR_MARKS, part)?;
+        list_clear_marks(list);
     }
     wd(list + 4, g(CHOICE));
-    r.eax = gb(LIST_ANSWER) as u32;
-    Ok(Regs {
-        esi: entry.esi,
-        edi: entry.edi,
-        ebp: entry.ebp,
-        ..r
-    })
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    regs_entry(r, &|r| {
-        run_page(r, &mut crate::install::installer::game_part)
-    })
+    Ok(gb(LIST_ANSWER) as u32)
 }

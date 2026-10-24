@@ -13,22 +13,18 @@
 //! stage (everything written saved and put back): the nine cells about the car, where it
 //! is and moved onto object faces.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::physics::find_course_record::find_course_record;
 
-/// The steps, not guarded.
+/// The steps for the cell of (`x`, `z`) (eax, ecx), not guarded.
 // Converted: `rc2k_core::physics::ground_search::cell_key`.
-pub fn steps(r: &mut Regs) -> Result<(), Refused> {
-    (r.eax, r.ecx) = rc2k_core::physics::ground_search::cell_key(r.eax, r.ecx);
-    let found = unsafe { find_course_record(r) }?;
-    found.apply(r);
-    if found.carry.unwrap_or(false) {
+pub fn steps(x: u32, z: u32) -> Result<(), Refused> {
+    let (key, _) = rc2k_core::physics::ground_search::cell_key(x, z);
+    let Some(record) = (unsafe { find_course_record(key) })? else {
         return Ok(());
-    }
-    crate::physics::record_face_contacts::steps(r)
+    };
+    crate::physics::record_face_contacts::steps(record)
 }

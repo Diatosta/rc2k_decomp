@@ -22,9 +22,8 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{EDI, ESI, game_addr, rva};
-use crate::screens::harness::Left;
-use crate::service::state::{current_player, repair_flag, repair_flag_addr};
+use crate::framework::{game_addr, rva};
+use crate::service::state::{current_player, repair_flag};
 use crate::text::draw_text::Canvas;
 
 // ---- game data ----
@@ -61,18 +60,20 @@ pub unsafe fn inspection_status(player: u32) -> (i32, Option<u32>) {
     (condition, last.map(|n| PARTS[n]))
 }
 
-/// `icon_palette` is what the caller has in ebx. Refuses a missing player.
+/// `icon_palette` is what the caller has in ebx. Refuses a missing player. The carry of
+/// the text (too wide): what the one caller, `screens::draw_service_area`, reads of what
+/// the original leaves.
 pub unsafe fn draw_inspection_status(
     icon_palette: u32,
     canvas: &mut dyn Canvas,
-) -> Result<Left, Refused> {
+) -> Result<bool, Refused> {
     unsafe {
         let Some(player) = current_player() else {
             return Err(
                 BadInput("no current player object: the original reads through null").into(),
             );
         };
-        let (condition, last_damaged) = inspection_status(player);
+        let (condition, _) = inspection_status(player);
         // Converted: `rc2k_core::screens::inspection::inspection_status`.
         let out = rc2k_core::screens::inspection::inspection_status(
             &mut crate::screens::game_screen::GameScreen::<
@@ -82,10 +83,6 @@ pub unsafe fn draw_inspection_status(
             condition,
             icon_palette,
         )?;
-        let mut left = Left::of_drawn(out, 0x28C).with(EDI, player);
-        if let Some(item) = last_damaged {
-            left = left.with(ESI, repair_flag_addr(item));
-        }
-        Ok(left)
+        Ok(out.too_wide)
     }
 }

@@ -15,7 +15,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_read, rva};
+use crate::framework::{game_read, rva};
 use crate::gfx::components_to_pixel::components_to_pixel;
 use crate::gfx::pixel_format::PixelFormat;
 use crate::gfx::surface::{BASE_RVA, BITS_PER_PIXEL_RVA, PITCH_RVA};
@@ -37,28 +37,28 @@ pub unsafe fn place(x: u32, y: u32) -> (u32, u32) {
     }
 }
 
-/// The Rust version (see the header).
-pub unsafe fn put_surface_pixel(entry: &Regs) -> Result<Regs, Refused> {
-    let mut g = *entry;
+/// The Rust version (see the header): `components` made a pixel and put at (`x`, `y`);
+/// the pixel (the original's eax).
+pub unsafe fn put_surface_pixel(components: u32, x: u32, y: u32) -> Result<u32, Refused> {
     unsafe {
         let format: u32 = game_read(FORMAT_POINTER_RVA);
-        if g.eax != 0 && format == 0 {
+        if components != 0 && format == 0 {
             return Err(BadInput("no surface format").into());
         }
         if game_read::<u32>(BASE_RVA) == 0 {
             return Err(BadInput("no surface").into());
         }
-        g.eax = if g.eax == 0 {
+        let pixel = if components == 0 {
             0
         } else {
-            components_to_pixel(&(format as *const PixelFormat).read_unaligned(), g.eax)
+            components_to_pixel(&(format as *const PixelFormat).read_unaligned(), components)
         };
-        let (at, wide) = place(g.ecx, g.edx);
+        let (at, wide) = place(x, y);
         if wide == 2 {
-            (at as *mut u16).write_unaligned(g.eax as u16);
+            (at as *mut u16).write_unaligned(pixel as u16);
         } else {
-            (at as *mut u32).write_unaligned(g.eax);
+            (at as *mut u32).write_unaligned(pixel);
         }
+        Ok(pixel)
     }
-    Ok(g)
 }

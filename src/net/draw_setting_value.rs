@@ -16,51 +16,42 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
-use crate::net::lobby::{
-    APPEND_STRING, DRAW_TEXT, EDITED, FONT, Part, STR_APPEND, TEXT, a, g, lobby_entry,
-};
+use crate::net::lobby::{Cursor, EDITED, FONT, TEXT, a, g};
+use crate::text::draw_text::GameCanvas;
+use crate::text::font::Font;
 use rc2k_core::net::screens::{self, Value};
 
-fn nul(r: &mut Regs) {
-    unsafe { (r.ebx as *mut u8).write(0) };
-    r.ebx = r.ebx.wrapping_add(1);
-}
-
-/// The Rust version: the registers it leaves.
-pub fn draw_setting_value(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    let mut r = *entry;
+/// The Rust version: the text at `text` for item `item` at `y` (x 0x190), edited (with the
+/// caret), nothing (the "nothing" string) or as it is; returns the next y (y + 0x1E, the
+/// original's ebp). The registers it leaves are read by no caller (`settings_frame`,
+/// `draw_number_value`).
+pub fn draw_setting_value(text: u32, item: u32, y: u32) -> Result<u32, Refused> {
     // Converted: `rc2k_core::net::screens` (`text_value`, `Value`, `CARET`, `NOTHING`).
-    let text = r.eax;
-    match screens::text_value(r.esi == g(EDITED), || unsafe { (text as *const u8).read() }) {
-        Value::Edited => {
-            r.ebx = a(TEXT);
-            part(STR_APPEND, &mut r)?;
-            r.eax = screens::CARET;
-            part(APPEND_STRING, &mut r)?;
-            nul(&mut r);
-            r.eax = a(TEXT);
-        }
-        Value::Nothing => {
-            r.eax = screens::NOTHING;
-            r.ebx = a(TEXT);
-            part(APPEND_STRING, &mut r)?;
-            nul(&mut r);
-            r.eax = a(TEXT);
-        }
-        Value::AsIs => {}
-    }
-    r.ebx = r.eax;
-    r.eax = a(FONT);
-    r.ecx = 0x190;
-    r.edx = r.ebp;
-    r.ebp = r.ebp.wrapping_add(0x1E);
-    part(DRAW_TEXT, &mut r)?;
-    Ok(r)
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    lobby_entry(r, draw_setting_value)
+    let shown =
+        match screens::text_value(item == g(EDITED), || unsafe { (text as *const u8).read() }) {
+            Value::Edited => {
+                let mut cursor = Cursor::text();
+                cursor.string(text);
+                cursor.string_id(screens::CARET);
+                cursor.nul();
+                a(TEXT)
+            }
+            Value::Nothing => {
+                let mut cursor = Cursor::text();
+                cursor.string_id(screens::NOTHING);
+                cursor.nul();
+                a(TEXT)
+            }
+            Value::AsIs => text,
+        };
+    unsafe {
+        crate::text::draw_text::draw_text_at(
+            a(FONT) as *mut Font,
+            shown as *const u8,
+            0x190,
+            y as i32,
+            &mut GameCanvas,
+        )
+    }?;
+    Ok(y.wrapping_add(0x1E))
 }

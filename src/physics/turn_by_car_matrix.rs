@@ -12,9 +12,8 @@
 //! through a frame; its call to `scene::rotate_point` goes to that hook), against the
 //! Rust core on points and matrices by lot, under three precisions.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::framework::game_addr;
 use crate::scene::matrix3::{extended, rounded};
@@ -36,16 +35,6 @@ pub unsafe fn turn_point_by(m: u32, v: u32) {
         p.write_unaligned(rounded(out[0]));
         p.add(1).write_unaligned(rounded(out[1]));
         p.add(2).write_unaligned(rounded(out[2]));
-    }
-}
-
-/// The converted `turn_point_by` (`rc2k_core::math::vector`, plain floats): the hooks'.
-pub unsafe fn turn_point_by_plain(m: u32, v: u32) {
-    use crate::scene::vector3::{read_floats, write_floats};
-    unsafe {
-        let p: [f32; 3] = read_floats(v);
-        let out = rc2k_core::math::vector::rotate_point(&read_floats(m), p.map(f64::from));
-        write_floats(v, &out.map(|x| x as f32));
     }
 }
 

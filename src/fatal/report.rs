@@ -31,13 +31,13 @@
 //! stand-ins and whose two ways out land in the test.
 
 use crate::errors::BadInput;
-use crate::files::read_file::LAST_FILE_PATH_RVA;
-use crate::framework::{RawHook, Regs, game_addr, game_ptr, game_read, game_write, log, rva};
+use crate::fatal::state::{CAPTION, CODE, EXTRA, MESSAGE, REPORTED, TEMPLATE, TEXT, W32};
+use crate::framework::{RawHook, Regs, game_addr, log, rva};
 use crate::menu::text_entry::log_l1;
 use crate::threading::find_thread_slot::find_thread_slot;
 use crate::threading::request_quit::request_quit;
 use std::ffi::{CStr, c_char};
-use std::sync::atomic::{AtomicU8, AtomicU32, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
 
@@ -77,15 +77,7 @@ static ZERO: AtomicU32 = AtomicU32::new(0);
 
 // ---- game data ----
 
-pub const CODE_RVA: usize = rva(0x4F52A4); // g_fatalCode
-pub const MESSAGE_RVA: usize = rva(0x4F52A8); // g_fatalMessage
-const REPORTED_RVA: usize = rva(0x4F67BC); // g_fatalReported: 1 once a report was written
-const EXTRA_RVA: usize = rva(0x4F67BD); // `cursor` in IDA: a string added to every report
-const W32_RVA: usize = rva(0x4E0598); // dword_4E0598
-const TEMPLATE_RVA: usize = rva(0x4F673A); // aEaxXxxxxxxxEbx
-const TEXT_RVA: usize = rva(0x9526F8); // Text
-const LOG_ENABLED_RVA: usize = rva(0x4E0094); // g_logEnabled
-const GURU_RVA: usize = rva(0x4F6704); // aGuruMeditation + 1: "Guru Meditation"
+// The variables: `crate::fatal::state`. "Guru Meditation" is the caption from +7.
 // threading::request_quit: asks the game to quit, once
 const EXIT_PATH_RVA: usize = rva(0x4010EE); // loc_4010EE in `start`
 
@@ -100,14 +92,15 @@ unsafe fn cstr<'a>(ptr: *const u8) -> &'a [u8] {
 /// The report for what the game's variables hold now.
 unsafe fn text_from_game(context: &Context) -> Vec<u8> {
     unsafe {
-        let message: u32 = game_read(MESSAGE_RVA);
-        let last_file: u32 = game_read(LAST_FILE_PATH_RVA);
+        let message: u32 = MESSAGE.load(Ordering::Relaxed);
+        let last_file: u32 =
+            crate::files::state::LAST_FILE_PATH.load(std::sync::atomic::Ordering::Relaxed);
         report_text(
-            game_read(CODE_RVA),
+            CODE.load(Ordering::Relaxed),
             (message != 0).then(|| cstr(message as *const u8)),
-            cstr(game_ptr(EXTRA_RVA)),
+            cstr(EXTRA.ptr().cast()),
             (last_file != 0).then(|| cstr(last_file as *const u8)),
-            game_read(W32_RVA),
+            W32.load(Ordering::Relaxed),
             context,
         )
     }
@@ -125,31 +118,31 @@ pub struct Outside<'a> {
 
 pub unsafe fn report(context: &Context, outside: &mut Outside) -> Result<Leave, BadInput> {
     unsafe {
-        let code: u32 = game_read(CODE_RVA);
+        let code: u32 = CODE.load(Ordering::Relaxed);
         let text = text_from_game(context);
         // Converted: `rc2k_core::fatal` (`report_text`, `fits`, `leave`).
         if !rc2k_core::fatal::fits(text.len()) {
             return Err(BadInput("the report does not fit its buffer"));
         }
-        let reported = AtomicU8::from_ptr(game_ptr(REPORTED_RVA));
-        if reported.swap(1, Ordering::SeqCst) != 1 {
+        if REPORTED.swap(1, Ordering::SeqCst) != 1 {
             if code & TEXT_ONLY == 0 {
                 // The original fills in its template in place, so it keeps the values.
                 let dump = register_dump(context);
-                std::ptr::copy_nonoverlapping(dump.as_ptr(), game_ptr(TEMPLATE_RVA), dump.len());
+                std::ptr::copy_nonoverlapping(dump.as_ptr(), TEMPLATE.ptr().cast(), dump.len());
             }
-            let buffer: *mut u8 = game_ptr(TEXT_RVA);
+            let buffer: *mut u8 = TEXT.ptr().cast();
             std::ptr::copy_nonoverlapping(text.as_ptr(), buffer, text.len());
             buffer.add(text.len()).write(0);
-            game_write(LOG_ENABLED_RVA, 1u32);
-            (outside.log)(game_ptr(GURU_RVA));
+            crate::logfile::write_line::set_enabled(1); // g_logEnabled
+            (outside.log)(CAPTION.ptr().cast::<u8>().add(7));
             (outside.log)(buffer);
         }
         Ok(rc2k_core::fatal::leave(
             code,
             outside.quit,
             outside.thread_slot,
-            &|slot| (slot as *const u32).read_unaligned(),
+            // The slot holds its routine as an IDA address.
+            &|slot| game_addr(rva((slot as *const u32).read_unaligned() as usize)) as u32,
         ))
     }
 }

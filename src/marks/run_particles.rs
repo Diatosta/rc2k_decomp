@@ -20,7 +20,7 @@
 //! `marks::add_drift_particle`.
 //!
 //! In:  nothing (`g_marksSettings`)
-//! Out: the registers as the path leaves them
+//! Out: nothing (its caller reads no register after it)
 //!
 //! Caller: `marks::run_frame` (0x4D165E). Its calls through `part` (1 `set_quad_uvs`, 2
 //! `burst_particles`, 3 `trail_particles`, 4 `draw_particle` with three values, 5
@@ -40,7 +40,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::marks::blocks::{RING_FREE_RVA, RING_USED_RVA};
 use crate::marks::setup::{SEED_RVA, SETTINGS_RVA};
 use crate::math::x87;
@@ -84,9 +84,6 @@ const PUFF_Y: [usize; 3] = [rva(0x93C630), rva(0x93C634), rva(0x93C638)];
 const PUFF_M: [usize; 2] = [rva(0x93C63C), rva(0x93C640)];
 const PUFF_RVA: usize = rva(0x93A600); // flt_93A600 .. flt_93A614
 const BIGGER: u32 = 0x386A0;
-
-/// A call by place (see the header), with the x87 values it takes (st(0) first).
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs, &[[u8; 10]]) -> Result<(), Refused>;
 
 unsafe fn get(a: u32) -> u32 {
     unsafe { (a as *const u32).read_unaligned() }
@@ -147,8 +144,9 @@ unsafe fn refusal() -> Option<&'static str> {
     }
 }
 
-/// The step of the kind at e (see the header): its eax (1: the entry dies).
-unsafe fn step(g: &mut Regs, e: u32, part: &mut Part) -> Result<(), Refused> {
+/// The step of the kind at e (see the header): whether the entry dies.
+unsafe fn step(e: u32) -> Result<bool, Refused> {
+    use crate::marks::{burst_particles, draw_particle, trail_particles};
     unsafe {
         let t: i32 = game_read(TICKS_RVA);
         let move_place = |with_up: bool| {
@@ -168,11 +166,10 @@ unsafe fn step(g: &mut Regs, e: u32, part: &mut Part) -> Result<(), Refused> {
             let v = x87::int_times_int_plus_int(game_read(k), t, get(e + 0x3C) as i32);
             put(e + 0x3C, v as u32);
         };
-        let keep_last = |g: &mut Regs| {
-            [g.eax, g.ebx, g.ecx] = [get(e + 0xC), get(e + 0x10), get(e + 0x14)];
-            put(e + 0x18, g.eax);
-            put(e + 0x1C, g.ebx);
-            put(e + 0x20, g.ecx);
+        let keep_last = || {
+            put(e + 0x18, get(e + 0xC));
+            put(e + 0x1C, get(e + 0x10));
+            put(e + 0x20, get(e + 0x14));
         };
         let place = || {
             [
@@ -192,15 +189,13 @@ unsafe fn step(g: &mut Regs, e: u32, part: &mut Part) -> Result<(), Refused> {
                 let s = x87::compare_status(game_read(DUST[2]), get(e + 0x2C));
                 game_write(STATUS_RVA, s as u32);
                 if s != 0x100 {
-                    part(2, g, &[])?;
-                    g.eax = 1;
-                    return Ok(());
+                    burst_particles::burst_particles(e)?;
+                    return Ok(true);
                 }
                 if get(e + 0x2C) & 0x8000_0000 == 0 {
-                    part(3, g, &[])?;
+                    trail_particles::trail_particles(e)?;
                 }
-                keep_last(g);
-                g.eax = 0;
+                keep_last();
             }
             4 => {
                 move_place(false);
@@ -211,12 +206,11 @@ unsafe fn step(g: &mut Regs, e: u32, part: &mut Part) -> Result<(), Refused> {
                 gain_int(TRAIL[1]);
                 let (i, _) = colour_index(e, get(e + 0x44));
                 game_write(INDEX_RVA, i);
-                g.eax = get(e + 0x3C) & 0xFF00_0000;
-                g.ecx = (game_read::<u32>(TRAIL_COLOURS_RVA + 4 * i as usize) & 0xFF_FFFF) | g.eax;
-                g.edx = get(e + 0x38);
-                part(4, g, &place())?;
-                keep_last(g);
-                g.eax = 0;
+                let alpha = get(e + 0x3C) & 0xFF00_0000;
+                let colour =
+                    (game_read::<u32>(TRAIL_COLOURS_RVA + 4 * i as usize) & 0xFF_FFFF) | alpha;
+                draw_particle::draw_particle(place(), colour, get(e + 0x38));
+                keep_last();
             }
             kind => {
                 let k = BURST[(kind == 9) as usize];
@@ -240,69 +234,59 @@ unsafe fn step(g: &mut Regs, e: u32, part: &mut Part) -> Result<(), Refused> {
                 gain_int(k[4]);
                 let (i, _) = colour_index(e, get(e + 0x44));
                 game_write(INDEX_RVA, i);
-                g.ebx = get(e + 0x48);
-                g.eax = game_read::<u32>(
-                    BURST_COLOURS_RVA + (g.ebx as usize).wrapping_add(4 * i as usize),
-                );
-                g.ecx = get(e + 0x3C) & 0xFF00_0000;
-                g.eax &= 0xFF_FFFF;
-                if g.eax == 0 {
-                    g.eax = 1;
-                    return Ok(());
+                let tint = game_read::<u32>(
+                    BURST_COLOURS_RVA + (get(e + 0x48) as usize).wrapping_add(4 * i as usize),
+                ) & 0xFF_FFFF;
+                if tint == 0 {
+                    return Ok(true);
                 }
-                g.ecx |= g.eax;
-                g.edx = get(e + 0x38);
+                let colour = (get(e + 0x3C) & 0xFF00_0000) | tint;
+                let mut size = get(e + 0x38);
                 if kind == 9 {
                     let s = game_read::<u32>(SEED_RVA)
                         .wrapping_mul(0x9D)
                         .wrapping_add(0x47);
                     game_write(SEED_RVA, s);
-                    g.ebx = s.rotate_right(16) & 0x7F;
-                    if g.ebx == 0 {
-                        g.edx = g.edx.wrapping_add(BIGGER);
+                    if s.rotate_right(16) & 0x7F == 0 {
+                        size = size.wrapping_add(BIGGER);
                     }
                 }
-                part(4, g, &place())?;
-                g.eax = 0;
+                draw_particle::draw_particle(place(), colour, size);
             }
         }
     }
-    Ok(())
+    Ok(false)
 }
 
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn run_particles(entry: &Regs, mut part: Part) -> Result<Regs, Refused> {
+/// The Rust version (see the header).
+pub unsafe fn run_particles() -> Result<(), Refused> {
     if let Some(why) = unsafe { refusal() } {
         return Err(BadInput(why).into());
     }
-    let mut g = *entry;
     unsafe {
         let settings: u32 = game_read(SETTINGS_RVA);
-        g.esi = settings;
         if get(settings + 4) == 0 {
-            return Ok(g);
+            return Ok(());
         }
-        part(1, &mut g, &[])?;
-        g.esi = game_read(RING_FREE_RVA);
+        crate::marks::set_quad_uvs::set_quad_uvs();
+        let mut e: u32 = game_read(RING_FREE_RVA);
         let mut counter = game_read::<u32>(RING_USED_RVA) as i32;
         loop {
             counter = counter.wrapping_sub(1);
             if counter < 0 {
                 break;
             }
-            let e = g.esi;
             let next = get(e + 4);
-            g.eax = game_read(TICKS_RVA);
+            let t: u32 = game_read(TICKS_RVA);
             let life = get(e + 0x44);
-            put(e + 0x44, life.wrapping_sub(g.eax));
-            let mut dies = life < g.eax;
+            put(e + 0x44, life.wrapping_sub(t));
+            let mut dies = life < t;
             if !dies {
                 let s = x87::compare_status(get(e + 0x10), get(e + 0x24));
                 game_write(STATUS_RVA, s as u32);
                 dies = s == 0x100;
                 if !dies {
-                    step(&mut g, e, &mut part)?;
-                    dies = g.eax == 1;
+                    dies = step(e)?;
                 }
             }
             if dies {
@@ -311,25 +295,23 @@ pub unsafe fn run_particles(entry: &Regs, mut part: Part) -> Result<Regs, Refuse
                     game_read::<u32>(RING_USED_RVA).wrapping_sub(1),
                 );
                 if e == game_read::<u32>(RING_FREE_RVA) {
-                    g.eax = get(e + 4);
-                    game_write(RING_FREE_RVA, g.eax);
+                    game_write(RING_FREE_RVA, get(e + 4));
                 } else {
-                    g.ebx = get(e);
-                    g.ecx = get(e + 4);
-                    put(g.ebx + 4, g.ecx);
-                    put(g.ecx, g.ebx);
-                    g.ebx = game_read(RING_FREE_RVA);
-                    g.ecx = get(g.ebx);
-                    put(g.ebx, e);
-                    put(g.ecx + 4, e);
-                    put(e, g.ecx);
-                    put(e + 4, g.ebx);
+                    let (before, after) = (get(e), get(e + 4));
+                    put(before + 4, after);
+                    put(after, before);
+                    let free: u32 = game_read(RING_FREE_RVA);
+                    let last = get(free);
+                    put(free, e);
+                    put(last + 4, e);
+                    put(e, last);
+                    put(e + 4, free);
                 }
             }
-            g.esi = next;
+            e = next;
         }
         if game_read::<u32>(STEPS_RVA) & 7 != 0 {
-            return Ok(g);
+            return Ok(());
         }
         game_write(PUFF_FLAG_RVA, 1u32);
         let seed = || {
@@ -340,8 +322,8 @@ pub unsafe fn run_particles(entry: &Regs, mut part: Part) -> Result<Regs, Refuse
             s & 0xFFFF
         };
         let r = seed();
-        g.ebp = game_addr(VIEW_RVA) as u32;
-        let view = |o: u32| get(g.ebp + o);
+        let at = game_addr(VIEW_RVA) as u32;
+        let view = |o: u32| get(at + o);
         let uv_k: u32 = game_read(UV_K_RVA);
         let wave = |k: [usize; 4], add: u32, cosine: bool| {
             x87::int_times3_wave_plus(
@@ -355,9 +337,9 @@ pub unsafe fn run_particles(entry: &Regs, mut part: Part) -> Result<Regs, Refuse
         let x = wave(PUFF_X, view(0x30), false);
         let y = x87::loaded(view(0x34));
         let z = wave(PUFF_Z, view(0x38), true);
-        g.eax = seed();
+        let lift = seed();
         let up = x87::int_times_plus_times_plus(
-            g.eax as i32,
+            lift as i32,
             uv_k,
             game_read(PUFF_Y[0]),
             game_read(PUFF_Y[1]),
@@ -368,39 +350,8 @@ pub unsafe fn run_particles(entry: &Regs, mut part: Part) -> Result<Regs, Refuse
         for (n, v) in [x, y, z, mx, up, mz].into_iter().enumerate() {
             game_write(PUFF_RVA + 4 * n, v);
         }
-        g.eax = 0;
         let six = [mz, up, mx, z, y, x].map(extended);
-        part(5, &mut g, &six)?;
-    }
-    Ok(g)
-}
-
-/// In the game: the calls' Rust versions.
-pub fn game_part(place: u32, r: &mut Regs, v: &[[u8; 10]]) -> Result<(), Refused> {
-    use crate::marks::{
-        add_drift_particle, burst_particles, draw_particle, set_quad_uvs, trail_particles,
-    };
-    unsafe {
-        let left = match place {
-            1 => set_quad_uvs::set_quad_uvs(r),
-            2 => burst_particles::burst_particles(r)?,
-            3 => trail_particles::trail_particles(r)?,
-            4 => {
-                draw_particle::draw_particle(r, [v[0], v[1], v[2]], &mut draw_particle::game_part)?
-            }
-            _ => {
-                add_drift_particle::add_drift_particle(
-                    r.eax,
-                    [v[0], v[1], v[2], v[3], v[4], v[5]],
-                )?;
-                return Ok(());
-            }
-        };
-        *r = Regs {
-            esp: r.esp,
-            eflags: r.eflags,
-            ..left
-        };
+        crate::marks::add_drift_particle::add_drift_particle(0, six)?;
     }
     Ok(())
 }

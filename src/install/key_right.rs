@@ -9,19 +9,15 @@
 //! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
+//! are the original's.
+
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::install::key_up::item_key;
-use crate::race::viewer::regs_entry;
 use rc2k_core::install::items::ItemKey;
 
-pub fn key_right(entry: &Regs) -> Result<Regs, Refused> {
+/// Whether the key was taken (the original's zero).
+pub fn key_right(item: u32) -> Result<bool, Refused> {
     // Converted: `rc2k_core::install::items::ItemKey::helper`.
-    item_key(entry, ItemKey::Right)
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    regs_entry(r, &key_right)
+    item_key(item, ItemKey::Right, 0)
 }

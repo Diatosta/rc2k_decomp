@@ -10,7 +10,7 @@
 //! +0x34.
 //!
 //! In:  esi the particle
-//! Out: edi the particle; the rest kept (each entry's work inside `pusha` .. `popa`)
+//! Out: nothing (no caller reads a register it leaves but esi, which it keeps)
 //!
 //! Caller: the ring's update (code at 0x4D033F, kind 0 particles moving up). Its first
 //! five bytes end inside a jump: private copy (its one call relocated), manual patch.
@@ -22,7 +22,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 use crate::marks::blocks::{RING_FREE_RVA, RING_USED_RVA};
 use crate::marks::jitter_point::jitter_point;
 use crate::marks::setup::SEED_RVA;
@@ -71,20 +71,17 @@ unsafe fn entries_taken() -> Vec<u32> {
     }
 }
 
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn trail_particles(entry: &Regs) -> Result<Regs, Refused> {
-    let mut g = *entry;
+/// The Rust version (see the header): `p` the particle it trails (esi).
+pub unsafe fn trail_particles(p: u32) -> Result<(), Refused> {
     unsafe {
         if game_read::<u32>(RING_USED_RVA) != FULL {
-            if g.esi == 0 {
+            if p == 0 {
                 return Err(BadInput("a null particle").into());
             }
             if game_read::<u32>(RING_FREE_RVA) == 0 || entries_taken().contains(&0) {
                 return Err(BadInput("a null particle ring entry").into());
             }
         }
-        g.edi = g.esi;
-        let p = g.edi;
         for _ in 0..COUNT {
             let used: u32 = game_read(RING_USED_RVA);
             if used == FULL {
@@ -137,5 +134,5 @@ pub unsafe fn trail_particles(entry: &Regs) -> Result<Regs, Refused> {
             put(0x24, x87::loaded(game_read(VIEW_RVA + 0x34)));
         }
     }
-    Ok(g)
+    Ok(())
 }

@@ -16,9 +16,8 @@
 //! the pixels are copied as they are, whatever the surface depth.
 
 use crate::errors::FatalError;
-use crate::framework::{Regs, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 use crate::gfx::surface::{Clip, Surface, clip, surface};
-use std::cell::RefCell;
 use std::ptr::copy_nonoverlapping;
 
 // ---- game data ----
@@ -181,8 +180,7 @@ pub unsafe fn blit_glyph(
 }
 
 /// Draws glyph `glyph` of `table` on the game's surface with the game's clip rectangle, and
-/// updates the blitter's work globals: what a call of the original does. Inside a swallowing
-/// `record_calls` it only reports the call.
+/// updates the blitter's work globals: what a call of the original does.
 pub unsafe fn blit_glyph_on_surface(
     glyph: u32,
     table: *const u8,
@@ -190,18 +188,6 @@ pub unsafe fn blit_glyph_on_surface(
     y: i32,
     palette: *const u32,
 ) -> Result<Exit, FatalError> {
-    // Rust callers do not pass through the hook, so they report to the recording here. Without
-    // this a swallowing self-test would really draw whenever a hooked caller runs its Rust
-    // version (shadow off).
-    let swallowed = note_call(BlitCall::new(glyph, x, y, palette as u32, table as u32));
-    if swallowed {
-        return Ok(Exit {
-            eax: 0,
-            ebx: 0,
-            ecx: 0,
-            edx: 0,
-        });
-    }
     let surface = surface();
     let record = unsafe { glyph_record(&surface, table, glyph) }?;
     let mut scratch = read_scratch();
@@ -221,11 +207,7 @@ pub unsafe fn blit_glyph_on_surface(
     Ok(exit)
 }
 
-// ---- call recorder ----
-//
-// Callers of blit_glyph (draw_text and others) are checked by comparing the calls the
-// original makes with the calls the Rust version makes. The hook is where every call of the
-// original passes, so it can list them.
+// ---- a call, as the canvases pass it on ----
 
 /// One call of `blit_glyph`, as its caller made it.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -251,67 +233,4 @@ impl BlitCall {
             clip_right: clip().right,
         }
     }
-}
-
-struct Recorder {
-    calls: Vec<BlitCall>,
-    swallow: bool,
-}
-
-thread_local! {
-    static RECORDER: RefCell<Option<Recorder>> = const { RefCell::new(None) };
-}
-
-/// Tells this thread's recording, if there is one, about a call. True if the call is to be
-/// swallowed: the caller must then draw nothing.
-fn note_call(call: BlitCall) -> bool {
-    RECORDER.with(|rec| {
-        rec.borrow_mut().as_mut().is_some_and(|rec| {
-            rec.calls.push(call);
-            rec.swallow
-        })
-    })
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let surface = surface();
-    let (glyph, table) = (r.eax, r.esi as *const u8);
-
-    let swallowed = note_call(BlitCall::new(
-        glyph,
-        r.ecx as i32,
-        r.edx as i32,
-        r.ebx,
-        r.esi,
-    ));
-    if swallowed {
-        return Ok(());
-    }
-
-    let record = match unsafe { glyph_record(&surface, table, glyph) } {
-        Ok(value) => value,
-        Err(e) => {
-            return Err(e.into());
-        }
-    };
-    let (x, y, palette) = (r.ecx as i32, r.edx as i32, r.ebx as *const u32);
-    let clip = clip();
-    let mut scratch = read_scratch();
-
-    let (exit, _) = unsafe {
-        blit_glyph(
-            record,
-            x,
-            y,
-            palette,
-            &surface,
-            &clip,
-            &mut scratch,
-            &mut |addr, bytes| copy_nonoverlapping(bytes.as_ptr(), addr as *mut u8, bytes.len()),
-        )
-    };
-    write_scratch(&scratch);
-    (r.eax, r.ebx, r.ecx, r.edx) = (exit.eax, exit.ebx, exit.ecx, exit.edx);
-    Ok(())
 }

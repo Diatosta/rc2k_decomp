@@ -41,7 +41,6 @@ use crate::text::draw_text::Canvas;
 
 const PAGE_RVA: usize = rva(0x755998); // dword_755998
 // dword_755990
-pub const NOTICE_KIND_RVA: usize = rva(0x4E07A0); // g_noticeKind
 // dword_7559EC
 const PAGES: u32 = 4;
 
@@ -70,7 +69,7 @@ pub unsafe fn draw_car_page(
     unsafe {
         let before = read(record);
         let mut d = before;
-        let notice: u8 = game_read(NOTICE_KIND_RVA);
+        let notice = crate::strings::load_language::notice_kind(); // g_noticeKind
         let carry = rc2k_core::screens::car_pages::page(
             &mut GameScreen::<Font, Work>::new(canvas),
             page,

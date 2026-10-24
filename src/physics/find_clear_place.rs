@@ -26,84 +26,69 @@
 //! the Rust version on the stage (everything written saved and put back), the car where
 //! it is and moved onto object faces (so tries fail and the search goes on).
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::physics::flow::{a, g, p};
-use crate::race::stage_prefs::left_of;
 use crate::scene::matrix3::{extended, rounded};
-use crate::screens::harness::Left;
 use rc2k_core::physics::clear_place;
 
 // g_logEnabled
 const PORKY: usize = 0x4DBAFB; // aPorky
 
 /// One try's calls (0x43BE4D .. 0x43BE61).
-fn try_place(r: &mut Regs) -> Result<(), Refused> {
-    unsafe { crate::physics::probe_ground::probe_ground(r) }?;
+fn try_place() -> Result<(), Refused> {
+    unsafe { crate::physics::probe_ground::probe_ground() }?;
     crate::physics::crossed_edge::check()?;
-    crate::physics::crossed_edge::steps(r)?;
+    crate::physics::crossed_edge::steps()?;
     crate::physics::wall_contacts::check()?;
-    crate::physics::wall_contacts::steps(r)?;
-    unsafe { crate::physics::car_collisions::car_collisions(r) }?.apply(r);
-    crate::physics::face_contacts_around::steps(r)
+    crate::physics::wall_contacts::steps()?;
+    unsafe { crate::physics::car_collisions::car_collisions() }?;
+    crate::physics::face_contacts_around::face_contacts_around()
 }
 
 /// The steps, not guarded.
-// Converted: `rc2k_core::physics::clear_place` (the tries' contacts are the hooks').
-pub fn steps(r: &mut Regs) -> Result<(), Refused> {
+// Converted: `rc2k_core::physics::clear_place`.
+pub fn steps() -> Result<(), Refused> {
     p(0x614C28, clear_place::TRY_MARK);
     let factor = extended(g(0x613FDC));
     unsafe { crate::physics::scale_vector::scale_vector(a(0x71A170), factor) };
     p(0x62400C, rounded(factor));
     unsafe { crate::physics::restore_saved_car::restore_saved_car() }?;
-    unsafe { crate::physics::lowest_body_point::lowest_body_point(r) }?;
-    r.eax = g(0x6D3068);
-    p(0x614118, r.eax);
+    unsafe { crate::physics::lowest_body_point::lowest_body_point() }?;
+    p(0x614118, g(0x6D3068));
     let found = clear_place::tries(clear_place::first_try(g(0x719FE0)), |n| {
-        r.ebp = n;
         p(0x614738, 0);
         let m = clear_place::try_move(n);
-        r.ebx = m.entry;
-        r.ecx = m.shift;
         for (table, place) in [(0x614014, 0x71A10C), (0x614054, 0x71A114)] {
-            (r.eax, r.edx) = clear_place::move_part(m.step, g(table + 4 * r.ebx as usize));
-            p(place, g(place).wrapping_add(r.eax));
+            let (part, _) = clear_place::move_part(m.step, g(table + 4 * m.entry as usize));
+            p(place, g(place).wrapping_add(part));
         }
-        r.eax = m.step;
-        try_place(r)?;
-        r.ebp = n;
+        try_place()?;
         Ok::<_, Refused>(g(0x614738) == 0)
     })?;
-    if found.is_none() {
-        r.ebp = clear_place::TRIES_END;
-        *r = unsafe { crate::physics::reset_car::reset_car(r) }?;
-        return Ok(());
-    }
-    unsafe { crate::physics::lowest_body_point::lowest_body_point(r) }?;
+    let Some(n) = found else {
+        return unsafe { crate::physics::reset_car::reset_car() };
+    };
+    unsafe { crate::physics::lowest_body_point::lowest_body_point() }?;
     let depth = g(0x6D3068);
     if let Some(height) = clear_place::lifted(g(0x71A110), depth) {
-        r.eax = depth;
         p(0x71A110, height);
     }
     unsafe {
         crate::logfile::log_write::log_write(a(PORKY) as *const u8, false, 1);
-        crate::logfile::log_int::log_int(r.ebp as i32, false, 1);
+        crate::logfile::log_int::log_int(n as i32, false, 1);
         crate::logfile::log_hex8::log_hex8(g(0x614118), false, 1);
         crate::logfile::log_hex8::log_hex8(g(0x6D3068), true, 1);
     }
     p(0x61473C, g(0x61473C).wrapping_add(1));
-    unsafe { crate::physics::limit_motion::limit_motion() }.apply(r);
+    unsafe { crate::physics::limit_motion::limit_motion() };
     Ok(())
 }
 
 /// The Rust version.
-pub unsafe fn find_clear_place(entry: &Regs) -> Result<Left, Refused> {
+pub unsafe fn find_clear_place() -> Result<(), Refused> {
     crate::physics::wall_contacts::check()?;
-    let mut r = *entry;
-    steps(&mut r)?;
-    Ok(left_of(&r))
+    steps()
 }

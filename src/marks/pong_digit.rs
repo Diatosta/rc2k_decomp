@@ -3,7 +3,7 @@
 //! the pattern), then `dword_7687D4` on 0x40.
 //!
 //! In:  eax the digit
-//! Out: all kept (`pusha` .. `popa`)
+//! Out: nothing (all kept: `pusha` .. `popa`)
 //!
 //! Caller: `marks::pong_score` (six times). The cells through `part` (1), in the game
 //! their Rust version. Refuses a digit past 9 (the patterns' end), before anything.
@@ -15,30 +15,21 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, game_read, game_write};
+use crate::framework::{game_addr, game_read, game_write};
 use crate::marks::pong;
 
-/// The Rust version (see the header): the registers it leaves.
+/// The Rust version (see the header): `digit` (eax).
 // Converted: `rc2k_core::marks::pong::{pattern, cells}`
-pub unsafe fn pong_digit(entry: &Regs) -> Result<Regs, Refused> {
+pub unsafe fn pong_digit(digit: u32) -> Result<(), Refused> {
     use rc2k_core::marks::pong as core;
-    let mut r = *entry;
-    r.eax = game_addr(pong::PATTERNS_RVA) as u32 + core::pattern(entry.eax)?;
+    let mut pattern = game_addr(pong::PATTERNS_RVA) as u32 + core::pattern(digit)?;
     for (col, row) in core::cells() {
-        r.ebx = col;
-        r.ecx = row;
-        crate::marks::pong_digit::game_part(1, &mut r)?;
+        unsafe { crate::marks::pong_cell::pong_cell(pattern, col, row)? };
+        pattern = pattern.wrapping_add(1);
     }
     unsafe {
         let at: u32 = game_read(pong::DIGIT_AT[0]);
         game_write(pong::DIGIT_AT[0], at.wrapping_add(core::DIGIT_STEP));
     }
-    Ok(*entry)
-}
-
-/// In the game: `pong_cell`'s Rust version.
-pub fn game_part(_place: u32, r: &mut Regs) -> Result<(), Refused> {
-    use crate::marks::pong_cell as pc;
-    *r = unsafe { pc::pong_cell(r) }?;
     Ok(())
 }

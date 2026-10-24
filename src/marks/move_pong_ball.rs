@@ -7,7 +7,7 @@
 //! unordered compare, as the original's tests of C0, C2, C3 together.)
 //!
 //! In:  nothing
-//! Out: eax the last compare's status (& 0x700); the rest as the hit test leaves them
+//! Out: nothing (the Rust callers read no register)
 //!
 //! Caller: `marks::run_pong` (`g_pongSteps` times a frame). The calls are their
 //! Rust versions. Self-test: the original and the Rust version on balls and bats by lot,
@@ -22,7 +22,7 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::{Regs, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 use crate::marks::pong;
 use crate::marks::pong_ball_hits::pong_ball_hits;
 use crate::math::x87;
@@ -33,47 +33,44 @@ fn limit(n: usize) -> u32 {
     unsafe { game_read(LIMITS_RVA + 4 * n) }
 }
 
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn move_pong_ball(entry: &Regs) -> Regs {
+/// The Rust version (see the header).
+pub unsafe fn move_pong_ball() {
     unsafe {
         for n in 0..2 {
             let v = x87::add(game_read(pong::BALL[n]), game_read(pong::BALL_WAY[n]));
             game_write(pong::BALL[n], v);
         }
-        let mut g = pong_ball_hits(entry);
+        pong_ball_hits();
         let flip = |r: usize| game_write(r, game_read::<u32>(r) ^ 0x8000_0000);
-        g.eax = x87::compare_status(game_read(pong::BALL[0]), limit(0)) as u32;
-        if g.eax != 0 {
+        if x87::compare_status(game_read(pong::BALL[0]), limit(0)) != 0 {
             game_write(pong::BALL[0], x87::loaded(limit(1)));
             flip(pong::BALL_WAY[0]);
         }
-        g.eax = pong::less_compare(
+        let hit = pong::less_compare(
             game_read(pong::BALL[0]),
             limit(2),
             game_read(pong::BALL_SIZE[0]),
             Some(limit(3)),
         );
-        if g.eax != 0 {
+        if hit != 0 {
             crate::marks::splines::reset_pong();
         }
-        g.eax = x87::compare_status(game_read(pong::BALL[1]), limit(4)) as u32;
-        if g.eax != 0 {
+        if x87::compare_status(game_read(pong::BALL[1]), limit(4)) != 0 {
             game_write(pong::BALL[1], x87::loaded(limit(5)));
             flip(pong::BALL_WAY[1]);
         }
-        g.eax = pong::less_compare(
+        let hit = pong::less_compare(
             game_read(pong::BALL[1]),
             limit(6),
             game_read(pong::BALL_SIZE[1]),
             None,
         );
-        if g.eax != 0 {
+        if hit != 0 {
             game_write(
                 pong::BALL[1],
                 x87::sub(limit(7), game_read(pong::BALL_SIZE[1])),
             );
             flip(pong::BALL_WAY[1]);
         }
-        g
     }
 }

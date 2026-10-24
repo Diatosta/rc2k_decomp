@@ -10,10 +10,9 @@
 //! the quad; `g_polygonVertexCount` and `dword_93CC94` their number; CF clear. Other
 //! settings: CF clear, nothing changed.
 //!
-//! In:  ebp the quad (`g_marksSettings`)
-//! Out: CF as above; esi kept; after a clip eax the near outside vertex's +0x14, ebx the
-//!      count, ecx 0, edx that vertex's offset, edi past the quad's new vertices; else
-//!      eax the last test's difference (and edi the scan's place when all are out)
+//! In:  the quad (the original's ebp; `g_marksSettings`)
+//! Out: the result: true when all is outside (the original's CF); no caller reads a
+//!      register it leaves
 //!
 //! Eight callers, each `jb` after it. Refuses null settings or quad. Self-test: quads of
 //! the test's (every inside pattern, each mode), compared on the quad, the work area, the
@@ -24,7 +23,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::marks::lines::SETTINGS_RVA;
 use crate::math::x87;
 
@@ -44,47 +43,33 @@ unsafe fn get(a: u32) -> u32 {
     unsafe { (a as *const u32).read_unaligned() }
 }
 
-/// The Rust version (see the header): the registers it leaves, CF in `eflags`.
-pub unsafe fn clip_quad(entry: &Regs) -> Result<Regs, Refused> {
-    let mut g = *entry;
+/// The Rust version (see the header): whether all the quad is outside (the original's CF).
+pub unsafe fn clip_quad(q: u32) -> Result<bool, Refused> {
     unsafe {
         let settings: u32 = game_read(SETTINGS_RVA);
-        if settings == 0 || g.ebp == 0 {
+        if settings == 0 || q == 0 {
             return Err(BadInput("null marks settings or quad").into());
         }
         let mode = get(settings + 8);
         if !(1..=4).contains(&mode) {
-            g.set_carry(false);
-            return Ok(g);
+            return Ok(false);
         }
         let (line_rva, coord, below) = EDGES[mode as usize - 1];
         let line: u32 = game_read(line_rva);
-        let q = g.ebp;
-        // The test of vertex k: (inside, the difference eax keeps).
-        let test = |k: u32| {
-            let v = get(q + 0x20 * k + coord);
+        // The test of vertex k: inside.
+        let t = |k: u32| {
+            let v = get(q + 0x20 * k + coord) as i32;
             if below {
-                let d = line.wrapping_sub(v);
-                ((line as i32) >= (v as i32), d)
+                line as i32 >= v
             } else {
-                let d = v.wrapping_sub(line);
-                ((v as i32) >= (line as i32), d)
+                v >= line as i32
             }
-        };
-        let mut eax = 0u32;
-        let mut t = |k: u32| {
-            let (i, d) = test(k);
-            eax = d;
-            i
         };
         let (esi, edi);
         if !t(0) {
             let first = (1..=3).find(|&k| t(k));
             let Some(first) = first else {
-                g.eax = eax;
-                g.edi = 0x60;
-                g.set_carry(true);
-                return Ok(g);
+                return Ok(true);
             };
             edi = 0x20 * first;
             esi = if t(3) {
@@ -110,9 +95,7 @@ pub unsafe fn clip_quad(entry: &Regs) -> Result<Regs, Refused> {
             esi = 0x40;
             edi = 0;
         } else {
-            g.eax = eax;
-            g.set_carry(false);
-            return Ok(g);
+            return Ok(false);
         }
         let work = game_addr(WORK_RVA) as u32;
         let mut ebx = 0u32;
@@ -147,17 +130,16 @@ pub unsafe fn clip_quad(entry: &Regs) -> Result<Regs, Refused> {
             }
             ebx += 0x20;
         }
-        // The original's last load, before the copy back.
-        g.eax = get(q + d + 0x14);
         std::ptr::copy(work as *const u8, q as *mut u8, ebx as usize);
         let count = ebx >> 5;
         game_write(COUNT_RVA, count);
         game_write(COUNT2_RVA, count);
-        g.ebx = count;
-        g.ecx = 0;
-        g.edx = d;
-        g.edi = q + ebx;
-        g.set_carry(false);
     }
-    Ok(g)
+    Ok(false)
+}
+
+/// `scene::draw_fan` (0x44EB32) of `g_polygonVertices` (plain since the scene's
+/// conversion, 2026-10-23).
+pub unsafe fn draw_fan() {
+    crate::scene::draw_fan::draw_fan();
 }

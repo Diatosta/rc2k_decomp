@@ -4,53 +4,29 @@
 //! another's, its glide (`net::follow_remote`).
 //!
 //! In:  nothing
-//! Out: eax `g_currentCar` (when on), or as the calls leave the registers
+//! Out: nothing (the original leaves eax `g_currentCar`, or as the calls leave it; its
+//!      caller, `drive::replay_step`'s car step, runs it on a copy of its registers and
+//!      reads none of them after it)
 //!
 //! See `net/mod.rs`. One caller, `drive::replay_step` (each car's step, after its
-//! physics). Its calls through `part`. Shadow mode runs the original alone. Self-test: a
-//! copy whose three variables are the test's and whose calls go to noting stand-ins,
-//! against the Rust version: off, the own car, another.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! physics).
 
 use crate::errors::Refused;
-use crate::framework::Regs;
-use crate::net::{APPLY_RECEIVED, FOLLOW, ON, PLAYER, Part, SEND_TURN, a};
+use crate::net::{ON, PLAYER, apply_received, follow_remote, g, send_turn};
 
 /// g_currentCar.
 const CURRENT: usize = 0x71B3F8;
 
-/// Where the variables are.
-#[derive(Clone, Copy)]
-pub struct Vars {
-    pub on: u32,
-    pub current: u32,
-    pub player: u32,
-}
-
-/// The Rust version on the variables in `v`.
-pub fn race_step_with(r: &mut Regs, v: &Vars, part: Part) -> Result<(), Refused> {
-    let rd = |at: u32| unsafe { (at as *const u32).read_volatile() };
-    if rd(v.on) == 0 {
+/// The Rust version.
+pub fn race_step() -> Result<(), Refused> {
+    if g(ON) == 0 {
         return Ok(());
     }
-    r.eax = rd(v.current);
-    if r.eax == rd(v.player) {
-        part(SEND_TURN, r)?;
-        part(APPLY_RECEIVED, r)
+    if g(CURRENT) == g(PLAYER) {
+        send_turn::send_turn()?;
+        apply_received::apply_received()
     } else {
-        part(FOLLOW, r)
+        follow_remote::follow_remote();
+        Ok(())
     }
-}
-
-/// The Rust version.
-pub fn race_step(r: &mut Regs, part: Part) -> Result<(), Refused> {
-    let v = Vars {
-        on: a(ON),
-        current: a(CURRENT),
-        player: a(PLAYER),
-    };
-    race_step_with(r, &v, part)
 }

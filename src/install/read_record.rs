@@ -11,21 +11,19 @@
 //! Refuses a text of 0xFE bytes or more (the original writes past the 0x100 bytes).
 //! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
 //! `routes.rs`); the registers above are the original's, for reference.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
+//! are the original's.
 
 use crate::bridge::Raw;
-use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_write, rva};
-use crate::install::{BASE_DIRECTORY_RVA, LOCALE_RVA};
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
+use crate::errors::BadInput;
+use crate::framework::rva;
 use crate::settings::read_text::read_text;
 use crate::strings::same_text::case_table;
 use rc2k_core::install::config;
 
 // ---- game data ----
 
-const PATH_RVA: usize = rva(0x5295C0); // "var\ral.zog"
-const MEDIA_MODE_RVA: usize = rva(0x5189A4); // g_mediaMode
+pub const PATH_RVA: usize = rva(0x5295C0); // "var\ral.zog"
 
 // ---- Rust version ----
 
@@ -37,26 +35,16 @@ pub unsafe fn read_record(path: *const u8) -> Result<(), BadInput> {
         // Converted: `rc2k_core::install::config::read_record` (the keys as its constants).
         let record = config::read_record(&Raw::new(text), &case_table())?;
         for (place, text) in [
-            (BASE_DIRECTORY_RVA, record.base),
-            (LOCALE_RVA, record.locale),
+            (crate::files::state::base_directory(), record.base),
+            (crate::files::state::locale_directory(), record.locale),
         ] {
             if let Some(text) = text {
-                std::ptr::copy(text.as_ptr(), game_addr(place) as *mut u8, text.len());
+                std::ptr::copy(text.as_ptr(), place, text.len());
             }
         }
         if let Some(mode) = record.mode {
-            game_write(MEDIA_MODE_RVA, mode);
+            crate::files::state::MEDIA_MODE.store(mode, std::sync::atomic::Ordering::Relaxed);
         }
         Ok(())
     }
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { read_record(game_addr(PATH_RVA) as *const u8) }?;
-    Ok(Left::nothing())
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

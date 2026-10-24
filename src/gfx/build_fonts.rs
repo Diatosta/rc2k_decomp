@@ -21,14 +21,17 @@
 //! `routes.rs`); the registers above are the original's, for reference.
 
 use crate::errors::{FatalError, Refused};
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
-use crate::gfx::build_glyphs::{BUILDER_FLAGS_RVA, TABLE_RVA};
+use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::gfx::build_glyphs::{BUILDER_FLAGS_RVA, TABLE_RVA, build_glyphs};
 use crate::gfx::glyph_builder::RUN_LENGTHS;
 use crate::gfx::glyph_tables::{
-    ALLOCATE, BEGIN_TABLE, BEGIN_TABLES, BUILD_GLYPHS, END_TABLES, Game, PALETTE_TO_PIXELS, Parts,
-    REWIND_LIST, TABLES_LIST_RVA, TABLES_UNITS_RVA, TAKE_FROM_LIST, UNIT_FACTOR_RVA,
+    TABLES_LIST_RVA, TABLES_UNITS_RVA, UNIT_FACTOR_RVA, begin_glyph_table, begin_glyph_tables,
+    end_glyph_tables, palette_to_pixels,
 };
 use crate::gfx::pcx::PALETTE_RVA;
+use crate::memory::MemoryList;
+use crate::memory::allocate::allocate;
+use crate::memory::take_from_list::{rewind_list, take_from_list};
 
 // ---- game data ----
 
@@ -186,52 +189,35 @@ const HUNG: [(u32, usize, u32); 125] = [
 
 // ---- Rust version ----
 
-/// The part with the calls. `entry` are the registers at entry; `palettes` is where the
-/// palettes' place is kept.
-unsafe fn tables(entry: &Regs, parts: &mut dyn Parts, palettes: *mut u32) -> Result<(), Refused> {
+/// The part with the calls; `palettes` is where the palettes' place is kept. (The
+/// original's fatal error 0x80E48023 for a failed allocation cannot come: the allocator
+/// reports its own.)
+unsafe fn tables(palettes: *mut u32) -> Result<(), Refused> {
     unsafe {
-        let mut g = *entry;
-        g.eax = game_read::<u32>(TABLES_UNITS_RVA)
+        let list = game_addr(TABLES_LIST_RVA) as *mut MemoryList;
+        let bytes = game_read::<u32>(TABLES_UNITS_RVA)
             .wrapping_mul(0x400)
             .wrapping_mul(game_read(UNIT_FACTOR_RVA));
-        g.ebx = game_addr(TABLES_LIST_RVA) as u32;
-        parts.call(ALLOCATE, &mut g)?;
-        if g.carry() {
-            return Err(FatalError {
-                code: 0x80E4_8023,
-                message: "",
-            }
-            .into());
-        }
-        parts.call(REWIND_LIST, &mut g)?;
-        parts.call(BEGIN_TABLES, &mut g)?;
+        allocate(list, bytes)?;
+        rewind_list(list);
+        begin_glyph_tables()?;
         game_write(BUILDER_FLAGS_RVA, RUN_LENGTHS);
-        g.eax = 0x400;
-        parts.call(TAKE_FROM_LIST, &mut g)?;
-        palettes.write_unaligned(g.eax);
-        parts.call(BEGIN_TABLE, &mut g)?;
-        g.eax = game_addr(PALETTE_SHEET_RVA) as u32;
-        parts.call(BUILD_GLYPHS, &mut g)?;
-        g.eax = game_read(TABLE_RVA);
-        game_write(FONT27_RVA, g.eax);
-        g.edi = palettes.read_unaligned();
-        parts.call(PALETTE_TO_PIXELS, &mut g)?;
+        palettes.write_unaligned(take_from_list(list, 0x400)?.unwrap_or(0));
+        begin_glyph_table(list)?;
+        build_glyphs(game_addr(PALETTE_SHEET_RVA) as *const u8, list)?;
+        game_write(FONT27_RVA, game_read::<u32>(TABLE_RVA));
+        palette_to_pixels(palettes.read_unaligned() as *mut u32)?;
         std::ptr::copy(
             game_addr(PALETTE_RVA) as *const u8,
             game_addr(PALETTE_COPY_RVA) as *mut u8,
             PALETTE_BYTES,
         );
-        g.esi = (game_addr(PALETTE_RVA) + PALETTE_BYTES) as u32;
-        g.edi = (game_addr(PALETTE_COPY_RVA) + PALETTE_BYTES) as u32;
-        g.ecx = 0;
         for (sheet, kept) in FONT_SHEETS {
-            parts.call(BEGIN_TABLE, &mut g)?;
-            g.eax = game_addr(sheet) as u32;
-            parts.call(BUILD_GLYPHS, &mut g)?;
-            g.eax = game_read(TABLE_RVA);
-            game_write(kept, g.eax);
+            begin_glyph_table(list)?;
+            build_glyphs(game_addr(sheet) as *const u8, list)?;
+            game_write(kept, game_read::<u32>(TABLE_RVA));
         }
-        parts.call(END_TABLES, &mut g)?;
+        end_glyph_tables()?;
         Ok(())
     }
 }
@@ -241,7 +227,7 @@ unsafe fn hung_value(variable: usize, plus: u32) -> u32 {
     unsafe { game_read::<u32>(variable).wrapping_add(plus) }
 }
 
-pub unsafe fn build_fonts(entry: &Regs, parts: &mut dyn Parts) -> Result<(), Refused> {
+pub unsafe fn build_fonts() -> Result<(), Refused> {
     unsafe {
         if game_read::<u32>(PALETTES_RVA) != 0 {
             return Err(FatalError {
@@ -250,17 +236,10 @@ pub unsafe fn build_fonts(entry: &Regs, parts: &mut dyn Parts) -> Result<(), Ref
             }
             .into());
         }
-        tables(entry, parts, game_addr(PALETTES_RVA) as *mut u32)?;
+        tables(game_addr(PALETTES_RVA) as *mut u32)?;
         for (place, variable, plus) in HUNG {
             game_write(rva(place as usize), hung_value(variable, plus));
         }
         Ok(())
     }
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let entry = *r;
-    unsafe { build_fonts(&entry, &mut Game) }?;
-    Ok(())
 }

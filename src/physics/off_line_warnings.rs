@@ -17,13 +17,11 @@
 //! put back), against the Rust version: distances, checkpoints, headings, counters about
 //! their times.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_read, game_write, rva};
-use crate::physics::sound_cues::cue_entry;
+use crate::framework::{game_read, game_write, rva};
 use rc2k_core::physics::progress::{
     LAST_CHECKPOINT, OFF_LINE_CUE, TURNED_CUE, Warnings, cue_due, off_line, spread,
 };
@@ -59,9 +57,9 @@ fn store(w: &Warnings) {
     }
 }
 
-/// The steps on `r`.
+/// The steps. The registers the original leaves are read by none of its callers.
 // Converted: `rc2k_core::physics::progress::{Warnings, off_line, cue_due}`.
-pub fn off_line_warnings_in(r: &mut Regs) -> Result<(), Refused> {
+pub fn off_line_warnings() -> Result<(), Refused> {
     if g(0x71A080) != 0 || g(0x71A07C) != 0 {
         return Ok(());
     }
@@ -74,14 +72,11 @@ pub fn off_line_warnings_in(r: &mut Regs) -> Result<(), Refused> {
         f32::from_bits(g(0x614C6C)) as f64,
     );
     let mut w = load();
-    w.count_off(off_line(near, || {
-        r.eax = spread(cp, g(0x71A06C));
-        r.eax
-    }));
-    r.ecx = cp;
-    r.ebx = g(0x9ED808 + 4 * cp as usize);
-    r.eax = spread(g(0x71A998), r.ebx);
-    w.count_turned(r.eax, g(0x614C74));
+    w.count_off(off_line(near, || spread(cp, g(0x71A06C))));
+    w.count_turned(
+        spread(g(0x71A998), g(0x9ED808 + 4 * cp as usize)),
+        g(0x614C74),
+    );
     store(&w);
     if g(0x5BEC94) != 0 {
         return Ok(());
@@ -90,18 +85,10 @@ pub fn off_line_warnings_in(r: &mut Regs) -> Result<(), Refused> {
         (0x71A24C, 0x71A254, TURNED_CUE),
         (0x71A248, 0x71A250, OFF_LINE_CUE),
     ] {
-        r.eax = g(count);
-        if let Some(next) = cue_due(r.eax, g(time)) {
+        if let Some(next) = cue_due(g(count), g(time)) {
             p(time, next);
-            r.ebx = cue;
-            r.eax = crate::physics::cue_listed_car_sound::cue_listed_car_sound(cue)?;
+            crate::physics::cue_listed_car_sound::cue_listed_car_sound(cue)?;
         }
     }
     Ok(())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    cue_entry(r, off_line_warnings_in)
 }

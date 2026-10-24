@@ -35,7 +35,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 
 // ---- game data ----
 
@@ -88,20 +88,11 @@ impl rc2k_core::scene::shown::RaceObject for Game {
     }
 }
 
-/// The race's two tests: whether the object is drawn (its number checked by the caller).
-/// Writes nothing but the registers the tests leave.
+/// `draw`: what stands for `scene::draw_object`. Says whether the object was drawn. What
+/// the tests leave in the registers `draw_object` does not read.
 // Converted: `rc2k_core::scene::shown::race_shown`
-fn shown(r: &mut Regs) -> bool {
-    let s = rc2k_core::scene::shown::race_shown(&Game);
-    r.ebx = s.ebx.unwrap_or(r.ebx);
-    r.eax = s.eax.unwrap_or(r.eax);
-    s.drawn
-}
-
-/// `draw`: what stands for `scene::draw_object`. Says whether the object was drawn.
 pub unsafe fn draw_shown_object(
-    r: &mut Regs,
-    draw: &mut dyn FnMut(&mut Regs) -> Result<(), Refused>,
+    draw: &mut dyn FnMut() -> Result<(), Refused>,
 ) -> Result<bool, Refused> {
     unsafe {
         let race = game_read::<u32>(IN_RACE_RVA) != 0;
@@ -110,16 +101,13 @@ pub unsafe fn draw_shown_object(
         }
         game_write(DRAWING_RVA, 1u32);
         let show = if race {
-            shown(r)
+            rc2k_core::scene::shown::race_shown(&Game).drawn
         } else {
             game_write(KIND_BYTES_RVA, rc2k_core::scene::shown::kind_bytes());
-            r.eax = 0;
-            r.ecx = 0;
-            r.edi = (game_addr(KIND_BYTES_RVA) + 0x400) as u32;
             true
         };
         if show {
-            draw(r)?;
+            draw()?;
         }
         game_write(DRAWING_RVA, 0u32);
         Ok(show)

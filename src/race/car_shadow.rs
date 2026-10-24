@@ -5,7 +5,7 @@
 //! `dword_64192C`, the hull's `dword_643ACC`.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 
 // unk_641AA4: the points, 0x20 bytes each
 pub const COUNT_RVA: usize = rva(0x64192C); // dword_64192C
@@ -50,54 +50,47 @@ fn two_pi_plus(v: u32) -> u32 {
 /// `race::shadow_angles` (0x4581F3): the farthest point (`dword_643ABC`) swapped into the
 /// first record; each record's angle made relative to the first's (`flt_643AC0`; below 0
 /// plus 2 pi), times 65536 as a whole number, +0x14 0; with two records or more sorted by
-/// angle (`sub_4582AC`, `sorting::sort_records`). Gives the registers it leaves. Refuses (before anything) no
-/// points (its loop tests at its end) or more than 0x40.
-pub unsafe fn shadow_angles(entry: &Regs) -> Result<Regs, Refused> {
+/// angle (`sub_4582AC`, `sorting::sort_records`). The registers it leaves are read by no
+/// one (its one caller's next callee sets its own). Refuses (before anything) no points
+/// (its loop tests at its end) or more than 0x40.
+pub unsafe fn shadow_angles() -> Result<(), Refused> {
     use crate::math::x87::{mul_to_int, sub};
     unsafe {
         let count: u32 = game_read(COUNT_RVA);
         if count == 0 || count > 0x40 {
             return Err(BadInput("no shadow points or more than 0x40").into());
         }
-        let mut r = *entry;
-        r.esi = g(0x641AA4);
-        r.edi = game_read(FARTHEST_RVA);
+        let records = g(0x641AA4);
+        let farthest: u32 = game_read(FARTHEST_RVA);
         for k in 0..8 {
-            let (a, b) = (get(r.esi + 4 * k), get(r.edi + 4 * k));
-            put(r.esi + 4 * k, b);
-            put(r.edi + 4 * k, a);
+            let (a, b) = (get(records + 4 * k), get(farthest + 4 * k));
+            put(records + 4 * k, b);
+            put(farthest + 4 * k, a);
         }
-        r.esi += 0x20;
-        r.edi = r.edi.wrapping_add(0x20);
-        r.ecx = 0;
-        let first = get(g(0x641AA4) + 0xC);
+        let first = get(records + 0xC);
         game_write(FIRST_ANGLE_RVA, first);
         let zero: u32 = game_read(rva(0x5C5D90));
         let unit: u32 = game_read(rva(0x5C5D98));
-        r.edi = g(0x641AA4);
         for k in 0..count {
-            let mut v = sub(get(r.edi + 0xC), first);
+            let record = records + 0x20 * k;
+            let mut v = sub(get(record + 0xC), first);
             if crate::math::x87_load::below_or_unordered(v, zero) {
                 v = two_pi_plus(v);
             }
             game_write(SCRATCH_RVA, v);
-            put(r.edi + 0xC, mul_to_int(v, unit) as u32);
-            put(r.edi + 0x14, 0);
-            r.edi += 0x20;
-            r.ebx = k + 1;
+            put(record + 0xC, mul_to_int(v, unit) as u32);
+            put(record + 0x14, 0);
         }
         if count >= 2 {
-            r.esi = g(0x641AA4);
-            r.eax = count.wrapping_mul(0x20);
-            r.edi = r.eax + r.esi - 0x20;
             // Converted: `rc2k_core::race::quick_sort::quick_sort` (`sub_4582AC`).
             crate::race::sorting::sort_records::<8>(
-                &mut r,
+                records,
+                records + 0x20 * count - 0x20,
                 3,
                 rc2k_core::race::quick_sort::Order::Up,
             )?;
         }
-        Ok(r)
+        Ok(())
     }
 }
 
@@ -105,9 +98,9 @@ pub unsafe fn shadow_angles(entry: &Regs) -> Result<Regs, Refused> {
 /// the points, each one where the turn from the one before to the one after is not to
 /// the left (the 64-bit cross product of whole numbers, `qword_620460` its first half, not
 /// negative) is taken out (the rest moved down, starting again), until none is;
-/// `dword_643ACC` the points left. Gives the registers it leaves. Refuses (before
-/// anything) fewer than two points or more than 0x40.
-pub unsafe fn shadow_hull(entry: &Regs) -> Result<Regs, Refused> {
+/// `dword_643ACC` the points left. The registers it leaves are read by no one. Refuses
+/// (before anything) fewer than two points or more than 0x40.
+pub unsafe fn shadow_hull() -> Result<(), Refused> {
     // Converted: `rc2k_core::race::shadow::hull`.
     use rc2k_core::race::shadow::{Record, hull, hull_records};
     unsafe {
@@ -129,27 +122,7 @@ pub unsafe fn shadow_hull(entry: &Regs) -> Result<Regs, Refused> {
         }
         game_write(PRODUCT_RVA, h.product as u64);
         game_write(HULL_COUNT_RVA, h.count);
-        let place = |n: u32| base.wrapping_add(n.wrapping_mul(0x20));
-        let mut r = *entry;
-        r.ebx = h.at;
-        r.ebp = h.count;
-        r.edx = (h.difference >> 32) as u32;
-        if let Some(c) = h.cut {
-            r.esi = place(c.at + 1 + c.moved);
-        }
-        match h.cut {
-            Some(c) if h.ended_on_cut => {
-                r.eax = c.at;
-                r.edi = place(c.at + c.moved);
-                r.ecx = 0;
-            }
-            _ => {
-                r.eax = h.difference as u32;
-                r.edi = place(h.tested);
-                r.ecx = 0x20;
-            }
-        }
-        Ok(r)
+        Ok(())
     }
 }
 
@@ -157,39 +130,32 @@ pub unsafe fn shadow_hull(entry: &Regs) -> Result<Regs, Refused> {
 /// scene's, from `g_scenePointCount` + 0x10: x and z the record's, y `dword_641AA0`) and as
 /// the polygon's work entries (+0 the point, +0x18 white, +0x21 `dword_609328` / 2, +0x10 /
 /// +0x14 a circle's texture place: cos / sin of 2 pi k / n times `flt_641994` plus it,
-/// rounded, over `flt_641998`). Gives the registers it leaves. Refuses (before anything) a
-/// hull of no points (its loop tests at its end) or more than 0x40.
-pub unsafe fn shadow_polygon(entry: &Regs) -> Result<Regs, Refused> {
+/// rounded, over `flt_641998`). The registers it leaves are read by no one. Refuses
+/// (before anything) a hull of no points (its loop tests at its end) or more than 0x40.
+pub unsafe fn shadow_polygon() -> Result<(), Refused> {
     unsafe {
         let n: u32 = game_read(HULL_COUNT_RVA);
         if n == 0 || n > 0x40 {
             return Err(BadInput("a shadow hull of no points or more than 0x40").into());
         }
-        let mut r = *entry;
         let scene: u32 = game_read(rva(0x5CCD20));
-        r.edi = scene
+        let points = scene
             .wrapping_mul(12)
             .wrapping_add(game_read(rva(0x5CCCC0)))
             + 0xC0;
-        r.esi = g(0x641AA4);
-        r.ebp = scene.wrapping_add(0x10);
-        r.edx = 0;
-        r.ebx = 0;
+        let records = g(0x641AA4);
         let entries = g(0x975510);
-        loop {
-            r.eax = get(r.esi);
-            r.ecx = get(r.esi + 8);
-            put(r.edi, r.eax);
-            put(r.edi + 8, r.ecx);
-            r.eax = game_read(GROUND_RVA);
-            put(r.edi + 4, r.eax);
-            let e = entries + r.edx;
-            put(e, r.ebp);
+        for k in 0..n {
+            let (record, point) = (records + 0x20 * k, points.wrapping_add(0xC * k));
+            put(point, get(record));
+            put(point + 8, get(record + 8));
+            put(point + 4, game_read(GROUND_RVA));
+            let e = entries + 0x44 * k;
+            put(e, scene.wrapping_add(0x10).wrapping_add(k));
             put(e + 0x18, 0x00FF_FFFF);
-            r.eax = game_read::<u32>(rva(0x609328)) >> 1;
-            ((e + 0x21) as *mut u8).write(r.eax as u8);
-            game_write(SCRATCH_RVA, r.ebx);
-            let v = [r.ebx, n, game_read(rva(0x641994)), game_read(rva(0x641998))];
+            ((e + 0x21) as *mut u8).write((game_read::<u32>(rva(0x609328)) >> 1) as u8);
+            game_write(SCRATCH_RVA, k);
+            let v = [k, n, game_read(rva(0x641994)), game_read(rva(0x641998))];
             core::arch::asm!(
                 "fild dword ptr [{v}]",
                 "fild dword ptr [{v} + 4]",
@@ -216,16 +182,8 @@ pub unsafe fn shadow_polygon(entry: &Regs) -> Result<Regs, Refused> {
                 out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
                 options(nostack),
             );
-            r.esi += 0x20;
-            r.edx += 0x44;
-            r.edi = r.edi.wrapping_add(0xC);
-            r.ebp = r.ebp.wrapping_add(1);
-            r.ebx += 1;
-            if r.ebx == n {
-                break;
-            }
         }
-        Ok(r)
+        Ok(())
     }
 }
 
@@ -403,41 +361,28 @@ const OLD_LIST_RVA: usize = rva(0x977810); // g_polygonOldList
 const VERTEX_COUNT_RVA: usize = rva(0x6240F8); // g_polygonVertexCount
 const NEXT_ENTRY_RVA: usize = rva(0x624114); // g_polygonNextEntry
 
-/// `sub_457A85`: the polygon cut by the edge from scene point eax to scene point ebx
-/// (kept: those on the inner side, and the crossings), with three vertices or more.
-/// Gives the registers it leaves.
-unsafe fn clip_to_edge(r: &mut Regs) {
+/// `sub_457A85`: the polygon cut by the edge from scene point `from` (eax) to scene point
+/// `to` (ebx) (kept: those on the inner side, and the crossings), with three vertices or
+/// more. The registers it leaves are read by no one.
+unsafe fn clip_to_edge(from: u32, to: u32) {
     unsafe {
         let count: u32 = game_read(VERTEX_COUNT_RVA);
         if count < 3 {
             return;
         }
-        let (a, b) = (scene_point(r.eax), scene_point(r.ebx));
+        let (a, b) = (scene_point(from), scene_point(to));
         game_write(rva(0x641950), get(b));
         game_write(rva(0x641954), get(b + 8));
         game_write(rva(0x641948), get(a));
         game_write(rva(0x64194C), get(a + 8));
         let (list, old) = (game_addr(LIST_RVA) as u32, game_addr(OLD_LIST_RVA) as u32);
         std::ptr::copy(list as *const u8, old as *mut u8, 4 * count as usize);
-        r.esi = list + 4 * count;
-        r.edi = old + 4 * count;
-        r.ecx = 0;
-        r.eax = get(list);
-        put(r.edi, r.eax);
+        put(old + 4 * count, get(list));
         // Converted: `rc2k_core::race::shadow::clip_by_edge`.
         let mut added = 0u32;
-        let mut ends = (0u32, 0u32);
-        let last = rc2k_core::race::shadow::clip_by_edge(
+        rc2k_core::race::shadow::clip_by_edge(
             count,
-            |k| {
-                let e = get(old + 4 * k);
-                if k == count {
-                    ends.1 = e;
-                } else if k + 1 == count {
-                    ends.0 = e;
-                }
-                e
-            },
+            |k| get(old + 4 * k),
             |e| inside_edge(get(work_entry(e))),
             |a, b| {
                 let next: u32 = game_read(NEXT_ENTRY_RVA);
@@ -450,15 +395,7 @@ unsafe fn clip_to_edge(r: &mut Regs) {
                 added += 1;
             },
         );
-        // As the last side leaves them: esi and ebp its two work entries, edx the second's
-        // point, eax what it added last, else the second's offset.
-        r.esi = work_entry(ends.0);
-        r.ebp = work_entry(ends.1);
-        r.edx = get(r.ebp);
-        r.eax = last.unwrap_or(ends.1.wrapping_mul(0x44));
-        r.ebx = added;
-        r.ecx = count;
-        game_write(VERTEX_COUNT_RVA, r.ebx);
+        game_write(VERTEX_COUNT_RVA, added);
     }
 }
 
@@ -466,40 +403,31 @@ unsafe fn clip_to_edge(r: &mut Regs) {
 /// whose corners are `dword_641938` .. `dword_641940` (scene points): none (count 0) when
 /// a corner is more than 0x100000 off the work car in x before one within 0x100000 in z
 /// is met (or none is); else cut by its three edges in turn while three vertices are left
-/// (`sub_457A85`, with `sub_457BE8` the side test and `sub_457CA8` the crossing). Gives the
-/// registers it leaves.
-pub unsafe fn clip_shadow_to_face(entry: &Regs) -> Regs {
+/// (`sub_457A85`, with `sub_457BE8` the side test and `sub_457CA8` the crossing). The
+/// registers it leaves are read by no one.
+pub unsafe fn clip_shadow_to_face() {
     unsafe {
-        let mut r = *entry;
         let corners = [
             game_read::<u32>(rva(0x641938)),
             game_read(rva(0x64193C)),
             game_read(rva(0x641940)),
         ];
-        // Converted: `rc2k_core::race::shadow::face_near`; ebx, esi and eax the last
-        // corner asked about, its point and the last distance.
+        // Converted: `rc2k_core::race::shadow::face_near`.
         let car = g(0x719FD8);
         let found = rc2k_core::race::shadow::face_near((get(car + 0x134), get(car + 0x13C)), |n| {
             let p = scene_point(corners[n]);
             (get(p), get(p + 8))
         });
-        r.ebx = corners[found.corner];
-        r.esi = scene_point(r.ebx);
-        r.eax = found.distance;
-        let near = found.near;
-        if !near {
+        if !found.near {
             game_write(VERTEX_COUNT_RVA, 0u32);
-            return r;
+            return;
         }
         for (a, b) in [(0usize, 1usize), (1, 2), (2, 0)] {
             if game_read::<u32>(VERTEX_COUNT_RVA) < 3 {
-                return r;
+                return;
             }
-            r.eax = corners[a];
-            r.ebx = corners[b];
-            clip_to_edge(&mut r);
+            clip_to_edge(corners[a], corners[b]);
         }
-        r
     }
 }
 
@@ -519,8 +447,7 @@ unsafe fn raise_onto_face(index: u32) {
         }
         game_write(rva(0x639824), get(p));
         game_write(rva(0x63982C), get(p + 8));
-        let mut regs = Regs::default();
-        face_shares_at(&Ground::game(), &mut regs);
+        face_shares_at(&Ground::game());
         crate::physics::plane_height::plane_height();
         put(
             p + 4,
@@ -529,28 +456,22 @@ unsafe fn raise_onto_face(index: u32) {
     }
 }
 
-/// Whether `shadow_on_face`'s last screen clip cut the polygon: the registers its passes
-/// leave are not modelled (no callee reads them), so its test compares those calls by place.
-pub static SCREEN_CLIPPED: std::sync::atomic::AtomicBool =
-    std::sync::atomic::AtomicBool::new(false);
-
 /// `race::shadow_on_face` (0x45773C): the shadow's polygon (the hull's list at
 /// `dword_64199C`, its count `dword_641A9C`) cut to the face `dword_641938` .. and drawn on
 /// it: new points from `g_scenePointCount` + 0x30 (`dword_641990`), entries from 0x20, the
 /// 0x40 point records after the scene's marked unmade; `clip_shadow_to_face`; with three
 /// vertices or more each raised onto the face, projected (`scene::project_polygon`,
 /// `scene::fog_polygon`), cut by depth (unless all or none are outside) and to the screen
-/// and drawn (part 1) in mode 5 with texture `dword_641930`. Gives the registers it leaves
-/// (not read: its caller calls it inside `pusha`). Refuses what the projection and the
+/// and drawn (`scene::draw_polygon_in_game`) in mode 5 with texture `dword_641930`. The
+/// registers it leaves are not read (its caller calls it inside `pusha`). Refuses what the projection and the
 /// clips refuse (after the work is set; not met with a hull's few vertices) and a hull
 /// list past 0x40.
-pub unsafe fn shadow_on_face(entry: &Regs) -> Result<Regs, Refused> {
+pub unsafe fn shadow_on_face() -> Result<(), Refused> {
     unsafe {
         let count: u32 = game_read(rva(0x641A9C));
         if count > 0x40 {
             return Err(BadInput("a shadow list past 0x40").into());
         }
-        let mut r = *entry;
         game_write(rva(0x624134), 0u32);
         let list = game_addr(LIST_RVA) as u32;
         std::ptr::copy(
@@ -571,9 +492,9 @@ pub unsafe fn shadow_on_face(entry: &Regs) -> Result<Regs, Refused> {
             put(records.wrapping_add(at), u32::MAX);
             at = (at + 0x20) & 0x1FFE0;
         }
-        r = clip_shadow_to_face(&r);
+        clip_shadow_to_face();
         if game_read::<u32>(VERTEX_COUNT_RVA) < 3 {
-            return Ok(r);
+            return Ok(());
         }
         let n: u32 = game_read(VERTEX_COUNT_RVA);
         for k in 0..n {
@@ -581,55 +502,36 @@ pub unsafe fn shadow_on_face(entry: &Regs) -> Result<Regs, Refused> {
         }
         crate::scene::project_polygon::project_polygon()?;
         crate::scene::fog_polygon::fog_polygon()?;
-        r.esi = g(0x977F10);
-        game_write(rva(0x6240A4), r.esi);
+        game_write(rva(0x6240A4), g(0x977F10));
         let outside: u32 = game_read(rva(0x6240F4));
         if outside != 0 {
             if outside == game_read::<u32>(VERTEX_COUNT_RVA) {
-                return Ok(r);
+                return Ok(());
             }
             crate::scene::clip_polygon_by_depth::clip_polygon_by_depth()?;
-            // Its passes leave ebx the count.
-            r.ebx = game_read(VERTEX_COUNT_RVA);
             if game_read::<u32>(VERTEX_COUNT_RVA) < 3 {
-                return Ok(r);
+                return Ok(());
             }
         }
-        let unclipped = crate::scene::clip_polygon_to_screen::wholly_on_screen();
-        SCREEN_CLIPPED.store(!unclipped, std::sync::atomic::Ordering::SeqCst);
         crate::scene::clip_polygon_to_screen::clip_polygon_to_screen()?;
-        if unclipped {
-            crate::scene::clip_polygon_to_screen::unclipped_regs(&mut r);
-        }
         if game_read::<u32>(VERTEX_COUNT_RVA) < 3 {
-            return Ok(r);
+            return Ok(());
         }
         game_write(rva(0x6240BC), u32::MAX);
-        r.eax = game_read(rva(0x641930));
-        game_write(rva(0x6240C0), r.eax);
+        game_write(rva(0x6240C0), game_read::<u32>(rva(0x641930)));
         game_write(rva(0x6240E0), 0u32);
         game_write(rva(0x6240E4), 1u32);
         game_write(rva(0x63DAB4), 5u32);
-        crate::race::car_shadow::face_part(1, &mut r)?;
+        crate::scene::draw_polygon::draw_polygon_in_game()?;
         game_write(rva(0x624134), 1u32);
-        Ok(r)
+        Ok(())
     }
-}
-
-/// `shadow_on_face`'s draw in the game: `scene::draw_polygon_in_game`.
-pub fn face_part(_: u32, r: &mut Regs) -> Result<(), Refused> {
-    unsafe { crate::scene::draw_polygon::draw_polygon_in_game(r)? };
-    Ok(())
 }
 
 /// `sub_4576C9`: each face of course record esi (+8 .. +0xC) with a kind below 0x10 and
 /// without bit 7 of its +2 word gets the shadow (`shadow_on_face`) on its two triangles
 /// (corners +4, +8, +0xC and +0x10, +0xC, +8); `g_currentCourseFace` each face.
-unsafe fn shadow_on_record(
-    record: u32,
-    entry: &Regs,
-    each: &mut dyn FnMut(&Regs) -> Result<(), Refused>,
-) -> Result<(), Refused> {
+unsafe fn shadow_on_record(record: u32) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::shadow::{takes_shadow, SHADOW_TRIANGLES}`,
     // `rc2k_core::race::view::record_faces`.
     use rc2k_core::race::shadow::{SHADOW_TRIANGLES, takes_shadow};
@@ -648,7 +550,7 @@ unsafe fn shadow_on_record(
                     for (k, &o) in corners.iter().enumerate() {
                         game_write(rva(0x641938 + 4 * k), get(at + o));
                     }
-                    each(entry)?;
+                    shadow_on_face()?;
                 }
             }
         }
@@ -656,25 +558,17 @@ unsafe fn shadow_on_record(
     }
 }
 
-/// `race::shadow_faces` (0x457618): the shadow (`each`: `shadow_on_face` in the game) on
-/// the last course record's faces, then on every record in the 3 x 3 cells round the work
-/// car (`sub_4576C9` each). Every register
-/// kept but ebx (the record count) when there are records.
-pub unsafe fn shadow_faces(
-    entry: &Regs,
-    each: &mut dyn FnMut(&Regs) -> Result<(), Refused>,
-) -> Result<Regs, Refused> {
+/// `race::shadow_faces` (0x457618): the shadow (`shadow_on_face`) on the last course
+/// record's faces, then on every record in the 3 x 3 cells round the work car
+/// (`sub_4576C9` each). The original keeps every register but ebx (the record count),
+/// which its one caller does not read.
+pub unsafe fn shadow_faces() -> Result<(), Refused> {
     unsafe {
-        let mut r = *entry;
         let count: u32 = game_read(rva(0x5CCD18));
         let records: u32 = game_read(rva(0x5CCCB8));
-        shadow_on_record(
-            (count.wrapping_sub(1) << 5).wrapping_add(records),
-            entry,
-            &mut *each,
-        )?;
+        shadow_on_record((count.wrapping_sub(1) << 5).wrapping_add(records))?;
         if count == 0 {
-            return Ok(r);
+            return Ok(());
         }
         // Converted: `rc2k_core::race::shadow::{record_cell, cell_near_car}`.
         use rc2k_core::race::shadow::{cell_near_car, record_cell};
@@ -687,11 +581,10 @@ pub unsafe fn shadow_faces(
             game_write(rva(0x5CCBF0), x);
             game_write(rva(0x5CCBF4), z);
             if cell_near_car((get(car + 0x134), get(car + 0x13C)), (x, z)) {
-                shadow_on_record(at, entry, &mut *each)?;
+                shadow_on_record(at)?;
             }
         }
-        r.ebx = count;
-        Ok(r)
+        Ok(())
     }
 }
 
@@ -858,53 +751,41 @@ fn lifted(y: u32, lift: u32, slant: u32, base: u32) -> u32 {
 
 /// `race::cast_car_shadow` (0x4575C1): with three corners or more, the shadow's points, their
 /// order, hull and polygon, the hull's list (`dword_64199C`, `dword_641A9C`), texture 0xC3
-/// (`dword_641930`), and the shadow on the faces round the car (`faces`: `shadow_faces`
-/// in the game). Gives the registers it leaves. Refuses what its parts refuse (before
+/// (`dword_641930`), and the shadow on the faces round the car (`shadow_faces`). The
+/// registers it leaves are read by no one (its caller calls it inside `pusha`); it reads
+/// none at entry (each part sets what it uses). Refuses what its parts refuse (before
 /// anything for the points and the counts).
-pub unsafe fn cast_car_shadow(
-    entry: &Regs,
-    faces: &mut dyn FnMut(&Regs) -> Result<Regs, Refused>,
-) -> Result<Regs, Refused> {
+pub unsafe fn cast_car_shadow() -> Result<(), Refused> {
     // Converted: `rc2k_core::race::shadow::{casts, hull_drawn, hull_list,
     // SHADOW_TEXTURE}`.
     use rc2k_core::race::shadow::{SHADOW_TEXTURE, casts, hull_drawn, hull_list};
     unsafe {
-        let mut r = *entry;
-        r.ebp = game_read(COUNT_RVA);
-        if !casts(r.ebp) {
-            return Ok(r);
+        if !casts(game_read(COUNT_RVA)) {
+            return Ok(());
         }
         shadow_points()?;
-        crate::race::shadow_points::left().apply(&mut r);
-        r = shadow_angles(&r)?;
-        r = shadow_hull(&r)?;
+        shadow_angles()?;
+        shadow_hull()?;
         if !hull_drawn(game_read(HULL_COUNT_RVA)) {
-            return Ok(r);
+            return Ok(());
         }
-        r = shadow_polygon(&r)?;
+        shadow_polygon()?;
         let n: u32 = game_read(HULL_COUNT_RVA);
-        r.eax = n;
         game_write(rva(0x641A9C), n);
         for k in hull_list(n) {
             put(g(0x64199C) + 4 * k, k);
         }
-        r.ecx = n;
         game_write(rva(0x641930), SHADOW_TEXTURE);
-        faces(&r)
+        shadow_faces()
     }
 }
 
-/// `race::cast_car_shadows` (0x45754C): the depth test off (part 1), `dword_641928` 0x1999,
-/// then for each race car with +0x6FC not 0: loaded into the work copy
-/// (`drive::load_car`), its corner count from `g_car` +0x260, `shadow` (`cast_car_shadow` in
-/// the game) once with `dword_6238B0` set, then once more with `dword_60933C` 0x40 (put
-/// back after), inside `pusha`; the depth test on (part 2). Gives the registers it leaves.
-/// Refuses (before anything) no cars or more than eight, or a null block.
-pub unsafe fn cast_car_shadows(
-    entry: &Regs,
-    part: crate::race::frame::Part,
-    shadow: &mut dyn FnMut(&Regs) -> Result<(), Refused>,
-) -> Result<Regs, Refused> {
+/// `race::cast_car_shadows` (0x45754C): the depth test off, `dword_641928` 0x1999, then
+/// for each race car with +0x6FC not 0: loaded into the work copy (`drive::load_car`), its
+/// corner count from `g_car` +0x260, `cast_car_shadow` once with `dword_6238B0` set, then
+/// once more with `dword_60933C` 0x40 (put back after), inside `pusha`; the depth test on.
+/// Its one caller, `race::draw_view_scene`, reads no register it leaves. Refuses (before anything) no cars or more than eight, or a null block.
+pub unsafe fn cast_car_shadows() -> Result<(), Refused> {
     // Converted: `rc2k_core::race::shadow::{check_shadow_cars, casts_shadow, first_pass,
     // SHADOW_STRENGTH, SUN_PASS}`.
     use rc2k_core::race::shadow::{
@@ -914,39 +795,25 @@ pub unsafe fn cast_car_shadows(
         let cars: u32 = game_read(rva(0x63DB90));
         let block = |n: u32| game_read::<u32>(rva(0x71B3B8 + 4 * n as usize));
         check_shadow_cars(cars, block)?;
-        let mut r = *entry;
-        part(1, &mut r)?;
+        crate::scene::depth_test_off::depth_test_off();
         game_write(rva(0x641928), SHADOW_STRENGTH);
         for n in 0..cars {
-            r.ecx = n;
-            r.esi = block(n);
-            if !casts_shadow(get(r.esi + 0x6FC)) {
+            let b = block(n);
+            if !casts_shadow(get(b + 0x6FC)) {
                 continue;
             }
-            let inner = r;
             game_write(rva(0x71B3F8), n);
             crate::drive::load_car::load_car()?;
             game_write(COUNT_RVA, get(g(0x719FD8) + 0x260));
             if first_pass(game_read(rva(0x6238B0))) {
-                shadow(&inner)?;
+                cast_car_shadow()?;
             }
             let sun: u32 = game_read(rva(0x60933C));
             game_write(rva(0x60933C), SUN_PASS);
-            shadow(&inner)?;
+            cast_car_shadow()?;
             game_write(rva(0x60933C), sun);
         }
-        r.ecx = cars;
-        part(2, &mut r)?;
-        Ok(r)
-    }
-}
-
-/// `cast_car_shadows`' depth-test parts in the game: the Rust versions.
-pub fn depth_part(place: u32, _r: &mut Regs) -> Result<(), Refused> {
-    if place == 1 {
-        crate::scene::depth_test_off::depth_test_off();
-    } else {
         crate::scene::depth_test_on::depth_test_on();
+        Ok(())
     }
-    Ok(())
 }

@@ -14,8 +14,8 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::{Regs, rva};
-use crate::menu::screen_loop::{List, Screen, Step, screen_entry};
+use crate::framework::rva;
+use crate::menu::screen_loop::{List, Screen, Step};
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
@@ -75,9 +75,3 @@ pub const SCREEN: Screen = Screen {
     restart_action_check: false,
     always_asks: false,
 };
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    screen_entry("menu::time_trial_stage_details_loop", r, &SCREEN)
-}

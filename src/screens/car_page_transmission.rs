@@ -9,11 +9,13 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::Regs;
-use crate::screens::car_pages::page_entry;
+use crate::errors::Refused;
+use crate::menu::car_description::CarDescription;
+use crate::screens::draw_car_figures::draw_car_page;
+use crate::text::draw_text::GameCanvas;
 
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    page_entry("screens::car_page_transmission", r, 2)
+/// The Rust version: the page drawn for the car's record `description` (edi); the carry
+/// of the last text drawn (too wide).
+pub unsafe fn car_page_transmission(description: *mut CarDescription) -> Result<bool, Refused> {
+    unsafe { draw_car_page(2, description, &mut GameCanvas) }
 }

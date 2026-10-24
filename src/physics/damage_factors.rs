@@ -18,12 +18,9 @@
 //! Caller: `physics::damage_step`.
 //! Self-test: `physics/damage_model.rs` (`damage_test`).
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
-use crate::errors::Refused;
-use crate::framework::Regs;
 #[allow(unused_imports)] // the generated body uses some of them
 use crate::math::x87::mul;
 #[allow(unused_imports)]
@@ -31,9 +28,6 @@ use crate::math::x87_run::{abs_compare, compare_full};
 use crate::physics::damage_model::ONE;
 #[allow(unused_imports)]
 use crate::physics::flow::{a, base, g, hold_high, hold_low, p, table_lerp, x87_run};
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 #[allow(dead_code)]
 fn rd(x: u32) -> u32 {
@@ -41,7 +35,7 @@ fn rd(x: u32) -> u32 {
 }
 
 /// The steps (generated from the disassembly by idiom; the flagged places by hand).
-pub fn steps(r: &mut Regs) {
+pub fn steps() {
     let _ = ONE;
     x87_run!(
         "fild dword ptr [{b} + 0x31A008]", // fild    dword ptr unk_71A008
@@ -55,7 +49,6 @@ pub fn steps(r: &mut Regs) {
         "fstp dword ptr [{b} + 0x35B400]"; // fstp    flt_75B400
         b = base()
     );
-    r.esi = a(0x75B4C8);
     table_lerp(0x71A30C, 0x75B4C8, 0x75B350, 0x75B474);
     x87_run!(
         "fld dword ptr [{b} + 0x35B3FC]", // fld     flt_75B3FC
@@ -81,7 +74,6 @@ pub fn steps(r: &mut Regs) {
             b = base()
         );
     }
-    r.esi = a(0x75B4C8);
     table_lerp(0x71A310, 0x75B4C8, 0x75B350, 0x75B478);
     x87_run!(
         "fld dword ptr [{b} + 0x35B3FC]", // fld     flt_75B3FC
@@ -107,7 +99,6 @@ pub fn steps(r: &mut Regs) {
             b = base()
         );
     }
-    r.esi = a(0x75B4C8);
     table_lerp(0x71A314, 0x75B4C8, 0x75B350, 0x75B47C);
     x87_run!(
         "fld dword ptr [{b} + 0x35B3FC]", // fld     flt_75B3FC
@@ -133,7 +124,6 @@ pub fn steps(r: &mut Regs) {
             b = base()
         );
     }
-    r.esi = a(0x75B4C8);
     table_lerp(0x71A318, 0x75B4C8, 0x75B350, 0x75B480);
     x87_run!(
         "fld dword ptr [{b} + 0x35B3FC]", // fld     flt_75B3FC
@@ -285,35 +275,31 @@ pub fn steps(r: &mut Regs) {
     if status & 0x100 != 0 {
         p(0x75B3C0, ONE);
     }
-    r.eax = g(0x71A210);
-    p(0x75B3B8, r.eax);
-    r.eax = g(0x71A1AC);
-    p(0x75B3BC, r.eax);
-    r.eax = g(0x71A004);
-    p(0x75B3E8, r.eax);
-    r.eax = g(0x71A908);
-    p(0x75B3EC, r.eax);
+    p(0x75B3B8, g(0x71A210));
+    p(0x75B3BC, g(0x71A1AC));
+    p(0x75B3E8, g(0x71A004));
+    let mode = g(0x71A908);
+    p(0x75B3EC, mode);
     x87_run!(
         ".byte 0xD9, 0xEE", // fldz
         "fstp dword ptr [{b} + 0x35B3B4]"; // fstp    flt_75B3B4
         b = base()
     );
-    if r.eax == 5 {
+    if mode == 5 {
         p(0x75B3B4, ONE);
     }
-    r.eax = g(0x71A258);
-    p(0x75B3F0, r.eax);
-    r.eax = g(0x71A208);
-    if r.eax != 0 {
-        r.eax = 1;
+    p(0x75B3F0, g(0x71A258));
+    let mut hit = g(0x71A208);
+    if hit != 0 {
+        hit = 1;
         if compare_full(g(0x71A1FC), g(0x75B350)) & 0x100 == 0 {
-            r.eax += 1;
+            hit += 1;
         }
         if compare_full(g(0x71A204), g(0x75B350)) & 0x100 != 0 {
-            r.eax += 2;
+            hit += 2;
         }
     }
-    p(0x75B3C4, r.eax);
+    p(0x75B3C4, hit);
     x87_run!(
         "fld dword ptr [{b} + 0x31A208]", // fld     dword ptr unk_71A208
         "fmul dword ptr [{b} + 0x31A208]", // fmul    dword ptr unk_71A208
@@ -341,7 +327,6 @@ pub fn steps(r: &mut Regs) {
             p(0x75B3CC + 4 * k, mul(g(0x71A5D8 + 4 * k), g(0x75B36C)));
         }
     }
-    r.ebx = 4;
     x87_run!(
         "fld dword ptr [{b} + 0x35B3CC]", // fld     dword_75B3CC
         "fadd dword ptr [{b} + 0x35B3D0]", // fadd    flt_75B3D0
@@ -375,21 +360,4 @@ pub fn steps(r: &mut Regs) {
         p(0x71A438, 0x64);
     }
     // retn
-}
-
-/// The Rust version.
-pub unsafe fn damage_factors(entry: &Regs) -> Left {
-    let mut r = *entry;
-    steps(&mut r);
-    left_of(&r)
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(unsafe { damage_factors(r) })
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

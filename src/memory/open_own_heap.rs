@@ -13,28 +13,26 @@
 //! reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, game_write, rva};
 use crate::logfile::{log_int::log_int, write_line::log_text};
-
-const SIZE_RVA: usize = rva(0x4E0588); // dword_4E0588: the heap's Kb (`altmemsize`)
-const HEAP_RVA: usize = rva(0x4E058C); // dword_4E058C, dword_4E0590: the heap's memory
+use crate::memory::state::{HEAP_BASE, HEAP_CURSOR, OWN_HEAP_KB};
+use std::sync::atomic::Ordering::Relaxed;
 
 /// The Rust version (see the header).
 pub fn open_own_heap() -> Result<(), Refused> {
     // Converted: `rc2k_core::memory::{own_heap_on, own_heap_size, own_heap_head}`.
     use rc2k_core::memory::{own_heap_head, own_heap_on, own_heap_size};
     unsafe {
-        if !own_heap_on(game_read(crate::memory::OWN_HEAP_RVA)) {
+        if !own_heap_on(crate::memory::own_heap()) {
             return Ok(());
         }
-        let Some((kb, bytes)) = own_heap_size(game_read(SIZE_RVA)) else {
+        let Some((kb, bytes)) = own_heap_size(OWN_HEAP_KB.load(Relaxed)) else {
             return Err(BadInput("a heap size whose bytes wrap to 0").into());
         };
         log_text(b"MEM: Using alternative scheme, heap=", false, 1);
         log_int(kb as i32, true, 1);
         let memory = crate::memory::virtual_alloc::virtual_alloc(bytes)?;
-        game_write(HEAP_RVA, memory);
-        game_write(HEAP_RVA + 4, memory);
+        HEAP_BASE.store(memory, Relaxed);
+        HEAP_CURSOR.store(memory, Relaxed);
         let [first, second] = own_heap_head(bytes);
         (memory as *mut u32).write_unaligned(first);
         ((memory + 4) as *mut u32).write_unaligned(second);

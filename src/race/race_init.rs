@@ -4,7 +4,7 @@
 //! (`sub_4608BB`, `sub_456484`, the marks) and `sub_43FDFE`. Here its small steps.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::race::best_line::{CHECK_COUNT_RVA, CHECK_FACES_RVA, FACES_RVA};
 use crate::race::objects::CAR_BLOCKS_RVA;
 use crate::race::sounds::REPLAY_RVA;
@@ -32,23 +32,16 @@ unsafe fn put(at: u32, value: u32) {
 }
 
 /// `race::clear_race_slots` (0x4621CD): the eight `g_raceSlots` records' first dword 0.
-/// Leaves edi past the last record, ecx 0.
-pub unsafe fn clear_race_slots(entry: &Regs) -> Regs {
+pub unsafe fn clear_race_slots() {
     let first = game_addr(SLOTS_RVA) as u32;
     for n in 0..SLOTS {
         unsafe { put(first + n * SLOT_SIZE, 0) };
     }
-    Regs {
-        edi: first + SLOTS * SLOT_SIZE,
-        ecx: 0,
-        ..*entry
-    }
 }
 
 /// `race::reset_car_starts` (0x444BBC): each car block's +0x14 and +8 0 (0x320 while
-/// `dword_71C3E0` is set), +0x18 and +0x1C 0. Leaves eax that value, ecx 8, esi the last
-/// block.
-pub unsafe fn reset_car_starts(entry: &Regs) -> Regs {
+/// `dword_71C3E0` is set), +0x18 and +0x1C 0.
+pub unsafe fn reset_car_starts() {
     // Converted: `rc2k_core::race::cars::start_value`.
     let value = rc2k_core::race::cars::start_value(unsafe { game_read::<u32>(REPLAY_RVA) } != 0);
     for n in 0..BLOCKS {
@@ -60,27 +53,11 @@ pub unsafe fn reset_car_starts(entry: &Regs) -> Regs {
             put(b + 0x1C, 0);
         }
     }
-    Regs {
-        eax: value,
-        ecx: BLOCKS,
-        esi: block(BLOCKS - 1),
-        ..*entry
-    }
-}
-
-/// `race::nonzero_random` (0x444C14): `math::next_random`, 1 for 0.
-pub unsafe fn nonzero_random() -> u32 {
-    // Converted: `rc2k_core::race::cars::nonzero_random`, on the generator as
-    // `math::next_random` reaches it (its wait and count of draws kept).
-    use crate::math::next_random::{DRAWS, wait_for_random, with_random};
-    wait_for_random();
-    DRAWS.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-    with_random(rc2k_core::race::cars::nonzero_random)
 }
 
 /// `race::seed_car_randoms` (0x444BF6): each car block's +0x10 and +0xC one
-/// `nonzero_random`. Leaves eax the last, ecx 8, esi the last block.
-pub unsafe fn seed_car_randoms(entry: &Regs) -> Regs {
+/// `nonzero_random`.
+pub unsafe fn seed_car_randoms() {
     // Converted: `rc2k_core::race::cars::car_seeds`.
     use crate::math::next_random::{DRAWS, wait_for_random, with_random};
     wait_for_random();
@@ -93,18 +70,12 @@ pub unsafe fn seed_car_randoms(entry: &Regs) -> Regs {
             put(b + 0xC, seed);
         }
     }
-    Regs {
-        eax: seeds[BLOCKS as usize - 1],
-        ecx: BLOCKS,
-        esi: block(BLOCKS - 1),
-        ..*entry
-    }
 }
 
 /// `race::reset_car_race_state` (0x444C1D): each car block's +0x71C 0xCA, +0x72C 0x12C,
 /// +0x720/+0x724/+0x728/+0x730 0, +0xA0C .. +0xA1C -1; the four text dwords at 0x6D1838 ..
-/// spaces, the four at 0x6D1850 .. -1. Leaves ebx 8, edi the last block.
-pub unsafe fn reset_car_race_state(entry: &Regs) -> Regs {
+/// spaces, the four at 0x6D1850 .. -1.
+pub unsafe fn reset_car_race_state() {
     // Converted: `rc2k_core::race::cars::{RACE_STATE, BLANK_TEXT, UNSET_TEXT}`.
     use rc2k_core::race::cars::{BLANK_TEXT, RACE_STATE, UNSET_TEXT};
     for n in 0..BLOCKS {
@@ -121,39 +92,20 @@ pub unsafe fn reset_car_race_state(entry: &Regs) -> Regs {
             game_write(at, UNSET_TEXT);
         }
     }
-    Regs {
-        ebx: BLOCKS,
-        edi: block(BLOCKS - 1),
-        ..*entry
-    }
 }
 
 /// `race::first_check_checkpoint` (0x446280): the first checkpoint from 1 whose face's
 /// +0x26 is not 0, looked for up to `g_lastCheckpoint` (not included); 0 for none or with
-/// `g_checkpointCount` - 2 negative. Leaves eax that; while looking edx the checkpoint,
-/// ebx and esi the face's number and address, al its byte. Refuses a look that would run
-/// past the list (the original runs on until it finds one: `g_lastCheckpoint` 0 or 1).
-pub unsafe fn first_check_checkpoint(entry: &Regs) -> Result<Regs, Refused> {
-    // Converted: `rc2k_core::race::checkpoints::first_check_checkpoint`; ebx, esi and al
-    // the last face asked about.
-    let mut g = *entry;
+/// `g_checkpointCount` - 2 negative. Refuses a look that would run past the list (the
+/// original runs on until it finds one: `g_lastCheckpoint` 0 or 1).
+pub unsafe fn first_check_checkpoint() -> Result<u32, Refused> {
+    // Converted: `rc2k_core::race::checkpoints::first_check_checkpoint`.
     let count: u32 = unsafe { game_read(CHECK_COUNT_RVA) };
     let last = || unsafe { game_read(LAST_CHECK_RVA) };
     let look = rc2k_core::race::checkpoints::first_check_checkpoint(count, last, |n| {
         let face: u32 = unsafe { game_read(CHECK_FACES_RVA + 4 * n as usize) };
         let address = (face << 6).wrapping_add(unsafe { game_read(FACES_RVA) });
-        let byte = unsafe { *((address + 0x26) as *const u8) };
-        g.ebx = face;
-        g.esi = address;
-        g.eax = g.eax & !0xFF | byte as u32;
-        byte
+        unsafe { *((address + 0x26) as *const u8) }
     })?;
-    match look {
-        None => g.eax = 0,
-        Some(l) => {
-            g.edx = l.stopped;
-            g.eax = l.found.unwrap_or(0);
-        }
-    }
-    Ok(g)
+    Ok(look.and_then(|l| l.found).unwrap_or(0))
 }

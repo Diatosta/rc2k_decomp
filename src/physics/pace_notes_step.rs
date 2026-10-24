@@ -20,13 +20,11 @@
 //! them, against the Rust version with the same, on the game's variables (put back): each
 //! gate, speeds forward and back, checkpoints about the count and the last called.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_read, game_write, rva};
-use crate::physics::queue_pace_note::{EXPIRE, PACE, pace_entry};
+use crate::framework::{game_read, game_write, rva};
 use rc2k_core::physics::pace_calls::{call_target, calling, calls};
 
 /// The gates: (variable, the value it must have); the last is "1000 or more".
@@ -52,35 +50,32 @@ fn p(x: usize, v: u32) {
     unsafe { game_write(rva(x), v) }
 }
 
-/// The steps on `r`.
+/// The Rust version. The registers the original leaves are read by none of its callers.
 // Converted: `rc2k_core::physics::pace_calls::{calling, call_target, calls}`.
-pub fn pace_notes_step_in(r: &mut Regs) -> Result<(), Refused> {
+pub fn pace_notes_step() -> Result<(), Refused> {
     if !calling(ZERO.map(g), g(ONE), g(TIME)) {
         return Ok(());
     }
     // `fld; fmul; fdiv; fistp` (the extra division by 1.0 is exact).
     let ahead = crate::math::x87::mul_div_div_to_int(g(SPEED), g(SCALE), g(DIVISOR), ONE_F32);
     p(AHEAD, ahead as u32);
-    r.ebx = call_target(g(CHECKPOINT), ahead, g(COUNT));
-    if let Some((last, gap)) = calls(r.ebx, g(LAST_CALLED)) {
-        r.eax = gap;
+    let target = call_target(g(CHECKPOINT), ahead, g(COUNT));
+    if let Some((last, _)) = calls(target, g(LAST_CALLED)) {
         p(LAST_CALLED, last);
-        r.edx = last;
+        let mut checkpoint = last;
         loop {
-            r.edx = r.edx.wrapping_add(1);
-            let mut c = *r;
-            crate::physics::queue_pace_note::pace_part(PACE, &mut c)?;
-            if r.edx >= r.ebx {
+            checkpoint = checkpoint.wrapping_add(1);
+            crate::physics::queue_pace_note::queue_pace_note(checkpoint)?;
+            if checkpoint >= target {
                 break;
             }
         }
-        p(LAST_CALLED, r.ebx);
+        p(LAST_CALLED, target);
     }
-    crate::physics::queue_pace_note::pace_part(EXPIRE, r)
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    pace_entry(r, pace_notes_step_in)
+    unsafe {
+        crate::physics::expire_car_events::expire_car_events_at(
+            &crate::physics::queue_car_event::QueuePlaces::game(),
+        )
+    }?;
+    Ok(())
 }

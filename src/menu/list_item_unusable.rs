@@ -12,9 +12,7 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::Regs;
-use crate::race::viewer::{CHOICE, get, regs_entry};
+use crate::race::viewer::{CHOICE, get};
 
 /// The Rust version: carry.
 pub unsafe fn list_item_unusable(list: u32) -> bool {
@@ -24,16 +22,4 @@ pub unsafe fn list_item_unusable(list: u32) -> bool {
         .wrapping_add(0x18);
     // Converted: `rc2k_core::menu::list_menu::unusable`.
     rc2k_core::menu::list_menu::unusable(unsafe { (at as *const u8).read() })
-}
-
-fn rust(r: &Regs) -> Result<Regs, Refused> {
-    let mut left = *r;
-    left.set_carry(unsafe { list_item_unusable(r.edi) });
-    Ok(left)
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    regs_entry(r, &rust)
 }

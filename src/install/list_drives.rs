@@ -19,13 +19,12 @@
 //! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
+//! are the original's.
 
-use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::install::installer::{
-    DRIVE_COUNT, DRIVE_LETTERS, DRIVE_TYPE, DRIVES, FIRST_DRIVE, FREE_SPACE, a, at, g, p, wb, wd,
+    DRIVE_COUNT, DRIVE_LETTERS, DRIVES, FIRST_DRIVE, a, g, game_api, p, wb, wd,
 };
-use crate::race::viewer::regs_entry;
 use rc2k_core::install::drives::{self, DriveMenu};
 
 const MENU_8: usize = 0x51D7F8; // off_51D7F8
@@ -33,27 +32,23 @@ const MENU_16: usize = 0x51D8B0; // off_51D8B0
 const MENU_MORE: usize = 0x51D9E8; // off_51D9E8
 const CHOSEN_MENU: usize = 0x51D5F8; // off_51D5F8
 
-pub fn list_drives(entry: &Regs) -> Result<Regs, Refused> {
+pub fn list_drives() {
     let drives = a(DRIVES);
-    // Register for register: ecx the letter, eax given it at each probe, ebx the last slot.
-    let mut r = *entry;
-    r.ecx = g(FIRST_DRIVE);
+    let mut letter = g(FIRST_DRIVE);
     loop {
-        r.eax = r.ecx;
-        crate::install::installer::game_part(at(DRIVE_TYPE), &mut r)?;
         // Converted: `rc2k_core::install::drives` (`offered`, `LISTED`, `free`, `text`,
         // `menu`, `items`).
-        if drives::offered(r.eax) {
-            r.eax = r.ecx;
-            crate::install::installer::game_part(at(FREE_SPACE), &mut r)?;
-            if !r.carry() {
-                r.ebx = drives + 8 * r.ecx.wrapping_sub(b'a' as u32);
-                wd(r.ebx, g_at(r.ebx).wrapping_add(1));
-                wd(r.ebx + 4, r.eax);
-            }
+        let kind = unsafe { crate::files::drive_type::drive_type(letter as u8) };
+        if drives::offered(kind)
+            && let Some(free) =
+                crate::files::drive_free_space_kb::drive_free_space_kb(letter, &mut game_api)
+        {
+            let slot = drives + 8 * letter.wrapping_sub(b'a' as u32);
+            wd(slot, g_at(slot).wrapping_add(1));
+            wd(slot + 4, free);
         }
-        r.ecx = r.ecx.wrapping_add(1);
-        if r.ecx > b'z' as u32 {
+        letter = letter.wrapping_add(1);
+        if letter > b'z' as u32 {
             break;
         }
     }
@@ -89,15 +84,8 @@ pub fn list_drives(entry: &Regs) -> Result<Regs, Refused> {
     };
     p(CHOSEN_MENU, a(menu));
     wb(a(menu) + 1, drives::items(count));
-    Ok(*entry)
 }
 
 fn g_at(at: u32) -> u32 {
     unsafe { (at as *const u32).read_unaligned() }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    regs_entry(r, &|r| list_drives(r))
 }

@@ -24,55 +24,50 @@
 //! what was written is put back.
 //! Self-test: `physics/gearbox.rs` (`test_gearbox`).
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::math::x87_run::{mul_div_status, mul_status};
 use crate::physics::gearbox::*;
 use crate::physics::manual_gearbox::reverse;
-use crate::physics::pick_start_gear::pick_start_gear_in;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
+use crate::physics::pick_start_gear::pick_start_gear;
 use rc2k_core::physics::gear_shifts::{self as shifts, Shift};
 
 /// Up (0x43C66D).
-fn up(r: &mut Regs) -> Result<Shift, Refused> {
-    r.ebx = g(GEAR);
-    if let Some(shift) = shifts::auto_up(r.ebx, g(GEAR_COUNT)) {
+fn up() -> Result<Shift, Refused> {
+    if let Some(shift) = shifts::auto_up(g(GEAR), g(GEAR_COUNT)) {
         return Ok(shift);
     }
-    wheels(r)?;
+    wheels()?;
     p(GEAR, g(GEAR).wrapping_add(1));
-    revs(r)?;
+    revs()?;
     settle();
     Ok(Shift::Done)
 }
 
 /// Down (0x43C6B7).
-fn down(r: &mut Regs) -> Result<Shift, Refused> {
-    wheels(r)?;
+fn down() -> Result<Shift, Refused> {
+    wheels()?;
     p(GEAR, g(GEAR).wrapping_sub(1));
-    revs(r)?;
+    revs()?;
     if below(g(ENGINE), g(0x614104)) {
         settle();
         return Ok(Shift::Done);
     }
     p(GEAR, g(GEAR).wrapping_add(1));
-    revs(r)?;
+    revs()?;
     Ok(Shift::Neutral)
 }
 
 /// The automatic's tests (0x43C798).
-fn tests(r: &mut Regs) -> Result<Shift, Refused> {
-    r.ebx = g(GEAR);
+fn tests() -> Result<Shift, Refused> {
+    // `revs_from_speed` leaves ebx the gear it reads: the same.
+    let gear = g(GEAR);
     let kept = g(ENGINE);
-    revs_speed(r)?;
+    revs_speed()?;
     p(SCRATCH, over_top());
     p(ENGINE, kept);
-    let gear = r.ebx;
     shifts::auto_tests(
         gear,
         || g(0x71A22C) != 0,
@@ -101,10 +96,10 @@ fn tests(r: &mut Regs) -> Result<Shift, Refused> {
 
 /// The steps on `r`.
 // Converted: `rc2k_core::physics::gear_shifts` (the engine's sums and compares stay x87).
-pub fn auto_gearbox_in(r: &mut Regs) -> Result<(), Refused> {
+pub fn auto_gearbox() -> Result<(), Refused> {
     p(CHANGED, 0);
     let mut to = 'first: {
-        if bit(r, g(GEAR))? {
+        if bit(g(GEAR))? {
             break 'first Shift::Neutral;
         }
         if g(GEAR) != 0 && below(g(ENGINE), g(0x6140F8)) {
@@ -130,43 +125,25 @@ pub fn auto_gearbox_in(r: &mut Regs) -> Result<(), Refused> {
         if g(0x71A404) != 0 {
             return Ok(());
         }
-        tests(r)?
+        tests()?
     };
     loop {
         to = match to {
-            Shift::Up => up(r)?,
-            Shift::Down => {
-                r.ebx = g(GEAR);
-                down(r)?
-            }
+            Shift::Up => up()?,
+            Shift::Down => down()?,
             Shift::Neutral => {
                 neutral();
                 Shift::Done
             }
             Shift::Start => {
-                pick_start_gear_in(r)?;
+                pick_start_gear()?;
                 Shift::Done
             }
             Shift::Reverse => {
-                reverse(r, false)?;
+                reverse(false)?;
                 Shift::Done
             }
             Shift::Done => return Ok(()),
         };
     }
-}
-
-/// The Rust version.
-pub unsafe fn auto_gearbox(entry: &Regs) -> Result<Left, Refused> {
-    guarded(entry, &auto_gearbox_in)
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { auto_gearbox(r) }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

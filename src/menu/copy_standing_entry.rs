@@ -14,12 +14,11 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 use crate::errors::{BadInput, Refused};
-use crate::framework::Regs;
 use crate::menu::standings::*;
 
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn copy_standing_entry(entry: &Regs) -> Result<Regs, Refused> {
-    let (e, p) = (entry.edi, entry.esi);
+/// `e` the entry (edi in the original), `p` the player's record (esi), `index` the
+/// player's index (ebx).
+pub unsafe fn copy_standing_entry(e: u32, p: u32, index: u32) -> Result<(), Refused> {
     if e == 0 || p == 0 || get(p + 0x18) == 0 {
         return Err(BadInput("a null entry, record or name").into());
     }
@@ -27,7 +26,7 @@ pub unsafe fn copy_standing_entry(entry: &Regs) -> Result<Regs, Refused> {
     use rc2k_core::menu::standings::{PlayerA, fill_a};
     let name_at = get(p + 0x18);
     let source = PlayerA {
-        index: entry.ebx,
+        index,
         time: get(p + 0x88),
         group: get(p + 0x90),
         total: get(p + 0x8C),
@@ -39,5 +38,5 @@ pub unsafe fn copy_standing_entry(entry: &Regs) -> Result<Regs, Refused> {
     };
     // The entry's bytes as far as it is written (to +0x50).
     fill_a(&mut unsafe { table(e, 0x50, 1) }, 0, &source);
-    Ok(*entry)
+    Ok(())
 }

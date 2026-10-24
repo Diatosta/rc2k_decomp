@@ -22,7 +22,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 use crate::marks::setup::SETTINGS_RVA;
 
 const SEEN_RVA: usize = rva(0x934D6E); // dword_934D6E
@@ -32,79 +32,47 @@ const BMASK_RVA: usize = rva(0x934DFA); // g_marksBMaskBlock
 const SLOT_RVA: usize = rva(0x5D0E10); // dword_5D0E10
 const FORGET_RVA: usize = rva(0x5D1E10); // dword_5D1E10
 const WIDTH_RVA: usize = rva(0x4F49A0); // g_surface.width
-const LOCK_RVA: usize = rva(0x41AA4B); // the platform's texture lock
-const UNLOCK_RVA: usize = rva(0x41AB02); // the platform's texture unlock
 
-/// The Rust version (see the header): the registers it leaves.
+/// The Rust version (see the header): the lock and unlock (`d3d::lock_texture`,
+/// `unlock_texture`), `gfx::put_surface_pixel`, `scene::forget_slot_texture`.
 // Converted: `rc2k_core::marks::masks::{swapped, check_width, texture_pixels}`
-pub unsafe fn swap_mask(entry: &Regs) -> Result<Regs, Refused> {
+pub unsafe fn swap_mask() -> Result<(), Refused> {
+    use crate::marks::load_mask_pictures::{lock, put_pixel};
     use rc2k_core::marks::masks;
-    let mut g = *entry;
     unsafe {
         let s: u32 = game_read(SETTINGS_RVA);
         if s == 0 {
             return Err(BadInput("no marks settings").into());
         }
-        g.esi = s;
         let switch = ((s + 0x2704) as *const u32).read_unaligned();
-        g.eax = switch;
         let Some(second) = masks::swapped(switch, game_read(SEEN_RVA)) else {
-            return Ok(g);
+            return Ok(());
         };
         let kept: [u32; 2] = [game_read(SEEN_RVA), game_read(CHOSEN_RVA)];
-        game_write(SEEN_RVA, g.eax);
-        g.eax = game_read(if second { BMASK_RVA } else { MASK_RVA });
-        game_write(CHOSEN_RVA, g.eax);
-        g.eax = game_read(SLOT_RVA);
-        crate::marks::swap_mask::game_part(1, &mut g)?;
+        game_write(SEEN_RVA, switch);
+        game_write(
+            CHOSEN_RVA,
+            game_read::<u32>(if second { BMASK_RVA } else { MASK_RVA }),
+        );
+        lock(game_read(SLOT_RVA), true)?;
         // The width is the locked texture's (`g_surface` while it is locked), not the
         // screen's: checked here (2026-10-18: checked before the lock, it refused every
         // frame). A row wider than the mask's would read past its block: unlocked, put
         // back and refused.
         let width: u32 = game_read(WIDTH_RVA);
         if let Err(e) = masks::check_width(width) {
-            let mut u = Regs {
-                eax: game_read(SLOT_RVA),
-                ..g
-            };
-            crate::marks::swap_mask::game_part(3, &mut u)?;
+            lock(game_read(SLOT_RVA), false)?;
             game_write(SEEN_RVA, kept[0]);
             game_write(CHOSEN_RVA, kept[1]);
             return Err(e.into());
         }
         for (row, col, at) in masks::texture_pixels(width) {
-            g.ecx = col;
-            g.ebp = at;
-            g.esi = game_read(CHOSEN_RVA);
-            g.eax = ((g.esi + 4 * g.ebp) as *const u32).read_unaligned();
-            g.edx = row + masks::TEXTURE_ROW_AT;
-            crate::marks::swap_mask::game_part(2, &mut g)?;
-            g.edx = row;
+            let chosen: u32 = game_read(CHOSEN_RVA);
+            let pixel = ((chosen + 4 * at) as *const u32).read_unaligned();
+            put_pixel(pixel, col, row + masks::TEXTURE_ROW_AT)?;
         }
-        // The loops' counters, read back for their last tests.
-        g.ecx = width.max(1);
-        g.edx = masks::TEXTURE_ROWS;
-        g.eax = game_read(SLOT_RVA);
-        crate::marks::swap_mask::game_part(3, &mut g)?;
-        g.eax = game_read(FORGET_RVA);
-        crate::marks::swap_mask::game_part(4, &mut g)?;
-    }
-    Ok(g)
-}
-
-/// In the game: the platform's lock and unlock through the game, the others' Rust
-/// versions.
-pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    unsafe {
-        match place {
-            1 => crate::calls::call(LOCK_RVA, r),
-            2 => {
-                let left = crate::gfx::put_surface_pixel::put_surface_pixel(r)?;
-                r.eax = left.eax;
-            }
-            3 => crate::calls::call(UNLOCK_RVA, r),
-            _ => crate::scene::forget_slot_texture::forget_slot_texture(r.eax)?,
-        }
+        lock(game_read(SLOT_RVA), false)?;
+        crate::scene::forget_slot_texture::forget_slot_texture(game_read(FORGET_RVA))?;
     }
     Ok(())
 }

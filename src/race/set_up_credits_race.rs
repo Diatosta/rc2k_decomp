@@ -19,10 +19,8 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{EAX, EBX, EDX, Regs, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 use crate::math::next_random::next_random;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 const STAGES: usize = 0x71C3E4; // dword_71C3E4, `RACE_STAGES` stages
 const KINDS: usize = 0x71C474; // dword_71C474, `RACE_KINDS` car kinds
@@ -112,8 +110,9 @@ fn drawn_index(n: u32) -> u32 {
     rc2k_core::race::credits::drawn_place(unsafe { next_random() }, n)
 }
 
-/// The Rust version.
-pub fn set_up_credits_race(_: &Regs) -> Result<Left, Refused> {
+/// The Rust version. (The original leaves eax 3, ebx 0x17 and edx the car kind drawn;
+/// nothing reads them.)
+pub fn set_up_credits_race() -> Result<(), Refused> {
     // Converted: `rc2k_core::race::credits::drawn_place`.
     use rc2k_core::race::credits::{RACE_KINDS, RACE_STAGES};
     unsafe {
@@ -130,12 +129,6 @@ pub fn set_up_credits_race(_: &Regs) -> Result<Left, Refused> {
         for (at, v) in WRITES {
             game_write(rva(at), v);
         }
-        Ok(Left::nothing().with(EAX, 3).with(EBX, 0x17).with(EDX, kind))
+        Ok(())
     }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &set_up_credits_race)
 }

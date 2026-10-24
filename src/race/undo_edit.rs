@@ -17,35 +17,26 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
-use crate::physics::flow::a;
 use crate::race::viewer::{
     BLOCKS, CAMERAS, PLACES, TABLE_LEN, UNDO_BLOCKS, UNDO_CAMERAS, UNDO_PLACES, get, put, table,
 };
 
-/// The Rust version: the registers it leaves.
-pub fn undo_edit(entry: &Regs) -> Result<Regs, Refused> {
+/// The Rust version. What the original leaves its one caller, `viewer_action` (which
+/// keeps every register), does not read.
+pub fn undo_edit() -> Result<(), Refused> {
     // Converted: `rc2k_core::race::viewer_flow::{undo_count, copy_tables}`.
     use rc2k_core::race::viewer_flow::{copy_tables, undo_count};
-    let mut r = *entry;
     let Some(count) = undo_count(get(UNDO_BLOCKS)) else {
-        return Ok(r);
+        return Ok(());
     };
-    {
-        r.eax = count;
-        put(BLOCKS, r.eax);
-        let n = TABLE_LEN / 4;
-        unsafe {
-            copy_tables(
-                (table(PLACES, n), table(CAMERAS, n)),
-                (table(UNDO_PLACES, n), table(UNDO_CAMERAS, n)),
-            );
-        }
-        r.ecx = 0;
-        r.esi = a(UNDO_CAMERAS) + TABLE_LEN as u32;
-        r.edi = a(CAMERAS) + TABLE_LEN as u32;
-        put(UNDO_BLOCKS, 0);
-        crate::race::reset_marks::reset_marks()?;
-        Ok(r)
+    put(BLOCKS, count);
+    let n = TABLE_LEN / 4;
+    unsafe {
+        copy_tables(
+            (table(PLACES, n), table(CAMERAS, n)),
+            (table(UNDO_PLACES, n), table(UNDO_CAMERAS, n)),
+        );
     }
+    put(UNDO_BLOCKS, 0);
+    crate::race::reset_marks::reset_marks()
 }

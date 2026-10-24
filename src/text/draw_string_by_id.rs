@@ -9,10 +9,9 @@
 //! registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::Regs;
 use crate::strings::append_string_by_id::append_string_by_id;
 use crate::strings::text_from_ids::{TEXT_LEN, text};
-use crate::text::draw_text::{Canvas, GameCanvas, Outcome, draw_text};
+use crate::text::draw_text::{Canvas, Outcome, draw_text};
 use crate::text::font::Font;
 use std::ptr::copy_nonoverlapping;
 use std::slice::from_raw_parts;
@@ -66,19 +65,4 @@ pub unsafe fn draw_string_by_id_at(
         }
         Ok(out)
     }
-}
-
-/// The original's registers (see the header) around the Rust version, on the game's screen:
-/// for Rust callers that hold registers. Nothing is written when it refuses.
-pub unsafe fn draw_string_by_id_regs(r: &mut Regs) -> Result<(), Refused> {
-    let (id, font, x, y) = (r.eax, r.ebx as *mut Font, r.ecx as i32, r.edx as i32);
-    let mut copy = unsafe { font.read_unaligned() };
-    let out = unsafe { draw_string_by_id(id, &mut copy, x, y, text(), &mut GameCanvas) }?;
-    if copy != unsafe { font.read_unaligned() } {
-        unsafe { font.write_unaligned(copy) };
-    }
-    (r.eax, r.ebx, r.ecx, r.edx) = (0, out.text as u32, out.x as u32, out.y as u32);
-    r.set_carry(out.too_wide);
-    r.set_zero(!out.too_wide);
-    Ok(())
 }

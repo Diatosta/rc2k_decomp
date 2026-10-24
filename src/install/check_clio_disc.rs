@@ -19,7 +19,6 @@
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::install::check_at_start::{INSTALLING_RVA, RECORD_RVA, set_script_entry};
-use crate::install::check_test::MEDIA_MODE_RVA;
 use crate::install::outside::Outside;
 use crate::install::read_registry::{SOURCE_RVA, STATUS_RVA};
 use crate::install::runs_from_source::runs_from_source;
@@ -63,7 +62,7 @@ pub unsafe fn check_clio_disc(outside: &mut dyn Outside) -> Result<(), Refused> 
             return Ok(());
         }
         outside.read_record()?;
-        if game_read::<u32>(MEDIA_MODE_RVA) < 2 {
+        if crate::files::state::MEDIA_MODE.load(std::sync::atomic::Ordering::Relaxed) < 2 {
             outside.log(
                 c"CLIO: Requires normal or full installation"
                     .as_ptr()

@@ -18,34 +18,35 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::{Regs, game_read, game_write, rva};
-use crate::menu::screen_loop::{Env, Flow, List, Screen, Step};
+use crate::errors::Refused;
+use crate::framework::{game_read, game_write, rva};
+use crate::menu::screen_loop::{Carried, Flow, List, Screen, Step, call};
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
-unsafe fn each_frame(g: &mut Regs, env: &mut dyn Env) -> Flow {
+unsafe fn each_frame(c: &mut Carried) -> Result<Flow, Refused> {
     unsafe {
         if game_read::<u32>(rva(0x7556A8)) == 0x1 {
-            env.call(rva(0x46F4E7), g);
-            if !g.carry() {
+            call(rva(0x46F4E7), c)?;
+            if !c.carry {
                 if game_read::<u32>(rva(0x7556A8)) != 0x0 {
-                    return Flow::NextFrame;
+                    return Ok(Flow::NextFrame);
                 }
                 if game_read::<u32>(rva(0x758806)) == 0x1 {
                     game_write(rva(0x758806), 0x0u32);
-                    g.eax = 0xFFFFFFFF;
+                    c.arg = 0xFFFFFFFF;
                     game_write(rva(0x755A0C), 0xFFFFFFFFu32);
-                    return Flow::Leave;
+                    return Ok(Flow::Leave);
                 }
-                g.eax = game_read(rva(0x755248));
-                g.eax = g.eax.wrapping_mul(0x14);
-                g.eax = g.eax.wrapping_add(game_read(rva(0x755525)));
-                g.eax = g.eax.wrapping_add(0xFFFFFFFF);
-                game_write(rva(0x755A0C), g.eax);
-                return Flow::Leave;
+                c.arg = game_read(rva(0x755248));
+                c.arg = c.arg.wrapping_mul(0x14);
+                c.arg = c.arg.wrapping_add(game_read(rva(0x755525)));
+                c.arg = c.arg.wrapping_sub(1);
+                game_write(rva(0x755A0C), c.arg);
+                return Ok(Flow::Leave);
             }
         }
-        Flow::On
+        Ok(Flow::On)
     }
 }
 
@@ -104,7 +105,7 @@ pub const SCREEN: Screen = Screen {
     prepare: &[],
     after_lists: &[],
     background: &[
-        Step::EaxAddr(rva(0x731ED1)),
+        Step::ArgAddr(rva(0x731ED1)),
         Step::CallOrFatal(rva(0x47EFFF), 0x80712345),
     ],
     after_first_frame: &[],

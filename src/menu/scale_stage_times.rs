@@ -18,7 +18,7 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::menu::standings::*;
 
 pub const TIMES_RVA: usize = rva(0x75AAE8); // dword_75AAE8 .. dword_75AAF4
@@ -39,8 +39,9 @@ pub fn scaled(times: [u32; 4], section: u32) -> ([u32; 4], [u32; 2]) {
     (out, f)
 }
 
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn scale_stage_times(entry: &Regs) -> Result<Regs, Refused> {
+/// `record` the stage's record (edi in the original; its +0x40 is logged). The original
+/// leaves eax the section, which its one caller (`calc_cpu_times`) does not read.
+pub unsafe fn scale_stage_times(record: u32) -> Result<(), Refused> {
     use crate::logfile::{log_float::log_float, log_int::log_int, log_write::log_write};
     let section = held_section();
     unsafe {
@@ -52,7 +53,7 @@ pub unsafe fn scale_stage_times(entry: &Regs) -> Result<Regs, Refused> {
         let text = |n: usize| game_addr(TEXTS_RVA[n]) as *const u8;
         log_write(text(0), false, 1);
         log_int(section as i32, false, 1);
-        log_int(get(entry.edi + 0x40) as i32, false, 1);
+        log_int(get(record + 0x40) as i32, false, 1);
         log_write(text(1), false, 1);
         log_float(f32::from_bits(f[0]), 2, false, 1);
         log_write(text(2), false, 1);
@@ -62,8 +63,5 @@ pub unsafe fn scale_stage_times(entry: &Regs) -> Result<Regs, Refused> {
             log_int(t as i32, k == 3, 1);
         }
     }
-    Ok(Regs {
-        eax: section,
-        ..*entry
-    })
+    Ok(())
 }

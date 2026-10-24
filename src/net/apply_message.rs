@@ -11,23 +11,16 @@
 //!   +0xFCC 32, for `net::follow_remote` to glide it;
 //! - others: nothing.
 //!
-//! In:  ebx = the message (its first dword the tag), ebp = the player
-//! Out: eax the first byte (players 8 and up), the tag (others), or the last dword moved
-//!      (or the last 32nd); ecx past the dwords read; edi the car block; the rest kept
+//! In:  `player` (ebp), `message` (ebx: its first dword the tag)
+//! Out: nothing (the original leaves eax, ecx, edi as it goes; its one caller has it inside
+//!      `pusha` .. `popa`)
 //!
-//! See `net/mod.rs`. One caller, `net::apply_received` (inside `pusha`). Its calls through
-//! `part` (the log's). The distance with the original's x87 instructions. Shadow mode runs
-//! the original alone (it logs). Self-test: a copy whose block table is the test's and
-//! whose calls go to noting stand-ins, against the Rust version: each tag and another,
-//! players 0, 7, 8, steps either side of 1000, places near and far.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! See `net/mod.rs`. One caller, `net::apply_received`. The distance with the original's
+//! x87 instructions.
 
-use crate::errors::Refused;
-use crate::framework::{Regs, game_read, rva};
-use crate::net::{LOG_INT, LOG_INT_NL, LOG_TEXT, PLAYER, Part, STEP, a, g, net_entry};
+use crate::framework::{game_read, rva};
+use crate::logfile::{log_int::log_int, log_write::log_write};
+use crate::net::{PLAYER, STEP, a, g};
 use rc2k_core::net::race::{self, Arrival, Kind};
 
 /// g_carBlocks: the eight cars' blocks.
@@ -35,40 +28,33 @@ pub const BLOCKS: usize = 0x71B3B8;
 const TEXT: usize = 0x4DE0EE; // "rcvd fm plyr"
 const NEAR: usize = 0x5C5D54; // flt_5C5D54: 10.0
 
-/// The Rust version on the block table at `blocks`.
-pub fn apply_message_with(r: &mut Regs, blocks: u32, part: Part) -> Result<(), Refused> {
+/// The Rust version.
+pub fn apply_message(player: u32, message: *const u8) {
     let rd = |at: u32| unsafe { (at as *const u32).read_unaligned() };
     let wr = |at: u32, v: u32| unsafe { (at as *mut u32).write_unaligned(v) };
-    r.eax = unsafe { (r.ebx as *const u8).read() } as u32;
-    for (place, eax) in [
-        (LOG_INT, g(PLAYER)),
-        (LOG_INT, g(STEP)),
-        (LOG_INT, r.eax),
-        (LOG_TEXT, a(TEXT)),
-        (LOG_INT_NL, r.ebp),
-    ] {
-        let mut l = Regs { eax, ..*r };
-        part(place, &mut l)?;
+    let message = message as u32;
+    log_int(g(PLAYER) as i32, false, 1);
+    log_int(g(STEP) as i32, false, 1);
+    log_int(unsafe { (message as *const u8).read() } as i32, false, 1);
+    unsafe { log_write(a(TEXT) as *const u8, false, 1) };
+    log_int(player as i32, true, 1);
+    if player >= 8 {
+        return;
     }
-    if r.ebp >= 8 {
-        return Ok(());
-    }
-    let block = rd(blocks + 4 * r.ebp);
-    r.edi = block;
-    r.eax = rd(r.ebx);
+    let block = rd(a(BLOCKS) + 4 * player);
     // Converted: `rc2k_core::net::race` (`Kind`, `arrival`; the distance's test in `f64`,
     // exact for the decision).
-    let Some(kind) = Kind::of(r.eax) else {
-        return Ok(());
+    let Some(kind) = Kind::of(rd(message)) else {
+        return;
     };
-    r.ecx = 4;
-    for n in 0..kind.fields().len() {
-        r.eax = rd(r.ebx + r.ecx);
-        wr(block + kind.destination(n), r.eax);
-        r.ecx += 4;
+    for n in 0..kind.fields().len() as u32 {
+        wr(
+            block + kind.destination(n as usize),
+            rd(message + 4 + 4 * n),
+        );
     }
     if kind != Kind::Position {
-        return Ok(());
+        return;
     }
     let three = |at: u32| [rd(block + at), rd(block + at + 4), rd(block + at + 8)];
     let (wanted, now) = (three(race::WANTED), three(race::PLACE));
@@ -82,22 +68,9 @@ pub fn apply_message_with(r: &mut Regs, blocks: u32, part: Part) -> Result<(), R
         }
         Arrival::Glide(step) => {
             for (k, v) in (0..).zip(step) {
-                r.eax = v;
                 wr(block + race::WANTED + 4 * k, v);
             }
             wr(block + race::GLIDE_STEPS, race::GLIDE);
         }
     }
-    Ok(())
-}
-
-/// The Rust version.
-pub fn apply_message(r: &mut Regs, part: Part) -> Result<(), Refused> {
-    apply_message_with(r, a(BLOCKS), part)
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    net_entry(r, apply_message)
 }

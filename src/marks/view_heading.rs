@@ -4,7 +4,7 @@
 //! `flt_8F3975`; 2 pi less it when the level part's x (normalised) is not negative.
 //!
 //! In:  nothing
-//! Out: esi 0x91FF7E, edi 0x91FF8A; the rest kept
+//! Out: nothing (no caller reads a register it leaves)
 //!
 //! One caller, `sub_4C3EEE`. Self-test: the original and the Rust version on several
 //! views and second vectors; put back afterwards.
@@ -18,7 +18,7 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::math::x87;
 use crate::scene::matrix3::rounded;
 use crate::scene::vector3::angle_between_vectors;
@@ -29,19 +29,17 @@ const OTHER_RVA: usize = rva(0x91FF8A); // flt_91FF8A: three floats
 const HEADING_RVA: usize = rva(0x8F3975); // g_marksViewHeading
 
 /// The Rust version (see the header).
-pub unsafe fn view_heading(entry: &Regs) -> Regs {
-    let mut g = *entry;
+pub unsafe fn view_heading() {
     unsafe {
         let x = x87::loaded(game_read(VIEW_RVA + 8));
         let z = x87::loaded(game_read(VIEW_RVA + 0x28));
         game_write(LEVEL_RVA, [x, 0, z]);
-        g.esi = game_addr(LEVEL_RVA) as u32;
-        g.edi = game_addr(OTHER_RVA) as u32;
-        let mut heading = rounded(angle_between_vectors(g.esi, g.edi));
+        let level = game_addr(LEVEL_RVA) as u32;
+        let other = game_addr(OTHER_RVA) as u32;
+        let mut heading = rounded(angle_between_vectors(level, other));
         if game_read::<u32>(LEVEL_RVA) & 0x8000_0000 == 0 {
             heading = x87::two_pi_less(heading);
         }
         game_write(HEADING_RVA, heading);
     }
-    g
 }

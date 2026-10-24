@@ -18,23 +18,19 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::race::viewer::{BLOCK, BLOCKS, get};
 
-/// The Rust version: the registers it leaves.
-pub unsafe fn spread_camera(entry: &Regs) -> Result<Regs, Refused> {
-    let mut r = *entry;
-    let at = |n: u32| (r.ebx.wrapping_add(n.wrapping_mul(8))) as *mut u8;
-    let dl = unsafe { (r.ebx as *const u8).read() };
-    let old = (r.edx >> 8) as u8;
+/// The Rust version: `byte` the changed camera byte's address, `old` its old value. What
+/// the original leaves (dl, eax, ecx) its callers do not read: `viewer_action` and the
+/// camera steps end with it, and `viewer_action` keeps every register.
+pub unsafe fn spread_camera(byte: u32, old: u8) -> Result<(), Refused> {
+    let at = |n: u32| (byte.wrapping_add(n.wrapping_mul(8))) as *mut u8;
+    let dl = unsafe { (byte as *const u8).read() };
     let count = get(BLOCKS).wrapping_sub(get(BLOCK));
     // Converted: `rc2k_core::race::viewer::spread` (how far it goes, first).
     let s = rc2k_core::race::viewer::spread(count, old, |n| unsafe { at(n).read() })?;
     for n in 1..=s.taken {
         unsafe { at(n).write(dl) };
     }
-    r.eax = s.gone;
-    r.ecx = s.left;
-    r.edx = r.edx & !0xFF | dl as u32;
-    Ok(r)
+    Ok(())
 }

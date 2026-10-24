@@ -11,43 +11,15 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
-use crate::screens::service_boxes::{Part, quad, quad_part, rd};
+use crate::screens::service_boxes::{quad, rd};
 
 /// The Rust version: every register kept. Parts: 1 the quads, 2 the rules, 3 the boxes.
-pub unsafe fn draw_two_column_panel(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub unsafe fn draw_two_column_panel() -> Result<(), Refused> {
     // Converted: `rc2k_core::screens::panels::two_column_panel`.
-    let mut part = part;
-    let mut g = *entry;
     for a in rc2k_core::screens::panels::two_column_panel(rd(0x75AA94)) {
-        quad(&mut g, a.x, a.y, a.w, a.h, a.colour, a.see, &mut part)?;
+        quad(a.x, a.y, a.w, a.h, a.colour, a.see)?;
     }
-    part(2, &mut g)?;
-    part(3, &mut g)?;
-    Ok(*entry)
-}
-
-pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    use crate::screens::{draw_column_boxes, draw_column_rules};
-    unsafe {
-        match place {
-            1 => quad_part(r),
-            2 => {
-                *r = draw_column_rules::draw_column_rules(r, &mut draw_column_rules::game_part)?;
-                Ok(())
-            }
-            _ => {
-                *r = draw_column_boxes::draw_column_boxes(r, &mut draw_column_boxes::game_part)?;
-                Ok(())
-            }
-        }
-    }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { draw_two_column_panel(r, &mut game_part) }?;
-    *r = Regs { esp: r.esp, ..left };
+    unsafe { crate::screens::draw_column_rules::draw_column_rules() }?;
+    unsafe { crate::screens::draw_column_boxes::draw_column_boxes() }?;
     Ok(())
 }

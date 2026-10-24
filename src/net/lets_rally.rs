@@ -14,8 +14,8 @@
 //! finished) carry, else the race's time recorded (`net::race_over`).
 //!
 //! In:  nothing
-//! Out: every register kept (`pusha` .. `popa`); carry set as above, else the flags of
-//!      `test eax, eax` on the race's time
+//! Out: whether the original sets the carry (as above); every register kept (`pusha` ..
+//!      `popa`)
 //! Caller: `net::start_link`. Its calls through `part` (`net::lobby_calls`: the Rust versions,
 //! the platform's and the long runners through their hooks). The race runs inside it:
 //! ungated. Shadow mode runs the original alone. Self-test: a copy whose calls go to
@@ -28,115 +28,75 @@
 
 use crate::errors::Refused;
 use crate::field;
-use crate::framework::Regs;
 use crate::net::lobby::{
-    APPLY_SOUND, CLEAR_FRONT, CLEAR_RACE_SOUNDS, CLOCK_A, COPY_RECEIVED, FIRST_HOST,
-    FRONT_END_SCENE, LOADING_PICTURE, LOG_L2_NL, PLAYER, PLAYERS, Part, RACE_SOUNDS, RACING,
-    RUN_FRAME, SET_MENU_MODE, SET_RACE_MODE, SET_UP_ENGINE, SET_UP_RACE_SOUNDS, STOP_MUSIC,
-    SYNC_CLOCK, SYNC_FIRST, TAKE_KEY, TICK, TIDY_EVERYTHING, a, block, g, lobby_entry, log_text, p,
-    test_eax,
+    CLOCK_A, FIRST_HOST, PLAYER, PLAYERS, RACING, SYNC_CLOCK, SYNC_FIRST, a, block, g, log, p,
+    run_frame,
 };
 use crate::net::types::NetPlayerBlock;
 use rc2k_core::net::record;
 
 const TEXT: usize = 0x5C2E2A; // "NET: Lets rally"
-const SET_UP_RACE: u32 = 0x463A94; // net::set_up_race
-const LIST_PLAYERS: u32 = 0x417A03; // net::list_players_regs
-const RACE_WAIT: u32 = 0x4171FE; // net::race_wait
-const LETS_RACE: u32 = 0x4640AA; // net::lets_race
-const RACE_OVER: u32 = 0x41732E; // net::race_over
 const SETTINGS: [(usize, u32); 2] = [(0x75ACE0, 1), (0x75ACD8, 0)];
 const CAR: usize = 0x75ACE8; // dword_75ACE8
 const COLOURS: usize = 0x75AE2C; // dword_75AE2C
 
-/// The Rust version: the registers it leaves.
-pub fn lets_rally(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    let mut r = *entry;
-    let left = |r: &Regs| Regs {
-        eflags: r.eflags,
-        ..*entry
-    };
-    log_text(LOG_L2_NL, a(TEXT), &r, part)?;
-    p(RACING, 1);
-    r.esi = block(g(PLAYER));
-    for (x, v) in SETTINGS {
-        p(x, v);
-    }
-    // Converted: `rc2k_core::net::record` (`CAR`, `COLOURS`, `first_not_host`).
-    let byte = |at: u32| unsafe { (at as *const u8).read() };
-    let own = r.esi + field!(NetPlayerBlock, record);
-    r.eax = byte(own + record::CAR as u32) as u32;
-    p(CAR, r.eax);
-    r.eax = byte(own + record::COLOURS as u32) as u32;
-    p(COLOURS, r.eax);
-    let state = |n: u32| byte(block(n) + field!(NetPlayerBlock, record.state));
-    let Some(first) = record::first_not_host(g(PLAYERS), state) else {
-        r.set_carry(true);
-        return Ok(left(&r));
-    };
-    r.ebx = block(first);
-    r.ecx = first;
-    p(FIRST_HOST, r.ecx);
-    for place in [
-        STOP_MUSIC,
-        SET_RACE_MODE,
-        LOADING_PICTURE,
-        SET_UP_RACE_SOUNDS,
-        RACE_SOUNDS,
-        SET_UP_RACE,
-        TICK,
-    ] {
-        part(place, &mut r)?;
-    }
-    p(CLOCK_A, r.eax);
-    p(SYNC_CLOCK, r.eax);
-    p(SYNC_FIRST, 1);
-    part(LIST_PLAYERS, &mut r)?;
-    loop {
-        r.eax = 0;
-        part(RUN_FRAME, &mut r)?;
-        r.ebx = 1;
-        part(TAKE_KEY, &mut r)?;
-        if r.eax as u8 == 1 {
-            break;
+/// The Rust version: true when the original ends with the carry set (no player but the
+/// host, Escape, or the car not finished: the link ends).
+pub fn lets_rally() -> Result<bool, Refused> {
+    use crate::race::sound_tables;
+    unsafe {
+        log(a(TEXT), true, 2);
+        p(RACING, 1);
+        let own = block(g(PLAYER)) + field!(NetPlayerBlock, record);
+        for (x, v) in SETTINGS {
+            p(x, v);
         }
-        part(RACE_WAIT, &mut r)?;
-        if r.eax != 0 {
-            part(CLEAR_FRONT, &mut r)?;
-            part(COPY_RECEIVED, &mut r)?;
-            part(LETS_RACE, &mut r)?;
-            break;
+        // Converted: `rc2k_core::net::record` (`CAR`, `COLOURS`, `first_not_host`).
+        let byte = |at: u32| (at as *const u8).read();
+        p(CAR, byte(own + record::CAR as u32) as u32);
+        p(COLOURS, byte(own + record::COLOURS as u32) as u32);
+        let state = |n: u32| byte(block(n) + field!(NetPlayerBlock, record.state));
+        let Some(first) = record::first_not_host(g(PLAYERS), state) else {
+            return Ok(true);
+        };
+        p(FIRST_HOST, first);
+        crate::sound::stop_music::stop_music();
+        crate::race::race_shell::set_race_screen_mode();
+        crate::menu::show_loading_picture::show_loading_picture()?;
+        sound_tables::set_up_race_sound_objects(&sound_tables::ObjectVars::game())?;
+        crate::sound::set_up_race_sounds::set_up_race_sounds()?;
+        crate::net::set_up_race::set_up_race()?;
+        let tick = crate::system::tick_count::tick_count();
+        p(CLOCK_A, tick);
+        p(SYNC_CLOCK, tick);
+        p(SYNC_FIRST, 1);
+        crate::net::list_players::list_players_regs()?;
+        // The race's time and whether the car did not finish (the original's eax and ebx);
+        // Escape leaves ebx 1.
+        let (time, not_finished) = loop {
+            run_frame(|| Ok::<(), Refused>(()))?;
+            if crate::input::take_key::take_key() == 1 {
+                break (1, 1);
+            }
+            if crate::net::race_wait::race_wait()? != 0 {
+                crate::gfx::clear_front_surface::clear_front_surface()?;
+                crate::net::copy_received::copy_received()?;
+                break crate::net::lets_race::lets_race()?;
+            }
+        };
+        crate::race::race_end::tidy_everything(&crate::race::loadlevel::LoadVars::game())?;
+        crate::sound::stop_music::stop_music();
+        crate::platform::set_menu_mode_now();
+        crate::menu::show_loading_picture::show_loading_picture()?;
+        sound_tables::clear_race_sound_objects()?;
+        crate::sound::apply_settings::apply_settings()?;
+        crate::scene::set_up_engine::set_up_engine()?;
+        crate::scene::set_up_front_end_scene::set_up_front_end_scene()?;
+        crate::scene::set_up_engine::set_up_engine()?;
+        if not_finished != 0 {
+            return Ok(true);
         }
+        crate::net::race_over::race_over(time)?;
+        Ok(false)
     }
-    let kept = r;
-    for place in [
-        TIDY_EVERYTHING,
-        STOP_MUSIC,
-        SET_MENU_MODE,
-        LOADING_PICTURE,
-        CLEAR_RACE_SOUNDS,
-        APPLY_SOUND,
-        SET_UP_ENGINE,
-        FRONT_END_SCENE,
-        SET_UP_ENGINE,
-    ] {
-        part(place, &mut r)?;
-    }
-    r = Regs {
-        eflags: r.eflags,
-        ..kept
-    };
-    if r.ebx != 0 {
-        r.set_carry(true);
-        return Ok(left(&r));
-    }
-    part(RACE_OVER, &mut r)?;
-    test_eax(&mut r);
-    Ok(left(&r))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    lobby_entry(r, lets_rally)
 }

@@ -29,10 +29,8 @@
 //! the speeches and pictures; what `item_at` refuses.
 
 use crate::errors::{BadInput, FatalError, Refused};
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
-use crate::menu::parts::Part;
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::records::find_record::{find_record_in, has_section};
-use crate::screens::harness::Left;
 use rc2k_core::menu::stage_screens;
 
 const TABLE_RVA: usize = rva(0x735576); // g_recordTable
@@ -52,9 +50,6 @@ const WELCOME_RVA: usize = rva(0x75987E); // off_75987E
 const WELCOME_A8_RVA: usize = rva(0x759896); // off_759896
 const TITLE_BAR_RVA: usize = rva(0x731C54); // "files\g\graphics\screens\titlebar.p.."
 const RECORD: u32 = 0xA4;
-const LOAD_PICTURE: usize = 0x4118D1;
-const CONVERT_PICTURE: usize = 0x406126;
-const DRAW_STAGE_MAP: usize = 0x4683CF;
 fn g(a: usize) -> u32 {
     unsafe { game_read(a) }
 }
@@ -92,85 +87,76 @@ pub fn count_stage_pages() -> Result<(), Refused> {
     Ok(())
 }
 
-/// `menu::play_stage_speech`: the registers it leaves.
-pub unsafe fn play_stage_speech(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+/// `menu::play_stage_speech`.
+pub unsafe fn play_stage_speech() -> Result<(), Refused> {
     let record = stage_record()?;
-    let mut r = *entry;
-    r.edi = record;
-    r.ebx = g(SECTION_RVA);
-    r.eax = get(record + 4);
     if championship() {
         // Converted: `rc2k_core::menu::stage_screens::stage_speech`.
-        let at = stage_screens::stage_speech(r.eax, |n| g(STAGE_SPEECHES_RVA + 4 * n as usize))?;
+        let at = stage_screens::stage_speech(get(record + 4), |n| {
+            g(STAGE_SPEECHES_RVA + 4 * n as usize)
+        })?;
         p(SPEECH_ON_RVA, 1);
         p(SPEECH_AT_RVA, at);
-        r.eax = get(at);
         p(SPEECH_CLEAR_RVA, 0);
-        r.ecx = g(VOLUME_RVA);
-        part(0, &mut r)?;
+        crate::sound::start_stream::start_stream(get(at), g(VOLUME_RVA));
     }
-    Ok(*entry)
+    Ok(())
 }
 
-/// `menu::play_rally_speech`: the registers it leaves.
-pub unsafe fn play_rally_speech(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+/// `menu::play_rally_speech`: a key taken (and dropped), then the rally's speech.
+pub unsafe fn play_rally_speech() -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::stage_screens::rally_speech`.
     let section = stage_screens::rally_speech(g(MODE_RVA), || g(SECTION_RVA))?.unwrap_or(0);
-    let mut r = *entry;
-    part(1, &mut r)?;
+    crate::input::take_key::take_key();
     if championship() {
-        r.eax = g(RALLY_SPEECHES_RVA + 4 * section as usize);
-        r.ecx = g(VOLUME_RVA);
-        part(0, &mut r)?;
+        crate::sound::start_stream::start_stream(
+            g(RALLY_SPEECHES_RVA + 4 * section as usize),
+            g(VOLUME_RVA),
+        );
     }
-    Ok(*entry)
+    Ok(())
 }
 
-/// `menu::load_welcome_picture`: the registers it leaves.
-pub unsafe fn load_welcome_picture(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+/// `menu::load_welcome_picture`: the section's welcome picture under the title bar,
+/// converted; not loaded: the fatal error 0x80712345.
+pub unsafe fn load_welcome_picture() -> Result<(), Refused> {
     let section = small_section()?;
-    let mut r = *entry;
-    r.ebx = section;
     // Converted: `rc2k_core::menu::stage_screens::welcome`.
     let table = match stage_screens::welcome(g(MODE_RVA)) {
         stage_screens::Welcome::Championship => WELCOME_RVA,
         stage_screens::Welcome::Other => WELCOME_A8_RVA,
     };
-    r.edi = game_addr(table) as u32 + 4 * section;
-    r.eax = get(r.edi);
-    r.ebx = game_addr(TITLE_BAR_RVA) as u32;
-    part(0, &mut r)?;
-    if r.carry() {
+    let path = get(game_addr(table) as u32 + 4 * section);
+    let title_bar = game_addr(TITLE_BAR_RVA) as *mut u8;
+    if unsafe {
+        crate::gfx::load_picture_with_overlay::load_picture_with_overlay(path as *mut u8, title_bar)
+    }? {
         return Err(FatalError {
             code: 0x8071_2345,
             message: "",
         }
         .into());
     }
-    part(1, &mut r)?;
-    Ok(*entry)
+    unsafe { crate::gfx::convert_picture::convert_picture_now() }?;
+    Ok(())
 }
 
-/// `menu::previous_stage_page` (`up` false) / `next_stage_page`: the registers it leaves.
-pub unsafe fn step_stage_page(entry: &Regs, up: bool, part: Part) -> Result<Regs, Refused> {
+/// `menu::previous_stage_page` (`up` false) / `next_stage_page`: the page stepped, the
+/// stage's map drawn and its speech played.
+pub unsafe fn step_stage_page(up: bool) -> Result<(), Refused> {
     let (page, pages) = (g(PAGE_RVA), g(PAGES_RVA));
     // Converted: `rc2k_core::menu::steps::stage_page`.
     let page = rc2k_core::menu::steps::stage_page(page, pages, up);
     p(PAGE_RVA, page);
-    let index = g(FIRST_RVA).wrapping_add(page);
-    p(INDEX_RVA, index);
-    // eax at the calls: the index.
-    let mut r = Regs {
-        eax: index,
-        ..*entry
-    };
-    part(0, &mut r)?;
-    part(1, &mut r)?;
-    Ok(*entry)
+    p(INDEX_RVA, g(FIRST_RVA).wrapping_add(page));
+    unsafe {
+        crate::menu::stage_choice::draw_stage_map()?;
+        play_stage_speech()
+    }
 }
 
 /// The stage item's two looks: (+0x1C, +0x20, +0x50).
-pub fn style_stage_item(b: bool) -> Result<Left, Refused> {
+pub fn style_stage_item(b: bool) -> Result<(), Refused> {
     let item = crate::menu::item_at::item_at(1)?;
     let (a, c, font) = if b {
         (0xFFFF_FFA7, game_addr(rva(0x7479AC)) as u32, 0x51E884)
@@ -182,53 +168,7 @@ pub fn style_stage_item(b: bool) -> Result<Left, Refused> {
         ((item + 0x20) as *mut u32).write_unaligned(c);
         ((item + 0x50) as *mut u32).write_unaligned(game_addr(rva(font)) as u32);
     }
-    Ok(Left::nothing())
-}
-
-// ---- in the game ----
-
-/// The calls by place, as each function's list has them: 0 `start_stream`, 1 `take_key`
-/// (the speeches); 0 the picture's loading, 1 its conversion; 0 `draw_stage_map`, 1
-/// `play_stage_speech` (the pages).
-pub fn speech_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    match place {
-        0 => crate::sound::start_stream::start_stream(r.eax, r.ecx),
-        _ => r.eax = r.eax & !0xFF | crate::input::take_key::take_key() as u32,
-    }
     Ok(())
-}
-
-pub fn picture_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    let at = if place == 0 {
-        LOAD_PICTURE
-    } else {
-        CONVERT_PICTURE
-    };
-    crate::calls::call(rva(at), r);
-    Ok(())
-}
-
-pub fn page_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    if place == 0 {
-        crate::calls::call(rva(DRAW_STAGE_MAP), r);
-    } else {
-        *r = unsafe { play_stage_speech(r, &mut speech_part) }?;
-    }
-    Ok(())
-}
-
-/// `dispatch_page` without its hook (typed tables).
-pub fn page_entry(r: &mut Regs, up: bool) -> Result<(), Refused> {
-    crate::menu::parts::parted_entry(
-        r,
-        &|r, part| unsafe { step_stage_page(r, up, part) },
-        page_part,
-    )
-}
-
-/// `dispatch_plain` without its hook (typed tables).
-pub fn plain_entry(r: &mut Regs, rust: crate::service::harness::Rust) -> Result<(), Refused> {
-    crate::service::harness::state_entry(r, rust)
 }
 
 // ---- self-tests ----

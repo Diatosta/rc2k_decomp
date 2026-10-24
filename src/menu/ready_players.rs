@@ -14,10 +14,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::menu::standings::{counted_players, put_all};
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 pub fn ready_players() -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::event::PLAYER_READY`.
@@ -25,15 +22,4 @@ pub fn ready_players() -> Result<(), Refused> {
         put_all(p, &rc2k_core::menu::event::PLAYER_READY);
     }
     Ok(())
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    ready_players()?;
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

@@ -18,7 +18,7 @@
 //! `routes.rs`); the registers above are the original's, for reference.
 
 use crate::errors::BadInput;
-use crate::framework::{Regs, game_read, rva};
+use crate::framework::{game_read, rva};
 use crate::gfx::picture::picture;
 use crate::gfx::surface::BASE_RVA;
 
@@ -107,14 +107,6 @@ pub unsafe fn copy_picture_to_surface(surface: &mut dyn PictureSurface) -> Resul
     }
     if !was_locked {
         surface.unlock();
-    }
-    Ok(())
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(_: &mut Regs) -> Result<(), crate::errors::Refused> {
-    if let Err(e) = unsafe { copy_picture_to_surface(&mut GameSurface) } {
-        return Err(e.into());
     }
     Ok(())
 }

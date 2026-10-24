@@ -11,7 +11,6 @@
 //! lock and unlock (the platform's) and the writer are called directly (2026-10-23).
 
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::gfx::write_screen_pcx::PICTURE_NAME;
 use crate::physics::flow::a;
 use crate::race::find_snapshot_number::{SNAPSHOT_DIGITS, SNAPSHOT_PATH};
@@ -34,9 +33,4 @@ pub fn viewer_snapshot() -> Result<(), Refused> {
     }
     put(PICTURE_NAME, kept);
     Ok(())
-}
-
-/// The Rust version where the typed tables run it (a refusal is the caller's).
-pub fn entry(_: &mut Regs) -> Result<(), Refused> {
-    viewer_snapshot()
 }

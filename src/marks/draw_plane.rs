@@ -12,7 +12,7 @@
 //! `scene::depth_test_on`.
 //!
 //! In:  nothing (`g_marksSettings`)
-//! Out: the registers as the path leaves them
+//! Out: nothing (its caller reads no register after it)
 //!
 //! Caller: `sub_4C74DA` (0x4C752F). The x87 runs are the original's instructions over the
 //! game's variables; the vector helpers and `scale_axes` their Rust versions; the device
@@ -27,7 +27,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::marks::setup::SETTINGS_RVA;
 use crate::math::x87;
 use crate::scene::cross_product3::cross_product3;
@@ -283,9 +283,9 @@ unsafe fn plane_projected(b: u32) {
     }
 }
 
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn draw_plane(entry: &Regs) -> Result<Regs, Refused> {
-    let mut g = *entry;
+/// The Rust version (see the header).
+pub unsafe fn draw_plane() -> Result<(), Refused> {
+    use crate::scene::set_render_state::set_render_state;
     unsafe {
         let s: u32 = game_read(SETTINGS_RVA);
         if s == 0 {
@@ -293,49 +293,41 @@ pub unsafe fn draw_plane(entry: &Regs) -> Result<Regs, Refused> {
         }
         let corner: u32 = game_read(CORNER_RVA);
         let b = addr(0);
-        g.esi = s;
         plane_axes(b, s);
         let [a0, a1, a2] = AXES.map(addr);
         normalise_vector3(a0);
         plane_up(b, s);
         normalise_vector3(a1);
-        [g.esi, g.edi, g.ebp] = [a1, a0, a2];
         cross_product3(a1, a0, a2)?;
         normalise_vector3(a2);
-        [g.esi, g.edi, g.ebp] = [a0, a2, a1];
         cross_product3(a0, a2, a1)?;
-        g = crate::marks::scale_axes::scale_axes(&g);
-        g.esi = s;
+        crate::marks::scale_axes::scale_axes();
         plane_place(b, s);
         normalise_vector3(addr(PLACE_RVA));
-        [g.esi, g.edi] = [addr(PLACE_RVA), a2];
         plane_facing(b);
         if game_read::<u32>(FACING_RVA) & 0x8000_0000 == 0 {
-            return Ok(g);
+            return Ok(());
         }
         if game_read::<u32>(SWITCH_RVA) == 0 {
-            return Ok(g);
+            return Ok(());
         }
         if corner >= 0x100 {
             return Err(BadInput("a plane corner past g_marksCorners").into());
         }
-        crate::marks::draw_plane::game_part(1, &mut g)?;
+        crate::scene::depth_test_off::depth_test_off();
         for state in [0x11, 0x12] {
-            [g.eax, g.ebx] = [2, state];
-            crate::marks::draw_plane::game_part(2, &mut g)?;
+            set_render_state(2, state);
         }
-        g.eax = game_read(TEXTURE_RVA);
-        crate::marks::draw_plane::game_part(3, &mut g)?;
+        crate::scene::set_texture::set_texture(game_read(TEXTURE_RVA));
         plane_corners(b);
-        g.eax = addr(MARK_CORNERS_RVA) + corner * 0x80;
-        let word = |off: u32| ((g.eax + off) as *const u16).read_unaligned() as u32;
+        let at = addr(MARK_CORNERS_RVA) + corner * 0x80;
+        let word = |off: u32| ((at + off) as *const u16).read_unaligned() as u32;
         let uv_k: u32 = game_read(UV_K_RVA);
         for (n, (u, v)) in UV_WORDS.into_iter().enumerate() {
             let vertex = VERTICES_RVA + 0x20 * n;
             game_write(vertex + 0x18, x87::int_times(word(u) as i32, uv_k));
             game_write(vertex + 0x1C, x87::int_times(word(v) as i32, uv_k));
         }
-        [g.ebp, g.edi] = [word(8), word(0xA)];
         for n in 0..4 {
             let vertex = VERTICES_RVA + 0x20 * n;
             game_write(vertex + 0x18, x87::loaded(game_read(PLACES_RVA + 8 * n)));
@@ -344,14 +336,13 @@ pub unsafe fn draw_plane(entry: &Regs) -> Result<Regs, Refused> {
                 x87::loaded(game_read(PLACES_RVA + 8 * n + 4)),
             );
         }
-        g.ecx = game_read(LIGHT_RVA);
+        let light: u32 = game_read(LIGHT_RVA);
         for n in 0..4 {
-            game_write(VERTICES_RVA + 0x20 * n + 0x10, g.ecx);
+            game_write(VERTICES_RVA + 0x20 * n + 0x10, light);
         }
         for n in 0..4 {
-            g.ecx = game_read(CORNERS_RVA + 12 * n + 8);
-            if (g.ecx as i32) <= game_read::<i32>(NEAR_RVA) {
-                return Ok(g);
+            if game_read::<i32>(CORNERS_RVA + 12 * n + 8) <= game_read::<i32>(NEAR_RVA) {
+                return Ok(());
             }
         }
         plane_projected(b);
@@ -359,9 +350,8 @@ pub unsafe fn draw_plane(entry: &Regs) -> Result<Regs, Refused> {
         for n in 0..4 {
             let c = CORNERS_RVA + 12 * n;
             let vertex = VERTICES_RVA + 0x20 * n;
-            [g.eax, g.ebx] = [game_read(c), game_read(c + 4)];
-            game_write(vertex, g.eax);
-            game_write(vertex + 4, g.ebx);
+            game_write(vertex, game_read::<u32>(c));
+            game_write(vertex + 4, game_read::<u32>(c + 4));
             let depth: u32 = game_read(c + 8);
             game_write(
                 vertex + 8,
@@ -375,25 +365,8 @@ pub unsafe fn draw_plane(entry: &Regs) -> Result<Regs, Refused> {
                 x87::reciprocal_times(depth, game_read(RHW_K_RVA + 4 * n)),
             );
         }
-        crate::marks::draw_plane::game_part(4, &mut g)?;
-        crate::marks::draw_plane::game_part(5, &mut g)?;
-    }
-    Ok(g)
-}
-
-/// In the game: the device calls' Rust versions.
-pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    unsafe {
-        match place {
-            1 => crate::scene::depth_test_off::depth_test_off(),
-            2 => {
-                let (value, state) = (r.eax, r.ebx);
-                crate::scene::set_render_state::set_render_state(value, state);
-            }
-            3 => crate::scene::set_texture::set_texture(r.eax),
-            4 => crate::scene::draw_fan::draw_fan(r, &mut crate::scene::draw_fan::game_part),
-            _ => crate::scene::depth_test_on::depth_test_on(),
-        }
+        crate::marks::clip_quad::draw_fan();
+        crate::scene::depth_test_on::depth_test_on();
     }
     Ok(())
 }

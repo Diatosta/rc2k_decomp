@@ -12,7 +12,7 @@
 //! `routes.rs`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 use crate::menu::load_car_background::shown_car;
 
 // ---- game data ----
@@ -42,9 +42,4 @@ pub unsafe fn play_car_stream(start: &mut dyn FnMut(u32, u32)) -> Result<(), Ref
         start(s.first, s.volume);
         Ok(())
     }
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(_: &mut Regs) -> Result<(), crate::errors::Refused> {
-    unsafe { play_car_stream(&mut crate::sound::start_stream::start_stream) }
 }

@@ -21,12 +21,10 @@
 //! Self-test: the original and the Rust version on the game's variables (saved and put
 //! back): the work car's figures by lot, gears, the clutch, under three precisions.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::Regs;
 use crate::math::x87;
 use crate::math::x87_run::{abs_compare, abs_of, neg_rounded};
 use crate::physics::flow::{a, base, c0, ease_zero, g, hold_high, hold_low, p, x87_run};
@@ -120,8 +118,8 @@ fn slip_limit(drive: usize, ratio: usize, force: usize, slip: usize) {
     store_loaded(slip, pick);
 }
 
-/// The steps; `ebx` as the original leaves it.
-fn steps(mut eax: u32, mut ebx: u32) -> Result<[u32; 2], Refused> {
+/// The steps.
+fn steps() -> Result<(), Refused> {
     let gear = g(0x71A1AC);
     one_less_abs(0x71A090, 0x6140B0);
     hold_low(0x6140B0, 0x5C5DD0);
@@ -144,9 +142,9 @@ fn steps(mut eax: u32, mut ebx: u32) -> Result<[u32; 2], Refused> {
         }
         unsafe { crate::physics::cap_drive_speed::cap_drive_speed() };
         p(0x614134, 0);
-        ebx = 0;
+        let mut offset = 0;
         if g(0x71A614) != 0 {
-            ebx = 0x14;
+            offset = 0x14;
             p(0x614134, 1);
         }
         x87_run!(
@@ -179,10 +177,9 @@ fn steps(mut eax: u32, mut ebx: u32) -> Result<[u32; 2], Refused> {
             "fmul dword ptr [{b} + 0x21388C]",
             "fmul dword ptr [{b} + 0x214170]",
             "fstp dword ptr [{b} + 0x21423C]";
-            b = base(), e = ebx
+            b = base(), e = offset
         );
-        eax = g(0x71A610).wrapping_add(0x100);
-        p(0x62400C, eax);
+        p(0x62400C, g(0x71A610).wrapping_add(0x100));
         x87_run!(
             "fild dword ptr [{b} + 0x22400C]",
             "fdiv dword ptr [{b} + 0x1C5E2C]",
@@ -232,7 +229,7 @@ fn steps(mut eax: u32, mut ebx: u32) -> Result<[u32; 2], Refused> {
                 b = base()
             );
         }
-        ebx = revs(ebx)?;
+        revs()?;
         // 0x43E2C2: the wheels' drag on each drive speed.
         x87_run!(
             ".byte 0xD9, 0xE8", // fld1
@@ -294,7 +291,7 @@ fn steps(mut eax: u32, mut ebx: u32) -> Result<[u32; 2], Refused> {
                 p(0x71A194, 0);
             }
         }
-        ebx = revs(ebx)?;
+        revs()?;
         x87_run!(
             "fld dword ptr [{b} + 0x31A194]",
             "fsub dword ptr [{b} + 0x31A184]",
@@ -482,25 +479,20 @@ fn steps(mut eax: u32, mut ebx: u32) -> Result<[u32; 2], Refused> {
         "fstp dword ptr [{b} + 0x31AF1C]";
         b = base()
     );
-    let _ = &mut eax;
-    Ok([eax, ebx])
+    Ok(())
 }
 
-/// `revs_from_wheels` (the gear checked before): ebx as it leaves it.
-fn revs(ebx: u32) -> Result<u32, Refused> {
-    let mut r = Regs {
-        ebx,
-        ..Regs::default()
-    };
-    unsafe { revs_from_wheels_at(&GearPlaces::game()) }?.apply(&mut r);
-    Ok(r.ebx)
+/// `revs_from_wheels` (the gear checked before; the ebx it leaves is read by no one).
+fn revs() -> Result<(), Refused> {
+    unsafe { revs_from_wheels_at(&GearPlaces::game()) }?;
+    Ok(())
 }
 
-/// The Rust version: eax, ebx in, as left out.
-pub unsafe fn drive_wheels_step(eax: u32, ebx: u32) -> Result<[u32; 2], Refused> {
+/// The Rust version. The eax and ebx it leaves are read by none of its callers.
+pub unsafe fn drive_wheels_step() -> Result<(), Refused> {
     let gear = g(0x71A1AC);
     if gear != 0 && !(-1..=7).contains(&(gear as i32)) {
         return Err(BadInput("a gear outside g_gearRatios (-1 ..= 7)").into());
     }
-    steps(eax, ebx)
+    steps()
 }

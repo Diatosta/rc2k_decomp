@@ -11,13 +11,12 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::menu::standings::*;
 
 // dword_75598C
 
 /// The Rust version (see the header): the registers it leaves.
-pub unsafe fn sort_standings_by_time(entry: &Regs) -> Result<Regs, Refused> {
+pub unsafe fn sort_standings_by_time() -> Result<(), Refused> {
     sort_table_a(0x14)?;
-    Ok(*entry)
+    Ok(())
 }

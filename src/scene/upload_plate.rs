@@ -35,8 +35,8 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
-use crate::gfx::blit_components::{blit_components, game_target};
+use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::gfx::blit_components::{Piece, blit_components, game_target};
 use crate::gfx::read_texture_picture::read_texture_picture;
 use crate::gfx::texture_pixels::{halvable, halve_texture};
 use crate::gfx::texture_upload::{Record, halvings_apart, keep_second_picture, ready_picture};
@@ -64,35 +64,38 @@ const _: () = assert!(STORED_LEN == 0x1C);
 fn piece_address() -> u32 {
     (game_addr(TEXTURE_RVA) + std::mem::offset_of!(PlateUpload, piece)) as u32
 }
-const LOCK_RVA: usize = rva(0x41AA4B); // sub_41AA4B
-const UNLOCK_RVA: usize = rva(0x41AB02); // sub_41AB02
 
-/// What it asks the platform for.
-pub enum Call {
-    /// Returns whether the texture was locked (and made the surface).
-    Lock(u32),
-    /// `gfx::blit_components` with these registers.
-    Blit(Regs),
-    Unlock(u32),
+/// What `upload_plate` is given (the original's registers): the plate sheet's two pictures
+/// (eax, ecx), the system texture (ebx), where on the sheet the plate is (edx, esi) and
+/// where on the texture it goes (edi, ebp).
+pub struct Plate {
+    pub sheet: u32,
+    pub alpha_sheet: u32,
+    pub texture: u32,
+    pub sheet_x: u32,
+    pub sheet_y: u32,
+    pub target_x: u32,
+    pub target_y: u32,
 }
 
 // ---- Rust version ----
 
-pub unsafe fn upload_plate(r: &Regs, call: &mut dyn FnMut(Call) -> bool) -> Result<(), Refused> {
+/// The Rust version. The original keeps every register (`pusha` .. `popa`).
+pub unsafe fn upload_plate(plate: &Plate) -> Result<(), Refused> {
     unsafe {
-        let texture = r.ebx;
+        let texture = plate.texture;
         let record = Record::of(texture)?;
         game_write(
             TEXTURE_RVA,
             PlateUpload {
                 texture,
-                target_x: r.edi,
-                target_y: r.ebp,
-                piece: [r.edx, r.esi, 0x52, 0x2A],
+                target_x: plate.target_x,
+                target_y: plate.target_y,
+                piece: [plate.sheet_x, plate.sheet_y, 0x52, 0x2A],
             },
         );
-        keep_second_picture(&record, r.ecx)?;
-        let (pixels, width, height, _) = read_texture_picture(r.eax as *mut u8)?;
+        keep_second_picture(&record, plate.alpha_sheet)?;
+        let (pixels, width, height, _) = read_texture_picture(plate.sheet as *mut u8)?;
         ready_picture(&record, pixels, width, height)?;
         let across = halvings_apart(
             &record,
@@ -116,49 +119,20 @@ pub unsafe fn upload_plate(r: &Regs, call: &mut dyn FnMut(Call) -> bool) -> Resu
         stored.target_y >>= shift;
         stored.piece = stored.piece.map(|value| value >> shift);
         game_write(TEXTURE_RVA, stored);
-        if call(Call::Lock(texture)) {
-            call(Call::Blit(Regs {
-                eax: height.wrapping_mul(4),
-                ebx: piece_address(),
-                ecx: stored.target_x,
-                edx: stored.target_y,
-                esi: pixels,
-                ..*r
-            }));
-            call(Call::Unlock(texture));
+        // The texture locked (making it the surface): if it locked, the plate's piece
+        // blitted and the texture unlocked.
+        if !crate::d3d::lock_texture::lock_texture(texture)?.carry {
+            let piece = Piece {
+                rectangle: piece_address(),
+                x: stored.target_x,
+                y: stored.target_y,
+                pixels,
+                row_bytes: height.wrapping_mul(4),
+            };
+            let blitted = blit_components(&piece, &game_target());
+            crate::d3d::unlock_texture::unlock_texture(texture)?;
+            blitted?;
         }
         Ok(())
     }
 }
-
-/// With the game's lock and unlock.
-pub unsafe fn upload_plate_in_game(r: &Regs) -> Result<(), Refused> {
-    let mut blitted = Ok(());
-    let done = unsafe {
-        upload_plate(r, &mut |call| match call {
-            Call::Lock(texture) => {
-                let mut regs = Regs { eax: texture, ..*r };
-                crate::calls::call(LOCK_RVA, &mut regs);
-                !regs.carry()
-            }
-            Call::Blit(regs) => {
-                blitted = blit_components(&regs, &game_target());
-                true
-            }
-            Call::Unlock(texture) => {
-                let mut regs = Regs { eax: texture, ..*r };
-                crate::calls::call(UNLOCK_RVA, &mut regs);
-                true
-            }
-        })
-    };
-    done.and(blitted)
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    unsafe { upload_plate_in_game(r) }?;
-    Ok(())
-}
-
-// gfx::blit_components

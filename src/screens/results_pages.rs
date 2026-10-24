@@ -42,10 +42,9 @@
 //! their `entry` (`menu::table_calls`).
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_read, rva};
+use crate::framework::{game_read, rva};
 use crate::menu::ranked_lookups::{find_ranked_entry, find_ranked_position, first_overall_time};
 use crate::screens::best_scores::{record_at, section_there};
-use crate::screens::harness::Left;
 use crate::strings::append_time::show_hours;
 use crate::text::draw_text::Canvas;
 
@@ -211,14 +210,9 @@ macro_rules! results_page_entry {
     ($module:ident, $name:literal, $address:expr, $page:expr) => {
         pub mod $module {
             use super::*;
-            fn rust(_: &Regs, canvas: &mut dyn Canvas) -> Result<Left, Refused> {
-                unsafe { draw_results_page(&$page, canvas) }?;
-                Ok(Left::nothing())
-            }
-            /// The Rust version where the typed tables run it (`menu::table_calls`; hook removed
-            /// 2026-10-22).
-            pub fn entry(r: &mut Regs) -> Result<(), Refused> {
-                crate::screens::harness::draw_entry($name, r, &rust)
+            /// The Rust version the typed tables run (`menu::table_calls`).
+            pub fn draw() -> Result<(), Refused> {
+                unsafe { draw_results_page(&$page, &mut crate::text::draw_text::GameCanvas) }
             }
         }
     };

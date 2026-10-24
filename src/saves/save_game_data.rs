@@ -8,7 +8,7 @@
 //! `routes.rs`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, rva};
+use crate::framework::{game_addr, rva};
 
 // ---- Rust version ----
 
@@ -21,9 +21,11 @@ pub unsafe fn save_game_data(
     save_best_times()
 }
 
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let result = unsafe {
+/// The two parts on the game's files: whether the best times were written. The original's
+/// flags (carry: not written) are read by neither of its callers (`system::main_loop`,
+/// `menu::arcade_level_end`; register liveness, 2026-10-23).
+pub fn save_in_game() -> Result<bool, Refused> {
+    unsafe {
         save_game_data(
             &mut || {
                 crate::saves::save_options::save_options(
@@ -32,13 +34,5 @@ pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
             },
             &mut || crate::saves::save_best_times::in_game(),
         )
-    };
-    {
-        let written = result?;
-        r.set_carry(!written);
-        if written {
-            r.set_zero(false);
-        }
     }
-    Ok(())
 }

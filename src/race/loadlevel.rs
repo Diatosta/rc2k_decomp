@@ -7,46 +7,8 @@
 //! pace notes are `race::init_pace_notes` since 2026-10-19. A step's refusal is the
 //! function's (2026-10-23: no longer handed to the step's address).
 
-use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
-
-/// A step's calls by callee (`CALLEES`' index; 28 the log, 29 the loading bar).
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
-/// The callees in their first call's order, as IDA shows them.
-pub const CALLEES: [usize; 28] = [
-    0x4433C9, // 0 scene::set_up_object_memory
-    0x41F8C4, // 1 race::allocate_course_memory
-    0x4398FA, // 2 race::load_texture_info
-    0x43944F, // 3 race::set_course_number
-    0x445698, // 4 race::load_prefs
-    0x439A92, // 5 race::load_error_list
-    0x424001, // 6 scene::init_texture_levels
-    0x443390, // 7 sub_443390 (texturesalloc: `scene::set_up_textures`)
-    0x4393A0, // 8 race::build_texture_infos
-    0x4394CB, // 9 race::locate_current_course
-    0x423FE1, // 10 scene::reset_texture_places
-    0x425B2F, // 11 race::reload_objects
-    0x42518B, // 12 race::set_all_plates
-    0x41B480, // 13 race::load_game_map
-    0x41B178, // 14 gfx::build_game_fonts
-    0x456EA7, // 15 sub_456EA7 (init mark: the game's)
-    0x45C53B, // 16 race::reset_refresh
-    0x45857D, // 17 race::init_skidmarks
-    0x4433A1, // 18 race::render3d_init
-    0x4433AD, // 19 scene::fill_scene_light_tables
-    0x438AE5, // 20 race::load_lights_data
-    0x449DD6, // 21 race::init_mud
-    0x43D43E, // 22 race::get_mat_crash
-    0x421F02, // 23 race::store_norms
-    0x45A98F, // 24 race::init_checkpoints
-    0x441A66, // 25 race::init_pace_notes
-    0x45A9DE, // 26 race::init_overlay
-    0x422298, // 27 scene::find_object_of_kind
-];
-pub const LOG: u32 = 28;
-pub const PROGRESS: u32 = 29;
-// logfile::log_write_l1_nl
+use crate::errors::{BadInput, Refused};
+use crate::framework::{game_addr, game_read, game_write, rva};
 
 const PACKED_RVA: usize = rva(0x5BE9B5); // g_usePackedMaps
 const PACKED_2_RVA: usize = rva(0x5BE9B9); // dword_5BE9B9
@@ -94,9 +56,9 @@ pub struct LoadVars {
 impl LoadVars {
     pub fn game() -> Self {
         Self {
-            indent: game_addr(rva(0x4E00A0)) as u32,      // g_logIndent
-            log_enabled: game_addr(rva(0x4E0094)) as u32, // g_logEnabled
-            in_race: game_addr(rva(0x5C5CEC)) as u32,     // g_inRace
+            indent: crate::logfile::write_line::indent_place(), // g_logIndent
+            log_enabled: crate::logfile::write_line::enabled_place(), // g_logEnabled
+            in_race: game_addr(rva(0x5C5CEC)) as u32,           // g_inRace
             bar: game_addr(BAR_RVA) as u32,
         }
     }
@@ -111,23 +73,22 @@ unsafe fn put(at: u32, v: u32) {
 }
 
 /// The original's `loadlevel_init`, step by step.
-struct Steps<'a, 'b> {
-    g: Regs,
+struct Steps {
     v: LoadVars,
-    part: Part<'a>,
     word: usize,
-    _b: std::marker::PhantomData<&'b ()>,
 }
 
-impl Steps<'_, '_> {
+impl Steps {
     /// `pusha`; eax the next word; the log; `popa`.
-    fn log(&mut self) -> Result<(), Refused> {
-        let mut r = Regs {
-            eax: game_addr(rva(WORDS[self.word])) as u32,
-            ..self.g
+    fn log(&mut self) {
+        unsafe {
+            crate::logfile::log_write::log_write(
+                game_addr(rva(WORDS[self.word])) as *const u8,
+                true,
+                1,
+            )
         };
         self.word += 1;
-        (self.part)(LOG, &mut r)
     }
 
     /// `pushf`; `g_logIndent` +- 3; `popf`.
@@ -135,27 +96,28 @@ impl Steps<'_, '_> {
         unsafe { put(self.v.indent, get(self.v.indent).wrapping_add(by as u32)) };
     }
 
-    /// `pusha`; `dword_623700` the mark; esi `dword_623704`; its call; `popa`.
+    /// `pusha`; `dword_623700` the mark; `call [dword_623704]`; `popa`. The callback is the
+    /// loading bar `loadlevel_init` puts there before its first mark (it is put away after
+    /// the last).
     fn progress(&mut self, mark: u32) -> Result<(), Refused> {
         unsafe {
             game_write(BAR_MARK_RVA, mark);
-            let mut r = Regs {
-                esi: game_read(BAR_CALLBACK_RVA),
-                ..self.g
-            };
-            (self.part)(PROGRESS, &mut r)
+            if game_read::<u32>(BAR_CALLBACK_RVA) != self.v.bar {
+                return Err(BadInput("the loading bar's callback is not the loading bar").into());
+            }
+            crate::race::loading_bar_frame::loading_bar_frame()
         }
     }
 
-    fn call(&mut self, callee: u32) -> Result<(), Refused> {
-        (self.part)(callee, &mut self.g)
-    }
-
     /// A step's usual frame: the word, the indent in, the call, the mark, the indent out.
-    fn step(&mut self, callee: u32, mark: Option<u32>) -> Result<(), Refused> {
-        self.log()?;
+    fn step(
+        &mut self,
+        call: &mut dyn FnMut() -> Result<(), Refused>,
+        mark: Option<u32>,
+    ) -> Result<(), Refused> {
+        self.log();
         self.indent(3);
-        self.call(callee)?;
+        call()?;
         if let Some(m) = mark {
             self.progress(m)?;
         }
@@ -176,241 +138,185 @@ impl Steps<'_, '_> {
 /// marks (0x5F), render3d (0x60), colours (0x62), lights (0x63), mud (0x64 twice); the
 /// callback `nullsub_8`; the crash matrix, the norms; without `dword_64BB18` checkpoints,
 /// pace notes, overlay; `dword_621508` the object of kind 0x7A (else 0x79);
-/// `dword_719FD0`/`D4` 0; "finis". Leaves the registers as the last call.
-pub unsafe fn loadlevel_init(entry: &Regs, v: LoadVars, part: Part) -> Result<Regs, Refused> {
-    let mut s = Steps {
-        g: *entry,
-        v,
-        part,
-        word: 0,
-        _b: std::marker::PhantomData,
-    };
+/// `dword_719FD0`/`D4` 0; "finis". What the original leaves in the registers is read by
+/// no caller (`race::load_stage` calls on; conversion phase 3, 2026-10-24).
+pub unsafe fn loadlevel_init() -> Result<(), Refused> {
+    use crate::race::level_init::{self as level, Vars};
+    use crate::race::stage_prefs;
+    let v = LoadVars::game();
+    let mut s = Steps { v, word: 0 };
     unsafe {
-        s.log()?;
+        s.log();
         s.indent(3);
         game_write(PACKED_RVA, 1u32);
         game_write(PACKED_2_RVA, (game_read::<u32>(EDITOR_RVA) == 0) as u32);
-        s.g.eax = game_read(DIRECTION_IN_RVA);
+        let mut direction: u32 = game_read(DIRECTION_IN_RVA);
         if [0x1F, 0x22, 0x51].contains(&game_read::<u32>(STAGE_RVA)) {
-            s.g.eax ^= 1;
+            direction ^= 1;
         }
-        game_write(DIRECTION_RVA, s.g.eax);
+        game_write(DIRECTION_RVA, direction);
         put(v.in_race, 1);
         game_write(BAR_CALLBACK_RVA, v.bar);
         s.progress(0)?;
         s.indent(-3);
-        s.step(0, None)?;
+        s.step(
+            &mut || {
+                crate::scene::set_up_object_memory::set_up_object_memory()?;
+                Ok(())
+            },
+            None,
+        )?;
         // alloc coursemem: marks 2 and 4 (the `cmp dword_621514, 0 / jz $+2` between
         // them changes nothing).
-        s.log()?;
+        s.log();
         s.indent(3);
-        s.call(1)?;
+        level::allocate_course_memory(&Vars::game(), game_addr(level::COURSE_LIST_RVA) as u32)?;
         s.progress(2)?;
         s.progress(4)?;
         s.indent(-3);
         // load texture info and the course number.
-        s.log()?;
+        s.log();
         s.indent(3);
-        s.call(2)?;
-        s.g.eax = game_read(STAGE_RVA);
-        s.call(3)?;
+        level::load_texture_info(&Vars::game())?;
+        level::set_course_number(game_read(STAGE_RVA));
         s.progress(6)?;
         s.indent(-3);
-        for (callee, mark) in [
-            (4, 7),
-            (5, 8),
-            (6, 0xA),
-            (7, 0xE),
-            (8, 0xF),
-            (9, 0x13),
-            (10, 0x14),
-        ] {
-            s.step(callee, Some(mark))?;
-        }
+        s.step(&mut || stage_prefs::load_prefs(), Some(7))?;
+        s.step(&mut || level::load_error_list(), Some(8))?;
+        s.step(
+            &mut || crate::scene::texture_levels::init_texture_levels(),
+            Some(0xA),
+        )?;
+        s.step(
+            &mut || crate::scene::set_up_textures::set_up_textures(),
+            Some(0xE),
+        )?;
+        s.step(&mut || level::build_texture_infos(&Vars::game()), Some(0xF))?;
+        s.step(
+            &mut || crate::race::course_data::locate_current_course(),
+            Some(0x13),
+        )?;
+        s.step(
+            &mut || {
+                crate::scene::reset_texture_places::reset_texture_places();
+                Ok(())
+            },
+            Some(0x14),
+        )?;
         // reloadobjects.
-        s.log()?;
+        s.log();
         s.indent(3);
-        s.call(11)?;
+        crate::race::objects::reload_objects()?;
         s.progress(0x1E)?;
         game_write(OBJECT_SPAN_RVA[0], 0x1Eu32);
         game_write(OBJECT_SPAN_RVA[1], 0x50u32);
         s.indent(-3);
-        s.step(12, Some(0x50))?;
+        s.step(
+            &mut || crate::race::set_all_plates::set_all_plates(),
+            Some(0x50),
+        )?;
         // loadgamemap.
-        s.log()?;
+        s.log();
         s.indent(3);
-        s.g.eax = game_addr(MAP_PATH_RVA) as u32;
-        s.g.ebx = game_addr(MAP_KEY_RVA) as u32;
-        s.call(13)?;
+        crate::race::game_map::load_game_map(
+            game_addr(MAP_PATH_RVA) as u32,
+            game_addr(MAP_KEY_RVA) as u32,
+        )?;
         s.progress(0x5A)?;
         s.indent(-3);
-        s.step(14, Some(0x5C))?;
+        s.step(
+            &mut || crate::gfx::build_game_fonts::build_game_fonts_in_game(),
+            Some(0x5C),
+        )?;
         // init mark, with the log off.
-        s.log()?;
+        s.log();
         s.indent(3);
         let enabled = get(v.log_enabled);
         put(v.log_enabled, 0);
-        s.call(15)?;
+        crate::marks::init_mark_step::init_mark_step()?;
         put(v.log_enabled, enabled);
         s.progress(0x5E)?;
         s.indent(-3);
         // refresh init and the refresh flags.
-        s.log()?;
+        s.log();
         s.indent(3);
-        s.call(16)?;
+        level::reset_refresh(&Vars::game());
         let flags: u32 = game_read(REFRESH_FLAGS_RVA);
         game_write(REFRESH_A_RVA, (flags & 2) >> 1);
         for b in BLOCK_84 {
             game_write(rva(b), flags & 1);
         }
-        s.g.eax = game_read::<u32>(REFRESH_FLAGS_2_RVA) & 1;
-        game_write(REFRESH_B_RVA, s.g.eax);
+        game_write(REFRESH_B_RVA, game_read::<u32>(REFRESH_FLAGS_2_RVA) & 1);
         s.indent(-3);
-        for (callee, mark) in [(17, 0x5F), (18, 0x60), (19, 0x62), (20, 0x63)] {
-            s.step(callee, Some(mark))?;
-        }
+        s.step(
+            &mut || {
+                stage_prefs::init_skidmarks();
+                Ok(())
+            },
+            Some(0x5F),
+        )?;
+        // render3d init: `scene::allocate_point_records`.
+        s.step(
+            &mut || {
+                crate::scene::allocate_point_records::allocate_point_records_in_game()?;
+                Ok(())
+            },
+            Some(0x60),
+        )?;
+        s.step(
+            &mut || {
+                crate::scene::fill_scene_light_tables::fill_scene_light_tables();
+                Ok(())
+            },
+            Some(0x62),
+        )?;
+        s.step(&mut || stage_prefs::load_lights_data(), Some(0x63))?;
         // initmud: mark 0x64 twice, then the callback put away.
-        s.log()?;
+        s.log();
         s.indent(3);
-        s.call(21)?;
+        crate::race::mud::init_mud()?;
         s.progress(0x64)?;
         s.progress(0x64)?;
         game_write(BAR_CALLBACK_RVA, game_addr(BAR_DONE_RVA) as u32);
         s.indent(-3);
-        s.step(22, None)?;
+        s.step(
+            &mut || {
+                stage_prefs::get_mat_crash();
+                Ok(())
+            },
+            None,
+        )?;
         // store norms; without `dword_64BB18` the checkpoints, the pace notes, the overlay.
-        s.log()?;
+        s.log();
         s.indent(3);
-        s.call(23)?;
+        crate::race::norms::store_norms(&mut crate::race::norms::game_normal)?;
         if game_read::<u32>(NO_PLACE_RVA) == 0 {
             s.indent(-3);
-            s.step(24, None)?;
-            s.step(25, None)?;
-            s.log()?;
+            s.step(&mut || level::init_checkpoints(&Vars::game()), None)?;
+            s.step(
+                &mut || crate::race::init_pace_notes::init_pace_notes(),
+                None,
+            )?;
+            s.log();
             s.indent(3);
-            s.call(26)?;
+            crate::race::init_overlay::init_overlay(
+                &crate::race::init_overlay::OverlayVars::game(),
+            )?;
         } else {
             s.word += 3;
         }
-        s.g.eax = 0x7A;
-        s.call(27)?;
-        game_write(MARKER_OBJECT_RVA, s.g.eax);
-        if s.g.eax == 0 {
-            s.g.eax = 0x79;
-            s.call(27)?;
-            game_write(MARKER_OBJECT_RVA, s.g.eax);
+        use crate::scene::find_object_of_kind::find_object_of_kind;
+        let mut marker = find_object_of_kind(0x7A);
+        game_write(MARKER_OBJECT_RVA, marker);
+        if marker == 0 {
+            marker = find_object_of_kind(0x79);
+            game_write(MARKER_OBJECT_RVA, marker);
         }
         for at in CLEARED_RVA {
             game_write(at, 0u32);
         }
         s.indent(-3);
-        s.log()?;
-    }
-    Ok(s.g)
-}
-
-/// The calls in the game: the Rust versions; init mark and the
-/// loading bar through the game.
-pub fn game_part(callee: u32, r: &mut Regs) -> Result<(), Refused> {
-    step_part(callee, r)
-}
-
-fn step_part(callee: u32, r: &mut Regs) -> Result<(), Refused> {
-    use crate::race::level_init::Vars;
-    unsafe {
-        match callee {
-            0 => crate::scene::set_up_object_memory::set_up_object_memory_in_game(r)?,
-            1 => {
-                *r = crate::race::level_init::allocate_course_memory(
-                    r,
-                    &Vars::game(),
-                    game_addr(crate::race::level_init::COURSE_LIST_RVA) as u32,
-                )?
-            }
-            2 => {
-                *r = crate::race::level_init::load_texture_info(
-                    r,
-                    &Vars::game(),
-                    &mut crate::race::level_init::game_part,
-                )?
-            }
-            3 => crate::race::level_init::set_course_number(r.eax),
-            4 => {
-                *r = crate::race::stage_prefs::load_prefs(
-                    r,
-                    &mut crate::race::level_init::game_part,
-                )?
-            }
-            5 => crate::race::level_init::load_error_list(
-                r,
-                &mut crate::race::level_init::game_part,
-            )?,
-            6 => *r = crate::scene::texture_levels::init_texture_levels(r)?,
-            7 => {
-                use crate::scene::build_texture_catalogue::build_texture_catalogue_in_game;
-                crate::scene::set_up_textures::set_up_textures(
-                    r,
-                    &mut |_| build_texture_catalogue_in_game(),
-                    &mut |r| {
-                        crate::calls::call(rva(0x4051ED), r); // gfx::allocate_textures
-                        !r.carry()
-                    },
-                )?;
-                r.set_carry(false);
-            }
-            8 => *r = crate::race::level_init::build_texture_infos(r, &Vars::game())?,
-            9 => *r = crate::race::course_data::locate_current_course(r)?,
-            10 => crate::scene::reset_texture_places::reset_texture_places().apply(r),
-            11 => {
-                *r = crate::race::objects::reload_objects(r, &mut crate::race::objects::game_part)?
-            }
-            12 => *r = crate::race::set_all_plates::set_all_plates(r)?,
-            13 => {
-                let g = crate::race::game_map::load_game_map(r)?;
-                r.eax = g.eax;
-            }
-            14 => {
-                // `PALETTE_B_RVA` of `gfx/build_game_fonts.rs`: the third font's palette.
-                let pixels_b = game_addr(rva(0x51E2E4) + 2 * 0x20 + 0x14) as *const u32;
-                crate::gfx::build_game_fonts::build_game_fonts(
-                    r,
-                    &mut crate::gfx::glyph_tables::Game,
-                    pixels_b,
-                )?;
-            }
-            15 => crate::calls::call(rva(CALLEES[callee as usize]), r),
-            25 => crate::race::init_pace_notes::init_pace_notes(r)?,
-            16 => crate::race::level_init::reset_refresh(&Vars::game()),
-            17 => *r = crate::race::stage_prefs::init_skidmarks(r),
-            18 => crate::race::level_init::game_part(2, r)?,
-            19 => crate::scene::fill_scene_light_tables::fill_scene_light_tables().apply(r),
-            20 => {
-                *r = crate::race::stage_prefs::load_lights_data(
-                    r,
-                    &mut crate::race::level_init::game_part,
-                )?
-            }
-            21 => *r = crate::race::mud::init_mud(r)?,
-            22 => *r = crate::race::stage_prefs::get_mat_crash(r),
-            23 => {
-                let g = crate::race::norms::store_norms(r, &mut crate::race::norms::game_normal)?;
-                r.ebx = g.ebx;
-            }
-            24 => *r = crate::race::level_init::init_checkpoints(r, &Vars::game())?,
-            26 => {
-                *r = crate::race::init_overlay::init_overlay(
-                    r,
-                    &crate::race::init_overlay::OverlayVars::game(),
-                )?
-            }
-            27 => r.eax = crate::scene::find_object_of_kind::find_object_of_kind(r.eax),
-            LOG => crate::logfile::log_write::log_write(r.eax as *const u8, true, 1),
-            // The loading bar's callback; `nullsub_8` (after the loading) does nothing.
-            _ if r.esi == game_addr(BAR_DONE_RVA) as u32 => {}
-            _ => crate::menu::table_calls::call_any(r.esi, r),
-        }
+        s.log();
     }
     Ok(())
 }
-
-// ---- for the self-test ----

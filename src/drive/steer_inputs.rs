@@ -23,9 +23,7 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::{EAX, EBX, EDX, Regs};
 use crate::physics::flow::{base, c0, g, p, x87_run};
-use crate::screens::harness::Left;
 
 const WORD: usize = 0x613890;
 const LEFT: u32 = 0xE000_0000;
@@ -83,12 +81,10 @@ fn steer(value: usize, step: u32) {
 
 /// The Rust version (the exact one, for `drive::simple_car_step`, `drive::replay_step`
 /// and `race::step_replay_cars`).
-pub unsafe fn steer_inputs(entry: &Regs) -> Left {
-    let mut r = *entry;
+pub unsafe fn steer_inputs() {
     let mut keys = g(WORD) == 0;
     if !keys && g(0x71A234) != 2 {
-        r.ebx = g(0x71A440);
-        keys = r.ebx & 0x1000 != 0;
+        keys = g(0x71A440) & 0x1000 != 0;
     }
     if keys {
         steer(0x71A620, key_step());
@@ -96,8 +92,6 @@ pub unsafe fn steer_inputs(entry: &Regs) -> Left {
     } else {
         p(0x71A61C, 0);
         let product = i64::from(g(WORD) as i32) * i64::from(RIGHT as i32);
-        r.ebx = RIGHT;
-        r.edx = (product >> 32) as u32;
         p(0x62400C, (product >> 8) as u32);
         x87_run!(
             "fild dword ptr [{b} + 0x22400C]",
@@ -127,14 +121,9 @@ pub unsafe fn steer_inputs(entry: &Regs) -> Left {
     }
     let trim = g(0x71A1E0);
     p(0x71A624, g(0x71A61C).wrapping_add(trim));
-    r.eax = g(0x71A620).wrapping_add(trim.wrapping_mul(4));
-    p(0x71A628, r.eax);
+    p(0x71A628, g(0x71A620).wrapping_add(trim.wrapping_mul(4)));
     if !c0(g(0x71A308), g(0x5C5D14)) {
         p(0x71A624, 0);
         p(0x71A628, 0);
     }
-    Left::nothing()
-        .with(EAX, r.eax)
-        .with(EBX, r.ebx)
-        .with(EDX, r.edx)
 }

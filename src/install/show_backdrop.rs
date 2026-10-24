@@ -11,30 +11,16 @@
 //! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
+//! are the original's.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
-use crate::install::installer::{RUN_FRAME, a, at};
-use crate::race::viewer::regs_entry;
+use crate::install::installer::run_frame;
 
-pub const FRAME: usize = 0x415273; // install::backdrop_frame
-
-pub fn show_backdrop(entry: &Regs) -> Result<Regs, Refused> {
-    let mut r = Regs { ebp: 3, ..*entry };
+/// The backdrop's frame run three times.
+pub fn show_backdrop() -> Result<(), Refused> {
     for _ in 0..3 {
-        r.eax = a(FRAME);
-        crate::install::installer::game_part(at(RUN_FRAME), &mut r)?;
-        r.ebp = r.ebp.wrapping_sub(1);
-        r.set_zero(r.ebp == 0);
+        run_frame(Some(crate::install::backdrop_frame::backdrop_frame))?;
     }
-    Ok(Regs {
-        eflags: r.eflags,
-        ..*entry
-    })
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    regs_entry(r, &|r| show_backdrop(r))
+    Ok(())
 }

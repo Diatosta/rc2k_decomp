@@ -5,7 +5,7 @@
 //! second's flags and object). Here its leaves.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 
 fn g(a: u32) -> u32 {
     game_addr(rva(a as usize)) as u32
@@ -16,33 +16,31 @@ unsafe fn get(a: u32) -> u32 {
 }
 
 /// `race::face_depth_test_off` (0x452358): with no texture animation (`dword_63DA2C` 0)
-/// and `g_polygonMode` 4, the depth test off (part 1) and `dword_63D9E0` 1.
-pub unsafe fn face_depth_test_off(r: &mut Regs) -> Result<(), Refused> {
+/// and `g_polygonMode` 4, the depth test off and `dword_63D9E0` 1.
+pub unsafe fn face_depth_test_off() {
     unsafe {
         // Converted: `rc2k_core::race::faces::depth_test_off`.
         if !rc2k_core::race::faces::depth_test_off(
             game_read(rva(0x63DA2C)),
             game_read(rva(0x63DAB4)),
         ) {
-            return Ok(());
+            return;
         }
-        crate::race::course_faces::depth_part(1, r)?;
+        crate::scene::depth_test_off::depth_test_off();
         game_write(rva(0x63D9E0), 1u32);
-        Ok(())
     }
 }
 
-/// `race::face_depth_test_on` (0x45237A): the depth test on (part 2) unless `dword_63D9E0`
-/// is set, then `dword_63D9E0` 0. (It turns the test on when it was not turned off: the
-/// test looks the wrong way round, `notes/bugs.md`.)
-pub unsafe fn face_depth_test_on(r: &mut Regs) -> Result<(), Refused> {
+/// `race::face_depth_test_on` (0x45237A): the depth test on unless `dword_63D9E0` is set,
+/// then `dword_63D9E0` 0. (It turns the test on when it was not turned off: the test looks
+/// the wrong way round, `notes/bugs.md`.)
+pub unsafe fn face_depth_test_on() {
     unsafe {
         // Converted: `rc2k_core::race::faces::depth_test_on`.
         if rc2k_core::race::faces::depth_test_on(game_read(rva(0x63D9E0))) {
-            crate::race::course_faces::depth_part(2, r)?;
+            crate::scene::depth_test_on::depth_test_on();
         }
         game_write(rva(0x63D9E0), 0u32);
-        Ok(())
     }
 }
 
@@ -102,35 +100,18 @@ unsafe fn face_turned_to_view(face: u32, half: u32) -> u32 {
     }
 }
 
-/// `race::face_sides` (0x4525BE): which of face esi's triangles face the view:
+/// `race::face_sides` (0x4525BE): which of face `face`'s (esi) triangles face the view:
 /// `dword_63D9E4` the first's (`sub_4525F8`), `dword_63D9E8` 1, or the second's when it
-/// has one (`dword_63D9F8` not -1). Leaves eax the last answer, ebx the last triangle's
-/// point (0 or 4 outside a race), esi and ebp the face.
-pub unsafe fn face_sides(face: u32) -> Regs {
+/// has one (`dword_63D9F8` not -1). The registers the original leaves (eax the last
+/// answer, ebx the last triangle's point, ebp the face) are read by no one: its one
+/// caller's parts take only esi, the face.
+pub unsafe fn face_sides(face: u32) {
     unsafe {
-        let mut r = Regs {
-            ebp: face,
-            ebx: 0,
-            ..Default::default()
-        };
-        // In a race `sub_4525F8` leaves ebx the triangle's point (+8).
-        let in_race = game_read::<u32>(rva(0x621480)) != 0;
-        r.eax = face_turned_to_view(face, 0);
-        if in_race {
-            r.ebx = get(face + 8);
-        }
-        r.esi = face;
-        game_write(rva(0x63D9E4), r.eax);
+        game_write(rva(0x63D9E4), face_turned_to_view(face, 0));
         game_write(rva(0x63D9E8), 1u32);
         if game_read::<u32>(rva(0x63D9F8)) != u32::MAX {
-            r.ebx = 4;
-            r.eax = face_turned_to_view(face, 4);
-            if in_race {
-                r.ebx = get(face + 0xC);
-            }
-            game_write(rva(0x63D9E8), r.eax);
+            game_write(rva(0x63D9E8), face_turned_to_view(face, 4));
         }
-        r
     }
 }
 
@@ -154,87 +135,60 @@ fn frame_of(t: u32, f: u32, a: u32, b: u32) -> u32 {
     out
 }
 
-/// `race::face_materials` (0x45265C): face esi's two triangles' textures: for each, its
+/// `race::face_materials` (0x45265C): face `face`'s two triangles' textures: for each, its
 /// object (+1, +0x21) animated when `byte_609C4C` gives it a speed (car 0's +8 clock times
 /// `g_faceKeyFactors[speed]`, `flt_5C5D54`, `flt_5C5DA4`, rounded, & 7 picks the frame of
 /// `byte_609384`; the first's frame also to `dword_63DA08`), into `dword_63DA2C` /
 /// `dword_63DA38`; the kind's low three bits and bit 3 (+0, +0x20) into `dword_63DA30` /
-/// `dword_63DA34` and `dword_63DA3C` / `dword_63DA40`. Gives the registers it leaves (CF
-/// clear).
-pub unsafe fn face_materials(entry: &Regs, face: u32) -> Regs {
+/// `dword_63DA34` and `dword_63DA3C` / `dword_63DA40`. The registers it leaves are read
+/// by no one.
+pub unsafe fn face_materials(face: u32) {
     unsafe {
-        let mut r = *entry;
         let byte = |a: u32| (a as *const u8).read() as u32;
         let clock: u32 = game_read(rva(0x70F3F4));
         let (k1, k2) = (
             game_read::<u32>(rva(0x5C5D54)),
             game_read::<u32>(rva(0x5C5DA4)),
         );
-        let texture = |object: u32, first: bool, r: &mut Regs| -> u32 {
-            r.ebx = object;
-            r.eax = byte(g(0x609C4C) + object);
-            if r.eax != 0 {
-                r.ecx = r.eax;
-                let n = frame_of(clock, get(g(0x5C6950) + 4 * r.ecx), k1, k2);
-                game_write(rva(0x62400C), n);
-                let place;
-                (r.eax, place) = rc2k_core::race::faces::frame_place(object, n);
-                if first {
-                    game_write(rva(0x63DA08), r.eax);
-                }
-                r.ebx = byte(g(0x609384) + place);
+        let texture = |object: u32, first: bool| -> u32 {
+            let speed = byte(g(0x609C4C) + object);
+            if speed == 0 {
+                return object;
             }
-            r.ebx
+            let n = frame_of(clock, get(g(0x5C6950) + 4 * speed), k1, k2);
+            game_write(rva(0x62400C), n);
+            let (frame, place) = rc2k_core::race::faces::frame_place(object, n);
+            if first {
+                game_write(rva(0x63DA08), frame);
+            }
+            byte(g(0x609384) + place)
         };
         // Converted: `rc2k_core::race::faces::{frame_place, material_bits}` (the frame's
         // rounding the x87's).
         use rc2k_core::race::faces::material_bits;
-        let t = texture(byte(face + 1), true, &mut r);
-        game_write(rva(0x63DA2C), t);
-        (r.ebx, r.eax) = material_bits(byte(face) as u8);
-        game_write(rva(0x63DA30), r.ebx);
-        game_write(rva(0x63DA34), r.eax);
-        let t = texture(byte(face + 0x21), false, &mut r);
-        game_write(rva(0x63DA38), t);
-        (r.ebx, r.eax) = material_bits(byte(face + 0x20) as u8);
-        game_write(rva(0x63DA3C), r.ebx);
-        game_write(rva(0x63DA40), r.eax);
-        r
+        game_write(rva(0x63DA2C), texture(byte(face + 1), true));
+        let (order, back) = material_bits(byte(face) as u8);
+        game_write(rva(0x63DA30), order);
+        game_write(rva(0x63DA34), back);
+        game_write(rva(0x63DA38), texture(byte(face + 0x21), false));
+        let (order, back) = material_bits(byte(face + 0x20) as u8);
+        game_write(rva(0x63DA3C), order);
+        game_write(rva(0x63DA40), back);
     }
 }
 
 /// `race::draw_marked_face` (0x44CD90): `scene::scale_texture_coordinates`,
-/// `scene::fog_polygon`, the drawing (part 1: `scene::draw_marked_polygon` in the game),
-/// `g_polygonDrawn` 1.
-pub unsafe fn draw_marked_face(r: &mut Regs) -> Result<(), Refused> {
+/// `scene::fog_polygon`, the drawing (`scene::draw_marked_polygon`), `g_polygonDrawn` 1.
+pub unsafe fn draw_marked_face() -> Result<(), Refused> {
     unsafe {
         crate::scene::scale_texture_coordinates::scale_texture_coordinates()?;
         crate::scene::fog_polygon::fog_polygon()?;
-        crate::race::course_faces::marked_part(1, r)?;
+        crate::scene::draw_marked_polygon::draw_marked_polygon(&mut || {
+            crate::scene::draw_polygon::draw_polygon_in_game()
+        })?;
         game_write(rva(0x624134), 1u32);
         Ok(())
     }
-}
-
-/// `draw_marked_face`'s draw in the game.
-pub fn marked_part(_: u32, r: &mut Regs) -> Result<(), Refused> {
-    let entry = *r;
-    unsafe {
-        crate::scene::draw_marked_polygon::draw_marked_polygon(&mut || {
-            crate::scene::draw_polygon::draw_polygon_in_game(&entry)
-        })?
-    };
-    Ok(())
-}
-
-/// The depth-test parts in the game: 1 off, 2 on.
-pub fn depth_part(place: u32, _r: &mut Regs) -> Result<(), Refused> {
-    if place == 1 {
-        crate::scene::depth_test_off::depth_test_off();
-    } else {
-        crate::scene::depth_test_on::depth_test_on();
-    }
-    Ok(())
 }
 
 /// `race::face_switches` (0x45322C): `dword_6240E0` / `dword_6240E4` 1 when the face's
@@ -250,34 +204,28 @@ pub unsafe fn face_switches() {
 }
 
 /// `sub_453786`: the light at scene point `n` (`race::light_colour_at`, through
-/// `dword_62400C`), 0 for -1. Gives eax and the registers the light leaves.
-unsafe fn point_light(n: u32, entry: &Regs) -> Result<Regs, Refused> {
+/// `dword_62400C`), 0 for -1.
+unsafe fn point_light(n: u32) -> Result<u32, Refused> {
     unsafe {
-        let mut r = *entry;
         if n == u32::MAX {
-            r.eax = 0;
-            return Ok(r);
+            return Ok(0);
         }
         let p = n.wrapping_mul(12).wrapping_add(game_read(rva(0x5CCCC0)));
-        r.ecx = p;
-        r.eax = get(p);
-        r.ebx = get(p + 4);
-        r.ecx = get(p + 8);
-        game_write(rva(0x636588), r.eax);
-        game_write(rva(0x63658C), r.ebx);
-        game_write(rva(0x636590), r.ecx);
-        r = crate::race::frame_draw::light_colour_at(&r)?;
-        r.eax = game_read(rva(0x62DAC4));
-        game_write(rva(0x62400C), r.eax);
-        Ok(r)
+        game_write(rva(0x636588), get(p));
+        game_write(rva(0x63658C), get(p + 4));
+        game_write(rva(0x636590), get(p + 8));
+        crate::race::frame_draw::light_colour_at()?;
+        let light: u32 = game_read(rva(0x62DAC4));
+        game_write(rva(0x62400C), light);
+        Ok(light)
     }
 }
 
 /// `race::face_lights` (0x453715): the light at each of the face's four corners
 /// (`dword_63DA54` .. `dword_63DA60`; 0 for a missing fourth), when lamps are wanted
-/// (`g_lampsWanted`) and the face is not a plain mode-4 one; all 0 otherwise. Gives the
-/// registers it leaves. Refuses (before anything) what `light_colour_at` refuses.
-pub unsafe fn face_lights(entry: &Regs) -> Result<Regs, Refused> {
+/// (`g_lampsWanted`) and the face is not a plain mode-4 one; all 0 otherwise. Refuses
+/// (before anything) what `light_colour_at` refuses.
+pub unsafe fn face_lights() -> Result<(), Refused> {
     unsafe {
         // Converted: `rc2k_core::race::faces::corners_lit`.
         let wanted: u32 = game_read(rva(0x63DB58));
@@ -290,32 +238,29 @@ pub unsafe fn face_lights(entry: &Regs) -> Result<Regs, Refused> {
         if lit {
             crate::race::frame_draw::check_light_colour()?;
         }
-        let mut r = *entry;
-        r.eax = 0;
         for k in 0..4 {
             game_write(rva(0x63DA54 + 4 * k), 0u32);
         }
         if !lit {
-            return Ok(r);
+            return Ok(());
         }
         for k in 0..4 {
             let n: u32 = game_read(rva(0x63D9EC + 4 * k));
-            r = point_light(n, &r)?;
-            game_write(rva(0x63DA54 + 4 * k), r.eax);
+            let light = point_light(n)?;
+            game_write(rva(0x63DA54 + 4 * k), light);
         }
-        Ok(r)
+        Ok(())
     }
 }
 
 /// `race::clip_and_draw_face` (0x454187): the face's polygon cut by depth (when some
 /// vertices are outside, `g_polygonOutsideCount`) and to the screen, and with three
-/// vertices or more drawn (part 1: `scene::draw_polygon`), `g_polygonDrawn` 1.
-pub unsafe fn clip_and_draw_face(r: &mut Regs) -> Result<(), Refused> {
+/// vertices or more drawn (`scene::draw_polygon_in_game`), `g_polygonDrawn` 1.
+pub unsafe fn clip_and_draw_face() -> Result<(), Refused> {
     // Converted: `rc2k_core::race::face_drawing::draws_polygon`.
     use rc2k_core::race::face_drawing::draws_polygon;
     unsafe {
-        r.eax = game_read(rva(0x6240F4));
-        if r.eax != 0 {
+        if game_read::<u32>(rva(0x6240F4)) != 0 {
             crate::scene::clip_polygon_by_depth::clip_polygon_by_depth()?;
             if !draws_polygon(game_read(rva(0x6240F8))) {
                 return Ok(());
@@ -325,36 +270,32 @@ pub unsafe fn clip_and_draw_face(r: &mut Regs) -> Result<(), Refused> {
         if !draws_polygon(game_read(rva(0x6240F8))) {
             return Ok(());
         }
-        crate::race::clip_and_draw_face::draw_part(1, r)?;
+        crate::scene::draw_polygon::draw_polygon_in_game()?;
         game_write(rva(0x624134), 1u32);
         Ok(())
     }
 }
 
-/// `race::face_out_of_view` (0x45246F): carry when none of the face's corners
-/// (`dword_63D9EC` ..; the fourth when there is one) is in sight: a corner is in sight
-/// when its scene record's depth (+0x18) is not negative and |x| (+0x10) is below
-/// `flt_63DA00` (|x| then left in `dword_62400C`) or |x| times `flt_63D9FC` is below the
-/// depth. The records are made when not there (as `sub_44CF33`). Gives eax, edx and the
-/// carry. Refuses (before anything) no point records or points.
-pub unsafe fn face_out_of_view(entry: &Regs) -> Result<(Regs, bool), Refused> {
+/// `race::face_out_of_view` (0x45246F): true (the original's carry) when none of the
+/// face's corners (`dword_63D9EC` ..; the fourth when there is one) is in sight: a corner
+/// is in sight when its scene record's depth (+0x18) is not negative and |x| (+0x10) is
+/// below `flt_63DA00` (|x| then left in `dword_62400C`) or |x| times `flt_63D9FC` is below
+/// the depth. The records are made when not there (as `sub_44CF33`). The eax and edx the
+/// original leaves are read by no one. Refuses (before anything) no point records or
+/// points.
+pub unsafe fn face_out_of_view() -> Result<bool, Refused> {
     // Converted: `rc2k_core::race::face_drawing::corner_in_sight` (exact in `f64`).
     use rc2k_core::race::face_drawing::{InSight, corner_in_sight};
     unsafe {
         crate::race::frame_draw::points_there()?;
-        let mut r = *entry;
         let near: u32 = game_read(rva(0x63DA00));
         let slope: u32 = game_read(rva(0x63D9FC));
         for k in 0..4 {
-            r.eax = game_read(rva(0x63D9EC + 4 * k));
-            if k == 3 && r.eax == u32::MAX {
+            let n: u32 = game_read(rva(0x63D9EC + 4 * k));
+            if k == 3 && n == u32::MAX {
                 break;
             }
-            let (record, made) = crate::race::frame_draw::point_record(r.eax)?;
-            r.edx = record;
-            if let Some(ecx) = made {
-                r.ecx = ecx;
-            }
+            let (record, _) = crate::race::frame_draw::point_record(n)?;
             let depth = get(record + 0x18);
             if depth & 0x8000_0000 != 0 {
                 continue;
@@ -363,13 +304,13 @@ pub unsafe fn face_out_of_view(entry: &Regs) -> Result<(Regs, bool), Refused> {
             match corner_in_sight(depth, x, near, slope) {
                 Some(InSight::Near) => {
                     game_write(rva(0x62400C), x & 0x7FFF_FFFF);
-                    return Ok((r, false));
+                    return Ok(false);
                 }
-                Some(InSight::Slope) => return Ok((r, false)),
+                Some(InSight::Slope) => return Ok(false),
                 None => {}
             }
         }
-        Ok((r, true))
+        Ok(true)
     }
 }
 
@@ -417,16 +358,14 @@ pub const SECOND_SET: TextureSet = TextureSet {
 /// (`dword_63DAD8[order * 4 + k]` points at a u16 pair inside the texture record, << 8,
 /// doubled for sizes 0x190 .. 0x31F); with a mapping above 0 the corners' scene x and z
 /// shifted by (mapping & 3) + 2 instead, less the first corner's top byte (the fourth
-/// corner read even when it is -1: `notes/bugs.md`). Gives eax the size word, ebx the
-/// texture record.
-pub unsafe fn face_texture_coordinates(set: &TextureSet, entry: &Regs) -> Regs {
+/// corner read even when it is -1: `notes/bugs.md`). The registers the original leaves
+/// (eax the size word, ebx the texture record) are read by no one.
+pub unsafe fn face_texture_coordinates(set: &TextureSet) {
     // Converted: `rc2k_core::race::faces::texture_coordinates`.
     use rc2k_core::race::faces::{TextureInfo, texture_coordinates};
     unsafe {
-        let mut r = *entry;
         let texture: u32 = game_read(rva(set.texture));
         let info = g(0x979F30).wrapping_add(texture << 6);
-        r.ebx = info;
         let texture_info = TextureInfo {
             size: get(info + 0x20),
             mapping: ((info + 0x2D) as *const i8).read(),
@@ -449,9 +388,7 @@ pub unsafe fn face_texture_coordinates(set: &TextureSet, entry: &Regs) -> Regs {
         game_write(rva(set.size), c.size);
         game_write(rva(set.mapping), c.mapping);
         game_write(rva(set.plain), c.plain);
-        r.eax = texture_info.size;
         game_write(rva(set.uv), c.uv);
-        r
     }
 }
 
@@ -532,9 +469,9 @@ unsafe fn plain_list(count: u32, next: u32) {
 /// has lamp light or some vertex is outside after `scene::project_polygon` or off the
 /// screen's inside (the screen edges `dword_6241D4` .. less one; each vertex's x and y
 /// rounded into `dword_62400C`, compared by the sign of the difference); nothing when
-/// all are outside; else the quad drawn (part 1: `race::draw_marked_face`). Gives the
-/// carry.
-pub unsafe fn draw_whole_quad(r: &mut Regs) -> Result<bool, Refused> {
+/// all are outside; else the quad drawn (`race::draw_marked_face`). Gives the carry
+/// (true: draw it as triangles).
+pub unsafe fn draw_whole_quad() -> Result<bool, Refused> {
     // Converted: `rc2k_core::race::face_drawing::{QUAD_ENTRIES, quad_by_outside,
     // screen_inside, inside}` (the roundings the x87's).
     use rc2k_core::race::face_drawing::{QUAD_ENTRIES, quad_by_outside, screen_inside};
@@ -568,15 +505,15 @@ pub unsafe fn draw_whole_quad(r: &mut Regs) -> Result<bool, Refused> {
             }
         }
         game_write(rva(0x6240F8), 4u32);
-        crate::race::course_faces::whole_quad_part(1, r)?;
+        draw_marked_face()?;
         Ok(false)
     }
 }
 
-/// `race::draw_face_triangles` (0x452CF3): the face's two triangles each drawn (part 1:
-/// `race::draw_lit_triangle`) unless facing away: the first (corners 0, 1, 2) when
+/// `race::draw_face_triangles` (0x452CF3): the face's two triangles each drawn
+/// (`race::draw_lit_triangle`) unless facing away: the first (corners 0, 1, 2) when
 /// `dword_63D9E4` is 0, the second (3, 2, 1) when there is one and `dword_63D9E8` is 0.
-pub unsafe fn draw_face_triangles(r: &mut Regs) -> Result<(), Refused> {
+pub unsafe fn draw_face_triangles() -> Result<(), Refused> {
     // Converted: `rc2k_core::race::face_drawing::{draws_first, draws_second,
     // FIRST_TRIANGLE, SECOND_TRIANGLE}`.
     use rc2k_core::race::face_drawing::{
@@ -588,7 +525,7 @@ pub unsafe fn draw_face_triangles(r: &mut Regs) -> Result<(), Refused> {
                 fill_entry(slot, corner);
             }
             game_write(rva(0x6240F8), 3u32);
-            crate::race::course_faces::triangles_part(1, r)?;
+            draw_lit_triangle()?;
         }
         let fourth: u32 = game_read(rva(0x63D9F8));
         if fourth != u32::MAX && draws_second(fourth, game_read(rva(0x63D9E8))) {
@@ -596,21 +533,16 @@ pub unsafe fn draw_face_triangles(r: &mut Regs) -> Result<(), Refused> {
                 fill_entry(slot, corner);
             }
             game_write(rva(0x6240F8), 3u32);
-            crate::race::course_faces::triangles_part(1, r)?;
+            draw_lit_triangle()?;
         }
         Ok(())
     }
 }
 
 /// `race::draw_face_polygons` (0x452CCF): in a race with both triangles facing the view
-/// (`dword_63D9E4` + `dword_63D9E8` 0) the face as one quad (part 1:
-/// `race::draw_whole_quad`, its carry asking for triangles), else as triangles (part 2:
-/// `race::draw_face_triangles`). `quad` gives the carry.
-pub unsafe fn draw_face_polygons(
-    r: &mut Regs,
-    quad: &mut dyn FnMut(&mut Regs) -> Result<bool, Refused>,
-    part: crate::race::frame::Part,
-) -> Result<(), Refused> {
+/// (`dword_63D9E4` + `dword_63D9E8` 0) the face as one quad (`race::draw_whole_quad`, its
+/// carry asking for triangles), else as triangles (`race::draw_face_triangles`).
+pub unsafe fn draw_face_polygons() -> Result<(), Refused> {
     // Converted: `rc2k_core::race::face_drawing::tries_quad`.
     unsafe {
         let in_race: u32 = game_read(rva(0x621480));
@@ -620,21 +552,22 @@ pub unsafe fn draw_face_polygons(
                 game_read(rva(0x63D9E4)),
                 game_read(rva(0x63D9E8)),
             )
-            && !quad(r)?
+            && !draw_whole_quad()?
         {
             return Ok(());
         }
-        part(2, r)
+        draw_face_triangles()
     }
 }
 
 /// `race::draw_face` (0x452C6F): the face's textures (`race::face_switches`, the first's
 /// coordinates when animated; `g_polygonMode` 2, or with a second texture the mode its
 /// record's +0x2C picks in `dword_63D9D0` and the second's coordinates), the corners'
-/// lights (`race::face_lights`), then the depth test off (part 1), the polygons (part 2:
-/// `race::draw_face_polygons`), the depth test on (part 3). Refuses (before anything)
-/// what `face_lights` refuses.
-pub unsafe fn draw_face(r: &mut Regs) -> Result<(), Refused> {
+/// lights (`race::face_lights`), then the depth test off, the polygons
+/// (`race::draw_face_polygons`), the depth test on. The original keeps esi (the face);
+/// the rest it leaves no caller reads. Refuses (before anything) what `face_lights`
+/// refuses.
+pub unsafe fn draw_face() -> Result<(), Refused> {
     // Converted: `rc2k_core::race::face_drawing::{face_mode, PLAIN_MODE}`, the lights'
     // test `rc2k_core::race::faces::corners_lit`.
     use rc2k_core::race::face_drawing::{PLAIN_MODE, face_mode};
@@ -652,24 +585,19 @@ pub unsafe fn draw_face(r: &mut Regs) -> Result<(), Refused> {
         {
             crate::race::frame_draw::check_light_colour()?;
         }
-        let esi = r.esi;
         face_switches();
         if game_read::<u32>(rva(0x63DA2C)) != 0 {
-            *r = face_texture_coordinates(&FIRST_SET, r);
+            face_texture_coordinates(&FIRST_SET);
         }
         game_write(rva(0x63DAB4), PLAIN_MODE);
         if second != 0 {
-            r.ebx = g(0x979F30).wrapping_add(second << 6);
-            r.eax = ((r.ebx + 0x2C) as *const u8).read() as u32;
-            r.eax = face_mode(second, picked);
-            game_write(rva(0x63DAB4), r.eax);
-            *r = face_texture_coordinates(&SECOND_SET, r);
+            game_write(rva(0x63DAB4), face_mode(second, picked));
+            face_texture_coordinates(&SECOND_SET);
         }
-        *r = face_lights(r)?;
-        crate::race::course_faces::face_part(1, r)?;
-        crate::race::course_faces::face_part(2, r)?;
-        crate::race::course_faces::face_part(3, r)?;
-        r.esi = esi;
+        face_lights()?;
+        face_depth_test_off();
+        draw_face_polygons()?;
+        face_depth_test_on();
         Ok(())
     }
 }
@@ -802,20 +730,20 @@ unsafe fn halfway_entry(first: u32, second: u32, to: u32) {
 }
 
 /// `race::draw_lit_triangle` (0x4537E9): the triangle in entries 0 .. 2. Without lamp
-/// light at its corners drawn as it is (part 1: `scene::draw_clipped_polygon`). Else
+/// light at its corners drawn as it is (`scene::draw_clipped_polygon`). Else
 /// (unless `scene::project_polygon` finds it all outside; `g_polygonDrawn` 0, the record
 /// pool restarted, `scene::scale_texture_coordinates`, `scene::fog_polygon`) cut in four:
 /// for each side (0-1, 1-2, 2-0) a new scene point halfway (vertices 0x623E40 ..; its
 /// light by `race::light_colour_at`) and entry (3 .. 5); in mode 5 each entry's fog byte
 /// less twice its lamp light (not below 0); each entry's colour plus its light
 /// (`add_colours`); then the triangles (0, 3, 5), (1, 4, 3), (2, 5, 4), (3, 4, 5) each
-/// clipped and drawn (part 2: `race::clip_and_draw_face`). Refuses (before anything) no
-/// points, or what `light_colour_at` refuses.
-pub unsafe fn draw_lit_triangle(r: &mut Regs) -> Result<(), Refused> {
+/// clipped and drawn (`race::clip_and_draw_face`). Refuses (before anything) no points,
+/// or what `light_colour_at` refuses.
+pub unsafe fn draw_lit_triangle() -> Result<(), Refused> {
     use crate::race::frame_draw::add_colours;
     unsafe {
         if (0..3).all(|s| lamp_byte(s) == 0) {
-            return crate::race::course_faces::lit_triangle_part(1, r);
+            return crate::scene::draw_clipped_polygon::draw_clipped_polygon_in_game();
         }
         crate::race::frame_draw::points_there()?;
         crate::race::frame_draw::check_light_colour()?;
@@ -847,7 +775,7 @@ pub unsafe fn draw_lit_triangle(r: &mut Regs) -> Result<(), Refused> {
             halfway_vertex(get(entry(first) + 4), get(entry(second) + 4), v);
             let to = entry(3 + k as u32);
             halfway_entry(entry(first), entry(second), to);
-            crate::race::frame_draw::light_colour_at(r)?;
+            crate::race::frame_draw::light_colour_at()?;
             let light: u32 = game_read(rva(0x62DAC4));
             game_write(rva(0x62400C), light);
             ((to + 0x1C) as *mut u32).write_unaligned(light);
@@ -868,54 +796,9 @@ pub unsafe fn draw_lit_triangle(r: &mut Regs) -> Result<(), Refused> {
             game_write(rva(0x977710) + 12, list[0]);
             game_write(rva(0x6240F8), 3u32);
             game_write(rva(0x624114), 6u32);
-            crate::race::course_faces::lit_triangle_part(2, r)?;
+            clip_and_draw_face()?;
         }
         Ok(())
-    }
-}
-
-// ---- the parts in the game ----
-
-/// `draw_lit_triangle`'s parts: 1 `scene::draw_clipped_polygon`, 2
-/// `race::clip_and_draw_face`.
-pub fn lit_triangle_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    unsafe {
-        if place == 1 {
-            crate::scene::draw_clipped_polygon::draw_clipped_polygon_in_game(r)
-        } else {
-            clip_and_draw_face(r)
-        }
-    }
-}
-
-/// `draw_whole_quad`'s part: `race::draw_marked_face`.
-pub fn whole_quad_part(_: u32, r: &mut Regs) -> Result<(), Refused> {
-    unsafe { draw_marked_face(r) }
-}
-
-/// `draw_face_triangles`' part: `race::draw_lit_triangle`.
-pub fn triangles_part(_: u32, r: &mut Regs) -> Result<(), Refused> {
-    unsafe { draw_lit_triangle(r) }
-}
-
-/// `draw_face_polygons` in the game.
-pub unsafe fn draw_face_polygons_in_game(r: &mut Regs) -> Result<(), Refused> {
-    unsafe {
-        draw_face_polygons(r, &mut |r| draw_whole_quad(r), &mut |_, r| {
-            draw_face_triangles(r)
-        })
-    }
-}
-
-/// `draw_face`'s parts: 1 `race::face_depth_test_off`, 2 `race::draw_face_polygons`, 3
-/// `race::face_depth_test_on`.
-pub fn face_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    unsafe {
-        match place {
-            1 => face_depth_test_off(r),
-            2 => draw_face_polygons_in_game(r),
-            _ => face_depth_test_on(r),
-        }
     }
 }
 
@@ -924,17 +807,14 @@ const LIGHT_TABLE: u32 = 0x635118; // g_lightTable: 256 colours
 /// `race::face_colours` (0x452887): the corners' colours from `g_lightTable` by the face's
 /// bytes +0x14 .. +0x17, with flag 4 of +2 plus `dword_635518[+0x28 ..]` and
 /// `dword_635918[+0x2C ..]` (`add_colours`, MMX or not as the original); the fog bytes
-/// +0x22 .. +0x25 into `dword_63DA64` ..; then the face drawn (part 1:
-/// `race::draw_face`).
-pub unsafe fn face_colours(r: &mut Regs, part: crate::race::frame::Part) -> Result<(), Refused> {
+/// +0x22 .. +0x25 into `dword_63DA64` ..; then the face drawn (`race::draw_face`).
+pub unsafe fn face_colours(face: u32) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::lights::{corner_colour, EXTRA_LIGHTS}`.
     use rc2k_core::race::lights::{EXTRA_LIGHTS, corner_colour};
     unsafe {
-        let face = r.esi;
         let byte = |o: u32| ((face + o) as *const u8).read() as u32;
         for k in 0..4 {
             let c = get(g(LIGHT_TABLE) + 4 * byte(0x14 + k));
-            r.eax = c;
             game_write(rva(0x63DA44) + 4 * k as usize, c);
             let lit = ((face + 2) as *const u16).read_unaligned() & EXTRA_LIGHTS != 0;
             if lit {
@@ -944,16 +824,13 @@ pub unsafe fn face_colours(r: &mut Regs, part: crate::race::frame::Part) -> Resu
                     (a, b)
                 };
                 let c = corner_colour(c, lit, extra, crate::race::frame_draw::has_mmx());
-                r.ebx = byte(0x2C + k);
-                r.eax = c;
                 game_write(rva(0x63DA44) + 4 * k as usize, c);
             }
         }
         for k in 0..4 {
-            r.eax = byte(0x22 + k);
-            game_write(rva(0x63DA64) + 4 * k as usize, r.eax);
+            game_write(rva(0x63DA64) + 4 * k as usize, byte(0x22 + k));
         }
-        part(1, r)
+        draw_face()
     }
 }
 
@@ -980,16 +857,15 @@ unsafe fn turn_over() {
 
 /// `race::draw_back_face` (0x452B58): a two-sided face's back (when `dword_63DA34`, the
 /// first kind's bit 3): the corners turned over, the colours from `g_lightTable` by
-/// +0x28 .. +0x2B and the fog bytes +0x2C .. +0x2F, drawn (part 1: `race::draw_face`), the
+/// +0x28 .. +0x2B and the fog bytes +0x2C .. +0x2F, drawn (`race::draw_face`), the
 /// corners turned back.
-pub unsafe fn draw_back_face(r: &mut Regs, part: crate::race::frame::Part) -> Result<(), Refused> {
+pub unsafe fn draw_back_face(face: u32) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::face_drawing::{has_back, turns_last_pair,
     // turned_order}`.
     unsafe {
         if !rc2k_core::race::face_drawing::has_back(game_read(rva(0x63DA34))) {
             return Ok(());
         }
-        let face = r.esi;
         let byte = |o: u32| ((face + o) as *const u8).read() as u32;
         turn_over();
         for k in 0..4 {
@@ -1001,147 +877,100 @@ pub unsafe fn draw_back_face(r: &mut Regs, part: crate::race::frame::Part) -> Re
         for k in 0..4 {
             game_write(rva(0x63DA64) + 4 * k as usize, byte(0x2C + k));
         }
-        // As the original leaves them: ebx the order's bit 8 (`turn_over`'s), eax the last
-        // fog byte loaded; after the turn back eax the new order.
-        r.ebx = game_read::<u32>(rva(0x63DA30)) & 8;
-        r.eax = byte(0x2F);
-        part(1, r)?;
-        r.ebx = game_read::<u32>(rva(0x63DA30)) & 8;
+        draw_face()?;
         turn_over();
-        r.eax = game_read(rva(0x63DA30));
         Ok(())
     }
 }
 
-/// `race::draw_face_sides` (0x452393): outside a race both sides (part 1:
-/// `race::face_colours`, part 2: `race::draw_back_face`) with neither facing away; in a
-/// race, a face with objects (+1 or +0x21): one-sided (kind bit 3 clear) its front unless
-/// both triangles face away; two-sided its front unless both face away, then the facings
-/// flipped and its back unless both (now) face away. Each after `race::face_materials`.
-pub unsafe fn draw_face_sides(r: &mut Regs) -> Result<(), Refused> {
+/// `race::draw_face_sides` (0x452393): outside a race both sides (`race::face_colours`,
+/// `race::draw_back_face`) with neither facing away; in a race, a face with objects (+1
+/// or +0x21): one-sided (kind bit 3 clear) its front unless both triangles face away;
+/// two-sided its front unless both face away, then the facings flipped and its back
+/// unless both (now) face away. Each after `race::face_materials`. `face` is esi.
+pub unsafe fn draw_face_sides(face: u32) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::face_drawing::{has_objects, two_sided, side_drawn,
     // flipped}`.
     use rc2k_core::race::face_drawing::{flipped, has_objects, side_drawn, two_sided};
     unsafe {
-        let face = r.esi;
         let byte = |o: u32| ((face + o) as *const u8).read() as u32;
         if game_read::<u32>(rva(0x621480)) == 0 {
-            *r = face_materials(r, face);
+            face_materials(face);
             game_write(rva(0x63D9E4), 0u32);
             game_write(rva(0x63D9E8), 0u32);
-            crate::race::course_faces::sides_part(1, r)?;
+            face_colours(face)?;
             game_write(rva(0x63D9E4), 0u32);
             game_write(rva(0x63D9E8), 0u32);
-            return crate::race::course_faces::sides_part(2, r);
+            return draw_back_face(face);
         }
-        // The registers as the original leaves them: al the objects' bytes or'ed, ebx the
-        // kind, eax the facings and'ed before each test.
-        // eax the facings and'ed, as the original's test leaves it.
-        let facings = |r: &mut Regs| -> bool {
-            let (a, b): (u32, u32) = (game_read(rva(0x63D9E4)), game_read(rva(0x63D9E8)));
-            r.eax = a & b;
-            side_drawn(a, b)
-        };
-        r.eax = (r.eax & !0xFF) | ((byte(1) | byte(0x21)) & 0xFF);
+        let facings = || -> bool { side_drawn(game_read(rva(0x63D9E4)), game_read(rva(0x63D9E8))) };
         if !has_objects(byte(1) as u8, byte(0x21) as u8) {
             return Ok(());
         }
-        r.ebx = byte(0);
         if !two_sided(byte(0) as u8) {
-            if !facings(r) {
+            if !facings() {
                 return Ok(());
             }
-            *r = face_materials(r, face);
-            return crate::race::course_faces::sides_part(1, r);
+            face_materials(face);
+            return face_colours(face);
         }
-        *r = face_materials(r, face);
-        if facings(r) {
-            crate::race::course_faces::sides_part(1, r)?;
+        face_materials(face);
+        if facings() {
+            face_colours(face)?;
         }
         game_write(rva(0x63D9E4), flipped(game_read(rva(0x63D9E4))));
         game_write(rva(0x63D9E8), flipped(game_read(rva(0x63D9E8))));
-        if facings(r) {
-            crate::race::course_faces::sides_part(2, r)?;
+        if facings() {
+            draw_back_face(face)?;
         }
         Ok(())
     }
 }
 
-/// `race::draw_course_face` (0x45232A): face esi: its corners (`race::face_corners`;
-/// with flag 0x200 of +2 copied to new points, `race::face_corners_to_new_points`), and
-/// unless none is in sight (`race::face_out_of_view`) its facings (`race::face_sides`),
-/// the depth test off (part 1), its sides (part 2: `race::draw_face_sides`), the depth
-/// test on (part 3). Refuses (before anything) no point records or points.
-pub unsafe fn draw_course_face(r: &mut Regs) -> Result<(), Refused> {
+/// `race::draw_course_face` (0x45232A): face `face` (esi): its corners
+/// (`race::face_corners`; with flag 0x200 of +2 copied to new points,
+/// `race::face_corners_to_new_points`), and unless none is in sight
+/// (`race::face_out_of_view`) its facings (`race::face_sides`), the depth test off, its
+/// sides (`race::draw_face_sides`), the depth test on. Refuses (before anything) no point
+/// records or points.
+pub unsafe fn draw_course_face(face: u32) -> Result<(), Refused> {
     unsafe {
         crate::race::frame_draw::points_there()?;
-        let face = r.esi;
-        r.eax = face_corners(face);
+        face_corners(face);
         if ((face + 2) as *const u16).read_unaligned() & 0x200 != 0 {
             face_corners_to_new_points()?;
         }
-        let (out, away) = face_out_of_view(r)?;
-        *r = out;
-        if away {
+        if face_out_of_view()? {
             return Ok(());
         }
-        let sides = face_sides(face);
-        (r.eax, r.ebx, r.ebp) = (sides.eax, sides.ebx, sides.ebp);
-        crate::race::course_faces::course_face_part(1, r)?;
-        crate::race::course_faces::course_face_part(2, r)?;
-        crate::race::course_faces::course_face_part(3, r)
+        face_sides(face);
+        face_depth_test_off();
+        draw_face_sides(face)?;
+        face_depth_test_on();
+        Ok(())
     }
 }
 
-/// `race::draw_tinted_face` (0x44F9F3): face esi drawn (part 1: `sub_4537E3`, that is
+/// `race::draw_tinted_face` (0x44F9F3): face `face` (esi) drawn (`sub_4537E3`, that is
 /// `race::draw_course_face`) with `g_polygonColour` times its object's tint
 /// (`dword_60A880[+1]`, when not 0; byte by byte (a x b) >> 8, all four with MMX, the low
-/// three without), the colour put back after.
-pub unsafe fn draw_tinted_face(r: &mut Regs) -> Result<(), Refused> {
+/// three without), the colour put back after. Of the registers its one caller
+/// (`race::draw_list_entry`) gives, the drawing reads only esi.
+pub unsafe fn draw_tinted_face(face: u32) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::face_drawing::{tints, tinted}`.
     use rc2k_core::race::face_drawing::{tinted, tints};
     unsafe {
         let colour: u32 = game_read(rva(0x6240CC));
-        let object = ((r.esi + 1) as *const u8).read() as u32;
-        r.eax = get(g(0x60A880) + 4 * object);
-        if tints(r.eax) {
-            let out = tinted(r.eax, colour, crate::race::frame_draw::has_mmx());
-            r.eax = out;
-            game_write(rva(0x6240CC), out);
+        let object = ((face + 1) as *const u8).read() as u32;
+        let tint = get(g(0x60A880) + 4 * object);
+        if tints(tint) {
+            game_write(
+                rva(0x6240CC),
+                tinted(tint, colour, crate::race::frame_draw::has_mmx()),
+            );
         }
-        let done = crate::race::course_faces::tinted_part(1, r);
+        let done = draw_course_face(face);
         game_write(rva(0x6240CC), colour);
         done
     }
-}
-
-// The rest of the parts in the game.
-
-/// `draw_face_sides`' parts: 1 `race::face_colours`, 2 `race::draw_back_face` (each with
-/// `race::draw_face` in the game).
-pub fn sides_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    unsafe {
-        if place == 1 {
-            face_colours(r, &mut |_, r| draw_face(r))
-        } else {
-            draw_back_face(r, &mut |_, r| draw_face(r))
-        }
-    }
-}
-
-/// `draw_course_face`'s parts: 1 the depth test off, 2 `race::draw_face_sides`, 3 the
-/// depth test on.
-pub fn course_face_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    unsafe {
-        match place {
-            1 => face_depth_test_off(r),
-            2 => draw_face_sides(r),
-            _ => face_depth_test_on(r),
-        }
-    }
-}
-
-/// `draw_tinted_face`'s part: `race::draw_course_face` in the game.
-pub fn tinted_part(_: u32, r: &mut Regs) -> Result<(), Refused> {
-    unsafe { draw_course_face(r) }
 }

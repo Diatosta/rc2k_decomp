@@ -3,7 +3,7 @@
 //! drawing the map again.
 
 use crate::errors::{FatalError, Refused};
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::screens::draw_stage_records::selection;
 
 pub const MODE_RVA: usize = rva(0x755700); // dword_755700: 2 a championship's, 3 a record's
@@ -39,82 +39,53 @@ unsafe fn dword(at: u32) -> u32 {
 /// `off_7598AE[+0x3C]`; `ukmap.png` loaded with it (the carry: fatal error 0x80712345),
 /// converted, `g_pictureFlags` = `g_screenModeFlags` & 0xFFF, made the surface, sprite 0xA0
 /// at (0, 0). Refuses a choice without its tables (the original reads through null).
-pub unsafe fn draw_stage_map(entry: &Regs) -> Result<(), Refused> {
-    let mut g = *entry;
+pub unsafe fn draw_stage_map() -> Result<(), Refused> {
+    use crate::gfx::blit_glyph::blit_glyph_on_surface;
+    use crate::gfx::convert_picture::convert_picture_now;
+    use crate::gfx::load_picture_with_overlay::load_picture_with_overlay;
+    use crate::gfx::picture_as_surface::picture_as_surface;
     unsafe {
         let mode: u32 = game_read(MODE_RVA);
-        g.edi = match mode {
+        let record = match mode {
             2 => {
-                g.ebx = game_read(CHAMPIONSHIP_TABLE_RVA);
-                g.eax = game_read::<u32>(CHAMPIONSHIP_STAGE_RVA).wrapping_mul(RECORD_SIZE);
-                dword(game_addr(CHAMPIONSHIP_TABLES_RVA) as u32 + g.ebx.wrapping_mul(4))
-                    .wrapping_add(g.eax)
+                let table: u32 = game_read(CHAMPIONSHIP_TABLE_RVA);
+                let at = game_read::<u32>(CHAMPIONSHIP_STAGE_RVA).wrapping_mul(RECORD_SIZE);
+                dword(game_addr(CHAMPIONSHIP_TABLES_RVA) as u32 + table.wrapping_mul(4))
+                    .wrapping_add(at)
             }
-            3 => {
-                g.edi = game_addr(RECORD_TABLE_RVA) as u32;
-                g.ebx = game_read(SECTION_RVA);
-                g.eax = game_read(INDEX_RVA);
-                crate::menu::stage_choice::game_part(0, &mut g)?;
-                g.edi
-            }
+            3 => crate::records::find_record::find_record_in(
+                game_addr(RECORD_TABLE_RVA) as u32,
+                game_read::<u32>(INDEX_RVA) as i32,
+                game_read(SECTION_RVA),
+            ),
             _ => {
                 let s = selection().ok_or(crate::errors::BadInput(
                     "no stage tables for the choice: the original reads through null",
                 ))?;
-                g.eax = game_read::<u32>(NUMBER_RVA).wrapping_mul(RECORD_SIZE);
-                g.ebx = s.sub;
-                s.table.wrapping_add(g.eax)
+                s.table
+                    .wrapping_add(game_read::<u32>(NUMBER_RVA).wrapping_mul(RECORD_SIZE))
             }
         };
-        g.ebx = dword(game_addr(PALETTES_RVA) as u32 + dword(g.edi + 0x3C).wrapping_mul(4));
-        g.eax = game_addr(MAP_PATH_RVA) as u32;
-        crate::menu::stage_choice::game_part(1, &mut g)?;
-        if g.carry() {
+        let overlay = dword(game_addr(PALETTES_RVA) as u32 + dword(record + 0x3C).wrapping_mul(4));
+        if load_picture_with_overlay(game_addr(MAP_PATH_RVA) as *mut u8, overlay as *mut u8)? {
             return Err(NO_MAP.into());
         }
-        crate::menu::stage_choice::game_part(2, &mut g)?;
-        g.eax = game_read::<u32>(SCREEN_MODE_FLAGS_RVA) & 0xFFF;
-        game_write(PICTURE_FLAGS_RVA, g.eax);
-        crate::menu::stage_choice::game_part(3, &mut g)?;
-        g.eax = MAP_SPRITE;
-        g.esi = game_read(SPRITE_TABLE_RVA);
-        g.ecx = 0;
-        g.edx = 0;
-        crate::menu::stage_choice::game_part(4, &mut g)?;
+        convert_picture_now()?;
+        game_write(
+            PICTURE_FLAGS_RVA,
+            game_read::<u32>(SCREEN_MODE_FLAGS_RVA) & 0xFFF,
+        );
+        picture_as_surface()?;
+        // The overlay's pointer is the blit's palette too (ebx all the way).
+        blit_glyph_on_surface(
+            MAP_SPRITE,
+            game_read::<u32>(SPRITE_TABLE_RVA) as *const u8,
+            0,
+            0,
+            overlay as *const u32,
+        )?;
     }
     Ok(())
-}
-
-/// The game's callees: the Rust versions.
-pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    unsafe {
-        match place {
-            0 => r.edi = crate::records::find_record::find_record_in(r.edi, r.eax as i32, r.ebx),
-            1 => {
-                let carry = crate::gfx::load_picture_with_overlay::load_picture_with_overlay(
-                    r.eax as *mut u8,
-                    r.ebx as *mut u8,
-                )?;
-                r.set_carry(carry);
-            }
-            2 => crate::gfx::convert_picture::convert_picture_now()?,
-            3 => crate::gfx::picture_as_surface::picture_as_surface()?,
-            _ => {
-                crate::gfx::blit_glyph::blit_glyph_on_surface(
-                    r.eax,
-                    r.esi as *const u8,
-                    r.ecx as i32,
-                    r.edx as i32,
-                    r.ebx as *const u32,
-                )?;
-            }
-        }
-    }
-    Ok(())
-}
-
-pub unsafe fn draw_stage_map_in_game() -> Result<(), Refused> {
-    unsafe { draw_stage_map(&Regs::default()) }
 }
 
 /// How a setting draws the map: the Rust version in the game, a counter in the tests.

@@ -11,11 +11,11 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_read};
+use crate::framework::game_read;
 use crate::menu::standings::*;
 
 /// The Rust version (see the header): the registers it leaves.
-pub unsafe fn init_standings_a(entry: &Regs) -> Result<Regs, Refused> {
+pub unsafe fn init_standings_a() -> Result<(), Refused> {
     let first: u32 = unsafe { game_read(TABLE_A_RVA) };
     if first == 0 {
         return Err(BadInput("no standings table").into());
@@ -28,5 +28,5 @@ pub unsafe fn init_standings_a(entry: &Regs) -> Result<Regs, Refused> {
             put(e + 4 * k as u32, v);
         }
     }
-    Ok(*entry)
+    Ok(())
 }

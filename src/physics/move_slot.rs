@@ -27,12 +27,11 @@
 //! calls the game's) against the Rust version on test slots placed about the work car,
 //! with speeds and spins by lot; every game variable it writes saved and put back.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::math::x87;
 use crate::math::x87_run::{abs_compare, abs_of, mul2_to_int, neg_mul, neg_product_plus};
 use crate::physics::axis_turn_matrix::axis_turn_matrix;
@@ -80,10 +79,10 @@ pub unsafe fn slot_refusal(s: u32) -> Option<&'static str> {
     }
 }
 
-/// The Rust core; `r` as the original leaves it.
-pub unsafe fn move_slot_at(r: &mut Regs) -> Result<(), Refused> {
+/// The Rust core: the slot at `s` (the registers it leaves are dropped by its caller's
+/// `popa`).
+pub unsafe fn move_slot_at(s: u32) -> Result<(), Refused> {
     unsafe {
-        let s = r.esi;
         if let Some(why) = slot_refusal(s) {
             return Err(crate::errors::BadInput(why).into());
         }
@@ -99,23 +98,18 @@ pub unsafe fn move_slot_at(r: &mut Regs) -> Result<(), Refused> {
         if at(s + 0x74) != 0 {
             unit_vector((s + 0x74) as usize, a(0x5C78FC) as usize);
             game_write(rva(0x5C78F8), x87::mul(at(s + 0x74), dt));
-            r.edi = a(0x5C7010);
-            axis_turn_matrix(r.edi);
+            axis_turn_matrix(a(0x5C7010));
             square_matrix(a(0x5C7010) as usize);
             multiply_matrices(
                 (s + 0x10) as usize,
                 a(0x5C7010) as usize,
                 a(0x5EA10C) as usize,
             );
-            r.ecx = 0;
-            r.edx = 0;
-            r.ebp = a(0x5EA10C);
             copy(a(0x5EA10C), s + 0x10, 16);
         }
         for (v, c) in [(0x54, 8), (0x50, 4), (0x58, 0xC)] {
             let d = mul2_to_int(at(s + v), dt, k65536) as u32;
             game_write(rva(0x62400C), d);
-            r.eax = d;
             put(s + c, at(s + c).wrapping_add(d));
         }
         put(
@@ -124,8 +118,7 @@ pub unsafe fn move_slot_at(r: &mut Regs) -> Result<(), Refused> {
         );
         game_write(rva(0x639824), at(s + 4));
         game_write(rva(0x63982C), at(s + 0xC));
-        r.eax = at(s + 0x60);
-        game_write(rva(0x5CCC78), r.eax);
+        game_write(rva(0x5CCC78), at(s + 0x60));
         game_write(rva(0x620470), 0x80u32);
         crate::physics::find_ground::find_ground()?;
         let face: u32 = game_read(rva(0x5CCC74));
@@ -137,12 +130,10 @@ pub unsafe fn move_slot_at(r: &mut Regs) -> Result<(), Refused> {
             return Ok(());
         }
         put(s + 0x60, face);
-        r.eax = at(s + 8);
         let height: u32 = game_read(rva(0x639828));
-        if (r.eax.wrapping_sub(height) as i32) >= 0 {
+        if (at(s + 8).wrapping_sub(height) as i32) >= 0 {
             return Ok(());
         }
-        r.eax = height;
         put(s + 8, height);
         let half = game_read::<u32>(rva(0x5C5E40));
         put(s + 0x50, x87::mul(at(s + 0x50), half));
@@ -153,11 +144,8 @@ pub unsafe fn move_slot_at(r: &mut Regs) -> Result<(), Refused> {
         }
         if abs_compare(at(s + 0x54), game_read(rva(0x5C5D38))) & 0x100 != 0 {
             copy(a(0x71BA88), s + 0x10, 12);
-            let n = at(s);
-            r.eax = n / 20;
-            r.edx = n % 20;
-            r.ebx = 20;
-            if (r.edx.wrapping_sub(5) as i32) >= 0 && (r.edx.wrapping_sub(9) as i32) < 0 {
+            let n = at(s) % 20;
+            if (n.wrapping_sub(5) as i32) >= 0 && (n.wrapping_sub(9) as i32) < 0 {
                 copy(a(0x71BA48), s + 0x10, 12);
                 return Ok(());
             }

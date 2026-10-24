@@ -19,9 +19,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{EAX, EBX, EDX, Regs};
 use crate::physics::flow::g;
-use crate::screens::harness::Left;
 use rc2k_core::drive::replay_views::{MODES as MODE_COUNT, draw, fits, kept_mode, wish_kind};
 
 const MODES: usize = 0x606320; // off_606320
@@ -33,26 +31,28 @@ fn kind_of(mode: u32) -> u32 {
 
 /// The Rust version.
 // Converted: `rc2k_core::drive::replay_views::{wish_kind, fits, draw, kept_mode}`.
-pub unsafe fn pick_replay_camera(entry: &Regs) -> Result<Left, Refused> {
-    let Some(kind) = wish_kind(entry.eax) else {
-        return Ok(Left::nothing());
+/// The camera wish `wish` (eax); the mode kept (edx), or `None` for a wish that draws
+/// nothing (the original leaves edx then; its one caller draws only for the wishes that
+/// draw).
+pub unsafe fn pick_replay_camera(wish: u32) -> Result<Option<u32>, Refused> {
+    let Some(kind) = wish_kind(wish) else {
+        return Ok(None);
     };
     let fits = |mode: u32| fits(kind, kind_of(mode));
     if !(0..MODE_COUNT).any(fits) {
         return Err(BadInput("no camera mode the wish stops at").into());
     }
-    let (eax, edx) = loop {
-        let (eax, edx) = draw(unsafe { crate::math::next_random::next_random() });
+    let edx = loop {
+        let (_, edx) = draw(unsafe { crate::math::next_random::next_random() });
         if fits(edx) {
-            break (eax, edx);
+            break edx;
         }
     };
-    let ebx = g(MODES + 4 * edx as usize);
     let edx = kept_mode(
         edx,
         || g(B + 0x24),
         || g(0x63DB94) != 1,
         || g(B + 0xFE0 + 0x24),
     );
-    Ok(Left::nothing().with(EAX, eax).with(EBX, ebx).with(EDX, edx))
+    Ok(Some(edx))
 }

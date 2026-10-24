@@ -5,10 +5,9 @@
 //! Out: eax 4, ebx 0x17; the rest as `scene::set_render_state` leaves them (kept)
 //!
 //! Three calls of `scene::set_render_state`. 22 callers (the marks, the race's drawing).
-//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
-//! `routes.rs`); the registers above are the original's, for reference.
+//! Hook removed 2026-10-22; plain Rust since 2026-10-23 (phase 3): the registers above
+//! are the original's; a call by address goes through `routes.rs`, which maps them.
 
-use crate::framework::Regs;
 use crate::scene::set_render_state::set_render_state;
 
 /// `scene::depth_buffer_on` (`on`) or `scene::depth_buffer_off`: states 7 and 14 1 or 0,
@@ -19,10 +18,4 @@ pub fn depth_buffer(on: bool) {
     set_render_state(on as u32, 7);
     set_render_state(on as u32, 0xE);
     set_render_state(4, 0x17);
-}
-
-/// For the typed tables' calls by address.
-pub fn entry(_r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    depth_buffer(true);
-    Ok(())
 }

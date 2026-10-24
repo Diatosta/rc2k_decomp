@@ -23,7 +23,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_read, rva};
+use crate::framework::{game_read, rva};
 use crate::gfx::pixel_format::PixelFormat;
 use crate::gfx::surface::{BASE_RVA, BYTES_PER_PIXEL_RVA, PITCH_RVA};
 use crate::service::harness::Region;
@@ -55,21 +55,32 @@ pub fn game_target() -> Target {
     }
 }
 
+/// What the original gets in its registers: ebx the piece's rectangle (x, y, width,
+/// height), ecx, edx where it goes on the surface, esi the picture's pixels, eax the
+/// picture's row bytes.
+#[derive(Clone, Copy, Debug)]
+pub struct Piece {
+    pub rectangle: u32,
+    pub x: u32,
+    pub y: u32,
+    pub pixels: u32,
+    pub row_bytes: u32,
+}
+
 /// The places it writes: one region a row.
-fn rows(r: &Regs, to: &Target) -> Option<Vec<Region>> {
-    if r.ebx == 0 || r.esi == 0 || to.pixels == 0 || to.format == 0 {
+fn rows(p: &Piece, to: &Target) -> Option<Vec<Region>> {
+    if p.rectangle == 0 || p.pixels == 0 || to.pixels == 0 || to.format == 0 {
         return None;
     }
-    let [_, _, width, height] = unsafe { (r.ebx as *const [u32; 4]).read_unaligned() };
+    let [_, _, width, height] = unsafe { (p.rectangle as *const [u32; 4]).read_unaligned() };
     if width == 0 || height == 0 {
         return None;
     }
     let bytes = if to.bytes_per_pixel == 2 { 2 } else { 4 };
-    let first = r
-        .edx
-        .wrapping_mul(to.pitch)
-        .wrapping_add(r.ecx.wrapping_mul(to.bytes_per_pixel))
-        .wrapping_add(to.pixels);
+    let first =
+        p.y.wrapping_mul(to.pitch)
+            .wrapping_add(p.x.wrapping_mul(to.bytes_per_pixel))
+            .wrapping_add(to.pixels);
     Some(
         (0..height)
             .map(|row| {
@@ -82,21 +93,20 @@ fn rows(r: &Regs, to: &Target) -> Option<Vec<Region>> {
     )
 }
 
-pub unsafe fn blit_components(r: &Regs, to: &Target) -> Result<(), Refused> {
-    if rows(r, to).is_none() {
+pub unsafe fn blit_components(p: &Piece, to: &Target) -> Result<(), Refused> {
+    if rows(p, to).is_none() {
         return Err(BadInput("a piece of nothing, or no surface, format, piece or picture").into());
     }
     unsafe {
-        let [x, y, width, height] = (r.ebx as *const [u32; 4]).read_unaligned();
+        let [x, y, width, height] = (p.rectangle as *const [u32; 4]).read_unaligned();
         let format = (to.format as *const PixelFormat).read_unaligned();
-        let mut target = r
-            .edx
-            .wrapping_mul(to.pitch)
-            .wrapping_add(r.ecx.wrapping_mul(to.bytes_per_pixel))
-            .wrapping_add(to.pixels);
-        let mut source = r
-            .esi
-            .wrapping_add(y.wrapping_mul(r.eax))
+        let mut target =
+            p.y.wrapping_mul(to.pitch)
+                .wrapping_add(p.x.wrapping_mul(to.bytes_per_pixel))
+                .wrapping_add(to.pixels);
+        let mut source = p
+            .pixels
+            .wrapping_add(y.wrapping_mul(p.row_bytes))
             .wrapping_add(x.wrapping_mul(4));
         // Converted: `rc2k_core::gfx::pixels::pack_row`, a row at a time.
         let words = to.bytes_per_pixel == 2;
@@ -110,7 +120,7 @@ pub unsafe fn blit_components(r: &Regs, to: &Target) -> Result<(), Refused> {
                 crate::framework::game_write(crate::gfx::pixel_format::SCRATCH_RVA, scratch);
             }
             target = target.wrapping_add(to.pitch);
-            source = source.wrapping_add(r.eax);
+            source = source.wrapping_add(p.row_bytes);
         }
     }
     Ok(())

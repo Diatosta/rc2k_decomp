@@ -30,10 +30,8 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::menu::standings::*;
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
 
 const CURRENT_RVA: usize = rva(0x75598C); // dword_75598C
 const CARS_RVA: usize = rva(0x7564A0); // off_7564A0
@@ -108,7 +106,7 @@ pub fn car_table(p: u32) -> Result<u32, BadInput> {
 }
 
 /// The Rust version (see the header): the registers it leaves.
-pub unsafe fn driver_stats(entry: &Regs) -> Result<Regs, Refused> {
+pub unsafe fn driver_stats() -> Result<(), Refused> {
     use crate::logfile::{log_int::log_int, log_write::log_write};
     // Converted: `rc2k_core::menu::driver_figures` (float: exact at the game's 0x027F).
     use rc2k_core::menu::driver_figures::{Car, Constants, Table, figures};
@@ -153,14 +151,5 @@ pub unsafe fn driver_stats(entry: &Regs) -> Result<Regs, Refused> {
             log_int(line.limit as i32, true, 1);
         }
     }
-    Ok(*entry)
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(left_of(&unsafe { driver_stats(r) }?))
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    crate::service::harness::state_entry(r, &rust)
+    Ok(())
 }

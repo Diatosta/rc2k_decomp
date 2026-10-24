@@ -19,89 +19,77 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
+use crate::net::draw_centred_item::draw_centred_item;
+use crate::net::draw_number_value::draw_number_value;
+use crate::net::draw_setting_value::draw_setting_value;
 use crate::net::lobby::{
-    BLIT, COPY_PICTURE, HOST_ADDRESS, LOCK, MACHINE_NAME, MEASURE_STRING, MOST_PLAYERS, PALETTE,
-    Part, SAVED_NAME, SHOW_FRAME, SPRITES, UNLOCK, a, g, lobby_entry,
+    HOST_ADDRESS, MACHINE_NAME, MOST_PLAYERS, PALETTE, SAVED_NAME, a, blit, copy_picture, g,
+    lock_surface,
 };
+use crate::net::setting_label::setting_label;
+use crate::text::draw_text::GameCanvas;
+use crate::text::font::Font;
 use rc2k_core::net::screens;
 
-const LABEL: u32 = 0x416AF8; // net::setting_label
-const CENTRED: u32 = 0x416B53; // net::draw_centred_item
-const NUMBER: u32 = 0x416B8E; // net::draw_number_value
-const VALUE: u32 = 0x416BC4; // net::draw_setting_value
-
-/// The Rust version: the registers it leaves (the entry's).
-pub fn settings_frame(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    let mut r = *entry;
-    let done = |r: &Regs| {
-        Ok(Regs {
-            eflags: r.eflags,
-            ..*entry
-        })
-    };
-    part(LOCK, &mut r)?;
-    if r.carry() {
-        return done(&r);
+/// The Rust version (the original keeps every register). Called through
+/// `screens::run_frame` by `net::settings_loop`.
+pub fn settings_frame() -> Result<(), Refused> {
+    if !lock_surface() {
+        return Ok(());
     }
-    part(COPY_PICTURE, &mut r)?;
-    r.esi = 0;
-    r.ebp = 0x92;
-    for (label, value, how) in [
-        (0x163, a(SAVED_NAME), VALUE),
-        (0x164, a(MACHINE_NAME), VALUE),
-        (0x165, g(MOST_PLAYERS), NUMBER),
-        (0x166, a(HOST_ADDRESS), VALUE),
-    ] {
-        r.eax = label;
-        part(LABEL, &mut r)?;
-        r.eax = value;
-        part(how, &mut r)?;
-        r.esi = r.esi.wrapping_add(1);
+    copy_picture()?;
+    let mut y = 0x92;
+    for (item, (label, value, number)) in [
+        (0x163, a(SAVED_NAME), false),
+        (0x164, a(MACHINE_NAME), false),
+        (0x165, g(MOST_PLAYERS), true),
+        (0x166, a(HOST_ADDRESS), false),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let item = item as u32;
+        y = setting_label(label, item, y)?;
+        y = if number {
+            draw_number_value(value, item, y)?
+        } else {
+            draw_setting_value(value, item, y)?
+        };
     }
-    r.eax = 0x16F;
-    r.ebx = a(PALETTE);
-    part(MEASURE_STRING, &mut r)?;
-    let width = r.ecx;
+    // The last item's string measured (the x the original hands it is `draw_text`'s x of the
+    // value above, 0x190).
+    let measured = unsafe {
+        crate::text::measure_string_by_id::measure_string_by_id_at(
+            0x16F,
+            a(PALETTE) as *mut Font,
+            0x190,
+            &mut GameCanvas,
+        )
+    }?;
+    let width = measured.width;
     // Converted: `rc2k_core::net::screens::last_item` (and the frame's sprites).
     let (tiles, text_x) = screens::last_item(width)?;
-    r.ecx = tiles;
-    let blit = |r: &mut Regs, glyph: u32, step: u32, part: Part| -> Result<(), Refused> {
-        let item = r.esi;
-        let count = r.ecx;
-        r.eax = glyph;
-        r.ecx = r.edi.wrapping_sub(step);
-        r.edi = r.ecx;
-        r.edx = 0x21D;
-        r.esi = g(SPRITES);
-        part(BLIT, r)?;
-        r.esi = item;
-        r.ecx = count;
+    // Each blit gets the palette the one before leaves (the first, the measuring's lines).
+    let mut palette = measured.lines;
+    let mut at = screens::LAST_ITEM_RIGHT;
+    let mut piece = |glyph: u32, step: u32| -> Result<(), Refused> {
+        at = at.wrapping_sub(step);
+        palette = blit(glyph, at, 0x21D, palette)?;
         Ok(())
     };
-    r.edi = screens::LAST_ITEM_RIGHT;
-    blit(&mut r, screens::RIGHT_END, screens::END_WIDTH, part)?;
-    r.ecx = tiles;
+    piece(screens::RIGHT_END, screens::END_WIDTH)?;
+    // Counted down with `dec` / `jnz`: at least once.
+    let mut left = tiles;
     loop {
-        blit(&mut r, screens::TILE, screens::TILE_WIDTH, part)?;
-        r.ecx = r.ecx.wrapping_sub(1);
-        if r.ecx == 0 {
+        piece(screens::TILE, screens::TILE_WIDTH)?;
+        left = left.wrapping_sub(1);
+        if left == 0 {
             break;
         }
     }
-    blit(&mut r, screens::LEFT_END, screens::END_WIDTH, part)?;
-    r.eax = 0x16F;
-    r.ebp = 0x21D;
-    r.ebx = width;
-    r.ecx = text_x;
-    part(CENTRED, &mut r)?;
-    part(UNLOCK, &mut r)?;
-    part(SHOW_FRAME, &mut r)?;
-    done(&r)
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    lobby_entry(r, settings_frame)
+    piece(screens::LEFT_END, screens::END_WIDTH)?;
+    draw_centred_item(0x16F, 4, text_x, 0x21D)?;
+    crate::platform::unlock_surface();
+    crate::platform::show_frame_now();
+    Ok(())
 }

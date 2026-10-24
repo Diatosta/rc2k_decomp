@@ -13,16 +13,13 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 use crate::menu::standings::*;
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 const CURRENT_RVA: usize = rva(0x75598C); // dword_75598C
 const FLAGS_RVA: usize = rva(0x759C76); // dword_759C76: 13
 /// The Rust version (see the header): the registers it leaves.
-pub unsafe fn inspection_faults(entry: &Regs) -> Result<Regs, Refused> {
+pub unsafe fn inspection_faults() -> Result<(), Refused> {
     let n: u32 = unsafe { game_read(CURRENT_RVA) };
     if n >= 4 || player(n) == 0 {
         return Err(BadInput("a current player past 3 or missing").into());
@@ -31,15 +28,5 @@ pub unsafe fn inspection_faults(entry: &Regs) -> Result<Regs, Refused> {
     let p = player(n);
     let flags = rc2k_core::menu::inspection::faults(|k| past_limit(p, k as u32));
     unsafe { game_write(FLAGS_RVA, flags) };
-    Ok(*entry)
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(left_of(&unsafe { inspection_faults(r) }?))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
+    Ok(())
 }

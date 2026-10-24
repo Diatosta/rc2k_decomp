@@ -39,7 +39,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 use rc2k_core::drive::lit_faces::{
     COUNTDOWN_OBJECT, FaceBytes, RISE_TOP, align, blink, count_down, fall_turn, pace, rise,
 };
@@ -114,8 +114,8 @@ unsafe fn refusal() -> Option<&'static str> {
     }
 }
 
-/// The Rust core; `r` as the original leaves it.
-pub unsafe fn animate_at(r: &mut Regs) -> Result<(), Refused> {
+/// The Rust core. The registers it leaves are read by no caller.
+pub unsafe fn animate_at() -> Result<(), Refused> {
     unsafe {
         if let Some(why) = refusal() {
             return Err(BadInput(why).into());
@@ -124,68 +124,50 @@ pub unsafe fn animate_at(r: &mut Regs) -> Result<(), Refused> {
             return Ok(());
         }
 
-        animate_faces(r)
+        animate_faces()
     }
 }
 
 // Converted: `rc2k_core::drive::lit_faces` (all but kind 4's turn and ground).
-unsafe fn animate_faces(r: &mut Regs) -> Result<(), Refused> {
+unsafe fn animate_faces() -> Result<(), Refused> {
     unsafe {
         let faces: u32 = game_read(FACES_RVA);
         let points: u32 = game_read(POINTS_RVA);
         let point = |n: u32| points.wrapping_add(n.wrapping_mul(12));
-        r.ecx = 0;
+        let mut k = 0;
         loop {
-            r.ebx = game_read(list(r.ecx));
-            let f = faces.wrapping_add(r.ebx << 6);
-            r.esi = f;
+            let f = faces.wrapping_add(game_read::<u32>(list(k)) << 6);
             let mut bytes = load(f);
             let leave = 'face: {
                 let object = byte(f + 1);
                 if object == COUNTDOWN_OBJECT {
                     break 'face count_down(&mut bytes);
                 }
-                r.ebx = at(f + 4);
-                let p = point(r.ebx);
+                let point_number = at(f + 4);
+                let p = point(point_number);
                 let dx = at(p).wrapping_sub(game_read(LEAD_X_RVA));
                 game_write(rva(0x62400C), dx);
                 let dz = at(p + 8).wrapping_sub(game_read(LEAD_Z_RVA));
                 game_write(rva(0x62400C), dz);
                 let d = crate::math::x87::int_hypot(dx as i32, dz as i32) as u32;
                 game_write(rva(0x6D303C), d);
-                r.edx = pace(d);
-                game_write(rva(0x6D3040), r.edx);
-                let pace = r.edx;
+                let step = pace(d);
+                game_write(rva(0x6D3040), step);
                 let kind_of: u32 = game_read(OBJECT_KINDS_RVA + 4 * object as usize);
-                r.eax = u32::from(game_read::<u8>(
-                    KIND_TABLE_RVA + (kind_of.wrapping_mul(0x80)) as usize,
-                ));
-                match r.eax {
-                    1 | 9 => match blink(&mut bytes, |n| game_read::<u8>(BLINK_RVA + n as usize)) {
-                        None => true,
-                        Some(b) => {
-                            r.eax = u32::from(b);
-                            false
-                        }
-                    },
-                    2 => {
-                        let (leave, edx) = rise(&mut bytes, pace, RISE_TOP);
-                        r.edx = edx;
-                        leave
+                let kind = game_read::<u8>(KIND_TABLE_RVA + (kind_of.wrapping_mul(0x80)) as usize);
+                match kind {
+                    1 | 9 => {
+                        blink(&mut bytes, |n| game_read::<u8>(BLINK_RVA + n as usize)).is_none()
                     }
-                    3 | 8 => {
-                        let (leave, edx, al) = align(&mut bytes, pace);
-                        r.edx = edx;
-                        r.eax = (r.eax & !0xFF) | u32::from(al);
-                        leave
-                    }
+                    2 => rise(&mut bytes, step, RISE_TOP).0,
+                    3 | 8 => align(&mut bytes, step).0,
                     4 => {
                         let Some((distance, angle)) = fall_turn(&bytes) else {
                             break 'face true;
                         };
                         let [x, _, z, _] = crate::math::turn_point_xz::turn_point_xz(
                             0,
-                            r.ebx as i32,
+                            point_number as i32,
                             distance as i32,
                             angle,
                         );
@@ -214,21 +196,19 @@ unsafe fn animate_faces(r: &mut Regs) -> Result<(), Refused> {
             };
             store(f, &bytes);
             if leave {
-                let count: u32 = game_read(COUNT_RVA);
-                r.ebx = count.wrapping_sub(1);
-                r.eax = game_read(list(r.ebx));
-                game_write(list(r.ecx), r.eax);
-                game_write(COUNT_RVA, r.ebx);
+                let last = game_read::<u32>(COUNT_RVA).wrapping_sub(1);
+                game_write(list(k), game_read::<u32>(list(last)));
+                game_write(COUNT_RVA, last);
             }
-            r.ecx += 1;
-            if r.ecx >= game_read::<u32>(COUNT_RVA) {
+            k += 1;
+            if k >= game_read::<u32>(COUNT_RVA) {
                 return Ok(());
             }
         }
     }
 }
 
-/// The Rust version: `r` as the original leaves it.
-pub unsafe fn animate_lit_faces(r: &mut Regs) -> Result<(), Refused> {
-    unsafe { animate_at(r) }
+/// The Rust version.
+pub unsafe fn animate_lit_faces() -> Result<(), Refused> {
+    unsafe { animate_at() }
 }

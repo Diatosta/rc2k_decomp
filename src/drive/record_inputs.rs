@@ -15,9 +15,7 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::{EAX, EBX, ECX, EDX, ESI};
 use crate::physics::flow::{a, g, p};
-use crate::screens::harness::Left;
 use rc2k_core::drive::replay_frames::{on_tape, tape_offset};
 
 const WORDS: usize = 0x6138C4; // dword_6138C4 .. 6138D0: the input words
@@ -26,10 +24,10 @@ const CURRENT: usize = 0x71B3F8; // g_currentCar
 
 /// The Rust version.
 // Converted: `rc2k_core::drive::replay_frames::{on_tape, tape_offset}`.
-pub unsafe fn record_inputs() -> Left {
+pub unsafe fn record_inputs() {
     let car = g(CURRENT);
     if !on_tape(car) {
-        return Left::nothing();
+        return;
     }
     let (eax, ebx, ecx, edx) = (g(WORDS), g(WORDS + 4), g(WORDS + 8), g(WORDS + 12));
     let packed = crate::drive::pack_inputs::pack_inputs(eax, ecx, edx);
@@ -43,10 +41,4 @@ pub unsafe fn record_inputs() -> Left {
     for (k, v) in [eax, ebx, ecx, edx].iter().enumerate() {
         p(WORDS + 4 * k, *v);
     }
-    Left::nothing()
-        .with(EAX, eax)
-        .with(EBX, ebx)
-        .with(ECX, ecx)
-        .with(EDX, edx)
-        .with(ESI, esi)
 }

@@ -4,7 +4,7 @@
 //! steps (low byte) and back into `dword_814714`.
 //!
 //! In:  nothing
-//! Out: as `expire_hexagons` leaves them, eax the new `dword_84460C` before its masking
+//! Out: nothing (its caller reads no register after it)
 //!
 //! Caller: `sub_4BAC87` (0x4BAF7D). The call is `expire_hexagons`' Rust version.
 //! Self-test: the original and the Rust version on the game's items (as
@@ -14,26 +14,22 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::{Regs, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 use crate::marks::expire_hexagons::{LATEST_RVA, STEPS_RVA, expire_hexagons};
 
 const CLOCK_RVA: usize = rva(0x814714); // dword_814714
 
-/// The Rust version (see the header): the registers it leaves.
+/// The Rust version (see the header).
 // Converted: `rc2k_core::marks::steps::steps`
-pub unsafe fn hexagons_step(entry: &Regs) -> Regs {
+pub unsafe fn hexagons_step() {
     unsafe {
         let clock: u32 = game_read(CLOCK_RVA);
         let steps = rc2k_core::marks::steps::steps(game_read(LATEST_RVA), clock);
         game_write(LATEST_RVA, clock);
         game_write(STEPS_RVA, steps);
-        let mut g = expire_hexagons(&Regs {
-            eax: steps,
-            ..*entry
-        });
-        g.eax = game_read::<u32>(LATEST_RVA).wrapping_add(game_read(STEPS_RVA));
-        game_write(LATEST_RVA, g.eax & 0xFF);
-        game_write(CLOCK_RVA, g.eax & 0xFF);
-        g
+        expire_hexagons();
+        let latest = game_read::<u32>(LATEST_RVA).wrapping_add(game_read(STEPS_RVA));
+        game_write(LATEST_RVA, latest & 0xFF);
+        game_write(CLOCK_RVA, latest & 0xFF);
     }
 }

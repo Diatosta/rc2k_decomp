@@ -14,22 +14,24 @@
 //! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
-use crate::framework::{Regs, game_read, game_write, rva};
-use crate::menu::screen_loop::{Env, List, Screen, Step, screen_entry};
+use crate::errors::Refused;
+use crate::framework::{game_read, game_write, rva};
+use crate::menu::screen_loop::{Carried, List, Screen, Step, prepare_scene, screen_entry};
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
-unsafe fn prepare(g: &mut Regs, env: &mut dyn Env) {
+unsafe fn prepare(c: &mut Carried) -> Result<(), Refused> {
     unsafe {
         game_write(rva(0x623FB0), 0x0u32);
         game_write(rva(0x623FB4), 0x0u32);
         game_write(rva(0x624080), 0x100u32);
-        env.call(rva(0x46F7FD), g);
+        prepare_scene(c);
         game_write(rva(0x6241DC), 0x0u32);
         game_write(rva(0x6241E0), 0x320u32);
         game_write(rva(0x6241EC), game_read::<i32>(rva(0x6241DC)) as f32);
         game_write(rva(0x6241F0), game_read::<i32>(rva(0x6241E0)) as f32);
     }
+    Ok(())
 }
 
 pub const SCREEN: Screen = Screen {
@@ -91,6 +93,6 @@ pub const SCREEN: Screen = Screen {
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    screen_entry("menu::load_championship_46e899_loop", r, &SCREEN)
+pub fn run() -> Result<(), crate::errors::Refused> {
+    screen_entry("menu::load_championship_46e899_loop", &SCREEN)
 }

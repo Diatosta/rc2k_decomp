@@ -5,7 +5,7 @@
 //! files are read.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, rva};
+use crate::framework::{game_addr, rva};
 
 /// Where the steps' variables are (the game's, or a test's).
 #[derive(Clone, Copy)]
@@ -59,11 +59,6 @@ pub const NUMBER_PLACES: [usize; 9] = [
     0x60B01F, 0x60B038, 0x60B08C, 0x60B0A7, 0x60B050, 0x60B06E, 0x60AE0F, 0x60AE1D, 0x60AE2F,
 ];
 const TEXTURES: u32 = 0x100;
-/// A call: 0 `memory::allocate` (eax the bytes, ebx the list: eax the memory), 1
-/// `files::read_whole_file` (eax the path, ebx the buffer, ecx the count; `pusha` around
-/// it in every caller), 2 `scene::allocate_point_records`.
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
 unsafe fn get(at: u32) -> u32 {
     unsafe { (at as *const u32).read_unaligned() }
 }
@@ -72,84 +67,69 @@ unsafe fn put(at: u32, value: u32) {
     unsafe { (at as *mut u32).write_unaligned(value) };
 }
 
-/// A read, its registers kept as `pusha`/`popa` keep them.
-fn read(g: &Regs, path: u32, buffer: u32, count: u32, part: Part) -> Result<(), Refused> {
-    let mut r = Regs {
-        eax: path,
-        ebx: buffer,
-        ecx: count,
-        ..*g
-    };
-    part(1, &mut r)
+/// `files::read_whole_file` (inside `pusha` in every caller: what it leaves is read by
+/// nobody).
+pub unsafe fn read(path: u32, buffer: u32, count: u32) -> Result<(), Refused> {
+    unsafe {
+        crate::files::read_whole_file::read_whole_file(
+            path as *const u8,
+            buffer as *mut u8,
+            count,
+            buffer,
+        )?;
+    }
+    Ok(())
 }
 
-/// `race::allocate_course_memory` (0x41F8C4). Leaves eax the end of the memory and ebx the
-/// list, the rest as `memory::allocate` leaves them.
-pub unsafe fn allocate_course_memory(entry: &Regs, v: &Vars, list: u32) -> Result<Regs, Refused> {
-    let mut g = *entry;
+/// `race::allocate_course_memory` (0x41F8C4): the course memory taken (`memory::allocate`
+/// on the list `list`).
+pub unsafe fn allocate_course_memory(v: &Vars, list: u32) -> Result<(), Refused> {
     unsafe {
         put(v.first_part, FIRST_PART);
-        g.eax = FIRST_PART + INFO_PART;
-        g.ebx = list;
-        put(v.list_total, get(v.list_total).wrapping_add(g.eax));
-        crate::race::level_init::game_part(0, &mut g)?;
-        put(v.course_memory, g.eax);
-        g.eax = g.eax.wrapping_add(FIRST_PART);
-        put(v.course_info, g.eax);
-        g.eax = g.eax.wrapping_add(INFO_PART);
+        put(
+            v.list_total,
+            get(v.list_total).wrapping_add(FIRST_PART + INFO_PART),
+        );
+        let memory = crate::memory::allocate::allocate(list as *mut _, FIRST_PART + INFO_PART)?;
+        put(v.course_memory, memory as u32);
+        put(v.course_info, (memory as u32).wrapping_add(FIRST_PART));
     }
-    Ok(g)
+    Ok(())
 }
 
 /// `race::copy_texture_info_tail` (0x439AE5): 0x800 bytes of the course info from
-/// +0x17E800 to +0x17F000. Leaves esi and edi past them, ecx 0.
-pub unsafe fn copy_texture_info_tail(entry: &Regs, v: &Vars) -> Regs {
-    let mut g = *entry;
+/// +0x17E800 to +0x17F000.
+pub unsafe fn copy_texture_info_tail(v: &Vars) {
     unsafe {
         let info = get(v.course_info);
-        g.esi = info.wrapping_add(0x17_E800);
-        g.edi = info.wrapping_add(0x17_F000);
-        std::ptr::copy(g.esi as *const u8, g.edi as *mut u8, 0x800);
-        g.esi += 0x800;
-        g.edi += 0x800;
-        g.ecx = 0;
+        std::ptr::copy(
+            info.wrapping_add(0x17_E800) as *const u8,
+            info.wrapping_add(0x17_F000) as *mut u8,
+            0x800,
+        );
     }
-    g
 }
 
 /// `race::load_texture_info` (0x4398FA): `files\a\textinfo` (0x1F4000 bytes at most) into
 /// the course info, `files\m\markinfo` (0x8000) at +0x1C2000, `files\b\textinfo`
 /// (0x1F4000) at +0x1F4000; three line feeds at +0x5BD21; `copy_texture_info_tail`. Refuses
 /// no course info.
-pub unsafe fn load_texture_info(entry: &Regs, v: &Vars, part: Part) -> Result<Regs, Refused> {
-    let mut g = *entry;
+pub unsafe fn load_texture_info(v: &Vars) -> Result<(), Refused> {
     unsafe {
         let info = get(v.course_info);
         if info == 0 {
             return Err(BadInput("no course memory: the original reads into 0").into());
         }
-        g.esi = info;
+        read(game_addr(TEXTURE_INFO_A_RVA) as u32, info, 0x1F_4000)?;
+        read(game_addr(MARK_INFO_RVA) as u32, info + 0x1C_2000, 0x8000)?;
         read(
-            &g,
-            game_addr(TEXTURE_INFO_A_RVA) as u32,
-            info,
-            0x1F_4000,
-            part,
-        )?;
-        g.esi = info + 0x1C_2000;
-        read(&g, game_addr(MARK_INFO_RVA) as u32, g.esi, 0x8000, part)?;
-        g.esi = info + 0x1F_4000;
-        read(
-            &g,
             game_addr(TEXTURE_INFO_B_RVA) as u32,
-            g.esi,
+            info + 0x1F_4000,
             0x1F_4000,
-            part,
         )?;
-        g.esi = info;
         std::ptr::write_bytes((info + 0x5_BD21) as *mut u8, 0x0A, 3);
-        part(3, &mut g)?;
-        Ok(g)
+        copy_texture_info_tail(v);
+        Ok(())
     }
 }
 
@@ -169,28 +149,27 @@ pub unsafe fn set_course_number(eax: u32) {
 
 /// `race::load_error_list` (0x439A92): the file named at 0x60AE02, 0x2000 bytes at most, to
 /// 0x637660.
-pub fn load_error_list(entry: &Regs, part: Part) -> Result<(), Refused> {
-    read(
-        entry,
-        game_addr(ERROR_LIST_PATH_RVA) as u32,
-        game_addr(ERROR_LIST_RVA) as u32,
-        0x2000,
-        part,
-    )
+pub unsafe fn load_error_list() -> Result<(), Refused> {
+    unsafe {
+        read(
+            game_addr(ERROR_LIST_PATH_RVA) as u32,
+            game_addr(ERROR_LIST_RVA) as u32,
+            0x2000,
+        )
+    }
 }
 
 /// `race::build_texture_infos` (0x4393A0): nothing without course info; else for each of
 /// the 256 textures, from its kind k (`dword_608DB4`) and the info's record +k * 0x80, a
 /// record of 0x40 at 0x979F30: +0x24 k & 0xF, +0x20 k >> 4, +0x28 that | 0x80000000,
 /// +0x10/+0x14/+0x18 the record's +0x20/+0x10/+0x14, +0x1C its byte +0x18, +0x2C..+0x2E its
-/// bytes +0x24..+0x26, +0 .. +0xC its first four. Leaves ecx 0x100, esi the last record,
-/// edi and eax as the last pass leaves them. Refuses a kind whose record lies past the info.
-pub unsafe fn build_texture_infos(entry: &Regs, v: &Vars) -> Result<Regs, Refused> {
-    let mut g = *entry;
+/// bytes +0x24..+0x26, +0 .. +0xC its first four. Refuses a kind whose record lies past
+/// the info.
+pub unsafe fn build_texture_infos(v: &Vars) -> Result<(), Refused> {
     unsafe {
         let info = get(v.course_info);
         if info == 0 {
-            return Ok(g);
+            return Ok(());
         }
         for n in 0..TEXTURES {
             if get(v.texture_kinds + 4 * n) >= INFO_PART / 0x80 {
@@ -220,13 +199,9 @@ pub unsafe fn build_texture_infos(entry: &Regs, v: &Vars) -> Result<Regs, Refuse
                 put(out + 4 * k as u32, value);
             }
             put(out + 0x28, t.marked);
-            g.esi = out;
-            g.edi = rec;
-            g.eax = t.marked;
         }
-        g.ecx = TEXTURES;
     }
-    Ok(g)
+    Ok(())
 }
 
 /// `race::reset_refresh` (0x45C53B): `dword_63E174` and `dword_63E178` 0x80000000.
@@ -240,61 +215,28 @@ pub unsafe fn reset_refresh(v: &Vars) {
 /// `race::init_checkpoints` (0x45A98F): `dword_601830` 0; unless `dword_623640` - 2 is
 /// below 0, the table entries 1 .. `dword_623644` - 1 (`dword_9E3738[n]`) whose record
 /// (`dword_5CCCBC` + it * 0x40) has its byte +0x26 set are listed in `dword_60102C`, and
-/// `dword_601830` = their count - 1. Leaves edx the end, ebp the count - 1, ebx and esi
-/// the last entry's, al its byte. Refuses an end below 2 (the original counts round), or
+/// `dword_601830` = their count - 1. Refuses an end below 2 (the original counts round), or
 /// more found than the list's 0x201 (a real stage's end is past 0x201: refused wrongly on
 /// 2026-10-16, when the end was checked).
-pub unsafe fn init_checkpoints(entry: &Regs, v: &Vars) -> Result<Regs, Refused> {
+pub unsafe fn init_checkpoints(v: &Vars) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::checkpoints::listed_checkpoints`.
-    let mut g = *entry;
     unsafe {
         let kinds = get(v.checkpoint_kinds);
         if (kinds.wrapping_sub(2) as i32) < 0 {
             put(v.checkpoints_found, 0);
-            return Ok(g);
+            return Ok(());
         }
         let end = get(v.checkpoint_count);
         let records = get(v.checkpoint_records);
         let listed = rc2k_core::race::checkpoints::listed_checkpoints(end, |n| {
-            g.ebx = get(v.checkpoint_table + 4 * n);
-            g.esi = (g.ebx << 6).wrapping_add(records);
-            let byte = *((g.esi + 0x26) as *const u8);
-            g.eax = g.eax & !0xFF | byte as u32;
-            byte != 0
+            let record = (get(v.checkpoint_table + 4 * n) << 6).wrapping_add(records);
+            *((record + 0x26) as *const u8) != 0
         })?;
         put(v.checkpoints_found, 0);
         for (k, &n) in listed.iter().enumerate() {
             put(v.checkpoints + 4 * k as u32, n);
         }
-        g.edx = end;
-        g.ebp = (listed.len() as u32).wrapping_sub(1);
-        put(v.checkpoints_found, g.ebp);
-    }
-    Ok(g)
-}
-
-/// The game's calls: the Rust versions.
-pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    unsafe {
-        match place {
-            0 => {
-                r.eax = crate::memory::allocate::allocate(r.ebx as *mut _, r.eax)? as u32;
-                r.set_carry(false);
-            }
-            1 => {
-                let left = crate::files::read_whole_file::read_whole_file(
-                    r.eax as *const u8,
-                    r.ebx as *mut u8,
-                    r.ecx,
-                    r.ebx,
-                )?;
-                left.apply(r);
-            }
-            2 => {
-                crate::scene::allocate_point_records::allocate_point_records_in_game()?.apply(r);
-            }
-            _ => *r = copy_texture_info_tail(r, &Vars::game()),
-        }
+        put(v.checkpoints_found, (listed.len() as u32).wrapping_sub(1));
     }
     Ok(())
 }

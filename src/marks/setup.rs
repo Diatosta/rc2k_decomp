@@ -3,7 +3,7 @@
 //! `marks::run_frame`, 0x4D1549).
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::math::x87;
 
 pub const SEED_RVA: usize = rva(0x71C8CC); // g_marksSeed
@@ -41,36 +41,30 @@ const TICKS_SCALE_RVA: usize = rva(0x93CC14); // flt_93CC14
 
 /// `marks::seed_noise` (0x4C1697): 0x100 steps of `g_marksSeed` (times 0x9D plus 0x47),
 /// each giving entry 0xFF .. 0 of the three noise tables its low 18 bits, its low 18 bits
-/// turned right 10 and turned right 20; `dword_8BC405` 0. Leaves eax, ebx, ecx the last
-/// three, esi 0.
-pub unsafe fn seed_noise(entry: &Regs) -> Regs {
+/// turned right 10 and turned right 20; `dword_8BC405` 0.
+pub unsafe fn seed_noise() {
     // Converted: `rc2k_core::marks::noise::seed_noise`.
-    let mut g = *entry;
     unsafe {
         let (tables, seed) = rc2k_core::marks::noise::seed_noise(game_read(SEED_RVA));
         for (table, values) in NOISE_RVAS.into_iter().zip(tables) {
             game_write(table, values);
         }
         game_write(SEED_RVA, seed);
-        [g.eax, g.ebx, g.ecx] = [tables[0][0], tables[1][0], tables[2][0]];
-        g.esi = 0;
         game_write(NOISE_COUNT_RVA, 0u32);
     }
-    g
 }
 
 /// `marks::make_wave_tables` (0x4C4E2F): once (`g_marksWaveDone` 0): the 0x11 levels,
 /// whole numbers, become floats (over `flt_9206C6`, less `flt_9206CA`), the 0x140 sines of
 /// 0, step, 2 step .. (`math::x87::sine_table`); then `g_marksWaveDone` = `nullsub_23`.
-/// Leaves eax the mark's address, edi past the sines; done before: nothing. Refuses a mark
-/// that is neither 0 nor `nullsub_23` (the original jumps to it).
-pub unsafe fn make_wave_tables(entry: &Regs) -> Result<Regs, Refused> {
-    let mut g = *entry;
+/// Done before: nothing. Refuses a mark that is neither 0 nor `nullsub_23` (the original
+/// jumps to it).
+pub unsafe fn make_wave_tables() -> Result<(), Refused> {
     unsafe {
         let done: u32 = game_read(WAVE_DONE_RVA);
         let target = game_addr(WAVE_DONE_TARGET_RVA) as u32;
         if done == target {
-            return Ok(g);
+            return Ok(());
         }
         if done != 0 {
             return Err(BadInput("the wave tables' mark is neither 0 nor nullsub_23").into());
@@ -85,50 +79,16 @@ pub unsafe fn make_wave_tables(entry: &Regs) -> Result<Regs, Refused> {
         }
         let sines = game_addr(SINES_RVA) as u32;
         x87::sine_table(game_read(SINE_STEP_RVA), sines as *mut u32, SINES);
-        g.edi = sines + 4 * SINES;
-        g.eax = game_addr(WAVE_DONE_RVA) as u32;
         game_write(WAVE_DONE_RVA, target);
     }
-    Ok(g)
+    Ok(())
 }
 
-/// The converted `make_wave_tables` (plain floats): the hook's. The x87 version above
-/// stays for `marks::init_marks` (unconverted).
-// Converted: `rc2k_core::marks::waves::{mark, level, sines}`
-pub unsafe fn make_wave_tables_plain(entry: &Regs) -> Result<Regs, Refused> {
-    use rc2k_core::marks::waves::{Mark, level, mark, sines};
-    let mut g = *entry;
-    unsafe {
-        let target = game_addr(WAVE_DONE_TARGET_RVA) as u32;
-        match mark(game_read(WAVE_DONE_RVA), target) {
-            Mark::Made => return Ok(g),
-            Mark::Elsewhere => {
-                return Err(BadInput("the wave tables' mark is neither 0 nor nullsub_23").into());
-            }
-            Mark::ToMake => {}
-        }
-        let f = |r: usize| f32::from_bits(game_read(r));
-        let (scale, less) = (f(WAVE_SCALE_RVA), f(WAVE_LESS_RVA));
-        for n in (0..WAVE_LEVELS as usize).rev() {
-            let at = WAVE_LEVELS_RVA + 4 * n;
-            game_write(at, level(game_read(at), scale, less).to_bits());
-        }
-        game_write(SINES_RVA, sines(f(SINE_STEP_RVA)).map(f32::to_bits));
-        g.edi = game_addr(SINES_RVA) as u32 + 4 * SINES;
-        g.eax = game_addr(WAVE_DONE_RVA) as u32;
-        game_write(WAVE_DONE_RVA, target);
-    }
-    Ok(g)
-}
-
-/// `marks::clear_slots` (0x4C967B): the first dword of the 0x20 slots 0. Leaves esi 0.
-pub unsafe fn clear_slots(entry: &Regs) -> Regs {
-    let mut g = *entry;
+/// `marks::clear_slots` (0x4C967B): the first dword of the 0x20 slots 0.
+pub unsafe fn clear_slots() {
     for n in 0..SLOTS as usize {
         unsafe { game_write(SLOTS_RVA + SLOT_LEN as usize * n, 0u32) };
     }
-    g.esi = 0;
-    g
 }
 
 unsafe fn clock_var(o: usize) -> u32 {
@@ -140,14 +100,12 @@ unsafe fn set_clock_var(o: usize, v: u32) {
 }
 
 /// `marks::tick_clock` (0x4D2BDC). The first time (`g_marksClockStarted` 0): started, the
-/// last, now and before `g_sceneClock`, the ticks 0, the reciprocal `flt_93CC10`; the
-/// registers kept. Then: before the last, now and the last the clock, the ticks the
-/// difference (0 unless `g_marksSettings` +0x10 is 1), a quarter and a sixteenth of them
-/// (shifted), the reciprocal one over them (`fidiv`) and that times `flt_7651BC`, and the
-/// ticks' bits taken as a float (section 16) times `flt_93CC14`. Leaves eax a sixteenth,
-/// ebx the last clock before, esi the settings.
-pub unsafe fn tick_clock(entry: &Regs) -> Regs {
-    let mut g = *entry;
+/// last, now and before `g_sceneClock`, the ticks 0, the reciprocal `flt_93CC10`. Then:
+/// before the last, now and the last the clock, the ticks the difference (0 unless
+/// `g_marksSettings` +0x10 is 1), a quarter and a sixteenth of them (shifted), the
+/// reciprocal one over them (`fidiv`) and that times `flt_7651BC`, and the ticks' bits
+/// taken as a float (section 16) times `flt_93CC14`.
+pub unsafe fn tick_clock() {
     unsafe {
         let clock: u32 = game_read(CLOCK_RVA);
         if clock_var(STARTED) == 0 {
@@ -157,88 +115,27 @@ pub unsafe fn tick_clock(entry: &Regs) -> Regs {
             }
             set_clock_var(TICKS, 0);
             set_clock_var(RECIPROCAL, x87::loaded(game_read(FIRST_RECIPROCAL_RVA)));
-            return g;
+            return;
         }
         set_clock_var(NOW, clock);
-        g.ebx = clock_var(LAST);
-        set_clock_var(BEFORE, g.ebx);
+        let last = clock_var(LAST);
+        set_clock_var(BEFORE, last);
         set_clock_var(LAST, clock);
-        g.esi = game_read(SETTINGS_RVA);
-        let ticks = if ((g.esi + 0x10) as *const u32).read_unaligned() == 1 {
-            clock.wrapping_sub(g.ebx)
+        let settings: u32 = game_read(SETTINGS_RVA);
+        let ticks = if ((settings + 0x10) as *const u32).read_unaligned() == 1 {
+            clock.wrapping_sub(last)
         } else {
             0
         };
         set_clock_var(TICKS, ticks);
         set_clock_var(QUARTER, ticks >> 2);
         set_clock_var(SIXTEENTH, ticks >> 4);
-        g.eax = ticks >> 4;
         let (reciprocal, scaled) =
             x87::reciprocal_int_and_times(ticks as i32, game_read(RECIPROCAL_SCALE_RVA));
         set_clock_var(RECIPROCAL, reciprocal);
         set_clock_var(RECIPROCAL_SCALED, scaled);
         set_clock_var(TICKS_SCALED, x87::mul(ticks, game_read(TICKS_SCALE_RVA)));
     }
-    g
-}
-
-/// The converted `tick_clock` (plain floats): the hook's. The x87 version above stays for
-/// `marks::run_frame` and `marks::init_marks` (unconverted).
-// Converted: `rc2k_core::marks::clock::Clock::tick`
-pub unsafe fn tick_clock_plain(entry: &Regs) -> Regs {
-    use rc2k_core::marks::clock::{Clock, Scales};
-    let mut g = *entry;
-    unsafe {
-        let clock: u32 = game_read(CLOCK_RVA);
-        let f = |r: usize| f32::from_bits(game_read(r));
-        let started = clock_var(STARTED);
-        let last = if started == 0 { 0 } else { clock_var(LAST) };
-        let mut c = Clock {
-            started,
-            last,
-            ..Clock::default()
-        };
-        let first = c.started == 0;
-        let running = !first && {
-            g.esi = game_read(SETTINGS_RVA);
-            ((g.esi + 0x10) as *const u32).read_unaligned() == 1
-        };
-        let k = Scales {
-            first: if first { f(FIRST_RECIPROCAL_RVA) } else { 0.0 },
-            reciprocal: if first { 0.0 } else { f(RECIPROCAL_SCALE_RVA) },
-            ticks: if first { 0.0 } else { f(TICKS_SCALE_RVA) },
-        };
-        c.tick(clock, running, &k);
-        if first {
-            for (o, v) in [
-                (STARTED, 1),
-                (LAST, clock),
-                (NOW, clock),
-                (BEFORE, clock),
-                (TICKS, 0),
-            ] {
-                set_clock_var(o, v);
-            }
-            set_clock_var(RECIPROCAL, c.reciprocal.to_bits());
-            return g;
-        }
-        g.ebx = c.before;
-        g.eax = c.sixteenth;
-        for (o, v) in [
-            (NOW, c.now),
-            (BEFORE, c.before),
-            (LAST, c.last),
-            (TICKS, c.ticks),
-            (QUARTER, c.quarter),
-            (SIXTEENTH, c.sixteenth),
-            (RECIPROCAL, c.reciprocal.to_bits()),
-            (RECIPROCAL_SCALED, c.reciprocal_scaled.to_bits()),
-            (TICKS_SCALED, c.ticks_scaled.to_bits()),
-        ] {
-            set_clock_var(o, v);
-        }
-    }
-    g
 }
 
 /// `marks::make_noise_curve`'s variables (0x8DA410 ..): the value, its least and most
@@ -281,12 +178,10 @@ const QUAD_VALUE_RVAS: [usize; 3] = [rva(0x8DB508), rva(0x62409C), rva(0x6240A0)
 ///   `flt_8DB4E8`; then 0x800 times two remainders (`idiv` by 0xC00);
 /// - `dword_8D215C` 0, the 0x20 records' four quarters, the three quads.
 ///
-/// Leaves eax the last quad's value, ebx, ecx, edx the records' values, esi 0, edi past
-/// the records. Refuses a divisor that is 0 or 1 or -1 (the original's `idiv` traps).
+/// Refuses a divisor that is 0 or 1 or -1 (the original's `idiv` traps).
 // Converted: `rc2k_core::marks::noise::{walk, smooth, random_tables, record_values}`
-pub unsafe fn make_noise_curve(entry: &Regs) -> Result<Regs, Refused> {
+pub unsafe fn make_noise_curve() -> Result<(), Refused> {
     use rc2k_core::marks::noise as core;
-    let mut g = *entry;
     unsafe {
         let divisors = DIVISOR_RVAS.map(|a| game_read::<i32>(a));
         if !divisors.into_iter().all(core::divisor_fits) {
@@ -359,11 +254,7 @@ pub unsafe fn make_noise_curve(entry: &Regs) -> Result<Regs, Refused> {
         let first = x87::loaded(game_read(QUAD_VALUE_RVAS[0]));
         game_write(QUADS_RVA, [first; 4]);
         game_write(QUADS_RVA + 0x20, [game_read::<u32>(QUAD_VALUE_RVAS[1]); 4]);
-        g.eax = game_read(QUAD_VALUE_RVAS[2]);
-        game_write(QUADS_RVA + 0x30, [g.eax; 4]);
-        (g.ebx, g.ecx, g.edx) = (values[2], values[3], values[4]);
-        g.esi = 0;
-        g.edi = game_addr(CURVE_RECORDS_RVA) as u32 + 0x80 * CURVE_RECORDS;
+        game_write(QUADS_RVA + 0x30, [game_read::<u32>(QUAD_VALUE_RVAS[2]); 4]);
     }
-    Ok(g)
+    Ok(())
 }

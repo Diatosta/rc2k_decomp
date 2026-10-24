@@ -12,9 +12,6 @@
 use windows_sys::Win32::Storage::FileSystem::{CreateDirectoryA, DeleteFileA, RemoveDirectoryA};
 use windows_sys::Win32::System::Environment::SetCurrentDirectoryA;
 
-pub const SET_CURRENT_DIRECTORY: usize = 0x403105;
-pub const MAKE_DIRECTORY: usize = 0x403113;
-pub const REMOVE_DIRECTORY: usize = 0x403123;
 pub unsafe fn set_current_directory(path: *const u8) -> u32 {
     unsafe { SetCurrentDirectoryA(path) as u32 }
 }
@@ -29,16 +26,4 @@ pub unsafe fn remove_directory(path: *const u8) -> u32 {
 
 pub unsafe fn delete_file(path: *const u8) -> u32 {
     unsafe { DeleteFileA(path) as u32 }
-}
-
-/// The one of the four at `place` (its IDA address): the BOOL it gives.
-pub unsafe fn by_place(place: usize, path: *const u8) -> u32 {
-    unsafe {
-        match place {
-            SET_CURRENT_DIRECTORY => set_current_directory(path),
-            MAKE_DIRECTORY => make_directory(path),
-            REMOVE_DIRECTORY => remove_directory(path),
-            _ => delete_file(path),
-        }
-    }
 }

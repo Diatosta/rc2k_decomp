@@ -22,9 +22,8 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::physics::flow::a;
-use crate::race::viewer::{BLOCK, PLAY_END, Part, gb, get, put};
+use crate::race::viewer::{BLOCK, PLAY_END, gb, get, put};
 
 const STATE: usize = 0x5C5CE0; // dword_5C5CE0
 const SCENE_CLOCK: usize = 0x613830; // g_sceneClock
@@ -32,52 +31,38 @@ const CLOCK_BASE: usize = 0x613840; // dword_613840
 const KEYS_PRESSED: usize = 0x4F6CDD; // g_keysPressed + 1
 const TEXTS: [usize; 4] = [0x4DDF45, 0x4DDF50, 0x4DDF61, 0x4DDF72]; // "dpg replay" ..
 
-/// The Rust version: the registers it leaves.
-pub fn play_movie_loop(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    let mut r = *entry;
-    part(1, &mut r)?;
-    let log = |part: Part, r: &Regs, place: u32, eax: u32| -> Result<(), Refused> {
-        let mut s = Regs { eax, ..*r };
-        part(place, &mut s)
-    };
-    log(part, &r, 2, a(TEXTS[0]))?;
-    log(part, &r, 2, a(TEXTS[1]))?;
-    log(part, &r, 3, get(BLOCK))?;
-    log(part, &r, 2, a(TEXTS[2]))?;
-    log(part, &r, 3, get(PLAY_END))?;
+fn log_text(text: usize, newline: bool) {
+    unsafe { crate::logfile::log_write::log_write(a(text) as *const u8, newline, 1) }
+}
+
+fn log_number(n: u32) {
+    crate::logfile::log_int::log_int(n as i32, true, 1)
+}
+
+/// The Rust version. Reads no register, and its one caller (`race::play_movie`, whose
+/// caller reads none either) reads none it leaves (`lq -s 0x4607A5`: nothing live).
+pub fn play_movie_loop() -> Result<(), Refused> {
+    use crate::drive::race_parts;
+    unsafe { crate::race::stage_prefs::init_skidmarks() };
+    log_text(TEXTS[0], false);
+    log_text(TEXTS[1], false);
+    log_number(get(BLOCK));
+    log_text(TEXTS[2], false);
+    log_number(get(PLAY_END));
     put(STATE, 2);
-    part(4, &mut r)?;
-    r.eax = get(SCENE_CLOCK);
-    put(CLOCK_BASE, r.eax);
+    race_parts::restart_clock();
+    put(CLOCK_BASE, get(SCENE_CLOCK));
     loop {
-        part(5, &mut r)?;
+        race_parts::input_update();
         if gb(KEYS_PRESSED) != 0 {
             break;
         }
-        part(6, &mut r)?;
-        part(7, &mut r)?;
-        r.eax = get(BLOCK);
-        if r.eax == get(PLAY_END) {
+        unsafe { crate::drive::race_step::race_step() }?;
+        race_parts::race_frame()?;
+        if get(BLOCK) == get(PLAY_END) {
             break;
         }
     }
-    log(part, &r, 2, a(TEXTS[3]))?;
-    Ok(r)
-}
-
-/// In the game: the Rust versions, the frame through its hook.
-pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    use crate::drive::race_parts;
-    unsafe {
-        match place {
-            1 => *r = crate::race::stage_prefs::init_skidmarks(r),
-            2 | 8 => crate::logfile::log_write::log_write(r.eax as *const u8, place == 8, 1),
-            3 => crate::logfile::log_int::log_int(r.eax as i32, true, 1),
-            4 => race_parts::restart_clock(r),
-            5 => race_parts::input_update(r),
-            6 => crate::drive::race_step::race_step(r)?.apply(r),
-            _ => race_parts::race_frame(r),
-        }
-    }
+    log_text(TEXTS[3], false);
     Ok(())
 }

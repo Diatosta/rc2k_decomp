@@ -12,10 +12,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::menu::player::{PLAYERS, Player, player_at};
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 pub fn clear_players_284() -> Result<(), Refused> {
     for n in 0..PLAYERS {
@@ -28,15 +25,4 @@ pub fn clear_players_284() -> Result<(), Refused> {
         unsafe { (*(player_at(n) as *mut Player)).field_284 = -1 };
     }
     Ok(())
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    clear_players_284()?;
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

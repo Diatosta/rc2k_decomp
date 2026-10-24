@@ -41,25 +41,26 @@
 //! Wherever the highlight is saved or taken back, `dword_755A3C` and `dword_755561` are
 //! cleared if `dword_7558D8` and `dword_755A3C` are both 1.
 //!
-//! The registers are carried through as the original has them, because the functions it
-//! calls get them: `handle_keys` reads ah on Enter, which here is a byte of the elapsed time.
+//! The original's registers: most of what it holds in them is scratch, but some callees
+//! read what an earlier step left, and the loop keeps those values in `Carried` (named for
+//! what reads them; see its fields), exactly as the original's registers would hold them at
+//! each call (2026-10-24: the register set the loop used to thread went). The screens' own
+//! steps (`Step::Do`) work on it the same way.
 //!
-//! What the loop calls goes through `Env`, by the function's address in the game: the real
-//! one runs the Rust version of what is ported and the game's code for the rest; the
-//! self-test's follows a script. The game is inside a screen loop for as long as the screen
-//! is up, so these hooks have ungated thunks and run the original alone in shadow mode, and
-//! each real call writes a line to hook.log saying which version ran.
+//! What the loop calls is called directly: its own functions (`call` below for the steps
+//! that name a function by its address), the frame callbacks, `handle_keys`, the item's
+//! action (`menu::run_item_action`, with the carried values in the registers the action
+//! gets, as the original hands them). A refusal goes back to the loop's caller; a set
+//! carry after a `Step::CallOrFatal` is the fatal error, raised by the caller too.
 
-use crate::errors::FatalError;
+use crate::errors::{BadInput, FatalError, Refused};
 use crate::framework::{Regs, game_addr, game_read, game_write, log, rva};
 use crate::input::take_key::take_key;
 use crate::menu::handle_keys::handle_keys;
 use crate::menu::handle_yes_no::LEAVING_RVA;
 use crate::menu::item_at::CURRENT_MENU_RVA;
-use crate::menu::navigation::Game;
 use crate::menu::run_item_action::run_item_action;
 use crate::menu::run_list::run_list;
-use crate::menu::table_calls::call as table_call;
 use crate::menu::update_blink::update_blink;
 use crate::menu::update_frame_clock::CLOCK_RVA;
 use crate::service::state::MENU_ITEM_RVA;
@@ -67,14 +68,9 @@ use crate::service::state::MENU_ITEM_RVA;
 // ---- game code the loop calls itself ----
 
 pub const TAKE_KEY: usize = rva(0x407F95); // input::take_key
-pub const RUN_LIST: usize = rva(0x468202); // menu::run_list
-pub const DRAW_FRAME: usize = rva(0x47C420); // menu::draw_frame
 pub const UPDATE_BLINK: usize = rva(0x47E826); // menu::update_blink
-pub const RUN_FRAME: usize = rva(0x405A71); // screens::run_frame
-pub const RUN_ITEM_ACTION: usize = rva(0x474683); // menu::run_item_action
-pub const HANDLE_KEYS: usize = rva(0x465FCC); // menu::handle_keys
-pub const CONFIRM_LEAVING: usize = rva(0x46FA90); // menu::confirm_leaving
 pub const FRAME_CALLBACK: usize = rva(0x474D4B); // menu::frame_callback
+const INSPECTION_FRAME: usize = rva(0x46D019); // menu::inspection_frame
 const NULLSUB_83: usize = rva(0x471391); // nullsub_83: a lone `retn`
 const NULLSUB_84: usize = rva(0x4713DD); // nullsub_84: a lone `retn`
 
@@ -102,27 +98,25 @@ const ENTER_SOUND: u32 = 0x14D;
 /// Something a screen does at one of the loop's fixed places.
 #[derive(Clone, Copy, Debug)]
 pub enum Step {
-    /// Calls the game function at this RVA.
+    /// Calls the game function at this RVA (one of `call`'s).
     Call(usize),
     /// Writes a game variable.
     Write(usize, u32),
     WriteF32(usize, f32),
-    /// Loads eax.
-    Eax(u32),
-    /// Loads eax with the address of something in the game (a path, say).
-    EaxAddr(usize),
+    /// Sets what the next call is handed (the original's eax).
+    Arg(u32),
+    /// The same with the address of something in the game (a path, say).
+    ArgAddr(usize),
     /// Calls the game function at this RVA, and if it comes back with the carry flag set,
     /// that is the fatal error with this code (and no message).
     CallOrFatal(usize, u32),
-    /// Something only this screen does, written out in its file. What it calls in the game
-    /// goes through the `Env`, like the loop's own calls.
-    Do(unsafe fn(&mut Regs, &mut dyn Env)),
+    /// Something only this screen does, written out in its file.
+    Do(unsafe fn(&mut Carried) -> Result<(), Refused>),
     /// The same for a step that can also send the loop somewhere: a name editor called once
     /// a frame that keeps the keys from the menu while a name is typed. Only looked at in
     /// `each_frame`.
-    DoFlow(unsafe fn(&mut Regs, &mut dyn Env) -> Flow),
+    DoFlow(unsafe fn(&mut Carried) -> Result<Flow, Refused>),
 }
-
 /// Where a `Step::DoFlow` sends the loop.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Flow {
@@ -154,6 +148,7 @@ pub struct Screen {
     /// same as before every other frame: 35 loops put their 3D list in `g_unreadList` at
     /// set-up and before each frame, and a list of their own in `g_sceneList` only here.
     pub first_frame_lists: Option<&'static [List]>,
+    /// `FRAME_CALLBACK` or `menu::inspection_frame` (0x46D019).
     pub frame_callback: usize,
     /// The frame callback of every frame but the first after set-up, where it is another
     /// one: the inspection area's loop is the only one.
@@ -212,16 +207,16 @@ pub struct Screen {
     pub leave_saved_item: Option<usize>,
     /// The menu stored in `dword_731BBB` before `menu::handle_keys`, where it is not `menu`.
     pub keys_menu: Option<usize>,
-    /// What runs last of all, with the registers back as they were at entry.
+    /// What runs last of all, with the carried values back as they were at entry.
     pub after_restored: &'static [Step],
-    /// What the loop returns in eax, where it returns something: read from the game's
+    /// What the loop returns (in eax), where it returns something: read from the game's
     /// variables as the loop leaves them.
     pub result: Option<unsafe fn() -> u32>,
     /// `dword_758806` is cleared and the highlight put in place (with the Escape check) after
     /// the first frame, not at the start of set-up, and set-up stores neither `dword_7556A4`
     /// nor `dword_755561` after the lists: the main menu.
     pub late_highlight: bool,
-    /// Steps before the first frame after set-up, with the clock in eax.
+    /// Steps before the first frame after set-up, with the clock in `Carried::arg`.
     pub before_first_frame: &'static [Step],
     /// Steps before every other frame.
     pub before_frame: &'static [Step],
@@ -236,53 +231,175 @@ pub struct Screen {
     pub always_asks: bool,
 }
 
-/// The functions the loop calls, by RVA, and the quit switch it reads.
-pub trait Env {
-    fn call(&mut self, function: usize, regs: &mut Regs);
-    fn quitting(&self) -> bool;
-    /// A line for hook.log from a screen's own step; a self-test writes nothing.
-    fn note(&mut self, _text: &str) {}
+/// The values of the original's registers that something the loop calls reads, as the
+/// original would hold them at each call. The loop sets them where the original sets those
+/// registers, and every callee that changes one changes it here (`call`, the screens' own
+/// steps). Its other registers are scratch that nothing reads (edi is the menu wherever a
+/// callee reads it; ebp nothing reads).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct Carried {
+    /// eax: what the next call is handed (a path, a direction, a mode); after a frame the
+    /// milliseconds since set-up, whose bits 8 .. 15 `handle_keys` reads on Enter.
+    pub arg: u32,
+    /// ebx: the palette `load_background` draws its frame sprite with and `draw_menu` a
+    /// highlighted first item's sprite with (the saved highlight, mostly).
+    pub palette: u32,
+    /// ecx: the x `draw_menu` measures a first item that is a text button from, and
+    /// `menu::set_up_front_end` the players' names.
+    pub measure_x: u32,
+    /// edx: the frame clock `handle_keys` leaves, or what else last wrote edx; read by
+    /// `scene::set_up_front_end_scene`, `menu::play_films` and the items' actions.
+    pub clock: u32,
+    /// esi: the list of cars `scene::set_up_carousel` reads for menus 0xD and 0xE (from the
+    /// caller, else what the loop last left in esi); read by
+    /// `scene::set_up_front_end_scene`, `menu::play_films` and the items' actions.
+    pub cars: u32,
+    /// The carry flag, which `Step::CallOrFatal` reads after its call (a call that does not
+    /// write it leaves the one before).
+    pub carry: bool,
 }
 
-/// The game: the Rust versions of what is ported, the game's code for the rest.
-pub struct Real;
+/// Whether the game is quitting (`dword_51837C`).
+pub fn quitting() -> bool {
+    unsafe { game_read::<u32>(QUIT_RVA) == 1 }
+}
 
-impl Env for Real {
-    fn call(&mut self, function: usize, regs: &mut Regs) {
-        let entry = *regs;
-        // A ported function that refuses its input goes to its hook, which deals with it.
-        let done = unsafe {
-            match function {
-                TAKE_KEY => {
-                    regs.eax = regs.eax & !0xFF | take_key() as u32;
-                    true
-                }
-                UPDATE_BLINK => {
-                    update_blink();
-                    true
-                }
-                RUN_LIST => run_list(regs.esi, &entry, &mut table_call).is_ok(),
-                RUN_ITEM_ACTION => run_item_action(regs.edi, &entry, &mut table_call).is_ok(),
-                // `nullsub_83`, `nullsub_84` (the review options' set-up and leaving).
-                NULLSUB_83 | NULLSUB_84 => true,
-                HANDLE_KEYS => handle_keys(&entry, &mut Game)
-                    .map(|left| left.apply(regs))
-                    .is_ok(),
-                f => crate::menu::set_up_calls::call(f, regs),
+/// `scene::prepare_menu_scene` (0x46F7FD), with what it leaves (`set_view_matrices`').
+pub unsafe fn prepare_scene(c: &mut Carried) {
+    let left = unsafe { crate::scene::prepare_menu_scene::prepare_menu_scene() };
+    let mut r = Regs {
+        eax: c.arg,
+        ebx: c.palette,
+        ecx: c.measure_x,
+        edx: c.clock,
+        esi: c.cars,
+        ..Regs::default()
+    };
+    left.apply(&mut r);
+    (c.arg, c.palette, c.measure_x, c.clock, c.cars) = (r.eax, r.ebx, r.ecx, r.edx, r.esi);
+}
+
+/// `scene::set_up_carousel` (0x4904DD): reads the list of cars (esi) for menus 0xD and 0xE
+/// and leaves eax, ebx, ecx and esi by the menu. It reads no edi.
+pub unsafe fn carousel(c: &mut Carried) -> Result<(), Refused> {
+    let left = unsafe { crate::scene::set_up_carousel::set_up_carousel(c.cars) }?;
+    // edi is not carried.
+    let mut edi = 0;
+    left.over([
+        &mut c.arg,
+        &mut c.palette,
+        &mut c.measure_x,
+        &mut c.cars,
+        &mut edi,
+    ]);
+    Ok(())
+}
+
+pub unsafe fn read_at(address: u32) -> u32 {
+    unsafe { (address as *const u32).read_unaligned() }
+}
+
+/// A line for the game's log at level 1 with its line break (`logfile::log_write_l1_nl`,
+/// called between `pusha` and `popa`: no register changes).
+pub unsafe fn log_line(text: usize) {
+    unsafe { crate::logfile::log_write::log_write(game_addr(text) as *const u8, true, 1) };
+}
+
+/// The function at `function` (an RVA) a step names, run by its Rust version, with what it
+/// reads and leaves of the carried values.
+pub unsafe fn call(function: usize, c: &mut Carried) -> Result<(), Refused> {
+    use crate::menu::{controller_items as ci, results_setups as rs, stage_view_steps as v};
+    use crate::text::draw_text::GameCanvas;
+    unsafe {
+        match function {
+            TAKE_KEY => c.arg = c.arg & !0xFF | take_key() as u32,
+            UPDATE_BLINK => update_blink(),
+            NULLSUB_83 | NULLSUB_84 => {}
+            f if f == rva(0x47EFFF) => {
+                crate::menu::load_background::load_background(
+                    c.arg as *mut u8,
+                    c.palette,
+                    &mut GameCanvas,
+                )?;
+                c.carry = false;
             }
-        };
-        if !done {
-            crate::menu::table_calls::call_any(game_addr(function) as u32, regs);
+            f if f == rva(0x46F7FD) => prepare_scene(c),
+            f if f == rva(0x4904DD) => carousel(c)?,
+            f if f == rva(0x46B47C) => ci::apply_controller()?,
+            f if f == rva(0x46B4B4) => ci::release_controller(),
+            f if f == rva(0x4683CF) => crate::menu::stage_choice::draw_stage_map()?,
+            f if f == rva(0x40F757) => crate::sound::stop_stream::stop_stream(),
+            f if f == rva(0x40F792) => crate::sound::play_tune_4::play_tune_4(),
+            f if f == rva(0x40F7A4) => crate::sound::play_tune_9::play_tune_9(),
+            f if f == rva(0x40F826) => crate::sound::stop_music::stop_music(),
+            f if f == rva(0x46F7AD) => crate::sound::step_car_stream::step_car_stream_in_game(),
+            f if f == rva(0x469AA1) => crate::sound::play_car_stream::play_car_stream(
+                &mut crate::sound::start_stream::start_stream,
+            )?,
+            f if f == rva(0x40939F) => {
+                let moved = crate::input::axes::axis_moved(c.arg);
+                (c.arg, c.carry) = (moved.eax, moved.carry);
+            }
+            f if f == rva(0x48340B) => rs::rank_stage_times()?,
+            f if f == rva(0x48356F) => rs::rank_totals()?,
+            f if f == rva(0x485CBB) => rs::score_four_players()?,
+            f if f == rva(0x485B0E) => rs::score_two_players()?,
+            f if f == rva(0x470F9F) => v::style_stage_item(false)?,
+            f if f == rva(0x470FC3) => v::style_stage_item(true)?,
+            f if f == rva(0x480032) => v::count_stage_pages()?,
+            f if f == rva(0x47F437) => v::play_stage_speech()?,
+            f if f == rva(0x47F40F) => v::play_rally_speech()?,
+            f if f == rva(0x4684BD) => v::load_welcome_picture()?,
+            f if f == rva(0x470F55) => crate::service::load_background::load_background()?,
+            f if f == rva(0x471C82) => crate::menu::go_back::go_back(),
+            f if f == rva(0x4708FD) => crate::menu::car_choice::find_player_car()?,
+            f if f == rva(0x486C21) => crate::menu::mark_stage_choice::mark_stage_choice(),
+            f if f == rva(0x467C63) => {
+                crate::menu::edit_player_name::edit_player_name(&mut GameCanvas)?
+            }
+            f if f == rva(0x46F1A9) => {
+                crate::service::edit_setup_name::edit_setup_name(&mut GameCanvas)?
+            }
+            f if f == rva(0x46D685) => crate::menu::edit_savegame_name::edit_savegame_name(
+                &mut GameCanvas,
+                &mut crate::menu::edit_savegame_name::save_game,
+            )?,
+            f if f == rva(0x46F4E7) => {
+                c.carry = crate::menu::edit_replay_name::edit_replay_name(&mut GameCanvas)?
+            }
+            f if f == rva(0x480CBF) => crate::menu::check_cheat_name::check_cheat_name()?,
+            f if f == rva(0x4684F5) => {
+                crate::menu::load_slideshow_picture::load_slideshow_picture_in_game(c.arg)?
+            }
+            f if f == rva(0x468482) => {
+                crate::menu::load_car_background::load_car_background_in_game()?;
+                c.carry = false;
+            }
+            f if f == rva(0x411863) => {
+                c.carry = !crate::gfx::load_picture::load_picture(c.arg as *mut u8)?
+            }
+            // The carry its last instruction leaves.
+            f if f == rva(0x406126) => {
+                c.carry = crate::gfx::convert_picture::convert_picture_now()?
+            }
+            // Reads ebp (only where it is not looked at, see there) and ecx; keeps every
+            // register.
+            f if f == rva(0x47C63F) => {
+                crate::menu::set_up_front_end::set_up_front_end(0, c.measure_x)?
+            }
+            // Read no edi (`lq.py`: `set_up_engine` reads nothing, the scene edx and esi).
+            f if f == rva(0x442AF6) => {
+                crate::scene::set_up_engine::set_up_engine()?;
+                // What it leaves in eax, ebx, ecx and edx (esi and the carry as they were).
+                [c.arg, c.palette, c.measure_x, c.clock] = crate::physics::test_drive::LEFT;
+            }
+            f if f == rva(0x474E04) => {
+                crate::scene::set_up_front_end_scene::set_up_front_end_scene()?
+            }
+            _ => return Err(BadInput("a screen's step calls a function it does not know").into()),
         }
     }
-
-    fn quitting(&self) -> bool {
-        unsafe { game_read::<u32>(QUIT_RVA) == 1 }
-    }
-
-    fn note(&mut self, text: &str) {
-        log(text);
-    }
+    Ok(())
 }
 
 // ---- Rust version ----
@@ -308,93 +425,87 @@ unsafe fn clear_escape() {
 }
 
 /// A call after which a set carry flag is the fatal error `code`.
-pub unsafe fn call_or_fatal(function: usize, code: u32, g: &mut Regs, env: &mut dyn Env) {
-    env.call(function, g);
-    if g.carry() {
+pub unsafe fn call_or_fatal(function: usize, code: u32, c: &mut Carried) -> Result<(), Refused> {
+    unsafe { call(function, c) }?;
+    if c.carry {
         log(&format!(
             "a screen loop's Rust version raises fatal error {code:#x}"
         ));
-        unsafe { crate::fatal::raise::raise(FatalError { code, message: "" }, g) };
+        return Err(FatalError { code, message: "" }.into());
     }
-}
-
-// What the generated `Step::Do` functions use for the instructions that have no step.
-
-/// `pusha`: the registers, to be put back by `popa`.
-pub fn pusha(g: &Regs, stack: &mut Vec<Regs>) {
-    stack.push(*g);
-}
-
-/// `popa`: the registers as they were at the matching `pusha`; the flags stay.
-pub fn popa(g: &mut Regs, stack: &mut Vec<Regs>) {
-    let flags = g.eflags;
-    *g = stack.pop().expect("a popa without its pusha");
-    g.eflags = flags;
-}
-
-/// `rep movsb`: ecx bytes from esi to edi.
-pub unsafe fn copy_bytes(g: &mut Regs) {
-    unsafe {
-        std::ptr::copy(g.esi as *const u8, g.edi as *mut u8, g.ecx as usize);
-    }
-    g.esi = g.esi.wrapping_add(g.ecx);
-    g.edi = g.edi.wrapping_add(g.ecx);
-    g.ecx = 0;
-}
-
-pub unsafe fn read_at(address: u32) -> u32 {
-    unsafe { (address as *const u32).read_unaligned() }
+    Ok(())
 }
 
 /// Runs the steps of one place. Anything but `Flow::On` comes from a `DoFlow` step, after
 /// which the rest of the place is not run.
-unsafe fn run(steps: &[Step], g: &mut Regs, env: &mut dyn Env) -> Flow {
+unsafe fn run(steps: &[Step], c: &mut Carried) -> Result<Flow, Refused> {
     for step in steps {
         unsafe {
             match *step {
-                Step::DoFlow(what) => match what(g, env) {
+                Step::DoFlow(what) => match what(c)? {
                     Flow::On => {}
-                    elsewhere => return elsewhere,
+                    elsewhere => return Ok(elsewhere),
                 },
-                Step::Call(function) => env.call(function, g),
+                Step::Call(function) => call(function, c)?,
                 Step::Write(variable, value) => game_write(variable, value),
                 Step::WriteF32(variable, value) => game_write(variable, value),
-                Step::Eax(value) => g.eax = value,
-                Step::EaxAddr(what) => g.eax = game_addr(what) as u32,
-                Step::CallOrFatal(function, code) => call_or_fatal(function, code, g, env),
-                Step::Do(what) => what(g, env),
+                Step::Arg(value) => c.arg = value,
+                Step::ArgAddr(what) => c.arg = game_addr(what) as u32,
+                Step::CallOrFatal(function, code) => call_or_fatal(function, code, c)?,
+                Step::Do(what) => what(c)?,
             }
         }
     }
-    Flow::On
+    Ok(Flow::On)
 }
 
-/// Puts the menu and the lists in place, as the original does before a frame.
-unsafe fn set_lists(screen: &Screen, lists: &[List], g: &mut Regs) {
+/// Puts the menu and the lists in place, as the original does before a frame (esi left
+/// at the last list's table).
+unsafe fn set_lists(screen: &Screen, lists: &[List], c: &mut Carried) {
     unsafe {
-        g.edi = game_addr(screen.menu) as u32;
-        game_write(CURRENT_MENU_RVA, g.edi);
+        game_write(CURRENT_MENU_RVA, game_addr(screen.menu) as u32);
         for list in lists.iter().filter(|list| !list.run) {
-            g.esi = game_addr(list.table) as u32;
-            game_write(list.pointer, g.esi);
+            c.cars = game_addr(list.table) as u32;
+            game_write(list.pointer, c.cars);
         }
     }
 }
 
-/// `entry` are the registers at entry.
-/// Returns why the screen was left, for hook.log.
-pub unsafe fn screen_loop(screen: &Screen, entry: &Regs, env: &mut dyn Env) -> String {
+/// `screens::run_frame` (0x405A71) with the screen's frame callback: the messages, then
+/// (unless quitting) the frame, with the menu and the carried palette and x. Neither
+/// changes a carried value (the callbacks keep every register; the carry they leave is
+/// read by nothing).
+unsafe fn run_frame(callback: usize, menu: u32, c: &Carried) -> Result<(), Refused> {
+    let frame = || unsafe {
+        match callback {
+            FRAME_CALLBACK => {
+                crate::menu::frame_callback::frame_callback(menu, c.palette, c.measure_x)
+            }
+            INSPECTION_FRAME => {
+                crate::menu::inspection_frame::inspection_frame(menu, c.palette, c.measure_x)
+            }
+            _ => Err(BadInput("a screen with a frame callback of no menu's").into()),
+        }
+    };
+    match crate::platform::run_frame_now(frame) {
+        Some(made) => made.map(|_| ()),
+        None => Ok(()),
+    }
+}
+
+/// `entry` are the carried values at entry.
+/// Returns why the screen was left, for the log.
+pub unsafe fn screen_loop(screen: &Screen, entry: &Carried) -> Result<String, Refused> {
     let menu = game_addr(screen.menu) as u32;
-    let callback = game_addr(screen.frame_callback) as u32;
-    let later_callback =
-        game_addr(screen.later_frame_callback.unwrap_or(screen.frame_callback)) as u32;
+    let callback = screen.frame_callback;
+    let later_callback = screen.later_frame_callback.unwrap_or(screen.frame_callback);
     let keys_menu = screen
         .keys_menu
         .map_or(menu, |other| game_addr(other) as u32);
-    let mut g = *entry;
+    let mut c = *entry;
     let (mut frames, mut actions, mut why) = (0u32, 0u32, String::new());
     unsafe {
-        run(screen.before, &mut g, env);
+        run(screen.before, &mut c)?;
 
         let action_menu = screen
             .action_menu
@@ -408,55 +519,51 @@ pub unsafe fn screen_loop(screen: &Screen, entry: &Regs, env: &mut dyn Env) -> S
         loop {
             next = match next {
                 Next::SetUp => {
-                    run(screen.set_up_first, &mut g, env);
+                    run(screen.set_up_first, &mut c)?;
                     if !screen.late_highlight {
                         game_write(LEAVING_RVA, 0u32);
-                        g.edi = menu;
-                        g.ebx = game_read(screen.saved_item);
-                        game_write(MENU_ITEM_RVA, g.ebx);
+                        c.palette = game_read(screen.saved_item);
+                        game_write(MENU_ITEM_RVA, c.palette);
                         clear_escape();
                     }
-                    run(screen.prepare, &mut g, env);
+                    run(screen.prepare, &mut c)?;
 
-                    g.edi = menu;
                     game_write(CURRENT_MENU_RVA, menu);
                     for list in screen.lists {
-                        g.esi = game_addr(list.table) as u32;
+                        c.cars = game_addr(list.table) as u32;
                         if list.run {
-                            env.call(RUN_LIST, &mut g);
+                            run_list(c.cars)?;
                         }
-                        game_write(list.pointer, g.esi);
+                        game_write(list.pointer, c.cars);
                     }
-                    run(screen.after_lists, &mut g, env);
+                    run(screen.after_lists, &mut c)?;
                     if !screen.late_highlight {
                         game_write(SOUND_RVA, NO_SOUND);
                         game_write(BACK_RVA, 0u32);
                     }
-                    run(screen.background, &mut g, env);
-                    g.edi = menu;
-                    env.call(DRAW_FRAME, &mut g);
-                    env.call(UPDATE_BLINK, &mut g);
-                    g.eax = game_read(CLOCK_RVA);
-                    game_write(SETUP_TIME_RVA, g.eax);
+                    run(screen.background, &mut c)?;
+                    crate::menu::draw_frame::draw_frame(menu, c.palette, c.measure_x)?;
+                    update_blink();
+                    c.arg = game_read(CLOCK_RVA);
+                    game_write(SETUP_TIME_RVA, c.arg);
                     game_write(ELAPSED_RVA, 0u32);
-                    run(screen.before_first_frame, &mut g, env);
-                    g.eax = callback;
+                    run(screen.before_first_frame, &mut c)?;
+                    c.arg = game_addr(callback) as u32;
                     set_lists(
                         screen,
                         screen.first_frame_lists.unwrap_or(screen.lists),
-                        &mut g,
+                        &mut c,
                     );
-                    env.call(RUN_FRAME, &mut g);
+                    run_frame(callback, menu, &c)?;
                     if screen.late_highlight {
                         game_write(LEAVING_RVA, 0u32);
-                        g.edi = menu;
-                        g.ebx = game_read(screen.saved_item);
-                        game_write(MENU_ITEM_RVA, g.ebx);
+                        c.palette = game_read(screen.saved_item);
+                        game_write(MENU_ITEM_RVA, c.palette);
                         clear_escape();
                     }
                     Next::FrameTop
                 }
-                Next::FrameTop => match run(screen.after_first_frame, &mut g, env) {
+                Next::FrameTop => match run(screen.after_first_frame, &mut c)? {
                     Flow::On | Flow::NextFrame => Next::Frame,
                     Flow::SetUp => Next::SetUp,
                     Flow::Leave => {
@@ -465,9 +572,9 @@ pub unsafe fn screen_loop(screen: &Screen, entry: &Regs, env: &mut dyn Env) -> S
                     }
                 },
                 Next::Frame => {
-                    env.call(UPDATE_BLINK, &mut g);
+                    update_blink();
                     frames += 1;
-                    let flow = run(screen.after_blink, &mut g, env);
+                    let flow = run(screen.after_blink, &mut c)?;
                     if flow == Flow::SetUp {
                         Next::SetUp
                     } else if flow == Flow::Leave {
@@ -476,20 +583,20 @@ pub unsafe fn screen_loop(screen: &Screen, entry: &Regs, env: &mut dyn Env) -> S
                     } else if screen.escape_leaves && game_read::<u32>(ESCAPED_RVA) == 1 {
                         why = "the Escape flag was set".into();
                         Next::Leave
-                    } else if !screen.no_quit_check && env.quitting() {
+                    } else if !screen.no_quit_check && quitting() {
                         why = "the game is quitting".into();
                         Next::Leave
                     } else {
                         if screen.no_quit_check {
                             game_write(SOUND_RVA, NO_SOUND);
                         }
-                        run(screen.before_frame, &mut g, env);
-                        g.eax = later_callback;
-                        set_lists(screen, screen.lists, &mut g);
-                        env.call(RUN_FRAME, &mut g);
-                        g.eax = game_read::<u32>(CLOCK_RVA).wrapping_sub(game_read(SETUP_TIME_RVA));
-                        game_write(ELAPSED_RVA, g.eax);
-                        match run(screen.each_frame, &mut g, env) {
+                        run(screen.before_frame, &mut c)?;
+                        c.arg = game_addr(later_callback) as u32;
+                        set_lists(screen, screen.lists, &mut c);
+                        run_frame(later_callback, menu, &c)?;
+                        c.arg = game_read::<u32>(CLOCK_RVA).wrapping_sub(game_read(SETUP_TIME_RVA));
+                        game_write(ELAPSED_RVA, c.arg);
+                        match run(screen.each_frame, &mut c)? {
                             Flow::On => Next::ActionCheck,
                             Flow::NextFrame => Next::Frame,
                             Flow::SetUp => Next::SetUp,
@@ -502,8 +609,12 @@ pub unsafe fn screen_loop(screen: &Screen, entry: &Regs, env: &mut dyn Env) -> S
                 }
                 Next::ActionCheck if game_read::<u32>(SOUND_RVA) != ENTER_SOUND => {
                     game_write(KEYS_MENU_RVA, keys_menu);
-                    env.call(HANDLE_KEYS, &mut g);
-                    match g.eax {
+                    let keys = handle_keys(c.arg)?;
+                    c.arg = keys.result;
+                    if let Some(clock) = keys.clock {
+                        c.clock = clock;
+                    }
+                    match keys.result {
                         1 => next_frame,
                         3 => Next::ActionCheck,
                         other => {
@@ -513,28 +624,26 @@ pub unsafe fn screen_loop(screen: &Screen, entry: &Regs, env: &mut dyn Env) -> S
                     }
                 }
                 Next::ActionCheck => {
-                    let elapsed = g.eax;
+                    let elapsed = c.arg;
                     actions += 1;
-                    g.ecx = game_read(MENU_ITEM_RVA);
-                    let item = g.ecx;
+                    c.measure_x = game_read(MENU_ITEM_RVA);
+                    let item = c.measure_x;
                     let kept = screen.action_saved_item.unwrap_or(screen.saved_item);
-                    game_write(kept, g.ecx);
+                    game_write(kept, c.measure_x);
                     clear_escape();
-                    g.edi = action_menu;
-                    env.call(RUN_ITEM_ACTION, &mut g);
+                    run_item_action(action_menu, &c)?;
                     game_write(LEAVING_RVA, 0u32);
-                    g.edi = action_menu;
-                    g.ebx = game_read(kept);
-                    game_write(MENU_ITEM_RVA, g.ebx);
+                    c.palette = game_read(kept);
+                    game_write(MENU_ITEM_RVA, c.palette);
                     clear_escape();
-                    g.eax = elapsed;
+                    c.arg = elapsed;
                     if screen.restart_action_check {
                         if game_read::<u32>(DONE_A_RVA) == 1 {
                             why = format!("after the action of item {item}: dword_755569 was 1");
                             Next::Leave
                         } else if game_read::<u32>(DONE_B_RVA) == 1 {
                             game_write(ANSWER_RVA, 0u32);
-                            env.call(TAKE_KEY, &mut g);
+                            call(TAKE_KEY, &mut c)?;
                             Next::SetUp
                         } else if game_read::<u32>(BACK_RVA) == 1 {
                             why = format!("after the action of item {item}: dword_755561 is 1");
@@ -572,11 +681,12 @@ pub unsafe fn screen_loop(screen: &Screen, entry: &Regs, env: &mut dyn Env) -> S
                     }
                 }
                 Next::Leave => {
+                    let done = || format!("{why}; {frames} frames, {actions} actions");
                     if screen
                         .leave_at_once
                         .is_some_and(|flag| game_read::<u32>(flag) == 1)
                     {
-                        return format!("{why}; {frames} frames, {actions} actions");
+                        return Ok(done());
                     }
                     if let Some(on_refusal) = screen.confirm {
                         let asked = screen.always_asks
@@ -588,64 +698,109 @@ pub unsafe fn screen_loop(screen: &Screen, entry: &Regs, env: &mut dyn Env) -> S
                                 .ask_also_if
                                 .is_some_and(|flag| game_read::<u32>(flag) == 1);
                         if asked {
-                            run(screen.before_asking, &mut g, env);
-                            env.call(CONFIRM_LEAVING, &mut g);
+                            run(screen.before_asking, &mut c)?;
+                            // The flags of `cmp g_yesNoAnswer, 1`.
+                            c.carry = confirm_leaving(&c)? < 1;
                             if game_read::<u32>(ANSWER_RVA) != 1 {
-                                run(on_refusal, &mut g, env);
+                                run(on_refusal, &mut c)?;
                                 next = Next::SetUp;
                                 continue;
                             }
-                            run(screen.confirmed, &mut g, env);
+                            run(screen.confirmed, &mut c)?;
                             if screen.always_asks {
-                                return format!("{why}; {frames} frames, {actions} actions");
+                                return Ok(done());
                             }
                         } else if screen.unasked_skips_save {
-                            run(screen.after, &mut g, env);
-                            g = *entry;
-                            run(screen.after_restored, &mut g, env);
-                            return format!("{why}; {frames} frames, {actions} actions");
+                            run(screen.after, &mut c)?;
+                            c = *entry;
+                            run(screen.after_restored, &mut c)?;
+                            return Ok(done());
                         }
                     } else {
-                        run(screen.leaving, &mut g, env);
+                        run(screen.leaving, &mut c)?;
                     }
-                    g.ecx = game_read(MENU_ITEM_RVA);
-                    game_write(screen.leave_saved_item.unwrap_or(screen.saved_item), g.ecx);
+                    c.measure_x = game_read(MENU_ITEM_RVA);
+                    game_write(
+                        screen.leave_saved_item.unwrap_or(screen.saved_item),
+                        c.measure_x,
+                    );
                     clear_escape();
-                    run(screen.after, &mut g, env);
-                    g = *entry;
-                    run(screen.after_restored, &mut g, env);
-                    return format!("{why}; {frames} frames, {actions} actions");
+                    run(screen.after, &mut c)?;
+                    c = *entry;
+                    run(screen.after_restored, &mut c)?;
+                    return Ok(done());
                 }
             };
         }
     }
 }
 
-// ---- hook ----
+/// `menu::confirm_leaving` (0x46FA90): the question's screen (`menu::leave_question_loop`)
+/// gets the carried values as they are; every register comes back as it was.
+pub unsafe fn confirm_leaving(c: &Carried) -> Result<u32, Refused> {
+    let mut asked = Ok(());
+    let answer = unsafe {
+        crate::menu::confirm_leaving::confirm_leaving(&mut || {
+            asked = run_screen(&crate::menu::leave_question_loop::SCREEN, c).map(|_| ());
+        })
+    };
+    asked.map(|()| answer)
+}
 
-/// `dispatch_screen` outside shadow mode, without its hook (typed tables, 2026-10-22: the entry the menus' and draw lists' enums run, with no hook).
-pub fn screen_entry(
-    name: &str,
-    r: &mut Regs,
-    screen: &Screen,
-) -> Result<(), crate::errors::Refused> {
+// ---- entries ----
+
+/// Runs a screen from the menus' tables. The loop starts from nothing carried: its body
+/// never reads the registers it was entered with (only `pusha`'d for the `popa` at the
+/// end), and what it passes down unchanged reaches only plain Rust versions (2026-10-23,
+/// `attrib.py` over the 88 item routes; their esi is the outer loop's list table, never a
+/// list of cars). Its result (eax) is unused by the tables' callers. Rust callers use
+/// `run_screen`.
+pub fn screen_entry(name: &str, screen: &Screen) -> Result<(), Refused> {
     log(&format!("{name}: the Rust version runs"));
-    let entry = *r;
-    let why = unsafe { screen_loop(screen, &entry, &mut Real) };
-    if let Some(result) = screen.result {
-        r.eax = unsafe { result() };
-    }
+    let why = unsafe { screen_loop(screen, &Carried::default()) }?;
     log(&format!(
         "{name}: the Rust version has left the screen ({why})"
     ));
     Ok(())
 }
 
-/// A screen loop run from Rust: its Rust version, as its hook runs it outside shadow mode
-/// (eax the screen's result where it has one; every other register kept).
-pub unsafe fn run_screen(screen: &Screen, r: &mut Regs) {
-    unsafe { screen_loop(screen, r, &mut Real) };
-    if let Some(result) = screen.result {
-        r.eax = unsafe { result() };
+/// A screen loop run from Rust (the event flows, `confirm_leaving`): it starts from the
+/// caller's carried values, which can hold what the screen reads (`select_car_loop`'s and
+/// `car_specs_47af4c_loop`'s list of cars, read by `scene::set_up_carousel`: the time
+/// trial's carousel refused with "no list of cars" when they were dropped, 2026-10-23).
+/// Returns the screen's result where it has one (the original's eax; every other register
+/// kept).
+pub unsafe fn run_screen(screen: &Screen, entry: &Carried) -> Result<Option<u32>, Refused> {
+    unsafe { screen_loop(screen, entry) }?;
+    Ok(screen.result.map(|result| unsafe { result() }))
+}
+
+/// `run_screen` for a flow that holds the carried values: the screen's result, where it
+/// has one, becomes `arg` (the original's eax); every other value is kept.
+pub unsafe fn run_screen_carried(screen: &Screen, c: &mut Carried) -> Result<(), Refused> {
+    if let Some(result) = unsafe { run_screen(screen, c) }? {
+        c.arg = result;
     }
+    Ok(())
+}
+
+/// The carried values in registers `r` (for callers still holding the original's).
+pub fn carried(r: &Regs) -> Carried {
+    Carried {
+        arg: r.eax,
+        palette: r.ebx,
+        measure_x: r.ecx,
+        clock: r.edx,
+        cars: r.esi,
+        carry: r.carry(),
+    }
+}
+
+/// `run_screen` for callers still holding the original's registers: the carried values
+/// from them, and eax the result where the screen has one.
+pub unsafe fn run_screen_regs(screen: &Screen, r: &mut Regs) -> Result<(), Refused> {
+    if let Some(result) = unsafe { run_screen(screen, &carried(r)) }? {
+        r.eax = result;
+    }
+    Ok(())
 }

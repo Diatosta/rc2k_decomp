@@ -8,9 +8,9 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::menu::stage_choice::{draw_stage_map_in_game, next_stage_number};
+use crate::menu::stage_choice::{draw_stage_map, next_stage_number};
 
 /// The Rust version the typed tables run.
 pub fn run() -> Result<(), Refused> {
-    unsafe { next_stage_number(&mut || draw_stage_map_in_game()) }
+    unsafe { next_stage_number(&mut || draw_stage_map()) }
 }

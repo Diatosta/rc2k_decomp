@@ -54,7 +54,6 @@ use crate::errors::{BadInput, Refused};
 use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::menu::player::player_at;
 use crate::menu::standings::{bytes, table};
-use crate::screens::harness::Left;
 use rc2k_core::menu::{bests, standings};
 
 pub const LEVEL_RVA: usize = rva(0x7587EC); // dword_7587EC
@@ -82,7 +81,6 @@ const BEST_LINE_RVA: usize = rva(0x75B02C); // unk_75B02C
 const CARS_RVA: usize = rva(0x75A042); // off_75A042
 const SHOWN_LIST_RVA: usize = rva(0x75A12E); // off_75A12E
 const SHOWN_RVA: usize = rva(0x755990); // dword_755990
-const SECRET_LIST_RVA: usize = rva(0x75A412); // off_75A412
 const CARS_LEN: u32 = 0x28;
 const SHOWN_LIST_LEN: u32 = 0x30;
 const TIME_LEN: u32 = 0x9C;
@@ -354,17 +352,6 @@ pub fn remove_shown_car(then: &mut dyn FnMut() -> Result<(), Refused>) -> Result
     standings::remove_at(&mut cars, shown as usize, end as usize);
     unsafe { game_write(SHOWN_LIST_RVA, cars) };
     then()
-}
-
-/// `menu::secret_car_list`: what it leaves.
-pub fn secret_car_list() -> Left {
-    let on = g(CHEATS_RVA) & 2 != 0;
-    let left = Left::carry(on);
-    if on {
-        left.with(crate::framework::ESI, game_addr(SECRET_LIST_RVA) as u32)
-    } else {
-        left
-    }
 }
 
 // ---- hooks' and tests' common parts ----

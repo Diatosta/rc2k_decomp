@@ -13,51 +13,34 @@
 //! Self-test: a copy whose probes go to a stand-in, against the Rust version with the
 //! same: found and not, headings by lot.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::math::turn_point_xz::turn_point_xz;
-use crate::physics::camera_ground::{carry_entry, probe_at};
+use crate::physics::camera_ground::probe_at;
 use crate::physics::flow::{g, p};
-use crate::race::car_starts::Part;
 use rc2k_core::physics::camera_ground::SIDES;
 
+/// The Rust version: whether the camera and both sides are over ground (CF clear). The
+/// registers it leaves are read by none of its callers.
 // Converted: `rc2k_core::physics::camera_ground::SIDES`.
-fn steps(r: &mut Regs, part: Part) -> Result<bool, Refused> {
-    r.eax = g(0x71A67C);
-    let x = r.eax;
-    r.eax = g(0x71A684);
-    let z = r.eax;
-    if !probe_at(r, part, x, z, 0x71AEC8)? {
+pub fn camera_over_ground() -> Result<bool, Refused> {
+    if !probe_at(g(0x71A67C), g(0x71A684), 0x71AEC8)? {
         return Ok(false);
     }
     for (side, slot) in SIDES.into_iter().zip([0x71AECC, 0x71AED0]) {
         p(0x5CCC78, g(slot));
-        let [x, _, z, edx] = unsafe { turn_point_xz(side as i32, r.ebx as i32, 0, g(0x71A688)) };
-        r.eax = x.wrapping_add(g(0x71A67C));
-        r.ecx = z.wrapping_add(g(0x71A684));
-        r.edx = edx;
-        let (x, z) = (r.eax, r.ecx);
-        if !probe_at(r, part, x, z, slot)? {
+        // The y (the original's ebx, a leftover) only goes through the scratch point,
+        // which nothing reads after: 0 here.
+        let [x, _, z, _] = unsafe { turn_point_xz(side as i32, 0, 0, g(0x71A688)) };
+        if !probe_at(
+            x.wrapping_add(g(0x71A67C)),
+            z.wrapping_add(g(0x71A684)),
+            slot,
+        )? {
             return Ok(false);
         }
     }
     Ok(true)
-}
-
-/// The Rust version, the probes through `part`; CF in the registers left.
-pub unsafe fn camera_over_ground(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    let mut r = *entry;
-    let all = steps(&mut r, part)?;
-    r.set_carry(!all);
-    Ok(r)
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    carry_entry(r, camera_over_ground)
 }

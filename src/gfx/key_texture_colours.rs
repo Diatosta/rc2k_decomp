@@ -15,25 +15,14 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::Regs;
-use crate::gfx::harness::pixels_entry;
-use crate::gfx::texture_pixels::{self};
-use crate::screens::harness::Left;
+use crate::gfx::texture_pixels;
 
-fn count(r: &Regs) -> u32 {
-    r.ecx.wrapping_mul(r.edx)
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    if r.ebx == 0 || count(r) == 0 {
+/// The Rust version: `pixels` `width` by `height`, black made `key`.
+pub fn key_texture_colours(key: u32, pixels: u32, width: u32, height: u32) -> Result<(), Refused> {
+    let count = width.wrapping_mul(height);
+    if pixels == 0 || count == 0 {
         return Err(BadInput("no pixels, or a null pointer").into());
     }
-    unsafe { texture_pixels::key_texture_colours(r.ebx as *mut u32, count(r), r.eax) };
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    pixels_entry(r, &rust)
+    unsafe { texture_pixels::key_texture_colours(pixels as *mut u32, count, key) };
+    Ok(())
 }

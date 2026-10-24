@@ -25,9 +25,8 @@
 //! back): drive kinds 0 / 1, speeds 0, small and large, the switches, under three
 //! precisions.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::math::x87;
 use crate::math::x87_run::{abs_compare, mul_status};
@@ -49,9 +48,8 @@ fn steer_force(e: u32) {
     );
 }
 
-/// The Rust version: ebx in; eax, ebx, edx as left out (eax and edx always set).
-pub unsafe fn drive_grip_forces(ebx: u32) -> [u32; 3] {
-    let mut ebx = ebx;
+/// The Rust version. The eax, ebx and edx it leaves are read by none of its callers.
+pub unsafe fn drive_grip_forces() {
     let mut edx;
     let kind = g(0x71A018);
     // 0x43CD79: the share of +0x1F4 out of 50, from 1, held 0 ..= 1.
@@ -96,8 +94,7 @@ pub unsafe fn drive_grip_forces(ebx: u32) -> [u32; 3] {
         if !slow(0x71A184) && slow(0x71A190) {
             p(0x71A1E8, 0);
         }
-        ebx = g(0x71A440);
-        if ebx & 0x1000 != 0 {
+        if g(0x71A440) & 0x1000 != 0 {
             if g(0x62400C) == 0 {
                 p(0x71A61C, 0);
             } else {
@@ -249,7 +246,7 @@ pub unsafe fn drive_grip_forces(ebx: u32) -> [u32; 3] {
     p(0x6149D0, 0);
     p(0x6149F0, 0);
     if g(0x71A22C) != 0 {
-        return [eax, ebx, edx];
+        return;
     }
     p(0x71A1D8, x87::loaded(g(0x71A160)));
     let old = g(0x71A1D8);
@@ -291,5 +288,4 @@ pub unsafe fn drive_grip_forces(ebx: u32) -> [u32; 3] {
         "fstp dword ptr [{b} + 0x214A04]";
         b = base(), o = held.as_ptr()
     );
-    [eax, ebx, edx]
 }

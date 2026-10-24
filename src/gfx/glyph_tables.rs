@@ -6,10 +6,10 @@
 //! `sub_411FC8` (0x411FC8) with `sub_405E02` under it, `alpha_palette` `sub_412528`
 //! (0x412528).
 
-use crate::errors::{BadInput, FatalError, Refused};
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::errors::{BadInput, Refused};
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::gfx::build_glyphs::{
-    BUILDER_FLAGS_RVA, FORMAT_RVA, TABLE_RVA, TABLE_SIZE_RVA, WORK_MEMORY_RVA, build_glyphs,
+    BUILDER_FLAGS_RVA, FORMAT_RVA, TABLE_RVA, TABLE_SIZE_RVA, WORK_MEMORY_RVA,
 };
 use crate::gfx::components_to_pixel::components_to_pixel;
 use crate::gfx::glyph_builder::DIRECT_COLOUR;
@@ -19,17 +19,7 @@ use crate::gfx::pixel_format::{PixelFormat, SURFACE_FORMAT_RVA};
 use crate::memory::MemoryList;
 use crate::memory::allocate::allocate;
 use crate::memory::free_list::free_list;
-use crate::memory::take_from_list::{rewind_list, take_from_list};
-
-pub const ALLOCATE: usize = rva(0x4028A7); // memory::allocate
-pub const REWIND_LIST: usize = rva(0x402941); // memory::rewind_list
-pub const TAKE_FROM_LIST: usize = rva(0x402956); // memory::take_from_list
-pub const BEGIN_TABLES: usize = rva(0x412014); // gfx::begin_glyph_tables
-pub const BEGIN_TABLE: usize = rva(0x411FEC); // gfx::begin_glyph_table
-pub const BUILD_GLYPHS: usize = rva(0x412085); // gfx::build_glyphs
-pub const PALETTE_TO_PIXELS: usize = rva(0x411FC8); // sub_411FC8
-pub const END_TABLES: usize = rva(0x412077); // gfx::end_glyph_tables
-pub const ALPHA_PALETTE: usize = rva(0x412528); // gfx::alpha_palette
+use crate::memory::take_from_list::take_from_list;
 
 /// stru_51B984: the list the fonts' and the sprites' tables lie on, and dword_51B980: its
 /// size in units of 0x400 bytes times `dword_4F4958`.
@@ -108,54 +98,6 @@ pub unsafe fn alpha_palette() {
             palette
                 .add(entry)
                 .write_unaligned(colour & 0x00FF_FFFF | alpha << 24);
-        }
-    }
-}
-
-/// The calls a builder of tables makes, by RVA, with the registers as the original has
-/// them.
-pub trait Parts {
-    unsafe fn call(&mut self, function: usize, regs: &mut Regs) -> Result<(), Refused>;
-}
-
-/// The Rust versions.
-pub struct Game;
-
-impl Parts for Game {
-    unsafe fn call(&mut self, function: usize, regs: &mut Regs) -> Result<(), Refused> {
-        unsafe {
-            let list = regs.ebx as *mut MemoryList;
-            match function {
-                ALLOCATE => {
-                    regs.eax = allocate(list, regs.eax)? as u32;
-                    regs.set_carry(false);
-                }
-                REWIND_LIST => {
-                    if list.is_null() {
-                        return Err(BadInput("no list to rewind").into());
-                    }
-                    rewind_list(list);
-                }
-                TAKE_FROM_LIST => {
-                    let taken = take_from_list(list, regs.eax)?;
-                    regs.eax = taken.unwrap_or(0);
-                    regs.set_carry(taken.is_none());
-                }
-                BEGIN_TABLES => begin_glyph_tables()?,
-                BEGIN_TABLE => begin_glyph_table(list)?,
-                BUILD_GLYPHS => build_glyphs(regs.eax as *const u8, list)?,
-                PALETTE_TO_PIXELS => palette_to_pixels(regs.edi as *mut u32)?,
-                END_TABLES => end_glyph_tables()?,
-                ALPHA_PALETTE => alpha_palette(),
-                _ => {
-                    return Err(FatalError {
-                        code: 0x8BAD_CA11,
-                        message: "rc2k_hook: a builder of glyph tables calls what it has no Rust for",
-                    }
-                    .into());
-                }
-            }
-            Ok(())
         }
     }
 }

@@ -14,22 +14,14 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{EAX, Regs};
-use crate::gfx::harness::pixels_entry;
 use crate::gfx::pixel_format::PixelFormat;
 use crate::gfx::texture_pixels;
-use crate::screens::harness::Left;
 
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    if r.eax == 0 {
+/// The Rust version: the least colour of the format at `format`.
+pub fn least_colour(format: u32) -> Result<u32, Refused> {
+    if format == 0 {
         return Err(BadInput("a null format").into());
     }
-    let format = unsafe { (r.eax as *const PixelFormat).read_unaligned() };
-    Ok(Left::nothing().with(EAX, texture_pixels::least_colour(&format)))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    pixels_entry(r, &rust)
+    let format = unsafe { (format as *const PixelFormat).read_unaligned() };
+    Ok(texture_pixels::least_colour(&format))
 }

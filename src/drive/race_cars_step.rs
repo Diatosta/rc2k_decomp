@@ -26,10 +26,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{EAX, ESI, Regs};
 use crate::physics::flow::{g, p};
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
 use rc2k_core::drive::race_steps;
 
 const CURRENT: usize = 0x71B3F8; // g_currentCar
@@ -37,65 +34,34 @@ const CARS: usize = 0x63DB90; // g_raceCars
 const BLOCKS: usize = 0x71B3B8; // g_carBlocks
 
 /// One car's step (0x4608CA .., inside `pusha` / `popa`).
-fn car_step(r: &mut Regs) -> Result<(), Refused> {
+fn car_step() -> Result<(), Refused> {
     for x in [0x6138C4, 0x6138C8, 0x6138CC, 0x6138D0] {
         p(x, 0);
     }
-    r.eax = race_steps::block_slot(g(CURRENT)) as u32;
-    r.esi = g(BLOCKS + 4 * r.eax as usize);
-    p(0x71B404, r.esi);
+    let slot = race_steps::block_slot(g(CURRENT));
+    p(0x71B404, g(BLOCKS + 4 * slot));
     unsafe {
-        crate::drive::load_car::load_car()?.apply(r);
+        crate::drive::load_car::load_car()?;
         if g(0x71A234) != 0 {
-            let mut c = *r;
-            crate::drive::read_car_controls::read_car_controls(&mut c)?;
-            Left::nothing().with(EAX, c.eax).with(ESI, c.esi).apply(r);
-            let mut c = *r;
-            crate::physics::gear_input_rules::gear_input_rules(&mut c);
-            r.eax = c.eax;
-            crate::physics::car_physics_step::car_physics_step(r)?.apply(r);
+            crate::drive::read_car_controls::read_car_controls()?;
+            crate::physics::gear_input_rules::gear_input_rules();
+            crate::physics::car_physics_step::car_physics_step()?;
         }
-        crate::drive::store_car::store_car()?.apply(r);
+        crate::drive::store_car::store_car()?;
     }
     Ok(())
 }
 
-/// The steps; `r` as the original leaves it.
+/// The Rust version. The registers it leaves are read by no caller (liveness: only DF
+/// is live after `drive::race_init`'s call).
 // Converted: `rc2k_core::drive::race_steps::{check_cars, each_car, block_slot}`.
-pub fn steps(r: &mut Regs) -> Result<(), Refused> {
-    unsafe { crate::drive::choose_shown_cars::choose_shown_cars() }?.apply(r);
-    r.eax = race_steps::each_car(
-        || g(CURRENT),
-        || g(CARS),
-        |n| p(CURRENT, n),
-        || car_step(&mut r.clone()),
-    )?;
-    unsafe {
-        crate::drive::animate_stage::animate_stage(r)?;
-        *r = crate::drive::race_mode_cars::race_mode_cars(r, &mut |_, r| {
-            *r = crate::drive::start_cars_behind::start_cars_behind(
-                r,
-                &mut crate::drive::start_cars_behind::game_part,
-            )?;
-            Ok(())
-        })?;
-    }
-    Ok(())
-}
-
-/// The Rust version.
-pub unsafe fn race_cars_step(entry: &Regs) -> Result<Left, Refused> {
+pub unsafe fn race_cars_step() -> Result<(), Refused> {
     race_steps::check_cars(g(CARS))?;
-    let mut r = *entry;
-    match steps(&mut r) {
-        Ok(()) => Ok(left_of(&r)),
-        Err(e) => Err(e),
+    unsafe {
+        crate::drive::choose_shown_cars::choose_shown_cars()?;
+        race_steps::each_car(|| g(CURRENT), || g(CARS), |n| p(CURRENT, n), car_step)?;
+        crate::drive::animate_stage::animate_stage()?;
+        crate::drive::race_mode_cars::race_mode_cars()?;
     }
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { race_cars_step(r) }?;
-    left.apply(r);
     Ok(())
 }

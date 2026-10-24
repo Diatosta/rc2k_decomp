@@ -24,8 +24,7 @@
 //! here the game's stage it asks and the image's load and store.
 
 use crate::errors::Refused;
-use crate::framework::{EAX, EBP, EBX, ECX, EDI, EDX, ESI, Regs, game_addr, game_read, rva};
-use crate::screens::harness::Left;
+use crate::framework::{game_addr, game_read, rva};
 pub use rc2k_core::race::pace_notes::IMAGE_START;
 use rc2k_core::race::pace_notes::{IMAGE_LEN, Notes, Registers, Stage};
 
@@ -111,19 +110,10 @@ impl std::ops::DerefMut for Machine {
 }
 
 impl Machine {
-    pub fn load(r: &Regs, course: Course) -> Self {
+    pub fn load(course: Course) -> Self {
         let at = game_addr(rva(IMAGE_START as usize)) as *const u8;
-        let regs = Registers {
-            eax: r.eax,
-            ebx: r.ebx,
-            ecx: r.ecx,
-            edx: r.edx,
-            esi: r.esi,
-            edi: r.edi,
-            ebp: r.ebp,
-        };
         Self(Notes::new(
-            regs,
+            Registers::default(),
             unsafe { game_read(SLOT_RVA) },
             unsafe { std::slice::from_raw_parts(at, IMAGE_LEN) }.to_vec(),
             course,
@@ -138,19 +128,6 @@ impl Machine {
             let at = game_addr(rva(IMAGE_START as usize)) as *mut u8;
             std::slice::from_raw_parts_mut(at, self.image.len()).copy_from_slice(&self.image);
         }
-    }
-
-    /// Every register as it stands (the caller's `Left`).
-    pub fn left(&self) -> Left {
-        let r = &self.r;
-        Left::nothing()
-            .with(EAX, r.eax)
-            .with(EBX, r.ebx)
-            .with(ECX, r.ecx)
-            .with(EDX, r.edx)
-            .with(ESI, r.esi)
-            .with(EDI, r.edi)
-            .with(EBP, r.ebp)
     }
 
     /// `sub_441A66` (`race::init_pace_notes`).

@@ -369,16 +369,6 @@ pub type SettingsScreen<'a> = GameScreen<
     rc2k_core::screens::settings_pages::Work,
 >;
 
-/// What a name drawn at x 0x1D1 leaves in the registers (carry, eax 0, ebx, ecx, edx).
-pub fn left_of(out: rc2k_core::screens::screen::Drawn) -> crate::screens::harness::Left {
-    use crate::framework::{EAX, EBX, ECX, EDX};
-    crate::screens::harness::Left::carry(out.too_wide)
-        .with(EAX, 0)
-        .with(EBX, out.after)
-        .with(ECX, 0x1D1)
-        .with(EDX, out.y as u32)
-}
-
 impl GameFont for rc2k_core::screens::car_pages::Font {
     fn address(self) -> usize {
         match self {
@@ -594,14 +584,13 @@ impl GameWork for rc2k_core::screens::notes::Work {
 pub fn draw_note(
     canvas: &mut dyn Canvas,
     note: &rc2k_core::screens::notes::Note,
-) -> Result<crate::screens::harness::Left, Refused> {
-    let out = rc2k_core::screens::notes::note(
+) -> Result<rc2k_core::screens::screen::Drawn, Refused> {
+    rc2k_core::screens::notes::note(
         &mut GameScreen::<rc2k_core::screens::notes::Font, rc2k_core::screens::notes::Work>::new(
             canvas,
         ),
         note,
-    )?;
-    Ok(crate::screens::harness::Left::of_drawn(out, note.x))
+    )
 }
 
 impl GameFont for rc2k_core::screens::player_details::Font {
@@ -670,9 +659,9 @@ impl rc2k_core::screens::menus::MenuScreen for MenuScreen<'_> {
         }
     }
     fn blended(&mut self, since_key: u32, a: FontAt, b: FontAt) -> Result<FontAt, Refused> {
-        use crate::text::blend_font::{BLENDED_FONT_RVA, blend_font};
+        use crate::text::blend_font::blend_font;
         unsafe { blend_font(since_key, 0x100, a.pointer(), b.pointer()) }?;
-        Ok(FontAt(crate::framework::game_addr(BLENDED_FONT_RVA) as u32))
+        Ok(FontAt(crate::text::blend_font::BLENDED_FONT.addr() as u32))
     }
     fn font_value(&self, f: FontAt) -> u32 {
         f.0
@@ -725,6 +714,7 @@ impl GameFont for rc2k_core::screens::highlighted_caption::Font {
             Font::Measure => 0x51E824,
             Font::A => 0x51E964,
             Font::B => 0x51E844,
+            // g_blendedFont, moved (`font_at` asks `crate::moved::place`).
             Font::Blended => 0x51E384,
         }
     }

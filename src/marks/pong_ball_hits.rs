@@ -5,8 +5,7 @@
 //! `flt_7691D6`), made one long times `flt_76516C`, times `flt_7691DA` / `flt_7691DE`.
 //!
 //! In:  nothing
-//! Out: eax the last compare's status (& 0x700), or after a hit eax / ebx the new way's
-//!      bits
+//! Out: nothing (the Rust callers read no register)
 //!
 //! Caller: `marks::move_pong_ball`. The x87 runs are the original's instructions over the
 //! game's variables. Self-test: the original and the Rust version on balls and bats by
@@ -21,7 +20,7 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::marks::pong;
 use crate::math::x87;
 
@@ -94,13 +93,11 @@ const ACROSS_RVA: usize = rva(0x7686F4); // flt_7686F4
 const ALONG_RVA: usize = rva(0x7686F8); // flt_7686F8
 const NUDGE_RVA: usize = rva(0x7691D6); // flt_7691D6
 
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn pong_ball_hits(entry: &Regs) -> Regs {
-    let mut g = *entry;
-    let (over, status) = pong::overlap();
-    g.eax = status;
+/// The Rust version (see the header).
+pub unsafe fn pong_ball_hits() {
+    let (over, _) = pong::overlap();
     if !over {
-        return g;
+        return;
     }
     unsafe {
         game_write(
@@ -124,10 +121,7 @@ pub unsafe fn pong_ball_hits(entry: &Regs) -> Regs {
             );
         }
         new_way(b);
-        g.eax = game_read(ACROSS_RVA);
-        g.ebx = game_read(ALONG_RVA);
-        game_write(pong::BALL_WAY[0], g.eax);
-        game_write(pong::BALL_WAY[1], g.ebx);
+        game_write(pong::BALL_WAY[0], game_read::<u32>(ACROSS_RVA));
+        game_write(pong::BALL_WAY[1], game_read::<u32>(ALONG_RVA));
     }
-    g
 }

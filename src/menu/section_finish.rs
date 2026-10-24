@@ -19,20 +19,11 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
-use crate::menu::finish_calls::{Game, Part, game_part};
+use crate::menu::finish_calls::Game;
 use rc2k_core::menu::finish;
 
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn section_finish(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+/// The Rust version (see the header).
+pub fn section_finish() -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::finish::section_finish`.
-    finish::section_finish(&mut Game { g: *entry, part })?;
-    Ok(*entry)
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { section_finish(r, &mut game_part) }?;
-    *r = Regs { esp: r.esp, ..left };
-    Ok(())
+    finish::section_finish(&mut Game::default())
 }

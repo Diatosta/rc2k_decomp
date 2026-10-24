@@ -11,20 +11,21 @@
 //! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; the
 //! registers above are the original's, for reference.
 
-use crate::framework::rva;
-
-/// dword_4E0140: the generator's state.
-pub const STATE_RVA: usize = rva(0x4E0140);
+use std::sync::atomic::{AtomicU32, Ordering};
 
 // ---- Rust version ----
 
-/// The bridge (`src/bridge.rs`): the generator loaded from `dword_4E0140`, `f` run on it,
-/// its state stored back.
+/// The generator's state: out of the image since 2026-10-24 (phase 5; it was
+/// `g_randomState`, 0x4E0140, whose first value it keeps until `seed_random`).
+pub static STATE: AtomicU32 = AtomicU32::new(0x9570_1114);
+
+/// The generator loaded from `STATE`, `f` run on it, its state stored back.
 pub fn with_random<R>(f: impl FnOnce(&mut rc2k_core::math::random::Random) -> R) -> R {
-    static STATE: crate::bridge::Global<u32> = crate::bridge::Global::at(0x4E_0140);
-    let mut random = rc2k_core::math::random::Random { state: STATE.get() };
+    let mut random = rc2k_core::math::random::Random {
+        state: STATE.load(Ordering::Relaxed),
+    };
     let value = f(&mut random);
-    STATE.set(random.state);
+    STATE.store(random.state, Ordering::Relaxed);
     value
 }
 
@@ -56,4 +57,16 @@ pub unsafe fn next_random() -> u32 {
     wait_for_random();
     DRAWS.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
     with_random(|r| r.draw())
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn state_starts_as_the_games() {
+        let d = crate::moved::image_bytes(0x4E0140, 4);
+        assert_eq!(
+            u32::from_le_bytes(d.try_into().unwrap()),
+            super::STATE.load(std::sync::atomic::Ordering::Relaxed)
+        );
+    }
 }

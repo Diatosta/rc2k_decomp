@@ -11,20 +11,10 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
-use crate::screens::buttons::draw_item_button;
-use crate::screens::harness::{Left, draw_entry};
-use crate::text::draw_text::Canvas;
+use crate::text::draw_text::GameCanvas;
 
-// ---- Rust version: `buttons::draw_item_button` ----
-
-fn rust(r: &Regs, canvas: &mut dyn Canvas) -> Result<Left, Refused> {
-    unsafe { draw_item_button(r.edi, canvas) }?;
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    draw_entry("screens::draw_item_button", r, &rust)
+/// The Rust version (`buttons::draw_item_button`): the button of the menu item `item`
+/// (edi) on the game's screen.
+pub unsafe fn draw_item_button(item: u32) -> Result<(), Refused> {
+    unsafe { crate::screens::buttons::draw_item_button(item, &mut GameCanvas) }
 }

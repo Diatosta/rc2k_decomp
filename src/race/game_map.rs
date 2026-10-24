@@ -12,7 +12,7 @@
 //! dwords not all 0), and the map picture gives their pixels.
 
 use crate::errors::{BadInput, FatalError, Refused};
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::gfx::pixel_format::PixelFormat;
 use crate::memory::MemoryList;
 
@@ -30,7 +30,6 @@ pub const LIST_RVA: usize = rva(0x5BE90D); // g_mapList
 pub const KEY_LIST_RVA: usize = rva(0x5BE94D); // g_mapKeyList
 const KINDS_RVA: usize = rva(0x5ABAC0); // off_5ABAC0: the pixel kinds
 const READ_BUFFER_RVA: usize = rva(0x93E8B0); // g_pngInfo, used as the read buffer
-pub const PACKED_PATH_RVA: usize = rva(0x5BE9BD); // g_packedPath
 const MAGIC: u32 = 0x4D53_5153; // "SQSM"
 const VERSION: u32 = 0x5_0000;
 const SIDE: u32 = 0x80;
@@ -168,32 +167,28 @@ pub unsafe fn load_packed_game_map(path: u32) -> Result<(), Refused> {
     }
 }
 
-/// `race::load_game_map` (0x41B480): the map (eax the picture's path, ebx the key's; see
-/// the header). Leaves eax `g_packedPath` when it reads the packed file, else every
-/// register preserved. A key not 8-bit is fatal error 0x80E48073. The key's list freed
-/// and `g_mapKeyPixels` 0 at the end; the picture limits and buffer put back.
-pub unsafe fn load_game_map(entry: &Regs) -> Result<Regs, Refused> {
+/// `race::load_game_map` (0x41B480): the map (`picture` the picture's path, `key_path` the
+/// key's; see the header). The eax it leaves (`g_packedPath` when it reads the packed
+/// file) is read by no caller (conversion phase 3, 2026-10-24). A key not 8-bit is fatal
+/// error 0x80E48073. The key's list freed and `g_mapKeyPixels` 0 at the end; the picture
+/// limits and buffer put back.
+pub unsafe fn load_game_map(picture: u32, key_path: u32) -> Result<(), Refused> {
     use crate::gfx::pcx::{HEIGHT_LIMIT_RVA, WIDTH_LIMIT_RVA};
     use crate::gfx::picture::{FLAGS_RVA, HEIGHT_RVA, PICTURE_RVA, ROW_BYTES_RVA, WIDTH_RVA};
-    let mut g = *entry;
     unsafe {
-        if game_read::<u32>(USE_PACKED_RVA) == 1 {
-            let mut r = g;
-            crate::race::game_map::game_part(0, &mut r)?;
-            if r.carry() {
-                let path = game_addr(PACKED_PATH_RVA) as *mut u8;
-                let cursor =
-                    crate::strings::str_append::str_append(g.eax as *const u8, path.add(3));
-                put(cursor as u32 - 4, 0x0071_732E);
-                (path as *mut [u8; 6]).write_unaligned(*b"files\\");
-                load_packed_game_map(path as u32)?;
-                g.eax = path as u32;
-                return Ok(g);
-            }
+        if game_read::<u32>(USE_PACKED_RVA) == 1
+            && !crate::files::file_exists::file_exists(picture as *const u8)?
+        {
+            let path = crate::files::state::PACKED_PATH.ptr().cast::<u8>();
+            let cursor = crate::strings::str_append::str_append(picture as *const u8, path.add(3));
+            put(cursor as u32 - 4, 0x0071_732E);
+            (path as *mut [u8; 6]).write_unaligned(*b"files\\");
+            load_packed_game_map(path as u32)?;
+            return Ok(());
         }
         game_write(TILE_COUNT_RVA, 0u32);
-        game_write(PICTURE_PATH_RVA, g.eax);
-        game_write(KEY_PATH_RVA, g.ebx);
+        game_write(PICTURE_PATH_RVA, picture);
+        game_write(KEY_PATH_RVA, key_path);
         let (bytes, format) = take_format();
         let tiles = allocate(LIST_RVA, 0x1_0000)?;
         game_write(TILES_RVA, tiles);
@@ -211,12 +206,7 @@ pub unsafe fn load_game_map(entry: &Regs) -> Result<Regs, Refused> {
         game_write(ROW_BYTES_RVA, KEY_ROW_BYTES);
         game_write(PICTURE_RVA, key);
         let built = (|| -> Result<(), Refused> {
-            let mut r = Regs {
-                eax: game_read(KEY_PATH_RVA),
-                ..g
-            };
-            crate::race::game_map::game_part(1, &mut r)?;
-            if r.carry() {
+            if !crate::gfx::read_sheet::read_sheet(game_read::<u32>(KEY_PATH_RVA) as *const u8)? {
                 return Ok(());
             }
             if game_read::<u32>(FLAGS_RVA) & 0x100 == 0 {
@@ -252,12 +242,9 @@ pub unsafe fn load_game_map(entry: &Regs) -> Result<Regs, Refused> {
             let marked = (0..TILES).filter(|&n| get(tiles + 4 * n) != 0).count() as u32;
             let pixels = allocate(LIST_RVA, (marked << 8).wrapping_mul(bytes))?;
             game_write(TILE_PIXELS_RVA, pixels);
-            let mut r = Regs {
-                eax: game_read(PICTURE_PATH_RVA),
-                ..g
-            };
-            crate::race::game_map::game_part(2, &mut r)?;
-            if r.carry() {
+            if !crate::gfx::read_picture_file::read_picture_file(
+                game_read::<u32>(PICTURE_PATH_RVA) as *mut u8,
+            )? {
                 return Ok(());
             }
             game_write(TILE_COUNT_RVA, 0u32);
@@ -296,19 +283,6 @@ pub unsafe fn load_game_map(entry: &Regs) -> Result<Regs, Refused> {
         game_write(WIDTH_LIMIT_RVA, kept[0]);
         crate::memory::free_list::free_list(list(KEY_LIST_RVA))?;
         game_write(KEY_PIXELS_RVA, 0u32);
-    }
-    Ok(g)
-}
-
-/// `load_game_map`'s calls in the game: the Rust versions.
-pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    unsafe {
-        let ok = match place {
-            0 => crate::files::file_exists::file_exists(r.eax as *const u8)?,
-            1 => crate::gfx::read_sheet::read_sheet(r.eax as *const u8)?,
-            _ => crate::gfx::read_picture_file::read_picture_file(r.eax as *mut u8)?,
-        };
-        r.set_carry(!ok);
     }
     Ok(())
 }

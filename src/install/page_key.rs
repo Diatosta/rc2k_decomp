@@ -15,101 +15,65 @@
 //! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
+//! are the original's.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
-use crate::install::installer::{
-    KEY_TAKEN, LIST_ANSWER, LIST_LEAVE, Part, ZF, at, cmp, gb, logic, pb, rb, rd,
-};
-use crate::race::viewer::regs_entry;
+use crate::install::installer::{KEY_TAKEN, LIST_ANSWER, LIST_LEAVE, gb, pb, rb, rd};
 use rc2k_core::install::items::{self, ItemKey, PageKey};
 
 const SCREENSHOTS_ON: usize = 0x4F52B4; // g_screenshotsOn
-const CALLEES: [u32; 8] = [
-    0x4148F7, // install::edit_key
-    0x414784, // install::key_up
-    0x414794, // install::key_down
-    0x4147A4, // install::key_left
-    0x4147C0, // install::key_right
-    0x4147DC, // install::key_number
-    0x4147FE, // install::item_enter
-    0x407897, // gfx::take_screenshot
-];
 
-fn zero(r: &Regs) -> bool {
-    r.eflags & ZF != 0
-}
-
-pub fn page_key(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    let mut r = *entry;
-    let key = r.eax as u8;
-    logic(&mut r, key as u32);
+/// `key` as eax (al the key, ah its bits) on `item` of `list`. Returns eax as the callees
+/// leave it (`install::edit_key` changes it) and whether the key did something (the
+/// original's zero).
+pub fn page_key(key: u32, item: u32, list: u32) -> Result<(u32, bool), Refused> {
+    use crate::install as i;
     // Converted: `rc2k_core::install::items` (`page_key`, `takes_every_key`, `STAYS`,
     // `SCREENSHOT_KEY`).
-    let Some(way) = items::page_key(key) else {
-        return Ok(r);
+    let Some(way) = items::page_key(key as u8) else {
+        // test al, al
+        return Ok((key, key as u8 == 0));
     };
-    let kind = rb(r.esi) & 0xF;
-    r.ebx = r.ebx & !0xFF | kind as u32;
-    cmp(&mut r, kind as u32, 4);
-    let edited = items::takes_every_key(kind, || {
-        r.ebx = rd(r.esi + 0xC);
-        let editing = rb(r.ebx) & 1 != 0;
-        logic(&mut r, editing as u32);
-        editing
-    });
-    if edited {
-        part(at(CALLEES[0] as usize), &mut r)?;
+    let kind = rb(item) & 0xF;
+    let edited = items::takes_every_key(kind, || rb(rd(item + 0xC)) & 1 != 0);
+    let (eax, zero) = if edited {
+        i::edit_key::edit_key(key, item)?
     } else {
-        let callee = match way {
-            PageKey::Item(ItemKey::Up) => Some(1),
-            PageKey::Item(ItemKey::Down) => Some(2),
-            PageKey::Item(ItemKey::Left) => Some(3),
-            PageKey::Item(ItemKey::Right) => Some(4),
-            PageKey::Item(ItemKey::Number) => Some(5),
-            PageKey::Enter => Some(6),
+        let taken = match way {
+            PageKey::Item(ItemKey::Up) => Some(i::key_up::key_up(item)?),
+            PageKey::Item(ItemKey::Down) => Some(i::key_down::key_down(item)?),
+            PageKey::Item(ItemKey::Left) => Some(i::key_left::key_left(item)?),
+            PageKey::Item(ItemKey::Right) => Some(i::key_right::key_right(item)?),
+            PageKey::Item(ItemKey::Number) => Some(i::key_number::key_number(key, item)?),
+            PageKey::Enter => Some(i::item_enter::item_enter(item)?),
             _ => None,
         };
-        if let Some(n) = callee {
-            // the flags of the last `cmp al, ..` before the call
-            let last = if n == 5 { 0xA } else { key as u32 };
-            cmp(&mut r, key as u32, last);
-            part(at(CALLEES[n] as usize), &mut r)?;
-            return Ok(took(r));
+        if let Some(taken) = taken {
+            return Ok((key, took(taken)));
         }
         if way == PageKey::Escape {
-            let flags = rb(r.edi) & items::STAYS;
-            logic(&mut r, flags as u32);
-            if flags == 0 {
+            // test byte ptr [edi], 10h: the page left unless the list stays
+            let stays = rb(list) & items::STAYS != 0;
+            if !stays {
                 pb(LIST_ANSWER, 0);
                 pb(LIST_LEAVE, 1);
             }
-            return Ok(r);
+            return Ok((key, !stays));
         }
-        cmp(&mut r, key as u32, 1);
+        // cmp al, 1: another key
+        (key, false)
+    };
+    if gb(SCREENSHOTS_ON) != 0 && eax as u8 == items::SCREENSHOT_KEY {
+        crate::gfx::take_screenshot::take_screenshot()?;
     }
-    let flags = r.eflags;
-    if gb(SCREENSHOTS_ON) != 0 && (r.eax as u8) == items::SCREENSHOT_KEY {
-        part(at(CALLEES[7] as usize), &mut r)?;
-    }
-    r.eflags = flags;
-    Ok(took(r))
+    Ok((eax, took(zero)))
 }
 
-/// `jnz` out, else the key marked as taken and zero set.
-fn took(mut r: Regs) -> Regs {
-    if zero(&r) {
+/// `jnz` out, else the key marked as taken (zero set).
+fn took(zero: bool) -> bool {
+    if zero {
         pb(KEY_TAKEN, 1);
-        r.set_zero(true);
-        r.set_carry(false);
     }
-    r
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    regs_entry(r, &|r| {
-        page_key(r, &mut crate::install::installer::game_part)
-    })
+    zero
 }

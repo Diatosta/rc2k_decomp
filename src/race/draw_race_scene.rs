@@ -25,61 +25,17 @@
 //!   pass unless `dword_71C3E0` or `dword_64BB18`; the sound tick (0x11), the skidmarks laid,
 //!   the name plates; the tyre change screen unless `dword_5C5CE0` is 2.
 //!
-//! In:  nothing
-//! Out: the registers as the last call leaves them; no flags read (`race_frame` goes on)
+//! In:  nothing (the original reads no register at entry; nor do its steps read one it
+//!      gives them: each sets what it uses)
+//! Out: nothing its callers (`drive::race_frame`, `race::show_replay_still`) read
 //!
-//! Caller: `drive::race_frame`. It begins with a call: a private copy (its 80 calls
-//! relocated) and a manual patch. Its calls through `part` by place (`CALLEES`); in the game
-//! the Rust versions of the sound tick, the mud's frame and the three view passes, the
-//! others through the game (`sub_455D38`, the platform's blit, section 15; the rest their
-//! hooks). Refuses (before anything) a null view block, and a wanted texture's slot past
-//! `g_slotWantedTextures`' 0x400. Shadow mode runs the original alone
-//! (it draws). Self-test: a copy whose calls go to stand-ins, against the Rust version, on
-//! view blocks of the test's: each layout, the switches on and off; the calls, their
-//! registers and the variables compared.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Refuses (before anything) a null view block, and a wanted texture's slot past
+//! `g_slotWantedTextures`' 0x400; then what its steps refuse. Hook removed 2026-10-23
+//! (conversion phase 4); its steps called directly since then (conversion phase 3, no
+//! longer by address; the platform's blit, `sub_455D38`, is `d3d::copy_screen_to_texture`).
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
-
-/// The calls by place, as IDA shows them.
-pub const CALLEES: [usize; 32] = [
-    0x4560EA, // 0 drive::choose_shown_cars
-    0x421BA9, // 1 sound::race_sound_tick
-    0x44E8FB, // 2 scene::set_filters
-    0x44EB72, // 3 scene::set_render_state
-    0x450381, // 4 scene::restart_clock
-    0x455ECB, // 5 race::full_view_window
-    0x460D5C, // 6 race::ready_car_parts
-    0x45B4E6, // 7 race::scroll_maps
-    0x45B200, // 8 race::forget_view_textures
-    0x44A054, // 9 race::mud_frame
-    0x4256D8, // 10 scene::assign_kind_textures
-    0x42570D, // 11 scene::map_texture_places
-    0x425778, // 12 scene::load_slot_textures
-    0x45AB36, // 13 race::set_up_panel
-    0x45422F, // 14 race::load_car_a
-    0x45550E, // 15 race::fetch_view_value
-    0x4557AB, // 16 race::draw_view_scene
-    0x455D38, // 17 sub_455D38: the platform's blit
-    0x4559A6, // 18 race::draw_view_overlays
-    0x454806, // 19 race::draw_mirror_view
-    0x44E47B, // 20 scene::set_view_window
-    0x454241, // 21 race::load_car_b
-    0x460C7A, // 22 race::load_first_car
-    0x45FDCF, // 23 race::flush_triangle_batch
-    0x45FEFE, // 24 race::flush_texture_batch
-    0x45C605, // 25 race::find_sound_spots
-    0x45C7B9, // 26 race::share_sound_spots
-    0x45D1EA, // 27 race::wake_part_sounds
-    0x45A893, // 28 hud::overlay_pass
-    0x4585F3, // 29 race::lay_skidmarks_if_on
-    0x45B3B9, // 30 race::update_name_plates
-    0x445047, // 31 drive::tyre_change_screen
-];
+use crate::framework::{game_read, game_write, rva};
 
 const VIEW_BLOCKS_RVA: usize = rva(0x63DBB0); // g_viewBlocks
 const CLEARED_RVA: usize = rva(0x63DBB8); // unk_63DBB8, 0x20 dwords
@@ -127,9 +83,6 @@ const WINDOW_RVA: [usize; 5] = [
 const CREDITS_RVA: usize = rva(0x71C3E0); // dword_71C3E0
 const TYRE_SCREEN_OFF_RVA: usize = rva(0x5C5CE0); // dword_5C5CE0
 
-/// A call by place (`CALLEES`).
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
 fn g(a: usize) -> u32 {
     unsafe { game_read(a) }
 }
@@ -151,184 +104,145 @@ fn at_block(block: u32, offset: u32) -> u32 {
     unsafe { ((block + offset) as *const u32).read_unaligned() }
 }
 
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn draw_race_scene(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+/// One view drawn: `car` (0 or 1: `race::load_car_a` / `_b`), its value fetched, its scene,
+/// the sound tick (0xD), the platform's blit (the full view only), the tick (0xE, the full
+/// view only), the overlays, the tick (0xF), and with the view's flags' bit 3 its mirror.
+unsafe fn draw_view(car: usize, flags: usize, blit: bool) -> Result<(), Refused> {
+    use crate::race::frame::load_view_car;
+    use crate::sound::race_sound_tick::race_sound_tick;
+    unsafe {
+        load_view_car(car)?;
+        crate::race::frame_draw::fetch_view_value()?;
+        crate::race::draw_view_scene::draw_view_scene()?;
+        race_sound_tick()?; // 0xD
+        if blit {
+            crate::d3d::copy_screen_to_texture::copy_screen_to_texture();
+            race_sound_tick()?; // 0xE
+        }
+        crate::race::draw_view_overlays::draw_view_overlays()?;
+        race_sound_tick()?; // 0xF
+        if g(VIEW_FLAGS[flags]) & 8 != 0 {
+            load_view_car(car)?;
+            crate::race::draw_mirror_view::draw_mirror_view()?;
+        }
+        Ok(())
+    }
+}
+
+/// The Rust version (see the header).
+pub unsafe fn draw_race_scene() -> Result<(), Refused> {
+    use crate::scene::set_render_state::set_render_state;
+    use crate::sound::race_sound_tick::race_sound_tick;
     let blocks = view_blocks()?;
     for (k, extra) in EXTRA_TEXTURES.into_iter().enumerate() {
         if g(extra) != u32::MAX && g(FIRST_SLOT_DC_RVA + 4 * k) >= SLOTS {
             return Err(BadInput("a wanted texture's slot past g_slotWantedTextures").into());
         }
     }
-    let mut r = *entry;
-    let tick = |r: &mut Regs, n: u32, part: &mut Part| {
-        r.eax = n;
-        part(1, r)
-    };
-    let mut part = part;
-    part(0, &mut r)?;
     unsafe {
+        crate::drive::choose_shown_cars::choose_shown_cars()?;
         game_write(CLEARED_RVA, [0u32; 0x20]);
-    }
-    r.edi = (game_addr(CLEARED_RVA) as u32).wrapping_add(0x80);
-    r.ecx = 0;
-    for k in 0..2 {
-        r.eax = at_block(blocks[k], 0x220);
-        p(VIEW_FLAGS[k], r.eax);
-    }
-    for k in 0..2 {
-        if g(VIEW_ON[k]) == 0 {
-            p(VIEW_FLAGS[k], 0);
+        for k in 0..2 {
+            p(VIEW_FLAGS[k], at_block(blocks[k], 0x220));
         }
-    }
-    for a in ZEROED {
-        p(a, 0);
-    }
-    r.eax = (g(BITS_A.0) & 2) >> 1;
-    p(BITS_A.1, r.eax);
-    r.eax = g(BITS_B.0) & 1;
-    p(BITS_B.1, r.eax);
-    r.eax = g(VIEW_FLAGS[0]) & 0x40;
-    p(FIRST_BIT_6_RVA, r.eax);
-    p(BLIT_SWITCH_RVA, 0);
-    r.eax = g(BLIT_ON_RVA) | g(BLIT_ON_RVA + 4);
-    if r.eax != 0 {
-        r.eax = at_block(blocks[0], 0x6F0);
-        p(BLIT_SWITCH_RVA, r.eax);
-    }
-    p(LIGHTING_RVA, 1);
-    tick(&mut r, 0xA, &mut part)?;
-    r.eax = g(SHINE_FROM_RVA);
-    p(SHINE_RVA, r.eax);
-    {
+        for k in 0..2 {
+            if g(VIEW_ON[k]) == 0 {
+                p(VIEW_FLAGS[k], 0);
+            }
+        }
+        for a in ZEROED {
+            p(a, 0);
+        }
+        p(BITS_A.1, (g(BITS_A.0) & 2) >> 1);
+        p(BITS_B.1, g(BITS_B.0) & 1);
+        p(FIRST_BIT_6_RVA, g(VIEW_FLAGS[0]) & 0x40);
+        p(BLIT_SWITCH_RVA, 0);
+        if g(BLIT_ON_RVA) | g(BLIT_ON_RVA + 4) != 0 {
+            p(BLIT_SWITCH_RVA, at_block(blocks[0], 0x6F0));
+        }
+        p(LIGHTING_RVA, 1);
+        race_sound_tick()?; // 0xA
+        p(SHINE_RVA, g(SHINE_FROM_RVA));
         // pusha; pushf .. popf; popa
-        let kept = r;
-        part(2, &mut r)?;
+        crate::scene::set_filters::set_filters();
         for (value, state) in [(4, 0x15), (1, 0x1C), (5, 0x13), (6, 0x14), (1, 0x1B)] {
-            r.eax = value;
-            r.ebx = state;
-            part(3, &mut r)?;
+            set_render_state(value, state);
         }
-        r = kept;
-    }
-    tick(&mut r, 0xB, &mut part)?;
-    p(FRAMES_RVA, g(FRAMES_RVA).wrapping_add(1));
-    part(4, &mut r)?;
-    p(CLOCK_RVA, r.eax);
-    for place in [5, 6, 7] {
-        part(place, &mut r)?;
-    }
-    p(TEXTURE_CHANGES_RVA, 0);
-    part(8, &mut r)?;
-    part(9, &mut r)?;
-    p(KIND_TEXTURES_DONE_RVA, 0);
-    part(10, &mut r)?;
-    for (k, extra) in EXTRA_TEXTURES.into_iter().enumerate() {
-        r.eax = g(extra);
-        if r.eax != u32::MAX {
-            r.eax = r.eax.wrapping_add(g(FIRST_TEXTURE_DC_RVA));
-            r.ebx = g(FIRST_SLOT_DC_RVA + 4 * k);
-            p(SLOT_WANTED_RVA.wrapping_add(4 * r.ebx as usize), r.eax);
-        }
-    }
-    part(11, &mut r)?;
-    part(12, &mut r)?;
-    tick(&mut r, 0xC, &mut part)?;
-    if g(NO_PANEL_RVA) == 0 {
-        part(13, &mut r)?;
-    }
-    if g(ONE_VIEW_RVA) == 1 {
-        p(DRAWN_VIEW_RVA, 0);
-        part(14, &mut r)?;
-        part(15, &mut r)?;
-        part(16, &mut r)?;
-        tick(&mut r, 0xD, &mut part)?;
-        part(17, &mut r)?;
-        tick(&mut r, 0xE, &mut part)?;
-        part(18, &mut r)?;
-        tick(&mut r, 0xF, &mut part)?;
-        if g(VIEW_FLAGS[0]) & 8 != 0 {
-            part(14, &mut r)?;
-            part(19, &mut r)?;
-        }
-    } else {
-        let side_by_side = g(SIDE_BY_SIDE_RVA) == 1;
-        for view in 0..2u32 {
-            p(DRAWN_VIEW_RVA, view);
-            let (w, h) = (g(SCREEN_RVA[0]), g(SCREEN_RVA[1]));
-            // (width, x, height, y): the eax the original has for each store.
-            if side_by_side {
-                r.eax = w >> 1;
-                p(WINDOW_RVA[0], r.eax);
-                p(WINDOW_RVA[1], if view == 0 { 0 } else { r.eax });
-                r.eax = h;
-                p(WINDOW_RVA[2], r.eax);
-                p(WINDOW_RVA[3], 0);
-            } else {
-                r.eax = w;
-                p(WINDOW_RVA[0], r.eax);
-                p(WINDOW_RVA[1], 0);
-                r.eax = h >> 1;
-                p(WINDOW_RVA[2], r.eax);
-                p(WINDOW_RVA[3], if view == 0 { 0 } else { r.eax });
-            }
-            p(WINDOW_RVA[4], 0x100);
-            part(20, &mut r)?;
-            let car = if view == 0 { 14 } else { 21 };
-            part(car, &mut r)?;
-            part(15, &mut r)?;
-            part(16, &mut r)?;
-            tick(&mut r, 0xD, &mut part)?;
-            part(18, &mut r)?;
-            tick(&mut r, 0xF, &mut part)?;
-            if g(VIEW_FLAGS[view as usize]) & 8 != 0 {
-                part(car, &mut r)?;
-                part(19, &mut r)?;
+        race_sound_tick()?; // 0xB
+        p(FRAMES_RVA, g(FRAMES_RVA).wrapping_add(1));
+        p(
+            CLOCK_RVA,
+            crate::scene::restart_clock::restart_clock(crate::system::tick_count::tick_count()),
+        );
+        crate::race::frame_views::full_view_window(true);
+        crate::race::car_parts::ready_car_parts()?;
+        crate::race::map_scroll::scroll_maps()?;
+        p(TEXTURE_CHANGES_RVA, 0);
+        crate::race::frame_views::forget_view_textures()?;
+        crate::race::mud_frame::mud_frame()?;
+        p(KIND_TEXTURES_DONE_RVA, 0);
+        crate::scene::assign_kind_textures::assign_kind_textures()?;
+        for (k, extra) in EXTRA_TEXTURES.into_iter().enumerate() {
+            let texture = g(extra);
+            if texture != u32::MAX {
+                let slot = g(FIRST_SLOT_DC_RVA + 4 * k);
+                p(
+                    SLOT_WANTED_RVA.wrapping_add(4 * slot as usize),
+                    texture.wrapping_add(g(FIRST_TEXTURE_DC_RVA)),
+                );
             }
         }
-    }
-    for place in [22, 23, 24, 25, 26, 27] {
-        part(place, &mut r)?;
-    }
-    tick(&mut r, 0x10, &mut part)?;
-    for state in [0x11, 0x12] {
-        r.eax = 2;
-        r.ebx = state;
-        part(3, &mut r)?;
-    }
-    if g(CREDITS_RVA) == 0 && g(NO_PANEL_RVA) == 0 {
-        part(28, &mut r)?;
-    }
-    tick(&mut r, 0x11, &mut part)?;
-    part(29, &mut r)?;
-    part(30, &mut r)?;
-    if g(TYRE_SCREEN_OFF_RVA) != 2 {
-        part(31, &mut r)?;
-    }
-    Ok(r)
-}
-
-/// In the game: the Rust versions of the sound tick, the mud's frame and the three view
-/// passes; the others through the game (their hooks; `sub_455D38` the platform's).
-pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    unsafe {
-        match place {
-            1 => {
-                return crate::sound::race_sound_tick::race_sound_tick_in(r);
+        crate::scene::map_texture_places::map_texture_places();
+        crate::scene::load_slot_textures::load_slot_textures_in_game()?;
+        race_sound_tick()?; // 0xC
+        if g(NO_PANEL_RVA) == 0 {
+            crate::race::frame_draw::set_up_panel()?;
+        }
+        if g(ONE_VIEW_RVA) == 1 {
+            p(DRAWN_VIEW_RVA, 0);
+            draw_view(0, 0, true)?;
+        } else {
+            let side_by_side = g(SIDE_BY_SIDE_RVA) == 1;
+            for view in 0..2u32 {
+                p(DRAWN_VIEW_RVA, view);
+                let (w, h) = (g(SCREEN_RVA[0]), g(SCREEN_RVA[1]));
+                // (width, x, height, y).
+                if side_by_side {
+                    p(WINDOW_RVA[0], w >> 1);
+                    p(WINDOW_RVA[1], if view == 0 { 0 } else { w >> 1 });
+                    p(WINDOW_RVA[2], h);
+                    p(WINDOW_RVA[3], 0);
+                } else {
+                    p(WINDOW_RVA[0], w);
+                    p(WINDOW_RVA[1], 0);
+                    p(WINDOW_RVA[2], h >> 1);
+                    p(WINDOW_RVA[3], if view == 0 { 0 } else { h >> 1 });
+                }
+                p(WINDOW_RVA[4], 0x100);
+                crate::scene::set_view_window::set_view_window_plain();
+                draw_view(view as usize, view as usize, false)?;
             }
-            9 => *r = crate::race::mud_frame::mud_frame(r)?,
-            16 => crate::race::draw_view_scene::draw_view_scene_in_game(r)?,
-            18 => *r = crate::race::draw_view_overlays::draw_view_overlays(r)?,
-            19 => *r = crate::race::draw_mirror_view::draw_mirror_view(r)?,
-            28 => crate::hud::overlay_pass::overlay_pass()?,
-            _ => crate::calls::call(rva(CALLEES[place as usize]), r),
+        }
+        crate::race::frame_views::load_first_car()?;
+        use crate::race::frame_flush::{PLAIN, TEXTURED, flush_batch};
+        flush_batch(&PLAIN, false)?;
+        flush_batch(&TEXTURED, true)?;
+        crate::race::sound_spots::find_sound_spots()?;
+        crate::race::frame_draw::share_sound_spots()?;
+        crate::race::frame_draw::wake_part_sounds()?;
+        race_sound_tick()?; // 0x10
+        for state in [0x11, 0x12] {
+            set_render_state(2, state);
+        }
+        if g(CREDITS_RVA) == 0 && g(NO_PANEL_RVA) == 0 {
+            crate::hud::overlay_pass::overlay_pass()?;
+        }
+        race_sound_tick()?; // 0x11
+        crate::race::skid_laying::lay_skidmarks_if_on()?;
+        crate::race::name_plates::update_name_plates()?;
+        if g(TYRE_SCREEN_OFF_RVA) != 2 {
+            crate::drive::tyre_change_screen::tyre_change_screen()?;
         }
     }
-    Ok(())
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { draw_race_scene(r, &mut game_part) }?;
-    *r = Regs { esp: r.esp, ..left };
     Ok(())
 }

@@ -16,21 +16,26 @@
 //! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
+//! are the original's.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::install::installer::{
-    CLOSE_SEARCH, DIR_COUNT, DIR_CURSOR, DIR_SCAN, DIRS, FILE_COUNT, FILE_CURSOR, FILES,
-    FIND_FIRST, FIND_NEXT, RESOLVE_PATH, a, append_byte, at, fatal, g, p, rb, str_append, wb,
+    DIR_COUNT, DIR_CURSOR, DIR_SCAN, DIRS, FILE_COUNT, FILE_CURSOR, FILES, a, append_byte,
+    close_search, fatal, find_first, find_next, g, p, rb, resolve_path, str_append,
 };
 
-const SEARCH_BASE: usize = 0x94E8B0; // byte_94E8B0
 const DOT: usize = 0x5295B7; // "."
 const DOTDOT: usize = 0x5295B9; // ".."
 const STAR: usize = 0x5295BC; // "*.*"
-const SKIP_MASK: usize = 0x4E06E6; // FindFileData+0x13E
-const FIND_NAME: usize = 0x4E05A8 + 0x2C; // FindFileData.cFileName
-const FIND_ATTRS: usize = 0x4E05A8; // FindFileData.dwFileAttributes
+/// FindFileData.cFileName (the search record: `files::state`).
+fn find_name() -> u32 {
+    unsafe { (&raw const (*crate::files::state::find_data()).cFileName) as u32 }
+}
+/// FindFileData.dwFileAttributes.
+fn find_attributes() -> u32 {
+    unsafe { (*crate::files::state::find_data()).dwFileAttributes }
+}
 const DIRS_ROOM: u32 = 0x10000;
 const FILES_ROOM: u32 = 0x40000;
 
@@ -38,104 +43,81 @@ fn same_name(a1: u32, a2: u32) -> bool {
     unsafe { crate::strings::same_text::same_text(a1 as *const u8, a2 as *const u8) }
 }
 
-pub fn list_folder_tree(entry: &Regs) -> Result<Regs, Refused> {
-    let mut r = *entry;
-    let saved_skip = g(SKIP_MASK);
-    p(SKIP_MASK, 0);
-    let result = (|| -> Result<(), Refused> {
-        crate::install::installer::game_part(at(RESOLVE_PATH), &mut r)?;
-        if rb(r.eax) != 0 {
-            r.ebx = g(DIR_CURSOR);
-            str_append(&mut r);
-            append_byte(&mut r, 0);
-            p(DIR_CURSOR, r.ebx);
-            p(DIR_SCAN, r.ebx);
-            p(DIR_COUNT, g(DIR_COUNT).wrapping_add(1));
-        }
-        loop {
-            // list the folder named in eax
-            let base = a(SEARCH_BASE);
-            r.ebx = base;
-            r.edx = base;
-            str_append(&mut r); // the folder path
-            if rb(r.ebx.wrapping_sub(1)) != b'\\' {
-                wb(r.ebx, b'\\');
-                r.ebx += 1;
-            }
-            r.eax = a(STAR);
-            str_append(&mut r);
-            append_byte(&mut r, 0);
-            r.eax = base;
-            crate::install::installer::game_part(at(FIND_FIRST), &mut r)?;
-            if !r.carry() {
-                loop {
-                    let is_dir = g(FIND_ATTRS) & 0x10 != 0;
-                    if is_dir {
-                        // eax "." then "..", ebx the found name (`same_text` keeps them)
-                        r.ebx = a(FIND_NAME);
-                        r.eax = a(DOT);
-                        let mut real = !same_name(r.eax, r.ebx);
-                        if real {
-                            r.eax = a(DOTDOT);
-                            real = !same_name(r.eax, r.ebx);
-                        }
-                        if real {
-                            r.ebx = g(DIR_CURSOR);
-                            r = unsafe {
-                                crate::files::append_directory::append_directory_regs(&r)
-                            }?;
-                            r.eax = a(FIND_NAME);
-                            str_append(&mut r);
-                            append_byte(&mut r, 0);
-                            p(DIR_CURSOR, r.ebx);
-                            p(DIR_COUNT, g(DIR_COUNT).wrapping_add(1));
-                            r.ebx = r.ebx.wrapping_sub(g(DIRS)); // `sub ebx, g_dirNames`
-                            if r.ebx >= DIRS_ROOM {
-                                return Err(fatal(0x80AF_2201));
-                            }
-                        }
-                    } else {
-                        r.ebx = g(FILE_CURSOR);
-                        r = unsafe { crate::files::append_directory::append_directory_regs(&r) }?;
-                        r.eax = a(FIND_NAME);
-                        str_append(&mut r);
-                        append_byte(&mut r, 0);
-                        p(FILE_CURSOR, r.ebx);
-                        p(FILE_COUNT, g(FILE_COUNT).wrapping_add(1));
-                        r.ebx = r.ebx.wrapping_sub(g(FILES)); // `sub ebx, g_fileNames`
-                        if r.ebx >= FILES_ROOM {
-                            return Err(fatal(0x80AF_2202));
-                        }
-                    }
-                    crate::install::installer::game_part(at(FIND_NEXT), &mut r)?;
-                    if r.carry() {
-                        break;
-                    }
-                }
-            }
-            crate::install::installer::game_part(at(CLOSE_SEARCH), &mut r)?;
-            // dequeue the next folder from the scan pointer
-            r.eax = g(DIR_SCAN);
-            if r.eax >= g(DIR_CURSOR) {
-                break;
-            }
-            r.ebx = r.eax;
-            r.ecx = unsafe { crate::strings::text_length::text_length(r.ebx as *const u8) }?;
-            if r.ecx == 0 {
-                break;
-            }
-            r.ebx = r.ebx.wrapping_add(r.ecx).wrapping_add(1);
-            p(DIR_SCAN, r.ebx);
-        }
-        Ok(())
-    })();
-    p(SKIP_MASK, saved_skip);
-    result?;
-    Ok(Regs { ..*entry })
+/// The found file's path (the searched folder's) and name appended at `cursor`.
+fn found_path(search: u32, cursor: u32) -> Result<u32, Refused> {
+    let (cursor, _) = unsafe {
+        crate::files::append_directory::append_directory(search as *const u8, cursor as *mut u8)
+    }?;
+    Ok(append_byte(str_append(find_name(), cursor as u32), 0))
 }
 
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    crate::race::viewer::regs_entry(r, &|r| list_folder_tree(r))
+fn walk(folder: u32) -> Result<(), Refused> {
+    let mut folder = resolve_path(folder)?;
+    if rb(folder) != 0 {
+        let cursor = append_byte(str_append(folder, g(DIR_CURSOR)), 0);
+        p(DIR_CURSOR, cursor);
+        p(DIR_SCAN, cursor);
+        p(DIR_COUNT, g(DIR_COUNT).wrapping_add(1));
+    }
+    loop {
+        // list the folder
+        let base = crate::files::numbered_path::buffer() as u32; // byte_94E8B0
+        let mut cursor = str_append(folder, base);
+        if rb(cursor.wrapping_sub(1)) != b'\\' {
+            cursor = append_byte(cursor, b'\\');
+        }
+        append_byte(str_append(a(STAR), cursor), 0);
+        if find_first(base) {
+            loop {
+                if find_attributes() & 0x10 != 0 {
+                    // "." and ".." passed over
+                    let real =
+                        !same_name(a(DOT), find_name()) && !same_name(a(DOTDOT), find_name());
+                    if real {
+                        let cursor = found_path(base, g(DIR_CURSOR))?;
+                        p(DIR_CURSOR, cursor);
+                        p(DIR_COUNT, g(DIR_COUNT).wrapping_add(1));
+                        // `sub ebx, g_dirNames`
+                        if cursor.wrapping_sub(g(DIRS)) >= DIRS_ROOM {
+                            return Err(fatal(0x80AF_2201));
+                        }
+                    }
+                } else {
+                    let cursor = found_path(base, g(FILE_CURSOR))?;
+                    p(FILE_CURSOR, cursor);
+                    p(FILE_COUNT, g(FILE_COUNT).wrapping_add(1));
+                    // `sub ebx, g_fileNames`
+                    if cursor.wrapping_sub(g(FILES)) >= FILES_ROOM {
+                        return Err(fatal(0x80AF_2202));
+                    }
+                }
+                if !find_next() {
+                    break;
+                }
+            }
+        }
+        close_search();
+        // the next folder from the scan pointer
+        folder = g(DIR_SCAN);
+        if folder >= g(DIR_CURSOR) {
+            break;
+        }
+        let length = unsafe { crate::strings::text_length::text_length(folder as *const u8) }?;
+        if length == 0 {
+            break;
+        }
+        p(DIR_SCAN, folder.wrapping_add(length).wrapping_add(1));
+    }
+    Ok(())
+}
+
+/// `folder` (eax) and every folder under it added to the folders' table, their files to
+/// the files'.
+pub fn list_folder_tree(folder: u32) -> Result<(), Refused> {
+    use crate::files::state::SKIPPED_ATTRIBUTES;
+    let saved_skip = SKIPPED_ATTRIBUTES.load(std::sync::atomic::Ordering::Relaxed);
+    SKIPPED_ATTRIBUTES.store(0, std::sync::atomic::Ordering::Relaxed);
+    let result = walk(folder);
+    SKIPPED_ATTRIBUTES.store(saved_skip, std::sync::atomic::Ordering::Relaxed);
+    result
 }

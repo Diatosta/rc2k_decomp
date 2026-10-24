@@ -19,58 +19,63 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
 use crate::framework::Regs;
-use crate::race::viewer::{FRAME_CLOCK, LAST_KEY, MOVE_CLOCK, REPEATS, gb, get, left_of, pb, put};
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
+use crate::race::viewer::{FRAME_CLOCK, LAST_KEY, MOVE_CLOCK, REPEATS, gb, get, pb, put};
 
-/// The Rust version: the registers it leaves (the flags of `test al, al`).
-pub fn list_take_key(entry: &Regs) -> Result<Regs, Refused> {
-    let mut r = *entry;
-    r.eax = 0;
-    crate::menu::list_take_key::game_part(1, &mut r)?;
-    let key = r.eax as u8;
+/// What `list_take_key` gives: the key (eax, 0 for none) and, for the last key again, the
+/// two clocks it compared (ebx `dword_51D41F`, ecx `dword_51D423 + 6`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Taken {
+    pub key: u8,
+    pub again: Option<(u32, u32)>,
+}
+
+impl Taken {
+    /// The registers as the original leaves them (the flags of `test al, al`), for the
+    /// register-threaded callers by address.
+    pub fn leave(&self, r: &mut Regs) {
+        r.eax = u32::from(self.key);
+        if let Some((frame, moved)) = self.again {
+            r.ebx = frame;
+            r.ecx = moved;
+        }
+        r.set_carry(false);
+        r.set_zero(self.key == 0);
+    }
+}
+
+impl Taken {
+    /// The same in a flow's registers (`menu::event_flow::Flow`).
+    pub fn carry_on(&self, f: &mut crate::menu::event_flow::Flow) {
+        f.c.arg = u32::from(self.key);
+        if let Some((frame, moved)) = self.again {
+            f.c.palette = frame;
+            f.c.measure_x = moved;
+        }
+        f.c.carry = false;
+        f.zero = self.key == 0;
+    }
+}
+
+/// The Rust version (see the header).
+pub fn list_take_key() -> Taken {
+    let key = crate::input::take_key::take_key();
+    let mut again = None;
     if key == 0 {
-        let mut s = Regs { eax: 1, ..r };
-        crate::menu::list_take_key::game_part(2, &mut s)?;
+        crate::system::sleep::sleep(1);
     } else {
         // Converted: `rc2k_core::menu::list_menu::repeats`.
-        let again = key == gb(LAST_KEY);
+        let repeated = key == gb(LAST_KEY);
         let (mut frame, mut moved) = (0, 0);
-        if again {
+        if repeated {
             (frame, moved) = (get(FRAME_CLOCK), get(MOVE_CLOCK));
-            r.ebx = frame;
-            r.ecx = moved.wrapping_add(6);
+            again = Some((frame, moved.wrapping_add(6)));
         }
         put(
             REPEATS,
-            rc2k_core::menu::list_menu::repeats(get(REPEATS), again, frame, moved),
+            rc2k_core::menu::list_menu::repeats(get(REPEATS), repeated, frame, moved),
         );
         pb(LAST_KEY, key);
     }
-    r.set_carry(false);
-    r.set_zero(key == 0);
-    Ok(r)
-}
-
-/// In the game: the Rust versions.
-pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    if place == 1 {
-        let key = crate::input::take_key::take_key();
-        r.eax = r.eax & !0xFF | key as u32;
-    } else {
-        crate::system::sleep::sleep(r.eax);
-    }
-    Ok(())
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(left_of(&list_take_key(r)?))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
+    Taken { key, again }
 }

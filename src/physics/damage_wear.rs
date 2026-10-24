@@ -13,12 +13,9 @@
 //! Caller: `physics::damage_step`.
 //! Self-test: `physics/damage_model.rs` (`damage_test`).
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
-use crate::errors::Refused;
-use crate::framework::Regs;
 #[allow(unused_imports)] // the generated body uses some of them
 use crate::math::x87::mul;
 #[allow(unused_imports)]
@@ -26,9 +23,6 @@ use crate::math::x87_run::{abs_compare, compare_full};
 use crate::physics::damage_model::ONE;
 #[allow(unused_imports)]
 use crate::physics::flow::{a, base, g, hold_high, hold_low, p, table_lerp, x87_run};
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 #[allow(dead_code)]
 fn rd(x: u32) -> u32 {
@@ -36,11 +30,9 @@ fn rd(x: u32) -> u32 {
 }
 
 /// The steps (generated from the disassembly by idiom; the flagged places by hand).
-pub fn steps(r: &mut Regs) {
+pub fn steps() {
     let _ = ONE;
-    r.eax = g(0x719FE4);
-    p(0x75B4A0, r.eax);
-    r.esi = a(0x75B4A8);
+    p(0x75B4A0, g(0x719FE4));
     table_lerp(0x75B398, 0x75B4A8, 0x75B350, 0x75B45C);
     x87_run!(
         "fld dword ptr [{b} + 0x35B584]", // fld     flt_75B584
@@ -153,7 +145,6 @@ pub fn steps(r: &mut Regs) {
     );
     hold_low(0x71A278, 0x75B350);
     hold_high(0x71A278, 0x75B34C);
-    r.esi = a(0x75B4B8);
     table_lerp(0x71A29C, 0x75B4B8, 0x75B350, 0x75B460);
     x87_run!(
         "fld dword ptr [{b} + 0x35B398]", // fld     flt_75B398
@@ -193,7 +184,6 @@ pub fn steps(r: &mut Regs) {
     );
     hold_low(0x71A28C, 0x75B350);
     hold_high(0x71A28C, 0x75B34C);
-    r.esi = a(0x75B660);
     table_lerp(0x71A430, 0x75B660, 0x75B350, 0x75B44C);
     x87_run!(
         "fld dword ptr [{b} + 0x35B44C]", // fld     flt_75B44C
@@ -201,7 +191,6 @@ pub fn steps(r: &mut Regs) {
         "fstp dword ptr [{b} + 0x35B44C]"; // fstp    flt_75B44C
         b = base()
     );
-    r.esi = a(0x75B640);
     table_lerp(0x71A430, 0x75B640, 0x75B350, 0x75B448);
     x87_run!(
         "fld dword ptr [{b} + 0x35B448]", // fld     flt_75B448
@@ -209,7 +198,6 @@ pub fn steps(r: &mut Regs) {
         "fstp dword ptr [{b} + 0x35B448]"; // fstp    flt_75B448
         b = base()
     );
-    r.esi = a(0x75B650);
     table_lerp(0x71A434, 0x75B650, 0x75B350, 0x75B468);
     x87_run!(
         "fld dword ptr [{b} + 0x35B468]", // fld     flt_75B468
@@ -217,9 +205,7 @@ pub fn steps(r: &mut Regs) {
         "fstp dword ptr [{b} + 0x35B468]"; // fstp    flt_75B468
         b = base()
     );
-    r.esi = a(0x75B4D8);
     table_lerp(0x75B3A0, 0x75B4D8, 0x75B350, 0x75B46C);
-    r.esi = a(0x75B4D8);
     table_lerp(0x75B3A4, 0x75B4D8, 0x75B350, 0x75B470);
     x87_run!(
         "fld dword ptr [{b} + 0x35B3E0]", // fld     flt_75B3E0
@@ -241,16 +227,15 @@ pub fn steps(r: &mut Regs) {
     // 0x4AC7C9: two figures of the table `dword_75B73C` (row `dword_75B3E8`, columns
     // from `dword_75B8C0` by `dword_75B3EC` & 0xF, then from `dword_75B8C4` by that
     // column, as the original), blended by `dword_75B3F0`, x `flt_75B8BC`.
-    r.ebx = g(0x75B3E8) << 6;
-    r.eax = g(0x75B3EC) & 0xF;
-    r.eax = rd(a(0x75B8C0).wrapping_add(r.eax.wrapping_mul(8)));
+    let row = g(0x75B3E8) << 6;
+    let column = rd(a(0x75B8C0).wrapping_add((g(0x75B3EC) & 0xF).wrapping_mul(8)));
     let first = a(0x75B73C)
-        .wrapping_add(r.ebx)
-        .wrapping_add(r.eax.wrapping_mul(4));
-    r.eax = rd(a(0x75B8C4).wrapping_add(r.eax.wrapping_mul(8)));
+        .wrapping_add(row)
+        .wrapping_add(column.wrapping_mul(4));
+    let column = rd(a(0x75B8C4).wrapping_add(column.wrapping_mul(8)));
     let second = a(0x75B73C)
-        .wrapping_add(r.ebx)
-        .wrapping_add(r.eax.wrapping_mul(4));
+        .wrapping_add(row)
+        .wrapping_add(column.wrapping_mul(4));
     x87_run!(
         "fild dword ptr [{f}]",
         ".byte 0xD9, 0xE8", // fld1
@@ -264,21 +249,4 @@ pub fn steps(r: &mut Regs) {
         "fstp dword ptr [{b} + 0x35B484]";
         b = base(), f = first, s = second
     );
-}
-
-/// The Rust version.
-pub unsafe fn damage_wear(entry: &Regs) -> Left {
-    let mut r = *entry;
-    steps(&mut r);
-    left_of(&r)
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(unsafe { damage_wear(r) })
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

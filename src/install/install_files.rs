@@ -23,36 +23,20 @@
 //! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
+//! are the original's.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::install::installer::{
-    ADD_ITEMS, COPY_COUNTED, DIR_COUNT, DIRS, FILE_COUNT, FILES, FILES_COPIED, FILES_TO_COPY,
-    GAME_DIR, IGNORE_ROOM, INSTALLED, INSTALLING, LIST_ANSWER, MAKE_FOLDERS, MEDIA_MODE, NORMALISE,
-    OFFER_REGISTRATION, PATH_A, PATH_B, PATH_PROBLEM, Part, ROOM_NEEDED, RUN_REGISTRATION,
-    RUN_SCRIPT, STATUS, TAKE_KEY, TYPED, a, append_byte, at, g, gb, p, pb, rb, rw, str_append,
-    str_append_indexed, wb, wd,
+    ADD_ITEMS, DIR_COUNT, DIRS, FILE_COUNT, FILES, FILES_COPIED, FILES_TO_COPY, GAME_DIR,
+    IGNORE_ROOM, INSTALLED, INSTALLING, LIST_ANSWER, MEDIA_MODE, OFFER_REGISTRATION, PATH_A,
+    PATH_B, PATH_PROBLEM, ROOM_NEEDED, RUN_REGISTRATION, STATUS, TYPED, a, append_byte, g,
+    game_api, gb, lock, normalise, p, pb, pump, rb, run_frame, rw, set_cd, show, sleep, str_append,
+    str_append_indexed, take_key, unlock, wb, wd,
 };
 
-const WRITE_REGISTRY: usize = 0x413DC5;
-const CHECK_FOLDER: usize = 0x413A6C;
-const IS_CD: usize = 0x403310;
-const FREE_SPACE: usize = 0x40317D;
-const SET_CD: usize = 0x403105;
-const WRITE_RECORD: usize = 0x411186;
-const REGISTER_LOBBY: usize = 0x419030;
-const RUN_FRAME: usize = 0x405A71;
-const LOCK: usize = 0x4058AD;
-const UNLOCK: usize = 0x405949;
-const SHOW: usize = 0x4057D1;
-const DRAW_LIST: usize = 0x402370;
-const SLEEP: usize = 0x41100C;
-const SLEEP_1MS: usize = 0x410FFE;
-const PUMP: usize = 0x410535;
 const SCRIPT_COUNT: usize = 0x51BD48; // byte_51BD48 (the count script)
 const ROOM_BY_MODE: usize = 0x51C3F7; // dword_51C3F7
-const PAGE_FRAME: usize = 0x413340;
-const PROGRESS_FRAME: usize = 0x413295;
 const COPY_SPARE: usize = 0x51BAF0; // dword_51BAF0
 const SOURCE_VAR: usize = 0x51BB8D; // g_installSource
 const SOURCE_SIZE: usize = 0x51BC90; // dword_51BC90
@@ -63,49 +47,30 @@ const README: usize = 0x51BE6F; // "files\%readme\readme.txt"
 const MANUAL: usize = 0x51BE88; // "files\%readme\manual.pdf"
 const QUITTING: usize = 0x51837C; // g_quitting
 
-/// `ebx` = `dst`, `extra` (esi or edx) the same, then `src_base` + name #ebp of `table`,
-/// NUL-ended (`loc_4131A3`, `loc_4131F5`).
-fn build(src_base: usize, dst: usize, table: usize, r: &mut Regs) {
-    r.ebx = a(dst);
-    r.eax = a(src_base);
-    str_append(r);
-    r.eax = g(table);
-    r.ecx = r.ebp;
-    str_append_indexed(r);
-    append_byte(r, 0);
-}
-
-/// `al` = `byte` (the rest of eax kept).
-fn set_al(r: &mut Regs, byte: u8) {
-    r.eax = (r.eax & !0xFF) | byte as u32;
+/// `to` = `base` + name `index` of `table`, NUL-ended (`loc_4131A3`, `loc_4131F5`).
+fn build(base: usize, to: usize, table: usize, index: u32) {
+    let cursor = str_append(a(base), a(to));
+    let cursor = str_append_indexed(g(table), index, cursor);
+    append_byte(cursor, 0);
 }
 
 /// The error (count 2, `unk_51D453`, y 0) or cancel (count 1, `unk_51D463`, y -0x32)
 /// message shown, then a wait for a key (`loc_4133AB`).
-fn message(r: &mut Regs, count: u32, table: usize, y: u32, part: Part) -> Result<(), Refused> {
-    r.eax = count;
-    r.ebx = a(table);
-    r.edx = y;
-    // pusha; xor eax, eax; call screens::run_frame; popa
-    let mut f = Regs { eax: 0, ..*r };
-    part(at(RUN_FRAME), &mut f)?;
-    part(at(LOCK), r)?;
-    if !r.carry() {
-        r.ecx = 0;
-        part(at(DRAW_LIST), r)?;
-        part(at(UNLOCK), r)?;
-        part(at(SHOW), r)?;
+fn message(count: u32, table: usize, y: u32) -> Result<(), Refused> {
+    run_frame(None)?;
+    if lock() {
+        crate::install::draw_string_list::draw_string_list(count, a(table), 0, y)?;
+        unlock();
+        show();
     }
-    r.eax = 500;
-    part(at(SLEEP), r)?;
-    part(at(TAKE_KEY), r)?;
+    sleep(500);
+    take_key();
     loop {
-        part(at(TAKE_KEY), r)?;
-        if r.eflags & crate::framework::ZERO_FLAG == 0 {
+        if take_key() != 0 {
             break;
         }
-        part(at(SLEEP_1MS), r)?;
-        part(at(PUMP), r)?;
+        sleep(1);
+        pump();
         if g(QUITTING) == 1 {
             break;
         }
@@ -113,174 +78,130 @@ fn message(r: &mut Regs, count: u32, table: usize, y: u32, part: Part) -> Result
     Ok(())
 }
 
-/// The Rust version, register for register as the original (its calls get what it has).
-pub fn install_files(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    let mut r = *entry;
+/// The installer's page frames (`screens::run_frame` runs them).
+fn copying_frame() -> Result<bool, Refused> {
+    crate::install::install_frames::copying_frame()
+}
+
+fn progress_frame() -> Result<bool, Refused> {
+    crate::install::install_frames::progress_frame()
+}
+
+pub fn install_files() -> Result<(), Refused> {
+    use crate::install as i;
     pb(STATUS, 0x80);
-    part(at(WRITE_REGISTRY), &mut r)?;
-    r.esi = a(GAME_DIR);
-    r.edx = a(GAME_DIR);
-    part(at(NORMALISE), &mut r)?;
-    r.ebx = a(SCRIPT_COUNT);
-    part(at(RUN_SCRIPT), &mut r)?;
-    r.eax = 0;
+    i::write_registry::write_registry(&mut game_api)?;
+    normalise(a(GAME_DIR), a(GAME_DIR))?;
+    i::run_script::run_script(a(SCRIPT_COUNT))?;
     p(FILES_COPIED, 0);
     p(COPY_SPARE, 0);
-    r.eax = g(FILE_COUNT);
-    p(FILES_TO_COPY, r.eax);
-    r.eax = g(MEDIA_MODE);
-    r.eax = unsafe {
+    p(FILES_TO_COPY, g(FILE_COUNT));
+    let room = unsafe {
         (a(ROOM_BY_MODE) as *const u32)
-            .add(r.eax as usize)
+            .add(g(MEDIA_MODE) as usize)
             .read_unaligned()
     };
-    p(ROOM_NEEDED, r.eax);
-    r.esi = a(TYPED);
-    r.edx = a(INSTALLED);
-    part(at(NORMALISE), &mut r)?;
+    p(ROOM_NEEDED, room);
     // loc_413130: the path is bad; loc_4134D6: no room or not a CD.
-    let bad_path = || -> Result<Regs, Refused> {
+    let bad_path = || {
         p(PATH_PROBLEM, 1);
         pb(LIST_ANSWER, 0);
-        Ok(*entry)
+        Ok(())
     };
-    if r.carry() {
+    if !normalise(a(TYPED), a(INSTALLED))? {
         return bad_path();
     }
-    part(at(CHECK_FOLDER), &mut r)?;
-    if r.carry() {
+    if i::check_folder_name::check_folder_name(a(INSTALLED)) {
         return bad_path();
     }
-    if rw(r.esi) != 0x5C5C {
-        let drive = rb(r.edx);
-        set_al(&mut r, drive);
-        part(at(FREE_SPACE), &mut r)?;
-        if r.carry() {
+    if rw(a(TYPED)) != 0x5C5C {
+        let Some(free) = crate::files::drive_free_space_kb::drive_free_space_kb(
+            rb(a(INSTALLED)) as u32,
+            &mut game_api,
+        ) else {
             return bad_path();
-        }
-        if r.eax < g(ROOM_NEEDED) && g(IGNORE_ROOM) != 1 {
+        };
+        if free < g(ROOM_NEEDED) && g(IGNORE_ROOM) != 1 {
             p(PATH_PROBLEM, 2);
             pb(LIST_ANSWER, 3);
-            return Ok(*entry);
+            return Ok(());
         }
     }
-    part(at(MAKE_FOLDERS), &mut r)?;
-    if r.carry() {
+    if !i::make_folders::make_folders(a(INSTALLED))? {
         return bad_path();
     }
-    set_al(&mut r, rb(a(GAME_DIR)));
-    part(at(IS_CD), &mut r)?;
-    // The standalone installs from the download folder as well (owner, 2026-10-20).
-    r.set_zero(true);
-
-    if r.eflags & crate::framework::ZERO_FLAG == 0 {
-        pb(LIST_ANSWER, 3);
-        return Ok(*entry);
-    }
-    r.eax = a(PAGE_FRAME);
-    part(at(RUN_FRAME), &mut r)?;
+    // Its answer is not read: the standalone installs from the download folder as well
+    // (owner, 2026-10-20).
+    unsafe { crate::files::is_cd_drive::is_cd_drive(rb(a(GAME_DIR))) };
+    run_frame(Some(copying_frame))?;
     // the folders
     if g(DIR_COUNT) != 0 {
-        r.ebp = 0;
-        loop {
-            r.edx = a(PATH_B);
-            build(INSTALLED, PATH_B, DIRS, &mut r);
-            part(at(MAKE_FOLDERS), &mut r)?;
-            if r.carry() {
-                message(&mut r, 2, MSG_ERROR, 0, part)?;
-                return Ok(*entry);
-            }
-            r.ebp = r.ebp.wrapping_add(1);
-            if r.ebp == g(DIR_COUNT) {
-                break;
+        for n in 0..g(DIR_COUNT) {
+            build(INSTALLED, PATH_B, DIRS, n);
+            if !i::make_folders::make_folders(a(PATH_B))? {
+                return message(2, MSG_ERROR, 0);
             }
         }
-        r.edx = a(GAME_DIR);
-        part(at(SET_CD), &mut r)?;
+        set_cd(a(GAME_DIR));
     }
     // the files
     if g(FILE_COUNT) != 0 {
-        r.ebp = 0;
+        let mut n = 0;
         loop {
-            r.esi = a(PATH_A);
-            build(GAME_DIR, PATH_A, FILES, &mut r);
-            r.edi = a(PATH_B);
-            build(INSTALLED, PATH_B, FILES, &mut r);
-            part(at(COPY_COUNTED), &mut r)?;
-            if r.carry() {
-                message(&mut r, 2, MSG_ERROR, 0, part)?;
-                return Ok(*entry);
+            build(GAME_DIR, PATH_A, FILES, n);
+            build(INSTALLED, PATH_B, FILES, n);
+            // 0x413242: a failed copy is the error message.
+            if !i::copy_counted::copy_counted(a(PATH_A), a(PATH_B))? {
+                return message(2, MSG_ERROR, 0);
             }
-            r.eax = a(PROGRESS_FRAME);
-            part(at(RUN_FRAME), &mut r)?;
-            if r.carry() {
-                r.eax = a(PAGE_FRAME);
-                part(at(RUN_FRAME), &mut r)?;
+            if run_frame(Some(progress_frame))? {
+                run_frame(Some(copying_frame))?;
             }
-            part(at(TAKE_KEY), &mut r)?;
-            if r.eax as u8 == 1 {
-                message(&mut r, 1, MSG_CANCEL, 0xFFFF_FFCE, part)?;
-                return Ok(*entry);
+            if take_key() == 1 {
+                return message(1, MSG_CANCEL, 0xFFFF_FFCE);
             }
-            r.ebp = r.ebp.wrapping_add(1);
-            if r.ebp == g(FILE_COUNT) {
+            n = n.wrapping_add(1);
+            if n == g(FILE_COUNT) {
                 break;
             }
         }
     }
-    r.edx = a(INSTALLED);
-    part(at(SET_CD), &mut r)?;
-    part(at(WRITE_RECORD), &mut r)?;
-    if r.carry() {
-        message(&mut r, 2, MSG_ERROR, 0, part)?;
-        return Ok(*entry);
+    // 0x413280: the change of folder's result is not looked at; 0x41328A: a failed
+    // record write is the error message.
+    set_cd(a(INSTALLED));
+    if !i::write_record::write_record()? {
+        return message(2, MSG_ERROR, 0);
     }
     if gb(LOCALE) != 0 {
         // readme.txt then manual.pdf
         for (full, base) in [(README, README + 0xE), (MANUAL, MANUAL + 0xE)] {
-            r.ebx = a(PATH_A);
-            r.esi = r.ebx;
-            r.eax = a(GAME_DIR);
-            str_append(&mut r);
-            r.eax = a(full);
-            str_append(&mut r);
-            append_byte(&mut r, 0);
-            r.edi = a(base);
-            part(at(COPY_COUNTED), &mut r)?;
+            let cursor = str_append(a(GAME_DIR), a(PATH_A));
+            let cursor = str_append(a(full), cursor);
+            append_byte(cursor, 0);
+            // Not looked at (0x413435, 0x413463).
+            i::copy_counted::copy_counted(a(PATH_A), a(base))?;
         }
     }
     pb(LIST_ANSWER, 2);
-    r.eax = 1000;
-    part(at(SLEEP), &mut r)?;
+    sleep(1000);
     pb(STATUS, 1);
     // byte_95E7F8 copied to g_installSource; dword_51BC90 its length with the NUL
-    r.esi = a(INSTALLED);
-    r.edi = a(SOURCE_VAR);
-    r.ecx = 0;
+    let mut n = 0;
     loop {
-        let b = rb(r.esi.wrapping_add(r.ecx));
-        set_al(&mut r, b);
-        wb(r.edi.wrapping_add(r.ecx), b);
-        r.ecx = r.ecx.wrapping_add(1);
+        let b = rb(a(INSTALLED) + n);
+        wb(a(SOURCE_VAR) + n, b);
+        n += 1;
         if b == 0 {
             break;
         }
     }
-    wd(a(SOURCE_SIZE), r.ecx);
-    part(at(WRITE_REGISTRY), &mut r)?;
-    part(at(REGISTER_LOBBY), &mut r)?;
+    wd(a(SOURCE_SIZE), n);
+    i::write_registry::write_registry(&mut game_api)?;
+    i::register_lobby::register_lobby(&mut game_api)?;
     p(ADD_ITEMS, 1);
     p(INSTALLING, 1);
     if g(OFFER_REGISTRATION) == 1 {
         p(RUN_REGISTRATION, 1);
     }
-    Ok(*entry)
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    crate::race::viewer::regs_entry(r, &|r| {
-        install_files(r, &mut crate::install::installer::game_part)
-    })
+    Ok(())
 }

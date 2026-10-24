@@ -11,24 +11,19 @@
 //! Self-test: `physics/camera_view.rs` (`view_test_floats`), modes and times by lot,
 //! exact at double precision; at extended a step may land one off (<< 16 in the angle).
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
-use crate::framework::{EAX, ESI, Regs};
 use crate::physics::camera_view::{rd, record, share_done};
 use crate::physics::flow::{base, g, p, x87_run};
-use crate::screens::harness::Left;
 
 /// The Rust version (the exact one, for `physics::update_camera`).
-pub unsafe fn ease_view_angles(entry: &Regs) -> Left {
+pub unsafe fn ease_view_angles() {
     let esi = record();
-    let left = Left::nothing().with(ESI, esi);
     if rd(esi + 0x3C) == 0 {
-        return left;
+        return;
     }
     share_done(esi);
-    let mut eax = entry.eax;
     for (k, to) in [0x71A694usize, 0x71A698, 0x71A69C].iter().enumerate() {
         x87_run!(
             "fld dword ptr [{s}]",
@@ -37,8 +32,6 @@ pub unsafe fn ease_view_angles(entry: &Regs) -> Left {
             "fistp dword ptr [{b} + 0x22400C]";
             b = base(), s = esi + 0x40 + 4 * k as u32
         );
-        eax = g(0x62400C) << 16;
-        p(*to, g(*to).wrapping_add(eax));
+        p(*to, g(*to).wrapping_add(g(0x62400C) << 16));
     }
-    left.with(EAX, eax)
 }

@@ -4,10 +4,10 @@
 //! Out: eax = the tick count; every other register preserved
 //!
 //! 21 callers (`race::load_stage` and the race's code).
-//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
-//! `routes.rs`); the registers above are the original's, for reference.
+//! Hook removed 2026-10-22; plain Rust since 2026-10-23 (phase 3): the registers above
+//! are the original's; a call by address goes through `routes.rs`, which maps them.
 
-use crate::framework::{Regs, game_write, rva};
+use crate::framework::{game_write, rva};
 
 pub const CLOCK_RVA: usize = rva(0x613830); // g_sceneClock
 
@@ -15,10 +15,4 @@ pub const CLOCK_RVA: usize = rva(0x613830); // g_sceneClock
 pub fn restart_clock(now: u32) -> u32 {
     unsafe { game_write(CLOCK_RVA, now) };
     now
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    r.eax = restart_clock(crate::system::tick_count::tick_count());
-    Ok(())
 }

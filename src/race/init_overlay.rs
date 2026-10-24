@@ -1,9 +1,7 @@
 //! `race::init_overlay` (0x45A9DE): the overlay's stage parts (`initoverlay`).
 //!
 //! In:  nothing
-//! Out: edx 8, ecx 8, esi the eighth car's block; with the parts made, ebp their count,
-//!      eax the last part's difference, ebx its first checkpoint; with two kinds or more but
-//!      no parts, ebp `dword_601830`; the rest preserved
+//! Out: nothing its caller reads (conversion phase 3, 2026-10-24)
 //!
 //! The parts are the stretches between the checkpoints `race::init_checkpoints` listed
 //! (`dword_60102C`, `dword_601830` of them): each one's length, the difference of its two
@@ -26,10 +24,8 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, game_read, rva};
+use crate::framework::{game_addr, game_read, rva};
 use crate::math::x87;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 /// The overlay's variables: 0x6D1460 .. 0x6D180C (unaligned, packed).
 const BLOCK: usize = 0x6D1460;
@@ -85,28 +81,23 @@ unsafe fn put(at: u32, value: u32) {
 }
 
 /// `race::init_overlay` (see the header).
-pub unsafe fn init_overlay(entry: &Regs, v: &OverlayVars) -> Result<Regs, Refused> {
-    let mut g = *entry;
+pub unsafe fn init_overlay(v: &OverlayVars) -> Result<(), Refused> {
     unsafe {
         // Converted: `rc2k_core::race::panel::{overlay_parts, half_length, OVERLAY_SIZES,
         // OVERLAY_CLEARED}`; the miles the x87's.
         use rc2k_core::race::panel::{OVERLAY_CLEARED, OVERLAY_SIZES, half_length, overlay_parts};
         let (found, parts) = overlay_parts(get(v.kinds), || get(v.found))?;
         if let Some(count) = found {
-            g.ebp = count;
             put(v.of(PARTS), count);
         }
         match parts {
             Some(count) => {
                 put(v.of(MILES), 0);
                 let (scale, mile): (u32, u32) = (game_read(SCALE_RVA), game_read(MILE_RVA));
+                let distance = |k: u32| get(v.distances.wrapping_add(k.wrapping_mul(4)));
                 for n in 0..count {
-                    g.ebx = get(v.list + 4 * n + 4);
-                    g.eax = get(v.distances.wrapping_add(g.ebx.wrapping_mul(4)));
-                    g.ebx = get(v.list + 4 * n);
-                    let (end, start) =
-                        (g.eax, get(v.distances.wrapping_add(g.ebx.wrapping_mul(4))));
-                    g.eax = end.wrapping_sub(start);
+                    let end = distance(get(v.list + 4 * n + 4));
+                    let start = distance(get(v.list + 4 * n));
                     let half = half_length(end, start);
                     put(v.scratch, half);
                     let miles = x87::int_div_div_doubled(half as i32, scale, mile);
@@ -128,28 +119,14 @@ pub unsafe fn init_overlay(entry: &Regs, v: &OverlayVars) -> Result<Regs, Refuse
             put(v.of(variable), value);
         }
         for n in 0..CARS {
-            g.esi = get(v.car_blocks + 4 * n);
+            let block = get(v.car_blocks + 4 * n);
             for off in OVERLAY_CLEARED {
-                put(g.esi + off, 0);
+                put(block + off, 0);
             }
         }
-        g.ecx = 8;
-        g.edx = CARS;
         for variable in CLEARED {
             put(v.of(variable), 0);
         }
     }
-    Ok(g)
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(crate::race::stage_prefs::left_of(&unsafe {
-        init_overlay(r, &OverlayVars::game())
-    }?))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
+    Ok(())
 }

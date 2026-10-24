@@ -4,7 +4,7 @@
 //! the colour (as one dword, carries crossing components), into `dword_8DB464`.
 //!
 //! In:  nothing
-//! Out: eax the last entry, ebx, ecx the green and blue inverses, esi past the entries
+//! Out: nothing (its caller reads no register after it)
 //!
 //! One caller, `sub_4C25F6`. Self-test: the original and the Rust version on several
 //! colours and steps, at the test precisions; put back afterwards.
@@ -13,7 +13,7 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 use crate::math::x87;
 
 const COLOUR_RVA: usize = rva(0x6415E4); // dword_6415E4
@@ -26,27 +26,25 @@ const SCALED_RVA: usize = rva(0x8DB4B8); // three dwords
 const GROWTH_RVA: usize = rva(0x7651C4); // flt_7651C4
 
 /// The Rust version (see the header).
-pub unsafe fn make_fade_colours(entry: &Regs) -> Regs {
-    let mut g = *entry;
+pub unsafe fn make_fade_colours() {
     unsafe {
         let colour: u32 = game_read(COLOUR_RVA);
-        g.eax = ((colour >> 16) & 0xFF) ^ 0xFF;
-        g.ebx = ((colour >> 8) & 0xFF) ^ 0xFF;
-        g.ecx = (colour & 0xFF) ^ 0xFF;
-        game_write(INVERSES_RVA, [g.eax, g.ebx, g.ecx]);
+        let inverses = [
+            ((colour >> 16) & 0xFF) ^ 0xFF,
+            ((colour >> 8) & 0xFF) ^ 0xFF,
+            (colour & 0xFF) ^ 0xFF,
+        ];
+        game_write(INVERSES_RVA, inverses);
         game_write(STEP_RVA, 0u32);
-        g.esi = game_addr(FADES_RVA) as u32;
-        for _ in 0..FADES {
+        for n in 0..FADES as usize {
             let step: u32 = game_read(STEP_RVA);
             let inverses: [i32; 3] = game_read(INVERSES_RVA);
             let scaled = inverses.map(|v| x87::int_times_to_int(v, step));
             game_write(SCALED_RVA, scaled);
             let [r, gr, b] = scaled.map(|v| v as u32 & 0xFF);
-            g.eax = (0xFF00_0000 | r << 16 | gr << 8 | b).wrapping_add(game_read(COLOUR_RVA));
-            (g.esi as *mut u32).write_unaligned(g.eax);
-            g.esi += 4;
+            let fade = (0xFF00_0000 | r << 16 | gr << 8 | b).wrapping_add(game_read(COLOUR_RVA));
+            game_write(FADES_RVA + 4 * n, fade);
             game_write(STEP_RVA, x87::add(step, game_read(GROWTH_RVA)));
         }
     }
-    g
 }

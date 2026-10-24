@@ -6,80 +6,44 @@
 //! (DPSYS_HOST) this machine the host (`g_netOwnRecord` bit 0x10 set, bit 1 ready cleared),
 //! `dword_52AD8C` 1 and the stage item open (`dword_52AC2C` 1). Others: nothing.
 //!
-//! In:  ebx = the message
-//! Out: every register kept (`pusha` .. `popa`); the flags of its last compare or `and`,
-//!      `destroy_connection`'s for 0x31, after `DeletePlayerFromGroup` the method's (not
-//!      modelled: the Rust version leaves the compare's); the one caller does not read them
-//! Caller: `net::take_messages`. `destroy_connection` through `part`,
-//! `DeletePlayerFromGroup` from Rust (`net::dplay`, section 15). Refuses nothing. Shadow
-//! mode runs the original alone. Self-test: a copy whose variables are the test's, whose
-//! call goes to a noting stand-in and whose DirectPlay is a test object, against the Rust
-//! version: each kind.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! In:  `message` (ebx)
+//! Out: nothing (every register kept, `pusha` .. `popa`; its flags are read by no caller:
+//!      the one caller goes on to its loop's test)
+//! Caller: `net::take_messages`. `DeletePlayerFromGroup` from Rust (`net::dplay`, section
+//! 15). Refuses nothing but what `net::destroy_connection` refuses.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
+use crate::net::destroy_connection::destroy_connection;
 use crate::net::dplay::{DELETE_PLAYER_FROM_GROUP, method};
-use crate::net::lobby::{cmp_flags, set_sign};
-use crate::net::message_vars::{MessageVars, get, get8, set, set8};
-use crate::net::{DESTROY, Part, net_entry};
+use crate::net::lobby::{DPLAY, OWN, SEND_TO, STAGE_ITEM, SYNC_FIRST, g, gb, p, pb};
 use rc2k_core::net::players::{A_PLAYER, System, made_host};
 
-pub const CREATE_PLAYER_OR_GROUP: u32 = 3;
-pub const HOST: u32 = 0x101;
-
-/// The Rust version on the variables at `v`.
-pub fn system_message_with(r: &mut Regs, v: &MessageVars, part: Part) -> Result<(), Refused> {
-    let kind = get(r.ebx);
+/// The Rust version.
+pub fn system_message(message: u32) -> Result<(), Refused> {
+    let get = |at: u32| unsafe { (at as *const u32).read_volatile() };
+    let kind = get(message);
     // Converted: `rc2k_core::net::players` (`System`, `made_host`).
     match System::of(kind) {
-        System::Created => {
-            cmp_flags(r, kind, CREATE_PLAYER_OR_GROUP);
-            set(v.sync_first, 1);
-        }
+        System::Created => p(SYNC_FIRST, 1),
         System::Destroyed => {
-            set(v.sync_first, 1);
-            let what = get(r.ebx + 4);
-            cmp_flags(r, what, A_PLAYER);
-            if what == A_PLAYER {
+            p(SYNC_FIRST, 1);
+            if get(message + 4) == A_PLAYER {
                 unsafe {
                     method(
-                        get(v.dplay),
+                        g(DPLAY),
                         DELETE_PLAYER_FROM_GROUP,
-                        &[get(v.send_to), get(r.ebx + 8)],
+                        &[g(SEND_TO), get(message + 8)],
                     )
                 };
             }
         }
-        System::SessionLost => {
-            let mut c = Regs { eax: kind, ..*r };
-            part(DESTROY, &mut c)?;
-            r.eflags = c.eflags;
-        }
+        System::SessionLost => destroy_connection()?,
         System::Host => {
-            let own = made_host(get8(v.own));
-            set8(v.own, own);
-            r.set_carry(false);
-            r.set_zero(own == 0);
-            set_sign(r, own as i8 as i32);
-            set(v.sync_first, 1);
-            set(v.stage_item, 1);
+            pb(OWN, made_host(gb(OWN)));
+            p(SYNC_FIRST, 1);
+            p(STAGE_ITEM, 1);
         }
-        System::Other => cmp_flags(r, kind, HOST),
+        System::Other => {}
     }
     Ok(())
-}
-
-/// The Rust version.
-pub fn system_message(r: &mut Regs, part: Part) -> Result<(), Refused> {
-    system_message_with(r, &MessageVars::game(), part)
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    net_entry(r, system_message)
 }

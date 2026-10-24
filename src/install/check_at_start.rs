@@ -25,7 +25,7 @@ use crate::errors::{BadInput, FatalError, Refused};
 use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::install::outside::Outside;
 use crate::install::read_registry::{SOURCE_RVA, STATUS_RVA};
-use crate::install::runs_from_source::SCRATCH_PATH_RVA;
+use crate::install::runs_from_source::scratch_path;
 
 // ---- game data ----
 
@@ -69,7 +69,7 @@ pub unsafe fn check_at_start(outside: &mut dyn Outside, no_audio: *mut u32) -> R
         if outside.file_exists(game_addr(DATA_FILE_RVA) as *const u8)? {
             return Ok(());
         }
-        let path = game_addr(SCRATCH_PATH_RVA) as *mut u8;
+        let path = scratch_path();
         let put = |at: usize, text: &[u8]| {
             std::ptr::copy(text.as_ptr(), path.add(at), text.len());
             path.add(at + text.len()).write(0);

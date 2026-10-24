@@ -22,23 +22,8 @@
 
 use crate::drive::tyre_parts::*;
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::physics::flow::{a, g, p};
 use rc2k_core::drive::tyre_screen::{layout, wheel_place};
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    {
-        let g = unsafe { tyre_screen(r) }?;
-        let esp = r.esp;
-        *r = Regs {
-            eflags: r.eflags,
-            ..g
-        };
-        r.esp = esp;
-    }
-    Ok(())
-}
 
 const STATES: [(u32, u32); 11] = [
     (2, 0x15),
@@ -54,10 +39,9 @@ const STATES: [(u32, u32); 11] = [
     (0, 0xF),
 ];
 
-/// The Rust version, the calls through `part`.
+/// The Rust version: the mode `mode` (eax), the car `car` (esi); every register kept.
 // Converted: `rc2k_core::drive::tyre_screen::{layout, wheel_place}`.
-pub unsafe fn tyre_screen(entry: &Regs) -> Result<Regs, Refused> {
-    let (mode, car) = (entry.eax, entry.esi);
+pub unsafe fn tyre_screen(mode: u32, car: u32) -> Result<(), Refused> {
     if car > 7 {
         return Err(crate::errors::BadInput("a car past 7 (g_inputDevices)").into());
     }
@@ -73,32 +57,19 @@ pub unsafe fn tyre_screen(entry: &Regs) -> Result<Regs, Refused> {
     p(0x5BEAE4, y);
     p(0x5BEBEC, car);
     let device = g(0x4F6EE8 + 4 * car as usize);
-    // ebx the table (the copy's source), ecx and edx the wheel's place (the sums).
-    let mut r = Regs {
-        ebx: a(table),
-        ecx: g(0x5BEAE0),
-        edx: g(0x5BEAE4),
-        esi: device,
-        edi: mode,
-        ..*entry
-    };
-    r.eax = g(0x5BEBE4);
-    crate::drive::tyre_parts::game_part(TEXTURE, &mut r)?;
+    set_texture(g(0x5BEBE4));
     for (value, state) in STATES {
-        r.eax = value;
-        r.ebx = state;
-        crate::drive::tyre_parts::game_part(STATE, &mut r)?;
+        set_render_state(value, state);
     }
-    for (uv, rect, place) in [
-        (0x5BEB00, 0x5BEAD0, QUAD),
-        (0x5BEB10, 0x5BEAE0, QUAD),
-        (0x5BEB20, 0x5BEAF0, TURNED),
-    ] {
-        r.eax = a(uv);
-        r.ebx = a(rect);
-        r.ecx = 0xFF_FFFF;
-        crate::drive::tyre_parts::game_part(place, &mut r)?;
+    unsafe {
+        crate::drive::tyre_quad::tyre_quad(a(0x5BEB00), a(0x5BEAD0), 0xFF_FFFF)?;
+        crate::drive::tyre_quad::tyre_quad(a(0x5BEB10), a(0x5BEAE0), 0xFF_FFFF)?;
+        crate::drive::tyre_turned_quad::tyre_turned_quad(
+            a(0x5BEB20),
+            a(0x5BEAF0),
+            0xFF_FFFF,
+            device,
+        )?;
+        crate::drive::tyre_screen_parts::tyre_screen_parts()
     }
-    crate::drive::tyre_parts::game_part(PARTS, &mut r)?;
-    Ok(*entry)
 }

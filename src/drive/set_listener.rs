@@ -32,14 +32,12 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{EAX, EBP, EBX, ECX, EDI, EDX, ESI};
 use crate::math::x87;
 use crate::math::x87_run::{ext_to_int, int_80, int_over_int_plus};
 use crate::physics::mirror::Mirror;
 use crate::race::mud::car_file_number;
 use crate::scene::matrix::multiply_matrices;
 use crate::scene::rotate_point::rotate_point;
-use crate::screens::harness::Left;
 use rc2k_core::drive::listener;
 
 const TURNED: u32 = 0x5EA10C; // g_turnedMatrix
@@ -64,9 +62,10 @@ unsafe fn figures(m: &Mirror) -> Result<[i32; 6], Refused> {
     }
 }
 
-/// The Rust core on the variables `m` reaches.
+/// The Rust core on the variables `m` reaches. The registers it leaves are read by no
+/// caller (liveness: eax and ebx after `share_all_cars`' call have no read point).
 // Converted: `rc2k_core::drive::listener` (the matrices, turns and x87 sums stay).
-pub unsafe fn set_listener_at(m: &Mirror) -> Result<Left, Refused> {
+pub unsafe fn set_listener_at(m: &Mirror) -> Result<(), Refused> {
     unsafe {
         let f = figures(m)?;
         let g = |v: u32| m.get(v);
@@ -147,18 +146,11 @@ pub unsafe fn set_listener_at(m: &Mirror) -> Result<Left, Refused> {
             m.put(0x5C5684, 0);
             m.put(0x5C5680, 0);
         }
-        Ok(Left::nothing()
-            .with(EAX, old)
-            .with(EBX, 0x10000)
-            .with(ECX, 0)
-            .with(EDX, 0)
-            .with(ESI, made)
-            .with(EDI, m.a(0x5EA10C))
-            .with(EBP, made))
+        Ok(())
     }
 }
 
 /// The Rust version.
-pub unsafe fn set_listener() -> Result<Left, Refused> {
+pub unsafe fn set_listener() -> Result<(), Refused> {
     unsafe { set_listener_at(&Mirror::game()) }
 }

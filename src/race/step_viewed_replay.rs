@@ -20,49 +20,30 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
-use crate::physics::flow::a;
-use crate::race::viewer::{AT_END, BLOCK, BLOCKS, FRAME, OPEN, PLAY_END, get, put, regs_entry};
+use crate::race::viewer::{AT_END, BLOCK, BLOCKS, FRAME, OPEN, PLAY_END, get, put};
 
-/// The Rust version: the registers and flags it leaves.
-pub fn step_viewed_replay(entry: &Regs) -> Result<Regs, Refused> {
-    let mut r = *entry;
-    let stop = |r: &mut Regs, at_end: bool| {
+/// The Rust version: whether it stopped (the carry the original leaves; it leaves ebx and
+/// the zero flag too, and no caller reads them).
+pub fn step_viewed_replay() -> Result<bool, Refused> {
+    let stop = |at_end: bool| {
         if at_end {
             put(AT_END, 1);
         }
-        r.set_carry(true);
+        true
     };
     // Converted: `rc2k_core::race::viewer::step`.
     use rc2k_core::race::viewer::{Step, step};
     let open = get(OPEN) == 1;
     let (block, frame) = (get(BLOCK), get(FRAME));
     let (block, frame) = match step(open, block, frame, get(BLOCKS), get(PLAY_END)) {
-        Step::Closed => {
-            stop(&mut r, true);
-            r.set_zero(false);
-            return Ok(r);
-        }
-        Step::AtLast { last } => {
-            r.ebx = frame;
-            stop(&mut r, true);
-            r.set_zero(last);
-            return Ok(r);
-        }
-        Step::PlayEnd { end } => {
-            r.ebx = 0;
-            stop(&mut r, false);
-            r.set_zero(end);
-            return Ok(r);
-        }
+        Step::Closed | Step::AtLast { .. } => return Ok(stop(true)),
+        Step::PlayEnd { .. } => return Ok(stop(false)),
         Step::On { block, frame, read } => {
-            r.ebx = frame;
             if read {
                 let failed =
                     { unsafe { crate::drive::read_replay_frame::read_replay_frame(block, 0) } }?;
                 if failed {
-                    stop(&mut r, true);
-                    return Ok(r);
+                    return Ok(stop(true));
                 }
             }
             (block, frame)
@@ -70,14 +51,5 @@ pub fn step_viewed_replay(entry: &Regs) -> Result<Regs, Refused> {
     };
     put(BLOCK, block);
     put(FRAME, frame);
-    r.ebx = (a(crate::race::viewer::BLOCK_DATA) + 0x2000).wrapping_add(frame.wrapping_mul(16));
-    r.set_carry(false);
-    r.set_zero(get(FRAME) == 0);
-    Ok(r)
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    regs_entry(r, &step_viewed_replay)
+    Ok(false)
 }

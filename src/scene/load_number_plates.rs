@@ -25,9 +25,9 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, rva};
+use crate::framework::{game_addr, game_read, rva};
 use crate::scene::known_kind_plate::known_kind_plate;
-use crate::scene::upload_plate::upload_plate_in_game;
+use crate::scene::upload_plate::{Plate, upload_plate};
 
 // ---- game data ----
 
@@ -45,16 +45,14 @@ const NAMES: [usize; 4] = [rva(0x60AEB7), rva(0x60AECA), rva(0x60AEDD), rva(0x60
 
 // ---- Rust version ----
 
-/// `upload` is called with the registers the original hands `scene::upload_plate`.
+/// The Rust version. The registers the original leaves (the last plate's, or ebx -1 when
+/// kind 0xC1 has no texture) are read by no caller (taint at its one site, in
+/// `reload_system_textures`: 0 read points).
 // Converted: `rc2k_core::scene::plates`
-pub unsafe fn load_number_plates(
-    r: &mut Regs,
-    upload: &mut dyn FnMut(&mut Regs) -> Result<(), Refused>,
-) -> Result<(), Refused> {
+pub unsafe fn load_number_plates() -> Result<(), Refused> {
     use rc2k_core::scene::plates;
     unsafe {
         let texture: u32 = game_read(TEXTURE_RVA);
-        r.ebx = texture;
         if texture == u32::MAX {
             return Ok(());
         }
@@ -73,25 +71,18 @@ pub unsafe fn load_number_plates(
             known_kind_plate(game_read(OTHER_CAR_RVA)),
         ];
         plates::check_numbers(numbers)?;
-        for (number, ebp) in numbers.into_iter().zip(plates::ROWS) {
+        for (number, target_y) in numbers.into_iter().zip(plates::ROWS) {
             let names = plates::pictures(number);
-            r.eax = game_addr(NAMES[names]) as u32;
-            r.ecx = game_addr(NAMES[names + 1]) as u32;
-            r.edx = game_read(FIRSTS_RVA + number as usize * 4);
-            r.esi = game_read(SECONDS_RVA + number as usize * 4);
-            r.edi = plates::COLUMN;
-            r.ebp = ebp;
-            r.ebx = texture;
-            upload(r)?;
+            upload_plate(&Plate {
+                sheet: game_addr(NAMES[names]) as u32,
+                alpha_sheet: game_addr(NAMES[names + 1]) as u32,
+                texture,
+                sheet_x: game_read(FIRSTS_RVA + number as usize * 4),
+                sheet_y: game_read(SECONDS_RVA + number as usize * 4),
+                target_x: plates::COLUMN,
+                target_y,
+            })?;
         }
         Ok(())
-    }
-}
-
-/// With the game's upload.
-pub unsafe fn load_number_plates_in_game(r: &mut Regs) -> Result<(), Refused> {
-    unsafe {
-        // pusha .. popa: what it is given is what it leaves.
-        load_number_plates(r, &mut |r| upload_plate_in_game(r))
     }
 }

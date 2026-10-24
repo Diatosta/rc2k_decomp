@@ -16,22 +16,13 @@
 //! (`menu::table_calls`).
 
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::menu::event_flow::*;
 use crate::menu::flow_game::Game;
+use crate::menu::screen_loop::Carried;
 use rc2k_core::menu::rounds;
 
-flow_hook!(
-    "menu::single_rally_four",
-    0x482B7A,
-    single_rally_four,
-    test,
-    copy(0x321, CALLS)
-);
-
-pub unsafe fn single_rally_four(entry: &Regs, call: Call) -> Result<Regs, Refused> {
+pub unsafe fn single_rally_four(c: &Carried) -> Result<(), Refused> {
     players_there(4)?;
     // Converted: `rc2k_core::menu::rounds::single_rally_four`.
-    rounds::single_rally_four(&mut Game::new(entry, call))?;
-    Ok(*entry)
+    rounds::single_rally_four(&mut Game::new(c))
 }

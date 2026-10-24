@@ -18,10 +18,8 @@
 
 use crate::drive::race_parts::log_line;
 use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, rva};
+use crate::framework::{game_addr, rva};
 use crate::physics::flow::{g, p};
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
 use rc2k_core::drive::finish_routine::{self, Set, Var};
 
 const B: usize = 0x70F3EC;
@@ -73,10 +71,14 @@ fn set_up() {
 
 /// The Rust version.
 // Converted: `rc2k_core::drive::finish_routine`.
-pub unsafe fn finish_race(entry: &Regs) -> Result<Left, Refused> {
-    let mut r = *entry;
-    r.eax = g(0x64BB1C + 4 * g(0x75B0FC) as usize);
-    p(0x623850, r.eax);
+///
+/// The caller's ecx, which the original hands through `race::load_stage` and
+/// `drive::race_init` to `race::checkpoint_distances`, is never read there (that function
+/// is reached only with two checkpoints or more; conversion phase 3, 2026-10-24). The
+/// registers this leaves are read by no caller (liveness: esi after the menus' calls has
+/// no read point).
+pub unsafe fn finish_race() -> Result<(), Refused> {
+    p(0x623850, g(0x64BB1C + 4 * g(0x75B0FC) as usize));
     p(0x623858, g(0x75B104));
     p(B + 0x24, g(0x623858));
     p(B + 0xAA8, g(0x75B100));
@@ -90,24 +92,17 @@ pub unsafe fn finish_race(entry: &Regs) -> Result<Left, Refused> {
     log_number(g(B + 0xAA8));
     set_up();
     unsafe {
-        let indent = game_addr(rva(0x4E00A0)) as u32;
-        r = crate::race::stage_loading::load_stage(
-            &r,
-            indent,
-            &mut crate::race::stage_loading::game_part,
-        )?;
+        crate::race::stage_loading::load_stage()?;
         p(var(finish_routine::BEFORE_RUN), 0);
-        crate::drive::finish_run::finish_run(&r)?.apply(&mut r);
-        r = crate::race::race_end::tidy_everything(
-            &r,
-            &crate::race::loadlevel::LoadVars::game(),
-            &mut crate::race::race_end::tidy_part,
-        )?;
+        crate::drive::finish_run::finish_run()?;
+        // `race::tidy_everything`'s esi "read" is of `finish_run`'s leftover, which has
+        // no read point (liveness at 0x459313): a scratch.
+        crate::race::race_end::tidy_everything(&crate::race::loadlevel::LoadVars::game())?;
     }
     for x in finish_routine::AFTER {
         p(var(x), 0);
     }
     log_line(0x4DDAB1);
     log_line(0x4DDAC8);
-    Ok(left_of(&r))
+    Ok(())
 }

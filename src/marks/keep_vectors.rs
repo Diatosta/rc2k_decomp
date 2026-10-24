@@ -14,7 +14,6 @@
 //! and the self-test was the hook's.
 
 use crate::framework::{game_read, game_write, rva};
-use crate::service::harness::at;
 
 /// (from, to), in the original's order.
 const MOVES: [(usize, usize); 12] = [
@@ -37,9 +36,4 @@ pub unsafe fn keep_vectors() {
     for (from, to) in MOVES {
         unsafe { game_write(to, game_read::<u32>(from)) };
     }
-}
-
-/// What it writes.
-pub fn regions() -> Vec<crate::service::harness::Region> {
-    MOVES.map(|m| at(m.1)).to_vec()
 }

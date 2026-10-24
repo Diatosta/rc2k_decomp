@@ -5,7 +5,7 @@
 //! then the background again (`net::show_background`).
 //!
 //! In:  nothing
-//! Out: every register kept (`pusha` .. `popa`)
+//! Out: nothing (the original keeps every register: `pusha` .. `popa`)
 //! Caller: `net::lobby_loop`. Its calls through `part` (the car screen through its hook).
 //! The screen runs inside it: ungated. Shadow mode runs the original alone. Self-test: a copy
 //! whose calls go to stand-ins, against the Rust version, left with Escape or not.
@@ -15,40 +15,33 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
-use crate::net::lobby::{OWN, Part, SELECT_CAR, TAKE_SHOWN_CAR, g, lobby_entry, p, pb};
+use crate::menu::screen_loop::{Carried, run_screen};
+use crate::net::lobby::{OWN, g, p, pb};
 
-const CAR_LIST: u32 = 0x4AAAF7; // net::car_list
-const SHOW_BACKGROUND: u32 = 0x4173E7; // net::show_background
 const CLEARED: usize = 0x75598C; // dword_75598C
 pub const ESCAPED: usize = 0x755A3C; // dword_755A3C: the screen was left with Escape
 const CAR: usize = 0x755A54; // g_player1.car_number
 const COLOURS: usize = 0x755A7C; // g_player1.field_30
 
-/// The Rust version: the registers it leaves (the entry's).
-pub fn choose_car(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    let mut r = *entry;
+/// The Rust version. The car screen starts from the car (eax) and the list of cars (esi);
+/// the other registers it is handed are the lobby loop's leftovers (ebx the clock's tick,
+/// ecx and edx scratch), which the screen overwrites or reads only as the x its first item
+/// is measured from: 0 here, as the loop leaves ecx.
+pub fn choose_car() -> Result<(), Refused> {
     p(CLEARED, 0);
-    part(CAR_LIST, &mut r)?;
+    let cars = crate::net::car_list::car_list()?;
     p(ESCAPED, 0);
-    r.eax = g(CAR);
-    part(SELECT_CAR, &mut r)?;
+    let entry = Carried {
+        arg: g(CAR),
+        cars,
+        ..Carried::default()
+    };
+    unsafe { run_screen(&crate::menu::select_car_loop::SCREEN, &entry) }?;
     if g(ESCAPED) != 1 {
-        part(TAKE_SHOWN_CAR, &mut r)?;
-        r.eax = g(CAR);
-        pb(OWN + 1, r.eax as u8);
-        r.eax = g(COLOURS);
-        pb(OWN + 2, r.eax as u8);
+        unsafe { crate::menu::take_shown_car::take_shown_car(cars) }?;
+        pb(OWN + 1, g(CAR) as u8);
+        pb(OWN + 2, g(COLOURS) as u8);
     }
-    part(SHOW_BACKGROUND, &mut r)?;
-    Ok(Regs {
-        eflags: r.eflags,
-        ..*entry
-    })
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    lobby_entry(r, choose_car)
+    crate::net::show_background::show_background()?;
+    Ok(())
 }

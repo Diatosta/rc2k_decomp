@@ -25,12 +25,12 @@
 //! `rc2k_core::scene::pictures`.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_ptr, game_read, game_write, rva};
+use crate::framework::{game_ptr, game_read, game_write, rva};
 use crate::logfile::log_write::log_write;
 use crate::scene::load_changed_texture_picture::{
     TEXTURES, WANTED_PICTURES_RVA, load_changed_texture_picture_in_game,
 };
-use crate::scene::load_number_plates::load_number_plates_in_game;
+use crate::scene::load_number_plates::load_number_plates;
 use crate::scene::step_loading_bar::step_loading_bar;
 use crate::scene::textures::{KIND_TEXTURE_RVA, KINDS};
 use rc2k_core::scene::pictures::{kind_picture, read_size};
@@ -47,22 +47,15 @@ const SCENE_SIZE_RVA: usize = rva(0x609300);
 // scene::load_number_plates
 const TEXTS: [usize; 4] = [rva(0x4DB7E2), rva(0x4DB800), rva(0x4DB81D), rva(0x4DB83A)];
 
-/// What the function calls.
-pub enum Call {
-    /// One of its four log lines.
-    Log(usize),
-    Picture(u32),
-    Bar(u32),
-    Plates,
-}
-
 // ---- Rust version ----
 
+/// The Rust version. The registers the original leaves (those of `load_number_plates`) are
+/// read by no caller (taint at the site in `race::set_all_plates`: 0 read points; the other
+/// is the game's own code, `sub_443478`, not Rust). It reads no register at entry but edi,
+/// esi (for `load_changed_texture_picture` and `step_loading_bar`, which set them
+/// themselves).
 // Converted: `rc2k_core::scene::pictures::{kind_picture, read_size}`
-pub unsafe fn reload_system_textures(
-    r: &mut Regs,
-    call: &mut dyn FnMut(Call, &mut Regs) -> Result<(), Refused>,
-) -> Result<(), Refused> {
+pub unsafe fn reload_system_textures() -> Result<(), Refused> {
     unsafe {
         let textures: u32 = game_read(SYSTEM_TEXTURES_RVA);
         if textures == 0 || textures > TEXTURES {
@@ -72,64 +65,29 @@ pub unsafe fn reload_system_textures(
         if (0..KINDS).any(|kind| first(kind) != u32::MAX && first(kind) >= TEXTURES) {
             return Err(BadInput("a kind's first texture past the pictures' table").into());
         }
-        call(Call::Log(0), r)?;
-        call(Call::Log(1), r)?;
+        log_write(game_ptr(TEXTS[0]), true, 1);
+        log_write(game_ptr(TEXTS[1]), true, 1);
         for kind in 0..KINDS {
-            r.ebx = first(kind);
-            if r.ebx == u32::MAX {
+            let texture = first(kind);
+            if texture == u32::MAX {
                 continue;
             }
-            r.eax = kind_picture(game_read(KIND_PICTURES_RVA + kind as usize * 4));
-            game_write(WANTED_PICTURES_RVA + r.ebx as usize * 4, r.eax);
+            let picture = kind_picture(game_read(KIND_PICTURES_RVA + kind as usize * 4));
+            game_write(WANTED_PICTURES_RVA + texture as usize * 4, picture);
         }
         let scene: [u32; 2] = game_read(SCENE_SIZE_RVA);
         for texture in 0..textures {
-            r.ecx = texture;
             game_write(READING_RVA, 1u32);
-            r.eax = game_read(WANTED_PICTURES_RVA + texture as usize * 4);
-            game_write(READ_SIZE_RVA, read_size(r.eax, scene));
-            call(Call::Picture(texture), r)?;
-            call(Call::Bar(texture), r)?;
+            let wanted = game_read(WANTED_PICTURES_RVA + texture as usize * 4);
+            game_write(READ_SIZE_RVA, read_size(wanted, scene));
+            load_changed_texture_picture_in_game(texture)?;
+            step_loading_bar(texture)?;
         }
-        r.ecx = textures;
         game_write(READING_RVA, 0u32);
         game_write(READ_SIZE_RVA, [0x100u32, 0x100]);
-        call(Call::Plates, r)?;
-        call(Call::Log(2), r)?;
-        call(Call::Log(3), r)?;
+        load_number_plates()?;
+        log_write(game_ptr(TEXTS[2]), true, 1);
+        log_write(game_ptr(TEXTS[3]), true, 1);
         Ok(())
     }
-}
-
-/// With the Rust versions of what it calls (the loading bar's showing a call into the
-/// game).
-pub unsafe fn reload_system_textures_in_game(r: &mut Regs) -> Result<(), Refused> {
-    unsafe {
-        reload_system_textures(r, &mut |call, r| {
-            match call {
-                Call::Log(n) => log_write(game_ptr(TEXTS[n]), true, 1),
-                Call::Picture(texture) => load_changed_texture_picture_in_game(texture)?,
-                Call::Bar(done) => {
-                    let regs = Regs { eax: done, ..*r };
-                    step_loading_bar(&regs, &mut |inner| {
-                        let show = inner.esi as usize;
-                        crate::menu::table_calls::call_any(show as u32, inner);
-                    })?;
-                }
-                Call::Plates => load_number_plates_in_game(r)?,
-            }
-            Ok(())
-        })
-    }
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let entry = *r;
-    let done = unsafe { reload_system_textures_in_game(r) };
-    if let Err(e) = done {
-        *r = entry;
-        return Err(e);
-    }
-    Ok(())
 }

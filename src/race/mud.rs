@@ -5,7 +5,7 @@
 //! unlocked through DirectDraw: the game's, `sub_41AA4B` / `sub_41AB02`).
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 
 pub const MUD_LIST_RVA: usize = rva(0x5C6F50); // stru_5C6F50
 pub const MUD_RVA: usize = rva(0x623D50); // dword_623D50
@@ -82,28 +82,23 @@ pub unsafe fn mud_pixel(x: u32, y: u32) -> u32 {
 }
 
 /// `race::load_mud` (0x449D95): the car's file number's two digits (`div 10`, each +
-/// '0', as bytes) into the path, the file (0x10000 bytes at most) into the mud. Leaves eax
-/// the quotient (its low byte + '0'), edx the remainder (its low byte + '0'), ebx 10, esi
-/// the mud.
-pub unsafe fn load_mud(entry: &Regs) -> Result<Regs, Refused> {
-    let mut g = *entry;
+/// '0', as bytes) into the path, the file (0x10000 bytes at most) into the mud.
+pub unsafe fn load_mud() -> Result<(), Refused> {
     unsafe {
         // Converted: `rc2k_core::race::mud::file_digits`.
-        (g.eax, g.edx) = rc2k_core::race::mud::file_digits(car_file_number(game_read(CAR_RVA)));
-        g.ebx = 10;
+        let (tens, units) = rc2k_core::race::mud::file_digits(car_file_number(game_read(CAR_RVA)));
         let digits = game_addr(MUD_PATH_DIGITS_RVA) as *mut u8;
-        *digits = g.eax as u8;
-        *digits.add(1) = g.edx as u8;
-        g.esi = game_read(MUD_RVA);
-        let mut r = Regs {
-            eax: game_addr(MUD_PATH_RVA) as u32,
-            ebx: g.esi,
-            ecx: MUD_LEN,
-            ..g
-        };
-        crate::race::mud::game_part(1, &mut r)?;
+        *digits = tens as u8;
+        *digits.add(1) = units as u8;
+        let mud: u32 = game_read(MUD_RVA);
+        crate::files::read_whole_file::read_whole_file(
+            game_addr(MUD_PATH_RVA) as *const u8,
+            mud as *mut u8,
+            MUD_LEN,
+            mud,
+        )?;
     }
-    Ok(g)
+    Ok(())
 }
 
 /// `race::clear_mud_state` (0x449E01): the 18 dwords at 0x623D58 and the two more 0.
@@ -116,64 +111,36 @@ pub unsafe fn clear_mud_state() {
     }
 }
 
-/// `race::sample_mud_colours` (0x44A0D6): the surface locked (part 2), 256 colours, n's
-/// at (0x89 + (n & 3) + (n >> 5) * 4, 0x68 + ((n & 0x1C) >> 2)) by `mud_pixel`, unlocked
-/// (part 3). Leaves eax the surface, ecx and edx the last place, edi past the colours, ebp
-/// 0x100.
-pub unsafe fn sample_mud_colours(entry: &Regs) -> Result<Regs, Refused> {
-    let mut g = *entry;
+/// `race::sample_mud_colours` (0x44A0D6): the surface locked (`d3d::lock_texture`), 256
+/// colours, n's at (0x89 + (n & 3) + (n >> 5) * 4, 0x68 + ((n & 0x1C) >> 2)) by
+/// `mud_pixel`, unlocked (`d3d::unlock_texture`).
+pub unsafe fn sample_mud_colours() -> Result<(), Refused> {
     unsafe {
-        g.eax = game_read(PICTURE_RVA);
-        crate::race::mud::game_part(2, &mut g)?;
-        g.edi = game_addr(COLOURS_RVA) as u32;
+        crate::d3d::lock_texture::lock_texture(game_read(PICTURE_RVA))?;
+        let colours = game_addr(COLOURS_RVA) as *mut u32;
         // Converted: `rc2k_core::race::mud::sample_place`.
         for n in 0..rc2k_core::race::mud::SAMPLES {
-            (g.ecx, g.edx) = rc2k_core::race::mud::sample_place(n);
-            g.eax = mud_pixel(g.ecx, g.edx);
-            (g.edi as *mut u32).write_unaligned(g.eax);
-            g.edi += 4;
+            let (x, y) = rc2k_core::race::mud::sample_place(n);
+            colours.add(n as usize).write_unaligned(mud_pixel(x, y));
         }
-        g.ebp = 0x100;
-        g.eax = game_read(PICTURE_RVA);
-        crate::race::mud::game_part(3, &mut g)?;
-    }
-    Ok(g)
-}
-
-/// `race::init_mud` (0x449DD6): the list's total + 0x10000, the mud taken (part 0) into
-/// `dword_623D50`, then parts 4, 5, 6. Leaves the registers as they leave them.
-pub unsafe fn init_mud(entry: &Regs) -> Result<Regs, Refused> {
-    let mut g = *entry;
-    unsafe {
-        g.eax = MUD_LEN;
-        g.ebx = game_addr(MUD_LIST_RVA) as u32;
-        game_write(
-            LIST_TOTAL_RVA,
-            game_read::<u32>(LIST_TOTAL_RVA).wrapping_add(MUD_LEN),
-        );
-        crate::race::mud::game_part(0, &mut g)?;
-        game_write(MUD_RVA, g.eax);
-        for place in [4, 5, 6] {
-            crate::race::mud::game_part(place, &mut g)?;
-        }
-    }
-    Ok(g)
-}
-
-/// The game's calls: the Rust versions, and the surface's lock and unlock at the game's
-/// addresses (DirectDraw, the platform).
-pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    unsafe {
-        match place {
-            0 | 1 => crate::race::level_init::game_part(place, r)?,
-            2 => crate::calls::call(rva(0x41AA4B), r),
-            3 => crate::calls::call(rva(0x41AB02), r),
-            4 => *r = load_mud(r)?,
-            5 => clear_mud_state(),
-            _ => *r = sample_mud_colours(r)?,
-        }
+        crate::d3d::unlock_texture::unlock_texture(game_read(PICTURE_RVA))?;
     }
     Ok(())
 }
 
-// ---- for the self-tests ----
+/// `race::init_mud` (0x449DD6): the list's total + 0x10000, the mud taken
+/// (`memory::allocate`) into `dword_623D50`, then `load_mud`, `clear_mud_state`,
+/// `sample_mud_colours`.
+pub unsafe fn init_mud() -> Result<(), Refused> {
+    unsafe {
+        game_write(
+            LIST_TOTAL_RVA,
+            game_read::<u32>(LIST_TOTAL_RVA).wrapping_add(MUD_LEN),
+        );
+        let mud = crate::memory::allocate::allocate(game_addr(MUD_LIST_RVA) as *mut _, MUD_LEN)?;
+        game_write(MUD_RVA, mud as u32);
+        load_mud()?;
+        clear_mud_state();
+        sample_mud_colours()
+    }
+}

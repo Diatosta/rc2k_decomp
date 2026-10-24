@@ -13,12 +13,7 @@
 //! the flags, memory written); the Rust side calls `test_part`, which does the same. Then
 //! `run_both` compares the registers, the flags the callers read, the calls and memory.
 
-use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::physics::flow::{a, g, p};
-
-/// A call by place.
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
 
 // ---- the replay being viewed ----
 
@@ -114,18 +109,7 @@ pub unsafe fn table(x: usize, dwords: usize) -> &'static mut [u32] {
     unsafe { std::slice::from_raw_parts_mut(at, dwords) }
 }
 
-// ---- for the hooks: shadow comparison of a Rust version that returns the registers ----
-
-/// The Rust version as the dispatchers run it: the registers it leaves, flags included.
-pub type Rust<'a> = &'a dyn Fn(&Regs) -> Result<Regs, Refused>;
-
-/// `dispatch_regs` / `dispatch_parts` without the hook (no shadow mode; a refusal is the
-/// caller's): the Rust version's registers but esp.
-pub fn regs_entry(r: &mut Regs, rust: Rust) -> Result<(), Refused> {
-    let left = rust(r)?;
-    *r = Regs { esp: r.esp, ..left };
-    Ok(())
-}
+// ---- for `net::sort_players` ----
 
 // ---- for the self-tests ----
 
@@ -136,17 +120,4 @@ pub fn get(x: usize) -> u32 {
 
 pub fn put(x: usize, v: u32) {
     p(x, v)
-}
-
-/// Every register of `r` as a `Left` (for the harnesses that take one), no flags.
-pub fn left_of(r: &Regs) -> crate::screens::harness::Left {
-    use crate::framework::{EAX, EBP, EBX, ECX, EDI, EDX, ESI};
-    crate::screens::harness::Left::nothing()
-        .with(EAX, r.eax)
-        .with(EBX, r.ebx)
-        .with(ECX, r.ecx)
-        .with(EDX, r.edx)
-        .with(ESI, r.esi)
-        .with(EDI, r.edi)
-        .with(EBP, r.ebp)
 }

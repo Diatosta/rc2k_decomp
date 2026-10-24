@@ -15,11 +15,10 @@
 //! `sub_43B635` or `sub_439DB1` next).
 //! Self-test: `physics/copy_hooks_test.rs` (a copy on test variables), 48 cases.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
-use crate::framework::{Regs, game_addr, rva};
+use crate::framework::{game_addr, rva};
 use rc2k_core::physics::gearbox::{GearCar, GearInputs};
 
 /// The variables (IDA addresses), in the order the core uses them.
@@ -35,10 +34,10 @@ unsafe fn put(v: &[u32], k: usize, x: u32) {
     unsafe { (v[k] as *mut u32).write_unaligned(x) }
 }
 
-/// The Rust version on the variables at `v`; `r` as the original leaves it. What the
-/// rules change is written back.
+/// The Rust version on the variables at `v`; what the rules change is written back. The
+/// eax it leaves (the joined input) is read by none of its callers.
 // Converted: `rc2k_core::physics::gearbox::GearInputs::apply_rules`.
-pub unsafe fn rules_at(v: &[u32], r: &mut Regs) {
+pub unsafe fn rules_at(v: &[u32]) {
     unsafe {
         let car = GearCar {
             state: get(v, 0),
@@ -58,9 +57,7 @@ pub unsafe fn rules_at(v: &[u32], r: &mut Regs) {
         };
         let gear_before = get(v, 6);
         let (mut inputs, mut gear) = (before, gear_before);
-        if let Some(eax) = inputs.apply_rules(&mut gear, &car) {
-            r.eax = eax;
-        }
+        inputs.apply_rules(&mut gear, &car);
         for (k, now, was) in [
             (11, inputs.w90, before.w90),
             (3, inputs.first, before.first),
@@ -85,7 +82,7 @@ fn game() -> Vec<u32> {
         .collect()
 }
 
-/// The Rust version; `r` as the original leaves it.
-pub unsafe fn gear_input_rules(r: &mut Regs) {
-    unsafe { rules_at(&game(), r) }
+/// The Rust version.
+pub unsafe fn gear_input_rules() {
+    unsafe { rules_at(&game()) }
 }

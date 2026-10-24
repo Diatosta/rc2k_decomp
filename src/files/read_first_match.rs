@@ -16,19 +16,15 @@
 //! registers above are the original's, for reference.
 
 use crate::errors::BadInput;
-use crate::files::read_file::{LAST_FILE_PATH_RVA, ReadResult, read_file};
+use crate::files::read_file::{ReadResult, read_file};
 use crate::files::resolve_path::resolve_path_in_game;
-use crate::framework::{game_addr, game_read, game_write, rva};
-use windows_sys::Win32::Storage::FileSystem::{
-    FindClose, FindFirstFileA, FindNextFileA, WIN32_FIND_DATAA,
-};
+use crate::files::state::{FIND_HANDLE, LAST_FILE_PATH, SKIPPED_ATTRIBUTES, find_data};
+use crate::framework::{game_addr, rva};
+use std::sync::atomic::Ordering::Relaxed;
+use windows_sys::Win32::Storage::FileSystem::{FindClose, FindFirstFileA, FindNextFileA};
 
 // ---- game data ----
 
-const FIND_DATA_RVA: usize = rva(0x4E05A8); // FindFileData
-const FIND_HANDLE_RVA: usize = rva(0x4E05A4); // hFindFile
-/// The attributes a match must not have: the dword 0x13E into the search record.
-const SKIPPED_ATTRIBUTES_RVA: usize = rva(0x4E06E6);
 /// Where the found file's path is put together (the block the PNG reader also uses).
 const PATH_SCRATCH_RVA: usize = rva(0x93E8B0);
 const NO_SEARCH: u32 = u32::MAX;
@@ -48,12 +44,11 @@ pub unsafe fn first_match_read(
             return Err(BadInput("no path to match"));
         }
         let resolved = resolve_path_in_game(pattern)?;
-        game_write(LAST_FILE_PATH_RVA, resolved as u32);
-        let record = game_addr(FIND_DATA_RVA) as *mut WIN32_FIND_DATAA;
+        LAST_FILE_PATH.store(resolved as u32, Relaxed);
+        let record = find_data();
         let search = FindFirstFileA(resolved, record);
-        game_write(FIND_HANDLE_RVA, search as u32);
-        let skipped =
-            || game_read::<u32>(FIND_DATA_RVA) & game_read::<u32>(SKIPPED_ATTRIBUTES_RVA) != 0;
+        FIND_HANDLE.store(search as u32, Relaxed);
+        let skipped = || (*record).dwFileAttributes & SKIPPED_ATTRIBUTES.load(Relaxed) != 0;
         let mut found = search as u32 != NO_SEARCH;
         if found && skipped() {
             loop {
@@ -77,9 +72,9 @@ pub unsafe fn first_match_read(
         } else {
             None
         };
-        if game_read::<u32>(FIND_HANDLE_RVA) != NO_SEARCH {
-            FindClose(game_read::<u32>(FIND_HANDLE_RVA) as _);
-            game_write(FIND_HANDLE_RVA, NO_SEARCH);
+        if FIND_HANDLE.load(Relaxed) != NO_SEARCH {
+            FindClose(FIND_HANDLE.load(Relaxed) as _);
+            FIND_HANDLE.store(NO_SEARCH, Relaxed);
         }
         read.transpose()
     }

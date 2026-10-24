@@ -6,44 +6,31 @@
 //! Makes the menu the current one (`dword_75558D`). Unless the game is quitting:
 //! `copy_picture_to_surface` (the background), lock the surface, and if that worked
 //! `draw_menu`, `run_draw_list` and unlock.
-//! 89 callers, the screen loops. The lock and the unlock are the game's, through an `Env`.
+//! 89 callers, the screen loops.
 //! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
 //! `routes.rs`); the registers above are the original's, for reference.
 
-use crate::framework::{Regs, game_write, rva};
-use crate::menu::frame_callback::{COPY_PICTURE, DRAW_MENU, LOCK_SURFACE, UNLOCK_SURFACE};
+use crate::errors::Refused;
+use crate::framework::game_write;
+use crate::menu::frame_callback::{copy_picture, draw_menu, lock_failed};
 use crate::menu::item_at::CURRENT_MENU_RVA;
-use crate::menu::screen_loop::{Env, Real};
-
-const RUN_DRAW_LIST: usize = rva(0x4681ED); // menu::run_draw_list
 
 // ---- Rust version ----
 
-/// `entry` are the registers at entry.
-pub unsafe fn draw_frame(entry: &Regs, env: &mut dyn Env) {
+/// `menu`, `palette` and `measure_x` are edi, ebx and ecx at entry.
+pub unsafe fn draw_frame(menu: u32, palette: u32, measure_x: u32) -> Result<(), Refused> {
     unsafe {
-        game_write(CURRENT_MENU_RVA, entry.edi);
-        if env.quitting() {
-            return;
+        game_write(CURRENT_MENU_RVA, menu);
+        if crate::menu::screen_loop::quitting() {
+            return Ok(());
         }
-        let mut g = *entry;
-        env.call(COPY_PICTURE, &mut g);
-        env.call(LOCK_SURFACE, &mut g);
-        if g.carry() {
-            return;
+        copy_picture()?;
+        if lock_failed() {
+            return Ok(());
         }
-        env.call(DRAW_MENU, &mut g);
-        env.call(RUN_DRAW_LIST, &mut g);
-        env.call(UNLOCK_SURFACE, &mut g);
+        draw_menu(menu, palette, measure_x)?;
+        crate::menu::run_draw_list::run_draw_list()?;
+        crate::platform::unlock_surface();
     }
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let entry = *r;
-    unsafe { draw_frame(&entry, &mut Real) };
     Ok(())
 }
-
-// ---- self-test: a copy of the original whose five calls go to stand-ins that note them,
-// and which reads the quit switch from a test variable ----

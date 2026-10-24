@@ -30,7 +30,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 use crate::input::key_to_char::{has_layout, key_to_char};
 use crate::input::take_key::take_key;
 use crate::menu::add_text_length::add_text_length;
@@ -40,10 +40,8 @@ use crate::menu::name_lists::{NAME_LEN, replay_name, savegame_name};
 use crate::menu::restore_text::restore_text;
 use crate::menu::text_entry::{ENTERING_RVA, MAX_LENGTH_RVA, length, set_length};
 use crate::screens::font_at;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 use crate::strings::append_string_by_id::push_string;
-use crate::text::draw_text::{Canvas, GameCanvas};
+use crate::text::draw_text::Canvas;
 use crate::text::measure_text::measure_text_at;
 
 // ---- game data ----
@@ -118,15 +116,4 @@ pub unsafe fn edit_replay_name(canvas: &mut dyn Canvas) -> Result<bool, Refused>
         std::ptr::copy_nonoverlapping(tail.as_ptr(), name.offset(length() as isize), tail.len());
         Ok(cursor_on == 0)
     }
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    let carry = { unsafe { edit_replay_name(&mut GameCanvas) }? };
-    Ok(Left::carry(carry))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

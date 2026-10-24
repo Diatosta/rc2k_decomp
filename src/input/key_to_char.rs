@@ -20,7 +20,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::BadInput;
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 
 // ---- game data ----
 
@@ -110,21 +110,4 @@ pub unsafe fn key_to_char(eax: u32) -> Result<u32, BadInput> {
         }
         Ok(typed.eax)
     }
-}
-
-fn set_result(r: &mut Regs, eax: u32) {
-    r.eax = eax;
-    r.set_carry(eax as u8 == 0);
-    r.set_zero(eax as u8 == 1);
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    match unsafe { key_to_char(r.eax) } {
-        Ok(eax) => set_result(r, eax),
-        Err(_) => unsafe {
-            crate::framework::call_game(r, crate::framework::game_addr(rva(0x407E43)))
-        },
-    }
-    Ok(())
 }

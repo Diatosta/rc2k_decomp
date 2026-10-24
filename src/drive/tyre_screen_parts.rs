@@ -15,25 +15,9 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::drive::tyre_parts::*;
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::physics::flow::{a, g, p};
 use rc2k_core::drive::tyre_screen::fixed_parts;
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    {
-        let g = unsafe { tyre_screen_parts(r) }?;
-        let esp = r.esp;
-        *r = Regs {
-            eflags: r.eflags,
-            ..g
-        };
-        r.esp = esp;
-    }
-    Ok(())
-}
 
 const UV: usize = 0x5C2A1C;
 const RECT: usize = 0x5C2A0C;
@@ -44,20 +28,14 @@ fn set(at: usize, v: [u32; 4]) {
     }
 }
 
-/// The Rust version, the quads through `part`.
+/// The Rust version: its quads (`drive::tyre_quad`); every register kept.
 // Converted: `rc2k_core::drive::tyre_screen::fixed_parts`.
-pub unsafe fn tyre_screen_parts(entry: &Regs) -> Result<Regs, Refused> {
-    let mut q = Regs {
-        eax: a(UV),
-        ebx: a(RECT),
-        ecx: 0xFF_FFFF,
-        ..*entry
-    };
+pub unsafe fn tyre_screen_parts() -> Result<(), Refused> {
     let four = |at: usize| std::array::from_fn(|k| g(at + 4 * k));
     for (uv, rect) in fixed_parts(four(0x5BEBD0), four(0x5BEAE0), g(0x5BEBEC) != 0) {
         set(UV, uv);
         set(RECT, rect);
-        crate::drive::tyre_parts::game_part(QUAD, &mut q)?;
+        unsafe { crate::drive::tyre_quad::tyre_quad(a(UV), a(RECT), 0xFF_FFFF) }?;
     }
-    Ok(*entry)
+    Ok(())
 }

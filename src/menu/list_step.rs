@@ -18,22 +18,61 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
 use crate::framework::Regs;
-use crate::race::viewer::{CHOICE, get, put, regs_entry};
+use crate::race::viewer::{CHOICE, get, put};
 use rc2k_core::menu::list_menu::{MOVES, Step, step};
 
-/// The Rust version: the registers and flags it leaves.
-pub unsafe fn list_step(entry: &Regs) -> Regs {
-    // Converted: `rc2k_core::menu::list_menu::step`.
-    let mut r = *entry;
-    let key = r.eax as u8;
-    let table = r.ebx;
-    let count = unsafe { ((r.edi + 1) as *const u8).read() };
-    if MOVES.contains(&key) {
-        r.ecx = get(CHOICE);
+/// What `list_step` gives: the highlight (ecx, with its low byte the new choice) where a
+/// move key set it, and the carry and zero flags its callers test.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Stepped {
+    pub choice: Option<u32>,
+    pub carry: bool,
+    pub zero: bool,
+}
+
+impl Stepped {
+    /// The registers as the original leaves them, for the register-threaded callers by
+    /// address.
+    pub fn leave(&self, r: &mut Regs) {
+        if let Some(choice) = self.choice {
+            r.ecx = choice;
+        }
+        r.set_carry(self.carry);
+        r.set_zero(self.zero);
     }
-    let ecx = r.ecx;
+}
+
+impl Stepped {
+    /// The same in a flow's registers (`menu::event_flow::Flow`).
+    pub fn carry_on(&self, f: &mut crate::menu::event_flow::Flow) {
+        if let Some(choice) = self.choice {
+            f.c.measure_x = choice;
+        }
+        f.c.carry = self.carry;
+        f.zero = self.zero;
+    }
+}
+
+/// `key` (al) moving the highlight of the list menu `list` (edi) by the neighbours table
+/// `table` (ebx, 0 for none).
+pub unsafe fn list_step(key: u8, table: u32, list: u32) -> Stepped {
+    // Converted: `rc2k_core::menu::list_menu::step`.
+    let count = unsafe { ((list + 1) as *const u8).read() };
+    if !MOVES.contains(&key) {
+        // Not a move: the choice is not looked at (`step` answers `Other` or `NoTable`).
+        let (carry, zero) = match step(key, 0, count, table != 0, |_| 0) {
+            Step::NoTable => (true, false),
+            Step::Other { below } => (below, false),
+            _ => unreachable!("a move from a key that is not one"),
+        };
+        return Stepped {
+            choice: None,
+            carry,
+            zero,
+        };
+    }
+    let ecx = get(CHOICE);
     let entry_of = |k: usize| unsafe {
         (table
             .wrapping_add(ecx.wrapping_mul(4))
@@ -41,30 +80,18 @@ pub unsafe fn list_step(entry: &Regs) -> Regs {
             .read()
     };
     let with_cl = |cl: u8| ecx & !0xFF | cl as u32;
-    let (carry, zero) = match step(key, ecx as u8, count, table != 0, entry_of) {
+    let (choice, carry, zero) = match step(key, ecx as u8, count, table != 0, entry_of) {
         Step::Moved(cl) => {
-            r.ecx = with_cl(cl);
-            put(CHOICE, r.ecx);
-            (false, true)
+            put(CHOICE, with_cl(cl));
+            (with_cl(cl), false, true)
         }
-        Step::Blocked(cl) => {
-            r.ecx = with_cl(cl);
-            (false, false)
-        }
-        Step::NoTable => (true, false),
-        Step::Other { below } => (below, false),
+        Step::Blocked(cl) => (with_cl(cl), false, false),
+        Step::NoTable => (ecx, true, false),
+        Step::Other { below } => (ecx, below, false),
     };
-    r.set_carry(carry);
-    r.set_zero(zero);
-    r
-}
-
-fn rust(r: &Regs) -> Result<Regs, Refused> {
-    Ok(unsafe { list_step(r) })
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    regs_entry(r, &rust)
+    Stepped {
+        choice: Some(choice),
+        carry,
+        zero,
+    }
 }

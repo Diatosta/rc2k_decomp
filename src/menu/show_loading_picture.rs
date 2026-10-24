@@ -8,15 +8,14 @@
 //! Shadow mode runs the original alone (it shows frames).
 //! Self-test: a redirected copy whose call notes the path.
 
-use crate::framework::{Regs, game_addr, rva};
+use crate::framework::{game_addr, rva};
 use crate::gfx::show_picture_file::show_picture_file;
 
 // ---- game data ----
 
 const PATH_RVA: usize = rva(0x731BBF); // "files\g\graphics\screens\loading.pcx"
 
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    r.eax = unsafe { show_picture_file(game_addr(PATH_RVA) as *mut u8) }?;
-    Ok(())
+/// The picture shown; what `gfx::show_picture_file` returns (eax: 1, or the path).
+pub fn show_loading_picture() -> Result<u32, crate::errors::Refused> {
+    unsafe { show_picture_file(game_addr(PATH_RVA) as *mut u8) }
 }

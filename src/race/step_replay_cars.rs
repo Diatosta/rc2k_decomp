@@ -22,9 +22,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{EAX, ESI, Regs};
 use crate::physics::flow::{g, p};
-use crate::screens::harness::Left;
 
 pub const CURRENT: usize = 0x71B3F8; // g_currentCar
 pub const CARS: usize = 0x63DB90; // g_raceCars
@@ -33,85 +31,48 @@ const WORK_BLOCK: usize = 0x71B404; // dword_71B404
 pub const RUNNING: usize = 0x71A234; // unk_71A234: the work car runs
 const CLOCKS: [usize; 2] = [0x719FE0, 0x719FEC];
 
-/// The Rust version: the registers it leaves.
-pub fn step_replay_cars(entry: &Regs) -> Result<Regs, Refused> {
+/// The Rust version (the original leaves registers nothing reads).
+pub fn step_replay_cars() -> Result<(), Refused> {
+    use crate::drive::*;
     // Converted: `rc2k_core::race::viewer_flow::{check_replay_cars, car_block, car_runs,
     // RUN_STEPS, next_car}`.
     use rc2k_core::race::viewer_flow::{
         RUN_STEPS, RunStep, car_block, car_runs, check_replay_cars, next_car,
     };
     check_replay_cars(g(CARS))?;
-    let mut r = *entry;
-    crate::race::step_replay_cars::game_part(1, &mut r)?;
-    p(CURRENT, 0);
-    loop {
-        let mut c = r;
-        crate::race::step_replay_cars::game_part(2, &mut c)?;
-        crate::race::step_replay_cars::game_part(3, &mut c)?;
-        c.eax = car_block(g(CURRENT));
-        c.esi = g(BLOCKS_OF_CARS + 4 * c.eax as usize);
-        p(WORK_BLOCK, c.esi);
-        crate::race::step_replay_cars::game_part(4, &mut c)?;
-        if car_runs(g(RUNNING)) {
-            for step in RUN_STEPS {
-                let place = match step {
-                    RunStep::Controls => 5,
-                    RunStep::GearRules => 6,
-                    RunStep::Steering => 7,
-                    RunStep::Pedals => 8,
-                    RunStep::ResetKey => 9,
-                    RunStep::Physics => 10,
-                };
-                crate::race::step_replay_cars::game_part(place, &mut c)?;
-            }
-            for at in CLOCKS {
-                p(at, g(at).wrapping_add(1));
-            }
-        }
-        crate::race::step_replay_cars::game_part(11, &mut c)?;
-        let (next, done) = next_car(g(CURRENT), g(CARS));
-        p(CURRENT, next);
-        r.eax = next;
-        if done {
-            break;
-        }
-    }
-    crate::race::step_replay_cars::game_part(12, &mut r)?;
-    Ok(r)
-}
-
-/// In the game: the Rust versions, as `drive::replay_step` calls them.
-pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    use crate::drive::*;
     unsafe {
-        match place {
-            1 => choose_shown_cars::choose_shown_cars()?.apply(r),
-            2 => car_input_words::car_input_words(r)?.apply(r),
-            3 => play_inputs::play_inputs(r).apply(r),
-            4 => load_car::load_car()?.apply(r),
-            5 => {
-                let mut c = *r;
-                read_car_controls::read_car_controls(&mut c)?;
-                Left::nothing().with(EAX, c.eax).with(ESI, c.esi).apply(r);
+        choose_shown_cars::choose_shown_cars()?;
+        p(CURRENT, 0);
+        loop {
+            car_input_words::car_input_words()?;
+            play_inputs::play_inputs();
+            p(
+                WORK_BLOCK,
+                g(BLOCKS_OF_CARS + 4 * car_block(g(CURRENT)) as usize),
+            );
+            load_car::load_car()?;
+            if car_runs(g(RUNNING)) {
+                for step in RUN_STEPS {
+                    match step {
+                        RunStep::Controls => read_car_controls::read_car_controls()?,
+                        RunStep::GearRules => crate::physics::gear_input_rules::gear_input_rules(),
+                        RunStep::Steering => steer_inputs::steer_inputs(),
+                        RunStep::Pedals => pedal_inputs::pedal_inputs(),
+                        RunStep::ResetKey => reset_request::reset_request()?,
+                        RunStep::Physics => crate::physics::car_physics_step::car_physics_step()?,
+                    }
+                }
+                for at in CLOCKS {
+                    p(at, g(at).wrapping_add(1));
+                }
             }
-            6 => {
-                let mut c = *r;
-                crate::physics::gear_input_rules::gear_input_rules(&mut c);
-                r.eax = c.eax;
-            }
-            7 => steer_inputs::steer_inputs(r).apply(r),
-            8 => pedal_inputs::pedal_inputs().apply(r),
-            9 => *r = reset_request::reset_request(r)?,
-            10 => crate::physics::car_physics_step::car_physics_step(r)?.apply(r),
-            11 => store_car::store_car()?.apply(r),
-            _ => {
-                *r = race_mode_cars::race_mode_cars(r, &mut |_, r| {
-                    *r =
-                        start_cars_behind::start_cars_behind(r, &mut start_cars_behind::game_part)?;
-                    Ok(())
-                })?
+            store_car::store_car()?;
+            let (next, done) = next_car(g(CURRENT), g(CARS));
+            p(CURRENT, next);
+            if done {
+                break;
             }
         }
+        race_mode_cars::race_mode_cars()
     }
-    Ok(())
 }

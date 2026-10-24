@@ -13,10 +13,9 @@
 //! (`fatal::report`'s `jmp [esi]`). In the standalone the window's handle is 0 and nothing
 //! is posted. The registers above are the original's, for reference.
 
-use crate::framework::{Regs, game_ptr, game_read, rva};
+use crate::framework::{game_read, rva};
 use crate::logfile::write_line::log_text;
 
-const SLOT_RVA: usize = rva(0x518824); // stru_518824: thread slot 3
 const WINDOW_RVA: usize = rva(0x5184A4); // hWnd
 const WM_CLOSE: u32 = 0x10;
 
@@ -25,7 +24,8 @@ pub fn shutdown_thread() -> ! {
     use windows_sys::Win32::System::Threading::ExitThread;
     use windows_sys::Win32::UI::WindowsAndMessaging::PostMessageA;
     log_text(b"SHUTDOWN:START", true, 2);
-    let flag = game_ptr::<u8>(SLOT_RVA + 0xC);
+    let flag = (crate::threading::thread_slot::slot(crate::threading::thread_slot::SHUTDOWN) + 0xC)
+        as *mut u8;
     unsafe { flag.write_volatile(1) };
     let rc = crate::threading::wait_for_threads::wait_for_threads();
     log_text(b"SHUTDOWN:wfmo rc=", false, 2);
@@ -37,10 +37,4 @@ pub fn shutdown_thread() -> ! {
     unsafe { flag.write_volatile(0) };
     log_text(b"SHUTDOWN:DONE", true, 2);
     unsafe { ExitThread(0) }
-}
-
-/// The Rust version where the slot's thread starts it (`threading::start_slot_thread`,
-/// through `routes.rs`).
-pub fn entry(_: &mut Regs) -> Result<(), crate::errors::Refused> {
-    shutdown_thread()
 }

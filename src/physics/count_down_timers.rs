@@ -12,11 +12,10 @@
 //! Self-test: `physics/copy_hooks_test.rs` (a copy on test variables against the
 //! converted version), 48 cases; one compare and copy of floats: exact at any precision.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
-use crate::framework::{Regs, game_addr, rva};
+use crate::framework::{game_addr, rva};
 use rc2k_core::physics::motion::{StepCounters, StepFacts, count_down};
 
 const VARIABLES: [usize; 16] = [
@@ -25,9 +24,9 @@ const VARIABLES: [usize; 16] = [
 ];
 
 /// The converted version (`rc2k_core::physics::motion`) on the variables at `v`; `r` as
-/// the original leaves it.
+/// the original leaves (eax) are read by none of its callers.
 // Converted: `rc2k_core::physics::motion::count_down`.
-pub unsafe fn count_at(v: &[u32], r: &mut Regs) {
+pub unsafe fn count_at(v: &[u32]) {
     unsafe {
         let get = |k: usize| (v[k] as *const u32).read_unaligned();
         let put = |k: usize, x: u32| (v[k] as *mut u32).write_unaligned(x);
@@ -46,9 +45,7 @@ pub unsafe fn count_at(v: &[u32], r: &mut Regs) {
             gear: get(8),
             figure: f32::from_bits(get(13)),
         };
-        if let Some(eax) = count_down(&mut c, &facts) {
-            r.eax = eax;
-        }
+        count_down(&mut c, &facts);
         for (k, x) in [
             (0, c.first[0]),
             (1, c.first[1]),
@@ -74,7 +71,7 @@ fn game() -> Vec<u32> {
 }
 
 /// The Rust version (one compare and copy of floats: the same at any precision); `r` as
-/// the original leaves it.
-pub unsafe fn count_down_timers(r: &mut Regs) {
-    unsafe { count_at(&game(), r) }
+/// the registers it leaves are read by none of its callers.
+pub unsafe fn count_down_timers() {
+    unsafe { count_at(&game()) }
 }

@@ -13,7 +13,7 @@
 //! and `g_polygonVertexCount` 4.
 //!
 //! In:  nothing (`dword_8D21A4`)
-//! Out: the registers as the last flake leaves them (esi the count)
+//! Out: nothing (its caller reads no register after it)
 //!
 //! Caller: `marks::run_snow` (0x4C2A8F). The x87 blocks are the original's instructions
 //! over the game's variables; the clip its Rust version (the copy's call goes to its
@@ -28,8 +28,8 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
-use crate::marks::clip_quad::clip_quad;
+use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::marks::clip_quad::{clip_quad, draw_fan};
 use crate::service::harness::{Region, capture, restore};
 
 const COUNT_RVA: usize = rva(0x8D21A4); // dword_8D21A4
@@ -266,9 +266,8 @@ unsafe fn refusal(b: u32) -> Option<&'static str> {
     }
 }
 
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn draw_snow(entry: &Regs) -> Result<Regs, Refused> {
-    let mut g = *entry;
+/// The Rust version (see the header).
+pub unsafe fn draw_snow() -> Result<(), Refused> {
     let b = game_addr(0) as u32;
     if let Some(why) = unsafe { refusal(b) } {
         return Err(BadInput(why).into());
@@ -277,54 +276,38 @@ pub unsafe fn draw_snow(entry: &Regs) -> Result<Regs, Refused> {
         let n: i32 = game_read(COUNT_RVA);
         game_write(COUNT_COPY_RVA, n);
         game_write(FIRST_RVA, 0u32);
-        g.eax = n as u32;
         game_write(DRAWN_RVA, 0u32);
-        g.esi = 0;
         game_write(FIRST_RVA, n);
-        for _ in 0..n.max(0) {
-            let k = g.esi;
-            let ([eax, ebx, ecx], _, shift) = place(k);
-            [g.eax, g.ebx, g.ecx] = [eax, ebx, ecx];
-            [g.edx, g.ebp, g.edi] = shift;
+        for k in 0..n.max(0) as u32 {
+            let ([eax, ebx, ecx], _, _) = place(k);
             turn(b, &[ebx, eax, ecx]);
             if game_read::<i32>(DEPTH_RVA) > 0x1_0000 {
-                g.ebp = game_addr(VERTICES_RVA) as u32;
                 if game_read::<u32>(FADING_RVA) != 0 {
                     fade(b);
-                    g.eax = game_read(FADE_INDEX_RVA);
+                    let mut index: u32 = game_read(FADE_INDEX_RVA);
                     if game_read::<i32>(DOT_RVA) < 0 {
-                        g.eax = 0;
+                        index = 0;
                     }
-                    g.eax = table(FADES_RVA, g.eax);
+                    let colour = table(FADES_RVA, index);
                     for n in 0..4 {
-                        game_write(VERTICES_RVA + 0x20 * n + 0x10, g.eax);
+                        game_write(VERTICES_RVA + 0x20 * n + 0x10, colour);
                     }
                 }
                 square(b, 4 * k);
-                g.eax = game_read(V_RVA[0]);
-                g.ebx = game_read(V_RVA[1]);
+                let [top, bottom]: [u32; 2] = [game_read(V_RVA[0]), game_read(V_RVA[1])];
                 for n in 0..4 {
                     game_write(
                         VERTICES_RVA + 0x20 * n + 0x1C,
-                        if n < 2 { g.eax } else { g.ebx },
+                        if n < 2 { top } else { bottom },
                     );
                 }
-                g = clip_quad(&g)?;
-                if !g.carry() {
-                    crate::marks::draw_snow::game_part(1, &mut g)?;
-                    g.esi = k;
+                if !clip_quad(game_addr(VERTICES_RVA) as u32)? {
+                    draw_fan();
                     game_write(DRAWN_RVA, game_read::<u32>(DRAWN_RVA).wrapping_add(1));
                     game_write(VERTEX_COUNT_RVA, 4u32);
                 }
             }
-            g.esi = k + 1;
         }
     }
-    Ok(g)
-}
-
-/// In the game: `draw_fan`'s Rust version.
-pub fn game_part(_place: u32, r: &mut Regs) -> Result<(), Refused> {
-    unsafe { crate::scene::draw_fan::draw_fan(r, &mut crate::scene::draw_fan::game_part) };
     Ok(())
 }

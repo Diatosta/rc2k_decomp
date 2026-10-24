@@ -14,14 +14,14 @@
 //! `routes.rs`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 use crate::gfx::blit_glyph::BlitCall;
 use crate::gfx::blit_marker_pair::sprite_table;
 use crate::gfx::convert_picture::convert_picture_now;
 use crate::gfx::load_picture::load_picture;
 use crate::gfx::picture::FLAGS_RVA;
 use crate::gfx::picture_as_surface::picture_as_surface;
-use crate::text::draw_text::{Canvas, GameCanvas};
+use crate::text::draw_text::Canvas;
 
 // ---- game data ----
 
@@ -45,13 +45,4 @@ pub unsafe fn load_background(
         canvas.blit_glyph(BlitCall::new(FRAME_SPRITE, 0, 0, palette, sprite_table()))?;
         Ok(())
     }
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    match unsafe { load_background(r.eax as *mut u8, r.ebx, &mut GameCanvas) } {
-        Ok(()) => r.set_carry(false),
-        Err(e) => return Err(e),
-    }
-    Ok(())
 }

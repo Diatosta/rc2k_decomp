@@ -7,8 +7,7 @@
 //! `g_polygonVertexCount` 4, `flt_8EB96D` 1 / `flt_6241C8`, `dword_91FFBA` 0.
 //!
 //! In:  nothing
-//! Out: eax .. edx the four texture places, edi `g_polygonVertices`; esi and ebp as the
-//!      render calls leave them
+//! Out: nothing (no caller reads a register it leaves)
 //!
 //! Caller: `sub_4C3EEE`. Its calls through `part` (places 1 .. 4: the texture, the depth
 //! buffer, the depth test, a render state); in the game their Rust versions (the
@@ -20,8 +19,7 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 
 const TEXTURE_RVA: usize = rva(0x5D1E10); // dword_5D1E10
 const VERTICES_RVA: usize = rva(0x9605A0); // g_polygonVertices: 0x20 bytes each
@@ -34,20 +32,16 @@ const CLEARED_RVA: usize = rva(0x91FFBA); // dword_91FFBA
 /// The render states set (value, state).
 const STATES: [(u32, u32); 5] = [(4, 0x15), (5, 0x13), (6, 0x14), (0, 0x1C), (1, 0x1B)];
 
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn begin_quads(entry: &Regs) -> Result<Regs, Refused> {
-    let mut g = *entry;
+/// The Rust version (see the header): `scene::set_texture`, `scene::depth_buffer_on`,
+/// `scene::depth_test_off`, the render states (`scene::set_render_state`).
+pub unsafe fn begin_quads() {
     unsafe {
-        g.eax = game_read(TEXTURE_RVA);
-        crate::marks::begin_quads::game_part(1, &mut g)?;
-        crate::marks::begin_quads::game_part(2, &mut g)?;
-        crate::marks::begin_quads::game_part(3, &mut g)?;
+        crate::scene::set_texture::set_texture(game_read(TEXTURE_RVA));
+        crate::scene::depth_buffer_on::depth_buffer(true);
+        crate::scene::depth_test_off::depth_test_off();
         for (value, state) in STATES {
-            g.eax = value;
-            g.ebx = state;
-            crate::marks::begin_quads::game_part(4, &mut g)?;
+            crate::scene::set_render_state::set_render_state(value, state);
         }
-        g.edi = game_addr(VERTICES_RVA) as u32;
         let colour: u32 = game_read(COLOUR_RVA);
         let [a, b, c, d]: [u32; 4] = game_read(PLACES_RVA);
         let uv = [(a, b), (c, b), (c, d), (a, d)];
@@ -59,24 +53,8 @@ pub unsafe fn begin_quads(entry: &Regs) -> Result<Regs, Refused> {
             game_write(at + 0x18, u);
             game_write(at + 0x1C, v);
         }
-        [g.eax, g.ebx, g.ecx, g.edx] = [a, b, c, d];
         game_write(COUNT_RVA, 4u32);
         game_write(SCALE_RVA, crate::math::x87::reciprocal(game_read(OF_RVA)));
         game_write(CLEARED_RVA, 0u32);
     }
-    Ok(g)
-}
-
-/// In the game: the calls' Rust versions.
-pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    match place {
-        1 => crate::scene::set_texture::set_texture(r.eax),
-        2 => crate::scene::depth_buffer_on::depth_buffer(true),
-        3 => crate::scene::depth_test_off::depth_test_off(),
-        _ => {
-            let (value, state) = (r.eax, r.ebx);
-            crate::scene::set_render_state::set_render_state(value, state);
-        }
-    }
-    Ok(())
 }

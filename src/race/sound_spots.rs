@@ -5,7 +5,7 @@
 //! scaled by `flt_5C5DA0`, +0x10 the sound, the face's +8, 1 .. 0x15).
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 
 const GRID: usize = rva(0x63E17C); // g_courseGrid
 const REACH: usize = rva(0x60A87C); // g_gridReach
@@ -69,36 +69,30 @@ fn scaled(t: [u8; 10], k: u32) -> u32 {
     out
 }
 
-/// `race::face_sound_spot` (0x45C6ED): face ebx as a sound spot when it is kind 0xFF,
+/// `race::face_sound_spot` (0x45C6ED): face `face_number` (ebx) as a sound spot when it is kind 0xFF,
 /// object 0x3F, its sound (+8) 1 .. 0x15 and there is room (fewer than 0x24): its point and
 /// place (point + offset +0x30 .. into `dword_63501C` ..) turned by `g_viewMatrix` and
-/// scaled. (Its test for sound 0x1B2 needing lamps can never hold: a byte.) Gives the
-/// registers it leaves.
-pub unsafe fn face_sound_spot(entry: &Regs) -> Regs {
+/// scaled. (Its test for sound 0x1B2 needing lamps can never hold: a byte.)
+pub unsafe fn face_sound_spot(face_number: u32) {
     use crate::race::skidmarks::int_80;
     unsafe {
-        let mut r = *entry;
-        let face = game_read::<u32>(FACES).wrapping_add(r.ebx << 6);
-        r.esi = face;
+        let face = game_read::<u32>(FACES).wrapping_add(face_number << 6);
         // Converted: `rc2k_core::race::view::{sound_object, takes_spot, spot_place}`
         // (the turn and scale stay the x87's: the callers compare exactly).
         use rc2k_core::race::view::{MOST_SPOTS, sound_object, spot_place, takes_spot};
         let byte = |o: u32| ((face + o) as *const u8).read();
         let kind = byte(0);
         if kind != 0xFF || !sound_object(kind, byte(1)) {
-            return r;
+            return;
         }
         let count: u32 = game_read(COUNT);
-        r.eax = count;
         if count == MOST_SPOTS {
-            return r;
+            return;
         }
         let spot = game_addr(SPOTS) as u32 + count * 0x14;
-        r.edi = spot;
         let sound = byte(8) as u32;
-        r.eax = sound;
         if !takes_spot(count, sound) {
-            return r;
+            return;
         }
         let put = |o: u32, v: u32| ((spot + o) as *mut u32).write_unaligned(v);
         put(0x10, sound);
@@ -110,58 +104,54 @@ pub unsafe fn face_sound_spot(entry: &Regs) -> Regs {
             [get(face + 0x30), get(face + 0x34), get(face + 0x38)],
         );
         game_write(rva(0x63501C), place);
-        (r.eax, r.ebx, r.ecx) = (place[0], place[1], place[2]);
-        r.esi = game_addr(rva(0x5EA2CC)) as u32;
-        let t = crate::scene::rotate_point::rotate_point(r.esi, place.map(int_80));
+        let t = crate::scene::rotate_point::rotate_point(
+            game_addr(rva(0x5EA2CC)) as u32,
+            place.map(int_80),
+        );
         let k: u32 = game_read(rva(0x5C5DA0));
         for (i, v) in t.into_iter().enumerate() {
             put(4 + 4 * i as u32, scaled(v, k));
         }
         game_write(COUNT, count + 1);
-        r
     }
 }
 
-/// `race::cell_sound_spots` (0x45C6B8): each face of cell ecx's record (`g_courseGrid[c]`,
+/// `race::cell_sound_spots` (0x45C6B8): each face of cell `cell`'s (ecx) record (`g_courseGrid[c]`,
 /// none from 0x0FFFFFFF; the record's +8 .. +0xC, none for -1 or a first past the last) by
-/// `face_sound_spot` (inside `pusha` .. `popa`). Gives the registers it leaves.
-pub unsafe fn cell_sound_spots(entry: &Regs) -> Regs {
+/// `face_sound_spot` (inside `pusha` .. `popa`).
+pub unsafe fn cell_sound_spots(cell: u32) {
     unsafe {
-        let mut r = *entry;
         // Converted: `rc2k_core::race::view::record_faces`.
-        r.ebx = game_read(GRID + 4 * r.ecx as usize);
-        if r.ebx >= rc2k_core::race::view::NO_RECORD {
-            return r;
+        let record: u32 = game_read(GRID + 4 * cell as usize);
+        if record >= rc2k_core::race::view::NO_RECORD {
+            return;
         }
-        r.esi = game_read::<u32>(RECORDS).wrapping_add(r.ebx << 5);
-        r.ebx = get(r.esi + 8);
-        if rc2k_core::race::view::record_faces(r.ebx, get(r.esi + 0xC)).is_none() {
-            return r;
+        let at = game_read::<u32>(RECORDS).wrapping_add(record << 5);
+        let mut face = get(at + 8);
+        if rc2k_core::race::view::record_faces(face, get(at + 0xC)).is_none() {
+            return;
         }
         loop {
-            face_sound_spot(&r);
-            r.ebx = r.ebx.wrapping_add(1);
-            if r.ebx > get(r.esi + 0xC) {
+            face_sound_spot(face);
+            face = face.wrapping_add(1);
+            if face > get(at + 0xC) {
                 break;
             }
         }
-        r
     }
 }
 
 /// `race::find_sound_spots` (0x45C605): `g_soundSpotCount` 0, then the 5 x 5 cells from
-/// (`g_gridReach` - 2) x 0x21 (rows 0x20 apart) by `cell_sound_spots`. Gives the registers
-/// it leaves (ecx the last cell). Refuses (before anything) a cell past the grid, or no
+/// (`g_gridReach` - 2) x 0x21 (rows 0x20 apart) by `cell_sound_spots`. Its one caller,
+/// `race::draw_race_scene`, reads no register it leaves. Refuses (before anything) a cell past the grid, or no
 /// records, faces or points when a cell has a record.
-pub unsafe fn find_sound_spots(entry: &Regs) -> Result<Regs, Refused> {
+pub unsafe fn find_sound_spots() -> Result<(), Refused> {
     unsafe {
         check()?;
         game_write(COUNT, 0u32);
-        let mut r = *entry;
         for c in cells() {
-            r.ecx = c;
-            r = cell_sound_spots(&r);
+            cell_sound_spots(c);
         }
-        Ok(r)
+        Ok(())
     }
 }

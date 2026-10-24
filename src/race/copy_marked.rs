@@ -17,29 +17,22 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
-use crate::physics::flow::a;
 use crate::race::viewer::{
     CAMERAS, CLIP_BLOCKS, CLIP_CAMERAS, CLIP_PLACES, MARK_IN, MARK_OUT, PLACES, get, move_dwords,
     put,
 };
 
-/// The Rust version: the registers it leaves.
-pub fn copy_marked(entry: &Regs) -> Result<Regs, Refused> {
-    let mut r = *entry;
+/// The Rust version: the count copied (edx), none when the marks are not in order. Of
+/// what the original leaves, its caller `viewer_action` reads only edx, in the cut.
+pub fn copy_marked() -> Result<Option<u32>, Refused> {
     // Converted: `rc2k_core::race::viewer::clip`.
-    r.eax = get(MARK_IN);
-    r.ebx = get(MARK_OUT);
-    let Some((_, blocks)) = rc2k_core::race::viewer::clip(r.eax, r.ebx)? else {
-        return Ok(r);
+    let first = get(MARK_IN);
+    let Some((_, blocks)) = rc2k_core::race::viewer::clip(first, get(MARK_OUT))? else {
+        return Ok(None);
     };
-    r.edx = blocks;
-    put(CLIP_BLOCKS, r.edx);
-    let dwords = 2 * r.edx as usize;
-    move_dwords(CLIP_PLACES, PLACES + 8 * r.eax as usize, dwords);
-    move_dwords(CLIP_CAMERAS, CAMERAS + 8 * r.eax as usize, dwords);
-    r.ecx = 0;
-    r.esi = a(CAMERAS + 8 * r.eax as usize) + 4 * dwords as u32;
-    r.edi = a(CLIP_CAMERAS) + 4 * dwords as u32;
-    Ok(r)
+    put(CLIP_BLOCKS, blocks);
+    let dwords = 2 * blocks as usize;
+    move_dwords(CLIP_PLACES, PLACES + 8 * first as usize, dwords);
+    move_dwords(CLIP_CAMERAS, CAMERAS + 8 * first as usize, dwords);
+    Ok(Some(blocks))
 }

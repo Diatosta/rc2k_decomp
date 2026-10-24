@@ -9,7 +9,7 @@
 //! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
 //! `routes.rs`); the registers above are the original's, for reference.
 
-use crate::framework::{Regs, game_addr, rva};
+use crate::framework::{game_addr, rva};
 
 // ---- game data ----
 
@@ -23,10 +23,4 @@ pub fn stop_cd_audio() {
     for _ in 0..STOPS {
         crate::sound::stop_cd_track::stop_cd_track_in_game();
     }
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(_: &mut Regs) -> Result<(), crate::errors::Refused> {
-    stop_cd_audio();
-    Ok(())
 }

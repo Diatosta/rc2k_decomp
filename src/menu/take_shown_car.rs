@@ -15,10 +15,8 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_read, rva};
+use crate::framework::{game_read, rva};
 use crate::menu::player::{PLAYERS, Player, player_at};
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 pub const CURRENT_PLAYER_RVA: usize = rva(0x75598C); // dword_75598C
 pub const SHOWN_CAR_RVA: usize = rva(0x755990); // dword_755990
@@ -43,15 +41,4 @@ pub unsafe fn take_shown_car(list: u32) -> Result<(), Refused> {
         at.write_unaligned(p);
     }
     Ok(())
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { take_shown_car(r.esi) }?;
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

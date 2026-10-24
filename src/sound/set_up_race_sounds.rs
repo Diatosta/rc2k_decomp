@@ -9,7 +9,7 @@
 //! Shadow mode runs the original alone.
 //! Self-test: a redirected copy whose four calls note the registers they get.
 
-use crate::framework::{Regs, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 use crate::sound::apply_settings::run_step;
 
 // ---- game data ----
@@ -31,9 +31,4 @@ pub fn set_up_race_sounds() -> Result<(), crate::errors::Refused> {
         game_write(HELD_BACK_RVA, 0u32);
     }
     Ok(())
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(_: &mut Regs) -> Result<(), crate::errors::Refused> {
-    set_up_race_sounds()
 }

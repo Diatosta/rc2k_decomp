@@ -19,31 +19,16 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
-use crate::race::viewer::regs_entry;
+use crate::menu::screen_loop::{Carried, run_screen};
 
-/// The Rust version: the registers the screen leaves.
-pub fn replay_slot_loop(entry: &Regs) -> Result<Regs, Refused> {
-    let mut r = *entry;
-    crate::menu::replay_slot_loop::game_part(if r.eax != 0 { 1 } else { 2 }, &mut r)?;
-    Ok(r)
-}
-
-/// In the game: the screens' Rust versions.
-pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    use crate::menu::screen_loop::run_screen;
-    unsafe {
-        if place == 1 {
-            run_screen(&crate::menu::save_replay_loop::SCREEN, r);
-        } else {
-            run_screen(&crate::menu::load_replay_loop::SCREEN, r);
-        }
-    }
-    Ok(())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    regs_entry(r, &|r| replay_slot_loop(r))
+/// The Rust version: the slot chosen (eax; -1 for none). `c` the carried values the screen
+/// is run with; `c.arg` 0 to load, else to save.
+pub fn replay_slot_loop(c: &Carried) -> Result<u32, Refused> {
+    let screen = if c.arg != 0 {
+        &crate::menu::save_replay_loop::SCREEN
+    } else {
+        &crate::menu::load_replay_loop::SCREEN
+    };
+    // (A screen with no result leaves eax as it was.)
+    Ok(unsafe { run_screen(screen, c) }?.unwrap_or(c.arg))
 }

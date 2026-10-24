@@ -10,8 +10,7 @@
 //!
 //! In:  st(0) the along share, st(1) the across share (popped), esi the item, edx the
 //!      colour
-//! Out: eax, ebx, ecx the places a, b, c; ebp `g_polygonVertices`; the rest as `draw_fan`
-//!      leaves them when drawn
+//! Out: nothing (its caller reads no register after it)
 //!
 //! Caller: `sub_4BFFEC` (0x4C00FE). The x87 runs are the original's instructions over the
 //! game's variables; the draw through `part` (1 `draw_fan`), in the game its Rust version.
@@ -22,8 +21,7 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 
 const VERTICES_RVA: usize = rva(0x9605A0); // g_polygonVertices
 const PLACES_RVA: usize = rva(0x8BC1AE); // dword_8BC1AE .. dword_8BC1BA
@@ -213,34 +211,25 @@ unsafe fn projected(b: u32, p: u32) {
     }
 }
 
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn draw_square(entry: &Regs, shares: [[u8; 10]; 2]) -> Result<Regs, Refused> {
-    let mut g = *entry;
+/// The Rust version (see the header): `item` (esi), `colour` (edx).
+pub unsafe fn draw_square(item: u32, colour: u32, shares: [[u8; 10]; 2]) {
     unsafe {
         let b = game_addr(0) as u32;
-        g.ebp = game_addr(VERTICES_RVA) as u32;
+        let vertices = game_addr(VERTICES_RVA) as u32;
         let [a, pb, c, d]: [u32; 4] = game_read(PLACES_RVA);
         for (n, (u, v)) in [(a, pb), (c, pb), (c, d), (a, d)].into_iter().enumerate() {
             game_write(VERTICES_RVA + 0x20 * n + 0x18, u);
             game_write(VERTICES_RVA + 0x20 * n + 0x1C, v);
         }
-        [g.eax, g.ebx, g.ecx] = [a, pb, c];
-        shifted_places(g.esi, g.ebp);
+        shifted_places(item, vertices);
         corners(b, &shares);
         if game_read::<i32>(CORNERS_RVA + 8) <= FAR_ENOUGH {
-            return Ok(g);
+            return;
         }
-        projected(b, g.ebp);
+        projected(b, vertices);
         for n in 0..4 {
-            game_write(VERTICES_RVA + 0x20 * n + 0x10, g.edx);
+            game_write(VERTICES_RVA + 0x20 * n + 0x10, colour);
         }
-        crate::marks::draw_square::game_part(1, &mut g)?;
+        crate::marks::clip_quad::draw_fan();
     }
-    Ok(g)
-}
-
-/// In the game: `draw_fan`'s Rust version.
-pub fn game_part(_place: u32, r: &mut Regs) -> Result<(), Refused> {
-    unsafe { crate::scene::draw_fan::draw_fan(r, &mut crate::scene::draw_fan::game_part) };
-    Ok(())
 }

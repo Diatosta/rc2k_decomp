@@ -26,80 +26,54 @@
 //! stage (`physics/update_camera.rs`, `camera_test`), the camera where it is, moved below
 //! the car and into the ground, every mode.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::physics::camera_clear_of_ground::camera_clear_of_ground;
 use crate::physics::camera_over_ground::camera_over_ground;
 use crate::physics::camera_view::{rd, record};
 use crate::physics::flow::{g, p};
 use crate::physics::touch_face::FACES;
-use crate::race::car_starts::Part;
 use rc2k_core::physics::camera_ground;
 
 const HEADING: usize = 0x71A688;
 const STEP: usize = 0x605264;
 const KEPT: usize = 0x623FD8;
 
-fn place(r: &mut Regs) {
-    unsafe { crate::physics::place_camera::place_camera(r) }.apply(r);
-}
-
-/// Placed, and whether over ground (`camera_over_ground`'s CF clear).
-fn over(r: &mut Regs, part: Part) -> Result<bool, Refused> {
-    *r = unsafe { camera_over_ground(r, part) }?;
-    Ok(!r.carry())
-}
-
-fn clear(r: &mut Regs, part: Part) -> Result<bool, Refused> {
-    *r = unsafe { camera_clear_of_ground(r, part) }?;
-    Ok(!r.carry())
+fn place() {
+    unsafe { crate::physics::place_camera::place_camera() };
 }
 
 /// Turned to face from checkpoint `back` before the car's; false when there is none.
-fn face_checkpoint(r: &mut Regs, back: u32) -> bool {
-    r.ebx = g(0x71A070).wrapping_sub(back);
-    if camera_ground::back_checkpoint(g(0x71A070), back).is_none() {
+fn face_checkpoint(back: u32) -> bool {
+    let Some(checkpoint) = camera_ground::back_checkpoint(g(0x71A070), back) else {
         return false;
-    }
-    r.ebx = g(0x9E3738 + 4 * r.ebx as usize);
-    r.esi = (r.ebx << 6).wrapping_add(g(FACES));
-    r.ebx = rd(r.esi + 4);
-    r.esi = r
-        .ebx
+    };
+    let face = (g(0x9E3738 + 4 * checkpoint as usize) << 6).wrapping_add(g(FACES));
+    let point = rd(face + 4)
         .wrapping_mul(12)
         .wrapping_add(g(crate::physics::scene_point_hits_car::SCENE_POINTS));
-    r.eax = rd(r.esi);
-    r.ebx = rd(r.esi + 8);
-    r.ecx = g(0x71A10C);
-    r.edx = g(0x71A114);
-    let (first, second) = (r.ecx.wrapping_sub(r.eax), r.edx.wrapping_sub(r.ebx));
-    r.eax = unsafe { crate::scene::angle_between::angle_of(first, second) };
-    r.ecx = first;
-    r.edx = second;
-    p(HEADING, r.eax << 16);
+    let first = g(0x71A10C).wrapping_sub(rd(point));
+    let second = g(0x71A114).wrapping_sub(rd(point + 8));
+    let angle = unsafe { crate::scene::angle_between::angle_of(first, second) };
+    p(HEADING, angle << 16);
     true
 }
 
 /// The turn back toward the kept heading (0x43919D ..).
-fn turn_back(r: &mut Regs, part: Part) -> Result<(), Refused> {
+fn turn_back() -> Result<(), Refused> {
     p(STEP, camera_ground::FIRST_TURN_STEP);
     loop {
         p(0x623FD4, g(HEADING));
         for k in 0..5 {
             p(0x623FDC + 4 * k, g(0x71AEC8 + 4 * k));
         }
-        r.eax = camera_ground::turn_gap(g(KEPT), g(HEADING));
         let mut stepped_back = false;
         if let Some(step) = camera_ground::turn_step(g(KEPT), g(HEADING), g(STEP)) {
-            r.ebx = step;
-            r.eax = g(KEPT).wrapping_sub(g(HEADING));
-            p(HEADING, g(HEADING).wrapping_add(r.ebx));
-            place(r);
-            if over(r, part)? {
+            p(HEADING, g(HEADING).wrapping_add(step));
+            place();
+            if camera_over_ground()? {
                 continue;
             }
             stepped_back = true;
@@ -118,58 +92,56 @@ fn turn_back(r: &mut Regs, part: Part) -> Result<(), Refused> {
     }
 }
 
-/// The steps; `r` as the original leaves it.
-// Converted: `rc2k_core::physics::camera_ground::{back_checkpoint, turn_gap, turn_step,
+/// The steps. The registers the original leaves are read by none of its callers.
+// Converted: `rc2k_core::physics::camera_ground::{back_checkpoint, turn_step,
 // next_turn_step}`.
-pub fn steps(r: &mut Regs, part: Part) -> Result<(), Refused> {
-    unsafe { crate::physics::ease_view_turn::ease_view_turn(r) }.apply(r);
+pub fn steps() -> Result<(), Refused> {
+    unsafe { crate::physics::ease_view_turn::ease_view_turn() };
     p(0x605268, 0);
     p(STEP, u32::MAX);
     p(KEPT, g(HEADING));
-    place(r);
-    r.esi = record();
-    if rd(r.esi + 0x4C) == 0 {
+    place();
+    if rd(record() + 0x4C) == 0 {
         return Ok(());
     }
-    if !over(r, part)? {
+    if !camera_over_ground()? {
         let mut found = false;
         for back in [1, 2] {
-            if !face_checkpoint(r, back) {
+            if !face_checkpoint(back) {
                 break;
             }
-            place(r);
-            if over(r, part)? {
+            place();
+            if camera_over_ground()? {
                 found = true;
                 break;
             }
         }
         if found {
-            turn_back(r, part)?;
+            turn_back()?;
         } else {
             p(HEADING, g(KEPT));
         }
     }
     // 0x4392A3: clear of the ground by the pitch.
     p(0x605268, u32::MAX);
-    place(r);
-    if clear(r, part)? {
+    place();
+    if camera_clear_of_ground()? {
         return Ok(());
     }
     p(0x608C20, camera_ground::PITCH_START);
     let mut up = true;
     loop {
-        r.eax = g(0x71A690);
         if up {
-            p(0x608C1C, r.eax);
-            unsafe { crate::physics::ease_pitch_up::ease_pitch_up() }.apply(r);
+            p(0x608C1C, g(0x71A690));
+            unsafe { crate::physics::ease_pitch_up::ease_pitch_up() };
         } else {
-            p(0x608C20, r.eax);
-            unsafe { crate::physics::ease_pitch_down::ease_pitch_down() }.apply(r);
+            p(0x608C20, g(0x71A690));
+            unsafe { crate::physics::ease_pitch_down::ease_pitch_down() };
         }
         if g(0x608C24) == 0 {
             return Ok(());
         }
-        place(r);
-        up = !clear(r, part)?;
+        place();
+        up = !camera_clear_of_ground()?;
     }
 }

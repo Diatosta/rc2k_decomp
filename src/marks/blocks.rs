@@ -1,9 +1,9 @@
 //! More of `marks::init_marks`' steps (IDA, 2026-10-16): the three blocks it takes
-//! (`memory::allocate`, as place 0 of a `race::level_init::Part`), the corner table
+//! (`memory::allocate`), the corner table
 //! scaled, and the eight settings blocks reset.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::math::x87;
 
 pub const PLACES_LIST_RVA: usize = rva(0x8DB570); // stru_8DB570
@@ -15,7 +15,6 @@ pub const RING_RVA: usize = rva(0x93A5C8); // g_marksRing
 pub const RING_FREE_RVA: usize = rva(0x93A5C0); // g_marksRingFree
 pub const RING_USED_RVA: usize = rva(0x93A5EC); // g_marksRingUsed
 pub const RING_LEN: u32 = 0x4C000;
-pub const RING_ENTRIES: u32 = rc2k_core::marks::rings::ENTRIES;
 pub const RING_ENTRY: u32 = rc2k_core::marks::rings::RING_ENTRY;
 pub const LINKS_LIST_RVA: usize = rva(0x9206F0); // stru_9206F0
 pub const LINKS_RVA: usize = rva(0x920730); // g_marksLinks
@@ -32,88 +31,59 @@ pub const SETTINGS_BLOCKS: u32 = 8;
 pub const SETTINGS_BLOCK: u32 = 0x4C8;
 const SETTINGS_START_RVA: usize = rva(0x9354C6); // flt_9354C6 .. flt_9354DA
 
-unsafe fn take(
-    g: &mut Regs,
-    list: usize,
-    bytes: u32,
-    part: crate::race::level_init::Part,
-) -> Result<u32, Refused> {
-    g.eax = bytes;
-    g.ebx = game_addr(list) as u32;
-    part(0, g)?;
-    Ok(g.eax)
+/// `bytes` bytes on the list at `list` (`memory::allocate`).
+pub unsafe fn take(list: usize, bytes: u32) -> Result<u32, Refused> {
+    let list = game_addr(list) as *mut crate::memory::MemoryList;
+    Ok(unsafe { crate::memory::allocate::allocate(list, bytes) }? as u32)
 }
 
 /// `marks::allocate_places` (0x4C38B1), step 6: 0x7024 bytes on `stru_8DB570` into
-/// `g_marksPlaces`, its first three floats `flt_8DB5B4` ... Leaves eax and esi the block,
-/// ebx the list.
-pub unsafe fn allocate_places(
-    entry: &Regs,
-    part: crate::race::level_init::Part,
-) -> Result<Regs, Refused> {
-    let mut g = *entry;
+/// `g_marksPlaces`, its first three floats `flt_8DB5B4` ...
+pub unsafe fn allocate_places() -> Result<(), Refused> {
     unsafe {
-        let block = take(&mut g, PLACES_LIST_RVA, PLACES_LEN, part)?;
+        let block = take(PLACES_LIST_RVA, PLACES_LEN)?;
         game_write(PLACES_RVA, block);
-        g.esi = block;
         for n in 0..3 {
             let v = x87::loaded(game_read(PLACE_START_RVA + 4 * n));
             ((block + 4 * n as u32) as *mut u32).write_unaligned(v);
         }
     }
-    Ok(g)
+    Ok(())
 }
 
 /// `marks::allocate_ring` (0x4CFAC5), step 13: 0x4C000 bytes on `stru_93A580` into
 /// `g_marksRing` and `g_marksRingFree`, `g_marksRingUsed` 0, and the 0x1000 entries of
-/// 0x4C made a ring (+0 the one before, +4 the one after). Leaves eax 0x1000, ebx
-/// the entry 0xFFE, ecx and esi the block.
-pub unsafe fn allocate_ring(
-    entry: &Regs,
-    part: crate::race::level_init::Part,
-) -> Result<Regs, Refused> {
-    let mut g = *entry;
+/// 0x4C made a ring (+0 the one before, +4 the one after).
+pub unsafe fn allocate_ring() -> Result<(), Refused> {
     unsafe {
-        let block = take(&mut g, RING_LIST_RVA, RING_LEN, part)?;
+        let block = take(RING_LIST_RVA, RING_LEN)?;
         game_write(RING_RVA, block);
         game_write(RING_FREE_RVA, block);
         game_write(RING_USED_RVA, 0u32);
-        g.esi = block;
         // Converted: `rc2k_core::marks::rings::ring_links`.
         for (n, links) in rc2k_core::marks::rings::ring_links(block).enumerate() {
             let e = block.wrapping_add(n as u32 * RING_ENTRY) as *mut [u32; 2];
             e.write_unaligned(links);
-            [g.ebx, g.ecx] = links;
         }
-        // The loop's counter, read back for its last test.
-        g.eax = RING_ENTRIES;
     }
-    Ok(g)
+    Ok(())
 }
 
 /// `marks::allocate_links` (0x4C5398), in step 3: 0x71020 bytes on `stru_9206F0` into
 /// `g_marksLinks`, its +0x7100C 0, at +8 and +0x4008 the 0x1000 entries' before and after
-/// (round), then `marks::scale_corners` (place 1 of the part). Leaves the registers as
-/// that does.
-pub unsafe fn allocate_links(
-    entry: &Regs,
-    part: crate::race::level_init::Part,
-) -> Result<Regs, Refused> {
-    let mut g = *entry;
+/// (round), then `marks::scale_corners`.
+pub unsafe fn allocate_links() -> Result<(), Refused> {
     unsafe {
-        let block = take(&mut g, LINKS_LIST_RVA, LINKS_LEN, part)?;
+        let block = take(LINKS_LIST_RVA, LINKS_LEN)?;
         game_write(LINKS_RVA, block);
-        g.esi = block;
         ((block + 0x7100C) as *mut u32).write_unaligned(0);
         // Converted: `rc2k_core::marks::rings::link_tables`.
         let (before, after) = rc2k_core::marks::rings::link_tables();
         ((block + 8) as *mut [u32; 0x1000]).write_unaligned(before);
         ((block + 0x4008) as *mut [u32; 0x1000]).write_unaligned(after);
-        [g.ebx, g.ecx] = [before[0xFFF], after[0xFFF]];
-        g.eax = 0x1000;
-        part(1, &mut g)?;
+        scale_corners();
     }
-    Ok(g)
+    Ok(())
 }
 
 /// The word pairs of a corner record, in the order they are made: +0, +4, +0xC, +8.
@@ -122,10 +92,8 @@ const CORNER_PAIRS: [u32; 4] = [0, 4, 0xC, 8];
 /// `marks::scale_corners` (0x4C6420): for the 0x100 corner records (0xFF first), the four
 /// word pairs (+0, +4, +0xC, +8) each times `flt_8EB969` into the work and into +4 .. +0x20
 /// of the record's 0x24 at `g_marksCornerSlopes`; +0 there the slope: |+0xA - +2| over
-/// |+4 - +0| (sixteen-bit differences; `dword_8EB8B5`, `dword_8EB8B9`). Leaves eax and ebx
-/// the last pair, esi 0, ebp and edi the two sides.
-pub unsafe fn scale_corners(entry: &Regs) -> Regs {
-    let mut g = *entry;
+/// |+4 - +0| (sixteen-bit differences; `dword_8EB8B5`, `dword_8EB8B9`).
+pub unsafe fn scale_corners() {
     unsafe {
         let scale: u32 = game_read(CORNER_SCALE_RVA);
         for n in (0..CORNERS).rev() {
@@ -143,92 +111,35 @@ pub unsafe fn scale_corners(entry: &Regs) -> Regs {
                 let d = word(a).wrapping_sub(word(b));
                 (if (d as i16) < 0 { d.wrapping_neg() } else { d }) as u32
             };
-            g.ebp = side(4, 0);
-            g.edi = side(0xA, 2);
-            game_write(CORNER_SIDES_RVA, [g.ebp, g.edi]);
-            g.esi = n * 0x24;
-            game_write(
-                SLOPES_RVA + g.esi as usize,
-                x87::int_ratio(g.edi as i32, g.ebp as i32),
-            );
-            game_write(SLOPES_RVA + g.esi as usize + 4, values);
-            g.eax = values[6];
-            g.ebx = values[7];
+            let (across, along) = (side(4, 0), side(0xA, 2));
+            game_write(CORNER_SIDES_RVA, [across, along]);
+            let slope = SLOPES_RVA + (n * 0x24) as usize;
+            game_write(slope, x87::int_ratio(along as i32, across as i32));
+            game_write(slope + 4, values);
         }
     }
-    g
-}
-
-/// The converted `scale_corners` (plain floats): the hook's. The x87 version above stays
-/// for `game_part` (`marks::allocate_links`, unconverted).
-// Converted: `rc2k_core::marks::scales::scale_corner`
-pub unsafe fn scale_corners_plain(entry: &Regs) -> Regs {
-    let mut g = *entry;
-    unsafe {
-        let scale = f32::from_bits(game_read(CORNER_SCALE_RVA));
-        for n in (0..CORNERS).rev() {
-            let record = game_addr(CORNERS_RVA) as u32 + 0x80 * n;
-            let c = rc2k_core::marks::scales::scale_corner(
-                |o| ((record + o) as *const u16).read_unaligned(),
-                scale,
-            );
-            let values = c.values.map(f32::to_bits);
-            for k in 0..4 {
-                game_write(
-                    CORNER_WORK_RVA + 0x20 * k,
-                    [values[2 * k], values[2 * k + 1]],
-                );
-            }
-            [g.ebp, g.edi] = c.sides;
-            game_write(CORNER_SIDES_RVA, c.sides);
-            g.esi = n * 0x24;
-            game_write(SLOPES_RVA + g.esi as usize, c.slope.to_bits());
-            game_write(SLOPES_RVA + g.esi as usize + 4, values);
-            [g.eax, g.ebx] = [values[6], values[7]];
-        }
-    }
-    g
 }
 
 /// `marks::reset_settings_blocks` (0x4C9A6D), in step 3: the eight blocks of 0x4C8 at
 /// `g_marksSettings` + 0x60 (the last first): +0x4C .. +0x60 the six floats from
-/// `flt_9354C6`, the last three again at +0x64, +0x70, +0x7C, +0x30 8. Leaves ebp the
-/// settings, esi the first block, eax, ebx, ecx the three.
-pub unsafe fn reset_settings_blocks(entry: &Regs) -> Regs {
-    let mut g = *entry;
+/// `flt_9354C6`, the last three again at +0x64, +0x70, +0x7C, +0x30 8.
+pub unsafe fn reset_settings_blocks() {
     unsafe {
-        g.ebp = game_read(SETTINGS_RVA);
+        let settings: u32 = game_read(SETTINGS_RVA);
         for n in (0..SETTINGS_BLOCKS).rev() {
-            g.esi = g.ebp.wrapping_add(0x60 + n * SETTINGS_BLOCK);
-            let at = |o: u32| (g.esi + o) as *mut u32;
+            let block = settings.wrapping_add(0x60 + n * SETTINGS_BLOCK);
+            let at = |o: u32| (block + o) as *mut u32;
             for k in 0..6u32 {
                 let v = x87::loaded(game_read(SETTINGS_START_RVA + 4 * k as usize));
                 at(0x4C + 4 * k).write_unaligned(v);
             }
-            g.eax = at(0x58).read_unaligned();
-            g.ebx = at(0x5C).read_unaligned();
-            g.ecx = at(0x60).read_unaligned();
+            let last: [u32; 3] = [0x58, 0x5C, 0x60].map(|o| at(o).read_unaligned());
             for o in [0x64, 0x70, 0x7C] {
-                at(o).write_unaligned(g.eax);
-                at(o + 4).write_unaligned(g.ebx);
-                at(o + 8).write_unaligned(g.ecx);
+                for (k, v) in last.into_iter().enumerate() {
+                    at(o + 4 * k as u32).write_unaligned(v);
+                }
             }
             at(0x30).write_unaligned(8);
         }
     }
-    g
-}
-
-/// In the game: place 0 `memory::allocate`, 1 `scale_corners`, 2 `allocate_links`, 3
-/// `reset_settings_blocks`.
-pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    unsafe {
-        match place {
-            0 => return crate::race::level_init::game_part(0, r),
-            1 => *r = scale_corners(r),
-            2 => *r = allocate_links(r, &mut game_part)?,
-            _ => *r = reset_settings_blocks(r),
-        }
-    }
-    Ok(())
 }

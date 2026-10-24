@@ -14,11 +14,10 @@
 //! values are changed in the player directly, so those bars have one marker.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{EAX, ESI, Regs, game_read, rva};
+use crate::framework::{game_read, rva};
 use crate::gfx::blit_bar::Bar;
 use crate::gfx::blit_bar_marker::blit_bar_marker;
-use crate::screens::harness::Left;
-use crate::service::state::{blink_on, edit_mode, menu_item, repair_flag, repair_flag_addr};
+use crate::service::state::{blink_on, edit_mode, menu_item, repair_flag};
 use crate::text::draw_text::Canvas;
 
 pub use rc2k_core::screens::setup_markers::{BAR_WIDTH, LEFT_X, RIGHT_X};
@@ -47,14 +46,13 @@ pub enum Marker {
     Upper { item: u32, x: i32, car_offset: u32 },
 }
 
-/// Puts the bar in the bar globals and draws the marker: what is left has eax = percent.
+/// Puts the bar in the bar globals and draws the marker.
 unsafe fn place(
     canvas: &mut dyn Canvas,
     palette_at_start: u32,
     (x, y, glyph): (i32, i32, u32),
     percent: i32,
-    left: Left,
-) -> Result<Left, Refused> {
+) -> Result<(), Refused> {
     Bar {
         x,
         y,
@@ -65,16 +63,18 @@ unsafe fn place(
     }
     .write();
     unsafe { blit_bar_marker(palette_at_start, &mut |call| canvas.blit_glyph(call)) }?;
-    Ok(left.with(EAX, percent as u32))
+    Ok(())
 }
 
-/// `r` holds the registers at entry: ebx goes to the blitter as the palette when the
-/// percentage is 0 or less, and edi is the player for the upper bars.
+/// `palette` (the original's ebx) goes to the blitter as the palette when the percentage
+/// is 0 or less, and `player` (edi) is the player for the upper bars. What the original
+/// leaves in eax and esi its one caller, `screens::draw_service_area`, does not read.
 pub unsafe fn draw_marker(
     marker: Marker,
-    r: &Regs,
+    palette: u32,
+    player: u32,
     canvas: &mut dyn Canvas,
-) -> Result<Left, Refused> {
+) -> Result<(), Refused> {
     // Converted: `rc2k_core::screens::setup_markers::plan`; here the values read and the bar drawn.
     use rc2k_core::screens::setup_markers::{Marker as M, Menu, Plan};
     let menu = Menu {
@@ -93,12 +93,12 @@ pub unsafe fn draw_marker(
             Marker::Always { percent_rva, .. } => read(percent_rva),
             Marker::Lower { chosen_rva, .. } => read(chosen_rva),
             Marker::Upper { car_offset, .. } => {
-                if r.edi == 0 {
+                if player == 0 {
                     return Err(
                         BadInput("no player in edi: the original reads through null").into(),
                     );
                 }
-                Ok(unsafe { (r.edi.wrapping_add(car_offset) as *const i32).read_unaligned() })
+                Ok(unsafe { (player.wrapping_add(car_offset) as *const i32).read_unaligned() })
             }
         }
     };
@@ -106,27 +106,17 @@ pub unsafe fn draw_marker(
         Marker::Lower { installed_rva, .. } => unsafe { game_read::<i32>(installed_rva) },
         _ => 0,
     };
-    let (plan, looked) =
+    let (plan, _) =
         rc2k_core::screens::setup_markers::plan(core, menu, &percent, &installed, &|| {
             repair_flag(item)
         })?;
-    // The flag's address stays in esi whether the marker is drawn or not.
-    let left = if looked {
-        Left::nothing().with(ESI, repair_flag_addr(item))
-    } else {
-        Left::nothing()
-    };
     match plan {
-        Plan::Hidden { item } => Ok(left.with(EAX, item)),
+        Plan::Hidden { .. } => Ok(()),
         Plan::Draw {
             x,
             y,
             glyph,
             percent,
-        } => unsafe { place(canvas, r.ebx, (x, y, glyph), percent, left) },
+        } => unsafe { place(canvas, palette, (x, y, glyph), percent) },
     }
 }
-
-// ---- hook ----
-
-// ---- self-test ----

@@ -9,8 +9,7 @@
 //! (`race::load_stage`), "LOADING NETWORK COMPLETE".
 //!
 //! In:  nothing
-//! Out: ebp = the players, esi the last player's block, eax the last value; the rest as
-//!      the calls leave them (no `pusha`: its caller `net::lets_rally` has one)
+//! Out: nothing its one caller, `net::lets_rally` (which has a `pusha`), reads
 //! The players' loop ends on `jnz` with the count: none, or more than the tables' eight,
 //! would run past them: refused. Caller: `net::lets_rally`. Its calls through `part`
 //! (`net::lobby_calls`: the Rust versions, the start states through their hook). Shadow
@@ -24,15 +23,10 @@
 
 use crate::errors::Refused;
 use crate::field;
-use crate::framework::Regs;
-use crate::net::lobby::{
-    ARCADE_CARS, LOAD_STAGE, LOG_INT_L1_NL, LOG_L1, LOG_L1_NL, PLAYER, PLAYERS, Part, START_STATES,
-    block, g, lobby_entry, log_text, p,
-};
+use crate::net::lobby::{PLAYER, PLAYERS, a, block, g, log, log_int_nl, p};
 use crate::net::types::NetPlayerBlock;
 use rc2k_core::net::record;
 
-const RESET_CARS: u32 = 0x463E52; // net::reset_cars
 const LOCAL: usize = 0x63DBA0; // dword_63DBA0
 const KINDS: usize = 0x623858; // g_raceCarKinds
 const COLOURS: usize = 0x623878; // dword_623878
@@ -81,56 +75,43 @@ const COUNTS: [(usize, usize); 11] = [
     (0x4DE098, 0x623874),
 ];
 
-/// The Rust version: the registers it leaves.
-pub fn set_up_race(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+/// The Rust version.
+pub fn set_up_race() -> Result<(), Refused> {
     // Converted: `rc2k_core::net::record` (`race_players`, `seat`).
     let players = record::race_players(g(PLAYERS))?;
-    let mut r = *entry;
     p(LOCAL, g(PLAYER));
-    r.ebp = 0;
-    loop {
-        r.esi = block(r.ebp);
-        let at = r.esi + field!(NetPlayerBlock, record);
+    for n in 0..players {
+        let at = block(n) + field!(NetPlayerBlock, record);
         let seat = record::seat(|n| unsafe { ((at + n as u32) as *const u8).read() });
-        let slot = 4 * r.ebp as usize;
+        let slot = 4 * n as usize;
         p(KINDS + slot, seat.car);
         p(COLOURS + slot, seat.colours);
         p(NUMBERS + slot, seat.race_number);
-        r.eax = unsafe { ((at + record::STAGE as u32) as *const u8).read() } as u32;
         if let Some((stage, direction)) = seat.stage {
             p(STAGE, stage);
             p(DIRECTION, direction);
-            r.eax = direction;
-        }
-        r.ebp += 1;
-        if r.ebp == players {
-            break;
         }
     }
     p(CLEARED, 0);
     p(RACE_CARS, players);
     p(ONE, 1);
     p(CLEARED_2, 0);
-    part(RESET_CARS, &mut r)?;
-    part(ARCADE_CARS, &mut r)?;
-    part(START_STATES, &mut r)?;
+    crate::net::reset_cars::reset_cars();
+    unsafe {
+        crate::race::race_cars::set_up_arcade_cars()?;
+        crate::race::race_shell::set_start_states()?;
+    }
     for (to, from) in STORED {
         p(to, g(from));
     }
-    log_text(LOG_L1_NL, crate::net::lobby::a(RULE), &r, part)?;
-    log_text(LOG_L1_NL, crate::net::lobby::a(START), &r, part)?;
+    log(a(RULE), true, 1);
+    log(a(START), true, 1);
     for (label, value) in COUNTS {
-        log_text(LOG_L1, crate::net::lobby::a(label), &r, part)?;
-        log_text(LOG_INT_L1_NL, g(value), &r, part)?;
+        log(a(label), false, 1);
+        log_int_nl(g(value), 1);
     }
-    part(LOAD_STAGE, &mut r)?;
-    log_text(LOG_L1_NL, crate::net::lobby::a(COMPLETE), &r, part)?;
-    log_text(LOG_L1_NL, crate::net::lobby::a(RULE_2), &r, part)?;
-    Ok(r)
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    lobby_entry(r, set_up_race)
+    unsafe { crate::race::stage_loading::load_stage() }?;
+    log(a(COMPLETE), true, 1);
+    log(a(RULE_2), true, 1);
+    Ok(())
 }

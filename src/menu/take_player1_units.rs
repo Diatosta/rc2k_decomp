@@ -12,29 +12,14 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_write, rva};
 use crate::menu::player::{Player, player_at};
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
-
-const UNITS_RVA: usize = rva(0x51DE2C); // g_isImperialUnits
 
 pub fn take_player1_units() -> Result<(), Refused> {
     let p = player_at(0);
     if p == 0 {
         return Err(BadInput("no player 1 in g_players").into());
     }
-    unsafe { game_write(UNITS_RVA, (*(p as *const Player)).metric_units) };
+    // g_isImperialUnits
+    crate::strings::units::set_units(unsafe { (*(p as *const Player)).metric_units });
     Ok(())
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    take_player1_units()?;
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

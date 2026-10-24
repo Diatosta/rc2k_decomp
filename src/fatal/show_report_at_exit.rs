@@ -10,27 +10,27 @@
 //! One caller, `start`'s way out, which calls it directly (2026-10-23). The registers
 //! above are the original's, for reference.
 
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::fatal::state::{CAPTION, CODE, REPORTED, TEXT};
 use crate::logfile::write_line::log_text;
-
-const REPORTED_RVA: usize = rva(0x4F67BC); // g_fatalReported (a byte)
-const CODE_RVA: usize = rva(0x4F52A4); // g_fatalCode
-const CAPTION_RVA: usize = rva(0x4F66FD); // Caption; byte_4F6702 its sixth byte
-const TEXT_RVA: usize = rva(0x9526F8); // Text: the report
+use std::sync::atomic::Ordering::Relaxed;
 
 /// The Rust version (see the header).
 pub fn show_report_at_exit() {
     use windows_sys::Win32::UI::WindowsAndMessaging::MessageBoxA;
     unsafe {
-        if game_read::<u8>(REPORTED_RVA) == 1 {
+        if REPORTED.load(Relaxed) == 1 {
             // Converted: `rc2k_core::fatal::caption_cut`.
-            if rc2k_core::fatal::caption_cut(game_read(CODE_RVA)) {
-                game_write(CAPTION_RVA + rc2k_core::fatal::CAPTION_CUT, 0u8);
+            if rc2k_core::fatal::caption_cut(CODE.load(Relaxed)) {
+                CAPTION
+                    .ptr()
+                    .cast::<u8>()
+                    .add(rc2k_core::fatal::CAPTION_CUT)
+                    .write(0);
             }
             MessageBoxA(
                 std::ptr::null_mut(),
-                game_addr(TEXT_RVA) as _,
-                game_addr(CAPTION_RVA) as _,
+                TEXT.ptr().cast(),
+                CAPTION.ptr().cast(),
                 0x2030,
             );
         }

@@ -12,20 +12,12 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::Regs;
-use crate::physics::flag_result::FlagResult;
 use rc2k_core::physics::line_places::car_near;
 
-/// The Rust core; `r` the registers at entry.
+/// The Rust core: whether the car block at `car` is near `checkpoint` (eax; the CF).
+/// The distance it leaves in ebx is read by no caller (`checkpoint_taken` keeps ebx).
 // Converted: `rc2k_core::physics::line_places::car_near`.
-pub unsafe fn near_at(car: u32, r: &Regs) -> FlagResult {
+pub unsafe fn near_at(car: u32, checkpoint: u32) -> bool {
     let get = |o: u32| unsafe { ((car + o) as *const u32).read_unaligned() };
-    let near = car_near(get(0x25C) != 0, || get(0x98), r.eax);
-    FlagResult {
-        eax: r.eax,
-        ecx: None,
-        ebx: near.map(|n| n.0),
-        carry: near.is_some_and(|n| n.1),
-        zero: None,
-    }
+    car_near(get(0x25C) != 0, || get(0x98), checkpoint).is_some_and(|n| n.1)
 }

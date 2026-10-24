@@ -6,10 +6,9 @@
 //! being edited (`dword_52A4B8`) or in the blink's lit half (bit 3 of `dword_51D41F` -
 //! `dword_51D423` clear), or `stru_51E7C4` with flag 2.
 //!
-//! In:  eax = the string, ebx = the flags (1: the frame centred on x, else ending half its
-//!      width left of x and the text centred too; 2: the dim font), ecx = x, edx = y,
-//!      esi = the item
-//! Out: every register kept (`pusha` .. `popa`)
+//! In:  the string, the flags (1: the frame centred on x, else ending half its width left of
+//!      x and the text centred too; 2: the dim font), x, y, the item
+//! Out: nothing (the original keeps every register: `pusha` .. `popa`)
 //! The arguments are kept in `dword_5AB490` .., the width in `dword_5AB4A0`, the frame's
 //! tiles in `dword_5AB4A4`. The blits get ebx as the measuring and the blits before leave
 //! it (the sprites are drawn as they are). Callers: `net::setting_label`,
@@ -23,11 +22,8 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
-use crate::net::lobby::{
-    BLIT, CHOICE, DRAW_STRING, EDITED, FRAME_CLOCK, MEASURE_STRING, MOVE_CLOCK, PALETTE, Part,
-    SPRITES, a, g, lobby_entry, p,
-};
+use crate::net::lobby::{CHOICE, EDITED, FRAME_CLOCK, MOVE_CLOCK, PALETTE, a, g, p};
+use crate::text::font::Font;
 use rc2k_core::net::screens::{self, ButtonFont};
 
 const ARGS: usize = 0x5AB490; // dword_5AB490: the string, flags, x, y; +0x18 the item
@@ -50,76 +46,67 @@ pub fn item_font(item: u32, plain: usize, lit: usize) -> u32 {
     }
 }
 
-/// The Rust version: the registers it leaves (the entry's).
-pub fn draw_button(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    let mut r = *entry;
-    p(ARGS, r.eax);
-    p(ARGS + 4, r.ebx);
-    p(ARGS + 8, r.ecx);
-    p(ARGS + 12, r.edx);
-    p(ITEM, r.esi);
-    r.ebx = a(PALETTE);
-    part(MEASURE_STRING, &mut r)?;
-    p(WIDTH, r.ecx);
-    // Converted: `rc2k_core::net::screens` (`button`, `item_lit`, `button_font`).
-    let flags = g(ARGS + 4);
-    let place = screens::button(g(WIDTH), g(ARGS + 8), flags);
-    p(TILES, place.tiles);
-    if flags & screens::CENTRED != 0 {
-        p(ARGS + 8, place.text_x);
-    }
-    r.edi = place.left;
-    let blit = |r: &mut Regs, glyph: u32, part: Part| -> Result<(), Refused> {
-        r.eax = glyph;
-        r.ecx = r.edi;
-        r.edx = g(ARGS + 12);
-        r.esi = g(SPRITES);
-        part(BLIT, r)
-    };
-    blit(&mut r, screens::LEFT_END, part)?;
-    r.edi = r.edi.wrapping_add(screens::END_WIDTH);
-    let kept = r.edi;
-    r.ebp = g(TILES);
-    loop {
-        blit(&mut r, screens::TILE, part)?;
-        r.edi = r.edi.wrapping_add(screens::TILE_WIDTH);
-        r.ebp = r.ebp.wrapping_sub(1);
-        if r.ebp == 0 {
-            break;
+/// The Rust version.
+pub fn draw_button(string: u32, flags: u32, x: u32, y: u32, item: u32) -> Result<(), Refused> {
+    use crate::text::draw_text::GameCanvas;
+    unsafe {
+        p(ARGS, string);
+        p(ARGS + 4, flags);
+        p(ARGS + 8, x);
+        p(ARGS + 12, y);
+        p(ITEM, item);
+        let measured = crate::text::measure_string_by_id::measure_string_by_id_at(
+            string,
+            a(PALETTE) as *mut Font,
+            x as i32,
+            &mut GameCanvas,
+        )?;
+        p(WIDTH, measured.width);
+        // Converted: `rc2k_core::net::screens` (`button`, `item_lit`, `button_font`).
+        let place = screens::button(g(WIDTH), g(ARGS + 8), flags);
+        p(TILES, place.tiles);
+        if flags & screens::CENTRED != 0 {
+            p(ARGS + 8, place.text_x);
         }
+        // The blits are handed the palette the measuring and each blit before leave in ebx
+        // (the sprites are drawn as they are).
+        let mut palette = measured.lines;
+        let mut blit = |glyph: u32, at: u32| -> Result<(), Refused> {
+            palette = crate::net::lobby::blit(glyph, at, g(ARGS + 12), palette)?;
+            Ok(())
+        };
+        let mut left = place.left;
+        blit(screens::LEFT_END, left)?;
+        left = left.wrapping_add(screens::END_WIDTH);
+        let kept = left;
+        let mut tiles = g(TILES);
+        loop {
+            blit(screens::TILE, left)?;
+            left = left.wrapping_add(screens::TILE_WIDTH);
+            tiles = tiles.wrapping_sub(1);
+            if tiles == 0 {
+                break;
+            }
+        }
+        blit(screens::RIGHT_END, kept.wrapping_add(g(WIDTH)))?;
+        let lit = screens::item_lit(
+            item,
+            g(CHOICE),
+            || g(EDITED),
+            || screens::blink_lit(g(FRAME_CLOCK), g(MOVE_CLOCK)),
+        );
+        let font = a(match screens::button_font(flags, lit) {
+            ButtonFont::Plain => FONT_PLAIN,
+            ButtonFont::Lit => FONT_LIT,
+            ButtonFont::Dim => FONT_DIM,
+        });
+        crate::text::draw_string_by_id::draw_string_by_id_at(
+            g(ARGS),
+            font as *mut Font,
+            g(ARGS + 8) as i32,
+            g(ARGS + 12) as i32,
+            &mut GameCanvas,
+        )?;
     }
-    r.edi = kept.wrapping_add(g(WIDTH));
-    blit(&mut r, screens::RIGHT_END, part)?;
-    r.edi = r.edi.wrapping_add(screens::END_WIDTH);
-    r.eax = g(ARGS);
-    r.ecx = g(ARGS + 8);
-    r.edx = g(ARGS + 12);
-    r.esi = g(ITEM);
-    let lit = screens::item_lit(
-        r.esi,
-        g(CHOICE),
-        || g(EDITED),
-        || {
-            // The blink's clock is left in edi.
-            let (frame, moved) = (g(FRAME_CLOCK), g(MOVE_CLOCK));
-            r.edi = frame.wrapping_sub(moved);
-            screens::blink_lit(frame, moved)
-        },
-    );
-    r.ebx = a(match screens::button_font(flags, lit) {
-        ButtonFont::Plain => FONT_PLAIN,
-        ButtonFont::Lit => FONT_LIT,
-        ButtonFont::Dim => FONT_DIM,
-    });
-    part(DRAW_STRING, &mut r)?;
-    Ok(Regs {
-        eflags: r.eflags,
-        ..*entry
-    })
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    lobby_entry(r, draw_button)
+    Ok(())
 }

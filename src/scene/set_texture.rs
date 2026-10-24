@@ -12,7 +12,7 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::{Regs, game_read, rva};
+use crate::framework::{game_read, rva};
 
 const SWITCH_RVA: usize = rva(0x5CDA8C); // dword_5CDA8C
 
@@ -22,10 +22,4 @@ pub fn set_texture(texture: u32) {
     if unsafe { game_read::<u32>(SWITCH_RVA) } != 0 {
         crate::d3d::set_texture::set_texture(texture);
     }
-}
-
-/// For the typed tables' calls by address: eax the texture.
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    set_texture(r.eax);
-    Ok(())
 }

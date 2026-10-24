@@ -3,7 +3,7 @@
 //! sine table) and the race's sounds restarted or silenced. Here the steps.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, rva};
+use crate::framework::{game_addr, rva};
 
 unsafe fn get(at: u32) -> u32 {
     unsafe { (at as *const u32).read_unaligned() }
@@ -32,38 +32,29 @@ fn span_plain(second: u32, first: u32) -> u32 {
     rc2k_core::race::sound_tables::span(f32::from_bits(first), f32::from_bits(second)).to_bits()
 }
 
-/// `race::sound_span` (0x40D71B), converted (the hook's and `prepare_sound_tables`'; the
-/// exact x87 versions went once `race::set_up_race_sound_objects` took the converted
-/// tables): two dwords from ebx made floats, the third their difference (`fld` / `fsub` /
-/// `fstp`). Leaves eax as the second `whole_to_float`, ebx at the second.
+/// `race::sound_span` (0x40D71B), converted: the two dwords at `at` made floats, the third
+/// (at `at` + 8) their difference (`fld` / `fsub` / `fstp`). Its leftovers (eax, ebx) are
+/// read by no caller (`prepare_sound_tables` and `sound_row` only).
 // Converted: `rc2k_core::race::sound_tables::span`.
-pub unsafe fn sound_span_plain(entry: &Regs) -> Regs {
-    let mut g = *entry;
+pub unsafe fn sound_span(at: u32) {
     unsafe {
-        whole_to_float(g.ebx);
-        g.ebx += 4;
-        g.eax = whole_to_float(g.ebx);
-        put(g.ebx + 4, span_plain(get(g.ebx), get(g.ebx - 4)));
+        whole_to_float(at);
+        whole_to_float(at + 4);
+        put(at + 8, span_plain(get(at + 4), get(at)));
     }
-    g
 }
 
-/// `race::sound_row` (0x40D731), converted: a row at edx: +4, +8, +0xC made floats, spans
-/// at +0x10 and +0x1C. Leaves ebx at edx + 0x20, eax as the last.
+/// `race::sound_row` (0x40D731), converted: a row at `row`: +4, +8, +0xC made floats, spans
+/// at +0x10 and +0x1C. Its leftovers are read by no caller.
 // Converted: `rc2k_core::race::sound_tables::{whole_to_float, span}`.
-pub unsafe fn sound_row_plain(entry: &Regs) -> Regs {
-    let mut g = *entry;
+pub unsafe fn sound_row(row: u32) {
     unsafe {
         for off in [4, 8, 0xC] {
-            g.ebx = g.edx + off;
-            g.eax = whole_to_float(g.ebx);
+            whole_to_float(row + off);
         }
-        g.ebx = g.edx + 0x10;
-        g = sound_span_plain(&g);
-        g.ebx = g.edx + 0x1C;
-        g = sound_span_plain(&g);
+        sound_span(row + 0x10);
+        sound_span(row + 0x1C);
     }
-    g
 }
 
 /// Where `prepare_sound_tables` finds its variables (the game's, or a test's).
@@ -107,19 +98,13 @@ pub unsafe fn prepare_sound_tables_plain(v: &TableVars) {
         put(v.done, 1);
         for n in 0..RECORDS {
             let record = get(v.records + 4 * n);
-            sound_span_plain(&Regs {
-                ebx: record + 4,
-                ..Regs::default()
-            });
+            sound_span(record + 4);
             put(
                 record + 0xC,
                 reciprocal(f32::from_bits(get(record + 0xC))).to_bits(),
             );
             for k in 0..3 {
-                sound_row_plain(&Regs {
-                    edx: record + 0x10 + 0x28 * k,
-                    ..Regs::default()
-                });
+                sound_row(record + 0x10 + 0x28 * k);
             }
         }
         let (table, last) = sines();

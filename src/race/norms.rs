@@ -3,7 +3,7 @@
 //! points and of its last three) stored in it.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::math::x87;
 
 pub const WORK_VECTOR_RVA: usize = rva(0x5C5F60); // g_workVector: three floats
@@ -37,18 +37,17 @@ pub unsafe fn normalise_work_vector() {
     }
 }
 
-/// `race::face_normal` (0x422144): the points eax, ebx, ecx (a, b, c) of `g_scenePoints`
-/// kept, the differences b - a and c - a (whole numbers), their cross product into
-/// `g_workVector` (each part as `math::x87::int_product_difference`), normalised. Leaves
-/// eax c.z - a.z, ebx c.y, ecx c.z.
-pub unsafe fn face_normal(entry: &Regs) -> Regs {
-    let mut g = *entry;
+/// `race::face_normal` (0x422144): the points `a`, `b`, `c` (eax, ebx, ecx) of
+/// `g_scenePoints` kept, the differences b - a and c - a (whole numbers), their cross
+/// product into `g_workVector` (each part as `math::x87::int_product_difference`),
+/// normalised. Its caller (`store_face_normal`) keeps every register round it.
+pub unsafe fn face_normal(a: u32, b: u32, c: u32) {
     unsafe {
         let points: u32 = game_read(POINTS_RVA);
         let point = |n: u32| -> [i32; 3] {
             ((points.wrapping_add(n.wrapping_mul(12))) as *const [i32; 3]).read_unaligned()
         };
-        let (a, b, c) = (point(g.eax), point(g.ebx), point(g.ecx));
+        let (a, b, c) = (point(a), point(b), point(c));
         let d = [
             b[0].wrapping_sub(a[0]),
             c[0].wrapping_sub(a[0]),
@@ -71,11 +70,7 @@ pub unsafe fn face_normal(entry: &Regs) -> Regs {
         ];
         game_write(WORK_VECTOR_RVA, normal);
         normalise_work_vector();
-        g.eax = d[5] as u32;
-        g.ebx = c[1] as u32;
-        g.ecx = c[2] as u32;
     }
-    g
 }
 
 /// `race::store_face_normal` (0x421F72): face ebx. Nothing for a face whose first byte is
@@ -133,13 +128,8 @@ pub unsafe fn lay_out_course() {
 }
 
 /// `race::store_norms` (0x421F02): `lay_out_course`, then `store_face_normal` for every
-/// face. Leaves ebx the face count. Refuses no faces (the original counts round) or
-/// 0x100000 or more.
-pub unsafe fn store_norms(
-    entry: &Regs,
-    normal: &mut dyn FnMut(u32, u32, u32),
-) -> Result<Regs, Refused> {
-    let mut g = *entry;
+/// face. Refuses no faces (the original counts round) or 0x100000 or more.
+pub unsafe fn store_norms(normal: &mut dyn FnMut(u32, u32, u32)) -> Result<(), Refused> {
     unsafe {
         // Converted: `rc2k_core::race::faces::check_face_count`.
         let count: u32 = game_read(FACE_COUNT_RVA);
@@ -148,21 +138,13 @@ pub unsafe fn store_norms(
         for face in 0..count {
             store_face_normal(face, normal);
         }
-        g.ebx = count;
     }
-    Ok(g)
+    Ok(())
 }
 
 /// In the game: `face_normal` in Rust.
 pub fn game_normal(a: u32, b: u32, c: u32) {
-    unsafe {
-        face_normal(&Regs {
-            eax: a,
-            ebx: b,
-            ecx: c,
-            ..Regs::default()
-        })
-    };
+    unsafe { face_normal(a, b, c) };
 }
 
 // ---- for the self-tests ----

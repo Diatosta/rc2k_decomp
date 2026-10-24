@@ -17,7 +17,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_read, rva};
+use crate::framework::{game_read, rva};
 use crate::gfx::clear_picture::clear_picture;
 use crate::gfx::pcx::DECODED_WIDTH_RVA;
 use crate::gfx::picture::picture;
@@ -57,15 +57,6 @@ pub unsafe fn load_picture(path: *mut u8) -> Result<bool, Refused> {
         }
         Ok(true)
     }
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    {
-        let read = unsafe { load_picture(r.eax as *mut u8) }?;
-        r.set_carry(!read)
-    }
-    Ok(())
 }
 
 // ---- for this self-test and `menu::load_background`'s: everything a picture's loading

@@ -12,11 +12,8 @@
 //! with the same stand-ins (`test_part`); calls, registers and memory compared.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 use crate::race::best_line::{CHECKS_RVA, MOST_CHECKS};
-
-/// A step's calls: (place, registers).
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
 
 const fn car(offset: usize) -> usize {
     rva(0x719FD8 + offset)
@@ -65,13 +62,10 @@ unsafe fn wheels() -> [u32; 4] {
 }
 
 /// One bisection step of `settle_car`: `angle` moved by `step` towards the higher pair
-/// (down when `low` - `high` is negative), the step halved (`shr`). Leaves eax the step,
-/// ebx `high`.
-unsafe fn settle_step(g: &mut Regs, low: u32, high: u32, angle: usize, step: usize) {
+/// (down when `low` - `high` is negative), the step halved (`shr`).
+unsafe fn settle_step(low: u32, high: u32, angle: usize, step: usize) {
     unsafe {
-        g.ebx = high;
         let s: u32 = game_read(step);
-        g.eax = s;
         if (low.wrapping_sub(high) as i32) < 0 {
             game_write(angle, game_read::<u32>(angle).wrapping_sub(s));
         } else {
@@ -81,58 +75,52 @@ unsafe fn settle_step(g: &mut Regs, low: u32, high: u32, angle: usize, step: usi
     }
 }
 
-/// `race::settle_car` (0x43FC32): `sub_43EB5D`; the work car's pitch and roll (+0x9C4,
-/// +0x9C8) 0, both steps 0x20000000, `dword_620470` 0x80; eight times the matrix
-/// (`get_mat_crash`) and the wheels (`sub_45D305`), the roll moved by the step towards
-/// wheels 0 + 2 against 1 + 3, the pitch towards 0 + 1 against 2 + 3, each step halved;
-/// once more the matrix and the wheels, then the car's y, the four wheels and the four at
-/// 0x6D1F14 lowered by the lowest wheel (from 0x640000). Leaves eax wheel 3, edx the
-/// lowest; ebx, ecx and the rest as the calls leave them.
-pub unsafe fn settle_car(entry: &Regs) -> Result<Regs, Refused> {
-    let mut g = *entry;
+/// The matrix (`get_mat_crash`) and the wheels (`physics::probe_ground`).
+unsafe fn matrix_and_wheels() -> Result<[u32; 4], Refused> {
     unsafe {
-        crate::race::car_starts::game_part(0, &mut g)?;
+        crate::race::stage_prefs::get_mat_crash();
+        crate::physics::probe_ground::probe_ground()?;
+        Ok(wheels())
+    }
+}
+
+/// `race::settle_car` (0x43FC32): `sub_43EB5D` (`physics::set_handling`); the work car's
+/// pitch and roll (+0x9C4, +0x9C8) 0, both steps 0x20000000, `dword_620470` 0x80; eight
+/// times the matrix (`get_mat_crash`) and the wheels (`sub_45D305`), the roll moved by the
+/// step towards wheels 0 + 2 against 1 + 3, the pitch towards 0 + 1 against 2 + 3, each
+/// step halved; once more the matrix and the wheels, then the car's y, the four wheels and
+/// the four at 0x6D1F14 lowered by the lowest wheel (from 0x640000). The registers it
+/// leaves are read by no caller (conversion phase 3, 2026-10-24).
+pub unsafe fn settle_car() -> Result<(), Refused> {
+    unsafe {
+        crate::physics::set_handling::set_handling()?;
         game_write(PITCH_RVA, 0u32);
         game_write(ROLL_RVA, 0u32);
         game_write(PITCH_STEP_RVA, 0x2000_0000u32);
         game_write(ROLL_STEP_RVA, 0x2000_0000u32);
         game_write(SETTLE_MARK_RVA, 0x80u32);
-        g.ecx = 8;
-        loop {
-            let counter = g.ecx;
-            crate::race::car_starts::game_part(1, &mut g)?;
-            crate::race::car_starts::game_part(2, &mut g)?;
-            let w = wheels();
+        for _ in 0..8 {
+            let w = matrix_and_wheels()?;
             settle_step(
-                &mut g,
                 w[0].wrapping_add(w[2]),
                 w[1].wrapping_add(w[3]),
                 ROLL_RVA,
                 ROLL_STEP_RVA,
             );
             settle_step(
-                &mut g,
                 w[0].wrapping_add(w[1]),
                 w[2].wrapping_add(w[3]),
                 PITCH_RVA,
                 PITCH_STEP_RVA,
             );
-            g.ecx = counter.wrapping_sub(1);
-            if g.ecx == 0 {
-                break;
-            }
         }
-        crate::race::car_starts::game_part(1, &mut g)?;
-        crate::race::car_starts::game_part(2, &mut g)?;
-        let w = wheels();
+        let w = matrix_and_wheels()?;
         let mut lowest = 0x64_0000u32;
         for &h in &w {
             if (h.wrapping_sub(lowest) as i32) < 0 {
                 lowest = h;
             }
         }
-        g.eax = w[3];
-        g.edx = lowest;
         game_write(CAR_Y_RVA, game_read::<u32>(CAR_Y_RVA).wrapping_sub(lowest));
         for (k, h) in w.iter().enumerate() {
             game_write(WHEELS_RVA + 4 * k, h.wrapping_sub(lowest));
@@ -142,7 +130,7 @@ pub unsafe fn settle_car(entry: &Regs) -> Result<Regs, Refused> {
             game_write(at, game_read::<u32>(at).wrapping_sub(lowest));
         }
     }
-    Ok(g)
+    Ok(())
 }
 
 /// `race::reset_car_motion` (0x43FB47): `settle_car`, `invert_car_matrix`; the work car's
@@ -150,12 +138,10 @@ pub unsafe fn settle_car(entry: &Regs) -> Result<Regs, Refused> {
 /// heading, pitch and roll copied to `dword_608B50` / `58` / `54` and +0x6B0 / +0x6B8 /
 /// +0x6B4; +0x1E8, `g_carDriveSpeed`, `g_carDriveSpeed2`, `g_carGear`, +0x200, +0x204,
 /// +0x1C4, +0x1F4 0; with +0x68C not 0, +0x688 and +0x684 it less one and +0x68C 0.
-/// Leaves eax +0x68C (less one when not 0).
-pub unsafe fn reset_car_motion(entry: &Regs) -> Result<Regs, Refused> {
-    let mut g = *entry;
+pub unsafe fn reset_car_motion() -> Result<(), Refused> {
     unsafe {
-        crate::race::car_starts::game_part(3, &mut g)?;
-        crate::race::car_starts::game_part(4, &mut g)?;
+        settle_car()?;
+        crate::race::start_place::invert_car_matrix();
         zero(car(0x198), 3);
         game_write(car(0x1A4), 0x3F80_0000u32);
         game_write(car(0x1A8), 0u32);
@@ -174,15 +160,29 @@ pub unsafe fn reset_car_motion(entry: &Regs) -> Result<Regs, Refused> {
             game_write(car(offset), 0u32);
         }
         let pending: u32 = game_read(PENDING_RVA);
-        g.eax = pending;
         if pending != 0 {
-            g.eax = pending - 1;
-            game_write(car(0x688), g.eax);
-            game_write(car(0x684), g.eax);
+            game_write(car(0x688), pending - 1);
+            game_write(car(0x684), pending - 1);
             game_write(PENDING_RVA, 0u32);
         }
     }
-    Ok(g)
+    Ok(())
+}
+
+/// `math::turn_point_xz` of (x, 0, z) by the start place's heading: x and z moved. The
+/// original's y there is a leftover in ebx; it lands only in `g_scratchY`, which every
+/// reader writes first.
+unsafe fn move_turned(x: u32, z: u32) {
+    unsafe {
+        let [x, _, z, _] = crate::math::turn_point_xz::turn_point_xz(
+            x as i32,
+            0,
+            z as i32,
+            game_read(PLACE_HEADING_RVA),
+        );
+        add(CAR_X_RVA, x);
+        add(CAR_Z_RVA, z);
+    }
 }
 
 /// `race::start_car` (0x4464AD): the work car's +0x478, +0x694 0, +0xAD4/+0xAD8
@@ -193,10 +193,9 @@ pub unsafe fn reset_car_motion(entry: &Regs) -> Result<Regs, Refused> {
 /// turned by `dword_5CCD60`) and, with `dword_52A910` or (`dword_62389C` 0 and
 /// `dword_63DB94` not 1), to the side (+-0x14000 by the car's number's low bit). Then
 /// `nearest_checkpoint` into +0x98, +0x94, +0x9C; its check count less one held to 0 ..
-/// 100 into +0x90 and +0xAC; `reset_car_motion`; +0x264 .. +0x26C 0. Leaves the registers
-/// as `reset_car_motion`. Refuses a nearest checkpoint past the lists (when met).
-pub unsafe fn start_car(entry: &Regs) -> Result<Regs, Refused> {
-    let mut g = *entry;
+/// 100 into +0x90 and +0xAC; `reset_car_motion`; +0x264 .. +0x26C 0. The registers it
+/// leaves are read by no caller. Refuses a nearest checkpoint past the lists (when met).
+pub unsafe fn start_car() -> Result<(), Refused> {
     unsafe {
         game_write(car(0x478), 0u32);
         game_write(car(0x694), 0u32);
@@ -211,115 +210,62 @@ pub unsafe fn start_car(entry: &Regs) -> Result<Regs, Refused> {
             // Converted: `rc2k_core::race::start::{start_checkpoint, starts_aside,
             // side_offset, start_checks}`.
             use rc2k_core::race::start::{side_offset, start_checkpoint, starts_aside};
-            crate::race::car_starts::game_part(5, &mut g)?;
+            let first = crate::race::race_init::first_check_checkpoint()?;
             let mode: u32 = game_read(MODE_RVA);
-            if mode != 1 && mode != 3 {
-                g.ebx = game_read::<u32>(CURRENT_CAR_RVA) >> 1;
-            }
-            g.eax = start_checkpoint(g.eax, mode, game_read(CURRENT_CAR_RVA));
-            game_write(LINE_PLACE_RVA, g.eax);
+            let place = start_checkpoint(first, mode, game_read(CURRENT_CAR_RVA));
+            game_write(LINE_PLACE_RVA, place);
             game_write(LINE_FRACTION_RVA, 0u32);
             if game_read::<u32>(NO_PLACE_RVA) != 0 {
-                g.eax = 0;
                 game_write(LINE_PLACE_RVA, 0u32);
                 game_write(LINE_FRACTION_RVA, 0u32);
             }
-            crate::race::car_starts::game_part(6, &mut g)?;
+            crate::race::start_place::place_car_on_line()?;
             if game_read::<u32>(NO_PLACE_RVA) == 0 {
-                g.eax = 0;
-                g.ecx = 0xFFFE_0000;
-                g.edx = game_read(PLACE_HEADING_RVA);
-                crate::race::car_starts::game_part(7, &mut g)?;
-                add(CAR_X_RVA, g.eax);
-                add(CAR_Z_RVA, g.ecx);
+                move_turned(0, 0xFFFE_0000);
                 let side = starts_aside(
                     game_read(SIDE_RVA),
                     || game_read(MODE_RVA),
                     || game_read(CARS_2_RVA),
                 );
                 if side {
-                    g.eax = side_offset(game_read(CURRENT_CAR_RVA));
-                    g.ecx = 0;
-                    g.edx = game_read(PLACE_HEADING_RVA);
-                    crate::race::car_starts::game_part(7, &mut g)?;
-                    add(CAR_X_RVA, g.eax);
-                    add(CAR_Z_RVA, g.ecx);
+                    move_turned(side_offset(game_read(CURRENT_CAR_RVA)), 0);
                 }
             }
         }
-        crate::race::car_starts::game_part(8, &mut g)?;
-        game_write(car(0x98), g.eax);
-        game_write(car(0x94), g.eax);
-        game_write(car(0x9C), g.eax);
-        if g.eax >= MOST_CHECKS {
+        let nearest = crate::race::start_place::nearest_checkpoint()?;
+        game_write(car(0x98), nearest);
+        game_write(car(0x94), nearest);
+        game_write(car(0x9C), nearest);
+        if nearest >= MOST_CHECKS {
             return Err(BadInput("a nearest checkpoint past the lists").into());
         }
-        g.eax = rc2k_core::race::start::start_checks(game_read(CHECKS_RVA + 4 * g.eax as usize));
-        game_write(car(0x90), g.eax);
-        game_write(car(0xAC), g.eax);
-        crate::race::car_starts::game_part(9, &mut g)?;
+        let checks =
+            rc2k_core::race::start::start_checks(game_read(CHECKS_RVA + 4 * nearest as usize));
+        game_write(car(0x90), checks);
+        game_write(car(0xAC), checks);
+        reset_car_motion()?;
         zero(car(0x264), 3);
     }
-    Ok(g)
+    Ok(())
 }
 
 /// `race::start_cars` (0x446463): for each car of the race (`g_raceCars`), `g_currentCar`
 /// it, `drive::load_car`, `start_car`, the work car's +0xA3C (8 dwords) and +0xA5C (0x11)
-/// 0, `drive::store_car`; every register kept round each car (`pusha` / `popa`). Leaves
-/// ecx the count. Refuses no cars (the original's `jnz` runs on) or more than 8, before
-/// anything.
-pub unsafe fn start_cars(entry: &Regs) -> Result<Regs, Refused> {
+/// 0, `drive::store_car`; every register kept round each car (`pusha` / `popa`). Refuses
+/// no cars (the original's `jnz` runs on) or more than 8, before anything.
+pub unsafe fn start_cars() -> Result<(), Refused> {
     let cars: u32 = unsafe { game_read(RACE_CARS_RVA) };
     if cars == 0 || cars > MOST_CARS {
         return Err(BadInput("no cars or more than eight").into());
     }
     for n in 0..cars {
-        let mut g = Regs { ecx: n, ..*entry };
         unsafe {
             game_write(CURRENT_CAR_RVA, n);
-            crate::race::car_starts::game_part(10, &mut g)?;
-            crate::race::car_starts::game_part(11, &mut g)?;
+            crate::drive::load_car::load_car()?;
+            start_car()?;
             zero(car(0xA3C), 8);
             zero(car(0xA5C), 0x11);
-            g.edi = game_addr(car(0xA5C + 0x44)) as u32;
-            g.ecx = 0;
-            g.eax = 0;
-            crate::race::car_starts::game_part(12, &mut g)?;
-        }
-    }
-    Ok(Regs {
-        ecx: cars,
-        ..*entry
-    })
-}
-
-/// The calls in the game: the Rust versions (places 0 and 2 stream B's).
-pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    unsafe {
-        match place {
-            0 => crate::physics::set_handling::set_handling()?.apply(r),
-            2 => crate::physics::probe_ground::probe_ground(r)?,
-            1 => *r = crate::race::stage_prefs::get_mat_crash(r),
-            3 => *r = settle_car(r)?,
-            4 => crate::race::start_place::invert_car_matrix(),
-            5 => *r = crate::race::race_init::first_check_checkpoint(r)?,
-            6 => *r = crate::race::start_place::place_car_on_line(r)?,
-            7 => {
-                let [x, _, z, edx] = crate::math::turn_point_xz::turn_point_xz(
-                    r.eax as i32,
-                    r.ebx as i32,
-                    r.ecx as i32,
-                    r.edx,
-                );
-                r.eax = x;
-                r.ecx = z;
-                r.edx = edx;
-            }
-            8 => *r = crate::race::start_place::nearest_checkpoint(r)?,
-            9 => *r = reset_car_motion(r)?,
-            10 => crate::drive::load_car::load_car()?.apply(r),
-            11 => *r = start_car(r)?,
-            _ => crate::drive::store_car::store_car()?.apply(r),
+            crate::drive::store_car::store_car()?;
         }
     }
     Ok(())

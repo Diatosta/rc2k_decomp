@@ -14,19 +14,18 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 use crate::errors::{BadInput, Refused};
-use crate::framework::Regs;
 use crate::menu::standings::*;
 
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn player_to_standing_b(entry: &Regs) -> Result<Regs, Refused> {
-    let (e, p) = (entry.edi, entry.esi);
+/// `e` the entry (edi in the original), `p` the player's record (esi), `index` the
+/// player's index (ebx).
+pub unsafe fn player_to_standing_b(e: u32, p: u32, index: u32) -> Result<(), Refused> {
     if e == 0 || p == 0 || get(p + 0x18) == 0 {
         return Err(BadInput("a null entry, record or name").into());
     }
     // Converted: `rc2k_core::menu::standings::fill_b`.
     use rc2k_core::menu::standings::{PlayerB, fill_b};
     let source = PlayerB {
-        index: entry.ebx,
+        index,
         name: bytes(get(p + 0x18)),
         nationality: get(p + 4),
         car: get(p + 8),
@@ -37,5 +36,5 @@ pub unsafe fn player_to_standing_b(entry: &Regs) -> Result<Regs, Refused> {
     };
     // The entry's bytes as far as it is written (to +0x70).
     fill_b(&mut unsafe { table(e, 0x70, 1) }, 0, &source);
-    Ok(*entry)
+    Ok(())
 }

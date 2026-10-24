@@ -19,7 +19,6 @@
 
 use crate::framework::{game_read, game_write, rva};
 use crate::math::x87;
-use crate::service::harness::{Region, at};
 
 /// (the factor, the vector, the result).
 const PAIRS: [(usize, usize, usize); 2] = [
@@ -42,16 +41,4 @@ pub unsafe fn scale_triples(pairs: &[(usize, usize, usize)]) {
             }
         }
     }
-}
-
-/// The results' dwords.
-pub fn results_of(pairs: &[(usize, usize, usize)]) -> Vec<usize> {
-    pairs
-        .iter()
-        .flat_map(|&(_, _, to)| [to, to + 4, to + 8])
-        .collect()
-}
-
-pub fn regions() -> Vec<Region> {
-    results_of(&PAIRS).into_iter().map(at).collect()
 }

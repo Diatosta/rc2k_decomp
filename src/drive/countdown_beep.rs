@@ -18,37 +18,24 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{EAX, EBX, EDX};
 use crate::physics::flow::{g, p};
-use crate::screens::harness::Left;
 use rc2k_core::drive::countdown::{self, Beep};
 
 /// The Rust version: the block at `block`, the second into `to`.
 // Converted: `rc2k_core::drive::countdown::countdown_beep`.
-pub unsafe fn countdown_beep(block: u32, to: u32) -> Result<Left, Refused> {
+pub unsafe fn countdown_beep(block: u32, to: u32) -> Result<(), Refused> {
     let rd = |o: u32| unsafe { ((block + o) as *const u32).read_unaligned() };
     let beep =
         countdown::countdown_beep(rd(0x1C), rd(0x25C), || rd(0x14).wrapping_sub(g(0x6D1814)));
-    let (second, remainder, cue) = match beep {
-        Beep::Idle => return Ok(Left::nothing()),
-        Beep::Before(t) => return Ok(Left::nothing().with(EAX, t)),
-        Beep::At {
-            second,
-            remainder,
-            cue,
-        } => (second, remainder, cue),
+    let (second, cue) = match beep {
+        Beep::Idle | Beep::Before(_) => return Ok(()),
+        Beep::At { second, cue, .. } => (second, cue),
     };
     unsafe { (to as *mut u32).write_unaligned(second) };
-    let mut left = Left::nothing()
-        .with(EAX, second)
-        .with(EDX, remainder)
-        .with(EBX, 100);
     if cue {
         let sound = g(0x6D1818 + 4 * second as usize);
         p(0x614114, sound);
-        left = left
-            .with(EBX, sound)
-            .with(EAX, crate::drive::countdown_cue::countdown_cue(sound)?);
+        crate::drive::countdown_cue::countdown_cue(sound)?;
     }
-    Ok(left)
+    Ok(())
 }

@@ -16,7 +16,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_write, rva};
+use crate::framework::{game_write, rva};
 use crate::scene::matrix::make_object_matrix;
 
 // ---- game data ----
@@ -34,32 +34,32 @@ pub enum Step {
 
 // ---- Rust version ----
 
+/// `step`: what stands for the two calls. The original's eax (0x200, then 0x100: the
+/// shine) is read by neither call nor by its callers.
 pub unsafe fn draw_menu_object(
-    r: &mut Regs,
-    step: &mut dyn FnMut(Step, &mut Regs) -> Result<(), Refused>,
+    step: &mut dyn FnMut(Step) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
     unsafe {
-        r.eax = 0x200;
         game_write(SHINE_RVA, 0x200u32);
-        step(Step::Matrix, r)?;
+        step(Step::Matrix)?;
         game_write(VIEW_KIND_RVA, 5u32);
         game_write(LIGHT_KIND_RVA, 4u32);
-        step(Step::Draw, r)?;
-        r.eax = 0x100;
+        step(Step::Draw)?;
         game_write(SHINE_RVA, 0x100u32);
         Ok(())
     }
 }
 
-/// With the Rust versions of what it calls.
-pub unsafe fn draw_menu_object_in_game(r: &mut Regs) -> Result<(), Refused> {
+/// With the Rust versions of what it calls. The drawing's esi (the description) is read
+/// only in the scene's modes 1 and 2; the menus draw in mode 0 (each caller writes it).
+pub unsafe fn draw_menu_object_in_game() -> Result<(), Refused> {
     unsafe {
-        draw_menu_object(r, &mut |step, r| match step {
+        draw_menu_object(&mut |step| match step {
             Step::Matrix => {
-                make_object_matrix().apply(r);
+                make_object_matrix();
                 Ok(())
             }
-            Step::Draw => crate::scene::draw_scene_object::draw_scene_object_in_game(r),
+            Step::Draw => crate::scene::draw_scene_object::draw_scene_object_in_game(0),
         })
     }
 }

@@ -7,8 +7,7 @@
 //! `flt_76921A`: projected, depth times `flt_89CEEA`, colour -1, `scene::draw_fan`.
 //!
 //! In:  st(0) height, st(1) width, st(2) along, st(3) across (popped)
-//! Out: eax the depth compare's status (& 0x700), ebx .. edx the places b .. d, ebp
-//!      `g_polygonVertices`; the rest as `draw_fan` leaves them when drawn
+//! Out: nothing (its caller reads no register after it)
 //!
 //! Callers: `marks::run_pong` (ball, bat), `marks::pong_cell`. The x87 runs are the
 //! original's instructions over the game's variables; the draw through `part` (1
@@ -20,8 +19,7 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::math::x87;
 
 const VERTICES_RVA: usize = rva(0x9605A0); // g_polygonVertices
@@ -222,13 +220,11 @@ unsafe fn projected(b: u32, p: u32) {
     }
 }
 
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn draw_pong_box(entry: &Regs, v: [[u8; 10]; 4]) -> Result<Regs, Refused> {
-    let mut g = *entry;
+/// The Rust version (see the header).
+pub unsafe fn draw_pong_box(v: [[u8; 10]; 4]) {
     unsafe {
         let b = game_addr(0) as u32;
         sides(b, &v);
-        g.ebp = game_addr(VERTICES_RVA) as u32;
         let [pa, pb, pc, pd]: [u32; 4] = game_read(PLACES_RVA);
         for (n, (u, w)) in [(pa, pb), (pc, pb), (pc, pd), (pa, pd)]
             .into_iter()
@@ -237,23 +233,14 @@ pub unsafe fn draw_pong_box(entry: &Regs, v: [[u8; 10]; 4]) -> Result<Regs, Refu
             game_write(VERTICES_RVA + 0x20 * n + 0x18, u);
             game_write(VERTICES_RVA + 0x20 * n + 0x1C, w);
         }
-        [g.eax, g.ebx, g.ecx, g.edx] = [pa, pb, pc, pd];
         corners(b, &v);
-        g.eax = x87::compare_status(game_read(CORNERS_RVA + 8), game_read(NEAR_RVA)) as u32;
-        if g.eax == 0x100 {
-            return Ok(g);
+        if x87::compare_status(game_read(CORNERS_RVA + 8), game_read(NEAR_RVA)) == 0x100 {
+            return;
         }
-        projected(b, g.ebp);
+        projected(b, game_addr(VERTICES_RVA) as u32);
         for n in 0..4 {
             game_write(VERTICES_RVA + 0x20 * n + 0x10, 0xFFFF_FFFFu32);
         }
-        crate::marks::draw_pong_box::game_part(1, &mut g)?;
+        crate::marks::clip_quad::draw_fan();
     }
-    Ok(g)
-}
-
-/// In the game: `draw_fan`'s Rust version.
-pub fn game_part(_place: u32, r: &mut Regs) -> Result<(), Refused> {
-    unsafe { crate::scene::draw_fan::draw_fan(r, &mut crate::scene::draw_fan::game_part) };
-    Ok(())
 }

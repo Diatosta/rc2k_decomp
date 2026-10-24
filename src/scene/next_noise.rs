@@ -15,10 +15,7 @@
 //! and the self-test was the hook's.
 
 use crate::bridge::Global;
-use crate::errors::Refused;
-use crate::framework::{EAX, Regs, rva};
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
+use crate::framework::rva;
 
 // ---- game data ----
 
@@ -38,14 +35,4 @@ pub unsafe fn next_noise() -> u32 {
     let number = n.draw();
     STATE.set(n.state);
     number
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    Ok(Left::nothing().with(EAX, unsafe { next_noise() }))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

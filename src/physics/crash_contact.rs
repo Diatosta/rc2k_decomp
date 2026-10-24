@@ -24,12 +24,10 @@
 //! contact's figures and the matrices by lot, both paths, the current car not listed
 //! (no sound), under three precisions.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::math::x87::{loaded, mul};
 use crate::math::x87_run::neg_rounded;
 use crate::physics::contact_force::{RECORD, contact_force};
@@ -39,10 +37,8 @@ use crate::physics::lowest_body_point::lowest_body_point;
 use crate::physics::place_sound_e5::place_sound_e5;
 use crate::physics::sound_cue_e5::sound_cue_e5;
 use crate::physics::touch_face::FACES;
-use crate::race::stage_prefs::left_of;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
-use crate::screens::harness::Left;
 use rc2k_core::physics::contacts;
 
 /// Force record 21 (`g_forceRecords` + 0x2A0).
@@ -82,17 +78,15 @@ pub fn point_number() -> Result<usize, Refused> {
 
 // Converted: `rc2k_core::physics::contacts::{touches, normal_offsets, check_body_point}`
 // (the x87 steps stay).
-fn steps(r: &mut Regs) -> Result<(), Refused> {
+fn steps() -> Result<(), Refused> {
     p(0x71AA0C, 0);
-    unsafe { lowest_body_point(r) }?;
+    unsafe { lowest_body_point() }?;
     let depth = g(0x6D3068);
-    r.eax = depth;
     if !contacts::touches(depth, g(0x613EF8), g(0x71A22C) != 0) {
         unsafe { sound_cue_e5() }?;
         return Ok(());
     }
     let n = point_number()?;
-    r.ebx = n as u32;
     p(0x71AA00, g(0x6D1E14 + 4 * n));
     p(0x71AA04, g(0x6D2114 + 4 * n));
     p(0x71AA08, g(0x6D2014 + 4 * n));
@@ -124,7 +118,7 @@ fn steps(r: &mut Regs) -> Result<(), Refused> {
         b = base()
     );
     p(RECORD, a(FORCE));
-    unsafe { contact_force() }.apply(r);
+    unsafe { contact_force() };
     unsafe { place_sound_e5() }?;
     copy3(0x6D3018, FORCE);
     fill3(FORCE + 0xC, 0);
@@ -141,11 +135,7 @@ fn steps(r: &mut Regs) -> Result<(), Refused> {
     Ok(())
 }
 
-/// The Rust version.
-pub unsafe fn crash_contact(entry: &Regs) -> Result<Left, Refused> {
-    {
-        let mut r = *entry;
-        steps(&mut r)?;
-        Ok(left_of(&r))
-    }
+/// The Rust version. The registers it leaves are read by none of its callers.
+pub fn crash_contact() -> Result<(), Refused> {
+    steps()
 }

@@ -9,34 +9,22 @@
 //! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
-use crate::errors::Refused;
-use crate::framework::Regs;
-use crate::install::installer::{CHOICE, MEDIA_MODE, PATH_PROBLEM, g, gb, p};
-use crate::race::viewer::regs_entry;
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
+//! are the original's.
 
-pub fn mode_page(entry: &Regs) -> Regs {
-    let mut r = *entry;
-    if r.ebx == 0 {
+use crate::install::installer::{CHOICE, LIST_ANSWER, MEDIA_MODE, PATH_PROBLEM, g, gb, p};
+
+/// `state` the list action's (ebx).
+pub fn mode_page(state: u32) {
+    if state == 0 {
         // Converted: `rc2k_core::install::pages::mode_highlight`.
-        r.eax = rc2k_core::install::pages::mode_highlight(g(MEDIA_MODE));
-        p(CHOICE, r.eax);
+        p(
+            CHOICE,
+            rc2k_core::install::pages::mode_highlight(g(MEDIA_MODE)),
+        );
         p(PATH_PROBLEM, 0);
     }
-    r.set_zero(r.ebx == 0);
-    r.set_carry(false);
-    if (r.ebx as i32) < 0 {
-        r.eax = gb(crate::install::installer::LIST_ANSWER) as u32;
-        p(MEDIA_MODE, r.eax);
+    if (state as i32) < 0 {
+        p(MEDIA_MODE, gb(LIST_ANSWER) as u32);
     }
-    r
-}
-
-fn rust(r: &Regs) -> Result<Regs, Refused> {
-    Ok(mode_page(r))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    regs_entry(r, &rust)
 }

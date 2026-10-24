@@ -15,7 +15,7 @@
 //! `scene::depth_test_on`.
 //!
 //! In:  nothing (`g_marksSettings`)
-//! Out: the registers as `depth_test_on` leaves them
+//! Out: nothing (its caller reads no register after it)
 //!
 //! Caller: `marks::run_frame` (0x4D166B). Its calls through `part` (1 `make_fade_colours`,
 //! 2 `place_view_2`, 3 the texture, 4 the depth buffer, 5 the depth test off, 6 a render
@@ -30,7 +30,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::marks::setup::SETTINGS_RVA;
 use crate::math::x87;
 
@@ -207,27 +207,23 @@ unsafe fn turn_light(b: u32) {
     }
 }
 
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn run_snow(entry: &Regs) -> Result<Regs, Refused> {
-    let mut g = *entry;
+/// The Rust version (see the header).
+pub unsafe fn run_snow() -> Result<(), Refused> {
+    use crate::scene::set_render_state::set_render_state;
     unsafe {
         let s: u32 = game_read(SETTINGS_RVA);
         if s == 0 {
             return Err(BadInput("no marks settings").into());
         }
-        g.ebp = s;
-        g.eax = get(s + 0x58);
-        game_write(KEPT_RVA, g.eax);
-        g.esi = game_addr(rva(0x5EA2CC)) as u32;
+        game_write(KEPT_RVA, get(s + 0x58));
         turn_light(game_addr(0) as u32);
-        crate::marks::run_snow::game_part(1, &mut g)?;
+        crate::marks::make_fade_colours::make_fade_colours();
         let s: u32 = game_read(SETTINGS_RVA);
-        g.esi = s;
         let mut flakes = get(s + 0x2760) as i32;
         game_write(FLAKES_RVA, flakes);
         if flakes == 0 {
             game_write(NONE_RVA, 0u32);
-            return Ok(g);
+            return Ok(());
         }
         if flakes > MOST {
             flakes = MOST;
@@ -239,41 +235,35 @@ pub unsafe fn run_snow(entry: &Regs) -> Result<Regs, Refused> {
         for n in 0..3 {
             game_write(COPIES_B + 4 * n, get(s + 0x1C + 4 * n as u32));
         }
-        crate::marks::run_snow::game_part(2, &mut g)?;
-        g.eax = game_read(TEXTURE_RVA);
-        crate::marks::run_snow::game_part(3, &mut g)?;
-        crate::marks::run_snow::game_part(4, &mut g)?;
-        crate::marks::run_snow::game_part(5, &mut g)?;
+        crate::marks::place_view_2::place_view_2()?;
+        crate::scene::set_texture::set_texture(game_read(TEXTURE_RVA));
+        crate::scene::depth_buffer_on::depth_buffer(true);
+        crate::scene::depth_test_off::depth_test_off();
         for (value, state) in STATES {
-            g.eax = value;
-            g.ebx = state;
-            crate::marks::run_snow::game_part(6, &mut g)?;
+            set_render_state(value, state);
         }
-        g.edi = game_addr(VERTICES_RVA) as u32;
-        g.eax = game_read(RHW_RVA);
+        let rhw: u32 = game_read(RHW_RVA);
         let light = game_read::<u32>(LIGHT_RVA) | 0xFF00_0000;
         let [u0, v0, u1, v1]: [u32; 4] = game_read(UV_RVA);
         let uv = [(u0, v0), (u1, v0), (u1, v1), (u0, v1)];
         for (n, (u, v)) in uv.into_iter().enumerate() {
             let at = VERTICES_RVA + 0x20 * n;
-            game_write(at + 0xC, g.eax);
+            game_write(at + 0xC, rhw);
             game_write(at + 0x10, light);
             game_write(at + 0x14, 0u32);
             game_write(at + 0x18, u);
             game_write(at + 0x1C, v);
         }
-        [g.eax, g.ebx, g.ecx, g.edx] = [u0, v0, u1, v1];
         game_write(VERTEX_COUNT_RVA, 4u32);
         let inverse = x87::reciprocal(game_read(DEPTH_OF_RVA));
         for r in INVERSES {
             game_write(r, inverse);
         }
         let s: u32 = game_read(SETTINGS_RVA);
-        g.esi = s;
         if get(s + 0x10) != 0 {
-            g.eax = game_read::<u32>(CLOCK_RVA).wrapping_sub(game_read(LAST_CLOCK_RVA));
+            let ticks = game_read::<u32>(CLOCK_RVA).wrapping_sub(game_read(LAST_CLOCK_RVA));
             let fall = x87::int_times_plus_int_to_int(
-                g.eax as i32,
+                ticks as i32,
                 game_read(FALL_K_RVA),
                 game_read(FALL_RVA),
             );
@@ -287,39 +277,12 @@ pub unsafe fn run_snow(entry: &Regs) -> Result<Regs, Refused> {
                 game_write(WIDE_RVA + 0x10 * n + 4 * m, v);
             }
         }
-        [g.eax, g.ebx, g.ecx] = [turn[6], turn[7], turn[8]];
-        g.eax = game_read(FOCAL_RVA);
+        let focal: u32 = game_read(FOCAL_RVA);
         for m in 0..4 {
-            game_write(WIDE_FOCAL_RVA + 4 * m, g.eax);
+            game_write(WIDE_FOCAL_RVA + 4 * m, focal);
         }
-        crate::marks::run_snow::game_part(7, &mut g)?;
-        crate::marks::run_snow::game_part(8, &mut g)?;
-    }
-    Ok(g)
-}
-
-/// In the game: the calls' Rust versions.
-pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    unsafe {
-        let left = match place {
-            1 => crate::marks::make_fade_colours::make_fade_colours(r),
-            2 => crate::marks::place_view_2::place_view_2(r)?,
-            7 => crate::marks::draw_snow::draw_snow(r)?,
-            _ => {
-                match place {
-                    3 => crate::scene::set_texture::set_texture(r.eax),
-                    4 => crate::scene::depth_buffer_on::depth_buffer(true),
-                    5 => crate::scene::depth_test_off::depth_test_off(),
-                    6 => {
-                        let (value, state) = (r.eax, r.ebx);
-                        crate::scene::set_render_state::set_render_state(value, state);
-                    }
-                    _ => crate::scene::depth_test_on::depth_test_on(),
-                }
-                return Ok(());
-            }
-        };
-        *r = Regs { esp: r.esp, ..left };
+        crate::marks::draw_snow::draw_snow()?;
+        crate::scene::depth_test_on::depth_test_on();
     }
     Ok(())
 }

@@ -4,7 +4,7 @@
 //! `dword_7692F6` (`x87::unit_and_length`).
 //!
 //! In:  nothing
-//! Out: esi the vector (0x769306), edi the unit vector (0x7692FA); the rest kept
+//! Out: nothing (no caller reads a register it leaves)
 //!
 //! Caller: `sub_4C1270`. Self-test: the twelve inputs by lot, compared on the seven
 //! results and the registers; put back afterwards.
@@ -18,9 +18,8 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 use crate::math::x87;
-use crate::service::harness::{Region, at};
 
 /// Per axis: (negated, less, plus, plus).
 const TERMS: [[usize; 4]; 3] = [
@@ -32,8 +31,8 @@ const VECTOR_RVA: usize = rva(0x769306); // dword_769306 .. dword_76930E
 const UNIT_RVA: usize = rva(0x7692FA); // unk_7692FA
 const LENGTH_RVA: usize = rva(0x7692F6); // dword_7692F6
 
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn aim_vector(entry: &Regs) -> Regs {
+/// The Rust version (see the header).
+pub unsafe fn aim_vector() {
     unsafe {
         let v: [u32; 3] = std::array::from_fn(|k| {
             let t = TERMS[k].map(|a| game_read::<u32>(a));
@@ -43,22 +42,5 @@ pub unsafe fn aim_vector(entry: &Regs) -> Regs {
         let (unit, length) = x87::unit_and_length(v);
         game_write(LENGTH_RVA, length);
         game_write(UNIT_RVA, unit);
-        Regs {
-            esi: game_addr(VECTOR_RVA) as u32,
-            edi: game_addr(UNIT_RVA) as u32,
-            ..*entry
-        }
     }
-}
-
-fn written() -> Vec<usize> {
-    let mut w: Vec<usize> = (0..3).map(|k| VECTOR_RVA + 4 * k).collect();
-    w.extend((0..3).map(|k| UNIT_RVA + 4 * k));
-    w.push(LENGTH_RVA);
-    w
-}
-
-/// What it writes.
-pub fn regions() -> Vec<Region> {
-    written().into_iter().map(at).collect()
 }

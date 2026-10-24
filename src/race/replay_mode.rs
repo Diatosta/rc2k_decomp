@@ -3,28 +3,18 @@
 //! `race::replay_viewer` (0x41CF0C) with eax the mode.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_read, rva};
+use crate::framework::{game_read, rva};
+use crate::menu::screen_loop::Carried;
 
 pub const REPLAY_RVA: usize = rva(0x5BEC84); // dword_5BEC84: a replay there
-// sub_41CF0C
 
-/// A call by place: 0 the viewer (eax the mode).
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
-/// One start: the registers it leaves.
-pub unsafe fn replay_mode(entry: &Regs, mode: u32, part: Part) -> Result<Regs, Refused> {
+/// One start in `mode` (the original's eax): the viewer, when there is a replay. `c` the
+/// carried values the item gets. (The original leaves eax `mode` with a replay, else keeps
+/// every register; nothing reads them.)
+pub unsafe fn replay_mode(c: &Carried, mode: u32) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::viewer_flow::views_replay`.
-    let mut r = *entry;
     if rc2k_core::race::viewer_flow::views_replay(unsafe { game_read::<u32>(REPLAY_RVA) }) {
-        r.eax = mode;
-        part(0, &mut r)?;
+        crate::race::replay_viewer::replay_viewer(c, mode)?;
     }
-    Ok(r)
-}
-
-/// In the game: the viewer's Rust version (`race::replay_viewer`).
-pub fn game_part(_place: u32, r: &mut Regs) -> Result<(), Refused> {
-    use crate::race::replay_viewer::{game_part, replay_viewer};
-    *r = replay_viewer(r, &mut game_part)?;
     Ok(())
 }

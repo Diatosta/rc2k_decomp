@@ -9,9 +9,7 @@
 //! `scene::draw_fan` and `g_polygonVertexCount` 4.
 //!
 //! In:  eax the cell, ecx the alpha, edx the width, esi the colour (and the two places)
-//! Out: ecx the failing depth's bits when too near; else as `clip_quad` / `draw_fan`
-//!      leave them (eax the cell times 16, ebp, edi, edx the cell's first, second and
-//!      fourth places going in)
+//! Out: nothing (its caller reads no register after it)
 //!
 //! Callers: the marks' lines (0x4C5D65) and 0x4CFAA3. The x87 block is the original's
 //! instructions over the game's variables; the clip its Rust version (the copy's call
@@ -25,8 +23,8 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
-use crate::marks::clip_quad::clip_quad;
+use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::marks::clip_quad::{clip_quad, draw_fan};
 
 const HALF_RVA: usize = rva(0x8EB8B5); // dword_8EB8B5
 const DEPTHS_RVA: [usize; 2] = [rva(0x8EB8DD), rva(0x8EB8E9)];
@@ -141,55 +139,42 @@ unsafe fn ribbon(b: u32) {
     }
 }
 
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn draw_ribbon(entry: &Regs) -> Result<Regs, Refused> {
-    let mut g = *entry;
-    if g.eax >= CELLS {
+/// The Rust version (see the header): `cell` (eax), `alpha` (ecx), `width` (edx),
+/// `colour` (esi). Its one caller reads no register after it.
+pub unsafe fn draw_ribbon(cell: u32, alpha: u32, width: u32, colour: u32) -> Result<(), Refused> {
+    if cell >= CELLS {
         return Err(BadInput("a mark cell past g_marksCellPlaces").into());
     }
     unsafe {
         if game_read::<u32>(crate::marks::setup::SETTINGS_RVA) == 0 {
             return Err(BadInput("no marks settings").into());
         }
-        g.edx >>= 1;
-        game_write(HALF_RVA, g.edx);
-        g.ecx = (g.ecx << 24) | g.esi;
+        game_write(HALF_RVA, width >> 1);
+        let colour = (alpha << 24) | colour;
         for n in 0..4 {
-            game_write(VERTICES_RVA + 0x20 * n + 0x10, g.ecx);
+            game_write(VERTICES_RVA + 0x20 * n + 0x10, colour);
         }
-        g.eax <<= 4;
-        let cell = |n: usize| game_read::<u32>(CELLS_RVA + g.eax as usize + 4 * n);
-        [g.ebp, g.edi, g.ecx, g.edx] = [cell(0), cell(1), cell(2), cell(3)];
-        let uv = [
-            (g.ebp, g.edi),
-            (g.ecx, g.edi),
-            (g.ecx, g.edx),
-            (g.ebp, g.edx),
-        ];
-        for (n, (u, v)) in uv.into_iter().enumerate() {
+        let at = cell << 4;
+        let place = |n: usize| game_read::<u32>(CELLS_RVA + at as usize + 4 * n);
+        let [u0, v0, u1, v1] = [place(0), place(1), place(2), place(3)];
+        for (n, (u, v)) in [(u0, v0), (u1, v0), (u1, v1), (u0, v1)]
+            .into_iter()
+            .enumerate()
+        {
             game_write(VERTICES_RVA + 0x20 * n + 0x18, u);
             game_write(VERTICES_RVA + 0x20 * n + 0x1C, v);
         }
         for r in DEPTHS_RVA {
-            g.ecx = game_read(r);
-            if (g.ecx as i32) <= game_read::<i32>(NEAR_RVA) {
-                return Ok(g);
+            if game_read::<i32>(r) <= game_read::<i32>(NEAR_RVA) {
+                return Ok(());
             }
         }
         ribbon(game_addr(0) as u32);
-        g.ebp = game_addr(VERTICES_RVA) as u32;
-        g = clip_quad(&g)?;
-        if g.carry() {
-            return Ok(g);
+        if clip_quad(game_addr(VERTICES_RVA) as u32)? {
+            return Ok(());
         }
-        crate::marks::draw_ribbon::game_part(1, &mut g)?;
+        draw_fan();
         game_write(VERTEX_COUNT_RVA, 4u32);
     }
-    Ok(g)
-}
-
-/// In the game: `draw_fan`'s Rust version.
-pub fn game_part(_place: u32, r: &mut Regs) -> Result<(), Refused> {
-    unsafe { crate::scene::draw_fan::draw_fan(r, &mut crate::scene::draw_fan::game_part) };
     Ok(())
 }

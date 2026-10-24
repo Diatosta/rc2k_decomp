@@ -11,7 +11,7 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::{Regs, game_read, rva};
+use crate::framework::{game_read, rva};
 use windows_sys::Win32::System::SystemInformation::GetTickCount;
 
 // ---- game data ----
@@ -28,11 +28,4 @@ pub fn tick_count() -> u32 {
         // Converted: `rc2k_core::system::time::clock`.
         rc2k_core::system::time::clock(now, game_read(OVERRIDE_ON_RVA), || game_read(OVERRIDE_RVA))
     }
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let first = tick_count();
-    r.eax = first;
-    Ok(())
 }

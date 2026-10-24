@@ -10,11 +10,11 @@
 //! original's, for reference.
 
 use crate::errors::Refused;
-use crate::screens::harness::Left;
 use crate::text::draw_text::Canvas;
 
-/// The Rust version: the outcome's registers.
-pub unsafe fn draw_note_1fd(canvas: &mut dyn Canvas) -> Result<Left, Refused> {
+/// The Rust version (its one caller, a menu's draw list, reads nothing it leaves).
+pub unsafe fn draw_note_1fd(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     // Converted: `rc2k_core::screens::notes::NOTE_1FD`.
-    crate::screens::game_screen::draw_note(canvas, &rc2k_core::screens::notes::NOTE_1FD)
+    crate::screens::game_screen::draw_note(canvas, &rc2k_core::screens::notes::NOTE_1FD)?;
+    Ok(())
 }

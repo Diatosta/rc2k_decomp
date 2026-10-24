@@ -10,22 +10,18 @@
 //! Self-test: `physics/camera_view.rs` (`view_test_floats`), figures by lot, exact at
 //! double precision.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
-use crate::framework::{EAX, Regs};
 use crate::physics::flow::{base, g, p, x87_run};
-use crate::screens::harness::Left;
 
 /// The Rust version (the exact one, for `physics::camera_avoid_ground`).
-pub unsafe fn ease_view_turn(_: &Regs) -> Left {
+pub unsafe fn ease_view_turn() {
     if g(0x6EF7CC) != 0 {
         for x in [0x608BE4, 0x608BE8, 0x608BEC] {
             p(x, 0x3F80_0000);
         }
     }
-    let mut eax = 0;
     for (target, turn, share) in [
         (0x608B50, 0x71A688, 0x608BE8),
         (0x608B58, 0x71A690, 0x608BE4),
@@ -38,8 +34,6 @@ pub unsafe fn ease_view_turn(_: &Regs) -> Left {
             "fistp dword ptr [{b} + 0x22400C]";
             b = base(), s = crate::physics::flow::a(share)
         );
-        eax = g(0x62400C);
-        p(turn, g(turn).wrapping_add(eax));
+        p(turn, g(turn).wrapping_add(g(0x62400C)));
     }
-    Left::nothing().with(EAX, eax)
 }

@@ -12,17 +12,14 @@
 //! Refuses a first slot past the table.
 //! Self-test: 8 tables by lot in the game's places, put back afterwards.
 
-use crate::errors::{BadInput, Refused};
-use crate::framework::{EAX, EBX, ECX, EDI, Regs, game_addr};
-use crate::scene::textures::{
-    KIND_SLOT_RVA, KIND_TEXTURE_RVA, KINDS, SLOTS, WANTED_RVA, entry as table_entry, slice,
-};
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
+use crate::errors::BadInput;
+use crate::scene::textures::{KIND_SLOT_RVA, KIND_TEXTURE_RVA, KINDS, SLOTS, WANTED_RVA, slice};
 
 // ---- Rust version ----
 
-pub unsafe fn assign_kind_textures() -> Result<Left, BadInput> {
+/// What the original leaves in eax, ebx, ecx and edi no caller reads (register liveness,
+/// 2026-10-23: its five call sites).
+pub unsafe fn assign_kind_textures() -> Result<(), BadInput> {
     // Converted: `rc2k_core::scene::textures::assign_kind_textures`.
     unsafe {
         rc2k_core::scene::textures::assign_kind_textures(
@@ -30,19 +27,6 @@ pub unsafe fn assign_kind_textures() -> Result<Left, BadInput> {
             slice(KIND_TEXTURE_RVA, KINDS),
             slice(WANTED_RVA, SLOTS),
         )?;
-        Ok(Left::nothing()
-            .with(EAX, table_entry(KIND_SLOT_RVA, 0))
-            .with(EBX, table_entry(KIND_TEXTURE_RVA, 0))
-            .with(ECX, u32::MAX)
-            .with(EDI, game_addr(WANTED_RVA) as u32 + SLOTS * 4))
+        Ok(())
     }
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    Ok(unsafe { assign_kind_textures() }?)
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

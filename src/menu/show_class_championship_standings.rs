@@ -17,7 +17,8 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
+use crate::menu::screen_loop::{Carried, run_screen};
 use crate::menu::standings::*;
 use rc2k_core::menu::results_pages::{Page, held_figure};
 
@@ -25,33 +26,27 @@ const CLASS_RVA: usize = rva(0x7558F4); // dword_7558F4
 const COUNT_RVA: usize = rva(0x7556B4); // dword_7556B4
 // g_eventMode
 
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn show_class_championship_standings(entry: &Regs) -> Result<Regs, Refused> {
-    let mut g = *entry;
+/// The Rust version (see the header). `c` the carried values (the registers the page's
+/// screen is run with).
+pub unsafe fn show_class_championship_standings(class: u32, c: &Carried) -> Result<(), Refused> {
     unsafe {
-        g.eax = game_read(rva(0x7559AC)); // seconds
-        game_write(CLASS_RVA, g.ebx);
-        g.edi = game_read(TABLE_B_RVA);
-        let found = crate::menu::first_player_b::first_player_b(&g)?;
-        let count = found.edx;
+        let mut c = Carried {
+            palette: class,
+            ..*c
+        };
+        c.arg = game_read(rva(0x7559AC)); // seconds
+        game_write(CLASS_RVA, class);
+        let found = crate::menu::first_player_b::first_player_b(game_read(TABLE_B_RVA), class)?;
+        found.carry_on(&mut c);
         // Converted: `rc2k_core::menu::results_pages::held_figure`.
-        let count = held_figure(Page::ClassChampionship, count);
+        let count = held_figure(Page::ClassChampionship, found.figure);
         game_write(COUNT_RVA, count);
-        let g = crate::menu::first_page_stage::first_page_stage(&found)?;
+        crate::menu::first_page_stage::carry_on(
+            crate::menu::first_page_stage::first_page_stage(),
+            &mut c,
+        );
         crate::menu::stage_range_caption::stage_range_caption();
-        let mut r = g;
-        crate::menu::show_class_championship_standings::game_part(1, &mut r)?;
+        run_screen(&crate::menu::class_championship_standings_loop::SCREEN, &c)?;
     }
-    Ok(*entry)
-}
-
-/// In the game: the page's Rust version.
-pub fn game_part(_place: u32, r: &mut Regs) -> Result<(), Refused> {
-    unsafe {
-        crate::menu::screen_loop::run_screen(
-            &crate::menu::class_championship_standings_loop::SCREEN,
-            r,
-        )
-    };
     Ok(())
 }

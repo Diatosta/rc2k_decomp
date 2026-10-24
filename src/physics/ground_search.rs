@@ -14,28 +14,13 @@
 //! Self-test: a copy of the original (its calls to copies) on the test's ground, records
 //! for six cells, the test's points with last faces -1 and two real ones; found counted.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::physics::ground::*;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 /// The Rust version: the carry (the registers are kept).
 pub unsafe fn ground_search() -> Result<bool, Refused> {
-    let mut r = Regs::default();
-    unsafe { ground_search_at(&Ground::game(), &mut r) }
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    Ok(Left::carry(unsafe { ground_search() }?))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
+    unsafe { ground_search_at(&Ground::game()) }
 }

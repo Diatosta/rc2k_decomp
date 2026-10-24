@@ -3,10 +3,10 @@
 //! `dword_75ACDC` is 1 (a reading: the replay not to be had); see `race/replay_mode.rs`.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_read, rva};
+use crate::framework::{game_read, rva};
+use crate::menu::screen_loop::Carried;
 
 pub const NO_REPLAY_RVA: usize = rva(0x75ACDC); // dword_75ACDC
-const CALLEES: [usize; 4] = [0x41CD75, 0x41100C, 0x40F059, 0x41CD89];
 
 fn g(a: usize) -> u32 {
     unsafe { game_read(a) }
@@ -14,40 +14,20 @@ fn g(a: usize) -> u32 {
 
 /// `menu::replay_item_a` (0x47053E): unless `dword_75ACDC` is 1, with a replay there
 /// (`dword_5BEC84` 1) `race::replay_mode_1`; else half a second's sleep and the menu's sound
-/// 8. The registers it leaves.
-pub unsafe fn replay_item_a(entry: &Regs) -> Result<Regs, Refused> {
-    let mut r = *entry;
+/// 8. `c` the carried values the item gets.
+pub unsafe fn replay_item_a(c: &Carried) -> Result<(), Refused> {
     if g(NO_REPLAY_RVA) != 1 && g(crate::race::replay_mode::REPLAY_RVA) == 1 {
-        crate::menu::replay_items::game_part(0, &mut r)?;
-        return Ok(r);
+        return unsafe { crate::race::replay_mode::replay_mode(c, 1) };
     }
-    r.eax = 500;
-    crate::menu::replay_items::game_part(1, &mut r)?;
-    r.eax = 8;
-    crate::menu::replay_items::game_part(2, &mut r)?;
-    Ok(r)
+    crate::system::sleep::sleep(500);
+    crate::sound::play_menu_sound::play_menu_sound_in_game(8);
+    Ok(())
 }
 
 /// `menu::replay_item_b` (0x47052F): unless `dword_75ACDC` is 1, `race::replay_mode_3`.
-pub unsafe fn replay_item_b(entry: &Regs) -> Result<Regs, Refused> {
-    let mut r = *entry;
+pub unsafe fn replay_item_b(c: &Carried) -> Result<(), Refused> {
     if g(NO_REPLAY_RVA) != 1 {
-        crate::menu::replay_items::game_part(3, &mut r)?;
-    }
-    Ok(r)
-}
-
-/// In the game: the replay starts' and the sleep's Rust versions, the menu's sound too.
-pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    use crate::race::replay_mode::{game_part as viewer, replay_mode};
-    unsafe {
-        match place {
-            0 => *r = replay_mode(r, 1, &mut viewer)?,
-            1 => crate::system::sleep::sleep(r.eax),
-            2 => crate::sound::play_menu_sound::play_menu_sound_in_game(r.eax),
-            3 => *r = replay_mode(r, 3, &mut viewer)?,
-            _ => crate::calls::call(rva(CALLEES[place as usize]), r),
-        }
+        unsafe { crate::race::replay_mode::replay_mode(c, 3) }?;
     }
     Ok(())
 }

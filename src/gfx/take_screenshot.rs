@@ -13,7 +13,6 @@
 //! called directly (2026-10-23).
 
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::race::viewer::{get, put};
 
 const SCREENSHOTS_ON: usize = 0x4F52B4; // g_screenshotsOn
@@ -55,9 +54,4 @@ impl rc2k_core::gfx::screenshot::Shooting for Shot {
 pub fn take_screenshot() -> Result<(), Refused> {
     // Converted: `rc2k_core::gfx::screenshot::take_screenshot`.
     rc2k_core::gfx::screenshot::take_screenshot(&mut Shot)
-}
-
-/// The Rust version where the typed tables run it (a refusal is the caller's).
-pub fn entry(_: &mut Regs) -> Result<(), Refused> {
-    take_screenshot()
 }

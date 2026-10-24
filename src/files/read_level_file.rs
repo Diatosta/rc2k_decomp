@@ -15,9 +15,6 @@
 
 use crate::errors::Refused;
 use crate::files::read_packed_file::{Outcome, Read, read_packed_file};
-use crate::framework::{Regs, game_addr, rva};
-
-pub const PACKED_PATH_RVA: usize = rva(0x5BE9BD); // g_packedPath
 
 /// Whether a file can be opened (`files::file_exists`).
 pub type Exists<'a> = &'a mut dyn FnMut(u32) -> Result<bool, Refused>;
@@ -26,29 +23,24 @@ pub fn game_exists(path: u32) -> Result<bool, Refused> {
     Ok(unsafe { crate::files::file_exists::file_exists(path as *const u8) }?)
 }
 
-/// `files::read_level_file` (see the header): eax, carry and zero.
+/// `files::read_level_file` (see the header): the file at `path` (or its packed copy) into
+/// `buffer` of `room` bytes.
 pub unsafe fn read_level_file(
-    entry: &Regs,
+    path: u32,
+    buffer: u32,
+    room: u32,
     exists: Exists,
     read: Read,
 ) -> Result<Outcome, Refused> {
-    if exists(entry.eax)? {
-        let mut r = Regs { edx: 0, ..*entry };
-        read(&mut r)?;
-        return Ok(Outcome::of(&r));
+    if exists(path)? {
+        return Ok(Outcome::of_read(path, &read(path, buffer, room)?));
     }
     unsafe {
         // Converted: `rc2k_core::files::io::packed_level_path`.
-        let given = std::ffi::CStr::from_ptr(entry.eax as *const std::ffi::c_char).to_bytes();
+        let given = std::ffi::CStr::from_ptr(path as *const std::ffi::c_char).to_bytes();
         let packed = rc2k_core::files::io::packed_level_path(given)?;
-        let path = game_addr(PACKED_PATH_RVA) as *mut u8;
-        std::ptr::copy(packed.as_ptr(), path, packed.len());
-        read_packed_file(
-            &Regs {
-                eax: path as u32,
-                ..*entry
-            },
-            read,
-        )
+        let at = crate::files::state::PACKED_PATH.ptr().cast::<u8>();
+        std::ptr::copy(packed.as_ptr(), at, packed.len());
+        read_packed_file(at as u32, buffer, room, read)
     }
 }

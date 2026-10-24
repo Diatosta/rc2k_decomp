@@ -29,7 +29,9 @@ const FLAG: usize = 0xC;
 pub unsafe fn start_slot_thread(slot: *mut u8) -> Result<(), FatalError> {
     unsafe {
         slot.add(FLAG).write(0);
-        let routine = (slot.add(ROUTINE) as *const usize).read_unaligned();
+        // The slot holds the routine as the image did, an IDA address.
+        let routine = (slot.add(ROUTINE) as *const u32).read_unaligned() as usize;
+        let routine = crate::framework::game_addr(crate::framework::rva(routine));
         let handle = CreateThread(
             std::ptr::null(),
             0,

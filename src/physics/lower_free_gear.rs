@@ -15,29 +15,22 @@
 //! Self-test: a copy of the original whose call goes to a copy of `gear_bit` on a test
 //! dword, gears 1 .. 9 on several bit patterns; refusals.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::Refused;
 use crate::framework::game_addr;
-use crate::physics::flag_result::FlagResult;
 use crate::physics::gear_bit::{GEAR_BITS_RVA, bits_at};
 
-/// The Rust version on the bits at `bits`; `eax` what eax held at entry.
+/// The Rust version on the bits at `bits`: the free lower gear (None when neutral is
+/// reached first: CF). The eax it leaves is read by no caller, so none goes in.
 // Converted: `rc2k_core::physics::gearbox::GearBits::lower_free`.
-pub unsafe fn lower_free_gear_at(bits: u32, gear: u32, eax: u32) -> Result<FlagResult, Refused> {
-    let s = unsafe { bits_at(bits) }.lower_free(gear, eax)?;
-    Ok(FlagResult {
-        eax: s.bit,
-        ecx: Some(s.gear),
-        ebx: None,
-        carry: !s.found,
-        zero: None,
-    })
+pub unsafe fn lower_free_gear_at(bits: u32, gear: u32) -> Result<Option<u32>, Refused> {
+    let s = unsafe { bits_at(bits) }.lower_free(gear, 0)?;
+    Ok(s.found.then_some(s.gear))
 }
 
 /// The Rust version.
-pub unsafe fn lower_free_gear(gear: u32, eax: u32) -> Result<FlagResult, Refused> {
-    unsafe { lower_free_gear_at(game_addr(GEAR_BITS_RVA) as u32, gear, eax) }
+pub unsafe fn lower_free_gear(gear: u32) -> Result<Option<u32>, Refused> {
+    unsafe { lower_free_gear_at(game_addr(GEAR_BITS_RVA) as u32, gear) }
 }

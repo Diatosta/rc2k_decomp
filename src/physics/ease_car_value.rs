@@ -10,26 +10,23 @@
 //! Self-test: a copy of the original on test variables, the switches and values above,
 //! at and below, near the sign's turn.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
-use crate::framework::{Regs, game_addr, rva};
+use crate::framework::{game_addr, rva};
 use crate::physics::cells::{get, put_changed};
 use rc2k_core::physics::easing::ease_value;
 
 /// The variables (IDA addresses): the block, the jump switch, the target, the value.
 const VARIABLES: [usize; 4] = [0x6235E8, 0x71AF88, 0x71AF90, 0x71AF94];
 
-/// The Rust version on the variables at `v`; `r` as the original leaves it.
+/// The Rust version on the variables at `v`. The registers the original leaves are read by none of its callers (eax).
 // Converted: `rc2k_core::physics::easing::ease_value`.
-pub unsafe fn ease_at(v: &[u32; 4], r: &mut Regs) {
+pub unsafe fn ease_at(v: &[u32; 4]) {
     unsafe {
         let was = get(v[3]);
         let mut value = was;
-        if let Some(eax) = ease_value(get(v[0]), get(v[1]), get(v[2]), &mut value) {
-            r.eax = eax;
-        }
+        ease_value(get(v[0]), get(v[1]), get(v[2]), &mut value);
         put_changed(v[3], was, value);
     }
 }
@@ -39,6 +36,6 @@ fn game() -> [u32; 4] {
 }
 
 /// The Rust version.
-pub unsafe fn ease_car_value(r: &mut Regs) {
-    unsafe { ease_at(&game(), r) }
+pub unsafe fn ease_car_value() {
+    unsafe { ease_at(&game()) }
 }

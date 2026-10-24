@@ -6,21 +6,13 @@
 //! (IDA 2026-10-17), and `run` does them in order as the original's code does.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, rva};
+use crate::framework::{game_addr, rva};
 use crate::math::x87;
-
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
 
 pub use rc2k_core::race::settings_copy::{Kind, Step};
 
 use Step::*;
 
-/// The parts' places: the five log calls, then the calls.
-pub const WRITE: u32 = 1;
-pub const WRITE_NL: u32 = 2;
-pub const INT_NL: u32 = 3;
-pub const HEX8_NL: u32 = 4;
-pub const FLOAT_NL: u32 = 5;
 /// `race::clear_player_absences`, `race::copy_league_table`, `race::store_results_by_mode`.
 pub const CALLS: [usize; 3] = [0x449D44, 0x4650B7, 0x449957];
 
@@ -36,14 +28,16 @@ unsafe fn set(a: usize, v: u32) {
     unsafe { at(a).write_unaligned(v) };
 }
 
-/// The game as the steps' machine: its dwords at IDA addresses, the registers, the x87's
-/// conversions, and the logs and calls through `part`.
-struct Game<'a, 'p> {
-    g: Regs,
-    part: &'a mut Part<'p>,
+/// The game as the steps' machine: its dwords at IDA addresses, the steps' own eax and ebx
+/// (the original reads no register at entry: they start from nothing), the x87's
+/// conversions, and the logs and calls.
+#[derive(Default)]
+struct Game {
+    eax: u32,
+    ebx: u32,
 }
 
-impl rc2k_core::race::settings_copy::Machine<usize> for Game<'_, '_> {
+impl rc2k_core::race::settings_copy::Machine<usize> for Game {
     type Error = Refused;
     fn get(&mut self, a: usize) -> u32 {
         unsafe { get(a) }
@@ -52,13 +46,13 @@ impl rc2k_core::race::settings_copy::Machine<usize> for Game<'_, '_> {
         unsafe { set(a, v) }
     }
     fn eax(&self) -> u32 {
-        self.g.eax
+        self.eax
     }
     fn set_eax(&mut self, v: u32) {
-        self.g.eax = v;
+        self.eax = v;
     }
     fn set_ebx(&mut self, v: u32) {
-        self.g.ebx = v;
+        self.ebx = v;
     }
     fn int_to_float(&mut self, v: u32) -> u32 {
         x87::from_int(v as i32)
@@ -73,71 +67,53 @@ impl rc2k_core::race::settings_copy::Machine<usize> for Game<'_, '_> {
         x87::int_times_to_int(v, unsafe { get(0x5C5E00) }) as u32
     }
     fn text(&mut self, text: usize, nl: bool) -> Result<(), Refused> {
-        let mut r = Regs {
-            eax: game_addr(rva(text)) as u32,
-            ..self.g
-        };
-        (self.part)(if nl { WRITE_NL } else { WRITE }, &mut r)
+        unsafe { crate::logfile::log_write::log_write(game_addr(rva(text)) as *const u8, nl, 1) };
+        Ok(())
     }
     fn value(&mut self, v: u32, kind: Kind) -> Result<(), Refused> {
-        let mut r = Regs { eax: v, ..self.g };
-        (self.part)(if kind == Kind::Int { INT_NL } else { HEX8_NL }, &mut r)
+        if kind == Kind::Int {
+            crate::logfile::log_int::log_int(v as i32, true, 1);
+        } else {
+            crate::logfile::log_hex8::log_hex8(v, true, 1);
+        }
+        Ok(())
     }
     fn float(&mut self, v: u32) -> Result<(), Refused> {
-        let mut r = Regs {
-            eax: v,
-            ecx: 2,
-            ..self.g
-        };
-        (self.part)(FLOAT_NL, &mut r)
+        crate::logfile::log_float::log_float(f32::from_bits(v), 2, true, 1);
+        Ok(())
     }
     fn call(&mut self, a: usize) -> Result<(), Refused> {
-        let n = CALLS
-            .iter()
-            .position(|&c| c == a)
-            .expect("a call the tables have");
-        (self.part)(6 + n as u32, &mut self.g)
+        use crate::race::race_shell::{
+            clear_player_absences, copy_league_table, store_results_by_mode,
+        };
+        // Each keeps the registers the steps read (eax is set again before any use).
+        unsafe {
+            match CALLS.iter().position(|&c| c == a) {
+                Some(0) => clear_player_absences(),
+                Some(1) => copy_league_table(),
+                Some(2) => store_results_by_mode(),
+                _ => unreachable!("a call the tables have"),
+            }
+        }
+        Ok(())
     }
 }
 
-/// The steps from the first, as the original runs them. Leaves the registers as it
-/// does (eax and ebx from the steps that set them, the rest as the calls leave them).
-pub unsafe fn run(steps: &[Step], entry: &Regs, mut part: Part) -> Result<Regs, Refused> {
+/// The steps from the first, as the original runs them.
+pub unsafe fn run(steps: &[Step]) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::settings_copy::run` (the x87's conversions and the
     // brake's product kept, through `Machine`).
-    let mut game = Game {
-        g: *entry,
-        part: &mut part,
-    };
-    rc2k_core::race::settings_copy::run(steps, &mut game)?;
-    Ok(game.g)
+    rc2k_core::race::settings_copy::run(steps, &mut Game::default())
 }
 
 /// `race::copy_settings_in` (0x446EBE): `GRAHAM_TO_SHAUN`.
-pub unsafe fn copy_settings_in(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    unsafe { run(&GRAHAM_TO_SHAUN, entry, part) }
+pub unsafe fn copy_settings_in() -> Result<(), Refused> {
+    unsafe { run(&GRAHAM_TO_SHAUN) }
 }
 
 /// `race::copy_settings_out` (0x4486FB): `SHAUN_TO_GRAHAM`.
-pub unsafe fn copy_settings_out(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    unsafe { run(&SHAUN_TO_GRAHAM, entry, part) }
-}
-
-/// The steps' calls in the game: the logs and the Rust versions.
-pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    use crate::logfile::{log_float, log_hex8, log_int, log_write};
-    unsafe {
-        match place {
-            WRITE | WRITE_NL => log_write::log_write(r.eax as *const u8, place == WRITE_NL, 1),
-            INT_NL => log_int::log_int(r.eax as i32, true, 1),
-            HEX8_NL => log_hex8::log_hex8(r.eax, true, 1),
-            FLOAT_NL => log_float::log_float(f32::from_bits(r.eax), r.ecx, true, 1),
-            6 => crate::race::race_shell::clear_player_absences(),
-            7 => *r = crate::race::race_shell::copy_league_table(r),
-            _ => *r = crate::race::race_shell::store_results_by_mode(r),
-        }
-    }
-    Ok(())
+pub unsafe fn copy_settings_out() -> Result<(), Refused> {
+    unsafe { run(&SHAUN_TO_GRAHAM) }
 }
 
 pub const GRAHAM_TO_SHAUN: [Step; 446] = [

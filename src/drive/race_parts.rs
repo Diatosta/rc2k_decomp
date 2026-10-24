@@ -4,52 +4,49 @@
 //! race frame `sub_4541BF` (stream A's, held: a call into the game until ported).
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, rva};
+use crate::framework::{game_addr, rva};
 
-/// `sub_4541BF`: the race's frame (drawing and the sound tick), stream A's, through the
-/// game.
-pub fn race_frame(r: &mut Regs) {
-    crate::calls::call(rva(0x4541BF), r);
+// What these calls leave in the registers is read by none of their callers (liveness at
+// each call site in `race_loop`, `quit_question`, `pause_until_key`, `finish_run` and
+// `race::play_movie_loop` / `play_movie`).
+
+/// `sub_4541BF`: the race's frame (drawing and the sound tick), for the callers that do
+/// not read the eax it leaves (any value in, as their eax is not read past it either).
+pub fn race_frame() -> Result<(), Refused> {
+    crate::drive::race_frame::race_frame(0)?;
+    Ok(())
 }
 
-/// `scene::restart_clock`: eax the clock.
-pub fn restart_clock(r: &mut Regs) {
-    r.eax = crate::scene::restart_clock::restart_clock(crate::system::tick_count::tick_count());
+/// `scene::restart_clock` (its reading into `g_sceneClock`).
+pub fn restart_clock() {
+    crate::scene::restart_clock::restart_clock(crate::system::tick_count::tick_count());
 }
 
 /// `input::update`.
-pub fn input_update(r: &mut Regs) {
-    *r = crate::input::keys::update(r, &mut crate::input::keys::game_screenshot);
+pub fn input_update() {
+    crate::input::keys::update_input(&mut crate::input::keys::game_screenshot);
 }
 
-/// `input::take_key`: al the key, ZF when none.
-pub fn take_key(r: &mut Regs) {
-    let key = crate::input::take_key::take_key();
-    r.eax = (r.eax & !0xFF) | key as u32;
-    r.set_zero(key == 0);
-    r.set_carry(false);
+/// `input::take_key` (the key taken and dropped).
+pub fn take_key() {
+    crate::input::take_key::take_key();
 }
 
 /// `race::race_keys`.
-pub fn race_keys(r: &mut Regs) -> Result<(), Refused> {
-    *r = unsafe { crate::race::frame::race_keys(r, &mut crate::race::frame::key_sound_part) }?;
+pub fn race_keys() -> Result<(), Refused> {
+    unsafe { crate::race::frame::race_keys() }?;
     Ok(())
 }
 
-/// `race::tyre_change`: eax, esi.
-pub fn tyre_change(r: &mut Regs) -> Result<(), Refused> {
-    let after =
-        unsafe { crate::race::frame::tyre_change_at(r, &crate::race::frame::tyre_variables()) }?;
-    r.eax = after.eax;
-    r.esi = after.esi;
+/// `race::tyre_change`.
+pub fn tyre_change() -> Result<(), Refused> {
+    unsafe { crate::race::frame::tyre_change_at(&crate::race::frame::tyre_variables()) }?;
     Ok(())
 }
 
-/// `race::players_all_out`: CF.
-pub fn players_all_out(r: &mut Regs) -> Result<bool, Refused> {
-    let out = unsafe { crate::race::frame::players_all_out() }?;
-    r.set_carry(out);
-    Ok(out)
+/// `race::players_all_out`: the CF.
+pub fn players_all_out() -> Result<bool, Refused> {
+    unsafe { crate::race::frame::players_all_out() }
 }
 
 /// `race::stop_race_sounds` (0x45D28E): `race::reset_race_sounds`, its one call.

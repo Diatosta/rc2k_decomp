@@ -86,7 +86,7 @@ pub const SCREEN: Screen = Screen {
     prepare: &[],
     after_lists: &[],
     background: &[
-        Step::EaxAddr(BACKGROUND_RVA),
+        Step::ArgAddr(BACKGROUND_RVA),
         Step::CallOrFatal(LOAD_BACKGROUND, 0x8071_2345),
     ],
     after_first_frame: &[],

@@ -47,36 +47,15 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, ZERO_FLAG, rva};
+use crate::menu::event_flow::Flow;
+use crate::menu::screen_loop::Carried;
 use crate::physics::flow::a;
 use crate::race::viewer::{
     CAMERA_EDIT, CHOICE, CHOICE_BEFORE, CLOCK, DEVELOPER_KEYS, EDITING, ESCAPES, FRAME_CLOCK,
     HOLD_REVS, KEY_CLOCK, KEYS_IGNORED, LAST_RACE, LAST_RACE_VIEWED, LIST_LEAVE, LIST_SHOWN, MENU,
-    MODE, MOVE_CLOCK, ONLY_SHOWN, Part, SLOT, SOUND, STOPPED, WAIT_RELEASE, gb, get, pb, put,
-    regs_entry,
+    MODE, MOVE_CLOCK, ONLY_SHOWN, SLOT, SOUND, STOPPED, WAIT_RELEASE, gb, get, pb, put,
 };
 
-/// The calls by place, as IDA shows them.
-pub const CALLEES: [usize; 18] = [
-    0, 0x46F786, // 1 menu::replay_slot_loop (eax)
-    0x41ECFF, // 2 race::save_last_replay (eax)
-    0x41E9FF, // 3 race::open_viewed_replay (ebx; carry)
-    0x41EF51, // 4 race::find_snapshot_number
-    0x41CDC2, // 5 race::viewer_load_stage
-    0x407F95, // 6 input::take_key
-    0x41D456, // 7 race::mark_viewer_items (edi)
-    0x41DE6F, // 8 race::viewer_action (ebx; ZF)
-    0x405A71, // 9 screens::run_frame (eax the frame's function)
-    0x41469A, // 10 menu::list_take_key (-> eax)
-    0x41EC47, // 11 race::step_viewed_replay (carry)
-    0x407897, // 12 gfx::take_screenshot
-    0x414A55, // 13 menu::list_step (al, ebx, edi; ZF)
-    0x414C1B, // 14 menu::list_item_unusable (edi; carry)
-    0x40F059, // 15 sound::play_menu_sound (eax)
-    0x41EB7C, // 16 race::close_viewed_replay
-    0x41CEB4, // 17 race::viewer_tidy_stage
-];
-pub const FRAME_FUNCTION: usize = 0x41D5FB; // sub_41D5FB: race::viewer_frame
 const QUITTING: usize = 0x51837C; // g_quitting
 const SCREENSHOTS_ON: usize = 0x4F52B4; // g_screenshotsOn
 const KEY_DOWN_A: usize = 0x4F6ADD; // byte_4F6ADD
@@ -125,84 +104,89 @@ enum Next {
     Action(u32),
 }
 
-/// The Rust version: the registers it leaves (the entry's).
-pub fn replay_viewer(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    let mut r = *entry;
-    view(&mut r, part)?;
+/// The Rust version: `mode` the viewer's mode (the original's eax), `c` the carried
+/// values the slot screens are run with. A translated body: `r` is its scratch (the
+/// original keeps every register of its caller).
+pub fn replay_viewer(c: &Carried, mode: u32) -> Result<(), Refused> {
+    let r = &mut Flow {
+        c: Carried { arg: mode, ..*c },
+        zero: false,
+        record: 0,
+    };
+    view(r)?;
     // The end (0x41D436).
-    part(16, &mut r)?;
-    part(17, &mut r)?;
+    step(16, r)?;
+    step(17, r)?;
     put(STOPPED, 0);
     put(HOLD_REVS, 0);
-    Ok(*entry)
+    Ok(())
 }
 
 /// Up to the end.
-fn view(r: &mut Regs, part: Part) -> Result<(), Refused> {
-    put(MODE, r.eax);
-    put(SLOT, r.ebx);
+fn view(r: &mut Flow) -> Result<(), Refused> {
+    put(MODE, r.c.arg);
+    put(SLOT, r.c.palette);
     put(HOLD_REVS, 1);
     put(ONLY_SHOWN, 0);
-    match r.eax {
+    match r.c.arg {
         1 => {
             put(SLOT, LAST_RACE);
             put(STOPPED, 1);
         }
         2 | 3 => {
-            let save = r.eax == 3;
-            r.eax = save as u32;
-            part(1, r)?;
-            if r.eax == u32::MAX {
+            let save = r.c.arg == 3;
+            r.c.arg = save as u32;
+            step(1, r)?;
+            if r.c.arg == u32::MAX {
                 return Ok(());
             }
-            put(SLOT, r.eax);
+            put(SLOT, r.c.arg);
             if save {
-                part(2, r)?;
+                step(2, r)?;
                 return Ok(());
             }
             put(STOPPED, 1);
         }
         4 | 5 => {
-            put(KEYS_IGNORED, (r.eax == 5) as u32);
+            put(KEYS_IGNORED, (r.c.arg == 5) as u32);
             put(ONLY_SHOWN, 1);
             put(STOPPED, 0);
             put(SLOT, get(SLOT).wrapping_add(100));
         }
         _ => return Ok(()),
     }
-    r.ebx = get(SLOT);
-    part(3, r)?;
-    if r.carry() {
+    r.c.palette = get(SLOT);
+    step(3, r)?;
+    if r.c.carry {
         return Ok(());
     }
     put(CAMERA_EDIT, 0);
-    r.eax = (get(SLOT) == LAST_RACE) as u32;
-    put(LAST_RACE_VIEWED, r.eax);
-    part(4, r)?;
-    part(5, r)?;
-    r.edi = a(MENU);
+    r.c.arg = (get(SLOT) == LAST_RACE) as u32;
+    put(LAST_RACE_VIEWED, r.c.arg);
+    step(4, r)?;
+    step(5, r)?;
+    r.record = a(MENU);
     put(SOUND, 0);
     pb(LIST_SHOWN, 1);
     pb(LIST_LEAVE, 0);
-    r.eax = get(CLOCK);
-    put(MOVE_CLOCK, r.eax);
-    put(KEY_CLOCK, r.eax);
+    r.c.arg = get(CLOCK);
+    put(MOVE_CLOCK, r.c.arg);
+    put(KEY_CLOCK, r.c.arg);
     put(CHOICE, 6);
-    part(6, r)?;
-    part(7, r)?;
+    step(6, r)?;
+    step(7, r)?;
     if get(ONLY_SHOWN) == 1 {
-        r.ebx = 6;
-        part(8, r)?;
+        r.c.palette = 6;
+        step(8, r)?;
         return Ok(());
     }
     loop {
-        r.eax = a(FRAME_FUNCTION);
-        part(9, r)?;
-        r.eax = get(CLOCK);
-        put(FRAME_CLOCK, r.eax);
-        r.eax = get(CHOICE);
-        put(CHOICE_BEFORE, r.eax);
-        part(10, r)?;
+        step(9, r)?;
+        r.c.arg = get(CLOCK);
+        put(FRAME_CLOCK, r.c.arg);
+        r.c.arg = get(CHOICE);
+        put(CHOICE_BEFORE, r.c.arg);
+        step(10, r)?;
         if get(QUITTING) == 1 {
             return Ok(());
         }
@@ -211,58 +195,54 @@ fn view(r: &mut Regs, part: Part) -> Result<(), Refused> {
                 return Ok(());
             }
             if get(KEYS_IGNORED) == 1 {
-                r.eax = 0;
+                r.c.arg = 0;
             }
         }
         if get(WAIT_RELEASE) == 1 {
             if gb(KEY_DOWN_A) == 0 && gb(KEY_DOWN_B) == 0 {
                 put(WAIT_RELEASE, 0);
             }
-            r.eax = 0;
+            r.c.arg = 0;
         }
-        if r.eax as u8 == 1 {
+        if r.c.arg as u8 == 1 {
             put(WAIT_RELEASE, 1);
             put(ESCAPES, get(ESCAPES).wrapping_add(1));
             if get(ESCAPES) == 2 {
                 return Ok(());
             }
-            r.eax = 0;
+            r.c.arg = 0;
         }
-        if r.eax as u8 != 0 {
+        if r.c.arg as u8 != 0 {
             put(ESCAPES, 0);
         }
         if get(STOPPED) != 1 {
-            part(11, r)?;
-            if r.carry() || r.eax as u8 != 0 {
+            step(11, r)?;
+            if r.c.carry || r.c.arg as u8 != 0 {
                 put(STOPPED, 1);
             }
             continue;
         }
-        let key = r.eax as u8;
+        let key = r.c.arg as u8;
         let next = if (key as i8) <= 0 {
             Next::Mark
         } else {
-            stopped_key(r, part, key)?
+            stopped_key(r, key)?
         };
         let next = match next {
             Next::Action(action) => {
-                r.ebx = action;
-                part(8, r)?;
-                if r.eflags & ZERO_FLAG != 0 {
-                    Next::Mark
-                } else {
-                    Next::Sound
-                }
+                r.c.palette = action;
+                step(8, r)?;
+                if r.zero { Next::Mark } else { Next::Sound }
             }
             other => other,
         };
         if let Next::Mark = next {
-            mark(r, part, key)?;
+            mark(r, key)?;
         }
         // The menu sound asked for (0x41D41C).
-        r.eax = get(SOUND);
+        r.c.arg = get(SOUND);
         put(SOUND, 0);
-        part(15, r)?;
+        step(15, r)?;
         if gb(LIST_LEAVE) == 1 {
             return Ok(());
         }
@@ -270,9 +250,9 @@ fn view(r: &mut Regs, part: Part) -> Result<(), Refused> {
 }
 
 /// A key while stopped (0x41D139 ..): where it leads.
-fn stopped_key(r: &mut Regs, part: Part, key: u8) -> Result<Next, Refused> {
+fn stopped_key(r: &mut Flow, key: u8) -> Result<Next, Refused> {
     if get(SCREENSHOTS_ON) != 0 && key == 0x52 {
-        part(12, r)?;
+        step(12, r)?;
     }
     if get(CAMERA_EDIT) != 0 {
         return Ok(match key {
@@ -283,19 +263,19 @@ fn stopped_key(r: &mut Regs, part: Part, key: u8) -> Result<Next, Refused> {
             _ => Next::Sound,
         });
     }
-    r.esi = get(CHOICE)
+    r.c.cars = get(CHOICE)
         .wrapping_mul(0x10)
-        .wrapping_add(r.edi)
+        .wrapping_add(r.record)
         .wrapping_add(0x18);
-    r.ebx = unsafe { ((r.edi + 0x10) as *const u32).read_unaligned() };
-    part(13, r)?;
-    if r.eflags & ZERO_FLAG != 0 {
+    r.c.palette = unsafe { ((r.record + 0x10) as *const u32).read_unaligned() };
+    step(13, r)?;
+    if r.zero {
         return Ok(Next::Mark);
     }
     if key == 0x1C {
-        r.ebx = unsafe { ((r.esi + 1) as *const u8).read() } as u32;
-        part(8, r)?;
-        if r.eflags & ZERO_FLAG != 0 {
+        r.c.palette = unsafe { ((r.c.cars + 1) as *const u8).read() } as u32;
+        step(8, r)?;
+        if r.zero {
             return Ok(Next::Mark);
         }
     }
@@ -321,11 +301,11 @@ fn stopped_key(r: &mut Regs, part: Part, key: u8) -> Result<Next, Refused> {
 
 /// After a move or an action (0x41D3B0): the items marked again, the highlight put where
 /// it can be chosen, the key's clock.
-fn mark(r: &mut Regs, part: Part, key: u8) -> Result<(), Refused> {
-    part(7, r)?;
-    part(14, r)?;
+fn mark(r: &mut Flow, key: u8) -> Result<(), Refused> {
+    step(7, r)?;
+    step(14, r)?;
     'tail: {
-        if !r.carry() {
+        if !r.c.carry {
             break 'tail;
         }
         'reset: {
@@ -334,69 +314,72 @@ fn mark(r: &mut Regs, part: Part, key: u8) -> Result<(), Refused> {
             }
             // On the way it went while it cannot be chosen.
             loop {
-                r.ebx = unsafe { ((r.edi + 0x10) as *const u32).read_unaligned() };
-                part(13, r)?;
-                if r.eflags & ZERO_FLAG == 0 {
+                r.c.palette = unsafe { ((r.record + 0x10) as *const u32).read_unaligned() };
+                step(13, r)?;
+                if !r.zero {
                     break;
                 }
-                part(14, r)?;
-                if !r.carry() {
+                step(14, r)?;
+                if !r.c.carry {
                     break 'tail;
                 }
             }
-            r.ebx = get(CHOICE_BEFORE);
-            put(CHOICE, r.ebx);
-            part(14, r)?;
-            if !r.carry() {
+            r.c.palette = get(CHOICE_BEFORE);
+            put(CHOICE, r.c.palette);
+            step(14, r)?;
+            if !r.c.carry {
                 return Ok(());
             }
         }
         put(CHOICE, 6);
-        if unsafe { ((r.edi + 0x78) as *const u8).read() } & 0xC0 != 0 {
+        if unsafe { ((r.record + 0x78) as *const u8).read() } & 0xC0 != 0 {
             put(CHOICE, 0x13);
         }
     }
     if (key as i8) > 0 {
-        r.ebx = get(FRAME_CLOCK);
-        put(MOVE_CLOCK, r.ebx);
+        r.c.palette = get(FRAME_CLOCK);
+        put(MOVE_CLOCK, r.c.palette);
     }
     Ok(())
 }
 
-/// In the game: the Rust versions; the frame's run through the game (the platform's).
-pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
+/// The calls by place, as IDA shows them (the Rust versions; the frame's run through the
+/// platform).
+fn step(place: u32, r: &mut Flow) -> Result<(), Refused> {
     use crate::race::*;
     unsafe {
         match place {
-            1 => *r = crate::menu::replay_slot_loop::replay_slot_loop(r)?,
-            2 => *r = save_last_replay::save_last_replay(r)?,
-            3 => {
-                *r = open_viewed_replay::open_viewed_replay(r, &mut open_viewed_replay::game_part)?
-            }
+            1 => r.c.arg = crate::menu::replay_slot_loop::replay_slot_loop(&r.c)?,
+            2 => save_last_replay::save_last_replay(r.c.arg)?,
+            3 => r.c.carry = open_viewed_replay::open_viewed_replay(r.c.palette)?,
             4 => find_snapshot_number::find_snapshot_number(),
-            5 => *r = viewer_load_stage::viewer_load_stage(r)?,
-            6 => viewer_load_stage::take_key(r),
-            7 => mark_viewer_items::mark_viewer_items(r.edi),
-            8 => *r = viewer_action::viewer_action(r, &mut viewer_action::game_part)?,
-            9 => crate::calls::call(rva(CALLEES[9]), r),
-            10 => *r = crate::menu::list_take_key::list_take_key(r)?,
-            11 => *r = step_viewed_replay::step_viewed_replay(r)?,
-            12 => crate::gfx::take_screenshot::take_screenshot()?,
-            13 => *r = crate::menu::list_step::list_step(r),
-            14 => {
-                let unusable = crate::menu::list_item_unusable::list_item_unusable(r.edi);
-                r.set_carry(unusable);
+            5 => viewer_load_stage::viewer_load_stage()?,
+            6 => {
+                // `input::take_key` into al and the zero flag.
+                let key = crate::input::take_key::take_key();
+                r.c.arg = r.c.arg & !0xFF | u32::from(key);
+                r.zero = key == 0;
+                r.c.carry = false;
             }
-            15 => crate::sound::play_menu_sound::play_menu_sound_in_game(r.eax),
-            16 => *r = close_viewed_replay::close_viewed_replay(r)?,
-            _ => *r = viewer_tidy_stage::viewer_tidy_stage(r)?,
+            7 => mark_viewer_items::mark_viewer_items(r.record),
+            8 => r.zero = viewer_action::viewer_action(r.c.palette, &r.c)?,
+            // `screens::run_frame` with `race::viewer_frame` (0x41D5FB).
+            9 => {
+                if let Some(lost) = crate::platform::run_frame_now(viewer_frame::viewer_frame) {
+                    lost?;
+                }
+            }
+            10 => crate::menu::list_take_key::list_take_key().carry_on(r),
+            11 => r.c.carry = step_viewed_replay::step_viewed_replay()?,
+            12 => crate::gfx::take_screenshot::take_screenshot()?,
+            13 => {
+                crate::menu::list_step::list_step(r.c.arg as u8, r.c.palette, r.record).carry_on(r)
+            }
+            14 => r.c.carry = crate::menu::list_item_unusable::list_item_unusable(r.record),
+            15 => crate::sound::play_menu_sound::play_menu_sound_in_game(r.c.arg),
+            16 => close_viewed_replay::close_viewed_replay()?,
+            _ => viewer_tidy_stage::viewer_tidy_stage()?,
         }
     }
     Ok(())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    regs_entry(r, &|r| replay_viewer(r, &mut game_part))
 }

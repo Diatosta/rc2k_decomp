@@ -31,14 +31,12 @@
 //! Self-test: the original and the Rust version on the game's variables (saved and put
 //! back) with test faces, under three precisions.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{EAX, EBX, ECX, EDI, EDX, ESI, Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::physics::flip_cell_index::flip_cell_index;
-use crate::screens::harness::Left;
 use std::cmp::Ordering;
 
 fn g(x: usize) -> u32 {
@@ -93,20 +91,15 @@ fn check() -> Result<(), Refused> {
 
 /// The steps (a refusal may come after some are written: `wheel_surfaces` puts them
 /// back).
-unsafe fn steps() -> Result<Left, Refused> {
+unsafe fn steps() -> Result<(), Refused> {
     check()?;
     let b = game_addr(0) as u32;
     let infos = game_addr(rva(0x979F30)) as u32;
     let surfaces = game_addr(rva(0x613978)) as u32;
-    let mut r = Regs::default();
     for c in 0..5u32 {
         let cc = c as usize;
-        r.ecx = c;
-        r.ebx = g(0x71ADC8 + 4 * cc);
-        let f = (r.ebx << 6).wrapping_add(g(0x5CCCBC));
-        r.esi = f;
+        let f = (g(0x71ADC8 + 4 * cc) << 6).wrapping_add(g(0x5CCCBC));
         let t1 = infos + (unsafe { byte(f + 1) } << 6);
-        r.edi = t1;
         let mut edx = unsafe { share_bit(0x2D2B14, c) };
         let mut ebx = unsafe { share_bit(0x2D2A14, c) };
         edx = (edx >> 15) & 1;
@@ -117,9 +110,7 @@ unsafe fn steps() -> Result<Left, Refused> {
         }
         let (_, _, d1) = flip_cell_index(unsafe { byte(f) }, ebx, edx);
         p(0x614710 + 4 * cc, d1);
-        let (a2, b2, d2) = flip_cell_index(unsafe { byte(f + 0x20) }, ebx, edx);
-        r.eax = a2;
-        r.ebx = b2;
+        let (_, _, d2) = flip_cell_index(unsafe { byte(f + 0x20) }, ebx, edx);
         p(0x614724 + 4 * cc, d2);
         unsafe {
             let e = g(0x614710 + 4 * cc);
@@ -127,27 +118,22 @@ unsafe fn steps() -> Result<Left, Refused> {
             p(0x71A934 + 4 * cc, byte(e + t1 + 0x18));
             p(0x71A95C + 4 * cc, byte(e + t1 + 0x14));
             let t2 = infos + (byte(f + 0x21) << 6);
-            r.edi = t2;
-            r.edx = g(0x614724 + 4 * cc);
-            p(0x71A90C + 4 * cc, byte(r.edx + t2 + 0x10));
-            p(0x71A948 + 4 * cc, byte(r.edx + t2 + 0x18));
-            r.eax = byte(r.edx + t2 + 0x14);
-            p(0x71A970 + 4 * cc, r.eax);
+            let e2 = g(0x614724 + 4 * cc);
+            p(0x71A90C + 4 * cc, byte(e2 + t2 + 0x10));
+            p(0x71A948 + 4 * cc, byte(e2 + t2 + 0x18));
+            p(0x71A970 + 4 * cc, byte(e2 + t2 + 0x14));
             p(0x71A984 + 4 * cc, 0);
             let kind_index = byte(t2 + 0x2C);
-            r.eax = g(0x63D9D0 + 4 * kind_index as usize);
-            if r.eax != 5 && r.eax != 4 && g(0x71A90C + 4 * cc) != 0 && byte(f + 0x21) != 0 {
+            let kind = g(0x63D9D0 + 4 * kind_index as usize);
+            if kind != 5 && kind != 4 && g(0x71A90C + 4 * cc) != 0 && byte(f + 0x21) != 0 {
                 let (x, y, z) = if g(0x6D2914 + 4 * cc) == 1 {
                     (byte(f + 0x25), byte(f + 0x24), byte(f + 0x23))
                 } else {
                     (byte(f + 0x22), byte(f + 0x23), byte(f + 0x24))
                 };
-                r.eax = x;
                 p(0x624040, x);
-                r.ebx = y.wrapping_sub(x);
-                p(0x624044, r.ebx);
-                r.edx = z.wrapping_sub(x);
-                p(0x624048, r.edx);
+                p(0x624044, y.wrapping_sub(x));
+                p(0x624048, z.wrapping_sub(x));
                 x87_block!(
                     "fild dword ptr [{b} + 0x224044]",
                     "fmul dword ptr [{b} + {c}*4 + 0x2D2A14]",
@@ -162,7 +148,6 @@ unsafe fn steps() -> Result<Left, Refused> {
                 );
             }
             if ((f + 2) as *const u16).read_unaligned() & 0x1000 != 0 {
-                r.ebx = 5;
                 p(0x71A8F8 + 4 * cc, 5);
                 p(0x71A90C + 4 * cc, 5);
                 p(0x71A934 + 4 * cc, 0x3C);
@@ -174,7 +159,6 @@ unsafe fn steps() -> Result<Left, Refused> {
             if s1 > 15 || s2 > 15 {
                 return Err(BadInput("a surface past 15").into());
             }
-            r.ebx = s2.wrapping_mul(0x30);
             let esi = surfaces + s1 * 0x30;
             let edi = surfaces + s2 * 0x30;
             x87_block!(
@@ -271,12 +255,8 @@ unsafe fn steps() -> Result<Left, Refused> {
                 "fstp dword ptr [{b} + {c}*4 + 0x2146FC]";
                 b = b, c = c, s = esi, d = edi
             );
-            r.esi = esi;
-            r.edi = edi;
-            r.ebx = k;
         }
     }
-    r.ecx = 5;
     unsafe {
         x87_block!(
             "fld dword ptr [{b} + 0x214284]",
@@ -293,11 +273,11 @@ unsafe fn steps() -> Result<Left, Refused> {
         let on = hard(g(0x71A8F8 + 4 * c)) || hard(g(0x71A90C + 4 * c));
         p(0x614150 + 4 * c, on as u32);
     }
-    r.eax = g(0x614150)
+    let hard = g(0x614150)
         .wrapping_add(g(0x614154))
         .wrapping_add(g(0x614158))
         .wrapping_add(g(0x61415C));
-    p(0x71A230, r.eax);
+    p(0x71A230, hard);
     let below = |a: u32, b: u32| {
         !matches!(
             f32::from_bits(a).partial_cmp(&f32::from_bits(b)),
@@ -351,16 +331,10 @@ unsafe fn steps() -> Result<Left, Refused> {
             b = b
         );
     }
-    Ok(Left::nothing()
-        .with(EAX, r.eax)
-        .with(EBX, r.ebx)
-        .with(ECX, 5)
-        .with(EDX, r.edx)
-        .with(ESI, r.esi)
-        .with(EDI, r.edi))
+    Ok(())
 }
 
 /// The Rust version: what was written is put back on a refusal.
-pub unsafe fn wheel_surfaces() -> Result<Left, Refused> {
+pub unsafe fn wheel_surfaces() -> Result<(), Refused> {
     unsafe { steps() }
 }

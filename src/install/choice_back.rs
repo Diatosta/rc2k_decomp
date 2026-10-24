@@ -13,44 +13,32 @@
 //! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
+//! are the original's.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::install::installer::{rb, rd, wb};
-use crate::race::viewer::regs_entry;
 use rc2k_core::install::items::{self, MARKS};
 
-/// An item of choices' places: the chosen byte (edx) and the table (ebx); and whether
-/// choice `cl` is free.
-pub fn choice_places(r: &mut Regs) -> impl Fn(u8) -> bool + use<> {
-    r.edx = rd(r.esi + 8);
-    r.ebx = rd(r.esi + 0xC);
-    let table = r.ebx;
-    move |cl: u8| rb(table.wrapping_add(2 * cl as u32 + 1)) & MARKS == 0
+/// An item of choices' chosen byte; and whether choice `cl` is free.
+pub fn choice_places(item: u32) -> (u32, impl Fn(u8) -> bool + use<>) {
+    let table = rd(item + 0xC);
+    let free = move |cl: u8| rb(table.wrapping_add(2 * cl as u32 + 1)) & MARKS == 0;
+    (rd(item + 8), free)
 }
 
-/// The choice reached stored (when it changed) and left in ecx; zero set, carry clear.
-pub fn store_choice(r: &mut Regs, chosen: u8, cl: u8) {
+/// The choice reached stored, when it changed.
+pub fn store_choice(chosen_at: u32, chosen: u8, cl: u8) {
     if cl != chosen {
-        wb(r.edx, cl);
+        wb(chosen_at, cl);
     }
-    r.ecx = cl as u32;
-    r.set_zero(true);
-    r.set_carry(false);
 }
 
-pub fn choice_back(entry: &Regs) -> Result<Regs, Refused> {
-    let mut r = *entry;
-    let free = choice_places(&mut r);
-    let chosen = rb(r.edx);
+pub fn choice_back(item: u32) -> Result<(), Refused> {
+    let (chosen_at, free) = choice_places(item);
+    let chosen = rb(chosen_at);
     // Converted: `rc2k_core::install::items::choice_back`.
-    let cl = items::choice_back(chosen, || rb(entry.esi + 1), free)?;
-    store_choice(&mut r, chosen, cl);
-    Ok(r)
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    regs_entry(r, &choice_back)
+    let cl = items::choice_back(chosen, || rb(item + 1), free)?;
+    store_choice(chosen_at, chosen, cl);
+    Ok(())
 }

@@ -7,8 +7,7 @@
 //! / `flt_8C5FDD`) and added to its offset (`dword_8BDD7D`, `dword_8BDD85`, rounded).
 //!
 //! In:  nothing
-//! Out: eax the ticks passed; after new targets eax, ebx the second random's halves times
-//!      0x100, ecx the wait
+//! Out: nothing (its caller reads no register after it)
 //!
 //! One caller, `sub_4C16F9` (the marks' frame). Self-test: the original and the Rust
 //! version, the wait passed and not, at several randoms and paces; put back afterwards.
@@ -23,7 +22,7 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::{Regs, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 use crate::marks::setup::{CLOCK_RVA, SEED_RVA};
 use crate::math::x87;
 
@@ -48,30 +47,26 @@ unsafe fn next_seed() -> u32 {
 }
 
 /// The Rust version (see the header).
-pub unsafe fn drift_offsets(entry: &Regs) -> Regs {
-    let mut g = *entry;
+pub unsafe fn drift_offsets() {
     unsafe {
-        g.eax = game_read::<u32>(CLOCK_RVA).wrapping_sub(game_read(SINCE_RVA));
-        if g.eax >= game_read::<u32>(WAIT_RVA) {
+        let since = game_read::<u32>(CLOCK_RVA).wrapping_sub(game_read(SINCE_RVA));
+        if since >= game_read::<u32>(WAIT_RVA) {
             let s = next_seed();
-            g.eax = (s & 0xFFF).wrapping_sub(0x7FF);
+            let x = (s & 0xFFF).wrapping_sub(0x7FF);
             game_write(
                 TARGET_RVA[0],
-                x87::int_times(g.eax as i32, game_read(SCALE_RVA[0])),
+                x87::int_times(x as i32, game_read(SCALE_RVA[0])),
             );
-            g.ebx = ((s >> 12) & 0xFFF).wrapping_sub(0x7FF);
+            let y = ((s >> 12) & 0xFFF).wrapping_sub(0x7FF);
             game_write(
                 TARGET_RVA[1],
-                x87::int_times(g.ebx as i32, game_read(SCALE_RVA[1])),
+                x87::int_times(y as i32, game_read(SCALE_RVA[1])),
             );
-            g.ecx = ((s >> 24) + 0x40) * 5;
-            game_write(WAIT_RVA, g.ecx);
+            game_write(WAIT_RVA, ((s >> 24) + 0x40) * 5);
             game_write(SINCE_RVA, game_read::<u32>(CLOCK_RVA));
             let s = next_seed();
-            g.eax = (s & 0xFFFF) << 8;
-            g.ebx = (s >> 16) << 8;
-            game_write(HALVES_RVA[0], g.eax);
-            game_write(HALVES_RVA[1], g.ebx);
+            game_write(HALVES_RVA[0], (s & 0xFFFF) << 8);
+            game_write(HALVES_RVA[1], (s >> 16) << 8);
         }
         for n in 0..2 {
             let pace = x87::ease(
@@ -84,5 +79,4 @@ pub unsafe fn drift_offsets(entry: &Regs) -> Regs {
             game_write(OFFSET_RVA[n], offset);
         }
     }
-    g
 }

@@ -19,7 +19,7 @@
 //! registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
+use crate::files::read_file::ReadResult;
 
 use rc2k_core::files::packed::MAGIC;
 
@@ -32,34 +32,23 @@ pub struct Outcome {
 }
 
 impl Outcome {
-    pub fn apply(&self, r: &mut Regs) {
-        r.eax = self.eax;
-        r.set_carry(self.carry);
-        r.set_zero(self.zero);
-    }
-
-    pub fn of(r: &Regs) -> Self {
+    /// What `files::read_file` leaves on a read of `path`: eax the bytes read (`path` when
+    /// it did not get that far), carry a failure, zero success.
+    pub fn of_read(path: u32, got: &ReadResult) -> Self {
         Self {
-            eax: r.eax,
-            carry: r.carry(),
-            zero: crate::audio::buffer_play::zero(r),
+            eax: got.bytes_read.unwrap_or(path),
+            carry: !got.ok,
+            zero: got.ok,
         }
     }
 }
 
-/// `files::read_file`'s call (eax the path, ebx the buffer, ecx the bytes, edx 0): eax,
-/// carry and zero as it leaves them.
-pub type Read<'a> = &'a mut dyn FnMut(&mut Regs) -> Result<(), Refused>;
+/// `files::read_file`'s call (the path, the buffer, its bytes; the offset 0).
+pub type Read<'a> = &'a mut dyn FnMut(u32, u32, u32) -> Result<ReadResult, Refused>;
 
 /// In the game: `files::read_file` in Rust.
-pub fn game_read(r: &mut Regs) -> Result<(), Refused> {
-    let got = unsafe { crate::files::read_file::read_file(r.eax as _, r.ebx as _, r.ecx, r.edx) }?;
-    if let Some(n) = got.bytes_read {
-        r.eax = n;
-    }
-    r.set_carry(!got.ok);
-    r.set_zero(got.ok);
-    Ok(())
+pub fn game_read(path: u32, buffer: u32, bytes: u32) -> Result<ReadResult, Refused> {
+    Ok(unsafe { crate::files::read_file::read_file(path as _, buffer as _, bytes, 0) }?)
 }
 
 unsafe fn get(at: u32) -> u32 {
@@ -73,23 +62,28 @@ pub unsafe fn unpack(buffer: u32, room: u32, size: u32) -> Result<u32, Refused> 
     Ok(rc2k_core::files::packed::unpack(bytes, size as usize)? as u32)
 }
 
-/// `files::read_packed_file` (see the header): eax the path, ebx the buffer, ecx its bytes.
-pub unsafe fn read_packed_file(entry: &Regs, read: Read) -> Result<Outcome, Refused> {
-    let mut r = Regs { edx: 0, ..*entry };
-    read(&mut r)?;
-    let failed = |zero| Outcome {
+/// `files::read_packed_file` (see the header): the file at `path` into `buffer` of `room`
+/// bytes.
+pub unsafe fn read_packed_file(
+    path: u32,
+    buffer: u32,
+    room: u32,
+    read: Read,
+) -> Result<Outcome, Refused> {
+    let got = Outcome::of_read(path, &read(path, buffer, room)?);
+    // A failed read leaves zero clear (`Outcome::of_read`), as a file not "SQSL" does.
+    let failed = Outcome {
         eax: 0,
         carry: true,
-        zero,
+        zero: false,
     };
-    if r.carry() {
-        return Ok(failed(crate::audio::buffer_play::zero(&r)));
+    if got.carry {
+        return Ok(failed);
     }
-    let (buffer, room) = (entry.ebx, entry.ecx);
     if unsafe { get(buffer) } != MAGIC {
-        return Ok(failed(false));
+        return Ok(failed);
     }
-    let bytes = unsafe { unpack(buffer, room, r.eax) }?;
+    let bytes = unsafe { unpack(buffer, room, got.eax) }?;
     Ok(Outcome {
         eax: bytes,
         carry: false,

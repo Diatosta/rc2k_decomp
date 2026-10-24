@@ -17,12 +17,11 @@
 //! Self-test: the original and the Rust version on the game's variables (saved and put
 //! back): empty slots and full ones, parts by lot, under three precisions.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::math::x87_run::{ext_to_int, int_80, int_mul_add};
 use crate::scene::rotate_point::rotate_point;
 use rc2k_core::physics::parts::{LAST_PART, choose_slot};
@@ -45,10 +44,10 @@ unsafe fn put(a: u32, v: u32) {
     unsafe { (a as *mut u32).write_unaligned(v) }
 }
 
-/// The steps on `r` (eax the part).
+/// The Rust version: part `part` (eax) into a race slot. The registers the original leaves
+/// are read by none of its callers.
 // Converted: `rc2k_core::physics::parts::choose_slot` (the slot; the floats stay x87).
-pub fn fill_race_slot_in(r: &mut Regs) -> Result<(), Refused> {
-    let part = r.eax;
+pub fn fill_race_slot(part: u32) -> Result<(), Refused> {
     if part > LAST_PART {
         return Err(BadInput("a part past 0xFF").into());
     }
@@ -58,15 +57,8 @@ pub fn fill_race_slot_in(r: &mut Regs) -> Result<(), Refused> {
         let Some(choice) = choose_slot(|c| at(slot_at(c)), |c| at(slot_at(c) + 0x64)) else {
             return Err(BadInput("no race slot to take (every +0x64 -1)").into());
         };
-        r.ecx = choice.ecx;
-        r.esi = slot_at(choice.slot);
-        if let Some(lowest) = choice.lowest {
-            r.edx = lowest;
-            r.ebp = r.esi;
-        }
-        let s = r.esi;
+        let s = slot_at(choice.slot);
         put(s, part);
-        r.ebx = part;
         let i = |t: usize| int_80(g(t + 4 * part as usize) as i32, false);
         let out = rotate_point(
             game_addr(rva(0x71A08C)) as u32,
@@ -75,13 +67,10 @@ pub fn fill_race_slot_in(r: &mut Regs) -> Result<(), Refused> {
         for (k, e) in out.iter().enumerate() {
             let n = ext_to_int(*e) as u32;
             p(0x635004 + 4 * k, n);
-            r.eax = n.wrapping_add(g(0x71A10C + 4 * k));
-            put(s + 4 + 4 * k as u32, r.eax);
+            put(s + 4 + 4 * k as u32, n.wrapping_add(g(0x71A10C + 4 * k)));
         }
-        r.eax = g(0x71ADD8);
-        put(s + 0x60, r.eax);
-        r.eax = g(0x719FE0);
-        put(s + 0x64, r.eax);
+        put(s + 0x60, g(0x71ADD8));
+        put(s + 0x64, g(0x719FE0));
         for k in 0..16u32 {
             put(s + 0x10 + 4 * k, g(0x71A08C + 4 * k as usize));
         }

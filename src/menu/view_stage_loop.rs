@@ -16,8 +16,9 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::{Regs, game_read, game_write, rva};
-use crate::menu::screen_loop::{Env, List, Screen, Step, screen_entry};
+use crate::errors::Refused;
+use crate::framework::{game_read, game_write, rva};
+use crate::menu::screen_loop::{Carried, List, Screen, Step, call};
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
@@ -32,34 +33,37 @@ fn take_kept() -> u32 {
     KEPT.with_borrow_mut(|stack| stack.pop().expect("a pop without its push"))
 }
 
-unsafe fn before(g: &mut Regs, _env: &mut dyn Env) {
+unsafe fn before(c: &mut Carried) -> Result<(), Refused> {
     unsafe {
         KEPT.with_borrow_mut(|stack| stack.push(game_read(rva(0x75595C))));
         KEPT.with_borrow_mut(|stack| stack.push(game_read(rva(0x755958))));
-        g.eax = game_read(rva(0x75595C));
-        game_write(rva(0x755964), g.eax);
-        g.eax = game_read(rva(0x755958));
-        game_write(rva(0x755960), g.eax);
+        c.arg = game_read(rva(0x75595C));
+        game_write(rva(0x755964), c.arg);
+        c.arg = game_read(rva(0x755958));
+        game_write(rva(0x755960), c.arg);
     }
+    Ok(())
 }
 
-unsafe fn after_lists(g: &mut Regs, env: &mut dyn Env) {
+unsafe fn after_lists(c: &mut Carried) -> Result<(), Refused> {
     unsafe {
-        env.call(rva(0x480032), g);
-        env.call(rva(0x470FC3), g);
+        call(rva(0x480032), c)?;
+        call(rva(0x470FC3), c)?;
         if game_read::<u32>(rva(0x755968)) == 0x0 {
-            env.call(rva(0x470F9F), g);
+            call(rva(0x470F9F), c)?;
         }
         game_write(rva(0x755700), 0x3u32);
     }
+    Ok(())
 }
 
-unsafe fn after(g: &mut Regs, env: &mut dyn Env) {
+unsafe fn after(c: &mut Carried) -> Result<(), Refused> {
     unsafe {
         game_write(rva(0x755958), take_kept());
         game_write(rva(0x75595C), take_kept());
-        env.call(rva(0x40F757), g);
+        call(rva(0x40F757), c)?;
     }
+    Ok(())
 }
 
 pub const SCREEN: Screen = Screen {
@@ -118,9 +122,3 @@ pub const SCREEN: Screen = Screen {
     restart_action_check: false,
     always_asks: false,
 };
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    screen_entry("menu::view_stage_loop", r, &SCREEN)
-}

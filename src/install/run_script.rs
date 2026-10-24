@@ -22,21 +22,22 @@
 //! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
+//! are the original's.
 
 use crate::bridge::Raw;
 use crate::errors::{BadInput, Refused};
-use crate::framework::Regs;
-use crate::install::installer::{
-    LIST_FILES, LIST_FOLDER, LIST_FOLDER_TREE, MEDIA_MODE, a, at, fatal, gb, rb, wb,
-};
+use crate::install::installer::{MEDIA_MODE, a, fatal, gb, rb, wb};
 use rc2k_core::install::script::{self, Op};
 
 const NAME_BUF: usize = 0x95EAF8; // byte_95EAF8
 
-pub fn run_script(entry: &Regs) -> Result<Regs, Refused> {
-    let mut r = *entry;
-    let mut esi = a(NAME_BUF);
-    wb(esi, 0);
+/// The script at `script` (ebx) run.
+pub fn run_script(script: u32) -> Result<(), Refused> {
+    use crate::install as i;
+    let mut cursor = script;
+    let mut end = a(NAME_BUF);
+    wb(end, 0);
     let mut stack: Vec<u32> = Vec::new();
     let media = gb(MEDIA_MODE);
     let mut guard = 0usize;
@@ -46,19 +47,16 @@ pub fn run_script(entry: &Regs) -> Result<Regs, Refused> {
         if guard > script::LIMIT {
             return Err(BadInput("a script with no end in 0x10000 bytes").into());
         }
-        let al = rb(r.ebx);
-        r.ebx = r.ebx.wrapping_add(1);
-        match Op::of(al) {
+        let op = rb(cursor);
+        cursor = cursor.wrapping_add(1);
+        match Op::of(op) {
             Op::Folder => {
-                stack.push(esi);
-                r.esi = esi;
-                r = crate::install::script_name::script_name(&r)?;
-                esi = r.esi;
-                r.eax = a(NAME_BUF);
-                crate::install::installer::game_part(at(LIST_FOLDER), &mut r)?;
-                wb(esi, b'\\');
-                wb(esi + 1, 0);
-                esi += 1;
+                stack.push(end);
+                (cursor, end) = i::script_name::script_name(cursor, end)?;
+                i::list_folder::list_folder(a(NAME_BUF))?;
+                wb(end, b'\\');
+                wb(end + 1, 0);
+                end += 1;
             }
             Op::Up => {
                 let Some(level) = stack.pop() else {
@@ -67,34 +65,29 @@ pub fn run_script(entry: &Regs) -> Result<Regs, Refused> {
                     )
                     .into());
                 };
-                esi = level;
-                wb(esi, 0);
+                end = level;
+                wb(end, 0);
             }
             Op::Files | Op::Tree => {
-                stack.push(esi);
-                r.esi = esi;
-                r = crate::install::script_name::script_name(&r)?;
-                r.eax = a(NAME_BUF);
-                crate::install::installer::game_part(
-                    at(if al == 3 {
-                        LIST_FILES
-                    } else {
-                        LIST_FOLDER_TREE
-                    }),
-                    &mut r,
-                )?;
-                esi = stack.pop().unwrap_or(a(NAME_BUF)); // pushed just above
-                wb(esi, 0);
+                stack.push(end);
+                (cursor, _) = i::script_name::script_name(cursor, end)?;
+                if op == 3 {
+                    i::list_files::list_files(a(NAME_BUF))?;
+                } else {
+                    i::list_folder_tree::list_folder_tree(a(NAME_BUF))?;
+                }
+                end = stack.pop().unwrap_or(a(NAME_BUF)); // pushed just above
+                wb(end, 0);
             }
             Op::Media => {
-                let n = rb(r.ebx);
-                r.ebx = r.ebx.wrapping_add(1);
+                let n = rb(cursor);
+                cursor = cursor.wrapping_add(1);
                 if !script::skipped(n, media) {
                     continue;
                 }
-                let words = unsafe { Raw::new(r.ebx as *const u8) };
+                let words = unsafe { Raw::new(cursor as *const u8) };
                 let past = script::skip(&words, 0, &mut guard)?;
-                r.ebx = r.ebx.wrapping_add(past as u32);
+                cursor = cursor.wrapping_add(past as u32);
             }
             Op::Nothing => {}
             Op::End => {
@@ -105,11 +98,5 @@ pub fn run_script(entry: &Regs) -> Result<Regs, Refused> {
             }
         }
     }
-    Ok(Regs { ..*entry })
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    crate::race::viewer::regs_entry(r, &|r| run_script(r))
+    Ok(())
 }

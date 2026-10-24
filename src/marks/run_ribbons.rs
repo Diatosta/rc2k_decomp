@@ -12,7 +12,7 @@
 //! the cursor (or that moved on past it).
 //!
 //! In:  nothing (`g_marksSettings`)
-//! Out: the registers as the walk leaves them
+//! Out: nothing (its caller reads no register after it)
 //!
 //! Caller: `marks::run_frame` (0x4D1640 .., after `sub_4CB64D`). The x87 blocks are the
 //! original's instructions over the entries and the game's variables; the fog its Rust
@@ -28,7 +28,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::marks::emitters::{RING_COUNT_RVA, RING_CURSOR_RVA};
 use crate::marks::setup::SETTINGS_RVA;
 use crate::math::x87;
@@ -42,9 +42,6 @@ const SPECULAR_RVA: usize = rva(0x9605B4); // the first vertex's specular
 const INDEX_RVA: usize = rva(0x9356C0); // dword_9356C0
 const OTHER_RVA: usize = rva(0x765238); // dword_765238
 const COLOURS: [(usize, i32); 2] = [(rva(0x939DB2), 257), (rva(0x939BB2), 128)];
-
-/// A call by place: 1 `draw_ribbon`.
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
 
 unsafe fn get(a: u32) -> u32 {
     unsafe { (a as *const u32).read_unaligned() }
@@ -237,121 +234,82 @@ unsafe fn refusal() -> Option<&'static str> {
     }
 }
 
-/// The streak step at e (see the header): its eax (not 0: the entry dies).
-unsafe fn streak(g: &mut Regs, e: u32, part: &mut Part) -> Result<(), Refused> {
+/// The streak step at e (see the header): whether the entry dies.
+unsafe fn streak(e: u32) -> Result<bool, Refused> {
     unsafe {
         let b = game_addr(0) as u32;
-        g.eax = game_read(TICKS_RVA);
+        let t: u32 = game_read(TICKS_RVA);
         let life = get(e + 0x84);
-        put(e + 0x84, life.wrapping_sub(g.eax));
-        if life < g.eax {
-            g.eax = 0xFFFF_FFFF;
-            return Ok(());
+        put(e + 0x84, life.wrapping_sub(t));
+        if life < t {
+            return Ok(true);
         }
-        g.eax = u32::from(x87::compare_status(get(e + 0x14), get(e + 0x28)));
-        if g.eax == 0x100 {
-            g.eax = 0xFFFF_FFFF;
-            return Ok(());
+        if x87::compare_status(get(e + 0x14), get(e + 0x28)) == 0x100 {
+            return Ok(true);
         }
         if get(e + 0x10) == 0 {
             first_frame(b, e);
         }
         move_on(b, e);
-        [g.eax, g.ebx, g.ecx] = [get(e + 0x1C), get(e + 0x20), get(e + 0x24)];
-        game_write(LAST_RVA, g.eax);
-        game_write(LAST_RVA + 4, g.ebx);
-        game_write(LAST_RVA + 8, g.ecx);
+        game_write(LAST_RVA, get(e + 0x1C));
+        game_write(LAST_RVA + 4, get(e + 0x20));
+        game_write(LAST_RVA + 8, get(e + 0x24));
         turn_place(b, e);
         let s: u32 = game_read(SETTINGS_RVA);
-        g.eax = s;
         if get(s + 0xC) != 0 || get(s + 0x10) == 1 {
-            g.eax = game_read(PLACE_RVA);
-            g.ebx = game_read(PLACE_RVA + 4);
-            g.ecx = game_read(PLACE_RVA + 8);
-            put(e + 0x1C, g.eax);
-            put(e + 0x20, g.ebx);
-            put(e + 0x24, g.ecx);
+            put(e + 0x1C, game_read(PLACE_RVA));
+            put(e + 0x20, game_read(PLACE_RVA + 4));
+            put(e + 0x24, game_read(PLACE_RVA + 8));
         }
         game_write(SPECULAR_RVA, fog_at(get(e + 0x24))?);
-        g.edx = 0x800;
         let i = x87::int_times_to_int(get(e + 0x84) as i32, get(e + 0x78));
         game_write(INDEX_RVA, i);
-        let mut r = Regs {
-            eax: 0x20,
-            ecx: i as u32,
-            esi: game_read::<u32>(colours().0 + 4 * i as usize),
-            ..*g
-        };
-        part(1, &mut r)?;
-        *g = Regs {
-            esi: e,
-            eax: 0,
-            ..r
-        };
+        let colour = game_read::<u32>(colours().0 + 4 * i as usize);
+        crate::marks::draw_ribbon::draw_ribbon(0x20, i as u32, 0x800, colour)?;
     }
-    Ok(())
+    Ok(false)
 }
 
 unsafe fn move_on(b: u32, e: u32) {
     unsafe { move_(b, e) }
 }
 
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn run_ribbons(entry: &Regs, mut part: Part) -> Result<Regs, Refused> {
+/// The Rust version (see the header).
+pub unsafe fn run_ribbons() -> Result<(), Refused> {
     if let Some(why) = unsafe { refusal() } {
         return Err(BadInput(why).into());
     }
-    let mut g = *entry;
     unsafe {
-        g.esi = game_read(RING_CURSOR_RVA);
+        let mut e: u32 = game_read(RING_CURSOR_RVA);
         let mut counter = game_read::<u32>(RING_COUNT_RVA) as i32;
         loop {
             counter = counter.wrapping_sub(1);
             if counter < 0 {
                 break;
             }
-            let e = g.esi;
             let next = get(e + 4);
-            g.eax = get(e + 8);
-            g.ebx = game_read(SETTINGS_RVA);
-            if get(g.ebx + 0x60) != 0 {
-                if get(e + 0xC) == STREAK {
-                    streak(&mut g, e, &mut part)?;
+            let settings: u32 = game_read(SETTINGS_RVA);
+            if get(settings + 0x60) != 0 && get(e + 0xC) == STREAK && streak(e)? {
+                game_write(
+                    RING_COUNT_RVA,
+                    game_read::<u32>(RING_COUNT_RVA).wrapping_sub(1),
+                );
+                if e == game_read::<u32>(RING_CURSOR_RVA) {
+                    game_write(RING_CURSOR_RVA, get(e + 4));
                 } else {
-                    g.eax = 0;
-                }
-                if g.eax != 0 {
-                    game_write(
-                        RING_COUNT_RVA,
-                        game_read::<u32>(RING_COUNT_RVA).wrapping_sub(1),
-                    );
-                    if e == game_read::<u32>(RING_CURSOR_RVA) {
-                        g.eax = get(e + 4);
-                        game_write(RING_CURSOR_RVA, g.eax);
-                    } else {
-                        g.ebx = get(e);
-                        g.ecx = get(e + 4);
-                        put(g.ebx + 4, g.ecx);
-                        put(g.ecx, g.ebx);
-                        g.ebx = game_read(RING_CURSOR_RVA);
-                        g.ecx = get(g.ebx);
-                        put(g.ebx, e);
-                        put(g.ecx + 4, e);
-                        put(e, g.ecx);
-                        put(e + 4, g.ebx);
-                    }
+                    let (before, after) = (get(e), get(e + 4));
+                    put(before + 4, after);
+                    put(after, before);
+                    let cursor: u32 = game_read(RING_CURSOR_RVA);
+                    let last = get(cursor);
+                    put(cursor, e);
+                    put(last + 4, e);
+                    put(e, last);
+                    put(e + 4, cursor);
                 }
             }
-            g.esi = next;
+            e = next;
         }
     }
-    Ok(g)
-}
-
-/// In the game: `draw_ribbon`'s Rust version.
-pub fn game_part(_place: u32, r: &mut Regs) -> Result<(), Refused> {
-    use crate::marks::draw_ribbon as ribbon;
-    let left = unsafe { ribbon::draw_ribbon(r) }?;
-    *r = Regs { esp: r.esp, ..left };
     Ok(())
 }

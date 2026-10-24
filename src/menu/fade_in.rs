@@ -14,12 +14,9 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::Regs;
-use crate::menu::fades::{fade, game_part};
+use crate::errors::Refused;
 
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { fade(r, false, &mut game_part) }?;
-    *r = Regs { esp: r.esp, ..left };
-    Ok(())
+/// The Rust version (see the header).
+pub fn fade_in() -> Result<(), Refused> {
+    unsafe { crate::menu::fades::fade(false) }
 }

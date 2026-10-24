@@ -6,7 +6,7 @@
 //! reading). (Its first lines, a developer's key for the switch, are jumped over.)
 //!
 //! In:  nothing
-//! Out: the registers as the sprite leaves them (eax `dword_5D1E34` going in)
+//! Out: nothing (no caller reads a register it leaves)
 //!
 //! Caller: `marks::run_frame` (0x4D1693). Its calls through `part` (1 a render state, 2
 //! the texture, 3 the sprite with its three values); in the game their Rust versions. Its
@@ -20,7 +20,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_read, rva};
+use crate::framework::{game_read, rva};
 use crate::math::x87;
 use crate::scene::matrix3::extended;
 
@@ -33,51 +33,28 @@ const ANGLE_RVA: usize = rva(0x93CCA4);
 /// The render states set (value, state).
 const STATES: [(u32, u32); 5] = [(4, 0x15), (5, 0x13), (6, 0x14), (0, 0x1C), (1, 0x1B)];
 
-/// A call by place (see the header), with the x87 values it takes (st(0) first).
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs, &[[u8; 10]]) -> Result<(), Refused>;
-
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn draw_glow(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    let mut g = *entry;
+/// The Rust version (see the header): the render states (`scene::set_render_state`), the
+/// texture (`scene::set_texture`), `draw_turned_sprite`.
+pub unsafe fn draw_glow() -> Result<(), Refused> {
     unsafe {
         if game_read::<u32>(OFF_RVA) == 1 {
-            return Ok(g);
+            return Ok(());
         }
         for (value, state) in STATES {
-            g.eax = value;
-            g.ebx = state;
-            part(1, &mut g, &[])?;
+            crate::scene::set_render_state::set_render_state(value, state);
         }
-        g.eax = game_read(TEXTURE_RVA);
-        part(2, &mut g, &[])?;
+        crate::scene::set_texture::set_texture(game_read(TEXTURE_RVA));
         let place = [
             x87::add_80(game_read(PLACE[2]), game_read(OFFSET[0])),
             x87::add_80(game_read(PLACE[1]), game_read(OFFSET[1])),
             extended(game_read(PLACE[0])),
         ];
-        g.ebx = game_read(ANGLE_RVA);
-        g.ecx = 0xFFFF_FFFF;
-        g.edx = 0x1_0000;
-        part(3, &mut g, &place)?;
-    }
-    Ok(g)
-}
-
-/// In the game: the calls' Rust versions.
-pub fn game_part(place: u32, r: &mut Regs, v: &[[u8; 10]]) -> Result<(), Refused> {
-    unsafe {
-        match place {
-            1 => {
-                let (value, state) = (r.eax, r.ebx);
-                crate::scene::set_render_state::set_render_state(value, state);
-            }
-            2 => crate::scene::set_texture::set_texture(r.eax),
-            _ => {
-                use crate::marks::draw_turned_sprite as sprite;
-                let left = sprite::draw_turned_sprite(r, [v[0], v[1], v[2]])?;
-                *r = Regs { esp: r.esp, ..left };
-            }
-        }
+        crate::marks::draw_turned_sprite::draw_turned_sprite(
+            game_read(ANGLE_RVA),
+            0xFFFF_FFFF,
+            0x1_0000,
+            place,
+        )?;
     }
     Ok(())
 }

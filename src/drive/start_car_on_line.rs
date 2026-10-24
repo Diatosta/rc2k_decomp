@@ -24,7 +24,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::math::x87;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
@@ -38,19 +38,19 @@ fn p(x: u32, v: u32) {
     unsafe { game_write(rva(x as usize), v) }
 }
 
-/// The Rust core, the two calls through `part` (places 6 and 9).
+/// The Rust version: `distance` (ebx) checkpoints on from the lead car. The registers it
+/// leaves are read by no caller (`drive::start_cars_behind` sets them again).
 // Converted: `rc2k_core::drive::start_places` (the share in plain floats; the motion's
 // turn stays x87).
-pub unsafe fn start_car_on_line(entry: &Regs) -> Result<Regs, Refused> {
+pub unsafe fn start_car_on_line(distance: u32) -> Result<(), Refused> {
     unsafe {
         let start = g(0x6051A0);
         start_places::check_start(start)?;
-        let mut r = *entry;
         p(0x71AA80, g(0x605034 + 4 * start));
         p(0x71A234, start_places::STARTED_MODE);
-        r.eax = start_places::start_checkpoint(g(0x70F484), r.ebx);
+        let checkpoint = start_places::start_checkpoint(g(0x70F484), distance);
         for v in [0x71A070, 0x71A06C, 0x71A074, 0x6365E4, 0x6365EC] {
-            p(v, r.eax);
+            p(v, checkpoint);
         }
         let f = |x: u32| f32::from_bits(g(x));
         let share = start_places::start_share(
@@ -63,8 +63,8 @@ pub unsafe fn start_car_on_line(entry: &Regs) -> Result<Regs, Refused> {
         .to_bits();
         p(0x6051AC, share);
         p(0x71A650, share);
-        crate::race::car_starts::game_part(6, &mut r)?;
-        crate::race::car_starts::game_part(9, &mut r)?;
+        crate::race::start_place::place_car_on_line()?;
+        crate::race::car_starts::reset_car_motion()?;
         p(0x71A17C, 0);
         p(0x71A180, 0);
         p(0x71A184, x87::loaded(g(0x6051B0)));
@@ -80,6 +80,6 @@ pub unsafe fn start_car_on_line(entry: &Regs) -> Result<Regs, Refused> {
         p(0x71A170, rounded(out[0]));
         p(0x71A174, rounded(out[1]));
         p(0x71A178, rounded(out[2]));
-        Ok(r)
+        Ok(())
     }
 }

@@ -9,10 +9,9 @@
 //! float) times `flt_8EB96D`; `dword_8F3981` plus 1; `marks::clip_quad`, and unless all is
 //! outside `scene::draw_fan`.
 //!
-//! In:  st(0), st(1) the centre (popped), eax the corner, ebx the angle << 20, ecx the
-//!      alpha, edx the size, esi the colour
-//! Out: as `clip_quad` / `draw_fan` leave them (eax the corner's address, ebx the angle,
-//!      ecx the colour, edi the height going in)
+//! In:  the corner, the angle << 20, the alpha, the size, the colour (the original's
+//!      eax, ebx, ecx, edx, esi), the centre (st(0), st(1), popped)
+//! Out: nothing (its one caller keeps its registers round it: `pusha` .. `popa`)
 //!
 //! Caller: `marks::draw_lens_flare` (0x4C4FEA). The clip is its Rust version (the copy's
 //! call goes to its hook); the draw through `part` (1 `draw_fan`), in the game its Rust
@@ -26,8 +25,8 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
-use crate::marks::clip_quad::clip_quad;
+use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::marks::clip_quad::{clip_quad, draw_fan};
 use crate::math::x87;
 use crate::scene::matrix3::rounded;
 
@@ -52,10 +51,17 @@ fn abs16(a: u32, b: u32) -> u32 {
     (if (d as i16) < 0 { d.wrapping_neg() } else { d }) as u32
 }
 
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn draw_flare_part(entry: &Regs, centre: [[u8; 10]; 2]) -> Result<Regs, Refused> {
-    let mut g = *entry;
-    if g.eax >= CORNERS {
+/// The Rust version (see the header): `corner` (the original's eax), `angle` (ebx, << 20),
+/// `alpha` (ecx), `size` (edx), `colour` (esi), `centre` (st(0) x, st(1) y).
+pub unsafe fn draw_flare_part(
+    corner: u32,
+    angle: u32,
+    alpha: u32,
+    size: u32,
+    colour: u32,
+    centre: [[u8; 10]; 2],
+) -> Result<(), Refused> {
+    if corner >= CORNERS {
         return Err(BadInput("a flare corner past g_marksCorners").into());
     }
     unsafe {
@@ -65,12 +71,12 @@ pub unsafe fn draw_flare_part(entry: &Regs, centre: [[u8; 10]; 2]) -> Result<Reg
         for n in 0..2 {
             game_write(SIDE_RVA[n], x87::loaded(game_read(SCALE[n])));
         }
-        g.ecx = (g.ecx << 24) | g.esi;
+        let colour = (alpha << 24) | colour;
         for n in 0..4 {
-            game_write(VERTICES_RVA + 0x20 * n + 0x10, g.ecx);
+            game_write(VERTICES_RVA + 0x20 * n + 0x10, colour);
         }
-        g.eax = game_addr(CORNERS_RVA) as u32 + g.eax * 0x80;
-        let word = |off: u32| ((g.eax + off) as *const u16).read_unaligned() as u32;
+        let entry = game_addr(CORNERS_RVA) as u32 + corner * 0x80;
+        let word = |off: u32| ((entry + off) as *const u16).read_unaligned() as u32;
         let uv_k: u32 = game_read(UV_K_RVA);
         for (n, (u, v)) in UV_WORDS.into_iter().enumerate() {
             let vertex = VERTICES_RVA + 0x20 * n;
@@ -80,14 +86,14 @@ pub unsafe fn draw_flare_part(entry: &Regs, centre: [[u8; 10]; 2]) -> Result<Reg
         let [cx, cy] = centre.map(rounded);
         game_write(VERTICES_RVA + 0x80, cx);
         game_write(VERTICES_RVA + 0x84, cy);
-        g.ebp = abs16(word(4), word(0));
-        g.edi = abs16(word(0xA), word(2));
-        let ratio = x87::int_over_int(g.edi as i32, g.ebp as i32);
-        let width = x87::int_to_float(g.edx as i32);
-        let height = x87::int_times(g.edx as i32, ratio);
+        let across = abs16(word(4), word(0));
+        let along = abs16(word(0xA), word(2));
+        let ratio = x87::int_over_int(along as i32, across as i32);
+        let width = x87::int_to_float(size as i32);
+        let height = x87::int_times(size as i32, ratio);
         game_write(SIZE_RVA[0], width);
         game_write(SIZE_RVA[1], height);
-        g.ebx >>= 20;
+        let turn = angle >> 20;
         let sw = x87::mul(width, game_read(SIDE_RVA[0]));
         let sh = x87::mul(height, game_read(SIDE_RVA[1]));
         game_write(SIDE_RVA[0], sw);
@@ -98,8 +104,8 @@ pub unsafe fn draw_flare_part(entry: &Regs, centre: [[u8; 10]; 2]) -> Result<Reg
             (x87::sub(width, sw), x87::sub(height, sh)),
             (x87::sub(0, sw), x87::sub(height, sh)),
         ];
-        let sin: u32 = game_read(SINES_RVA + 4 * g.ebx as usize);
-        let cos: u32 = game_read(COSINES_RVA + 4 * g.ebx as usize);
+        let sin: u32 = game_read(SINES_RVA + 4 * turn as usize);
+        let cos: u32 = game_read(COSINES_RVA + 4 * turn as usize);
         let depth = x87::mul(game_read(NEAR_RVA), game_read(Z_K_RVA));
         for (n, (x, y)) in corners.into_iter().enumerate() {
             let vertex = VERTICES_RVA + 0x20 * n;
@@ -109,18 +115,10 @@ pub unsafe fn draw_flare_part(entry: &Regs, centre: [[u8; 10]; 2]) -> Result<Reg
             game_write(vertex + 8, depth);
         }
         game_write(DRAWN_RVA, game_read::<u32>(DRAWN_RVA).wrapping_add(1));
-        g.ebp = game_addr(VERTICES_RVA) as u32;
-        g = clip_quad(&g)?;
-        if g.carry() {
-            return Ok(g);
+        if clip_quad(game_addr(VERTICES_RVA) as u32)? {
+            return Ok(());
         }
-        crate::marks::draw_flare_part::game_part(1, &mut g)?;
+        draw_fan();
     }
-    Ok(g)
-}
-
-/// In the game: `draw_fan`'s Rust version.
-pub fn game_part(_place: u32, r: &mut Regs) -> Result<(), Refused> {
-    unsafe { crate::scene::draw_fan::draw_fan(r, &mut crate::scene::draw_fan::game_part) };
     Ok(())
 }

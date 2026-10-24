@@ -17,10 +17,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::menu::event_flow::*;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 // g_keptPlayerName
 /// The chosen stage's ten best times, for the core; refused as `event_flow::stage_times`.
@@ -34,15 +31,4 @@ pub fn rank_time_trial_best() -> Result<(), Refused> {
     let mut list = stage_list()?;
     rc2k_core::menu::bests::rank_time_trial(&mut list, crate::menu::standings::kept_name());
     Ok(())
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    rank_time_trial_best()?;
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

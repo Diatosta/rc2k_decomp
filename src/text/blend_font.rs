@@ -15,16 +15,22 @@
 //! registers above are the original's, for reference.
 
 use crate::errors::BadInput;
-use crate::framework::{game_ptr, game_read, rva};
 use crate::gfx::blend_palette::blend_palette;
 use crate::gfx::pixel_format::surface_format;
+use crate::moved::Place;
 use crate::text::font::Font;
+use std::sync::atomic::{AtomicU32, Ordering};
 
 // ---- game data ----
 
-pub const BLENDED_FONT_RVA: usize = rva(0x51E384); // stru_51E384
-const BLENDED_PALETTE_RVA: usize = rva(0x4F3B74); // dword_4F3B74
-const BLEND_MODE_RVA: usize = rva(0x4F3F74); // dword_4F3F74: 0 = no palette is made, 2 = eased
+/// g_blendedFont (stru_51E384, 0x20 bytes, out of the image since 2026-10-24, phase 5): the
+/// font a highlighted item is drawn with. Its first bytes are the image's.
+pub static BLENDED_FONT: Place<[u32; 8]> = Place::new([0x0400_FF20, 1, 0x1B, 0, 6, 0, 0, 0]);
+/// g_blendedPalette (0x4F3B74, 1024 bytes of which 15 entries are made): 0 at the start.
+pub static BLENDED_PALETTE: Place<[u32; 256]> = Place::new([0; 256]);
+/// g_fontBlendMode (0x4F3F74, the setting `textflashmode`, through `crate::moved::place`):
+/// 0 = no palette is made, 2 = eased. 3 in the image.
+pub static BLEND_MODE: AtomicU32 = AtomicU32::new(3);
 const PALETTE_ENTRIES: u32 = 15;
 const FONT_LEN: usize = 0x20;
 
@@ -39,12 +45,12 @@ pub unsafe fn blend_font(
     if a.is_null() || b.is_null() {
         return Err(BadInput("a null font"));
     }
-    let mode: u32 = unsafe { game_read(BLEND_MODE_RVA) };
+    let mode: u32 = BLEND_MODE.load(Ordering::Relaxed);
     // Converted: `rc2k_core::text::pulse`.
     let (from_a, t) = rc2k_core::text::pulse(time, half_pulse, mode == 2);
     let (from, to) = if from_a { (a, b) } else { (b, a) };
     unsafe {
-        let blended: *mut Font = game_ptr(BLENDED_FONT_RVA);
+        let blended: *mut Font = BLENDED_FONT.ptr().cast();
         // The original reads the palettes after the copy, so if the second font is the
         // blended font itself, its palette is by then the first one's.
         let from_palette = from.read_unaligned().palette;
@@ -60,7 +66,7 @@ pub unsafe fn blend_font(
         if mode == 0 {
             return Ok(());
         }
-        let palette: *mut u32 = game_ptr(BLENDED_PALETTE_RVA);
+        let palette: *mut u32 = BLENDED_PALETTE.ptr().cast();
         blend_palette(
             from_palette as *const u32,
             to_palette as *const u32,
@@ -74,4 +80,21 @@ pub unsafe fn blend_font(
         blended.write_unaligned(font);
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::moved::image_bytes;
+
+    #[test]
+    fn data_starts_as_the_games() {
+        let font = unsafe { *super::BLENDED_FONT.ptr() };
+        let bytes: Vec<u8> = font.iter().flat_map(|w| w.to_le_bytes()).collect();
+        assert_eq!(bytes, image_bytes(0x51E384, 0x20));
+        let palette = unsafe { *super::BLENDED_PALETTE.ptr() };
+        let bytes: Vec<u8> = palette.iter().flat_map(|w| w.to_le_bytes()).collect();
+        assert_eq!(bytes, image_bytes(0x4F3B74, 0x400));
+        let mode = super::BLEND_MODE.load(std::sync::atomic::Ordering::Relaxed);
+        assert_eq!(mode.to_le_bytes().to_vec(), image_bytes(0x4F3F74, 4));
+    }
 }

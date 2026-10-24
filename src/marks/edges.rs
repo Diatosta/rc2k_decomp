@@ -3,7 +3,7 @@
 //! a byte a pixel, the shape tilt of the kind, then the masks and the two item kinds.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::math::x87;
 
 pub const DONE_RVA: usize = rva(0x8BC3D6); // g_marksEdgesDone: 0, or where to go on
@@ -30,14 +30,14 @@ fn clamped(kind: u32) -> u32 {
 /// `marks::load_edges` (0x4C0F2E): once (`g_marksEdgesDone`, then `resume`) each kind's
 /// record (`x87::scale_record` by 65536 / 1000) and its float less from 90; the settings'
 /// +0x2708 0xFFFF7B2E; the kind (held to 0 .. 0x16) written as two digits into the edge
-/// picture's path; that read (place 0 of the part, at 256 x 128, the picture's sizes kept
-/// round it); its pixels packed (the four bytes or'd, inverted) into `g_marksEdgeMask`; the
-/// shape tilt the kind's float times 0.0175; then `make_masks` (1), `set_up_hexagons` (2),
-/// `set_up_squares` (3), `nullsub_17` (4). Leaves the registers as the last step. Refuses a mark neither 0
-/// nor `resume`, before writing; a picture that is not read, after the path is written.
-pub unsafe fn load_edges(entry: &Regs, resume: u32) -> Result<Regs, Refused> {
+/// picture's path; that read (`gfx::read_picture_file`, at 256 x 128, the picture's sizes
+/// kept round it); its pixels packed (the four bytes or'd, inverted) into
+/// `g_marksEdgeMask`; the shape tilt the kind's float times 0.0175; then `make_masks`,
+/// `set_up_hexagons`, `set_up_squares` (and `nullsub_17`). Refuses a mark neither 0 nor
+/// `resume`, before writing; a picture that is not read (the original then counts
+/// 0x1FFFFFFF down and leaves with its stack one off), after the path is written.
+pub unsafe fn load_edges(resume: u32) -> Result<(), Refused> {
     use crate::gfx::picture::{HEIGHT_RVA, PICTURE_RVA, ROW_BYTES_RVA, WIDTH_RVA};
-    let mut g = *entry;
     unsafe {
         let done: u32 = game_read(DONE_RVA);
         if done != 0 && done != resume {
@@ -52,20 +52,14 @@ pub unsafe fn load_edges(entry: &Regs, resume: u32) -> Result<Regs, Refused> {
                 let f = (floats + 4 * k) as *mut u32;
                 f.write_unaligned(x87::sub(scale[2], f.read_unaligned()));
             }
-            g.esi = boxes + 0x30 * KINDS;
-            g.edi = floats + 4 * KINDS;
-            g.eax = game_addr(DONE_RVA) as u32;
             game_write(DONE_RVA, resume);
         }
-        g.esi = game_read(crate::marks::lines::SETTINGS_RVA);
-        ((g.esi + SETTING) as *mut u32).write_unaligned(SETTING_VALUE);
+        let settings: u32 = game_read(crate::marks::lines::SETTINGS_RVA);
+        ((settings + SETTING) as *mut u32).write_unaligned(SETTING_VALUE);
         let kind = clamped(game_read(crate::marks::kind_values::KIND_RVA));
-        g.ebx = 10;
-        g.eax = kind / 10 + b'0' as u32;
-        g.edx = kind % 10 + b'0' as u32;
         let path = game_addr(PATH_RVA) as u32;
-        *((path + DIGITS) as *mut u8) = g.eax as u8;
-        *((path + DIGITS + 1) as *mut u8) = g.edx as u8;
+        *((path + DIGITS) as *mut u8) = (kind / 10) as u8 + b'0';
+        *((path + DIGITS + 1) as *mut u8) = (kind % 10) as u8 + b'0';
         let sizes: [u32; 3] = [
             game_read(WIDTH_RVA),
             game_read(HEIGHT_RVA),
@@ -74,64 +68,28 @@ pub unsafe fn load_edges(entry: &Regs, resume: u32) -> Result<Regs, Refused> {
         game_write(WIDTH_RVA, 0x100u32);
         game_write(HEIGHT_RVA, 0x80u32);
         game_write(ROW_BYTES_RVA, 0xFFFF_FFFEu32);
-        g.eax = path;
-        let read = crate::marks::edges::game_part(0, &mut g);
+        let read = crate::gfx::read_picture_file::read_picture_file(path as *mut u8);
         game_write(WIDTH_RVA, sizes[0]);
         game_write(HEIGHT_RVA, sizes[1]);
         game_write(ROW_BYTES_RVA, sizes[2]);
-        read?;
-        g.esi = game_read(PICTURE_RVA);
-        g.edi = game_addr(EDGE_RVA) as u32;
-        for _ in 0..EDGE_LEN {
-            let p = std::slice::from_raw_parts(g.esi as *const u8, 4);
-            let b = !(p[0] | p[1] | p[2] | p[3]);
-            g.eax = (g.eax & !0xFF) | b as u32;
-            *(g.edi as *mut u8) = b;
-            g.esi += 4;
-            g.edi += 1;
+        if !read? {
+            return Err(BadInput("the edge picture was not read").into());
         }
-        g.eax = kind;
+        let picture: u32 = game_read(PICTURE_RVA);
+        let edge = game_addr(EDGE_RVA) as u32;
+        for k in 0..EDGE_LEN {
+            let p = std::slice::from_raw_parts((picture + 4 * k) as *const u8, 4);
+            *((edge + k) as *mut u8) = !(p[0] | p[1] | p[2] | p[3]);
+        }
         let float: u32 = game_read(KIND_FLOATS_RVA + 4 * kind as usize);
         game_write(TILT_RVA, x87::mul(float, game_read(TILT_SCALE_RVA)));
-        crate::marks::edges::game_part(1, &mut g)?;
-        crate::marks::edges::game_part(2, &mut g)?;
-        crate::marks::edges::game_part(3, &mut g)?;
-        crate::marks::edges::game_part(4, &mut g)?;
-    }
-    Ok(g)
-}
-
-/// In the game: place 0 `gfx::read_picture_file` (refused when it fails: the original
-/// then counts 0x1FFFFFFF down and leaves with its stack one off), 1 .. 3 the steps' Rust
-/// versions, 4 nothing (`nullsub_17`).
-pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    unsafe {
-        let keep = |r: &mut Regs, left: Regs| {
-            *r = Regs {
-                esp: r.esp,
-                eflags: r.eflags,
-                ..left
-            }
-        };
-        match place {
-            0 => {
-                if !crate::gfx::read_picture_file::read_picture_file(r.eax as *mut u8)? {
-                    return Err(BadInput("the edge picture was not read").into());
-                }
-                r.set_carry(false);
-            }
-            1 => keep(r, crate::marks::masks::make_masks(r)?),
-            2 => {
-                let resume = game_addr(crate::marks::shapes::HEXAGONS.resume) as u32;
-                keep(r, crate::marks::shapes::set_up_hexagons(r, resume)?)
-            }
-            3 => {
-                let resume = game_addr(crate::marks::shapes::SQUARES.resume) as u32;
-                keep(r, crate::marks::shapes::set_up_squares(r, resume)?)
-            }
-            // `nullsub_17`.
-            _ => {}
-        }
+        crate::marks::masks::make_masks()?;
+        crate::marks::shapes::set_up_hexagons(
+            game_addr(crate::marks::shapes::HEXAGONS.resume) as u32
+        )?;
+        crate::marks::shapes::set_up_squares(
+            game_addr(crate::marks::shapes::SQUARES.resume) as u32
+        )?;
     }
     Ok(())
 }
@@ -139,42 +97,15 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
 const KIND_AT: u32 = 0x26A8; // the settings' kind
 
 /// `marks::load_kind_data` (0x4C1235), `init_marks`' step 1: `g_marksKind` the settings'
-/// +0x26A8; `nullsub_1` (place 0, eax 0x3E9), `load_edges` (1), `nullsub_1` (eax 0x3EA),
-/// `load_splines` (2). Leaves the registers as `load_splines`. Refuses as its steps do.
-pub unsafe fn load_kind_data(entry: &Regs) -> Result<Regs, Refused> {
-    let mut g = *entry;
+/// +0x26A8; `nullsub_1` (twice, between them), `load_edges`, `load_splines`. Refuses as
+/// its steps do.
+pub unsafe fn load_kind_data() -> Result<(), Refused> {
     unsafe {
-        g.esi = game_read(crate::marks::lines::SETTINGS_RVA);
-        g.eax = ((g.esi + KIND_AT) as *const u32).read_unaligned();
-        game_write(crate::marks::kind_values::KIND_RVA, g.eax);
-        g.eax = 0x3E9;
-        crate::marks::edges::kind_part(0, &mut g)?;
-        crate::marks::edges::kind_part(1, &mut g)?;
-        g.eax = 0x3EA;
-        crate::marks::edges::kind_part(0, &mut g)?;
-        crate::marks::edges::kind_part(2, &mut g)?;
-    }
-    Ok(g)
-}
-
-/// In the game: place 0 nothing (`nullsub_1`), 1 `load_edges`, 2 `load_splines`.
-pub fn kind_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    unsafe {
-        let keep = |r: &mut Regs, left: Regs| {
-            *r = Regs {
-                esp: r.esp,
-                eflags: r.eflags,
-                ..left
-            }
-        };
-        match place {
-            0 => {}
-            1 => keep(r, load_edges(r, game_addr(RESUME_RVA) as u32)?),
-            _ => {
-                let resume = game_addr(crate::marks::splines::RESUME_RVA) as u32;
-                keep(r, crate::marks::splines::load_splines(r, resume)?)
-            }
-        }
+        let settings: u32 = game_read(crate::marks::lines::SETTINGS_RVA);
+        let kind = ((settings + KIND_AT) as *const u32).read_unaligned();
+        game_write(crate::marks::kind_values::KIND_RVA, kind);
+        load_edges(game_addr(RESUME_RVA) as u32)?;
+        crate::marks::splines::load_splines(game_addr(crate::marks::splines::RESUME_RVA) as u32)?;
     }
     Ok(())
 }

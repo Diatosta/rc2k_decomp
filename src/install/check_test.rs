@@ -2,7 +2,3 @@
 //! outside (which files exist, which drives are CD-ROMs, which directories can be gone
 //! to, what the installation's record says), and the function that answers the
 //! stand-ins and the Rust versions from it.
-
-use crate::framework::rva;
-
-pub const MEDIA_MODE_RVA: usize = rva(0x5189A4); // g_mediaMode

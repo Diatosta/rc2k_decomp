@@ -11,13 +11,13 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, rva};
+use crate::framework::{game_addr, game_read, rva};
 use crate::menu::standings::*;
 
 const NAMES_RVA: usize = rva(0x741E88); // g_driverNames
 
 /// The Rust version (see the header): the registers it leaves.
-pub unsafe fn standings_from_drivers(entry: &Regs) -> Result<Regs, Refused> {
+pub unsafe fn standings_from_drivers() -> Result<(), Refused> {
     let first: u32 = unsafe { game_read(TABLE_A_RVA) };
     let drivers = entries(game_addr(DRIVERS_RVA) as u32, DRIVER)?;
     if first == 0 || drivers.len() > 200 {
@@ -34,7 +34,7 @@ pub unsafe fn standings_from_drivers(entry: &Regs) -> Result<Regs, Refused> {
         }
         texts.push((id, text));
     }
-    unsafe { crate::menu::init_standings_a::init_standings_a(entry) }?;
+    unsafe { crate::menu::init_standings_a::init_standings_a() }?;
     // Converted: `rc2k_core::menu::standings::fill_a_from_driver`.
     let count = drivers.len() as u32;
     let all = unsafe { table(drivers[0], DRIVER, count) };
@@ -42,5 +42,5 @@ pub unsafe fn standings_from_drivers(entry: &Regs) -> Result<Regs, Refused> {
     for (n, (id, text)) in texts.into_iter().enumerate() {
         rc2k_core::menu::standings::fill_a_from_driver(&mut t, n, &all, n, id, &text);
     }
-    Ok(*entry)
+    Ok(())
 }

@@ -17,35 +17,26 @@
 //! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
+//! are the original's.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::install::installer::{
-    COPY_COUNTED, DIR_COUNT, DIRS, FILE_COUNT, FILES, GAME_DIR, INSTALLED, INSTALLING,
-    MAKE_FOLDERS, NORMALISE, PATH_A, PATH_B, RUN_SCRIPT, SET_CD, SLEEP, TAKE_KEY, a, append_byte,
-    at, g, p, str_append, str_append_indexed,
+    DIR_COUNT, DIRS, FILE_COUNT, FILES, GAME_DIR, INSTALLED, INSTALLING, PATH_A, PATH_B, a,
+    append_byte, copy_picture, draw_string, g, lock, normalise, p, set_cd, show, sleep, str_append,
+    str_append_indexed, take_key, unlock,
 };
 
-const LOCK: usize = 0x4058AD;
-const UNLOCK: usize = 0x405949;
-const SHOW: usize = 0x4057D1;
-const COPY_PICTURE: usize = 0x4060E3;
-const DRAW_STRING: usize = 0x40234A;
 const UPDATING: usize = 0x51B9CC; // dword_51B9CC
 const FROM_COMMAND: usize = 0x51B9D0; // dword_51B9D0
 const SCRIPT: usize = 0x529DCC; // byte_529DCC (the Clio script)
 const FONT_BE: usize = 0x51E904; // stru_51E904
 
-/// `ebx` = `dst` (the caller sets esi, edi or edx to it), then `src_base` + name #ebp of
-/// `table`, NUL-ended.
-fn append_both(src_base: usize, dst: usize, table: usize, r: &mut Regs) {
-    r.ebx = a(dst);
-    r.eax = a(src_base);
-    str_append(r);
-    r.eax = g(table);
-    r.ecx = r.ebp;
-    str_append_indexed(r);
-    append_byte(r, 0);
+/// `to` = `base` + name `index` of `table`, NUL-ended.
+fn append_both(base: usize, to: usize, table: usize, index: u32) {
+    let cursor = str_append(a(base), a(to));
+    let cursor = str_append_indexed(g(table), index, cursor);
+    append_byte(cursor, 0);
 }
 
 /// Where the work stops: `loc_41689A` (the current directory set back first) or
@@ -55,96 +46,61 @@ enum Stop {
     Straight,
 }
 
-/// The Rust version, register for register as the original.
-pub fn install_clio(entry: &Regs) -> Result<Regs, Refused> {
-    let mut r = *entry;
-    crate::install::installer::game_part(at(LOCK), &mut r)?;
-    if !r.carry() {
-        crate::install::installer::game_part(at(COPY_PICTURE), &mut r)?;
-        r.eax = 0xBE;
-        r.ebx = a(FONT_BE);
-        r.ecx = 0x1A9;
-        r.edx = 0x113;
-        crate::install::installer::game_part(at(DRAW_STRING), &mut r)?;
-        crate::install::installer::game_part(at(UNLOCK), &mut r)?;
-        crate::install::installer::game_part(at(SHOW), &mut r)?;
-        r.eax = 1000;
-        crate::install::installer::game_part(at(SLEEP), &mut r)?;
+fn work() -> Result<Stop, Refused> {
+    use crate::install as i;
+    if !normalise(a(PATH_A), a(GAME_DIR))?
+        || !normalise(a(PATH_B), a(INSTALLED))?
+        || !set_cd(a(GAME_DIR))
+    {
+        return Ok(Stop::Straight);
     }
-    let stop = (|| -> Result<Stop, Refused> {
-        r.esi = a(PATH_A);
-        r.edx = a(GAME_DIR);
-        crate::install::installer::game_part(at(NORMALISE), &mut r)?;
-        if r.carry() {
-            return Ok(Stop::Straight);
-        }
-        r.esi = a(PATH_B);
-        r.edx = a(INSTALLED);
-        crate::install::installer::game_part(at(NORMALISE), &mut r)?;
-        if r.carry() {
-            return Ok(Stop::Straight);
-        }
-        r.edx = a(GAME_DIR);
-        crate::install::installer::game_part(at(SET_CD), &mut r)?;
-        if r.carry() {
-            return Ok(Stop::Straight);
-        }
-        r.ebx = a(SCRIPT);
-        crate::install::installer::game_part(at(RUN_SCRIPT), &mut r)?;
-        if g(DIR_COUNT) != 0 {
-            r.ebp = 0;
-            loop {
-                r.edx = a(PATH_B);
-                append_both(INSTALLED, PATH_B, DIRS, &mut r);
-                crate::install::installer::game_part(at(MAKE_FOLDERS), &mut r)?;
-                if r.carry() {
-                    return Ok(Stop::SetBack);
-                }
-                r.ebp = r.ebp.wrapping_add(1);
-                if r.ebp == g(DIR_COUNT) {
-                    break;
-                }
+    i::run_script::run_script(a(SCRIPT))?;
+    if g(DIR_COUNT) != 0 {
+        let mut n = 0;
+        loop {
+            append_both(INSTALLED, PATH_B, DIRS, n);
+            if !i::make_folders::make_folders(a(PATH_B))? {
+                return Ok(Stop::SetBack);
             }
-            r.edx = a(GAME_DIR);
-            crate::install::installer::game_part(at(SET_CD), &mut r)?;
-        }
-        if g(FILE_COUNT) != 0 {
-            r.ebp = 0;
-            loop {
-                r.esi = a(PATH_A);
-                append_both(GAME_DIR, PATH_A, FILES, &mut r);
-                r.edi = a(PATH_B);
-                append_both(INSTALLED, PATH_B, FILES, &mut r);
-                crate::install::installer::game_part(at(COPY_COUNTED), &mut r)?;
-                if r.carry() {
-                    return Ok(Stop::SetBack);
-                }
-                crate::install::installer::game_part(at(TAKE_KEY), &mut r)?;
-                if r.eax as u8 == 1 {
-                    return Ok(Stop::SetBack);
-                }
-                r.ebp = r.ebp.wrapping_add(1);
-                if r.ebp == g(FILE_COUNT) {
-                    break;
-                }
+            n = n.wrapping_add(1);
+            if n == g(DIR_COUNT) {
+                break;
             }
         }
-        Ok(Stop::SetBack)
-    })()?;
-    if let Stop::SetBack = stop {
-        r.edx = a(INSTALLED);
-        crate::install::installer::game_part(at(SET_CD), &mut r)?;
+        set_cd(a(GAME_DIR));
+    }
+    if g(FILE_COUNT) != 0 {
+        let mut n = 0;
+        loop {
+            append_both(GAME_DIR, PATH_A, FILES, n);
+            append_both(INSTALLED, PATH_B, FILES, n);
+            // 0x416886: a failed copy stops the install as Escape does.
+            if !i::copy_counted::copy_counted(a(PATH_A), a(PATH_B))? || take_key() == 1 {
+                return Ok(Stop::SetBack);
+            }
+            n = n.wrapping_add(1);
+            if n == g(FILE_COUNT) {
+                break;
+            }
+        }
+    }
+    Ok(Stop::SetBack)
+}
+
+pub fn install_clio() -> Result<(), Refused> {
+    if lock() {
+        copy_picture()?;
+        draw_string(0xBE, a(FONT_BE), 0x1A9, 0x113)?;
+        unlock();
+        show();
+        sleep(1000);
+    }
+    if let Stop::SetBack = work()? {
+        set_cd(a(INSTALLED));
     }
     p(INSTALLING, 0);
     p(UPDATING, 0);
     p(FROM_COMMAND, 0);
-    r.eax = 1000;
-    crate::install::installer::game_part(at(SLEEP), &mut r)?;
-    Ok(*entry)
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    crate::race::viewer::regs_entry(r, &|r| install_clio(r))
+    sleep(1000);
+    Ok(())
 }

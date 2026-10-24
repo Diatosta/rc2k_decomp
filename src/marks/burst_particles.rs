@@ -9,7 +9,7 @@
 //! 0x10000, +0x3C 0xFF000000, +0x44 3000 and +0x40 `flt_93C67C` / 3000.
 //!
 //! In:  esi the record
-//! Out: eax the random's low word, ebx the kind, ecx the 8 or 9, edi the record
+//! Out: nothing (its caller reads no register after it)
 //!
 //! Callers: `sub_4CFB49` and code at 0x4D032B. Refuses a null record or ring (when an
 //! entry is to be taken), before anything. Self-test: a ring of the test's, the original
@@ -20,7 +20,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 use crate::marks::blocks::{RING_FREE_RVA, RING_USED_RVA};
 use crate::marks::setup::SEED_RVA;
 use crate::math::x87;
@@ -70,12 +70,11 @@ unsafe fn entries_taken() -> Vec<u32> {
     }
 }
 
-/// The Rust version (see the header).
-pub unsafe fn burst_particles(entry: &Regs) -> Result<Regs, Refused> {
-    let mut g = *entry;
+/// The Rust version (see the header): `record` the particle it bursts from (esi).
+pub unsafe fn burst_particles(record: u32) -> Result<(), Refused> {
     unsafe {
         if game_read::<u32>(RING_USED_RVA) != FULL {
-            if g.esi == 0 {
+            if record == 0 {
                 return Err(BadInput("a null record").into());
             }
             if entries_taken().contains(&0) || game_read::<u32>(RING_FREE_RVA) == 0 {
@@ -84,15 +83,12 @@ pub unsafe fn burst_particles(entry: &Regs) -> Result<Regs, Refused> {
         }
         game_write(FLAG_RVA, 1u32);
         let s = next_seed();
-        g.eax = s & 0xFFFF;
+        let r = s & 0xFFFF;
         let [m, c, k] = SCALE_RVA.map(|r| game_read::<u32>(r));
-        let radius = x87::int_times_plus_times(g.eax as i32, m, c, k);
+        let radius = x87::int_times_plus_times(r as i32, m, c, k);
         game_write(RADIUS_RVA, radius);
-        g.ebx = (s & 7) * 0x400;
-        game_write(KIND_RVA, g.ebx);
-        g.ecx = (s.rotate_right(16) & 1) + 8;
-        game_write(NINE_RVA, g.ecx);
-        g.edi = g.esi;
+        game_write(KIND_RVA, (s & 7) * 0x400);
+        game_write(NINE_RVA, (s.rotate_right(16) & 1) + 8);
         let sine = |n: u32| game_read::<u32>(SINES_RVA + 4 * n as usize);
         let cosine = |n: u32| game_read::<u32>(COSINES_RVA + 4 * n as usize);
         for _ in 0..ENTRIES {
@@ -107,7 +103,10 @@ pub unsafe fn burst_particles(entry: &Regs) -> Result<Regs, Refused> {
             put(8, game_read(NINE_RVA));
             put(0x48, game_read(KIND_RVA));
             for o in [0xC, 0x10, 0x14] {
-                put(o, x87::loaded(((g.edi + o) as *const u32).read_unaligned()));
+                put(
+                    o,
+                    x87::loaded(((record + o) as *const u32).read_unaligned()),
+                );
             }
             let s = next_seed();
             let a = s.rotate_right(16) & 0xFFF;
@@ -129,5 +128,5 @@ pub unsafe fn burst_particles(entry: &Regs) -> Result<Regs, Refused> {
             put(0x40, x87::over_int(game_read(LIFE_RVA), LIFE as i32));
         }
     }
-    Ok(g)
+    Ok(())
 }

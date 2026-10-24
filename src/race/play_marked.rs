@@ -9,7 +9,10 @@
 //! looked at), the play (`race::play_replay_range`), `dword_5C253C` 0.
 //!
 //! In:  nothing
-//! Out: eax the block played from, ebx and ecx its frame; no flags read
+//! Out: eax the block played from, ebx and ecx its frame; no flags read. Their one caller
+//!      (`sub_41DE81`) reads only eax after them (taint at 0x41E1FF, 0x41E215, 0x41E25F:
+//!      0x41DE7D), which the Rust `viewer_action` does not need (its ZF is whether the
+//!      action was one).
 //!
 //! Callers: `race::viewer_action` (0x1A, 0x25 .. 0x28 `play_marked`; 6 and 0x22, 0x23
 //! `play_from_here`). Their calls through `part`: 1 `read_replay_frame`, 2
@@ -23,54 +26,37 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::race::viewer::{
-    BLOCK, BLOCKS, FRAME, MARK_IN, MARK_OUT, PLAY_END, PLAY_FROM_HERE, Part, STOPPED, get, put,
+    BLOCK, BLOCKS, FRAME, MARK_IN, MARK_OUT, PLAY_END, PLAY_FROM_HERE, STOPPED, get, put,
 };
+use rc2k_core::race::viewer_flow::Play;
 
-/// The shared tail (0x41E231): eax the block, ebx the block to stop at, ecx the frame.
-pub fn play_tail(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    let mut r = *entry;
-    put(PLAY_END, r.ebx);
+/// The shared tail (0x41E231): from block `play.from`, frame `play.frame`, to block
+/// `play.end`. The start read's carry is not looked at.
+pub fn play_tail(play: Play) -> Result<(), Refused> {
+    put(PLAY_END, play.end);
     put(STOPPED, 0);
-    r.ebx = r.ecx;
-    part(1, &mut r)?;
-    part(2, &mut r)?;
+    unsafe { crate::drive::read_replay_frame::read_replay_frame(play.from, play.frame) }?;
+    crate::race::play_replay_range::play_replay_range()?;
     put(PLAY_FROM_HERE, 0);
-    Ok(r)
+    Ok(())
 }
 
 /// `play_marked`.
-pub fn play_marked(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub fn play_marked() -> Result<(), Refused> {
     // Converted: `rc2k_core::race::viewer_flow::marked_play`.
-    let play = rc2k_core::race::viewer_flow::marked_play(get(MARK_IN), get(MARK_OUT));
-    play_tail(&play_regs(entry, play), part)
-}
-
-/// The tail's registers for a play: eax the block, ebx the block to stop at, ecx the frame.
-fn play_regs(entry: &Regs, play: rc2k_core::race::viewer_flow::Play) -> Regs {
-    Regs {
-        eax: play.from,
-        ebx: play.end,
-        ecx: play.frame,
-        ..*entry
-    }
+    play_tail(rc2k_core::race::viewer_flow::marked_play(
+        get(MARK_IN),
+        get(MARK_OUT),
+    ))
 }
 
 /// `play_from_here`.
-pub fn play_from_here(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub fn play_from_here() -> Result<(), Refused> {
     // Converted: `rc2k_core::race::viewer_flow::play_from_here`.
-    let play = rc2k_core::race::viewer_flow::play_from_here(get(BLOCK), get(FRAME), get(BLOCKS));
-    play_tail(&play_regs(entry, play), part)
-}
-
-/// In the game: the Rust versions.
-pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    if place == 1 {
-        let failed = unsafe { crate::drive::read_replay_frame::read_replay_frame(r.eax, r.ebx) }?;
-        r.set_carry(failed);
-    } else {
-        *r = crate::race::play_replay_range::play_replay_range(r)?;
-    }
-    Ok(())
+    play_tail(rc2k_core::race::viewer_flow::play_from_here(
+        get(BLOCK),
+        get(FRAME),
+        get(BLOCKS),
+    ))
 }

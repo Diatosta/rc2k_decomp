@@ -5,7 +5,7 @@
 //! `marks::pong_score`.
 //!
 //! In:  nothing
-//! Out: as the path leaves them
+//! Out: nothing (its caller reads no register after it)
 //!
 //! Caller: `sub_4BF60F` (0x4BF7CB). The moves are their Rust versions; the set-up, the
 //! boxes and the score through `part` (1, 2 with the four values, 3), in the game their
@@ -18,7 +18,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_read};
+use crate::framework::game_read;
 use crate::marks::move_pong_ball::move_pong_ball;
 use crate::marks::move_pong_bat::move_pong_bat;
 use crate::marks::pong;
@@ -30,36 +30,23 @@ fn box_values(place: [usize; 2], size: [usize; 2]) -> [[u8; 10]; 4] {
     unsafe { [size[1], size[0], place[1], place[0]].map(|r| extended(game_read(r))) }
 }
 
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn run_pong(entry: &Regs) -> Result<Regs, Refused> {
-    let mut g = *entry;
+/// The Rust version (see the header).
+pub unsafe fn run_pong() -> Result<(), Refused> {
+    use crate::marks::draw_pong_box::draw_pong_box;
     unsafe {
         if game_read::<u32>(pong::CHEATS_RVA) & CHEAT == 0 || game_read::<u32>(pong::SHOWN_RVA) == 0
         {
-            return Ok(g);
+            return Ok(());
         }
-        crate::marks::run_pong::game_part(1, &mut g, &[])?;
-        g = move_pong_bat(&g);
+        crate::marks::pong_setup::pong_setup();
+        move_pong_bat();
         let steps = game_read::<i32>(pong::STEPS_RVA);
         for _ in 0..steps.max(0) {
-            g = move_pong_ball(&g);
+            move_pong_ball();
         }
-        crate::marks::run_pong::game_part(2, &mut g, &box_values(pong::BALL, pong::BALL_SIZE))?;
-        crate::marks::run_pong::game_part(2, &mut g, &box_values(pong::BAT, pong::BAT_SIZE))?;
-        crate::marks::run_pong::game_part(3, &mut g, &[])?;
-    }
-    Ok(g)
-}
-
-/// In the game: the calls' Rust versions.
-pub fn game_part(place: u32, r: &mut Regs, v: &[[u8; 10]]) -> Result<(), Refused> {
-    use crate::marks::{draw_pong_box as pb, pong_score as ps, pong_setup};
-    unsafe {
-        *r = match place {
-            1 => pong_setup::pong_setup(r)?,
-            2 => pb::draw_pong_box(r, [v[0], v[1], v[2], v[3]])?,
-            _ => ps::pong_score(r, &mut ps::game_part)?,
-        };
+        draw_pong_box(box_values(pong::BALL, pong::BALL_SIZE));
+        draw_pong_box(box_values(pong::BAT, pong::BAT_SIZE));
+        crate::marks::pong_score::pong_score()?;
     }
     Ok(())
 }

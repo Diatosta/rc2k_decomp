@@ -15,12 +15,9 @@
 
 use crate::errors::BadInput;
 use crate::files::handle::NO_HANDLE;
-use crate::framework::{EAX, EBX, game_write, rva};
+use crate::files::state::BYTES_READ;
+use crate::framework::{EAX, EBX};
 use crate::screens::harness::Left;
-
-// ---- game data ----
-
-pub const BYTES_READ_RVA: usize = rva(0x60B2CC); // dword_60B2CC
 
 // ---- Rust version ----
 
@@ -40,10 +37,13 @@ pub unsafe fn read_whole_file(
             into,
         )?;
         if !w.opened {
-            game_write(BYTES_READ_RVA, 0u32);
+            BYTES_READ.store(0, std::sync::atomic::Ordering::Relaxed);
             return Ok(Left::carry(true).with(EAX, NO_HANDLE));
         }
-        game_write(BYTES_READ_RVA, if w.closed { w.bytes } else { 0 });
+        BYTES_READ.store(
+            if w.closed { w.bytes } else { 0 },
+            std::sync::atomic::Ordering::Relaxed,
+        );
         Ok(Left::carry(!w.closed || !w.read_ok)
             .with(EAX, w.closed as u32)
             .with(EBX, (ebx & !0xFF) | w.read_ok as u32))

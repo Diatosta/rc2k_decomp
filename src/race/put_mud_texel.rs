@@ -15,7 +15,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_read, rva};
+use crate::framework::{game_read, rva};
 use crate::gfx::put_surface_pixel::put_surface_pixel;
 use crate::race::mud_texel::texel_place;
 
@@ -23,20 +23,15 @@ const WIDTH_RVA: usize = rva(0x4F49A0); // g_surface.width
 const HEIGHT_RVA: usize = rva(0x4F49A4); // g_surface.height
 
 /// The Rust version (see the header): eax as it leaves it.
-pub unsafe fn put_mud_texel(entry: &Regs) -> Result<u32, Refused> {
-    let Some((x, y)) = texel_place(entry.ecx, entry.edx) else {
-        return Ok(entry.eax);
+pub unsafe fn put_mud_texel(components: u32, x: u32, y: u32) -> Result<u32, Refused> {
+    let Some((x, y)) = texel_place(x, y) else {
+        return Ok(components);
     };
     unsafe {
         // Converted: `rc2k_core::race::mud::inside` (the place by `texel_place`).
         if !rc2k_core::race::mud::inside(x, y, game_read(WIDTH_RVA), game_read(HEIGHT_RVA)) {
-            return Ok(entry.eax);
+            return Ok(components);
         }
-        let put = Regs {
-            ecx: x,
-            edx: y,
-            ..*entry
-        };
-        Ok(put_surface_pixel(&put)?.eax)
+        put_surface_pixel(components, x, y)
     }
 }

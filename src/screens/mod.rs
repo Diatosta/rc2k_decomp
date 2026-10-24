@@ -11,9 +11,7 @@ pub mod car_page_dimensions;
 pub mod car_page_engine;
 pub mod car_page_title;
 pub mod car_page_transmission;
-pub mod car_pages;
 pub mod championship_table;
-pub mod classify_controller;
 pub mod controller;
 pub mod draw_arcade_stage_title;
 pub mod draw_background_band;
@@ -45,7 +43,6 @@ pub mod draw_menu_items;
 pub mod draw_menu_labels;
 pub mod draw_message_box;
 pub mod draw_name_cursor;
-pub mod draw_no_controller;
 pub mod draw_note_1fd;
 pub mod draw_options_checklist;
 pub mod draw_overall_best_scores;
@@ -84,13 +81,11 @@ pub mod draw_stage_times_heading;
 pub mod draw_steering_sensitivity_marker;
 pub mod draw_suspension_stiffness_installed_marker;
 pub mod draw_suspension_stiffness_marker;
-pub mod draw_time_trial_records;
 pub mod draw_time_trial_stage_info;
 pub mod draw_time_trial_stage_select;
 pub mod draw_two_column_panel;
 pub mod draw_visual_preferences;
 pub mod draw_volume_settings;
-pub mod find_history_entry;
 pub mod game_screen;
 pub mod gearing_text;
 pub mod harness;
@@ -122,7 +117,8 @@ pub fn line_buffer() -> *mut u8 {
     game_ptr(LINE_BUFFER_RVA)
 }
 
-/// A font object in game memory, by its address in IDA.
+/// A font object in game memory, by its address in IDA (where it lives now, if it has moved:
+/// `crate::moved::place`).
 pub fn font_at(addr: usize) -> *mut Font {
-    game_ptr(rva(addr))
+    crate::moved::place(addr) as *mut Font
 }

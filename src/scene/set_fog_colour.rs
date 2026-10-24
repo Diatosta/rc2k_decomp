@@ -14,10 +14,9 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::{Regs, game_write, rva};
+use crate::framework::{game_write, rva};
 
 const KEPT_RVA: usize = rva(0x5AB964); // dword_5AB964
-const LAYER_RVA: usize = rva(0x41AB5B); // d3d::set_render_state
 
 /// The Rust version (see the header).
 // Converted: `rc2k_core::scene::render_states::fog_colour`
@@ -25,11 +24,6 @@ pub unsafe fn set_fog_colour(colour: u32) {
     unsafe {
         game_write(KEPT_RVA, colour);
         let s = rc2k_core::scene::render_states::fog_colour(colour);
-        let mut r = Regs {
-            eax: s.value,
-            ebx: s.state,
-            ..Regs::default()
-        };
-        crate::calls::call(LAYER_RVA, &mut r);
+        crate::d3d::set_render_state::set_render_state(s.value, s.state);
     }
 }

@@ -36,7 +36,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, rva};
+use crate::framework::{game_addr, game_read, rva};
 use crate::gfx::components_to_pixel::components_to_pixel;
 use crate::gfx::texture_pixels::{halvable, halve_texture};
 use crate::gfx::texture_upload::{Record, fatal, halvings_apart, ready_picture};
@@ -169,15 +169,6 @@ pub unsafe fn upload_texture_picture(
                 .unlock(surface)
                 .map_err(|_| direct_draw_failed(0x8021_8773))?;
         }
-    }
-    Ok(())
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    match unsafe { upload_texture_picture(r.eax, r.ebx, r.ecx, r.edx, &mut GameSurfaces) } {
-        Ok(()) => r.set_carry(false),
-        Err(e) => return Err(e),
     }
     Ok(())
 }

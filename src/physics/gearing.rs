@@ -12,7 +12,6 @@ use crate::errors::{BadInput, Refused};
 use crate::framework::{EBX, game_addr, game_read, rva};
 use crate::math::x87;
 use crate::screens::harness::Left;
-use rc2k_core::physics::gearing;
 
 pub const GEAR_RVA: usize = rva(0x71A1AC); // g_carGear: -1 reverse, 0 neutral, 1 ..
 pub const ENGINE_SPEED_RVA: usize = rva(0x71A1B0); // g_carEngineSpeed
@@ -124,79 +123,4 @@ pub unsafe fn revs_from_speed_at(p: &GearPlaces) -> Result<Left, Refused> {
         put(p.engine_speed, x87::div(at(p.speed), ratio));
         Ok(Left::nothing().with(EBX, gear))
     }
-}
-
-/// The gear (None for neutral) and its ratio, through the core's `ratio_index`.
-unsafe fn plain_ratio(p: &GearPlaces) -> Result<Option<(u32, f32)>, Refused> {
-    unsafe {
-        let gear = at(p.gear);
-        let Some(index) = gearing::ratio_index(gear)? else {
-            return Ok(None);
-        };
-        let ratio = at(p.ratios.wrapping_sub(4).wrapping_add(4 * index as u32));
-        Ok(Some((gear, f32::from_bits(ratio))))
-    }
-}
-
-/// `revs_from_wheels_at` converted (`rc2k_core::physics::gearing`, plain floats): the
-/// hook's.
-// Converted: `rc2k_core::physics::gearing::revs_from_wheels`.
-pub unsafe fn revs_from_wheels_plain_at(p: &GearPlaces) -> Result<Left, Refused> {
-    unsafe {
-        let Some((gear, ratio)) = plain_ratio(p)? else {
-            return Ok(Left::nothing());
-        };
-        let f = |a: u32| f32::from_bits(at(a));
-        let both = at(p.drive_kind) == 1;
-        // The second speed and the half read only with drive kind 1, as the original.
-        let (second, half) = if both {
-            (f(p.drive_speed_2), f32::from_bits(game_read(HALF_RVA)))
-        } else {
-            (0.0, 0.0)
-        };
-        let speed = gearing::revs_from_wheels(f(p.drive_speed), second, both, half, ratio);
-        put(p.engine_speed, speed.to_bits());
-        Ok(Left::nothing().with(EBX, gear))
-    }
-}
-
-/// `wheels_from_revs_at` converted (`rc2k_core::physics::gearing`, plain floats): the
-/// hook's.
-// Converted: `rc2k_core::physics::gearing::wheels_from_revs`.
-pub unsafe fn wheels_from_revs_plain_at(p: &GearPlaces) -> Result<Left, Refused> {
-    unsafe {
-        let Some((gear, ratio)) = plain_ratio(p)? else {
-            return Ok(Left::nothing());
-        };
-        let engine = f32::from_bits(at(p.engine_speed));
-        let both = at(p.drive_kind) == 1;
-        let (speed, second) = gearing::wheels_from_revs(engine, ratio, both);
-        put(p.drive_speed, speed.to_bits());
-        if let Some(second) = second {
-            put(p.drive_speed_2, second.to_bits());
-        }
-        Ok(Left::nothing().with(EBX, gear))
-    }
-}
-
-/// `revs_from_speed_at` converted (`rc2k_core::physics::gearing`, plain floats): the
-/// hook's.
-// Converted: `rc2k_core::physics::gearing::revs_from_speed`.
-pub unsafe fn revs_from_speed_plain_at(p: &GearPlaces) -> Result<Left, Refused> {
-    unsafe {
-        let Some((gear, ratio)) = plain_ratio(p)? else {
-            return Ok(Left::nothing());
-        };
-        let speed = gearing::revs_from_speed(f32::from_bits(at(p.speed)), ratio);
-        put(p.engine_speed, speed.to_bits());
-        Ok(Left::nothing().with(EBX, gear))
-    }
-}
-
-/// `dispatch_gearing` without its hook (Rust callers; a refusal is the caller's).
-pub fn gearing_entry(
-    r: &mut crate::framework::Regs,
-    rust: crate::service::harness::Rust,
-) -> Result<(), crate::errors::Refused> {
-    crate::service::harness::state_entry(r, rust)
 }

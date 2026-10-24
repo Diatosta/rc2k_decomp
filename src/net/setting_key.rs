@@ -4,7 +4,7 @@
 //! (`settings::parse_number`), held to 2 .. 8 (signed), and to 4 with `g_noticeKind` 2, into
 //! `dword_52ABD0`.
 //!
-//! In:  al = the key
+//! In:  the key
 //! Out: as `net::edit_key` leaves them while editing goes on; after it, eax = the item (or
 //!      the number), the copy's esi, edi, ecx; no `pusha`; the flags of the last test (no
 //!      caller reads them)
@@ -17,48 +17,34 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, ZERO_FLAG};
 use crate::net::lobby::{
-    CHOICE, EDIT_SAVED, MACHINE_NAME, MOST_PLAYERS, NOTICE_KIND, NUMBER_TEXT, PARSE_NUMBER, Part,
-    a, g, gb, lobby_entry, movsb, p,
+    CHOICE, EDIT_SAVED, MACHINE_NAME, MOST_PLAYERS, NUMBER_TEXT, a, g, gb, movsb, p,
 };
 use rc2k_core::net::chat;
 
-const EDIT_KEY: u32 = 0x416E43; // net::edit_key
-
-/// The Rust version: the registers it leaves.
-pub fn setting_key(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    let mut r = *entry;
-    part(EDIT_KEY, &mut r)?;
-    if r.eflags & ZERO_FLAG == 0 {
-        return Ok(r);
+/// The Rust version: the key `key` for the setting being edited. The registers the
+/// original leaves (the item or the number in eax, the copy's esi, edi and ecx) are read by
+/// no caller (`settings_loop`).
+pub fn setting_key(key: u8) -> Result<(), Refused> {
+    if !crate::net::edit_key::edit_key(key)? {
+        return Ok(());
     }
-    r.eax = g(CHOICE);
     // Converted: `rc2k_core::net::chat` (`NAME`, `MOST_PLAYERS`, `most_players`).
-    match r.eax {
+    match g(CHOICE) {
         chat::NAME => {
-            r.esi = a(EDIT_SAVED);
-            r.edi = a(MACHINE_NAME);
             if gb(MACHINE_NAME) == 0 {
-                movsb(r.edi, r.esi, 0x40);
-                r.esi += 0x40;
-                r.edi += 0x40;
-                r.ecx = 0;
+                movsb(a(MACHINE_NAME), a(EDIT_SAVED), 0x40);
             }
         }
         chat::MOST_PLAYERS => {
-            r.eax = a(NUMBER_TEXT);
-            part(PARSE_NUMBER, &mut r)?;
-            r.eax = chat::most_players(r.eax, gb(NOTICE_KIND));
-            p(MOST_PLAYERS, r.eax);
+            let number =
+                unsafe { crate::settings::parse_number::parse_number(a(NUMBER_TEXT) as *const u8) };
+            p(
+                MOST_PLAYERS,
+                chat::most_players(number, crate::strings::load_language::notice_kind()),
+            );
         }
         _ => {}
     }
-    Ok(r)
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    lobby_entry(r, setting_key)
+    Ok(())
 }

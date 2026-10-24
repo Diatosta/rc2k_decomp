@@ -10,20 +10,21 @@
 //! `jb`). The lock is the surface's own method (`d3d::texture_lock`): DirectDraw in the
 //! game, `platform_3d`'s in the standalone. Refuses a texture past the pool's 0x140,
 //! before anything.
-//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
+//! Hook removed 2026-10-22 (direct calls): Rust callers run `lock_texture` (by address:
 //! `routes.rs`); the registers above are the original's, for reference.
 
 use crate::d3d::texture_lock::*;
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr};
+use crate::framework::{Flags, game_addr};
 
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn lock_texture(entry: &Regs) -> Result<Regs, Refused> {
+/// The Rust version (see the header): texture `texture` locked; the flags it leaves
+/// (every register is kept).
+pub unsafe fn lock_texture(texture: u32) -> Result<Flags, Refused> {
     use rc2k_core::d3d::textures::{LOCK_FAILED, LOCKED_TWICE, Lock, lock};
     // Converted: `rc2k_core::d3d::textures::lock`.
-    let r = record(entry.eax);
-    let surface = if entry.eax < 0x140 { get(r + 0x14) } else { 0 };
-    match lock(entry.eax, surface, || get(r + 0x60)).map_err(BadInput::from)? {
+    let r = record(texture);
+    let surface = if texture < 0x140 { get(r + 0x14) } else { 0 };
+    match lock(texture, surface, || get(r + 0x60)).map_err(BadInput::from)? {
         Lock::Nothing => {}
         Lock::Twice => return Err(fatal(LOCKED_TWICE).into()),
         Lock::Lock => {
@@ -35,16 +36,6 @@ pub unsafe fn lock_texture(entry: &Regs) -> Result<Regs, Refused> {
             crate::d3d::texture_surface_info::texture_surface_info(r)?;
         }
     }
-    let mut g = *entry;
     let (carry, zero) = compared_with_one(get(r + 0x60));
-    g.set_carry(carry);
-    g.set_zero(zero);
-    Ok(g)
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { lock_texture(r) }?;
-    *r = Regs { esp: r.esp, ..left };
-    Ok(())
+    Ok(Flags { carry, zero })
 }

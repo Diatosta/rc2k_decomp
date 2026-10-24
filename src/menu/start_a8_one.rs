@@ -12,7 +12,9 @@
 //! Hook removed 2026-10-22 (typed tables): the start menus run its `entry`
 //! (`menu::table_calls`).
 
-use crate::menu::start_event::{Starter, starter_hook};
+use crate::errors::Refused;
+use crate::menu::screen_loop::Carried;
+use crate::menu::start_event::{Starter, start_event};
 use rc2k_core::menu::starters::{self, Championship, Seats};
 
 pub const START_A8_ONE: Starter = Starter {
@@ -23,4 +25,7 @@ pub const START_A8_ONE: Starter = Starter {
     },
 };
 
-starter_hook!("menu::start_a8_one", START_A8_ONE,);
+/// The Rust version (`c` the carried values the item gets).
+pub unsafe fn start_a8_one(c: &Carried) -> Result<(), Refused> {
+    unsafe { start_event(&START_A8_ONE, c) }
+}

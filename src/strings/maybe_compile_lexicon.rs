@@ -11,17 +11,34 @@
 use crate::errors::Refused;
 use crate::framework::{game_read, rva};
 use crate::strings::compile_lexicon::compile_lexicon;
+use std::sync::atomic::{AtomicU32, Ordering};
 
-const LEVEL_RVA: usize = rva(0x4E0758); // dword_4E0758
-const KEY_RVA: usize = rva(0x4F6B2A); // byte_4F6B2A
+/// 1 or more (signed) to recompile on the key: a `var\\ral.cfg` setting, out of the image
+/// since 2026-10-24 (phase 5; it was `dword_4E0758`, 0 there; set through
+/// `crate::moved::resolve`).
+pub static RECOMPILE_LEVEL: AtomicU32 = AtomicU32::new(0);
+const KEY_RVA: usize = rva(0x4F6B2A); // byte_4F6B2A: `input`'s key states (key 0x4E)
 
 pub unsafe fn maybe_compile_lexicon() -> Result<(), Refused> {
     unsafe {
-        let (level, key) = (game_read::<u32>(LEVEL_RVA), game_read::<u8>(KEY_RVA));
+        let level = RECOMPILE_LEVEL.load(Ordering::Relaxed);
+        let key = game_read::<u8>(KEY_RVA);
         // Converted: `rc2k_core::strings::lexicon::recompile_wanted`.
         if rc2k_core::strings::lexicon::recompile_wanted(level, key) {
             compile_lexicon()?;
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn setting_starts_as_the_games() {
+        let d = crate::moved::image_bytes(0x4E0758, 4);
+        assert_eq!(
+            u32::from_le_bytes(d.try_into().unwrap()),
+            super::RECOMPILE_LEVEL.load(std::sync::atomic::Ordering::Relaxed)
+        );
+    }
 }

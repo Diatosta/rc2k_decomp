@@ -18,27 +18,17 @@
 
 use crate::drive::tyre_parts::*;
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::physics::flow::{a, base, p, x87_run};
-use crate::race::car_starts::Part;
 
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    {
-        let g = unsafe { tyre_turned_quad(r, &mut game_part) }?;
-        let esp = r.esp;
-        *r = Regs {
-            eflags: r.eflags,
-            ..g
-        };
-        r.esp = esp;
-    }
-    Ok(())
-}
-
-/// The Rust version, the draw through `part`.
-pub unsafe fn tyre_turned_quad(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    let (uv, rect, colour, device) = (entry.eax, entry.ebx, entry.ecx, entry.esi);
+/// The Rust version: the texture rectangle at `uv` (eax), the screen rectangle at `rect`
+/// (ebx), the colour `colour` (ecx), the input device `device` (esi; its +0x4EC turns
+/// the quad); every register kept.
+pub unsafe fn tyre_turned_quad(
+    uv: u32,
+    rect: u32,
+    colour: u32,
+    device: u32,
+) -> Result<(), Refused> {
     p(0x5183CC, 0x40C9_0FDB);
     x87_run!(
         "fild dword ptr [{e} + 0x4EC]",
@@ -90,13 +80,5 @@ pub unsafe fn tyre_turned_quad(entry: &Regs, part: Part) -> Result<Regs, Refused
     );
     quad_words(colour);
     quad_tail(uv);
-    draw(
-        &Regs {
-            esi: uv,
-            edi: rect,
-            ..*entry
-        },
-        part,
-    )?;
-    Ok(*entry)
+    draw()
 }

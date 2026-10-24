@@ -17,16 +17,13 @@
 //! (`menu::table_calls`).
 
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::menu::event_flow::*;
 use crate::menu::flow_game::Game;
+use crate::menu::screen_loop::Carried;
 use rc2k_core::menu::rounds;
 
-flow_hook!("menu::time_trial_four", 0x48B90F, time_trial_four, test);
-
-pub unsafe fn time_trial_four(entry: &Regs, call: Call) -> Result<Regs, Refused> {
+pub unsafe fn time_trial_four(c: &Carried) -> Result<(), Refused> {
     players_there(4)?;
     // Converted: `rc2k_core::menu::rounds::time_trial_four`.
-    rounds::time_trial_four(&mut Game::new(entry, call))?;
-    Ok(*entry)
+    rounds::time_trial_four(&mut Game::new(c))
 }

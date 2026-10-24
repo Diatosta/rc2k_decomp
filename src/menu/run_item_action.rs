@@ -16,10 +16,9 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::BadInput;
-use crate::framework::{Regs, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 use crate::menu::item_at::{ITEM_LEN, MENU_HEAD_LEN};
-use crate::menu::run_list::Call;
+use crate::menu::screen_loop::Carried;
 use crate::service::state::MENU_ITEM_RVA;
 
 // ---- game data ----
@@ -35,8 +34,11 @@ unsafe fn dword(at: u32) -> u32 {
 
 // ---- Rust version ----
 
-/// `entry_regs` are the registers at entry: the action gets them, with eax and ebp set.
-pub unsafe fn run_item_action(menu: u32, entry_regs: &Regs, call: Call) -> Result<(), BadInput> {
+/// `carried` are the screen loop's registers that the action gets as they are (the
+/// original's every register but eax = the value, ebp = the item, edi = the menu: the
+/// flows started from items hand them on to their screens); what the action leaves is
+/// nobody's (the original keeps every register).
+pub unsafe fn run_item_action(menu: u32, carried: &Carried) -> Result<(), crate::errors::Refused> {
     let first = menu.wrapping_add(MENU_HEAD_LEN);
     let item_at = |n: u32| first.wrapping_add(n.wrapping_mul(ITEM_LEN));
     unsafe {
@@ -51,18 +53,15 @@ pub unsafe fn run_item_action(menu: u32, entry_regs: &Regs, call: Call) -> Resul
             let item = item_at(n);
             let value = dword(item + VALUE_OFFSET);
             game_write(ACTION_VALUE_RVA, value);
-            let mut g = *entry_regs;
-            (g.eax, g.ebp) = (value, item);
-            call(dword(item + ACTION_OFFSET), &mut g);
+            crate::menu::table_calls::call_action(
+                dword(item + ACTION_OFFSET),
+                value,
+                item,
+                menu,
+                carried,
+            );
             game_write(MENU_ITEM_RVA, dword(item + TYPE_OFFSET));
         }
     }
-    Ok(())
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let entry_regs = *r;
-    unsafe { run_item_action(r.edi, &entry_regs, &mut crate::menu::table_calls::call) }?;
     Ok(())
 }

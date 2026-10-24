@@ -58,9 +58,10 @@ pub unsafe fn set_both_counters(value: u32) {
 pub const VIEW_CARS: [usize; 3] = [rva(0x63DBA8), rva(0x63DBAC), rva(0x63DBA0)];
 
 /// `race::load_car_a` / `_b` / `_c` (0x45422F, 0x454241, 0x454277): `g_currentCar` the
-/// view car's number, `drive::load_car`. Leaves the registers as it does.
-pub unsafe fn load_view_car(n: usize) -> Result<Left, Refused> {
-    unsafe { with_view_car(n, || crate::drive::load_car::load_car()) }
+/// view car's number, `drive::load_car`. (Its callers, `race::draw_race_scene` and
+/// `race::scroll_maps`, read no register it leaves.)
+pub unsafe fn load_view_car(n: usize) -> Result<(), Refused> {
+    unsafe { with_view_car(n, || crate::drive::load_car::load_car()).map(|_| ()) }
 }
 
 /// `g_currentCar` the view car's number, then `then`; on a refusal `g_currentCar` is put
@@ -82,12 +83,11 @@ unsafe fn with_view_car(
 }
 
 /// `race::store_car_a` / `_b` / `_c` (0x454253, 0x454265, 0x454289): `g_currentCar` the
-/// view car's number, `drive::store_car`. Leaves the registers as it does.
-pub unsafe fn store_view_car(n: usize) -> Result<Left, Refused> {
-    unsafe { with_view_car(n, || crate::drive::store_car::store_car()) }
+/// view car's number, `drive::store_car`. (Its one caller, `race::scroll_maps`, reads no
+/// register it leaves.)
+pub unsafe fn store_view_car(n: usize) -> Result<(), Refused> {
+    unsafe { with_view_car(n, || crate::drive::store_car::store_car()).map(|_| ()) }
 }
-
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut crate::framework::Regs) -> Result<(), Refused>;
 
 const VIEW_MODE_RVA: usize = rva(0x4F6B79); // byte_4F6B79: the second view's keys (a reading)
 const NEXT_VIEW_KEY_RVA: usize = rva(0x4F6D17); // byte_4F6D17
@@ -110,20 +110,14 @@ fn pressed(key: usize) -> bool {
     unsafe { game_read::<u8>(key) != 0 }
 }
 
-/// `race::race_keys` (0x43A649): the race's view and sound keys (see its header). Gives
-/// the registers it leaves.
-pub unsafe fn race_keys(
-    entry: &crate::framework::Regs,
-    part: Part,
-) -> Result<crate::framework::Regs, Refused> {
+/// `race::race_keys` (0x43A649): the race's view and sound keys (see its header). It
+/// reads no register at entry; the ones it leaves are read by none of its callers
+/// (`drive::race_loop`, `drive::pause_until_key`).
+pub unsafe fn race_keys() -> Result<(), Refused> {
     unsafe {
-        let mut r = *entry;
-        crate::drive::choose_shown_cars::choose_shown_cars()?.apply(&mut r);
-        r.esi = game_read(VIEW_BLOCKS[0]);
+        crate::drive::choose_shown_cars::choose_shown_cars()?;
         let second = pressed(VIEW_MODE_RVA);
-        if second {
-            r.esi = game_read(VIEW_BLOCKS[1]);
-        }
+        let view = game_read::<u32>(VIEW_BLOCKS[usize::from(second)]);
         // Converted: `rc2k_core::race::keys::{first_key, split_flip, volume_key,
         // volume_step, flip_bit}`.
         use rc2k_core::race::keys::{
@@ -140,29 +134,28 @@ pub unsafe fn race_keys(
                 Key::Shared => SHARED_KEY_RVA,
             })
         });
-        let flip = |r: &mut crate::framework::Regs, bit: (u32, u32, u32)| {
-            let flags = (r.esi + 0x220) as *mut u32;
+        // The view block's +0x220 with `bit` flipped; gives the counter.
+        let flip = |view: u32, bit: (u32, u32, u32)| {
+            let flags = (view + 0x220) as *mut u32;
             let (now, counter) = flip_bit(flags.read_unaligned(), bit);
             flags.write_unaligned(now);
-            r.eax = counter;
+            counter
         };
         match key {
             Some(Key::NextView) => {
-                crate::drive::next_camera_view::next_camera_view(r.esi).apply(&mut r);
-                r.ebx = ((r.esi + 0x688) as *const u32).read_unaligned();
-                if r.ebx < COUNTED_VIEWS {
-                    r.eax = game_read(VIEW_COUNTERS_RVA + 4 * r.ebx as usize);
-                    set_car_counter(r.esi, r.eax);
+                crate::drive::next_camera_view::next_camera_view(view);
+                let camera = ((view + 0x688) as *const u32).read_unaligned();
+                if camera < COUNTED_VIEWS {
+                    set_car_counter(view, game_read(VIEW_COUNTERS_RVA + 4 * camera as usize));
                 }
             }
             Some(Key::Split) => {
                 if game_read::<u32>(PLAYERS_RVA) == 1 {
-                    return Ok(r);
+                    return Ok(());
                 }
                 let (split, counter) = split_flip(game_read(SPLIT_RVA));
                 game_write(SPLIT_RVA, split);
-                r.eax = counter;
-                set_both_counters(r.eax);
+                set_both_counters(counter);
             }
             Some(k @ (Key::VolumeDown | Key::VolumeUp)) => {
                 let up = k == Key::VolumeUp;
@@ -175,38 +168,28 @@ pub unsafe fn race_keys(
                     } else {
                         MUSIC_VOLUME_RVA
                     };
-                    r.eax = volume_step(game_read(from), step);
-                    game_write(MUSIC_VOLUME_RVA, r.eax);
-                    part(2, &mut r)?;
+                    let volume = volume_step(game_read(from), step);
+                    game_write(MUSIC_VOLUME_RVA, volume);
+                    crate::sound::set_music_volume::set_music_volume(volume);
                 } else {
-                    r.eax = volume_step(game_read(MASTER_VOLUME_RVA), step);
-                    game_write(MASTER_VOLUME_RVA, r.eax);
-                    part(1, &mut r)?;
+                    let volume = volume_step(game_read(MASTER_VOLUME_RVA), step);
+                    game_write(MASTER_VOLUME_RVA, volume);
+                    // `pusha`, `push 8`, `send_command`, `pop eax`, `popa`.
+                    crate::sound::send_command_8::send_command_8(volume);
                 }
             }
             Some(Key::Bit(n)) => {
-                flip(&mut r, BITS[n]);
-                set_car_counter(r.esi, r.eax);
+                let counter = flip(view, BITS[n]);
+                set_car_counter(view, counter);
             }
             Some(Key::Shared) => {
-                r.esi = game_read(VIEW_BLOCKS[0]);
-                flip(&mut r, SHARED_BIT);
-                set_both_counters(r.eax);
+                let counter = flip(game_read(VIEW_BLOCKS[0]), SHARED_BIT);
+                set_both_counters(counter);
             }
-            None => r.esi = game_read(VIEW_BLOCKS[0]),
+            None => {}
         }
-        Ok(r)
+        Ok(())
     }
-}
-
-/// `race_keys`' sound calls in the game: the Rust versions, sent as the originals send.
-pub fn key_sound_part(place: u32, r: &mut crate::framework::Regs) -> Result<(), Refused> {
-    match place {
-        // `pusha`, `push 8`, `send_command`, `pop eax`, `popa`.
-        1 => crate::sound::send_command_8::send_command_8(r.eax),
-        _ => crate::sound::set_music_volume::set_music_volume(r.eax),
-    }
-    Ok(())
 }
 
 /// `race::tyre_change`'s variables (IDA addresses): the copies `dword_5BEBE0` /
@@ -219,35 +202,27 @@ pub const TYRE_VARIABLES: [usize; 9] = [
 ];
 
 /// `race::tyre_change` (0x444F7A), on the variables at `v` (`TYRE_VARIABLES`' order; the
-/// last is the first of four dwords). Part 1 is `race::tyre_change_gauge` (eax 0
-/// starts it, 1 runs it and gives the time when done, else 0; esi the input device).
-/// Gives the registers it leaves (eax, esi).
-pub unsafe fn tyre_change_at(
-    entry: &crate::framework::Regs,
-    v: &[u32],
-) -> Result<crate::framework::Regs, Refused> {
+/// last is the first of four dwords): `race::tyre_change_gauge` for player 0 started, then
+/// run, its time when done added. It reads no register at entry; the eax and esi it leaves
+/// are read by no caller (`drive::race_loop`).
+pub unsafe fn tyre_change_at(v: &[u32]) -> Result<(), Refused> {
+    use crate::race::tyre_change_gauge::tyre_change_gauge;
     let get = |k: usize| unsafe { (v[k] as *const u32).read_unaligned() };
     let put = |k: usize, x: u32| unsafe { (v[k] as *mut u32).write_unaligned(x) };
-    let mut r = *entry;
     put(0, get(2));
     put(1, get(3));
-    r.eax = get(6) & 0x1E;
-    if r.eax != 0x1E && get(5) == 0 && get(4) >= 0x12C {
-        r.eax = 0;
-        r.esi = 0;
-        crate::race::frame::tyre_part(1, &mut r)?;
+    if get(6) & 0x1E != 0x1E && get(5) == 0 && get(4) >= 0x12C {
+        tyre_change_gauge(true, 0)?;
         put(5, 1);
     }
     if get(5) != 1 {
-        return Ok(r);
+        return Ok(());
     }
-    r.eax = 1;
-    r.esi = 0;
-    crate::race::frame::tyre_part(1, &mut r)?;
-    if r.eax == 0 {
-        return Ok(r);
+    let time = tyre_change_gauge(false, 0)?;
+    if time == 0 {
+        return Ok(());
     }
-    put(7, get(7).wrapping_add(r.eax));
+    put(7, get(7).wrapping_add(time));
     put(5, 0xFFFF_FED3);
     for bit in 1..=4 {
         let bits = get(6);
@@ -256,7 +231,7 @@ pub unsafe fn tyre_change_at(
             unsafe { ((v[8] + 4 * (bit - 1)) as *mut u32).write_unaligned(0) };
         }
     }
-    Ok(r)
+    Ok(())
 }
 
 pub fn tyre_variables() -> Vec<u32> {
@@ -264,14 +239,4 @@ pub fn tyre_variables() -> Vec<u32> {
         .iter()
         .map(|&a| game_addr(rva(a)) as u32)
         .collect()
-}
-
-/// `tyre_change`'s part in the game: `race::tyre_change_gauge`'s Rust version (eax its
-/// result, the rest kept).
-pub fn tyre_part(place: u32, r: &mut crate::framework::Regs) -> Result<(), Refused> {
-    let _ = place;
-    crate::race::tyre_change_gauge::tyre_change_gauge_in(
-        r,
-        &mut crate::race::tyre_change_gauge::gauge_part,
-    )
 }

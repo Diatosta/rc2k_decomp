@@ -24,9 +24,8 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
-use crate::menu::parts::Part;
+use crate::errors::BadInput;
+use crate::framework::{game_addr, game_read, game_write, rva};
 
 const WRITE: u32 = 0;
 const HEX8: u32 = 1;
@@ -74,72 +73,57 @@ const VERTEX: [(usize, u32, u32); 8] = [
 ];
 const PT: usize = 0x4DBD13; // "pt"
 
-/// The Rust version: the registers it leaves.
-pub unsafe fn log_bad_polygon(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+/// The Rust version: the dump of the `g_polygonVertexCount` vertices at `vertices`.
+pub unsafe fn log_bad_polygon(vertices: u32) -> Result<(), BadInput> {
     let count: u32 = unsafe { game_read(COUNT_RVA) };
     if count > MOST {
-        return Err(BadInput("more than 64 vertices").into());
+        return Err(BadInput("more than 64 vertices"));
     }
-    // Each call gets the registers the loop has then (ecx the vertex's number, edi the
-    // vertex), eax the text or value and, for a float, ecx 2.
-    let mut base = *entry;
-    let mut call = |base: &Regs, place: u32, eax: u32| {
-        let mut r = Regs { eax, ..*base };
-        if place == FLOAT {
-            r.ecx = 2;
-        }
-        part(place, &mut r)
-    };
     let text = |a: usize| game_addr(rva(a)) as u32;
     let value = |a: usize| unsafe { game_read::<u32>(rva(a)) };
     for (label, kind, at) in HEAD {
-        call(&base, WRITE, text(label))?;
-        call(&base, kind, value(at))?;
+        log(WRITE, text(label));
+        log(kind, value(at));
     }
     unsafe { game_write(MASK_RVA, 0u32) };
     let object = unsafe { game_read::<u32>(OBJECT_RVA) } == 1;
     let tail: &[(usize, u32, usize)] = if object { &OBJECT } else { &COURSE };
     for &(label, kind, at) in AFTER.iter().chain(tail) {
-        call(&base, WRITE, text(label))?;
-        call(&base, kind, value(at))?;
+        log(WRITE, text(label));
+        log(kind, value(at));
     }
-    call(&base, NEWLINE, entry.eax)?;
+    log(NEWLINE, 0);
     if count == 0 {
-        return Ok(*entry);
+        return Ok(());
     }
     for n in 0..count {
-        base.ecx = n;
-        base.edi = entry.edi.wrapping_add(0x20 * n);
-        let vertex = base.edi;
-        call(&base, WRITE, text(PT))?;
-        call(&base, INT, n)?;
+        let vertex = vertices.wrapping_add(0x20 * n);
+        log(WRITE, text(PT));
+        log(INT, n);
         for (label, kind, offset) in VERTEX {
-            call(&base, WRITE, text(label))?;
-            call(&base, kind, unsafe {
+            log(WRITE, text(label));
+            log(kind, unsafe {
                 ((vertex + offset) as *const u32).read_unaligned()
-            })?;
+            });
         }
-        call(&base, NEWLINE, entry.eax)?;
+        log(NEWLINE, 0);
     }
-    base.ecx = count;
-    base.edi = entry.edi.wrapping_add(0x20 * count);
-    call(&base, NEWLINE, entry.eax)?;
-    Ok(*entry)
+    log(NEWLINE, 0);
+    Ok(())
 }
 
-/// In the game: the Rust log functions.
-pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
+/// One log call at level 1: a text, a number (a float with two decimals) or a line's end.
+fn log(kind: u32, value: u32) {
     use crate::logfile::log_write::log_write;
     use crate::logfile::{log_float::log_float, log_hex8::log_hex8, log_int::log_int};
     unsafe {
-        match place {
-            WRITE => log_write(r.eax as *const u8, false, 1),
-            HEX8 => log_hex8(r.eax, false, 1),
-            FLOAT => log_float(f32::from_bits(r.eax), 2, false, 1),
-            INT => log_int(r.eax as i32, false, 1),
-            INT_NL => log_int(r.eax as i32, true, 1),
+        match kind {
+            WRITE => log_write(value as *const u8, false, 1),
+            HEX8 => log_hex8(value, false, 1),
+            FLOAT => log_float(f32::from_bits(value), 2, false, 1),
+            INT => log_int(value as i32, false, 1),
+            INT_NL => log_int(value as i32, true, 1),
             _ => log_write(game_addr(rva(0x4E00B7)) as *const u8, true, 1),
         }
     }
-    Ok(())
 }

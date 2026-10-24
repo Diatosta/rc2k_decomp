@@ -3,31 +3,17 @@
 //! measured with (`dword_52A4C0`) noted, and the text's 64 bytes kept (`byte_95EAF8`) for
 //! Escape.
 //!
-//! In:  eax = the item, ebx = the text, ecx = the width, edx = the font
-//! Out: every register kept (`pusha` .. `popa`)
-//! Callers: `net::begin_setting_edit`, `net::begin_chat`. Shadow mode: both run, the five
-//! variables compared. Self-test: a copy against the Rust version.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! In:  `item` (eax), `text` (ebx), `width` (ecx), `font` (edx)
+//! Out: nothing (every register kept, `pusha` .. `popa`)
+//! Callers: `net::begin_setting_edit`, `net::begin_chat`.
 
-use crate::errors::Refused;
-use crate::framework::Regs;
-use crate::net::lobby::{EDIT_FONT, EDIT_SAVED, EDIT_TEXT, EDIT_WIDTH, EDITED, Part, a, movsb, p};
+use crate::net::lobby::{EDIT_FONT, EDIT_SAVED, EDIT_TEXT, EDIT_WIDTH, EDITED, a, movsb, p};
 
-/// The Rust version: the registers it leaves (the entry's).
-pub fn begin_edit(entry: &Regs, _: Part) -> Result<Regs, Refused> {
-    p(EDITED, entry.eax);
-    p(EDIT_TEXT, entry.ebx);
-    p(EDIT_WIDTH, entry.ecx);
-    p(EDIT_FONT, entry.edx);
-    movsb(a(EDIT_SAVED), entry.ebx, 0x40);
-    Ok(*entry)
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    crate::race::viewer::regs_entry(r, &|r| begin_edit(r, &mut crate::net::lobby::game_part))
+/// The Rust version.
+pub fn begin_edit(item: u32, text: u32, width: u32, font: u32) {
+    p(EDITED, item);
+    p(EDIT_TEXT, text);
+    p(EDIT_WIDTH, width);
+    p(EDIT_FONT, font);
+    movsb(a(EDIT_SAVED), text, 0x40);
 }

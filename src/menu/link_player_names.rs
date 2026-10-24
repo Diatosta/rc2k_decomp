@@ -9,10 +9,8 @@
 //! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
 //! `routes.rs`); the registers above are the original's, for reference.
 
-use crate::errors::{BadInput, Refused};
-use crate::framework::Regs;
+use crate::errors::BadInput;
 use crate::menu::player_names::{CAR_NAME, CAR_NAME_POINTER, NAME_LEN, cars, name};
-use crate::screens::harness::Left;
 
 // ---- Rust version ----
 
@@ -24,15 +22,4 @@ pub unsafe fn link_player_names() -> Result<(), BadInput> {
         }
         Ok(())
     }
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { link_player_names() }?;
-    Ok(Left::nothing())
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    unsafe { cars() }?;
-    crate::service::harness::state_entry(r, &rust)
 }

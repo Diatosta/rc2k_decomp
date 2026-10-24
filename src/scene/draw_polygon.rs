@@ -48,7 +48,7 @@
 use crate::d3d::draw_fan_unclipped::{COUNT_RVA, VERTICES_RVA};
 use crate::d3d::{NO_TEXTURE, VERTEX_LEN};
 use crate::errors::BadInput;
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::math::x87;
 use crate::scene::submit_polygon::{self, submit_polygon};
 
@@ -99,8 +99,6 @@ const CLEARS_SWITCH_RVA: usize = rva(0x621904); // dword_621904
 const MATERIAL_RVA: usize = rva(0x63DA38); // dword_63DA38
 const MATERIALS_RVA: usize = rva(0x979F30); // unk_979F30
 pub const CHECKED_RVA: usize = rva(0x62400C); // dword_62400C
-
-const SET_RENDER_STATE: usize = 0x41AB5B; // d3d::set_render_state
 
 // ---- what the modes do ----
 
@@ -524,36 +522,31 @@ pub unsafe fn draw_polygon(outside: &mut dyn Outside) -> Result<(), BadInput> {
 }
 
 /// The game's Direct3D layer and log.
-pub struct Game<'a>(pub submit_polygon::Game<'a>);
+pub struct Game;
 
-impl submit_polygon::Outside for Game<'_> {
+impl submit_polygon::Outside for Game {
     fn set_texture(&mut self, texture: u32) {
-        self.0.set_texture(texture)
+        submit_polygon::Game.set_texture(texture)
     }
     fn draw_fan(&mut self) -> u32 {
-        self.0.draw_fan()
+        submit_polygon::Game.draw_fan()
     }
     fn bad_vertex(&mut self) {
-        self.0.bad_vertex()
+        submit_polygon::Game.bad_vertex()
     }
     fn not_drawn(&mut self, result: u32) {
-        self.0.not_drawn(result)
+        submit_polygon::Game.not_drawn(result)
     }
 }
 
-impl Outside for Game<'_> {
+impl Outside for Game {
     fn state(&mut self, state: u32, value: u32) {
-        let mut r = Regs {
-            eax: value,
-            ebx: state,
-            ..*self.0.0
-        };
-        crate::calls::call(rva(SET_RENDER_STATE), &mut r);
+        crate::d3d::set_render_state::set_render_state(value, state);
     }
 }
 
-/// `draw_polygon` with the game's Direct3D layer (`scene::submit_polygon`'s), the
-/// registers at the call passed on, for Rust callers.
-pub unsafe fn draw_polygon_in_game(entry: &Regs) -> Result<(), BadInput> {
-    unsafe { draw_polygon(&mut Game(submit_polygon::Game(entry))) }
+/// `draw_polygon` with the game's Direct3D layer (`scene::submit_polygon`'s), for Rust
+/// callers.
+pub unsafe fn draw_polygon_in_game() -> Result<(), BadInput> {
+    unsafe { draw_polygon(&mut Game) }
 }

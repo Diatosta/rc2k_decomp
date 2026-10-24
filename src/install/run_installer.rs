@@ -22,35 +22,17 @@
 //! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
+//! are the original's.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::install::installer::{
-    BASE_B, FIRST_DRIVE, FROM_COMMAND, GAME_DIR, INSTALLING, SAME_VERSION, SOURCE_SIZE, TYPED, a,
-    append_byte, append_string_by_id, at, fatal, g, gb, p, pb, rb, wb,
+    BASE_B, FIRST_DRIVE, FROM_COMMAND, GAME_DIR, INSTALLED, INSTALLING, SAME_VERSION, SOURCE_SIZE,
+    TYPED, a, append_byte, append_string_by_id, copy_picture, draw_string, fatal, g, gb,
+    load_language, lock, normalise, p, pb, rb, set_cd, show, sleep, unlock, wb,
 };
 
 const BASE_A: usize = 0x5189A8; // g_baseDirectory
-const READ_LANGUAGES: usize = 0x413908;
-const BUILD_FONTS: usize = 0x415563;
-const OPEN_INSTALLER: usize = 0x414363;
-const INSTALL_FROM_COMMAND: usize = 0x412F34;
-const NORMALISE: usize = 0x4139EC;
-const LIST_DRIVES: usize = 0x413C27;
-const READ_REGISTRY: usize = 0x413D14;
-const CHECK_VERSION: usize = 0x413B0B;
-const SET_CD: usize = 0x403105;
-const READ_RECORD: usize = 0x4110C9;
-const LOAD_LANGUAGE: usize = 0x40331F;
-const RUN_PAGES: usize = 0x4144AA;
-const LOCK: usize = 0x4058AD;
-const COPY_PICTURE: usize = 0x4060E3;
-const DRAW_STRING: usize = 0x40234A;
-const UNLOCK: usize = 0x405949;
-const SHOW: usize = 0x4057D1;
-const SLEEP: usize = 0x41100C;
-const CLOSE_INSTALLER: usize = 0x414490;
-const FREE_FONTS: usize = 0x415C55;
 const KEYBOARD_TYPE: usize = 0x518404; // g_keyboardType
 const SOURCE_VAR: usize = 0x51BB8D; // g_installSource
 const RECORD_FLAG: usize = 0x51D72C; // dword_51D72C
@@ -59,85 +41,62 @@ const FROM_CD: usize = 0x529DB0; // g_runningFromCd
 const UPDATE_PAGES: usize = 0x51D5D8; // off_51D5D8
 const NORMAL_PAGES: usize = 0x51D594; // off_51D594
 const FONT_BE: usize = 0x51E904; // stru_51E904
+const LANGUAGES_PATH: usize = 0x51C36E; // "lang.cfg"
+const RECORD_PATH: usize = 0x5295C0; // "var\ral.zog"
 
-pub fn run_installer(entry: &Regs) -> Result<Regs, Refused> {
-    let mut r = *entry;
+pub fn run_installer() -> Result<(), Refused> {
+    use crate::install as i;
     pb(BASE_A, 0);
-    crate::install::installer::game_part(at(READ_LANGUAGES), &mut r)?;
-    crate::install::installer::game_part(at(BUILD_FONTS), &mut r)?;
-    crate::install::installer::game_part(at(OPEN_INSTALLER), &mut r)?;
+    unsafe { i::read_languages::read_languages(a(LANGUAGES_PATH) as *const u8) }?;
+    unsafe { crate::gfx::build_fonts::build_fonts() }?;
+    i::open_installer::open_installer()?;
     // From the command line: the install, and on past the pages (`jmp loc_412EDC`).
     let from_command = g(FROM_COMMAND) == 1;
     if from_command {
-        crate::install::installer::game_part(at(INSTALL_FROM_COMMAND), &mut r)?;
+        i::install_from_command::install_from_command()?;
     } else {
-        r.esi = a(BASE_B);
-        r.edx = a(GAME_DIR);
-        crate::install::installer::game_part(at(NORMALISE), &mut r)?;
-        if r.carry() {
+        if !normalise(a(BASE_B), a(GAME_DIR))? {
             return Err(fatal(0x80AF_8101));
         }
-        crate::install::installer::game_part(at(LIST_DRIVES), &mut r)?;
-        r.ebx = a(TYPED);
-        r.eax = 0x9F;
-        append_string_by_id(&mut r);
-        r.eax = 0xA0;
-        append_string_by_id(&mut r);
-        append_byte(&mut r, 0);
+        i::list_drives::list_drives();
+        let cursor = append_string_by_id(0x9F, a(TYPED));
+        let cursor = append_string_by_id(0xA0, cursor);
+        append_byte(cursor, 0);
         if gb(KEYBOARD_TYPE) == 2 {
-            r.eax = g(FIRST_DRIVE);
-            wb(a(TYPED), r.eax as u8);
+            wb(a(TYPED), g(FIRST_DRIVE) as u8);
         }
-        crate::install::installer::game_part(at(READ_REGISTRY), &mut r)?;
+        unsafe { i::read_registry::read_registry_here() };
         if gb(SOURCE_VAR) != 0 {
             let n = g(SOURCE_SIZE);
             for k in 0..n {
                 wb(a(TYPED) + k, rb(a(SOURCE_VAR) + k));
             }
         }
-        crate::install::installer::game_part(at(CHECK_VERSION), &mut r)?;
+        i::check_installed_version::check_installed_version()?;
+        // The version-match branch changes into the installed folder.
         if g(SAME_VERSION) == 1 {
             p(RECORD_FLAG, 1);
-            r.edx = a(GAME_DIR_INSTALLED());
-            crate::install::installer::game_part(at(SET_CD), &mut r)?;
-            crate::install::installer::game_part(at(READ_RECORD), &mut r)?;
+            set_cd(a(INSTALLED));
+            unsafe { i::read_record::read_record(a(RECORD_PATH) as *const u8) }?;
             pb(BASE_A, 0);
-            r.edx = a(GAME_DIR);
-            crate::install::installer::game_part(at(SET_CD), &mut r)?;
-            crate::install::installer::game_part(at(LOAD_LANGUAGE), &mut r)?;
+            set_cd(a(GAME_DIR));
+            load_language()?;
         }
-    }
-    if !from_command {
         let pages = if g(UPDATING) == 1 {
             UPDATE_PAGES
         } else {
             NORMAL_PAGES
         };
-        r.esi = a(pages);
-        crate::install::installer::game_part(at(RUN_PAGES), &mut r)?;
+        i::run_pages::run_pages(a(pages))?;
     }
-    if g(INSTALLING) == 1 && g(FROM_CD) == 1 {
-        crate::install::installer::game_part(at(LOCK), &mut r)?;
-        if !r.carry() {
-            crate::install::installer::game_part(at(COPY_PICTURE), &mut r)?;
-            r.eax = 0xBE;
-            r.ebx = a(FONT_BE);
-            r.ecx = 0x1A9;
-            r.edx = 0x113;
-            crate::install::installer::game_part(at(DRAW_STRING), &mut r)?;
-            crate::install::installer::game_part(at(UNLOCK), &mut r)?;
-            crate::install::installer::game_part(at(SHOW), &mut r)?;
-            r.eax = 2000;
-            crate::install::installer::game_part(at(SLEEP), &mut r)?;
-        }
+    if g(INSTALLING) == 1 && g(FROM_CD) == 1 && lock() {
+        copy_picture()?;
+        draw_string(0xBE, a(FONT_BE), 0x1A9, 0x113)?;
+        unlock();
+        show();
+        sleep(2000);
     }
-    crate::install::installer::game_part(at(CLOSE_INSTALLER), &mut r)?;
-    crate::install::installer::game_part(at(FREE_FONTS), &mut r)?;
-    Ok(Regs { ..*entry })
-}
-
-/// byte_95E7F8 (the installed folder) — the version-match branch changes into it.
-#[allow(non_snake_case)]
-fn GAME_DIR_INSTALLED() -> usize {
-    0x95E7F8
+    i::close_installer::close_installer()?;
+    crate::gfx::free_fonts::free_fonts_in_game()?;
+    Ok(())
 }

@@ -20,16 +20,13 @@
 //! modes, every current car, places close enough for corners to meet, under three
 //! precisions.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{EBX, Regs};
 use crate::physics::corner_hits_car::corner_hits_car;
 use crate::physics::flow::{a, g, p};
 use crate::scene::matrix::{multiply_matrices, set_place};
-use crate::screens::harness::Left;
 
 const BLOCKS: usize = 0x71B3B8; // g_carBlocks (eight)
 const CARS: usize = 0x63DB90; // g_raceCars
@@ -44,10 +41,11 @@ fn cars() -> u32 {
     g(CARS).max(1)
 }
 
-/// The Rust version.
-pub unsafe fn car_collisions(entry: &Regs) -> Result<Left, Refused> {
+/// The Rust version. The registers it leaves (ebx the cars looked at) are read by none
+/// of its callers.
+pub unsafe fn car_collisions() -> Result<(), Refused> {
     if !matches!(g(0x62389C), 0 | 2) {
-        return Ok(Left::nothing());
+        return Ok(());
     }
     let n = cars();
     if n > 8 {
@@ -87,14 +85,9 @@ pub unsafe fn car_collisions(entry: &Regs) -> Result<Left, Refused> {
                 p(0x6D3BD4, g(0x6D3BE0 + 4 * k));
                 p(0x6D3BD8, g(0x6D3C00 + 4 * k));
                 p(0x6D3BDC, g(0x6D3C20 + 4 * k));
-                unsafe {
-                    corner_hits_car(&Regs {
-                        edi: block,
-                        ..*entry
-                    })
-                }?;
+                unsafe { corner_hits_car(block) }?;
             }
         }
-        Ok(Left::nothing().with(EBX, n))
+        Ok(())
     }
 }

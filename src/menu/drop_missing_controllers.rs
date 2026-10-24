@@ -11,10 +11,9 @@
 //! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
 //! `routes.rs`); the registers above are the original's, for reference.
 
-use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_read, rva};
+use crate::errors::BadInput;
+use crate::framework::{game_read, rva};
 use crate::menu::player_names::cars;
-use crate::screens::harness::Left;
 
 // ---- game data ----
 
@@ -37,15 +36,4 @@ pub unsafe fn drop_missing_controllers() -> Result<(), BadInput> {
         }
         Ok(())
     }
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { drop_missing_controllers() }?;
-    Ok(Left::nothing())
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    unsafe { cars() }?;
-    crate::service::harness::state_entry(r, &rust)
 }

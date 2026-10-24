@@ -14,11 +14,7 @@
 //! One caller, `threading::shutdown_thread`, which calls it directly (2026-10-23). The
 //! registers above are the original's, for reference.
 
-use crate::framework::{game_addr, rva};
-
-/// g_inputThreadSlot, g_audioThreadSlot, stru_518714: three slots of 0x110 bytes in a row.
-const SLOTS_RVA: usize = rva(0x5184F4);
-const SLOT_LEN: u32 = 0x110;
+use crate::threading::thread_slot::slot;
 
 /// `threading::resume_slot_thread` (0x410D1D): the slot's thread resumed if it was
 /// suspended (+0xC 0xFF, made 1).
@@ -41,10 +37,9 @@ pub fn wait_for_threads() -> u32 {
     use rc2k_core::threading::{WAIT_MS, WAITED, wait_order};
     use windows_sys::Win32::Foundation::CloseHandle;
     use windows_sys::Win32::System::Threading::WaitForMultipleObjects;
-    let slots = game_addr(SLOTS_RVA) as u32;
     let mut handles = [0u32; WAITED];
     for (k, handle) in handles.iter_mut().enumerate() {
-        let slot = slots + SLOT_LEN * k as u32;
+        let slot = slot(k) as u32;
         *handle = unsafe { ((slot + 8) as *const u32).read_unaligned() };
         resume_slot_thread(slot);
     }

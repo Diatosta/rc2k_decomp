@@ -4,11 +4,9 @@
 //! height; `dword_6240C4` -1; `race::draw_screen_quad`.
 //!
 //! In:  nothing
-//! Out: eax the right edge, ebx 100, ecx 0x258, edx the rest of its division; then as the
-//!      quad leaves them (its callers return at once)
+//! Out: nothing its caller reads (conversion phase 3, 2026-10-24)
 //!
-//! Caller: `race::loading_bar_frame`. The quad through `part` (1), in the game its Rust
-//! version. Shadow mode runs the original alone (it draws). Self-test: a copy whose quad
+//! Caller: `race::loading_bar_frame`. The quad its Rust version. Shadow mode runs the original alone (it draws). Self-test: a copy whose quad
 //! goes to a stand-in, against the Rust version, shares by lot.
 //!
 //! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
@@ -16,18 +14,17 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 
 const QUAD_IN_RVA: usize = rva(0x623DE8); // colour; x at +0x28 / +0x2C, y at +0x38 / +0x3C
 pub const SHARE_RVA: usize = rva(0x623700); // dword_623700: the share loaded, 0 .. 100
 const SWITCH_RVA: usize = rva(0x6240C4); // dword_6240C4
 const SCREEN_RVA: [usize; 2] = [rva(0x4F494C), rva(0x4F4950)];
 
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn loading_bar_quad(entry: &Regs) -> Result<Regs, Refused> {
+/// The Rust version (see the header).
+pub unsafe fn loading_bar_quad() -> Result<(), Refused> {
     // Converted: `rc2k_core::race::loading::loading_bar`.
     use rc2k_core::race::loading::{BAR_COLOUR, loading_bar};
-    let mut g = *entry;
     unsafe {
         let [w, h] = SCREEN_RVA.map(|r| game_read::<u32>(r));
         let q = |o: usize, v: u32| game_write(QUAD_IN_RVA + o, v);
@@ -36,16 +33,9 @@ pub unsafe fn loading_bar_quad(entry: &Regs) -> Result<Regs, Refused> {
         q(0, BAR_COLOUR);
         q(0x38, bar.top);
         q(0x3C, bar.bottom);
-        g.eax = bar.right;
-        q(0x2C, g.eax);
-        [g.ebx, g.ecx, g.edx] = [0x64, 0x258, bar.rest];
+        q(0x2C, bar.right);
         game_write(SWITCH_RVA, 0xFFFF_FFFFu32);
-        crate::race::loading_bar_quad::game_part(1, &mut g)?;
+        // `draw_screen_quad` reads no register it is given.
+        crate::race::frame_draw::draw_screen_quad()
     }
-    Ok(g)
-}
-
-/// In the game: `draw_screen_quad`'s Rust version.
-pub fn game_part(_place: u32, r: &mut Regs) -> Result<(), Refused> {
-    unsafe { crate::race::frame_draw::draw_screen_quad(r) }
 }

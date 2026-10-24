@@ -13,15 +13,14 @@
 //! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
 //! `routes.rs`); the registers above are the original's, for reference.
 
-use crate::framework::{Regs, game_read, rva};
+use crate::framework::{game_read, rva};
 
 const WANTED_RVA: usize = rva(0x6415E0); // dword_6415E0
 const PICTURE_RVA: usize = rva(0x624234); // dword_624234: the mirror picture's texture
 
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(_r: &mut Regs) -> Result<(), crate::errors::Refused> {
+/// The Rust version (see the header).
+pub fn copy_screen_to_texture() {
     if unsafe { game_read::<u32>(WANTED_RVA) } != 0 {
         crate::platform_3d::copy_screen_to_system_texture(unsafe { game_read(PICTURE_RVA) });
     }
-    Ok(())
 }

@@ -12,7 +12,6 @@
 //! `physics::apply_patches`; in the game its Rust version).
 
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::race::viewer::{get, move_dwords, put};
 
 const IN_HEADER: usize = 0x719C54; // dword_719C54
@@ -23,7 +22,7 @@ const REPLAYS: usize = 0x719C58; // unk_719C58
 const APPLIED: usize = 0x71C72C; // g_patchesApplied
 
 /// `apply_replay_patches`.
-pub fn apply_replay_patches(entry: &Regs) -> Result<Regs, Refused> {
+pub fn apply_replay_patches() -> Result<(), Refused> {
     // Converted: `rc2k_core::race::viewer_flow::{patches_change, PATCH_DWORDS}`.
     use rc2k_core::race::viewer_flow::{PATCH_DWORDS, patches_change};
     if patches_change(get(IN_HEADER), get(IN_FORCE), false) {
@@ -31,38 +30,20 @@ pub fn apply_replay_patches(entry: &Regs) -> Result<Regs, Refused> {
         move_dwords(KEPT, SWITCHES, PATCH_DWORDS);
         move_dwords(SWITCHES, REPLAYS, PATCH_DWORDS);
         put(APPLIED, 0);
-        let mut r = Regs {
-            ecx: 0,
-            esi: crate::physics::flow::a(REPLAYS) + 0x34,
-            edi: crate::physics::flow::a(SWITCHES) + 0x34,
-            ..*entry
-        };
-        crate::race::replay_patches::game_part(1, &mut r)?;
+        unsafe { crate::physics::apply_patches::apply_patches() };
     }
-    Ok(*entry)
+    Ok(())
 }
 
 /// `restore_replay_patches`.
-pub fn restore_replay_patches(entry: &Regs) -> Result<Regs, Refused> {
+pub fn restore_replay_patches() -> Result<(), Refused> {
     // Converted: `rc2k_core::race::viewer_flow::{patches_change, PATCH_DWORDS}`.
     use rc2k_core::race::viewer_flow::{PATCH_DWORDS, patches_change};
     if patches_change(get(IN_HEADER), get(IN_FORCE), true) {
         put(IN_FORCE, 0);
         move_dwords(SWITCHES, KEPT, PATCH_DWORDS);
         put(APPLIED, 0);
-        let mut r = Regs {
-            ecx: 0,
-            esi: crate::physics::flow::a(KEPT) + 0x34,
-            edi: crate::physics::flow::a(SWITCHES) + 0x34,
-            ..*entry
-        };
-        crate::race::replay_patches::game_part(1, &mut r)?;
+        unsafe { crate::physics::apply_patches::apply_patches() };
     }
-    Ok(*entry)
-}
-
-/// In the game: `physics::apply_patches`.
-pub fn game_part(_place: u32, _r: &mut Regs) -> Result<(), Refused> {
-    unsafe { crate::physics::apply_patches::apply_patches() };
     Ok(())
 }

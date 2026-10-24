@@ -16,12 +16,11 @@
 //! Self-test: a copy whose four calls go to stand-ins (the split's CF by a pattern),
 //! against the Rust version with the same, on the game's variables (saved and put back).
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 use rc2k_core::physics::splits::{at_split_end, check_tracked, split_ahead};
 
 fn g(x: usize) -> u32 {
@@ -32,51 +31,28 @@ fn p(x: usize, v: u32) {
     unsafe { game_write(rva(x), v) }
 }
 
-/// The calls by place: 0 `find_car_checkpoint`, 1 `checkpoint_offset`, 2
-/// `off_line_warnings`, 3 `passed_split_point` (its CF in the registers' flags).
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-/// The calls in the game.
-pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    unsafe {
-        match place {
-            0 => *r = crate::physics::find_car_checkpoint::find_car_checkpoint(r)?,
-            1 => crate::physics::checkpoint_offset::checkpoint_offset()?.apply(r),
-            2 => crate::physics::off_line_warnings::off_line_warnings_in(r)?,
-            _ => crate::physics::passed_split_point::passed_split_point(r)?.apply(r),
-        }
-    }
-    Ok(())
-}
-
-/// The steps on `r`.
+/// The steps. The registers the original leaves are read by none of its callers.
 // Converted: `rc2k_core::physics::splits::{check_tracked, at_split_end, split_ahead}`.
-pub fn track_checkpoints_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
-    part(0, r)?;
-    check_tracked(r.eax, g(0x71A068))?;
-    p(0x71A070, r.eax);
-    p(0x6365E4, r.eax);
-    part(1, r)?;
-    part(2, r)?;
-    r.ebx = g(0x71A070);
-    r.eax = g(0x9E87A0 + 4 * r.ebx as usize).wrapping_sub(1);
-    if at_split_end(r.eax.wrapping_add(1), g(0x71A068)) {
-        r.eax = g(0x71A070);
-        p(0x71A06C, r.eax);
+pub fn track_checkpoints() -> Result<(), Refused> {
+    let checkpoint = unsafe { crate::physics::find_car_checkpoint::find_car_checkpoint() }?;
+    check_tracked(checkpoint, g(0x71A068))?;
+    p(0x71A070, checkpoint);
+    p(0x6365E4, checkpoint);
+    unsafe { crate::physics::checkpoint_offset::checkpoint_offset() }?;
+    crate::physics::off_line_warnings::off_line_warnings()?;
+    let next = g(0x9E87A0 + 4 * g(0x71A070) as usize).wrapping_sub(1);
+    if at_split_end(next.wrapping_add(1), g(0x71A068)) {
+        p(0x71A06C, g(0x71A070));
     }
-    r.ecx = g(0x71A068);
-    if !split_ahead(r.ecx, g(0x601830)) {
+    if !split_ahead(g(0x71A068), g(0x601830)) {
         return Ok(());
     }
-    part(3, r)?;
-    if !r.carry() {
+    if !unsafe { crate::physics::passed_split_point::passed_split_point() }? {
         return Ok(());
     }
-    r.ecx = g(0x71A068);
-    r.eax = g(0x601030 + 4 * r.ecx as usize);
-    p(0x71A06C, r.eax);
-    p(0x71A070, r.eax);
+    let split = g(0x601030 + 4 * g(0x71A068) as usize);
+    p(0x71A06C, split);
+    p(0x71A070, split);
     p(0x71A068, g(0x71A068).wrapping_add(1));
     Ok(())
 }
-
-// ---- for the self-test ----

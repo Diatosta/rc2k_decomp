@@ -12,23 +12,30 @@
 //! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
-use crate::errors::Refused;
-use crate::framework::{Regs, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
+use rc2k_core::menu::event::LastPage;
 
 const COUNT_RVA: usize = rva(0x7556B4); // dword_7556B4
 const FIRST_RVA: usize = rva(0x7556B8); // dword_7556B8
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn first_page_stage(entry: &Regs) -> Result<Regs, Refused> {
-    let mut g = *entry;
+/// The first stage of the last page (stored in `dword_7556B8`, 1 for a single page), and
+/// what the original leaves in the registers: for more than one page, eax that first
+/// stage, edx the stages on the last page (count % 10), ebp 10.
+pub unsafe fn first_page_stage() -> Option<LastPage> {
     let n: u32 = unsafe { game_read(COUNT_RVA) };
     // Converted: `rc2k_core::menu::event::last_page` (its division cannot meet 0).
     let Some(last) = rc2k_core::menu::event::last_page(n) else {
         unsafe { game_write(FIRST_RVA, 1u32) };
-        return Ok(g);
+        return None;
     };
-    g.edx = last.rest;
-    g.eax = last.first;
-    g.ebp = 10;
-    unsafe { game_write(FIRST_RVA, g.eax) };
-    Ok(g)
+    unsafe { game_write(FIRST_RVA, last.first) };
+    Some(last)
+}
+
+/// The carried values as `first_page_stage` leaves them (ebp, which it also sets, is
+/// nothing a screen reads).
+pub fn carry_on(last: Option<LastPage>, c: &mut crate::menu::screen_loop::Carried) {
+    if let Some(last) = last {
+        c.clock = last.rest;
+        c.arg = last.first;
+    }
 }

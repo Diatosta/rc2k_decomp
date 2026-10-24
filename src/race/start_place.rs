@@ -5,14 +5,11 @@
 //! matrix undone (`race::invert_car_matrix`).
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{
-    EAX, EBP, EBX, ECX, EDI, EDX, ESI, Regs, game_addr, game_read, game_write, rva,
-};
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::math::x87;
 use crate::race::best_line::{
     CHECK_COUNT_RVA, CHECK_FACES_RVA, FACES_RVA, MOST_CHECKS, POINTS_RVA, SCRATCH_RVA,
 };
-use crate::screens::harness::Left;
 
 pub const FROM_X_RVA: usize = rva(0x639824); // dword_639824: the place measured from
 pub const FROM_Z_RVA: usize = rva(0x63982C); // dword_63982C
@@ -35,25 +32,6 @@ pub const PLACE_X_RVA: usize = rva(0x5CCDA0); // dword_5CCDA0
 pub const PLACE_Y_RVA: usize = rva(0x5CCDC0); // dword_5CCDC0
 pub const PLACE_Z_RVA: usize = rva(0x5CCDE0); // dword_5CCDE0
 pub const PLACE_HEADING_RVA: usize = rva(0x5CCD60); // dword_5CCD60
-
-/// Every register that differs from the entry's, as a `Left`.
-pub fn left_changed(entry: &Regs, g: &Regs) -> Left {
-    let mut left = Left::nothing();
-    for (reg, before, after) in [
-        (EAX, entry.eax, g.eax),
-        (EBX, entry.ebx, g.ebx),
-        (ECX, entry.ecx, g.ecx),
-        (EDX, entry.edx, g.edx),
-        (ESI, entry.esi, g.esi),
-        (EDI, entry.edi, g.edi),
-        (EBP, entry.ebp, g.ebp),
-    ] {
-        if before != after {
-            left = left.with(reg, after);
-        }
-    }
-    left
-}
 
 fn count() -> Result<u32, Refused> {
     let n: u32 = unsafe { game_read(CHECK_COUNT_RVA) };
@@ -82,10 +60,10 @@ unsafe fn get(at: u32) -> u32 {
 /// `g_checkpointCount`) and the next (held so too); their faces' first points and their
 /// headings (`dword_9ED808`) blended by `dword_6365EC` / 65536 into `dword_5CCDA0` /
 /// `C0` (+ `dword_613FC4`) / `E0` and `dword_5CCD60`, then into the work car's place and
-/// heading; the first face's number in `dword_5CCD28`. Leaves eax y, ecx z, edx the last
-/// product's high half, ebx and esi the second point's number and address, ebp the
-/// first's. Refuses no checkpoints (the original reads entry -1) or more than the lists.
-pub unsafe fn place_car_on_line(entry: &Regs) -> Result<Regs, Refused> {
+/// heading; the first face's number in `dword_5CCD28`. The registers it leaves are read
+/// by none of its callers (conversion phase 3, 2026-10-24). Refuses no checkpoints (the
+/// original reads entry -1) or more than the lists.
+pub unsafe fn place_car_on_line() -> Result<(), Refused> {
     // Converted: `rc2k_core::race::checkpoints::{line_neighbours, lerp}`.
     use rc2k_core::race::checkpoints::{lerp, line_neighbours};
     let count = count()?;
@@ -94,13 +72,13 @@ pub unsafe fn place_car_on_line(entry: &Regs) -> Result<Regs, Refused> {
         let t: u32 = game_read(LINE_FRACTION_RVA);
         let (face, _, _, a) = check_point(c);
         game_write(PLACE_FACE_RVA, face);
-        let (_, _, point, b) = check_point(n);
+        let (_, _, _, b) = check_point(n);
         let (x, _) = lerp(get(a), get(b), t);
         let (y, _) = lerp(get(a + 4), get(b + 4), t);
         let y = y.wrapping_add(game_read(DROP_RVA));
         let (z, _) = lerp(get(a + 8), get(b + 8), t);
         let heading_of = |k: u32| -> u32 { game_read(LINE_HEADINGS_RVA + 4 * k as usize) };
-        let (heading, high) = lerp(heading_of(c), heading_of(n), t);
+        let (heading, _) = lerp(heading_of(c), heading_of(n), t);
         game_write(PLACE_X_RVA, x);
         game_write(PLACE_Y_RVA, y);
         game_write(PLACE_Z_RVA, z);
@@ -109,105 +87,87 @@ pub unsafe fn place_car_on_line(entry: &Regs) -> Result<Regs, Refused> {
         game_write(CAR_Z_RVA, z);
         game_write(CAR_HEADING_RVA, heading);
         game_write(CAR_Y_RVA, y);
-        Ok(Regs {
-            eax: y,
-            ecx: z,
-            edx: high,
-            ebx: point,
-            esi: b,
-            ebp: a,
-            ..*entry
-        })
+        Ok(())
     }
 }
 
-/// `race::distance_to_checkpoint` (0x44141D): with ecx a checkpoint (0 .. count - 1, by
+/// `race::distance_to_checkpoint` (0x44141D): with `c` a checkpoint (0 .. count - 1, by
 /// sign tests), `dword_62400C` the distance in x and z (`x87::int_hypot`) from
-/// (`dword_639824`, `dword_63982C`) to its face's first point; else -1. Leaves (when one)
-/// eax the z difference, ebx and esi the point's number and address. Refuses a checkpoint
-/// past the list.
-pub unsafe fn distance_to_checkpoint(entry: &Regs) -> Result<Regs, Refused> {
+/// (`dword_639824`, `dword_63982C`) to its face's first point; else -1. Refuses a
+/// checkpoint past the list.
+pub unsafe fn distance_to_checkpoint(c: u32) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::checkpoints::on_line`; the distance the x87's.
-    let c = entry.ecx;
     let count: u32 = unsafe { game_read(CHECK_COUNT_RVA) };
     if !rc2k_core::race::checkpoints::on_line(c, count) {
         unsafe { game_write(SCRATCH_RVA, u32::MAX) };
-        return Ok(*entry);
+        return Ok(());
     }
     if c >= MOST_CHECKS {
         return Err(BadInput("a checkpoint past the list").into());
     }
     unsafe {
-        let (_, _, point, place) = check_point(c);
+        let (_, _, _, place) = check_point(c);
         let dx = get(place).wrapping_sub(game_read(FROM_X_RVA)) as i32;
         let dz = get(place + 8).wrapping_sub(game_read(FROM_Z_RVA)) as i32;
         game_write(SCRATCH_RVA, x87::int_hypot(dx, dz));
-        Ok(Regs {
-            eax: dz as u32,
-            ebx: point,
-            esi: place,
-            ..*entry
-        })
     }
+    Ok(())
 }
 
-/// `race::nearest_checkpoint_in` (0x4413F8): checkpoints ecx up to edx (once at least,
-/// `jb`) measured by `distance_to_checkpoint`; the nearest (unsigned, the later of equals)
-/// in ebp, its distance in edi (-1 and 0 for none). Leaves ecx past the last, the rest as
-/// the last measure leaves them. Refuses more than 0x1418 measures or checkpoints, before
-/// anything.
-pub unsafe fn nearest_checkpoint_in(entry: &Regs) -> Result<Regs, Refused> {
+/// The nearest of a stretch of checkpoints and its distance (ebp and edi in the original).
+pub struct Nearest {
+    pub checkpoint: u32,
+    pub distance: u32,
+}
+
+/// `race::nearest_checkpoint_in` (0x4413F8): checkpoints `from` up to `to` (once at
+/// least, `jb`) measured by `distance_to_checkpoint`; the nearest (unsigned, the later of
+/// equals) and its distance (-1 and 0 for none). Refuses more than 0x1418 measures or
+/// checkpoints, before anything.
+pub unsafe fn nearest_checkpoint_in(from: u32, to: u32) -> Result<Nearest, Refused> {
     count()?;
-    let steps = if entry.ecx < entry.edx {
-        entry.edx - entry.ecx
-    } else {
-        1
-    };
+    let steps = if from < to { to - from } else { 1 };
     if steps > MOST_CHECKS {
         return Err(BadInput("more measures than checkpoints").into());
     }
     // Converted: `rc2k_core::race::checkpoints::Nearest`.
     let mut nearest = rc2k_core::race::checkpoints::Nearest::default();
-    let mut g = *entry;
+    let mut c = from;
     loop {
-        g = unsafe { distance_to_checkpoint(&g) }?;
-        nearest.consider(g.ecx, unsafe { game_read(SCRATCH_RVA) });
-        g.ecx = g.ecx.wrapping_add(1);
-        if g.ecx >= g.edx {
-            g.ebp = nearest.checkpoint;
-            g.edi = nearest.distance;
-            return Ok(g);
+        unsafe { distance_to_checkpoint(c) }?;
+        nearest.consider(c, unsafe { game_read(SCRATCH_RVA) });
+        c = c.wrapping_add(1);
+        if c >= to {
+            return Ok(Nearest {
+                checkpoint: nearest.checkpoint,
+                distance: nearest.distance,
+            });
         }
     }
 }
 
 /// `race::nearest_checkpoint` (0x44134F): the work car's x and z into `dword_639824` /
 /// `dword_63982C`; with checkpoints, the nearest of them all (`nearest_checkpoint_in` 0 ..
-/// count) in eax, its distance in `dword_62400C` and / 65536 in `flt_614C68`; else eax 0.
-/// Leaves the other registers as `nearest_checkpoint_in` (ecx, edx = count). Refuses more
-/// checkpoints than the lists, before anything.
-pub unsafe fn nearest_checkpoint(entry: &Regs) -> Result<Regs, Refused> {
+/// count), its distance in `dword_62400C` and / 65536 in `flt_614C68`; else 0. The other
+/// registers it leaves are read by none of its callers. Refuses more checkpoints than the
+/// lists, before anything.
+pub unsafe fn nearest_checkpoint() -> Result<u32, Refused> {
     let count = count()?;
     unsafe {
         game_write(FROM_X_RVA, game_read::<u32>(CAR_X_RVA));
         game_write(FROM_Z_RVA, game_read::<u32>(CAR_Z_RVA));
         if count == 0 {
-            return Ok(Regs { eax: 0, ..*entry });
+            return Ok(0);
         }
-        let mut g = nearest_checkpoint_in(&Regs {
-            ecx: 0,
-            edx: count,
-            ..*entry
-        })?;
-        game_write(SCRATCH_RVA, g.edi);
+        let near = nearest_checkpoint_in(0, count)?;
+        game_write(SCRATCH_RVA, near.distance);
         // Converted: `rc2k_core::race::checkpoints::distance_units`.
         let units = rc2k_core::race::checkpoints::distance_units(
-            g.edi,
+            near.distance,
             f32::from_bits(game_read(SCALE_RVA)),
         );
         game_write(NEAREST_DISTANCE_RVA, units.to_bits());
-        g.eax = g.ebp;
-        Ok(g)
+        Ok(near.checkpoint)
     }
 }
 

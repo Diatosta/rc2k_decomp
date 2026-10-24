@@ -10,15 +10,24 @@
 //! `start` calls it directly (2026-10-23); the registers above are the original's, for
 //! reference.
 
-use crate::framework::{game_ptr, game_write, rva};
+use crate::framework::{game_ptr, rva};
+use crate::moved::Place;
 use windows_sys::Win32::Foundation::SYSTEMTIME;
 use windows_sys::Win32::System::SystemInformation::GetLocalTime;
 
 // ---- game data ----
 
 const SYSTEM_TIME_RVA: usize = rva(0x518988); // SystemTime
-const KEPT_RVA: usize = rva(0x51839F); // byte_51839F, dword_5183A0, dword_5183A4
-const KEPT_LEN: usize = 9;
+/// The nine bytes kept: out of the image since 2026-10-24 (phase 5; they were `byte_51839F`,
+/// `dword_5183A0`, `dword_5183A4`). Written once, by `start`'s first call.
+pub const KEPT_LEN: usize = 9;
+pub static KEPT: Place<[u8; KEPT_LEN]> = Place::new([0; KEPT_LEN]);
+
+/// The start's moment as kept (all 0 before `keep_start_time`).
+pub fn start_time() -> [u8; KEPT_LEN] {
+    // SAFETY: written once, before any reader, on the main thread.
+    unsafe { KEPT.ptr().read() }
+}
 
 // ---- Rust version ----
 
@@ -42,6 +51,6 @@ pub unsafe fn keep_start_time() {
     unsafe {
         let time = game_ptr::<SYSTEMTIME>(SYSTEM_TIME_RVA);
         GetLocalTime(time);
-        game_write(KEPT_RVA, kept(&time.read_unaligned()));
+        KEPT.ptr().write(kept(&time.read_unaligned()));
     }
 }

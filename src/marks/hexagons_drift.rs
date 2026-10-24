@@ -9,8 +9,7 @@
 //! (`flt_8161E2` ..); and the place kept (`flt_8161D6` ..).
 //!
 //! In:  nothing (`g_marksSettings`)
-//! Out: eax .. ecx the settings' +0x26AC .. +0x26B4, esi the settings; edi as the path
-//!      leaves it
+//! Out: nothing (its caller reads no register after it)
 //!
 //! Caller: `sub_4BC0B1` (0x4BC0BA). The x87 runs are the original's instructions over the
 //! game's variables (the three values it keeps on the x87 stack across the two calls kept
@@ -23,7 +22,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::marks::adjugate3::adjugate3;
 use crate::marks::setup::SETTINGS_RVA;
 use crate::scene::matrix3::{Axis, extended, turn_matrix3};
@@ -215,9 +214,8 @@ unsafe fn move_kept(b: u32, s: u32) {
     }
 }
 
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn hexagons_drift(entry: &Regs) -> Result<Regs, Refused> {
-    let mut g = *entry;
+/// The Rust version (see the header).
+pub unsafe fn hexagons_drift() -> Result<(), Refused> {
     unsafe {
         let s: u32 = game_read(SETTINGS_RVA);
         if s == 0 {
@@ -226,23 +224,21 @@ pub unsafe fn hexagons_drift(entry: &Regs) -> Result<Regs, Refused> {
         for n in 0..3 {
             game_write(DRIFT_RVA + 4 * n, 0u32);
         }
-        g.esi = s;
         let b = game_addr(0) as u32;
-        g.eax = game_read(FIRST_RVA);
+        let first: u32 = game_read(FIRST_RVA);
         game_write(FIRST_RVA, 1u32);
-        if g.eax != 0 {
-            g.eax = game_read(SECOND_RVA);
+        if first != 0 {
+            let second: u32 = game_read(SECOND_RVA);
             game_write(SECOND_RVA, 1u32);
-            if g.eax != 0 {
+            if second != 0 {
                 view_moved(b, s);
-                g.edi = game_addr(VIEW_RVA) as u32;
+                let view = game_addr(VIEW_RVA) as u32;
                 for col in 0..3u32 {
                     let v = [
-                        get(g.edi + 4 * col),
-                        get(g.edi + 0x10 + 4 * col),
-                        get(g.edi + 0x20 + 4 * col),
+                        get(view + 4 * col),
+                        get(view + 0x10 + 4 * col),
+                        get(view + 0x20 + 4 * col),
                     ];
-                    [g.eax, g.ebx, g.ecx] = v;
                     for (k, x) in v.into_iter().enumerate() {
                         game_write(TURN_RVA + 12 * col as usize + 4 * k, x);
                     }
@@ -256,14 +252,15 @@ pub unsafe fn hexagons_drift(entry: &Regs) -> Result<Regs, Refused> {
                 drift_turned(b, adj, t, l);
                 turn_matrix3(Axis::X, turn, extended(game_read(ANGLE_RVA)))?;
                 drift_back(b, turn, t, l);
-                g.edi = turn;
             }
             move_kept(b, s);
         }
-        [g.eax, g.ebx, g.ecx] = [get(s + 0x26AC), get(s + 0x26B0), get(s + 0x26B4)];
-        for (k, v) in [g.eax, g.ebx, g.ecx].into_iter().enumerate() {
+        for (k, v) in [get(s + 0x26AC), get(s + 0x26B0), get(s + 0x26B4)]
+            .into_iter()
+            .enumerate()
+        {
             game_write(KEPT_RVA + 4 * k, v);
         }
     }
-    Ok(g)
+    Ok(())
 }

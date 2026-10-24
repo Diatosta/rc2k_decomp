@@ -15,7 +15,6 @@
 //! and the self-test was the hook's.
 
 use crate::errors::BadInput;
-use crate::framework::Regs;
 use crate::strings::same_text::case_table;
 use windows_sys::Win32::System::Environment::GetCurrentDirectoryA;
 
@@ -52,20 +51,4 @@ pub unsafe fn normalise_path(path: *const u8, to: *mut u8) -> Result<bool, BadIn
         std::ptr::copy(text.as_ptr(), to, text.len());
         Ok(true)
     }
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let (path, to) = (r.esi as *const u8, r.edx as *mut u8);
-    let mine = match unsafe { normalised(path, &mut || current_directory()) } {
-        Ok(mine) => mine,
-        Err(e) => {
-            return Err(e.into());
-        }
-    };
-    if let Some(text) = &mine {
-        unsafe { std::ptr::copy(text.as_ptr(), to, text.len()) };
-    }
-    r.set_carry(mine.is_none());
-    Ok(())
 }

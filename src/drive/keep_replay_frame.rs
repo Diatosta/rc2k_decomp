@@ -17,11 +17,9 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::{EAX, EBX, ECX, EDI, EDX, ESI};
 use crate::physics::flow::{a, g, p};
-use crate::screens::harness::Left;
 use rc2k_core::drive::replay_frames::{
-    PLAYING, RECORDING, SLOT_SIZE, TENTHS, frame_and_tenth, slot_offset,
+    PLAYING, RECORDING, SLOT_SIZE, frame_and_tenth, slot_offset,
 };
 
 const B: usize = 0x70F3EC; // g_carBlockStore
@@ -30,31 +28,20 @@ const SIZE: usize = SLOT_SIZE as usize;
 
 /// The Rust version.
 // Converted: `rc2k_core::drive::replay_frames::{frame_and_tenth, slot_offset}`.
-pub unsafe fn keep_replay_frame() -> Left {
-    let mut left = Left::nothing();
+pub unsafe fn keep_replay_frame() {
     p(0x6EF7D8, 0);
     p(0x6EF7DC, 0);
     if g(0x5C5CE0) != PLAYING {
         let (frame, tenth) = frame_and_tenth(g(B + 8));
         p(0x6EF7D8, frame);
         p(0x6EF7DC, tenth);
-        left = left.with(EAX, frame).with(EDX, tenth).with(EBX, TENTHS);
     }
     if g(0x6EF7DC) == 0 {
         let offset = slot_offset(g(0x6EF7D8));
         let to = a(SLOTS) + offset;
         unsafe { std::ptr::copy(a(B) as *const u8, to as *mut u8, SIZE) };
-        left = left
-            .with(EAX, offset)
-            .with(ESI, a(B) + SIZE as u32)
-            .with(EDI, to + SIZE as u32)
-            .with(ECX, 0);
         if g(0x5C5CE0) == RECORDING {
-            let saved = crate::drive::save_replay_cars::save_replay_cars();
-            for &(reg, v) in &saved.regs {
-                left = left.with(reg, v);
-            }
+            crate::drive::save_replay_cars::save_replay_cars();
         }
     }
-    left
 }

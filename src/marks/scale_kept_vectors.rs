@@ -20,8 +20,7 @@
 //! and the self-test was the hook's.
 
 use crate::framework::rva;
-use crate::marks::scale_vectors_by::{results_of, scale_triples};
-use crate::service::harness::at;
+use crate::marks::scale_vectors_by::scale_triples;
 
 /// (the factor, the vector, the result).
 const PAIRS: [(usize, usize, usize); 3] = [
@@ -33,9 +32,4 @@ const PAIRS: [(usize, usize, usize); 3] = [
 /// The Rust version (see the header).
 pub unsafe fn scale_kept_vectors() {
     unsafe { scale_triples(&PAIRS) }
-}
-
-/// What it writes.
-pub fn regions() -> Vec<crate::service::harness::Region> {
-    results_of(&PAIRS).into_iter().map(at).collect()
 }

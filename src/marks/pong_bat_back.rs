@@ -3,8 +3,8 @@
 //! compares).
 //!
 //! In:  nothing
-//! Out: eax the last compare's status (& 0x700), or with the bat put back eax / ebx its
-//!      place's bits
+//! Out: nothing (no caller reads a register it leaves: `run_pong` reads none after
+//!      `move_pong_bat`, the Rust versions none at all)
 //!
 //! Caller: `marks::move_pong_bat`. Self-test: the original and the Rust version on balls
 //! and bats by lot; put back.
@@ -18,21 +18,16 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::{Regs, game_read, game_write};
+use crate::framework::{game_read, game_write};
 use crate::marks::pong;
 
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn pong_bat_back(entry: &Regs) -> Regs {
-    let mut g = *entry;
-    let (over, status) = pong::overlap();
-    g.eax = status;
+/// The Rust version (see the header).
+pub unsafe fn pong_bat_back() {
+    let (over, _) = pong::overlap();
     if over {
         unsafe {
-            g.eax = game_read(pong::SAVED_BAT[0]);
-            g.ebx = game_read(pong::SAVED_BAT[1]);
-            game_write(pong::BAT[0], g.eax);
-            game_write(pong::BAT[1], g.ebx);
+            game_write(pong::BAT[0], game_read::<u32>(pong::SAVED_BAT[0]));
+            game_write(pong::BAT[1], game_read::<u32>(pong::SAVED_BAT[1]));
         }
     }
-    g
 }

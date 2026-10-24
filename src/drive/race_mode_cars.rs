@@ -15,35 +15,15 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::drive::start_cars_behind::{game_part, start_cars_behind};
 use crate::errors::Refused;
-use crate::framework::{Regs, game_read, rva};
-use crate::race::car_starts::Part;
+use crate::framework::{game_read, rva};
 
 const MODE_RVA: usize = rva(0x62389C); // dword_62389C
 
-/// The Rust core, `start_cars_behind` through `part`.
-pub unsafe fn race_mode_cars(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+/// The Rust version: `drive::start_cars_behind` in mode 2.
+pub unsafe fn race_mode_cars() -> Result<(), Refused> {
     if unsafe { game_read::<u32>(MODE_RVA) } == 2 {
-        let mut r = *entry;
-        part(0, &mut r)?;
-        return Ok(r);
+        unsafe { crate::drive::start_cars_behind::start_cars_behind() }?;
     }
-    Ok(*entry)
-}
-
-fn game(_: u32, r: &mut Regs) -> Result<(), Refused> {
-    *r = unsafe { start_cars_behind(r, &mut game_part) }?;
-    Ok(())
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let g = unsafe { race_mode_cars(r, &mut game) }?;
-    *r = Regs {
-        esp: r.esp,
-        eflags: r.eflags,
-        ..g
-    };
     Ok(())
 }

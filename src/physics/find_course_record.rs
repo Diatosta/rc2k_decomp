@@ -16,13 +16,11 @@
 //! Self-test: a copy of the original on test tables and records, keys found, missing,
 //! kinds empty and of one or several records.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{EAX, EBP, EBX, EDX, ESI, Regs, game_addr};
-use crate::screens::harness::Left;
+use crate::framework::game_addr;
 use rc2k_core::physics::course_records::{Search, find_record, kind_of};
 
 /// The tables' addresses and the records' count: the game's, or a test's.
@@ -53,33 +51,26 @@ unsafe fn at(a: u32) -> u32 {
     unsafe { (a as *const u32).read_unaligned() }
 }
 
-/// The Rust core; `r` the registers at entry.
+/// The Rust core: the record of cell `key` (eax at entry), None when the cell has none
+/// (CF). The other registers it leaves (eax, edx the key, ebp its high part, esi the
+/// record's address) are read by none of its callers.
 // Converted: `rc2k_core::physics::course_records::find_record`.
-pub unsafe fn find_course_record_at(p: &RecordPlaces, r: &Regs) -> Result<Left, Refused> {
+pub unsafe fn find_course_record_at(p: &RecordPlaces, key: u32) -> Result<Option<u32>, Refused> {
     unsafe {
-        let key = r.eax;
-        let (kind, high) = kind_of(key);
+        let (kind, _) = kind_of(key);
         let first = at(p.firsts + 4 * kind);
         let last = at(p.lasts + 4 * kind);
-        let base = || at(p.records);
-        let record = |n: u32| base().wrapping_add(n << 5);
-        let left = |carry: bool| {
-            Left::carry(carry)
-                .with(EAX, key)
-                .with(EDX, key)
-                .with(EBP, high)
-        };
+        let record = |n: u32| at(p.records).wrapping_add(n << 5);
         Ok(
             match find_record(key, first, last, p.count, |n| at(record(n)))? {
-                Search::Empty => left(true).with(EBX, first),
-                Search::Found { number } => left(false).with(EBX, number).with(ESI, record(number)),
-                Search::Missing { next } => left(true).with(EBX, next).with(ESI, record(last)),
+                Search::Found { number } => Some(number),
+                Search::Empty | Search::Missing { .. } => None,
             },
         )
     }
 }
 
 /// The Rust version.
-pub unsafe fn find_course_record(r: &Regs) -> Result<Left, Refused> {
-    unsafe { find_course_record_at(&RecordPlaces::game(), r) }
+pub unsafe fn find_course_record(key: u32) -> Result<Option<u32>, Refused> {
+    unsafe { find_course_record_at(&RecordPlaces::game(), key) }
 }

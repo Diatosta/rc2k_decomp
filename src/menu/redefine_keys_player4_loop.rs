@@ -14,45 +14,43 @@
 //! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::errors::Refused;
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::menu::screen_loop::{
-    Env, Flow, List, Screen, Step, copy_bytes, popa, pusha, read_at, screen_entry,
+    Carried, Flow, List, Screen, Step, quitting, read_at, screen_entry,
 };
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
-unsafe fn before(g: &mut Regs, _env: &mut dyn Env) {
+unsafe fn before(_c: &mut Carried) -> Result<(), Refused> {
+    // The player's twelve bytes at +0x1C copied to `dword_755595` (`rep movsb` between
+    // `pusha` and `popa`; eax pushed and popped around the player's address: no carried
+    // value changes).
     unsafe {
-        let mut all = Vec::new();
-        let mut stack: Vec<u32> = Vec::new();
-        stack.push(g.eax);
-        g.eax = 0x3;
-        g.edi = read_at((game_addr(rva(0x75647C)) as u32).wrapping_add(g.eax.wrapping_mul(4)));
-        g.eax = stack.pop().expect("a pop without its push");
-        g.edi = g.edi.wrapping_add(0x1C);
-        pusha(g, &mut all);
-        g.ecx = 0xC;
-        g.esi = g.edi;
-        g.edi = game_addr(rva(0x755595)) as u32;
-        copy_bytes(g);
-        popa(g, &mut all);
+        let player = read_at((game_addr(rva(0x75647C)) as u32).wrapping_add(12));
+        std::ptr::copy(
+            player.wrapping_add(0x1C) as *const u8,
+            game_addr(rva(0x755595)) as *mut u8,
+            0xC,
+        );
         game_write(rva(0x75598C), 0x3u32);
     }
+    Ok(())
 }
 
-unsafe fn after_first_frame(_g: &mut Regs, env: &mut dyn Env) -> Flow {
-    if env.quitting() as u32 == 0x1 {
-        return Flow::Leave;
+unsafe fn after_first_frame(_c: &mut Carried) -> Result<Flow, Refused> {
+    if quitting() as u32 == 0x1 {
+        return Ok(Flow::Leave);
     }
-    Flow::On
+    Ok(Flow::On)
 }
 
-unsafe fn each_frame(_g: &mut Regs, _env: &mut dyn Env) -> Flow {
+unsafe fn each_frame(_c: &mut Carried) -> Result<Flow, Refused> {
     unsafe {
         if game_read::<u32>(rva(0x7556AC)) == 0x1 && game_read::<u32>(rva(0x7556AC)) != 0x0 {
-            return Flow::NextFrame;
+            return Ok(Flow::NextFrame);
         }
-        Flow::On
+        Ok(Flow::On)
     }
 }
 
@@ -100,7 +98,7 @@ pub const SCREEN: Screen = Screen {
     prepare: &[],
     after_lists: &[],
     background: &[
-        Step::EaxAddr(rva(0x73236A)),
+        Step::ArgAddr(rva(0x73236A)),
         Step::CallOrFatal(rva(0x47EFFF), 0x80712345),
     ],
     after_first_frame: &[Step::DoFlow(after_first_frame)],
@@ -134,6 +132,6 @@ pub const SCREEN: Screen = Screen {
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    screen_entry("menu::redefine_keys_player4_loop", r, &SCREEN)
+pub fn run() -> Result<(), crate::errors::Refused> {
+    screen_entry("menu::redefine_keys_player4_loop", &SCREEN)
 }

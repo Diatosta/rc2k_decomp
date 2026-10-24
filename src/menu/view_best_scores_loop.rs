@@ -13,32 +13,34 @@
 //! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
-use crate::menu::screen_loop::{Env, List, Screen, Step, popa, pusha, screen_entry};
+use crate::errors::Refused;
+use crate::framework::{game_read, game_write, rva};
+use crate::menu::screen_loop::{Carried, List, Screen, Step, log_line, screen_entry};
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
-unsafe fn before(g: &mut Regs, _env: &mut dyn Env) {
+unsafe fn before(c: &mut Carried) -> Result<(), Refused> {
     unsafe {
-        g.ecx = game_read(rva(0x747894));
-        game_write(rva(0x7476F8), g.ecx);
+        c.measure_x = game_read(rva(0x747894));
+        game_write(rva(0x7476F8), c.measure_x);
     }
+    Ok(())
 }
 
-unsafe fn set_up_first(g: &mut Regs, env: &mut dyn Env) {
-    let mut all = Vec::new();
-    pusha(g, &mut all);
-    g.eax = game_addr(rva(0x4DEB10)) as u32;
-    env.call(rva(0x40142B), g);
-    popa(g, &mut all);
+unsafe fn set_up_first(_c: &mut Carried) -> Result<(), Refused> {
+    // Between `pusha` and `popa`: no register changes.
+    unsafe {
+        log_line(rva(0x4DEB10));
+    }
+    Ok(())
 }
 
-unsafe fn after(g: &mut Regs, env: &mut dyn Env) {
-    let mut all = Vec::new();
-    pusha(g, &mut all);
-    g.eax = game_addr(rva(0x4DEB22)) as u32;
-    env.call(rva(0x40142B), g);
-    popa(g, &mut all);
+unsafe fn after(_c: &mut Carried) -> Result<(), Refused> {
+    // Between `pusha` and `popa`: no register changes.
+    unsafe {
+        log_line(rva(0x4DEB22));
+    }
+    Ok(())
 }
 
 pub const SCREEN: Screen = Screen {
@@ -74,7 +76,7 @@ pub const SCREEN: Screen = Screen {
     prepare: &[],
     after_lists: &[],
     background: &[
-        Step::EaxAddr(rva(0x731FA9)),
+        Step::ArgAddr(rva(0x731FA9)),
         Step::CallOrFatal(rva(0x47EFFF), 0x80712345),
     ],
     after_first_frame: &[],
@@ -108,6 +110,6 @@ pub const SCREEN: Screen = Screen {
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    screen_entry("menu::view_best_scores_loop", r, &SCREEN)
+pub fn run() -> Result<(), crate::errors::Refused> {
+    screen_entry("menu::view_best_scores_loop", &SCREEN)
 }

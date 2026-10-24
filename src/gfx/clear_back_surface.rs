@@ -11,7 +11,7 @@
 //! height of 0 is refused (the original goes round 2^32 times), before anything.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::Regs;
+
 use crate::physics::flow::g;
 
 const FRONT: usize = 0x4F32B4; // g_frontSurface
@@ -40,9 +40,4 @@ pub fn clear_back_surface() -> Result<(), Refused> {
     }
     crate::platform::unlock_surface();
     Ok(())
-}
-
-/// The Rust version where the typed tables run it (a refusal is the caller's).
-pub fn entry(_: &mut Regs) -> Result<(), Refused> {
-    clear_back_surface()
 }

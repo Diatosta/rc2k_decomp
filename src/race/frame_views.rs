@@ -4,7 +4,6 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{Regs, game_addr, game_read, game_write, rva};
-use crate::screens::harness::Left;
 
 fn k(a: u32) -> u32 {
     unsafe { game_read(rva(a as usize)) }
@@ -20,23 +19,20 @@ const HEIGHT: u32 = 0x4F4950; // g_screenHeight
 /// `race::full_view_window` (0x455ECB) / `race::full_view_window_2` (0x456004): the view
 /// window the whole screen (`dword_62408C` / `dword_624090` its size, `dword_623FB0` /
 /// `dword_623FB4` 0, `dword_624080` 0x100, `scene::set_view_window`), `dword_63993C` 0; the
-/// first also `dword_6365C4` 0. Gives the registers as the original leaves them.
-pub unsafe fn full_view_window(entry: &Regs, first: bool) -> Regs {
+/// first also `dword_6365C4` 0. Its callers (`race::draw_race_scene`,
+/// `race::draw_mirror_view`) read no register it leaves.
+pub unsafe fn full_view_window(first: bool) {
     unsafe {
-        let mut r = *entry;
-        r.eax = k(WIDTH);
-        w(0x62408C, r.eax);
-        r.eax = k(HEIGHT);
-        w(0x624090, r.eax);
+        w(0x62408C, k(WIDTH));
+        w(0x624090, k(HEIGHT));
         w(0x623FB0, 0);
         w(0x623FB4, 0);
         w(0x624080, 0x100);
-        crate::scene::set_view_window::set_view_window().apply(&mut r);
+        crate::scene::set_view_window::set_view_window();
         if first {
             w(0x6365C4, 0);
         }
         w(0x63993C, 0);
-        r
     }
 }
 
@@ -44,9 +40,9 @@ pub unsafe fn full_view_window(entry: &Regs, first: bool) -> Regs {
 /// `dword_6415FC` / `dword_641600` (8 bytes each, at `dword_6238A4` + 3 x `g_drawnView`, + 6
 /// when `dword_6D1502` is 0), 800 x 600 scaled to the screen, 0xB3 x 0x40 big (each even);
 /// its edges `dword_624138` .. `dword_624144`; `dword_624080` 0x100,
-/// `scene::set_view_window`, the fog (part 1: `race::set_up_fog`), `dword_6365C4` 0,
+/// `scene::set_view_window`, the fog (`race::set_up_fog`), `dword_6365C4` 0,
 /// `dword_63993C` 1. Refuses (before anything) a size whose scaling would fault.
-pub unsafe fn mirror_view_window(r: &mut Regs) -> Result<(), Refused> {
+pub unsafe fn mirror_view_window() -> Result<(), Refused> {
     // Converted: `rc2k_core::race::view::{mirror_entry, mirror_window}`.
     use rc2k_core::race::view::{Window, mirror_entry, mirror_window};
     unsafe {
@@ -65,8 +61,6 @@ pub unsafe fn mirror_view_window(r: &mut Regs) -> Result<(), Refused> {
         else {
             return Err(BadInput("a mirror place whose scaling overflows").into());
         };
-        r.ecx = n;
-        r.ebx = 600;
         w(0x623FB0, x);
         w(0x623FB4, y);
         w(0x62408C, sx);
@@ -76,21 +70,12 @@ pub unsafe fn mirror_view_window(r: &mut Regs) -> Result<(), Refused> {
         w(0x624140, x.wrapping_add(sx));
         w(0x624144, y.wrapping_add(sy));
         w(0x624080, 0x100);
-        r.eax = y.wrapping_add(sy);
-        crate::scene::set_view_window::set_view_window().apply(r);
-        crate::race::frame_views::mirror_part(1, r)?;
+        crate::scene::set_view_window::set_view_window();
+        crate::race::frame_draw::set_up_fog()?;
         w(0x6365C4, 0);
         w(0x63993C, 1);
         Ok(())
     }
-}
-
-/// `mirror_view_window`'s part in the game: `race::set_up_fog` with its game parts.
-pub fn mirror_part(_: u32, r: &mut Regs) -> Result<(), Refused> {
-    unsafe {
-        *r = crate::race::frame_draw::set_up_fog(r)?;
-    }
-    Ok(())
 }
 
 /// The vertices' floats `race::draw_flat_triangle` sets: 1.0 at these, 0.0 at the rest of
@@ -102,9 +87,9 @@ const ZEROS: [u32; 15] = [
 ];
 
 /// `race::draw_flat_triangle` (0x455912): three vertices at (1, 1, 0) with texture 0, 0,
-/// colour 0 (the original's `fld1` / `fldz` stores), `g_polygonVertexCount` 3, drawn (part
-/// 1: `scene::draw_fan`). Every register kept (`pusha` .. `popa`).
-pub unsafe fn draw_flat_triangle(r: &mut Regs, part: &mut dyn FnMut(u32, &mut Regs)) {
+/// colour 0 (the original's `fld1` / `fldz` stores), `g_polygonVertexCount` 3, drawn
+/// (`scene::draw_fan`). Every register kept (`pusha` .. `popa`).
+pub unsafe fn draw_flat_triangle() {
     for a in ONES {
         w(a, 1.0f32.to_bits());
     }
@@ -112,8 +97,7 @@ pub unsafe fn draw_flat_triangle(r: &mut Regs, part: &mut dyn FnMut(u32, &mut Re
         w(a, 0);
     }
     w(0x6240F8, 3);
-    let mut inner = *r;
-    part(1, &mut inner);
+    crate::scene::draw_fan::draw_fan();
 }
 
 /// The marks' shadow refusals (`marks::draw_shadow`'s first and second shadows), checked
@@ -135,35 +119,29 @@ fn shadow_refuses(sh: &crate::marks::draw_shadow::Shadow) -> Result<(), Refused>
     }
 }
 
-/// `race::draw_marks_overlays` (0x45632B): `marks::draw_overlays` (part 1), then
-/// `marks::draw_shadow` (part 2). Refuses (before anything) the second shadow's refusals.
-pub unsafe fn draw_marks_overlays(r: &mut Regs) -> Result<(), Refused> {
+/// `race::draw_marks_overlays` (0x45632B): `marks::draw_overlays`, then
+/// `marks::draw_shadow`. Refuses (before anything) the second shadow's refusals.
+pub unsafe fn draw_marks_overlays() -> Result<(), Refused> {
     shadow_refuses(&crate::marks::draw_shadow::FIRST)?;
-    crate::race::frame_views::overlays_part(1, r)?;
-    crate::race::frame_views::overlays_part(2, r)
-}
-
-/// Its parts in the game.
-pub fn overlays_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
+    // Neither reads a register, and the race reads none they leave (only DF, ST).
     unsafe {
-        *r = if place == 1 {
-            crate::marks::draw_overlays::draw_overlays(r)?
-        } else {
-            crate::marks::draw_shadow::draw_shadow(r, &mut crate::marks::draw_shadow::game_part)?
-        };
+        crate::marks::draw_overlays::draw_overlays()?;
+        crate::marks::draw_shadow::draw_shadow()?;
     }
     Ok(())
 }
 
-/// `race::load_first_car` (0x460C7A): `g_currentCar` 0, `drive::load_car`. Refuses (before
-/// anything) car 0 without its block.
-pub unsafe fn load_first_car() -> Result<Left, Refused> {
+/// `race::load_first_car` (0x460C7A): `g_currentCar` 0, `drive::load_car`. (Its callers,
+/// `race::draw_race_scene` and `drive::finish_run`, read no register it leaves.) Refuses
+/// (before anything) car 0 without its block.
+pub unsafe fn load_first_car() -> Result<(), Refused> {
     unsafe {
         if k(0x71B3B8) == 0 {
             return Err(BadInput("car 0 without its block").into());
         }
         w(0x71B3F8, 0);
-        crate::drive::load_car::load_car()
+        crate::drive::load_car::load_car()?;
+        Ok(())
     }
 }
 
@@ -177,29 +155,25 @@ const SURFACE_FORMAT: u32 = 0x4F49B8; // g_surface.format (a pointer)
 /// `race::copy_mirror_picture` (0x455DAD): the mirror's surface (slot `dword_624234`) copied
 /// onto slot `dword_5D0E08`'s, each pixel through `gfx::pixel_to_components` (the screen's
 /// format, 16 or 32 bits by `g_screenBits`) and back by `gfx::components_to_pixel` (the
-/// destination's) with alpha 0xFF; the destination's width and height. Parts: 1 lock (eax
-/// the slot; carry: failed), 2 unlock (the platform's, `sub_41AA4B` / `sub_41AB02`). Refuses
-/// (before the copy) a null destination format.
-pub unsafe fn copy_mirror_picture(r: &mut Regs) -> Result<(), Refused> {
+/// destination's) with alpha 0xFF; the destination's width and height; each surface locked
+/// and unlocked by `d3d::lock_texture` / `d3d::unlock_texture` (carry: the lock failed).
+/// The registers it leaves are read by no caller. Refuses (before the copy) a null
+/// destination format.
+pub unsafe fn copy_mirror_picture() -> Result<(), Refused> {
     // Converted: `rc2k_core::race::view_steps::{copy_picture, copied_any}` (eax carried
     // from pixel to pixel as the original's; the formats' conversions the gfx module's).
+    use crate::d3d::{lock_texture::lock_texture, unlock_texture::unlock_texture};
     use crate::gfx::pixel_format::PixelFormat;
-    use rc2k_core::race::view_steps::{PictureCopy, copied_any, copy_picture};
+    use rc2k_core::race::view_steps::{PictureCopy, copy_picture};
     unsafe {
         let (from, to) = (k(0x624234), k(0x5D0E08));
-        r.eax = from;
-        crate::race::frame_views::surface_part(1, r)?;
-        if r.carry() {
+        if lock_texture(from)?.carry {
             return Ok(());
         }
         let esi = k(SURFACE_PIXELS);
         w(0x6415EC, esi);
         let ebp = k(SURFACE_PITCH);
-        r.esi = esi;
-        r.ebp = ebp;
-        r.eax = to;
-        crate::race::frame_views::surface_part(1, r)?;
-        if !r.carry() {
+        if !lock_texture(to)?.carry {
             let edi = k(SURFACE_PIXELS);
             w(0x6415F0, edi);
             let format = k(SURFACE_FORMAT);
@@ -220,21 +194,12 @@ pub unsafe fn copy_mirror_picture(r: &mut Regs) -> Result<(), Refused> {
                 screen: &screen,
                 format,
             };
-            let (_, end_from, end_to) = copy_picture(&copy, esi, edi, r.eax, &mut surfaces);
-            // As the copy leaves them: ebx the last `mov ebx, g_surface.format`, ecx and edx
-            // counted down to 0, esi / edi past the rows.
-            if copied_any(&copy) {
-                r.ebx = k(SURFACE_FORMAT);
-                r.ecx = 0;
-                r.edx = 0;
-            }
-            r.esi = end_from;
-            r.edi = end_to;
-            r.eax = to;
-            crate::race::frame_views::surface_part(2, r)?;
+            // eax at the copy: the destination's slot, as the lock was given it.
+            copy_picture(&copy, esi, edi, to, &mut surfaces);
+            unlock_texture(to)?;
         }
-        r.eax = from;
-        crate::race::frame_views::surface_part(2, r)
+        unlock_texture(from)?;
+        Ok(())
     }
 }
 
@@ -265,23 +230,17 @@ impl rc2k_core::race::view_steps::Surfaces for GameSurfaces<'_> {
     }
 }
 
-/// `copy_mirror_picture`'s parts in the game: the platform's lock and unlock.
-pub fn surface_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    let at = if place == 1 { 0x41AA4B } else { 0x41AB02 };
-    crate::calls::call(rva(at), r);
-    Ok(())
-}
-
 /// `race::forget_view_textures` (0x45B200): the textures to load again this frame, their
 /// bits in `dword_6415F4`, each adding 0x4000 to `dword_6D1508`: the two views' cars' +0xADC
 /// (slots `dword_5D1E00` / `dword_5D1E04`, bits 1, 2), their +0x720 counted down (slots
 /// `dword_5D1DF8` / `dword_5D1DFC`, bits 4, 8), `dword_6D1830` / `dword_6D1834` (slots
 /// `dword_5D1E58` / `dword_5D1E5C`, bits 0x10, 0x1000); with the mirror on
-/// (`dword_6415E0`, not `dword_6415E8`) bit 0x20 and 0x400 more, its picture copied (part 1:
-/// `race::copy_mirror_picture`, then slot `dword_5D0E08` forgotten) or with
-/// `byte_4F6B74` uploaded (part 2: `sub_44E828`, esi `dword_A12AE4`, eax the slot). Refuses
-/// (before anything) a null view block or a slot past 0x3FF.
-pub unsafe fn forget_view_textures(r: &mut Regs) -> Result<(), Refused> {
+/// (`dword_6415E0`, not `dword_6415E8`) bit 0x20 and 0x400 more, its picture copied
+/// (`race::copy_mirror_picture`, then slot `dword_5D0E08` forgotten) or with
+/// `byte_4F6B74` uploaded (`sub_44E828`, esi `dword_A12AE4`, eax the slot). Its one caller,
+/// `race::draw_race_scene`, reads no register it leaves. Refuses (before anything) a null
+/// view block or a slot past 0x3FF.
+pub unsafe fn forget_view_textures() -> Result<(), Refused> {
     // Converted: `rc2k_core::race::view_steps::{FORGET_ORDER, forgets, mirror_on,
     // check_slots}` (each switch read where the original reads it).
     use crate::scene::forget_slot_texture::forget_slot_texture;
@@ -314,15 +273,11 @@ pub unsafe fn forget_view_textures(r: &mut Regs) -> Result<(), Refused> {
         check_slots(&slots)?;
         w(0x6415F4, 0);
         for (f, bit) in FORGET_ORDER {
-            if let Forget::Changing(v) | Forget::Counted(v) = f {
-                r.esi = blocks[v];
-            }
             let (switch, slot) = source(f);
             if !forgets(switch) {
                 continue;
             }
-            r.eax = k(slot);
-            forget_slot_texture(r.eax)?;
+            forget_slot_texture(k(slot))?;
             w(0x6D1508, k(0x6D1508).wrapping_add(FORGET_COST));
             w(0x6415F4, k(0x6415F4) | bit);
             if let Forget::Counted(v) = f {
@@ -335,38 +290,21 @@ pub unsafe fn forget_view_textures(r: &mut Regs) -> Result<(), Refused> {
         }
         w(0x6415F4, k(0x6415F4) | MIRROR_BIT);
         if !uploaded {
-            crate::race::frame_views::view_textures_part(1, r)?;
-            r.eax = k(0x5D0E08);
-            forget_slot_texture(r.eax)?;
+            copy_mirror_picture()?;
+            forget_slot_texture(k(0x5D0E08))?;
         } else {
-            r.esi = crate::framework::game_addr(rva(0xA12AE4)) as u32;
-            r.eax = k(0x5D0E08);
-            crate::race::frame_views::view_textures_part(2, r)?;
+            // `sub_44E828`, the platform's upload (then the slot forgotten): through the
+            // game, esi the picture, eax the slot (the only registers it reads).
+            let r = &mut Regs {
+                esi: crate::framework::game_addr(rva(0xA12AE4)) as u32,
+                eax: k(0x5D0E08),
+                ..Default::default()
+            };
+            crate::calls::call(rva(0x44E828), r);
         }
         w(0x6D1508, k(0x6D1508).wrapping_add(MIRROR_COST));
         Ok(())
     }
-}
-
-/// `forget_view_textures`' parts in the game: 1 `race::copy_mirror_picture` (with the
-/// platform's lock), 2 `sub_44E828` (the platform's upload, then the slot forgotten).
-pub fn view_textures_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    unsafe {
-        if place == 1 {
-            copy_mirror_picture(r)
-        } else {
-            crate::calls::call(rva(0x44E828), r);
-            Ok(())
-        }
-    }
-}
-
-/// `scene::draw_tinted_quad` with its game parts, for the parts below.
-pub fn tinted_quad_part(_: u32, r: &mut Regs) -> Result<(), Refused> {
-    unsafe {
-        *r = crate::scene::draw_tinted_quad::draw_tinted_quad(r)?;
-    }
-    Ok(())
 }
 
 /// The quad's corners the view window's size from (0, 0).
@@ -377,125 +315,87 @@ fn window_corners() {
     w(0x623E24, k(0x624090));
 }
 
-/// `race::draw_screen_tint` (0x455A11): a tinted quad over the view window (part 1:
-/// `scene::draw_tinted_quad`): with `dword_71C3E0` 0x283080 half through; else the sun's
+/// `race::draw_screen_tint` (0x455A11): a tinted quad over the view window
+/// (`scene::draw_tinted_quad`, which reads no register): with `dword_71C3E0` 0x283080 half through; else the sun's
 /// glare, `dword_6365F4` (held to 0 .. 0xFF) through, colour `dword_60A570` red,
 /// `byte_60A574` green, `byte_60A578` blue, none when 0; `g_sunOnScreen` put back after.
-pub unsafe fn draw_screen_tint(r: &mut Regs) -> Result<(), Refused> {
+pub unsafe fn draw_screen_tint() -> Result<(), Refused> {
     // Converted: `rc2k_core::race::view_steps::{NIGHT_ALPHA, NIGHT_COLOUR, glare_alpha,
     // glare_colour}`.
     use rc2k_core::race::view_steps::{NIGHT_ALPHA, NIGHT_COLOUR, glare_alpha, glare_colour};
     if k(0x71C3E0) != 0 {
         w(0x623DEC, NIGHT_ALPHA);
         window_corners();
-        // eax the window's height, the original's last `mov eax` (corners through eax)
-        r.eax = k(0x624090);
         w(0x623DE8, NIGHT_COLOUR);
-        return crate::race::frame_views::tinted_quad_part(1, r);
+        return unsafe { crate::scene::draw_tinted_quad::draw_tinted_quad() };
     }
     let sun = k(0x6415C4);
     let a = glare_alpha(k(0x6365F4));
-    r.eax = a;
     w(0x623DEC, a);
     let mut done = Ok(());
     if a != 0 {
         window_corners();
         let byte = |x: u32| unsafe { (game_addr(rva(x as usize)) as *const u8).read() };
-        r.eax = glare_colour(k(0x60A570), byte(0x60A574), byte(0x60A578));
-        w(0x623DE8, r.eax);
-        done = crate::race::frame_views::tinted_quad_part(1, r);
+        w(
+            0x623DE8,
+            glare_colour(k(0x60A570), byte(0x60A574), byte(0x60A578)),
+        );
+        done = unsafe { crate::scene::draw_tinted_quad::draw_tinted_quad() };
     }
     w(0x6415C4, sun);
     done
 }
 
 /// `race::clear_view_depth` (0x44E9A0): with the device on (`dword_5CDA8C`) the clip
-/// rectangle (`dword_624138` ..) the whole screen and the depth cleared there (part 1:
-/// `sub_44E9EE`, the platform's `Clear`).
-pub unsafe fn clear_view_depth(
-    r: &mut Regs,
-    part: crate::race::frame::Part,
-) -> Result<(), Refused> {
+/// rectangle (`dword_624138` ..) the whole screen and the depth cleared there
+/// (`d3d::clear_viewport_unless_held`, the platform's `Clear`).
+pub unsafe fn clear_view_depth() {
     if k(0x5CDA8C) == 0 {
-        return Ok(());
+        return;
     }
     w(0x624138, 0);
     w(0x62413C, 0);
-    r.eax = k(WIDTH);
-    r.ebx = k(HEIGHT);
-    w(0x624140, r.eax);
-    w(0x624144, r.ebx);
-    part(1, r)
+    w(0x624140, k(WIDTH));
+    w(0x624144, k(HEIGHT));
+    clear_viewport_unless_held();
 }
 
 /// `race::draw_own_car` (0x455AD3): in a race, when the drawn view's car (`g_drawnCar`) is
 /// seen from inside (+0x6FC bit 0x10): `dword_62DAD4` its +0x240; with +0x900, +0x904 or
-/// `dword_635014` the depth cleared (part 1: `race::clear_view_depth`) and the depth buffer
-/// on (part 2); the car drawn (part 3: `race::draw_car_shined`), all its parts shown
-/// (`dword_606280` -1), texture `dword_5D1E10` (part 4), render state 0x14 = 2 (part 5),
-/// `g_polygonVertexCount` 4, the marks' overlays (part 6: `race::draw_marks_overlays`).
+/// `dword_635014` the depth cleared (`race::clear_view_depth`) and the depth buffer on;
+/// the car drawn (`race::draw_car_shined`), all its parts shown (`dword_606280` -1),
+/// texture `dword_5D1E10`, render state 0x14 = 2, `g_polygonVertexCount` 4, the marks'
+/// overlays (`race::draw_marks_overlays`).
 /// Refuses (before anything) the car without its block.
-pub unsafe fn draw_own_car(r: &mut Regs) -> Result<(), Refused> {
+pub unsafe fn draw_own_car() -> Result<(), Refused> {
     // Converted: `rc2k_core::race::view_steps::{car_number, seen_inside, clears_depth}`.
     use rc2k_core::race::view_steps::{car_number, clears_depth, seen_inside};
     unsafe {
         if k(0x621480) == 0 {
             return Ok(());
         }
-        r.ebx = k(0x63DBA8 + 4 * k(0x63DB9C));
-        let car = k(0x71B3B8 + 4 * car_number(r.ebx));
+        let number = k(0x63DBA8 + 4 * k(0x63DB9C));
+        let car = k(0x71B3B8 + 4 * car_number(number));
         if car == 0 {
             return Err(BadInput("the drawn car without its block").into());
         }
-        w(0x60627C, r.ebx);
-        r.esi = car;
+        w(0x60627C, number);
         let field = |o: u32| ((car + o) as *const u32).read_unaligned();
         if !seen_inside(field(0x6FC)) {
             return Ok(());
         }
-        r.eax = field(0x240);
-        w(0x62DAD4, r.eax);
+        w(0x62DAD4, field(0x240));
         if clears_depth(field(0x900), || field(0x904), || k(0x635014)) {
-            let mut p = *r;
-            crate::race::frame_views::own_car_part(1, &mut p)?;
-            crate::race::frame_views::own_car_part(2, r)?;
+            clear_view_depth();
+            crate::scene::depth_buffer_on::depth_buffer(true);
         }
-        crate::race::frame_views::own_car_part(3, r)?;
+        // `race::draw_car_shined` reads only esi, the car's block.
+        crate::race::car_draw::draw_car_shined(car)?;
         w(0x606280, u32::MAX);
-        r.eax = k(0x5D1E10);
-        crate::race::frame_views::own_car_part(4, r)?;
-        r.eax = 2;
-        r.ebx = 0x14;
-        crate::race::frame_views::own_car_part(5, r)?;
+        crate::scene::set_texture::set_texture(k(0x5D1E10));
+        crate::scene::set_render_state::set_render_state(2, 0x14);
         w(0x6240F8, 4);
-        crate::race::frame_views::own_car_part(6, r)
-    }
-}
-
-/// `draw_own_car`'s parts in the game.
-pub fn own_car_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    unsafe {
-        match place {
-            1 => clear_view_depth(r, &mut |_, r| {
-                clear_viewport_unless_held(r);
-                Ok(())
-            }),
-            2 => {
-                crate::scene::depth_buffer_on::depth_buffer(true);
-                Ok(())
-            }
-            3 => crate::race::car_draw::draw_car_shined(r),
-            4 => {
-                crate::scene::set_texture::set_texture(r.eax);
-                Ok(())
-            }
-            5 => {
-                let (v, s) = (r.eax, r.ebx);
-                crate::scene::set_render_state::set_render_state(v, s);
-                Ok(())
-            }
-            _ => draw_marks_overlays(r),
-        }
+        draw_marks_overlays()
     }
 }
 
@@ -524,7 +424,7 @@ fn int_over_times(i: u32, a: u32, b: u32) -> u32 {
 /// `flt_6416C0[]`, height / `flt_5C5D70` x `flt_6416D4[]`) for `marks::frame_marks` (part 1)
 /// and, unless `dword_6416B8`, `marks::run_frame` (part 2), the centre put back. Refuses
 /// (before anything) a null view block or car record, or no marks settings.
-pub unsafe fn run_view_marks(r: &mut Regs) -> Result<(), Refused> {
+pub unsafe fn run_view_marks() -> Result<(), Refused> {
     // Converted: `rc2k_core::race::view_steps::{check_view_marks, marks_shown,
     // layout_index, first_word}` (the centre's floats the x87's).
     use rc2k_core::race::view_steps::{
@@ -552,13 +452,7 @@ pub unsafe fn run_view_marks(r: &mut Regs) -> Result<(), Refused> {
             game_addr(rva(0x5EA3CC)) as *mut u8,
             0x40,
         );
-        // At the call: eax the layout, ebx the view block, the `rep movsd`'s ecx, esi, edi.
-        r.eax = layout;
-        r.ebx = block;
-        r.ecx = 0;
-        r.esi = block + 0x900;
-        r.edi = game_addr(rva(0x5EA3CC)) as u32 + 0x40;
-        crate::race::frame_views::view_marks_part(1, r)?;
+        crate::drive::share_all_cars::share_all_cars()?;
         let first = first_word(k(0x62389C));
         for b in 0..CAR_RECORDS {
             ((k(0x71B3D8 + 4 * b)) as *mut u32).write_unaligned(first);
@@ -574,13 +468,10 @@ pub unsafe fn run_view_marks(r: &mut Regs) -> Result<(), Refused> {
             0x6240A0,
             int_over_times(k(HEIGHT), k(0x5C5D70), k(0x6416D4 + 4 * n)),
         );
-        // eax the layout's index, ebx the layout, esi the view's car record (the loop's).
-        r.eax = layout_at;
-        r.ebx = n;
-        r.esi = k(0x71B3D8 + 4 * view);
-        let done = crate::race::frame_views::view_marks_part(2, r).and_then(|_| {
+        // Neither reads a register nor leaves one read after it (0x456464, 0x456472).
+        let done = crate::marks::frame_marks::frame_marks().and_then(|_| {
             if k(0x6416B8) == 0 {
-                crate::race::frame_views::view_marks_part(3, r)
+                crate::marks::run_frame::run_frame()
             } else {
                 Ok(())
             }
@@ -591,32 +482,11 @@ pub unsafe fn run_view_marks(r: &mut Regs) -> Result<(), Refused> {
     }
 }
 
-/// `run_view_marks`' parts in the game: 1 `drive::share_all_cars`, 2 `marks::frame_marks`,
-/// 3 `marks::run_frame`.
-pub fn view_marks_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    unsafe {
-        match place {
-            1 => crate::drive::share_all_cars::share_all_cars()?.apply(r),
-            2 => *r = crate::marks::frame_marks::frame_marks(r)?,
-            _ => {
-                *r = crate::marks::run_frame::run_frame(r, &mut crate::marks::run_frame::game_part)?
-            }
-        }
-    }
-    Ok(())
-}
-
-/// `clear_view_depth`'s part in the game: the platform's `Clear` (`sub_44E9EE`).
-pub fn own_car_clear_part(_: u32, r: &mut Regs) -> Result<(), Refused> {
-    clear_viewport_unless_held(r);
-    Ok(())
-}
-
 /// `d3d::clear_viewport_unless_held` (0x44E9EE, was `sub_44E9EE`; ported 2026-10-23, the
 /// game's was called before): `d3d::clear_viewport` (0x44E9D9, the same `Clear` of
-/// `dword_624138` with flag 2) unless `dword_624238` is not 0; eax as that leaves it.
-pub fn clear_viewport_unless_held(r: &mut Regs) {
+/// `dword_624138` with flag 2) unless `dword_624238` is not 0.
+pub fn clear_viewport_unless_held() {
     if unsafe { crate::framework::game_read::<u32>(rva(0x624238)) } == 0 {
-        crate::calls::call(rva(0x44E9D9), r);
+        crate::platform_3d::clear_viewport();
     }
 }

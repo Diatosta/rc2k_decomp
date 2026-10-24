@@ -23,8 +23,8 @@
 //! In:  eax 0 to start, else to run; esi the player (`dword_5BEBEC`)
 //! Out: eax the result; the rest kept (`pusha` / `popa`); no flags read
 //!
-//! Caller: `race::tyre_change` (twice), which calls the Rust version directly. Its calls
-//! by place: 0 `system::tick_count`, 1 `race::draw_tyre_change`, 2 `input_device_read`
+//! Caller: `race::tyre_change` (twice), which calls the Rust version directly and reads
+//! only eax. Its calls: `system::tick_count`, `race::draw_tyre_change`, `input_device_read`
 //! (0x40930D: ecx, edx, eax, ebx the device's +0x4DC .. +0x4E8; inlined).
 //! Refuses (before anything) a player past 7 or a null device.
 //! Shadow mode runs the original alone (it reads the clock and the buttons and keeps its
@@ -38,14 +38,9 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::math::x87::x87;
-use crate::race::frame::Part;
-use rc2k_core::race::tyre_change::{FILL_MS, Gauge, Io, turn};
-
-pub const TICK: u32 = 0;
-pub const DRAW: u32 = 1;
-pub const READ: u32 = 2;
+use rc2k_core::race::tyre_change::{Gauge, Io, turn};
 
 const DEVICES: usize = 0x4F6EE8; // g_inputDevices
 const PLAYER: usize = 0x5BEBEC; // dword_5BEBEC
@@ -108,15 +103,13 @@ pub fn press_time(s: i32) -> i32 {
     out
 }
 
-/// The gauge's dealings with the game: the parts on the working registers (the device in
-/// esi), its state written into the device before each drawing.
-struct GameIo<'a> {
-    w: Regs,
+/// The gauge's dealings with the game: the device's state written into it before each
+/// drawing.
+struct GameIo {
     device: u32,
-    part: Part<'a>,
 }
 
-impl GameIo<'_> {
+impl GameIo {
     fn store(&self, g: &Gauge) {
         unsafe {
             put(self.device + GAUGE, g.gauge);
@@ -126,24 +119,21 @@ impl GameIo<'_> {
     }
 }
 
-impl Io for GameIo<'_> {
+impl Io for GameIo {
     type Error = Refused;
     fn tick(&mut self) -> Result<u32, Refused> {
-        (self.part)(TICK, &mut self.w)?;
-        Ok(self.w.eax)
+        Ok(crate::system::tick_count::tick_count())
     }
     fn pressed(&mut self) -> Result<bool, Refused> {
-        (self.part)(READ, &mut self.w)?;
-        Ok(self.w.ebx & 0xFF != 0)
+        // `input_device_read` (0x40930D, inlined): ebx the device's +0x4E8.
+        Ok(unsafe { get(self.device + 0x4E8) } & 0xFF != 0)
     }
     fn draw(&mut self, g: &Gauge) -> Result<(), Refused> {
         self.store(g);
-        (self.part)(DRAW, &mut self.w)
+        unsafe { crate::race::draw_tyre_change::draw_tyre_change(self.device) }
     }
     fn press_time(&mut self, s: u32) -> u32 {
-        // eax the time as stored.
-        self.w.eax = press_time(s as i32) as u32;
-        self.w.eax
+        press_time(s as i32) as u32
     }
     fn developer(&mut self) -> bool {
         g(DEVELOPER) == 1
@@ -151,22 +141,12 @@ impl Io for GameIo<'_> {
     fn record(&mut self) -> u32 {
         g(RECORD)
     }
-    fn ran(&mut self, gauge: u32, rest: u32) {
-        (self.w.eax, self.w.edx, self.w.ebx) = (gauge, rest, FILL_MS);
-    }
-    fn timed_out(&mut self, elapsed: u32) {
-        self.w.eax = elapsed;
-    }
-    fn timed(&mut self, elapsed: u32, s: u32) {
-        (self.w.eax, self.w.ebx) = (elapsed, s);
-    }
     fn beaten(&mut self, time: u32) {
         p(RECORD, time);
         let from = NAMES[(g(PLAYER) != 0) as usize];
-        self.w.eax = game_addr(rva(from)) as u32;
         unsafe {
             std::ptr::copy(
-                self.w.eax as *const u8,
+                game_addr(rva(from)) as *const u8,
                 game_addr(rva(RECORD_NAME)) as *mut u8,
                 30,
             )
@@ -174,27 +154,19 @@ impl Io for GameIo<'_> {
     }
 }
 
-/// The steps on `r` (eax the result; the rest as at entry).
-pub fn tyre_change_gauge_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
+/// The Rust version: `start` (eax 0) starts the gauge, else runs it, for player `player`
+/// (esi); gives the result (eax; the original keeps the rest).
+pub fn tyre_change_gauge(start: bool, player: u32) -> Result<u32, Refused> {
     // Converted: `rc2k_core::race::tyre_change::turn`.
-    let entry = *r;
-    if entry.esi > 7 {
+    if player > 7 {
         return Err(BadInput("a tyre change player past 7").into());
     }
-    let d = g(DEVICES + 4 * entry.esi as usize);
+    let d = g(DEVICES + 4 * player as usize);
     if d == 0 {
         return Err(BadInput("a tyre change player without a device").into());
     }
-    p(PLAYER, entry.esi);
-    let mut io = GameIo {
-        w: Regs {
-            esi: d,
-            edi: entry.eax,
-            ..entry
-        },
-        device: d,
-        part,
-    };
+    p(PLAYER, player);
+    let mut io = GameIo { device: d };
     let mut gauge = unsafe {
         Gauge {
             gauge: get(d + GAUGE),
@@ -203,36 +175,10 @@ pub fn tyre_change_gauge_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
         }
     };
     let before = gauge;
-    let result = turn(entry.eax == 0, &mut gauge, &mut io)?;
+    let result = turn(start, &mut gauge, &mut io)?;
     if gauge != before {
         io.store(&gauge);
     }
     p(SCRATCH, result);
-    r.eax = result;
-    Ok(())
-}
-
-/// `input_device_read` (0x40930D): the device esi's four readings.
-fn read_device(r: &mut Regs) {
-    unsafe {
-        r.ecx = get(r.esi + 0x4DC);
-        r.edx = get(r.esi + 0x4E0);
-        r.eax = get(r.esi + 0x4E4);
-        r.ebx = get(r.esi + 0x4E8);
-    }
-}
-
-/// The calls in the game: the Rust versions.
-pub fn gauge_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    match place {
-        TICK => r.eax = crate::system::tick_count::tick_count(),
-        DRAW => unsafe {
-            crate::race::draw_tyre_change::draw_tyre_change_in(
-                r,
-                &mut crate::race::draw_tyre_change::draw_part,
-            )?
-        },
-        _ => read_device(r),
-    }
-    Ok(())
+    Ok(result)
 }

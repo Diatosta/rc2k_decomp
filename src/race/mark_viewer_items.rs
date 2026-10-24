@@ -17,11 +17,9 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::race::viewer::{
     BLOCK, BLOCKS, CAMERAS, CLIP_BLOCKS, LAST_RACE_VIEWED, MARK_IN, MARK_OUT, ONE_PLAYER,
-    UNDO_BLOCKS, gb, get, regs_entry,
+    UNDO_BLOCKS, gb, get,
 };
 
 /// The Rust version.
@@ -44,15 +42,4 @@ pub unsafe fn mark_viewer_items(list: u32) {
         let at = (list + 0x18 + 0x10 * item) as *mut u8;
         unsafe { at.write(at.read() | bit) };
     }
-}
-
-fn rust(r: &Regs) -> Result<Regs, Refused> {
-    unsafe { mark_viewer_items(r.edi) };
-    Ok(*r)
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    regs_entry(r, &rust)
 }

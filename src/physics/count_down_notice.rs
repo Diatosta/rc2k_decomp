@@ -9,17 +9,16 @@
 //! Self-test: a copy of the original on test variables, shown or not, times 0, 1, 2,
 //! large.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
-use crate::framework::{Regs, game_addr, rva};
+use crate::framework::{game_addr, rva};
 use crate::physics::cells::{get, put_changed};
 use rc2k_core::physics::notices::Notice;
 
-/// The Rust version on (shown, time) at `v`; `r` as the original leaves it.
+/// The Rust version on (shown, time) at `v`. The registers the original leaves are read by none of its callers (eax).
 // Converted: `rc2k_core::physics::notices::Notice::count_down`.
-pub unsafe fn count_down_at(v: [u32; 2], r: &mut Regs) {
+pub unsafe fn count_down_at(v: [u32; 2]) {
     unsafe {
         let was = Notice {
             shown: get(v[0]),
@@ -27,9 +26,7 @@ pub unsafe fn count_down_at(v: [u32; 2], r: &mut Regs) {
             ..Notice::default()
         };
         let mut n = was;
-        if let Some(eax) = n.count_down() {
-            r.eax = eax;
-        }
+        n.count_down();
         put_changed(v[1], was.time, n.time);
         put_changed(v[0], was.shown, n.shown);
     }
@@ -40,6 +37,6 @@ fn game() -> [u32; 2] {
 }
 
 /// The Rust version.
-pub unsafe fn count_down_notice(r: &mut Regs) {
-    unsafe { count_down_at(game(), r) }
+pub unsafe fn count_down_notice() {
+    unsafe { count_down_at(game()) }
 }

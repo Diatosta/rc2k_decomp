@@ -16,32 +16,28 @@
 //! `gear_bit` on a test dword, gears -1 .. 8, counts 4 .. 7 on several bit patterns;
 //! refusals.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::Refused;
 use crate::framework::{game_addr, rva};
-use crate::physics::flag_result::FlagResult;
 use crate::physics::gear_bit::{GEAR_BITS_RVA, bits_at};
 
 pub const GEAR_COUNT_RVA: usize = rva(0x614C10); // g_gearCount: forward gears
 
 /// The Rust version on the bits at `bits` and the count `count`.
 // Converted: `rc2k_core::physics::gearbox::GearBits::higher_free`.
-pub unsafe fn higher_free_gear_at(bits: u32, count: u32, gear: u32) -> Result<FlagResult, Refused> {
+pub unsafe fn higher_free_gear_at(
+    bits: u32,
+    count: u32,
+    gear: u32,
+) -> Result<Option<u32>, Refused> {
     let s = unsafe { bits_at(bits) }.higher_free(gear, count)?;
-    Ok(FlagResult {
-        eax: s.bit,
-        ecx: Some(s.gear),
-        ebx: None,
-        carry: !s.found,
-        zero: None,
-    })
+    Ok(s.found.then_some(s.gear))
 }
 
 /// The Rust version.
-pub unsafe fn higher_free_gear(gear: u32) -> Result<FlagResult, Refused> {
+pub unsafe fn higher_free_gear(gear: u32) -> Result<Option<u32>, Refused> {
     unsafe {
         higher_free_gear_at(
             game_addr(GEAR_BITS_RVA) as u32,

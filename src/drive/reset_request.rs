@@ -22,9 +22,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::physics::flow::{c0, g, p};
-use crate::physics::reset_parts::RESET_CAR;
 use rc2k_core::drive::controls::{
     RESET_NOTICE, reset_counts, reset_held, reset_penalty, reset_step,
 };
@@ -37,20 +35,18 @@ fn clear_notice() {
     }
 }
 
-/// The Rust version, the reset through `part` (place 15).
+/// The Rust version, then `physics::reset_car`.
 // Converted: `rc2k_core::drive::controls::{reset_counts, reset_held, reset_step, reset_penalty}`.
-pub unsafe fn reset_request(entry: &Regs) -> Result<Regs, Refused> {
-    let mut r = *entry;
+pub unsafe fn reset_request() -> Result<(), Refused> {
     if !reset_counts(g(0x719FEC)) {
-        return Ok(r);
+        return Ok(());
     }
-    r.ebx = g(0x71A440);
-    if !reset_held(r.ebx, g(0x62389C), || c0(g(0x71A19C), g(0x613828))) {
+    if !reset_held(g(0x71A440), g(0x62389C), || c0(g(0x71A19C), g(0x613828))) {
         if g(COUNT) != 0 {
             clear_notice();
             p(COUNT, 0);
         }
-        return Ok(r);
+        return Ok(());
     }
     let (first, count, reset) = reset_step(g(COUNT));
     if first {
@@ -60,11 +56,13 @@ pub unsafe fn reset_request(entry: &Regs) -> Result<Regs, Refused> {
     }
     p(COUNT, count);
     if !reset {
-        return Ok(r);
+        return Ok(());
     }
-    r.eax = reset_penalty(g(0x71A1C0));
-    p(0x71A060, g(0x71A060).wrapping_add(r.eax));
+    p(
+        0x71A060,
+        g(0x71A060).wrapping_add(reset_penalty(g(0x71A1C0))),
+    );
     clear_notice();
-    crate::physics::reset_parts::game_part(RESET_CAR, &mut r)?;
-    Ok(r)
+    unsafe { crate::physics::reset_car::reset_car() }?;
+    Ok(())
 }

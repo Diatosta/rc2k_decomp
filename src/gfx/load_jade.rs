@@ -14,11 +14,9 @@
 
 use crate::errors::{FatalError, Refused};
 use crate::files::read_file::read_file;
-use crate::framework::{Regs, game_addr, game_write, rva};
+use crate::framework::{game_addr, game_write, rva};
 use crate::gfx::components_to_pixel::components_to_pixel;
 use crate::gfx::pixel_format::surface_format;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 // ---- game data ----
 
@@ -43,12 +41,7 @@ pub unsafe fn load_jade(path: *const u8) -> Result<(), Refused> {
     }
 }
 
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { load_jade(game_addr(PATH_RVA) as *const u8) }?;
-    Ok(Left::nothing())
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
+/// The game's `files\d\gfx\jade.bun`.
+pub fn load_jade_in_game() -> Result<(), Refused> {
+    unsafe { load_jade(game_addr(PATH_RVA) as *const u8) }
 }

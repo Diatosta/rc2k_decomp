@@ -18,37 +18,31 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::{Regs, game_write, rva};
-use crate::menu::plain_frame::{COPY_PICTURE, SHOW_FRAME};
-use crate::menu::screen_loop::{Env, Real};
+use crate::errors::Refused;
+use crate::framework::{game_write, rva};
 
-const PREPARE: usize = rva(0x46F7FD); // scene::prepare_menu_scene
-const LOAD_BACKGROUND: usize = rva(0x470F55); // service::load_background
 const ZEROED_RVA: [usize; 2] = [rva(0x623FB0), rva(0x623FB4)]; // dword_623FB0, dword_623FB4
 const SCALE_RVA: usize = rva(0x624080); // dword_624080
 const EDGES_RVA: [usize; 2] = [rva(0x6241DC), rva(0x6241E0)]; // dword_6241DC, dword_6241E0
 const CLIP_RVA: [usize; 2] = [rva(0x6241EC), rva(0x6241F0)]; // g_clipScreenLeft, g_clipScreenRight
 
-/// The Rust version (see the header).
-pub unsafe fn inspection_screen(entry: &Regs, env: &mut dyn Env) {
-    let mut g = *entry;
+/// The Rust version (see the header). Whether the copy and the showing worked is not
+/// looked at (the original's carries are not).
+pub unsafe fn inspection_screen() -> Result<(), Refused> {
     unsafe {
         game_write(ZEROED_RVA[0], 0u32);
         game_write(ZEROED_RVA[1], 0u32);
         game_write(SCALE_RVA, 0x100u32);
-        env.call(PREPARE, &mut g);
+        crate::scene::prepare_menu_scene::prepare_menu_scene();
         game_write(EDGES_RVA[0], 0u32);
         game_write(EDGES_RVA[1], 0x320u32);
         game_write(CLIP_RVA[0], 0.0f32.to_bits());
         game_write(CLIP_RVA[1], 800.0f32.to_bits());
-        for function in [LOAD_BACKGROUND, COPY_PICTURE, SHOW_FRAME] {
-            env.call(function, &mut g);
-        }
+        crate::service::load_background::load_background()?;
+        crate::gfx::copy_picture_to_surface::copy_picture_to_surface(
+            &mut crate::gfx::copy_picture_to_surface::GameSurface,
+        )?;
     }
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    unsafe { inspection_screen(r, &mut Real) };
+    crate::platform::show_frame_now();
     Ok(())
 }

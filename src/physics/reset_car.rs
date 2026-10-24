@@ -15,7 +15,7 @@
 //!
 //! Callers: `physics::reset_when_stuck`, `sub_43A0D3`, `sub_43BDD1`.
 //! Refuses what the calls refuse. Shadow mode runs the original alone
-//! (`physics/reset_parts.rs`).
+//! (its calls then went through `physics/reset_parts.rs`, gone).
 //! Self-test: a copy whose calls go to the stand-ins (place 13's carry by a pattern),
 //! against the Rust version with the same: modes 2 and others, patterns free at once,
 //! after some tries, and never (the log line, a stand-in too); all put back.
@@ -25,8 +25,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
-use crate::physics::reset_parts::{BLOCKED, LOG, ON_LINE, reset_entry};
+use crate::framework::{game_addr, game_read, game_write, rva};
 use rc2k_core::physics::line_places::{RESET_TRIES, reset_offsets};
 
 const LINE_PLACE: usize = rva(0x6365E4); // dword_6365E4
@@ -44,55 +43,43 @@ fn p(a: usize, v: u32) {
     unsafe { game_write(a, v) }
 }
 
-/// One try: the candidate set; true when a block says CF.
-fn blocked(r: &mut Regs) -> Result<bool, Refused> {
-    r.eax = g(LINE_PLACE).wrapping_add(g(OFFSET));
-    p(CANDIDATE, r.eax);
-    for b in BLOCKS {
-        r.esi = game_addr(rva(b)) as u32;
-        crate::physics::reset_parts::game_part(BLOCKED, r)?;
-        if r.carry() {
-            return Ok(true);
-        }
-    }
-    Ok(false)
+/// One try: the candidate set; true when a block is in the way (CF).
+fn blocked() -> bool {
+    p(CANDIDATE, g(LINE_PLACE).wrapping_add(g(OFFSET)));
+    BLOCKS.iter().any(|&b| unsafe {
+        crate::physics::reset_point_blocked::reset_point_blocked(game_addr(rva(b)) as u32)
+    })
 }
 
-/// The Rust version, the calls through `part` (places 13, 14, 6, 16).
+/// The Rust version. The registers it leaves are read by none of its callers.
 // Converted: `rc2k_core::physics::line_places::reset_offsets`.
-pub unsafe fn reset_car(entry: &Regs) -> Result<Regs, Refused> {
-    let mut r = *entry;
-    r.eax = g(rva(0x71A06C));
-    p(LINE_PLACE, r.eax);
+pub unsafe fn reset_car() -> Result<(), Refused> {
+    p(LINE_PLACE, g(rva(0x71A06C)));
     p(rva(0x6365EC), 0);
     if g(rva(0x62389C)) == 2 {
         let mut free = false;
         for offset in reset_offsets() {
             p(OFFSET, offset);
-            if !blocked(&mut r)? {
+            if !blocked() {
                 free = true;
                 break;
             }
         }
         if !free {
             p(OFFSET, RESET_TRIES);
-            let mut l = r;
-            l.eax = game_addr(NOWHERE_TEXT) as u32;
-            crate::physics::reset_parts::game_part(LOG, &mut l)?;
+            // `log_write_l1_nl`.
+            unsafe {
+                crate::logfile::log_write::log_write(game_addr(NOWHERE_TEXT) as *const u8, true, 1)
+            };
             p(STUCK, g(STUCK).wrapping_sub(100));
-            return Ok(r);
+            return Ok(());
         }
-        r.eax = g(CANDIDATE);
-        p(LINE_PLACE, r.eax);
+        p(LINE_PLACE, g(CANDIDATE));
     }
-    crate::physics::reset_parts::game_part(6, &mut r)?;
-    crate::physics::reset_parts::game_part(ON_LINE, &mut r)?;
+    unsafe {
+        crate::race::start_place::place_car_on_line()?;
+        crate::physics::reset_car_on_line::reset_car_on_line()?;
+    }
     p(rva(0x71AF84), 10);
-    Ok(r)
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    reset_entry(r, reset_car)
+    Ok(())
 }

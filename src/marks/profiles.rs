@@ -4,7 +4,7 @@
 //! the course and `allocate_links`, `reset_settings_blocks`.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::math::x87;
 
 pub const RINGS_RVA: usize = rva(0x8DD061); // dword_8DD061, dword_8DD461, then dword_8DD861
@@ -106,11 +106,9 @@ unsafe fn make_tables() {
 /// steps), 8 sines (base + amplitude sin, the angle stepped), 2 curves (top - x² scale),
 /// each table's differences after it (a fourth list is of no tables), the mark `resume`;
 /// then 0x8000 bytes of corners from `g_courseInfo` + 0x1C2000 (twice, as the original),
-/// `allocate_links` (place 2) and `reset_settings_blocks` (place 3). Refuses a mark
-/// that is neither 0 nor `resume` (the original jumps to it). `resume` is `loc_4C3EA6` in
-/// the game, its place in a test's copy.
-pub unsafe fn make_profiles(entry: &Regs, resume: u32) -> Result<Regs, Refused> {
-    let mut g = *entry;
+/// `allocate_links` and `reset_settings_blocks`. Refuses a mark that is neither 0 nor
+/// `resume` (the original jumps to it). `resume` is `loc_4C3EA6`.
+pub unsafe fn make_profiles(resume: u32) -> Result<(), Refused> {
     unsafe {
         let done: u32 = game_read(DONE_RVA);
         if done != 0 && done != resume {
@@ -119,26 +117,18 @@ pub unsafe fn make_profiles(entry: &Regs, resume: u32) -> Result<Regs, Refused> 
         let rings = game_addr(RINGS_RVA) as u32;
         put(rings + 0x800, 0);
         for n in 0..0x100u32 {
-            g.ebx = n.wrapping_sub(1) & 0xFF;
-            g.ecx = (n + 1) & 0xFF;
-            put(rings + 4 * n, g.ebx);
-            put(rings + 0x400 + 4 * n, g.ecx);
+            put(rings + 4 * n, n.wrapping_sub(1) & 0xFF);
+            put(rings + 0x400 + 4 * n, (n + 1) & 0xFF);
         }
-        g.eax = 0x100;
         if done == 0 {
             make_tables();
-            g.esi = game_read::<u32>(CURVES_RVA + 4) + 0x800;
-            g.eax = game_addr(DONE_RVA) as u32;
             game_write(DONE_RVA, resume);
         }
         let from = game_read::<u32>(COURSE_INFO_RVA).wrapping_add(COURSE_CORNERS);
         let to = game_addr(crate::marks::blocks::CORNERS_RVA) as u32;
         std::ptr::copy(from as *const u8, to as *mut u8, CORNERS_LEN);
-        g.esi = from + CORNERS_LEN as u32;
-        g.edi = to + CORNERS_LEN as u32;
-        g.ecx = 0;
-        crate::marks::blocks::game_part(2, &mut g)?;
-        crate::marks::blocks::game_part(3, &mut g)?;
+        crate::marks::blocks::allocate_links()?;
+        crate::marks::blocks::reset_settings_blocks();
     }
-    Ok(g)
+    Ok(())
 }

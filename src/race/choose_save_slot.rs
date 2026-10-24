@@ -17,24 +17,14 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
+use crate::menu::screen_loop::Carried;
 
-/// The Rust version: the registers it leaves.
-pub fn choose_save_slot(entry: &Regs) -> Result<Regs, Refused> {
-    let mut r = *entry;
-    for place in 1..=3 {
-        crate::race::choose_save_slot::game_part(place, &mut r)?;
-    }
-    Ok(r)
-}
-
-/// In the game: the Rust versions.
-pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    use crate::race::{viewer_load_stage as load, viewer_tidy_stage as tidy};
-    *r = match place {
-        1 => tidy::viewer_tidy_stage(r)?,
-        2 => crate::menu::replay_slot_loop::replay_slot_loop(r)?,
-        _ => load::viewer_load_stage(r)?,
-    };
-    Ok(())
+/// The Rust version: the slot chosen (eax; -1 for none). `c` the carried values the
+/// slot screen is run with (`c.arg` non-zero: the saving screen).
+pub fn choose_save_slot(c: &Carried) -> Result<u32, Refused> {
+    // Both keep every register.
+    crate::race::viewer_tidy_stage::viewer_tidy_stage()?;
+    let slot = crate::menu::replay_slot_loop::replay_slot_loop(c)?;
+    crate::race::viewer_load_stage::viewer_load_stage()?;
+    Ok(slot)
 }

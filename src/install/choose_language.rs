@@ -13,12 +13,11 @@
 //! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
+//! are the original's.
 
-use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, rva};
-use crate::install::LOCALE_RVA;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
+use crate::errors::BadInput;
+use crate::framework::{game_addr, game_read, rva};
 use rc2k_core::install::config;
 
 // ---- game data ----
@@ -42,20 +41,9 @@ pub unsafe fn choose_language(number: u32) -> Result<(), BadInput> {
             LANGUAGE_SLOT,
         );
         let directory = config::language_directory(slot)?;
-        let to = game_addr(LOCALE_RVA) as *mut u8;
+        let to = crate::files::state::locale_directory();
         std::ptr::copy(directory.as_ptr(), to, directory.len());
         to.add(directory.len()).write(0);
         Ok(())
     }
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { choose_language(r.eax) }?;
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

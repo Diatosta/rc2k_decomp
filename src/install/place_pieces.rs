@@ -11,36 +11,23 @@
 //! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
+//! are the original's.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::install::installer::{LAYOUT, a, g, rd};
 use crate::install::lay_out_pieces::PIECE;
-use crate::race::viewer::regs_entry;
 
 const TITLE_BOX: usize = 0x51DD98; // unk_51DD98
 
-pub fn place_pieces(entry: &Regs) -> Result<Regs, Refused> {
+pub fn place_pieces() -> Result<(), Refused> {
     let base = a(LAYOUT) + 4;
     let at = |k: u32| base.wrapping_add(PIECE * k);
     // Converted: `rc2k_core::install::layout::rows` (each piece's box read through its item).
     let rows = rc2k_core::install::layout::rows(g(LAYOUT), |k| rd(rd(at(k) + 4) + 4))?;
-    let mut r = *entry;
     for (first, n, the_box) in rows {
         let place = if the_box == 0 { a(TITLE_BOX) } else { the_box };
-        r = crate::install::place_row::place_row(&Regs {
-            eax: the_box,
-            ebx: at(first),
-            ecx: n,
-            esi: place,
-            ..r
-        })?;
+        crate::install::place_row::place_row(at(first), n, place, the_box)?;
     }
-    Ok(*entry)
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    regs_entry(r, &place_pieces)
+    Ok(())
 }

@@ -8,8 +8,7 @@
 //! `flt_6241C8`.
 //!
 //! In:  nothing
-//! Out: eax `dword_82E2A2`, esi `unk_814C7A`, edi `g_polygonVertices`; the rest as the
-//!      device calls leave them
+//! Out: nothing (its caller reads no register after it)
 //!
 //! Caller: `sub_4BC0B1` (0x4BC0BF). The x87 run is the original's instructions over the
 //! game's variables; the device calls through `part` (1 the depth buffer, 2 the texture,
@@ -21,8 +20,7 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::math::x87;
 
 const TEXTURE_RVA: usize = rva(0x5D5A24); // dword_5D5A24
@@ -91,37 +89,26 @@ unsafe fn axes(b: u32) {
     }
 }
 
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn hexagons_setup(entry: &Regs) -> Result<Regs, Refused> {
-    let mut g = *entry;
+/// The Rust version (see the header).
+pub unsafe fn hexagons_setup() {
+    use crate::scene::set_render_state::set_render_state;
     unsafe {
         axes(game_addr(0) as u32);
-        [g.esi, g.edi] = [
-            game_addr(rva(0x814C7A)) as u32,
-            game_addr(rva(0x814C92)) as u32,
-        ];
-        crate::marks::hexagons_setup::game_part(1, &mut g)?;
-        g.eax = game_read(TEXTURE_RVA);
-        crate::marks::hexagons_setup::game_part(2, &mut g)?;
+        crate::scene::depth_buffer_on::depth_buffer(true);
+        crate::scene::set_texture::set_texture(game_read(TEXTURE_RVA));
         for (value, state) in STATES {
-            [g.eax, g.ebx] = [value, state];
-            crate::marks::hexagons_setup::game_part(3, &mut g)?;
+            set_render_state(value, state);
         }
-        g.edi = game_addr(VERTICES_RVA) as u32;
-        g.eax = 0x100;
         for n in 0..6 {
-            game_write(SCRATCH_RVA, g.eax);
-            game_write(
-                VERTICES_RVA + 0x20 * n + 0xC,
-                x87::int_to_float(g.eax as i32),
-            );
+            game_write(SCRATCH_RVA, 0x100u32);
+            game_write(VERTICES_RVA + 0x20 * n + 0xC, x87::int_to_float(0x100));
         }
         for n in 0..6 {
             game_write(VERTICES_RVA + 0x20 * n + 0x10, 0xFFFF_FFFFu32);
             game_write(VERTICES_RVA + 0x20 * n + 0x14, 0xFF00_0000u32);
         }
-        g.eax = game_read(SIDE_RVA);
-        for (n, (u, v)) in [(0, 0), (g.eax, 0), (g.eax, g.eax), (0, g.eax)]
+        let side: u32 = game_read(SIDE_RVA);
+        for (n, (u, v)) in [(0, 0), (side, 0), (side, side), (0, side)]
             .into_iter()
             .enumerate()
         {
@@ -131,25 +118,4 @@ pub unsafe fn hexagons_setup(entry: &Regs) -> Result<Regs, Refused> {
         game_write(COUNT_RVA, 6u32);
         game_write(INVERSE_RVA, x87::reciprocal(game_read(DEPTH_OF_RVA)));
     }
-    Ok(g)
-}
-
-/// In the game: the device calls' Rust versions.
-pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    match place {
-        1 => crate::scene::depth_buffer_on::depth_buffer(true),
-        2 => crate::scene::set_texture::set_texture(r.eax),
-        _ => {
-            let (value, state) = (r.eax, r.ebx);
-            crate::scene::set_render_state::set_render_state(value, state);
-        }
-    }
-    Ok(())
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { hexagons_setup(r) }?;
-    *r = Regs { esp: r.esp, ..left };
-    Ok(())
 }

@@ -13,25 +13,11 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::menu::standings::*;
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 /// The Rust version (see the header): the registers it leaves.
-pub unsafe fn reset_drivers(entry: &Regs) -> Result<Regs, Refused> {
+pub unsafe fn reset_drivers() -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::event::DRIVER_RESET`, stored in each driver.
     driver_table()?.store_all(&rc2k_core::menu::event::DRIVER_RESET);
-    Ok(*entry)
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(left_of(&unsafe { reset_drivers(r) }?))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
+    Ok(())
 }

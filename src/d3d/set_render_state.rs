@@ -10,7 +10,7 @@
 //! the standalone program the value is kept and nothing more, until a renderer is
 //! there. No self-test: there is nothing of ours to compare.
 
-use crate::framework::{Regs, game_write, rva};
+use crate::framework::{game_write, rva};
 
 const KEPT_RVA: usize = rva(0x5AB6BC); // dword_5AB6BC
 /// The states the game uses are all below this.
@@ -21,10 +21,4 @@ pub fn set_render_state(value: u32, state: u32) {
     if state < STATES {
         unsafe { game_write(KEPT_RVA + state as usize * 4, value) };
     }
-}
-
-/// For the typed tables' calls by address: eax the value, ebx the state.
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    set_render_state(r.eax, r.ebx);
-    Ok(())
 }

@@ -93,7 +93,7 @@ pub const SCREEN: Screen = Screen {
         Step::Call(TAKE_KEY),
         Step::Call(TAKE_KEY),
         Step::Call(TAKE_KEY),
-        Step::Eax(0),
+        Step::Arg(0),
         Step::Write(SETUP_LOADED_RVA, 0),
     ],
     set_up_first: &[Step::Write(LEFT_RVA, 0)],

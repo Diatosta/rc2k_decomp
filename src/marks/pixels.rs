@@ -4,7 +4,7 @@
 //! of 0x400 a row (`dword_8445D2`).
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::marks::setup::SEED_RVA;
 use crate::marks::turns::{TURN_RVA, scale_rows3, set_line_turn, turn_pair};
 use crate::math::x87;
@@ -54,19 +54,18 @@ fn next_seed(s: u32) -> u32 {
     s.wrapping_mul(0x9D).wrapping_add(0x47)
 }
 
-/// `marks::map_pixel` (0x4BEFD2): pixel ecx, `dword_833DB6` into `[ebp + 4 ecx]`, two
+/// `marks::map_pixel` (0x4BEFD2): pixel `x`, `dword_833DB6` into `[row + 4 x]`, two
 /// halves (bytes +2, +3, then +0, +1): the turn of the half's line (identity, then
 /// `set_line_turn`, `scale_rows3`); the other line's two ends and the pixel turned into
 /// its frame (`turn_pair`, 80-bit differences); the slope between the ends; the pixel's y
 /// worked out from its x by a shake of the seed (one draw of 0x3FFF, a second of 0xFFFF
 /// when the x is not below the span: `x87::random_step`); turned back
-/// (`set_line_turn_back`), rounded with the line's start added, the low bytes kept. Every
-/// register kept.
-pub unsafe fn map_pixel(entry: &Regs) -> Regs {
+/// (`set_line_turn_back`), rounded with the line's start added, the low bytes kept.
+pub unsafe fn map_pixel(row: u32, x: u32) {
     unsafe {
         let lines = game_addr(LINES_RVA) as u32;
         let f = |o: u32| get(lines + o);
-        game_write(PIXEL_RVA, entry.ecx);
+        game_write(PIXEL_RVA, x);
         let pixel: [u32; 2] = game_read(PIXEL_RVA);
         let turn = game_addr(TURN_RVA[0]) as u32;
         let shake: u32 = game_read(SHAKE_RVA);
@@ -121,15 +120,11 @@ pub unsafe fn map_pixel(entry: &Regs) -> Regs {
             let (qx, qy) = (rounded(q[1]), rounded(q[0]));
             let out = [x87::add_to_int(qx, lx), x87::add_to_int(qy, ly)];
             game_write(WORK_RVA, out);
-            let at = entry
-                .ebp
-                .wrapping_add(entry.ecx.wrapping_mul(4))
-                .wrapping_add(half.bytes);
+            let at = row.wrapping_add(x.wrapping_mul(4)).wrapping_add(half.bytes);
             *(at as *mut u8) = out[0] as u8;
             *((at + 1) as *mut u8) = out[1] as u8;
         }
     }
-    *entry
 }
 
 /// The rows a shape entry may fill: x and length inside 0x100, rows inside 0x80.
@@ -153,22 +148,19 @@ unsafe fn rows_fit(entries: u32, index: u32) -> Result<(), Refused> {
     Ok(())
 }
 
-/// `marks::map_shape_rows` (0x4BE855): entry esi of the list at edi: for each of its rows
-/// (`dword_833DB6` the row, from the table's row in `dword_8445D2`) `flt_8445E2` the row's
-/// squared distance (`x87::int_plus_less_squared`) and `map_pixel` for each of its span's
-/// pixels. Every register kept. Refuses rows or spans outside the 0x100 x 0x80 table,
+/// `marks::map_shape_rows` (0x4BE855): entry `index` of the list at `entries`: for each
+/// of its rows (`dword_833DB6` the row, from the table's row in `dword_8445D2`)
+/// `flt_8445E2` the row's squared distance (`x87::int_plus_less_squared`) and `map_pixel`
+/// for each of its span's pixels. Refuses rows or spans outside the 0x100 x 0x80 table,
 /// before writing.
-pub unsafe fn map_shape_rows(entry: &Regs) -> Result<Regs, Refused> {
+pub unsafe fn map_shape_rows(entries: u32, index: u32) -> Result<(), Refused> {
     unsafe {
-        rows_fit(entry.edi, entry.esi)?;
-        let e = entry.edi.wrapping_add(entry.esi.wrapping_mul(16));
+        rows_fit(entries, index)?;
+        let e = entries.wrapping_add(index.wrapping_mul(16));
         let (spans, row, count) = (get(e), get(e + 4), get(e + 8));
         game_write(PIXEL_RVA + 4, row);
         let table: u32 = game_read(TABLE_RVA);
-        let mut g = Regs {
-            ebp: row.wrapping_mul(0x400).wrapping_add(table),
-            ..*entry
-        };
+        let mut at = row.wrapping_mul(0x400).wrapping_add(table);
         for i in 0..(count as i32).max(0) as u32 {
             let (x, len) = (
                 get(spans.wrapping_add(8 * i)),
@@ -183,36 +175,30 @@ pub unsafe fn map_shape_rows(entry: &Regs) -> Result<Regs, Refused> {
                     game_read(ROW_LESS_RVA),
                 ),
             );
-            g.ecx = x;
-            for _ in 0..(len as i32).max(0) {
-                map_pixel(&g);
-                g.ecx = g.ecx.wrapping_add(1);
+            for n in 0..(len as i32).max(0) as u32 {
+                map_pixel(at, x.wrapping_add(n));
             }
             game_write(PIXEL_RVA + 4, y.wrapping_add(1));
-            g.ebp = g.ebp.wrapping_add(0x400);
+            at = at.wrapping_add(0x400);
         }
     }
-    Ok(*entry)
+    Ok(())
 }
 
-/// `marks::map_shape` (0x4BE83E): shape esi of the shapes at ebp: `g_marksMaskValue` esi,
-/// its two entries (2 esi, 2 esi + 1) of the rows at +8 mapped (`map_shape_rows`). Leaves
-/// esi 2 esi + 1, edi +8's list. Refuses as `map_shape_rows`, before writing.
-pub unsafe fn map_shape(entry: &Regs) -> Result<Regs, Refused> {
-    let mut g = *entry;
+/// `marks::map_shape` (0x4BE83E): shape `shape` of the shapes at `shapes`:
+/// `g_marksMaskValue` the shape, its two entries (2 n, 2 n + 1) of the rows at +8 mapped
+/// (`map_shape_rows`). Refuses as `map_shape_rows`, before writing.
+pub unsafe fn map_shape(shapes: u32, shape: u32) -> Result<(), Refused> {
     unsafe {
-        let entries = get(g.ebp.wrapping_add(8));
-        let first = g.esi.wrapping_add(g.esi);
+        let entries = get(shapes.wrapping_add(8));
+        let first = shape.wrapping_add(shape);
         rows_fit(entries, first)?;
         rows_fit(entries, first.wrapping_add(1))?;
-        game_write(crate::marks::masks::VALUE_RVA, g.esi);
-        g.edi = entries;
-        g.esi = first;
-        g = map_shape_rows(&g)?;
-        g.esi = g.esi.wrapping_add(1);
-        g = map_shape_rows(&g)?;
+        game_write(crate::marks::masks::VALUE_RVA, shape);
+        map_shape_rows(entries, first)?;
+        map_shape_rows(entries, first.wrapping_add(1))?;
     }
-    Ok(g)
+    Ok(())
 }
 
 const MAPPED_RVA: [usize; 3] = [rva(0x844E10), rva(0x844E18), rva(0x844E1C)]; // shapes, table, corners
@@ -231,16 +217,13 @@ const LINE_FROM: [(u32, u32); 8] = [
 ];
 
 /// `marks::map_shapes` (0x4BE752): with the x87 rounding toward zero (its word put back
-/// after), the table at esi (0x8000 dwords) cleared and made `g_marksPixelTable`, the
-/// corner table edi kept, the shapes' middle (+0xC, +0x10) into 0x8445D6; for each of the
-/// +4 shapes at ebp the line pair from corner entries k and k + 1 into `g_marksLines` and
-/// `map_shape`. Leaves eax the count, ecx 0, esi and edi as the last shape leaves them.
-/// Refuses a count of 0 or less or past 0x80 (its loop tests after counting), and rows or
-/// spans outside the table, before writing.
-pub unsafe fn map_shapes(entry: &Regs) -> Result<Regs, Refused> {
-    let mut g = *entry;
+/// after), the table at `table` (0x8000 dwords) cleared and made `g_marksPixelTable`, the
+/// corner table `corners` kept, the shapes' middle (+0xC, +0x10) into 0x8445D6; for each
+/// of the +4 shapes at `shapes` the line pair from corner entries k and k + 1 into
+/// `g_marksLines` and `map_shape`. Refuses a count of 0 or less or past 0x80 (its loop
+/// tests after counting), and rows or spans outside the table, before writing.
+pub unsafe fn map_shapes(shapes: u32, table: u32, corners: u32) -> Result<(), Refused> {
     unsafe {
-        let shapes = g.ebp;
         let count = get(shapes + 4) as i32;
         if count <= 0 || count > 0x80 {
             return Err(BadInput("no shapes to map, or more than 0x80").into());
@@ -252,10 +235,9 @@ pub unsafe fn map_shapes(entry: &Regs) -> Result<Regs, Refused> {
         let came = x87::control_word();
         x87::set_control_word((came & 0xF3FF) | 0xC00);
         game_write(MAPPED_RVA[0], shapes);
-        game_write(MAPPED_RVA[1], g.esi);
-        game_write(MAPPED_RVA[2], g.edi);
-        std::ptr::write_bytes(g.esi as *mut u8, 0, 0x2_0000);
-        g.ecx = 0;
+        game_write(MAPPED_RVA[1], table);
+        game_write(MAPPED_RVA[2], corners);
+        std::ptr::write_bytes(table as *mut u8, 0, 0x2_0000);
         game_write(TABLE_RVA, game_read::<u32>(MAPPED_RVA[1]));
         let corners: u32 = game_read(MAPPED_RVA[2]);
         game_write(CORNER_TABLE_RVA, corners);
@@ -272,13 +254,9 @@ pub unsafe fn map_shapes(entry: &Regs) -> Result<Regs, Refused> {
             for (to, from) in LINE_FROM {
                 ((lines + to) as *mut u32).write_unaligned(get(e + from));
             }
-            g.esi = k;
-            g.ebp = shapes;
-            g = map_shape(&g)?;
-            g.eax = k + 1;
+            map_shape(shapes, k)?;
         }
-        g.ebp = shapes;
         x87::set_control_word(came);
     }
-    Ok(g)
+    Ok(())
 }

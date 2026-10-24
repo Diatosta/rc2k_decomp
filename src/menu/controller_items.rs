@@ -24,7 +24,7 @@
 //! first input device record; for `raise_controller_sensitivity` an edi below 0x10000.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{EAX, EBX, EDI, Regs, game_read, rva};
+use crate::framework::{EAX, EBX, EDI, game_read, rva};
 use crate::input::request_device_release::request_device_release;
 use crate::input::request_device_setup::{DEVICES_RVA, request_device_setup};
 use crate::menu::player_settings::current;
@@ -148,11 +148,6 @@ pub fn raise_dead_zone(offset: u32) -> Result<(u32, u32, u32), Refused> {
         w(p, offset, value);
     }
     Ok((value, room, p))
-}
-
-/// `dispatch_item` without its hook (typed tables).
-pub fn item_entry(r: &mut Regs, rust: crate::service::harness::Rust) -> Result<(), Refused> {
-    crate::service::harness::state_entry(r, rust)
 }
 
 /// What `raise_dead_zone_a` leaves.

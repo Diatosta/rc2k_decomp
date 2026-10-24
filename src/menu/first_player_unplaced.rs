@@ -14,26 +14,23 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::menu::standings::*;
 
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn first_player_unplaced(entry: &Regs) -> Result<Regs, Refused> {
+/// The first player of any group in the table from `from` (edi); its `computers` is the
+/// player's number (ecx = the entry's +4). The caller's ebx is kept.
+pub unsafe fn first_player_unplaced(from: u32) -> Result<Found, Refused> {
     // Converted: `rc2k_core::menu::standings::first_player` (any group), ecx the player.
     let found = crate::menu::standings::first_player(
-        &Regs {
-            ebx: rc2k_core::menu::standings::ANY_GROUP,
-            ..*entry
-        },
+        from,
+        rc2k_core::menu::standings::ANY_GROUP,
         B_ENTRY,
         0x10,
         0x70,
         0x8070A0AE,
         "Unable to locate player (find1stplayerinochamp)",
     )?;
-    Ok(Regs {
-        ecx: get(found.edi + 4),
-        ebx: entry.ebx,
+    Ok(Found {
+        computers: get(found.entry + 4),
         ..found
     })
 }

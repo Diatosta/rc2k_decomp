@@ -9,7 +9,7 @@
 //! empty time in `flt_765118`, and `scene::depth_test_on`.
 //!
 //! In:  nothing
-//! Out: the registers as `depth_test_on` leaves them
+//! Out: nothing (no caller reads a register it leaves)
 //!
 //! Its calls through `part` (places 1 .. 5, those five), in the game their Rust versions.
 //! Refuses (before anything) a null `g_courseInfo`, and `cars_particles`' refusals (what it
@@ -22,7 +22,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::math::x87;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
@@ -49,17 +49,14 @@ const TIMES: [(usize, usize); 2] = [
     (rva(0x91FF9E), rva(0x765118)),
 ];
 
-/// A call by place: 1 `cars_particles`, 2 `view_heading`, 3 `view_motion`, 4
-/// `begin_quads`, 5 `depth_test_on`.
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
 fn rdtsc() -> u32 {
     unsafe { core::arch::x86::_rdtsc() as u32 }
 }
 
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn draw_frame(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    let mut g = *entry;
+/// The Rust version (see the header): `cars_particles`, `view_heading`, `view_motion`,
+/// `begin_quads`, `scene::depth_test_on`.
+pub unsafe fn draw_frame() -> Result<(), Refused> {
+    use crate::marks::{begin_quads, cars_particles, view_heading, view_motion};
     unsafe {
         let info: u32 = game_read(COURSE_INFO_RVA);
         if info == 0 {
@@ -72,27 +69,25 @@ pub unsafe fn draw_frame(entry: &Regs, part: Part) -> Result<Regs, Refused> {
             for (k, v) in turned.iter().enumerate() {
                 game_write(to + 4 * k, rounded(*v));
             }
-            g.esi = m;
         }
-        g.esi = info + CORNERS_FROM;
-        g.edi = game_addr(CORNERS_RVA) as u32;
-        std::ptr::copy(g.esi as *const u8, g.edi as *mut u8, CORNERS_LEN as usize);
-        g.esi += CORNERS_LEN;
-        g.edi += CORNERS_LEN;
-        g.ecx = 0;
-        g.eax = game_read(SOURCE_RVA);
-        if g.eax != game_read::<u32>(LAST_SOURCE_RVA) {
+        std::ptr::copy(
+            (info + CORNERS_FROM) as *const u8,
+            game_addr(CORNERS_RVA) as *mut u8,
+            CORNERS_LEN as usize,
+        );
+        let source: u32 = game_read(SOURCE_RVA);
+        if source != game_read::<u32>(LAST_SOURCE_RVA) {
             game_write(STEP_RVA, game_read::<u32>(STEP_RVA).wrapping_add(1) & 7);
         }
-        game_write(LAST_SOURCE_RVA, g.eax);
-        game_write(SOUND_RVA[0], g.eax);
+        game_write(LAST_SOURCE_RVA, source);
+        game_write(SOUND_RVA[0], source);
         game_write(SOUND_RVA[1], 0u32);
         game_write(CLEARED_RVA, 0u32);
-        for place in 1..=3 {
-            part(place, &mut g)?;
-        }
+        cars_particles::cars_particles()?;
+        view_heading::view_heading();
+        view_motion::view_motion();
         let start = rdtsc();
-        part(4, &mut g)?;
+        begin_quads::begin_quads();
         let frame: i32 = game_read(FRAME_CYCLES_RVA);
         let took = rdtsc().wrapping_sub(start) as i32;
         game_write(
@@ -105,30 +100,7 @@ pub unsafe fn draw_frame(entry: &Regs, part: Part) -> Result<Regs, Refused> {
             TIMES[1].1,
             x87::int_over_int_times(took, frame, game_read(TIMES[1].0)),
         );
-        part(5, &mut g)?;
-    }
-    Ok(g)
-}
-
-/// In the game: the calls' Rust versions.
-pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    use crate::marks::{begin_quads, cars_particles, view_heading, view_motion};
-    unsafe {
-        let left = match place {
-            1 => cars_particles::cars_particles(r)?,
-            2 => view_heading::view_heading(r),
-            3 => view_motion::view_motion(r),
-            4 => begin_quads::begin_quads(r)?,
-            _ => {
-                crate::scene::depth_test_on::depth_test_on();
-                return Ok(());
-            }
-        };
-        *r = Regs {
-            esp: r.esp,
-            eflags: r.eflags,
-            ..left
-        };
+        crate::scene::depth_test_on::depth_test_on();
     }
     Ok(())
 }

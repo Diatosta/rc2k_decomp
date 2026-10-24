@@ -1,10 +1,9 @@
 //! Small float steps of `make_masks`' tree (IDA, 2026-10-17): the 2 x 2 turn a line gives,
 //! three rows scaled to set lengths, and two cosine-eased steps.
 
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::math::x87;
 use crate::math::x87::x87;
-use crate::service::harness::{Region, at};
 
 /// The 2 x 2 turn: `flt_82E396`, `flt_82E39A`, `flt_82E3A2`, `flt_82E3A6`.
 pub const TURN_RVA: [usize; 4] = [rva(0x82E396), rva(0x82E39A), rva(0x82E3A2), rva(0x82E3A6)];
@@ -49,22 +48,18 @@ pub unsafe fn scale_rows3(rows: u32) {
     }
 }
 
-/// `marks::smooth_steps` (0x4BE928): from a (ebx) to b (ecx) as floats, step eax: t (b -
-/// a) times `flt_89C9C0` (a float), then ecx a + t - t cos(pi (eax + 1) / `dword_89C9C4`)
-/// and ebx the same with eax over `dword_89C9C8`. `dword_764F40` and `dword_71C880` left
-/// holding a. eax kept.
-pub unsafe fn smooth_steps(entry: &Regs) -> Regs {
-    let mut g = *entry;
+/// `marks::smooth_steps` (0x4BE928): from a to b as floats, step n: t (b - a) times
+/// `flt_89C9C0` (a float), then the first result (the original's ecx) a + t - t
+/// cos(pi (n plus 1) / `dword_89C9C4`) and the second (its ebx) the same with n over `dword_89C9C8`.
+/// `dword_764F40` and `dword_71C880` left holding a.
+pub unsafe fn smooth_steps(n: u32, a: u32, b: u32) -> (u32, u32) {
     unsafe {
-        let a = g.ebx;
-        (g.ecx, g.ebx) = smooth_pair(g.eax, g.ebx, g.ecx);
         for r in SCRATCH_RVA {
             game_write(r, a);
         }
     }
-    g
+    smooth_pair(n, a, b)
 }
-
 /// `smooth_steps`' two results (ecx, ebx) from step n, a and b, writing nothing.
 pub fn smooth_pair(n: u32, a: u32, b: u32) -> (u32, u32) {
     unsafe {
@@ -75,10 +70,6 @@ pub fn smooth_pair(n: u32, a: u32, b: u32) -> (u32, u32) {
             x87::cosine_step(steps[1], n as i32, t, a),
         )
     }
-}
-
-pub fn step_regions() -> Vec<Region> {
-    SCRATCH_RVA.iter().map(|&r| at(r)).collect()
 }
 
 /// `marks::turn_pair` (0x4BF409): st(0) a, st(1) b turned by `g_marksLineTurn` (m0 .. m3):
@@ -126,68 +117,14 @@ fn int_over_80(v: i32, k: *const u32) -> [u8; 10] {
     out
 }
 
-/// `marks::clamp_pair` (0x4BEF22): st(0) times `flt_89C9FC` rounded into ebx, st(1) times
-/// `flt_89CA00` into eax; eax held to 0 .. 0xFFFF and ebx to 0 .. 0x7FFF; then st(1) eax
-/// over `flt_89CA04` and st(0) ebx over `flt_89CA08`, unrounded.
-pub unsafe fn clamp_pair(entry: &Regs, inputs: [[u8; 10]; 2]) -> (Regs, [[u8; 10]; 2]) {
-    let mut g = *entry;
+/// `marks::clamp_pair` (0x4BEF22): st(0) times `flt_89C9FC` rounded (b), st(1) times
+/// `flt_89CA00` (a); a held to 0 .. 0xFFFF and b to 0 .. 0x7FFF; then st(1) a over
+/// `flt_89CA04` and st(0) b over `flt_89CA08`, unrounded.
+pub unsafe fn clamp_pair(inputs: [[u8; 10]; 2]) -> [[u8; 10]; 2] {
     let k = game_addr(PAIR_SCALES_RVA) as *const u32;
     let (b, a) = scaled_ints(&inputs, k);
-    g.ebx = b.clamp(0, 0x7FFF) as u32;
-    g.eax = a.clamp(0, 0xFFFF) as u32;
-    let outputs = unsafe {
-        [
-            int_over_80(g.ebx as i32, k.add(3)),
-            int_over_80(g.eax as i32, k.add(2)),
-        ]
-    };
-    (g, outputs)
+    let b = b.clamp(0, 0x7FFF);
+    let a = a.clamp(0, 0xFFFF);
+    unsafe { [int_over_80(b, k.add(3)), int_over_80(a, k.add(2))] }
 }
-
 // ---- the converted versions (`rc2k_core::marks::turns`) ----
-
-/// The converted `set_line_turn` / `set_line_turn_back` (plain floats): the hooks'.
-// Converted: `rc2k_core::marks::turns::line_turn`
-pub unsafe fn set_line_turn_plain(line: u32, back: bool) {
-    use rc2k_core::marks::turns::{LINE_TURN_ORDER, line_turn};
-    let f = |o: u32| f32::from_bits(unsafe { get(line + o) });
-    let m = line_turn([f(0), f(4)], [f(0xC), f(0x10)], back);
-    for n in LINE_TURN_ORDER {
-        unsafe { game_write(TURN_RVA[n], m[n].to_bits()) };
-    }
-}
-
-/// The converted `scale_rows3` (plain floats): the hook's.
-// Converted: `rc2k_core::marks::turns::scale_rows`
-pub unsafe fn scale_rows3_plain(rows: u32) {
-    use crate::scene::vector3::{read_floats, write_floats};
-    unsafe {
-        let r: [[f32; 3]; 3] = std::array::from_fn(|n| read_floats(rows + 12 * n as u32));
-        let lengths: [u32; 3] = game_read(LENGTHS_RVA);
-        let made = rc2k_core::marks::turns::scale_rows(r, lengths.map(f32::from_bits));
-        write_floats(rows, made.as_flattened());
-    }
-}
-
-/// The converted `smooth_steps` (plain floats): the hook's.
-// Converted: `rc2k_core::marks::turns::smooth_pair`
-pub unsafe fn smooth_steps_plain(entry: &Regs) -> Regs {
-    let mut g = *entry;
-    unsafe {
-        let a = g.ebx;
-        let ease: u32 = game_read(EASE_RVA);
-        let steps: [i32; 2] = STEPS_RVA.map(|r| game_read(r));
-        let (c, b) = rc2k_core::marks::turns::smooth_pair(
-            g.eax,
-            f32::from_bits(g.ebx),
-            f32::from_bits(g.ecx),
-            f32::from_bits(ease),
-            steps,
-        );
-        (g.ecx, g.ebx) = (c.to_bits(), b.to_bits());
-        for r in SCRATCH_RVA {
-            game_write(r, a);
-        }
-    }
-    g
-}

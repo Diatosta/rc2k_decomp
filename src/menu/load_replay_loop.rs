@@ -17,17 +17,19 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::{Regs, game_read, game_write, rva};
-use crate::menu::screen_loop::{Env, List, Screen, Step};
+use crate::errors::Refused;
+use crate::framework::{game_read, game_write, rva};
+use crate::menu::screen_loop::{Carried, List, Screen, Step};
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
-unsafe fn before(g: &mut Regs, _env: &mut dyn Env) {
+unsafe fn before(c: &mut Carried) -> Result<(), Refused> {
     unsafe {
-        g.ecx = game_read(rva(0x747824));
-        game_write(rva(0x747688), g.ecx);
+        c.measure_x = game_read(rva(0x747824));
+        game_write(rva(0x747688), c.measure_x);
         game_write(rva(0x755A3C), 0x0u32);
     }
+    Ok(())
 }
 
 /// What the loop returns in eax, written by hand from the end of the listing (after the
@@ -95,7 +97,7 @@ pub const SCREEN: Screen = Screen {
     prepare: &[],
     after_lists: &[],
     background: &[
-        Step::EaxAddr(rva(0x731EF5)),
+        Step::ArgAddr(rva(0x731EF5)),
         Step::CallOrFatal(rva(0x47EFFF), 0x80712345),
     ],
     after_first_frame: &[],

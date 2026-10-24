@@ -10,24 +10,10 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::{Regs, game_write, rva};
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
+use crate::framework::{game_write, rva};
 
 const CONTROLS_RVA: usize = rva(0x4F7DE4); // dword_4F7DE4
 
 pub fn create_controls() {
     unsafe { game_write(CONTROLS_RVA, 3u32) };
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    create_controls();
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

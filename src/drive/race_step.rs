@@ -16,24 +16,20 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::physics::flow::g;
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
 
-/// The Rust version.
+/// The Rust version. The registers it leaves are read by no caller (liveness: edi, edx
+/// and esi after `drive::race_loop`'s call have no read point but the false ones of
+/// `imul` and the physics; `race::play_movie_loop` has only DF live after it).
 // Converted: `rc2k_core::drive::race_ticks::run_ticks`.
-pub unsafe fn race_step(entry: &Regs) -> Result<Left, Refused> {
-    let mut r = *entry;
-    unsafe { crate::drive::race_clock_tick::race_clock_tick() }.apply(&mut r);
+pub unsafe fn race_step() -> Result<(), Refused> {
+    unsafe { crate::drive::race_clock_tick::race_clock_tick() };
     if g(0x6138F8) == 0 {
-        r.ecx = rc2k_core::drive::race_ticks::run_ticks(g(0x613844), |ecx| {
-            r.ecx = ecx;
-            unsafe { crate::drive::race_tick::race_tick(&r) }?.apply(&mut r);
-            r.ecx = ecx;
-            let out = crate::drive::race_parts::players_all_out(&mut r)?;
-            Ok::<_, Refused>((out, r.ecx))
+        rc2k_core::drive::race_ticks::run_ticks(g(0x613844), |ecx| {
+            unsafe { crate::drive::race_tick::race_tick() }?;
+            let out = unsafe { crate::race::frame::players_all_out() }?;
+            Ok::<_, Refused>((out, ecx))
         })?;
     }
-    Ok(left_of(&r))
+    Ok(())
 }

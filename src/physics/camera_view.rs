@@ -8,7 +8,6 @@
 //! camera's mode, place, turns, a view's figures) is a reading.
 
 use crate::physics::flow::{base, g, p, x87_run};
-use rc2k_core::physics::camera_view as view;
 
 /// `off_606320`: the camera modes' records (0x34).
 pub const MODES: usize = 0x606320;
@@ -40,9 +39,4 @@ pub fn share_done(record: u32) -> u32 {
         b = base(), s = record
     );
     eax
-}
-
-/// esi as the original leaves it, through the core's `mode_index`.
-pub fn record_plain() -> u32 {
-    g(MODES + 4 * view::mode_index(g(0x71A65C)) as usize)
 }

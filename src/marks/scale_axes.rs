@@ -1,7 +1,7 @@
 //! `marks::scale_axes` (0x4BFD73): the two axes at `flt_89CF1A` and `flt_89CF26` scaled: by `flt_89CECA` into `flt_89CF3E` / `flt_89CF4A`, by `flt_89CEEE` / `flt_89CEF2` and the per-part factors `flt_8BC1DE` .. into `flt_89CF6E` / `flt_89CF7A`, and the first two times `flt_8BC1F6` .. into `flt_89CF56` / `flt_89CF62`.
 //!
 //! In:  nothing
-//! Out: the registers as its `lea`s leave them; the rest kept
+//! Out: nothing (no caller reads a register after it)
 //!
 //! Callers: 0x4bf75e, 0x4c90b3. The original's instructions over the game's variables (register
 //! forms as their bytes). Self-test: the original and the Rust version on test floats in
@@ -16,11 +16,10 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::{Regs, game_addr, rva};
+use crate::framework::game_addr;
 
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn scale_axes(entry: &Regs) -> Regs {
-    let mut g = *entry;
+/// The Rust version (see the header).
+pub unsafe fn scale_axes() {
     unsafe {
         core::arch::asm!(
             "fld dword ptr [{b} + 0x49CF1A]",
@@ -88,8 +87,5 @@ pub unsafe fn scale_axes(entry: &Regs) -> Regs {
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
             options(nostack),
         );
-        g.edi = game_addr(rva(0x89CF62)) as u32;
-        g.esi = game_addr(rva(0x89CF4A)) as u32;
     }
-    g
 }

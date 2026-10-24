@@ -11,21 +11,17 @@
 //! Self-test: `physics/camera_view.rs` (`view_test_floats`), modes and figures by lot,
 //! exact at double precision.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
-use crate::framework::{EAX, ESI, Regs};
 use crate::physics::camera_view::{rd, record};
 use crate::physics::flow::{base, g, hold_high, hold_low, p, x87_run};
-use crate::screens::harness::Left;
 
 /// The Rust version (the exact one, for `physics::update_camera`).
-pub unsafe fn camera_height_bias(_: &Regs) -> Left {
+pub unsafe fn camera_height_bias() {
     let esi = record();
-    let left = Left::nothing().with(ESI, esi);
     if rd(esi + 0x54) == 0 {
-        return left;
+        return;
     }
     x87_run!(
         "fld dword ptr [{b} + 0x20631C]",
@@ -53,5 +49,4 @@ pub unsafe fn camera_height_bias(_: &Regs) -> Left {
     let eax = g(0x62400C);
     p(0x606288, eax);
     p(0x71A680, g(0x71A680).wrapping_add(eax));
-    left.with(EAX, eax)
 }

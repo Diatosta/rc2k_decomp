@@ -19,8 +19,8 @@
 //! (`dword_52AD80` 0). The game closing ends it with -1.
 //!
 //! In:  nothing
-//! Out: eax = 1 (the race), -1 (left); carry set if negative (else the flags of
-//!      `test eax, eax`); the rest kept (`pusha` .. `popa`)
+//! Out: 1 (the race), -1 (left); the original also sets the carry if negative (else the
+//!      flags of `test eax, eax`); the rest kept (`pusha` .. `popa`)
 //! A failed listing would give -2, but `net::list_players_regs` never comes back with the
 //! carry (section 16). Caller: `net::start_link`. Its calls through `part` (the frames
 //! through the game). The whole screen runs inside it: ungated. Shadow mode runs the
@@ -33,44 +33,19 @@
 
 use crate::errors::Refused;
 use crate::field;
-use crate::framework::Regs;
-use crate::net::choose_connection::chosen;
 use crate::net::lobby::{
-    ALL_RACED, BACK_FROM_RACE, BLOCK, CAR_ITEM, CHOICE, CLOCK, CLOCK_A, EDITED, FRAME_CLOCK,
-    KEY_CLOCK, LIST_TAKE_KEY, MAYBE_LEXICON, MOVE_CLOCK, OWN, PLAYER, PLAYERS, Part, QUITTING,
-    RACING, RUN_FRAME, SCREENSHOT, SCREENSHOTS_ON, SEND, SEND_BUFFER, SHOW_GAPS, STAGE_ITEM, SYNC,
-    SYNC_CLOCK, SYNC_FIRST, SYNCED, TICK, a, block, g, game, gb, lobby_entry, p, pb,
+    ALL_RACED, BACK_FROM_RACE, CAR_ITEM, CHOICE, CLOCK, CLOCK_A, EDITED, FRAME_CLOCK, KEY_CLOCK,
+    MOVE_CLOCK, OWN, PLAYER, PLAYERS, QUITTING, RACING, SEND_BUFFER, SHOW_GAPS, STAGE_ITEM, SYNC,
+    SYNC_CLOCK, SYNC_FIRST, SYNCED, a, block, g, gb, list_key, other_key, p, pb, run_frame,
 };
 use crate::net::types::NetPlayerBlock;
 
-const SHOW_BACKGROUND: u32 = 0x4173E7; // net::show_background
-const FRAME: u32 = 0x417D95; // net::lobby_frame
-const LIST_PLAYERS: u32 = 0x417A03; // net::list_players_regs
-const CHAT_KEY: u32 = 0x4180E4; // net::chat_key
-const CHOOSE_CAR: u32 = 0x4182FA; // net::choose_car
-const CHOOSE_STAGE: u32 = 0x418347; // net::choose_stage
-const BEGIN_CHAT: u32 = 0x4180C5; // net::begin_chat
-
 /// The players' states and-ed together (those with bit 0x80 left out), starting from
 /// `bits`, as the original's al: over `count` players (at least one turn: `count` > 0).
-pub fn all_states(r: &mut Regs, bits: u8, count: u32) -> u8 {
+pub fn all_states(bits: u8, count: u32) -> u8 {
     let state = |n: u32| gb_at(block(n) + field!(NetPlayerBlock, record.state));
-    // Converted: `rc2k_core::net::players::all_in_state`; the registers as the loop leaves
-    // them (ah the last player's state, again read).
-    let al = rc2k_core::net::players::all_in_state(bits, count, state);
-    let ah = state(count.wrapping_sub(1));
-    r.eax = r.eax & !0xFFFF | (ah as u32) << 8 | al as u32;
-    r.ebx = block(0).wrapping_add(BLOCK.wrapping_mul(count));
-    r.ecx = 0;
-    al
-}
-
-/// `mov al, bits; lea ebx, g_netReceived; mov ecx, g_netPlayers`: the registers before the
-/// count is looked at.
-pub fn states_start(r: &mut Regs, bits: u8) {
-    r.eax = r.eax & !0xFF | bits as u32;
-    r.ebx = block(0);
-    r.ecx = g(PLAYERS);
+    // Converted: `rc2k_core::net::players::all_in_state`.
+    rc2k_core::net::players::all_in_state(bits, count, state)
 }
 
 fn gb_at(at: u32) -> u8 {
@@ -80,56 +55,45 @@ fn gb_at(at: u32) -> u8 {
 /// The sync with the other players (the host's): the table cleared the first time (this
 /// player answered), once a second message `kind` and the sync counter sent to each player
 /// that has not answered; true when all have. Shared with `net::race_wait`.
-pub fn sync(r: &mut Regs, kind: u8, part: Part) -> Result<bool, Refused> {
-    r.eax = g(SYNC_FIRST);
+pub fn sync(kind: u8) -> Result<bool, Refused> {
+    let first = g(SYNC_FIRST);
     p(SYNC_FIRST, 0);
-    if r.eax != 0 {
-        r.eax = 0;
-        r.ecx = 0;
+    if first != 0 {
         unsafe { std::ptr::write_bytes(a(SYNCED) as *mut u8, 0, 8) };
-        r.eax = g(PLAYER);
-        pb(SYNCED + r.eax as usize, 1);
+        pb(SYNCED + g(PLAYER) as usize, 1);
     }
-    part(TICK, r)?;
-    r.ebx = r.eax;
-    r.eax = r.eax.wrapping_sub(g(SYNC_CLOCK));
-    if (r.eax.wrapping_sub(1000) as i32) >= 0 {
-        p(SYNC_CLOCK, r.ebx);
-        r.ebx = block(0);
-        r.ecx = 0;
+    let now = crate::system::tick_count::tick_count();
+    if (now.wrapping_sub(g(SYNC_CLOCK)).wrapping_sub(1000) as i32) >= 0 {
+        p(SYNC_CLOCK, now);
+        // Counted up with `jb` at the end: at least one turn.
+        let mut n = 0;
         loop {
-            if gb(SYNCED + r.ecx as usize) != 1 {
-                let (kept_ebx, kept_ecx) = (r.ebx, r.ecx);
-                r.eax = unsafe {
-                    ((r.ebx + field!(NetPlayerBlock, id)) as *const u32).read_unaligned()
+            if gb(SYNCED + n as usize) != 1 {
+                let id = unsafe {
+                    ((block(n) + field!(NetPlayerBlock, id)) as *const u32).read_unaligned()
                 };
-                r.ebx = a(SEND_BUFFER);
-                r.ecx = kind as u32 | (gb(SYNC) as u32) << 8;
-                unsafe { (r.ebx as *mut u16).write_unaligned(r.ecx as u16) };
-                r.ecx = 2;
-                r.edx = 0;
-                part(SEND, r)?;
-                r.ecx = kept_ecx;
-                r.ebx = kept_ebx;
+                unsafe {
+                    (a(SEND_BUFFER) as *mut u16)
+                        .write_unaligned(kind as u16 | (gb(SYNC) as u16) << 8)
+                };
+                crate::net::dplay_send::dplay_send(id, 0, a(SEND_BUFFER), 2);
             }
-            r.ebx = r.ebx.wrapping_add(BLOCK);
-            r.ecx = r.ecx.wrapping_add(1);
-            if r.ecx >= g(PLAYERS) {
+            n += 1;
+            if n >= g(PLAYERS) {
                 break;
             }
         }
     }
-    r.ecx = 0;
-    r.edx = 0;
+    // The answers added up in a byte (again at least one turn).
+    let (mut n, mut answered) = (0u32, 0u8);
     loop {
-        let dl = (r.edx as u8).wrapping_add(gb(SYNCED + r.ecx as usize));
-        r.edx = r.edx & !0xFF | dl as u32;
-        r.ecx = r.ecx.wrapping_add(1);
-        if r.ecx >= g(PLAYERS) {
+        answered = answered.wrapping_add(gb(SYNCED + n as usize));
+        n += 1;
+        if n >= g(PLAYERS) {
             break;
         }
     }
-    Ok(r.ecx == r.edx)
+    Ok(n == answered as u32)
 }
 
 /// An item move: from the highlight by `step` while it lands on an item that is off.
@@ -147,20 +111,19 @@ fn step_item(step: u32) {
     }
 }
 
-/// The Rust version: the registers it leaves.
-pub fn lobby_loop(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    let mut r = *entry;
+/// The Rust version: 1 when the race is on, -1 (`u32::MAX`) when the lobby was left.
+pub fn lobby_loop() -> Result<u32, Refused> {
     p(PLAYERS, 0);
     p(RACING, 0);
-    part(SHOW_BACKGROUND, &mut r)?;
-    r.eax = g(CLOCK);
-    p(MOVE_CLOCK, r.eax);
-    p(KEY_CLOCK, r.eax);
+    crate::net::show_background::show_background()?;
+    let now = g(CLOCK);
+    p(MOVE_CLOCK, now);
+    p(KEY_CLOCK, now);
     p(EDITED, u32::MAX);
     p(CHOICE, 3);
-    part(TICK, &mut r)?;
-    p(CLOCK_A, r.eax);
-    p(SYNC_CLOCK, r.eax);
+    let tick = crate::system::tick_count::tick_count();
+    p(CLOCK_A, tick);
+    p(SYNC_CLOCK, tick);
     p(SYNC_FIRST, 1);
     pb(SYNC, gb(SYNC).wrapping_add(1));
     p(CAR_ITEM, 1);
@@ -169,27 +132,19 @@ pub fn lobby_loop(entry: &Regs, part: Part) -> Result<Regs, Refused> {
         p(STAGE_ITEM, 0);
     }
     loop {
-        r.eax = game(FRAME);
-        part(RUN_FRAME, &mut r)?;
-        part(TICK, &mut r)?;
-        r.ebx = r.eax;
-        r.eax = r.eax.wrapping_sub(g(CLOCK_A));
-        if (r.eax.wrapping_sub(1000) as i32) >= 0 {
-            p(CLOCK_A, r.ebx);
-            part(LIST_PLAYERS, &mut r)?;
-            if r.carry() {
-                p(CHOICE, 0xFFFF_FFFE);
-                return Ok(chosen(entry, &r));
-            }
+        run_frame(crate::net::lobby_frame::lobby_frame)?;
+        let tick = crate::system::tick_count::tick_count();
+        if (tick.wrapping_sub(g(CLOCK_A)).wrapping_sub(1000) as i32) >= 0 {
+            p(CLOCK_A, tick);
+            // The original's `jb` after it is never taken (`list_players_regs` loses
+            // the carry, section 16).
+            crate::net::list_players::list_players_regs()?;
         }
-        r.eax = g(CLOCK);
-        p(FRAME_CLOCK, r.eax);
-        part(LIST_TAKE_KEY, &mut r)?;
-        let key = r.eax as u8;
-        // None: nothing more this frame but the checks; Some(true): the move clock too.
-        let mut moved = None;
+        p(FRAME_CLOCK, g(CLOCK));
+        let key = list_key()?;
+        let mut moved = false;
         if g(EDITED) != u32::MAX {
-            part(CHAT_KEY, &mut r)?;
+            crate::net::chat_key::chat_key(key)?;
         } else {
             let ready = gb(OWN) & 1 != 0;
             if !ready && key == 0x69 {
@@ -200,70 +155,56 @@ pub fn lobby_loop(entry: &Regs, part: Part) -> Result<Regs, Refused> {
                 if (g(CHOICE) as i32) < 0 {
                     p(CHOICE, 0);
                 }
-                moved = Some(true);
+                moved = true;
             } else if !ready && key == 0x68 {
                 step_item(1);
                 if (g(CHOICE) as i32) > 3 {
                     p(CHOICE, 3);
                 }
-                moved = Some(true);
+                moved = true;
             } else if key == 0x1C {
                 match g(CHOICE) {
                     0 => {
                         pb(OWN, gb(OWN) & 0xF9 | 1);
                         p(CHOICE, 3);
-                        moved = Some(true);
+                        moved = true;
                     }
                     1 | 2 => {
-                        part(
-                            if g(CHOICE) == 1 {
-                                CHOOSE_CAR
-                            } else {
-                                CHOOSE_STAGE
-                            },
-                            &mut r,
-                        )?;
-                        part(LIST_PLAYERS, &mut r)?;
-                        moved = Some(true);
+                        if g(CHOICE) == 1 {
+                            crate::net::choose_car::choose_car()?;
+                        } else {
+                            crate::net::choose_stage::choose_stage()?;
+                        }
+                        crate::net::list_players::list_players_regs()?;
+                        moved = true;
                     }
                     3 => {
-                        part(BEGIN_CHAT, &mut r)?;
-                        moved = Some(true);
+                        crate::net::begin_chat::begin_chat();
+                        moved = true;
                     }
                     _ => {}
                 }
             } else if key == 0x0F {
                 p(SHOW_GAPS, g(SHOW_GAPS) ^ 1);
-                moved = Some(true);
+                moved = true;
             } else if key == 1 {
                 p(CHOICE, u32::MAX);
-                return Ok(chosen(entry, &r));
+                return Ok(g(CHOICE));
             } else {
-                if g(SCREENSHOTS_ON) != 0 && key == 0x52 {
-                    part(SCREENSHOT, &mut r)?;
-                }
-                part(MAYBE_LEXICON, &mut r)?;
+                other_key(key)?;
             }
         }
-        if moved == Some(true) {
-            r.ebx = g(FRAME_CLOCK);
-            p(MOVE_CLOCK, r.ebx);
+        if moved {
+            p(MOVE_CLOCK, g(FRAME_CLOCK));
         }
-        if gb(OWN) & 0x10 != 0 {
-            states_start(&mut r, 1);
-            if g(PLAYERS) >= 2
-                && all_states(&mut r, 1, g(PLAYERS)) == 1
-                && sync(&mut r, b'@', part)?
-            {
-                p(ALL_RACED, 1);
-            }
+        if gb(OWN) & 0x10 != 0 && g(PLAYERS) >= 2 && all_states(1, g(PLAYERS)) == 1 && sync(b'@')? {
+            p(ALL_RACED, 1);
         }
         if g(ALL_RACED) == 1 {
             p(CHOICE, 1);
-            return Ok(chosen(entry, &r));
+            return Ok(g(CHOICE));
         }
-        states_start(&mut r, 4);
-        if g(PLAYERS) >= 1 && all_states(&mut r, 4, g(PLAYERS)) == 4 {
+        if g(PLAYERS) >= 1 && all_states(4, g(PLAYERS)) == 4 {
             p(BACK_FROM_RACE, 0);
         }
         if g(QUITTING) == 1 {
@@ -271,11 +212,5 @@ pub fn lobby_loop(entry: &Regs, part: Part) -> Result<Regs, Refused> {
         }
     }
     p(CHOICE, u32::MAX);
-    Ok(chosen(entry, &r))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    lobby_entry(r, lobby_loop)
+    Ok(g(CHOICE))
 }

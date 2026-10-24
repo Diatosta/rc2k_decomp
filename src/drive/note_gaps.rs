@@ -2,12 +2,10 @@
 //! (esi) checkpoint (+0x98) against the lead car's (car block 0's +0x98, `dword_70F484`),
 //! the difference plus one kept when below the smallest so far (unsigned).
 
-use crate::framework::EDX;
-use crate::screens::harness::Left;
-
 /// edx = (behind: lead - car, else car - lead) + 1; into `best` when below it.
 // Converted: `rc2k_core::drive::places::note_gap`.
-pub unsafe fn note_gap_at(car: u32, lead: u32, best: u32, behind: bool) -> Left {
+/// The gap (edx), which `drive::start_cars_behind` reads.
+pub unsafe fn note_gap_at(car: u32, lead: u32, best: u32, behind: bool) -> u32 {
     unsafe {
         let mine = ((car + 0x98) as *const u32).read_unaligned();
         let theirs = (lead as *const u32).read_unaligned();
@@ -18,6 +16,6 @@ pub unsafe fn note_gap_at(car: u32, lead: u32, best: u32, behind: bool) -> Left 
         if now != was {
             b.write_unaligned(now);
         }
-        Left::nothing().with(EDX, edx)
+        edx
     }
 }

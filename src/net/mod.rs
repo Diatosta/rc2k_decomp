@@ -17,13 +17,12 @@
 //! The way out: `net::shut_down` (the network ended, the connection destroyed, the two
 //! handles closed).
 //!
-//! The calls by place (the callee's IDA address): in the game the Rust versions, the
-//! logging and the Win32 calls, DirectPlay's methods from Rust (`net::dplay`); in the tests the noting
-//! stand-ins of `sound::turn_parts`. Shadow mode runs the originals alone (messages are
-//! sent, the mutex taken).
+//! The race's messages, the receiving thread, the way out and the DirectPlay set-up are
+//! plain functions calling each other directly (conversion phase 3, 2026-10-23); the
+//! screens' loops and frames of the lobby too (conversion phase 3, 2026-10-24: no registers,
+//! no calls by place). DirectPlay's methods from Rust (`net::dplay`).
 
-use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, rva};
+use crate::framework::{game_addr, rva};
 
 pub mod add_address_element;
 pub mod add_chat_line;
@@ -47,7 +46,6 @@ pub mod clear_chat;
 pub mod close_if_host;
 pub mod close_session;
 pub mod connecting;
-pub mod connection_entry;
 pub mod connection_found;
 pub mod connections_frame;
 pub mod copy_received;
@@ -68,10 +66,8 @@ pub mod draw_setting_value;
 pub mod edit_key;
 pub mod fill_own_player;
 pub mod find_connections;
-pub mod find_connections_regs;
 pub mod find_saved_connection;
 pub mod find_sessions;
-pub mod find_sessions_regs;
 pub mod follow_remote;
 pub mod free_messages;
 pub mod group_found;
@@ -86,17 +82,13 @@ pub mod keep_hud_options;
 pub mod lets_race;
 pub mod lets_rally;
 pub mod list_players;
-pub mod list_players_regs;
 pub mod lobby;
 pub mod lobby_button;
-pub mod lobby_calls;
 pub mod lobby_frame;
-pub mod lobby_hooks;
 pub mod lobby_launched_game;
 pub mod lobby_loop;
 pub mod lock_received;
 pub mod message_frame;
-pub mod message_vars;
 pub mod open_lobby;
 pub mod player_found;
 pub mod post_call;
@@ -109,14 +101,11 @@ pub mod release_dplay;
 pub mod release_lobby;
 pub mod reset_cars;
 pub mod send_chat;
-pub mod send_chat_regs;
 pub mod send_extra;
 pub mod send_inputs;
 pub mod send_message;
 pub mod send_position;
-pub mod send_race_message;
 pub mod send_turn;
-pub mod session_entry;
 pub mod session_found;
 pub mod sessions_frame;
 pub mod set_hud_options;
@@ -142,8 +131,6 @@ pub mod take_player_settings;
 pub mod types;
 pub mod unlock_received;
 
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
 /// dword_52A910: 1 while a network race runs.
 pub const ON: usize = 0x52A910;
 /// dword_52A920: this machine's player.
@@ -165,45 +152,6 @@ pub const MESSAGE: usize = 0x71C4D0;
 /// on this copy): +8 its steps.
 pub const CAR: usize = 0x719FD8;
 
-// The places.
-pub const LOG_TEXT: u32 = 0x401427; // logfile::log_write_l1
-pub const LOG_INT: u32 = 0x401472; // logfile::log_int_l1
-pub const LOG_INT_NL: u32 = 0x401476; // logfile::log_int_l1_nl
-pub const LOG_TEXT_2_NL: u32 = 0x401439; // logfile::log_write_l2_nl
-pub const SEND: u32 = 0x4196FF; // net::dplay_send (DirectPlay's Send)
-pub const SEND_MESSAGE: u32 = 0x41736D; // net::send_message
-pub const SEND_RACE: u32 = 0x46449E; // net::send_race_message
-pub const SEND_INPUTS: u32 = 0x464194; // net::send_inputs
-pub const SEND_POSITION: u32 = 0x464201; // net::send_position
-pub const SEND_EXTRA: u32 = 0x4643FA; // net::send_extra
-pub const SEND_TURN: u32 = 0x46415B; // net::send_turn
-pub const APPLY_RECEIVED: u32 = 0x4644A4; // net::apply_received
-pub const COPY_RECEIVED: u32 = 0x4173A0; // net::copy_received
-pub const APPLY: u32 = 0x4644EC; // net::apply_message
-pub const FOLLOW: u32 = 0x464883; // net::follow_remote
-pub const LOCK: u32 = 0x418474; // net::lock_received: WaitForSingleObject on the mutex
-pub const UNLOCK: u32 = 0x418481; // net::unlock_received: ReleaseMutex
-pub const SLEEP_1MS: u32 = 0x410FFE; // sleep_1ms
-pub const PUMP: u32 = 0x410535; // system::pump_messages
-pub const STOP: u32 = 0x41838C; // net::stop
-pub const DESTROY: u32 = 0x4187EE; // net::destroy_connection
-pub const FREE: u32 = 0x4185BB; // net::free_messages
-pub const FREE_LIST: u32 = 0x4028F5; // memory::free_list
-pub const DESTROY_PLAYER: u32 = 0x41916B; // net::destroy_player (DirectPlay's DestroyPlayer)
-pub const CLOSE_SESSION: u32 = 0x418DD3; // net::close_session (DirectPlay's Close)
-pub const RELEASE_DPLAY: u32 = 0x41864E; // net::release_dplay (DirectPlay's Release)
-pub const RELEASE_LOBBY: u32 = 0x41900F; // net::release_lobby (the lobby's Release)
-pub const CLOSE_EVENT: u32 = 0x41104F; // CloseHandle (eax, if not 0)
-pub const CLOSE_MUTEX: u32 = 0x411092; // CloseHandle (eax, if not 0)
-pub const WAIT_OBJECT: u32 = 0x4110A6; // system::wait_object: WaitForSingleObject(eax, INFINITE)
-pub const RELEASE_MUTEX: u32 = 0x4110B9; // system::release_mutex: ReleaseMutex(eax)
-pub const TICK: u32 = 0x411024; // system::tick_count
-pub const CHAT_LINE: u32 = 0x4193FF; // net::chat_line_locked
-pub const TAKE_MESSAGES: u32 = 0x4194CC; // net::take_messages
-pub const STORE: u32 = 0x419677; // net::store_received
-pub const RECEIVE: u32 = 0x419722; // net::receive_message (DirectPlay's Receive)
-pub const SYSTEM_MESSAGE: u32 = 0x41976F; // net::system_message
-
 pub fn g(x: usize) -> u32 {
     unsafe { crate::framework::game_read(rva(x)) }
 }
@@ -217,92 +165,10 @@ pub fn a(x: usize) -> u32 {
     game_addr(rva(x)) as u32
 }
 
-/// The calls in the game.
-pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
+/// Logs as the send functions do: "send x", the player, the step (`log_int_l1_nl`).
+pub fn log_send(text: usize) {
     use crate::logfile::{log_int::log_int, log_write::log_write};
-    use windows_sys::Win32::Foundation::CloseHandle;
-    use windows_sys::Win32::System::Threading::{ReleaseMutex, Sleep, WaitForSingleObject};
-    unsafe {
-        match place {
-            LOG_TEXT => log_write(r.eax as *const u8, false, 1),
-            LOG_INT => log_int(r.eax as i32, false, 1),
-            LOG_INT_NL => log_int(r.eax as i32, true, 1),
-            LOG_TEXT_2_NL => log_write(r.eax as *const u8, true, 2),
-            SEND_MESSAGE => send_message::send_message(r, &mut game_part)?,
-            SEND_RACE => send_race_message::send_race_message(r, &mut game_part)?,
-            SEND_INPUTS => send_inputs::send_inputs(r, &mut game_part)?,
-            SEND_POSITION => send_position::send_position(r, &mut game_part)?,
-            SEND_EXTRA => send_extra::send_extra(r, &mut game_part)?,
-            SEND_TURN => send_turn::send_turn(r, &mut game_part)?,
-            APPLY_RECEIVED => apply_received::apply_received(r, &mut game_part)?,
-            COPY_RECEIVED => copy_received::copy_received(r, &mut game_part)?,
-            APPLY => apply_message::apply_message(r, &mut game_part)?,
-            FOLLOW => follow_remote::follow_remote(r, &mut game_part)?,
-            STOP => stop::stop(r, &mut game_part)?,
-            DESTROY => destroy_connection::destroy_connection(r, &mut game_part)?,
-            FREE => free_messages::free_messages(r, &mut game_part)?,
-            FREE_LIST => {
-                crate::memory::free_list::free_list(r.ebx as *mut _)?;
-                r.set_carry(false);
-            }
-            LOCK => lock_received::lock_received(r, &mut game_part)?,
-            UNLOCK => unlock_received::unlock_received(r, &mut game_part)?,
-            // `system::wait_object` and `system::release_mutex` (not hooked): every register
-            // kept, the flags of `cmp result + 1, 1` and `cmp result, 1`.
-            WAIT_OBJECT => {
-                let result = WaitForSingleObject(r.eax as _, u32::MAX);
-                crate::net::lobby::cmp_flags(r, result.wrapping_add(1), 1);
-            }
-            RELEASE_MUTEX => {
-                let result = ReleaseMutex(r.eax as _);
-                crate::net::lobby::cmp_flags(r, result as u32, 1);
-            }
-            TICK => r.eax = crate::system::tick_count::tick_count(),
-            STORE => { store_received::store_received(r, &mut game_part) }?,
-            RECEIVE => receive_message::receive_message(r, &mut game_part)?,
-            SYSTEM_MESSAGE => system_message::system_message(r, &mut game_part)?,
-            CHAT_LINE => {
-                *r = chat_line_locked::chat_line_locked(r, &mut crate::net::lobby::game_part)?;
-            }
-            CLOSE_EVENT | CLOSE_MUTEX => {
-                if r.eax != 0 {
-                    CloseHandle(r.eax as _);
-                }
-            }
-            SLEEP_1MS => Sleep(1),
-            // The window's messages: the game's (the platform's in the standalone).
-            PUMP => crate::calls::call(rva(PUMP as usize), r),
-            // DirectPlay's methods from Rust (`net::dplay`).
-            SEND => dplay_send::dplay_send(r, &mut game_part)?,
-            DESTROY_PLAYER => destroy_player::destroy_player(r, &mut game_part)?,
-            CLOSE_SESSION => close_session::close_session(r, &mut game_part)?,
-            RELEASE_DPLAY => release_dplay::release_dplay(r, &mut game_part)?,
-            RELEASE_LOBBY => release_lobby::release_lobby(r, &mut game_part)?,
-            TAKE_MESSAGES => take_messages::take_messages(r, &mut game_part)?,
-            _ => return Err(BadInput("a network call with no version").into()),
-        }
-    }
-    Ok(())
-}
-
-/// `dispatch_net` outside shadow mode, without its hook (a refusal is the caller's).
-pub fn net_entry(
-    r: &mut Regs,
-    rust: fn(&mut Regs, Part) -> Result<(), Refused>,
-) -> Result<(), Refused> {
-    let mut g = *r;
-    rust(&mut g, &mut game_part)?;
-    *r = Regs { esp: r.esp, ..g };
-    Ok(())
-}
-
-/// Logs as the send functions do: "send x", the player, the step (`log_int_l1_nl`),
-/// each inside `pusha` .. `popa`.
-pub fn log_send(text: usize, r: &Regs, part: Part) -> Result<(), Refused> {
-    let mut l = Regs { eax: a(text), ..*r };
-    part(LOG_TEXT, &mut l)?;
-    l.eax = g(PLAYER);
-    part(LOG_INT, &mut l)?;
-    l.eax = g(STEP);
-    part(LOG_INT_NL, &mut l)
+    unsafe { log_write(a(text) as *const u8, false, 1) };
+    log_int(g(PLAYER) as i32, false, 1);
+    log_int(g(STEP) as i32, true, 1);
 }

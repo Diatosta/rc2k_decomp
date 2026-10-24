@@ -20,10 +20,6 @@
 //! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::sound::spot_voices::{g, p};
-
-const ENDS: usize = 0x71C384;
-const RESULT: usize = 0x71C3A8;
 // ---- Rust version ----
 
 /// Converted: `rc2k_core::sound::spot_voices::merge` and `merge_between`. The voices of
@@ -39,13 +35,9 @@ pub fn merge_spot_voices(sound: u32) -> Result<(), Refused> {
         return Ok(());
     };
     let (a, b) = (voices[nearest].place, voices[next].place);
-    for m in 0..3 {
-        p(ENDS + 4 * m, a[m]);
-        p(ENDS + 12 + 4 * m, b[m]);
-        p(ENDS + 24 + 4 * m, 0);
-    }
-    crate::math::nearest_on_segment::nearest_on_segment();
-    let point = [0, 1, 2].map(|m| g(RESULT + 4 * m));
+    // The ends and the listener (0, 0, 0) through `dword_71C384` .., the point back from
+    // `dword_71C3A8` .. in the original: now `nearest_on_segment`'s own.
+    let point = crate::math::nearest_on_segment::nearest_on_segment(a, b, [0; 3]);
     core::merge_between(&mut voices, &picks, point);
     store_voices(&voices);
     Ok(())

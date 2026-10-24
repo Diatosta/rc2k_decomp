@@ -6,19 +6,12 @@
 //! (`dword_75AD00`, `75AD0C` .. `75AD18`) to `dword_6238A8` ...
 //!
 //! In:  nothing
-//! Out: esi = the car's block, eax = its HUD bits; with the switches read, ebx = the last
-//!      (`dword_75AE18`); the flags of the last compare (no caller reads them)
-//! Caller: `net::lets_race`. Shadow mode: both run, the block's two dwords and the
-//! settings compared. Self-test: a copy against the Rust version, on bits given and on
-//! the switches in two patterns, on a test block.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Out: nothing (the original leaves esi the car's block, eax its HUD bits, ebx the last
+//!      switch read; its one caller, `net::lets_race`, calls `drive::play_race` next, which
+//!      reads no register: `lq 0x444CEE`, live_in empty)
+//! Caller: `net::lets_race`.
 
-use crate::errors::Refused;
-use crate::framework::Regs;
-use crate::net::lobby::{PLAYER, Part, g, p};
+use crate::net::lobby::{PLAYER, g, p};
 use crate::net::reset_cars::CAR_BLOCKS;
 use rc2k_core::net::cars;
 
@@ -43,31 +36,19 @@ pub fn own_block() -> u32 {
     g(CAR_BLOCKS + 4 * g(PLAYER) as usize)
 }
 
-/// The Rust version: the registers it leaves.
-pub fn set_hud_options(entry: &Regs, _: Part) -> Result<Regs, Refused> {
-    let mut r = *entry;
-    r.esi = own_block();
-    r.eax = g(HUD_BITS);
+/// The Rust version.
+pub fn set_hud_options() {
+    let block = own_block();
+    let mut bits = g(HUD_BITS);
     // Converted: `rc2k_core::net::cars::hud_bits`.
-    if r.eax == cars::NOT_KEPT {
-        let switches = SWITCHES.map(g);
-        r.eax = cars::hud_bits(switches);
-        r.ebx = switches[8];
+    if bits == cars::NOT_KEPT {
+        bits = cars::hud_bits(SWITCHES.map(g));
     }
     unsafe {
-        ((r.esi + 0x220) as *mut u32).write_unaligned(r.eax);
-        ((r.esi + 0x684) as *mut u32).write_unaligned(g(VIEW));
+        ((block + 0x220) as *mut u32).write_unaligned(bits);
+        ((block + 0x684) as *mut u32).write_unaligned(g(VIEW));
     }
     for (to, from) in COPIED {
         p(to, g(from));
     }
-    Ok(r)
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    crate::race::viewer::regs_entry(r, &|r| {
-        set_hud_options(r, &mut crate::net::lobby::game_part)
-    })
 }

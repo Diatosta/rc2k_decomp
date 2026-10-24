@@ -28,57 +28,49 @@
 //! what was written is put back.
 //! Self-test: `physics/gearbox.rs` (`test_gearbox`).
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::math::x87;
 use crate::math::x87_run::mul_div_status;
 use crate::physics::gearbox::*;
 use crate::physics::higher_free_gear::higher_free_gear;
 use crate::physics::lower_free_gear::lower_free_gear;
-use crate::physics::pick_start_gear::pick_start_gear_in;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
+use crate::physics::pick_start_gear::pick_start_gear;
 use rc2k_core::physics::gear_shifts::{self as shifts, Shift};
 
 /// Up (0x43C340).
-fn up(r: &mut Regs) -> Result<Shift, Refused> {
-    r.ebx = g(GEAR);
-    if let Some(shift) = shifts::manual_up(r.ebx, || g(GEAR_COUNT)) {
+fn up() -> Result<Shift, Refused> {
+    let gear = g(GEAR);
+    if let Some(shift) = shifts::manual_up(gear, || g(GEAR_COUNT)) {
         return Ok(shift);
     }
-    wheels(r)?;
-    let f = unsafe { higher_free_gear(r.ebx) }?;
-    f.apply(r);
-    if f.carry {
+    wheels()?;
+    let Some(to) = unsafe { higher_free_gear(gear) }? else {
         return Ok(Shift::Done);
-    }
-    p(GEAR, r.ecx);
-    revs(r)?;
+    };
+    p(GEAR, to);
+    revs()?;
     settle();
     Ok(Shift::Done)
 }
 
 /// Down (0x43C379).
-fn down(r: &mut Regs) -> Result<Shift, Refused> {
-    r.ebx = g(GEAR);
-    if let Some(shift) = shifts::manual_down(r.ebx) {
+fn down() -> Result<Shift, Refused> {
+    let gear = g(GEAR);
+    if let Some(shift) = shifts::manual_down(gear) {
         return Ok(shift);
     }
-    wheels(r)?;
-    let f = unsafe { lower_free_gear(r.ebx, r.eax) }?;
-    f.apply(r);
-    if f.carry {
+    wheels()?;
+    let Some(to) = unsafe { lower_free_gear(gear) }? else {
         return Ok(Shift::Neutral);
-    }
-    p(GEAR, r.ecx);
-    revs(r)?;
+    };
+    p(GEAR, to);
+    revs()?;
     if !below(g(ENGINE), g(0x614104)) {
         p(GEAR, g(GEAR).wrapping_add(1));
-        revs(r)?;
+        revs()?;
         p(HOLD, shifts::HOLD);
         p(CHANGED, u32::MAX);
         p(CHANGED_2, 1);
@@ -90,47 +82,45 @@ fn down(r: &mut Regs) -> Result<Shift, Refused> {
 
 /// Into reverse (0x43C433; with `quarter` the engine speed x 0.25 first, as here; the
 /// automatic's 0x43C74E has no such step).
-pub fn reverse(r: &mut Regs, quarter: bool) -> Result<(), Refused> {
-    if bit(r, u32::MAX)? {
+pub fn reverse(quarter: bool) -> Result<(), Refused> {
+    if bit(u32::MAX)? {
         return Ok(());
     }
     p(GEAR, u32::MAX);
     if quarter {
         p(ENGINE, x87::mul(g(ENGINE), g(0x5C5DA4)));
     }
-    wheels(r)?;
+    wheels()?;
     settle();
     Ok(())
 }
 
 /// The start-line rules (0x43C48F).
-fn start_line(r: &mut Regs) -> Result<Shift, Refused> {
-    r.ebx = g(GEAR);
-    if let Some(shift) = shifts::start_line_keys(r.ebx, g(0x6138A4) != 0, || g(0x6138A0) != 0) {
+fn start_line() -> Result<Shift, Refused> {
+    let gear = g(GEAR);
+    if let Some(shift) = shifts::start_line_keys(gear, g(0x6138A4) != 0, || g(0x6138A0) != 0) {
         return Ok(shift);
     }
     if g(0x71A22C) != 0 {
         return Ok(Shift::Done);
     }
-    if shifts::forward(r.ebx) {
+    if shifts::forward(gear) {
         let kept = g(ENGINE);
-        revs_speed(r)?;
+        revs_speed()?;
         p(SCRATCH, over_top());
         p(ENGINE, kept);
         if !below(g(SCRATCH), g(0x5CB958)) {
             return Ok(Shift::Up);
         }
     }
-    if !shifts::above_first(r.ebx) {
+    if !shifts::above_first(gear) {
         return Ok(Shift::Done);
     }
     p(SCRATCH, over_top());
-    let f = unsafe { lower_free_gear(r.ebx, r.eax) }?;
-    f.apply(r);
-    if f.carry {
+    let Some(lower) = unsafe { lower_free_gear(gear) }? else {
         return Ok(Shift::Done);
-    }
-    let (rb, rc) = (ratio(r.ebx)?, ratio(r.ecx)?);
+    };
+    let (rb, rc) = (ratio(gear)?, ratio(lower)?);
     if mul_div_status(g(SCRATCH), rb, rc, g(0x5CB964)) & 0x100 == 0 {
         return Ok(Shift::Done);
     }
@@ -147,14 +137,14 @@ fn start_line(r: &mut Regs) -> Result<Shift, Refused> {
 
 /// The steps on `r`.
 // Converted: `rc2k_core::physics::gear_shifts` (the engine's sums and compares stay x87).
-pub fn manual_gearbox_in(r: &mut Regs) -> Result<(), Refused> {
+pub fn manual_gearbox() -> Result<(), Refused> {
     p(CHANGED, 0);
     let mut to = 'first: {
         if g(0x71A234) == 2 {
-            break 'first start_line(r)?;
+            break 'first start_line()?;
         }
         let gear = g(GEAR);
-        if bit(r, gear)? || g(0x71A408) != 0 {
+        if bit(gear)? || g(0x71A408) != 0 {
             break 'first Shift::Neutral;
         }
         if g(HOLD) != 0 {
@@ -165,43 +155,27 @@ pub fn manual_gearbox_in(r: &mut Regs) -> Result<(), Refused> {
             return Ok(());
         }
         if g(0x71A010) != 0 {
-            break 'first start_line(r)?;
+            break 'first start_line()?;
         }
-        r.ebx = g(GEAR);
         shifts::manual_keys(g(0x6138A0) != 0, || g(0x6138A4) != 0)
     };
     loop {
         to = match to {
-            Shift::Up => up(r)?,
-            Shift::Down => down(r)?,
+            Shift::Up => up()?,
+            Shift::Down => down()?,
             Shift::Neutral => {
                 neutral();
                 Shift::Done
             }
             Shift::Start => {
-                pick_start_gear_in(r)?;
+                pick_start_gear()?;
                 Shift::Done
             }
             Shift::Reverse => {
-                reverse(r, true)?;
+                reverse(true)?;
                 Shift::Done
             }
             Shift::Done => return Ok(()),
         };
     }
-}
-
-/// The Rust version.
-pub unsafe fn manual_gearbox(entry: &Regs) -> Result<Left, Refused> {
-    guarded(entry, &manual_gearbox_in)
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { manual_gearbox(r) }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

@@ -8,45 +8,30 @@
 //! In:  (stdcall) the session's description (a DPSESSIONDESC2), the time-out's address,
 //!      the flags, the context
 //! Out: eax = 1 to go on, 0 to stop; ebx, esi, edi, ebp kept; `ret 10h`
-//! Caller: DirectPlay, from `net::find_sessions`. Its thunk is a `stdcall` Rust function
-//! (`net::lobby::dispatch_callback`). Its calls through `part`. Shadow mode runs the
-//! original alone. Self-test: a copy called with test arguments, its calls to stand-ins
-//! (the records in a test table, the name copied), against the Rust version: each way out.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): DirectPlay is given `callback`, the Rust
-//! version; in the hooked DLL the game's own code passes the original. What the header
-//! says of the thunk, shadow mode and the self-test was the hook's.
+//! Caller: DirectPlay, from `net::find_sessions` (`callback`, a `stdcall` Rust function).
 
 use crate::errors::Refused;
 use crate::field;
-use crate::framework::Regs;
-use crate::net::lobby::{
-    COPY_PRINTABLE, LOG_HEX_L2, LOG_L2, LOG_NEWLINE_L2, Part, SESSIONS, a, g, log_text, movsb, p,
-};
+use crate::net::lobby::{SESSIONS, a, copy_printable, g, log, log_hex, movsb, p, session};
 use crate::net::types::{DpSessionDesc, NetSession};
 use rc2k_core::net::lists::{self, Found};
 
 const FOUND: usize = 0x5C2E75; // "NET: Found"
-const SESSION_ENTRY: u32 = 0x418553; // net::session_entry
+const NEWLINE: u32 = 0x4E00B7; // the text `logfile::log_newline_l2` writes
 
 fn get(at: u32) -> u32 {
     unsafe { (at as *const u32).read_unaligned() }
 }
 
 /// The Rust version: eax.
-pub fn session_found(args: &[u32], part: Part) -> Result<u32, Refused> {
+pub fn session_found(args: &[u32]) -> Result<u32, Refused> {
     let (desc, flags) = (args[0], args[2]);
-    let r = Regs::default();
-    log_text(LOG_L2, a(FOUND), &r, part)?;
-    log_text(LOG_HEX_L2, flags, &r, part)?;
+    log(a(FOUND), false, 2);
+    log_hex(flags, false);
     if desc != 0 {
-        log_text(LOG_L2, get(desc + 0x30), &r, part)?;
+        log(get(desc + 0x30), false, 2);
     }
-    let mut n = r;
-    if desc != 0 {
-        n.eax = get(desc + 0x30);
-    }
-    part(LOG_NEWLINE_L2, &mut n)?;
+    log(crate::net::lobby::game(NEWLINE), true, 2);
     // Converted: `rc2k_core::net::lists::session_found`.
     let count = match lists::session_found(flags, desc != 0, || get(desc + 0x44), || g(SESSIONS)) {
         Found::Stop => return Ok(0),
@@ -54,16 +39,8 @@ pub fn session_found(args: &[u32], part: Part) -> Result<u32, Refused> {
         Found::List(n) => n,
     };
     p(SESSIONS, count + 1);
-    let mut e = Regs { eax: count, ..r };
-    part(SESSION_ENTRY, &mut e)?;
-    let record = e.eax;
-    let mut c = Regs {
-        eax: get(desc + 0x30),
-        ebx: record,
-        ecx: 0x40,
-        ..e
-    };
-    part(COPY_PRINTABLE, &mut c)?;
+    let record = session(count)?;
+    copy_printable(get(desc + 0x30), record, 0x40)?;
     movsb(
         record + field!(NetSession, instance),
         desc + field!(DpSessionDesc, instance),
@@ -83,7 +60,7 @@ pub fn session_found(args: &[u32], part: Part) -> Result<u32, Refused> {
     Ok(1)
 }
 
-/// The callback DirectPlay is given (no hook; 2026-10-23): the Rust version.
+/// The callback DirectPlay is given: the Rust version.
 pub unsafe extern "system" fn callback(a: u32, b: u32, c: u32, d: u32) -> u32 {
     crate::net::lobby::callback_entry("net::session_found", 0x418A62, &[a, b, c, d], session_found)
 }

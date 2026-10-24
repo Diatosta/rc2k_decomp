@@ -12,35 +12,28 @@
 //! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
+//! are the original's.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::install::installer::{
-    DIR_COUNT, DIR_CURSOR, DIR_SCAN, DIRS, RESOLVE_PATH, at, fatal, g, p, str_append,
+    DIR_COUNT, DIR_CURSOR, DIR_SCAN, DIRS, append_byte, fatal, g, p, resolve_path, str_append,
 };
 use rc2k_core::install::script;
 
-pub fn list_folder(entry: &Regs) -> Result<Regs, Refused> {
-    let mut r = *entry;
-    crate::install::installer::game_part(at(RESOLVE_PATH), &mut r)?;
-    r.ebx = g(DIR_CURSOR);
-    str_append(&mut r);
-    crate::install::installer::append_byte(&mut r, 0);
-    p(DIR_CURSOR, r.ebx);
-    p(DIR_SCAN, r.ebx);
+/// The folder `path` (eax) added to the folders' table.
+pub fn list_folder(path: u32) -> Result<(), Refused> {
+    let path = resolve_path(path)?;
+    let cursor = append_byte(str_append(path, g(DIR_CURSOR)), 0);
+    p(DIR_CURSOR, cursor);
+    p(DIR_SCAN, cursor);
     p(DIR_COUNT, g(DIR_COUNT).wrapping_add(1));
     // Converted: `rc2k_core::install::script::room_left`.
     script::room_left(
-        r.ebx.wrapping_sub(g(DIRS)),
+        cursor.wrapping_sub(g(DIRS)),
         script::FOLDERS_ROOM,
         script::FOLDERS_FULL,
     )
     .map_err(fatal)?;
-    Ok(Regs { ..*entry })
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    crate::race::viewer::regs_entry(r, &|r| list_folder(r))
+    Ok(())
 }

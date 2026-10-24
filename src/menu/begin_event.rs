@@ -19,11 +19,9 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::menu::player::{PLAYERS, player_at};
 use crate::menu::standings::put_all;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 use rc2k_core::menu::event::KEEPS_SETUP;
 
 pub const DRIVERS_RVA: usize = rva(0x73B674); // g_drivers
@@ -70,15 +68,4 @@ pub unsafe fn begin_event() -> Result<(), Refused> {
         }
     }
     Ok(())
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { begin_event() }?;
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

@@ -7,28 +7,18 @@
 //! (`g_netPlayerId`) into `g_netPlayer`.
 //!
 //! In:  nothing
-//! Out: every register kept (`pusha` .. `popa`); carry set if there is no object, the
-//!      listing failed or this machine's player is not among them, else the flags of
-//!      `test eax, eax` on its id
+//! Out: true when this machine's player was found (the original: carry clear, the flags of
+//!      `test eax, eax` on its id; every register kept); false for the carry: no object,
+//!      the listing failed or the player is not among them
 //! The search looks at block 0 even with no player listed. More than eight players
 //! (possible only with the race on) would sort past the blocks: refused. Caller:
 //! `net::list_players_regs`, `net::open_lobby`. DirectPlay's calls from Rust (`net::dplay`),
-//! the callback the game's address (its hook). Shadow mode runs the original alone.
-//! Self-test: a copy whose DirectPlay is a test object (its `EnumPlayers` listing players),
-//! against the Rust version: no object, failing, racing, found, not found.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! the callback the game's address (its hook).
 
 use crate::errors::{BadInput, Refused};
 use crate::field;
-use crate::framework::Regs;
 use crate::net::dplay::{ENUM_PLAYERS, GET_PLAYER_DATA, SET_PLAYER_DATA, call};
-use crate::net::lobby::{
-    DPLAY, OWN, PLAYER, PLAYER_ID, PLAYERS, Part, RACING, a, block, cmp_flags, g, lobby_entry, p,
-    test_eax,
-};
+use crate::net::lobby::{DPLAY, OWN, PLAYER, PLAYER_ID, PLAYERS, RACING, a, block, g, p};
 use crate::net::sort_players::swap_blocks;
 use crate::net::types::NetPlayerBlock;
 use rc2k_core::net::players;
@@ -39,23 +29,16 @@ fn get(at: u32) -> u32 {
     unsafe { (at as *const u32).read_unaligned() }
 }
 
-/// The Rust version: the registers it leaves (the entry's, the flags).
-pub fn list_players(entry: &Regs, _: Part) -> Result<Regs, Refused> {
-    let mut r = *entry;
-    let left = |r: &Regs| Regs {
-        eflags: r.eflags,
-        ..*entry
-    };
-    cmp_flags(&mut r, g(DPLAY), 0);
+/// The Rust version.
+pub fn list_players() -> Result<bool, Refused> {
     if g(DPLAY) == 0 {
-        r.set_carry(true);
-        return Ok(left(&r));
+        return Ok(false);
     }
     unsafe {
-        r.eax = call(DPLAY, SET_PLAYER_DATA, &[g(PLAYER_ID), a(OWN), 0x10, 0]);
+        call(DPLAY, SET_PLAYER_DATA, &[g(PLAYER_ID), a(OWN), 0x10, 0]);
         if g(RACING) != 1 {
             p(PLAYERS, 0);
-            r.eax = call(
+            let result = call(
                 DPLAY,
                 ENUM_PLAYERS,
                 &[
@@ -65,10 +48,8 @@ pub fn list_players(entry: &Regs, _: Part) -> Result<Regs, Refused> {
                     0,
                 ],
             );
-            test_eax(&mut r);
-            if r.eax != 0 {
-                r.set_carry(true);
-                return Ok(left(&r));
+            if result != 0 {
+                return Ok(false);
             }
         }
         let players = g(PLAYERS);
@@ -78,7 +59,7 @@ pub fn list_players(entry: &Regs, _: Part) -> Result<Regs, Refused> {
         for n in 0..players {
             p(DATA_SIZE, 0x10);
             let at = block(n);
-            r.eax = call(
+            call(
                 DPLAY,
                 GET_PLAYER_DATA,
                 &[
@@ -93,24 +74,22 @@ pub fn list_players(entry: &Regs, _: Part) -> Result<Regs, Refused> {
         let id = |n: u32| get(block(n) + field!(NetPlayerBlock, id));
         players::bubble(players, |k| id(k) > id(k + 1), |k| swap_blocks(block(k)));
     }
-    r.eax = g(PLAYER_ID);
-    match players::find_own(r.eax, g(PLAYERS), |n| {
+    match players::find_own(g(PLAYER_ID), g(PLAYERS), |n| {
         get(block(n) + field!(NetPlayerBlock, id))
     }) {
         Ok(n) => {
             p(PLAYER, n);
-            test_eax(&mut r);
+            Ok(true)
         }
-        Err(n) => {
-            cmp_flags(&mut r, n, g(PLAYERS));
-            r.set_carry(true);
-        }
+        Err(_) => Ok(false),
     }
-    Ok(left(&r))
 }
 
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    lobby_entry(r, list_players)
+/// `net::list_players_regs` (0x417A03): `net::list_players`, then `test eax, eax` on the
+/// eax it keeps, inside `pusha` .. `popa`: the carry it gives is lost, so its callers'
+/// `jb` after it are never taken (section 16). Callers: `net::lets_rally`,
+/// `net::race_wait`, `net::race_over`, `net::lobby_loop`.
+pub fn list_players_regs() -> Result<(), Refused> {
+    list_players()?;
+    Ok(())
 }

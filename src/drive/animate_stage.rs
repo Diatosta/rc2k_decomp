@@ -17,40 +17,14 @@
 
 use crate::drive::animate_lit_faces::animate_lit_faces;
 use crate::errors::Refused;
-use crate::framework::{EAX, EBX, ECX, EDX, ESI, Regs};
 use crate::physics::move_slots::move_slots;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
-/// The Rust version: `r` as the original leaves it.
-pub unsafe fn animate_stage(r: &mut Regs) -> Result<(), Refused> {
+/// The Rust version. The registers it leaves are read by no caller (liveness: ecx after
+/// `drive::replay_step`'s call has no read point).
+pub unsafe fn animate_stage() -> Result<(), Refused> {
     unsafe {
-        (|| {
-            animate_lit_faces(r)?;
-            let left = move_slots(r)?;
-            left.apply(r);
-            Ok(())
-        })()
+        animate_lit_faces()?;
+        move_slots()?;
     }
-}
-
-fn left_of(g: &Regs) -> Left {
-    Left::nothing()
-        .with(EAX, g.eax)
-        .with(EBX, g.ebx)
-        .with(ECX, g.ecx)
-        .with(EDX, g.edx)
-        .with(ESI, g.esi)
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    let mut g = *r;
-    unsafe { animate_stage(&mut g) }?;
-    Ok(left_of(&g))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
+    Ok(())
 }

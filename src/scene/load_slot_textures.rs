@@ -7,39 +7,32 @@
 //! `scene::load_slot_texture` for the slots 0 .. `dword_5DC970`.
 //! Six callers.
 //! Refuses no slots (the original goes through 2^32) and more than the table has.
-//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
-//! `routes.rs`); the registers above are the original's, for reference.
+//! Hook removed 2026-10-22; plain Rust since 2026-10-23 (phase 3): the registers above
+//! are the original's; a call by address goes through `routes.rs`, which maps them.
 
-use crate::errors::{BadInput, Refused};
-use crate::framework::{ECX, Regs, game_read};
+use crate::errors::BadInput;
+use crate::framework::game_read;
 use crate::scene::load_slot_texture::load_slot_texture_in_game;
 use crate::scene::textures::SLOT_COUNT_RVA;
-use crate::screens::harness::Left;
 
 // ---- Rust version ----
 
+/// The number of slots in use (ecx after the original, which `scene::draw_carousel`
+/// reads in the main menu).
 // Converted: `rc2k_core::scene::textures::slots_in_use`
 pub unsafe fn load_slot_textures(
     load: &mut dyn FnMut(u32) -> Result<(), BadInput>,
-) -> Result<Left, BadInput> {
+) -> Result<u32, BadInput> {
     unsafe {
         let count = rc2k_core::scene::textures::slots_in_use(game_read(SLOT_COUNT_RVA))?;
         for slot in 0..count {
             load(slot)?;
         }
-        Ok(Left::nothing().with(ECX, count))
+        Ok(count)
     }
 }
 
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let entry = *r;
-    match unsafe { load_slot_textures(&mut |slot| load_slot_texture_in_game(slot, &entry)) } {
-        Ok(left) => left.apply(r),
-        Err(e) => {
-            let e: Refused = e.into();
-            return Err(e);
-        }
-    }
-    Ok(())
+/// With the game's loading.
+pub unsafe fn load_slot_textures_in_game() -> Result<u32, BadInput> {
+    unsafe { load_slot_textures(&mut |slot| load_slot_texture_in_game(slot)) }
 }

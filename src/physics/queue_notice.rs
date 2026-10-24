@@ -21,14 +21,12 @@
 //! Self-test: a copy of the original whose fourteen references are the test's, against
 //! the Rust core on lists of 0 .. 0x20 entries, matching and new keys, ebx 0 and not.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{EDX, Regs, game_addr, rva};
+use crate::framework::{game_addr, rva};
 use crate::physics::cells::{get, get_list, put_changed, put_list_changed};
-use crate::screens::harness::Left;
 use rc2k_core::physics::notices::NoticeQueue;
 
 /// The variables' addresses: the game's, or a test's.
@@ -76,19 +74,25 @@ impl Contacts {
     }
 }
 
-/// The Rust version on the variables at `p`, with the registers at entry.
+/// The Rust version on the variables at `p`: notice `notice` (esi) of rank `rank` (ebx)
+/// and value `value` (eax). The edx it leaves (the slot) is read by none of its callers.
 // Converted: `rc2k_core::physics::notices::NoticeQueue::queue`.
-pub unsafe fn queue_notice_at(p: &Contacts, r: &Regs) -> Result<Left, Refused> {
+pub unsafe fn queue_notice_at(
+    p: &Contacts,
+    notice: u32,
+    rank: u32,
+    value: u32,
+) -> Result<(), Refused> {
     unsafe {
         let was = p.load();
         let mut q = was;
-        let index = q.queue(get(p.flags), r.esi, r.ebx, r.eax)?;
+        q.queue(get(p.flags), notice, rank, value)?;
         p.store(&was, &q);
-        Ok(index.map_or(Left::nothing(), |k| Left::nothing().with(EDX, k)))
+        Ok(())
     }
 }
 
 /// The Rust version.
-pub unsafe fn queue_notice(r: &Regs) -> Result<Left, Refused> {
-    unsafe { queue_notice_at(&Contacts::game(), r) }
+pub unsafe fn queue_notice(notice: u32, rank: u32, value: u32) -> Result<(), Refused> {
+    unsafe { queue_notice_at(&Contacts::game(), notice, rank, value) }
 }

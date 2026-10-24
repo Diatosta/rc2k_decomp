@@ -12,29 +12,21 @@
 
 use crate::drive::race_parts::log_line;
 use crate::errors::Refused;
-use crate::framework::Regs;
-use crate::physics::flow::p;
-use crate::screens::harness::Left;
 
 const EMPTY: usize = 0x4E00B7; // what `log_newline_l1` writes
 
-/// The Rust version.
-pub unsafe fn play_race(entry: &Regs) -> Result<Left, Refused> {
+/// The Rust version. The registers it leaves are read by no caller (liveness: esi after
+/// `race::run_race`'s and `sub_443F96`'s calls, ecx edi edx esi after
+/// `race::credits_race`'s: no read point; only DF after `net::lets_race`'s).
+pub unsafe fn play_race() -> Result<(), Refused> {
     log_line(EMPTY);
     log_line(0x4DC41B);
     log_line(0x4DC436);
-    p(0x4E0094, 0);
-    let left = unsafe { crate::drive::race_loop::race_loop(entry) }?;
-    p(0x4E0094, 1);
+    crate::logfile::write_line::set_enabled(0); // g_logEnabled
+    unsafe { crate::drive::race_loop::race_loop() }?;
+    crate::logfile::write_line::set_enabled(1);
     log_line(0x4DC451);
     log_line(0x4DC46C);
     log_line(EMPTY);
-    Ok(left)
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { play_race(r) }?;
-    left.apply(r);
     Ok(())
 }

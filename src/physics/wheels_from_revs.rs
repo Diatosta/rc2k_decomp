@@ -20,7 +20,6 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::physics::gearing::*;
 use crate::screens::harness::Left;
 
@@ -28,14 +27,4 @@ use crate::screens::harness::Left;
 /// variables.
 pub unsafe fn wheels_from_revs() -> Result<Left, Refused> {
     unsafe { wheels_from_revs_at(&GearPlaces::game()) }
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { wheels_from_revs_plain_at(&GearPlaces::game()) }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    gearing_entry(r, &rust)
 }

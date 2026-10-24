@@ -12,35 +12,39 @@
 //! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
-use crate::framework::{Regs, game_read, game_write, rva};
-use crate::menu::screen_loop::{Env, Flow, List, Screen, Step, screen_entry};
+use crate::errors::Refused;
+use crate::framework::{game_read, game_write, rva};
+use crate::menu::screen_loop::{
+    Carried, Flow, List, Screen, Step, call, prepare_scene, screen_entry,
+};
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
-unsafe fn prepare(g: &mut Regs, env: &mut dyn Env) {
+unsafe fn prepare(c: &mut Carried) -> Result<(), Refused> {
     unsafe {
         game_write(rva(0x623FB0), 0x0u32);
         game_write(rva(0x623FB4), 0x0u32);
         game_write(rva(0x624080), 0x100u32);
-        env.call(rva(0x46F7FD), g);
+        prepare_scene(c);
         game_write(rva(0x6241DC), 0x0u32);
         game_write(rva(0x6241E0), 0x320u32);
         game_write(rva(0x6241EC), game_read::<i32>(rva(0x6241DC)) as f32);
         game_write(rva(0x6241F0), game_read::<i32>(rva(0x6241E0)) as f32);
     }
+    Ok(())
 }
 
-unsafe fn each_frame(g: &mut Regs, env: &mut dyn Env) -> Flow {
+unsafe fn each_frame(c: &mut Carried) -> Result<Flow, Refused> {
     unsafe {
         if game_read::<u32>(rva(0x7556A8)) == 0x1 {
-            env.call(rva(0x46F1A9), g);
+            call(rva(0x46F1A9), c)?;
             if game_read::<u32>(rva(0x7556A8)) != 0x0 {
-                return Flow::NextFrame;
+                return Ok(Flow::NextFrame);
             }
             game_write(rva(0x755A38), 0x2u32);
-            return Flow::Leave;
+            return Ok(Flow::Leave);
         }
-        Flow::On
+        Ok(Flow::On)
     }
 }
 
@@ -103,6 +107,6 @@ pub const SCREEN: Screen = Screen {
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    screen_entry("menu::save_setup_loop", r, &SCREEN)
+pub fn run() -> Result<(), crate::errors::Refused> {
+    screen_entry("menu::save_setup_loop", &SCREEN)
 }

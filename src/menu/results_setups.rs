@@ -24,9 +24,8 @@
 //! (the pointer table likewise), a null place pointer.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 use crate::menu::player::player_at;
-use crate::screens::harness::Left;
 
 const PAIRS_RVA: usize = rva(0x7587C8); // dword_7587C8: four (offset, value) pairs
 const OUTER_RVA: usize = rva(0x7559B4); // dword_7559B4
@@ -164,22 +163,18 @@ pub fn score(n: usize) -> Result<(), Refused> {
 }
 
 /// The Rust versions as the harness runs them.
-pub fn rank_stage_times(_: &Regs) -> Result<Left, Refused> {
-    rank(false)?;
-    Ok(Left::nothing())
+pub fn rank_stage_times() -> Result<(), Refused> {
+    rank(false)
 }
 
-pub fn rank_totals(_: &Regs) -> Result<Left, Refused> {
-    rank(true)?;
-    Ok(Left::nothing())
+pub fn rank_totals() -> Result<(), Refused> {
+    rank(true)
 }
 
-pub fn score_four_players(_: &Regs) -> Result<Left, Refused> {
-    score(4)?;
-    Ok(Left::nothing())
+pub fn score_four_players() -> Result<(), Refused> {
+    score(4)
 }
 
-pub fn score_two_players(_: &Regs) -> Result<Left, Refused> {
-    score(2)?;
-    Ok(Left::nothing())
+pub fn score_two_players() -> Result<(), Refused> {
+    score(2)
 }

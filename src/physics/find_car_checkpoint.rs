@@ -11,7 +11,7 @@
 //!
 //! Caller: `sub_44157B`.
 //! Refuses what the two calls refuse. Shadow mode runs the original alone
-//! (`physics/reset_parts.rs`).
+//! (its calls then went through `physics/reset_parts.rs`, gone).
 //! Self-test: a copy whose calls go to the stand-ins (places 17 and 8), against the Rust
 //! version with the same: no checkpoints, distances below and above 0xA0000.
 //!
@@ -20,9 +20,8 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 use crate::math::x87_run::{ext_div2, int_80};
-use crate::physics::reset_parts::NEAREST_IN;
 use rc2k_core::physics::progress;
 
 fn g(x: usize) -> u32 {
@@ -36,28 +35,30 @@ fn p(x: usize, v: u32) {
 const COUNT: usize = 0x623640; // g_checkpointCount
 const DISTANCE: usize = 0x614C68; // g_nearestCheckpointDistance
 
-/// The Rust version, the calls through `part` (places 17 and 8).
+/// The Rust version: the car's checkpoint (eax): the nearest within the window about the
+/// one it had (`race::nearest_checkpoint_in`), or, when that is too far, of them all
+/// (`race::nearest_checkpoint`). The other registers it leaves are read by none of its
+/// callers.
 // Converted: `rc2k_core::physics::progress::{near_window, search_all}`.
-pub unsafe fn find_car_checkpoint(entry: &Regs) -> Result<Regs, Refused> {
-    let mut r = *entry;
+pub unsafe fn find_car_checkpoint() -> Result<u32, Refused> {
     p(0x639824, g(0x71A10C));
-    r.eax = g(0x71A114);
-    p(0x63982C, r.eax);
+    p(0x63982C, g(0x71A114));
     if g(COUNT) == 0 {
-        r.eax = 0;
-        return Ok(r);
+        return Ok(0);
     }
-    (r.ecx, r.edx) = progress::near_window(g(0x71A070));
-    crate::physics::reset_parts::game_part(NEAREST_IN, &mut r)?;
-    p(0x62400C, r.edi);
+    let (from, to) = progress::near_window(g(0x71A070));
+    let near = unsafe { crate::race::start_place::nearest_checkpoint_in(from, to) }?;
+    p(0x62400C, near.distance);
     p(
         DISTANCE,
-        ext_div2(int_80(r.edi as i32, false), g(0x5C5D98), 0x3F80_0000),
+        ext_div2(
+            int_80(near.distance as i32, false),
+            g(0x5C5D98),
+            0x3F80_0000,
+        ),
     );
-    if progress::search_all(r.edi) {
-        crate::physics::reset_parts::game_part(8, &mut r)?;
-    } else {
-        r.eax = r.ebp;
+    if progress::search_all(near.distance) {
+        return unsafe { crate::race::start_place::nearest_checkpoint() };
     }
-    Ok(r)
+    Ok(near.checkpoint)
 }

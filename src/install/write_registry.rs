@@ -16,14 +16,14 @@
 //! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
+//! are the original's.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::install::installer::{
     Api, REG_CLOSE_KEY, REG_CREATE_KEY, REG_KEY, REG_SET_VALUE, SOURCE, SOURCE_SIZE, STATUS, a,
     fatal, g, gb, rd,
 };
-use crate::race::viewer::regs_entry;
 
 const KEY_NAME: usize = 0x51BB60; // "SOFTWARE\Magnetic Fields\RC99"
 const STATUS_NAME: usize = 0x51BB7E; // "status"
@@ -32,7 +32,7 @@ const HKLM: u32 = 0x8000_0002;
 const REG_SZ: u32 = 1;
 const REG_BINARY: u32 = 3;
 
-pub fn write_registry(entry: &Regs, api: Api) -> Result<Regs, Refused> {
+pub fn write_registry(api: Api) -> Result<(), Refused> {
     let key_at = a(REG_KEY);
     if api(REG_CREATE_KEY, &[HKLM, a(KEY_NAME), key_at]) != 0 {
         return Err(fatal(0x8010_8420));
@@ -54,13 +54,5 @@ pub fn write_registry(entry: &Regs, api: Api) -> Result<Regs, Refused> {
         return Err(fatal(0x8010_8425));
     }
     api(REG_CLOSE_KEY, &[key]);
-    Ok(*entry)
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    regs_entry(r, &|r| {
-        write_registry(r, &mut crate::install::installer::game_api)
-    })
+    Ok(())
 }

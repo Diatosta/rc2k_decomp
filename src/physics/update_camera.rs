@@ -36,16 +36,13 @@
 //! version on the stage (everything written saved and put back), the camera where it is,
 //! moved below the car, every mode and a switch under way.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::physics::camera_view::{rd, record};
 use crate::physics::flow::{a, base, g, hold_high, hold_low, p, x87_run};
 use crate::physics::touch_face::FACES;
-use crate::race::car_starts::Part;
 use crate::scene::matrix3::rounded;
 use rc2k_core::physics::camera_view;
 
@@ -53,26 +50,21 @@ const MODE: usize = 0x71A65C;
 const LIGHTS: usize = 0x5C906C; // g_lightRecords
 
 /// The fixed camera (the second chunk, 0x4380E9 ..): `second` the second tables.
-fn fixed_camera(r: &mut Regs, second: bool) {
+fn fixed_camera(second: bool) {
     let (nearest, replay) = if second {
         (0xA0BA78, 0xA11AE4)
     } else {
         (0xA06A10, 0xA10AE4)
     };
-    r.ebx = g(0x71A070);
-    r.ebx = g(nearest + 4 * r.ebx as usize);
-    r.ebx = g(replay + 4 * r.ebx as usize);
-    r.esi = (r.ebx << 6).wrapping_add(g(FACES));
-    r.ebx = rd(r.esi + 4);
-    r.esi = r
-        .ebx
+    let face = g(replay + 4 * g(nearest + 4 * g(0x71A070) as usize) as usize);
+    let face = (face << 6).wrapping_add(g(FACES));
+    let point = rd(face + 4)
         .wrapping_mul(12)
         .wrapping_add(g(crate::physics::scene_point_hits_car::SCENE_POINTS));
     for k in 0..3 {
-        r.eax = rd(r.esi + 4 * k);
-        p(0x71A67C + 4 * k as usize, r.eax);
+        p(0x71A67C + 4 * k as usize, rd(point + 4 * k));
     }
-    unsafe { crate::physics::camera_height_bias::camera_height_bias(r) }.apply(r);
+    unsafe { crate::physics::camera_height_bias::camera_height_bias() };
     let d = |k: usize| g(0x71A10C + 4 * k).wrapping_sub(g(0x71A67C + 4 * k));
     let (dx, dy, dz) = (d(0), d(1), d(2));
     let v = [dx, dz, dy];
@@ -114,15 +106,12 @@ fn fixed_camera(r: &mut Regs, second: bool) {
         b = base(), v = w.as_ptr()
     );
     p(0x62400C, dz);
-    r.eax = dz;
-    r.ebx = dz;
     p(
         0x60631C,
         rounded(unsafe { crate::physics::vector_length::vector_length(a(0x6062D8)) }),
     );
     p(0x71A6A0, g(0x608B1C));
-    r.esi = record();
-    if rd(r.esi + 0x50) != 0 {
+    if rd(record() + 0x50) != 0 {
         p(0x71A6A0, 0x180);
         x87_run!(
             "fild dword ptr [{b} + 0x31A6A0]",
@@ -138,17 +127,16 @@ fn fixed_camera(r: &mut Regs, second: bool) {
     }
 }
 
-/// The steps; `r` as the original leaves it.
+/// The steps. The registers the original leaves are read by none of its callers.
 // Converted: `rc2k_core::physics::camera_view::{fixed_camera, keeps_light_figure,
 // switch_over, mode_after_switch, check_modes}` (the x87 sums stay).
-pub fn steps(r: &mut Regs, part: Part) -> Result<(), Refused> {
-    *r = unsafe { crate::physics::camera_low_switch::camera_low_switch(r, part) }?;
+pub fn steps() -> Result<(), Refused> {
+    crate::physics::camera_low_switch::camera_low_switch()?;
     for k in 0..3 {
-        r.eax = g(0x71A10C + 4 * k);
-        p(0x6416E8 + 4 * k, r.eax);
+        p(0x6416E8 + 4 * k, g(0x71A10C + 4 * k));
     }
     let car = g(0x719FFC);
-    r.edi = car.wrapping_mul(0x134).wrapping_add(a(LIGHTS));
+    let light = car.wrapping_mul(0x134).wrapping_add(a(LIGHTS));
     x87_run!(
         "fild dword ptr [{d}]",
         "fmul dword ptr [{b} + 0x1C5DA0]",
@@ -175,37 +163,32 @@ pub fn steps(r: &mut Regs, part: Part) -> Result<(), Refused> {
         "fild dword ptr [{d} + 0x20]",
         "fmul dword ptr [{b} + 0x1C5DA0]",
         "fstp dword ptr [{b} + 0x206574]";
-        b = base(), d = r.edi
+        b = base(), d = light
     );
-    p(0x606630, rd(r.edi + 0xC));
-    r.eax = rd(r.edi + 0x1C);
-    p(0x606630, r.eax);
+    p(0x606630, rd(light + 0xC));
+    p(0x606630, rd(light + 0x1C));
     if !camera_view::keeps_light_figure(car, || g(0x5C5AC0 + 4 * car as usize)) {
-        p(0x606574, crate::math::x87::loaded(rd(r.edi + 0x28)));
+        p(0x606574, crate::math::x87::loaded(rd(light + 0x28)));
     }
     if g(0x71A66C) == 0
         && let Some(second) = camera_view::fixed_camera(g(MODE))
     {
-        fixed_camera(r, second);
+        fixed_camera(second);
         return Ok(());
     }
     // 0x437BE4: the camera at the car, the views blended.
     for (k, copy) in [0x5CCDA0usize, 0x5CCDC0, 0x5CCDE0].iter().enumerate() {
-        r.eax = g(0x71A10C + 4 * k);
-        p(*copy, r.eax);
-        p(0x71A67C + 4 * k, r.eax);
+        let v = g(0x71A10C + 4 * k);
+        p(*copy, v);
+        p(0x71A67C + 4 * k, v);
     }
-    r.eax = g(0x71A998);
-    p(0x5CCD60, r.eax);
+    p(0x5CCD60, g(0x71A998));
     if g(0x71A66C) != 0 {
-        r.eax = g(0x719FE0).wrapping_sub(g(0x71A668));
         if camera_view::switch_over(g(0x719FE0), g(0x71A668), g(0x71A670)) {
             p(0x71A66C, 0);
             p(0x71A674, 0);
-            r.eax = g(0x71A660);
-            p(MODE, r.eax);
+            p(MODE, g(0x71A660));
             p(0x71AF88, camera_view::SWITCH_HOLD);
-            r.eax = 7;
             let after = camera_view::mode_after_switch(g(MODE));
             if after != g(MODE) {
                 p(MODE, after);
@@ -224,12 +207,8 @@ pub fn steps(r: &mut Regs, part: Part) -> Result<(), Refused> {
     }
     let (mode, before) = (g(MODE), g(0x71A660));
     camera_view::check_modes(mode, before)?;
-    r.eax = mode;
-    r.esi = g(0x606320 + 4 * mode as usize);
-    unsafe { crate::physics::take_view_a::take_view_a(r) }.apply(r);
-    r.eax = before;
-    r.esi = g(0x606320 + 4 * before as usize);
-    unsafe { crate::physics::take_view_b::take_view_b(r) }.apply(r);
+    unsafe { crate::physics::take_view_a::take_view_a(g(0x606320 + 4 * mode as usize)) };
+    unsafe { crate::physics::take_view_b::take_view_b(g(0x606320 + 4 * before as usize)) };
     x87_run!(
         "fild dword ptr [{b} + 0x208B70]",
         "fisub dword ptr [{b} + 0x208B64]",
@@ -288,9 +267,9 @@ pub fn steps(r: &mut Regs, part: Part) -> Result<(), Refused> {
         b = base()
     );
     hold_low(0x71A6A0, 0x6062D0);
-    unsafe { crate::physics::ease_view_angles::ease_view_angles(r) }.apply(r);
-    unsafe { crate::physics::ease_view_blend::ease_view_blend(r) }.apply(r);
-    crate::physics::camera_avoid_ground::steps(r, part)?;
+    unsafe { crate::physics::ease_view_angles::ease_view_angles() };
+    unsafe { crate::physics::ease_view_blend::ease_view_blend() };
+    crate::physics::camera_avoid_ground::steps()?;
     x87_run!(
         "fild dword ptr [{b} + 0x208B30]",
         ".byte 0xD8, 0xC8", // fmul st, st
@@ -304,7 +283,6 @@ pub fn steps(r: &mut Regs, part: Part) -> Result<(), Refused> {
         "fistp dword ptr [{b} + 0x1CCD80]";
         b = base()
     );
-    r.eax = g(0x6062BC);
-    p(0x5CCD40, r.eax);
+    p(0x5CCD40, g(0x6062BC));
     Ok(())
 }

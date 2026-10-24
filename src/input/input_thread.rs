@@ -29,14 +29,13 @@
 //! lines, which the standalone had dropped, written again.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::input::devices::RECORDS;
 
 // Kept for the hooked game (2026-10-23): the game's `start_threads` starts the thread at
 // its own address. Without this hook the original ran, with no gate, so a self-test's
 // pause could not hold it and tests that set `dword_518998` met its count
 // (`race::replay_viewer`, shadow on). Removed when the hooked DLL goes.
-const SLOT_RVA: usize = rva(0x5184F4); // slot: the input thread's
 const START_TEXT_RVA: usize = rva(0x4DA4B2); // "INPUTTDB:START"
 const QUIT_TEXT_RVA: usize = rva(0x4DA4C1); // "INPUTTDB:QUIT"
 const DIRECT_INPUT_RVA: usize = rva(0x4F6904); // dword_4F6904
@@ -58,7 +57,7 @@ fn log(text: usize) {
 /// The thread's work up to its `ExitThread` (see the header).
 pub unsafe fn input_thread() -> Result<(), Refused> {
     use crate::threading::set_priority::set_priority;
-    let slot = game_addr(SLOT_RVA) as u32;
+    let slot = crate::threading::thread_slot::slot(crate::threading::thread_slot::INPUT) as u32;
     let flag = (slot + 0xC) as *mut u8;
     'work: {
         if unsafe { *flag } == 1 {
@@ -119,8 +118,9 @@ pub unsafe fn input_thread() -> Result<(), Refused> {
     Ok(())
 }
 
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(_: &mut Regs) -> Result<(), crate::errors::Refused> {
+/// The thread's routine as its slot starts it (by address: `routes.rs`): the work, then
+/// `ExitThread`.
+pub fn thread_routine() -> Result<(), Refused> {
     unsafe { input_thread() }?;
     unsafe { windows_sys::Win32::System::Threading::ExitThread(0) }
 }

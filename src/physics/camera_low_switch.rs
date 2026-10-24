@@ -15,34 +15,25 @@
 //! Self-test: a copy whose probe goes to a stand-in, against the Rust version with the
 //! same: every early way out, found or not, low or not.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
-use crate::physics::camera_ground::{carry_entry, probe_at};
+use crate::physics::camera_ground::probe_at;
 use crate::physics::flow::{c0, g, p};
-use crate::race::car_starts::Part;
 use rc2k_core::physics::camera_ground::{is_low, low_switch, low_switch_looks, over};
 
-/// The Rust version, the probe through `part`.
+/// The Rust version. The eax it leaves is read by none of its callers.
 // Converted: `rc2k_core::physics::camera_ground::{low_switch_looks, is_low, low_switch}`.
-pub unsafe fn camera_low_switch(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    let mut r = *entry;
+pub fn camera_low_switch() -> Result<(), Refused> {
     if !low_switch_looks(c0(g(0x71A0A0), g(0x5C5D90)), g(0x71A66C), g(0x71A65C)) {
-        return Ok(r);
+        return Ok(());
     }
-    r.eax = g(0x71A67C);
-    let x = r.eax;
-    r.eax = g(0x71A684);
-    let z = r.eax;
-    if !probe_at(&mut r, part, x, z, 0x71AEC8)? {
-        return Ok(r);
+    if !probe_at(g(0x71A67C), g(0x71A684), 0x71AEC8)? {
+        return Ok(());
     }
-    r.eax = over(g(0x71A680), g(0x639828));
-    if !is_low(r.eax) {
-        return Ok(r);
+    if !is_low(over(g(0x71A680), g(0x639828))) {
+        return Ok(());
     }
     let s = low_switch(g(0x71A660), g(0x719FE0));
     p(0x71A664, s.before);
@@ -51,12 +42,5 @@ pub unsafe fn camera_low_switch(entry: &Regs, part: Part) -> Result<Regs, Refuse
     p(0x71A674, s.w674);
     p(0x71A670, s.w670);
     p(0x71A668, s.clock);
-    r.eax = s.clock;
-    Ok(r)
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    carry_entry(r, camera_low_switch)
+    Ok(())
 }

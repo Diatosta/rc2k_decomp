@@ -5,8 +5,7 @@
 //! >> 3).
 //!
 //! In:  nothing
-//! Out: eax / ebx `g_marksShapesA` / `B`; ecx / edx the last live item's cell parts; ebp
-//!      past the items
+//! Out: nothing (no caller reads a register it leaves)
 //!
 //! Caller: `marks::squares_step` (0x4C0682). Self-test: the original and the Rust version on
 //! the game's items with a few made live, shapes and mask counts by lot; put back.
@@ -15,7 +14,7 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 
 pub const ITEMS_RVA: usize = rva(0x89E18A); // g_marksSquareItems
 pub const ITEMS: u32 = 0x800;
@@ -25,15 +24,12 @@ const PLACE_RVA: [usize; 2] = [rva(0x81471C), rva(0x814720)]; // dword_81471C, d
 const RUNS_RVA: usize = rva(0x833D7E); // g_marksMaskRunCount
 const MASKS_RVA: [usize; 2] = [rva(0x833DC2), rva(0x83BDC2)]; // g_marksMaskA / B
 
-/// The Rust version (see the header): the registers it leaves.
+/// The Rust version (see the header).
 // Converted: `rc2k_core::marks::expiry::{cell, square_ends}`
-pub unsafe fn expire_squares(entry: &Regs) -> Regs {
+pub unsafe fn expire_squares() {
     use rc2k_core::marks::expiry;
-    let mut g = *entry;
     unsafe {
-        g.eax = game_read(SHAPES_RVA[0]);
-        g.ebx = game_read(SHAPES_RVA[1]);
-        let al = g.eax as u8;
+        let al = game_read::<u32>(SHAPES_RVA[0]) as u8;
         let base = game_addr(ITEMS_RVA) as u32;
         for n in 0..ITEMS {
             let e = base + n * ITEM_LEN;
@@ -44,7 +40,6 @@ pub unsafe fn expire_squares(entry: &Regs) -> Regs {
             let c = expiry::cell(f(0x20), f(0x24));
             game_write(PLACE_RVA[1], c.z);
             game_write(PLACE_RVA[0], c.x);
-            [g.ecx, g.edx] = [c.column, c.at];
             if expiry::square_ends(
                 al,
                 || game_read(RUNS_RVA),
@@ -53,7 +48,5 @@ pub unsafe fn expire_squares(entry: &Regs) -> Regs {
                 (e as *mut u32).write_unaligned(0);
             }
         }
-        g.ebp = base + ITEMS * ITEM_LEN;
     }
-    g
 }

@@ -67,7 +67,7 @@ fn u32_at(bytes: &[u8], at: usize) -> Result<usize, String> {
 
 /// What the program keeps of RAL.EXE (`tools/extract_image`, decoupling step B): its data
 /// sections, packed, and their relocations; its code sections only as places.
-static IMAGE_DATA: &[u8] =
+pub(crate) static IMAGE_DATA: &[u8] =
     include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/data/ral_image.bin"));
 
 /// The game's image built from `IMAGE_DATA` at the places RAL.EXE would have them: the data
@@ -490,15 +490,6 @@ fn rust(name: &str) {
     log(&format!("standalone: start calls {name}"));
 }
 
-/// `start`'s call of a Rust version that still takes registers (its `entry`; conversion
-/// phase 3 makes them natural one by one).
-unsafe fn run_entry(name: &str, entry: fn(&mut Regs) -> Result<(), Refused>, r: &mut Regs) {
-    rust(name);
-    if let Err(e) = entry(r) {
-        unsafe { refused(name, e, r) };
-    }
-}
-
 /// A Rust version's refusal in `start`: a refused input ends the program, a fatal error is
 /// raised.
 unsafe fn refused(name: &str, e: Refused, r: &Regs) {
@@ -523,13 +514,11 @@ unsafe fn start() {
         rust("math::seed_random");
         crate::math::seed_random::seed_random();
         rust("system::read_volume_serial");
-        r = Regs {
-            esp: r.esp,
-            ..crate::system::read_volume_serial::read_volume_serial(&r)
-        };
-        // eax: `system::read_volume_serial`'s serial.
+        crate::system::read_volume_serial::read_volume_serial();
+        // eax: what `system::read_volume_serial` leaves there, `start`'s esi at entry (its
+        // `pop eax`; the serial is lost: `notes/bugs.md`), 0 here.
         rust("math::stir_random");
-        crate::math::stir_random::stir_random(r.eax);
+        crate::math::stir_random::stir_random(0);
         // `system::set_exception_filter` (0x410D4C) sets nothing in the standalone.
         rust("system::test_processor");
         if let Err(e) =
@@ -587,7 +576,7 @@ unsafe fn start() {
             finish("fatal error 0x900010FF, FPU is required", 1);
         }
         rust("system::read_command_line");
-        if let Err(why) = crate::system::read_command_line::read_own_command_line(&r) {
+        if let Err(why) = crate::system::read_command_line::read_own_command_line() {
             refused("system::read_command_line", why.into(), &r);
         }
         rust("install::check_clio_disc");
@@ -601,27 +590,32 @@ unsafe fn start() {
         }
         rust("system::check_developer_machine");
         crate::system::check_developer_machine::check_developer_machine();
-        run_entry(
-            "install::read_languages",
-            crate::install::read_languages::entry,
-            &mut r,
-        );
-        run_entry(
-            "install::read_record",
-            crate::install::read_record::entry,
-            &mut r,
-        );
+        rust("install::read_languages");
+        if let Err(e) = crate::install::read_languages::read_languages(game_addr(
+            crate::install::read_languages::PATH_RVA,
+        ) as *const u8)
+        .map_err(Refused::from)
+        {
+            refused("install::read_languages", e, &r);
+        }
+        rust("install::read_record");
+        if let Err(e) = crate::install::read_record::read_record(game_addr(
+            crate::install::read_record::PATH_RVA,
+        ) as *const u8)
+        .map_err(Refused::from)
+        {
+            refused("install::read_record", e, &r);
+        }
         // `strings::load_language` (0x40331F): Rust, its hook gone (it keeps every register).
         rust("strings::load_language");
         let compile = &mut || crate::strings::compile_lexicon::compile_lexicon();
         if let Err(e) = crate::strings::load_language::load_language(compile) {
             refused("strings::load_language", e, &r);
         }
-        run_entry(
-            "system::load_game_data",
-            crate::system::load_game_data::entry,
-            &mut r,
-        );
+        rust("system::load_game_data");
+        if let Err(e) = crate::system::load_game_data::load_in_game() {
+            refused("system::load_game_data", e, &r);
+        }
         rust("system::find_running_game");
         if crate::system::find_running_game::find_running_game() {
             finish("the game is running already (0x4103BE)", 0);
@@ -638,19 +632,18 @@ unsafe fn start() {
         if let Err(e) = crate::gfx::list_secondary_modes::list_secondary_modes() {
             refused("gfx::list_secondary_modes", e, &r);
         }
-        run_entry("net::set_up", crate::net::set_up::entry, &mut r);
+        rust("net::set_up");
+        if let Err(e) = crate::net::set_up::set_up() {
+            refused("net::set_up", e, &r);
+        }
         rust("system::set_priority_class");
         crate::system::set_priority_class::set_priority_class(0x80);
-        run_entry(
-            "threading::start_threads",
-            crate::threading::start_threads::entry,
-            &mut r,
-        );
-        run_entry(
-            "sound::wait_for_commands",
-            crate::sound::wait_for_commands::entry,
-            &mut r,
-        );
+        rust("threading::start_threads");
+        if let Err(e) = crate::threading::start_threads::start_threads_in_game() {
+            refused("threading::start_threads", e, &r);
+        }
+        rust("sound::wait_for_commands");
+        crate::sound::wait_for_commands::wait_in_game();
         rust("system::sleep");
         crate::system::sleep::sleep(1000);
         call(0x404481, &mut r);
@@ -680,8 +673,14 @@ unsafe fn start() {
             1,
         );
         stand_in("the key thread runs", 0x518998, 1);
-        run_entry("system::main_loop", crate::system::main_loop::entry, &mut r);
-        run_entry("net::shut_down", crate::net::shut_down::entry, &mut r);
+        rust("system::main_loop");
+        if let Err(e) = crate::system::main_loop::main_loop_in_game() {
+            refused("system::main_loop", e, &r);
+        }
+        rust("net::shut_down");
+        if let Err(e) = crate::net::shut_down::shut_down() {
+            refused("net::shut_down", e, &r);
+        }
         // `gfx::release_screens` (0x404CD6), `sound::close_cd_audio` (0x40FA8B): SDL's
         // (`SDL_DOES`).
         rust("gfx::free_picture_buffer");
@@ -691,11 +690,10 @@ unsafe fn start() {
         // `system::drain_messages` (0x410509): SDL's (`SDL_DOES`).
         rust("system::set_priority_class");
         crate::system::set_priority_class::set_priority_class(0x20);
-        run_entry(
-            "install::run_after_exit",
-            crate::install::run_after_exit::entry,
-            &mut r,
-        );
+        rust("install::run_after_exit");
+        if let Err(e) = crate::install::run_after_exit::run_after_exit() {
+            refused("install::run_after_exit", e, &r);
+        }
         rust("system::restore_error_mode");
         crate::system::restore_error_mode::restore_error_mode();
         rust("memory::free_own_heap");

@@ -12,33 +12,35 @@
 //! `routes.rs`); the registers above are the original's, for reference.
 
 use crate::errors::BadInput;
-use crate::framework::{game_read, rva};
 use rc2k_core::files::log::Started;
 
-// ---- game data ----
-
-const WEEKDAY_RVA: usize = rva(0x51839F); // byte_51839F, then day, month, year (word),
-const DAY_RVA: usize = rva(0x5183A0); // hour, minute, second, hundredths
-const MONTH_RVA: usize = rva(0x5183A1);
-const YEAR_RVA: usize = rva(0x5183A2);
-const TIME_RVA: usize = rva(0x5183A4);
 // ---- Rust version ----
 
 /// The text, without what is written after it (converted: `rc2k_core::files::log::date`, on the
 /// start's moment as the game keeps it). Refuses a weekday, day or month past the tables.
 pub unsafe fn date_text() -> Result<Vec<u8>, BadInput> {
-    let started = unsafe {
-        let [hour, minute, second, hundredths]: [u8; 4] = game_read(TIME_RVA);
-        Started {
-            weekday: game_read(WEEKDAY_RVA),
-            day: game_read(DAY_RVA),
-            month: game_read(MONTH_RVA),
-            year: game_read(YEAR_RVA),
-            hour,
-            minute,
-            second,
-            hundredths,
-        }
+    // byte_51839F the weekday, then day, month, year (word), hour, minute, second,
+    // hundredths (`system::keep_start_time`).
+    let [
+        weekday,
+        day,
+        month,
+        year_low,
+        year_high,
+        hour,
+        minute,
+        second,
+        hundredths,
+    ] = crate::system::keep_start_time::start_time();
+    let started = Started {
+        weekday,
+        day,
+        month,
+        year: u16::from_le_bytes([year_low, year_high]),
+        hour,
+        minute,
+        second,
+        hundredths,
     };
     rc2k_core::files::log::date(&started).ok_or(BadInput(
         "a start date whose weekday, day or month is past the name tables",

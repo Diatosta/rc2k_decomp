@@ -10,40 +10,33 @@
 //! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
+//! are the original's.
+
 use crate::errors::Refused;
-use crate::framework::Regs;
-use crate::install::installer::{cmp, rb};
-use crate::race::viewer::regs_entry;
+use crate::install::installer::rb;
 use rc2k_core::install::items::{Helper, ItemKey};
 
-/// A key on the item at esi: its kind into bl, then the helper the key has for it, or the
-/// flags of the last compare.
-pub fn item_key(entry: &Regs, key: ItemKey) -> Result<Regs, Refused> {
-    let mut r = *entry;
-    let kind = rb(r.esi) & key.kind_mask();
-    r.ebx = r.ebx & !0xFF | kind as u32;
+/// A key on `item`: the helper the key has for the item's kind, `number` for the number
+/// keys' helpers; the original's zero after it (the helpers' set, else that of the last
+/// compare of the kind).
+pub fn item_key(item: u32, key: ItemKey, number: u32) -> Result<bool, Refused> {
+    let kind = rb(item) & key.kind_mask();
     // Converted: `rc2k_core::install::items::ItemKey::helper`.
     use crate::install as i;
     match key.helper(kind) {
-        Some(Helper::ChoiceBack) => i::choice_back::choice_back(&r),
-        Some(Helper::ChoiceOn) => i::choice_on::choice_on(&r),
-        Some(Helper::ChoiceByNumber) => i::choice_by_number::choice_by_number(&r),
-        Some(Helper::ValueDown) => i::value_down::value_down(&r),
-        Some(Helper::ValueUp) => i::value_up::value_up(&r),
-        Some(Helper::ValueByNumber) => i::value_by_number::value_by_number(&r),
-        None => {
-            cmp(&mut r, kind as u32, key.last_compared() as u32);
-            Ok(r)
-        }
+        Some(Helper::ChoiceBack) => i::choice_back::choice_back(item)?,
+        Some(Helper::ChoiceOn) => i::choice_on::choice_on(item)?,
+        Some(Helper::ChoiceByNumber) => i::choice_by_number::choice_by_number(item, number),
+        Some(Helper::ValueDown) => i::value_down::value_down(item),
+        Some(Helper::ValueUp) => i::value_up::value_up(item),
+        Some(Helper::ValueByNumber) => i::value_by_number::value_by_number(item, number)?,
+        None => return Ok(kind == key.last_compared()),
     }
+    Ok(true)
 }
 
-pub fn key_up(entry: &Regs) -> Result<Regs, Refused> {
-    item_key(entry, ItemKey::Up)
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    regs_entry(r, &key_up)
+/// Whether the key was taken (the original's zero).
+pub fn key_up(item: u32) -> Result<bool, Refused> {
+    item_key(item, ItemKey::Up, 0)
 }

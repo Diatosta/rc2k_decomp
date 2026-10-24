@@ -4,7 +4,7 @@
 //! `unk_811BD3` .., its length in `dword_811BCF` (`x87::unit_and_length`).
 //!
 //! In:  nothing
-//! Out: esi the point (0x811BDF), edi the unit point (0x811BD3); the rest kept
+//! Out: nothing (no caller reads a register it leaves)
 //!
 //! Caller: `sub_4C1148`. Self-test: the angle and the point by lot, compared on the eight
 //! results and the registers; put back afterwards.
@@ -18,9 +18,8 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 use crate::math::x87;
-use crate::service::harness::{Region, at};
 
 const TILT_RVA: usize = rva(0x811BC3); // g_marksShapeTilt
 const SINE_RVA: usize = rva(0x811BC7); // flt_811BC7
@@ -29,8 +28,8 @@ const POINT_RVA: usize = rva(0x811BDF); // flt_811BDF .. flt_811BE7
 const UNIT_RVA: usize = rva(0x811BD3); // unk_811BD3
 const LENGTH_RVA: usize = rva(0x811BCF); // dword_811BCF
 
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn tilt_shape(entry: &Regs) -> Regs {
+/// The Rust version (see the header).
+pub unsafe fn tilt_shape() {
     unsafe {
         let (s, c) = x87::sine_and_cosine(game_read(TILT_RVA));
         game_write(COSINE_RVA, c);
@@ -41,27 +40,5 @@ pub unsafe fn tilt_shape(entry: &Regs) -> Regs {
         let (unit, length) = x87::unit_and_length(game_read(POINT_RVA));
         game_write(LENGTH_RVA, length);
         game_write(UNIT_RVA, unit);
-        Regs {
-            esi: game_addr(POINT_RVA) as u32,
-            edi: game_addr(UNIT_RVA) as u32,
-            ..*entry
-        }
     }
-}
-
-fn written() -> Vec<usize> {
-    let mut w = vec![
-        SINE_RVA,
-        COSINE_RVA,
-        POINT_RVA + 4,
-        POINT_RVA + 8,
-        LENGTH_RVA,
-    ];
-    w.extend((0..3).map(|k| UNIT_RVA + 4 * k));
-    w
-}
-
-/// What it writes.
-pub fn regions() -> Vec<Region> {
-    written().into_iter().map(at).collect()
 }

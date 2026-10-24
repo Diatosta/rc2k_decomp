@@ -14,12 +14,9 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
-use crate::race::viewer::Part;
+use crate::menu::screen_loop::Carried;
 
-/// The Rust version.
-pub fn replay_mode_2(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    let mut r = Regs { eax: 2, ..*entry };
-    part(1, &mut r)?;
-    Ok(r)
+/// The Rust version (`c` the carried values the item gets).
+pub fn replay_mode_2(c: &Carried) -> Result<(), Refused> {
+    crate::race::replay_viewer::replay_viewer(c, 2)
 }

@@ -15,7 +15,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_write, rva};
+use crate::framework::{game_write, rva};
 use crate::scene::draw_carousel::draw_carousel_in_game;
 
 // ---- game data ----
@@ -24,20 +24,11 @@ const MODE_RVA: usize = rva(0x6365C4); // dword_6365C4
 
 // ---- Rust version ----
 
-pub unsafe fn draw_main_menu_carousel(
-    r: &mut Regs,
-    draw: &mut dyn FnMut(&mut Regs) -> Result<(), Refused>,
-) -> Result<(), Refused> {
-    unsafe { game_write(MODE_RVA, 0u32) };
-    draw(r)
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let entry = *r;
-    if let Err(e) = unsafe { draw_main_menu_carousel(r, &mut |r| draw_carousel_in_game(r)) } {
-        *r = entry;
-        return Err(e);
+/// The scene's mode 0, then the carousel; `lone_row`: ecx at the original's entry (see
+/// `draw_carousel`).
+pub unsafe fn draw_main_menu_carousel(lone_row: u32) -> Result<(), Refused> {
+    unsafe {
+        game_write(MODE_RVA, 0u32);
+        draw_carousel_in_game(lone_row)
     }
-    Ok(())
 }

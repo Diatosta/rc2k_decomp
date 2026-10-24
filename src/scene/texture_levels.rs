@@ -6,7 +6,7 @@
 //! it otherwise).
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::scene::texture_needs::{SYSTEM_LEVELS_RVA, TAGS_RVA, VIDEO_LEVELS_RVA};
 
 pub const OTHER_LEVELS_RVA: usize = rva(0x5CDADC); // dword_5CDADC
@@ -14,7 +14,6 @@ pub const KIND_SLOTS_RVA: usize = rva(0x5DC978); // g_kindSlotBytes: + 4 (or 1) 
 pub const CARS_RVA: usize = rva(0x63DB90); // g_raceCars
 const SECOND_CAR_RVA: usize = rva(0x63DB94); // dword_63DB94
 const EXTRA_RVA: usize = rva(0x621514); // dword_621514
-const WANTED_RVA: usize = rva(0x5D8968); // g_textureWantedPictures
 pub const SLOTS: u32 = 0x400;
 
 /// A kind's block: its first-texture variable (only its place in `g_textureWantedPictures`
@@ -55,27 +54,6 @@ fn other() -> bool {
     unsafe { game_read::<u32>(OTHER_LEVELS_RVA) != 0 }
 }
 
-/// `scene::set_texture_levels` (0x422426): ecx slots from ebx get level eax (edx with
-/// `dword_5CDADC` set) in both tables, tag ebp. Leaves ebx past them, ecx 0. Refuses no
-/// slots (the original counts round) or slots past 0x400.
-pub unsafe fn set_texture_levels(entry: &Regs) -> Result<Regs, Refused> {
-    // Converted: `rc2k_core::scene::textures::LevelTables::set_run`.
-    use crate::scene::textures::slice;
-    let mut g = *entry;
-    let level = if other() { g.edx } else { g.eax };
-    unsafe {
-        rc2k_core::scene::textures::LevelTables {
-            tags: slice(TAGS_RVA, SLOTS),
-            system: slice(SYSTEM_LEVELS_RVA, SLOTS),
-            video: slice(VIDEO_LEVELS_RVA, SLOTS),
-        }
-        .set_run(g.ebx, g.ecx, level, g.ebp)?;
-    }
-    g.ebx += g.ecx;
-    g.ecx = 0;
-    Ok(g)
-}
-
 const COUNT_TEXT_RVA: usize = rva(0x4DB7B9); // "NUM DIFFERENT CARS/OBJECTS/TEXTURE SETS "
 
 /// `scene::init_texture_levels` (0x424001), see the header: `g_raceCars` held to 1 .. 8
@@ -84,26 +62,22 @@ const COUNT_TEXT_RVA: usize = rva(0x4DB7B9); // "NUM DIFFERENT CARS/OBJECTS/TEXT
 /// 0x104; the second's level by `dword_63DB94`), each further car's two (0x108 + 8 a car,
 /// tag 0x28 + the car); each kind's slots (its prefs entry not 0 or -1: tag, level, and
 /// `dword_5DC978` + 4, or + 1 for slots 0x40 .. 0x6F); the fixed runs, two loops at slot 0xDC (the system level of six,
-/// the video level of two), and with `dword_621514` three more. Leaves ebx past the last
-/// run, eax, ecx, edx 0, ebp 0x63, esi past the prefs, edi the last kind's wanted picture.
-pub unsafe fn init_texture_levels(entry: &Regs) -> Result<Regs, Refused> {
+/// the video level of two), and with `dword_621514` three more. What the original
+/// leaves in the registers its one caller reads none of (register liveness, 2026-10-23:
+/// the site in `race::loadlevel_init`, every register followed, no read).
+pub unsafe fn init_texture_levels() -> Result<(), Refused> {
     // Converted: `rc2k_core::scene::texture_levels::{held_cars, set_levels}`.
+    use crate::logfile::{log_int::log_int, log_write::log_write};
     use crate::scene::textures::slice;
     use rc2k_core::scene::texture_levels::{KindSlots, held_cars, set_levels};
-    let mut g = *entry;
     unsafe {
         let cars = held_cars(game_read(CARS_RVA));
         game_write(CARS_RVA, cars);
-        crate::scene::texture_levels::game_part(0, &mut g)?;
-        let mut r = Regs {
-            eax: game_addr(COUNT_TEXT_RVA) as u32,
-            ..g
-        };
-        crate::scene::texture_levels::game_part(1, &mut r)?;
-        let mut r = Regs { eax: cars, ..g };
-        crate::scene::texture_levels::game_part(2, &mut r)?;
+        crate::scene::reset_texture_tables::reset_texture_tables();
+        log_write(game_addr(COUNT_TEXT_RVA) as *const u8, false, 1);
+        log_int(cars as i32, true, 1);
         game_write(OTHER_LEVELS_RVA, 0u32);
-        crate::scene::texture_levels::game_part(3, &mut g)?;
+        crate::input::keys::update_input(&mut crate::input::keys::game_screenshot);
         let kinds: Vec<(KindSlots, Vec<u32>)> = BLOCKS
             .iter()
             .map(|&(_, prefs, first, count, tag, level, other_level, step)| {
@@ -139,29 +113,6 @@ pub unsafe fn init_texture_levels(entry: &Regs) -> Result<Regs, Refused> {
             KIND_SLOTS_RVA,
             game_read::<u32>(KIND_SLOTS_RVA).wrapping_add(set.kind_slots_added),
         );
-        let (first_var, prefs, _, count, ..) = BLOCKS[BLOCKS.len() - 1];
-        let kind_first: u32 = game_read(rva(first_var));
-        g.edi = (game_addr(WANTED_RVA) as u32).wrapping_add(kind_first.wrapping_mul(4));
-        g.esi = game_addr(rva(prefs)) as u32 + 4 * count;
-        g.ebx = set.last.first + set.last.count;
-        g.ecx = 0;
-        g.eax = set.last.level;
-        g.edx = set.last.other_level;
-        g.ebp = set.last.tag;
-    }
-    Ok(g)
-}
-
-/// The game's calls: the Rust versions.
-pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    use crate::logfile::{log_int::log_int, log_write::log_write};
-    unsafe {
-        match place {
-            0 => crate::scene::reset_texture_tables::reset_texture_tables().apply(r),
-            1 => log_write(r.eax as *const u8, false, 1),
-            2 => log_int(r.eax as i32, true, 1),
-            _ => *r = crate::input::keys::update(r, &mut crate::input::keys::game_screenshot),
-        }
     }
     Ok(())
 }

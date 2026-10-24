@@ -16,7 +16,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::BadInput;
-use crate::framework::{game_addr, game_ptr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::input::key_to_char::{
     LAYOUT_A_RVA, LAYOUT_MODE_RVA, LAYOUT_RVA, has_layout, key_to_char,
 };
@@ -27,7 +27,6 @@ use crate::strings::text_from_ids::{TEXT_LEN, text};
 // ---- game data ----
 
 pub const KEY_GIVEN_RVA: usize = rva(0x4F7FD8); // dword_4F7FD8: 1 = the key comes in eax
-const LOWER_CASE_RVA: usize = rva(0x4F0BC8); // byte_4F0BC8: 256 characters
 /// (string id, answer)
 use rc2k_core::input::keyboard::ANSWERS;
 pub const YES: u32 = 1;
@@ -51,7 +50,7 @@ pub unsafe fn answer_for_key(eax: u32) -> Result<u32, BadInput> {
         if own_layout {
             game_write(LAYOUT_RVA, layout);
         }
-        let lower = *game_ptr::<u8>(LOWER_CASE_RVA).add(character? as u8 as usize);
+        let lower = crate::strings::same_text::lower(character? as u8); // g_lowerCase
         // Converted: `rc2k_core::input::keyboard::answer`; each string built at the text
         // buffer's start without a NUL, as the original does (their lengths checked first).
         let strings = ANSWERS.map(|(id, _)| {

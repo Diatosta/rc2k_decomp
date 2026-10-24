@@ -12,8 +12,7 @@
 //! the record at +0x1F4.
 //!
 //! In:  esi the car object
-//! Out: ebp the car's matrix, edi the object + 0x1F4; eax, ebx, ecx as the last emitter
-//!      leaves them (from the third row's negated values on); the rest kept
+//! Out: nothing (no caller reads a register it leaves)
 //!
 //! Caller: 0x4C9E0C. Refuses a null object or matrix and the emitters' refusals; on a
 //! refusal nothing stays written (all it may write is put back). Self-test: a car of the
@@ -25,7 +24,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 use crate::marks::emit_body_particles::emit_body_particles;
 use crate::marks::emit_wheel_particles::emit_wheel_particles;
 use crate::marks::emitters::*;
@@ -58,19 +57,11 @@ unsafe fn put(a: u32, v: u32) {
     unsafe { (a as *mut u32).write_unaligned(v) }
 }
 
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn emit_car_particles(entry: &Regs) -> Result<Regs, Refused> {
-    let o = entry.esi;
+/// The Rust version (see the header): `o` the car's object (the original's esi).
+pub unsafe fn emit_car_particles(o: u32) -> Result<(), Refused> {
     if o == 0 || unsafe { at(o + 0x24) } == 0 {
         return Err(BadInput("a null car object or matrix").into());
     }
-
-    unsafe { run(entry) }
-}
-
-unsafe fn run(entry: &Regs) -> Result<Regs, Refused> {
-    let mut g = *entry;
-    let o = g.esi;
     unsafe {
         let k = K.map(|r| game_read::<u32>(r));
         let z1 = x87::int_times(at(o + 0xC) as i32, k[0]);
@@ -109,22 +100,20 @@ unsafe fn run(entry: &Regs) -> Result<Regs, Refused> {
         }
         for (n, &r) in RECORDS[..4].iter().enumerate() {
             if n == 2 {
-                g.ebp = m;
-                [g.eax, g.ebx, g.ecx] = [at(m), at(m + 4), at(m + 8)];
-                game_write(SIDE_A_RVA, [g.eax, g.ebx, g.ecx]);
-                [g.eax, g.ebx, g.ecx] = [0x20, 0x24, 0x28].map(|f| at(m + f) ^ 0x8000_0000);
-                game_write(SIDE_B_RVA, [g.eax, g.ebx, g.ecx]);
+                game_write(SIDE_A_RVA, [at(m), at(m + 4), at(m + 8)]);
+                game_write(
+                    SIDE_B_RVA,
+                    [0x20, 0x24, 0x28].map(|f| at(m + f) ^ 0x8000_0000),
+                );
             }
-            g.edi = o + r;
             game_write(WHICH_RVA, n as u32);
-            g = emit_wheel_particles(&g)?;
+            emit_wheel_particles(o + r, o)?;
         }
         let sides: [u32; 6] =
             std::array::from_fn(|n| x87::loaded(game_read(BODY_SIDES_RVA + 4 * n)));
         game_write(SIDE_A_RVA, [sides[0], sides[1], sides[2]]);
         game_write(SIDE_B_RVA, [sides[3], sides[4], sides[5]]);
-        g.edi = o + RECORDS[4];
-        g = emit_body_particles(&g)?;
+        emit_body_particles(o + RECORDS[4], o)?;
     }
-    Ok(g)
+    Ok(())
 }

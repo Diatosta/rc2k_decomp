@@ -16,36 +16,18 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_read, rva};
+use crate::framework::{game_read, rva};
 
 const SWITCH_RVA: usize = rva(0x7587E8); // dword_7587E8
 
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn reload_front_end(entry: &Regs) -> Result<Regs, Refused> {
-    let mut g = *entry;
-    g.eax = unsafe { game_read(SWITCH_RVA) };
-    if g.eax == 1 {
-        for place in [1, 2, 1] {
-            crate::menu::reload_front_end::game_part(place, &mut g)?;
+/// The Rust version (see the header).
+pub unsafe fn reload_front_end() -> Result<(), Refused> {
+    if unsafe { game_read::<u32>(SWITCH_RVA) } == 1 {
+        unsafe {
+            crate::scene::set_up_engine::set_up_engine()?;
+            crate::scene::set_up_front_end_scene::set_up_front_end_scene()?;
+            crate::scene::set_up_engine::set_up_engine()?;
         }
     }
-    Ok(*entry)
-}
-
-/// In the game: the Rust versions.
-pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    unsafe {
-        match place {
-            1 => crate::scene::set_up_engine::set_up_engine_in_game(r),
-            _ => crate::scene::set_up_front_end_scene::set_up_front_end_scene_in_game(r)?,
-        }
-    }
-    Ok(())
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { reload_front_end(r) }?;
-    *r = Regs { esp: r.esp, ..left };
     Ok(())
 }

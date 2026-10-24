@@ -25,7 +25,7 @@
 
 use crate::d3d::draw_fan_unclipped::COUNT_RVA;
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::scene::clip::{
     DEPTH_CLIPPED_RVA, NEXT_ENTRY_RVA, NEXT_RECORD_RVA, POOL_RVA, SCREEN_CLIPPED_RVA,
 };
@@ -37,7 +37,6 @@ use crate::scene::fog_polygon::fog_polygon;
 use crate::scene::polygon::{LIST_RVA, MOST};
 use crate::scene::project_polygon::{OUTSIDE_RVA, project_polygon};
 use crate::scene::scale_texture_coordinates::scale_texture_coordinates;
-use crate::scene::submit_polygon;
 
 // ---- game data ----
 
@@ -96,9 +95,8 @@ pub unsafe fn draw_clipped_polygon(
     }
 }
 
-/// The function with its parts' Rust versions, drawing for real. `entry`: the registers
-/// the Direct3D layer is called with.
-pub unsafe fn draw_clipped_polygon_in_game(entry: &Regs) -> Result<(), Refused> {
+/// The function with its parts' Rust versions, drawing for real.
+pub unsafe fn draw_clipped_polygon_in_game() -> Result<(), Refused> {
     unsafe {
         draw_clipped_polygon(&mut |step| {
             match step {
@@ -107,9 +105,7 @@ pub unsafe fn draw_clipped_polygon_in_game(entry: &Regs) -> Result<(), Refused> 
                 Step::Fog => fog_polygon().map(|_| ())?,
                 Step::ClipByDepth => clip_polygon_by_depth()?,
                 Step::ClipToScreen => clip_polygon_to_screen()?,
-                Step::Draw => draw_marked_polygon(&mut || {
-                    draw_polygon(&mut Game(submit_polygon::Game(entry)))
-                })?,
+                Step::Draw => draw_marked_polygon(&mut || draw_polygon(&mut Game))?,
             }
             Ok(())
         })

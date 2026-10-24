@@ -3,7 +3,7 @@
 //! texture surface.
 //!
 //! In:  nothing
-//! Out: as `memory::free_list` leaves them (eax `dword_5D1E10`, ebx the list)
+//! Out: nothing (no caller reads a register it leaves)
 //!
 //! The ground picture's name is the `dword_934CC8`-th of six (`files\m\snow1.pcx`,
 //! `mud1`, `dust1`, `mud1`, `mud1`, `gumbo0`); it is read twice and never used (section
@@ -20,8 +20,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
-use crate::race::level_init::Part;
+use crate::framework::{game_addr, game_read, game_write, rva};
 
 const GROUND_RVA: usize = rva(0x934CC8); // g_marksGround: which of the names
 const NAMES_RVA: usize = rva(0x934CD0); // "files\m\snow1.pcx" and five more
@@ -49,8 +48,10 @@ const MOST_WIDTH: u32 = 0x100;
 const COPIED: u32 = 0x8000; // dwords
 const ROWS: u32 = 0x7E;
 
-/// Place 2 at 256 x 128 (the picture's sizes kept round it); refused when not read.
-unsafe fn read(g: &mut Regs, path: u32, part: Part) -> Result<(), Refused> {
+/// `gfx::read_picture_file` at 256 x 128 (the picture's sizes kept round it); refused
+/// when not read (the original then counts 0x1FFFFFFF down and leaves with its stack one
+/// off).
+unsafe fn read(path: u32) -> Result<(), Refused> {
     use crate::gfx::picture::{HEIGHT_RVA, ROW_BYTES_RVA, WIDTH_RVA};
     unsafe {
         let sizes: [u32; 3] = [
@@ -61,60 +62,57 @@ unsafe fn read(g: &mut Regs, path: u32, part: Part) -> Result<(), Refused> {
         game_write(WIDTH_RVA, 0x100u32);
         game_write(HEIGHT_RVA, 0x80u32);
         game_write(ROW_BYTES_RVA, 0xFFFF_FFFEu32);
-        g.eax = path;
-        let read = part(2, g);
+        let read = crate::gfx::read_picture_file::read_picture_file(path as *mut u8);
         game_write(WIDTH_RVA, sizes[0]);
         game_write(HEIGHT_RVA, sizes[1]);
         game_write(ROW_BYTES_RVA, sizes[2]);
-        read
+        if !read? {
+            return Err(BadInput("a mask picture was not read").into());
+        }
     }
+    Ok(())
+}
+
+/// `gfx::put_surface_pixel` (components, x, y).
+pub unsafe fn put_pixel(components: u32, x: u32, y: u32) -> Result<(), Refused> {
+    unsafe { crate::gfx::put_surface_pixel::put_surface_pixel(components, x, y)? };
+    Ok(())
+}
+
+/// `d3d::lock_texture` (`lock`) or `d3d::unlock_texture` of the texture slot `slot` (their
+/// flags unread).
+pub unsafe fn lock(slot: u32, lock: bool) -> Result<(), Refused> {
+    unsafe {
+        if lock {
+            crate::d3d::lock_texture::lock_texture(slot)?;
+        } else {
+            crate::d3d::unlock_texture::unlock_texture(slot)?;
+        }
+    }
+    Ok(())
 }
 
 /// A mask read, copied to the 0x80000 block, the ground read, and the block `to` made
 /// and drawn at rows 0x80 .. 0xFD.
-unsafe fn mask(
-    g: &mut Regs,
-    path: usize,
-    to: usize,
-    width: u32,
-    part: Part,
-) -> Result<(), Refused> {
+unsafe fn mask(path: usize, to: usize, width: u32) -> Result<(), Refused> {
     use crate::gfx::picture::PICTURE_RVA;
     unsafe {
-        read(g, game_addr(path) as u32, part)?;
-        g.esi = game_read(PICTURE_RVA);
-        g.edi = game_read(COPY_RVA);
-        for _ in 0..COPIED {
-            g.eax = (g.esi as *const u32).read_unaligned();
-            (g.edi as *mut u32).write_unaligned(g.eax);
-            g.esi += 4;
-            g.edi += 4;
-        }
-        read(g, game_read(GROUND_PATH_RVA), part)?;
-        g.edx = 0;
-        loop {
-            g.ecx = 0;
-            loop {
-                g.ebp = (g.edx << 8).wrapping_add(g.ecx);
-                g.esi = game_read(COPY_RVA);
-                g.edi = game_read(PICTURE_RVA);
-                let mask = ((g.esi + 4 * g.ebp) as *const u32).read_unaligned();
-                g.ebx = 0xFF_FFFF;
-                g.eax = (mask << 8) & 0xFF00_0000 | g.ebx;
-                g.esi = game_read(to);
-                ((g.esi + 4 * g.ebp) as *mut u32).write_unaligned(g.eax);
-                let y = g.edx;
-                g.edx += 0x80;
-                part(3, g)?;
-                g.edx = y;
-                g.ecx += 1;
-                if g.ecx >= width {
-                    break;
-                }
-            }
-            g.edx += 1;
-            if g.edx >= ROWS {
-                break;
+        read(game_addr(path) as u32)?;
+        std::ptr::copy(
+            game_read::<u32>(PICTURE_RVA) as *const u8,
+            game_read::<u32>(COPY_RVA) as *mut u8,
+            4 * COPIED as usize,
+        );
+        read(game_read(GROUND_PATH_RVA))?;
+        for y in 0..ROWS {
+            for x in 0..width.max(1) {
+                let n = (y << 8).wrapping_add(x);
+                let copy: u32 = game_read(COPY_RVA);
+                let mask = ((copy + 4 * n) as *const u32).read_unaligned();
+                let pixel = (mask << 8) & 0xFF00_0000 | 0xFF_FFFF;
+                let block: u32 = game_read(to);
+                ((block + 4 * n) as *mut u32).write_unaligned(pixel);
+                put_pixel(pixel, x, y + 0x80)?;
             }
         }
     }
@@ -122,82 +120,52 @@ unsafe fn mask(
 }
 
 /// The Rust version: the ground's name skipped to (`g_marksGroundPath`); the three blocks
-/// taken (place 0); the surface locked (1); the kind (held to 0 .. 0x21) its picture
-/// number's two digits in the three paths; each mask (reading place 2) into its block and
-/// drawn (`put_surface_pixel`, 3); unlocked (4), the texture slot forgotten (5), the
-/// 0x80000 block's list freed (6), `dword_934D6E` -1.
-pub unsafe fn load_mask_pictures(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    let mut g = *entry;
+/// taken (`memory::allocate`); the surface locked (`d3d::lock_texture`); the kind (held
+/// to 0 .. 0x21) its picture number's two digits in the three paths; each mask
+/// (`gfx::read_picture_file`) into its block and drawn (`gfx::put_surface_pixel`);
+/// unlocked, the texture slot forgotten (`scene::forget_slot_texture`), the 0x80000
+/// block's list freed, `dword_934D6E` -1.
+pub unsafe fn load_mask_pictures() -> Result<(), Refused> {
     unsafe {
         let ground: i32 = game_read(GROUND_RVA);
         if ground >= NAMES {
             return Err(BadInput("a ground past the six names").into());
         }
-        g.esi = game_addr(NAMES_RVA) as u32;
+        let mut name = game_addr(NAMES_RVA) as u32;
         for _ in 0..ground.max(0) {
-            while *(g.esi as *const u8) != 0 {
-                g.esi += 1;
+            while *(name as *const u8) != 0 {
+                name += 1;
             }
-            g.esi += 1;
+            name += 1;
         }
-        game_write(GROUND_PATH_RVA, g.esi);
+        game_write(GROUND_PATH_RVA, name);
         for (bytes, list, to) in BLOCKS {
-            g.eax = bytes;
-            g.ebx = game_addr(list) as u32;
-            part(0, &mut g)?;
-            game_write(to, g.eax);
+            game_write(to, crate::marks::blocks::take(list, bytes)?);
         }
-        g.eax = game_read(SLOT_RVA);
-        part(1, &mut g)?;
+        lock(game_read(SLOT_RVA), true)?;
         let width: u32 = game_read(SURFACE_WIDTH_RVA);
         if width > MOST_WIDTH {
-            g.eax = game_read(SLOT_RVA);
-            part(4, &mut g)?;
+            lock(game_read(SLOT_RVA), false)?;
             return Err(BadInput("a mask surface wider than 256").into());
         }
         let kind = (game_read::<u32>(crate::marks::kind_values::KIND_RVA) as i32)
             .clamp(0, MOST_KIND) as u32;
         let number: u32 = game_read(NUMBERS_RVA + 4 * kind as usize);
-        let (tens, ones) = (number / 10, number % 10);
-        g.eax = (tens & !0xFF) | (tens as u8).wrapping_add(b'0') as u32;
-        g.edx = ones + b'0' as u32;
-        g.ebx = 10;
+        let digits = [
+            ((number / 10) as u8).wrapping_add(b'0'),
+            (number % 10) as u8 + b'0',
+        ];
         for d in DIGITS_RVA {
-            game_write(d, [g.eax as u8, g.edx as u8]);
+            game_write(d, digits);
         }
-        mask(&mut g, MASK_PATH_RVA, BLOCKS[0].2, width, part)?;
-        mask(&mut g, BMASK_PATH_RVA, BLOCKS[1].2, width, part)?;
-        g.eax = game_read(SLOT_RVA);
-        part(4, &mut g)?;
-        g.eax = game_read(TEXTURE_RVA);
-        part(5, &mut g)?;
-        g.ebx = game_addr(COPY_LIST_RVA) as u32;
-        part(6, &mut g)?;
+        mask(MASK_PATH_RVA, BLOCKS[0].2, width)?;
+        mask(BMASK_PATH_RVA, BLOCKS[1].2, width)?;
+        lock(game_read(SLOT_RVA), false)?;
+        crate::scene::forget_slot_texture::forget_slot_texture(game_read(TEXTURE_RVA))?;
+        crate::memory::free_list::free_list(
+            game_addr(COPY_LIST_RVA) as *mut crate::memory::MemoryList
+        )?;
         game_write(DONE_RVA, u32::MAX);
-    }
-    Ok(g)
-}
-
-/// In the game: 0 `memory::allocate`, 1 and 4 the surface's lock and unlock (the game's),
-/// 2 `gfx::read_picture_file` (refused when it fails: the original then counts 0x1FFFFFFF
-/// down and leaves with its stack one off), 3 `gfx::put_surface_pixel`,
-/// 5 `scene::forget_slot_texture`, 6 `memory::free_list`.
-pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    unsafe {
-        match place {
-            0 => crate::race::level_init::game_part(0, r)?,
-            1 => crate::calls::call(rva(0x41AA4B), r),
-            2 => {
-                if !crate::gfx::read_picture_file::read_picture_file(r.eax as *mut u8)? {
-                    return Err(BadInput("a mask picture was not read").into());
-                }
-                r.set_carry(false);
-            }
-            3 => r.eax = crate::gfx::put_surface_pixel::put_surface_pixel(r)?.eax,
-            4 => crate::calls::call(rva(0x41AB02), r),
-            5 => crate::scene::forget_slot_texture::forget_slot_texture(r.eax)?,
-            _ => crate::memory::free_list::free_list(r.ebx as *mut crate::memory::MemoryList)?,
-        }
     }
     Ok(())
 }

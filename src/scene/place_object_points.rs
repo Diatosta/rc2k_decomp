@@ -36,16 +36,13 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{
-    EAX, EBP, EBX, ECX, ESI, Regs, game_addr, game_ptr, game_read, game_write, rva,
-};
+use crate::framework::{game_addr, game_ptr, game_read, game_write, rva};
 use crate::scene::draw_polygon::CHECKED_RVA;
 use crate::scene::polygon::{dword, put};
 use crate::scene::project_point::{
     CENTRE_X_RVA, CENTRE_Y_RVA, FLAT_DEPTH_RVA, FLAT_RVA, NEAR, RECORDS_RVA, SCALE_RVA, rotate,
     to_screen,
 };
-use crate::screens::harness::Left;
 
 // ---- game data ----
 
@@ -164,7 +161,6 @@ unsafe fn turn(normal: *const u32, matrix: *const u32, record: *mut u32) {
 
 /// What the object is made of, read and checked.
 struct Object {
-    number: u32,
     first: u32,
     points: i32,
     normals: i32,
@@ -181,7 +177,6 @@ unsafe fn object() -> Result<Object, BadInput> {
         }
         let at = number as usize * 4;
         let object = Object {
-            number,
             first: game_read(FIRST_RVA + at),
             points: game_read(POINT_COUNT_RVA + at),
             normals: game_read(NORMAL_COUNT_RVA + at),
@@ -203,15 +198,13 @@ fn record_of(records: u32, number: u32) -> u32 {
     records.wrapping_add(((number & 0xFFF) + 0x1000) << 5)
 }
 
-pub unsafe fn place_object_points(entry: &Regs) -> Result<Left, Refused> {
+/// The object's points placed and projected, its normals turned. What the original
+/// leaves in the registers its one caller's callers never read (`draw_object`).
+pub unsafe fn place_object_points() -> Result<(), Refused> {
     unsafe {
         let object = object()?;
-        let left = Left::nothing()
-            .with(ESI, object.matrix)
-            .with(EBX, object.number)
-            .with(EBP, object.normals.min(0) as u32);
         if object.points <= 0 {
-            return Ok(left.with(EAX, entry.eax).with(ECX, entry.ecx));
+            return Ok(());
         }
         let matrix = object.matrix as *const u32;
         let move_by: u32 = game_read(MOVE_BY_RVA);
@@ -249,6 +242,6 @@ pub unsafe fn place_object_points(entry: &Regs) -> Result<Left, Refused> {
             from = from.wrapping_add(12);
             number = number.wrapping_add(1);
         }
-        Ok(left.with(EAX, number).with(ECX, from))
+        Ok(())
     }
 }

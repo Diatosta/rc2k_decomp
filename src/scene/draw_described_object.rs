@@ -27,7 +27,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 
 const OBJECT_RVA: usize = rva(0x6214FC); // g_objectNumber
 const PLACE_RVA: usize = rva(0x634FFC); // g_objectPlace
@@ -51,10 +51,13 @@ unsafe fn check_object(object: u32) -> Result<(), Refused> {
     }
 }
 
-/// The Rust version. Parts: 1 `race::place_object_matrix`, 2 `scene::draw_scene_object`.
-pub unsafe fn draw_described_object(r: &mut Regs) -> Result<(), Refused> {
+/// The Rust version for the description at `d` (esi at the original's entry). Its calls:
+/// `race::place_object_matrix` and `scene::draw_scene_object`. What it leaves in the
+/// registers (ebx the object) no caller reads (register liveness, 2026-10-23: only the
+/// unreached `sub_49081A`), nor do its two calls read what it had in them: the matrix's
+/// placing reads no register, and the drawing only esi, which it is given.
+pub unsafe fn draw_described_object(d: u32) -> Result<(), Refused> {
     unsafe {
-        let d = r.esi;
         let byte = |o: u32| ((d + o) as *const u8).read() as u32;
         let object = byte(1);
         let place = get(d + 4);
@@ -64,7 +67,6 @@ pub unsafe fn draw_described_object(r: &mut Regs) -> Result<(), Refused> {
         if shown {
             check_object(object)?;
         }
-        r.ebx = object;
         game_write(OBJECT_RVA, object);
         let end = || {
             game_write(rva(0x635058), 0u32);
@@ -74,7 +76,6 @@ pub unsafe fn draw_described_object(r: &mut Regs) -> Result<(), Refused> {
             end();
             return Ok(());
         }
-        r.eax = place;
         if place >= game_read::<u32>(rva(0x5CCD20)) {
             end();
             return Ok(());
@@ -87,12 +88,9 @@ pub unsafe fn draw_described_object(r: &mut Regs) -> Result<(), Refused> {
         let p = place
             .wrapping_mul(12)
             .wrapping_add(game_read(rva(0x5CCCC0)));
-        r.eax = get(p).wrapping_add(get(d + 0x30));
-        r.ebx = get(p + 4).wrapping_add(get(d + 0x34));
-        r.ecx = get(p + 8).wrapping_add(get(d + 0x38));
-        game_write(rva(0x63501C), r.eax);
-        game_write(rva(0x635020), r.ebx);
-        game_write(rva(0x635024), r.ecx);
+        game_write(rva(0x63501C), get(p).wrapping_add(get(d + 0x30)));
+        game_write(rva(0x635020), get(p + 4).wrapping_add(get(d + 0x34)));
+        game_write(rva(0x635024), get(p + 8).wrapping_add(get(d + 0x38)));
         game_write(rva(0x63503C), (byte(8) << 8) & 0xFFFF);
         game_write(rva(0x635040), byte(0xC) << 8);
         game_write(rva(0x635044), byte(0x10) << 8);
@@ -113,8 +111,6 @@ pub unsafe fn draw_described_object(r: &mut Regs) -> Result<(), Refused> {
             game_write(rva(0x635090), strength);
         };
         if object == 0x38 || (0x3A..0x40).contains(&object) {
-            // eax as the original leaves it at the call: the size it last loads.
-            r.eax = byte(0x18);
             game_write(rva(0x63503C), 0x2000u32);
             game_write(rva(0x635040), 0u32);
             game_write(rva(0x635044), 0u32);
@@ -134,10 +130,7 @@ pub unsafe fn draw_described_object(r: &mut Regs) -> Result<(), Refused> {
             light(byte(0x14), byte(0x15), byte(0x16), byte(0x17));
             game_write(rva(0x635094), byte(0x22));
             game_write(rva(0x635098), byte(0x23));
-            // eax at the call: +0x24, or 0xFF after the sun's light.
-            r.eax = byte(0x24);
             if byte(0x24) != 0 {
-                r.eax = 0xFF;
                 game_write(
                     rva(0x635094),
                     game_read::<u32>(rva(0x609338)).wrapping_neg(),
@@ -150,29 +143,16 @@ pub unsafe fn draw_described_object(r: &mut Regs) -> Result<(), Refused> {
             }
         }
         game_write(rva(0x6365C8), 2u32);
-        crate::scene::draw_described_object::described_part(1, r)?;
+        crate::race::frame_draw::place_object_matrix();
         game_write(rva(0x62DAF4), 2u32);
-        r.ecx = game_read(OBJECT_RVA);
-        let kind: u32 = game_read(rva(0x5CD27C) + 4 * r.ecx as usize);
-        r.esi = (game_addr(rva(0x97DF30)) as u32).wrapping_add(kind.wrapping_mul(0x80));
-        r.eax = ((r.esi + 0x1F) as *const u8).read() as u32;
-        if r.eax != 0 {
+        let object: u32 = game_read(OBJECT_RVA);
+        let kind: u32 = game_read(rva(0x5CD27C) + 4 * object as usize);
+        let record = (game_addr(rva(0x97DF30)) as u32).wrapping_add(kind.wrapping_mul(0x80));
+        if ((record + 0x1F) as *const u8).read() != 0 {
             game_write(rva(0x62DAF4), 1u32);
         }
-        crate::scene::draw_described_object::described_part(2, r)?;
+        crate::scene::draw_scene_object::draw_scene_object_in_game(record)?;
         end();
         Ok(())
-    }
-}
-
-/// The parts in the game.
-pub fn described_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    unsafe {
-        if place == 1 {
-            *r = crate::race::frame_draw::place_object_matrix(r);
-            Ok(())
-        } else {
-            crate::scene::draw_scene_object::draw_scene_object_in_game(r)
-        }
     }
 }

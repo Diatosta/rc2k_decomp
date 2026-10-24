@@ -11,7 +11,7 @@
 //! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
 //! `routes.rs`); the registers above are the original's, for reference.
 
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 
 // ---- game data ----
 
@@ -55,9 +55,4 @@ pub fn apply_settings() -> Result<(), crate::errors::Refused> {
         game_write(CLEARED_RVA, 0u32);
     }
     Ok(())
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(_: &mut Regs) -> Result<(), crate::errors::Refused> {
-    apply_settings()
 }

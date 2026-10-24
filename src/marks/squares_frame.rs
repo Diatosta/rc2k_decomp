@@ -7,7 +7,7 @@
 //! `marks::squares_step`.
 //!
 //! In:  nothing (`g_marksSettings`)
-//! Out: the registers as the path leaves them
+//! Out: nothing (its caller reads no register after it)
 //!
 //! Caller: `sub_4C74DA` (0x4C7534). The x87 runs are the original's instructions over the
 //! game's variables; the vector helpers, `scale_axes` and `squares_step` their Rust
@@ -21,7 +21,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, rva};
+use crate::framework::{game_addr, game_read, rva};
 use crate::marks::setup::SETTINGS_RVA;
 use crate::marks::squares_step::squares_step;
 use crate::math::x87;
@@ -154,62 +154,42 @@ unsafe fn frame_facing(b: u32) {
     }
 }
 
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn squares_frame(entry: &Regs) -> Result<Regs, Refused> {
-    let mut g = *entry;
+/// The Rust version (see the header).
+pub unsafe fn squares_frame() -> Result<(), Refused> {
     unsafe {
         let s: u32 = game_read(SETTINGS_RVA);
         if s == 0 {
             return Err(BadInput("no marks settings").into());
         }
         let b = addr(0);
-        g.esi = s;
         frame_axes(b, s);
         let [a0, a1, a2] = AXES.map(addr);
         normalise_vector3(a0);
         frame_up(b, s);
         normalise_vector3(a1);
-        [g.esi, g.edi, g.ebp] = [a1, a0, a2];
         cross_product3(a1, a0, a2)?;
         normalise_vector3(a2);
-        [g.esi, g.edi, g.ebp] = [a0, a2, a1];
         cross_product3(a0, a2, a1)?;
-        g.esi = s;
-        g = crate::marks::scale_axes::scale_axes(&g);
-        g.esi = s;
+        crate::marks::scale_axes::scale_axes();
         frame_place(b, s);
         normalise_vector3(addr(PLACE_RVA));
-        [g.esi, g.edi] = [addr(PLACE_RVA), a2];
         frame_facing(b);
         if game_read::<u32>(FACING_RVA) & 0x8000_0000 == 0 {
-            return Ok(g);
+            return Ok(());
         }
-        crate::marks::squares_frame::game_part(1, &mut g)?;
-        g.eax = x87::mul_to_int(game_read(RATE_RVA), game_read(SHARE_RVA)) as u32;
-        if g.eax == 0 {
-            return Ok(g);
+        crate::marks::run_pong::run_pong()?;
+        if x87::mul_to_int(game_read(RATE_RVA), game_read(SHARE_RVA)) == 0 {
+            return Ok(());
         }
-        crate::marks::squares_frame::game_part(2, &mut g)?;
-        g.esi = game_read(SETTINGS_RVA);
-        if ((g.esi + 0x2744) as *const u32).read_unaligned() == 0 {
-            return Ok(g);
+        crate::marks::run_squares::run_squares();
+        let s: u32 = game_read(SETTINGS_RVA);
+        if ((s + 0x2744) as *const u32).read_unaligned() == 0 {
+            return Ok(());
         }
         if game_read::<u32>(RUNNING_RVA) == 0 {
-            return Ok(g);
+            return Ok(());
         }
-        g = squares_step(&g)?;
-    }
-    Ok(g)
-}
-
-/// In the game: pong's and the squares' Rust versions.
-pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    use crate::marks::{run_pong, run_squares};
-    unsafe {
-        *r = match place {
-            1 => run_pong::run_pong(r)?,
-            _ => run_squares::run_squares(r, &mut run_squares::game_part)?,
-        };
+        squares_step()?;
     }
     Ok(())
 }

@@ -36,7 +36,7 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 use crate::math::x87;
 use crate::scene::angle_between::angle_of;
 use crate::scene::draw_polygon::CHECKED_RVA;
@@ -77,7 +77,11 @@ unsafe fn tangent(angle: u32) -> u32 {
     }
 }
 
-pub unsafe fn fill_engine_tables(r: &mut Regs) {
+/// The Rust version. The registers the original leaves (eax, ebx 0, ecx 0xFF, edx and ebp
+/// 0x100, edi the end of the arctangent table) are overwritten or unread by its one caller,
+/// `scene::set_up_engine`, whose leftovers are `physics::test_drive`'s (edi, ebp: read by
+/// none of its sites, `lq.py -s 442AF6`).
+pub unsafe fn fill_engine_tables() {
     unsafe {
         // sub_42142B
         for n in 0..0x100usize {
@@ -134,11 +138,5 @@ pub unsafe fn fill_engine_tables(r: &mut Regs) {
         for place in 0..0x100u32 {
             angle_of(place, 0x100);
         }
-        r.eax = 0;
-        r.ebx = 0;
-        r.ecx = 0xFF;
-        r.edx = 0x100;
-        r.ebp = 0x100;
-        r.edi = (game_addr(ARCTANGENTS_RVA) + 0x2000) as u32;
     }
 }

@@ -30,7 +30,6 @@
 
 use crate::errors::Refused;
 use crate::files::stream::Stream;
-use crate::framework::Regs;
 use crate::gfx::pixel_format::PixelFormat;
 use crate::physics::flow::{a, g};
 
@@ -135,21 +134,4 @@ unsafe fn rows(stream: *mut Stream) -> Result<bool, Refused> {
         }
         Ok(true)
     }
-}
-
-/// For Rust callers in the game.
-pub unsafe fn write_screen_pcx_in_game(r: &mut Regs) -> Result<(), Refused> {
-    let ok = unsafe { write_screen_pcx() }?;
-    r.set_carry(!ok);
-    Ok(())
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let mut left = *r;
-    match unsafe { write_screen_pcx_in_game(&mut left) } {
-        Ok(()) => r.eflags = left.eflags,
-        Err(e) => return Err(e),
-    }
-    Ok(())
 }

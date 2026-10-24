@@ -14,14 +14,11 @@
 //! Callers: `sub_43907F` (seven).
 //! Self-test: `physics/camera_view.rs` (`view_test`), figures by lot, three precisions.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
-use crate::framework::{EAX, EBX, ECX, EDX, ESI, Regs};
 use crate::physics::camera_view::rd;
 use crate::physics::flow::{a, base, g, p, x87_run};
-use crate::screens::harness::Left;
 use rc2k_core::physics::camera_place::{SECOND_RECORD_MODE, add_offset};
 
 /// The turns: `math::turn_point_xz_ebx`, `_ecx` and `turn_point_xz`, exact or plain.
@@ -32,7 +29,7 @@ type Turns = (
 );
 
 /// The steps both versions share; `second` the second offset turned with the car.
-unsafe fn place_with(turns: Turns, second: &dyn Fn() -> [i32; 3]) -> Left {
+unsafe fn place_with(turns: Turns, second: &dyn Fn() -> [i32; 3]) {
     let esi = if g(0x6238A4) == SECOND_RECORD_MODE {
         a(0x6077CC)
     } else {
@@ -56,7 +53,6 @@ unsafe fn place_with(turns: Turns, second: &dyn Fn() -> [i32; 3]) -> Left {
         p(to, last);
     }
     let (mut eax, mut ebx, mut ecx) = (g(0x608B30), g(0x608B34), g(0x608B38));
-    let mut edx = 0;
     for (ebx_turn, ecx_turn, eax_turn) in [
         (0x71A69C, 0x71A694, 0x71A698),
         (0x71A68C, 0x71A690, 0x71A688),
@@ -68,10 +64,9 @@ unsafe fn place_with(turns: Turns, second: &dyn Fn() -> [i32; 3]) -> Left {
         let [x, z, _] = unsafe { turns.1(i(ecx), i(eax), i(ebx), g(ecx_turn)) };
         ecx = x;
         ebx = z;
-        let [x, _, z, e2] = unsafe { turns.2(i(eax), i(ebx), i(ecx), g(eax_turn)) };
+        let [x, _, z, _] = unsafe { turns.2(i(eax), i(ebx), i(ecx), g(eax_turn)) };
         eax = x;
         ecx = z;
-        edx = e2;
     }
     p(0x71A67C, eax);
     p(0x71A680, ebx);
@@ -81,21 +76,15 @@ unsafe fn place_with(turns: Turns, second: &dyn Fn() -> [i32; 3]) -> Left {
     p(0x62400C, whole[2] as u32);
     let car = [g(0x6416E8), g(0x6416EC), g(0x6416F0)];
     let place = [g(0x71A67C), g(0x71A680), g(0x71A684)];
-    let ([eax, ebx, ecx], place) = add_offset(place, whole, car);
+    let (_, place) = add_offset(place, whole, car);
     p(0x71A67C, place[0]);
     p(0x71A680, place[1]);
     p(0x71A684, place[2]);
-    Left::nothing()
-        .with(EAX, eax)
-        .with(EBX, ebx)
-        .with(ECX, ecx)
-        .with(EDX, edx)
-        // 0x438F5A: esi is left at the crash matrix (`lea esi, g_crashMatrix`).
-        .with(ESI, a(0x71A08C))
 }
 
-/// The Rust version (the exact one, for `physics::camera_avoid_ground`).
-pub unsafe fn place_camera(_: &Regs) -> Left {
+/// The Rust version (the exact one, for `physics::camera_avoid_ground`). The registers it
+/// leaves are read by none of its callers.
+pub unsafe fn place_camera() {
     use crate::math::{turn_point_xz, turn_point_xz_ebx, turn_point_xz_ecx};
     let second = || {
         let mut parts = [[0u8; 10]; 3];

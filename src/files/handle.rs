@@ -5,16 +5,22 @@
 //! `read_file` and `write_file` have them written out inline; the buffered streams use these.
 
 use crate::errors::BadInput;
-use crate::files::read_file::LAST_FILE_PATH_RVA;
 use crate::files::resolve_path::resolve_path_in_game;
-use crate::framework::{game_read, game_write, rva};
+use crate::files::state::LAST_FILE_PATH;
 use windows_sys::Win32::Foundation::CloseHandle;
 use windows_sys::Win32::Storage::FileSystem::{
     CreateFileA, GetFileSize, ReadFile, SetFilePointer, WriteFile,
 };
 
-/// The file mode table: 16 bytes per mode, +0 access, +4 disposition, +8 share.
-const MODES_RVA: usize = rva(0x4E06EA);
+/// The file mode table (0x4E06EA in the image, 16 bytes per mode: +0 access, +4 disposition,
+/// +8 share, +12 0): `tests::modes_are_the_games`.
+const MODES: [[u32; 4]; MODE_COUNT as usize] = [
+    [0x8000_0000, 3, 1, 0],
+    [0x4000_0000, 2, 0, 0],
+    [0x4000_0000, 1, 0, 0],
+    [0xC000_0000, 3, 0, 0],
+    [0x4000_0000, 4, 0, 0],
+];
 /// 0 read an existing file, 1 create or replace, 2 create only, 3 read and write an existing
 /// file, 4 open or create for writing.
 pub const MODE_COUNT: u32 = 5;
@@ -30,14 +36,14 @@ pub unsafe fn open_by_mode(path: *const u8, mode: u32) -> Result<Option<u32>, Ba
     }
     unsafe {
         let resolved = resolve_path_in_game(path)?;
-        game_write(LAST_FILE_PATH_RVA, resolved as u32);
-        let entry = MODES_RVA + mode as usize * 16;
+        LAST_FILE_PATH.store(resolved as u32, std::sync::atomic::Ordering::Relaxed);
+        let entry = MODES[mode as usize];
         let file = CreateFileA(
             resolved,
-            game_read(entry),
-            game_read(entry + 8),
+            entry[0],
+            entry[2],
             std::ptr::null(),
-            game_read(entry + 4),
+            entry[1],
             0x80,
             0 as _,
         ) as u32;
@@ -92,7 +98,7 @@ pub unsafe fn handle_size(file: u32) -> Option<u32> {
 /// Whether the handle was closed. `g_lastFilePath` is 0 afterwards.
 pub unsafe fn close(file: u32) -> bool {
     unsafe {
-        game_write(LAST_FILE_PATH_RVA, 0u32);
+        LAST_FILE_PATH.store(0, std::sync::atomic::Ordering::Relaxed);
         CloseHandle(file as _) != 0
     }
 }
@@ -148,5 +154,18 @@ impl rc2k_core::files::io::Files for GameFiles {
     }
     fn set_time(&mut self, file: u32, dos: u32) -> bool {
         unsafe { crate::files::copy_file::set_file_time(file, dos) }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn modes_are_the_games() {
+        let bytes: Vec<u8> = super::MODES
+            .iter()
+            .flatten()
+            .flat_map(|w| w.to_le_bytes())
+            .collect();
+        assert_eq!(bytes, crate::moved::image_bytes(0x4E06EA, bytes.len()));
     }
 }

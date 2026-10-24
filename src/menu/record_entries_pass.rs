@@ -16,10 +16,8 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 use crate::menu::standings::*;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 const CURRENT_RVA: usize = rva(0x75598C); // dword_75598C
 // dword_7559EC
@@ -66,16 +64,4 @@ pub unsafe fn record_entries_pass() -> Result<(), Refused> {
     }
     // Converted: `rc2k_core::menu::bests::record_entries`.
     rc2k_core::menu::bests::record_entries(players.len() as u32, &mut Entries)
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    let _ = r;
-    unsafe { record_entries_pass() }?;
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

@@ -17,10 +17,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::menu::event_flow::*;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 pub const QUALIFIES: usize = 0x755918; // dword_755918
 pub const TIME: usize = 0x755914; // dword_755914
@@ -40,15 +37,4 @@ pub fn time_trial_qualifies() -> Result<(), Refused> {
         set(ANY_QUALIFIED, 1);
     }
     Ok(())
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    time_trial_qualifies()?;
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

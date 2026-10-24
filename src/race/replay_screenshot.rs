@@ -22,7 +22,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 
 const RECORDING_RVA: usize = rva(0x5C2CCC); // dword_5C2CCC
 const CLOCK_RVA: usize = rva(0x5C2CD0); // dword_5C2CD0
@@ -31,35 +31,32 @@ const NAME_RVA: usize = rva(0x5C2CDC); // "rpl\000000.pcx"
 const FRAME_TIME_RVA: usize = rva(0x5C2CF3); // dword_5C2CF3 (unaligned)
 const PICTURE_NAME_RVA: usize = rva(0x4F49C8); // dword_4F49C8: the name the writer uses
 
-/// A call by place (see the header).
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
-/// The Rust version (see the header): the registers it leaves (`popa`'s: the entry's).
-pub unsafe fn replay_screenshot(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+/// The Rust version (see the header). (The original keeps every register.)
+pub unsafe fn replay_screenshot() -> Result<(), Refused> {
     unsafe {
         if game_read::<u32>(RECORDING_RVA) != 1 {
-            return Ok(*entry);
+            return Ok(());
         }
-        let mut r = *entry;
         if game_read::<u32>(STARTED_RVA) != 1 {
             game_write(STARTED_RVA, 1u32);
-            part(0, &mut r)?;
-            game_write(CLOCK_RVA, r.eax);
+            game_write(
+                CLOCK_RVA,
+                windows_sys::Win32::System::SystemInformation::GetTickCount(),
+            );
         }
         let kept: u32 = game_read(PICTURE_NAME_RVA);
-        r.eax = game_addr(NAME_RVA) as u32;
+        let name = game_addr(NAME_RVA) as u32;
         // Converted: `rc2k_core::race::viewer::count_up` (the name's six digits from +4).
-        let digits = (r.eax + 4) as *mut [u8; 6];
-        let (counted, last, ecx) = rc2k_core::race::viewer::count_up(digits.read());
+        let digits = (name + 4) as *mut [u8; 6];
+        let (counted, _, _) = rc2k_core::race::viewer::count_up(digits.read());
         digits.write(counted);
-        r.ebx = r.eax + 4 + last as u32;
-        r.ecx = ecx;
-        game_write(PICTURE_NAME_RVA, r.eax);
+        game_write(PICTURE_NAME_RVA, name);
         let saved = (|| {
-            part(1, &mut r)?;
-            if !r.carry() {
-                part(2, &mut r)?;
-                part(3, &mut r)?;
+            // The surface locked (the carry says it was not), the picture written, the
+            // surface unlocked.
+            if crate::platform::lock_surface() >= 1 {
+                crate::gfx::write_screen_pcx::write_screen_pcx()?;
+                crate::platform::unlock_surface();
             }
             Ok::<(), Refused>(())
         })();
@@ -70,28 +67,5 @@ pub unsafe fn replay_screenshot(entry: &Regs, part: Part) -> Result<Regs, Refuse
             game_read::<u32>(CLOCK_RVA).wrapping_add(game_read(FRAME_TIME_RVA)),
         );
     }
-    Ok(*entry)
-}
-
-/// In the game: the system's clock, the platform's lock and unlock (their hooks) and the
-/// PCX writer's Rust version (`gfx::write_screen_pcx`).
-pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    unsafe {
-        match place {
-            0 => r.eax = windows_sys::Win32::System::SystemInformation::GetTickCount(),
-            2 => crate::gfx::write_screen_pcx::write_screen_pcx_in_game(r)?,
-            p => {
-                let at = [0, 0x4058AD, 0x411E0C, 0x405949][p as usize];
-                crate::calls::call(rva(at), r);
-            }
-        }
-    }
-    Ok(())
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { replay_screenshot(r, &mut game_part) }?;
-    *r = Regs { esp: r.esp, ..left };
     Ok(())
 }

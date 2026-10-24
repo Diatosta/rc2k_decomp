@@ -10,27 +10,24 @@
 //! Self-test: the original and the Rust version on the game's variables (saved and put
 //! back) with a test sound object.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::physics::drop_hit_parts::{Timers, g, hit_tests};
 use crate::physics::sound_on_bit::sound_on_bit;
 use rc2k_core::physics::parts::{SOUND_TESTS, has_hit_sounds};
 
 const TIMERS: Timers = [0x71A32C, 0x71A330, 0x71A334, 0x71A338];
 
-/// The steps on `r`.
+/// The Rust version (its CF, set when the car has no hit sounds, is read by no caller).
 // Converted: `rc2k_core::physics::parts::{has_hit_sounds, hit_tests, SOUND_TESTS}`.
-pub fn sound_hit_parts_in(r: &mut Regs) -> Result<(), Refused> {
+pub fn sound_hit_parts() -> Result<(), Refused> {
     if !has_hit_sounds(g(0x719FFC), |kind| g(0x5C5BD0 + 4 * kind as usize)) {
-        r.set_carry(true);
         return Ok(());
     }
-    hit_tests(r, &SOUND_TESTS, &TIMERS, &mut |r| {
-        unsafe { sound_on_bit(r.ecx & 0xFF) }?.apply(r);
+    hit_tests(&SOUND_TESTS, &TIMERS, &mut |bit| {
+        unsafe { sound_on_bit(bit & 0xFF) }?;
         Ok(())
     })
 }

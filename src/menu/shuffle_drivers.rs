@@ -17,11 +17,8 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::menu::standings::*;
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 const TABLES: [(usize, usize); 4] = [
     (rva(0x73EA7C), rva(0x75AB04)),
@@ -32,7 +29,7 @@ const TABLES: [(usize, usize); 4] = [
 const TEMP_RVA: [usize; 2] = [rva(0x755398), rva(0x75542C)]; // unk_755398, unk_75542C
 const PICKS_RVA: [usize; 2] = [rva(0x7559EC), rva(0x7559F0)]; // dword_7559EC, hhmm
 /// The Rust version (see the header): the registers it leaves.
-pub unsafe fn shuffle_drivers(entry: &Regs) -> Result<Regs, Refused> {
+pub unsafe fn shuffle_drivers() -> Result<(), Refused> {
     use crate::math::random_below::random_below;
     unsafe {
         if TABLES.iter().any(|&(_, c)| game_read::<u32>(c) == 0) {
@@ -52,15 +49,5 @@ pub unsafe fn shuffle_drivers(entry: &Regs) -> Result<Regs, Refused> {
             }
         }
     }
-    Ok(*entry)
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(left_of(&unsafe { shuffle_drivers(r) }?))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
+    Ok(())
 }

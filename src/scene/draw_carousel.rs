@@ -19,7 +19,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_read, rva};
+use crate::framework::{game_read, rva};
 use crate::scene::draw_carousel_entry::draw_carousel_entry;
 use crate::scene::draw_menu_object::draw_menu_object_in_game;
 
@@ -31,32 +31,27 @@ const ANGLE_RVA: usize = rva(0x75AA80); // g_carouselAngle
 
 // ---- Rust version ----
 
-/// `entry`: what stands for `scene::draw_carousel_entry`, which keeps the registers.
+/// `entry`: what stands for `scene::draw_carousel_entry`, given the entry and its row
+/// place. `lone_row`: ecx at the original's entry, the row place a lone entry is drawn at
+/// (the original sets ebx and edx for it, not ecx).
 // Converted: `rc2k_core::scene::carousel::drawn`
 pub unsafe fn draw_carousel(
-    r: &mut Regs,
-    entry: &mut dyn FnMut(&Regs) -> Result<(), Refused>,
+    lone_row: u32,
+    entry: &mut dyn FnMut(u32, u32) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
     use rc2k_core::scene::carousel::{Drawn, drawn};
     unsafe {
         let count: u32 = game_read(COUNT_RVA);
-        r.ebx = count;
         match drawn(
             count,
             || game_read(FRONT_RVA),
             || game_read::<u32>(ANGLE_RVA) != 0,
         ) {
             Drawn::Nothing => Ok(()),
-            Drawn::Lone => {
-                r.ebx = 0;
-                r.edx = 0;
-                entry(r)
-            }
+            Drawn::Lone => entry(0, lone_row),
             Drawn::Row(entries) => {
                 for (e, place) in entries {
-                    r.ebx = e;
-                    r.ecx = place;
-                    entry(r)?;
+                    entry(e, place)?;
                 }
                 Ok(())
             }
@@ -65,10 +60,10 @@ pub unsafe fn draw_carousel(
 }
 
 /// With the Rust versions of what it calls.
-pub unsafe fn draw_carousel_in_game(r: &mut Regs) -> Result<(), Refused> {
+pub unsafe fn draw_carousel_in_game(lone_row: u32) -> Result<(), Refused> {
     unsafe {
-        draw_carousel(r, &mut |r| {
-            draw_carousel_entry(r, &mut |r| draw_menu_object_in_game(r))
+        draw_carousel(lone_row, &mut |e, place| {
+            draw_carousel_entry(e, place, &mut || draw_menu_object_in_game())
         })
     }
 }

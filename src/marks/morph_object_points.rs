@@ -7,7 +7,7 @@
 //! base and the second object's point differ. Then `marks::measure_lines`.
 //!
 //! In:  nothing (`g_marksSettings`)
-//! Out: the registers as `measure_lines` leaves them
+//! Out: nothing (no caller reads a register it leaves)
 //!
 //! Caller: `sub_4D14B4`. Refuses (before anything) null settings, more than 8 cars, and
 //! for a car whose factors changed: an object past 0xFF, a null base list, points past
@@ -21,13 +21,12 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
-use crate::marks::blend_corner::{self, blend_corner};
-use crate::marks::lines::{SETTINGS_RVA, line_regions, measure_lines};
+use crate::framework::{game_read, game_write, rva};
+use crate::marks::blend_corner::blend_corner;
+use crate::marks::lines::{SETTINGS_RVA, measure_lines};
 use crate::scene::objects::{
     FIRST_POINT_RVA, POINT_COUNTS_RVA, POINTS_ROOM_RVA, POINTS_RVA, SLOTS,
 };
-use crate::service::harness::{Region, at};
 
 const CAR_LEN: u32 = 0x4C8;
 const BLOCK: u32 = 0x29C;
@@ -107,89 +106,34 @@ unsafe fn refusal(settings: u32) -> Option<&'static str> {
     }
 }
 
-/// What it may write.
-pub fn regions(settings: u32) -> Vec<Region> {
-    let mut r = line_regions();
-    r.push((game_addr(KEPT_RVA) as u32, 0x20));
-    r.push(at(blend_corner::FACTOR_RVA));
-    if settings == 0 {
-        return r;
-    }
-    unsafe {
-        for b in blocks(settings) {
-            r.push((b + 0xC, 4));
-            r.push((b + 0xB0, 0x20));
-            if changed(b) && get(b) < SLOTS && get(b + 4) < SLOTS {
-                let (a, _, n) = points(b);
-                if n > 0 {
-                    r.push((a, 12 * n as usize));
-                }
-            }
-        }
-    }
-    r
-}
-
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn morph_object_points(entry: &Regs) -> Result<Regs, Refused> {
+/// The Rust version (see the header).
+pub unsafe fn morph_object_points() -> Result<(), Refused> {
     let settings: u32 = unsafe { game_read(SETTINGS_RVA) };
     if let Some(why) = unsafe { refusal(settings) } {
         return Err(BadInput(why).into());
     }
-
-    unsafe { run(entry, settings) }
-}
-
-unsafe fn run(entry: &Regs, settings: u32) -> Result<Regs, Refused> {
-    let mut g = Regs {
-        ebp: settings,
-        ..*entry
-    };
     unsafe {
         for b in blocks(settings) {
-            g.ebp = b;
-            g.eax = get(b + 8);
-            put(b + 0xC, g.eax);
-            let mut differs = false;
-            for k in 0..8 {
-                g.eax = get(b + 0xB0 + 4 * k);
-                if get(b + 0x90 + 4 * k) != g.eax {
-                    differs = true;
-                    break;
-                }
-            }
-            if !differs {
+            put(b + 0xC, get(b + 8));
+            if (0..8).all(|k| get(b + 0x90 + 4 * k) == get(b + 0xB0 + 4 * k)) {
                 continue;
             }
             put(b + 0xC, 0xFFFF_FFFF);
             for k in 0..8 {
-                g.eax = get(b + 0x90 + 4 * k);
-                put(b + 0xB0 + 4 * k, g.eax);
-                game_write(KEPT_RVA + 4 * k as usize, g.eax);
+                let v = get(b + 0x90 + 4 * k);
+                put(b + 0xB0 + 4 * k, v);
+                game_write(KEPT_RVA + 4 * k as usize, v);
             }
             let (a, c, n) = points(b);
-            g.esi = a;
-            g.edi = c;
-            g.edx = get(b + 0x8C);
-            g.eax = n as u32;
-            for _ in 0..n {
-                let mut same = true;
-                for k in 0..3 {
-                    g.eax = get(g.edx + 4 * k);
-                    if g.eax != get(g.edi + 4 * k) {
-                        same = false;
-                        break;
-                    }
+            let base = get(b + 0x8C);
+            for k in 0..n.max(0) as u32 {
+                let (to, from, base) = (a + 12 * k, c + 12 * k, base + 12 * k);
+                if (0..3).any(|i| get(base + 4 * i) != get(from + 4 * i)) {
+                    blend_corner(b, to, from, base);
                 }
-                if !same {
-                    g = blend_corner(&g);
-                }
-                g.esi = g.esi.wrapping_add(12);
-                g.edi = g.edi.wrapping_add(12);
-                g.edx = g.edx.wrapping_add(12);
             }
         }
-        g = measure_lines(&g)?;
+        measure_lines()?;
     }
-    Ok(g)
+    Ok(())
 }

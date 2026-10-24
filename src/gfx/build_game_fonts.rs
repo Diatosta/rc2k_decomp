@@ -24,16 +24,21 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, FatalError, Refused};
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
-use crate::gfx::build_glyphs::{BUILDER_FLAGS_RVA, FORMAT_RVA, TABLE_RVA, TABLE_SIZE_RVA};
+use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::gfx::build_glyphs::{
+    BUILDER_FLAGS_RVA, FORMAT_RVA, TABLE_RVA, TABLE_SIZE_RVA, build_glyphs,
+};
 use crate::gfx::components_to_pixel::components_to_pixel;
 use crate::gfx::glyph_builder::{RUN_LENGTHS, WITH_ALPHA};
 use crate::gfx::glyph_tables::{
-    ALLOCATE, ALPHA_PALETTE, BEGIN_TABLE, BEGIN_TABLES, BUILD_GLYPHS, END_TABLES, Game,
-    PALETTE_TO_PIXELS, Parts, REWIND_LIST, TAKE_FROM_LIST, UNIT_FACTOR_RVA,
+    UNIT_FACTOR_RVA, alpha_palette, begin_glyph_table, begin_glyph_tables, end_glyph_tables,
+    palette_to_pixels,
 };
 use crate::gfx::pcx::PALETTE_RVA;
 use crate::gfx::pixel_format::PixelFormat;
+use crate::memory::MemoryList;
+use crate::memory::allocate::allocate;
+use crate::memory::take_from_list::{rewind_list, take_from_list};
 
 // ---- game data ----
 
@@ -57,46 +62,32 @@ fn fatal(code: u32) -> Refused {
     FatalError { code, message: "" }.into()
 }
 
-/// `entry` are the registers at entry; `pixels_b` is where the place of the second
-/// palette's pixels is read from when they are made.
-pub unsafe fn build_game_fonts(
-    entry: &Regs,
-    parts: &mut dyn Parts,
-    pixels_b: *const u32,
-) -> Result<(), Refused> {
+/// `pixels_b` is where the place of the second palette's pixels is read from when they
+/// are made. (The original's fatal error 0x80E48061 for a failed allocation cannot come:
+/// the allocator reports its own.)
+pub unsafe fn build_game_fonts(pixels_b: *const u32) -> Result<(), Refused> {
     unsafe {
-        let mut g = *entry;
-        g.eax = game_read::<u32>(UNITS_RVA)
+        let list = game_addr(LIST_RVA) as *mut MemoryList;
+        let bytes = game_read::<u32>(UNITS_RVA)
             .wrapping_mul(0x400)
             .wrapping_mul(game_read(UNIT_FACTOR_RVA));
-        g.ebx = game_addr(LIST_RVA) as u32;
-        parts.call(ALLOCATE, &mut g)?;
-        if g.carry() {
-            return Err(fatal(0x80E4_8061));
-        }
-        parts.call(REWIND_LIST, &mut g)?;
-        parts.call(BEGIN_TABLES, &mut g)?;
+        allocate(list, bytes)?;
+        rewind_list(list);
+        begin_glyph_tables()?;
         game_write(BUILDER_FLAGS_RVA, RUN_LENGTHS | WITH_ALPHA);
         let format = game_read::<u32>(LAYOUT_OWNER_RVA).wrapping_add(8);
         game_write(FORMAT_RVA, format);
-        g.eax = 0x400;
-        parts.call(TAKE_FROM_LIST, &mut g)?;
-        game_write(PALETTE_A_RVA, g.eax);
-        g.eax = 0x400;
-        parts.call(TAKE_FROM_LIST, &mut g)?;
-        game_write(PALETTE_B_RVA, g.eax);
-        parts.call(BEGIN_TABLE, &mut g)?;
-        g.eax = game_addr(SHEETS_RVA) as u32;
-        parts.call(BUILD_GLYPHS, &mut g)?;
-        g.eax = game_read(TABLE_RVA);
-        game_write(GLYPHS_RVA, g.eax);
+        game_write(PALETTE_A_RVA, take_from_list(list, 0x400)?.unwrap_or(0));
+        game_write(PALETTE_B_RVA, take_from_list(list, 0x400)?.unwrap_or(0));
+        begin_glyph_table(list)?;
+        build_glyphs(game_addr(SHEETS_RVA) as *const u8, list)?;
+        game_write(GLYPHS_RVA, game_read::<u32>(TABLE_RVA));
         if game_read::<u32>(TABLE_SIZE_RVA) == 0 {
             return Err(fatal(0x80E4_8062));
         }
-        parts.call(ALPHA_PALETTE, &mut g)?;
-        g.edi = game_read(PALETTE_A_RVA);
-        parts.call(PALETTE_TO_PIXELS, &mut g)?;
-        parts.call(END_TABLES, &mut g)?;
+        alpha_palette();
+        palette_to_pixels(game_read::<u32>(PALETTE_A_RVA) as *mut u32)?;
+        end_glyph_tables()?;
 
         let (glyphs, palette_a): (u32, u32) = (game_read(GLYPHS_RVA), game_read(PALETTE_A_RVA));
         for font in 0..2 {
@@ -130,10 +121,7 @@ pub unsafe fn build_game_fonts(
     }
 }
 
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let entry = *r;
-    let pixels_b = game_addr(PALETTE_B_RVA) as *const u32;
-    unsafe { build_game_fonts(&entry, &mut Game, pixels_b) }?;
-    Ok(())
+/// With the third font's palette's place, as the stage's loading calls it.
+pub unsafe fn build_game_fonts_in_game() -> Result<(), Refused> {
+    unsafe { build_game_fonts(game_addr(PALETTE_B_RVA) as *const u32) }
 }

@@ -6,8 +6,7 @@
 //! the marks' random's bits 8 .. 23 are at most its fraction times `flt_82E2B2`.
 //!
 //! In:  nothing
-//! Out: eax the fraction's share, ebx the random's bits (and the picks' registers), when
-//!      the rate is high enough
+//! Out: nothing (its caller reads no register after it)
 //!
 //! Caller: `sub_4BC0B1` (0x4BC225). The x87 run is the original's instructions over the
 //! game's variables; the picks their Rust versions (under the same rounding). Self-test:
@@ -17,7 +16,7 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::marks::pick_hexagon::pick_hexagon;
 use crate::marks::setup::SEED_RVA;
 use crate::math::x87;
@@ -58,9 +57,8 @@ unsafe fn rate(b: u32) {
     }
 }
 
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn hexagons_spawn(entry: &Regs) -> Regs {
-    let mut g = *entry;
+/// The Rust version (see the header).
+pub unsafe fn hexagons_spawn() {
     unsafe {
         game_write(FRAMES_RVA, game_read::<u32>(FRAMES_RVA).wrapping_add(1));
         let old = x87::set_chop();
@@ -71,19 +69,17 @@ pub unsafe fn hexagons_spawn(entry: &Regs) -> Regs {
             let v: u32 = game_read(RATE_RVA);
             let n = x87::to_int(v).min(MOST);
             for _ in 0..n.max(0) {
-                g = pick_hexagon(&g);
+                pick_hexagon();
             }
-            g.eax = x87::fraction_times_to_int(v, game_read(SHARE_K_RVA)) as u32;
+            let share = x87::fraction_times_to_int(v, game_read(SHARE_K_RVA));
             let s = game_read::<u32>(SEED_RVA)
                 .wrapping_mul(0x9D)
                 .wrapping_add(0x47);
             game_write(SEED_RVA, s);
-            g.ebx = (s >> 8) & 0xFFFF;
-            if g.ebx as i32 <= g.eax as i32 {
-                g = pick_hexagon(&g);
+            if ((s >> 8) & 0xFFFF) as i32 <= share {
+                pick_hexagon();
             }
         }
         x87::set_control(old);
     }
-    g
 }

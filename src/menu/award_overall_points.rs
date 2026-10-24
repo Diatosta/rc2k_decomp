@@ -19,34 +19,48 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 use crate::menu::standings::*;
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 const POINTS_RVA: usize = rva(0x7559AC); // seconds
 /// An entry's driver (with its number) or player (with its index).
-unsafe fn owner(entry: &Regs, e: u32) -> Result<(u32, u32, bool), Refused> {
+unsafe fn owner(e: u32) -> Result<(u32, u32, bool), Refused> {
     match get(e + 4) {
         0 => {
-            let g = unsafe {
-                crate::menu::find_cpu_team::find_cpu_team(&Regs {
-                    eax: get(e),
-                    edi: e,
-                    ..*entry
-                })
-            }?;
-            Ok((g.esi, get(e), true))
+            let driver = unsafe { crate::menu::find_cpu_team::find_cpu_team(get(e)) }?;
+            Ok((driver, get(e), true))
         }
         n if n <= 4 && player(n - 1) != 0 => Ok((player(n - 1), n - 1, false)),
         _ => Err(BadInput("a player past 4 or missing").into()),
     }
 }
 
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn award_overall_points(entry: &Regs) -> Result<Regs, Refused> {
-    let mut g = *entry;
+/// What `award_overall_points` leaves in the registers, which the championship's later
+/// calls may read (esi reaches `scene::set_up_carousel` in the original): the last entry's
+/// (number, owner's record, total) when there was an entry (eax, esi, edx; else they are
+/// kept), ecx 6, edi the end of the table.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Awarded {
+    pub last: Option<(u32, u32, u32)>,
+    pub end: u32,
+}
+
+impl Awarded {
+    /// The carried values as the original leaves them (eax, ecx, edx, esi; edi, the end
+    /// of the table, is `self.end`).
+    pub fn carry_on(&self, c: &mut crate::menu::screen_loop::Carried) {
+        if let Some((number, owner, total)) = self.last {
+            c.arg = number;
+            c.cars = owner;
+            c.clock = total;
+        }
+        c.measure_x = 6;
+    }
+}
+
+/// The Rust version (see the header); what it leaves in the registers as `Awarded`.
+pub unsafe fn award_overall_points() -> Result<Awarded, Refused> {
+    let mut last = None;
     unsafe {
         let section: u32 = game_read(SECTION_RVA);
         let table: u32 = game_read(TABLE_B_RVA);
@@ -56,7 +70,7 @@ pub unsafe fn award_overall_points(entry: &Regs) -> Result<Regs, Refused> {
         let all = entries(table, B_ENTRY)?;
         let mut owners = Vec::with_capacity(all.len());
         for &e in &all {
-            owners.push(owner(entry, e)?);
+            owners.push(owner(e)?);
         }
         // Converted: `rc2k_core::menu::points` (`Points`, `total`).
         use rc2k_core::menu::points::{Points, total};
@@ -76,22 +90,11 @@ pub unsafe fn award_overall_points(entry: &Regs) -> Result<Regs, Refused> {
             let total = total(std::array::from_fn(|k| get(e + 0x38 + 4 * k as u32)));
             put(e + 0x50, total);
             put(o + if cpu { 0x74 } else { 0xCC }, total);
-            g.eax = number;
-            g.esi = o;
-            g.edx = total;
+            last = Some((number, o, total));
         }
-        g.ecx = 6;
-        g.edi = table + B_ENTRY * all.len() as u32;
+        Ok(Awarded {
+            last,
+            end: table + B_ENTRY * all.len() as u32,
+        })
     }
-    Ok(g)
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(left_of(&unsafe { award_overall_points(r) }?))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

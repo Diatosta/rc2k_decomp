@@ -7,23 +7,12 @@
 //! `dword_75AE24`: the co-driver, the race number, the view, the HUD's switches, the
 //! steering), the HUD's bits (`dword_75B00C`) -1, `dword_75B108` 0.
 //!
-//! In:  eax = the player's name
-//! Out: every register kept (`pusha` .. `popa`)
-//! Callers: `net::start_link`, `net::open_lobby`. Its calls through `part`
-//! (`net::lobby_calls`: the Rust versions). Shadow mode runs the original alone (the random
-//! numbers). Self-test: a copy whose calls go to stand-ins, against the Rust version, with
-//! a stage and with none.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! In:  `name` (eax: the player's name)
+//! Out: nothing (every register kept, `pusha` .. `popa`)
+//! Callers: `net::start_link`, `net::open_lobby`.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
-use crate::net::lobby::{
-    COPY_PRINTABLE, NEXT_RANDOM, OWN, OWN_TIME, OWN_TOTAL, PLAYER_NAME, Part, a, g, lobby_entry, p,
-    pb,
-};
+use crate::net::lobby::{OWN, OWN_TIME, OWN_TOTAL, PLAYER_NAME, a, copy_printable, g, p, pb};
 use rc2k_core::net::record;
 
 pub const STAGE: usize = 0x75ACD4; // dword_75ACD4: the stage chosen
@@ -60,15 +49,9 @@ const MORE: [(usize, usize); 5] = [
 pub const HUD_BITS: usize = 0x75B00C; // dword_75B00C
 const LAST: usize = 0x75B108; // dword_75B108
 
-/// The Rust version: the registers it leaves (the entry's).
-pub fn fill_own_player(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    let mut r = *entry;
-    let mut c = Regs {
-        ecx: 0x1F,
-        ebx: a(PLAYER_NAME),
-        ..r
-    };
-    part(COPY_PRINTABLE, &mut c)?;
+/// The Rust version.
+pub fn fill_own_player(name: u32) -> Result<(), Refused> {
+    copy_printable(name, a(PLAYER_NAME), 0x1F)?;
     // Converted: `rc2k_core::net::record::own_record`.
     let own = record::own_record(
         g(CAR) as u8,
@@ -81,30 +64,19 @@ pub fn fill_own_player(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     for (n, b) in own.into_iter().enumerate() {
         pb(OWN + n, b);
     }
-    r.eax = g(DIRECTION);
-    part(NEXT_RANDOM, &mut r)?;
-    pb(OWN + record::RANDOM, r.eax as u8);
-    r.eax = 0;
+    pb(
+        OWN + record::RANDOM,
+        unsafe { crate::math::next_random::next_random() } as u8,
+    );
     p(OWN_TIME, 0);
     p(OWN_TOTAL, 0);
     for (to, from) in SETTINGS {
-        r.eax = g(from);
-        p(to, r.eax);
+        p(to, g(from));
     }
     p(HUD_BITS, u32::MAX);
     for (to, from) in MORE {
-        r.eax = g(from);
-        p(to, r.eax);
+        p(to, g(from));
     }
     p(LAST, 0);
-    Ok(Regs {
-        eflags: r.eflags,
-        ..*entry
-    })
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    lobby_entry(r, fill_own_player)
+    Ok(())
 }

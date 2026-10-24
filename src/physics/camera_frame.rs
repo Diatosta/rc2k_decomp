@@ -14,17 +14,14 @@
 //! Self-test (`update_camera::camera_test`, in a race; skipped otherwise; the carry not
 //! compared, as no caller reads it).
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::physics::flow::{base, g, hold_high, hold_low, negate, p, x87_run};
-use crate::race::car_starts::Part;
 
 // Converted: `rc2k_core::physics::camera_view::shakes` (the x87 steps stay).
-fn steps(r: &mut Regs, part: Part) -> Result<(), Refused> {
+fn steps() -> Result<(), Refused> {
     for x in [0x637644, 0x637638, 0x63763C, 0x637640] {
         p(x, 0);
     }
@@ -39,8 +36,7 @@ fn steps(r: &mut Regs, part: Part) -> Result<(), Refused> {
         negate(0x614094);
         hold_low(0x63763C, 0x614094);
         negate(0x614094);
-        r.eax = unsafe { crate::math::next_random::next_random() };
-        p(0x62400C, r.eax);
+        p(0x62400C, unsafe { crate::math::next_random::next_random() });
         x87_run!(
             "fild dword ptr [{b} + 0x22400C]",
             "fdiv dword ptr [{b} + 0x1C5D98]",
@@ -55,14 +51,11 @@ fn steps(r: &mut Regs, part: Part) -> Result<(), Refused> {
             p(0x637644, 0);
         }
     }
-    crate::physics::update_camera::steps(r, part)
+    crate::physics::update_camera::steps()
 }
 
-/// The Rust version, the probes through `part`.
-pub unsafe fn camera_frame(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    {
-        let mut r = *entry;
-        steps(&mut r, part)?;
-        Ok(r)
-    }
+/// The Rust version. The registers the original leaves are read by none of its callers
+/// (`physics::car_physics_step`, `drive::finish_run`, `race::show_replay_still`).
+pub fn camera_frame() -> Result<(), Refused> {
+    steps()
 }

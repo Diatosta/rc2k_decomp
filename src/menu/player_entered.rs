@@ -12,17 +12,17 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::Regs;
 use crate::menu::standings::*;
 
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn player_entered(entry: &Regs) -> Result<Regs, Refused> {
-    let mut g = *entry;
-    if g.ecx >= 4 || player(g.ecx) == 0 {
+/// Player `n`'s (ecx) record (edi) and `value` (eax) if the player takes part, else 0.
+pub fn player_entered(n: u32, value: u32) -> Result<(u32, u32), Refused> {
+    if n >= 4 || player(n) == 0 {
         return Err(BadInput("a player past 3 or missing").into());
     }
-    g.edi = player(g.ecx);
+    let record = player(n);
     // Converted: `rc2k_core::menu::event::if_entered`.
-    g.eax = rc2k_core::menu::event::if_entered(get(g.edi + 0xD0), g.eax);
-    Ok(g)
+    Ok((
+        record,
+        rc2k_core::menu::event::if_entered(get(record + 0xD0), value),
+    ))
 }

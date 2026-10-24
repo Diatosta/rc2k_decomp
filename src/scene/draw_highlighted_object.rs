@@ -22,21 +22,20 @@
 //! standalone program's run of 2026-10-14).
 //! Refuses a highlighted item of 0 or past the 0x100 kinds, a kind past the records, and what
 //! its parts refuse.
-//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
-//! (`menu::table_calls`); the registers above are the original's, for reference.
+//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `run`
+//! (`menu::table_routes`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 use crate::scene::assign_kind_textures::assign_kind_textures;
 use crate::scene::assign_menu_textures::assign_menu_textures;
-use crate::scene::clear_depth_buffer::clear_depth_buffer_in_game;
+use crate::scene::clear_depth_buffer::clear_depth_buffer;
 use crate::scene::draw_carousel_entry::{
     ANGLE_X_RVA, ANGLE_Y_RVA, CLOCK_RVA, ENTRIES, KIND_RVA, KINDS_RVA, OBJECT_RVA, OWN, OWN_RVA,
     PLACE_RVA, SIZE_RVA, find_object_of_kind,
 };
 use crate::scene::draw_menu_object::draw_menu_object_in_game;
-use crate::scene::load_slot_texture::load_slot_texture_in_game;
-use crate::scene::load_slot_textures::load_slot_textures;
+use crate::scene::load_slot_textures::load_slot_textures_in_game;
 use crate::scene::map_texture_places::map_texture_places;
 
 // ---- game data ----
@@ -44,21 +43,12 @@ use crate::scene::map_texture_places::map_texture_places;
 const MODE_RVA: usize = rva(0x6365C4); // dword_6365C4
 const HIGHLIGHTED_RVA: usize = rva(0x755525); // dword_755525
 const Z_RVA: usize = rva(0x75A66C); // dword_75A66C
-const STEPS: [usize; 6] = [
-    rva(0x44E967),
-    rva(0x4256D8),
-    rva(0x490DF3),
-    rva(0x42570D),
-    rva(0x425778),
-    rva(0x49006F),
-];
 
 // ---- Rust version ----
 
 /// `sub_49007F`: the highlighted item's object set up and drawn by `draw`.
 pub unsafe fn draw_highlighted(
-    r: &Regs,
-    draw: &mut dyn FnMut(&mut Regs) -> Result<(), Refused>,
+    draw: &mut dyn FnMut() -> Result<(), Refused>,
 ) -> Result<(), Refused> {
     unsafe {
         let item = game_read::<u32>(HIGHLIGHTED_RVA).wrapping_sub(1);
@@ -87,50 +77,21 @@ pub unsafe fn draw_highlighted(
         game_write(KIND_RVA, kind);
         let object = find_object_of_kind(kind);
         game_write(OBJECT_RVA, object);
-        let mut inner = Regs {
-            eax: object,
-            ebx: item,
-            ..*r
-        };
-        draw(&mut inner)
+        draw()
     }
 }
 
-/// `step`: what stands for the six calls, by their order.
-pub unsafe fn draw_highlighted_object(
-    r: &Regs,
-    step: &mut dyn FnMut(usize, &mut Regs) -> Result<(), Refused>,
-) -> Result<(), Refused> {
-    let mut inner = *r;
-    for n in 0..STEPS.len() {
-        step(n, &mut inner)?;
+/// The Rust version the typed tables run: its six calls in order. It reads no register of
+/// its caller's (register liveness, 2026-10-23), and the drawing reads none of what the
+/// calls before it leave (the eax and ebx `sub_49007F` gives it included).
+pub fn run() -> Result<(), crate::errors::Refused> {
+    unsafe {
+        clear_depth_buffer();
+        assign_kind_textures()?;
+        assign_menu_textures()?;
+        map_texture_places();
+        load_slot_textures_in_game()?;
+        game_write(MODE_RVA, 0u32);
+        draw_highlighted(&mut || draw_menu_object_in_game())
     }
-    Ok(())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let done = unsafe {
-        draw_highlighted_object(r, &mut |n, r| {
-            match n {
-                0 => clear_depth_buffer_in_game(r)?,
-                1 => assign_kind_textures()?.apply(r),
-                2 => assign_menu_textures()?,
-                3 => map_texture_places().apply(r),
-                4 => {
-                    let entry = *r;
-                    load_slot_textures(&mut |slot| load_slot_texture_in_game(slot, &entry))?
-                        .apply(r)
-                }
-                _ => {
-                    game_write(MODE_RVA, 0u32);
-                    draw_highlighted(r, &mut |r| draw_menu_object_in_game(r))?;
-                }
-            }
-            Ok(())
-        })
-    };
-    done?;
-    Ok(())
 }

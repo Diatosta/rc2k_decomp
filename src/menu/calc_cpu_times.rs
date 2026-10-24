@@ -26,7 +26,7 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 use crate::errors::{BadInput, FatalError, Refused};
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::menu::standings::*;
 
 use crate::menu::scale_stage_times::{TIMES_RVA, held_section, scaled};
@@ -100,7 +100,7 @@ pub fn check(rec: u32) -> Result<(u32, Vec<u32>, u32), Refused> {
 }
 
 /// The Rust version (see the header): the registers it leaves.
-pub unsafe fn calc_cpu_times(entry: &Regs) -> Result<Regs, Refused> {
+pub unsafe fn calc_cpu_times() -> Result<(), Refused> {
     use crate::logfile::log_write::log_write;
     let rec = record()?;
     let (classes, drivers, length) = check(rec)?;
@@ -109,7 +109,7 @@ pub unsafe fn calc_cpu_times(entry: &Regs) -> Result<Regs, Refused> {
         for (k, t) in [0x18, 0x1C, 0x20, 0x24].into_iter().enumerate() {
             game_write(TIMES_RVA + 4 * k, get(rec + t));
         }
-        crate::menu::scale_stage_times::scale_stage_times(&Regs { edi: rec, ..*entry })?;
+        crate::menu::scale_stage_times::scale_stage_times(rec)?;
         game_write(LENGTH_RVA[0], length);
         game_write(LENGTH_RVA[1], length.wrapping_mul(100) / 0x96A);
         // Converted: `rc2k_core::menu::event::{Spread, cpu_gap, cpu_time}`.
@@ -142,5 +142,5 @@ pub unsafe fn calc_cpu_times(entry: &Regs) -> Result<Regs, Refused> {
         }
         log_write(game_addr(TEXTS_RVA[1]) as *const u8, true, 1);
     }
-    Ok(*entry)
+    Ok(())
 }

@@ -16,25 +16,21 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::physics::flow::{g, p};
-use crate::screens::harness::Left;
 
 /// The Rust version.
 // Converted: `rc2k_core::drive::race_steps::play_frame`.
-pub unsafe fn play_replay_frame(entry: &Regs) -> Result<Left, Refused> {
-    let mut r = *entry;
+pub unsafe fn play_replay_frame() -> Result<(), Refused> {
     let Some(whole) = rc2k_core::drive::race_steps::play_frame(g(0x5C5CE0), || {
         p(0x6EF7E0, g(0x5C2530));
         p(0x6EF7E4, g(0x5C2534));
         g(0x6EF7E4)
     }) else {
-        return Ok(Left::nothing());
+        return Ok(());
     };
     if whole {
-        unsafe { crate::drive::load_replay_frame::load_replay_frame() }?.apply(&mut r);
-        crate::drive::load_replay_cars::load_replay_cars().apply(&mut r);
+        unsafe { crate::drive::load_replay_frame::load_replay_frame() }?;
+        crate::drive::load_replay_cars::load_replay_cars();
     }
-    unsafe { crate::drive::replay_cameras::replay_cameras(&r) }?.apply(&mut r);
-    Ok(crate::race::stage_prefs::left_of(&r))
+    unsafe { crate::drive::replay_cameras::replay_cameras() }
 }

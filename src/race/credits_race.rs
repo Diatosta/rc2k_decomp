@@ -24,18 +24,9 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::logfile::{log_int::log_int, log_write::log_write};
 
-pub const SET_UP: u32 = 0;
-pub const LOG_WRITE: u32 = 3;
-pub const LOG_INT: u32 = 4;
-pub const LOG_INT_NL: u32 = 5;
-pub const ROLL: u32 = 7;
-/// The callees by place, as IDA shows them.
-const CALLEES: [usize; 10] = [
-    0x463711, 0x4468FB, 0x446D2E, 0x401427, 0x401472, 0x401476, 0x444040, 0x415FC2, 0x444CEE,
-    0x444AC7,
-];
 const FIRST: [(usize, u32); 5] = [
     (0x5C5CE0, 0),
     (0x5BEC94, 0), // g_holdCarRevs
@@ -53,61 +44,36 @@ fn p(x: usize, v: u32) {
     unsafe { game_write(rva(x), v) }
 }
 
-/// The steps on `r`.
-pub fn credits_race_in(r: &mut Regs) -> Result<(), Refused> {
+/// The Rust version: the steps in order. (The original keeps ebp, ecx and edi and leaves
+/// esi and edx; no step reads a register of the caller or of an earlier step.)
+pub fn credits_race() -> Result<(), Refused> {
     for (at, v) in FIRST {
         p(at, v);
     }
-    for place in 0..3 {
-        crate::race::credits_race::credits_part(place, r)?;
+    crate::race::set_up_credits_race::set_up_credits_race()?;
+    unsafe {
+        crate::race::race_cars::set_up_arcade_cars()?;
+        crate::race::race_shell::set_start_states()?;
     }
     p(IN_CREDITS, 1);
     let g = |x: usize| unsafe { game_read::<u32>(rva(x)) };
-    let word = |n: usize| game_addr(rva(WORDS[n])) as u32;
-    for (place, eax) in [
-        (LOG_WRITE, word(0)),
-        (LOG_INT, g(STAGE)),
-        (LOG_WRITE, word(1)),
-        (LOG_INT_NL, g(CAR_KINDS)),
-    ] {
-        let mut c = Regs { eax, ..*r };
-        crate::race::credits_race::credits_part(place, &mut c)?;
-    }
-    crate::race::credits_race::credits_part(6, r)?;
-    r.eax = 0;
-    crate::race::credits_race::credits_part(ROLL, r)?;
-    p(AFTER_CREDITS, 0);
-    crate::race::credits_race::credits_part(8, r)?;
-    p(IN_CREDITS, 0);
-    crate::race::credits_race::credits_part(9, r)
-}
-
-/// The calls in the game: the set-up and the logs Rust, the rest at their hooks.
-pub fn credits_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    use crate::logfile::{log_int::log_int, log_write::log_write};
+    let word = |n: usize| game_addr(rva(WORDS[n])) as *const u8;
     unsafe {
-        match place {
-            SET_UP => crate::race::set_up_credits_race::set_up_credits_race(r)?.apply(r),
-            LOG_WRITE => log_write(r.eax as *const u8, false, 1),
-            LOG_INT | LOG_INT_NL => log_int(r.eax as i32, place == LOG_INT_NL, 1),
-            _ => crate::calls::call(rva(CALLEES[place as usize]), r),
-        }
+        log_write(word(0), false, 1);
+        log_int(g(STAGE) as i32, false, 1);
+        log_write(word(1), false, 1);
+        log_int(g(CAR_KINDS) as i32, true, 1);
+        crate::race::stage_loading::load_stage()?;
+        crate::race::frame_text::roll_credits(
+            0,
+            &mut crate::text::draw_text::GameCanvas,
+            &mut crate::race::frame_text::credits_tune,
+        )?;
     }
-    Ok(())
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let mut g = *r;
-    match credits_race_in(&mut g) {
-        Ok(()) => {
-            *r = Regs {
-                esp: r.esp,
-                eflags: r.eflags,
-                ..g
-            }
-        }
-        Err(e) => return Err(e),
+    p(AFTER_CREDITS, 0);
+    unsafe {
+        crate::drive::play_race::play_race()?;
+        p(IN_CREDITS, 0);
+        crate::race::race_end::tidy_everything(&crate::race::loadlevel::LoadVars::game())
     }
-    Ok(())
 }

@@ -11,12 +11,13 @@
 //! `routes.rs`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
-use crate::gfx::build_glyphs::{BUILDER_FLAGS_RVA, TABLE_RVA};
+use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::gfx::build_glyphs::{BUILDER_FLAGS_RVA, TABLE_RVA, build_glyphs};
 use crate::gfx::glyph_builder::RUN_LENGTHS;
 use crate::gfx::glyph_tables::{
-    BEGIN_TABLE, BEGIN_TABLES, BUILD_GLYPHS, END_TABLES, Game, Parts, TABLES_LIST_RVA,
+    TABLES_LIST_RVA, begin_glyph_table, begin_glyph_tables, end_glyph_tables,
 };
+use crate::memory::MemoryList;
 
 // ---- game data ----
 
@@ -25,31 +26,21 @@ const SHEETS_RVA: usize = rva(0x732C93); // "files\g\graphics\sprites\mbuts00.pc
 
 // ---- Rust version ----
 
-/// `entry` are the registers at entry; the table's address goes to `sprite_table`.
-pub unsafe fn build_menu_sprites(
-    entry: &Regs,
-    parts: &mut dyn Parts,
-    sprite_table: *mut u32,
-) -> Result<(), Refused> {
+/// The table's address goes to `sprite_table`.
+pub unsafe fn build_menu_sprites(sprite_table: *mut u32) -> Result<(), Refused> {
     unsafe {
-        let mut g = *entry;
-        g.ebx = game_addr(TABLES_LIST_RVA) as u32;
-        parts.call(BEGIN_TABLES, &mut g)?;
+        let list = game_addr(TABLES_LIST_RVA) as *mut MemoryList;
+        begin_glyph_tables()?;
         game_write(BUILDER_FLAGS_RVA, RUN_LENGTHS);
-        parts.call(BEGIN_TABLE, &mut g)?;
-        g.eax = game_addr(SHEETS_RVA) as u32;
-        parts.call(BUILD_GLYPHS, &mut g)?;
-        g.eax = game_read(TABLE_RVA);
-        sprite_table.write_unaligned(g.eax);
-        parts.call(END_TABLES, &mut g)?;
+        begin_glyph_table(list)?;
+        build_glyphs(game_addr(SHEETS_RVA) as *const u8, list)?;
+        sprite_table.write_unaligned(game_read(TABLE_RVA));
+        end_glyph_tables()?;
         Ok(())
     }
 }
 
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let sprite_table = game_addr(SPRITE_TABLE_RVA) as *mut u32;
-    let entry = *r;
-    unsafe { build_menu_sprites(&entry, &mut Game, sprite_table) }?;
-    Ok(())
+/// With the game's `g_spriteTable`.
+pub unsafe fn build_menu_sprites_in_game() -> Result<(), Refused> {
+    unsafe { build_menu_sprites(game_addr(SPRITE_TABLE_RVA) as *mut u32) }
 }

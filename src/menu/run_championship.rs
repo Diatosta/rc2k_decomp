@@ -55,9 +55,8 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
-use crate::menu::event_flow::*;
 use crate::menu::flow_game::Game;
+use crate::menu::screen_loop::Carried;
 
 pub const STAGES_DONE: usize = 0x755950; // dword_755950
 pub const RESET_TIMES: usize = 0x755250; // dword_755250
@@ -79,20 +78,14 @@ pub const SERVICE_NEXT: usize = 0x75594C; // dword_75594C
 pub const REVIEW_KIND: usize = 0x75AAD8; // dword_75AAD8
 
 /// The two championships' driver: `a8` for `menu::run_a8_championship`'s differences.
-pub unsafe fn run_event(entry: &Regs, call: Call, a8: bool) -> Result<Regs, Refused> {
-    let mut game = Game::new(entry, call);
+/// `c` the carried values of the caller; the original leaves every register as it got
+/// them (`menu::show_in_game_options` reads none).
+pub unsafe fn run_event(c: &Carried, a8: bool) -> Result<(), Refused> {
+    let mut game = Game::new(c);
     // Converted: `rc2k_core::menu::championship::run`.
-    rc2k_core::menu::championship::run(&mut game, a8)?;
-    Ok(game.left())
+    rc2k_core::menu::championship::run(&mut game, a8)
 }
 
-pub unsafe fn run_championship(entry: &Regs, call: Call) -> Result<Regs, Refused> {
-    unsafe { run_event(entry, call, false) }
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { run_championship(r, &mut game_call) }?;
-    *r = Regs { esp: r.esp, ..left };
-    Ok(())
+pub unsafe fn run_championship(c: &Carried) -> Result<(), Refused> {
+    unsafe { run_event(c, false) }
 }

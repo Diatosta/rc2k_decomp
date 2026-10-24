@@ -17,8 +17,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::BadInput;
-use crate::framework::game_read;
-use crate::memory::{MemoryList, OWN_HEAP_RVA, with_figures};
+use crate::memory::{MemoryList, own_heap, with_figures};
 use windows_sys::Win32::System::Memory::{MEM_RELEASE, VirtualFree};
 
 // ---- Rust version ----
@@ -29,7 +28,7 @@ pub unsafe fn free_list(list: *mut MemoryList) -> Result<(), BadInput> {
             return Ok(());
         }
         let mut block = (*list).head;
-        if block != 0 && game_read::<u32>(OWN_HEAP_RVA) == 1 {
+        if block != 0 && own_heap() == 1 {
             return Err(BadInput("the game's own heap is in use (altmemenable)"));
         }
         // Converted: `rc2k_core::memory` (`Figures::given_back`, `List::emptied`).

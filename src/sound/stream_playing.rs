@@ -12,7 +12,7 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::{Regs, game_read, rva};
+use crate::framework::{game_read, rva};
 
 const PLAYING_RVA: usize = rva(0x506960); // g_soundStream.playing
 
@@ -20,12 +20,4 @@ const PLAYING_RVA: usize = rva(0x506960); // g_soundStream.playing
 pub fn stream_playing() -> (bool, bool) {
     let playing: u32 = unsafe { game_read(PLAYING_RVA) };
     (playing == 1, playing < 1)
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let (zero, carry) = stream_playing();
-    r.set_zero(zero);
-    r.set_carry(carry);
-    Ok(())
 }

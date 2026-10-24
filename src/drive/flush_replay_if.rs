@@ -15,16 +15,14 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::physics::flow::g;
-use crate::screens::harness::Left;
 use rc2k_core::drive::replay_frames::flush_due;
 
 /// The Rust version.
 // Converted: `rc2k_core::drive::replay_frames::flush_due`.
-pub unsafe fn flush_replay_if(entry: &Regs) -> Result<Left, Refused> {
+pub unsafe fn flush_replay_if() -> Result<(), Refused> {
     if flush_due(g(0x5C5CE0), g(0x6EF7DC)) {
-        return unsafe { crate::drive::flush_replay::flush_replay(entry) };
+        return unsafe { crate::drive::flush_replay::flush_replay() };
     }
-    Ok(Left::nothing())
+    Ok(())
 }

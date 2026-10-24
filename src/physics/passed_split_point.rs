@@ -20,13 +20,11 @@
 //! Self-test: the original and the Rust version on the game's variables (saved and put
 //! back) with test faces and points: near and far, angles about the quarter turn.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::{BadInput, FatalError, Refused};
-use crate::framework::{EAX, EBX, ECX, ESI, Regs, game_addr, game_read, game_write, rva};
-use crate::screens::harness::Left;
+use crate::framework::{game_addr, game_read, game_write, rva};
 use rc2k_core::physics::progress;
 use std::cmp::Ordering;
 
@@ -119,15 +117,15 @@ fn point() -> Result<(u32, u32, u32), Refused> {
     Ok((cp, index, index.wrapping_mul(12).wrapping_add(g(0x5CCCC0))))
 }
 
-/// The Rust version.
+/// The Rust version: whether the car has passed the split's point (CF). The registers it
+/// leaves are read by none of its callers.
 // Converted: `rc2k_core::physics::progress::{check_split_point, face_known, passed_point}`
 // (the distance and the angle stay x87).
-pub unsafe fn passed_split_point(entry: &Regs) -> Result<Left, Refused> {
-    let _ = entry;
+pub unsafe fn passed_split_point() -> Result<bool, Refused> {
     if g(0x64BB18) != 0 {
-        return Ok(Left::carry(false));
+        return Ok(false);
     }
-    let (cp, index, pt) = point()?;
+    let (cp, _, pt) = point()?;
     p(0x639824, g(0x71A10C));
     p(0x63982C, g(0x71A114));
     unsafe { distance(pt) };
@@ -136,22 +134,13 @@ pub unsafe fn passed_split_point(entry: &Regs) -> Result<Left, Refused> {
         Some(Ordering::Greater | Ordering::Equal)
     );
     if !within {
-        let z = unsafe { ((pt + 8) as *const u32).read_unaligned() };
-        return Ok(Left::carry(false)
-            .with(EAX, z.wrapping_sub(g(0x63982C)))
-            .with(EBX, index)
-            .with(ECX, cp)
-            .with(ESI, pt));
+        return Ok(false);
     }
     unsafe { angle(pt) };
     let eax = g(0x62400C) << 16;
     p(0x614CFC, eax);
     let heading = g(0x9ED808 + 4 * cp as usize);
     p(0x614D00, heading);
-    let (carry, ebx) = progress::passed_point(eax, heading);
-    Ok(Left::carry(carry)
-        .with(EAX, eax)
-        .with(EBX, ebx)
-        .with(ECX, cp)
-        .with(ESI, pt))
+    let (carry, _) = progress::passed_point(eax, heading);
+    Ok(carry)
 }

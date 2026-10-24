@@ -15,7 +15,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::BadInput;
-use crate::framework::{Regs, game_addr};
+use crate::framework::game_addr;
 use crate::gfx::build_fonts::PALETTES_RVA;
 use crate::gfx::glyph_tables::TABLES_LIST_RVA;
 use crate::memory::MemoryList;
@@ -31,12 +31,9 @@ pub unsafe fn free_fonts(list: *mut MemoryList, palettes: *mut u32) -> Result<()
     }
 }
 
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(_: &mut Regs) -> Result<(), crate::errors::Refused> {
+/// With the game's list and palettes' place.
+pub fn free_fonts_in_game() -> Result<(), BadInput> {
     let list = game_addr(TABLES_LIST_RVA) as *mut MemoryList;
     let palettes = game_addr(PALETTES_RVA) as *mut u32;
-    if let Err(e) = unsafe { free_fonts(list, palettes) } {
-        return Err(e.into());
-    }
-    Ok(())
+    unsafe { free_fonts(list, palettes) }
 }

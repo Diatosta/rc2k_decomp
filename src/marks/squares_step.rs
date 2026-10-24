@@ -4,7 +4,7 @@
 //! `dword_814714` it.
 //!
 //! In:  nothing
-//! Out: as the last step leaves them (unchanged but eax with none)
+//! Out: nothing (no caller reads a register it leaves)
 //!
 //! Caller: `sub_4BF60F` (0x4BF809). The calls are their Rust versions. Refuses
 //! `pick_shapes`' refusals (all it may write put back first). Self-test: the original and
@@ -15,7 +15,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 use crate::marks::expire_squares::expire_squares;
 use crate::marks::pick_shapes::pick_shapes;
 
@@ -23,26 +23,21 @@ const CLEARED_RVA: usize = rva(0x81623A); // dword_81623A
 const CLOCK_RVA: usize = rva(0x814714); // dword_814714
 const LATEST_RVA: usize = rva(0x84460C); // dword_84460C
 
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn squares_step(entry: &Regs) -> Result<Regs, Refused> {
-    unsafe { run(entry) }
-}
-
+/// The Rust version (see the header).
 // Converted: `rc2k_core::marks::steps::{steps, next_step}`
-unsafe fn run(entry: &Regs) -> Result<Regs, Refused> {
+pub unsafe fn squares_step() -> Result<(), Refused> {
     use rc2k_core::marks::steps;
-    let mut g = *entry;
     unsafe {
         game_write(CLEARED_RVA, 0u32);
         let clock: u32 = game_read(CLOCK_RVA);
-        g.eax = steps::steps(game_read(LATEST_RVA), clock);
+        let n = steps::steps(game_read(LATEST_RVA), clock);
         game_write(LATEST_RVA, clock);
-        for _ in 0..g.eax {
-            g = pick_shapes(&g)?;
-            g = expire_squares(&g);
+        for _ in 0..n {
+            pick_shapes()?;
+            expire_squares();
             game_write(LATEST_RVA, steps::next_step(game_read(LATEST_RVA)));
         }
         game_write(CLOCK_RVA, game_read::<u32>(LATEST_RVA));
     }
-    Ok(g)
+    Ok(())
 }

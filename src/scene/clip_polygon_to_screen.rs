@@ -3,9 +3,7 @@
 //!
 //! In:  nothing
 //! Out: the original leaves eax, ecx, edx, esi changed, and after a clipping ebx, edi
-//!      and ebp too; its callers go on by the number of vertices alone; the hook gives a
-//!      polygon wholly on the screen the original's eax, ecx, edx, esi (`unclipped_regs`)
-//!      and keeps the registers after a clipping
+//!      and ebp too; its callers go on by the number of vertices alone (none reads them)
 //!
 //! `dword_624120` = 1. Each vertex's place on the screen (its record's +0xC and +0x1C)
 //! against the edges `flt_6241EC` (left), `flt_6241F0` (right), `flt_6241E4` (top) and
@@ -24,7 +22,7 @@
 
 use crate::d3d::draw_fan_unclipped::COUNT_RVA;
 use crate::errors::BadInput;
-use crate::framework::{Regs, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 use crate::scene::clip::{
     Edge, MASK_RVA, SCREEN_CLIPPED_RVA, below, clip_pass, listed_with_records, or_undone,
 };
@@ -95,27 +93,4 @@ pub unsafe fn clip_polygon_to_screen() -> Result<(), BadInput> {
             Ok(())
         })
     }
-}
-
-/// The registers the original leaves for a polygon wholly on the screen (its mask loop's
-/// end): eax the last listed entry's number x 0x44, ecx the count, edx 0, esi that entry's
-/// vertex record. Callers' callees read none of them; set so that the registers match.
-pub unsafe fn unclipped_regs(r: &mut Regs) {
-    unsafe {
-        use crate::scene::polygon::{ENTRIES_RVA, LIST_RVA};
-        let n: u32 = game_read(COUNT_RVA);
-        if n == 0 {
-            return;
-        }
-        r.eax = game_read::<u32>(LIST_RVA + 4 * (n as usize - 1)).wrapping_mul(0x44);
-        r.ecx = n;
-        r.edx = 0;
-        r.esi = ((crate::framework::game_addr(ENTRIES_RVA) as u32 + r.eax + 4) as *const u32)
-            .read_unaligned();
-    }
-}
-
-/// Whether no vertex is past an edge (the original's no-clip path).
-pub unsafe fn wholly_on_screen() -> bool {
-    matches!(unsafe { outside_mask() }, Ok(0))
 }

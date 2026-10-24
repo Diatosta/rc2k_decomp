@@ -31,7 +31,9 @@
 use crate::d3d::draw_fan_unclipped::polygon;
 use crate::d3d::set_texture::CURRENT_RVA;
 use crate::d3d::{NO_TEXTURE, Vertex};
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_ptr, game_read, game_write, rva};
+use crate::logfile::log_hex8::log_hex8;
+use crate::logfile::log_write::log_write;
 
 // ---- game data ----
 
@@ -42,12 +44,7 @@ const HEIGHT_RVA: usize = rva(0x4F4950); // g_screenHeight
 const CHECKED_RVA: usize = rva(0x62400C); // dword_62400C
 const TEXTURES: u32 = 0x400;
 
-const SET_TEXTURE: usize = 0x41ACF5; // d3d::set_texture
-const DRAW_FAN: usize = 0x41AD9C; // d3d::draw_fan_unclipped
 const SHOW_VERTICES: usize = 0x443AEC; // sub_443AEC
-const LOG_L1: usize = 0x401427; // logfile::log_write_l1
-const LOG_L1_NL: usize = 0x40142B; // logfile::log_write_l1_nl
-const LOG_HEX8_L1: usize = 0x401622; // logfile::log_hex8_l1
 const ERROR_TEXT: usize = 0x4DD9A7; // "Error"
 const DRAWTRI_TEXT: usize = 0x4DD99F; // "drawtri"
 
@@ -110,35 +107,32 @@ pub unsafe fn submit_polygon(outside: &mut dyn Outside) {
 }
 
 /// The game's Direct3D layer and log.
-pub struct Game<'a>(pub &'a Regs);
+pub struct Game;
 
-impl Game<'_> {
-    fn call(&self, address: usize, eax: u32) -> u32 {
-        let mut r = Regs { eax, ..*self.0 };
-        crate::calls::call(rva(address), &mut r);
-        r.eax
-    }
-}
-
-impl Outside for Game<'_> {
+impl Outside for Game {
     fn set_texture(&mut self, texture: u32) {
-        self.call(SET_TEXTURE, texture);
+        crate::d3d::set_texture::set_texture(texture);
     }
     fn draw_fan(&mut self) -> u32 {
-        self.call(DRAW_FAN, 0)
+        // `d3d::draw_fan_unclipped`: its result is always 0.
+        crate::platform_3d::draw_fan(&polygon());
+        0
     }
     fn bad_vertex(&mut self) {
-        self.call(LOG_L1_NL, game_addr(rva(ERROR_TEXT)) as u32);
-        // The dump's Rust version; one it refuses (more than 64 vertices) goes to its hook,
-        // whose refusal runs the original.
-        let r = Regs { eax: 0, ..*self.0 };
-        use crate::scene::show_bad_polygon::{game_part, show_bad_polygon};
-        if unsafe { show_bad_polygon(&r, &mut game_part) }.is_err() {
-            self.call(SHOW_VERTICES, 0);
+        unsafe { log_write(game_ptr(rva(ERROR_TEXT)), true, 1) };
+        if let Err(e) = crate::scene::show_bad_polygon::show_bad_polygon() {
+            // As a refusal of `sub_443AEC` called by its address ended the program.
+            crate::standalone::finish(
+                &format!(
+                    "menu::table_calls: Routed ({SHOW_VERTICES:#x}) refused: {}",
+                    e.0
+                ),
+                1,
+            );
         }
     }
     fn not_drawn(&mut self, result: u32) {
-        self.call(LOG_L1, game_addr(rva(DRAWTRI_TEXT)) as u32);
-        self.call(LOG_HEX8_L1, result);
+        unsafe { log_write(game_ptr(rva(DRAWTRI_TEXT)), false, 1) };
+        log_hex8(result, false, 1);
     }
 }

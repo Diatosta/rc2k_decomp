@@ -137,11 +137,11 @@ pub unsafe fn car_part_matrices(car: u32) -> Result<(), Refused> {
 }
 
 /// `race::ready_car_parts` (0x460D5C): for each race car with its parts shown (+0x25C):
-/// `car_part_matrices` (part 1, esi the block), then the six matrices kept in the block
+/// `car_part_matrices` (esi the block), then the six matrices kept in the block
 /// (+0x740 .. +0x8BF) and the body's turn times the car's (`flt_5EA3CC`) at +0x8C0. Refuses
 /// (before anything) no race cars (the original's loop would run away), more than eight, or
 /// one without its block.
-pub unsafe fn ready_car_parts(r: &mut crate::framework::Regs) -> Result<(), Refused> {
+pub unsafe fn ready_car_parts() -> Result<(), Refused> {
     unsafe {
         // Converted: `rc2k_core::race::car_parts::{check_part_cars, parts_shown,
         // KEPT_MATRICES}`.
@@ -154,11 +154,8 @@ pub unsafe fn ready_car_parts(r: &mut crate::framework::Regs) -> Result<(), Refu
         let mut c = 0u32;
         loop {
             let car = k(0x71B3B8 + 4 * c);
-            r.ecx = c;
-            r.esi = car;
             if parts_shown(((car + 0x25C) as *const u32).read_unaligned()) {
-                let mut p = *r;
-                crate::race::car_parts::parts_part(1, &mut p)?;
+                car_part_matrices(car)?;
                 for (i, from) in [
                     0x6417E0u32,
                     0x641820,
@@ -187,9 +184,4 @@ pub unsafe fn ready_car_parts(r: &mut crate::framework::Regs) -> Result<(), Refu
         }
         Ok(())
     }
-}
-
-/// `ready_car_parts`' part in the game.
-pub fn parts_part(_: u32, r: &mut crate::framework::Regs) -> Result<(), Refused> {
-    unsafe { car_part_matrices(r.esi) }
 }

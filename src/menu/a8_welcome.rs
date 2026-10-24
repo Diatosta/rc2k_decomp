@@ -18,20 +18,13 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
-use crate::menu::event_flow::*;
+use crate::menu::event_flow::Flow;
 use crate::menu::flow_game::Game;
 use rc2k_core::menu::welcome::{self};
 
-pub unsafe fn a8_welcome(entry: &Regs, call: Call) -> Result<Regs, Refused> {
+/// The Rust version. `f` the registers the caller carries (the welcome is a flow of its
+/// own: what it changes is its own, the original keeps every register).
+pub unsafe fn a8_welcome(f: &Flow) -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::welcome::a8_welcome`.
-    welcome::a8_welcome(&mut Game::new(entry, call))?;
-    Ok(*entry)
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { a8_welcome(r, &mut game_call) }?;
-    *r = Regs { esp: r.esp, ..left };
-    Ok(())
+    welcome::a8_welcome(&mut Game::nested(f))
 }

@@ -13,14 +13,13 @@
 //! `routes.rs`); the registers above are the original's, for reference.
 
 use crate::errors::FatalError;
-use crate::framework::{Regs, game_addr, game_ptr, log, rva};
+use crate::framework::{game_ptr, log, rva};
 use crate::threading::start_slot_thread::start_slot_thread;
 use std::sync::atomic::{AtomicU32, Ordering};
 
 // ---- game data ----
 
 const QUIT_RVA: usize = rva(0x51837C); // dword_51837C: 1 = the game is shutting down
-const SHUTDOWN_SLOT_RVA: usize = rva(0x518824); // stru_518824: thread slot 3
 
 // ---- Rust version ----
 
@@ -35,7 +34,7 @@ pub fn request_quit_with(
     if !starts_shutdown(requested.swap(QUITTING, Ordering::SeqCst)) {
         return Ok(());
     }
-    start(game_addr(SHUTDOWN_SLOT_RVA) as u32)
+    start(crate::threading::thread_slot::slot(crate::threading::thread_slot::SHUTDOWN) as u32)
 }
 
 pub unsafe fn request_quit() -> Result<(), FatalError> {
@@ -51,8 +50,8 @@ pub unsafe fn request_quit() -> Result<(), FatalError> {
     result
 }
 
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(_: &mut Regs) -> Result<(), crate::errors::Refused> {
+/// `request_quit`, which version ran said in the log.
+pub fn request_quit_logged() -> Result<(), FatalError> {
     // It happens once, while the game is closing, when `stats` can no longer be asked: say
     // in the log which version ran.
     let was: u32 = unsafe { crate::framework::game_read(QUIT_RVA) };
@@ -60,10 +59,7 @@ pub fn entry(_: &mut Regs) -> Result<(), crate::errors::Refused> {
     log(&format!(
         "threading::request_quit: the Rust version ran (switch was {was}): {result:?}"
     ));
-    if let Err(e) = result {
-        return Err(e.into());
-    }
-    Ok(())
+    result
 }
 
 // pusha; mov eax, 1

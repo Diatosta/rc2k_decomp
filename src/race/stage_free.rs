@@ -4,8 +4,8 @@
 //! pointers 0.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
-use crate::memory::{MemoryList, OWN_HEAP_RVA};
+use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::memory::{MemoryList, own_heap};
 
 pub const COURSE_BYTES_RVA: usize = rva(0x5C6F90); // dword_5C6F90
 
@@ -58,14 +58,14 @@ fn list(f: &Freeing) -> *mut MemoryList {
 }
 
 /// The freeing: the count down by the list's total (`counted`), `free_list`, the
-/// pointers 0. Leaves eax the total and ebx the list (`counted`; else every register
-/// kept). Refuses, before anything, a list with a block while the game's own heap is in
-/// use (`free_list` refuses it).
-pub unsafe fn free(entry: &Regs, f: &Freeing) -> Result<Regs, Refused> {
-    let mut g = *entry;
+/// pointers 0. The original leaves eax the total, ebx the list and carry clear
+/// (`counted`); no caller reads them (taint at every site of `render3d_tidy`,
+/// `objects_tidy` and in `tidy_stage`: 0 reads). Refuses, before anything, a list with a
+/// block while the game's own heap is in use (`free_list` refuses it).
+pub unsafe fn free(f: &Freeing) -> Result<(), Refused> {
     unsafe {
         let l = list(f);
-        if (*l).head != 0 && game_read::<u32>(OWN_HEAP_RVA) == 1 {
+        if (*l).head != 0 && own_heap() == 1 {
             return Err(BadInput("the game's own heap is in use (altmemenable)").into());
         }
         if f.counted {
@@ -74,13 +74,21 @@ pub unsafe fn free(entry: &Regs, f: &Freeing) -> Result<Regs, Refused> {
                 COURSE_BYTES_RVA,
                 game_read::<u32>(COURSE_BYTES_RVA).wrapping_sub(total),
             );
-            g.eax = total;
-            g.ebx = l as u32;
         }
         crate::memory::free_list::free_list(l)?;
         for &at in f.cleared {
             game_write(at, 0u32);
         }
     }
-    Ok(g)
+    Ok(())
+}
+
+/// `race::render3d_tidy` (0x4433A7): `race::free_point_records`.
+pub unsafe fn render3d_tidy() -> Result<(), Refused> {
+    unsafe { free(&POINT_RECORDS) }
+}
+
+/// `race::objects_tidy` (0x44346B): `race::free_object_points`.
+pub unsafe fn objects_tidy() -> Result<(), Refused> {
+    unsafe { free(&OBJECT_POINTS) }
 }

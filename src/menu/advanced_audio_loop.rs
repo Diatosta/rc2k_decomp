@@ -11,7 +11,7 @@
 //! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
-use crate::framework::{Regs, rva};
+use crate::framework::rva;
 use crate::menu::screen_loop::{List, Screen, Step, screen_entry};
 
 // ---- Rust version: `menu::screen_loop` with this ----
@@ -49,7 +49,7 @@ pub const SCREEN: Screen = Screen {
     prepare: &[],
     after_lists: &[],
     background: &[
-        Step::EaxAddr(rva(0x7320D0)),
+        Step::ArgAddr(rva(0x7320D0)),
         Step::CallOrFatal(rva(0x47EFFF), 0x80712345),
     ],
     after_first_frame: &[],
@@ -83,6 +83,6 @@ pub const SCREEN: Screen = Screen {
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    screen_entry("menu::advanced_audio_loop", r, &SCREEN)
+pub fn run() -> Result<(), crate::errors::Refused> {
+    screen_entry("menu::advanced_audio_loop", &SCREEN)
 }

@@ -13,66 +13,34 @@
 //! the Rust version: the cheat on and off, the level open and not.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_read, game_write, rva};
-use crate::menu::parts::Part;
+use crate::framework::{game_read, game_write, rva};
+use crate::menu::screen_loop::Carried;
 
-const CALLEES: [usize; 3] = [
-    0x40F059, // 0 sound::play_menu_sound
-    0x467EA8, // 1 menu::take_player1_units
-    0x487E2C, // 2 menu::arcade_event
-];
 const CHEATS_RVA: usize = rva(0x75870C); // g_cheats
 const OPEN_RVA: usize = rva(0x758800); // byte_758800
 const LEVEL_RVA: usize = rva(0x7587EC); // dword_7587EC
 const STAGE_RVA: usize = rva(0x7587F0); // dword_7587F0
 
-/// The Rust version for `level` (1 .. 5): the registers it leaves.
-pub unsafe fn arcade_level(entry: &Regs, level: u32, part: Part) -> Result<Regs, Refused> {
-    let mut r = *entry;
+/// The Rust version for `level` (1 .. 5). `c` the carried values the item gets. (The
+/// original leaves eax -1 for a closed level; nothing reads it.)
+pub unsafe fn arcade_level(c: &Carried, level: u32) -> Result<(), Refused> {
+    let mut r = *c;
     unsafe {
         // Converted: `rc2k_core::menu::arcade::level_open`.
         use rc2k_core::menu::arcade::{CLOSED_SOUND, level_open};
         let open = level_open(game_read(CHEATS_RVA), || {
             // `mov eax, level - 1` for the look-up, kept on the open path.
-            r.eax = level - 1;
+            r.arg = level - 1;
             game_read::<u8>(OPEN_RVA + level as usize - 1)
         });
         if !open {
-            r.eax = CLOSED_SOUND;
-            part(0, &mut r)?;
-            r.eax = u32::MAX;
-            return Ok(r);
+            r.arg = CLOSED_SOUND;
+            crate::sound::play_menu_sound::play_menu_sound_in_game(r.arg);
+            return Ok(());
         }
         game_write(LEVEL_RVA, level);
         game_write(STAGE_RVA, 0u32);
-        part(1, &mut r)?;
-        part(2, &mut r)?;
+        crate::menu::take_player1_units::take_player1_units()?;
+        crate::menu::arcade_event::arcade_event(&r)
     }
-    Ok(r)
-}
-
-pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    match place {
-        0 => crate::sound::play_menu_sound::play_menu_sound_in_game(r.eax),
-        1 => crate::menu::take_player1_units::take_player1_units()?,
-        2 => {
-            *r = unsafe {
-                crate::menu::arcade_event::arcade_event(
-                    r,
-                    &mut crate::menu::arcade_event::game_part,
-                )
-            }?
-        }
-        _ => crate::calls::call(rva(CALLEES[place as usize]), r),
-    }
-    Ok(())
-}
-
-/// `dispatch_level` without its hook (typed tables).
-pub fn level_entry(r: &mut Regs, level: u32) -> Result<(), Refused> {
-    crate::menu::parts::parted_entry(
-        r,
-        &|r, part| unsafe { arcade_level(r, level, part) },
-        game_part,
-    )
 }

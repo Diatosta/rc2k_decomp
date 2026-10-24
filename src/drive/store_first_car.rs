@@ -15,10 +15,12 @@
 
 use crate::errors::Refused;
 use crate::physics::flow::p;
-use crate::screens::harness::Left;
 
 /// The Rust version.
-pub unsafe fn store_first_car() -> Result<Left, Refused> {
+/// The Rust version. The registers and ZF it leaves are read by no caller (liveness: ZF
+/// after `sub_4293CB`'s call has no read point).
+pub unsafe fn store_first_car() -> Result<(), Refused> {
     p(0x71B3F8, 0);
-    unsafe { crate::drive::store_car::store_car() }
+    unsafe { crate::drive::store_car::store_car() }?;
+    Ok(())
 }

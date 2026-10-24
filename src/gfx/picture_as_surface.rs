@@ -18,7 +18,7 @@
 //! `routes.rs`); the registers above are the original's, for reference.
 
 use crate::errors::{FatalError, Refused};
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::gfx::picture::{FLAGS_RVA, PICTURE_RVA};
 use crate::gfx::pixel_format::SURFACE_FORMAT_RVA;
 use crate::gfx::set_clip::set_clip;
@@ -67,12 +67,6 @@ pub unsafe fn picture_as_surface() -> Result<(), Refused> {
         set_clip(game_addr(SURFACE_RVA) as *const [u32; 4])?;
         Ok(())
     }
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(_: &mut Regs) -> Result<(), crate::errors::Refused> {
-    unsafe { picture_as_surface() }?;
-    Ok(())
 }
 
 // ---- self-test: a copy of the original that reads the flags from a test variable, writes a

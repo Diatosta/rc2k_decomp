@@ -17,7 +17,7 @@
 //!   z times `flt_935402`), and `scene::draw_fan` (the vertex count as it is).
 //!
 //! In:  nothing (`g_marksSettings`)
-//! Out: the registers as the last slot's path leaves them (ebp 0 when slot 0 is not live)
+//! Out: nothing (no caller reads a register it leaves)
 //!
 //! Caller: `marks::run_frame` (0x4D1659). Its calls through `part` (1 `add_mark_slot`, 2
 //! `set_texture`, 3 `draw_fan`); in the game their Rust versions (the device's through
@@ -31,7 +31,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::marks::setup::{SETTINGS_RVA, SLOT_LEN, SLOTS_RVA};
 use crate::math::x87;
 use crate::scene::matrix3::{extended, rounded};
@@ -84,41 +84,35 @@ unsafe fn refusal() -> Option<&'static str> {
     }
 }
 
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn draw_mark_slots(entry: &Regs) -> Result<Regs, Refused> {
+/// The Rust version (see the header): `add_mark_slot`, `scene::set_texture`,
+/// `scene::draw_fan`.
+pub unsafe fn draw_mark_slots() -> Result<(), Refused> {
     if let Some(why) = unsafe { refusal() } {
         return Err(BadInput(why).into());
     }
-    let mut g = *entry;
     unsafe {
         let settings: u32 = game_read(SETTINGS_RVA);
-        g.esi = settings;
         if get(settings + 0x8C) != 0 {
-            g.esi = game_addr(PLACE_RVA) as u32;
-            g.eax = get(settings + 0x64);
-            crate::marks::draw_mark_slots::game_part(1, &mut g)?;
+            crate::marks::add_mark_slot::add_mark_slot(
+                get(settings + 0x64),
+                game_addr(PLACE_RVA) as u32,
+            );
         }
-        g.eax = game_read(TEXTURE_RVA);
-        crate::marks::draw_mark_slots::game_part(2, &mut g)?;
+        crate::scene::set_texture::set_texture(game_read(TEXTURE_RVA));
         for k in (0..DRAWN).rev() {
-            g.ebp = k * SLOT_LEN;
             let s = slot(k);
             if (get(s) as i32) <= 0 {
                 continue;
             }
-            g.eax = game_read(TICKS_RVA);
-            (s as *mut u32).write_unaligned(get(s).wrapping_sub(g.eax));
+            (s as *mut u32).write_unaligned(get(s).wrapping_sub(game_read(TICKS_RVA)));
             let p = (game_addr(POINTS_RVA) as u32).wrapping_add(get(s + 4).wrapping_mul(12));
-            [g.eax, g.ebx, g.ecx] = [get(p), get(p + 4), get(p + 8)];
-            g.eax ^= 0x8000_0000;
+            let [a, b, c] = [get(p) ^ 0x8000_0000, get(p + 4), get(p + 8)];
             let k4 = PLACE_K.map(|r| game_read::<u32>(r));
-            let z = x87::mul(g.ecx, k4[0]);
-            let y = crate::math::x87_run::sub_mul(g.ebx, k4[1], k4[2]);
-            let x = x87::mul(g.eax, k4[3]);
-            g.esi = get(s + 8);
-            let once = rotate_point(g.esi, [extended(z), extended(y), extended(x)]);
-            g.esi = game_addr(VIEW_RVA) as u32;
-            let twice = rotate_point(g.esi, once);
+            let z = x87::mul(c, k4[0]);
+            let y = crate::math::x87_run::sub_mul(b, k4[1], k4[2]);
+            let x = x87::mul(a, k4[3]);
+            let once = rotate_point(get(s + 8), [extended(z), extended(y), extended(x)]);
+            let twice = rotate_point(game_addr(VIEW_RVA) as u32, once);
             let [z, y, x] = twice.map(rounded);
             for (n, v) in [z, y, x].into_iter().enumerate() {
                 game_write(WORK_RVA + 4 * n, v);
@@ -127,19 +121,17 @@ pub unsafe fn draw_mark_slots(entry: &Regs) -> Result<Regs, Refused> {
                 .wrapping_mul(0xC5)
                 .wrapping_add(0x5D);
             game_write(RANDOM_RVA, r);
-            g.eax = game_addr(CORNERS_RVA) as u32 + ((r & 7) + 0x50) * 0x80;
-            let word = |off: u32| ((g.eax + off) as *const u16).read_unaligned() as u32;
+            let corner = game_addr(CORNERS_RVA) as u32 + ((r & 7) + 0x50) * 0x80;
+            let word = |off: u32| ((corner + off) as *const u16).read_unaligned() as u32;
             let uv_k: u32 = game_read(UV_K_RVA);
             for (n, (u, v)) in UV_WORDS.into_iter().enumerate() {
                 let vertex = VERTICES_RVA + 0x20 * n;
                 game_write(vertex + 0x18, x87::int_times(word(u) as i32, uv_k));
                 game_write(vertex + 0x1C, x87::int_times(word(v) as i32, uv_k));
             }
-            [g.ebp, g.edi] = [word(8), word(0xA)];
             for n in 0..4 {
                 game_write(VERTICES_RVA + 0x20 * n + 0x10, 0xFFFF_FFFFu32);
             }
-            g.ecx = x;
             if (x as i32) <= game_read::<i32>(NEAR_RVA) {
                 continue;
             }
@@ -170,19 +162,7 @@ pub unsafe fn draw_mark_slots(entry: &Regs) -> Result<Regs, Refused> {
                 game_write(vertex + 8, depth);
                 game_write(vertex + 0xC, rhw);
             }
-            crate::marks::draw_mark_slots::game_part(3, &mut g)?;
-        }
-    }
-    Ok(g)
-}
-
-/// In the game: the calls' Rust versions.
-pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    unsafe {
-        match place {
-            1 => crate::marks::add_mark_slot::add_mark_slot(r.eax, r.esi),
-            2 => crate::scene::set_texture::set_texture(r.eax),
-            _ => crate::scene::draw_fan::draw_fan(r, &mut crate::scene::draw_fan::game_part),
+            crate::marks::clip_quad::draw_fan();
         }
     }
     Ok(())

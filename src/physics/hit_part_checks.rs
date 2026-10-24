@@ -11,34 +11,22 @@
 //! Self-test: the original and the Rust version on the game's variables (saved and put
 //! back): bit patterns, the switch, hits by lot.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
-use crate::physics::drop_hit_parts::{drop_hit_parts_in, g, p};
-use crate::physics::sound_hit_parts::sound_hit_parts_in;
-use crate::screens::harness::Left;
+use crate::physics::drop_hit_parts::{drop_hit_parts, g, p};
+use crate::physics::sound_hit_parts::sound_hit_parts;
 use rc2k_core::physics::parts::parts_left;
 
-/// The steps on `r`.
+/// The Rust version. The registers the original leaves are read by none of its callers.
 // Converted: `rc2k_core::physics::parts::parts_left`.
-pub fn hit_part_checks_in(r: &mut Regs) -> Result<(), Refused> {
+pub fn hit_part_checks() -> Result<(), Refused> {
     let left = parts_left(g(0x71A270));
     p(0x71A25C, left);
     if left != 0 || g(0x71A244) != 0 {
         return Ok(());
     }
-    drop_hit_parts_in(r)?;
-    sound_hit_parts_in(r)
-}
-
-/// The Rust version.
-pub unsafe fn hit_part_checks(entry: &Regs) -> Result<Left, Refused> {
-    let mut r = *entry;
-    match hit_part_checks_in(&mut r) {
-        Ok(()) => Ok(crate::race::stage_prefs::left_of(&r)),
-        Err(e) => Err(e),
-    }
+    drop_hit_parts()?;
+    sound_hit_parts()
 }

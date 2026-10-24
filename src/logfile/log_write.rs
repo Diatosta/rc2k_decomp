@@ -15,13 +15,12 @@
 //! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
 //! `routes.rs`); the registers above are the original's, for reference.
 
-use crate::framework::{Regs, game_addr, game_read, rva};
-use crate::logfile::write_line::{LOG_LEVEL_RVA, acquire, log_text, write_line_regs};
+use crate::framework::{Regs, game_addr, rva};
+use crate::logfile::write_line::{acquire, enabled, level, log_text, write_line_regs};
 use rc2k_core::files::log::{Entry, entry as log_entry};
 
 // ---- game data ----
 
-const LOG_ENABLED_RVA: usize = rva(0x4E0094); // g_logEnabled
 /// What eax holds after a call with `g_logLevel` 0: the address after the original's call
 /// to its lock function.
 const SKIPPED_EAX_RVA: usize = rva(0x4013D9);
@@ -32,9 +31,7 @@ const SKIPPED_EAX_RVA: usize = rva(0x4013D9);
 pub unsafe fn log_write_regs(r: &mut Regs) {
     unsafe {
         // Converted: `rc2k_core::files::log::entry`.
-        match log_entry(game_read::<i32>(LOG_ENABLED_RVA), || {
-            game_read::<u32>(LOG_LEVEL_RVA)
-        }) {
+        match log_entry(enabled(), level) {
             Entry::Off => return,
             Entry::Skipped => {
                 r.eax = game_addr(SKIPPED_EAX_RVA) as u32;
@@ -61,10 +58,4 @@ pub unsafe fn log_write(text: *const u8, newline: bool, level: u8) {
 /// end of the log's path literal); every register kept (`pusha` .. `popa`).
 pub fn log_newline_l1() {
     log_text(b"", true, 1);
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    unsafe { log_write_regs(r) };
-    Ok(())
 }

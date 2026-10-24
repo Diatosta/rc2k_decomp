@@ -12,7 +12,7 @@
 //! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
 //! `routes.rs`); the registers above are the original's, for reference.
 
-use crate::framework::{Regs, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 
 // ---- game data ----
 
@@ -53,13 +53,12 @@ pub unsafe fn step_car_stream(playing: &mut dyn FnMut() -> bool, start: &mut dyn
     }
 }
 
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(_: &mut Regs) -> Result<(), crate::errors::Refused> {
+/// With the game's stream flag and `sound::start_stream`.
+pub fn step_car_stream_in_game() {
     unsafe {
         step_car_stream(
             &mut || game_read::<u32>(PLAYING_RVA) == 1,
             &mut crate::sound::start_stream::start_stream,
         )
     };
-    Ok(())
 }

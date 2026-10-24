@@ -11,33 +11,25 @@
 //! Refuses (before anything) a split past 0x3F, and what `split_by_mode` refuses.
 //! Self-test: `physics/splits.rs` (`test_splits`).
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 use crate::errors::Refused;
-use crate::framework::Regs;
-use crate::physics::split_by_mode::split_by_mode_in;
-use crate::physics::splits::{CHECKS, COUNT, DONE, FIGURE, SPLIT, SPLITS, g, guarded, p};
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
+use crate::physics::split_by_mode::split_by_mode;
+use crate::physics::splits::{CHECKS, COUNT, DONE, FIGURE, SPLIT, SPLITS, g, p};
 use rc2k_core::physics::progress::{FINISH_NOTICE, finished_at, split_due};
 
-/// The steps on `r`.
+/// The Rust version. The registers the original leaves are read by none of its callers.
 // Converted: `rc2k_core::physics::progress::{split_due, finished_at}`.
-pub fn take_split_in(r: &mut Regs) -> Result<(), Refused> {
+pub fn take_split() -> Result<(), Refused> {
     if g(DONE) != 0 {
         return Ok(());
     }
-    r.ebx = g(SPLIT);
-    if !split_due(r.ebx, g(CHECKS))? {
+    if !split_due(g(SPLIT), g(CHECKS))? {
         return Ok(());
     }
-    split_by_mode_in(r)?;
-    r.ebx = g(SPLIT);
-    r.eax = g(FIGURE);
-    p(SPLITS + 4 * r.ebx as usize, r.eax);
-    r.eax = g(CHECKS);
-    p(SPLIT, r.eax);
+    split_by_mode()?;
+    p(SPLITS + 4 * g(SPLIT) as usize, g(FIGURE));
+    p(SPLIT, g(CHECKS));
     if finished_at(g(SPLIT), g(COUNT)) {
         p(DONE, 1);
         p(0x71A078, 0);
@@ -46,19 +38,4 @@ pub fn take_split_in(r: &mut Regs) -> Result<(), Refused> {
         p(0x71A708, 0);
     }
     Ok(())
-}
-
-/// The Rust version.
-pub unsafe fn take_split(entry: &Regs) -> Result<Left, Refused> {
-    guarded(entry, &take_split_in)
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { take_split(r) }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

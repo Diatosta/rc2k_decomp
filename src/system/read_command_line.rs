@@ -24,7 +24,7 @@
 //! reference.
 
 use crate::errors::BadInput;
-use crate::framework::{Regs, game_addr, game_write, rva};
+use crate::framework::{game_addr, game_write, rva};
 use windows_sys::Win32::System::Environment::GetCommandLineA;
 use windows_sys::Win32::UI::WindowsAndMessaging::MessageBoxA;
 
@@ -45,10 +45,7 @@ const IGNORE_PRIMARY_RVA: usize = rva(0x5AB950); // dword_5AB950
 const NO_AUDIO_RVA: usize = rva(0x4F82B4); // g_noAudio
 const VERSION_RVA: usize = rva(0x4E0000); // "$VER: Rally 5.30 (4.8.2000)"
 const SECOND_TEXT_RVA: usize = rva(0x4E0077); // byte_4E0077
-const REPORT_TEXT_RVA: usize = rva(0x9526F8); // Text
-const CAPTION_RVA: usize = rva(0x4F66FD); // "Rally: Guru Meditation"
-const CAPTION_END_RVA: usize = rva(0x4F6702); // byte_4F6702: its `:`
-const EXIT_PATH_RVA: usize = rva(0x401116);
+const EXIT_PATH: usize = 0x401116;
 
 // ---- Rust version ----
 
@@ -61,26 +58,29 @@ pub enum Asked {
 }
 
 /// The `-v` part: the box, and out through `start`'s exit path. Does not return.
-pub unsafe fn show_version_and_leave(regs: &Regs) -> ! {
+pub unsafe fn show_version_and_leave() -> ! {
     unsafe {
-        game_write(CAPTION_END_RVA, 0u8);
+        crate::fatal::state::CAPTION
+            .ptr()
+            .cast::<u8>()
+            .add(5)
+            .write(0); // byte_4F6702: its `:`
         let c_text = |at: usize| std::ffi::CStr::from_ptr(game_addr(at) as *const _).to_bytes();
         let mut text = c_text(VERSION_RVA + 6).to_vec();
         text.extend(*b"\t\r\n");
         text.extend(c_text(SECOND_TEXT_RVA));
         text.push(0);
-        let place = game_addr(REPORT_TEXT_RVA) as *mut u8;
+        let place = crate::fatal::state::TEXT.ptr().cast::<u8>(); // Text
         std::ptr::copy(text.as_ptr(), place, text.len());
         MessageBoxA(
             std::ptr::null_mut(),
             place,
-            game_addr(CAPTION_RVA) as *const u8,
+            crate::fatal::state::CAPTION.ptr().cast::<u8>(),
             0x2040,
         );
-        let mut regs = *regs;
-        crate::calls::call(EXIT_PATH_RVA, &mut regs);
-        // The exit path ends in `ExitProcess`.
-        std::process::abort()
+        // The exit path (0x401116) ends in `ExitProcess`; the standalone ends where a call
+        // of it would (its fault handler's `EXITS`).
+        crate::standalone::finish(&format!("the game's way out {EXIT_PATH:#x} was reached"), 0)
     }
 }
 
@@ -124,11 +124,11 @@ pub unsafe fn read_command_line(line: *const u8) -> Result<Asked, BadInput> {
 }
 
 /// The Rust version on the program's own command line (`GetCommandLineA`); `-v` shows the
-/// version and leaves through `start`'s exit path with `regs`.
-pub unsafe fn read_own_command_line(regs: &Regs) -> Result<(), BadInput> {
+/// version and leaves through `start`'s exit path.
+pub unsafe fn read_own_command_line() -> Result<(), BadInput> {
     unsafe {
         if read_command_line(GetCommandLineA())? == Asked::Version {
-            show_version_and_leave(regs);
+            show_version_and_leave();
         }
     }
     Ok(())

@@ -13,12 +13,6 @@
 //! registers above are the original's, for reference.
 
 use crate::errors::BadInput;
-use crate::framework::rva;
-
-// ---- game data ----
-
-pub const LAST_FILE_PATH_RVA: usize = rva(0x4F52B0); // g_lastFilePath
-
 // ---- Rust version ----
 
 use crate::files::handle::GameFiles;

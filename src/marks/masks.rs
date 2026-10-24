@@ -4,7 +4,7 @@
 //! number, 0xFF elsewhere. These are the leaves.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 use rc2k_core::marks::masks::{ShapeRows, Span};
 
 pub const WORK_RVA: usize = rva(0x82E386); // g_marksMaskWork: the 0x80000-byte block
@@ -42,14 +42,11 @@ unsafe fn get(at: u32) -> u32 {
 
 impl PointList {}
 
-/// `marks::collect_points_a` (0x4BD551) and `_b` (0x4BD59F): face edi's points (+0 the
+/// `marks::collect_points_a` (0x4BD551) and `_b` (0x4BD59F): face `face`'s points (+0 the
 /// count, from +0x10, 16 bytes apart) added to the list unless there already, up to 0x40,
-/// each with the face. Leaves eax the count, ebx the last point read (the face's count
-/// with none), ecx where the last search stopped, ebp past the last point taken in.
-/// Refuses a list of more than 0x40. Converted:
+/// each with the face. Refuses a list of more than 0x40. Converted:
 /// `rc2k_core::marks::masks::PointList::add_face`.
-pub unsafe fn collect_points(entry: &Regs, list: &PointList) -> Result<Regs, Refused> {
-    let mut g = *entry;
+pub unsafe fn collect_points(list: &PointList, face: u32) -> Result<(), Refused> {
     unsafe {
         let count: u32 = game_read(list.count);
         let most = MOST_POINTS as usize;
@@ -59,17 +56,12 @@ pub unsafe fn collect_points(entry: &Regs, list: &PointList) -> Result<Regs, Ref
             faces: std::slice::from_raw_parts_mut(game_addr(list.faces) as *mut u32, most),
         };
         points.check()?;
-        let face_points = get(g.edi);
-        let c = points.add_face(g.edi, face_points, |k| get(g.edi + 0x10 + 0x10 * k))?;
-        g.eax = points.count;
-        g.ebx = c.last_point.unwrap_or(face_points);
-        g.ecx = c.stopped.unwrap_or(g.ecx);
-        g.ebp = g.edi.wrapping_add(0x10).wrapping_add(0x10 * c.stepped);
-        game_write(list.count, g.eax);
+        let face_points = get(face);
+        points.add_face(face, face_points, |k| get(face + 0x10 + 0x10 * k))?;
+        game_write(list.count, points.count);
     }
-    Ok(g)
+    Ok(())
 }
-
 /// `marks::reset_mask_cursor` (0x4BE0A3): `g_marksMaskCursor` the work block, the runs
 /// from 0x831D2E, `g_marksMaskRunCount` 0. Every register kept. Converted:
 /// `rc2k_core::marks::masks::MaskCursor::reset`.
@@ -108,76 +100,30 @@ unsafe fn mask(at: u32) -> &'static mut [u8] {
     unsafe { std::slice::from_raw_parts_mut(at as *mut u8, MASK_LEN as usize) }
 }
 
-/// `marks::fill_mask_spans` (0x4BE712): entry esi of the list at edi, each of its spans
-/// filled with `g_marksMaskValue`'s low byte into `g_marksMask`, a row (0x100) further each
-/// time. Every register kept. Refuses a span outside the mask, before writing. Converted:
-/// `rc2k_core::marks::masks::ShapeRows::fill`.
-pub unsafe fn fill_mask_spans(entry: &Regs) -> Result<Regs, Refused> {
+/// `marks::draw_mask` (0x4BE6C2): the mask at `at` (into `g_marksMask`) all 0xFF, then
+/// each of the +4 shapes at `shapes` (`g_marksMaskShapes`) drawn (`draw_mask_shape`).
+/// Refuses a count of 0 or less (the original's loop tests after counting and would run
+/// round) or a span outside the mask, before writing. Converted:
+/// `rc2k_core::marks::masks::draw_mask`.
+pub unsafe fn draw_mask(at: u32, shapes: u32) -> Result<(), Refused> {
     unsafe {
-        let rows = shape_rows(entry.edi, entry.esi);
-        rows.fit()?;
-        let value = game_read::<u32>(VALUE_RVA) as u8;
-        rows.fill(mask(game_read(MASK_RVA)), value)?;
-    }
-    Ok(*entry)
-}
-
-/// `marks::draw_mask_shape` (0x4BE6FB): shape esi of the shapes at ebp: `g_marksMaskValue`
-/// esi, its two entries (2 esi, 2 esi + 1) of the rows at +8 filled. Leaves esi 2 esi + 1,
-/// edi +8's list. Refuses a span outside the mask, before writing. Converted:
-/// `rc2k_core::marks::masks::draw_shape`.
-pub unsafe fn draw_mask_shape(entry: &Regs) -> Result<Regs, Refused> {
-    let mut g = *entry;
-    unsafe {
-        let entries = get(g.ebp.wrapping_add(8));
-        let first = g.esi.wrapping_add(g.esi);
-        let rows = [
-            shape_rows(entries, first),
-            shape_rows(entries, first.wrapping_add(1)),
-        ];
-        rows[0].fit()?;
-        rows[1].fit()?;
-        rc2k_core::marks::masks::draw_shape(
-            mask(game_read(MASK_RVA)),
-            [&rows[0], &rows[1]],
-            g.esi,
-        )?;
-        game_write(VALUE_RVA, g.esi);
-        g.edi = entries;
-        g.esi = first.wrapping_add(1);
-    }
-    Ok(g)
-}
-
-/// `marks::draw_mask` (0x4BE6C2): the mask esi (into `g_marksMask`) all 0xFF, then each of
-/// the +4 shapes at ebp (`g_marksMaskShapes`) drawn (`draw_mask_shape`). Leaves eax the
-/// count, ecx 0, esi and edi as the last shape leaves them. Refuses a count of 0 or less
-/// (the original's loop tests after counting and would run round) or a span outside the
-/// mask, before writing. Converted: `rc2k_core::marks::masks::draw_mask`.
-pub unsafe fn draw_mask(entry: &Regs) -> Result<Regs, Refused> {
-    let mut g = *entry;
-    unsafe {
-        let count = get(g.ebp.wrapping_add(4)) as i32;
+        let count = get(shapes.wrapping_add(4)) as i32;
         if count <= 0 {
             return Err(BadInput("a mask of no shapes: the loop would run round").into());
         }
-        let entries = get(g.ebp.wrapping_add(8));
+        let entries = get(shapes.wrapping_add(8));
         let mut rows = Vec::new();
         for k in 0..2 * count as u32 {
             let r = shape_rows(entries, k);
             r.fit()?;
             rows.push(r);
         }
-        rc2k_core::marks::masks::draw_mask(mask(g.esi), &rows)?;
-        game_write(MASK_RVA, g.esi);
-        game_write(SHAPES_RVA, g.ebp);
+        rc2k_core::marks::masks::draw_mask(mask(at), &rows)?;
+        game_write(MASK_RVA, at);
+        game_write(SHAPES_RVA, shapes);
         game_write(VALUE_RVA, count as u32 - 1);
-        g.eax = count as u32;
-        g.ecx = 0;
-        g.edi = entries;
-        g.esi = 2 * (count as u32 - 1) + 1;
     }
-    Ok(g)
+    Ok(())
 }
 
 // ---- for the self-tests ----
@@ -191,70 +137,33 @@ const MASKS: [usize; 2] = [rva(0x833DC2), rva(0x83BDC2)];
 const PIXEL_TABLES: [usize; 2] = [rva(0x844E58), rva(0x864E58)];
 
 /// `marks::make_masks` (0x4BDE9A), in `sub_4C0F2E`: the 0x80000-byte work block taken on
-/// its list (place 0 of the part); `make_shape_sets` (1), `make_corners` (2),
-/// `reset_mask_cursor` (3); each shape's ring (`span_ring`, 4, its corner table in
-/// `g_marksRingCorners`), mask (`draw_mask`, 5) and pixels (`map_shapes`, 6); the spans
-/// made counted into eax and the list freed (`memory::free_list`, 7). Leaves eax that
-/// count, ebx the list, the rest as the last step. Refuses as its steps do, mid-way (the
-/// work block is on the list, which the original's run frees with its own).
-pub unsafe fn make_masks(entry: &Regs) -> Result<Regs, Refused> {
+/// its list (`memory::allocate`); `make_shape_sets`, `make_corners`, `reset_mask_cursor`;
+/// each shape's ring (`span_ring`, its corner table in `g_marksRingCorners`), mask
+/// (`draw_mask`) and pixels (`map_shapes`); the list freed (`memory::free_list`). Refuses
+/// as its steps do, mid-way (the work block is on the list, which the original's run
+/// frees with its own).
+pub unsafe fn make_masks() -> Result<(), Refused> {
     use crate::marks::corners::CORNERS_RVA;
     use crate::marks::rings::CORNERS_RVA as RING_CORNERS_RVA;
-    let mut g = *entry;
     let a = |r: usize| game_addr(r) as u32;
     unsafe {
-        g.eax = WORK_LEN;
-        g.ebx = a(LIST_RVA);
-        crate::marks::masks::game_part(0, &mut g)?;
-        game_write(WORK_RVA, g.eax);
-        crate::marks::masks::game_part(1, &mut g)?;
-        crate::marks::masks::game_part(2, &mut g)?;
-        crate::marks::masks::game_part(3, &mut g)?;
+        let list = a(LIST_RVA) as *mut crate::memory::MemoryList;
+        let work = crate::memory::allocate::allocate(list, WORK_LEN)? as u32;
+        game_write(WORK_RVA, work);
+        crate::marks::shape_points::make_shape_sets()?;
+        crate::marks::corners::make_corners()?;
+        reset_mask_cursor();
         for n in 0..2 {
-            g.ebp = a(SHAPES[n]);
-            g.esi = a(RING_ANGLES[n]);
             game_write(RING_CORNERS_RVA, a(CORNERS_RVA[n]));
-            crate::marks::masks::game_part(4, &mut g)?;
+            crate::marks::rings::span_ring(a(SHAPES[n]), a(RING_ANGLES[n]))?;
         }
         for n in 0..2 {
-            g.ebp = a(SHAPES[n]);
-            g.esi = a(MASKS[n]);
-            crate::marks::masks::game_part(5, &mut g)?;
+            draw_mask(a(MASKS[n]), a(SHAPES[n]))?;
         }
         for n in 0..2 {
-            g.ebp = a(SHAPES[n]);
-            g.esi = a(PIXEL_TABLES[n]);
-            g.edi = a(CORNERS_RVA[n]);
-            crate::marks::masks::game_part(6, &mut g)?;
+            crate::marks::pixels::map_shapes(a(SHAPES[n]), a(PIXEL_TABLES[n]), a(CORNERS_RVA[n]))?;
         }
-        g.eax = game_read::<u32>(CURSOR_RVA).wrapping_sub(game_read(WORK_RVA)) >> 3;
-        g.ebx = a(LIST_RVA);
-        crate::marks::masks::game_part(7, &mut g)?;
-    }
-    Ok(g)
-}
-
-/// In the game: the steps' Rust versions (place 0 `memory::allocate`, 7
-/// `memory::free_list`).
-pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    unsafe {
-        let keep = |r: &mut Regs, left: Regs| {
-            *r = Regs {
-                esp: r.esp,
-                eflags: r.eflags,
-                ..left
-            }
-        };
-        match place {
-            0 => return crate::race::level_init::game_part(0, r),
-            1 => keep(r, crate::marks::shape_points::make_shape_sets(r)?),
-            2 => keep(r, crate::marks::corners::make_corners(r)?),
-            3 => reset_mask_cursor(),
-            4 => keep(r, crate::marks::rings::span_ring(r)?),
-            5 => keep(r, draw_mask(r)?),
-            6 => keep(r, crate::marks::pixels::map_shapes(r)?),
-            _ => crate::memory::free_list::free_list(r.ebx as *mut crate::memory::MemoryList)?,
-        }
+        crate::memory::free_list::free_list(list)?;
     }
     Ok(())
 }

@@ -15,7 +15,6 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::physics::flow::a;
 use crate::race::viewer::{get, put};
 
@@ -24,37 +23,13 @@ const CLOCK_BASE: usize = 0x613840; // dword_613840
 const IN_TEXT: usize = 0x4DDF10; // "shaunplayrendermovie - in"
 const OUT_TEXT: usize = 0x4DDF2A; // "shaunplayrendermovie - out"
 
-/// The Rust version: the registers it leaves.
-pub fn play_movie(entry: &Regs) -> Result<Regs, Refused> {
-    let mut r = *entry;
-    let mut s = Regs {
-        eax: a(IN_TEXT),
-        ..r
-    };
-    crate::race::play_movie::game_part(1, &mut s)?;
-    crate::race::play_movie::game_part(2, &mut r)?;
-    r.eax = get(SCENE_CLOCK);
-    put(CLOCK_BASE, r.eax);
-    crate::race::play_movie::game_part(3, &mut r)?;
-    let mut s = Regs {
-        eax: a(OUT_TEXT),
-        ..r
-    };
-    crate::race::play_movie::game_part(4, &mut s)?;
-    Ok(r)
-}
-
-/// In the game: the Rust versions.
-pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    match place {
-        1 | 4 => unsafe { crate::logfile::log_write::log_write(r.eax as *const u8, place == 4, 1) },
-        2 => crate::drive::race_parts::restart_clock(r),
-        _ => {
-            *r = crate::race::play_movie_loop::play_movie_loop(
-                r,
-                &mut crate::race::play_movie_loop::game_part,
-            )?
-        }
-    }
+/// The Rust version. Reads no register; its caller (`race::play_replay_range`, which
+/// keeps every register) reads none it leaves.
+pub fn play_movie() -> Result<(), Refused> {
+    unsafe { crate::logfile::log_write::log_write(a(IN_TEXT) as *const u8, false, 1) };
+    crate::drive::race_parts::restart_clock();
+    put(CLOCK_BASE, get(SCENE_CLOCK));
+    crate::race::play_movie_loop::play_movie_loop()?;
+    unsafe { crate::logfile::log_write::log_write(a(OUT_TEXT) as *const u8, true, 1) };
     Ok(())
 }

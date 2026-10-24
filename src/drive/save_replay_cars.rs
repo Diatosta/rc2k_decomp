@@ -13,10 +13,8 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::{ECX, EDI, ESI};
 use crate::physics::flow::a;
-use crate::screens::harness::Left;
-use rc2k_core::drive::replay_frames::{START_DWORDS, StartPiece, start_layout};
+use rc2k_core::drive::replay_frames::{StartPiece, start_layout};
 
 const B: usize = 0x70F3EC; // g_carBlockStore (four blocks of 0xFE0)
 const SAVED: usize = 0x7172EC; // unk_7172EC
@@ -32,13 +30,9 @@ pub fn piece_at(piece: StartPiece) -> usize {
 
 /// The Rust version.
 // Converted: `rc2k_core::drive::replay_frames::start_layout`.
-pub fn save_replay_cars() -> Left {
-    let mut end = 0;
+pub fn save_replay_cars() {
     for (piece, offset, n) in start_layout() {
         let (state, place) = (a(SAVED) + 4 * offset as u32, a(piece_at(piece)));
         unsafe { std::ptr::copy(place as *const u32, state as *mut u32, n) };
-        end = place + 4 * n as u32;
     }
-    let past = a(SAVED) + 4 * START_DWORDS as u32;
-    Left::nothing().with(ECX, 0).with(ESI, end).with(EDI, past)
 }

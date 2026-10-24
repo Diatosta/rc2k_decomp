@@ -16,27 +16,21 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::{EAX, EBX, EDX, Regs};
 use crate::physics::flow::{g, p};
-use crate::screens::harness::Left;
 use rc2k_core::drive::replay_views::{RARE_FROM, first_level, rare_draw, second_level};
 
 const B: usize = 0x70F3EC; // g_carBlockStore
 
 /// The Rust version.
 // Converted: `rc2k_core::drive::replay_views::{first_level, rare_draw, second_level}`.
-pub unsafe fn duel_sound_levels(entry: &Regs) -> Left {
-    let mut left = Left::nothing();
+pub unsafe fn duel_sound_levels() {
     p(0x5165BC, first_level(g(B + 0x900)));
     if g(0x5165BC) >= RARE_FROM {
         let r = unsafe { crate::math::next_random::next_random() };
-        left = left.with(EBX, 500);
         if rare_draw(r) {
             p(0x5165A8, 1);
         }
     }
-    let (eax, high) = second_level(g(B + 0x908));
-    p(0x5165C0, eax);
-    let _ = entry;
-    left.with(EAX, eax).with(EDX, high)
+    let (level, _) = second_level(g(B + 0x908));
+    p(0x5165C0, level);
 }

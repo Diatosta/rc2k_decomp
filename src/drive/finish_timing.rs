@@ -19,15 +19,13 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::EAX;
 use crate::math::x87::loaded;
 use crate::physics::flow::{base, c0, g, p, x87_run};
-use crate::screens::harness::Left;
 
 const T: usize = 0x64BB64;
 
 /// The core from the clock's reading `now` (already in `g_sceneClock`).
-pub fn timing_from(now: u32) -> Left {
+pub fn timing_from(now: u32) {
     let since = now.wrapping_sub(g(0x64BB60));
     p(0x62400C, since);
     x87_run!(
@@ -84,11 +82,10 @@ pub fn timing_from(now: u32) -> Left {
     if late && g(0x75B108) != 0 {
         p(0x5C2F88, 1);
     }
-    Left::nothing().with(EAX, since)
 }
 
 /// The Rust version (the exact one, for `drive::finish_run`).
-pub unsafe fn finish_timing() -> Left {
+pub unsafe fn finish_timing() {
     let now = crate::scene::restart_clock::restart_clock(crate::system::tick_count::tick_count());
     timing_from(now)
 }

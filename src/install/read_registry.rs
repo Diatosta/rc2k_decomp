@@ -14,11 +14,10 @@
 //! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
+//! are the original's.
 
-use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, rva};
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
+use crate::framework::{game_addr, rva};
 
 // ---- game data ----
 
@@ -91,15 +90,4 @@ pub unsafe fn read_registry(registry: &mut dyn Registry) {
 /// The registry, or in the standalone the portable record (`install::portable`).
 pub unsafe fn read_registry_here() {
     unsafe { read_registry(&mut crate::install::portable::Portable) };
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { read_registry_here() };
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

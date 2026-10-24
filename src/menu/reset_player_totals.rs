@@ -12,14 +12,13 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::menu::standings::*;
 
 /// The Rust version (see the header): the registers it leaves.
-pub unsafe fn reset_player_totals(entry: &Regs) -> Result<Regs, Refused> {
+pub unsafe fn reset_player_totals() -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::event::PLAYER_TOTALS`.
     for p in counted_players()? {
         put_all(p, &rc2k_core::menu::event::PLAYER_TOTALS);
     }
-    Ok(*entry)
+    Ok(())
 }

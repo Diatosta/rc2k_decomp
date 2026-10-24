@@ -15,19 +15,16 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::menu::standings::*;
 
 /// The Rust version (see the header): the registers it leaves.
-pub unsafe fn find_cpu_team(entry: &Regs) -> Result<Regs, Refused> {
-    let mut g = *entry;
+pub unsafe fn find_cpu_team(team: u32) -> Result<u32, Refused> {
     let first = crate::framework::game_addr(DRIVERS_RVA) as u32;
     let all = entries(first, DRIVER)?;
     // Converted: `rc2k_core::menu::standings::find_team`.
     let drivers = unsafe { table(first, DRIVER, all.len() as u32) };
-    if let Some(n) = rc2k_core::menu::standings::find_team(&drivers, g.eax) {
-        g.esi = all[n];
-        return Ok(g);
+    if let Some(n) = rc2k_core::menu::standings::find_team(&drivers, team) {
+        return Ok(all[n]);
     }
     Err(crate::errors::FatalError {
         code: 0x8070A098,

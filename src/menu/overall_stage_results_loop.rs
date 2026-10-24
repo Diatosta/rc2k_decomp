@@ -20,10 +20,11 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::errors::Refused;
+use crate::framework::{game_read, game_write, rva};
 use crate::menu::class_stage_results_loop::LOAD_BACKGROUND;
 use crate::menu::run_draw_list::DRAW_LIST_RVA;
-use crate::menu::screen_loop::{Env, FRAME_CALLBACK, List, Screen, Step};
+use crate::menu::screen_loop::{Carried, FRAME_CALLBACK, List, Screen, Step};
 
 // ---- game data ----
 
@@ -34,16 +35,16 @@ const BACKGROUND_RVA: usize = rva(0x732514); // "files\g\graphics\screens\result
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
-unsafe fn set_first_item(g: &mut Regs, _: &mut dyn Env) {
+unsafe fn set_first_item(c: &mut Carried) -> Result<(), Refused> {
     unsafe {
-        g.eax = if game_read::<u32>(WHICH_TITLE_RVA) == 1 {
+        c.arg = if game_read::<u32>(WHICH_TITLE_RVA) == 1 {
             0x138
         } else {
             0x139
         };
-        g.edi = game_addr(MENU_RVA) as u32 + 4;
-        game_write(FIRST_ITEM_STRING_RVA, g.eax);
+        game_write(FIRST_ITEM_STRING_RVA, c.arg);
     }
+    Ok(())
 }
 
 pub const SCREEN: Screen = Screen {
@@ -74,7 +75,7 @@ pub const SCREEN: Screen = Screen {
     prepare: &[],
     after_lists: &[],
     background: &[
-        Step::EaxAddr(BACKGROUND_RVA),
+        Step::ArgAddr(BACKGROUND_RVA),
         Step::CallOrFatal(LOAD_BACKGROUND, 0x8071_2345),
     ],
     after_first_frame: &[],

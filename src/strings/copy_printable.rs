@@ -9,11 +9,12 @@
 //! Manual patch with a private copy (0x37 bytes): short jumps in the first bytes.
 
 use crate::errors::BadInput;
-use crate::framework::{game_read, rva};
 use crate::strings::same_text::case_table;
+use std::sync::atomic::{AtomicU32, Ordering};
 
-/// dword_4E0144: 1 = the case is kept.
-const KEEP_CASE_RVA: usize = rva(0x4E0144);
+/// 1 = the case is kept: out of the image since 2026-10-24 (phase 5; it was `dword_4E0144`,
+/// 1 there). `input::joystick_found` sets it to 0 for a while.
+pub static KEEP_CASE: AtomicU32 = AtomicU32::new(1);
 
 // ---- Rust version ----
 
@@ -30,7 +31,7 @@ pub unsafe fn printable(text: *const u8, room: u32) -> Result<Vec<u8>, BadInput>
             looked_at.push(c);
         }
     }
-    let keep_case = unsafe { game_read::<u32>(KEEP_CASE_RVA) } == 1;
+    let keep_case = KEEP_CASE.load(Ordering::Relaxed) == 1;
     case_table()
         .printable(&looked_at, room as usize, keep_case)
         .ok_or(BadInput("no room for a name: the original runs on"))
@@ -41,5 +42,17 @@ pub unsafe fn copy_printable(text: *const u8, to: *mut u8, room: u32) -> Result<
         let bytes = printable(text, room)?;
         std::ptr::copy(bytes.as_ptr(), to, bytes.len());
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn switch_starts_as_the_games() {
+        let d = crate::moved::image_bytes(0x4E0144, 4);
+        assert_eq!(
+            u32::from_le_bytes(d.try_into().unwrap()),
+            super::KEEP_CASE.load(std::sync::atomic::Ordering::Relaxed)
+        );
     }
 }

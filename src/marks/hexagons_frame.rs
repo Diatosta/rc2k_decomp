@@ -10,7 +10,7 @@
 //! drift on, `marks::hexagons_spawn`.
 //!
 //! In:  nothing (`g_marksSettings`)
-//! Out: the registers as the path leaves them
+//! Out: nothing (its caller reads no register after it)
 //!
 //! Caller: `sub_4BAC87` (0x4BAF08). The x87 runs are the original's instructions over the
 //! items and the game's variables; its calls through `part` (1 the drift, 2 the set-up, 3
@@ -24,7 +24,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::marks::expire_hexagons::{ITEM_LEN, ITEMS, ITEMS_RVA};
 use crate::marks::setup::SETTINGS_RVA;
 use crate::math::x87;
@@ -390,23 +390,27 @@ unsafe fn refusal() -> Option<&'static str> {
     }
 }
 
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn hexagons_frame(entry: &Regs) -> Result<Regs, Refused> {
+/// The batch's draw (`d3d::draw_marks_hexagons`; its result unread).
+pub fn draw_batch() -> Result<(), Refused> {
+    crate::d3d::draw_marks_hexagons::draw_marks_hexagons();
+    Ok(())
+}
+
+/// The Rust version (see the header).
+pub unsafe fn hexagons_frame() -> Result<(), Refused> {
     if let Some(why) = unsafe { refusal() } {
         return Err(BadInput(why).into());
     }
-    let mut g = *entry;
     unsafe {
         let b = game_addr(0) as u32;
         if game_read::<u32>(DRIFTING_RVA) != 0 {
-            crate::marks::hexagons_frame::game_part(1, &mut g)?;
+            crate::marks::hexagons_drift::hexagons_drift()?;
         }
-        crate::marks::hexagons_frame::game_part(2, &mut g)?;
+        crate::marks::hexagons_setup::hexagons_setup();
         game_write(LIVE_RVA, 0u32);
         let base = game_addr(ITEMS_RVA) as u32;
         for n in 0..ITEMS {
             let e = base + n * ITEM_LEN;
-            g.esi = e;
             if get(e) != 1 {
                 continue;
             }
@@ -414,37 +418,29 @@ pub unsafe fn hexagons_frame(entry: &Regs) -> Result<Regs, Refused> {
             if game_read::<u32>(DRIFTING_RVA) != 0 {
                 let x = x87::to_int(get(e + 0x14));
                 game_write(CELL_X_RVA, x);
-                g.eax = ((x as u32) >> 3) & 0xFF;
-                drift_cell(b, 4 * g.eax);
-                g.eax = get(e + 4);
-                drift_move(b, 4 * g.eax, e);
+                drift_cell(b, 4 * (((x as u32) >> 3) & 0xFF));
+                drift_move(b, 4 * get(e + 4), e);
             }
             let x = x87::to_int(get(e + 0x14));
             let z = x87::to_int(get(e + 0x18));
             game_write(WHOLE_RVA[0], x);
             game_write(WHOLE_RVA[1], z);
-            [g.eax, g.ebx] = [x as u32, (z as u32).wrapping_add(z as u32)];
-            g.eax |= g.ebx;
-            g.eax &= 0x800;
-            if g.eax != 0 {
+            if (x as u32 | (z as u32).wrapping_add(z as u32)) & 0x800 != 0 {
                 put(e, 0);
                 continue;
             }
-            g.ecx = get(e + 4);
-            g.eax = ((x as u32) >> 3) & 0xFF;
-            g.ebx = ((((z as u32) >> 3) & 0x7F) << 8) + g.eax;
-            if game_read::<u8>(EDGE_RVA + g.ebx as usize) != 0 {
+            let shape = get(e + 4);
+            let cell = ((((z as u32) >> 3) & 0x7F) << 8) + (((x as u32) >> 3) & 0xFF);
+            if game_read::<u8>(EDGE_RVA + cell as usize) != 0 {
                 put(e, 0);
                 continue;
             }
-            g.ecx = g.ecx.wrapping_mul(0x48);
             sprite_depth(b);
             if game_read::<i32>(DEPTH_RVA) < 0x4580_0000 {
                 continue;
             }
-            sprite_corners(b, g.ecx);
-            g.ebp = game_read(BUFFER_RVA);
-            sprite_project(b, g.ebp);
+            sprite_corners(b, shape.wrapping_mul(0x48));
+            sprite_project(b, game_read(BUFFER_RVA));
             let next = game_read::<u32>(BUFFER_RVA).wrapping_add(0xC0);
             game_write(BUFFER_RVA, next);
             if next == game_addr(BUFFER_END) as u32 {
@@ -452,33 +448,14 @@ pub unsafe fn hexagons_frame(entry: &Regs) -> Result<Regs, Refused> {
                 for (r, v) in BATCH {
                     game_write(r, v);
                 }
-                crate::marks::hexagons_frame::game_part(3, &mut g)?;
+                draw_batch()?;
             }
         }
-        g.esi = base + ITEMS * ITEM_LEN;
-        g.ebp = game_read(SETTINGS_RVA);
-        g.eax = game_read(LIVE_RVA);
-        if (g.eax as i32) < get(g.ebp + 0x273C) as i32 && game_read::<u32>(DRIFTING_RVA) != 0 {
-            crate::marks::hexagons_frame::game_part(4, &mut g)?;
+        let settings: u32 = game_read(SETTINGS_RVA);
+        let live: u32 = game_read(LIVE_RVA);
+        if (live as i32) < get(settings + 0x273C) as i32 && game_read::<u32>(DRIFTING_RVA) != 0 {
+            crate::marks::hexagons_spawn::hexagons_spawn();
         }
-    }
-    Ok(g)
-}
-
-/// In the game: the calls' Rust versions (the batch's draw through the game).
-pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    use crate::marks::{hexagons_drift, hexagons_setup, hexagons_spawn};
-    unsafe {
-        let left = match place {
-            1 => hexagons_drift::hexagons_drift(r)?,
-            2 => hexagons_setup::hexagons_setup(r)?,
-            3 => {
-                crate::calls::call(rva(0x41ADB9), r);
-                return Ok(());
-            }
-            _ => hexagons_spawn::hexagons_spawn(r),
-        };
-        *r = Regs { esp: r.esp, ..left };
     }
     Ok(())
 }

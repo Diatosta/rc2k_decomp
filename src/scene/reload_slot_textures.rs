@@ -14,43 +14,26 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
+use crate::errors::BadInput;
 use crate::framework::game_ptr;
-use crate::framework::{Regs, rva};
+use crate::framework::rva;
 use crate::logfile::log_write::log_write;
 use crate::scene::clear_slot_textures::clear_slot_textures;
-use crate::scene::load_wanted_textures::load_wanted_textures_in_game;
-
-/// The calls made, as places in `CALLEES`.
-const ORDER: [usize; 6] = [0, 0, 1, 2, 0, 0];
+use crate::scene::load_wanted_textures::load_wanted_textures;
 
 // ---- Rust version ----
 
-/// `step`: what stands for each call, by its place in `ORDER`; it is entered with the
-/// registers the call before left.
-pub unsafe fn reload_slot_textures(
-    r: &mut Regs,
-    step: &mut dyn FnMut(usize, &mut Regs) -> Result<(), Refused>,
-) -> Result<(), Refused> {
-    for n in 0..ORDER.len() {
-        step(n, r)?;
-    }
-    Ok(())
-}
-
-/// With the Rust versions of what it calls.
-pub unsafe fn reload_slot_textures_in_game(r: &mut Regs) -> Result<(), Refused> {
+/// Its calls in order: two log lines, the slots cleared, the wanted textures loaded, two
+/// log lines. What it leaves in the registers no caller reads (register liveness,
+/// 2026-10-23: `race::set_all_plates` and `scene::set_up_front_end_scene`).
+pub unsafe fn reload_slot_textures() -> Result<(), BadInput> {
     unsafe {
-        reload_slot_textures(r, &mut |n, r| {
-            match n {
-                0 => log_write(game_ptr(rva(0x4DB858)), true, 1),
-                1 => log_write(game_ptr(rva(0x4DB87D)), true, 1),
-                2 => clear_slot_textures().apply(r),
-                3 => load_wanted_textures_in_game(r)?,
-                4 => log_write(game_ptr(rva(0x4DB899)), true, 1),
-                _ => log_write(game_ptr(rva(0x4DB8B5)), true, 1),
-            }
-            Ok(())
-        })
+        log_write(game_ptr(rva(0x4DB858)), true, 1);
+        log_write(game_ptr(rva(0x4DB87D)), true, 1);
+        clear_slot_textures();
+        load_wanted_textures()?;
+        log_write(game_ptr(rva(0x4DB899)), true, 1);
+        log_write(game_ptr(rva(0x4DB8B5)), true, 1);
+        Ok(())
     }
 }

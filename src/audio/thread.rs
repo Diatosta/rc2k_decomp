@@ -27,9 +27,8 @@
 
 use crate::audio::voices::{read, write};
 use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, rva};
+use crate::framework::{game_addr, rva};
 
-const SLOT_RVA: usize = rva(0x518604); // stru_518604, the audio thread's slot
 const TURN_TICK_RVA: usize = rva(0x4F82B8); // g_audioTurnTick
 const START_TEXT: usize = rva(0x4DA5F2); // "AUDIOTDB:START"
 const QUIT_TEXT: usize = rva(0x4DA601); // "AUDIOTDB:QUIT"
@@ -49,7 +48,7 @@ impl ThreadVars {
         use crate::audio::voices::*;
         let a = |r| game_addr(r) as u32;
         Self {
-            slot: a(SLOT_RVA),
+            slot: crate::threading::thread_slot::slot(crate::threading::thread_slot::AUDIO) as u32,
             no_audio: a(crate::sound::queue::NO_AUDIO_RVA),
             menu_mode: a(crate::audio::choose_modes::MENU_MODE_RVA),
             turn_tick: a(TURN_TICK_RVA),
@@ -119,9 +118,4 @@ pub unsafe fn audio_thread(v: &ThreadVars) -> Result<(), Refused> {
         running.write(0);
         windows_sys::Win32::System::Threading::ExitThread(0)
     }
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(_: &mut Regs) -> Result<(), crate::errors::Refused> {
-    unsafe { audio_thread(&ThreadVars::game()) }
 }

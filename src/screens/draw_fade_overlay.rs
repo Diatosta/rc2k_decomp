@@ -15,27 +15,13 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
-use crate::screens::service_boxes::{Part, quad, quad_part, rd};
+use crate::screens::service_boxes::{quad, rd};
 
 const SEE_THROUGH: usize = 0x75AB50; // dword_75AB50
 
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn draw_fade_overlay(entry: &Regs, mut part: Part) -> Result<Regs, Refused> {
+/// The Rust version (see the header).
+pub fn draw_fade_overlay() -> Result<(), Refused> {
     // Converted: `rc2k_core::screens::panels::fade_overlay`.
-    let mut g = *entry;
     let a = rc2k_core::screens::panels::fade_overlay(rd(SEE_THROUGH));
-    quad(&mut g, a.x, a.y, a.w, a.h, a.colour, a.see, &mut part)?;
-    Ok(*entry)
-}
-
-pub fn game_part(_place: u32, r: &mut Regs) -> Result<(), Refused> {
-    quad_part(r)
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { draw_fade_overlay(r, &mut game_part) }?;
-    *r = Regs { esp: r.esp, ..left };
-    Ok(())
+    quad(a.x, a.y, a.w, a.h, a.colour, a.see)
 }

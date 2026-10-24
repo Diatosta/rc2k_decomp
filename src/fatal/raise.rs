@@ -10,8 +10,8 @@
 //! the instruction inside it where the original would have noticed.
 
 use crate::errors::{FatalError, Refused};
-use crate::fatal::report::{CODE_RVA, MESSAGE_RVA};
-use crate::framework::{GameHook, RawHook, Regs, game_write, log, rva};
+use crate::fatal::state::{CODE, MESSAGE};
+use crate::framework::{GameHook, RawHook, Regs, log, rva};
 use std::ffi::CString;
 
 const REPORTER_RVA: usize = rva(0x40763C); // fatal::report
@@ -27,12 +27,10 @@ pub unsafe fn raise(error: FatalError, regs: &Regs) {
         Ok(text) if !error.message.is_empty() => Box::leak(text.into_boxed_c_str()).as_ptr() as u32,
         _ => 0,
     };
-    unsafe {
-        game_write(CODE_RVA, error.code);
-        game_write(MESSAGE_RVA, message);
-        let mut regs = *regs;
-        crate::calls::call(REPORTER_RVA, &mut regs);
-    }
+    CODE.store(error.code, std::sync::atomic::Ordering::Relaxed);
+    MESSAGE.store(message, std::sync::atomic::Ordering::Relaxed);
+    let mut regs = *regs;
+    crate::calls::call(REPORTER_RVA, &mut regs);
 }
 
 /// What the program does when a Rust version refuses a call. A refused input (`BadInput`)

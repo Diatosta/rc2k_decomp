@@ -16,20 +16,17 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
-use crate::screens::service_boxes::{Part, quad, quad_part, rd, set};
+use crate::screens::service_boxes::{quad, rd, set};
 
 const ROW: usize = 0x7559EC; // dword_7559EC
 const MARKER_X: usize = 0x755A18; // g_markerX
 const MARKER_Y: usize = 0x755A1C; // g_markerY
 
 /// The Rust version: every register kept.
-pub unsafe fn draw_column_boxes(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub unsafe fn draw_column_boxes() -> Result<(), Refused> {
     // Converted: `rc2k_core::screens::panels::row_box`; the row and marker variables
     // are left as the original leaves them.
     use rc2k_core::screens::panels::{BOXES_Y, COLUMNS, ROW_STEP, ROWS, row_box};
-    let mut part = part;
-    let mut g = *entry;
     set(ROW, 1);
     for x in COLUMNS {
         set(MARKER_X, x);
@@ -37,15 +34,11 @@ pub unsafe fn draw_column_boxes(entry: &Regs, part: Part) -> Result<Regs, Refuse
         for _ in 0..ROWS {
             let chosen = rd(0x755525) == rd(ROW) && rd(0x7559A4) == 1;
             for a in row_box(rd(MARKER_X), rd(MARKER_Y), rd(0x75AA90), chosen) {
-                quad(&mut g, a.x, a.y, a.w, a.h, a.colour, a.see, &mut part)?;
+                quad(a.x, a.y, a.w, a.h, a.colour, a.see)?;
             }
             set(MARKER_Y, rd(MARKER_Y).wrapping_add(ROW_STEP));
             set(ROW, rd(ROW).wrapping_add(1));
         }
     }
-    Ok(*entry)
-}
-
-pub fn game_part(_place: u32, r: &mut Regs) -> Result<(), Refused> {
-    quad_part(r)
+    Ok(())
 }

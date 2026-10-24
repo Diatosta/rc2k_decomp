@@ -12,12 +12,11 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::Regs;
-use crate::race::replay_mode::{game_part, replay_mode};
+use crate::errors::Refused;
+use crate::menu::screen_loop::Carried;
+use crate::race::replay_mode::replay_mode;
 
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { replay_mode(r, 1, &mut game_part) }?;
-    *r = Regs { esp: r.esp, ..left };
-    Ok(())
+/// The Rust version (`c` the carried values the item gets).
+pub unsafe fn replay_mode_1(c: &Carried) -> Result<(), Refused> {
+    unsafe { replay_mode(c, 1) }
 }

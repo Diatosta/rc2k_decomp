@@ -30,7 +30,7 @@ use crate::drive::drive_computer_car::drive_computer_car;
 use crate::drive::next_camera_view::next_camera_view;
 use crate::drive::start_blend::start_blend;
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::math::x87;
 use rc2k_core::drive::controls::{FLIP_BIT, VIEW_BIT, computer_drives, flipped, read_keys};
 
@@ -55,7 +55,7 @@ fn computer() -> bool {
 
 /// The Rust version: `r` as the original leaves it.
 // Converted: `rc2k_core::drive::controls::{read_keys, computer_drives, flipped}`.
-pub unsafe fn read_car_controls(r: &mut Regs) -> Result<(), Refused> {
+pub unsafe fn read_car_controls() -> Result<(), Refused> {
     unsafe {
         if computer() && g(0x623640) == 0 && g(0x719FEC) >= 0x320 {
             // `drive_computer_car`'s refusal, before anything here is written.
@@ -83,29 +83,21 @@ pub unsafe fn read_car_controls(r: &mut Regs) -> Result<(), Refused> {
         p(0x613898, g(0x71A448));
         p(0x61389C, keys.hand);
         p(0x6138A0, keys.up);
-        r.eax = keys.down;
-        p(0x6138A4, r.eax);
+        p(0x6138A4, keys.down);
         let replay = g(0x52A910) != 0;
-        if !replay {
-            r.eax = g(CURRENT);
-        }
         if replay || g(CURRENT) < g(0x63DB94) {
-            r.eax = pressed & FLIP_BIT;
-            if r.eax != 0 {
+            if pressed & FLIP_BIT != 0 {
                 p(0x71A05C, flipped(g(0x71A05C)));
             }
-            r.eax = pressed & VIEW_BIT;
-            if r.eax != 0 {
-                r.esi = a(0x719FD8);
-                next_camera_view(r.esi).apply(r);
+            if pressed & VIEW_BIT != 0 {
+                next_camera_view(a(0x719FD8));
             }
         }
         if !computer() {
             return Ok(());
         }
-        r.eax = g(CURRENT);
-        p(0x71C0CC, r.eax);
-        r.eax = start_blend();
+        p(0x71C0CC, g(CURRENT));
+        start_blend();
         p(0x71BFA4, x87::loaded(g(0x71A658)));
         drive_computer_car()?;
         for (k, to) in [

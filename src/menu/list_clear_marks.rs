@@ -15,9 +15,6 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::Regs;
-use crate::race::viewer::regs_entry;
 use rc2k_core::menu::list_menu::{has_choices, rounds, unmarked};
 
 /// The Rust version.
@@ -46,15 +43,4 @@ pub unsafe fn list_clear_marks(list: u32) {
             }
         }
     }
-}
-
-fn rust(r: &Regs) -> Result<Regs, Refused> {
-    unsafe { list_clear_marks(r.edi) };
-    Ok(*r)
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    regs_entry(r, &rust)
 }

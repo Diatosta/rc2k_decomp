@@ -17,17 +17,13 @@
 //! back): gauges and levels by lot, notices on and off (`dword_71A1F8` bit 2), the queue
 //! empty and part full, under three precisions.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::math::x87::from_int;
 use crate::physics::flow::{g, p};
 use crate::physics::queue_notice::queue_notice;
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
 use rc2k_core::physics::damage_notices::{LEVELS, damage_notices as damage_notices_core};
 
 /// `flt_75B36C`: the threshold being compared.
@@ -37,19 +33,13 @@ const LEVELS_AT: usize = 0x71A340; // unk_71A340: the levels
 const GAUGES_AT: usize = 0x71A284; // unk_71A284: the gauges
 
 // Converted: `rc2k_core::physics::damage_notices::damage_notices`.
-fn steps(r: &mut Regs) -> Result<(), Refused> {
+fn steps() -> Result<(), Refused> {
     let mut levels: [u32; LEVELS] = std::array::from_fn(|k| g(LEVELS_AT + 4 * k));
     let result = damage_notices_core(
         &mut levels,
         |k| f32::from_bits(g(GAUGES_AT + 4 * k)),
         |t| p(LIMIT, from_int(t)),
-        |q| {
-            r.esi = q.notice;
-            r.eax = g(GAUGES_AT + 4 * q.gauge);
-            r.ebx = q.rank;
-            unsafe { queue_notice(r) }?.apply(r);
-            Ok::<(), Refused>(())
-        },
+        |q| unsafe { queue_notice(q.notice, q.rank, g(GAUGES_AT + 4 * q.gauge)) },
     );
     for (k, &v) in levels.iter().enumerate() {
         p(LEVELS_AT + 4 * k, v);
@@ -57,11 +47,7 @@ fn steps(r: &mut Regs) -> Result<(), Refused> {
     result
 }
 
-/// The Rust version.
-pub unsafe fn damage_notices(entry: &Regs) -> Result<Left, Refused> {
-    {
-        let mut r = *entry;
-        steps(&mut r)?;
-        Ok(left_of(&r))
-    }
+/// The Rust version. The registers the original leaves are read by none of its callers.
+pub fn damage_notices() -> Result<(), Refused> {
+    steps()
 }

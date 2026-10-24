@@ -52,11 +52,6 @@ pub unsafe fn write_floats(at: u32, v: &[f32]) {
     }
 }
 
-/// The converted `normalise_vector3` (`rc2k_core::math::vector`, plain floats): the hook's.
-pub unsafe fn normalise_vector3_plain(v: u32) {
-    unsafe { write_floats(v, &rc2k_core::math::vector::normalise(read_floats(v))) };
-}
-
 const START_RVA: usize = rva(0x71CA36); // flt_71CA36, pi / 2
 const STEP_RVA: usize = rva(0x71CA3A); // flt_71CA3A, pi / 4
 const HALF_RVA: usize = rva(0x71CA3E); // flt_71CA3E, 0.5

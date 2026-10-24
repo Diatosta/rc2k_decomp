@@ -16,15 +16,11 @@
 //! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
 //! `routes.rs`); the registers above are the original's, for reference.
 
-use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::strings::text_from_ids::text;
 
 // ---- game data ----
 
-const NOTICE_KIND_RVA: usize = rva(0x4E07A0); // g_noticeKind
 const FIRST_LINE_RVA: usize = rva(0x52A263); // unk_52A263
 const SECOND_LINE_RVA: usize = rva(0x52A2B1); // byte_52A2B1
 use rc2k_core::menu::notice::{
@@ -36,7 +32,7 @@ use rc2k_core::menu::notice::{
 pub unsafe fn build_notice() {
     // Converted: `rc2k_core::menu::notice::notice`.
     unsafe {
-        if game_read::<u8>(NOTICE_KIND_RVA) != BUILDS {
+        if crate::strings::load_language::notice_kind() != BUILDS {
             return;
         }
         let built = notice(
@@ -51,14 +47,4 @@ pub unsafe fn build_notice() {
         );
         game_write(SECOND_LINE_RVA, 0u8);
     }
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { build_notice() };
-    Ok(Left::nothing())
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

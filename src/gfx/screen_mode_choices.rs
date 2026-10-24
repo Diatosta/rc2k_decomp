@@ -41,7 +41,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Flags, Regs, game_addr, rva};
+use crate::framework::{Flags, game_addr, rva};
 use crate::race::viewer::{get, put};
 use crate::system::find_entry_with_bits::find_entry_with_bits;
 use crate::system::next_entry::next_entry;
@@ -222,20 +222,4 @@ fn rebuild(current: u32, modes: Option<Vec<u32>>) -> Result<Flags, Refused> {
         carry: false,
         zero: figure == 0,
     })
-}
-
-/// The Rust version where the typed tables run it (a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), Refused> {
-    apply(screen_mode_choices(r.eax != 0)?, r);
-    Ok(())
-}
-
-/// The flags into a caller's registers: with the carry set, the caller's zero flag stays
-/// (`stc` before the `popa`).
-pub fn apply(flags: Flags, r: &mut Regs) {
-    if flags.carry {
-        r.set_carry(true);
-    } else {
-        flags.apply(r);
-    }
 }

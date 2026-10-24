@@ -14,28 +14,25 @@
 //! Refuses (before anything) a split past 27 (the kept tables' size not worked out).
 //! Self-test: `physics/splits.rs` (`test_splits`), mode 3.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, rva};
+use crate::framework::rva;
 use crate::physics::cells::get_list;
-use crate::physics::splits::{FIGURE, SPLIT, TIME, g, guarded, p};
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
+use crate::physics::splits::{FIGURE, SPLIT, TIME, g, p};
 use rc2k_core::physics::splits::{LAST_COMPARED_SPLIT, compare_split};
 
-/// The steps on `r`.
+/// The Rust version. The registers the original leaves are read by none of its callers.
 // Converted: `rc2k_core::physics::splits::compare_split`.
-pub fn compare_split_times_in(r: &mut Regs) -> Result<(), Refused> {
+pub fn compare_split_times() -> Result<(), Refused> {
     if g(SPLIT) > LAST_COMPARED_SPLIT {
         return Err(BadInput("a split past 27").into());
     }
     let time = g(TIME);
     p(0x6043F8, time);
-    r.ebx = g(SPLIT).wrapping_mul(0x28);
-    r.esi = (crate::framework::game_addr(rva(0x604134)) as u32).wrapping_add(r.ebx);
-    let kept: [u32; 10] = unsafe { get_list(r.esi) };
+    let list = (crate::framework::game_addr(rva(0x604134)) as u32)
+        .wrapping_add(g(SPLIT).wrapping_mul(0x28));
+    let kept: [u32; 10] = unsafe { get_list(list) };
     let c = compare_split(time, &kept, |c| g(0x60410C + 4 * c));
     let f = c.figures;
     for (k, v) in [
@@ -50,34 +47,13 @@ pub fn compare_split_times_in(r: &mut Regs) -> Result<(), Refused> {
     {
         p(FIGURE + 4 * k, v);
     }
-    r.eax = c.last;
-    r.ecx = 10;
     let a = |x: usize| crate::framework::game_addr(rva(x)) as u32;
-    r.edi = a(0x75B02C);
     let car = g(0x71B3F8);
-    if car != 0 {
-        r.edi = a(0x75B09C);
-        if car != 1 {
-            return Ok(());
-        }
-    }
-    r.ecx = g(SPLIT);
-    r.eax = time;
-    unsafe { ((r.edi + 4 * r.ecx) as *mut u32).write_unaligned(r.eax) };
+    let times = match car {
+        0 => a(0x75B02C),
+        1 => a(0x75B09C),
+        _ => return Ok(()),
+    };
+    unsafe { ((times + 4 * g(SPLIT)) as *mut u32).write_unaligned(time) };
     Ok(())
-}
-
-/// The Rust version.
-pub unsafe fn compare_split_times(entry: &Regs) -> Result<Left, Refused> {
-    guarded(entry, &compare_split_times_in)
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { compare_split_times(r) }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

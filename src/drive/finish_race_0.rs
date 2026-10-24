@@ -12,19 +12,10 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::physics::flow::p;
-use crate::screens::harness::Left;
 
 /// The Rust version.
-pub unsafe fn finish_race_0(entry: &Regs) -> Result<Left, Refused> {
+pub unsafe fn finish_race_0() -> Result<(), Refused> {
     p(0x621870, 0);
-    unsafe { crate::drive::finish_race::finish_race(entry) }
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { finish_race_0(r) }?;
-    left.apply(r);
-    Ok(())
+    unsafe { crate::drive::finish_race::finish_race() }
 }

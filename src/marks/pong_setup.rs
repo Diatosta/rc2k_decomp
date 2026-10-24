@@ -3,8 +3,7 @@
 //! also loads `dword_76921E` into eax and drops it).
 //!
 //! In:  nothing
-//! Out: eax .. edx the four places, edi `g_polygonVertices`; the rest as the device calls
-//!      leave them
+//! Out: nothing (its caller reads no register after it)
 //!
 //! Caller: `marks::run_pong`. The device calls through `part` as `squares_setup`'s.
 //! Hooked through a private copy (a call at the entry). Shadow mode runs the original
@@ -15,14 +14,13 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::{Regs, rva};
+use crate::framework::rva;
 use crate::marks::squares_setup::setup_with;
 
 const PLACES_RVA: usize = rva(0x769222); // dword_769222 .. dword_76922E
 // g_polygonVertices
 
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn pong_setup(entry: &Regs) -> Result<Regs, Refused> {
-    unsafe { setup_with(entry, PLACES_RVA) }
+/// The Rust version (see the header).
+pub unsafe fn pong_setup() {
+    unsafe { setup_with(PLACES_RVA) }
 }

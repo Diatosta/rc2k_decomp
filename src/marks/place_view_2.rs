@@ -4,7 +4,7 @@
 //! .. `dword_8D20DC` 0 and the four floats at `xmmword_8D20E0` 0x80000.
 //!
 //! In:  nothing
-//! Out: eax 0; the rest as `scene::transform_int_points` leaves them
+//! Out: nothing (its caller reads no register after it)
 //!
 //! See `marks/place_view.rs`; no variable shared with it. One caller, `sub_4C25F6`.
 //! Self-test: as `place_view`'s, the two blocks also watched.
@@ -18,7 +18,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 use crate::marks::place_view::{ViewPlace, place_view_with};
 use crate::math::x87;
 
@@ -35,13 +35,12 @@ const CLEARED_RVA: usize = rva(0x8D20C0); // dword_8D20C0 .. dword_8D20DC
 const FILLED_RVA: usize = rva(0x8D20E0); // xmmword_8D20E0: four floats
 
 /// The Rust version (see the header).
-pub unsafe fn place_view_2(entry: &Regs) -> Result<Regs, Refused> {
+pub unsafe fn place_view_2() -> Result<(), Refused> {
     unsafe {
-        let mut g = place_view_with(entry, &SECOND)?;
-        g.eax = 0;
+        place_view_with(&SECOND)?;
         game_write(CLEARED_RVA, [0u32; 8]);
         let z = x87::from_int(game_read(SECOND.point + 8));
         game_write(FILLED_RVA, [z; 4]);
-        Ok(g)
+        Ok(())
     }
 }

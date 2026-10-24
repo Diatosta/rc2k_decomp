@@ -12,10 +12,8 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, rva};
-use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, state_entry};
+use crate::framework::{game_addr, rva};
+use crate::service::harness::{Region, at};
 
 const FIRST_RVA: usize = rva(0x755950); // dword_755950
 const SECOND_RVA: usize = rva(0x758714); // dword_758714
@@ -34,15 +32,4 @@ pub fn clear_event_state() {
     for (addr, len) in regions() {
         unsafe { std::ptr::write_bytes(addr as *mut u8, 0, len) };
     }
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    clear_event_state();
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

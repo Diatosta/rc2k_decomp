@@ -5,55 +5,25 @@
 //! `system::zero_memory`); then the network stopped (`net::stop`).
 //!
 //! In:  nothing
-//! Out: every register kept (`pusha` .. `popa`)
-//! Caller: `net::settings_loop` (on entering it). Its calls through `part`. It waits for the
-//! receiving thread: ungated. Shadow mode runs the original alone. Self-test: a copy whose
-//! calls go to stand-ins, against the Rust version: found, not found, none listed.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Out: nothing (every register kept, `pusha` .. `popa`)
+//! Caller: `net::settings_loop` (on entering it).
 
 use crate::errors::Refused;
-use crate::framework::Regs;
-use crate::net::lobby::{Part, SAVED_CONNECTION, SAVED_NAME, STOP, ZERO_MEMORY, a, lobby_entry};
+use crate::net::lobby::{SAVED_CONNECTION, SAVED_NAME, a, zero};
 
-const FIND_CONNECTIONS: u32 = 0x4174BD; // net::find_connections_regs
-const FIND_SAVED: u32 = 0x4185DF; // net::find_saved_connection
-const KEEP_CONNECTION: u32 = 0x417661; // net::keep_connection
-
-/// The Rust version: the registers it leaves (the entry's).
-pub fn settings_done(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    let mut r = *entry;
-    part(FIND_CONNECTIONS, &mut r)?;
-    let mut found = !r.carry();
-    if found {
-        part(FIND_SAVED, &mut r)?;
-        found = !r.carry();
-        if found {
-            part(KEEP_CONNECTION, &mut r)?;
+/// The Rust version.
+pub fn settings_done() -> Result<(), Refused> {
+    let saved = if crate::net::find_connections::find_connections()? {
+        crate::net::find_saved_connection::find_saved_connection()?
+    } else {
+        None
+    };
+    match saved {
+        Some(n) => crate::net::keep_connection::keep_connection(n)?,
+        None => {
+            zero(a(SAVED_CONNECTION), 0x10)?;
+            zero(a(SAVED_NAME), 0x40)?;
         }
     }
-    if !found {
-        for (at, len) in [(SAVED_CONNECTION, 0x10), (SAVED_NAME, 0x40)] {
-            let mut c = Regs {
-                ebx: a(at),
-                ecx: len,
-                ..r
-            };
-            part(ZERO_MEMORY, &mut c)?;
-            r.eflags = c.eflags;
-        }
-    }
-    part(STOP, &mut r)?;
-    Ok(Regs {
-        eflags: r.eflags,
-        ..*entry
-    })
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    lobby_entry(r, settings_done)
+    crate::net::stop::stop()
 }

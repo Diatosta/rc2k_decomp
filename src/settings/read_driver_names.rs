@@ -17,22 +17,32 @@
 //! registers above are the original's, for reference.
 
 use crate::errors::BadInput;
-use crate::framework::{game_addr, game_write, rva};
+use crate::framework::{game_write, rva};
+use crate::moved::Place;
 use crate::settings::read_text::read_text;
 use crate::strings::format_u32::format_u32;
 
 // ---- game data ----
 
-pub const PATH_RVA: usize = rva(0x529D98); // "var\name.cfg"
-const KEY_RVA: usize = rva(0x529DA5); // aName000
+/// "var\name.cfg" (0x529D98 in the image), what `system::load_game_data` hands in.
+static PATH: &[u8; 13] = b"var\\name.cfg\0";
+/// aName000 (0x529DA5 in the image, 8 bytes): the key, made in place.
+pub static KEY: Place<[u8; 8]> = Place::new(*b"name000\0");
 const DRIVERS: usize = 180;
-const NAMES_RVA: usize = rva(0x95ECF8); // dword_95ECF8: a pointer a driver
-const POOL_RVA: usize = rva(0x95EFC8); // unk_95EFC8
-/// Up to `unk_960000`: room for about 130 names of the full length, not for 180.
+/// 0x95ECF8 .. 0x960000 in the image (bss): dword_95ECF8, a pointer a driver (`NAMES_LEN`
+/// bytes), then the pool of names, unk_95EFC8, up to unk_960000: room for about 130 names of
+/// the full length, not for 180. Nothing else reads either.
+const NAMES_LEN: usize = DRIVERS * 4;
 const POOL_ROOM: usize = 0x960000 - 0x95EFC8;
+pub static NAMES: Place<[u8; NAMES_LEN + POOL_ROOM]> = Place::new([0; NAMES_LEN + POOL_ROOM]);
 const RECORD_LEN: usize = 0x94;
 const FIRST_NUMBER_RVA: usize = rva(0x73B688); // dword_73B688
 const SECOND_NUMBER_RVA: usize = rva(0x73B68C); // dword_73B68C
+
+/// The path of `var\name.cfg`.
+pub fn path() -> *const u8 {
+    PATH.as_ptr()
+}
 
 // ---- Rust version ----
 
@@ -59,18 +69,14 @@ pub unsafe fn read_driver_names(path: *const u8) -> Result<(), BadInput> {
             return Err(BadInput("more driver names than their pool holds"));
         }
         let last = format_u32(DRIVERS as u32 - 1, 0x13);
-        std::ptr::copy(
-            last.as_ptr(),
-            (game_addr(KEY_RVA) as *mut u8).add(4),
-            last.len(),
-        );
-        let mut pool = game_addr(POOL_RVA) as *mut u8;
+        std::ptr::copy(last.as_ptr(), (KEY.ptr() as *mut u8).add(4), last.len());
+        let mut pool = (NAMES.ptr() as *mut u8).add(NAMES_LEN);
         for (driver, entry) in entries.iter().enumerate() {
             let Some(entry) = entry else {
                 continue;
             };
             if let Some(name) = &entry.name {
-                game_write(NAMES_RVA + driver * 4, pool as u32);
+                ((NAMES.ptr() as *mut u32).add(driver)).write_unaligned(pool as u32);
                 std::ptr::copy(name.as_ptr(), pool, name.len());
                 pool.add(name.len()).write(0);
                 pool = pool.add(name.len() + 1);
@@ -83,5 +89,22 @@ pub unsafe fn read_driver_names(path: *const u8) -> Result<(), BadInput> {
             }
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::moved::image_bytes;
+
+    #[test]
+    fn data_starts_as_the_games() {
+        assert_eq!(&image_bytes(0x529D98, 13)[..], &super::PATH[..]);
+        let key = unsafe { *super::KEY.ptr() };
+        assert_eq!(&image_bytes(0x529DA5, 8)[..], &key[..]);
+        assert!(
+            image_bytes(0x95ECF8, super::NAMES_LEN + super::POOL_ROOM)
+                .iter()
+                .all(|&b| b == 0)
+        );
     }
 }

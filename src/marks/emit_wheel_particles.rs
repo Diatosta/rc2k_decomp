@@ -8,8 +8,7 @@
 //!
 //! In:  edi the wheel record (the car object's +0xD4, +0x11C, +0x164, +0x1AC), esi the car
 //!      object (`dword_935416` the wheel's number, set by the caller)
-//! Out: eax, ebx, ecx the wheel's +0x28 .. +0x30 when copied (else eax the random's low
-//!      word); every other register kept
+//! Out: nothing (no caller reads a register it leaves)
 //!
 //! Callers: `sub_4C9E2E`, four times. The original EXE the owner had patched turned this
 //! into a `ret` (section 16, the burst loops' ring-full slip). Refuses a null wheel and
@@ -22,16 +21,13 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 use crate::marks::emitters::*;
 use crate::marks::{
     emit_bursts, emit_bursts_2, emit_kind_1, emit_particle_5, emit_particle_6, emit_particle_11,
     emit_particle_18,
 };
 use crate::math::x87;
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 const CHANCE_RVA: usize = rva(0x9356C0); // dword_9356C0
 const CHANCE_K_RVA: usize = rva(0x7651DC); // flt_7651DC
@@ -82,37 +78,22 @@ pub unsafe fn emit(table: Table, kind: u32, wheel: u32, object: u32) -> Result<(
     }
 }
 
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn emit_wheel_particles(entry: &Regs) -> Result<Regs, Refused> {
-    let mut g = *entry;
-    let wheel = g.edi;
+/// The Rust version (see the header): `wheel` the wheel's record (the original's edi),
+/// `object` the car's object (esi).
+pub unsafe fn emit_wheel_particles(wheel: u32, object: u32) -> Result<(), Refused> {
     if wheel == 0 {
         return Err(BadInput("a null wheel").into());
     }
-    let done = unsafe {
+    unsafe {
         let (chance, _) = chance(wheel);
         game_write(CHANCE_RVA, chance);
         let r = next_c5(CHANCE_RANDOM_RVA);
-        g.eax = r & 0xFFFF;
         if copies(chance, r) {
             let surface = [at(wheel + 0x28), at(wheel + 0x2C), at(wheel + 0x30)];
             for (n, v) in surface.iter().enumerate() {
                 ((wheel + 0x1C + 4 * n as u32) as *mut u32).write_unaligned(*v);
             }
-            [g.eax, g.ebx, g.ecx] = surface;
         }
-        emit(Table::Wheel, at(wheel + 0x1C), wheel, g.esi)
-    };
-    done?;
-    Ok(g)
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(left_of(&unsafe { emit_wheel_particles(r) }?))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
+        emit(Table::Wheel, at(wheel + 0x1C), wheel, object)
+    }
 }

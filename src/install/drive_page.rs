@@ -13,52 +13,29 @@
 //! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
+//! are the original's.
 
-use crate::errors::Refused;
-use crate::framework::{Regs, game_read};
 use crate::install::installer::{CHOICE, DRIVE_LETTERS, PATH_PROBLEM, TYPED, a, g, gb, p, pb, rb};
-use crate::race::viewer::regs_entry;
-use crate::settings::find_key::LOWER_RVA;
 use rc2k_core::install::pages;
 
-pub fn drive_page(entry: &Regs) -> Regs {
-    let mut r = *entry;
-    if r.ebx == 0 {
-        let letter: u8 = unsafe { game_read(LOWER_RVA + gb(TYPED) as usize) };
-        let letters = a(DRIVE_LETTERS);
+/// `state` the list action's (ebx), `list` the page's.
+pub fn drive_page(state: u32, list: u32) {
+    let letters = a(DRIVE_LETTERS);
+    if state == 0 {
+        let letter = crate::strings::same_text::lower(gb(TYPED)); // g_lowerCase
         // Converted: `rc2k_core::install::pages` (`drive_highlight`, `chosen_drive`).
         let at = |n: u32| letters + pages::DRIVE_TEXT * n;
-        let (place, highlight) = pages::drive_highlight(letter, |n| rb(at(n)), rb(r.edi + 1));
-        r.ecx = place;
-        r.edx = at(place);
-        r.eax = place.wrapping_add(2);
+        let (_, highlight) = pages::drive_highlight(letter, |n| rb(at(n)), rb(list + 1));
         if let Some(highlight) = highlight {
             p(CHOICE, highlight);
         }
     }
-    r.set_zero(false);
-    r.set_carry(false);
-    if (r.ebx as i32) < 0 {
-        r.edx = a(DRIVE_LETTERS);
-        let chosen = pages::chosen_drive(g(CHOICE));
-        r.eax = g(CHOICE).wrapping_sub(2);
-        r.set_carry(chosen.is_none());
-        if let Some(offset) = chosen {
-            r.eax = offset & !0xFF | rb(offset.wrapping_add(r.edx)) as u32;
-            pb(TYPED, r.eax as u8);
-            pb(0x95EBF9, b':');
-            p(PATH_PROBLEM, 0);
-        }
+    if (state as i32) < 0
+        && let Some(offset) = pages::chosen_drive(g(CHOICE))
+    {
+        pb(TYPED, rb(offset.wrapping_add(letters)));
+        pb(0x95EBF9, b':');
+        p(PATH_PROBLEM, 0);
     }
-    r
-}
-
-fn rust(r: &Regs) -> Result<Regs, Refused> {
-    Ok(drive_page(r))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    regs_entry(r, &rust)
 }

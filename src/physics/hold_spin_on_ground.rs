@@ -12,11 +12,10 @@
 //! converted version), 24 cases; compares and copies of floats only: exact at any
 //! precision.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
-use crate::framework::{Regs, game_addr, rva};
+use crate::framework::{game_addr, rva};
 use rc2k_core::physics::motion::hold_spin;
 
 /// The four wheels, the limit, x, z, the flag.
@@ -24,16 +23,15 @@ const VARIABLES: [usize; 8] = [
     0x71A5D8, 0x71A5DC, 0x71A5E0, 0x71A5E4, 0x613EA0, 0x71A15C, 0x71A164, 0x614C24,
 ];
 
-/// The converted version (`rc2k_core::physics::motion`) on the variables at `v`; `r` as
-/// the original leaves it.
+/// The converted version (`rc2k_core::physics::motion`) on the variables at `v`. The
+/// registers it leaves (ecx the wheels on the ground, ebx 4) are read by none of its
+/// callers.
 // Converted: `rc2k_core::physics::motion::hold_spin`.
-pub unsafe fn hold_at(v: &[u32], r: &mut Regs) {
+pub unsafe fn hold_at(v: &[u32]) {
     unsafe {
         let get = |k: usize| (v[k] as *const u32).read_unaligned();
         let put = |k: usize, x: u32| (v[k] as *mut u32).write_unaligned(x);
-        r.ecx = (0..4).filter(|&k| get(k) != 0).count() as u32;
-        r.ebx = 4;
-        if r.ecx != 4 {
+        if (0..4).any(|k| get(k) == 0) {
             return;
         }
         let f = |k: usize| f32::from_bits(get(k));
@@ -54,7 +52,7 @@ fn game() -> Vec<u32> {
 }
 
 /// The Rust version (compares and copies of floats only: the same at any precision); `r`
-/// as the original leaves it.
-pub unsafe fn hold_spin_on_ground(r: &mut Regs) {
-    unsafe { hold_at(&game(), r) }
+/// the registers it leaves are read by none of its callers.
+pub unsafe fn hold_spin_on_ground() {
+    unsafe { hold_at(&game()) }
 }

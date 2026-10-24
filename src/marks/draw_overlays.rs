@@ -5,7 +5,7 @@
 //! `marks::draw_shadow` without its depth calls (`draw_shadow`'s `SECOND`).
 //!
 //! In:  nothing
-//! Out: the registers as the path leaves them
+//! Out: nothing (its caller reads no register after it)
 //!
 //! Caller: the race's frame (0x45632B, just before `draw_shadow`). Hooked through a
 //! private copy (a call at the entry). The calls through `part` (1 the depth buffer, 2 the
@@ -21,7 +21,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_read};
+use crate::framework::game_read;
 use crate::marks::draw_shadow::{SECOND, draw_shadow_with};
 use crate::marks::setup::SETTINGS_RVA;
 
@@ -42,39 +42,21 @@ fn shadow_refuses() -> Option<Refused> {
     SECOND.angle_refuses()
 }
 
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn draw_overlays(entry: &Regs) -> Result<Regs, Refused> {
-    let mut g = *entry;
+/// The Rust version (see the header).
+pub unsafe fn draw_overlays() -> Result<(), Refused> {
+    use crate::scene::set_render_state::set_render_state;
     if let Some(e) = shadow_refuses() {
         return Err(e);
     }
-    crate::marks::draw_overlays::game_part(1, &mut g)?;
-    crate::marks::draw_overlays::game_part(2, &mut g)?;
-    for (value, state) in STATES {
-        [g.eax, g.ebx] = [value, state];
-        crate::marks::draw_overlays::game_part(3, &mut g)?;
-    }
-    for place in [4, 5, 6] {
-        crate::marks::draw_overlays::game_part(place, &mut g)?;
-    }
     unsafe {
-        draw_shadow_with(&g, &SECOND, false, &mut |p, r| {
-            crate::marks::draw_overlays::game_part(if p == 4 { 7 } else { p }, r)
-        })
-    }
-}
-
-/// In the game: the calls' Rust versions.
-pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    use crate::marks::{draw_plane, draw_shadow, hexagons_top, squares_frame};
-    unsafe {
-        match place {
-            1..=3 => draw_shadow::game_part(place, r)?,
-            4 => *r = draw_plane::draw_plane(r)?,
-            5 => *r = squares_frame::squares_frame(r)?,
-            6 => *r = hexagons_top::hexagons_top(r)?,
-            _ => draw_shadow::game_part(4, r)?,
+        crate::scene::depth_buffer_on::depth_buffer(true);
+        crate::scene::depth_test_on::depth_test_on();
+        for (value, state) in STATES {
+            set_render_state(value, state);
         }
+        crate::marks::draw_plane::draw_plane()?;
+        crate::marks::squares_frame::squares_frame()?;
+        crate::marks::hexagons_top::hexagons_top()?;
+        draw_shadow_with(&SECOND, false)
     }
-    Ok(())
 }

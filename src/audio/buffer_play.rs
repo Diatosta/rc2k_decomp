@@ -5,7 +5,7 @@
 use crate::audio::buffer_settings::a3d;
 use crate::audio::voices::*;
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr};
+use crate::framework::game_addr;
 
 pub const GET_STATUS: u32 = 0x24;
 pub const PLAY: u32 = 0x30;
@@ -13,10 +13,6 @@ pub const SET_CURRENT_POSITION: u32 = 0x34;
 pub const STOP: u32 = 0x48;
 pub const COMMIT: u32 = 0x44;
 pub const LISTENER_3D_RVA: usize = crate::framework::rva(0x506A90); // g_soundListener
-/// The zero flag of a `Regs` (`framework` has its setter only).
-pub fn zero(r: &Regs) -> bool {
-    r.eflags & 0x40 != 0
-}
 
 /// `GetStatus`: the buffer plays.
 pub const PLAYING: u32 = 1;
@@ -83,27 +79,4 @@ pub unsafe fn commit_3d(listener: u32) -> Result<i32, Refused> {
         return Err(BadInput("no 3D listener").into());
     }
     Ok(unsafe { crate::audio::com::call(object, COMMIT) })
-}
-
-/// What a leaf leaves: eax, and the carry or the zero flag where callers read one.
-pub struct Leaves {
-    pub eax: u32,
-    pub carry: Option<bool>,
-    pub zero: Option<bool>,
-}
-
-/// `dispatch_leaf` outside shadow mode, without its hook (a refusal is the caller's).
-pub fn leaf_entry(
-    r: &mut Regs,
-    rust: unsafe fn(&Regs) -> Result<Leaves, Refused>,
-) -> Result<(), Refused> {
-    let left = unsafe { rust(r) }?;
-    r.eax = left.eax;
-    if let Some(c) = left.carry {
-        r.set_carry(c);
-    }
-    if let Some(z) = left.zero {
-        r.set_zero(z);
-    }
-    Ok(())
 }

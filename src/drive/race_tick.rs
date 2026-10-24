@@ -17,16 +17,13 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{FatalError, Refused};
-use crate::framework::Regs;
 use crate::physics::flow::{g, p};
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
 
 const B: usize = 0x70F3EC;
 
 /// The Rust version.
 // Converted: `rc2k_core::drive::race_ticks::{tick_runs, NO_CAR_FATAL}`.
-pub unsafe fn race_tick(entry: &Regs) -> Result<Left, Refused> {
+pub unsafe fn race_tick() -> Result<(), Refused> {
     if g(B + 0x260) == 0 {
         return Err(FatalError {
             code: rc2k_core::drive::race_ticks::NO_CAR_FATAL,
@@ -35,14 +32,11 @@ pub unsafe fn race_tick(entry: &Regs) -> Result<Left, Refused> {
         .into());
     }
     if g(0x621884) == 0 {
-        return unsafe { crate::drive::simple_car_step::simple_car_step(entry) };
+        return unsafe { crate::drive::simple_car_step::simple_car_step() };
     }
     p(0x6235F8, g(0x6235F8).wrapping_add(1));
     if !rc2k_core::drive::race_ticks::tick_runs(g(0x6235F8), g(0x63DB84)) {
-        return Ok(Left::nothing());
+        return Ok(());
     }
-    let left = unsafe { crate::drive::replay_step::replay_step(entry) }?;
-    let mut r = *entry;
-    left.apply(&mut r);
-    Ok(left_of(&r))
+    unsafe { crate::drive::replay_step::replay_step() }
 }

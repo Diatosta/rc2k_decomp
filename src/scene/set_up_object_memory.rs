@@ -14,46 +14,18 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::scene::allocate_object_memory::allocate_object_memory_in_game;
 use crate::scene::read_kind_records::read_kind_records;
-
-/// The calls made, as places in `CALLEES`.
-const ORDER: [usize; 2] = [0, 1];
+use crate::screens::harness::Left;
 
 // ---- Rust version ----
 
-/// `step`: what stands for each call, by its place in `ORDER`; it is entered with the
-/// registers the call before left.
-pub unsafe fn set_up_object_memory(
-    r: &mut Regs,
-    step: &mut dyn FnMut(usize, &mut Regs) -> Result<(), Refused>,
-) -> Result<(), Refused> {
-    for n in 0..ORDER.len() {
-        step(n, r)?;
-    }
-    Ok(())
-}
-
-/// With the Rust versions of what it calls.
-pub unsafe fn set_up_object_memory_in_game(r: &mut Regs) -> Result<(), Refused> {
+/// The objects' memory allocated, then the kinds' records read. What it leaves in the
+/// registers is the allocation's (the records' reading changes none).
+pub unsafe fn set_up_object_memory() -> Result<Left, Refused> {
     unsafe {
-        set_up_object_memory(r, &mut |n, r| {
-            match n {
-                0 => allocate_object_memory_in_game()?.apply(r),
-                _ => read_kind_records()?,
-            }
-            Ok(())
-        })
+        let left = allocate_object_memory_in_game()?;
+        read_kind_records()?;
+        Ok(left)
     }
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let entry = *r;
-    if let Err(e) = unsafe { set_up_object_memory_in_game(r) } {
-        *r = entry;
-        return Err(e);
-    }
-    Ok(())
 }

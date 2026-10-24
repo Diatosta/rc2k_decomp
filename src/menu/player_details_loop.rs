@@ -12,26 +12,30 @@
 //! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
-use crate::framework::{Regs, game_read, game_write, rva};
-use crate::menu::screen_loop::{Env, List, Screen, Step, screen_entry};
+use crate::errors::Refused;
+use crate::framework::{game_read, game_write, rva};
+use crate::menu::screen_loop::{
+    Carried, List, Screen, Step, carousel, prepare_scene, screen_entry,
+};
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
-unsafe fn set_up_first(g: &mut Regs, env: &mut dyn Env) {
+unsafe fn set_up_first(c: &mut Carried) -> Result<(), Refused> {
     unsafe {
         game_write(rva(0x623FB0), 0xFFFFFF64u32);
         game_write(rva(0x623FB4), 0x29u32);
         game_write(rva(0x624080), 0x140u32);
-        env.call(rva(0x46F7FD), g);
+        prepare_scene(c);
         game_write(rva(0x7554EC), 0x1u32);
         game_write(rva(0x75AA74), 0x8u32);
-        env.call(rva(0x4904DD), g);
-        g.eax = game_read(rva(0x7476A8));
-        game_write(rva(0x755525), g.eax);
-        g.eax = g.eax.wrapping_add(0xFFFFFFFF);
-        game_write(rva(0x75AA7C), g.eax);
+        carousel(c)?;
+        c.arg = game_read(rva(0x7476A8));
+        game_write(rva(0x755525), c.arg);
+        c.arg = c.arg.wrapping_sub(1);
+        game_write(rva(0x75AA7C), c.arg);
         game_write(rva(0x7554EC), 0x0u32);
     }
+    Ok(())
 }
 
 pub const SCREEN: Screen = Screen {
@@ -62,7 +66,7 @@ pub const SCREEN: Screen = Screen {
     prepare: &[],
     after_lists: &[],
     background: &[
-        Step::EaxAddr(rva(0x731D6F)),
+        Step::ArgAddr(rva(0x731D6F)),
         Step::CallOrFatal(rva(0x47EFFF), 0x80712345),
     ],
     after_first_frame: &[],
@@ -96,6 +100,6 @@ pub const SCREEN: Screen = Screen {
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    screen_entry("menu::player_details_loop", r, &SCREEN)
+pub fn run() -> Result<(), crate::errors::Refused> {
+    screen_entry("menu::player_details_loop", &SCREEN)
 }

@@ -11,50 +11,43 @@
 //!   (`race::spread_camera`, dh the old value).
 
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::physics::flow::a;
 use crate::race::viewer::{
     BLOCK, BLOCKS, CAMERA_EDIT, CAMERA_NAMES, FIRST_CAR, ONE_PLAYER, get, put,
 };
 
-/// `edit_camera_1` / `_2`: eax the block shown.
-pub fn edit_camera(entry: &Regs, camera: u32) -> Regs {
+/// `edit_camera_1` / `_2` (eax the block shown is left; its caller, `viewer_action`,
+/// keeps every register).
+pub fn edit_camera(camera: u32) {
     // Converted: `rc2k_core::race::viewer_flow::edits_camera`.
-    let mut r = *entry;
     crate::race::keep_undo::keep_undo();
-    r.eax = get(BLOCK);
-    if rc2k_core::race::viewer_flow::edits_camera(r.eax, get(BLOCKS)) {
+    if rc2k_core::race::viewer_flow::edits_camera(get(BLOCK), get(BLOCKS)) {
         put(CAMERA_EDIT, camera);
     }
-    r
 }
 
 fn name_of(camera: u8) -> u16 {
     unsafe { (a(CAMERA_NAMES + 2 * camera as usize) as *const u16).read_unaligned() }
 }
 
-/// `next_camera` (`step` 1) and `previous_camera` (-1): the registers they leave.
-pub unsafe fn step_camera(entry: &Regs, step: i8) -> Result<Regs, Refused> {
-    let mut r = *entry;
-    r.eax = get(BLOCK);
-    if r.eax == get(BLOCKS) {
-        return Ok(r);
+/// `next_camera` (`step` 1) and `previous_camera` (-1). What they leave their caller,
+/// `viewer_action` (which keeps every register), does not read.
+pub unsafe fn step_camera(step: i8) -> Result<(), Refused> {
+    let block = get(BLOCK);
+    if block == get(BLOCKS) {
+        return Ok(());
     }
-    r.ebx = a(0x963BB3)
+    let byte = a(0x963BB3)
         .wrapping_add(get(CAMERA_EDIT))
-        .wrapping_add(r.eax.wrapping_mul(8));
-    let at = r.ebx as *mut u8;
+        .wrapping_add(block.wrapping_mul(8));
+    let at = byte as *mut u8;
     let old = unsafe { at.read() };
     // Converted: `rc2k_core::race::viewer::{every_camera, step_camera}`.
     use rc2k_core::race::viewer::{camera_skipped, every_camera, step_camera};
     let every = every_camera(get(ONE_PLAYER) == 1, get(FIRST_CAR));
     let dl = step_camera(old, step > 0, every, |n| camera_skipped(name_of(n)))?;
-    if !every {
-        r.eax = dl as u32;
-    }
     unsafe { at.write(dl) };
-    r.edx = r.edx & !0xFFFF | (old as u32) << 8 | dl as u32;
-    let spread = unsafe { crate::race::spread_camera::spread_camera(&r) };
+    let spread = unsafe { crate::race::spread_camera::spread_camera(byte, old) };
     if spread.is_err() {
         unsafe { at.write(old) }; // refused before it wrote: nothing left written
     }

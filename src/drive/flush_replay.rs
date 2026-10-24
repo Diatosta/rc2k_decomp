@@ -15,21 +15,12 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{ECX, EDI, ESI, Regs};
 use crate::physics::flow::a;
-use crate::screens::harness::Left;
 
 const DWORDS: usize = 0xA04;
 
 /// The Rust version.
-pub unsafe fn flush_replay(entry: &Regs) -> Result<Left, Refused> {
+pub unsafe fn flush_replay() -> Result<(), Refused> {
     unsafe { std::ptr::copy(a(0x7172EC) as *const u32, a(0x9613A4) as *mut u32, DWORDS) };
-    let left = Left::nothing()
-        .with(ECX, 0)
-        .with(ESI, a(0x7172EC) + 4 * DWORDS as u32)
-        .with(EDI, a(0x9613A4) + 4 * DWORDS as u32);
-    let mut r = *entry;
-    left.apply(&mut r);
-    unsafe { crate::drive::write_replay_frames::write_replay_frames(&r) }?;
-    Ok(left)
+    unsafe { crate::drive::write_replay_frames::write_replay_frames() }
 }

@@ -22,16 +22,13 @@
 
 use crate::drive::race_parts::{input_update, race_frame, restart_clock};
 use crate::errors::{BadInput, Refused};
-use crate::framework::Regs;
 use crate::physics::flow::{a, base, c0, g, p, x87_run};
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
 
 const B: usize = 0x70F3EC;
 
-/// The Rust version.
-pub unsafe fn finish_run(entry: &Regs) -> Result<Left, Refused> {
-    let mut r = *entry;
+/// The Rust version. The registers it leaves are read by no caller (liveness: esi after
+/// `drive::finish_race`'s call has no read point).
+pub unsafe fn finish_run() -> Result<(), Refused> {
     x87_run!(
         "fld dword ptr [{b} + 0x24BB38]",
         "fmul dword ptr [{b} + 0x1C5D98]",
@@ -39,29 +36,23 @@ pub unsafe fn finish_run(entry: &Regs) -> Result<Left, Refused> {
         "fistp dword ptr [{b} + 0x30F524]";
         b = base()
     );
-    restart_clock(&mut r);
-    r.eax = g(0x613830);
-    p(0x5CC3B4, r.eax);
-    p(0x5CC3B0, r.eax);
+    restart_clock();
+    p(0x5CC3B4, g(0x613830));
+    p(0x5CC3B0, g(0x613830));
     for k in 0..0x20 {
         p(0x5CC1B0 + 4 * k, u32::MAX);
     }
-    r.eax = u32::MAX;
-    r.ecx = 0;
-    r.edi = a(0x5CC1B0) + 0x80;
     p(0x5C2538, u32::MAX);
-    restart_clock(&mut r);
-    r.eax = g(0x613830);
-    p(0x64BB60, r.eax);
+    restart_clock();
+    p(0x64BB60, g(0x613830));
     loop {
         p(0x512A44, 0);
-        input_update(&mut r);
-        unsafe { crate::drive::finish_timing::finish_timing() }.apply(&mut r);
+        input_update();
+        unsafe { crate::drive::finish_timing::finish_timing() };
         let n = g(0x75B108);
         if n > 1 {
             return Err(BadInput("a finish length past the table's two").into());
         }
-        r.eax = n;
         if !c0(g(0x64BB64), g(0x64BB3C + 4 * n as usize)) {
             break;
         }
@@ -71,15 +62,12 @@ pub unsafe fn finish_run(entry: &Regs) -> Result<Left, Refused> {
         }
         p(B + 0x684, 6);
         unsafe {
-            crate::race::frame_views::load_first_car()?.apply(&mut r);
+            crate::race::frame_views::load_first_car()?;
             crate::drive::finish_camera::finish_camera();
-            r = crate::physics::camera_frame::camera_frame(
-                &r,
-                &mut crate::physics::reset_parts::game_part,
-            )?;
-            crate::drive::store_first_car::store_first_car()?.apply(&mut r);
+            crate::physics::camera_frame::camera_frame()?;
+            crate::drive::store_first_car::store_first_car()?;
         }
-        race_frame(&mut r);
+        race_frame()?;
     }
-    Ok(left_of(&r))
+    Ok(())
 }

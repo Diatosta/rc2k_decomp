@@ -11,16 +11,15 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::Regs;
 use crate::menu::standings::*;
 
 /// The Rust version (see the header): the registers it leaves.
-pub unsafe fn clear_players_288(entry: &Regs) -> Result<Regs, Refused> {
+pub unsafe fn clear_players_288() -> Result<(), Refused> {
     if (0..4).any(|n| player(n) == 0) {
         return Err(BadInput("a missing player").into());
     }
     for n in 0..4 {
         put(player(n) + 0x288, 0);
     }
-    Ok(*entry)
+    Ok(())
 }

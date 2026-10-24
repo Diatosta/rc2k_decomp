@@ -18,7 +18,6 @@
 
 use crate::drive::set_camera_view::set_view_at;
 use crate::framework::{game_addr, game_read, rva};
-use crate::screens::harness::Left;
 use rc2k_core::drive::camera_views::next_view;
 
 const PLAYERS_RVA: usize = rva(0x63DB94); // dword_63DB94
@@ -30,10 +29,11 @@ unsafe fn at(a: u32) -> u32 {
 
 /// The Rust version on block `s`, the players at `players`, the step count at `step`.
 // Converted: `rc2k_core::drive::camera_views::next_view`.
-pub unsafe fn next_view_at(s: u32, players: u32, step: u32) -> Left {
+/// The eax it leaves is read by no caller (liveness: not live after either call).
+pub unsafe fn next_view_at(s: u32, players: u32, step: u32) {
     unsafe {
         if at(s + 0x694) != 0 {
-            return Left::nothing();
+            return;
         }
         let view = next_view(
             at(s + 0x684),
@@ -47,7 +47,7 @@ pub unsafe fn next_view_at(s: u32, players: u32, step: u32) -> Left {
 }
 
 /// The Rust version.
-pub unsafe fn next_camera_view(s: u32) -> Left {
+pub unsafe fn next_camera_view(s: u32) {
     unsafe {
         next_view_at(
             s,

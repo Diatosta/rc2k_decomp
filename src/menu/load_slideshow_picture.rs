@@ -28,7 +28,7 @@
 use crate::errors::Refused;
 use crate::files::file_exists::file_exists;
 use crate::files::numbered_path::numbered_path_in_game;
-use crate::framework::{Regs, game_ptr, game_read, game_write, rva};
+use crate::framework::{game_ptr, game_read, game_write, rva};
 use crate::gfx::convert_picture::convert_picture_now;
 use crate::gfx::load_picture::load_picture;
 use crate::gfx::load_picture_with_overlay::load_picture_with_overlay;
@@ -95,10 +95,4 @@ pub unsafe fn load_slideshow_picture_in_game(way: u32) -> Result<(), Refused> {
             Step::Convert => convert_picture_now().map(|_| false).map_err(Into::into),
         })
     }
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    unsafe { load_slideshow_picture_in_game(r.eax) }?;
-    Ok(())
 }

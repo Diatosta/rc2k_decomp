@@ -9,12 +9,12 @@
 //! platform's) and leaves carry set when they were neither lost before nor after.
 //!
 //! In:  nothing
-//! Out: CF / ZF as the path leaves them (see the code); the registers as its calls leave
-//!      them
+//! Out: nothing its callers read (conversion phase 3, 2026-10-24: the flags and registers
+//!      it left went; its callers, `race::loadlevel_init`'s progress inside `pusha` and
+//!      `scene::step_loading_bar`'s `show`, discard them)
 //!
-//! Caller: the stage's loading (through `dword_623704`). The window is its Rust version;
-//! the rest through `part` (1 begin, 2 the bar, 3 end, 4 lock, 5 unlock, 6 show, 7 the
-//! restore), in the game their Rust versions (the restore the platform's call).
+//! Caller: the stage's loading (through `dword_623704`). Its calls are the Rust versions
+//! (the restore the platform's call).
 //! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
 //! `routes.rs`); the registers above are the original's, for reference.
 
@@ -29,86 +29,48 @@ const LOST_RVA: usize = rva(0x518380); // dword_518380
 const FRAMED_RVA: usize = rva(0x621514); // dword_621514
 const RESTORE_RVA: usize = rva(0x405B10); // sub_405B10
 
-fn flags(g: &mut Regs, carry: bool, zero: bool) {
-    g.set_carry(carry);
-    g.set_zero(zero);
-}
-
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn loading_bar_frame(entry: &Regs) -> Result<Regs, Refused> {
-    // Converted: `rc2k_core::race::loading::{FRAME_MARK, frame_tried, restored}`.
-    use rc2k_core::race::loading::{FRAME_MARK, frame_tried, restored};
-    let mut g = *entry;
+/// The Rust version (see the header).
+pub unsafe fn loading_bar_frame() -> Result<(), Refused> {
+    // Converted: `rc2k_core::race::loading::{FRAME_MARK, frame_tried}`.
+    use crate::scene::*;
+    use rc2k_core::race::loading::{FRAME_MARK, frame_tried};
     unsafe {
         if game_read::<u32>(ON_RVA) == 0 {
-            flags(&mut g, false, true);
-            return Ok(g);
+            return Ok(());
         }
         game_write(MARK_RVA, FRAME_MARK);
         if game_read::<u32>(QUITTING_RVA) == 1 {
-            flags(&mut g, false, true);
-            return Ok(g);
+            return Ok(());
         }
         let drawn = 'frame: {
             let active: u32 = game_read(ACTIVE_RVA);
             if active == 0 || !frame_tried(active, game_read(LOST_RVA)) {
                 break 'frame false;
             }
-            crate::race::loading_bar_frame::game_part(1, &mut g)?;
-            if g.carry() {
-                break 'frame false;
-            }
+            // `scene::begin_scene` leaves the carry clear.
+            begin_scene::begin_scene();
             let framed: u32 = game_read(FRAMED_RVA);
             game_write(FRAMED_RVA, 0u32);
-            crate::scene::choose_view_window::choose_view_window().apply(&mut g);
+            choose_view_window::choose_view_window();
             game_write(FRAMED_RVA, framed);
-            crate::race::loading_bar_frame::game_part(2, &mut g)?;
-            crate::race::loading_bar_frame::game_part(3, &mut g)?;
-            crate::race::loading_bar_frame::game_part(4, &mut g)?;
-            if g.carry() {
+            crate::race::loading_bar_quad::loading_bar_quad()?;
+            end_scene::end_scene();
+            if lock_frame::lock_frame().0 < 1 {
                 break 'frame false;
             }
-            crate::race::loading_bar_frame::game_part(5, &mut g)?;
-            crate::race::loading_bar_frame::game_part(6, &mut g)?;
-            !g.carry()
+            unlock_frame::unlock_frame();
+            present_frame::present_frame()
         };
-        if drawn {
-            g.set_carry(false);
-            return Ok(g);
+        if drawn || game_read::<u32>(QUITTING_RVA) == 1 {
+            return Ok(());
         }
-        if game_read::<u32>(QUITTING_RVA) == 1 {
-            flags(&mut g, false, true);
-            return Ok(g);
-        }
-        g.ebx = game_read(LOST_RVA);
-        crate::race::loading_bar_frame::game_part(7, &mut g)?;
-        let (ebx, carry, zero) = restored(g.ebx, game_read(LOST_RVA));
-        g.ebx = ebx;
-        flags(&mut g, carry, zero);
+        // The platform's restore, with ebx `dword_518380` (a local scratch: the flags it
+        // leaves were read by no caller).
+        let mut r = Regs {
+            ebx: game_read(LOST_RVA),
+            ..Regs::default()
+        };
+        crate::calls::call(RESTORE_RVA, &mut r);
     }
-    Ok(g)
-}
-
-/// In the game: the calls' Rust versions (the restore the platform's).
-pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    use crate::scene::*;
-    unsafe {
-        match place {
-            1 => begin_scene::begin_scene(r, &mut |r| crate::calls::call(rva(0x41ABC7), r)),
-            2 => *r = crate::race::loading_bar_quad::loading_bar_quad(r)?,
-            3 => end_scene::end_scene(r, &mut |r| crate::calls::call(rva(0x41AB8A), r)),
-            4 => *r = lock_frame::lock_frame(r)?,
-            5 => *r = unlock_frame::unlock_frame(r)?,
-            6 => *r = present_frame::present_frame(r)?,
-            _ => crate::calls::call(RESTORE_RVA, r),
-        }
-    }
-    Ok(())
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { loading_bar_frame(r) }?;
-    *r = Regs { esp: r.esp, ..left };
     Ok(())
 }

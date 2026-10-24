@@ -17,18 +17,16 @@
 //! Caller: `sub_43B635` (0x43B990), every physics step.
 //! Refuses a light index past 0xFF (the tables are 256) and no faces; what was written is
 //! put back. Shadow mode runs the original alone (`find_ground` through
-//! `physics/reset_parts.rs`).
+//! `physics/reset_parts.rs`, gone).
 //! Self-test: a copy whose `find_ground` goes to a stand-in, run on the game's variables
 //! (saved and put back) with test faces, against the Rust version: faces found and not,
 //! textures, both MMX paths.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
-use crate::physics::reset_parts::FIND_GROUND;
+use crate::framework::{game_addr, game_read, game_write, rva};
 use rc2k_core::physics::lighting;
 
 fn g(x: usize) -> u32 {
@@ -45,29 +43,26 @@ unsafe fn byte(a: u32) -> u32 {
 
 /// The two-way blend of the four corners now in `dword_5CCC90` ..: into `5CCCA4`,
 /// `5CCCA0`, returned.
-fn corners(r: &mut Regs) -> u32 {
+fn corners() -> u32 {
     let c = [0, 1, 2, 3].map(|k| g(0x5CCC90 + 4 * k));
-    let ([a, b], v, edx) = lighting::corners(c, g(0x639800), g(0x639804));
+    let ([a, b], v, _) = lighting::corners(c, g(0x639800), g(0x639804));
     p(0x5CCCA4, a);
     p(0x5CCCA0, b);
-    r.edx = edx;
     v
 }
 
-/// The steps on `r`.
+/// The Rust version. The registers the original leaves are read by none of its callers.
 // Converted: `rc2k_core::physics::lighting`.
-pub fn car_lighting_in(r: &mut Regs) -> Result<(), Refused> {
+pub fn car_lighting() -> Result<(), Refused> {
     p(0x639824, g(0x71A10C));
     p(0x63982C, g(0x71A114));
     p(0x5CCCA8, g(0x71A21C));
-    r.eax = 0;
     p(0x62DAFC, 0);
     p(0x62DB00, 0);
-    r.eax = g(0x71ADD8);
-    p(0x5CCC78, r.eax);
-    crate::physics::reset_parts::game_part(FIND_GROUND, r)?;
-    r.ebx = g(0x5CCC74);
-    if r.ebx == u32::MAX {
+    p(0x5CCC78, g(0x71ADD8));
+    unsafe { crate::physics::find_ground::find_ground() }?;
+    let face = g(0x5CCC74);
+    if face == u32::MAX {
         return Ok(());
     }
     if g(0x5CCCBC) == 0 {
@@ -77,44 +72,35 @@ pub fn car_lighting_in(r: &mut Regs) -> Result<(), Refused> {
         let (s, t) = lighting::half_shares(1, g(0x639800), g(0x639804));
         p(0x639800, s);
         p(0x639804, t);
-        r.eax = t;
     }
     p(0x62DB08, g(0x639800));
     p(0x62DB0C, g(0x639804));
-    let f = (r.ebx << 6).wrapping_add(g(0x5CCCBC));
-    r.esi = f;
+    let f = (face << 6).wrapping_add(g(0x5CCCBC));
     unsafe {
         for k in 0..4u32 {
             p(0x5CCC90 + 4 * k as usize, byte(f + 0x14 + k));
         }
-        r.ebx = (game_addr(rva(0x979F30)) as u32).wrapping_add(byte(f + 0x21) << 6);
-        if byte(r.ebx + 0x2C) == 1 {
+        let material = (game_addr(rva(0x979F30)) as u32).wrapping_add(byte(f + 0x21) << 6);
+        if byte(material + 0x2C) == 1 {
             for k in 0..4u32 {
                 let at = 0x5CCC90 + 4 * k as usize;
-                let (v, edx) = lighting::shaded(g(at), byte(f + 0x22 + k) as u8);
-                r.edx = edx;
+                let (v, _) = lighting::shaded(g(at), byte(f + 0x22 + k) as u8);
                 p(at, v);
             }
         }
-        let light = corners(r);
+        let light = corners();
         p(0x71A21C, light);
         if g(0x71AF8C) != 0 {
             let held = lighting::hold_change(light, g(0x5CCCA8), g(0x6235E8) != 0);
             p(0x71A21C, held.light);
-            if let Some(eax) = held.eax {
-                r.eax = eax;
-            }
-            if let Some(ecx) = held.ecx {
-                r.ecx = ecx;
-            }
         }
         let light = g(0x71A21C);
         if light >= lighting::TABLE {
             return Err(BadInput("a light index past 0xFF").into());
         }
-        r.eax = g(0x635118 + 4 * light as usize);
-        p(0x62DAFC, r.eax);
-        p(0x71A218, r.eax);
+        let colour = g(0x635118 + 4 * light as usize);
+        p(0x62DAFC, colour);
+        p(0x71A218, colour);
         if byte(f + 2) & 4 == 0 {
             return Ok(());
         }
@@ -125,24 +111,17 @@ pub fn car_lighting_in(r: &mut Regs) -> Result<(), Refused> {
             for k in 0..4u32 {
                 p(0x5CCC90 + 4 * k as usize, byte(f + first + k));
             }
-            let i = corners(r);
+            let i = corners();
             if i >= lighting::TABLE {
                 return Err(BadInput("a colour index past 0xFF").into());
             }
-            r.eax = g(table + 4 * i as usize);
-            p(to, r.eax);
-            r.eax = lighting::add_colour(r.eax, g(0x71A218), g(0x5183A8) != 0);
-            p(0x71A218, r.eax);
+            let colour = g(table + 4 * i as usize);
+            p(to, colour);
+            p(
+                0x71A218,
+                lighting::add_colour(colour, g(0x71A218), g(0x5183A8) != 0),
+            );
         }
     }
     Ok(())
-}
-
-/// The Rust version: what was written is put back on a refusal.
-pub unsafe fn car_lighting(entry: &Regs) -> Result<Regs, Refused> {
-    let mut r = *entry;
-    match car_lighting_in(&mut r) {
-        Ok(()) => Ok(r),
-        Err(e) => Err(e),
-    }
 }

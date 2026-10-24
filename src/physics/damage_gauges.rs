@@ -14,21 +14,15 @@
 //! Caller: `physics::damage_step`.
 //! Self-test: `physics/damage_model.rs` (`damage_test`).
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
-use crate::errors::Refused;
-use crate::framework::Regs;
 #[allow(unused_imports)] // the generated body uses some of them
 use crate::math::x87::{loaded, mul};
 #[allow(unused_imports)]
 use crate::math::x87_run::{abs_compare, compare_full};
 #[allow(unused_imports)]
 use crate::physics::flow::{a, base, c0, g, hold_high, hold_low, p, table_lerp, x87_run};
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 /// `unk_71A2AC[gear]` (the gear -1 .. 7 as the original indexes it).
 fn gear_gauge(gear: u32) -> u32 {
@@ -48,7 +42,7 @@ fn hold_at(at: u32) {
 }
 
 /// The steps (generated from the disassembly by idiom; the indexed gauges by hand).
-pub fn steps(r: &mut Regs) {
+pub fn steps() {
     x87_run!(
         "fld dword ptr [{b} + 0x35B5D0]", // fld     flt_75B5D0
         "fmul dword ptr [{b} + 0x35B38C]", // fmul    flt_75B38C
@@ -213,8 +207,8 @@ pub fn steps(r: &mut Regs) {
     );
     hold_low(0x71A298, 0x75B350);
     hold_high(0x71A298, 0x75B34C);
-    r.esi = g(0x75B3BC);
-    let gauge = gear_gauge(r.esi);
+    let gear = g(0x75B3BC);
+    let gauge = gear_gauge(gear);
     x87_run!(
         "fld dword ptr [{b} + 0x35B398]",
         "fmul dword ptr [{b} + 0x35B5A8]",
@@ -222,7 +216,7 @@ pub fn steps(r: &mut Regs) {
         "fmul dword ptr [{t}]",
         "fadd dword ptr [{v}]",
         "fstp dword ptr [{v}]";
-        b = base(), t = a(0x75B5B0).wrapping_add(r.esi.wrapping_mul(4)), v = gauge
+        b = base(), t = a(0x75B5B0).wrapping_add(gear.wrapping_mul(4)), v = gauge
     );
     hold_at(gauge);
     x87_run!(
@@ -331,7 +325,7 @@ pub fn steps(r: &mut Regs) {
         "fstp dword ptr [{b} + 0x35B48C]"; // fstp    flt_75B48C
         b = base()
     );
-    r.ebx = g(0x75B3E4);
+    let part = g(0x75B3E4);
     x87_run!(
         "fld dword ptr [{b} + 0x35B488]",
         "fmul dword ptr [{t}]",
@@ -339,8 +333,8 @@ pub fn steps(r: &mut Regs) {
         "fld dword ptr [{b} + 0x35B48C]",
         "fmul dword ptr [{u}]",
         "fstp dword ptr [{b} + 0x35B48C]";
-        b = base(), t = a(0x75B630).wrapping_add(r.ebx.wrapping_mul(4)),
-        u = a(0x75B638).wrapping_add(r.ebx.wrapping_mul(4))
+        b = base(), t = a(0x75B630).wrapping_add(part.wrapping_mul(4)),
+        u = a(0x75B638).wrapping_add(part.wrapping_mul(4))
     );
     x87_run!(
                 "fld dword ptr [{b} + 0x35B46C]", // fld     flt_75B46C
@@ -440,9 +434,9 @@ pub fn steps(r: &mut Regs) {
             b = base()
         );
     }
-    r.esi = g(0x75B3BC);
+    let gear = g(0x75B3BC);
     if g(0x75B3B8) == 0x1 {
-        let gauge = gear_gauge(r.esi);
+        let gauge = gear_gauge(gear);
         x87_run!(
             "fld dword ptr [{v}]",
             "fadd dword ptr [{b} + 0x35B618]",
@@ -450,9 +444,9 @@ pub fn steps(r: &mut Regs) {
             b = base(), v = gauge
         );
     }
-    r.esi = g(0x75B3BC);
+    let gear = g(0x75B3BC);
     if g(0x75B3B8) == 0xFFFFFFFF {
-        let gauge = gear_gauge(r.esi);
+        let gauge = gear_gauge(gear);
         x87_run!(
             "fld dword ptr [{v}]",
             "fadd dword ptr [{b} + 0x35B61C]",
@@ -902,8 +896,8 @@ pub fn steps(r: &mut Regs) {
         );
         hold_low(0x71A2C8, 0x75B350);
         hold_high(0x71A2C8, 0x75B34C);
-        r.ebx = g(0x75B3BC);
-        let gauge = gear_gauge(r.ebx);
+        let gear = g(0x75B3BC);
+        let gauge = gear_gauge(gear);
         x87_run!(
             "fld dword ptr [{b} + 0x35B3C8]",
             "fmul dword ptr [{b} + 0x35B6CC]",
@@ -1216,21 +1210,4 @@ pub fn steps(r: &mut Regs) {
         p(0x71A298, 0x0);
     }
     // retn
-}
-
-/// The Rust version.
-pub unsafe fn damage_gauges(entry: &Regs) -> Left {
-    let mut r = *entry;
-    steps(&mut r);
-    left_of(&r)
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(unsafe { damage_gauges(r) })
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

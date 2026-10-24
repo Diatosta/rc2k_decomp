@@ -13,7 +13,6 @@
 //! registers above are the original's, for reference.
 
 use crate::errors::BadInput;
-use crate::framework::{CARRY_FLAG, Regs, ZERO_FLAG};
 
 /// The bytes of a NUL-terminated text, without the NUL (an unbounded scan, as the
 /// original's).
@@ -37,15 +36,4 @@ pub unsafe fn append_directory(
         std::ptr::copy(directory.as_ptr(), cursor, directory.len());
         Ok((cursor.add(directory.len()), true))
     }
-}
-
-/// The registers it leaves (with the flags).
-pub unsafe fn append_directory_regs(r: &Regs) -> Result<Regs, BadInput> {
-    let (cursor, found) = unsafe { append_directory(r.edx as *const u8, r.ebx as *mut u8) }?;
-    let mut g = Regs {
-        ebx: cursor as u32,
-        ..*r
-    };
-    g.eflags = g.eflags & !(CARRY_FLAG | ZERO_FLAG) | if found { CARRY_FLAG } else { ZERO_FLAG };
-    Ok(g)
 }

@@ -22,11 +22,11 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_read, rva};
+use crate::framework::{game_read, rva};
 use crate::screens::stage_panel::PanelScreen;
 use crate::strings::append_time::show_hours;
 use crate::strings::units::units;
-use crate::text::draw_text::{Canvas, GameCanvas};
+use crate::text::draw_text::Canvas;
 
 // ---- game data ----
 
@@ -163,14 +163,6 @@ pub unsafe fn draw_records_rows(
             units(),
         )
     }
-}
-
-/// `dispatch_rows` outside shadow mode, without its hook (typed tables, 2026-10-22: the entry the menus' and draw lists' enums run, with no hook).
-pub fn rows_entry(_name: &str, r: &mut Regs, rows: &Rows) -> Result<(), Refused> {
-    let too_wide = unsafe { draw_records_rows(r.edi, rows, &mut GameCanvas) }?;
-    r.set_carry(too_wide);
-    r.set_zero(!too_wide);
-    Ok(())
 }
 
 //

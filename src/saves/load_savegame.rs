@@ -76,25 +76,19 @@ pub enum Callee {
 pub type Game<'a> = &'a mut dyn FnMut(Callee, &mut Regs) -> Result<(), Refused>;
 
 fn in_game(callee: Callee, regs: &mut Regs) -> Result<(), Refused> {
-    use crate::menu::event_flow::game_call;
     unsafe {
         match callee {
             Callee::Prepare => crate::menu::ready_players::ready_players()?,
             Callee::CopySomeData => {
                 crate::saves::keep_player_settings::keep_player_settings(regs.esi)?
             }
-            Callee::RunEvent => {
-                *regs = Regs {
-                    esp: regs.esp,
-                    ..crate::menu::run_championship::run_championship(regs, &mut game_call)?
-                }
-            }
-            Callee::RunEventMode13 => {
-                *regs = Regs {
-                    esp: regs.esp,
-                    ..crate::menu::run_a8_championship::run_a8_championship(regs, &mut game_call)?
-                }
-            }
+            // (The championship drivers keep every register of their caller.)
+            Callee::RunEvent => crate::menu::run_championship::run_championship(
+                &crate::menu::screen_loop::carried(regs),
+            )?,
+            Callee::RunEventMode13 => crate::menu::run_a8_championship::run_a8_championship(
+                &crate::menu::screen_loop::carried(regs),
+            )?,
             _ => crate::calls::call(rva(callee as usize), regs),
         }
     }

@@ -13,18 +13,18 @@
 //! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
+//! are the original's.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
-use crate::install::installer::{
-    GAME_DIR, LOCALE, MEDIA_MODE, Part, TEXT, WRITE_FILE, a, at, g, gb, wb,
-};
-use crate::race::viewer::regs_entry;
+use crate::install::installer::{GAME_DIR, LOCALE, MEDIA_MODE, TEXT, a, g, gb, wb};
 
 const PATH: usize = 0x5295C0; // "var\ral.zog"
 
-pub fn write_record(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    let mut r = *entry;
+/// The record written; whether the write worked (the original leaves `write_file`'s carry
+/// through its `pusha` / `popa`, and `install_files` reads it). Until 2026-10-23 the port
+/// dropped it, and the install was judged by the change of folder before it.
+pub fn write_record() -> Result<bool, Refused> {
     let start = a(TEXT);
     // Converted: `rc2k_core::install::config::record_text` (the header and keys as its
     // constants).
@@ -34,17 +34,13 @@ pub fn write_record(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     for (n, &b) in text.iter().enumerate() {
         wb(start + n as u32, b);
     }
-    r.ecx = text.len() as u32;
-    r.eax = a(PATH);
-    r.ebx = start;
-    part(at(WRITE_FILE), &mut r)?;
-    Ok(Regs { ..*entry })
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    regs_entry(r, &|r| {
-        write_record(r, &mut crate::install::installer::game_part)
-    })
+    // files::write_file
+    let written = unsafe {
+        crate::files::write_file::write_file(
+            a(PATH) as *const u8,
+            start as *const u8,
+            text.len() as u32,
+        )
+    }?;
+    Ok(written.ok)
 }

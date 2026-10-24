@@ -33,7 +33,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::BadInput;
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::logfile::log_int::log_int;
 use crate::logfile::log_write::log_write;
 use crate::scene::texture_needs::{LEVEL_SIZES_RVA, SYSTEM_LEVELS_RVA, TEXTURES, VIDEO_LEVELS_RVA};
@@ -47,8 +47,6 @@ const MIPS_RVA: usize = rva(0x623898); // dword_623898
 /// Mip levels a level has: the sizes' table from its fifth entry.
 const LEVEL_MIPS_RVA: usize = rva(0x5CDABC); // dword_5CDABC
 const TEXTURE_OF_RVA: usize = rva(0x5D2AE8); // dword_5D2AE8
-const ALLOCATE_RVA: usize = rva(0x4051ED); // gfx::allocate_textures
-
 pub use rc2k_core::scene::textures::Call;
 
 // ---- Rust version ----
@@ -113,20 +111,16 @@ pub unsafe fn try_allocate_textures_in_game() -> Result<bool, BadInput> {
                 Call::Text(text, newline) => log_write(text.as_ptr().cast(), newline, 1),
                 Call::Number(number) => log_int(number as i32, false, 1),
                 Call::Allocate(ask) => {
-                    let mut r = Regs {
-                        eax: ask.video as u32,
-                        ebx: !ask.video as u32,
-                        ecx: ask.level,
-                        edx: ask.pixel_kind,
-                        ebp: ask.mips,
-                        esi: ask.texture,
-                        ..Regs::default()
-                    };
-                    crate::calls::call(ALLOCATE_RVA, &mut r);
-                    if r.carry() {
-                        return None;
-                    }
-                    return Some(if ask.video { r.eax } else { r.ebx });
+                    // The allocation reads no esi (the texture) and never comes back
+                    // with its carry set: a failure raises its fatal error.
+                    let (video, system) = crate::platform_3d::allocate_textures_for(
+                        ask.video as u32,
+                        !ask.video as u32,
+                        ask.level,
+                        ask.pixel_kind,
+                        ask.mips,
+                    );
+                    return Some(if ask.video { video } else { system });
                 }
             }
             Some(0)

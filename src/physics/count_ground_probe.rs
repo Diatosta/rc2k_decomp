@@ -10,17 +10,15 @@
 //!
 //! Callers: `sub_438BF4`, `sub_438CEC` (three).
 //! Refuses what `find_ground` refuses. Shadow mode runs the original alone
-//! (`physics/reset_parts.rs`).
+//! (its calls then went through `physics/reset_parts.rs`, gone).
 //! Self-test: a copy whose call goes to a stand-in (place 18), against the Rust version
 //! with the same: found or not, the same face or not.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_read, game_write, rva};
-use crate::physics::reset_parts::FIND_GROUND;
+use crate::framework::{game_read, game_write, rva};
 use rc2k_core::physics::walls::ProbeCounts;
 
 fn g(x: usize) -> u32 {
@@ -31,10 +29,10 @@ fn p(x: usize, v: u32) {
     unsafe { game_write(rva(x), v) }
 }
 
-/// The Rust version, `find_ground` through `part` (place 18).
+/// The Rust version. The eax it leaves (`dword_5CCC78` when found) is read by none of its
+/// callers.
 // Converted: `rc2k_core::physics::walls::ProbeCounts`.
-pub unsafe fn count_ground_probe(entry: &Regs) -> Result<Regs, Refused> {
-    let mut r = *entry;
+pub unsafe fn count_ground_probe() -> Result<(), Refused> {
     let mut counts = ProbeCounts {
         tries: g(0x608C3C),
         found: g(0x608C40),
@@ -43,14 +41,11 @@ pub unsafe fn count_ground_probe(entry: &Regs) -> Result<Regs, Refused> {
     p(0x620470, 0x40);
     counts.tried();
     p(0x608C3C, counts.tries);
-    crate::physics::reset_parts::game_part(FIND_GROUND, &mut r)?;
-    let found = g(0x639830) != 0;
-    if found {
-        // the original's `mov eax, dword_5CCC78` for its compare
-        r.eax = g(0x5CCC78);
-        counts.searched(true, r.eax, g(0x5CCC74));
+    unsafe { crate::physics::find_ground::find_ground() }?;
+    if g(0x639830) != 0 {
+        counts.searched(true, g(0x5CCC78), g(0x5CCC74));
         p(0x608C40, counts.found);
         p(0x608C44, counts.same);
     }
-    Ok(r)
+    Ok(())
 }

@@ -18,42 +18,14 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
-use crate::race::viewer::{LAST_RACE, regs_entry};
+use crate::race::viewer::LAST_RACE;
 
-/// The Rust version: the registers and flags it leaves.
-pub fn save_last_replay(entry: &Regs) -> Result<Regs, Refused> {
-    let mut out = *entry;
-    let mut r = Regs {
-        ebx: LAST_RACE,
-        ..*entry
-    };
-    crate::race::save_last_replay::game_part(1, &mut r)?;
-    if r.carry() {
-        out.eflags = r.eflags;
-        return Ok(out);
+/// The Rust version. `slot` the slot to save the last race's replay into (the original's
+/// eax); the carry the original leaves is read by none of its callers.
+pub fn save_last_replay(slot: u32) -> Result<(), Refused> {
+    if crate::race::open_viewed_replay::open_viewed_replay(LAST_RACE)? {
+        return Ok(());
     }
-    r.ebx = r.eax;
-    crate::race::save_last_replay::game_part(2, &mut r)?;
-    let flags = r.eflags;
-    crate::race::save_last_replay::game_part(3, &mut r)?;
-    out.eflags = flags;
-    Ok(out)
-}
-
-/// In the game: the Rust versions.
-pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    use crate::race::{close_viewed_replay as c, open_viewed_replay as o, save_viewed_replay as s};
-    *r = match place {
-        1 => o::open_viewed_replay(r, &mut o::game_part)?,
-        2 => s::save_viewed_replay(r, &mut s::game_part)?,
-        _ => c::close_viewed_replay(r)?,
-    };
-    Ok(())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    regs_entry(r, &|r| save_last_replay(r))
+    crate::race::save_viewed_replay::save_viewed_replay(slot)?;
+    crate::race::close_viewed_replay::close_viewed_replay()
 }

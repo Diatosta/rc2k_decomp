@@ -11,11 +11,10 @@
 //! Self-test: `physics/copy_hooks_test.rs` (the converted version), 12 cases (figures
 //! below, at, above, NaN); a compare of floats only: exact at any precision.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
-use crate::framework::{Regs, game_addr, game_read, rva};
+use crate::framework::{game_addr, game_read, rva};
 use rc2k_core::physics::motion::time_mark;
 
 /// The figure, the mark, the count, the start (IDA addresses).
@@ -29,10 +28,10 @@ fn game() -> Vec<u32> {
         .collect()
 }
 
-/// The converted version (`rc2k_core::physics::motion`) on the variables at `v`; `r` as
-/// the original leaves it.
+/// The converted version (`rc2k_core::physics::motion`) on the variables at `v`. The eax
+/// it leaves (the mark) is read by none of its callers.
 // Converted: `rc2k_core::physics::motion::time_mark`.
-unsafe fn core(v: &[u32], r: &mut Regs) {
+unsafe fn core(v: &[u32]) {
     unsafe {
         let get = |k: usize| (v[k] as *const u32).read_unaligned();
         let limit = f32::from_bits(game_read(LIMIT_RVA));
@@ -43,14 +42,13 @@ unsafe fn core(v: &[u32], r: &mut Regs) {
             || get(1),
             || (get(2), get(3)),
         ) {
-            r.eax = mark;
             (v[1] as *mut u32).write_unaligned(mark);
         }
     }
 }
 
 /// The Rust version (a compare of floats only: the same at any precision); `r` as the
-/// original leaves it.
-pub unsafe fn note_time_mark(r: &mut Regs) {
-    unsafe { core(&game(), r) }
+/// original leaves are read by none of its callers.
+pub unsafe fn note_time_mark() {
+    unsafe { core(&game()) }
 }

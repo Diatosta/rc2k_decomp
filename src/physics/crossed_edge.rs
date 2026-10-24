@@ -15,31 +15,26 @@
 //! test face and scene points, paths across each edge, none crossed, under three
 //! precisions.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::physics::crossed_edge_contact::{CROSSED, check_probe};
 use crate::physics::flow::{g, p};
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
 
 /// The steps, not guarded (the probe checked before).
 // Converted: `rc2k_core::physics::walls::{NONE_CROSSED, raised_hit}`.
-pub fn steps(r: &mut Regs) -> Result<(), Refused> {
+pub fn steps() -> Result<(), Refused> {
     let n = g(CROSSED);
     if n == rc2k_core::physics::walls::NONE_CROSSED {
         return Ok(());
     }
-    r.ebx = n;
     let k = n as usize;
     p(0x71A1FC, g(0x71AAC8 + 4 * k));
     p(0x71A200, g(0x71ABC8 + 4 * k));
     p(0x71A204, g(0x71ACC8 + 4 * k));
-    unsafe { crate::physics::restore_saved_car::restore_saved_car() }?.apply(r);
-    crate::physics::crossed_edge_contact::steps(r)?;
+    unsafe { crate::physics::restore_saved_car::restore_saved_car() }?;
+    crate::physics::crossed_edge_contact::steps()?;
     if let Some(hit) = rc2k_core::physics::walls::raised_hit(
         f32::from_bits(g(0x6D3108)),
         f32::from_bits(g(0x71A208)),
@@ -48,7 +43,7 @@ pub fn steps(r: &mut Regs) -> Result<(), Refused> {
     }
     p(0x71A20C, 1);
     p(0x71A1CC, 0x32);
-    unsafe { crate::physics::feel_ground::feel_ground(r) }
+    unsafe { crate::physics::feel_ground::feel_ground() }
 }
 
 /// The probe checked (-1 is none).
@@ -59,12 +54,8 @@ pub fn check() -> Result<(), Refused> {
     check_probe()
 }
 
-/// The Rust version.
-pub unsafe fn crossed_edge(entry: &Regs) -> Result<Left, Refused> {
+/// The Rust version. The registers it leaves are read by none of its callers.
+pub fn crossed_edge() -> Result<(), Refused> {
     check()?;
-    {
-        let mut r = *entry;
-        steps(&mut r)?;
-        Ok(left_of(&r))
-    }
+    steps()
 }

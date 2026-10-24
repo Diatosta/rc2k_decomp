@@ -11,10 +11,7 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::{BadInput, Refused};
-use crate::framework::Regs;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
+use crate::errors::BadInput;
 
 pub const ENTRIES: usize = 256;
 
@@ -34,15 +31,4 @@ pub unsafe fn palette_to_dwords(from: *const u8, to: *mut u32) -> Result<(), Bad
         }
     }
     Ok(())
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { palette_to_dwords(r.esi as *const u8, r.edi as *mut u32) }?;
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

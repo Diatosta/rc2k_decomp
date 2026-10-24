@@ -11,7 +11,7 @@
 //! self-test.
 
 use crate::d3d::{VERTEX_LEN, Vertex};
-use crate::framework::{Regs, game_addr, game_read, rva};
+use crate::framework::{game_addr, game_read, rva};
 
 pub const VERTICES_RVA: usize = rva(0x9605A0); // g_polygonVertices
 pub const COUNT_RVA: usize = rva(0x6240F8); // g_polygonVertexCount
@@ -28,12 +28,8 @@ pub fn polygon() -> Vec<Vertex> {
         .collect()
 }
 
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's). In the
-/// hooked game it goes to the game's function, whose hook notes the call for the tests'
-/// recorder (`d3d::recorder`) and runs the original: noted here as well, a call would be
-/// noted twice.
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+/// The fan drawn: Direct3D's result, always 0 here.
+pub fn draw_fan_unclipped() -> u32 {
     crate::platform_3d::draw_fan(&polygon());
-    r.eax = 0;
-    Ok(())
+    0
 }

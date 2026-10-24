@@ -24,7 +24,8 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
+use crate::menu::screen_loop::{Carried, run_screen_carried};
 use crate::menu::standings::*;
 
 const GOES_ON_RVA: usize = rva(0x75592C); // dword_75592C
@@ -32,12 +33,8 @@ const CURRENT_RVA: usize = rva(0x75598C); // dword_75598C
 const FAILED_RVA: usize = rva(0x755978); // dword_755978
 const ANSWER_RVA: usize = rva(0x75524C); // g_yesNoAnswer
 
-/// A call by place: 1 `system::sleep` (eax the milliseconds), 2 `menu::inspection_area_loop`,
-/// 3 `menu::fade_in`, 4 `menu::fade_out`, 5 `menu::inspection_screen`.
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
 /// The Rust version (see the header): the registers it leaves.
-pub unsafe fn inspection_pass(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub unsafe fn inspection_pass(c: &Carried) -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::passes` (who is looked at, the pauses, `goes_on`).
     use rc2k_core::menu::passes;
     let players = counted_players()?;
@@ -46,65 +43,37 @@ pub unsafe fn inspection_pass(entry: &Regs, part: Part) -> Result<Regs, Refused>
             crate::menu::driver_stats::car_table(p)?;
         }
     }
-    let mut g = *entry;
+    let mut g = *c;
     unsafe {
         game_write(GOES_ON_RVA, 1u32);
         for (n, &p) in players.iter().enumerate() {
-            g.ecx = n as u32;
-            game_write(CURRENT_RVA, g.ecx);
-            g.edi = p;
+            g.measure_x = n as u32;
+            game_write(CURRENT_RVA, g.measure_x);
             if !passes::takes_part(get(p + 0xD0)) {
                 continue;
             }
-            crate::menu::driver_stats::driver_stats(&g)?;
-            crate::menu::inspection_verdict::inspection_verdict(&g)?;
-            crate::menu::inspection_faults::inspection_faults(&g)?;
+            crate::menu::driver_stats::driver_stats()?;
+            crate::menu::inspection_verdict::inspection_verdict()?;
+            crate::menu::inspection_faults::inspection_faults()?;
             if !passes::is_out(get(p + 0xD0)) {
                 continue;
             }
             game_write(FAILED_RVA, game_read::<u32>(FAILED_RVA).wrapping_add(1));
-            part(5, &mut g)?;
-            g.eax = passes::SCREEN_PAUSE;
-            part(1, &mut g)?;
-            part(3, &mut g)?;
-            part(2, &mut g)?;
+            crate::menu::inspection_screen::inspection_screen()?;
+            g.arg = passes::SCREEN_PAUSE;
+            crate::system::sleep::sleep(g.arg);
+            crate::menu::fade_in::fade_in()?;
+            run_screen_carried(&crate::menu::inspection_area_loop::SCREEN, &mut g)?;
             if game_read::<u32>(ANSWER_RVA) == 1 {
-                return Ok(*entry);
+                return Ok(());
             }
-            part(4, &mut g)?;
-            g.eax = passes::INSPECTION_PAUSE;
-            part(1, &mut g)?;
+            crate::menu::fades::fade(true)?;
+            g.arg = passes::INSPECTION_PAUSE;
+            crate::system::sleep::sleep(g.arg);
         }
         if !passes::goes_on(game_read(FAILED_RVA), game_read(PLAYER_COUNT_RVA)) {
             game_write(GOES_ON_RVA, 0u32);
         }
     }
-    Ok(*entry)
-}
-
-/// In the game: the Rust versions.
-pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    use crate::menu::fades::{fade, game_part as clock};
-    unsafe {
-        match place {
-            1 => crate::system::sleep::sleep(r.eax),
-            2 => {
-                crate::menu::screen_loop::run_screen(&crate::menu::inspection_area_loop::SCREEN, r)
-            }
-            3 => *r = fade(r, false, &mut clock)?,
-            4 => *r = fade(r, true, &mut clock)?,
-            _ => crate::menu::inspection_screen::inspection_screen(
-                r,
-                &mut crate::menu::screen_loop::Real,
-            ),
-        }
-    }
-    Ok(())
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { inspection_pass(r, &mut game_part) }?;
-    *r = Regs { esp: r.esp, ..left };
     Ok(())
 }

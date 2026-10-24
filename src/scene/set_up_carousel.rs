@@ -33,10 +33,8 @@
 //! (`calls::call`, `routes.rs`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{EAX, EBX, ECX, EDI, ESI, Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::scene::carousel_set_ups::PLAIN;
-use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, state_entry};
 
 // ---- game data ----
 
@@ -49,8 +47,6 @@ const CAR_KINDS_RVA: usize = rva(0x75A1FE); // dword_75A1FE, a kind by car numbe
 const COUNT_RVA: usize = rva(0x75AA78); // g_carouselCount
 const LAST_RVA: usize = rva(0x75649C); // dword_75649C
 const SIZE_RVA: usize = rva(0x635038); // dword_635038
-const ANGLE_X_RVA: usize = rva(0x63503C); // dword_63503C
-const HEIGHT_RVA: usize = rva(0x635020); // dword_635020
 const CARS_RVA: usize = rva(0x759DCA); // off_759DCA
 const FIXED_CARS_RVA: usize = rva(0x759D16); // off_759D16
 use rc2k_core::scene::carousel;
@@ -103,8 +99,39 @@ unsafe fn check_cars(list: u32, from_second: bool) -> Result<(), Refused> {
     }
 }
 
+/// The registers the original leaves, where it writes them (the others are as they came).
+/// Read through the menus' carried registers: eax and ebx (the last car and its kind), ecx
+/// (the number of entries less one, or 0), esi (the end of the list); edi (the last car)
+/// is read by none (`lq.py -s 4904DD`).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct Left {
+    pub eax: Option<u32>,
+    pub ebx: Option<u32>,
+    pub ecx: Option<u32>,
+    pub esi: Option<u32>,
+    pub edi: Option<u32>,
+}
+
+impl Left {
+    /// Puts the registers it writes over the given ones (eax, ebx, ecx, esi, edi).
+    pub fn over(self, regs: [&mut u32; 5]) {
+        let [eax, ebx, ecx, esi, edi] = regs;
+        for (to, from) in [
+            (eax, self.eax),
+            (ebx, self.ebx),
+            (ecx, self.ecx),
+            (esi, self.esi),
+            (edi, self.edi),
+        ] {
+            if let Some(v) = from {
+                *to = v;
+            }
+        }
+    }
+}
+
 /// The cars' carousels, from the list; `size` the object's size.
-unsafe fn cars(r: &mut Regs, list: u32, size: u32) {
+unsafe fn cars(out: &mut Left, list: u32, size: u32) {
     unsafe {
         store(0x75AA8C, 1);
         game_write(LIST_RVA, list);
@@ -115,17 +142,20 @@ unsafe fn cars(r: &mut Regs, list: u32, size: u32) {
             if car == u32::MAX {
                 break;
             }
-            r.edi = car;
-            r.eax = (car as *const u32).read_unaligned();
-            r.ebx = game_read(CAR_KINDS_RVA + r.eax as usize * 4);
-            game_write(KINDS_RVA + n * 4, r.ebx);
+            out.edi = Some(car);
+            let first = (car as *const u32).read_unaligned();
+            out.eax = Some(first);
+            let kind = game_read(CAR_KINDS_RVA + first as usize * 4);
+            out.ebx = Some(kind);
+            game_write(KINDS_RVA + n * 4, kind);
             n += 1;
             esi = esi.wrapping_add(4);
         }
-        r.esi = esi;
+        out.esi = Some(esi);
         game_write(COUNT_RVA, n as u32);
-        r.ecx = (n as u32).wrapping_sub(1);
-        game_write(LAST_RVA, r.ecx);
+        let last = (n as u32).wrapping_sub(1);
+        out.ecx = Some(last);
+        game_write(LAST_RVA, last);
         game_write(SIZE_RVA, size);
         for (address, value) in CARS_TAIL {
             store(address, value);
@@ -133,23 +163,27 @@ unsafe fn cars(r: &mut Regs, list: u32, size: u32) {
     }
 }
 
+/// The Rust version: `list` is the list of cars the original reads in esi (menus 0xD and
+/// 0xE; the other menus' own); returns the registers it leaves.
 // Converted: `rc2k_core::scene::carousel::{check_cars, list_end}`
-pub unsafe fn set_up_carousel(r: &mut Regs) -> Result<(), Refused> {
+pub unsafe fn set_up_carousel(list: u32) -> Result<Left, Refused> {
+    let mut out = Left::default();
     unsafe {
         let menu: u32 = game_read(MENU_RVA);
         if menu >= MENUS {
-            return Ok(());
+            return Ok(out);
         }
         match menu {
             0xB => {
-                let list = game_addr(CARS_RVA) as u32;
-                check_cars(list, false)?;
-                cars(r, list, 0xF);
+                let cars_list = game_addr(CARS_RVA) as u32;
+                check_cars(cars_list, false)?;
+                cars(&mut out, cars_list, 0xF);
             }
             0xC => {
                 store(0x75AA8C, 1);
-                r.esi = game_addr(FIXED_CARS_RVA) as u32;
-                game_write(LIST_RVA, r.esi);
+                let fixed = game_addr(FIXED_CARS_RVA) as u32;
+                out.esi = Some(fixed);
+                game_write(LIST_RVA, fixed);
                 game_write(SIZE_RVA, 0xCu32);
                 game_write(KINDS_RVA, FIXED_KINDS);
                 game_write(COUNT_RVA, 6u32);
@@ -159,19 +193,19 @@ pub unsafe fn set_up_carousel(r: &mut Regs) -> Result<(), Refused> {
                 }
             }
             0xD => {
-                check_cars(r.esi, false)?;
-                cars(r, r.esi, 0xC);
+                check_cars(list, false)?;
+                cars(&mut out, list, 0xC);
             }
             0xE => {
-                let list = r.esi;
                 check_cars(list, true)?;
                 store(0x75AA8C, 1);
                 let count = carousel::list_end(|n| list_entry(list, n), 1).unwrap_or(0);
                 if count == 1 {
-                    r.eax = list_entry(list, 0);
-                    ((list as usize + 4) as *mut u32).write_unaligned(r.eax);
+                    let first = list_entry(list, 0);
+                    out.eax = Some(first);
+                    ((list as usize + 4) as *mut u32).write_unaligned(first);
                 }
-                cars(r, list, 0xC);
+                cars(&mut out, list, 0xC);
             }
             _ => {
                 let ops = PLAIN[menu as usize].ok_or(BadInput("a menu without its list"))?;
@@ -181,47 +215,11 @@ pub unsafe fn set_up_carousel(r: &mut Regs) -> Result<(), Refused> {
                         Op::Fill => game_write(TEXTURES_RVA, [u32::MAX; 8]),
                     }
                 }
-                r.eax = u32::MAX;
-                r.ecx = 0;
-                r.edi = (game_addr(TEXTURES_RVA) + 0x20) as u32;
+                out.eax = Some(u32::MAX);
+                out.ecx = Some(0);
+                out.edi = Some((game_addr(TEXTURES_RVA) + 0x20) as u32);
             }
         }
-        Ok(())
+        Ok(out)
     }
-}
-
-/// Everything it may write but a changed list.
-fn regions() -> [Region; 6] {
-    let block = |from: usize, to: usize| (game_addr(from) as u32, to - from);
-    [
-        // The eight textures, the list, the spacing and place, the 0x100 kinds.
-        block(TEXTURES_RVA, MENU_RVA),
-        // The count, the front, the angle, (two of `step_carousel`'s), the switch.
-        block(COUNT_RVA, rva(0x75AA90)),
-        at(LAST_RVA),
-        at(SIZE_RVA),
-        at(ANGLE_X_RVA),
-        at(HEIGHT_RVA),
-    ]
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    let mut left = *r;
-    unsafe { set_up_carousel(&mut left)? };
-    Ok(Left::nothing()
-        .with(EAX, left.eax)
-        .with(EBX, left.ebx)
-        .with(ECX, left.ecx)
-        .with(ESI, left.esi)
-        .with(EDI, left.edi))
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let mut regions = regions().to_vec();
-    // Menu 0xE may write over its list's first -1.
-    if unsafe { game_read::<u32>(MENU_RVA) } == 0xE && r.esi != 0 {
-        regions.push((r.esi.wrapping_add(4), 4));
-    }
-    state_entry(r, &rust)
 }
