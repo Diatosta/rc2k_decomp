@@ -25,16 +25,9 @@
 //! Out: the registers as the steps and calls leave them; no flags read (the caller
 //!      returns)
 //!
-//! Caller: `physics::camera_frame`. It begins with a call: hooked by a private copy of the
-//! first chunk (0x437A53 .. 0x437F53, 0x500 bytes) with its calls and its twelve near
-//! jumps into the second chunk (0x4380E9 .. 0x438325, left in the game, which returns from
-//! there) relocated, and a hand-made patch.
-//! Refuses a mode past 0x33 on the blending path (the original reads past
-//! `off_606320`), and what the ground checks refuse; everything written put back. Shadow
-//! mode runs the original alone (as the checks).
-//! Self-test (`camera_test`, in a race; skipped otherwise): the original and the Rust
-//! version on the stage (everything written saved and put back), the camera where it is,
-//! moved below the car, every mode and a switch under way.
+//! Caller: `physics::camera_frame`. Refuses a mode past 0x33 on the blending path (the
+//! original reads past `off_606320`), and what the ground checks refuse; everything written
+//! put back.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

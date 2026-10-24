@@ -19,14 +19,7 @@
 //! In:  the mode
 //! Out: nothing (the original keeps every register: `pusha` .. `popa`)
 //! Escape on the sessions' list gives the carry too, so it shows message 0x155 as a failure
-//! does (section 16). Callers: 0x4AAAE1, 0x4AAAEC, `net::lobby_launched_game`. Its calls
-//! through `part`. The whole network game runs inside it: ungated. Shadow mode runs the
-//! original alone. Self-test: a copy whose calls go to stand-ins (each failure scripted, the
-//! lobby left at the second round), against the Rust version.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! does (section 16). Callers: 0x4AAAE1, 0x4AAAEC, `net::lobby_launched_game`.
 
 use crate::errors::Refused;
 use crate::net::lobby::{

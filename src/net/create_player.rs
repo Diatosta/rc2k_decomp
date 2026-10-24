@@ -7,8 +7,7 @@
 //! In:  nothing
 //! Out: true when made (the original: carry clear, the flags of `test eax, eax`; every
 //!      register kept), false for the carry
-//! Callers: `net::host_session`, `net::join_session`, `net::open_lobby`. Its calls through
-//! `part`; `CreatePlayer` from Rust (`net::dplay`).
+//! Callers: `net::host_session`, `net::join_session`, `net::open_lobby`.
 
 use crate::errors::Refused;
 use crate::net::dplay::{CREATE_PLAYER, call};

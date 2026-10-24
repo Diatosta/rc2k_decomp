@@ -6,13 +6,7 @@
 //! In:  nothing (the item is `g_listChoice`)
 //! Out: eax = the item, ebx = the text, ecx = 0x30C, edx = `palette` when an edit starts;
 //!      for other items ebx = `dword_52ABD0`; no `pusha`
-//! Caller: `net::settings_loop`. Its calls through `part` (`strings::append_nul` inline).
-//! Shadow mode runs the original alone. Self-test: a copy whose calls go to stand-ins,
-//! against the Rust version, on items 0 .. 4.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `net::settings_loop`.
 
 use crate::net::lobby::{
     CHOICE, Cursor, HOST_ADDRESS, MACHINE_NAME, MOST_PLAYERS, NUMBER_TEXT, PALETTE, a, g,

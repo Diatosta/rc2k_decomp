@@ -12,12 +12,11 @@
 //! In:  nothing
 //! Out: every register preserved (`pusha` .. `popa`)
 //!
-//! In a menu loop's draw list (0x758E86). The sprites' palettes are ebx as the original
-//! leaves it. Refuses (before anything) players 1 or 2 missing or without a name, no stage
-//! records, a stage line past the line buffer, and a string index past `dword_7588D2`'s 21
-//! (the original reads the -1 ends or past them).
-//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
-//! (`menu::table_calls`); the registers above are the original's, for reference.
+//! In a menu loop's draw list (0x758E86). The sprites' palettes are ebx as the original leaves it.
+//! Refuses (before anything) players 1 or 2 missing or without a name, no stage records, a stage
+//! line past the line buffer, and a string index past `dword_7588D2`'s 21 (the original reads the
+//! -1 ends or past them). The menus and draw lists run its `entry` (`menu::table_calls`); the
+//! registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_addr, game_read, rva};

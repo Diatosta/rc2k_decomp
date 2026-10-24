@@ -9,7 +9,7 @@
 //! Platform: the original always runs, here the fan is only noted (`d3d::recorder`). In
 //! the standalone program the rasteriser draws it (`platform_3d::draw_strip`) and the
 //! result is 0 (before 2026-10-19 the standalone skipped it: the viewer's panel did not
-//! show; then drew it as a fan, each quad's second triangle wrong). No self-test.
+//! show; then drew it as a fan, each quad's second triangle wrong).
 
 use crate::d3d::recorder::{Call, note};
 use crate::d3d::{VERTEX_LEN, Vertex};

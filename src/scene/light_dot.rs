@@ -3,17 +3,11 @@
 //! In:  nothing
 //! Out: eax = the number; everything else preserved
 //!
-//! The three floats at `dword_62DAA8` times the three at `dword_62DAB4`, added (the
-//! second and third products first), times `flt_62DAC0`, rounded as the x87 is set to
-//! (`fistp`); also left in `dword_62400C`. The hook's Rust version is `light_dot_plain`;
-//! self-test at the test precisions.
-//! Callers: the two lighting functions `sub_4511F1` and `sub_451296`, which put a
-//! point's place in the first three, a light's direction in the second and its
-//! strength in the factor.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! The three floats at `dword_62DAA8` times the three at `dword_62DAB4`, added (the second and
+//! third products first), times `flt_62DAC0`, rounded as the x87 is set to (`fistp`); also left
+//! in `dword_62400C`. Callers: the two lighting functions `sub_4511F1` and `sub_451296`, which
+//! put a point's place in the first three, a light's direction in the second and its strength
+//! in the factor.
 
 use crate::framework::{game_read, game_write, rva};
 use crate::scene::draw_polygon::CHECKED_RVA;

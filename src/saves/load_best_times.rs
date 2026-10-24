@@ -2,25 +2,16 @@
 //!
 //! In:  nothing
 //! Out: carry = not loaded (loaded: carry and zero clear); every register preserved
-//! `saves::allocate_best_times`; the file is opened (mode 0); its head of 0x10 bytes goes
-//! to the scratch block at 0x93E8B0 and must start "R5HS" and have 0x50004 at +8; then six
-//! of the tables are read straight from the file, each to the address and with the size
+//! First `saves::allocate_best_times`; the file is opened (mode 0); its head of 0x10 bytes
+//! goes to the scratch block at 0x93E8B0 and must start "R5HS" and have 0x50004 at +8; then
+//! six of the tables are read straight from the file, each to the address and with the size
 //! its pair of variables holds (tables 1, 2, 3, 4, 7 and 8 of `allocate_best_times`: 0xBB8
 //! bytes, an entry of 0x618 a stage, 0x15E0, 0xDB60, 0xDB60, an entry a stage again); the
 //! file is closed and `dword_747614` = 1.
 //! A read that fails or gives fewer bytes than asked for (`sub_4AB21C`, inlined) closes
 //! the file and ends it there, with what was read so far left in the tables. A head that
 //! is not the right one ends it without the file being closed: the original's slip, kept.
-//! One caller, `sub_411239`.
-//! Shadow mode runs the original alone and then reads the file again into memory of its
-//! own, and compares that with the tables. Manual patch with a private copy (0xE1 bytes,
-//! `sub_4AB21C` with it, six calls relocated): a call starts at the fourth byte.
-//! Self-test: a redirected copy whose tables, switch and path are the test's.
-//! Refuses what `resolve_path` and `allocate_best_times` refuse.
-//!
-//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! One caller, `sub_411239`. Refuses what `resolve_path` and `allocate_best_times` refuse.
 
 use crate::errors::{BadInput, Refused};
 use crate::files::handle::{close, open_by_mode, read};
@@ -42,7 +33,7 @@ const READ: [usize; 6] = [1, 2, 3, 4, 7, 8];
 
 // ---- Rust version ----
 
-/// What the function is given: the game's own in the hook, the test's in the self-test.
+/// What the function is given: the game's own.
 pub struct Places<'a> {
     pub path: *const u8,
     /// `saves::allocate_best_times`.

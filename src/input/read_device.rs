@@ -19,16 +19,8 @@
 //! In:  esi = the device's record
 //! Out: every register kept (`pusha` .. `popa`)
 //!
-//! Callers: `sub_408A56` (both devices, each tick of the input thread). The poll through
-//! `part` (0; in the game through the game: DirectInput, section 15). Refuses (before
-//! anything) a bound key past 0xFF and an axis's place past the record. Shadow mode runs
-//! the original alone (it polls the device). Self-test: a copy whose poll goes to a
-//! stand-in, against the Rust version, on records of the test's: keys, axes and buttons by
-//! lot, each kind, read or not.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Callers: `sub_408A56` (both devices, each tick of the input thread). Refuses (before
+//! anything) a bound key past 0xFF and an axis's place past the record.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

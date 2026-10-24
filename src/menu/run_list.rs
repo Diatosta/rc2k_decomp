@@ -3,18 +3,9 @@
 //!
 //! In:  esi = the list
 //! Out: every register preserved
-//! Each function is called with the registers the one before left, esi being the place in
-//! the list; after each call the original goes on from the esi it got back. The functions
-//! are the game's (hooked or not), so the Rust version calls them with `call_game`, and
-//! shadow mode runs the original alone: running a list twice would run every function in it
-//! twice. The self-test uses lists of stand-ins that note the call. 26 callers.
-//! Refuses a list without an end in its first 256 entries.
-//! Manual patch with a private copy (0x0F bytes, nothing to relocate): its loop comes back
-//! to the second byte, inside what the patch overwrites.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Each function is called with the registers the one before left, esi being the place in the list;
+//! after each call the original goes on from the esi it got back. Refuses a list without an end in
+//! its first 256 entries.
 
 use crate::errors::{BadInput, Refused};
 

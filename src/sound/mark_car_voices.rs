@@ -9,9 +9,6 @@
 //! computer's, by the callers' reading). One caller, `sound::race_turn`.
 //! Refuses (before writing) a count of 0 (the original's loop would not end) or over 8,
 //! and a null object or car.
-//! Shadow mode: both, the objects' two dwords compared.
-//! Self-test: the original against the Rust version with the two tables pointing at the
-//! test's objects and cars (put back).
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

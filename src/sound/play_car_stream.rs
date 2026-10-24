@@ -8,8 +8,6 @@
 //! `sound::start_stream` with eax = the first dword there and ecx = `dword_755698`.
 //! Five call sites, next to `load_car_background`'s.
 //! Refuses what the record's lookup refuses.
-//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
-//! `routes.rs`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
 use crate::framework::{game_read, rva};

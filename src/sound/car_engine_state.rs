@@ -37,9 +37,6 @@
 //! One caller, `sound::car_sounds`.
 //! Refuses (before writing) a kind past the 36 of the table and a revs extrapolation
 //! whose quotient does not fit (the original's `idiv` traps).
-//! Shadow mode: both, the object and the scratch dword compared.
-//! Self-test: the original against the Rust version on objects of the test's, the
-//! table's first kind pointing at a kind of the test's (put back).
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

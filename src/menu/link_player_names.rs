@@ -4,10 +4,9 @@
 //! Out: every register preserved
 //! For each of the four players (`g_cars`): its +0x18 = the address of the player's
 //! name in `g_playerNames`, and the name's 0x20 bytes copied to its +0x124.
-//! Callers: `saves::load_savegame` (twice) and the main menu's set-up `sub_47C63F`.
-//! Refuses a missing player.
-//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
-//! `routes.rs`); the registers above are the original's, for reference.
+//! Callers: `saves::load_savegame` (twice) and the main menu's set-up `sub_47C63F`. Refuses a
+//! missing player. Rust callers run its `entry` (`routes.rs`); the registers above are the
+//! original's, for reference.
 
 use crate::errors::BadInput;
 use crate::menu::player_names::{CAR_NAME, CAR_NAME_POINTER, NAME_LEN, cars, name};

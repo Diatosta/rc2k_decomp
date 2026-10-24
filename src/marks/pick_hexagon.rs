@@ -6,15 +6,9 @@
 //! Out: nothing (its caller reads no register after it)
 //!
 //! Caller: `marks::hexagons_spawn` (twice). The call is `spawn_hexagon`'s Rust version.
-//! Self-test: the original and the Rust version on the game's items, seeds by lot; put back.
 //!
-//! Converted 2026-10-21: the hook's Rust version is `pick_hexagon_plain`, through
-//! `rc2k_core::marks::items::pick_hexagon`; compared exactly as before (the earlier version
-//! stays for the Rust callers in unconverted code).
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! compared exactly as before (the earlier version stays for the Rust callers in
+//! unconverted code).
 
 use crate::marks::setup::SEED_RVA;
 use crate::marks::spawn_hexagon::spawn_hexagon;

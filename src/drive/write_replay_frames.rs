@@ -7,15 +7,7 @@
 //! In:  nothing
 //! Out: every register kept; no flags read
 //!
-//! Caller: `drive::flush_replay`.
-//! Refuses what `write_replay_block` refuses. Shadow mode runs the original alone (a file
-//! write).
-//! Self-test: the original and the Rust version with the replay not being written (its
-//! writing is `race::write_replay_block`'s test).
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `drive::flush_replay`. Refuses what `write_replay_block` refuses.
 
 use crate::errors::Refused;
 use crate::physics::flow::{a, g, p};

@@ -8,13 +8,8 @@
 //!      the cameras' copy; no flags read
 //!
 //! Callers: `race::viewer_action` (action 0x1B, and in 0x11 before the cut). Refused, before
-//! anything is written: a first mark below 0 or a second past 0x708 (the original copies
-//! from outside the tables). Shadow mode compares. Self-test: marks in order, equal,
-//! reversed, at the ends; the tables filled by the test, put back.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! anything is written: a first mark below 0 or a second past 0x708 (the original copies from
+//! outside the tables).
 
 use crate::errors::Refused;
 use crate::race::viewer::{

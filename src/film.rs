@@ -18,9 +18,9 @@
 //! - the close, `test eax, eax` (eax: the key when one ended it, 0 at the film's end, the
 //!   path when it did not open), the reports back.
 //!
-//! In:  eax = the film's path, ebx = a function to call each frame (0: none)
-//! Out: every register kept (`pusha` / `popa`); the zero flag clear when a key ended it or
-//!      it did not open, set at its end; `menu::play_films` stops its round on clear
+//! Here `play_film_now(path)` (its one caller `menu::play_films`, which gives no callback):
+//! true at the film's end, false when a key ended it or it did not open (the original's
+//! zero flag; `play_films` stops its round on false).
 //!
 //! Here: an AVI (`ALLOGO.AVI`: Indeo 4) by its own reader, its first video stream's chunks
 //! in order (a chunk of no bytes shows the frame before again), at the AVI's time a frame;
@@ -30,9 +30,9 @@
 //! through an SDL audio stream from the first frame on (stopped by the key or the end).
 //! Each frame converted from YUV (4:1:0 or 4:2:0, BT.601) to the back surface's format and
 //! stretched over it (nearest, as `Blt`). Anything else counts as a film that did not open,
-//! and says so in the log. A callback in ebx is refused (no caller gives one; it would be game code).
+//! and says so in the log.
 
-use crate::framework::{Regs, log, rva};
+use crate::framework::{log, rva};
 use crate::gfx::block::{game_addr, game_read, game_write};
 use crate::gfx::reports::Slot as RepSlot;
 use std::ffi::{CStr, c_char, c_void};
@@ -633,21 +633,19 @@ fn open(path: &str) -> Result<Film, String> {
     Err("neither an AVI nor an MPEG program stream".into())
 }
 
-/// The Rust version (see the header): the zero flag it leaves (true: the film's end).
-pub unsafe fn play_film(entry: &Regs) -> bool {
+/// The Rust version (see the header) for the path at `path`: the zero flag it leaves
+/// (true: the film's end, false for a key or a film that does not play).
+pub unsafe fn play_film(path: u32) -> bool {
     unsafe {
-        let mut r = *entry;
         let reports: u32 = game_read(REPORTS_RVA);
         game_write(REPORTS_RVA, 0u32);
         // A key pending before the film is dropped (`input::take_key`).
         crate::input::take_key::take_key();
-        r.eax = entry.eax;
         // the open: the path resolved (`files::resolve_path`), there (`files::file_exists`)
-        let found = crate::files::resolve_path::resolve_path_in_game(entry.eax as *const u8)
+        let found = crate::files::resolve_path::resolve_path_in_game(path as *const u8)
             .and_then(|at| Ok((at, crate::files::file_exists::file_exists(at)?)));
-        let path = match found {
+        let name = match found {
             Ok((at, there)) => {
-                r.eax = at as u32;
                 let name = CStr::from_ptr(at as *const c_char)
                     .to_string_lossy()
                     .into_owned();
@@ -661,13 +659,15 @@ pub unsafe fn play_film(entry: &Regs) -> bool {
                 None
             }
         };
-        let mut eax = entry.eax; // the path: the zero flag clear when it does not open
-        if let Some(path) = path {
-            match open(&path) {
-                Err(why) => log(&format!("gfx::play_film: {path} not played: {why}")),
+        // The original's eax: the path (the zero flag clear when it does not open), else
+        // the key that ended the film (0 at its end).
+        let mut eax = path;
+        if let Some(name) = name {
+            match open(&name) {
+                Err(why) => log(&format!("gfx::play_film: {name} not played: {why}")),
                 Ok(mut film) => {
-                    log(&format!("gfx::play_film: {path}: {}", film.what));
-                    eax = run(&mut film, &mut r);
+                    log(&format!("gfx::play_film: {name}: {}", film.what));
+                    eax = u32::from(run(&mut film));
                 }
             }
         }
@@ -714,8 +714,8 @@ impl Drop for Sound {
     }
 }
 
-/// The frames until the end or a key: the key (al), or 0 at the end.
-unsafe fn run(film: &mut Film, r: &mut Regs) -> u32 {
+/// The frames until the end or a key: the key, or 0 at the end.
+unsafe fn run(film: &mut Film) -> u8 {
     unsafe {
         let sound = film
             .sound
@@ -775,8 +775,7 @@ unsafe fn run(film: &mut Film, r: &mut Regs) -> u32 {
             let key = crate::input::take_key::take_key();
             if key != 0 {
                 drop(sound);
-                // `input::take_key` leaves the key in al, the rest of eax as it was.
-                return (r.eax & !0xFF) | u32::from(key);
+                return key;
             }
         }
         drop(sound);
@@ -784,26 +783,14 @@ unsafe fn run(film: &mut Film, r: &mut Regs) -> u32 {
     }
 }
 
-pub(crate) extern "C" fn dispatch(r: &mut Regs) {
+/// `gfx::play_film` for its callers (the films' loop): nothing with the setting `nofmv`
+/// (the zero flag clear); else the film at `path`, true at its end.
+pub fn play_film_now(path: u32) -> bool {
     HOOK.count_call();
-    unsafe {
-        if game_read::<u32>(NO_FMV_RVA) != 0 {
-            // cmp g_noFmv, 0; jnz: not zero, carry clear
-            r.set_carry(false);
-            r.set_zero(false);
-            return;
-        }
-        if r.ebx != 0 {
-            crate::fatal::raise::refused(
-                &HOOK,
-                crate::errors::BadInput("a function to call each frame (game code)"),
-                r,
-            );
-            return;
-        }
-        let end = play_film(r);
-        r.set_zero(end);
+    if unsafe { game_read::<u32>(NO_FMV_RVA) } != 0 {
+        return false;
     }
+    unsafe { play_film(path) }
 }
 
 #[cfg(test)]

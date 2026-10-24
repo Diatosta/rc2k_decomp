@@ -5,13 +5,10 @@
 //! Out: eax = the faces' memory used, ecx = 0x100, edi = the end of the kinds' table,
 //!      ebx = the last slot that had a kind (unchanged if none had)
 //!
-//! `scene::reset_objects`; `dword_631B68` and `dword_631F6C` = 0; for each slot its
-//! kind from `dword_5CCE7C` to `dword_634FE8`, the slot to `dword_634FEC`, and
-//! `scene::load_object`; then `dword_634FA4` = the points used, in bytes, and
-//! `dword_634FA8` = the faces' memory used.
-//! Two callers (the front end's start and a stage's leaving).
-//! Shadow mode runs the original alone.
-//! Self-test: a redirected copy whose two calls note themselves.
+//! `scene::reset_objects`; `dword_631B68` and `dword_631F6C` = 0; for each slot its kind from
+//! `dword_5CCE7C` to `dword_634FE8`, the slot to `dword_634FEC`, and `scene::load_object`; then
+//! `dword_634FA4` = the points used, in bytes, and `dword_634FA8` = the faces' memory used. Two
+//! callers (the front end's start and a stage's leaving).
 
 use crate::errors::Refused;
 use crate::framework::{game_read, game_write, rva};

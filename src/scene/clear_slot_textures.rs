@@ -3,17 +3,10 @@
 //! In:  nothing
 //! Out: eax = 0xffffffff, ecx = 0, edi = the end of the last table
 //!
-//! -1 throughout `g_slotLoadedTextures` and `g_slotWantedTextures`, 0x400 dwords
-//! each, so that every slot is loaded anew.
-//! One caller, `scene::reload_slot_textures`.
-//! Self-test: the tables filled with another byte first, and put back afterwards.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! -1 throughout `g_slotLoadedTextures` and `g_slotWantedTextures`, 0x400 dwords each, so that
+//! every slot is loaded anew. One caller, `scene::reload_slot_textures`.
 
-use crate::framework::{EAX, ECX, EDI, game_addr, rva};
-use crate::screens::harness::Left;
+use crate::framework::{game_addr, rva};
 
 // ---- game data ----
 
@@ -25,15 +18,10 @@ const FILLS: [(usize, usize, u8); 2] = [
 
 // ---- Rust version ----
 
-pub unsafe fn clear_slot_textures() -> Left {
+pub unsafe fn clear_slot_textures() {
     unsafe {
         for (table, len, byte) in FILLS {
             std::ptr::write_bytes(game_addr(table) as *mut u8, byte, len);
         }
     }
-    let (last, len, _) = FILLS[FILLS.len() - 1];
-    Left::nothing()
-        .with(EAX, 0xffffffff)
-        .with(ECX, 0)
-        .with(EDI, (game_addr(last) + len) as u32)
 }

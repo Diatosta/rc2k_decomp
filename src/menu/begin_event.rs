@@ -4,19 +4,14 @@
 //! In:  nothing
 //! Out: every register preserved
 //!
-//! `dword_755254` and `dword_755950` 0; every driver of `g_drivers` (0x94 bytes each, up to
-//! the one whose +0 is -1; the first always) gets +0x10, +0xC, +0x20 = 0 and +0x24 = 1;
-//! `dword_75592C` 1, `dword_755978` 0; then for each player n (the current player
-//! `dword_75598C` = n, left at 3): `field_8c` and `field_84` 0, +0xD0 1, `service::repair_car`,
-//! and unless the event mode `dword_7556D0` is 3 the setup's defaults: gear ratio 2, brake
-//! balance 0x32, tyre 3, ride height 0x46, suspension 0x1E, steering sensitivity = the
-//! controller's (+0x280). Callers: the event loops' starts (`sub_482382` and nine more).
-//! Refuses drivers without their end within 0x400 (the original runs on), a missing player.
-//! Self-test: the game's drivers and players, modes 0 and 3, put back afterwards.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! `dword_755254` and `dword_755950` 0; every driver of `g_drivers` (0x94 bytes each, up to the one
+//! whose +0 is -1; the first always) gets +0x10, +0xC, +0x20 = 0 and +0x24 = 1; `dword_75592C` 1,
+//! `dword_755978` 0; then for each player n (the current player `dword_75598C` = n, left at 3):
+//! `field_8c` and `field_84` 0, +0xD0 1, `service::repair_car`, and unless the event mode
+//! `dword_7556D0` is 3 the setup's defaults: gear ratio 2, brake balance 0x32, tyre 3, ride height
+//! 0x46, suspension 0x1E, steering sensitivity = the controller's (+0x280). Callers: the event
+//! loops' starts (`sub_482382` and nine more). Refuses drivers without their end within 0x400, a
+//! missing player.
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_addr, game_read, game_write, rva};

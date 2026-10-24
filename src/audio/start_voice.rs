@@ -22,12 +22,6 @@
 //! Refuses, before anything is written: a number of 0x1CD or more (its own or the chosen
 //! voice's); no channels left and no voice playing; a playing list that does not end
 //! within 0x200 voices; a playing voice to stop without its channel.
-//! Compared in shadow mode. Self-test: a redirected copy on a world of the test's, 600
-//! states and commands by lot.
-//!
-//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::audio::voices::*;
 use crate::errors::Refused;

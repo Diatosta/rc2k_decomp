@@ -7,14 +7,7 @@
 //! In:  ebp the record, edi the entry's offset, ebx the top
 //! Out: ebx the bottom, edx the colour, esi the left, edi the right (kept when none)
 //!
-//! Callers: `hud::icons_0`, `hud::icons_1`, `hud::icons_2`. The polygon through `part`
-//! (1), in the game its Rust version. Shadow mode runs the original alone (it draws).
-//! Self-test: a copy whose call goes to a stand-in, against the Rust version, entries by
-//! lot, at both test control words.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Callers: `hud::icons_0`, `hud::icons_1`, `hud::icons_2`.
 
 use crate::errors::Refused;
 use crate::hud::batch::{POLYGON_COUNT_RVA, POLYGON_RVA};

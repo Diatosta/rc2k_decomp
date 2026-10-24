@@ -1,6 +1,3 @@
-//! Saved games, options and best times: no hooks left (conversion phase 4, 2026-10-22);
-//! Rust callers call these directly.
-
 pub mod allocate_best_times;
 pub mod default_best_scores;
 pub mod default_championship_times;

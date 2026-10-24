@@ -9,10 +9,6 @@
 //! to the first, and likewise from `off_75A12E` to the second.
 //! Callers: `sub_47486C` after the main menu is left, and `sub_486BD3`.
 //! Refuses a list of pointers without its -1 within the numbers' room, and a null entry.
-//!
-//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::errors::BadInput;
 use crate::framework::{game_read, game_write, rva};

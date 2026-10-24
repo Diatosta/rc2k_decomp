@@ -13,14 +13,7 @@
 //! Callers: the effects' functions (`input::effect_N_change`, through
 //! `effect_changes::game_part`), `input::make_effect` and `input::end_force`
 //! (`release_effect`). The methods are the object's own (DirectInput's in the game, Rust's
-//! in the standalone program, `input::di_objects`). Shadow mode runs the original alone (it
-//! calls DirectInput). Self-test: the original and the Rust version on DirectInput objects
-//! made in Rust (`input::di_harness`): an effect with no object and one with a constant
-//! force's, `set_effect_parameters` with several flags.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! in the standalone program, `input::di_objects`).
 
 use crate::field;
 use crate::input::devices::{at, put};

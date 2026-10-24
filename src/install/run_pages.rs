@@ -6,13 +6,8 @@
 //! In:  esi the first entry (`off_51D594`, or `off_51D5D8` for an update)
 //! Out: esi 0 (or the next entry when quitting), edi the last page's list, eax its answer;
 //!      the flags of the last test
-//! Caller `sub_412DE0` (`install::run_installer`, twice). Its calls through `part`.
-//! Ungated. Shadow mode runs the original alone. Self-test: a copy whose page runs go to a
-//! stand-in answering as the test says, against the Rust version, on entries of the test's.
+//! Caller `sub_412DE0` (`install::run_installer`, twice).
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 //! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
 //! are the original's.
 

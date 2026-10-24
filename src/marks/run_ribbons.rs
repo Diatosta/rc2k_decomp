@@ -16,16 +16,8 @@
 //!
 //! Caller: `marks::run_frame` (0x4D1640 .., after `sub_4CB64D`). The x87 blocks are the
 //! original's instructions over the entries and the game's variables; the fog its Rust
-//! version; the ribbon through `part` (1), in the game its Rust version. Refuses, before
-//! anything (the walk simulated), null settings, a null entry or link on the way, and a
-//! colour index out of its table. Shadow mode runs the original alone (it draws).
-//! Self-test: a copy of the whole range (its streak step's return address pointed into
-//! the copy) whose ribbon goes to a stand-in, against the Rust version, on a ring of the
-//! test's.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! version. Refuses, before anything (the walk simulated), null settings, a null entry or
+//! link on the way, and a colour index out of its table.
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::rva;

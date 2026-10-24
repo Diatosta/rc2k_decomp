@@ -6,19 +6,11 @@
 //! In:  nothing
 //! Out: edi the sound object; the rest kept; no flags read (the caller returns)
 //!
-//! Caller: `sub_43DC72` (its tail).
-//! Refuses (before anything) a null sound object when it would be written (the original
-//! writes near address 0).
-//! Self-test: a copy of the original (the car number, the object table and the word the
-//! test's) on test objects: words 1, -1, 0, 2, cars 0 .. 9.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `sub_43DC72` (its tail). Refuses (before anything) a null sound object when it
+//! would be written (the original writes near address 0).
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{EDI, game_addr, rva};
-use crate::screens::harness::Left;
+use crate::framework::{game_addr, rva};
 use rc2k_core::physics::gearbox::{GearChange, gear_change};
 
 unsafe fn at(a: u32) -> u32 {
@@ -31,7 +23,7 @@ unsafe fn put(a: u32, v: u32) {
 
 /// The Rust version on the car number, the object table and the word at these places.
 // Converted: `rc2k_core::physics::gearbox::gear_change`.
-pub unsafe fn gear_change_sound_at(current: u32, table: u32, word: u32) -> Result<Left, Refused> {
+pub unsafe fn gear_change_sound_at(current: u32, table: u32, word: u32) -> Result<(), Refused> {
     unsafe {
         let object = at(table + 4 * (at(current) & 7));
         if let Some(change) = gear_change(at(word)) {
@@ -45,12 +37,12 @@ pub unsafe fn gear_change_sound_at(current: u32, table: u32, word: u32) -> Resul
             put(object + flag, 1);
             put(object + 0x10, 1);
         }
-        Ok(Left::nothing().with(EDI, object))
+        Ok(())
     }
 }
 
 /// The Rust version.
-pub unsafe fn gear_change_sound() -> Result<Left, Refused> {
+pub unsafe fn gear_change_sound() -> Result<(), Refused> {
     let g = |a: usize| game_addr(rva(a)) as u32;
     unsafe {
         gear_change_sound_at(

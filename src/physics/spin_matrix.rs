@@ -12,21 +12,14 @@
 //!      matrices`), edi `flt_5C7010`, ebp `g_turnedMatrix`; the rest kept; no flags read
 //!
 //! Callers: `sub_43B635` (0x43B82C, 0x43B8A5), every physics step.
-//! Self-test: the original and the Rust version on the game's variables (saved and put
-//! back): spins by lot and 0, turn matrices, under three precisions.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
-use crate::framework::{EBP, EDI, ESI, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::math::x87;
 use crate::physics::axis_turn_matrix::axis_turn_matrix;
 use crate::physics::vector_length::vector_length;
 use crate::scene::matrix::multiply_matrices;
 use crate::scene::matrix3::rounded;
 use crate::scene::view_matrix::{square_matrix, unit_vector};
-use crate::screens::harness::Left;
 
 fn a(x: usize) -> u32 {
     game_addr(rva(x)) as u32
@@ -49,23 +42,19 @@ const CRASH: usize = 0x71A08C; // g_crashMatrix
 const TURNED: usize = 0x5EA10C; // g_turnedMatrix
 
 /// The Rust version.
-pub unsafe fn spin_matrix() -> Left {
+pub unsafe fn spin_matrix() {
     unsafe {
-        let mut left = Left::nothing();
         p(SPIN_LENGTH, rounded(vector_length(a(SPIN))));
         if g(SPIN_LENGTH) != 0 {
             unit_vector(a(SPIN) as usize, a(AXIS) as usize);
             p(ANGLE, x87::mul(g(SPIN_LENGTH), g(0x61388C)));
             axis_turn_matrix(a(TURN));
             square_matrix(a(TURN) as usize);
-            left = multiply_matrices(a(CRASH) as usize, a(TURN) as usize, a(TURNED) as usize)
-                .with(EDI, a(TURN))
-                .with(EBP, a(TURNED));
+            multiply_matrices(a(CRASH) as usize, a(TURN) as usize, a(TURNED) as usize);
             for k in 0..16 {
                 p(CRASH + 4 * k, g(TURNED + 4 * k));
             }
         }
         square_matrix(a(CRASH) as usize);
-        left.with(ESI, a(CRASH))
     }
 }

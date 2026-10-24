@@ -11,12 +11,8 @@
 //!      none was inside), edx its address (kept with no points), ebx `dword_6D321C`; the
 //!      rest kept
 //!
-//! Caller: `sub_45E3BF` (0x45E51B, `jb`).
-//! Refuses (before anything) an object past 0xFF (the tables' room; `object_turn_matrix`
-//! refuses it too).
-//! Self-test: the original and the Rust version on the game's variables (saved and put
-//! back): test points (`g_objectPoints` pointed at them for the test), the object's turn
-//! and the car's figures by lot, counts 0 .. 5, under three precisions.
+//! Caller: `sub_45E3BF` (0x45E51B, `jb`). Refuses (before anything) an object past 0xFF
+//! (the tables' room; `object_turn_matrix` refuses it too).
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

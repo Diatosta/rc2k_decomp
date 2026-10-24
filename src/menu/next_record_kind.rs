@@ -5,11 +5,9 @@
 //! In:  nothing
 //! Out: eax the kind; the rest kept
 //!
-//! Callers: `saves::load_savegame`, the event drivers. `records::find_record`'s Rust
-//! version. Refuses a section or index past 63 or a section the table does not hold,
-//! before anything.
-//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
-//! `routes.rs`); the registers above are the original's, for reference.
+//! Callers: `saves::load_savegame`, the event drivers. `records::find_record`'s Rust version.
+//! Refuses a section or index past 63 or a section the table does not hold, before anything. Rust
+//! callers run its `entry` (`routes.rs`); the registers above are the original's, for reference.
 
 use crate::bridge::Raw;
 use crate::errors::Refused;

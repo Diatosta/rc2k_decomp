@@ -4,18 +4,13 @@
 //! Out: every register preserved (`pusha` / `popa`)
 //! Quitting (`g_quitting` 1, the game closing): the original's jump (chunk 0x4154B5:
 //! esp = `g_mainLoopStack` and on into `system::main_loop`, or to 0x401116 when that is
-//! 0) is run as it is, by the original through its hook; in the standalone the program
+//! 0) was run as it is; in the standalone the program
 //! is ended as `start` ends it (`standalone::leave_from_race`). Owner, 2026-10-18. Else, once the sounds are
 //! started (`dword_5124E4` 1): `sound::step_race_clock`; with a turn due (carry clear)
 //! `sound::mark_car_voices`, `car_sounds_all`, `play_cue_queues`, `stage_sounds`,
 //! `spot_sounds`, `send_end_of_turn`; and either way `input::step_effects_clock`.
 //! One caller, `sub_421BCF` (`sound::race_turn_if`).
-//! The thunk is ungated: the quit jump never comes back to it.
-//! What the callees refuse: the original runs from the start (a sound already sent by
-//! the Rust version is sent again).
-//! Shadow mode runs the original alone (it sends sounds).
-//! Self-test: a copy whose calls go to stand-ins (the clock's carry the test's), against
-//! the Rust version; not quitting only (the jump leaves the copy for good).
+//! Refuses what its callees refuse.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

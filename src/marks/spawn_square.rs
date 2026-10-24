@@ -8,16 +8,10 @@
 //! In:  eax x, ebx z, ecx the kind
 //! Out: ecx the kind & 7 when one was made; the rest kept
 //!
-//! Caller: `marks::pick_square`. Self-test: the original and the Rust version on the
-//! game's items, cursors and fillings by lot, a full window among them; put back.
+//! Caller: `marks::pick_square`.
 //!
-//! Converted 2026-10-21: the hook's Rust version is `spawn_square_plain`, through
-//! `rc2k_core::marks::items::{find_free, new_square}`; compared exactly as before (the
-//! earlier version stays for the Rust callers in unconverted code).
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! compared exactly as before (the earlier version stays for the Rust callers in
+//! unconverted code).
 
 use crate::framework::rva;
 use crate::marks::expire_squares::{ITEM_LEN, ITEMS, ITEMS_RVA};

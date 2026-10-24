@@ -7,18 +7,9 @@
 //! In:  nothing
 //! Out: nothing (its caller reads no register after it)
 //!
-//! Caller: the race's frame (0x45632B, just before `draw_shadow`). Hooked through a
-//! private copy (a call at the entry). The calls through `part` (1 the depth buffer, 2 the
-//! depth test, 3 a render state, 4 `draw_plane`, 5 `squares_frame`, 6 `hexagons_top`, 7
-//! `draw_fan`); the shadow's vector helpers their Rust versions. Refuses the shadow's
-//! refusals (null settings, a corner past `g_marksCorners`, an angle `fsincos` cannot
-//! take), before anything. Shadow mode runs the original alone (it draws). Self-test: a
-//! copy whose calls go to stand-ins (the vector helpers real), against the Rust version,
-//! as `draw_shadow`'s on the second shadow's variables.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: the race's frame (0x45632B, just before `draw_shadow`). the shadow's vector
+//! helpers their Rust versions. Refuses the shadow's refusals (null settings, a corner past
+//! `g_marksCorners`, an angle `fsincos` cannot take), before anything.
 
 use crate::errors::{BadInput, Refused};
 use crate::marks::draw_shadow::{SECOND, draw_shadow_with};

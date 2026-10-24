@@ -7,19 +7,10 @@
 //!
 //! In:  nothing
 //! Out: every register kept (`pusha` .. `popa`); carry set on a failure, else clear with ZF
-//!      from the show's eax
+//! from the show's eax
 //!
 //! Callers: through the frame callbacks of `service::apply_repairs` and its kind (stored at
-//! 0x46C33E .. 0x46CF7C). Hooked through a private copy (a call in the first bytes). The
-//! calls through `part` (1 lock, 2 the picture, 3 unlock, 4 begin, 5 the boxes, 7 the text,
-//! 9 show, 10 end), in the game their Rust
-//! versions (the lock, unlock, show and the scene's layer the platform's). Shadow mode runs
-//! the original alone (it draws). Self-test: a copy whose calls go to stand-ins setting
-//! carry by the case, against the Rust version, every way out.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! 0x46C33E .. 0x46CF7C).
 
 use crate::errors::Refused;
 use crate::framework::Flags;

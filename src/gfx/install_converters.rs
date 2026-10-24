@@ -51,6 +51,3 @@ pub unsafe fn install_converters() {
     let table = converters(MACHINE.has_mmx.get(), MACHINE.has_3dnow.get());
     unsafe { (game_addr(CONVERTERS_RVA) as *mut [u32; CONVERTER_COUNT]).write_unaligned(table) };
 }
-
-// ---- self-test: a copy of the original that reads the two processor flags from test
-// variables and fills a table of the test's ----

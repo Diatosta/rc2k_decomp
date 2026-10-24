@@ -2,13 +2,11 @@
 //!
 //! In:  ebx (the sprite's palette)
 //! Out: every register preserved
-//! Only while `dword_7554E4` is 1: sprite 0xA0 of the sprite table (the background
-//! picture) at (0, 0) with the clip rectangle's top and bottom at 0xCB and 0x1C6 for
-//! that one blit, and put back after it.
-//! In 15 lists of screens (the setup and saved game lists, the service area set the
-//! switch). What the band covers has not been seen: the name is a reading.
-//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
-//! (`menu::table_calls`); the registers above are the original's, for reference.
+//! Only while `dword_7554E4` is 1: sprite 0xA0 of the sprite table (the background picture) at (0,
+//! 0) with the clip rectangle's top and bottom at 0xCB and 0x1C6 for that one blit, and put back
+//! after it. In 15 lists of screens (the setup and saved game lists, the service area set the
+//! switch). What the band covers has not been seen: the name is a reading. The menus and draw lists
+//! run its `entry` (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
 use crate::framework::{game_read, rva};

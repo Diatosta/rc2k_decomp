@@ -5,12 +5,7 @@
 //! Out: every register preserved
 //! `g_clipLeft` = x, `g_clipTop` = y, `g_clipRight` = x + width - 1, `g_clipBottom` = y +
 //! height - 1. Three callers, each with the surface's own rectangle (`g_surface`).
-//! Shadow mode runs the original and checks the four variables against the Rust
-//! arithmetic. Refuses a null rectangle. The name is a reading.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Refuses a null rectangle. The name is a reading.
 
 use crate::errors::BadInput;
 use crate::gfx::block::game_write;
@@ -35,6 +30,3 @@ pub unsafe fn set_clip(rectangle: *const [u32; 4]) -> Result<(), BadInput> {
     }
     Ok(())
 }
-
-// ---- self-test: a copy of the original that writes four variables of the test's instead
-// of the clip rectangle, which the game's drawing reads all the time ----

@@ -8,16 +8,10 @@
 //! about; its own 3D list goes to `g_sceneList` before the first frame only.
 //! Which screen it is has not been confirmed, hence the name. Its title string: "RESULTADOS
 //! GERAIS".
-//! Callers: `sub_4828B0`, `sub_482B7A`. Ungated thunk; shadow mode runs the original alone;
-//! each real call
-//! writes a line to hook.log. Self-test: `screen_loop::check_screen`.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Callers: `sub_4828B0`, `sub_482B7A`.
 
 use crate::framework::rva;
-use crate::menu::screen_loop::{List, Screen, Step};
+use crate::menu::screen_loop::{Callee, List, Screen, Step};
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
@@ -61,12 +55,12 @@ pub const SCREEN: Screen = Screen {
     frame_callback: rva(0x474D4B),
     later_frame_callback: None,
     before: &[Step::Write(rva(0x755980), 0x0)],
-    set_up_first: &[Step::Call(rva(0x48356F))],
+    set_up_first: &[Step::Call(Callee::RankTotals)],
     prepare: &[],
     after_lists: &[],
     background: &[
         Step::ArgAddr(rva(0x732AF8)),
-        Step::CallOrFatal(rva(0x47EFFF), 0x80712345),
+        Step::CallOrFatal(Callee::LoadBackground, 0x80712345),
     ],
     after_first_frame: &[],
     confirm: None,

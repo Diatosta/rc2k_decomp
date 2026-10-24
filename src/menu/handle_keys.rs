@@ -2,33 +2,19 @@
 //!
 //! In:  nothing; but bits 8 .. 15 of eax are read on Enter (see below)
 //! Out: eax = 1 nothing to do for the caller, 2 Escape, 3 Enter; edx = the frame clock after
-//!      Enter and after any key not named here first; edi = `dword_731BBB` after one of the
-//!      four moves; everything else preserved
-//! Nothing happens (eax = 1) while an item is being edited (`dword_75AA9C` = 1) or
-//! `dword_7551F4` is 1. Otherwise `dword_7556A4` = 0x6F, `dword_755561` = 0, and the key:
-//!   none        eax = 1
-//!   any         first `menu::handle_yes_no`
-//!   0x38        nothing
-//!   1 (Escape)  `dword_755561`, `dword_755A3C` and `dword_758806` = 1; eax = 2
-//!   0x1C (Enter) `dword_7556A4` = 0x14D, the last-key time `dword_7556C4` = the clock,
-//!               `dword_7554D4` = 1 if ah is 4 and else 0, the sound 2; eax = 3. `take_key`
-//!               only changes al, so ah is what the caller had in eax: reproduced as it is.
-//!   others      the last-key time = the clock, then
-//!     0x66, 0x6B, 0x69, 0x68  the four `move_highlight_*`
-//!     0x52      `sub_407897` (a screenshot, by what it calls)
-//!     0x20      flips `dword_755575`
-//!     0x14      adds 60 to the service time budget `dword_75593C`, if bit 14 of
-//!               `dword_75870C` is set
-//! The code after the Escape branch that could return 0 is never reached.
-//! 89 callers: every screen loop. Shadow mode: the original runs for real, then the Rust
-//! version on the same key without the sound, the callbacks and the screenshot; compared
-//! unless a callback or the screenshot was left out. Needs the `input::take_key` hook on.
-//! Self-test: a redirected copy whose key, sound, screenshot and moves are stand-ins.
-//! Refuses, on a yes/no screen, a missing keyboard layout (before the key is taken).
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Enter and after any key not named here first; edi = `dword_731BBB` after one of the four moves;
+//! everything else preserved Nothing happens (eax = 1) while an item is being edited
+//! (`dword_75AA9C` = 1) or `dword_7551F4` is 1. Otherwise `dword_7556A4` = 0x6F, `dword_755561` =
+//! 0, and the key: none        eax = 1 any         first `menu::handle_yes_no` 0x38        nothing
+//! 1 (Escape)  `dword_755561`, `dword_755A3C` and `dword_758806` = 1; eax = 2 0x1C (Enter)
+//! `dword_7556A4` = 0x14D, the last-key time `dword_7556C4` = the clock, `dword_7554D4` = 1 if ah
+//! is 4 and else 0, the sound 2; eax = 3. `take_key` only changes al, so ah is what the caller had
+//! in eax: reproduced as it is. others      the last-key time = the clock, then 0x66, 0x6B, 0x69,
+//! 0x68  the four `move_highlight_*` 0x52      `sub_407897` (a screenshot, by what it calls) 0x20
+//! flips `dword_755575` 0x14      adds 60 to the service time budget `dword_75593C`, if bit 14 of
+//! `dword_75870C` is set The code after the Escape branch that could return 0 is never reached. 89
+//! callers: every screen loop. Refuses, on a yes/no screen, a missing keyboard layout (before the
+//! key is taken).
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_read, game_write, rva};

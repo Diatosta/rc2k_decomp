@@ -4,14 +4,7 @@
 //! In:  nothing
 //! Out: eax 2, the rest as the viewer leaves them (kept)
 //!
-//! Caller: `sub_470529` (a menu item). Its call through `part` (0 the viewer; in the game
-//! its Rust version). Ungated (the viewer runs for long and gates its own frames). Shadow
-//! mode runs the original alone. Self-test: a copy whose call goes to a stand-in, against
-//! the Rust version.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `sub_470529` (a menu item).
 
 use crate::errors::Refused;
 use crate::menu::screen_loop::Carried;

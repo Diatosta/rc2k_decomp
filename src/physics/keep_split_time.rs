@@ -6,19 +6,11 @@
 //! In:  nothing
 //! Out: eax the time, ebx k; the rest kept; no flags read (the caller `popa`s)
 //!
-//! Caller: `sub_436833`.
-//! Refuses (before anything) a k past the table's 0x40 entries (the original writes past
-//! it; race init clears 0x40).
-//! Self-test: a copy of the original (its variables and table the test's) against the
-//! core: k below, inside and past the count.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `sub_436833`. Refuses (before anything) a k past the table's 0x40 entries (the
+//! original writes past it; race init clears 0x40).
 
 use crate::errors::Refused;
-use crate::framework::{EAX, EBX, game_addr, rva};
-use crate::screens::harness::Left;
+use crate::framework::{game_addr, rva};
 use rc2k_core::physics::splits::kept_split_slot;
 
 /// Where the variables are: the time, the checks, the count, the table.
@@ -48,16 +40,16 @@ unsafe fn at(a: u32) -> u32 {
 
 /// The Rust version on the variables at `p`.
 // Converted: `rc2k_core::physics::splits::kept_split_slot`.
-pub unsafe fn keep_split_time_at(p: &SplitPlaces) -> Result<Left, Refused> {
+pub unsafe fn keep_split_time_at(p: &SplitPlaces) -> Result<(), Refused> {
     unsafe {
         let time = at(p.time);
         let k = kept_split_slot(at(p.checks), at(p.count))?;
         ((p.table + 4 * k) as *mut u32).write_unaligned(time);
-        Ok(Left::nothing().with(EAX, time).with(EBX, k))
+        Ok(())
     }
 }
 
 /// The Rust version.
-pub unsafe fn keep_split_time() -> Result<Left, Refused> {
+pub unsafe fn keep_split_time() -> Result<(), Refused> {
     unsafe { keep_split_time_at(&SplitPlaces::game()) }
 }

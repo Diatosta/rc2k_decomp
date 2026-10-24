@@ -1,5 +1,4 @@
-//! What the installation checks ask of the world outside the game's memory, as a trait:
-//! the Rust versions for the game, a test's answers for a self-test.
+//! What the installation checks ask of the world outside the game's memory, as a trait.
 
 use crate::errors::BadInput;
 use crate::files::drive_type::drive_type;

@@ -7,15 +7,9 @@
 //! Out: eax the timer less 0x320 when it got that far; the rest kept; no flags read
 //!
 //! Caller: `sub_436790` (four calls).
-//! Self-test: `physics/copy_hooks_test.rs`, 8 fillings over the branches.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
-use crate::framework::{EAX, game_addr, rva};
+use crate::framework::{game_addr, rva};
 use crate::physics::cells::{get, put_changed};
-use crate::screens::harness::Left;
 use rc2k_core::physics::start::CarStart;
 
 fn game() -> Vec<u32> {
@@ -30,7 +24,7 @@ const VARIABLES: [usize; 5] = [0x71A244, 0x719FF4, 0x719FEC, 0x71A080, 0x71A060]
 
 /// The Rust version on the variables' addresses.
 // Converted: `rc2k_core::physics::start::CarStart::count_start_second`.
-unsafe fn core(v: &[u32]) -> Left {
+unsafe fn core(v: &[u32]) {
     unsafe {
         let was = CarStart {
             state: get(v[0]),
@@ -41,13 +35,12 @@ unsafe fn core(v: &[u32]) -> Left {
             ..CarStart::default()
         };
         let mut c = was;
-        let eax = c.count_start_second();
+        c.count_start_second();
         put_changed(v[4], was.time, c.time);
-        eax.map_or(Left::nothing(), |e| Left::nothing().with(EAX, e))
     }
 }
 
 /// The Rust version.
-pub unsafe fn count_start_second() -> Left {
+pub unsafe fn count_start_second() {
     unsafe { core(&game()) }
 }

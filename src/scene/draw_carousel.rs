@@ -5,18 +5,11 @@
 //! Out: ebx = the last entry drawn, ecx = its place in the row (for one entry: ebx = 0,
 //!      edx = 0, ecx as it came); nothing changed but ebx for a carousel of none
 //!
-//! With one entry (`g_carouselCount` = 1): entry 0, the place whatever ecx holds.
-//! With none or fewer: nothing. Else the entry before the front one
-//! (`g_carouselFront`, going round) at place -1, the front one at 0, the next at 1,
-//! and while the carousel turns (`g_carouselAngle` not 0) the one after at 2; each
-//! through `scene::draw_carousel_entry`.
-//! One caller, `scene::draw_main_menu_carousel`.
-//! Shadow mode runs the original alone (each entry is compared in its own hook).
-//! Self-test: a redirected copy whose calls note the entry and its place.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! With one entry (`g_carouselCount` = 1): entry 0, the place whatever ecx holds. With none or
+//! fewer: nothing. Else the entry before the front one (`g_carouselFront`, going round) at
+//! place -1, the front one at 0, the next at 1, and while the carousel turns (`g_carouselAngle`
+//! not 0) the one after at 2; each through `scene::draw_carousel_entry`. One caller,
+//! `scene::draw_main_menu_carousel`.
 
 use crate::errors::Refused;
 use crate::framework::{game_read, rva};

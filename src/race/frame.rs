@@ -8,7 +8,6 @@ use crate::framework::rva;
 use crate::input::store::DeviceSlot;
 use crate::net::store::vars::Slot as NetSlot;
 use crate::race::objects::CAR_BLOCKS_RVA;
-use crate::screens::harness::Left;
 use crate::sound::store::EffectsSlot;
 use crate::store::{game_addr, game_read, game_write};
 
@@ -66,15 +65,15 @@ pub const VIEW_CARS: [usize; 3] = [rva(0x63DBA8), rva(0x63DBAC), rva(0x63DBA0)];
 /// view car's number, `drive::load_car`. (Its callers, `race::draw_race_scene` and
 /// `race::scroll_maps`, read no register it leaves.)
 pub unsafe fn load_view_car(n: usize) -> Result<(), Refused> {
-    unsafe { with_view_car(n, || crate::drive::load_car::load_car()).map(|_| ()) }
+    unsafe { with_view_car(n, || crate::drive::load_car::load_car()) }
 }
 
 /// `g_currentCar` the view car's number, then `then`; on a refusal `g_currentCar` is put
 /// back, so a refusing call has written nothing.
 unsafe fn with_view_car(
     n: usize,
-    then: impl FnOnce() -> Result<Left, Refused>,
-) -> Result<Left, Refused> {
+    then: impl FnOnce() -> Result<(), Refused>,
+) -> Result<(), Refused> {
     unsafe {
         let current = crate::drive::car::CURRENT_CAR_RVA;
         let was: u32 = game_read(current);
@@ -91,7 +90,7 @@ unsafe fn with_view_car(
 /// view car's number, `drive::store_car`. (Its one caller, `race::scroll_maps`, reads no
 /// register it leaves.)
 pub unsafe fn store_view_car(n: usize) -> Result<(), Refused> {
-    unsafe { with_view_car(n, || crate::drive::store_car::store_car()).map(|_| ()) }
+    unsafe { with_view_car(n, || crate::drive::store_car::store_car()) }
 }
 
 const VIEW_MODE_RVA: DeviceSlot = DeviceSlot::at(0x4F6B79); // byte_4F6B79: the second view's keys (a reading)

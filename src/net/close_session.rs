@@ -4,7 +4,7 @@
 //! In:  nothing
 //! Out: nothing (every register kept, `pusha` .. `popa`; the flags are read by no caller:
 //!      `lq -s 0x418DD3`)
-//! Caller: `net::destroy_connection`. `Close` from Rust (`net::dplay`, section 15). Refuses
+//! Caller: `net::destroy_connection`. `Close` from Rust (`net::dplay`). Refuses
 //! nothing.
 
 use crate::net::dplay::{CLOSE, method};

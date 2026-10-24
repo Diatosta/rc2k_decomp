@@ -3,25 +3,17 @@
 //!
 //! In:  edi the first record, ecx their number
 //! Out: edi past the last, ecx 0; the rest kept; ZF set (`dec`), not read (its callers
-//!      return next, theirs go on with calls)
+//!      return next, theirs go on with calls). Nothing is returned now
 //!
 //! Its loop goes back to its first byte: `.private_copy` (the whole function).
-//! Callers: `physics::clear_forces` (0x614770, 0x17), `physics::clear_contacts`
-//! (0x614A50, 7).
-//! Refuses (before anything) ecx 0 (the original would loop 2^32 times) or above 0x100.
-//! Self-test: a copy of the original on a test buffer, counts 1 .. 0x20.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Callers: `physics::clear_forces` (0x614770, 0x17), `physics::clear_contacts` (0x614A50,
+//! 7). Refuses (before anything) ecx 0 (the original would loop 2^32 times) or above 0x100.
 
 use crate::errors::Refused;
-use crate::framework::{ECX, EDI};
-use crate::screens::harness::Left;
 
 /// The Rust version.
 // Converted: `rc2k_core::physics::pushes::{record_count, CLEARED_DWORDS}`.
-pub unsafe fn clear_records(at: u32, count: u32) -> Result<Left, Refused> {
+pub unsafe fn clear_records(at: u32, count: u32) -> Result<(), Refused> {
     use rc2k_core::physics::pushes::{CLEARED_DWORDS, record_count};
     let count = record_count(count, "a record count of 0 or above 0x100")?;
     for k in 0..count {
@@ -29,5 +21,5 @@ pub unsafe fn clear_records(at: u32, count: u32) -> Result<Left, Refused> {
             unsafe { ((at + 0x20 * k + 4 * d) as *mut u32).write_unaligned(0) };
         }
     }
-    Ok(Left::nothing().with(EDI, at + 0x20 * count).with(ECX, 0))
+    Ok(())
 }

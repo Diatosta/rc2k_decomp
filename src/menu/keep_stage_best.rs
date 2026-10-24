@@ -6,16 +6,10 @@
 //! In:  nothing
 //! Out: every register preserved (`pusha` .. `popa`)
 //!
-//! Callers: the time trial's events, after the results. What +0x94 is is not read (a
-//! figure of the stage's; the time trial's stage page may show it). Refuses (before
-//! anything) a current player past the four or missing, a stage the tables do not give
-//! (`event_flow::stage_record`), or a name pointer of 0 when the record is taken.
-//! Self-test: the game's records for each stage choice there, the figure below, equal to
-//! and above the record's, put back.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Callers: the time trial's events, after the results. What +0x94 is is not read (a figure of the
+//! stage's; the time trial's stage page may show it). Refuses (before anything) a current player
+//! past the four or missing, a stage the tables do not give (`event_flow::stage_record`), or a name
+//! pointer of 0 when the record is taken.
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::event_flow::*;

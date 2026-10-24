@@ -15,13 +15,8 @@
 //! In:  al the key, ah its bits, esi the item (+8 the text, +0xC the record)
 //! Out: esi, edi, ebp kept; zero set and carry clear, but for Escape and Enter (the flags of
 //!      `or ah, 8`: zero clear); eax, ebx, ecx, edx as each way leaves them
-//! Caller `install::page_key`. Shadow mode compares (the measuring only writes the font's
-//! two results). Self-test: an edit of the test's and the game's fonts, against the
-//! original, every key's way.
+//! Caller `install::page_key`.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 //! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
 //! are the original's.
 

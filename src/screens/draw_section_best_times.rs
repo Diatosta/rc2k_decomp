@@ -13,9 +13,9 @@
 //!
 //! Refuses (before anything) a section past the six or with no table, and a line past the line
 //! buffer. In the draw list 0x758E4E of `menu::unused_section_times_loop_1` / `_2` (0x466E50,
-//! 0x467392), which nothing reaches (no code or data refers to them, 2026-10-20). Hook removed
-//! 2026-10-22 (typed tables): the menus and draw lists run its `entry` (`menu::table_calls`);
-//! the registers above are the original's, for reference.
+//! 0x467392), which nothing reaches (no code or data refers to them, 2026-10-20). The menus and
+//! draw lists run its `entry` (`menu::table_calls`); the registers above are the original's, for
+//! reference.
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_read, rva};

@@ -205,8 +205,7 @@ const OPEN_FAILED_TEXT: usize = rva(0x4DA61F); // "AUD: open failed rc="
 /// `DirectSoundCreate` (the device's GUID, where the object goes) -> its result.
 pub type CreateSound<'a> = &'a mut dyn FnMut(u32, u32) -> i32;
 
-/// The game's own `DirectSoundCreate` (the ASI loader's dsound.dll), through its thunk; in
-/// the standalone program DirectSound on SDL (`platform_sound`).
+/// `DirectSoundCreate`: in the standalone program DirectSound on SDL (`platform_sound`).
 pub fn game_direct_sound_create(guid: u32, out: u32) -> i32 {
     let _ = guid;
     crate::platform_sound::direct_sound_create(out)
@@ -231,7 +230,7 @@ impl OpenVars {
 }
 
 /// `open_sound`'s parts in the game's memory: the mode read and written where the original
-/// does, the logs and the calls through `part`, the platform's DirectSound.
+/// does, the logs, the platform's DirectSound.
 struct Open<'a> {
     v: &'a OpenVars,
     create: CreateSound<'a>,
@@ -300,5 +299,3 @@ pub unsafe fn reopen_sound(mode: u32, opened: u32) -> Result<bool, Refused> {
         Ok(!open_sound_in_game(0)?)
     }
 }
-
-// ---- for the self-tests ----

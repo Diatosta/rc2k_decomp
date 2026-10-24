@@ -11,12 +11,6 @@
 //! `audio::write_mix`, `Unlock` (+0x4C). A failing call ends it with the carry, and
 //! `DSERR_BUFFERLOST` sets `g_soundBufferLost`. (A `GetStatus` at 0x40BE9D is in it but not
 //! reached.) One caller, the mixer's way of the turn.
-//! Shadow mode runs the original alone. Self-test: a redirected copy on the test
-//! DirectSound whose two calls note eax, 24 cases.
-//!
-//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::audio::fill_buffer::LOCKED_PARTS_RVA;
 use crate::audio::mixer::*;

@@ -22,8 +22,8 @@ pub trait GameHook: Sync {
 }
 
 /// A function of the game's that the platform (or the fatal reporter) stands for: its
-/// name, its address (for the menus' and Rust's calls by address, `platform::by_address`)
-/// and its calls counted. Nothing runs at the address itself (2026-10-24).
+/// name, its address (to name a fault's place) and its calls counted. Nothing runs at the
+/// address itself (2026-10-24).
 pub struct RawHook {
     name: &'static str,
     rva: usize,
@@ -119,7 +119,8 @@ pub fn log(msg: &str) {
     }
 }
 
-/// The registers at a hook: what the thunk's `pushad` and `pushfd` leave on the stack.
+/// The registers of a place in the original (`pushad` order and the flags): what a
+/// fatal error's report shows.
 #[repr(C)]
 #[derive(Copy, Clone, Default)]
 pub struct Regs {
@@ -131,49 +132,7 @@ pub struct Regs {
     pub edx: u32,
     pub ecx: u32,
     pub eax: u32,
-    /// In `dispatch`: the caller's flags, restored on return unless changed. After
-    /// `call_original`: the flags the original returned with. Never loaded before a call.
     pub eflags: u32,
-}
-
-pub const CARRY_FLAG: u32 = 1 << 0;
-pub const ZERO_FLAG: u32 = 1 << 6;
-
-pub const EAX: u8 = 1 << 0;
-pub const ECX: u8 = 1 << 1;
-pub const EDX: u8 = 1 << 2;
-pub const EBX: u8 = 1 << 3;
-pub const EBP: u8 = 1 << 4;
-pub const ESI: u8 = 1 << 5;
-pub const EDI: u8 = 1 << 6;
-
-impl Regs {
-    /// A recognisable value in every register, so a self-test can see which ones survive.
-    pub const SENTINEL: Regs = Regs {
-        edi: 0x1111_1111,
-        esi: 0x2222_2222,
-        ebp: 0x3333_3333,
-        esp: 0,
-        ebx: 0x4444_4444,
-        edx: 0x5555_5555,
-        ecx: 0x6666_6666,
-        eax: 0x7777_7777,
-        eflags: 0,
-    };
-
-    pub fn carry(&self) -> bool {
-        self.eflags & CARRY_FLAG != 0
-    }
-
-    /// Sets the carry flag the game sees when the hook returns.
-    pub fn set_carry(&mut self, on: bool) {
-        self.eflags = (self.eflags & !CARRY_FLAG) | if on { CARRY_FLAG } else { 0 };
-    }
-
-    /// Sets the zero flag the game sees when the hook returns.
-    pub fn set_zero(&mut self, on: bool) {
-        self.eflags = (self.eflags & !ZERO_FLAG) | if on { ZERO_FLAG } else { 0 };
-    }
 }
 
 /// The carry and zero flags a function leaves, for Rust callers that still read them

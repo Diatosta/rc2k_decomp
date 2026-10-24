@@ -11,9 +11,8 @@
 //! Out: the registers as the calls leave them (eax, ebx, ecx); no flags read (the
 //!      callers return)
 //!
-//! Callers: `physics::manual_gearbox`, `physics::auto_gearbox`.
-//! Refuses what the calls refuse; what was written is put back.
-//! Self-test: `physics/gearbox.rs` (`test_gearbox`), gears made 0 first.
+//! Callers: `physics::manual_gearbox`, `physics::auto_gearbox`. Refuses what the calls
+//! refuse; what was written is put back.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

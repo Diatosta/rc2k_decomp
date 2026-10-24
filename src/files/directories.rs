@@ -9,21 +9,23 @@
 //!
 //! The paths are used as they are (not through `files::resolve_path`).
 
-use windows_sys::Win32::Storage::FileSystem::{CreateDirectoryA, DeleteFileA, RemoveDirectoryA};
-use windows_sys::Win32::System::Environment::SetCurrentDirectoryA;
+// Phase 6 (2026-10-24): `std::fs` / `std::env` in place of the Win32 calls (`SetCurrentDirectoryA`,
+// `CreateDirectoryA`, `RemoveDirectoryA`, `DeleteFileA`): the same cases fail (a folder
+// already there, one not empty, a read-only file), the answer 1 or 0 as the BOOL was.
+use crate::files::ansi_path;
 
 pub unsafe fn set_current_directory(path: *const u8) -> u32 {
-    unsafe { SetCurrentDirectoryA(path) as u32 }
+    std::env::set_current_dir(unsafe { ansi_path(path) }).is_ok() as u32
 }
 
 pub unsafe fn make_directory(path: *const u8) -> u32 {
-    unsafe { CreateDirectoryA(path, std::ptr::null()) as u32 }
+    std::fs::create_dir(unsafe { ansi_path(path) }).is_ok() as u32
 }
 
 pub unsafe fn remove_directory(path: *const u8) -> u32 {
-    unsafe { RemoveDirectoryA(path) as u32 }
+    std::fs::remove_dir(unsafe { ansi_path(path) }).is_ok() as u32
 }
 
 pub unsafe fn delete_file(path: *const u8) -> u32 {
-    unsafe { DeleteFileA(path) as u32 }
+    std::fs::remove_file(unsafe { ansi_path(path) }).is_ok() as u32
 }

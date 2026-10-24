@@ -4,9 +4,8 @@
 //! In:  nothing
 //! Out: every register preserved
 //!
-//! One caller, `menu::select_stage_loop` at its set-up.
-//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
-//! `routes.rs`); the registers above are the original's, for reference.
+//! One caller, `menu::select_stage_loop` at its set-up. Rust callers run its `entry` (`routes.rs`);
+//! the registers above are the original's, for reference.
 
 use crate::framework::game_write;
 use crate::menu::stage_choice::MODE_RVA;

@@ -1,8 +1,5 @@
-//! The service area's boxes (`screens::draw_service_boxes` and its four frames): flat
-//! see-through quads (`scene::draw_tinted_quad`) laid out by long tables of the original's
-//! code. The hooks' bodies are written out from the disassembly by a translator (each quad
-//! the original's six stores and its call; each `cmp` / `jz` / `jnz` / `jmp` a test and a
-//! `break` out of a labelled block, every jump forward); this file holds what they share.
+//! The service area's boxes (`screens::draw_service_boxes` and its four frames): flat see-through
+//! quads (`scene::draw_tinted_quad`) laid out by long tables of the original's code.
 
 use crate::errors::Refused;
 use crate::framework::{game_addr, game_read, game_write, rva};

@@ -8,12 +8,6 @@
 //! shifted right by the buffer's +0x28 & 0xF (unsigned `div`).
 //! Three callers (the race sounds' turn). Refuses a sample past the records and a rate
 //! that the shift makes 0 (the original's `div` traps).
-//! Shadow mode: both, the registers compared (`dispatch_state`, nothing written).
-//! Self-test: every record with a set of rates, and record 0 as the test's (put back).
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::errors::BadInput;
 use crate::sound::sample_settings::{loaded, record};

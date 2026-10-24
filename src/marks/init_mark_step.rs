@@ -11,11 +11,10 @@
 //! Out: nothing (no caller reads the registers it leaves: `race::loadlevel_init` reads
 //!      none after 0x444670)
 //!
-//! Caller: `race::loadlevel_init` (0x444670, with the log off round it). The file number
-//! is its Rust version, also `init_marks`' seed; then `init_marks`. Refuses a car count of 0 or past 8 (the original's loop would run on) and a
-//! missing block or record, before anything.
-//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
-//! `routes.rs`); the registers above are the original's, for reference.
+//! Caller: `race::loadlevel_init` (0x444670, with the log off round it). The file number is
+//! its Rust version, also `init_marks`' seed; then `init_marks`. Refuses a car count of 0
+//! or past 8 (the original's loop would run on) and a missing block or record, before
+//! anything.
 
 use crate::errors::Refused;
 use crate::framework::rva;

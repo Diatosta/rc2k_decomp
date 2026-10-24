@@ -10,15 +10,7 @@
 //! In:  nothing
 //! Out: nothing (no caller reads the registers it leaves: none after 0x446408, 0x456472)
 //!
-//! Caller: the race's frame (0x456464 ..). Its calls the Rust versions, in the order
-//! above. Shadow mode runs the original alone (it
-//! draws). It begins with a call: private copy (its 21 calls relocated), manual patch.
-//! Self-test: a copy whose calls go to stand-ins, against the Rust version, the
-//! calls and their registers compared (the three times are not: `rdtsc`).
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: the race's frame (0x456464 ..). Its calls the Rust versions, in the order above.
 
 use crate::errors::Refused;
 use crate::marks::store::{Slot, game_read, game_write};

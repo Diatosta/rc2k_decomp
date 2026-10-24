@@ -11,11 +11,8 @@
 //! Out: eax, ebx, esi the last notice's, edx as `queue_notice` leaves it (kept when none);
 //!      the rest kept; no flags read (the caller goes on)
 //!
-//! Caller: `sub_43B635` (0x43B95C), every physics step.
-//! Refuses what `queue_notice` refuses (everything written put back).
-//! Self-test: the original and the Rust version on the game's variables (saved and put
-//! back): gauges and levels by lot, notices on and off (`dword_71A1F8` bit 2), the queue
-//! empty and part full, under three precisions.
+//! Caller: `sub_43B635` (0x43B95C), every physics step. Refuses what `queue_notice` refuses
+//! (everything written put back).
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

@@ -16,10 +16,7 @@
 //! next ones, and `set_mode` hands ebx, ecx and edx to `audio::stop_streams` (edx its
 //! action).
 //! `set_mode` is called by the game's address (not ported). Refuses a read place past the
-//! queue. The loop goes back into the patched bytes (0x40A8A5): a private copy.
-//! Shadow mode runs the Rust version too (the original's count-down is not atomic: see
-//! `dispatch`). Self-test: a redirected copy whose queue and
-//! variables are the test's and whose calls go to stand-ins noting every register, 40 cases.
+//! queue.
 
 use crate::audio::store::Slot;
 use crate::audio::voices::*;

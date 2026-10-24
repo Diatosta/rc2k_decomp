@@ -5,15 +5,8 @@
 //! Out: as `start_cars_behind` leaves them (mode 2), else every register kept; no flags
 //!      read (its callers return next, theirs go on with `popa` / `mov`)
 //!
-//! Callers: race init's loop (`sub_4608BB`), `sub_460835`, `sub_460B2F`.
-//! Refuses what `start_cars_behind` refuses.
-//! Shadow mode: as `start_cars_behind` (the original alone, in mode 2).
-//! Self-test: a copy whose call goes to a stand-in, against the Rust version with the
-//! same, modes 0 .. 5.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Callers: race init's loop (`sub_4608BB`), `sub_460835`, `sub_460B2F`. Refuses what
+//! `start_cars_behind` refuses.
 
 use crate::errors::Refused;
 use crate::framework::{game_read, rva};

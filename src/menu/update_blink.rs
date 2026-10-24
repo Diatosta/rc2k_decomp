@@ -4,22 +4,15 @@
 //! In:  nothing
 //! Out: every register preserved
 //! After `update_frame_clock`:
-//!   - `dword_7559A4` (the highlight's blink, as the service area's markers use it) is 1 while
-//!     bit 8 of `clock - dword_7556C4` is clear, so it is on for 256 ms and off for 256 ms,
-//!     counted from the last key; it stays 0 while `dword_7556AC` is 1;
-//!   - `dword_7559A8` (the text entry's cursor) is 1 while bit 9 of `clock - dword_7556C8` is
-//!     clear: 512 ms on, 512 ms off;
-//!   - `dword_755551` is 1 once `clock - dword_7556C4` has reached 300000: five minutes
-//!     without a key.
+//! - `dword_7559A4` (the highlight's blink, as the service area's markers use it) is 1 while
+//!   bit 8 of `clock - dword_7556C4` is clear, so it is on for 256 ms and off for 256 ms,
+//!   counted from the last key; it stays 0 while `dword_7556AC` is 1;
+//! - `dword_7559A8` (the text entry's cursor) is 1 while bit 9 of `clock - dword_7556C8` is
+//!   clear: 512 ms on, 512 ms off;
+//! - `dword_755551` is 1 once `clock - dword_7556C4` has reached 300000: five minutes
+//!   without a key.
 //!
-//! 179 callers. Shadow mode lets the original run and checks what it stored against the Rust
-//! arithmetic on the clock value it used.
-//! Manual patch with a private copy (0x95 bytes, one call relocated): a call sits in the
-//! first bytes.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! 179 callers.
 
 use crate::framework::{game_read, game_write, rva};
 use crate::menu::update_frame_clock::update_frame_clock;

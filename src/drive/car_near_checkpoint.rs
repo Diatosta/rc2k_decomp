@@ -5,12 +5,7 @@
 //! In:  esi a car block, eax a checkpoint
 //! Out: CF; ebx the distance when +0x25C is not 0; the rest kept (ZF not read: `jb`)
 //!
-//! Caller: `drive::checkpoint_taken` (four cars). Shadow mode: `physics/flag_result.rs`.
-//! Self-test: a copy of the original on a test car, 40 cases.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `drive::checkpoint_taken` (four cars).
 
 use rc2k_core::physics::line_places::car_near;
 

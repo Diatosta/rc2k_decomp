@@ -237,5 +237,3 @@ pub unsafe fn feed_stream(s: &mut AudioStream, parts: u32) -> Result<bool, Refus
         Ok(true)
     }
 }
-
-// ---- for the self-tests ----

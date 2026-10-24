@@ -23,14 +23,8 @@
 //! - A refusal from `gfx::allocate_textures` ends it with "NO -" in the log and the
 //!   carry; else "YES -".
 //!
-//! 46 call sites in `scene::build_texture_catalogue`.
-//! Refuses a level of 13 or more (past the sizes' table).
-//! Shadow mode runs the original alone.
-//! Self-test: a redirected copy whose allocations and log calls are the test's.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! 46 call sites in `scene::build_texture_catalogue`. Refuses a level of 13 or more (past the
+//! sizes' table).
 
 use crate::errors::BadInput;
 use crate::framework::{game_addr, game_read, game_write, rva};

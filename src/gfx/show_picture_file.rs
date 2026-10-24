@@ -19,9 +19,7 @@
 //! - Any other width: as many times, `gfx::lock_surface` (failing ends it),
 //!   `gfx::rescale_to_surface`, `gfx::unlock_surface`, `gfx::show_frame`.
 //!
-//! Callers: `menu::show_loading_picture`, `race::stage_loading`. Every callee is called
-//! directly (2026-10-23; before, through the game's address with the registers handed
-//! on); of the registers only eax is kept for the callers (see Out).
+//! Callers: `menu::show_loading_picture`, `race::stage_loading`.
 
 use crate::errors::Refused;
 use crate::framework::rva;

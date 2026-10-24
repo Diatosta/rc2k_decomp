@@ -10,12 +10,6 @@
 //! (0x88780096) `g_soundBufferLost`. Callers: command 3 and `sub_40A7C9` (the lost
 //! buffers' restoring).
 //! Refuses A3D (the chunk at 0x40CDE8).
-//! Shadow mode runs the original alone. Self-test: a redirected copy whose parts and flag
-//! are the test's, on the test's DirectSound, 15 cases.
-//!
-//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::audio::buffer_settings::a3d;
 use crate::audio::store::Slot;

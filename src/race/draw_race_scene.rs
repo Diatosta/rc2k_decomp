@@ -30,9 +30,7 @@
 //! Out: nothing its callers (`drive::race_frame`, `race::show_replay_still`) read
 //!
 //! Refuses (before anything) a null view block, and a wanted texture's slot past
-//! `g_slotWantedTextures`' 0x400; then what its steps refuse. Hook removed 2026-10-23
-//! (conversion phase 4); its steps called directly since then (conversion phase 3, no
-//! longer by address; the platform's blit, `sub_455D38`, is `d3d::copy_screen_to_texture`).
+//! `g_slotWantedTextures`' 0x400; then what its steps refuse.
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_read, game_write, rva};

@@ -11,14 +11,9 @@
 //! In:  nothing
 //! Out: ebx the cars' count (at least 1) in modes 0 and 2; the rest kept; no flags read
 //!
-//! Callers: `sub_43B635` (every physics step), `sub_43BDD1`.
-//! Refuses (before anything) more than eight cars or a null block among them (the
-//! original reads past `g_carBlocks` or through null), and what `corner_hits_car`
-//! refuses (what was written put back).
-//! Self-test (`test_bump`): the original and the Rust version on the game's variables
-//! (saved and put back) with three test car blocks (`g_carBlocks` pointed at them), the
-//! modes, every current car, places close enough for corners to meet, under three
-//! precisions.
+//! Callers: `sub_43B635` (every physics step), `sub_43BDD1`. Refuses (before anything) more
+//! than eight cars or a null block among them (the original reads past `g_carBlocks` or
+//! through null), and what `corner_hits_car` refuses (what was written put back).
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

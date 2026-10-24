@@ -12,14 +12,8 @@
 //! but the byte it repeats is 0 from the end of a row on (the zeroing leaves al 0). What
 //! `read_stream_byte` says about the end of the file is not looked at.
 //! It fails if the open, the header's read or the close fails.
-//! Two callers, `gfx::read_pcx` and `sub_4119AF`. Shadow mode decodes the file twice and
-//! compares.
-//! Refuses a decoded width or height of 0 (the original counts through all 32 bits) and
-//! what `open_stream` refuses. The name is a reading.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Two callers, `gfx::read_pcx` and `sub_4119AF`. Refuses a decoded width or height of 0 (the
+//! original counts through all 32 bits) and what `open_stream` refuses. The name is a reading.
 
 use crate::errors::BadInput;
 use crate::files::close_stream::close_stream;

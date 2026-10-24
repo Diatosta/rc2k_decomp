@@ -6,10 +6,8 @@
 //! Out: as the calls leave them; CF as the last `bt` or the calls leave it (no caller
 //!      reads it: the next is a call)
 //!
-//! Caller: `sub_43B635` (0x43B957), every physics step.
-//! Refuses what the calls refuse; what was written is put back.
-//! Self-test: the original and the Rust version on the game's variables (saved and put
-//! back): bit patterns, the switch, hits by lot.
+//! Caller: `sub_43B635` (0x43B957), every physics step. Refuses what the calls refuse; what
+//! was written is put back.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

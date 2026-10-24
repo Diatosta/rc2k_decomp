@@ -47,14 +47,14 @@
 //! each call (2026-10-24: the register set the loop used to thread went). The screens' own
 //! steps (`Step::Do`) work on it the same way.
 //!
-//! What the loop calls is called directly: its own functions (`call` below for the steps
-//! that name a function by its address), the frame callbacks, `handle_keys`, the item's
+//! What the loop calls is called directly: its own functions (`Callee` below, what the
+//! steps name), the frame callbacks, `handle_keys`, the item's
 //! action (`menu::run_item_action`, with the carried values in the registers the action
 //! gets, as the original hands them). A refusal goes back to the loop's caller; a set
 //! carry after a `Step::CallOrFatal` is the fatal error, raised by the caller too.
 
 use crate::errors::{BadInput, FatalError, Refused};
-use crate::framework::{Regs, game_addr, game_read, game_write, log, rva};
+use crate::framework::{game_addr, game_read, game_write, log, rva};
 use crate::input::take_key::take_key;
 use crate::menu::handle_keys::handle_keys;
 use crate::menu::handle_yes_no::LEAVING_RVA;
@@ -68,12 +68,8 @@ use crate::session::FLAGS;
 
 // ---- game code the loop calls itself ----
 
-pub const TAKE_KEY: usize = rva(0x407F95); // input::take_key
-pub const UPDATE_BLINK: usize = rva(0x47E826); // menu::update_blink
 pub const FRAME_CALLBACK: usize = rva(0x474D4B); // menu::frame_callback
 const INSPECTION_FRAME: usize = rva(0x46D019); // menu::inspection_frame
-const NULLSUB_83: usize = rva(0x471391); // nullsub_83: a lone `retn`
-const NULLSUB_84: usize = rva(0x4713DD); // nullsub_84: a lone `retn`
 
 // ---- game data ----
 
@@ -97,7 +93,7 @@ const ENTER_SOUND: u32 = 0x14D;
 #[derive(Clone, Copy, Debug)]
 pub enum Step {
     /// Calls the game function at this RVA (one of `call`'s).
-    Call(usize),
+    Call(Callee),
     /// Writes a game variable.
     Write(usize, u32),
     WriteF32(usize, f32),
@@ -107,7 +103,7 @@ pub enum Step {
     ArgAddr(usize),
     /// Calls the game function at this RVA, and if it comes back with the carry flag set,
     /// that is the fatal error with this code (and no message).
-    CallOrFatal(usize, u32),
+    CallOrFatal(Callee, u32),
     /// Something only this screen does, written out in its file.
     Do(unsafe fn(&mut Carried) -> Result<(), Refused>),
     /// The same for a step that can also send the loop somewhere: a name editor called once
@@ -262,19 +258,13 @@ pub fn quitting() -> bool {
     FLAGS.quitting.get() == 1
 }
 
-/// `scene::prepare_menu_scene` (0x46F7FD), with what it leaves (`set_view_matrices`').
+/// `scene::prepare_menu_scene` (0x46F7FD), with what the original leaves in the registers
+/// the loop carries: the view's place is zeroed first, so `set_view_matrices` leaves eax,
+/// ebx, ecx and edx 0 and esi the view's turn matrix.
 pub unsafe fn prepare_scene(c: &mut Carried) {
-    let left = unsafe { crate::scene::prepare_menu_scene::prepare_menu_scene() };
-    let mut r = Regs {
-        eax: c.arg,
-        ebx: c.palette,
-        ecx: c.measure_x,
-        edx: c.clock,
-        esi: c.cars,
-        ..Regs::default()
-    };
-    left.apply(&mut r);
-    (c.arg, c.palette, c.measure_x, c.clock, c.cars) = (r.eax, r.ebx, r.ecx, r.edx, r.esi);
+    unsafe { crate::scene::prepare_menu_scene::prepare_menu_scene() };
+    (c.arg, c.palette, c.measure_x, c.clock) = (0, 0, 0, 0);
+    c.cars = game_addr(crate::scene::matrix::VIEW_TURN_RVA) as u32;
 }
 
 /// `scene::set_up_carousel` (0x4904DD): reads the list of cars (esi) for menus 0xD and 0xE
@@ -303,101 +293,178 @@ pub unsafe fn log_line(text: usize) {
     unsafe { crate::logfile::log_write::log_write(game_addr(text) as *const u8, true, 1) };
 }
 
-/// The function at `function` (an RVA) a step names, run by its Rust version, with what it
-/// reads and leaves of the carried values.
-pub unsafe fn call(function: usize, c: &mut Carried) -> Result<(), Refused> {
-    use crate::menu::{controller_items as ci, results_setups as rs, stage_view_steps as v};
-    use crate::text::draw_text::GameCanvas;
-    unsafe {
-        match function {
-            TAKE_KEY => c.arg = c.arg & !0xFF | take_key() as u32,
-            UPDATE_BLINK => update_blink(),
-            NULLSUB_83 | NULLSUB_84 => {}
-            f if f == rva(0x47EFFF) => {
-                crate::menu::load_background::load_background(
-                    c.arg as *mut u8,
-                    c.palette,
+/// A game function a screen step runs (by its Rust version), with what it reads and
+/// leaves of the carried values. The comment on each variant is its address in the original.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Callee {
+    /// 0x407F95
+    TakeKey,
+    /// 0x471391 and 0x4713DD (nullsub_83, nullsub_84: a lone `retn`)
+    NoOp,
+    /// 0x47EFFF
+    LoadBackground,
+    /// 0x46F7FD
+    PrepareScene,
+    /// 0x46B47C
+    ApplyController,
+    /// 0x46B4B4
+    ReleaseController,
+    /// 0x4683CF
+    DrawStageMap,
+    /// 0x40F757
+    StopStream,
+    /// 0x40F792
+    PlayTune4,
+    /// 0x40F7A4
+    PlayTune9,
+    /// 0x40F826
+    StopMusic,
+    /// 0x46F7AD
+    StepCarStream,
+    /// 0x469AA1
+    PlayCarStream,
+    /// 0x40939F
+    AxisMoved,
+    /// 0x48340B
+    RankStageTimes,
+    /// 0x48356F
+    RankTotals,
+    /// 0x485CBB
+    ScoreFourPlayers,
+    /// 0x485B0E
+    ScoreTwoPlayers,
+    /// 0x470F9F
+    StyleStageItem,
+    /// 0x470FC3
+    StyleChosenStageItem,
+    /// 0x480032
+    CountStagePages,
+    /// 0x47F437
+    PlayStageSpeech,
+    /// 0x47F40F
+    PlayRallySpeech,
+    /// 0x4684BD
+    LoadWelcomePicture,
+    /// 0x470F55
+    LoadServiceBackground,
+    /// 0x471C82
+    GoBack,
+    /// 0x486C21
+    MarkStageChoice,
+    /// 0x467C63
+    EditPlayerName,
+    /// 0x46F1A9
+    EditSetupName,
+    /// 0x46D685
+    EditSavegameName,
+    /// 0x46F4E7
+    EditReplayName,
+    /// 0x480CBF
+    CheckCheatName,
+    /// 0x4684F5
+    LoadSlideshowPicture,
+    /// 0x468482
+    LoadCarBackground,
+    /// 0x411863
+    LoadPicture,
+    /// 0x406126
+    ConvertPicture,
+    /// 0x47C63F
+    SetUpFrontEnd,
+    /// 0x442AF6
+    SetUpEngine,
+    /// 0x474E04
+    SetUpFrontEndScene,
+}
+
+impl Callee {
+    /// Runs the function, with what it reads and leaves of the carried values.
+    pub unsafe fn run(self, c: &mut Carried) -> Result<(), Refused> {
+        use crate::menu::{controller_items as ci, results_setups as rs, stage_view_steps as v};
+        use crate::text::draw_text::GameCanvas;
+        unsafe {
+            match self {
+                Self::TakeKey => c.arg = c.arg & !0xFF | take_key() as u32,
+                Self::NoOp => {}
+                Self::LoadBackground => {
+                    crate::menu::load_background::load_background(
+                        c.arg as *mut u8,
+                        c.palette,
+                        &mut GameCanvas,
+                    )?;
+                    c.carry = false;
+                }
+                Self::PrepareScene => prepare_scene(c),
+                Self::ApplyController => ci::apply_controller()?,
+                Self::ReleaseController => ci::release_controller(),
+                Self::DrawStageMap => crate::menu::stage_choice::draw_stage_map()?,
+                Self::StopStream => crate::sound::stop_stream::stop_stream(),
+                Self::PlayTune4 => crate::sound::play_tune_4::play_tune_4(),
+                Self::PlayTune9 => crate::sound::play_tune_9::play_tune_9(),
+                Self::StopMusic => crate::sound::stop_music::stop_music(),
+                Self::StepCarStream => crate::sound::step_car_stream::step_car_stream_in_game(),
+                Self::PlayCarStream => crate::sound::play_car_stream::play_car_stream(
+                    &mut crate::sound::start_stream::start_stream,
+                )?,
+                Self::AxisMoved => {
+                    let moved = crate::input::axes::axis_moved(c.arg);
+                    (c.arg, c.carry) = (moved.eax, moved.carry);
+                }
+                Self::RankStageTimes => rs::rank_stage_times()?,
+                Self::RankTotals => rs::rank_totals()?,
+                Self::ScoreFourPlayers => rs::score_four_players()?,
+                Self::ScoreTwoPlayers => rs::score_two_players()?,
+                Self::StyleStageItem => v::style_stage_item(false)?,
+                Self::StyleChosenStageItem => v::style_stage_item(true)?,
+                Self::CountStagePages => v::count_stage_pages()?,
+                Self::PlayStageSpeech => v::play_stage_speech()?,
+                Self::PlayRallySpeech => v::play_rally_speech()?,
+                Self::LoadWelcomePicture => v::load_welcome_picture()?,
+                Self::LoadServiceBackground => crate::service::load_background::load_background()?,
+                Self::GoBack => crate::menu::go_back::go_back(),
+                Self::MarkStageChoice => crate::menu::mark_stage_choice::mark_stage_choice(),
+                Self::EditPlayerName => {
+                    crate::menu::edit_player_name::edit_player_name(&mut GameCanvas)?
+                }
+                Self::EditSetupName => {
+                    crate::service::edit_setup_name::edit_setup_name(&mut GameCanvas)?
+                }
+                Self::EditSavegameName => crate::menu::edit_savegame_name::edit_savegame_name(
                     &mut GameCanvas,
-                )?;
-                c.carry = false;
+                    &mut crate::menu::edit_savegame_name::save_game,
+                )?,
+                Self::EditReplayName => {
+                    c.carry = crate::menu::edit_replay_name::edit_replay_name(&mut GameCanvas)?
+                }
+                Self::CheckCheatName => crate::menu::check_cheat_name::check_cheat_name()?,
+                Self::LoadSlideshowPicture => {
+                    crate::menu::load_slideshow_picture::load_slideshow_picture_in_game(c.arg)?
+                }
+                Self::LoadCarBackground => {
+                    crate::menu::load_car_background::load_car_background_in_game()?;
+                    c.carry = false;
+                }
+                Self::LoadPicture => {
+                    c.carry = !crate::gfx::load_picture::load_picture(c.arg as *mut u8)?
+                }
+                Self::ConvertPicture => {
+                    c.carry = crate::gfx::convert_picture::convert_picture_now()?
+                }
+                Self::SetUpFrontEnd => {
+                    crate::menu::set_up_front_end::set_up_front_end(0, c.measure_x)?
+                }
+                Self::SetUpEngine => {
+                    crate::scene::set_up_engine::set_up_engine()?;
+                    // What it leaves in eax, ebx, ecx and edx (esi and the carry as they were).
+                    [c.arg, c.palette, c.measure_x, c.clock] = crate::physics::test_drive::LEFT;
+                }
+                Self::SetUpFrontEndScene => {
+                    crate::scene::set_up_front_end_scene::set_up_front_end_scene()?
+                }
             }
-            f if f == rva(0x46F7FD) => prepare_scene(c),
-            f if f == rva(0x4904DD) => carousel(c)?,
-            f if f == rva(0x46B47C) => ci::apply_controller()?,
-            f if f == rva(0x46B4B4) => ci::release_controller(),
-            f if f == rva(0x4683CF) => crate::menu::stage_choice::draw_stage_map()?,
-            f if f == rva(0x40F757) => crate::sound::stop_stream::stop_stream(),
-            f if f == rva(0x40F792) => crate::sound::play_tune_4::play_tune_4(),
-            f if f == rva(0x40F7A4) => crate::sound::play_tune_9::play_tune_9(),
-            f if f == rva(0x40F826) => crate::sound::stop_music::stop_music(),
-            f if f == rva(0x46F7AD) => crate::sound::step_car_stream::step_car_stream_in_game(),
-            f if f == rva(0x469AA1) => crate::sound::play_car_stream::play_car_stream(
-                &mut crate::sound::start_stream::start_stream,
-            )?,
-            f if f == rva(0x40939F) => {
-                let moved = crate::input::axes::axis_moved(c.arg);
-                (c.arg, c.carry) = (moved.eax, moved.carry);
-            }
-            f if f == rva(0x48340B) => rs::rank_stage_times()?,
-            f if f == rva(0x48356F) => rs::rank_totals()?,
-            f if f == rva(0x485CBB) => rs::score_four_players()?,
-            f if f == rva(0x485B0E) => rs::score_two_players()?,
-            f if f == rva(0x470F9F) => v::style_stage_item(false)?,
-            f if f == rva(0x470FC3) => v::style_stage_item(true)?,
-            f if f == rva(0x480032) => v::count_stage_pages()?,
-            f if f == rva(0x47F437) => v::play_stage_speech()?,
-            f if f == rva(0x47F40F) => v::play_rally_speech()?,
-            f if f == rva(0x4684BD) => v::load_welcome_picture()?,
-            f if f == rva(0x470F55) => crate::service::load_background::load_background()?,
-            f if f == rva(0x471C82) => crate::menu::go_back::go_back(),
-            f if f == rva(0x4708FD) => crate::menu::car_choice::find_player_car()?,
-            f if f == rva(0x486C21) => crate::menu::mark_stage_choice::mark_stage_choice(),
-            f if f == rva(0x467C63) => {
-                crate::menu::edit_player_name::edit_player_name(&mut GameCanvas)?
-            }
-            f if f == rva(0x46F1A9) => {
-                crate::service::edit_setup_name::edit_setup_name(&mut GameCanvas)?
-            }
-            f if f == rva(0x46D685) => crate::menu::edit_savegame_name::edit_savegame_name(
-                &mut GameCanvas,
-                &mut crate::menu::edit_savegame_name::save_game,
-            )?,
-            f if f == rva(0x46F4E7) => {
-                c.carry = crate::menu::edit_replay_name::edit_replay_name(&mut GameCanvas)?
-            }
-            f if f == rva(0x480CBF) => crate::menu::check_cheat_name::check_cheat_name()?,
-            f if f == rva(0x4684F5) => {
-                crate::menu::load_slideshow_picture::load_slideshow_picture_in_game(c.arg)?
-            }
-            f if f == rva(0x468482) => {
-                crate::menu::load_car_background::load_car_background_in_game()?;
-                c.carry = false;
-            }
-            f if f == rva(0x411863) => {
-                c.carry = !crate::gfx::load_picture::load_picture(c.arg as *mut u8)?
-            }
-            // The carry its last instruction leaves.
-            f if f == rva(0x406126) => {
-                c.carry = crate::gfx::convert_picture::convert_picture_now()?
-            }
-            // Reads ebp (only where it is not looked at, see there) and ecx; keeps every
-            // register.
-            f if f == rva(0x47C63F) => {
-                crate::menu::set_up_front_end::set_up_front_end(0, c.measure_x)?
-            }
-            // Read no edi (`lq.py`: `set_up_engine` reads nothing, the scene edx and esi).
-            f if f == rva(0x442AF6) => {
-                crate::scene::set_up_engine::set_up_engine()?;
-                // What it leaves in eax, ebx, ecx and edx (esi and the carry as they were).
-                [c.arg, c.palette, c.measure_x, c.clock] = crate::physics::test_drive::LEFT;
-            }
-            f if f == rva(0x474E04) => {
-                crate::scene::set_up_front_end_scene::set_up_front_end_scene()?
-            }
-            _ => return Err(BadInput("a screen's step calls a function it does not know").into()),
         }
+        Ok(())
     }
-    Ok(())
 }
 
 // ---- Rust version ----
@@ -429,8 +496,8 @@ unsafe fn clear_escape() {
 }
 
 /// A call after which a set carry flag is the fatal error `code`.
-pub unsafe fn call_or_fatal(function: usize, code: u32, c: &mut Carried) -> Result<(), Refused> {
-    unsafe { call(function, c) }?;
+pub unsafe fn call_or_fatal(function: Callee, code: u32, c: &mut Carried) -> Result<(), Refused> {
+    unsafe { function.run(c) }?;
     if c.carry {
         log(&format!(
             "a screen loop's Rust version raises fatal error {code:#x}"
@@ -450,7 +517,7 @@ unsafe fn run(steps: &[Step], c: &mut Carried) -> Result<Flow, Refused> {
                     Flow::On => {}
                     elsewhere => return Ok(elsewhere),
                 },
-                Step::Call(function) => call(function, c)?,
+                Step::Call(function) => function.run(c)?,
                 Step::Write(variable, value) => game_write(variable, value),
                 Step::WriteF32(variable, value) => game_write(variable, value),
                 Step::Arg(value) => c.arg = value,
@@ -647,7 +714,7 @@ pub unsafe fn screen_loop(screen: &Screen, entry: &Carried) -> Result<String, Re
                             Next::Leave
                         } else if game_read::<u32>(DONE_B_RVA) == 1 {
                             game_write(ANSWER_RVA, 0u32);
-                            call(TAKE_KEY, &mut c)?;
+                            Callee::TakeKey.run(&mut c)?;
                             Next::SetUp
                         } else if game_read::<u32>(BACK_RVA) == 1 {
                             why = format!("after the action of item {item}: dword_755561 is 1");
@@ -784,27 +851,6 @@ pub unsafe fn run_screen(screen: &Screen, entry: &Carried) -> Result<Option<u32>
 pub unsafe fn run_screen_carried(screen: &Screen, c: &mut Carried) -> Result<(), Refused> {
     if let Some(result) = unsafe { run_screen(screen, c) }? {
         c.arg = result;
-    }
-    Ok(())
-}
-
-/// The carried values in registers `r` (for callers still holding the original's).
-pub fn carried(r: &Regs) -> Carried {
-    Carried {
-        arg: r.eax,
-        palette: r.ebx,
-        measure_x: r.ecx,
-        clock: r.edx,
-        cars: r.esi,
-        carry: r.carry(),
-    }
-}
-
-/// `run_screen` for callers still holding the original's registers: the carried values
-/// from them, and eax the result where the screen has one.
-pub unsafe fn run_screen_regs(screen: &Screen, r: &mut Regs) -> Result<(), Refused> {
-    if let Some(result) = unsafe { run_screen(screen, &carried(r)) }? {
-        r.eax = result;
     }
     Ok(())
 }

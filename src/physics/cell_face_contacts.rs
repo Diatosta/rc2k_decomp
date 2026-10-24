@@ -6,12 +6,8 @@
 //! Out: the registers as `find_course_record` and `record_face_contacts` leave them; no
 //!      flags read (the caller goes on)
 //!
-//! Callers: `physics::face_contacts_around` (nine).
-//! Refuses what `find_course_record` (before anything) and `record_face_contacts`
-//! refuse (what was written put back).
-//! Self-test (in a race; skipped otherwise): the original and the Rust version on the
-//! stage (everything written saved and put back): the nine cells about the car, where it
-//! is and moved onto object faces.
+//! Callers: `physics::face_contacts_around` (nine). Refuses what `find_course_record`
+//! (before anything) and `record_face_contacts` refuse (what was written put back).
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

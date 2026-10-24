@@ -9,14 +9,8 @@
 //! Reached only through the converter table `dword_4F5288`: `gfx::convert_picture` calls
 //! it with esi = edi (the picture is already what the surface wants: on the owner's 32-bit
 //! screen that is every picture), `sub_41A828` with a locked texture as the destination.
-//! Manual patch with a private copy (0x10 bytes, nothing to relocate): a conditional jump
-//! sits in the first bytes.
-//! Refuses a row count of 0 when something would be copied (the original counts through
-//! all 32 bits). The name is a reading.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Refuses a row count of 0 when something would be copied (the original counts through all 32
+//! bits). The name is a reading.
 
 use crate::errors::BadInput;
 use crate::framework::rva;

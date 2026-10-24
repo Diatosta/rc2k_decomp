@@ -37,7 +37,7 @@ unsafe fn quad(corners: u32, k: u32) -> [u32; 8] {
     unsafe { [0, 4, 0x18, 0x1C, 0x24, 0x28, 0xC, 0x10].map(|o| get(e + o)) }
 }
 
-/// `marks::span_ring_quad` (0x4BE592; not hooked: it takes the quad's number from its
+/// `marks::span_ring_quad` (0x4BE592; it takes the quad's number from its
 /// caller's stack): the two angles' sines and minus cosines into 0x833D9A .., the quad they
 /// give by the shape's radii (+0x1C, +0x20) and middle (+0xC, +0x10) into
 /// `g_marksRingQuad`, then all eight of its floats replaced by corner entries k and k + 1

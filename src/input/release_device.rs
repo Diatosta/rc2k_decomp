@@ -6,17 +6,9 @@
 //! In:  esi = the device's record
 //! Out: every register kept (`pusha` .. `popa`)
 //!
-//! Callers: `input::device_command` (three times), the input thread's end. Its calls
-//! through `part`: 0 `Unacquire` (eax the device), 1 the effects stopped (esi), 2
-//! `Release` (eax); in the game the device's methods and `input::end_force`'s Rust
-//! version. Refuses (before anything) a controller number past 16 with
-//! a device. Shadow mode runs the original alone (it releases the device). Self-test: a
-//! copy whose effects' call goes to a stand-in, against the Rust version, on records of
-//! the test's with a device of the test's or none, the controller's entry 1 or not.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Callers: `input::device_command` (three times), the input thread's end. Refuses (before anything)
+//! a controller number past 16 with
+//! a device.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

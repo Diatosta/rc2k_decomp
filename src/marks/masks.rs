@@ -126,8 +126,6 @@ pub unsafe fn draw_mask(at: u32, shapes: u32) -> Result<(), Refused> {
     Ok(())
 }
 
-// ---- for the self-tests ----
-
 const LIST_RVA: Slot = Slot::at(0x82E346); // stru_82E346: the work block's list
 const WORK_LEN: u32 = 0x8_0000;
 /// The two shapes' ring-angle tables, masks and pixel tables.

@@ -12,14 +12,8 @@
 //! In:  esi the particle
 //! Out: nothing (no caller reads a register it leaves but esi, which it keeps)
 //!
-//! Caller: the ring's update (code at 0x4D033F, kind 0 particles moving up). Its first
-//! five bytes end inside a jump: private copy (its one call relocated), manual patch.
-//! Refuses a null particle or ring (an entry to take), before anything. Self-test: a ring
-//! of the test's, the original and the Rust version at several fillings and randoms.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: the ring's update (code at 0x4D033F, kind 0 particles moving up). Refuses a null
+//! particle or ring (an entry to take), before anything.
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::rva;

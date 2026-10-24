@@ -10,10 +10,6 @@
 //! caller's ecx): the original leaves it in ecx, kept.
 //! One caller, the main menu's set-up `menu::set_up_front_end`.
 //! Refuses a name that would be cut to before its start, and what the measuring refuses.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_ptr, rva};
@@ -53,6 +49,3 @@ pub unsafe fn fit_player_names(x: u32) -> Result<(), Refused> {
     }
     Ok(())
 }
-
-// ---- self-test: names of the test's in the game's place, measured with the game's
-// font; everything put back ----

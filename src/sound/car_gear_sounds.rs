@@ -11,8 +11,6 @@
 //! the slot at +0x1F8. One caller, `sound::car_sounds`.
 //! Refuses (before anything) a null object or request; what the slots refuse puts back
 //! what was written (sounds already sent stay sent).
-//! Shadow mode runs the original alone (it sends sounds).
-//! Self-test: a copy whose calls go to a stand-in, against the Rust version.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

@@ -8,15 +8,7 @@
 //! In:  nothing
 //! Out: every register kept (`pusha` .. `popa`)
 //!
-//! Callers: `sub_48E093`, `sub_4A15E3`, `sub_4A8556`. Its four calls through an `Env` (the
-//! copy and the showing are the platform's; the others are reached through their
-//! addresses, Rust where hooked). Shadow mode runs the original alone (it shows a frame).
-//! Self-test: a copy whose calls go to `menu::frame_test`'s stand-ins, against the Rust
-//! version on the same: the calls and the variables compared.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Callers: `sub_48E093`, `sub_4A15E3`, `sub_4A8556`.
 
 use crate::errors::Refused;
 use crate::framework::{game_write, rva};

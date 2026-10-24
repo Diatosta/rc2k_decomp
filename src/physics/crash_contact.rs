@@ -16,13 +16,8 @@
 //! Out: the registers as `lowest_body_point` and, on the long path, `contact_force` leave
 //!      them, eax the depth on the short; no flags read (the caller calls on)
 //!
-//! Caller: `sub_43B635`, every physics step.
-//! Refuses a point past 0x3F on the long path (the tables' room), and what its calls
-//! refuse; what was written is put back.
-//! Self-test: the original and the Rust version on the game's variables (saved and put
-//! back) with test faces (`g_courseFaces` pointed at them for the test): depths, the
-//! contact's figures and the matrices by lot, both paths, the current car not listed
-//! (no sound), under three precisions.
+//! Caller: `sub_43B635`, every physics step. Refuses a point past 0x3F on the long path
+//! (the tables' room), and what its calls refuse; what was written is put back.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

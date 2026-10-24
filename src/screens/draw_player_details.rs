@@ -23,12 +23,11 @@
 //!   0x176), the
 //!   blits' palette being what the last text left in ebx.
 //!
-//! In the draw list at 0x758CBA (the four players' details screens).
-//! Refuses a player past the four, a player without its name, an index past its
-//! string table, and what its parts refuse; since the conversion (2026-10-20) before the
-//! controller's item is switched (the original switches it first).
-//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
-//! (`menu::table_calls`); the registers above are the original's, for reference.
+//! In the draw list at 0x758CBA (the four players' details screens). Refuses a player past the
+//! four, a player without its name, an index past its string table, and what its parts refuse;
+//! since the conversion (2026-10-20) before the controller's item is switched (the original
+//! switches it first). The menus and draw lists run its `entry` (`menu::table_calls`); the
+//! registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::rva;

@@ -8,18 +8,10 @@
 //! `menu::load_background` (carry afterwards = fatal error 0x80712345); leaving is asked about;
 //! returns at once on leaving if `dword_75AB34` is 1.
 //! A reading from the title string of its menu, not yet a visit: "CAMPEONATO DE CLASSE".
-//! Callers: `sub_4A4AD5`. Ungated thunk; shadow mode runs the original alone; each real call
-//! writes a line to hook.log. Self-test: `screen_loop::check_screen`.
-//! Manual patch with a private copy (0x2B3 bytes; 9 calls and 1 jump to a fatal-error stub
-//! relocated): a call or a
-//! jump target sits in the first bytes.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Callers: `sub_4A4AD5`.
 
 use crate::framework::rva;
-use crate::menu::screen_loop::{List, Screen, Step};
+use crate::menu::screen_loop::{Callee, List, Screen, Step};
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
@@ -52,7 +44,7 @@ pub const SCREEN: Screen = Screen {
     after_lists: &[],
     background: &[
         Step::ArgAddr(rva(0x7328C2)),
-        Step::CallOrFatal(rva(0x47EFFF), 0x80712345),
+        Step::CallOrFatal(Callee::LoadBackground, 0x80712345),
     ],
     after_first_frame: &[],
     confirm: Some(&[]),

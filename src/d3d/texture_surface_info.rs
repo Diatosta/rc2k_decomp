@@ -8,8 +8,7 @@
 //! In:  esi the record
 //! Out: every register kept (`pusha` .. `popa`)
 //!
-//! Caller: `d3d::lock_texture`. Self-test: the original and the Rust version on a record
-//! of the test's, the surface and the clip compared.
+//! Caller: `d3d::lock_texture`.
 
 use crate::d3d::texture_lock::{DESCRIPTION_RVA, SURFACE_RVA, get, put};
 use crate::gfx::block::game_addr;

@@ -5,10 +5,9 @@
 //! 34 callers. Hook removed 2026-10-22 (direct calls): Rust callers run `sleep`
 //! (by address: `routes.rs`); the registers above are the original's, for reference.
 
-use windows_sys::Win32::System::Threading::Sleep;
-
 // ---- Rust version ----
 
+/// (Phase 6: `std::thread::sleep`, which is `Sleep` on Windows, 0 a yield as there.)
 pub fn sleep(milliseconds: u32) {
-    unsafe { Sleep(milliseconds) };
+    std::thread::sleep(std::time::Duration::from_millis(milliseconds.into()));
 }

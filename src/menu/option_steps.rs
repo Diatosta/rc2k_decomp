@@ -23,8 +23,7 @@
 
 use crate::audio::store::Slot;
 use crate::errors::Refused;
-use crate::framework::{EAX, EBX, rva};
-use crate::screens::harness::Left;
+use crate::framework::rva;
 use crate::sound::store::EffectsSlot;
 use crate::store::{game_addr, game_read, game_write};
 
@@ -84,27 +83,25 @@ const MODE_CHANGED_RVA: usize = rva(0x755648); // dword_755648
 const TEXTURE_RVA: usize = rva(0x755664); // dword_755664
 const TEXTURE_COPY_RVA: usize = rva(0x75AD14); // dword_75AD14
 
-/// `menu::next_screen_mode`: what it leaves.
-pub fn next_screen_mode() -> Left {
+/// `menu::next_screen_mode`: the next screen mode chosen, the changed flag flipped.
+pub fn next_screen_mode() {
     unsafe {
         // Converted: `rc2k_core::menu::steps::next_mode`.
-        let last = game_read::<u32>(MODES_RVA).wrapping_sub(1);
         let mode = rc2k_core::menu::steps::next_mode(game_read(MODE_RVA), game_read(MODES_RVA));
         game_write(MODE_RVA, mode);
         let changed = game_read::<u32>(MODE_CHANGED_RVA) ^ 1;
         game_write(MODE_CHANGED_RVA, changed);
-        Left::nothing().with(EAX, changed).with(EBX, last)
     }
 }
 
-/// `menu::previous_texture_setting` / `next_texture_setting`: what it leaves.
-pub fn step_texture_setting(up: bool) -> Left {
+/// `menu::previous_texture_setting` / `next_texture_setting`: the texture setting one
+/// step down or up.
+pub fn step_texture_setting(up: bool) {
     unsafe {
         // Converted: `rc2k_core::menu::steps::texture`.
         let v = rc2k_core::menu::steps::texture(game_read(TEXTURE_RVA), up);
         game_write(TEXTURE_RVA, v);
         game_write(TEXTURE_COPY_RVA, v);
-        Left::nothing().with(EAX, v)
     }
 }
 

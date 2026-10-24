@@ -142,5 +142,3 @@ pub unsafe fn set_eax_room(room: u32, properties: u32) -> Result<u32, Refused> {
     }
     Ok(at)
 }
-
-// ---- for the self-tests ----

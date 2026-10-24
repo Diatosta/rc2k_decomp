@@ -1,11 +1,9 @@
-//! `race::loadlevel_init` (0x44426F, IDA 2026-10-17): the stage's loading proper, step by
-//! step, each step's word logged ("LOADLEVEL_INIT : ...") with the log indented round it
-//! and the loading bar moved on (`dword_623700` the step's mark, then the callback in
-//! `dword_623704`, `sub_4467C7`, called with esi it). Every step is Rust but two, which
-//! are called through the game (`call_game`, at their hooks): init mark (`sub_456EA7`,
-//! the marks) and the loading bar's callback (`nullsub_8` after the loading: nothing). The
-//! pace notes are `race::init_pace_notes` since 2026-10-19. A step's refusal is the
-//! function's (2026-10-23: no longer handed to the step's address).
+//! `race::loadlevel_init` (0x44426F, IDA 2026-10-17): the stage's loading proper, step by step,
+//! each step's word logged ("LOADLEVEL_INIT : ...") with the log indented round it and the
+//! loading bar moved on (`dword_623700` the step's mark, then the callback in `dword_623704`,
+//! `sub_4467C7`, called with esi it). The pace notes are `race::init_pace_notes` since
+//! 2026-10-19. A step's refusal is the function's (2026-10-23: no longer handed to the step's
+//! address).
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_addr, game_read, game_write, rva};
@@ -43,7 +41,7 @@ const WORDS: [usize; 28] = [
     0x4DC1C0,
 ];
 
-/// Where the variables the self-test keeps apart are: the log's indent and switch,
+/// Where the variables kept apart are: the log's indent and switch,
 /// `g_inRace`, and the loading bar's callback.
 #[derive(Clone, Copy)]
 pub struct LoadVars {

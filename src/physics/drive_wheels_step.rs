@@ -15,11 +15,8 @@
 //! Out: eax and ebx as the instructions and calls leave them; the rest kept; no flags
 //!      read (the caller calls on)
 //!
-//! Caller: `sub_43B635`, every physics step.
-//! Refuses (before anything) a gear outside -1 ..= 7 (`revs_from_wheels` would; the gear
-//! is not written here).
-//! Self-test: the original and the Rust version on the game's variables (saved and put
-//! back): the work car's figures by lot, gears, the clutch, under three precisions.
+//! Caller: `sub_43B635`, every physics step. Refuses (before anything) a gear outside -1
+//! ..= 7 (`revs_from_wheels` would; the gear is not written here).
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

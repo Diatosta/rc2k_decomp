@@ -14,14 +14,6 @@
 //! brighter where it lies (first byte + 0x40, second and third + 0x20, each stopping at
 //! 0xFF) and its pixels are the second palette, which the fonts at 0x51E324, 0x51E344 and
 //! 0x51E364 get with the same table.
-//! Shadow mode runs the original alone (the memory is taken once) and checks the stores
-//! and the second palette; the table is compared in `gfx::build_glyphs`' hook. Self-test:
-//! a redirected copy whose ten calls note themselves and which writes the second
-//! palette's pixels where the test says.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::framework::rva;

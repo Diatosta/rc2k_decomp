@@ -4,15 +4,8 @@
 //! Out: as `scene::load_wanted_textures` leaves them
 //!
 //! Two lines in the game's log (a rule and "reload video plates - start");
-//! `scene::clear_slot_textures`; `scene::load_wanted_textures`; two lines more
-//! ("reload video plates - finis" and a rule).
-//! Two callers (the front end's 3D set-up and a race's).
-//! Shadow mode runs the original alone.
-//! Self-test: a redirected copy whose calls note themselves.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! `scene::clear_slot_textures`; `scene::load_wanted_textures`; two lines more ("reload video
+//! plates - finis" and a rule). Two callers (the front end's 3D set-up and a race's).
 
 use crate::errors::BadInput;
 use crate::framework::game_ptr;

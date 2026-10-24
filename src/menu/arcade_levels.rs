@@ -6,11 +6,8 @@
 //!
 //! In:  nothing
 //! Out: eax -1 for a closed level; else the registers as the event leaves them (not
-//!      `pusha`'d)
-//! Callees at the game's addresses but `take_player1_units` (its Rust version) and the
-//! event (its Rust version with its own parts). Ungated thunks (the event); shadow mode
-//! runs the original alone. Self-test: a copy whose three calls go to stand-ins, against
-//! the Rust version: the cheat on and off, the level open and not.
+//! `pusha`'d) Callees at the game's addresses but `take_player1_units` (its Rust version) and the
+//! event (its Rust version with its own parts).
 
 use crate::errors::Refused;
 use crate::framework::{game_read, game_write, rva};

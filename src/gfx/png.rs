@@ -1,6 +1,3 @@
-//! What the PNG reader's parts share: the block the decoder describes a picture in, and PNG
-//! files for their self-tests.
-
 use crate::framework::rva;
 
 /// `buf` (0x93E8B0): first the file's first 0x80 bytes, then what the decoder says about
@@ -20,5 +17,3 @@ pub struct PngInfo {
     /// Three bytes an entry.
     pub palette: [u8; 0x300],
 }
-
-// ---- for the self-tests ----

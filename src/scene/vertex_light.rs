@@ -14,29 +14,19 @@
 //! - 3: `dword_62DAD4` plus `dword_635068`, then blended (below);
 //! - anything else: eax as it came.
 //!
-//! "Plus" is byte by byte without overflow: with MMX (`g_hasMmx`) all four bytes
-//! (`paddusb`), without it the low three.
-//! The lit colour (`sub_45112D` and its twin `sub_451170`, with `sub_4511F1`): the
-//! normal's place in the view (the record 0x1000 + (number & 0xFFF) of
-//! `g_pointRecords`, its +0x10 .. +0x18) goes to `dword_62DAA8` ..; if the light's
-//! strength `dword_635090` is not 0, the light's direction `dword_6240A8` .. goes to
-//! `dword_62DAB4` .., the strength as a float to `flt_62DAC0`, and
-//! `scene::light_dot` gives a number; that plus `dword_63508C`, held to
-//! `dword_635084` .. `dword_635088`, picks a colour from the table `dword_635118`
-//! (0x100 entries), kept in `dword_62DAC4`.
-//! The blend (`sub_4511B3` for the normal, `sub_451296`): the same number without
-//! the table, held to -255 .. 255; each of the colour's three bytes moves that many
-//! 256ths of the way to `dword_6092C0`, `C4`, `C8` (red, green, blue by the byte's
-//! place) for a number of 0 or more, and by its size towards `dword_6092B4`, `B8`,
-//! `BC` for one below.
-//! One caller, `sub_450E37`.
-//! Refuses when there are no records and when the table's place is outside it.
-//! Shadow mode: the Rust version, its writes put back, the original; the variables,
-//! eax and ebp compared.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! "Plus" is byte by byte without overflow: with MMX (`g_hasMmx`) all four bytes (`paddusb`),
+//! without it the low three. The lit colour (`sub_45112D` and its twin `sub_451170`, with
+//! `sub_4511F1`): the normal's place in the view (the record 0x1000 + (number & 0xFFF) of
+//! `g_pointRecords`, its +0x10 .. +0x18) goes to `dword_62DAA8` ..; if the light's strength
+//! `dword_635090` is not 0, the light's direction `dword_6240A8` .. goes to `dword_62DAB4` ..,
+//! the strength as a float to `flt_62DAC0`, and `scene::light_dot` gives a number; that plus
+//! `dword_63508C`, held to `dword_635084` .. `dword_635088`, picks a colour from the table
+//! `dword_635118` (0x100 entries), kept in `dword_62DAC4`. The blend (`sub_4511B3` for the
+//! normal, `sub_451296`): the same number without the table, held to -255 .. 255; each of the
+//! colour's three bytes moves that many 256ths of the way to `dword_6092C0`, `C4`, `C8` (red,
+//! green, blue by the byte's place) for a number of 0 or more, and by its size towards
+//! `dword_6092B4`, `B8`, `BC` for one below. One caller, `sub_450E37`. Refuses when there are
+//! no records and when the table's place is outside it.
 
 use crate::errors::BadInput;
 use crate::framework::{game_read, game_write, rva};

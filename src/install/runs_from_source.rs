@@ -7,8 +7,6 @@
 //! directory can be had (`files::current_directory` into `byte_94E8B0`), the two are
 //! compared with `strings::same_text`. Everything else is "no" (zero and carry clear).
 //! Callers: the main loop `sub_415383` on every start, and `install::check_clio_disc`.
-//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
-//! `routes.rs`); the registers above are the original's, for reference.
 
 use crate::errors::BadInput;
 use crate::framework::{game_addr, game_read};

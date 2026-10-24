@@ -5,11 +5,8 @@
 //! In:  ebx the cue
 //! Out: eax the entry; the rest kept; no flags read
 //!
-//! Caller: `physics::queue_pace_note` (inside `pusha` / `popa`).
-//! Refuses (before anything) a current car past 7.
-//! Shadow mode runs the original alone (`physics/sound_cues.rs`).
-//! Self-test: a copy whose call goes to a stand-in, against the Rust version: cars 0 ..
-//! 7 listed and not.
+//! Caller: `physics::queue_pace_note` (inside `pusha` / `popa`). Refuses (before anything)
+//! a current car past 7.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

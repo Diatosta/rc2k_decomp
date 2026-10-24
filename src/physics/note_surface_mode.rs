@@ -5,7 +5,6 @@
 //! Out: every register kept; no flags read
 //!
 //! Caller: `physics::feel_ground` (0x43F1A8), first.
-//! Self-test: `physics/copy_hooks_test.rs` (a copy on test variables), modes 0 .. 5.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

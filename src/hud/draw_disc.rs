@@ -8,20 +8,12 @@
 //! In:  nothing
 //! Out: eax the last texture angle, ebx 0x10, ecx 0x10, edx 0x10; the rest kept
 //!
-//! Callers: `sub_4B6B0A`, `sub_4B6B5B`, `sub_4B6BAC`, `sub_4B6BFD`. The vertices are
-//! `disc_vertex`'s Rust version; the triangles through `part` (1), in the game
-//! `add_triangle`'s Rust version. Shadow mode runs the original alone (it draws).
-//! Self-test: a copy whose triangle call goes to a stand-in (the vertex calls to their
-//! hook), against the Rust version, angles by lot.
+//! Callers: `sub_4B6B0A`, `sub_4B6B5B`, `sub_4B6BAC`, `sub_4B6BFD`.
 //!
 //! Converted 2026-10-21: the ring's angles and the triangles' entries through
 //! `rc2k_core::hud::disc` (whole numbers; the sines are copied); the texture's turn stays
 //! the x87's (its rounding follows the control word), worked out once (the original works
 //! the same value out sixteen times into `dword_75C060`).
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::errors::Refused;
 use crate::framework::rva;

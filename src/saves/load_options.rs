@@ -2,22 +2,15 @@
 //!
 //! In:  nothing
 //! Out: carry = not loaded; every register preserved
-//! `g_optionsLoaded` (0x75557D) = 0. Up to 0x10000 bytes of the file into the scratch block
-//! at 0x93E8B0; it is taken if it starts "R5CI" and has 0x50004 at +8. From +0x10 on it is
-//! copied out piece by piece to the 69 places of `OPTIONS` (0xB656 bytes: the screen
-//! modes, the sound's and the network's settings, the four players, the record
-//! table, the players' names and much else). After the last piece the file must have
-//! "####", else fatal error 0x80ACFF01 "ral.dat out of date" (the pieces have been copied
-//! by then). Then `saves::rebuild_car_lists`, and `g_optionsLoaded` = 1.
-//! A file shorter than that is not noticed as such: what the scratch block held decides.
-//! One caller, `sub_411239`. `sub_4AAE57` writes the file, the same pieces the other way.
-//! Shadow mode reads twice and compares every place. Self-test: a redirected copy that
-//! reads files of the test's and copies the pieces into memory of the test's, so that
-//! the game's own options are not touched.
-//!
-//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! `g_optionsLoaded` (0x75557D) = 0. Up to 0x10000 bytes of the file into the scratch block at
+//! 0x93E8B0; it is taken if it starts "R5CI" and has 0x50004 at +8. From +0x10 on it is copied out
+//! piece by piece to the 69 places of `OPTIONS` (0xB656 bytes: the screen modes, the sound's and
+//! the network's settings, the four players, the record table, the players' names and much else).
+//! After the last piece the file must have "####", else fatal error 0x80ACFF01 "ral.dat out of
+//! date" (the pieces have been copied by then). Then `saves::rebuild_car_lists`, and
+//! `g_optionsLoaded` = 1. A file shorter than that is not noticed as such: what the scratch block
+//! held decides. One caller, `sub_411239`. `sub_4AAE57` writes the file, the same pieces the other
+//! way.
 
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::files::read_file::read_file;

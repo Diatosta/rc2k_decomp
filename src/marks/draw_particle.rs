@@ -10,15 +10,7 @@
 //! In:  st(0) .. st(2) the place (popped), ecx the colour, edx the size
 //! Out: nothing (no caller reads a register it leaves but esi, which it keeps)
 //!
-//! Callers: the ring's update (code at 0x4D03E7, 0x4D04BE, 0x4D05AC). Its call through
-//! `part` (1 `draw_fan`); in the game its Rust version (the device's through the game).
-//! Thunk by `three_in_hook!`. Shadow mode runs the original alone (it draws). Self-test: a
-//! copy whose call goes to a stand-in, against the Rust version on the same, places near
-//! and far, sizes and colours by lot.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Callers: the ring's update (code at 0x4D03E7, 0x4D04BE, 0x4D05AC).
 
 use crate::framework::rva;
 use crate::marks::store::{Slot, game_addr, game_read, game_write};

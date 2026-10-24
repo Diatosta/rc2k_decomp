@@ -11,10 +11,9 @@
 //!
 //! The stage is the record `find_record(g_recordTable, index, section)`.
 //!
-//! Screen: confirmed by the owner on 2026-10-10 with a `blank on` test: the stage details
-//! screen shown before each stage starts during a championship. The stage selection screen in
-//! the menu has the same layout but is drawn by another function.
-//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
+//! Screen: confirmed by the owner on 2026-10-10 with a `blank on` test: the stage details screen
+//! shown before each stage starts during a championship. The stage selection screen in the menu has
+//! the same layout but is drawn by another function. The menus and draw lists run its `entry`
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;

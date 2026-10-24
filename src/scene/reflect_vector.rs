@@ -11,14 +11,9 @@
 //! instructions; d stays in the x87's own width between its uses.
 //! One caller, `sub_45198C` (the reflection's texture coordinates).
 //!
-//! Converted 2026-10-21: the hook's Rust version is `reflect_vector_plain`, through
-//! `rc2k_core::scene::reflection::reflect` (plain floats; the x87 version stays for the
-//! Rust callers in unconverted code). Shadow mode and the self-test compare within
-//! `service::floats`' tolerances (the self-test at both test precisions, exact at double).
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Converted 2026-10-21: the Rust version is `reflect_vector_plain`, through
+//! `rc2k_core::scene::reflection::reflect` (plain floats; the x87 version stays for the Rust
+//! callers in unconverted code).
 
 use crate::framework::{game_ptr, game_read, game_write, rva};
 use crate::scene::draw_polygon::CHECKED_RVA;

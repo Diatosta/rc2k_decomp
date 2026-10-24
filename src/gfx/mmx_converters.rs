@@ -27,13 +27,7 @@
 //!
 //! Callers: `gfx::convert_picture` (one row of width x height pixels, ebp 0). Refuses (before
 //! anything) fewer than four pixels a row and no rows (the original's `dec` counts on through
-//! 2^32). Compared in shadow mode. Self-test: the original against the Rust version on
-//! pictures of the test's, all four formats; the 3DNow originals only where the processor has
-//! 3DNow (a modern AMD or Intel one does not: then those tests skip).
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! 2^32).
 
 use crate::errors::{BadInput, Refused};
 use crate::gfx::block::game_read;
@@ -93,7 +87,7 @@ pub fn convert_rows(
     Ok(())
 }
 
-/// The eight converters by their IDA address (hooks removed 2026-10-23: `gfx::convert_picture`
+/// The eight converters by their IDA address (`gfx::convert_picture`
 /// finds the one the game's table names here).
 pub const CONVERTERS: [(u32, Converter); 8] = [
     (

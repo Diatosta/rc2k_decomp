@@ -9,17 +9,10 @@
 //!      `rep movsd`'s ends); else every register kept
 //!
 //! Caller: `sub_43B635` (0x43B961), every physics step, right after `sub_4B0241`.
-//! Self-test: a copy of the original whose fourteen references are the test's, the two
-//! gates and counts 0 .. 0x20.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
-use crate::framework::{EAX, ECX, EDI, ESI, game_addr, rva};
+use crate::framework::{game_addr, rva};
 use crate::physics::cells::{get, put_changed};
 use crate::physics::queue_notice::Contacts;
-use crate::screens::harness::Left;
 use rc2k_core::physics::notices::Notice;
 
 /// The shown notice's variables: the game's, or a test's.
@@ -45,7 +38,7 @@ impl Shown {
 
 /// The Rust version on the variables at `s` and `q`.
 // Converted: `rc2k_core::physics::notices::Notice::take`.
-pub unsafe fn take_notice_at(s: &Shown, q: &Contacts) -> Left {
+pub unsafe fn take_notice_at(s: &Shown, q: &Contacts) {
     unsafe {
         let was = Notice {
             id: get(s.id),
@@ -56,22 +49,17 @@ pub unsafe fn take_notice_at(s: &Shown, q: &Contacts) -> Left {
         };
         let queue = q.load();
         let (mut notice, mut now) = (was, queue);
-        let Some(id) = notice.take(&mut now) else {
-            return Left::nothing();
-        };
+        if notice.take(&mut now).is_none() {
+            return;
+        }
         put_changed(s.id, was.id, notice.id);
         put_changed(s.time_a, was.w708, notice.w708);
         put_changed(s.time_b, was.time, notice.time);
         q.store(&queue, &now);
-        Left::nothing()
-            .with(EAX, id)
-            .with(ECX, 0)
-            .with(ESI, q.ebxs + 4 + 0x7C)
-            .with(EDI, q.ebxs + 0x7C)
     }
 }
 
 /// The Rust version.
-pub unsafe fn take_notice() -> Left {
+pub unsafe fn take_notice() {
     unsafe { take_notice_at(&Shown::game(), &Contacts::game()) }
 }

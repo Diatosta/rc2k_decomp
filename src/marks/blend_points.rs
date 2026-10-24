@@ -6,18 +6,9 @@
 //! In:  `a`, `b`, `c` the points, `entry` the entry
 //! Out: x, y, z (the original's st(2) .. st(0))
 //!
-//! Thunk by `out3_hook!`. Caller: `sub_4BA646`. Self-test: points of the test's and
-//! entries by lot (weights the game's file's, or put by the test when the file is empty),
-//! compared on the three values and the registers.
+//! Caller: `sub_4BA646`.
 //!
-//! Converted 2026-10-21: the hook's Rust version is `blend_points_plain`, through
-//! `rc2k_core::marks::particles::blend` (plain floats; the x87 version stays for the Rust
-//! callers in unconverted code). Shadow mode and the self-test compare within
-//! `service::floats`' tolerances (the self-test at both test precisions, exact at double).
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! the x87 version stays for the Rust callers in unconverted code).
 
 use crate::marks::splines::FILE_RVA;
 use crate::marks::store::game_read;

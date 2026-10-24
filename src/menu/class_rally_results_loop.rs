@@ -1,31 +1,20 @@
 //! `menu::class_rally_results_loop` (0x466858): the loop of the third results screen after a
 //! stage, the rally's standings so far for the player's class.
 //!
-//! Screen: the owner's screenshots of 2026-10-10 and 2026-10-11, from visits the Rust version
-//! ran (hook.log): title "QUADRO DE LIDERANÇA CLASSE" (after the rally's last stage or a
-//! retirement "LIDER DA CLASSIFICAÇÃO FINAL DE CLASSES"), the rally's name, rows with the
-//! total time and gap, or "abandonou" / "não terminou". Named `screen_466858_loop`, then
-//! `rally_results_loop`.
+//! Named `screen_466858_loop`, then `rally_results_loop`.
 //!
 //! In:  nothing
 //! Out: every register preserved
-//! The loop itself is `menu::screen_loop`; this file says what is this screen's own
-//! (`SCREEN`): before the loop it sets the string of the menu's first item to 0x138 if
-//! `dword_75AADC` is 1 and to 0x139 otherwise, as the stage results screen does;
-//! its background comes from `menu::load_background`, after which a set carry flag is fatal
-//! error 0x80712345; leaving is asked about, and a "no" sets the screen up again.
-//! One caller, `sub_4A3317`. Ungated thunk; shadow mode runs the original alone; each real call writes a
-//! line to hook.log. Self-test: `screen_loop::check_screen`.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! The loop itself is `menu::screen_loop`; this file says what is this screen's own (`SCREEN`):
+//! before the loop it sets the string of the menu's first item to 0x138 if `dword_75AADC` is 1 and
+//! to 0x139 otherwise, as the stage results screen does; its background comes from
+//! `menu::load_background`, after which a set carry flag is fatal error 0x80712345; leaving is
+//! asked about, and a "no" sets the screen up again. One caller, `sub_4A3317`.
 
 use crate::errors::Refused;
 use crate::framework::{game_read, game_write, rva};
-use crate::menu::class_stage_results_loop::LOAD_BACKGROUND;
 use crate::menu::run_draw_list::DRAW_LIST_RVA;
-use crate::menu::screen_loop::{Carried, FRAME_CALLBACK, List, Screen, Step};
+use crate::menu::screen_loop::{Callee, Carried, FRAME_CALLBACK, List, Screen, Step};
 
 // ---- game data ----
 
@@ -77,7 +66,7 @@ pub const SCREEN: Screen = Screen {
     after_lists: &[],
     background: &[
         Step::ArgAddr(BACKGROUND_RVA),
-        Step::CallOrFatal(LOAD_BACKGROUND, 0x8071_2345),
+        Step::CallOrFatal(Callee::LoadBackground, 0x8071_2345),
     ],
     after_first_frame: &[],
     confirm: Some(&[]),

@@ -6,9 +6,8 @@
 //! `fiadd` / `fisub` (exact), turned by `g_viewTurnMatrix`, each part x `flt_5C5DA0`
 //! (1/65536); then +0x10 1. All in `pusha` / `popa`.
 //!
-//! This file: the shared steps and the test of the four. The four hooks run the
-//! converted steps (`rc2k_core::physics::sound_places`); `place` is the exact x87 one,
-//! for `place_sound_e1`'s exact version (its Rust callers).
+//! This file: the shared steps and the test of the four. `place` is the exact x87 one, for
+//! `place_sound_e1`'s exact version (its Rust callers).
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::rva;

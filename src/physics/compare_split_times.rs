@@ -10,9 +10,8 @@
 //! Out: eax, ebx (split x 0x28), ecx, esi, edi as left; no flags read (the caller
 //!      returns)
 //!
-//! Caller: `physics::split_by_mode`.
-//! Refuses (before anything) a split past 27 (the kept tables' size not worked out).
-//! Self-test: `physics/splits.rs` (`test_splits`), mode 3.
+//! Caller: `physics::split_by_mode`. Refuses (before anything) a split past 27 (the kept
+//! tables' size not worked out).
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

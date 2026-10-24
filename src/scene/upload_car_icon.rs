@@ -24,17 +24,9 @@
 //!   height times 4: the original's, a square sheet makes it right) and the texture
 //!   unlocked (`sub_41AB02`). Those two are Direct3D and stay the game's.
 //!
-//! Two call sites in `scene::load_hud_car_icons`.
-//! Refuses a texture of 0x140 or more, a record without its format, and what the
-//! pixel functions refuse; a refusal after the pictures are read hands the original
-//! the call from the start.
-//! Shadow mode runs the original alone.
-//! Self-test: a redirected copy whose lock, blit and unlock note what they are given,
-//! on sheets of the test's in a texture record of the test's.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Two call sites in `scene::load_hud_car_icons`. Refuses a texture of 0x140 or more, a record
+//! without its format, and what the pixel functions refuse; a refusal after the pictures are
+//! read hands the original the call from the start.
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_addr, game_read, game_write, rva};

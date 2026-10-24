@@ -32,18 +32,9 @@
 //!    `dword_6240E0`, `dword_6240E4` is 0; mode 3 first lets `sub_44B94F` clear a
 //!    switch by the entries' bytes +0x21.
 //!
-//! The x87 and `rcpss` are used with the original's own instructions.
-//! Shadow mode: the Rust version with its drawing only worked out, everything it
-//! wrote put back, the original with its calls into the Direct3D layer noted; the
-//! variables and the two lists of calls compared.
-//! Manual patch with a private copy (its first instruction is a call): 0xEE0 bytes,
-//! 120 calls relocated.
-//! Refuses a polygon of no vertices (the original then goes through 2^32) or of more
-//! than 256, a list entry past the work table and an entry without its vertex.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! The x87 and `rcpss` are used with the original's own instructions. Refuses a polygon of no
+//! vertices (the original then goes through 2^32) or of more than 256, a list entry past the
+//! work table and an entry without its vertex.
 
 use crate::d3d::draw_fan_unclipped::{COUNT_RVA, VERTICES_RVA};
 use crate::d3d::{NO_TEXTURE, VERTEX_LEN};

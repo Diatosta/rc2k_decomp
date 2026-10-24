@@ -7,15 +7,9 @@
 //! In:  nothing
 //! Out: nothing its caller reads (conversion phase 3, 2026-10-24)
 //!
-//! See `race/mud.rs`. One caller, `race::update_mud_texture`, once per thrown unit.
-//! Refuses what `muddy_texel` refuses (a texture past 3, no mud) before anything, and its
-//! later refusals (the counts and the random state put back). Self-test: the original and
-//! the Rust version on the mud tests' set-up, counts at and below the end, sums that carry
-//! and not; the surface, the counts and the random state compared.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! See `race/mud.rs`. One caller, `race::update_mud_texture`, once per thrown unit. Refuses
+//! what `muddy_texel` refuses (a texture past 3, no mud) before anything, and its later
+//! refusals (the counts and the random state put back).
 
 use crate::errors::Refused;
 use crate::framework::{game_read, game_write, rva};

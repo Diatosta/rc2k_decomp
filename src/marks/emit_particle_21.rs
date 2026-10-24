@@ -8,18 +8,13 @@
 //! The rate (`dword_9356B0`): (1 - 1 / (the wheel's +0xC by `flt_93A312`, `flt_93A316`,
 //! plus `flt_93A31A`)) by `flt_93A31E`; then `marks/emitters.rs`' gate. The entry: its
 //! place the wheel's (+0x3C ..) plus a random side (-1 or 0 times the car matrix's first
-//! row, 0 or 1 times its third), less `flt_93A326` in y at +0x28; its motion per axis
-//! the matrix's first row by the wheel's +0x10, its third by +0x18 and by +0xC, each by
-//! a factor (`flt_93A32A` ..); a random spin and turn (+0x54, +0x50); +0x58 0x34; a life
-//! of 1000 (+0x78 `flt_7651A4` over it); +0x74 `dword_76519C`; the car (+0x68) and its
-//! +0x88, +0x90 plus the rate; +0x60 that sum by `flt_93A352` (after a first value by
-//! the marks' random, which still steps). Refuses (before anything) a null wheel, a null
-//! object, and a null car or matrix when an entry is made. Self-test: a ring, wheel and
-//! car of the test's (`marks::emit_particle_6::TestEmitter`), several speeds and fillings.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! row, 0 or 1 times its third), less `flt_93A326` in y at +0x28; its motion per axis the
+//! matrix's first row by the wheel's +0x10, its third by +0x18 and by +0xC, each by a
+//! factor (`flt_93A32A` ..); a random spin and turn (+0x54, +0x50); +0x58 0x34; a life of
+//! 1000 (+0x78 `flt_7651A4` over it); +0x74 `dword_76519C`; the car (+0x68) and its +0x88,
+//! +0x90 plus the rate; +0x60 that sum by `flt_93A352` (after a first value by the marks'
+//! random, which still steps). Refuses (before anything) a null wheel, a null object, and a
+//! null car or matrix when an entry is made.
 
 use crate::errors::{BadInput, Refused};
 use crate::marks::emitters::*;

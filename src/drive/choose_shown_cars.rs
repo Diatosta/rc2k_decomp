@@ -10,12 +10,9 @@
 //! Out: eax `dword_63DBA0` (with `dword_52A910` set) or the second view's block; the
 //!      rest kept; no flags read (callers go on with `mov`, `lea`, calls)
 //!
-//! Callers (5): race init's loop (`sub_4608BB`), `sub_460835`, `sub_460B2F`,
-//! `sub_43A649`, `sub_45429B`.
-//! Refuses (before anything) a replay car (`dword_63DBA0`) above 7 with `dword_52A910`
-//! set (it would write past `dword_641680`'s eight).
-//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
-//! `routes.rs`); the registers above are the original's, for reference.
+//! Callers (5): race init's loop (`sub_4608BB`), `sub_460835`, `sub_460B2F`, `sub_43A649`,
+//! `sub_45429B`. Refuses (before anything) a replay car (`dword_63DBA0`) above 7 with
+//! `dword_52A910` set (it would write past `dword_641680`'s eight).
 
 use crate::errors::Refused;
 use crate::framework::{game_addr, rva};

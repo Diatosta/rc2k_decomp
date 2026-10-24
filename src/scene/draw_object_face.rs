@@ -8,41 +8,28 @@
 //! Out: every register preserved on the usual way; on the other (below) the original
 //!      leaves them changed and the Rust version does not
 //!
-//! Nothing at all unless `dword_6365C4` is 0. Then, per vertex, an entry of the work
-//! table (`sub_450E37`): the point's number negated (an object's point), the point's
-//! place in the view copied to `dword_62DA8C` .., the coordinates, and the light:
-//! `scene::vertex_light`, or plain white with `dword_6365C8` at 4, with the face's
-//! kind `dword_6D18CC` at 5, or with a kind of 10 and up other than 0x1C while
-//! `dword_6D18D0` is not 0.
-//! With reflections (`dword_5CCE74` and `dword_6238AC` not 0, `dword_6365C8` not 4, the
-//! face's own amount not 0) each entry also gets (`sub_45188C`) a second pair of
-//! coordinates from `scene::cached_reflection_coordinates` and, in its byte +0x21,
-//! the face's amount times `dword_5CCE74` times the first entry's byte +0x20, over
-//! 0x1000, held to 255; `dword_621504` says whether any of them was not 0, and the
-//! second texture is 0x87. `dword_621504` is only cleared when this part runs: a
-//! face without it goes by what an earlier one left.
-//! Then the first pass's fade (`dword_63660C`, when `dword_606284` is set and the
-//! face's five bits are `dword_608CAC`), the two switches of
-//! `scene::draw_polygon` (the first texture always, the second with a reflection),
-//! mode 4; or, with `dword_639970` not 0x100, the first sixteen entries get that as
-//! their byte +0x21 and their first coordinates as their second, the switches the
-//! other way round, the second texture = the first, mode 3. Then
-//! `scene::draw_object_polygon`, mode 0, the fade off.
-//! The other way, with `dword_621480` set and `dword_6214DC` at 2 (`sub_450EE2` per
-//! vertex): the coordinates as the second pair, 0xFF in the byte +0x21, the light
-//! `dword_635054`; second texture = first, mode 4, and the drawing with the depth
-//! test off around it.
-//! One caller, `scene::draw_object_faces`; a second call, at 0x450B9B, is in code
-//! nothing refers to.
-//! Refuses a face of no vertices (the original goes through 2^32) or of more than 64,
-//! and when there are no records.
-//! Shadow mode runs the original alone.
-//! Self-test: a redirected copy whose drawing and depth test calls note what they
-//! find.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Nothing at all unless `dword_6365C4` is 0. Then, per vertex, an entry of the work table
+//! (`sub_450E37`): the point's number negated (an object's point), the point's place in the
+//! view copied to `dword_62DA8C` .., the coordinates, and the light: `scene::vertex_light`, or
+//! plain white with `dword_6365C8` at 4, with the face's kind `dword_6D18CC` at 5, or with a
+//! kind of 10 and up other than 0x1C while `dword_6D18D0` is not 0. With reflections
+//! (`dword_5CCE74` and `dword_6238AC` not 0, `dword_6365C8` not 4, the face's own amount not 0)
+//! each entry also gets (`sub_45188C`) a second pair of coordinates from
+//! `scene::cached_reflection_coordinates` and, in its byte +0x21, the face's amount times
+//! `dword_5CCE74` times the first entry's byte +0x20, over 0x1000, held to 255; `dword_621504`
+//! says whether any of them was not 0, and the second texture is 0x87. `dword_621504` is only
+//! cleared when this part runs: a face without it goes by what an earlier one left. Then the
+//! first pass's fade (`dword_63660C`, when `dword_606284` is set and the face's five bits are
+//! `dword_608CAC`), the two switches of `scene::draw_polygon` (the first texture always, the
+//! second with a reflection), mode 4; or, with `dword_639970` not 0x100, the first sixteen
+//! entries get that as their byte +0x21 and their first coordinates as their second, the
+//! switches the other way round, the second texture = the first, mode 3. Then
+//! `scene::draw_object_polygon`, mode 0, the fade off. The other way, with `dword_621480` set
+//! and `dword_6214DC` at 2 (`sub_450EE2` per vertex): the coordinates as the second pair, 0xFF
+//! in the byte +0x21, the light `dword_635054`; second texture = first, mode 4, and the drawing
+//! with the depth test off around it. One caller, `scene::draw_object_faces`; a second call, at
+//! 0x450B9B, is in code nothing refers to. Refuses a face of no vertices (the original goes
+//! through 2^32) or of more than 64, and when there are no records.
 
 use crate::d3d::draw_fan_unclipped::COUNT_RVA;
 use crate::errors::{BadInput, Refused};
@@ -222,7 +209,7 @@ pub unsafe fn draw_object_face_in_game(face: usize) -> Result<(), Refused> {
     unsafe {
         draw_object_face(face, &mut |step| match step {
             Step::Draw => draw_object_polygon(&mut |step| match step {
-                draw_object_polygon::Step::Project => project_polygon().map(|_| ()),
+                draw_object_polygon::Step::Project => project_polygon(),
                 draw_object_polygon::Step::Draw => draw_clipped_polygon_in_game(),
             }),
             Step::DepthTestOff => {

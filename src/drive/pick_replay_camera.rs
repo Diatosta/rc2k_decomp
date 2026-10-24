@@ -9,14 +9,8 @@
 //! Out: edx the mode; eax the last draw's product, ebx its record; the rest kept; no flags
 //!      read
 //!
-//! Caller: `drive::replay_cameras`.
-//! Refuses (before anything) a wish no mode stops (the original draws for ever).
-//! Self-test: the original and the Rust version on the game's records, the random state
-//! saved and put back, the wishes and car kinds.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `drive::replay_cameras`. Refuses (before anything) a wish no mode stops (the
+//! original draws for ever).
 
 use crate::errors::{BadInput, Refused};
 use crate::physics::flow::g;

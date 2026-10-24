@@ -6,16 +6,9 @@
 //!      instructions are `lea` and `mov`)
 //!
 //! Callers: `sub_43B635` (0x43B83B, 0x43B8B4, after `race::invert_car_matrix`).
-//! Self-test: a copy of the original (its switches the test's, its call to
-//! `car_angles`' test copy) on the four switch settings.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::framework::{game_read, rva};
 use crate::physics::car_angles::car_angles;
-use crate::screens::harness::Left;
 
 const FORCE_RVA: usize = rva(0x71A6C8); // dword_71A6C8
 const HOLD_RVA: usize = rva(0x71A22C); // dword_71A22C
@@ -24,11 +17,9 @@ use rc2k_core::physics::motion::angles_wanted as wanted;
 
 /// The Rust version.
 // Converted: `rc2k_core::physics::motion::angles_wanted`.
-pub unsafe fn update_car_angles() -> Left {
+pub unsafe fn update_car_angles() {
     let (force, hold) = unsafe { (game_read::<u32>(FORCE_RVA), game_read::<u32>(HOLD_RVA)) };
     if wanted(force, hold) {
         unsafe { car_angles() }
-    } else {
-        Left::nothing()
     }
 }

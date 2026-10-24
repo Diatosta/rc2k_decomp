@@ -8,16 +8,8 @@
 //! In:  esi = the device's record
 //! Out: every register kept (`pusha` .. `popa`)
 //!
-//! Caller: `input::input_tick` (each device, each tick). The effects' functions through
-//! `part` (eax .. edi as above; in the game the function's address through the game:
-//! DirectInput's, section 15). Refuses (before anything) a controller number past the
-//! table's 16. Self-test: a copy whose calls go to stand-ins can not be made (the calls
-//! are through the effects' pointers): the original and the Rust version on records of
-//! the test's whose effects' functions are a noting stand-in of the test's.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `input::input_tick` (each device, each tick). Refuses (before anything) a controller number past the
+//! table's 16.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

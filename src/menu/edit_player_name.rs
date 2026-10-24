@@ -4,27 +4,16 @@
 //! In:  nothing
 //! Out: every register preserved
 //!
-//! The name is the current player's (`Player::name`, `menu/player_name.rs`). One pending
-//! key is taken:
-//!   none          nothing;
-//!   1 (Escape)    the name kept at the start comes back, the entry ends;
-//!   0x1C (Enter)  an empty name is replaced by the one kept; the entry ends;
-//!   0x6E          the name is cleared (`menu::clear_text`);
-//!   0x0E          the last character goes;
-//!   any other     `key_to_char`; a character is appended unless the length is already above
-//!                 the maximum (`dword_755571`, signed), and taken off again if the name then
-//!                 measures 0xEC pixels or more in the font at 0x51E824 (measured from the x
-//!                 that is the length before the character, as ecx held it).
-//! No cursor is written: the page draws it (`screens::draw_name_cursor`). Called from the
-//! four `player*_details_loop`s while `dword_7556A8` is 1.
-//! Refuses, before the key is taken: no current player, a player without a name, a length
-//! outside 0 .. 0x1F, no keyboard layout.
-//! Compared in shadow mode (the key replayed). Self-test: the first player with a name,
-//! eight keys on five names.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! The name is the current player's (`Player::name`, `menu/player_name.rs`). One pending key is
+//! taken: none          nothing; 1 (Escape)    the name kept at the start comes back, the entry
+//! ends; 0x1C (Enter)  an empty name is replaced by the one kept; the entry ends; 0x6E          the
+//! name is cleared (`menu::clear_text`); 0x0E          the last character goes; any other
+//! `key_to_char`; a character is appended unless the length is already above the maximum
+//! (`dword_755571`, signed), and taken off again if the name then measures 0xEC pixels or more in
+//! the font at 0x51E824 (measured from the x that is the length before the character, as ecx held
+//! it). No cursor is written: the page draws it (`screens::draw_name_cursor`). Called from the four
+//! `player*_details_loop`s while `dword_7556A8` is 1. Refuses, before the key is taken: no current
+//! player, a player without a name, a length outside 0 .. 0x1F, no keyboard layout.
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_read, game_write};

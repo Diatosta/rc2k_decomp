@@ -7,15 +7,7 @@
 //! In:  ebp the HUD's record
 //! Out: eax 0x5C0, ebx the second's x, ecx its row, esi the rectangle
 //!
-//! Caller: layout 1's drawer (0x4B2BF4); `hud::draw_markers_2` is its twin (rows 0x11F,
-//! 0x12C). The sprites through `part` (1 with the two scales), in the game
-//! `add_scaled_sprite`'s Rust version. Shadow mode runs the original alone (it draws).
-//! Self-test: a copy whose calls go to a stand-in reading the scales, against the Rust
-//! version, shares by lot, at both test control words.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: layout 1's drawer (0x4B2BF4); `hud::draw_markers_2` is its twin (rows 0x11F, 0x12C).
 
 use crate::errors::Refused;
 use crate::hud::add_quad::QUAD_RVA;

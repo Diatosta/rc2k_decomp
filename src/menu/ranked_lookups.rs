@@ -15,23 +15,14 @@
 //!   at edi; its rally time (ebx 1) or its stage time.
 //!
 //! In:  edi = the entry to start from, eax = the position (the kind for `first_overall_time`),
-//!      ebx = the class (`find_ranked_entry`) or 1 for the rally's time
+//! ebx = the class (`find_ranked_entry`) or 1 for the rally's time
 //! Out: the two finds: edi = the entry, the rest kept, zero set and carry clear (the last
-//!      compare's); `first_overall_time`: eax = the time, the rest kept (edi pushed and
-//!      popped), the flags of `cmp ebx, 1`
+//! compare's); `first_overall_time`: eax = the time, the rest kept (edi pushed and
+//! popped), the flags of `cmp ebx, 1`
 //!
-//! Callers: the results pages (`screens::results_pages`). Every entry is compared before
-//! the end mark is looked at (the first one too, as the original). Refuses (before
-//! anything) a search that runs 0x400 entries without the end mark. Each loops back to its
-//! first byte or has a short jump in its first five: manual patches with private copies,
-//! their calls and jumps out relocated. Compared in shadow mode. Self-test: the original
-//! against the Rust version on a list of the test's: each position, each class, the first
-//! entry with no class and with one; the Rust version alone on a search that finds nothing
-//! (the fatal error).
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Callers: the results pages (`screens::results_pages`). Every entry is compared before the end
+//! mark is looked at (the first one too, as the original). Refuses (before anything) a search that
+//! runs 0x400 entries without the end mark.
 
 use crate::errors::{BadInput, FatalError, Refused};
 
@@ -114,5 +105,3 @@ pub fn first_overall_time(list: u32, kind: u32, rally: bool) -> Result<u32, Refu
     };
     Ok(get(e + if rally { 0x18 } else { 0x14 }))
 }
-
-// ---- self-tests ----

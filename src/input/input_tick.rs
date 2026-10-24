@@ -8,14 +8,7 @@
 //! Out: every register kept (`pusha` .. `popa`)
 //!
 //! Callers: the input thread (`sub_4078DA`, every 20 ms), `input::device_command`
-//! (twice). Its calls through `part`: 0 the command (eax), 1 the reading (esi), 2 the
-//! effects (esi); in the game their Rust versions. Shadow mode runs the original alone (it
-//! polls the devices). Self-test: a copy whose calls go to stand-ins, against the Rust
-//! version, a command or none, one device or two.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! (twice).
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

@@ -13,13 +13,7 @@
 //! Out: nothing (its caller reads no register after it)
 //!
 //! Caller: `sub_4BFFEC` (0x4C00FE). The x87 runs are the original's instructions over the
-//! game's variables; the draw through `part` (1 `draw_fan`), in the game its Rust version.
-//! Thunk by `two_in_hook!`. Shadow mode runs the original alone (it draws). Self-test: a
-//! copy whose draw goes to a stand-in, against the Rust version, items near and far.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! game's variables.
 
 use crate::framework::rva;
 use crate::marks::store::{Slot, game_addr, game_read, game_write};

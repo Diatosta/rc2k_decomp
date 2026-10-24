@@ -10,10 +10,7 @@
 //! Out: the registers as the steps leave them (eax, ebx `dword_635038`, ecx 0, edx, esi
 //!      past the matrix, edi, ebp); no flags read (the caller returns)
 //!
-//! Caller: `sub_45E755`.
-//! Refuses (before anything) an object past 0xFF.
-//! Self-test: the original and the Rust version on the game's variables (saved and put
-//! back): angles by lot, the x turn 0 and not, scales, under three precisions.
+//! Caller: `sub_45E755`. Refuses (before anything) an object past 0xFF.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

@@ -4,18 +4,9 @@
 //! In:  nothing (`g_marksSettings`)
 //! Out: nothing (no caller reads a register it leaves)
 //!
-//! Caller: `sub_4C1148`. Refuses null settings (the original reads through 0). Self-test:
-//! settings of the test's with several numbers, the original and the Rust version
-//! compared on the result and esi; put back afterwards.
+//! Caller: `sub_4C1148`. Refuses null settings (the original reads through 0).
 //!
-//! Converted 2026-10-21: the hook's Rust version is `scale_setting_plain`, through
-//! `rc2k_core::marks::scales::scaled_setting` (plain floats; the x87 version stays for the
-//! Rust callers in unconverted code). Shadow mode and the self-test compare within
-//! `service::floats`' tolerances (the self-test at both test precisions, exact at double).
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! the x87 version stays for the Rust callers in unconverted code).
 
 use crate::errors::{BadInput, Refused};
 use crate::marks::lines::SETTINGS_RVA;

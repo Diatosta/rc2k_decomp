@@ -8,7 +8,7 @@
 //! 38 callers, and `scene::set_render_state` (0x44EB72, 208 callers) is a call of it.
 //! Platform: the original always runs, here it is only noted (`d3d/recorder.rs`). In
 //! the standalone program the value is kept and nothing more, until a renderer is
-//! there. No self-test: there is nothing of ours to compare.
+//! there.
 
 use crate::framework::{game_write, rva};
 

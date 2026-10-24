@@ -3,17 +3,10 @@
 //! In:  edi = the player's player (`Player`)
 //! Out: every register preserved; carry of the last text
 //!
-//! The name (`Player::name`) measured with the font at 0x51E824 (its line count and widest
-//! line are left in it); not drawn, the carry is that of `cmp dword_7559A8, 1`; with the
-//! text cursor's blink (`dword_7559A8`) at 1, string 4
-//! ("_") at x = 0x1BB + the name's width, y = 0xD4, in the font at 0x51E8C4. Three
-//! callers (the player details screens).
-//! Refuses no player or no name.
-//! Self-test: the four players' names, both blinks, nothing drawn.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! The name (`Player::name`) measured with the font at 0x51E824 (its line count and widest line are
+//! left in it); not drawn, the carry is that of `cmp dword_7559A8, 1`; with the text cursor's blink
+//! (`dword_7559A8`) at 1, string 4 ("_") at x = 0x1BB + the name's width, y = 0xD4, in the font at
+//! 0x51E8C4. Three callers (the player details screens). Refuses no player or no name.
 
 use crate::framework::rva;
 

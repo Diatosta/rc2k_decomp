@@ -11,16 +11,9 @@
 //! Out: eax the count, ecx 0, esi past the vertices, edi the triangle's indices; ebx and
 //!      the rest as the flush leaves them
 //!
-//! Callers: `sub_4B5A86`, `hud::add_triangle`, `sub_4B7058`, `hud::add_quad`. The flush
-//! and the texture through `part` (1, 2), in the game their Rust versions. Refuses a count
+//! Callers: `sub_4B5A86`, `hud::add_triangle`, `sub_4B7058`, `hud::add_quad`. Refuses a count
 //! of 0 (the original's loop would run on) or past 0x10, and a batch it would write past,
-//! before anything. Shadow mode runs the original alone (it draws). Self-test: a copy
-//! whose two calls go to stand-ins, against the Rust version, batch counts and textures by
-//! lot, at both test control words (the scaled places within `FLOAT` at extended).
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! before anything.
 
 use crate::errors::Refused;
 use crate::hud::batch::*;

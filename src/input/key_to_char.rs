@@ -14,10 +14,6 @@
 //! with a shift key switches the layout: left shift picks 0x4F07F8, right shift 0x4F080C.
 //! Refuses: no layout; a dead key pending with no plain table (the original reads through
 //! null); lists without an end within 256 entries.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::errors::BadInput;
 use crate::input::store::DeviceSlot;

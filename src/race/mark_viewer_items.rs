@@ -10,12 +10,7 @@
 //! In:  edi the list (`unk_5C255C`)
 //! Out: every register kept (`pusha` / `popa`); no flags read
 //!
-//! Callers: `race::replay_viewer` (two). Shadow mode compares. Self-test: the viewer's own
-//! list (saved and put back), the replay's numbers set eleven ways, against the original.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Callers: `race::replay_viewer` (two).
 
 use crate::race::viewer::{
     BLOCK, BLOCKS, CAMERAS, CLIP_BLOCKS, LAST_RACE_VIEWED, MARK_IN, MARK_OUT, ONE_PLAYER,

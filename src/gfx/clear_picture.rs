@@ -5,10 +5,6 @@
 //! 0x75300 dwords (800 x 600) at the buffer `dword_4F49DC` points at, whatever size the
 //! picture in it has. Three callers, the picture loader `sub_411863` among them.
 //! Refuses a null buffer pointer. The name is a reading.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::errors::BadInput;
 use crate::gfx::picture::{PICTURE_DWORDS, picture};
@@ -25,5 +21,4 @@ pub unsafe fn clear_picture() -> Result<(), BadInput> {
 }
 
 // Written out: the buffer is nearly two megabytes, and what the function leaves is known
-// without running the Rust version beside it. In shadow mode the original runs and the
-// buffer is checked for what the Rust version writes, zeros.
+// without running the original. The Rust version writes zeros.

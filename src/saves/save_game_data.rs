@@ -3,9 +3,8 @@
 //! In:  nothing
 //! Out: every register preserved; the flags as `save_best_times` leaves them
 //! `saves::save_options`, then `saves::save_best_times`.
-//! Callers: the main loop after the front end is left, and `sub_48AD73`.
-//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
-//! `routes.rs`); the registers above are the original's, for reference.
+//! Callers: the main loop after the front end is left, and `sub_48AD73`. Rust callers run its
+//! `entry` (`routes.rs`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
 use crate::framework::{game_addr, rva};

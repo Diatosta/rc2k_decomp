@@ -10,18 +10,10 @@
 //! Out: ebx i on the curve's path; the rest kept; no flags read
 //!
 //! Callers: `physics::engine_torque_or_cut`, `sub_421848`, `sub_43CAAB`, `sub_43EA80`.
-//! Self-test: the original and the Rust version on the game's variables (saved and put
-//! back), against the converted version: engine speeds across the curve and past it,
-//! exact at double precision (`test_engine_floats`).
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
-use crate::framework::{EBX, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 use crate::math::x87;
 use crate::math::x87_run::{div_then_mul, lerp_table, trunc_mul_to_int};
-use crate::screens::harness::Left;
 use std::cmp::Ordering;
 
 pub fn g(x: usize) -> u32 {
@@ -41,15 +33,13 @@ pub fn below(a: u32, b: u32) -> bool {
 }
 
 /// The Rust version (the exact one, for `physics::engine_torque_or_cut`, `drive_force`,
-/// `free_rev*`, `test_drive_run`): ebx when the curve was read.
-pub unsafe fn engine_torque() -> Left {
-    let mut left = Left::nothing();
+/// `free_rev*`, `test_drive_run`).
+pub unsafe fn engine_torque() {
     let s = x87::div(g(0x71A1B0), g(0x71A1B4));
     p(0x62400C, s);
     if below(s, g(0x5C5D38)) && !below(s, g(0x5C5D90)) {
         let i = trunc_mul_to_int(s, g(0x5C5D50)) as u32;
         p(0x623FB8, i);
-        left = left.with(EBX, i);
         let k = 4 * i as usize;
         p(
             0x614748,
@@ -69,5 +59,4 @@ pub unsafe fn engine_torque() -> Left {
         div_then_mul(g(0x71A1B0), g(0x71A1B4), g(0x613F94)),
     );
     p(0x614748, x87::mul(g(0x614748), g(0x71A3CC)));
-    left
 }

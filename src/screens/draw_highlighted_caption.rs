@@ -3,23 +3,19 @@
 //!
 //! In:  ecx (the x the caption is measured with)
 //! Out: every register preserved; carry of the text drawn
-//! `dword_75AA74` says which menu (0 .. 6; anything else: nothing is drawn) and so
-//! which list of string numbers; the highlighted item picks the string, which is put
-//! at `byte_A8BE54`, where string 0x1004 is read from. The button is as wide as the
-//! caption measured with the font at 0x51E824 plus 12, centred on x = 0x197 at y =
-//! 0x1FE: sprite 0xF, pieces of 32 of sprite 0xB (the last one drawn over the one
-//! before, so that the width comes out), sprite 0x10; their palette is what the
-//! measuring leaves in ebx, the caption's number of lines. A width of 0 is fatal error
-//! 0x80701010. Then the caption at (0x195, 0x1FB) in the font blended between those at
-//! 0x51E964 and 0x51E844 by the time since the last key.
-//! Leaves the button's work variables (0x7559AC .. 0x7559C4), its two ends in
-//! 0x755A20 .. 0x755A2C, and `g_markerX` / `g_markerY`.
-//! In 12 lists (the main menu's among them: its menu is number 0).
-//! Refuses an item of 0 or above 32, a caption of 0x100 bytes or more, and a caption
-//! narrower than 20 (the original then draws 2^32 middle pieces).
-//! Screen: not confirmed; the name is a reading of the code.
-//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
-//! (`menu::table_calls`); the registers above are the original's, for reference.
+//! `dword_75AA74` says which menu (0 .. 6; anything else: nothing is drawn) and so which list of
+//! string numbers; the highlighted item picks the string, which is put at `byte_A8BE54`, where
+//! string 0x1004 is read from. The button is as wide as the caption measured with the font at
+//! 0x51E824 plus 12, centred on x = 0x197 at y = 0x1FE: sprite 0xF, pieces of 32 of sprite 0xB (the
+//! last one drawn over the one before, so that the width comes out), sprite 0x10; their palette is
+//! what the measuring leaves in ebx, the caption's number of lines. A width of 0 is fatal error
+//! 0x80701010. Then the caption at (0x195, 0x1FB) in the font blended between those at 0x51E964 and
+//! 0x51E844 by the time since the last key. Leaves the button's work variables (0x7559AC ..
+//! 0x7559C4), its two ends in 0x755A20 .. 0x755A2C, and `g_markerX` / `g_markerY`. In 12 lists (the
+//! main menu's among them: its menu is number 0). Refuses an item of 0 or above 32, a caption of
+//! 0x100 bytes or more, and a caption narrower than 20 (the original then draws 2^32 middle
+//! pieces). Screen: not confirmed; the name is a reading of the code. The menus and draw lists run
+//! its `entry` (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_addr, game_read, rva};

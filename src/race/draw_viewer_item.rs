@@ -11,15 +11,7 @@
 //! In:  esi the item (16 bytes), ecx its number
 //! Out: every register kept (`pusha` / `popa`); no flags read
 //!
-//! Caller: `race::viewer_frame` (each item). Its call through `part` (1 `tyre_quad`, eax
-//! the picture, ebx the place, ecx the colour; in the game its Rust version). Shadow mode
-//! runs the original alone (it draws). Self-test: a copy whose call goes to a stand-in,
-//! against the Rust version: items hidden, unusable, highlighted (edited or not, both
-//! turns), plain, and the three switch items with their bytes.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `race::viewer_frame` (each item).
 
 use crate::errors::Refused;
 use crate::physics::flow::{a, g, p};

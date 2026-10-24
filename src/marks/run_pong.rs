@@ -7,15 +7,7 @@
 //! In:  nothing
 //! Out: nothing (its caller reads no register after it)
 //!
-//! Caller: `sub_4BF60F` (0x4BF7CB). The moves are their Rust versions; the set-up, the
-//! boxes and the score through `part` (1, 2 with the four values, 3), in the game their
-//! Rust versions. Shadow mode runs the original alone (it draws). Self-test: a copy whose
-//! set-up, boxes and score go to stand-ins, against the Rust version, balls and bats by
-//! lot, the cheat on and off; put back.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `sub_4BF60F` (0x4BF7CB). The moves are their Rust versions.
 
 use crate::errors::Refused;
 use crate::marks::move_pong_ball::move_pong_ball;

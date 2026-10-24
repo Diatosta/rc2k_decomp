@@ -1,10 +1,9 @@
-//! The pong game over the race (a reading: cheat bit 0x8000 and `dword_641678`; run by
-//! `marks::run_pong`): its variables, the compares its hooks share, and a test stand-in
-//! for `marks::draw_pong_box`. The ball at `flt_768688` (x, y), its way `flt_768694`, its
-//! size `flt_7686A0`; the bat at `flt_7686B8`, its size `flt_7686D0`, its place before the
-//! move `dword_7686AC`; the hits `dword_7687D0`, the best `dword_7687CC`, the ball's steps
-//! a frame `g_pongSteps` (named before the game was seen), the score's place
-//! `dword_7687D4` / `dword_7687D8`, the digits' 4 x 5 patterns `unk_768704` (0x14 each).
+//! The pong game over the race (a reading: cheat bit 0x8000 and `dword_641678`. The ball at
+//! `flt_768688` (x, y), its way `flt_768694`, its size `flt_7686A0`; the bat at
+//! `flt_7686B8`, its size `flt_7686D0`, its place before the move `dword_7686AC`; the hits
+//! `dword_7687D0`, the best `dword_7687CC`, the ball's steps a frame `g_pongSteps` (named
+//! before the game was seen), the score's place `dword_7687D4` / `dword_7687D8`, the
+//! digits' 4 x 5 patterns `unk_768704` (0x14 each).
 
 use crate::framework::rva;
 use crate::marks::store::{Slot, game_read, game_write};

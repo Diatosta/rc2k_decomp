@@ -4,20 +4,14 @@
 //! In:  nothing (the file in `byte_A2BB54`, the slot in `dword_634FEC`)
 //! Out: every register preserved
 //!
-//! Goes through the file's faces (after its points; a face is 0x10 bytes and as many
-//! again for each vertex) and lists each face's texture (its word +4) once, in the
-//! order met, in `dword_631B6C`; their number to `dword_631B68`. For a slot under
-//! 0x40 the number and the list also go to the slot's record of 0x40 bytes at
-//! `unk_5DCEBC`; more than fifteen textures run on into the next slots' records, as
-//! in the original, while that stays inside the 0x40 records.
-//! One caller, `scene::load_object`, for slots up to 0x40.
-//! Refuses a file of no faces (the original goes through 2^32), faces that run past
-//! the file's room, more than 0x100 textures, and a list that would leave the records.
-//! Self-test: 30 files by lot in the game's buffer, put back afterwards.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Goes through the file's faces (after its points; a face is 0x10 bytes and as many again for
+//! each vertex) and lists each face's texture (its word +4) once, in the order met, in
+//! `dword_631B6C`; their number to `dword_631B68`. For a slot under 0x40 the number and the
+//! list also go to the slot's record of 0x40 bytes at `unk_5DCEBC`; more than fifteen textures
+//! run on into the next slots' records, as in the original, while that stays inside the 0x40
+//! records. One caller, `scene::load_object`, for slots up to 0x40. Refuses a file of no faces
+//! (the original goes through 2^32), faces that run past the file's room, more than 0x100
+//! textures, and a list that would leave the records.
 
 use crate::errors::BadInput;
 use crate::framework::{game_addr, game_read, game_write, rva};

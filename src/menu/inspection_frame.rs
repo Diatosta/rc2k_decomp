@@ -11,10 +11,6 @@
 //! Out: carry = the frame could not be made; every register kept (`pusha` .. `popa`)
 //! The draw and overlay lists' functions get the registers as the one before left them.
 //! The surface and the showing are the platform's, as in `frame_callback`.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::errors::Refused;
 use crate::framework::{game_write, rva};

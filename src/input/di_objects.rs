@@ -1,9 +1,3 @@
-//! DirectInput's objects made in Rust (`IDirectInputA`, `IDirectInputDevice2A`,
-//! `IDirectInputEffect`), as far as the game uses them, on a `Backend` that says what the
-//! devices are and what they read, and plays their effects: the standalone program's
-//! (SDL's joysticks and haptics, `platform_input.rs`) or the self-tests' (a scripted device,
-//! `TestBackend`).
-//!
 //! What they do, as DirectInput 5 does:
 //! - `EnumDevices` lists the backend's devices (attached joysticks) to the callback, each a
 //!   `DIDEVICEINSTANCEA` (instance and product GUIDs, type 0x104 a joystick, the name), until
@@ -212,7 +206,7 @@ const E_NOINTERFACE: i32 = 0x8000_4002u32 as i32;
 
 /// An object as the game sees it: a pointer to its method table (then nothing the game
 /// reads). The objects are places in a fixed pool, the lowest free one taken, so that two
-/// runs that make the same objects get the same addresses (the self-tests' two sides).
+/// runs that make the same objects get the same addresses.
 #[repr(C)]
 struct Object {
     table: *const usize,
@@ -1007,5 +1001,3 @@ fn effect_table() -> *const usize {
         })
         .as_ptr()
 }
-
-// ---- a backend for the self-tests ----

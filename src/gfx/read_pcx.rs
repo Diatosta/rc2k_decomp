@@ -6,12 +6,7 @@
 //! into it with `files::read_file`; then by the header's number of planes: 1 goes to
 //! `read_pcx_8bit`, 3 to `read_pcx_24bit` (each opens the file again), anything else is a
 //! failure. Three callers, all in the picture loader `sub_4119F4`.
-//! Shadow mode runs the original alone: the two readers it calls are compared in their own
-//! hooks. Refuses what `read_file` and the readers refuse. The name is a reading.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Refuses what `read_file` and the readers refuse. The name is a reading.
 
 use crate::errors::BadInput;
 use crate::files::read_file::read_file;

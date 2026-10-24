@@ -1,39 +1,25 @@
 //! `menu::championship_standings_loop` (0x4670DF): the loop of the championship table, the
 //! points of every driver in each of the six rallies and in total.
 //!
-//! Screen: the owner's screenshots of 2026-10-11, from a visit the Rust version ran (hook.log):
-//! title "CAMPEONATO GERAL", columns under the six rallies' logos and "total", rows 81 to
-//! 90, buttons "81-90" and "continuar"; reached from the menu that follows the results
-//! screens. In those screenshots the 3D objects of that menu (green arrows, a floppy disk)
-//! are drawn over the table. That was a fault of the Rust version, not of the game: the
-//! owner's screenshot of the same screen with the original running (shadow on, 2026-10-11)
-//! has no such objects. This loop puts its own empty 3D list in `g_sceneList` only before
-//! the first frame after set-up (and in the unread `dword_7554F4` at the other two places);
-//! the first Rust version left that out, so the list of the menu before stayed. Fixed with
-//! `Screen::first_frame_lists`; the owner's screenshot of the fixed build (Rust version
-//! running, 2026-10-11) shows the table without them. Named `screen_4670df_loop` until then.
+//! In those screenshots the 3D objects of that menu (green arrows, a floppy disk) are drawn over
+//! the table. This loop puts its own empty 3D list in `g_sceneList` only before the first frame
+//! after set-up (and in the unread `dword_7554F4` at the other two places); the first Rust version
+//! left that out, so the list of the menu before stayed. Fixed with `Screen::first_frame_lists`;
+//! the owner's screenshot of the fixed build (Rust version running, 2026-10-11) shows the table
+//! without them. Named `screen_4670df_loop` until then.
 //!
 //! In:  nothing
 //! Out: every register preserved
-//! The loop itself is `menu::screen_loop`; this file says what is this screen's own
-//! (`SCREEN`): nothing happens before the loop (its set-up starts at the function's second byte);
-//! its background comes from `menu::load_background`, after which a set carry flag is fatal
-//! error 0x80712345; leaving is asked about, and a "no" sets the screen up again.
-//! If `dword_75AB34` is 1 when the screen is left, nothing more is done: no question,
-//! and the highlight is not saved.
-//! One caller, `sub_4A5A47`. Manual patch with a private copy (0x2B3 bytes; nine calls and
-//! the `jb` out to the fatal-error stub relocated), because the set-up label is inside the
-//! bytes a patch overwrites. Ungated thunk; shadow mode runs the original alone; each real
-//! call writes a line to hook.log. Self-test: `screen_loop::check_screen`.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! The loop itself is `menu::screen_loop`; this file says what is this screen's own (`SCREEN`):
+//! nothing happens before the loop (its set-up starts at the function's second byte); its
+//! background comes from `menu::load_background`, after which a set carry flag is fatal error
+//! 0x80712345; leaving is asked about, and a "no" sets the screen up again. If `dword_75AB34` is 1
+//! when the screen is left, nothing more is done: no question, and the highlight is not saved. One
+//! caller, `sub_4A5A47`.
 
 use crate::framework::rva;
-use crate::menu::class_stage_results_loop::LOAD_BACKGROUND;
 use crate::menu::run_draw_list::DRAW_LIST_RVA;
-use crate::menu::screen_loop::{FRAME_CALLBACK, List, Screen, Step};
+use crate::menu::screen_loop::{Callee, FRAME_CALLBACK, List, Screen, Step};
 
 // ---- game data ----
 
@@ -87,7 +73,7 @@ pub const SCREEN: Screen = Screen {
     after_lists: &[],
     background: &[
         Step::ArgAddr(BACKGROUND_RVA),
-        Step::CallOrFatal(LOAD_BACKGROUND, 0x8071_2345),
+        Step::CallOrFatal(Callee::LoadBackground, 0x8071_2345),
     ],
     after_first_frame: &[],
     confirm: Some(&[]),

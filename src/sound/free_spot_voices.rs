@@ -8,9 +8,6 @@
 //! (+0x28 is left as it is). See `sound/spot_voices.rs`. One caller,
 //! `sound::spot_sounds`.
 //! Refuses (before anything) a null request.
-//! Shadow mode runs the original alone (it stops sounds).
-//! Self-test: a copy whose call goes to a stand-in, against the Rust version, on the
-//! game's voices (put back).
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

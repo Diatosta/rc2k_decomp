@@ -2,14 +2,13 @@
 //!
 //! In:  nothing
 //! Out: the registers as `menu::leave_question_loop` leaves them; the flags of
-//!      `cmp g_yesNoAnswer, 1`
+//! `cmp g_yesNoAnswer, 1`
 //!
-//! `g_yesNoAnswer` (0x75524C) = 0; `menu::leave_question_loop` (the "leave?" screen);
-//! if that left `dword_758806` at 1: `dword_75555D`, `dword_755561`, `dword_758806` and
-//! the answer 0; then with the answer at 1, `dword_75555D` and `dword_755561` = 1.
-//! 37 callers (the screen loops that ask before leaving).
-//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
-//! `routes.rs`); the registers above are the original's, for reference.
+//! `g_yesNoAnswer` (0x75524C) = 0; `menu::leave_question_loop` (the "leave?" screen); if that left
+//! `dword_758806` at 1: `dword_75555D`, `dword_755561`, `dword_758806` and the answer 0; then with
+//! the answer at 1, `dword_75555D` and `dword_755561` = 1. 37 callers (the screen loops that ask
+//! before leaving). Rust callers run its `entry` (`routes.rs`); the registers above are the
+//! original's, for reference.
 
 use crate::menu::leaving::with_question;
 

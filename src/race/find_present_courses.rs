@@ -9,14 +9,8 @@
 //! Out: nothing its callers read (conversion phase 3, 2026-10-24: `scene::set_up_lit_engine`
 //!      works on a copy of its registers; the code at 0x442BF3 is not reached in Rust)
 //!
-//! Callers: `scene::set_up_lit_engine`, and code at 0x442BF3 (not a function in IDA).
-//! Refuses what `files::read_whole_file` refuses (nothing written then).
-//! Shadow mode: by state (the files read twice). Self-test: the original and the Rust
-//! version on the game's paths and flags (put back), with the files as they are.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Callers: `scene::set_up_lit_engine`, and code at 0x442BF3 (not a function in IDA). Refuses
+//! what `files::read_whole_file` refuses (nothing written then).
 
 use crate::errors::Refused;
 use crate::files::read_whole_file::read_whole_file;
@@ -44,7 +38,7 @@ pub fn find_present_courses() -> Result<(), Refused> {
                 BYTES_READ.store(0, std::sync::atomic::Ordering::Relaxed);
                 let buffer = game_addr(BUFFER_RVA) as u32;
                 let path = game_addr(PATHS_RVA[file as usize]) as *const u8;
-                read_whole_file(path, buffer as *mut u8, PROBE_BYTES, buffer)?;
+                read_whole_file(path, buffer as *mut u8, PROBE_BYTES)?;
                 Ok::<u32, Refused>(BYTES_READ.load(std::sync::atomic::Ordering::Relaxed))
             })?;
             if present {

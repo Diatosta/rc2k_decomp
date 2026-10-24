@@ -17,19 +17,13 @@
 //! (256), rounded (`fistp`), is a coordinate.
 //! Callers: `scene::cached_reflection_coordinates`, by a call and by a jump.
 //! Refuses when there are no records and what `math::normalise_vector` refuses.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::errors::BadInput;
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 use crate::math::normalise_vector::{VECTOR_RVA, normalise_vector};
 use crate::math::x87;
 use crate::scene::project_point::RECORDS_RVA;
-use crate::scene::reflect_vector::{
-    MATRIX_RVA, NORMAL_RVA, VECTOR_RVA as MIRRORED_RVA, reflect_vector,
-};
+use crate::scene::reflect_vector::{NORMAL_RVA, VECTOR_RVA as MIRRORED_RVA, reflect_vector};
 
 // ---- game data ----
 
@@ -82,15 +76,7 @@ fn negated(a: u32) -> u32 {
     out
 }
 
-/// What the function leaves in registers.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct Leftovers {
-    pub eax: u32,
-    pub edx: u32,
-    pub esi: u32,
-}
-
-pub unsafe fn reflection_coordinates() -> Result<Leftovers, BadInput> {
+pub unsafe fn reflection_coordinates() -> Result<(), BadInput> {
     unsafe {
         let records: u32 = game_read(RECORDS_RVA);
         if records == 0 {
@@ -115,8 +101,7 @@ pub unsafe fn reflection_coordinates() -> Result<Leftovers, BadInput> {
                 x87::loaded(mirrored[2]),
             ],
         );
-        // Without the x87 way's sum eax is what was last loaded: the third part.
-        let eax = normalise_vector()?.unwrap_or(to_eye[2]);
+        normalise_vector()?;
         let looks: [u32; 3] = game_read(VECTOR_RVA);
         let half: u32 = game_read(HALF_RVA);
         let scales = [game_read(SCALE_A_RVA), game_read(SCALE_B_RVA)];
@@ -127,10 +112,6 @@ pub unsafe fn reflection_coordinates() -> Result<Leftovers, BadInput> {
                 coordinate(looks[2], half, scales),
             ],
         );
-        Ok(Leftovers {
-            eax,
-            edx: point,
-            esi: game_addr(MATRIX_RVA) as u32,
-        })
+        Ok(())
     }
 }

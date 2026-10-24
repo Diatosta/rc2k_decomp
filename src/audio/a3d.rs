@@ -1,7 +1,7 @@
 //! Aureal's A3D (IDA, 2026-10-15): the two attempts to use it, its close, and the two
 //! functions that keep A3D's splash settings in the registry. A3D has not existed for a
 //! long time: the Rust versions make the same attempt (`CoCreateInstance`), go the
-//! original's way when it fails, and refuse when it works (the original then does it).
+//! original's way when it fails, and refuse when it works.
 
 use crate::audio::store::Slot;
 use crate::audio::voices::{read, write};
@@ -133,5 +133,3 @@ pub unsafe fn splash(kept: u32) -> Result<(), Refused> {
     }
     Ok(())
 }
-
-// ---- for the self-tests ----

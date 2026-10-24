@@ -7,16 +7,8 @@
 //! In:  ebp the HUD's record
 //! Out: ebx the parts drawn (kept with none), ecx 0; the rest kept
 //!
-//! Caller: layout 1's drawer (0x4B27F4). The quads through `part` (1 `add_solid_quad`),
-//! in the game its Rust version. Refuses more than 0x40 parts and a colour offset past
-//! `dword_75BF70`'s four, before anything. Shadow mode runs the original alone (it
-//! draws). Self-test: a copy whose quads go to a stand-in noting the quad record at each,
-//! against the Rust version, parts by lot, at
-//! both test control words (the test's values are exact at both).
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: layout 1's drawer (0x4B27F4). Refuses more than 0x40 parts and a colour offset past
+//! `dword_75BF70`'s four, before anything.
 
 use crate::errors::Refused;
 use crate::framework::rva;

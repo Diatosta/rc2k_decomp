@@ -7,17 +7,9 @@
 //!
 //! In:  nothing
 //! Out: every register kept (`pusha` .. `popa`)
-//! Called by `menu::player4_details_loop` once the name's editing ends. The sound and
-//! `apply_cheats` go through `part` (in the game the Rust versions; `apply_cheats` logs);
-//! shadow mode runs the original alone. Refuses (before anything) a missing fourth player
-//! or name, a list without its end in 64 entries, a bit past 31 (the original's `bts`
-//! would reach past `g_cheats`), and what the coding refuses. Self-test: a copy whose two
-//! calls go to stand-ins, against the Rust version: names of the list (coded back),
-//! another, case changed.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Called by `menu::player4_details_loop` once the name's editing ends. Refuses (before anything) a
+//! missing fourth player or name, a list without its end in 64 entries, a bit past 31 (the
+//! original's `bts` would reach past `g_cheats`), and what the coding refuses.
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_addr, game_read, game_write, rva};

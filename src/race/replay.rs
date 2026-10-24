@@ -331,5 +331,3 @@ pub unsafe fn open_replay() -> Result<(), Refused> {
     }
     Ok(())
 }
-
-// ---- for the self-tests ----

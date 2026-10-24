@@ -20,21 +20,12 @@
 //! Out: ebx 4, eax minus wheel 3's height; the rest kept; no flags read (the next is a
 //!      call)
 //!
-//! Caller: `sub_43B635` (0x43B813), every physics step. Its loop goes back to +5, just
-//! past the patched bytes (`mov ebx, 0` is five): no private copy needed.
-//! Self-test: the original and the Rust version on the game's variables (saved and put
-//! back), against the converted version: heights by lot across the spring's range, last
-//! squeezes, the factors, exact at double precision.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `sub_43B635` (0x43B813), every physics step.
 
-use crate::framework::{EAX, EBX, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 use crate::math::x87;
 use crate::math::x87_run::{ext_div2, int_80, neg_mul2, neg_rounded, sub_mul, wheel_int};
 use crate::scene::matrix3::extended;
-use crate::screens::harness::Left;
 use std::cmp::Ordering;
 
 fn g(x: usize) -> u32 {
@@ -62,14 +53,13 @@ fn below(x: u32, b: u32) -> bool {
 }
 
 /// The Rust version (the exact one, for `physics::car_physics_step`).
-pub unsafe fn wheel_springs() -> Left {
-    let mut eax = 0;
+pub unsafe fn wheel_springs() {
     for k in 0..4 {
         let q = SQUEEZE + 4 * k;
         let old = x87::loaded(g(q));
         p(0x623FB8, old);
         p(LAST + 4 * k, old);
-        eax = g(HEIGHTS + 4 * k).wrapping_neg();
+        let eax = g(HEIGHTS + 4 * k).wrapping_neg();
         p(0x62400C, eax);
         p(
             q,
@@ -131,7 +121,6 @@ pub unsafe fn wheel_springs() -> Left {
     for t in [0x614960, 0x614980, 0x6149A0, 0x6149C0] {
         p(t, n);
     }
-    Left::nothing().with(EAX, eax).with(EBX, 4)
 }
 
 /// The records' places copied on into the records at 0x6148DC .. and 0x61495C ...

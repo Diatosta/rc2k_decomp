@@ -10,10 +10,6 @@
 //! Screen: it is part of the panel `draw_stage_info` draws, which the owner confirmed on
 //! 2026-10-10 as the stage details screen shown before each stage of a championship. Its other
 //! caller, `sub_480064`, has not been seen in the game.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::errors::{FatalError, Refused};
 use crate::records::trakpak_entry::record_entry;
@@ -65,6 +61,3 @@ pub unsafe fn draw_stage_heading(
 }
 
 //
-// Uses the game's own font, strings and loaded track pack, so it only runs when those are
-// there. The blitter's hook swallows the calls; the line buffer and the kerning table are
-// restored.

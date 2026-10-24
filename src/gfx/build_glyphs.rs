@@ -28,13 +28,6 @@
 //! records (`unk_5195AC`), the five work variables of the row scan (`dword_5195B8` ..
 //! `dword_5195C8`), and the up to three bytes after a first table that the original's copy
 //! by dwords drags along.
-//! Shadow mode builds twice (Rust, everything put back, the original) and compares the
-//! whole table and the variables. Self-test: with the game running (the original logs),
-//! a font sheet and the menus' sprite sheets built by both into memory of the test's.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::files::file_exists::file_exists;

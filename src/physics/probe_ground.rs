@@ -27,13 +27,8 @@
 //!      (see `probe_ground_at`); edi, ebp kept. No caller reads the flags.
 //!
 //! Callers (6): `sub_43BDD1`, `sub_43F1A8`, `race::settle_car` (twice), `sub_456056`,
-//! `sub_45DC12`.
-//! Refuses (before anything: what it wrote is put back) a count above 0x40 (the lists'
-//! room), and what `find_ground` refuses on any point.
-//! Self-test: a copy of the original (its call to a copy of `find_ground`, its
-//! `rotate_point` the game's hook) on the test's ground and work copy: counts 0, 1, 4,
-//! 6, places and turns by lot over the test's grid, the switch bits, under three
-//! precisions; the points found counted; the refusal.
+//! `sub_45DC12`. Refuses (before anything: what it wrote is put back) a count above 0x40
+//! (the lists' room), and what `find_ground` refuses on any point.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

@@ -9,8 +9,6 @@
 //! is new (+0x20 1) +0x48 eased from 1.0 toward (+0x44 + 337.52) x 0.00296; +0x4C 1.0,
 //! or 1 / the distance when that is over 1 (compared as integers); +0x20 cleared. See
 //! `sound/spot_voices.rs`. One caller, `sound::spot_sounds`.
-//! Shadow mode: both, the voices compared.
-//! Self-test: the original against the Rust version on the game's voices (put back).
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

@@ -13,15 +13,10 @@
 //! strength (the y plus `flt_93A246`), moved by `marks::jitter_point` (spread
 //! `flt_93A24E`), plus the third row by `flt_93A252` .. and the wheel's +0x18; +0x54
 //! `flt_93A25E` times the sign; +0x58 the wheel's flags' low 6 bits; +0x60 the integer
-//! ((`jitter_point`'s ebx >> 2) & 0xFFF) + 0x7800 (section 16); +0x74 0xFF000000; a life
-//! of 5000; +0x68 the car. Refuses (before anything) a null wheel, object, car or matrix
-//! where read. The body is shared with kind 0xB's (`JitterSet`, `emit_particle_5_with`,
-//! `test_with`). Self-test: a ring, wheel and car of the test's
-//! (`marks::emit_particle_6::TestEmitter`), several strengths, signs and fillings.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! ((`jitter_point`'s ebx >> 2) & 0xFFF) + 0x7800 (section 16); +0x74 0xFF000000; a life of
+//! 5000; +0x68 the car. Refuses (before anything) a null wheel, object, car or matrix where
+//! read. The body is shared with kind 0xB's (`JitterSet`, `emit_particle_5_with`,
+//! `test_with`).
 
 use crate::errors::{BadInput, Refused};
 use crate::marks::emitters::*;

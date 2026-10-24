@@ -6,13 +6,7 @@
 //! In:  eax = the string, ecx = x, esi = the item, ebp = y
 //! Out: ebx = the font, edx = the y, ebp lower; eax .. edx as the drawing leaves them; no
 //!      `pusha`
-//! Caller: `net::settings_frame` (its last item). Its call through `part`. Shadow mode runs
-//! the original alone (it draws). Self-test: a copy whose call goes to a stand-in, against
-//! the Rust version: highlighted or not, edited, blinking.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `net::settings_frame` (its last item).
 
 use crate::errors::Refused;
 use crate::net::draw_button::item_font;

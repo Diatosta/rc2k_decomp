@@ -11,36 +11,22 @@
 //! Out: eax +0xFA0, ecx 4; after a shift esi 0x71AF70, edi 0x71AF6C; the rest kept; no
 //!      flags read (the callers return)
 //!
-//! It jumps back to its own start: hooked by a private copy.
-//! Callers: `physics::pace_notes_step`, and itself.
-//! Refuses (before anything) a count above 7.
-//! Self-test: a copy of the original (the clock and the queue the test's) against the
-//! core: counts 0 .. 7 with times behind and not, +0xFA0 about +0xF9C.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Callers: `physics::pace_notes_step`, and itself. Refuses (before anything) a count above
+//! 7.
 
 use crate::errors::Refused;
-use crate::framework::{EAX, ECX, EDI, ESI};
+
 use crate::physics::cells::get;
 use crate::physics::queue_car_event::QueuePlaces;
-use crate::screens::harness::Left;
 
-/// The Rust version on the variables at `p` (esi and edi after a shift: the events'
-/// eighth slot and the one after).
+/// The Rust version on the variables at `p`.
 // Converted: `rc2k_core::physics::car_events::CarEvents::expire`.
-pub unsafe fn expire_car_events_at(p: &QueuePlaces) -> Result<Left, Refused> {
+pub unsafe fn expire_car_events_at(p: &QueuePlaces) -> Result<(), Refused> {
     unsafe {
         let was = p.load();
         let mut q = was;
-        let e = q.expire(get(p.clock))?;
+        q.expire(get(p.clock))?;
         p.store(&was, &q);
-        let left = Left::nothing().with(EAX, e.shown).with(ECX, 4);
-        Ok(if e.shifted {
-            left.with(ESI, p.events + 0x20).with(EDI, p.events + 0x1C)
-        } else {
-            left
-        })
+        Ok(())
     }
 }

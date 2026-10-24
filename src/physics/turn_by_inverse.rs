@@ -7,7 +7,6 @@
 //!
 //! See `physics/turn_by_car_matrix.rs` (the core and the test). Callers (13): the cars'
 //! physics under `sub_4454D2`.
-//! Self-test: as `physics::turn_by_car_matrix`'s, on this function's copy.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

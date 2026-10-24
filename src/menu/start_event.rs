@@ -1,7 +1,5 @@
-//! The championships' starters (IDA, 2026-10-19): the actions of the start menus' items
-//! that set a championship up for one to four players and run it. Ten of them, five for
-//! each championship, alike but for their numbers; each is a hook of its own
-//! (`menu::start_championship_*`, `menu::start_a8_*`), this is what they share.
+//! The championships' starters (IDA, 2026-10-19): the actions of the start menus' items that set a
+//! championship up for one to four players and run it.
 //!
 //! The common shape: `dword_755954` the event type (4, 5), `dword_758806` 0,
 //! `dword_75649C` 0xF, `menu::reset_driver_condition`, `index`, `section` and

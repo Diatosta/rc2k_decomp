@@ -10,8 +10,6 @@
 //! first of them. Without the file nothing changes, not even the count.
 //! Callers: `start` and `sub_412DE0`.
 //! Refuses a value of 0x80 bytes or more (the original writes on into the next slot).
-//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
-//! `routes.rs`); the registers above are the original's, for reference.
 //! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
 //! are the original's.
 

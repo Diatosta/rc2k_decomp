@@ -18,19 +18,11 @@
 //! g being `dword_6235FC[car]`; with g at 3 or more and the file there, the picture
 //! is taken from `files\b\gravel` instead, and its second name logged.
 //!
-//! Then `gfx::load_picture_to_texture` with eax = the name,
-//! ecx = the second name, ebx = the texture.
-//! One caller, `scene::load_changed_texture_picture`.
-//! Shadow mode runs the original alone and compares the names it left with the Rust
-//! version's.
-//! Self-test: a redirected copy whose loading notes the names, 336 cases.
+//! Then `gfx::load_picture_to_texture` with eax = the name, ecx = the second name, ebx = the
+//! texture. One caller, `scene::load_changed_texture_picture`.
 //!
 //! Converted 2026-10-21: the digits, the names, the folder and the gravel rule through
 //! `rc2k_core::scene::pictures`.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::errors::Refused;
 use crate::files::file_exists::file_exists;

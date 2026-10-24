@@ -13,11 +13,6 @@
 //! Else, playing: +8 cleared once the clock is at or past the end (`js` on the
 //! difference). 14 callers.
 //! Refuses a null slot or request, and what the two leaves refuse, before writing.
-//! A short jump in its first five bytes: private copy (0x73 bytes, the two calls and the
-//! jump out relocated), manual patch.
-//! Shadow mode runs the original alone (it sends a sound).
-//! Self-test: a copy whose jump to `play_placed_sound` goes to a stand-in, against the
-//! Rust version, on a slot of the test's, real samples.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

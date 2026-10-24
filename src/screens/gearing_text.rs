@@ -4,10 +4,9 @@
 //! In:  nothing
 //! Out: every register preserved
 //!
-//! `dword_7554F0` = the current player's (`dword_75598C`) `gearing`; the string and a NUL
-//! into `byte_A8BF54`. In two entry lists (0x7593FE, 0x75941A). Refuses a current player
-//! past four, a text longer than its place (0x100).
-//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
+//! `dword_7554F0` = the current player's (`dword_75598C`) `gearing`; the string and a NUL into
+//! `byte_A8BF54`. In two entry lists (0x7593FE, 0x75941A). Refuses a current player past four, a
+//! text longer than its place (0x100). The menus and draw lists run its `entry`
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};

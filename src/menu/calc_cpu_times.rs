@@ -13,18 +13,11 @@
 //! In:  nothing
 //! Out: every register kept (`pusha` .. `popa`)
 //!
-//! Callers: `sub_471F0D`, `sub_473126`. The steps are their Rust versions (the random
-//! numbers `math::random_below`'s). Fatal error 0x80701010 as the original's checks (a
-//! hundredfold of 0, a half time of 0: the original tests the dividend), before anything;
-//! refuses a record past the table, a class count of 0 or past 0x100, a class's driver
-//! count of 0 (the original's `div` traps), a drivers table without its end, before
-//! anything. Shadow mode runs the original alone (it logs). Self-test:
-//! the original and the Rust version on the game's tables, the random state and the
-//! counters by lot; put back.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Callers: `sub_471F0D`, `sub_473126`. The steps are their Rust versions (the random numbers
+//! `math::random_below`'s). Fatal error 0x80701010 as the original's checks (a hundredfold of 0, a
+//! half time of 0: the original tests the dividend), before anything; refuses a record past the
+//! table, a class count of 0 or past 0x100, a class's driver count of 0 (the original's `div`
+//! traps), a drivers table without its end, before anything.
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::menu::standings::*;

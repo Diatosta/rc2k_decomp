@@ -8,7 +8,7 @@
 //!    their blocks are pointed at their targets.
 //! 2. No code of RAL.EXE runs. Every call the game's data makes by address (menus, draw
 //!    lists, frames, thread routines) and every one Rust still makes goes to its Rust
-//!    version (`menu::table_calls`, `crate::routes`, `platform::by_address`); an address
+//!    version (`menu::table_calls`, `crate::routes`); an address
 //!    with none ends the program, "not ported" (owner, 2026-10-23). The functions the
 //!    platform stands for are named here by their addresses (`HOOKED`).
 //! 3. `on_exception` only reports: a read or write of an address with no home, a jump
@@ -125,8 +125,8 @@ static HOOKED: OnceLock<Vec<(usize, &'static str)>> = OnceLock::new();
 
 unsafe fn install_and_lock(image: &Image) -> Result<(), String> {
     // No code runs at the game's addresses: the platform's functions and the fatal
-    // reporter are named by theirs (calls by address go to `platform::by_address` and
-    // the routes), kept here to name a fault's place.
+    // reporter are named by theirs, kept here to name a fault's place and for the calls
+    // counted at the end.
     let installed = crate::mark_all_installed(image.base);
     let hooks: Vec<&'static dyn GameHook> = ALL
         .iter()
@@ -270,14 +270,11 @@ const SDL_DOES: [(usize, &str); 5] = [
 ];
 
 /// For calls by address of a function that needs nothing done here
-/// (`menu::table_calls`): SDL's (carry clear) and the lone `retn`s (conversion phase 3,
-/// 2026-10-23). `at` is the address as IDA shows it.
-pub fn answers(at: usize, r: &mut Regs) -> bool {
-    if SDL_DOES.iter().any(|w| w.0 == at) {
-        r.set_carry(false);
-        return true;
-    }
-    LONE_RETN.contains(&at)
+/// (`menu::table_calls`): SDL's and the lone `retn`s (conversion phase 3, 2026-10-23).
+/// `at` is the address as IDA shows it. (SDL's leave the carry clear, which a menu
+/// item's caller does not read.)
+pub fn answers(at: usize) -> bool {
+    SDL_DOES.iter().any(|w| w.0 == at) || LONE_RETN.contains(&at)
 }
 
 unsafe extern "system" fn on_exception(info: *mut EXCEPTION_POINTERS) -> i32 {

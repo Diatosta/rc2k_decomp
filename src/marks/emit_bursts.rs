@@ -11,19 +11,12 @@
 //! In:  edi the wheel record, esi the car object
 //! Out: every register kept
 //!
-//! Callers: `marks::emit_wheel_particles`' kinds 2 .. 4, 6 .. 9, 0xC. The original's
-//! loops push esi; when the ring is full (0x3FE taken) inside one they leave by
-//! 0x4CD741, which takes only that push off: `popa` restores shifted registers and
-//! `retn` returns to a register's value, the crash over mud (section 16; seen by the
-//! owner 2026-10-23). Fixed here (2026-10-23): the bursts end at a full ring, as the
-//! exit with `lea esp, [esp+8]` does; `bug_fixes` patches the original's two exits so
-//! in the hooked game. Refuses (before anything) a null wheel, a null object, car or
-//! matrix where read. Self-test: a ring, wheel and car of the test's
-//! (`marks::emit_particle_6::TestEmitter`), several strengths and fillings, the refusal.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Callers: `marks::emit_wheel_particles`' kinds 2 .. 4, 6 .. 9, 0xC. The original's loops
+//! push esi; when the ring is full (0x3FE taken) inside one they leave by 0x4CD741, which
+//! takes only that push off: `popa` restores shifted registers and `retn` returns to a
+//! register's value, the crash over mud (section 16; seen by the owner 2026-10-23). Fixed
+//! here (2026-10-23): the bursts end at a full ring, as the exit with `lea esp, [esp+8]`
+//! does. Refuses (before anything) a null wheel, a null object, car or matrix where read.
 
 use crate::errors::{BadInput, Refused};
 use crate::marks::emitters::*;

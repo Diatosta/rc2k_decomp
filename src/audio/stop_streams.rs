@@ -5,13 +5,7 @@
 //! Out: every register preserved
 //!
 //! `audio::stream_command` and then `audio::music_command`, each with eax 0 and the
-//! caller's ebx, ecx and edx: with action 0 (or any but 1 and 3) both stop. Shadow mode
-//! runs the original alone. Self-test: a redirected copy whose two calls go to stand-ins
-//! noting their registers, 4 cases.
-//!
-//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! caller's ebx, ecx and edx: with action 0 (or any but 1 and 3) both stop.
 //!
 //! Plain since 2026-10-23 (phase 3): action 0 (both callers now stop: section 16), with
 //! which neither command reads its other arguments.

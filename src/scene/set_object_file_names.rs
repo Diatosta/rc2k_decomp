@@ -5,21 +5,14 @@
 //! Out: eax = the tens digit as a character, ecx = 10, edx = the units digit as a
 //!      character, esi and ebp = where the number is in the two names
 //!
-//! By the kind: under 0x190 `files\a\obj????.ro3` and `.lwo`, under 0x258 `files\b\`,
-//! under 0x320 `files\g\frnt\`, else `files\s\extr\`. Four pointers are set: the
-//! `.ro3` path (`dword_60AD28`) and where its number is (`dword_60AD24`), the `.lwo`
-//! path (`dword_60AD2C`) and its number (`dword_60AD30`). The number's four decimal
-//! digits are written over the `????` of both (the thousands digit as one byte:
-//! anything above 9999 gives another character).
-//! One caller, `scene::load_object`.
-//! Self-test: 40 kinds; the names are put back afterwards.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! By the kind: under 0x190 `files\a\obj????.ro3` and `.lwo`, under 0x258 `files\b\`, under
+//! 0x320 `files\g\frnt\`, else `files\s\extr\`. Four pointers are set: the `.ro3` path
+//! (`dword_60AD28`) and where its number is (`dword_60AD24`), the `.lwo` path (`dword_60AD2C`)
+//! and its number (`dword_60AD30`). The number's four decimal digits are written over the
+//! `????` of both (the thousands digit as one byte: anything above 9999 gives another
+//! character). One caller, `scene::load_object`.
 
-use crate::framework::{EAX, EBP, ECX, EDX, ESI, game_addr, game_read, game_write, rva};
-use crate::screens::harness::Left;
+use crate::framework::{game_addr, game_read, game_write, rva};
 
 // ---- game data ----
 
@@ -39,7 +32,7 @@ const FOLDERS: [(usize, usize, usize); 4] = [
 // ---- Rust version ----
 
 // Converted: `rc2k_core::scene::objects::{folder, number_digits}`
-pub unsafe fn set_object_file_names(folder_kind: u32) -> Left {
+pub unsafe fn set_object_file_names(folder_kind: u32) {
     use rc2k_core::scene::objects::{folder, number_digits};
     unsafe {
         let (ro3, lwo, number) = FOLDERS[folder(folder_kind)];
@@ -56,11 +49,5 @@ pub unsafe fn set_object_file_names(folder_kind: u32) -> Left {
         let digits = number_digits(game_read(KIND_RVA));
         (ro3_number as *mut [u8; 4]).write(digits);
         (lwo_number as *mut [u8; 4]).write(digits);
-        Left::nothing()
-            .with(EAX, digits[2] as u32)
-            .with(ECX, 10)
-            .with(EDX, digits[3] as u32)
-            .with(ESI, ro3_number as u32)
-            .with(EBP, lwo_number as u32)
     }
 }

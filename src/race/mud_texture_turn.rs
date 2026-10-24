@@ -6,15 +6,8 @@
 //! In:  nothing
 //! Out: nothing its caller reads (conversion phase 3, 2026-10-24)
 //!
-//! See `race/mud.rs`. One caller, `race::mud_frame`. Its call through `part` (0, in the
-//! game the Rust version with its own calls). Refuses what `update_mud_texture` refuses,
-//! before anything (its checks first). Shadow mode runs the original alone (the device is
-//! told). Self-test: a copy whose call goes to a stand-in, against the Rust version, on
-//! colours and values by lot; put back.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! See `race/mud.rs`. One caller, `race::mud_frame`. Refuses what `update_mud_texture` refuses,
+//! before anything (its checks first).
 
 use crate::errors::Refused;
 use crate::framework::{game_read, game_write, rva};

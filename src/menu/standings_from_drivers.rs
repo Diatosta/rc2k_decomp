@@ -3,12 +3,8 @@
 //! In:  nothing
 //! Out: every register kept (`pusha` .. `popa`)
 //!
-//! Caller: `sub_473126`. `strings::append_string_by_id`'s Rust version. Refuses no table, more drivers than its 200 entries, a name past the entry, before anything. Self-test: the original and the Rust version on the game's
-//! tables; put back.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `sub_473126`. `strings::append_string_by_id`'s Rust version. Refuses no table, more
+//! drivers than its 200 entries, a name past the entry, before anything.
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_addr, game_read, rva};

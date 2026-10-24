@@ -9,15 +9,8 @@
 //!
 //! In:  nothing (the pieces at `dword_51C407`)
 //! Out: every register kept (`pusha` / `popa`); no flags read
-//! No pieces would go round 2^32 times: refused. Caller `install::run_page`. Its calls
-//! through `part` (the measuring, and the items' text actions); the appending done here.
-//! Shadow mode runs the original alone (an item's action is the game's). Self-test: a copy
-//! whose two measures go to stand-ins (answering sizes), against the Rust version, on
-//! pages laid out by `install::lay_out_pieces` from lists of the test's.
+//! No pieces would go round 2^32 times: refused. Caller `install::run_page`.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 //! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
 //! are the original's.
 

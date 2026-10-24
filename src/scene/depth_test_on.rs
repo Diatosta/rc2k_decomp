@@ -4,12 +4,7 @@
 //! In:  nothing
 //! Out: eax 1, ebx 0xE; the rest as `scene::set_render_state` leaves them (kept)
 //!
-//! One call of `scene::set_render_state`. 15 callers. Self-test: the original and the Rust
-//! version recorded on the layer, nothing drawn.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! One call of `scene::set_render_state`. 15 callers.
 
 use crate::scene::set_render_state::set_render_state;
 

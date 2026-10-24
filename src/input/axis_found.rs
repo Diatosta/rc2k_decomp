@@ -7,13 +7,7 @@
 //! In:  (stdcall) the `DIDEVICEOBJECTINSTANCEA`, the context (the controller's entry)
 //! Out: eax = 1; ebx, esi, edi, ebp kept; `ret 8`
 //!
-//! Caller: DirectInput, from `input::joystick_found`. Shadow mode runs the original alone.
-//! Self-test: the original and the Rust version called with each axis's GUID, a button's
-//! and a slider's, on entries of the test's.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: DirectInput, from `input::joystick_found`.
 
 use crate::field;
 use crate::framework::{game_addr, rva};
@@ -23,7 +17,7 @@ use crate::input::types::{Controller, DiDeviceObjectInstance};
 const AXES_RVA: usize = rva(0x4F7E38); // unk_4F7E38: the six axes' GUIDs, 16 bytes each
 
 /// The Rust version: eax.
-/// `axis_found` as DirectInput calls it: what Rust callers hand `EnumObjects` (no hook).
+/// `axis_found` as DirectInput calls it: what Rust callers hand `EnumObjects`.
 pub unsafe extern "system" fn callback(object: u32, entry: u32) -> u32 {
     axis_found(object, entry)
 }

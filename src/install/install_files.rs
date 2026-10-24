@@ -13,16 +13,8 @@
 //!
 //! In:  nothing
 //! Out: every register kept (`pusha` / `popa`)
-//! A list action (`off_51DD18`). Caller `install::run_page`. Its calls through `part`; the
-//! path strings built directly; the two progress frames are the game's (section 15, reached
-//! via `screens::run_frame`). Ungated. Shadow mode runs the original alone. Self-test: a copy
-//! whose disk/registry/frame/script calls go to stand-ins, the lists pre-filled as the script
-//! would, against the Rust version; the main success path and the bad-path, no-room, not-a-CD,
-//! copy-failure and cancel branches.
+//! A list action (`off_51DD18`). Caller `install::run_page`.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 //! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
 //! are the original's.
 

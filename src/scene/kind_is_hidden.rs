@@ -6,15 +6,9 @@
 //! Out: CF; eax its kind when a setting was on, else kept; the rest kept (ZF as the last
 //!      compare leaves it, not read: callers `jb`)
 //!
-//! Callers: `scene::object_hidden_by_kind` (0x4522F0, inlined in
-//! `scene::draw_shown_object`), `scene::kind_hidden_at` (0x4522FC).
-//! Refuses an object past 0xFF while a setting is on (the original reads past the table).
-//! Self-test: the original and the Rust version on the game's variables (saved and put
-//! back): both settings, objects 0 .. 0xFF with test kinds.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Callers: `scene::object_hidden_by_kind` (0x4522F0, inlined in `scene::draw_shown_object`),
+//! `scene::kind_hidden_at` (0x4522FC). Refuses an object past 0xFF while a setting is on (the
+//! original reads past the table).
 
 use crate::errors::Refused;
 use crate::framework::{game_read, rva};

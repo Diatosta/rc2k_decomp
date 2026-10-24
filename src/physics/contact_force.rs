@@ -24,15 +24,7 @@
 //!
 //! Callers: `sub_45D8FB`, `sub_45DA14`, `sub_45DC3E`, `sub_45E3BF`,
 //! `physics::crash_contact`, `physics::ground_contact`.
-//! Self-test: the original and the Rust version on the game's variables (saved and put
-//! back): the contact's figures and both matrices by lot, the extra part on and off, a
-//! test record, under three precisions.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
-use crate::framework::{EAX, EBX, ECX, EDI, EDX, ESI};
 use crate::math::x87_run::{compare_80, neg_rounded};
 use crate::physics::dot_product::dot_product;
 use crate::physics::flow::{a, copy3, fill3, g, hold_low, negate, p, x87_run};
@@ -43,7 +35,6 @@ use crate::physics::turn_by_inverse::turn_by_inverse;
 use crate::physics::vector_length::vector_length;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::view_matrix::cross_product;
-use crate::screens::harness::Left;
 
 /// `dword_614B40`: the record the force goes to.
 pub const RECORD: usize = 0x614B40;
@@ -53,8 +44,8 @@ fn cross(ebx: usize, ecx: usize, edx: usize) {
     unsafe { cross_product(a(ebx) as usize, a(ecx) as usize, a(edx) as usize) };
 }
 
-/// The Rust version: the registers as the original leaves them.
-pub unsafe fn contact_force() -> Left {
+/// The Rust version.
+pub unsafe fn contact_force() {
     cross(0x6D30B4, 0x6D3090, 0x6D30C0);
     x87_run!(
         "fld dword ptr [{rc} + 0x2D30C0]",
@@ -229,11 +220,4 @@ pub unsafe fn contact_force() -> Left {
     for k in 0..3 {
         unsafe { ((edi + 0xC + 4 * k) as *mut u32).write_unaligned(g(0x6D3090 + 4 * k as usize)) };
     }
-    Left::nothing()
-        .with(EAX, g(0x6D3098))
-        .with(EBX, a(0x6D3090))
-        .with(ECX, a(0x6D31F4))
-        .with(EDX, a(0x6D31E4))
-        .with(ESI, a(0x6D3090))
-        .with(EDI, edi)
 }

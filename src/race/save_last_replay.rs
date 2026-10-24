@@ -7,15 +7,7 @@
 //!      the closing); every register kept (`pusha` / `popa`)
 //!
 //! Caller: `race::replay_viewer` (mode 3, the slot from `menu::save_replay_loop`; no flags
-//! read). Its calls through `part`: 1 `open_viewed_replay` (ebx 222), 2
-//! `save_viewed_replay` (ebx the slot), 3 `close_viewed_replay`; in the game their Rust
-//! versions. Shadow mode runs the original alone (it writes a file). Self-test: a copy
-//! whose calls go to stand-ins, against the Rust version: the opening failing, the saving
-//! failing or not.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! read).
 
 use crate::errors::Refused;
 use crate::race::viewer::LAST_RACE;

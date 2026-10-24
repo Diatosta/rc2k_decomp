@@ -17,14 +17,8 @@
 //! Then +4 = +4 x +0x20 as a whole number, and `sound::play_sound` with eax the sound,
 //! ebx the volume, ecx the place (3D: ecx, edi, ebp the three floats), edx = +4.
 //! The x87 is used with the original's own instructions, so that the rounding is its.
-//! Eight callers (the race's sounds). Shadow mode: the Rust version on a copy of the
-//! request without sending, then the original, and the two requests compared.
-//! Self-test: a redirected copy whose mode and sample records are the test's.
+//! Eight callers (the race's sounds).
 //! Refuses a null request and, without 3D, a sound past the 0x1CD sample records.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::audio::store::SampleSlot;
 use crate::audio::store::Slot;

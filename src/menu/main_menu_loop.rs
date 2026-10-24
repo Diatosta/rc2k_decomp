@@ -16,19 +16,17 @@
 //!   (`always_asks`); the quit switch leads to the question too.
 //!
 //! The five calls and three stores between the last jump and the final `popa` (0x474CD9 ..
-//! 0x474D0F) are never reached and are not in the Rust version.
-//! The name is a reading from the menu (0x748CB8): its items open `start_rally_loop`,
-//! `load_championship_loop`, `network_rally_loop` and `options_loop`, and the fifth is
-//! `menu::go_back`.
-//! Screen: the main menu. With `nofmv=0` the intro film played after five minutes without a
-//! key while the Rust version ran it, and with `nofmv=1` nothing happened (the owner's runs
-//! with `shadow = false` and hook.log, 2026-10-12). Caller: `sub_47486C`.
-//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
-//! `routes.rs`); the registers above are the original's, for reference.
+//! 0x474D0F) are never reached and are not in the Rust version. The name is a reading from the menu
+//! (0x748CB8): its items open `start_rally_loop`, `load_championship_loop`, `network_rally_loop`
+//! and `options_loop`, and the fifth is `menu::go_back`. Screen: the main menu. Caller:
+//! `sub_47486C`. Rust callers run its `entry` (`routes.rs`); the registers above are the
+//! original's, for reference.
 
 use crate::errors::Refused;
 use crate::framework::{game_addr, game_read, game_write, log, rva};
-use crate::menu::screen_loop::{Carried, Flow, List, Screen, Step, call, carousel, prepare_scene};
+use crate::menu::screen_loop::{
+    Callee, Carried, Flow, List, Screen, Step, carousel, prepare_scene,
+};
 use crate::menu::update_blink::update_blink;
 use crate::session::CLOCKS;
 
@@ -49,13 +47,13 @@ unsafe fn set_up_first(c: &mut Carried) -> Result<(), Refused> {
     unsafe {
         game_write(rva(0x755980), 0u32);
         c.arg = game_addr(BACKGROUND_PATH_RVA) as u32;
-        call(rva(0x47EFFF), c)?; // menu::load_background (its carry not looked at)
+        Callee::LoadBackground.run(c)?; // menu::load_background (its carry not looked at)
         game_write(rva(0x623FB0), 7u32);
         game_write(rva(0x623FB4), 0xAu32);
         game_write(rva(0x624080), 0x100u32);
         prepare_scene(c); // scene::prepare_menu_scene
         game_write(rva(0x755569), 0u32);
-        call(rva(0x407F95), c)?; // input::take_key
+        Callee::TakeKey.run(c)?; // input::take_key
         game_write(rva(0x755A3C), 0u32);
         game_write(rva(0x7556A4), 0x6Fu32);
         game_write(rva(0x7554EC), 1u32);
@@ -142,18 +140,18 @@ pub const SCREEN: Screen = Screen {
         Step::Write(rva(0x755A3C), 0),
         Step::Write(SAVED_ITEM_RVA, 1),
         Step::Write(rva(0x755525), 1),
-        Step::Call(rva(0x47C63F)),
-        Step::Call(rva(0x407F95)), // input::take_key
-        Step::Call(rva(0x442AF6)),
-        Step::Call(rva(0x474E04)),
-        Step::Call(rva(0x442AF6)),
+        Step::Call(Callee::SetUpFrontEnd),
+        Step::Call(Callee::TakeKey), // input::take_key
+        Step::Call(Callee::SetUpEngine),
+        Step::Call(Callee::SetUpFrontEndScene),
+        Step::Call(Callee::SetUpEngine),
         Step::Write(rva(0x635084), 0x50),
         Step::Write(rva(0x635088), 0xFF),
         Step::Write(rva(0x63508C), 0),
         Step::Write(rva(0x635090), 0xFF),
         Step::Write(rva(0x635094), 0x6E),
         Step::Write(rva(0x635098), 0x1E),
-        Step::Call(rva(0x40F792)),
+        Step::Call(Callee::PlayTune4),
     ],
     set_up_first: &[Step::Do(set_up_first)],
     prepare: &[],

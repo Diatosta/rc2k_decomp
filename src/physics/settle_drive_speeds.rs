@@ -8,21 +8,13 @@
 //! In:  nothing
 //! Out: in gear, ebx = `g_carGear` (`revs_from_wheels`); the rest kept; no flags read
 //!
-//! Caller: `sub_43B635` (0x43B7AD, before `sub_43EA54`), every physics step.
-//! Refuses (before anything) a gear outside -1 ..= 7 (`revs_from_wheels`' table).
-//! Self-test: a copy of the original (its variables the test's, its call to a copy of
-//! `revs_from_wheels` on the same) against the converted version: gears, the three
-//! switches, speeds by lot and near the step, exact at double precision.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `sub_43B635` (0x43B7AD, before `sub_43EA54`), every physics step. Refuses
+//! (before anything) a gear outside -1 ..= 7 (`revs_from_wheels`' table).
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_addr, game_read, rva};
 use crate::math::x87;
 use crate::physics::gearing::{GearPlaces, revs_from_wheels_at};
-use crate::screens::harness::Left;
 
 const FAST_STEP_RVA: usize = rva(0x613F3C); // flt_613F3C, 1.0
 const SLOW_STEP_RVA: usize = rva(0x613F40); // flt_613F40, 0.01
@@ -85,7 +77,7 @@ unsafe fn settle(v: u32, step: u32) {
 }
 
 /// The Rust core.
-pub unsafe fn settle_drive_speeds_at(g: &GearPlaces, s: &SettlePlaces) -> Result<Left, Refused> {
+pub unsafe fn settle_drive_speeds_at(g: &GearPlaces, s: &SettlePlaces) -> Result<(), Refused> {
     unsafe {
         let gear = at(g.gear);
         if gear != 0 && !(-1..=7).contains(&(gear as i32)) {
@@ -109,11 +101,11 @@ pub unsafe fn settle_drive_speeds_at(g: &GearPlaces, s: &SettlePlaces) -> Result
         if gear != 0 {
             return revs_from_wheels_at(g);
         }
-        Ok(Left::nothing())
+        Ok(())
     }
 }
 
 /// The Rust version (the exact one, for `physics::car_physics_step`).
-pub unsafe fn settle_drive_speeds() -> Result<Left, Refused> {
+pub unsafe fn settle_drive_speeds() -> Result<(), Refused> {
     unsafe { settle_drive_speeds_at(&GearPlaces::game(), &SettlePlaces::game()) }
 }

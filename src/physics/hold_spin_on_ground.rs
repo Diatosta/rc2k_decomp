@@ -8,9 +8,6 @@
 //! Out: ecx the wheels down, ebx 4; the rest kept; no flags read
 //!
 //! Caller: `sub_43B635` (0x43B986), every physics step.
-//! Self-test: `physics/copy_hooks_test.rs` (a copy on test variables against the
-//! converted version), 24 cases; compares and copies of floats only: exact at any
-//! precision.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

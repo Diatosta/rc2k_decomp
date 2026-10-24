@@ -7,17 +7,11 @@
 //! Out: every register kept
 //!
 //! See `scene/vector3.rs`. 16 callers (the marks' tyre marks and their kin). The original's
-//! instructions (`fsubp` as its bytes). Refuses a null pointer. Self-test: the original and
-//! the Rust version on vectors by lot, the result apart and over each input.
+//! instructions (`fsubp` as its bytes). Refuses a null pointer.
 //!
-//! Converted 2026-10-21: the hook's Rust version is `cross_product3_plain`, through
+//! Converted 2026-10-21: the Rust version is `cross_product3_plain`, through
 //! `rc2k_core::scene::matrices::cross3` (plain floats; the x87 version stays for the Rust
-//! callers in unconverted code). Shadow mode and the self-test compare within
-//! `service::floats`' tolerances (the self-test at both test precisions, exact at double).
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! callers in unconverted code).
 
 use crate::errors::{BadInput, Refused};
 

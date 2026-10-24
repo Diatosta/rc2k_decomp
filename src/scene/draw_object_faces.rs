@@ -6,27 +6,18 @@
 //!      leftovers (the last face's number in the table, the count, the last list
 //!      entry, the last face); everything else preserved
 //!
-//! The list: `dword_62DB58` entries of 0x10 bytes at `dword_62DB5C`: +0 the face's
-//! number within the object, +0xC how see-through it is (to `g_objectSeeThrough`).
-//! For each: the number to `dword_623620`; the face is entry number + `dword_6350BC`
-//! of the table `dword_9A3730`; from the face's head the first texture (the word +4
-//! plus `dword_639954`, with the top bit set), its kind (byte +6, `g_faceKind`) and
-//! byte +0xB (`dword_6D18D0`); the polygon's colour is white, or with a byte +0xA
-//! not 0 that byte in all three places; `scene::draw_object_face`; the colour white
-//! again. At the end `dword_624204` = 0.
-//! One caller, `sub_45045D`.
-//! Refuses a face's number past the table and a face that is not there.
-//! Shadow mode runs the original alone.
-//! Self-test: a redirected copy whose call notes the face and what was set for it.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! The list: `dword_62DB58` entries of 0x10 bytes at `dword_62DB5C`: +0 the face's number
+//! within the object, +0xC how see-through it is (to `g_objectSeeThrough`). For each: the
+//! number to `dword_623620`; the face is entry number + `dword_6350BC` of the table
+//! `dword_9A3730`; from the face's head the first texture (the word +4 plus `dword_639954`,
+//! with the top bit set), its kind (byte +6, `g_faceKind`) and byte +0xB (`dword_6D18D0`); the
+//! polygon's colour is white, or with a byte +0xA not 0 that byte in all three places;
+//! `scene::draw_object_face`; the colour white again. At the end `dword_624204` = 0. One
+//! caller, `sub_45045D`. Refuses a face's number past the table and a face that is not there.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{EAX, EBP, ECX, ESI, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::scene::polygon::dword;
-use crate::screens::harness::Left;
 
 // ---- game data ----
 
@@ -49,11 +40,11 @@ const DONE_RVA: usize = rva(0x624204); // dword_624204
 
 pub unsafe fn draw_object_faces(
     draw: &mut dyn FnMut(usize) -> Result<(), Refused>,
-) -> Result<Left, Refused> {
+) -> Result<(), Refused> {
     unsafe {
         let listed: u32 = game_read(LISTED_RVA);
         if listed == 0 {
-            return Ok(Left::nothing());
+            return Ok(());
         }
         let first: u32 = game_read(FIRST_FACE_RVA);
         // Every face is looked up before anything is written.
@@ -93,11 +84,6 @@ pub unsafe fn draw_object_faces(
             game_write(COLOUR_RVA, 0x00FF_FFFFu32);
         }
         game_write(DONE_RVA, 0u32);
-        let &(entry, number, face) = faces.last().expect("the list is not empty");
-        Ok(Left::nothing()
-            .with(EAX, number)
-            .with(ECX, listed)
-            .with(ESI, entry as u32)
-            .with(EBP, face as u32))
+        Ok(())
     }
 }

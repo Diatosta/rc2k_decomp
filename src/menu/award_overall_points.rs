@@ -8,16 +8,11 @@
 //!
 //! In:  nothing
 //! Out: edi the end entry, ecx 6, edx the last total, eax the last entry's driver number
-//!      or player index, esi its driver or player (no `pusha`)
+//! or player index, esi its driver or player (no `pusha`)
 //!
-//! Caller: `sub_4A0E60`. The search is its Rust version. Refuses no table, one without its
-//! end entry, a section past 5, a player past 4 or missing, before anything; a driver not
-//! found is the search's fatal error, before anything. Self-test: the original and the
-//! Rust version on the game's tables, groups and sections by lot; put back.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `sub_4A0E60`. The search is its Rust version. Refuses no table, one without its end
+//! entry, a section past 5, a player past 4 or missing, before anything; a driver not found is the
+//! search's fatal error, before anything.
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_read, game_write, rva};
 use crate::menu::standings::*;

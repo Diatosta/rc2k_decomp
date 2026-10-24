@@ -6,7 +6,7 @@
 //! In:  nothing
 //! Out: nothing (every register kept, `pusha` .. `popa`; the flags are read by no caller:
 //!      `lq -s 0x41916B`)
-//! Caller: `net::destroy_connection`. `DestroyPlayer` from Rust (`net::dplay`, section 15).
+//! Caller: `net::destroy_connection`. `DestroyPlayer` from Rust (`net::dplay`).
 //! Refuses nothing.
 
 use crate::net::dplay::{DESTROY_PLAYER, method};

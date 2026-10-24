@@ -10,17 +10,9 @@
 //! Out: as `engine_torque` leaves them; no flags read (the callers return or call on)
 //!
 //! Callers: `physics::free_rev_in_neutral`, `physics::free_rev_clutch`.
-//! Self-test: the original and the Rust version on the game's variables (saved and put
-//! back), against the converted version: `physics::engine_torque`'s cases
-//! (`test_engine_floats`), exact at double precision.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::math::x87;
 use crate::physics::engine_torque::{below, engine_torque, g, p};
-use crate::screens::harness::Left;
 
 /// 0x43EA85 .. 0x43EAE7, as the original.
 unsafe fn run() {
@@ -53,13 +45,13 @@ unsafe fn run() {
 
 /// The Rust version (the exact one, for `physics::free_rev_in_neutral`,
 /// `free_rev_clutch` and their callers).
-pub unsafe fn free_rev() -> Left {
-    let left = unsafe { engine_torque() };
+pub unsafe fn free_rev() {
+    unsafe { engine_torque() };
     unsafe { run() };
     let (e, drag) = (g(0x71A1B0), g(0x62400C));
     let x = f32::from_bits(e);
     if x == 0.0 || x.is_nan() {
-        return left;
+        return;
     }
     if x < 0.0 {
         let y = x87::add(e, drag);
@@ -74,5 +66,4 @@ pub unsafe fn free_rev() -> Left {
             p(0x71A1B0, 0);
         }
     }
-    left
 }

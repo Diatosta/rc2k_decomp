@@ -4,11 +4,8 @@
 //! In:  nothing
 //! Out: eax 0, ebx 0x1C; the rest as the state calls leave them
 //!
-//! Callers: `sub_45A893` (0x45A8A2), code at 0x4559AF, 0x4559C8. The states through
-//! `part` (1 with eax the value, ebx the state), in the game `set_render_state`'s Rust
-//! version.
-//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
-//! `routes.rs`); the registers above are the original's, for reference.
+//! Callers: `sub_45A893` (0x45A8A2), code at 0x4559AF, 0x4559C8. The registers above are the
+//! original's, for reference; a call by address goes through `routes.rs`.
 
 /// The Rust version (see the header).
 // Converted: `rc2k_core::scene::render_states::OVERLAY`

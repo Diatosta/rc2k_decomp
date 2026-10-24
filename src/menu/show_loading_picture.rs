@@ -2,11 +2,8 @@
 //!
 //! In:  nothing
 //! Out: as `gfx::show_picture_file` leaves the registers (eax = 1, or the path if the
-//!      file could not be read)
-//! `gfx::show_picture_file` on `files\g\graphics\screens\loading.pcx`.
+//! file could not be read) `gfx::show_picture_file` on `files\g\graphics\screens\loading.pcx`.
 //! Fifteen callers, `menu::set_up_front_end` among them.
-//! Shadow mode runs the original alone (it shows frames).
-//! Self-test: a redirected copy whose call notes the path.
 
 use crate::framework::{game_addr, rva};
 use crate::gfx::show_picture_file::show_picture_file;

@@ -10,19 +10,12 @@
 //!      ecx z', edx as `turn_point_xz` leaves it, esi the point; the rest kept; no flags
 //!      read (the caller returns)
 //!
-//! Caller: `sub_44157B`.
-//! Refuses (before anything) a checkpoint below 0 or past 0x1418, or no faces or points.
-//! Self-test: the original and the Rust version on the game's variables (saved and put
-//! back) with test faces and points: checkpoints at, before and past the last.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `sub_44157B`. Refuses (before anything) a checkpoint below 0 or past 0x1418, or
+//! no faces or points.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{EAX, EBX, ECX, EDX, ESI, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 use crate::math::turn_point_xz::turn_point_xz;
-use crate::screens::harness::Left;
 use rc2k_core::physics::progress::checkpoint_ahead;
 
 fn g(x: usize) -> u32 {
@@ -48,12 +41,12 @@ unsafe fn at(a: u32) -> u32 {
 /// The Rust version.
 // Converted: `rc2k_core::physics::progress::checkpoint_ahead` (the turn stays
 // `math::turn_point_xz`'s).
-pub unsafe fn checkpoint_offset() -> Result<Left, Refused> {
+pub unsafe fn checkpoint_offset() -> Result<(), Refused> {
     let c = g(CHECKPOINT);
     if checkpoint_ahead(c, g(COUNT))?.is_none() {
         p(OFFSET, 0);
         p(OFFSET + 4, 0);
-        return Ok(Left::nothing().with(EAX, c.wrapping_add(1)));
+        return Ok(());
     }
     if g(FACES) == 0 || g(POINTS) == 0 {
         return Err(BadInput("no course faces or points").into());
@@ -66,15 +59,9 @@ pub unsafe fn checkpoint_offset() -> Result<Left, Refused> {
         let pt = point.wrapping_mul(12).wrapping_add(g(POINTS));
         let x = g(0x71A10C).wrapping_sub(at(pt));
         let z = g(0x71A114).wrapping_sub(at(pt + 8));
-        let [x2, _, z2, entry] =
-            turn_point_xz(x as i32, point as i32, z as i32, angle.wrapping_neg());
+        let [x2, _, z2, _] = turn_point_xz(x as i32, point as i32, z as i32, angle.wrapping_neg());
         p(OFFSET, x2);
         p(OFFSET + 4, z2);
-        Ok(Left::nothing()
-            .with(EAX, x2)
-            .with(EBX, point)
-            .with(ECX, z2)
-            .with(EDX, entry)
-            .with(ESI, pt))
+        Ok(())
     }
 }

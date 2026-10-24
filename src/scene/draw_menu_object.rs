@@ -4,16 +4,10 @@
 //! In:  nothing
 //! Out: eax = 0x100; the rest as `scene::draw_scene_object` leaves them
 //!
-//! `g_shine` = 0x200 (`scene::set_shine` 0x422292, inlined); `scene::make_object_matrix`
-//! from the angles, place and size the caller set; `dword_6365C8` = 5; `g_lightKind`
-//! = 4; `scene::draw_scene_object`; `g_shine` = 0x100.
-//! 14 callers: the carousel's entry and thirteen menus' objects.
-//! Shadow mode runs the original alone.
-//! Self-test: a redirected copy whose two calls note what was set by then.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! `g_shine` = 0x200 (`scene::set_shine` 0x422292, inlined); `scene::make_object_matrix` from
+//! the angles, place and size the caller set; `dword_6365C8` = 5; `g_lightKind` = 4;
+//! `scene::draw_scene_object`; `g_shine` = 0x100. 14 callers: the carousel's entry and thirteen
+//! menus' objects.
 
 use crate::errors::Refused;
 use crate::framework::{game_write, rva};

@@ -11,17 +11,9 @@
 //! In:  ebx the checkpoints on from the lead's
 //! Out: as `race::reset_car_motion` leaves them; no flags read (`drive::store_car` next)
 //!
-//! Caller: `drive::start_cars_behind` (0x43703E; four calls).
-//! Refuses (before anything) a start number (`dword_6051A0`) above 0x400 (not worked
-//! out), and what the two calls refuse.
-//! Self-test: a copy whose two calls go to stream A's stand-ins (`race::car_starts`),
-//! against the Rust version with the same, the calls and their registers compared, the
-//! work car and the start's variables compared (the share exact at double precision,
-//! within `FLOAT` at extended); all put back.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `drive::start_cars_behind` (0x43703E; four calls). Refuses (before anything) a
+//! start number (`dword_6051A0`) above 0x400 (not worked out), and what the two calls
+//! refuse.
 
 use crate::errors::Refused;
 use crate::framework::{game_addr, game_read, game_write, rva};

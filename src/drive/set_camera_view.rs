@@ -11,12 +11,6 @@
 //!
 //! A `jmp` is its first instruction: `.private_copy` with `.manual_patch`.
 //! Callers: `drive::next_camera_view`, `sub_43A649` (0x43A94F), and code at 0x43B62E.
-//! Self-test: a copy of the original (its step count the test's) on a test block, 6
-//! fillings.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::framework::rva;
 use rc2k_core::drive::camera_views::CameraView;

@@ -9,9 +9,7 @@
 //!
 //! Caller: `race::draw_race_scene` (one view). Platform: the original always runs. In the
 //! standalone program the screen is copied into the texture's memory of ours
-//! (`platform_3d::copy_screen_to_system_texture`). No self-test.
-//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
-//! `routes.rs`); the registers above are the original's, for reference.
+//! (`platform_3d::copy_screen_to_system_texture`).
 
 use crate::framework::{game_read, rva};
 

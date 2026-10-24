@@ -5,14 +5,8 @@
 //! In:  eax the digit
 //! Out: nothing (all kept: `pusha` .. `popa`)
 //!
-//! Caller: `marks::pong_score` (six times). The cells through `part` (1), in the game
-//! their Rust version. Refuses a digit past 9 (the patterns' end), before anything.
-//! Shadow mode runs the original alone (it draws). Self-test: a copy whose cell calls go
-//! to a stand-in, against the Rust version, every digit.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `marks::pong_score` (six times). Refuses a digit past 9 (the patterns' end),
+//! before anything.
 
 use crate::errors::Refused;
 use crate::marks::pong;

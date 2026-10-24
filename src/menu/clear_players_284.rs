@@ -3,13 +3,8 @@
 //! In:  nothing
 //! Out: every register preserved
 //!
-//! The four players of `g_players`. Called at the start of each kind of event
-//! (`sub_482382` and seven more). Self-test: the game's players, theirs and the test's
-//! values, put back afterwards.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! The four players of `g_players`. Called at the start of each kind of event (`sub_482382` and
+//! seven more).
 
 use crate::errors::Refused;
 use crate::menu::player::{PLAYERS, Player, player_at};

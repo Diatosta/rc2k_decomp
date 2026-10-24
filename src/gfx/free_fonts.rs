@@ -6,13 +6,7 @@
 //! `memory::free_list` on `g_glyphTablesMemory` (0x51B984), and `g_fontPalettes`
 //! (0x51DEB0) = 0, which is what lets `gfx::build_fonts` build them again.
 //! Five callers; `sub_47486C` calls it after the main menu is left.
-//! Shadow mode runs the original alone (the memory is given back once) and checks what
-//! it left. Self-test: a redirected copy with a list and a variable of the test's.
 //! Refuses what `free_list` refuses.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::errors::BadInput;
 use crate::gfx::block::game_addr;

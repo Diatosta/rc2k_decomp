@@ -14,10 +14,6 @@
 //! Refuses a missing table, a group without drivers (the original divides by 0), a
 //! driver past the 180, and a name that does not fit.
 //! Converted: `rc2k_core::saves::defaults::best_scores`.
-//!
-//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_read, rva};
@@ -55,6 +51,3 @@ pub unsafe fn default_best_scores() -> Result<(), Refused> {
         Ok(())
     }
 }
-
-// ---- self-test: the game's table, filled by both from the same random numbers, and put
-// back ----

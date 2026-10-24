@@ -7,18 +7,11 @@
 //!      the picture buffer, ecx, edx = the picture's size, carry set, or clear for no
 //!      path; everything else preserved
 //!
-//! The picture's size 256 x 256 with rows that follow one another (row length
-//! 0xFFFFFFFD), its first 0x10000 dwords filled with -1, then `read_picture_file` if
-//! there is a path. Five call sites: `gfx::load_picture_to_texture` (twice) and
-//! `scene::upload_car_icon` (twice), the second of each pair for the picture kept for
-//! the alpha.
-//! Refuses no picture buffer, and what `read_picture_file` refuses.
-//! Shadow mode runs the original alone: the reading is compared in its own hook.
-//! Self-test: `gfx::load_picture`'s files, and no path.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! The picture's size 256 x 256 with rows that follow one another (row length 0xFFFFFFFD), its
+//! first 0x10000 dwords filled with -1, then `read_picture_file` if there is a path. Five call
+//! sites: `gfx::load_picture_to_texture` (twice) and `scene::upload_car_icon` (twice), the
+//! second of each pair for the picture kept for the alpha. Refuses no picture buffer, and what
+//! `read_picture_file` refuses.
 
 use crate::errors::{BadInput, Refused};
 use crate::gfx::block::game_read;

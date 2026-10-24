@@ -7,14 +7,8 @@
 //! In:  nothing
 //! Out: every register kept (`pusha` .. `popa`)
 //!
-//! Callers: the event drivers. The steps are their Rust versions. A private copy (a call at
-//! +1). Refuses what the steps refuse and a player count of 0 or past 4 or a player
-//! missing, before anything. Self-test: the original and the Rust version on the game's
-//! tables, times by lot; put back.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Callers: the event drivers. The steps are their Rust versions. Refuses what the steps refuse and
+//! a player count of 0 or past 4 or a player missing, before anything.
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_read, game_write, rva};
 use crate::menu::standings::*;

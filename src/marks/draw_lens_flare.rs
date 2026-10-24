@@ -11,15 +11,8 @@
 //! In:  nothing (`g_marksSettings`)
 //! Out: nothing (no caller reads the registers it leaves)
 //!
-//! Caller: `sub_4C4EA2`. The normalising is its Rust version (the copy's call goes to its
-//! hook); the parts through `part` (1 with the two values), in the game the Rust version.
-//! Refuses null settings and a part's corner past `g_marksCorners`, before anything.
-//! Shadow mode runs the original alone (it draws). Self-test: a copy whose part calls go
-//! to a stand-in taking the values off, against the Rust version, glow places by lot.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `sub_4C4EA2`. Refuses null settings and a part's corner past `g_marksCorners`,
+//! before anything.
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::rva;

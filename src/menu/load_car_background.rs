@@ -4,15 +4,11 @@
 //! In:  nothing
 //! Out: every register preserved; carry as `menu::load_background` leaves it
 //!
-//! The car is the first dword of the shown entry's record (`dword_755990` through
-//! `dword_75A65C`), 0x21 counting as 0x17; the path is that car's in the page's table
-//! (`off_759AD2[dword_755998]`); `menu::load_background` with it and ebx = the car (the
-//! blit's palette). A carry after it is fatal error 0x80712345. Five call sites, the
-//! car specification screens' set-ups.
-//! Shadow mode runs the original alone (it loads a picture).
-//! Refuses a page past the four, and what the record's lookup refuses.
-//! Self-test: a redirected copy whose `load_background` notes what it gets, every page
-//! with the game's records.
+//! The car is the first dword of the shown entry's record (`dword_755990` through `dword_75A65C`),
+//! 0x21 counting as 0x17; the path is that car's in the page's table (`off_759AD2[dword_755998]`);
+//! `menu::load_background` with it and ebx = the car (the blit's palette). A carry after it is
+//! fatal error 0x80712345. Five call sites, the car specification screens' set-ups. Refuses a page
+//! past the four, and what the record's lookup refuses.
 
 use crate::errors::{FatalError, Refused};
 use crate::framework::{game_read, rva};

@@ -17,16 +17,6 @@
 //! and z in 0 .. 1 (compared on the x87; one that is not a number fails), else "Error"
 //! is logged, the buffer shown by `sub_443AEC` and nothing drawn. Then, with 3D, the
 //! fan; a result other than 0 is logged as "drawtri" and the number.
-//! Shadow mode: the Rust version's calls into the Direct3D layer are worked out
-//! without being made, the original's are noted as it makes them (`d3d/recorder.rs`),
-//! and the two lists compared.
-//! Self-test: a redirected copy of the three functions whose log calls and
-//! `sub_443AEC` only note themselves, on polygons of the test's in the game's buffer,
-//! with the Direct3D layer's calls swallowed.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::d3d::draw_fan_unclipped::polygon;
 use crate::d3d::set_texture::CURRENT_RVA;
@@ -120,10 +110,9 @@ impl Outside for Game {
     fn bad_vertex(&mut self) {
         unsafe { log_write(game_ptr(rva(ERROR_TEXT)), true, 1) };
         if let Err(e) = crate::scene::show_bad_polygon::show_bad_polygon() {
-            // As a refusal of `sub_443AEC` called by its address ended the program.
             crate::standalone::finish(
                 &format!(
-                    "menu::table_calls: Routed ({SHOW_VERTICES:#x}) refused: {}",
+                    "scene::show_bad_polygon ({SHOW_VERTICES:#x}) refused: {}",
                     e.0
                 ),
                 1,

@@ -252,5 +252,3 @@ pub unsafe fn span_quad(at: u32) -> Result<(), Refused> {
     }
     Ok(())
 }
-
-// ---- for the self-tests ----

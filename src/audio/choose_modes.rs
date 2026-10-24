@@ -18,13 +18,6 @@
 //! way bit: 0x10000; no device bit: 0x1000. The menu mode is 0x11221. "AUD: New modes" and
 //! both logged. Callers: `audio::start`, the advanced audio screen (0x4707A3).
 //! Refuses a quality past `g_qualityModes` (the original reads past it).
-//! Compared in shadow mode (the options and both modes; the Rust version's log calls noted,
-//! not written). Self-test: the original on options of the test's, with the real log
-//!, 53 cases.
-//!
-//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::audio::store::Slot;
 use crate::errors::Refused;

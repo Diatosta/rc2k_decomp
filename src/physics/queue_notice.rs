@@ -18,8 +18,6 @@
 //!
 //! Refuses a count above 0x20 (the original only stops at 0x20 exactly, and would write
 //! past the lists), before writing.
-//! Self-test: a copy of the original whose fourteen references are the test's, against
-//! the Rust core on lists of 0 .. 0x20 entries, matching and new keys, ebx 0 and not.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

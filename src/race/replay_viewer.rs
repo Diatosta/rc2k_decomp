@@ -32,19 +32,7 @@
 //! Out: every register kept (`pusha` / `popa`); no flags read
 //!
 //! Callers: `race::replay_mode_1`, `race::replay_mode_3`, `sub_41CD9D` (2), 0x41CDAF (4),
-//! 0x41CDBC (5). Key 0x26 is in `KEYS` twice (0x1D, then 0x14 never reached; kept,
-//! section 16). Its calls through `part` (`CALLEES`); in the game their Rust versions, the
-//! frame's run (`screens::run_frame`, the platform's) through the game. Ungated: the
-//! Rust version passes the gate for each frame's keys and steps, not for the frame shown
-//! (its function is gated) nor for the actions (some play or open screens, which gate
-//! their own frames). Shadow mode runs the original alone. Self-test: a copy whose calls
-//! go to stand-ins (the keys, the plays' ends and the actions scripted), against the Rust
-//! version: each mode, keys of every kind, a camera edit, the developer's and the
-//! editing keys, Escape twice, the leave switch.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! 0x41CDBC (5). Key 0x26 is in `KEYS` twice (0x1D, then 0x14 never reached; kept, section 16).
 
 use crate::errors::Refused;
 use crate::input::store::DeviceSlot;

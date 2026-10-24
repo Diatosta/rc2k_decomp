@@ -7,17 +7,9 @@
 //! In:  nothing
 //! Out: nothing (the Rust callers read no register)
 //!
-//! Caller: `marks::run_pong`. The call is its Rust version. Self-test: the original and
-//! the Rust version on balls and bats by lot; put back.
+//! Caller: `marks::run_pong`. The call is its Rust version.
 //!
-//! Converted 2026-10-21: the hook's Rust version is `move_pong_bat_plain`, through
-//! `rc2k_core::marks::pong::Court::move_bat` (plain floats; the x87 version stays for the Rust
-//! callers in unconverted code). Shadow mode and the self-test compare within
-//! `service::floats`' tolerances (the self-test at both test precisions, exact at double).
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! the x87 version stays for the Rust callers in unconverted code).
 
 use crate::marks::pong;
 use crate::marks::pong_bat_back::pong_bat_back;

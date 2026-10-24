@@ -10,8 +10,6 @@
 //! `dword_7554E8`; 0x100, 8, 2, 4, 1 sounds 0x1CC, 0x1CA, 0x1C8, 0x1C9, 0x1C7 at
 //! `dword_755690`. Then `sound::play_sound` with edx = 0xFFFFFF91 and ecx, edi, ebp = 0.
 //! 25 callers (1 is the highlight's click, 2 Enter's sound: `menu::handle_keys`).
-//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
-//! `routes.rs`); the registers above are the original's, for reference.
 
 use crate::framework::{game_read, rva};
 use crate::system::tick_count::tick_count;

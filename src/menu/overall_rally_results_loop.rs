@@ -1,9 +1,7 @@
 //! `menu::overall_rally_results_loop` (0x466B21): the loop of the fourth results screen after a
 //! stage, the rally's standings so far for all classes.
 //!
-//! Screen: the owner's screenshot of 2026-10-11, from a visit the Rust version ran (hook.log
-//! has it right after the class standings): title "QUADRO DE LIDERANÇA GERAL", the same
-//! layout as the class standings. Named `screen_466b21_loop` until then.
+//! Named `screen_466b21_loop` until then.
 //!
 //! In:  nothing
 //! Out: every register preserved
@@ -14,18 +12,12 @@
 //! error 0x80712345; leaving is asked about, and a "no" sets the screen up again.
 //! If `dword_75AB34` is 1 when the screen is left, nothing more is done: no question,
 //! and the highlight is not saved.
-//! Callers: `sub_4A3BA2` and the code at 0x4A9572. Ungated thunk; shadow mode runs the original alone; each real call writes a
-//! line to hook.log. Self-test: `screen_loop::check_screen`.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Callers: `sub_4A3BA2` and the code at 0x4A9572.
 
 use crate::errors::Refused;
 use crate::framework::{game_read, game_write, rva};
-use crate::menu::class_stage_results_loop::LOAD_BACKGROUND;
 use crate::menu::run_draw_list::DRAW_LIST_RVA;
-use crate::menu::screen_loop::{Carried, FRAME_CALLBACK, List, Screen, Step};
+use crate::menu::screen_loop::{Callee, Carried, FRAME_CALLBACK, List, Screen, Step};
 
 // ---- game data ----
 
@@ -77,7 +69,7 @@ pub const SCREEN: Screen = Screen {
     after_lists: &[],
     background: &[
         Step::ArgAddr(BACKGROUND_RVA),
-        Step::CallOrFatal(LOAD_BACKGROUND, 0x8071_2345),
+        Step::CallOrFatal(Callee::LoadBackground, 0x8071_2345),
     ],
     after_first_frame: &[],
     confirm: Some(&[]),

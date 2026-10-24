@@ -13,12 +13,6 @@
 //! factor (0x40, or what the record's points at); state 0, dirty bits 0xF more, no
 //! channel, no list link. One caller, command 3 (`sub_40AEB9`).
 //! Refuses a shared voice for a record without voices, a chain without its end.
-//! Compared in shadow mode. Self-test: a redirected copy whose sample file and mode are the
-//! test's, records and voices of the test's, 48 cases.
-//!
-//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::audio::samples::*;
 use crate::audio::voices::*;

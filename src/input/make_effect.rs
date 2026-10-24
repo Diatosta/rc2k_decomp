@@ -13,17 +13,9 @@
 //! In:  esi = the device's record, edi = the effect, ecx = its number (for its function)
 //! Out: every register kept (`pusha` .. `popa`)
 //!
-//! Caller: `input::begin_force` (each of the six). The effect's function through `part`
-//! (its address; eax 1, the other registers as here; in the game through the game, one of
-//! `input::effect_N_change`), the methods the objects' own. Shadow mode runs the original
-//! alone (it calls DirectInput). Self-test: the original and the Rust version on
-//! DirectInput objects made in Rust (`input::di_harness`), the effect's function a noting
-//! stand-in: each kind and one past them, found or not, an object before or not, the wheel
-//! (force feedback) and the joystick (none: `CreateEffect` fails).
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `input::begin_force` (each of the six). The effect's function is
+//! one of `input::effect_N_change` (eax 1, the other registers as here), the methods the
+//! objects' own.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

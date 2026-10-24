@@ -7,15 +7,12 @@
 //! Out: eax the entry; the rest kept; no flags read (callers go on with other
 //!      instructions)
 //!
-//! Callers: `sub_436833`, `sub_436AFB`, `sub_436A4B` (under `sub_436790`).
-//! Refuses (before anything) a current car past 7 (the table's size not worked out).
-//! Self-test: a copy of each original (the current car, the table and the flag the
-//! test's) against the core, cars 0 .. 7 with entries -1 and not.
+//! Callers: `sub_436833`, `sub_436AFB`, `sub_436A4B` (under `sub_436790`). Refuses (before
+//! anything) a current car past 7 (the table's size not worked out).
 
 use crate::errors::Refused;
-use crate::framework::{EAX, game_addr};
+use crate::framework::game_addr;
 use crate::physics::cells::{get, put};
-use crate::screens::harness::Left;
 use rc2k_core::physics::listed_cars::listed_entry;
 
 pub const CURRENT_CAR: usize = 0x71B3F8; // g_currentCar
@@ -24,18 +21,18 @@ pub const TABLE: usize = 0x641680; // dword_641680
 /// The Rust version: the current car at `current`, the table at `table`, the flag at
 /// `flag`.
 // Converted: `rc2k_core::physics::listed_cars::listed_entry`.
-pub unsafe fn set_flag_at(current: u32, table: u32, flag: u32) -> Result<Left, Refused> {
+pub unsafe fn set_flag_at(current: u32, table: u32, flag: u32) -> Result<(), Refused> {
     unsafe {
-        let (entry, listed) = listed_entry(get(current), |car| get(table + 4 * car))?;
+        let (_, listed) = listed_entry(get(current), |car| get(table + 4 * car))?;
         if listed {
             put(flag, 1);
         }
-        Ok(Left::nothing().with(EAX, entry))
+        Ok(())
     }
 }
 
 /// On the game's variables.
-pub unsafe fn set_flag(flag_ida: impl crate::store::At) -> Result<Left, Refused> {
+pub unsafe fn set_flag(flag_ida: impl crate::store::At) -> Result<(), Refused> {
     let a = |x: usize| game_addr(crate::framework::rva(x)) as u32;
     unsafe { set_flag_at(a(CURRENT_CAR), a(TABLE), flag_ida.here() as u32) }
 }

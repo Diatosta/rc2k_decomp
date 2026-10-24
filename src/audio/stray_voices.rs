@@ -1,12 +1,11 @@
-//! A diagnostic (2026-10-20, no hook): the owner hears, now and then, a sound stuck over
+//! A diagnostic (2026-10-20): the owner hears, now and then, a sound stuck over
 //! everything that even a pause does not stop, with the audio thread still turning. A
 //! sound only stops through the playing and stopping lists (`audio::update_voices`,
 //! `audio::stop_all_voices`), so a buffer that plays while its voice is on neither list
 //! can never be stopped. Once a second, after the turn's update (the voices' own buffers'
 //! way only: not A3D, not the game's mixer), every voice of the pool whose buffer plays is
 //! looked for on the two lists; one on neither is logged once ("audio: stray voice"), with
-//! what it holds, until it is quiet again. Called by the Rust thread's turn and by
-//! `audio::update_voices`' dispatch (the original thread's, with shadow mode on).
+//! what it holds, until it is quiet again.
 
 use crate::audio::voices::{
     A3D_RVA, PLAYING_RVA, SOUND_MODE_RVA, STOPPING_RVA, VOICE_COUNT_RVA, VOICES, VOICES_RVA, Voice,

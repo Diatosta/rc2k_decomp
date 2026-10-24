@@ -8,12 +8,6 @@
 //! Out: every register kept (eax pushed around `fnstsw`)
 //!
 //! Caller: `sub_43B635` (0x43B966), every physics step.
-//! Self-test: a copy of the original on test variables against the converted version,
-//! every gate, speeds above, at, below the limit and NaN.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::framework::{game_addr, rva};
 use rc2k_core::physics::gearing::drops_to_neutral;

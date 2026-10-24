@@ -14,13 +14,8 @@
 //! In:  nothing
 //! Out: eax, ebx (the texture's record), ecx, edx, esi (the face) as left; no flags read
 //!
-//! Caller: `sub_43B635` (0x43B990), every physics step.
-//! Refuses a light index past 0xFF (the tables are 256) and no faces; what was written is
-//! put back. Shadow mode runs the original alone (`find_ground` through
-//! `physics/reset_parts.rs`, gone).
-//! Self-test: a copy whose `find_ground` goes to a stand-in, run on the game's variables
-//! (saved and put back) with test faces, against the Rust version: faces found and not,
-//! textures, both MMX paths.
+//! Caller: `sub_43B635` (0x43B990), every physics step. Refuses a light index past 0xFF
+//! (the tables are 256) and no faces; what was written is put back.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

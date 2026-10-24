@@ -3,10 +3,8 @@
 //! In:  nothing
 //! Out: every register kept (`pusha` .. `popa`)
 //!
-//! Caller: `screens::service_area_frame` (0x46CFF0). The body is the
-//! original's code written out by `service_boxes`' translator; the quads through `part` (1,
-//! in the game `draw_tinted_quad`'s Rust version), the frames 2 .. 5.
-//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
+//! Caller: `screens::service_area_frame` (0x46CFF0). The body is the original's code written out by
+//! `service_boxes`' translator. The menus and draw lists run its `entry`
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;

@@ -6,12 +6,6 @@
 //! Out: every register kept; no flags read
 //!
 //! Caller: `drive::countdown_cue`.
-//! Shadow mode runs the original alone (a sound command).
-//! Self-test: none (a sound command; `sound::play_sound`'s own test covers it).
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 /// The Rust version.
 // Converted: `rc2k_core::drive::countdown::beep_sound`.

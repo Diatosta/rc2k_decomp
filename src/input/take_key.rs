@@ -3,9 +3,7 @@
 //!
 //! In:  nothing
 //! Out: al = the key, 0 if there was none (the rest of eax is preserved); ZF = (al == 0)
-//! 65 callers. Shadow mode runs the original alone: taking the key twice would lose it. The
-//! hook notes the key it hands out, so that callers can be shadow-compared (see
-//! `noting_taken_key`). The
+//! 65 callers. The
 //! other flags of the original's `test al, al` (sign, parity) are not reproduced; carry and
 //! zero are.
 

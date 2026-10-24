@@ -10,10 +10,7 @@
 //!
 //! See `input/effects.rs`. 21 callers (`start_device_effects`, `stop_device_effects`,
 //! `update_car_effects`). Refuses (before anything) an effect past 5 (the original writes
-//! wherever eax * 0xA4 lands). Shadow mode runs the original alone (the input thread takes
-//! the requests). Self-test: a copy whose `dword_518090` is the test's, on records of the
-//! test's, against the Rust version: effects 0 .. 5, the four kinds and others, the
-//! switches both ways, numbers past 12 bits.
+//! wherever eax * 0xA4 lands).
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

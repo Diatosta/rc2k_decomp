@@ -9,10 +9,6 @@
 //!
 //! Caller: `sub_4547AE` (0x4547FD, `race::show_frame`); `flt_6214F0` is shown by
 //! `race::draw_frame_rate`. The rate is worked out in plain floats.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::framework::{game_read, game_write, rva};
 use crate::session::MACHINE;

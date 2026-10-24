@@ -9,10 +9,6 @@
 //! One caller, `menu::set_up_front_end`, when `var\hst.dat` was not loaded.
 //! Refuses a missing table and a record that picks entries past the table's 36 stages.
 //! Converted: `rc2k_core::saves::defaults::stage_times` (a refusal now leaves nothing written).
-//!
-//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_read, rva};

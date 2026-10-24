@@ -26,19 +26,9 @@
 //!      clear and the zero flag by the eax left; every register kept (`pusha` .. `popa`)
 //!
 //! Callers: `gfx::choose_screen_modes` (0x4045CA) and the graphics options' actions
-//! (`sub_470017`, `sub_4703C2`). Refuses (before anything is written) a list longer than
-//! the record's room (16 modes: the original would write over 0x4F51F0's constants) and a
-//! size's place of 0x1000 or more when made (the original reads that far past the list).
-//! Its three calls through `part` (0 the trial, 1 the race's mode kept, 2 the menus' mode
-//! set; in both programs the first two Rust versions, the third through its hook, the
-//! platform's in the standalone). Shadow mode runs the original alone (the screen
-//! changes). Self-test: a copy whose three calls go to stand-ins, against the Rust
-//! version, on a mode table of the test's: made or not, eax 0 or not, the trial working
-//! or not, the race's mode in the list or not.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! (`sub_470017`, `sub_4703C2`). Refuses (before anything is written) a list longer than the
+//! record's room (16 modes: the original would write over 0x4F51F0's constants) and a size's
+//! place of 0x1000 or more when made (the original reads that far past the list).
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{Flags, game_addr, rva};

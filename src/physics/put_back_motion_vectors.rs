@@ -7,12 +7,6 @@
 //! Out: every register kept; no flags read
 //!
 //! Caller: `sub_43B635` (0x43B8F1, before `sub_43F7AC`).
-//! Self-test: a copy of the original (all its variables the test's, its call to
-//! `car_frame_motion`'s test copy on the same) against the Rust core, values by lot.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::framework::{game_addr, rva};
 use crate::physics::car_frame_motion::car_frame_motion_at;

@@ -6,12 +6,6 @@
 //! Out: ecx 0, esi past the last piece, edi past the copy; the rest kept; no flags read
 //!
 //! Caller: `sub_45FFB6`.
-//! Self-test: the original and the Rust version on the pieces filled by pattern (saved
-//! and put back).
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::physics::flow::a;
 use rc2k_core::drive::replay_frames::{StartPiece, start_layout};

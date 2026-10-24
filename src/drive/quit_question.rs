@@ -9,15 +9,7 @@
 //! In:  nothing
 //! Out: eax the answer; the rest as the steps leave them; no flags read
 //!
-//! Caller: `drive::race_loop`. It begins with a call: hooked by a private copy of its
-//! 0x30D bytes (four calls relocated) and a hand-made patch; ungated (it waits for the
-//! player).
-//! Refuses what its calls refuse. Shadow mode runs the original alone.
-//! Self-test: skipped (it waits for an answer).
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `drive::race_loop`. Refuses what its calls refuse.
 
 use crate::drive::race_parts::{stop_race_sounds, wake_car_sounds};
 use crate::errors::Refused;

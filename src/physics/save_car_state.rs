@@ -7,20 +7,11 @@
 //! Out: eax = `dword_71A114`, ecx 0, esi = 0x71ADC8 + 4 n, edi = 0x6D2814 + 4 n; no flags
 //!      read
 //!
-//! Caller: `sub_43B635` (0x43B719), every physics step.
-//! Refuses a count above 0x40 (unsigned; `dword_6D2814` has 0x40 before
-//! `dword_6D2914`), before writing.
-//! Self-test: a copy of the original whose twelve references are the test's, counts 0 ..
-//! 0x40; the refusal.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `sub_43B635` (0x43B719), every physics step. Refuses a count above 0x40
+//! (unsigned; `dword_6D2814` has 0x40 before `dword_6D2914`), before writing.
 
 use crate::errors::Refused;
-use crate::framework::{EAX, ECX, EDI, ESI};
 use crate::physics::restore_saved_car::SavedCar;
-use crate::screens::harness::Left;
 use rc2k_core::physics::saved_car::{CarState, save_count};
 
 unsafe fn at(a: u32) -> u32 {
@@ -55,22 +46,17 @@ unsafe fn put_dwords(to: u32, v: &[u32]) {
 
 /// The Rust core on the variables at `p` (`restore_saved_car`'s, the other way).
 // Converted: `rc2k_core::physics::saved_car::save_count`.
-pub unsafe fn save_car_state_at(p: &SavedCar) -> Result<Left, Refused> {
+pub unsafe fn save_car_state_at(p: &SavedCar) -> Result<(), Refused> {
     unsafe {
         let n = save_count(at(p.count))?;
         (p.counter as *mut u32).write_unaligned(0);
         let state = read_state(p.place, p.matrix, p.list, n);
         write_state(&state, p.saved_place, p.saved_matrix, p.saved_list);
-        let n = n as u32;
-        Ok(Left::nothing()
-            .with(EAX, state.place[2])
-            .with(ECX, 0)
-            .with(ESI, p.list + 4 * n)
-            .with(EDI, p.saved_list + 4 * n))
+        Ok(())
     }
 }
 
 /// The Rust version.
-pub unsafe fn save_car_state() -> Result<Left, Refused> {
+pub unsafe fn save_car_state() -> Result<(), Refused> {
     unsafe { save_car_state_at(&SavedCar::game()) }
 }

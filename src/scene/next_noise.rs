@@ -3,16 +3,10 @@
 //! In:  nothing
 //! Out: eax = the number; everything else preserved
 //!
-//! One step on the state `dword_614C54` (`scene::noise_step`, 0x440F4E, inlined): bit
-//! 22, then bits 2 and 1 of the low byte as it then is, each flip bit 0; the whole
-//! turned right by one; then `xor` 0x87654321. `math::next_random`'s step with that
-//! last `xor` added.
-//! Five callers (two in the engine's tables, three unread).
-//! Self-test: 200 states.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! One step on the state `dword_614C54` (`scene::noise_step`, 0x440F4E, inlined): bit 22, then
+//! bits 2 and 1 of the low byte as it then is, each flip bit 0; the whole turned right by one;
+//! then `xor` 0x87654321. `math::next_random`'s step with that last `xor` added. Five callers
+//! (two in the engine's tables, three unread).
 
 use crate::bridge::Global;
 use crate::framework::rva;

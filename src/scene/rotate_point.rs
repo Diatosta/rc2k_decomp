@@ -4,13 +4,7 @@
 //! In:  st(0), st(1), st(2) the point, esi the matrix
 //! Out: st(0) .. st(2) the result (80 bits); every register kept
 //!
-//! The original's instructions, register operations as bytes. Thunk by `triple_hook!`.
-//! 87 callers (the marks and the race's drawing). Refuses a null matrix. Self-test: the
-//! original and the Rust version on matrices and points by lot (some points unrounded).
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! The original's instructions, register operations as bytes. Refuses a null matrix.
 
 use crate::math::x87::x87;
 

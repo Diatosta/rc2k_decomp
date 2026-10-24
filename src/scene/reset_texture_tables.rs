@@ -3,18 +3,11 @@
 //! In:  nothing
 //! Out: eax = 0xffffffff, ecx = 0, edi = the end of the last table
 //!
-//! `dword_5DC978` = 0; -1 throughout the kinds' two tables of textures needed
-//! (`dword_5CFAE0`, `dword_5CEAE0`) and their first slots and first textures
-//! (`g_kindFirstSlots`, `g_kindFirstTextures`), 0x400 dwords each.
-//! Four callers.
-//! Self-test: the tables filled with another byte first, and put back afterwards.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! `dword_5DC978` = 0; -1 throughout the kinds' two tables of textures needed (`dword_5CFAE0`,
+//! `dword_5CEAE0`) and their first slots and first textures (`g_kindFirstSlots`,
+//! `g_kindFirstTextures`), 0x400 dwords each. Four callers.
 
-use crate::framework::{EAX, ECX, EDI, game_addr, game_write, rva};
-use crate::screens::harness::Left;
+use crate::framework::{game_addr, game_write, rva};
 
 // ---- game data ----
 
@@ -31,16 +24,11 @@ const CLEARED_RVA: usize = rva(0x5DC978); // dword_5DC978
 
 // ---- Rust version ----
 
-pub unsafe fn reset_texture_tables() -> Left {
+pub unsafe fn reset_texture_tables() {
     unsafe {
         game_write(CLEARED_RVA, 0u32);
         for (table, len, byte) in FILLS {
             std::ptr::write_bytes(game_addr(table) as *mut u8, byte, len);
         }
     }
-    let (last, len, _) = FILLS[FILLS.len() - 1];
-    Left::nothing()
-        .with(EAX, 0xffffffff)
-        .with(ECX, 0)
-        .with(EDI, (game_addr(last) + len) as u32)
 }

@@ -1,4 +1,4 @@
-//! DirectPlay, called from Rust (the platform, section 15): `CoCreateInstance` and the
+//! DirectPlay, called from Rust (the platform): `CoCreateInstance` and the
 //! methods of the game's objects (`g_dplay` 0x5AB288, an `IDirectPlay4A`; `g_dplayLobby`
 //! 0x5AB28C, an `IDirectPlayLobby2A`; `dword_5AB284`). Each call takes the object from its
 //! variable, as the original does at the call, and gives the method's result. ecx and edx,
@@ -11,7 +11,6 @@
 //! 0x74 SetPlayerData, 0x7C SetSessionDesc, 0x8C EnumConnections, 0x98 InitializeConnection;
 //! (IDirectPlayLobby2A) 8 Release, 0xC Connect, 0x20 GetConnectionSettings,
 //! 0x30 SetConnectionSettings, 0x38 CreateCompoundAddress.
-//! In the self-tests the variables point at test objects (`net::lobby::TestObject`).
 
 use crate::net::lobby::g;
 

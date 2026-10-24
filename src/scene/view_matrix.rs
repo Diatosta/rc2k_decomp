@@ -1,17 +1,16 @@
-//! The view's matrices and the functions that make them: shared by their eight hooks.
+//! The view's matrices and the functions that make them: shared by their eight functions.
 //!
 //! The three fine turnings take an angle of 32 bits a turn and work the sine and
 //! cosine out (`fsincos`), where `scene::set_turn_x` and `_y` look sixteen bits up in
 //! tables; the first two write the same matrices as those.
 
-use crate::framework::{EAX, EBP, EBX, ECX, EDI, EDX, ESI, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::math::x87;
 use crate::scene::draw_polygon::CHECKED_RVA;
 use crate::scene::matrix::{
     self, LIT_RVA, PLACED_RVA, TURN_X_RVA, TURN_X_WORK_RVA, TURN_Y_RVA, TURN_Y_WORK_RVA,
     VIEW_TURN_RVA,
 };
-use crate::screens::harness::Left;
 
 pub const TURN_Z_RVA: usize = rva(0x5EA00C); // flt_5EA00C
 pub const TURN_Z_WORK_RVA: usize = rva(0x624158); // dword_624158, dword_62415C
@@ -68,7 +67,7 @@ impl Axis {
 
 /// `scene::set_fine_turn_x` (0x4270BA), `scene::set_fine_turn_y` (0x42710C),
 /// `scene::set_turn_z` (0x42715D).
-pub unsafe fn set_fine_turn(axis: Axis, angle: u32) -> Left {
+pub unsafe fn set_fine_turn(axis: Axis, angle: u32) {
     unsafe {
         game_write(CHECKED_RVA, angle);
         let (sine, cosine) =
@@ -82,11 +81,6 @@ pub unsafe fn set_fine_turn(axis: Axis, angle: u32) -> Left {
         {
             game_write(axis.matrix() + place, value);
         }
-        Left::nothing()
-            .with(EAX, sine)
-            .with(EBX, cosine)
-            .with(ECX, negated)
-            .with(EDI, game_addr(axis.matrix()) as u32)
     }
 }
 
@@ -191,7 +185,7 @@ pub unsafe fn invert_turn(from: usize, out: usize) {
 }
 
 /// `scene::set_view_matrices` (0x438FBF).
-pub unsafe fn set_view_matrices() -> Left {
+pub unsafe fn set_view_matrices() {
     unsafe {
         game_write(VIEW_TURN_RVA, game_read::<[u32; 16]>(IDENTITY_RVA));
         let angles: [u32; 3] = game_read(VIEW_ANGLES_RVA);
@@ -217,14 +211,6 @@ pub unsafe fn set_view_matrices() -> Left {
             game_addr(VIEW_RVA),
         );
         invert_turn(game_addr(VIEW_TURN_RVA), game_addr(VIEW_BACK_RVA));
-        Left::nothing()
-            .with(EAX, place[0])
-            .with(EBX, place[1])
-            .with(ECX, 0)
-            .with(EDX, 0)
-            .with(ESI, game_addr(VIEW_TURN_RVA) as u32)
-            .with(EDI, game_addr(VIEW_BACK_RVA) as u32)
-            .with(EBP, game_addr(VIEW_RVA) as u32)
     }
 }
 

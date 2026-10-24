@@ -9,9 +9,6 @@
 //! equal); then with no limit (+2 0), or the repeats (+0x2C) below it (counted up), the
 //! restart flag +0x24 1. One caller, `sound::spot_sounds`.
 //! Refuses (before anything) a voice of kind 0 or past 0x15.
-//! Shadow mode: both (nothing sent; the random state put back between), compared.
-//! Self-test: a copy whose call goes to a stand-in (the test's random numbers), against
-//! the Rust version, on the game's voices (put back).
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

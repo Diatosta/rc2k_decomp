@@ -14,14 +14,10 @@
 //!      `restore_saved_car` and `feel_ground` leave them, eax the depth; no flags read
 //!      (the caller calls on)
 //!
-//! Caller: `sub_43B635`, every physics step.
-//! Refuses a point past 0x3F on the long path (the tables' room), and what its calls
-//! refuse; what was written is put back.
-//! Self-test: the original and the Rust version on the game's variables (saved and put
-//! back) with test faces (`g_courseFaces` pointed at them for the test): depths 0 ..
-//! 0x1800, the contact's figures and the matrices by lot, both paths, the current car not
-//! listed (no sound), under three precisions. Not reached: a depth below 0
-//! (`restore_saved_car` and `feel_ground` need the stage; their own tests cover them).
+//! Caller: `sub_43B635`, every physics step. Refuses a point past 0x3F on the long path
+//! (the tables' room), and what its calls refuse; what was written is put back. Not
+//! reached: a depth below 0 (`restore_saved_car` and `feel_ground` need the stage; their
+//! own tests cover them).
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

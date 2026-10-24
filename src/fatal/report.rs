@@ -26,7 +26,7 @@
 
 use crate::errors::BadInput;
 use crate::fatal::state::{CAPTION, CODE, EXTRA, MESSAGE, REPORTED, TEMPLATE, TEXT, W32};
-use crate::framework::{RawHook, Regs, game_addr, log, rva};
+use crate::framework::{RawHook, Regs, log, rva};
 use crate::menu::text_entry::log_l1;
 use crate::threading::find_thread_slot::find_thread_slot;
 use crate::threading::request_quit::request_quit;
@@ -103,7 +103,7 @@ pub unsafe fn report(context: &Context, outside: &mut Outside) -> Result<Leave, 
             outside.quit,
             outside.thread_slot,
             // The slot holds its routine as an IDA address.
-            &|slot| game_addr(rva((slot as *const u32).read_unaligned() as usize)) as u32,
+            &|slot| (slot as *const u32).read_unaligned(),
         ))
     }
 }
@@ -147,22 +147,13 @@ pub fn report_now(r: &Regs) {
             0,
         ),
         Ok(Leave::Routine { slot, routine }) => {
-            let at = (routine as usize).wrapping_sub(game_addr(0));
             log(&format!(
-                "fatal::report: fatal error {code:#x} on the thread of slot {slot:#x}: its routine {:#x} again",
-                at + crate::framework::IMAGE_BASE
+                "fatal::report: fatal error {code:#x} on the thread of slot {slot:#x}: its routine {routine:#x} again"
             ));
-            let mut regs = Regs {
-                esi: slot,
-                ..Regs::default()
-            };
-            match crate::routes::by_rva(at, &mut regs) {
+            match crate::threading::thread_slot::run_routine(routine) {
                 Some(_) => unsafe { windows_sys::Win32::System::Threading::ExitThread(0) },
                 None => crate::standalone::finish(
-                    &format!(
-                        "not ported: the thread routine {:#x} (fatal error {code:#x})",
-                        at + crate::framework::IMAGE_BASE
-                    ),
+                    &format!("not ported: the thread routine {routine:#x} (fatal error {code:#x})"),
                     1,
                 ),
             }

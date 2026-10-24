@@ -6,13 +6,7 @@
 //! `sub_409B76` clears it). Unless the sound mode in use (`dword_4F82BC`) has bit
 //! 0x100000 (the 3D modes), the command goes with esi, edi and ebp = 0xFF800000; with
 //! it, with esi = ecx and ecx = 0.
-//! 14 callers. Shadow mode runs the original alone (a command must not be sent twice).
-//! Self-test: a redirected copy whose two variables are the test's and whose command
-//! notes its registers.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! 14 callers.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

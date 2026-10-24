@@ -3,29 +3,16 @@
 //!
 //! In:  nothing
 //! Out: every register preserved (carry is set on Escape; the caller does not read it)
-//! The name is the highlighted entry of the saved game list. One pending key is taken:
-//!   none          the cursor is written again;
-//!   1 (Escape)    the name from before comes back, the entry ends;
-//!   0x1C (Enter)  an empty name is replaced by the one from before; the entry ends, the
-//!                 name is cut at its length and the game is saved in that slot
-//!                 (`saves::write_savegame_slot`);
-//!   0x6E          the name is cleared;
-//!   0x0E          the last character goes (`backspace_savegame_name`);
-//!   any other     `key_to_char`; a character is appended unless the length is already above
-//!                 the maximum, and taken off again if the name then measures 0xEC pixels
-//!                 or more.
-//! After anything but Escape and Enter the cursor (string 4) is written after the name if
-//! `dword_7559A8` is 1, then a NUL.
-//! Called from the screen loop `sub_47F034` while `dword_7556A8` is 1.
-//! Refuses, before the key is taken: a name past the list, a length outside 0 .. 0x1F, no
-//! keyboard layout. Manual patch with a private copy (0x20A bytes, 14 calls relocated).
-//! In shadow mode the game is saved once, by the original; the replayed Rust version leaves
-//! the save out. The self-test runs a copy of the original whose call to the save function
-//! goes to a stand-in that notes the slot.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! The name is the highlighted entry of the saved game list. One pending key is taken: none
+//! the cursor is written again; 1 (Escape)    the name from before comes back, the entry ends; 0x1C
+//! (Enter)  an empty name is replaced by the one from before; the entry ends, the name is cut at
+//! its length and the game is saved in that slot (`saves::write_savegame_slot`); 0x6E          the
+//! name is cleared; 0x0E          the last character goes (`backspace_savegame_name`); any other
+//! `key_to_char`; a character is appended unless the length is already above the maximum, and taken
+//! off again if the name then measures 0xEC pixels or more. After anything but Escape and Enter the
+//! cursor (string 4) is written after the name if `dword_7559A8` is 1, then a NUL. Called from the
+//! screen loop `sub_47F034` while `dword_7556A8` is 1. Refuses, before the key is taken: a name
+//! past the list, a length outside 0 .. 0x1F, no keyboard layout.
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_read, game_write, rva};

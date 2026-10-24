@@ -1,4 +1,4 @@
-//! The tables the objects' shapes are loaded into: shared by the loader's hooks.
+//! The tables the objects' shapes are loaded into: shared by the loader's functions.
 //!
 //! An object slot (0 .. 0xFF) has a first point and a number of points in the points'
 //! memory (twelve bytes a point, three whole numbers), its normals after them, and a

@@ -11,14 +11,9 @@
 //! `marks::jitter_point` (spread `flt_765198`), y made positive; its place the record's
 //! (+0x3C ..), less `flt_7651DC` in y at +0x28; +0x1C .. +0x24 0; a life of 300 (+0x78
 //! `flt_7651A4` over it); +0x68 `g_marksCar`. The loop reuses esi for the entry: only the
-//! first entry's tag (+0x90) is the object's +0x1C, the later ones the previous entry's
-//! (0; section 16). Refuses (before anything) a null record, and a null object when an
-//! entry is made. Self-test: a ring, record and car of the test's
-//! (`marks::emit_particle_6::TestEmitter`), several sizes, flags and fillings.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! first entry's tag (+0x90) is the object's +0x1C, the later ones the previous entry's (0;
+//! section 16). Refuses (before anything) a null record, and a null object when an entry is
+//! made.
 
 use crate::errors::{BadInput, Refused};
 use crate::marks::emitters::*;

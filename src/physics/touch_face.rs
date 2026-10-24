@@ -16,23 +16,14 @@
 //!      before; eax as the kind's path leaves it (the kind, the random number, or
 //!      `dword_6D3B70`); the rest kept; no flags read (callers return)
 //!
-//! Callers: `sub_45E3BF` (six).
-//! Refuses (before anything) a count past 0x100 (the list's room); what
-//! `place_sound_object` refuses (its writes put back).
-//! Self-test: the original and the Rust version on the game's variables (saved and put
-//! back) with test faces (`g_courseFaces` pointed at them for the test), every kind, the
-//! list empty, part full and full, the current car not listed (no sound).
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Callers: `sub_45E3BF` (six). Refuses (before anything) a count past 0x100 (the list's
+//! room); what `place_sound_object` refuses (its writes put back).
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{EAX, EBX, EDX, ESI};
+
 use crate::math::next_random::next_random;
 use crate::physics::flow::{a, c0, g, p};
 use crate::physics::place_sound_object::place_sound_object;
-use crate::screens::harness::Left;
 use rc2k_core::drive::lit_faces::{LIST_ROOM, Touch, fall_mark, lucky, touch};
 
 /// `g_courseFaces`: the pointer to the course's faces.
@@ -47,7 +38,7 @@ fn put(at: u32, v: u32) {
 }
 
 /// The usual marks: +9 = 0, +0x11 = `mark`, +0x13 = 0, +0x12 `dword_6D3B70`'s low byte.
-fn mark(face: u32, mark: u32, clear_9: bool) -> u32 {
+fn mark(face: u32, mark: u32, clear_9: bool) {
     if clear_9 {
         put(face + 9, 0);
     }
@@ -55,22 +46,19 @@ fn mark(face: u32, mark: u32, clear_9: bool) -> u32 {
     put(face + 0x13, 0);
     let low = g(0x6D3B70);
     put(face + 0x12, low);
-    low
 }
 
 /// The Rust version.
 // Converted: `rc2k_core::drive::lit_faces::{touch, fall_mark, lucky}`.
-pub unsafe fn touch_face() -> Result<Left, Refused> {
+pub unsafe fn touch_face() -> Result<(), Refused> {
     let number = g(FACE);
     let face = (number << 6).wrapping_add(g(FACES));
-    let left = Left::nothing().with(EBX, number).with(ESI, face);
     if unsafe { (face as *const u8).add(0x11).read() } != 0 {
-        return Ok(left);
+        return Ok(());
     }
     let count = g(LIT_COUNT);
-    let left = left.with(EDX, count);
     if count == LIST_ROOM {
-        return Ok(left);
+        return Ok(());
     }
     if count > LIST_ROOM {
         return Err(BadInput("g_litFaceCount past 0x100 (the list's room)").into());
@@ -80,31 +68,30 @@ pub unsafe fn touch_face() -> Result<Left, Refused> {
         (face, 0x40),
         (a(LIT_COUNT), 4),
     ];
-    let eax = (|| -> Result<_, crate::errors::Refused> {
+    (|| -> Result<(), crate::errors::Refused> {
         p(LIT + 4 * count as usize, number);
         let kind = g(KIND);
-        let eax = match touch(kind) {
+        match touch(kind) {
             Touch::MarkIfFast => {
                 if c0(g(0x71A19C), g(0x5C5D50)) {
-                    return Ok(kind);
+                    return Ok(());
                 }
-                mark(face, 1, true)
+                mark(face, 1, true);
             }
             Touch::Mark => mark(face, 1, true),
             Touch::Fall => mark(face, fall_mark(g(0x6D3B74)), false),
             Touch::Chance => {
-                let (r, lucky) = lucky(unsafe { next_random() });
+                let (_, lucky) = lucky(unsafe { next_random() });
                 if lucky {
                     put(face + 0x11, 0xF);
                     p(LIT_COUNT, count + 1);
                 }
-                return Ok(r);
+                return Ok(());
             }
-            Touch::Sound => kind,
-        };
+            Touch::Sound => {}
+        }
         unsafe { place_sound_object() }?;
         p(LIT_COUNT, count + 1);
-        Ok(eax)
-    })()?;
-    Ok(left.with(EAX, eax))
+        Ok(())
+    })()
 }

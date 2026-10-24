@@ -21,19 +21,11 @@
 //!   pushed, so its `popa` and `ret` go astray: refused.
 //!
 //! One caller, `gfx::load_picture_to_texture` (the other reference, 0x425A52, is in code
-//! nothing reaches).
-//! The two DirectDraw calls go through `Surfaces`, which the standalone program can
-//! answer with textures of its own.
-//! Refuses a texture of 0x140 or more, a record without its format, more than nine
-//! levels, a picture that halves to nothing, and what `ready_picture` refuses; a
-//! refusal after the picture was changed hands the original the changed picture.
-//! Shadow mode runs the original alone.
-//! Self-test: the original and the Rust version on records of the test's whose
-//! surfaces are objects of the test's, 12 cases.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! nothing reaches). The two DirectDraw calls go through `Surfaces`, which the standalone
+//! program can answer with textures of its own. Refuses a texture of 0x140 or more, a record
+//! without its format, more than nine levels, a picture that halves to nothing, and what
+//! `ready_picture` refuses; a refusal after the picture was changed hands the original the
+//! changed picture.
 
 use crate::errors::{BadInput, Refused};
 use crate::gfx::block::{game_addr, game_read};

@@ -13,16 +13,8 @@
 //! Out: as the last call leaves them (eax the last try's checkpoint and esi the last
 //!      block when none was free); no flags read (every caller returns next)
 //!
-//! Callers: `physics::reset_when_stuck`, `sub_43A0D3`, `sub_43BDD1`.
-//! Refuses what the calls refuse. Shadow mode runs the original alone
-//! (its calls then went through `physics/reset_parts.rs`, gone).
-//! Self-test: a copy whose calls go to the stand-ins (place 13's carry by a pattern),
-//! against the Rust version with the same: modes 2 and others, patterns free at once,
-//! after some tries, and never (the log line, a stand-in too); all put back.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Callers: `physics::reset_when_stuck`, `sub_43A0D3`, `sub_43BDD1`. Refuses what the calls
+//! refuse.
 
 use crate::errors::Refused;
 use crate::framework::{game_addr, game_read, game_write, rva};

@@ -5,13 +5,7 @@
 //! In:  nothing
 //! Out: the record (the original's esi; returned, read by no caller)
 //!
-//! One caller, `marks::run_frame`. Refuses a number past the table (unsigned). Self-test:
-//! the original and the Rust version on numbers 0, 1, 0x1F and 0x33 and the game's own;
-//! put back afterwards.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! One caller, `marks::run_frame`. Refuses a number past the table (unsigned).
 
 use crate::errors::Refused;
 use crate::framework::rva;

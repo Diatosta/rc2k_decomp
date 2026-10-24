@@ -8,10 +8,6 @@
 //! `byte_528934[slot * 0x20]`. A short file is not noticed as such: what the buffer held
 //! before decides (as in `saves::read_savegame_slot`).
 //! One caller, `sub_411239`, for all 100 slots at start-up. Refuses a slot past 99.
-//!
-//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
 use crate::files::numbered_path::numbered_path_in_game;

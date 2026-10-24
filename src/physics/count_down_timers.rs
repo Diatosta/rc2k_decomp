@@ -9,8 +9,6 @@
 //! Out: eax `dword_71A270` & 0x1E when that is looked at, else kept; no flags read
 //!
 //! Callers: `sub_43B635` (0x43B70A) and `sub_421848` (the car specification's run).
-//! Self-test: `physics/copy_hooks_test.rs` (a copy on test variables against the
-//! converted version), 48 cases; one compare and copy of floats: exact at any precision.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

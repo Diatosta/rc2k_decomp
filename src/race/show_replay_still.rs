@@ -14,14 +14,6 @@
 //! Out: the registers as the scene's drawing leaves them; no flags read
 //!
 //! Caller: `race::viewer_frame`. Refuses (before anything) a cars' count of 0 or past 8.
-//! Its calls through `part` (`CALLEES`); in the game their Rust versions (`sub_454229`,
-//! six bytes calling `draw_race_scene`, is not hooked: its Rust version is called). Shadow
-//! mode runs the original alone (it draws). Self-test: a copy whose calls go to stand-ins,
-//! against the Rust version: frames 0, 1 and 5, cars running or not, car kinds 0 .. 2.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
 use crate::physics::flow::{g, p};

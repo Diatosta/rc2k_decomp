@@ -25,16 +25,7 @@
 //!
 //! Callers: `input::set_up_device`, `input::device_command`. The effects' functions through
 //! `begin_force`'s `part`; the methods the objects' own. Refuses nothing: the fatal errors
-//! are raised. Shadow mode runs the original alone (it calls DirectInput). Self-test: the
-//! original and the Rust version on DirectInput objects made in Rust (`input::di_harness`),
-//! the joystick and the wheel listed (`input::list_joysticks`), on copies of the first
-//! device's record: each controller, one not listed and one not attached, kinds 0 .. 3,
-//! zones of the test's, the configuration's values set or not; the Rust version alone on a
-//! record with a device (the fatal error).
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! are raised.
 
 use crate::errors::{FatalError, Refused};
 use crate::field;

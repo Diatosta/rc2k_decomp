@@ -12,10 +12,9 @@
 //! In:  nothing
 //! Out: the registers as left (ebx the cursor after a name, ebp 1000); no flags read
 //!
-//! Caller: `physics::split_by_mode`.
-//! Refuses a split or a split count past 0x40, a divisor of 0 or a quotient past a dword
-//! (the original's `div` would fault); what was written is put back.
-//! Self-test: `physics/splits.rs` (`test_splits`), mode 1.
+//! Caller: `physics::split_by_mode`. Refuses a split or a split count past 0x40, a divisor
+//! of 0 or a quotient past a dword (the original's `div` would fault); what was written is
+//! put back.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

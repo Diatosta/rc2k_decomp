@@ -3,10 +3,9 @@
 //! In:  nothing
 //! Out: every register preserved
 //!
-//! `race_number` - 1, to 90 at 0 or below (signed). An action of the four players' details
-//! pages (menu tables 0x74EB48 ..).
-//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
-//! (`menu::table_calls`); the registers above are the original's, for reference.
+//! `race_number` - 1, to 90 at 0 or below (signed). An action of the four players' details pages
+//! (menu tables 0x74EB48 ..). The menus and draw lists run its `entry` (`menu::table_calls`); the
+//! registers above are the original's, for reference.
 
 use crate::errors::Refused;
 use crate::menu::player::Player;

@@ -8,13 +8,6 @@
 //! Out: eax the step count (when a view was taken), else kept; no flags read
 //!
 //! Callers: `sub_43A35A` (0x43A454), `sub_43A649` (0x43A66C).
-//! Self-test: a copy of the original (`dword_63DB94` the test's, its call to a copy of
-//! `set_camera_view`) on a test block: views 0 .. 8, held or not, cars 0 .. 0x23, one or
-//! two players.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::drive::set_camera_view::set_view_at;
 use crate::framework::{game_addr, game_read, rva};

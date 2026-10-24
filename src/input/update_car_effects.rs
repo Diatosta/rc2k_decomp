@@ -23,12 +23,9 @@
 //! Out: eax 5, ebx 3, ecx effect 5's number, edx as it was at the last call (+0xD8 on
 //!      every way through but the first's), esi and edi kept; flags not read
 //!
-//! See `input/effects.rs`. Three callers, all in `input::update_effects`. Its calls through
-//! `part` (`set_effect`). The x87 work with the original's instructions (its rounding).
-//! Refuses (before anything) a surface number past the table's 16. Shadow mode runs the
-//! original alone (requests are sent). Self-test: a copy whose `g_soundScratch` is the
-//! test's and whose calls go to the noting stand-ins, against the Rust version, on blocks
-//! and objects of the test's: every kind, both branches of each test.
+//! See `input/effects.rs`. Three callers, all in `input::update_effects`. The x87 work with the
+//! original's instructions (its rounding).
+//! Refuses (before anything) a surface number past the table's 16.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
@@ -218,8 +215,8 @@ fn update_car_effects_with(
 }
 
 /// The car's force feedback for the frame (the original's x87 arithmetic). The
-/// converted version (`rc2k_core::input::feedback::update_car_effects`, plain floats; the
-/// hook's in shadow mode) waits for the float pass.
+/// converted version (`rc2k_core::input::feedback::update_car_effects`, plain floats)
+/// waits for the float pass.
 pub fn update_car_effects(view: u32, object: u32, device: u32) -> Result<(), Refused> {
     update_car_effects_with(
         view,

@@ -7,11 +7,9 @@
 //! the films at the start (`sub_4161CD` with eax = 0, not ported); the log line "BEV:
 //! Starting GB_Front"; `menu::main_menu_loop`; "BEV: Finished GB_Front";
 //! `menu::store_player_names`; `gfx::free_fonts`; `saves::list_car_numbers`.
-//! Callers: `system::main_loop` and 0x443260.
-//! Each real call writes a line to hook.log saying which version runs. Refuses what its parts
-//! refuse; such a refusal comes with the work half done.
-//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
-//! `routes.rs`); the registers above are the original's, for reference.
+//! Callers: `system::main_loop` and 0x443260. Refuses what its parts refuse; such a refusal comes
+//! with the work half done. Rust callers run its `entry` (`routes.rs`); the registers above are the
+//! original's, for reference.
 
 use crate::audio::store::Slot;
 use crate::errors::Refused;

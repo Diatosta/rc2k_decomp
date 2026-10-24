@@ -9,12 +9,7 @@
 //! length four bytes a pixel. If the file was read and its decoded width is not the
 //! screen's, `rescale_picture` makes it so.
 //! Ten callers, `menu::load_background` and `service::load_background` among them.
-//! Shadow mode runs the original alone: everything it calls is compared in its own hook.
 //! Refuses what the functions it calls refuse. The name is a reading.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::errors::Refused;
 use crate::gfx::clear_picture::clear_picture;
@@ -53,6 +48,3 @@ pub unsafe fn load_picture(path: *mut u8) -> Result<bool, Refused> {
         Ok(true)
     }
 }
-
-// ---- for this self-test and `menu::load_background`'s: everything a picture's loading
-// writes, saved and put back, and files to load ----

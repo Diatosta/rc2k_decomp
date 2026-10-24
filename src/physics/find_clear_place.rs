@@ -11,20 +11,12 @@
 //! first depth and the last logged (level 1, in `pusha` / `popa`); `dword_61473C` + 1;
 //! `physics::limit_motion`.
 //!
-//! Not the physics step's loop (that is `sub_43B635`'s caller): a bounded search inside
-//! one step, so the hook is gated as usual.
-//!
 //! In:  nothing
 //! Out: the registers as the steps and calls leave them (ebp the try, kept around each
 //!      try's calls); no flags read (the caller returns)
 //!
-//! Caller: `sub_43B635` (0x43B8DB).
-//! Refuses (before anything) a probe count of 0 or past 0x40; what its calls refuse.
-//! Shadow mode: the Rust version with `g_logEnabled` 0 (its log lines not written
-//! twice), then the original; `regions()` and the faces touched compared.
-//! Self-test (in a race; skipped otherwise; `g_logEnabled` 0 for it): the original and
-//! the Rust version on the stage (everything written saved and put back), the car where
-//! it is and moved onto object faces (so tries fail and the search goes on).
+//! Caller: `sub_43B635` (0x43B8DB). Refuses (before anything) a probe count of 0 or past
+//! 0x40; what its calls refuse.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

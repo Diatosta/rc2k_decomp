@@ -25,11 +25,9 @@
 //! Out: every register kept (`pusha` .. `popa`)
 //! The DirectInput calls (`sub_409AEE` the effect's Download and Start, `sub_409B1F` its
 //! SetParameters with eax the flags, `sub_409B0D` its Stop; each only with an effect at
-//! +0x30) go through `part` (0, 1, 2), in the game their Rust versions (`effect_objects`). Refuses
+//! +0x30) are the Rust versions (`effect_objects`). Refuses
 //! (before anything) for effect 1 a row past the table's 14 and a blend of 0 (the
-//! original's `idiv` traps). Shadow mode runs the original alone (DirectInput). Manual
-//! patches with private copies (a `jnz` in the first bytes). Self-test: a copy whose calls
-//! go to stand-ins, against the Rust version, each change, values of both signs.
+//! original's `idiv` traps).
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

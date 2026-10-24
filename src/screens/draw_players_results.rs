@@ -3,12 +3,11 @@
 //! In:  nothing
 //! Out: every register preserved (`pusha` .. `popa`)
 //!
-//! In a menu loop's draw list (0x758E96). The sprites' palettes are ebx as the original leaves
-//! it. Refuses (before anything) a row's offset past the four, a row's player without its
-//! record or name, no stage records, a stage line past the line buffer, and a speed
-//! `screens::draw_spaced_number` refuses. Hook removed 2026-10-22 (typed tables): the menus and
-//! draw lists run its `entry` (`menu::table_calls`); the registers above are the original's,
-//! for reference.
+//! In a menu loop's draw list (0x758E96). The sprites' palettes are ebx as the original leaves it.
+//! Refuses (before anything) a row's offset past the four, a row's player without its record or
+//! name, no stage records, a stage line past the line buffer, and a speed
+//! `screens::draw_spaced_number` refuses. The menus and draw lists run its `entry`
+//! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
 use crate::screens::players_results::{WITHOUT_POINTS, draw_players_results};

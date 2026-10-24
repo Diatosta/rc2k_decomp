@@ -23,19 +23,10 @@
 //! In:  eax 0 to start, else to run; esi the player (`dword_5BEBEC`)
 //! Out: eax the result; the rest kept (`pusha` / `popa`); no flags read
 //!
-//! Caller: `race::tyre_change` (twice), which calls the Rust version directly and reads
-//! only eax. Its calls: `system::tick_count`, `race::draw_tyre_change`, `input_device_read`
-//! (0x40930D: ecx, edx, eax, ebx the device's +0x4DC .. +0x4E8; inlined).
-//! Refuses (before anything) a player past 7 or a null device.
-//! Shadow mode runs the original alone (it reads the clock and the buttons and keeps its
-//! own state). Self-test: a copy whose calls go to stand-ins (a scripted clock, the draw
-//! noted, the device read from the test's device), against the Rust version with the same:
-//! each stage, the button, the developer's machine, the timeout, records beaten and not,
-//! both players.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `race::tyre_change` (twice), which calls the Rust version directly and reads only
+//! eax. Its calls: `system::tick_count`, `race::draw_tyre_change`, `input_device_read`
+//! (0x40930D: ecx, edx, eax, ebx the device's +0x4DC .. +0x4E8; inlined). Refuses (before
+//! anything) a player past 7 or a null device.
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::rva;

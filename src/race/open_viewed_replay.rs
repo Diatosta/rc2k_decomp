@@ -13,21 +13,8 @@
 //! In:  ebx the replay (`race::replay_path`'s number)
 //! Out: carry set when it failed; every register kept (`pusha` / `popa`)
 //!
-//! Callers: `race::replay_viewer`, `race::viewer_action` (action 0x14), `race::save_last_replay`,
-//! 0x444014 (`sub_443FxF`'s replay run). Its calls through `part`: 1 `files::copy_file`
-//! (eax from, ebx to), 2 `files::open_by_mode` (eax path, ebx mode -> eax handle, carry),
-//! 3 `files::read` (eax handle, ebx buffer, ecx bytes -> eax bytes read, carry), 4
-//! `files::seek` (eax handle, ecx distance, ebx method -> carry), 5
-//! `drive::read_replay_frame_0` (eax block -> carry), 6 `race::close_viewed_replay`, 7
-//! `race::apply_replay_patches`; in the game their Rust versions (`replay_path` is called
-//! as it is). Shadow mode runs the original alone (a saved replay is copied over the
-//! last race's). Self-test: a copy whose calls go to stand-ins that play a file system
-//! (headers and indexes good and bad, reads failing at each place), against the Rust
-//! version; the variables, the calls (eax, ebx, ecx, edx) and carry compared.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Callers: `race::replay_viewer`, `race::viewer_action` (action 0x14),
+//! `race::save_last_replay`, 0x444014 (`sub_443FxF`'s replay run).
 
 use crate::errors::Refused;
 use crate::files::handle;

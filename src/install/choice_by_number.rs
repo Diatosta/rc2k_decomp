@@ -4,12 +4,8 @@
 //! In:  esi the item, ecx the choice (`install::key_number`: the key less 2)
 //! Out: edx the chosen byte's address, ebx the table; zero set, carry clear
 //! The compare is of cl with the choices; the mark is read at `[ebx+ecx*2+1]`, all of ecx.
-//! Callers `install::key_number`. Shadow mode compares. Self-test: items of the test's
-//! against the original, ecx 0 .. 8.
+//! Callers `install::key_number`.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 //! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
 //! are the original's.
 

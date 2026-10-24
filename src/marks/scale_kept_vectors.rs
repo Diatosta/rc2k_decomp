@@ -6,18 +6,9 @@
 //! In:  nothing
 //! Out: every register kept
 //!
-//! Caller: `sub_4C1270`. Self-test: the twelve inputs by lot, compared on the nine
-//! results; put back afterwards.
+//! Caller: `sub_4C1270`.
 //!
-//! Converted 2026-10-21: the hook's Rust version is
-//! `scale_vectors_by::scale_triples_plain`, through `rc2k_core::marks::view::scaled` (plain
-//! floats; the x87 version stays for the Rust callers in unconverted code). Shadow mode and
-//! the self-test compare within `service::floats`' tolerances (the self-test at both test
-//! precisions, exact at double).
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! the x87 version stays for the Rust callers in unconverted code).
 
 use crate::marks::scale_vectors_by::scale_triples;
 use crate::marks::store::Slot;

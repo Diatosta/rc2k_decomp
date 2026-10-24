@@ -14,14 +14,8 @@
 //! Out: ebp the wall, and the registers as the edge tests and `contact_force` leave them;
 //!      no flags read (the caller goes on)
 //!
-//! Caller: `physics::wall_contacts`. Its second chunk (0x45DA9E .. 0x45DC12) is entered
-//! only by the first's jumps: nothing to copy, the hook patches the first chunk's start.
-//! Refuses a probe point past 0x3F on the edge path (the tables' room), and what its
-//! calls refuse (what was written put back).
-//! Self-test: `physics/wall_contacts.rs` (`test_walls`): the original and the Rust version
-//! on the game's variables (saved and put back) with test faces and scene points
-//! (`g_courseFaces`, `g_scenePoints` pointed at them), every edge shared and none, under
-//! three precisions.
+//! Caller: `physics::wall_contacts`. Refuses a probe point past 0x3F on the edge path (the
+//! tables' room), and what its calls refuse (what was written put back).
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

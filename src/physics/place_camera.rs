@@ -12,7 +12,6 @@
 //!      the rest kept; no flags read
 //!
 //! Callers: `sub_43907F` (seven).
-//! Self-test: `physics/camera_view.rs` (`view_test`), figures by lot, three precisions.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

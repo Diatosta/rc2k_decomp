@@ -7,17 +7,7 @@
 //! In:  st(0) the sine
 //! Out: st(0) the angle (in its place); every register kept; flags changed (no caller
 //!      reads them)
-//!
-//! The thunk (as `physics::scale_vector`'s) pops st(0) into `INPUT`, runs `dispatch`
-//! inside the gate and loads `RESULT`; `original_with_input` runs the original on
-//! `INPUT` and pops its result into `RESULT`, so shadow mode compares it.
 //! Callers: `physics::matrix_angles` (twice), unowned code at 0x42119E.
-//! Self-test: a copy of the original (its scratch and limit the test's) on sines by lot
-//! (80-bit ones, +-1, past the limit, NaN) and three limits, under three precisions.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::math::x87_run::clamped_asin_80;
 

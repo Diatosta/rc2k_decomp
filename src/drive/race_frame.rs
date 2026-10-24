@@ -13,13 +13,9 @@
 //!
 //! Callers: `drive::race_loop`, `quit_question`, `pause_until_key`, `finish_run`,
 //! `sub_4607A5`. The drawing, the sound tick, the screenshot and the showing are their Rust
-//! versions; the window, the scene's begin and end and the restore through the game. A private
-//! copy (a call at +0).
-//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
-//! `routes.rs`); the registers above are the original's, for reference.
+//! versions; the window, the scene's begin and end and the restore through the game.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::session::FLAGS;
 
 const RESTORE: usize = 0x405B10; // sub_405B10: the surfaces restored (the platform's)
@@ -30,14 +26,10 @@ const RESTORE: usize = 0x405B10; // sub_405B10: the surfaces restored (the platf
 /// `input::yes_no_key`, liveness: 0x44520A); its flags and other registers are read by
 /// no caller (only DF live after the other four calls).
 pub fn race_frame(eax: u32) -> Result<u32, Refused> {
-    // The calls below that still take the registers read none at entry (liveness:
-    // `pump_messages`, `race_sound_tick`, `replay_screenshot`,
-    // `show_frame`, `sub_405B10`): one local scratch, as the original's registers run
-    // from call to call. Only `show_frame`'s carry is read.
-    let r = &mut Regs {
-        eax,
-        ..Regs::default()
-    };
+    // The calls below read no register at entry (liveness: `pump_messages`,
+    // `race_sound_tick`, `replay_screenshot`, `show_frame`, `sub_405B10`): only eax runs
+    // from call to call, and only `show_frame`'s carry is read.
+    let mut eax = eax;
     crate::platform::pump_messages_now();
     if FLAGS.quitting.get() == 1 {
         // The game is closing. In the game its shutdown thread (`threading::request_quit`)
@@ -49,17 +41,17 @@ pub fn race_frame(eax: u32) -> Result<u32, Refused> {
         crate::scene::begin_scene::begin_scene();
         unsafe { crate::race::draw_race_scene::draw_race_scene() }?;
         crate::scene::end_scene::end_scene();
-        r.eax = 0x12;
+        // eax 0x12 here in the original; read by nothing.
         crate::sound::race_sound_tick::race_sound_tick()?;
         unsafe { crate::race::replay_screenshot::replay_screenshot() }?;
         let shown = unsafe { crate::race::show_frame::show_frame() }?;
-        r.eax = shown.eax;
+        eax = shown.eax;
         if !shown.lost {
-            return Ok(r.eax);
+            return Ok(eax);
         }
     }
     if FLAGS.quitting.get() == 1 {
-        return Ok(r.eax);
+        return Ok(eax);
     }
     // The surfaces restored: never here (the window is always active, nothing is lost).
     crate::standalone::not_ported(RESTORE, "drive::race_frame")

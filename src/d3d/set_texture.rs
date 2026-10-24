@@ -9,7 +9,6 @@
 //! into it. Four callers.
 //! Platform: the original always runs, here it is only noted. In the standalone
 //! program, and for a recording that swallows, the number is kept and nothing more.
-//! No self-test.
 
 use crate::framework::{game_write, rva};
 

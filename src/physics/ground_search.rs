@@ -11,8 +11,6 @@
 //! See `physics/ground.rs`. Caller: `physics::find_ground` (0x441E29), its only one.
 //! Refuses (before anything) what `find_course_record` or `search_record_faces` would
 //! refuse on any of the nine cells (also on cells past the one found).
-//! Self-test: a copy of the original (its calls to copies) on the test's ground, records
-//! for six cells, the test's points with last faces -1 and two real ones; found counted.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

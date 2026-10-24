@@ -7,10 +7,9 @@
 //! 0x213, rows from y = 0xB5 in steps of 0x1B, font 0x51E8C4. It keeps its position in
 //! `g_markerX`/`g_markerY` and its row counter in `dword_7559EC`, left at 0x213, 0x183 and 10.
 //! Refuses a page past the fifth: the table has 100 names. Called through the menu tables
-//! (0x758BCE, 0x758BD6). Was not a function in IDA (made 2026-10-19: the standalone's
-//! replay pages showed no names).
-//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
-//! (`menu::table_calls`); the registers above are the original's, for reference.
+//! (0x758BCE, 0x758BD6). Was not a function in IDA (made 2026-10-19: the standalone's replay pages
+//! showed no names). The menus and draw lists run its `entry` (`menu::table_calls`); the registers
+//! above are the original's, for reference.
 
 use crate::errors::Refused;
 use crate::framework::game_read;

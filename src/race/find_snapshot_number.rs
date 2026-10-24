@@ -10,12 +10,7 @@
 //! In:  nothing
 //! Out: every register kept (`pusha` / `popa`); no flags read
 //!
-//! Caller: `race::replay_viewer`. Shadow mode compares (the search only reads the
-//! folder). Self-test: the original against the Rust version on the folder as it is.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `race::replay_viewer`.
 
 use crate::files::state::{FIND_HANDLE, LAST_FILE_PATH, SKIPPED_ATTRIBUTES, find_data};
 use crate::physics::flow::a;

@@ -15,20 +15,8 @@
 //!      worked; every register kept (`pusha` / `popa`)
 //!
 //! Callers: `race::viewer_action` (0x15 back into a saved slot, 0x16 into a chosen one),
-//! `race::save_last_replay`. Its calls through `part`: 1 `system::packed_local_time`
-//! (-> eax), 2 `files::open_by_mode` (eax path, ebx mode -> eax handle, carry), 3
-//! `files::write` (eax, ebx, ecx -> eax, carry), 4 `files::seek` (eax, ecx distance, ebx
-//! method), 5 `drive::read_packed` (eax, ebx, ecx), 6 `race::write_replay_chunk` (eax, ebx,
-//! ecx -> eax, carry), 7 `files::close` (eax); in the game their Rust versions
-//! (`replay_path` and `system::zero_memory` are called as they are). Saving into slot 222
-//! would make the file it reads from anew (the original's way, kept). Shadow mode runs the
-//! original alone (it writes a file). Self-test: a copy whose calls go to stand-ins,
-//! against the Rust version: nothing to save, either open failing, writes failing at each
-//! place, three blocks saved (packed and not).
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! `race::save_last_replay`. Saving into slot 222 would make the file it reads from anew (the
+//! original's way, kept).
 
 use crate::errors::Refused;
 use crate::files::handle;

@@ -4,14 +4,8 @@
 //! In:  nothing
 //! Out: all kept (`pusha` .. `popa`)
 //!
-//! Caller: `hud::add_polygon`. The texture call through `part` (1 with eax the texture),
-//! in the game its Rust version. Refuses a texture past `g_kindFirstSlots` (0x400 dwords; the HUD asks for 0xC0 .. 0xDC), before
-//! anything. Shadow mode runs the original alone (it tells the device). Self-test: a copy
-//! whose call goes to a stand-in, against the Rust version.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `hud::add_polygon`. Refuses a texture past `g_kindFirstSlots` (0x400 dwords; the HUD
+//! asks for 0xC0 .. 0xDC), before anything.
 
 use crate::errors::Refused;
 use crate::framework::rva;

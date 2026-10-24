@@ -12,17 +12,8 @@
 //! In:  edi = the vertices
 //! Out: every register kept (`pusha` .. `popa`)
 //!
-//! Caller: `scene::show_bad_polygon` (0x443AEC). The log calls through `part` (0
-//! `log_write_l1`, 1 `log_hex8_l1`, 2 `log_float_l1` with ecx 2, 3 `log_int_l1`, 4
-//! `log_int_l1_nl`, 5 `log_newline_l1`; eax the text or value), in the game the Rust log
-//! functions. Refuses (before anything) more than 64 vertices (the original's loop would
-//! run through memory). Shadow mode runs the original alone (it writes the log).
-//! Self-test: a copy whose calls go to stand-ins, against the Rust version: no vertex,
-//! three, the object's and the course's labels; the mask put back.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `scene::show_bad_polygon` (0x443AEC). Refuses (before anything) more than 64
+//! vertices (the original's loop would run through memory).
 
 use crate::errors::BadInput;
 use crate::framework::{game_addr, game_read, game_write, rva};

@@ -6,25 +6,16 @@
 //!      looked at, ebx = the object's number, edx = the car's remainder if a car was
 //!      looked at
 //!
-//! An object's number of 0x100 or more is fatal error 0x80600A01.
-//! `dword_639954` (added to every face's texture number) = 0; then 0x108 for, outside
-//! a race, an object of kind 0x23A, and in a race for objects 0x50 .. 0xEF (the cars,
-//! 0x14 objects each) whose car's block has 0x21 at +0x24.
-//! Nothing more for an object without faces (`g_objectFaceCounts`). Else by
+//! An object's number of 0x100 or more is fatal error 0x80600A01. `dword_639954` (added to
+//! every face's texture number) = 0; then 0x108 for, outside a race, an object of kind 0x23A,
+//! and in a race for objects 0x50 .. 0xEF (the cars, 0x14 objects each) whose car's block has
+//! 0x21 at +0x24. Nothing more for an object without faces (`g_objectFaceCounts`). Else by
 //! `dword_6365C4`: 0 `scene::draw_shown_object`; 1 and 2 `scene::draw_described_object` (it
-//! takes an object's description in esi and comes back here); anything else nothing.
-//! Twelve callers.
-//! Refuses a car without its block.
-//! Shadow mode runs the original alone and, for mode 0, checks the texture set it
-//! chose against the Rust arithmetic.
-//! Self-test: a redirected copy whose three calls note themselves.
+//! takes an object's description in esi and comes back here); anything else nothing. Twelve
+//! callers. Refuses a car without its block.
 //!
 //! Converted 2026-10-21: the texture set and the way on through
 //! `rc2k_core::scene::shown`.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::framework::{game_read, game_write, rva};

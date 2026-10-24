@@ -8,8 +8,6 @@
 //! Out: eax the difference when it is stored, else kept; no flags read
 //!
 //! Caller: `sub_43B635` (0x43B9A4), every physics step.
-//! Self-test: `physics/copy_hooks_test.rs` (the converted version), 12 cases (figures
-//! below, at, above, NaN); a compare of floats only: exact at any precision.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

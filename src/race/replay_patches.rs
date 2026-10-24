@@ -1,5 +1,4 @@
-//! The physics patches a replay was recorded with (IDA 2026-10-19), and the self-test of
-//! the two hooks:
+//! The physics patches a replay was recorded with (IDA 2026-10-19):
 //! - `race::apply_replay_patches` (0x41F2C9): when the replay's header has them
 //!   (`dword_719C54`) and they are not in force (`dword_5C2C94` 0): in force, the game's
 //!   switches (`g_patchSwitch`, 13 dwords) kept in `unk_5C2C98`, the replay's
@@ -8,8 +7,7 @@
 //! - `race::restore_replay_patches` (0x41F31D): when the header has them and they are in
 //!   force: no longer, the kept switches back, applied again.
 //!
-//! Both keep every register (`pusha` / `popa`). Their call through `part` (1
-//! `physics::apply_patches`; in the game its Rust version).
+//! Both keep every register (`pusha` / `popa`).
 
 use crate::errors::Refused;
 use crate::race::viewer::{get, move_dwords, put};

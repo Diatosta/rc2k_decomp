@@ -3,19 +3,14 @@
 //!
 //! In:  nothing
 //! Out: the original leaves every register changed (ebx the count left, as its passes end);
-//!      its callers go on by the number of vertices alone; the hook gives ebx the count and
-//!      keeps the rest
+//!      its callers go on by the number of vertices alone; the Rust version gives ebx the
+//!      count and keeps the rest
 //!
 //! `dword_624124` = 1; `dword_62411C` = 0x1000 and one pass of `scene/clip.rs` that
 //! keeps what is deeper than that (`sub_44DB93`); then, with `dword_621510` at 0,
 //! `dword_621900` not 0 and three vertices or more left, `dword_62411C` =
 //! `dword_624230` and a pass that keeps what is not deeper (`sub_44DEAA`).
 //! Seven callers. Refuses as `scene::clip_polygon_to_screen`.
-//! Shadow mode: the Rust version, its writes put back, the original, compared.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::d3d::draw_fan_unclipped::COUNT_RVA;
 use crate::errors::BadInput;

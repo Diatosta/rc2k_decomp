@@ -3,9 +3,9 @@
 //! In:  nothing
 //! Out: every register preserved
 //!
-//! `second_view` - 1, 4 from 0. An action of the four players' details pages (menu tables 0x74EAEC, 0x74EEE8).
-//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
-//! (`menu::table_calls`); the registers above are the original's, for reference.
+//! `second_view` - 1, 4 from 0. An action of the four players' details pages (menu tables 0x74EAEC,
+//! 0x74EEE8). The menus and draw lists run its `entry` (`menu::table_calls`); the registers above
+//! are the original's, for reference.
 
 use crate::errors::Refused;
 use crate::menu::player::Player;

@@ -18,16 +18,8 @@
 //! Out: eax block +0x1A0 (with +0xA34 set) or +0x1BC; ebx +0x1A4, ecx +0x1AC, edx +0x92C;
 //!      the rest kept (the copies are inside `pusha` / `popa`); no flags read
 //!
-//! Caller: `drive::share_all_cars` (0x456484), for each of the eight cars, inside
-//! `pusha` / `popa`.
-//! Refuses (before anything) a car file number above 0x21 (past `g_lightRecords`).
-//! Self-test: a copy of the original (its scratch `dword_62400C` the test's, its calls to
-//! `car_file_number` kept) on a test block, record and sound object filled by lot, the
-//! switches and the holes varied, under three precisions; the refusal.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `drive::share_all_cars` (0x456484), for each of the eight cars, inside `pusha` /
+//! `popa`. Refuses (before anything) a car file number above 0x21 (past `g_lightRecords`).
 
 use crate::errors::Refused;
 use crate::framework::{game_addr, game_read, rva};

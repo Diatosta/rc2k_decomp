@@ -5,12 +5,7 @@
 //! In:  nothing
 //! Out: eax = 8, ebx = 0x17 (the last state's); the rest kept; no flags read
 //!
-//! Callers: `race::draw_sky`, `race::draw_view_backdrop`. Self-test: the original and the
-//! Rust version recorded on the layer, nothing drawn.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Callers: `race::draw_sky`, `race::draw_view_backdrop`.
 
 /// The Rust version (see the header): the registers it leaves on `r`.
 // Converted: `rc2k_core::scene::render_states::GLOW`

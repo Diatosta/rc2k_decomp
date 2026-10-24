@@ -15,13 +15,7 @@
 //! In:  nothing
 //! Out: the registers as the steps leave them; no flags read
 //!
-//! Caller: `drive::play_race`. Ungated: the race's step loop.
-//! Refuses what its calls refuse. Shadow mode runs the original alone.
-//! Self-test: skipped (it plays a race).
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `drive::play_race`. Refuses what its calls refuse.
 
 use crate::drive::race_parts::{
     input_update, players_all_out, race_frame, race_keys, restart_clock, tyre_change,
@@ -119,6 +113,12 @@ pub unsafe fn race_loop() -> Result<(), Refused> {
                 if answer == 0 {
                     break false;
                 }
+                if g(0x71C3E0) != 0 {
+                    crate::framework::log(&format!(
+                        "drive::race_loop: the credits race ends: the quit question (Escape latched), answer {answer:#x}, frame {}",
+                        g(0x613830)
+                    ));
+                }
                 put_answer(answer);
                 return Ok(());
             }
@@ -137,6 +137,12 @@ pub unsafe fn race_loop() -> Result<(), Refused> {
             unsafe { crate::drive::race_step::race_step() }?;
             tyre_change()?;
             if players_all_out()? {
+                if g(0x71C3E0) != 0 {
+                    crate::framework::log(&format!(
+                        "drive::race_loop: the credits race ends: every player out, frame {}",
+                        g(0x613830)
+                    ));
+                }
                 return Ok(());
             }
             race_frame()?;

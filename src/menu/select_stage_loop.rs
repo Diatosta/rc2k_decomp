@@ -10,12 +10,12 @@
 //! store are the functions below, generated from the listing.
 //! The name is a reading from the title string of its menu, "ESCOLHA ETAPA", not yet a visit.
 //! Callers: `sub_418347`, `sub_482382`, `sub_4824C1`, `sub_4826A2`, `sub_4828B0`, `sub_482B7A`.
-//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
-//! `routes.rs`); the registers above are the original's, for reference.
+//! Rust callers run its `entry` (`routes.rs`); the registers above are the original's, for
+//! reference.
 
 use crate::errors::Refused;
 use crate::framework::{game_read, game_write, rva};
-use crate::menu::screen_loop::{Carried, Flow, List, Screen, Step};
+use crate::menu::screen_loop::{Callee, Carried, Flow, List, Screen, Step};
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
@@ -58,10 +58,10 @@ pub const SCREEN: Screen = Screen {
     frame_callback: rva(0x474D4B),
     later_frame_callback: None,
     before: &[Step::Write(rva(0x75524C), 0x0)],
-    set_up_first: &[Step::Call(rva(0x486C21))],
+    set_up_first: &[Step::Call(Callee::MarkStageChoice)],
     prepare: &[],
     after_lists: &[],
-    background: &[Step::Call(rva(0x4683CF))],
+    background: &[Step::Call(Callee::DrawStageMap)],
     after_first_frame: &[Step::DoFlow(after_first_frame)],
     confirm: Some(&[]),
     ask_also_if: None,

@@ -10,9 +10,6 @@
 //! `input::update_effects` (its Rust version in the game).
 //! One caller, `sound::race_turn`.
 //! Refuses (before anything) a clock of 0 when due (the original's `div` traps).
-//! Shadow mode runs the original alone (the clock moves, the effects are sent).
-//! Self-test: a copy whose two calls go to stand-ins (the test's clock), against the
-//! Rust version.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

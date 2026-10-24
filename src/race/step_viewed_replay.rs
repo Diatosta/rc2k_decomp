@@ -10,14 +10,7 @@
 //!      the frame counted so far); ZF set at a block's first frame; eax kept (pushed)
 //!
 //! Caller: `race::replay_viewer` (each frame played; it reads carry). Refuses what
-//! `read_replay_frame` refuses (the fatal errors of a block past 0x708). Shadow mode
-//! compares (`read_packed` puts the file back). Self-test: the original against the Rust
-//! version with `read_replay_frame`'s test replay: not open, frames 5 and 99, the end of
-//! the play, the last block.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! `read_replay_frame` refuses (the fatal errors of a block past 0x708).
 
 use crate::errors::Refused;
 use crate::race::viewer::{AT_END, BLOCK, BLOCKS, FRAME, OPEN, PLAY_END, get, put};

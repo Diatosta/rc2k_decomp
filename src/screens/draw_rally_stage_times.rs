@@ -3,9 +3,9 @@
 //! In:  nothing
 //! Out: every register preserved (`pusha` .. `popa`)
 //!
-//! In a menu loop's draw list (0x758D22). Refuses (before anything) no stage records or no
-//! times table. Hook removed 2026-10-22 (typed tables): the menus and draw lists run its
-//! `entry` (`menu::table_calls`); the registers above are the original's, for reference.
+//! In a menu loop's draw list (0x758D22). Refuses (before anything) no stage records or no times
+//! table. The menus and draw lists run its `entry` (`menu::table_calls`); the registers above are
+//! the original's, for reference.
 
 use crate::errors::Refused;
 use crate::screens::best_scores::*;

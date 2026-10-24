@@ -13,11 +13,8 @@
 //! In:  esi = the device's record (`input/devices.rs`)
 //! Out: every register kept (`pusha` .. `popa`)
 //!
-//! Caller: `input::read_device`. Its DirectInput calls through `part`: 0 `Poll`, 1
-//! `GetDeviceState` (eax its result), 2 `Acquire`; in the game the device's own methods
-//! (platform, section 15).
-//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
-//! `routes.rs`); the registers above are the original's, for reference.
+//! Caller: `input::read_device`. Its DirectInput calls: `Poll`, `GetDeviceState`
+//! (eax its result), `Acquire` (platform).
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

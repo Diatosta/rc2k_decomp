@@ -3,19 +3,12 @@
 //! In:  nothing
 //! Out: every register preserved; carry = not written
 //! Only when the tables' memory is taken and they are filled (`g_bestTimesAllocated` and
-//! `g_bestTimesLoaded` both 1). A head of 0x10 bytes is made in the scratch block at
-//! 0x93E8B0 ("R5HS", 0, 0x50004, the time); the file is opened (mode 1: made anew); the
-//! head and the six tables `saves::load_best_times` reads are written, each from the
-//! address and with the size its pair of variables holds; the file is closed. Whether a
-//! write worked is not looked at: only a file that cannot be opened gives the carry.
-//! One caller, `saves::save_game_data`.
-//! Shadow mode writes the file twice (Rust, then the original) and compares the result.
-//! Self-test: a redirected copy whose tables, switches and path are the test's.
-//! Refuses what `resolve_path` refuses.
-//!
-//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! `g_bestTimesLoaded` both 1). A head of 0x10 bytes is made in the scratch block at 0x93E8B0
+//! ("R5HS", 0, 0x50004, the time); the file is opened (mode 1: made anew); the head and the six
+//! tables `saves::load_best_times` reads are written, each from the address and with the size its
+//! pair of variables holds; the file is closed. Whether a write worked is not looked at: only a
+//! file that cannot be opened gives the carry. One caller, `saves::save_game_data`. Refuses what
+//! `resolve_path` refuses.
 
 use crate::errors::Refused;
 use crate::files::handle::{close, open_by_mode, write};
@@ -33,7 +26,7 @@ const WRITTEN: [usize; 6] = [1, 2, 3, 4, 7, 8];
 
 // ---- Rust version ----
 
-/// What the function is given: the game's own in the hook, the test's in the self-test.
+/// What the function is given: the game's own.
 pub struct Places<'a> {
     pub path: *const u8,
     /// `g_bestTimesAllocated` and `g_bestTimesLoaded`.

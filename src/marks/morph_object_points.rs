@@ -9,16 +9,10 @@
 //! In:  nothing (`g_marksSettings`)
 //! Out: nothing (no caller reads a register it leaves)
 //!
-//! Caller: `sub_4D14B4`. Refuses (before anything) null settings, more than 8 cars, and
-//! for a car whose factors changed: an object past 0xFF, a null base list, points past
-//! the object points' room, a point count below 0 (the loop runs on); and
-//! `measure_lines`' refusals (all it may write is put back first). Self-test: the game's
-//! settings (skipped without them or without object points), factors changed or not by
-//! lot, two objects' points of the game's; compared on all it may write.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `sub_4D14B4`. Refuses (before anything) null settings, more than 8 cars, and for
+//! a car whose factors changed: an object past 0xFF, a null base list, points past the
+//! object points' room, a point count below 0 (the loop runs on); and `measure_lines`'
+//! refusals (all it may write is put back first).
 
 use crate::errors::{BadInput, Refused};
 use crate::marks::blend_corner::blend_corner;

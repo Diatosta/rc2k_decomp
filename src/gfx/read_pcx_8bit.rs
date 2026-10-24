@@ -13,13 +13,8 @@
 //! file is not looked at: a file that ends early is filled up with palette entry 0.
 //! It fails if the open, a seek, the palette's read, the header's read or the close fails.
 //! A count byte of 0xC0, a run of none, makes a run of 2^32: the rest of the picture.
-//! One caller, `gfx::read_pcx`. Shadow mode decodes the file twice and compares.
-//! Refuses a decoded height of 0 (the original counts rows through all 32 bits) and what
-//! `open_stream` refuses. The name is a reading.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! One caller, `gfx::read_pcx`. Refuses a decoded height of 0 (the original counts rows through
+//! all 32 bits) and what `open_stream` refuses. The name is a reading.
 
 use crate::errors::BadInput;
 use crate::files::close_stream::close_stream;

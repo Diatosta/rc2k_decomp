@@ -1,8 +1,5 @@
 //! The game's Direct3D layer (0x418400 .. 0x41AE40): platform, so not ported, but the
-//! place where what the 3D code above it draws can be seen. The hooks here hand their
-//! call on to the original and note it for whoever is recording (`recorder.rs`), as
-//! `gfx::blit_glyph` does for the 2D code; a recording that swallows keeps the call
-//! from Direct3D altogether, so that a self-test can run original drawing code.
+//! place where what the 3D code above it draws can be seen.
 //!
 //! Direct3D is used as a rasteriser only: every vertex comes transformed and lit
 //! (`Vertex`, the `D3DTLVERTEX` of DirectX 5). In the standalone program a renderer of

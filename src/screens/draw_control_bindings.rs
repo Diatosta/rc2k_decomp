@@ -3,18 +3,17 @@
 //!
 //! In:  nothing
 //! Out: every register preserved; carry of the last row's `draw_text` (clear when that row is
-//!      the one being learnt)
+//! the one being learnt)
 //!
-//! The current player's (`dword_75598C`) bindings at +0x50 .. +0x74 (a dword each: dl a
-//! button, dh a direction, 0 nothing), at x 0x1B8, y 0xD5 and on every 0x1B, in the font at
-//! 0x51E8C4, built in `byte_A8BC54`: string 0x3BD for nothing; else dh's name (string
-//! `word_755200[dh]` for a device kind, +0x34, below 2, else `word_755212[dh]`), for kind 3 on
-//! the first two rows the axis (`strings::append_axis_name` of +0x3B, +0x3A), then for a
-//! button ('+' after a direction) string 0x3C0, a space and the button's number. The row being
-//! learnt (`dword_7551F4` 1, `dword_7551FC` the row from 1) is left out. In the draw lists of
-//! the four controller pages (0x758D9A ..). Refuses (before anything) no current player and
-//! a direction past the two 9-entry tables (dh above 8: the original reads past them).
-//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
+//! The current player's (`dword_75598C`) bindings at +0x50 .. +0x74 (a dword each: dl a button, dh
+//! a direction, 0 nothing), at x 0x1B8, y 0xD5 and on every 0x1B, in the font at 0x51E8C4, built in
+//! `byte_A8BC54`: string 0x3BD for nothing; else dh's name (string `word_755200[dh]` for a device
+//! kind, +0x34, below 2, else `word_755212[dh]`), for kind 3 on the first two rows the axis
+//! (`strings::append_axis_name` of +0x3B, +0x3A), then for a button ('+' after a direction) string
+//! 0x3C0, a space and the button's number. The row being learnt (`dword_7551F4` 1, `dword_7551FC`
+//! the row from 1) is left out. In the draw lists of the four controller pages (0x758D9A ..).
+//! Refuses (before anything) no current player and a direction past the two 9-entry tables (dh
+//! above 8: the original reads past them). The menus and draw lists run its `entry`
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};

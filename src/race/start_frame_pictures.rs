@@ -7,15 +7,7 @@
 //! In:  eax the ms a picture, or 0 for the rate's
 //! Out: every register kept (`pusha` / `popa`); no flags read
 //!
-//! Caller: `race::viewer_action` (actions 0x25 .. 0x28: eax 0, 0xA0, 0x50, 0x28). Its call
-//! through `part` (1 the folder made; in the game `CreateDirectoryA`). Shadow mode runs
-//! the original alone (it makes a folder). Self-test: a copy whose call goes to a
-//! stand-in, against the Rust version: rates below, inside and past the range, eax 0 or
-//! not.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `race::viewer_action` (actions 0x25 .. 0x28: eax 0, 0xA0, 0x50, 0x28).
 
 use crate::errors::Refused;
 use crate::physics::flow::a;

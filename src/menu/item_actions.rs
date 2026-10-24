@@ -17,12 +17,7 @@
 //!
 //! In:  nothing (eax, the item's dword, is not read but by `show_intro`, which sets it)
 //! Out: the pure ones and those in `pusha` / `popa` every register kept; the others the
-//!      registers their last call leaves
-//!
-//! The calls through `part` (by place in each one's `CALLEES`): in the game the screen loops,
-//! the films and the menu sound through their hooks (`call_game`), `go_back`, `sleep`,
-//! `take_player1_units` and `arcade_event` by their Rust versions.
-//! Hooks removed 2026-10-22 (typed tables): the menus run their `entry` (`menu::table_calls`).
+//! registers their last call leaves
 
 use crate::errors::Refused;
 use crate::framework::{game_read, game_write, rva};

@@ -14,10 +14,6 @@
 //! A point's number below 0 is fatal error 0x80600314.
 //! One caller, `sub_45071B`, which turns the answer into the carry flag.
 //! Refuses when there is no face or no records.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::d3d::draw_fan_unclipped::COUNT_RVA;
 use crate::errors::{BadInput, FatalError, Refused};

@@ -8,14 +8,7 @@
 //! Out: the time (eax) and whether the car did not finish (ebx: 0 or -1); the original
 //!      leaves esi the car's block and other registers as the race leaves them (read by
 //!      its one caller, `net::lets_rally`, only as these two)
-//! Caller: `net::lets_rally`. Its calls through `part` (`net::lobby_calls`: the Rust
-//! versions). Long-running (the race): ungated. Shadow mode runs the original alone.
-//! Self-test: a copy whose calls go to stand-ins, against the Rust version, +0xB0 -1 or
-//! not, on a test block.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `net::lets_rally`.
 
 use crate::errors::Refused;
 use crate::net::lobby::{g, p};

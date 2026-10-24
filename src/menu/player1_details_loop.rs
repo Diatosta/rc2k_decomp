@@ -9,20 +9,19 @@
 //! from the listing.
 //! The name is a reading from the title string of its menu, "PORMENORES DO JOGADOR 1", not yet
 //! a visit.
-//! Callers: none in code: it is reached through a table.
-//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
+//! Callers: none in code: it is reached through a table. The menus and draw lists run its `entry`
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
 use crate::framework::{game_read, rva};
-use crate::menu::screen_loop::{Carried, Flow, List, Screen, Step, call, screen_entry};
+use crate::menu::screen_loop::{Callee, Carried, Flow, List, Screen, Step, screen_entry};
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
 unsafe fn each_frame(c: &mut Carried) -> Result<Flow, Refused> {
     unsafe {
         if game_read::<u32>(rva(0x7556A8)) == 0x1 {
-            call(rva(0x467C63), c)?;
+            Callee::EditPlayerName.run(c)?;
             if game_read::<u32>(rva(0x7556A8)) != 0x0 {
                 return Ok(Flow::NextFrame);
             }
@@ -80,7 +79,7 @@ pub const SCREEN: Screen = Screen {
     background: &[
         Step::Write(rva(0x7558D8), 0x1),
         Step::ArgAddr(rva(0x731CE3)),
-        Step::CallOrFatal(rva(0x47EFFF), 0x80712345),
+        Step::CallOrFatal(Callee::LoadBackground, 0x80712345),
     ],
     after_first_frame: &[Step::Write(rva(0x75598C), 0x0)],
     confirm: None,
@@ -111,7 +110,7 @@ pub const SCREEN: Screen = Screen {
     always_asks: false,
 };
 
-/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// The Rust version where the typed tables run it (a refusal is the
 /// caller's).
 pub fn run() -> Result<(), crate::errors::Refused> {
     screen_entry("menu::player1_details_loop", &SCREEN)

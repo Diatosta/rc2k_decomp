@@ -3,14 +3,8 @@
 //! In:  nothing
 //! Out: every register kept (`pusha` .. `popa`)
 //!
-//! Caller: `screens::draw_service_boxes`. The body is the
-//! original's code written out by `service_boxes`' translator; the quads through `part` (1,
-//! in the game `draw_tinted_quad`'s Rust version). Shadow mode runs the original alone (it
-//! draws). Self-test: `service_boxes::test_boxes` (16 cases).
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `screens::draw_service_boxes`. The body is the original's code written out by
+//! `service_boxes`' translator.
 
 use crate::errors::Refused;
 use crate::screens::service_boxes::{addr, at_esi, quad, rd};

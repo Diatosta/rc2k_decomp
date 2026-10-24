@@ -19,8 +19,6 @@
 //! One caller, `sound::set_up_race_sounds`. Refuses a car number of 8 or more, a missing
 //! object, a kind of 0x20 or more and a list of names that does not hold 95 of at most 0x100
 //! bytes.
-//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
-//! `routes.rs`); the registers above are the original's, for reference.
 
 use crate::errors::BadInput;
 use crate::framework::rva;

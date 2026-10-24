@@ -4,14 +4,7 @@
 //! In:  nothing
 //! Out: as `store_car` leaves the registers; no flags read
 //!
-//! Callers: `drive::finish_run`, `sub_4293CB` (twice).
-//! Refuses what `store_car` refuses.
-//! Self-test: the original and the Rust version on the work car and the first block
-//! (saved and put back).
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Callers: `drive::finish_run`, `sub_4293CB` (twice). Refuses what `store_car` refuses.
 
 use crate::errors::Refused;
 use crate::physics::flow::p;

@@ -1,6 +1,3 @@
-//! The replay viewer (`race::replay_viewer`, 0x41CF0C, IDA 2026-10-19) and its tree: the
-//! variables they share, the `Part` their calls go through, and the self-tests' tools.
-//!
 //! The viewer plays a replay from `var\tmprpl` (the last race's, or a saved one copied
 //! there first), block by block (`dword_5C2530`, 0 .. `dword_5BECD0`; 100 frames a block,
 //! the frame in `dword_5C2534`), and edits it: two marks (`dword_96E478`, `dword_96E47C`),
@@ -113,9 +110,7 @@ pub unsafe fn table(x: usize, dwords: usize) -> &'static mut [u32] {
 
 // ---- for `net::sort_players` ----
 
-// ---- for the self-tests ----
-
-/// `g` and `p` for the hooks here.
+/// `g` and `p` for other modules.
 pub fn get(x: impl crate::store::At) -> u32 {
     g(x)
 }

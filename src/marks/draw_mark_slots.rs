@@ -19,16 +19,8 @@
 //! In:  nothing (`g_marksSettings`)
 //! Out: nothing (no caller reads a register it leaves)
 //!
-//! Caller: `marks::run_frame` (0x4D1659). Its calls through `part` (1 `add_mark_slot`, 2
-//! `set_texture`, 3 `draw_fan`); in the game their Rust versions (the device's through
-//! the game). Refuses (before anything) null settings and a live slot with a null matrix.
-//! Shadow mode runs the original alone (it draws). Self-test: a copy whose three calls
-//! go to stand-ins (the turns real; each draw notes the four vertices), against the Rust
-//! version on the same, on settings, slots, points and matrices of the test's.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `marks::run_frame` (0x4D1659). Refuses (before anything) null settings and a
+//! live slot with a null matrix.
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::rva;

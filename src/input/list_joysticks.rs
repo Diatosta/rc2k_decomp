@@ -7,14 +7,7 @@
 //! Out: every register kept (`pusha` .. `popa`)
 //!
 //! Caller: `input::input_thread` (its start). The method DirectInput's own (in the
-//! standalone program Rust's, `input::di_objects`). Shadow mode runs the original alone.
-//! Self-test: the original and the Rust version on DirectInput objects made in Rust
-//! (`input::di_harness`) with the joystick and the wheel attached: listed from none, from
-//! 15 (one room left) and turned off.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! standalone program Rust's, `input::di_objects`).
 
 use crate::input::di_harness::{DIRECT_INPUT_RVA, g, method, slot};
 use crate::input::store::DeviceSlot;

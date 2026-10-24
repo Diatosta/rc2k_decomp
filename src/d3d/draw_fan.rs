@@ -8,7 +8,7 @@
 //! (3) and no flags (clipped). One caller, `scene::draw_fan`.
 //! Platform: the original always runs, here the fan is only noted (`d3d::recorder`). In
 //! the standalone program the rasteriser draws it (`platform_3d::draw_fan`, held to the
-//! screen) and the result is 0. No self-test.
+//! screen) and the result is 0.
 
 use crate::d3d::draw_fan_unclipped::polygon;
 

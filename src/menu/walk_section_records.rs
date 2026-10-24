@@ -9,15 +9,8 @@
 //! In:  nothing
 //! Out: every register kept (`pusha` .. `popa`)
 //!
-//! Callers: `sub_4A0E60`, `sub_4AA4D7`. The steps are their Rust versions. Refuses what
-//! they refuse for any record of the walk, and a walk past 64 records, before anything.
-//! Shadow mode runs the original alone (it logs, in `calc_cpu_times`). Self-test:
-//! the original and the Rust version on the game's tables from the section's
-//! first records; put back.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Callers: `sub_4A0E60`, `sub_4AA4D7`. The steps are their Rust versions. Refuses what they refuse
+//! for any record of the walk, and a walk past 64 records, before anything.
 use crate::errors::Refused;
 use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::menu::standings::*;

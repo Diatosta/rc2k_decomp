@@ -10,10 +10,9 @@
 //! last of 22 items (all at 747, 551) of the service area's menu at 0x74D24C.
 //!
 //! Screen: confirmed by the owner on 2026-10-10: the stage details that can be opened from the
-//! service area of a championship, the screen after the first stage details where the car is
-//! set up and repaired before the stage. Named `draw_stage_info_alt` until then.
-//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
-//! (`menu::table_calls`); the registers above are the original's, for reference.
+//! service area of a championship, the screen after the first stage details where the car is set up
+//! and repaired before the stage. Named `draw_stage_info_alt` until then. The menus and draw lists
+//! run its `entry` (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
 use crate::framework::{game_read, rva};

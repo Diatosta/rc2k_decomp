@@ -5,12 +5,7 @@
 //!
 //! `audio::stop_streams`, `audio::free_voices`, `audio::close_way`,
 //! `audio::release_primary`, `audio::close_sound`, then `g_soundMode` 0. One caller, the
-//! audio thread. Shadow mode runs the original alone. Self-test: a redirected copy whose
-//! five calls go to stand-ins (the first noting ebx, ecx, edx), 2 cases.
-//!
-//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! audio thread.
 //!
 //! Plain since 2026-10-23 (phase 3). Fixed (section 16, 2026-10-23): the streams are
 //! stopped (action 0); the original hands on the thread's edx, 1 (a feed), so the music

@@ -1,7 +1,3 @@
-//! What the players' details pages' settings share (0x467AFD .. 0x467BD6, 0x470F05,
-//! 0x470F2D): each changes one setting of the current player (`dword_75598C`, the
-//! `Player`), wrapping or held, and one self-test for all of them.
-
 use crate::errors::{BadInput, Refused};
 use crate::menu::player::{Player, player_at};
 use crate::service::state::PLAYER_INDEX_RVA;

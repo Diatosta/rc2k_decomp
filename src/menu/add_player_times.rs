@@ -4,13 +4,8 @@
 //! In:  nothing
 //! Out: every register kept (`pusha` .. `popa`)
 //!
-//! Callers: the event drivers. Refuses a player count of 0 or past 4 or a missing player,
-//! before anything. Self-test: the original and the Rust version on the game's players,
-//! the flags by lot; put back.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Callers: the event drivers. Refuses a player count of 0 or past 4 or a missing player, before
+//! anything.
 use crate::errors::Refused;
 use crate::menu::standings::*;
 

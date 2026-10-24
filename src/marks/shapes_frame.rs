@@ -4,14 +4,8 @@
 //! In:  nothing (`g_marksSettings`)
 //! Out: nothing (no caller reads a register it leaves)
 //!
-//! Caller: `sub_4C1270`. It begins with its call: a private copy (0x1A bytes, its five
-//! calls relocated) with a manual patch. Refuses null settings before anything, and its
-//! steps' refusals (all it may write is put back first). Self-test: the game's settings
-//! (skipped without them), its steps' inputs by lot; compared on all it may write.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `sub_4C1270`. Refuses null settings before anything, and its steps' refusals
+//! (all it may write is put back first).
 
 use crate::errors::{BadInput, Refused};
 use crate::marks::lines::SETTINGS_RVA;

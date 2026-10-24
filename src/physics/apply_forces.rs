@@ -4,14 +4,8 @@
 //! In:  esi the first record, ecx their number
 //! Out: every register kept; no flags read
 //!
-//! Callers: `physics::apply_wheel_forces`, `physics::apply_contact_forces`.
-//! Refuses (before anything) ecx 0 (the original would loop 2^32 times) or above 0x100.
-//! Self-test: a copy of the original (its car the test's, its call to a copy of
-//! `apply_force`) on test records, counts 1 .. 7.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Callers: `physics::apply_wheel_forces`, `physics::apply_contact_forces`. Refuses (before
+//! anything) ecx 0 (the original would loop 2^32 times) or above 0x100.
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_addr, rva};

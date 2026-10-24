@@ -9,7 +9,7 @@
 //!      size (ecx; 0 none). The original keeps edx, esi, edi, ebp and leaves the flags of
 //!      `test eax, eax` on the method's result, which its one caller does not read (it tests
 //!      ecx next).
-//! Caller: `net::take_messages`. `Receive` from Rust (`net::dplay`, section 15). Refuses
+//! Caller: `net::take_messages`. `Receive` from Rust (`net::dplay`). Refuses
 //! nothing (no check of `g_dplay`: its caller makes it).
 
 use crate::net::dplay::{RECEIVE, method};

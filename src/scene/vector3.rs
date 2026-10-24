@@ -1,7 +1,5 @@
-//! The game's three-float vector helpers at 0x4654EA .. 0x4659A1 (IDA, 2026-10-16), used by
-//! the marks. Two leave their result in st(0): their hooks use `result_hook!`, whose thunk
-//! loads the result (80 bits) the Rust version left in the hook's `Result80`, and whose
-//! `original_keeping_result` takes the original's off into it for shadow mode and tests.
+//! The game's three-float vector helpers at 0x4654EA .. 0x4659A1 (IDA, 2026-10-16), used by the
+//! marks.
 
 use crate::framework::{game_read, game_write, rva};
 use crate::math::x87::x87;

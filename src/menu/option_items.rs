@@ -24,12 +24,10 @@
 //!
 //! In:  nothing
 //! Out: eax as above (the volumes: the value, or the sound when one is heard; the switches
-//!      with a copy: the value); what a callee leaves after it; no flags read
+//! with a copy: the value); what a callee leaves after it; no flags read
 //!
-//! Which item each is: the page tables' readings (the owner named the sound page's four
-//! volumes: general, race music, race effects, menu effects). Their callees through `part`: in
-//! the game their Rust versions.
-//! Hooks removed 2026-10-22 (typed tables): the menus run their `entry` (`menu::table_calls`).
+//! Which item each is: the page tables' readings (the owner named the sound page's four volumes:
+//! general, race music, race effects, menu effects).
 
 use crate::errors::Refused;
 
@@ -147,7 +145,7 @@ pub fn option_item(item: Item) -> Result<(), Refused> {
     Ok(())
 }
 
-/// A hook for one handler: `option_item!(module, "menu::name", ITEM)`.
+/// One handler: `option_item!(module, "menu::name", ITEM)`.
 macro_rules! option_item {
     ($module:ident, $name:literal, $item:expr) => {
         pub mod $module {

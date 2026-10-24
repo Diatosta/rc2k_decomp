@@ -3,16 +3,10 @@
 //! In:  ebx = the item's number (from 1)
 //! Out: every register preserved
 //!
-//! The item (`menu::item_at`): +0x48 = 0xFFFFFC1C (the moves up and down pass over it)
-//! and its font +0x18 = the grey one at 0x51EA04. Its twin `menu::enable_item`
-//! (0x46B50F) puts 0xFFFFFC1B and the font at 0x51E8E4 back. Eight callers each (the
-//! player details screens: the controller's item when there is no controller).
-//! Refuses item 0.
-//! Self-test: items of a menu of the test's.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! The item (`menu::item_at`): +0x48 = 0xFFFFFC1C (the moves up and down pass over it) and its font
+//! +0x18 = the grey one at 0x51EA04. Its twin `menu::enable_item` (0x46B50F) puts 0xFFFFFC1B and
+//! the font at 0x51E8E4 back. Eight callers each (the player details screens: the controller's item
+//! when there is no controller). Refuses item 0.
 
 use crate::errors::Refused;
 use crate::menu::item_at::item_at;

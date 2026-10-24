@@ -6,13 +6,6 @@
 //! Out: CF as `point_hits_car` leaves it; ebx the number, esi the point; the rest kept
 //!
 //! Caller: `sub_45E3BF` (0x45E48C, `jb`).
-//! Self-test: the original and the Rust version on the game's variables (saved and put
-//! back) with test points (`g_scenePoints` pointed at them for the test), the car's
-//! figures by lot, under three precisions.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::physics::flow::{fill3, g, p};
 use crate::physics::point_hits_car::point_hits_car;

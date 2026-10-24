@@ -7,8 +7,7 @@
 //! (3) and the flags 0x1C (not to be clipped, lit or measured). Two callers,
 //! `scene::draw_polygon_fan` and `sub_4651E6`.
 //! Platform: the original always runs, here the fan is only noted. In the standalone
-//! program the rasteriser draws it (`platform_3d::draw_fan`) and the result is 0. No
-//! self-test.
+//! program the rasteriser draws it (`platform_3d::draw_fan`) and the result is 0.
 
 use crate::d3d::{VERTEX_LEN, Vertex};
 use crate::framework::{game_addr, game_read, rva};

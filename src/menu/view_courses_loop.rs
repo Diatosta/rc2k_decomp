@@ -7,13 +7,12 @@
 //! a call or a store are the functions below, generated from the listing.
 //! The name is a reading from the title string of its menu, "INFORMAÇÃO DO PERCURSO", not yet a
 //! visit.
-//! Callers: none in code: it is reached through a table.
-//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
+//! Callers: none in code: it is reached through a table. The menus and draw lists run its `entry`
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
 use crate::framework::rva;
-use crate::menu::screen_loop::{Carried, List, Screen, Step, log_line, screen_entry};
+use crate::menu::screen_loop::{Callee, Carried, List, Screen, Step, log_line, screen_entry};
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
@@ -74,7 +73,7 @@ pub const SCREEN: Screen = Screen {
     set_up_first: &[Step::Do(set_up_first)],
     prepare: &[],
     after_lists: &[],
-    background: &[Step::Call(rva(0x4683CF))],
+    background: &[Step::Call(Callee::DrawStageMap)],
     after_first_frame: &[],
     confirm: None,
     ask_also_if: None,
@@ -104,7 +103,7 @@ pub const SCREEN: Screen = Screen {
     always_asks: false,
 };
 
-/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// The Rust version where the typed tables run it (a refusal is the
 /// caller's).
 pub fn run() -> Result<(), crate::errors::Refused> {
     screen_entry("menu::view_courses_loop", &SCREEN)

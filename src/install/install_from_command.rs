@@ -9,13 +9,8 @@
 //!
 //! In:  nothing
 //! Out: every register kept (`pusha` / `popa`)
-//! Caller `install::run_installer`. Its calls through `part`. Ungated. Shadow mode runs the
-//! original alone. Self-test: a copy whose calls go to stand-ins (carries and the digits
-//! scripted), against the Rust version; `g_mediaMode` and the call sequence compared.
+//! Caller `install::run_installer`.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 //! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
 //! are the original's.
 

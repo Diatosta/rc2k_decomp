@@ -16,14 +16,6 @@
 //! Out: eax = 1 go on, 0 stop; ebx, esi, edi, ebp kept; `ret 8`
 //!
 //! Caller: DirectInput, from `input::list_joysticks`. The methods the objects' own.
-//! Shadow mode runs the original alone. Self-test: the original and the Rust version on
-//! DirectInput objects made in Rust (`input::di_harness`): the joystick and the wheel, a
-//! device that is not there (`CreateDevice` fails), 0, 5, 15 and 16 controllers before,
-//! the force-feedback switch both ways.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::field;
 use crate::input::devices::{at, put};
@@ -131,7 +123,7 @@ fn look_over(instance: u32, entry: u32) -> bool {
 }
 
 /// The Rust version: eax.
-/// `joystick_found` as DirectInput calls it: what Rust callers hand `EnumDevices` (no hook).
+/// `joystick_found` as DirectInput calls it: what Rust callers hand `EnumDevices`.
 pub unsafe extern "system" fn callback(instance: u32, context: u32) -> u32 {
     joystick_found(instance, context)
 }

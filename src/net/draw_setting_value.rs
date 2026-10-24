@@ -6,14 +6,7 @@
 //! In:  eax = the text, esi = the item, ebp = y
 //! Out: as `text::draw_text` leaves them (eax 0, ebx past the text, ecx, edx); ebp + 0x1E;
 //!      no `pusha`
-//! Callers: `net::settings_frame`, `net::draw_number_value` (which goes on into it). Its
-//! calls through `part` (`strings::append_nul` inline). Shadow mode runs the original alone
-//! (it draws). Self-test: a copy whose calls go to stand-ins (the strings appended), against
-//! the Rust version: edited, empty, a text.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Callers: `net::settings_frame`, `net::draw_number_value` (which goes on into it).
 
 use crate::errors::Refused;
 use crate::net::lobby::{Cursor, EDITED, FONT, TEXT, a, g};

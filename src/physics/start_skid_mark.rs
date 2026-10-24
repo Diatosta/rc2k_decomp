@@ -8,7 +8,6 @@
 //!      flags read
 //!
 //! Caller: `sub_43B635` (0x43B6FB), every physics step.
-//! Self-test: `physics/copy_hooks_test.rs` (a copy on test variables), 12 cases.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

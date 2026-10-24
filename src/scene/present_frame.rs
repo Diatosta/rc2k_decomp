@@ -1,11 +1,9 @@
-//!
 //! In:  nothing
 //! Out: as the platform's call leaves them (CF read by the callers)
 //!
-//! Callers: `race::loading_bar_frame` and the game's (0x4395FB, 0x439605, 0x4426A0,
-//! 0x4435DD).
-//! Hook removed 2026-10-22; plain Rust since 2026-10-23 (phase 3): the registers above
-//! are the original's; a call by address goes through `routes.rs`, which maps them.
+//! Callers: `race::loading_bar_frame` and the game's (0x4395FB, 0x439605, 0x4426A0, 0x4435DD).
+//! The registers above are the original's; a call by address goes through `routes.rs`, which
+//! maps them.
 
 /// The frame shown (`gfx::show_frame`, the platform's): false when it was not (the
 /// original's carry set). Every register kept.

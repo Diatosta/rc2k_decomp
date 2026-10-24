@@ -16,26 +16,17 @@
 //! Out: esi `dword_6D3BB8`, edi `g_car`; the rest kept; no flags read (the caller
 //!      returns)
 //!
-//! Caller: `physics::corner_hits_car` (its tail).
-//! Refuses a null block (before anything) and what `place_sound_e1_other` refuses (what
-//! was written put back).
-//! Self-test: `physics/car_collisions.rs` (`test_bump`): the original and the Rust version
-//! on the game's variables (saved and put back) with test car blocks, under three
-//! precisions.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `physics::corner_hits_car` (its tail). Refuses a null block (before anything)
+//! and what `place_sound_e1_other` refuses (what was written put back).
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{EDI, ESI};
+
 use crate::math::x87::loaded;
 use crate::physics::flow::{a, fill3, g, p, x87_run};
 use crate::physics::scale_vector::scale_vector;
 use crate::physics::vector_length::vector_length;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
-use crate::screens::harness::Left;
 
 /// `g_car`: the work car's block.
 pub const CAR: usize = 0x719FD8;
@@ -51,7 +42,7 @@ fn turn_speed(block: u32) {
     }
 }
 
-fn steps(edi: u32) -> Result<Left, Refused> {
+fn steps(edi: u32) -> Result<(), Refused> {
     for k in 0..3 {
         p(0x6D3090 + 4 * k, loaded(g(0x6D3BC8 + 4 * k)));
     }
@@ -172,11 +163,11 @@ fn steps(edi: u32) -> Result<Left, Refused> {
     turn_speed(esi);
     turn_speed(a(CAR));
     unsafe { crate::physics::place_sound_e1_other::place_sound_e1_other() }?;
-    Ok(Left::nothing().with(ESI, esi).with(EDI, a(CAR)))
+    Ok(())
 }
 
-/// The Rust version: `edi` the other car's block.
-pub unsafe fn bump_cars(edi: u32) -> Result<Left, Refused> {
+/// The Rust version: `edi` the other car's block (an address in the game's memory).
+pub unsafe fn bump_cars(edi: u32) -> Result<(), Refused> {
     if edi == 0 || g(OTHER) == 0 {
         return Err(BadInput("a null car block").into());
     }

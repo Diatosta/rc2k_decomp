@@ -11,13 +11,12 @@
 //! The name is a reading from the title string of its menu, "OPÇÕES DE REVISÃO", not yet a
 //! visit.
 //! Callers: `sub_482382`, `sub_4824C1`, `sub_4826A2`, `sub_4828B0`, `sub_482B7A`, `sub_48AE39`,
-//! `sub_48AFD0`, `sub_48B23D`, `sub_48B54B`, `sub_48B90F`.
-//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
-//! `routes.rs`); the registers above are the original's, for reference.
+//! `sub_48AFD0`, `sub_48B23D`, `sub_48B54B`, `sub_48B90F`. Rust callers run its `entry`
+//! (`routes.rs`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
 use crate::framework::{game_read, game_write, rva};
-use crate::menu::screen_loop::{Carried, List, Screen, Step, carousel, prepare_scene};
+use crate::menu::screen_loop::{Callee, Carried, List, Screen, Step, carousel, prepare_scene};
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
@@ -72,7 +71,7 @@ pub const SCREEN: Screen = Screen {
     after_lists: &[],
     background: &[
         Step::ArgAddr(rva(0x732931)),
-        Step::CallOrFatal(rva(0x47EFFF), 0x80712345),
+        Step::CallOrFatal(Callee::LoadBackground, 0x80712345),
     ],
     after_first_frame: &[Step::Write(rva(0x755A38), 0x0)],
     confirm: Some(&[]),

@@ -26,15 +26,8 @@
 //! In:  nothing
 //! Out: every register kept; no flags read (callers go on with `push`)
 //!
-//! Callers: `sub_43A35A` (0x43A497, 0x43A4F7).
-//! Refuses (before anything) no checkpoints when the tables are to be read.
-//! Self-test: in a race only: a copy of the original (its calls the game's) against the
-//! Rust version on the game's stage, with the work car's checkpoint, speed, gear, step
-//! count and the slot's counters by lot; everything it writes saved and put back.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Callers: `sub_43A35A` (0x43A497, 0x43A4F7). Refuses (before anything) no checkpoints
+//! when the tables are to be read.
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_addr, game_read, game_write, rva};

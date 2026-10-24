@@ -15,15 +15,7 @@
 //!      action was one).
 //!
 //! Callers: `race::viewer_action` (0x1A, 0x25 .. 0x28 `play_marked`; 6 and 0x22, 0x23
-//! `play_from_here`). Their calls through `part`: 1 `read_replay_frame`, 2
-//! `play_replay_range`; in the game their Rust versions. Ungated (they play a replay).
-//! Shadow mode runs the original alone. Self-test: a copy of `play_marked` whose calls
-//! go to stand-ins, from its start and (for `play_from_here`) from its tail with the
-//! registers `play_from_here` sets, against the Rust versions.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! `play_from_here`).
 
 use crate::errors::Refused;
 use crate::race::viewer::{

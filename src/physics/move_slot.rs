@@ -23,9 +23,6 @@
 //! Out: the registers as the path leaves them (see `move_slot_at`); no flags read
 //!
 //! Caller: `physics::move_slots` (inside `pusha` / `popa`).
-//! Self-test: in a race only (it uses the stage's ground): a copy of the original (its
-//! calls the game's) against the Rust version on test slots placed about the work car,
-//! with speeds and spins by lot; every game variable it writes saved and put back.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

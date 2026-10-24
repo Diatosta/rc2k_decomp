@@ -13,16 +13,9 @@
 //! In:  nothing (`dword_623DE8` .. `dword_623E24`, set by the caller)
 //! Out: eax 0, ecx 4, esi the record pool going into the calls; then as they leave them
 //!
-//! Callers: `sub_45B86E` (three), and code at 0x4436B2, 0x4437C1, 0x45BCD8, 0x45BDD0.
-//! The calls through `part` (1 the scale, 2 the clip, 3 / 5 the depth
-//! buffer off / on, 4 the draw), in the game their Rust versions (a refusal of theirs
-//! comes after the writes; the original, run on it, writes them again from the same
-//! inputs). Shadow mode runs the original alone (it draws). Self-test: a copy whose calls
-//! go to stand-ins, against the Rust version, quads by lot.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Callers: `sub_45B86E` (three), and code at 0x4436B2, 0x4437C1, 0x45BCD8, 0x45BDD0. The
+//! calls (the scale, the clip, the depth buffer off, the draw, the depth buffer on) are
+//! their Rust versions; a refusal of theirs comes after the writes.
 
 use crate::errors::Refused;
 use crate::framework::{game_addr, game_read, game_write, rva};
@@ -101,37 +94,18 @@ pub unsafe fn draw_flat_quad() -> Result<(), Refused> {
         }
         set(LIST_RVA + 16, 0);
         set(NEXT_ENTRY_RVA, 4);
-        crate::scene::draw_flat_quad::part(1)?;
-        crate::scene::draw_flat_quad::part(2)?;
+        crate::scene::scale_texture_coordinates::scale_texture_coordinates()?;
+        crate::scene::clip_polygon_to_screen::clip_polygon_to_screen()?;
         if game_read::<u32>(COUNT_RVA) >= 3 {
             set(MODE_RVA, 6);
             set(SIDES_RVA[0], 1);
             set(SIDES_RVA[1], 0);
-            crate::scene::draw_flat_quad::part(3)?;
-            crate::scene::draw_flat_quad::part(4)?;
+            crate::scene::depth_buffer_on::depth_buffer(false);
+            crate::scene::draw_polygon::draw_polygon_in_game()?;
             set(DRAWN_RVA, 1);
-            crate::scene::draw_flat_quad::part(5)?;
+            crate::scene::depth_buffer_on::depth_buffer(true);
         }
         set(COLOUR_RVA, 0xFF_FFFF);
-    }
-    Ok(())
-}
-
-/// The calls' Rust versions, by place: 1 the texture coordinates scaled, 2 the polygon
-/// clipped to the screen, 3 the depth buffer off, 4 the polygon drawn, 5 the depth buffer
-/// on. What the first leaves in the registers was carried in a scratch set nobody read.
-pub fn part(place: u32) -> Result<(), Refused> {
-    use crate::scene::*;
-    unsafe {
-        match place {
-            1 => {
-                scale_texture_coordinates::scale_texture_coordinates()?;
-            }
-            2 => clip_polygon_to_screen::clip_polygon_to_screen()?,
-            3 => depth_buffer_on::depth_buffer(false),
-            4 => draw_polygon::draw_polygon_in_game()?,
-            _ => depth_buffer_on::depth_buffer(true),
-        }
     }
     Ok(())
 }

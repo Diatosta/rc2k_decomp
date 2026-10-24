@@ -10,8 +10,7 @@
 //! listing.
 //! The name is a reading from the title string of its menu, "CARREGAR CAMPEONATO", not yet a
 //! visit.
-//! Callers: none in code: it is reached through a table.
-//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
+//! Callers: none in code: it is reached through a table. The menus and draw lists run its `entry`
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
@@ -91,7 +90,7 @@ pub const SCREEN: Screen = Screen {
     always_asks: false,
 };
 
-/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// The Rust version where the typed tables run it (a refusal is the
 /// caller's).
 pub fn run() -> Result<(), crate::errors::Refused> {
     screen_entry("menu::load_championship_46e899_loop", &SCREEN)

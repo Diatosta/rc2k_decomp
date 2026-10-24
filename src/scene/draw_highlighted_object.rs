@@ -19,11 +19,9 @@
 //!   `g_objectNumber`, and `scene::draw_menu_object` with eax = it.
 //!
 //! In twelve of the menus' scene lists (the options and the screens under them, by the
-//! standalone program's run of 2026-10-14).
-//! Refuses a highlighted item of 0 or past the 0x100 kinds, a kind past the records, and what
-//! its parts refuse.
-//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `run`
-//! (`menu::table_routes`); the registers above are the original's, for reference.
+//! standalone program's run of 2026-10-14). Refuses a highlighted item of 0 or past the 0x100
+//! kinds, a kind past the records, and what its parts refuse. The menus and draw lists run its
+//! `run` (`menu::table_routes`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_read, game_write, rva};

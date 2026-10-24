@@ -9,8 +9,6 @@
 //! and the part at that place of the list `dword_A8C184`; -1 ends it
 //! (`dword_A8C188` = 0), else `sound::start_stream` with it and `dword_755698`. Once a
 //! frame on four screens (the car specification, the slideshow, two stage screens).
-//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
-//! `routes.rs`); the registers above are the original's, for reference.
 
 use crate::audio::store::Slot;
 use crate::framework::rva;

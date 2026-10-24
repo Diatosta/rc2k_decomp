@@ -20,18 +20,9 @@
 //! In:  esi the device
 //! Out: ebp = esi; the rest kept; the flags of the copy (no caller reads them)
 //!
-//! Callers: `race::tyre_change_gauge` (twice), which calls the Rust version directly. The
-//! text is built with the Rust versions of `strings::append_string_by_id` and
-//! `append_time`.
-//! Refuses a text longer than the text buffer, and what its calls refuse.
-//! Shadow mode runs the original alone (it writes a surface). Self-test: a copy whose
-//! lock, unlock, draws, fills and copy go to stand-ins that note them (the lock failing or
-//! not), against the Rust version with the same: drawn before or not, both players, done
-//! or not.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Callers: `race::tyre_change_gauge` (twice), which calls the Rust version directly. The text
+//! is built with the Rust versions of `strings::append_string_by_id` and `append_time`. Refuses
+//! a text longer than the text buffer, and what its calls refuse.
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_addr, game_read, game_write, rva};

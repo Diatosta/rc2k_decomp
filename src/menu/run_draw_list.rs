@@ -3,10 +3,9 @@
 //!
 //! In:  nothing
 //! Out: every register preserved
-//! Three callers, the menu's frame step among them. Refuses a list without an end in its first
-//! 256 entries.
-//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
-//! `routes.rs`); the registers above are the original's, for reference.
+//! Three callers, the menu's frame step among them. Refuses a list without an end in its first 256
+//! entries. Rust callers run its `entry` (`routes.rs`); the registers above are the original's, for
+//! reference.
 
 use crate::errors::Refused;
 use crate::framework::{game_read, rva};

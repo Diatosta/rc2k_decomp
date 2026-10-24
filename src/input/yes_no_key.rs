@@ -10,10 +10,6 @@
 //! empty one is "compared" through whatever was there.
 //! Two callers: `yes_no_for_key` and `sub_445069`.
 //! Refuses a missing keyboard layout (before the key is taken) and what `key_to_char` does.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::errors::BadInput;
 use crate::input::key_to_char::{

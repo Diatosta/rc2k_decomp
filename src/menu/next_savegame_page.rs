@@ -4,9 +4,8 @@
 //! In:  nothing
 //! Out: every register preserved
 //!
-//! The comparison is signed. In two menu tables (0x7518D0, 0x751D28): the load and
-//! save screens' page buttons. The twin of `service::next_setup_page`.
-//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
+//! The comparison is signed. In two menu tables (0x7518D0, 0x751D28): the load and save screens'
+//! page buttons. The twin of `service::next_setup_page`. The menus and draw lists run its `entry`
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::framework::{game_read, game_write};

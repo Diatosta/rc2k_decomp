@@ -17,9 +17,6 @@ use crate::moved::Place;
 use std::ptr::copy_nonoverlapping;
 use std::slice::from_raw_parts;
 use std::sync::atomic::{AtomicU32, Ordering};
-use windows_sys::Win32::Foundation::{CloseHandle, INVALID_HANDLE_VALUE};
-use windows_sys::Win32::Storage::FileSystem::{CreateFileA, SetFilePointer, WriteFile};
-use windows_sys::Win32::System::Threading::Sleep;
 
 // ---- game data ----
 
@@ -90,38 +87,31 @@ fn line_buf() -> *mut u8 {
 
 /// `files::append_to_file` (0x402C9C), whose only caller is this tail.
 /// Some(bytes written) if the write was reached; None if open or seek failed.
-unsafe fn append_to_file(path: &'static [u8], data: &[u8]) -> Option<u32> {
-    unsafe {
-        // open_by_mode stores resolve_path's result
-        crate::files::state::LAST_FILE_PATH.store(path.as_ptr() as u32, Ordering::Relaxed);
-        let h = CreateFileA(
-            path.as_ptr(),
-            MODE_ACCESS,
-            MODE_SHARE,
-            std::ptr::null(),
-            MODE_DISPOSITION,
-            0x80,
-            0 as _,
-        );
-        if h == INVALID_HANDLE_VALUE {
-            return None; // the original does not close: the path stays set
-        }
-        let (mut written, mut result) = (0u32, None);
-        if SetFilePointer(h, 0, std::ptr::null_mut(), 2) != u32::MAX {
-            // 2 = FILE_END
-            WriteFile(
-                h,
-                data.as_ptr().cast(),
-                data.len() as u32,
-                &mut written,
-                std::ptr::null_mut(),
-            );
-            result = Some(written);
-        }
-        CloseHandle(h);
-        crate::files::state::LAST_FILE_PATH.store(0, Ordering::Relaxed);
-        result
-    }
+fn append_to_file(path: &'static [u8], data: &[u8]) -> Option<u32> {
+    use std::io::{Seek, SeekFrom, Write};
+    use std::os::windows::fs::OpenOptionsExt;
+    // open_by_mode stores resolve_path's result
+    crate::files::state::LAST_FILE_PATH.store(path.as_ptr() as u32, Ordering::Relaxed);
+    // Mode 4 (`MODE_*`): write access, no sharing, open or create (std's `create`;
+    // `write` only lets std accept it, the access is the table's).
+    const _: () = assert!(MODE_DISPOSITION == 4);
+    let name = crate::files::ansi_text(&path[..path.len() - 1]);
+    let mut file = std::fs::OpenOptions::new()
+        .access_mode(MODE_ACCESS)
+        .share_mode(MODE_SHARE)
+        .attributes(0x80)
+        .write(true)
+        .create(true)
+        .open(name)
+        .ok()?; // the original does not close: the path stays set
+    let result = match file.seek(SeekFrom::End(0)) {
+        // The bytes written; a failed write counts what it wrote, nothing.
+        Ok(_) => Some(file.write(data).unwrap_or(0) as u32),
+        Err(_) => None,
+    };
+    drop(file);
+    crate::files::state::LAST_FILE_PATH.store(0, Ordering::Relaxed);
+    result
 }
 
 fn load_state() -> rc2k_core::files::log::LogState {
@@ -162,7 +152,7 @@ pub fn log_text(text: &[u8], newline: bool, level: u8) {
 /// Takes the lock the way `log_lock_acquire` does.
 pub fn acquire() {
     while lock().swap(1, Ordering::Acquire) != 0 {
-        unsafe { Sleep(1) }
+        crate::system::sleep::sleep(1)
     }
 }
 

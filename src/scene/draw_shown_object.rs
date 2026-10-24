@@ -16,23 +16,12 @@
 //!   (`g_objectFaceCounts`).
 //!
 //! Outside a race `scene::clear_kind_bytes` (0x46219C, inlined): the 0x100 dwords at
-//! `dword_5CD688` = 0, then the seventh, eighth and tenth = 999 (eax = 0, ecx = 0,
-//! edi = the table's end).
-//! Then `scene::draw_object`.
-//! One caller, `sub_451E3E`.
-//! Refuses, in a race, an object's number of 0x100 or more (the original reads past
-//! its tables).
-//! Shadow mode runs the original alone and compares whether it drew with what the Rust
-//! tests say (through `draw_object`'s hook, while that is on).
-//! Self-test: a redirected copy whose drawing notes itself, with the original's own
-//! tests, on settings drawn by lot.
+//! `dword_5CD688` = 0, then the seventh, eighth and tenth = 999 (eax = 0, ecx = 0, edi = the
+//! table's end). Then `scene::draw_object`. One caller, `sub_451E3E`. Refuses, in a race, an
+//! object's number of 0x100 or more (the original reads past its tables).
 //!
 //! Converted 2026-10-21: the race's tests and the kind bytes through
 //! `rc2k_core::scene::shown` (the variables read where the tests read them).
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_read, game_write, rva};

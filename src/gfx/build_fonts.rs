@@ -17,8 +17,8 @@
 //! `sub_4703C2`, `sub_41CDC2`, `sub_412DE0`, `sub_443104`.
 //! A refusal from one of the steps leaves the work half done; none can come with the
 //! game's own files.
-//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
-//! `routes.rs`); the registers above are the original's, for reference.
+//! The registers above are the original's, for reference; a call by address goes through
+//! `routes.rs`.
 
 use crate::errors::{FatalError, Refused};
 use crate::framework::rva;

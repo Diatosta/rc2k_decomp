@@ -3,12 +3,11 @@
 //!
 //! In:  nothing
 //! Out: every register kept (`pusha` .. `popa`; the original loads eax just before the
-//!      `popa`)
+//! `popa`)
 //!
 //! Unlike `menu::next_gearing` it does not touch the player's record. Reached from a menu table
-//! (0x74BA9C, a left/right handler of an item of the car choice). Hook removed 2026-10-22
-//! (typed tables): the menus and draw lists run its `entry` (`menu::table_calls`); the
-//! registers above are the original's, for reference.
+//! (0x74BA9C, a left/right handler of an item of the car choice). The menus and draw lists run its
+//! `entry` (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::framework::{game_addr, game_read, game_write};
 use crate::screens::gearing_text::{KEPT_RVA, TEXT_RVA};

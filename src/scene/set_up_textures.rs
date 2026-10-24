@@ -4,14 +4,11 @@
 //! In:  nothing
 //! Out: carry clear; eax and ebx as `gfx::allocate_textures` leaves them
 //!
-//! `scene::build_texture_catalogue`; `dword_624234` = 0; then one system texture of
-//! size code 3 and pixel kind 4 without mip levels from `gfx::allocate_textures`
-//! (0x4051ED, Direct3D: not ported; eax = 0, ebx = 1, ecx = 3, edx = 4, ebp = 0), whose
-//! number (ebx) goes to `dword_624234`. If that one is refused: fatal error
-//! 0x80600943.
-//! Two callers.
-//! Hook removed 2026-10-22; plain Rust since 2026-10-23 (phase 3): the registers above
-//! are the original's; a call by address goes through `routes.rs`, which maps them.
+//! `scene::build_texture_catalogue`; `dword_624234` = 0; then one system texture of size code 3
+//! and pixel kind 4 without mip levels from `gfx::allocate_textures` (0x4051ED, Direct3D: not
+//! ported; eax = 0, ebx = 1, ecx = 3, edx = 4, ebp = 0), whose number (ebx) goes to
+//! `dword_624234`. If that one is refused: fatal error 0x80600943. Two callers. The registers
+//! above are the original's; a call by address goes through `routes.rs`, which maps them.
 
 use crate::errors::Refused;
 use crate::framework::{game_write, rva};

@@ -5,12 +5,6 @@
 //! Out: CF as `kind_is_hidden` leaves it; every register kept
 //!
 //! Caller: `sub_45E3BF` (0x45E3D0, `jb`).
-//! Self-test: the original and the Rust version on the game's variables (saved and put
-//! back): both settings, a test record with objects 0 .. 0xFF and test kinds.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::scene::kind_is_hidden::kind_is_hidden;
 

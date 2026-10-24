@@ -8,11 +8,7 @@
 //!
 //! Plain since 2026-10-23 (phase 3): the cores take what they read (the face, the record,
 //! the point) and return the carry; the registers the originals leave are read by none of
-//! their callers (`ground_search` keeps them all: `pusha` / `popa`). The
-//! variables are reached through `Ground`: the game's, or a self-test's copies of the
-//! game's ranges (`TestGround`), against copies of the originals whose references to
-//! those ranges are patched and whose calls go to each other (the ground variables are
-//! the game's every frame).
+//! their callers (`ground_search` keeps them all: `pusha` / `popa`).
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_addr, rva};

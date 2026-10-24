@@ -9,15 +9,10 @@
 //! before the first frame only; around an action the highlight is kept in `dword_7477D8`; the
 //! action run is that of the item of another menu, 0x750ACC (the original's slip).
 //! The name is a reading from the title string of its menu, "RESULTADOS", not yet a visit.
-//! Callers: `sub_4824C1`, `sub_4826A2`. Ungated thunk; shadow mode runs the original alone;
-//! each real call writes a line to hook.log. Self-test: `screen_loop::check_screen`.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Callers: `sub_4824C1`, `sub_4826A2`.
 
 use crate::framework::rva;
-use crate::menu::screen_loop::{List, Screen, Step};
+use crate::menu::screen_loop::{Callee, List, Screen, Step};
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
@@ -61,12 +56,12 @@ pub const SCREEN: Screen = Screen {
     frame_callback: rva(0x474D4B),
     later_frame_callback: None,
     before: &[Step::Write(rva(0x755980), 0x0)],
-    set_up_first: &[Step::Call(rva(0x485B0E))],
+    set_up_first: &[Step::Call(Callee::ScoreTwoPlayers)],
     prepare: &[],
     after_lists: &[],
     background: &[
         Step::ArgAddr(rva(0x732A86)),
-        Step::CallOrFatal(rva(0x47EFFF), 0x80712345),
+        Step::CallOrFatal(Callee::LoadBackground, 0x80712345),
     ],
     after_first_frame: &[],
     confirm: Some(&[]),

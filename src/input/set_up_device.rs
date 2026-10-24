@@ -12,13 +12,7 @@
 //!
 //! Caller: `input::device_command` (the race's start, both players). The acquiring through
 //! `part` (0, esi and edi as here, eax [edi+8] or 2; in the game
-//! `input::acquire_device`'s Rust version). Shadow mode runs the original alone (it acquires the device).
-//! Self-test: a copy whose acquiring goes to a stand-in (which says the device acquired or
-//! not), against the Rust version, on records and controls of the test's.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! `input::acquire_device`'s Rust version).
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

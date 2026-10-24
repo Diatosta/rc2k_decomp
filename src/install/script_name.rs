@@ -5,13 +5,8 @@
 //! In:  ebx the script cursor, esi where to write
 //! Out: al the stop byte, ebx at it (not past), esi where the NUL went; the flags of
 //!      `cmp al, 20h` (no caller reads them)
-//! Caller `install::run_script` (three times). A loop back to its first byte: private copy,
-//! manual patch. Shadow mode compares. Self-test: scripts of the test's against the
-//! original.
+//! Caller `install::run_script` (three times).
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 //! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
 //! are the original's.
 

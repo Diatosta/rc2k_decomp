@@ -6,14 +6,7 @@
 //! Out: esi the second block, edi `unk_6D1492`, the rest as the beeps leave them; no flags
 //!      read
 //!
-//! Caller: `drive::replay_step`.
-//! Refuses what `countdown_beep` refuses.
-//! Self-test: the original and the Rust version on the two blocks' figures (saved and put
-//! back), neither car with a sound slot.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `drive::replay_step`. Refuses what `countdown_beep` refuses.
 
 use crate::errors::Refused;
 use crate::physics::flow::{a, p};

@@ -10,11 +10,9 @@
 //!      = the key, ebp = ((key >> 11) & 0xF) << 4. ZF not read (`jb`).
 //!
 //! Callers (2): `sub_441FBA` (the ground's search, `sub_441E2F`'s nine cells) and
-//! `sub_45E291`.
-//! Refuses (before anything) a kind whose last record is at or past `g_courseRecordCount`
-//! while its first is not -1 (a search past the records; not worked out).
-//! Self-test: a copy of the original on test tables and records, keys found, missing,
-//! kinds empty and of one or several records.
+//! `sub_45E291`. Refuses (before anything) a kind whose last record is at or past
+//! `g_courseRecordCount` while its first is not -1 (a search past the records; not worked
+//! out).
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

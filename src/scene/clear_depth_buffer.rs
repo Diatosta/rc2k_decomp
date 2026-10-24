@@ -5,16 +5,9 @@
 //! Out: nothing changed without 3D; else eax, ecx, edx as Direct3D leaves them and
 //!      ebx = the screen's height
 //!
-//! Only with `dword_5CDA8C` not 0: the rectangle `dword_624138` .. = 0, 0, the
-//! screen's width and height, and `d3d::clear_viewport` (0x44E9D9: the viewport's
-//! Clear with that one rectangle and flag 2, the depth buffer; Direct3D, not ported).
-//! Three callers.
-//! Shadow mode runs the original alone.
-//! Self-test: a redirected copy whose call notes the rectangle.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Only with `dword_5CDA8C` not 0: the rectangle `dword_624138` .. = 0, 0, the screen's width
+//! and height, and `d3d::clear_viewport` (0x44E9D9: the viewport's Clear with that one
+//! rectangle and flag 2, the depth buffer; Direct3D, not ported). Three callers.
 
 use crate::framework::{game_read, game_write, rva};
 use crate::session::SCREEN;

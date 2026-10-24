@@ -6,17 +6,9 @@
 //! In:  nothing
 //! Out: nothing (no caller reads a register it leaves)
 //!
-//! One caller, `sub_4C3EEE`. Self-test: the original and the Rust version on several
-//! views and second vectors; put back afterwards.
+//! One caller, `sub_4C3EEE`.
 //!
-//! Converted 2026-10-21: the hook's Rust version is `view_heading_plain`, through
-//! `rc2k_core::marks::view::heading` (plain floats; the x87 version stays for the Rust
-//! callers in unconverted code). Shadow mode and the self-test compare within
-//! `service::floats`' tolerances (the self-test at both test precisions, exact at double).
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! the x87 version stays for the Rust callers in unconverted code).
 
 use crate::framework::rva;
 use crate::marks::store::{Slot, game_addr, game_read, game_write};

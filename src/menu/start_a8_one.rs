@@ -9,8 +9,6 @@
 //!
 //! Reached through a start menu's table. Refuses a missing player before anything, and what the
 //! callees refuse when they are reached.
-//! Hook removed 2026-10-22 (typed tables): the start menus run its `entry`
-//! (`menu::table_calls`).
 
 use crate::errors::Refused;
 use crate::menu::screen_loop::Carried;

@@ -13,16 +13,7 @@
 //! In:  ebp the HUD's record
 //! Out: as the path leaves them
 //!
-//! Caller: `sub_4B1CD0`. The draws through `part` (1 `add_sprite`, 2 `disc_1a`, 3
-//! `disc_1b`, 4 `add_solid_quad`, 5 `draw_stage_bars_1`, 6 `icons_1`, 7
-//! `draw_markers_1`, 8 / 9 the signs, 10 / 11 the needles, 12 `add_scaled_sprite` with its
-//! two scales), in the game their Rust versions. Shadow mode runs the original alone (it
-//! draws). Self-test: a copy whose draws go to stand-ins (the scaled sprites' reading
-//! their scales), against the Rust version, flags and times by lot, at both test control words.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `sub_4B1CD0`.
 
 use crate::errors::Refused;
 use crate::hud::add_quad::QUAD_RVA;

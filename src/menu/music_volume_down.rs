@@ -2,8 +2,7 @@
 //!
 //! In:  nothing
 //! Out: as `option_steps` says (not `pusha`'d)
-//! A left/right handler of the sound options page's items.
-//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
+//! A left/right handler of the sound options page's items. The menus and draw lists run its `entry`
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::menu::option_steps::{MUSIC_LEVEL_RVA, Then, Volume, volume_step};

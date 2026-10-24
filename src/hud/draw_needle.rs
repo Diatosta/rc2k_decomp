@@ -11,21 +11,13 @@
 //! In:  nothing
 //! Out: edx the turn, then as `add_polygon` leaves them
 //!
-//! Callers: the needles' set-ups (`hud::needle_*`). The corners and the polygon through
-//! `part` (1 a corner with its two values, 2 the polygon), in the game their Rust
-//! versions. Shadow mode runs the original alone (it draws). Self-test: a copy whose calls
-//! go to stand-ins (the corners' taking their values off), against the Rust version,
-//! values by lot on both ways.
+//! Callers: the needles' set-ups (`hud::needle_*`).
 //!
 //! Converted 2026-10-21: the holds, the choice of the angle's way, the turn's register and
 //! the corners through `rc2k_core::hud::disc` (compares of floats only: exact); the value
 //! made a float and the turn's arithmetic and rounding stay the x87's (they follow its
 //! control word). `dword_75C060` is written once, with the turn (the original also holds
 //! the value there between, read by nothing).
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::errors::Refused;
 use crate::framework::rva;

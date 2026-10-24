@@ -3,8 +3,8 @@
 //!
 //! In:  nothing
 //! Out: eax -1 for a closed level; else as the event leaves them
-//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
-//! (`menu::table_calls`); the registers above are the original's, for reference.
+//! The menus and draw lists run its `entry` (`menu::table_calls`); the registers above are the
+//! original's, for reference.
 
 use crate::errors::Refused;
 use crate::menu::arcade_levels::arcade_level;

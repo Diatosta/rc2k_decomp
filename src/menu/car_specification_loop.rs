@@ -8,14 +8,13 @@
 //! call or a store are the functions below, generated from the listing.
 //! The name is a reading from the title string of its menu, "ESPECIFICAÇÕES DO CARRO", not yet
 //! a visit.
-//! Callers: none in code: it is reached through a table.
-//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
+//! Callers: none in code: it is reached through a table. The menus and draw lists run its `entry`
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
 use crate::framework::{game_read, game_write, rva};
 use crate::menu::screen_loop::{
-    Carried, List, Screen, Step, carousel, prepare_scene, screen_entry,
+    Callee, Carried, List, Screen, Step, carousel, prepare_scene, screen_entry,
 };
 
 // ---- Rust version: `menu::screen_loop` with this ----
@@ -89,7 +88,10 @@ pub const SCREEN: Screen = Screen {
     set_up_first: &[Step::Do(set_up_first)],
     prepare: &[],
     after_lists: &[],
-    background: &[Step::Call(rva(0x468482)), Step::Call(rva(0x469AA1))],
+    background: &[
+        Step::Call(Callee::LoadCarBackground),
+        Step::Call(Callee::PlayCarStream),
+    ],
     after_first_frame: &[],
     confirm: None,
     ask_also_if: None,
@@ -97,7 +99,7 @@ pub const SCREEN: Screen = Screen {
     unasked_skips_save: false,
     after: &[Step::Do(after)],
     escape_leaves: false,
-    each_frame: &[Step::Call(rva(0x46F7AD))],
+    each_frame: &[Step::Call(Callee::StepCarStream)],
     short_action_check: false,
     leave_at_once: None,
     next_frame_repeats_first: false,
@@ -109,7 +111,7 @@ pub const SCREEN: Screen = Screen {
     leaving: &[],
     leave_saved_item: None,
     keys_menu: None,
-    after_restored: &[Step::Call(rva(0x40F757))],
+    after_restored: &[Step::Call(Callee::StopStream)],
     result: None,
     late_highlight: false,
     before_first_frame: &[],
@@ -119,7 +121,7 @@ pub const SCREEN: Screen = Screen {
     always_asks: false,
 };
 
-/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// The Rust version where the typed tables run it (a refusal is the
 /// caller's).
 pub fn run() -> Result<(), crate::errors::Refused> {
     screen_entry("menu::car_specification_loop", &SCREEN)

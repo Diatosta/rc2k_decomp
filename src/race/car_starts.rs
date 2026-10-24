@@ -3,13 +3,8 @@
 //! (`race::start_car`: its checkpoint, its place on the line and to the side, the nearest
 //! checkpoint, then `race::reset_car_motion`: settled on the ground by
 //! `race::settle_car`, its matrix undone, its motion cleared), two blocks cleared, stored
-//! back.
-//!
-//! The steps' calls go through a `Part` by place (`PLACES`): in the game the Rust
-//! versions (`sub_43EB5D` and `sub_45D305` are stream B's `physics::set_handling` and
-//! `physics::probe_ground` since 2026-10-17: nothing is called in the game). The self-tests run
-//! copies of the originals whose calls go to stand-ins (`note`), and the Rust versions
-//! with the same stand-ins (`test_part`); calls, registers and memory compared.
+//! back. `sub_43EB5D` and `sub_45D305` are stream B's `physics::set_handling` and
+//! `physics::probe_ground` (since 2026-10-17).
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_read, game_write, rva};
@@ -270,5 +265,3 @@ pub unsafe fn start_cars() -> Result<(), Refused> {
     }
     Ok(())
 }
-
-// ---- for the self-tests ----

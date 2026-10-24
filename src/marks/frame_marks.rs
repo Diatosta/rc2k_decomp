@@ -10,13 +10,7 @@
 //! Out: nothing (no caller reads the registers it leaves: none after 0x446403, 0x456464)
 //!
 //! Callers: race init (0x446403) and 0x456464. Refuses null settings before anything, and
-//! its steps' refusals (all it may write is put back first). Shadow mode and the
-//! self-test compare all but the three timing variables (`rdtsc`: no two runs agree).
-//! Self-test: as `view_frame`'s, when no spline is placed.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! its steps' refusals (all it may write is put back first).
 
 use crate::errors::{BadInput, Refused};
 use crate::marks::lines::SETTINGS_RVA;

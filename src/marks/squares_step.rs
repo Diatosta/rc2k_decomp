@@ -7,12 +7,7 @@
 //! Out: nothing (no caller reads a register it leaves)
 //!
 //! Caller: `sub_4BF60F` (0x4BF809). The calls are their Rust versions. Refuses
-//! `pick_shapes`' refusals (all it may write put back first). Self-test: the original and
-//! the Rust version on the game's items (as `expire_squares`'), clocks by lot; put back.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! `pick_shapes`' refusals (all it may write put back first).
 
 use crate::errors::Refused;
 use crate::marks::expire_squares::expire_squares;

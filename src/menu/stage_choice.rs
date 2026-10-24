@@ -152,5 +152,3 @@ pub unsafe fn previous_stage_number(draw: Draw) -> Result<(), Refused> {
         )
     }
 }
-
-// ---- for the settings' self-tests ----

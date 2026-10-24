@@ -3,18 +3,10 @@
 //! In:  nothing
 //! Out: nothing (no caller reads a register after it)
 //!
-//! Callers: 0x4bf75e, 0x4c90b3. The original's instructions over the game's variables (register
-//! forms as their bytes). Self-test: the original and the Rust version on test floats in
-//! every variable it reads, all it writes compared; put back afterwards.
+//! Callers: 0x4bf75e, 0x4c90b3. The original's instructions over the game's variables
+//! (register forms as their bytes).
 //!
-//! Converted 2026-10-21: the hook's Rust version is `scale_axes_plain`, through
-//! `rc2k_core::marks::scales::scale_axes` (plain floats; the x87 version stays for the Rust
-//! callers in unconverted code). Shadow mode and the self-test compare within
-//! `service::floats`' tolerances (the self-test at both test precisions, exact at double).
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! the x87 version stays for the Rust callers in unconverted code).
 
 /// The Rust version (see the header).
 pub unsafe fn scale_axes() {

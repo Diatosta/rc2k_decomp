@@ -7,17 +7,7 @@
 //! In:  nothing (the registers are passed on to the calls)
 //! Out: as `reset_car_motion` leaves them; no flags read (the caller's next is a `mov`)
 //!
-//! It begins with a call: hooked by a private copy with its three calls relocated and a
-//! hand-made patch.
-//! Caller: `physics::reset_car` (its end).
-//! Refuses what the three calls refuse. Shadow mode runs the original alone
-//! (its calls then went through `physics/reset_parts.rs`, gone).
-//! Self-test: a copy whose calls go to the stand-ins, against the Rust version with the
-//! same, on stream A's cases; the work car and the start's variables put back.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `physics::reset_car` (its end). Refuses what the three calls refuse.
 
 use crate::errors::Refused;
 use crate::framework::{game_write, rva};

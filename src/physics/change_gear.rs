@@ -10,22 +10,13 @@
 //!      gear when `gear_bit` ran, ebx as the gearing calls leave it; the rest kept; no flags
 //!      read (the caller returns)
 //!
-//! Caller: `sub_43C1E3` (its tail).
-//! Refuses (before anything) a gear or a new gear outside -1 ..= 7 where the gearing reads
-//! its ratio, and what `gear_bit` refuses.
-//! Self-test: a copy of the original (its variables the test's; its calls to test copies
-//! of `wheels_from_revs`, `revs_from_wheels` and `gear_bit` on the same) against the core:
-//! gears and asked gears -1 .. 7, bit patterns, drive kinds, under three precisions.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `sub_43C1E3` (its tail). Refuses (before anything) a gear or a new gear outside
+//! -1 ..= 7 where the gearing reads its ratio, and what `gear_bit` refuses.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{EAX, EBX, ECX, game_addr, rva};
+use crate::framework::{game_addr, rva};
 use crate::physics::gear_bit::gear_bit_at;
 use crate::physics::gearing::{GearPlaces, revs_from_wheels_at, wheels_from_revs_at};
-use crate::screens::harness::Left;
 use rc2k_core::physics::gear_shifts::Change;
 
 /// The other places: the asked gear, the gear bits, the two words set.
@@ -67,36 +58,36 @@ fn ratio_gear(g: u32) -> Result<(), Refused> {
 
 /// The core.
 // Converted: `rc2k_core::physics::gear_shifts::change`.
-pub unsafe fn change_gear_at(gp: &GearPlaces, c: &ChangePlaces) -> Result<Left, Refused> {
+pub unsafe fn change_gear_at(gp: &GearPlaces, c: &ChangePlaces) -> Result<(), Refused> {
     unsafe {
         let gear = at(gp.gear);
         let w = at(c.wanted);
         let way = rc2k_core::physics::gear_shifts::change(gear, w);
         if way == Change::Same {
-            return Ok(Left::nothing().with(EAX, gear));
+            return Ok(());
         }
         let mark = || {
             put(c.changed, 1);
             put(c.changed_2, 1);
         };
-        let neutral = |left: Left| {
+        let neutral = || {
             put(gp.gear, 0);
             mark();
-            Ok(left)
+            Ok(())
         };
         if way == Change::FromNeutral {
             ratio_gear(w)?;
             put(gp.gear, w);
-            let l = wheels_from_revs_at(gp)?;
+            wheels_from_revs_at(gp)?;
             mark();
-            return Ok(l.with(EAX, w));
+            return Ok(());
         }
         if way == Change::ToNeutral {
-            return neutral(Left::nothing().with(EAX, gear));
+            return neutral();
         }
         let bit = gear_bit_at(c.bits, w)?;
         if bit.carry {
-            return neutral(Left::nothing().with(EAX, bit.eax).with(ECX, w));
+            return neutral();
         }
         ratio_gear(gear)?;
         ratio_gear(w)?;
@@ -104,11 +95,11 @@ pub unsafe fn change_gear_at(gp: &GearPlaces, c: &ChangePlaces) -> Result<Left, 
         put(gp.gear, w);
         revs_from_wheels_at(gp)?;
         mark();
-        Ok(Left::nothing().with(EAX, w).with(ECX, w).with(EBX, w))
+        Ok(())
     }
 }
 
 /// The Rust version.
-pub unsafe fn change_gear() -> Result<Left, Refused> {
+pub unsafe fn change_gear() -> Result<(), Refused> {
     unsafe { change_gear_at(&GearPlaces::game(), &ChangePlaces::game()) }
 }

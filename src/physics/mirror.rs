@@ -1,9 +1,5 @@
-//! For self-tests of functions whose variables are the game's all through a frame (the
-//! work copy `g_car` and its neighbours): a `Mirror` of some of the game's ranges, filled
-//! from the game's own contents (so that constants have their values), and copies of the
-//! originals whose every reference into those ranges is pointed at the mirror (the number
-//! of references checked). The Rust cores reach their variables through `Mirror::a`, which
-//! for `Mirror::game()` is the game's own address.
+//! The Rust cores reach their variables through `Mirror::a`, which for `Mirror::game()` is
+//! the game's own address.
 
 use crate::framework::{game_addr, rva};
 

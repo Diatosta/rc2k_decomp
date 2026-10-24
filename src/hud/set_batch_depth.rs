@@ -4,12 +4,7 @@
 //! In:  nothing
 //! Out: all kept
 //!
-//! Caller: `sub_4B1CD0` (the HUD's start). Self-test: the original and the Rust version on
-//! the vertices filled with 0xAA, values by lot; put back.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `sub_4B1CD0` (the HUD's start).
 
 use crate::hud::batch::POLYGON_RVA;
 use crate::hud::store::Slot;

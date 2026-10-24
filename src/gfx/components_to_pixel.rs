@@ -9,13 +9,8 @@
 //! bit takes the next bit, from the top, of the first component whose mask has it; the
 //! components are shifted out of four scratch bytes (`dword_4F3FA8`), which are left as they
 //! end up.
-//! 30 call sites, among them the per-pixel loops that scale and convert pictures. Manual patch with a private copy (0x70 bytes, nothing to relocate): a
-//! conditional jump sits in the first bytes.
-//! Refuses a null format.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! 30 call sites, among them the per-pixel loops that scale and convert pictures. Refuses a
+//! null format.
 
 use crate::gfx::block::game_write;
 use crate::gfx::pixel_format::{PixelFormat, SCRATCH_RVA};
@@ -34,5 +29,5 @@ pub unsafe fn components_to_pixel(format: &PixelFormat, components: u32) -> u32 
     pixel
 }
 
-// Written out instead of going through `dispatch_state`: the game converts pictures one pixel
-// at a time through here (19 million calls while it loads), and that harness allocates.
+// Written out without allocating: the game converts pictures one pixel at a time through
+// here (19 million calls while it loads).

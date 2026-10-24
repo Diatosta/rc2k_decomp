@@ -15,7 +15,7 @@ pub mod read_sku;
 pub mod run_after_exit;
 pub mod runs_from_source;
 
-// The installer (`sub_412DE0` and its tree). Helpers with no hook:
+// The installer (`sub_412DE0` and its tree). Helpers:
 pub mod installer;
 // The list-menu pages:
 pub mod ask_registration;

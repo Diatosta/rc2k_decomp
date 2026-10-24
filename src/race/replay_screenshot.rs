@@ -10,16 +10,7 @@
 //! In:  nothing
 //! Out: every register kept (`pusha` .. `popa`); no flags read
 //!
-//! Caller: `drive::race_frame` (each frame drawn). Its calls through `part`: 0
-//! `GetTickCount` (eax), 1 the lock (carry), 2 the writer, 3 the unlock; in the game the
-//! system's clock, the platform's two (their hooks) and the writer's Rust version. Shadow mode runs the original alone (it writes a file). Self-test: a copy
-//! whose four calls go to stand-ins (the lock failing or not), against the Rust version:
-//! recording or not, the clock started or not, names with digits to carry; the variables
-//! and the calls compared.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `drive::race_frame` (each frame drawn).
 
 use crate::errors::Refused;
 use crate::framework::rva;

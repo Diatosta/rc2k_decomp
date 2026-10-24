@@ -10,16 +10,7 @@
 //! In:  nothing
 //! Out: nothing (its caller reads no register after it)
 //!
-//! Caller: `sub_4BF60F` (0x4BF7E9). The spawning is its Rust version; the set-up, the
-//! drawing and the depth buffer through `part` (1 `squares_setup`, 2 `draw_square` with
-//! its two values, 3 `depth_buffer_on`), in the game their Rust versions. Shadow mode runs
-//! the original alone (it draws). Self-test: a copy whose three calls go to stand-ins
-//! (the drawing's taking its values off), against the Rust version, on the game's items
-//! (as `expire_squares`') with ages by lot; put back.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `sub_4BF60F` (0x4BF7E9). The spawning is its Rust version.
 
 use crate::framework::rva;
 use crate::marks::expire_squares::{ITEM_LEN, ITEMS, ITEMS_RVA};

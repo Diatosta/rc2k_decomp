@@ -9,12 +9,6 @@
 //!
 //! Callers (2): `sub_442006` (the face under a point, the ground's search) and
 //! `sub_457B86`.
-//! Self-test: a copy of the original on test variables, against the converted version,
-//! values by lot (some large), exact at double precision.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::framework::{game_addr, rva};
 

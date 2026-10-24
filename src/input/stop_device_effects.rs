@@ -5,9 +5,7 @@
 //! Out: eax 6, ebx 4, the rest as `set_effect` keeps them (all)
 //!
 //! See `input/effects.rs` and `start_device_effects` (the same loop with 2). Two callers,
-//! both in `input::stop_effects`. Its calls through `part`. Shadow mode runs the original
-//! alone. Self-test: a copy whose calls go to the noting stand-ins, against the Rust
-//! version.
+//! both in `input::stop_effects`.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

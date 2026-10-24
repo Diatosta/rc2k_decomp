@@ -14,21 +14,13 @@
 //!      flags read
 //!
 //! Callers: `sub_43B635` (twice), `sub_43BDD1`.
-//! Self-test: the original and the converted version on the game's variables (saved and
-//! put back): parts within, past and at the limits, lengths past the top; exact at double
-//! precision, within `FLOAT` at extended (no infinities: the original logs).
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
-use crate::framework::{ECX, ESI, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::logfile::log_float::log_float;
 use crate::logfile::log_write::log_write;
 use crate::physics::scale_vector::scale_vector;
 use crate::physics::vector_length::vector_length;
 use crate::scene::matrix3::rounded;
-use crate::screens::harness::Left;
 use std::cmp::Ordering;
 
 fn g(x: usize) -> u32 {
@@ -80,12 +72,11 @@ unsafe fn hold(v: u32, l: u32) {
 
 /// The Rust version (the exact one, for `physics::car_physics_step` and
 /// `physics::find_clear_place`).
-pub unsafe fn limit_motion() -> Left {
+pub unsafe fn limit_motion() {
     let a = |x: usize| game_addr(rva(x)) as u32;
-    let mut ecx = 0;
     let mut bad = false;
     for k in 0..3usize {
-        ecx = g(0x71A170 + 4 * k) & 0x7F80_0000;
+        let ecx = g(0x71A170 + 4 * k) & 0x7F80_0000;
         if ecx == 0x7F80_0000 {
             bad = true;
             break;
@@ -114,7 +105,6 @@ pub unsafe fn limit_motion() -> Left {
         }
         let length = rounded(vector_length(a(0x71A170)));
         p(0x623FBC, length);
-        let mut esi = a(0x71A170);
         let top = g(0x614100);
         let past = matches!(
             f32::from_bits(top).partial_cmp(&f32::from_bits(length)),
@@ -126,8 +116,6 @@ pub unsafe fn limit_motion() -> Left {
             scale_vector(a(0x71A170), factor);
             scale_vector(a(0x71A17C), factor);
             p(0x62400C, rounded(factor));
-            esi = a(0x71A17C);
         }
-        Left::nothing().with(ECX, ecx).with(ESI, esi)
     }
 }

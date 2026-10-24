@@ -13,12 +13,9 @@
 //! Out: the start's gates closed: every register kept; else ebx and edx as above (edx not
 //!      set when nothing was called) and what `expire_car_events` leaves; no flags read
 //!
-//! Caller: `physics::car_physics_step`, which calls the Rust version directly. Its calls
-//! by `physics/queue_pace_note.rs`' places (5 the group, 6 the expiry).
-//! Refuses what its calls refuse. Shadow mode runs the original alone (the calls queue
-//! sounds and car events). Self-test: a copy whose two calls go to stand-ins that note
-//! them, against the Rust version with the same, on the game's variables (put back): each
-//! gate, speeds forward and back, checkpoints about the count and the last called.
+//! Caller: `physics::car_physics_step`, which calls the Rust version directly. Its calls by
+//! `physics/queue_pace_note.rs`' places (5 the group, 6 the expiry). Refuses what its calls
+//! refuse.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

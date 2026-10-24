@@ -5,33 +5,25 @@
 //! In:  nothing
 //! Out: every register kept; no flags read
 //!
-//! Caller: `sub_45D8FB`, `sub_45DA14`, `sub_45DC3E`, `sub_45EFF3`.
-//! Refuses (before anything) a car number past 7, a null sound object when it is
-//! written.
-//! Self-test: `physics/car_sounds.rs` (`test_sound`): the original and the Rust version on
-//! the game's variables (saved and put back) with a test object, exact at double precision.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `sub_45D8FB`, `sub_45DA14`, `sub_45DC3E`, `sub_45EFF3`. Refuses (before
+//! anything) a car number past 7, a null sound object when it is written.
 
 use crate::errors::Refused;
 use crate::framework::rva;
 use crate::physics::car_sounds::{g, listed, object, place, put};
 use crate::physics::sound_band_1::TWIN;
 use crate::physics::sound_bands::band_value;
-use crate::screens::harness::Left;
 
 /// The Rust version (the exact one, for `physics::wall_push_back` and
 /// `physics::wall_edge_contact`).
-pub unsafe fn place_sound_e1() -> Result<Left, Refused> {
+pub unsafe fn place_sound_e1() -> Result<(), Refused> {
     if !listed(g(0x71B3F8))? {
-        return Ok(Left::nothing());
+        return Ok(());
     }
     let scratch = g(0x6D1AEC);
     let b = unsafe { band_value(TWIN) };
     if b == 0 {
-        return Ok(Left::nothing());
+        return Ok(());
     }
     // The band left `dword_6D1AEC` written: put back if the object refuses.
     let o = match object() {
@@ -47,5 +39,5 @@ pub unsafe fn place_sound_e1() -> Result<Left, Refused> {
         place(o, 0x240, None);
         put(o + 0x10, 1);
     }
-    Ok(Left::nothing())
+    Ok(())
 }

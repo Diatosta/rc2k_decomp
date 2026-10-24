@@ -11,9 +11,6 @@
 //! stays heard (the code that would silence it, 0x40EA9B, is never reached: notes'
 //! bugs). With a next found: `math::next_random` & 1 for the nearest's +4, the other bit
 //! for the next's. Twelve callers, `sound::thin_spot_voices_all`.
-//! Shadow mode: both (nothing sent; the random state put back between), compared.
-//! Self-test: a copy whose call goes to a stand-in (the test's random numbers), against
-//! the Rust version, on the game's voices (put back).
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

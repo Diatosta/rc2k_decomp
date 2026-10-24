@@ -1,17 +1,14 @@
-//! The matrices an object's place in the view is made with, and the functions that
-//! fill them: shared by their seven hooks.
+//! The matrices an object's place in the view is made with, and the functions that fill them:
+//! shared by their seven functions.
 //!
 //! A matrix is sixteen floats, rows 0x10 apart; a point is turned by the first three
 //! rows and columns and moved by the fourth row's first three floats.
 //! The two turning matrices keep their other floats (an identity's) from the image.
 
-use crate::framework::{
-    EAX, EBP, EBX, ECX, EDI, EDX, ESI, game_addr, game_ptr, game_read, game_write, rva,
-};
+use crate::framework::{game_addr, game_ptr, game_read, game_write, rva};
 use crate::math::x87;
 use crate::scene::draw_polygon::CHECKED_RVA;
 use crate::scene::project_point::rotate;
-use crate::screens::harness::Left;
 
 pub const TURN_X_RVA: usize = rva(0x5E9F8C); // flt_5E9F8C
 pub const TURN_Y_RVA: usize = rva(0x5E9FCC); // flt_5E9FCC
@@ -44,27 +41,18 @@ unsafe fn sine_cosine(angle: u32) -> (u32, u32) {
     }
 }
 
-fn turned(sine: u32, cosine: u32, matrix: usize) -> Left {
-    Left::nothing()
-        .with(EAX, sine)
-        .with(EBX, cosine)
-        .with(ECX, sine ^ 0x8000_0000)
-        .with(EDI, game_addr(matrix) as u32)
-}
-
 /// `scene::set_turn_x` (0x426FE1).
-pub unsafe fn set_turn_x(angle: u32) -> Left {
+pub unsafe fn set_turn_x(angle: u32) {
     unsafe {
         let (sine, cosine) = sine_cosine(angle);
         game_write(TURN_X_WORK_RVA, [sine, cosine]);
         game_write(TURN_X_RVA + 0x14, [cosine, sine]);
         game_write(TURN_X_RVA + 0x24, [sine ^ 0x8000_0000, cosine]);
-        turned(sine, cosine, TURN_X_RVA)
     }
 }
 
 /// `scene::set_turn_y` (0x42702A).
-pub unsafe fn set_turn_y(angle: u32) -> Left {
+pub unsafe fn set_turn_y(angle: u32) {
     unsafe {
         let (sine, cosine) = sine_cosine(angle);
         game_write(TURN_Y_WORK_RVA, [sine, cosine]);
@@ -72,20 +60,18 @@ pub unsafe fn set_turn_y(angle: u32) -> Left {
         game_write(TURN_Y_RVA + 8, sine ^ 0x8000_0000);
         game_write(TURN_Y_RVA + 0x20, sine);
         game_write(TURN_Y_RVA + 0x28, cosine);
-        turned(sine, cosine, TURN_Y_RVA)
     }
 }
 
 /// `scene::set_turn_z_16` (0x427072): as `set_turn_x`, about the z axis (the matrix and
 /// the work of `scene::set_turn_z`, whose angle is 32 bits a turn).
-pub unsafe fn set_turn_z_16(angle: u32) -> Left {
+pub unsafe fn set_turn_z_16(angle: u32) {
     use crate::scene::view_matrix::{TURN_Z_RVA, TURN_Z_WORK_RVA};
     unsafe {
         let (sine, cosine) = sine_cosine(angle);
         game_write(TURN_Z_WORK_RVA, [sine, cosine]);
         game_write(TURN_Z_RVA, [cosine, sine]);
         game_write(TURN_Z_RVA + 0x10, [sine ^ 0x8000_0000, cosine]);
-        turned(sine, cosine, TURN_Z_RVA)
     }
 }
 
@@ -104,7 +90,7 @@ pub unsafe fn set_place(place: [u32; 3]) {
 /// column, each row of `a` times that column of `b`; `b`'s fourth row added to the
 /// fourth. Written straight to `out`, in the original's order, so that an `out` that
 /// is one of the two behaves as there.
-pub unsafe fn multiply_matrices(a: usize, b: usize, out: usize) -> Left {
+pub unsafe fn multiply_matrices(a: usize, b: usize, out: usize) {
     unsafe {
         for column in 0..3 {
             for row in 0..4 {
@@ -120,12 +106,11 @@ pub unsafe fn multiply_matrices(a: usize, b: usize, out: usize) -> Left {
             );
         }
     }
-    Left::nothing().with(ECX, 0).with(EDX, 0)
 }
 
 /// `scene::copy_matrix_with_place` (0x4271E4): `out` = `from`, dword by dword upwards,
 /// then the first three floats of `other`'s fourth row added to `out`'s.
-pub unsafe fn copy_matrix_with_place(from: usize, other: usize, out: usize) -> Left {
+pub unsafe fn copy_matrix_with_place(from: usize, other: usize, out: usize) {
     unsafe {
         for n in 0..0x10 {
             let dword = ((from + n * 4) as *const u32).read_unaligned();
@@ -138,7 +123,6 @@ pub unsafe fn copy_matrix_with_place(from: usize, other: usize, out: usize) -> L
             );
         }
     }
-    Left::nothing().with(ECX, 0)
 }
 
 /// `scene::set_light_direction` (0x427326).
@@ -167,7 +151,7 @@ pub unsafe fn set_light_direction() {
 }
 
 /// `scene::make_object_matrix` (0x427812).
-pub unsafe fn make_object_matrix() -> Left {
+pub unsafe fn make_object_matrix() {
     unsafe {
         set_light_direction();
         set_turn_y(game_read::<u32>(ANGLE_Y_RVA).wrapping_neg());
@@ -191,17 +175,5 @@ pub unsafe fn make_object_matrix() -> Left {
             game_addr(PLACED_RVA),
             game_addr(OBJECT_RVA),
         );
-        Left::nothing()
-            .with(EAX, place[0])
-            .with(EBX, size)
-            .with(ECX, 0)
-            .with(EDX, 0)
-            .with(ESI, game_addr(TURNED_RVA) as u32)
-            .with(EDI, game_addr(PLACED_RVA) as u32)
-            .with(EBP, game_addr(OBJECT_RVA) as u32)
     }
 }
-
-// ---- the converted versions (`rc2k_core::scene::matrices`) ----
-
-// ---- for the self-tests ----

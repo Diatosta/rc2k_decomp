@@ -13,17 +13,12 @@
 //! `dword_63C9B8` the coordinates): if both numbers there are the ones asked for,
 //! the coordinates come from the table; else they are worked out and all four kept.
 //! One caller, `sub_45188C`.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{EAX, EBX, EDX, ESI, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 use crate::scene::reflection_coordinates::{
     COORDINATES_RVA, NORMAL_NUMBER_RVA, POINT_NUMBER_RVA, reflection_coordinates,
 };
-use crate::screens::harness::Left;
 
 // ---- game data ----
 
@@ -36,19 +31,11 @@ const TABLE_BYTES: usize = 0x1000;
 // ---- Rust version ----
 
 // Converted: `rc2k_core::scene::reflection::{cache_place, cached}`
-pub unsafe fn cached_reflection_coordinates() -> Result<Left, Refused> {
+pub unsafe fn cached_reflection_coordinates() -> Result<(), Refused> {
     use rc2k_core::scene::reflection::{cache_place, cached};
     unsafe {
-        let worked_out = || {
-            reflection_coordinates().map(|left| {
-                Left::nothing()
-                    .with(EAX, left.eax)
-                    .with(EDX, left.edx)
-                    .with(ESI, left.esi)
-            })
-        };
         if game_read::<u32>(IN_USE_RVA) == 0 {
-            return Ok(worked_out()?);
+            return Ok(reflection_coordinates()?);
         }
         let asked: [u32; 2] = [game_read(NORMAL_NUMBER_RVA), game_read(POINT_NUMBER_RVA)];
         let place = cache_place(asked[0]);
@@ -57,11 +44,9 @@ pub unsafe fn cached_reflection_coordinates() -> Result<Left, Refused> {
             [game_read(slot(2)), game_read(slot(3))]
         }) {
             game_write(COORDINATES_RVA, coordinates);
-            return Ok(Left::nothing()
-                .with(EBX, place as u32)
-                .with(EAX, coordinates[1]));
+            return Ok(());
         }
-        let left = worked_out()?;
+        reflection_coordinates()?;
         let coordinates: [u32; 2] = game_read(COORDINATES_RVA);
         for (table, value) in [asked[0], asked[1], coordinates[0], coordinates[1]]
             .into_iter()
@@ -69,6 +54,6 @@ pub unsafe fn cached_reflection_coordinates() -> Result<Left, Refused> {
         {
             game_write(slot(table), value);
         }
-        Ok(left.with(EBX, place as u32).with(EAX, coordinates[1]))
+        Ok(())
     }
 }

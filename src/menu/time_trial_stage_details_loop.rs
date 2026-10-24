@@ -7,15 +7,10 @@
 //! (`SCREEN`), as extracted from the disassembly: leaving is not asked about.
 //! A reading, not yet a visit: its draw list 0x758CFE is the one of
 //! `screens::draw_time_trial_stage_info`, a confirmed screen; it sets `dword_755700` to 1 first.
-//! Callers: `sub_47037E`. Ungated thunk; shadow mode runs the original alone; each real call
-//! writes a line to hook.log. Self-test: `screen_loop::check_screen`.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Callers: `sub_47037E`.
 
 use crate::framework::rva;
-use crate::menu::screen_loop::{List, Screen, Step};
+use crate::menu::screen_loop::{Callee, List, Screen, Step};
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
@@ -46,7 +41,7 @@ pub const SCREEN: Screen = Screen {
     set_up_first: &[],
     prepare: &[],
     after_lists: &[],
-    background: &[Step::Call(rva(0x4683CF))],
+    background: &[Step::Call(Callee::DrawStageMap)],
     after_first_frame: &[],
     confirm: None,
     ask_also_if: None,

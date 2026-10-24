@@ -14,10 +14,6 @@
 //! Three callers: `gfx::set_component_format`, the screen mode's set-up at 0x404EF2 and
 //! the textures' at 0x41A1E7.
 //! Refuses a null format.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::errors::BadInput;
 use crate::gfx::block::game_read;

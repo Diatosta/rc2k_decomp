@@ -83,7 +83,7 @@ fn log_number(value: u32, newline: bool) {
     crate::logfile::log_int::log_int(value as i32, newline, 1);
 }
 
-/// The variables `set_up_car_points` uses, by address: the game's, or a self-test's.
+/// The variables `set_up_car_points` uses, by address: the game's.
 pub struct CarPointVars {
     pub counts: u32,
     pub firsts: u32,

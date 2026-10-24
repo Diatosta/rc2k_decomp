@@ -10,12 +10,7 @@
 //! In:  nothing
 //! Out: eax, ebx and what the cue leaves; no flags read
 //!
-//! Caller: `sub_44157B`.
-//! Refuses (before anything) a checkpoint (+0x98) past 0x1418.
-//! Shadow mode runs the original alone (`physics/sound_cues.rs`).
-//! Self-test: a copy whose cue goes to a stand-in, run on the game's variables (saved and
-//! put back), against the Rust version: distances, checkpoints, headings, counters about
-//! their times.
+//! Caller: `sub_44157B`. Refuses (before anything) a checkpoint (+0x98) past 0x1418.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

@@ -10,12 +10,9 @@
 //! `draw_savegame_details` or `draw_empty_savegame`.
 //! Its address is in the draw lists at 0x758BAE and 0x758BC6.
 //!
-//! Screen: the load-game screen ("CARREGAR CAMPEONATO"), the part under the ten slots, by the
-//! owner's screenshot of 2026-10-10 and 1,455 shadow calls while it was open. Confirmed by the
-//! owner with `blank on screens::draw_savegame_preview` the same day ("worked as intended": the
-//! block under the slot list went away). Hook removed 2026-10-22 (typed tables): the menus and
-//! draw lists run its `entry` (`menu::table_calls`); the registers above are the original's,
-//! for reference.
+//! Confirmed by the owner with `blank on screens::draw_savegame_preview` the same day ("worked as
+//! intended": the block under the slot list went away). The menus and draw lists run its `entry`
+//! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
 use crate::framework::{game_read, game_write, rva};
@@ -36,7 +33,7 @@ const NOTHING_TO_SHOW_RVA: usize = rva(0x75514C); // dword_75514C
 /// Returns the carry flag of the panel drawn.
 pub unsafe fn draw_savegame_preview(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
     // Converted: `rc2k_core::screens::savegame_preview::preview` (the slot); the panels
-    // are converted in their own hooks.
+    // are converted in their own functions.
     use rc2k_core::screens::savegame_preview::{NO_SLOT, Preview, preview};
     unsafe {
         let page = game_read::<u32>(SAVEGAME_PAGE_RVA);

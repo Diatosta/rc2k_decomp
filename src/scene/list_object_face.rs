@@ -27,17 +27,11 @@
 //!    kind than 0 is dropped unless its byte +0xB is `dword_5CD688[kind]`.
 //! 5. `sub_45071B`: dropped if `scene::face_faces_away`.
 //!
-//! A face that is left and has a vertex gets its key (`scene::face_sort_key`) and the
-//! next entry of the list: its number, the key plus bit 30 unless bit 0 of its byte
-//! +8 is set, `dword_624130`, the see-through value.
-//! One caller, `scene::list_object_faces`.
-//! Refuses an object's number or a list's length past their tables, no block for
-//! kind 0x1C, and what its parts refuse.
-//! Shadow mode: the Rust version, its writes put back, the original, compared.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! A face that is left and has a vertex gets its key (`scene::face_sort_key`) and the next
+//! entry of the list: its number, the key plus bit 30 unless bit 0 of its byte +8 is set,
+//! `dword_624130`, the see-through value. One caller, `scene::list_object_faces`. Refuses an
+//! object's number or a list's length past their tables, no block for kind 0x1C, and what its
+//! parts refuse.
 
 use crate::d3d::draw_fan_unclipped::COUNT_RVA;
 use crate::errors::{BadInput, Refused};

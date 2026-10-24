@@ -8,14 +8,13 @@
 //! leaving; the quit switch is not looked at; the steps that are more than a call or a store
 //! are the functions below, generated from the listing.
 //! The name is a reading from the title string of its menu, "COMEÇAR RALI", not yet a visit.
-//! Callers: none in code: it is reached through a table.
-//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
+//! Callers: none in code: it is reached through a table. The menus and draw lists run its `entry`
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
 use crate::framework::{game_read, game_write, rva};
 use crate::menu::screen_loop::{
-    Carried, Flow, List, Screen, Step, call, carousel, prepare_scene, screen_entry,
+    Callee, Carried, Flow, List, Screen, Step, carousel, prepare_scene, screen_entry,
 };
 
 // ---- Rust version: `menu::screen_loop` with this ----
@@ -50,7 +49,7 @@ unsafe fn after_first_frame(_c: &mut Carried) -> Result<Flow, Refused> {
 unsafe fn leaving(c: &mut Carried) -> Result<(), Refused> {
     unsafe {
         if game_read::<u32>(rva(0x758806)) == 0x1 {
-            call(rva(0x471C82), c)?;
+            Callee::GoBack.run(c)?;
         }
     }
     Ok(())
@@ -86,7 +85,7 @@ pub const SCREEN: Screen = Screen {
     background: &[
         Step::Write(rva(0x7558D8), 0x1),
         Step::ArgAddr(rva(0x731C9F)),
-        Step::CallOrFatal(rva(0x47EFFF), 0x80712345),
+        Step::CallOrFatal(Callee::LoadBackground, 0x80712345),
     ],
     after_first_frame: &[Step::DoFlow(after_first_frame)],
     confirm: None,
@@ -117,7 +116,7 @@ pub const SCREEN: Screen = Screen {
     always_asks: false,
 };
 
-/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// The Rust version where the typed tables run it (a refusal is the
 /// caller's).
 pub fn run() -> Result<(), crate::errors::Refused> {
     screen_entry("menu::start_rally_loop", &SCREEN)

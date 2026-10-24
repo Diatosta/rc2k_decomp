@@ -6,8 +6,6 @@
 //! Out: every register preserved (`pusha` / `popa`)
 //! Each call with eax the sound and the other registers the one before left. One caller,
 //! `sound::spot_sounds`.
-//! Shadow mode: both (nothing sent), the voices and variables compared.
-//! Self-test: a copy whose calls go to a stand-in, against the Rust version.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

@@ -15,11 +15,8 @@
 //! - `dword_4F4A24` = 0 and the size 256 x 256 again; `scene::load_hud_car_icons`;
 //!   two lines in the log.
 //!
-//! Two callers.
-//! Refuses no system textures (the original goes through 2^32) or more than 0x400,
+//! Two callers. Refuses no system textures (the original goes through 2^32) or more than 0x400,
 //! and a first texture past the table.
-//! Shadow mode runs the original alone.
-//! Self-test: a redirected copy whose calls note what was set by then.
 //!
 //! Converted 2026-10-21: the kinds' pictures and the read sizes through
 //! `rc2k_core::scene::pictures`.

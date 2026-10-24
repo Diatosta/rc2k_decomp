@@ -26,6 +26,42 @@ pub mod write_file;
 pub mod write_stream_block;
 pub mod write_stream_byte;
 
+/// Windows-1252's characters for 0x80 .. 0x9F (the rest of the code page is Latin-1).
+const CP1252_HIGH: [char; 32] = [
+    '€', '\u{81}', '‚', 'ƒ', '„', '…', '†', '‡', 'ˆ', '‰', 'Š', '‹', 'Œ', '\u{8D}', 'Ž', '\u{8F}',
+    '\u{90}', '‘', '’', '“', '”', '•', '–', '—', '˜', '™', 'š', '›', 'œ', '\u{9D}', 'ž', 'Ÿ',
+];
+
+/// The game's bytes as text, read the way the Win32 `A` functions read them (the ANSI code
+/// page, Windows-1252: phase 6, the file calls through `std`).
+pub fn ansi_text(bytes: &[u8]) -> String {
+    bytes
+        .iter()
+        .map(|&b| match b {
+            0x80..=0x9F => CP1252_HIGH[(b - 0x80) as usize],
+            _ => b as char,
+        })
+        .collect()
+}
+
+/// The NUL-terminated path at `at` (the game's ANSI bytes) as a `PathBuf`.
+pub unsafe fn ansi_path(at: *const u8) -> std::path::PathBuf {
+    let bytes = unsafe { std::ffi::CStr::from_ptr(at as *const std::ffi::c_char) }.to_bytes();
+    std::path::PathBuf::from(ansi_text(bytes))
+}
+
+#[cfg(test)]
+mod ansi_tests {
+    #[test]
+    fn ansi_text_is_windows_1252() {
+        assert_eq!(
+            super::ansi_text(b"files\\b\\tx1822.pcx"),
+            "files\\b\\tx1822.pcx"
+        );
+        assert_eq!(super::ansi_text(&[0x80, 0xE7, 0xE3, 0x9C]), "€çãœ");
+    }
+}
+
 /// The file code's variables, out of the image since 2026-10-24 (phase 5; each has its own
 /// entry in `moved::MOVED`).
 pub mod state {

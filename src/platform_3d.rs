@@ -835,20 +835,9 @@ unsafe fn allocate_textures(
     Ok(())
 }
 
-extern "C" fn allocate(r: &mut Regs) {
-    match allocate_textures_now(r.eax, r.ebx, r.ecx, r.edx, r.ebp) {
-        Ok((video, system)) => {
-            (r.eax, r.ebx) = (video, system);
-            r.set_carry(false);
-        }
-        Err(e) => unsafe {
-            crate::fatal::raise::refused(&ALLOCATE, crate::errors::Refused::Fatal(e), r)
-        },
-    }
-}
-
-/// `gfx::allocate_textures` for Rust callers, as a call by its address: the first new
-/// video and system textures' numbers; a failure raises its fatal error (`allocate`).
+/// `gfx::allocate_textures` for Rust callers: the first new video and system textures'
+/// numbers; a failure raises its fatal error (a fatal error that returns leaves the two
+/// counts as they were handed in, as the original's registers did).
 pub fn allocate_textures_for(
     video: u32,
     system: u32,
@@ -856,16 +845,22 @@ pub fn allocate_textures_for(
     kind: u32,
     mips: u32,
 ) -> (u32, u32) {
-    let mut r = Regs {
-        eax: video,
-        ebx: system,
-        ecx: sizes,
-        edx: kind,
-        ebp: mips,
-        ..Regs::default()
-    };
-    allocate(&mut r);
-    (r.eax, r.ebx)
+    match allocate_textures_now(video, system, sizes, kind, mips) {
+        Ok(first) => first,
+        Err(e) => {
+            // The registers the report shows: the original's at the call.
+            let r = Regs {
+                eax: video,
+                ebx: system,
+                ecx: sizes,
+                edx: kind,
+                ebp: mips,
+                ..Regs::default()
+            };
+            unsafe { crate::fatal::raise::refused_in(ALLOCATE.name(), e, &r) };
+            (video, system)
+        }
+    }
 }
 
 /// `gfx::allocate_textures`: `video` textures more in the video pool and `system` in the
@@ -926,10 +921,6 @@ unsafe fn release_pool(pool: usize) {
     }
 }
 
-extern "C" fn release(_r: &mut Regs) {
-    release_textures();
-}
-
 /// `gfx::release_all_textures` for Rust callers, as a call by its address.
 pub fn release_textures() {
     RELEASE.count_call();
@@ -950,12 +941,6 @@ pub fn release_all_textures() {
 // ---- scene::load_texture (0x44E778) ----
 
 static LOAD: RawHook = RawHook::new("scene::load_texture", rva(0x44E778));
-
-/// eax = the system texture, ebx = the video one: the video one holds it, level for
-/// level where both have the level.
-extern "C" fn load(r: &mut Regs) {
-    load_texture(r.eax, r.ebx);
-}
 
 /// `scene::load_texture` for Rust callers: video texture `video` holds system texture
 /// `system`. Every register kept.
@@ -1017,13 +1002,6 @@ const BEGIN_STATES: [(u32, u32); 12] = [
     (0, 0x23),
 ];
 
-extern "C" fn begin(r: &mut Regs) {
-    begin_layer();
-    r.eax = 0;
-    r.set_carry(false);
-    r.set_zero(true);
-}
-
 /// `d3d::begin_scene` for Rust callers: the layer's states at a scene's beginning, no
 /// texture set. It cannot fail (the original leaves eax 0, the carry clear, zero set).
 pub fn begin_layer() {
@@ -1043,14 +1021,6 @@ pub fn begin_layer() {
 }
 
 static END: RawHook = RawHook::new("d3d::end_scene", rva(0x41AB8A));
-
-extern "C" fn end(r: &mut Regs) {
-    if end_layer() {
-        r.eax = 0;
-        r.set_zero(true);
-    }
-    r.set_carry(false);
-}
 
 /// `d3d::end_scene` for Rust callers: true when a scene was open and is ended (the
 /// original then leaves eax 0 and the zero flag set; the carry always clear).
@@ -1096,11 +1066,6 @@ pub fn with_depth<R>(f: impl FnOnce(&mut Depth) -> R) -> R {
     f(depth.as_mut().unwrap())
 }
 
-extern "C" fn clear(r: &mut Regs) {
-    clear_viewport();
-    r.eax = 0;
-}
-
 /// `d3d::clear_viewport` for Rust callers: the depth buffer cleared over the rectangle
 /// `CLEARED_RVA` holds (the original leaves eax 0).
 pub fn clear_viewport() {
@@ -1108,25 +1073,6 @@ pub fn clear_viewport() {
     let [left, top, right, bottom]: [i32; 4] = unsafe { game_read(CLEARED_RVA) };
     let c = |v: i32| v.max(0) as usize;
     note(Noted::Clear([c(left), c(top), c(right), c(bottom)]));
-}
-
-/// `platform::by_address` for the 3D hooks.
-pub fn by_address(at: usize, r: &mut Regs) -> bool {
-    let hooks: [(&RawHook, extern "C" fn(&mut Regs)); 6] = [
-        (&ALLOCATE, allocate),
-        (&RELEASE, release),
-        (&LOAD, load),
-        (&BEGIN, begin),
-        (&END, end),
-        (&CLEAR, clear),
-    ];
-    match hooks.iter().find(|(hook, _)| hook.rva() == rva(at)) {
-        Some(&(_, dispatch)) => {
-            dispatch(r);
-            true
-        }
-        None => false,
-    }
 }
 
 pub static HOOKS: &[&dyn GameHook] = &[&ALLOCATE, &RELEASE, &LOAD, &BEGIN, &END, &CLEAR];

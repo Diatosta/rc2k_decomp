@@ -10,21 +10,13 @@
 //! Out: the registers as the drawing leaves them (callers return, or `popa`)
 //!
 //! Nothing for an object above 0x64 or a point past `g_scenePointCount`, nor in a race for
-//! object 0x3F. Objects 0x38 and 0x3A .. 0x3F are signs: upright (0x2000), full light,
-//! 0x3D / 0x3E half bright when any of +0x19 .. +0x1B, +0x20, +0x28 .. +0x2B is set.
-//! Then `dword_6365C8` 2, `race::place_object_matrix`, `g_lightKind` 2 (1 when the
-//! object's material record has +0x1F), `scene::draw_scene_object` (esi the material
-//! record, ecx the object, eax its +0x1F); after it (and in the cases of nothing)
-//! `dword_635058` 0 and `g_objectPlace` -1.
+//! object 0x3F. Objects 0x38 and 0x3A .. 0x3F are signs: upright (0x2000), full light, 0x3D /
+//! 0x3E half bright when any of +0x19 .. +0x1B, +0x20, +0x28 .. +0x2B is set. Then
+//! `dword_6365C8` 2, `race::place_object_matrix`, `g_lightKind` 2 (1 when the object's material
+//! record has +0x1F), `scene::draw_scene_object` (esi the material record, ecx the object, eax
+//! its +0x1F); after it (and in the cases of nothing) `dword_635058` 0 and `g_objectPlace` -1.
 //! Refuses (before anything) what `draw_scene_object` refuses for the object (a race car
-//! without its block). Shadow mode runs the original alone (it draws). Self-test: a copy
-//! whose two calls go to stand-ins, against the Rust version with the same: test
-//! descriptions (plain objects, signs, the sun's light, too high, past the points, 0x3F
-//! in a race and not).
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! without its block).
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_addr, game_read, game_write, rva};

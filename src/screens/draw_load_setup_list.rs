@@ -4,10 +4,10 @@
 //!
 //! In:  nothing
 //! Out: every register preserved; carry clear
-//! Its address is in the draw list at 0x75915E. That it is the "load" screen is a reading:
-//! by elimination from `draw_save_setup_list`. IDA had no function here until 2026-10-10.
-//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
-//! (`menu::table_calls`); the registers above are the original's, for reference.
+//! Its address is in the draw list at 0x75915E. That it is the "load" screen is a reading: by
+//! elimination from `draw_save_setup_list`. IDA had no function here until 2026-10-10. The menus
+//! and draw lists run its `entry` (`menu::table_calls`); the registers above are the original's,
+//! for reference.
 
 use crate::errors::Refused;
 use crate::service::load_setup_slot::SLOT_PAGE_RVA;

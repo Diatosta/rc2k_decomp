@@ -6,13 +6,7 @@
 //!      point (the original's ebp, esi, edi, edx)
 //! Out: nothing (no caller reads the registers it leaves)
 //!
-//! Caller: `marks::morph_object_points`. Self-test: points of the test's (every sign
-//! pattern, large and small), factors by lot; compared on the result, `flt_93C6C8` and
-//! the registers.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `marks::morph_object_points`.
 
 use crate::marks::store::{Slot, game_write};
 use crate::math::x87;

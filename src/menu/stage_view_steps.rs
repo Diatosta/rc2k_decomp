@@ -167,5 +167,3 @@ pub fn style_stage_item(b: bool) -> Result<(), Refused> {
     }
     Ok(())
 }
-
-// ---- self-tests ----

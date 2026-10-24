@@ -5,10 +5,6 @@
 //!      preserved
 //! Sets `dword_4F7FD8` to 1 around the call and puts back what it held. One caller,
 //! `menu::handle_yes_no`.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::input::key_to_char::has_layout;
 use crate::input::yes_no_key::answer_for_key;

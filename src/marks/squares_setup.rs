@@ -8,14 +8,7 @@
 //! In:  nothing
 //! Out: nothing (its caller reads no register after it)
 //!
-//! Caller: `sub_4BFFEC` (0x4C000F). The device calls through `part` (1 the depth buffer, 2
-//! the texture, 3 a render state), in the game their Rust versions. Shadow mode runs the
-//! original alone (it tells the device). Self-test: a copy whose calls go to stand-ins,
-//! against the Rust version.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `sub_4BFFEC` (0x4C000F).
 
 use crate::framework::rva;
 use crate::marks::store::{Slot, game_read, game_write};

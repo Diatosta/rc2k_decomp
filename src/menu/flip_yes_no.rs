@@ -4,10 +4,9 @@
 //! In:  nothing
 //! Out: every register preserved; the flags of the `xor`
 //!
-//! `g_yesNoAnswer` (0x75524C) `xor` 1. The left and right action of the question's
-//! button (the menu table at 0x7544D8).
-//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
-//! (`menu::table_calls`); the registers above are the original's, for reference.
+//! `g_yesNoAnswer` (0x75524C) `xor` 1. The left and right action of the question's button (the menu
+//! table at 0x7544D8). The menus and draw lists run its `entry` (`menu::table_calls`); the
+//! registers above are the original's, for reference.
 
 use crate::framework::{game_read, game_write, rva};
 

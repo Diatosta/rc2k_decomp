@@ -4,19 +4,11 @@
 //! In:  nothing
 //! Out: every register preserved
 //!
-//! A kind's record is 0x80 bytes at `g_objectMaterials` + kind * 0x80, and the four
-//! files fill the four ranges of kinds, each with `files::read_whole_file`:
-//! `files\a\objsinfo` kinds 0 .. 0x18F, `files\b\carsinfo` 0x190 .. 0x257,
-//! `files\g\frnt\frntinfo` 0x258 .. 0x31F, `files\s\extr\extrinfo` 0x320 ... The
-//! original reads them in the order a, g, b, s; a file that is missing leaves its
-//! range as it is.
-//! One caller, `scene::set_up_object_memory`.
-//! Shadow mode reads twice and compares.
-//! Self-test: the game's own files, the records put back afterwards.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! A kind's record is 0x80 bytes at `g_objectMaterials` + kind * 0x80, and the four files fill
+//! the four ranges of kinds, each with `files::read_whole_file`: `files\a\objsinfo` kinds 0 ..
+//! 0x18F, `files\b\carsinfo` 0x190 .. 0x257, `files\g\frnt\frntinfo` 0x258 .. 0x31F,
+//! `files\s\extr\extrinfo` 0x320 ... The original reads them in the order a, g, b, s; a file
+//! that is missing leaves its range as it is. One caller, `scene::set_up_object_memory`.
 
 use crate::errors::Refused;
 use crate::files::read_whole_file::read_whole_file;
@@ -69,7 +61,7 @@ fn records(file: &KindFile) -> Region {
 pub unsafe fn read_kind_records() -> Result<(), Refused> {
     for file in &FILES {
         let (to, room) = records(file);
-        unsafe { read_whole_file(game_ptr(file.path), to as *mut u8, room as u32, 0) }?;
+        unsafe { read_whole_file(game_ptr(file.path), to as *mut u8, room as u32) }?;
     }
     Ok(())
 }

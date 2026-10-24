@@ -11,10 +11,8 @@
 //! In:  nothing
 //! Out: every register preserved (`pusha` .. `popa`)
 //!
-//! Reached through the start menu's table. Refuses a missing player before anything, and what
-//! the callees refuse when they are reached.
-//! Hook removed 2026-10-22 (typed tables): the start menus run its `entry`
-//! (`menu::table_calls`).
+//! Reached through the start menu's table. Refuses a missing player before anything, and what the
+//! callees refuse when they are reached.
 
 use crate::errors::Refused;
 use crate::menu::event_flow::*;

@@ -18,12 +18,11 @@
 //! In:  nothing
 //! Out: every register kept (`pusha` .. `popa`)
 //!
-//! In the standings screen's draw list (0x758E5E). The rows are found before anything is
-//! drawn (a position not there is the look-up's fatal error, raised then). Refuses (before
-//! anything) no history, a section the record table has not (the look-up runs on), and
-//! what the look-up refuses.
-//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
-//! (`menu::table_calls`); the registers above are the original's, for reference.
+//! In the standings screen's draw list (0x758E5E). The rows are found before anything is drawn (a
+//! position not there is the look-up's fatal error, raised then). Refuses (before anything) no
+//! history, a section the record table has not (the look-up runs on), and what the look-up refuses.
+//! The menus and draw lists run its `entry` (`menu::table_calls`); the registers above are the
+//! original's, for reference.
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_read, rva};

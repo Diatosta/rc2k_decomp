@@ -10,13 +10,7 @@
 //! Out: nothing (no caller reads a register it leaves)
 //!
 //! Caller: `sub_4C1270`. Refuses null settings and more than 8 splines (before anything),
-//! and `place_spline`'s refusals (all it may write is put back first). Self-test: the
-//! game's settings (skipped without them), records of the test's in the game's tables
-//! (`place_spline::fill_test_records`), switches, counts and ticks by lot.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! and `place_spline`'s refusals (all it may write is put back first).
 
 use crate::errors::{BadInput, Refused};
 use crate::marks::lines::SETTINGS_RVA;

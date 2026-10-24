@@ -204,5 +204,3 @@ pub unsafe fn close_primary_mixer(
         make_primary_failed()
     }
 }
-
-// ---- for the self-tests ----

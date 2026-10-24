@@ -1,7 +1,4 @@
-//! What the four functions that make up default best times share: the entry they fill
-//! (`saves::default_time_entry`, 0x47CB74), the checkpoint times it has guessed
-//! (`physics::guess_checkpoint_times`, 0x4650F6), and their hooks' and self-tests'
-//! machinery. Both are plain functions here.
+//! Both are plain functions here.
 //!
 //! An entry is 0x9C bytes. `default_time_entry` gives it a random driver (a number under
 //! 0xAA): the driver's +8 to the entry's +0x1C, +0x14 to +8, +0x18 to +0x10, the id of

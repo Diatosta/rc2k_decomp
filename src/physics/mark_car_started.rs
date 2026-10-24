@@ -5,15 +5,9 @@
 //! Out: every register kept; no flags read (the callers return next)
 //!
 //! Caller: `sub_436790` (four calls).
-//! Self-test: `physics/copy_hooks_test.rs`, 8 fillings over both words' zero and not.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::framework::{game_addr, rva};
 use crate::physics::cells::{get, put_changed};
-use crate::screens::harness::Left;
 use rc2k_core::physics::start::CarStart;
 
 fn game() -> Vec<u32> {
@@ -28,7 +22,7 @@ const VARIABLES: [usize; 2] = [0x71A078, 0x71A274];
 
 /// The Rust version on the variables' addresses.
 // Converted: `rc2k_core::physics::start::CarStart::mark_started`.
-unsafe fn core(v: &[u32]) -> Left {
+unsafe fn core(v: &[u32]) {
     unsafe {
         let was = CarStart {
             started: get(v[0]),
@@ -38,11 +32,10 @@ unsafe fn core(v: &[u32]) -> Left {
         let mut c = was;
         c.mark_started();
         put_changed(v[0], was.started, c.started);
-        Left::nothing()
     }
 }
 
 /// The Rust version.
-pub unsafe fn mark_car_started() -> Left {
+pub unsafe fn mark_car_started() {
     unsafe { core(&game()) }
 }

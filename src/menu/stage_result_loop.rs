@@ -11,16 +11,10 @@
 //! Screen: the one player's result after a stage, "RESULTADOS": the rally and
 //! stage, then "piloto", "tempo" and "velocidade máxima" (owner's screenshot from a Rust-run
 //! visit, 2026-10-11). Named `screen_48558d_loop` until then.
-//! Callers: `sub_482382`, `sub_48AE39`. Ungated thunk; shadow mode runs the original alone;
-//! each real call
-//! writes a line to hook.log. Self-test: `screen_loop::check_screen`.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Callers: `sub_482382`, `sub_48AE39`.
 
 use crate::framework::rva;
-use crate::menu::screen_loop::{List, Screen, Step};
+use crate::menu::screen_loop::{Callee, List, Screen, Step};
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
@@ -69,7 +63,7 @@ pub const SCREEN: Screen = Screen {
     after_lists: &[],
     background: &[
         Step::ArgAddr(rva(0x732A3A)),
-        Step::CallOrFatal(rva(0x47EFFF), 0x80712345),
+        Step::CallOrFatal(Callee::LoadBackground, 0x80712345),
     ],
     after_first_frame: &[],
     confirm: Some(&[]),

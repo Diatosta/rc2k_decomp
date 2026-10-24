@@ -13,15 +13,8 @@
 //!
 //! In:  ebx the script
 //! Out: every register kept (`pusha` / `popa`)
-//! Callers `install::install_files`, `uninstall`, `install_clio`. Its three table calls
-//! through `part`; `script_name` is called directly (it only builds the path). Shadow mode
-//! runs the original alone. Self-test: a copy whose three table calls go to stand-ins (the
-//! path noted), `script_name` kept, against the Rust version; scripts of every opcode, a
-//! media-skip and an unbalanced stack (fatal).
+//! Callers `install::install_files`, `uninstall`, `install_clio`.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 //! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
 //! are the original's.
 

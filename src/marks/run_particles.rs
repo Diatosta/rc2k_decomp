@@ -22,22 +22,10 @@
 //! In:  nothing (`g_marksSettings`)
 //! Out: nothing (its caller reads no register after it)
 //!
-//! Caller: `marks::run_frame` (0x4D165E). Its calls through `part` (1 `set_quad_uvs`, 2
-//! `burst_particles`, 3 `trail_particles`, 4 `draw_particle` with three values, 5
-//! `add_drift_particle` with six); in the game their Rust versions. Refuses, before
-//! anything, null settings, a null entry or link on the way, a kind other than 0, 4, 8,
-//! 9 (the original's stack goes wrong: section 16) and a colour index out of its table;
-//! mid-way only its callees' own refusals (a broken ring).
-//! Its first instruction is a short jump: private copy of the whole range (the five
-//! functions between its chunks taken along, never run from it; its seven calls
-//! relocated), manual patch. Shadow mode runs the original alone (it draws). Self-test: a
-//! copy (its handlers' return address pointed into the copy) whose calls go to stand-ins
-//! (the x87 ones taking their values off), against the Rust version on the same, on a
-//! ring of the test's.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `marks::run_frame` (0x4D165E). Refuses, before anything, null settings, a null
+//! entry or link on the way, a kind other than 0, 4, 8, 9 (the original's stack goes wrong:
+//! section 16) and a colour index out of its table; mid-way only its callees' own refusals
+//! (a broken ring). its seven calls relocated), manual patch.
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::rva;

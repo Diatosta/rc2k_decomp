@@ -19,11 +19,7 @@
 //!   `strings::append_string_by_id` leaves it, ebx past the NUL);
 //! - `menu::leave_with_carry` (0x471CCE): `dword_755561` and `dword_755565` 1, the carry set;
 //!
-//! 0x48558A, `pusha; popa; retn` in a draw list, does nothing and is too short for a hook's
-//! jump: the standalone counts it among the empty functions it skips.
-//!
 //! Refuses (before anything) no current player (or one past the four).
-//! Hooks removed 2026-10-22 (typed tables): the menus run their `entry` (`menu::table_calls`).
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_addr, game_read, game_write, rva};
@@ -191,8 +187,7 @@ macro_rules! state_action {
     ($module:ident, $name:literal, $address:expr, $which:expr) => {
         pub mod $module {
             use super::*;
-            /// The Rust version where the typed tables run it (`menu::table_calls`; hook removed
-            /// 2026-10-22).
+            /// The Rust version where the typed tables run it (`menu::table_calls`).
             pub fn run() -> Result<(), crate::errors::Refused> {
                 state_run($which)
             }
@@ -242,8 +237,7 @@ macro_rules! car_specs {
     ($module:ident, $name:literal, $address:expr, $n:expr, $entry:expr) => {
         pub mod $module {
             use super::*;
-            /// The Rust version where the typed tables run it (`menu::table_calls`; hook removed
-            /// 2026-10-22).
+            /// The Rust version where the typed tables run it (`menu::table_calls`).
             pub fn run(c: &Carried) -> Result<(), crate::errors::Refused> {
                 unsafe { player_car_specs($n, c) }
             }

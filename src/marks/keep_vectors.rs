@@ -6,12 +6,7 @@
 //! In:  nothing
 //! Out: every register kept
 //!
-//! Caller: `sub_4C1270`. Self-test: the twelve sources by lot, compared on the twelve
-//! results; put back afterwards.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `sub_4C1270`.
 
 use crate::marks::store::{Slot, game_read, game_write};
 

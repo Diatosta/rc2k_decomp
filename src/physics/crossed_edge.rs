@@ -7,13 +7,9 @@
 //! In:  nothing
 //! Out: the registers as the calls leave them; no flags read (callers go on)
 //!
-//! Callers: `sub_43B635` (every physics step), `sub_43BDD1`.
-//! Refuses (before anything) a probe point past 0x3F (the tables' room), and what its
-//! calls refuse (what was written put back).
-//! Self-test (`test_crossed`; in a race, its `feel_ground` needs the stage): the
-//! original and the Rust version on the game's variables (saved and put back) with a
-//! test face and scene points, paths across each edge, none crossed, under three
-//! precisions.
+//! Callers: `sub_43B635` (every physics step), `sub_43BDD1`. Refuses (before anything) a
+//! probe point past 0x3F (the tables' room), and what its calls refuse (what was written
+//! put back).
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

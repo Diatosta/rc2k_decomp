@@ -4,8 +4,7 @@
 //! In:  nothing
 //! Out: every register kept
 //!
-//! An item action in six menu tables (the review menus).
-//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
+//! An item action in six menu tables (the review menus). The menus and draw lists run its `entry`
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 /// The Rust version (see the header).

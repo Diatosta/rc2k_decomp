@@ -11,15 +11,9 @@
 //! Out: eax / ebx / ebp / ecx / edx as the last quad's set-up leaves them (see the code)
 //!
 //! Callers: `hud::draw_view_strips` (twice). Each quad's inputs (`dword_623DE8` ..
-//! `dword_623E24`, `g_polygonAlpha` 0xFF, colour -1, `dword_6240E0` 1, `dword_6240E4` 0)
-//! then `scene::draw_flat_quad` through `part` (1), in the game its Rust version (inside
-//! `pusha` .. `popa`). Refuses a view past 5 (the tables' end), before anything. Shadow
-//! mode runs the original alone (it draws). Self-test: a copy whose quads go to a
-//! stand-in noting their inputs, against the Rust version, views and settings by lot.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! `dword_623E24`, `g_polygonAlpha` 0xFF, colour -1, `dword_6240E0` 1, `dword_6240E4` 0) then
+//! `scene::draw_flat_quad` (inside `pusha` .. `popa`). Refuses a view past 5 (the tables' end),
+//! before anything.
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::rva;

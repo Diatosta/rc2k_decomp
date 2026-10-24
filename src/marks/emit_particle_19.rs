@@ -6,22 +6,16 @@
 //! Out: every register kept (`pusha` .. `popa`)
 //!
 //! The level (`dword_93A1CE`) the car's +0x4C0 (+0x4C4); a random's bits 16 .. 18 must be
-//! under it (signed). `g_marksWheelFlags` 0x3E (0x33); `dword_93A1C2` .. the car's +0x4C
-//! .. +0x54. The entry: its place `flt_93A1B6` .. turned and placed by `g_marksCar`'s
-//! matrix (`x87::turned_place`), less `flt_93A48E` in y at +0x28; its motion the matrix's
-//! second row by `flt_93A492` .. moved by `marks::jitter_point` (spread `flt_93A49E`) plus
+//! under it (signed). `g_marksWheelFlags` 0x3E (0x33); `dword_93A1C2` .. the car's +0x4C ..
+//! +0x54. The entry: its place `flt_93A1B6` .. turned and placed by `g_marksCar`'s matrix
+//! (`x87::turned_place`), less `flt_93A48E` in y at +0x28; its motion the matrix's second
+//! row by `flt_93A492` .. moved by `marks::jitter_point` (spread `flt_93A49E`) plus
 //! `dword_93A1C2` .. by `flt_764FE0` and `flt_93A4A2` ..; a random spin and turn; the
 //! flags' low 6 bits; a size 0x4000 or 0x8000 by the random's bit 6 (`dword_9356C0`, +0x60
 //! as a float); a life `dword_939B86[level]` (+0x78 `flt_7651A4` over it); +0x74
 //! `dword_76519C`; +0x68 `g_marksCar`. Caller: `sub_4C9AF6` (the cars' loop). Refuses
-//! (before anything) a null object, and when an entry is made a null `g_marksCar` or
-//! matrix and a level past `dword_939B86`'s 9 entries (the original reads on). Self-test:
-//! a ring and car of the test's (`marks::emit_particle_6::TestEmitter`), several levels,
-//! motions and fillings.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! (before anything) a null object, and when an entry is made a null `g_marksCar` or matrix
+//! and a level past `dword_939B86`'s 9 entries (the original reads on).
 
 use crate::errors::{BadInput, Refused};
 use crate::marks::emitters::*;

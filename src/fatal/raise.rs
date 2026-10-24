@@ -10,7 +10,7 @@
 
 use crate::errors::{FatalError, Refused};
 use crate::fatal::state::{CODE, MESSAGE};
-use crate::framework::{GameHook, RawHook, Regs, log};
+use crate::framework::{Regs, log};
 use std::ffi::CString;
 
 /// Reports `error` with the registers in `regs` and ends the game the way the original
@@ -29,18 +29,12 @@ pub unsafe fn raise(error: FatalError, regs: &Regs) {
     crate::fatal::report::report_now(regs);
 }
 
-/// What the program does when a Rust version refuses a call. A refused input (`BadInput`)
-/// ends it, saying which function refused and why: there is no original to hand the call
-/// to (owner, 2026-10-23: no hidden fallbacks). A fatal error is raised from Rust (`raise`),
+/// What the program does when the Rust version `name` refuses a call it has nowhere to
+/// hand on to. A refused input (`BadInput`) ends it, saying which function refused and
+/// why (owner, 2026-10-23: no hidden fallbacks). A fatal error is raised from Rust (`raise`),
 /// so that it shows: the game ends with the report, and the log says which function raised
 /// it. If that ever happens where the original would have carried on, the Rust version is
 /// wrong.
-pub unsafe fn refused(hook: &RawHook, reason: impl Into<Refused>, r: &mut Regs) {
-    unsafe { refused_in(hook.name(), reason, r) };
-}
-
-/// `refused` for the Rust version named `name`, called by Rust code that has nowhere to
-/// hand the refusal on to.
 pub unsafe fn refused_in(name: &str, reason: impl Into<Refused>, r: &Regs) {
     let error = match reason.into() {
         Refused::BadInput(why) => {

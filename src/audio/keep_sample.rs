@@ -7,12 +7,6 @@
 //! memory (`sub_409DFB`, inlined: `memory::allocate` on `g_sampleMemory`; its fatal
 //! error 0x80E28021 cannot come), the data copied there and the voice's data pointed at it. One caller,
 //! command 3 (`sub_40AEB9`).
-//! Shadow mode runs the original alone (memory would be taken twice). Self-test: a
-//! redirected copy whose allocation is the test's, 4 cases.
-//!
-//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::audio::voices::*;
 use crate::errors::Refused;

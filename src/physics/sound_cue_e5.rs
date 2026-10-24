@@ -5,18 +5,11 @@
 //! In:  nothing
 //! Out: every register kept; no flags read (the caller returns)
 //!
-//! Caller: `sub_45EDB5` (its tail).
-//! Refuses (before anything) a current car past 7, or a null sound object when written.
-//! Self-test: a copy of the original (the car number, both tables the test's) on test
-//! objects: cars 0 .. 7, entries -1 and not.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `sub_45EDB5` (its tail). Refuses (before anything) a current car past 7, or a
+//! null sound object when written.
 
 use crate::errors::Refused;
 use crate::framework::{game_addr, rva};
-use crate::screens::harness::Left;
 use rc2k_core::physics::listed_cars::{CUE_E5, cue_e5_object};
 
 unsafe fn at(a: u32) -> u32 {
@@ -29,7 +22,7 @@ unsafe fn put(a: u32, v: u32) {
 
 /// The core: the car number, the listed table, the sound objects at these places.
 // Converted: `rc2k_core::physics::listed_cars::{cue_e5_object, CUE_E5}`.
-pub unsafe fn sound_cue_e5_at(current: u32, listed: u32, objects: u32) -> Result<Left, Refused> {
+pub unsafe fn sound_cue_e5_at(current: u32, listed: u32, objects: u32) -> Result<(), Refused> {
     unsafe {
         let object = cue_e5_object(
             at(current),
@@ -41,12 +34,12 @@ pub unsafe fn sound_cue_e5_at(current: u32, listed: u32, objects: u32) -> Result
                 put(object + offset, v);
             }
         }
-        Ok(Left::nothing())
+        Ok(())
     }
 }
 
 /// The Rust version.
-pub unsafe fn sound_cue_e5() -> Result<Left, Refused> {
+pub unsafe fn sound_cue_e5() -> Result<(), Refused> {
     let g = |a: usize| game_addr(rva(a)) as u32;
     unsafe {
         sound_cue_e5_at(

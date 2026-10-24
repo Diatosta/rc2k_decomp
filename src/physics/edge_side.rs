@@ -9,14 +9,6 @@
 //!      edx pushed and popped). The callers read ZF (`jnz`) then CF (`jb`).
 //!
 //! Callers (8): `sub_442006`, the face under a point (each edge of a triangle or a quad).
-//! Shadow mode: `physics/flag_result.rs`; both versions store the same `qword_620460` (a
-//! scratch value), which only the self-test compares.
-//! Self-test: a copy of the original on a test point and qword, edges by lot (some with
-//! the same ends, some large enough to overflow 32 bits).
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::physics::flag_result::FlagResult;
 use rc2k_core::physics::faces;

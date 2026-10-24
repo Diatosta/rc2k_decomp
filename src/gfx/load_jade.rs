@@ -9,8 +9,8 @@
 //! white in the surface's format (`sub_407629`: `gfx::components_to_pixel` of 0xFFFFFF).
 //! One caller, `system::main_loop`.
 //! Refuses what `read_file` refuses.
-//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
-//! `routes.rs`); the registers above are the original's, for reference.
+//! The registers above are the original's, for reference; a call by address goes through
+//! `routes.rs`.
 
 use crate::errors::{FatalError, Refused};
 use crate::files::read_file::read_file;

@@ -18,12 +18,6 @@
 //! the original, what `CoInitialize` and the clock's Win32 calls leave; the Rust version
 //! hands on the entry's. Neither is read there (ecx is a volume for action 1, which does not
 //! read it; edx reaches `close_all` only when nothing plays yet, where every action stops).
-//! The thunk is `ungated` (the thread is in it for the whole game). A refusal from a callee
-//! hands the call to the original from its start: it finds the slot running and goes to
-//! the end, so the sound stops (hook.log's "refused" line says why).
-//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
-//! `routes.rs`). Plain since 2026-10-23 (phase 3): the registers above are the original's,
-//! for reference; the feeds and `close_all` get only what they read.
 
 use crate::audio::store::Slot;
 use crate::audio::voices::{read, write};

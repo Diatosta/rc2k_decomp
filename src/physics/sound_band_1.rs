@@ -5,7 +5,6 @@
 //! Out: ebx the band; the rest kept
 //!
 //! Caller: `sub_45CEF9`.
-//! Self-test: `sound_bands::test_twin`.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

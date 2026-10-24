@@ -10,10 +10,7 @@
 //! Out: eax as the steps leave it, the rest as `count_ground_probe` leaves them; no flags
 //!      read (the caller goes on)
 //!
-//! Caller: `sub_437A53`.
-//! Refuses what `count_ground_probe` refuses. Shadow mode runs the original alone.
-//! Self-test: a copy whose probe goes to a stand-in, against the Rust version with the
-//! same: every early way out, found or not, low or not.
+//! Caller: `sub_437A53`. Refuses what `count_ground_probe` refuses.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

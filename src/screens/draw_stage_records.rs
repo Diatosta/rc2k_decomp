@@ -3,23 +3,17 @@
 //! "top speed: <flag> <name> <car> <speed>".
 //!
 //! In:  edi = best-time entry: +0x08 nationality (flag sprite 0x1C + it), +0x10 car number
-//!      (see `car_sprite`), +0x14 time in hundredths of a second, +0x20 name
+//! (see `car_sprite`), +0x14 time in hundredths of a second, +0x20 name
 //! Out: carry as the last `draw_text` leaves it; every register preserved
 //! The top-speed row comes from the record the game has selected (see `selection`):
 //! +0x30 speed in tenths of a mile per hour, +0x54 name, +0x74 nationality, +0x78 car number.
 //! The labels are strings 0x34B ("melhor tempo" in the Portuguese build) and 0x34C
 //! ("velocidade máxima").
 //!
-//! Screen: confirmed on the stage selection screen ("Escolha Etapa"), simulation mode, by
-//! blanking this hook (2026-10-09): the two rows at the bottom disappear and nothing else.
 //! It has three more call sites that have not been looked at.
 //!
 //! The sprites are drawn with whatever is in ebx as the palette: a pointer into text, or an
 //! index. That only works because those sprites do not use a palette; it is reproduced as is.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_read, rva};
@@ -164,8 +158,3 @@ pub unsafe fn draw_records_rows(
         )
     }
 }
-
-//
-// Uses the game's own fonts, strings and selected record, so it only runs when those are
-// there. The blitter's hook swallows the calls; the line buffer and the kerning table are
-// restored.

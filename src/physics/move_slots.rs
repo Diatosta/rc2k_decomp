@@ -6,11 +6,8 @@
 //! Out: esi past the slots, ecx 8; the rest kept; no flags read (`retn`, then `sub_45E9CA`
 //!      returns)
 //!
-//! Caller: `sub_45E9CA` (0x45E9CF), from race init's loop and `sub_460B2F`.
-//! Refuses (before anything) what `move_slot` refuses for a slot in use.
-//! Self-test: in a race only: a copy of the original whose slots and count are the
-//! test's (its calls to the game's `move_slot`) against the Rust version, slots in use
-//! and not; every game variable `move_slot` writes saved and put back.
+//! Caller: `sub_45E9CA` (0x45E9CF), from race init's loop and `sub_460B2F`. Refuses (before
+//! anything) what `move_slot` refuses for a slot in use.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

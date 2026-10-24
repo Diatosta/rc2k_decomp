@@ -7,12 +7,6 @@
 //! given to `g_eaxProperties`' `Set` when that is there (its result not read). The `Set`
 //! is a chunk (0x40D325) entered by `jmp`. Callers: `audio::update_voices` (twice),
 //! `audio::make_buffer`. Refuses a room past the table's ten (the original reads past it).
-//! Shadow mode runs the original alone. Self-test: redirected copies of the head and the
-//! chunk (the head's jump retargeted) whose room and set are the test's, 30 cases.
-//!
-//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::audio::property_sets::set_eax_room;
 use crate::audio::voices::{EAX_ROOM_RVA, EAX_RVA, read};

@@ -19,16 +19,9 @@
 //! In:  nothing
 //! Out: every register kept (`pusha` .. `popa`)
 //!
-//! Callers: `sub_48E093`, `sub_4A15E3`, `sub_4A8556`. Logs through the `logfile::` Rust
-//! versions (level 1). Refuses a current player past 3 or missing, a car past 0xFF or
-//! without its table, before anything. Shadow mode runs the original alone (it logs).
-//! Self-test: the original and the Rust version on the game's player
-//! and cars, wear and switches by lot, at the test precisions (exact at 0x027F; the whole
-//! numbers made by the float steps within one at 0x037F); put back.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Callers: `sub_48E093`, `sub_4A15E3`, `sub_4A8556`. Logs through the `logfile::` Rust versions
+//! (level 1). Refuses a current player past 3 or missing, a car past 0xFF or without its table,
+//! before anything.
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::menu::standings::*;

@@ -14,12 +14,9 @@
 //! Out: the registers as the steps and calls leave them (ebp the point, or -1 after the
 //!      loop); no flags read (callers go on)
 //!
-//! Callers: `sub_43B635` (every physics step), `sub_43BDD1`.
-//! Refuses (before anything) a count of 0 or past 0x40 (the original's loop runs on, or
-//! past the tables), and what its calls refuse (what was written put back).
-//! Self-test (`test_walls`, in a race; skipped otherwise): the original and the Rust
-//! version on the stage's own faces (everything written saved and put back): probe
-//! lists of faces chosen by their wall bits, none met, a wall met, the 0xC00 fallback.
+//! Callers: `sub_43B635` (every physics step), `sub_43BDD1`. Refuses (before anything) a
+//! count of 0 or past 0x40 (the original's loop runs on, or past the tables), and what its
+//! calls refuse (what was written put back).
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

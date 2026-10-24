@@ -11,15 +11,7 @@
 //! Out: the registers as the steps leave them (eax `dword_5C2530` after a whole play); no
 //!      flags read
 //!
-//! Caller: `race::play_movie`. Its calls through `part` (places in `CALLEES`; the logs 8
-//! and 9); in the game their Rust versions, the frame through its hook (which gates each
-//! frame, as for `drive::race_loop`). Ungated (it plays a replay). Shadow mode runs the
-//! original alone. Self-test: a copy whose calls go to stand-ins (the frame moving the
-//! block on, a key after some frames), against the Rust version.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `race::play_movie`.
 
 use crate::errors::Refused;
 use crate::input::store::DeviceSlot;

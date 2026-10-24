@@ -10,12 +10,6 @@
 //! `kind`, `state`, `dirty`, `channel`, `next` 0; `own_frequency` 44100, `scale` and
 //! `volume_factor` 0x40, `min_distance` 1.0. Callers: `audio::start` (0x40A0DB) and
 //! `audio::free_voices`.
-//! Shadow mode runs the original alone (a buffer is released once). Self-test: a
-//! redirected copy whose A3D switch is the test's, voices with test objects, 12 cases.
-//!
-//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::audio::com::{self, RELEASE};
 use crate::audio::voices::*;

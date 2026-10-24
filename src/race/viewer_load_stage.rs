@@ -20,10 +20,6 @@
 //! opened), `race::choose_save_slot`. The only register it reads at entry is esi, which
 //! goes to `release_textures` and `set_race_screen_mode` (attrib), whose Rust versions
 //! read none.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::errors::Refused;
 use crate::physics::flow::a;

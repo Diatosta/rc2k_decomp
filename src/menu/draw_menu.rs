@@ -3,11 +3,9 @@
 //! In:  edi = the menu; ebx, ecx as they come (`draw_menu_items` uses them)
 //! Out: every register preserved
 //! `pusha`, `screens::draw_menu_labels`, `screens::draw_menu_items`, `popa`. Called by
-//! `menu::draw_frame` and `menu::frame_callback`, and by the screens with a frame callback
-//! of their own.
-//! Refuses what the two functions refuse.
-//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
-//! `routes.rs`); the registers above are the original's, for reference.
+//! `menu::draw_frame` and `menu::frame_callback`, and by the screens with a frame callback of their
+//! own. Refuses what the two functions refuse. Rust callers run its `entry` (`routes.rs`); the
+//! registers above are the original's, for reference.
 
 use crate::errors::Refused;
 use crate::screens::draw_menu_items::draw_menu_items;
@@ -29,6 +27,3 @@ pub unsafe fn draw_menu(
         draw_menu_items(menu, ebx, ecx, canvas)
     }
 }
-
-// ---- self-test: a menu of its own with two labels and three plain items, each of them
-// highlighted in turn, with the game's strings and fonts ----

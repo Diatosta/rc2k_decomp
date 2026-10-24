@@ -3,16 +3,16 @@
 //! In:  nothing
 //! Out: carry (the caller skips its end-of-entry checks on it); every register preserved
 //! The name is the highlighted entry of the replay list. One pending key is taken:
-//!   none          the cursor is written again;
-//!   1 (Escape)    the name from before comes back, the entry ends, `dword_758806` = 1;
-//!                 carry set;
-//!   0x1C (Enter)  an empty name is replaced by the one from before; the entry ends and the
-//!                 name is cut at its length; carry clear;
-//!   0x6E          clears a name;
-//!   0x0E          takes the last character off a name;
-//!   any other     `key_to_char`; a character is appended unless the length is already above
-//!                 the maximum, and taken off again if the name then measures 0xEC pixels
-//!                 or more.
+//! none          the cursor is written again;
+//! 1 (Escape)    the name from before comes back, the entry ends, `dword_758806` = 1;
+//! carry set;
+//! 0x1C (Enter)  an empty name is replaced by the one from before; the entry ends and the
+//! name is cut at its length; carry clear;
+//! 0x6E          clears a name;
+//! 0x0E          takes the last character off a name;
+//! any other     `key_to_char`; a character is appended unless the length is already above
+//! the maximum, and taken off again if the name then measures 0xEC pixels
+//! or more.
 //! After anything but Escape and Enter the cursor (string 4) is written after the name if
 //! `dword_7559A8` is 1, then a NUL; carry is then set exactly when `dword_7559A8` is 0.
 //! A slip in the original, reproduced: the clear key, the backspace key and the "too wide"
@@ -20,14 +20,8 @@
 //! length they change is the replay entry's.
 //! Called from the screen loop `sub_47F77B` while `dword_7556A8` is 1.
 //!
-//! Screen: the owner said on 2026-10-10 that the replay naming screen comes up after a stage
-//! is completed; this hook had 3,889 shadow calls in the session where it was used.
 //! Refuses, before the key is taken: a name past either list, a length outside 0 .. 0x1F, no
-//! keyboard layout. Manual patch with a private copy (0x22E bytes, 13 calls relocated).
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! keyboard layout.
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_read, game_write, rva};

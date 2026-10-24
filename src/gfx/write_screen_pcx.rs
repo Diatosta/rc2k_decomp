@@ -18,15 +18,8 @@
 //! value of eax is used (reproduced). The runs go over the planes' ends (the format wants
 //! each plane's line coded alone; the game's own reader does not mind).
 //!
-//! Callers: `gfx::take_screenshot`, `race::viewer_snapshot`, `race::replay_screenshot`.
-//! Refuses what `open_stream` refuses. Shadow mode runs the original alone (it writes a file).
-//! Self-test: a surface of the test's (16 and 32 bits, 64 x 48), the file a name of the
-//! test's in `var` (removed after), against the original: the files' bytes, the header,
-//! the stream and the planes compared.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Callers: `gfx::take_screenshot`, `race::viewer_snapshot`, `race::replay_screenshot`. Refuses
+//! what `open_stream` refuses.
 
 use crate::errors::Refused;
 use crate::files::stream::Stream;

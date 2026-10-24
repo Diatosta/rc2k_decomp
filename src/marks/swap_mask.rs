@@ -9,17 +9,10 @@
 //! Out: unchanged when nothing changed; else eax `dword_5D1E10`, ecx the width, edx 0x7E,
 //!      ebp and esi as the last pixel left them
 //!
-//! Caller: `marks::run_frame` (0x4D1549). Its calls through `part` (1 the lock, 2 a pixel,
-//! 3 the unlock, 4 the forgetting); in the game the platform's two through the game
-//! (section 15), the others their Rust versions. Refuses null settings (before anything) and
-//! a locked texture (`g_surface` after the lock) wider than the mask's 0x100 (unlocked again,
-//! what was written put back). Shadow mode runs the original alone (it tells
-//! the device). Self-test: a copy whose calls go to stand-ins, against the Rust version,
-//! the switch changed or not, on a narrow test surface width.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `marks::run_frame` (0x4D1549). in the game the platform's two through the game,
+//! the others their Rust versions. Refuses null settings (before anything) and a locked
+//! texture (`g_surface` after the lock) wider than the mask's 0x100 (unlocked again, what
+//! was written put back).
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::rva;

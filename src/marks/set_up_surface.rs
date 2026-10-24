@@ -7,17 +7,9 @@
 //! Out: nothing (no caller reads a register it leaves)
 //!
 //! The surface's lock and unlock are the game's (`sub_41AA4B` / `sub_41AB02`, DirectDraw).
-//! Callers: `marks::init_marks` and code at 0x4D1BC8 (not in a function). Shadow mode runs
-//! the original alone (it takes memory and reads files). Refuses (section 15) memory not
-//! had; a surface under 256 x 256 or a picture not read, after the lock (unlocked again,
-//! the 0x40000 block left taken). Self-test: a redirected copy whose calls go to
-//! stand-ins noting every register (blocks and a picture of the test's), against the Rust
-//! version on the same stand-ins, with the game's constants and two other sets; put back
-//! afterwards.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Callers: `marks::init_marks` and code at 0x4D1BC8 (not in a function). Refuses memory
+//! not had; a surface under 256 x 256 or a picture not read, after the lock (unlocked
+//! again, the 0x40000 block left taken).
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::rva;

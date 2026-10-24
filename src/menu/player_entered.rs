@@ -4,12 +4,7 @@
 //! In:  ecx the player, eax a value
 //! Out: edi the player, eax as above; the rest kept
 //!
-//! Caller: `sub_473126` (four times). Refuses a player past 3 or missing, before
-//! anything. Self-test: the original and the Rust version on players of the test's.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `sub_473126` (four times). Refuses a player past 3 or missing, before anything.
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::standings::*;

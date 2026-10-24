@@ -20,10 +20,6 @@
 //! and `dword_4F50B0`, and 0 in the two counters `dword_4F50B4` and `dword_4F50B8`.
 //! Refuses sizes of 0 (the original divides by them or counts through all 32 bits), a
 //! decoded height above the row table's room, and null pointers. The name is a reading.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
 use crate::gfx::blit::Slot as BlitSlot;
@@ -107,6 +103,3 @@ pub unsafe fn rescale_picture() -> Result<(), Refused> {
         Ok(())
     }
 }
-
-// ---- self-test: small pictures of the test's own stretched and shrunk into the game's
-// picture buffer, which is put back with the variables ----

@@ -22,16 +22,8 @@
 //! - `g_objectNumber` = the first object of that kind (`scene::find_object_of_kind`
 //!   0x422298: objects 1 .. 0xFF, else 0).
 //!
-//! Then `scene::draw_menu_object`.
-//! Five call sites in `scene::draw_carousel`.
-//! Refuses an entry of 0x100 or more and a kind past the records.
-//! Shadow mode runs the original alone and compares the variables it set with the
-//! Rust arithmetic.
-//! Self-test: a redirected copy whose drawing notes everything set, 240 cases by lot.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Then `scene::draw_menu_object`. Five call sites in `scene::draw_carousel`. Refuses an entry
+//! of 0x100 or more and a kind past the records.
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_read, game_write, rva};

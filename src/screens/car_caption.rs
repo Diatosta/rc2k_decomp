@@ -3,13 +3,11 @@
 //! In:  nothing
 //! Out: every register preserved
 //!
-//! The shown car's name (`CarDescription::name`, the entry `dword_755990` through
-//! `dword_75A65C`) and a NUL into `g_captionText`. In four draw lists (the
-//! car specification screens).
-//! Refuses an entry past the records, one without its record, and a caption longer
-//! than its place.
-//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
-//! (`menu::table_calls`); the registers above are the original's, for reference.
+//! The shown car's name (`CarDescription::name`, the entry `dword_755990` through `dword_75A65C`)
+//! and a NUL into `g_captionText`. In four draw lists (the car specification screens). Refuses an
+//! entry past the records, one without its record, and a caption longer than its place. The menus
+//! and draw lists run its `entry` (`menu::table_calls`); the registers above are the original's,
+//! for reference.
 
 use crate::errors::Refused;
 use crate::framework::{game_addr, rva};

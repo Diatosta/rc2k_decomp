@@ -13,16 +13,8 @@
 //!      eax, ebx, ecx, edx, esi), the centre (st(0), st(1), popped)
 //! Out: nothing (its one caller keeps its registers round it: `pusha` .. `popa`)
 //!
-//! Caller: `marks::draw_lens_flare` (0x4C4FEA). The clip is its Rust version (the copy's
-//! call goes to its hook); the draw through `part` (1 `draw_fan`), in the game its Rust
-//! version. Refuses a corner past `g_marksCorners` (0x100 or more) and null marks
-//! settings (`clip_quad`'s refusal), before anything. Thunk by `two_in_hook!`. Shadow mode
-//! runs the original alone (it draws). Self-test: a copy whose draw goes to a stand-in,
-//! against the Rust version, centres, corners, sizes and angles by lot.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `marks::draw_lens_flare` (0x4C4FEA). Refuses a corner past `g_marksCorners`
+//! (0x100 or more) and null marks settings (`clip_quad`'s refusal), before anything.
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::rva;

@@ -1,29 +1,20 @@
 //! `marks::tidy_marks` (0x4D146D): the marks' memory given back at a stage's unload. Its
 //! steps, each a call (the nullsubs left out): `sub_4D06F3` (for each of the settings'
-//! +0x5C cars from the first, its list at +0x2E8 freed and its +0x328 made
-//! `g_marksTaken`), then `memory::free_list` of `g_marksRingList` (`sub_4CFB3D`),
-//! `stru_935620` (`sub_4CB5A8`), `g_marksBMaskList` and `stru_934D76` (`sub_4C8F4D`),
-//! `g_marksPlacesList` (`sub_4C38F5`) and `g_marksLinksList` (`sub_4C4E22` ->
-//! `sub_4C3EE3` -> `sub_4C5409`). Those steps are not hooked of their own: each is a
-//! `lea ebx` and a call.
+//! +0x5C cars from the first, its list at +0x2E8 freed and its +0x328 made `g_marksTaken`),
+//! then `memory::free_list` of `g_marksRingList` (`sub_4CFB3D`), `stru_935620`
+//! (`sub_4CB5A8`), `g_marksBMaskList` and `stru_934D76` (`sub_4C8F4D`), `g_marksPlacesList`
+//! (`sub_4C38F5`) and `g_marksLinksList` (`sub_4C4E22` -> `sub_4C3EE3` -> `sub_4C5409`).
+//! Each of those steps is a `lea ebx` and a call.
 //!
 //! In:  nothing (`g_marksSettings`)
 //! Out: nothing (the stage's unload reads no register it leaves)
 //!
 //! `sub_4D06F3` tests `memory::free_list`'s carry (`jb`), which is always clear (its last
-//! flag-setting instruction is a `test`), so its other path (a `push` left on the stack
-//! and a count of 0x1FFFFFFF: section 16) is never taken. Caller: the stage's unload
-//! (0x4449AE). It begins with its call: a private copy (0x47 bytes, its 14 calls
-//! relocated) with a manual patch. Shadow mode runs the original alone (it frees).
-//! Refuses (before anything) null settings, a cars' count below 0 or above 8 (the
-//! original's loop runs until it meets the count), and the game's own heap with a list
-//! that holds blocks (`free_list`'s refusal). Self-test: with every list empty in the game,
-//! blocks of the test's put in each, freed by the original and by the Rust version; the
-//! lists, the memory counters, the cars' +0x328 and the registers compared.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! flag-setting instruction is a `test`), so its other path (a `push` left on the stack and
+//! a count of 0x1FFFFFFF: section 16) is never taken. Caller: the stage's unload
+//! (0x4449AE). Refuses (before anything) null settings, a cars' count below 0 or above 8
+//! (the original's loop runs until it meets the count), and the game's own heap with a list
+//! that holds blocks (`free_list`'s refusal).
 
 use crate::errors::{BadInput, Refused};
 use crate::marks::lines::{SETTINGS_RVA, TAKEN_RVA};

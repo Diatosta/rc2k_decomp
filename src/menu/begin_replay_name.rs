@@ -6,9 +6,8 @@
 //! In:  nothing
 //! Out: every register preserved
 //! It writes "Backed up name=<the name>" to the game's log (`logfile::log_write`). In six menu
-//! tables. Refuses a name past the list. Hook removed 2026-10-22 (typed tables): the menus and
-//! draw lists run its `entry` (`menu::table_calls`); the registers above are the original's,
-//! for reference.
+//! tables. Refuses a name past the list. The menus and draw lists run its `entry`
+//! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::BadInput;
 use crate::framework::{game_addr, rva};

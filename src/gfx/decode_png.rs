@@ -24,10 +24,6 @@
 //! and 6 (the original takes them for one byte a pixel); a width under 2 or a height of 0
 //! (the original counts through all 32 bits); a row filter above 4; data that does not
 //! inflate cleanly; a picture too big for the picture buffer. The name is a reading.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::errors::BadInput;
 use crate::gfx::block::{game_read, game_write};

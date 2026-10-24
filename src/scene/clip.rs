@@ -1,4 +1,4 @@
-//! What the two clipping hooks share: one pass of a polygon against one edge, and the
+//! What the two clipping functions share: one pass of a polygon against one edge, and the
 //! making of a vertex where a side crosses it.
 //!
 //! A pass (`sub_44D9AF`, `sub_44DA78`, `sub_44D81D`, `sub_44D8E6` for the screen's
@@ -210,7 +210,7 @@ pub unsafe fn clip_pass(edge: Edge, inside_past: bool, mask: u32) -> Result<(), 
     }
 }
 
-// ---- for the hooks ----
+// ---- helpers ----
 
 /// Runs `clip`, and if it refuses puts back what it had written by then: a pass that
 /// runs out of entries has changed the polygon.

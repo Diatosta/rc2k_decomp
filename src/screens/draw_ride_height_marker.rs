@@ -3,12 +3,8 @@
 //!
 //! In:  ebx, passed on as the palette at 0 percent or less
 //! Out: eax = the percentage, or 0x12 if nothing was drawn; esi = the address of the item's
-//!      repair flag if that was looked at; everything else preserved
+//! repair flag if that was looked at; everything else preserved
 //! The conditions, the bars and how the screen was confirmed are in `setup_markers.rs`.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::screens::setup_markers::{
     LEFT_X, LOWER_LEFT_CHOSEN_RVA, LOWER_LEFT_INSTALLED_RVA, Marker,

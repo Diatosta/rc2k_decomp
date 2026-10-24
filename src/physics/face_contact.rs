@@ -22,11 +22,8 @@
 //! Out: the registers as the steps and calls leave them (eax's low byte from the face's
 //!      bytes where the original loads `al`); no flags read (the caller goes on)
 //!
-//! Caller: `physics::record_face_contacts`.
-//! Refuses a kind past the 0x4B0 material records, and what its calls refuse.
-//! Self-test (in a race; skipped otherwise): the original and the Rust version on the
-//! stage's own faces (everything written saved and put back), the car where it is and
-//! moved onto each object face's point (so the paths inside are taken), both directions.
+//! Caller: `physics::record_face_contacts`. Refuses a kind past the 0x4B0 material records,
+//! and what its calls refuse.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

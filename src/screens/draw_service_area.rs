@@ -22,10 +22,9 @@
 //! with four sliders; and the inspection status bar. The four big buttons at the bottom
 //! (load setup, save setup, view stage, continue) are labels drawn here too.
 //!
-//! Screen: confirmed by the owner on 2026-10-10 with `blank on screens::draw_service_area`:
-//! the service area of a championship. All text and icons disappeared; the boxes that hold
-//! them stayed, so those are drawn by something else (not ported).
-//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
+//! Screen: confirmed by the owner on 2026-10-10 with `blank on screens::draw_service_area`: the
+//! service area of a championship. All text and icons disappeared; the boxes that hold them stayed,
+//! so those are drawn by something else (not ported). The menus and draw lists run its `entry`
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};

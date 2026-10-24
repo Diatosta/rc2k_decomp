@@ -11,9 +11,6 @@
 //! In:  nothing (no step reads a register its caller gives: register liveness and the Rust
 //!      steps, 2026-10-23; edx's "read" is `fog_table`'s `imul`)
 //! Out: nothing its callers (`race::draw_race_scene`, `race::draw_mirror_view`) read
-//!
-//! Hook removed 2026-10-23 (conversion phase 4); its steps called directly since then
-//! (conversion phase 3, no longer by address).
 
 use crate::errors::Refused;
 use crate::framework::{game_read, game_write, rva};

@@ -4,15 +4,10 @@
 //!
 //! In:  nothing
 //! Out: ecx the count, edi the end entry; esi / eax the last player's record and number
-//!      less 1 (when one was numbered); the rest kept
+//! less 1 (when one was numbered); the rest kept
 //!
-//! Callers: the event drivers. Refuses a table without its end entry or a player past 4
-//! or missing, before anything. Self-test: the original and the Rust version on the
-//! game's table and players, both modes; put back.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Callers: the event drivers. Refuses a table without its end entry or a player past 4 or missing,
+//! before anything.
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_read, rva};
 use crate::menu::standings::*;

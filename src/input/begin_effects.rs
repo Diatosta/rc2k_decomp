@@ -7,9 +7,7 @@
 //! Out: every register kept (`pusha` .. `popa`)
 //!
 //! See `input/effects.rs`. One caller, `input::device_command` (command 3, the race's
-//! start). Its calls through `part`. Shadow mode runs the original alone. Self-test: a
-//! copy whose two variables are the test's and whose calls go to the noting stand-ins
-//! (the clock the test's), against the Rust version, with a count of 0 and not.
+//! start).
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

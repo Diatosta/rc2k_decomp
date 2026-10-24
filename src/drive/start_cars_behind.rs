@@ -22,20 +22,10 @@
 //! In:  nothing
 //! Out: the registers as the path leaves them (through its calls); no flags read
 //!
-//! Caller: `drive::race_mode_cars` (0x436758).
-//! Refuses a start count (`dword_6051B4`) above 0x58 (the start tables' room) or a start
-//! table car past the eight blocks, before anything; the calls' refusals mid-way (the
-//! cars, the starts' variables and the work car put back first; the calls' scratch is
-//! not).
-//! Shadow mode runs the original alone (`drive::start_car_on_line` does, for
-//! `race::reset_car_motion`'s calls into the game).
-//! Self-test: a copy whose 24 calls go to stand-ins (`install::stand_ins`), against the
-//! Rust version with the same stand-ins: every call with its registers, the registers
-//! left and the cars' and starts' memory compared; all put back.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `drive::race_mode_cars` (0x436758). Refuses a start count (`dword_6051B4`) above
+//! 0x58 (the start tables' room) or a start table car past the eight blocks, before
+//! anything; the calls' refusals mid-way (the cars, the starts' variables and the work car
+//! put back first; the calls' scratch is not).
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_read, game_write, rva};

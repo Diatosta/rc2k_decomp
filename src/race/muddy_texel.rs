@@ -10,15 +10,9 @@
 //! Out: nothing its caller reads (conversion phase 3, 2026-10-24: the registers it left
 //!      went; `throw_mud_texel`'s results are read by nobody)
 //!
-//! See `race/mud.rs`. Callers: `race::throw_mud_texel` (twice). Refuses a texture past 3
-//! (the map would be read past its 64 KB) and no mud, before anything; what
-//! `put_mud_texel` refuses (`dword_62400C` put back). Self-test: the original and the Rust
-//! version on test surfaces (16 and 32 bits) and a test mud map, each texture and halving,
-//! places by lot; the surface compared.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! See `race/mud.rs`. Callers: `race::throw_mud_texel` (twice). Refuses a texture past 3 (the
+//! map would be read past its 64 KB) and no mud, before anything; what `put_mud_texel` refuses
+//! (`dword_62400C` put back).
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::rva;

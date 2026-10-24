@@ -7,13 +7,7 @@
 //! counts, each component is the pixel's masked bits rotated right by its count. With the
 //! other kind, each component's bits are picked out of the pixel one at a time from the top
 //! bit down, at most eight of them, and left-aligned in the byte if there are fewer.
-//! Six callers. Manual patch with a private copy (0xBA bytes, nothing to relocate): a
-//! conditional jump sits in the first bytes.
-//! Refuses a null format.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Six callers. Refuses a null format.
 
 use crate::gfx::pixel_format::PixelFormat;
 
@@ -24,5 +18,4 @@ pub fn pixel_to_components(format: &PixelFormat, pixel: u32) -> u32 {
     rc2k_core::gfx::pixels::unpack(format, pixel)
 }
 
-// Written out instead of going through `dispatch_state`, which allocates: this is called per
-// pixel.
+// Written out without allocating: this is called per pixel.

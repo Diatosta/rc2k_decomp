@@ -8,11 +8,9 @@
 //! In:  nothing
 //! Out: every register kept (`pusha` .. `popa`)
 //!
-//! Caller: `sub_473126`. The steps are their Rust versions; the pages through `part`, in
-//! the game their Rust versions. Ungated (the pages wait for the player). Refuses what the
-//! steps refuse.
-//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
-//! (`menu::table_calls`); the registers above are the original's, for reference.
+//! Caller: `sub_473126`. The steps are their Rust versions. Refuses what the steps refuse. The
+//! menus and draw lists run its `entry` (`menu::table_calls`); the registers above are the
+//! original's, for reference.
 
 use crate::errors::Refused;
 use crate::framework::{game_read, game_write, rva};

@@ -4,13 +4,11 @@
 //! In:  nothing
 //! Out: eax as `strings::append_string_by_id` leaves it, ebx = after the NUL
 //!
-//! String 0x56B + `g_yesNoAnswer` (0x56B "não", 0x56C "sim", by the language file) and
-//! a NUL into `g_captionText`, from which `screens::draw_highlighted_caption` draws the
-//! button. In the question screen's draw list (0x758C9E). IDA has not made it a
-//! function.
-//! Refuses a caption longer than its place.
-//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
-//! (`menu::table_calls`); the registers above are the original's, for reference.
+//! String 0x56B + `g_yesNoAnswer` (0x56B "não", 0x56C "sim", by the language file) and a NUL into
+//! `g_captionText`, from which `screens::draw_highlighted_caption` draws the button. In the
+//! question screen's draw list (0x758C9E). IDA has not made it a function. Refuses a caption longer
+//! than its place. The menus and draw lists run its `entry` (`menu::table_calls`); the registers
+//! above are the original's, for reference.
 
 use crate::errors::Refused;
 use crate::framework::{game_addr, game_read, rva};

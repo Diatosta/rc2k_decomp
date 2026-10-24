@@ -13,12 +13,10 @@
 //!
 //! It begins with a call: `.private_copy` (its three calls relocated) with
 //! `.manual_patch`.
-//! Callers: `sub_43B635` (0x43B6F6, 0x43B860, 0x43B8FB), `sub_45D737`, `sub_45D7B6` (twice),
-//! `sub_45E3BF`, `sub_45EFF3`.
-//! Refuses (before anything) more than 0x40 probe points; `probe_ground`'s refusals
-//! mid-way (it puts back what it wrote; `dword_71A6C8` is the original's to write again).
-//! Self-test: in a race only: a copy of the original (its calls the game's) against the
-//! Rust version on the game's own state with the work car's switches by lot; all put back.
+//! Callers: `sub_43B635` (0x43B6F6, 0x43B860, 0x43B8FB), `sub_45D737`, `sub_45D7B6`
+//! (twice), `sub_45E3BF`, `sub_45EFF3`. Refuses (before anything) more than 0x40 probe
+//! points; `probe_ground`'s refusals mid-way (it puts back what it wrote; `dword_71A6C8` is
+//! the original's to write again).
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

@@ -8,18 +8,11 @@
 //! Out: esi = `g_crashMatrix`; the rest kept; no flags read
 //!
 //! Caller: `physics::update_car_angles`.
-//! Self-test: a copy of the original (the matrix, angles and ints the test's, its call to
-//! `matrix_angles`' test copy) on matrices by lot, under three precisions.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
-use crate::framework::{ESI, game_addr, game_read, rva};
+use crate::framework::{game_addr, game_read, rva};
 use crate::math::x87_run::mul3_to_int;
 use crate::physics::matrix_angles::{AnglePlaces, matrix_angles_at};
 use crate::race::stage_prefs::CRASH_MATRIX_RVA;
-use crate::screens::harness::Left;
 
 const INTS_RVA: usize = rva(0x71A998); // dword_71A998 (from D8), 99C (from D4), 9A0 (from DC)
 
@@ -46,8 +39,7 @@ pub unsafe fn car_angles_at(m: u32, p: &AnglePlaces, ints: u32) {
 }
 
 /// The Rust version.
-pub unsafe fn car_angles() -> Left {
+pub unsafe fn car_angles() {
     let m = game_addr(CRASH_MATRIX_RVA) as u32;
     unsafe { car_angles_at(m, &AnglePlaces::game(), game_addr(INTS_RVA) as u32) };
-    Left::nothing().with(ESI, m)
 }

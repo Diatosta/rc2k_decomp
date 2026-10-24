@@ -12,9 +12,6 @@
 //! The nearest, if any, gets +0x24 and +4 1; with a next as well, `math::nearest_on_segment`
 //! of their places and the listener (0, 0, 0) gives the nearest's new place.
 //! Six callers, `sound::merge_spot_voices_all`.
-//! Shadow mode: both (nothing sent), the voices and variables compared.
-//! Self-test: a copy whose call goes to a stand-in (which runs the Rust
-//! `nearest_on_segment`), against the Rust version, on the game's voices (put back).
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

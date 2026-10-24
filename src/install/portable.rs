@@ -1,6 +1,6 @@
 //! The standalone program's installation record in place of the registry (owner, 2026-10-19:
 //! the standalone is portable, a folder that needs nothing outside it; a decided difference
-//! from the original, which the hook DLL keeps).
+//! from the original).
 //!
 //! What the original keeps under `HKEY_LOCAL_MACHINE\SOFTWARE\Magnetic Fields\RC99`
 //! (`install::write_registry`, `install::read_registry`):

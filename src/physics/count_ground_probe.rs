@@ -8,11 +8,7 @@
 //! Out: as `find_ground` leaves them, eax `dword_5CCC78` when found; no flags read (the
 //!      callers compare `g_groundFound`)
 //!
-//! Callers: `sub_438BF4`, `sub_438CEC` (three).
-//! Refuses what `find_ground` refuses. Shadow mode runs the original alone
-//! (its calls then went through `physics/reset_parts.rs`, gone).
-//! Self-test: a copy whose call goes to a stand-in (place 18), against the Rust version
-//! with the same: found or not, the same face or not.
+//! Callers: `sub_438BF4`, `sub_438CEC` (three). Refuses what `find_ground` refuses.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

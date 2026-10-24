@@ -7,9 +7,8 @@
 //! In:  nothing
 //! Out: eax, ebx and what `split_by_mode` leaves; no flags read
 //!
-//! Caller: `physics::race_timers`.
-//! Refuses (before anything) a split past 0x3F, and what `split_by_mode` refuses.
-//! Self-test: `physics/splits.rs` (`test_splits`).
+//! Caller: `physics::race_timers`. Refuses (before anything) a split past 0x3F, and what
+//! `split_by_mode` refuses.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

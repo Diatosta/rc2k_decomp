@@ -9,10 +9,6 @@
 //! written. 14 callers, most of them in the installer.
 //! Refuses a path of 0xF8 bytes or more, and a current directory that does not fit the
 //! 0xFF bytes asked with.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::errors::BadInput;
 use crate::strings::same_text::case_table;

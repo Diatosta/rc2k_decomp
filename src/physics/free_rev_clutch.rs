@@ -4,10 +4,8 @@
 //! In:  nothing
 //! Out: ebx the gear (`wheels_from_revs`), and what `free_rev` leaves; no flags read
 //!
-//! Caller: `sub_43B635` (0x43B7B7), every physics step.
-//! Refuses (before anything) a gear outside -1 ..= 7.
-//! Self-test: `physics::engine_torque`'s (`test_engine_floats`), the converted version,
-//! with the clutch word set.
+//! Caller: `sub_43B635` (0x43B7B7), every physics step. Refuses (before anything) a gear
+//! outside -1 ..= 7.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

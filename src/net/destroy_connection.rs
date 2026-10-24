@@ -9,7 +9,7 @@
 //!      read by no caller: `lq -s 0x4187EE`)
 //!
 //! See `net/mod.rs`. Two callers: `net::stop` and `net::system_message` (0x31). DirectPlay's
-//! four from Rust (section 15). Refuses what `net::free_messages` refuses.
+//! four from Rust . Refuses what `net::free_messages` refuses.
 
 use crate::errors::Refused;
 use crate::logfile::log_write::log_write;

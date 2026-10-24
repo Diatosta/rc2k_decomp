@@ -13,13 +13,6 @@
 //!
 //! In:  nothing
 //! Out: nothing (the original keeps every register: `pusha` .. `popa`)
-//! Its calls through `part` (the frames through the game). The whole screen runs inside it:
-//! ungated. Shadow mode runs the original alone. Self-test: a copy whose calls go to
-//! stand-ins (the keys scripted, Escape at the end), against the Rust version.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::errors::Refused;
 use crate::net::lobby::{

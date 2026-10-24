@@ -5,10 +5,8 @@
 //! In:  cl the bit (ecx passed on)
 //! Out: eax 1 << cl, or as `fill_race_slot` leaves them; no flags read
 //!
-//! Callers: `physics::drop_broken_parts` (seven), `sub_4410C8` (four).
-//! Refuses what `fill_race_slot` refuses (before anything: the bit is cleared after).
-//! Self-test: the original and the Rust version on the game's variables (saved and put
-//! back): bits set and clear, cars 0 .. 7.
+//! Callers: `physics::drop_broken_parts` (seven), `sub_4410C8` (four). Refuses what
+//! `fill_race_slot` refuses (before anything: the bit is cleared after).
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

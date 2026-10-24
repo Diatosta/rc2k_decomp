@@ -17,9 +17,6 @@
 //! constants). One caller, `sound::car_sounds`.
 //! Refuses a null object or request, a surface past the 16 of `dword_51655C` and a set
 //! past the seven pairs: what was written is put back (a sound already sent stays).
-//! Shadow mode runs the original alone (it sends sounds).
-//! Self-test: a copy whose two calls go to a stand-in, against the Rust version, on an
-//! object of the test's.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

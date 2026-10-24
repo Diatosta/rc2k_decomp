@@ -7,14 +7,8 @@
 //!
 //! In:  ebx the state, edi the list
 //! Out: eax and what the callees leave; the flags of the hide loop (no caller reads them)
-//! A page action. Caller `install::run_page`. Its two calls through `part`. Ungated
-//! (loading the language reads files and compiles). Shadow mode runs the original alone.
-//! Self-test: a copy whose two calls go to stand-ins, against the Rust version, every
-//! state and language count.
+//! A page action. Caller `install::run_page`.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 //! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
 //! are the original's.
 

@@ -6,12 +6,7 @@
 //! In:  nothing
 //! Out: nothing its caller reads (conversion phase 3, 2026-10-24)
 //!
-//! Caller: `race::loading_bar_frame`. The quad its Rust version. Shadow mode runs the original alone (it draws). Self-test: a copy whose quad
-//! goes to a stand-in, against the Rust version, shares by lot.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `race::loading_bar_frame`. The quad its Rust version.
 
 use crate::errors::Refused;
 use crate::framework::{game_read, game_write, rva};

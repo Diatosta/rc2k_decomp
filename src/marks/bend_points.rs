@@ -9,12 +9,7 @@
 //! Out: nothing (no caller reads the registers it leaves)
 //!
 //! Caller: `sub_4BA16C`. Refuses (before anything) a point number of 0x80 or more and a
-//! count above 0x80. Self-test: a record of the test's (`TestSpline`), several points,
-//! counts and switches; compared on all it writes and the registers.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! count above 0x80.
 
 use crate::errors::{BadInput, Refused};
 use crate::marks::blend_points::blend_points;

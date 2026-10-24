@@ -2,19 +2,12 @@
 //!
 //! In:  edi = the menu
 //! Out: every register preserved
-//! It goes through the menu's items (0x5C bytes each after a 4-byte head, ended by -1) until
-//! one's type (+0x10) is the highlighted item `dword_755525`. For that one it stores the
-//! item's dword at +0x54 in `dword_755A38`, calls the item's action (+0x44) with that value
-//! in eax and the item in ebp, and then sets `dword_755525` to the item's type again,
-//! whatever the action did to it. No item is found: nothing happens.
-//! The first item is looked at without being checked for the end mark.
-//! The action is the game's and can run for as long as an event lasts, so the thunk is not
-//! gated and shadow mode runs the original alone. 89 callers: every screen loop.
-//! Refuses a menu without an end in its first 256 items.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! It goes through the menu's items (0x5C bytes each after a 4-byte head, ended by -1) until one's
+//! type (+0x10) is the highlighted item `dword_755525`. For that one it stores the item's dword at
+//! +0x54 in `dword_755A38`, calls the item's action (+0x44) with that value in eax and the item in
+//! ebp, and then sets `dword_755525` to the item's type again, whatever the action did to it. No
+//! item is found: nothing happens. The first item is looked at without being checked for the end
+//! mark. Refuses a menu without an end in its first 256 items.
 
 use crate::framework::{game_read, game_write, rva};
 use crate::menu::item_at::{ITEM_LEN, MENU_HEAD_LEN};

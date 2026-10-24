@@ -412,5 +412,3 @@ pub unsafe fn make_shape_sets() -> Result<(), Refused> {
     }
     Ok(())
 }
-
-// ---- for the self-tests ----

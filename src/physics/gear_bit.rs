@@ -7,16 +7,9 @@
 //! Out: eax = ecx + 1, CF the bit; ZF as before (no caller reads it); the rest kept
 //!
 //! Callers (10): the gearbox under `sub_4454D2` (`sub_43C20D`, `sub_43C2AE` twice,
-//! `sub_43C58E`, `sub_43C5A0`, `sub_43C5C2` twice, `sub_43C8AC`, `sub_4651B5`, unowned
-//! code at 0x43C9AE).
-//! Refuses a bit outside 0 ..= 31 (past the dword; the original reads on along the copy).
-//! Shadow mode: `physics/flag_result.rs`.
-//! Self-test: a copy of the original on a test dword, every gear from -1 to 30 with
-//! several bit patterns; the refusal.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! `sub_43C58E`, `sub_43C5A0`, `sub_43C5C2` twice, `sub_43C8AC`, `sub_4651B5`, unowned code
+//! at 0x43C9AE). Refuses a bit outside 0 ..= 31 (past the dword; the original reads on
+//! along the copy).
 
 use crate::errors::Refused;
 use crate::framework::{game_addr, rva};

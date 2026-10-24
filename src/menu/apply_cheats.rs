@@ -15,17 +15,9 @@
 //! - bits 17 and 18 stay set and store 1 in `dword_75ACCC` (the A8 game; the reversed
 //!   tracks).
 //!
-//! Callers: `system::load_game_data` with the bits 0x1FBC (when the setting
-//! `allsecretcars` is 1) and `sub_480CBF`, which finds a cheat's name typed as the fourth
-//! player's name.
-//! Shadow mode: the original first, then the Rust version without the log lines on the
-//! variables put back, compared. Self-test: a redirected copy whose log calls note the
-//! text, on lists of the test's in the game's places.
-//! Refuses a list without its end, or without room for a car more.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Callers: `system::load_game_data` with the bits 0x1FBC (when the setting `allsecretcars` is 1)
+//! and `sub_480CBF`, which finds a cheat's name typed as the fourth player's name. Refuses a list
+//! without its end, or without room for a car more.
 
 use crate::errors::BadInput;
 use crate::framework::{game_addr, game_read, game_write, rva};

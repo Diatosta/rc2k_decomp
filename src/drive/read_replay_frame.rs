@@ -10,15 +10,8 @@
 //! In:  eax the frame, ebx the tenth
 //! Out: CF set when not playing or the seek or read failed; every register kept
 //!
-//! Callers: `drive::read_replay_frame_0`, `sub_41DE81` (four), `sub_41E224`.
-//! Refuses what `read_packed` refuses.
-//! Self-test: the original and the Rust version with a test replay file (the temp
-//! folder; `h` and the frame tables pointed at it, saved and put back): not playing,
-//! frames plain and packed, the last frame.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Callers: `drive::read_replay_frame_0`, `sub_41DE81` (four), `sub_41E224`. Refuses what
+//! `read_packed` refuses.
 
 use crate::errors::{FatalError, Refused};
 use crate::physics::flow::{a, g, p};

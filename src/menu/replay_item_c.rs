@@ -5,9 +5,8 @@
 //! In:  nothing
 //! Out: the registers as `replay_mode_2` leaves them
 //!
-//! An item action in the review menus' tables (0x74E5CC ..).
-//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
-//! (`menu::table_calls`); the registers above are the original's, for reference.
+//! An item action in the review menus' tables (0x74E5CC ..). The menus and draw lists run its
+//! `entry` (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
 use crate::menu::screen_loop::Carried;

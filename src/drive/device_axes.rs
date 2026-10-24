@@ -6,14 +6,7 @@
 //! In:  esi the device
 //! Out: eax, ebx, ecx, edx the readings; esi kept; no flags read
 //!
-//! Caller: `drive::car_input_words`.
-//! Refuses a device past 7 or a null one.
-//! Self-test: the original and the Rust version on a test device (`g_inputDevices[0]`
-//! pointed at it), readings by lot, the curve on and off.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `drive::car_input_words`. Refuses a device past 7 or a null one.
 
 use crate::errors::{BadInput, Refused};
 use crate::input::store::DeviceSlot;

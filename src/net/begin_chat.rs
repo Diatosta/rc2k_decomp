@@ -5,12 +5,7 @@
 //! In:  nothing
 //! Out: eax = the item, ebx = the input, ecx = 0x30C, edx = `dword_51E424`'s address; no
 //!      `pusha`
-//! Caller: `net::lobby_loop`. Its call through `part`. Shadow mode runs the original alone.
-//! Self-test: a copy whose call goes to a stand-in, against the Rust version.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `net::lobby_loop`.
 
 use crate::net::lobby::{CHAT_INPUT, CHOICE, a, g, pb};
 

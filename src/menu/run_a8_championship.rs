@@ -13,13 +13,8 @@
 //! Out: every register as `menu::show_in_game_options` leaves the entry's (all kept)
 //!
 //! Callers: `saves::load_savegame` (`dword_7556D0` 0x13) and the five starters
-//! (`menu::start_a8_*`). Ungated (a whole event). Refuses what its callees refuse, when
-//! they are reached (the original then runs from the start). Shadow mode runs the
-//! original alone. Self-test: `run_championship::test_event`.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! (`menu::start_a8_*`). Refuses what its callees refuse, when they are
+//! reached.
 
 use crate::errors::Refused;
 use crate::menu::run_championship::run_event;

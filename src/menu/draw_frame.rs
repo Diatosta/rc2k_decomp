@@ -4,11 +4,9 @@
 //! In:  edi = the menu; ebx, ecx as they come (`draw_menu` uses them)
 //! Out: every register preserved
 //! Makes the menu the current one (`dword_75558D`). Unless the game is quitting:
-//! `copy_picture_to_surface` (the background), lock the surface, and if that worked
-//! `draw_menu`, `run_draw_list` and unlock.
-//! 89 callers, the screen loops.
-//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
-//! `routes.rs`); the registers above are the original's, for reference.
+//! `copy_picture_to_surface` (the background), lock the surface, and if that worked `draw_menu`,
+//! `run_draw_list` and unlock. 89 callers, the screen loops. Rust callers run its `entry`
+//! (`routes.rs`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
 use crate::framework::game_write;

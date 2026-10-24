@@ -9,14 +9,7 @@
 //! In:  (stdcall) the `DIEFFECTINFOA`, the context (the device's record)
 //! Out: eax = 1; ebx, esi, edi, ebp kept; `ret 8`
 //!
-//! Caller: DirectInput, from `input::begin_force`. Shadow mode runs the original alone.
-//! Self-test: the original and the Rust version called with the eleven standard effects in
-//! turn, as `EnumEffects` lists them, on a copy of the first device's record whose effects
-//! have found nothing, their wanted GUID, or another one.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: DirectInput, from `input::begin_force`.
 
 use crate::field;
 use crate::input::devices::{at, put};
@@ -24,7 +17,7 @@ use crate::input::di_harness::{EFFECT_LEN, EFFECTS_AT};
 use crate::input::types::{DiEffectInfo, ForceEffect};
 
 /// The Rust version: eax.
-/// `effect_found` as DirectInput calls it: what Rust callers hand `EnumEffects` (no hook).
+/// `effect_found` as DirectInput calls it: what Rust callers hand `EnumEffects`.
 pub unsafe extern "system" fn callback(info: u32, record: u32) -> u32 {
     effect_found(info, record)
 }

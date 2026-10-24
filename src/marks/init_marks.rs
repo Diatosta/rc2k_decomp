@@ -6,17 +6,10 @@
 //!      step)
 //! Out: nothing (no caller reads the registers it leaves)
 //!
-//! One caller, init mark's end (0x457030). Shadow mode runs the original alone (its steps
-//! take memory and read files). Refuses (section 15) no settings, and a kind (the
-//! settings' +0x26A8, which step 1 makes `g_marksKind`) of 0x22 or more (the kinds'
-//! tables); both before anything. Kinds 0x17 .. 0x21 are past `g_marksKindFloatTable`'s
-//! 0x17 entries: fixed (section 16, 2026-10-23), they get 18240.0. Self-test: a redirected copy whose 30 calls go to
-//! stand-ins noting every register, against the Rust version on the same stand-ins
-//! (settings of the test's; three kinds and two screen sizes); put back afterwards.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! One caller, init mark's end (0x457030). Refuses no settings, and a kind (the settings'
+//! +0x26A8, which step 1 makes `g_marksKind`) of 0x22 or more (the kinds' tables); both
+//! before anything. Kinds 0x17 .. 0x21 are past `g_marksKindFloatTable`'s 0x17 entries:
+//! fixed (section 16, 2026-10-23), they get 18240.0.
 
 use crate::errors::{BadInput, Refused};
 use crate::marks::store::{Slot, game_addr, game_read, game_write};

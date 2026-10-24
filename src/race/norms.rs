@@ -146,5 +146,3 @@ pub unsafe fn store_norms(normal: &mut dyn FnMut(u32, u32, u32)) -> Result<(), R
 pub fn game_normal(a: u32, b: u32, c: u32) {
     unsafe { face_normal(a, b, c) };
 }
-
-// ---- for the self-tests ----

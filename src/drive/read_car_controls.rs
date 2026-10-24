@@ -18,13 +18,6 @@
 //!
 //! Callers: race init's loop (`sub_4608BB`), `sub_460835`, `sub_460B2F`, `sub_43A1CA`.
 //! Refuses what `drive_computer_car` refuses (before anything).
-//! Self-test: in a race only: a copy of the original (its calls the game's) against the
-//! Rust version on the game's state, keys and switches by lot; everything written saved
-//! and put back.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::drive::drive_computer_car::drive_computer_car;
 use crate::drive::next_camera_view::next_camera_view;

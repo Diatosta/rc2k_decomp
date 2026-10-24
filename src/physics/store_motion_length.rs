@@ -8,13 +8,6 @@
 //!
 //! Callers (2): `sub_43B635` (0x43B644, 0x43B94D), the car's physics step under
 //! `sub_4454D2`.
-//! Self-test: a copy of the original on test variables (its call to the
-//! `vector_length` hook kept) against the converted version, vectors by lot, exact at
-//! double precision.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::framework::{game_addr, rva};
 use crate::physics::vector_length::vector_length;

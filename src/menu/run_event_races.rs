@@ -23,19 +23,11 @@
 //!
 //! In:  nothing
 //! Out: no `pusha`: eax, ecx, edx, ebx, esi and edi as the original leaves them (see
-//!      `run_event_races`)
+//! `run_event_races`)
 //!
-//! Callers: the event drivers. The steps are their Rust versions; the races and the front
-//! end through `part`, in the game their Rust versions. Ungated (the races). Refuses fewer
-//! than 0xB2 drivers or fewer than four still running among them (the drop-out loop would
-//! run on), a missing player for the mode, and what the steps refuse, before anything.
-//! Shadow mode runs the original alone (it runs races, and logs). Self-test:
-//! a copy whose races and front-end call go to stand-ins, against the Rust version,
-//! by mode and result; put back.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Callers: the event drivers. The steps are their Rust versions. Refuses fewer than 0xB2 drivers
+//! or fewer than four still running among them (the drop-out loop would run on), a missing player
+//! for the mode, and what the steps refuse, before anything.
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_addr, game_read, game_write, rva};
@@ -57,8 +49,7 @@ const RESULT_2_RVA: usize = rva(0x75B098); // dword_75B098
 const RACE_KEPT_RVA: usize = rva(0x75ACE4); // dword_75ACE4
 
 /// The game for `rc2k_core::menu::event_races`: the variables at their addresses, the
-/// steps' Rust versions on the registers carried through (`g`), the race and the front end
-/// through `part`.
+/// steps' Rust versions on the registers carried through (`g`), the race and the front end.
 struct Game<'a> {
     g: &'a mut Flow,
     first: u32,

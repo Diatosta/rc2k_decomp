@@ -7,13 +7,6 @@
 //! See `audio/mixer.rs`; `sub_40C087`, `sub_40C0E0`, `sub_40C153` (the three formats)
 //! inlined. Refuses sixteen bits with a right sample that clips (the original loops for
 //! ever there: section 16).
-//! Compared in shadow mode (the two parts). Self-test: a redirected copy (0x40C03A ..
-//! 0x40C18C with the three) whose mode, buffer and parts are the test's, 4 formats x 2
-//! splits x 4 loudnesses (the loudest not for sixteen bits).
-//!
-//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::audio::fill_buffer::LOCKED_PARTS_RVA;
 use crate::audio::mixer::*;

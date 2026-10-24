@@ -4,10 +4,9 @@
 //! In:  nothing
 //! Out: as `draw_string_by_id` leaves them
 //!
-//! In the draw list 0x758C52 of `menu::unused_cspecs_loop` (0x4AA1A3), which nothing reaches
-//! (no code or data refers to it, 2026-10-20). Hook removed 2026-10-22 (typed tables): the
-//! menus and draw lists run its `entry` (`menu::table_calls`); the registers above are the
-//! original's, for reference.
+//! In the draw list 0x758C52 of `menu::unused_cspecs_loop` (0x4AA1A3), which nothing reaches (no
+//! code or data refers to it, 2026-10-20). The menus and draw lists run its `entry`
+//! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
 use crate::text::draw_text::Canvas;

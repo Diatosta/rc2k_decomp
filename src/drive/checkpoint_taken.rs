@@ -8,13 +8,7 @@
 //!
 //! A `js` is in its first five bytes: `.private_copy` (its four calls relocated) with
 //! `.manual_patch`.
-//! Caller: `sub_43703E` (0x4371A1, 0x437284). Shadow mode: `physics/flag_result.rs`.
-//! Self-test: a copy of the original (its four blocks and the count the test's, its
-//! calls to `car_near_checkpoint` kept) against the Rust core, 60 cases.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `sub_43703E` (0x4371A1, 0x437284).
 
 use crate::drive::car_near_checkpoint::near_at;
 use crate::framework::{game_addr, game_read, rva};

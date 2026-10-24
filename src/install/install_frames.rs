@@ -18,16 +18,10 @@
 //!      the lock that failed)
 //!
 //! Every call by `at(..)`: the image is elsewhere in the standalone (a bare IDA address
-//! there faulted, 2026-10-20). Callers: `screens::run_frame` from `install_files` (0x41318D, 0x413248, 0x413255). Their
-//! calls through `part` (the installer's `game_part`); the percentage text written here.
+//! there faulted, 2026-10-20). Callers: `screens::run_frame` from `install_files` (0x41318D, 0x413248, 0x413255).
 //! Refuses (before anything) no files to copy, and a bar width past 32 bits (the original's
-//! `div` faults). `call $+5` at +0: private copies, manual patches. Shadow mode runs the
-//! original alone. Self-test: copies whose calls go to stand-ins (the percentage's run for
-//! real), against the Rust version: the lock failing or not, three counts.
+//! `div` faults).
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 //! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
 //! are the original's.
 

@@ -1,7 +1,6 @@
 //! The game's 3 x 3 matrix helpers at 0x46574E .. 0x46587C (IDA, 2026-10-16), used by the
-//! marks: floats, rows of 12 bytes. The three that make a turn (0x465783, 0x4657A6,
-//! 0x4657C9) take their angle in st(0) and pop it: their hooks use `angle_hook!`, whose
-//! thunk keeps the angle (80 bits) for the Rust version and loads it again for the original.
+//! marks: floats, rows of 12 bytes. The three that make a turn (0x465783, 0x4657A6, 0x4657C9)
+//! take their angle in st(0) and pop it.
 
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;

@@ -6,18 +6,10 @@
 //!
 //! In:  nothing
 //! Out: eax the key (0 for none); with the last key again ebx `dword_51D41F` and ecx
-//!      `dword_51D423 + 6`; the flags of `test al, al` (no caller reads them)
+//! `dword_51D423 + 6`; the flags of `test al, al` (no caller reads them)
 //!
-//! Callers: `race::replay_viewer`, `sub_4144CF`, `sub_4168CF`, `sub_4174C5`,
-//! `sub_417726`, `sub_417A0D`. Its two calls through `part`: 1 `input::take_key`, 2
-//! `system::sleep` (eax ms); in the game their Rust versions. Shadow mode: the original
-//! first on the real key, the Rust version on the same key replayed. Self-test: a copy
-//! whose two calls go to stand-ins (the key given), against the Rust version: no key, a
-//! new key, the last key again with the clocks either side of the sign.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Callers: `race::replay_viewer`, `sub_4144CF`, `sub_4168CF`, `sub_4174C5`, `sub_417726`,
+//! `sub_417A0D`.
 
 use crate::race::viewer::{FRAME_CLOCK, LAST_KEY, MOVE_CLOCK, REPEATS, gb, get, pb, put};
 

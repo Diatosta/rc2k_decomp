@@ -12,7 +12,7 @@
 //!
 //! In:  nothing in registers; it works from the selection (`draw_stage_records::selection`)
 //! Out: carry as `draw_stage_records` leaves it, or clear if the record rows are skipped;
-//!      every register preserved
+//! every register preserved
 //! Reached through the draw lists at 0x758CF6 (screen loop `sub_48EC30`, a menu entry) and
 //! 0x758E9E (screen loop `sub_482099`, six callers).
 //!
@@ -21,9 +21,8 @@
 //! Etapa"), whose two titles sit in menu boxes. Which of the two screen loops that was is not
 //! known.
 //!
-//! The record rows come from one of two best-time tables and are skipped while a table is
-//! missing (see `stage_panel::draw_records_for_group`).
-//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
+//! The record rows come from one of two best-time tables and are skipped while a table is missing
+//! (see `stage_panel::draw_records_for_group`). The menus and draw lists run its `entry`
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};

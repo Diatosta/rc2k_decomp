@@ -1,6 +1,3 @@
-//! What the callers of `gfx::build_glyphs` do around it, as Rust functions, and the calls
-//! they make as a trait, so that a self-test can stand in for them.
-//!
 //! `begin_glyph_tables` is `sub_412014` (0x412014), `begin_glyph_table` `sub_411FEC`
 //! (0x411FEC), `end_glyph_tables` `sub_412077` (0x412077), `palette_to_pixels`
 //! `sub_411FC8` (0x411FC8) with `sub_405E02` under it, `alpha_palette` `sub_412528`

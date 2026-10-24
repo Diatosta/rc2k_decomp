@@ -8,22 +8,13 @@
 //! In:  nothing
 //! Out: every register kept; no flags read (the caller returns)
 //!
-//! Caller: `sub_441324` (its tail).
-//! Refuses (before anything) a null sound object.
-//! Self-test: the original and the converted version on the game's variables (the place,
-//! the view matrix and the object table saved and put back) with a test object, exact at
-//! double precision, the place within `FLOAT` at extended.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `sub_441324` (its tail). Refuses (before anything) a null sound object.
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::rva;
 use crate::math::x87_run::{ext_times, ints_diff_80};
 use crate::scene::matrix3::rounded;
 use crate::scene::rotate_point::rotate_point;
-use crate::screens::harness::Left;
 use crate::sound::store::ObjectsSlot;
 use crate::store::game_addr;
 
@@ -43,7 +34,7 @@ fn object() -> u32 {
 }
 
 /// The exact x87 version (for `physics::sound_on_bit`).
-pub unsafe fn place_car_sound() -> Result<Left, Refused> {
+pub unsafe fn place_car_sound() -> Result<(), Refused> {
     let o = object();
     if o == 0 {
         return Err(BadInput("a null sound object").into());
@@ -63,5 +54,5 @@ pub unsafe fn place_car_sound() -> Result<Left, Refused> {
         }
         put(o + 0x10, 1);
     }
-    Ok(Left::nothing())
+    Ok(())
 }

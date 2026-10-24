@@ -2,11 +2,9 @@
 //! (0x445047), `drive::tyre_screen` (0x41C5FA), `drive::tyre_screen_parts` (0x41C790),
 //! `drive::tyre_turned_quad` (0x41C969), `drive::tyre_quad` (0x41DD3B). Their calls by
 //! place: 0 `d3d::set_texture` (0x41ACF5), 1 `d3d::set_render_state` (0x41AB5B), 2
-//! `tyre_quad`, 3 `tyre_turned_quad`, 4 `tyre_screen_parts`, 5 the device's
-//! DrawPrimitive (`sub_41ADE1`: platform, a call into the game), 6 `tyre_screen`. In the
-//! game the Rust versions and the game's three; in the self-tests copies whose calls go
-//! to stand-ins noting them (with the vertices for 5), against the Rust versions with the
-//! same.
+//! `tyre_quad`, 3 `tyre_turned_quad`, 4 `tyre_screen_parts`, 5 the device's DrawPrimitive
+//! (`sub_41ADE1`: platform, a call into the game), 6 `tyre_screen`. In the game the Rust
+//! versions and the game's three.
 //!
 //! This file: the places, the quads' shared steps and the tests' frame.
 

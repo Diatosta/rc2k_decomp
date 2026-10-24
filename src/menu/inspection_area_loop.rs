@@ -2,26 +2,14 @@
 //!
 //! In:  nothing
 //! Out: every register preserved
-//! The loop itself is `menu::screen_loop`; this file says what is this screen's own
-//! (`SCREEN`), as extracted from the disassembly: background `service.png` through
-//! `menu::load_background` (carry afterwards = fatal error 0x80712345); leaving is asked about.
-//! A reading from the title string of its menu, not yet a visit: "ÁREA DE INSPECÇÃO".
-//! Its frames after the first run with the callback `sub_46D019` instead of
-//! `menu::frame_callback`: the only screen loop with two (the first build missed it and the
-//! self-test caught it, 64 of 68 cases, 2026-10-11).
-//! Callers: `sub_48E093`, `sub_4A15E3`, `4A1EC7`, `sub_4A8556`. Ungated thunk; shadow mode runs
-//! the original alone; each real call
-//! writes a line to hook.log. Self-test: `screen_loop::check_screen`.
-//! Manual patch with a private copy (0x2AF bytes; 10 calls and 1 jump to a fatal-error stub
-//! relocated): a call or a
-//! jump target sits in the first bytes.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! The loop itself is `menu::screen_loop`; this file says what is this screen's own (`SCREEN`), as
+//! extracted from the disassembly: background `service.png` through `menu::load_background` (carry
+//! afterwards = fatal error 0x80712345); leaving is asked about. A reading from the title string of
+//! its menu, not yet a visit: "ÁREA DE INSPECÇÃO".
+//! Callers: `sub_48E093`, `sub_4A15E3`, `4A1EC7`, `sub_4A8556`.
 
 use crate::framework::rva;
-use crate::menu::screen_loop::{List, Screen, Step};
+use crate::menu::screen_loop::{Callee, List, Screen, Step};
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
@@ -54,8 +42,8 @@ pub const SCREEN: Screen = Screen {
     after_lists: &[],
     background: &[
         Step::ArgAddr(rva(0x7325F8)),
-        Step::Call(rva(0x411863)),
-        Step::CallOrFatal(rva(0x406126), 0x80712345),
+        Step::Call(Callee::LoadPicture),
+        Step::CallOrFatal(Callee::ConvertPicture, 0x80712345),
     ],
     after_first_frame: &[],
     confirm: Some(&[]),

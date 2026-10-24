@@ -2,10 +2,9 @@
 //! not platform. The panel's fields at 0x6D14xx are a reading.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{EAX, ECX, EDI, rva};
+use crate::framework::rva;
 use crate::race::frame::VIEW_BLOCKS;
 use crate::race::objects::{CAR_BLOCKS_RVA, CARS_RVA};
-use crate::screens::harness::Left;
 use crate::session::MACHINE;
 use crate::session::SCREEN;
 use crate::sound::store::ObjectsSlot;
@@ -298,7 +297,7 @@ unsafe fn panel_half(b: u32, first: bool) {
     }
 }
 
-/// `race::panel_values` (0x45AB5A), converted (the hook's and `set_up_panel`'s; the
+/// `race::panel_values` (0x45AB5A), converted (`set_up_panel`'s too; the
 /// exact x87 version went once its one Rust caller converted): both view blocks' values
 /// into the panel (see `panel_half`).
 // Converted: `rc2k_core::race::panel::{shown_whole, travelled, distance_shown}`.
@@ -433,7 +432,7 @@ const HALF_RVA: usize = rva(0x5C5E40); // flt_5C5E40 (0.5)
 const ONE_OVER_65536_RVA: usize = rva(0x5C5DA0); // flt_5C5DA0
 const SIXTY_FIVE_K_RVA: usize = rva(0x5C5D98); // flt_5C5D98 (65536.0)
 
-/// `race::panel_motion` (0x45AE1D), converted (the hook's and `set_up_panel`'s): for
+/// `race::panel_motion` (0x45AE1D), converted (`set_up_panel`'s too): for
 /// each view block, +0xAE8 and +0xAEC x 0.5 / 65536 (floats) and the heading,
 /// (-(+0x9C0)) >> 14 x pi x 0.5 / 65536, into the panel (`flt_6D1432`.. for the first,
 /// `flt_6D145A`.. for the second); then `dword_62400C` = `g_sceneClock` - `dword_62290C` -
@@ -2022,19 +2021,14 @@ pub unsafe fn draw_sky() -> Result<(), Refused> {
 pub const REFLECTIONS_KEPT_RVA: usize = rva(0x63D9B8); // g_reflectionsKept
 
 /// `race::start_kept_reflections` (0x451864): the 0x400 kept reflection normals cleared to
-/// -999 (0xFFFFFC19) and `g_reflectionsKept` 1. (It leaves eax -999, ecx 0 and edi past
-/// them: `race::draw_car_shined` takes them, as the original's registers, for its drawing.)
-pub unsafe fn start_kept_reflections() -> Left {
+/// -999 (0xFFFFFC19) and `g_reflectionsKept` 1.
+pub unsafe fn start_kept_reflections() {
     unsafe {
         let at = g(0x6399B8);
         for k in 0..0x400 {
             put(at + 4 * k, 0xFFFF_FC19);
         }
         game_write(REFLECTIONS_KEPT_RVA, 1u32);
-        Left::nothing()
-            .with(EAX, 0xFFFF_FC19)
-            .with(ECX, 0)
-            .with(EDI, at + 0x1000)
     }
 }
 
@@ -2345,8 +2339,7 @@ unsafe fn light_pair(b: u32, record: u32, at: u32, left: u32, right: u32) {
     }
 }
 
-/// `race::car_light_flares` (0x457036): car block `b`'s (esi) lights as flares (see the
-/// hook's header). Refuses (before anything) a flare list or depth
+/// `race::car_light_flares` (0x457036): car block `b`'s (esi) lights as flares. Refuses (before anything) a flare list or depth
 /// list without room for the 24 flares a car can give.
 pub unsafe fn car_light_flares(b: u32) -> Result<(), Refused> {
     unsafe {

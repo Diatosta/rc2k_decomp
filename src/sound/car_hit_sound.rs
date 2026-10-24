@@ -10,9 +10,6 @@
 //! One caller, `sound::car_sounds`.
 //! Refuses (before anything) a null object or request and a sound past the sample
 //! records.
-//! Shadow mode runs the original alone (it sends a sound).
-//! Self-test: a copy whose calls go to stand-ins (the one of `sample_settings` left),
-//! against the Rust version, on an object of the test's, real samples.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

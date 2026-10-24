@@ -10,11 +10,8 @@
 //! In:  nothing
 //! Out: as the last call leaves them
 //!
-//! Caller: `sub_4547AE` (0x454786). The window is its Rust version; the rest through
-//! `part` (1 / 4 the depth buffer off / on, 2 the states, 3 the HUD, 5 the render state,
-//! 6 the strips, 7 the filters), in the game their Rust versions.
-//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
-//! `routes.rs`); the registers above are the original's, for reference.
+//! Caller: `sub_4547AE` (0x454786). The registers above are the original's, for reference; a
+//! call by address goes through `routes.rs`.
 
 use crate::errors::Refused;
 use crate::framework::rva;

@@ -13,8 +13,6 @@
 //! `system::sleep`, `audio::play_primary`; `g_openedSoundMode` the mode, "SAM: OK". Either
 //! way `system::restore_window` last (its flags kept around it). Callers: the audio thread's
 //! start (the menus' mode), `audio::take_commands` (command 5).
-//! Hook removed 2026-10-22; route 2026-10-23. Plain since 2026-10-23 (phase 3): its argument
-//! is what it reads; the registers above are the original's, for reference.
 
 use crate::errors::Refused;
 use crate::framework::rva;

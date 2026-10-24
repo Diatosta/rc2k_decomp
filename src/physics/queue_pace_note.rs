@@ -15,12 +15,9 @@
 //! Caller: `physics::pace_notes_step` (inside `pusha` / `popa`). Its calls by place (this
 //! file's `pace_part`): 0 `logfile::log_write_l1`, 1 `logfile::log_int_l1`, 2
 //! `logfile::log_int_l1_nl`, 3 `physics::cue_listed_car_sound_last`, 4
-//! `physics::queue_listed_event`, 5 this function, 6 `physics::expire_car_events`.
-//! Refuses (before anything) more than 0x400 groups (the scan reads past `dword_619E18`)
-//! and a text place past the 0x4000 bytes (read past the text; checked at each code).
-//! Shadow mode runs the original alone (sound cues and car events must not be queued
-//! twice). Self-test: a copy whose calls go to stand-ins that note them, against the Rust
-//! version with the same, on groups of the test's in the game's tables (put back).
+//! `physics::queue_listed_event`, 5 this function, 6 `physics::expire_car_events`. Refuses
+//! (before anything) more than 0x400 groups (the scan reads past `dword_619E18`) and a text
+//! place past the 0x4000 bytes (read past the text; checked at each code).
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

@@ -2,13 +2,6 @@
 //!
 //! In:  ebp the HUD's record
 //! Out: as `draw_needle` leaves them
-//!
-//! The shape through `part` (1), in the game its Rust version. Shadow mode runs the
-//! original alone (it draws). Self-test: `hud::dials::test`.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::hud::dials::{From, Setup};
 use crate::hud::store::Slot;

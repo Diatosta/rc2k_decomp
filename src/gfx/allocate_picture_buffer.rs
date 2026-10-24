@@ -7,8 +7,6 @@
 //! (0x4F49DC). A failed allocation would be fatal error 0x80A19090, but the allocator
 //! reports its own and does not come back. One caller, `start`. `sub_4060B7`, after it
 //! in the listing, gives the memory back at the game's end.
-//! Shadow mode runs the original alone (memory is taken).
-//! Self-test: a redirected copy whose three variables are the test's.
 
 use crate::errors::Refused;
 use crate::gfx::picture_store::Slot as PicSlot;

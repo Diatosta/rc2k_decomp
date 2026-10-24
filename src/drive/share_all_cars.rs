@@ -10,17 +10,9 @@
 //!      eax, ebx, edx as `set_listener` left them (eax the record's +0x258 when
 //!      `dword_70F410` is not 0x21); no flags read (its callers go on with `mov`)
 //!
-//! Callers: race init's loop (`sub_4462B9`, 0x4463F4) and `sub_456336` (0x4563C8).
-//! Refuses (before anything) what `set_listener` refuses, a car whose file number is
-//! above 0x21, and a null record or block.
-//! Self-test: a copy of the original (its four calls to the game's, hooked) against the
-//! Rust version on the game's own state, only in a race (skipped otherwise): everything
-//! it writes is saved first and put back after each run. Its pieces have their own
-//! tests on test memory.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Callers: race init's loop (`sub_4462B9`, 0x4463F4) and `sub_456336` (0x4563C8). Refuses
+//! (before anything) what `set_listener` refuses, a car whose file number is above 0x21,
+//! and a null record or block. Its pieces have their own tests on test memory.
 
 use crate::drive::keep_lead_car_values::keep_lead_car_values;
 use crate::drive::put_back_lead_car_values::put_back_lead_car_values;

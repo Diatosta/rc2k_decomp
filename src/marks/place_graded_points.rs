@@ -8,15 +8,9 @@
 //! In:  `s` a spline record (`g_marksSplinesC`)
 //! Out: nothing (no caller reads the registers it leaves)
 //!
-//! Callers: 0x4B99D4, 0x4B9A2C. Refuses (before anything) a negative count (the loop
-//! runs on), points past the record's 0x80, a null pointer among them, an angle
-//! `fsincos` cannot take, and `bend_points`' refusals. Self-test: a record of the test's
-//! (`TestSpline`) whose pointers name a buffer of the test's; compared on all it may
-//! write.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Callers: 0x4B99D4, 0x4B9A2C. Refuses (before anything) a negative count (the loop runs
+//! on), points past the record's 0x80, a null pointer among them, an angle `fsincos` cannot
+//! take, and `bend_points`' refusals.
 
 use crate::errors::{BadInput, Refused};
 use crate::marks::bend_points::bend_points;

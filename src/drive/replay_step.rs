@@ -14,17 +14,9 @@
 //! In:  nothing
 //! Out: the registers as the last steps leave them; no flags read
 //!
-//! Caller: `drive::race_step`'s `sub_4455A9`. It begins with a call: hooked by a private
-//! copy of its 0xE1 bytes (its 25 calls relocated) and a hand-made patch.
-//! Refuses (before anything) a cars' count of 0 or past 8, and what its calls refuse
-//! (the cars' blocks, the work car and the physics' variables put back). Shadow mode runs
-//! the original alone (as `car_physics_step`).
-//! Self-test (in a race; skipped otherwise): the original and the Rust version from the
-//! same state, logging off, no replay (`dword_5C5CE0` 0).
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `drive::race_step`'s `sub_4455A9`. Refuses (before anything) a cars' count of 0
+//! or past 8, and what its calls refuse (the cars' blocks, the work car and the physics'
+//! variables put back).
 
 use crate::errors::Refused;
 use crate::physics::flow::{g, p};

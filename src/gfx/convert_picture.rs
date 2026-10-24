@@ -15,11 +15,11 @@
 //! 14 callers. Of the converters (the table is filled by `gfx::install_converters`) two are
 //! ported and called as Rust, `copy_pixel_rows` (the owner's 32-bit screen: nothing to do)
 //! and `components_to_4444_rows`; the eight MMX and 3DNow ones are not: the Rust version
-//! calls the one the table names, and shadow mode then runs the original alone. Refuses a null
+//! calls the one the table names. Refuses a null
 //! buffer and a width or height of 0 (the original's loops count through all 32 bits). No
 //! limit on width * height, as in the original. The name is a reading.
-//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
-//! `routes.rs`); the registers above are the original's, for reference.
+//! The registers above are the original's, for reference; a call by address goes through
+//! `routes.rs`.
 
 use crate::errors::BadInput;
 use crate::gfx::block::{game_addr, game_read, game_write};
@@ -153,6 +153,3 @@ pub unsafe fn convert_picture_now() -> Result<CarryLeft, BadInput> {
     }
     unsafe { convert_picture(SCREEN.bits.get(), converter()) }
 }
-
-// ---- self-test: a copy of the original that reads the screen's bits and the converter table
-// from test variables, on a small picture in the game's own buffer ----

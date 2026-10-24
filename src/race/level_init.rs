@@ -75,7 +75,6 @@ pub unsafe fn read(path: u32, buffer: u32, count: u32) -> Result<(), Refused> {
             path as *const u8,
             buffer as *mut u8,
             count,
-            buffer,
         )?;
     }
     Ok(())
@@ -240,5 +239,3 @@ pub unsafe fn init_checkpoints(v: &Vars) -> Result<(), Refused> {
     }
     Ok(())
 }
-
-// ---- for the self-tests ----

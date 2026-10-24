@@ -23,7 +23,7 @@
 //!   `system::pump_messages` (0x410535): SDL's events; closing the window sets the
 //!   quit switch, and the keys the menus know become the game's pending key.
 
-use crate::framework::{GameHook, RawHook, Regs, log, rva};
+use crate::framework::{GameHook, RawHook, log, rva};
 use crate::gfx::describe_format::describe_format;
 use crate::gfx::front::Slot as FrontSlot;
 use crate::gfx::locked::Slot as LockSlot;
@@ -187,11 +187,6 @@ fn game_key(scancode: i32) -> u8 {
 
 static CHOOSE: RawHook = RawHook::new("gfx::choose_screen_modes", rva(0x404481));
 
-extern "C" fn choose(r: &mut Regs) {
-    choose_screen_modes();
-    r.set_carry(false);
-}
-
 /// `gfx::choose_screen_modes`: the menus' and the race's modes (the default where none is
 /// kept) and the graphics options' choices. It cannot fail here (the original's carry).
 pub fn choose_screen_modes() {
@@ -335,10 +330,6 @@ pub fn set_mode_now(mode: u32) -> bool {
     done.is_ok()
 }
 
-extern "C" fn set_mode(r: &mut Regs) {
-    r.set_carry(!set_mode_now(r.eax));
-}
-
 // ---- gfx::set_menu_screen_mode (0x404823) ----
 
 static MENU_MODE: RawHook = RawHook::new("gfx::set_menu_screen_mode", rva(0x404823));
@@ -357,24 +348,9 @@ pub fn set_menu_mode_now() -> bool {
     done.is_ok()
 }
 
-/// Every register kept, the flags its.
-extern "C" fn menu_mode(r: &mut Regs) {
-    r.set_carry(!set_menu_mode_now());
-}
-
 // ---- gfx::lock_surface (0x4058AD), gfx::unlock_surface (0x405949) ----
 
 static LOCK: RawHook = RawHook::new("gfx::lock_surface", rva(0x4058AD));
-
-/// The flags of `cmp g_surfaceLocked, 1`.
-fn compared_with_one(r: &mut Regs, locked: u32) {
-    r.set_carry(locked < 1);
-    r.set_zero(locked == 1);
-}
-
-extern "C" fn lock(r: &mut Regs) {
-    compared_with_one(r, lock_surface());
-}
 
 /// `gfx::lock_surface`: the surface locked for drawing (unless quitting or there is no
 /// screen); `g_surfaceLocked` after it (1: locked).
@@ -412,16 +388,6 @@ pub fn lock_surface() -> u32 {
 }
 
 static UNLOCK: RawHook = RawHook::new("gfx::unlock_surface", rva(0x405949));
-
-extern "C" fn unlock(r: &mut Regs) {
-    match unlock_surface() {
-        1 => {
-            r.set_carry(false);
-            r.set_zero(true);
-        }
-        locked => compared_with_one(r, locked),
-    }
-}
 
 /// `gfx::unlock_surface`: the surface unlocked if it was locked; `g_surfaceLocked` before
 /// it (1: it was).
@@ -690,10 +656,6 @@ unsafe fn show_frame(screen: &Screen) -> Result<(), &'static str> {
     }
 }
 
-extern "C" fn show(r: &mut Regs) {
-    r.set_carry(!show_frame_now());
-}
-
 /// `gfx::show_frame`: the frame drawn shown (at most some sixty a second); false while
 /// quitting (nothing shown).
 pub fn show_frame_now() -> bool {
@@ -745,11 +707,6 @@ pub fn show_frame_now() -> bool {
 
 static PUMP: RawHook = RawHook::new("system::pump_messages", rva(0x410535));
 
-extern "C" fn pump_messages(r: &mut Regs) {
-    pump_messages_now();
-    r.set_carry(false);
-}
-
 /// `system::pump_messages`: the window's events (SDL's).
 pub fn pump_messages_now() {
     PUMP.count_call();
@@ -758,59 +715,12 @@ pub fn pump_messages_now() {
 
 static RUN_FRAME: RawHook = RawHook::new("screens::run_frame", rva(0x405A71));
 
-/// The messages, then the frame's function in eax, whose registers and flags are what
-/// the caller gets. (The original also waits for the window to be the active one and
-/// gets a lost surface back: neither can happen here.)
-extern "C" fn run_frame(r: &mut Regs) {
-    RUN_FRAME.count_call();
-    pump();
-    if quitting() {
-        r.set_carry(false);
-        r.set_zero(true);
-        return;
-    }
-    if r.eax == 0 {
-        r.set_carry(false);
-        r.set_zero(true);
-        return;
-    }
-    let frame = r.eax as usize;
-    crate::menu::table_calls::call_any(frame as u32, r);
-    if !r.carry() {
-        r.set_zero(r.eax == 0);
-    }
-}
-
 /// `screens::run_frame` for Rust callers with a frame of their own (the screen loops,
 /// 2026-10-24): the messages, then the frame unless quitting (None then).
 pub fn run_frame_now<T>(frame: impl FnOnce() -> T) -> Option<T> {
     RUN_FRAME.count_call();
     pump();
     if quitting() { None } else { Some(frame()) }
-}
-
-/// For Rust callers that name a platform hook's function by its address
-/// (`menu::table_calls`): its Rust side run directly (conversion phase 3, 2026-10-23).
-/// `at` is the address as IDA shows it.
-pub fn by_address(at: usize, r: &mut Regs) -> bool {
-    let hooks: [(&RawHook, extern "C" fn(&mut Regs)); 9] = [
-        (&CHOOSE, choose),
-        (&SET_MODE, set_mode),
-        (&MENU_MODE, menu_mode),
-        (&LOCK, lock),
-        (&UNLOCK, unlock),
-        (&SHOW, show),
-        (&PUMP, pump_messages),
-        (&RUN_FRAME, run_frame),
-        (&crate::film::HOOK, crate::film::dispatch),
-    ];
-    match hooks.iter().find(|(hook, _)| hook.rva() == rva(at)) {
-        Some(&(_, dispatch)) => {
-            dispatch(r);
-            true
-        }
-        None => crate::platform_3d::by_address(at, r),
-    }
 }
 
 pub static HOOKS: &[&dyn GameHook] = &[

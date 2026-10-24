@@ -7,12 +7,7 @@
 //! Out: every register kept
 //!
 //! See `marks/emit_bursts.rs`; no variable of its own shared but the entries' and the
-//! scratch ones. Caller: `marks::emit_wheel_particles`' kind 3. Refuses as
-//! `emit_bursts`. Self-test: as `emit_bursts`'.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! scratch ones. Caller: `marks::emit_wheel_particles`' kind 3. Refuses as `emit_bursts`.
 
 use crate::errors::Refused;
 use crate::marks::emit_bursts::{BurstSet, FIRST, Half, emit_bursts_with};

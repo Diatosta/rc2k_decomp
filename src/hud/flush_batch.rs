@@ -5,14 +5,7 @@
 //! In:  nothing
 //! Out: as the device's call leaves the registers when drawn; else kept
 //!
-//! Callers: `sub_4B1CD0` (the HUD's end), `hud::add_polygon`. The device through `part`
-//! (1), in the game the original's call (section 15). Shadow mode runs the original alone
-//! (it draws). Self-test: a copy whose device call goes to a stand-in, against the Rust
-//! version, the batch empty and not.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Callers: `sub_4B1CD0` (the HUD's end), `hud::add_polygon`.
 
 use crate::hud::batch::{INDEX_COUNT_RVA, VERTEX_COUNT_RVA};
 use crate::hud::store::{game_read, game_write};

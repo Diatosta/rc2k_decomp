@@ -8,11 +8,10 @@
 //! In:  nothing
 //! Out: every register preserved (`pusha` .. `popa`)
 //!
-//! In a menu loop's draw list (0x758C8E). A volume whose v * 100 wraps to 0 is the original's
-//! fatal 0x80701010 (`loc_4D9612`), raised from Rust where the original does. The sprites'
-//! palettes are ebx as the original leaves it. Hook removed 2026-10-22 (typed tables): the
-//! menus and draw lists run its `entry` (`menu::table_calls`); the registers above are the
-//! original's, for reference.
+//! In a menu loop's draw list (0x758C8E). A volume whose v * 100 wraps to 0 is the original's fatal
+//! 0x80701010 (`loc_4D9612`), raised from Rust where the original does. The sprites' palettes are
+//! ebx as the original leaves it. The menus and draw lists run its `entry` (`menu::table_calls`);
+//! the registers above are the original's, for reference.
 
 use crate::errors::Refused;
 use crate::framework::rva;

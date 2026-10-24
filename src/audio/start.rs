@@ -17,12 +17,6 @@
 //! both modes are kept, the race mode is the probe's and at once the menu's 0x11221 (the
 //! probe thrown away: section 16); `audio::choose_modes`; "AUD: Using modes" and both;
 //! `audio::close_sound`; the mode 0. One caller, the audio thread.
-//! Shadow mode runs the original alone. Self-test: a redirected copy whose calls go to
-//! stand-ins noting what each reads, 20 cases.
-//!
-//! Hook removed 2026-10-22 (conversion phase 4). Plain since 2026-10-23 (phase 3): the
-//! registers above are the original's, for reference. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::audio::store::Slot;
 use crate::audio::voices::{read, write};

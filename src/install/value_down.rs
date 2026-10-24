@@ -3,12 +3,8 @@
 //!
 //! In:  esi the item (+8 the value's byte, +0xC the least)
 //! Out: edx the value's address, ebx the least, ecx the new value; zero set, carry clear
-//! Callers `install::key_left`. Shadow mode compares. Self-test: items of the test's
-//! against the original.
+//! Callers `install::key_left`.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 //! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
 //! are the original's.
 

@@ -13,21 +13,14 @@
 //!      no flags read
 //!
 //! Caller: `physics::lever_pushes` (twice).
-//! Self-test: the original and the Rust version on the game's variables (saved and put
-//! back): spins, levers, shares and matrices by lot, under three precisions.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
-use crate::framework::{EAX, EBX, ECX, EDX, ESI, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::math::x87_run::mul2_to_int;
 use crate::physics::scale_vector::scale_vector;
 use crate::physics::turn_by_car_matrix::turn_by_car_matrix;
 use crate::physics::turn_by_inverse::turn_by_inverse;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::view_matrix::cross_product;
-use crate::screens::harness::Left;
 
 fn a(x: usize) -> u32 {
     game_addr(rva(x)) as u32
@@ -42,7 +35,7 @@ fn p(x: usize, v: u32) {
 }
 
 /// The Rust version.
-pub unsafe fn lever_push() -> Left {
+pub unsafe fn lever_push() {
     unsafe {
         for k in 0..3 {
             p(0x614B64 + 4 * k, g(0x71A15C + 4 * k));
@@ -59,21 +52,14 @@ pub unsafe fn lever_push() -> Left {
             scale_vector(a(0x614B54), f);
             p(0x62400C, rounded(f));
         }
-        let mut eax = 0;
         for (from, int, place) in [
             (0x614B54, 0x6140E4, 0x71A10C),
             (0x614B5C, 0x6140E8, 0x71A114),
         ] {
             let v = mul2_to_int(g(from), g(0x5C5D98), g(0x61388C)) as u32;
             p(int, v);
-            eax = g(int);
+            let eax = g(int);
             p(place, g(place).wrapping_add(eax));
         }
-        Left::nothing()
-            .with(EAX, eax)
-            .with(EBX, a(0x614B44))
-            .with(ECX, a(0x614B64))
-            .with(EDX, a(0x614B54))
-            .with(ESI, a(0x614B54))
     }
 }

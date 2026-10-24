@@ -5,12 +5,10 @@
 //! Out: eax = kind 0's first slot, ebx = kind 0's first texture, ecx = 0xFFFFFFFF,
 //!      edi = the end of the slots' table
 //!
-//! The 0x400 slots of `dword_5DA968` = -1; then for the kinds from 0x3FF down to 0:
-//! the kind's first slot (`dword_5D1AE8`), unless it is -1, gets the kind's first
-//! texture (`dword_5D0AE8`). So of two kinds with one slot the lower one's stays.
-//! Six callers.
-//! Refuses a first slot past the table.
-//! Self-test: 8 tables by lot in the game's places, put back afterwards.
+//! The 0x400 slots of `dword_5DA968` = -1; then for the kinds from 0x3FF down to 0: the kind's
+//! first slot (`dword_5D1AE8`), unless it is -1, gets the kind's first texture
+//! (`dword_5D0AE8`). So of two kinds with one slot the lower one's stays. Six callers. Refuses
+//! a first slot past the table.
 
 use crate::errors::BadInput;
 use crate::scene::textures::{KIND_SLOT_RVA, KIND_TEXTURE_RVA, KINDS, SLOTS, WANTED_RVA, slice};

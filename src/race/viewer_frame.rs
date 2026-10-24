@@ -16,16 +16,7 @@
 //!
 //! The marks' and the place's positions are `mark * w / blocks` (`mul` / `div`): a quotient
 //! past 32 bits (the original's divide error) is refused, before the bar is drawn. Caller:
-//! `screens::run_frame` (eax, from `race::replay_viewer`). Its calls through `part`
-//! (`CALLEES`); in the game their Rust versions, the scene's begin and end, the texture,
-//! the render states and the showing through the game (the platform's). Shadow mode runs
-//! the original alone (it draws). Self-test: a copy whose calls go to stand-ins, against
-//! the Rust version: at the end or not, a picture asked, playing or stopped, no blocks,
-//! the begin, end or showing failing.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! `screens::run_frame` (eax, from `race::replay_viewer`).
 
 use crate::errors::Refused;
 use crate::physics::flow::{a, g, p};

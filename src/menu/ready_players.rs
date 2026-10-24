@@ -4,14 +4,8 @@
 //! In:  nothing
 //! Out: every register preserved (`pusha` .. `popa`)
 //!
-//! Callers: `saves::load_savegame`, the single rally's and the time trial's multi-player
-//! events. Refuses (before anything) a player count of 0 or past 4 or a player missing
-//! (the original runs on past the table or reads through 0). Self-test: the game's players
-//! with test values, for each count, put back afterwards.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Callers: `saves::load_savegame`, the single rally's and the time trial's multi-player events.
+//! Refuses (before anything) a player count of 0 or past 4 or a player missing .
 
 use crate::errors::Refused;
 use crate::menu::standings::{counted_players, put_all};

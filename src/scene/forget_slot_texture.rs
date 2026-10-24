@@ -4,13 +4,8 @@
 //! In:  eax the slot
 //! Out: every register kept
 //!
-//! 12 callers (among them the marks' snow textures). Refuses a slot past 0x3FF (the table
-//! is 0x400 dwords). Self-test: the original and the Rust version on slots 0, 7 and 0x3FF,
-//! the refusal; put back afterwards.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! 12 callers (among them the marks' snow textures). Refuses a slot past 0x3FF (the table is
+//! 0x400 dwords).
 
 use crate::errors::Refused;
 use crate::framework::rva;

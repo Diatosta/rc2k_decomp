@@ -2,7 +2,7 @@
 //! championship's stages and rallies.
 //!
 //! In:  ebp (passed on as the stage to `default_time_entry`, which only uses it while
-//!      `dword_755A0C` is 1)
+//! `dword_755A0C` is 1)
 //! Out: every register preserved
 //! For each stage of the championship's record table (its records with tag 0, counted
 //! into `seconds`, 0x7559AC): the ten entries of the stage in the table at
@@ -15,10 +15,6 @@
 //! Refuses missing tables, a record table without stages or without its end, and more
 //! rallies than the six tables. Converted: `rc2k_core::saves::defaults::championship_times`
 //! (a refusal now leaves nothing written).
-//!
-//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_addr, game_read, rva};

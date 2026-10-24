@@ -15,10 +15,9 @@
 //! - unless the options were loaded (`g_optionsLoaded`): `records::default_stage_records`
 //!   on each of the thirteen record tables.
 //!
-//! One caller, `menu::main_menu_loop`.
-//! Refuses what its parts refuse; such a refusal comes with the work half done.
-//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
-//! `routes.rs`); the registers above are the original's, for reference.
+//! One caller, `menu::main_menu_loop`. Refuses what its parts refuse; such a refusal comes with the
+//! work half done. Rust callers run its `entry` (`routes.rs`); the registers above are the
+//! original's, for reference.
 
 use crate::errors::Refused;
 use crate::framework::{game_addr, game_read, game_write, rva};

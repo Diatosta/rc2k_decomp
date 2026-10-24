@@ -88,5 +88,3 @@ pub unsafe fn release_sound_listener(listener: u32) {
         }
     }
 }
-
-// ---- for the self-tests ----

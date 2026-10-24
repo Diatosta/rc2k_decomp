@@ -6,12 +6,8 @@
 //! In:  eax which, ebx the cue
 //! Out: every register kept; no flags read
 //!
-//! Caller: `physics::cue_listed_car_sound_last`. A short jump in its first five bytes: hooked
-//! by a private copy (its call relocated) and a hand-made patch.
-//! Refuses (before anything) a car past 7 or a null sound object.
-//! Shadow mode runs the original alone (`physics/sound_cues.rs`).
-//! Self-test: a copy whose call goes to a stand-in, against the Rust version: which 0, 1,
-//! 2, objects ready or not.
+//! Caller: `physics::cue_listed_car_sound_last`. Refuses (before anything) a car past 7 or
+//! a null sound object.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

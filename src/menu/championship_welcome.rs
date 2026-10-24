@@ -14,14 +14,7 @@
 //! In:  nothing
 //! Out: every register preserved (`pusha` .. `popa`)
 //!
-//! Caller: `menu::run_championship` (`g_eventMode` 2). The calls through
-//! `event_flow::Call` (in the game `game_call`: the Rust versions, the sound commands and
-//! the frame through their hooks). Ungated (it waits). Shadow mode runs the original
-//! alone. Self-test: `event_flow::test_flow`, keys and the speech by script.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `menu::run_championship` (`g_eventMode` 2).
 
 use crate::errors::Refused;
 use crate::menu::event_flow::Flow;

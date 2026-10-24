@@ -9,18 +9,10 @@
 //! In:  nothing
 //! Out: nothing (its caller reads no register after it)
 //!
-//! One caller, `sub_4C16F9` (the marks' frame). Self-test: the original and the Rust
-//! version, the wait passed and not, at several randoms and paces; put back afterwards.
+//! One caller, `sub_4C16F9` (the marks' frame).
 //!
-//! Converted 2026-10-21: the hook's Rust version is `drift_offsets_plain`, through
-//! `rc2k_core::marks::drift` (plain floats; the x87 version stays for the Rust callers in
-//! unconverted code; the offsets' `fistp` stays the x87's). Shadow mode and the self-test
-//! hold the targets and paces to `service::floats`' tolerances and the offsets to one
-//! either way (the self-test at both test precisions, exact at double).
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! the x87 version stays for the Rust callers in unconverted code; the offsets' `fistp`
+//! stays the x87's).
 
 use crate::marks::setup::{CLOCK_RVA, SEED_RVA};
 use crate::marks::store::{Slot, game_read, game_write};

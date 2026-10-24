@@ -58,7 +58,7 @@ pub const TEXTURED: Batch = Batch {
 /// first sets texture `dword_5D1D04` (`scene::set_texture`); the render states
 /// (eax the value, ebx the state); with triangles in the batch (its count also into its
 /// kept count) the second looks up its texture (`scene::look_up_texture`) and sets it
-/// inside `pusha`; the draw (`sub_41ADF5`, the platform's, through the game: edx the
+/// inside `pusha`; the draw (`sub_41ADF5`, the platform's: edx the
 /// count, eax the word, ebx the vertices, ecx the indices), a failure (eax not 0) logged as
 /// "drawtri" and its code (level 1); the count and word 0. Its one caller,
 /// `race::draw_race_scene`, reads no register it leaves.

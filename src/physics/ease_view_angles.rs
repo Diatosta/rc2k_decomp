@@ -8,8 +8,6 @@
 //!      the record has no time); the rest kept; no flags read
 //!
 //! Caller: `sub_437A53`.
-//! Self-test: `physics/camera_view.rs` (`view_test_floats`), modes and times by lot,
-//! exact at double precision; at extended a step may land one off (<< 16 in the angle).
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

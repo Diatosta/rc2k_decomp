@@ -8,8 +8,8 @@
 //! Out: as the last `draw_string_by_id` leaves them (carry, eax 0, ebx, ecx, edx)
 //!
 //! In a menu loop's draw list (0x758C96). Refuses what `menu::enable_item` refuses (no current
-//! menu), before anything. Hook removed 2026-10-22 (typed tables): the menus and draw lists run
-//! its `entry` (`menu::table_calls`); the registers above are the original's, for reference.
+//! menu), before anything. The menus and draw lists run its `entry` (`menu::table_calls`); the
+//! registers above are the original's, for reference.
 
 use crate::audio::store::Slot;
 use crate::errors::Refused;

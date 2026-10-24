@@ -176,5 +176,3 @@ pub fn game_screenshot() {
         unsafe { crate::fatal::raise::refused_in("gfx::take_screenshot", e, &Regs::default()) };
     }
 }
-
-// ---- for the self-tests ----

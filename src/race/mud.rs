@@ -96,7 +96,6 @@ pub unsafe fn load_mud() -> Result<(), Refused> {
             game_addr(MUD_PATH_RVA) as *const u8,
             mud as *mut u8,
             MUD_LEN,
-            mud,
         )?;
     }
     Ok(())

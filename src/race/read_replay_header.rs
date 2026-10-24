@@ -7,15 +7,7 @@
 //! In:  nothing
 //! Out: every register kept (the logs in `pusha` / `popa`, the copies by `push` / `pop`)
 //!
-//! Callers: `race::viewer_load_stage`, 0x44401B (the replay run of `sub_443FxF`). Its log
-//! calls through `part`: 1 `logfile::log_write_l1_nl`, 2 `logfile::log_write_l1`, 3
-//! `logfile::log_int_l1_nl` (eax the text or value); in the game their Rust versions.
-//! Shadow mode runs the original alone (it logs). Self-test: a copy whose calls go to stand-ins, against the Rust version; the header filled
-//! by the test, what it writes saved and put back.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Callers: `race::viewer_load_stage`, 0x44401B (the replay run of `sub_443FxF`).
 
 use crate::physics::flow::a;
 use crate::race::race_end::{HEADER, setting_place};

@@ -6,8 +6,6 @@
 //! Out: every register preserved (`stop_cd_track` keeps them all)
 //! Six callers: the CD audio's functions (0x40F8BB .. 0x40FDB9) and `system::main_loop`
 //! (0x415439).
-//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
-//! `routes.rs`); the registers above are the original's, for reference.
 
 use crate::sound::store::EffectsSlot;
 use crate::store::game_addr;

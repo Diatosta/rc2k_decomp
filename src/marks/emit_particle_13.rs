@@ -4,9 +4,9 @@
 //! In:  esi the car object
 //! Out: every register kept (`pusha` .. `popa`)
 //!
-//! The entry: its place the point (x negated; y less `flt_7651E4`; by `flt_7651D4`)
-//! turned by `g_marksCar`'s matrix (placed and the place taken off again, on the x87
-//! stack: `x87::turned_place_less`), less `flt_93A462` in y at +0x28; the strength
+//! The entry: its place the point (x negated; y less `flt_7651E4`; by `flt_7651D4`) turned
+//! by `g_marksCar`'s matrix (placed and the place taken off again, on the x87 stack:
+//! `x87::turned_place_less`), less `flt_93A462` in y at +0x28; the strength
 //! (`dword_9356C0`, a float) 1 - 1 / (the car's +8 by `flt_93A466` plus 1); its motion the
 //! matrix's third row by the strength and `flt_93A46A` ..; then its place moved by the
 //! motion times a random's low word by `flt_765214` times `g_marksFrameTicks`; a random
@@ -15,12 +15,7 @@
 //! +0x88; +0x70 `flt_93A47E` by the strength plus `flt_93A482`, rounded, and +0x60 that by
 //! `flt_93A486`. Caller: `sub_4C9AF6` (the cars' loop). Refuses (before anything) a null
 //! object, a null `g_marksCar` or matrix, and a model (+4) past the table's 34 entries,
-//! when an entry is made. Self-test: a ring and car of the test's
-//! (`marks::emit_particle_6::TestEmitter`), several models, speeds, ticks and fillings.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! when an entry is made.
 
 use crate::errors::{BadInput, Refused};
 use crate::marks::emitters::*;

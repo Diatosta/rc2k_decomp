@@ -17,14 +17,7 @@
 //! Out: the registers as the steps and calls leave them; no flags read (the caller goes
 //!      on)
 //!
-//! Caller: `physics::update_camera`. It begins with a call: hooked by a private copy of
-//! the whole function (0x291 bytes, one chunk) with its 19 calls relocated and a
-//! hand-made patch.
-//! Refuses what the ground checks refuse. Shadow mode runs the original alone (as the
-//! checks: `find_ground`'s probes).
-//! Self-test (in a race; skipped otherwise): the original and the Rust version on the
-//! stage (`physics/update_camera.rs`, `camera_test`), the camera where it is, moved below
-//! the car and into the ground, every mode.
+//! Caller: `physics::update_camera`. Refuses what the ground checks refuse.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

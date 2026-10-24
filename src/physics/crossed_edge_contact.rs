@@ -15,12 +15,8 @@
 //! Out: ebp the face, and the registers as the steps and `contact_force` leave them; no
 //!      flags read (the caller goes on)
 //!
-//! Caller: `physics::crossed_edge`.
-//! Refuses (before anything) a probe point past 0x3F (the tables' room), and what
-//! `place_sound_e1` refuses (what was written put back).
-//! Self-test: `physics/crossed_edge.rs` (`test_crossed`): the original and the Rust
-//! version on the game's variables (saved and put back) with a test face and scene
-//! points, paths across each edge, under three precisions.
+//! Caller: `physics::crossed_edge`. Refuses (before anything) a probe point past 0x3F (the
+//! tables' room), and what `place_sound_e1` refuses (what was written put back).
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

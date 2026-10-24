@@ -5,13 +5,8 @@
 //!
 //! In:  edx the path
 //! Out: carry set if a bad character or `\\` is found, clear otherwise; every register kept
-//! Caller `install::install_files`. Private copy (0x2B bytes): the loop's `jnz` at +0x12 goes
-//! back to +4, inside the patched bytes. Shadow mode compares. Self-test: paths of the test's
-//! against the original.
+//! Caller `install::install_files`.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 //! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
 //! are the original's.
 

@@ -8,9 +8,6 @@
 //! free: the spot goes unheard. Then the voice's place = the spot's and heard (+4) 1.
 //! See `sound/spot_voices.rs`. One caller, `sound::spot_sounds`.
 //! Refuses (before anything) more than 36 spots (the table's size).
-//! Shadow mode: both, the voices compared.
-//! Self-test: the original against the Rust version on spots and voices of the test's
-//! (the game's tables, put back).
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

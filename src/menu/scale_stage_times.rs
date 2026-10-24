@@ -9,14 +9,6 @@
 //! Out: eax the section held (no `pusha`); the rest kept
 //!
 //! Caller: `menu::calc_cpu_times`. Logs through the `logfile::` Rust versions (level 1).
-//! Shadow mode runs the original alone (it logs). Self-test: the
-//! original and the Rust version on a record of the test's, times and sections by lot, at
-//! the test precisions (exact at 0x027F; the times within one at 0x037F, exact there too
-//! below 2^29).
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 use crate::errors::Refused;
 use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::menu::standings::*;

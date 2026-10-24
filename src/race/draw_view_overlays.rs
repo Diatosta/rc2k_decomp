@@ -9,9 +9,6 @@
 //! In:  nothing (no step reads a register its caller gives; edx's "read" in the liveness is
 //!      the marks' `imul`)
 //! Out: nothing its one caller, `race::draw_race_scene`, reads
-//!
-//! Hook removed 2026-10-23 (conversion phase 4); its steps called directly since then
-//! (conversion phase 3).
 
 use crate::errors::Refused;
 use crate::framework::{game_read, game_write, rva};

@@ -7,14 +7,7 @@
 //! Out: eax the tenths x 10, ebx 10, edx the product's high dword (0); the rest kept; no
 //!      flags read
 //!
-//! Caller: `drive::race_step` (`sub_4454D2`). It begins with a call: hooked by a private
-//! copy of its 0x55 bytes (the call relocated) and a hand-made patch.
-//! Self-test: a copy whose clock call goes to a stand-in giving the test's times, against
-//! the Rust version with the same times: within 1000 and beyond, round tenths and not.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `drive::race_step` (`sub_4454D2`).
 
 use crate::physics::flow::{g, p};
 use rc2k_core::drive::clocks::RaceClock;

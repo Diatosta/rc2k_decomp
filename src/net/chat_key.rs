@@ -5,13 +5,7 @@
 //! In:  al = the key
 //! Out: as `net::edit_key` leaves them while editing goes on; after it eax = the player,
 //!      ebx = the input; no `pusha`
-//! Caller: `net::lobby_loop`. Its calls through `part`. Shadow mode runs the original alone
-//! (it sends). Self-test: a copy whose calls go to stand-ins, against the Rust version:
-//! editing on, ended with a message, ended empty.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `net::lobby_loop`.
 
 use crate::errors::Refused;
 use crate::net::lobby::{CHAT_INPUT, PLAYER, a, g, gb, pb};

@@ -9,13 +9,8 @@
 //! A failed create, or a failed set of either value, is fatal error 0x80108420, 0x80108421
 //! or 0x80108425. Three callers (`install::install_files`, `uninstall`, and `sub_412DE0`).
 //! The registry calls through `api` (`installer::game_api` in the game: `windows-sys`
-//! `Win32_System_Registry`); the standalone makes them too (section 15). Shadow mode runs
-//! the original alone (a second write is harmless but needless). Self-test: a copy whose
-//! three calls go to stand-ins (one made to fail at a time), against the Rust version.
+//! `Win32_System_Registry`); the standalone makes them too .
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 //! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
 //! are the original's.
 

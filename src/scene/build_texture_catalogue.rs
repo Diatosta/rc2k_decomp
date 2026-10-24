@@ -14,21 +14,12 @@
 //! (`gfx::release_all_textures` 0x4051D3, Direct3D: not ported); and a group of steps
 //! skipped when a flag is set.
 //!
-//! Before the list the counters are zeroed and the eight flags `dword_5DCD7C` ..
-//! set: 1 for the first, 0 for the others. So the list reads: try as things are;
-//! else your cars 2 .. 8 down from 256 to 128, try; and so on through the other
-//! cars, the scenery, the sky, the front end, each time one group one step smaller.
-//! After a successful try: "Allocated textures OK -", the needs counted once more
-//! for the log, a rule. After the last failed one: "Cant allocate enough textures"
-//! and fatal error 0x80600403.
-//! One caller, `scene::set_up_textures`.
-//! Shadow mode runs the original alone.
-//! Self-test: a redirected copy whose calls go to the test, the try succeeding at
-//! seven different places and never.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Before the list the counters are zeroed and the eight flags `dword_5DCD7C` .. set: 1 for the
+//! first, 0 for the others. So the list reads: try as things are; else your cars 2 .. 8 down
+//! from 256 to 128, try; and so on through the other cars, the scenery, the sky, the front end,
+//! each time one group one step smaller. After a successful try: "Allocated textures OK -", the
+//! needs counted once more for the log, a rule. After the last failed one: "Cant allocate
+//! enough textures" and fatal error 0x80600403. One caller, `scene::set_up_textures`.
 
 use crate::errors::{FatalError, Refused};
 use crate::framework::{game_addr, game_read, game_write, rva};

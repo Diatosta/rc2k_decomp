@@ -4,26 +4,17 @@
 //! In:  eax = the way to look (below 0: back, else on)
 //! Out: every register preserved
 //!
-//! The car (as `menu::load_car_background` finds it, 0x21 counting as 0x17); its
-//! pictures are `off_759B0E[car]` (`;3files\g\slides\mgnslNN.png` and so on) with the
-//! number `dword_755994`. Starting from that number: the path made
-//! (`files::numbered_path`); if the file is there it is taken, else the path's last two
-//! characters become "cx" (`.pcx`) and if that is there it is taken; else the number
-//! steps the way (from 0 back to 99, from 99 on to 0) and the next is tried, until the
-//! number comes round to where it started, when the last path tried is taken anyway.
-//! Then `gfx::load_picture_with_overlay` with it and the title bar
-//! (`files\g\graphics\screens\titlebar.png`), or, if that could not read it,
-//! `gfx::load_picture` of the title bar alone; then `gfx::convert_picture`.
-//! Five call sites: the slideshow's buttons and its set-up.
-//! Shadow mode runs the original alone.
-//! Refuses a car with no pictures (only the first 0x18 have them), and what its parts
+//! The car (as `menu::load_car_background` finds it, 0x21 counting as 0x17); its pictures are
+//! `off_759B0E[car]` (`;3files\g\slides\mgnslNN.png` and so on) with the number `dword_755994`.
+//! Starting from that number: the path made (`files::numbered_path`); if the file is there it is
+//! taken, else the path's last two characters become "cx" (`.pcx`) and if that is there it is
+//! taken; else the number steps the way (from 0 back to 99, from 99 on to 0) and the next is tried,
+//! until the number comes round to where it started, when the last path tried is taken anyway. Then
+//! `gfx::load_picture_with_overlay` with it and the title bar
+//! (`files\g\graphics\screens\titlebar.png`), or, if that could not read it, `gfx::load_picture` of
+//! the title bar alone; then `gfx::convert_picture`. Five call sites: the slideshow's buttons and
+//! its set-up. Refuses a car with no pictures (only the first 0x18 have them), and what its parts
 //! refuse.
-//! Self-test: a redirected copy whose loading and converting note what they get, on
-//! the owner's own files, nine cars both ways from three numbers.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::errors::Refused;
 use crate::files::file_exists::file_exists;

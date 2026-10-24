@@ -6,12 +6,8 @@
 //! In:  edi the first entry
 //! Out: edx its +0x70, ecx its player (+4), edi the entry; the rest kept
 //!
-//! Callers: the event code. Refuses a table without its end entry, before anything;
-//! raises the fatal error as the original. Self-test: `standings::test_first_player`.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Callers: the event code. Refuses a table without its end entry, before anything; raises the
+//! fatal error as the original.
 
 use crate::errors::Refused;
 use crate::menu::standings::*;

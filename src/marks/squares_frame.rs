@@ -11,14 +11,7 @@
 //!
 //! Caller: `sub_4C74DA` (0x4C7534). The x87 runs are the original's instructions over the
 //! game's variables; the vector helpers, `scale_axes` and `squares_step` their Rust
-//! versions; pong and the squares through `part` (1 `run_pong`, 2 `run_squares`), in the
-//! game their Rust versions. Refuses null settings and `squares_step`'s refusals. Shadow
-//! mode runs the original alone (it draws). Self-test: a copy whose pong and squares go
-//! to stand-ins, against the Rust version, on settings of the test's; put back.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! versions. Refuses null settings and `squares_step`'s refusals.
 
 use crate::errors::{BadInput, Refused};
 use crate::marks::setup::SETTINGS_RVA;

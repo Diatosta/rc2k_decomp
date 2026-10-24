@@ -15,13 +15,7 @@
 //! Out: nothing (no caller reads a register it leaves)
 //!
 //! Caller: 0x4C9E0C. Refuses a null object or matrix and the emitters' refusals; on a
-//! refusal nothing stays written (all it may write is put back). Self-test: a car of the
-//! test's (five records) on the test ring (`marks::emit_particle_6::TestEmitter`), several
-//! sizes and surfaces.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! refusal nothing stays written (all it may write is put back).
 
 use crate::errors::{BadInput, Refused};
 use crate::marks::emit_body_particles::emit_body_particles;

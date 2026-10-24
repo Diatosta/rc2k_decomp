@@ -10,8 +10,6 @@
 //! Out: esi 0x6147DC (the last turned); the rest kept; no flags read
 //!
 //! Caller: `sub_43B635` (0x43B723), every physics step.
-//! Self-test: a copy of the original on test records (its eight calls to
-//! `turn_by_inverse` kept), shares below, in and above the range under three precisions.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

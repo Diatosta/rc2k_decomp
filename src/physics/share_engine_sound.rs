@@ -7,19 +7,11 @@
 //! In:  nothing
 //! Out: edi the sound object; the rest kept; no flags read
 //!
-//! Caller: `sub_43B635` (0x43B99F), every physics step.
-//! Refuses (before anything) a null sound object.
-//! Self-test: a copy of the original (the current car, the objects' table and the work
-//! car's five the test's) on a test object against the converted version, values
-//! above, at, below and NaN.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `sub_43B635` (0x43B99F), every physics step. Refuses (before anything) a null
+//! sound object.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{EDI, game_addr, rva};
-use crate::screens::harness::Left;
+use crate::framework::{game_addr, rva};
 use rc2k_core::physics::engine::shares_figures;
 
 /// The current car, the objects' table, the work car's 0x71A1FC .. 0x71A208, 0x71A1E0.
@@ -38,7 +30,7 @@ unsafe fn put(a: u32, v: u32) {
 /// The Rust core on the variables at `v` (`VARIABLES`' order; a compare of floats only:
 /// the same at any precision).
 // Converted: `rc2k_core::physics::engine::shares_figures`.
-pub unsafe fn share_at(v: &[u32]) -> Result<Left, Refused> {
+pub unsafe fn share_at(v: &[u32]) -> Result<(), Refused> {
     unsafe {
         let o = get(v[1] + 4 * (get(v[0]) & 7));
         if o == 0 {
@@ -52,7 +44,7 @@ pub unsafe fn share_at(v: &[u32]) -> Result<Left, Refused> {
         }
         put(o + 0xD4, get(v[6]));
         put(o + 0x10, 1);
-        Ok(Left::nothing().with(EDI, o))
+        Ok(())
     }
 }
 
@@ -67,6 +59,6 @@ fn game() -> Vec<u32> {
 }
 
 /// The Rust version.
-pub unsafe fn share_engine_sound() -> Result<Left, Refused> {
+pub unsafe fn share_engine_sound() -> Result<(), Refused> {
     unsafe { share_at(&game()) }
 }

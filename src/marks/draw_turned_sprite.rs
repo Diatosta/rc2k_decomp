@@ -11,16 +11,9 @@
 //! In:  st(0) .. st(2) the place (popped), ebx the angle, ecx the colour, edx the size
 //! Out: nothing (no caller reads a register it leaves)
 //!
-//! Callers: `sub_4D2DED` and its two siblings (0x4D2ECF, 0x4D2F00). The clip is its Rust
-//! version (the copy's call goes to its hook); the draw through `part` (1 `draw_fan`), in
-//! the game its Rust version. Refuses an angle of 0x1000 or more (the tables' size) and
-//! null marks settings (`clip_quad`'s refusal), before anything. Thunk by `three_in_hook!`. Shadow mode runs the
-//! original alone (it draws). Self-test: a copy whose draw goes to a stand-in, against the
-//! Rust version, places near and far, angles and sizes by lot.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Callers: `sub_4D2DED` and its two siblings (0x4D2ECF, 0x4D2F00). Refuses an angle of
+//! 0x1000 or more (the tables' size) and null marks settings (`clip_quad`'s refusal),
+//! before anything.
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::rva;

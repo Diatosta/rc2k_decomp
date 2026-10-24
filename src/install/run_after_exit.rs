@@ -17,14 +17,9 @@
 //! In:  nothing
 //! Out: every register kept (`pusha` .. `popa`)
 //!
-//! One caller, `start`'s way out. Its calls through `part`: the DDE and the programs' start
-//! through the game (platform, section 15), `set_current_directory` (`SetCurrentDirectoryA`),
-//! `normalise_path`, `copy_file`, `sleep` the Rust versions; `text_length`,
-//! `append_directory`, `append_nul`, `append_file_name` written in. Refuses (before
+//! One caller, `start`'s way out. Refuses (before
 //! anything, where the way could lead there) a game folder too long for "ereg\" in its
 //! 0x100 bytes, and a command line's program of 0x100 bytes or more.
-//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
-//! `routes.rs`); the registers above are the original's, for reference.
 //! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
 //! are the original's.
 

@@ -5,19 +5,12 @@
 //! In:  nothing
 //! Out: nothing (no caller reads a register it leaves)
 //!
-//! The ground picture's name is the `dword_934CC8`-th of six (`files\m\snow1.pcx`,
-//! `mud1`, `dust1`, `mud1`, `mud1`, `gumbo0`); it is read twice and never used (section
-//! 16). The surface's lock and unlock are the game's (`sub_41AA4B` / `sub_41AB02`,
-//! DirectDraw). One caller, `marks::init_marks`. Shadow mode runs the original alone (it
-//! takes memory and reads files). Refuses a ground past the six names (before anything),
-//! a surface wider than 256 (after the lock, unlocked again; the three blocks are left
-//! taken), memory or a picture not had, as its steps do. Self-test: a redirected copy
-//! whose calls go to stand-ins noting every register (blocks and a picture of the
-//! test's), against the Rust version on the same stand-ins; put back afterwards.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! The ground picture's name is the `dword_934CC8`-th of six (`files\m\snow1.pcx`, `mud1`,
+//! `dust1`, `mud1`, `mud1`, `gumbo0`); it is read twice and never used (section 16). The
+//! surface's lock and unlock are the game's (`sub_41AA4B` / `sub_41AB02`, DirectDraw). One
+//! caller, `marks::init_marks`. Refuses a ground past the six names (before anything), a
+//! surface wider than 256 (after the lock, unlocked again; the three blocks are left
+//! taken), memory or a picture not had, as its steps do.
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::rva;

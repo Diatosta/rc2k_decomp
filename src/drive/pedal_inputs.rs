@@ -9,12 +9,6 @@
 //! Out: eax `dword_61389C`, ebx `unk_71A440`; the rest kept; no flags read
 //!
 //! Callers: `drive::car_controls`, `sub_460835`, `sub_460B2F`.
-//! Self-test: the original and the Rust version on the game's variables (saved and put
-//! back) by lot: the bits, the inputs, the pedals about their ends.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::physics::flow::{g, p};
 use rc2k_core::drive::controls::{BRAKE_KEY, THROTTLE_KEY, handbrake, pedal};

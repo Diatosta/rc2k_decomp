@@ -7,12 +7,6 @@
 //! Out: every register kept; no flags read
 //!
 //! Caller: `sub_43BD8B` (its tail).
-//! Self-test: a copy of the original (the motion, the result and the matrix the test's,
-//! its call kept) against the Rust core, on values by lot under three precisions.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;

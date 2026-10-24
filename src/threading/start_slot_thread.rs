@@ -29,9 +29,9 @@ const FLAG: usize = 0xC;
 pub unsafe fn start_slot_thread(slot: *mut u8) -> Result<(), FatalError> {
     unsafe {
         slot.add(FLAG).write(0);
-        // The slot holds the routine as the image did, an IDA address.
+        // The slot holds the routine as the image did, an IDA address: the thread's
+        // parameter, `run_routine` finds its Rust version by it.
         let routine = (slot.add(ROUTINE) as *const u32).read_unaligned() as usize;
-        let routine = crate::framework::game_addr(crate::framework::rva(routine));
         let handle = CreateThread(
             std::ptr::null(),
             0,
@@ -51,34 +51,27 @@ pub unsafe fn start_slot_thread(slot: *mut u8) -> Result<(), FatalError> {
     Ok(())
 }
 
-/// A slot's thread: its routine (the game's address, as the slot holds it) run by its Rust
-/// version (`crate::routes`). A routine with none, or one that refuses, ends the program.
+/// A slot's thread: its routine (the IDA address the slot holds) run by its Rust version
+/// (`thread_slot::run_routine`). A routine with none, or one that refuses, ends the program.
 unsafe extern "system" fn run_routine(routine: *mut c_void) -> u32 {
-    let routine = routine as usize;
-    let mut r = Regs::default();
-    let at = routine.wrapping_sub(crate::framework::game_addr(0));
-    let ran = { crate::routes::by_rva(at, &mut r) };
-    match ran {
+    let routine = routine as u32;
+    match crate::threading::thread_slot::run_routine(routine) {
         Some(Ok(())) => {}
         Some(Err(crate::errors::Refused::Fatal(error))) => {
             log(&format!(
                 "threading::start_slot_thread: the routine {routine:#x} raises fatal error {:#x} {:?}",
                 error.code, error.message
             ));
-            unsafe { crate::fatal::raise::raise(error, &r) };
+            unsafe { crate::fatal::raise::raise(error, &Regs::default()) };
         }
         Some(Err(crate::errors::Refused::BadInput(why))) => crate::standalone::finish(
             &format!(
-                "threading::start_slot_thread: the routine {:#x} refused: {}",
-                at + crate::framework::IMAGE_BASE,
+                "threading::start_slot_thread: the routine {routine:#x} refused: {}",
                 why.0
             ),
             1,
         ),
-        None => crate::standalone::not_ported(
-            at + crate::framework::IMAGE_BASE,
-            "threading::start_slot_thread",
-        ),
+        None => crate::standalone::not_ported(routine as usize, "threading::start_slot_thread"),
     }
     0
 }

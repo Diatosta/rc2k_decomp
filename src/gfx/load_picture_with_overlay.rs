@@ -4,21 +4,14 @@
 //! In:  eax = the picture's path, ebx = the overlay's
 //! Out: every register preserved; carry = the picture could not be read
 //!
-//! `gfx::load_picture` of the first; if it was read, memory of 0x1D4C00 + 0xC80 bytes
-//! from the work list (`g_lexiconMemory`), the picture's size, row length and buffer
-//! kept while `gfx::read_picture_file` reads the overlay into that memory, then put
-//! back; if the overlay was read, each of its pixels that is not 0xFF00FF, row by row
-//! from the memory's start (rows `g_decodedStride` apart, `g_decodedWidth` by
-//! `g_decodedHeight`), goes over the picture (rows `g_pictureRowBytes` apart); the work
-//! list given back. Five callers, the slideshow's picture among them.
-//! Shadow mode runs the original alone.
-//! Refuses an overlay read with no width or height (the original counts through all 32
-//! bits), and what its parts refuse.
-//! Self-test: `gfx::load_picture`'s files, each over each.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! `gfx::load_picture` of the first; if it was read, memory of 0x1D4C00 + 0xC80 bytes from the
+//! work list (`g_lexiconMemory`), the picture's size, row length and buffer kept while
+//! `gfx::read_picture_file` reads the overlay into that memory, then put back; if the overlay
+//! was read, each of its pixels that is not 0xFF00FF, row by row from the memory's start (rows
+//! `g_decodedStride` apart, `g_decodedWidth` by `g_decodedHeight`), goes over the picture (rows
+//! `g_pictureRowBytes` apart); the work list given back. Five callers, the slideshow's picture
+//! among them. Refuses an overlay read with no width or height (the original counts through all
+//! 32 bits), and what its parts refuse.
 
 use crate::errors::{BadInput, Refused};
 use crate::gfx::block::{game_addr, game_read, game_write};

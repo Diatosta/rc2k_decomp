@@ -6,14 +6,8 @@
 //! In:  edi the list
 //! Out: every register kept (`pusha` / `popa`); no flags read
 //!
-//! A list of no items goes round 2^32 times, and a kind 2 of no choices 256 times, as
-//! the original (the callers' lists have items). Callers: `race::mark_viewer_items`,
-//! `sub_4144CF` (three). Shadow mode compares. Self-test: lists of the test's (kinds 2 and
-//! others, marks set) against the original.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! A list of no items goes round 2^32 times, and a kind 2 of no choices 256 times, as the original
+//! (the callers' lists have items). Callers: `race::mark_viewer_items`, `sub_4144CF` (three).
 
 use rc2k_core::menu::list_menu::{has_choices, rounds, unmarked};
 

@@ -6,10 +6,8 @@
 //! In:  nothing
 //! Out: as the last `fill_slot_on_bit` leaves them; no flags read
 //!
-//! Caller: `sub_43B635` (0x43B98B), every physics step.
-//! Refuses what `fill_slot_on_bit` refuses; what was written is put back.
-//! Self-test: the original and the Rust version on the game's variables (saved and put
-//! back): damage about the limits, the switch.
+//! Caller: `sub_43B635` (0x43B98B), every physics step. Refuses what `fill_slot_on_bit`
+//! refuses; what was written is put back.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

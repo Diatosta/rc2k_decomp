@@ -5,10 +5,7 @@
 //! In:  nothing
 //! Out: as the calls leave them; CF when the kind has no entry (no caller reads it)
 //!
-//! Caller: `physics::hit_part_checks`.
-//! Refuses what `sound_on_bit` refuses.
-//! Self-test: the original and the Rust version on the game's variables (saved and put
-//! back) with a test sound object.
+//! Caller: `physics::hit_part_checks`. Refuses what `sound_on_bit` refuses.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

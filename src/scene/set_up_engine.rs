@@ -3,12 +3,10 @@
 //! In:  nothing
 //! Out: as `sub_4217E4` leaves them
 //!
-//! `scene::fill_engine_tables`, then `sub_4217E4` (the cars' physics run for the
-//! figures of the car specification screen, by the look of it; not ported,
-//! `call_game`). 22 call sites, among them `menu::main_menu_loop` (twice) and
-//! `menu::play_films`.
-//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
-//! `routes.rs`); the registers above are the original's, for reference.
+//! `scene::fill_engine_tables`, then `sub_4217E4` (the cars' physics run for the figures of the
+//! car specification screen, by the look of it; not ported). 22 call sites, among them
+//! `menu::main_menu_loop` (twice) and `menu::play_films`. The registers above are the
+//! original's, for reference; a call by address goes through `routes.rs`.
 
 use crate::errors::Refused;
 use crate::scene::fill_engine_tables::fill_engine_tables;

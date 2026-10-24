@@ -9,13 +9,7 @@
 //! Out: every register kept (`pusha` .. `popa`)
 //!
 //! Caller: `sub_4CFB49` (every eighth marks step, a drift puff by the view). Refuses a null
-//! ring (an entry to take), before anything. Thunk by `six_in_hook!`. Self-test: a ring
-//! of the test's, the original and the Rust version at several fillings and values (some
-//! unrounded).
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! ring (an entry to take), before anything.
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::rva;

@@ -8,12 +8,11 @@
 //! about; its own 3D list goes to `g_sceneList` before the first frame only.
 //! Which screen it is has not been confirmed, hence the name. One of eight such loops in a row
 //! (0x47814C .. 0x479410), by the picture the pages of the controls set-up.
-//! Callers: none in code: it is reached through a table.
-//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
+//! Callers: none in code: it is reached through a table. The menus and draw lists run its `entry`
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::framework::rva;
-use crate::menu::screen_loop::{List, Screen, Step, screen_entry};
+use crate::menu::screen_loop::{Callee, List, Screen, Step, screen_entry};
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
@@ -63,22 +62,22 @@ pub const SCREEN: Screen = Screen {
     later_frame_callback: None,
     before: &[],
     set_up_first: &[
-        Step::Call(rva(0x46B47C)),
+        Step::Call(Callee::ApplyController),
         Step::Arg(0x0),
-        Step::Call(rva(0x40939F)),
+        Step::Call(Callee::AxisMoved),
     ],
     prepare: &[],
     after_lists: &[],
     background: &[
         Step::ArgAddr(rva(0x73228C)),
-        Step::CallOrFatal(rva(0x47EFFF), 0x80712345),
+        Step::CallOrFatal(Callee::LoadBackground, 0x80712345),
     ],
     after_first_frame: &[],
     confirm: None,
     ask_also_if: None,
     confirmed: &[],
     unasked_skips_save: false,
-    after: &[Step::Call(rva(0x46B4B4))],
+    after: &[Step::Call(Callee::ReleaseController)],
     escape_leaves: false,
     each_frame: &[],
     short_action_check: false,
@@ -102,7 +101,7 @@ pub const SCREEN: Screen = Screen {
     always_asks: false,
 };
 
-/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// The Rust version where the typed tables run it (a refusal is the
 /// caller's).
 pub fn run() -> Result<(), crate::errors::Refused> {
     screen_entry("menu::player3_buttons_loop", &SCREEN)

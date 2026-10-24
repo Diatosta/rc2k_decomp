@@ -8,19 +8,12 @@
 //! Out: eax the time, ecx the count before; the rest kept; no flags read (the caller
 //!      `popa`s)
 //!
-//! Caller: `sub_44194D`.
-//! Refuses (before anything) a count above 7 (the original writes past the queue).
-//! Self-test: a copy of the original (the clock and the car's fields the test's) against
-//! the core, counts 0 .. 7, and the refusal.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `sub_44194D`. Refuses (before anything) a count above 7 (the original writes
+//! past the queue).
 
 use crate::errors::Refused;
-use crate::framework::{EAX, ECX, game_addr, rva};
+use crate::framework::{game_addr, rva};
 use crate::physics::cells::{get, get_list, put_changed, put_list_changed};
-use crate::screens::harness::Left;
 use rc2k_core::physics::car_events::CarEvents;
 
 /// Where the variables are: the clock, the times, the events, the count, +0xF9C, +0xFA0.
@@ -76,12 +69,12 @@ impl QueuePlaces {
 
 /// The Rust version on the variables at `p`.
 // Converted: `rc2k_core::physics::car_events::CarEvents::queue`.
-pub unsafe fn queue_car_event_at(p: &QueuePlaces, esi: u32, ebx: u32) -> Result<Left, Refused> {
+pub unsafe fn queue_car_event_at(p: &QueuePlaces, esi: u32, ebx: u32) -> Result<(), Refused> {
     unsafe {
         let was = p.load();
         let mut q = was;
-        let time = q.queue(get(p.clock), esi, ebx)?;
+        q.queue(get(p.clock), esi, ebx)?;
         p.store(&was, &q);
-        Ok(Left::nothing().with(EAX, time).with(ECX, was.count))
+        Ok(())
     }
 }

@@ -6,14 +6,7 @@
 //! Out: every register kept (`pusha` / `popa`); no flags read
 //!
 //! Callers: `race::replay_viewer`, `race::viewer_action` (action 0x14),
-//! `race::open_viewed_replay` (failing), `race::save_last_replay`, 0x444034. Its calls
-//! through `part`: 1 `restore_replay_patches`, 2 `files::close` (eax the handle); in the
-//! game their Rust versions. Shadow mode runs the original alone (it closes a file).
-//! Self-test: a copy whose calls go to stand-ins, against the Rust version, open or not.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! `race::open_viewed_replay` (failing), `race::save_last_replay`, 0x444034.
 
 use crate::errors::Refused;
 use crate::race::viewer::{HANDLE, OPEN, get, put};

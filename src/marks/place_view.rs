@@ -7,18 +7,7 @@
 //! In:  nothing
 //! Out: nothing (its caller reads no register after it)
 //!
-//! One caller, `sub_4C16F9` (the marks' frame). Self-test: the original and the Rust
-//! version on matrices and places by lot; put back afterwards.
-//!
-//! Converted 2026-10-21: the hook's Rust version is `place_view_plain`, on the converted
-//! `scene::transform_int_points` and `rc2k_core::marks::view::view_place` (the x87 version
-//! stays for the Rust callers in unconverted code). Shadow mode and the self-test hold the
-//! three whole numbers made from floats to one either way (exact at double; the self-test
-//! at both test precisions).
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! One caller, `sub_4C16F9` (the marks' frame).
 
 use crate::errors::Refused;
 use crate::marks::store::{Slot, game_addr, game_read, game_write};

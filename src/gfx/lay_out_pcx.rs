@@ -15,10 +15,6 @@
 //! The high half of the two sizes is what the instruction before left there (16-bit moves
 //! into eax), which the Rust version follows.
 //! The name is a reading.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::gfx::block::{game_addr, game_read, game_write};
 use crate::gfx::palette_to_dwords::palette_to_dwords;
@@ -70,6 +66,3 @@ pub unsafe fn lay_out_pcx() -> rc2k_core::gfx::pcx::Layout {
         l
     }
 }
-
-// ---- self-test: headers and settings of the test's own in the game's variables, which are
-// put back ----

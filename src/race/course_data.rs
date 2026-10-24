@@ -112,8 +112,6 @@ pub unsafe fn group_records_by_kind() -> Result<(), Refused> {
     Ok(())
 }
 
-// ---- for the self-tests ----
-
 const COURSE_PATH_RVA: usize = rva(0x60B02B); // "srclvls\level01\cdat00c"
 const FIRST_PART_RVA: usize = rva(0x5C6FC8); // dword_5C6FC8: the course memory's first part
 /// "loadlevel", "done", "next", "this", "then", "ok".

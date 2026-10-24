@@ -172,3 +172,25 @@ Each entry says:
   read from the original's code: the converted screens do what it does.
 - **Fix**: the Escape flags are cleared whenever a screen leaves, as the original does
   once any of the four screens has been seen (`menu::screen_loop::clear_escape`).
+
+## The intro plays over and over after a race left by the quit question
+
+*Original*: `menu::play_films` (0x4161CD) calls the credits' race `race::credits_race`
+(0x463666) without `race::clear_player_absences` (0x449D44), which its other caller
+(`sub_443104`) calls first; `race::players_all_out` (0x445506) reads the first car
+block's +0xB0.
+*Fixed*: 2026-10-24.
+
+- **What**: leaving a race through the quit question writes the answer into the cars'
+  "out" field (+0xB0), and it stays until the next race's set-up. The film loop's
+  demonstration (the credits' race between two showings of the intro) runs with one
+  player, and the race loop ends a race as soon as every player is out: with the old
+  answer still there, the demonstration ends at its first frame and the intro starts
+  again.
+- **In game**: quit a race (Escape, then yes), then choose View Intro on the main menu,
+  or leave the main menu idle until the films start: the intro plays again and again,
+  never the credits' race, until a key.
+- **Seen**: yes, by the owner in the converted game (2026-10-24, twice); the cause read
+  from the original's code (the converted functions do what it does).
+- **Fix**: the film loop clears the players' "out" fields before the demonstration, as
+  the original's other way into it does.

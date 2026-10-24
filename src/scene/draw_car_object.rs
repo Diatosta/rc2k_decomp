@@ -17,9 +17,8 @@
 //!   `dword_75A674[dword_755990]` to `dword_75A658`, its object to `g_objectNumber`,
 //!   `scene::draw_menu_object` with eax = it (between `pusha` and `popa`).
 //!
-//! In the scene list at 0x758F76; IDA had not made it a function.
-//! Refuses an entry past the 0x100 kinds, and what its parts refuse.
-//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `run`
+//! In the scene list at 0x758F76; IDA had not made it a function. Refuses an entry past the
+//! 0x100 kinds, and what its parts refuse. The menus and draw lists run its `run`
 //! (`menu::table_routes`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};

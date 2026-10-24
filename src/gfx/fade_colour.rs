@@ -6,12 +6,7 @@
 //! Out: eax = ebx = the colour; ecx kept (turned twice); esi the third byte of the colour
 //!      before; edx the high dword of the last `imul`; no flags read
 //!
-//! Callers: 0x425A23, `race::splash_mud` (0x44A403), 0x44CB15. Self-test: the original
-//! and the Rust version on colours and amounts by lot and at the edges.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Callers: 0x425A23, `race::splash_mud` (0x44A403), 0x44CB15.
 
 /// One byte's step: (the byte, the high dword of the `imul`). Converted:
 /// `rc2k_core::gfx::pixels::fade_step`.

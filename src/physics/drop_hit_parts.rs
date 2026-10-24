@@ -8,10 +8,8 @@
 //! In:  nothing
 //! Out: as the calls leave them; no flags read (the caller calls on)
 //!
-//! Caller: `physics::hit_part_checks`.
-//! Refuses what `fill_slot_on_bit` refuses; what was written is put back.
-//! Self-test: the original and the Rust version on the game's variables (saved and put
-//! back): words, timers and bits by lot.
+//! Caller: `physics::hit_part_checks`. Refuses what `fill_slot_on_bit` refuses; what was
+//! written is put back.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

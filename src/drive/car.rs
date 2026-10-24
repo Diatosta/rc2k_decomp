@@ -40,17 +40,6 @@ impl CarPlaces {
     }
 }
 
-/// What the two copies leave: eax the slot, ecx 0, esi and edi past the source and the
-/// destination.
-pub fn left(slot: u32, from: u32, to: u32) -> crate::screens::harness::Left {
-    use crate::framework::{EAX, ECX, EDI, ESI};
-    crate::screens::harness::Left::nothing()
-        .with(EAX, slot)
-        .with(ECX, 0)
-        .with(ESI, from + CAR_LEN as u32)
-        .with(EDI, to + CAR_LEN as u32)
-}
-
 /// Copies `CAR_LEN` bytes, dword by dword upwards as `rep movsd` does (the two never
 /// overlap in the game; the order is kept anyway).
 pub unsafe fn copy_dwords(from: u32, to: u32) {

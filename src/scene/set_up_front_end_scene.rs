@@ -30,15 +30,8 @@
 //! - the colours a third time with `dword_6092BC` = 0x7F, `dword_621480` = 1,
 //!   `scene::fill_light_tables`, `dword_6238AC` = 1.
 //!
-//! Thirteen callers (the main menu's loop, the films, the ends of the events).
-//! The loading picture, the textures' set-up, the objects' loading and the system
-//! textures' reloading are called at the game's addresses (their hooks choose the
-//! version); the rest are the Rust versions.
-//! A refusal by one of its parts comes with the work half done; the original then
-//! starts from the top.
-//! Shadow mode runs the original alone.
-//! Self-test: a redirected copy whose calls (82 made) note themselves and everything written
-//! by then.
+//! Thirteen callers (the main menu's loop, the films, the ends of the events). A refusal by one
+//! of its parts comes with the work half done.
 
 use crate::errors::Refused;
 use crate::framework::{game_addr, game_write, rva};

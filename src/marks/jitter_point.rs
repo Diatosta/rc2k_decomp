@@ -6,18 +6,9 @@
 //!      (arithmetic); the rest kept
 //!
 //! Three steps of the marks' random (times 0x9D plus 0x47, shifted right 12): the first
-//! moves st(3), the second st(2), the third st(1). Thunk by `quad_triple_hook!`. Nine callers
-//! in the marks' particles. Self-test: the original and the Rust version on spreads,
-//! points and randoms by lot; put back afterwards.
+//! moves st(3), the second st(2), the third st(1). Nine callers in the marks' particles.
 //!
-//! Converted 2026-10-21: the hook's Rust version is `jitter_point_plain`, through
-//! `rc2k_core::marks::particles::jitter` (plain floats; the x87 version stays for the Rust
-//! callers in unconverted code). Shadow mode and the self-test compare within
-//! `service::floats`' tolerances (the self-test at both test precisions, exact at double).
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! the x87 version stays for the Rust callers in unconverted code).
 
 use crate::marks::setup::SEED_RVA;
 use crate::marks::store::{game_read, game_write};

@@ -28,19 +28,10 @@
 //! In:  ebx the action
 //! Out: ZF set when it was one; every register kept (`pusha` / `popa`)
 //!
-//! Callers: `race::replay_viewer` (three). The camera bytes' edits (0xE .. 0x10, 0x18) keep
-//! the undo before they look at the block; nothing is checked of the table's room for a
-//! cut or a paste beyond what the original checks (a block shown past the count is
-//! refused for a paste: the original moves memory by a negative count). Its calls
-//! through `part` (`CALLEES`); in the game their Rust versions. Ungated (plays and
-//! screens). Shadow mode runs the original alone (some actions play, save or load).
-//! Self-test: the original against the Rust version on the actions that only change
-//! memory (all but the plays, 0x14 .. 0x16 and 0x25 .. 0x28), with `read_replay_frame`'s
-//! test replay; the tables set by the test, everything put back.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Callers: `race::replay_viewer` (three). The camera bytes' edits (0xE .. 0x10, 0x18) keep the
+//! undo before they look at the block; nothing is checked of the table's room for a cut or a
+//! paste beyond what the original checks (a block shown past the count is refused for a paste:
+//! the original moves memory by a negative count).
 
 use crate::errors::Refused;
 use crate::menu::screen_loop::Carried;

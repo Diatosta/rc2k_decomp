@@ -6,7 +6,7 @@
 //! What the camera variables (`unk_71A65C` .. `unk_71A6A4`) are is a reading: the mode,
 //! the place (`unk_71A67C` ..), the turns (`unk_71A688` ..).
 //!
-//! This file: the shared steps, the dispatch (keeping the carry) and the tests' frame.
+//! This file: the shared steps.
 
 use crate::errors::Refused;
 use crate::physics::flow::{g, p};

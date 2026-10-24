@@ -7,13 +7,7 @@
 //! In:  the string, the item, x, y
 //! Out: ebx = the flags, ecx = the width + 0x44, edx = y, edi moved; the rest kept; no
 //!      `pusha`
-//! Caller: `net::lobby_frame` (four times). Its call through `part`. Shadow mode runs the
-//! original alone (it draws). Self-test: a copy whose call goes to a stand-in, against the
-//! Rust version, on each item, ready or not, after a race or not.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `net::lobby_frame` (four times).
 
 use crate::errors::Refused;
 use crate::net::draw_button::draw_button;

@@ -11,9 +11,6 @@
 //!      kept. ZF is not read (`jb`).
 //!
 //! Caller: `sub_43EFEF` (six calls), when a car is reset onto the line: not every frame.
-//! Shadow mode: `physics/flag_result.rs`.
-//! Self-test: a copy of the original on test variables, kinds 1 .. 3, checkpoints across
-//! the window and the stage's ends, counts small and large.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

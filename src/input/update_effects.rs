@@ -12,12 +12,10 @@
 //!      the car's sound object), or as `update_car_effects` leaves them after a call;
 //!      flags not read (the caller's `test eax, eax` is inside its `pusha`)
 //!
-//! See `input/effects.rs`. One caller, `input::step_effects_clock`. Its calls through
-//! `part` (`update_car_effects`). Refuses (before anything: the way through is worked out
+//! See `input/effects.rs`. One caller, `input::step_effects_clock`. Refuses (before anything: the way
+//! through is worked out
 //! first, nothing it calls changes what decides it) a car number past the eight sound
-//! objects and a null device on the way taken. Shadow mode runs the original alone (requests are sent).
-//! Self-test: a copy whose fifteen references to the variables go to the test's and whose
-//! calls go to the noting stand-in, against the Rust version: every way through.
+//! objects and a null device on the way taken.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

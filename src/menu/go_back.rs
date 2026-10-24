@@ -3,11 +3,10 @@
 //!
 //! In:  nothing
 //! Out: every register preserved
-//! It is the action of the back button of several menus and the last step of other actions
-//! (seven callers, ten menu tables), so it is read as "leave this menu"; what each of the
-//! three variables means has not been worked out.
-//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
-//! (`menu::table_calls`); the registers above are the original's, for reference.
+//! It is the action of the back button of several menus and the last step of other actions (seven
+//! callers, ten menu tables), so it is read as "leave this menu"; what each of the three variables
+//! means has not been worked out. The menus and draw lists run its `entry` (`menu::table_calls`);
+//! the registers above are the original's, for reference.
 
 // ---- game data ----
 

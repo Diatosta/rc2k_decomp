@@ -9,17 +9,10 @@
 //! In:  nothing
 //! Out: every register preserved (`pusha` .. `popa`)
 //!
-//! Callers: the time trial's events, when the player qualifies. The two callees are their
-//! Rust versions, `sealed_player_time` with the registers the original has there (eax the
-//! stage's +0x3C, ebx `dword_7558D0`, esi the player, edi the entry). Refuses (before
-//! anything) a current player past the four or missing, a stage the tables do not give,
-//! or a name pointer of 0. Self-test: the game's tables for each stage choice there, the
-//! player's time by case; the seal's state, `dword_7559EC`, `hhmm` and `g_keptPlayerName`
-//! compared too; put back.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Callers: the time trial's events, when the player qualifies. The two callees are their Rust
+//! versions, `sealed_player_time` with the registers the original has there (eax the stage's +0x3C,
+//! ebx `dword_7558D0`, esi the player, edi the entry). Refuses (before anything) a current player
+//! past the four or missing, a stage the tables do not give, or a name pointer of 0.
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::event_flow::*;

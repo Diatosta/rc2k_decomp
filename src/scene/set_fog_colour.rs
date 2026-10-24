@@ -5,14 +5,8 @@
 //! In:  eax = the colour
 //! Out: every register kept; no flags read
 //!
-//! Callers: `race::set_up_fog` and ten more. The layer's call is made here (the two lines
-//! of `d3d_set_fog_colour`), `d3d::set_render_state` itself through the game.
-//! Self-test: the original and the Rust version recorded on the layer, nothing drawn;
-//! the colour kept compared.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Callers: `race::set_up_fog` and ten more. The layer's call is made here (the two lines of
+//! `d3d_set_fog_colour`).
 
 use crate::framework::{game_write, rva};
 

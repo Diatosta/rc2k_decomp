@@ -14,19 +14,11 @@
 //! In:  the thread's parameter (not read)
 //! Out: does not return
 //!
-//! Started by `threading::start_threads` (a slot's routine). Its calls through `part`:
-//! 0 the log (eax the text), 1 DirectInput made (eax 1 when it was), 2 .. 4 the keyboard,
-//! the mouse, the joysticks made, 5 the priority (eax, esi the slot), 6 the keyboard read,
-//! 7 the mouse read, 8 .. 10 the mouse, the keyboard, DirectInput released; in the game
-//! through the game (DirectInput, section 15), the joysticks `input::list_joysticks`. In
+//! Started by `threading::start_threads` (a slot's routine). In
 //! the standalone program DirectInput is made in Rust (`input::di_objects`, on SDL's
 //! joysticks, `platform_input.rs`) and released; the keyboard and the mouse are SDL's
-//! events (they fill `g_keysDown`): nothing is made, read or released for them. Each tick passes a gate (`hook_enter` / `hook_leave`), so a
-//! self-test's pause holds the thread between ticks. Refuses what its steps refuse (the
-//! original then runs: its flag is set, so it goes to its end).
-//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
-//! `routes.rs`). Plain since 2026-10-23 (phase 3): its steps called directly; the two log
-//! lines, which the standalone had dropped, written again.
+//! events (they fill `g_keysDown`): nothing is made, read or released for them. Refuses what its
+//! steps refuse.
 
 use crate::errors::Refused;
 use crate::framework::rva;
@@ -36,10 +28,6 @@ use crate::session::CLOCKS;
 use crate::session::FLAGS;
 use crate::store::{game_addr, game_write};
 
-// Kept for the hooked game (2026-10-23): the game's `start_threads` starts the thread at
-// its own address. Without this hook the original ran, with no gate, so a self-test's
-// pause could not hold it and tests that set `dword_518998` met its count
-// (`race::replay_viewer`, shadow on). Removed when the hooked DLL goes.
 const START_TEXT_RVA: usize = rva(0x4DA4B2); // "INPUTTDB:START"
 const QUIT_TEXT_RVA: usize = rva(0x4DA4C1); // "INPUTTDB:QUIT"
 const DIRECT_INPUT_RVA: DeviceSlot = DeviceSlot::at(0x4F6904); // dword_4F6904

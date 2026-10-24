@@ -7,8 +7,6 @@
 //! Out: eax the last step; the rest kept; no flags read
 //!
 //! Caller: `sub_43907F`.
-//! Self-test: `physics/camera_view.rs` (`view_test_floats`), figures by lot, exact at
-//! double precision.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

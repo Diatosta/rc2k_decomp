@@ -4,6 +4,7 @@
 //! +8 its handle, +0xC its flag (1 running, 0xFF suspended), +0x10 .. +0x110 the path
 //! buffer `files::resolve_path` uses for the thread.
 
+use crate::errors::Refused;
 use crate::moved::Place;
 
 #[repr(C)]
@@ -41,6 +42,20 @@ pub static SLOTS: Place<[ThreadSlot; SLOT_COUNT]> = Place::new([
     ThreadSlot::new(0x4183C3),
     ThreadSlot::new(0x410C17),
 ]);
+
+/// A slot's routine (the IDA address the slot holds) run by its Rust version; None for
+/// an address that is none of the four.
+pub fn run_routine(routine: u32) -> Option<Result<(), Refused>> {
+    match routine {
+        0x4078DA => Some(crate::input::input_thread::thread_routine()),
+        0x409CCE => Some(unsafe {
+            crate::audio::thread::audio_thread(&crate::audio::thread::ThreadVars::game())
+        }),
+        0x4183C3 => Some(crate::net::receive_thread::receive_thread()),
+        0x410C17 => crate::threading::shutdown_thread::shutdown_thread(),
+        _ => None,
+    }
+}
 
 /// The address of slot `n`.
 pub fn slot(n: usize) -> usize {

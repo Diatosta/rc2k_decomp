@@ -6,10 +6,6 @@
 //! Out: every register preserved; above 0 percent the bar's x (0x755224) is the marker's x
 //! Above 0 percent, a width * percent of 0 is fatal error 0x80701010 in the original, and the
 //! palette given to the blitter is the marker's x. These sprites do not use a palette.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::errors::FatalError;
 use crate::gfx::blit_bar::Blit;

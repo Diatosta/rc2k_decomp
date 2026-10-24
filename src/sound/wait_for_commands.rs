@@ -7,8 +7,6 @@
 //! (`sub_409C01`): a millisecond's sleep, the window's messages (`system::pump_messages`),
 //! and the quit switch at 1 ends the wait.
 //! Fourteen callers.
-//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
-//! `routes.rs`); the registers above are the original's, for reference.
 
 use crate::session::FLAGS;
 use crate::sound::queue::{END_OF_TURN, Queue, pending, send_command};

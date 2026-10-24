@@ -11,15 +11,8 @@
 //! In:  nothing
 //! Out: ebx `g_gearCount`; the rest kept; no flags read
 //!
-//! Callers: `sub_43B635` (0x43B63F) and `sub_4217E4` (the car specification's).
-//! Refuses (before anything) a gear count above 7 (past `g_gearRatios`).
-//! Self-test: `physics/copy_hooks_test.rs` (`test_moves_floats`: a copy on test
-//! variables against the converted version), counts 4 .. 7 and setups by lot, exact at
-//! double precision; the refusal.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Callers: `sub_43B635` (0x43B63F) and `sub_4217E4` (the car specification's). Refuses
+//! (before anything) a gear count above 7 (past `g_gearRatios`).
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_addr, game_read, rva};

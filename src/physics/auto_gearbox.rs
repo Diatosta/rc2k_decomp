@@ -19,10 +19,8 @@
 //! In:  nothing
 //! Out: the registers as the steps leave them; no flags read (the caller jumps on)
 //!
-//! Caller: `physics::gearbox_step`.
-//! Refuses what the calls refuse, and a gear outside -1 ..= 7 where a ratio is read;
-//! what was written is put back.
-//! Self-test: `physics/gearbox.rs` (`test_gearbox`).
+//! Caller: `physics::gearbox_step`. Refuses what the calls refuse, and a gear outside -1
+//! ..= 7 where a ratio is read; what was written is put back.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

@@ -10,15 +10,9 @@
 //! of its second in the high half; its second byte the same of the third and fourth.
 //! Reached only through the converter table `dword_4F5288`, where `gfx::install_converters`
 //! puts it when the processor has no MMX; with MMX `sub_407276` stands there instead (not
-//! ported). So on a machine of today it is never called, and its self-test is all it has.
-//! Manual patch with a private copy (0x33 bytes, nothing to relocate): the loop comes back
-//! to the third byte, inside what the patch overwrites.
+//! ported). So on a machine of today it is never called.
 //! Refuses a row or a row count of 0 (the original counts through all 32 bits). The name
 //! is a reading.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::errors::BadInput;
 use crate::framework::rva;

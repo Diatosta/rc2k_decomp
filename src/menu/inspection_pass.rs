@@ -11,17 +11,9 @@
 //! In:  nothing
 //! Out: every register kept (`pusha` .. `popa`)
 //!
-//! Callers: the event drivers. The figures, verdict and faults are their Rust versions;
-//! the sleeps, the screen, the fades and the page through `part`, in the game their Rust
-//! versions (the sleep `system::sleep`'s). Ungated (the page waits for the player).
-//! Refuses a player count of 0 or past 4, a player missing, a taking-part player's car
-//! without its table, before anything. Shadow mode runs the original alone (it logs and
-//! shows). Self-test: a copy whose screen, sleep, fade and
-//! page calls go to stand-ins, against the Rust version, players taking part by lot.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Callers: the event drivers. The figures, verdict and faults are their Rust versions. Refuses a
+//! player count of 0 or past 4, a player missing, a taking-part player's car without its table,
+//! before anything.
 
 use crate::errors::Refused;
 use crate::framework::{game_read, game_write, rva};

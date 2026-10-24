@@ -24,12 +24,10 @@
 //! first input device record; for `raise_controller_sensitivity` an edi below 0x10000.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{EAX, EBX, EDI};
 use crate::input::request_device_release::request_device_release;
 use crate::input::request_device_setup::{DEVICES_RVA, request_device_setup};
 use crate::input::store::DeviceSlot;
 use crate::menu::player_settings::current;
-use crate::screens::harness::Left;
 use crate::store::game_read;
 
 pub const COUNT_RVA: DeviceSlot = DeviceSlot::at(0x4F78E0); // dword_4F78E0: the listed controllers
@@ -139,28 +137,13 @@ pub unsafe fn raise_controller_sensitivity(edi: u32) -> Result<(), Refused> {
     Ok(())
 }
 
-/// A dead zone (`offset` 0x40 or 0x44) one more if the two leave more than 10; returns
-/// (the value, `100 - both`, the record) as the registers have them.
-pub fn raise_dead_zone(offset: u32) -> Result<(u32, u32, u32), Refused> {
+/// A dead zone (`offset` 0x40 or 0x44) one more if the two leave more than 10.
+pub fn raise_dead_zone(offset: u32) -> Result<(), Refused> {
     let p = player()?;
-    let mut value = f(p, offset);
-    let (room, grows) = rc2k_core::menu::steps::dead_zone_room(f(p, 0x40), f(p, 0x44));
+    let value = f(p, offset);
+    let (_, grows) = rc2k_core::menu::steps::dead_zone_room(f(p, 0x40), f(p, 0x44));
     if grows {
-        value = value.wrapping_add(1);
-        w(p, offset, value);
+        w(p, offset, value.wrapping_add(1));
     }
-    Ok((value, room, p))
-}
-
-/// What `raise_dead_zone_a` leaves.
-pub fn dead_zone_left(offset: u32) -> Result<Left, Refused> {
-    let (value, room, p) = raise_dead_zone(offset)?;
-    Ok(if offset == 0x40 {
-        Left::nothing()
-            .with(EAX, value)
-            .with(EBX, room)
-            .with(EDI, p)
-    } else {
-        Left::nothing()
-    })
+    Ok(())
 }

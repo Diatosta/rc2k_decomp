@@ -11,17 +11,9 @@
 //! Out: every register kept; CF when skipped (no caller reads it: the next is an `fld`)
 //!
 //! Caller: `sub_43B635` (0x43B91E), every physics step.
-//! Self-test: the original and the Rust version on the game's variables (saved and put
-//! back): kinds with and without a table entry and past the table, both switch settings,
-//! speeds by lot and below 0, against the converted version, exact at double precision.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::framework::{game_read, game_write, rva};
 use crate::math::x87;
-use crate::screens::harness::Left;
 use std::cmp::Ordering;
 
 fn g(x: usize) -> u32 {
@@ -62,15 +54,14 @@ fn add_turn(speed: Option<u32>, f1: usize, f2: usize, to: usize) {
 }
 
 /// The Rust version (the exact one, for `physics::car_physics_step`).
-pub unsafe fn turn_wheel_angles() -> Left {
+pub unsafe fn turn_wheel_angles() {
     let kind = g(KIND);
     if kind >= 0x22 || g(KINDS + 4 * kind as usize) == 0 {
-        return Left::carry(true);
+        return;
     }
     let still = g(STILL) != 0;
     let drive = || x87::loaded(g(0x71A190));
     add_turn((!still).then(drive), 0x623DA8, 0x623DB0, 0x623D60);
     let slip = || x87::sub(g(0x71A190), g(0x71A184));
     add_turn((!still).then(slip), 0x623DAC, 0x623DB4, 0x623D70);
-    Left::nothing()
 }

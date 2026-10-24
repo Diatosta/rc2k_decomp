@@ -9,14 +9,7 @@
 //!
 //! Caller: `sub_418DF4` (the main loop's other way, not ported). Its calls by place: 0
 //! `build_fonts`, 1 `build_menu_sprites`, 2 `set_up_lit_engine`, 3 `set_up_engine`, 4
-//! `set_up_front_end_scene`.
-//! Refuses what its calls refuse. Shadow mode runs the original alone (it loads and sets
-//! up). Self-test: a copy whose calls go to stand-ins that note them, against the Rust
-//! version with the same, fonts there or not (the game's variables put back).
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! `set_up_front_end_scene`. Refuses what its calls refuse.
 
 use crate::errors::Refused;
 use crate::framework::{game_addr, game_read, rva};

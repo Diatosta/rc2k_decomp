@@ -5,25 +5,18 @@
 //! Out: ebx = the slot, ecx = 0, esi = past the object's points, eax = the middle's z;
 //!      for an object of no points: ebx = the slot, ecx = 0, esi = its points' place
 //!
-//! The middle (`dword_634B70` ..) = 0; the lowest of each of x, y, z (`dword_634B88`
-//! ..) from 0x640000 down and the highest (`dword_634B94` ..) from -0x640000 up over
-//! the slot's points; half the extent of each (`dword_634B7C` ..) = (highest - lowest)
-//! halved, the middle = that plus the lowest; then the middle is taken off every
-//! point.
-//! Eleven call sites in `scene::load_object` (the parts of a car).
-//! Refuses a slot past the tables and points without their memory.
-//! Self-test: 24 sets of points by lot in slot 0xF3 of the game's tables.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! The middle (`dword_634B70` ..) = 0; the lowest of each of x, y, z (`dword_634B88` ..) from
+//! 0x640000 down and the highest (`dword_634B94` ..) from -0x640000 up over the slot's points;
+//! half the extent of each (`dword_634B7C` ..) = (highest - lowest) halved, the middle = that
+//! plus the lowest; then the middle is taken off every point. Eleven call sites in
+//! `scene::load_object` (the parts of a car). Refuses a slot past the tables and points without
+//! their memory.
 
 use crate::errors::BadInput;
-use crate::framework::{EAX, EBX, ECX, ESI, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 use crate::scene::objects::{
     FIRST_POINT_RVA, POINT_COUNTS_RVA, POINTS_RVA, SLOT_RVA, SLOTS, of_slot,
 };
-use crate::screens::harness::Left;
 
 // ---- game data ----
 
@@ -51,12 +44,11 @@ unsafe fn points_of(slot: u32) -> Result<(usize, u32), BadInput> {
 }
 
 // Converted: `rc2k_core::scene::objects::measure`
-pub unsafe fn measure_object() -> Result<Left, BadInput> {
+pub unsafe fn measure_object() -> Result<(), BadInput> {
     use rc2k_core::scene::objects::{HIGHEST_START, LOWEST_START, measure};
     unsafe {
         let slot: u32 = game_read(SLOT_RVA);
         let (at, count) = points_of(slot)?;
-        let left = Left::nothing().with(EBX, slot).with(ECX, 0);
         let points: &mut [[u32; 3]] = if count == 0 {
             &mut []
         } else {
@@ -66,11 +58,9 @@ pub unsafe fn measure_object() -> Result<Left, BadInput> {
             // The half extents are not touched for an object of no points.
             game_write(MEASURES_RVA, [0u32; 3]);
             game_write(MEASURES_RVA + 0x18, [[LOWEST_START; 3], [HIGHEST_START; 3]]);
-            return Ok(left.with(ESI, at as u32));
+            return Ok(());
         };
         game_write(MEASURES_RVA, [m.middle, m.half, m.lowest, m.highest]);
-        Ok(left
-            .with(EAX, m.middle[2])
-            .with(ESI, (at + count as usize * 12) as u32))
+        Ok(())
     }
 }

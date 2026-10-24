@@ -6,17 +6,9 @@
 //! Out: nothing (no caller reads a register it leaves: `run_pong` reads none after
 //!      `move_pong_bat`, the Rust versions none at all)
 //!
-//! Caller: `marks::move_pong_bat`. Self-test: the original and the Rust version on balls
-//! and bats by lot; put back.
+//! Caller: `marks::move_pong_bat`.
 //!
-//! Converted 2026-10-21: the hook's Rust version is `pong_bat_back_plain`, through
-//! `rc2k_core::marks::pong::Court::bat_back` (plain floats; the x87 version stays for the Rust
-//! callers in unconverted code). Shadow mode and the self-test compare within
-//! `service::floats`' tolerances (the self-test at both test precisions, exact at double).
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! the x87 version stays for the Rust callers in unconverted code).
 
 use crate::marks::pong;
 use crate::marks::store::{game_read, game_write};

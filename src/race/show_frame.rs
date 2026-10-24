@@ -17,10 +17,6 @@
 //! `race::draw_frame_rate` (0x4562B2), `scene::unlock_frame` (0x44E851),
 //! `scene::present_frame` (0x44E895), `scene::restart_clock` (0x450381),
 //! `race::measure_frame_rate` (0x42009E).
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::errors::Refused;
 use crate::framework::{game_read, game_write, rva};

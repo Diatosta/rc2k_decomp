@@ -7,12 +7,7 @@
 //!
 //! They are the in-game options menu's items 3 .. 6 (`menu/in_game_options_items.rs`):
 //! this hides all four, as `menu::hide_in_game_options` hides the last ones.
-//! Callers: `sub_487E2C`, the event drivers. Self-test: the original and the Rust version
-//! on the game's table; put back.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Callers: `sub_487E2C`, the event drivers.
 use crate::errors::Refused;
 use crate::menu::in_game_options_items::set;
 use rc2k_core::menu::items::{HIDDEN, IN_GAME_OPTIONS};

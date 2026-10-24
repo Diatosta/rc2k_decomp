@@ -7,9 +7,6 @@
 //! In:  nothing
 //! Out: nothing its callers (`race::draw_sky`, `race::draw_view_scene` twice,
 //!      `race::draw_view_overlays`) read
-//!
-//! The device's call is the platform's, through the game (`calls::call`, section 15, as
-//! `race/frame_flush.rs`). Hook removed 2026-10-23 (conversion phase 4).
 
 use crate::errors::Refused;
 use crate::framework::{game_addr, game_read, game_write, rva};

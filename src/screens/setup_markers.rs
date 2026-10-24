@@ -4,14 +4,13 @@
 //! (upper right), 0x12 (lower left) and 0x13 (lower right). Each function sets up the bar
 //! globals and calls `gfx::blit_bar_marker`, so the marker sits at a percentage of the bar.
 //!
-//! Screen: seen in a screenshot of the championship's service area (2026-10-10), setup section: 0x10 is the
-//! steering sensitivity (slow .. fast), 0x11 the brake balance (front .. rear), 0x12 the ride
-//! height (low .. high), 0x13 the suspension stiffness (soft .. hard). The two lower bars
-//! have two markers each. The one always drawn (glyph 0x77, orange) is at the value the car
-//! has now (`dword_75ACAC`, `dword_75ACB8`): the `_installed_marker` hooks. The other (0x76,
-//! yellow) is at the value being chosen (`dword_75ACA8`, `dword_75ACB4`, which the keys step)
-//! and only appears while it differs or its change is selected. The steering and brake
-//! values are changed in the player directly, so those bars have one marker.
+//! Screen: seen in a screenshot of the championship's service area (2026-10-10), setup section:
+//! 0x10 is the steering sensitivity (slow .. fast), 0x11 the brake balance (front .. rear), 0x12
+//! the ride height (low .. high), 0x13 the suspension stiffness (soft .. hard). The two lower bars
+//! have two markers each. The other (0x76, yellow) is at the value being chosen (`dword_75ACA8`,
+//! `dword_75ACB4`, which the keys step) and only appears while it differs or its change is
+//! selected. The steering and brake values are changed in the player directly, so those bars have
+//! one marker.
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_read, rva};

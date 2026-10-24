@@ -6,13 +6,9 @@
 //! Out: esi the record, ebx the last face + 1 (or the first, when none), the rest as the
 //!      calls leave them; no flags read (the caller returns)
 //!
-//! Caller: `physics::cell_face_contacts`.
-//! Refuses (before anything) a record whose faces (the first not -1) run to -1 or past `g_courseFaceCount`
-//! (the original loops on or reads past the faces), and what `face_contact` refuses (what
-//! was written put back).
-//! Self-test (in a race; skipped otherwise): the original and the Rust version on the
-//! stage (everything written saved and put back): the records of the car's cell where it
-//! is and of object faces with the car moved onto them.
+//! Caller: `physics::cell_face_contacts`. Refuses (before anything) a record whose faces
+//! (the first not -1) run to -1 or past `g_courseFaceCount` (the original loops on or reads
+//! past the faces), and what `face_contact` refuses (what was written put back).
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

@@ -9,10 +9,6 @@
 //! before decides (reproduced). It only fills the buffer: putting the state back into the
 //! game is done by its callers `sub_46D88F` and `sub_46E6E1`, which are not ported.
 //! Called for all 100 slots at start-up (`sub_411239`). Refuses a slot past 99.
-//!
-//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
 use crate::files::numbered_path::numbered_path_in_game;

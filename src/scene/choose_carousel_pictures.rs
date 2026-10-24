@@ -4,15 +4,9 @@
 //! In:  nothing
 //! Out: nothing changed on other menus; else as `scene::update_carousel_pictures`
 //!
-//! Only with `g_carouselMenu` at 0xB .. 0xE: the entry before the front one
-//! (`g_carouselFront`, going round `g_carouselCount`) and the three after it are the
-//! four entries of `scene::update_carousel_pictures`.
-//! One caller, `scene::draw_main_menu_objects`.
-//! Self-test: 80 settings by lot, with records of the test's.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Only with `g_carouselMenu` at 0xB .. 0xE: the entry before the front one (`g_carouselFront`,
+//! going round `g_carouselCount`) and the three after it are the four entries of
+//! `scene::update_carousel_pictures`. One caller, `scene::draw_main_menu_objects`.
 
 use crate::errors::BadInput;
 use crate::framework::{game_read, rva};

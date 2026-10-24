@@ -11,22 +11,17 @@
 //! are the functions below, generated from the listing.
 //! The name is a reading from the title string of its menu, "OPÇÕES DE REVISÃO", not yet a
 //! visit.
-//! Callers: `sub_4A0E60`, `sub_4AA4D7`. Ungated thunk; shadow mode runs the original alone;
-//! each real call writes a line to hook.log. Self-test: `screen_loop::check_screen`.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Callers: `sub_4A0E60`, `sub_4AA4D7`.
 
 use crate::errors::Refused;
 use crate::framework::{game_read, game_write, rva};
-use crate::menu::screen_loop::{Carried, List, Screen, Step, call, carousel, prepare_scene};
+use crate::menu::screen_loop::{Callee, Carried, List, Screen, Step, carousel, prepare_scene};
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
 unsafe fn set_up_first(c: &mut Carried) -> Result<(), Refused> {
     unsafe {
-        call(rva(0x471391), c)?;
+        Callee::NoOp.run(c)?;
         game_write(rva(0x755569), 0x0u32);
         game_write(rva(0x7554EC), 0x1u32);
         game_write(rva(0x75AA74), 0x14u32);
@@ -73,7 +68,7 @@ pub const SCREEN: Screen = Screen {
     after_lists: &[],
     background: &[
         Step::ArgAddr(rva(0x73268F)),
-        Step::CallOrFatal(rva(0x47EFFF), 0x80712345),
+        Step::CallOrFatal(Callee::LoadBackground, 0x80712345),
     ],
     after_first_frame: &[],
     confirm: Some(&[]),
@@ -83,7 +78,7 @@ pub const SCREEN: Screen = Screen {
         Step::Write(rva(0x758806), 0x0),
     ],
     unasked_skips_save: false,
-    after: &[Step::Call(rva(0x4713DD))],
+    after: &[Step::Call(Callee::NoOp)],
     escape_leaves: true,
     each_frame: &[],
     short_action_check: false,

@@ -1,7 +1,3 @@
-//! For the converted physics and drive adapters: dwords at addresses (the game's
-//! variables, or a self-test's cells standing in for them) loaded into the core's
-//! structures, and stored back where the core changed them.
-
 /// The dword at `a`.
 ///
 /// # Safety

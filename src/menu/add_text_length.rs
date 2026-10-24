@@ -5,10 +5,6 @@
 //! In:  edi = text
 //! Out: ecx = ecx + 1 (an `inc ecx` after the `popa`); everything else preserved
 //! Refuses a text with no NUL in its first 0x1000 bytes.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::errors::BadInput;
 use crate::menu::text_entry::with_entry;

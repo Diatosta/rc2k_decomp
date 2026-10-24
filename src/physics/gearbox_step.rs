@@ -9,9 +9,8 @@
 //! In:  nothing
 //! Out: the registers as the steps leave them; no flags read (the callers return)
 //!
-//! Callers: `sub_43CB14` (under `sub_43B635`), `sub_421848`.
-//! Refuses what the steps refuse; what was written is put back.
-//! Self-test: `physics/gearbox.rs` (`test_gearbox`), with gears asked for and not.
+//! Callers: `sub_43CB14` (under `sub_43B635`), `sub_421848`. Refuses what the steps refuse;
+//! what was written is put back.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

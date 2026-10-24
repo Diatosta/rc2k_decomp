@@ -2,8 +2,7 @@
 //! one up or down, and the four that select or deselect a change.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{EDI, game_addr};
-use crate::screens::harness::Left;
+use crate::framework::game_addr;
 use crate::service::state::current_player;
 
 // ---- steppers ----
@@ -12,7 +11,7 @@ use crate::service::state::current_player;
 pub enum Target {
     /// A game variable, by RVA.
     Global(usize),
-    /// A dword of the current player, by offset. These functions leave the car in edi.
+    /// A dword of the current player, by offset.
     CarField(u32),
 }
 
@@ -25,23 +24,20 @@ pub struct Stepper {
     pub up: bool,
 }
 
-fn target(stepper: Stepper) -> Result<(u32, Left), BadInput> {
+fn target(stepper: Stepper) -> Result<u32, BadInput> {
     match stepper.target {
-        Target::Global(rva) => Ok((game_addr(rva) as u32, Left::nothing())),
+        Target::Global(rva) => Ok(game_addr(rva) as u32),
         Target::CarField(offset) => {
             let player = current_player().ok_or(BadInput(
                 "no current player object: the original reads through null",
             ))?;
-            Ok((
-                player.wrapping_add(offset),
-                Left::nothing().with(EDI, player),
-            ))
+            Ok(player.wrapping_add(offset))
         }
     }
 }
 
-pub unsafe fn step(stepper: Stepper) -> Result<Left, Refused> {
-    let (addr, left) = target(stepper)?;
+pub unsafe fn step(stepper: Stepper) -> Result<(), Refused> {
+    let addr = target(stepper)?;
     let value = addr as *mut i32;
     unsafe {
         // Converted: `rc2k_core::service::repairs::step`.
@@ -49,7 +45,7 @@ pub unsafe fn step(stepper: Stepper) -> Result<Left, Refused> {
             rc2k_core::service::repairs::step(value.read_unaligned(), stepper.max, stepper.up);
         value.write_unaligned(next);
     }
-    Ok(left)
+    Ok(())
 }
 
 // ---- selecting a change ----

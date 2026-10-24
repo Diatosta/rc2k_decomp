@@ -7,16 +7,8 @@
 //!
 //! In:  nothing
 //! Out: every register kept (`pusha` .. `popa`)
-//! The callees get eax the level (from the won level's test on) and esi as above. The
-//! screens, the tunes and the save at the game's addresses (their hooks choose), the car
-//! steps' Rust versions. Refuses (before anything) a level past 5. Ungated thunk (the
-//! finale runs a race's drive); shadow mode runs the original alone. Self-test: a copy
-//! whose calls go to stand-ins, against the Rust version: lost, won the first time, won
-//! again.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! The callees get eax the level (from the won level's test on) and esi as above. Refuses (before
+//! anything) a level past 5.
 
 use crate::errors::Refused;
 use crate::framework::{game_addr, game_read, game_write, rva};

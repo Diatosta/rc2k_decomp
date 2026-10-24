@@ -9,21 +9,11 @@
 //! Out: eax the cars' count, then as `animate_stage` and `race_mode_cars` leave the
 //!      registers; no flags read
 //!
-//! Caller: `drive::race_init` (its fifty settling steps). It begins with a call: hooked by
-//! a private copy of its 0x8E bytes with its eight calls relocated, and a hand-made
-//! patch.
-//! Refuses (before anything) a cars' count of 0 or past 8 (the original's `jnz` loop runs
-//! on), and what its calls refuse; the cars' blocks, the work car and the physics'
-//! variables are put back then. Shadow mode runs the original alone (as
-//! `car_physics_step`).
-//! Self-test (in a race; skipped otherwise): the original and the Rust version from the
-//! same state (everything written saved and put back), logging off. The pace notes'
+//! Caller: `drive::race_init` (its fifty settling steps). Refuses (before anything) a cars'
+//! count of 0 or past 8 (the original's `jnz` loop runs on), and what its calls refuse; the
+//! cars' blocks, the work car and the physics' variables are put back then. The pace notes'
 //! sound cues (`physics::pace_notes_step` -> the sound objects' queues) are not put back
 //! between the two runs: a mismatch there would show in those queues only.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::errors::Refused;
 use crate::physics::flow::{g, p};

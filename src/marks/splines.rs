@@ -556,7 +556,6 @@ pub unsafe fn load_splines(resume: u32) -> Result<(), Refused> {
                 game_addr(PATH_RVA) as *const u8,
                 file as *mut u8,
                 FILE_LEN,
-                file,
             )?;
             game_write(LOADED_RVA, resume);
         }
@@ -572,5 +571,3 @@ pub unsafe fn load_splines(resume: u32) -> Result<(), Refused> {
     }
     Ok(())
 }
-
-// ---- for the self-tests ----

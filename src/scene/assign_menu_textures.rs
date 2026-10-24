@@ -4,16 +4,9 @@
 //! In:  nothing
 //! Out: every register preserved
 //!
-//! For each of the eight numbers of `dword_75A622` that is not -1: the slot (kind
-//! 0x258's first slot, `dword_5D2448`, plus its place in the eight) wants that
-//! number plus kind 0x258's first texture (`dword_5D1448`).
-//! Two callers.
-//! Refuses a slot past the table.
-//! Self-test: 12 settings by lot in the game's places, put back afterwards.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! For each of the eight numbers of `dword_75A622` that is not -1: the slot (kind 0x258's first
+//! slot, `dword_5D2448`, plus its place in the eight) wants that number plus kind 0x258's first
+//! texture (`dword_5D1448`). Two callers. Refuses a slot past the table.
 
 use crate::errors::BadInput;
 use crate::framework::{game_read, game_write, rva};

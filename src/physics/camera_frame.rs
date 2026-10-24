@@ -8,11 +8,8 @@
 //! In:  nothing
 //! Out: the registers as `update_camera` leaves them; no flags read
 //!
-//! Callers: `sub_43B635`, `sub_459360`, `sub_46062E`.
-//! Refuses what `update_camera` refuses (everything written put back). Shadow mode runs
-//! the original alone (as its ground checks).
-//! Self-test (`update_camera::camera_test`, in a race; skipped otherwise; the carry not
-//! compared, as no caller reads it).
+//! Callers: `sub_43B635`, `sub_459360`, `sub_46062E`. Refuses what `update_camera` refuses
+//! (everything written put back).
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

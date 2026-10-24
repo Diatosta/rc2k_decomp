@@ -8,8 +8,6 @@
 //! See `physics/ground.rs`. Callers (7): `sub_45D305` (the car's ground points),
 //! `sub_462485`, `sub_45EB06`, `sub_458078`, `sub_44ECE4`, `sub_43A1CA`, `sub_438E22`.
 //! Refuses what `ground_search` refuses.
-//! Self-test: a copy of the original (its call to a copy of `ground_search`) on the
-//! test's ground, as `ground_search`'s test.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

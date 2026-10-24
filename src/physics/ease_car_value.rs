@@ -7,8 +7,6 @@
 //! Out: eax `dword_71AF90` << 8 (when `dword_6235E8` is 0); the rest kept; no flags read
 //!
 //! Caller: `sub_43B635` (0x43B705), every physics step.
-//! Self-test: a copy of the original on test variables, the switches and values above,
-//! at and below, near the sign's turn.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

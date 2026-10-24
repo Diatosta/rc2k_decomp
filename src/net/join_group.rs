@@ -6,7 +6,7 @@
 //! Out: true when joined (the original: carry clear, the flags of `test eax, eax`; every
 //!      register kept), false for the carry
 //! Callers: `net::join_session`, `net::open_lobby`. DirectPlay's calls from Rust
-//! (`net::dplay`), the callback the game's address (its hook).
+//! (`net::dplay`).
 
 use crate::net::create_group::join;
 use crate::net::dplay::{ENUM_GROUPS, call};

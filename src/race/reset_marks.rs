@@ -7,14 +7,7 @@
 //! Out: every register kept (`pusha` / `popa`); no flags read
 //!
 //! Callers: `race::viewer_action` (the cut and the paste), `race::undo_edit`. Refuses what
-//! `read_replay_frame_0` refuses (what it wrote put back). Shadow mode compares (the
-//! file put back where it was by `read_packed`). Self-test: the original against the
-//! Rust version with `read_replay_frame`'s test replay: blocks below, at and past the
-//! count, not playing.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! `read_replay_frame_0` refuses (what it wrote put back).
 
 use crate::errors::Refused;
 use crate::race::viewer::{BLOCK, BLOCKS, MARK_IN, MARK_OUT, get, put};

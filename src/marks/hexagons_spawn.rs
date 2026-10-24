@@ -9,12 +9,7 @@
 //! Out: nothing (its caller reads no register after it)
 //!
 //! Caller: `sub_4BC0B1` (0x4BC225). The x87 run is the original's instructions over the
-//! game's variables; the picks their Rust versions (under the same rounding). Self-test:
-//! the original and the Rust version on the game's items with rates by lot; put back.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! game's variables; the picks their Rust versions (under the same rounding).
 
 use crate::marks::pick_hexagon::pick_hexagon;
 use crate::marks::setup::SEED_RVA;

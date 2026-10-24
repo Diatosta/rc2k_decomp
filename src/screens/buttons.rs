@@ -1,8 +1,7 @@
-//! The menu's buttons: a left end, a run of 32-pixel middle pieces and a right end, all
-//! sprites of `g_spriteTable`. Three functions of the game draw them, alike but for the
-//! sprites they take, the work variables they use and two slips (see `Kind`); and five small
-//! ones choose among them for a menu item. Their hooks are in the `draw_button*` and
-//! `draw_item_button*` files; what they share is here.
+//! The menu's buttons: a left end, a run of 32-pixel middle pieces and a right end, all sprites of
+//! `g_spriteTable`. Three functions of the game draw them, alike but for the sprites they take, the
+//! work variables they use and two slips (see `Kind`); and five small ones choose among them for a
+//! menu item.
 //!
 //! A button is drawn from an x by its alignment: 2 = x is its left edge, 3 = x is where its
 //! right end piece goes, 1 = x is its middle. Its width is that of the middle pieces. Any
@@ -220,5 +219,3 @@ pub unsafe fn draw_text_button(
         )
     }
 }
-
-// ---- self-tests ----

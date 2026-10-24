@@ -29,8 +29,8 @@
 //!
 //! 26 callers (the screen loops' set-up). Refuses, for the cars' carousels, no list, a list
 //! without its -1 within 0x100 entries, an entry that is not there, and a car's number of 0x400
-//! or more. Hook removed 2026-10-22 (direct calls): Rust callers run its `entry`
-//! (`calls::call`, `routes.rs`); the registers above are the original's, for reference.
+//! or more. The registers above are the original's, for reference; a call by address goes
+//! through `routes.rs`.
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_addr, game_read, game_write, rva};

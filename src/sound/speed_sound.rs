@@ -10,12 +10,7 @@
 //! +0x18 + set +0x10, +8 = +0x108 x set +0x24 + set +0x1C (x `flt_51637C` when +0xC is
 //! 0), the place = +0x2C .. +0x34, and `sound::play_placed_sound`. Both are tail jumps.
 //! One caller, `sound::car_sounds`.
-//! A near `js` in its first five bytes: private copy (0x92 bytes, the six jumps out
-//! relocated), manual patch.
 //! Refuses (before anything) a null object or request, and a kind wanted but null.
-//! Shadow mode runs the original alone (it sends a sound).
-//! Self-test: a copy whose jumps out go to stand-ins, against the Rust version
-//! (`turn_parts::test_car_sound`).
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

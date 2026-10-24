@@ -6,15 +6,9 @@
 //!      version keeps them)
 //!
 //! `dword_623DB8` = 0, or 0xFFFF00FF with the top bit of `dword_5CCCD4`; the polygon;
-//! `dword_623DB8` = 0. The variable is read only by the line drawing at 0x44EB04 and
-//! 0x44EB1E (not read: an outline for a developer's view, by the colour).
-//! Callers `sub_44CCEF` and `sub_44CD90`.
-//! Shadow mode runs the original alone (its call of `draw_polygon` is compared there).
-//! Self-test: a redirected copy whose call notes the variable.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! `dword_623DB8` = 0. The variable is read only by the line drawing at 0x44EB04 and 0x44EB1E
+//! (not read: an outline for a developer's view, by the colour). Callers `sub_44CCEF` and
+//! `sub_44CD90`.
 
 use crate::errors::BadInput;
 use crate::framework::{game_read, game_write, rva};

@@ -4,28 +4,19 @@
 //! In:  nothing; the polygon's entries are the work table's first, in order
 //! Out: the original leaves every register changed; the Rust version keeps them
 //!
-//! The pool of records, the list (0, 1, 2 .. and a 0) and the next free entry are set
-//! as `scene::draw_clipped_polygon` sets them; `scene::project_polygon`; then
-//! `sub_451EED` says whether a polygon of three vertices or more has one that is
-//! nearer than `flt_5C5D90`, or left of or above that same number, or at or past the
-//! screen's right or bottom edge. If none, or with exactly three vertices:
-//! `dword_639960` + 1 and `scene::draw_clipped_polygon`. Else `dword_639964` + 1, the
-//! entries are kept at `unk_976610`, and the polygon is drawn as a fan of triangles:
-//! the first three entries as they are, then for n = 3 .. the entries 0, n - 1 and n
-//! from the kept ones (`sub_45204A` copies one), each with the number of vertices at
-//! 3, where it stays.
-//! Three call sites, all in `sub_450BDA`.
-//! Refuses a polygon of no vertices or of more than 64 (the kept entries' room).
-//! Shadow mode runs the original alone.
-//! Self-test: a redirected copy whose calls of the projection and the drawing note
-//! what they are given.
+//! The pool of records, the list (0, 1, 2 .. and a 0) and the next free entry are set as
+//! `scene::draw_clipped_polygon` sets them; `scene::project_polygon`; then `sub_451EED` says
+//! whether a polygon of three vertices or more has one that is nearer than `flt_5C5D90`, or
+//! left of or above that same number, or at or past the screen's right or bottom edge. If none,
+//! or with exactly three vertices: `dword_639960` + 1 and `scene::draw_clipped_polygon`. Else
+//! `dword_639964` + 1, the entries are kept at `unk_976610`, and the polygon is drawn as a fan
+//! of triangles: the first three entries as they are, then for n = 3 .. the entries 0, n - 1
+//! and n from the kept ones (`sub_45204A` copies one), each with the number of vertices at 3,
+//! where it stays. Three call sites, all in `sub_450BDA`. Refuses a polygon of no vertices or
+//! of more than 64 (the kept entries' room).
 //!
 //! Converted 2026-10-21: the test, the list, the choice and the fan through
 //! `rc2k_core::scene::polygons` (compares of stored floats: exact).
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::d3d::draw_fan_unclipped::COUNT_RVA;
 use crate::errors::{BadInput, Refused};

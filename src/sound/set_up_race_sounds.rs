@@ -6,8 +6,6 @@
 //! `dword_4F82C8`; `sound::load_race_sounds`; `sound::wait_for_commands`; `dword_506C84`
 //! = 0 (`sub_409B76`). The menus' counterpart is `sound::apply_settings`.
 //! Nine callers (the events' starters, before a stage is loaded).
-//! Shadow mode runs the original alone.
-//! Self-test: a redirected copy whose four calls note the registers they get.
 
 use crate::audio::store::Slot;
 use crate::sound::apply_settings::run_step;

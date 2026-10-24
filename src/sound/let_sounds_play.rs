@@ -5,8 +5,6 @@
 //!
 //! Its twin `sound::hold_sounds_back` (0x409B6B) sets it to 1; `sound::play_sound` plays
 //! nothing while it is 1. Five callers (`race::start_race_sounds` and four more).
-//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
-//! `routes.rs`); the registers above are the original's, for reference.
 
 use crate::audio::store::Slot;
 use crate::store::game_write;

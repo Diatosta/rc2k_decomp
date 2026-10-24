@@ -14,8 +14,8 @@
 //! rectangle is set to the block's rectangle (`set_clip`).
 //! Five callers, `menu::load_background` among them.
 //! The name is a reading.
-//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
-//! `routes.rs`); the registers above are the original's, for reference.
+//! The registers above are the original's, for reference; a call by address goes through
+//! `routes.rs`.
 
 use crate::errors::{FatalError, Refused};
 use crate::framework::rva;
@@ -70,7 +70,3 @@ pub unsafe fn picture_as_surface() -> Result<(), Refused> {
         Ok(())
     }
 }
-
-// ---- self-test: a copy of the original that reads the flags from a test variable, writes a
-// surface block of the test's and hands the clip rectangle to a stand-in; the real surface
-// and clip rectangle are what the game's drawing reads all the time ----

@@ -34,12 +34,9 @@
 //! Out: every register kept (`pusha` .. `popa`)
 //!
 //! In the results screens' draw lists (0x758E12 .., 0x758E2A ..). The rows are found before
-//! anything is drawn: a position not there is the look-ups' fatal error, raised then.
-//! Refuses (before anything) no ranked list, a section the record table has not, a name or a
-//! line past the line buffer, and what the look-ups refuse.
-//! Hooks removed 2026-10-22 (typed tables) but for `class_rally`
-//! (`screens::draw_class_rally_results`), which a screen calls by address: the draw lists run
-//! their `entry` (`menu::table_calls`).
+//! anything is drawn: a position not there is the look-ups' fatal error, raised then. Refuses
+//! (before anything) no ranked list, a section the record table has not, a name or a line past the
+//! line buffer, and what the look-ups refuse.
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_read, rva};
@@ -204,8 +201,7 @@ pub unsafe fn draw_results_page(page: &Page, canvas: &mut dyn Canvas) -> Result<
     Ok(())
 }
 
-/// `results_page` without the hook: the pages the typed tables run (hooks removed
-/// 2026-10-22).
+/// `results_page`: the pages the typed tables run.
 macro_rules! results_page_entry {
     ($module:ident, $name:literal, $address:expr, $page:expr) => {
         pub mod $module {

@@ -10,16 +10,8 @@
 //! Out: ebx `unk_71A440` past the first test; at the reset as `physics::reset_car` leaves
 //!      the registers (eax the penalty); the rest kept; no flags read
 //!
-//! Callers: `drive::car_controls`, `sub_460835`, `sub_460B2F`.
-//! Refuses what `physics::reset_car` refuses. Shadow mode runs the original alone at the
-//! reset (`physics/reset_parts.rs`), else compares.
-//! Self-test: the original and the Rust version on the game's variables (saved and put
-//! back) by lot, counts below, at and past 100; the reset's call through `reset_parts`'
-//! stand-in in a copy.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Callers: `drive::car_controls`, `sub_460835`, `sub_460B2F`. Refuses what
+//! `physics::reset_car` refuses.
 
 use crate::errors::Refused;
 use crate::physics::flow::{c0, g, p};

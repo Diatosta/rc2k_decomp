@@ -19,18 +19,9 @@
 //! Out: nothing (its one caller reads no register after it)
 //!
 //! Caller: `marks::run_frame` (0x4D163B, after `run_ribbons`' set-up). The longer x87 runs
-//! are the original's instructions over the entries and the game's variables; the draws
-//! through `part` (1 `draw_cell_sprite`, 2 its twin, 3 `draw_subcell_sprite`, with their
-//! three values), in the game their Rust versions. Refuses, before anything, null
-//! settings, a null entry or link on the way, a null object where one is read, and the
-//! draws' own refusals for an entry that may be drawn. Shadow
-//! mode runs the original alone (it draws). Self-test: a copy of the whole range (its
-//! steps' return address pointed into the copy) whose draws go to stand-ins taking their
-//! values off, against the Rust version, on a ring and objects of the test's.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! are the original's instructions over the entries and the game's variables. Refuses,
+//! before anything, null settings, a null entry or link on the way, a null object where one
+//! is read, and the draws' own refusals for an entry that may be drawn.
 
 use crate::errors::{BadInput, Refused};
 use crate::marks::emitters::{RING_COUNT_RVA, RING_CURSOR_RVA};

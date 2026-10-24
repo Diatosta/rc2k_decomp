@@ -6,9 +6,8 @@
 //! In:  nothing
 //! Out: as the step leaves them (mode 2: eax the place); no flags read
 //!
-//! Callers: `physics::take_split`, `physics::take_split_counted`.
-//! Refuses what the steps refuse.
-//! Self-test: `physics/splits.rs` (`test_splits`).
+//! Callers: `physics::take_split`, `physics::take_split_counted`. Refuses what the steps
+//! refuse.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

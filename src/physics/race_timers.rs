@@ -10,9 +10,8 @@
 //! Out: the registers as the steps leave them; no flags read (the caller goes on with
 //!      calls)
 //!
-//! Caller: `sub_43B635` (0x43B64E).
-//! Refuses what the steps refuse; what was written is put back.
-//! Self-test: `physics/splits.rs` (`test_splits`), every mode.
+//! Caller: `sub_43B635` (0x43B64E). Refuses what the steps refuse; what was written is put
+//! back.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

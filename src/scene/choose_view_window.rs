@@ -6,16 +6,9 @@
 //! In:  nothing
 //! Out: as `set_view_window` leaves them
 //!
-//! Callers: `scene::full_view_window`, code at 0x446810. `set_view_window` is its Rust
-//! version. Self-test: the original and the Rust version on the game's variables, every
-//! way.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Callers: `scene::full_view_window`, code at 0x446810. `set_view_window` is its Rust version.
 
 use crate::framework::{game_read, game_write, rva};
-use crate::screens::harness::Left;
 use crate::session::SCREEN;
 
 const FRAMED_RVA: usize = rva(0x621514); // dword_621514
@@ -25,8 +18,8 @@ const WINDOW_RVA: [usize; 2] = [rva(0x62408C), rva(0x624090)];
 const OFFSET_RVA: [usize; 2] = [rva(0x623FB0), rva(0x623FB4)];
 const SCALE_RVA: usize = rva(0x624080); // dword_624080
 
-/// The Rust version (see the header): what it leaves in the registers.
-pub unsafe fn choose_view_window() -> Left {
+/// The window chosen, then `set_view_window`.
+pub unsafe fn choose_view_window() {
     // Converted: `rc2k_core::scene::view_window::choose`.
     use rc2k_core::scene::view_window::{ViewSettings, choose};
     unsafe {
@@ -41,6 +34,6 @@ pub unsafe fn choose_view_window() -> Left {
         game_write(OFFSET_RVA[0], window.offset[0]);
         game_write(OFFSET_RVA[1], window.offset[1]);
         game_write(SCALE_RVA, window.scale);
-        crate::scene::set_view_window::set_view_window()
+        crate::scene::set_view_window::set_view_window();
     }
 }

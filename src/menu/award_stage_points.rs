@@ -11,16 +11,10 @@
 //! In:  nothing
 //! Out: every register kept (`pusha` .. `popa`)
 //!
-//! Callers: the event drivers. The search is its Rust version; it logs through
-//! `logfile::log_write` and `log_int` (level 1). Refuses no table, one without its end
-//! entry, a class count of 0 or past 0x100, a section past 5, a player past 4 or missing,
-//! before anything; a driver not found is the search's fatal error, before anything.
-//! Shadow mode runs the original alone (it logs). Self-test: the original and the Rust version on the game's tables,
-//! groups and sections by lot; put back.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Callers: the event drivers. The search is its Rust version; it logs through `logfile::log_write`
+//! and `log_int` (level 1). Refuses no table, one without its end entry, a class count of 0 or past
+//! 0x100, a section past 5, a player past 4 or missing, before anything; a driver not found is the
+//! search's fatal error, before anything.
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::menu::standings::*;

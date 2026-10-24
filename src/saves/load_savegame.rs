@@ -4,38 +4,34 @@
 //! In:  nothing
 //! Out: every register preserved
 //! In order:
-//!   - `sub_471F7E`; `dword_75592C` = 1, `dword_755250` = 0, `dword_755978` = 0;
-//!   - `read_savegame_slot` on slot `dword_75523C * 10 + item - 1`. If that fails:
-//!     `sub_40F059` with eax = 8, `menu::go_back`, and that is all;
-//!   - the seven dwords, the four cars and the 180 records go back where `gather_savegame`
-//!     took them from; `dword_75516C` is left pointing at the saved cars; between the dwords
-//!     and the cars it calls `maybeCopySomeData` (only if `dword_755144` is 0) and
-//!     `sub_4748B6`. Each car's 0x20 bytes at +0x124 are copied to where the car's pointer at
-//!     +0x18 pointed before the car was overwritten; car 0's dwords at +0x14 and +0x274 go to
-//!     `dword_7554C0` and `dword_7554C4`;
-//!   - `sub_470D08` says where the event stands: 4 or 5, the next section starts (section + 1,
-//!     stage index 0); 0 or 1, the next stage (index + 1); 3, nothing more happens here; any
-//!     other value is fatal error 0x80702821 "Corrupt SaveGame";
-//!   - unless it was 3: `dword_755970` = 1, `sub_47059E`, and then the event itself runs:
-//!     `sub_4AA4D7` if `dword_7556D0` is 0x13, else `sub_4A0E60`. These only come back when
-//!     the event is over or left;
-//!   - `menu::go_back`.
+//! - `sub_471F7E`; `dword_75592C` = 1, `dword_755250` = 0, `dword_755978` = 0;
+//! - `read_savegame_slot` on slot `dword_75523C * 10 + item - 1`. If that fails:
+//!   `sub_40F059` with eax = 8, `menu::go_back`, and that is all;
+//! - the seven dwords, the four cars and the 180 records go back where `gather_savegame`
+//!   took them from; `dword_75516C` is left pointing at the saved cars; between the dwords
+//!   and the cars it calls `maybeCopySomeData` (only if `dword_755144` is 0) and
+//!   `sub_4748B6`. Each car's 0x20 bytes at +0x124 are copied to where the car's pointer at
+//!   +0x18 pointed before the car was overwritten; car 0's dwords at +0x14 and +0x274 go to
+//!   `dword_7554C0` and `dword_7554C4`;
+//! - `sub_470D08` says where the event stands: 4 or 5, the next section starts (section + 1,
+//!   stage index 0); 0 or 1, the next stage (index + 1); 3, nothing more happens here; any
+//!   other value is fatal error 0x80702821 "Corrupt SaveGame";
+//! - unless it was 3: `dword_755970` = 1, `sub_47059E`, and then the event itself runs:
+//!   `sub_4AA4D7` if `dword_7556D0` is 0x13, else `sub_4A0E60`. These only come back when
+//!   the event is over or left;
+//! - `menu::go_back`.
 //!
-//! `sub_471F7E` (`menu::ready_players`), `maybeCopySomeData` (`saves::keep_player_settings`,
-//! esi the saved cars) and the two event loops (`menu::run_championship`,
-//! `menu::run_a8_championship`) are their Rust versions; the other four (`sub_4748B6`,
-//! `sub_470D08`, `sub_47059E`, `sub_40F059`) are called with `call_game` (three of them through
-//! their hooks), with the registers the original has at each call. Ten menu tables point at
-//! this function. Refuses, before anything is done: a slot past 99, a missing player or a car
-//! without its pointer at +0x18; later, what its Rust callees refuse (the event loops when
-//! their callees refuse; the original then runs from the start). Hook removed 2026-10-22 (typed
-//! tables): the menus and draw lists run its `entry` (`menu::table_calls`); the registers above
-//! are the original's, for reference.
+//! Ten menu tables point at this function. Refuses, before anything is done: a slot past 99, a
+//! missing player or a car without its pointer at +0x18; later, what its Rust callees refuse (the
+//! event loops when their callees refuse). The menus and
+//! draw lists run its `entry` (`menu::table_calls`); the registers above are the original's, for
+//! reference.
 
 use crate::errors::{BadInput, FatalError, Refused};
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::menu::go_back;
 use crate::menu::name_lists::SAVEGAME_PAGE_RVA;
+use crate::menu::screen_loop::Carried;
 use crate::saves::gather_savegame::{
     CAR_LEN, CAR0_A_RVA, CAR0_B_RVA, HEAD_RVAS, NAME_LEN, NAME_OFFSET, NAME_PTR_OFFSET,
     RECORDS_LEN, RECORDS_RVA, cars,
@@ -72,27 +68,24 @@ pub enum Callee {
     Refuse = 0x40F059,         // sub_40F059, with eax = 8 when the slot cannot be read
 }
 
-/// Calls one of them with the registers given, and leaves the registers it returns.
-pub type Game<'a> = &'a mut dyn FnMut(Callee, &mut Regs) -> Result<(), Refused>;
+/// Calls one of them with the carried values given (the original's eax .. esi), and
+/// leaves what it returns in them.
+pub type Game<'a> = &'a mut dyn FnMut(Callee, &mut Carried) -> Result<(), Refused>;
 
-fn in_game(callee: Callee, regs: &mut Regs) -> Result<(), Refused> {
+fn in_game(callee: Callee, regs: &mut Carried) -> Result<(), Refused> {
     unsafe {
         match callee {
             Callee::Prepare => crate::menu::ready_players::ready_players()?,
             Callee::CopySomeData => {
-                crate::saves::keep_player_settings::keep_player_settings(regs.esi)?
+                crate::saves::keep_player_settings::keep_player_settings(regs.cars)?
             }
             // (The championship drivers keep every register of their caller.)
-            Callee::RunEvent => crate::menu::run_championship::run_championship(
-                &crate::menu::screen_loop::carried(regs),
-            )?,
-            Callee::RunEventMode13 => crate::menu::run_a8_championship::run_a8_championship(
-                &crate::menu::screen_loop::carried(regs),
-            )?,
+            Callee::RunEvent => crate::menu::run_championship::run_championship(regs)?,
+            Callee::RunEventMode13 => crate::menu::run_a8_championship::run_a8_championship(regs)?,
             Callee::AfterHead => crate::menu::drop_missing_controllers::drop_missing_controllers()?,
-            Callee::EventState => regs.eax = crate::menu::next_record_kind::next_record_kind()?,
+            Callee::EventState => regs.arg = crate::menu::next_record_kind::next_record_kind()?,
             Callee::BeforeEvent => crate::menu::link_player_names::link_player_names()?,
-            Callee::Refuse => crate::sound::play_menu_sound::play_menu_sound_in_game(regs.eax),
+            Callee::Refuse => crate::sound::play_menu_sound::play_menu_sound_in_game(regs.arg),
         }
     }
     Ok(())
@@ -106,9 +99,10 @@ fn highlighted_slot() -> u32 {
 
 // ---- Rust version ----
 
-/// `entry` holds the registers at entry: the unported callees get the registers the
-/// original would have at each call.
-pub unsafe fn load_savegame(entry: &Regs, game: Game) -> Result<(), Refused> {
+/// `entry` holds the carried values at entry (the original's eax .. esi, no carry): the
+/// callees get them as the original's registers stand at each call (edi and ebp, which it
+/// also writes, are read by none of them).
+pub unsafe fn load_savegame(entry: &Carried, game: Game) -> Result<(), Refused> {
     let slot = highlighted_slot();
     if slot >= SLOTS {
         return Err(BadInput("slot past the name list").into());
@@ -121,10 +115,10 @@ pub unsafe fn load_savegame(entry: &Regs, game: Game) -> Result<(), Refused> {
         game_write(LOADING_RVA, 1u32);
         game_write(CLEARED_A_RVA, 0u32);
         game_write(CLEARED_B_RVA, 0u32);
-        g.ebx = slot;
-        g.eax = 0;
+        g.palette = slot;
+        g.arg = 0;
         if !read_savegame_slot(slot)? {
-            g.eax = 8;
+            g.arg = 8;
             game(Callee::Refuse, &mut g)?;
             go_back::go_back();
             return Ok(());
@@ -133,12 +127,12 @@ pub unsafe fn load_savegame(entry: &Regs, game: Game) -> Result<(), Refused> {
         let payload = game_addr(FILE_RVA) + PAYLOAD_OFFSET;
         let mut cursor = payload as *const u8;
         for at in HEAD_RVAS {
-            g.eax = (cursor as *const u32).read_unaligned();
-            game_write(at, g.eax);
+            g.arg = (cursor as *const u32).read_unaligned();
+            game_write(at, g.arg);
             cursor = cursor.add(4);
         }
         game_write(SAVED_CARS_PTR_RVA, cursor as u32);
-        g.esi = cursor as u32;
+        g.cars = cursor as u32;
         if game_read::<u32>(SKIP_COPY_RVA) == 0 {
             game(Callee::CopySomeData, &mut g)?;
         }
@@ -150,22 +144,21 @@ pub unsafe fn load_savegame(entry: &Regs, game: Game) -> Result<(), Refused> {
             copy_nonoverlapping(cursor, car as *mut u8, CAR_LEN);
             std::ptr::copy((car + NAME_OFFSET) as *const u8, name as *mut u8, NAME_LEN);
             cursor = cursor.add(CAR_LEN);
-            (g.edi, g.ebp, g.ebx) = (car, name, car + NAME_OFFSET);
+            g.palette = car + NAME_OFFSET; // ebx (edi the car, ebp the name: unread)
         }
         copy_nonoverlapping(cursor, game_addr(RECORDS_RVA) as *mut u8, RECORDS_LEN);
-        g.esi = cursor.add(RECORDS_LEN) as u32;
-        g.edx = 0xB4;
-        g.edi = cars[0];
+        g.cars = cursor.add(RECORDS_LEN) as u32;
+        g.clock = 0xB4;
         game_write(
             CAR0_A_RVA,
             ((cars[0] + 0x14) as *const u32).read_unaligned(),
         );
-        g.eax = ((cars[0] + 0x274) as *const u32).read_unaligned();
-        game_write(CAR0_B_RVA, g.eax);
+        g.arg = ((cars[0] + 0x274) as *const u32).read_unaligned();
+        game_write(CAR0_B_RVA, g.arg);
 
         // Converted: `rc2k_core::saves::savegame` (`resume`, `A8_MODE`).
         game(Callee::EventState, &mut g)?;
-        match resume(g.eax) {
+        match resume(g.arg) {
             Resume::NextSection => {
                 game_write(SECTION_RVA, game_read::<u32>(SECTION_RVA).wrapping_add(1));
                 game_write(INDEX_RVA, 0u32);
@@ -195,10 +188,8 @@ pub unsafe fn load_savegame(entry: &Regs, game: Game) -> Result<(), Refused> {
     Ok(())
 }
 
-/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// The Rust version where the typed tables run it (a refusal is the
 /// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let entry = *r;
-    unsafe { load_savegame(&entry, &mut in_game) }?;
-    Ok(())
+pub fn entry(c: &Carried) -> Result<(), crate::errors::Refused> {
+    unsafe { load_savegame(c, &mut in_game) }
 }

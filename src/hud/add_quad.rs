@@ -7,13 +7,7 @@
 //! Out: eax the colour going in, then as `add_polygon` leaves them
 //!
 //! Callers: `sub_4B716A`, `sub_4B7216`, `sub_4B70EE` (reached through code at 0x4B7163,
-//! 0x4B720F, 0x4B7266). The polygon through `part` (1), in the game its Rust version.
-//! Shadow mode runs the original alone (it draws). Self-test: a copy whose call goes to a
-//! stand-in, against the Rust version, records by lot, at both test control words.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! 0x4B720F, 0x4B7266).
 
 use crate::errors::Refused;
 use crate::hud::batch::{POLYGON_COUNT_RVA, POLYGON_RVA};

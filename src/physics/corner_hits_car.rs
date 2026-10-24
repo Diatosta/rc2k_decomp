@@ -9,11 +9,8 @@
 //! Out: outside, every register kept; inside, as `bump_cars` leaves them; no flags read
 //!      (the caller goes on)
 //!
-//! Caller: `physics::car_collisions` (eight corners a car).
-//! Refuses what `restore_saved_car` and `bump_cars` refuse (what was written put back).
-//! Self-test: `physics/car_collisions.rs` (`test_bump`): the original and the Rust version
-//! on the game's variables (saved and put back) with test car blocks, corners inside and
-//! out, under three precisions.
+//! Caller: `physics::car_collisions` (eight corners a car). Refuses what
+//! `restore_saved_car` and `bump_cars` refuse (what was written put back).
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

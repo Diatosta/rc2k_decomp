@@ -6,12 +6,7 @@
 //! In:  nothing
 //! Out: unchanged up to ten; else eax the first stage, edx n % 10, ebp 10
 //!
-//! Callers: the event pages' code. Self-test: the original and the Rust version, counts
-//! by lot.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Callers: the event pages' code.
 use crate::framework::{game_read, game_write, rva};
 use rc2k_core::menu::event::LastPage;
 

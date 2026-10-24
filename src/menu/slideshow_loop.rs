@@ -6,12 +6,11 @@
 //! as extracted from the disassembly: leaving is not asked about; it has a step of its own once
 //! a frame.
 //! The name is a reading from the title string of its menu, "SLIDESHOW", not yet a visit.
-//! Callers: none in code: it is reached through a table.
-//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
+//! Callers: none in code: it is reached through a table. The menus and draw lists run its `entry`
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::framework::rva;
-use crate::menu::screen_loop::{List, Screen, Step, screen_entry};
+use crate::menu::screen_loop::{Callee, List, Screen, Step, screen_entry};
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
@@ -47,7 +46,7 @@ pub const SCREEN: Screen = Screen {
     set_up_first: &[],
     prepare: &[],
     after_lists: &[],
-    background: &[Step::Call(rva(0x4684F5))],
+    background: &[Step::Call(Callee::LoadSlideshowPicture)],
     after_first_frame: &[],
     confirm: None,
     ask_also_if: None,
@@ -55,7 +54,7 @@ pub const SCREEN: Screen = Screen {
     unasked_skips_save: false,
     after: &[],
     escape_leaves: false,
-    each_frame: &[Step::Call(rva(0x46F7AD))],
+    each_frame: &[Step::Call(Callee::StepCarStream)],
     short_action_check: false,
     leave_at_once: None,
     next_frame_repeats_first: false,
@@ -77,7 +76,7 @@ pub const SCREEN: Screen = Screen {
     always_asks: false,
 };
 
-/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// The Rust version where the typed tables run it (a refusal is the
 /// caller's).
 pub fn run() -> Result<(), crate::errors::Refused> {
     screen_entry("menu::slideshow_loop", &SCREEN)

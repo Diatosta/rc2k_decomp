@@ -7,11 +7,6 @@
 //! the halvings (low four bits); groups 1 and 2 at least one halving, group 3 at least
 //! two; the rest as it is. One caller, command 3 (`sub_40AEB9`).
 //! Refuses a sound of 0x1CD or more.
-//! Compared in shadow mode. Self-test: the original on every sound under eight modes.
-//!
-//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::audio::samples::sample_mode;
 use crate::audio::voices::*;

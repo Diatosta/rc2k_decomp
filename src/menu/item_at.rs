@@ -6,10 +6,6 @@
 //! item n is at menu + 4 + (n - 1) * 0x5C. The original counts up to ebx one item at a time
 //! and never looks for the end of the menu. 14 callers.
 //! Refuses item number 0, for which the original counts through all 32 bits.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::errors::BadInput;
 use crate::framework::{game_read, rva};

@@ -5,15 +5,8 @@
 //! In:  eax = the class, ebx = 1 for +0x18, edi = the list
 //! Out: eax = the dword; the rest kept (edi pushed and popped)
 //!
-//! Caller: `screens::draw_class_times` (the first time of the class). Compared in shadow
-//! mode. Refuses a list without its end in 0x400 entries (the original runs on). Manual
-//! patch with a private copy (0x20 bytes, nothing to relocate): its loop comes back to the
-//! second byte, and a `jz` sits in the first five. Self-test: lists of the test's, classes
-//! in them and not, ebx 1 and 0.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `screens::draw_class_times` (the first time of the class). Refuses a list without its
+//! end in 0x400 entries.
 
 use crate::errors::BadInput;
 

@@ -8,17 +8,8 @@
 //!      after an unpacking); a plain read keeps ebx, ecx, edx, a packed one every register
 //!      but eax
 //!
-//! Caller: `drive::read_replay_frame`. It begins with a jump out (`jns files::read`):
-//! hooked by a private copy (0x2F bytes, the jump and the two calls relocated) and a
-//! hand-made patch.
-//! Refuses what `unpack_rle` refuses (nothing written then but the packed bytes).
-//! Shadow mode: the file is put back where it was after the Rust version's read.
-//! Self-test: the original and the Rust version on a test file (written to the temp
-//! folder, read from its start each time): plain and packed reads.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `drive::read_replay_frame`. Refuses what `unpack_rle` refuses (nothing written
+//! then but the packed bytes).
 
 use crate::errors::Refused;
 use crate::files::handle::read;

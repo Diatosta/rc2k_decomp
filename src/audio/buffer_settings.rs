@@ -1,6 +1,6 @@
 //! What `audio::set_buffer_volume`, `set_buffer_pan`, `set_buffer_frequency` and
 //! `set_buffer_place` share: a voice's settings to its DirectSound buffer (one COM call
-//! each), and their self-test on voices with test objects.
+//! each).
 
 use crate::audio::com;
 use crate::audio::voices::*;

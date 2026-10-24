@@ -3,13 +3,12 @@
 //! In:  nothing
 //! Out: the registers and flags `d3d::begin_scene` leaves (carry = it failed)
 //!
-//! `d3d::begin_scene` (0x41ABC7: Direct3D's BeginScene and the layer's own states,
-//! platform), then, whatever it says, `scene::set_filters` and render states 0x15 = 4
-//! (the texture's blending), 0x1C = 1 (fog on), 0x13 = 5 and 0x14 = 6 (the source and
-//! destination blend), 0x1B = 1 (blending on), all between `pusha` / `pushf` and
-//! `popf` / `popa`. Nine callers, `menu::frame_callback` among them.
-//! Hook removed 2026-10-22; plain Rust since 2026-10-23 (phase 3): the registers above
-//! are the original's; a call by address goes through `routes.rs`, which maps them.
+//! `d3d::begin_scene` (0x41ABC7: Direct3D's BeginScene and the layer's own states, platform),
+//! then, whatever it says, `scene::set_filters` and render states 0x15 = 4 (the texture's
+//! blending), 0x1C = 1 (fog on), 0x13 = 5 and 0x14 = 6 (the source and destination blend), 0x1B
+//! = 1 (blending on), all between `pusha` / `pushf` and `popf` / `popa`. Nine callers,
+//! `menu::frame_callback` among them. The registers above are the original's; a call by address
+//! goes through `routes.rs`, which maps them.
 
 use crate::scene::set_filters::set_filters;
 use crate::scene::set_render_state::set_render_state;

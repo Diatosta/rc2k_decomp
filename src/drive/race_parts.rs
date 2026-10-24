@@ -1,8 +1,3 @@
-//! The race loop's shared calls (stream B, 2026-10-18): the Rust versions of stream A's
-//! and the input module's hooks the race loop (`drive::race_loop`, `drive::quit_question`,
-//! `drive::pause_until_key`) calls, with the registers their hooks would leave, and the
-//! race frame `sub_4541BF` (stream A's, held: a call into the game until ported).
-
 use crate::errors::Refused;
 use crate::framework::{game_addr, rva};
 

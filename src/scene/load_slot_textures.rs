@@ -4,11 +4,9 @@
 //! In:  nothing
 //! Out: ecx = the number of slots; everything else preserved
 //!
-//! `scene::load_slot_texture` for the slots 0 .. `dword_5DC970`.
-//! Six callers.
-//! Refuses no slots (the original goes through 2^32) and more than the table has.
-//! Hook removed 2026-10-22; plain Rust since 2026-10-23 (phase 3): the registers above
-//! are the original's; a call by address goes through `routes.rs`, which maps them.
+//! `scene::load_slot_texture` for the slots 0 .. `dword_5DC970`. Six callers. Refuses no slots
+//! (the original goes through 2^32) and more than the table has. The registers above are the
+//! original's; a call by address goes through `routes.rs`, which maps them.
 
 use crate::errors::BadInput;
 use crate::framework::game_read;

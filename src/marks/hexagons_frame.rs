@@ -13,15 +13,8 @@
 //! Out: nothing (its caller reads no register after it)
 //!
 //! Caller: `sub_4BAC87` (0x4BAF08). The x87 runs are the original's instructions over the
-//! items and the game's variables; its calls through `part` (1 the drift, 2 the set-up, 3
-//! the batch's draw, 4 the spawn), in the game their Rust versions (the draw through the
-//! game: section 15). Refuses, before anything, null settings and a live item of a kind
-//! past 7. Shadow mode runs the original alone (it draws). Self-test: a copy whose calls go
-//! to stand-ins, against the Rust version, on the game's items with a few live.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! items and the game's variables. Refuses, before anything, null settings and a live item
+//! of a kind past 7.
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::rva;

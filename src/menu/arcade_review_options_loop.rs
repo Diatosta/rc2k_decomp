@@ -3,23 +3,15 @@
 //!
 //! In:  nothing
 //! Out: every register preserved
-//! The loop itself is `menu::screen_loop`; this file says what is this screen's own (`SCREEN`),
-//! as extracted from the disassembly: background `roptions.png`; leaving is asked about; also
-//! when `dword_755569` is 1; the steps that are more than a call or a store are the functions
-//! below, generated from the listing.
-//! Ran in the Rust version inside the arcade mode on 2026-10-12 (hook.log); the owner said
-//! the arcade loops are named right. Named by its address until then.
-//! visit.
-//! Callers: `sub_487E2C`. Ungated thunk; shadow mode runs the original alone; each real call
-//! writes a line to hook.log. Self-test: `screen_loop::check_screen`.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! The loop itself is `menu::screen_loop`; this file says what is this screen's own (`SCREEN`), as
+//! extracted from the disassembly: background `roptions.png`; leaving is asked about; also when
+//! `dword_755569` is 1; the steps that are more than a call or a store are the functions below,
+//! generated from the listing. Named by its address until then. visit.
+//! Callers: `sub_487E2C`.
 
 use crate::errors::Refused;
 use crate::framework::{game_read, game_write, rva};
-use crate::menu::screen_loop::{Carried, List, Screen, Step, carousel, prepare_scene};
+use crate::menu::screen_loop::{Callee, Carried, List, Screen, Step, carousel, prepare_scene};
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
@@ -74,7 +66,7 @@ pub const SCREEN: Screen = Screen {
     after_lists: &[],
     background: &[
         Step::ArgAddr(rva(0x732957)),
-        Step::CallOrFatal(rva(0x47EFFF), 0x80712345),
+        Step::CallOrFatal(Callee::LoadBackground, 0x80712345),
     ],
     after_first_frame: &[],
     confirm: Some(&[]),

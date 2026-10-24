@@ -7,26 +7,19 @@
 //! Out: every register kept
 //!
 //! `emit_particle_1`: `g_marksWheelFlags` the wheel's +0x20; the wheel's +4 (a float here)
-//! grows by |+0x18| + |+0x10| + |+0x18 - +0xC|; when that rounded (`fist`) is 0x18 or
-//! more it is kept as its remainder by 0x18 (as a float) and an entry may be made: the
-//! strength (`dword_9356C0`, a float: |+0x10| by `flt_765168` plus |+0xC - +0x18|, by
-//! `flt_7651D0`) must not be under `flt_765164` (compared unrounded), and is held to at
-//! most 1 (`flt_76516C`); the life (`dword_93567C`) it by `flt_7651F0` plus `flt_7651E8`,
-//! rounded; the fade (`flt_935678`) it by `dword_76519C`. The entry: its place the
-//! wheel's (+0x3C ..) plus a random side times `flt_93543A` .., less `flt_7651DC` in y at
-//! +0x28; its motion the car matrix's first row by +0x10, its third by +0x18 and
-//! `flt_93543A` .. by +0xC, each by a factor (`flt_93A39E` ..), moved by
-//! `marks::jitter_point` (spread `flt_93A3C2`), y plus `flt_93A3C6`; a random spin and
-//! turn; the flags' low 6 bits; the life and fade (+0x78 fade over life, +0x74 fade);
-//! the car and its +0x88; +0x70 0x10000 and +0x60 it by `flt_93A3CE`; +0x64 0.
-//! Refuses (before anything) a null wheel, a null object where read, a null car or
-//! matrix when an entry is made, and `emit_particle_21`'s. Self-test: a ring, wheel and
-//! car of the test's (`marks::emit_particle_6::TestEmitter`), both bodies, several
-//! speeds and fillings.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! grows by |+0x18| + |+0x10| + |+0x18 - +0xC|; when that rounded (`fist`) is 0x18 or more
+//! it is kept as its remainder by 0x18 (as a float) and an entry may be made: the strength
+//! (`dword_9356C0`, a float: |+0x10| by `flt_765168` plus |+0xC - +0x18|, by `flt_7651D0`)
+//! must not be under `flt_765164` (compared unrounded), and is held to at most 1
+//! (`flt_76516C`); the life (`dword_93567C`) it by `flt_7651F0` plus `flt_7651E8`, rounded;
+//! the fade (`flt_935678`) it by `dword_76519C`. The entry: its place the wheel's (+0x3C
+//! ..) plus a random side times `flt_93543A` .., less `flt_7651DC` in y at +0x28; its
+//! motion the car matrix's first row by +0x10, its third by +0x18 and `flt_93543A` .. by
+//! +0xC, each by a factor (`flt_93A39E` ..), moved by `marks::jitter_point` (spread
+//! `flt_93A3C2`), y plus `flt_93A3C6`; a random spin and turn; the flags' low 6 bits; the
+//! life and fade (+0x78 fade over life, +0x74 fade); the car and its +0x88; +0x70 0x10000
+//! and +0x60 it by `flt_93A3CE`; +0x64 0. Refuses (before anything) a null wheel, a null
+//! object where read, a null car or matrix when an entry is made, and `emit_particle_21`'s.
 
 use crate::errors::{BadInput, Refused};
 use crate::marks::emit_particle_21::emit_particle_21;

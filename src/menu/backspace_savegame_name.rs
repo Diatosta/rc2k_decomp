@@ -6,10 +6,6 @@
 //! Out: every register preserved
 //! Also called by the replay name editor, which is a slip in the original (see
 //! `edit_replay_name`). Refuses a name past the list and a length outside 0 .. 0x1F.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::errors::BadInput;
 use crate::menu::name_lists::{NAME_LEN, savegame_name};

@@ -8,7 +8,7 @@
 //! `g_screenRowDwords` zero dwords from the description's memory (`dword_4F3424`), each
 //! row `dword_4F3410` (the pitch) on from the last, then unlocked (`sub_4059D5`: `Unlock`;
 //! failing, fatal error 0x80208272, raised there). The lock and unlock are the platform's
-//! (DirectDraw), through the game; in the standalone program the lock fails (its front
+//! (DirectDraw); in the standalone program the lock fails (its front
 //! surface is SDL's window: `standalone.rs` would need a lock of its own for this to clear
 //! it), so nothing is written. Refuses (before anything) a height of 0: the original's
 //! `dec edx; jnz` would clear 2^32 rows. Six callers (the screen mode's set-up, the films,

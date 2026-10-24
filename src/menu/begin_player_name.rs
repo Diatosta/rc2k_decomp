@@ -3,13 +3,12 @@
 //! In:  nothing
 //! Out: every register preserved
 //!
-//! Unless the Enter came with ah = 4 (`dword_7554D4` at 1): the current player's name
-//! kept (`menu/player_name.rs`), cleared (`menu::clear_text`), and the entry going on
-//! (`dword_7556A8` = 1); then, either way, the length typed (`dword_75556D`) 0. The
-//! action of the name's item of the four players' details pages.
-//! Refuses no current player or a player without a name.
-//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
-//! (`menu::table_calls`); the registers above are the original's, for reference.
+//! Unless the Enter came with ah = 4 (`dword_7554D4` at 1): the current player's name kept
+//! (`menu/player_name.rs`), cleared (`menu::clear_text`), and the entry going on (`dword_7556A8` =
+//! 1); then, either way, the length typed (`dword_75556D`) 0. The action of the name's item of the
+//! four players' details pages. Refuses no current player or a player without a name. The menus and
+//! draw lists run its `entry` (`menu::table_calls`); the registers above are the original's, for
+//! reference.
 
 use crate::errors::Refused;
 use crate::framework::{game_read, rva};

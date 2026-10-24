@@ -16,19 +16,9 @@
 //! In:  nothing
 //! Out: nothing its caller reads (conversion phase 3, 2026-10-24)
 //!
-//! See `race/mud.rs`. One caller, `race::mud_texture_turn`. Its calls through `part`: 0
-//! the forgetting (eax), 1 the lock (eax; carry), 2 the unlock (eax); in the game the
-//! forgetting's Rust version and the platform's two through the game (section 15).
-//! Refuses (before anything) a texture past 3 and no mud, and its callees' refusals (what
-//! the counts, the throws and the random state were put back). Shadow mode runs the
-//! original alone (it tells the device). Self-test: a copy whose three calls go to
-//! stand-ins (the lock failing or not), against the Rust version, on the mud tests'
-//! set-up with patterns of the test's, throws and splashes of each sign and size, under
-//! the three precisions; the surface, the counts, the floats and the random state compared.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! See `race/mud.rs`. One caller, `race::mud_texture_turn`. Refuses (before anything) a texture
+//! past 3 and no mud, and its callees' refusals (what the counts, the throws and the random
+//! state were put back).
 
 use crate::errors::Refused;
 use crate::framework::{game_addr, game_read, game_write, rva};

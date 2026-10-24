@@ -10,15 +10,7 @@
 //! In:  nothing
 //! Out: the registers as the steps and calls leave them; no flags read
 //!
-//! Caller: `drive::race_tick`. It begins with a call: hooked by a private copy of its
-//! 0xB4 bytes (its nine calls relocated) and a hand-made patch.
-//! Refuses what its calls refuse.
-//! Self-test (in a race; skipped otherwise): the original and the Rust version from the
-//! same state (the first block, the inputs and the ground saved and put back).
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `drive::race_tick`. Refuses what its calls refuse.
 
 use crate::errors::Refused;
 use crate::physics::flow::{a, g, p};

@@ -18,13 +18,12 @@
 //! flag's (`+0x10` with 0x18 and 0x19 swapped, + 0x44) at 0x1AE, both from `g_spriteTable`
 //! with ebx as the draws leave it as the palette.
 //!
-//! Refuses (before anything) a list without its end in 0x400 entries, a page that starts past
-//! the list (the original reads past its end), a row drawn just before the end mark (the
-//! original then leaves with a dword still pushed: its `popa` and `retn` take the wrong ones,
-//! the original's slip), a name past the line buffer. In the draw list 0x758E46, whose address
-//! nothing in RAL.EXE holds (every byte searched, 2026-10-20): unreached. Hook removed
-//! 2026-10-22 (typed tables): the menus and draw lists run its `entry` (`menu::table_calls`);
-//! the registers above are the original's, for reference.
+//! Refuses (before anything) a list without its end in 0x400 entries, a page that starts past the
+//! list (the original reads past its end), a row drawn just before the end mark (the original then
+//! leaves with a dword still pushed: its `popa` and `retn` take the wrong ones, the original's
+//! slip), a name past the line buffer. In the draw list 0x758E46, whose address nothing in RAL.EXE
+//! holds (every byte searched, 2026-10-20): unreached. The menus and draw lists run its `entry`
+//! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_read, rva};

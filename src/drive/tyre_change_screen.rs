@@ -6,9 +6,6 @@
 //! Out: eax the mode, esi 0 when drawn; the rest kept; no flags read
 //!
 //! Caller: `sub_45429B` (the race's frame, stream A's).
-//!
-//! Shadow mode runs the original alone (it draws). Self-test: a copy whose calls go to
-//! stand-ins noting them (`drive/tyre_parts.rs`), against the Rust version with the same.
 
 use crate::errors::Refused;
 use crate::physics::flow::g;

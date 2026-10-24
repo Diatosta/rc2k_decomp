@@ -6,11 +6,7 @@
 //! Out: when `reset_car` ran, the registers as it leaves them; else all kept; no flags
 //!      read (the caller's next is a call)
 //!
-//! Caller: `sub_43B635` (0x43B900), every physics step.
-//! Refuses what `reset_car` refuses. Shadow mode runs the original alone
-//! (its calls then went through `physics/reset_parts.rs`, gone).
-//! Self-test: a copy whose call goes to a stand-in (place 15), against the Rust version
-//! with the same: modes 0 .. 3 and counts about 700.
+//! Caller: `sub_43B635` (0x43B900), every physics step. Refuses what `reset_car` refuses.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

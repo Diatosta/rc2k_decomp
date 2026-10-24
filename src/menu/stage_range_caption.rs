@@ -4,9 +4,8 @@
 //! In:  nothing
 //! Out: every register kept (`pusha` .. `popa`)
 //!
-//! Callers: the event pages' code (`sub_4A1F7A`, ..). `strings::append_u32`'s Rust
-//! version; the minus and the NUL written in place.
-//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
+//! Callers: the event pages' code (`sub_4A1F7A`, ..). `strings::append_u32`'s Rust version; the
+//! minus and the NUL written in place. The menus and draw lists run its `entry`
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::framework::{game_addr, game_read, rva};

@@ -6,12 +6,7 @@
 //! In:  nothing (eax is not read: its caller 0x45FF6C loads one it does not use)
 //! Out: eax as it leaves it (the word, or the slot); everything else kept
 //!
-//! Callers: 0x44CCB8, `race::flush_texture_batch`. Shadow mode: by state. Self-test: words
-//! of each kind and the edges, put back.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Callers: 0x44CCB8, `race::flush_texture_batch`.
 
 use crate::framework::{game_read, game_write, rva};
 

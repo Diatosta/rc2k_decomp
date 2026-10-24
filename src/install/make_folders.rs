@@ -11,15 +11,8 @@
 //! A path without its closing `\\` (as `install_files` gives every folder) is scanned on
 //! past its NUL to the next `\\`, as the original does. Refuses (as met) a scan of 0x400
 //! bytes from the path's start, and a UNC path without its share's `\\`.
-//! Callers `install::install_files`, `install::install_clio`. Its calls through `part`
-//! (`files::set_current_directory`, `files::make_directory`, both edx the path). Ungated.
-//! Shadow mode runs the original alone (folders are made). Self-test: a copy whose two
-//! calls go to stand-ins (their success scripted), against the Rust version, on paths of
-//! the test's; the path buffer is compared (it is put back).
+//! Callers `install::install_files`, `install::install_clio`.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 //! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
 //! are the original's.
 

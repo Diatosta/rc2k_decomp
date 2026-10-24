@@ -13,8 +13,8 @@
 //! Three call sites, all in `gfx::show_picture_file`, with the surface locked.
 //! Refuses a decoded picture or a surface without width or height, more rows than the row
 //! table holds, and missing pixels or format.
-//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
-//! `routes.rs`); the registers above are the original's, for reference.
+//! The registers above are the original's, for reference; a call by address goes through
+//! `routes.rs`.
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::rva;

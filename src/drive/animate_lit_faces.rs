@@ -25,18 +25,9 @@
 //! Out: the registers as the last face leaves them (see `animate_at`); no flags read
 //!      (`sub_45E9CA` calls `physics::move_slots` next)
 //!
-//! Caller: `drive::animate_stage` (0x45E9CA).
-//! Refuses (before anything) more than 0x100 lit faces (the list's room) and a face
-//! number past `g_courseFaceCount`; `find_ground`'s refusals mid-way (what it wrote is
-//! put back first).
-//! Self-test: in a race only: a copy of the original (its calls the game's) against the
-//! Rust version on the game's own stage, with a list of the test's (twelve faces of the
-//! stage, their objects and bytes by lot); every game variable it writes saved and put
-//! back.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `drive::animate_stage` (0x45E9CA). Refuses (before anything) more than 0x100 lit
+//! faces (the list's room) and a face number past `g_courseFaceCount`; `find_ground`'s
+//! refusals mid-way (what it wrote is put back first).
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_read, game_write, rva};

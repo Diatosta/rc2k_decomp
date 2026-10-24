@@ -9,18 +9,11 @@
 //! listing.
 //! The name is a reading from its background and callers, not yet a visit.
 //! Callers: `sub_46FD31`, `sub_46FD31`, `sub_46FD31`, `sub_46FD31`, `sub_46FD31`, `sub_48AD73`.
-//! Ungated thunk; shadow mode runs the original alone; each real call writes a line to
-//! hook.log. Self-test: `screen_loop::check_screen`. Manual patch with a private copy (0x31C
-//! bytes, 13 calls and jumps relocated): a call or a jump target sits in the first bytes.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::errors::Refused;
 use crate::framework::{game_read, game_write, rva};
 use crate::menu::screen_loop::{
-    Carried, Flow, List, Screen, Step, carousel, prepare_scene, quitting,
+    Callee, Carried, Flow, List, Screen, Step, carousel, prepare_scene, quitting,
 };
 
 // ---- Rust version: `menu::screen_loop` with this ----
@@ -87,7 +80,7 @@ pub const SCREEN: Screen = Screen {
     after_lists: &[],
     background: &[
         Step::ArgAddr(rva(0x731F3D)),
-        Step::CallOrFatal(rva(0x47EFFF), 0x80712345),
+        Step::CallOrFatal(Callee::LoadBackground, 0x80712345),
     ],
     after_first_frame: &[Step::DoFlow(after_first_frame)],
     confirm: None,

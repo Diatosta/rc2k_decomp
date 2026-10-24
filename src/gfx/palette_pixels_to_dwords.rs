@@ -5,12 +5,8 @@
 //! Out: every register preserved
 //! `g_pictureWidth` * `g_pictureHeight` pixels, from the last down, each through
 //! `g_decodedPalette`. One caller, `gfx::read_png`, for a file with a palette (none of the
-//! game's has one, so the self-test is all it gets).
+//! game's has one).
 //! Refuses what `pixels_to_dwords::pixel_count` refuses. The name is a reading.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::errors::BadInput;
 use crate::gfx::block::game_read;

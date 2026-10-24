@@ -9,14 +9,7 @@
 //! Out: eax 3, ebx 0x17, edx the car kind's index; the rest kept; no flags read (a call
 //!      follows)
 //!
-//! Caller: `race::credits_race`, which calls the Rust version directly. It begins with a
-//! call: a private copy (its two calls relocated) with a hand-made patch.
-//! Refuses nothing. Self-test: the original and the Rust version on the game's
-//! variables (put back), from twelve states of the generator.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `race::credits_race`, which calls the Rust version directly. Refuses nothing.
 
 use crate::errors::Refused;
 use crate::framework::{game_read, game_write, rva};

@@ -17,17 +17,8 @@
 //! In:  nothing (`g_marksSettings`)
 //! Out: nothing (its caller reads no register after it)
 //!
-//! Caller: `marks::run_frame` (0x4D166B). Its calls through `part` (1 `make_fade_colours`,
-//! 2 `place_view_2`, 3 the texture, 4 the depth buffer, 5 the depth test off, 6 a render
-//! state, 7 `draw_snow`, 8 the depth test on); in the game their Rust versions. The two
-//! turns are the original's instructions over the game's variables. Refuses null
-//! settings, before anything. Shadow mode runs the original alone (it draws). Self-test:
-//! a copy whose calls go to stand-ins, against the Rust version, on settings of the
-//! test's.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `marks::run_frame` (0x4D166B). The two turns are the original's instructions
+//! over the game's variables. Refuses null settings, before anything.
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::rva;

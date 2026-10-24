@@ -17,12 +17,6 @@
 //! Two callers, `sound::play_cue_queues`.
 //! Refuses a null object, a queue of more than 16 or a cue of more than six sounds
 //! (before anything), and the duration's refusals (what was written put back).
-//! A near `jnz` in its first five bytes: private copy (0xA4 bytes, the three calls
-//! relocated), manual patch.
-//! Shadow mode runs the original alone (it sends sounds).
-//! Self-test: a copy whose calls (`drop_cue`, which the stand-in does, `play_sound`) go
-//! to stand-ins (the one of
-//! `sample_duration` left), against the Rust version, on a test object.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

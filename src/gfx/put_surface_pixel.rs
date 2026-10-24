@@ -4,15 +4,9 @@
 //! In:  eax the components, ecx x, edx y
 //! Out: eax the pixel; everything else kept
 //!
-//! The format through `g_surface`'s pointer (0x4F49B8), `gfx::components_to_pixel`; the
-//! pixel 16 bits wide when the surface's bits per pixel are 16, else 32. Five callers
-//! (among them the marks' snow textures). Refuses no format (with components not 0) and
-//! no surface. Self-test: the original and the Rust version on a surface of the test's
-//! (16 and 32 bits, the test formats), put back afterwards.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! The format through `g_surface`'s pointer (0x4F49B8), `gfx::components_to_pixel`; the pixel
+//! 16 bits wide when the surface's bits per pixel are 16, else 32. Five callers (among them the
+//! marks' snow textures). Refuses no format (with components not 0) and no surface.
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_read, rva};

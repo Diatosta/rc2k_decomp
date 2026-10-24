@@ -9,12 +9,11 @@
 //! about; its own 3D list goes to `g_sceneList` before the first frame only.
 //! A reading, not yet a visit: its one caller is `menu::confirm_leaving`, and it sets
 //! `g_askingYesNo` to 1 while it is up, which is what makes `handle_yes_no` listen.
-//! Callers: `menu::confirm_leaving`.
-//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
-//! `routes.rs`); the registers above are the original's, for reference.
+//! Callers: `menu::confirm_leaving`. Rust callers run its `entry` (`routes.rs`); the registers
+//! above are the original's, for reference.
 
 use crate::framework::rva;
-use crate::menu::screen_loop::{List, Screen, Step};
+use crate::menu::screen_loop::{Callee, List, Screen, Step};
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
@@ -63,7 +62,7 @@ pub const SCREEN: Screen = Screen {
     after_lists: &[],
     background: &[
         Step::ArgAddr(rva(0x731BE4)),
-        Step::CallOrFatal(rva(0x47EFFF), 0x80712345),
+        Step::CallOrFatal(Callee::LoadBackground, 0x80712345),
     ],
     after_first_frame: &[],
     confirm: None,

@@ -24,14 +24,9 @@
 //! acceleration and brake grip: by `BY_RECORD` tarmac, gravel, mud, snow, grass, mud,
 //! grass, grass, snow, grass, snow, gravel. A reading of the names, not seen in a race.
 //! Callers: `system::load_game_data`, and two that copy thirteen settings in from
-//! `unk_5C2C98`, clear the switch and call it again.
-//! The arithmetic is plain floats (`rc2k_core::physics::patches`): each figure is one
-//! correctly rounded quotient or product at the game's double and extended precision.
-//! Self-test: settings of the test's in the game's places, at those two precisions.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! `unk_5C2C98`, clear the switch and call it again. The arithmetic is plain floats
+//! (`rc2k_core::physics::patches`): each figure is one correctly rounded quotient or
+//! product at the game's double and extended precision.
 
 use crate::framework::{game_read, game_write, rva};
 use rc2k_core::physics::patches::{Patches, apply_patches as apply_patches_core};

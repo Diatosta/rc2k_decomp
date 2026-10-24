@@ -6,21 +6,13 @@
 //!      picture's pixels
 //! Out: every register preserved
 //!
-//! The surface's place = its pixels (`g_surface.pixels`) + y times its pitch + x times
-//! its bytes a pixel; the picture's = esi + the piece's y times eax + its x times 4.
-//! Each row: the piece's width of pixels through `gfx::components_to_pixel` with the
-//! surface's format (`g_surface.format`), stored as words on a surface of two bytes a
-//! pixel, else as dwords; then both move on a row. No clipping.
-//! One caller, `scene::upload_car_icon`, with the texture made the surface.
-//! Refuses a piece of no width or height (the original counts through all 32 bits),
-//! and no surface, format, piece or picture.
-//! Compared in shadow mode (`dispatch_pixels`).
-//! Self-test: a copy whose four reads of the surface's variables read the test's, nine
-//! formats on two sizes.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! The surface's place = its pixels (`g_surface.pixels`) + y times its pitch + x times its
+//! bytes a pixel; the picture's = esi + the piece's y times eax + its x times 4. Each row: the
+//! piece's width of pixels through `gfx::components_to_pixel` with the surface's format
+//! (`g_surface.format`), stored as words on a surface of two bytes a pixel, else as dwords;
+//! then both move on a row. No clipping. One caller, `scene::upload_car_icon`, with the texture
+//! made the surface. Refuses a piece of no width or height (the original counts through all 32
+//! bits), and no surface, format, piece or picture.
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::rva;

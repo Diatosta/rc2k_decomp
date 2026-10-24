@@ -5,7 +5,7 @@
 //! Out: esi, edi and ebp preserved. eax, ebx, ecx and edx hold leftovers of the drawing loops;
 //!      the Rust version reproduces them, because the function has hundreds of callers.
 //! No surface, a null table and a glyph index past the table are fatal errors in the original:
-//! `glyph_record` returns them as errors and the hook leaves them to the original.
+//! `glyph_record` returns them as errors.
 //!
 //! A glyph table starts with one dword offset per glyph (so the first offset / 4 is the glyph
 //! count). A normal record is `[x offset][y offset][width][height]` in bytes, then per row

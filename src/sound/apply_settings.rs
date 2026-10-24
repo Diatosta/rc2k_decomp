@@ -8,8 +8,6 @@
 //! What the two numbers are is a reading: volumes, the second the one the options screen
 //! steps between 0 and 0x40 (`sub_467F00`, `sub_467F24`).
 //! Five callers; `system::main_loop` calls it once the window is there.
-//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
-//! `routes.rs`); the registers above are the original's, for reference.
 
 use crate::audio::store::Slot;
 use crate::framework::rva;

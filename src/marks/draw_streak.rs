@@ -14,15 +14,8 @@
 //! Out: nothing (its caller reads no register after it)
 //!
 //! Caller: `sub_4C16F9` (0x4C1AD0). The arithmetic is the original's instructions over the
-//! game's variables (register forms as bytes); the clip its Rust version (the copy's call
-//! goes to its hook); the draw through `part` (1 `draw_fan`), in the game its Rust version.
-//! Refuses null marks settings (`clip_quad`'s refusal), before anything. Thunk by
-//! `three_in_hook!`. Shadow mode runs the original alone (it draws). Self-test: a copy
-//! whose draw goes to a stand-in, against the Rust version, points near and far.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! game's variables (register forms as bytes). Refuses null marks settings (`clip_quad`'s
+//! refusal), before anything.
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::rva;

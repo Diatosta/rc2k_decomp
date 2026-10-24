@@ -7,12 +7,6 @@
 //! (`g_primaryBuffer`); else its `SetVolume` (+0x3C) with `g_volumeTable` at the volume,
 //! held to 0x40 (unsigned). Callers: `sub_40A54B` (the mode's set-up) and
 //! `audio::volume_command`.
-//! Shadow mode runs the original alone. Self-test: a redirected copy whose switch and
-//! buffer are the test's, 72 cases.
-//!
-//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::audio::com::{self};
 use crate::audio::voices::*;

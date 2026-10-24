@@ -5,7 +5,6 @@ use crate::audio::store::Slot;
 use crate::errors::Refused;
 use crate::framework::rva;
 use crate::screens::font_at;
-use crate::screens::harness::Left;
 use crate::session::SCREEN;
 use crate::store::{game_read, game_write};
 use crate::strings::text_from_ids::text;
@@ -14,9 +13,8 @@ use crate::text::draw_text::{Canvas, draw_text_at};
 
 /// `race::draw_frame_rate` (0x4562B2): `dword_5C6604` 2; the frame rate (`flt_6214F0`,
 /// rounded into `dword_62400C`), when not 0 and `dword_5EB100` is set, drawn at (0x190, 4)
-/// in the font at 0x51DE90 as "fps: n" (its size; built in the text buffer). Gives what
-/// `draw_text` leaves, or nothing.
-pub unsafe fn draw_frame_rate(canvas: &mut dyn Canvas) -> Result<Left, Refused> {
+/// in the font at 0x51DE90 as "fps: n" (its size; built in the text buffer).
+pub unsafe fn draw_frame_rate(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::frame_rate::{shown_rate, fps_text}`.
     use rc2k_core::race::frame_rate::{fps_text, shown_rate};
     unsafe {
@@ -24,33 +22,32 @@ pub unsafe fn draw_frame_rate(canvas: &mut dyn Canvas) -> Result<Left, Refused> 
         let rate = shown_rate(f32::from_bits(game_read(rva(0x6214F0))));
         game_write(rva(0x62400C), rate as u32);
         if rate == 0 || game_read::<u32>(rva(0x5EB100)) == 0 {
-            return Ok(Left::nothing());
+            return Ok(());
         }
         let t = text();
         let bytes = fps_text(rate);
         std::ptr::copy_nonoverlapping(bytes.as_ptr(), t, bytes.len());
-        let out = draw_text_at(font_at(0x51DE90), t, 0x190, 4, canvas)?;
-        Ok(Left::of_text(&out))
+        draw_text_at(font_at(0x51DE90), t, 0x190, 4, canvas)?;
+        Ok(())
     }
 }
 
 /// `sub_4161BA`: string `id` in `font` at (x, y), unless y is at or above the screen's
-/// bottom (`g_screenHeight`) or at or below -0x1B. Gives what `draw_text` leaves, or
-/// nothing.
+/// bottom (`g_screenHeight`) or at or below -0x1B.
 unsafe fn credit_line(
     id: u32,
     font: u32,
     x: i32,
     y: i32,
     canvas: &mut dyn Canvas,
-) -> Result<Left, Refused> {
+) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::credits::shown`.
     unsafe {
         if !rc2k_core::race::credits::shown(y, SCREEN.height.get()) {
-            return Ok(Left::nothing());
+            return Ok(());
         }
-        let out = draw_string_by_id_at(id, font as *mut crate::text::font::Font, x, y, canvas)?;
-        Ok(Left::of_text(&out))
+        draw_string_by_id_at(id, font as *mut crate::text::font::Font, x, y, canvas)?;
+        Ok(())
     }
 }
 

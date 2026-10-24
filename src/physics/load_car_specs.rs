@@ -16,19 +16,12 @@
 //! In:  nothing
 //! Out: eax the record's gear count, ebx the drive kind, esi the record; no flags read
 //!
-//! Callers: `sub_43B635` (0x43B63A), `sub_4217E4`.
-//! Refuses (before anything) a drive kind past 3 (`flt_613FB8`'s size not worked out).
-//! Self-test: the original and the Rust version on the game's variables (saved and put
-//! back): kinds 0, 5, 0x16, 0x17, 0x21, 0x40, under three precisions.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Callers: `sub_43B635` (0x43B63A), `sub_4217E4`. Refuses (before anything) a drive kind
+//! past 3 (`flt_613FB8`'s size not worked out).
 
 use crate::errors::Refused;
-use crate::framework::{EAX, EBX, ESI, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::math::x87;
-use crate::screens::harness::Left;
 use rc2k_core::physics::car_specs::{
     OWN_FIGURES_FROM, RECORD_LEN, check_drive, gear_count, record_of,
 };
@@ -73,8 +66,8 @@ fn record() -> u32 {
 }
 
 /// The whole-number steps both versions share, after the floats: the torque curve, the
-/// gear count (held), the words copied; eax the record's count.
-unsafe fn words(s: u32) -> u32 {
+/// gear count (held), the words copied.
+unsafe fn words(s: u32) {
     unsafe {
         for k in 0..9u32 {
             p(0x614B7C + 4 * k as usize, at(s + 0x7C + 4 * k));
@@ -92,13 +85,12 @@ unsafe fn words(s: u32) -> u32 {
         ] {
             p(to, at(s + from));
         }
-        count
     }
 }
 
 /// The Rust version (the exact one, for `physics::car_physics_step` and
 /// `physics::test_drive`).
-pub unsafe fn load_car_specs() -> Result<Left, Refused> {
+pub unsafe fn load_car_specs() -> Result<(), Refused> {
     let kind = g(0x719FFC);
     let s = record();
     let drive = check_drive(unsafe { at(s + 0x18) })?;
@@ -148,7 +140,7 @@ pub unsafe fn load_car_specs() -> Result<Left, Refused> {
         }
     }
     unsafe {
-        let count = words(s);
+        words(s);
         // 0x4216C5 .. 0x421704
         x87_block!(
             "fild dword ptr [{s} + 0x40]",
@@ -206,9 +198,6 @@ pub unsafe fn load_car_specs() -> Result<Left, Refused> {
             "fstp dword ptr [{rc} + 0x2140FC]";
             k = drive, rc = crate::race::store::asm_base()
         );
-        Ok(Left::nothing()
-            .with(EAX, count)
-            .with(EBX, drive)
-            .with(ESI, s))
+        Ok(())
     }
 }

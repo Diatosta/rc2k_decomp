@@ -24,23 +24,16 @@
 //! spin on the ground, broken parts, lights, the forces' sum, the wheel load, the engine
 //! sound's share, the time mark, a false start, the value notice.
 //!
-//! The flow and the calls are Rust (each callee's Rust version with the registers its
-//! hook would leave); the holds are `physics/flow.rs`'s.
+//! the holds are `physics/flow.rs`'s.
 //!
 //! In:  nothing
 //! Out: the registers as the steps and calls leave them; no flags read (the callers
 //!      store the car next)
 //!
-//! Callers: `physics::race_cars_step` (0x4608BB), `sub_460835`, `sub_460B2F`. It begins
-//! with a call: hooked by a private copy of the whole function (0x37F bytes, one chunk)
-//! with its 83 calls relocated, and a hand-made patch.
-//! Refuses (before anything) a current car past 7 (`dword_641680` is read by it), and
-//! what its calls refuse; the work car and the physics' variables (`step_regions`) are
-//! put back then (the callees put back their own other writes). Shadow mode runs the
-//! original alone (a whole step: its parts are compared by their own hooks).
-//! Self-test (in a race; skipped otherwise): the original and the Rust version from the
-//! same state (everything the step writes saved and put back), the car where it is and
-//! moved into the ground, under three precisions.
+//! Callers: `physics::race_cars_step` (0x4608BB), `sub_460835`, `sub_460B2F`. Refuses
+//! (before anything) a current car past 7 (`dword_641680` is read by it), and what its
+//! calls refuse; the work car and the physics' variables (`step_regions`) are put back then
+//! (the callees put back their own other writes).
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

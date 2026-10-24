@@ -1,5 +1,5 @@
-//! Which textures are needed, and how well: three tables of 0x400 dwords, one entry a
-//! texture. Shared by the hooks that fill and count them.
+//! Which textures are needed, and how well: three tables of 0x400 dwords, one entry a texture.
+//! Shared by the functions that fill and count them.
 
 use crate::framework::rva;
 

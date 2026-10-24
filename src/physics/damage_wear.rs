@@ -11,7 +11,6 @@
 //!      no flags read
 //!
 //! Caller: `physics::damage_step`.
-//! Self-test: `physics/damage_model.rs` (`damage_test`).
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

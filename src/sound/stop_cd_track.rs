@@ -4,15 +4,8 @@
 //! In:  nothing
 //! Out: every register preserved (`pusha` .. `popa`)
 //! Called by `sound::stop_cd_audio` (three calls and two more by its `call $+5` into this).
-//! The MCI call is the platform's: in the game through the import's thunk (0x4D5E7E); in
-//! the standalone program nothing (no CD audio; in this build `dword_518108` never becomes
-//! 1: `sound::open_cd_audio`). Shadow mode runs the original alone (the device is stopped
-//! once). Self-test: a copy whose two variables are the test's and whose MCI call goes to a
-//! stand-in that notes its arguments, against the Rust version, open and not.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! The MCI call is the platform's: in the standalone program nothing (no CD audio; in this build `dword_518108` never becomes
+//! 1: `sound::open_cd_audio`).
 
 use crate::sound::store::EffectsSlot;
 use crate::store::game_addr;

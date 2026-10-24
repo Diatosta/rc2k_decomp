@@ -13,16 +13,9 @@
 //! Out: nothing (the original keeps every register but ebp, which no caller reads after it)
 //!
 //! Callers: the ring's kinds 1, 5, 6, 0xD, 0x13, 0x15, 0x16 (`sub_4CB64D`) and 0x4D0D80.
-//! The x87 blocks are the original's instructions over the game's variables; the fog and
-//! the clip their Rust versions (the copy's calls go to their hooks); the draw through
-//! `part` (1 `draw_fan`), in the game its Rust version. Refuses, before anything, a cell
-//! past 0x40, an angle of 0x1000 or more, a null entry, and the fog's and the clip's
-//! refusals. Thunk by `three_in_hook!`. Shadow mode runs the original alone (it draws).
-//! Self-test: a copy whose draw goes to a stand-in, against the Rust version.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! The x87 blocks are the original's instructions over the game's variables. Refuses,
+//! before anything, a cell past 0x40, an angle of 0x1000 or more, a null entry, and the
+//! fog's and the clip's refusals.
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::rva;

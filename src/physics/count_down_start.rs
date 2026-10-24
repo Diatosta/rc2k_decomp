@@ -9,19 +9,11 @@
 //!      ebx 100, edx the rest; after the call eax as `set_flag_5165a0` leaves it; the
 //!      rest kept; no flags read (the caller's next is a call)
 //!
-//! Caller: `sub_436790` (0x4367D4).
-//! Refuses what `set_flag_5165a0` refuses.
-//! Self-test: a copy of the original (its variables the test's, its call to the twin's
-//! test copy on test cells) against the core: counts about the hundreds, both switches.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `sub_436790` (0x4367D4). Refuses what `set_flag_5165a0` refuses.
 
 use crate::errors::Refused;
-use crate::framework::{EAX, EBX, EDX, game_addr, rva};
+use crate::framework::{game_addr, rva};
 use crate::physics::listed_car_flags::{CURRENT_CAR, TABLE, set_flag_at};
-use crate::screens::harness::Left;
 use rc2k_core::physics::start::{CarStart, StartCount};
 
 unsafe fn at(a: u32) -> u32 {
@@ -55,7 +47,7 @@ impl CountPlaces {
 
 /// The Rust version on the variables at `p`.
 // Converted: `rc2k_core::physics::start::CarStart::count_down_start`.
-pub unsafe fn count_down_start_at(p: &CountPlaces) -> Result<Left, Refused> {
+pub unsafe fn count_down_start_at(p: &CountPlaces) -> Result<(), Refused> {
     unsafe {
         let mut c = CarStart {
             finished: at(p.stop),
@@ -64,26 +56,19 @@ pub unsafe fn count_down_start_at(p: &CountPlaces) -> Result<Left, Refused> {
             ..CarStart::default()
         };
         match c.count_down_start() {
-            StartCount::Stopped => Ok(Left::nothing()),
-            StartCount::Waiting(eax) => Ok(Left::nothing().with(EAX, eax)),
-            StartCount::Counted {
-                hundreds,
-                rest,
-                beep,
-            } => {
+            StartCount::Stopped | StartCount::Waiting(_) => Ok(()),
+            StartCount::Counted { beep, .. } => {
                 (p.count as *mut u32).write_unaligned(c.countdown);
-                let left = if beep {
-                    set_flag_at(p.current, p.listed, p.flag)?
-                } else {
-                    Left::nothing().with(EAX, hundreds)
-                };
-                Ok(left.with(EBX, 100).with(EDX, rest))
+                if beep {
+                    set_flag_at(p.current, p.listed, p.flag)?;
+                }
+                Ok(())
             }
         }
     }
 }
 
 /// The Rust version.
-pub unsafe fn count_down_start() -> Result<Left, Refused> {
+pub unsafe fn count_down_start() -> Result<(), Refused> {
     unsafe { count_down_start_at(&CountPlaces::game()) }
 }

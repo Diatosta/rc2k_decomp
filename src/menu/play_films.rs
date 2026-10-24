@@ -18,17 +18,11 @@
 //!   `sub_442AF6`, `sub_40F780`.
 //!
 //! What the unnamed ones do has not been read. Callers: `menu::run_front_end` (with 0),
-//! `menu::main_menu_loop`'s idle step (with 1), and 0x470593.
-//! Every call goes through the game's address (hooks where ported), the registers handed
-//! from one to the next as they come back; but `nullsub_6` is not called, and
-//! `scene::set_up_lit_engine` (`sub_415515`) and `race::credits_race` (`sub_463666`) are
-//! their Rust versions (2026-10-19). Each real call writes a line to hook.log saying which
-//! version runs.
-//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
-//! `routes.rs`); the registers above are the original's, for reference.
+//! `menu::main_menu_loop`'s idle step (with 1), and 0x470593. Rust callers run its `entry`
+//! (`routes.rs`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, game_read, log, rva};
+use crate::framework::{game_addr, game_read, log, rva};
 use crate::session::SCREEN;
 use rc2k_core::menu::films::{self, Film, Flags, Step};
 
@@ -59,13 +53,7 @@ fn film(f: Film) -> u32 {
 /// The film player (`gfx::play_film`, the platform's) for the file at `path`: the zero
 /// flag it leaves (the film's end).
 fn play(path: u32) -> bool {
-    let r = &mut Regs {
-        eax: path,
-        ebx: 0,
-        ..Regs::default()
-    };
-    crate::film::dispatch(r);
-    r.eflags & crate::framework::ZERO_FLAG != 0
+    crate::film::play_film_now(path)
 }
 
 impl Game {
@@ -97,7 +85,14 @@ impl Game {
                     flags.carry = !there;
                     flags.zero = there;
                 }
-                Step::Demonstration => crate::race::credits_race::credits_race()?,
+                // Fixed (2026-10-24, `wiki/Fixed-bugs.md`): the players' absences cleared
+                // first, as the original's other caller of the demonstration (`sub_443104`)
+                // does; the original's films kept the quit answer of the last race left by
+                // the quit question, and its demonstration ended at its first frame.
+                Step::Demonstration => {
+                    crate::race::race_shell::clear_player_absences();
+                    crate::race::credits_race::credits_race()?
+                }
                 Step::Step409B76 => crate::sound::let_sounds_play::let_sounds_play(),
                 Step::SetUpEngine => crate::scene::set_up_engine::set_up_engine()?,
                 Step::FrontEndScene => {

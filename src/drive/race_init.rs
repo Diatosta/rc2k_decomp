@@ -18,10 +18,8 @@
 //! In:  nothing
 //! Out: the registers as the parts leave them (ecx 0x32 after the steps); no flags read
 //!
-//! Caller: `race::load_stage` (0x44412D).
-//! Refuses what its parts refuse; raises 0x80600D1E as the original (section 15).
-//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
-//! `routes.rs`); the registers above are the original's, for reference.
+//! Caller: `race::load_stage` (0x44412D). Refuses what its parts refuse; raises 0x80600D1E
+//! as the original.
 
 use crate::errors::{FatalError, Refused};
 use crate::physics::flow::{a, g, p};

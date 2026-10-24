@@ -10,11 +10,6 @@
 //! channels / 8 (the low sixteen bits stored); bytes a second that (as 32 bits) x the
 //! samples a second. Five callers: `audio::make_buffer`, the stream's and the primary
 //! buffer's set-ups.
-//! Compared in shadow mode. Self-test: the original on 18 formats and four frequencies.
-//!
-//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::audio::samples::{SAMPLE_BITS_FLAGS_RVA, SAMPLE_CHANNEL_FLAGS_RVA};
 use crate::audio::store::Slot;

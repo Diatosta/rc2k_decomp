@@ -7,12 +7,6 @@
 //!      edx)
 //!
 //! Caller: `sub_43D59A` (twice).
-//! Self-test: a copy of the original against the core, every way with cells 0 .. 3 and
-//! odd values.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 /// The Rust version: (eax, ebx, edx) out.
 // Converted: `rc2k_core::physics::ground::flip_cell_index`.

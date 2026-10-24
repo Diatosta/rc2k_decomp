@@ -1,12 +1,7 @@
 //! `menu::rally_stages_loop` (0x472596): the loop of the screen that shows a rally's stages,
 //! on the map (`ukmap.png`), before the service area in a championship.
 //!
-//! Screen: the owner's screenshot of 2026-10-10, from a visit the Rust version ran (hook.log
-//! has "menu::screen_472596_loop: the Rust version runs", its name then, just before the
-//! service area's loop): title "PORMENORES DA ETAPA", the rally's name, and a table "es /
-//! localização / distância / tempo" of the rally's six stages and three service areas over
-//! a map, the next stage in red. The owner: "the screen before the service area in
-//! championship that shows that rally's stages".
+//! The owner: "the screen before the service area in championship that shows that rally's stages".
 //!
 //! In:  nothing
 //! Out: every register preserved
@@ -14,17 +9,11 @@
 //! (`SCREEN`): before the loop it clears the Escape flag `dword_755A3C`;
 //! its background comes from `menu::load_background`, after which a set carry flag is fatal
 //! error 0x80712345; leaving is asked about, and a "no" sets the screen up again.
-//! Callers: the event loops `sub_4A0E60` and `sub_4AA4D7`. Ungated thunk; shadow mode runs the original alone; each real call writes a
-//! line to hook.log. Self-test: `screen_loop::check_screen`.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Callers: the event loops `sub_4A0E60` and `sub_4AA4D7`.
 
 use crate::framework::rva;
-use crate::menu::class_stage_results_loop::LOAD_BACKGROUND;
 use crate::menu::run_draw_list::DRAW_LIST_RVA;
-use crate::menu::screen_loop::{FRAME_CALLBACK, List, Screen, Step};
+use crate::menu::screen_loop::{Callee, FRAME_CALLBACK, List, Screen, Step};
 
 // ---- game data ----
 
@@ -62,7 +51,7 @@ pub const SCREEN: Screen = Screen {
     after_lists: &[],
     background: &[
         Step::ArgAddr(BACKGROUND_RVA),
-        Step::CallOrFatal(LOAD_BACKGROUND, 0x8071_2345),
+        Step::CallOrFatal(Callee::LoadBackground, 0x8071_2345),
     ],
     after_first_frame: &[],
     confirm: Some(&[]),

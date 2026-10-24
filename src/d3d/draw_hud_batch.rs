@@ -7,9 +7,7 @@
 //! The device's DrawIndexedPrimitive with a triangle list (4) of transformed and lit
 //! vertices (3) and the flags 0x1C. One caller, `hud::flush_batch`.
 //! Platform: the original always runs. In the standalone program the rasteriser draws
-//! each triangle (`platform_3d::draw_indexed_list`) and the result is 0. No self-test.
-//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
-//! `routes.rs`); the registers above are the original's, for reference.
+//! each triangle (`platform_3d::draw_indexed_list`) and the result is 0.
 
 use crate::hud::store::{Slot, game_read, indices, vertices};
 

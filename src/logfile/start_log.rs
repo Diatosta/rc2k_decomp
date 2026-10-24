@@ -24,7 +24,7 @@ use crate::logfile::numeric::scratch;
 use crate::logfile::write_line::{LOG_PATH, level};
 use crate::session::MACHINE as M;
 use std::sync::atomic::{AtomicU32, Ordering};
-use windows_sys::Win32::Storage::FileSystem::{DeleteFileA, GetDiskFreeSpaceA};
+use windows_sys::Win32::Storage::FileSystem::GetDiskFreeSpaceA;
 use windows_sys::Win32::System::SystemInformation::{GlobalMemoryStatus, MEMORYSTATUS};
 
 // ---- game data ----
@@ -75,7 +75,7 @@ pub unsafe fn start_log() -> Result<(), BadInput> {
             return Ok(());
         }
         crate::logfile::date_text::date_text()?;
-        DeleteFileA(LOG_PATH.as_ptr());
+        let _ = std::fs::remove_file(crate::files::ansi_text(&LOG_PATH[..LOG_PATH.len() - 1]));
         // Converted: `rc2k_core::files::log::head`; the values gathered (the date text,
         // the memory and the drive's numbers left in game memory as the original leaves
         // them), then each message logged as the original's call.

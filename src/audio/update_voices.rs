@@ -26,13 +26,6 @@
 //! Refuses, before anything: a list that does not end within 0x200 voices; a playing voice
 //! that does not loop without its channel or buffer; a voice to stop without its buffer; a
 //! marked voice's volume or pan past the volume table.
-//! Shadow mode runs the original alone. Self-test: a redirected copy (0x40AC77 .. 0x40AEB9,
-//! with `audio::clear_channels` between) whose variables are the test's and whose eleven
-//! calls note the voice, 200 states by lot.
-//!
-//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::audio::store::Slot;
 use crate::audio::voices::*;

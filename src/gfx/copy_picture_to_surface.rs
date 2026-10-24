@@ -14,8 +14,8 @@
 //! `PictureSurface`, which is where a build without the game puts its own surface.
 //! Refuses a row count of 0 (the original counts through all 32 bits) and null pointers. The
 //! name is a reading.
-//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
-//! `routes.rs`); the registers above are the original's, for reference.
+//! The registers above are the original's, for reference; a call by address goes through
+//! `routes.rs`.
 
 use crate::errors::BadInput;
 use crate::framework::rva;
@@ -112,6 +112,3 @@ pub unsafe fn copy_picture_to_surface(surface: &mut dyn PictureSurface) -> Resul
     }
     Ok(())
 }
-
-// ---- self-test: a copy of the original whose lock and unlock are stand-ins and whose six
-// variables are the test's, copying between two buffers of the test ----

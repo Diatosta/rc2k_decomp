@@ -1,34 +1,21 @@
 //! The calls the menus' items (their keys' and actions' functions) and the screens' draw
 //! lists make (typed tables, 2026-10-22): the function named by its RAL address, as the
-//! game's memory still holds it, run by its Rust version (`table_routes.rs`, generated from
-//! `rc2k_core::menu::tables`), no longer through its hook. Callers: `menu::run_list` and
-//! the frame callbacks (`call_listed`: screen functions, no registers),
-//! `menu::run_item_action` (`call_action`), `menu::navigation`'s moves (`call_key`), and
-//! the screen loops' and the frame callback's frames (`call_any`). This is where the screen loops' typed values become the registers
-//! the items' functions still take (the event flows they start thread them on).
+//! game's memory still holds it, run by its Rust version (`table_routes.rs`; `crate::routes`, for
+//! the few others, went 2026-10-24: nothing could reach them by address). Callers: `menu::run_list` and the frame
+//! callbacks (`call_listed`: screen functions, no registers), `menu::run_item_action`
+//! (`call_action`: an `ItemCall`, the item's value, the item, the menu and the screen
+//! loop's carried values), `menu::navigation`'s moves (`call_key`).
 //!
 //! A refused input (`BadInput`) ends the program, saying which function refused and why
-//! (2026-10-23); a fatal error is raised from Rust. An address in no table goes to the
-//! game, logged once: a platform hook's Rust side, SDL's and the empty functions are run
-//! here (`platform::by_address`, `standalone::answers`); anything else reaches the
-//! standalone's fault handler, which ends with "not ported".
+//! (2026-10-23); a fatal error is raised from Rust. An address in no table: the empty
+//! functions are done here (`standalone::answers`); anything else ends the program, "not
+//! ported" (2026-10-24).
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{IMAGE_BASE, Regs, game_addr, log};
 use crate::menu::screen_loop::Carried;
 use crate::menu::table_routes::{item_fn, screen_fn};
 use rc2k_core::menu::tables::{ItemFn, ScreenFn};
-
-/// Runs the function at `function` (an address in the game's memory) with `r`.
-pub fn call(function: u32, r: &mut Regs) {
-    run(function, r, true);
-}
-
-/// `call` for a caller that also calls functions in no table (the screen loops' and the
-/// frame callback's frames): a function with a Rust version in `crate::routes` runs it.
-pub fn call_any(function: u32, r: &mut Regs) {
-    run(function, r, false);
-}
 
 /// The address as IDA shows it.
 fn ral(function: u32) -> u32 {
@@ -57,53 +44,71 @@ pub fn call_key(function: u32, item: u32) -> Result<(), Refused> {
         Some(ItemFn::RaiseControllerSensitivity) => unsafe {
             crate::menu::controller_items::raise_controller_sensitivity(item)
         },
-        Some(f) => item_fn(f, &mut Regs::default()),
+        Some(f) => item_fn(f, &ItemCall::default()),
         None => Err(BadInput("a key callback that is none of the items' functions").into()),
     }
 }
 
-/// A menu item's action (`menu::run_item_action`), with the registers the original hands
-/// it: eax the item's value, ebp the item, edi the menu, and the screen loop's carried ones
-/// (the flows that items start hand them on to their screens). A refusal ends the program
-/// here, as `call`'s.
-pub fn call_action(function: u32, value: u32, item: u32, menu: u32, carried: &Carried) {
-    let mut r = Regs {
-        eax: value,
-        ebx: carried.palette,
-        ecx: carried.measure_x,
-        edx: carried.clock,
-        esi: carried.cars,
-        edi: menu,
-        ebp: item,
-        ..Regs::default()
-    };
-    call(function, &mut r);
+/// What a menu item's function is given (typed, 2026-10-24; the original's registers at
+/// the call: eax the item's value, ebp the item, edi the menu, ebx / ecx / edx / esi the
+/// screen loop's carried ones, which the flows that items start hand on to their screens).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct ItemCall {
+    pub value: u32,
+    pub item: u32,
+    pub menu: u32,
+    pub carried: Carried,
 }
 
-fn run(function: u32, r: &mut Regs, only_tables: bool) {
+impl ItemCall {
+    /// The carried values as the item's function gets them: the value where the call's
+    /// argument goes (eax), no carry.
+    pub fn carried(&self) -> Carried {
+        Carried {
+            arg: self.value,
+            carry: false,
+            ..self.carried
+        }
+    }
+
+    /// The registers the original hands the function, for a refusal's report.
+    pub fn regs(&self) -> Regs {
+        Regs {
+            eax: self.value,
+            ebx: self.carried.palette,
+            ecx: self.carried.measure_x,
+            edx: self.carried.clock,
+            esi: self.carried.cars,
+            edi: self.menu,
+            ebp: self.item,
+            ..Regs::default()
+        }
+    }
+}
+
+/// A menu item's action (`menu::run_item_action`): the item's function with the value,
+/// the item, the menu and the screen loop's carried values. A refusal ends the program
+/// here, as `call`'s.
+pub fn call_action(function: u32, value: u32, item: u32, menu: u32, carried: &Carried) {
+    let given = ItemCall {
+        value,
+        item,
+        menu,
+        carried: *carried,
+    };
     let ral = ral(function);
     let result = if let Some(f) = ItemFn::from_ral(ral) {
-        Some((Named::Item(f), item_fn(f, r)))
-    } else if let Some(f) = ScreenFn::from_ral(ral) {
-        Some((Named::Screen(f), screen_fn(f)))
+        Some((Named::Item(f), item_fn(f, &given)))
     } else {
-        let at = (ral as usize).wrapping_sub(IMAGE_BASE);
-        crate::routes::by_rva(at, r).map(|done| (Named::Routed, done))
+        ScreenFn::from_ral(ral).map(|f| (Named::Screen(f), screen_fn(f)))
     };
     match result {
         Some((_, Ok(()))) => {}
-        Some((name, Err(e))) => refused(&format!("{name:?} ({ral:#x})"), e, r),
+        Some((name, Err(e))) => refused(&format!("{name:?} ({ral:#x})"), e, &given.regs()),
         None => {
-            let at = ral as usize;
-            if crate::platform::by_address(at, r) || crate::standalone::answers(at, r) {
-                return;
+            if !crate::standalone::answers(ral as usize) {
+                crate::standalone::not_ported(ral as usize, "a menu or draw list");
             }
-            let from = if only_tables {
-                "a menu or draw list"
-            } else {
-                "Rust, by its address"
-            };
-            crate::standalone::not_ported(at, from);
         }
     }
 }
@@ -129,8 +134,6 @@ pub fn refused(what: &str, e: Refused, r: &Regs) {
 enum Named {
     Item(ItemFn),
     Screen(ScreenFn),
-    /// One of `crate::routes`' (named in the log by its address).
-    Routed,
 }
 
 impl std::fmt::Debug for Named {
@@ -138,7 +141,6 @@ impl std::fmt::Debug for Named {
         match self {
             Named::Item(x) => x.fmt(f),
             Named::Screen(x) => x.fmt(f),
-            Named::Routed => f.write_str("a routed function"),
         }
     }
 }

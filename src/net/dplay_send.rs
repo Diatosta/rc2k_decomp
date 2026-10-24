@@ -6,7 +6,7 @@
 //! Out: nothing (the original keeps every register; its flags, carry set on a failure,
 //!      are read by no caller: `lq -s 0x4196FF`)
 //! Six callers (`net::send_message`, `net::send_chat`, `net::race_wait`, `net::lobby_loop`,
-//! `net::take_messages` twice). `Send` from Rust (`net::dplay`, section 15). Refuses nothing
+//! `net::take_messages` twice). `Send` from Rust (`net::dplay`). Refuses nothing
 //! (no check of `g_dplay`, as the original).
 
 use crate::net::dplay::{SEND, method};

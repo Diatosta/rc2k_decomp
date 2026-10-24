@@ -337,5 +337,3 @@ pub fn remove_shown_car(then: &mut dyn FnMut() -> Result<(), Refused>) -> Result
     unsafe { game_write(SHOWN_LIST_RVA, cars) };
     then()
 }
-
-// ---- hooks' and tests' common parts ----

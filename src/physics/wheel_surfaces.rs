@@ -25,11 +25,8 @@
 //! Out: the registers as the last steps leave them (eax the count, ebx, ecx 5, edx, esi,
 //!      edi); no flags read
 //!
-//! Callers: `sub_43B635` (0x43B70F), `sub_43A1CA`.
-//! Refuses no faces, a table index (+0x2C) past 5 (before anything) and a surface past 15
-//! (what was written by then is put back).
-//! Self-test: the original and the Rust version on the game's variables (saved and put
-//! back) with test faces, under three precisions.
+//! Callers: `sub_43B635` (0x43B70F), `sub_43A1CA`. Refuses no faces, a table index (+0x2C)
+//! past 5 (before anything) and a surface past 15 (what was written by then is put back).
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

@@ -7,14 +7,7 @@
 //! Out: ebx the last place, ecx the last sign's row (0 when the last is none), eax / esi
 //!      the last drawn sign's rectangle (as `add_sprite` keeps them)
 //!
-//! Caller: layout 0's drawer (0x4B1F27). The sprites through `part` (1), in the game
-//! `add_sprite`'s Rust version. Shadow mode runs the original alone (it draws).
-//! Self-test: a copy whose call goes to a stand-in, against the Rust version, signs by
-//! lot.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: layout 0's drawer (0x4B1F27).
 
 use crate::errors::Refused;
 use crate::framework::rva;

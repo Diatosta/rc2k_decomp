@@ -9,19 +9,10 @@
 //! In:  nothing
 //! Out: the registers as the calls leave them; no flags read (the callers' `pop` / `call`)
 //!
-//! Callers: `menu::play_films` (with ebp kept round it), which calls the Rust version
-//! directly, and `sub_443104`. Its calls by place: 0 `set_up_credits_race`, 1
-//! `set_up_arcade_cars`, 2 `set_start_states`, 3 `log_write_l1`, 4 `log_int_l1`, 5
-//! `log_int_l1_nl`, 6 `load_stage`, 7 `roll_credits`, 8 `play_race`, 9 `tidy_everything`.
-//! In the game the set-up and the logs are Rust; the others are called at their hooks
-//! (each runs its Rust version and deals with its own refusals, as when the game calls
-//! them). Ungated thunk: it plays a race. Shadow mode runs the original alone.
-//! Self-test: a copy whose calls go to stand-ins that note them, against the Rust version
-//! with the same, on the game's variables (put back).
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Callers: `menu::play_films` (with ebp kept round it), which calls the Rust version directly,
+//! and `sub_443104`. Its calls by place: 0 `set_up_credits_race`, 1 `set_up_arcade_cars`, 2
+//! `set_start_states`, 3 `log_write_l1`, 4 `log_int_l1`, 5 `log_int_l1_nl`, 6 `load_stage`, 7
+//! `roll_credits`, 8 `play_race`, 9 `tidy_everything`.
 
 use crate::errors::Refused;
 use crate::framework::{game_addr, game_read, game_write, rva};

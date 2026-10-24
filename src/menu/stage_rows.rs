@@ -6,9 +6,7 @@
 //! - back: at 10 or below (signed) the row is `last` (eax it), else ten less;
 //! - on: eax `last`; at `last` or past (signed) the row is 1, else ten more.
 //!
-//! Left/right handlers of the event pages' items (menu tables 0x74FAFC ..). Compared in
-//! shadow mode (the row and the caption). Self-test: the original and the Rust version,
-//! rows around both ends.
+//! Left/right handlers of the event pages' items (menu tables 0x74FAFC ..).
 
 use crate::errors::Refused;
 use crate::framework::{game_read, game_write, rva};

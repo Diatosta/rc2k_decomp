@@ -5,7 +5,7 @@
 //! In:  nothing
 //! Out: nothing (every register kept, `pusha` .. `popa`; the flags are read by no caller:
 //!      `lq -s 0x41864E`)
-//! Caller: `net::destroy_connection`. `Release` from Rust (`net::dplay`, section 15).
+//! Caller: `net::destroy_connection`. `Release` from Rust (`net::dplay`).
 //! Refuses nothing.
 
 use crate::logfile::log_write::log_write;

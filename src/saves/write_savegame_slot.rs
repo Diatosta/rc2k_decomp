@@ -3,16 +3,10 @@
 //!
 //! In:  ebx = slot, 0 .. 99
 //! Out: carry = failed (zero flag = succeeded); every register preserved
-//! The file is always 0x8000 bytes: "R5SG", 0, version 0x51122, `packed_local_time`, the
-//! slot's 0x20-byte name from the saved game list (`byte_526BB4`), then what
-//! `gather_savegame` collects (0x725C bytes); the rest of the buffer is written as it is.
-//! Only caller: `menu::edit_savegame_name`.
-//! Refuses a slot past 99 and what `gather_savegame` refuses.
-//! Shadow mode writes the file twice; the time stamp is left out of the comparison.
-//!
-//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! The file is always 0x8000 bytes: "R5SG", 0, version 0x51122, `packed_local_time`, the slot's
+//! 0x20-byte name from the saved game list (`byte_526BB4`), then what `gather_savegame` collects
+//! (0x725C bytes); the rest of the buffer is written as it is. Only caller:
+//! `menu::edit_savegame_name`. Refuses a slot past 99 and what `gather_savegame` refuses.
 
 use crate::errors::{BadInput, Refused};
 use crate::files::numbered_path::numbered_path_in_game;

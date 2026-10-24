@@ -179,7 +179,7 @@ pub unsafe fn draw_records_for_group(
     }
 }
 
-// ---- hook and self-test support ----
+// ---- support ----
 
 /// Address of the string id of item `n` of the current menu, or None without a menu.
 pub unsafe fn menu_item_id(n: u32) -> Option<u32> {

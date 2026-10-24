@@ -11,16 +11,9 @@
 //! +0x50), the flags' low 6 bits (+0x58), a size by the marks' random (+0x60, then
 //! replaced), a life from `dword_939B76` by the flags' bits 6 and 7 (+0x84; +0x78
 //! `flt_7651A4` over it), +0x74 `dword_76519C`, the object (+0x68) and its +0x88, +0x90.
-//! Callers: `marks::emit_wheel_particles`' kinds 2 .. 4, 6 .. 9, 0xC (after `sub_4CD21A`
-//! or `sub_4CD747`).
-//! Refuses (before anything) a null wheel, object or matrix where read, and flags of
-//! 0x100 or more when an entry is made (the life read past `dword_939B76`'s four).
-//! Self-test: a ring, wheel and object of the test's; the original and the Rust version
-//! at several speeds, flags and fillings; put back afterwards.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Callers: `marks::emit_wheel_particles`' kinds 2 .. 4, 6 .. 9, 0xC (after `sub_4CD21A` or
+//! `sub_4CD747`). Refuses (before anything) a null wheel, object or matrix where read, and
+//! flags of 0x100 or more when an entry is made (the life read past `dword_939B76`'s four).
 
 use crate::errors::{BadInput, Refused};
 use crate::marks::emitters::*;

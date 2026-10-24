@@ -14,17 +14,12 @@
 //! Refuses a polygon of no vertices (the original goes through 2^32), an entry without
 //! its record and a table's length above 0x1000. A length of 0, as the menus have it,
 //! makes every place the byte before the table (the original's `length - 1`): kept.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{EAX, ECX, EDX, ESI, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::math::x87;
 use crate::scene::draw_polygon::CHECKED_RVA;
 use crate::scene::polygon::{dword, listed};
-use crate::screens::harness::Left;
 
 // ---- game data ----
 
@@ -36,12 +31,12 @@ const FIXED_RVA: usize = rva(0x636610); // dword_636610
 
 // ---- Rust version ----
 
-pub unsafe fn fog_polygon() -> Result<Left, Refused> {
+pub unsafe fn fog_polygon() -> Result<(), Refused> {
     unsafe {
         let entries = listed()?;
-        let Some(&last) = entries.last() else {
+        if entries.is_empty() {
             return Err(BadInput("a polygon of no vertices").into());
-        };
+        }
         if entries.iter().any(|&entry| dword(entry + 4) == 0) {
             return Err(BadInput("an entry without its record").into());
         }
@@ -50,9 +45,8 @@ pub unsafe fn fog_polygon() -> Result<Left, Refused> {
             return Err(BadInput("a fog table longer than its room").into());
         }
         let fixed = (game_read::<u32>(KIND_RVA) == 4).then(|| game_read::<u32>(FIXED_RVA));
-        let (mut eax, mut record) = (0, 0);
         for &entry in &entries {
-            record = dword(entry + 4);
+            let record = dword(entry + 4);
             let depth = x87::to_int(dword(record as usize + 0x18));
             game_write(CHECKED_RVA, depth);
             // A place past the length is the last one; with no length (the menus)
@@ -65,13 +59,8 @@ pub unsafe fn fog_polygon() -> Result<Left, Refused> {
             };
             let fog =
                 ((game_addr(TABLE_RVA) as u32).wrapping_add(place) as *const u8).read() as u32;
-            eax = fixed.unwrap_or(fog) ^ 0xFF;
-            ((entry + 0x20) as *mut u8).write(eax as u8);
+            ((entry + 0x20) as *mut u8).write((fixed.unwrap_or(fog) ^ 0xFF) as u8);
         }
-        Ok(Left::nothing()
-            .with(EAX, eax)
-            .with(ECX, entries.len() as u32)
-            .with(EDX, record)
-            .with(ESI, last as u32))
+        Ok(())
     }
 }

@@ -11,10 +11,6 @@
 //!
 //! In:  nothing
 //! Out: ebx the band; the rest kept; no flags read (the callers compare ebx next)
-//!
-//! Self-test: a copy of each original (its value, factor and `dword_6D1AEC` the test's)
-//! against the converted version (exact: the product of two floats fits an `f64`): values
-//! by lot about the band's ends, at the test control words (0x027F, 0x037F).
 
 use crate::math::x87;
 use rc2k_core::physics::sound_bands::sound_band;

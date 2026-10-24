@@ -23,19 +23,11 @@
 //!   (`g_clipScreenLeft` ..), the middle (`flt_62409C`, `flt_6240A0`), and the width
 //!   and height less `flt_5C5D38` (`flt_6D18E8`, `EC`).
 //!
-//! `dword_62400C` is left holding the low half.
-//! Twelve callers.
-//! Self-test: 60 settings by lot on the game's variables (the screen's width as it is), at
-//! the test precisions.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! `dword_62400C` is left holding the low half. Twelve callers.
 
-use crate::framework::{EAX, EBX, EDX, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 use crate::math::x87;
 use crate::scene::draw_polygon::CHECKED_RVA;
-use crate::screens::harness::Left;
 use crate::session::SCREEN;
 
 // ---- game data ----
@@ -68,7 +60,7 @@ const LESS_ONE_RVA: usize = rva(0x6D18E8); // flt_6D18E8, flt_6D18EC
 
 // ---- Rust version ----
 
-pub unsafe fn set_view_window() -> Left {
+pub unsafe fn set_view_window() {
     unsafe {
         let depth = game_read::<u32>(REACH_RVA).wrapping_mul(0x20);
         game_write(DEPTH_RVA, [depth, depth]);
@@ -137,18 +129,14 @@ pub unsafe fn set_view_window() -> Left {
             LESS_ONE_RVA,
             [width, height].map(|size| x87::int_less(size as i32, one)),
         );
-        Left::nothing()
-            .with(EAX, low)
-            .with(EBX, 0x1_0000)
-            .with(EDX, (product >> 32) as u32)
     }
 }
 
-/// The converted `set_view_window` (plain floats): the hook's. The x87 version above
+/// The converted `set_view_window` (plain floats). The x87 version above
 /// stays for its Rust callers in modules not converted (race, `choose_view_window`,
 /// `prepare_menu_scene`).
 // Converted: `rc2k_core::scene::view_window::window_settings`
-pub unsafe fn set_view_window_plain() -> Left {
+pub unsafe fn set_view_window_plain() {
     use rc2k_core::scene::view_window::{WindowInputs, window_settings};
     unsafe {
         let f = |r: usize| f32::from_bits(game_read(r));
@@ -193,9 +181,5 @@ pub unsafe fn set_view_window_plain() -> Left {
         put(EDGE_FLOATS_RVA, &w.edge_floats);
         put(MIDDLE_FLOATS_RVA, &w.middle_floats);
         put(LESS_ONE_RVA, &w.less_one);
-        Left::nothing()
-            .with(EAX, low)
-            .with(EBX, 0x1_0000)
-            .with(EDX, (w.product >> 32) as u32)
     }
 }

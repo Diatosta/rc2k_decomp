@@ -44,16 +44,12 @@
 
 use crate::framework::rva;
 use crate::menu::run_draw_list::DRAW_LIST_RVA;
-use crate::menu::screen_loop::{FRAME_CALLBACK, List, Screen, Step, TAKE_KEY};
+use crate::menu::screen_loop::{Callee, FRAME_CALLBACK, List, Screen, Step};
 
 // ---- game data ----
 
 const SETUP_LOADED_RVA: usize = rva(0x75AAE0); // dword_75AAE0: 1 = `load_setup_values` does nothing
 const LEFT_RVA: usize = rva(0x7554E4); // dword_7554E4: 0 on the screen, 1 after it
-const PREPARE_SCENE: usize = rva(0x46F7FD); // scene::prepare_menu_scene
-const SUB_40F7A4: usize = rva(0x40F7A4);
-const LOAD_BACKGROUND: usize = rva(0x470F55); // service::load_background: the picture for the car
-const SUB_40F826: usize = rva(0x40F826);
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
@@ -87,12 +83,12 @@ pub const SCREEN: Screen = Screen {
     later_frame_callback: None,
     // The key buffer is emptied first.
     before: &[
-        Step::Call(TAKE_KEY),
-        Step::Call(TAKE_KEY),
-        Step::Call(TAKE_KEY),
-        Step::Call(TAKE_KEY),
-        Step::Call(TAKE_KEY),
-        Step::Call(TAKE_KEY),
+        Step::Call(Callee::TakeKey),
+        Step::Call(Callee::TakeKey),
+        Step::Call(Callee::TakeKey),
+        Step::Call(Callee::TakeKey),
+        Step::Call(Callee::TakeKey),
+        Step::Call(Callee::TakeKey),
         Step::Arg(0),
         Step::Write(SETUP_LOADED_RVA, 0),
     ],
@@ -101,23 +97,23 @@ pub const SCREEN: Screen = Screen {
         Step::Write(rva(0x623FB0), 0),     // dword_623FB0
         Step::Write(rva(0x623FB4), 0),     // dword_623FB4
         Step::Write(rva(0x624080), 0x100), // dword_624080
-        Step::Call(PREPARE_SCENE),
+        Step::Call(Callee::PrepareScene),
         Step::Write(rva(0x6241DC), 0),        // dword_6241DC
         Step::Write(rva(0x6241E0), 800),      // dword_6241E0
         Step::WriteF32(rva(0x6241EC), 0.0),   // flt_6241EC
         Step::WriteF32(rva(0x6241F0), 800.0), // flt_6241F0
-        Step::Call(SUB_40F7A4),
+        Step::Call(Callee::PlayTune9),
     ],
     after_lists: &[],
-    background: &[Step::Call(LOAD_BACKGROUND)],
+    background: &[Step::Call(Callee::LoadServiceBackground)],
     after_first_frame: &[Step::Write(SETUP_LOADED_RVA, 1)],
-    confirm: Some(&[Step::Call(LOAD_BACKGROUND)]),
+    confirm: Some(&[Step::Call(Callee::LoadServiceBackground)]),
     ask_also_if: None,
     confirmed: &[],
     unasked_skips_save: false,
     after: &[
         Step::Write(LEFT_RVA, 1),
-        Step::Call(SUB_40F826),
+        Step::Call(Callee::StopMusic),
         Step::Write(SETUP_LOADED_RVA, 0),
     ],
     escape_leaves: false,

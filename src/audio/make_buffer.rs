@@ -20,13 +20,6 @@
 //! call, as the original leaves it; `open_eax` refuses one that is no pointer). Callers:
 //! command 3 and `audio::start`.
 //! Refuses A3D (the chunk at 0x40CC88), and what the settings refuse, checked first.
-//! Shadow mode runs the original alone. Self-test: a redirected copy on a DirectSound of
-//! the test's (`audio/test_sound.rs`) whose 3D calls and logging note their registers, 48
-//! cases.
-//!
-//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::audio::buffer_settings::{a3d, set_buffer_frequency, set_buffer_pan, set_buffer_volume};
 use crate::audio::describe_wave_format::{WAVE_FORMAT_RVA, describe_wave_format};

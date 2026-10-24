@@ -6,10 +6,9 @@
 //! For each of the four players, compared unsigned. A reading of what the two are:
 //! `dword_4F78E0` is counted up by the function that lists the game controllers
 //! (`sub_408238`, at most 0x10), so +0x2C is the player's controller, 0 being none.
-//! Callers: `sub_47486C` (before the main menu) and `saves::load_savegame`.
-//! Refuses a missing player.
-//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
-//! `routes.rs`); the registers above are the original's, for reference.
+//! Callers: `sub_47486C` (before the main menu) and `saves::load_savegame`. Refuses a missing
+//! player. Rust callers run its `entry` (`routes.rs`); the registers above are the original's, for
+//! reference.
 
 use crate::errors::BadInput;
 use crate::input::store::DeviceSlot;

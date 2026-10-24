@@ -3,14 +3,7 @@
 //! In:  eax = which of the known kinds (held to 0 .. 0x21, signed)
 //! Out: eax = the number; everything else preserved
 //!
-//! `g_knownObjectKinds` at the place: 0x22 dwords, one for each known kind of car.
-//! Two callers.
-//! Manual patch with a private copy: a conditional jump in the first bytes.
-//! Self-test: 14 places.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! `g_knownObjectKinds` at the place: 0x22 dwords, one for each known kind of car. Two callers.
 
 use crate::framework::{game_read, rva};
 

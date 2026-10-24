@@ -1,38 +1,27 @@
 //! `menu::class_stage_results_loop` (0x4662C6): the loop of the first results screen after a
 //! stage, the stage's times for the player's class.
 //!
-//! Screen: the owner's screenshots of 2026-10-10 and 2026-10-11, both from visits the Rust
-//! version ran (hook.log): title "RESULTADOS DA ETAPA DE CLASSE", the rally and the stage
-//! ("etapa 5/6: Langton"), ten rows of position, flag, driver, car, time and gap, buttons
-//! "1-10" and "continuar". Named `screen_4662c6_loop`, then `stage_results_loop`.
+//! Named `screen_4662c6_loop`, then `stage_results_loop`.
 //!
 //! In:  nothing
 //! Out: every register preserved
-//! The loop itself is `menu::screen_loop`; this file says what is this screen's own
-//! (`SCREEN`): before the loop it sets the string of the menu's first item, the button at
-//! the bottom right, to 0x138 ("voltar", back) if `dword_75AADC` is 1 and to 0x139
-//! ("continuar") otherwise, as all four results screens do; its background comes from
-//! `menu::load_background` (0x47EFFF), after which a set carry flag is fatal error
-//! 0x80712345 (the flag is whatever the last blit in there left); leaving is asked about,
-//! and a "no" sets the screen up again.
-//! One caller, `sub_4A1F7A`. Ungated thunk; shadow mode runs the original alone; each real
-//! call writes a line to hook.log. Self-test: `screen_loop::check_screen`.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! The loop itself is `menu::screen_loop`; this file says what is this screen's own (`SCREEN`):
+//! before the loop it sets the string of the menu's first item, the button at the bottom right, to
+//! 0x138 ("voltar", back) if `dword_75AADC` is 1 and to 0x139 ("continuar") otherwise, as all four
+//! results screens do; its background comes from `menu::load_background` (0x47EFFF), after which a
+//! set carry flag is fatal error 0x80712345 (the flag is whatever the last blit in there left);
+//! leaving is asked about, and a "no" sets the screen up again. One caller, `sub_4A1F7A`.
 
 use crate::errors::Refused;
 use crate::framework::{game_read, game_write, rva};
 use crate::menu::run_draw_list::DRAW_LIST_RVA;
-use crate::menu::screen_loop::{Carried, FRAME_CALLBACK, List, Screen, Step};
+use crate::menu::screen_loop::{Callee, Carried, FRAME_CALLBACK, List, Screen, Step};
 
 // ---- game data ----
 
 const MENU_RVA: usize = rva(0x74FAE0); // off_74FAE0
 const FIRST_ITEM_STRING_RVA: usize = MENU_RVA + 4 + 0x14;
 const WHICH_TITLE_RVA: usize = rva(0x75AADC); // dword_75AADC
-pub const LOAD_BACKGROUND: usize = rva(0x47EFFF); // menu::load_background: eax = the picture's path
 const BACKGROUND_RVA: usize = rva(0x7324EE); // "files\g\graphics\screens\results1.png"
 
 // ---- Rust version: `menu::screen_loop` with this ----
@@ -78,7 +67,7 @@ pub const SCREEN: Screen = Screen {
     after_lists: &[],
     background: &[
         Step::ArgAddr(BACKGROUND_RVA),
-        Step::CallOrFatal(LOAD_BACKGROUND, 0x8071_2345),
+        Step::CallOrFatal(Callee::LoadBackground, 0x8071_2345),
     ],
     after_first_frame: &[],
     confirm: Some(&[]),

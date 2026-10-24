@@ -8,12 +8,12 @@
 //! `dword_755525`; `dword_7559D0` is left at 1 or 0 for the last item accordingly.
 //!
 //! What goes behind the text depends on the item's +0x1C:
-//!   0xFFFFFFA9  nothing
-//!   0xFFFFFFA5  the button the item describes (`draw_item_button`)
-//!   0xFFFFFFA7  a right-aligned button as wide as the text
-//!   0xFFFFFFA6  a centred one
-//!   0xFFFFFFAA  nothing (only looked at when the item is not highlighted)
-//!   other       the sprite at +0x20 of `g_spriteTable`, at the item's +0 and +4
+//! 0xFFFFFFA9  nothing
+//! 0xFFFFFFA5  the button the item describes (`draw_item_button`)
+//! 0xFFFFFFA7  a right-aligned button as wide as the text
+//! 0xFFFFFFA6  a centred one
+//! 0xFFFFFFAA  nothing (only looked at when the item is not highlighted)
+//! other       the sprite at +0x20 of `g_spriteTable`, at the item's +0 and +4
 //! A highlighted item gets the highlighted buttons, and nothing at all if its +0x20 is
 //! 0xFFFFFFAA. The sprite's palette is the sprite number itself for a plain item and, for
 //! a highlighted one, whatever ebx holds: the font of the item before, or the caller's ebx
@@ -26,13 +26,7 @@
 //! the one at +0x18; for the highlighted item it is `text::blend_font` of that one and the
 //! one at +0x50, by the time since the last key (0 while `dword_7556AC` is 1).
 //!
-//! One caller, `menu::draw_menu`. Manual patch with a private copy (0x18F bytes, ten calls
-//! relocated): the loop comes back to the fifth byte, inside what the patch overwrites.
-//! Refuses a menu without an end in its first 256 items.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! One caller, `menu::draw_menu`. Refuses a menu without an end in its first 256 items.
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::game_read;
@@ -113,6 +107,3 @@ pub unsafe fn draw_menu_items(
         )
     }
 }
-
-// ---- self-test: a menu of its own with one item of each kind, each of them highlighted in
-// turn, with the game's strings and fonts ----

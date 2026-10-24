@@ -3,20 +3,16 @@
 //! In:  edi = where it goes (0x725C bytes)
 //! Out: every register preserved
 //! In this order:
-//!   - seven dwords: `dword_755984`, `dword_755950`, the event's stage index and section
-//!     (0x755958, 0x75595C), `dword_755988`, `dword_7556D0`, `dword_75AB40`;
-//!   - the four players `off_75647C[0 .. 4]`, 0x28C bytes each;
-//!   - 180 records of 0x94 bytes from `unk_73B674`.
+//! - seven dwords: `dword_755984`, `dword_755950`, the event's stage index and section
+//!   (0x755958, 0x75595C), `dword_755988`, `dword_7556D0`, `dword_75AB40`;
+//! - the four players `off_75647C[0 .. 4]`, 0x28C bytes each;
+//! - 180 records of 0x94 bytes from `unk_73B674`.
 //!
 //! Before the cars are copied it also changes them: car 0 gets `dword_7554C0` at +0x14 and
 //! `dword_7554C4` at +0x274, and every car gets the 0x20 bytes its pointer at +0x18 points to
 //! copied to +0x124 (a name, by its size; a reading), so that the saved copy carries them.
 //! What the seven dwords and the records are has not been worked out.
 //! Refuses, before anything is written: a missing player or a car without that pointer.
-//!
-//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::errors::BadInput;
 use crate::framework::{game_addr, game_read, rva};

@@ -9,10 +9,9 @@
 //! In:  nothing
 //! Out: every register preserved (`pusha` .. `popa`)
 //!
-//! In a menu loop's draw list (0x758E7E). Refuses (before anything) no current player or name,
-//! no stage records, and what `strings::append_speed` refuses. Hook removed 2026-10-22 (typed
-//! tables): the menus and draw lists run its `entry` (`menu::table_calls`); the registers above
-//! are the original's, for reference.
+//! In a menu loop's draw list (0x758E7E). Refuses (before anything) no current player or name, no
+//! stage records, and what `strings::append_speed` refuses. The menus and draw lists run its
+//! `entry` (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
 use crate::screens::best_scores::{STAGE_TIMES, draw_times_heading};

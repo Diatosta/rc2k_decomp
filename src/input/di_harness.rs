@@ -1,10 +1,6 @@
-//! What the DirectInput functions' hooks share (`acquire_device`, `list_joysticks`,
+//! What the DirectInput functions share (`acquire_device`, `list_joysticks`,
 //! `joystick_found`, `axis_found`, `begin_force`, `end_force`, `effect_found`,
-//! `make_effect`, `effect_objects`): the game's variables they use, their calls into the
-//! game, and their self-tests' sides, which run on DirectInput's objects made in Rust
-//! (`input::di_objects`) with a scripted backend: the original and the Rust version each
-//! from the same start (the same objects at the same addresses), and what they leave
-//! compared: the game's memory, the objects, the backend's notes and a result.
+//! `make_effect`, `effect_objects`): the game's variables they use.
 
 use crate::errors::FatalError;
 use crate::framework::rva;
@@ -88,5 +84,3 @@ pub fn entry_of(record: u32) -> u32 {
 pub const fn fatal(code: u32) -> FatalError {
     FatalError { code, message: "" }
 }
-
-// ---- the self-tests' sides ----

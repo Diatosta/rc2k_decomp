@@ -5,15 +5,7 @@
 //! In:  esi the rectangle, ebx x, ecx y, st(0) / st(1) the scales (kept)
 //! Out: all kept (`pusha` .. `popa`)
 //!
-//! Callers: the HUD's drawers (code at 0x4B28B0, ...). The quad through `part` (1), in the
-//! game its Rust version. Thunk by `two_kept_hook!`. Shadow mode runs the original alone
-//! (it draws). Self-test: a copy whose call goes to a stand-in, against the Rust version,
-//! rectangles and scales by lot, at both test control words (the test's values are exact
-//! at both).
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Callers: the HUD's drawers (code at 0x4B28B0, ...).
 
 use crate::errors::Refused;
 use crate::hud::add_sprite::{put_corners, put_places};

@@ -6,13 +6,7 @@
 //! Out: eax = the pixel put, or as it came; the rest kept; no flags read
 //!
 //! See `race/mud.rs`. Callers: `race::muddy_texel`, `race::splash_mud`. Refuses what
-//! `put_surface_pixel` refuses (no format, no surface), before anything. Self-test: the
-//! original and the Rust version on test surfaces (16 and 32 bits), each halving, places
-//! even, odd and outside; the surface compared.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! `put_surface_pixel` refuses (no format, no surface), before anything.
 
 use crate::errors::Refused;
 use crate::framework::{game_read, rva};

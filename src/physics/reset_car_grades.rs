@@ -8,18 +8,10 @@
 //! In:  esi the block
 //! Out: eax 0, ecx 0, edi esi + 0x368; the rest kept; no flags read
 //!
-//! Callers: `physics::reset_current_car` (esi `g_car`), and unreferenced code at
-//! 0x43FDDF that runs it over every car before `race::grade_all_cars`.
-//! Self-test: a copy of the original on a test block (its two reads of the work copy
-//! made the test's) against the converted version, fillings by lot at the test
-//! precisions (exact at any).
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Callers: `physics::reset_current_car` (esi `g_car`), and unreferenced code at 0x43FDDF
+//! that runs it over every car before `race::grade_all_cars`.
 
-use crate::framework::{EAX, ECX, EDI, game_read, rva};
-use crate::screens::harness::Left;
+use crate::framework::{game_read, rva};
 use rc2k_core::physics::grades::{percentage, reset_writes};
 
 const ONE_RVA: usize = rva(0x5C5D38); // flt_5C5D38, 1.0
@@ -33,7 +25,7 @@ unsafe fn put(a: u32, v: u32) {
 /// The Rust core: the block at `b`, the two settings read at `s0c`, `s08` (the same at
 /// any precision).
 // Converted: `rc2k_core::physics::grades::{percentage, reset_writes}`.
-pub unsafe fn reset_grades_at(b: u32, s0c: u32, s08: u32) -> Left {
+pub unsafe fn reset_grades_at(b: u32, s0c: u32, s08: u32) {
     unsafe {
         let k = |a: usize| f32::from_bits(game_read(a));
         let (k256, k100) = (k(K256_RVA), k(K100_RVA));
@@ -42,9 +34,5 @@ pub unsafe fn reset_grades_at(b: u32, s0c: u32, s08: u32) -> Left {
         for (offset, v) in reset_writes(k(ONE_RVA), a, c) {
             put(b + offset, v);
         }
-        Left::nothing()
-            .with(EAX, 0)
-            .with(ECX, 0)
-            .with(EDI, b + 0x368)
     }
 }

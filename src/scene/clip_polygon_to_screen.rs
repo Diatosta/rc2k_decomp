@@ -5,20 +5,14 @@
 //! Out: the original leaves eax, ecx, edx, esi changed, and after a clipping ebx, edi
 //!      and ebp too; its callers go on by the number of vertices alone (none reads them)
 //!
-//! `dword_624120` = 1. Each vertex's place on the screen (its record's +0xC and +0x1C)
-//! against the edges `flt_6241EC` (left), `flt_6241F0` (right), `flt_6241E4` (top) and
-//! `flt_6241E8` (bottom) gives the bits 1, 2, 4, 8 of a mask: right is looked at
-//! first and left only if the vertex is not past it, bottom first and top only if not
-//! past that. A mask of 0: nothing more. Else the mask to `dword_624118`, and for
-//! each of its bits in that order one pass of `scene/clip.rs`, ending as soon as
-//! fewer than three vertices are left.
-//! 14 callers. Refuses a polygon of no vertices, an entry without its record, and a
-//! clipping that runs out of entries (what it had written is put back first).
-//! Shadow mode: the Rust version, its writes put back, the original, compared.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! `dword_624120` = 1. Each vertex's place on the screen (its record's +0xC and +0x1C) against
+//! the edges `flt_6241EC` (left), `flt_6241F0` (right), `flt_6241E4` (top) and `flt_6241E8`
+//! (bottom) gives the bits 1, 2, 4, 8 of a mask: right is looked at first and left only if the
+//! vertex is not past it, bottom first and top only if not past that. A mask of 0: nothing
+//! more. Else the mask to `dword_624118`, and for each of its bits in that order one pass of
+//! `scene/clip.rs`, ending as soon as fewer than three vertices are left. 14 callers. Refuses a
+//! polygon of no vertices, an entry without its record, and a clipping that runs out of entries
+//! (what it had written is put back first).
 
 use crate::d3d::draw_fan_unclipped::COUNT_RVA;
 use crate::errors::BadInput;

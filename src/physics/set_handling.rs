@@ -9,25 +9,15 @@
 //! In:  nothing
 //! Out: ebx `g_carDriveKind`; the rest as `grade_or_reset` leaves them; no flags read
 //!
-//! Callers: `sub_43B635` (every physics step) and `race::settle_car`.
-//! Refuses (before anything) a drive kind above 1 (the cars' records have 0 and 1; the
-//! pair tables hold two).
-//! Self-test: a copy of the original (its call to copies of `grade_or_reset` and below)
-//! on a `physics::Mirror` of the work copy, 0x75B340 .. and 0x613E00 .. 0x614D00, settings
-//! by lot, both drive kinds and both branches, against the converted version: exact at
-//! double precision, the floats within `FLOAT` at extended; the refusal.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Callers: `sub_43B635` (every physics step) and `race::settle_car`. Refuses (before
+//! anything) a drive kind above 1 (the cars' records have 0 and 1; the pair tables hold
+//! two).
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::EBX;
 use crate::math::x87;
 use crate::math::x87_run::int_lerp;
 use crate::physics::grade_or_reset::grade_or_reset_at;
 use crate::physics::mirror::Mirror;
-use crate::screens::harness::Left;
 
 const KIND: u32 = 0x71A018; // g_carDriveKind
 const K256: u32 = 0x5C5E2C; // flt_5C5E2C, 256.0
@@ -48,13 +38,13 @@ const AFTER: [(u32, u32, u32, u32); 4] = [
 
 /// The Rust core on the variables `m` reaches (the exact one, for `race::settle_car` and
 /// `physics::car_physics_step`).
-pub unsafe fn set_handling_at(m: &Mirror) -> Result<Left, Refused> {
+pub unsafe fn set_handling_at(m: &Mirror) -> Result<(), Refused> {
     unsafe {
         let kind = m.get(KIND);
         if kind > 1 {
             return Err(BadInput("a drive kind above 1 (the pair tables hold two)").into());
         }
-        let left = grade_or_reset_at(m);
+        grade_or_reset_at(m);
         let k256 = m.get(K256);
         let lerp = |(out, n, hi, lo): (u32, u32, u32, u32)| {
             m.put(out, int_lerp(m.get(n) as i32, k256, m.get(hi), m.get(lo)));
@@ -67,11 +57,11 @@ pub unsafe fn set_handling_at(m: &Mirror) -> Result<Left, Refused> {
         for v in AFTER {
             lerp(v);
         }
-        Ok(left.with(EBX, kind))
+        Ok(())
     }
 }
 
 /// The Rust version (the exact one).
-pub unsafe fn set_handling() -> Result<Left, Refused> {
+pub unsafe fn set_handling() -> Result<(), Refused> {
     unsafe { set_handling_at(&Mirror::game()) }
 }

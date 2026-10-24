@@ -4,8 +4,8 @@
 //!
 //! In:  ebx, passed on as the palette of the sprite at the bar's left
 //! Out: what the last `draw_string_by_id` leaves (carry, eax = 0, ebx, ecx = 652, edx);
-//!      edi = the player; esi = the address of the repair flag of the last damaged part
-//!      looked at, or unchanged; ebp preserved
+//! edi = the player; esi = the address of the repair flag of the last damaged part
+//! looked at, or unchanged; ebp preserved
 //! The percentage is 100 minus the weights of the parts that are damaged and not chosen for
 //! repair. For menu items 2, 3, 4, 5 and 7 .. 15: the part counts if the car's value at
 //! +0xCC + 4 * item is at least `dword_75ABD0[item]` and the item's repair flag is 0; its
@@ -16,10 +16,6 @@
 //! red to green bar between "REPROV." (string 0x4AE) and "PASSAR" (0x4AF): fail .. pass. The
 //! "ESTADO DE INSPECÇÃO" label itself is drawn by `draw_service_area`. Named
 //! `draw_car_condition` before the screenshot.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_addr, rva};

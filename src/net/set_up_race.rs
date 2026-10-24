@@ -11,15 +11,7 @@
 //! In:  nothing
 //! Out: nothing its one caller, `net::lets_rally` (which has a `pusha`), reads
 //! The players' loop ends on `jnz` with the count: none, or more than the tables' eight,
-//! would run past them: refused. Caller: `net::lets_rally`. Its calls through `part`
-//! (`net::lobby_calls`: the Rust versions, the start states through their hook). Shadow
-//! mode runs the original alone (it loads a stage). Self-test: a copy whose calls go to
-//! stand-ins, against the Rust version, on one, two and eight players, the host first or
-//! not.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! would run past them: refused. Caller: `net::lets_rally`.
 
 use crate::errors::Refused;
 use crate::field;

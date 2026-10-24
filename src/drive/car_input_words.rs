@@ -8,15 +8,8 @@
 //! Out: eax .. edx the readings (eax the car with a replay on), esi the device or the
 //!      block; the rest kept; no flags read
 //!
-//! Callers: `drive::car_controls` (`sub_43A1CA`), `sub_460835`, `sub_460B2F`.
-//! Refuses (before anything) a current car past 7, and what `device_axes` refuses.
-//! Self-test: the original and the Rust version on the game's variables (saved and put
-//! back) with a test device and a test block: device or not, replay off, playing and
-//! recording.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Callers: `drive::car_controls` (`sub_43A1CA`), `sub_460835`, `sub_460B2F`. Refuses
+//! (before anything) a current car past 7, and what `device_axes` refuses.
 
 use crate::errors::Refused;
 use crate::physics::flow::{g, p};

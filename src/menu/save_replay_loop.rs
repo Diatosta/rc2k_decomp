@@ -11,23 +11,18 @@
 //! listing.
 //! The name is a reading from the title string of its menu, "GRAVAR REPETIÇÃO", not yet a
 //! visit.
-//! Callers: `sub_46F786`. Ungated thunk; shadow mode runs the original alone; each real call
-//! writes a line to hook.log. Self-test: `screen_loop::check_screen`.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Callers: `sub_46F786`.
 
 use crate::errors::Refused;
 use crate::framework::{game_read, game_write, rva};
-use crate::menu::screen_loop::{Carried, Flow, List, Screen, Step, call};
+use crate::menu::screen_loop::{Callee, Carried, Flow, List, Screen, Step};
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
 unsafe fn each_frame(c: &mut Carried) -> Result<Flow, Refused> {
     unsafe {
         if game_read::<u32>(rva(0x7556A8)) == 0x1 {
-            call(rva(0x46F4E7), c)?;
+            Callee::EditReplayName.run(c)?;
             if !c.carry {
                 if game_read::<u32>(rva(0x7556A8)) != 0x0 {
                     return Ok(Flow::NextFrame);
@@ -106,7 +101,7 @@ pub const SCREEN: Screen = Screen {
     after_lists: &[],
     background: &[
         Step::ArgAddr(rva(0x731ED1)),
-        Step::CallOrFatal(rva(0x47EFFF), 0x80712345),
+        Step::CallOrFatal(Callee::LoadBackground, 0x80712345),
     ],
     after_first_frame: &[],
     confirm: None,

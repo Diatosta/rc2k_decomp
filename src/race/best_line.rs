@@ -569,5 +569,3 @@ pub unsafe fn build_best_line() -> Result<(), Refused> {
     }
     Ok(())
 }
-
-// ---- for the self-tests ----

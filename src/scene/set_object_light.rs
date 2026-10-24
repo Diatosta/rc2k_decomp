@@ -15,20 +15,12 @@
 //!   afterwards;
 //! - anything else: nothing more.
 //!
-//! "The lamps gathered" (`scene::gather_lights`, 0x451425, inlined): the object's
-//! place `dword_63501C` .. to `g_litPlace`, `g_lightColour` = 0,
-//! `scene::add_car_lights`, `scene::add_point_lights`. "Plus" is byte by byte
-//! without overflow, as in `scene::vertex_light`.
-//! One caller, `sub_45045D`.
-//! Shadow mode: the Rust version, its writes put back, the original, compared.
-//! Self-test: a redirected copy whose three calls of the gathering note what they
-//! find and leave a colour.
+//! "The lamps gathered" (`scene::gather_lights`, 0x451425, inlined): the object's place
+//! `dword_63501C` .. to `g_litPlace`, `g_lightColour` = 0, `scene::add_car_lights`,
+//! `scene::add_point_lights`. "Plus" is byte by byte without overflow, as in
+//! `scene::vertex_light`. One caller, `sub_45045D`.
 //!
 //! Converted 2026-10-21: the kind's way through `rc2k_core::scene::lamps::object_light`.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::errors::Refused;
 use crate::framework::rva;

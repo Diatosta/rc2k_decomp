@@ -11,23 +11,16 @@
 //! In:  nothing
 //! Out: eax the gap's step, edi the sound object (`gear_change_sound`); no flags read
 //!
-//! Caller: `sub_43B635` (0x43B905), every physics step.
-//! Refuses (before anything) what the two calls refuse.
-//! Self-test: the original and the Rust version on the game's variables (saved and put
-//! back) with a test object, under three precisions.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `sub_43B635` (0x43B905), every physics step. Refuses (before anything) what the
+//! two calls refuse.
 
 use crate::errors::Refused;
-use crate::framework::{EAX, game_write, rva};
+use crate::framework::{game_write, rva};
 use crate::math::x87;
 use crate::math::x87_run::ext_to_int;
 use crate::physics::car_sound_state::car_sound_state;
 use crate::physics::gear_change_sound::gear_change_sound;
 use crate::scene::matrix3::extended;
-use crate::screens::harness::Left;
 use rc2k_core::physics::engine::ease_revs;
 use rc2k_core::physics::x87::hold_low;
 
@@ -74,7 +67,7 @@ unsafe fn run() {
 /// The Rust version.
 // Converted: `rc2k_core::physics::engine::ease_revs` and `x87::hold_low` (the speed figures
 // and the rounding stay x87).
-pub unsafe fn engine_sound() -> Result<Left, Refused> {
+pub unsafe fn engine_sound() -> Result<(), Refused> {
     let o = g(crate::sound::store::ObjectsSlot::at(0x512A10) + 4 * (g(0x71B3F8) & 7) as usize);
     if o == 0 {
         return Err(crate::errors::BadInput("a null sound object").into());
@@ -88,9 +81,8 @@ pub unsafe fn engine_sound() -> Result<Left, Refused> {
     let held = hold_low(f32::from_bits(g(0x62400C)), f32::from_bits(floor));
     p(0x62400C, held.to_bits());
     p(0x62400C, ext_to_int(extended(g(0x62400C))) as u32);
-    let (revs, step) = ease_revs(g(0x71A1BC), g(0x62400C));
+    let (revs, _) = ease_revs(g(0x71A1BC), g(0x62400C));
     p(0x71A1BC, revs);
     unsafe { car_sound_state() }?;
-    let left = unsafe { gear_change_sound() }?;
-    Ok(left.with(EAX, step))
+    unsafe { gear_change_sound() }
 }

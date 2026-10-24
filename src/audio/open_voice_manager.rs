@@ -7,12 +7,7 @@
 //! See `audio/property_sets.rs`: nothing with `g_ignoreDsvSetting` or the set already
 //! there (`g_voiceManager`); its mode set to
 //! 2, "AUD: Using DSV" logged, `g_voiceManagerOn` 1. One caller, `audio::make_buffer` with bit
-//! 0x800000. Shadow mode runs the original alone. Self-test: a redirected copy whose three
-//! variables are the test's and whose log call notes eax, 9 cases.
-//!
-//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! 0x800000.
 
 use crate::audio::property_sets::*;
 use crate::errors::Refused;

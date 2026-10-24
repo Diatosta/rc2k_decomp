@@ -10,18 +10,10 @@
 //! -1 in their last dword. "Stages" is the number of records of the championship's table
 //! (`g_recordTable`) whose tag is 0 (`saves::count_stages`, 0x47C95D, a plain function
 //! here). Six of the nine are what `saves::load_best_times` reads `var\hst.dat` into.
-//! Callers: `saves::load_best_times` and `sub_47C63F`.
-//! The original has a fatal error for each block that cannot be taken (0x807010F1,
-//! 0x807010FB, 0x80701000 .. 0x80701005, 0x8070100A); none can come, the allocator
-//! reporting its own first.
-//! Shadow mode runs the original alone (the memory is taken once) and checks what it
-//! left. Self-test: a redirected copy whose variables, list and record table are the
-//! test's.
-//! Refuses a record table without its end, and what the allocator refuses.
-//!
-//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Callers: `saves::load_best_times` and `sub_47C63F`. The original has a fatal error for each
+//! block that cannot be taken (0x807010F1, 0x807010FB, 0x80701000 .. 0x80701005, 0x8070100A); none
+//! can come, the allocator reporting its own first. Refuses a record table without its end, and
+//! what the allocator refuses.
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::rva;

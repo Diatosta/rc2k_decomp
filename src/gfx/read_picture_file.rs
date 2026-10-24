@@ -11,8 +11,8 @@
 //! replaced by `files\d\gfx\chatzone.pcx`, and other paths go to `read_pcx` alone.
 //! 14 callers. Refuses a path of fewer than four characters (the original looks at the four
 //! bytes before the text's end) and what the readers refuse. The name is a reading.
-//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
-//! `routes.rs`); the registers above are the original's, for reference.
+//! The registers above are the original's, for reference; a call by address goes through
+//! `routes.rs`.
 
 use crate::errors::{BadInput, Refused};
 use crate::files::swap_missing_extension::swap_missing_extension;
@@ -54,6 +54,3 @@ pub unsafe fn read_picture_file(path: *mut u8) -> Result<bool, Refused> {
         }
     }
 }
-
-// ---- self-test: a PNG and a PCX file of the test's own, asked for by several paths, with
-// the setting at each of its values ----

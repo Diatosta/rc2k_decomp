@@ -9,15 +9,7 @@
 //! In:  nothing
 //! Out: every register kept (`pusha` / `popa`); no flags read
 //!
-//! Caller: `race::play_marked`. Its calls through `part`: 1 `replay_frame_marks`, 2
-//! `start_race_sounds`, 3 `play_movie`, 4 `reset_race_sounds`, 5 `input::take_key`; in the
-//! game their Rust versions. Ungated (it plays a replay). Shadow mode runs the original
-//! alone. Self-test: a copy whose calls go to stand-ins, against the Rust version:
-//! recording or not, the block before, at and past the last.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `race::play_marked`.
 
 use crate::errors::Refused;
 use crate::race::viewer::{

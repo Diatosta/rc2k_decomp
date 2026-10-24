@@ -10,13 +10,6 @@
 //! Out: every register kept; no flags read
 //!
 //! Caller: `physics::apply_forces` (in a loop over records).
-//! Self-test: a copy of the original (its scratch the test's, its three calls kept) on a
-//! test record and car block, against the converted version: exact at double precision,
-//! within `SUM` at extended.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::framework::{game_addr, game_read, rva};
 use crate::math::x87;

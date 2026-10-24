@@ -6,13 +6,8 @@
 //! In:  nothing
 //! Out: every register kept (`pusha` / `popa`)
 //! `install::read_record` reads it back. Caller `install::install_files`. The write through
-//! `part` (`files::write_file`). Shadow mode runs the original alone (one write). Self-test:
-//! a copy whose one write goes to a stand-in (the bytes noted), against the Rust version,
-//! with and without a language.
+//! `part` (`files::write_file`).
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 //! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
 //! are the original's.
 

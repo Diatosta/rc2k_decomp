@@ -9,16 +9,10 @@
 //! In:  nothing
 //! Out: every register kept (liveness)
 //!
-//! Caller: `race::loadlevel_init` (its step 25), which calls the Rust version directly.
-//! Refuses what `race/pace_notes.rs` refuses: places outside the tables or the course,
-//! and a search that would run on past the count (no face of kind 2 before the last
-//! checkpoint but one). Nothing is written then.
-//! Self-test: the original and the Rust version on test stages (`pace_notes::TestStage`):
-//! counts 0 .. 48, codes and distances by lot; cases the Rust version refuses are not run.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `race::loadlevel_init` (its step 25), which calls the Rust version directly. Refuses
+//! what `race/pace_notes.rs` refuses: places outside the tables or the course, and a search
+//! that would run on past the count (no face of kind 2 before the last checkpoint but one).
+//! Nothing is written then.
 
 use crate::errors::Refused;
 use crate::race::pace_notes::{Course, Machine};

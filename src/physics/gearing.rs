@@ -4,14 +4,12 @@
 //! divide or multiply by the gear's ratio, `g_gearRatios[gear]` (0x6140C0; gear -1, the
 //! reverse, at 0x6140BC; seven forward gears by `sub_4219E6`). With `g_carDriveKind` 1 the
 //! two driven speeds are averaged / both set: by the look of it four-wheel drive (a
-//! reading, not seen in a race). The exact x87 versions (`*_at`) serve the Rust callers
-//! in the gearbox; the hooks run the converted ones (`*_plain_at`,
-//! `rc2k_core::physics::gearing`).
+//! reading, not seen in a race). The exact x87 versions (`*_at`) serve the Rust callers in
+//! the gearbox.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{EBX, game_addr, game_read, rva};
+use crate::framework::{game_addr, game_read, rva};
 use crate::math::x87;
-use crate::screens::harness::Left;
 
 pub const GEAR_RVA: usize = rva(0x71A1AC); // g_carGear: -1 reverse, 0 neutral, 1 ..
 pub const ENGINE_SPEED_RVA: usize = rva(0x71A1B0); // g_carEngineSpeed
@@ -74,12 +72,11 @@ unsafe fn gear_ratio(p: &GearPlaces) -> Result<Option<(u32, u32)>, Refused> {
 }
 
 /// `physics::revs_from_wheels` (0x43C0C9): in gear, engine speed = the driven speed (with
-/// drive kind 1 the two driven speeds' sum times 0.5) over the gear's ratio. Leaves ebx
-/// the gear (untouched in neutral).
-pub unsafe fn revs_from_wheels_at(p: &GearPlaces) -> Result<Left, Refused> {
+/// drive kind 1 the two driven speeds' sum times 0.5) over the gear's ratio.
+pub unsafe fn revs_from_wheels_at(p: &GearPlaces) -> Result<(), Refused> {
     unsafe {
-        let Some((gear, ratio)) = gear_ratio(p)? else {
-            return Ok(Left::nothing());
+        let Some((_, ratio)) = gear_ratio(p)? else {
+            return Ok(());
         };
         let speed = if at(p.drive_kind) == 1 {
             crate::math::x87_run::sum_times_over(
@@ -92,35 +89,35 @@ pub unsafe fn revs_from_wheels_at(p: &GearPlaces) -> Result<Left, Refused> {
             x87::div(at(p.drive_speed), ratio)
         };
         put(p.engine_speed, speed);
-        Ok(Left::nothing().with(EBX, gear))
+        Ok(())
     }
 }
 
 /// `physics::wheels_from_revs` (0x43C124): in gear, driven speed = engine speed times the
 /// gear's ratio; with drive kind 1 the second driven speed the same (reloaded: `fld;
-/// fstp`). Leaves ebx the gear (untouched in neutral).
-pub unsafe fn wheels_from_revs_at(p: &GearPlaces) -> Result<Left, Refused> {
+/// fstp`).
+pub unsafe fn wheels_from_revs_at(p: &GearPlaces) -> Result<(), Refused> {
     unsafe {
-        let Some((gear, ratio)) = gear_ratio(p)? else {
-            return Ok(Left::nothing());
+        let Some((_, ratio)) = gear_ratio(p)? else {
+            return Ok(());
         };
         let speed = x87::mul(at(p.engine_speed), ratio);
         put(p.drive_speed, speed);
         if at(p.drive_kind) == 1 {
             put(p.drive_speed_2, x87::loaded(speed));
         }
-        Ok(Left::nothing().with(EBX, gear))
+        Ok(())
     }
 }
 
 /// `physics::revs_from_speed` (0x43C101): in gear, engine speed = `g_carSpeed` over the
-/// gear's ratio. Leaves ebx the gear (untouched in neutral).
-pub unsafe fn revs_from_speed_at(p: &GearPlaces) -> Result<Left, Refused> {
+/// gear's ratio.
+pub unsafe fn revs_from_speed_at(p: &GearPlaces) -> Result<(), Refused> {
     unsafe {
-        let Some((gear, ratio)) = gear_ratio(p)? else {
-            return Ok(Left::nothing());
+        let Some((_, ratio)) = gear_ratio(p)? else {
+            return Ok(());
         };
         put(p.engine_speed, x87::div(at(p.speed), ratio));
-        Ok(Left::nothing().with(EBX, gear))
+        Ok(())
     }
 }

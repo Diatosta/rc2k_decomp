@@ -7,13 +7,7 @@
 //! Out: nothing (ebp, the last place's v, is read only by the original `jitter_point`
 //!      under `trail_particles`; the Rust version reads no register)
 //!
-//! One caller, `sub_4CFB49` (the marks' frame). Self-test: the original and the Rust
-//! version recorded on the layer (nothing drawn), the set filled by a pattern; put back
-//! afterwards.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! One caller, `sub_4CFB49` (the marks' frame).
 
 use crate::framework::rva;
 use crate::marks::store::{Slot, game_read, game_write};

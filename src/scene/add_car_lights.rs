@@ -12,19 +12,11 @@
 //!   of them if `dword_63DB94` is 1 or `dword_62389C` is 0 or 2, else only the car
 //!   `dword_63DBA8[dword_63DB9C]`.
 //!
-//! One caller, `scene::gather_lights`.
-//! Refuses no cars (the original goes through 2^32) or more than the eight blocks.
-//! Shadow mode runs the original alone (each car is compared in
-//! `scene::add_car_light`'s hook).
-//! Self-test: a redirected copy whose two calls note the car.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! One caller, `scene::gather_lights`. Refuses no cars (the original goes through 2^32) or more
+//! than the eight blocks.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{ECX, ESI, game_read, rva};
-use crate::screens::harness::Left;
+use crate::framework::{game_read, rva};
 
 // ---- game data ----
 
@@ -74,19 +66,18 @@ impl rc2k_core::scene::lamps::CarLights for GameCars {
 // Converted: `rc2k_core::scene::lamps::car_lights`
 pub unsafe fn add_car_lights(
     add: &mut dyn FnMut(usize) -> Result<(), Refused>,
-) -> Result<Left, Refused> {
+) -> Result<(), Refused> {
     unsafe {
         let cars: u32 = game_read(CARS_RVA);
         if cars == 0 || cars > BLOCKS {
             return Err(BadInput("no cars, or more than their blocks").into());
         }
-        let mut block = 0;
         for car in 0..cars {
-            block = game_read::<u32>(BLOCKS_RVA + car as usize * 4);
+            let block = game_read::<u32>(BLOCKS_RVA + car as usize * 4);
             if rc2k_core::scene::lamps::car_lights(&GameCars, car) {
                 add(block as usize)?;
             }
         }
-        Ok(Left::nothing().with(ECX, cars).with(ESI, block))
+        Ok(())
     }
 }

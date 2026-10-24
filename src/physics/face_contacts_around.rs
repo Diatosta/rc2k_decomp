@@ -6,11 +6,8 @@
 //! In:  nothing
 //! Out: the registers as the last `cell_face_contacts` leaves them; no flags read
 //!
-//! Caller: `physics::face_contacts` (0x45E190, its only code).
-//! Refuses what `cell_face_contacts` refuses.
-//! Self-test (in a race; skipped otherwise; `physics::face_contacts` shares it): the
-//! original and the Rust version on the stage (everything written saved and put back),
-//! the car where it is and moved onto object faces.
+//! Caller: `physics::face_contacts` (0x45E190, its only code). Refuses what
+//! `cell_face_contacts` refuses.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

@@ -1,9 +1,3 @@
-//! The championship finish routine's two starts (`menu::section_finish`,
-//! `menu::championship_finish`): a player picked, the race's sounds and screens set up
-//! round `drive::finish_race_0`, the front end set up again; this file holds the calls
-//! they make, by place (each through the game at its address: hooks where ported, the
-//! platform otherwise).
-
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_read, game_write, rva};
 use rc2k_core::menu::finish::{self, Racer, Step, Var};

@@ -12,10 +12,6 @@
 //! One caller, `menu::set_up_front_end`, when `var\hst.dat` was not loaded.
 //! Refuses a missing table and a name that does not fit.
 //! Converted: `rc2k_core::saves::defaults::class_times`.
-//!
-//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_read, rva};
@@ -45,6 +41,3 @@ pub unsafe fn default_class_times() -> Result<(), Refused> {
         Ok(())
     }
 }
-
-// ---- self-test: the game's table, filled by both from the same random numbers, and put
-// back ----

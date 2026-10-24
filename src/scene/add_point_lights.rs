@@ -15,16 +15,11 @@
 //! four bytes with MMX, the low three without, as in `scene::vertex_light`).
 //! One caller, `sub_451425`.
 //! Refuses more than 0x100 lamps and lamps without the scene's points.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{EBX, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 use crate::scene::draw_polygon::CHECKED_RVA;
 use crate::scene::project_point::POINTS_RVA;
-use crate::screens::harness::Left;
 use crate::session::MACHINE;
 
 // ---- game data ----
@@ -40,12 +35,12 @@ pub const LIGHT_COLOUR_RVA: usize = rva(0x62DAC4); // g_lightColour
 // ---- Rust version ----
 
 // Converted: `rc2k_core::scene::lamps::add_point_lights`
-pub unsafe fn add_point_lights() -> Result<Left, Refused> {
+pub unsafe fn add_point_lights() -> Result<(), Refused> {
     use rc2k_core::scene::lamps::{self, Lamp};
     unsafe {
         let lamps: u32 = game_read(LAMPS_RVA);
         if lamps == 0 {
-            return Ok(Left::nothing());
+            return Ok(());
         }
         let points: u32 = game_read(POINTS_RVA);
         if lamps > MOST || points == 0 {
@@ -75,6 +70,6 @@ pub unsafe fn add_point_lights() -> Result<Left, Refused> {
                 game_write(to, v);
             }
         }
-        Ok(Left::nothing().with(EBX, lamps))
+        Ok(())
     }
 }

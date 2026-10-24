@@ -6,13 +6,8 @@
 //!
 //! The current player (`dword_75598C`) gets the entry `dword_755990` of the list: its +0 as
 //! `car_number` (+8), its +8 as `no_turbo` (+0x90). Callers: `sub_482382` (after
-//! `menu::select_car_loop`, esi the list it was given) and seven more. Refuses a current
-//! player past the four (the original reads past `g_players`).
-//! Self-test: a list and entries of the test's, the game's players, 8 cases.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! `menu::select_car_loop`, esi the list it was given) and seven more. Refuses a current player
+//! past the four (the original reads past `g_players`).
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_read, rva};

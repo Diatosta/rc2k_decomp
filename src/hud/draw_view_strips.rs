@@ -8,14 +8,7 @@
 //! In:  nothing
 //! Out: as the path leaves them (esi the last block looked at)
 //!
-//! Caller: `sub_45A893` (0x45A92E). The strips and the tail through `part` (1 the strip,
-//! 2 the tail), in the game their Rust versions. Shadow mode runs the original alone (it
-//! draws). Self-test: a copy whose strip calls and tail jump go to stand-ins, against the
-//! Rust version, blocks by lot.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `sub_45A893` (0x45A92E).
 
 use crate::errors::Refused;
 use crate::framework::rva;

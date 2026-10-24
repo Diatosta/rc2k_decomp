@@ -10,11 +10,8 @@
 //! Out: ebx the cue's list, ecx the sounds' number, edx the entry, eax the last sound;
 //!      the rest kept; no flags read
 //!
-//! Caller: `physics::cue_car_sound`.
-//! Refuses (before anything) a cue past 0x5F (the list's size not worked out).
-//! Shadow mode runs the original alone (`physics/sound_cues.rs`).
-//! Self-test: a copy whose `play_sound` goes to a stand-in, against the Rust version on a
-//! test queue: counts 0, 3, 15, 16, both ends, two cues.
+//! Caller: `physics::cue_car_sound`. Refuses (before anything) a cue past 0x5F (the list's
+//! size not worked out).
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

@@ -303,5 +303,3 @@ pub unsafe fn set_up_blocks() -> Result<(), Refused> {
     }
     Ok(())
 }
-
-// ---- for the self-tests ----

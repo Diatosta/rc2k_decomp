@@ -24,21 +24,11 @@
 //!      `fild`)
 //!
 //! Caller: `physics::rate_current_car` (0x4AB5D0), its only one.
-//! Self-test: a copy of the original on a `physics::Mirror` of the work copy and
-//! 0x75B340 .. 0x75B6AC (filled from the game's, then the figures, switches and random by
-//! lot), against the converted version: exact at double precision, the grades within
-//! `FLOAT` at extended.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
-use crate::framework::{EAX, ECX, ESI};
 use crate::math::x87;
 use crate::math::x87_run::{compare_full, ext_times, mul3, one_less_products, ramp, square};
 use crate::physics::mirror::Mirror;
 use crate::scene::matrix3::rounded;
-use crate::screens::harness::Left;
 
 const K: u32 = 0x75B388;
 const LOW: u32 = 0x75B350;
@@ -84,9 +74,9 @@ const FAILURES: [(u32, u32, u32, u32); 7] = [
     (0x71A3FC, 0x75B438, 0x75B41C, 0xA),
 ];
 
-/// The Rust core on the variables `m` reaches; what it leaves in the registers (the
+/// The Rust core on the variables `m` reaches (the
 /// exact one, for `physics::grade_or_reset` and `physics::rate_current_car`).
-pub unsafe fn rate_damage_at(m: &Mirror) -> Left {
+pub unsafe fn rate_damage_at(m: &Mirror) {
     unsafe {
         let g = |v: u32| m.get(v);
         let less = |a: u32, b: u32| compare_full(a, b) & 0x100 != 0;
@@ -184,9 +174,5 @@ pub unsafe fn rate_damage_at(m: &Mirror) -> Left {
                 m.put(0x71A3CC, 0);
             }
         }
-        Left::nothing()
-            .with(EAX, bits)
-            .with(ECX, 9)
-            .with(ESI, m.a(0x75B568))
     }
 }

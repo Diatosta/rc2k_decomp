@@ -9,10 +9,7 @@
 //!
 //! In:  nothing
 //! Out: every register kept (`pusha` .. `popa`)
-//! An item action of the graphics page (0x7548D4). Its calls through `part`: the screen mode
-//! at the game's address (section 15), the glyph tables, the scene and the sound in Rust,
-//! the rest at the game's addresses (their hooks choose).
-//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
+//! An item action of the graphics page (0x7548D4). The menus and draw lists run its `entry`
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;

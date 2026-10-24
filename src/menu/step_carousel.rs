@@ -2,19 +2,16 @@
 //!
 //! In:  nothing
 //! Out: every register preserved
-//! The time since the last call (the clock `dword_613830` less `dword_75AA84`, which
-//! becomes the clock) is kept, held to 100, in `dword_75AA88`. Then the turn
-//! (`sub_49044F`, inlined): while `dword_75A660` is not 0 the angle `dword_75AA80` is
-//! moved by ((angle / 8) + 0x4000000) x the time / 20 (`sub_4904C7`), down for a
-//! negative direction, up (from the angle negated) for a positive one. When it passes
-//! zero it is 0 and the direction 0; after a turn upwards the object in front,
-//! `dword_75AA7C`, is the next one, the first again after the last (`dword_75AA78`).
-//! `menu::move_highlight_left` and `_right` start a turn.
-//! In 17 lists of the screens with turning objects (the main menu's among them).
-//! Refuses a time kept above 0x71C71C6, with which the division would trap; it cannot
-//! come, the time being held to 100.
-//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
-//! (`menu::table_calls`); the registers above are the original's, for reference.
+//! The time since the last call (the clock `dword_613830` less `dword_75AA84`, which becomes the
+//! clock) is kept, held to 100, in `dword_75AA88`. Then the turn (`sub_49044F`, inlined): while
+//! `dword_75A660` is not 0 the angle `dword_75AA80` is moved by ((angle / 8) + 0x4000000) x the
+//! time / 20 (`sub_4904C7`), down for a negative direction, up (from the angle negated) for a
+//! positive one. When it passes zero it is 0 and the direction 0; after a turn upwards the object
+//! in front, `dword_75AA7C`, is the next one, the first again after the last (`dword_75AA78`).
+//! `menu::move_highlight_left` and `_right` start a turn. In 17 lists of the screens with turning
+//! objects (the main menu's among them). Refuses a time kept above 0x71C71C6, with which the
+//! division would trap; it cannot come, the time being held to 100. The menus and draw lists run
+//! its `entry` (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::BadInput;
 use crate::framework::{game_read, game_write, rva};

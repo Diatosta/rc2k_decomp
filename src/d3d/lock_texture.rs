@@ -10,8 +10,6 @@
 //! `jb`). The lock is the surface's own method (`d3d::texture_lock`): DirectDraw in the
 //! game, `platform_3d`'s in the standalone. Refuses a texture past the pool's 0x140,
 //! before anything.
-//! Hook removed 2026-10-22 (direct calls): Rust callers run `lock_texture` (by address:
-//! `routes.rs`); the registers above are the original's, for reference.
 
 use crate::d3d::texture_lock::*;
 use crate::errors::{BadInput, Refused};

@@ -3,14 +3,8 @@
 //! In:  eax = which of the known kinds (held to 0 .. 0x21, signed)
 //! Out: eax = the number; everything else preserved
 //!
-//! `dword_5C5708` at the place: 0x22 dwords, one for each known kind of car.
-//! 34 call sites, 33 of them in the front end's set-up.
-//! Manual patch with a private copy: a conditional jump in the first bytes.
-//! Self-test: 14 places.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! `dword_5C5708` at the place: 0x22 dwords, one for each known kind of car. 34 call sites, 33
+//! of them in the front end's set-up.
 
 use crate::framework::{game_read, rva};
 

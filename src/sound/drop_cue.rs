@@ -9,8 +9,6 @@
 //! (place 0: the cue played out).
 //! Refuses (before anything) a null queue and a count over 16 (the move would run past
 //! the object).
-//! Shadow mode: both, the queue compared.
-//! Self-test: the original against the Rust version on a test queue.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

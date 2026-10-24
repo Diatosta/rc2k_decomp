@@ -3,17 +3,13 @@
 //!
 //! In:  nothing
 //! Out: what the last `draw_text` leaves: carry, eax = 0, ebx = after the text's NUL,
-//!      ecx = 441, edx = 452; esi, edi and ebp preserved
+//! ecx = 441, edx = 452; esi, edi and ebp preserved
 //! Rows are at y = 110 .. 284 in steps of 29, and a last one at 452; columns at x = 106 and
 //! 441.
 //!
 //! Screen: seen in a screenshot of the championship's service area (2026-10-10): the time under each of the
 //! fourteen parts of the repair section (for example 10:19 under the gearbox, 1:35 under the
 //! tyres), and in the last row the 1:20 under "ride height" and "suspension stiffness".
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::errors::Refused;
 use crate::framework::{game_read, rva};

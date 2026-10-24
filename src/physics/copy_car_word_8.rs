@@ -6,24 +6,17 @@
 //! Out: eax the word; the rest kept; no flags read
 //!
 //! Caller: `sub_43C8AC`.
-//! Self-test: `physics/copy_hooks_test.rs`, 6 fillings.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
-use crate::framework::{EAX, game_addr, rva};
-use crate::screens::harness::Left;
+use crate::framework::{game_addr, rva};
 
 /// The word, its copy, the cleared one (IDA addresses).
 const VARIABLES: [usize; 3] = [0x719FE0, 0x6140F0, 0x6140EC];
 
-unsafe fn core(v: &[u32]) -> Left {
+unsafe fn core(v: &[u32]) {
     unsafe {
         let w = (v[0] as *const u32).read_unaligned();
         (v[1] as *mut u32).write_unaligned(w);
         (v[2] as *mut u32).write_unaligned(0);
-        Left::nothing().with(EAX, w)
     }
 }
 
@@ -35,6 +28,6 @@ fn game() -> Vec<u32> {
 }
 
 /// The Rust version.
-pub unsafe fn copy_car_word_8() -> Left {
+pub unsafe fn copy_car_word_8() {
     unsafe { core(&game()) }
 }

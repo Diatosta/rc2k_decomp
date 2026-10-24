@@ -18,14 +18,8 @@
 //!   for the first and 0x94 for the second, ebx = the texture;
 //! - `scene::upload_car_icon` (`pusha` .. `popa`).
 //!
-//! One caller, `scene::reload_system_textures`.
-//! Refuses a number of 0x24 or more (the tables' room) and a car without its block.
-//! Shadow mode runs the original alone.
-//! Self-test: a redirected copy whose upload notes its registers.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! One caller, `scene::reload_system_textures`. Refuses a number of 0x24 or more (the tables'
+//! room) and a car without its block.
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_addr, game_read, rva};

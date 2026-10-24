@@ -7,10 +7,6 @@
 //! in `dword_75524C`, one for no stores 0; either also sets `dword_758806` to 1 and leaves
 //! the screen with `menu::go_back`. One caller, `menu::handle_keys`.
 //! Refuses what the yes/no functions refuse.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::errors::BadInput;
 use crate::input::yes_no_for_key::yes_no_for_key;

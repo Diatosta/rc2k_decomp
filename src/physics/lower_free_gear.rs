@@ -8,12 +8,8 @@
 //!
 //! A loop target (0x43C590) is inside the first five bytes: `.private_copy`, its call
 //! relocated. Callers (2): `sub_43C2AE` (0x43C397), `sub_43C521` (in `sub_43C2AE`), the
-//! gearbox under `sub_4454D2`.
-//! Refuses what `gear_bit` refuses (a bit past the dword: from ebx 0 or above 32 the
-//! search would run there), nothing written.
-//! Shadow mode: `physics/flag_result.rs`.
-//! Self-test: a copy of the original whose call goes to a copy of `gear_bit` on a test
-//! dword, gears 1 .. 9 on several bit patterns; refusals.
+//! gearbox under `sub_4454D2`. Refuses what `gear_bit` refuses (a bit past the dword: from
+//! ebx 0 or above 32 the search would run there), nothing written.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

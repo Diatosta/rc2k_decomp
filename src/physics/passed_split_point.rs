@@ -14,11 +14,9 @@
 //! In:  nothing
 //! Out: CF; eax, ebx, ecx, esi as left; no other flag read (the caller `jnb`s)
 //!
-//! Caller: `physics::track_checkpoints`.
-//! Raises fatal error 0x80601843 where the original does. Refuses (before anything) a
-//! split past 0x40, a checkpoint past 0x1418, no faces or points.
-//! Self-test: the original and the Rust version on the game's variables (saved and put
-//! back) with test faces and points: near and far, angles about the quarter turn.
+//! Caller: `physics::track_checkpoints`. Raises fatal error 0x80601843 where the original
+//! does. Refuses (before anything) a split past 0x40, a checkpoint past 0x1418, no faces or
+//! points.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

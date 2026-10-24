@@ -19,12 +19,6 @@
 //! mixing rate with a frequency to set (the original divides by 0); and a voice whose
 //! volume or pan changes while its sound has ended: the original's ebx (the list's link)
 //! then holds the pan, and it writes the link through it (section 16).
-//! Shadow mode runs the original alone. Self-test: a redirected copy of the chunk whose
-//! variables are the test's and whose mix notes itself, 200 states by lot.
-//!
-//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::audio::mixer::MIX_RATE_RVA;
 use crate::audio::voices::*;

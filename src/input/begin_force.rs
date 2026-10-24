@@ -13,14 +13,7 @@
 //!
 //! Caller: `input::acquire_device`. The controller's number is not checked (as the
 //! original's). The effects' functions through `make_effect`'s `part`; the methods the
-//! device's own. Shadow mode runs the original alone (it calls DirectInput). Self-test: the
-//! original and the Rust version on DirectInput objects made in Rust (`input::di_harness`)
-//! and a copy of the first device's record: a controller with no force feedback, the wheel
-//! with strength 0 and 50.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! device's own.
 
 use crate::errors::Refused;
 use crate::field;

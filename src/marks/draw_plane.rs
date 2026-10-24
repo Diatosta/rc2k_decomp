@@ -15,16 +15,8 @@
 //! Out: nothing (its caller reads no register after it)
 //!
 //! Caller: `sub_4C74DA` (0x4C752F). The x87 runs are the original's instructions over the
-//! game's variables; the vector helpers and `scale_axes` their Rust versions; the device
-//! calls through `part` (1 the depth test off, 2 a render state, 3 the texture, 4 the draw,
-//! 5 the depth test on), in the game their Rust versions. Refuses null settings and a
-//! corner past `g_marksCorners`, before anything. Shadow mode runs the original alone (it
-//! draws). Self-test: a copy whose device calls go to stand-ins, against the Rust version,
-//! on settings of the test's.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! game's variables; the vector helpers and `scale_axes` their Rust versions. Refuses null
+//! settings and a corner past `g_marksCorners`, before anything.
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::rva;

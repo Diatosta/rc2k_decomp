@@ -4,19 +4,12 @@
 //! In:  ecx = the texture
 //! Out: every register preserved
 //!
-//! Nothing if the texture wants no picture (`dword_5D8968[texture]` is -1 or 0) or
-//! has the one it wants (`dword_5D9968[texture]`). Else `scene::load_texture_picture`
-//! and the picture is noted as the one it has.
-//! One caller, `scene::reload_system_textures`.
-//! Refuses a texture past the tables.
-//! Shadow mode runs the original alone and checks what the texture has afterwards.
-//! Self-test: a redirected copy whose loading notes its registers.
+//! Nothing if the texture wants no picture (`dword_5D8968[texture]` is -1 or 0) or has the one
+//! it wants (`dword_5D9968[texture]`). Else `scene::load_texture_picture` and the picture is
+//! noted as the one it has. One caller, `scene::reload_system_textures`. Refuses a texture past
+//! the tables.
 //!
 //! Converted 2026-10-21: the rule through `rc2k_core::scene::pictures::changed_picture`.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_read, game_write, rva};

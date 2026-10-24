@@ -6,12 +6,6 @@
 //! Out: ecx 0, esi past the copy, edi past the last piece; the rest kept; no flags read
 //!
 //! Callers: `sub_460049`, `sub_46062E` (twice).
-//! Self-test: the original and the Rust version on the copy filled by pattern (saved and
-//! put back).
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::drive::save_replay_cars::piece_at;
 use crate::physics::flow::a;

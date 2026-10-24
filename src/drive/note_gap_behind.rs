@@ -4,12 +4,6 @@
 //! Out: edx the difference plus one; the rest kept; no flags read
 //!
 //! See `drive/note_gaps.rs`. Caller: `sub_43703E` (0x437364, 0x437390).
-//! Self-test: a copy of the original (the lead's checkpoint and the best the test's) on
-//! a test car, 7 cases.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::drive::note_gaps::note_gap_at;
 use crate::framework::{game_addr, rva};

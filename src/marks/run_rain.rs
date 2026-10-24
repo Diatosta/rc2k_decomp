@@ -17,18 +17,9 @@
 //! In:  nothing (`g_marksSettings`)
 //! Out: nothing (its caller reads no register after it)
 //!
-//! Caller: `marks::run_frame` (0x4D1569). Its calls through `part` (1 `place_view`, 2
-//! `depth_buffer_off`, 3 a render state, 4 `clear_texture`, 5 `drift_offsets`, 6
-//! `draw_streak` with three values); in the game their Rust versions (`clear_texture`, the
-//! platform's, through the game: section 15). The x87 blocks are the original's
-//! instructions over the game's variables. Refuses null settings and a view entry past
-//! the five (the settings' +8), before anything. Shadow mode runs the original alone (it
-//! draws). Self-test: a copy whose calls go to stand-ins (the streak's taking its values
-//! off), against the Rust version, on the game's tables with settings of the test's.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `marks::run_frame` (0x4D1569). The x87 blocks are the original's instructions
+//! over the game's variables. Refuses null settings and a view entry past the five (the
+//! settings' +8), before anything.
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::rva;

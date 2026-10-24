@@ -5,14 +5,7 @@
 //!
 //! In:  nothing
 //! Out: nothing (the original keeps every register: `pusha` .. `popa`)
-//! Caller: `system::main_loop` (whose Rust version calls this one). Its calls through `part`
-//! (`sub_4154CD` through the game). The whole game runs inside it: ungated. Shadow mode runs
-//! the original alone. Self-test: a copy whose calls go to stand-ins, against the Rust
-//! version, launched or not.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `system::main_loop` (whose Rust version calls this one).
 
 use crate::errors::Refused;
 use crate::net::lobby::{LOBBY_LAUNCHED, g};

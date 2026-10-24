@@ -3,8 +3,7 @@
 //! In:  nothing
 //! Out: the registers as its calls leave them; no flags read
 //!
-//! An item action in six menu tables. Hook removed 2026-10-22 (typed tables): the menus and
-//! draw lists run its `entry` (`menu::table_calls`); the registers above are the original's,
-//! for reference.
+//! An item action in six menu tables. The menus and draw lists run its `entry`
+//! (`menu::table_calls`); the registers above are the original's, for reference.
 
 pub use crate::menu::replay_items::replay_item_a;

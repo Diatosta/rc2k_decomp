@@ -6,12 +6,10 @@
 //!
 //! `scene::clear_depth_buffer`; `scene::assign_kind_textures`;
 //! `scene::choose_carousel_pictures`; `scene::assign_menu_textures`;
-//! `scene::map_texture_places`; `scene::load_slot_textures`;
-//! `scene::draw_main_menu_carousel`. Each is entered with the registers the one
-//! before left.
-//! Reached through the menus' scene lists.
-//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `run`
-//! (`menu::table_routes`); the registers above are the original's, for reference.
+//! `scene::map_texture_places`; `scene::load_slot_textures`; `scene::draw_main_menu_carousel`.
+//! Each is entered with the registers the one before left. Reached through the menus' scene
+//! lists. The menus and draw lists run its `run` (`menu::table_routes`); the registers above
+//! are the original's, for reference.
 
 use crate::scene::assign_kind_textures::assign_kind_textures;
 use crate::scene::assign_menu_textures::assign_menu_textures;

@@ -9,9 +9,9 @@
 //! In:  `texture` (eax), `first_x` / `first_y` (ecx / edx) the first tile's column and row
 //! Out: every register kept (`pusha` .. `popa`)
 //!
-//! Callers: `race::map_tiles_stub`, so `race::map_tiles` (the map's scroll). Refuses (after
-//! the lock, unlocking first) a null surface, and a null tile table with a tile inside the
-//! 0x80 x 0x80. Hook removed 2026-10-23 (conversion phase 4).
+//! Callers: `race::map_tiles_stub`, so `race::map_tiles` (the map's scroll). Refuses (after the
+//! lock, unlocking first) a null surface, and a null tile table with a tile inside the 0x80 x
+//! 0x80.
 
 use crate::errors::Refused;
 use crate::framework::{game_read, game_write, rva};

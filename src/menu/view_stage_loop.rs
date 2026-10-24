@@ -9,16 +9,11 @@
 //! frame; the steps that are more than a call or a store are the functions below, generated
 //! from the listing.
 //! The name is a reading from the title string of its menu, "VER ETAPA", not yet a visit.
-//! Callers: `sub_47037E`. Ungated thunk; shadow mode runs the original alone; each real call
-//! writes a line to hook.log. Self-test: `screen_loop::check_screen`.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Callers: `sub_47037E`.
 
 use crate::errors::Refused;
 use crate::framework::{game_read, game_write, rva};
-use crate::menu::screen_loop::{Carried, List, Screen, Step, call};
+use crate::menu::screen_loop::{Callee, Carried, List, Screen, Step};
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
@@ -47,10 +42,10 @@ unsafe fn before(c: &mut Carried) -> Result<(), Refused> {
 
 unsafe fn after_lists(c: &mut Carried) -> Result<(), Refused> {
     unsafe {
-        call(rva(0x480032), c)?;
-        call(rva(0x470FC3), c)?;
+        Callee::CountStagePages.run(c)?;
+        Callee::StyleChosenStageItem.run(c)?;
         if game_read::<u32>(rva(0x755968)) == 0x0 {
-            call(rva(0x470F9F), c)?;
+            Callee::StyleStageItem.run(c)?;
         }
         game_write(rva(0x755700), 0x3u32);
     }
@@ -61,7 +56,7 @@ unsafe fn after(c: &mut Carried) -> Result<(), Refused> {
     unsafe {
         game_write(rva(0x755958), take_kept());
         game_write(rva(0x75595C), take_kept());
-        call(rva(0x40F757), c)?;
+        Callee::StopStream.run(c)?;
     }
     Ok(())
 }
@@ -93,15 +88,15 @@ pub const SCREEN: Screen = Screen {
     set_up_first: &[],
     prepare: &[],
     after_lists: &[Step::Do(after_lists)],
-    background: &[Step::Call(rva(0x4683CF))],
-    after_first_frame: &[Step::Call(rva(0x47F437))],
+    background: &[Step::Call(Callee::DrawStageMap)],
+    after_first_frame: &[Step::Call(Callee::PlayStageSpeech)],
     confirm: Some(&[]),
     ask_also_if: None,
     confirmed: &[],
     unasked_skips_save: false,
     after: &[Step::Do(after)],
     escape_leaves: false,
-    each_frame: &[Step::Call(rva(0x46F7AD))],
+    each_frame: &[Step::Call(Callee::StepCarStream)],
     short_action_check: false,
     leave_at_once: None,
     next_frame_repeats_first: false,

@@ -1,4 +1,4 @@
-//! The HUD batch's variables (see `hud`), shared by its hooks.
+//! The HUD batch's variables (see `hud`), shared by its functions.
 
 use crate::framework::rva;
 use crate::hud::store::Slot;

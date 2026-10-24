@@ -9,13 +9,8 @@
 //! In:  nothing (the pieces at `dword_51C407`)
 //! Out: every register kept (`pusha` / `popa`); no flags read
 //! No pieces would go round 2^32 times: refused. Caller `install::run_page` (the surface
-//! locked). Its calls through `part`; the appending done here. Shadow mode runs the
-//! original alone. Self-test: a copy whose draws go to stand-ins, against the Rust version,
-//! on pages laid out by `install::lay_out_pieces` from lists of the test's.
+//! locked).
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 //! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
 //! are the original's.
 

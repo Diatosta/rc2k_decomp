@@ -2,18 +2,10 @@
 //!
 //! In:  edi = the menu
 //! Out: every register preserved; carry clear
-//! The menu's first dword points at a list of labels, 0x10 bytes each: x, y, font, string id.
-//! The list ends with -1, but the first label is drawn without being checked for it. Each is
-//! drawn with `draw_string_by_id`.
-//! One caller, the menu's drawing step `sub_4746B7`.
-//! Refuses a menu without a label list, and a list without an end in its first 256 labels.
-//! Manual patch with a private copy (0x1D bytes, one call relocated): the loop comes back to
-//! the fourth byte, inside what the patch overwrites. The first build hooked it without one
-//! and the original's second pass through the loop ran into the patch (2026-10-10).
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! The menu's first dword points at a list of labels, 0x10 bytes each: x, y, font, string id. The
+//! list ends with -1, but the first label is drawn without being checked for it. Each is drawn with
+//! `draw_string_by_id`. One caller, the menu's drawing step `sub_4746B7`. Refuses a menu without a
+//! label list, and a list without an end in its first 256 labels.
 
 use crate::errors::{BadInput, Refused};
 use crate::text::draw_text::Canvas;

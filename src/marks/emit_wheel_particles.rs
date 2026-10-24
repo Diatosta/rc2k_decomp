@@ -11,14 +11,8 @@
 //! Out: nothing (no caller reads a register it leaves)
 //!
 //! Callers: `sub_4C9E2E`, four times. The original EXE the owner had patched turned this
-//! into a `ret` (section 16, the burst loops' ring-full slip). Refuses a null wheel and
-//! the emitters' refusals; on a refusal nothing stays written (all it may write is put
-//! back). Self-test: a ring, wheel and car of the test's
-//! (`marks::emit_particle_6::TestEmitter`), every kind, with and without the copy.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! into a `ret` (section 16, the burst loops' ring-full slip). Refuses a null wheel and the
+//! emitters' refusals; on a refusal nothing stays written (all it may write is put back).
 
 use crate::errors::{BadInput, Refused};
 use crate::marks::emitters::*;

@@ -3,15 +3,8 @@
 //! In:  nothing
 //! Out: every register kept (`pusha` .. `popa`)
 //!
-//! Caller: `sub_4A0E60`. The entries are their Rust versions; the page through `part` (1), in
-//! the game its Rust version (`screen_loop::run_screen`). Ungated (the page waits for the
-//! player). Refuses a player count of 0 or past 4, a missing player, no table, and what an entry refuses, before anything. Self-test: a copy whose page call goes to a stand-in (the entries'
-//! to their hooks), against the Rust version, on the game's tables with scores by lot;
-//! put back.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `sub_4A0E60`. The entries are their Rust versions. Refuses a player count of 0 or past
+//! 4, a missing player, no table, and what an entry refuses, before anything.
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_read, game_write, rva};

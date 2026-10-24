@@ -36,7 +36,6 @@ mod records;
 mod registry;
 mod relocations;
 mod rest;
-mod routes;
 mod saves;
 mod scene;
 mod screens;

@@ -1,5 +1,5 @@
-//! The tables that say which texture each of the scene's texture slots shows: shared
-//! by the hooks that fill them.
+//! The tables that say which texture each of the scene's texture slots shows: shared by the
+//! functions that fill them.
 //!
 //! A face names a slot; `WANTED` says which texture file's picture the slot should
 //! hold and `LOADED` which it holds. An object's kind (its file's number) has a first
@@ -23,7 +23,7 @@ pub const LOADS_RVA: usize = rva(0x6415F8); // dword_6415F8
 ///
 /// # Safety
 /// The table must be `entries` dwords at a 4-aligned RVA of the image, and nothing else
-/// may use it while the slice lives (the hooks run with the game paused or on its thread).
+/// may use it while the slice lives (the game runs on its thread).
 pub unsafe fn slice(rva: usize, entries: u32) -> &'static mut [u32] {
     unsafe { std::slice::from_raw_parts_mut(game_addr(rva) as *mut u32, entries as usize) }
 }

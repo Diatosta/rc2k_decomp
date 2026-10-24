@@ -8,17 +8,10 @@
 //! without the question, the highlight is not saved; its own 3D list goes to `g_sceneList`
 //! before the first frame only.
 //! The name is a reading from the title string of its menu, "MELHORES TEMPOS", not yet a visit.
-//! Callers: `sub_48AE39`, `sub_48AFD0`, `sub_48B23D`, `sub_48B54B`, `sub_48B90F`. Ungated
-//! thunk; shadow mode runs the original alone; each real call writes a line to hook.log.
-//! Self-test: `screen_loop::check_screen`. Manual patch with a private copy (0x2AA bytes, 10
-//! calls and jumps relocated): a call or a jump target sits in the first bytes.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Callers: `sub_48AE39`, `sub_48AFD0`, `sub_48B23D`, `sub_48B54B`, `sub_48B90F`.
 
 use crate::framework::rva;
-use crate::menu::screen_loop::{List, Screen, Step};
+use crate::menu::screen_loop::{Callee, List, Screen, Step};
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
@@ -67,7 +60,7 @@ pub const SCREEN: Screen = Screen {
     after_lists: &[],
     background: &[
         Step::ArgAddr(rva(0x732017)),
-        Step::CallOrFatal(rva(0x47EFFF), 0x80712345),
+        Step::CallOrFatal(Callee::LoadBackground, 0x80712345),
     ],
     after_first_frame: &[],
     confirm: Some(&[]),

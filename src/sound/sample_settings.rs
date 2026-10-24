@@ -11,13 +11,6 @@
 //! 100 .. 200000 (signed).
 //! Five callers (the race sounds' turn). Refuses a sample past the 0x1CD records (the
 //! original reads past them; not worked out).
-//! Shadow mode: both, the registers compared (`dispatch_state`, nothing written).
-//! Self-test: every record with a set of volumes and rates, and a record of the test's
-//! (record 0, put back) for the branches the game's may not reach.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::audio::store::SampleSlot;
 use crate::errors::BadInput;

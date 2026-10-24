@@ -6,9 +6,7 @@
 //! Out: the registers as `race_loop` leaves them; no flags read
 //!
 //! Callers: `race::run_race`, `sub_443F96`, 0x44402F, `race::credits_race`, `sub_4640AA`.
-//! Refuses what `race_loop` refuses. Hook removed 2026-10-22 (direct calls): Rust callers run
-//! its `entry` (`calls::call`, `routes.rs`); the registers above are the original's, for
-//! reference.
+//! Refuses what `race_loop` refuses.
 
 use crate::drive::race_parts::log_line;
 use crate::errors::Refused;

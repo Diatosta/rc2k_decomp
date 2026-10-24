@@ -5,8 +5,6 @@
 //! Out: eax the new word; the rest kept (`noise_step` keeps edx); no flags read
 //!
 //! Caller: `sub_43B635`, its first instruction: every physics step.
-//! Self-test: a copy of the original on a test word (its call to `noise_step` kept),
-//! 64 words.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

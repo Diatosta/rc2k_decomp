@@ -42,8 +42,8 @@ const COURSE_MEMORY_LEN: u32 = 0x130_0000;
 /// Where the course is (`rc2k_core::race::pace_notes::Course`).
 pub type Course = rc2k_core::race::pace_notes::Course;
 
-/// A test stage's faces while one is up (start, end): the originals' calls of the hooks
-/// read them there.
+/// A test stage's faces while one is up (start, end): the original's code
+/// reads them there.
 static TEST_WINDOW: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 
 /// The game's course: the faces (`g_courseFaces`), where they may be read (the course
@@ -135,5 +135,3 @@ impl Machine {
         Ok(self.0.init()?)
     }
 }
-
-// ---- for the self-tests ----

@@ -5,13 +5,7 @@
 //! In:  nothing
 //! Out: eax the frame, ecx 0, esi and edi past the copy; the rest kept; no flags read
 //!
-//! Caller: `drive::play_replay_frame`.
-//! Refuses what `read_replay_frame` refuses.
-//! Self-test: the original and the Rust version with `read_replay_frame`'s test replay.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `drive::play_replay_frame`. Refuses what `read_replay_frame` refuses.
 
 use crate::drive::read_replay_frame::FRAME;
 use crate::errors::Refused;

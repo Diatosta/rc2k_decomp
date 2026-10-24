@@ -5,14 +5,7 @@
 //! In:  ebp the HUD's record
 //! Out: eax 0x5C0, ebx the x, ecx 0, esi the rectangle (as `add_sprite` keeps them)
 //!
-//! Caller: layout 0's drawer (0x4B1F0C). The sprite through `part` (1), in the game
-//! `add_sprite`'s Rust version. Shadow mode runs the original alone (it draws).
-//! Self-test: a copy whose call goes to a stand-in, against the Rust version, shares by
-//! lot, at both test control words.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: layout 0's drawer (0x4B1F0C).
 
 use crate::errors::Refused;
 use crate::hud::add_quad::QUAD_RVA;

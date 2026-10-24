@@ -13,9 +13,6 @@
 //! stopped (`sound::stop_sound`) and playing 0. One caller, `sound::spot_sounds`.
 //! Refuses a null request (before anything); a sound past the sample records and the
 //! two leaves' refusals put back what was written (sounds already sent stay sent).
-//! Shadow mode runs the original alone (it sends sounds).
-//! Self-test: a copy whose calls go to stand-ins (the two leaves' left), against the
-//! Rust version, on the game's voices (put back), real samples.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

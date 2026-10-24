@@ -16,17 +16,10 @@
 //!   squared) times `flt_5C5DA0`, whose rounding is left in `dword_62400C`);
 //! - (0x100000 less y without its sign) over 0x1000: how near the car's height.
 //!
-//! The third times twice the first over 256, times the block's dword +0xABC over 256,
-//! held to 255, picks a colour from the table `dword_635D18`, which is added to
-//! `g_lightColour` byte by byte without overflow. x87 with the original's
-//! instructions.
-//! Callers: `sub_44F1FE`, twice.
+//! The third times twice the first over 256, times the block's dword +0xABC over 256, held to
+//! 255, picks a colour from the table `dword_635D18`, which is added to `g_lightColour` byte by
+//! byte without overflow. x87 with the original's instructions. Callers: `sub_44F1FE`, twice.
 //! Refuses when there is no block.
-//! Shadow mode: the Rust version, its writes put back, the original, compared.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::errors::BadInput;
 use crate::framework::{game_read, game_write, rva};

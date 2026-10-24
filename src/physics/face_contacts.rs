@@ -4,11 +4,8 @@
 //! In:  nothing
 //! Out: the registers as `face_contacts_around` leaves them; no flags read
 //!
-//! Callers: `sub_43B635` (every physics step), `sub_43BDD1`. The hook's five bytes are
-//! the `call`: a private copy (six bytes, the call relocated) and a hand-made patch, as
-//! `scene::end_scene`.
-//! Refuses what `face_contacts_around` refuses (everything written put back).
-//! Self-test: `face_contacts_around`'s (in a race; skipped otherwise).
+//! Callers: `sub_43B635` (every physics step), `sub_43BDD1`. Refuses what
+//! `face_contacts_around` refuses (everything written put back).
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

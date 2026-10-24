@@ -12,14 +12,7 @@
 //! In:  ebp the HUD's record
 //! Out: as the path leaves them
 //!
-//! Caller: `sub_4B1CD0`. The draws through `part` as `hud::layout_1`'s (2 / 3 the dials,
-//! 5 the bars, 6 the icons, 7 the markers, 8 / 9 the signs, 10 / 11 the needles of
-//! layout 2). Shadow mode runs the original alone (it draws). Self-test:
-//! `layout_1::test_layout`.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `sub_4B1CD0`.
 
 use crate::errors::Refused;
 use crate::hud::add_quad::QUAD_RVA;

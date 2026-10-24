@@ -1,6 +1,3 @@
-//! Moving the highlight about a menu: what the four `move_highlight_*` hooks and
-//! `handle_keys` share.
-//!
 //! Each menu item names its neighbours by number at +0x24, +0x28, +0x2C and +0x30 (which key
 //! goes with which is in `Direction`). A link of 0x6F means there is none, and 0xFFFFFC1A
 //! means "ask the item": its callback for that direction (+0x34 .. +0x40) is called
@@ -11,10 +8,8 @@
 //! 0 .. `dword_75AA78` - 1, and `dword_75A660` and `dword_75AA80` are left at 1 and 0 (right)
 //! or -1 and -1 (left). They click only if `dword_7554D0` is not 1.
 //!
-//! The click, the callbacks and the screenshot are called directly (2026-10-24: the
-//! `Outside` trait went with the screen loops' registers). A direction's callback is an
-//! item function of the typed tables; of those the tables name as key callbacks only
-//! `raise_controller_sensitivity` reads a register (edi, the item): `table_calls::call_key`.
+//! The click, the callbacks and the screenshot are called directly (2026-10-24: the `Outside` trait
+//! went with the screen loops' registers).
 
 use crate::errors::Refused;
 use crate::framework::{game_read, game_write, rva};

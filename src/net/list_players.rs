@@ -12,8 +12,7 @@
 //!      the listing failed or the player is not among them
 //! The search looks at block 0 even with no player listed. More than eight players
 //! (possible only with the race on) would sort past the blocks: refused. Caller:
-//! `net::list_players_regs`, `net::open_lobby`. DirectPlay's calls from Rust (`net::dplay`),
-//! the callback the game's address (its hook).
+//! `net::list_players_regs`, `net::open_lobby`. DirectPlay's calls from Rust (`net::dplay`).
 
 use crate::errors::{BadInput, Refused};
 use crate::field;

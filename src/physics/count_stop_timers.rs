@@ -9,12 +9,6 @@
 //! Out: every register kept; no flags read (the callers go on with calls)
 //!
 //! Caller: `sub_436790` (four calls).
-//! Self-test: a copy of the original (its five variables the test's) against the converted version:
-//! counters 0, 1, 299, 300, speeds below and above.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::framework::{game_addr, game_read, rva};
 use rc2k_core::physics::motion::stop_timers;

@@ -13,15 +13,9 @@
 //! The memory is given back (`memory::free_list`) on every way out. Once the decoder has been
 //! called the carry flag is clear, whatever it returned.
 //! One caller, the picture loader `sub_4119F4`, which falls back on the PCX reader.
-//! Shadow mode runs the Rust version and then the original and compares the picture, its
-//! variables and the layout (the palette only when the file has one: without one it is
-//! made from the info block's leftovers, see `decode_png`). The file is read and decoded
-//! twice, and its memory counted twice in the game's memory figures.
-//! Refuses what `read_file`, `file_size` and `decode_png` refuse. The name is a reading.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! The file is read and decoded twice, and its memory counted twice in the game's memory
+//! figures. Refuses what `read_file`, `file_size` and `decode_png` refuse. The name is a
+//! reading.
 
 use crate::errors::Refused;
 use crate::files::file_size::file_size;
@@ -114,6 +108,3 @@ pub unsafe fn read_png(path: *const u8) -> Result<bool, Refused> {
         worked
     }
 }
-
-// ---- self-test: PNG files made for the purpose, read into the game's own picture buffer,
-// which is put back with everything else ----

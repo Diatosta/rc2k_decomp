@@ -1,7 +1,5 @@
 //! The eight fields of car block 0 that `drive::share_all_cars` keeps around its work:
-//! (block field, keeping place) pairs, in the original's order. The keeping places
-//! 0x64165C .. 0x641678 are read by the marks too (`dword_64165C` is
-//! `marks::stage_record`'s number), so the self-tests restore them.
+//! (block field, keeping place) pairs, in the original's order.
 
 /// (car block 0's field, its keeping place), IDA addresses.
 pub const PAIRS: [(usize, usize); 8] = [

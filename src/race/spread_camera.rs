@@ -7,15 +7,10 @@
 //! Out: dl the new value, eax the blocks gone over (from 1), ecx what was left of the
 //!      count; no flags read
 //!
-//! Callers: `race::viewer_action` (four), `race::next_camera`, `race::previous_camera`,
-//! with the block shown not the last. The count is not checked: 0 (or less) is limited
-//! only by the bytes met; refused when the walk would pass the 0x708 blocks of the
-//! table, before anything is written. Shadow mode compares. Self-test: a table of the
-//! test's, runs of the old value of every length, the count reached or not.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Callers: `race::viewer_action` (four), `race::next_camera`, `race::previous_camera`, with
+//! the block shown not the last. The count is not checked: 0 (or less) is limited only by the
+//! bytes met; refused when the walk would pass the 0x708 blocks of the table, before anything
+//! is written.
 
 use crate::errors::Refused;
 use crate::race::viewer::{BLOCK, BLOCKS, get};

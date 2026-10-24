@@ -14,12 +14,6 @@
 //! Caller: `sub_4BC0B1` (0x4BC0BA). The x87 runs are the original's instructions over the
 //! game's variables (the three values it keeps on the x87 stack across the two calls kept
 //! as 80 bits); the calls their Rust versions. Refuses null settings, before anything.
-//! Self-test: the original and the Rust version on settings and views of the test's, all
-//! three paths; put back.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::rva;

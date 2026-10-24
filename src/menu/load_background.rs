@@ -2,16 +2,14 @@
 //! the frame sprite onto it.
 //!
 //! In:  eax = the picture's path (may be written to, see `files::swap_missing_extension`);
-//!      ebx as it comes: it is the palette the sprite is drawn with
+//! ebx as it comes: it is the palette the sprite is drawn with
 //! Out: every register preserved. The carry flag is whatever the blitter leaves: the
-//!      callers test it (and call a set carry fatal error 0x80712345), but it is no result
-//! of the loading. The Rust version returns with it clear, as the hooked blitter does.
-//! `gfx::load_picture`, whose result is not looked at; `gfx::convert_picture`;
+//! callers test it (and call a set carry fatal error 0x80712345), but it is no result of the
+//! loading. `gfx::load_picture`, whose result is not looked at; `gfx::convert_picture`;
 //! `g_pictureFlags` = the screen mode's flags (`dword_4F4934`) and 0xFFF;
-//! `gfx::picture_as_surface`; sprite 0xA0 of `g_spriteTable` at (0, 0). 76 callers, nearly all
-//! of them screen loops. Refuses what the functions it calls refuse.
-//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
-//! `routes.rs`); the registers above are the original's, for reference.
+//! `gfx::picture_as_surface`; sprite 0xA0 of `g_spriteTable` at (0, 0). 76 callers, nearly all of
+//! them screen loops. Refuses what the functions it calls refuse. Rust callers run its `entry`
+//! (`routes.rs`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
 use crate::framework::rva;

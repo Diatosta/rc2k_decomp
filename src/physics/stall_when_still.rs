@@ -11,8 +11,6 @@
 //!      kept; no flags read
 //!
 //! Caller: `sub_43B635` (0x43B896), every physics step.
-//! Self-test: a copy of the original on test variables (its two calls kept), 12 cases
-//! under three precisions.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

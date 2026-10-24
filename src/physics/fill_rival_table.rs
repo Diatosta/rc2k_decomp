@@ -8,7 +8,6 @@
 //! Out: eax, ebx 23, ecx 90, edx, esi (the table's end, or 0) as left; no flags read
 //!
 //! Callers: `physics::rank_split_time`, `sub_435F43`.
-//! Self-test: `physics/splits.rs` (`test_splits`), with and without a table.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

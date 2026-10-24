@@ -10,8 +10,6 @@
 //!
 //! Callers: `physics::feel_ground`, `sub_43BDD1` (twice), `sub_45EDB5`, `sub_45EFF3`.
 //! Refuses (before anything) a count above 0x40 (the depths' room).
-//! Self-test: `physics/copy_hooks_test.rs` (`test_moves_floats`: a copy on test
-//! variables against the converted version), counts 0 .. 0x40; the refusal.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

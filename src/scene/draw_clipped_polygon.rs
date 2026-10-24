@@ -4,24 +4,16 @@
 //! In:  nothing; the polygon's entries are the work table's first, in order
 //! Out: the original leaves every register changed; the Rust version keeps them
 //!
-//! `dword_624120`, `dword_624124`, `dword_624134` = 0; the pool of records for new
-//! vertices (`dword_6240A4`) = `unk_977F10`; the list = 0, 1, 2 .. and a 0 after it;
-//! the next free entry (`dword_624114`) = the number of vertices. Then
-//! `scene::project_polygon`; nothing more if every point is outside the depths;
-//! `scene::scale_texture_coordinates`; `scene::fog_polygon`; if some point is outside,
-//! `scene::clip_polygon_by_depth`, and nothing more with fewer than three vertices
-//! left; `scene::clip_polygon_to_screen`, and the same; `scene::draw_marked_polygon`;
-//! `dword_624134` = 1 (the polygon was drawn).
-//! Four callers (`sub_451F69` and three more: the objects' polygons).
-//! Refuses a polygon of no vertices (the original goes through 2^32) or of more than
-//! 256, and what its parts refuse. A refusal after the texture coordinates were
-//! scaled hands the original a polygon it scales once more.
-//! Shadow mode runs the original alone (its parts are compared in their own hooks).
-//! Self-test: a redirected copy whose six calls follow a script.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! `dword_624120`, `dword_624124`, `dword_624134` = 0; the pool of records for new vertices
+//! (`dword_6240A4`) = `unk_977F10`; the list = 0, 1, 2 .. and a 0 after it; the next free entry
+//! (`dword_624114`) = the number of vertices. Then `scene::project_polygon`; nothing more if
+//! every point is outside the depths; `scene::scale_texture_coordinates`; `scene::fog_polygon`;
+//! if some point is outside, `scene::clip_polygon_by_depth`, and nothing more with fewer than
+//! three vertices left; `scene::clip_polygon_to_screen`, and the same;
+//! `scene::draw_marked_polygon`; `dword_624134` = 1 (the polygon was drawn). Four callers
+//! (`sub_451F69` and three more: the objects' polygons). Refuses a polygon of no vertices (the
+//! original goes through 2^32) or of more than 256, and what its parts refuse. A refusal after
+//! the texture coordinates were scaled hands the original a polygon it scales once more.
 
 use crate::d3d::draw_fan_unclipped::COUNT_RVA;
 use crate::errors::{BadInput, Refused};
@@ -100,9 +92,9 @@ pub unsafe fn draw_clipped_polygon_in_game() -> Result<(), Refused> {
     unsafe {
         draw_clipped_polygon(&mut |step| {
             match step {
-                Step::Project => project_polygon().map(|_| ())?,
-                Step::ScaleTextureCoordinates => scale_texture_coordinates().map(|_| ())?,
-                Step::Fog => fog_polygon().map(|_| ())?,
+                Step::Project => project_polygon()?,
+                Step::ScaleTextureCoordinates => scale_texture_coordinates()?,
+                Step::Fog => fog_polygon()?,
                 Step::ClipByDepth => clip_polygon_by_depth()?,
                 Step::ClipToScreen => clip_polygon_to_screen()?,
                 Step::Draw => draw_marked_polygon(&mut || draw_polygon(&mut Game))?,

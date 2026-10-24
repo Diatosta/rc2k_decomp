@@ -6,12 +6,7 @@
 //! In:  nothing
 //! Out: nothing (its caller reads no register after it)
 //!
-//! One caller, `sub_4C25F6`. Self-test: the original and the Rust version on several
-//! colours and steps, at the test precisions; put back afterwards.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! One caller, `sub_4C25F6`.
 
 use crate::framework::rva;
 use crate::marks::store::{Slot, game_read, game_write};

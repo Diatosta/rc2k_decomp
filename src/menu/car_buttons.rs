@@ -1,7 +1,3 @@
-//! What the car specification and slideshow screens' buttons share (0x469AFD,
-//! 0x469BD1, 0x469B35, 0x469B70, 0x469BF4, 0x469C1A): the variables they change, the
-//! three things they call, and one self-test for all of them.
-//!
 //! The variables: `dword_755990` the car shown (an entry of the carousel's records, up
 //! to `dword_75649C`), `dword_755994` the slideshow's picture (0 .. 99),
 //! `dword_755998` the specification's page (0 .. 3), `dword_755561` the screen loop's

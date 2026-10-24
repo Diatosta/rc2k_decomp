@@ -7,14 +7,8 @@
 //! Out: nothing kept: every register kept. Else eax the count, ecx 0, esi and edi past the
 //!      cameras' copy; no flags read
 //!
-//! Callers: `race::viewer_action` (action 0x13, and 0x20). Refuses what `reset_marks`
-//! refuses (everything put back). Shadow mode compares. Self-test: the original against
-//! the Rust version with `read_replay_frame`'s test replay: nothing kept, two blocks
-//! kept.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Callers: `race::viewer_action` (action 0x13, and 0x20). Refuses what `reset_marks` refuses
+//! (everything put back).
 
 use crate::errors::Refused;
 use crate::race::viewer::{

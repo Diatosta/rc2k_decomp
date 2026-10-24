@@ -5,8 +5,7 @@
 //! In:  nothing
 //! Out: every register kept (`pusha` .. `popa`)
 //!
-//! In a menu loop's draw list (0x7590BA).
-//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
+//! In a menu loop's draw list (0x7590BA). The menus and draw lists run its `entry`
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;

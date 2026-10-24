@@ -6,14 +6,14 @@
 //! After the headings and row numbers it copies the saved game's seven dwords into its own
 //! variables (`dword_755150` .. `dword_755168`) and points `dword_75516C` at the saved cars.
 //! Then:
-//!   - a title line at (143, 353): string 0x1D9 (0x1DA if the saved mode is 0x13), " - ", the
-//!     title of the saved section (from a table in mode 0x13, else the section's first record
-//!     at +0x38), a space, and for the saved stage's record "<record +0x40>/6" unless that
-//!     value is 0;
-//!   - one row per saved car: its name (car +0x124), four numbers (car +0x14C, +0x150, then
-//!     +0x144 and +0x148, each of those two replaced by string 0x57A if the car's dword at
-//!     +0xB0, respectively +0xCC, is 0), a flag sprite (0x1C + car +4) and a car sprite
-//!     (0x44 + car +8, with 0x18 and 0x19 swapped). A negative number is drawn as "-".
+//! - a title line at (143, 353): string 0x1D9 (0x1DA if the saved mode is 0x13), " - ", the
+//!   title of the saved section (from a table in mode 0x13, else the section's first record
+//!   at +0x38), a space, and for the saved stage's record "<record +0x40>/6" unless that
+//!   value is 0;
+//! - one row per saved car: its name (car +0x124), four numbers (car +0x14C, +0x150, then
+//!   +0x144 and +0x148, each of those two replaced by string 0x57A if the car's dword at
+//!   +0xB0, respectively +0xCC, is 0), a flag sprite (0x1C + car +4) and a car sprite
+//!   (0x44 + car +8, with 0x18 and 0x19 swapped). A negative number is drawn as "-".
 //!
 //! Rows 2 to 4 only show a name and sprites if the first saved dword (the number of players,
 //! by this use; a reading) reaches them; otherwise string 0x578 and two 0x57A stand there,
@@ -30,10 +30,6 @@
 //! +0x144 and +0x148; string 0x57A is "-" and string 0x578 is "n/d". The save had one
 //! player, and rows 2 to 4 showed "-", "n/d", "-" and four "-". What each of the two numbers
 //! of a pair is (position and points, say) has not been worked out.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::errors::Refused;
 use crate::framework::{game_addr, game_read, game_write, rva};

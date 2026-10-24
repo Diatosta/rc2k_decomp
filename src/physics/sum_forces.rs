@@ -8,12 +8,6 @@
 //! Out: every register kept; no flags read
 //!
 //! Caller: `sub_43B635` (0x43B995), every physics step.
-//! Self-test: `physics/copy_hooks_test.rs` (`test_moves_floats`: a copy on test
-//! variables against the converted version), 8 fillings, exact at double precision.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::framework::{game_addr, game_read, rva};
 use crate::math::x87_run::sum_over;

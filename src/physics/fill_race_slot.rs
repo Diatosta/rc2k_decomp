@@ -12,10 +12,8 @@
 //! Out: eax `g_car` +8, ebx the part, ecx the slot's number (8 when none was empty),
 //!      edx -1 or the lowest +0x64, esi the slot, ebp as the search leaves it; no flags read
 //!
-//! Caller: `physics::fill_slot_on_bit`.
-//! Refuses (before anything) a part past 0xFF, or no slot to take.
-//! Self-test: the original and the Rust version on the game's variables (saved and put
-//! back): empty slots and full ones, parts by lot, under three precisions.
+//! Caller: `physics::fill_slot_on_bit`. Refuses (before anything) a part past 0xFF, or no
+//! slot to take.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

@@ -1,6 +1,3 @@
-//! What the PCX readers share: the header and palette they read, the layout they work out
-//! from it, and PCX files for their self-tests.
-//!
 //! A PCX file here: a header of 0x80 bytes (+4 .. +0xA the picture's left, top, right and
 //! bottom as words; +0x41 the number of planes, 1 or 3; +0x42 the bytes of one plane of one
 //! row as a word), then the rows, run-length coded: a byte of 0xC0 or more is a count (less
@@ -43,5 +40,3 @@ pub const HEIGHT_LIMIT_RVA: DecSlot = DecSlot::at(0x51B978);
 pub fn stream() -> *mut Stream {
     game_ptr(STREAM_RVA)
 }
-
-// ---- for the self-tests: PCX files of the test's own in the game's `var` folder ----

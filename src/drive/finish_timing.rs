@@ -9,15 +9,7 @@
 //! In:  nothing
 //! Out: eax the clock less the start; the rest kept; no flags read
 //!
-//! Caller: `drive::finish_run`. It begins with a call: hooked by a private copy of its
-//! 0x144 bytes (the call relocated) and a hand-made patch.
-//! Shadow mode runs the original alone (the clock moves). Self-test: a copy whose clock
-//! call goes to a stand-in giving the test's times, against the Rust version with the
-//! same, under three precisions.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `drive::finish_run`.
 
 use crate::math::x87::loaded;
 use crate::physics::flow::{c0, g, p, x87_run};

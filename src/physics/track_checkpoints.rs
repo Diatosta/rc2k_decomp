@@ -8,13 +8,8 @@
 //! In:  nothing
 //! Out: the registers as the calls leave them; no flags read (the caller calls on)
 //!
-//! Caller: `sub_43B635` (0x43B90F), every physics step. It begins with a call: a private
-//! copy, its calls relocated, a hand-made patch.
-//! Refuses (before writing) a checkpoint past 0x1418 or a split past 0x40, and what the
-//! calls refuse.
-//! Shadow mode runs the original alone (its calls send sounds and read the stage).
-//! Self-test: a copy whose four calls go to stand-ins (the split's CF by a pattern),
-//! against the Rust version with the same, on the game's variables (saved and put back).
+//! Caller: `sub_43B635` (0x43B90F), every physics step. Refuses (before writing) a
+//! checkpoint past 0x1418 or a split past 0x40, and what the calls refuse.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

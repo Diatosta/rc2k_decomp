@@ -10,12 +10,6 @@
 //! `memory::free_list` on `g_sampleMemory`, inlined). Callers: `sub_409DD5` (the thread's
 //! end), `audio::set_mode`, `audio::take_commands`.
 //! Refuses more than 0x200 voices in use.
-//! Shadow mode runs the original alone. Self-test: a redirected copy whose variables are
-//! the test's and whose five calls note themselves, 8 cases.
-//!
-//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::audio::voices::*;
 use crate::errors::{BadInput, Refused};
@@ -39,26 +33,28 @@ pub unsafe fn free_voices(w: &World, v: &Vars) -> Result<(), Refused> {
             return Err(BadInput("more than 0x200 voices").into());
         }
         if count != 0 {
-            crate::audio::free_voices::game_part(0, 0)?;
-            crate::audio::free_voices::game_part(1, 0)?;
+            crate::audio::release_eax::release_eax(crate::audio::release_eax::game_vars());
+            crate::audio::release_voice_manager::release_voice_manager(
+                game_addr(VOICE_MANAGER_RVA) as u32,
+            );
             for n in 0..count {
-                crate::audio::free_voices::game_part(
-                    2,
+                crate::audio::release_voice::release_voice_in_game(
                     v.voices + n * std::mem::size_of::<Voice>() as u32,
-                )?;
+                );
             }
             write(v.voice_count, 0);
         }
         for n in 0..SAMPLES {
             sample(w, n).first_voice = 0;
         }
-        crate::audio::free_voices::game_part(3, 0)?;
+        crate::audio::clear_channels::clear_channels(World::game().channels);
         write(v.lost, 0);
         write(v.commit, 0);
         write(w.channels_used, 0);
         write(w.playing, 0);
         write(w.stopping, 0);
-        crate::audio::free_voices::game_part(4, 0)
+        crate::memory::free_list::free_list(game_addr(SAMPLE_MEMORY_RVA) as *mut _)?;
+        Ok(())
     }
 }
 
@@ -69,19 +65,4 @@ pub fn game_vars() -> Vars {
         lost: game_addr(BUFFER_LOST_RVA) as u32,
         commit: game_addr(COMMIT_RVA) as u32,
     }
-}
-
-pub fn game_part(which: u32, at: u32) -> Result<(), Refused> {
-    unsafe {
-        match which {
-            0 => crate::audio::release_eax::release_eax(crate::audio::release_eax::game_vars()),
-            1 => crate::audio::release_voice_manager::release_voice_manager(game_addr(
-                VOICE_MANAGER_RVA,
-            ) as u32),
-            2 => crate::audio::release_voice::release_voice_in_game(at),
-            3 => crate::audio::clear_channels::clear_channels(World::game().channels),
-            _ => crate::memory::free_list::free_list(game_addr(SAMPLE_MEMORY_RVA) as *mut _)?,
-        }
-    }
-    Ok(())
 }

@@ -7,13 +7,8 @@
 //! In:  esi the saved cars (four of 0x28C bytes)
 //! Out: every register preserved (`pusha` .. `popa`)
 //!
-//! Caller: `saves::load_savegame` (when `dword_755144` is 0). Refuses (before anything) a
-//! missing player or esi 0. Self-test: a buffer of the test's (0xAA) from the game's
-//! players, compared whole.
-//!
-//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `saves::load_savegame` (when `dword_755144` is 0). Refuses (before anything) a missing
+//! player or esi 0.
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::player::{PLAYERS, player_at};

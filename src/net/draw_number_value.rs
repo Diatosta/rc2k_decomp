@@ -5,14 +5,7 @@
 //!
 //! In:  eax = the number, esi = the item, ebp = y
 //! Out: as `net::draw_setting_value` leaves them; no `pusha`
-//! Caller: `net::settings_frame` (the most players). Its calls through `part`
-//! (`strings::append_nul` inline). Shadow mode runs the original alone (it draws).
-//! Self-test: a copy of it and `net::draw_setting_value` after it, whose calls go to
-//! stand-ins, against the Rust version: edited, 0, 4.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `net::settings_frame` (the most players).
 
 use crate::errors::Refused;
 use crate::net::draw_setting_value::draw_setting_value;

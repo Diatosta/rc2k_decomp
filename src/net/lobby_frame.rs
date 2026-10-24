@@ -14,15 +14,7 @@
 //! In:  nothing
 //! Out: nothing (the original keeps every register: `pusha` .. `popa`)
 //! More than eight players would read past the sorted copy: refused. Called by
-//! `screens::run_frame` for `net::lobby_loop`. Its calls through `part`
-//! (`strings::append_nul` inline). Shadow mode runs the original alone (it draws).
-//! Self-test: a copy whose calls go to stand-ins (the texts written), against the Rust
-//! version: the lock failing; no players; three players with and without gaps, ready or
-//! not, times and none; the buttons' switches.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! `screens::run_frame` for `net::lobby_loop`.
 
 use crate::errors::{BadInput, Refused};
 use crate::field;

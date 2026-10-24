@@ -7,11 +7,7 @@
 //! In:  edi the wheel record, esi the car object
 //! Out: every register kept
 //!
-//! Refuses as `emit_particle_5`. Self-test: as `emit_particle_5`'s.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Refuses as `emit_particle_5`.
 
 use crate::errors::Refused;
 use crate::marks::emit_particle_5::{JitterSet, emit_particle_5_with};

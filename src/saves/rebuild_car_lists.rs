@@ -8,11 +8,7 @@
 //! to the second. One caller, `saves::load_options`, whose file holds the two lists of
 //! numbers. What they are lists of is a reading: cars that can be chosen.
 //! Refuses a list of numbers without its -1 within its own length, and a number of
-//! 0x400 or more (the original runs on, and reads wherever the number leads).
-//!
-//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! 0x400 or more.
 
 use crate::errors::BadInput;
 use crate::framework::{game_read, game_write, rva};

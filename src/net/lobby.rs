@@ -1,7 +1,3 @@
-//! The network game's set-up and lobby (agent G, read 2026-10-19; a reading, not seen in
-//! play): the variables the lobby's functions share, the calls they make by place (the
-//! callee's IDA address), and the self-tests' tools.
-//!
 //! The way through (`net::start_link`, 0x416F50, eax 1 host, 2 join, 3 launched by a lobby):
 //! the player's record set up (`net::take_player_settings`, `net::fill_own_player`), the
 //! DirectPlay connections listed (`net::find_connections`: the lobby object, DirectPlay,
@@ -349,7 +345,7 @@ pub type Callback = fn(&[u32]) -> Result<u32, Refused>;
 thread_local!(static CALLBACK_ARGS: std::cell::RefCell<(usize, Vec<u32>)> =
     const { std::cell::RefCell::new((0, Vec::new())) });
 
-/// A callback's Rust version where DirectPlay calls it (no hook; 2026-10-23): a refused
+/// A callback's Rust version where DirectPlay calls it (2026-10-23): a refused
 /// input ends the program with its reason (there is no game code to run in its place:
 /// before 2026-10-23 it called the game's callback at `ral`, which in the standalone would
 /// fault), a fatal error is raised.

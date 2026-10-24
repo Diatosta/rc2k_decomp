@@ -7,7 +7,6 @@
 //! Out: the point turned; every register kept
 //!
 //! Caller: `physics::apply_torque` (back into the world).
-//! Self-test: `physics::turn_by_inverse_at`'s, on this function and offset.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

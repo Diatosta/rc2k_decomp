@@ -2,18 +2,10 @@
 //!
 //! In:  nothing
 //! Out: every register preserved; carry = not written
-//! The file is put together in the scratch block at 0x93E8B0: "R5CI", 0, 0x50004, the
-//! time (`system::packed_local_time`), the 69 pieces of `saves::load_options` in the
-//! same order, each copied from its place, and "####"; then `files::write_file`.
-//! One caller, `saves::save_game_data`.
-//! Shadow mode writes the file twice (Rust, then the original) and compares what was put
-//! together, but for the time. Self-test: a redirected copy that writes a file of the
-//! test's; the two files are compared but for the time.
-//! Refuses what `write_file` refuses.
-//!
-//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! The file is put together in the scratch block at 0x93E8B0: "R5CI", 0, 0x50004, the time
+//! (`system::packed_local_time`), the 69 pieces of `saves::load_options` in the same order, each
+//! copied from its place, and "####"; then `files::write_file`. One caller,
+//! `saves::save_game_data`. Refuses what `write_file` refuses.
 
 use crate::errors::Refused;
 use crate::files::write_file::write_file;

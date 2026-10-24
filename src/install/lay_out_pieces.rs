@@ -12,12 +12,8 @@
 //! Out: every register kept (`pusha` / `popa`); no flags read
 //! Any other kind is fatal error 0x80A97451. More pieces than the 0xFFC bytes hold (85) is
 //! refused (the original writes over the list variables after them). Caller
-//! `install::run_page`. Shadow mode compares. Self-test: lists of the test's against the
-//! original (the fatal kind only on the Rust version).
+//! `install::run_page`.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 //! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
 //! are the original's.
 

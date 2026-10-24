@@ -16,10 +16,10 @@
 //! and `draw_action`, each knowing the functions the game's tables put in that place.
 
 use crate::errors::{BadInput, FatalError, Refused};
-use crate::framework::{Regs, game_addr};
+use crate::framework::game_addr;
 use crate::session::FLAGS;
 
-/// A Win32 call by the address of its import (`jmp` thunk), the arguments in, eax out.
+/// A Win32 call by the address of its import the arguments in, eax out.
 pub type Api<'a> = &'a mut dyn FnMut(u32, &[u32]) -> u32;
 
 // ---- the variables (IDA addresses) ----
@@ -277,9 +277,8 @@ pub type Frame = fn() -> Result<bool, Refused>;
 /// `screens::run_frame` (0x405A71): the window's messages, then (unless quitting) the
 /// frame; the carry it leaves (the frame's, else clear).
 pub fn run_frame(frame: Option<Frame>) -> Result<bool, Refused> {
-    // The platform's run_frame with eax 0 (no frame) takes the window's messages only; its
-    // registers are this scratch's.
-    crate::platform::by_address(0x405A71, &mut Regs::default());
+    // The platform's run_frame with no frame of its own: the window's messages only.
+    crate::platform::run_frame_now(|| ());
     match frame {
         Some(frame) if FLAGS.quitting.get() != 1 => frame(),
         _ => Ok(false),
@@ -484,8 +483,7 @@ pub const GET_DISK_FREE: u32 = 0x4D5D2E; // GetDiskFreeSpaceA (5)
 
 /// The installer's Win32 calls in the game: the platform's, made from Rust. The DirectPlay
 /// registry key, the disk-free query and the registration-record registry values; the DDE
-/// to the Program Manager and `CreateProcess` stay the game's (`install::run_after_exit`,
-/// section 15).
+/// to the Program Manager and `CreateProcess` stay the game's (`install::run_after_exit`).
 pub fn game_api(place: u32, x: &[u32]) -> u32 {
     use windows_sys::Win32::System::Registry as reg;
     // The standalone is portable: no registry (`install::portable`).

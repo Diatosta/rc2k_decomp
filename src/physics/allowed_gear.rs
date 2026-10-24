@@ -8,15 +8,7 @@
 //! Out: eax the gear or 0; the rest kept (ebx and ecx pushed around); no flags read
 //!      (the caller stores eax)
 //!
-//! Caller: `sub_43C1E3` (0x43C1FD).
-//! Refuses what `gear_bit` refuses (a bit past 31).
-//! Self-test: a copy of the original (its two words the test's, its call to
-//! `gear_bit`'s test copy on a test dword) against the core: gears -1 .. 9, the words'
-//! settings, several bit patterns.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `sub_43C1E3` (0x43C1FD). Refuses what `gear_bit` refuses (a bit past 31).
 
 use crate::errors::Refused;
 use crate::framework::{game_addr, game_read, rva};

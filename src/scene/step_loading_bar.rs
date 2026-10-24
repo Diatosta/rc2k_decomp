@@ -3,19 +3,11 @@
 //! In:  eax = how many of the system textures are done
 //! Out: every register preserved
 //!
-//! Unless there are no system textures (`dword_5DC974`): the progress `dword_623700`
-//! = the low end `dword_623634` plus eax times (the high end `dword_623638` less the
-//! low) over the textures' number, plus 1. Then the function `dword_623704` names is
-//! called (the front end's set-up puts `sub_4467C7` there, which draws).
-//! One caller, `scene::reload_system_textures`.
+//! Unless there are no system textures (`dword_5DC974`): the progress `dword_623700` = the low
+//! end `dword_623634` plus eax times (the high end `dword_623638` less the low) over the
+//! textures' number, plus 1. Then the function `dword_623704` names is called (the front end's
+//! set-up puts `sub_4467C7` there, which draws). One caller, `scene::reload_system_textures`.
 //! Refuses no function to call.
-//! Shadow mode runs the original alone and checks the progress it left.
-//! Self-test: the original itself, the function it calls being a variable that the
-//! test points at a stand-in of its own; 30 cases.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_addr, game_read, game_write, rva};

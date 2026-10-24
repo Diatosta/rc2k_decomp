@@ -26,14 +26,8 @@
 //!     nothing (part 0 loaded them).
 //!
 //! At the end three fatal errors: the faces' memory used up (0x80600011), the points'
-//! (0x80600010), 0xC000 faces or more (0x80600012).
-//! One caller, `scene::load_front_end_objects`.
-//! Shadow mode runs the original alone (its parts are compared in their own hooks).
-//! Self-test: a redirected copy whose calls note themselves, 200 cases by lot.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! (0x80600010), 0xC000 faces or more (0x80600012). One caller,
+//! `scene::load_front_end_objects`.
 
 use crate::errors::{FatalError, Refused};
 use crate::files::read_whole_file::read_whole_file;
@@ -187,7 +181,6 @@ pub unsafe fn load_object() -> Result<(), Refused> {
             game_read::<u32>(NAMES_RVA + 4) as *const u8,
             game_addr(FILE_RVA) as *mut u8,
             FILE_ROOM as u32,
-            0,
         )?;
         if BYTES_READ.load(std::sync::atomic::Ordering::Relaxed) == 0 {
             return Ok(());

@@ -12,12 +12,7 @@
 //!
 //! Caller: `sub_4C1148`. Refuses null settings, a +0x2748 of 9 or more when it is read
 //! (`dword_844E34` holds 9), and its steps' refusals; on a refusal nothing stays written
-//! (all it may write is put back). Self-test: the game's settings (skipped without them),
-//! clocks, randoms and switches by lot; compared on all it may write.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! (all it may write is put back).
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::rva;

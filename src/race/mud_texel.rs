@@ -7,13 +7,7 @@
 //! Out: eax = the components, 0 outside, or as it came when the place is skipped; the
 //!      rest kept; no flags read (the callers test eax's top bit)
 //!
-//! See `race/mud.rs`. Callers: `race::muddy_texel`, `race::splash_mud`. Self-test: the
-//! original and the Rust version on test surfaces (16 and 32 bits), each halving, places
-//! even, odd and outside.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! See `race/mud.rs`. Callers: `race::muddy_texel`, `race::splash_mud`.
 
 use crate::framework::{game_read, rva};
 use crate::race::mud::mud_pixel;

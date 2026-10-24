@@ -11,14 +11,8 @@
 //! In:  nothing (`dword_623DE8` .. `dword_623E24`, set by the caller)
 //! Out: eax 0xFF, ecx 4, esi the record pool going into the calls; then as they leave them
 //!
-//! The calls through `part` as `draw_flat_quad`'s (2 the clip, 3 / 5 the depth buffer, 4
-//! the draw), in the game their Rust versions. Shadow mode runs the original alone (it
-//! draws). Self-test: a copy whose calls go to stand-ins, against the Rust version, quads
-//! by lot.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! The calls as `draw_flat_quad`'s (the clip, the depth buffer, the draw), their Rust
+//! versions.
 
 use crate::errors::Refused;
 use crate::framework::{game_addr, game_read, game_write, rva};
@@ -100,18 +94,18 @@ pub unsafe fn draw_tinted_quad() -> Result<(), Refused> {
         }
         set(LIST_RVA + 16, 0);
         set(NEXT_ENTRY_RVA, 4);
-        crate::scene::draw_flat_quad::part(2)?;
+        crate::scene::clip_polygon_to_screen::clip_polygon_to_screen()?;
         if game_read::<u32>(COUNT_RVA) >= 3 {
-            crate::scene::draw_flat_quad::part(3)?;
+            crate::scene::depth_buffer_on::depth_buffer(false);
             set(MODE_RVA, 3);
             set(TEXTURES_RVA[0], 0xFFFF_FFFF);
             set(TEXTURES_RVA[1], 0xFFFF_FFFF);
             set(SIDES_RVA[0], 0);
             set(SIDES_RVA[1], 1);
-            crate::scene::draw_flat_quad::part(4)?;
+            crate::scene::draw_polygon::draw_polygon_in_game()?;
             set(MODE_RVA, 0);
             set(DRAWN_RVA, 1);
-            crate::scene::draw_flat_quad::part(5)?;
+            crate::scene::depth_buffer_on::depth_buffer(true);
         }
         set(COLOUR_RVA, 0xFF_FFFF);
     }

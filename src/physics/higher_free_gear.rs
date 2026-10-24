@@ -8,13 +8,9 @@
 //!      caller (`jb`); the rest kept
 //!
 //! A loop target (0x43C5A3) is inside the first five bytes: `.private_copy`, its call
-//! relocated. Caller: `sub_43C2AE` (0x43C365), the gearbox under `sub_4454D2`.
-//! Refuses what `gear_bit` refuses (a bit past the dword: a count of 31 or more lets the
-//! search run there), nothing written.
-//! Shadow mode: `physics/flag_result.rs`.
-//! Self-test: a copy of the original on a test count whose call goes to a copy of
-//! `gear_bit` on a test dword, gears -1 .. 8, counts 4 .. 7 on several bit patterns;
-//! refusals.
+//! relocated. Caller: `sub_43C2AE` (0x43C365), the gearbox under `sub_4454D2`. Refuses what
+//! `gear_bit` refuses (a bit past the dword: a count of 31 or more lets the search run
+//! there), nothing written.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

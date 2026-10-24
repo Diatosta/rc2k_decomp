@@ -9,13 +9,12 @@
 //! frame; the steps that are more than a call or a store are the functions below, generated
 //! from the listing.
 //! The name is a reading from the title string of its menu, "ETAPA SEGUINTE", not yet a visit.
-//! Callers: `470393`, `sub_4A0E60`, `sub_4AA4D7`.
-//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
+//! Callers: `470393`, `sub_4A0E60`, `sub_4AA4D7`. The menus and draw lists run its `entry`
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
 use crate::framework::{game_read, game_write, rva};
-use crate::menu::screen_loop::{Carried, List, Screen, Step, screen_entry};
+use crate::menu::screen_loop::{Callee, Carried, List, Screen, Step, screen_entry};
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
@@ -54,15 +53,15 @@ pub const SCREEN: Screen = Screen {
     set_up_first: &[],
     prepare: &[],
     after_lists: &[Step::Write(rva(0x755700), 0x3)],
-    background: &[Step::Call(rva(0x4683CF))],
-    after_first_frame: &[Step::Call(rva(0x47F437))],
+    background: &[Step::Call(Callee::DrawStageMap)],
+    after_first_frame: &[Step::Call(Callee::PlayStageSpeech)],
     confirm: Some(&[]),
     ask_also_if: None,
     confirmed: &[],
     unasked_skips_save: false,
-    after: &[Step::Call(rva(0x40F757))],
+    after: &[Step::Call(Callee::StopStream)],
     escape_leaves: false,
-    each_frame: &[Step::Call(rva(0x46F7AD))],
+    each_frame: &[Step::Call(Callee::StepCarStream)],
     short_action_check: false,
     leave_at_once: None,
     next_frame_repeats_first: false,
@@ -84,7 +83,7 @@ pub const SCREEN: Screen = Screen {
     always_asks: false,
 };
 
-/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// The Rust version where the typed tables run it (a refusal is the
 /// caller's).
 pub fn run() -> Result<(), crate::errors::Refused> {
     screen_entry("menu::next_stage_loop", &SCREEN)

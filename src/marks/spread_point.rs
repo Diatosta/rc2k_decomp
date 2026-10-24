@@ -8,17 +8,9 @@
 //!
 //! The random (`g_marksSpreadRandom`): times 0x9D plus 0x47, then rotated right 12 twice,
 //! each of the three a whole number (signed) of it: the third for st(3), the second for
-//! st(2), the first for st(1). Thunk by `quad_triple_hook!`. Callers: four in the marks'
-//! particles. Self-test: as `marks::jitter_point`'s.
+//! st(2), the first for st(1). Callers: four in the marks' particles.
 //!
-//! Converted 2026-10-21: the hook's Rust version is `spread_point_plain`, through
-//! `rc2k_core::marks::particles::spread` (plain floats; the x87 version stays for the Rust
-//! callers in unconverted code). Shadow mode and the self-test compare within
-//! `service::floats`' tolerances (the self-test at both test precisions, exact at double).
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! the x87 version stays for the Rust callers in unconverted code).
 
 use crate::marks::store::{Slot, game_read, game_write};
 use crate::math::x87;

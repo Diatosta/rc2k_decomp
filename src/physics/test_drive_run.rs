@@ -14,12 +14,8 @@
 //! Out: ebx 5000, eax the last step / 20, ecx 20, edx its remainder (the gear when 0); the
 //!      rest kept; no flags read
 //!
-//! Caller: `physics::test_drive`.
-//! Refuses a gear outside -1 ..= 7 (past `g_gearRatios`) and what its calls refuse;
-//! everything written put back.
-//! Self-test: the original and the Rust version from the same state (the work car, the
-//! physics' variables and the tables saved and put back), the car as it is and with its
-//! drive force by lot, under three precisions.
+//! Caller: `physics::test_drive`. Refuses a gear outside -1 ..= 7 (past `g_gearRatios`) and
+//! what its calls refuse; everything written put back.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

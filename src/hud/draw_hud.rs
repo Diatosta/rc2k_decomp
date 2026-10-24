@@ -6,15 +6,7 @@
 //! In:  nothing
 //! Out: ebp the record; the rest as the flush leaves them
 //!
-//! Caller: `sub_45A893` (0x45A8F0). Hooked through a private copy (a call at the entry).
-//! The depth and tenths are their Rust versions; the layouts and the flush through `part`
-//! (1 / 2 / 3 the layouts 0 / 1 / 2, 4 the flush), in the game their Rust versions. Shadow
-//! mode runs the original alone (it draws). Self-test: a copy whose layouts and flush go
-//! to stand-ins, against the Rust version, every layout.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `sub_45A893` (0x45A8F0).
 
 use crate::errors::Refused;
 use crate::framework::rva;

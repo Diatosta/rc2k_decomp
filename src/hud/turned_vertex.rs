@@ -7,13 +7,7 @@
 //! In:  st(0) y, st(1) x (popped), edi the vertex, edx the angle, ebx passed on
 //! Out: eax the colour, ecx the turned y, ebx as the turn leaves it; edx, ebp kept
 //!
-//! Callers: `sub_4B6ECD`'s four (code at 0x4B6FFE ..). The turn is its Rust version. Thunk
-//! by `two_in_hook!`. Self-test: the original and the Rust version on a vertex of the
-//! test's, points and angles by lot, at the test precisions (`service::floats`).
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Callers: `sub_4B6ECD`'s four (code at 0x4B6FFE ..). The turn is its Rust version.
 
 use crate::hud::add_quad::QUAD_RVA;
 use crate::hud::store::Slot;

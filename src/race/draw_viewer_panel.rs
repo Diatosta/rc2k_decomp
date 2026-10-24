@@ -13,16 +13,7 @@
 //! In:  nothing
 //! Out: every register kept (`pusha` / `popa`); no flags read
 //!
-//! Caller: `race::viewer_frame`. Its calls through `part` (`CALLEES`; `strings::append_nul`
-//! written inline); in the game their Rust versions, the texture's copy (Direct3D) and the
-//! texture's setting through the game. Shadow mode runs the original alone (it draws).
-//! Self-test: a copy whose calls go to stand-ins, against the Rust version, a surface of the
-//! test's locked: camera bytes 5 of 0, 1 and 2, names in and past the table, the lock
-//! failing.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `race::viewer_frame`.
 
 use crate::errors::Refused;
 use crate::physics::flow::{a, g, p};

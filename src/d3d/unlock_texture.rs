@@ -9,8 +9,6 @@
 //!
 //! Callers: those of `d3d::lock_texture`. The unlock is the surface's own method. Refuses
 //! a texture past the pool's 0x140, before anything.
-//! Hook removed 2026-10-22 (direct calls): Rust callers run `unlock_texture` (by address:
-//! `routes.rs`); the registers above are the original's, for reference.
 
 use crate::d3d::texture_lock::*;
 use crate::errors::{BadInput, Refused};

@@ -9,19 +9,12 @@
 //!      count); flags the `add`'s (no caller reads them)
 //!
 //! Callers (7): `sub_43BDD1`, `sub_45D737`, `sub_45D7B6` (twice), `sub_45E3BF`,
-//! `sub_45EFF3`, `sub_45F703`, under `sub_4454D2` (most followed by `sub_43F1A8`).
-//! Refuses a count above 0x7C (unsigned: the list would run past the work copy's end,
-//! 0x71AFB8), before writing.
-//! Self-test: a copy of the original whose twelve references are the test's, counts 0 ..
-//! 0x7C; the refusal.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! `sub_45EFF3`, `sub_45F703`, under `sub_4454D2` (most followed by `sub_43F1A8`). Refuses
+//! a count above 0x7C (unsigned: the list would run past the work copy's end, 0x71AFB8),
+//! before writing.
 
 use crate::errors::Refused;
-use crate::framework::{ECX, EDI, ESI, game_addr, rva};
-use crate::screens::harness::Left;
+use crate::framework::{game_addr, rva};
 use rc2k_core::physics::saved_car::{restore_count, restored};
 
 /// The variables' addresses: the game's, or a test's.
@@ -59,7 +52,7 @@ impl SavedCar {
 
 /// The Rust core on the variables at `p`.
 // Converted: `rc2k_core::physics::saved_car::{restore_count, restored}`.
-pub unsafe fn restore_saved_car_at(p: &SavedCar) -> Result<Left, Refused> {
+pub unsafe fn restore_saved_car_at(p: &SavedCar) -> Result<(), Refused> {
     use crate::physics::save_car_state::{read_state, write_state};
     unsafe {
         let n = restore_count(SavedCar::at(p.count))?;
@@ -67,16 +60,11 @@ pub unsafe fn restore_saved_car_at(p: &SavedCar) -> Result<Left, Refused> {
         (p.counter as *mut u32).write_unaligned(c);
         let state = read_state(p.saved_place, p.saved_matrix, p.saved_list, n);
         write_state(&state, p.place, p.matrix, p.list);
-        let n = n as u32;
-        Ok(Left::nothing()
-            .with(crate::framework::EAX, state.place[2])
-            .with(ECX, 0)
-            .with(ESI, p.saved_list + 4 * n)
-            .with(EDI, p.list + 4 * n))
+        Ok(())
     }
 }
 
 /// The Rust version.
-pub unsafe fn restore_saved_car() -> Result<Left, Refused> {
+pub unsafe fn restore_saved_car() -> Result<(), Refused> {
     unsafe { restore_saved_car_at(&SavedCar::game()) }
 }

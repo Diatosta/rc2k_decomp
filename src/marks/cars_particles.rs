@@ -20,12 +20,7 @@
 //!
 //! Caller: `sub_4C3EEE` (0x4C4006). Refuses null settings, more than 8 cars, a car's null
 //! matrix or vector, a car model (+4) of 33 or more, and the emitters' refusals; on a
-//! refusal nothing stays written (all it may write is put back). Self-test: settings of
-//! the test's with up to three cars on the test ring (`marks::emit_particle_6::TestEmitter`).
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! refusal nothing stays written (all it may write is put back).
 
 use crate::errors::{BadInput, Refused};
 use crate::marks::emit_car_particles::emit_car_particles;

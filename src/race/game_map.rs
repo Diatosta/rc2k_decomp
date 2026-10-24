@@ -287,5 +287,3 @@ pub unsafe fn load_game_map(picture: u32, key_path: u32) -> Result<(), Refused> 
     }
     Ok(())
 }
-
-// ---- for the self-tests ----

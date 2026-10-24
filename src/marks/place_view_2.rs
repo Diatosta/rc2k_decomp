@@ -7,15 +7,8 @@
 //! Out: nothing (its caller reads no register after it)
 //!
 //! See `marks/place_view.rs`; no variable shared with it. One caller, `sub_4C25F6`.
-//! Self-test: as `place_view`'s, the two blocks also watched.
 //!
-//! Converted 2026-10-21: the hook's Rust version is `place_view_2_plain`, on
-//! `marks::place_view`'s converted body (the x87 version stays for the Rust callers in
-//! unconverted code); compared as `place_view`.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! compared as `place_view`.
 
 use crate::errors::Refused;
 use crate::marks::place_view::{ViewPlace, place_view_with};

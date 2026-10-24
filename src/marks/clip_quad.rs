@@ -14,13 +14,7 @@
 //! Out: the result: true when all is outside (the original's CF); no caller reads a
 //!      register it leaves
 //!
-//! Eight callers, each `jb` after it. Refuses null settings or quad. Self-test: quads of
-//! the test's (every inside pattern, each mode), compared on the quad, the work area, the
-//! counts, the registers and CF.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Eight callers, each `jb` after it. Refuses null settings or quad.
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::rva;

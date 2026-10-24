@@ -99,7 +99,7 @@ impl rc2k_core::race::settings_copy::Machine<usize> for Game {
     }
 }
 
-/// The steps from the first, as the original runs them.
+/// The steps from the first, in the original's order.
 pub unsafe fn run(steps: &[Step]) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::settings_copy::run` (the x87's conversions and the
     // brake's product kept, through `Machine`).

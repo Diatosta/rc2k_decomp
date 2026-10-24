@@ -10,15 +10,8 @@
 //!
 //! In:  nothing
 //! Out: every register kept (`pusha` .. `popa`)
-//! The callees get eax 5 - level, ebx the level and edi player 0's record at first, then
-//! what the one before left. All at the game's addresses (their hooks choose) but the key's
-//! taking (its Rust version). Refuses (before anything) a missing player 0. Ungated thunk;
-//! shadow mode runs the original alone. Self-test: a copy whose 17 calls go to stand-ins,
-//! against the Rust version.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! The callees get eax 5 - level, ebx the level and edi player 0's record at first, then what the
+//! one before left. Refuses (before anything) a missing player 0.
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_read, game_write, rva};

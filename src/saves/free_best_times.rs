@@ -2,12 +2,10 @@
 //!
 //! In:  nothing
 //! Out: every register preserved
-//! `memory::free_list` on `g_bestTimesMemory` (0x7475D0), and `g_bestTimesAllocated`
-//! (0x747610) = 0. The tables' addresses stay in their variables.
-//! One caller, the main loop, after `saves::save_game_data`.
-//! Refuses what `free_list` refuses.
-//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
-//! `routes.rs`); the registers above are the original's, for reference.
+//! `memory::free_list` on `g_bestTimesMemory` (0x7475D0), and `g_bestTimesAllocated` (0x747610) =
+//! 0. The tables' addresses stay in their variables. One caller, the main loop, after
+//! `saves::save_game_data`. Refuses what `free_list` refuses. Rust callers run its `entry`
+//! (`routes.rs`); the registers above are the original's, for reference.
 
 use crate::errors::BadInput;
 use crate::framework::{game_addr, rva};

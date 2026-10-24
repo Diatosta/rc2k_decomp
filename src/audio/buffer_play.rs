@@ -1,6 +1,6 @@
 //! What `audio::is_playing`, `rewind_buffer`, `play_buffer`, `stop_buffer` and
 //! `commit_3d` share: a voice's buffer started, stopped and asked after, one COM call each
-//! (`audio/com.rs`), and the self-test of the four on a voice's buffer.
+//! (`audio/com.rs`).
 
 use crate::audio::buffer_settings::a3d;
 use crate::audio::voices::*;

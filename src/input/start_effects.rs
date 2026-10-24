@@ -4,9 +4,7 @@
 //! In:  nothing
 //! Out: every register kept (`pusha` .. `popa`)
 //!
-//! See `input/effects.rs`. One caller, `input::begin_effects`. Its calls through `part`.
-//! Shadow mode runs the original alone. Self-test: a copy whose calls go to the noting
-//! stand-ins, against the Rust version (`stop_effects` shares it).
+//! See `input/effects.rs`. One caller, `input::begin_effects`.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

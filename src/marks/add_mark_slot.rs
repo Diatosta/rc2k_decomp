@@ -6,14 +6,8 @@
 //! In:  eax, esi what the slot holds
 //! Out: every register kept
 //!
-//! One caller, `sub_4C969A` (the marks' frame). The float first gets `flt_935406`, then
-//! the random at once: only the second is kept. Manual patch with a private copy (its
-//! first five bytes end with a jump). Self-test: slots of several fillings, the original
-//! and the Rust version, at the test precisions; put back afterwards.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! One caller, `sub_4C969A` (the marks' frame). The float first gets `flt_935406`, then the
+//! random at once: only the second is kept.
 
 use crate::marks::setup::{SLOT_LEN, SLOTS, SLOTS_RVA};
 use crate::marks::store::{Slot, game_read, game_write};

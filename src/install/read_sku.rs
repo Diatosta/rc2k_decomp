@@ -7,11 +7,6 @@
 //! `dword_5190FC`); then a number (`dword_5190F4`), after the next `:` a second
 //! (`byte_519101`) and after the next `.` within 254 characters a third (`byte_519100`).
 //! What is not there keeps its value. One caller, `sub_411239`.
-//! Self-test: a redirected copy that reads a file of the test's.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::bridge::Raw;
 use crate::errors::BadInput;

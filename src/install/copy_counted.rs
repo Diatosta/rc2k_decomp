@@ -3,13 +3,8 @@
 //!
 //! In:  esi the source path, edi the destination path
 //! Out: every register kept (`pusha` / `popa`)
-//! Callers `install::install_files`, `install::install_clio`. The copy through `part`.
-//! Ungated. Shadow mode runs the original alone (one copy). Self-test: a copy whose one
-//! call goes to a stand-in, against the Rust version.
+//! Callers `install::install_files`, `install::install_clio`.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 //! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
 //! are the original's.
 

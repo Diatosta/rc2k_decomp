@@ -11,18 +11,11 @@
 //! Out: as the second `lever_push` leaves them when it ran, else all kept; no flags read
 //!
 //! Callers: `sub_43B635` (0x43B831, 0x43B8AA), every physics step.
-//! Self-test: the original and the Rust version on the game's variables (saved and put
-//! back): both switches, loads by lot and all 0, under three precisions.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::framework::{game_read, game_write, rva};
 use crate::math::x87;
 use crate::math::x87_run::{lever_share, one_less};
 use crate::physics::lever_push::lever_push;
-use crate::screens::harness::Left;
 use std::cmp::Ordering;
 
 fn g(x: usize) -> u32 {
@@ -46,11 +39,11 @@ fn below(share: u32, limit: u32) -> bool {
 }
 
 /// The Rust version.
-pub unsafe fn lever_pushes() -> Left {
+pub unsafe fn lever_pushes() {
     p(0x6140E4, 0);
     p(0x6140E8, 0);
     if g(0x621884) != 1 || g(0x71A22C) != 0 {
-        return Left::nothing();
+        return;
     }
     p(0x614B44, 0);
     p(0x614B48, 0);
@@ -58,7 +51,7 @@ pub unsafe fn lever_pushes() -> Left {
     let (share, zero) = lever_share(g(0x71A1E8), g(0x71A1F4), g(0x71A1EC), g(0x71A1F0), g(ZERO));
     p(SHARE, share);
     if zero {
-        return Left::nothing();
+        return;
     }
     if below(g(SHARE), g(ZERO)) {
         p(SHARE, x87::loaded(g(ZERO)));
@@ -71,5 +64,5 @@ pub unsafe fn lever_pushes() -> Left {
     unsafe { lever_push() };
     p(0x614B4C, x87::loaded(g(0x71ACC8)));
     p(0x614C48, one_less(g(0x614C48)));
-    unsafe { lever_push() }
+    unsafe { lever_push() };
 }

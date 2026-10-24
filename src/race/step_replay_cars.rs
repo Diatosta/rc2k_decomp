@@ -9,17 +9,9 @@
 //! In:  nothing
 //! Out: the registers as `race_mode_cars` leaves them; no flags read
 //!
-//! Caller: `race::show_replay_still` (two). Unlike `drive::replay_step` the clocks count
-//! only for a running car, and nothing is recorded or sent. Refuses (before anything) a
-//! cars' count of 0 or past 8 (0 goes round 2^32 times). Its calls through `part`
-//! (`CALLEES`); in the game their Rust versions (as `drive::replay_step`'s). Shadow mode
-//! runs the original alone (as `car_physics_step`). Self-test: a copy whose calls go to
-//! stand-ins (the running switch by car), against the Rust version: one, three and eight
-//! cars.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `race::show_replay_still` (two). Unlike `drive::replay_step` the clocks count only
+//! for a running car, and nothing is recorded or sent. Refuses (before anything) a cars' count
+//! of 0 or past 8 (0 goes round 2^32 times).
 
 use crate::errors::Refused;
 use crate::physics::flow::{g, p};

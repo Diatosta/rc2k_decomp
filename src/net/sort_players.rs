@@ -7,12 +7,7 @@
 //! Out: every register kept (`pusha` .. `popa`)
 //! `g_netPlayers` - 1 passes (signed: none for one player or none). More than eight players
 //! would sort past the copy: refused (DirectPlay's listing keeps eight at most). Caller:
-//! `net::lobby_frame`. Shadow mode: both run, the copy compared. Self-test: a copy against
-//! the Rust version on 0, 1, 2, 5 and 8 players with times, totals and ids that tie.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! `net::lobby_frame`.
 
 use crate::errors::{BadInput, Refused};
 use crate::net::lobby::{BLOCK, PLAYERS, RECEIVED, SORTED, a, g, movsb};

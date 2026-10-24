@@ -6,13 +6,8 @@
 //! In:  nothing
 //! Out: every register kept (`pusha` .. `popa`)
 //!
-//! Caller: `sub_473126`. Refuses null tables and a table A that runs out (the original
-//! walks on past its end), before anything. Self-test: the original and the Rust version
-//! on the game's tables, both modes; put back.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `sub_473126`. Refuses null tables and a table A that runs out (the original walks on
+//! past its end), before anything.
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_read, rva};
 use crate::menu::standings::*;

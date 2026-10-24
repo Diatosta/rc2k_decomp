@@ -5,18 +5,11 @@
 //! In:  eax the pattern byte, ebx the column, ecx the row
 //! Out: nothing (its caller walks the pattern itself)
 //!
-//! Caller: `marks::pong_digit` (twenty times). The box through `part` (1 with its four
-//! values), in the game its Rust version. Hooked through a private copy (a `jz` in the
-//! first bytes). Shadow mode runs the original alone (it draws). Self-test: a copy whose
-//! box goes to a stand-in taking the values off, against the Rust version.
+//! Caller: `marks::pong_digit` (twenty times).
 //!
 //! Converted 2026-10-21: the box's place through `rc2k_core::marks::pong::cell_place` (a
 //! whole number times a float plus a whole number: exact in `f64`, as the x87's at double
 //! precision; at extended too while the product fits 53 bits, as the score's cells do).
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::errors::Refused;
 use crate::marks::pong;

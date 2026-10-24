@@ -8,11 +8,8 @@
 //! In:  nothing
 //! Out: the registers as `contact_force` leaves them; no flags read (callers go on)
 //!
-//! Callers: `physics::wall_contacts`, `physics::wall_edge_contact`.
-//! Refuses what `place_sound_e1` refuses (what was written put back).
-//! Self-test: `physics/wall_contacts.rs` (`test_walls`): the original and the Rust version
-//! on the game's variables (saved and put back), speeds and figures by lot (standing
-//! still too), under three precisions.
+//! Callers: `physics::wall_contacts`, `physics::wall_edge_contact`. Refuses what
+//! `place_sound_e1` refuses (what was written put back).
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

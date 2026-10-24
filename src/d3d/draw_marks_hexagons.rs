@@ -9,7 +9,7 @@
 //! `marks::hexagons_top`, `marks::hexagons_frame`.
 //! Platform: the original always runs. In the standalone program the rasteriser draws
 //! each triangle (`platform_3d::draw_indexed_list`) and the result is 0 (before 2026-10-19
-//! the standalone skipped it). No self-test.
+//! the standalone skipped it).
 
 use crate::gfx::block::{game_addr, game_read};
 use crate::gfx::hexagon_batch::Slot as HexSlot;

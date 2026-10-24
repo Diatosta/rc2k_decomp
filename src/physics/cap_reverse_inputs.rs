@@ -7,13 +7,6 @@
 //! Out: every register kept; no flags read (the caller's next is a call)
 //!
 //! Caller: `sub_43DFB1` (0x43E519).
-//! Self-test: a copy of the original (its four variables the test's) against the converted
-//! version (compares and copies of floats only: exact at any precision):
-//! gears, speeds about 0 and NaN, values about the cap.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::framework::{game_addr, game_read, rva};
 use rc2k_core::physics::drive_forces::cap_reverse;

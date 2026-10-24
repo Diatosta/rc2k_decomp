@@ -84,8 +84,7 @@ impl TableVars {
 }
 
 pub const RECORDS: u32 = 0x22;
-/// `race::prepare_sound_tables` (0x40D636), converted (the hook's and
-/// `set_up_race_sound_objects`'): once (`dword_516358`): each of the 0x22 records
+/// `race::prepare_sound_tables` (0x40D636), converted (`set_up_race_sound_objects`'s too): once (`dword_516358`): each of the 0x22 records
 /// (`off_514F90`) its span at +4 (`sound_span`), +0xC made its reciprocal (`fld1` /
 /// `fdiv`), its three rows (`sound_row`, 0x28 apart from +0x10); then the 0x40 floats at
 /// 0x516258 1 + 0.05 sin(x) for x from 0 by pi / 32 (the scratch `dword_5183CC` left the

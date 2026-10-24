@@ -9,29 +9,20 @@
 //! 1/65536 into +0x2C ..; the car's +0xD4 .. turned into +0x38 ... All in `pusha` /
 //! `popa`.
 //!
-//! The hook runs the converted version (`car_sound_state_plain`); the exact x87 one
-//! (the runs over the object the original's instructions, from IDA) stays for
-//! `physics::engine_sound`.
+//! the exact x87 one (the runs over the object the original's instructions, from IDA) stays
+//! for `physics::engine_sound`.
 //!
 //! In:  nothing
 //! Out: every register kept; no flags read
 //!
-//! Caller: `physics::engine_sound`.
-//! Refuses (before anything) a null sound object, or a null view block when it is read.
-//! Self-test: the original and the converted version on the game's variables (saved and
-//! put back) with a test object: exact at double precision; at extended the shares and
-//! voices within `FLOAT`, the place and the turned motion within `SUM`.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `physics::engine_sound`. Refuses (before anything) a null sound object, or a
+//! null view block when it is read.
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_addr, game_write, rva};
 use crate::math::x87_run::{ext_times, ints_diff_80};
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
-use crate::screens::harness::Left;
 
 fn g(x: impl crate::store::At) -> u32 {
     unsafe { crate::store::at_read(x) }
@@ -109,7 +100,7 @@ fn listener() -> u32 {
 }
 
 /// The exact x87 version (for `physics::engine_sound`).
-pub unsafe fn car_sound_state() -> Result<Left, Refused> {
+pub unsafe fn car_sound_state() -> Result<(), Refused> {
     let o = object();
     if o == 0 {
         return Err(BadInput("a null sound object").into());
@@ -152,5 +143,5 @@ pub unsafe fn car_sound_state() -> Result<Left, Refused> {
             put(o + 0x38 + 4 * i as u32, rounded(*e));
         }
     }
-    Ok(Left::nothing())
+    Ok(())
 }

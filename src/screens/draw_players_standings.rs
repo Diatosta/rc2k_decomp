@@ -9,9 +9,8 @@
 //! In:  nothing
 //! Out: every register preserved (`pusha` .. `popa`)
 //!
-//! In a menu loop's draw list (0x758ECE). Refuses (before anything) a row's player without
-//! its record or name, or without its points.
-//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
+//! In a menu loop's draw list (0x758ECE). Refuses (before anything) a row's player without its
+//! record or name, or without its points. The menus and draw lists run its `entry`
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};

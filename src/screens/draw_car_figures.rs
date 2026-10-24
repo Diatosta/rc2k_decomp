@@ -26,11 +26,9 @@
 //!   +0x54 .. +0x68 (`append_length`) at 0x10A .. 0x17D, 0x17 apart; weight +0x6C
 //!   (`append_weight`) at 0x194.
 //!
-//! In two draw lists (the car specification screens).
-//! Refuses a page past the four, what the record's lookup refuses, and a line longer
-//! than the line buffer.
-//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
-//! (`menu::table_calls`); the registers above are the original's, for reference.
+//! In two draw lists (the car specification screens). Refuses a page past the four, what the
+//! record's lookup refuses, and a line longer than the line buffer. The menus and draw lists run
+//! its `entry` (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_read, rva};

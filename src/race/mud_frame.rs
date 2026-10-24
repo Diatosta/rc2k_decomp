@@ -5,8 +5,7 @@
 //! In:  nothing (the original reads no register at entry)
 //! Out: nothing its one caller, `race::draw_race_scene`, reads
 //!
-//! See `race/mud.rs`. Refuses what `mud_texture_turn` refuses. Hook removed 2026-10-23
-//! (conversion phase 4).
+//! See `race/mud.rs`. Refuses what `mud_texture_turn` refuses.
 
 use crate::errors::Refused;
 use crate::framework::{game_read, game_write, rva};

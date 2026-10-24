@@ -7,11 +7,6 @@
 //! `next` the stopping list's head) and emptied, and `g_channelsUsed` is 0. The channels
 //! keep their `used` marks: the turn's update frees them as it stops the voices.
 //! Refuses a playing list that does not end within 0x200 voices.
-//! Compared in shadow mode. Self-test: a redirected copy on lists of the test's, 40 cases.
-//!
-//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::audio::voices::*;
 use crate::errors::Refused;

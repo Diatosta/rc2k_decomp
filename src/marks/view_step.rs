@@ -5,17 +5,9 @@
 //! In:  nothing
 //! Out: every register kept
 //!
-//! Caller: `sub_4C1270`. Self-test: the six inputs by lot, the original and the Rust
-//! version compared on the six results; put back afterwards.
+//! Caller: `sub_4C1270`.
 //!
-//! Converted 2026-10-21: the hook's Rust version is `view_step_plain`, through
-//! `rc2k_core::marks::view::step` (plain floats; the x87 version stays for the Rust callers
-//! in unconverted code). Shadow mode and the self-test compare within `service::floats`'
-//! tolerances (the self-test at both test precisions, exact at double).
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! the x87 version stays for the Rust callers in unconverted code).
 
 use crate::marks::store::{Slot, game_read, game_write};
 use crate::math::x87;

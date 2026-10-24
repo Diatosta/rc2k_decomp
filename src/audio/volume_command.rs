@@ -5,13 +5,6 @@
 //!
 //! Nothing for a negative volume; else it is kept in `g_masterVolume` and
 //! `audio::set_master_volume` called with it. One caller, `audio::take_commands`.
-//! Manual patch with a private copy (a short `js` in its first bytes; its call relocated).
-//! Shadow mode runs the original alone. Self-test: a redirected copy whose variable is the
-//! test's and whose call notes eax, 8 cases.
-//!
-//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::audio::voices::*;
 

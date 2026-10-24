@@ -30,18 +30,11 @@
 //! - The slot's first point and face and its numbers of points, normals and faces are
 //!   set.
 //!
-//! 18 call sites in `scene::load_object`.
-//! Refuses what would make the original read or write outside its tables: a file
-//! elsewhere than the buffer or running past its room, more than 0x1000 points, faces
-//! or normals, a point's or normal's number of 0x1000 or more, a face taken that has
-//! no vertices; and a shape that does not fit the memory left (the original writes
-//! past it, and `load_object` reports the fatal error afterwards).
-//! Shadow mode: Rust, its writes put back, the original, compared.
-//! Self-test: 60 files by lot, into memory of the test's.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! 18 call sites in `scene::load_object`. Refuses what would make the original read or write
+//! outside its tables: a file elsewhere than the buffer or running past its room, more than
+//! 0x1000 points, faces or normals, a point's or normal's number of 0x1000 or more, a face
+//! taken that has no vertices; and a shape that does not fit the memory left (the original
+//! writes past it, and `load_object` reports the fatal error afterwards).
 
 use crate::errors::BadInput;
 use crate::framework::{game_addr, game_read, game_write, rva};

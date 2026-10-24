@@ -6,32 +6,23 @@
 //!      (flags: the `and`'s; no caller reads them)
 //!
 //! See `drive/car.rs`. Callers (17): the race's frame, both halves (`sub_43703E`,
-//! `sub_460B2F` under `sub_4454D2`; `sub_454253`, `sub_454265`, `sub_454289`,
-//! `sub_446463`, `sub_4608BB` under `sub_4541BF`).
-//! Refuses a null block (the original faults).
-//! Self-test: a copy of the original whose three variables are the test's, against the
-//! Rust core on the same, every slot number's low bits and some high ones; the work copy
-//! and all eight blocks compared.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! `sub_460B2F` under `sub_4454D2`; `sub_454253`, `sub_454265`, `sub_454289`, `sub_446463`,
+//! `sub_4608BB` under `sub_4541BF`). Refuses a null block (the original faults).
 
 use crate::drive::car::*;
 use crate::errors::Refused;
-use crate::screens::harness::Left;
 
-/// The Rust core on the variables at `p`: what it leaves in the registers.
+/// The Rust core on the variables at `p`: the work copy and the block exchange one copy.
 // Converted: `rc2k_core::drive::work_car::{car_slot, car_block}`.
-pub unsafe fn store_car_at(p: CarPlaces) -> Result<Left, Refused> {
+pub unsafe fn store_car_at(p: CarPlaces) -> Result<(), Refused> {
     unsafe {
-        let (slot, block) = p.block()?;
+        let (_, block) = p.block()?;
         copy_dwords(p.work, block);
-        Ok(left(slot, p.work, block))
+        Ok(())
     }
 }
 
 /// The Rust version, on the game's variables.
-pub unsafe fn store_car() -> Result<Left, Refused> {
+pub unsafe fn store_car() -> Result<(), Refused> {
     unsafe { store_car_at(CarPlaces::game()) }
 }

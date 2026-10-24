@@ -8,14 +8,8 @@
 //! Out: every register preserved; CF clear (the loop's last `cmp` is equal)
 //!
 //! Callers: the players' standings pages (0x4836CF, 0x48D32E; eight calls). Refuses (before
-//! anything) a length below 3 (the original's loop then runs on: with 0 its copy, with 1 or 2
-//! its drawing loop) and one whose copies pass the 0x100 bytes of `byte_A8BC54`. Compared in
-//! shadow mode (`dispatch_draw`). Self-test: lengths 3 .. 8 of digit texts, two fonts and
-//! places, nothing drawn.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! anything) a length below 3 (the original's loop then runs on: with 0 its copy, with 1 or 2 its
+//! drawing loop) and one whose copies pass the 0x100 bytes of `byte_A8BC54`.
 
 use crate::errors::Refused;
 use crate::framework::{game_addr, game_write, rva};

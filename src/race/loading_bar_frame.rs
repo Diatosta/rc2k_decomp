@@ -13,10 +13,9 @@
 //!      it left went; its callers, `race::loadlevel_init`'s progress inside `pusha` and
 //!      `scene::step_loading_bar`'s `show`, discard them)
 //!
-//! Caller: the stage's loading (through `dword_623704`). Its calls are the Rust versions
-//! (the restore the platform's call).
-//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
-//! `routes.rs`); the registers above are the original's, for reference.
+//! Caller: the stage's loading (through `dword_623704`). Its calls are the Rust versions (the
+//! restore the platform's call). The registers above are the original's, for reference; a call
+//! by address goes through `routes.rs`.
 
 use crate::errors::Refused;
 use crate::framework::{game_read, game_write, rva};

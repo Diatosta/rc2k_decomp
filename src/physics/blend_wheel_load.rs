@@ -7,8 +7,6 @@
 //! Out: edx the slot (when reached); the rest kept; no flags read
 //!
 //! Caller: `sub_43B635` (0x43B99A), every physics step.
-//! Self-test: `physics/copy_hooks_test.rs` (`test_moves_floats`: a copy on test
-//! variables against the converted version), 16 cases, exact at double precision.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

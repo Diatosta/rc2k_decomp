@@ -7,8 +7,8 @@
 //! (that sheet and `mbuts01.pcx`), the table's address to `g_spriteTable` (0x755581),
 //! `end_glyph_tables`. The list is not rewound: every call takes new memory after what
 //! is there. Callers: `sub_47C63F` (the main menu's start), `sub_4154CD`, `sub_4703C2`.
-//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
-//! `routes.rs`); the registers above are the original's, for reference.
+//! The registers above are the original's, for reference; a call by address goes through
+//! `routes.rs`.
 
 use crate::errors::Refused;
 use crate::framework::rva;

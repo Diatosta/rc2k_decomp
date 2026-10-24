@@ -8,14 +8,13 @@
 //! next frame begins with the steps after the first frame; the steps that are more than a call
 //! or a store are the functions below, generated from the listing.
 //! The name is a reading from the title string of its menu, "NOVA SIMULAÇÃO", not yet a visit.
-//! Callers: none in code: it is reached through a table.
-//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
+//! Callers: none in code: it is reached through a table. The menus and draw lists run its `entry`
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
 use crate::framework::{game_read, game_write, rva};
 use crate::menu::screen_loop::{
-    Carried, Flow, List, Screen, Step, carousel, prepare_scene, screen_entry,
+    Callee, Carried, Flow, List, Screen, Step, carousel, prepare_scene, screen_entry,
 };
 
 // ---- Rust version: `menu::screen_loop` with this ----
@@ -77,7 +76,7 @@ pub const SCREEN: Screen = Screen {
     after_lists: &[],
     background: &[
         Step::ArgAddr(rva(0x7323D3)),
-        Step::CallOrFatal(rva(0x47EFFF), 0x80712345),
+        Step::CallOrFatal(Callee::LoadBackground, 0x80712345),
     ],
     after_first_frame: &[Step::DoFlow(after_first_frame)],
     confirm: None,
@@ -108,7 +107,7 @@ pub const SCREEN: Screen = Screen {
     always_asks: false,
 };
 
-/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// The Rust version where the typed tables run it (a refusal is the
 /// caller's).
 pub fn run() -> Result<(), crate::errors::Refused> {
     screen_entry("menu::championship_new_simulation_loop", &SCREEN)
