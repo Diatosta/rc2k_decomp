@@ -22,7 +22,8 @@ use crate::race::viewer::{get, put};
 
 const FONT_PALETTES: usize = 0x51DEB0; // g_fontPalettes
 const COLOURS: usize = 0x960FA0; // unk_960FA0: 256 dwords
-const TEXTURE_KINDS: usize = 0x5ABACC; // off_5ABAC0 + 0xC
+const TEXTURE_KINDS: crate::gfx::records::tables::Slot =
+    crate::gfx::records::tables::Slot::at(0x5ABACC); // off_5ABAC0 + 0xC
 /// (to, from): the textures and slots kept.
 const KEPT: [(usize, usize); 4] = [
     (0x5BECB0, 0x5D0E38), // g_kindFirstTextures + 0x350

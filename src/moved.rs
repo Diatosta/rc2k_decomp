@@ -7,12 +7,11 @@
 //! its variable, `settings::read_settings`) and copy lists such as `race::replay`'s
 //! `HEADER_MOVES`. They go through `place` (an IDA address), which answers a moved
 //! variable's new home and anything else's place in the image. The game's own pointers (the
-//! image's relocations) are pointed at the new homes once at start (`point_into_homes`), so
-//! a pointer read from the game's data is a real address. `framework::game_addr` does not
-//! consult this: a stale
-//! `game_addr(rva(X))` of a moved X reads the image's old, unchanging copy, so every use
-//! of a moved address is converted when it moves (grep all its spellings: `0x4E00A0`,
-//! `0x4E_00A0`, `{b} + 0xE00A0`, base + offset).
+//! image's relocations, `crate::relocations::PLACES`) are pointed at the new homes once at
+//! start (`point_into_homes`), so a pointer read from the game's data is a real address.
+//! `framework::game_addr` resolves a moved address through `home_of_rva`. The image itself
+//! is gone (2026-10-24): its addresses stay reserved without access, so a read of one that
+//! has no home ends the program naming it (`standalone`'s fault handler).
 
 use crate::framework::{IMAGE_BASE, game_addr, rva};
 use std::cell::UnsafeCell;
@@ -409,6 +408,21 @@ pub(crate) const MOVED: &[Moved] = &[
         home: || crate::gfx::upload::STORE.addr(),
     },
     Moved {
+        ida: crate::net::store::vars::START, // the network's variables
+        len: crate::net::store::vars::LEN,
+        home: crate::net::store::vars::base,
+    },
+    Moved {
+        ida: crate::gfx::typefaces::tables::START, // the fonts, the front end's tables
+        len: crate::gfx::typefaces::tables::LEN,
+        home: crate::gfx::typefaces::tables::base,
+    },
+    Moved {
+        ida: crate::gfx::records::tables::START, // the 3D card's tables, the map's state
+        len: crate::gfx::records::tables::LEN,
+        home: crate::gfx::records::tables::base,
+    },
+    Moved {
         ida: crate::gfx::front::START, // The DirectDraw front and back surface handles
         len: crate::gfx::front::LEN,
         home: || crate::gfx::front::STORE.addr(),
@@ -548,6 +562,255 @@ pub(crate) const MOVED: &[Moved] = &[
         len: crate::menu::store::players::LEN,
         home: crate::menu::store::players::base,
     },
+    Moved {
+        ida: crate::menu::store::menus::START,
+        len: crate::menu::store::menus::LEN,
+        home: crate::menu::store::menus::base,
+    },
+    Moved {
+        ida: crate::menu::store::lists::START,
+        len: crate::menu::store::lists::LEN,
+        home: crate::menu::store::lists::base,
+    },
+    // rest: the read-only data, the texts and float constants (`crate::rest::rdata`)
+    Moved {
+        ida: crate::rest::rdata::texts::START,
+        len: crate::rest::rdata::texts::LEN,
+        home: crate::rest::rdata::texts::base,
+    },
+    // rest: the image's lower scattered variables (`crate::rest::low`)
+    Moved {
+        ida: crate::rest::low::OWN[0].0,
+        len: crate::rest::low::OWN[0].1 - crate::rest::low::OWN[0].0,
+        home: || crate::rest::low::home(crate::rest::low::OWN[0].0),
+    },
+    Moved {
+        ida: crate::rest::low::OWN[1].0,
+        len: crate::rest::low::OWN[1].1 - crate::rest::low::OWN[1].0,
+        home: || crate::rest::low::home(crate::rest::low::OWN[1].0),
+    },
+    Moved {
+        ida: crate::rest::low::OWN[2].0,
+        len: crate::rest::low::OWN[2].1 - crate::rest::low::OWN[2].0,
+        home: || crate::rest::low::home(crate::rest::low::OWN[2].0),
+    },
+    Moved {
+        ida: crate::rest::low::OWN[3].0,
+        len: crate::rest::low::OWN[3].1 - crate::rest::low::OWN[3].0,
+        home: || crate::rest::low::home(crate::rest::low::OWN[3].0),
+    },
+    Moved {
+        ida: crate::rest::low::OWN[4].0,
+        len: crate::rest::low::OWN[4].1 - crate::rest::low::OWN[4].0,
+        home: || crate::rest::low::home(crate::rest::low::OWN[4].0),
+    },
+    Moved {
+        ida: crate::rest::low::OWN[5].0,
+        len: crate::rest::low::OWN[5].1 - crate::rest::low::OWN[5].0,
+        home: || crate::rest::low::home(crate::rest::low::OWN[5].0),
+    },
+    Moved {
+        ida: crate::rest::low::OWN[6].0,
+        len: crate::rest::low::OWN[6].1 - crate::rest::low::OWN[6].0,
+        home: || crate::rest::low::home(crate::rest::low::OWN[6].0),
+    },
+    Moved {
+        ida: crate::rest::low::OWN[7].0,
+        len: crate::rest::low::OWN[7].1 - crate::rest::low::OWN[7].0,
+        home: || crate::rest::low::home(crate::rest::low::OWN[7].0),
+    },
+    Moved {
+        ida: crate::rest::low::OWN[8].0,
+        len: crate::rest::low::OWN[8].1 - crate::rest::low::OWN[8].0,
+        home: || crate::rest::low::home(crate::rest::low::OWN[8].0),
+    },
+    Moved {
+        ida: crate::rest::low::OWN[9].0,
+        len: crate::rest::low::OWN[9].1 - crate::rest::low::OWN[9].0,
+        home: || crate::rest::low::home(crate::rest::low::OWN[9].0),
+    },
+    Moved {
+        ida: crate::rest::low::OWN[10].0,
+        len: crate::rest::low::OWN[10].1 - crate::rest::low::OWN[10].0,
+        home: || crate::rest::low::home(crate::rest::low::OWN[10].0),
+    },
+    Moved {
+        ida: crate::rest::low::OWN[11].0,
+        len: crate::rest::low::OWN[11].1 - crate::rest::low::OWN[11].0,
+        home: || crate::rest::low::home(crate::rest::low::OWN[11].0),
+    },
+    Moved {
+        ida: crate::rest::low::OWN[12].0,
+        len: crate::rest::low::OWN[12].1 - crate::rest::low::OWN[12].0,
+        home: || crate::rest::low::home(crate::rest::low::OWN[12].0),
+    },
+    Moved {
+        ida: crate::rest::low::OWN[13].0,
+        len: crate::rest::low::OWN[13].1 - crate::rest::low::OWN[13].0,
+        home: || crate::rest::low::home(crate::rest::low::OWN[13].0),
+    },
+    Moved {
+        ida: crate::rest::low::OWN[14].0,
+        len: crate::rest::low::OWN[14].1 - crate::rest::low::OWN[14].0,
+        home: || crate::rest::low::home(crate::rest::low::OWN[14].0),
+    },
+    Moved {
+        ida: crate::rest::low::OWN[15].0,
+        len: crate::rest::low::OWN[15].1 - crate::rest::low::OWN[15].0,
+        home: || crate::rest::low::home(crate::rest::low::OWN[15].0),
+    },
+    Moved {
+        ida: crate::rest::low::OWN[16].0,
+        len: crate::rest::low::OWN[16].1 - crate::rest::low::OWN[16].0,
+        home: || crate::rest::low::home(crate::rest::low::OWN[16].0),
+    },
+    Moved {
+        ida: crate::rest::low::OWN[17].0,
+        len: crate::rest::low::OWN[17].1 - crate::rest::low::OWN[17].0,
+        home: || crate::rest::low::home(crate::rest::low::OWN[17].0),
+    },
+    Moved {
+        ida: crate::rest::low::OWN[18].0,
+        len: crate::rest::low::OWN[18].1 - crate::rest::low::OWN[18].0,
+        home: || crate::rest::low::home(crate::rest::low::OWN[18].0),
+    },
+    Moved {
+        ida: crate::rest::low::OWN[19].0,
+        len: crate::rest::low::OWN[19].1 - crate::rest::low::OWN[19].0,
+        home: || crate::rest::low::home(crate::rest::low::OWN[19].0),
+    },
+    Moved {
+        ida: crate::rest::low::OWN[20].0,
+        len: crate::rest::low::OWN[20].1 - crate::rest::low::OWN[20].0,
+        home: || crate::rest::low::home(crate::rest::low::OWN[20].0),
+    },
+    Moved {
+        ida: crate::rest::low::OWN[21].0,
+        len: crate::rest::low::OWN[21].1 - crate::rest::low::OWN[21].0,
+        home: || crate::rest::low::home(crate::rest::low::OWN[21].0),
+    },
+    Moved {
+        ida: crate::rest::low::OWN[22].0,
+        len: crate::rest::low::OWN[22].1 - crate::rest::low::OWN[22].0,
+        home: || crate::rest::low::home(crate::rest::low::OWN[22].0),
+    },
+    Moved {
+        ida: crate::rest::low::OWN[23].0,
+        len: crate::rest::low::OWN[23].1 - crate::rest::low::OWN[23].0,
+        home: || crate::rest::low::home(crate::rest::low::OWN[23].0),
+    },
+    Moved {
+        ida: crate::rest::low::OWN[24].0,
+        len: crate::rest::low::OWN[24].1 - crate::rest::low::OWN[24].0,
+        home: || crate::rest::low::home(crate::rest::low::OWN[24].0),
+    },
+    Moved {
+        ida: crate::rest::low::OWN[25].0,
+        len: crate::rest::low::OWN[25].1 - crate::rest::low::OWN[25].0,
+        home: || crate::rest::low::home(crate::rest::low::OWN[25].0),
+    },
+    Moved {
+        ida: crate::rest::low::OWN[26].0,
+        len: crate::rest::low::OWN[26].1 - crate::rest::low::OWN[26].0,
+        home: || crate::rest::low::home(crate::rest::low::OWN[26].0),
+    },
+    Moved {
+        ida: crate::rest::low::OWN[27].0,
+        len: crate::rest::low::OWN[27].1 - crate::rest::low::OWN[27].0,
+        home: || crate::rest::low::home(crate::rest::low::OWN[27].0),
+    },
+    Moved {
+        ida: crate::rest::low::OWN[28].0,
+        len: crate::rest::low::OWN[28].1 - crate::rest::low::OWN[28].0,
+        home: || crate::rest::low::home(crate::rest::low::OWN[28].0),
+    },
+    Moved {
+        ida: crate::rest::low::OWN[29].0,
+        len: crate::rest::low::OWN[29].1 - crate::rest::low::OWN[29].0,
+        home: || crate::rest::low::home(crate::rest::low::OWN[29].0),
+    },
+    Moved {
+        ida: crate::rest::low::OWN[30].0,
+        len: crate::rest::low::OWN[30].1 - crate::rest::low::OWN[30].0,
+        home: || crate::rest::low::home(crate::rest::low::OWN[30].0),
+    },
+    Moved {
+        ida: crate::rest::low::OWN[31].0,
+        len: crate::rest::low::OWN[31].1 - crate::rest::low::OWN[31].0,
+        home: || crate::rest::low::home(crate::rest::low::OWN[31].0),
+    },
+    Moved {
+        ida: crate::rest::low::OWN[32].0,
+        len: crate::rest::low::OWN[32].1 - crate::rest::low::OWN[32].0,
+        home: || crate::rest::low::home(crate::rest::low::OWN[32].0),
+    },
+    Moved {
+        ida: crate::rest::low::OWN[33].0,
+        len: crate::rest::low::OWN[33].1 - crate::rest::low::OWN[33].0,
+        home: || crate::rest::low::home(crate::rest::low::OWN[33].0),
+    },
+    Moved {
+        ida: crate::rest::low::OWN[34].0,
+        len: crate::rest::low::OWN[34].1 - crate::rest::low::OWN[34].0,
+        home: || crate::rest::low::home(crate::rest::low::OWN[34].0),
+    },
+    Moved {
+        ida: crate::rest::low::OWN[35].0,
+        len: crate::rest::low::OWN[35].1 - crate::rest::low::OWN[35].0,
+        home: || crate::rest::low::home(crate::rest::low::OWN[35].0),
+    },
+    Moved {
+        ida: crate::rest::low::OWN[36].0,
+        len: crate::rest::low::OWN[36].1 - crate::rest::low::OWN[36].0,
+        home: || crate::rest::low::home(crate::rest::low::OWN[36].0),
+    },
+    Moved {
+        ida: crate::rest::low::OWN[37].0,
+        len: crate::rest::low::OWN[37].1 - crate::rest::low::OWN[37].0,
+        home: || crate::rest::low::home(crate::rest::low::OWN[37].0),
+    },
+    Moved {
+        ida: crate::rest::low::OWN[38].0,
+        len: crate::rest::low::OWN[38].1 - crate::rest::low::OWN[38].0,
+        home: || crate::rest::low::home(crate::rest::low::OWN[38].0),
+    },
+    // rest: the scattered rest of the image's buffers (`crate::rest`)
+    Moved {
+        ida: crate::rest::OWN[0].0,
+        len: crate::rest::OWN[0].1 - crate::rest::OWN[0].0,
+        home: || crate::rest::home(crate::rest::OWN[0].0),
+    },
+    Moved {
+        ida: crate::rest::OWN[1].0,
+        len: crate::rest::OWN[1].1 - crate::rest::OWN[1].0,
+        home: || crate::rest::home(crate::rest::OWN[1].0),
+    },
+    Moved {
+        ida: crate::rest::OWN[2].0,
+        len: crate::rest::OWN[2].1 - crate::rest::OWN[2].0,
+        home: || crate::rest::home(crate::rest::OWN[2].0),
+    },
+    Moved {
+        ida: crate::rest::OWN[3].0,
+        len: crate::rest::OWN[3].1 - crate::rest::OWN[3].0,
+        home: || crate::rest::home(crate::rest::OWN[3].0),
+    },
+    Moved {
+        ida: crate::rest::OWN[4].0,
+        len: crate::rest::OWN[4].1 - crate::rest::OWN[4].0,
+        home: || crate::rest::home(crate::rest::OWN[4].0),
+    },
+    Moved {
+        ida: crate::rest::OWN[5].0,
+        len: crate::rest::OWN[5].1 - crate::rest::OWN[5].0,
+        home: || crate::rest::home(crate::rest::OWN[5].0),
+    },
+    // race: the image's zeroed tail (`race::store::buffers`)
+    Moved {
+        ida: crate::race::store::buffers::START,
+        len: crate::race::store::buffers::LEN,
+        home: crate::race::store::buffers::base,
+    },
     // race: the race core (`race::store`), the seven ranges around the holes
     Moved {
         ida: crate::race::store::OWN[0].0,
@@ -664,53 +927,47 @@ fn moved_home(ida: usize) -> Option<(usize, usize)> {
         .map(|m| ((m.home)() + (ida - m.ida), m.ida))
 }
 
-/// Points the game's pointers (`places`: the image's relocations, by RVA) at the new homes
-/// of the variables they name, as the image's relocation pointed them at the image: a
-/// pointer of the image to a moved variable is changed to its home; a pointer that moved
-/// with its block (whose first values are the image's bytes before relocation, IDA
-/// addresses) is made the address of its target, wherever that lives now. The ranges of
-/// `RAW_KEPT` stay as they are. Run once, while the image is built (`base` its address;
-/// `framework::BASE` is not set yet), after its relocation and before its pages are
-/// protected. Returns how many pointers it changed.
-pub unsafe fn point_into_homes(base: usize, places: &[usize]) -> usize {
+/// Points the game's pointers that moved with their blocks (`relocations::PLACES`, whose
+/// first values are the image's bytes before relocation, IDA addresses) at their targets,
+/// as the image's relocation pointed them: a moved target's home, or else its place in the
+/// reserved image (code, which the fault handler answers). The ranges of `RAW_KEPT` stay as
+/// they are. Run once at start (`base` the reserved image's address; `framework::BASE` is
+/// not set yet). Returns how many pointers it changed, or the first place outside every
+/// moved range.
+pub unsafe fn point_into_homes(base: usize) -> Result<usize, usize> {
     let mut changed = 0;
-    for &at in places {
-        let ida = at + IMAGE_BASE;
-        unsafe {
-            match moved_home(ida) {
-                Some((_, block)) if RAW_KEPT.contains(&block) => {}
-                Some((home, _)) => {
-                    let p = home as *mut u32;
-                    let target = p.read_unaligned() as usize;
-                    let now = match moved_home(target) {
-                        Some((h, _)) => h,
-                        None => base + rva(target),
-                    };
-                    p.write_unaligned(now as u32);
-                    changed += 1;
-                }
-                None => {
-                    let p = (base + at) as *mut u32;
-                    let target = (p.read_unaligned() as usize)
-                        .wrapping_sub(base)
-                        .wrapping_add(IMAGE_BASE);
-                    if let Some((h, _)) = moved_home(target) {
-                        p.write_unaligned(h as u32);
-                        changed += 1;
-                    }
-                }
-            }
+    for &ida in &crate::relocations::PLACES {
+        let ida = ida as usize;
+        match moved_home(ida) {
+            Some((_, block)) if RAW_KEPT.contains(&block) => {}
+            Some((home, _)) => unsafe {
+                let p = home as *mut u32;
+                let target = p.read_unaligned() as usize;
+                let now = match moved_home(target) {
+                    Some((h, _)) => h,
+                    None => base + rva(target),
+                };
+                p.write_unaligned(now as u32);
+                changed += 1;
+            },
+            None => return Err(ida),
         }
     }
-    changed
+    Ok(changed)
 }
+
+/// RAL.EXE's data as `tools/extract_image` packed it (decoupling step B): only the tests
+/// read it now, to check the moved constants and first values.
+#[cfg(test)]
+static IMAGE_DATA: &[u8] =
+    include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/data/ral_image.bin"));
 
 /// RAL.EXE's bytes at IDA address `ida` as `data/ral_image.bin` holds them (before its
 /// addresses are relocated): what the moved constants and initial values are checked
 /// against while the image exists.
 #[cfg(test)]
 pub fn image_bytes(ida: usize, len: usize) -> Vec<u8> {
-    let d = crate::standalone::IMAGE_DATA;
+    let d = IMAGE_DATA;
     let word = |at: usize| u32::from_le_bytes(d[at..at + 4].try_into().unwrap()) as usize;
     let (start, end) = (rva(ida), rva(ida) + len);
     let mut out = vec![0u8; len];
@@ -776,7 +1033,8 @@ mod tests {
                 assert_eq!(home_of_rva(rva(m.ida + m.len)), None, "{:#x}", m.ida);
             }
         }
-        assert_eq!(home_of_rva(rva(0x4E0000)), None);
+        // zlib's own variables: nothing reads them, not moved (`crate::rest`).
+        assert_eq!(home_of_rva(rva(0xA8C18C)), None);
     }
 
     #[test]
@@ -792,6 +1050,68 @@ mod tests {
                 );
             }
         }
+    }
+
+    /// The image file's sections (rva, length, flags) and where its relocations begin.
+    fn image_sections() -> (Vec<(usize, usize, usize)>, usize) {
+        let d = IMAGE_DATA;
+        let word = |at: usize| u32::from_le_bytes(d[at..at + 4].try_into().unwrap()) as usize;
+        let mut sections = Vec::new();
+        let mut at = 20;
+        for _ in 0..word(16) {
+            let flags = word(at + 8);
+            sections.push((word(at), word(at + 4), flags));
+            at += 12;
+            if flags & 4 != 0 {
+                let count = word(at);
+                at += 4;
+                for _ in 0..count {
+                    at += 8 + word(at + 4);
+                }
+            }
+            if flags & 2 != 0 {
+                let raw = word(at);
+                at += 4;
+                let mut done = 0;
+                while done < raw {
+                    let (zeros, literal) = (word(at), word(at + 4));
+                    at += 8 + literal;
+                    done += zeros + literal;
+                }
+            }
+        }
+        (sections, at)
+    }
+
+    /// The relocation places are the image's that lie in a moved range, all of them.
+    #[test]
+    fn relocations_are_the_images() {
+        let d = IMAGE_DATA;
+        let word = |at: usize| u32::from_le_bytes(d[at..at + 4].try_into().unwrap()) as usize;
+        let (_, at) = image_sections();
+        let count = word(at);
+        let mut wanted: Vec<u32> = (0..count)
+            .map(|k| (word(at + 4 + 4 * k) + IMAGE_BASE) as u32)
+            .filter(|&ida| moved_home(ida as usize).is_some())
+            .collect();
+        wanted.sort_unstable();
+        assert_eq!(&crate::relocations::PLACES[..], &wanted[..]);
+        assert_eq!(&d[at + 4 + 4 * count..at + 8 + 4 * count], b"END!");
+    }
+
+    /// `standalone`'s reserved image has the image's size and its code where the image had it.
+    #[test]
+    fn the_image_layout_is_the_images() {
+        let word = |at: usize| u32::from_le_bytes(IMAGE_DATA[at..at + 4].try_into().unwrap());
+        assert_eq!(word(8) as usize, crate::standalone::IMAGE_SIZE);
+        assert_eq!(word(12) as usize, IMAGE_BASE);
+        let code: Vec<(usize, usize)> = image_sections()
+            .0
+            .into_iter()
+            .filter(|&(_, _, flags)| flags & 1 != 0)
+            .map(|(rva, len, _)| (rva, len))
+            .collect();
+        assert_eq!(&code[..], &crate::standalone::CODE[..]);
     }
 
     #[test]

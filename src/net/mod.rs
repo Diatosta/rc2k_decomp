@@ -124,6 +124,8 @@ pub mod sort_players;
 pub mod start_link;
 pub mod stop;
 pub mod stopping;
+pub mod store;
+pub mod store_data;
 pub mod store_received;
 pub mod system_message;
 pub mod take_messages;

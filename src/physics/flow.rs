@@ -5,7 +5,6 @@
 //! instructions over the game's variables (generated from IDA, no jumps, no integer code,
 //! no calls).
 
-use crate::framework::game_addr;
 use crate::math::x87;
 use crate::math::x87_run::compare_full;
 
@@ -22,11 +21,6 @@ pub fn p(x: impl crate::store::At, v: u32) {
 /// The game's address of IDA address `x`.
 pub fn a(x: impl crate::store::At) -> u32 {
     x.here() as u32
-}
-
-/// The game's base, `{b}` in the x87 runs.
-pub fn base() -> u32 {
-    game_addr(0) as u32
 }
 
 /// `fld a; fcomp b`: C0, a below b or unordered.

@@ -31,8 +31,8 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{game_read, game_write, rva};
-use crate::physics::flow::{base, c0, x87_run};
+use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::physics::flow::{c0, x87_run};
 use crate::race::muddy_texel::texture_and_mud;
 use crate::race::splash_mud::{LAST_SPLASHED, SPLASHED_RVA, splash_mud};
 use crate::race::throw_mud_texel::{LAST_THROWN, THROWN_RVA, throw_mud_texel};
@@ -51,9 +51,9 @@ const ZERO_RVA: usize = rva(0x5C5D90); // flt_5C5D90: 0.0
 /// fstp [to]`: the units of a float count, negatives 0 (as the original, by bits).
 fn whole_units(from: usize, to: usize) -> i32 {
     x87_run!(
-        "fld dword ptr [{b} + {f}]",
-        "fistp dword ptr [{b} + {t}]";
-        b = base(), f = from as u32, t = to as u32
+        "fld dword ptr [{f}]",
+        "fistp dword ptr [{t}]";
+        f = game_addr(from), t = game_addr(to)
     );
     let zero: u32 = unsafe { game_read(ZERO_RVA) };
     if c0(unsafe { game_read(to) }, zero) {
@@ -65,10 +65,10 @@ fn whole_units(from: usize, to: usize) -> i32 {
 /// `fld [at]; fisub [units]; fstp [at]`.
 fn take_units(at: usize, units: usize) {
     x87_run!(
-        "fld dword ptr [{b} + {a}]",
-        "fisub dword ptr [{b} + {u}]",
-        "fstp dword ptr [{b} + {a}]";
-        b = base(), a = at as u32, u = units as u32
+        "fld dword ptr [{a}]",
+        "fisub dword ptr [{u}]",
+        "fstp dword ptr [{a}]";
+        a = game_addr(at), u = game_addr(units)
     );
 }
 

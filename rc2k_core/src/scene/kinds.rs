@@ -1,8 +1,8 @@
 //! Object kinds (converted 2026-10-21 from `scene::known_kind` 0x41F469,
-//! `known_kind_picture` 0x41F44D, `known_kind_plate` 0x41F519, `find_object_kind`
+//! `known_kind_picture` 0x41F44D, `car_icon_number` 0x41F519, `find_object_kind`
 //! 0x41F4BD, `find_object_of_kind` 0x422298, `kind_is_hidden` 0x452303 and
 //! `kind_hidden_at` 0x4522F7): the 0x22 known kinds of car, each with an object kind, a
-//! first picture and a kind of number plate, and the kind of each of the scene's 0x100
+//! first picture and an icon number (the HUD's car icons), and the kind of each of the scene's 0x100
 //! objects. The tables are read entry by entry, as the original reads them.
 
 use crate::Invalid;

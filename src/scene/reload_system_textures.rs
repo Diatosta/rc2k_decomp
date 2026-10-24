@@ -2,7 +2,7 @@
 //! it should have ("reload system plates").
 //!
 //! In:  nothing
-//! Out: the registers as `scene::load_number_plates` leaves them
+//! Out: the registers as `scene::load_hud_car_icons` leaves them
 //!
 //! - Two lines in the game's log (a rule and "Reload system plates - start").
 //! - Each kind's first texture (`g_kindFirstTextures`), where it has one, wants the
@@ -12,7 +12,7 @@
 //!   (`dword_609300`, `dword_609304`), or 256 x 256 for picture 0x3DE and pictures
 //!   0x706 .. 0x7CF; `scene::load_changed_texture_picture`;
 //!   `scene::step_loading_bar`.
-//! - `dword_4F4A24` = 0 and the size 256 x 256 again; `scene::load_number_plates`;
+//! - `dword_4F4A24` = 0 and the size 256 x 256 again; `scene::load_hud_car_icons`;
 //!   two lines in the log.
 //!
 //! Two callers.
@@ -32,7 +32,7 @@ use crate::logfile::log_write::log_write;
 use crate::scene::load_changed_texture_picture::{
     TEXTURES, WANTED_PICTURES_RVA, load_changed_texture_picture_in_game,
 };
-use crate::scene::load_number_plates::load_number_plates;
+use crate::scene::load_hud_car_icons::load_hud_car_icons;
 use crate::scene::step_loading_bar::step_loading_bar;
 use crate::scene::textures::{KIND_TEXTURE_RVA, KINDS};
 use rc2k_core::scene::pictures::{kind_picture, read_size};
@@ -46,12 +46,12 @@ const READING_RVA: PicSlot = PicSlot::at(0x4F4A24); // dword_4F4A24
 const READ_SIZE_RVA: PicSlot = PicSlot::at(0x4F4A28);
 /// `dword_609300`, `dword_609304`: the scene's size for them.
 const SCENE_SIZE_RVA: usize = rva(0x609300);
-// scene::load_number_plates
+// scene::load_hud_car_icons
 const TEXTS: [usize; 4] = [rva(0x4DB7E2), rva(0x4DB800), rva(0x4DB81D), rva(0x4DB83A)];
 
 // ---- Rust version ----
 
-/// The Rust version. The registers the original leaves (those of `load_number_plates`) are
+/// The Rust version. The registers the original leaves (those of `load_hud_car_icons`) are
 /// read by no caller (taint at the site in `race::set_all_plates`: 0 read points; the other
 /// is the game's own code, `sub_443478`, not Rust). It reads no register at entry but edi,
 /// esi (for `load_changed_texture_picture` and `step_loading_bar`, which set them
@@ -87,7 +87,7 @@ pub unsafe fn reload_system_textures() -> Result<(), Refused> {
         }
         game_write(READING_RVA, 0u32);
         game_write(READ_SIZE_RVA, [0x100u32, 0x100]);
-        load_number_plates()?;
+        load_hud_car_icons()?;
         log_write(game_ptr(TEXTS[2]), true, 1);
         log_write(game_ptr(TEXTS[3]), true, 1);
         Ok(())

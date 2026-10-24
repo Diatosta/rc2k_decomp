@@ -6,8 +6,11 @@
 //! names, the work variables of the drawing code, the Escape flags), around the progress
 //! bar's variables (`gfx::bar_store`, 0x755224 .. 0x75523C); and 0x755A4C .. 0x758B72 (the
 //! players' records of 0x28C bytes and `g_players`, the stage and event figures, the
-//! arcade's totals, the cheats, the captions' lists of string ids), up to the draw lists
-//! (0x758B72 .. 0x7594B0, still the image's: their addresses are compared as IDA's).
+//! arcade's totals, the cheats, the captions' lists of string ids); 0x747AD8 .. 0x755144
+//! (the menus: headers, labels, items of 0x5C bytes) and 0x758B72 .. 0x7594AA (the screens'
+//! draw lists, `screens_data.rs`). The last draw list, `dword_7594AA` (25 entries), runs
+//! into the physics' variables: it is the physics block's (`physics::store`), read whole
+//! from there (only `menu::player4_buttons_loop` names it).
 //!
 //! Each region is one block with the image's layout (`crate::store`): gaps and unreferenced
 //! bytes kept, first values the image's (`store_data.rs`, generated). The code still names
@@ -31,4 +34,16 @@ block!(pub mod players {
     start: 0x755A4C,
     end: 0x758B72,
     runs: crate::menu::store_data::PLAYERS_RUNS,
+});
+
+block!(pub mod menus {
+    start: 0x747AD8,
+    end: 0x755144,
+    runs: crate::menu::screens_data::MENUS_RUNS,
+});
+
+block!(pub mod lists {
+    start: 0x758B72,
+    end: 0x7594AA,
+    runs: crate::menu::screens_data::LISTS_RUNS,
 });

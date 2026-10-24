@@ -1,12 +1,14 @@
-//! `scene::upload_plate` (0x41B2F2): one number plate painted into a texture.
+//! `scene::upload_car_icon` (0x41B2F2): one car icon painted into a texture (the HUD's, kind 0xC1).
+//! The game's log calls every texture a "icon"; this was `scene::upload_plate` until
+//! 2026-10-24.
 //!
-//! In:  eax, ecx = the plate sheet's two pictures (the second for the alpha), ebx = the
-//!      system texture, edx, esi = where on the sheet the plate is, edi, ebp = where on
+//! In:  eax, ecx = the icon sheet's two pictures (the second for the alpha), ebx = the
+//!      system texture, edx, esi = where on the sheet the icon is, edi, ebp = where on
 //!      the texture it goes
 //! Out: every register preserved
 //!
 //! - ebx, edi, ebp, edx, esi to `dword_5BE8F1`, `_8F5`, `_8F9`, `_8FD`, `_901`, the
-//!   plate's size 0x52 x 0x2A to `dword_5BE905`, `_909`.
+//!   icon's size 0x52 x 0x2A to `dword_5BE905`, `_909`.
 //! - With the texture's record (0x78 bytes at `unk_5B521C`) +0x5C at 1: the second
 //!   picture read (`gfx::read_texture_picture`) and copied 0x40000 bytes on, or, if
 //!   there is none or it cannot be read, +0x5C made 0.
@@ -18,11 +20,11 @@
 //!   0x80A18767). The picture is halved that many times (`halve_texture`) and the six
 //!   places and sizes stored are shifted right by it.
 //! - The texture locked (`sub_41AA4B`, which makes it `g_surface`); if it locked, the
-//!   plate's piece blitted (`gfx::blit_components`, the picture's row bytes being its
+//!   icon's piece blitted (`gfx::blit_components`, the picture's row bytes being its
 //!   height times 4: the original's, a square sheet makes it right) and the texture
 //!   unlocked (`sub_41AB02`). Those two are Direct3D and stay the game's.
 //!
-//! Two call sites in `scene::load_number_plates`.
+//! Two call sites in `scene::load_hud_car_icons`.
 //! Refuses a texture of 0x140 or more, a record without its format, and what the
 //! pixel functions refuse; a refusal after the pictures are read hands the original
 //! the call from the start.
@@ -43,18 +45,18 @@ use crate::gfx::texture_upload::{Record, halvings_apart, keep_second_picture, re
 
 // ---- game data ----
 
-/// `stru_5BE8F1` (`PlateUpload` in IDA, unaligned): what the upload keeps while it works.
+/// `stru_5BE8F1` (`IconUpload` in IDA, unaligned): what the upload keeps while it works.
 const TEXTURE_RVA: usize = rva(0x5BE8F1);
-const STORED_LEN: usize = std::mem::size_of::<PlateUpload>();
+const STORED_LEN: usize = std::mem::size_of::<IconUpload>();
 
 #[repr(C, packed)]
 #[derive(Clone, Copy, Debug)]
-pub struct PlateUpload {
+pub struct IconUpload {
     pub texture: u32,
-    /// Where on the texture the plate goes.
+    /// Where on the texture the icon goes.
     pub target_x: u32,
     pub target_y: u32,
-    /// The plate's piece of the sheet: x, y, width, height (`blit_components`' rectangle).
+    /// The icon's piece of the sheet: x, y, width, height (`blit_components`' rectangle).
     pub piece: [u32; 4],
 }
 
@@ -62,13 +64,13 @@ const _: () = assert!(STORED_LEN == 0x1C);
 
 /// The piece's place: what `blit_components` gets in ebx.
 fn piece_address() -> u32 {
-    (game_addr(TEXTURE_RVA) + std::mem::offset_of!(PlateUpload, piece)) as u32
+    (game_addr(TEXTURE_RVA) + std::mem::offset_of!(IconUpload, piece)) as u32
 }
 
-/// What `upload_plate` is given (the original's registers): the plate sheet's two pictures
-/// (eax, ecx), the system texture (ebx), where on the sheet the plate is (edx, esi) and
+/// What `upload_car_icon` is given (the original's registers): the icon sheet's two pictures
+/// (eax, ecx), the system texture (ebx), where on the sheet the icon is (edx, esi) and
 /// where on the texture it goes (edi, ebp).
-pub struct Plate {
+pub struct CarIcon {
     pub sheet: u32,
     pub alpha_sheet: u32,
     pub texture: u32,
@@ -81,21 +83,21 @@ pub struct Plate {
 // ---- Rust version ----
 
 /// The Rust version. The original keeps every register (`pusha` .. `popa`).
-pub unsafe fn upload_plate(plate: &Plate) -> Result<(), Refused> {
+pub unsafe fn upload_car_icon(icon: &CarIcon) -> Result<(), Refused> {
     unsafe {
-        let texture = plate.texture;
+        let texture = icon.texture;
         let record = Record::of(texture)?;
         game_write(
             TEXTURE_RVA,
-            PlateUpload {
+            IconUpload {
                 texture,
-                target_x: plate.target_x,
-                target_y: plate.target_y,
-                piece: [plate.sheet_x, plate.sheet_y, 0x52, 0x2A],
+                target_x: icon.target_x,
+                target_y: icon.target_y,
+                piece: [icon.sheet_x, icon.sheet_y, 0x52, 0x2A],
             },
         );
-        keep_second_picture(&record, plate.alpha_sheet)?;
-        let (pixels, width, height, _) = read_texture_picture(plate.sheet as *mut u8)?;
+        keep_second_picture(&record, icon.alpha_sheet)?;
+        let (pixels, width, height, _) = read_texture_picture(icon.sheet as *mut u8)?;
         ready_picture(&record, pixels, width, height)?;
         let across = halvings_apart(
             &record,
@@ -113,13 +115,13 @@ pub unsafe fn upload_plate(plate: &Plate) -> Result<(), Refused> {
             return Err(BadInput("a picture that halves to nothing").into());
         }
         let (_, height) = halve_texture(pixels as *mut u32, width, height, across);
-        let mut stored: PlateUpload = game_read(TEXTURE_RVA);
+        let mut stored: IconUpload = game_read(TEXTURE_RVA);
         let shift = across & 31;
         stored.target_x >>= shift;
         stored.target_y >>= shift;
         stored.piece = stored.piece.map(|value| value >> shift);
         game_write(TEXTURE_RVA, stored);
-        // The texture locked (making it the surface): if it locked, the plate's piece
+        // The texture locked (making it the surface): if it locked, the icon's piece
         // blitted and the texture unlocked.
         if !crate::d3d::lock_texture::lock_texture(texture)?.carry {
             let piece = Piece {

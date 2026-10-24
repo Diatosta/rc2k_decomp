@@ -283,6 +283,8 @@ macro_rules! block {
                 }
             }
 
+            /// A place of the block, checked when it is made.
+            #[allow(dead_code)] // the code of some blocks still names them by IDA's address only
             pub type Slot = $crate::store::Slot<Zone>;
 
             /// The address of IDA's first byte of the block.

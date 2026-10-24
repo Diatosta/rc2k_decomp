@@ -1,6 +1,6 @@
 //! The packed string table and the two string-pointer tables the string hooks read.
 
-use crate::framework::{game_ptr, rva};
+use crate::framework::{game_addr, rva};
 use crate::moved::Place;
 use rc2k_core::strings::table::StringTable;
 use std::sync::atomic::{AtomicU32, Ordering};
@@ -24,12 +24,11 @@ pub fn use_lexicon() {
     STRING_TABLE.store(lexicon() as u32, Ordering::Relaxed);
 }
 
+/// Each slot by its own address: slots fall in moved ranges (the driver names' pointers,
+/// 0x95ECF8 .., are `src[0x5A5..]`), which the table's base does not follow.
 unsafe fn table_entry(table_rva: usize, id: u32) -> *const u8 {
-    unsafe {
-        game_ptr::<u32>(table_rva)
-            .wrapping_add(id as usize)
-            .read_volatile() as usize as *const u8
-    }
+    let slot = game_addr(table_rva.wrapping_add(4 * id as usize)) as *const u32;
+    unsafe { slot.read_volatile() as usize as *const u8 }
 }
 pub unsafe fn ptr_high(id: u32) -> *const u8 {
     unsafe { table_entry(PTRS_HIGH_RVA, id) }

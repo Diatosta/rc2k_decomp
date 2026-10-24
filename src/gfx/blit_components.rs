@@ -11,7 +11,7 @@
 //! Each row: the piece's width of pixels through `gfx::components_to_pixel` with the
 //! surface's format (`g_surface.format`), stored as words on a surface of two bytes a
 //! pixel, else as dwords; then both move on a row. No clipping.
-//! One caller, `scene::upload_plate`, with the texture made the surface.
+//! One caller, `scene::upload_car_icon`, with the texture made the surface.
 //! Refuses a piece of no width or height (the original counts through all 32 bits),
 //! and no surface, format, piece or picture.
 //! Compared in shadow mode (`dispatch_pixels`).

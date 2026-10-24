@@ -22,7 +22,7 @@ use crate::math::x87::{loaded, mul};
 #[allow(unused_imports)]
 use crate::math::x87_run::{abs_compare, compare_full};
 #[allow(unused_imports)]
-use crate::physics::flow::{a, base, c0, g, hold_high, hold_low, p, table_lerp, x87_run};
+use crate::physics::flow::{a, c0, g, hold_high, hold_low, p, table_lerp, x87_run};
 
 /// `unk_71A2AC[gear]` (the gear -1 .. 7 as the original indexes it).
 fn gear_gauge(gear: u32) -> u32 {

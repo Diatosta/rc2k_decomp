@@ -60,6 +60,7 @@ pub mod read_replay_frame_0;
 pub mod record_inputs;
 pub mod record_inputs_if;
 pub mod replay_cameras;
+pub mod replay_check;
 pub mod replay_clock_tick;
 pub mod replay_frame_marks;
 pub mod replay_step;

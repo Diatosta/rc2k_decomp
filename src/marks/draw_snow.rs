@@ -160,7 +160,7 @@ unsafe fn fade() {
 }
 
 /// The original's 0x4C305B .. 0x4C30EE: the projected square, its depth and u.
-unsafe fn square(b: u32, i: u32) {
+unsafe fn square(i: u32) {
     unsafe {
         core::arch::asm!(
             "fld dword ptr [{mk} + 0x16D39C]",
@@ -173,36 +173,36 @@ unsafe fn square(b: u32, i: u32) {
             ".byte 0xD9, 0xC9",
             ".byte 0xD9, 0xE0",
             "fadd dword ptr [{rc} + 0x2240A0]",
-            "fstp dword ptr [{b} + 0x5605A4]",
+            "fstp dword ptr [{bf} + 0x5605A4]",
             "fadd dword ptr [{rc} + 0x22409C]",
-            "fstp dword ptr [{b} + 0x5605A0]",
+            "fstp dword ptr [{bf} + 0x5605A0]",
             "fld dword ptr [{mk} + 0x176608]",
             "fmul dword ptr [{mk} + 0x16D2B4]",
-            "fld dword ptr [{b} + 0x5605A0]",
+            "fld dword ptr [{bf} + 0x5605A0]",
             ".byte 0xD8, 0xC1",
-            "fst dword ptr [{b} + 0x5605C0]",
-            "fst dword ptr [{b} + 0x5605E0]",
+            "fst dword ptr [{bf} + 0x5605C0]",
+            "fst dword ptr [{bf} + 0x5605E0]",
             ".byte 0xD8, 0xE1",
-            "fstp dword ptr [{b} + 0x560600]",
-            "fld dword ptr [{b} + 0x5605A4]",
-            "fst dword ptr [{b} + 0x5605C4]",
+            "fstp dword ptr [{bf} + 0x560600]",
+            "fld dword ptr [{bf} + 0x5605A4]",
+            "fst dword ptr [{bf} + 0x5605C4]",
             ".byte 0xDE, 0xC1",
-            "fst dword ptr [{b} + 0x5605E4]",
-            "fstp dword ptr [{b} + 0x560604]",
+            "fst dword ptr [{bf} + 0x5605E4]",
+            "fstp dword ptr [{bf} + 0x560604]",
             "fld dword ptr [{mk} + 0x16D39C]",
             "fmul dword ptr [{mk} + 0x16D2B8]",
-            "fst dword ptr [{b} + 0x5605A8]",
-            "fst dword ptr [{b} + 0x5605C8]",
-            "fst dword ptr [{b} + 0x5605E8]",
-            "fstp dword ptr [{b} + 0x560608]",
+            "fst dword ptr [{bf} + 0x5605A8]",
+            "fst dword ptr [{bf} + 0x5605C8]",
+            "fst dword ptr [{bf} + 0x5605E8]",
+            "fstp dword ptr [{bf} + 0x560608]",
             "fld dword ptr [{mk} + {i} + 0x16B0C0]",
-            "fst dword ptr [{b} + 0x5605B8]",
-            "fst dword ptr [{b} + 0x560618]",
+            "fst dword ptr [{bf} + 0x5605B8]",
+            "fst dword ptr [{bf} + 0x560618]",
             "fadd dword ptr [{mk} + 0x17660C]",
-            "fst dword ptr [{b} + 0x5605D8]",
-            "fstp dword ptr [{b} + 0x5605F8]",
+            "fst dword ptr [{bf} + 0x5605D8]",
+            "fstp dword ptr [{bf} + 0x5605F8]",
             rc = in(reg) crate::race::store::asm_base(),
-            b = in(reg) b,
+            bf = in(reg) crate::race::store::buffers_asm_base(),
             mk = in(reg) crate::marks::store::base(),
             i = in(reg) i,
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
@@ -271,7 +271,6 @@ unsafe fn refusal() -> Option<&'static str> {
 
 /// The Rust version (see the header).
 pub unsafe fn draw_snow() -> Result<(), Refused> {
-    let b = game_addr(0) as u32;
     if let Some(why) = unsafe { refusal() } {
         return Err(BadInput(why).into());
     }
@@ -296,7 +295,7 @@ pub unsafe fn draw_snow() -> Result<(), Refused> {
                         game_write(VERTICES_RVA + 0x20 * n + 0x10, colour);
                     }
                 }
-                square(b, 4 * k);
+                square(4 * k);
                 let [top, bottom]: [u32; 2] = [game_read(V_RVA[0]), game_read(V_RVA[1])];
                 for n in 0..4 {
                     game_write(

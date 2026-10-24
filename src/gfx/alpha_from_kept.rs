@@ -4,7 +4,7 @@
 //! Out: every register preserved
 //!
 //! Each pixel's byte 3 = the first byte of the pixel 0x40000 bytes on, inverted
-//! (`gfx/texture_pixels.rs`). Two call sites: `sub_41A68B` and `scene::upload_plate`,
+//! (`gfx/texture_pixels.rs`). Two call sites: `sub_41A68B` and `scene::upload_car_icon`,
 //! when the texture's record has +0x5C at 1.
 //! Refuses no pixels (the original counts through all 32 bits) and a null pointer.
 //! Self-test: 12 pictures by lot.

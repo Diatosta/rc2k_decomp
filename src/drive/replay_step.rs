@@ -78,6 +78,7 @@ pub unsafe fn replay_step() -> Result<(), Refused> {
         }
         p(B + 0xF0C, g(B + 8));
         race_steps::each_car(|| g(CURRENT), || g(CARS), |n| p(CURRENT, n), car_step)?;
+        crate::drive::replay_check::note();
         crate::drive::animate_stage::animate_stage()?;
         crate::drive::race_mode_cars::race_mode_cars()?;
         crate::drive::duel_sound_levels::duel_sound_levels();

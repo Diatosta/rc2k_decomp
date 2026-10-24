@@ -30,7 +30,7 @@
 
 use crate::math::x87;
 use crate::math::x87_run::{abs_compare, mul_status};
-use crate::physics::flow::{a, base, c3, ease_zero, g, hold_high, hold_low, negate, p, x87_run};
+use crate::physics::flow::{a, c3, ease_zero, g, hold_high, hold_low, negate, p, x87_run};
 
 /// `edx` = the steer angle's table index (+0x64C >> 20).
 fn steer_index() -> u32 {
@@ -40,11 +40,11 @@ fn steer_index() -> u32 {
 /// 0x43CDFF / 0x43CE21: +0x210 = sine x speed / `dword_614BA0`.
 fn steer_force(e: u32) {
     x87_run!(
-        "fld dword ptr [{b} + {e}*4 + 0x623AE4]",
+        "fld dword ptr [{bf} + {e}*4 + 0x623AE4]",
         "fmul dword ptr [{rc} + 0x31A184]",
         "fdiv dword ptr [{rc} + 0x214BA0]",
         "fstp dword ptr [{rc} + 0x31A1E8]";
-        b = base(), e = e, rc = crate::race::store::asm_base()
+        bf = crate::race::store::buffers_asm_base(), e = e, rc = crate::race::store::asm_base()
     );
 }
 
@@ -138,7 +138,7 @@ pub unsafe fn drive_grip_forces() {
             "fld dword ptr [{rc} + 0x213F34]",
             "fsub dword ptr [{rc} + 0x22400C]",
             "fdiv dword ptr [{rc} + 0x213F34]",
-            "fmul dword ptr [{b} + {e}*4 + 0x623AE4]",
+            "fmul dword ptr [{bf} + {e}*4 + 0x623AE4]",
             "fimul dword ptr [{rc} + 0x31A618]",
             "fdiv dword ptr [{rc} + 0x1C5E2C]",
             "fmul dword ptr [{rc} + 0x31A190]",
@@ -146,7 +146,7 @@ pub unsafe fn drive_grip_forces() {
             "fimul dword ptr [{rc} + 0x31A610]",
             "fdiv dword ptr [{rc} + 0x1C5E2C]",
             "fstp dword ptr [{rc} + 0x31A1F4]";
-            b = base(), e = edx, rc = crate::race::store::asm_base()
+            bf = crate::race::store::buffers_asm_base(), e = edx, rc = crate::race::store::asm_base()
         );
     }
     // 0x43D08E: the engine braking.
@@ -223,7 +223,7 @@ pub unsafe fn drive_grip_forces() {
         );
         edx = steer_index();
         x87_run!(
-            "fld dword ptr [{b} + {e}*4 + 0x623AE4]",
+            "fld dword ptr [{bf} + {e}*4 + 0x623AE4]",
             "fdiv dword ptr [{rc} + 0x214BA0]",
             "fimul dword ptr [{rc} + 0x31A610]",
             "fdiv dword ptr [{rc} + 0x1C5E2C]",
@@ -231,7 +231,7 @@ pub unsafe fn drive_grip_forces() {
             "fmul dword ptr [{rc} + 0x22401C]",
             "fmul dword ptr [{rc} + 0x213E78]",
             "fstp dword ptr [{rc} + 0x31A1F0]";
-            b = base(), e = edx, rc = crate::race::store::asm_base()
+            bf = crate::race::store::buffers_asm_base(), e = edx, rc = crate::race::store::asm_base()
         );
     }
     // 0x43D2C9: the sum, and the yaw twist on the rear wheels.

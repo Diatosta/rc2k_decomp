@@ -18,7 +18,7 @@
 
 use crate::drive::tyre_parts::*;
 use crate::errors::Refused;
-use crate::physics::flow::{a, base, x87_run};
+use crate::physics::flow::{a, x87_run};
 use crate::session::MACHINE;
 
 /// The Rust version: the texture rectangle at `uv` (eax), the screen rectangle at `rect`
@@ -33,51 +33,51 @@ pub unsafe fn tyre_turned_quad(
     MACHINE.scratch.set(0x40C9_0FDB);
     x87_run!(
         "fild dword ptr [{e} + 0x4EC]",
-        "fmul dword ptr [{b} + 0x1BEAC8]",
+        "fmul dword ptr [{ty} + 0x1BEAC8]",
         "fmul dword ptr [{t}]",
         ".byte 0xD9, 0xFB", // fsincos
-        "fstp dword ptr [{b} + 0x1BEBF4]",
-        "fstp dword ptr [{b} + 0x1BEBF0]",
+        "fstp dword ptr [{ty} + 0x1BEBF4]",
+        "fstp dword ptr [{ty} + 0x1BEBF0]",
         "fld dword ptr [{d} + 0xC]",
-        "fmul dword ptr [{b} + 0x1BEBF0]",
-        "fstp dword ptr [{b} + 0x1BEBF8]",
+        "fmul dword ptr [{ty} + 0x1BEBF0]",
+        "fstp dword ptr [{ty} + 0x1BEBF8]",
         "fld dword ptr [{d} + 0xC]",
-        "fmul dword ptr [{b} + 0x1BEBF4]",
+        "fmul dword ptr [{ty} + 0x1BEBF4]",
         ".byte 0xD9, 0xE0", // fchs
-        "fstp dword ptr [{b} + 0x1BEBFC]",
+        "fstp dword ptr [{ty} + 0x1BEBFC]",
         "fld dword ptr [{d} + 0x8]",
-        "fmul dword ptr [{b} + 0x1BEBF4]",
-        "fstp dword ptr [{b} + 0x1BEC00]",
+        "fmul dword ptr [{ty} + 0x1BEBF4]",
+        "fstp dword ptr [{ty} + 0x1BEC00]",
         "fld dword ptr [{d} + 0x8]",
-        "fmul dword ptr [{b} + 0x1BEBF0]",
-        "fstp dword ptr [{b} + 0x1BEC04]",
-        "fld dword ptr [{b} + 0x1BEC00]",
+        "fmul dword ptr [{ty} + 0x1BEBF0]",
+        "fstp dword ptr [{ty} + 0x1BEC04]",
+        "fld dword ptr [{ty} + 0x1BEC00]",
         ".byte 0xD9, 0xE0",
         "fadd dword ptr [{d}]",
-        "fiadd dword ptr [{b} + 0x1BEAE0]",
+        "fiadd dword ptr [{ty} + 0x1BEAE0]",
         "fst dword ptr [{v} + 0x40]",
-        "fadd dword ptr [{b} + 0x1BEBF8]",
+        "fadd dword ptr [{ty} + 0x1BEBF8]",
         "fstp dword ptr [{v}]",
-        "fld dword ptr [{b} + 0x1BEC00]",
+        "fld dword ptr [{ty} + 0x1BEC00]",
         "fadd dword ptr [{d}]",
-        "fiadd dword ptr [{b} + 0x1BEAE0]",
+        "fiadd dword ptr [{ty} + 0x1BEAE0]",
         "fst dword ptr [{v} + 0x60]",
-        "fadd dword ptr [{b} + 0x1BEBF8]",
+        "fadd dword ptr [{ty} + 0x1BEBF8]",
         "fstp dword ptr [{v} + 0x20]",
-        "fld dword ptr [{b} + 0x1BEC04]",
+        "fld dword ptr [{ty} + 0x1BEC04]",
         ".byte 0xD9, 0xE0",
         "fadd dword ptr [{d} + 0x4]",
-        "fiadd dword ptr [{b} + 0x1BEAE4]",
+        "fiadd dword ptr [{ty} + 0x1BEAE4]",
         "fst dword ptr [{v} + 0x44]",
-        "fadd dword ptr [{b} + 0x1BEBFC]",
+        "fadd dword ptr [{ty} + 0x1BEBFC]",
         "fstp dword ptr [{v} + 0x4]",
-        "fld dword ptr [{b} + 0x1BEC04]",
+        "fld dword ptr [{ty} + 0x1BEC04]",
         "fadd dword ptr [{d} + 0x4]",
-        "fiadd dword ptr [{b} + 0x1BEAE4]",
+        "fiadd dword ptr [{ty} + 0x1BEAE4]",
         "fst dword ptr [{v} + 0x64]",
-        "fadd dword ptr [{b} + 0x1BEBFC]",
+        "fadd dword ptr [{ty} + 0x1BEBFC]",
         "fstp dword ptr [{v} + 0x24]";
-        b = base(), e = device, d = rect, v = a(VERTS), t = crate::session::MACHINE.scratch.addr()
+        ty = crate::rest::low::tyres_asm_base(), e = device, d = rect, v = a(VERTS), t = crate::session::MACHINE.scratch.addr()
     );
     quad_words(colour);
     quad_tail(uv);

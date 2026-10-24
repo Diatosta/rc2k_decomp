@@ -10,7 +10,7 @@
 //! The picture's size 256 x 256 with rows that follow one another (row length
 //! 0xFFFFFFFD), its first 0x10000 dwords filled with -1, then `read_picture_file` if
 //! there is a path. Five call sites: `gfx::load_picture_to_texture` (twice) and
-//! `scene::upload_plate` (twice), the second of each pair for the picture kept for
+//! `scene::upload_car_icon` (twice), the second of each pair for the picture kept for
 //! the alpha.
 //! Refuses no picture buffer, and what `read_picture_file` refuses.
 //! Shadow mode runs the original alone: the reading is compared in its own hook.

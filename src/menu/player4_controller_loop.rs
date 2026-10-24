@@ -1,4 +1,4 @@
-//! `menu::screen_4783f6_loop` (0x4783F6): the loop of a screen whose background is `control.png`.
+//! `menu::player4_controller_loop` (0x479166): player 4's controller set-up page (CONFIGURAÇÃO DO COMANDO, background `control.png`; Options > Player details > Player 4 details > "configurar comando": the controller, force feedback, axis mode).
 //!
 //! In:  nothing
 //! Out: every register preserved
@@ -18,8 +18,8 @@ use crate::menu::screen_loop::{List, Screen, Step, screen_entry};
 // ---- Rust version: `menu::screen_loop` with this ----
 
 pub const SCREEN: Screen = Screen {
-    menu: rva(0x749C10),
-    saved_item: rva(0x74772C),
+    menu: rva(0x74AEE8),
+    saved_item: rva(0x747740),
     lists: &[
         List {
             pointer: rva(0x7554F4), // g_unreadList
@@ -28,49 +28,45 @@ pub const SCREEN: Screen = Screen {
         },
         List {
             pointer: rva(0x7554F8), // g_drawList
-            table: rva(0x758D96),
+            table: rva(0x758DCA),
             run: false,
         },
         List {
             pointer: rva(0x755500), // dword_755500
-            table: rva(0x759486),
+            table: rva(0x7594A2),
             run: true,
         },
         List {
             pointer: rva(0x7554FC), // g_overlayList
-            table: rva(0x759262),
+            table: rva(0x759276),
             run: false,
         },
     ],
     first_frame_lists: Some(&[
         List {
             pointer: rva(0x755504), // g_sceneList
-            table: rva(0x75909E),
+            table: rva(0x7590B2),
             run: false,
         },
         List {
             pointer: rva(0x7554F8), // g_drawList
-            table: rva(0x758D96),
+            table: rva(0x758DCA),
             run: false,
         },
         List {
             pointer: rva(0x7554FC), // g_overlayList
-            table: rva(0x759262),
+            table: rva(0x759276),
             run: false,
         },
     ]),
     frame_callback: rva(0x474D4B),
     later_frame_callback: None,
     before: &[],
-    set_up_first: &[
-        Step::Call(rva(0x46B47C)),
-        Step::Arg(0x0),
-        Step::Call(rva(0x40939F)),
-    ],
+    set_up_first: &[Step::Call(rva(0x46B47C))],
     prepare: &[],
     after_lists: &[],
     background: &[
-        Step::ArgAddr(rva(0x7321F8)),
+        Step::ArgAddr(rva(0x7322B1)),
         Step::CallOrFatal(rva(0x47EFFF), 0x80712345),
     ],
     after_first_frame: &[],
@@ -105,5 +101,5 @@ pub const SCREEN: Screen = Screen {
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn run() -> Result<(), crate::errors::Refused> {
-    screen_entry("menu::screen_4783f6_loop", &SCREEN)
+    screen_entry("menu::player4_controller_loop", &SCREEN)
 }

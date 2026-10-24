@@ -167,3 +167,22 @@ pub unsafe fn load_game_options() -> Result<bool, Refused> {
         )
     }
 }
+
+#[cfg(test)]
+mod tests {
+    /// Every piece lies whole in one place: all in the image or all in one moved home.
+    #[test]
+    fn no_piece_is_split_by_a_move() {
+        for &(at, len) in &super::OPTIONS {
+            let at = at as usize;
+            let first = crate::moved::place(at);
+            for k in 1..len {
+                assert_eq!(
+                    crate::moved::place(at + k),
+                    first + k,
+                    "piece {at:#x} is split at +{k:#x}"
+                );
+            }
+        }
+    }
+}

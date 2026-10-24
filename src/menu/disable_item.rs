@@ -15,13 +15,13 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::game_addr;
 use crate::menu::item_at::item_at;
 
 use rc2k_core::menu::items::{Font, choosable};
 
-const GREY_FONT: usize = 0x51EA04;
-const PLAIN_FONT: usize = 0x51E8E4;
+type FontSlot = crate::gfx::typefaces::tables::Slot;
+const GREY_FONT: FontSlot = FontSlot::at(0x51EA04);
+const PLAIN_FONT: FontSlot = FontSlot::at(0x51E8E4);
 
 // ---- Rust version ----
 
@@ -37,7 +37,7 @@ pub fn set_item(number: u32, on: bool) -> Result<(), Refused> {
     };
     unsafe {
         ((item + 0x48) as *mut u32).write_unaligned(state);
-        ((item + 0x18) as *mut u32).write_unaligned(game_addr(crate::framework::rva(font)) as u32);
+        ((item + 0x18) as *mut u32).write_unaligned(font.address() as u32);
     }
     Ok(())
 }

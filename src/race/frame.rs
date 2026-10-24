@@ -6,13 +6,14 @@ use crate::audio::store::Slot;
 use crate::errors::Refused;
 use crate::framework::rva;
 use crate::input::store::DeviceSlot;
+use crate::net::store::vars::Slot as NetSlot;
 use crate::race::objects::CAR_BLOCKS_RVA;
 use crate::screens::harness::Left;
 use crate::sound::store::EffectsSlot;
 use crate::store::{game_addr, game_read, game_write};
 
-const ONE_CHOSEN_RVA: usize = rva(0x52A910); // dword_52A910
-const CHOSEN_CAR_RVA: usize = rva(0x52A920); // dword_52A920
+const ONE_CHOSEN_RVA: NetSlot = NetSlot::at(0x52A910); // dword_52A910
+const CHOSEN_CAR_RVA: NetSlot = NetSlot::at(0x52A920); // dword_52A920
 pub const PLAYERS_RVA: usize = rva(0x63DB94); // dword_63DB94
 
 fn block(n: u32) -> u32 {

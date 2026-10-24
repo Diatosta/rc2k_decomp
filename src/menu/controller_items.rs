@@ -1,4 +1,4 @@
-//! The controller set-up pages' item actions and set-ups (`menu::screen_47814c_loop` and
+//! The controller set-up pages' item actions and set-ups (`menu::player1_controller_loop` and
 //! the seven after it): what they change of the current player's record (`dword_75598C`,
 //! `g_players`): +0x2C the controller (0 none, 1 .. `dword_4F78E0` the listed ones), +0x34
 //! its sensitivity (0 .. 3), +0x38 its mode, +0x40 and +0x44 the two dead zones (their sum

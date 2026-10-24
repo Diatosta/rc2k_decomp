@@ -36,7 +36,7 @@ const CELLS_RVA: Slot = Slot::at(0x935766); // g_marksCellPlaces: 0x41 of 16 byt
 const CELLS: u32 = 0x41;
 
 /// The original's 0x4C5EF7 .. 0x4C60E9: the two projected and the ribbon's corners.
-unsafe fn ribbon(b: u32) {
+unsafe fn ribbon() {
     unsafe {
         core::arch::asm!(
             "fld dword ptr [{rc} + 0x224088]",
@@ -102,38 +102,38 @@ unsafe fn ribbon(b: u32) {
             "fstp dword ptr [{mk} + 0x18EA61]",
             "fld dword ptr [{mk} + 0x186995]",
             "fsub dword ptr [{mk} + 0x18EA51]",
-            "fstp dword ptr [{b} + 0x5605A0]",
+            "fstp dword ptr [{bf} + 0x5605A0]",
             "fld dword ptr [{mk} + 0x186999]",
             "fsub dword ptr [{mk} + 0x18EA55]",
-            "fstp dword ptr [{b} + 0x5605A4]",
+            "fstp dword ptr [{bf} + 0x5605A4]",
             "fld dword ptr [{mk} + 0x186995]",
             "fadd dword ptr [{mk} + 0x18EA51]",
-            "fstp dword ptr [{b} + 0x5605C0]",
+            "fstp dword ptr [{bf} + 0x5605C0]",
             "fld dword ptr [{mk} + 0x186999]",
             "fadd dword ptr [{mk} + 0x18EA55]",
-            "fstp dword ptr [{b} + 0x5605C4]",
+            "fstp dword ptr [{bf} + 0x5605C4]",
             "fld dword ptr [{mk} + 0x1869A1]",
             "fadd dword ptr [{mk} + 0x18EA5D]",
-            "fstp dword ptr [{b} + 0x5605E0]",
+            "fstp dword ptr [{bf} + 0x5605E0]",
             "fld dword ptr [{mk} + 0x1869A5]",
             "fadd dword ptr [{mk} + 0x18EA61]",
-            "fstp dword ptr [{b} + 0x5605E4]",
+            "fstp dword ptr [{bf} + 0x5605E4]",
             "fld dword ptr [{mk} + 0x1869A1]",
             "fsub dword ptr [{mk} + 0x18EA5D]",
-            "fstp dword ptr [{b} + 0x560600]",
+            "fstp dword ptr [{bf} + 0x560600]",
             "fld dword ptr [{mk} + 0x1869A5]",
             "fsub dword ptr [{mk} + 0x18EA61]",
-            "fstp dword ptr [{b} + 0x560604]",
+            "fstp dword ptr [{bf} + 0x560604]",
             "fld dword ptr [{mk} + 0x18699D]",
             "fmul dword ptr [{mk} + 0x186A2D]",
-            "fst dword ptr [{b} + 0x5605A8]",
-            "fstp dword ptr [{b} + 0x5605C8]",
+            "fst dword ptr [{bf} + 0x5605A8]",
+            "fstp dword ptr [{bf} + 0x5605C8]",
             "fld dword ptr [{mk} + 0x1869A9]",
             "fmul dword ptr [{mk} + 0x186A2D]",
-            "fst dword ptr [{b} + 0x5605E8]",
-            "fstp dword ptr [{b} + 0x560608]",
+            "fst dword ptr [{bf} + 0x5605E8]",
+            "fstp dword ptr [{bf} + 0x560608]",
             rc = in(reg) crate::race::store::asm_base(),
-            b = in(reg) b,
+            bf = in(reg) crate::race::store::buffers_asm_base(),
             mk = in(reg) crate::marks::store::base(),
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
@@ -172,7 +172,7 @@ pub unsafe fn draw_ribbon(cell: u32, alpha: u32, width: u32, colour: u32) -> Res
                 return Ok(());
             }
         }
-        ribbon(game_addr(0) as u32);
+        ribbon();
         if clip_quad(game_addr(VERTICES_RVA) as u32)? {
             return Ok(());
         }

@@ -1,4 +1,4 @@
-//! What `gfx::upload_texture_picture` (0x41A68B) and `scene::upload_plate` (0x41B2F2)
+//! What `gfx::upload_texture_picture` (0x41A68B) and `scene::upload_car_icon` (0x41B2F2)
 //! share: a system texture's record, the picture made ready for it, and how many
 //! halvings apart the two are.
 

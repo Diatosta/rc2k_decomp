@@ -22,7 +22,7 @@ use crate::math::x87::mul;
 use crate::math::x87_run::{abs_compare, compare_full};
 use crate::physics::damage_model::ONE;
 #[allow(unused_imports)]
-use crate::physics::flow::{a, base, g, hold_high, hold_low, p, table_lerp, x87_run};
+use crate::physics::flow::{a, g, hold_high, hold_low, p, table_lerp, x87_run};
 
 #[allow(dead_code)]
 fn rd(x: u32) -> u32 {

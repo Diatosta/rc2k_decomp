@@ -129,7 +129,7 @@ unsafe fn turn(p: &[[u8; 10]; 3]) {
 }
 
 /// The original's 0x4C1F4A .. 0x4C20B3: both projected and the quad's x, y and depth.
-unsafe fn project(b: u32) {
+unsafe fn project() {
     unsafe {
         core::arch::asm!(
             "fld dword ptr [{mk} + 0x158F11]",
@@ -197,28 +197,28 @@ unsafe fn project(b: u32) {
             "fstp dword ptr [{mk} + 0x158E21]",
             "fld dword ptr [{mk} + 0x158F11]",
             "fmul dword ptr [{mk} + 0x158E21]",
-            "fst dword ptr [{b} + 0x5605A8]",
-            "fst dword ptr [{b} + 0x5605C8]",
-            "fst dword ptr [{b} + 0x5605E8]",
-            "fstp dword ptr [{b} + 0x560608]",
+            "fst dword ptr [{bf} + 0x5605A8]",
+            "fst dword ptr [{bf} + 0x5605C8]",
+            "fst dword ptr [{bf} + 0x5605E8]",
+            "fstp dword ptr [{bf} + 0x560608]",
             "fld dword ptr [{mk} + 0x158E01]",
-            "fst dword ptr [{b} + 0x5605A0]",
+            "fst dword ptr [{bf} + 0x5605A0]",
             "fsub dword ptr [{mk} + 0x158DE9]",
-            "fstp dword ptr [{b} + 0x5605C0]",
+            "fstp dword ptr [{bf} + 0x5605C0]",
             "fld dword ptr [{mk} + 0x158E0D]",
-            "fst dword ptr [{b} + 0x560600]",
+            "fst dword ptr [{bf} + 0x560600]",
             "fsub dword ptr [{mk} + 0x158DF5]",
-            "fstp dword ptr [{b} + 0x5605E0]",
+            "fstp dword ptr [{bf} + 0x5605E0]",
             "fld dword ptr [{mk} + 0x158E05]",
-            "fst dword ptr [{b} + 0x5605A4]",
+            "fst dword ptr [{bf} + 0x5605A4]",
             "fsub dword ptr [{mk} + 0x158DED]",
-            "fstp dword ptr [{b} + 0x5605C4]",
+            "fstp dword ptr [{bf} + 0x5605C4]",
             "fld dword ptr [{mk} + 0x158E11]",
-            "fst dword ptr [{b} + 0x560604]",
+            "fst dword ptr [{bf} + 0x560604]",
             "fsub dword ptr [{mk} + 0x158DF9]",
-            "fstp dword ptr [{b} + 0x5605E4]",
+            "fstp dword ptr [{bf} + 0x5605E4]",
             rc = in(reg) crate::race::store::asm_base(),
-            b = in(reg) b,
+            bf = in(reg) crate::race::store::buffers_asm_base(),
             mk = in(reg) crate::marks::store::base(),
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
@@ -233,7 +233,6 @@ pub unsafe fn draw_streak(place: [[u8; 10]; 3]) -> Result<(), Refused> {
         if game_read::<u32>(crate::marks::setup::SETTINGS_RVA) == 0 {
             return Err(BadInput("no marks settings").into());
         }
-        let b = game_addr(0) as u32;
         turn(&place);
         if game_read::<i32>(DEPTH_RVA) <= 0x2_0000
             || game_read::<u32>(SWITCH_RVA) == 0
@@ -241,7 +240,7 @@ pub unsafe fn draw_streak(place: [[u8; 10]; 3]) -> Result<(), Refused> {
         {
             return Ok(());
         }
-        project(b);
+        project();
         if clip_quad(game_addr(VERTICES_RVA) as u32)? {
             return Ok(());
         }

@@ -25,7 +25,7 @@
 //! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::physics::flow::{base, x87_run};
+use crate::physics::flow::x87_run;
 use crate::sound::store::StageSlot;
 use crate::sound::store::SurfaceSlot;
 use rc2k_core::sound::surfaces;
@@ -61,7 +61,6 @@ fn one(o: u32, request: u32, second: usize) -> Result<(), Refused> {
     }
     unsafe { crate::store::game_write(SURFACES[second], surface) };
     if surfaces::quieter(surface) {
-        let _b = base();
         if second == 0 {
             x87_run!(
                         "fld dword ptr [{sf} + 0x40]",
@@ -91,7 +90,7 @@ pub fn surface_sounds(o: u32, request: u32) -> Result<(), Refused> {
     if o == 0 || request == 0 {
         return Err(BadInput("no object or no request").into());
     }
-    let (bx, _b) = (o, base());
+    let bx = o;
     {
         x87_run!(
                 ".byte 0xD9, 0xEE",

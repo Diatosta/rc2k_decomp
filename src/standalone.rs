@@ -38,10 +38,7 @@ use windows_sys::Win32::System::Com::{CoInitialize, CoUninitialize};
 use windows_sys::Win32::System::Diagnostics::Debug::{
     AddVectoredExceptionHandler, EXCEPTION_POINTERS,
 };
-use windows_sys::Win32::System::Memory::{
-    MEM_COMMIT, MEM_RESERVE, PAGE_NOACCESS, PAGE_READONLY, PAGE_READWRITE, VirtualAlloc,
-    VirtualProtect,
-};
+use windows_sys::Win32::System::Memory::{MEM_RESERVE, PAGE_NOACCESS, VirtualAlloc};
 use windows_sys::Win32::System::Threading::{ExitProcess, GetCurrentProcess, TerminateProcess};
 
 const IMAGE_BASE: usize = 0x400000;
@@ -57,123 +54,37 @@ struct Image {
 
 static IMAGE: OnceLock<Image> = OnceLock::new();
 
-fn u32_at(bytes: &[u8], at: usize) -> Result<usize, String> {
-    bytes
-        .get(at..at + 4)
-        .map(|b| u32::from_le_bytes(b.try_into().unwrap()) as usize)
-        .ok_or_else(|| format!("the image's data ends before {at:#x}"))
-}
+/// The size of RAL.EXE's image, from its base 0x400000.
+pub(crate) const IMAGE_SIZE: usize = 0x6C0000;
 
-/// What the program keeps of RAL.EXE (`tools/extract_image`, decoupling step B): its data
-/// sections, packed, and their relocations; its code sections only as places.
-pub(crate) static IMAGE_DATA: &[u8] =
-    include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/data/ral_image.bin"));
+/// RAL.EXE's sections of code (rva, length): `.text` and `GURUS`.
+pub(crate) const CODE: [(usize, usize); 2] = [(0x1000, 0xD6CD4), (0xD8000, 0x1F8B)];
 
-/// The game's image built from `IMAGE_DATA` at the places RAL.EXE would have them: the data
-/// unpacked and its addresses moved to where the image is; the code sections reserved but
-/// left without bytes (no access: a read of them faults and is reported).
+/// The game's image as places only (phase 5, 2026-10-24: every variable and constant the
+/// game reads has a home in Rust, `crate::moved`): the address range RAL.EXE would have,
+/// reserved without access. A call into it is a hook's address or a function not ported,
+/// and a read of it an address with no home: the fault handler names either. The game's
+/// pointers in the moved blocks are pointed at their targets (`moved::point_into_homes`).
 unsafe fn build_image() -> Result<Image, String> {
-    let d = IMAGE_DATA;
-    if d.get(..8) != Some(b"RC2KIMG1") {
-        return Err("the program's image data is not what it should be".into());
-    }
-    let (size, wanted, sections) = (u32_at(d, 8)?, u32_at(d, 12)?, u32_at(d, 16)?);
-    if wanted != IMAGE_BASE {
-        return Err("the program's image data is not the game's".into());
-    }
     unsafe {
-        let base = VirtualAlloc(
-            std::ptr::null(),
-            size,
-            MEM_COMMIT | MEM_RESERVE,
-            PAGE_READWRITE,
-        ) as usize;
+        let base = VirtualAlloc(std::ptr::null(), IMAGE_SIZE, MEM_RESERVE, PAGE_NOACCESS) as usize;
         if base == 0 {
-            return Err("no memory for the game's image".into());
+            return Err("no address range for the game's image".into());
         }
-        let mut at = 20;
-        let mut code = Vec::new();
-        let mut pieces: Vec<(usize, usize)> = Vec::new();
-        for _ in 0..sections {
-            let (rva, len, flags) = (u32_at(d, at)?, u32_at(d, at + 4)?, u32_at(d, at + 8)?);
-            at += 12;
-            if flags & 1 != 0 {
-                code.push((base + rva, len));
-            }
-            // the data among the code (IDA's: the log's month names, jump tables)
-            if flags & 4 != 0 {
-                let count = u32_at(d, at)?;
-                at += 4;
-                for _ in 0..count {
-                    let (place, n) = (u32_at(d, at)?, u32_at(d, at + 4)?);
-                    at += 8;
-                    let bytes = d.get(at..at + n).ok_or("the image's data is cut short")?;
-                    if place + n > size {
-                        return Err("a piece lies outside the image".into());
-                    }
-                    std::ptr::copy_nonoverlapping(bytes.as_ptr(), (base + place) as *mut u8, n);
-                    pieces.push((base + place, n));
-                    at += n;
-                }
-            }
-            if flags & 2 == 0 {
-                continue;
-            }
-            let raw = u32_at(d, at)?;
-            at += 4;
-            let mut done = 0;
-            while done < raw {
-                let (zeros, literal) = (u32_at(d, at)?, u32_at(d, at + 4)?);
-                at += 8;
-                let bytes = d
-                    .get(at..at + literal)
-                    .ok_or("the image's data is cut short")?;
-                let to = rva + done + zeros;
-                if to + literal > size {
-                    return Err("a section lies outside the image".into());
-                }
-                std::ptr::copy_nonoverlapping(bytes.as_ptr(), (base + to) as *mut u8, literal);
-                at += literal;
-                done += zeros + literal;
-            }
-        }
-        let delta = base.wrapping_sub(wanted) as u32;
-        let relocations = u32_at(d, at)?;
-        at += 4;
-        let mut pointers = Vec::with_capacity(relocations);
-        for _ in 0..relocations {
-            let place = u32_at(d, at)?;
-            at += 4;
-            if place + 4 > size {
-                return Err("a relocation lies outside the image".into());
-            }
-            let p = (base + place) as *mut u32;
-            p.write_unaligned(p.read_unaligned().wrapping_add(delta));
-            pointers.push(place);
-        }
-        if d.get(at..at + 4) != Some(b"END!") {
-            return Err("the image's data does not end where it should".into());
-        }
-        // The game's pointers to and in the variables that have left the image (phase 5).
-        let pointed = crate::moved::point_into_homes(base, &pointers);
+        let pointed = crate::moved::point_into_homes(base).map_err(|ida| {
+            format!("a relocated pointer of the game's at {ida:#x} lies in no moved range")
+        })?;
         log(&format!(
-            "standalone: {pointed} of the game's pointers point at variables' new homes"
+            "standalone: {pointed} of the game's pointers point at their targets' homes"
         ));
-        // The code: no access, but the pages that hold data among it read only (the rest of
-        // such a page reads as 0).
-        for &(at, len) in &code {
-            let mut old = 0;
-            VirtualProtect(at as *const _, len, PAGE_NOACCESS, &mut old);
-        }
-        for &(at, len) in &pieces {
-            let first = at & !0xFFF;
-            let mut old = 0;
-            VirtualProtect(first as *const _, at + len - first, PAGE_READONLY, &mut old);
-        }
         log(&format!(
-            "standalone: the game's image is at {base:#x} ({size:#x} bytes, {relocations} addresses moved; no code of RAL.EXE)"
+            "standalone: the game's addresses are reserved at {base:#x} ({IMAGE_SIZE:#x} bytes; no data or code of RAL.EXE)"
         ));
-        Ok(Image { base, size, code })
+        Ok(Image {
+            base,
+            size: IMAGE_SIZE,
+            code: CODE.iter().map(|&(rva, len)| (base + rva, len)).collect(),
+        })
     }
 }
 
@@ -403,6 +314,16 @@ unsafe extern "system" fn on_exception(info: *mut EXCEPTION_POINTERS) -> i32 {
                 log(&format!(
                     "standalone: Rust read RAL.EXE's code bytes at {:#x}, which the program does not have; return addresses on the stack: {}",
                     ida(read).unwrap_or(0),
+                    stack_returns(context.Esp as usize)
+                ));
+            } else if let Some(at) = ida(read) {
+                log(&format!(
+                    "standalone: Rust {} the game's variable at {at:#x}, which has no home in Rust (phase 5: not moved); return addresses on the stack: {}",
+                    if record.ExceptionInformation[0] == 0 {
+                        "read"
+                    } else {
+                        "wrote"
+                    },
                     stack_returns(context.Esp as usize)
                 ));
             }
@@ -749,7 +670,7 @@ pub fn run(log_file: &Path, frames: u32) -> ! {
         }
     };
     let image = IMAGE.get_or_init(|| image);
-    menu_watch::snapshot(image.base);
+    menu_watch::snapshot();
     unsafe {
         if let Err(why) = install_and_lock(image) {
             finish(&why, 2);
@@ -771,29 +692,43 @@ mod menu_watch {
     use super::log;
     use std::sync::OnceLock;
 
-    /// RAL.EXE's menus (0x7482B8 ..) and its screens' draw lists (0x758B70 ..).
-    const RANGES: [(usize, usize); 2] = [(0x7482B8, 0x755130), (0x758B70, 0x7594B0)];
-    const IMAGE_BASE: usize = 0x400000;
+    use crate::menu::store::{lists, menus};
 
-    static START: OnceLock<(usize, Vec<Vec<u8>>)> = OnceLock::new();
-
-    fn bytes(base: usize, (from, to): (usize, usize)) -> Vec<u8> {
-        let at = base + from - IMAGE_BASE;
-        // The image is ours, mapped read-write for its whole size.
-        unsafe { std::slice::from_raw_parts(at as *const u8, to - from) }.to_vec()
+    /// RAL.EXE's menus (0x7482B8 ..) and its screens' draw lists (0x758B72 ..), in their
+    /// homes (`menu::store::{menus, lists}`): each range's first place and its end.
+    fn ranges() -> [(usize, usize, usize); 2] {
+        [
+            (
+                0x7482B8,
+                menus::Slot::at(0x7482B8).address(),
+                0x755130 - 0x7482B8,
+            ),
+            (
+                0x758B72,
+                lists::Slot::at(0x758B72).address(),
+                0x7594AA - 0x758B72,
+            ),
+        ]
     }
 
-    pub fn snapshot(base: usize) {
-        let _ = START.set((base, RANGES.iter().map(|&r| bytes(base, r)).collect()));
+    static START: OnceLock<Vec<Vec<u8>>> = OnceLock::new();
+
+    fn bytes((_, at, len): (usize, usize, usize)) -> Vec<u8> {
+        // Each range lies whole in one block (`menu::store`), ours, read-write.
+        unsafe { std::slice::from_raw_parts(at as *const u8, len) }.to_vec()
+    }
+
+    pub fn snapshot() {
+        let _ = START.set(ranges().iter().map(|&r| bytes(r)).collect());
     }
 
     pub fn report() {
-        let Some((base, start)) = START.get() else {
+        let Some(start) = START.get() else {
             return;
         };
         let mut changed = Vec::new();
-        for (&range, before) in RANGES.iter().zip(start) {
-            let now = bytes(*base, range);
+        for (&range, before) in ranges().iter().zip(start) {
+            let now = bytes(range);
             for (n, (a, b)) in before.chunks(4).zip(now.chunks(4)).enumerate() {
                 if a != b {
                     changed.push(format!(

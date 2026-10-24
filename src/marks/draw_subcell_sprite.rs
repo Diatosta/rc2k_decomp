@@ -92,17 +92,17 @@ unsafe fn turn(p: &[[u8; 10]; 3]) {
 
 /// The original's 0x4CC009 .. 0x4CC140 (its integer moves done before): the square about
 /// the projected place.
-unsafe fn square(b: u32) {
+unsafe fn square() {
     unsafe {
         core::arch::asm!(
             "fld dword ptr [{rc} + 0x224088]",
             "fdiv dword ptr [{mk} + 0x18699D]",
             "fld dword ptr [{mk} + 0x18699D]",
             "fmul dword ptr [{mk} + 0x186A2D]",
-            "fst dword ptr [{b} + 0x5605A8]",
-            "fst dword ptr [{b} + 0x5605C8]",
-            "fst dword ptr [{b} + 0x5605E8]",
-            "fstp dword ptr [{b} + 0x560608]",
+            "fst dword ptr [{bf} + 0x5605A8]",
+            "fst dword ptr [{bf} + 0x5605C8]",
+            "fst dword ptr [{bf} + 0x5605E8]",
+            "fstp dword ptr [{bf} + 0x560608]",
             "fld dword ptr [{mk} + 0x186975]",
             ".byte 0xD8, 0xC9",
             "fst dword ptr [{mk} + 0x186975]",
@@ -115,29 +115,29 @@ unsafe fn square(b: u32) {
             "fadd dword ptr [{rc} + 0x2240A0]",
             ".byte 0xD9, 0xC0",
             "fsub dword ptr [{mk} + 0x186979]",
-            "fstp dword ptr [{b} + 0x5605A4]",
+            "fstp dword ptr [{bf} + 0x5605A4]",
             ".byte 0xD9, 0xC0",
             "fsub dword ptr [{mk} + 0x186979]",
-            "fstp dword ptr [{b} + 0x5605C4]",
+            "fstp dword ptr [{bf} + 0x5605C4]",
             ".byte 0xD9, 0xC0",
             "fadd dword ptr [{mk} + 0x186979]",
-            "fstp dword ptr [{b} + 0x5605E4]",
+            "fstp dword ptr [{bf} + 0x5605E4]",
             "fadd dword ptr [{mk} + 0x186979]",
-            "fstp dword ptr [{b} + 0x560604]",
+            "fstp dword ptr [{bf} + 0x560604]",
             "fadd dword ptr [{rc} + 0x22409C]",
             ".byte 0xD9, 0xC0",
             "fsub dword ptr [{mk} + 0x186975]",
-            "fstp dword ptr [{b} + 0x5605A0]",
+            "fstp dword ptr [{bf} + 0x5605A0]",
             ".byte 0xD9, 0xC0",
             "fadd dword ptr [{mk} + 0x186975]",
-            "fstp dword ptr [{b} + 0x5605C0]",
+            "fstp dword ptr [{bf} + 0x5605C0]",
             ".byte 0xD9, 0xC0",
             "fadd dword ptr [{mk} + 0x186975]",
-            "fstp dword ptr [{b} + 0x5605E0]",
+            "fstp dword ptr [{bf} + 0x5605E0]",
             "fsub dword ptr [{mk} + 0x186975]",
-            "fstp dword ptr [{b} + 0x560600]",
+            "fstp dword ptr [{bf} + 0x560600]",
             rc = in(reg) crate::race::store::asm_base(),
-            b = in(reg) b,
+            bf = in(reg) crate::race::store::buffers_asm_base(),
             mk = in(reg) crate::marks::store::base(),
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
@@ -165,7 +165,6 @@ pub unsafe fn draw_subcell_sprite(
         if game_read::<u32>(crate::marks::setup::SETTINGS_RVA) == 0 {
             return Err(BadInput("no marks settings").into());
         }
-        let b = game_addr(0) as u32;
         turn(&place);
         if game_read::<i32>(DEPTH_RVA) <= game_read::<i32>(NEAR_RVA) {
             return Ok(());
@@ -187,7 +186,7 @@ pub unsafe fn draw_subcell_sprite(
             game_write(VERTICES_RVA + 0x20 * n + 0x18, u);
             game_write(VERTICES_RVA + 0x20 * n + 0x1C, v);
         }
-        square(b);
+        square();
         if clip_quad(game_addr(VERTICES_RVA) as u32)? {
             return Ok(());
         }
