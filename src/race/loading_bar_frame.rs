@@ -19,13 +19,13 @@
 //! `routes.rs`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 use crate::session::FLAGS;
 
 const ON_RVA: usize = rva(0x71C3E0); // dword_71C3E0
 const MARK_RVA: usize = rva(0x6365CC); // dword_6365CC
 const FRAMED_RVA: usize = rva(0x621514); // dword_621514
-const RESTORE_RVA: usize = rva(0x405B10); // sub_405B10
+const RESTORE: usize = 0x405B10; // sub_405B10: the surfaces restored (the platform's)
 
 /// The Rust version (see the header).
 pub unsafe fn loading_bar_frame() -> Result<(), Refused> {
@@ -64,11 +64,6 @@ pub unsafe fn loading_bar_frame() -> Result<(), Refused> {
         }
         // The platform's restore, with ebx `dword_518380` (a local scratch: the flags it
         // leaves were read by no caller).
-        let mut r = Regs {
-            ebx: FLAGS.lost.get(),
-            ..Regs::default()
-        };
-        crate::calls::call(RESTORE_RVA, &mut r);
+        crate::standalone::not_ported(RESTORE, "race::loading_bar_frame")
     }
-    Ok(())
 }

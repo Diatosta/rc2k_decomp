@@ -94,13 +94,6 @@ pub unsafe fn draw_hline(x: i32, y: i32, length: i32, colour: u32, palette: u32)
     unsafe { carry_out(&plan, colour, palette) };
 }
 
-/// `gfx::draw_vline` (0x4067AF): `length` pixels from (x, y) downwards, clipped (the top clip
-/// as the original: what is cut is -y).
-pub unsafe fn draw_vline(x: i32, y: i32, length: i32, colour: u32, palette: u32) {
-    let plan = rc2k_core::gfx::raster::vline(x, y, length, &core_clip(), &core_surface());
-    unsafe { carry_out(&plan, colour, palette) };
-}
-
 /// `gfx::frame_rect` (0x4066DF): rectangle ebx's outline moved by (ecx, edx): the top and
 /// bottom rows (`draw_hline`), then the left and right columns between them (`draw_vline`).
 pub unsafe fn frame_rect(rect: u32, dx: i32, dy: i32, colour: u32, palette: u32) {

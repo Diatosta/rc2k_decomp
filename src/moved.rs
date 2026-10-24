@@ -930,7 +930,7 @@ fn moved_home(ida: usize) -> Option<(usize, usize)> {
 /// Points the game's pointers that moved with their blocks (`relocations::PLACES`, whose
 /// first values are the image's bytes before relocation, IDA addresses) at their targets,
 /// as the image's relocation pointed them: a moved target's home, or else its place in the
-/// reserved image (code, which the fault handler answers). The ranges of `RAW_KEPT` stay as
+/// reserved image (a code address: the menus' and the routes' tables run it by its value). The ranges of `RAW_KEPT` stay as
 /// they are. Run once at start (`base` the reserved image's address; `framework::BASE` is
 /// not set yet). Returns how many pointers it changed, or the first place outside every
 /// moved range.

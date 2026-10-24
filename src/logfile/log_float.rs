@@ -16,7 +16,6 @@
 //! function; calls by address `numeric::number_entry` (`routes.rs`); the registers above are the original's, for reference.
 
 use crate::errors::BadInput;
-use crate::framework::rva;
 use crate::logfile::numeric::{Body, NumberText, log_number};
 
 // ---- Rust version ----
@@ -39,7 +38,4 @@ pub fn log_float(value: f32, decimals: u32, newline: bool, level: u8) {
     log_number(&BODY, value.to_bits(), decimals, newline, level);
 }
 
-pub const BODY: Body = Body {
-    after_lock_call_rva: rva(0x4014EA),
-    text,
-};
+pub const BODY: Body = Body { text };

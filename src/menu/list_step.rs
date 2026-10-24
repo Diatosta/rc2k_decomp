@@ -18,7 +18,6 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::Regs;
 use crate::race::viewer::{CHOICE, get, put};
 use rc2k_core::menu::list_menu::{MOVES, Step, step};
 
@@ -31,17 +30,7 @@ pub struct Stepped {
     pub zero: bool,
 }
 
-impl Stepped {
-    /// The registers as the original leaves them, for the register-threaded callers by
-    /// address.
-    pub fn leave(&self, r: &mut Regs) {
-        if let Some(choice) = self.choice {
-            r.ecx = choice;
-        }
-        r.set_carry(self.carry);
-        r.set_zero(self.zero);
-    }
-}
+impl Stepped {}
 
 impl Stepped {
     /// The same in a flow's registers (`menu::event_flow::Flow`).

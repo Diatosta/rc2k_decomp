@@ -19,16 +19,10 @@
 //! thread has no thread slot (esi is then 0), else to that slot's start routine, with esi =
 //! the slot.
 //!
-//! The thunk is written by hand: the function is entered by a jump and may leave by one. It
-//! reserves a stack slot that `dispatch` fills with where to go, and ends in a `ret` through
-//! that slot: a stub that returns, the game's exit path, a thread routine, or the original.
-//! Everything it calls is ported; only its two ways out of a fatal error are jumps into
-//! original code.
-//! Refuses (the original then runs): a text that does not fit `Text`.
-//! Shadow mode cannot run both: the original runs, and what the Rust version would have
-//! written is put in hook.log beforehand, to compare with the game's log by eye. The
-//! self-test runs a copy of the original whose log, quit and thread-slot calls go to
-//! stand-ins and whose two ways out land in the test.
+//! Since 2026-10-24 it is called directly (`report_now`, from `fatal::raise`), and its
+//! two ways out are Rust's: the program ended (`standalone::finish`), or the slot's
+//! routine (its Rust version) run again and the thread ended. A text that does not fit
+//! `Text` ends the program, saying so.
 
 use crate::errors::BadInput;
 use crate::fatal::state::{CAPTION, CODE, EXTRA, MESSAGE, REPORTED, TEMPLATE, TEXT, W32};
@@ -37,49 +31,16 @@ use crate::menu::text_entry::log_l1;
 use crate::threading::find_thread_slot::find_thread_slot;
 use crate::threading::request_quit::request_quit;
 use std::ffi::{CStr, c_char};
-use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
+use std::sync::atomic::Ordering;
 
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new("fatal::report", rva(0x40763C), thunk, &ORIGINAL);
+pub static HOOK: RawHook = RawHook::new("fatal::report", rva(0x40763C));
 
 const _: () = assert!(size_of::<Regs>() == 36);
-
-/// Detour target. The stack slot pushed first is filled by `dispatch` with the address the
-/// final `ret` goes to; at that point every register and flag is as it was on entry (or as
-/// `dispatch` set it) and the stack is as the game left it.
-#[unsafe(naked)]
-unsafe extern "C" fn thunk() {
-    core::arch::naked_asm!(
-        "push 0",              // where to go: dispatch fills it in
-        "pushfd",              // Regs.eflags
-        "pushad",
-        "cld",
-        "mov eax, esp",
-        "push eax",            // arg: *mut Regs
-        "call {dispatch}",
-        "add esp, 4",
-        "popad",
-        "popfd",
-        "ret",
-        dispatch = sym dispatch,
-    )
-}
-
-/// Where a non-fatal report goes: it leaves the flags of the original's last `test` (the
-/// fatal bit, which is clear) and returns on the game's stack.
-#[unsafe(naked)]
-unsafe extern "C" fn return_to_game() {
-    core::arch::naked_asm!("test dword ptr [{zero}], 0x80000000", "ret", zero = sym ZERO)
-}
-
-static ZERO: AtomicU32 = AtomicU32::new(0);
 
 // ---- game data ----
 
 // The variables: `crate::fatal::state`. "Guru Meditation" is the caption from +7.
 // threading::request_quit: asks the game to quit, once
-const EXIT_PATH_RVA: usize = rva(0x4010EE); // loc_4010EE in `start`
 
 // ---- Rust version ----
 
@@ -147,62 +108,70 @@ pub unsafe fn report(context: &Context, outside: &mut Outside) -> Result<Leave, 
     }
 }
 
-// ---- hook ----
-
-/// The registers and flags the thunk saved, as the place that failed had them. The thunk
-/// pushed two dwords before `pushad`, so the stack pointer was 8 higher.
-fn context_of(r: &Regs) -> Context {
-    Context {
+/// The reporter called directly by `fatal::raise` with the registers of the place that
+/// refused (2026-10-24: no longer by its address through the fault handler). A code
+/// without the fatal bit returns; with it the game is asked to quit and this thread ends
+/// as the original's two ways out end it: with no thread slot the program at `start`'s way
+/// out, on a slot's thread its routine (the Rust version) run again, which finds the game
+/// quitting, and the thread ended.
+pub fn report_now(r: &Regs) {
+    HOOK.count_call();
+    let context = Context {
         eax: r.eax,
         ebx: r.ebx,
         ecx: r.ecx,
         edx: r.edx,
         esi: r.esi,
         edi: r.edi,
-        esp: r.esp.wrapping_add(8),
+        esp: r.esp,
         ebp: r.ebp,
         flags: r.eflags,
-    }
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    let context = context_of(r);
-    let original = ORIGINAL.load(Ordering::SeqCst) as u32;
+    };
     log(&format!("fatal::report: thread {}", unsafe {
         windows_sys::Win32::System::Threading::GetCurrentThreadId()
     }));
-
-    let target = {
-        let mut outside = Outside {
-            log: &mut |text| unsafe { log_l1(text, true) },
-            // If no shutdown thread can be created there is nothing more to report: a report
-            // is being made already, and the way out below ends the game anyway.
-            quit: &mut || unsafe {
-                let _ = request_quit();
-            },
-            thread_slot: &|| unsafe { find_thread_slot() as u32 },
-        };
-        match unsafe { report(&context, &mut outside) } {
-            Ok(Leave::Return) => return_to_game as *const () as u32,
-            Ok(Leave::Exit) => {
-                // `find_thread_slot` found nothing: its null result is in esi.
-                r.esi = 0;
-                game_addr(EXIT_PATH_RVA) as u32
-            }
-            Ok(Leave::Routine { slot, routine }) => {
-                r.esi = slot;
-                routine
-            }
-            Err(_) => original,
-        }
+    let mut outside = Outside {
+        log: &mut |text| unsafe { log_l1(text, true) },
+        // If no shutdown thread can be created there is nothing more to report: a report
+        // is being made already, and the way out below ends the game anyway.
+        quit: &mut || unsafe {
+            let _ = request_quit();
+        },
+        thread_slot: &|| unsafe { find_thread_slot() as u32 },
     };
-    log(&format!(
-        "fatal::report: the Rust version ran and continues at {target:#x} (the original reporter is at {original:#x})"
-    ));
-
-    // The slot the thunk reserved sits right above the saved registers and flags.
-    unsafe { (r as *mut Regs as *mut u32).add(9).write(target) };
+    let code = CODE.load(Ordering::Relaxed);
+    match unsafe { report(&context, &mut outside) } {
+        Ok(Leave::Return) => {}
+        Ok(Leave::Exit) => crate::standalone::finish(
+            &format!("fatal error {code:#x}: the game's way out (`start`, 0x4010EE)"),
+            0,
+        ),
+        Ok(Leave::Routine { slot, routine }) => {
+            let at = (routine as usize).wrapping_sub(game_addr(0));
+            log(&format!(
+                "fatal::report: fatal error {code:#x} on the thread of slot {slot:#x}: its routine {:#x} again",
+                at + crate::framework::IMAGE_BASE
+            ));
+            let mut regs = Regs {
+                esi: slot,
+                ..Regs::default()
+            };
+            match crate::routes::by_rva(at, &mut regs) {
+                Some(_) => unsafe { windows_sys::Win32::System::Threading::ExitThread(0) },
+                None => crate::standalone::finish(
+                    &format!(
+                        "not ported: the thread routine {:#x} (fatal error {code:#x})",
+                        at + crate::framework::IMAGE_BASE
+                    ),
+                    1,
+                ),
+            }
+        }
+        Err(why) => crate::standalone::finish(
+            &format!("fatal::report refused ({}) on fatal error {code:#x}", why.0),
+            1,
+        ),
+    }
 }
 
 // ---- self-test: a copy of the original that cannot end the game ----

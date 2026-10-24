@@ -7,7 +7,6 @@
 
 mod audio;
 mod bridge;
-mod calls;
 mod d3d;
 mod drive;
 mod errors;
@@ -57,7 +56,7 @@ use crate::registry::ALL;
 use std::sync::atomic::Ordering;
 
 /// The program's hooks counted as in place at `base` (the image holds no code to patch:
-/// `standalone.rs` sends each hooked address to the hook's thunk).
+/// the platform's functions are named by their addresses, nothing runs there).
 pub fn mark_all_installed(base: usize) -> Vec<bool> {
     BASE.store(base, Ordering::Relaxed);
     vec![true; ALL.len()]

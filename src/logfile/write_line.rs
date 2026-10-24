@@ -13,9 +13,7 @@
 //! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
 //! `routes.rs`); the registers above are the original's, for reference.
 
-use crate::framework::Regs;
 use crate::moved::Place;
-use std::ffi::{CStr, c_char};
 use std::ptr::copy_nonoverlapping;
 use std::slice::from_raw_parts;
 use std::sync::atomic::{AtomicU32, Ordering};
@@ -47,11 +45,6 @@ pub mod state {
 /// `g_logLevel` now.
 pub fn level() -> u32 {
     state::LEVEL.load(Ordering::Relaxed)
-}
-
-/// `g_logEnabled` now.
-pub fn enabled() -> i32 {
-    state::ENABLED.load(Ordering::Relaxed)
 }
 
 /// Turns the log on or off (`g_logEnabled`).
@@ -95,12 +88,6 @@ fn line_buf() -> *mut u8 {
 
 // ---- Rust version ----
 
-/// The bytes the original builds in the line buffer, and the new line-start flag.
-/// Converted: `rc2k_core::files::log::format_line`.
-pub fn format_line(msg: &[u8], newline: bool, indent: i32, line_start: u32) -> (Vec<u8>, u32) {
-    rc2k_core::files::log::format_line(msg, newline, indent, line_start)
-}
-
 /// `files::append_to_file` (0x402C9C), whose only caller is this tail.
 /// Some(bytes written) if the write was reached; None if open or seek failed.
 unsafe fn append_to_file(path: &'static [u8], data: &[u8]) -> Option<u32> {
@@ -137,43 +124,6 @@ unsafe fn append_to_file(path: &'static [u8], data: &[u8]) -> Option<u32> {
     }
 }
 
-/// What a logged line leaves behind.
-pub struct Logged {
-    /// Length of the line in the line buffer.
-    pub len: usize,
-    /// Bytes written to the file; None if open or seek failed.
-    pub written: Option<u32>,
-}
-
-/// None if the level check skipped the message. `msg` is only read when it is logged.
-/// The caller must hold `g_logLock`; it is released here on both paths.
-pub unsafe fn write_line(msg: *const u8, newline: bool, level_m1: u8) -> Option<Logged> {
-    let level = level_m1.wrapping_add(1) as u32; // `inc dh` wraps as a byte
-    unsafe {
-        if self::level() < level {
-            lock().store(0, Ordering::Release);
-            return None;
-        }
-        let msg = CStr::from_ptr(msg as *const c_char).to_bytes();
-        let (bytes, new_flag) = format_line(
-            msg,
-            newline,
-            state::INDENT.load(Ordering::Relaxed),
-            state::LINE_START.load(Ordering::Relaxed),
-        );
-        // The original leaves the line in the game's buffer.
-        let buf = line_buf();
-        copy_nonoverlapping(bytes.as_ptr(), buf, bytes.len());
-        state::LINE_START.store(new_flag, Ordering::Relaxed);
-        let written = append_to_file(LOG_PATH, from_raw_parts(buf, bytes.len()));
-        lock().store(0, Ordering::Release);
-        Some(Logged {
-            len: bytes.len(),
-            written,
-        })
-    }
-}
-
 fn load_state() -> rc2k_core::files::log::LogState {
     rc2k_core::files::log::LogState {
         enabled: state::ENABLED.load(Ordering::Relaxed),
@@ -207,20 +157,6 @@ pub fn log_text(text: &[u8], newline: bool, level: u8) {
         }
     }
     lock().store(0, Ordering::Release);
-}
-
-/// `write_line` with the original's registers in and out.
-pub unsafe fn write_line_regs(r: &mut Regs) {
-    let (newline, level_m1) = (r.edx as u8, (r.edx >> 8) as u8);
-    r.edx = newline as u32;
-    match unsafe { write_line(r.eax as *const u8, newline != 0, level_m1) } {
-        Some(logged) => {
-            r.eax = logged.written.unwrap_or(LOG_PATH.as_ptr() as u32);
-            r.ebx = line_buf() as u32;
-            r.ecx = logged.len as u32;
-        }
-        None => r.ecx = level_m1.wrapping_add(1) as u32,
-    }
 }
 
 /// Takes the lock the way `log_lock_acquire` does.

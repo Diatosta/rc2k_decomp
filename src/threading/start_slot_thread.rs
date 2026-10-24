@@ -52,9 +52,7 @@ pub unsafe fn start_slot_thread(slot: *mut u8) -> Result<(), FatalError> {
 }
 
 /// A slot's thread: its routine (the game's address, as the slot holds it) run by its Rust
-/// version (`crate::routes`), not through its hook; in shadow mode, or with no Rust version,
-/// the routine itself, called as `CreateThread` calls it. Not through `calls::call`: that passes the hooks' gate, and a thread would
-/// count as inside a hook for its whole life (the threads' thunks are ungated).
+/// version (`crate::routes`). A routine with none, or one that refuses, ends the program.
 unsafe extern "system" fn run_routine(routine: *mut c_void) -> u32 {
     let routine = routine as usize;
     let mut r = Regs::default();
@@ -69,24 +67,18 @@ unsafe extern "system" fn run_routine(routine: *mut c_void) -> u32 {
             ));
             unsafe { crate::fatal::raise::raise(error, &r) };
         }
-        Some(Err(crate::errors::Refused::BadInput(why))) => {
-            log(&format!(
-                "threading::start_slot_thread: the routine {routine:#x} refused ({}); the game's runs",
+        Some(Err(crate::errors::Refused::BadInput(why))) => crate::standalone::finish(
+            &format!(
+                "threading::start_slot_thread: the routine {:#x} refused: {}",
+                at + crate::framework::IMAGE_BASE,
                 why.0
-            ));
-            unsafe { as_thread(routine) };
-        }
-        None => unsafe { as_thread(routine) },
+            ),
+            1,
+        ),
+        None => crate::standalone::not_ported(
+            at + crate::framework::IMAGE_BASE,
+            "threading::start_slot_thread",
+        ),
     }
     0
-}
-
-/// Runs `routine` as `CreateThread` would have: a `stdcall` function of one parameter
-/// (none here). The game's four routines end in `ExitThread` and never come back.
-unsafe fn as_thread(routine: usize) {
-    unsafe {
-        let routine =
-            std::mem::transmute::<usize, unsafe extern "system" fn(*mut c_void) -> u32>(routine);
-        routine(std::ptr::null_mut());
-    }
 }

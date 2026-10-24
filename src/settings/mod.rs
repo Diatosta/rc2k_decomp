@@ -4,7 +4,6 @@
 use crate::framework::rva;
 
 pub mod apply_feature_switches;
-pub mod find_key;
 pub mod parse_number;
 pub mod read_driver_names;
 pub mod read_settings;

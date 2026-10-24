@@ -119,15 +119,6 @@ pub unsafe fn learn_axis() -> Result<(), Refused> {
     }
 }
 
-/// `screens::draw_no_controller` (0x46AEAA): string 0x56D at (0x1BC, 0xD5) in the font at
-/// 0x51E8C4. What `draw_string_by_id` leaves (the route puts it in the registers).
-pub unsafe fn draw_no_controller(
-    canvas: &mut dyn crate::text::draw_text::Canvas,
-) -> Result<rc2k_core::screens::screen::Drawn, Refused> {
-    // Converted: `rc2k_core::screens::notes::NO_CONTROLLER`.
-    crate::screens::game_screen::draw_note(canvas, &rc2k_core::screens::notes::NO_CONTROLLER)
-}
-
 /// What the controller page reads: refused before anything.
 pub unsafe fn controller_page_refuses() -> Result<u32, Refused> {
     unsafe {

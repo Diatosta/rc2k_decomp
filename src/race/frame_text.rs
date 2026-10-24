@@ -54,13 +54,6 @@ unsafe fn credit_line(
     }
 }
 
-/// What the credits leave: the registers (all kept by `pusha` .. `popa`) and the flags:
-/// carry when they have rolled off and the music has stopped, else not and zero by eax.
-pub struct Rolled {
-    pub carry: bool,
-    pub zero: bool,
-}
-
 /// `race::roll_credits` (0x415FC2): eax 0 starts them (the clock `dword_529850`, the top
 /// `dword_52984C` the screen's height + 0x15E, `dword_529854` 0, tune 2 by `sound`); else
 /// draws the script at 0x529858 (words: 1, 2, 7, 8 a string in fonts 0x51E8A4, 0x51E6A4,
@@ -68,12 +61,12 @@ pub struct Rolled {
 /// string left / right of the middle (only 4 moves down); 5 three strings in columns; 6 a
 /// signed move; 9 nothing; any other the end) from the top down, moves the top up a pixel
 /// for each 0x12 ms passed, and when the last line is above -0xAF and the music has
-/// stopped, `dword_529854` 1 and carry.
+/// stopped, `dword_529854` 1 (the original also leaves flags no caller reads).
 pub unsafe fn roll_credits(
     eax: u32,
     canvas: &mut dyn Canvas,
     sound: &mut dyn FnMut(),
-) -> Result<Rolled, Refused> {
+) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::credits::{start_top, lay_out, catch_up, rolled_off}`.
     use crate::system::tick_count::tick_count;
     use rc2k_core::race::credits::{Font, catch_up, lay_out, rolled_off, start_top};
@@ -85,12 +78,8 @@ pub unsafe fn roll_credits(
             let top = start_top(height);
             game_write(rva(0x52984C), top);
             game_write(rva(0x529854), 0u32);
-            // eax holds the top when the tune is sent, and is tested on the way out.
             sound();
-            return Ok(Rolled {
-                carry: false,
-                zero: top == 0,
-            });
+            return Ok(());
         }
         let font_of = |f: Font| {
             let at = match f.0 {
@@ -117,23 +106,16 @@ pub unsafe fn roll_credits(
         for line in lines {
             credit_line(line.id, font_of(line.font), line.x, line.y, canvas)?;
         }
-        let (top, clock, elapsed) =
-            catch_up(game_read(rva(0x52984C)), game_read(rva(0x529850)), || {
-                tick_count()
-            });
+        let (top, clock, _) = catch_up(game_read(rva(0x52984C)), game_read(rva(0x529850)), || {
+            tick_count()
+        });
         game_write(rva(0x52984C), top);
         game_write(rva(0x529850), clock);
         if !rolled_off(below, game_read(Slot::at(0x506990))) {
-            return Ok(Rolled {
-                carry: false,
-                zero: elapsed == 0,
-            });
+            return Ok(());
         }
         game_write(rva(0x529854), 1u32);
-        Ok(Rolled {
-            carry: true,
-            zero: false,
-        })
+        Ok(())
     }
 }
 

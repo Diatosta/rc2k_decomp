@@ -80,8 +80,7 @@ pub unsafe fn show_version_and_leave() -> ! {
             crate::fatal::state::CAPTION.ptr().cast::<u8>(),
             0x2040,
         );
-        // The exit path (0x401116) ends in `ExitProcess`; the standalone ends where a call
-        // of it would (its fault handler's `EXITS`).
+        // The exit path (0x401116) ends in `ExitProcess`; so does the standalone, here.
         crate::standalone::finish(&format!("the game's way out {EXIT_PATH:#x} was reached"), 0)
     }
 }

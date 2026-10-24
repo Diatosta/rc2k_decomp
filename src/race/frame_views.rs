@@ -3,7 +3,7 @@
 //! overlays, the first car loaded.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, rva};
+use crate::framework::rva;
 use crate::input::store::DeviceSlot;
 use crate::session::SCREEN;
 use crate::store::{game_addr, game_read, game_write};
@@ -299,12 +299,7 @@ pub unsafe fn forget_view_textures() -> Result<(), Refused> {
         } else {
             // `sub_44E828`, the platform's upload (then the slot forgotten): through the
             // game, esi the picture, eax the slot (the only registers it reads).
-            let r = &mut Regs {
-                esi: crate::store::game_addr(rva(0xA12AE4)) as u32,
-                eax: k(0x5D0E08),
-                ..Default::default()
-            };
-            crate::calls::call(rva(0x44E828), r);
+            crate::standalone::not_ported(0x44E828, "race::frame_views");
         }
         w(0x6D1508, k(0x6D1508).wrapping_add(MIRROR_COST));
         Ok(())

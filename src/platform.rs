@@ -23,7 +23,7 @@
 //!   `system::pump_messages` (0x410535): SDL's events; closing the window sets the
 //!   quit switch, and the keys the menus know become the game's pending key.
 
-use crate::framework::{GameHook, RawHook, Regs, hook_asm, log, rva};
+use crate::framework::{GameHook, RawHook, Regs, log, rva};
 use crate::gfx::describe_format::describe_format;
 use crate::gfx::front::Slot as FrontSlot;
 use crate::gfx::locked::Slot as LockSlot;
@@ -185,16 +185,16 @@ fn game_key(scancode: i32) -> u8 {
 
 // ---- gfx::choose_screen_modes (0x404481) ----
 
-static CHOOSE_ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-static CHOOSE: RawHook = RawHook::new(
-    "gfx::choose_screen_modes",
-    rva(0x404481),
-    choose_thunk,
-    &CHOOSE_ORIGINAL,
-);
-hook_asm!(choose_thunk, dispatch = choose);
+static CHOOSE: RawHook = RawHook::new("gfx::choose_screen_modes", rva(0x404481));
 
 extern "C" fn choose(r: &mut Regs) {
+    choose_screen_modes();
+    r.set_carry(false);
+}
+
+/// `gfx::choose_screen_modes`: the menus' and the race's modes (the default where none is
+/// kept) and the graphics options' choices. It cannot fail here (the original's carry).
+pub fn choose_screen_modes() {
     CHOOSE.count_call();
     unsafe {
         for mode in [MENU_MODE_RVA, RACE_MODE_RVA] {
@@ -217,19 +217,11 @@ extern "C" fn choose(r: &mut Regs) {
             "platform: the screen mode choices are not made: {e:?}"
         ));
     }
-    r.set_carry(false);
 }
 
 // ---- gfx::set_screen_mode (0x404B63) ----
 
-static SET_MODE_ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-static SET_MODE: RawHook = RawHook::new(
-    "gfx::set_screen_mode",
-    rva(0x404B63),
-    set_mode_thunk,
-    &SET_MODE_ORIGINAL,
-);
-hook_asm!(set_mode_thunk, dispatch = set_mode);
+static SET_MODE: RawHook = RawHook::new("gfx::set_screen_mode", rva(0x404B63));
 
 /// The value of a table's entry for a key.
 unsafe fn looked_up(key: u32, table: impl crate::gfx::block::Where, entries: u32) -> Option<u32> {
@@ -349,14 +341,7 @@ extern "C" fn set_mode(r: &mut Regs) {
 
 // ---- gfx::set_menu_screen_mode (0x404823) ----
 
-static MENU_MODE_ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-static MENU_MODE: RawHook = RawHook::new(
-    "gfx::set_menu_screen_mode",
-    rva(0x404823),
-    menu_mode_thunk,
-    &MENU_MODE_ORIGINAL,
-);
-hook_asm!(menu_mode_thunk, dispatch = menu_mode);
+static MENU_MODE: RawHook = RawHook::new("gfx::set_menu_screen_mode", rva(0x404823));
 
 /// `gfx::set_menu_screen_mode`: `gfx::set_screen_mode` with the menus' mode; false (and
 /// logged) if it cannot be.
@@ -379,14 +364,7 @@ extern "C" fn menu_mode(r: &mut Regs) {
 
 // ---- gfx::lock_surface (0x4058AD), gfx::unlock_surface (0x405949) ----
 
-static LOCK_ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-static LOCK: RawHook = RawHook::new(
-    "gfx::lock_surface",
-    rva(0x4058AD),
-    lock_thunk,
-    &LOCK_ORIGINAL,
-);
-hook_asm!(lock_thunk, dispatch = lock);
+static LOCK: RawHook = RawHook::new("gfx::lock_surface", rva(0x4058AD));
 
 /// The flags of `cmp g_surfaceLocked, 1`.
 fn compared_with_one(r: &mut Regs, locked: u32) {
@@ -433,14 +411,7 @@ pub fn lock_surface() -> u32 {
     }
 }
 
-static UNLOCK_ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-static UNLOCK: RawHook = RawHook::new(
-    "gfx::unlock_surface",
-    rva(0x405949),
-    unlock_thunk,
-    &UNLOCK_ORIGINAL,
-);
-hook_asm!(unlock_thunk, dispatch = unlock);
+static UNLOCK: RawHook = RawHook::new("gfx::unlock_surface", rva(0x405949));
 
 extern "C" fn unlock(r: &mut Regs) {
     match unlock_surface() {
@@ -467,9 +438,7 @@ pub fn unlock_surface() -> u32 {
 
 // ---- gfx::show_frame (0x4057D1) ----
 
-static SHOW_ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-static SHOW: RawHook = RawHook::new("gfx::show_frame", rva(0x4057D1), show_thunk, &SHOW_ORIGINAL);
-hook_asm!(show_thunk, dispatch = show);
+static SHOW: RawHook = RawHook::new("gfx::show_frame", rva(0x4057D1));
 
 // ---- where the time goes: the main thread and the rasteriser's sampled every millisecond ----
 
@@ -774,14 +743,7 @@ pub fn show_frame_now() -> bool {
 
 // ---- system::pump_messages (0x410535), screens::run_frame (0x405A71) ----
 
-static PUMP_ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-static PUMP: RawHook = RawHook::new(
-    "system::pump_messages",
-    rva(0x410535),
-    pump_thunk,
-    &PUMP_ORIGINAL,
-);
-hook_asm!(pump_thunk, dispatch = pump_messages);
+static PUMP: RawHook = RawHook::new("system::pump_messages", rva(0x410535));
 
 extern "C" fn pump_messages(r: &mut Regs) {
     pump_messages_now();
@@ -794,14 +756,7 @@ pub fn pump_messages_now() {
     pump();
 }
 
-static RUN_FRAME_ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-static RUN_FRAME: RawHook = RawHook::new(
-    "screens::run_frame",
-    rva(0x405A71),
-    run_frame_thunk,
-    &RUN_FRAME_ORIGINAL,
-);
-hook_asm!(run_frame_thunk, dispatch = run_frame);
+static RUN_FRAME: RawHook = RawHook::new("screens::run_frame", rva(0x405A71));
 
 /// The messages, then the frame's function in eax, whose registers and flags are what
 /// the caller gets. (The original also waits for the window to be the active one and
@@ -835,8 +790,8 @@ pub fn run_frame_now<T>(frame: impl FnOnce() -> T) -> Option<T> {
 }
 
 /// For Rust callers that name a platform hook's function by its address
-/// (`menu::table_calls`): its Rust side run directly, not through the fault handler and
-/// the thunk (conversion phase 3, 2026-10-23). `at` is the address as IDA shows it.
+/// (`menu::table_calls`): its Rust side run directly (conversion phase 3, 2026-10-23).
+/// `at` is the address as IDA shows it.
 pub fn by_address(at: usize, r: &mut Regs) -> bool {
     let hooks: [(&RawHook, extern "C" fn(&mut Regs)); 9] = [
         (&CHOOSE, choose),

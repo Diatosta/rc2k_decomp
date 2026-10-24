@@ -1,9 +1,8 @@
 //! Raising a fatal error from Rust: what the original's stubs do before they jump to the
 //! reporter (store the code and the message), followed by the reporter itself.
 //!
-//! This is not a hook: nothing in the original corresponds to it one to one. It goes to the
-//! reporter's address in the game, where the standalone's fault handler routes it to the
-//! `fatal::report` hook's thunk and through it to the Rust version.
+//! This is not a hook: nothing in the original corresponds to it one to one. It calls the
+//! reporter's Rust version directly (`fatal::report::report_now`).
 //!
 //! It is not identical to an original error in one respect: the registers in the report are
 //! the ones given here (those at the entry of the hooked function that failed), not those at
@@ -11,10 +10,8 @@
 
 use crate::errors::{FatalError, Refused};
 use crate::fatal::state::{CODE, MESSAGE};
-use crate::framework::{GameHook, RawHook, Regs, log, rva};
+use crate::framework::{GameHook, RawHook, Regs, log};
 use std::ffi::CString;
-
-const REPORTER_RVA: usize = rva(0x40763C); // fatal::report
 
 /// Reports `error` with the registers in `regs` and ends the game the way the original
 /// does: on a thread without a thread slot through the exit path (which shows the report in
@@ -29,8 +26,7 @@ pub unsafe fn raise(error: FatalError, regs: &Regs) {
     };
     CODE.store(error.code, std::sync::atomic::Ordering::Relaxed);
     MESSAGE.store(message, std::sync::atomic::Ordering::Relaxed);
-    let mut regs = *regs;
-    crate::calls::call(REPORTER_RVA, &mut regs);
+    crate::fatal::report::report_now(regs);
 }
 
 /// What the program does when a Rust version refuses a call. A refused input (`BadInput`)

@@ -30,7 +30,7 @@
 //! registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{Regs, game_read, game_write, rva};
 use crate::service::pages::{GEAR_RATIO, RIDE_HEIGHT, SUSPENSION_STIFFNESS, TYRE};
 use crate::service::reset_tyre_wear::reset_tyre_wear;
 use crate::service::state::{current_player, repair_flag, set_repair_flag};
@@ -43,9 +43,6 @@ const WORKING_RVA: usize = rva(0x75AB38); // dword_75AB38: set to 1 here
 const START_RVA: usize = rva(0x75AB48); // dword_75AB48: the clock when a phase started
 const ELAPSED_RVA: usize = rva(0x75AB4C); // dword_75AB4C
 const LAST_STEP_RVA: usize = rva(0x75AB54); // dword_75AB54: `elapsed` at the last step
-
-const FRAME_FUNCTION_RVA: usize = rva(0x405A71); // sub_405A71
-const DRAW_CALLBACK_RVA: usize = rva(0x46CFD7); // sub_46CFD7
 
 // Converted: `rc2k_core::service::workshop` (the car's offsets, the items, the order).
 use rc2k_core::service::workshop::{Setting, Timer, Workshop};
@@ -65,12 +62,14 @@ impl Driver for GameDriver {
     fn clock(&mut self) -> u32 {
         tick_count()
     }
+    /// `screens::run_frame` with the service area's frame (`screens::service_area_frame`).
     fn frame(&mut self) {
-        let mut regs = Regs {
-            eax: game_addr(DRAW_CALLBACK_RVA) as u32,
-            ..Regs::default()
-        };
-        crate::calls::call(FRAME_FUNCTION_RVA, &mut regs);
+        let ran = crate::platform::run_frame_now(|| unsafe {
+            crate::screens::service_area_frame::service_area_frame()
+        });
+        if let Some(Err(e)) = ran {
+            crate::menu::table_calls::refused("screens::service_area_frame", e, &Regs::default());
+        }
     }
     fn sleep(&mut self, milliseconds: u32) {
         sleep(milliseconds);

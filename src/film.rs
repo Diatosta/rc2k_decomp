@@ -36,23 +36,13 @@ use crate::framework::{Regs, log, rva};
 use crate::gfx::block::{game_addr, game_read, game_write};
 use crate::gfx::reports::Slot as RepSlot;
 use std::ffi::{CStr, c_char, c_void};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
 
 pub static HOOK: crate::framework::RawHook =
-    crate::framework::RawHook::new("gfx::play_film", rva(0x41AE39), thunk, &ORIGINAL);
-
-crate::framework::hook_asm!(thunk, dispatch = dispatch);
+    crate::framework::RawHook::new("gfx::play_film", rva(0x41AE39));
 
 const NO_FMV_RVA: usize = rva(0x5BE870); // g_noFmv
 const REPORTS_RVA: RepSlot = RepSlot::at(0x4F52AC); // dword_4F52AC
 const SURFACE_RVA: usize = rva(0x4F4998); // g_surface
-const TAKE_KEY: usize = rva(0x407F95); // input::take_key
-const PUMP: usize = rva(0x410535); // system::pump_messages
-const LOCK: usize = rva(0x4058AD); // gfx::lock_surface
-const UNLOCK: usize = rva(0x405949); // gfx::unlock_surface
-const SHOW: usize = rva(0x4057D1); // gfx::show_frame
 
 // ---- FFmpeg (cdecl; only functions, and the frame's first fields, which are stable) ----
 
@@ -649,8 +639,8 @@ pub unsafe fn play_film(entry: &Regs) -> bool {
         let mut r = *entry;
         let reports: u32 = game_read(REPORTS_RVA);
         game_write(REPORTS_RVA, 0u32);
-        let mut k = r;
-        crate::calls::call(TAKE_KEY, &mut k);
+        // A key pending before the film is dropped (`input::take_key`).
+        crate::input::take_key::take_key();
         r.eax = entry.eax;
         // the open: the path resolved (`files::resolve_path`), there (`files::file_exists`)
         let found = crate::files::resolve_path::resolve_path_in_game(entry.eax as *const u8)
@@ -768,27 +758,25 @@ unsafe fn run(film: &mut Film, r: &mut Regs) -> u32 {
             let Some(next) = queue.pop_front() else {
                 break;
             };
-            crate::calls::call(PUMP, r);
+            crate::platform::pump_messages_now();
             // the frame's time, as the stream's Update waits for it
             let due = film.frame * shown;
             if let Some(wait) = due.checked_sub(start.elapsed()) {
                 std::thread::sleep(wait);
             }
             shown += 1;
-            let mut l = *r;
-            crate::calls::call(LOCK, &mut l);
-            if !l.carry() {
+            // (`gfx::lock_surface` leaves the carry clear for a locked surface, 1.)
+            if crate::platform::lock_surface() >= 1 {
                 blit(&next);
-                crate::calls::call(UNLOCK, &mut l);
+                crate::platform::unlock_surface();
             }
             last = Some(next);
-            let mut s = *r;
-            crate::calls::call(SHOW, &mut s);
-            let mut k = *r;
-            crate::calls::call(TAKE_KEY, &mut k);
-            if k.eflags & crate::framework::ZERO_FLAG == 0 {
+            crate::platform::show_frame_now();
+            let key = crate::input::take_key::take_key();
+            if key != 0 {
                 drop(sound);
-                return k.eax;
+                // `input::take_key` leaves the key in al, the rest of eax as it was.
+                return (r.eax & !0xFF) | u32::from(key);
             }
         }
         drop(sound);

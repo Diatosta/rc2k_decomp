@@ -19,7 +19,6 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::Regs;
 use crate::race::viewer::{FRAME_CLOCK, LAST_KEY, MOVE_CLOCK, REPEATS, gb, get, pb, put};
 
 /// What `list_take_key` gives: the key (eax, 0 for none) and, for the last key again, the
@@ -30,19 +29,7 @@ pub struct Taken {
     pub again: Option<(u32, u32)>,
 }
 
-impl Taken {
-    /// The registers as the original leaves them (the flags of `test al, al`), for the
-    /// register-threaded callers by address.
-    pub fn leave(&self, r: &mut Regs) {
-        r.eax = u32::from(self.key);
-        if let Some((frame, moved)) = self.again {
-            r.ebx = frame;
-            r.ecx = moved;
-        }
-        r.set_carry(false);
-        r.set_zero(self.key == 0);
-    }
-}
+impl Taken {}
 
 impl Taken {
     /// The same in a flow's registers (`menu::event_flow::Flow`).

@@ -170,11 +170,6 @@ pub fn update_input(shot: Screenshot) -> (u32, u32) {
     }
 }
 
-/// In the game: `screenshot_if_key` with the game's screenshot.
-pub fn game_check() {
-    unsafe { screenshot_if_key(&mut game_screenshot) };
-}
-
 /// In the game: `gfx::take_screenshot`'s Rust version.
 pub fn game_screenshot() {
     if let Err(e) = crate::gfx::take_screenshot::take_screenshot() {

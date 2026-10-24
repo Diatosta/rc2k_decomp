@@ -3,7 +3,6 @@
 
 pub mod check_at_start;
 pub mod check_clio_disc;
-pub mod check_test;
 pub mod choose_language;
 pub mod end_text_line;
 pub mod normalise_path;

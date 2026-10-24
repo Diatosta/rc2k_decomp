@@ -192,43 +192,43 @@ pub fn item_fn(f: ItemFn, r: &mut Regs) -> Result<(), Refused> {
         }
         ItemFn::KeepPlayerKeys => crate::menu::player_actions::keep_player_keys_hook::run(),
         ItemFn::LearnBinding1 => {
-            crate::menu::learn_bindings::learn_binding_1::run();
+            crate::menu::learn_bindings::learn_binding(1);
             Ok(())
         }
         ItemFn::LearnBinding2 => {
-            crate::menu::learn_bindings::learn_binding_2::run();
+            crate::menu::learn_bindings::learn_binding(2);
             Ok(())
         }
         ItemFn::LearnBinding3 => {
-            crate::menu::learn_bindings::learn_binding_3::run();
+            crate::menu::learn_bindings::learn_binding(3);
             Ok(())
         }
         ItemFn::LearnBinding4 => {
-            crate::menu::learn_bindings::learn_binding_4::run();
+            crate::menu::learn_bindings::learn_binding(4);
             Ok(())
         }
         ItemFn::LearnBinding5 => {
-            crate::menu::learn_bindings::learn_binding_5::run();
+            crate::menu::learn_bindings::learn_binding(5);
             Ok(())
         }
         ItemFn::LearnBinding6 => {
-            crate::menu::learn_bindings::learn_binding_6::run();
+            crate::menu::learn_bindings::learn_binding(6);
             Ok(())
         }
         ItemFn::LearnBinding7 => {
-            crate::menu::learn_bindings::learn_binding_7::run();
+            crate::menu::learn_bindings::learn_binding(7);
             Ok(())
         }
         ItemFn::LearnBinding8 => {
-            crate::menu::learn_bindings::learn_binding_8::run();
+            crate::menu::learn_bindings::learn_binding(8);
             Ok(())
         }
         ItemFn::LearnBinding9 => {
-            crate::menu::learn_bindings::learn_binding_9::run();
+            crate::menu::learn_bindings::learn_binding(9);
             Ok(())
         }
         ItemFn::LearnBinding10 => {
-            crate::menu::learn_bindings::learn_binding_10::run();
+            crate::menu::learn_bindings::learn_binding(10);
             Ok(())
         }
         ItemFn::LowerPlayer40 => crate::menu::player_actions::lower_player_40_hook::run(),

@@ -19,10 +19,9 @@
 //! `routes.rs`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, rva};
+use crate::framework::Regs;
 use crate::session::FLAGS;
 
-const PUMP: usize = 0x410535; // system::pump_messages (the platform's)
 const RESTORE: usize = 0x405B10; // sub_405B10: the surfaces restored (the platform's)
 
 /// The Rust version (see the header): `eax` in, the eax its calls leave out (`mov eax,
@@ -39,7 +38,7 @@ pub fn race_frame(eax: u32) -> Result<u32, Refused> {
         eax,
         ..Regs::default()
     };
-    crate::calls::call(rva(PUMP), r);
+    crate::platform::pump_messages_now();
     if FLAGS.quitting.get() == 1 {
         // The game is closing. In the game its shutdown thread (`threading::request_quit`)
         // ends the program meanwhile; the standalone, which has none, ends it here.
@@ -62,7 +61,6 @@ pub fn race_frame(eax: u32) -> Result<u32, Refused> {
     if FLAGS.quitting.get() == 1 {
         return Ok(r.eax);
     }
-    r.ebx = FLAGS.lost.get();
-    crate::calls::call(rva(RESTORE), r);
-    Ok(r.eax)
+    // The surfaces restored: never here (the window is always active, nothing is lost).
+    crate::standalone::not_ported(RESTORE, "drive::race_frame")
 }

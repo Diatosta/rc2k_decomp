@@ -7,9 +7,6 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 pub static BASE: AtomicUsize = AtomicUsize::new(0);
 /// The program's log (`rc2k.log`), set by `standalone::run`. Nothing is written before that.
 pub static LOG_PATH: OnceLock<PathBuf> = OnceLock::new();
-/// Set by `standalone.rs`: for a hook's address in the game's image, its thunk.
-/// `call_game` goes there straight away; the image itself cannot be executed there.
-pub static CALL_REDIRECT: OnceLock<std::collections::HashMap<usize, usize>> = OnceLock::new();
 
 pub const IMAGE_BASE: usize = 0x400000;
 
@@ -22,37 +19,21 @@ pub trait GameHook: Sync {
     fn name(&self) -> &'static str;
     fn rva(&self) -> usize;
     fn stats(&self) -> &HookStats;
-
-    /// Makes `call_original` go to `addr` from now on. For `standalone.rs`, where there is
-    /// no original to run: it names an address that faults and tells which hook asked.
-    fn set_original(&self, addr: usize);
-
-    /// The hook's thunk: `standalone.rs` sends calls of the hooked address there.
-    fn thunk(&self) -> usize;
 }
 
-/// A function of the game's image whose calls run Rust code: `standalone.rs` sends a
-/// call of its address to its thunk (no code is patched; the image is data only).
+/// A function of the game's that the platform (or the fatal reporter) stands for: its
+/// name, its address (for the menus' and Rust's calls by address, `platform::by_address`)
+/// and its calls counted. Nothing runs at the address itself (2026-10-24).
 pub struct RawHook {
     name: &'static str,
     rva: usize,
     pub stats: HookStats,
-    thunk: unsafe extern "C" fn(),
-    /// Where `call_original` jumps to, set by `standalone.rs`.
-    original: &'static AtomicUsize,
 }
 impl RawHook {
-    pub const fn new(
-        name: &'static str,
-        rva: usize,
-        thunk: unsafe extern "C" fn(),
-        original: &'static AtomicUsize,
-    ) -> Self {
+    pub const fn new(name: &'static str, rva: usize) -> Self {
         Self {
             name,
             rva,
-            thunk,
-            original,
             stats: HookStats::new(),
         }
     }
@@ -72,12 +53,6 @@ impl GameHook for RawHook {
     fn stats(&self) -> &HookStats {
         &self.stats
     }
-    fn set_original(&self, addr: usize) {
-        self.original.store(addr, Ordering::SeqCst);
-    }
-    fn thunk(&self) -> usize {
-        self.thunk as usize
-    }
 }
 
 pub struct HookStats {
@@ -94,59 +69,6 @@ impl HookStats {
             calls: AtomicUsize::new(0),
         }
     }
-}
-
-/// Calls game code at `addr` with the registers in `regs`, and stores the registers and flags
-/// it returns with back into `regs`: `call_original` for any address. `esp` in `regs` is
-/// ignored. A hook's address is exchanged for its thunk first; any other address of the
-/// game's image faults (no code runs there) and ends the program.
-pub unsafe fn call_game(regs: *mut Regs, addr: usize) {
-    let addr = CALL_REDIRECT
-        .get()
-        .and_then(|thunks| thunks.get(&addr).copied())
-        .unwrap_or(addr);
-    unsafe { call_at(regs, addr) }
-}
-
-/// `call_game` without the exchange.
-#[unsafe(naked)]
-unsafe extern "C" fn call_at(_regs: *mut Regs, _addr: usize) {
-    core::arch::naked_asm!(
-        "push ebx", "push esi", "push edi", "push ebp",
-        "mov eax, [esp + 20]",           // eax = regs
-        "push eax",                      // remember regs across the call
-        "mov ecx, [eax + {o_ecx}]",
-        "mov edx, [eax + {o_edx}]",
-        "mov ebx, [eax + {o_ebx}]",
-        "mov esi, [eax + {o_esi}]",
-        "mov edi, [eax + {o_edi}]",
-        "mov ebp, [eax + {o_ebp}]",
-        "mov eax, [eax + {o_eax}]",
-        "call dword ptr [esp + 28]",     // addr
-        "pushfd",                        // the flags it returned with
-        "cld",
-        "push eax",
-        "mov eax, [esp + 8]",            // eax = regs again
-        "mov [eax + {o_ecx}], ecx",
-        "mov [eax + {o_edx}], edx",
-        "mov [eax + {o_ebx}], ebx",
-        "mov [eax + {o_esi}], esi",
-        "mov [eax + {o_edi}], edi",
-        "mov [eax + {o_ebp}], ebp",
-        "pop dword ptr [eax + {o_eax}]",
-        "pop dword ptr [eax + {o_eflags}]",
-        "add esp, 4",
-        "pop ebp", "pop edi", "pop esi", "pop ebx",
-        "ret",
-        o_eax = const core::mem::offset_of!(Regs, eax),
-        o_eflags = const core::mem::offset_of!(Regs, eflags),
-        o_ecx = const core::mem::offset_of!(Regs, ecx),
-        o_edx = const core::mem::offset_of!(Regs, edx),
-        o_ebx = const core::mem::offset_of!(Regs, ebx),
-        o_esi = const core::mem::offset_of!(Regs, esi),
-        o_edi = const core::mem::offset_of!(Regs, edi),
-        o_ebp = const core::mem::offset_of!(Regs, ebp),
-    )
 }
 
 /// The address of the game's variable at `rva`: in the image, or for a variable that has
@@ -263,37 +185,4 @@ pub struct Flags {
     pub zero: bool,
 }
 
-impl Flags {
-    pub fn apply(self, r: &mut Regs) {
-        r.set_carry(self.carry);
-        r.set_zero(self.zero);
-    }
-}
-
-/// A hook's thunk (`hook_asm!(thunk, dispatch = dispatch)`): where `standalone.rs` sends a
-/// call of the hooked address. It saves the registers and flags as `Regs`, calls `dispatch`
-/// with them and returns with what `dispatch` left there (`epilogue = "..."`: instructions
-/// run before the `ret`, e.g. "test esi, esi" when the caller reads ZF).
-macro_rules! hook_asm {
-    ($thunk:ident, dispatch = $dispatch:ident $(, epilogue = $epilogue:literal)?) => {
-        #[unsafe(naked)]
-        pub(crate) unsafe extern "C" fn $thunk() {
-            core::arch::naked_asm!(
-                "pushfd",              // Regs.eflags
-                "pushad",
-                "cld",                 // Rust code expects the direction flag clear
-                "mov eax, esp",
-                "push eax",            // arg: *mut Regs
-                "call {dispatch}",
-                "add esp, 4",
-                "popad",
-                "popfd",               // the caller's flags, or what dispatch set
-                $($epilogue,)?
-                "ret",
-                dispatch = sym $dispatch,
-            )
-        }
-    };
-}
-
-pub(crate) use hook_asm;
+impl Flags {}

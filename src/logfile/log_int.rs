@@ -7,7 +7,6 @@
 //! function; calls by address `numeric::number_entry` (`routes.rs`); the registers above are the original's, for reference.
 
 use crate::errors::BadInput;
-use crate::framework::rva;
 use crate::logfile::numeric::{Body, NumberText, log_number};
 
 // ---- Rust version ----
@@ -30,7 +29,4 @@ pub fn log_int(value: i32, newline: bool, level: u8) {
     log_number(&BODY, value as u32, 0, newline, level);
 }
 
-pub const BODY: Body = Body {
-    after_lock_call_rva: rva(0x40144E),
-    text,
-};
+pub const BODY: Body = Body { text };

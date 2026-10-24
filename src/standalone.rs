@@ -1,32 +1,26 @@
-//! The ported code run without the game: `RAL.EXE` is only read, as data.
+//! The program: the game's `start` (0x401000) gone through as the list of calls it is, in
+//! Rust, without RAL.EXE.
 //!
 //! What happens (`run`):
-//! 1. The file is read and laid out in memory of ours as the loader would lay it out
-//!    (headers and sections at their places), wherever there is room: its own
-//!    addresses, 0x400000 on, are taken in a program that is not `RAL.EXE`. The file has
-//!    its relocations, so every address in it is moved by the difference. `game_addr`
-//!    adds the base, so the ported code finds every variable.
-//! 2. The hooks are installed on that copy exactly as on the running game, and then the
-//!    whole image is made memory that cannot be executed. (Its code cannot simply be
-//!    blotted out: the game keeps tables among its code, the weekdays' names at
-//!    0x401EA5 for one, which ported code reads.) So every call to an address of the
-//!    game faults, and `on_exception` decides: a hook's address goes on in the hook's
-//!    thunk, where its jump leads, and so in the Rust version, as the callers written
-//!    with `call_game` need; any other address is a function that is not ported: the
-//!    program ends, logging it and its caller (owner, 2026-10-23; it returned at once
-//!    as if it had worked before, which hid it). None of the game's own code runs.
-//! 3. `start` (0x401000) is gone through as the list of calls it is.
+//! 1. The game's address range (0x400000 on, `IMAGE_SIZE`) is reserved with no access
+//!    and nothing in it (`build_image`): every variable and constant of the game's has a
+//!    home in Rust (`crate::moved`, phase 5), and the game's pointers that moved with
+//!    their blocks are pointed at their targets.
+//! 2. No code of RAL.EXE runs. Every call the game's data makes by address (menus, draw
+//!    lists, frames, thread routines) and every one Rust still makes goes to its Rust
+//!    version (`menu::table_calls`, `crate::routes`, `platform::by_address`); an address
+//!    with none ends the program, "not ported" (owner, 2026-10-23). The functions the
+//!    platform stands for are named here by their addresses (`HOOKED`).
+//! 3. `on_exception` only reports: a read or write of an address with no home, a jump
+//!    into the game's range, anything else, with the place and the stack's return
+//!    addresses, and ends the program.
 //!
-//! `call_game` knows the hooks' thunks here (`CALL_REDIRECT`), so only a call made some
-//! other way, or to something that is not ported, costs an exception.
-//! A Rust version that refuses its input goes to "the original": here every hook's
-//! original is the byte after its jump, which faults and ends the run with the hook's
-//! name; `fatal::raise::refused` writes the reason first.
-//! Stand-ins, each to be replaced by a piece of the platform: see `stand_in` and
-//! `on_exception`.
+//! A refusal (`BadInput`) ends the program with its reason; a fatal error is reported
+//! by `fatal::report` and ends it as the original's. Stand-ins, each to be replaced by a
+//! piece of the platform: see `stand_in`.
 
 use crate::errors::Refused;
-use crate::framework::{CALL_REDIRECT, GameHook, LOG_PATH, Regs, game_addr, log, rva};
+use crate::framework::{GameHook, LOG_PATH, Regs, game_addr, log};
 use crate::install::outside::Game as Outside;
 use crate::registry::ALL;
 use crate::session::MACHINE;
@@ -130,8 +124,9 @@ const LONE_RETN: [usize; 119] = [
 static HOOKED: OnceLock<Vec<(usize, &'static str)>> = OnceLock::new();
 
 unsafe fn install_and_lock(image: &Image) -> Result<(), String> {
-    // No code to patch: every hooked address goes to its hook's thunk, the platform's
-    // functions taking the places of the game's.
+    // No code runs at the game's addresses: the platform's functions and the fatal
+    // reporter are named by theirs (calls by address go to `platform::by_address` and
+    // the routes), kept here to name a fault's place.
     let installed = crate::mark_all_installed(image.base);
     let hooks: Vec<&'static dyn GameHook> = ALL
         .iter()
@@ -141,19 +136,12 @@ unsafe fn install_and_lock(image: &Image) -> Result<(), String> {
         .chain(crate::platform::HOOKS.iter().copied())
         .chain(crate::platform_3d::HOOKS.iter().copied())
         .collect();
-    // `call_game` goes straight to a hook's thunk, and a hook's "original" is an
-    // address inside the hooked function, which faults and names the hook.
-    let mut thunks = std::collections::HashMap::new();
-    let mut hooked = Vec::new();
-    for hook in &hooks {
-        let address = image.base + hook.rva();
-        thunks.insert(address, hook.thunk());
-        hook.set_original(address + 1);
-        hooked.push((address, hook.name()));
-    }
-    let _ = CALL_REDIRECT.set(thunks);
+    let hooked: Vec<(usize, &'static str)> = hooks
+        .iter()
+        .map(|hook| (image.base + hook.rva(), hook.name()))
+        .collect();
     log(&format!(
-        "standalone: {} hooks in place, {} of them the platform's; the game's image is data only",
+        "standalone: {} functions of the game's stand in Rust by their addresses, {} of them the platform's",
         hooked.len(),
         crate::platform::HOOKS.len() + crate::platform_3d::HOOKS.len()
     ));
@@ -161,16 +149,8 @@ unsafe fn install_and_lock(image: &Image) -> Result<(), String> {
     Ok(())
 }
 
-/// A hooked address's thunk.
-fn thunk_of(hook: usize) -> Option<usize> {
-    CALL_REDIRECT.get().and_then(|t| t.get(&hook).copied())
-}
-
 // ---- what the faults catch ----
 
-/// `start`'s way out (0x4010EE after the main loop, 0x401116 the short one), where
-/// `fatal::report` and the `-v` switch jump to.
-const EXITS: [usize; 2] = [0x4010EE, 0x401116];
 static FILTER: AtomicUsize = AtomicUsize::new(0);
 
 /// The module an address is in, and the address relative to its base ("rc2k.exe+0x1234").
@@ -230,11 +210,16 @@ pub fn leave_from_race() -> ! {
     finish("the game was closed during a race", 0)
 }
 
+/// A function of the game's with no Rust version, reached from Rust (`from`): the program
+/// ends, naming it (owner, 2026-10-23: nothing not ported passes unnoticed).
+pub fn not_ported(at: usize, from: &str) -> ! {
+    finish(&format!("not ported: {at:#x}, called from {from}"), 1)
+}
+
 pub fn finish(why: &str, code: u32) -> ! {
     log(&format!("standalone: ending: {why}"));
     menu_watch::report();
-    // No game code runs here, so a hook's thunk is entered only by a call by address
-    // from Rust (`call_game`): these are what keeps each hook (conversion phase 4).
+    // The functions of the game's that the platform stands for, by their calls.
     let mut reached: Vec<(&str, usize)> = ALL
         .iter()
         .map(|h| (h.name(), h.stats().calls.load(Ordering::Relaxed)))
@@ -284,9 +269,9 @@ const SDL_DOES: [(usize, &str); 5] = [
     (0x410509, "system::drain_messages"),
 ];
 
-/// For Rust callers that name by its address a function the fault handler answers
-/// without the game (`menu::table_calls`): SDL's (carry clear) and the lone `retn`s, done
-/// here directly (conversion phase 3, 2026-10-23). `at` is the address as IDA shows it.
+/// For calls by address of a function that needs nothing done here
+/// (`menu::table_calls`): SDL's (carry clear) and the lone `retn`s (conversion phase 3,
+/// 2026-10-23). `at` is the address as IDA shows it.
 pub fn answers(at: usize, r: &mut Regs) -> bool {
     if SDL_DOES.iter().any(|w| w.0 == at) {
         r.set_carry(false);
@@ -296,7 +281,6 @@ pub fn answers(at: usize, r: &mut Regs) -> bool {
 }
 
 unsafe extern "system" fn on_exception(info: *mut EXCEPTION_POINTERS) -> i32 {
-    const CONTINUE_EXECUTION: i32 = -1;
     const CONTINUE_SEARCH: i32 = 0;
     unsafe {
         let record = &*(*info).ExceptionRecord;
@@ -346,70 +330,25 @@ unsafe extern "system" fn on_exception(info: *mut EXCEPTION_POINTERS) -> i32 {
                 1,
             );
         }
-        let at = ida(address).unwrap_or(0);
-        let hooked = HOOKED.get().map(Vec::as_slice).unwrap_or_default();
-        if hooked.iter().any(|&(hook, _)| hook == address) {
-            let Some(thunk) = thunk_of(address) else {
-                finish(&format!("the hook at {at:#x} has no jump"), 1);
-            };
-            context.Eip = thunk as u32;
-            return CONTINUE_EXECUTION;
-        }
-        // The platform's own at the start and the end, which SDL does here: nothing.
-        if let Some(&(_, what)) = SDL_DOES.iter().find(|w| w.0 == at) {
-            log(&format!(
-                "standalone: {at:#x} ({what}): SDL does it, nothing to do"
-            ));
-            let from = (context.Esp as *const u32).read_unaligned();
-            context.Eip = from;
-            context.Esp += 4;
-            context.EFlags &= !1;
-            return CONTINUE_EXECUTION;
-        }
-        // An empty function of the game's (a lone `retn`, `nullsub_6` 0x44347E): it does
-        // nothing, so nothing is skipped by not running it.
-        if LONE_RETN.contains(&at) {
-            let from = (context.Esp as *const u32).read_unaligned();
-            context.Eip = from;
-            context.Esp += 4;
-            return CONTINUE_EXECUTION;
-        }
-        if EXITS.contains(&at) {
-            finish(&format!("the game's way out {at:#x} was reached"), 0);
-        }
-        if !in_code(address) {
-            finish(&format!("a jump into the game's data, {at:#x}"), 1);
-        }
-        // A hook's "original" is the byte after its jump (`install_and_lock`): its
-        // Rust version refused and handed the call on. Only that byte: a function of
-        // its own can start a few bytes after a hooked one (0x47CEB4 after 0x47CEA8).
-        let original = hooked.iter().find(|&&(hook, _)| address == hook + 1);
-        if let Some((_, name)) = original {
-            finish(
-                &format!("the original of {name} was called (its Rust version refused, {at:#x})"),
-                1,
-            );
-        }
-        // A function of the game with no Rust version (owner, 2026-10-23: no longer returned
-        // from as if it had worked, which hid it): the program ends, saying which.
+        // Nothing of Rust's runs code at the game's addresses (2026-10-24: every call by
+        // address goes to its Rust version): a jump there is a slip, and names the place.
         let from = (context.Esp as *const u32).read_unaligned() as usize;
         let from = match ida(from) {
             Some(from) => format!("{from:#x}"),
-            None => "Rust code".into(),
+            None => in_module(from).unwrap_or_else(|| format!("{from:#x}")),
         };
-        finish(&format!("not ported: {at:#x}, called from {from}"), 1);
+        finish(
+            &format!(
+                "Rust jumped into the game's code at {} (no code of RAL.EXE runs), from {from}; return addresses on the stack: {}",
+                place(address),
+                stack_returns(context.Esp as usize)
+            ),
+            1,
+        );
     }
 }
 
 // ---- `start` (0x401000) ----
-
-unsafe fn call(address: usize, r: &mut Regs) {
-    log(&format!(
-        "standalone: start calls {}",
-        place(game_addr(rva(address)))
-    ));
-    crate::calls::call(rva(address), r);
-}
 
 /// `start`'s call of a function whose hook is gone (conversion phase 4): its Rust version
 /// runs; every one of them keeps the registers.
@@ -432,11 +371,10 @@ fn stand_in(what: &str, variable: &crate::session::Dword, value: u32) {
 }
 
 /// The game's `start`, call for call. The checks it makes after calls of the platform
-/// (already running, no screen mode) cannot fail here: a call that is not ported comes
-/// back with the carry clear.
+/// (already running, no screen mode) cannot fail here.
 unsafe fn start() {
     unsafe {
-        let mut r = Regs::default();
+        let r = Regs::default();
         // The input module's two device-record pointers name the records' new places.
         crate::input::store::point_devices_at_records();
         crate::sound::store::point_sound_objects();
@@ -584,10 +522,9 @@ unsafe fn start() {
         crate::sound::wait_for_commands::wait_in_game();
         rust("system::sleep");
         crate::system::sleep::sleep(1000);
-        call(0x404481, &mut r);
-        if r.carry() {
-            finish("fatal error 0x90201101, no screen mode (0x404481)", 1);
-        }
+        // (The original's fatal error 0x90201101, no screen mode, cannot happen here.)
+        rust("gfx::choose_screen_modes");
+        crate::platform::choose_screen_modes();
         rust("gfx::allocate_picture_buffer");
         if let Err(e) = crate::gfx::allocate_picture_buffer::allocate_picture_buffer() {
             refused("gfx::allocate_picture_buffer", e, &r);

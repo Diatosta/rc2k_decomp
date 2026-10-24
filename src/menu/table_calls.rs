@@ -4,8 +4,7 @@
 //! `rc2k_core::menu::tables`), no longer through its hook. Callers: `menu::run_list` and
 //! the frame callbacks (`call_listed`: screen functions, no registers),
 //! `menu::run_item_action` (`call_action`), `menu::navigation`'s moves (`call_key`), and
-//! the Rust callers that still name a function by its address (`crate::calls::call`,
-//! through `call_any`). This is where the screen loops' typed values become the registers
+//! the screen loops' and the frame callback's frames (`call_any`). This is where the screen loops' typed values become the registers
 //! the items' functions still take (the event flows they start thread them on).
 //!
 //! A refused input (`BadInput`) ends the program, saying which function refused and why
@@ -15,11 +14,10 @@
 //! standalone's fault handler, which ends with "not ported".
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{IMAGE_BASE, Regs, call_game, game_addr, log};
+use crate::framework::{IMAGE_BASE, Regs, game_addr, log};
 use crate::menu::screen_loop::Carried;
 use crate::menu::table_routes::{item_fn, screen_fn};
 use rc2k_core::menu::tables::{ItemFn, ScreenFn};
-use std::sync::Mutex;
 
 /// Runs the function at `function` (an address in the game's memory) with `r`.
 pub fn call(function: u32, r: &mut Regs) {
@@ -27,8 +25,7 @@ pub fn call(function: u32, r: &mut Regs) {
 }
 
 /// `call` for a caller that also calls functions in no table (the screen loops' and the
-/// frame callback's `Real`, `crate::calls::call`): a function with a Rust version in
-/// `crate::routes` runs it; any other goes to the game without a log line.
+/// frame callback's frames): a function with a Rust version in `crate::routes` runs it.
 pub fn call_any(function: u32, r: &mut Regs) {
     run(function, r, false);
 }
@@ -95,28 +92,35 @@ fn run(function: u32, r: &mut Regs, only_tables: bool) {
     };
     match result {
         Some((_, Ok(()))) => {}
-        Some((name, Err(Refused::BadInput(why)))) => crate::standalone::finish(
-            &format!("menu::table_calls: {name:?} ({ral:#x}) refused: {}", why.0),
-            1,
-        ),
-        Some((name, Err(Refused::Fatal(error)))) => {
-            log(&format!(
-                "menu::table_calls: {name:?} ({ral:#x}): the Rust version raises fatal error {:#x} {:?}",
-                error.code, error.message
-            ));
-            unsafe { crate::fatal::raise::raise(error, r) };
-        }
+        Some((name, Err(e))) => refused(&format!("{name:?} ({ral:#x})"), e, r),
         None => {
             let at = ral as usize;
             if crate::platform::by_address(at, r) || crate::standalone::answers(at, r) {
                 return;
             }
-            if only_tables && first(ral) {
-                log(&format!(
-                    "menu::table_calls: {ral:#x} is in no menu or draw list; the game's runs"
-                ));
-            }
-            unsafe { call_game(r, function as usize) };
+            let from = if only_tables {
+                "a menu or draw list"
+            } else {
+                "Rust, by its address"
+            };
+            crate::standalone::not_ported(at, from);
+        }
+    }
+}
+
+/// A refusal of a function called by its address or directly in its place (`what` names
+/// it): a refused input ends the program, a fatal error is raised.
+pub fn refused(what: &str, e: Refused, r: &Regs) {
+    match e {
+        Refused::BadInput(why) => {
+            crate::standalone::finish(&format!("menu::table_calls: {what} refused: {}", why.0), 1)
+        }
+        Refused::Fatal(error) => {
+            log(&format!(
+                "menu::table_calls: {what}: the Rust version raises fatal error {:#x} {:?}",
+                error.code, error.message
+            ));
+            unsafe { crate::fatal::raise::raise(error, r) };
         }
     }
 }
@@ -137,15 +141,4 @@ impl std::fmt::Debug for Named {
             Named::Routed => f.write_str("a routed function"),
         }
     }
-}
-
-/// True the first time for a function.
-fn first(ral: u32) -> bool {
-    static SEEN: Mutex<Vec<u32>> = Mutex::new(Vec::new());
-    let mut seen = SEEN.lock().unwrap();
-    if seen.contains(&ral) {
-        return false;
-    }
-    seen.push(ral);
-    true
 }

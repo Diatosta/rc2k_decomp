@@ -186,22 +186,6 @@ pub fn check_arcade_stage_time() -> Result<(), Refused> {
     Ok(())
 }
 
-pub fn sort_arcade_stage_times() -> Result<(), Refused> {
-    // Converted: `rc2k_core::menu::standings::sort_arcade_times`.
-    let first = course_times()?;
-    let mut ten = unsafe { ten_entries(first, TIME_LEN) };
-    standings::sort_arcade_times(&mut ten, unsafe { kept_name() });
-    Ok(())
-}
-
-pub fn sort_arcade_level_scores() -> Result<(), Refused> {
-    // Converted: `rc2k_core::menu::standings::sort_arcade_scores`.
-    let first = level_scores()?;
-    let mut ten = unsafe { ten_entries(first, SCORE_LEN) };
-    standings::sort_arcade_scores(&mut ten, unsafe { kept_name() });
-    Ok(())
-}
-
 /// The ten entries from `first`, `len` bytes each.
 ///
 /// # Safety

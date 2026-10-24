@@ -30,7 +30,7 @@
 //! see it (see `flush`).
 
 use crate::errors::FatalError;
-use crate::framework::{GameHook, RawHook, Regs, hook_asm, log, rva};
+use crate::framework::{GameHook, RawHook, Regs, log, rva};
 use crate::gfx::block::{game_addr, game_ptr, game_read, game_write};
 use crate::gfx::describe_format::describe_format;
 use crate::gfx::reports::Slot as RepSlot;
@@ -38,7 +38,6 @@ use crate::gfx::texture_upload::{TextureFormat, TextureRecord};
 use crate::logfile::log_write::log_write;
 use crate::session::SCREEN;
 use crate::system::find_entry::find_entry;
-use std::sync::atomic::AtomicUsize;
 use std::sync::{Mutex, OnceLock};
 
 // ---- game data ----
@@ -722,14 +721,7 @@ pub unsafe fn draw_indexed(
 
 // ---- gfx::allocate_textures (0x4051ED) ----
 
-static ALLOCATE_ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-static ALLOCATE: RawHook = RawHook::new(
-    "gfx::allocate_textures",
-    rva(0x4051ED),
-    allocate_thunk,
-    &ALLOCATE_ORIGINAL,
-);
-hook_asm!(allocate_thunk, dispatch = allocate);
+static ALLOCATE: RawHook = RawHook::new("gfx::allocate_textures", rva(0x4051ED));
 
 fn fatal(code: u32) -> FatalError {
     FatalError { code, message: "" }
@@ -901,14 +893,7 @@ pub fn allocate_textures_now(
 
 // ---- gfx::release_all_textures (0x4051D3) ----
 
-static RELEASE_ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-static RELEASE: RawHook = RawHook::new(
-    "gfx::release_all_textures",
-    rva(0x4051D3),
-    release_thunk,
-    &RELEASE_ORIGINAL,
-);
-hook_asm!(release_thunk, dispatch = release);
+static RELEASE: RawHook = RawHook::new("gfx::release_all_textures", rva(0x4051D3));
 
 /// `sub_41A3B2` for every texture of a pool, and the count 0.
 unsafe fn release_pool(pool: usize) {
@@ -964,14 +949,7 @@ pub fn release_all_textures() {
 
 // ---- scene::load_texture (0x44E778) ----
 
-static LOAD_ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-static LOAD: RawHook = RawHook::new(
-    "scene::load_texture",
-    rva(0x44E778),
-    load_thunk,
-    &LOAD_ORIGINAL,
-);
-hook_asm!(load_thunk, dispatch = load);
+static LOAD: RawHook = RawHook::new("scene::load_texture", rva(0x44E778));
 
 /// eax = the system texture, ebx = the video one: the video one holds it, level for
 /// level where both have the level.
@@ -1021,14 +999,7 @@ pub fn hold_texture(caller: &str, system: u32, video: u32) {
 
 // ---- d3d::begin_scene (0x41ABC7), d3d::end_scene (0x41AB8A) ----
 
-static BEGIN_ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-static BEGIN: RawHook = RawHook::new(
-    "d3d::begin_scene",
-    rva(0x41ABC7),
-    begin_thunk,
-    &BEGIN_ORIGINAL,
-);
-hook_asm!(begin_thunk, dispatch = begin);
+static BEGIN: RawHook = RawHook::new("d3d::begin_scene", rva(0x41ABC7));
 
 /// The layer's own states at a scene's beginning: (value, state).
 const BEGIN_STATES: [(u32, u32); 12] = [
@@ -1071,9 +1042,7 @@ pub fn begin_layer() {
     }
 }
 
-static END_ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-static END: RawHook = RawHook::new("d3d::end_scene", rva(0x41AB8A), end_thunk, &END_ORIGINAL);
-hook_asm!(end_thunk, dispatch = end);
+static END: RawHook = RawHook::new("d3d::end_scene", rva(0x41AB8A));
 
 extern "C" fn end(r: &mut Regs) {
     if end_layer() {
@@ -1099,14 +1068,7 @@ pub fn end_layer() -> bool {
 
 // ---- d3d::clear_viewport (0x44E9D9) ----
 
-static CLEAR_ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-static CLEAR: RawHook = RawHook::new(
-    "d3d::clear_viewport",
-    rva(0x44E9D9),
-    clear_thunk,
-    &CLEAR_ORIGINAL,
-);
-hook_asm!(clear_thunk, dispatch = clear);
+static CLEAR: RawHook = RawHook::new("d3d::clear_viewport", rva(0x44E9D9));
 
 /// The depth buffer, a float a pixel of the screen: 1.0 is the farthest.
 pub struct Depth {

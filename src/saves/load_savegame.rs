@@ -89,7 +89,10 @@ fn in_game(callee: Callee, regs: &mut Regs) -> Result<(), Refused> {
             Callee::RunEventMode13 => crate::menu::run_a8_championship::run_a8_championship(
                 &crate::menu::screen_loop::carried(regs),
             )?,
-            _ => crate::calls::call(rva(callee as usize), regs),
+            Callee::AfterHead => crate::menu::drop_missing_controllers::drop_missing_controllers()?,
+            Callee::EventState => regs.eax = crate::menu::next_record_kind::next_record_kind()?,
+            Callee::BeforeEvent => crate::menu::link_player_names::link_player_names()?,
+            Callee::Refuse => crate::sound::play_menu_sound::play_menu_sound_in_game(regs.eax),
         }
     }
     Ok(())

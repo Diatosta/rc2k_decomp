@@ -30,7 +30,7 @@
 //! `routes.rs`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, log, rva};
+use crate::framework::{game_addr, log, rva};
 
 // ---- game data ----
 
@@ -178,17 +178,22 @@ pub unsafe fn main_loop(vars: &Vars, stack: u32, outside: Outside) -> Result<(),
 /// The calls: the Rust versions, those still taking registers by their address (a
 /// local register set, their scratch: none of them reads one).
 fn in_game(call: Call) -> Result<(), Refused> {
-    let game = |at: usize| crate::calls::call(rva(at), &mut Regs::default());
     unsafe {
         match call {
             Call::Log(0) => crate::menu::text_entry::log_l1(c"".as_ptr() as *const u8, true),
             Call::Log(text) => crate::menu::text_entry::log_l1(text as *const u8, true),
             Call::Sleep(milliseconds) => crate::system::sleep::sleep(milliseconds),
-            Call::Sub404823 => game(0x404823),
+            Call::Sub404823 => {
+                crate::platform::set_menu_mode_now();
+            }
             Call::Sub40EFF3 => crate::sound::apply_settings::apply_settings()?,
             Call::Sub4075F3 => crate::gfx::load_jade::load_jade_in_game()?,
-            Call::Sub4165F1 => game(0x4165F1),
-            Call::RunsFromSource => game(0x412DA3),
+            Call::Sub4165F1 => crate::menu::build_notice::build_notice(),
+            Call::RunsFromSource => {
+                crate::install::runs_from_source::source_against_directory(
+                    &mut crate::install::outside::Game,
+                )?;
+            }
             Call::Installer => crate::install::run_installer::run_installer()?,
             Call::Sub40FCAA => crate::sound::stop_cd_audio::stop_cd_audio(),
             // Its answer is not read.
@@ -197,7 +202,7 @@ fn in_game(call: Call) -> Result<(), Refused> {
             }
             // `net::lobby_launched_game`'s Rust version (a case it refuses through its hook).
             Call::Sub418DF4 => crate::net::lobby_launched_game::lobby_launched_game()?,
-            Call::RunFrontEnd => game(0x47486C),
+            Call::RunFrontEnd => crate::menu::run_front_end::run_front_end()?,
             Call::Sub40F826 => crate::sound::stop_music::stop_music(),
             Call::SaveGameData => {
                 crate::saves::save_game_data::save_in_game()?;
