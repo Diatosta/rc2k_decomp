@@ -2,10 +2,14 @@
 //! players' states, the cars' counters, the view cars loaded into the work copy. Here
 //! its leaves.
 
+use crate::audio::store::Slot;
 use crate::errors::Refused;
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::framework::rva;
+use crate::input::store::DeviceSlot;
 use crate::race::objects::CAR_BLOCKS_RVA;
 use crate::screens::harness::Left;
+use crate::sound::store::EffectsSlot;
+use crate::store::{game_addr, game_read, game_write};
 
 const ONE_CHOSEN_RVA: usize = rva(0x52A910); // dword_52A910
 const CHOSEN_CAR_RVA: usize = rva(0x52A920); // dword_52A920
@@ -89,25 +93,31 @@ pub unsafe fn store_view_car(n: usize) -> Result<(), Refused> {
     unsafe { with_view_car(n, || crate::drive::store_car::store_car()).map(|_| ()) }
 }
 
-const VIEW_MODE_RVA: usize = rva(0x4F6B79); // byte_4F6B79: the second view's keys (a reading)
-const NEXT_VIEW_KEY_RVA: usize = rva(0x4F6D17); // byte_4F6D17
-const SPLIT_KEY_RVA: usize = rva(0x4F6D18); // byte_4F6D18
-const DOWN_KEY_RVA: usize = rva(0x4F6D19); // byte_4F6D19
-const UP_KEY_RVA: usize = rva(0x4F6D1A); // byte_4F6D1A
-const SHARED_KEY_RVA: usize = rva(0x4F6D1B); // byte_4F6D1B
+const VIEW_MODE_RVA: DeviceSlot = DeviceSlot::at(0x4F6B79); // byte_4F6B79: the second view's keys (a reading)
+const NEXT_VIEW_KEY_RVA: DeviceSlot = DeviceSlot::at(0x4F6D17); // byte_4F6D17
+const SPLIT_KEY_RVA: DeviceSlot = DeviceSlot::at(0x4F6D18); // byte_4F6D18
+const DOWN_KEY_RVA: DeviceSlot = DeviceSlot::at(0x4F6D19); // byte_4F6D19
+const UP_KEY_RVA: DeviceSlot = DeviceSlot::at(0x4F6D1A); // byte_4F6D1A
+const SHARED_KEY_RVA: DeviceSlot = DeviceSlot::at(0x4F6D1B); // byte_4F6D1B
 pub const SPLIT_RVA: usize = rva(0x6238A4); // dword_6238A4
-pub const MASTER_VOLUME_RVA: usize = rva(0x4F82D8); // g_masterVolume
-pub const MUSIC_VOLUME_RVA: usize = rva(0x518100); // dword_518100
+pub const MASTER_VOLUME_RVA: Slot = Slot::at(0x4F82D8); // g_masterVolume
+pub const MUSIC_VOLUME_RVA: EffectsSlot = EffectsSlot::at(0x518100); // dword_518100
 const OTHER_VOLUME_RVA: usize = rva(0x75568C); // dword_75568C (read by the music "up" step)
 pub const VIEW_BLOCKS: [usize; 2] = [rva(0x63DBB0), rva(0x63DBB4)]; // off_63DBB0, off_63DBB4
 const VIEW_COUNTERS_RVA: usize = rva(0x6138D4); // dword_6138D4[7]: by camera view
 /// The keys that flip a bit of the view block's +0x220 (`rc2k_core::race::keys::BIT_KEYS`
 /// by place): their key bytes, in the order tested.
-pub const BIT_KEYS: [usize; 7] = [
-    0x4F6D34, 0x4F6D1E, 0x4F6D1D, 0x4F6D20, 0x4F6D1F, 0x4F6D1C, 0x4F6D33,
+pub const BIT_KEYS: [DeviceSlot; 7] = [
+    DeviceSlot::at(0x4F6D34),
+    DeviceSlot::at(0x4F6D1E),
+    DeviceSlot::at(0x4F6D1D),
+    DeviceSlot::at(0x4F6D20),
+    DeviceSlot::at(0x4F6D1F),
+    DeviceSlot::at(0x4F6D1C),
+    DeviceSlot::at(0x4F6D33),
 ];
-fn pressed(key: usize) -> bool {
-    unsafe { game_read::<u8>(key) != 0 }
+fn pressed(key: impl crate::store::Where) -> bool {
+    unsafe { crate::store::game_read::<u8>(key) != 0 }
 }
 
 /// `race::race_keys` (0x43A649): the race's view and sound keys (see its header). It
@@ -130,7 +140,7 @@ pub unsafe fn race_keys() -> Result<(), Refused> {
                 Key::Split => SPLIT_KEY_RVA,
                 Key::VolumeDown => DOWN_KEY_RVA,
                 Key::VolumeUp => UP_KEY_RVA,
-                Key::Bit(n) => rva(BIT_KEYS[n]),
+                Key::Bit(n) => BIT_KEYS[n],
                 Key::Shared => SHARED_KEY_RVA,
             })
         });
@@ -163,12 +173,12 @@ pub unsafe fn race_keys() -> Result<(), Refused> {
                 set_both_counters(counter);
                 if second {
                     // The "up" step reads `dword_75568C`, not the music's volume (see bugs).
-                    let from = if up {
-                        OTHER_VOLUME_RVA
+                    let from: u32 = if up {
+                        game_read(OTHER_VOLUME_RVA)
                     } else {
-                        MUSIC_VOLUME_RVA
+                        game_read(MUSIC_VOLUME_RVA)
                     };
-                    let volume = volume_step(game_read(from), step);
+                    let volume = volume_step(from, step);
                     game_write(MUSIC_VOLUME_RVA, volume);
                     crate::sound::set_music_volume::set_music_volume(volume);
                 } else {

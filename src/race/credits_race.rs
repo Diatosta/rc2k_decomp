@@ -47,6 +47,7 @@ fn p(x: usize, v: u32) {
 /// The Rust version: the steps in order. (The original keeps ebp, ecx and edi and leaves
 /// esi and edx; no step reads a register of the caller or of an earlier step.)
 pub fn credits_race() -> Result<(), Refused> {
+    crate::framework::log("race::credits_race: the demonstration starts");
     for (at, v) in FIRST {
         p(at, v);
     }

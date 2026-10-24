@@ -15,8 +15,9 @@
 use crate::errors::Refused;
 use crate::physics::listed_car_flags::set_flag;
 use crate::screens::harness::Left;
+use crate::sound::store::StageSlot;
 
-const FLAG: usize = 0x51659C; // dword_51659C
+const FLAG: StageSlot = StageSlot::at(0x51659C); // dword_51659C
 
 /// The Rust version.
 pub unsafe fn set_flag_51659c() -> Result<Left, Refused> {

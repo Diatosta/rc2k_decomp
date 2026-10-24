@@ -23,11 +23,16 @@
 //!   `system::pump_messages` (0x410535): SDL's events; closing the window sets the
 //!   quit switch, and the keys the menus know become the game's pending key.
 
-use crate::framework::{
-    GameHook, RawHook, Regs, game_addr, game_ptr, game_read, game_write, hook_asm, log, rva,
-};
+use crate::framework::{GameHook, RawHook, Regs, hook_asm, log, rva};
 use crate::gfx::describe_format::describe_format;
+use crate::gfx::front::Slot as FrontSlot;
+use crate::gfx::locked::Slot as LockSlot;
+use crate::gfx::modes::Slot as ModeSlot;
 use crate::gfx::set_clip::set_clip;
+use crate::input::store::DeviceSlot;
+use crate::session::FLAGS;
+use crate::session::SCREEN as GAME_SCREEN;
+use crate::store::{game_addr, game_ptr, game_read, game_write};
 use crate::system::find_entry::find_entry;
 use sdl3_sys::everything::*;
 use std::sync::Mutex;
@@ -35,34 +40,23 @@ use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
 
 // ---- game data ----
 
-const QUIT_RVA: usize = rva(0x51837C); // dword_51837C
-const PENDING_KEY_RVA: usize = rva(0x4F6ADC); // byte_4F6ADC
-const FOCUSED_RVA: usize = rva(0x518378); // dword_518378: 1 while the window has the focus
+const PENDING_KEY_RVA: DeviceSlot = DeviceSlot::at(0x4F6ADC); // byte_4F6ADC
 const MENU_MODE_RVA: usize = rva(0x4F4944); // dword_4F4944
 const RACE_MODE_RVA: usize = rva(0x4F4948); // dword_4F4948
 const MODE_FLAGS_RVA: usize = rva(0x4F4934); // g_screenModeFlags
 const MODE_SET_RVA: usize = rva(0x4F4938); // dword_4F4938
-const WIDTH_RVA: usize = rva(0x4F494C); // g_screenWidth
-const HEIGHT_RVA: usize = rva(0x4F4950); // g_screenHeight
-const BITS_RVA: usize = rva(0x4F4954); // g_screenBits
-const BYTES_RVA: usize = rva(0x4F4958); // dword_4F4958
-const ROW_BYTES_RVA: usize = rva(0x4F495C); // dword_4F495C
-const ROW_DWORDS_RVA: usize = rva(0x4F4960); // dword_4F4960
-const DEPTH_BITS_RVA: usize = rva(0x4F4964); // dword_4F4964
-const KIND_RVA: usize = rva(0x4F4968); // dword_4F4968
-const FORMAT_RVA: usize = rva(0x4F496C); // g_surfaceFormat
 const PITCH_RVA: usize = rva(0x4F4984); // dword_4F4984
 const PIXELS_RVA: usize = rva(0x4F4988); // dword_4F4988
 const GAP_RVA: usize = rva(0x4F498C); // dword_4F498C
 const FLIPPED_RVA: usize = rva(0x4F4990); // dword_4F4990
 const FRAMES_RVA: usize = rva(0x4F4994); // dword_4F4994
 const SURFACE_RVA: usize = rva(0x4F4998); // g_surface
-const LOCKED_RVA: usize = rva(0x4F3870); // g_surfaceLocked
-const FRONT_RVA: usize = rva(0x4F32B4); // dword_4F32B4: the DirectDraw surfaces
-const BACK_RVA: usize = rva(0x4F32B8); // dword_4F32B8
-const SIZES_RVA: usize = rva(0x4F4E50); // g_screenSizes
-const PIXEL_KINDS_RVA: usize = rva(0x4F4E40); // g_pixelKinds
-const KINDS_RVA: usize = rva(0x4F4E90); // dword_4F4E90
+const LOCKED_RVA: LockSlot = LockSlot::at(0x4F3870); // g_surfaceLocked
+const FRONT_RVA: FrontSlot = FrontSlot::at(0x4F32B4); // dword_4F32B4: the DirectDraw surfaces
+const BACK_RVA: FrontSlot = FrontSlot::at(0x4F32B8); // dword_4F32B8
+const SIZES_RVA: ModeSlot = ModeSlot::at(0x4F4E50); // g_screenSizes
+const PIXEL_KINDS_RVA: ModeSlot = ModeSlot::at(0x4F4E40); // g_pixelKinds
+const KINDS_RVA: ModeSlot = ModeSlot::at(0x4F4E90); // dword_4F4E90
 const FORMAT_SET_RVA: usize = rva(0x5ABBD4); // dword_5ABBD4, dword_5ABBD8, unk_5ABBDC
 const DEFAULT_MODE: u32 = 0x32_2802;
 
@@ -84,7 +78,7 @@ pub static FRAMES_TO_SHOW: AtomicU32 = AtomicU32::new(0);
 static LAST_SHOWN: AtomicUsize = AtomicUsize::new(0);
 
 fn quitting() -> bool {
-    unsafe { game_read::<u32>(QUIT_RVA) == 1 }
+    FLAGS.quitting.get() == 1
 }
 
 /// SDL's events: the window's closing, and the keys the menus take.
@@ -94,14 +88,14 @@ fn pump() {
         while SDL_PollEvent(&mut event) {
             if event.r#type == SDL_EVENT_QUIT.0 {
                 log("platform: the window was closed: the quit switch is set");
-                game_write(QUIT_RVA, 1u32);
+                FLAGS.quitting.set(1);
             } else if event.r#type == SDL_EVENT_WINDOW_FOCUS_GAINED.0
                 || event.r#type == SDL_EVENT_WINDOW_FOCUS_LOST.0
             {
                 // As the window's procedure on `WM_ACTIVATE`: the input thread reads the
                 // devices (and does not sleep a second a tick) while it is 1.
                 let focused = event.r#type == SDL_EVENT_WINDOW_FOCUS_GAINED.0;
-                game_write(FOCUSED_RVA, focused as u32);
+                FLAGS.window_focused.set(focused as u32);
             } else if event.r#type == SDL_EVENT_KEY_DOWN.0 || event.r#type == SDL_EVENT_KEY_UP.0 {
                 let key = game_key(event.key.scancode.0);
                 if key == 0 {
@@ -238,7 +232,7 @@ static SET_MODE: RawHook = RawHook::new(
 hook_asm!(set_mode_thunk, dispatch = set_mode);
 
 /// The value of a table's entry for a key.
-unsafe fn looked_up(key: u32, table: usize, entries: u32) -> Option<u32> {
+unsafe fn looked_up(key: u32, table: impl crate::gfx::block::Where, entries: u32) -> Option<u32> {
     unsafe {
         let entry = find_entry(key, game_addr(table) as u32, entries).ok()??;
         Some(((entry + 4) as *const u32).read_unaligned())
@@ -257,15 +251,15 @@ unsafe fn set_screen_mode(mode: u32) -> Result<(), String> {
         // As the original (0x404C55): every texture given back before the screen changes;
         // the game loads again what it needs (a trial's 0x40 more found the pool full).
         crate::platform_3d::release_all_textures();
-        game_write(WIDTH_RVA, width);
-        game_write(HEIGHT_RVA, height);
-        game_write(BITS_RVA, bits);
-        game_write(BYTES_RVA, bytes);
-        game_write(ROW_BYTES_RVA, bytes * width);
-        game_write(ROW_DWORDS_RVA, (bytes * width) >> 2);
-        game_write(KIND_RVA, kind);
+        GAME_SCREEN.width.set(width);
+        GAME_SCREEN.height.set(height);
+        GAME_SCREEN.bits.set(bits);
+        GAME_SCREEN.bytes.set(bytes);
+        GAME_SCREEN.row_bytes.set(bytes * width);
+        GAME_SCREEN.row_dwords.set((bytes * width) >> 2);
+        GAME_SCREEN.kind.set(kind);
         // The z-buffer's depth, which the original picks by the 3D device: none here.
-        game_write(DEPTH_BITS_RVA, 0x10u32);
+        GAME_SCREEN.depth_bits.set(0x10u32);
 
         // The surface's pixel format, as DirectDraw would report it: +4 blue, +8 green,
         // +0xC red, +0x10 no alpha.
@@ -274,7 +268,7 @@ unsafe fn set_screen_mode(mode: u32) -> Result<(), String> {
         } else {
             [0x001F, 0x07E0, 0xF800]
         };
-        let format = game_ptr::<u32>(FORMAT_RVA);
+        let format = GAME_SCREEN.format_addr() as *mut u32;
         for (n, mask) in masks.into_iter().enumerate() {
             format.add(1 + n).write_unaligned(mask);
         }
@@ -416,15 +410,16 @@ pub fn lock_surface() -> u32 {
             game_write(LOCKED_RVA, 1u32);
             // `sub_405726`: the surface the blitters draw on, and the clip rectangle.
             let surface = game_ptr::<u32>(SURFACE_RVA);
-            let (row_bytes, pitch): (u32, u32) = (game_read(ROW_BYTES_RVA), game_read(PITCH_RVA));
+            let (row_bytes, pitch): (u32, u32) =
+                (GAME_SCREEN.row_bytes.get(), game_read(PITCH_RVA));
             let fields = [
-                (2, game_read(WIDTH_RVA)),
-                (3, game_read(HEIGHT_RVA)),
-                (4, game_read(BITS_RVA)),
-                (5, game_read(BYTES_RVA)),
+                (2, GAME_SCREEN.width.get()),
+                (3, GAME_SCREEN.height.get()),
+                (4, GAME_SCREEN.bits.get()),
+                (5, GAME_SCREEN.bytes.get()),
                 (6, row_bytes),
-                (7, game_read(ROW_DWORDS_RVA)),
-                (8, game_addr(FORMAT_RVA) as u32),
+                (7, GAME_SCREEN.row_dwords.get()),
+                (8, GAME_SCREEN.format_addr() as u32),
                 (9, pitch),
                 (10, game_read(PIXELS_RVA)),
                 (11, pitch.wrapping_sub(row_bytes)),
@@ -640,9 +635,7 @@ fn report_timing() {
         crate::platform_3d::PIXELS.load(Relaxed),
     );
     // The screen's places, for the pixels a frame in screens.
-    let screen = unsafe {
-        (game_read::<u32>(rva(0x4F494C)).max(1) * game_read::<u32>(rva(0x4F4950)).max(1)) as f64
-    };
+    let screen = (GAME_SCREEN.width.get().max(1) * GAME_SCREEN.height.get().max(1)) as f64;
     let Ok(mut last) = LAST.lock() else {
         return;
     };
@@ -764,7 +757,7 @@ pub fn show_frame_now() -> bool {
                     "platform: {shown} frames shown; the last is in rc2k_frame.raw ({} x {}, {} bits); quitting",
                     screen.width, screen.height, screen.bits
                 ));
-                game_write(QUIT_RVA, 1u32);
+                FLAGS.quitting.set(1);
             }
         }
         start_sampler();

@@ -18,9 +18,11 @@
 //! `routes.rs`); the registers above are the original's, for reference.
 
 use crate::errors::{FatalError, Refused};
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::framework::rva;
+use crate::gfx::block::{game_addr, game_read, game_write};
+use crate::gfx::modes::Slot as ModeSlot;
 use crate::gfx::picture::{FLAGS_RVA, PICTURE_RVA};
-use crate::gfx::pixel_format::SURFACE_FORMAT_RVA;
+use crate::gfx::pixel_format::surface_format_addr;
 use crate::gfx::set_clip::set_clip;
 use crate::system::find_entry::entries;
 
@@ -31,9 +33,9 @@ use crate::system::find_entry::entries;
 /// pixels, the gap after a row.
 pub const SURFACE_RVA: usize = rva(0x4F4998);
 pub const SURFACE_DWORDS: usize = 12;
-const SIZES_RVA: usize = rva(0x4F4E50); // dword_4F4E50: key, width and height as words
+const SIZES_RVA: ModeSlot = ModeSlot::at(0x4F4E50); // dword_4F4E50: key, width and height as words
 const SIZE_COUNT: u32 = 8;
-const PIXEL_KINDS_RVA: usize = rva(0x4F4E40); // dword_4F4E40: key, bits
+const PIXEL_KINDS_RVA: ModeSlot = ModeSlot::at(0x4F4E40); // dword_4F4E40: key, bits
 const PIXEL_KIND_COUNT: u32 = 2;
 
 // ---- Rust version ----
@@ -47,7 +49,7 @@ pub unsafe fn surface_of(flags: u32, pixels: u32) -> Result<[u32; SURFACE_DWORDS
             flags,
             entries(game_addr(SIZES_RVA) as u32, SIZE_COUNT),
             entries(game_addr(PIXEL_KINDS_RVA) as u32, PIXEL_KIND_COUNT),
-            game_addr(SURFACE_FORMAT_RVA) as u32,
+            surface_format_addr() as u32,
             pixels,
         )
     }

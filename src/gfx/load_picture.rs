@@ -17,19 +17,17 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{game_read, rva};
 use crate::gfx::clear_picture::clear_picture;
 use crate::gfx::pcx::DECODED_WIDTH_RVA;
 use crate::gfx::picture::picture;
 use crate::gfx::picture::set_size;
 use crate::gfx::read_picture_file::read_picture_file;
 use crate::gfx::rescale_picture::rescale_picture;
+use crate::session::SCREEN;
+use crate::store::game_read;
 use rc2k_core::gfx::picture_size as sizes;
 
 // ---- game data ----
-
-pub const SCREEN_WIDTH_RVA: usize = rva(0x4F494C); // dword_4F494C
-pub const SCREEN_HEIGHT_RVA: usize = rva(0x4F4950); // dword_4F4950
 
 // ---- Rust version ----
 
@@ -44,11 +42,8 @@ pub unsafe fn load_picture(path: *mut u8) -> Result<bool, Refused> {
         set_size(sizes::READ);
         clear_picture()?;
         let read = read_picture_file(path);
-        let screen_width: u32 = game_read(SCREEN_WIDTH_RVA);
-        set_size(sizes::screen(
-            screen_width,
-            game_read::<u32>(SCREEN_HEIGHT_RVA),
-        ));
+        let screen_width: u32 = SCREEN.width.get();
+        set_size(sizes::screen(screen_width, SCREEN.height.get()));
         if !read? {
             return Ok(false);
         }

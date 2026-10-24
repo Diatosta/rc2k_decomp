@@ -27,14 +27,15 @@
 
 use crate::bridge::{Raw, read_through};
 use crate::errors::Refused;
+use crate::input::store::LayoutSlot;
 use crate::install::installer::{
     COLOURS, FONTS, SCRIPT_PATH, a, append_string_by_id, g, measure_text, rb, rd, rw, wb,
 };
 use rc2k_core::install::edits::{self, EDITING, EditKey};
 
-const LAYOUT_MODE: usize = 0x4F07D2; // byte_4F07D2
-const LAYOUT: usize = 0x4F07D4; // g_keyboardLayout
-const OTHER_LAYOUT: usize = 0x4F07F8; // dword_4F07F8
+const LAYOUT_MODE: LayoutSlot = LayoutSlot::at(0x4F07D2); // byte_4F07D2
+const LAYOUT: LayoutSlot = LayoutSlot::at(0x4F07D4); // g_keyboardLayout
+const OTHER_LAYOUT: LayoutSlot = LayoutSlot::at(0x4F07F8); // dword_4F07F8
 
 /// The font of an edit record's kind.
 pub fn edit_font(record: u32) -> u32 {

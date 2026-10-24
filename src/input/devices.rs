@@ -14,11 +14,12 @@
 //! - +0x4DC .. +0x4E8 its four readings (steering, brake, throttle, the bits), which
 //!   `drive::device_axes` reads.
 
-use crate::framework::{game_read, rva};
+use crate::input::store::DeviceSlot;
+use crate::store::game_read;
 
-pub const RECORDS: [usize; 2] = [rva(0x4F6EF0), rva(0x4F73E8)];
-pub const KEYS_DOWN_RVA: usize = rva(0x4F6ADC); // g_keysDown: a byte a key, 0x80 down
-pub const STATE_RVA: usize = rva(0x4F6A28); // dword_4F6A28: the device's state, 0x50 bytes
+pub const RECORDS: [DeviceSlot; 2] = [DeviceSlot::at(0x4F6EF0), DeviceSlot::at(0x4F73E8)];
+pub const KEYS_DOWN_RVA: DeviceSlot = DeviceSlot::at(0x4F6ADC); // g_keysDown: a byte a key, 0x80 down
+pub const STATE_RVA: DeviceSlot = DeviceSlot::at(0x4F6A28); // dword_4F6A28: the device's state, 0x50 bytes
 pub const STATE_LEN: usize = 0x50;
 
 /// A dword of the record at `record`.

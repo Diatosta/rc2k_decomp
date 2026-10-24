@@ -27,14 +27,14 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_write, rva};
 use crate::math::x87_run::{ext_times, ints_diff_80};
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
 use crate::screens::harness::Left;
 
-fn g(x: usize) -> u32 {
-    unsafe { game_read(rva(x)) }
+fn g(x: impl crate::store::At) -> u32 {
+    unsafe { crate::store::at_read(x) }
 }
 
 fn p(x: usize, v: u32) {
@@ -98,7 +98,7 @@ unsafe fn shares(o: u32) {
 }
 
 fn object() -> u32 {
-    g(0x512A10 + 4 * (g(0x71B3F8) & 7) as usize)
+    g(crate::sound::store::ObjectsSlot::at(0x512A10) + 4 * (g(0x71B3F8) & 7) as usize)
 }
 
 fn listener() -> u32 {

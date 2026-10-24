@@ -5,7 +5,8 @@
 //! leaves; every function takes the record in ebp.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::framework::rva;
+use crate::marks::store::{Slot, game_addr, game_read, game_write};
 use crate::math::x87;
 
 pub const SPLINE_LEN: u32 = 0xE90;
@@ -20,30 +21,35 @@ const CENTRE: u32 = 0xC54;
 const GRADES: u32 = 0xC90;
 // dword_768700
 // dword_7687D0
-pub const FOUND_RVA: usize = rva(0x7695B2); // g_marksSplineFaces: faces of the kind found
+pub const FOUND_RVA: Slot = Slot::at(0x7695B2); // g_marksSplineFaces: faces of the kind found
 /// The four tables of 8 records (`g_marksSplinesA` .. `D`).
-pub const TABLES: [usize; 4] = [0x76B9B2, 0x772E32, 0x77A2B2, 0x781732];
-pub const OBJECT_RVA: usize = rva(0x76A202); // g_marksSplineObject
-pub const PLACE_RVA: usize = rva(0x76A206); // g_marksSplinePlace: the next of 8
-pub const OFFSET_RVA: usize = rva(0x76A20A); // g_marksSplineOffset: the place times 0xE90
+pub const TABLES: [Slot; 4] = [
+    Slot::at(0x76B9B2),
+    Slot::at(0x772E32),
+    Slot::at(0x77A2B2),
+    Slot::at(0x781732),
+];
+pub const OBJECT_RVA: Slot = Slot::at(0x76A202); // g_marksSplineObject
+pub const PLACE_RVA: Slot = Slot::at(0x76A206); // g_marksSplinePlace: the next of 8
+pub const OFFSET_RVA: Slot = Slot::at(0x76A20A); // g_marksSplineOffset: the place times 0xE90
 /// Each table's face kind (`sub_4B96CD` sets them by `g_marksKind`).
-pub const KINDS_RVA: usize = rva(0x788BB6); // g_marksSplineKinds
+pub const KINDS_RVA: Slot = Slot::at(0x788BB6); // g_marksSplineKinds
 /// Each table's +0x24, +0x2C, +0x28 (in that order).
-pub const ANGLES_RVA: usize = rva(0x788F39); // g_marksSplineAngles
+pub const ANGLES_RVA: Slot = Slot::at(0x788F39); // g_marksSplineAngles
 /// Added to the third table's highest point for its +0x44.
-pub const SHIFT_RVA: usize = rva(0x7695BE); // g_marksSplineShift
+pub const SHIFT_RVA: Slot = Slot::at(0x7695BE); // g_marksSplineShift
 /// `bound_spline_points`' two vectors: the one the angle is measured from, and the size.
-pub const UP_RVA: usize = rva(0x76A216); // g_marksSplineUp
-pub const SIZE_RVA: usize = rva(0x76A222); // g_marksSplineSize
+pub const UP_RVA: Slot = Slot::at(0x76A216); // g_marksSplineUp
+pub const SIZE_RVA: Slot = Slot::at(0x76A222); // g_marksSplineSize
 /// `turn_spline_points`' matrices: the three turns, then X x Y, then all three.
-pub const TURN_X_RVA: usize = rva(0x76A28E); // g_marksTurnX
-pub const TURN_Y_RVA: usize = rva(0x76A2BE); // g_marksTurnY
-pub const TURN_Z_RVA: usize = rva(0x76A2EE); // g_marksTurnZ
-pub const TURN_XY_RVA: usize = rva(0x76A22E); // g_marksTurnXY
-pub const TURN_RVA: usize = rva(0x76A25E); // g_marksTurn
+pub const TURN_X_RVA: Slot = Slot::at(0x76A28E); // g_marksTurnX
+pub const TURN_Y_RVA: Slot = Slot::at(0x76A2BE); // g_marksTurnY
+pub const TURN_Z_RVA: Slot = Slot::at(0x76A2EE); // g_marksTurnZ
+pub const TURN_XY_RVA: Slot = Slot::at(0x76A22E); // g_marksTurnXY
+pub const TURN_RVA: Slot = Slot::at(0x76A25E); // g_marksTurn
 /// `order_spline_points`' work: the ids, then the points.
-pub const ORDERED_IDS_RVA: usize = rva(0x76A31E); // g_marksOrderedIds
-pub const ORDERED_COORDS_RVA: usize = rva(0x76A51E); // g_marksOrderedCoords
+pub const ORDERED_IDS_RVA: Slot = Slot::at(0x76A31E); // g_marksOrderedIds
+pub const ORDERED_COORDS_RVA: Slot = Slot::at(0x76A51E); // g_marksOrderedCoords
 
 unsafe fn get(at: u32) -> u32 {
     unsafe { (at as *const u32).read_unaligned() }
@@ -238,7 +244,7 @@ pub unsafe fn transform(from: u32, to: u32, count: u32, matrix: u32) -> Result<(
 
 /// The X x Y x Z products of `turn_spline_points` and `turn_record`.
 unsafe fn multiply_turns() {
-    let at = |r: usize| game_addr(r) as u32;
+    let at = |r: Slot| game_addr(r) as u32;
     unsafe {
         for (a, b, out) in [
             (TURN_X_RVA, TURN_Y_RVA, TURN_XY_RVA),
@@ -261,7 +267,7 @@ pub unsafe fn turn_spline_points(s: u32) -> Result<(), Refused> {
         for a in &angles {
             turnable(a)?;
         }
-        let at = |r: usize| game_addr(r) as u32;
+        let at = |r: Slot| game_addr(r) as u32;
         for ((axis, to), angle) in [
             (Axis::X, TURN_X_RVA),
             (Axis::Y, TURN_Y_RVA),
@@ -315,7 +321,7 @@ pub unsafe fn turnable_record(s: u32, offsets: [u32; 3]) -> Result<(), Refused> 
 pub unsafe fn turn_record(s: u32, offsets: [u32; 3]) -> Result<(), Refused> {
     use crate::scene::matrix3::{Axis, extended, turn_matrix3};
     unsafe {
-        let at = |r: usize| game_addr(r) as u32;
+        let at = |r: Slot| game_addr(r) as u32;
         for ((axis, to), o) in [
             (Axis::X, TURN_X_RVA),
             (Axis::Y, TURN_Y_RVA),
@@ -334,7 +340,7 @@ pub unsafe fn turn_record(s: u32, offsets: [u32; 3]) -> Result<(), Refused> {
 /// `count` points from `from` turned by `g_marksTurn` into `g_marksOrderedCoords`
 /// (`scene::transform_int_points`).
 pub unsafe fn transform_int_points_from(from: u32, count: u32) -> Result<(), Refused> {
-    let at = |r: usize| game_addr(r) as u32;
+    let at = |r: Slot| game_addr(r) as u32;
     unsafe { transform(from, at(ORDERED_COORDS_RVA), count, at(TURN_RVA)) }
 }
 
@@ -457,7 +463,7 @@ pub unsafe fn make_spline(object: u32) -> Result<(), Refused> {
         spline_checks(object)?;
         let offset = place as u32 * SPLINE_LEN;
         game_write(OFFSET_RVA, offset);
-        let table = |t: usize| game_addr(rva(TABLES[t])) as u32;
+        let table = |t: usize| game_addr(TABLES[t]) as u32;
         for t in 0..4 {
             let record = table(t) + offset;
             gather_spline_points(record, object, game_read(KINDS_RVA + 4 * t))?;
@@ -500,16 +506,16 @@ pub unsafe fn make_spline(object: u32) -> Result<(), Refused> {
     Ok(())
 }
 
-pub const LOADED_RVA: usize = rva(0x788EF6); // g_marksSplinesLoaded: 0, or where to go on
+pub const LOADED_RVA: Slot = Slot::at(0x788EF6); // g_marksSplinesLoaded: 0, or where to go on
 pub const RESUME_RVA: usize = rva(0x4B9706); // loc_4B9706
-const PATH_RVA: usize = rva(0x788EFA); // "files\m\spline.dat"
-pub const FILE_RVA: usize = rva(0x7695D2); // g_marksSplineFile
+const PATH_RVA: Slot = Slot::at(0x788EFA); // "files\m\spline.dat"
+pub const FILE_RVA: Slot = Slot::at(0x7695D2); // g_marksSplineFile
 pub const FILE_LEN: u32 = 0xC00;
 /// The five values by kind (`dword_788BC6` .. `dword_788DE6`, 0x22 each) and where they go.
-const BY_KIND_RVA: usize = rva(0x788BC6);
-pub const CHOSEN_RVA: usize = rva(0x788BB2); // dword_788BB2, then `g_marksSplineKinds`
+const BY_KIND_RVA: Slot = Slot::at(0x788BC6);
+pub const CHOSEN_RVA: Slot = Slot::at(0x788BB2); // dword_788BB2, then `g_marksSplineKinds`
 const KINDS: u32 = 0x22;
-pub const MADE_RVA: usize = rva(0x7695CE); // dword_7695CE
+pub const MADE_RVA: Slot = Slot::at(0x7695CE); // dword_7695CE
 /// The settings' objects: a count at +0x26B8, then the objects.
 const OBJECTS_AT: u32 = 0x26B8;
 const MOST_OBJECTS: u32 = (0x2708 - 0x26BC) / 4;

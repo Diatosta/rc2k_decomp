@@ -30,10 +30,11 @@
 
 use crate::errors::BadInput;
 use crate::framework::{game_read, game_write, rva};
-use crate::scene::add_point_lights::{LIGHT_COLOUR_RVA, LIT_PLACE_RVA, MMX_RVA};
+use crate::scene::add_point_lights::{LIGHT_COLOUR_RVA, LIT_PLACE_RVA};
 use crate::scene::draw_polygon::CHECKED_RVA;
 use crate::scene::polygon::dword;
 use crate::scene::vertex_light::plus;
+use crate::session::MACHINE;
 
 // ---- game data ----
 
@@ -175,7 +176,7 @@ pub unsafe fn add_car_light(car: usize) -> Result<(), BadInput> {
         let level = held((0x10_0000u32.wrapping_sub(height) as i32) >> 12);
         let amount = (level.wrapping_mul(cone * 2) >> 8).wrapping_mul(dword(car + STRENGTH)) >> 8;
         let colour: u32 = game_read(TABLE_RVA + held(amount as i32) as usize * 4);
-        let mmx = game_read::<u32>(MMX_RVA) != 0;
+        let mmx = MACHINE.has_mmx.get() != 0;
         game_write(
             LIGHT_COLOUR_RVA,
             plus(colour, game_read(LIGHT_COLOUR_RVA), mmx),

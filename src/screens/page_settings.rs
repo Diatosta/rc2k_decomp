@@ -2,7 +2,8 @@
 //! A, part F1, 2026-10-18).
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::framework::rva;
+use crate::store::{game_addr, game_read, game_write};
 
 fn k(a: u32) -> u32 {
     unsafe { game_read(rva(a as usize)) }

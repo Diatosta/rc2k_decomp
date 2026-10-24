@@ -61,6 +61,8 @@ pub mod stop_cd_track;
 pub mod stop_music;
 pub mod stop_sound;
 pub mod stop_stream;
+pub mod store;
+pub mod store_data;
 pub mod stream_playing;
 pub mod surface_sound;
 pub mod surface_sounds;

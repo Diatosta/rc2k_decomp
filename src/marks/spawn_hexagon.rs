@@ -18,11 +18,11 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::marks::expire_hexagons::{ITEM_LEN, ITEMS, ITEMS_RVA};
+use crate::marks::store::{Slot, game_addr, game_read, game_write};
 use crate::math::x87;
 
-pub const CURSOR_RVA: usize = rva(0x81517E); // dword_81517E: an offset into the items
+pub const CURSOR_RVA: Slot = Slot::at(0x81517E); // dword_81517E: an offset into the items
 const WINDOW: u32 = 32;
 
 /// The Rust version (see the header).

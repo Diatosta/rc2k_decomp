@@ -30,7 +30,7 @@ use crate::errors::Refused;
 use crate::framework::{game_addr, game_read, game_write, log, rva};
 use crate::menu::screen_loop::{Carried, Flow, List, Screen, Step, call, carousel, prepare_scene};
 use crate::menu::update_blink::update_blink;
-use crate::menu::update_frame_clock::CLOCK_RVA;
+use crate::session::CLOCKS;
 
 // ---- game data ----
 
@@ -40,7 +40,6 @@ const IDLE_RVA: usize = rva(0x755551); // dword_755551: 1 after a long time with
 const IDLE_FRAMES_RVA: usize = rva(0x755555); // dword_755555
 const IDLE_HELD_RVA: usize = rva(0x5BE870); // g_noFmv: 1 = no films (`nofmv` in ral.cfg)
 const BLINK_TIME_RVA: usize = rva(0x7556C4); // dword_7556C4
-const SETUP_TIME_RVA: usize = rva(0x5189A0); // dword_5189A0
 const FRAME_FLAG_RVA: usize = rva(0x7585D8); // dword_7585D8
 const BACKGROUND_PATH_RVA: usize = rva(0x731C7A); // "files\g\graphics\screens\mainscr.png"
 
@@ -99,9 +98,9 @@ unsafe fn idle(c: &mut Carried) -> Result<Flow, Refused> {
         log("menu::main_menu_loop: sub_4161CD has come back");
         game_write(IDLE_RVA, 0u32);
         update_blink();
-        c.arg = game_read(CLOCK_RVA);
+        c.arg = CLOCKS.frame.get();
         game_write(BLINK_TIME_RVA, c.arg);
-        game_write(SETUP_TIME_RVA, c.arg);
+        CLOCKS.setup_time.set(c.arg);
         Ok(Flow::SetUp)
     }
 }

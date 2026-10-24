@@ -149,8 +149,14 @@ unsafe extern "C" fn call_at(_regs: *mut Regs, _addr: usize) {
     )
 }
 
+/// The address of the game's variable at `rva`: in the image, or for a variable that has
+/// left it (phase 5, `crate::moved`) its new home, so an address the code still names by its
+/// RVA reaches the variable wherever it lives (owner, 2026-10-24: the resolver).
 pub fn game_addr(rva: usize) -> usize {
-    BASE.load(Ordering::Relaxed) + rva
+    match crate::moved::home_of_rva(rva) {
+        Some(home) => home,
+        None => BASE.load(Ordering::Relaxed) + rva,
+    }
 }
 
 /// Pointer to game memory at `rva`.

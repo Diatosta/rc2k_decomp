@@ -15,15 +15,15 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{game_read, game_write, rva};
+use crate::marks::store::{Slot, game_read, game_write};
 
-const INDEX_RVA: usize = rva(0x84460C); // dword_84460C
-const TABLE_RVA: usize = rva(0x844610); // dword_844610: 256 entries
+const INDEX_RVA: Slot = Slot::at(0x84460C); // dword_84460C
+const TABLE_RVA: Slot = Slot::at(0x844610); // dword_844610: 256 entries
 /// (the flag, the shape): `dword_844604` / `g_marksShapesA`, `dword_844608` /
 /// `g_marksShapesB`.
-const PAIRS: [(usize, usize); 2] = [
-    (rva(0x844604), rva(0x82FC56)),
-    (rva(0x844608), rva(0x82FC7A)),
+const PAIRS: [(Slot, Slot); 2] = [
+    (Slot::at(0x844604), Slot::at(0x82FC56)),
+    (Slot::at(0x844608), Slot::at(0x82FC7A)),
 ];
 
 /// The Rust version (see the header).

@@ -10,12 +10,13 @@
 //! registers above are the original's, for reference.
 
 use crate::errors::BadInput;
-use crate::framework::{game_ptr, game_read, game_write, rva};
+use crate::gfx::block::{game_ptr, game_read, game_write};
+use crate::gfx::picture_store::Slot as PicSlot;
 use crate::memory::own_heap;
 
-const FLAGS_RVA: usize = rva(0x4F49CC); // g_pictureFlags
-const BUFFER_RVA: usize = rva(0x4F49DC); // g_pictureBuffer
-const LIST_RVA: usize = rva(0x4F49E4); // stru_4F49E4
+const FLAGS_RVA: PicSlot = PicSlot::at(0x4F49CC); // g_pictureFlags
+const BUFFER_RVA: PicSlot = PicSlot::at(0x4F49DC); // g_pictureBuffer
+const LIST_RVA: PicSlot = PicSlot::at(0x4F49E4); // stru_4F49E4
 
 /// The Rust version (see the header).
 pub fn free_picture_buffer() -> Result<(), BadInput> {

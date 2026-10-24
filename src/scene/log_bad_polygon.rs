@@ -37,19 +37,22 @@ const MASK_RVA: usize = rva(0x624118); // g_polygonClipMask
 const COUNT_RVA: usize = rva(0x6240F8); // g_polygonVertexCount
 const OBJECT_RVA: usize = rva(0x62DA44); // g_drawingObject
 const MOST: u32 = 64;
+/// Stand-ins in the value column for the session's screen size (not addresses).
+const SCREEN_WIDTH: usize = 1;
+const SCREEN_HEIGHT: usize = 2;
 
 /// (label, kind, value): the head's lines before the mask's clearing, and after.
 const HEAD: [(usize, u32, usize); 10] = [
-    (0x4DBCB6, HEX8, 0x4F494C),   // "videox" g_screenWidth
-    (0x4DBCBD, HEX8, 0x4F4950),   // "videoy" g_screenHeight
-    (0x4DBCC4, HEX8, 0x4F4950),   // "videoy" g_screenHeight
-    (0x4DBCCB, FLOAT, 0x6241F0),  // "r" g_clipScreenRight
-    (0x4DBCCD, FLOAT, 0x6241EC),  // "l" g_clipScreenLeft
-    (0x4DBCCF, FLOAT, 0x6241E8),  // "b" g_clipScreenBottom
-    (0x4DBCD1, FLOAT, 0x6241E4),  // "t" g_clipScreenTop
-    (0x4DBCD3, INT, 0x624124),    // "donezcut"
-    (0x4DBCDC, INT, 0x624120),    // "donesuth"
-    (0x4DBCE5, INT_NL, 0x624118), // "cuttest" g_polygonClipMask
+    (0x4DBCB6, HEX8, SCREEN_WIDTH),  // "videox" g_screenWidth
+    (0x4DBCBD, HEX8, SCREEN_HEIGHT), // "videoy" g_screenHeight
+    (0x4DBCC4, HEX8, SCREEN_HEIGHT), // "videoy" g_screenHeight
+    (0x4DBCCB, FLOAT, 0x6241F0),     // "r" g_clipScreenRight
+    (0x4DBCCD, FLOAT, 0x6241EC),     // "l" g_clipScreenLeft
+    (0x4DBCCF, FLOAT, 0x6241E8),     // "b" g_clipScreenBottom
+    (0x4DBCD1, FLOAT, 0x6241E4),     // "t" g_clipScreenTop
+    (0x4DBCD3, INT, 0x624124),       // "donezcut"
+    (0x4DBCDC, INT, 0x624120),       // "donesuth"
+    (0x4DBCE5, INT_NL, 0x624118),    // "cuttest" g_polygonClipMask
 ];
 const AFTER: [(usize, u32, usize); 2] = [
     (0x4DBCED, HEX8, 0x6240C4), // "tpage"
@@ -80,7 +83,11 @@ pub unsafe fn log_bad_polygon(vertices: u32) -> Result<(), BadInput> {
         return Err(BadInput("more than 64 vertices"));
     }
     let text = |a: usize| game_addr(rva(a)) as u32;
-    let value = |a: usize| unsafe { game_read::<u32>(rva(a)) };
+    let value = |a: usize| match a {
+        SCREEN_WIDTH => crate::session::SCREEN.width.get(),
+        SCREEN_HEIGHT => crate::session::SCREEN.height.get(),
+        a => unsafe { game_read::<u32>(rva(a)) },
+    };
     for (label, kind, at) in HEAD {
         log(WRITE, text(label));
         log(kind, value(at));

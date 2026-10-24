@@ -9,9 +9,10 @@
 //! Called directly (2026-10-23).
 
 use crate::errors::Refused;
-use crate::framework::{game_ptr, rva};
+use crate::gfx::block::game_ptr;
+use crate::gfx::decoder::Slot as DecSlot;
 
-const LIST_RVA: usize = rva(0x51B984); // g_glyphTablesMemory
+const LIST_RVA: DecSlot = DecSlot::at(0x51B984); // g_glyphTablesMemory
 
 /// The Rust version (see the header).
 pub fn free_glyph_tables() -> Result<(), Refused> {

@@ -12,16 +12,17 @@
 //! is a reading. `start` calls it directly (2026-10-23); the registers above are the
 //! original's, for reference.
 
-use crate::framework::{game_addr, game_read, rva};
+use crate::framework::rva;
 use crate::gfx::components_to_4444_rows::COMPONENTS_TO_4444_ROWS;
+use crate::gfx::converters::Slot as ConvSlot;
 use crate::gfx::copy_pixel_rows::COPY_PIXEL_ROWS;
+use crate::session::MACHINE;
+use crate::store::game_addr;
 
 // ---- game data ----
 
-pub const CONVERTERS_RVA: usize = rva(0x4F5288); // dword_4F5288
+pub const CONVERTERS_RVA: ConvSlot = ConvSlot::at(0x4F5288); // dword_4F5288
 pub const CONVERTER_COUNT: usize = rc2k_core::gfx::converters::CONVERTERS;
-const HAS_MMX_RVA: usize = rva(0x5183A8); // dword_5183A8
-const HAS_3DNOW_RVA: usize = rva(0x5183B8); // dword_5183B8
 
 /// The converters for formats 1 to 4 with MMX, and with 3DNow as well.
 const MMX: [usize; 4] = [rva(0x4070F9), rva(0x407171), rva(0x4071ED), rva(0x407276)];
@@ -47,7 +48,7 @@ pub fn converters(has_mmx: u32, has_3dnow: u32) -> [u32; CONVERTER_COUNT] {
 }
 
 pub unsafe fn install_converters() {
-    let table = unsafe { converters(game_read(HAS_MMX_RVA), game_read(HAS_3DNOW_RVA)) };
+    let table = converters(MACHINE.has_mmx.get(), MACHINE.has_3dnow.get());
     unsafe { (game_addr(CONVERTERS_RVA) as *mut [u32; CONVERTER_COUNT]).write_unaligned(table) };
 }
 

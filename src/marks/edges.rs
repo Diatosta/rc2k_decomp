@@ -3,23 +3,24 @@
 //! a byte a pixel, the shape tilt of the kind, then the masks and the two item kinds.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::framework::rva;
+use crate::marks::store::{Slot, game_addr, game_read, game_write};
 use crate::math::x87;
 
-pub const DONE_RVA: usize = rva(0x8BC3D6); // g_marksEdgesDone: 0, or where to go on
+pub const DONE_RVA: Slot = Slot::at(0x8BC3D6); // g_marksEdgesDone: 0, or where to go on
 pub const RESUME_RVA: usize = rva(0x4C0FFD); // loc_4C0FFD
-pub const BOXES_RVA: usize = rva(0x811BEB); // g_marksKindBoxes: 0x22 of 0x30
-pub const KIND_FLOATS_RVA: usize = rva(0x81224B); // g_marksKindFloats: 0x22
+pub const BOXES_RVA: Slot = Slot::at(0x811BEB); // g_marksKindBoxes: 0x22 of 0x30
+pub const KIND_FLOATS_RVA: Slot = Slot::at(0x81224B); // g_marksKindFloats: 0x22
 const KINDS: u32 = 0x22;
-const SCALE_RVA: [usize; 3] = [rva(0x8BC3DA), rva(0x8BC3DE), rva(0x8BC3E2)];
+const SCALE_RVA: [Slot; 3] = [Slot::at(0x8BC3DA), Slot::at(0x8BC3DE), Slot::at(0x8BC3E2)];
 const SETTING: u32 = 0x2708;
 const SETTING_VALUE: u32 = 0xFFFF_7B2E;
-pub const PATH_RVA: usize = rva(0x8BC3E6); // "files\m\edge00.pcx"
+pub const PATH_RVA: Slot = Slot::at(0x8BC3E6); // "files\m\edge00.pcx"
 const DIGITS: u32 = 12; // the two digits' place in the path
-pub const EDGE_RVA: usize = rva(0x809BC3); // g_marksEdgeMask: 0x8000 bytes
+pub const EDGE_RVA: Slot = Slot::at(0x809BC3); // g_marksEdgeMask: 0x8000 bytes
 pub const EDGE_LEN: u32 = 0x8000;
-const TILT_SCALE_RVA: usize = rva(0x8BC3F9); // flt_8BC3F9
-pub const TILT_RVA: usize = rva(0x811BC3); // g_marksShapeTilt
+const TILT_SCALE_RVA: Slot = Slot::at(0x8BC3F9); // flt_8BC3F9
+pub const TILT_RVA: Slot = Slot::at(0x811BC3); // g_marksShapeTilt
 const MOST_KIND: i32 = 0x16;
 
 /// The kind, held to 0 .. 0x16.

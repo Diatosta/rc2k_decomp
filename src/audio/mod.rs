@@ -40,6 +40,8 @@ pub mod start;
 pub mod start_voice;
 pub mod stop_all_voices;
 pub mod stop_streams;
+pub mod store;
+pub mod store_data;
 pub mod stray_voices;
 pub mod stream;
 pub mod stream_commands;

@@ -14,7 +14,8 @@
 
 use crate::audio::stream::*;
 use crate::errors::Refused;
-use crate::framework::game_addr;
+use crate::store::addr32 as a;
+use crate::store::game_addr;
 
 fn playing(player: u32) -> bool {
     unsafe { stream(player).playing == 1 }
@@ -90,7 +91,6 @@ pub struct MusicVars {
 
 impl MusicVars {
     pub fn game() -> Self {
-        let a = |r| game_addr(r) as u32;
         Self {
             player: a(MUSIC_STREAM_RVA),
             next_tune: a(NEXT_TUNE_RVA),

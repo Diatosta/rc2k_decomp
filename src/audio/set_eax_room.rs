@@ -17,7 +17,7 @@
 use crate::audio::property_sets::set_eax_room;
 use crate::audio::voices::{EAX_ROOM_RVA, EAX_RVA, read};
 use crate::errors::Refused;
-use crate::framework::game_addr;
+use crate::store::game_addr;
 
 /// On the game's variables.
 pub unsafe fn in_game() -> Result<u32, Refused> {

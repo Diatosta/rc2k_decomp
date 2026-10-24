@@ -15,8 +15,9 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, rva};
+use crate::framework::rva;
 use crate::marks::setup::SETTINGS_RVA;
+use crate::marks::store::game_read;
 
 const TEXTURE_RVA: usize = rva(0x5D1E10); // dword_5D1E10
 

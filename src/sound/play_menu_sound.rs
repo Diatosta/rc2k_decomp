@@ -13,12 +13,11 @@
 //! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
 //! `routes.rs`); the registers above are the original's, for reference.
 
-use crate::framework::{game_read, game_write, rva};
+use crate::framework::{game_read, rva};
 use crate::system::tick_count::tick_count;
 
 // ---- game data ----
 
-const NEXT_TIME_RVA: usize = rva(0x511B0C); // dword_511B0C
 const VOLUME_A_RVA: usize = rva(0x755694); // dword_755694
 const VOLUME_B_RVA: usize = rva(0x7554E8); // dword_7554E8
 const VOLUME_C_RVA: usize = rva(0x755690); // dword_755690
@@ -33,10 +32,14 @@ pub unsafe fn play_menu_sound(sound: u32, now: &mut dyn FnMut() -> u32) {
         if sound == 0 {
             return;
         }
-        let Some((next, pick)) = menu_sound(sound, now(), game_read(NEXT_TIME_RVA)) else {
+        let Some((next, pick)) = menu_sound(
+            sound,
+            now(),
+            crate::sound::store::NEXT_MENU_SOUND_TIME.get(),
+        ) else {
             return;
         };
-        game_write(NEXT_TIME_RVA, next);
+        crate::sound::store::NEXT_MENU_SOUND_TIME.set(next);
         let Some((sound, volume)) = pick else {
             return;
         };

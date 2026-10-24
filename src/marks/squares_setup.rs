@@ -17,16 +17,17 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::{game_read, game_write, rva};
+use crate::framework::rva;
+use crate::marks::store::{Slot, game_read, game_write};
 use crate::math::x87;
 
 const TEXTURE_RVA: usize = rva(0x5D1E10); // dword_5D1E10
 const VERTICES_RVA: usize = rva(0x9605A0); // g_polygonVertices
 const COUNT_RVA: usize = rva(0x6240F8); // g_polygonVertexCount
 const SCRATCH_RVA: usize = rva(0x62400C); // dword_62400C
-const PLACES_RVA: usize = rva(0x8BC212); // dword_8BC212 .. dword_8BC21E
+const PLACES_RVA: Slot = Slot::at(0x8BC212); // dword_8BC212 .. dword_8BC21E
 const DEPTH_OF_RVA: usize = rva(0x6241C8); // flt_6241C8
-const INVERSE_RVA: usize = rva(0x89CEEA); // flt_89CEEA
+const INVERSE_RVA: Slot = Slot::at(0x89CEEA); // flt_89CEEA
 const STATES: [(u32, u32); 7] = [
     (2, 0x11),
     (2, 0x12),
@@ -43,7 +44,7 @@ pub unsafe fn squares_setup() {
 }
 
 /// The set-up with the texture places at `places` (`marks::pong_setup` has its own).
-pub unsafe fn setup_with(places: usize) {
+pub unsafe fn setup_with(places: Slot) {
     use crate::scene::set_render_state::set_render_state;
     unsafe {
         crate::scene::depth_buffer_on::depth_buffer(true);

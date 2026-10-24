@@ -27,24 +27,14 @@
 //! reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, game_write, rva};
+use crate::framework::{game_addr, rva};
+use crate::session::MACHINE;
 use core::arch::x86::{__cpuid, _rdtsc};
 use rc2k_core::system::processor::{Var, test};
 use windows_sys::Win32::System::SystemInformation::GetTickCount;
 
 // ---- game data ----
 
-const FAMILY_RVA: usize = rva(0x5183D0); // dword_5183D0
-const SIGNATURE_RVA: usize = rva(0x5183D4); // dword_5183D4: leaf 1's eax
-const VENDOR_RVA: usize = rva(0x5183D8); // dword_5183D8 .. dword_5183E0
-const CLOCK_RVA: usize = rva(0x5183E8); // dword_5183E8: MHz
-const HAS_FPU_RVA: usize = rva(0x5183EC); // g_hasFpu
-const HAS_TSC_RVA: usize = rva(0x5183F0); // dword_5183F0
-const HAS_CMOV_RVA: usize = rva(0x5183F4); // dword_5183F4
-const HAS_MMX_RVA: usize = rva(0x5183F8); // dword_5183F8
-const HAS_SSE_RVA: usize = rva(0x5183FC); // dword_5183FC
-const HAS_3DNOW_RVA: usize = rva(0x518400); // dword_518400
-const RESUME_RVA: usize = rva(0x51849C); // dword_51849C: where the filter goes on
 const FPU_WORD_RVA: usize = rva(0x93E8B0); // g_pngInfo's first word
 // ---- Rust version ----
 
@@ -122,19 +112,20 @@ impl Processor for Real {
 
 /// Where each variable is.
 fn place(v: Var) -> usize {
+    let m = &MACHINE;
     match v {
-        Var::Family => FAMILY_RVA,
-        Var::Signature => SIGNATURE_RVA,
-        Var::Vendor(n) => VENDOR_RVA + 4 * n,
-        Var::Clock => CLOCK_RVA,
-        Var::HasFpu => HAS_FPU_RVA,
-        Var::HasTsc => HAS_TSC_RVA,
-        Var::HasCmov => HAS_CMOV_RVA,
-        Var::HasMmx => HAS_MMX_RVA,
-        Var::HasSse => HAS_SSE_RVA,
-        Var::Has3dNow => HAS_3DNOW_RVA,
-        Var::Resume => RESUME_RVA,
-        Var::FpuWord => FPU_WORD_RVA,
+        Var::Family => m.cpu_family.addr(),
+        Var::Signature => m.cpu_signature.addr(),
+        Var::Vendor(n) => m.cpu_vendor[n].addr(),
+        Var::Clock => m.cpu_mhz.addr(),
+        Var::HasFpu => m.has_fpu.addr(),
+        Var::HasTsc => m.has_tsc.addr(),
+        Var::HasCmov => m.has_cmov.addr(),
+        Var::HasMmx => m.found_mmx.addr(),
+        Var::HasSse => m.found_sse.addr(),
+        Var::Has3dNow => m.found_3dnow.addr(),
+        Var::Resume => m.exception_resume.addr(),
+        Var::FpuWord => game_addr(FPU_WORD_RVA),
     }
 }
 
@@ -142,11 +133,11 @@ pub unsafe fn test_processor(p: &dyn Processor) -> Result<(), Refused> {
     // Converted: `rc2k_core::system::processor::test`.
     let mut put = |v: Var, value: u32| unsafe {
         if v == Var::FpuWord {
-            game_write(place(v), value as u16);
+            (place(v) as *mut u16).write_unaligned(value as u16);
         } else {
-            game_write(place(v), value);
+            (place(v) as *mut u32).write_unaligned(value);
         }
     };
-    let get = |v: Var| unsafe { game_read::<u32>(place(v)) };
+    let get = |v: Var| unsafe { (place(v) as *const u32).read_unaligned() };
     test(p, &mut put, &get).map_err(|e| BadInput::from(e).into())
 }

@@ -32,6 +32,7 @@ pub fn blit_glyph_list(count: u32, table: u32, x: u32, y: u32, glyphs: u32) -> R
                 glyphs as *const u8,
                 x as i32,
                 y as i32,
+                // (The bar's records name the blended palette's home: `moved::point_into_homes`.)
                 rd(record + 0xC) as *const u32,
             )
         }?;

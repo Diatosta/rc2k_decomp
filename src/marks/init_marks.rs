@@ -19,26 +19,25 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::marks::store::{Slot, game_addr, game_read, game_write};
 use crate::math::x87;
+use crate::session::SCREEN;
 
 const KIND_AT: u32 = 0x26A8; // the settings' kind
 const LIVE_AT: u32 = 0x18; // the settings' dword set to 1
-const CLOCK_STARTED_RVA: usize = rva(0x764FC8); // g_marksClockStarted
-const ONES_RVA: [usize; 2] = [rva(0x764FF0), rva(0x764FF4)]; // dword_764FF0, dword_764FF4
-const CLEARED_RVA: usize = rva(0x76513C); // dword_76513C
-const SCREEN_WIDTH_RVA: usize = rva(0x4F494C); // g_screenWidth
-const SCREEN_HEIGHT_RVA: usize = rva(0x4F4950); // g_screenHeight
+const CLOCK_STARTED_RVA: Slot = Slot::at(0x764FC8); // g_marksClockStarted
+const ONES_RVA: [Slot; 2] = [Slot::at(0x764FF0), Slot::at(0x764FF4)]; // dword_764FF0, dword_764FF4
+const CLEARED_RVA: Slot = Slot::at(0x76513C); // dword_76513C
 /// flt_7687E4 .. flt_7687F0: the screen's middle x, it less `flt_76516C`, the same for y.
-const MIDDLE_RVA: usize = rva(0x7687E4);
-const LESS_RVA: usize = rva(0x76516C); // flt_76516C
-const KIND_FLOATS_RVA: usize = rva(0x765240); // g_marksKindFloatTable: 0x17 floats by kind
+const MIDDLE_RVA: Slot = Slot::at(0x7687E4);
+const LESS_RVA: Slot = Slot::at(0x76516C); // flt_76516C
+const KIND_FLOATS_RVA: Slot = Slot::at(0x765240); // g_marksKindFloatTable: 0x17 floats by kind
 /// The table's entries; the kinds go to 0x21 (the other kinds' tables have 0x22).
 const KIND_FLOATS: u32 = 0x17;
 const KINDS: u32 = rc2k_core::marks::kind_values::KINDS;
 /// 18240.0, the value of most of the table's kinds: the kinds past it get it (section 16).
 const KIND_FLOAT_PAST: u32 = 0x468E_8000;
-const KIND_FLOAT_RVA: usize = rva(0x76529C); // flt_76529C
+const KIND_FLOAT_RVA: Slot = Slot::at(0x76529C); // flt_76529C
 
 /// The Rust version (see the header): `settings` the settings (the original's esi), `seed`
 /// the seed (eax). The steps (`nullsub_1` before each, `nullsub_26` for step 7: nothing).
@@ -76,11 +75,8 @@ pub unsafe fn init_marks(settings: u32, seed: u32) -> Result<(), Refused> {
         setup::tick_clock();
         game_write(CLEARED_RVA, 0u32);
         let less: u32 = game_read(LESS_RVA);
-        for (n, side) in [SCREEN_WIDTH_RVA, SCREEN_HEIGHT_RVA]
-            .into_iter()
-            .enumerate()
-        {
-            let half = game_read::<u32>(side) >> 1;
+        for (n, side) in [&SCREEN.width, &SCREEN.height].into_iter().enumerate() {
+            let half = side.get() >> 1;
             let to = MIDDLE_RVA + 8 * n;
             game_write(to, x87::from_int(half as i32));
             game_write(to + 4, x87::int_less(half as i32, less));

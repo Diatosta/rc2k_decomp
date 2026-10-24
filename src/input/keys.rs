@@ -7,21 +7,25 @@
 //! that went down this frame, or auto-repeat (`g_keyRepeat`, 0x4F6D5C: a key held 0x41
 //! frames is pressed again each frame).
 
-use crate::framework::{Regs, game_read, game_write, rva};
+use crate::framework::{Regs, rva};
+use crate::gfx::shots::Slot as ShotSlot;
+use crate::input::store::DeviceSlot;
+use crate::input::store::MouseSlot;
+use crate::store::{game_read, game_write};
 
-pub const MOUSE_WORD_RVA: usize = rva(0x4F6DF0); // g_mouseWord: buttons, x << 8, y << 20
-pub const MOUSE_RVA: usize = rva(0x5C6924); // g_mouseX, g_mouseY
-pub const LAST_MOUSE_RVA: usize = rva(0x5C692C); // g_lastMouseX, g_lastMouseY
-pub const CLICKS_RVA: usize = rva(0x5C6934); // g_leftClick, g_rightClick
-pub const BUTTONS_RVA: usize = rva(0x5C693C); // g_mouseButtons, g_leftButton, g_rightButton
-pub const DOWN_RVA: usize = rva(0x4F6ADC); // g_keysDown
-pub const NOW_RVA: usize = rva(0x4F6B5C); // g_keysNow
-pub const BEFORE_RVA: usize = rva(0x4F6BDC); // g_keysBefore
-pub const PRESSED_RVA: usize = rva(0x4F6CDC); // g_keysPressed
-pub const REPEAT_RVA: usize = rva(0x4F6D5C); // g_keyRepeat
+pub const MOUSE_WORD_RVA: DeviceSlot = DeviceSlot::at(0x4F6DF0); // g_mouseWord: buttons, x << 8, y << 20
+pub const MOUSE_RVA: MouseSlot = MouseSlot::at(0x5C6924); // g_mouseX, g_mouseY
+pub const LAST_MOUSE_RVA: MouseSlot = MouseSlot::at(0x5C692C); // g_lastMouseX, g_lastMouseY
+pub const CLICKS_RVA: MouseSlot = MouseSlot::at(0x5C6934); // g_leftClick, g_rightClick
+pub const BUTTONS_RVA: MouseSlot = MouseSlot::at(0x5C693C); // g_mouseButtons, g_leftButton, g_rightButton
+pub const DOWN_RVA: DeviceSlot = DeviceSlot::at(0x4F6ADC); // g_keysDown
+pub const NOW_RVA: DeviceSlot = DeviceSlot::at(0x4F6B5C); // g_keysNow
+pub const BEFORE_RVA: DeviceSlot = DeviceSlot::at(0x4F6BDC); // g_keysBefore
+pub const PRESSED_RVA: DeviceSlot = DeviceSlot::at(0x4F6CDC); // g_keysPressed
+pub const REPEAT_RVA: DeviceSlot = DeviceSlot::at(0x4F6D5C); // g_keyRepeat
 const KEYS: u32 = rc2k_core::input::frame::KEYS as u32;
 const SCREENSHOT_KEY: u32 = rc2k_core::input::frame::SCREENSHOT_KEY as u32; // byte_4F6BAE
-pub const SCREENSHOTS_RVA: usize = rva(0x4F52B4); // g_screenshotsOn
+pub const SCREENSHOTS_RVA: ShotSlot = ShotSlot::at(0x4F52B4); // g_screenshotsOn
 pub const FRAME_CLEARED_RVA: [usize; 2] = [rva(0x6138F4), rva(0x6138F8)];
 
 // Converted: `rc2k_core::input::frame`. Here the tables are loaded from the game and only those
@@ -29,7 +33,7 @@ pub const FRAME_CLEARED_RVA: [usize; 2] = [rva(0x6138F4), rva(0x6138F8)];
 
 use rc2k_core::input::frame::KeyTables;
 
-unsafe fn byte(table: usize, n: u32) -> u8 {
+unsafe fn byte<W: crate::store::Where + core::ops::Add<usize, Output = W>>(table: W, n: u32) -> u8 {
     unsafe { game_read(table + n as usize) }
 }
 

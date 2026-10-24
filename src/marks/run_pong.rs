@@ -18,15 +18,15 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::game_read;
 use crate::marks::move_pong_ball::move_pong_ball;
 use crate::marks::move_pong_bat::move_pong_bat;
 use crate::marks::pong;
+use crate::marks::store::{Slot, game_read};
 use crate::scene::matrix3::extended;
 
 const CHEAT: u32 = 0x8000;
 
-fn box_values(place: [usize; 2], size: [usize; 2]) -> [[u8; 10]; 4] {
+fn box_values(place: [Slot; 2], size: [Slot; 2]) -> [[u8; 10]; 4] {
     unsafe { [size[1], size[0], place[1], place[0]].map(|r| extended(game_read(r))) }
 }
 

@@ -27,31 +27,39 @@
 //! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::session::MACHINE;
 use crate::sound::sample_settings::OWN;
-use crate::sound::turn_parts::{CLOCK, REQUEST, SCRATCH};
+use crate::sound::store::StageSlot;
+use crate::sound::turn_parts::{CLOCK, REQUEST};
 
-const ONE_OFFS: [(usize, u32); 3] = [(0x51659C, 0x1AB), (0x5165A0, 0x1AC), (0x5165A4, 0x1AD)];
-const ARM: usize = 0x5165A8;
-const PLACE: usize = 0x5165AC;
-const DELAY: usize = 0x5165B8;
-const VOLUME_A: usize = 0x5165BC;
-const VOLUME_B: usize = 0x5165C0;
-const DUE: usize = 0x5165C4;
-const WAITING: usize = 0x5165C8;
-const TIMED_SLOT: usize = 0x5165CC;
-const RANDOMS: [(usize, u32); 2] = [(0x5165E4, 0x1AE), (0x5165E8, 0x1AF)];
+const ONE_OFFS: [(crate::sound::store::StageSlot, u32); 3] = [
+    (crate::sound::store::StageSlot::at(0x51659C), 0x1AB),
+    (crate::sound::store::StageSlot::at(0x5165A0), 0x1AC),
+    (crate::sound::store::StageSlot::at(0x5165A4), 0x1AD),
+];
+const ARM: StageSlot = StageSlot::at(0x5165A8);
+const PLACE: StageSlot = StageSlot::at(0x5165AC);
+const DELAY: StageSlot = StageSlot::at(0x5165B8);
+const VOLUME_A: StageSlot = StageSlot::at(0x5165BC);
+const VOLUME_B: StageSlot = StageSlot::at(0x5165C0);
+const DUE: StageSlot = StageSlot::at(0x5165C4);
+const WAITING: StageSlot = StageSlot::at(0x5165C8);
+const TIMED_SLOT: StageSlot = StageSlot::at(0x5165CC);
+const RANDOMS: [(crate::sound::store::StageSlot, u32); 2] = [
+    (crate::sound::store::StageSlot::at(0x5165E4), 0x1AE),
+    (crate::sound::store::StageSlot::at(0x5165E8), 0x1AF),
+];
 /// g_mixRateSetting.
-const MIX_RATE: usize = 0x4F82D4;
+const MIX_RATE: crate::audio::store::Slot = crate::audio::store::Slot::at(0x4F82D4);
 const ONE: u32 = 0x3F80_0000;
 const MINUS_ONE: u32 = 0xBF80_0000;
 
-fn g(x: usize) -> u32 {
-    unsafe { game_read(rva(x)) }
+fn g(x: impl crate::store::Ida) -> u32 {
+    unsafe { crate::store::ida_read(x) }
 }
 
-fn p(x: usize, v: u32) {
-    unsafe { game_write(rva(x), v) }
+fn p(x: impl crate::store::Ida, v: u32) {
+    unsafe { crate::store::ida_write(x, v) }
 }
 
 // ---- Rust version ----
@@ -88,7 +96,7 @@ pub fn stage_sounds() -> Result<(), Refused> {
         for k in 0..3 {
             p(REQUEST + 0xC + 4 * k, g(PLACE + 4 * k));
         }
-        let timed = game_addr(rva(TIMED_SLOT)) as u32;
+        let timed = TIMED_SLOT.address() as u32;
         crate::sound::play_timed_slot::play_timed_slot(timed, request)?;
     }
     play(
@@ -105,9 +113,10 @@ pub fn stage_sounds() -> Result<(), Refused> {
         p(flag, 0);
         let n = unsafe { crate::math::next_random::next_random() };
         // Converted: `rc2k_core::sound::stage::random`.
-        let r = rc2k_core::sound::stage::random(n, g(MIX_RATE));
+        let r =
+            rc2k_core::sound::stage::random(n, unsafe { crate::store::game_read::<u32>(MIX_RATE) });
         // The scratch dword holds the last float.
-        p(SCRATCH, r.ahead.to_bits());
+        MACHINE.scratch.set(r.ahead.to_bits());
         play(
             sound,
             r.volume,

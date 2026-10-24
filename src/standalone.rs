@@ -26,11 +26,10 @@
 //! `on_exception`.
 
 use crate::errors::Refused;
-use crate::framework::{
-    CALL_REDIRECT, GameHook, LOG_PATH, Regs, game_addr, game_ptr, game_read, game_write, log, rva,
-};
+use crate::framework::{CALL_REDIRECT, GameHook, LOG_PATH, Regs, game_addr, log, rva};
 use crate::install::outside::Game as Outside;
 use crate::registry::ALL;
+use crate::session::MACHINE;
 use std::path::Path;
 use std::sync::OnceLock;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -141,6 +140,7 @@ unsafe fn build_image() -> Result<Image, String> {
         let delta = base.wrapping_sub(wanted) as u32;
         let relocations = u32_at(d, at)?;
         at += 4;
+        let mut pointers = Vec::with_capacity(relocations);
         for _ in 0..relocations {
             let place = u32_at(d, at)?;
             at += 4;
@@ -149,10 +149,16 @@ unsafe fn build_image() -> Result<Image, String> {
             }
             let p = (base + place) as *mut u32;
             p.write_unaligned(p.read_unaligned().wrapping_add(delta));
+            pointers.push(place);
         }
         if d.get(at..at + 4) != Some(b"END!") {
             return Err("the image's data does not end where it should".into());
         }
+        // The game's pointers to and in the variables that have left the image (phase 5).
+        let pointed = crate::moved::point_into_homes(base, &pointers);
+        log(&format!(
+            "standalone: {pointed} of the game's pointers point at variables' new homes"
+        ));
         // The code: no access, but the pages that hold data among it read only (the rest of
         // such a page reads as 0).
         for &(at, len) in &code {
@@ -496,11 +502,12 @@ unsafe fn refused(name: &str, e: Refused, r: &Regs) {
     unsafe { crate::fatal::raise::refused_in(name, e, r) };
 }
 
-unsafe fn stand_in(what: &str, address: usize, value: u32) {
+fn stand_in(what: &str, variable: &crate::session::Dword, value: u32) {
     log(&format!(
-        "standalone: stand-in: {what} ({address:#x} = {value})"
+        "standalone: stand-in: {what} ({:#x} = {value})",
+        variable.addr()
     ));
-    unsafe { game_write(rva(address), value) };
+    variable.set(value);
 }
 
 /// The game's `start`, call for call. The checks it makes after calls of the platform
@@ -509,6 +516,16 @@ unsafe fn stand_in(what: &str, address: usize, value: u32) {
 unsafe fn start() {
     unsafe {
         let mut r = Regs::default();
+        // The input module's two device-record pointers name the records' new places.
+        crate::input::store::point_devices_at_records();
+        crate::sound::store::point_sound_objects();
+        // `g_surface.format` (0x4F49B8): the image points it at the format record's old
+        // place; the record is in `session::SCREEN` now (the platform sets it again at
+        // every lock).
+        crate::framework::game_write(
+            crate::framework::rva(0x4F49B8),
+            crate::session::SCREEN.format_addr() as u32,
+        );
         rust("system::keep_start_time");
         crate::system::keep_start_time::keep_start_time();
         rust("math::seed_random");
@@ -572,7 +589,7 @@ unsafe fn start() {
             }
         }
         // `system::test_processor` (0x410883, called above) has set it from `cpuid`.
-        if game_read::<u32>(rva(0x5183EC)) != 1 {
+        if MACHINE.has_fpu.get() != 1 {
             finish("fatal error 0x900010FF, FPU is required", 1);
         }
         rust("system::read_command_line");
@@ -584,7 +601,7 @@ unsafe fn start() {
             refused("install::check_clio_disc", e, &r);
         }
         rust("install::check_at_start");
-        let no_audio = game_ptr(crate::install::check_at_start::NO_AUDIO_RVA);
+        let no_audio = crate::store::game_ptr(crate::install::check_at_start::NO_AUDIO_RVA);
         if let Err(e) = crate::install::check_at_start::check_at_start(&mut Outside, no_audio) {
             refused("install::check_at_start", e, &r);
         }
@@ -666,13 +683,17 @@ unsafe fn start() {
         // end), so not called.
         // What the window's procedure and the key thread tell the main loop (the films
         // play since 2026-10-19: `film.rs`).
-        stand_in("the window is the active one", 0x518374, 1);
         stand_in(
-            "the window has the focus (until SDL says otherwise)",
-            0x518378,
+            "the window is the active one",
+            &crate::session::FLAGS.window_active,
             1,
         );
-        stand_in("the key thread runs", 0x518998, 1);
+        stand_in(
+            "the window has the focus (until SDL says otherwise)",
+            &crate::session::FLAGS.window_focused,
+            1,
+        );
+        stand_in("the key thread runs", &crate::session::CLOCKS.key_ticks, 1);
         rust("system::main_loop");
         if let Err(e) = crate::system::main_loop::main_loop_in_game() {
             refused("system::main_loop", e, &r);

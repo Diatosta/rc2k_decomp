@@ -20,12 +20,10 @@
 
 use crate::errors::Refused;
 use crate::framework::{Regs, game_read, game_write, rva};
+use crate::session::FLAGS;
 
 const ON_RVA: usize = rva(0x71C3E0); // dword_71C3E0
 const MARK_RVA: usize = rva(0x6365CC); // dword_6365CC
-const QUITTING_RVA: usize = rva(0x51837C); // g_quitting
-const ACTIVE_RVA: usize = rva(0x518374); // g_windowActive
-const LOST_RVA: usize = rva(0x518380); // dword_518380
 const FRAMED_RVA: usize = rva(0x621514); // dword_621514
 const RESTORE_RVA: usize = rva(0x405B10); // sub_405B10
 
@@ -39,12 +37,12 @@ pub unsafe fn loading_bar_frame() -> Result<(), Refused> {
             return Ok(());
         }
         game_write(MARK_RVA, FRAME_MARK);
-        if game_read::<u32>(QUITTING_RVA) == 1 {
+        if FLAGS.quitting.get() == 1 {
             return Ok(());
         }
         let drawn = 'frame: {
-            let active: u32 = game_read(ACTIVE_RVA);
-            if active == 0 || !frame_tried(active, game_read(LOST_RVA)) {
+            let active: u32 = FLAGS.window_active.get();
+            if active == 0 || !frame_tried(active, FLAGS.lost.get()) {
                 break 'frame false;
             }
             // `scene::begin_scene` leaves the carry clear.
@@ -61,13 +59,13 @@ pub unsafe fn loading_bar_frame() -> Result<(), Refused> {
             unlock_frame::unlock_frame();
             present_frame::present_frame()
         };
-        if drawn || game_read::<u32>(QUITTING_RVA) == 1 {
+        if drawn || FLAGS.quitting.get() == 1 {
             return Ok(());
         }
         // The platform's restore, with ebx `dword_518380` (a local scratch: the flags it
         // leaves were read by no caller).
         let mut r = Regs {
-            ebx: game_read(LOST_RVA),
+            ebx: FLAGS.lost.get(),
             ..Regs::default()
         };
         crate::calls::call(RESTORE_RVA, &mut r);

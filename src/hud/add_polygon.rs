@@ -23,12 +23,12 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::hud::batch::*;
+use crate::hud::store::Slot;
+use crate::session::SCREEN;
+use crate::store::{game_addr, game_read, game_write};
 
-const WIDTH_RVA: usize = rva(0x4F494C); // g_screenWidth
-const HEIGHT_RVA: usize = rva(0x4F4950); // g_screenHeight
-const VIRTUAL_RVA: [usize; 2] = [rva(0x75C02C), rva(0x75C030)]; // flt_75C02C, flt_75C030
+const VIRTUAL_RVA: [Slot; 2] = [Slot::at(0x75C02C), Slot::at(0x75C030)]; // flt_75C02C, flt_75C030
 
 /// The Rust version (see the header). What the original leaves in eax, ecx, esi and edi
 /// is read by none of its callers (register liveness, 2026-10-23).
@@ -47,7 +47,7 @@ pub unsafe fn add_polygon() -> Result<(), Refused> {
             batch::flushes(vertices, texture, game_read(BATCH_TEXTURE_RVA))
         };
         batch::check_polygon(count, vertices, game_read(INDEX_COUNT_RVA), flushes)?;
-        let [w, h]: [u32; 2] = [game_read(WIDTH_RVA), game_read(HEIGHT_RVA)];
+        let [w, h]: [u32; 2] = [SCREEN.width.get(), SCREEN.height.get()];
         let [kx, ky] = VIRTUAL_RVA.map(|r| f32::from_bits(game_read(r)));
         let f = |r: usize| f32::from_bits(game_read(r));
         for n in 0..count as usize {

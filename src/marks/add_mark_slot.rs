@@ -15,12 +15,12 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::{game_read, game_write, rva};
 use crate::marks::setup::{SLOT_LEN, SLOTS, SLOTS_RVA};
+use crate::marks::store::{Slot, game_read, game_write};
 use crate::math::x87;
 
-const RANDOM_RVA: usize = rva(0x93540A); // g_marksSlotRandom
-const BASE_RVA: usize = rva(0x93540E); // flt_93540E
+const RANDOM_RVA: Slot = Slot::at(0x93540A); // g_marksSlotRandom
+const BASE_RVA: Slot = Slot::at(0x93540E); // flt_93540E
 const TIME: u32 = 0x3C;
 
 /// The Rust version (see the header).

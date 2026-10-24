@@ -19,10 +19,8 @@
 //! are the original's.
 
 use crate::errors::Refused;
-use crate::install::installer::{KEY_TAKEN, LIST_ANSWER, LIST_LEAVE, gb, pb, rb, rd};
+use crate::install::installer::{KEY_TAKEN, LIST_ANSWER, LIST_LEAVE, pb, rb, rd};
 use rc2k_core::install::items::{self, ItemKey, PageKey};
-
-const SCREENSHOTS_ON: usize = 0x4F52B4; // g_screenshotsOn
 
 /// `key` as eax (al the key, ah its bits) on `item` of `list`. Returns eax as the callees
 /// leave it (`install::edit_key` changes it) and whether the key did something (the
@@ -64,7 +62,7 @@ pub fn page_key(key: u32, item: u32, list: u32) -> Result<(u32, bool), Refused> 
         // cmp al, 1: another key
         (key, false)
     };
-    if gb(SCREENSHOTS_ON) != 0 && eax as u8 == items::SCREENSHOT_KEY {
+    if crate::gfx::shots::on_byte() != 0 && eax as u8 == items::SCREENSHOT_KEY {
         crate::gfx::take_screenshot::take_screenshot()?;
     }
     Ok((eax, took(zero)))

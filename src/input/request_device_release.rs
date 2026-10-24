@@ -10,8 +10,8 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::game_write;
 use crate::input::input_tick::COMMAND_RVA;
+use crate::store::game_write;
 
 /// The Rust version (see the header).
 pub fn request_device_release() {

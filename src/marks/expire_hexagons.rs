@@ -15,17 +15,17 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::marks::store::{Slot, game_addr, game_read, game_write};
 
-pub const ITEMS_RVA: usize = rva(0x81623E); // g_marksHexagonItems
+pub const ITEMS_RVA: Slot = Slot::at(0x81623E); // g_marksHexagonItems
 pub const ITEMS: u32 = 0x800;
 pub const ITEM_LEN: u32 = 0x30;
-const PLACE_RVA: [usize; 2] = [rva(0x81471C), rva(0x814720)]; // dword_81471C, dword_814720
-const RANDOM_RVA: usize = rva(0x82E2B6); // dword_82E2B6
-pub const STEPS_RVA: usize = rva(0x81622E); // dword_81622E
-pub const LATEST_RVA: usize = rva(0x84460C); // dword_84460C
-const VALUES_RVA: usize = rva(0x844A10); // dword_844A10: 0x100
-const MASKS_RVA: [usize; 2] = [rva(0x833DC2), rva(0x83BDC2)]; // g_marksMaskA / B
+const PLACE_RVA: [Slot; 2] = [Slot::at(0x81471C), Slot::at(0x814720)]; // dword_81471C, dword_814720
+const RANDOM_RVA: Slot = Slot::at(0x82E2B6); // dword_82E2B6
+pub const STEPS_RVA: Slot = Slot::at(0x81622E); // dword_81622E
+pub const LATEST_RVA: Slot = Slot::at(0x84460C); // dword_84460C
+const VALUES_RVA: Slot = Slot::at(0x844A10); // dword_844A10: 0x100
+const MASKS_RVA: [Slot; 2] = [Slot::at(0x833DC2), Slot::at(0x83BDC2)]; // g_marksMaskA / B
 
 /// The Rust version (see the header).
 // Converted: `rc2k_core::marks::expiry::{cell, hexagon_draw, hexagon_hit}`

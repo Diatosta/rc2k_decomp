@@ -4,18 +4,33 @@
 //! direction the player moves, into the player's +0x50 table.
 
 use crate::errors::Refused;
-use crate::framework::{game_read, game_write, rva};
+use crate::framework::rva;
+use crate::input::store::DeviceSlot;
 
-fn k(a: usize) -> u32 {
-    unsafe { game_read(rva(a)) }
+fn k(a: impl crate::store::At) -> u32 {
+    unsafe { crate::store::at_read(a) }
 }
 
-fn w(a: usize, v: u32) {
-    unsafe { game_write(rva(a), v) }
+fn w(a: impl crate::store::At, v: u32) {
+    unsafe { crate::store::at_write(a, v) }
 }
 
-const HISTORY: [usize; 4] = [0x7551E4, 0x7551E8, 0x7551EC, 0x7551F0];
-const FOUND: usize = 0x7559EC; // dword_7559EC
+use crate::menu::store::{controls::Slot as C, state::Slot as S};
+
+const HISTORY: [C; 4] = [
+    C::at(0x7551E4),
+    C::at(0x7551E8),
+    C::at(0x7551EC),
+    C::at(0x7551F0),
+];
+const FOUND: S = S::at(0x7559EC); // dword_7559EC
+const LEARNING: C = C::at(0x7551F4); // g_bindingLearning
+const LEARN_START: C = C::at(0x7551F8); // g_bindingLearnStart
+const LEARNED: C = C::at(0x7551FC); // g_bindingLearned
+const CURRENT: S = S::at(0x75598C); // g_currentPlayer
+const BLINK: S = S::at(0x7559A4); // dword_7559A4
+const ITEMS: S = S::at(0x75558D); // dword_75558D: the menu's items
+const ITEM: S = S::at(0x755525); // dword_755525: the chosen item (from 1)
 
 /// `screens::classify_controller` (0x46B27A): from the controller's four values (ecx x, edx
 /// y, eax z, ebx the buttons): the button (its number + 1, when exactly one is down), and
@@ -41,10 +56,10 @@ pub unsafe fn classify_controller(z: u32, buttons: u32, x: u32, y: u32) {
 /// every register. Refuses (before anything) a player without its record.
 pub unsafe fn learn_axis() -> Result<(), Refused> {
     unsafe {
-        if k(0x7551F4) != 1 {
+        if k(LEARNING) != 1 {
             return Ok(());
         }
-        let player = crate::menu::player::player_at(k(0x75598C));
+        let player = crate::menu::player::player_at(k(CURRENT));
         if player == 0 {
             return Err(crate::errors::BadInput("no current player record").into());
         }
@@ -52,19 +67,19 @@ pub unsafe fn learn_axis() -> Result<(), Refused> {
         // Converted: `rc2k_core::screens::learning` (`timed_out`, `by_axis`, `pedal`,
         // `CANCEL_KEY`, `binding`).
         use rc2k_core::screens::learning as l;
-        let since = crate::system::tick_count::tick_count().wrapping_sub(k(0x7551F8));
+        let since = crate::system::tick_count::tick_count().wrapping_sub(k(LEARN_START));
         if l::timed_out(since) {
-            w(0x7551FC, l::TIMED_OUT);
-            w(0x7551F4, 0);
+            w(LEARNED, l::TIMED_OUT);
+            w(LEARNING, 0);
             return Ok(());
         }
-        if k(0x7559A4) == 1 {
-            let items = k(0x75558D)
+        if k(BLINK) == 1 {
+            let items = k(ITEMS)
                 .wrapping_add(4)
-                .wrapping_add(k(0x755525).wrapping_sub(1).wrapping_mul(0x5C));
+                .wrapping_add(k(ITEM).wrapping_sub(1).wrapping_mul(0x5C));
             crate::text::draw_string_by_id::draw_string_by_id_at(
                 0x3BE,
-                crate::framework::game_addr(rva(0x51E8C4)) as *mut crate::text::font::Font,
+                crate::store::game_addr(rva(0x51E8C4)) as *mut crate::text::font::Font,
                 0x1B8,
                 ((items + 0xC) as *const u32).read_unaligned() as i32,
                 &mut crate::text::draw_text::GameCanvas,
@@ -72,15 +87,18 @@ pub unsafe fn learn_axis() -> Result<(), Refused> {
         }
         let field = |o: u32| (player + o) as *mut u8;
         let mut take = true;
-        let control = k(0x7551FC);
+        let control = k(LEARNED);
         if l::by_axis(((player + 0x34) as *const u32).read_unaligned(), control) {
             let m = crate::input::axes::axis_moved(1);
             if !m.carry {
                 let (byte, found) = l::pedal(control);
                 field(byte).write(m.eax as u8);
-                w(0x4F6F08, ((player + 0x38) as *const u32).read_unaligned());
+                w(
+                    crate::input::store::DeviceSlot::at(0x4F6F08),
+                    ((player + 0x38) as *const u32).read_unaligned(),
+                );
                 w(FOUND, found);
-                w(0x7551F4, 0);
+                w(LEARNING, 0);
                 take = false;
             }
         } else {
@@ -90,12 +108,12 @@ pub unsafe fn learn_axis() -> Result<(), Refused> {
         if take {
             if crate::input::take_key::take_key() == l::CANCEL_KEY {
                 w(FOUND, 0);
-                w(0x7551F4, 0);
+                w(LEARNING, 0);
             } else if k(FOUND) == 0 {
                 return Ok(());
             }
         }
-        let slot = player.wrapping_add(l::binding(k(0x7551FC)));
+        let slot = player.wrapping_add(l::binding(k(LEARNED)));
         (slot as *mut u32).write_unaligned(k(FOUND));
         Ok(())
     }
@@ -113,12 +131,12 @@ pub unsafe fn draw_no_controller(
 /// What the controller page reads: refused before anything.
 pub unsafe fn controller_page_refuses() -> Result<u32, Refused> {
     unsafe {
-        let player = crate::menu::player::player_at(k(0x75598C));
+        let player = crate::menu::player::player_at(k(CURRENT));
         if player == 0 {
             return Err(crate::errors::BadInput("no current player record").into());
         }
         let device = ((player + 0x2C) as *const u32).read_unaligned();
-        if device != 0 && k(0x4F6EE8) == 0 {
+        if device != 0 && k(crate::input::store::DeviceSlot::at(0x4F6EE8)) == 0 {
             return Err(crate::errors::BadInput("no input device").into());
         }
         Ok(player)
@@ -149,7 +167,7 @@ pub unsafe fn draw_controller_page(
         if device == 0 {
             return controller_page(&mut screen, None);
         }
-        let record = crate::framework::game_addr(rva(0x4F78E4)) as u32
+        let record = crate::store::game_addr(DeviceSlot::at(0x4F78E4)) as u32
             + device.wrapping_sub(1).wrapping_mul(0x50);
         let [stick_x, _, _, buttons] = crate::input::axes::first_device_state();
         let c = Controller {

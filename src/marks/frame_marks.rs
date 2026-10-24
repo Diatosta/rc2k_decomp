@@ -19,23 +19,23 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, game_write, rva};
 use crate::marks::lines::SETTINGS_RVA;
+use crate::marks::store::{Slot, game_read, game_write};
 use crate::marks::{morph_object_points, scale_vectors_by, view_frame};
 use crate::math::x87;
 
-const LAST_RVA: usize = rva(0x765110); // dword_765110
-const FRAME_CYCLES_RVA: usize = rva(0x765114); // dword_765114
-const SHARE_RVA: usize = rva(0x765128); // flt_765128
-const SHARE_K_RVA: usize = rva(0x93C8C0); // flt_93C8C0
+const LAST_RVA: Slot = Slot::at(0x765110); // dword_765110
+const FRAME_CYCLES_RVA: Slot = Slot::at(0x765114); // dword_765114
+const SHARE_RVA: Slot = Slot::at(0x765128); // flt_765128
+const SHARE_K_RVA: Slot = Slot::at(0x93C8C0); // flt_93C8C0
 /// (the settings' field, the copy).
-const COPIES: [(u32, usize); 4] = [
-    (0x50, rva(0x76523C)),
-    (0x4C, rva(0x765238)),
-    (0x10, rva(0x7652A0)),
-    (0x18, rva(0x764FF0)),
+const COPIES: [(u32, Slot); 4] = [
+    (0x50, Slot::at(0x76523C)),
+    (0x4C, Slot::at(0x765238)),
+    (0x10, Slot::at(0x7652A0)),
+    (0x18, Slot::at(0x764FF0)),
 ];
-const STEPS_RVA: usize = rva(0x76513C); // dword_76513C
+const STEPS_RVA: Slot = Slot::at(0x76513C); // dword_76513C
 
 fn rdtsc() -> (u32, u32) {
     let t = unsafe { core::arch::x86::_rdtsc() };

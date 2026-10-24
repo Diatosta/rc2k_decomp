@@ -13,17 +13,18 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::{game_read, game_write, rva};
+use crate::framework::rva;
+use crate::marks::store::{Slot, game_read, game_write};
 use crate::math::x87;
 
 const COLOUR_RVA: usize = rva(0x6415E4); // dword_6415E4
-const FADES_RVA: usize = rva(0x8DB464); // g_marksFadeColours: 0x11 dwords
+const FADES_RVA: Slot = Slot::at(0x8DB464); // g_marksFadeColours: 0x11 dwords
 const FADES: u32 = 0x11;
-const STEP_RVA: usize = rva(0x8DB4A8); // dword_8DB4A8 (a float)
-const INVERSES_RVA: usize = rva(0x8DB4AC); // three dwords
-const SCALED_RVA: usize = rva(0x8DB4B8); // three dwords
+const STEP_RVA: Slot = Slot::at(0x8DB4A8); // dword_8DB4A8 (a float)
+const INVERSES_RVA: Slot = Slot::at(0x8DB4AC); // three dwords
+const SCALED_RVA: Slot = Slot::at(0x8DB4B8); // three dwords
 // the entries to the scaled three
-const GROWTH_RVA: usize = rva(0x7651C4); // flt_7651C4
+const GROWTH_RVA: Slot = Slot::at(0x7651C4); // flt_7651C4
 
 /// The Rust version (see the header).
 pub unsafe fn make_fade_colours() {

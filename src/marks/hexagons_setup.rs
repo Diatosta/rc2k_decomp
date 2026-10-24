@@ -20,16 +20,17 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::framework::rva;
+use crate::marks::store::{Slot, game_read, game_write};
 use crate::math::x87;
 
 const TEXTURE_RVA: usize = rva(0x5D5A24); // dword_5D5A24
 const VERTICES_RVA: usize = rva(0x9605A0); // g_polygonVertices
 const COUNT_RVA: usize = rva(0x6240F8); // g_polygonVertexCount
 const SCRATCH_RVA: usize = rva(0x62400C); // dword_62400C
-const SIDE_RVA: usize = rva(0x82E2A2); // dword_82E2A2
+const SIDE_RVA: Slot = Slot::at(0x82E2A2); // dword_82E2A2
 const DEPTH_OF_RVA: usize = rva(0x6241C8); // flt_6241C8
-const INVERSE_RVA: usize = rva(0x814C02); // flt_814C02
+const INVERSE_RVA: Slot = Slot::at(0x814C02); // flt_814C02
 const STATES: [(u32, u32); 8] = [
     (1, 0x11),
     (1, 0x12),
@@ -42,46 +43,46 @@ const STATES: [(u32, u32); 8] = [
 ];
 
 /// The original's 0x4BBE62 .. 0x4BBF1A: the axes scaled.
-unsafe fn axes(b: u32) {
+unsafe fn axes() {
     unsafe {
         core::arch::asm!(
-            "fld dword ptr [{b} + 0x414C1A]",
-            "fmul dword ptr [{b} + 0x414BC2]",
-            "fstp dword ptr [{b} + 0x414C6E]",
-            "fld dword ptr [{b} + 0x414C1E]",
-            "fmul dword ptr [{b} + 0x414BC2]",
-            "fstp dword ptr [{b} + 0x414C72]",
-            "fld dword ptr [{b} + 0x414C22]",
-            "fmul dword ptr [{b} + 0x414BC2]",
-            "fstp dword ptr [{b} + 0x414C76]",
-            "fld dword ptr [{b} + 0x414C26]",
-            "fmul dword ptr [{b} + 0x414BC2]",
-            "fstp dword ptr [{b} + 0x414C7A]",
-            "fld dword ptr [{b} + 0x414C2A]",
-            "fmul dword ptr [{b} + 0x414BC2]",
-            "fstp dword ptr [{b} + 0x414C7E]",
-            "fld dword ptr [{b} + 0x414C2E]",
-            "fmul dword ptr [{b} + 0x414BC2]",
-            "fstp dword ptr [{b} + 0x414C82]",
-            "fld dword ptr [{b} + 0x414C6E]",
-            "fmul dword ptr [{b} + 0x42E286]",
-            "fstp dword ptr [{b} + 0x414C86]",
-            "fld dword ptr [{b} + 0x414C72]",
-            "fmul dword ptr [{b} + 0x42E28A]",
-            "fstp dword ptr [{b} + 0x414C8A]",
-            "fld dword ptr [{b} + 0x414C76]",
-            "fmul dword ptr [{b} + 0x42E28E]",
-            "fstp dword ptr [{b} + 0x414C8E]",
-            "fld dword ptr [{b} + 0x414C7A]",
-            "fmul dword ptr [{b} + 0x42E292]",
-            "fstp dword ptr [{b} + 0x414C92]",
-            "fld dword ptr [{b} + 0x414C7E]",
-            "fmul dword ptr [{b} + 0x42E296]",
-            "fstp dword ptr [{b} + 0x414C96]",
-            "fld dword ptr [{b} + 0x414C82]",
-            "fmul dword ptr [{b} + 0x42E29A]",
-            "fstp dword ptr [{b} + 0x414C9A]",
-            b = in(reg) b,
+            "fld dword ptr [{mk} + 0xAFCDA]",
+            "fmul dword ptr [{mk} + 0xAFC82]",
+            "fstp dword ptr [{mk} + 0xAFD2E]",
+            "fld dword ptr [{mk} + 0xAFCDE]",
+            "fmul dword ptr [{mk} + 0xAFC82]",
+            "fstp dword ptr [{mk} + 0xAFD32]",
+            "fld dword ptr [{mk} + 0xAFCE2]",
+            "fmul dword ptr [{mk} + 0xAFC82]",
+            "fstp dword ptr [{mk} + 0xAFD36]",
+            "fld dword ptr [{mk} + 0xAFCE6]",
+            "fmul dword ptr [{mk} + 0xAFC82]",
+            "fstp dword ptr [{mk} + 0xAFD3A]",
+            "fld dword ptr [{mk} + 0xAFCEA]",
+            "fmul dword ptr [{mk} + 0xAFC82]",
+            "fstp dword ptr [{mk} + 0xAFD3E]",
+            "fld dword ptr [{mk} + 0xAFCEE]",
+            "fmul dword ptr [{mk} + 0xAFC82]",
+            "fstp dword ptr [{mk} + 0xAFD42]",
+            "fld dword ptr [{mk} + 0xAFD2E]",
+            "fmul dword ptr [{mk} + 0xC9346]",
+            "fstp dword ptr [{mk} + 0xAFD46]",
+            "fld dword ptr [{mk} + 0xAFD32]",
+            "fmul dword ptr [{mk} + 0xC934A]",
+            "fstp dword ptr [{mk} + 0xAFD4A]",
+            "fld dword ptr [{mk} + 0xAFD36]",
+            "fmul dword ptr [{mk} + 0xC934E]",
+            "fstp dword ptr [{mk} + 0xAFD4E]",
+            "fld dword ptr [{mk} + 0xAFD3A]",
+            "fmul dword ptr [{mk} + 0xC9352]",
+            "fstp dword ptr [{mk} + 0xAFD52]",
+            "fld dword ptr [{mk} + 0xAFD3E]",
+            "fmul dword ptr [{mk} + 0xC9356]",
+            "fstp dword ptr [{mk} + 0xAFD56]",
+            "fld dword ptr [{mk} + 0xAFD42]",
+            "fmul dword ptr [{mk} + 0xC935A]",
+            "fstp dword ptr [{mk} + 0xAFD5A]",
+            mk = in(reg) crate::marks::store::base(),
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
             options(nostack),
@@ -93,7 +94,7 @@ unsafe fn axes(b: u32) {
 pub unsafe fn hexagons_setup() {
     use crate::scene::set_render_state::set_render_state;
     unsafe {
-        axes(game_addr(0) as u32);
+        axes();
         crate::scene::depth_buffer_on::depth_buffer(true);
         crate::scene::set_texture::set_texture(game_read(TEXTURE_RVA));
         for (value, state) in STATES {

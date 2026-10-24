@@ -17,7 +17,8 @@
 //! are the original's.
 
 use crate::errors::Refused;
-use crate::install::installer::{QUITTING, g, rd, wd};
+use crate::install::installer::{rd, wd};
+use crate::session::FLAGS;
 use rc2k_core::install::pages;
 
 /// The pages from the entry `first` on.
@@ -31,7 +32,7 @@ pub fn run_pages(first: u32) -> Result<(), Refused> {
             wd(list + 4, 0);
         }
         entry = rd(entry.wrapping_add(pages::next_entry_at(answer)));
-        if g(QUITTING) == 1 || entry == 0 {
+        if FLAGS.quitting.get() == 1 || entry == 0 {
             return Ok(());
         }
     }

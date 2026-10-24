@@ -16,12 +16,13 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{game_write, rva};
 use crate::hud::add_sprite::{put_corners, put_places};
+use crate::hud::store::Slot;
+use crate::hud::store::game_write;
 use rc2k_core::hud::quads;
 use rc2k_core::math::extended::to_f64;
 
-const SCRATCH_RVA: usize = rva(0x75C060); // dword_75C060
+const SCRATCH_RVA: Slot = Slot::at(0x75C060); // dword_75C060
 
 /// The Rust version (see the header), the scales as `f64`s (what the x87 holds at the
 /// game's double precision): the sprite at `rect` with its corner at `x`, `y` (ebx, ecx,

@@ -12,9 +12,10 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::{game_read, rva};
+use crate::audio::store::Slot;
+use crate::store::game_read;
 
-const PLAYING_RVA: usize = rva(0x506960); // g_soundStream.playing
+const PLAYING_RVA: Slot = Slot::at(0x506960); // g_soundStream.playing
 
 /// The Rust version: (zero, carry) as the original's `cmp` leaves them.
 pub fn stream_playing() -> (bool, bool) {

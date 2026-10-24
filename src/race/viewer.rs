@@ -78,13 +78,12 @@ pub const LIST_LEAVE: usize = 0x51D416; // byte_51D416: 1 leaves
 pub const KEY_CLOCK: usize = 0x51D41B; // dword_51D41B
 pub const FRAME_CLOCK: usize = 0x51D41F; // dword_51D41F
 pub const MOVE_CLOCK: usize = 0x51D423; // dword_51D423
-pub const CLOCK: usize = 0x518998; // dword_518998
 
-pub fn gb(x: usize) -> u8 {
+pub fn gb(x: impl crate::store::At) -> u8 {
     unsafe { (a(x) as *const u8).read() }
 }
 
-pub fn pb(x: usize, v: u8) {
+pub fn pb(x: impl crate::store::At, v: u8) {
     unsafe { (a(x) as *mut u8).write(v) }
 }
 
@@ -114,10 +113,10 @@ pub unsafe fn table(x: usize, dwords: usize) -> &'static mut [u32] {
 // ---- for the self-tests ----
 
 /// `g` and `p` for the hooks here.
-pub fn get(x: usize) -> u32 {
+pub fn get(x: impl crate::store::At) -> u32 {
     g(x)
 }
 
-pub fn put(x: usize, v: u32) {
+pub fn put(x: impl crate::store::At, v: u32) {
     p(x, v)
 }

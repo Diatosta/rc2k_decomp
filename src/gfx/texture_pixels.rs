@@ -19,13 +19,13 @@
 //!   place, so many times: each pixel the average of four, counting only those of an
 //!   alpha above 0 for the colour.
 
-use crate::framework::rva;
+use crate::gfx::picture_store::Slot as PicSlot;
 
 // g_thirds
-pub const READING_RVA: usize = rva(0x4F4A24); // dword_4F4A24
-pub const SCALE_RVA: usize = rva(0x4F4A28); // dword_4F4A28
-pub const SATURATION_RVA: usize = rva(0x4F4A2C); // dword_4F4A2C
-pub const GRADES_RVA: usize = rva(0x4F4A30); // byte_4F4A30
+pub const READING_RVA: PicSlot = PicSlot::at(0x4F4A24); // dword_4F4A24
+pub const SCALE_RVA: PicSlot = PicSlot::at(0x4F4A28); // dword_4F4A28
+pub const SATURATION_RVA: PicSlot = PicSlot::at(0x4F4A2C); // dword_4F4A2C
+pub const GRADES_RVA: PicSlot = PicSlot::at(0x4F4A30); // byte_4F4A30
 /// The second picture's place, in bytes from the first's start.
 pub const KEPT: usize = rc2k_core::gfx::pixels::KEPT;
 

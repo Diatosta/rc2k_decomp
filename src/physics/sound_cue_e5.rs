@@ -48,5 +48,11 @@ pub unsafe fn sound_cue_e5_at(current: u32, listed: u32, objects: u32) -> Result
 /// The Rust version.
 pub unsafe fn sound_cue_e5() -> Result<Left, Refused> {
     let g = |a: usize| game_addr(rva(a)) as u32;
-    unsafe { sound_cue_e5_at(g(0x71B3F8), g(0x641680), g(0x512A10)) }
+    unsafe {
+        sound_cue_e5_at(
+            g(0x71B3F8),
+            g(0x641680),
+            crate::sound::store::ObjectsSlot::at(0x512A10).address() as u32,
+        )
+    }
 }

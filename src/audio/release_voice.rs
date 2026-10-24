@@ -19,7 +19,7 @@
 
 use crate::audio::com::{self, RELEASE};
 use crate::audio::voices::*;
-use crate::framework::game_read;
+use crate::store::game_read;
 
 const STOP: u32 = 0x48;
 const A3D_STOP: u32 = 0x38;

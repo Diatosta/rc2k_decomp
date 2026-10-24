@@ -21,14 +21,16 @@
 //! `dispatch`). Self-test: a redirected copy whose queue and
 //! variables are the test's and whose calls go to stand-ins noting every register, 40 cases.
 
+use crate::audio::store::Slot;
 use crate::audio::voices::*;
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, rva};
+use crate::store::addr32 as a;
+use crate::store::game_addr;
 use std::sync::atomic::{AtomicU32, Ordering};
 
-pub const COUNT_RVA: usize = rva(0x506A1C); // g_soundCommandCount
-pub const READ_RVA: usize = rva(0x506A20); // g_soundCommandRead
-pub const LIST_LOADED_RVA: usize = rva(0x50695C); // g_soundListLoaded
+pub const COUNT_RVA: Slot = Slot::at(0x506A1C); // g_soundCommandCount
+pub const READ_RVA: Slot = Slot::at(0x506A20); // g_soundCommandRead
+pub const LIST_LOADED_RVA: Slot = Slot::at(0x50695C); // g_soundListLoaded
 #[derive(Clone, Copy)]
 pub struct Vars {
     pub count: u32,
@@ -40,7 +42,6 @@ pub struct Vars {
 
 impl Vars {
     pub fn game() -> Self {
-        let a = |r| game_addr(r) as u32;
         Self {
             count: a(COUNT_RVA),
             read: a(READ_RVA),

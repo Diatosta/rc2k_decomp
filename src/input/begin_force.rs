@@ -24,12 +24,13 @@
 
 use crate::errors::Refused;
 use crate::field;
-use crate::framework::{game_addr, rva};
+use crate::framework::rva;
 use crate::input::devices::{at, put};
 use crate::input::di_harness::{
     DWORD_PROP_RVA, EFFECT_LEN, EFFECTS_AT, a, entry_of, fatal, method, slot,
 };
 use crate::input::types::{Controller, DiPropDword, DiPropHeader, InputDevice};
+use crate::store::game_addr;
 use rc2k_core::input::acquire::gain;
 use std::mem::size_of;
 

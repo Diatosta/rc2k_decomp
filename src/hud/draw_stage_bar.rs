@@ -23,16 +23,19 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::framework::rva;
 use crate::hud::add_quad::QUAD_RVA;
+use crate::hud::store::Slot;
+use crate::hud::store::read_f32 as f;
+use crate::hud::store::{game_addr, game_read, game_write};
 
 pub const MILES_RVA: usize = rva(0x6D150C); // g_overlayPartMiles: 0x40
 pub const KINDS_RVA: usize = rva(0x6D160C); // dword_6D160C: 0x40
-pub const COLOURS_RVA: usize = rva(0x75BF70); // dword_75BF70: 4
-const COLOUR_RVA: usize = rva(0x75BFA0); // dword_75BFA0
-pub const PLACES_RVA: [usize; 2] = [rva(0x75BFF0), rva(0x75BFF4)];
-pub const ENDS_RVA: [usize; 2] = [rva(0x75BFF8), rva(0x75BFFC)]; // start, end
-pub const WIDTH_RVA: usize = rva(0x75C000); // dword_75C000
+pub const COLOURS_RVA: Slot = Slot::at(0x75BF70); // dword_75BF70: 4
+const COLOUR_RVA: Slot = Slot::at(0x75BFA0); // dword_75BFA0
+pub const PLACES_RVA: [Slot; 2] = [Slot::at(0x75BFF0), Slot::at(0x75BFF4)];
+pub const ENDS_RVA: [Slot; 2] = [Slot::at(0x75BFF8), Slot::at(0x75BFFC)]; // start, end
+pub const WIDTH_RVA: Slot = Slot::at(0x75C000); // dword_75C000
 pub fn set(n: usize, v: u32) {
     unsafe { game_write(QUAD_RVA + 4 * n, v) };
 }
@@ -54,13 +57,12 @@ pub fn quad(colour: Option<u32>, c: [u32; 4]) -> Result<(), Refused> {
 pub unsafe fn bars(
     record: u32,
     kinds: &[usize],
-    colour_vars: &[usize],
+    colour_vars: &[Slot],
     dy: u32,
 ) -> Result<(), Refused> {
     use rc2k_core::hud::stage_bars as sb;
     unsafe {
         let get = |o: u32| ((record + o) as *const u32).read_unaligned();
-        let f = |r: usize| f32::from_bits(game_read(r));
         let count = get(0x74);
         sb::check(count, kinds.len() as u32, |p, n| {
             game_read(kinds[p as usize] + 4 * n as usize)

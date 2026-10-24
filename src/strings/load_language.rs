@@ -39,9 +39,13 @@
 
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::files::read_first_match::read_first_match;
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::framework::rva;
+use crate::gfx::decoder::Slot as DecSlot;
 use crate::input::key_to_char::{LAYOUT_A_RVA, LAYOUT_RVA};
+use crate::input::store::KeyboardSlot;
 use crate::moved::Place;
+use crate::session::MACHINE;
+use crate::store::{game_addr, game_read, game_write};
 use crate::strings::append_string_by_id::push_string;
 use crate::strings::same_text::set_case_table;
 use crate::strings::string_table::{LEXICON_ROOM, lexicon, use_lexicon};
@@ -52,7 +56,7 @@ use windows_sys::Win32::Globalization::GetSystemDefaultLCID;
 
 // ---- game data ----
 
-const BUILT_IN_LAYOUT_RVA: usize = rva(0x4F7FDC); // unk_4F7FDC
+const BUILT_IN_LAYOUT_RVA: KeyboardSlot = KeyboardSlot::at(0x4F7FDC); // unk_4F7FDC
 /// `aFilesLocaleLoc` (0x4E075C), `aFilesLocaleKim` (0x4E0784).
 const LOCALE_FILES: &[u8] = b"files\\%locale\\*.loc\0";
 const KEYBOARD_FILES: &[u8] = b"files\\%locale\\*.kim\0";
@@ -99,11 +103,10 @@ const KEYBOARD_RVA: usize = rva(0x4F07C8);
 const KEYBOARD_LEN: usize = 0x400;
 /// Each car's copy of the units, at its +0x178.
 const CAR_UNITS: [usize; 4] = [rva(0x755BC4), rva(0x755E50), rva(0x7560DC), rva(0x756368)];
-const KEYBOARD_TYPE_RVA: usize = rva(0x518404); // dword_518404
 const NEC_KEYBOARD_RVA: usize = rva(0x4F0DE0); // aKeyb: a built-in file head, and
 const NEC_LAYOUT_RVA: usize = rva(0x4F0E10); // unk_4F0E10: its layout
 const NEC_MARK_RVA: usize = rva(0x51BAE4); // dword_51BAE4
-const TABLES_UNITS_RVA: usize = rva(0x51B980); // dword_51B980 (`bundleheapsize`)
+const TABLES_UNITS_RVA: DecSlot = DecSlot::at(0x51B980); // dword_51B980 (`bundleheapsize`)
 const REGISTRATION_RVA: usize = rva(0x51B9E4); // dword_51B9E4
 
 // ---- Rust version ----
@@ -201,7 +204,7 @@ pub unsafe fn load_language(
         make_case_tables()?;
 
         // `sub_403462`
-        if game_read::<u32>(KEYBOARD_TYPE_RVA) == 2 {
+        if MACHINE.keyboard_type.get() == 2 {
             std::ptr::copy(game_addr(NEC_KEYBOARD_RVA) as *const u8, keyboard, 0x30);
             game_write(LAYOUT_RVA, game_addr(NEC_LAYOUT_RVA) as u32);
             game_write(NEC_MARK_RVA, 0x61u32);

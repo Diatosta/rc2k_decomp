@@ -77,7 +77,8 @@ pub unsafe fn set_up_front_end(stage: u32, x: u32) -> Result<(), Refused> {
                     game_addr(rva(0x735576)) as *const u8,
                 )?;
             }
-            game_write(rva(to), game_read::<u32>(rva(from)));
+            // The pairs name their variables by IDA's address (`moved::place`).
+            crate::store::ida_write(to, crate::store::ida_read::<u32>(from));
         }
         if game_read::<u32>(BEST_TIMES_LOADED_RVA) != 1 {
             game_write(WITH_CHECKPOINTS_RVA, 0u32);

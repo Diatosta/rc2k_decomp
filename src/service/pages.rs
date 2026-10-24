@@ -32,10 +32,10 @@ use crate::service::{
     step_tyre_down, step_tyre_up, toggle_gear_ratio_change, toggle_ride_height_change,
     toggle_suspension_stiffness_change, toggle_tyre_change,
 };
+use crate::session::CLOCKS;
 
 pub const KEY_CONFIRM: u8 = 0x1C;
 
-const CLOCK_RVA: usize = rva(0x51899C); // dword_51899C
 const LAST_KEY_TIME_RVA: usize = rva(0x7556C4); // dword_7556C4: the clock at the last key
 
 /// A page whose value is changed in the car itself.
@@ -120,7 +120,7 @@ unsafe fn key_and_step(down: Stepper, up: Stepper) -> Result<u8, Refused> {
         return Ok(0);
     }
     unsafe {
-        game_write(LAST_KEY_TIME_RVA, game_read::<u32>(CLOCK_RVA));
+        game_write(LAST_KEY_TIME_RVA, CLOCKS.frame.get());
         match action {
             PageKey::Down => {
                 step(down)?;

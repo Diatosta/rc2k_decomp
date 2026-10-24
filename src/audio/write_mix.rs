@@ -19,7 +19,7 @@ use crate::audio::fill_buffer::LOCKED_PARTS_RVA;
 use crate::audio::mixer::*;
 use crate::audio::voices::SOUND_MODE_RVA;
 use crate::errors::Refused;
-use crate::framework::{game_addr, game_read};
+use crate::store::{game_addr, game_read};
 
 pub unsafe fn write_mix_in_game() -> Result<(), Refused> {
     unsafe {

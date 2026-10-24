@@ -5,23 +5,23 @@
 //! instructions over the game's variables (generated from IDA, no jumps, no integer code,
 //! no calls).
 
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::framework::game_addr;
 use crate::math::x87;
 use crate::math::x87_run::compare_full;
 
-/// The game's dword at IDA address `x`.
-pub fn g(x: usize) -> u32 {
-    unsafe { game_read(rva(x)) }
+/// The game's dword at IDA address `x` (or a place of a moved block).
+pub fn g(x: impl crate::store::At) -> u32 {
+    unsafe { crate::store::at_read(x) }
 }
 
 /// Writes the game's dword at IDA address `x`.
-pub fn p(x: usize, v: u32) {
-    unsafe { game_write(rva(x), v) }
+pub fn p(x: impl crate::store::At, v: u32) {
+    unsafe { crate::store::at_write(x, v) }
 }
 
 /// The game's address of IDA address `x`.
-pub fn a(x: usize) -> u32 {
-    game_addr(rva(x)) as u32
+pub fn a(x: impl crate::store::At) -> u32 {
+    x.here() as u32
 }
 
 /// The game's base, `{b}` in the x87 runs.

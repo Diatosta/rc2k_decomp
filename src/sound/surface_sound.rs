@@ -20,7 +20,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::math::x87::from_int;
-use crate::physics::flow::{base, x87_run};
+use crate::physics::flow::x87_run;
 use crate::sound::sample_settings::{OWN, record, sample_settings};
 use rc2k_core::sound::surfaces;
 
@@ -53,9 +53,9 @@ pub fn surface_sound(o: u32, set: u32, request: u32) -> Result<(), Refused> {
     let (_, rate) = sample_settings(sound, OWN, OWN)?;
     unsafe { q.add(1).write_unaligned(from_int(rate as i32)) };
     x87_run!(
-        "fld dword ptr [{b} + 0x116398]",
+        "fld dword ptr [{sf} + 0x40]",
         "fstp dword ptr [{si} + 0x8]";
-        b = base(), si = request
+        si = request, sf = crate::sound::store::surface::base()
     );
     for k in 0..3 {
         unsafe { q.add(3 + k).write_unaligned(w(0x2C + 4 * k as u32)) };

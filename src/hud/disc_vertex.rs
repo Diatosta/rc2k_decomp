@@ -22,37 +22,37 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, game_read};
 use crate::hud::add_quad::QUAD_RVA;
+use crate::hud::store::game_read;
 
 pub use rc2k_core::hud::disc::ENTRIES;
 
 unsafe fn place(b: u32, k: u32, e: u32) {
     unsafe {
         core::arch::asm!(
-            "fld dword ptr [{b} + {k} + 0x35C210]",
-            "fmul dword ptr [{b} + 0x35C050]",
-            "fmul dword ptr [{b} + 0x35C04C]",
-            "fadd dword ptr [{b} + 0x35C01C]",
-            "fadd dword ptr [{b} + 0x35C054]",
-            "fdiv dword ptr [{b} + 0x35C020]",
+            "fld dword ptr [{b} + {k} + 0x8D0]",
+            "fmul dword ptr [{b} + 0x710]",
+            "fmul dword ptr [{b} + 0x70C]",
+            "fadd dword ptr [{b} + 0x6DC]",
+            "fadd dword ptr [{b} + 0x714]",
+            "fdiv dword ptr [{b} + 0x6E0]",
             "fstp dword ptr [{e} + 0x18]",
-            "fld dword ptr [{b} + {k} + 0x35C254]",
+            "fld dword ptr [{b} + {k} + 0x914]",
             "fchs",
-            "fmul dword ptr [{b} + 0x35C050]",
-            "fmul dword ptr [{b} + 0x35C04C]",
-            "fadd dword ptr [{b} + 0x35C01C]",
-            "fadd dword ptr [{b} + 0x35C058]",
-            "fdiv dword ptr [{b} + 0x35C020]",
+            "fmul dword ptr [{b} + 0x710]",
+            "fmul dword ptr [{b} + 0x70C]",
+            "fadd dword ptr [{b} + 0x6DC]",
+            "fadd dword ptr [{b} + 0x718]",
+            "fdiv dword ptr [{b} + 0x6E0]",
             "fstp dword ptr [{e} + 0x1C]",
-            "fld dword ptr [{b} + {k} + 0x35C188]",
-            "fmul dword ptr [{b} + 0x35C050]",
-            "fadd dword ptr [{b} + 0x35C044]",
+            "fld dword ptr [{b} + {k} + 0x848]",
+            "fmul dword ptr [{b} + 0x710]",
+            "fadd dword ptr [{b} + 0x704]",
             "fstp dword ptr [{e}]",
-            "fld dword ptr [{b} + {k} + 0x35C1CC]",
+            "fld dword ptr [{b} + {k} + 0x88C]",
             "fchs",
-            "fmul dword ptr [{b} + 0x35C050]",
-            "fadd dword ptr [{b} + 0x35C048]",
+            "fmul dword ptr [{b} + 0x710]",
+            "fadd dword ptr [{b} + 0x708]",
             "fstp dword ptr [{e} + 4]",
             b = in(reg) b,
             k = in(reg) k,
@@ -69,7 +69,7 @@ pub unsafe fn disc_vertex(entry: u32, vertex: u32) -> Result<(), Refused> {
         return Err(BadInput("a disc entry past the ring").into());
     }
     unsafe {
-        place(game_addr(0) as u32, entry * 4, vertex);
+        place(crate::hud::store::base(), entry * 4, vertex);
         let colour = (game_read::<u32>(QUAD_RVA) << 24) | 0xFF_FFFF;
         ((vertex + 0x10) as *mut u32).write_unaligned(colour);
         ((vertex + 0x14) as *mut u32).write_unaligned(0);

@@ -4,20 +4,21 @@
 //! the copies by `push` / `pop`, so no register changes before the call. The layouts are
 //! the HUD's three (the record's +0xF4, `sub_4B1CD0`).
 
-use crate::framework::{game_read, game_write, rva};
+use crate::framework::rva;
+use crate::hud::store::{Slot, game_read, game_write};
 
 /// Where a copy reads.
 #[derive(Clone, Copy)]
 pub enum From {
     /// A field of the HUD's record.
     Field(u32),
-    /// A variable (its RVA).
-    Var(usize),
+    /// A variable of the HUD's block.
+    Var(Slot),
 }
 
 /// One set-up: its copies (from, to, only when `dword_6D1502` is 0).
 pub struct Setup {
-    pub copies: &'static [(From, usize, bool)],
+    pub copies: &'static [(From, Slot, bool)],
 }
 
 const FLAT_RVA: usize = rva(0x6D1502); // dword_6D1502

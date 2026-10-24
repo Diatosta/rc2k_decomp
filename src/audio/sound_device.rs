@@ -3,15 +3,17 @@
 //! the calls they make go through a `Part` (the place and eax), so that the tests can stand
 //! them in; in the game they are the Rust versions.
 
+use crate::audio::store::Slot;
 use crate::audio::voices::{read, write};
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, rva};
+use crate::framework::rva;
+use crate::session::MACHINE;
+use crate::store::game_addr;
 
-pub const VOLUME_KEPT_RVA: usize = rva(0x4F82DC); // g_primaryVolumeKept (1: none)
-pub const CAPS_RVA: usize = rva(0x506AA8); // g_soundCaps (DSCAPS, 0x60 bytes)
-pub const A3D_OBJECT_RVA: usize = rva(0x506C68); // g_a3dObject
-pub const A3D_READY_RVA: usize = rva(0x506C64); // g_a3dReady
-pub const WINDOW_RVA: usize = rva(0x5184A4); // hWnd
+pub const VOLUME_KEPT_RVA: Slot = Slot::at(0x4F82DC); // g_primaryVolumeKept (1: none)
+pub const CAPS_RVA: Slot = Slot::at(0x506AA8); // g_soundCaps (DSCAPS, 0x60 bytes)
+pub const A3D_OBJECT_RVA: Slot = Slot::at(0x506C68); // g_a3dObject
+pub const A3D_READY_RVA: Slot = Slot::at(0x506C64); // g_a3dReady
 const CAPS_TEXT: usize = rva(0x4DA645); // "AUD: sound caps: flgs/pri/min/max:\t"
 const MAX_HW_TEXT: usize = rva(0x4DA669); // " maxhw: all/static/stream (free)\t"
 const MAX_3D_TEXT: usize = rva(0x4DA68B); // " max3d: all/static/stream (free)\t"
@@ -70,7 +72,7 @@ pub fn release_a3d_object() {
 /// The primary buffer's format set for `mode` (at the mix rate setting): false when it
 /// failed (the original's carry set).
 pub fn set_primary_format(mode: u32) -> Result<bool, Refused> {
-    let rate = unsafe { crate::framework::game_read(crate::audio::primary::MIX_RATE_SETTING_RVA) };
+    let rate = unsafe { crate::store::game_read(crate::audio::primary::MIX_RATE_SETTING_RVA) };
     unsafe { crate::audio::primary::set_primary_format(primary(), mode, rate) }
 }
 
@@ -81,7 +83,7 @@ pub fn open_listener() -> Result<bool, Refused> {
         open_listener(
             primary(),
             listener(),
-            game_addr(HAS_FPU_RVA) as u32,
+            MACHINE.has_fpu.addr() as u32,
             game_addr(NO_LISTENER_RVA) as u32,
         )
     }
@@ -92,7 +94,7 @@ pub fn close_sound_in_game() -> Result<(), Refused> {
     unsafe {
         close_sound(
             game_addr(crate::audio::make_buffer::DIRECT_SOUND_RVA) as u32,
-            game_addr(WINDOW_RVA) as u32,
+            MACHINE.window.addr() as u32,
         )
     }
 }
@@ -196,7 +198,7 @@ pub unsafe fn close_sound(direct_sound: u32, window: u32) -> Result<(), Refused>
     Ok(())
 }
 
-pub const OPENED_MODE_RVA: usize = rva(0x4F82C0); // g_openedSoundMode
+pub const OPENED_MODE_RVA: Slot = Slot::at(0x4F82C0); // g_openedSoundMode
 const OPEN_TEXT: usize = rva(0x4DA60F); // "AUD: open sound"
 const OPEN_FAILED_TEXT: usize = rva(0x4DA61F); // "AUD: open failed rc="
 
@@ -223,7 +225,7 @@ impl OpenVars {
         Self {
             mode: game_addr(crate::audio::voices::SOUND_MODE_RVA) as u32,
             direct_sound: game_addr(crate::audio::make_buffer::DIRECT_SOUND_RVA) as u32,
-            window: game_addr(WINDOW_RVA) as u32,
+            window: MACHINE.window.addr() as u32,
         }
     }
 }

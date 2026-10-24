@@ -14,11 +14,13 @@
 //! (2026-10-23).
 
 use crate::errors::Refused;
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::gfx::block::{game_addr, game_read, game_write};
+use crate::gfx::cards::Slot as CardSlot;
 use crate::gfx::mark_3d_modes::mark_3d_modes;
+use crate::gfx::modes::Slot as ModeSlot;
 
 pub const PRIMARY: u32 = 0x1000;
-pub const PRIMARY_3D_RVA: usize = rva(0x5AB4AC); // dword_5AB4AC: a 3D primary card
+pub const PRIMARY_3D_RVA: CardSlot = CardSlot::at(0x5AB4AC); // dword_5AB4AC: a 3D primary card
 
 /// The Rust version (see the header).
 pub fn list_primary_modes() -> Result<(), Refused> {
@@ -29,10 +31,10 @@ pub fn list_primary_modes() -> Result<(), Refused> {
     Ok(())
 }
 
-const MODE_TABLE_RVA: usize = rva(0x4F4F3C); // g_screenModeTable: 8 bytes an entry
-const MODE_COUNT_RVA: usize = rva(0x4F4F38); // g_screenModeCount
-const SIZES_RVA: usize = rva(0x4F4E50); // g_screenSizes: 8 of (bit, width, height)
-const PIXEL_KINDS_RVA: usize = rva(0x4F4E40); // g_pixelKinds: (0x200, 16), (0x800, 32)
+const MODE_TABLE_RVA: ModeSlot = ModeSlot::at(0x4F4F3C); // g_screenModeTable: 8 bytes an entry
+const MODE_COUNT_RVA: ModeSlot = ModeSlot::at(0x4F4F38); // g_screenModeCount
+const SIZES_RVA: ModeSlot = ModeSlot::at(0x4F4E50); // g_screenSizes: 8 of (bit, width, height)
+const PIXEL_KINDS_RVA: ModeSlot = ModeSlot::at(0x4F4E40); // g_pixelKinds: (0x200, 16), (0x800, 32)
 const TABLE_ROOM: u32 = 0x20;
 
 /// The standalone program's DirectDraw `EnumDisplayModes` for card `card` (0x1000 the

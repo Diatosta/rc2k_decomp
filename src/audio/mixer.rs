@@ -3,18 +3,19 @@
 //! (`g_mixBuffer`, 0x952AF8, 0x3C00 bytes up to `g_soundCommands`), then clipped into the
 //! primary buffer's format. The standalone program will mix this way.
 
+use crate::audio::store::Slot;
 use crate::audio::voices::*;
 use crate::errors::Refused;
 use crate::framework::rva;
 
 pub const MIX_BUFFER_RVA: usize = rva(0x952AF8); // g_mixBuffer
 pub const MIX_BUFFER_LEN: u32 = 0x3C00;
-pub const MIX_RATE_RVA: usize = rva(0x5068D4); // g_mixRate
-pub const PRIMARY_SIZE_RVA: usize = rva(0x5068D8); // g_primarySize
-pub const MIX_MOST_RVA: usize = rva(0x5068DC); // g_mixMost: 40 ms of bytes
-pub const MIX_SHIFT_RVA: usize = rva(0x5068E0); // g_mixShift: bytes to frames
-pub const PLAY_CURSOR_RVA: usize = rva(0x5068E4); // g_playCursor
-pub const WRITE_CURSOR_RVA: usize = rva(0x5068E8); // g_writeCursor
+pub const MIX_RATE_RVA: Slot = Slot::at(0x5068D4); // g_mixRate
+pub const PRIMARY_SIZE_RVA: Slot = Slot::at(0x5068D8); // g_primarySize
+pub const MIX_MOST_RVA: Slot = Slot::at(0x5068DC); // g_mixMost: 40 ms of bytes
+pub const MIX_SHIFT_RVA: Slot = Slot::at(0x5068E0); // g_mixShift: bytes to frames
+pub const PLAY_CURSOR_RVA: Slot = Slot::at(0x5068E4); // g_playCursor
+pub const WRITE_CURSOR_RVA: Slot = Slot::at(0x5068E8); // g_writeCursor
 
 /// `audio::mix_channels` (`sub_40BECC`): `bytes` of the primary buffer's worth, `>> shift`
 /// frames, of every used channel (`count` from `channels`) added into `mix` (zeroed

@@ -31,13 +31,15 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, rva};
+use crate::framework::rva;
+use crate::input::store::DeviceSlot;
 use crate::menu::player::{Player, player_at};
+use crate::store::game_read;
 use crate::text::draw_text::Canvas;
 
 // ---- game data ----
 
-const CONTROLLERS_RVA: usize = rva(0x4F78E0); // g_controllerCount
+const CONTROLLERS_RVA: DeviceSlot = DeviceSlot::at(0x4F78E0); // g_controllerCount
 const PLAYER_RVA: usize = rva(0x75598C); // dword_75598C
 const TYPING_RVA: usize = rva(0x7556A8); // dword_7556A8
 // seconds

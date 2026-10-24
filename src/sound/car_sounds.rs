@@ -18,7 +18,6 @@
 //! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, rva};
 use crate::sound::turn_parts::OBJECTS;
 
 // ---- Rust version ----
@@ -28,7 +27,7 @@ pub fn car_sounds(n: u32) -> Result<(), Refused> {
     if n > 7 {
         return Err(BadInput("a car's sound object past 7").into());
     }
-    let object: u32 = unsafe { game_read(rva(OBJECTS + 4 * n as usize)) };
+    let object: u32 = unsafe { crate::store::game_read(OBJECTS + 4 * n as usize) };
     if object == 0 {
         return Err(BadInput("a null sound object").into());
     }

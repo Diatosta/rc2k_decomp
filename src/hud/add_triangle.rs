@@ -12,8 +12,8 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::game_write;
 use crate::hud::batch::POLYGON_COUNT_RVA;
+use crate::hud::store::game_write;
 
 /// The Rust version (see the header).
 pub unsafe fn add_triangle() -> Result<(), Refused> {

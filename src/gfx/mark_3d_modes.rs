@@ -21,20 +21,22 @@
 //! Callers: `gfx::list_primary_modes`, `gfx::list_secondary_modes`.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, game_write, rva};
+use crate::framework::rva;
+use crate::gfx::modes::Slot as ModeSlot;
+use crate::session::MACHINE;
+use crate::store::{game_read, game_write};
 
 pub use rc2k_core::gfx::screen_modes::MODES_ROOM;
 
-const HAS_FPU_RVA: usize = rva(0x5183EC); // g_hasFpu
-const TABLE_RVA: usize = rva(0x4F4F3C); // dword_4F4F3C: the table
-const COUNT_RVA: usize = rva(0x4F4F38); // dword_4F4F38: its entries
+const TABLE_RVA: ModeSlot = ModeSlot::at(0x4F4F3C); // dword_4F4F3C: the table
+const COUNT_RVA: ModeSlot = ModeSlot::at(0x4F4F38); // dword_4F4F38: its entries
 const DEPTH_RVA: usize = rva(0x4F492C); // dword_4F492C: the depth formats' bits
 const EXTRA_RVA: usize = rva(0x4F4930); // dword_4F4930: the extra flags
 
 /// The Rust version on the modes listed for card `kind` (see the header).
 pub fn mark_3d_modes(kind: u32) -> Result<(), Refused> {
     unsafe {
-        if game_read::<u32>(HAS_FPU_RVA) != 1 {
+        if MACHINE.has_fpu.get() != 1 {
             return Ok(());
         }
         let count: u32 = game_read(COUNT_RVA);
@@ -48,7 +50,7 @@ pub fn mark_3d_modes(kind: u32) -> Result<(), Refused> {
             game_write(rva(at), 1u32);
         }
         // Converted: `rc2k_core::gfx::screen_modes::mark_3d`.
-        let table = crate::framework::game_addr(TABLE_RVA) as u32;
+        let table = crate::gfx::block::game_addr(TABLE_RVA) as u32;
         let before: Vec<_> = crate::system::find_entry::entries(table, count).collect();
         let mut marked = before.clone();
         rc2k_core::gfx::screen_modes::mark_3d(

@@ -3,7 +3,9 @@
 //! drawing the map again.
 
 use crate::errors::{FatalError, Refused};
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::framework::rva;
+use crate::gfx::block::{game_addr, game_read, game_write};
+use crate::gfx::picture_store::Slot as PicSlot;
 use crate::screens::draw_stage_records::selection;
 
 pub const MODE_RVA: usize = rva(0x755700); // dword_755700: 2 a championship's, 3 a record's
@@ -19,7 +21,7 @@ const INDEX_RVA: usize = rva(0x755958); // index
 const PALETTES_RVA: usize = rva(0x7598AE); // off_7598AE: the map's overlays by the stage's +0x3C
 const MAP_PATH_RVA: usize = rva(0x73218B); // "files\g\graphics\screens\ukmap.png"
 const SCREEN_MODE_FLAGS_RVA: usize = rva(0x4F4934); // g_screenModeFlags
-const PICTURE_FLAGS_RVA: usize = rva(0x4F49CC); // g_pictureFlags
+const PICTURE_FLAGS_RVA: PicSlot = PicSlot::at(0x4F49CC); // g_pictureFlags
 const SPRITE_TABLE_RVA: usize = rva(0x755581); // g_spriteTable
 const RECORD_SIZE: u32 = 0xA4;
 const MAP_SPRITE: u32 = 0xA0;

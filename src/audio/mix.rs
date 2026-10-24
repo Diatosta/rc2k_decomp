@@ -22,7 +22,7 @@ use crate::audio::fill_buffer::LOCKED_PARTS_RVA;
 use crate::audio::mixer::*;
 use crate::audio::voices::*;
 use crate::errors::Refused;
-use crate::framework::game_addr;
+use crate::store::addr32 as a;
 
 const BUFFER_LOST: i32 = 0x8878_0096u32 as i32;
 
@@ -39,7 +39,6 @@ pub struct Vars {
 
 impl Vars {
     pub fn game() -> Self {
-        let a = |r| game_addr(r) as u32;
         Self {
             primary: a(PRIMARY_RVA),
             size: a(PRIMARY_SIZE_RVA),

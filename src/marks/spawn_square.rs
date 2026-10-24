@@ -19,12 +19,13 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::framework::rva;
 use crate::marks::expire_squares::{ITEM_LEN, ITEMS, ITEMS_RVA};
+use crate::marks::store::{Slot, game_addr, game_read, game_write};
 use crate::math::x87;
 
-pub const CURSOR_RVA: usize = rva(0x89D166); // dword_89D166: an offset into the items
-const SIZE_K: [usize; 3] = [rva(0x8BC23A), rva(0x8BC23E), rva(0x8BC242)];
+pub const CURSOR_RVA: Slot = Slot::at(0x89D166); // dword_89D166: an offset into the items
+const SIZE_K: [Slot; 3] = [Slot::at(0x8BC23A), Slot::at(0x8BC23E), Slot::at(0x8BC242)];
 const CLOCK_RVA: usize = rva(0x613830); // g_sceneClock
 const WINDOW: u32 = 32;
 

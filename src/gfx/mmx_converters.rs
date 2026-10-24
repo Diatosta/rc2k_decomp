@@ -36,18 +36,19 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, rva};
+use crate::gfx::block::game_read;
+use crate::gfx::converters::Slot as ConvSlot;
 
 /// A converter: the format it makes and where its constants are (IDA addresses).
 #[derive(Clone, Copy)]
 pub struct Converter {
     pub format: u32,
-    pub constants: usize,
+    pub constants: ConvSlot,
     pub three_dnow: bool,
 }
 
-fn constant(at: usize) -> u64 {
-    unsafe { game_read(rva(at)) }
+fn constant(at: ConvSlot) -> u64 {
+    unsafe { game_read(at) }
 }
 
 /// The converter's five masks.
@@ -99,7 +100,7 @@ pub const CONVERTERS: [(u32, Converter); 8] = [
         0x4070F9,
         Converter {
             format: 1,
-            constants: 0x4F51F8,
+            constants: ConvSlot::at(0x4F51F8),
             three_dnow: false,
         },
     ), // gfx::rows_565_mmx
@@ -107,7 +108,7 @@ pub const CONVERTERS: [(u32, Converter); 8] = [
         0x407171,
         Converter {
             format: 2,
-            constants: 0x4F5218,
+            constants: ConvSlot::at(0x4F5218),
             three_dnow: false,
         },
     ), // gfx::rows_555_mmx
@@ -115,7 +116,7 @@ pub const CONVERTERS: [(u32, Converter); 8] = [
         0x4071ED,
         Converter {
             format: 3,
-            constants: 0x4F5238,
+            constants: ConvSlot::at(0x4F5238),
             three_dnow: false,
         },
     ), // gfx::rows_1555_mmx
@@ -123,7 +124,7 @@ pub const CONVERTERS: [(u32, Converter); 8] = [
         0x407276,
         Converter {
             format: 4,
-            constants: 0x4F5260,
+            constants: ConvSlot::at(0x4F5260),
             three_dnow: false,
         },
     ), // gfx::rows_4444_mmx
@@ -131,7 +132,7 @@ pub const CONVERTERS: [(u32, Converter); 8] = [
         0x4072FB,
         Converter {
             format: 1,
-            constants: 0x4F51F8,
+            constants: ConvSlot::at(0x4F51F8),
             three_dnow: true,
         },
     ), // gfx::rows_565_3dnow
@@ -139,7 +140,7 @@ pub const CONVERTERS: [(u32, Converter); 8] = [
         0x407377,
         Converter {
             format: 2,
-            constants: 0x4F5218,
+            constants: ConvSlot::at(0x4F5218),
             three_dnow: true,
         },
     ), // gfx::rows_555_3dnow
@@ -147,7 +148,7 @@ pub const CONVERTERS: [(u32, Converter); 8] = [
         0x4073F7,
         Converter {
             format: 3,
-            constants: 0x4F5238,
+            constants: ConvSlot::at(0x4F5238),
             three_dnow: true,
         },
     ), // gfx::rows_1555_3dnow
@@ -155,7 +156,7 @@ pub const CONVERTERS: [(u32, Converter); 8] = [
         0x407484,
         Converter {
             format: 4,
-            constants: 0x4F5260,
+            constants: ConvSlot::at(0x4F5260),
             three_dnow: true,
         },
     ), // gfx::rows_4444_3dnow

@@ -17,11 +17,10 @@
 //! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{game_read, rva};
 use rc2k_core::physics::listed_cars::{QUEUE_OFFSET, cue_object};
 
-fn g(x: usize) -> u32 {
-    unsafe { game_read(rva(x)) }
+fn g(x: impl crate::store::At) -> u32 {
+    unsafe { crate::store::at_read(x) }
 }
 
 /// `cue` queued last for the car `which` (0 or 1: a player's), if it sounds.
@@ -29,8 +28,8 @@ fn g(x: usize) -> u32 {
 pub fn cue_car_sound_last(which: u32, cue: u32) -> Result<(), Refused> {
     let Some(o) = cue_object(
         which,
-        |which| g(0x514F70 + 4 * which as usize),
-        |car| g(0x512A10 + 4 * car as usize),
+        |which| g(crate::sound::store::ObjectsSlot::at(0x514F70) + 4 * which as usize),
+        |car| g(crate::sound::store::ObjectsSlot::at(0x512A10) + 4 * car as usize),
         |o| unsafe { ((o + 8) as *const u32).read_unaligned() },
     )?
     else {

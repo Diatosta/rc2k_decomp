@@ -22,7 +22,8 @@
 //! and the self-test was the hook's.
 
 use crate::framework::{game_read, game_write, rva};
-use crate::menu::update_frame_clock::{CLOCK_RVA, update_frame_clock};
+use crate::menu::update_frame_clock::update_frame_clock;
+use crate::session::CLOCKS;
 
 // ---- game data ----
 
@@ -42,7 +43,7 @@ pub use rc2k_core::menu::blink::blink_states;
 unsafe fn states_now() -> (u32, u32, u32) {
     unsafe {
         blink_states(
-            game_read(CLOCK_RVA),
+            CLOCKS.frame.get(),
             game_read(LAST_KEY_TIME_RVA),
             game_read(CURSOR_TIME_RVA),
             game_read(BLINK_OFF_RVA),

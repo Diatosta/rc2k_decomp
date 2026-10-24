@@ -30,12 +30,13 @@
 //! see it (see `flush`).
 
 use crate::errors::FatalError;
-use crate::framework::{
-    GameHook, RawHook, Regs, game_addr, game_ptr, game_read, game_write, hook_asm, log, rva,
-};
+use crate::framework::{GameHook, RawHook, Regs, hook_asm, log, rva};
+use crate::gfx::block::{game_addr, game_ptr, game_read, game_write};
 use crate::gfx::describe_format::describe_format;
+use crate::gfx::reports::Slot as RepSlot;
 use crate::gfx::texture_upload::{TextureFormat, TextureRecord};
 use crate::logfile::log_write::log_write;
+use crate::session::SCREEN;
 use crate::system::find_entry::find_entry;
 use std::sync::atomic::AtomicUsize;
 use std::sync::{Mutex, OnceLock};
@@ -56,13 +57,11 @@ const ALPHA_KIND_RVA: usize = rva(0x5ABA8C); // dword_5ABA8C
 const FIRST_VIDEO_RVA: usize = rva(0x5ABA90); // dword_5ABA90
 const FIRST_SYSTEM_RVA: usize = rva(0x5ABA94); // dword_5ABA94
 const MIPS_RVA: usize = rva(0x5AB9A4); // dword_5AB9A4
-const REPORTS_RVA: usize = rva(0x4F52AC); // dword_4F52AC
+const REPORTS_RVA: RepSlot = RepSlot::at(0x4F52AC); // dword_4F52AC
 const IN_SCENE_RVA: usize = rva(0x5AB960); // dword_5AB960
 const FOG_STATE_RVA: usize = rva(0x5AB9A0); // dword_5AB9A0: render state 0x1A's value
 const CURRENT_TEXTURE_RVA: usize = rva(0x5AB93C); // g_currentTexture
 const CLEARED_RVA: usize = rva(0x624138); // dword_624138: the rectangle to clear
-const SCREEN_WIDTH_RVA: usize = rva(0x4F494C); // g_screenWidth
-const SCREEN_HEIGHT_RVA: usize = rva(0x4F4950); // g_screenHeight
 const RELEASE_TEXT_RVA: usize = rva(0x5C2DDF); // "SVM: Release all textures"
 const NO_TEXTURE: u32 = 0xFFFF_FC43;
 /// A `DDERR`, for a surface that is not there.
@@ -192,7 +191,6 @@ const KEPT_STATES_RVA: usize = rva(0x5AB6BC); // dword_5AB6BC: each state's last
 const STATES: usize = 0x40;
 const TARGET_PIXELS_RVA: usize = rva(0x4F4988); // the screen's pixels (platform.rs)
 const TARGET_PITCH_RVA: usize = rva(0x4F4984);
-const SCREEN_BITS_RVA: usize = rva(0x4F4954); // g_screenBits
 
 /// For the standalone's timing line (`platform::show`): fans drawn and the microseconds
 /// spent drawing them (at the flushes).
@@ -285,9 +283,9 @@ fn screen() -> Option<Into> {
         (pixels != 0).then(|| Into {
             pixels: pixels as usize,
             pitch: game_read::<u32>(TARGET_PITCH_RVA) as usize,
-            width: game_read::<u32>(SCREEN_WIDTH_RVA) as usize,
-            height: game_read::<u32>(SCREEN_HEIGHT_RVA) as usize,
-            bits: game_read(SCREEN_BITS_RVA),
+            width: SCREEN.width.get() as usize,
+            height: SCREEN.height.get() as usize,
+            bits: SCREEN.bits.get(),
         })
     }
 }
@@ -1121,12 +1119,7 @@ pub static DEPTH: Mutex<Option<Depth>> = Mutex::new(None);
 
 /// The depth buffer at the screen's size, made or made again.
 pub fn with_depth<R>(f: impl FnOnce(&mut Depth) -> R) -> R {
-    let (width, height) = unsafe {
-        (
-            game_read::<u32>(SCREEN_WIDTH_RVA) as usize,
-            game_read::<u32>(SCREEN_HEIGHT_RVA) as usize,
-        )
-    };
+    let (width, height) = { (SCREEN.width.get() as usize, SCREEN.height.get() as usize) };
     let mut depth = DEPTH.lock().unwrap();
     if depth
         .as_ref()

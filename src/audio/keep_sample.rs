@@ -16,7 +16,7 @@
 
 use crate::audio::voices::*;
 use crate::errors::Refused;
-use crate::framework::game_addr;
+use crate::store::game_addr;
 
 /// `allocate`: `length` bytes of the samples' memory.
 pub unsafe fn keep_sample(

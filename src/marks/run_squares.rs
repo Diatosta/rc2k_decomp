@@ -21,20 +21,21 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::framework::rva;
 use crate::marks::expire_squares::{ITEM_LEN, ITEMS, ITEMS_RVA};
 use crate::marks::squares_spawn::squares_spawn;
+use crate::marks::store::{Slot, game_addr, game_read, game_write};
 use crate::math::x87;
 use crate::scene::matrix3::extended;
 
 const VERTICES_RVA: usize = rva(0x9605A0); // g_polygonVertices
-const PLACES_RVA: usize = rva(0x8BC222); // dword_8BC222 .. dword_8BC22E
-const RUNNING_RVA: usize = rva(0x7652A0); // dword_7652A0
-const TICKS_RVA: usize = rva(0x764FD0); // g_marksFrameTicks
-const EDGE_RVA: usize = rva(0x809BC3); // g_marksEdgeMask
-const FADE_RVA: usize = rva(0x8BC232); // dword_8BC232
+const PLACES_RVA: Slot = Slot::at(0x8BC222); // dword_8BC222 .. dword_8BC22E
+const RUNNING_RVA: Slot = Slot::at(0x7652A0); // dword_7652A0
+const TICKS_RVA: Slot = Slot::at(0x764FD0); // g_marksFrameTicks
+const EDGE_RVA: Slot = Slot::at(0x809BC3); // g_marksEdgeMask
+const FADE_RVA: Slot = Slot::at(0x8BC232); // dword_8BC232
 const LIGHT_RVA: usize = rva(0x6415E4); // g_viewLight
-const FAR_RVA: usize = rva(0x8BC236); // flt_8BC236
+const FAR_RVA: Slot = Slot::at(0x8BC236); // flt_8BC236
 const LIFE: i32 = 0xFA0;
 
 /// `fld k; fsub z`, kept extended.

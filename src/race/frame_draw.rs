@@ -2,10 +2,15 @@
 //! not platform. The panel's fields at 0x6D14xx are a reading.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{EAX, ECX, EDI, game_read, game_write, rva};
+use crate::framework::{EAX, ECX, EDI, rva};
 use crate::race::frame::VIEW_BLOCKS;
 use crate::race::objects::{CAR_BLOCKS_RVA, CARS_RVA};
 use crate::screens::harness::Left;
+use crate::session::MACHINE;
+use crate::session::SCREEN;
+use crate::sound::store::ObjectsSlot;
+use crate::sound::store::StageSlot;
+use crate::store::{game_read, game_write};
 
 unsafe fn get(a: u32) -> u32 {
     unsafe { (a as *const u32).read_unaligned() }
@@ -147,8 +152,8 @@ pub unsafe fn fetch_view_value() -> Result<(), Refused> {
 
 pub const SPOT_COUNT_RVA: usize = rva(0x6D1DC4); // dword_6D1DC4: the spots made this frame
 pub const SPOTS_RVA: usize = rva(0x6D1AF4); // unk_6D1AF4: 36 spots of 0x14 bytes
-pub const SHARED_COUNT_RVA: usize = rva(0x5165EC); // dword_5165EC
-pub const SHARED_SPOTS_RVA: usize = rva(0x5165F0); // unk_5165F0: 36 of 0x14 (to 0x5168C0)
+pub const SHARED_COUNT_RVA: StageSlot = StageSlot::at(0x5165EC); // dword_5165EC
+pub const SHARED_SPOTS_RVA: StageSlot = StageSlot::at(0x5165F0); // unk_5165F0: 36 of 0x14 (to 0x5168C0)
 /// `race::share_sound_spots` (0x45C7B9): `dword_5165EC` = `dword_6D1DC4`, and that many
 /// 0x14-byte spots copied from 0x6D1AF4 to 0x5165F0 (read by the sound side,
 /// `sub_40E642`). (It leaves ecx 0, esi and edi past the spots: its one caller,
@@ -161,7 +166,7 @@ pub unsafe fn share_sound_spots() -> Result<(), Refused> {
         let bytes = rc2k_core::race::view::shared_spot_bytes(n)?;
         game_write(SHARED_COUNT_RVA, n);
         let from = crate::framework::game_addr(SPOTS_RVA) as u32;
-        let to = crate::framework::game_addr(SHARED_SPOTS_RVA) as u32;
+        let to = crate::store::game_addr(SHARED_SPOTS_RVA) as u32;
         std::ptr::copy(from as *const u8, to as *mut u8, bytes as usize);
         Ok(())
     }
@@ -306,7 +311,7 @@ pub unsafe fn panel_values_plain() {
     }
 }
 
-const SOUND_OBJECTS_RVA: usize = rva(0x512A10); // g_raceSoundObjects: 8 pointers
+const SOUND_OBJECTS_RVA: ObjectsSlot = ObjectsSlot::at(0x512A10); // g_raceSoundObjects: 8 pointers
 const SHOWN_RVA: usize = rva(0x641680); // dword_641680[8]: each car's view (-1 not shown)
 
 /// `race::wake_part_sounds` (0x45D1EA): for each race car (car 0 at least: the loop tests
@@ -1250,7 +1255,6 @@ pub unsafe fn sort_entries(count: usize, entries: u32) -> Result<(), Refused> {
     }
 }
 
-pub const EAX_ENVIRONMENT_RVA: usize = rva(0x6D1DD4); // g_eaxEnvironment (a float)
 pub const EAX_FACES_RVA: usize = rva(0x6D1AF0); // dword_6D1AF0: the faces summed
 const ROOT_TABLE: u32 = 0x5C70F8; // g_rootTable: 256 floats by mantissa bits
 const EXPONENT_ROOT_TABLE: u32 = 0x5C74F8; // g_exponentRootTable: 256 floats by exponent
@@ -1292,10 +1296,10 @@ unsafe fn add_eax_weight(v: u32) {
             sixteen
         };
         game_write(SCRATCH_RVA, w);
-        game_write(
-            EAX_ENVIRONMENT_RVA,
-            crate::math::x87::add(w, game_read(EAX_ENVIRONMENT_RVA)),
-        );
+        crate::audio::store::ENVIRONMENT.set(crate::math::x87::add(
+            w,
+            crate::audio::store::ENVIRONMENT.get(),
+        ));
         game_write(
             EAX_FACES_RVA,
             game_read::<u32>(EAX_FACES_RVA).wrapping_add(1),
@@ -1357,7 +1361,7 @@ pub unsafe fn eax_face_weight(face: u32) {
 /// 0x0FFFFFFF) weighed by `eax_face_weight` (inside `pusha`).
 pub unsafe fn eax_environment() {
     unsafe {
-        game_write(EAX_ENVIRONMENT_RVA, 0u32);
+        crate::audio::store::ENVIRONMENT.set(0);
         game_write(EAX_FACES_RVA, 0u32);
         // Converted: `rc2k_core::race::view::{cells_from, record_faces}`.
         use rc2k_core::race::view::{NO_RECORD, cells_from, record_faces};
@@ -1383,7 +1387,6 @@ pub unsafe fn eax_environment() {
     }
 }
 
-const HAS_MMX_RVA: usize = rva(0x5183A8); // g_hasMmx
 pub const LIGHT_COLOUR_RVA: usize = rva(0x62DAC4); // g_lightColour
 pub const LIT_PLACE_RVA: usize = rva(0x636588); // g_litPlace, dword_63658C, dword_636590
 const CAR_LIGHT_TABLE: u32 = 0x635D18; // g_carLightTable: 256 colours
@@ -1391,7 +1394,7 @@ const TURNED_LIGHT_RVA: usize = rva(0x6365B8); // dword_6365B8 .. dword_6365C0
 
 /// Whether the game uses MMX (`g_hasMmx`).
 pub fn has_mmx() -> bool {
-    unsafe { game_read::<u32>(HAS_MMX_RVA) != 0 }
+    MACHINE.has_mmx.get() != 0
 }
 
 /// Two colours added byte by byte (`rc2k_core::race::lights::add_colours`), MMX or not
@@ -2006,7 +2009,7 @@ pub unsafe fn draw_sky() -> Result<(), Refused> {
         game_write(rva(0x6415C8), ix);
         game_write(rva(0x6415D4), fy);
         game_write(rva(0x6415CC), iy);
-        let on = ix < k(0x4F494C) && iy < k(0x4F4950);
+        let on = ix < SCREEN.width.get() && iy < SCREEN.height.get();
         game_write(rva(0x6415C4), u32::from(on));
         let size = sun_size(fx, k(0x62409C), fy, k(0x6240A0), k(0x5C5E40), k(0x5C5E2C));
         game_write(SCRATCH_RVA, size);

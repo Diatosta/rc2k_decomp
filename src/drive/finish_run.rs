@@ -46,7 +46,7 @@ pub unsafe fn finish_run() -> Result<(), Refused> {
     restart_clock();
     p(0x64BB60, g(0x613830));
     loop {
-        p(0x512A44, 0);
+        p(crate::sound::store::ObjectsSlot::at(0x512A44), 0);
         input_update();
         unsafe { crate::drive::finish_timing::finish_timing() };
         let n = g(0x75B108);
@@ -56,8 +56,10 @@ pub unsafe fn finish_run() -> Result<(), Refused> {
         if !c0(g(0x64BB64), g(0x64BB3C + 4 * n as usize)) {
             break;
         }
-        let key = |x: usize| unsafe { (a(x) as *const u8).read() } != 0;
-        if key(0x4F6CDD) || key(0x4F6CF8) {
+        let key = |x: crate::input::store::DeviceSlot| unsafe { (a(x) as *const u8).read() } != 0;
+        if key(crate::input::store::DeviceSlot::at(0x4F6CDD))
+            || key(crate::input::store::DeviceSlot::at(0x4F6CF8))
+        {
             break;
         }
         p(B + 0x684, 6);

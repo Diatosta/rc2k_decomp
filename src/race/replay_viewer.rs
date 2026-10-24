@@ -47,19 +47,20 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
+use crate::input::store::DeviceSlot;
 use crate::menu::event_flow::Flow;
 use crate::menu::screen_loop::Carried;
 use crate::physics::flow::a;
 use crate::race::viewer::{
-    CAMERA_EDIT, CHOICE, CHOICE_BEFORE, CLOCK, DEVELOPER_KEYS, EDITING, ESCAPES, FRAME_CLOCK,
-    HOLD_REVS, KEY_CLOCK, KEYS_IGNORED, LAST_RACE, LAST_RACE_VIEWED, LIST_LEAVE, LIST_SHOWN, MENU,
-    MODE, MOVE_CLOCK, ONLY_SHOWN, SLOT, SOUND, STOPPED, WAIT_RELEASE, gb, get, pb, put,
+    CAMERA_EDIT, CHOICE, CHOICE_BEFORE, DEVELOPER_KEYS, EDITING, ESCAPES, FRAME_CLOCK, HOLD_REVS,
+    KEY_CLOCK, KEYS_IGNORED, LAST_RACE, LAST_RACE_VIEWED, LIST_LEAVE, LIST_SHOWN, MENU, MODE,
+    MOVE_CLOCK, ONLY_SHOWN, SLOT, SOUND, STOPPED, WAIT_RELEASE, gb, get, pb, put,
 };
+use crate::session::CLOCKS;
+use crate::session::FLAGS;
 
-const QUITTING: usize = 0x51837C; // g_quitting
-const SCREENSHOTS_ON: usize = 0x4F52B4; // g_screenshotsOn
-const KEY_DOWN_A: usize = 0x4F6ADD; // byte_4F6ADD
-const KEY_DOWN_B: usize = 0x4F6AF8; // byte_4F6AF8
+const KEY_DOWN_A: DeviceSlot = DeviceSlot::at(0x4F6ADD); // byte_4F6ADD
+const KEY_DOWN_B: DeviceSlot = DeviceSlot::at(0x4F6AF8); // byte_4F6AF8
 
 /// (key, action) with editing on, in the original's order (0x26 twice: the first wins).
 pub const KEYS: [(u8, u32); 30] = [
@@ -169,7 +170,7 @@ fn view(r: &mut Flow) -> Result<(), Refused> {
     put(SOUND, 0);
     pb(LIST_SHOWN, 1);
     pb(LIST_LEAVE, 0);
-    r.c.arg = get(CLOCK);
+    r.c.arg = CLOCKS.key_ticks.get();
     put(MOVE_CLOCK, r.c.arg);
     put(KEY_CLOCK, r.c.arg);
     put(CHOICE, 6);
@@ -182,12 +183,12 @@ fn view(r: &mut Flow) -> Result<(), Refused> {
     }
     loop {
         step(9, r)?;
-        r.c.arg = get(CLOCK);
+        r.c.arg = CLOCKS.key_ticks.get();
         put(FRAME_CLOCK, r.c.arg);
         r.c.arg = get(CHOICE);
         put(CHOICE_BEFORE, r.c.arg);
         step(10, r)?;
-        if get(QUITTING) == 1 {
+        if FLAGS.quitting.get() == 1 {
             return Ok(());
         }
         if get(ONLY_SHOWN) == 1 {
@@ -251,7 +252,7 @@ fn view(r: &mut Flow) -> Result<(), Refused> {
 
 /// A key while stopped (0x41D139 ..): where it leads.
 fn stopped_key(r: &mut Flow, key: u8) -> Result<Next, Refused> {
-    if get(SCREENSHOTS_ON) != 0 && key == 0x52 {
+    if crate::gfx::shots::on() != 0 && key == 0x52 {
         step(12, r)?;
     }
     if get(CAMERA_EDIT) != 0 {

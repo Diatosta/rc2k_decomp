@@ -6,19 +6,20 @@
 //! a frame `g_pongSteps` (named before the game was seen), the score's place
 //! `dword_7687D4` / `dword_7687D8`, the digits' 4 x 5 patterns `unk_768704` (0x14 each).
 
-use crate::framework::{game_read, game_write, rva};
+use crate::framework::rva;
+use crate::marks::store::{Slot, game_read, game_write};
 
-pub const BALL: [usize; 2] = [rva(0x768688), rva(0x76868C)];
-pub const BALL_WAY: [usize; 2] = [rva(0x768694), rva(0x768698)];
-pub const BALL_SIZE: [usize; 2] = [rva(0x7686A0), rva(0x7686A4)];
-pub const SAVED_BAT: [usize; 2] = [rva(0x7686AC), rva(0x7686B0)];
-pub const BAT: [usize; 2] = [rva(0x7686B8), rva(0x7686BC)];
-pub const BAT_SIZE: [usize; 2] = [rva(0x7686D0), rva(0x7686D4)];
-pub const STEPS_RVA: usize = rva(0x768700); // g_pongSteps
-pub const BEST_RVA: usize = rva(0x7687CC); // dword_7687CC
-pub const HITS_RVA: usize = rva(0x7687D0); // dword_7687D0
-pub const DIGIT_AT: [usize; 2] = [rva(0x7687D4), rva(0x7687D8)];
-pub const PATTERNS_RVA: usize = rva(0x768704); // unk_768704: 10 of 0x14
+pub const BALL: [Slot; 2] = [Slot::at(0x768688), Slot::at(0x76868C)];
+pub const BALL_WAY: [Slot; 2] = [Slot::at(0x768694), Slot::at(0x768698)];
+pub const BALL_SIZE: [Slot; 2] = [Slot::at(0x7686A0), Slot::at(0x7686A4)];
+pub const SAVED_BAT: [Slot; 2] = [Slot::at(0x7686AC), Slot::at(0x7686B0)];
+pub const BAT: [Slot; 2] = [Slot::at(0x7686B8), Slot::at(0x7686BC)];
+pub const BAT_SIZE: [Slot; 2] = [Slot::at(0x7686D0), Slot::at(0x7686D4)];
+pub const STEPS_RVA: Slot = Slot::at(0x768700); // g_pongSteps
+pub const BEST_RVA: Slot = Slot::at(0x7687CC); // dword_7687CC
+pub const HITS_RVA: Slot = Slot::at(0x7687D0); // dword_7687D0
+pub const DIGIT_AT: [Slot; 2] = [Slot::at(0x7687D4), Slot::at(0x7687D8)];
+pub const PATTERNS_RVA: Slot = Slot::at(0x768704); // unk_768704: 10 of 0x14
 pub const CHEATS_RVA: usize = rva(0x75870C); // g_cheats
 pub const SHOWN_RVA: usize = rva(0x641678); // dword_641678
 
@@ -74,25 +75,25 @@ pub fn less_compare(x: u32, k: u32, w: u32, m: Option<u32>) -> u32 {
     u32::from(s) & 0x700
 }
 
-fn get(r: usize) -> u32 {
+fn get(r: Slot) -> u32 {
     unsafe { game_read(r) }
 }
 
-const CENTRE_RVA: usize = rva(0x7691C6); // flt_7691C6 .. flt_7691D2
-const NUDGE_RVA: usize = rva(0x7691D6); // flt_7691D6
-const WAY_SCALE_RVA: usize = rva(0x7691DA); // flt_7691DA, flt_7691DE
-const LENGTH_RVA: usize = rva(0x76516C); // flt_76516C
-pub const WALLS_RVA: usize = rva(0x7691A6); // flt_7691A6 .. flt_7691C2
-pub const START_RVA: usize = rva(0x769182); // flt_769182 .. flt_76919E
-const BALL_CENTRE: [usize; 2] = [rva(0x7686DC), rva(0x7686E0)];
-const BAT_CENTRE: [usize; 2] = [rva(0x7686E8), rva(0x7686EC)];
-const DIFFERENCE: [usize; 2] = [rva(0x7686F4), rva(0x7686F8)];
+const CENTRE_RVA: Slot = Slot::at(0x7691C6); // flt_7691C6 .. flt_7691D2
+const NUDGE_RVA: Slot = Slot::at(0x7691D6); // flt_7691D6
+const WAY_SCALE_RVA: Slot = Slot::at(0x7691DA); // flt_7691DA, flt_7691DE
+const LENGTH_RVA: Slot = Slot::at(0x76516C); // flt_76516C
+pub const WALLS_RVA: Slot = Slot::at(0x7691A6); // flt_7691A6 .. flt_7691C2
+pub const START_RVA: Slot = Slot::at(0x769182); // flt_769182 .. flt_76919E
+const BALL_CENTRE: [Slot; 2] = [Slot::at(0x7686DC), Slot::at(0x7686E0)];
+const BAT_CENTRE: [Slot; 2] = [Slot::at(0x7686E8), Slot::at(0x7686EC)];
+const DIFFERENCE: [Slot; 2] = [Slot::at(0x7686F4), Slot::at(0x7686F8)];
 
-fn pair(r: [usize; 2]) -> [f32; 2] {
+fn pair(r: [Slot; 2]) -> [f32; 2] {
     r.map(|r| f32::from_bits(get(r)))
 }
 
-unsafe fn put_pair(r: [usize; 2], v: [f32; 2]) {
+unsafe fn put_pair(r: [Slot; 2], v: [f32; 2]) {
     for (r, v) in r.into_iter().zip(v) {
         unsafe { game_write(r, v.to_bits()) };
     }
@@ -142,7 +143,7 @@ pub unsafe fn put_court(c: &rc2k_core::marks::pong::Court, before: &rc2k_core::m
 
 /// The court's constants from the game.
 pub fn rules() -> rc2k_core::marks::pong::Rules {
-    let f = |r: usize| f32::from_bits(get(r));
+    let f = |r: Slot| f32::from_bits(get(r));
     rc2k_core::marks::pong::Rules {
         centre: std::array::from_fn(|n| f(CENTRE_RVA + 4 * n)),
         nudge: f(NUDGE_RVA),

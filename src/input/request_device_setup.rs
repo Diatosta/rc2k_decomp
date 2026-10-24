@@ -18,12 +18,13 @@
 
 use crate::errors::BadInput;
 use crate::field;
-use crate::framework::{game_read, game_write, rva};
 use crate::input::devices::put;
 use crate::input::input_tick::COMMAND_RVA;
+use crate::input::store::DeviceSlot;
 use crate::input::types::InputDevice;
+use crate::store::{game_read, game_write};
 
-pub const DEVICES_RVA: usize = rva(0x4F6EE8); // g_inputDevices
+pub const DEVICES_RVA: DeviceSlot = DeviceSlot::at(0x4F6EE8); // g_inputDevices
 /// The Rust version (see the header).
 pub unsafe fn request_device_setup(
     controller: u32,

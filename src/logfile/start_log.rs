@@ -16,13 +16,13 @@
 //! the two lines about memory, whose numbers move.
 
 use crate::errors::BadInput;
-use crate::framework::{game_addr, game_read, rva};
 use crate::logfile::date_text::write_date_text;
 use crate::logfile::log_hex8::log_hex8;
 use crate::logfile::log_int::log_int;
 use crate::logfile::log_write::log_write;
 use crate::logfile::numeric::scratch;
 use crate::logfile::write_line::{LOG_PATH, level};
+use crate::session::MACHINE as M;
 use std::sync::atomic::{AtomicU32, Ordering};
 use windows_sys::Win32::Storage::FileSystem::{DeleteFileA, GetDiskFreeSpaceA};
 use windows_sys::Win32::System::SystemInformation::{GlobalMemoryStatus, MEMORYSTATUS};
@@ -33,18 +33,6 @@ use windows_sys::Win32::System::SystemInformation::{GlobalMemoryStatus, MEMORYST
 pub const VERSION: &[u8] = b"$VER: Rally 5.30 (4.8.2000)\0";
 /// `byte_4E0077`: a second text, logged when not empty (it is empty).
 pub const SECOND_TEXT: &[u8] = b"\0";
-const CPU_FAMILY_RVA: usize = rva(0x5183D0); // dword_5183D0
-const CPU_FLAGS_RVA: usize = rva(0x5183D4); // dword_5183D4
-const CPU_NAME_RVA: usize = rva(0x5183D8); // dword_5183D8: a text
-const CLOCK_RVA: usize = rva(0x5183E8); // dword_5183E8
-const FPU_RVA: usize = rva(0x5183EC); // g_hasFpu
-const MMX_RVA: usize = rva(0x5183F8); // dword_5183F8
-const KATMAI_RVA: usize = rva(0x5183FC); // dword_5183FC
-const AMD_3D_RVA: usize = rva(0x518400); // dword_518400
-const KEYBOARD_TYPE_RVA: usize = rva(0x518404); // g_keyboardType
-/// VersionInformation, an `OSVERSIONINFOA`: +4 major, +8 minor, +0xC build, +0x10 the
-/// platform, +0x14 the service pack's text.
-const VERSION_INFO_RVA: usize = rva(0x518408);
 /// `g_freeSpaceKb` (0x4E073A in the image until 2026-10-24): what the log's head says of
 /// the current drive. Nothing reads it.
 pub static FREE_SPACE_KB: AtomicU32 = AtomicU32::new(0);
@@ -112,22 +100,22 @@ pub unsafe fn start_log() -> Result<(), BadInput> {
             date: c_text(scratch),
             version: c_text(VERSION.as_ptr()),
             second: (SECOND_TEXT[0] != 0).then(|| c_text(SECOND_TEXT.as_ptr())),
-            cpu_family: game_read(CPU_FAMILY_RVA),
-            cpu_flags: game_read(CPU_FLAGS_RVA),
-            cpu_name: c_text(game_addr(CPU_NAME_RVA) as *const u8),
-            clock: game_read(CLOCK_RVA),
-            fpu: game_read(FPU_RVA),
-            mmx: game_read(MMX_RVA),
-            amd_3d: game_read(AMD_3D_RVA),
-            katmai: game_read(KATMAI_RVA),
-            machine_type: game_read(KEYBOARD_TYPE_RVA),
+            cpu_family: M.cpu_family.get() as i32,
+            cpu_flags: M.cpu_signature.get(),
+            cpu_name: c_text(M.vendor_addr() as *const u8),
+            clock: M.cpu_mhz.get() as i32,
+            fpu: M.has_fpu.get() as i32,
+            mmx: M.found_mmx.get() as i32,
+            amd_3d: M.found_3dnow.get() as i32,
+            katmai: M.found_sse.get() as i32,
+            machine_type: M.keyboard_type.get() as i32,
             platform: [
-                game_read(VERSION_INFO_RVA + 0x10),
-                game_read(VERSION_INFO_RVA + 4),
-                game_read(VERSION_INFO_RVA + 8),
-                game_read::<u16>(VERSION_INFO_RVA + 0xC) as i32,
+                M.version[4].get() as i32,
+                M.version[1].get() as i32,
+                M.version[2].get() as i32,
+                (M.version[3].get() & 0xFFFF) as i32,
             ],
-            platform_text: c_text(game_addr(VERSION_INFO_RVA + 0x14) as *const u8),
+            platform_text: c_text((M.version_addr() + 0x14) as *const u8),
             memory: [
                 memory.dwAvailPhys as u32,
                 memory.dwTotalPhys as u32,

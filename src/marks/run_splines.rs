@@ -19,18 +19,18 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, game_write, rva};
 use crate::marks::lines::SETTINGS_RVA;
 use crate::marks::place_spline::place_spline;
 use crate::marks::setup::SEED_RVA;
 use crate::marks::splines::{MADE_RVA, PLACE_RVA};
+use crate::marks::store::{Slot, game_read, game_write};
 use crate::math::x87;
 
-const TICKS_RVA: usize = rva(0x764FD0); // g_marksFrameTicks
-const ANGLE_RVA: usize = rva(0x7695B6); // flt_7695B6
-const WAVE_RVA: usize = rva(0x7695BA); // flt_7695BA
+const TICKS_RVA: Slot = Slot::at(0x764FD0); // g_marksFrameTicks
+const ANGLE_RVA: Slot = Slot::at(0x7695B6); // flt_7695B6
+const WAVE_RVA: Slot = Slot::at(0x7695BA); // flt_7695BA
 /// flt_788F0D, flt_788F11, flt_788F15.
-const WAVE_K: [usize; 3] = [rva(0x788F0D), rva(0x788F11), rva(0x788F15)];
+const WAVE_K: [Slot; 3] = [Slot::at(0x788F0D), Slot::at(0x788F11), Slot::at(0x788F15)];
 const MOST_SPLINES: i32 = 8;
 
 unsafe fn get(a: u32) -> u32 {

@@ -15,7 +15,7 @@
 
 use crate::audio::com::{self, RELEASE};
 use crate::audio::voices::*;
-use crate::framework::game_addr;
+use crate::store::game_addr;
 
 // ---- Rust version ----
 

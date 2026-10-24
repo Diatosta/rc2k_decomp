@@ -38,9 +38,9 @@ use crate::errors::{BadInput, Refused};
 use crate::framework::game_read;
 use crate::menu::item_at::{ITEM_LEN, MENU_HEAD_LEN};
 use crate::menu::update_blink::{BLINK_OFF_RVA, LAST_KEY_TIME_RVA};
-use crate::menu::update_frame_clock::CLOCK_RVA;
 use crate::screens::buttons::dword;
 use crate::service::state::MENU_ITEM_RVA;
+use crate::session::CLOCKS;
 use crate::text::draw_text::Canvas;
 
 // ---- game data ----
@@ -94,7 +94,10 @@ pub unsafe fn draw_menu_items(
         let since_key = if game_read::<u32>(BLINK_OFF_RVA) == 1 {
             0
         } else {
-            game_read::<u32>(CLOCK_RVA).wrapping_sub(game_read(LAST_KEY_TIME_RVA))
+            CLOCKS
+                .frame
+                .get()
+                .wrapping_sub(game_read(LAST_KEY_TIME_RVA))
         };
         let mut screen = MenuScreen::new(canvas);
         screen.menu_items = first;

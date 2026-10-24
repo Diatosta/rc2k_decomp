@@ -4,22 +4,29 @@
 //! the course and `allocate_links`, `reset_settings_blocks`.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::framework::rva;
+use crate::marks::store::{Slot, from_ida, game_addr, game_read, game_write};
 use crate::math::x87;
 
-pub const RINGS_RVA: usize = rva(0x8DD061); // dword_8DD061, dword_8DD461, then dword_8DD861
-pub const DONE_RVA: usize = rva(0x91FF3E); // dword_91FF3E: 0, or where to go on
+pub const RINGS_RVA: Slot = Slot::at(0x8DD061); // dword_8DD061, dword_8DD461, then dword_8DD861
+pub const DONE_RVA: Slot = Slot::at(0x91FF3E); // dword_91FF3E: 0, or where to go on
 pub const RESUME_RVA: usize = rva(0x4C3EA6); // loc_4C3EA6
-const RAMPS_RVA: usize = rva(0x9152F6); // off_9152F6: 3 tables
-const SINES_RVA: usize = rva(0x915302); // off_915302: 8 tables
-const CURVES_RVA: usize = rva(0x915322); // off_915322: 2 tables
-const RAMP_STEPS_RVA: usize = rva(0x91FF42); // flt_91FF42, 256.0
-const CURVE_STEPS_RVA: usize = rva(0x91FF46); // flt_91FF46, 256.0
+const RAMPS_RVA: Slot = Slot::at(0x9152F6); // off_9152F6: 3 tables
+const SINES_RVA: Slot = Slot::at(0x915302); // off_915302: 8 tables
+const CURVES_RVA: Slot = Slot::at(0x915322); // off_915322: 2 tables
+const RAMP_STEPS_RVA: Slot = Slot::at(0x91FF42); // flt_91FF42, 256.0
+const CURVE_STEPS_RVA: Slot = Slot::at(0x91FF46); // flt_91FF46, 256.0
 /// The profiles' work, `flt_8EB871` .. `flt_8EB899`.
-pub const WORK_RVA: usize = rva(0x8EB871);
+pub const WORK_RVA: Slot = Slot::at(0x8EB871);
 pub const COURSE_INFO_RVA: usize = rva(0x5C6FA0); // g_courseInfo
 pub const COURSE_CORNERS: u32 = 0x1C_2000;
 pub const CORNERS_LEN: usize = 0x8000;
+
+/// A table the image holds by IDA's address (the pointer lists at 0x9152F6): where it is
+/// in the marks' block.
+fn ida_table(ida: u32) -> u32 {
+    from_ida(ida as usize) as u32
+}
 
 unsafe fn get(at: u32) -> u32 {
     unsafe { (at as *const u32).read_unaligned() }
@@ -52,7 +59,7 @@ unsafe fn differences(table: u32) {
 unsafe fn make_tables() {
     unsafe {
         for k in 0..3 {
-            let t: u32 = game_read(RAMPS_RVA + 4 * k);
+            let t = ida_table(game_read(RAMPS_RVA + 4 * k));
             let step =
                 x87::int_less_int_over(get(t + 4) as i32, get(t) as i32, game_read(RAMP_STEPS_RVA));
             work(2, step);
@@ -66,7 +73,7 @@ unsafe fn make_tables() {
             differences(t);
         }
         for k in 0..8 {
-            let t: u32 = game_read(SINES_RVA + 4 * k);
+            let t = ida_table(game_read(SINES_RVA + 4 * k));
             let p = [0, 1, 2, 3].map(|i| x87::loaded(get(t + 4 * i)));
             for (i, &v) in p.iter().enumerate() {
                 work(3 + i, v);
@@ -80,7 +87,7 @@ unsafe fn make_tables() {
             differences(t);
         }
         for k in 0..2 {
-            let t: u32 = game_read(CURVES_RVA + 4 * k);
+            let t = ida_table(game_read(CURVES_RVA + 4 * k));
             let mut x = x87::loaded(get(t));
             work(7, x);
             let step = x87::sub_div(get(t + 4), get(t), game_read(CURVE_STEPS_RVA));

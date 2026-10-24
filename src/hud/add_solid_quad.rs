@@ -13,8 +13,8 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::game_write;
 use crate::hud::add_quad::QUAD_RVA;
+use crate::hud::store::game_write;
 
 /// The Rust version (see the header).
 // Converted: `rc2k_core::hud::quads::SOLID_PLACES`

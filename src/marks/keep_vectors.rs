@@ -13,22 +13,22 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::{game_read, game_write, rva};
+use crate::marks::store::{Slot, game_read, game_write};
 
 /// (from, to), in the original's order.
-const MOVES: [(usize, usize); 12] = [
-    (rva(0x769252), rva(0x76926E)),
-    (rva(0x769256), rva(0x769272)),
-    (rva(0x76925A), rva(0x769276)),
-    (rva(0x76924E), rva(0x76926A)),
-    (rva(0x764FB0), rva(0x7692C2)),
-    (rva(0x764FB4), rva(0x7692C6)),
-    (rva(0x764FB8), rva(0x7692CA)),
-    (rva(0x764FAC), rva(0x7692BE)),
-    (rva(0x764F94), rva(0x7692A6)),
-    (rva(0x764F98), rva(0x7692AA)),
-    (rva(0x764F9C), rva(0x7692AE)),
-    (rva(0x764F90), rva(0x7692A2)),
+const MOVES: [(Slot, Slot); 12] = [
+    (Slot::at(0x769252), Slot::at(0x76926E)),
+    (Slot::at(0x769256), Slot::at(0x769272)),
+    (Slot::at(0x76925A), Slot::at(0x769276)),
+    (Slot::at(0x76924E), Slot::at(0x76926A)),
+    (Slot::at(0x764FB0), Slot::at(0x7692C2)),
+    (Slot::at(0x764FB4), Slot::at(0x7692C6)),
+    (Slot::at(0x764FB8), Slot::at(0x7692CA)),
+    (Slot::at(0x764FAC), Slot::at(0x7692BE)),
+    (Slot::at(0x764F94), Slot::at(0x7692A6)),
+    (Slot::at(0x764F98), Slot::at(0x7692AA)),
+    (Slot::at(0x764F9C), Slot::at(0x7692AE)),
+    (Slot::at(0x764F90), Slot::at(0x7692A2)),
 ];
 
 /// The Rust version (see the header).

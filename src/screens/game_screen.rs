@@ -3,8 +3,9 @@
 //! variables game dwords; drawn through the text functions and the canvas.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, game_write, rva};
+use crate::framework::rva;
 use crate::gfx::blit_glyph::BlitCall;
+use crate::gfx::block::{game_read, game_write};
 use crate::screens::{font_at, line_buffer};
 use crate::text::draw_text::{Canvas, draw_text_at};
 use crate::text::font::Font;
@@ -62,7 +63,7 @@ fn font_of(f: impl GameFont) -> *mut Font {
 }
 
 /// Where a clip edge is kept.
-fn clip_rva(edge: rc2k_core::screens::screen::Edge) -> usize {
+fn clip_rva(edge: rc2k_core::screens::screen::Edge) -> crate::gfx::blit::Slot {
     use crate::gfx::surface::{CLIP_BOTTOM_RVA, CLIP_LEFT_RVA, CLIP_RIGHT_RVA, CLIP_TOP_RVA};
     use rc2k_core::screens::screen::Edge;
     match edge {

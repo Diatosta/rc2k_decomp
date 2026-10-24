@@ -28,82 +28,83 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::framework::rva;
 use crate::marks::clip_quad::{clip_quad, draw_fan};
+use crate::marks::store::{Slot, game_addr, game_read, game_write};
 use crate::service::harness::{Region, capture, restore};
 
-const COUNT_RVA: usize = rva(0x8D21A4); // dword_8D21A4
-const COUNT_COPY_RVA: usize = rva(0x8D21A0); // dword_8D21A0
-const FIRST_RVA: usize = rva(0x8DA428); // dword_8DA428
-const DRAWN_RVA: usize = rva(0x8D219C); // dword_8D219C
+const COUNT_RVA: Slot = Slot::at(0x8D21A4); // dword_8D21A4
+const COUNT_COPY_RVA: Slot = Slot::at(0x8D21A0); // dword_8D21A0
+const FIRST_RVA: Slot = Slot::at(0x8DA428); // dword_8DA428
+const DRAWN_RVA: Slot = Slot::at(0x8D219C); // dword_8D219C
 const MOST: i32 = 0x800;
-const FALL_RVA: usize = rva(0x8D2194); // dword_8D2194
-const RANDOMS: [usize; 3] = [rva(0x8C6000), rva(0x8C8000), rva(0x8CA000)];
-const REMAINDERS: [usize; 2] = [rva(0x8CC000), rva(0x8CE000)];
-const CURVE_RVA: usize = rva(0x8D2310); // g_marksCurve: 4095 entries
+const FALL_RVA: Slot = Slot::at(0x8D2194); // dword_8D2194
+const RANDOMS: [Slot; 3] = [Slot::at(0x8C6000), Slot::at(0x8C8000), Slot::at(0x8CA000)];
+const REMAINDERS: [Slot; 2] = [Slot::at(0x8CC000), Slot::at(0x8CE000)];
+const CURVE_RVA: Slot = Slot::at(0x8D2310); // g_marksCurve: 4095 entries
 const CURVE: u32 = 4095;
-const SHIFT_RVA: usize = rva(0x8D2214); // dword_8D2214 .. dword_8D221C
-const DEPTH_RVA: usize = rva(0x8D21F4); // dword_8D21F4
-const FADING_RVA: usize = rva(0x76523C); // dword_76523C
-const FADE_INDEX_RVA: usize = rva(0x8DB460); // dword_8DB460
-const DOT_RVA: usize = rva(0x8DB4C8); // flt_8DB4C8
-const FADES_RVA: usize = rva(0x8DB464); // g_marksFadeColours: 17
+const SHIFT_RVA: Slot = Slot::at(0x8D2214); // dword_8D2214 .. dword_8D221C
+const DEPTH_RVA: Slot = Slot::at(0x8D21F4); // dword_8D21F4
+const FADING_RVA: Slot = Slot::at(0x76523C); // dword_76523C
+const FADE_INDEX_RVA: Slot = Slot::at(0x8DB460); // dword_8DB460
+const DOT_RVA: Slot = Slot::at(0x8DB4C8); // flt_8DB4C8
+const FADES_RVA: Slot = Slot::at(0x8DB464); // g_marksFadeColours: 17
 const FADES: u32 = 17;
-const V_RVA: [usize; 2] = [rva(0x8DB550), rva(0x8DB554)];
+const V_RVA: [Slot; 2] = [Slot::at(0x8DB550), Slot::at(0x8DB554)];
 const VERTICES_RVA: usize = rva(0x9605A0); // g_polygonVertices
 const VERTEX_COUNT_RVA: usize = rva(0x6240F8); // g_polygonVertexCount
 /// What the x87 blocks write: flt_8D22D4 .. flt_8D22DC, dword_8D21F4, flt_8DB448 ..
 /// dword_8DB460, flt_8DB4C8.
-const SCRATCH: [(usize, usize); 4] = [
-    (rva(0x8D22D4), 12),
-    (rva(0x8D21F4), 4),
-    (rva(0x8DB448), 0x1C),
-    (rva(0x8DB4C8), 4),
+const SCRATCH: [(Slot, usize); 4] = [
+    (Slot::at(0x8D22D4), 12),
+    (Slot::at(0x8D21F4), 4),
+    (Slot::at(0x8DB448), 0x1C),
+    (Slot::at(0x8DB4C8), 4),
 ];
 
-unsafe fn table(r: usize, k: u32) -> u32 {
+unsafe fn table(r: Slot, k: u32) -> u32 {
     unsafe { game_read(r + 4 * k as usize) }
 }
 
 /// The original's 0x4C2EF0 .. 0x4C2F79: the place (ebx, eax, ecx as `fild`ed) turned.
-unsafe fn turn(b: u32, v: &[u32; 3]) {
+unsafe fn turn(v: &[u32; 3]) {
     unsafe {
         core::arch::asm!(
             "fild dword ptr [{v}]",
             "fild dword ptr [{v} + 4]",
             "fild dword ptr [{v} + 8]",
             ".byte 0xD9, 0xC1",
-            "fmul dword ptr [{b} + 0x4D2220]",
+            "fmul dword ptr [{mk} + 0x16D2E0]",
             ".byte 0xD9, 0xC3",
-            "fmul dword ptr [{b} + 0x4D222C]",
+            "fmul dword ptr [{mk} + 0x16D2EC]",
             ".byte 0xD9, 0xC2",
-            "fmul dword ptr [{b} + 0x4D2238]",
+            "fmul dword ptr [{mk} + 0x16D2F8]",
             ".byte 0xDE, 0xC1",
             ".byte 0xDE, 0xC1",
-            "fiadd dword ptr [{b} + 0x4D2208]",
-            "fstp dword ptr [{b} + 0x4D22D4]",
+            "fiadd dword ptr [{mk} + 0x16D2C8]",
+            "fstp dword ptr [{mk} + 0x16D394]",
             ".byte 0xD9, 0xC1",
-            "fmul dword ptr [{b} + 0x4D2224]",
+            "fmul dword ptr [{mk} + 0x16D2E4]",
             ".byte 0xD9, 0xC3",
-            "fmul dword ptr [{b} + 0x4D2230]",
+            "fmul dword ptr [{mk} + 0x16D2F0]",
             ".byte 0xD9, 0xC2",
-            "fmul dword ptr [{b} + 0x4D223C]",
+            "fmul dword ptr [{mk} + 0x16D2FC]",
             ".byte 0xDE, 0xC1",
             ".byte 0xDE, 0xC1",
-            "fiadd dword ptr [{b} + 0x4D220C]",
-            "fstp dword ptr [{b} + 0x4D22D8]",
+            "fiadd dword ptr [{mk} + 0x16D2CC]",
+            "fstp dword ptr [{mk} + 0x16D398]",
             ".byte 0xD9, 0xC9",
-            "fmul dword ptr [{b} + 0x4D2228]",
+            "fmul dword ptr [{mk} + 0x16D2E8]",
             ".byte 0xD9, 0xCA",
-            "fmul dword ptr [{b} + 0x4D2234]",
+            "fmul dword ptr [{mk} + 0x16D2F4]",
             ".byte 0xD9, 0xC9",
-            "fmul dword ptr [{b} + 0x4D2240]",
+            "fmul dword ptr [{mk} + 0x16D300]",
             ".byte 0xDE, 0xC1",
             ".byte 0xDE, 0xC1",
-            "fiadd dword ptr [{b} + 0x4D2210]",
-            "fist dword ptr [{b} + 0x4D21F4]",
-            "fstp dword ptr [{b} + 0x4D22DC]",
-            b = in(reg) b,
+            "fiadd dword ptr [{mk} + 0x16D2D0]",
+            "fist dword ptr [{mk} + 0x16D2B4]",
+            "fstp dword ptr [{mk} + 0x16D39C]",
+            mk = in(reg) crate::marks::store::base(),
             v = in(reg) v.as_ptr(),
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
@@ -113,44 +114,44 @@ unsafe fn turn(b: u32, v: &[u32; 3]) {
 }
 
 /// The original's 0x4C2F9C .. 0x4C3038: the light's dot and its fade index.
-unsafe fn fade(b: u32) {
+unsafe fn fade() {
     unsafe {
         core::arch::asm!(
-            "fld dword ptr [{b} + 0x4D22D4]",
-            "fsub dword ptr [{b} + 0x4DB430]",
-            "fst dword ptr [{b} + 0x4DB448]",
+            "fld dword ptr [{mk} + 0x16D394]",
+            "fsub dword ptr [{mk} + 0x1764F0]",
+            "fst dword ptr [{mk} + 0x176508]",
             ".byte 0xD8, 0xC8",
-            "fld dword ptr [{b} + 0x4D22D8]",
-            "fsub dword ptr [{b} + 0x4DB434]",
-            "fst dword ptr [{b} + 0x4DB44C]",
+            "fld dword ptr [{mk} + 0x16D398]",
+            "fsub dword ptr [{mk} + 0x1764F4]",
+            "fst dword ptr [{mk} + 0x17650C]",
             ".byte 0xD8, 0xC8",
-            "fld dword ptr [{b} + 0x4D22DC]",
-            "fsub dword ptr [{b} + 0x4DB438]",
-            "fst dword ptr [{b} + 0x4DB450]",
+            "fld dword ptr [{mk} + 0x16D39C]",
+            "fsub dword ptr [{mk} + 0x1764F8]",
+            "fst dword ptr [{mk} + 0x176510]",
             ".byte 0xD8, 0xC8",
             ".byte 0xDE, 0xC1",
             ".byte 0xDE, 0xC1",
             ".byte 0xD9, 0xFA",
-            "fdivr dword ptr [{b} + 0x36516C]",
+            "fdivr dword ptr [{mk} + 0x22C]",
             ".byte 0xD9, 0xC0",
-            "fmul dword ptr [{b} + 0x4DB448]",
-            "fst dword ptr [{b} + 0x4DB454]",
-            "fmul dword ptr [{b} + 0x4DB43C]",
+            "fmul dword ptr [{mk} + 0x176508]",
+            "fst dword ptr [{mk} + 0x176514]",
+            "fmul dword ptr [{mk} + 0x1764FC]",
             ".byte 0xD9, 0xC1",
-            "fmul dword ptr [{b} + 0x4DB44C]",
-            "fst dword ptr [{b} + 0x4DB458]",
-            "fmul dword ptr [{b} + 0x4DB440]",
+            "fmul dword ptr [{mk} + 0x17650C]",
+            "fst dword ptr [{mk} + 0x176518]",
+            "fmul dword ptr [{mk} + 0x176500]",
             ".byte 0xD9, 0xCA",
-            "fmul dword ptr [{b} + 0x4DB450]",
-            "fst dword ptr [{b} + 0x4DB45C]",
-            "fmul dword ptr [{b} + 0x4DB444]",
+            "fmul dword ptr [{mk} + 0x176510]",
+            "fst dword ptr [{mk} + 0x17651C]",
+            "fmul dword ptr [{mk} + 0x176504]",
             ".byte 0xDE, 0xC1",
             ".byte 0xDE, 0xC1",
-            "fst dword ptr [{b} + 0x4DB4C8]",
+            "fst dword ptr [{mk} + 0x176588]",
             ".byte 0xD8, 0xC8",
-            "fmul dword ptr [{b} + 0x36518C]",
-            "fistp dword ptr [{b} + 0x4DB460]",
-            b = in(reg) b,
+            "fmul dword ptr [{mk} + 0x24C]",
+            "fistp dword ptr [{mk} + 0x176520]",
+            mk = in(reg) crate::marks::store::base(),
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
             options(nostack),
@@ -162,21 +163,21 @@ unsafe fn fade(b: u32) {
 unsafe fn square(b: u32, i: u32) {
     unsafe {
         core::arch::asm!(
-            "fld dword ptr [{b} + 0x4D22DC]",
+            "fld dword ptr [{mk} + 0x16D39C]",
             "fdivr dword ptr [{b} + 0x224088]",
-            "fst dword ptr [{b} + 0x4D21F4]",
-            "fld dword ptr [{b} + 0x4D22D8]",
+            "fst dword ptr [{mk} + 0x16D2B4]",
+            "fld dword ptr [{mk} + 0x16D398]",
             ".byte 0xD8, 0xC9",
             ".byte 0xD9, 0xC9",
-            "fmul dword ptr [{b} + 0x4D22D4]",
+            "fmul dword ptr [{mk} + 0x16D394]",
             ".byte 0xD9, 0xC9",
             ".byte 0xD9, 0xE0",
             "fadd dword ptr [{b} + 0x2240A0]",
             "fstp dword ptr [{b} + 0x5605A4]",
             "fadd dword ptr [{b} + 0x22409C]",
             "fstp dword ptr [{b} + 0x5605A0]",
-            "fld dword ptr [{b} + 0x4DB548]",
-            "fmul dword ptr [{b} + 0x4D21F4]",
+            "fld dword ptr [{mk} + 0x176608]",
+            "fmul dword ptr [{mk} + 0x16D2B4]",
             "fld dword ptr [{b} + 0x5605A0]",
             ".byte 0xD8, 0xC1",
             "fst dword ptr [{b} + 0x5605C0]",
@@ -188,19 +189,20 @@ unsafe fn square(b: u32, i: u32) {
             ".byte 0xDE, 0xC1",
             "fst dword ptr [{b} + 0x5605E4]",
             "fstp dword ptr [{b} + 0x560604]",
-            "fld dword ptr [{b} + 0x4D22DC]",
-            "fmul dword ptr [{b} + 0x4D21F8]",
+            "fld dword ptr [{mk} + 0x16D39C]",
+            "fmul dword ptr [{mk} + 0x16D2B8]",
             "fst dword ptr [{b} + 0x5605A8]",
             "fst dword ptr [{b} + 0x5605C8]",
             "fst dword ptr [{b} + 0x5605E8]",
             "fstp dword ptr [{b} + 0x560608]",
-            "fld dword ptr [{b} + {i} + 0x4D0000]",
+            "fld dword ptr [{mk} + {i} + 0x16B0C0]",
             "fst dword ptr [{b} + 0x5605B8]",
             "fst dword ptr [{b} + 0x560618]",
-            "fadd dword ptr [{b} + 0x4DB54C]",
+            "fadd dword ptr [{mk} + 0x17660C]",
             "fst dword ptr [{b} + 0x5605D8]",
             "fstp dword ptr [{b} + 0x5605F8]",
             b = in(reg) b,
+            mk = in(reg) crate::marks::store::base(),
             i = in(reg) i,
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
@@ -230,7 +232,7 @@ unsafe fn place(k: u32) -> ([u32; 3], [u32; 2], [u32; 3]) {
 }
 
 /// Why it refuses, if it does: a dry pass, its scratch put back.
-unsafe fn refusal(b: u32) -> Option<&'static str> {
+unsafe fn refusal() -> Option<&'static str> {
     unsafe {
         let n: i32 = game_read(COUNT_RVA);
         if n > MOST {
@@ -251,9 +253,9 @@ unsafe fn refusal(b: u32) -> Option<&'static str> {
                 why = Some("a snow curve index past the table");
                 break;
             }
-            turn(b, &[ebx, eax, ecx]);
+            turn(&[ebx, eax, ecx]);
             if game_read::<i32>(DEPTH_RVA) > 0x1_0000 && game_read::<u32>(FADING_RVA) != 0 {
-                fade(b);
+                fade();
                 let i: u32 = game_read(FADE_INDEX_RVA);
                 if game_read::<i32>(DOT_RVA) >= 0 && i >= FADES {
                     why = Some("a snow fade index past the table");
@@ -269,7 +271,7 @@ unsafe fn refusal(b: u32) -> Option<&'static str> {
 /// The Rust version (see the header).
 pub unsafe fn draw_snow() -> Result<(), Refused> {
     let b = game_addr(0) as u32;
-    if let Some(why) = unsafe { refusal(b) } {
+    if let Some(why) = unsafe { refusal() } {
         return Err(BadInput(why).into());
     }
     unsafe {
@@ -280,10 +282,10 @@ pub unsafe fn draw_snow() -> Result<(), Refused> {
         game_write(FIRST_RVA, n);
         for k in 0..n.max(0) as u32 {
             let ([eax, ebx, ecx], _, _) = place(k);
-            turn(b, &[ebx, eax, ecx]);
+            turn(&[ebx, eax, ecx]);
             if game_read::<i32>(DEPTH_RVA) > 0x1_0000 {
                 if game_read::<u32>(FADING_RVA) != 0 {
-                    fade(b);
+                    fade();
                     let mut index: u32 = game_read(FADE_INDEX_RVA);
                     if game_read::<i32>(DOT_RVA) < 0 {
                         index = 0;

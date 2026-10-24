@@ -22,26 +22,31 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, game_write, rva};
 use crate::marks::emitters::*;
 use crate::marks::setup::SEED_RVA;
+use crate::marks::store::{Slot, game_read, game_write};
 use crate::math::x87;
 use crate::scene::matrix3::rounded;
 
-const RATE_K: [usize; 4] = [rva(0x93A312), rva(0x93A316), rva(0x93A31A), rva(0x93A31E)];
-const SIDE_RANDOM_RVA: usize = rva(0x93A322);
-const LIFT_RVA: usize = rva(0x93A326);
+const RATE_K: [Slot; 4] = [
+    Slot::at(0x93A312),
+    Slot::at(0x93A316),
+    Slot::at(0x93A31A),
+    Slot::at(0x93A31E),
+];
+const SIDE_RANDOM_RVA: Slot = Slot::at(0x93A322);
+const LIFT_RVA: Slot = Slot::at(0x93A326);
 /// Per axis (x, y, z): the factors of the first row by +0x10, the third by +0x18 and by
 /// +0xC (`flt_93A32A` .. `flt_93A34A`).
-const MOTION_K: [[usize; 3]; 3] = [
-    [rva(0x93A32A), rva(0x93A32E), rva(0x93A332)],
-    [rva(0x93A336), rva(0x93A33A), rva(0x93A33E)],
-    [rva(0x93A342), rva(0x93A346), rva(0x93A34A)],
+const MOTION_K: [[Slot; 3]; 3] = [
+    [Slot::at(0x93A32A), Slot::at(0x93A32E), Slot::at(0x93A332)],
+    [Slot::at(0x93A336), Slot::at(0x93A33A), Slot::at(0x93A33E)],
+    [Slot::at(0x93A342), Slot::at(0x93A346), Slot::at(0x93A34A)],
 ];
-const SPIN_RANDOM_RVA: usize = rva(0x93A34E);
-const LIFE_SCALE_RVA: usize = rva(0x7651A4); // flt_7651A4
-const FADE_RVA: usize = rva(0x76519C); // dword_76519C
-const SIZE_K_RVA: usize = rva(0x93A352);
+const SPIN_RANDOM_RVA: Slot = Slot::at(0x93A34E);
+const LIFE_SCALE_RVA: Slot = Slot::at(0x7651A4); // flt_7651A4
+const FADE_RVA: Slot = Slot::at(0x76519C); // dword_76519C
+const SIZE_K_RVA: Slot = Slot::at(0x93A352);
 const LOOK: u32 = 0x34;
 const LIFE: u32 = 0x3E8;
 

@@ -23,7 +23,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::framework::game_addr;
 use crate::framework::rva;
-use crate::physics::flow::{base, x87_run};
+use crate::physics::flow::x87_run;
 use rc2k_core::sound::engine::{computers, revs_sound_number, revs_stopped};
 
 /// unk_516230: the computer's cars' set.
@@ -63,12 +63,12 @@ pub fn revs_sound(o: u32, kind: u32, request: u32) -> Result<(), Refused> {
     );
     if w(0xC) == 0 {
         x87_run!(
-            "fld dword ptr [{bx} + 0x100]",
-            "fmul dword ptr [{bp} + 0x24]",
-            "fadd dword ptr [{bp} + 0x1C]",
-            "fmul dword ptr [{b} + 0x116380]",
-            "fstp dword ptr [{si} + 0x8]";
-            bx = o, bp = set, si = request, b = base()
+                "fld dword ptr [{bx} + 0x100]",
+                "fmul dword ptr [{bp} + 0x24]",
+                "fadd dword ptr [{bp} + 0x1C]",
+                "fmul dword ptr [{sf} + 0x28]",
+                "fstp dword ptr [{si} + 0x8]";
+            bx = o, bp = set, si = request, sf = crate::sound::store::surface::base()
         );
     } else {
         x87_run!(

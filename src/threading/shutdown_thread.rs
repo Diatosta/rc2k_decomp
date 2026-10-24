@@ -13,10 +13,9 @@
 //! (`fatal::report`'s `jmp [esi]`). In the standalone the window's handle is 0 and nothing
 //! is posted. The registers above are the original's, for reference.
 
-use crate::framework::{game_read, rva};
 use crate::logfile::write_line::log_text;
+use crate::session::MACHINE;
 
-const WINDOW_RVA: usize = rva(0x5184A4); // hWnd
 const WM_CLOSE: u32 = 0x10;
 
 /// The Rust version (see the header): ends the thread.
@@ -30,7 +29,7 @@ pub fn shutdown_thread() -> ! {
     let rc = crate::threading::wait_for_threads::wait_for_threads();
     log_text(b"SHUTDOWN:wfmo rc=", false, 2);
     crate::logfile::log_hex8::log_hex8(rc, true, 2);
-    let window: u32 = unsafe { game_read(WINDOW_RVA) };
+    let window: u32 = MACHINE.window.get();
     if window != 0 {
         unsafe { PostMessageA(window as _, WM_CLOSE, 0, 0) };
     }

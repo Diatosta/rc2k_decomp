@@ -16,17 +16,18 @@
 //! and the self-test was the hook's.
 
 use crate::errors::BadInput;
-use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::input::key_to_char::{
     LAYOUT_A_RVA, LAYOUT_MODE_RVA, LAYOUT_RVA, has_layout, key_to_char,
 };
+use crate::input::store::KeyboardSlot;
 use crate::input::take_key::take_key;
+use crate::store::{game_addr, game_read, game_write};
 use crate::strings::append_string_by_id::push_string;
 use crate::strings::text_from_ids::{TEXT_LEN, text};
 
 // ---- game data ----
 
-pub const KEY_GIVEN_RVA: usize = rva(0x4F7FD8); // dword_4F7FD8: 1 = the key comes in eax
+pub const KEY_GIVEN_RVA: KeyboardSlot = KeyboardSlot::at(0x4F7FD8); // dword_4F7FD8: 1 = the key comes in eax
 /// (string id, answer)
 use rc2k_core::input::keyboard::ANSWERS;
 pub const YES: u32 = 1;

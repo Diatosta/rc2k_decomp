@@ -24,21 +24,22 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, FatalError, Refused};
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::framework::rva;
+use crate::gfx::block::{game_addr, game_read, game_write};
 use crate::gfx::build_glyphs::{
     BUILDER_FLAGS_RVA, FORMAT_RVA, TABLE_RVA, TABLE_SIZE_RVA, build_glyphs,
 };
 use crate::gfx::components_to_pixel::components_to_pixel;
 use crate::gfx::glyph_builder::{RUN_LENGTHS, WITH_ALPHA};
 use crate::gfx::glyph_tables::{
-    UNIT_FACTOR_RVA, alpha_palette, begin_glyph_table, begin_glyph_tables, end_glyph_tables,
-    palette_to_pixels,
+    alpha_palette, begin_glyph_table, begin_glyph_tables, end_glyph_tables, palette_to_pixels,
 };
 use crate::gfx::pcx::PALETTE_RVA;
 use crate::gfx::pixel_format::PixelFormat;
 use crate::memory::MemoryList;
 use crate::memory::allocate::allocate;
 use crate::memory::take_from_list::{rewind_list, take_from_list};
+use crate::session::SCREEN;
 
 // ---- game data ----
 
@@ -46,7 +47,6 @@ const LIST_RVA: usize = rva(0x5BE898); // stru_5BE898
 const UNITS_RVA: usize = rva(0x5BE894); // dword_5BE894
 /// off_5ABACC: something whose pixel layout is 8 bytes in (the textures', a reading).
 const LAYOUT_OWNER_RVA: usize = rva(0x5ABACC);
-const SHEETS_RVA: usize = rva(0x5BE8D8); // "files\d\fnt\fnt22_00.pcx"
 const PALETTE_A_RVA: usize = rva(0x51E2D8); // dword_51E2D8: the first palette's place
 const GLYPHS_RVA: usize = rva(0x51E2DC); // dword_51E2DC: the table
 /// The five font objects, 0x20 bytes each: palette at +0x14, glyph table at +0x18.
@@ -70,7 +70,7 @@ pub unsafe fn build_game_fonts(pixels_b: *const u32) -> Result<(), Refused> {
         let list = game_addr(LIST_RVA) as *mut MemoryList;
         let bytes = game_read::<u32>(UNITS_RVA)
             .wrapping_mul(0x400)
-            .wrapping_mul(game_read(UNIT_FACTOR_RVA));
+            .wrapping_mul(SCREEN.bytes.get());
         allocate(list, bytes)?;
         rewind_list(list);
         begin_glyph_tables()?;
@@ -80,7 +80,10 @@ pub unsafe fn build_game_fonts(pixels_b: *const u32) -> Result<(), Refused> {
         game_write(PALETTE_A_RVA, take_from_list(list, 0x400)?.unwrap_or(0));
         game_write(PALETTE_B_RVA, take_from_list(list, 0x400)?.unwrap_or(0));
         begin_glyph_table(list)?;
-        build_glyphs(game_addr(SHEETS_RVA) as *const u8, list)?;
+        build_glyphs(
+            crate::gfx::texts::address(&crate::gfx::texts::FNT22) as *const u8,
+            list,
+        )?;
         game_write(GLYPHS_RVA, game_read::<u32>(TABLE_RVA));
         if game_read::<u32>(TABLE_SIZE_RVA) == 0 {
             return Err(fatal(0x80E4_8062));

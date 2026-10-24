@@ -30,14 +30,14 @@
 
 use crate::errors::Refused;
 use crate::files::stream::Stream;
+use crate::gfx::decoder::Slot as DecSlot;
 use crate::gfx::pixel_format::PixelFormat;
-use crate::physics::flow::{a, g};
+use crate::physics::flow::g;
 
-const HEADER: usize = 0x51B5F4; // g_pcxHeader
-const STREAM: usize = 0x5195E4; // g_pictureStream
-const PLANES: usize = 0x94F6F8; // byte_94F6F8
-pub const PICTURE_NAME: usize = 0x4F49C8; // dword_4F49C8: the file, or 0
-const SCREENSHOT_NAME: usize = 0x4F52BC; // "000.pcx"
+const HEADER: DecSlot = DecSlot::at(0x51B5F4); // g_pcxHeader
+const STREAM: DecSlot = DecSlot::at(0x5195E4); // g_pictureStream
+pub const PICTURE_NAME: crate::gfx::picture_store::Slot =
+    crate::gfx::picture_store::Slot::at(0x4F49C8); // dword_4F49C8: the file, or 0
 const WIDTH: usize = 0x4F49A0; // g_surface.width
 const HEIGHT: usize = 0x4F49A4; // g_surface.height
 const BITS: usize = 0x4F49A8; // g_surface.bits_per_pixel
@@ -72,10 +72,10 @@ pub use rc2k_core::gfx::pcx::screen_header as header;
 pub unsafe fn write_screen_pcx() -> Result<bool, Refused> {
     unsafe {
         let header_bytes = header(g(WIDTH), g(HEIGHT));
-        std::ptr::copy_nonoverlapping(header_bytes.as_ptr(), a(HEADER) as *mut u8, 0x80);
-        let mut path = g(PICTURE_NAME);
+        std::ptr::copy_nonoverlapping(header_bytes.as_ptr(), HEADER.address() as *mut u8, 0x80);
+        let mut path: u32 = crate::gfx::block::game_read(PICTURE_NAME);
         if path == 0 {
-            path = a(SCREENSHOT_NAME);
+            path = crate::gfx::shots::NAME.address() as u32;
             let digits = path as *mut u8;
             for n in (0..3).rev() {
                 let d = digits.add(n);
@@ -86,7 +86,7 @@ pub unsafe fn write_screen_pcx() -> Result<bool, Refused> {
                 d.write(b'0');
             }
         }
-        let stream = a(STREAM) as *mut Stream;
+        let stream = STREAM.address() as *mut Stream;
         if !crate::files::open_stream::open_stream(stream, path as *const u8, 1)? {
             return Ok(false);
         }
@@ -120,7 +120,11 @@ unsafe fn rows(stream: *mut Stream) -> Result<bool, Refused> {
                     ),
                     _ => eax,
                 });
-            std::ptr::copy_nonoverlapping(planes.as_ptr(), a(PLANES) as *mut u8, planes.len());
+            std::ptr::copy_nonoverlapping(
+                planes.as_ptr(),
+                crate::gfx::pcx_planes::PLANES.address() as *mut u8,
+                planes.len(),
+            );
             for byte in rc2k_core::gfx::pcx::encode_line(&planes, &mut eax) {
                 if !write_stream_byte(stream, byte)? {
                     return Ok(false);

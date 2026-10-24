@@ -31,33 +31,34 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::framework::rva;
 use crate::marks::setup::SETTINGS_RVA;
+use crate::marks::store::{Slot, game_addr, game_read, game_write};
 use crate::math::{x87, x87_run};
 use crate::scene::vector3::STATUS_RVA;
 
-const DROPS_RVA: usize = rva(0x8BC50D); // dword_8BC50D
-const DRAWN_RVA: usize = rva(0x8BC405); // dword_8BC405
+const DROPS_RVA: Slot = Slot::at(0x8BC50D); // dword_8BC50D
+const DRAWN_RVA: Slot = Slot::at(0x8BC405); // dword_8BC405
 const MOST_DROPS: i32 = 0x100;
-const COPIES_A: usize = rva(0x8BC441); // dword_8BC441 .. : the settings' +0x28 ..
-const COPIES_B: usize = rva(0x8BC435); // dword_8BC435 .. : the settings' +0x1C ..
-const RHW_RVA: usize = rva(0x8C5F91); // dword_8C5F91
+const COPIES_A: Slot = Slot::at(0x8BC441); // dword_8BC441 .. : the settings' +0x28 ..
+const COPIES_B: Slot = Slot::at(0x8BC435); // dword_8BC435 .. : the settings' +0x1C ..
+const RHW_RVA: Slot = Slot::at(0x8C5F91); // dword_8C5F91
 const SCRATCH_RVA: usize = rva(0x62400C); // dword_62400C
 const VERTICES_RVA: usize = rva(0x9605A0); // g_polygonVertices
 const COUNT_RVA: usize = rva(0x6240F8); // g_polygonVertexCount
-const DRIFTING_RVA: usize = rva(0x7652A0); // dword_7652A0
+const DRIFTING_RVA: Slot = Slot::at(0x7652A0); // dword_7652A0
 const ENTRIES: u32 = 5;
-const ENTRY_RVA: usize = rva(0x8BC489); // flt_8BC489: 5 of 12 bytes
-const LAST_RVA: usize = rva(0x8BC4C5); // dword_8BC4C5: 5 of 12 bytes
-const MOVE_RVA: usize = rva(0x8BC47D); // dword_8BC47D .. dword_8BC485
-const VIEW_RVA: usize = rva(0x8BDD7D); // dword_8BDD7D .. dword_8BDD85
-const DRIFT_RVA: usize = rva(0x8BC505); // dword_8BC505
-const DRIFT_K_RVA: usize = rva(0x8C5FB5); // flt_8C5FB5
+const ENTRY_RVA: Slot = Slot::at(0x8BC489); // flt_8BC489: 5 of 12 bytes
+const LAST_RVA: Slot = Slot::at(0x8BC4C5); // dword_8BC4C5: 5 of 12 bytes
+const MOVE_RVA: Slot = Slot::at(0x8BC47D); // dword_8BC47D .. dword_8BC485
+const VIEW_RVA: Slot = Slot::at(0x8BDD7D); // dword_8BDD7D .. dword_8BDD85
+const DRIFT_RVA: Slot = Slot::at(0x8BC505); // dword_8BC505
+const DRIFT_K_RVA: Slot = Slot::at(0x8C5FB5); // flt_8C5FB5
 const CLOCK_RVA: usize = rva(0x613830); // g_sceneClock
-const NOISE_RVA: [usize; 3] = [rva(0x8BC511), rva(0x8BC911), rva(0x8BCD11)];
-const SPREAD_RVA: usize = rva(0x8BC429); // dword_8BC429
-const TURNED_RVA: usize = rva(0x8BDE3D); // flt_8BDE3D .. flt_8BDE45
-const KEPT_RVA: [usize; 3] = [rva(0x8BD111), rva(0x8BD511), rva(0x8BD911)];
+const NOISE_RVA: [Slot; 3] = [Slot::at(0x8BC511), Slot::at(0x8BC911), Slot::at(0x8BCD11)];
+const SPREAD_RVA: Slot = Slot::at(0x8BC429); // dword_8BC429
+const TURNED_RVA: Slot = Slot::at(0x8BDE3D); // flt_8BDE3D .. flt_8BDE45
+const KEPT_RVA: [Slot; 3] = [Slot::at(0x8BD111), Slot::at(0x8BD511), Slot::at(0x8BD911)];
 /// The render states set (value, state).
 const STATES: [(u32, u32); 5] = [(4, 0x15), (5, 0x13), (6, 0x14), (0, 0x1C), (1, 0x1B)];
 const COLOURS: [u32; 4] = [0xFF_FFFF, 0, 0x2800_0000, 0x28FF_FFFF];
@@ -67,23 +68,23 @@ unsafe fn get(a: u32) -> u32 {
 }
 
 /// The original's 0x4C18E7 .. 0x4C1935: the view's move since last frame, scaled, into its entry.
-unsafe fn box_moved(b: u32, e: u32) {
+unsafe fn box_moved(e: u32) {
     unsafe {
         core::arch::asm!(
-            "fild dword ptr [{b} + 0x4BDD7D]",
-            "fisub dword ptr [{b} + {e} + 0x4BC4C5]",
-            "fmul dword ptr [{b} + 0x4C5F95]",
-            "fstp dword ptr [{b} + {e} + 0x4BC489]",
-            "fild dword ptr [{b} + 0x4BDD81]",
-            "fiadd dword ptr [{b} + 0x4BC505]",
-            "fisub dword ptr [{b} + {e} + 0x4BC4C9]",
-            "fmul dword ptr [{b} + 0x4C5F99]",
-            "fstp dword ptr [{b} + {e} + 0x4BC48D]",
-            "fild dword ptr [{b} + 0x4BDD85]",
-            "fisub dword ptr [{b} + {e} + 0x4BC4CD]",
-            "fmul dword ptr [{b} + 0x4C5F9D]",
-            "fstp dword ptr [{b} + {e} + 0x4BC491]",
-            b = in(reg) b,
+            "fild dword ptr [{mk} + 0x158E3D]",
+            "fisub dword ptr [{mk} + {e} + 0x157585]",
+            "fmul dword ptr [{mk} + 0x161055]",
+            "fstp dword ptr [{mk} + {e} + 0x157549]",
+            "fild dword ptr [{mk} + 0x158E41]",
+            "fiadd dword ptr [{mk} + 0x1575C5]",
+            "fisub dword ptr [{mk} + {e} + 0x157589]",
+            "fmul dword ptr [{mk} + 0x161059]",
+            "fstp dword ptr [{mk} + {e} + 0x15754D]",
+            "fild dword ptr [{mk} + 0x158E45]",
+            "fisub dword ptr [{mk} + {e} + 0x15758D]",
+            "fmul dword ptr [{mk} + 0x16105D]",
+            "fstp dword ptr [{mk} + {e} + 0x157551]",
+            mk = in(reg) crate::marks::store::base(),
             e = in(reg) e,
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
@@ -96,19 +97,20 @@ unsafe fn box_moved(b: u32, e: u32) {
 unsafe fn move_length(b: u32) {
     unsafe {
         core::arch::asm!(
-            "fld dword ptr [{b} + 0x4BC47D]",
+            "fld dword ptr [{mk} + 0x15753D]",
             ".byte 0xD8, 0xC8",
-            "fld dword ptr [{b} + 0x4BC481]",
+            "fld dword ptr [{mk} + 0x157541]",
             ".byte 0xD8, 0xC8",
-            "fld dword ptr [{b} + 0x4BC485]",
+            "fld dword ptr [{mk} + 0x157545]",
             ".byte 0xD8, 0xC8",
             ".byte 0xDE, 0xC1",
             ".byte 0xDE, 0xC1",
             ".byte 0xD9, 0xFA",
-            "fst dword ptr [{b} + 0x4BDD5D]",
-            "fcomp dword ptr [{b} + 0x4C5FA1]",
+            "fst dword ptr [{mk} + 0x158E1D]",
+            "fcomp dword ptr [{mk} + 0x161061]",
             "fstsw word ptr [{b} + 0x31C814]",
             b = in(reg) b,
+            mk = in(reg) crate::marks::store::base(),
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
             options(nostack),
@@ -117,23 +119,23 @@ unsafe fn move_length(b: u32) {
 }
 
 /// The original's 0x4C19AC .. 0x4C19F2: the move scaled to `flt_8C5FA5` over its length, times its three factors.
-unsafe fn move_held(b: u32) {
+unsafe fn move_held() {
     unsafe {
         core::arch::asm!(
-            "fld dword ptr [{b} + 0x4BDD5D]",
-            "fdivr dword ptr [{b} + 0x4C5FA5]",
+            "fld dword ptr [{mk} + 0x158E1D]",
+            "fdivr dword ptr [{mk} + 0x161065]",
             ".byte 0xD9, 0xC0",
             ".byte 0xD9, 0xC0",
-            "fmul dword ptr [{b} + 0x4BC47D]",
-            "fmul dword ptr [{b} + 0x4C5FA9]",
-            "fstp dword ptr [{b} + 0x4BC47D]",
-            "fmul dword ptr [{b} + 0x4BC481]",
-            "fmul dword ptr [{b} + 0x4C5FAD]",
-            "fstp dword ptr [{b} + 0x4BC481]",
-            "fmul dword ptr [{b} + 0x4BC485]",
-            "fmul dword ptr [{b} + 0x4C5FB1]",
-            "fstp dword ptr [{b} + 0x4BC485]",
-            b = in(reg) b,
+            "fmul dword ptr [{mk} + 0x15753D]",
+            "fmul dword ptr [{mk} + 0x161069]",
+            "fstp dword ptr [{mk} + 0x15753D]",
+            "fmul dword ptr [{mk} + 0x157541]",
+            "fmul dword ptr [{mk} + 0x16106D]",
+            "fstp dword ptr [{mk} + 0x157541]",
+            "fmul dword ptr [{mk} + 0x157545]",
+            "fmul dword ptr [{mk} + 0x161071]",
+            "fstp dword ptr [{mk} + 0x157545]",
+            mk = in(reg) crate::marks::store::base(),
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
             options(nostack),
@@ -142,13 +144,13 @@ unsafe fn move_held(b: u32) {
 }
 
 /// The original's 0x4C1A0A .. 0x4C1A1C: the view's y plus the drift (`fistp`) kept in its entry.
-unsafe fn keep_y(b: u32, e: u32) {
+unsafe fn keep_y(e: u32) {
     unsafe {
         core::arch::asm!(
-            "fild dword ptr [{b} + 0x4BDD81]",
-            "fiadd dword ptr [{b} + 0x4BC505]",
-            "fistp dword ptr [{b} + {e} + 0x4BC4C9]",
-            b = in(reg) b,
+            "fild dword ptr [{mk} + 0x158E41]",
+            "fiadd dword ptr [{mk} + 0x1575C5]",
+            "fistp dword ptr [{mk} + {e} + 0x157589]",
+            mk = in(reg) crate::marks::store::base(),
             e = in(reg) e,
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
@@ -209,7 +211,7 @@ pub unsafe fn run_rain() -> Result<(), Refused> {
         let s: u32 = game_read(SETTINGS_RVA);
         let e = get(s + 8) * 12;
         if get(s + 0xC) != 0 || game_read::<u32>(DRIFTING_RVA) != 0 {
-            box_moved(b, e);
+            box_moved(e);
         }
         for n in 0..3 {
             game_write(
@@ -221,10 +223,10 @@ pub unsafe fn run_rain() -> Result<(), Refused> {
         let status = game_read::<u32>(STATUS_RVA) & 0x700;
         game_write(STATUS_RVA, status);
         if status != 0x100 {
-            move_held(b);
+            move_held();
         }
         game_write(LAST_RVA + e as usize, game_read::<u32>(VIEW_RVA));
-        keep_y(b, e);
+        keep_y(e);
         game_write(LAST_RVA + e as usize + 8, game_read::<u32>(VIEW_RVA + 8));
         if game_read::<u32>(DRIFTING_RVA) != 0 {
             let clock = game_read::<u32>(CLOCK_RVA) & 0xF_FFFF;

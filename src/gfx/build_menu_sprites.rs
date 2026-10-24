@@ -11,7 +11,8 @@
 //! `routes.rs`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::framework::rva;
+use crate::gfx::block::{game_addr, game_read, game_write};
 use crate::gfx::build_glyphs::{BUILDER_FLAGS_RVA, TABLE_RVA, build_glyphs};
 use crate::gfx::glyph_builder::RUN_LENGTHS;
 use crate::gfx::glyph_tables::{
@@ -22,7 +23,6 @@ use crate::memory::MemoryList;
 // ---- game data ----
 
 const SPRITE_TABLE_RVA: usize = rva(0x755581); // g_spriteTable
-const SHEETS_RVA: usize = rva(0x732C93); // "files\g\graphics\sprites\mbuts00.pcx"
 
 // ---- Rust version ----
 
@@ -33,7 +33,10 @@ pub unsafe fn build_menu_sprites(sprite_table: *mut u32) -> Result<(), Refused> 
         begin_glyph_tables()?;
         game_write(BUILDER_FLAGS_RVA, RUN_LENGTHS);
         begin_glyph_table(list)?;
-        build_glyphs(game_addr(SHEETS_RVA) as *const u8, list)?;
+        build_glyphs(
+            crate::gfx::texts::address(&crate::gfx::texts::MBUTS) as *const u8,
+            list,
+        )?;
         sprite_table.write_unaligned(game_read(TABLE_RVA));
         end_glyph_tables()?;
         Ok(())

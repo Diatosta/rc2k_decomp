@@ -19,12 +19,13 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
+use crate::audio::store::SampleSlot;
 use crate::errors::BadInput;
-use crate::framework::{game_addr, rva};
+use crate::store::game_addr;
 
 // ---- game data ----
 
-pub const RECORDS_RVA: usize = rva(0x50A7A4); // g_sampleRecords
+pub const RECORDS_RVA: SampleSlot = SampleSlot::at(0x50A7A4); // g_sampleRecords
 pub const RECORDS: u32 = 0x1CD;
 pub const RECORD_LEN: usize = 0x40;
 /// "The sample's own".

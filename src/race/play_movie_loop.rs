@@ -22,13 +22,14 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
+use crate::input::store::DeviceSlot;
 use crate::physics::flow::a;
 use crate::race::viewer::{BLOCK, PLAY_END, gb, get, put};
 
 const STATE: usize = 0x5C5CE0; // dword_5C5CE0
 const SCENE_CLOCK: usize = 0x613830; // g_sceneClock
 const CLOCK_BASE: usize = 0x613840; // dword_613840
-const KEYS_PRESSED: usize = 0x4F6CDD; // g_keysPressed + 1
+const KEYS_PRESSED: DeviceSlot = DeviceSlot::at(0x4F6CDD); // g_keysPressed + 1
 const TEXTS: [usize; 4] = [0x4DDF45, 0x4DDF50, 0x4DDF61, 0x4DDF72]; // "dpg replay" ..
 
 fn log_text(text: usize, newline: bool) {

@@ -2,21 +2,20 @@
 //! components, before it is converted to the surface's format and drawn. The background of
 //! every menu screen goes through it.
 
-use crate::framework::{game_read, game_write, rva};
+use crate::gfx::block::{game_read, game_write};
+use crate::gfx::picture_store::Slot as PicSlot;
 
 /// dword_4F49DC: the pointer to the buffer.
-pub const PICTURE_RVA: usize = rva(0x4F49DC);
+pub const PICTURE_RVA: PicSlot = PicSlot::at(0x4F49DC);
 /// dword_4F49D0, dword_4F49D4: the picture's width and height in pixels.
-pub const WIDTH_RVA: usize = rva(0x4F49D0);
-pub const HEIGHT_RVA: usize = rva(0x4F49D4);
+pub const WIDTH_RVA: PicSlot = PicSlot::at(0x4F49D0);
+pub const HEIGHT_RVA: PicSlot = PicSlot::at(0x4F49D4);
 /// dword_4F49D8: the bytes of one row (width * 4, halved when the picture is converted to
 /// 16-bit pixels); 0xFFFFFFFD while a picture is being loaded.
-pub const ROW_BYTES_RVA: usize = rva(0x4F49D8);
+pub const ROW_BYTES_RVA: PicSlot = PicSlot::at(0x4F49D8);
 /// dword_4F49CC: flags of the picture; bits 8 .. 11 say what its pixels are (0x200 after a
 /// conversion to 16-bit pixels).
-pub const FLAGS_RVA: usize = rva(0x4F49CC);
-/// dword_4F4954: the bits per pixel of the screen mode.
-pub const SCREEN_BITS_RVA: usize = rva(0x4F4954);
+pub const FLAGS_RVA: PicSlot = PicSlot::at(0x4F49CC);
 
 /// The buffer holds a whole screen: 800 x 600 pixels of four bytes.
 pub const PICTURE_DWORDS: usize = 0x75300;

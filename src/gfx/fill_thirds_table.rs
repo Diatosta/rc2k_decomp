@@ -5,11 +5,12 @@
 //! 0x300 bytes at `byte_4F4B30`: the mean of three components by their sum. One caller,
 //! `start`, which calls it directly (2026-10-23). Who reads the table has not been looked up.
 
-use crate::framework::{game_write, rva};
+use crate::gfx::block::game_write;
+use crate::gfx::modes::Slot as ModeSlot;
 
 // ---- game data ----
 
-const TABLE_RVA: usize = rva(0x4F4B30); // byte_4F4B30
+const TABLE_RVA: ModeSlot = ModeSlot::at(0x4F4B30); // byte_4F4B30
 const TABLE_LEN: usize = 0x300;
 
 // ---- Rust version ----

@@ -35,9 +35,8 @@ const FONT_PALETTES: usize = 0x51DEB0; // g_fontPalettes
 const DOOR: usize = 0x719C8C; // byte_719C8C
 const DOOR_TEXT: usize = 0x4DB12C; // "doornr="
 /// (to, from): the header's settings.
-const SETTINGS: [(usize, usize); 6] = [
+const SETTINGS: [(usize, usize); 5] = [
     (0x75ACD8, 0x719B18),
-    (0x514F78, 0x719B34), // g_onePlayer
     (0x75ACE8, 0x719B24),
     (0x75ACEC, 0x719B28),
     (0x75AE20, 0x719B38),
@@ -59,9 +58,17 @@ pub fn viewer_load_stage() -> Result<(), Refused> {
         for (to, from) in SETTINGS {
             put(to, get(from));
         }
+        // g_onePlayer (the sound module's) takes the header's setting too.
+        put(
+            crate::sound::store::ObjectsSlot::at(0x514F78),
+            get(0x719B34),
+        );
         put(0x75AE28, 0);
         put(0x75AF94, 0);
-        put(0x75ACE0, get(0x514F78));
+        put(
+            0x75ACE0,
+            get(crate::sound::store::ObjectsSlot::at(0x514F78)),
+        );
         let door = gb(DOOR) as u32;
         put(0x75AE1C, door);
         put(0x70FE94, door); // g_carBlockStore.gap_a28 + 0x80

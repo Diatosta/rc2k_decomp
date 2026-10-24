@@ -14,7 +14,8 @@
 //! piece of code (0x418A43, 0x418C5A, 0x418D77: Rust versions of them). It waits on
 //! another thread.
 
-use crate::net::lobby::{POSTED, POSTED_ANSWERED, POSTED_RESULT, POSTING, QUITTING, a, g};
+use crate::net::lobby::{POSTED, POSTED_ANSWERED, POSTED_RESULT, POSTING, a, g};
+use crate::session::FLAGS;
 use std::sync::atomic::{AtomicU32, Ordering};
 
 /// The Rust version.
@@ -29,7 +30,7 @@ pub fn post_call(code: u32) -> u32 {
             }
             crate::system::sleep::sleep(100);
             crate::platform::pump_messages_now();
-            if unsafe { (a(QUITTING) as *const u32).read_volatile() } == 1 {
+            if FLAGS.quitting.get() == 1 {
                 break;
             }
         }

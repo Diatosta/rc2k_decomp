@@ -15,8 +15,8 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::game_read;
 use crate::input::key_to_char::LAYOUT_RVA;
+use crate::store::game_read;
 use crate::strings::append_string_by_id::append_string_by_id;
 use crate::strings::hex_append::hex_append;
 use std::slice::from_raw_parts;

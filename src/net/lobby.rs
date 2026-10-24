@@ -104,8 +104,6 @@ pub const SETTINGS_SIZE: usize = 0x5AB298; // dword_5AB298
 pub const DP_NAME: usize = 0x5AB29C; // dword_5AB29C: a DPNAME, 0x10 bytes
 pub const SESSION_DESC: usize = 0x5AB2AC; // dword_5AB2AC: a DPSESSIONDESC2, 0x50 bytes
 pub const APP_GUID: usize = 0x5AB300; // dword_5AB300: the game's guid
-pub const QUITTING: usize = 0x51837C; // g_quitting
-pub const SCREENSHOTS_ON: usize = 0x4F52B4; // g_screenshotsOn
 pub const TEXT: usize = 0x93E430; // text: the game's text buffer
 pub const SPRITES: usize = 0x755581; // g_spriteTable
 pub const PALETTE: usize = 0x51E624; // palette: the measuring font
@@ -113,9 +111,7 @@ pub const FONT: usize = 0x51E6A4; // font
 
 // ---- the list screens' variables (`menu::list_*`) ----
 
-pub use crate::race::viewer::{
-    CHOICE, CHOICE_BEFORE, CLOCK, FRAME_CLOCK, KEY_CLOCK, MOVE_CLOCK, gb, pb,
-};
+pub use crate::race::viewer::{CHOICE, CHOICE_BEFORE, FRAME_CLOCK, KEY_CLOCK, MOVE_CLOCK, gb, pb};
 
 // ---- small pieces ----
 
@@ -251,7 +247,7 @@ pub fn list_key() -> Result<u8, Refused> {
 
 /// A list screen's other keys: a screenshot (R, when they are on), the lexicon.
 pub fn other_key(key: u8) -> Result<(), Refused> {
-    if g(SCREENSHOTS_ON) != 0 && key == 0x52 {
+    if crate::gfx::shots::on() != 0 && key == 0x52 {
         crate::gfx::take_screenshot::take_screenshot()?;
     }
     unsafe { crate::strings::maybe_compile_lexicon::maybe_compile_lexicon() }

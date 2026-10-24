@@ -17,16 +17,16 @@
 //! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, rva};
+use crate::sound::store::ObjectsSlot;
 use crate::sound::turn_parts::{COUNT, OBJECTS};
 
 /// dword_514F8C: 1 while the cars' voices are to be marked.
-const MARKING: usize = 0x514F8C;
+const MARKING: ObjectsSlot = ObjectsSlot::at(0x514F8C);
 /// g_carBlocks: the cars' blocks.
 const CARS: usize = 0x71B3B8;
 
-fn g(x: usize) -> u32 {
-    unsafe { game_read(rva(x)) }
+fn g(x: impl crate::store::Ida) -> u32 {
+    unsafe { crate::store::ida_read(x) }
 }
 
 // ---- Rust version ----

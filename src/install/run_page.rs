@@ -31,10 +31,12 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::install::installer::{
-    CHOICE, CHOICE_BEFORE, CLOCK, FRAME_CLOCK, KEY_CLOCK, LIST_ANSWER, LIST_LEAVE, MOVE_CLOCK,
-    QUITTING, copy_picture, g, gb, key_action, list_clear_marks, list_item_unusable, list_step,
+    CHOICE, CHOICE_BEFORE, FRAME_CLOCK, KEY_CLOCK, LIST_ANSWER, LIST_LEAVE, MOVE_CLOCK,
+    copy_picture, g, gb, key_action, list_clear_marks, list_item_unusable, list_step,
     list_take_key, lock, p, page_action, pb, rb, rd, run_frame, show, unlock, wd,
 };
+use crate::session::CLOCKS;
+use crate::session::FLAGS;
 
 const NO_CHOICE: BadInput = BadInput("a page whose every item cannot be chosen");
 
@@ -52,8 +54,8 @@ pub fn run_page(list: u32) -> Result<u32, Refused> {
     use crate::install as i;
     pb(LIST_ANSWER, 1);
     pb(LIST_LEAVE, 0);
-    p(MOVE_CLOCK, g(CLOCK));
-    p(KEY_CLOCK, g(CLOCK));
+    p(MOVE_CLOCK, CLOCKS.key_ticks.get());
+    p(KEY_CLOCK, CLOCKS.key_ticks.get());
     p(CHOICE, rd(list + 4));
     let count = rb(list + 1) as u32;
     let round = 2 * count as usize + 2;
@@ -89,11 +91,11 @@ pub fn run_page(list: u32) -> Result<u32, Refused> {
                 unlock();
                 show();
             }
-            p(FRAME_CLOCK, g(CLOCK));
+            p(FRAME_CLOCK, CLOCKS.key_ticks.get());
             p(CHOICE_BEFORE, g(CHOICE));
             // eax: the key, as the callees leave it (`install::edit_key` changes it)
             let mut key = list_take_key()? as u32;
-            if g(QUITTING) == 1 {
+            if FLAGS.quitting.get() == 1 {
                 break 'page;
             }
             if key as u8 != 0 && key & 0x80 == 0 {

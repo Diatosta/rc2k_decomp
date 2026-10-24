@@ -2,12 +2,15 @@
 //! pointers to the cars' sound objects (`sound::load_race_sounds`), each with a flag at +8.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, game_write, rva};
+use crate::framework::rva;
+use crate::sound::store::ClockSlot;
+use crate::sound::store::ObjectsSlot;
+use crate::store::{game_read, game_write};
 
-pub const OBJECTS_RVA: usize = rva(0x512A10); // off_512A10
+pub const OBJECTS_RVA: ObjectsSlot = ObjectsSlot::at(0x512A10); // off_512A10
 pub const CARS_RVA: usize = rva(0x63DB90); // dword_63DB90: the cars in the race
-pub const COUNT_RVA: usize = rva(0x514F7C); // dword_514F7C: the sound objects in use
-pub const STARTED_RVA: usize = rva(0x5124E4); // dword_5124E4: 1 once started
+pub const COUNT_RVA: ObjectsSlot = ObjectsSlot::at(0x514F7C); // dword_514F7C: the sound objects in use
+pub const STARTED_RVA: ClockSlot = ClockSlot::at(0x5124E4); // dword_5124E4: 1 once started
 pub const REPLAY_RVA: usize = rva(0x71C3E0); // dword_71C3E0
 const OBJECTS: u32 = 8;
 const MOST_CARS: u32 = 0x1_0000;

@@ -11,13 +11,13 @@
 //! `start` calls it directly (2026-10-23); the registers above are the original's, for
 //! reference.
 
-use crate::framework::{game_addr, game_write, rva};
+use crate::framework::{game_addr, rva};
+use crate::session::MACHINE;
 use windows_sys::Win32::System::LibraryLoader::GetModuleHandleA;
 use windows_sys::Win32::UI::WindowsAndMessaging::FindWindowA;
 
 // ---- game data ----
 
-const INSTANCE_RVA: usize = rva(0x5184A0); // hInstance
 const CLASS_NAME_RVA: usize = rva(0x4E0080); // ClassName, "MF-SDG R5"
 
 // ---- Rust version ----
@@ -25,7 +25,9 @@ const CLASS_NAME_RVA: usize = rva(0x4E0080); // ClassName, "MF-SDG R5"
 /// True if the game runs already.
 pub unsafe fn find_running_game() -> bool {
     unsafe {
-        game_write(INSTANCE_RVA, GetModuleHandleA(std::ptr::null()) as u32);
+        MACHINE
+            .instance
+            .set(GetModuleHandleA(std::ptr::null()) as u32);
         !FindWindowA(game_addr(CLASS_NAME_RVA) as *const u8, std::ptr::null()).is_null()
     }
 }

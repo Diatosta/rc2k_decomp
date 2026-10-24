@@ -9,12 +9,10 @@
 //! `start` calls it directly (2026-10-23); the registers above are the original's, for
 //! reference.
 
-use crate::framework::{game_write, rva};
+use crate::session::MACHINE;
 use windows_sys::Win32::UI::Input::KeyboardAndMouse::GetKeyboardType;
 
 // ---- game data ----
-
-const KEYBOARD_TYPE_RVA: usize = rva(0x518404); // g_keyboardType
 
 // ---- Rust version ----
 
@@ -27,6 +25,6 @@ pub fn keyboard_type(subtype: u32) -> Option<u32> {
 pub unsafe fn read_keyboard_type() {
     let subtype = unsafe { GetKeyboardType(1) } as u32;
     if let Some(kind) = keyboard_type(subtype) {
-        unsafe { game_write(KEYBOARD_TYPE_RVA, kind) };
+        MACHINE.keyboard_type.set(kind);
     }
 }

@@ -3,36 +3,37 @@
 //! scaled, and the eight settings blocks reset.
 
 use crate::errors::Refused;
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::framework::rva;
+use crate::marks::store::{Slot, game_addr, game_read, game_write};
 use crate::math::x87;
 
-pub const PLACES_LIST_RVA: usize = rva(0x8DB570); // stru_8DB570
-pub const PLACES_RVA: usize = rva(0x8DB5B0); // g_marksPlaces
+pub const PLACES_LIST_RVA: Slot = Slot::at(0x8DB570); // stru_8DB570
+pub const PLACES_RVA: Slot = Slot::at(0x8DB5B0); // g_marksPlaces
 pub const PLACES_LEN: u32 = 0x7024;
-const PLACE_START_RVA: usize = rva(0x8DB5B4); // flt_8DB5B4 .. flt_8DB5BC
-pub const RING_LIST_RVA: usize = rva(0x93A580); // stru_93A580
-pub const RING_RVA: usize = rva(0x93A5C8); // g_marksRing
-pub const RING_FREE_RVA: usize = rva(0x93A5C0); // g_marksRingFree
-pub const RING_USED_RVA: usize = rva(0x93A5EC); // g_marksRingUsed
+const PLACE_START_RVA: Slot = Slot::at(0x8DB5B4); // flt_8DB5B4 .. flt_8DB5BC
+pub const RING_LIST_RVA: Slot = Slot::at(0x93A580); // stru_93A580
+pub const RING_RVA: Slot = Slot::at(0x93A5C8); // g_marksRing
+pub const RING_FREE_RVA: Slot = Slot::at(0x93A5C0); // g_marksRingFree
+pub const RING_USED_RVA: Slot = Slot::at(0x93A5EC); // g_marksRingUsed
 pub const RING_LEN: u32 = 0x4C000;
 pub const RING_ENTRY: u32 = rc2k_core::marks::rings::RING_ENTRY;
-pub const LINKS_LIST_RVA: usize = rva(0x9206F0); // stru_9206F0
-pub const LINKS_RVA: usize = rva(0x920730); // g_marksLinks
+pub const LINKS_LIST_RVA: Slot = Slot::at(0x9206F0); // stru_9206F0
+pub const LINKS_RVA: Slot = Slot::at(0x920730); // g_marksLinks
 pub const LINKS_LEN: u32 = 0x71020;
-pub const CORNERS_RVA: usize = rva(0x8EB971); // g_marksCorners: 0x100 of 0x80, words
+pub const CORNERS_RVA: Slot = Slot::at(0x8EB971); // g_marksCorners: 0x100 of 0x80, words
 pub const CORNERS: u32 = 0x100;
-const CORNER_SCALE_RVA: usize = rva(0x8EB969); // flt_8EB969, 1 / 65536
+const CORNER_SCALE_RVA: Slot = Slot::at(0x8EB969); // flt_8EB969, 1 / 65536
 /// Where the corners' eight values are made (two dwords each at +0, +0x20, +0x40, +0x60).
 pub const CORNER_WORK_RVA: usize = rva(0x9605B8);
-pub const CORNER_SIDES_RVA: usize = rva(0x8EB8B5); // dword_8EB8B5, dword_8EB8B9
-pub const SLOPES_RVA: usize = rva(0x920734); // g_marksCornerSlopes: 0x100 of 0x24
-pub const SETTINGS_RVA: usize = rva(0x767A28); // g_marksSettings
+pub const CORNER_SIDES_RVA: Slot = Slot::at(0x8EB8B5); // dword_8EB8B5, dword_8EB8B9
+pub const SLOPES_RVA: Slot = Slot::at(0x920734); // g_marksCornerSlopes: 0x100 of 0x24
+pub const SETTINGS_RVA: Slot = Slot::at(0x767A28); // g_marksSettings
 pub const SETTINGS_BLOCKS: u32 = 8;
 pub const SETTINGS_BLOCK: u32 = 0x4C8;
-const SETTINGS_START_RVA: usize = rva(0x9354C6); // flt_9354C6 .. flt_9354DA
+const SETTINGS_START_RVA: Slot = Slot::at(0x9354C6); // flt_9354C6 .. flt_9354DA
 
 /// `bytes` bytes on the list at `list` (`memory::allocate`).
-pub unsafe fn take(list: usize, bytes: u32) -> Result<u32, Refused> {
+pub unsafe fn take(list: Slot, bytes: u32) -> Result<u32, Refused> {
     let list = game_addr(list) as *mut crate::memory::MemoryList;
     Ok(unsafe { crate::memory::allocate::allocate(list, bytes) }? as u32)
 }

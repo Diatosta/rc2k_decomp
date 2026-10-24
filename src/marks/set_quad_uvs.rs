@@ -15,9 +15,10 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::{game_read, game_write, rva};
+use crate::framework::rva;
+use crate::marks::store::{Slot, game_read, game_write};
 
-const SETS_RVA: usize = rva(0x920738); // dword_920738: sets of four texture places
+const SETS_RVA: Slot = Slot::at(0x920738); // dword_920738: sets of four texture places
 const SET: u32 = 0xC60;
 const VERTICES_RVA: usize = rva(0x9605B8); // flt_9605B8: the first vertex's u, v
 const VERTEX: usize = 0x20;

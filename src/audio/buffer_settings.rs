@@ -5,7 +5,7 @@
 use crate::audio::com;
 use crate::audio::voices::*;
 use crate::errors::{BadInput, Refused};
-use crate::framework::game_read;
+use crate::store::game_read;
 
 pub const SET_VOLUME: u32 = 0x3C;
 pub const SET_PAN: u32 = 0x40;

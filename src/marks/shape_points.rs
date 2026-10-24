@@ -4,18 +4,18 @@
 //! and the two farthest apart of each list on one face.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::marks::masks::{POINTS_A, POINTS_B, PointList};
+use crate::marks::store::{Slot, game_addr, game_read, game_write};
 use crate::math::x87;
 use crate::scene::matrix3::{Axis, extended, turn_matrix3, turnable};
 
-pub const SET_RVA: usize = rva(0x885A6C); // g_marksShapeSet
-pub const TURNED_RVA: [usize; 2] = [rva(0x8853F4), rva(0x8856F4)]; // g_marksTurnedA, _B
-pub const FARTHEST_RVA: [usize; 2] = [rva(0x884FB4), rva(0x884FBC)]; // g_marksFarthestA, _B
-const TURN_X_RVA: usize = rva(0x884E60); // g_marksShapeTurnX
-const TURN_RVA: [usize; 2] = [rva(0x884F50), rva(0x884F80)]; // g_marksShapeTurnA, _B
-const TILT_RVA: usize = rva(0x811BC3); // g_marksShapeTilt
-const SCRATCH_RVA: usize = rva(0x764F40); // dword_764F40
+pub const SET_RVA: Slot = Slot::at(0x885A6C); // g_marksShapeSet
+pub const TURNED_RVA: [Slot; 2] = [Slot::at(0x8853F4), Slot::at(0x8856F4)]; // g_marksTurnedA, _B
+pub const FARTHEST_RVA: [Slot; 2] = [Slot::at(0x884FB4), Slot::at(0x884FBC)]; // g_marksFarthestA, _B
+const TURN_X_RVA: Slot = Slot::at(0x884E60); // g_marksShapeTurnX
+const TURN_RVA: [Slot; 2] = [Slot::at(0x884F50), Slot::at(0x884F80)]; // g_marksShapeTurnA, _B
+const TILT_RVA: Slot = Slot::at(0x811BC3); // g_marksShapeTilt
+const SCRATCH_RVA: Slot = Slot::at(0x764F40); // dword_764F40
 pub const MOST_POINTS: u32 = 0x40;
 
 /// `MarkShapes`' fields for list n (0 A, 1 B): count, targets, points, offset, matrix.
@@ -100,7 +100,7 @@ pub unsafe fn turn_shape_points(a: u32, b: u32) -> Result<(), Refused> {
         turn_shape_checks(a, b)?;
         let set = game_addr(SET_RVA) as u32;
         let angles = [extended(game_read(TILT_RVA)), extended(a), extended(b)];
-        let at = |r: usize| game_addr(r) as u32;
+        let at = |r: Slot| game_addr(r) as u32;
         turn_matrix3(Axis::X, at(TURN_X_RVA), angles[0])?;
         game_write(SCRATCH_RVA, a);
         turn_matrix3(Axis::Z, at(TURN_RVA[0]), angles[1])?;
@@ -137,9 +137,19 @@ pub unsafe fn turn_shape_points(a: u32, b: u32) -> Result<(), Refused> {
 
 /// The two shapes' steps and ends for `turn_all_shapes`: the step (each shape's +0), a, b,
 /// and the switch that picks the second result.
-const ALL_STEPS: [(usize, usize, usize, usize); 2] = [
-    (rva(0x82FC56), rva(0x89C974), rva(0x884FC4), rva(0x844604)),
-    (rva(0x82FC7A), rva(0x89C97C), rva(0x884FC8), rva(0x844608)),
+const ALL_STEPS: [(Slot, Slot, Slot, Slot); 2] = [
+    (
+        Slot::at(0x82FC56),
+        Slot::at(0x89C974),
+        Slot::at(0x884FC4),
+        Slot::at(0x844604),
+    ),
+    (
+        Slot::at(0x82FC7A),
+        Slot::at(0x89C97C),
+        Slot::at(0x884FC8),
+        Slot::at(0x844608),
+    ),
 ];
 
 /// `marks::turn_all_shapes` (0x4BD122): for each of the settings' objects (the last
@@ -179,15 +189,15 @@ pub unsafe fn turn_all_shapes() -> Result<(), Refused> {
 }
 /// The working block a shape set is made in (`g_marksFarthestA` .. 0x885A6C, a
 /// `MarkShapes` image) and the sets it is copied to.
-pub const BLOCK_RVA: usize = rva(0x884FB4);
+pub const BLOCK_RVA: Slot = Slot::at(0x884FB4);
 pub const SET_LEN: u32 = 0xAB8;
 pub const SETS: u32 = 0x22;
-pub const SET_COUNT_RVA: usize = rva(0x884FB0); // g_marksShapeSets: how many made
-const KINDS_RVA: [usize; 2] = [rva(0x89C724), rva(0x89C728)]; // the two face kinds
-const STEPS_IN_RVA: usize = rva(0x764F60); // dword_764F60 .. flt_764F78: the set's inputs
-const BLOCK_STEPS_RVA: usize = rva(0x884FC4); // dword_884FC4 .. dword_884FE0
-const STEP_SCALES_RVA: usize = rva(0x89C984); // flt_89C984 .. flt_89C990
-const FIRST_POINT_RVA: usize = rva(0x884E5C); // dword_884E5C
+pub const SET_COUNT_RVA: Slot = Slot::at(0x884FB0); // g_marksShapeSets: how many made
+const KINDS_RVA: [Slot; 2] = [Slot::at(0x89C724), Slot::at(0x89C728)]; // the two face kinds
+const STEPS_IN_RVA: Slot = Slot::at(0x764F60); // dword_764F60 .. flt_764F78: the set's inputs
+const BLOCK_STEPS_RVA: Slot = Slot::at(0x884FC4); // dword_884FC4 .. dword_884FE0
+const STEP_SCALES_RVA: Slot = Slot::at(0x89C984); // flt_89C984 .. flt_89C990
+const FIRST_POINT_RVA: Slot = Slot::at(0x884E5C); // dword_884E5C
 const LOW_POINT: [u32; 2] = [0xA40, 0xA4C];
 
 /// What `make_shape_set` refuses for object `object`: a set count past 0x22 (or below 0),
@@ -346,8 +356,13 @@ pub unsafe fn make_shape_set(object: u32) -> Result<(), Refused> {
 
 /// The kind's two face kinds and the set's ends (`dword_89C72C`, `_7B4`, `_8C4`, `_83C` by
 /// `g_marksKind`; `flt_89C96C`, `_70`).
-const BY_KIND_RVA: [usize; 4] = [rva(0x89C72C), rva(0x89C7B4), rva(0x89C8C4), rva(0x89C83C)];
-const SET_ENDS_RVA: [usize; 2] = [rva(0x89C96C), rva(0x89C970)];
+const BY_KIND_RVA: [Slot; 4] = [
+    Slot::at(0x89C72C),
+    Slot::at(0x89C7B4),
+    Slot::at(0x89C8C4),
+    Slot::at(0x89C83C),
+];
+const SET_ENDS_RVA: [Slot; 2] = [Slot::at(0x89C96C), Slot::at(0x89C970)];
 
 /// `marks::make_shape_sets` (0x4BD019): no sets made; the two face kinds of `g_marksKind`
 /// into `dword_89C724`, `_28`; for each of the settings' objects (the last first) the set's

@@ -7,7 +7,9 @@
 //! `files::handle`'s.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, game_write, rva};
+use crate::framework::rva;
+use crate::sound::store::WheelsSlot;
+use crate::store::{game_addr, game_write};
 
 pub const PLAIN_RVA: usize = rva(0x5BEC80); // dword_5BEC80: 1 = chunks written unpacked
 pub const OPEN_RVA: usize = rva(0x5BEC88); // dword_5BEC88: the file is open
@@ -37,8 +39,8 @@ unsafe fn get(a: usize) -> u32 {
     unsafe { (game_addr(a) as *const u32).read_unaligned() }
 }
 
-unsafe fn set(a: usize, v: u32) {
-    unsafe { (game_addr(a) as *mut u32).write_unaligned(v) };
+unsafe fn set(a: impl crate::store::Where, v: u32) {
+    unsafe { (crate::store::game_addr(a) as *mut u32).write_unaligned(v) };
 }
 
 /// `race::seal_replay_header` (0x41F0A3): the replay's sealed header part (`dword_719B54`,
@@ -65,7 +67,7 @@ pub unsafe fn seal_replay_header() -> Result<(), Refused> {
         let dwords: Vec<u32> = (1..0x40).map(|n| get(SEALED_RVA + 4 * n)).collect();
         let sum = seal_checksum(&dwords);
         set(SEALED_RVA, sum);
-        set(rva(0x4F66F9), sum);
+        set(WheelsSlot::at(0x4F66F9), sum);
         let key = [get(rva(0x4E052C)), get(rva(0x4E0530))];
         set(rva(0x4E052C), SEAL_KEY[0]);
         set(rva(0x4E0530), SEAL_KEY[1]);
@@ -290,7 +292,10 @@ pub unsafe fn open_replay() -> Result<(), Refused> {
         for (k, &w) in HEADER_NAME.iter().enumerate() {
             set(HEADER_RVA + 0x10 + 4 * k, w);
         }
-        set(rva(0x719B34), get(rva(0x514F78)));
+        set(
+            rva(0x719B34),
+            crate::store::game_read::<u32>(crate::sound::store::ObjectsSlot::at(0x514F78)),
+        );
         set(rva(0x719B38), get(rva(0x75AE20)));
         set(rva(0x719B3C), get(rva(0x75AF8C)));
         set(rva(0x719C54), 6);

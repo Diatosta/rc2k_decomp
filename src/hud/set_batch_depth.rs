@@ -11,12 +11,13 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::{game_read, game_write, rva};
 use crate::hud::batch::POLYGON_RVA;
+use crate::hud::store::Slot;
+use crate::hud::store::{game_read, game_write};
 use crate::math::x87;
 
-const DEPTH_RVA: usize = rva(0x75BFE8); // flt_75BFE8
-const RHW_RVA: usize = rva(0x75BFEC); // flt_75BFEC
+const DEPTH_RVA: Slot = Slot::at(0x75BFE8); // flt_75BFE8
+const RHW_RVA: Slot = Slot::at(0x75BFEC); // flt_75BFEC
 
 /// The Rust version (see the header).
 pub unsafe fn set_batch_depth() {

@@ -15,7 +15,7 @@
 use crate::audio::mixer::*;
 use crate::audio::voices::*;
 use crate::errors::Refused;
-use crate::framework::{game_addr, game_read};
+use crate::store::{game_addr, game_read};
 
 pub unsafe fn mix_channels_in_game(bytes: u32) -> Result<(), Refused> {
     let w = World::game();

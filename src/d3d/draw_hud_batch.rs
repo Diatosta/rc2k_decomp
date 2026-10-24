@@ -11,25 +11,22 @@
 //! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
 //! `routes.rs`); the registers above are the original's, for reference.
 
-use crate::framework::rva;
+use crate::hud::store::{Slot, game_read, indices, vertices};
 
-const VERTICES_RVA: usize = rva(0x764F2C); // off_764F2C: g_hudVertices
-const INDICES_RVA: usize = rva(0x764F30); // off_764F30: g_hudIndices
-const VERTEX_COUNT_RVA: usize = rva(0x764F24); // g_hudVertexCount
-const INDEX_COUNT_RVA: usize = rva(0x764F28); // g_hudIndexCount
+const VERTEX_COUNT: Slot = Slot::at(0x764F24); // g_hudVertexCount
+const INDEX_COUNT: Slot = Slot::at(0x764F28); // g_hudIndexCount
 
 /// Draws the HUD's batch. Its leftovers (eax 0, ecx, edx) are read by none of the
 /// original's callers (register liveness, 2026-10-23).
 pub fn draw_hud_batch() {
     unsafe {
-        use crate::framework::game_read;
-        // The two pointers are the game's: in the standalone's image they were moved
-        // with it.
+        // The vertices and indices are the HUD block's (`hud::store`); the image's two
+        // pointers to them (`off_764F2C`, `off_764F30`) are no longer read.
         crate::platform_3d::draw_indexed_list(
-            game_read(VERTICES_RVA),
-            game_read(VERTEX_COUNT_RVA),
-            game_read(INDICES_RVA),
-            game_read(INDEX_COUNT_RVA),
+            vertices() as u32,
+            game_read(VERTEX_COUNT),
+            indices() as u32,
+            game_read(INDEX_COUNT),
         )
     };
 }

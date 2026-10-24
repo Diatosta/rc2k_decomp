@@ -16,10 +16,11 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
+use crate::input::store::DeviceSlot;
 use crate::physics::flow::g;
 use rc2k_core::drive::controls::device_curve;
 
-const DEVICES: usize = 0x4F6EE8; // g_inputDevices
+const DEVICES: DeviceSlot = DeviceSlot::at(0x4F6EE8); // g_inputDevices
 
 /// The Rust version: [eax, ebx, ecx, edx].
 // Converted: `rc2k_core::drive::controls::device_curve`.
@@ -33,7 +34,7 @@ pub unsafe fn device_axes(device: u32) -> Result<[u32; 4], Refused> {
     }
     let rd = |o: u32| unsafe { ((d + o) as *const u32).read_unaligned() };
     let (ecx, edx, mut eax, ebx) = (rd(0x4DC), rd(0x4E0), rd(0x4E4), rd(0x4E8));
-    if g(0x4F6900) != 0 {
+    if g(crate::input::store::DeviceSlot::at(0x4F6900)) != 0 {
         eax = device_curve(eax);
     }
     Ok([eax, ebx, ecx, edx])

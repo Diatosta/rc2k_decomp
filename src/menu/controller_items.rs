@@ -24,13 +24,15 @@
 //! first input device record; for `raise_controller_sensitivity` an edi below 0x10000.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{EAX, EBX, EDI, game_read, rva};
+use crate::framework::{EAX, EBX, EDI};
 use crate::input::request_device_release::request_device_release;
 use crate::input::request_device_setup::{DEVICES_RVA, request_device_setup};
+use crate::input::store::DeviceSlot;
 use crate::menu::player_settings::current;
 use crate::screens::harness::Left;
+use crate::store::game_read;
 
-pub const COUNT_RVA: usize = rva(0x4F78E0); // dword_4F78E0: the listed controllers
+pub const COUNT_RVA: DeviceSlot = DeviceSlot::at(0x4F78E0); // dword_4F78E0: the listed controllers
 
 fn f(p: u32, o: u32) -> u32 {
     unsafe { (p.wrapping_add(o) as *const u32).read_unaligned() }

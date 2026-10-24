@@ -43,13 +43,13 @@ use crate::framework::{game_read, game_write, rva};
 use crate::math::x87;
 use crate::scene::light_dot::{INPUTS_RVA, light_dot};
 use crate::scene::project_point::RECORDS_RVA;
+use crate::session::MACHINE;
 
 // ---- game data ----
 
 const KIND_RVA: usize = rva(0x62DAF4); // dword_62DAF4
 const LIT_A_RVA: usize = rva(0x621480); // dword_621480
 const LIT_B_RVA: usize = rva(0x60931C); // dword_60931C
-const MMX_RVA: usize = rva(0x5183A8); // g_hasMmx
 const COLOUR_RVA: usize = rva(0x62DAC4); // dword_62DAC4
 const ADDED_RVA: usize = rva(0x635068); // dword_635068
 const BASE_RVA: usize = rva(0x62DAD4); // dword_62DAD4
@@ -165,7 +165,7 @@ unsafe fn blend() {
 pub unsafe fn vertex_light(number: u32) -> Result<u32, BadInput> {
     unsafe {
         let kind: u32 = game_read(KIND_RVA);
-        let mmx = game_read::<u32>(MMX_RVA) != 0;
+        let mmx = MACHINE.has_mmx.get() != 0;
         if kind == 4 {
             // 0 plus the lit colour.
             return Ok(plus(0, lit(number, mmx)?, mmx));

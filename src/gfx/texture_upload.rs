@@ -3,7 +3,8 @@
 //! halvings apart the two are.
 
 use crate::errors::{BadInput, FatalError, Refused};
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::framework::rva;
+use crate::gfx::block::{game_addr, game_read, game_write};
 use crate::gfx::pixel_format::PixelFormat;
 use crate::gfx::read_texture_picture::read_texture_picture;
 use crate::gfx::texture_pixels::{

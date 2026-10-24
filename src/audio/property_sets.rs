@@ -3,18 +3,21 @@
 //! the first 3D buffer made (`IKsPropertySet` from its `QueryInterface`), and the EAX room.
 
 use crate::audio::com::method;
+use crate::audio::store::Slot;
 use crate::audio::voices::{EAX_RVA, VOICE_MANAGER_RVA, read, write};
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, rva};
+use crate::framework::rva;
+use crate::store::addr32 as a;
+use crate::store::game_addr;
 
-pub const IID_PROPERTY_SET_RVA: usize = rva(0x506A78); // g_iidKsPropertySet
-pub const VOICE_MANAGER_SET_RVA: usize = rva(0x506CC8); // g_voiceManagerSet
-pub const EAX_REVERB_SET_RVA: usize = rva(0x506DAC); // g_eaxReverbSet
-pub const EAX_ROOMS_RVA: usize = rva(0x506DCC); // g_eaxRooms: 10 of 0x10 bytes
-pub const IGNORE_DSV_RVA: usize = rva(0x506C50); // g_ignoreDsvSetting
-pub const IGNORE_EAX_RVA: usize = rva(0x506C6C); // g_ignoreEaxSetting
-pub const VOICE_MANAGER_ON_RVA: usize = rva(0x506C54); // g_voiceManagerOn
-pub const HAS_EAX_RVA: usize = rva(0x506C70); // g_hasEax
+pub const IID_PROPERTY_SET_RVA: Slot = Slot::at(0x506A78); // g_iidKsPropertySet
+pub const VOICE_MANAGER_SET_RVA: Slot = Slot::at(0x506CC8); // g_voiceManagerSet
+pub const EAX_REVERB_SET_RVA: Slot = Slot::at(0x506DAC); // g_eaxReverbSet
+pub const EAX_ROOMS_RVA: Slot = Slot::at(0x506DCC); // g_eaxRooms: 10 of 0x10 bytes
+pub const IGNORE_DSV_RVA: Slot = Slot::at(0x506C50); // g_ignoreDsvSetting
+pub const IGNORE_EAX_RVA: Slot = Slot::at(0x506C6C); // g_ignoreEaxSetting
+pub const VOICE_MANAGER_ON_RVA: Slot = Slot::at(0x506C54); // g_voiceManagerOn
+pub const HAS_EAX_RVA: Slot = Slot::at(0x506C70); // g_hasEax
 const USING_DSV_TEXT: usize = rva(0x4DA73E); // "AUD: Using DSV"
 const USING_EAX_TEXT: usize = rva(0x4DA7AA); // "AUD: Using EAX"
 /// `IKsPropertySet`'s `Set` and `QuerySupport`.
@@ -42,7 +45,7 @@ pub struct Opening {
     /// Set to 1 when it is there.
     pub found: u32,
     /// Which set; the text logged.
-    pub set: usize,
+    pub set: Slot,
     pub text: usize,
     /// The voice manager's mode is set; EAX's nothing.
     pub mode: bool,
@@ -50,7 +53,6 @@ pub struct Opening {
 
 impl Opening {
     pub fn voice_manager() -> Self {
-        let a = |r| game_addr(r) as u32;
         Self {
             setting: a(IGNORE_DSV_RVA),
             object: a(VOICE_MANAGER_RVA),
@@ -62,7 +64,6 @@ impl Opening {
     }
 
     pub fn eax() -> Self {
-        let a = |r| game_addr(r) as u32;
         Self {
             setting: a(IGNORE_EAX_RVA),
             object: a(EAX_RVA),

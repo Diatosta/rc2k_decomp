@@ -17,12 +17,12 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::{game_read, game_write, rva};
+use crate::marks::store::{Slot, game_read, game_write};
 use crate::math::x87;
 
-const NOW_RVA: usize = rva(0x76927A); // flt_76927A .. flt_769282
-const LAST_RVA: usize = rva(0x769296); // flt_769296 .. flt_76929E
-const STEP_RVA: usize = rva(0x7692EA); // flt_7692EA .. flt_7692F2
+const NOW_RVA: Slot = Slot::at(0x76927A); // flt_76927A .. flt_769282
+const LAST_RVA: Slot = Slot::at(0x769296); // flt_769296 .. flt_76929E
+const STEP_RVA: Slot = Slot::at(0x7692EA); // flt_7692EA .. flt_7692F2
 
 /// The Rust version (see the header).
 pub unsafe fn view_step() {

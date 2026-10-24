@@ -25,17 +25,18 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{game_addr, game_read, rva};
 use crate::hud::add_quad::QUAD_RVA;
 use crate::hud::batch::TEXTURE_RVA;
 use crate::hud::draw_markers_1::{int_over_80, taken_off};
 use crate::hud::draw_signs::row;
 use crate::hud::layout_0::*;
+use crate::hud::store::Slot;
+use crate::hud::store::{game_addr, game_read};
 
-const SCRATCH_RVA: usize = rva(0x75C060); // dword_75C060
-const UV_SCALE_RVA: usize = rva(0x75C00C); // flt_75C00C
-pub const CLOCKS_RVA: [usize; 2] = [rva(0x75C080), rva(0x75C084)];
-pub const LAP_2_RVA: usize = rva(0x75C088); // dword_75C088
+const SCRATCH_RVA: Slot = Slot::at(0x75C060); // dword_75C060
+const UV_SCALE_RVA: Slot = Slot::at(0x75C00C); // flt_75C00C
+pub const CLOCKS_RVA: [Slot; 2] = [Slot::at(0x75C080), Slot::at(0x75C084)];
+pub const LAP_2_RVA: Slot = Slot::at(0x75C088); // dword_75C088
 
 /// A sprite scaled 0xC0 over `flt_75C00C` both ways; the scales then taken off into
 /// `dword_75C060`.

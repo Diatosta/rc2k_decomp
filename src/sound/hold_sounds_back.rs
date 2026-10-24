@@ -11,8 +11,8 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::game_write;
 use crate::sound::let_sounds_play::HELD_BACK_RVA;
+use crate::store::game_write;
 
 pub fn hold_sounds_back() {
     unsafe { game_write(HELD_BACK_RVA, 1u32) };

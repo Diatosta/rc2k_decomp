@@ -22,19 +22,20 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::framework::rva;
 use crate::marks::draw_flare_part::draw_flare_part;
 use crate::marks::setup::{SETTINGS_RVA, WAVE_LEVELS_RVA};
+use crate::marks::store::{Slot, game_addr, game_read, game_write};
 use crate::math::x87;
 
 const CENTRE_RVA: [usize; 2] = [rva(0x62409C), rva(0x6240A0)];
-const WAY_RVA: [usize; 2] = [rva(0x91FFDA), rva(0x91FFDE)]; // flt_91FFDA, flt_91FFDE
-const UNIT_RVA: usize = rva(0x92051E); // flt_92051E .. flt_920526
-const LENGTH_RVA: usize = rva(0x91FFD6); // flt_91FFD6
-const FADE: [usize; 2] = [rva(0x9206D2), rva(0x9206D6)]; // flt_9206D2, flt_9206D6
-const SIZE_K_RVA: usize = rva(0x9206DA); // flt_9206DA
-const CORNER_RVA: usize = rva(0x92052A); // dword_92052A: 0x11
-const SIZE_RVA: usize = rva(0x9205B2); // dword_9205B2: 0x11
+const WAY_RVA: [Slot; 2] = [Slot::at(0x91FFDA), Slot::at(0x91FFDE)]; // flt_91FFDA, flt_91FFDE
+const UNIT_RVA: Slot = Slot::at(0x92051E); // flt_92051E .. flt_920526
+const LENGTH_RVA: Slot = Slot::at(0x91FFD6); // flt_91FFD6
+const FADE: [Slot; 2] = [Slot::at(0x9206D2), Slot::at(0x9206D6)]; // flt_9206D2, flt_9206D6
+const SIZE_K_RVA: Slot = Slot::at(0x9206DA); // flt_9206DA
+const CORNER_RVA: Slot = Slot::at(0x92052A); // dword_92052A: 0x11
+const SIZE_RVA: Slot = Slot::at(0x9205B2); // dword_9205B2: 0x11
 const PARTS: u32 = 0x11;
 
 unsafe fn get(a: u32) -> u32 {

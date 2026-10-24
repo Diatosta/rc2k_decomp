@@ -11,15 +11,12 @@
 //! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{game_read, rva};
 
-/// dword_6218F0: the race's sounds on.
-const ON: usize = 0x6218F0;
 // ---- Rust version ----
 
 /// `sound::race_turn` while the race's sounds are on: true when it ran.
 pub fn race_turn_if() -> Result<bool, Refused> {
-    if unsafe { game_read::<u32>(rva(ON)) } == 0 {
+    if crate::sound::store::RACE_SOUNDS_ON.get() == 0 {
         return Ok(false);
     }
     crate::sound::race_turn::race_turn()?;

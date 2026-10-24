@@ -21,10 +21,11 @@
 use crate::errors::Refused;
 use crate::framework::rva;
 use crate::hud::draw_stage_bar::*;
+use crate::hud::store::Slot;
 
 const KINDS_2_RVA: usize = rva(0x6D170C); // dword_6D170C: 0x40
-const COLOUR_A_RVA: usize = rva(0x75BFA4); // dword_75BFA4
-const COLOUR_B_RVA: usize = rva(0x75BFA8); // dword_75BFA8
+const COLOUR_A_RVA: Slot = Slot::at(0x75BFA4); // dword_75BFA4
+const COLOUR_B_RVA: Slot = Slot::at(0x75BFA8); // dword_75BFA8
 
 /// The two players' bars `dy` lower (see the header).
 pub unsafe fn bars_with(record: u32, dy: u32) -> Result<(), Refused> {

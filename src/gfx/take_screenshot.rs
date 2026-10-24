@@ -13,11 +13,10 @@
 //! called directly (2026-10-23).
 
 use crate::errors::Refused;
-use crate::race::viewer::{get, put};
 
-const SCREENSHOTS_ON: usize = 0x4F52B4; // g_screenshotsOn
-const LOCKED: usize = 0x4F3870; // g_surfaceLocked
-const LOCKED_HERE: usize = 0x4F52B8; // dword_4F52B8
+const LOCKED: LockSlot = LockSlot::at(0x4F3870); // g_surfaceLocked
+use crate::gfx::locked::Slot as LockSlot;
+use crate::gfx::shots::{LOCKED_HERE, on};
 
 /// The parts: the game's memory, the platform's lock and unlock, the writer.
 struct Shot;
@@ -25,16 +24,16 @@ struct Shot;
 impl rc2k_core::gfx::screenshot::Shooting for Shot {
     type Error = Refused;
     fn screenshots_on(&mut self) -> u32 {
-        get(SCREENSHOTS_ON)
+        on()
     }
     fn surface_locked(&mut self) -> u32 {
-        get(LOCKED)
+        unsafe { crate::gfx::block::game_read(LOCKED) }
     }
     fn locked_here(&mut self) -> u32 {
-        get(LOCKED_HERE)
+        unsafe { crate::gfx::block::game_read(LOCKED_HERE) }
     }
     fn set_locked_here(&mut self, value: u32) {
-        put(LOCKED_HERE, value);
+        unsafe { crate::gfx::block::game_write(LOCKED_HERE, value) };
     }
     fn lock(&mut self) -> Result<bool, Refused> {
         // `cmp g_surfaceLocked, 1`'s carry: not locked.

@@ -30,19 +30,21 @@
 //! and the self-test was the hook's.
 
 use crate::errors::BadInput;
-use crate::framework::{game_read, game_write, rva};
+use crate::gfx::block::{game_read, game_write};
 use crate::gfx::picture::PICTURE_DWORDS;
 use crate::gfx::png::PngInfo;
+use crate::gfx::png_file::Slot as PngSlot;
+use crate::gfx::png_header::Slot as PngHdrSlot;
 
 // ---- game data ----
 
-const WIDTH_RVA: usize = rva(0xA8C190); // dword_A8C190
-const HEIGHT_RVA: usize = rva(0xA8C194); // dword_A8C194
-const COMPRESSION_RVA: usize = rva(0xA8C19A); // byte_A8C19A: the header's byte after the colour type
-const COLOUR_TYPE_RVA: usize = rva(0xA8C1A0); // dword_A8C1A0
+const WIDTH_RVA: PngHdrSlot = PngHdrSlot::at(0xA8C190); // dword_A8C190
+const HEIGHT_RVA: PngHdrSlot = PngHdrSlot::at(0xA8C194); // dword_A8C194
+const COMPRESSION_RVA: PngHdrSlot = PngHdrSlot::at(0xA8C19A); // byte_A8C19A: the header's byte after the colour type
+const COLOUR_TYPE_RVA: PngHdrSlot = PngHdrSlot::at(0xA8C1A0); // dword_A8C1A0
 /// dword_5BEC30, dword_5BEC34: the file `read_png` holds in memory, and its length.
-pub const FILE_RVA: usize = rva(0x5BEC30);
-pub const FILE_LEN_RVA: usize = rva(0x5BEC34);
+pub const FILE_RVA: PngSlot = PngSlot::at(0x5BEC30);
+pub const FILE_LEN_RVA: PngSlot = PngSlot::at(0x5BEC34);
 
 // ---- Rust version ----
 // Converted: `rc2k_core::gfx::png`. Here the game's variables for the header, the pixel area

@@ -14,12 +14,13 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::{game_addr, rva};
+use crate::sound::store::EffectsSlot;
+use crate::store::game_addr;
 
 // ---- game data ----
 
-const CD_OPEN_RVA: usize = rva(0x518108); // dword_518108: the CD audio is open
-const MCI_ID_RVA: usize = rva(0x518118); // mciId
+const CD_OPEN_RVA: EffectsSlot = EffectsSlot::at(0x518108); // dword_518108: the CD audio is open
+const MCI_ID_RVA: EffectsSlot = EffectsSlot::at(0x518118); // mciId
 const MCI_STOP: u32 = 0x808;
 
 /// `mciSendCommandA(device, message, parameter 1, parameter 2)`.

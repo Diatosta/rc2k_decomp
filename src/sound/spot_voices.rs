@@ -10,26 +10,30 @@
 //! +0x3C the volume (floats), +0x40 the distance, +0x44 its change, +0x48 and +0x4C the
 //! pitch and volume factors.
 
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::framework::rva;
+use crate::session::MACHINE;
+use crate::sound::store::EffectsSlot;
+use crate::sound::store::StageSlot;
+use crate::store::{game_addr, game_read, game_write};
 
 /// unk_5168C0.
 pub const VOICES: usize = 0x5168C0;
 pub const VOICE_LEN: u32 = 0x50;
 pub const VOICE_COUNT: u32 = 0x48;
 /// g_sharedSoundSpots, g_sharedSoundSpotCount.
-pub const SPOTS: usize = 0x5165F0;
-pub const SPOT_COUNT: usize = 0x5165EC;
+pub const SPOTS: StageSlot = StageSlot::at(0x5165F0);
+pub const SPOT_COUNT: StageSlot = StageSlot::at(0x5165EC);
 pub const SPOT_LEN: u32 = 0x14;
 pub const MOST_SPOTS: u32 = 36;
 /// dword_517F54: a kind's sound, 22 of them.
-pub const SOUND_OF_KIND: usize = 0x517F54;
+pub const SOUND_OF_KIND: EffectsSlot = EffectsSlot::at(0x517F54);
 /// unk_517FAC: a kind's repeats (8 bytes, kind 1 first: +2 the most, +4 and +6 the
 /// least and most delay, words).
-pub const REPEATS: usize = 0x517FAC;
+pub const REPEATS: EffectsSlot = EffectsSlot::at(0x517FAC);
 pub const MOST_KIND: u32 = 0x15;
 /// dword_517F40 .. dword_517F50: the work of the two pickers (the playing one, the
 /// nearest's distance and voice, the next's distance and voice).
-pub const WORK: usize = 0x517F40;
+pub const WORK: EffectsSlot = EffectsSlot::at(0x517F40);
 
 /// The address of voice `n`.
 pub fn voice(n: u32) -> u32 {
@@ -45,12 +49,12 @@ pub fn set(v: u32, at: u32, value: u32) {
     unsafe { ((v + at) as *mut u32).write_unaligned(value) }
 }
 
-pub fn g(x: usize) -> u32 {
-    unsafe { game_read(rva(x)) }
+pub fn g(x: impl crate::store::Ida) -> u32 {
+    unsafe { crate::store::ida_read(x) }
 }
 
-pub fn p(x: usize, v: u32) {
-    unsafe { game_write(rva(x), v) }
+pub fn p(x: impl crate::store::Ida, v: u32) {
+    unsafe { crate::store::ida_write(x, v) }
 }
 
 /// The voices as the core's (`rc2k_core::sound::spot_voices`).
@@ -82,6 +86,6 @@ pub fn store_picks(
     p(WORK + 12, picks.next_distance);
     p(WORK + 16, voice_or_0(picks.next));
     if let Some(d) = trail.last_distance {
-        p(crate::sound::turn_parts::SCRATCH, d);
+        MACHINE.scratch.set(d);
     }
 }

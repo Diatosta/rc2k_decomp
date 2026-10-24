@@ -23,8 +23,9 @@
 //! `routes.rs`); the registers above are the original's, for reference.
 
 use crate::errors::BadInput;
-use crate::framework::{game_addr, rva};
+use crate::framework::rva;
 use crate::sound::queue::START_3;
+use crate::store::game_addr;
 
 // ---- game data ----
 
@@ -59,9 +60,8 @@ pub struct Places {
     pub samples: usize,
 }
 
-const PLACES: [usize; 7] = [
-    0x514F70, 0x514F74, 0x514F78, 0x514F7C, 0x75B108, 0x512A10, 0x50A7A4,
-];
+/// The places in the image (the sample records, the audio's, are `SAMPLES_RVA`).
+const PLACES: [usize; 1] = [0x75B108];
 
 impl Places {
     fn from(addresses: [usize; 7]) -> Self {
@@ -78,7 +78,17 @@ impl Places {
     }
 
     pub fn game() -> Self {
-        Self::from(PLACES.map(|at| game_addr(rva(at))))
+        use crate::sound::store::{OBJECT_TABLE, ObjectsSlot};
+        let [replay] = PLACES.map(|at| game_addr(rva(at)));
+        Self::from([
+            ObjectsSlot::at(0x514F70).address(),
+            ObjectsSlot::at(0x514F74).address(),
+            ObjectsSlot::at(0x514F78).address(),
+            ObjectsSlot::at(0x514F7C).address(),
+            replay,
+            OBJECT_TABLE.address(),
+            game_addr(crate::audio::voices::SAMPLES_RVA),
+        ])
     }
 }
 

@@ -24,19 +24,20 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::hud::add_quad::QUAD_RVA;
 use crate::hud::batch::TEXTURE_RVA;
 use crate::hud::draw_marker::RECTS_RVA;
 use crate::hud::draw_signs::row;
+use crate::hud::store::Slot;
+use crate::hud::store::{game_addr, game_read, game_write};
 use rc2k_core::hud::panels;
 
-pub const TIMES_RVA: [usize; 3] = [rva(0x75C074), rva(0x75C078), rva(0x75C07C)];
-pub const DIGITS_RVA: usize = rva(0x75C08C); // dword_75C08C .. dword_75C0A0: six
-pub const SIGN_RVA: usize = rva(0x75C0A4); // dword_75C0A4
-pub const PICK_RVA: usize = rva(0x75C040); // dword_75C040
-pub const NEEDLE_KIND_RVA: usize = rva(0x75BFAC); // dword_75BFAC
-pub const LEADING_RVA: usize = rva(0x75C03C); // dword_75C03C
+pub const TIMES_RVA: [Slot; 3] = [Slot::at(0x75C074), Slot::at(0x75C078), Slot::at(0x75C07C)];
+pub const DIGITS_RVA: Slot = Slot::at(0x75C08C); // dword_75C08C .. dword_75C0A0: six
+pub const SIGN_RVA: Slot = Slot::at(0x75C0A4); // dword_75C0A4
+pub const PICK_RVA: Slot = Slot::at(0x75C040); // dword_75C040
+pub const NEEDLE_KIND_RVA: Slot = Slot::at(0x75BFAC); // dword_75BFAC
+pub const LEADING_RVA: Slot = Slot::at(0x75C03C); // dword_75C03C
 
 /// A time made digits (`dword_75C08C` ..: `rc2k_core::hud::panels::time_digits`), each
 /// plus `base`.
@@ -61,7 +62,7 @@ pub fn sign(value: u32, plus: u32, minus: u32) -> u32 {
     s
 }
 
-pub fn set(r: usize, v: u32) {
+pub fn set(r: Slot, v: u32) {
     unsafe { game_write(r, v) };
 }
 

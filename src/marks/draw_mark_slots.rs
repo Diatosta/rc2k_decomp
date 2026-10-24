@@ -31,8 +31,9 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::framework::rva;
 use crate::marks::setup::{SETTINGS_RVA, SLOT_LEN, SLOTS_RVA};
+use crate::marks::store::{Slot, game_addr, game_read, game_write};
 use crate::math::x87;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
@@ -41,22 +42,27 @@ use crate::scene::rotate_point::rotate_point;
 const DRAWN: u32 = 0x20;
 const PLACE_RVA: usize = rva(0x5EA3CC); // flt_5EA3CC: add_mark_slot's esi
 const TEXTURE_RVA: usize = rva(0x5D1E10); // dword_5D1E10
-const TICKS_RVA: usize = rva(0x764FD0); // g_marksFrameTicks
-const POINTS_RVA: usize = rva(0x769312); // flt_769312: 12 bytes each
-const WORK_RVA: usize = rva(0x9352F4); // dword_9352F4 .. dword_9352FC
+const TICKS_RVA: Slot = Slot::at(0x764FD0); // g_marksFrameTicks
+const POINTS_RVA: Slot = Slot::at(0x769312); // flt_769312: 12 bytes each
+const WORK_RVA: Slot = Slot::at(0x9352F4); // dword_9352F4 .. dword_9352FC
 /// flt_9353EE, flt_9353F2, flt_9353F6, flt_9353FA.
-const PLACE_K: [usize; 4] = [rva(0x9353EE), rva(0x9353F2), rva(0x9353F6), rva(0x9353FA)];
+const PLACE_K: [Slot; 4] = [
+    Slot::at(0x9353EE),
+    Slot::at(0x9353F2),
+    Slot::at(0x9353F6),
+    Slot::at(0x9353FA),
+];
 const VIEW_RVA: usize = rva(0x5EA2CC); // g_viewMatrix
-const RANDOM_RVA: usize = rva(0x9353FE); // dword_9353FE
-const CORNERS_RVA: usize = rva(0x8EB971); // g_marksCorners
-const UV_K_RVA: usize = rva(0x8EB969); // flt_8EB969
+const RANDOM_RVA: Slot = Slot::at(0x9353FE); // dword_9353FE
+const CORNERS_RVA: Slot = Slot::at(0x8EB971); // g_marksCorners
+const UV_K_RVA: Slot = Slot::at(0x8EB969); // flt_8EB969
 const NEAR_RVA: usize = rva(0x5C5E18); // flt_5C5E18
 const FOCAL_RVA: usize = rva(0x624088); // flt_624088
 const CENTRE_RVA: [usize; 2] = [rva(0x62409C), rva(0x6240A0)];
-const SIZE_K_RVA: usize = rva(0x934F8C); // flt_934F8C: slot 0's +0x10
-const HALF_RVA: usize = rva(0x9353A6); // flt_9353A6
-const Z_K_RVA: usize = rva(0x8EB96D); // flt_8EB96D
-const RHW_K_RVA: usize = rva(0x935402); // flt_935402
+const SIZE_K_RVA: Slot = Slot::at(0x934F8C); // flt_934F8C: slot 0's +0x10
+const HALF_RVA: Slot = Slot::at(0x9353A6); // flt_9353A6
+const Z_K_RVA: Slot = Slot::at(0x8EB96D); // flt_8EB96D
+const RHW_K_RVA: Slot = Slot::at(0x935402); // flt_935402
 const VERTICES_RVA: usize = rva(0x9605A0); // g_polygonVertices: TLVertex[4]
 /// Each vertex's texture place: the corner entry's word offsets (u, v).
 const UV_WORDS: [(u32, u32); 4] = [(0xC, 0xE), (8, 0xA), (0, 2), (4, 6)];

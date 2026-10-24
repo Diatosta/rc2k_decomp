@@ -30,38 +30,39 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::framework::rva;
 use crate::marks::setup::SETTINGS_RVA;
+use crate::marks::store::{Slot, game_addr, game_read, game_write};
 use crate::math::x87;
 
-const KEPT_RVA: usize = rva(0x8DB4C4); // dword_8DB4C4
-const FLAKES_RVA: usize = rva(0x8D21A4); // dword_8D21A4
-const NONE_RVA: usize = rva(0x8D215C); // dword_8D215C
+const KEPT_RVA: Slot = Slot::at(0x8DB4C4); // dword_8DB4C4
+const FLAKES_RVA: Slot = Slot::at(0x8D21A4); // dword_8D21A4
+const NONE_RVA: Slot = Slot::at(0x8D215C); // dword_8D215C
 const MOST: i32 = 0x800;
-const COPIES_A: usize = rva(0x8D216C); // dword_8D216C .. : the settings' +0x28 ..
-const COPIES_B: usize = rva(0x8D2160); // dword_8D2160 .. : the settings' +0x1C ..
+const COPIES_A: Slot = Slot::at(0x8D216C); // dword_8D216C .. : the settings' +0x28 ..
+const COPIES_B: Slot = Slot::at(0x8D2160); // dword_8D2160 .. : the settings' +0x1C ..
 const TEXTURE_RVA: usize = rva(0x5D1E10); // dword_5D1E10
 const VERTICES_RVA: usize = rva(0x9605A0); // g_polygonVertices
 const VERTEX_COUNT_RVA: usize = rva(0x6240F8); // g_polygonVertexCount
-const RHW_RVA: usize = rva(0x8DB524); // dword_8DB524
+const RHW_RVA: Slot = Slot::at(0x8DB524); // dword_8DB524
 const LIGHT_RVA: usize = rva(0x6415E4); // g_viewLight
-const UV_RVA: usize = rva(0x8DB528); // dword_8DB528 .. dword_8DB534
+const UV_RVA: Slot = Slot::at(0x8DB528); // dword_8DB528 .. dword_8DB534
 const DEPTH_OF_RVA: usize = rva(0x6241C8); // flt_6241C8
-const INVERSES: [usize; 5] = [
-    rva(0x8D2110),
-    rva(0x8D2114),
-    rva(0x8D2118),
-    rva(0x8D211C),
-    rva(0x8D21F8),
+const INVERSES: [Slot; 5] = [
+    Slot::at(0x8D2110),
+    Slot::at(0x8D2114),
+    Slot::at(0x8D2118),
+    Slot::at(0x8D211C),
+    Slot::at(0x8D21F8),
 ];
 const CLOCK_RVA: usize = rva(0x613830); // g_sceneClock
-const LAST_CLOCK_RVA: usize = rva(0x8D2150); // dword_8D2150
-const FALL_RVA: usize = rva(0x8D2194); // dword_8D2194
-const FALL_K_RVA: usize = rva(0x8DB538); // flt_8DB538
-const TURN_RVA: usize = rva(0x8D2220); // dword_8D2220 .. dword_8D2240
-const WIDE_RVA: usize = rva(0x8D2030); // xmmword_8D2030 .. xmmword_8D20B0
+const LAST_CLOCK_RVA: Slot = Slot::at(0x8D2150); // dword_8D2150
+const FALL_RVA: Slot = Slot::at(0x8D2194); // dword_8D2194
+const FALL_K_RVA: Slot = Slot::at(0x8DB538); // flt_8DB538
+const TURN_RVA: Slot = Slot::at(0x8D2220); // dword_8D2220 .. dword_8D2240
+const WIDE_RVA: Slot = Slot::at(0x8D2030); // xmmword_8D2030 .. xmmword_8D20B0
 const FOCAL_RVA: usize = rva(0x624088); // flt_624088
-const WIDE_FOCAL_RVA: usize = rva(0x8D20F0); // xmmword_8D20F0
+const WIDE_FOCAL_RVA: Slot = Slot::at(0x8D20F0); // xmmword_8D20F0
 /// The render states set (value, state).
 const STATES: [(u32, u32); 5] = [(4, 0x15), (5, 0x13), (6, 0x14), (0, 0x1C), (1, 0x1B)];
 
@@ -73,9 +74,9 @@ unsafe fn get(a: u32) -> u32 {
 unsafe fn turn_light(b: u32) {
     unsafe {
         core::arch::asm!(
-            "fld dword ptr [{b} + 0x4DB50C]",
-            "fld dword ptr [{b} + 0x4DB510]",
-            "fld dword ptr [{b} + 0x4DB514]",
+            "fld dword ptr [{mk} + 0x1765CC]",
+            "fld dword ptr [{mk} + 0x1765D0]",
+            "fld dword ptr [{mk} + 0x1765D4]",
             "fld dword ptr [{b} + 0x1EA3CC]",
             ".byte 0xD8, 0xC9",
             "fld dword ptr [{b} + 0x1EA3DC]",
@@ -136,12 +137,12 @@ unsafe fn turn_light(b: u32) {
             ".byte 0xDE, 0xC1",
             "fadd dword ptr [{b} + 0x1EA304]",
             ".byte 0xD9, 0xCA",
-            "fstp dword ptr [{b} + 0x4DB430]",
-            "fstp dword ptr [{b} + 0x4DB434]",
-            "fstp dword ptr [{b} + 0x4DB438]",
-            "fld dword ptr [{b} + 0x4DB518]",
-            "fld dword ptr [{b} + 0x4DB51C]",
-            "fld dword ptr [{b} + 0x4DB520]",
+            "fstp dword ptr [{mk} + 0x1764F0]",
+            "fstp dword ptr [{mk} + 0x1764F4]",
+            "fstp dword ptr [{mk} + 0x1764F8]",
+            "fld dword ptr [{mk} + 0x1765D8]",
+            "fld dword ptr [{mk} + 0x1765DC]",
+            "fld dword ptr [{mk} + 0x1765E0]",
             "fld dword ptr [{b} + 0x1EA3CC]",
             ".byte 0xD8, 0xC9",
             "fld dword ptr [{b} + 0x1EA3DC]",
@@ -196,10 +197,11 @@ unsafe fn turn_light(b: u32) {
             ".byte 0xDE, 0xC1",
             ".byte 0xDE, 0xC1",
             ".byte 0xD9, 0xCA",
-            "fstp dword ptr [{b} + 0x4DB43C]",
-            "fstp dword ptr [{b} + 0x4DB440]",
-            "fstp dword ptr [{b} + 0x4DB444]",
+            "fstp dword ptr [{mk} + 0x1764FC]",
+            "fstp dword ptr [{mk} + 0x176500]",
+            "fstp dword ptr [{mk} + 0x176504]",
             b = in(reg) b,
+            mk = in(reg) crate::marks::store::base(),
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
             options(nostack),

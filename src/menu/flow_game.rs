@@ -48,6 +48,8 @@ enum Place {
     Player(u32, u32),
     /// The found record's field.
     Record(u32),
+    /// `g_quitting` (the session's).
+    Quitting,
 }
 
 fn place(v: Var) -> Place {
@@ -98,7 +100,7 @@ fn place(v: Var) -> Place {
         Var::ReviewKind => At(champ::REVIEW_KIND),
         Var::Record(offset) => Place::Record(offset),
         Var::SpeechChannel => At(SPEECH_CHANNEL),
-        Var::Quitting => At(QUITTING),
+        Var::Quitting => Place::Quitting,
     }
 }
 
@@ -131,6 +133,7 @@ impl flow::Game for Game {
             Place::At(a) => get(a),
             Place::Player(n, offset) => dword(player(n) + offset),
             Place::Record(offset) => dword(self.f.record + offset),
+            Place::Quitting => crate::session::FLAGS.quitting.get(),
         }
     }
 
@@ -142,6 +145,7 @@ impl flow::Game for Game {
                 put(self.f.record + offset, value);
             }
             Place::Record(offset) => put(self.f.record + offset, value),
+            Place::Quitting => crate::session::FLAGS.quitting.set(value),
         }
     }
 

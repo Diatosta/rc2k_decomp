@@ -38,25 +38,27 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::framework::rva;
+use crate::input::store::DeviceSlot;
 use crate::math::x87::x87;
+use crate::session::MACHINE;
+use crate::store::{game_addr, game_write};
 use rc2k_core::race::tyre_change::{Gauge, Io, turn};
 
-const DEVICES: usize = 0x4F6EE8; // g_inputDevices
+const DEVICES: DeviceSlot = DeviceSlot::at(0x4F6EE8); // g_inputDevices
 const PLAYER: usize = 0x5BEBEC; // dword_5BEBEC
 const RECORD: usize = 0x5BEC28; // g_tyreChangeRecord
 const RECORD_NAME: usize = 0x5BEC08; // g_tyreChangeRecordName (30 bytes)
 const NAMES: [usize; 2] = [0x755784, 0x7557A4]; // g_playerNames, byte_7557A4
 const DEVELOPER: usize = 0x529D94; // g_developerMachine
-const SCRATCH: usize = 0x5183CC; // g_soundScratch
 /// flt_5BEAC0, flt_5BEAC4, flt_5BEAC8, flt_5BEACC, flt_5C2C60.
 const FLOATS: [usize; 5] = [0x5BEAC0, 0x5BEAC4, 0x5BEAC8, 0x5BEACC, 0x5C2C60];
 const GAUGE: u32 = 0x4EC;
 const STAGE: u32 = 0x4F0;
 const CLOCK: u32 = 0x4F4;
 
-fn g(x: usize) -> u32 {
-    unsafe { game_read(rva(x)) }
+fn g(x: impl crate::store::Ida) -> u32 {
+    unsafe { crate::store::ida_read(x) }
 }
 
 fn p(x: usize, v: u32) {
@@ -179,6 +181,6 @@ pub fn tyre_change_gauge(start: bool, player: u32) -> Result<u32, Refused> {
     if gauge != before {
         io.store(&gauge);
     }
-    p(SCRATCH, result);
+    MACHINE.scratch.set(result);
     Ok(result)
 }

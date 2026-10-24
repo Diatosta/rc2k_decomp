@@ -12,18 +12,19 @@
 //! are 0 now.
 
 use crate::errors::Refused;
-use crate::framework::{game_addr, rva};
+use crate::framework::rva;
+use crate::sound::store::ClockSlot;
+use crate::sound::store::ObjectsSlot;
+use crate::store::game_addr;
 
 /// unk_5124BC: the request the turn's sounds go with.
 pub const REQUEST: usize = 0x5124BC;
 /// dword_5124E8: the time of the sounds' last turn (`sound/race_clock.rs`).
-pub const CLOCK: usize = 0x5124E8;
+pub const CLOCK: ClockSlot = ClockSlot::at(0x5124E8);
 /// g_raceSoundObjects: eight pointers.
-pub const OBJECTS: usize = 0x512A10;
+pub const OBJECTS: ObjectsSlot = ObjectsSlot::at(0x512A10);
 /// dword_514F7C: the sound objects in use.
-pub const COUNT: usize = 0x514F7C;
-/// dword_5183CC: the scratch dword the x87 code goes through.
-pub const SCRATCH: usize = 0x5183CC;
+pub const COUNT: ObjectsSlot = ObjectsSlot::at(0x514F7C);
 
 /// The request's address.
 pub fn request() -> u32 {

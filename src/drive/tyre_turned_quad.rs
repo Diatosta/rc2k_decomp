@@ -18,7 +18,8 @@
 
 use crate::drive::tyre_parts::*;
 use crate::errors::Refused;
-use crate::physics::flow::{a, base, p, x87_run};
+use crate::physics::flow::{a, base, x87_run};
+use crate::session::MACHINE;
 
 /// The Rust version: the texture rectangle at `uv` (eax), the screen rectangle at `rect`
 /// (ebx), the colour `colour` (ecx), the input device `device` (esi; its +0x4EC turns
@@ -29,11 +30,11 @@ pub unsafe fn tyre_turned_quad(
     colour: u32,
     device: u32,
 ) -> Result<(), Refused> {
-    p(0x5183CC, 0x40C9_0FDB);
+    MACHINE.scratch.set(0x40C9_0FDB);
     x87_run!(
         "fild dword ptr [{e} + 0x4EC]",
         "fmul dword ptr [{b} + 0x1BEAC8]",
-        "fmul dword ptr [{b} + 0x1183CC]",
+        "fmul dword ptr [{t}]",
         ".byte 0xD9, 0xFB", // fsincos
         "fstp dword ptr [{b} + 0x1BEBF4]",
         "fstp dword ptr [{b} + 0x1BEBF0]",
@@ -76,7 +77,7 @@ pub unsafe fn tyre_turned_quad(
         "fst dword ptr [{v} + 0x64]",
         "fadd dword ptr [{b} + 0x1BEBFC]",
         "fstp dword ptr [{v} + 0x24]";
-        b = base(), e = device, d = rect, v = a(VERTS)
+        b = base(), e = device, d = rect, v = a(VERTS), t = crate::session::MACHINE.scratch.addr()
     );
     quad_words(colour);
     quad_tail(uv);

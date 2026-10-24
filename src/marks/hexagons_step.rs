@@ -14,10 +14,10 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::{game_read, game_write, rva};
 use crate::marks::expire_hexagons::{LATEST_RVA, STEPS_RVA, expire_hexagons};
+use crate::marks::store::{Slot, game_read, game_write};
 
-const CLOCK_RVA: usize = rva(0x814714); // dword_814714
+const CLOCK_RVA: Slot = Slot::at(0x814714); // dword_814714
 
 /// The Rust version (see the header).
 // Converted: `rc2k_core::marks::steps::steps`

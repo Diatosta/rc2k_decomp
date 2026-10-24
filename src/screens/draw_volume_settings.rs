@@ -15,11 +15,13 @@
 //! original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{game_read, rva};
+use crate::framework::rva;
+use crate::sound::store::EffectsSlot;
+use crate::store::game_read;
 use crate::text::draw_text::Canvas;
 
 const VOLUMES_RVA: usize = rva(0x755684); // g_masterVolumeShown, then dword_755688 .. dword_7556A0
-const NAME_SWITCH_RVA: usize = rva(0x5180F4); // dword_5180F4
+const NAME_SWITCH_RVA: EffectsSlot = EffectsSlot::at(0x5180F4); // dword_5180F4
 
 pub unsafe fn draw_volume_settings(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     // Converted: `rc2k_core::screens::settings_pages::volume`.

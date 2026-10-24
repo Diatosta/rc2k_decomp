@@ -1,17 +1,24 @@
 //! Small float steps of `make_masks`' tree (IDA, 2026-10-17): the 2 x 2 turn a line gives,
 //! three rows scaled to set lengths, and two cosine-eased steps.
 
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::framework::rva;
+use crate::marks::store::{Slot, game_addr, game_read, game_write};
 use crate::math::x87;
 use crate::math::x87::x87;
 
 /// The 2 x 2 turn: `flt_82E396`, `flt_82E39A`, `flt_82E3A2`, `flt_82E3A6`.
-pub const TURN_RVA: [usize; 4] = [rva(0x82E396), rva(0x82E39A), rva(0x82E3A2), rva(0x82E3A6)];
+pub const TURN_RVA: [Slot; 4] = [
+    Slot::at(0x82E396),
+    Slot::at(0x82E39A),
+    Slot::at(0x82E3A2),
+    Slot::at(0x82E3A6),
+];
 /// The three rows' lengths for `scale_rows3`.
-const LENGTHS_RVA: usize = rva(0x89CA24); // flt_89CA24 .. flt_89CA2C
-const EASE_RVA: usize = rva(0x89C9C0); // flt_89C9C0
-const STEPS_RVA: [usize; 2] = [rva(0x89C9C4), rva(0x89C9C8)]; // dword_89C9C4, dword_89C9C8
-const SCRATCH_RVA: [usize; 2] = [rva(0x764F40), rva(0x71C880)]; // dword_764F40, dword_71C880
+const LENGTHS_RVA: Slot = Slot::at(0x89CA24); // flt_89CA24 .. flt_89CA2C
+const EASE_RVA: Slot = Slot::at(0x89C9C0); // flt_89C9C0
+const STEPS_RVA: [Slot; 2] = [Slot::at(0x89C9C4), Slot::at(0x89C9C8)]; // dword_89C9C4, dword_89C9C8
+const SCRATCH_RVA: Slot = Slot::at(0x764F40); // dword_764F40
+const SCRATCH_2_RVA: usize = rva(0x71C880); // dword_71C880
 
 unsafe fn get(at: u32) -> u32 {
     unsafe { (at as *const u32).read_unaligned() }
@@ -54,9 +61,8 @@ pub unsafe fn scale_rows3(rows: u32) {
 /// `dword_764F40` and `dword_71C880` left holding a.
 pub unsafe fn smooth_steps(n: u32, a: u32, b: u32) -> (u32, u32) {
     unsafe {
-        for r in SCRATCH_RVA {
-            game_write(r, a);
-        }
+        game_write(SCRATCH_RVA, a);
+        game_write(SCRATCH_2_RVA, a);
     }
     smooth_pair(n, a, b)
 }
@@ -93,7 +99,7 @@ pub unsafe fn turn_pair(inputs: [[u8; 10]; 2]) -> [[u8; 10]; 2] {
 
 /// `clamp_pair`'s four scales: `flt_89C9FC`, `flt_89CA00` (in), `flt_89CA04`, `flt_89CA08`
 /// (out).
-pub const PAIR_SCALES_RVA: usize = rva(0x89C9FC);
+pub const PAIR_SCALES_RVA: Slot = Slot::at(0x89C9FC);
 
 /// `fld tbyte; fmul; fistp` for st(0) then st(1): their whole-number scalings.
 fn scaled_ints(inputs: &[[u8; 10]; 2], k: *const u32) -> (i32, i32) {

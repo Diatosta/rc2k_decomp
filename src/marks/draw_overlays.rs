@@ -21,9 +21,9 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::game_read;
 use crate::marks::draw_shadow::{SECOND, draw_shadow_with};
 use crate::marks::setup::SETTINGS_RVA;
+use crate::marks::store::game_read;
 
 const STATES: [(u32, u32); 5] = [(4, 0x15), (5, 0x13), (6, 0x14), (1, 0x1C), (1, 0x1B)];
 

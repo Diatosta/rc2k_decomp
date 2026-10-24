@@ -4,23 +4,24 @@
 //! of 0x400 a row (`dword_8445D2`).
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::framework::rva;
 use crate::marks::setup::SEED_RVA;
+use crate::marks::store::{Slot, game_addr, game_read, game_write};
 use crate::marks::turns::{TURN_RVA, scale_rows3, set_line_turn, turn_pair};
 use crate::math::x87;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::vector3::STATUS_RVA;
 
-pub const PIXEL_RVA: usize = rva(0x833DB2); // g_marksPixel: x, then y (dword_833DB6)
-pub const WORK_RVA: usize = rva(0x82E3D2); // dword_82E3D2, dword_82E3D6: the pixel worked on
-const SLOPE_RVA: usize = rva(0x82E3C6); // flt_82E3C6, flt_82E3CA
-const ENDS_RVA: usize = rva(0x82E40A); // flt_82E40A .. flt_82E41A: the line's ends turned
-const LINES_RVA: usize = rva(0x82E3DA); // g_marksLines: 0x3DA, 0x3DE .. 0x3FE, 0x402
+pub const PIXEL_RVA: Slot = Slot::at(0x833DB2); // g_marksPixel: x, then y (dword_833DB6)
+pub const WORK_RVA: Slot = Slot::at(0x82E3D2); // dword_82E3D2, dword_82E3D6: the pixel worked on
+const SLOPE_RVA: Slot = Slot::at(0x82E3C6); // flt_82E3C6, flt_82E3CA
+const ENDS_RVA: Slot = Slot::at(0x82E40A); // flt_82E40A .. flt_82E41A: the line's ends turned
+const LINES_RVA: Slot = Slot::at(0x82E3DA); // g_marksLines: 0x3DA, 0x3DE .. 0x3FE, 0x402
 const SHAKE_RVA: usize = rva(0x71C870); // flt_71C870, 1 / 65536
-pub const TABLE_RVA: usize = rva(0x8445D2); // g_marksPixelTable: rows of 0x400
-const ROW_RVA: usize = rva(0x8445E2); // flt_8445E2
-const ROW_ADD_RVA: usize = rva(0x89C9BC); // flt_89C9BC
-const ROW_LESS_RVA: usize = rva(0x8445DA); // flt_8445DA
+pub const TABLE_RVA: Slot = Slot::at(0x8445D2); // g_marksPixelTable: rows of 0x400
+const ROW_RVA: Slot = Slot::at(0x8445E2); // flt_8445E2
+const ROW_ADD_RVA: Slot = Slot::at(0x89C9BC); // flt_89C9BC
+const ROW_LESS_RVA: Slot = Slot::at(0x8445DA); // flt_8445DA
 
 unsafe fn get(at: u32) -> u32 {
     unsafe { (at as *const u32).read_unaligned() }
@@ -31,7 +32,7 @@ unsafe fn get(at: u32) -> u32 {
 struct Half {
     line: u32,
     other: u32,
-    constants: [usize; 3],
+    constants: [Slot; 3],
     bytes: u32,
 }
 
@@ -39,13 +40,13 @@ const HALVES: [Half; 2] = [
     Half {
         line: 0,
         other: 0x18,
-        constants: [rva(0x89CA0C), rva(0x89CA10), rva(0x89CA14)],
+        constants: [Slot::at(0x89CA0C), Slot::at(0x89CA10), Slot::at(0x89CA14)],
         bytes: 2,
     },
     Half {
         line: 0x18,
         other: 0,
-        constants: [rva(0x89CA18), rva(0x89CA1C), rva(0x89CA20)],
+        constants: [Slot::at(0x89CA18), Slot::at(0x89CA1C), Slot::at(0x89CA20)],
         bytes: 0,
     },
 ];
@@ -201,9 +202,9 @@ pub unsafe fn map_shape(shapes: u32, shape: u32) -> Result<(), Refused> {
     Ok(())
 }
 
-const MAPPED_RVA: [usize; 3] = [rva(0x844E10), rva(0x844E18), rva(0x844E1C)]; // shapes, table, corners
-const CORNER_TABLE_RVA: usize = rva(0x8445E6); // dword_8445E6
-const MIDDLE_RVA: usize = rva(0x8445D6); // flt_8445D6, flt_8445DA
+const MAPPED_RVA: [Slot; 3] = [Slot::at(0x844E10), Slot::at(0x844E18), Slot::at(0x844E1C)]; // shapes, table, corners
+const CORNER_TABLE_RVA: Slot = Slot::at(0x8445E6); // dword_8445E6
+const MIDDLE_RVA: Slot = Slot::at(0x8445D6); // flt_8445D6, flt_8445DA
 /// Where each line-pair float comes from in a corner entry pair.
 const LINE_FROM: [(u32, u32); 8] = [
     (0, 0),

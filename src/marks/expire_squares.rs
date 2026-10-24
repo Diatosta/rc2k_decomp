@@ -14,15 +14,15 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::marks::store::{Slot, game_addr, game_read, game_write};
 
-pub const ITEMS_RVA: usize = rva(0x89E18A); // g_marksSquareItems
+pub const ITEMS_RVA: Slot = Slot::at(0x89E18A); // g_marksSquareItems
 pub const ITEMS: u32 = 0x800;
 pub const ITEM_LEN: u32 = 0x3C;
-const SHAPES_RVA: [usize; 2] = [rva(0x82FC56), rva(0x82FC7A)]; // g_marksShapesA / B
-const PLACE_RVA: [usize; 2] = [rva(0x81471C), rva(0x814720)]; // dword_81471C, dword_814720
-const RUNS_RVA: usize = rva(0x833D7E); // g_marksMaskRunCount
-const MASKS_RVA: [usize; 2] = [rva(0x833DC2), rva(0x83BDC2)]; // g_marksMaskA / B
+const SHAPES_RVA: [Slot; 2] = [Slot::at(0x82FC56), Slot::at(0x82FC7A)]; // g_marksShapesA / B
+const PLACE_RVA: [Slot; 2] = [Slot::at(0x81471C), Slot::at(0x814720)]; // dword_81471C, dword_814720
+const RUNS_RVA: Slot = Slot::at(0x833D7E); // g_marksMaskRunCount
+const MASKS_RVA: [Slot; 2] = [Slot::at(0x833DC2), Slot::at(0x83BDC2)]; // g_marksMaskA / B
 
 /// The Rust version (see the header).
 // Converted: `rc2k_core::marks::expiry::{cell, square_ends}`

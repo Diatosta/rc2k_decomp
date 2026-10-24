@@ -28,19 +28,27 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::framework::rva;
 use crate::hud::batch::POLYGON_COUNT_RVA;
+use crate::hud::store::Slot;
+use crate::hud::store::read_f32 as f;
+use crate::hud::store::{game_addr, game_read, game_write};
 use crate::math::x87;
 use crate::scene::matrix3::extended;
 
-const KIND_RVA: usize = rva(0x75BFAC); // dword_75BFAC
-const VALUE_RVA: usize = rva(0x75C2E0); // dword_75C2E0
-const SCRATCH_RVA: usize = rva(0x75C060); // dword_75C060
-const LEAST_RVA: usize = rva(0x75C018); // flt_75C018
+const KIND_RVA: Slot = Slot::at(0x75BFAC); // dword_75BFAC
+const VALUE_RVA: Slot = Slot::at(0x75C2E0); // dword_75C2E0
+const SCRATCH_RVA: Slot = Slot::at(0x75C060); // dword_75C060
+const LEAST_RVA: Slot = Slot::at(0x75C018); // flt_75C018
 /// flt_75C2BC .. flt_75C2D4: base, base 2, split, scale, scale 2, most, most 2
-const K_RVA: usize = rva(0x75C2BC);
-const TURN_K_RVA: [usize; 2] = [rva(0x75C010), rva(0x75C014)];
-const CORNERS_RVA: [usize; 4] = [rva(0x75C2A8), rva(0x75C2AC), rva(0x75C2B0), rva(0x75C2B4)];
+const K_RVA: Slot = Slot::at(0x75C2BC);
+const TURN_K_RVA: [Slot; 2] = [Slot::at(0x75C010), Slot::at(0x75C014)];
+const CORNERS_RVA: [Slot; 4] = [
+    Slot::at(0x75C2A8),
+    Slot::at(0x75C2AC),
+    Slot::at(0x75C2B0),
+    Slot::at(0x75C2B4),
+];
 const VERTICES_RVA: usize = rva(0x9605A0); // g_polygonVertices
 
 /// `fld v [; fsub less]; fdiv over; fadd plus; fmul k0; fmul k1; fistp`.
@@ -66,7 +74,6 @@ pub unsafe fn draw_needle() -> Result<(), Refused> {
     unsafe {
         use rc2k_core::hud::disc::{needle_corners, needle_edx, needle_turn};
         use rc2k_core::math::extended::to_f64;
-        let f = |r: usize| f32::from_bits(game_read(r));
         let kind = game_read::<u32>(KIND_RVA) != 0;
         let value = f32::from_bits(x87::from_int(game_read(VALUE_RVA)));
         let t = needle_turn(value, kind, f(LEAST_RVA), |n| f(K_RVA + 4 * n));

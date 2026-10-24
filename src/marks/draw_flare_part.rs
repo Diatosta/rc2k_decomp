@@ -25,20 +25,21 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::framework::rva;
 use crate::marks::clip_quad::{clip_quad, draw_fan};
+use crate::marks::store::{Slot, game_addr, game_read, game_write};
 use crate::math::x87;
 use crate::scene::matrix3::rounded;
 
-const SCALE: [usize; 2] = [rva(0x9206DE), rva(0x9206E2)]; // flt_9206DE, flt_9206E2
-const SIDE_RVA: [usize; 2] = [rva(0x8EB941), rva(0x8EB945)]; // flt_8EB941, flt_8EB945
-const SIZE_RVA: [usize; 2] = [rva(0x8EB8B5), rva(0x8EB8B9)]; // dword_8EB8B5, dword_8EB8B9
-const CORNERS_RVA: usize = rva(0x8EB971); // g_marksCorners: 0x100 of 0x80 bytes
+const SCALE: [Slot; 2] = [Slot::at(0x9206DE), Slot::at(0x9206E2)]; // flt_9206DE, flt_9206E2
+const SIDE_RVA: [Slot; 2] = [Slot::at(0x8EB941), Slot::at(0x8EB945)]; // flt_8EB941, flt_8EB945
+const SIZE_RVA: [Slot; 2] = [Slot::at(0x8EB8B5), Slot::at(0x8EB8B9)]; // dword_8EB8B5, dword_8EB8B9
+const CORNERS_RVA: Slot = Slot::at(0x8EB971); // g_marksCorners: 0x100 of 0x80 bytes
 const CORNERS: u32 = 0x100;
-const UV_K_RVA: usize = rva(0x8EB969); // flt_8EB969
-const NEAR_RVA: usize = rva(0x8EB961); // dword_8EB961
-const Z_K_RVA: usize = rva(0x8EB96D); // flt_8EB96D
-const DRAWN_RVA: usize = rva(0x8F3981); // dword_8F3981
+const UV_K_RVA: Slot = Slot::at(0x8EB969); // flt_8EB969
+const NEAR_RVA: Slot = Slot::at(0x8EB961); // dword_8EB961
+const Z_K_RVA: Slot = Slot::at(0x8EB96D); // flt_8EB96D
+const DRAWN_RVA: Slot = Slot::at(0x8F3981); // dword_8F3981
 const VERTICES_RVA: usize = rva(0x9605A0); // g_polygonVertices: TLVertex[4], a fifth's x, y
 const SINES_RVA: usize = rva(0xA23AE4); // g_sines
 const COSINES_RVA: usize = rva(0xA24AE4); // g_cosines

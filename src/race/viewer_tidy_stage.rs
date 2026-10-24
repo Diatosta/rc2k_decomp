@@ -20,7 +20,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::game_addr;
+use crate::gfx::block::game_addr;
 use crate::race::viewer::{get, put};
 use crate::race::viewer_load_stage::FONTS_BUILT;
 

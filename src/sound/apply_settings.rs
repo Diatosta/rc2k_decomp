@@ -11,13 +11,16 @@
 //! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
 //! `routes.rs`); the registers above are the original's, for reference.
 
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::audio::store::Slot;
+use crate::framework::rva;
+use crate::sound::store::EffectsSlot;
+use crate::store::{game_addr, game_read, game_write};
 
 // ---- game data ----
 
-const APPLIED_RVA: usize = rva(0x518080); // dword_518080
-const CLEARED_RVA: usize = rva(0x506C84); // dword_506C84
-const FIRST_RVA: usize = rva(0x4F82C4); // dword_4F82C4
+const APPLIED_RVA: EffectsSlot = EffectsSlot::at(0x518080); // dword_518080
+const CLEARED_RVA: Slot = Slot::at(0x506C84); // dword_506C84
+const FIRST_RVA: Slot = Slot::at(0x4F82C4); // dword_4F82C4
 const THIRD_RVA: usize = rva(0x511AE4); // unk_511AE4
 const SECOND_RVA: usize = rva(0x755684); // dword_755684
 

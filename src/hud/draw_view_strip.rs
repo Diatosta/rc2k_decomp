@@ -22,14 +22,15 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, game_write, rva};
+use crate::framework::rva;
+use crate::gfx::strips::Slot as StripSlot;
+use crate::session::SCREEN;
+use crate::store::{game_read, game_write};
 use rc2k_core::hud::strips;
 
-const TOPS_RVA: usize = rva(0x6D1880); // dword_6D1880: 12
-const LEFTS_RVA: usize = rva(0x6D18B0); // dword_6D18B0: 6
-const SIZES_RVA: usize = rva(0x6D1870); // dword_6D1870 .. dword_6D187C: top, height, left, width
-const WIDTH_RVA: usize = rva(0x4F494C); // g_screenWidth
-const HEIGHT_RVA: usize = rva(0x4F4950); // g_screenHeight
+const TOPS_RVA: StripSlot = StripSlot::at(0x6D1880); // dword_6D1880: 12
+const LEFTS_RVA: StripSlot = StripSlot::at(0x6D18B0); // dword_6D18B0: 6
+const SIZES_RVA: StripSlot = StripSlot::at(0x6D1870); // dword_6D1870 .. dword_6D187C: top, height, left, width
 const FLAT_RVA: usize = rva(0x6D1502); // dword_6D1502
 pub const QUAD_IN_RVA: usize = rva(0x623DE8); // dword_623DE8 .. dword_623E24
 const ALPHA_RVA: usize = rva(0x6240D0); // g_polygonAlpha
@@ -37,13 +38,13 @@ pub const TEXTURE_RVA: usize = rva(0x6240BC); // dword_6240BC
 const SIDES_RVA: [usize; 2] = [rva(0x6240E0), rva(0x6240E4)];
 const SHOWN_RVA: usize = rva(0x6D14F6); // dword_6D14F6
 
-fn set(r: usize, v: u32) {
+fn set(r: impl crate::gfx::block::Where, v: u32) {
     unsafe { game_write(r, v) };
 }
 
 /// The strip's sizes into `dword_6D1870` .. (`strips::sizes`).
 fn sizes(v: [u32; 4]) {
-    let (sizes, _) = unsafe { strips::sizes(v, game_read(WIDTH_RVA), game_read(HEIGHT_RVA)) };
+    let (sizes, _) = strips::sizes(v, SCREEN.width.get(), SCREEN.height.get());
     for (n, x) in sizes.into_iter().enumerate() {
         set(SIZES_RVA + 4 * n, x);
     }

@@ -152,3 +152,23 @@ Each entry says:
   original's, read from the disassembly.
 - **Fix**: the HUD takes its layout as 0 while one view is drawn
   (`hud::overlay_pass::shown_layout`), for the HUD, the view strips and their tail.
+
+## Escape on the "leave?" question leaves the screen anyway
+
+*Original*: the screen loops' Escape clearing (`cmp g_clearsEscapeFlag, 1` before
+`mov dword_755A3C, 0` in each loop, e.g. `menu::leave_question_loop` 0x47FAC4),
+`g_clearsEscapeFlag` (0x7558D8).
+*Fixed*: 2026-10-24.
+
+- **What**: Escape sets the Escape flag (`dword_755A3C`). A screen clears it when it
+  leaves, but only if `g_clearsEscapeFlag` is 1. Only four screens set that switch (Start
+  Rally, Options, Player 1 details, Information), and nothing ever clears it. Until one of
+  them has been seen, the flag outlives the screen it was pressed on.
+- **In game**: load a saved championship straight after starting the game, finish a
+  stage, press Escape on the review menu, and Escape again on the "leave?" question to
+  say no. The review menu takes the leftover flag as a new Escape, and the championship
+  ends back at the main menu.
+- **Seen**: yes, by the owner in the converted game (2026-10-24). The behaviour is
+  read from the original's code: the converted screens do what it does.
+- **Fix**: the Escape flags are cleared whenever a screen leaves, as the original does
+  once any of the four screens has been seen (`menu::screen_loop::clear_escape`).

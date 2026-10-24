@@ -313,6 +313,8 @@ pub mod start_championship_two;
 pub mod start_event;
 pub mod start_rally_loop;
 pub mod step_carousel;
+pub mod store;
+pub mod store_data;
 pub mod store_player_names;
 pub mod switch_stage_group;
 pub mod table_calls;

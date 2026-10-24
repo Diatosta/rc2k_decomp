@@ -9,12 +9,13 @@
 //! other flags of the original's `test al, al` (sign, parity) are not reproduced; carry and
 //! zero are.
 
-use crate::framework::{game_ptr, rva};
+use crate::input::store::DeviceSlot;
+use crate::store::game_ptr;
 use std::sync::atomic::{AtomicU8, Ordering};
 
 // ---- game data ----
 
-pub const PENDING_KEY_RVA: usize = rva(0x4F6ADC); // byte_4F6ADC
+pub const PENDING_KEY_RVA: DeviceSlot = DeviceSlot::at(0x4F6ADC); // byte_4F6ADC
 
 pub fn pending_key() -> &'static AtomicU8 {
     unsafe { AtomicU8::from_ptr(game_ptr(PENDING_KEY_RVA)) }

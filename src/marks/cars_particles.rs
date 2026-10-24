@@ -28,28 +28,28 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, game_write, rva};
 use crate::marks::emit_car_particles::emit_car_particles;
 use crate::marks::emitters::*;
 use crate::marks::lines::SETTINGS_RVA;
+use crate::marks::store::{Slot, game_read, game_write};
 use crate::marks::{emit_particle_13, emit_particle_19, emit_particle_22};
 use crate::math::x87;
 use crate::scene::adjugate_matrix::adjugate_matrix;
 
 const CAR_LEN: u32 = 0x4C8;
 const MOST_CARS: u32 = 8;
-const TAG_K_RVA: usize = rva(0x9354DE); // dword_9354DE
-const MEAN_K_RVA: usize = rva(0x7651BC); // flt_7651BC
+const TAG_K_RVA: Slot = Slot::at(0x9354DE); // dword_9354DE
+const MEAN_K_RVA: Slot = Slot::at(0x7651BC); // flt_7651BC
 /// flt_9354E2, flt_9354E6, flt_9354EA: the rate's factor, base and scale.
-const RATE_K: [usize; 3] = [rva(0x9354E2), rva(0x9354E6), rva(0x9354EA)];
-const UP_RVA: usize = rva(0x935446); // flt_935446 .. flt_93544E
-const ACROSS_RVA: usize = rva(0x935452); // flt_935452 .. flt_93545A
-const SIDE_B_RVA: usize = rva(0x93543A); // flt_93543A .. flt_935442
-const SIDE_A_RVA: usize = rva(0x93545E); // flt_93545E .. flt_935466
+const RATE_K: [Slot; 3] = [Slot::at(0x9354E2), Slot::at(0x9354E6), Slot::at(0x9354EA)];
+const UP_RVA: Slot = Slot::at(0x935446); // flt_935446 .. flt_93544E
+const ACROSS_RVA: Slot = Slot::at(0x935452); // flt_935452 .. flt_93545A
+const SIDE_B_RVA: Slot = Slot::at(0x93543A); // flt_93543A .. flt_935442
+const SIDE_A_RVA: Slot = Slot::at(0x93545E); // flt_93545E .. flt_935466
 /// dword_7694AA, dword_7694B2: the looks by the car's model (8 bytes apart, 33).
-const LOOKS_TABLE_RVA: usize = rva(0x7694AA);
+const LOOKS_TABLE_RVA: Slot = Slot::at(0x7694AA);
 const MODELS: u32 = 33;
-const LOOKS_RVA: [usize; 2] = [rva(0x935476), rva(0x93547A)];
+const LOOKS_RVA: [Slot; 2] = [Slot::at(0x935476), Slot::at(0x93547A)];
 
 unsafe fn put(a: u32, v: u32) {
     unsafe { (a as *mut u32).write_unaligned(v) }

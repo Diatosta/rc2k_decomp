@@ -19,14 +19,14 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{game_read, game_write, rva};
+use crate::framework::{game_write, rva};
 
 /// g_sceneClock, dword_5CC3B0 the last tick, dword_5CC3B8 the ticks counted.
 const CLOCK: usize = 0x613830;
 const LAST: usize = 0x5CC3B0;
 const TICKS: usize = 0x5CC3B8;
-fn g(x: usize) -> u32 {
-    unsafe { game_read(rva(x)) }
+fn g(x: impl crate::store::Ida) -> u32 {
+    unsafe { crate::store::ida_read(x) }
 }
 
 // ---- Rust version ----

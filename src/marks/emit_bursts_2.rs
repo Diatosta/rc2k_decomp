@@ -15,27 +15,27 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::rva;
 use crate::marks::emit_bursts::{BurstSet, FIRST, Half, emit_bursts_with};
+use crate::marks::store::Slot;
 
 /// `emit_bursts_2`'s: `emit_bursts`' with its own factors and randoms.
 pub const SECOND: BurstSet = BurstSet {
     halves: [
         Half {
-            rate_random: rva(0x93A3FA),
-            count_random: rva(0x93A3FE),
-            entry_random: rva(0x93A402),
+            rate_random: Slot::at(0x93A3FA),
+            count_random: Slot::at(0x93A3FE),
+            entry_random: Slot::at(0x93A402),
             ..FIRST.halves[0]
         },
         Half {
-            rate_random: rva(0x93A40E),
-            count_random: rva(0x93A412),
-            entry_random: rva(0x93A416),
+            rate_random: Slot::at(0x93A40E),
+            count_random: Slot::at(0x93A412),
+            entry_random: Slot::at(0x93A416),
             ..FIRST.halves[1]
         },
     ],
-    strength_k: rva(0x93A3F6),
-    blend_k: [rva(0x93A406), rva(0x93A40A)],
+    strength_k: Slot::at(0x93A3F6),
+    blend_k: [Slot::at(0x93A406), Slot::at(0x93A40A)],
 };
 
 /// The Rust version (see the header).

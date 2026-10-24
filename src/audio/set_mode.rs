@@ -17,7 +17,9 @@
 //! is what it reads; the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{game_addr, rva};
+use crate::framework::rva;
+use crate::store::addr32 as a;
+use crate::store::game_addr;
 
 const SAM_TEXT: usize = rva(0x4DA6CD); // "SAM:"
 const OK_TEXT: usize = rva(0x4DA6D2); // "SAM: OK"
@@ -35,7 +37,6 @@ pub struct ModeVars {
 
 impl ModeVars {
     pub fn game() -> Self {
-        let a = |r| game_addr(r) as u32;
         Self {
             mode: a(crate::audio::voices::SOUND_MODE_RVA),
             caps: a(crate::audio::sound_device::CAPS_RVA),

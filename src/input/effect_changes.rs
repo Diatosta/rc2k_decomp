@@ -36,13 +36,14 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::field;
-use crate::framework::{game_addr, rva};
+use crate::input::store::DeviceSlot;
 use crate::input::types::{ForceEffect, InputDevice};
+use crate::store::game_addr;
 
 // sub_409AEE
 // sub_409B1F
 // sub_409B0D
-const ROWS_RVA: usize = rva(0x4F6E08); // unk_4F6E08
+const ROWS_RVA: DeviceSlot = DeviceSlot::at(0x4F6E08); // unk_4F6E08
 
 fn put(effect: u32, o: u32, v: u32) {
     unsafe { ((effect + o) as *mut u32).write_unaligned(v) }

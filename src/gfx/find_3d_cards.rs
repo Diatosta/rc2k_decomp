@@ -13,14 +13,15 @@
 //! `dword_5AB950`), as the callback would set it. One caller, `start` (0x401093), which
 //! calls it directly (2026-10-23).
 
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::framework::rva;
+use crate::gfx::block::{game_read, game_write};
+use crate::gfx::cards::Slot as CardSlot;
 use crate::logfile::log_write::{log_newline_l1, log_write};
 
-const PRIMARY_3D_RVA: usize = rva(0x5AB4AC); // dword_5AB4AC: a 3D primary card
-const SECONDARY_3D_RVA: usize = rva(0x5AB4B0); // dword_5AB4B0: a 3D secondary card
+const PRIMARY_3D_RVA: CardSlot = CardSlot::at(0x5AB4AC); // dword_5AB4AC: a 3D primary card
+const SECONDARY_3D_RVA: CardSlot = CardSlot::at(0x5AB4B0); // dword_5AB4B0: a 3D secondary card
 const NO_SEARCH_RVA: usize = rva(0x5AB94C); // dword_5AB94C: not 0, no search
 const NOT_PRIMARY_RVA: usize = rva(0x5AB950); // dword_5AB950: no 3D primary card
-const FINDING_TEXT_RVA: usize = rva(0x5C2CF7); // "Finding 3d hardware"
 
 /// The Rust version (see the header).
 pub fn find_3d_cards() {
@@ -28,7 +29,11 @@ pub fn find_3d_cards() {
         game_write(PRIMARY_3D_RVA, 0u32);
         game_write(SECONDARY_3D_RVA, 0u32);
         if game_read::<u32>(NO_SEARCH_RVA) == 0 {
-            log_write(game_addr(FINDING_TEXT_RVA) as *const u8, true, 1);
+            log_write(
+                crate::gfx::texts::address(&crate::gfx::texts::FINDING_3D) as *const u8,
+                true,
+                1,
+            );
             if game_read::<u32>(NOT_PRIMARY_RVA) == 0 {
                 game_write(PRIMARY_3D_RVA, 1u32);
             }

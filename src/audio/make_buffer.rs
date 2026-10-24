@@ -30,13 +30,15 @@
 
 use crate::audio::buffer_settings::{a3d, set_buffer_frequency, set_buffer_pan, set_buffer_volume};
 use crate::audio::describe_wave_format::{WAVE_FORMAT_RVA, describe_wave_format};
+use crate::audio::store::Slot;
 use crate::audio::voices::*;
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, rva};
+use crate::framework::rva;
+use crate::store::game_addr;
 
-pub const DIRECT_SOUND_RVA: usize = rva(0x506A88); // g_directSound
-pub const DESCRIPTION_RVA: usize = rva(0x506B1C); // g_bufferDescription
-const IID_3D_RVA: usize = rva(0x506A58); // g_iidSound3dBuffer
+pub const DIRECT_SOUND_RVA: Slot = Slot::at(0x506A88); // g_directSound
+pub const DESCRIPTION_RVA: Slot = Slot::at(0x506B1C); // g_bufferDescription
+const IID_3D_RVA: Slot = Slot::at(0x506A58); // g_iidSound3dBuffer
 const CREATE_FAILED_RVA: usize = rva(0x4DA6E4); // "AUD: 1-DSBCreate failed"
 const QUERY_FAILED_RVA: usize = rva(0x4DA6FC); // "AUD: 1-DSBQuery3D failed"
 pub const MODE_OWN_BUFFERS: u32 = 0x1_0000;

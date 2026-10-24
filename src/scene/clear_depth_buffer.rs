@@ -17,13 +17,12 @@
 //! and the self-test was the hook's.
 
 use crate::framework::{game_read, game_write, rva};
+use crate::session::SCREEN;
 
 // ---- game data ----
 
 const HAS_3D_RVA: usize = rva(0x5CDA8C); // dword_5CDA8C
 const RECTANGLE_RVA: usize = rva(0x624138); // dword_624138 .. dword_624144
-const WIDTH_RVA: usize = rva(0x4F494C); // g_screenWidth
-const HEIGHT_RVA: usize = rva(0x4F4950); // g_screenHeight
 
 // ---- Rust version ----
 
@@ -35,7 +34,7 @@ pub fn clear_depth_buffer() {
         if game_read::<u32>(HAS_3D_RVA) == 0 {
             return;
         }
-        let (width, height): (u32, u32) = (game_read(WIDTH_RVA), game_read(HEIGHT_RVA));
+        let (width, height): (u32, u32) = (SCREEN.width.get(), SCREEN.height.get());
         game_write(RECTANGLE_RVA, [0, 0, width, height]);
         crate::platform_3d::clear_viewport();
     }

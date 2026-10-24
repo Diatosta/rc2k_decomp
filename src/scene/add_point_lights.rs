@@ -25,6 +25,7 @@ use crate::framework::{EBX, game_read, game_write, rva};
 use crate::scene::draw_polygon::CHECKED_RVA;
 use crate::scene::project_point::POINTS_RVA;
 use crate::screens::harness::Left;
+use crate::session::MACHINE;
 
 // ---- game data ----
 
@@ -35,7 +36,6 @@ const STRENGTH_RVA: usize = rva(0x639958); // dword_639958
 const LAMP_COLOUR_RVA: usize = rva(0x62DA7C); // dword_62DA7C
 pub const LIT_PLACE_RVA: usize = rva(0x636588); // dword_636588, dword_63658C, dword_636590
 pub const LIGHT_COLOUR_RVA: usize = rva(0x62DAC4); // g_lightColour
-pub const MMX_RVA: usize = rva(0x5183A8); // g_hasMmx
 
 // ---- Rust version ----
 
@@ -51,7 +51,7 @@ pub unsafe fn add_point_lights() -> Result<Left, Refused> {
         if lamps > MOST || points == 0 {
             return Err(BadInput("more lamps than the list holds, or no points").into());
         }
-        let mmx = game_read::<u32>(MMX_RVA) != 0;
+        let mmx = MACHINE.has_mmx.get() != 0;
         let place: [u32; 3] = game_read(LIT_PLACE_RVA);
         let list = (0..lamps as usize).map(|n| {
             let [point, strength, colour]: [u32; 3] = game_read(LAMP_LIST_RVA + n * 0x10);

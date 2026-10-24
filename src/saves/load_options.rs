@@ -161,7 +161,7 @@ pub unsafe fn load_game_options() -> Result<bool, Refused> {
             game_addr(PATH_RVA) as *const u8,
             &mut Places {
                 loaded: game_addr(LOADED_RVA) as *mut u32,
-                piece: &|n| game_addr(rva(OPTIONS[n].0 as usize)) as *mut u8,
+                piece: &|n| crate::moved::place(OPTIONS[n].0 as usize) as *mut u8,
                 rebuild_car_lists: &mut || rebuild_car_lists(),
             },
         )

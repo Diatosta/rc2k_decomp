@@ -19,16 +19,17 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::{game_read, game_write, rva};
+use crate::framework::rva;
+use crate::marks::store::{Slot, game_read, game_write};
 
 const TEXTURE_RVA: usize = rva(0x5D1E10); // dword_5D1E10
 const VERTICES_RVA: usize = rva(0x9605A0); // g_polygonVertices: 0x20 bytes each
 const COUNT_RVA: usize = rva(0x6240F8); // g_polygonVertexCount
-const COLOUR_RVA: usize = rva(0x91FFA6); // dword_91FFA6
-const PLACES_RVA: usize = rva(0x91FFAA); // dword_91FFAA .. dword_91FFB6
-const SCALE_RVA: usize = rva(0x8EB96D); // flt_8EB96D
+const COLOUR_RVA: Slot = Slot::at(0x91FFA6); // dword_91FFA6
+const PLACES_RVA: Slot = Slot::at(0x91FFAA); // dword_91FFAA .. dword_91FFB6
+const SCALE_RVA: Slot = Slot::at(0x8EB96D); // flt_8EB96D
 const OF_RVA: usize = rva(0x6241C8); // flt_6241C8
-const CLEARED_RVA: usize = rva(0x91FFBA); // dword_91FFBA
+const CLEARED_RVA: Slot = Slot::at(0x91FFBA); // dword_91FFBA
 /// The render states set (value, state).
 const STATES: [(u32, u32); 5] = [(4, 0x15), (5, 0x13), (6, 0x14), (0, 0x1C), (1, 0x1B)];
 

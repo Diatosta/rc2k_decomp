@@ -15,7 +15,7 @@
 
 use crate::errors::BadInput;
 use crate::files::read_file::read_file;
-use crate::framework::{game_addr, game_read};
+use crate::gfx::block::{game_addr, game_read};
 use crate::gfx::pcx::{HEADER_LEN, HEADER_RVA};
 use crate::gfx::read_pcx_8bit::read_pcx_8bit;
 use crate::gfx::read_pcx_24bit::read_pcx_24bit;

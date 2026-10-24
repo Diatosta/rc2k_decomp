@@ -12,7 +12,8 @@
 //! dwords not all 0), and the map picture gives their pixels.
 
 use crate::errors::{BadInput, FatalError, Refused};
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::framework::rva;
+use crate::gfx::block::{game_addr, game_read, game_write};
 use crate::gfx::pixel_format::PixelFormat;
 use crate::memory::MemoryList;
 

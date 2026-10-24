@@ -22,18 +22,18 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::{game_read, game_write, rva};
 use crate::marks::setup::{CLOCK_RVA, SEED_RVA};
+use crate::marks::store::{Slot, game_read, game_write};
 use crate::math::x87;
 
-const SINCE_RVA: usize = rva(0x8BC409); // dword_8BC409: the clock at the last targets
-const WAIT_RVA: usize = rva(0x8BC40D); // dword_8BC40D
-const TARGET_RVA: [usize; 2] = [rva(0x8BC411), rva(0x8BC419)]; // flt_8BC411, flt_8BC419
-const PACE_RVA: [usize; 2] = [rva(0x8BC41D), rva(0x8BC425)]; // flt_8BC41D, flt_8BC425
-const HALVES_RVA: [usize; 2] = [rva(0x8BC429), rva(0x8BC431)]; // dword_8BC429, dword_8BC431
-const OFFSET_RVA: [usize; 2] = [rva(0x8BDD7D), rva(0x8BDD85)]; // dword_8BDD7D, dword_8BDD85
-const SCALE_RVA: [usize; 2] = [rva(0x8C5FD1), rva(0x8C5FD5)]; // flt_8C5FD1, flt_8C5FD5
-const EASE_RVA: [usize; 2] = [rva(0x8C5FD9), rva(0x8C5FDD)]; // flt_8C5FD9, flt_8C5FDD
+const SINCE_RVA: Slot = Slot::at(0x8BC409); // dword_8BC409: the clock at the last targets
+const WAIT_RVA: Slot = Slot::at(0x8BC40D); // dword_8BC40D
+const TARGET_RVA: [Slot; 2] = [Slot::at(0x8BC411), Slot::at(0x8BC419)]; // flt_8BC411, flt_8BC419
+const PACE_RVA: [Slot; 2] = [Slot::at(0x8BC41D), Slot::at(0x8BC425)]; // flt_8BC41D, flt_8BC425
+const HALVES_RVA: [Slot; 2] = [Slot::at(0x8BC429), Slot::at(0x8BC431)]; // dword_8BC429, dword_8BC431
+const OFFSET_RVA: [Slot; 2] = [Slot::at(0x8BDD7D), Slot::at(0x8BDD85)]; // dword_8BDD7D, dword_8BDD85
+const SCALE_RVA: [Slot; 2] = [Slot::at(0x8C5FD1), Slot::at(0x8C5FD5)]; // flt_8C5FD1, flt_8C5FD5
+const EASE_RVA: [Slot; 2] = [Slot::at(0x8C5FD9), Slot::at(0x8C5FDD)]; // flt_8C5FD9, flt_8C5FDD
 
 /// The marks' random: times 0x9D plus 0x47.
 unsafe fn next_seed() -> u32 {

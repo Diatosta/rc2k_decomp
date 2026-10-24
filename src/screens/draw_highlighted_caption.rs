@@ -24,8 +24,8 @@
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_addr, game_read, rva};
 use crate::menu::update_blink::LAST_KEY_TIME_RVA;
-use crate::menu::update_frame_clock::CLOCK_RVA;
 use crate::service::state::MENU_ITEM_RVA;
+use crate::session::CLOCKS;
 use crate::text::draw_string_by_id::string_text;
 use crate::text::draw_text::Canvas;
 
@@ -66,7 +66,10 @@ pub unsafe fn draw_highlighted_caption(
             caption.len(),
         );
         // Converted: `rc2k_core::screens::highlighted_caption`.
-        let since_key = game_read::<u32>(CLOCK_RVA).wrapping_sub(game_read(LAST_KEY_TIME_RVA));
+        let since_key = CLOCKS
+            .frame
+            .get()
+            .wrapping_sub(game_read(LAST_KEY_TIME_RVA));
         let too_wide = rc2k_core::screens::highlighted_caption::highlighted_caption(
             &mut crate::screens::game_screen::GameScreen::<
                 rc2k_core::screens::highlighted_caption::Font,

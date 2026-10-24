@@ -18,19 +18,19 @@
 //! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, game_write, rva};
+use crate::sound::store::EffectsSlot;
 
 /// dword_518084 the last time, dword_518088 the rate, dword_51808C the steps counted.
-const LAST: usize = 0x518084;
-const RATE: usize = 0x518088;
-const STEPS: usize = 0x51808C;
+const LAST: EffectsSlot = EffectsSlot::at(0x518084);
+const RATE: EffectsSlot = EffectsSlot::at(0x518088);
+const STEPS: EffectsSlot = EffectsSlot::at(0x51808C);
 
-fn g(x: usize) -> u32 {
-    unsafe { game_read(rva(x)) }
+fn g(x: impl crate::store::Ida) -> u32 {
+    unsafe { crate::store::ida_read(x) }
 }
 
-fn p(x: usize, v: u32) {
-    unsafe { game_write(rva(x), v) }
+fn p(x: impl crate::store::Ida, v: u32) {
+    unsafe { crate::store::ida_write(x, v) }
 }
 
 // ---- Rust version ----

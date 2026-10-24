@@ -22,12 +22,12 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::game_read;
 use crate::hud::add_quad::QUAD_RVA;
 use crate::hud::batch::TEXTURE_RVA;
 use crate::hud::draw_signs::row_by;
 use crate::hud::layout_0::*;
 use crate::hud::layout_1::{CLOCKS_RVA, LAP_2_RVA, pick, plain, scaled};
+use crate::hud::store::game_read;
 
 /// The upper half's rows: 0x10 down with `dword_6D1502` 0.
 fn upper(y: u32) -> u32 {

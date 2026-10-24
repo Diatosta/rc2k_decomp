@@ -25,17 +25,18 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::framework::rva;
 use crate::marks::clip_quad::{clip_quad, draw_fan};
+use crate::marks::store::{Slot, game_addr, game_read, game_write};
 use crate::scene::fog_at::fog_at;
 
-const DEPTH_RVA: usize = rva(0x8EB8DD); // flt_8EB8DD
-const WHOLE_RVA: usize = rva(0x9356C0); // dword_9356C0
-const NEAR_RVA: usize = rva(0x8EB961); // dword_8EB961
-const HALF_RVA: usize = rva(0x8EB8B5); // dword_8EB8B5
+const DEPTH_RVA: Slot = Slot::at(0x8EB8DD); // flt_8EB8DD
+const WHOLE_RVA: Slot = Slot::at(0x9356C0); // dword_9356C0
+const NEAR_RVA: Slot = Slot::at(0x8EB961); // dword_8EB961
+const HALF_RVA: Slot = Slot::at(0x8EB8B5); // dword_8EB8B5
 const VERTICES_RVA: usize = rva(0x9605A0); // g_polygonVertices
 const VERTEX_COUNT_RVA: usize = rva(0x6240F8); // g_polygonVertexCount
-const SUBCELLS_RVA: usize = rva(0x935B66); // g_marksSubcellPlaces: 0x410 of 16 bytes
+const SUBCELLS_RVA: Slot = Slot::at(0x935B66); // g_marksSubcellPlaces: 0x410 of 16 bytes
 const SUBCELLS: u32 = 0x410;
 
 /// The original's 0x4CBF47 .. 0x4CBFCB: the place turned by the view.
@@ -75,11 +76,12 @@ unsafe fn turn(b: u32, p: &[[u8; 10]; 3]) {
             ".byte 0xDE, 0xC1",
             "fadd dword ptr [{b} + 0x1EA304]",
             ".byte 0xD9, 0xCA",
-            "fstp dword ptr [{b} + 0x4EB8D5]",
-            "fstp dword ptr [{b} + 0x4EB8D9]",
-            "fist dword ptr [{b} + 0x5356C0]",
-            "fstp dword ptr [{b} + 0x4EB8DD]",
+            "fstp dword ptr [{mk} + 0x186995]",
+            "fstp dword ptr [{mk} + 0x186999]",
+            "fist dword ptr [{mk} + 0x1D0780]",
+            "fstp dword ptr [{mk} + 0x18699D]",
             b = in(reg) b,
+            mk = in(reg) crate::marks::store::base(),
             p = in(reg) p.as_ptr(),
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
@@ -94,47 +96,48 @@ unsafe fn square(b: u32) {
     unsafe {
         core::arch::asm!(
             "fld dword ptr [{b} + 0x224088]",
-            "fdiv dword ptr [{b} + 0x4EB8DD]",
-            "fld dword ptr [{b} + 0x4EB8DD]",
-            "fmul dword ptr [{b} + 0x4EB96D]",
+            "fdiv dword ptr [{mk} + 0x18699D]",
+            "fld dword ptr [{mk} + 0x18699D]",
+            "fmul dword ptr [{mk} + 0x186A2D]",
             "fst dword ptr [{b} + 0x5605A8]",
             "fst dword ptr [{b} + 0x5605C8]",
             "fst dword ptr [{b} + 0x5605E8]",
             "fstp dword ptr [{b} + 0x560608]",
-            "fld dword ptr [{b} + 0x4EB8B5]",
+            "fld dword ptr [{mk} + 0x186975]",
             ".byte 0xD8, 0xC9",
-            "fst dword ptr [{b} + 0x4EB8B5]",
-            "fstp dword ptr [{b} + 0x4EB8B9]",
+            "fst dword ptr [{mk} + 0x186975]",
+            "fstp dword ptr [{mk} + 0x186979]",
             ".byte 0xD9, 0xC0",
-            "fmul dword ptr [{b} + 0x4EB8D5]",
+            "fmul dword ptr [{mk} + 0x186995]",
             ".byte 0xD9, 0xC9",
-            "fmul dword ptr [{b} + 0x4EB8D9]",
+            "fmul dword ptr [{mk} + 0x186999]",
             ".byte 0xD9, 0xE0",
             "fadd dword ptr [{b} + 0x2240A0]",
             ".byte 0xD9, 0xC0",
-            "fsub dword ptr [{b} + 0x4EB8B9]",
+            "fsub dword ptr [{mk} + 0x186979]",
             "fstp dword ptr [{b} + 0x5605A4]",
             ".byte 0xD9, 0xC0",
-            "fsub dword ptr [{b} + 0x4EB8B9]",
+            "fsub dword ptr [{mk} + 0x186979]",
             "fstp dword ptr [{b} + 0x5605C4]",
             ".byte 0xD9, 0xC0",
-            "fadd dword ptr [{b} + 0x4EB8B9]",
+            "fadd dword ptr [{mk} + 0x186979]",
             "fstp dword ptr [{b} + 0x5605E4]",
-            "fadd dword ptr [{b} + 0x4EB8B9]",
+            "fadd dword ptr [{mk} + 0x186979]",
             "fstp dword ptr [{b} + 0x560604]",
             "fadd dword ptr [{b} + 0x22409C]",
             ".byte 0xD9, 0xC0",
-            "fsub dword ptr [{b} + 0x4EB8B5]",
+            "fsub dword ptr [{mk} + 0x186975]",
             "fstp dword ptr [{b} + 0x5605A0]",
             ".byte 0xD9, 0xC0",
-            "fadd dword ptr [{b} + 0x4EB8B5]",
+            "fadd dword ptr [{mk} + 0x186975]",
             "fstp dword ptr [{b} + 0x5605C0]",
             ".byte 0xD9, 0xC0",
-            "fadd dword ptr [{b} + 0x4EB8B5]",
+            "fadd dword ptr [{mk} + 0x186975]",
             "fstp dword ptr [{b} + 0x5605E0]",
-            "fsub dword ptr [{b} + 0x4EB8B5]",
+            "fsub dword ptr [{mk} + 0x186975]",
             "fstp dword ptr [{b} + 0x560600]",
             b = in(reg) b,
+            mk = in(reg) crate::marks::store::base(),
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
             options(nostack),

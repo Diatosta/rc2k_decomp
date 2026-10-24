@@ -34,21 +34,20 @@
 //! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, game_read, rva};
 use crate::input::devices::{at, put};
 use crate::math::x87::{mul_to_int, x87};
-use crate::sound::turn_parts::SCRATCH;
+use crate::sound::store::EffectsSlot;
 
-const TEN: usize = 0x5180DC; // flt_5180DC: 10.0
-const ANGLE_SCALE: usize = 0x5180E0; // flt_5180E0: 162.97
-const FULL: usize = 0x5180E4; // flt_5180E4: 256.0
-const TENTH: usize = 0x5180EC; // flt_5180EC: 0.1
+const TEN: EffectsSlot = EffectsSlot::at(0x5180DC); // flt_5180DC: 10.0
+const ANGLE_SCALE: EffectsSlot = EffectsSlot::at(0x5180E0); // flt_5180E0: 162.97
+const FULL: EffectsSlot = EffectsSlot::at(0x5180E4); // flt_5180E4: 256.0
+const TENTH: EffectsSlot = EffectsSlot::at(0x5180EC); // flt_5180EC: 0.1
 /// dword_51809C: a surface's effect kind, 16 entries.
-const KINDS: usize = 0x51809C;
+const KINDS: EffectsSlot = EffectsSlot::at(0x51809C);
 const KIND_COUNT: u32 = 16;
 
-fn k(x: usize) -> u32 {
-    unsafe { game_read(rva(x)) }
+fn k(x: impl crate::store::Ida) -> u32 {
+    unsafe { crate::store::ida_read(x) }
 }
 
 /// `fld a; fsub b; fmul c; fistp`.
@@ -222,5 +221,10 @@ fn update_car_effects_with(
 /// converted version (`rc2k_core::input::feedback::update_car_effects`, plain floats; the
 /// hook's in shadow mode) waits for the float pass.
 pub fn update_car_effects(view: u32, object: u32, device: u32) -> Result<(), Refused> {
-    update_car_effects_with(view, object, device, game_addr(rva(SCRATCH)) as u32)
+    update_car_effects_with(
+        view,
+        object,
+        device,
+        crate::session::MACHINE.scratch.addr() as u32,
+    )
 }

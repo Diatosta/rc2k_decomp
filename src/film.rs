@@ -32,7 +32,9 @@
 //! stretched over it (nearest, as `Blt`). Anything else counts as a film that did not open,
 //! and says so in the log. A callback in ebx is refused (no caller gives one; it would be game code).
 
-use crate::framework::{Regs, game_addr, game_read, game_write, log, rva};
+use crate::framework::{Regs, log, rva};
+use crate::gfx::block::{game_addr, game_read, game_write};
+use crate::gfx::reports::Slot as RepSlot;
 use std::ffi::{CStr, c_char, c_void};
 use std::sync::atomic::AtomicUsize;
 
@@ -44,9 +46,8 @@ pub static HOOK: crate::framework::RawHook =
 crate::framework::hook_asm!(thunk, dispatch = dispatch);
 
 const NO_FMV_RVA: usize = rva(0x5BE870); // g_noFmv
-const REPORTS_RVA: usize = rva(0x4F52AC); // dword_4F52AC
+const REPORTS_RVA: RepSlot = RepSlot::at(0x4F52AC); // dword_4F52AC
 const SURFACE_RVA: usize = rva(0x4F4998); // g_surface
-const FORMAT_RVA: usize = rva(0x4F496C); // g_surfaceFormat
 const TAKE_KEY: usize = rva(0x407F95); // input::take_key
 const PUMP: usize = rva(0x410535); // system::pump_messages
 const LOCK: usize = rva(0x4058AD); // gfx::lock_surface
@@ -532,7 +533,7 @@ unsafe fn blit(p: &Picture) {
         let bytes = at(5) as usize;
         let pitch = at(9) as usize;
         let pixels = at(10) as *mut u8;
-        let format = game_addr(FORMAT_RVA + 4) as *const u32;
+        let format = (crate::session::SCREEN.format_addr() + 4) as *const u32;
         // masks: blue, green, red, alpha
         let (mb, mg, mr) = (
             format.read_unaligned(),
@@ -657,11 +658,13 @@ pub unsafe fn play_film(entry: &Regs) -> bool {
         let path = match found {
             Ok((at, there)) => {
                 r.eax = at as u32;
-                there.then(|| {
-                    CStr::from_ptr(at as *const c_char)
-                        .to_string_lossy()
-                        .into_owned()
-                })
+                let name = CStr::from_ptr(at as *const c_char)
+                    .to_string_lossy()
+                    .into_owned();
+                if !there {
+                    log(&format!("gfx::play_film: {name} is not there"));
+                }
+                there.then_some(name)
             }
             Err(why) => {
                 log(&format!("gfx::play_film: the path refused: {}", why.0));

@@ -19,7 +19,7 @@
 
 use crate::audio::voices::*;
 use crate::errors::{BadInput, Refused};
-use crate::framework::game_addr;
+use crate::store::game_addr;
 
 // ---- Rust version ----
 

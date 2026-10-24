@@ -28,10 +28,10 @@ use crate::drive::race_parts::{
 };
 use crate::errors::Refused;
 use crate::physics::flow::{a, g, p};
+use crate::session::FLAGS;
 
 const B: usize = 0x70F3EC;
 const NEXT: usize = 0xFE0;
-const PAUSED: usize = 0x518398;
 
 fn view_bit(view: usize) -> bool {
     let bits = unsafe { ((g(view) + 0x468) as *const u32).read_unaligned() };
@@ -64,7 +64,7 @@ pub unsafe fn race_loop() -> Result<(), Refused> {
     for c in 0..8 {
         p(B + NEXT * c + 0xFAC, 10);
     }
-    p(PAUSED, 0);
+    FLAGS.paused.set(0);
     p(0x6235E8, 0);
     restart_clock();
     p(0x5CC3B4, g(0x613830));
@@ -78,10 +78,10 @@ pub unsafe fn race_loop() -> Result<(), Refused> {
         p(0x613840, g(0x613830));
         // 0x444DE9: a frame.
         let paused = loop {
-            if g(0x518374) == 0 {
-                p(PAUSED, 1);
+            if FLAGS.window_active.get() == 0 {
+                FLAGS.paused.set(1);
             }
-            if g(PAUSED) != 0 {
+            if FLAGS.paused.get() != 0 {
                 break true;
             }
             input_update();
@@ -106,13 +106,15 @@ pub unsafe fn race_loop() -> Result<(), Refused> {
                         "drive::race_loop: the credits race ends: keys pressed [{}], down [{}], \
                          frame {}",
                         keys(pressed),
-                        keys(a(0x4F6ADC)),
+                        keys(a(crate::input::store::DeviceSlot::at(0x4F6ADC))),
                         g(0x613830)
                     ));
                     return Ok(());
                 }
             }
-            if unsafe { (a(0x4F6CDD) as *const u8).read() } != 0 {
+            if unsafe { (a(crate::input::store::DeviceSlot::at(0x4F6CDD)) as *const u8).read() }
+                != 0
+            {
                 let answer = unsafe { crate::drive::quit_question::quit_question() }?;
                 if answer == 0 {
                     break false;
@@ -128,7 +130,7 @@ pub unsafe fn race_loop() -> Result<(), Refused> {
                     break true;
                 }
             }
-            if g(PAUSED) != 0 {
+            if FLAGS.paused.get() != 0 {
                 break true;
             }
             race_keys()?;
@@ -149,6 +151,6 @@ pub unsafe fn race_loop() -> Result<(), Refused> {
         } else {
             unsafe { crate::drive::pause_until_key::pause_until_key() }?;
         }
-        p(PAUSED, 0);
+        FLAGS.paused.set(0);
     }
 }

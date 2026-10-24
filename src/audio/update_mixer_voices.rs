@@ -29,7 +29,7 @@
 use crate::audio::mixer::MIX_RATE_RVA;
 use crate::audio::voices::*;
 use crate::errors::Refused;
-use crate::framework::game_addr;
+use crate::store::addr32 as a;
 use rc2k_core::audio::voices::Lists;
 
 #[derive(Clone, Copy)]
@@ -43,7 +43,6 @@ pub struct Vars {
 
 impl Vars {
     pub fn game() -> Self {
-        let a = |r| game_addr(r) as u32;
         Self {
             rate: a(MIX_RATE_RVA),
             mode: a(SOUND_MODE_RVA),

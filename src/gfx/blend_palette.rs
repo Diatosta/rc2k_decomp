@@ -17,7 +17,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::BadInput;
-use crate::framework::game_write;
+use crate::gfx::block::game_write;
 use crate::gfx::pixel_format::{PixelFormat, SCRATCH_RVA};
 
 // ---- Rust version ----

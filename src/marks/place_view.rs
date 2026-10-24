@@ -21,29 +21,29 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::marks::store::{Slot, game_addr, game_read, game_write};
 use crate::math::x87;
 
 /// One of the two near-copies' variables (`place_view`'s and `place_view_2`'s).
 pub struct ViewPlace {
-    pub point: usize,
+    pub point: Slot,
     pub start_z: u32,
-    pub place: usize,
-    pub matrix: usize,
-    pub out: usize,
-    pub height: usize,
-    pub matrix_copy: usize,
+    pub place: Slot,
+    pub matrix: Slot,
+    pub out: Slot,
+    pub height: Slot,
+    pub matrix_copy: Slot,
 }
 
 /// `place_view`'s.
 pub const FIRST: ViewPlace = ViewPlace {
-    point: rva(0x8BDD71), // dword_8BDD71: three whole numbers
+    point: Slot::at(0x8BDD71), // dword_8BDD71: three whole numbers
     start_z: 0x2_0000,
-    place: rva(0x8BC435),       // dword_8BC435: three whole numbers
-    matrix: rva(0x8BC441),      // dword_8BC441: nine floats
-    out: rva(0x8BDD7D),         // dword_8BDD7D .. dword_8BDD85
-    height: rva(0x8C5FE1),      // flt_8C5FE1
-    matrix_copy: rva(0x8BDD89), // dword_8BDD89: nine dwords
+    place: Slot::at(0x8BC435),       // dword_8BC435: three whole numbers
+    matrix: Slot::at(0x8BC441),      // dword_8BC441: nine floats
+    out: Slot::at(0x8BDD7D),         // dword_8BDD7D .. dword_8BDD85
+    height: Slot::at(0x8C5FE1),      // flt_8C5FE1
+    matrix_copy: Slot::at(0x8BDD89), // dword_8BDD89: nine dwords
 };
 
 /// The shared body (see the header), on `v`'s variables.

@@ -34,13 +34,12 @@ use crate::d3d::{NO_TEXTURE, Vertex};
 use crate::framework::{game_ptr, game_read, game_write, rva};
 use crate::logfile::log_hex8::log_hex8;
 use crate::logfile::log_write::log_write;
+use crate::session::SCREEN;
 
 // ---- game data ----
 
 const TEXTURE_RVA: usize = rva(0x6240D4); // g_polygonTexture
 const HAS_3D_RVA: usize = rva(0x5CDA8C); // dword_5CDA8C
-const WIDTH_RVA: usize = rva(0x4F494C); // g_screenWidth
-const HEIGHT_RVA: usize = rva(0x4F4950); // g_screenHeight
 const CHECKED_RVA: usize = rva(0x62400C); // dword_62400C
 const TEXTURES: u32 = 0x400;
 
@@ -93,7 +92,7 @@ pub unsafe fn submit_polygon(outside: &mut dyn Outside) {
             // The check clears this before it looks at a vertex.
             game_write(CHECKED_RVA, 0u32);
         }
-        if !vertices_fit(&vertices, game_read(WIDTH_RVA), game_read(HEIGHT_RVA)) {
+        if !vertices_fit(&vertices, SCREEN.width.get(), SCREEN.height.get()) {
             outside.bad_vertex();
             return;
         }

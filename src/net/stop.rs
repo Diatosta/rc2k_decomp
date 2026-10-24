@@ -12,10 +12,10 @@
 
 use crate::errors::Refused;
 use crate::net::{ON, p};
+use crate::session::FLAGS;
 
 const BUSY: usize = 0x52A918; // dword_52A918: the receiving thread is busy
 const ENDED: usize = 0x52A4B0; // dword_52A4B0: the receiving thread has ended
-const QUITTING: usize = 0x51837C; // g_quitting
 
 /// The Rust version.
 pub fn stop() -> Result<(), Refused> {
@@ -24,7 +24,7 @@ pub fn stop() -> Result<(), Refused> {
     while rd(BUSY) != 0 {
         unsafe { windows_sys::Win32::System::Threading::Sleep(1) };
         crate::platform::pump_messages_now();
-        if rd(QUITTING) == 1 && rd(ENDED) == 1 {
+        if FLAGS.quitting.get() == 1 && rd(ENDED) == 1 {
             break;
         }
     }

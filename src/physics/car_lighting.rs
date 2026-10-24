@@ -27,6 +27,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::session::MACHINE;
 use rc2k_core::physics::lighting;
 
 fn g(x: usize) -> u32 {
@@ -119,7 +120,7 @@ pub fn car_lighting() -> Result<(), Refused> {
             p(to, colour);
             p(
                 0x71A218,
-                lighting::add_colour(colour, g(0x71A218), g(0x5183A8) != 0),
+                lighting::add_colour(colour, g(0x71A218), MACHINE.has_mmx.get() != 0),
             );
         }
     }

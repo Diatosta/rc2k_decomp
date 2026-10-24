@@ -7,21 +7,22 @@
 //! compared: the game's memory, the objects, the backend's notes and a result.
 
 use crate::errors::FatalError;
-use crate::framework::{game_addr, rva};
+use crate::framework::rva;
 use crate::input::devices::com_call;
+use crate::input::store::DeviceSlot;
+use crate::store::game_addr;
 
-pub const DIRECT_INPUT_RVA: usize = rva(0x4F6904); // dword_4F6904: the IDirectInputA
-pub const NEW_DEVICE_RVA: usize = rva(0x4F6910); // dword_4F6910: a device being made
-pub const NEW_DEVICE2_RVA: usize = rva(0x4F6914); // dword_4F6914: its IDirectInputDevice2A
-pub const CAPS_RVA: usize = rva(0x4F6A78); // dword_4F6A78: a DIDEVCAPS (0x2C bytes)
+pub const DIRECT_INPUT_RVA: DeviceSlot = DeviceSlot::at(0x4F6904); // dword_4F6904: the IDirectInputA
+pub const NEW_DEVICE_RVA: DeviceSlot = DeviceSlot::at(0x4F6910); // dword_4F6910: a device being made
+pub const NEW_DEVICE2_RVA: DeviceSlot = DeviceSlot::at(0x4F6914); // dword_4F6914: its IDirectInputDevice2A
+pub const CAPS_RVA: DeviceSlot = DeviceSlot::at(0x4F6A78); // dword_4F6A78: a DIDEVCAPS (0x2C bytes)
 pub const CAPS_LEN: usize = std::mem::size_of::<crate::input::types::DiDevCaps>();
-pub const DWORD_PROP_RVA: usize = rva(0x4F6AA4); // dword_4F6AA4: a DIPROPDWORD (0x14)
-pub const RANGE_PROP_RVA: usize = rva(0x4F6AB8); // dword_4F6AB8: a DIPROPRANGE (0x18)
-pub const CONTROLLER_COUNT_RVA: usize = rva(0x4F78E0); // g_controllerCount
-pub const CONTROLLERS_RVA: usize = rva(0x4F78E4); // g_controllers: 16 of 0x50 bytes
+pub const DWORD_PROP_RVA: DeviceSlot = DeviceSlot::at(0x4F6AA4); // dword_4F6AA4: a DIPROPDWORD (0x14)
+pub const RANGE_PROP_RVA: DeviceSlot = DeviceSlot::at(0x4F6AB8); // dword_4F6AB8: a DIPROPRANGE (0x18)
+pub const CONTROLLER_COUNT_RVA: DeviceSlot = DeviceSlot::at(0x4F78E0); // g_controllerCount
+pub const CONTROLLERS_RVA: DeviceSlot = DeviceSlot::at(0x4F78E4); // g_controllers: 16 of 0x50 bytes
 pub const CONTROLLER_LEN: u32 = std::mem::size_of::<crate::input::types::Controller>() as u32;
 pub const CONTROLLERS: u32 = rc2k_core::input::joystick::CONTROLLERS;
-pub const HWND_RVA: usize = rva(0x5184A4); // hWnd
 pub const IID_DEVICE2_RVA: usize = rva(0x4F7E18); // IID_IDirectInputDevice2A
 pub const JOYSTICK_FORMAT_RVA: usize = rva(0x4D7220); // c_dfDIJoystick
 /// A record's six effects: where they start, and each one's size.
@@ -52,17 +53,17 @@ pub mod slot {
 }
 
 /// A dword of the game's.
-pub fn g(rva: usize) -> u32 {
-    unsafe { crate::framework::game_read(rva) }
+pub fn g(rva: impl crate::store::Where) -> u32 {
+    unsafe { crate::store::game_read(rva) }
 }
 
 /// Writes a dword of the game's.
-pub fn p(rva: usize, v: u32) {
-    unsafe { crate::framework::game_write(rva, v) }
+pub fn p(rva: impl crate::store::Where, v: u32) {
+    unsafe { crate::store::game_write(rva, v) }
 }
 
 /// A game variable's address.
-pub fn a(rva: usize) -> u32 {
+pub fn a(rva: impl crate::store::Where) -> u32 {
     game_addr(rva) as u32
 }
 

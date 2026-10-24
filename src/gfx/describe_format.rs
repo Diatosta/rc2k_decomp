@@ -20,11 +20,12 @@
 //! and the self-test was the hook's.
 
 use crate::errors::BadInput;
-use crate::framework::{game_read, rva};
+use crate::gfx::block::game_read;
+use crate::gfx::formats::Slot as FmtSlot;
 
 // ---- game data ----
 
-const NUMBERS_RVA: usize = rva(0x4F3F78); // dword_4F3F78: six of (number, layout)
+const NUMBERS_RVA: FmtSlot = FmtSlot::at(0x4F3F78); // dword_4F3F78: six of (number, layout)
 const NUMBERS: usize = 6;
 // ---- Rust version ----
 

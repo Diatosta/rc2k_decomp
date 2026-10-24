@@ -20,40 +20,41 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::framework::rva;
 use crate::marks::blocks::take;
 use crate::marks::load_mask_pictures::{lock, put_pixel};
+use crate::marks::store::{Slot, game_addr, game_read, game_write};
 use crate::math::x87;
 
-const MASK_LIST_RVA: usize = rva(0x93A1DA); // stru_93A1DA
+const MASK_LIST_RVA: Slot = Slot::at(0x93A1DA); // stru_93A1DA
 const MASK_BYTES: u32 = 0x4_0000;
 const SLOT_RVA: usize = rva(0x5D0E34); // dword_5D0E34: the surface drawn into
 const TEXTURE_RVA: usize = rva(0x5D1E34); // dword_5D1E34: the texture slot forgotten
-const SURFMASK_RVA: usize = rva(0x935751); // "files\m\surfmask.pcx"
-const SURFDATA_RVA: usize = rva(0x93573C); // "files\m\surfdata.pcx"
+const SURFMASK_RVA: Slot = Slot::at(0x935751); // "files\m\surfmask.pcx"
+const SURFDATA_RVA: Slot = Slot::at(0x93573C); // "files\m\surfdata.pcx"
 const PIXELS: u32 = 0x1_0000;
 const SURFACE_WIDTH_RVA: usize = rva(0x4F49A0); // g_surface.width
 const SURFACE_HEIGHT_RVA: usize = rva(0x4F49A4); // g_surface.height
 const SIDE: u32 = 0x100;
-const RING_LIST_RVA: usize = rva(0x935620); // stru_935620
+const RING_LIST_RVA: Slot = Slot::at(0x935620); // stru_935620
 const RING_BYTES: u32 = 0x2_5000;
-pub const RING_RVA: usize = rva(0x935668); // g_marksRingBlock (g_marksRing is 0x93A5C8)
-pub const RING_CURSOR_RVA: usize = rva(0x935660); // g_marksRingCursor
-pub const RING_COUNT_RVA: usize = rva(0x9356C8); // g_marksRingCount
+pub const RING_RVA: Slot = Slot::at(0x935668); // g_marksRingBlock (g_marksRing is 0x93A5C8)
+pub const RING_CURSOR_RVA: Slot = Slot::at(0x935660); // g_marksRingCursor
+pub const RING_COUNT_RVA: Slot = Slot::at(0x9356C8); // g_marksRingCount
 const RING: u32 = 0x400;
 const RECORD: u32 = 0x94;
-const CELLS_RVA: usize = rva(0x935766); // g_marksCellPlaces: 0x40 of four floats
-const SUBCELLS_RVA: usize = rva(0x935B66); // g_marksSubcellPlaces: 0x40 of 0x100 bytes
+const CELLS_RVA: Slot = Slot::at(0x935766); // g_marksCellPlaces: 0x40 of four floats
+const SUBCELLS_RVA: Slot = Slot::at(0x935B66); // g_marksSubcellPlaces: 0x40 of 0x100 bytes
 const CELLS: u32 = 0x40;
 /// flt_7651C0 (1/8), flt_7651C8 (1/512), flt_7651CC (1/256), flt_7651D0 (1/32).
-const EIGHTH_RVA: usize = rva(0x7651C0);
-const EDGE_RVA: usize = rva(0x7651C8);
-const PIXEL_RVA: usize = rva(0x7651CC);
-const STEP_RVA: usize = rva(0x7651D0);
+const EIGHTH_RVA: Slot = Slot::at(0x7651C0);
+const EDGE_RVA: Slot = Slot::at(0x7651C8);
+const PIXEL_RVA: Slot = Slot::at(0x7651CC);
+const STEP_RVA: Slot = Slot::at(0x7651D0);
 
 /// `gfx::read_picture_file` at 256 x 256 (the picture's sizes kept round it): whether it
 /// was read.
-unsafe fn read(path: usize) -> Result<bool, Refused> {
+unsafe fn read(path: Slot) -> Result<bool, Refused> {
     use crate::gfx::picture::{HEIGHT_RVA, ROW_BYTES_RVA, WIDTH_RVA};
     unsafe {
         let sizes: [u32; 3] = [

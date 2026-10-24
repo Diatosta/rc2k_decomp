@@ -36,6 +36,7 @@ use crate::framework::{EAX, EBX, EDX, game_read, game_write, rva};
 use crate::math::x87;
 use crate::scene::draw_polygon::CHECKED_RVA;
 use crate::screens::harness::Left;
+use crate::session::SCREEN;
 
 // ---- game data ----
 
@@ -49,7 +50,6 @@ const OFFSETS_RVA: usize = rva(0x623FB0); // dword_623FB0, dword_623FB4
 const EDGES_RVA: usize = rva(0x6241D4); // dword_6241D4 top, D8 bottom, DC left, E0 right
 const EDGE_FLOATS_RVA: usize = rva(0x6241E4); // g_clipScreenTop, Bottom, Left, Right
 const OFFSET_FLOATS_RVA: usize = rva(0x6241F4); // flt_6241F4, flt_6241F8
-const SCREEN_WIDTH_RVA: usize = rva(0x4F494C); // g_screenWidth
 const SCALE_A_RVA: usize = rva(0x606294); // dword_606294, a float
 const SCALE_B_RVA: usize = rva(0x624080); // dword_624080
 const SCALE_C_RVA: usize = rva(0x623DCC); // flt_623DCC
@@ -91,7 +91,7 @@ pub unsafe fn set_view_window() -> Left {
         game_write(
             SCALE_RVA,
             x87::int_float_int_float(
-                game_read(SCREEN_WIDTH_RVA),
+                SCREEN.width.get() as i32,
                 game_read(SCALE_A_RVA),
                 game_read(SCALE_B_RVA),
                 game_read(SCALE_C_RVA),
@@ -157,7 +157,7 @@ pub unsafe fn set_view_window_plain() -> Left {
             size: game_read(SIZE_RVA),
             offsets: game_read(OFFSETS_RVA),
             in_race: game_read::<u32>(IN_RACE_RVA) == 1,
-            screen_width: game_read(SCREEN_WIDTH_RVA),
+            screen_width: SCREEN.width.get(),
             scale: (f(SCALE_A_RVA), game_read(SCALE_B_RVA), f(SCALE_C_RVA)),
             nearer: game_read(NEARER_RVA),
             nearer_factor: f(NEARER_FACTOR_RVA),

@@ -24,9 +24,9 @@
 
 use crate::errors::Refused;
 use crate::field;
-use crate::framework::{game_addr, game_read};
 use crate::input::devices::{STATE_LEN, STATE_RVA, at, com_call, put};
 use crate::input::types::InputDevice;
+use crate::store::{game_addr, game_read};
 
 fn state(n: u32) -> u32 {
     unsafe { game_read(STATE_RVA + 4 * n as usize) }

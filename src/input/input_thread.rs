@@ -29,8 +29,12 @@
 //! lines, which the standalone had dropped, written again.
 
 use crate::errors::Refused;
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::framework::rva;
 use crate::input::devices::RECORDS;
+use crate::input::store::DeviceSlot;
+use crate::session::CLOCKS;
+use crate::session::FLAGS;
+use crate::store::{game_addr, game_write};
 
 // Kept for the hooked game (2026-10-23): the game's `start_threads` starts the thread at
 // its own address. Without this hook the original ran, with no gate, so a self-test's
@@ -38,15 +42,12 @@ use crate::input::devices::RECORDS;
 // (`race::replay_viewer`, shadow on). Removed when the hooked DLL goes.
 const START_TEXT_RVA: usize = rva(0x4DA4B2); // "INPUTTDB:START"
 const QUIT_TEXT_RVA: usize = rva(0x4DA4C1); // "INPUTTDB:QUIT"
-const DIRECT_INPUT_RVA: usize = rva(0x4F6904); // dword_4F6904
-const LAST_TICK_RVA: usize = rva(0x4F68D8); // dword_4F68D8
-const TICKS_RVA: usize = rva(0x518998); // dword_518998
-const ACTIVE_RVA: usize = rva(0x518378); // dword_518378
-const QUITTING_RVA: usize = rva(0x51837C); // g_quitting
+const DIRECT_INPUT_RVA: DeviceSlot = DeviceSlot::at(0x4F6904); // dword_4F6904
+const LAST_TICK_RVA: DeviceSlot = DeviceSlot::at(0x4F68D8); // dword_4F68D8
 const TICK_MS: u32 = 20;
 
-fn g(a: usize) -> u32 {
-    unsafe { game_read(a) }
+fn g(a: impl crate::store::Where) -> u32 {
+    unsafe { crate::store::game_read(a) }
 }
 
 /// "INPUTTDB:.." to the game's log (level 2, a line).
@@ -87,7 +88,7 @@ pub unsafe fn input_thread() -> Result<(), Refused> {
                 }
             }
             loop {
-                unsafe { game_write(TICKS_RVA, g(TICKS_RVA).wrapping_add(1)) };
+                CLOCKS.key_ticks.set(CLOCKS.key_ticks.get().wrapping_add(1));
                 gone -= TICK_MS;
                 last = last.wrapping_add(TICK_MS);
                 if gone < TICK_MS {
@@ -96,10 +97,10 @@ pub unsafe fn input_thread() -> Result<(), Refused> {
             }
             unsafe { game_write(LAST_TICK_RVA, last) };
             unsafe { crate::input::input_tick::input_tick_in_game() }?;
-            if g(ACTIVE_RVA) != 1 {
+            if FLAGS.window_focused.get() != 1 {
                 crate::system::sleep::sleep(1000);
             }
-            if g(QUITTING_RVA) == 1 {
+            if FLAGS.quitting.get() == 1 {
                 break;
             }
         }

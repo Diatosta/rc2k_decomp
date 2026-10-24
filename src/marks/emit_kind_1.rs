@@ -29,37 +29,37 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, game_write, rva};
 use crate::marks::emit_particle_21::emit_particle_21;
 use crate::marks::emitters::*;
 use crate::marks::jitter_point::jitter_point;
+use crate::marks::store::{Slot, game_read, game_write};
 use crate::math::x87;
 use crate::scene::matrix3::{extended, rounded};
 
-const CHOICE_RVA: usize = rva(0x93A1D6); // g_marksKind1Choice: emit_particle_21 when not 0
-const STRENGTH_RVA: usize = rva(0x9356C0); // dword_9356C0
-const LIFE_RVA: usize = rva(0x93567C); // dword_93567C
-const FADE_RVA: usize = rva(0x935678); // flt_935678
-const SIDE_RVA: usize = rva(0x765138); // dword_765138
-const SIDE_RANDOM_RVA: usize = rva(0x93A39A);
-const SPIN_RANDOM_RVA: usize = rva(0x93A3CA);
+const CHOICE_RVA: Slot = Slot::at(0x93A1D6); // g_marksKind1Choice: emit_particle_21 when not 0
+const STRENGTH_RVA: Slot = Slot::at(0x9356C0); // dword_9356C0
+const LIFE_RVA: Slot = Slot::at(0x93567C); // dword_93567C
+const FADE_RVA: Slot = Slot::at(0x935678); // flt_935678
+const SIDE_RVA: Slot = Slot::at(0x765138); // dword_765138
+const SIDE_RANDOM_RVA: Slot = Slot::at(0x93A39A);
+const SPIN_RANDOM_RVA: Slot = Slot::at(0x93A3CA);
 /// flt_765168, flt_7651D0, flt_765164: the strength's factors and its least.
-const STRENGTH_K: [usize; 3] = [rva(0x765168), rva(0x7651D0), rva(0x765164)];
+const STRENGTH_K: [Slot; 3] = [Slot::at(0x765168), Slot::at(0x7651D0), Slot::at(0x765164)];
 /// flt_7651F0, flt_7651E8: the life's factor and base.
-const LIFE_K: [usize; 2] = [rva(0x7651F0), rva(0x7651E8)];
-const FADE_K_RVA: usize = rva(0x76519C); // dword_76519C
+const LIFE_K: [Slot; 2] = [Slot::at(0x7651F0), Slot::at(0x7651E8)];
+const FADE_K_RVA: Slot = Slot::at(0x76519C); // dword_76519C
 /// flt_93543A, flt_93543E, flt_935442: the side's factors (the caller's).
-const SIDES_K: [usize; 3] = [rva(0x93543A), rva(0x93543E), rva(0x935442)];
-const DROP_RVA: usize = rva(0x7651DC); // flt_7651DC
+const SIDES_K: [Slot; 3] = [Slot::at(0x93543A), Slot::at(0x93543E), Slot::at(0x935442)];
+const DROP_RVA: Slot = Slot::at(0x7651DC); // flt_7651DC
 /// Per axis: the factors of the first row by +0x10, the third by +0x18, the side by +0xC.
-const MOTION_K: [[usize; 3]; 3] = [
-    [rva(0x93A39E), rva(0x93A3A2), rva(0x93A3A6)],
-    [rva(0x93A3AA), rva(0x93A3AE), rva(0x93A3B2)],
-    [rva(0x93A3B6), rva(0x93A3BA), rva(0x93A3BE)],
+const MOTION_K: [[Slot; 3]; 3] = [
+    [Slot::at(0x93A39E), Slot::at(0x93A3A2), Slot::at(0x93A3A6)],
+    [Slot::at(0x93A3AA), Slot::at(0x93A3AE), Slot::at(0x93A3B2)],
+    [Slot::at(0x93A3B6), Slot::at(0x93A3BA), Slot::at(0x93A3BE)],
 ];
-const SPREAD_RVA: usize = rva(0x93A3C2);
-const LIFT_RVA: usize = rva(0x93A3C6);
-const SIZE_K_RVA: usize = rva(0x93A3CE);
+const SPREAD_RVA: Slot = Slot::at(0x93A3C2);
+const LIFT_RVA: Slot = Slot::at(0x93A3C6);
+const SIZE_K_RVA: Slot = Slot::at(0x93A3CE);
 const SIZE: u32 = 0x1_0000;
 const STEP: i32 = 0x18;
 

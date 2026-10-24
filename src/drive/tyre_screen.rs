@@ -56,7 +56,7 @@ pub unsafe fn tyre_screen(mode: u32, car: u32) -> Result<(), Refused> {
     p(0x5BEAE0, x);
     p(0x5BEAE4, y);
     p(0x5BEBEC, car);
-    let device = g(0x4F6EE8 + 4 * car as usize);
+    let device = g(crate::input::store::DeviceSlot::at(0x4F6EE8) + 4 * car as usize);
     set_texture(g(0x5BEBE4));
     for (value, state) in STATES {
         set_render_state(value, state);

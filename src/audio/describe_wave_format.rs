@@ -17,10 +17,11 @@
 //! and the self-test was the hook's.
 
 use crate::audio::samples::{SAMPLE_BITS_FLAGS_RVA, SAMPLE_CHANNEL_FLAGS_RVA};
+use crate::audio::store::Slot;
 use crate::errors::{FatalError, Refused};
-use crate::framework::{game_addr, rva};
+use crate::store::game_addr;
 
-pub const WAVE_FORMAT_RVA: usize = rva(0x506B30); // g_waveFormat
+pub const WAVE_FORMAT_RVA: Slot = Slot::at(0x506B30); // g_waveFormat
 pub const WAVE_FORMAT_LEN: usize = 0x12;
 
 #[repr(C, packed)]

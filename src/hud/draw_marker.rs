@@ -15,14 +15,15 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::hud::add_quad::QUAD_RVA;
+use crate::hud::store::Slot;
+use crate::hud::store::{game_addr, game_read, game_write};
 use rc2k_core::hud::quads::marker_x;
 
-const COLOUR_RVA: usize = rva(0x75BF50); // dword_75BF50
-const K_RVA: [usize; 2] = [rva(0x75C0A8), rva(0x75C0AC)];
-const SCRATCH_RVA: usize = rva(0x75C060); // dword_75C060
-pub const RECTS_RVA: usize = rva(0x75B940); // dword_75B940: 0x10 a rectangle
+const COLOUR_RVA: Slot = Slot::at(0x75BF50); // dword_75BF50
+const K_RVA: [Slot; 2] = [Slot::at(0x75C0A8), Slot::at(0x75C0AC)];
+const SCRATCH_RVA: Slot = Slot::at(0x75C060); // dword_75C060
+pub const RECTS_RVA: Slot = Slot::at(0x75B940); // dword_75B940: 0x10 a rectangle
 const RECT: u32 = 0x5C;
 
 /// The Rust version (see the header).

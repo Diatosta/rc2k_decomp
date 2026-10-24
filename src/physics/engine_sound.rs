@@ -21,7 +21,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{EAX, game_addr, game_read, game_write, rva};
+use crate::framework::{EAX, game_addr, game_write, rva};
 use crate::math::x87;
 use crate::math::x87_run::ext_to_int;
 use crate::physics::car_sound_state::car_sound_state;
@@ -31,8 +31,8 @@ use crate::screens::harness::Left;
 use rc2k_core::physics::engine::ease_revs;
 use rc2k_core::physics::x87::hold_low;
 
-fn g(x: usize) -> u32 {
-    unsafe { game_read(rva(x)) }
+fn g(x: impl crate::store::At) -> u32 {
+    unsafe { crate::store::at_read(x) }
 }
 
 fn p(x: usize, v: u32) {
@@ -76,7 +76,7 @@ unsafe fn run() {
 // Converted: `rc2k_core::physics::engine::ease_revs` and `x87::hold_low` (the speed figures
 // and the rounding stay x87).
 pub unsafe fn engine_sound() -> Result<Left, Refused> {
-    let o = g(0x512A10 + 4 * (g(0x71B3F8) & 7) as usize);
+    let o = g(crate::sound::store::ObjectsSlot::at(0x512A10) + 4 * (g(0x71B3F8) & 7) as usize);
     if o == 0 {
         return Err(crate::errors::BadInput("a null sound object").into());
     }

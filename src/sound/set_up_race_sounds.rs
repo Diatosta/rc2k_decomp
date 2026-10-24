@@ -9,14 +9,16 @@
 //! Shadow mode runs the original alone.
 //! Self-test: a redirected copy whose four calls note the registers they get.
 
-use crate::framework::{game_read, game_write, rva};
+use crate::audio::store::Slot;
 use crate::sound::apply_settings::run_step;
+use crate::sound::store::EffectsSlot;
+use crate::store::{game_read, game_write};
 
 // ---- game data ----
 
-const APPLIED_RVA: usize = rva(0x518080); // dword_518080
-const HELD_BACK_RVA: usize = rva(0x506C84); // dword_506C84
-const RACE_MODE_RVA: usize = rva(0x4F82C8); // dword_4F82C8
+const APPLIED_RVA: EffectsSlot = EffectsSlot::at(0x518080); // dword_518080
+const HELD_BACK_RVA: Slot = Slot::at(0x506C84); // dword_506C84
+const RACE_MODE_RVA: Slot = Slot::at(0x4F82C8); // dword_4F82C8
 
 // ---- Rust version ----
 

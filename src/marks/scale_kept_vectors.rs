@@ -19,14 +19,14 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::rva;
 use crate::marks::scale_vectors_by::scale_triples;
+use crate::marks::store::Slot;
 
 /// (the factor, the vector, the result).
-const PAIRS: [(usize, usize, usize); 3] = [
-    (rva(0x76926A), rva(0x76926E), rva(0x76927A)),
-    (rva(0x7692BE), rva(0x7692C2), rva(0x7692CE)),
-    (rva(0x7692A2), rva(0x7692A6), rva(0x7692B2)),
+const PAIRS: [(Slot, Slot, Slot); 3] = [
+    (Slot::at(0x76926A), Slot::at(0x76926E), Slot::at(0x76927A)),
+    (Slot::at(0x7692BE), Slot::at(0x7692C2), Slot::at(0x7692CE)),
+    (Slot::at(0x7692A2), Slot::at(0x7692A6), Slot::at(0x7692B2)),
 ];
 
 /// The Rust version (see the header).

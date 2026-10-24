@@ -5,14 +5,14 @@
 use crate::audio::buffer_settings::a3d;
 use crate::audio::voices::*;
 use crate::errors::{BadInput, Refused};
-use crate::framework::game_addr;
+use crate::store::game_addr;
 
 pub const GET_STATUS: u32 = 0x24;
 pub const PLAY: u32 = 0x30;
 pub const SET_CURRENT_POSITION: u32 = 0x34;
 pub const STOP: u32 = 0x48;
 pub const COMMIT: u32 = 0x44;
-pub const LISTENER_3D_RVA: usize = crate::framework::rva(0x506A90); // g_soundListener
+pub const LISTENER_3D_RVA: crate::audio::store::Slot = crate::audio::store::Slot::at(0x506A90); // g_soundListener
 
 /// `GetStatus`: the buffer plays.
 pub const PLAYING: u32 = 1;

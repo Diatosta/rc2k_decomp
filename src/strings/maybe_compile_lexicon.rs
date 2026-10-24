@@ -9,15 +9,16 @@
 //! Hook removed 2026-10-21 (conversion phase 4); the original keeps every register.
 
 use crate::errors::Refused;
-use crate::framework::{game_read, rva};
+use crate::input::store::DeviceSlot;
+use crate::store::game_read;
 use crate::strings::compile_lexicon::compile_lexicon;
 use std::sync::atomic::{AtomicU32, Ordering};
 
 /// 1 or more (signed) to recompile on the key: a `var\\ral.cfg` setting, out of the image
 /// since 2026-10-24 (phase 5; it was `dword_4E0758`, 0 there; set through
-/// `crate::moved::resolve`).
+/// `crate::moved::place`).
 pub static RECOMPILE_LEVEL: AtomicU32 = AtomicU32::new(0);
-const KEY_RVA: usize = rva(0x4F6B2A); // byte_4F6B2A: `input`'s key states (key 0x4E)
+const KEY_RVA: DeviceSlot = DeviceSlot::at(0x4F6B2A); // byte_4F6B2A: `input`'s key states (key 0x4E)
 
 pub unsafe fn maybe_compile_lexicon() -> Result<(), Refused> {
     unsafe {

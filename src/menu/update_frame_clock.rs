@@ -12,17 +12,15 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::{game_write, rva};
+use crate::session::CLOCKS;
 use crate::system::tick_count::tick_count;
 
 // ---- game data ----
-
-pub const CLOCK_RVA: usize = rva(0x51899C); // dword_51899C
 
 // ---- Rust version ----
 
 pub fn update_frame_clock() -> u32 {
     let now = tick_count();
-    unsafe { game_write(CLOCK_RVA, now) };
+    CLOCKS.frame.set(now);
     now
 }

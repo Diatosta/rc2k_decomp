@@ -12,10 +12,11 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
+use crate::input::store::DeviceSlot;
 use crate::physics::flow::a;
 use rc2k_core::drive::inputs::{KEY_COUNT, keys_or};
 
-const KEYS: usize = 0x4F6CDC; // g_keysPressed
+const KEYS: DeviceSlot = DeviceSlot::at(0x4F6CDC); // g_keysPressed
 
 /// The Rust version: (the bytes' or, esi).
 // Converted: `rc2k_core::drive::inputs::keys_or`.

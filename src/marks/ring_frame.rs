@@ -17,13 +17,14 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, game_write, rva};
+use crate::framework::rva;
 use crate::marks::setup::SETTINGS_RVA;
+use crate::marks::store::{Slot, game_read, game_write};
 
 const TEXTURE_RVA: usize = rva(0x5D1E34); // dword_5D1E34
-const TINT_RVA: usize = rva(0x939BA6); // dword_939BA6
-const CHOICE_RVA: usize = rva(0x93A1D6); // g_marksKind1Choice
-const DROPS_RVA: usize = rva(0x8BC50D); // dword_8BC50D
+const TINT_RVA: Slot = Slot::at(0x939BA6); // dword_939BA6
+const CHOICE_RVA: Slot = Slot::at(0x93A1D6); // g_marksKind1Choice
+const DROPS_RVA: Slot = Slot::at(0x8BC50D); // dword_8BC50D
 /// The render states set (value, state).
 const STATES: [(u32, u32); 5] = [(4, 0x15), (5, 0x13), (6, 0x14), (1, 0x1C), (1, 0x1B)];
 

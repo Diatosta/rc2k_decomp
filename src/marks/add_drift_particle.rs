@@ -18,13 +18,14 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, game_write, rva};
+use crate::framework::rva;
 use crate::marks::blocks::{RING_FREE_RVA, RING_USED_RVA};
+use crate::marks::store::{Slot, game_read, game_write};
 use crate::math::x87;
 use crate::scene::matrix3::rounded;
 
 const FULL: u32 = 0xFFF;
-const LOWER_RVA: usize = rva(0x93C644); // flt_93C644
+const LOWER_RVA: Slot = Slot::at(0x93C644); // flt_93C644
 const VIEW_RVA: usize = rva(0x5EA3CC); // flt_5EA3CC: the view's place at +0x30
 const LIFE: u32 = 0xC350;
 

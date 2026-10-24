@@ -3,7 +3,10 @@
 //! overlays, the first car loaded.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{Regs, rva};
+use crate::input::store::DeviceSlot;
+use crate::session::SCREEN;
+use crate::store::{game_addr, game_read, game_write};
 
 fn k(a: u32) -> u32 {
     unsafe { game_read(rva(a as usize)) }
@@ -13,9 +16,6 @@ fn w(a: u32, v: u32) {
     unsafe { game_write(rva(a as usize), v) }
 }
 
-const WIDTH: u32 = 0x4F494C; // g_screenWidth
-const HEIGHT: u32 = 0x4F4950; // g_screenHeight
-
 /// `race::full_view_window` (0x455ECB) / `race::full_view_window_2` (0x456004): the view
 /// window the whole screen (`dword_62408C` / `dword_624090` its size, `dword_623FB0` /
 /// `dword_623FB4` 0, `dword_624080` 0x100, `scene::set_view_window`), `dword_63993C` 0; the
@@ -23,8 +23,8 @@ const HEIGHT: u32 = 0x4F4950; // g_screenHeight
 /// `race::draw_mirror_view`) read no register it leaves.
 pub unsafe fn full_view_window(first: bool) {
     unsafe {
-        w(0x62408C, k(WIDTH));
-        w(0x624090, k(HEIGHT));
+        w(0x62408C, SCREEN.width.get());
+        w(0x624090, SCREEN.height.get());
         w(0x623FB0, 0);
         w(0x623FB4, 0);
         w(0x624080, 0x100);
@@ -49,7 +49,7 @@ pub unsafe fn mirror_view_window() -> Result<(), Refused> {
         let n = mirror_entry(
             k(0x6238A4),
             k(0x63DB9C),
-            ((crate::framework::game_addr(rva(0x6D1502))) as *const u32).read_unaligned() == 0,
+            ((crate::store::game_addr(rva(0x6D1502))) as *const u32).read_unaligned() == 0,
         );
         let at = |base: u32| k(base.wrapping_add(n.wrapping_mul(8)));
         let Some(Window {
@@ -57,7 +57,10 @@ pub unsafe fn mirror_view_window() -> Result<(), Refused> {
             y,
             width: sx,
             height: sy,
-        }) = mirror_window((at(0x6415FC), at(0x641600)), (k(WIDTH), k(HEIGHT)))
+        }) = mirror_window(
+            (at(0x6415FC), at(0x641600)),
+            (SCREEN.width.get(), SCREEN.height.get()),
+        )
         else {
             return Err(BadInput("a mirror place whose scaling overflows").into());
         };
@@ -103,14 +106,14 @@ pub unsafe fn draw_flat_triangle() {
 /// The marks' shadow refusals (`marks::draw_shadow`'s first and second shadows), checked
 /// before anything.
 fn shadow_refuses(sh: &crate::marks::draw_shadow::Shadow) -> Result<(), Refused> {
-    let corner = unsafe { game_read::<u32>(sh.corner()) };
+    let corner = unsafe { crate::marks::store::game_read::<u32>(sh.corner()) };
     if corner == u32::MAX {
         return Ok(());
     }
     if corner >= 0x100 {
         return Err(BadInput("a shadow corner past g_marksCorners").into());
     }
-    if unsafe { game_read::<u32>(crate::marks::setup::SETTINGS_RVA) } == 0 {
+    if unsafe { crate::marks::store::game_read::<u32>(crate::marks::setup::SETTINGS_RVA) } == 0 {
         return Err(BadInput("no marks settings").into());
     }
     match sh.angle_refuses() {
@@ -187,7 +190,7 @@ pub unsafe fn copy_mirror_picture() -> Result<(), Refused> {
                 height: k(SURFACE_HEIGHT),
                 from_pitch: ebp,
                 to_pitch: k(SURFACE_PITCH),
-                from_16: k(0x4F4954) == 0x10,
+                from_16: SCREEN.bits.get() == 0x10,
                 to_16: k(SURFACE_BITS) == 0x10,
             };
             let mut surfaces = GameSurfaces {
@@ -260,7 +263,8 @@ pub unsafe fn forget_view_textures() -> Result<(), Refused> {
             Forget::Extra(n) => (k([0x6D1830u32, 0x6D1834][n]), [0x5D1E58, 0x5D1E5C][n]),
         };
         let mirror = mirror_on(k(0x6415E0), k(0x6415E8));
-        let uploaded = ((crate::framework::game_addr(rva(0x4F6B74))) as *const u8).read() != 0;
+        let uploaded =
+            ((crate::store::game_addr(DeviceSlot::at(0x4F6B74))) as *const u8).read() != 0;
         let mut slots: Vec<u32> = FORGET_ORDER
             .iter()
             .map(|&(f, _)| source(f))
@@ -296,7 +300,7 @@ pub unsafe fn forget_view_textures() -> Result<(), Refused> {
             // `sub_44E828`, the platform's upload (then the slot forgotten): through the
             // game, esi the picture, eax the slot (the only registers it reads).
             let r = &mut Regs {
-                esi: crate::framework::game_addr(rva(0xA12AE4)) as u32,
+                esi: crate::store::game_addr(rva(0xA12AE4)) as u32,
                 eax: k(0x5D0E08),
                 ..Default::default()
             };
@@ -355,8 +359,8 @@ pub unsafe fn clear_view_depth() {
     }
     w(0x624138, 0);
     w(0x62413C, 0);
-    w(0x624140, k(WIDTH));
-    w(0x624144, k(HEIGHT));
+    w(0x624140, SCREEN.width.get());
+    w(0x624144, SCREEN.height.get());
     clear_viewport_unless_held();
 }
 
@@ -439,7 +443,7 @@ pub unsafe fn run_view_marks() -> Result<(), Refused> {
         check_view_marks(
             block,
             |b| k(0x71B3D8 + 4 * b),
-            || game_read(crate::marks::setup::SETTINGS_RVA),
+            || crate::marks::store::game_read(crate::marks::setup::SETTINGS_RVA),
         )?;
         let (other, own) = marks_shown(view, k(0x6235E8), k(0x601024));
         w(0x5C2F94, other);
@@ -462,11 +466,11 @@ pub unsafe fn run_view_marks() -> Result<(), Refused> {
         let n = k(0x6416A0 + 4 * layout_at);
         w(
             0x62409C,
-            int_over_times(k(WIDTH), k(0x5C5D6C), k(0x6416C0 + 4 * n)),
+            int_over_times(SCREEN.width.get(), k(0x5C5D6C), k(0x6416C0 + 4 * n)),
         );
         w(
             0x6240A0,
-            int_over_times(k(HEIGHT), k(0x5C5D70), k(0x6416D4 + 4 * n)),
+            int_over_times(SCREEN.height.get(), k(0x5C5D70), k(0x6416D4 + 4 * n)),
         );
         // Neither reads a register nor leaves one read after it (0x456464, 0x456472).
         let done = crate::marks::frame_marks::frame_marks().and_then(|_| {
@@ -486,7 +490,7 @@ pub unsafe fn run_view_marks() -> Result<(), Refused> {
 /// game's was called before): `d3d::clear_viewport` (0x44E9D9, the same `Clear` of
 /// `dword_624138` with flag 2) unless `dword_624238` is not 0.
 pub fn clear_viewport_unless_held() {
-    if unsafe { crate::framework::game_read::<u32>(rva(0x624238)) } == 0 {
+    if unsafe { crate::store::game_read::<u32>(rva(0x624238)) } == 0 {
         crate::platform_3d::clear_viewport();
     }
 }

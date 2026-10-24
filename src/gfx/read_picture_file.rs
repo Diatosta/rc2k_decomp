@@ -16,15 +16,15 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::files::swap_missing_extension::swap_missing_extension;
-use crate::framework::{game_addr, game_read, rva};
+use crate::gfx::block::game_read;
+use crate::gfx::decoder::Slot as DecSlot;
 use crate::gfx::read_pcx::read_pcx;
 use crate::gfx::read_png::read_png;
 use crate::strings::text_length::text_length;
 
 // ---- game data ----
 
-const PNG_SETTING_RVA: usize = rva(0x51B97C); // dword_51B97C: a setting; 0 = PNG files are read
-const CHATZONE_PATH_RVA: usize = rva(0x5AB400); // "files\d\gfx\chatzone.pcx"
+const PNG_SETTING_RVA: DecSlot = DecSlot::at(0x51B97C); // dword_51B97C: a setting; 0 = PNG files are read
 
 // ---- Rust version ----
 
@@ -48,7 +48,9 @@ pub unsafe fn read_picture_file(path: *mut u8) -> Result<bool, Refused> {
             Reader::PngThenPcx => Ok(read_png(path)? || read_pcx(path)?),
             Reader::Pcx => Ok(read_pcx(path)?),
             Reader::Nothing => Ok(true),
-            Reader::Chatzone => Ok(read_pcx(game_addr(CHATZONE_PATH_RVA) as *const u8)?),
+            Reader::Chatzone => Ok(read_pcx(
+                crate::gfx::texts::address(&crate::gfx::texts::CHATZONE) as *const u8,
+            )?),
         }
     }
 }

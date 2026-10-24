@@ -15,16 +15,18 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::{game_read, game_write, rva};
 use crate::hud::add_quad::QUAD_RVA;
+use crate::hud::store::Slot;
+use crate::hud::store::read_f32 as f;
+use crate::hud::store::{game_read, game_write};
 use crate::math::turn_float_point_xz::turn_float_point_xz_plain;
 use rc2k_core::hud::disc;
 
-const POINT_RVA: [usize; 2] = [rva(0x75BFF0), rva(0x75BFF4)]; // dword_75BFF0, dword_75BFF4
-const UV_SHIFT_RVA: [usize; 2] = [rva(0x75C298), rva(0x75C29C)];
-const UV_SCALE_RVA: usize = rva(0x75C00C); // flt_75C00C
-const SIZE_RVA: usize = rva(0x75C2B8); // dword_75C2B8
-const CENTRE_RVA: [usize; 2] = [rva(0x75C2A0), rva(0x75C2A4)];
+const POINT_RVA: [Slot; 2] = [Slot::at(0x75BFF0), Slot::at(0x75BFF4)]; // dword_75BFF0, dword_75BFF4
+const UV_SHIFT_RVA: [Slot; 2] = [Slot::at(0x75C298), Slot::at(0x75C29C)];
+const UV_SCALE_RVA: Slot = Slot::at(0x75C00C); // flt_75C00C
+const SIZE_RVA: Slot = Slot::at(0x75C2B8); // dword_75C2B8
+const CENTRE_RVA: [Slot; 2] = [Slot::at(0x75C2A0), Slot::at(0x75C2A4)];
 
 /// The Rust version (see the header), the point as `f64`s (what the x87 holds at the
 /// game's double precision): the vertex at `vertex`, turned by `angle` (edx). The
@@ -37,7 +39,6 @@ pub unsafe fn turned_vertex(vertex: u32, angle: u32, point: [f64; 2]) {
         game_write(POINT_RVA[1], y.to_bits());
         game_write(POINT_RVA[0], x.to_bits());
         let put = |o: u32, v: f32| ((vertex + o) as *mut u32).write_unaligned(v.to_bits());
-        let f = |r: usize| f32::from_bits(game_read(r));
         let scale = f(UV_SCALE_RVA);
         put(0x18, disc::turned_texture(x, f(UV_SHIFT_RVA[0]), scale));
         put(0x1C, disc::turned_texture(y, f(UV_SHIFT_RVA[1]), scale));

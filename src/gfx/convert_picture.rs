@@ -22,14 +22,13 @@
 //! `routes.rs`); the registers above are the original's, for reference.
 
 use crate::errors::BadInput;
-use crate::framework::{game_addr, game_read, game_write};
+use crate::gfx::block::{game_addr, game_read, game_write};
 use crate::gfx::components_to_4444_rows::{COMPONENTS_TO_4444_ROWS, components_to_4444_rows};
 use crate::gfx::copy_pixel_rows::{COPY_PIXEL_ROWS, copy_pixel_rows};
 use crate::gfx::install_converters::CONVERTERS_RVA;
-use crate::gfx::picture::{
-    FLAGS_RVA, HEIGHT_RVA, ROW_BYTES_RVA, SCREEN_BITS_RVA, WIDTH_RVA, picture,
-};
-use crate::gfx::pixel_format::{PixelFormat, SCRATCH_RVA, SURFACE_FORMAT_RVA};
+use crate::gfx::picture::{FLAGS_RVA, HEIGHT_RVA, ROW_BYTES_RVA, WIDTH_RVA, picture};
+use crate::gfx::pixel_format::{PixelFormat, SCRATCH_RVA, surface_format_addr};
+use crate::session::SCREEN;
 
 // ---- game data ----
 
@@ -37,7 +36,7 @@ const FORMAT_NUMBER: usize = 0x14; // in the surface's format
 
 /// The surface format's number.
 fn format_number() -> u32 {
-    unsafe { game_read(SURFACE_FORMAT_RVA + FORMAT_NUMBER) }
+    crate::session::SCREEN.format[FORMAT_NUMBER / 4].get()
 }
 
 /// The converter the game has for the surface's format, or 0.
@@ -117,14 +116,15 @@ pub unsafe fn convert_picture(screen_bits: u32, converter: u32) -> Result<CarryL
             }
         } else {
             // Converted: `rc2k_core::gfx::pixels::convert_in_place`.
-            let format: PixelFormat = game_read(SURFACE_FORMAT_RVA);
+            let format: PixelFormat =
+                (surface_format_addr() as *const PixelFormat).read_unaligned();
             let pixels = width as usize * height as usize;
             let bytes = std::slice::from_raw_parts_mut(buffer, pixels * 4);
             // `components_to_pixel`'s carry for the last pixel: clear for 0 and for a format
             // of rotations (+0 negative), set after its loop over the masks (`shr ecx, 1`
             // shifting out the last bit).
             let last = u32::from_le_bytes(bytes[(pixels - 1) * 4..pixels * 4].try_into().unwrap());
-            let carry = last != 0 && (game_read::<u32>(SURFACE_FORMAT_RVA) as i32) >= 0;
+            let carry = last != 0 && (crate::session::SCREEN.format[0].get() as i32) >= 0;
             let scratch = rc2k_core::gfx::pixels::convert_in_place(
                 bytes,
                 pixels,
@@ -151,7 +151,7 @@ pub unsafe fn convert_picture_now() -> Result<CarryLeft, BadInput> {
     if picture().is_null() {
         return Err(BadInput("no picture buffer"));
     }
-    unsafe { convert_picture(game_read(SCREEN_BITS_RVA), converter()) }
+    unsafe { convert_picture(SCREEN.bits.get(), converter()) }
 }
 
 // ---- self-test: a copy of the original that reads the screen's bits and the converter table

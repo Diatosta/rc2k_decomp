@@ -24,20 +24,22 @@
 //! on); of the registers only eax is kept for the callers (see Out).
 
 use crate::errors::Refused;
-use crate::framework::{game_addr, game_ptr, game_read, game_write, rva};
+use crate::framework::rva;
+use crate::gfx::block::{game_addr, game_ptr, game_read, game_write};
 use crate::gfx::copy_picture_to_surface::{GameSurface, copy_picture_to_surface};
+use crate::gfx::decoder::Slot as DecSlot;
+use crate::gfx::picture_store::Slot as PicSlot;
 use crate::platform::{lock_surface, pump_messages_now, show_frame_now, unlock_surface};
+use crate::session::SCREEN;
 use rc2k_core::gfx::picture_size as sizes;
 
 // ---- game data ----
 
-const SHOWING_RVA: usize = rva(0x51B9C4); // dword_51B9C4
-const PICTURE_FLAGS_RVA: usize = rva(0x4F49CC); // g_pictureFlags
-const PICTURE_WIDTH_RVA: usize = rva(0x4F49D0); // g_pictureWidth, height, row bytes
-const SCREEN_WIDTH_RVA: usize = rva(0x4F494C); // g_screenWidth
-const SCREEN_HEIGHT_RVA: usize = rva(0x4F4950); // g_screenHeight
+const SHOWING_RVA: DecSlot = DecSlot::at(0x51B9C4); // dword_51B9C4
+const PICTURE_FLAGS_RVA: PicSlot = PicSlot::at(0x4F49CC); // g_pictureFlags
+const PICTURE_WIDTH_RVA: PicSlot = PicSlot::at(0x4F49D0); // g_pictureWidth, height, row bytes
 const SCREEN_MODE_FLAGS_RVA: usize = rva(0x4F4934); // g_screenModeFlags
-const DECODED_WIDTH_RVA: usize = rva(0x519124); // g_decodedWidth
+const DECODED_WIDTH_RVA: DecSlot = DecSlot::at(0x519124); // g_decodedWidth
 const FONT_PALETTES_RVA: usize = rva(0x51DEB0); // g_fontPalettes
 const LOADING_FONT_RVA: usize = rva(0x51EAA4); // stru_51EAA4
 
@@ -57,8 +59,7 @@ pub unsafe fn show_picture_file(path: *mut u8) -> Result<u32, Refused> {
             Err(Refused::BadInput(_)) => false,
             Err(e) => return Err(e),
         };
-        let (width, height): (u32, u32) =
-            (game_read(SCREEN_WIDTH_RVA), game_read(SCREEN_HEIGHT_RVA));
+        let (width, height): (u32, u32) = (SCREEN.width.get(), SCREEN.height.get());
         game_write(PICTURE_WIDTH_RVA, sizes::screen(width, height).dwords());
         let pages = sizes::pages(game_read::<u32>(SCREEN_MODE_FLAGS_RVA));
         let mut eax = path as u32;

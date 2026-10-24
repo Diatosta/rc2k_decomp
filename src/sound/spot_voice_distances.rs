@@ -15,13 +15,12 @@
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
-use crate::physics::flow::{base, x87_run};
+use crate::physics::flow::x87_run;
 use crate::sound::spot_voices::{VOICE_COUNT, set, voice, vw};
 
 // ---- Rust version ----
 
 pub fn spot_voice_distances() {
-    let b = base();
     for n in 0..VOICE_COUNT {
         let bx = voice(n);
         if vw(bx, 4) != 1 {
@@ -40,22 +39,22 @@ pub fn spot_voice_distances() {
             ".byte 0xD9, 0xFA",
             "fst dword ptr [{bx} + 0x40]",
             ".byte 0xDE, 0xE9",
-            "fmul dword ptr [{b} + 0x1124EC]",
+            "fmul dword ptr [{ck} + 8]",
             "fstp dword ptr [{bx} + 0x44]";
-            bx = bx, b = b
+            bx = bx, ck = crate::sound::store::clock::base()
         );
         set(bx, 0x4C, 0);
         set(bx, 0x48, 0x3F80_0000);
         if vw(bx, 0x20) != 1 {
             x87_run!(
-                "fld dword ptr [{bx} + 0x44]",
-                "fadd dword ptr [{b} + 0x1124F8]",
-                "fmul dword ptr [{b} + 0x1124FC]",
-                "fsub dword ptr [{bx} + 0x48]",
-                "fmul dword ptr [{b} + 0x116360]",
-                "fadd dword ptr [{bx} + 0x48]",
-                "fstp dword ptr [{bx} + 0x48]";
-                bx = bx, b = b
+                            "fld dword ptr [{bx} + 0x44]",
+                            "fadd dword ptr [{ck} + 0x14]",
+                            "fmul dword ptr [{ck} + 0x18]",
+                            "fsub dword ptr [{bx} + 0x48]",
+                            "fmul dword ptr [{sf} + 0x8]",
+                            "fadd dword ptr [{bx} + 0x48]",
+                            "fstp dword ptr [{bx} + 0x48]";
+                bx = bx, ck = crate::sound::store::clock::base(), sf = crate::sound::store::surface::base()
             );
         }
         set(bx, 0x4C, 0x3F80_0000);

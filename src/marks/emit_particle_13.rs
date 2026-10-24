@@ -23,27 +23,27 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, game_write, rva};
 use crate::marks::emitters::*;
+use crate::marks::store::{Slot, game_read, game_write};
 use crate::math::x87;
 
-const POINTS_RVA: usize = rva(0x769312); // flt_769312: 3 floats by the car's model
+const POINTS_RVA: Slot = Slot::at(0x769312); // flt_769312: 3 floats by the car's model
 const MODELS: u32 = 34;
-const SCALE_RVA: usize = rva(0x7651D4); // flt_7651D4
-const DROP_RVA: usize = rva(0x7651E4); // flt_7651E4
-const LIFT_RVA: usize = rva(0x93A462);
-const STRENGTH_RVA: usize = rva(0x9356C0); // dword_9356C0
-const STRENGTH_K_RVA: usize = rva(0x93A466);
+const SCALE_RVA: Slot = Slot::at(0x7651D4); // flt_7651D4
+const DROP_RVA: Slot = Slot::at(0x7651E4); // flt_7651E4
+const LIFT_RVA: Slot = Slot::at(0x93A462);
+const STRENGTH_RVA: Slot = Slot::at(0x9356C0); // dword_9356C0
+const STRENGTH_K_RVA: Slot = Slot::at(0x93A466);
 /// flt_93A46A, flt_93A46E, flt_93A472: the motion's factors (x, y, z).
-const MOTION_K: [usize; 3] = [rva(0x93A46A), rva(0x93A46E), rva(0x93A472)];
-const DRIFT_RANDOM_RVA: usize = rva(0x93A476);
-const DRIFT_K_RVA: usize = rva(0x765214); // flt_765214
-const TICKS_RVA: usize = rva(0x764FD0); // g_marksFrameTicks
-const SPIN_RANDOM_RVA: usize = rva(0x93A47A);
-const LIFE_SCALE_RVA: usize = rva(0x7651A4); // flt_7651A4
-const FADE_K_RVA: usize = rva(0x7651A0); // dword_7651A0
+const MOTION_K: [Slot; 3] = [Slot::at(0x93A46A), Slot::at(0x93A46E), Slot::at(0x93A472)];
+const DRIFT_RANDOM_RVA: Slot = Slot::at(0x93A476);
+const DRIFT_K_RVA: Slot = Slot::at(0x765214); // flt_765214
+const TICKS_RVA: Slot = Slot::at(0x764FD0); // g_marksFrameTicks
+const SPIN_RANDOM_RVA: Slot = Slot::at(0x93A47A);
+const LIFE_SCALE_RVA: Slot = Slot::at(0x7651A4); // flt_7651A4
+const FADE_K_RVA: Slot = Slot::at(0x7651A0); // dword_7651A0
 /// flt_93A47E, flt_93A482, flt_93A486: the size's factor, base and scale.
-const SIZE_K: [usize; 3] = [rva(0x93A47E), rva(0x93A482), rva(0x93A486)];
+const SIZE_K: [Slot; 3] = [Slot::at(0x93A47E), Slot::at(0x93A482), Slot::at(0x93A486)];
 const LOOK: u32 = 0x3F;
 const LIFE: u32 = 0xFA;
 

@@ -16,7 +16,7 @@
 
 use crate::audio::com::{self};
 use crate::audio::voices::*;
-use crate::framework::{game_addr, game_read};
+use crate::store::{game_addr, game_read};
 
 const SET_VOLUME: u32 = 0x3C;
 

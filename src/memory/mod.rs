@@ -21,7 +21,7 @@ pub const HEADER_LEN: u32 = rc2k_core::memory::HEADER_LEN;
 /// The allocator's variables, out of the image since 2026-10-24 (phase 5; they were
 /// `dword_4E0578` .. `dword_4E0590`, 7 dwords). Atomics: any thread allocates. `OWN_HEAP` and
 /// `OWN_HEAP_KB` are `var\ral.cfg` settings (`altmemenable`, `altmemsize`, through
-/// `crate::moved::resolve`). Each has its own entry in `moved::MOVED`.
+/// `crate::moved::place`). Each has its own entry in `moved::MOVED`.
 pub mod state {
     use std::sync::atomic::AtomicU32;
     /// dword_4E0578: the most bytes held at once.

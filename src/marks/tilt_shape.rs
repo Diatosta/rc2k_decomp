@@ -18,15 +18,15 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::{game_read, game_write, rva};
+use crate::marks::store::{Slot, game_read, game_write};
 use crate::math::x87;
 
-const TILT_RVA: usize = rva(0x811BC3); // g_marksShapeTilt
-const SINE_RVA: usize = rva(0x811BC7); // flt_811BC7
-const COSINE_RVA: usize = rva(0x811BCB); // flt_811BCB
-const POINT_RVA: usize = rva(0x811BDF); // flt_811BDF .. flt_811BE7
-const UNIT_RVA: usize = rva(0x811BD3); // unk_811BD3
-const LENGTH_RVA: usize = rva(0x811BCF); // dword_811BCF
+const TILT_RVA: Slot = Slot::at(0x811BC3); // g_marksShapeTilt
+const SINE_RVA: Slot = Slot::at(0x811BC7); // flt_811BC7
+const COSINE_RVA: Slot = Slot::at(0x811BCB); // flt_811BCB
+const POINT_RVA: Slot = Slot::at(0x811BDF); // flt_811BDF .. flt_811BE7
+const UNIT_RVA: Slot = Slot::at(0x811BD3); // unk_811BD3
+const LENGTH_RVA: Slot = Slot::at(0x811BCF); // dword_811BCF
 
 /// The Rust version (see the header).
 pub unsafe fn tilt_shape() {

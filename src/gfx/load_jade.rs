@@ -20,7 +20,6 @@ use crate::gfx::pixel_format::surface_format;
 
 // ---- game data ----
 
-const PATH_RVA: usize = rva(0x4F66C8); // "files\d\gfx\jade.bun"
 const GLYPHS_RVA: usize = rva(0x4F52C4); // unk_4F52C4
 const ROOM: u32 = rc2k_core::gfx::screenshot::JADE_ROOM;
 const COLOUR_RVA: usize = rva(0x4F66C4); // dword_4F66C4
@@ -43,5 +42,5 @@ pub unsafe fn load_jade(path: *const u8) -> Result<(), Refused> {
 
 /// The game's `files\d\gfx\jade.bun`.
 pub fn load_jade_in_game() -> Result<(), Refused> {
-    unsafe { load_jade(game_addr(PATH_RVA) as *const u8) }
+    unsafe { load_jade(crate::gfx::texts::address(&crate::gfx::texts::JADE) as *const u8) }
 }

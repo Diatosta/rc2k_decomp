@@ -23,8 +23,10 @@
 //! `start` calls it directly (2026-10-23); the registers above are the original's, for
 //! reference.
 
+use crate::audio::store::Slot;
 use crate::errors::BadInput;
-use crate::framework::{game_addr, game_write, rva};
+use crate::framework::rva;
+use crate::store::{game_addr, game_write};
 use windows_sys::Win32::System::Environment::GetCommandLineA;
 use windows_sys::Win32::UI::WindowsAndMessaging::MessageBoxA;
 
@@ -42,7 +44,7 @@ const I_THIRD_RVA: usize = rva(0x51BA08); // dword_51BA08
 const I_FOURTH_RVA: usize = rva(0x51BA0C); // dword_51BA0C
 const IGNORE_SECONDARY_RVA: usize = rva(0x5AB954); // dword_5AB954
 const IGNORE_PRIMARY_RVA: usize = rva(0x5AB950); // dword_5AB950
-const NO_AUDIO_RVA: usize = rva(0x4F82B4); // g_noAudio
+const NO_AUDIO_RVA: Slot = Slot::at(0x4F82B4); // g_noAudio
 const VERSION_RVA: usize = rva(0x4E0000); // "$VER: Rally 5.30 (4.8.2000)"
 const SECOND_TEXT_RVA: usize = rva(0x4E0077); // byte_4E0077
 const EXIT_PATH: usize = 0x401116;
@@ -92,12 +94,12 @@ pub unsafe fn read_command_line(line: *const u8) -> Result<Asked, BadInput> {
         game_write(PROGRAM_RVA, line.wrapping_add(sw.program.0) as u32);
         game_write(PROGRAM_LEN_RVA, sw.program.1 as u32);
         for (on, place) in [
-            (sw.u, SWITCH_U_RVA),
-            (sw.installing, INSTALLING_RVA),
-            (sw.no_audio, NO_AUDIO_RVA),
+            (sw.u, game_addr(SWITCH_U_RVA)),
+            (sw.installing, game_addr(INSTALLING_RVA)),
+            (sw.no_audio, game_addr(NO_AUDIO_RVA)),
         ] {
             if on {
-                game_write(place, 1u32);
+                (place as *mut u32).write_unaligned(1);
             }
         }
         for i in &sw.install {

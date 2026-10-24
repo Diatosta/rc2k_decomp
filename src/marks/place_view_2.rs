@@ -18,21 +18,21 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{game_read, game_write, rva};
 use crate::marks::place_view::{ViewPlace, place_view_with};
+use crate::marks::store::{Slot, game_read, game_write};
 use crate::math::x87;
 
 const SECOND: ViewPlace = ViewPlace {
-    point: rva(0x8D2208), // dword_8D2208
+    point: Slot::at(0x8D2208), // dword_8D2208
     start_z: 0x8_0000,
-    place: rva(0x8D2160),       // dword_8D2160
-    matrix: rva(0x8D216C),      // dword_8D216C
-    out: rva(0x8D2214),         // dword_8D2214
-    height: rva(0x8DB53C),      // flt_8DB53C
-    matrix_copy: rva(0x8D2220), // dword_8D2220
+    place: Slot::at(0x8D2160),       // dword_8D2160
+    matrix: Slot::at(0x8D216C),      // dword_8D216C
+    out: Slot::at(0x8D2214),         // dword_8D2214
+    height: Slot::at(0x8DB53C),      // flt_8DB53C
+    matrix_copy: Slot::at(0x8D2220), // dword_8D2220
 };
-const CLEARED_RVA: usize = rva(0x8D20C0); // dword_8D20C0 .. dword_8D20DC
-const FILLED_RVA: usize = rva(0x8D20E0); // xmmword_8D20E0: four floats
+const CLEARED_RVA: Slot = Slot::at(0x8D20C0); // dword_8D20C0 .. dword_8D20DC
+const FILLED_RVA: Slot = Slot::at(0x8D20E0); // xmmword_8D20E0: four floats
 
 /// The Rust version (see the header).
 pub unsafe fn place_view_2() -> Result<(), Refused> {

@@ -24,28 +24,28 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, game_write, rva};
 use crate::marks::emitters::*;
 use crate::marks::jitter_point::jitter_point;
+use crate::marks::store::{Slot, game_read, game_write};
 use crate::math::x87;
 use crate::scene::matrix3::{extended, rounded};
 
-const STRENGTH_RVA: usize = rva(0x93555E); // g_marksStrength
-const SIGN_RVA: usize = rva(0x935432); // g_marksSign: -1 or 1
-const SIDE_BIT_RVA: usize = rva(0x935416); // dword_935416: bit 0 the side
+const STRENGTH_RVA: Slot = Slot::at(0x93555E); // g_marksStrength
+const SIGN_RVA: Slot = Slot::at(0x935432); // g_marksSign: -1 or 1
+const SIDE_BIT_RVA: Slot = Slot::at(0x935416); // dword_935416: bit 0 the side
 /// One emitter's variables (kind 5's and kind 0xB's code is the same but for these).
 pub struct JitterSet {
     pub kind: u32,
     /// Whether the rounded |speed| must be over 1 (kind 0xB) or the speed not 0 (kind 5).
     pub over_one: bool,
-    pub place_random: usize,
+    pub place_random: Slot,
     /// The motion's factors (x, y, z); `lift` the y's.
-    pub motion_k: [usize; 3],
-    pub lift: usize,
-    pub spread: usize,
+    pub motion_k: [Slot; 3],
+    pub lift: Slot,
+    pub spread: Slot,
     /// The third row's factors (z, y, x).
-    pub roll_k: [usize; 3],
-    pub spin: usize,
+    pub roll_k: [Slot; 3],
+    pub spin: Slot,
     pub life: u32,
 }
 
@@ -53,12 +53,12 @@ pub struct JitterSet {
 pub const FIFTH: JitterSet = JitterSet {
     kind: 5,
     over_one: false,
-    place_random: rva(0x93A23A),
-    motion_k: [rva(0x93A23E), rva(0x93A242), rva(0x93A24A)],
-    lift: rva(0x93A246),
-    spread: rva(0x93A24E),
-    roll_k: [rva(0x93A252), rva(0x93A256), rva(0x93A25A)],
-    spin: rva(0x93A25E),
+    place_random: Slot::at(0x93A23A),
+    motion_k: [Slot::at(0x93A23E), Slot::at(0x93A242), Slot::at(0x93A24A)],
+    lift: Slot::at(0x93A246),
+    spread: Slot::at(0x93A24E),
+    roll_k: [Slot::at(0x93A252), Slot::at(0x93A256), Slot::at(0x93A25A)],
+    spin: Slot::at(0x93A25E),
     life: 0x1388,
 };
 

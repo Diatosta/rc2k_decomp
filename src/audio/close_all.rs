@@ -17,7 +17,7 @@
 //! and the stream were left playing on the DirectSound it then closes.
 
 use crate::errors::Refused;
-use crate::framework::{game_addr, game_read};
+use crate::store::{game_addr, game_read};
 
 pub fn close_all() -> Result<(), Refused> {
     use crate::audio::sound_device::*;
@@ -35,7 +35,7 @@ pub fn close_all() -> Result<(), Refused> {
         )?;
         close_sound(
             game_addr(crate::audio::make_buffer::DIRECT_SOUND_RVA) as u32,
-            game_addr(WINDOW_RVA) as u32,
+            crate::session::MACHINE.window.addr() as u32,
         )?;
         write(game_addr(SOUND_MODE_RVA) as u32, 0);
     }

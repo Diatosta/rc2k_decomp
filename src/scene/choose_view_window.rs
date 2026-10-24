@@ -16,6 +16,7 @@
 
 use crate::framework::{game_read, game_write, rva};
 use crate::screens::harness::Left;
+use crate::session::SCREEN;
 
 const FRAMED_RVA: usize = rva(0x621514); // dword_621514
 const WIDE_RVA: usize = rva(0x621480); // dword_621480
@@ -23,7 +24,6 @@ pub const MODE_RVA: usize = rva(0x636526); // word_636526
 const WINDOW_RVA: [usize; 2] = [rva(0x62408C), rva(0x624090)];
 const OFFSET_RVA: [usize; 2] = [rva(0x623FB0), rva(0x623FB4)];
 const SCALE_RVA: usize = rva(0x624080); // dword_624080
-const SCREEN_RVA: [usize; 2] = [rva(0x4F494C), rva(0x4F4950)];
 
 /// The Rust version (see the header): what it leaves in the registers.
 pub unsafe fn choose_view_window() -> Left {
@@ -35,9 +35,7 @@ pub unsafe fn choose_view_window() -> Left {
             wide: game_read::<u32>(WIDE_RVA) != 0,
             mode: game_read(MODE_RVA),
         };
-        let window = choose(settings, || {
-            [game_read(SCREEN_RVA[0]), game_read(SCREEN_RVA[1])]
-        });
+        let window = choose(settings, || [SCREEN.width.get(), SCREEN.height.get()]);
         game_write(WINDOW_RVA[0], window.size[0]);
         game_write(WINDOW_RVA[1], window.size[1]);
         game_write(OFFSET_RVA[0], window.offset[0]);

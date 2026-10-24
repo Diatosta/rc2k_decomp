@@ -14,19 +14,19 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::rva;
 use crate::marks::emit_particle_5::{JitterSet, emit_particle_5_with};
+use crate::marks::store::Slot;
 
 /// Kind 0xB's variables.
 pub const ELEVENTH: JitterSet = JitterSet {
     kind: 0xB,
     over_one: true,
-    place_random: rva(0x93A262),
-    motion_k: [rva(0x93A266), rva(0x93A26A), rva(0x93A272)],
-    lift: rva(0x93A26E),
-    spread: rva(0x93A276),
-    roll_k: [rva(0x93A27A), rva(0x93A27E), rva(0x93A282)],
-    spin: rva(0x93A286),
+    place_random: Slot::at(0x93A262),
+    motion_k: [Slot::at(0x93A266), Slot::at(0x93A26A), Slot::at(0x93A272)],
+    lift: Slot::at(0x93A26E),
+    spread: Slot::at(0x93A276),
+    roll_k: [Slot::at(0x93A27A), Slot::at(0x93A27E), Slot::at(0x93A282)],
+    spin: Slot::at(0x93A286),
     life: 0x7D0,
 };
 

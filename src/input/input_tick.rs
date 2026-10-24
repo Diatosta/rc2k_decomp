@@ -22,12 +22,13 @@
 
 use crate::errors::Refused;
 use crate::field;
-use crate::framework::{game_addr, game_read, rva};
 use crate::input::devices::{RECORDS, at, put};
+use crate::input::store::DeviceSlot;
 use crate::input::types::InputDevice;
+use crate::store::{game_addr, game_read};
 
-pub const COMMAND_RVA: usize = rva(0x4F7DE4); // g_inputCommand
-const TWO_DEVICES_RVA: usize = rva(0x4F68FC); // dword_4F68FC
+pub const COMMAND_RVA: DeviceSlot = DeviceSlot::at(0x4F7DE4); // g_inputCommand
+const TWO_DEVICES_RVA: DeviceSlot = DeviceSlot::at(0x4F68FC); // dword_4F68FC
 
 /// A tick of the devices (see the header).
 pub unsafe fn input_tick() -> Result<(), Refused> {

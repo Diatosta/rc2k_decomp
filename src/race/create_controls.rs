@@ -10,9 +10,10 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::{game_write, rva};
+use crate::input::store::DeviceSlot;
+use crate::store::game_write;
 
-const CONTROLS_RVA: usize = rva(0x4F7DE4); // dword_4F7DE4
+const CONTROLS_RVA: DeviceSlot = DeviceSlot::at(0x4F7DE4); // dword_4F7DE4
 
 pub fn create_controls() {
     unsafe { game_write(CONTROLS_RVA, 3u32) };

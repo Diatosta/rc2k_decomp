@@ -21,7 +21,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, game_read, game_write};
+use crate::gfx::block::{game_addr, game_read, game_write};
 use crate::gfx::build_glyphs::WORK_MEMORY_RVA;
 use crate::gfx::load_picture::load_picture;
 use crate::gfx::pcx::{DECODED_HEIGHT_RVA, DECODED_WIDTH_RVA, STRIDE_RVA};

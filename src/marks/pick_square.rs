@@ -16,10 +16,10 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::{game_read, game_write, rva};
 use crate::marks::spawn_square::spawn_square;
+use crate::marks::store::{Slot, game_read, game_write};
 
-const RANDOM_RVA: usize = rva(0x8BC256); // dword_8BC256
+const RANDOM_RVA: Slot = Slot::at(0x8BC256); // dword_8BC256
 
 /// The Rust version (see the header).
 pub unsafe fn pick_square() {

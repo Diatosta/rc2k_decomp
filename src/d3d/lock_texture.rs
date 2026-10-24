@@ -15,7 +15,8 @@
 
 use crate::d3d::texture_lock::*;
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Flags, game_addr};
+use crate::framework::Flags;
+use crate::gfx::block::game_addr;
 
 /// The Rust version (see the header): texture `texture` locked; the flags it leaves
 /// (every register is kept).

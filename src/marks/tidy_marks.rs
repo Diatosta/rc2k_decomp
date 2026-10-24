@@ -26,8 +26,8 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, game_read, rva};
 use crate::marks::lines::{SETTINGS_RVA, TAKEN_RVA};
+use crate::marks::store::{Slot, game_addr, game_read};
 use crate::memory::free_list::free_list;
 use crate::memory::{MemoryList, own_heap};
 
@@ -35,13 +35,13 @@ const CAR_LEN: u32 = 0x4C8;
 const CAR_PART: u32 = 0x29C; // `sub_4D06F3`'s ebp: the car's +0x29C
 const MOST_CARS: i32 = 8;
 /// The six lists, in the order freed.
-const LISTS_RVA: [usize; 6] = [
-    rva(0x93A580), // g_marksRingList
-    rva(0x935620), // stru_935620
-    rva(0x934DBA), // g_marksBMaskList
-    rva(0x934D76), // stru_934D76
-    rva(0x8DB570), // g_marksPlacesList
-    rva(0x9206F0), // g_marksLinksList
+const LISTS_RVA: [Slot; 6] = [
+    Slot::at(0x93A580), // g_marksRingList
+    Slot::at(0x935620), // stru_935620
+    Slot::at(0x934DBA), // g_marksBMaskList
+    Slot::at(0x934D76), // stru_934D76
+    Slot::at(0x8DB570), // g_marksPlacesList
+    Slot::at(0x9206F0), // g_marksLinksList
 ];
 /// Each car's list, worked out without writing (none for a count past the refusals).
 unsafe fn car_lists(settings: u32) -> Vec<u32> {

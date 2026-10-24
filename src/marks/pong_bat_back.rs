@@ -18,8 +18,8 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::{game_read, game_write};
 use crate::marks::pong;
+use crate::marks::store::{game_read, game_write};
 
 /// The Rust version (see the header).
 pub unsafe fn pong_bat_back() {

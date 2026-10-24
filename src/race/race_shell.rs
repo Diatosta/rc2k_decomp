@@ -1,9 +1,12 @@
 //! The race's shell (`sub_4843EC`, `single_rally`'s race, and `sub_443F0B`, IDA
 //! 2026-10-17): what runs round a stage's loading and its run. Here its small leaves.
 
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::framework::rva;
+use crate::input::store::DeviceSlot;
+use crate::sound::store::WheelsSlot;
+use crate::store::{game_addr, game_read, game_write};
 
-pub const CONTROLS_RVA: usize = rva(0x4F7DE4); // dword_4F7DE4 (`create_controls` 3)
+pub const CONTROLS_RVA: DeviceSlot = DeviceSlot::at(0x4F7DE4); // dword_4F7DE4 (`create_controls` 3)
 /// Each car block's +0xB0 (dword_70F49C ..): the player absent.
 pub const ABSENCES: [usize; 8] = [
     0x70F49C, 0x71047C, 0x71145C, 0x71243C, 0x71341C, 0x7143FC, 0x7153DC, 0x7163BC,
@@ -61,7 +64,7 @@ pub fn release_stage_textures() {
 
 const ABSENT_0_RVA: usize = rva(0x70F49C); // the first block's +0xB0
 const TIME_0_RVA: usize = rva(0x70F474); // the first block's +0x88
-const SEAL_KEY_RVA: usize = rva(0x4F66F9); // dword_4F66F9 (unaligned)
+const SEAL_KEY_RVA: WheelsSlot = WheelsSlot::at(0x4F66F9); // dword_4F66F9 (unaligned)
 pub const SEAL_RVA: usize = rva(0x5BECCC); // the dword after "RCIB"
 
 /// `race::seal_stage_time` (0x41F29D): the first block's time (+0x88, held to

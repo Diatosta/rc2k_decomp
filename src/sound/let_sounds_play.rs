@@ -8,9 +8,10 @@
 //! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
 //! `routes.rs`); the registers above are the original's, for reference.
 
-use crate::framework::{game_write, rva};
+use crate::audio::store::Slot;
+use crate::store::game_write;
 
-pub const HELD_BACK_RVA: usize = rva(0x506C84); // g_soundsHeldBack
+pub const HELD_BACK_RVA: Slot = Slot::at(0x506C84); // g_soundsHeldBack
 
 pub fn let_sounds_play() {
     unsafe { game_write(HELD_BACK_RVA, 0u32) };

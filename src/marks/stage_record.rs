@@ -14,7 +14,8 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{game_read, rva};
+use crate::framework::rva;
+use crate::marks::store::game_read;
 
 const NUMBER_RVA: usize = rva(0x64165C); // dword_64165C
 const RECORDS_RVA: usize = rva(0x606320); // off_606320: 0x34 pointers

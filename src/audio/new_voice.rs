@@ -13,7 +13,7 @@
 
 use crate::audio::voices::*;
 use crate::errors::{FatalError, Refused};
-use crate::framework::game_addr;
+use crate::store::game_addr;
 
 /// `count`: where the count is kept; `voices`: the pool.
 pub unsafe fn new_voice(count: u32, voices: u32) -> Result<u32, Refused> {

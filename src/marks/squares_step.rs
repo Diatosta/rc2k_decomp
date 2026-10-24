@@ -15,13 +15,13 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{game_read, game_write, rva};
 use crate::marks::expire_squares::expire_squares;
 use crate::marks::pick_shapes::pick_shapes;
+use crate::marks::store::{Slot, game_read, game_write};
 
-const CLEARED_RVA: usize = rva(0x81623A); // dword_81623A
-const CLOCK_RVA: usize = rva(0x814714); // dword_814714
-const LATEST_RVA: usize = rva(0x84460C); // dword_84460C
+const CLEARED_RVA: Slot = Slot::at(0x81623A); // dword_81623A
+const CLOCK_RVA: Slot = Slot::at(0x814714); // dword_814714
+const LATEST_RVA: Slot = Slot::at(0x84460C); // dword_84460C
 
 /// The Rust version (see the header).
 // Converted: `rc2k_core::marks::steps::{steps, next_step}`

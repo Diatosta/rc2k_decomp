@@ -34,13 +34,14 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
+use crate::audio::store::Slot;
 use crate::audio::voices::*;
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, rva};
+use crate::store::addr32 as a;
+use crate::store::game_addr;
 
 const MODE_MIXER: u32 = 0x4_0000;
-const ENVIRONMENT_RVA: usize = rva(0x6D1DD4); // dword_6D1DD4
-const ENVIRONMENT_KEPT_RVA: usize = rva(0x506C80); // dword_506C80
+const ENVIRONMENT_KEPT_RVA: Slot = Slot::at(0x506C80); // dword_506C80
 
 #[derive(Clone, Copy)]
 pub struct Vars {
@@ -58,7 +59,6 @@ pub struct Vars {
 
 impl Vars {
     pub fn game() -> Self {
-        let a = |r| game_addr(r) as u32;
         Self {
             a3d: a(A3D_RVA),
             mode: a(SOUND_MODE_RVA),
@@ -69,7 +69,7 @@ impl Vars {
             room_asked: a(EAX_ROOM_RVA),
             room_set: a(EAX_ROOM_SET_RVA),
             environment_kept: a(ENVIRONMENT_KEPT_RVA),
-            environment: a(ENVIRONMENT_RVA),
+            environment: crate::audio::store::ENVIRONMENT.addr() as u32,
         }
     }
 }

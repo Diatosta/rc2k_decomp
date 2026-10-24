@@ -13,19 +13,21 @@
 //! and the self-test was the hook's.
 
 use crate::errors::FatalError;
-use crate::framework::{game_read, game_write, rva};
+use crate::framework::rva;
+use crate::gfx::bar_store::Slot as BarSlot;
 use crate::gfx::blit_glyph::BlitCall;
 use crate::gfx::blit_marker_pair::sprite_table;
+use crate::gfx::block::{game_read, game_write};
 use crate::gfx::surface::{CLIP_RIGHT_RVA, clip};
 
 // ---- game data ----
 
-const BAR_X_RVA: usize = rva(0x755224); // dword_755224
-const BAR_Y_RVA: usize = rva(0x755228); // dword_755228
-const BAR_WIDTH_RVA: usize = rva(0x75522C); // dword_75522C
-const BAR_FILL_GLYPH_RVA: usize = rva(0x755230); // dword_755230
-const BAR_END_GLYPH_RVA: usize = rva(0x755234); // dword_755234
-const BAR_PERCENT_RVA: usize = rva(0x755238); // dword_755238
+const BAR_X_RVA: BarSlot = BarSlot::at(0x755224); // dword_755224
+const BAR_Y_RVA: BarSlot = BarSlot::at(0x755228); // dword_755228
+const BAR_WIDTH_RVA: BarSlot = BarSlot::at(0x75522C); // dword_75522C
+const BAR_FILL_GLYPH_RVA: BarSlot = BarSlot::at(0x755230); // dword_755230
+const BAR_END_GLYPH_RVA: BarSlot = BarSlot::at(0x755234); // dword_755234
+const BAR_PERCENT_RVA: BarSlot = BarSlot::at(0x755238); // dword_755238
 const FILL_END_RVA: usize = rva(0x7559AC); // seconds: a work variable, here the fill's end x
 
 /// The six globals a caller fills in before drawing a bar or its marker.

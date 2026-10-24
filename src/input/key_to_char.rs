@@ -20,22 +20,25 @@
 //! and the self-test was the hook's.
 
 use crate::errors::BadInput;
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::input::store::DeviceSlot;
+use crate::input::store::KeyboardSlot;
+use crate::input::store::LayoutSlot;
+use crate::store::{game_addr, game_read, game_write};
 
 // ---- game data ----
 
-pub const LAYOUT_MODE_RVA: usize = rva(0x4F07D2); // byte_4F07D2
-pub const LAYOUT_RVA: usize = rva(0x4F07D4); // dword_4F07D4: the current layout block
-pub const LAYOUT_A_RVA: usize = rva(0x4F07F8); // dword_4F07F8
-const LAYOUT_B_RVA: usize = rva(0x4F080C); // unk_4F080C
-pub const DEAD_KEY_RVA: usize = rva(0x4F6AD0); // byte_4F6AD0
+pub const LAYOUT_MODE_RVA: LayoutSlot = LayoutSlot::at(0x4F07D2); // byte_4F07D2
+pub const LAYOUT_RVA: LayoutSlot = LayoutSlot::at(0x4F07D4); // dword_4F07D4: the current layout block
+pub const LAYOUT_A_RVA: LayoutSlot = LayoutSlot::at(0x4F07F8); // dword_4F07F8
+const LAYOUT_B_RVA: LayoutSlot = LayoutSlot::at(0x4F080C); // unk_4F080C
+pub const DEAD_KEY_RVA: DeviceSlot = DeviceSlot::at(0x4F6AD0); // byte_4F6AD0
 // The key-down table starts at the pending key, 0x4F6ADC, and is indexed by scan code.
-pub const LEFT_SHIFT_RVA: usize = rva(0x4F6B06); // byte_4F6B06 (key 0x2A)
-pub const RIGHT_SHIFT_RVA: usize = rva(0x4F6B12); // byte_4F6B12 (key 0x36)
-pub const ALT_RVA: usize = rva(0x4F6B14); // byte_4F6B14 (key 0x38)
-pub const ALT_GR_RVA: usize = rva(0x4F6B40); // byte_4F6B40
-const SILENT_KEYS_RVA: usize = rva(0x4F7FF0); // dword_4F7FF0: one bit per key
-const COMPOSE_RVA: usize = rva(0x4F8000); // unk_4F8000
+pub const LEFT_SHIFT_RVA: DeviceSlot = DeviceSlot::at(0x4F6B06); // byte_4F6B06 (key 0x2A)
+pub const RIGHT_SHIFT_RVA: DeviceSlot = DeviceSlot::at(0x4F6B12); // byte_4F6B12 (key 0x36)
+pub const ALT_RVA: DeviceSlot = DeviceSlot::at(0x4F6B14); // byte_4F6B14 (key 0x38)
+pub const ALT_GR_RVA: DeviceSlot = DeviceSlot::at(0x4F6B40); // byte_4F6B40
+const SILENT_KEYS_RVA: KeyboardSlot = KeyboardSlot::at(0x4F7FF0); // dword_4F7FF0: one bit per key
+const COMPOSE_RVA: KeyboardSlot = KeyboardSlot::at(0x4F8000); // unk_4F8000
 
 use crate::bridge::Raw;
 
@@ -43,8 +46,8 @@ unsafe fn dword(addr: u32) -> u32 {
     unsafe { (addr as *const u32).read_unaligned() }
 }
 
-fn down(rva: usize) -> bool {
-    unsafe { game_read::<u8>(rva) != 0 }
+fn down(rva: impl crate::store::Where) -> bool {
+    unsafe { crate::store::game_read::<u8>(rva) != 0 }
 }
 
 /// True if a keyboard layout is set.
@@ -79,6 +82,8 @@ pub unsafe fn key_to_char(eax: u32) -> Result<u32, BadInput> {
         if layout == 0 {
             return Err(BadInput("no keyboard layout"));
         }
+        // The built-in layout's pointers name its tables' homes (`moved::point_into_homes`);
+        // a keyboard file's layout's are given as places.
         let table = |at: u32| {
             let p = dword(layout + at);
             (p != 0).then(|| Raw::new(p as *const u8))

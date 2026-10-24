@@ -1,10 +1,13 @@
 //! The race frame's texts (`sub_4547AE`'s, IDA 2026-10-18): the frame rate and the credits
 //! that roll over the race (`dword_71C3E0`), also used by the credits' screen.
 
+use crate::audio::store::Slot;
 use crate::errors::Refused;
-use crate::framework::{game_read, game_write, rva};
+use crate::framework::rva;
 use crate::screens::font_at;
 use crate::screens::harness::Left;
+use crate::session::SCREEN;
+use crate::store::{game_read, game_write};
 use crate::strings::text_from_ids::text;
 use crate::text::draw_string_by_id::draw_string_by_id_at;
 use crate::text::draw_text::{Canvas, draw_text_at};
@@ -43,7 +46,7 @@ unsafe fn credit_line(
 ) -> Result<Left, Refused> {
     // Converted: `rc2k_core::race::credits::shown`.
     unsafe {
-        if !rc2k_core::race::credits::shown(y, game_read(rva(0x4F4950))) {
+        if !rc2k_core::race::credits::shown(y, SCREEN.height.get()) {
             return Ok(Left::nothing());
         }
         let out = draw_string_by_id_at(id, font as *mut crate::text::font::Font, x, y, canvas)?;
@@ -75,8 +78,8 @@ pub unsafe fn roll_credits(
     use crate::system::tick_count::tick_count;
     use rc2k_core::race::credits::{Font, catch_up, lay_out, rolled_off, start_top};
     unsafe {
-        let width = game_read::<u32>(rva(0x4F494C)) as i32;
-        let height: u32 = game_read(rva(0x4F4950));
+        let width = SCREEN.width.get() as i32;
+        let height: u32 = SCREEN.height.get();
         if eax == 0 {
             game_write(rva(0x529850), tick_count());
             let top = start_top(height);
@@ -120,7 +123,7 @@ pub unsafe fn roll_credits(
             });
         game_write(rva(0x52984C), top);
         game_write(rva(0x529850), clock);
-        if !rolled_off(below, game_read(rva(0x506990))) {
+        if !rolled_off(below, game_read(Slot::at(0x506990))) {
             return Ok(Rolled {
                 carry: false,
                 zero: elapsed == 0,

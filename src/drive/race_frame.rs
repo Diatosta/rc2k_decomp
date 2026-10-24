@@ -19,17 +19,11 @@
 //! `routes.rs`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_read, rva};
+use crate::framework::{Regs, rva};
+use crate::session::FLAGS;
 
-const QUITTING_RVA: usize = rva(0x51837C); // g_quitting
-const ACTIVE_RVA: usize = rva(0x518374); // g_windowActive
-const LOST_RVA: usize = rva(0x518380); // dword_518380
 const PUMP: usize = 0x410535; // system::pump_messages (the platform's)
 const RESTORE: usize = 0x405B10; // sub_405B10: the surfaces restored (the platform's)
-
-fn g(a: usize) -> u32 {
-    unsafe { game_read(a) }
-}
 
 /// The Rust version (see the header): `eax` in, the eax its calls leave out (`mov eax,
 /// 12h` and `race::show_frame` when the frame is drawn, else what the window's messages
@@ -46,12 +40,12 @@ pub fn race_frame(eax: u32) -> Result<u32, Refused> {
         ..Regs::default()
     };
     crate::calls::call(rva(PUMP), r);
-    if g(QUITTING_RVA) == 1 {
+    if FLAGS.quitting.get() == 1 {
         // The game is closing. In the game its shutdown thread (`threading::request_quit`)
         // ends the program meanwhile; the standalone, which has none, ends it here.
         crate::standalone::leave_from_race();
     }
-    if g(ACTIVE_RVA) != 0 && g(LOST_RVA) != 1 {
+    if FLAGS.window_active.get() != 0 && FLAGS.lost.get() != 1 {
         // `scene::begin_scene` leaves the carry clear: the frame is never lost there.
         crate::scene::begin_scene::begin_scene();
         unsafe { crate::race::draw_race_scene::draw_race_scene() }?;
@@ -65,10 +59,10 @@ pub fn race_frame(eax: u32) -> Result<u32, Refused> {
             return Ok(r.eax);
         }
     }
-    if g(QUITTING_RVA) == 1 {
+    if FLAGS.quitting.get() == 1 {
         return Ok(r.eax);
     }
-    r.ebx = g(LOST_RVA);
+    r.ebx = FLAGS.lost.get();
     crate::calls::call(rva(RESTORE), r);
     Ok(r.eax)
 }

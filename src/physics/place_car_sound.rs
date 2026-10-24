@@ -19,18 +19,20 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, game_read, rva};
+use crate::framework::rva;
 use crate::math::x87_run::{ext_times, ints_diff_80};
 use crate::scene::matrix3::rounded;
 use crate::scene::rotate_point::rotate_point;
 use crate::screens::harness::Left;
+use crate::sound::store::ObjectsSlot;
+use crate::store::game_addr;
 
-fn g(x: usize) -> u32 {
-    unsafe { game_read(rva(x)) }
+fn g(x: impl crate::store::At) -> u32 {
+    unsafe { crate::store::at_read(x) }
 }
 
 const VIEW_TURN: usize = 0x5EA24C; // g_viewTurnMatrix
-const OBJECTS: usize = 0x512A10; // g_raceSoundObjects
+const OBJECTS: ObjectsSlot = ObjectsSlot::at(0x512A10); // g_raceSoundObjects
 
 unsafe fn put(a: u32, v: u32) {
     unsafe { (a as *mut u32).write_unaligned(v) }

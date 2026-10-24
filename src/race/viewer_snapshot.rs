@@ -14,23 +14,22 @@ use crate::errors::Refused;
 use crate::gfx::write_screen_pcx::PICTURE_NAME;
 use crate::physics::flow::a;
 use crate::race::find_snapshot_number::{SNAPSHOT_DIGITS, SNAPSHOT_PATH};
-use crate::race::viewer::{get, put};
 
 /// The Rust version (see the header).
 pub fn viewer_snapshot() -> Result<(), Refused> {
-    let kept = get(PICTURE_NAME);
+    let kept: u32 = unsafe { crate::gfx::block::game_read(PICTURE_NAME) };
     let digits = a(SNAPSHOT_DIGITS) as *mut u8;
     // Converted: `rc2k_core::race::viewer::next_snapshot`.
     unsafe {
         let (next, _, _) = rc2k_core::race::viewer::next_snapshot(digits.cast::<[u8; 3]>().read());
         digits.cast::<[u8; 3]>().write(next);
     }
-    put(PICTURE_NAME, a(SNAPSHOT_PATH));
+    unsafe { crate::gfx::block::game_write(PICTURE_NAME, a(SNAPSHOT_PATH)) };
     // `cmp g_surfaceLocked, 1`'s carry: not locked.
     if crate::platform::lock_surface() >= 1 {
         unsafe { crate::gfx::write_screen_pcx::write_screen_pcx() }?;
         crate::platform::unlock_surface();
     }
-    put(PICTURE_NAME, kept);
+    unsafe { crate::gfx::block::game_write(PICTURE_NAME, kept) };
     Ok(())
 }

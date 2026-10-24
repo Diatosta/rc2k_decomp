@@ -14,7 +14,7 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::{game_addr, game_ptr, game_read, game_write};
+use crate::gfx::block::{game_addr, game_ptr, game_read, game_write};
 use crate::gfx::palette_to_dwords::palette_to_dwords;
 use crate::gfx::pcx::{
     DECODED_HEIGHT_RVA, DECODED_ROW_BYTES_RVA, DECODED_ROW_DWORDS_RVA, DECODED_WIDTH_RVA,

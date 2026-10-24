@@ -13,20 +13,20 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::rva;
 use crate::marks::emit_particle_19::{TwinSet, emit_twin};
+use crate::marks::store::Slot;
 
 /// `emit_particle_22`'s variables.
 pub const TWENTY_SECOND: TwinSet = TwinSet {
     kind: 0x16,
     level_at: 0x4C4,
     flags: 0x33,
-    chance_random: rva(0x93A4B2),
-    lift: rva(0x93A4B6),
-    row_k: [rva(0x93A4BA), rva(0x93A4BE), rva(0x93A4C2)],
-    spread: rva(0x93A4C6),
-    motion_k: [rva(0x93A4CA), rva(0x93A4CE), rva(0x93A4D2)],
-    spin_random: rva(0x93A4D6),
+    chance_random: Slot::at(0x93A4B2),
+    lift: Slot::at(0x93A4B6),
+    row_k: [Slot::at(0x93A4BA), Slot::at(0x93A4BE), Slot::at(0x93A4C2)],
+    spread: Slot::at(0x93A4C6),
+    motion_k: [Slot::at(0x93A4CA), Slot::at(0x93A4CE), Slot::at(0x93A4D2)],
+    spin_random: Slot::at(0x93A4D6),
 };
 
 /// The Rust version (see the header).

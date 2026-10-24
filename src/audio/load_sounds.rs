@@ -25,9 +25,10 @@
 
 use crate::audio::voices::*;
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, rva};
+use crate::session::FLAGS;
+use crate::store::addr32 as a;
+use crate::store::game_addr;
 
-pub const QUITTING_RVA: usize = rva(0x51837C); // g_quitting
 /// Its variables: the records, the voices in use, the mode, the quit switch.
 #[derive(Clone, Copy)]
 pub struct Vars {
@@ -39,12 +40,11 @@ pub struct Vars {
 
 impl Vars {
     pub fn game() -> Self {
-        let a = |r| game_addr(r) as u32;
         Self {
             samples: a(SAMPLES_RVA),
             voice_count: a(VOICE_COUNT_RVA),
             mode: a(SOUND_MODE_RVA),
-            quitting: a(QUITTING_RVA),
+            quitting: FLAGS.quitting.addr() as u32,
         }
     }
 }
@@ -71,7 +71,7 @@ impl rc2k_core::audio::load::Loader for GameLoader<'_> {
         unsafe { read(self.v.voice_count) == VOICES }
     }
     fn shared(&mut self, at: rc2k_core::audio::load::At) -> Result<u32, Refused> {
-        let count: u32 = unsafe { crate::framework::game_read(VOICE_COUNT_RVA) };
+        let count: u32 = unsafe { crate::store::game_read(VOICE_COUNT_RVA) };
         Ok(unsafe {
             crate::audio::samples::find_shared_voice(
                 &*(self.record_at(at.sound) as *const SampleRecord),

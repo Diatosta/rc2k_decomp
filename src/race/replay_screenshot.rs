@@ -22,14 +22,16 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::framework::rva;
+use crate::gfx::block::{game_addr, game_read, game_write};
+use crate::gfx::picture_store::Slot as PicSlot;
 
 const RECORDING_RVA: usize = rva(0x5C2CCC); // dword_5C2CCC
 const CLOCK_RVA: usize = rva(0x5C2CD0); // dword_5C2CD0
 const STARTED_RVA: usize = rva(0x5C2CD4); // dword_5C2CD4
 const NAME_RVA: usize = rva(0x5C2CDC); // "rpl\000000.pcx"
 const FRAME_TIME_RVA: usize = rva(0x5C2CF3); // dword_5C2CF3 (unaligned)
-const PICTURE_NAME_RVA: usize = rva(0x4F49C8); // dword_4F49C8: the name the writer uses
+const PICTURE_NAME_RVA: PicSlot = PicSlot::at(0x4F49C8); // dword_4F49C8: the name the writer uses
 
 /// The Rust version (see the header). (The original keeps every register.)
 pub unsafe fn replay_screenshot() -> Result<(), Refused> {

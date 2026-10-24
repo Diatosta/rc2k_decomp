@@ -9,18 +9,16 @@
 //! `start` calls it directly (2026-10-23); the registers above are the original's, for
 //! reference.
 
-use crate::framework::{game_addr, rva};
 use windows_sys::Win32::System::SystemInformation::{GetVersionExA, OSVERSIONINFOA};
 
 // ---- game data ----
 
-const VERSION_INFO_RVA: usize = rva(0x518408); // VersionInformation
 const VERSION_INFO_LEN: usize = 0x94;
 
 // ---- Rust version ----
 
 pub unsafe fn read_windows_version() {
-    let info = game_addr(VERSION_INFO_RVA) as *mut OSVERSIONINFOA;
+    let info = crate::session::MACHINE.version_addr() as *mut OSVERSIONINFOA;
     unsafe {
         (info as *mut u32).write_unaligned(VERSION_INFO_LEN as u32);
         GetVersionExA(info);

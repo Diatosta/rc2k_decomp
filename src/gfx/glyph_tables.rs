@@ -7,26 +7,27 @@
 //! (0x412528).
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::gfx::block::{game_addr, game_read, game_write};
 use crate::gfx::build_glyphs::{
     BUILDER_FLAGS_RVA, FORMAT_RVA, TABLE_RVA, TABLE_SIZE_RVA, WORK_MEMORY_RVA,
 };
 use crate::gfx::components_to_pixel::components_to_pixel;
+use crate::gfx::decoder::Slot as DecSlot;
 use crate::gfx::glyph_builder::DIRECT_COLOUR;
 use crate::gfx::pcx::PALETTE_RVA;
 use crate::gfx::picture::{HEIGHT_RVA, ROW_BYTES_RVA, WIDTH_RVA};
-use crate::gfx::pixel_format::{PixelFormat, SURFACE_FORMAT_RVA};
+use crate::gfx::pixel_format::{PixelFormat, surface_format_addr};
 use crate::memory::MemoryList;
 use crate::memory::allocate::allocate;
 use crate::memory::free_list::free_list;
 use crate::memory::take_from_list::take_from_list;
+use crate::session::SCREEN;
 
 /// stru_51B984: the list the fonts' and the sprites' tables lie on, and dword_51B980: its
 /// size in units of 0x400 bytes times `dword_4F4958`.
-pub const TABLES_LIST_RVA: usize = rva(0x51B984);
-pub const TABLES_UNITS_RVA: usize = rva(0x51B980);
-pub const UNIT_FACTOR_RVA: usize = rva(0x4F4958); // dword_4F4958
-const WORK_UNITS_RVA: usize = rva(0x519554); // dword_519554
+pub const TABLES_LIST_RVA: DecSlot = DecSlot::at(0x51B984);
+pub const TABLES_UNITS_RVA: DecSlot = DecSlot::at(0x51B980);
+const WORK_UNITS_RVA: DecSlot = DecSlot::at(0x519554); // dword_519554
 
 /// The work memory taken, the picture's size set for sheets, the pixel layout the
 /// surface's, and no table yet.
@@ -35,10 +36,10 @@ pub unsafe fn begin_glyph_tables() -> Result<(), Refused> {
         game_write(WIDTH_RVA, 800u32);
         game_write(HEIGHT_RVA, 600u32);
         game_write(ROW_BYTES_RVA, 0xFFFF_FFFDu32);
-        game_write(FORMAT_RVA, game_addr(SURFACE_FORMAT_RVA) as u32);
+        game_write(FORMAT_RVA, surface_format_addr() as u32);
         let bytes = game_read::<u32>(WORK_UNITS_RVA)
             .wrapping_mul(0x400)
-            .wrapping_mul(game_read(UNIT_FACTOR_RVA));
+            .wrapping_mul(SCREEN.bytes.get());
         // (The original's fatal error 0x80E48021 for no memory cannot come: the allocator
         // reports its own.)
         allocate(game_addr(WORK_MEMORY_RVA) as *mut MemoryList, bytes)?;

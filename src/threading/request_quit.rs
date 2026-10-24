@@ -13,13 +13,12 @@
 //! `routes.rs`); the registers above are the original's, for reference.
 
 use crate::errors::FatalError;
-use crate::framework::{game_ptr, log, rva};
+use crate::framework::log;
+use crate::session::FLAGS;
 use crate::threading::start_slot_thread::start_slot_thread;
 use std::sync::atomic::{AtomicU32, Ordering};
 
 // ---- game data ----
-
-const QUIT_RVA: usize = rva(0x51837C); // dword_51837C: 1 = the game is shutting down
 
 // ---- Rust version ----
 
@@ -38,7 +37,7 @@ pub fn request_quit_with(
 }
 
 pub unsafe fn request_quit() -> Result<(), FatalError> {
-    let requested = unsafe { &*game_ptr::<AtomicU32>(QUIT_RVA) };
+    let requested = FLAGS.quitting.atomic();
     let before = requested.load(Ordering::SeqCst);
     let result = request_quit_with(requested, &mut |slot| unsafe {
         start_slot_thread(slot as *mut u8)
@@ -54,7 +53,7 @@ pub unsafe fn request_quit() -> Result<(), FatalError> {
 pub fn request_quit_logged() -> Result<(), FatalError> {
     // It happens once, while the game is closing, when `stats` can no longer be asked: say
     // in the log which version ran.
-    let was: u32 = unsafe { crate::framework::game_read(QUIT_RVA) };
+    let was: u32 = FLAGS.quitting.get();
     let result = unsafe { request_quit() };
     log(&format!(
         "threading::request_quit: the Rust version ran (switch was {was}): {result:?}"

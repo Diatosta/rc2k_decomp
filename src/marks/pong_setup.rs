@@ -14,10 +14,10 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::rva;
 use crate::marks::squares_setup::setup_with;
+use crate::marks::store::Slot;
 
-const PLACES_RVA: usize = rva(0x769222); // dword_769222 .. dword_76922E
+const PLACES_RVA: Slot = Slot::at(0x769222); // dword_769222 .. dword_76922E
 // g_polygonVertices
 
 /// The Rust version (see the header).

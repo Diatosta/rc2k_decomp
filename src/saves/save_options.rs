@@ -17,7 +17,7 @@
 
 use crate::errors::Refused;
 use crate::files::write_file::write_file;
-use crate::framework::{game_addr, rva};
+use crate::framework::game_addr;
 use crate::saves::load_options::OPTIONS;
 use crate::settings::TEXT_RVA;
 use crate::system::packed_local_time::packed_local_time;
@@ -42,7 +42,7 @@ pub unsafe fn save_options(path: *const u8) -> Result<bool, Refused> {
         let pieces: Vec<&[u8]> = OPTIONS
             .iter()
             .map(|&(place, len)| {
-                std::slice::from_raw_parts(game_addr(rva(place as usize)) as *const u8, len)
+                std::slice::from_raw_parts(crate::moved::place(place as usize) as *const u8, len)
             })
             .collect();
         let bytes = rc2k_core::saves::kept::options_file(packed_local_time(), &pieces);

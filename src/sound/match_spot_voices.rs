@@ -16,7 +16,6 @@
 //! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, rva};
 use crate::sound::spot_voices::{
     MOST_KIND, MOST_SPOTS, SOUND_OF_KIND, SPOT_COUNT, SPOT_LEN, SPOTS, g, load_voices,
     store_voices, vw,
@@ -31,7 +30,7 @@ pub fn match_spot_voices() -> Result<(), Refused> {
     if count > MOST_SPOTS {
         return Err(BadInput("more than 36 shared spots").into());
     }
-    let table = game_addr(rva(SPOTS)) as u32;
+    let table = SPOTS.address() as u32;
     let spots: Vec<Spot> = (0..count)
         .map(|s| {
             let spot = table + s * SPOT_LEN;
@@ -42,8 +41,7 @@ pub fn match_spot_voices() -> Result<(), Refused> {
             }
         })
         .collect();
-    let kinds: [u32; MOST_KIND as usize + 1] =
-        unsafe { crate::framework::game_read(rva(SOUND_OF_KIND)) };
+    let kinds: [u32; MOST_KIND as usize + 1] = unsafe { crate::store::game_read(SOUND_OF_KIND) };
     let mut voices = load_voices();
     rc2k_core::sound::spot_voices::match_spots(&spots, &mut voices, &kinds)?;
     store_voices(&voices);

@@ -21,15 +21,15 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{game_read, game_write, rva};
+use crate::marks::store::{Slot, game_read, game_write};
 use crate::math::x87;
 
-const FRAME_CYCLES_RVA: usize = rva(0x765114); // dword_765114
+const FRAME_CYCLES_RVA: Slot = Slot::at(0x765114); // dword_765114
 /// (where the share goes, its factor): the draw, the ring, the whole.
-const SHARES: [(usize, usize); 3] = [
-    (rva(0x765134), rva(0x93C8C4)),
-    (rva(0x76511C), rva(0x93C8C8)),
-    (rva(0x765120), rva(0x93C8CC)),
+const SHARES: [(Slot, Slot); 3] = [
+    (Slot::at(0x765134), Slot::at(0x93C8C4)),
+    (Slot::at(0x76511C), Slot::at(0x93C8C8)),
+    (Slot::at(0x765120), Slot::at(0x93C8CC)),
 ];
 const STATES: [(u32, u32); 6] = [
     (4, 0x15),

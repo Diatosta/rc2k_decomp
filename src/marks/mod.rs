@@ -121,6 +121,8 @@ pub mod squares_setup;
 pub mod squares_spawn;
 pub mod squares_step;
 pub mod stage_record;
+pub mod store;
+pub mod store_data;
 pub mod swap_mask;
 pub mod tidy_marks;
 pub mod tilt_shape;

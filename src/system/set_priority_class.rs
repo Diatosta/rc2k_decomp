@@ -8,18 +8,16 @@
 //! original and the Rust version with the switch 0 and 1, from the class there and to
 //! another, the class after each read back; the class and the switch put back.
 
-use crate::framework::{game_read, rva};
+use crate::session::FLAGS;
 use windows_sys::Win32::System::Threading::{GetCurrentProcess, SetPriorityClass};
 
 // ---- game data ----
-
-const KEEP_PRIORITY_RVA: usize = rva(0x518388); // dword_518388: not 0 = leave the class
 
 // ---- Rust version ----
 
 pub unsafe fn set_priority_class(class: u32) {
     unsafe {
-        if game_read::<u32>(KEEP_PRIORITY_RVA) == 0 {
+        if FLAGS.keep_priority.get() == 0 {
             SetPriorityClass(GetCurrentProcess(), class);
         }
     }

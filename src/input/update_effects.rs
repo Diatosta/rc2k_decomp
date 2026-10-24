@@ -23,20 +23,22 @@
 //! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{game_addr, rva};
 use crate::input::devices::at;
 use crate::input::effects::HAS_EFFECTS;
+use crate::input::store::DeviceSlot;
+use crate::physics::flow::a;
+use crate::sound::store::ObjectsSlot;
 
 /// g_playerCarA, g_playerCarB, g_onePlayer, g_raceSoundObjectCount (four dwords).
-const CARS: usize = 0x514F70;
+const CARS: ObjectsSlot = ObjectsSlot::at(0x514F70);
 /// g_inputDevices: the two records' addresses.
-const DEVICES: usize = 0x4F6EE8;
+const DEVICES: DeviceSlot = DeviceSlot::at(0x4F6EE8);
 /// g_viewBlocks: the two views' blocks.
 const VIEWS: usize = 0x63DBB0;
 /// g_raceSoundObjects: eight sound objects.
-const OBJECTS: usize = 0x512A10;
+const OBJECTS: ObjectsSlot = ObjectsSlot::at(0x512A10);
 /// dword_4F68FC: 1 when both devices are player A's.
-const TWO_DEVICES: usize = 0x4F68FC;
+const TWO_DEVICES: DeviceSlot = DeviceSlot::at(0x4F68FC);
 
 /// Where the variables are (the game's or a test's).
 #[derive(Clone, Copy)]
@@ -50,7 +52,6 @@ pub struct Vars {
 
 impl Vars {
     pub fn game() -> Self {
-        let a = |x: usize| game_addr(rva(x)) as u32;
         Self {
             cars: a(CARS),
             devices: a(DEVICES),

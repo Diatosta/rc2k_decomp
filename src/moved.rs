@@ -5,9 +5,11 @@
 //! `strings::units::units`, ...), never this file. Only the game's address tables still
 //! name variables by IDA address: the settings table (`var\ral.cfg`'s key -> the address of
 //! its variable, `settings::read_settings`) and copy lists such as `race::replay`'s
-//! `HEADER_MOVES`. They go through `place` (an IDA address) or `resolve` (an address as the
-//! image holds it, relocated), which answer a moved variable's new home and anything else's
-//! place in the image. `framework::game_addr` does not consult this: a stale
+//! `HEADER_MOVES`. They go through `place` (an IDA address), which answers a moved
+//! variable's new home and anything else's place in the image. The game's own pointers (the
+//! image's relocations) are pointed at the new homes once at start (`point_into_homes`), so
+//! a pointer read from the game's data is a real address. `framework::game_addr` does not
+//! consult this: a stale
 //! `game_addr(rva(X))` of a moved X reads the image's old, unchanging copy, so every use
 //! of a moved address is converted when it moves (grep all its spellings: `0x4E00A0`,
 //! `0x4E_00A0`, `{b} + 0xE00A0`, base + offset).
@@ -325,26 +327,335 @@ const MOVED: &[Moved] = &[
         len: crate::files::state::DIRECTORIES_LEN,
         home: || crate::files::state::DIRECTORIES.addr(),
     },
+    // gfx / hud / d3d (phase 5, `gfx::block`)
+    Moved {
+        ida: crate::hud::store::START, // the HUD's variables, batch included
+        len: crate::hud::store::LEN,
+        home: || crate::hud::store::STORE.addr(),
+    },
+    Moved {
+        ida: crate::gfx::decoder::START, // The picture decoders' and glyph builder's variables (decoded picture, palette, sheet table, PCX header and stream)
+        len: crate::gfx::decoder::LEN,
+        home: || crate::gfx::decoder::STORE.addr(),
+    },
+    Moved {
+        ida: crate::gfx::blit::START, // The blitter's and rescaler's variables (the clip rectangle, the skips of the visible part, the rescale steps and weights)
+        len: crate::gfx::blit::LEN,
+        home: || crate::gfx::blit::STORE.addr(),
+    },
+    Moved {
+        ida: crate::gfx::strips::START, // The HUD's view strips' places (sizes, tops, lefts)
+        len: crate::gfx::strips::LEN,
+        home: || crate::gfx::strips::STORE.addr(),
+    },
+    Moved {
+        ida: crate::gfx::formats::START, // The pixel formats' work variables (format numbers, row table, component format)
+        len: crate::gfx::formats::LEN,
+        home: || crate::gfx::formats::STORE.addr(),
+    },
+    Moved {
+        ida: crate::gfx::modes::START, // The screen mode tables (the thirds table, pixel kinds, sizes, the modes listed)
+        len: crate::gfx::modes::LEN,
+        home: || crate::gfx::modes::STORE.addr(),
+    },
+    Moved {
+        ida: crate::gfx::converters::START, // The MMX converters' masks and the converters table
+        len: crate::gfx::converters::LEN,
+        home: || crate::gfx::converters::STORE.addr(),
+    },
+    Moved {
+        ida: crate::gfx::reports::START, // The 3D reports switch (dword_4F52AC)
+        len: crate::gfx::reports::LEN,
+        home: || crate::gfx::reports::STORE.addr(),
+    },
+    Moved {
+        ida: crate::gfx::shots::START, // The screenshot switch, its lock and the file name's template
+        len: crate::gfx::shots::LEN,
+        home: || crate::gfx::shots::STORE.addr(),
+    },
+    Moved {
+        ida: crate::gfx::picture_store::START, // The picture loader's variables (the name, flags, size, rows and buffer of the picture, the list, the grades)
+        len: crate::gfx::picture_store::LEN,
+        home: || crate::gfx::picture_store::STORE.addr(),
+    },
+    Moved {
+        ida: crate::gfx::bar_store::START, // The progress bar's variables (position, width, glyphs, percent)
+        len: crate::gfx::bar_store::LEN,
+        home: || crate::gfx::bar_store::STORE.addr(),
+    },
+    Moved {
+        ida: crate::gfx::png_file::START, // The PNG decoder's file (pointer, length, memory list)
+        len: crate::gfx::png_file::LEN,
+        home: || crate::gfx::png_file::STORE.addr(),
+    },
+    Moved {
+        ida: crate::gfx::png_header::START, // The PNG header's fields (width, height, compression, colour type)
+        len: crate::gfx::png_header::LEN,
+        home: || crate::gfx::png_header::STORE.addr(),
+    },
+    Moved {
+        ida: crate::gfx::pcx_planes::START, // The screenshot writer's plane buffer (3 * width bytes, up to 1920 wide)
+        len: crate::gfx::pcx_planes::LEN,
+        home: || crate::gfx::pcx_planes::STORE.addr(),
+    },
+    Moved {
+        ida: crate::gfx::cards::START, // The 3D primary and secondary card switches
+        len: crate::gfx::cards::LEN,
+        home: || crate::gfx::cards::STORE.addr(),
+    },
+    Moved {
+        ida: crate::gfx::upload::START, // The texture upload's surface description (DDSURFACEDESC) and the mode-trial switch
+        len: crate::gfx::upload::LEN,
+        home: || crate::gfx::upload::STORE.addr(),
+    },
+    Moved {
+        ida: crate::gfx::front::START, // The DirectDraw front and back surface handles
+        len: crate::gfx::front::LEN,
+        home: || crate::gfx::front::STORE.addr(),
+    },
+    Moved {
+        ida: crate::gfx::locked::START, // The surface-locked switch
+        len: crate::gfx::locked::LEN,
+        home: || crate::gfx::locked::STORE.addr(),
+    },
+    Moved {
+        ida: crate::gfx::hexagon_batch::START, // The marks' hexagon batch drawn by d3d (the index and vertex counts, the fans, the records)
+        len: crate::gfx::hexagon_batch::LEN,
+        home: || crate::gfx::hexagon_batch::STORE.addr(),
+    },
+    // session: the screen, the window's flags, the machine, the clocks (`session`)
+    Moved {
+        ida: crate::session::SCREEN_IDA,
+        len: crate::session::SCREEN_LEN,
+        home: || &crate::session::SCREEN as *const _ as usize,
+    },
+    Moved {
+        ida: crate::session::FLAGS_IDA,
+        len: crate::session::FLAGS_LEN,
+        home: || &crate::session::FLAGS as *const _ as usize,
+    },
+    Moved {
+        ida: crate::session::MACHINE_IDA,
+        len: crate::session::MACHINE_LEN,
+        home: || &crate::session::MACHINE as *const _ as usize,
+    },
+    Moved {
+        ida: crate::session::CLOCKS_IDA,
+        len: crate::session::CLOCKS_LEN,
+        home: || &crate::session::CLOCKS as *const _ as usize,
+    },
+    // audio: the audio thread's variables and the sample records (`audio::store`)
+    Moved {
+        ida: crate::audio::store::state::START,
+        len: crate::audio::store::state::LEN,
+        home: crate::audio::store::state::base,
+    },
+    Moved {
+        ida: crate::audio::store::samples::START,
+        len: crate::audio::store::samples::LEN,
+        home: crate::audio::store::samples::base,
+    },
+    Moved {
+        ida: crate::audio::store::queue::START,
+        len: crate::audio::store::queue::LEN,
+        home: crate::audio::store::queue::base,
+    },
+    Moved {
+        ida: 0x6D1DD4, // g_eaxEnvironment
+        len: 4,
+        home: || crate::audio::store::ENVIRONMENT.addr(),
+    },
+    // sound: the race sounds' clock, and the spot picks .. CD audio block (`sound::store`)
+    Moved {
+        ida: crate::sound::store::wheels::START,
+        len: crate::sound::store::wheels::LEN,
+        home: crate::sound::store::wheels::base,
+    },
+    Moved {
+        ida: crate::sound::store::objects::START,
+        len: crate::sound::store::objects::LEN,
+        home: crate::sound::store::objects::base,
+    },
+    Moved {
+        ida: crate::sound::store::clock::START,
+        len: crate::sound::store::clock::LEN,
+        home: crate::sound::store::clock::base,
+    },
+    Moved {
+        ida: crate::sound::store::surface::START,
+        len: crate::sound::store::surface::LEN,
+        home: crate::sound::store::surface::base,
+    },
+    Moved {
+        ida: crate::sound::store::stage::START,
+        len: crate::sound::store::stage::LEN,
+        home: crate::sound::store::stage::base,
+    },
+    Moved {
+        ida: crate::sound::store::effects::START,
+        len: crate::sound::store::effects::LEN,
+        home: crate::sound::store::effects::base,
+    },
+    // input: the layout, devices, keyboard and mouse blocks (`input::store`)
+    Moved {
+        ida: crate::input::store::layout::START,
+        len: crate::input::store::layout::LEN,
+        home: crate::input::store::layout::base,
+    },
+    Moved {
+        ida: crate::input::store::devices::START,
+        len: crate::input::store::devices::LEN,
+        home: crate::input::store::devices::base,
+    },
+    Moved {
+        ida: crate::input::store::keyboard::START,
+        len: crate::input::store::keyboard::LEN,
+        home: crate::input::store::keyboard::base,
+    },
+    Moved {
+        ida: crate::input::store::mouse::START,
+        len: crate::input::store::mouse::LEN,
+        home: crate::input::store::mouse::base,
+    },
+    Moved {
+        ida: 0x511B0C, // g_nextMenuSoundTime
+        len: 4,
+        home: || crate::sound::store::NEXT_MENU_SOUND_TIME.addr(),
+    },
+    Moved {
+        ida: 0x6218F0, // g_raceSoundsOn
+        len: 4,
+        home: || crate::sound::store::RACE_SOUNDS_ON.addr(),
+    },
+    Moved {
+        ida: crate::sound::store::CAR_STREAM_IDA, // the car stream's place, list and switch
+        len: 12,
+        home: || crate::sound::store::CAR_STREAM.place.addr(),
+    },
+    // menu: the front end's variables (`menu::store`)
+    Moved {
+        ida: crate::menu::store::controls::START,
+        len: crate::menu::store::controls::LEN,
+        home: crate::menu::store::controls::base,
+    },
+    Moved {
+        ida: crate::menu::store::state::START,
+        len: crate::menu::store::state::LEN,
+        home: crate::menu::store::state::base,
+    },
+    // marks: the whole of 0x764F40 .. 0x93CCC8 (`marks::store`)
+    Moved {
+        ida: crate::marks::store::START,
+        len: crate::marks::store::LEN,
+        home: || crate::marks::store::STORE.addr(),
+    },
 ];
 
 /// Where the variable at IDA address `ida` lives now: its new home if it moved, else its
 /// place in the image.
 pub fn place(ida: usize) -> usize {
-    match MOVED.iter().find(|m| ida.wrapping_sub(m.ida) < m.len) {
-        Some(m) => (m.home)() + (ida - m.ida),
-        None => game_addr(rva(ida)),
-    }
+    // `game_addr` answers a moved variable's home.
+    game_addr(rva(ida))
 }
 
-#[allow(dead_code)] // the settings table now holds IDA addresses and asks `place`
-/// `place` for an address as the image holds it (a relocated pointer of the game's data):
-/// a moved variable's new home, anything else unchanged.
-pub fn resolve(address: usize) -> usize {
-    let ida = address.wrapping_sub(game_addr(0)).wrapping_add(IMAGE_BASE);
-    match MOVED.iter().find(|m| ida.wrapping_sub(m.ida) < m.len) {
-        Some(m) => (m.home)() + (ida - m.ida),
-        None => address,
+/// Which 4 KiB pages of the image (by RVA) hold a byte of a moved range: `home_of_rva`'s
+/// fast path (most addresses are on no such page).
+const PAGES: usize = 0x6C0000 >> 12;
+static MOVED_PAGES: [bool; PAGES] = moved_pages();
+
+const fn moved_pages() -> [bool; PAGES] {
+    let mut pages = [false; PAGES];
+    let mut n = 0;
+    while n < MOVED.len() {
+        let first = (MOVED[n].ida - IMAGE_BASE) >> 12;
+        let last = (MOVED[n].ida + MOVED[n].len - 1 - IMAGE_BASE) >> 12;
+        let mut p = first;
+        while p <= last {
+            pages[p] = true;
+            p += 1;
+        }
+        n += 1;
     }
+    pages
+}
+
+/// The moved ranges by IDA address, sorted, with their homes (made at the first use).
+fn sorted() -> &'static [(usize, usize, usize)] {
+    static SORTED: std::sync::OnceLock<Vec<(usize, usize, usize)>> = std::sync::OnceLock::new();
+    SORTED.get_or_init(|| {
+        let mut v: Vec<_> = MOVED
+            .iter()
+            .map(|m| (m.ida, m.ida + m.len, (m.home)()))
+            .collect();
+        v.sort_unstable();
+        v
+    })
+}
+
+/// The new home of the byte at `rva` if it has left the image (`framework::game_addr`'s
+/// resolver).
+pub fn home_of_rva(rva: usize) -> Option<usize> {
+    if !MOVED_PAGES.get(rva >> 12).copied().unwrap_or(false) {
+        return None;
+    }
+    let ida = rva + IMAGE_BASE;
+    let ranges = sorted();
+    let i = ranges.partition_point(|&(start, _, _)| start <= ida);
+    let &(start, end, home) = ranges.get(i.checked_sub(1)?)?;
+    (ida < end).then(|| home + (ida - start))
+}
+
+/// The moved ranges (by IDA address) whose readers take the image's pointers in them as IDA
+/// addresses on purpose: the thread slots (`threading::start_slot_thread`) and the marks'
+/// profile ramps (`marks::store::from_ida`).
+const RAW_KEPT: [usize; 2] = [0x5184F4, 0x764F40];
+
+fn moved_home(ida: usize) -> Option<(usize, usize)> {
+    MOVED
+        .iter()
+        .find(|m| ida.wrapping_sub(m.ida) < m.len)
+        .map(|m| ((m.home)() + (ida - m.ida), m.ida))
+}
+
+/// Points the game's pointers (`places`: the image's relocations, by RVA) at the new homes
+/// of the variables they name, as the image's relocation pointed them at the image: a
+/// pointer of the image to a moved variable is changed to its home; a pointer that moved
+/// with its block (whose first values are the image's bytes before relocation, IDA
+/// addresses) is made the address of its target, wherever that lives now. The ranges of
+/// `RAW_KEPT` stay as they are. Run once, while the image is built (`base` its address;
+/// `framework::BASE` is not set yet), after its relocation and before its pages are
+/// protected. Returns how many pointers it changed.
+pub unsafe fn point_into_homes(base: usize, places: &[usize]) -> usize {
+    let mut changed = 0;
+    for &at in places {
+        let ida = at + IMAGE_BASE;
+        unsafe {
+            match moved_home(ida) {
+                Some((_, block)) if RAW_KEPT.contains(&block) => {}
+                Some((home, _)) => {
+                    let p = home as *mut u32;
+                    let target = p.read_unaligned() as usize;
+                    let now = match moved_home(target) {
+                        Some((h, _)) => h,
+                        None => base + rva(target),
+                    };
+                    p.write_unaligned(now as u32);
+                    changed += 1;
+                }
+                None => {
+                    let p = (base + at) as *mut u32;
+                    let target = (p.read_unaligned() as usize)
+                        .wrapping_sub(base)
+                        .wrapping_add(IMAGE_BASE);
+                    if let Some((h, _)) = moved_home(target) {
+                        p.write_unaligned(h as u32);
+                        changed += 1;
+                    }
+                }
+            }
+        }
+    }
+    changed
 }
 
 /// RAL.EXE's bytes at IDA address `ida` as `data/ral_image.bin` holds them (before its
@@ -394,6 +705,32 @@ pub fn image_bytes(ida: usize, len: usize) -> Vec<u8> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// With `RC2K_LIST_MOVED` set, writes every range (`ida len` in hex) to that file: for
+    /// the coordinator's scans of a merge.
+    #[test]
+    fn list_moved_ranges() {
+        if let Ok(path) = std::env::var("RC2K_LIST_MOVED") {
+            let text: String = MOVED
+                .iter()
+                .map(|m| format!("{:x} {:x}\n", m.ida, m.len))
+                .collect();
+            std::fs::write(path, text).unwrap();
+        }
+    }
+
+    #[test]
+    fn game_addr_finds_every_home() {
+        for m in MOVED {
+            let home = (m.home)();
+            assert_eq!(home_of_rva(rva(m.ida)), Some(home), "{:#x}", m.ida);
+            assert_eq!(game_addr(rva(m.ida + m.len - 1)), home + m.len - 1);
+            if !MOVED.iter().any(|o| o.ida == m.ida + m.len) {
+                assert_eq!(home_of_rva(rva(m.ida + m.len)), None, "{:#x}", m.ida);
+            }
+        }
+        assert_eq!(home_of_rva(rva(0x4E0000)), None);
+    }
 
     #[test]
     fn moved_ranges_are_apart() {

@@ -54,7 +54,6 @@ pub const CHEATS: usize = 0x75870C; // g_cheats
 pub const RACE_RESULT: usize = 0x75B028; // dword_75B028: -1 no result, -2 left
 pub const RACE_RESULT_2: usize = 0x75B098; // dword_75B098: the second car's
 pub const ROUND: usize = 0x758714; // dword_758714: the rounds of a multi-player event
-pub const QUITTING: usize = 0x51837C; // g_quitting
 
 /// The car lists: `off_759CAE` (the championship's), `off_759D16` (the A8 championship's),
 /// `off_759DCA` / `off_75A042` (by `dword_7554D8`), `off_75A412` (with cheat bit 1).

@@ -15,8 +15,8 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::game_write;
 use crate::hud::add_quad::QUAD_RVA;
+use crate::hud::store::game_write;
 use rc2k_core::hud::quads;
 
 /// The quad record's texture places from the rectangle at `s` (shared with

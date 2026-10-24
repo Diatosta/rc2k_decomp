@@ -18,7 +18,8 @@
 
 use crate::errors::{FatalError, Refused};
 use crate::files::read_first_match::read_first_match;
-use crate::framework::{game_addr, game_read, rva};
+use crate::gfx::block::{game_addr, game_read};
+use crate::gfx::decoder::Slot as DecSlot;
 use crate::logfile::log_hex8::log_hex8;
 use crate::logfile::log_int::log_int;
 use crate::logfile::log_write::log_write;
@@ -54,8 +55,8 @@ const INDEX_SIZE: usize = 0xC3C;
 const TOTAL_SIZE: usize = 0xC40;
 const WORK_FLAGS: u32 = 0x1100_0000;
 
-const MEMORY_LIST_RVA: usize = rva(0x519558); // stru_519558
-const MEMORY_KILOBYTES_RVA: usize = rva(0x519554); // dword_519554
+const MEMORY_LIST_RVA: DecSlot = DecSlot::at(0x519558); // stru_519558
+const MEMORY_KILOBYTES_RVA: DecSlot = DecSlot::at(0x519554); // dword_519554
 /// The record all empty messages share (`unk_4F3034` in the image until 2026-10-24): +4 how
 /// often it was used (never reset), +0xC its index entry. Written here only.
 pub const EMPTY_MESSAGE_LEN: usize = 0x10;

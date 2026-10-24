@@ -10,12 +10,10 @@
 //! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
 //! `routes.rs`); the registers above are the original's, for reference.
 
-use crate::framework::{game_read, rva};
+use crate::session::FLAGS;
 use crate::sound::queue::{END_OF_TURN, Queue, pending, send_command};
 
 // ---- game data ----
-
-const QUIT_RVA: usize = rva(0x51837C); // dword_51837C
 
 // ---- Rust version ----
 
@@ -44,7 +42,7 @@ impl Parts for Game {
     }
 
     fn quitting(&mut self) -> bool {
-        unsafe { game_read::<u32>(QUIT_RVA) == 1 }
+        FLAGS.quitting.get() == 1
     }
 }
 

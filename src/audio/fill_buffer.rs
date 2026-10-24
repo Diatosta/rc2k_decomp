@@ -18,11 +18,11 @@
 //! and the self-test was the hook's.
 
 use crate::audio::buffer_settings::a3d;
+use crate::audio::store::Slot;
 use crate::audio::voices::*;
 use crate::errors::{BadInput, Refused};
-use crate::framework::rva;
 
-pub const LOCKED_PARTS_RVA: usize = rva(0x506A98); // g_lockedParts
+pub const LOCKED_PARTS_RVA: Slot = Slot::at(0x506A98); // g_lockedParts
 
 /// `parts`: the four dwords the parts go to; `lost`: the lost buffer's flag. True for the
 /// carry clear.

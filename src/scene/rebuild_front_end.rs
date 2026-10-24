@@ -19,12 +19,17 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, rva};
+use crate::gfx::picture_store::Slot as PicSlot;
 
 const FONT_PALETTES: usize = 0x51DEB0; // g_fontPalettes
 const SPRITE_TABLE: usize = 0x755581; // g_spriteTable
 /// `dword_4F4A24`, `dword_4F4A28`, `dword_4F4A2C` and their values.
-const SETTINGS: [(usize, u32); 3] = [(0x4F4A24, 0), (0x4F4A28, 0x100), (0x4F4A2C, 0x100)];
+const SETTINGS: [(PicSlot, u32); 3] = [
+    (PicSlot::at(0x4F4A24), 0),
+    (PicSlot::at(0x4F4A28), 0x100),
+    (PicSlot::at(0x4F4A2C), 0x100),
+];
 
 /// The Rust version (the original keeps every register: `pusha` / `popa`).
 pub fn rebuild_front_end() -> Result<(), Refused> {
@@ -38,7 +43,7 @@ pub fn rebuild_front_end() -> Result<(), Refused> {
         crate::scene::set_up_lit_engine::set_up_lit_engine()?;
         crate::scene::set_up_engine::set_up_engine()?;
         for (at, v) in SETTINGS {
-            game_write(rva(at), v);
+            crate::gfx::block::game_write(at, v);
         }
         crate::scene::set_up_front_end_scene::set_up_front_end_scene()?;
         crate::scene::set_up_engine::set_up_engine()

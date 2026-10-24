@@ -25,22 +25,26 @@
 //! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, game_write, rva};
 use crate::physics::flow::{base, x87_run};
+use crate::sound::store::StageSlot;
+use crate::sound::store::SurfaceSlot;
 use rc2k_core::sound::surfaces;
 
 /// flt_51638C, flt_516394: the two differences whose signs pick the wheel.
-const ACROSS: usize = 0x51638C;
-const ALONG: usize = 0x516394;
+const ACROSS: SurfaceSlot = SurfaceSlot::at(0x51638C);
+const ALONG: SurfaceSlot = SurfaceSlot::at(0x516394);
 /// dword_51655C: a surface's set, 16 of them.
-const SETS_OF: usize = 0x51655C;
+const SETS_OF: StageSlot = StageSlot::at(0x51655C);
 /// off_51639C: the sets (pairs of pointers, seven).
 const SETS: usize = 0x51639C;
 /// dword_4F66F1, dword_4F66F5: the two surfaces (unaligned).
-const SURFACES: [usize; 2] = [0x4F66F1, 0x4F66F5];
+const SURFACES: [crate::sound::store::WheelsSlot; 2] = [
+    crate::sound::store::WheelsSlot::at(0x4F66F1),
+    crate::sound::store::WheelsSlot::at(0x4F66F5),
+];
 
-fn g(x: usize) -> u32 {
-    unsafe { game_read(rva(x)) }
+fn g(x: impl crate::store::Ida) -> u32 {
+    unsafe { crate::store::ida_read(x) }
 }
 
 // ---- Rust version ----
@@ -55,24 +59,24 @@ fn one(o: u32, request: u32, second: usize) -> Result<(), Refused> {
     if second == 0 {
         unsafe { ((o + 0x294) as *mut u32).write_unaligned(surface) };
     }
-    unsafe { game_write(rva(SURFACES[second]), surface) };
+    unsafe { crate::store::game_write(SURFACES[second], surface) };
     if surfaces::quieter(surface) {
-        let b = base();
+        let _b = base();
         if second == 0 {
             x87_run!(
-                "fld dword ptr [{b} + 0x116398]",
-                "mov dword ptr [{b} + 0x1183CC], 0x3E800000",
-                "fmul dword ptr [{b} + 0x1183CC]",
-                "fstp dword ptr [{b} + 0x116398]";
-                b = b
+                        "fld dword ptr [{sf} + 0x40]",
+                        "mov dword ptr [{t}], 0x3E800000",
+                        "fmul dword ptr [{t}]",
+                        "fstp dword ptr [{sf} + 0x40]";
+                t = crate::session::MACHINE.scratch.addr(), sf = crate::sound::store::surface::base()
             );
         } else {
             x87_run!(
-                "fld dword ptr [{b} + 0x116398]",
-                "mov dword ptr [{b} + 0x1183CC], 0x3DCCCCCD",
-                "fmul dword ptr [{b} + 0x1183CC]",
-                "fstp dword ptr [{b} + 0x116398]";
-                b = b
+                        "fld dword ptr [{sf} + 0x40]",
+                        "mov dword ptr [{t}], 0x3DCCCCCD",
+                        "fmul dword ptr [{t}]",
+                        "fstp dword ptr [{sf} + 0x40]";
+                t = crate::session::MACHINE.scratch.addr(), sf = crate::sound::store::surface::base()
             );
         }
     }
@@ -87,77 +91,77 @@ pub fn surface_sounds(o: u32, request: u32) -> Result<(), Refused> {
     if o == 0 || request == 0 {
         return Err(BadInput("no object or no request").into());
     }
-    let (bx, b) = (o, base());
+    let (bx, _b) = (o, base());
     {
         x87_run!(
-            ".byte 0xD9, 0xEE",
-            "fsub dword ptr [{bx} + 0x4C]",
-            "fadd dword ptr [{bx} + 0x60]",
-            "fsub dword ptr [{bx} + 0x74]",
-            "fadd dword ptr [{bx} + 0x88]",
-            "fstp dword ptr [{b} + 0x11638C]",
-            ".byte 0xD9, 0xEE",
-            "fadd dword ptr [{bx} + 0x4C]",
-            "fadd dword ptr [{bx} + 0x60]",
-            "fsub dword ptr [{bx} + 0x74]",
-            "fsub dword ptr [{bx} + 0x88]",
-            "fstp dword ptr [{b} + 0x116394]",
-            "fld dword ptr [{bx} + 0x44]",
-            "fadd dword ptr [{bx} + 0x58]",
-            "fadd dword ptr [{bx} + 0x6C]",
-            "fadd dword ptr [{bx} + 0x80]",
-            "fmul dword ptr [{b} + 0x116364]",
-            "fistp dword ptr [{bx} + 0x284]",
-            "fld dword ptr [{bx} + 0x4C]",
-            "fadd dword ptr [{bx} + 0x60]",
-            "fadd dword ptr [{bx} + 0x74]",
-            "fadd dword ptr [{bx} + 0x88]",
-            "fmul dword ptr [{b} + 0x116368]",
-            "fistp dword ptr [{bx} + 0x28C]",
-            ".byte 0xD9, 0xEE",
-            "fld dword ptr [{bx} + 0x44]",
-            "fmul dword ptr [{bx} + 0x4C]",
-            ".byte 0xDE, 0xC1",
-            "fld dword ptr [{bx} + 0x58]",
-            "fmul dword ptr [{bx} + 0x60]",
-            ".byte 0xDE, 0xC1",
-            "fld dword ptr [{bx} + 0x6C]",
-            "fmul dword ptr [{bx} + 0x74]",
-            ".byte 0xDE, 0xC1",
-            "fld dword ptr [{bx} + 0x80]",
-            "fmul dword ptr [{bx} + 0x88]",
-            ".byte 0xDE, 0xC1",
-            "fmul dword ptr [{b} + 0x11635C]",
-            "fstp dword ptr [{b} + 0x116398]";
-            bx = bx, b = b
+                ".byte 0xD9, 0xEE",
+                "fsub dword ptr [{bx} + 0x4C]",
+                "fadd dword ptr [{bx} + 0x60]",
+                "fsub dword ptr [{bx} + 0x74]",
+                "fadd dword ptr [{bx} + 0x88]",
+                "fstp dword ptr [{sf} + 0x34]",
+                ".byte 0xD9, 0xEE",
+                "fadd dword ptr [{bx} + 0x4C]",
+                "fadd dword ptr [{bx} + 0x60]",
+                "fsub dword ptr [{bx} + 0x74]",
+                "fsub dword ptr [{bx} + 0x88]",
+                "fstp dword ptr [{sf} + 0x3c]",
+                "fld dword ptr [{bx} + 0x44]",
+                "fadd dword ptr [{bx} + 0x58]",
+                "fadd dword ptr [{bx} + 0x6C]",
+                "fadd dword ptr [{bx} + 0x80]",
+                "fmul dword ptr [{sf} + 0xc]",
+                "fistp dword ptr [{bx} + 0x284]",
+                "fld dword ptr [{bx} + 0x4C]",
+                "fadd dword ptr [{bx} + 0x60]",
+                "fadd dword ptr [{bx} + 0x74]",
+                "fadd dword ptr [{bx} + 0x88]",
+                "fmul dword ptr [{sf} + 0x10]",
+                "fistp dword ptr [{bx} + 0x28C]",
+                ".byte 0xD9, 0xEE",
+                "fld dword ptr [{bx} + 0x44]",
+                "fmul dword ptr [{bx} + 0x4C]",
+                ".byte 0xDE, 0xC1",
+                "fld dword ptr [{bx} + 0x58]",
+                "fmul dword ptr [{bx} + 0x60]",
+                ".byte 0xDE, 0xC1",
+                "fld dword ptr [{bx} + 0x6C]",
+                "fmul dword ptr [{bx} + 0x74]",
+                ".byte 0xDE, 0xC1",
+                "fld dword ptr [{bx} + 0x80]",
+                "fmul dword ptr [{bx} + 0x88]",
+                ".byte 0xDE, 0xC1",
+                "fmul dword ptr [{sf} + 0x4]",
+                "fstp dword ptr [{sf} + 0x40]";
+            bx = bx, sf = crate::sound::store::surface::base()
         );
         one(o, request, 0)?;
         x87_run!(
-            ".byte 0xD9, 0xEE",
-            "fsub dword ptr [{bx} + 0x50]",
-            "fadd dword ptr [{bx} + 0x64]",
-            "fsub dword ptr [{bx} + 0x78]",
-            "fadd dword ptr [{bx} + 0x8C]",
-            "fstp dword ptr [{b} + 0x11638C]",
-            ".byte 0xD9, 0xEE",
-            "fadd dword ptr [{bx} + 0x50]",
-            "fadd dword ptr [{bx} + 0x64]",
-            "fsub dword ptr [{bx} + 0x78]",
-            "fsub dword ptr [{bx} + 0x8C]",
-            "fstp dword ptr [{b} + 0x116394]",
-            "fld dword ptr [{bx} + 0x50]",
-            "fadd dword ptr [{bx} + 0x64]",
-            "fadd dword ptr [{bx} + 0x78]",
-            "fadd dword ptr [{bx} + 0x8C]",
-            "fmul dword ptr [{b} + 0x116368]",
-            "fistp dword ptr [{bx} + 0x290]",
-            "fld dword ptr [{bx} + 0x50]",
-            "fadd dword ptr [{bx} + 0x64]",
-            "fadd dword ptr [{bx} + 0x78]",
-            "fadd dword ptr [{bx} + 0x8C]",
-            "fmul dword ptr [{b} + 0x11635C]",
-            "fstp dword ptr [{b} + 0x116398]";
-            bx = bx, b = b
+                ".byte 0xD9, 0xEE",
+                "fsub dword ptr [{bx} + 0x50]",
+                "fadd dword ptr [{bx} + 0x64]",
+                "fsub dword ptr [{bx} + 0x78]",
+                "fadd dword ptr [{bx} + 0x8C]",
+                "fstp dword ptr [{sf} + 0x34]",
+                ".byte 0xD9, 0xEE",
+                "fadd dword ptr [{bx} + 0x50]",
+                "fadd dword ptr [{bx} + 0x64]",
+                "fsub dword ptr [{bx} + 0x78]",
+                "fsub dword ptr [{bx} + 0x8C]",
+                "fstp dword ptr [{sf} + 0x3c]",
+                "fld dword ptr [{bx} + 0x50]",
+                "fadd dword ptr [{bx} + 0x64]",
+                "fadd dword ptr [{bx} + 0x78]",
+                "fadd dword ptr [{bx} + 0x8C]",
+                "fmul dword ptr [{sf} + 0x10]",
+                "fistp dword ptr [{bx} + 0x290]",
+                "fld dword ptr [{bx} + 0x50]",
+                "fadd dword ptr [{bx} + 0x64]",
+                "fadd dword ptr [{bx} + 0x78]",
+                "fadd dword ptr [{bx} + 0x8C]",
+                "fmul dword ptr [{sf} + 0x4]",
+                "fstp dword ptr [{sf} + 0x40]";
+            bx = bx, sf = crate::sound::store::surface::base()
         );
         one(o, request, 1)
     }

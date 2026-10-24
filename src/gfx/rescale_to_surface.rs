@@ -17,18 +17,20 @@
 //! `routes.rs`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, game_write, rva};
+use crate::framework::rva;
+use crate::gfx::block::{game_read, game_write};
 use crate::gfx::components_to_pixel::components_to_pixel;
+use crate::gfx::decoder::Slot as DecSlot;
 use crate::gfx::fill_row_table::{ROW_TABLE_ROOM, fill_row_table, row_address};
 use crate::gfx::pixel_format::PixelFormat;
 use crate::gfx::rescale_picture::STEP_X_RVA;
 
 // ---- game data ----
 
-const DECODED_WIDTH_RVA: usize = rva(0x519124); // g_decodedWidth
-const DECODED_HEIGHT_RVA: usize = rva(0x519128); // g_decodedHeight
-const DECODED_STRIDE_RVA: usize = rva(0x51913C); // g_decodedStride
-const DECODED_PIXELS_RVA: usize = rva(0x519140); // g_decodedPixels
+const DECODED_WIDTH_RVA: DecSlot = DecSlot::at(0x519124); // g_decodedWidth
+const DECODED_HEIGHT_RVA: DecSlot = DecSlot::at(0x519128); // g_decodedHeight
+const DECODED_STRIDE_RVA: DecSlot = DecSlot::at(0x51913C); // g_decodedStride
+const DECODED_PIXELS_RVA: DecSlot = DecSlot::at(0x519140); // g_decodedPixels
 const COLUMNS_LEFT: usize = 0x18;
 const ROWS_LEFT: usize = 0x1C;
 const COMPONENTS: usize = 0x20;

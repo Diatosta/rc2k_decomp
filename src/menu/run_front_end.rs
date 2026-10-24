@@ -13,13 +13,15 @@
 //! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
 //! `routes.rs`); the registers above are the original's, for reference.
 
+use crate::audio::store::Slot;
 use crate::errors::Refused;
-use crate::framework::{game_addr, game_read, game_write, log, rva};
+use crate::framework::{log, rva};
 use crate::menu::screen_loop::{Carried, run_screen};
+use crate::store::{game_addr, game_read, game_write};
 
 // ---- game data ----
 
-const FROM_RVA: usize = rva(0x4F82D8); // dword_4F82D8
+const FROM_RVA: Slot = Slot::at(0x4F82D8); // dword_4F82D8
 const TO_RVA: usize = rva(0x755684); // dword_755684
 const STARTING_RVA: usize = rva(0x4DE67B); // "BEV: Starting GB_Front"
 const FINISHED_RVA: usize = rva(0x4DE692); // "BEV: Finished GB_Front"

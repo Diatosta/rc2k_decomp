@@ -3,7 +3,12 @@
 //! their steps.
 
 use crate::errors::Refused;
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::framework::rva;
+use crate::sound::store::ClockSlot;
+use crate::sound::store::EffectsSlot;
+use crate::sound::store::ObjectsSlot;
+use crate::sound::store::StageSlot;
+use crate::store::{game_addr, game_read, game_write};
 
 /// The replay's car header (`dword_719B14` ..).
 pub const HEADER: usize = 0x719B14;
@@ -54,7 +59,7 @@ pub unsafe fn record_replay_header() {
     }
 }
 
-const SOUND_OBJECTS_RVA: usize = rva(0x512A10); // g_raceSoundObjects: 8 pointers
+const SOUND_OBJECTS_RVA: ObjectsSlot = ObjectsSlot::at(0x512A10); // g_raceSoundObjects: 8 pointers
 /// Each object's dwords set: (offset, value).
 const OBJECT_VALUES: [(u32, u32); 32] = [
     (0x150, 0),
@@ -91,12 +96,20 @@ const OBJECT_VALUES: [(u32, u32); 32] = [
     (0x80, 0),
 ];
 /// dword_51659C .. dword_5165E8: set 0.
-const CLEARED: [usize; 11] = [
-    0x51659C, 0x5165A0, 0x5165A4, 0x5165A8, 0x5165C8, 0x5165D0, 0x5165D4, 0x5165BC, 0x5165C0,
-    0x5165E4, 0x5165E8,
+const CLEARED: [StageSlot; 11] = [
+    StageSlot::at(0x51659C),
+    StageSlot::at(0x5165A0),
+    StageSlot::at(0x5165A4),
+    StageSlot::at(0x5165A8),
+    StageSlot::at(0x5165C8),
+    StageSlot::at(0x5165D0),
+    StageSlot::at(0x5165D4),
+    StageSlot::at(0x5165BC),
+    StageSlot::at(0x5165C0),
+    StageSlot::at(0x5165E4),
+    StageSlot::at(0x5165E8),
 ];
 const VOICES_RVA: usize = rva(0x5168C0); // unk_5168C0: 0x48 records of 0x50
-const ENVIRONMENT_RVA: usize = rva(0x6D1DD4); // g_eaxEnvironment
 
 /// A sound command whose only register the audio thread reads is eax (the others go
 /// as 0).
@@ -141,7 +154,7 @@ pub fn reset_race_sounds(v: &SoundVars) -> Result<(), Refused> {
             }
         }
         for a in CLEARED {
-            game_write(rva(a), 0u32);
+            crate::store::game_write(a, 0u32);
         }
         let first = v.voices;
         for k in 0..0x48u32 {
@@ -149,11 +162,11 @@ pub fn reset_race_sounds(v: &SoundVars) -> Result<(), Refused> {
             (at as *mut u32).write_unaligned(0x1888_FFFF);
             ((at + 0x14) as *mut u32).write_unaligned(0xFFFF_FFFE);
         }
-        game_write(rva(0x5165EC), 0u32);
-        game_write(rva(0x518054), 0u32);
-        game_write(ENVIRONMENT_RVA, 0x3F80_0000u32);
+        game_write(StageSlot::at(0x5165EC), 0u32);
+        game_write(EffectsSlot::at(0x518054), 0u32);
+        crate::audio::store::ENVIRONMENT.set(0x3F80_0000u32);
         command(2, 3);
-        game_write(rva(0x5124E4), 0u32);
+        game_write(ClockSlot::at(0x5124E4), 0u32);
     }
     Ok(())
 }

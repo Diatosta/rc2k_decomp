@@ -24,21 +24,21 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, game_write, rva};
 use crate::marks::emitters::*;
 use crate::marks::jitter_point::jitter_point;
+use crate::marks::store::{Slot, game_read, game_write};
 use crate::math::x87;
 use crate::scene::matrix3::{extended, rounded};
 
-const LEVEL_RVA: usize = rva(0x93A1CE); // dword_93A1CE
-const MOTION_RVA: usize = rva(0x93A1C2); // dword_93A1C2 .. dword_93A1CA
-const POINT_RVA: usize = rva(0x93A1B6); // flt_93A1B6 .. flt_93A1BE
-const STEP_RVA: usize = rva(0x764FE0); // flt_764FE0
-const SIZE_RVA: usize = rva(0x9356C0); // dword_9356C0
-const LIVES_RVA: usize = rva(0x939B86); // dword_939B86: by the level
+const LEVEL_RVA: Slot = Slot::at(0x93A1CE); // dword_93A1CE
+const MOTION_RVA: Slot = Slot::at(0x93A1C2); // dword_93A1C2 .. dword_93A1CA
+const POINT_RVA: Slot = Slot::at(0x93A1B6); // flt_93A1B6 .. flt_93A1BE
+const STEP_RVA: Slot = Slot::at(0x764FE0); // flt_764FE0
+const SIZE_RVA: Slot = Slot::at(0x9356C0); // dword_9356C0
+const LIVES_RVA: Slot = Slot::at(0x939B86); // dword_939B86: by the level
 const LEVELS: u32 = 9;
-const LIFE_SCALE_RVA: usize = rva(0x7651A4); // flt_7651A4
-const FADE_RVA: usize = rva(0x76519C); // dword_76519C
+const LIFE_SCALE_RVA: Slot = Slot::at(0x7651A4); // flt_7651A4
+const FADE_RVA: Slot = Slot::at(0x76519C); // dword_76519C
 
 /// One twin's variables.
 pub struct TwinSet {
@@ -46,14 +46,14 @@ pub struct TwinSet {
     /// The car's field holding the level.
     pub level_at: u32,
     pub flags: u32,
-    pub chance_random: usize,
-    pub lift: usize,
+    pub chance_random: Slot,
+    pub lift: Slot,
     /// The second row's factors (z, y, x: +0x18, +0x14, +0x10), then the spread.
-    pub row_k: [usize; 3],
-    pub spread: usize,
+    pub row_k: [Slot; 3],
+    pub spread: Slot,
     /// The motion's factors (x, y, z).
-    pub motion_k: [usize; 3],
-    pub spin_random: usize,
+    pub motion_k: [Slot; 3],
+    pub spin_random: Slot,
 }
 
 /// `emit_particle_19`'s.
@@ -61,12 +61,12 @@ pub const NINETEENTH: TwinSet = TwinSet {
     kind: 0x13,
     level_at: 0x4C0,
     flags: 0x3E,
-    chance_random: rva(0x93A48A),
-    lift: rva(0x93A48E),
-    row_k: [rva(0x93A492), rva(0x93A496), rva(0x93A49A)],
-    spread: rva(0x93A49E),
-    motion_k: [rva(0x93A4A2), rva(0x93A4A6), rva(0x93A4AA)],
-    spin_random: rva(0x93A4AE),
+    chance_random: Slot::at(0x93A48A),
+    lift: Slot::at(0x93A48E),
+    row_k: [Slot::at(0x93A492), Slot::at(0x93A496), Slot::at(0x93A49A)],
+    spread: Slot::at(0x93A49E),
+    motion_k: [Slot::at(0x93A4A2), Slot::at(0x93A4A6), Slot::at(0x93A4AA)],
+    spin_random: Slot::at(0x93A4AE),
 };
 
 /// Whether an entry is to be made (the chance and a free entry), worked out without

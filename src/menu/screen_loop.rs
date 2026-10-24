@@ -62,8 +62,9 @@ use crate::menu::item_at::CURRENT_MENU_RVA;
 use crate::menu::run_item_action::run_item_action;
 use crate::menu::run_list::run_list;
 use crate::menu::update_blink::update_blink;
-use crate::menu::update_frame_clock::CLOCK_RVA;
 use crate::service::state::MENU_ITEM_RVA;
+use crate::session::CLOCKS;
+use crate::session::FLAGS;
 
 // ---- game code the loop calls itself ----
 
@@ -76,7 +77,6 @@ const NULLSUB_84: usize = rva(0x4713DD); // nullsub_84: a lone `retn`
 
 // ---- game data ----
 
-const ESCAPE_KEPT_RVA: usize = rva(0x7558D8); // g_clearsEscapeFlag
 const ESCAPED_RVA: usize = rva(0x755A3C); // dword_755A3C
 const BACK_RVA: usize = rva(0x755561); // dword_755561
 const WENT_BACK_RVA: usize = rva(0x75555D); // dword_75555D
@@ -86,9 +86,7 @@ const DONE_B_RVA: usize = rva(0x755980); // dword_755980
 const ACTION_VALUE_RVA: usize = rva(0x755A38); // dword_755A38: 2 = stay on the screen as it is
 const ANSWER_RVA: usize = rva(0x75524C); // g_yesNoAnswer
 const KEYS_MENU_RVA: usize = rva(0x731BBB); // dword_731BBB
-const SETUP_TIME_RVA: usize = rva(0x5189A0); // dword_5189A0
 const ELAPSED_RVA: usize = rva(0x613830); // dword_613830
-const QUIT_RVA: usize = rva(0x51837C); // dword_51837C
 
 const NO_SOUND: u32 = 0x6F;
 const ENTER_SOUND: u32 = 0x14D;
@@ -261,7 +259,7 @@ pub struct Carried {
 
 /// Whether the game is quitting (`dword_51837C`).
 pub fn quitting() -> bool {
-    unsafe { game_read::<u32>(QUIT_RVA) == 1 }
+    FLAGS.quitting.get() == 1
 }
 
 /// `scene::prepare_menu_scene` (0x46F7FD), with what it leaves (`set_view_matrices`').
@@ -414,10 +412,16 @@ enum Next {
     Leave,
 }
 
-/// Clears the Escape flags if they are kept from one screen to the next and are set.
+/// Clears the Escape flags if they are set. The original clears them only when
+/// `g_clearsEscapeFlag` (0x7558D8) is 1, which only four screens set (start rally, options,
+/// player 1 details, information) and nothing clears: before one of them has been seen, a
+/// "no" given with Escape to a leave question left the flag set, and the screen below left
+/// at its next frame (a championship loaded at start-up ended at its review screen; seen
+/// 2026-10-24). Fixed: cleared as once any of those screens has been seen
+/// (`wiki/Fixed-bugs.md`).
 unsafe fn clear_escape() {
     unsafe {
-        if game_read::<u32>(ESCAPE_KEPT_RVA) == 1 && game_read::<u32>(ESCAPED_RVA) == 1 {
+        if game_read::<u32>(ESCAPED_RVA) == 1 {
             game_write(ESCAPED_RVA, 0u32);
             game_write(BACK_RVA, 0u32);
         }
@@ -544,8 +548,8 @@ pub unsafe fn screen_loop(screen: &Screen, entry: &Carried) -> Result<String, Re
                     run(screen.background, &mut c)?;
                     crate::menu::draw_frame::draw_frame(menu, c.palette, c.measure_x)?;
                     update_blink();
-                    c.arg = game_read(CLOCK_RVA);
-                    game_write(SETUP_TIME_RVA, c.arg);
+                    c.arg = CLOCKS.frame.get();
+                    CLOCKS.setup_time.set(c.arg);
                     game_write(ELAPSED_RVA, 0u32);
                     run(screen.before_first_frame, &mut c)?;
                     c.arg = game_addr(callback) as u32;
@@ -594,7 +598,7 @@ pub unsafe fn screen_loop(screen: &Screen, entry: &Carried) -> Result<String, Re
                         c.arg = game_addr(later_callback) as u32;
                         set_lists(screen, screen.lists, &mut c);
                         run_frame(later_callback, menu, &c)?;
-                        c.arg = game_read::<u32>(CLOCK_RVA).wrapping_sub(game_read(SETUP_TIME_RVA));
+                        c.arg = CLOCKS.frame.get().wrapping_sub(CLOCKS.setup_time.get());
                         game_write(ELAPSED_RVA, c.arg);
                         match run(screen.each_frame, &mut c)? {
                             Flow::On => Next::ActionCheck,

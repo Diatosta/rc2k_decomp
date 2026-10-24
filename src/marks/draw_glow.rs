@@ -20,16 +20,17 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{game_read, rva};
+use crate::framework::rva;
+use crate::marks::store::{Slot, game_read};
 use crate::math::x87;
 use crate::scene::matrix3::extended;
 
-const OFF_RVA: usize = rva(0x93CC70); // dword_93CC70: 1 = none
+const OFF_RVA: Slot = Slot::at(0x93CC70); // dword_93CC70: 1 = none
 const TEXTURE_RVA: usize = rva(0x5D1E34); // dword_5D1E34
 /// flt_93CC74 .. flt_93CC7C, flt_93CCA8, flt_93CCAC, dword_93CCA4.
-const PLACE: [usize; 3] = [rva(0x93CC74), rva(0x93CC78), rva(0x93CC7C)];
-const OFFSET: [usize; 2] = [rva(0x93CCA8), rva(0x93CCAC)];
-const ANGLE_RVA: usize = rva(0x93CCA4);
+const PLACE: [Slot; 3] = [Slot::at(0x93CC74), Slot::at(0x93CC78), Slot::at(0x93CC7C)];
+const OFFSET: [Slot; 2] = [Slot::at(0x93CCA8), Slot::at(0x93CCAC)];
+const ANGLE_RVA: Slot = Slot::at(0x93CCA4);
 /// The render states set (value, state).
 const STATES: [(u32, u32); 5] = [(4, 0x15), (5, 0x13), (6, 0x14), (0, 0x1C), (1, 0x1B)];
 

@@ -24,9 +24,12 @@
 //! registers above are the original's, for reference. What the header says of shadow mode
 //! and the self-test was the hook's.
 
+use crate::audio::store::Slot;
 use crate::audio::voices::{read, write};
 use crate::errors::Refused;
-use crate::framework::{game_addr, rva};
+use crate::framework::rva;
+use crate::store::addr32 as a;
+use crate::store::game_addr;
 
 const USING_MODES_TEXT: usize = rva(0x4DA6AD); // "AUD: Using modes"
 
@@ -50,21 +53,20 @@ pub struct StartVars {
 
 impl StartVars {
     pub fn game() -> Self {
-        let a = |r: usize| game_addr(rva(r)) as u32;
         Self {
-            use_a3d: a(0x506D60),
-            has_a3d2: a(0x506D5C),
-            mode: a(0x4F82BC),
-            a3d_ready: a(0x506C64),
-            splash_kept: a(0x506C60),
-            caps: a(0x506AA8),
-            has_3d: a(0x506B46),
-            voices: a(0x4F834C),
-            mix_rate_setting: a(0x4F82D4),
-            voice_manager_on: a(0x506C54),
-            has_eax: a(0x506C70),
-            menu: a(0x4F82C4),
-            race: a(0x4F82C8),
+            use_a3d: a(Slot::at(0x506D60)),
+            has_a3d2: a(Slot::at(0x506D5C)),
+            mode: a(Slot::at(0x4F82BC)),
+            a3d_ready: a(Slot::at(0x506C64)),
+            splash_kept: a(Slot::at(0x506C60)),
+            caps: a(Slot::at(0x506AA8)),
+            has_3d: a(Slot::at(0x506B46)),
+            voices: a(Slot::at(0x4F834C)),
+            mix_rate_setting: a(Slot::at(0x4F82D4)),
+            voice_manager_on: a(Slot::at(0x506C54)),
+            has_eax: a(Slot::at(0x506C70)),
+            menu: a(Slot::at(0x4F82C4)),
+            race: a(Slot::at(0x4F82C8)),
         }
     }
 }
@@ -73,7 +75,7 @@ impl StartVars {
 pub unsafe fn start(v: &StartVars) -> Result<bool, Refused> {
     use crate::audio::sound_device as sd;
     use crate::audio::voices::{A3D_RVA, PRIMARY_RVA, SOUND_MODE_RVA, VOICE_MANAGER_RVA};
-    use crate::framework::game_read;
+    use crate::store::game_read;
     use rc2k_core::audio::device::{
         A3D2_MODE, CAPS_EMULATED, Fact, MENU_MODE, modes_kept, probed_race_mode,
     };
@@ -158,7 +160,7 @@ pub unsafe fn start(v: &StartVars) -> Result<bool, Refused> {
         sd::log_text(game_addr(USING_MODES_TEXT) as u32, false);
         sd::log_hex(read(v.menu), false);
         sd::log_hex(read(v.race), true);
-        sd::close_sound(direct_sound(), game_addr(sd::WINDOW_RVA) as u32)?;
+        sd::close_sound(direct_sound(), crate::session::MACHINE.window.addr() as u32)?;
         write(v.mode, 0);
         Ok(read(v.race) >= 1)
     }

@@ -40,49 +40,51 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::framework::rva;
 use crate::marks::blocks::{RING_FREE_RVA, RING_USED_RVA};
 use crate::marks::setup::{SEED_RVA, SETTINGS_RVA};
+use crate::marks::store::{Slot, game_addr, game_read, game_write};
 use crate::math::x87;
 use crate::scene::matrix3::extended;
 use crate::scene::vector3::STATUS_RVA;
+use crate::sound::store::StageSlot;
 
-const TICKS_RVA: usize = rva(0x764FD0); // g_marksFrameTicks
-const STEPS_RVA: usize = rva(0x76513C); // dword_76513C
-const PUFF_FLAG_RVA: usize = rva(0x5165E4); // dword_5165E4
+const TICKS_RVA: Slot = Slot::at(0x764FD0); // g_marksFrameTicks
+const STEPS_RVA: Slot = Slot::at(0x76513C); // dword_76513C
+const PUFF_FLAG_RVA: StageSlot = StageSlot::at(0x5165E4); // dword_5165E4
 const VIEW_RVA: usize = rva(0x5EA3CC); // flt_5EA3CC: the view's place at +0x30
-const INDEX_RVA: usize = rva(0x93A5E8); // dword_93A5E8
-const TRAIL_COLOURS_RVA: usize = rva(0x922B38); // dword_922B38: 298 dwords
+const INDEX_RVA: Slot = Slot::at(0x93A5E8); // dword_93A5E8
+const TRAIL_COLOURS_RVA: Slot = Slot::at(0x922B38); // dword_922B38: 298 dwords
 const TRAIL_COLOURS: i32 = 298;
-const BURST_COLOURS_RVA: usize = rva(0x93A618); // dword_93A618: 0x2000 bytes
+const BURST_COLOURS_RVA: Slot = Slot::at(0x93A618); // dword_93A618: 0x2000 bytes
 const BURST_COLOURS_LEN: i32 = 0x2000;
-const UV_K_RVA: usize = rva(0x8EB969); // flt_8EB969
-const DUST: [usize; 3] = [rva(0x93C680), rva(0x93C684), rva(0x93C688)];
-const TRAIL: [usize; 2] = [rva(0x93C68C), rva(0x93C690)];
+const UV_K_RVA: Slot = Slot::at(0x8EB969); // flt_8EB969
+const DUST: [Slot; 3] = [Slot::at(0x93C680), Slot::at(0x93C684), Slot::at(0x93C688)];
+const TRAIL: [Slot; 2] = [Slot::at(0x93C68C), Slot::at(0x93C690)];
 /// Kind 8's and 9's: the +0x30 gain, the three dampings, the +0x3C gain.
-const BURST: [[usize; 5]; 2] = [
+const BURST: [[Slot; 5]; 2] = [
     [
-        rva(0x93C694),
-        rva(0x93C698),
-        rva(0x93C69C),
-        rva(0x93C6A0),
-        rva(0x93C6A4),
+        Slot::at(0x93C694),
+        Slot::at(0x93C698),
+        Slot::at(0x93C69C),
+        Slot::at(0x93C6A0),
+        Slot::at(0x93C6A4),
     ],
     [
-        rva(0x93C6A8),
-        rva(0x93C6AC),
-        rva(0x93C6B0),
-        rva(0x93C6B4),
-        rva(0x93C6B8),
+        Slot::at(0x93C6A8),
+        Slot::at(0x93C6AC),
+        Slot::at(0x93C6B0),
+        Slot::at(0x93C6B4),
+        Slot::at(0x93C6B8),
     ],
 ];
 /// The puff's: x wave (three factors, size), z wave (the same), y (add, factor, add),
 /// the motion's two factors.
-const PUFF_X: [usize; 4] = [rva(0x93C618), rva(0x93C61C), rva(0x93C620), 0];
-const PUFF_Z: [usize; 4] = [rva(0x93C624), rva(0x93C628), rva(0x93C62C), 0];
-const PUFF_Y: [usize; 3] = [rva(0x93C630), rva(0x93C634), rva(0x93C638)];
-const PUFF_M: [usize; 2] = [rva(0x93C63C), rva(0x93C640)];
-const PUFF_RVA: usize = rva(0x93A600); // flt_93A600 .. flt_93A614
+const PUFF_X: [Slot; 3] = [Slot::at(0x93C618), Slot::at(0x93C61C), Slot::at(0x93C620)];
+const PUFF_Z: [Slot; 3] = [Slot::at(0x93C624), Slot::at(0x93C628), Slot::at(0x93C62C)];
+const PUFF_Y: [Slot; 3] = [Slot::at(0x93C630), Slot::at(0x93C634), Slot::at(0x93C638)];
+const PUFF_M: [Slot; 2] = [Slot::at(0x93C63C), Slot::at(0x93C640)];
+const PUFF_RVA: Slot = Slot::at(0x93A600); // flt_93A600 .. flt_93A614
 const BIGGER: u32 = 0x386A0;
 
 unsafe fn get(a: u32) -> u32 {
@@ -162,7 +164,7 @@ unsafe fn step(e: u32) -> Result<bool, Refused> {
                 x87::plus_times_int(get(e + 0x14), get(e + 0x34), t),
             );
         };
-        let gain_int = |k: usize| {
+        let gain_int = |k: Slot| {
             let v = x87::int_times_int_plus_int(game_read(k), t, get(e + 0x3C) as i32);
             put(e + 0x3C, v as u32);
         };
@@ -313,7 +315,7 @@ pub unsafe fn run_particles() -> Result<(), Refused> {
         if game_read::<u32>(STEPS_RVA) & 7 != 0 {
             return Ok(());
         }
-        game_write(PUFF_FLAG_RVA, 1u32);
+        crate::store::game_write(PUFF_FLAG_RVA, 1u32);
         let seed = || {
             let s = game_read::<u32>(SEED_RVA)
                 .wrapping_mul(0x9D)
@@ -325,7 +327,7 @@ pub unsafe fn run_particles() -> Result<(), Refused> {
         let at = game_addr(VIEW_RVA) as u32;
         let view = |o: u32| get(at + o);
         let uv_k: u32 = game_read(UV_K_RVA);
-        let wave = |k: [usize; 4], add: u32, cosine: bool| {
+        let wave = |k: [Slot; 3], add: u32, cosine: bool| {
             x87::int_times3_wave_plus(
                 r as i32,
                 [uv_k, game_read(k[0]), game_read(k[1])],

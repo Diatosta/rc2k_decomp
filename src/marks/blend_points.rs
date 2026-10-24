@@ -19,8 +19,8 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::game_read;
 use crate::marks::splines::FILE_RVA;
+use crate::marks::store::game_read;
 use crate::math::x87;
 
 /// The Rust version (see the header): the three values (x, y, z).

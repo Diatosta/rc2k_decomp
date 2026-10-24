@@ -12,12 +12,13 @@
 //! `routes.rs`); the registers above are the original's, for reference.
 
 use crate::errors::BadInput;
-use crate::framework::{game_read, rva};
+use crate::input::store::DeviceSlot;
 use crate::menu::player_names::cars;
+use crate::store::game_read;
 
 // ---- game data ----
 
-const CONTROLLERS_RVA: usize = rva(0x4F78E0); // dword_4F78E0
+const CONTROLLERS_RVA: DeviceSlot = DeviceSlot::at(0x4F78E0); // dword_4F78E0
 const CAR_CONTROLLER: u32 = 0x2C;
 
 // ---- Rust version ----

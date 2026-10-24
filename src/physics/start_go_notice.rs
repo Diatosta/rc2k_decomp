@@ -62,7 +62,11 @@ fn game() -> (Vec<u32>, [u32; 3]) {
     let g = |a: usize| game_addr(rva(a)) as u32;
     (
         VARIABLES.iter().map(|&x| g(x)).collect(),
-        [g(CURRENT_CAR), g(TABLE), g(0x5165A4)],
+        [
+            g(CURRENT_CAR),
+            g(TABLE),
+            crate::sound::store::StageSlot::at(0x5165A4).address() as u32,
+        ],
     )
 }
 

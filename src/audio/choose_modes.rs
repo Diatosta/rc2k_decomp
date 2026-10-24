@@ -26,18 +26,20 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
+use crate::audio::store::Slot;
 use crate::errors::Refused;
-use crate::framework::{game_addr, game_read, rva};
+use crate::framework::rva;
+use crate::store::{game_addr, game_read};
 
-pub const OPTIONS_RVA: usize = rva(0x506C88); // g_audioOptions
-pub const QUALITY_MODES_RVA: usize = rva(0x4F8294); // g_qualityModes: 4 dwords
-pub const MENU_MODE_RVA: usize = rva(0x4F82C4); // g_menuSoundMode
-pub const RACE_MODE_RVA: usize = rva(0x4F82C8); // g_raceSoundMode
-const HAS_3D_RVA: usize = rva(0x506B46); // g_has3d (unaligned)
-const HAS_A3D2_RVA: usize = rva(0x506D5C); // g_hasA3d2
-const HAS_EAX_RVA: usize = rva(0x506C70); // g_hasEax
-const HW_3D_BUFFERS_RVA: usize = rva(0x506ACC); // g_soundCaps' free hardware 3D buffers
-const VOICE_MANAGER_ON_RVA: usize = rva(0x506C54); // g_voiceManagerOn
+pub const OPTIONS_RVA: Slot = Slot::at(0x506C88); // g_audioOptions
+pub const QUALITY_MODES_RVA: Slot = Slot::at(0x4F8294); // g_qualityModes: 4 dwords
+pub const MENU_MODE_RVA: Slot = Slot::at(0x4F82C4); // g_menuSoundMode
+pub const RACE_MODE_RVA: Slot = Slot::at(0x4F82C8); // g_raceSoundMode
+const HAS_3D_RVA: Slot = Slot::at(0x506B46); // g_has3d (unaligned)
+const HAS_A3D2_RVA: Slot = Slot::at(0x506D5C); // g_hasA3d2
+const HAS_EAX_RVA: Slot = Slot::at(0x506C70); // g_hasEax
+const HW_3D_BUFFERS_RVA: Slot = Slot::at(0x506ACC); // g_soundCaps' free hardware 3D buffers
+const VOICE_MANAGER_ON_RVA: Slot = Slot::at(0x506C54); // g_voiceManagerOn
 const NEW_MODES_TEXT: usize = rva(0x4DA6BE); // "AUD: New modes"
 
 pub use rc2k_core::audio::modes::{AudioOptions, Facts};

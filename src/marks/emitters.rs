@@ -5,21 +5,21 @@
 //! (the surface's particle kind); the patched EXE some owners use turns it into a `ret`
 //! (section 16).
 
-use crate::framework::{game_read, game_write, rva};
+use crate::marks::store::{Slot, game_read, game_write};
 use crate::math::x87;
 
 pub use crate::marks::set_up_surface::{RING_COUNT_RVA, RING_CURSOR_RVA};
 
-pub const OBJECT_RVA: usize = rva(0x935436); // g_marksCar: the car object being done
-pub const TAG_RVA: usize = rva(0x93547E); // dword_93547E: each entry's +8
-pub const FLAGS_RVA: usize = rva(0x939BAE); // g_marksWheelFlags: the wheel's +0x20 kept
-pub const RATE_RVA: usize = rva(0x9356B0); // dword_9356B0
-pub const SIDES_RVA: usize = rva(0x93554A); // dword_93554A, dword_93554E
-pub const ONE_RVA: usize = rva(0x76516C); // flt_76516C
+pub const OBJECT_RVA: Slot = Slot::at(0x935436); // g_marksCar: the car object being done
+pub const TAG_RVA: Slot = Slot::at(0x93547E); // dword_93547E: each entry's +8
+pub const FLAGS_RVA: Slot = Slot::at(0x939BAE); // g_marksWheelFlags: the wheel's +0x20 kept
+pub const RATE_RVA: Slot = Slot::at(0x9356B0); // dword_9356B0
+pub const SIDES_RVA: Slot = Slot::at(0x93554A); // dword_93554A, dword_93554E
+pub const ONE_RVA: Slot = Slot::at(0x76516C); // flt_76516C
 pub const MOST_TAKEN: u32 = 0x3FE;
 
 /// A random of the emitters' kind: times 0xC5 plus 0x5D, kept.
-pub unsafe fn next_c5(at: usize) -> u32 {
+pub unsafe fn next_c5(at: Slot) -> u32 {
     unsafe {
         let r = game_read::<u32>(at).wrapping_mul(0xC5).wrapping_add(0x5D);
         game_write(at, r);
@@ -73,7 +73,7 @@ pub struct Gate {
 /// object's +0x90 plus it at least 0x1000; the wheel's +4 plus the object's +0x88 at
 /// least 1.5 times that sum (both signed), then kept as its remainder by it; the wheel's
 /// +0x10 or +0x18 not 0.
-pub unsafe fn gate(wheel: u32, object: u32, a: u32, b: u32, k: [usize; 4]) -> Gate {
+pub unsafe fn gate(wheel: u32, object: u32, a: u32, b: u32, k: [Slot; 4]) -> Gate {
     unsafe {
         let [k1, k2, k3, k4] = k.map(|r| game_read::<u32>(r));
         let rate = x87::rate_to_int(

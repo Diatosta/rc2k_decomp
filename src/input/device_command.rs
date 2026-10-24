@@ -28,14 +28,18 @@
 //! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::framework::rva;
 use crate::input::devices::put;
+use crate::input::store::DeviceSlot;
+use crate::sound::store::EffectsSlot;
+use crate::sound::store::ObjectsSlot;
+use crate::store::{game_addr, game_read, game_write};
 
-pub const DEVICES_RVA: usize = rva(0x4F6EE8); // g_inputDevices: the two records
-const EFFECTS_ON_RVA: usize = rva(0x518090); // dword_518090
+pub const DEVICES_RVA: DeviceSlot = DeviceSlot::at(0x4F6EE8); // g_inputDevices: the two records
+const EFFECTS_ON_RVA: EffectsSlot = EffectsSlot::at(0x518090); // dword_518090
 const CONTROLS_RVA: [usize; 2] = [rva(0x75AE28), rva(0x75AF94)]; // dword_75AE28, dword_75AF94
-const TWO_DEVICES_RVA: usize = rva(0x4F68FC); // dword_4F68FC
-const ONE_PLAYER_RVA: usize = rva(0x514F78); // g_onePlayer
+const TWO_DEVICES_RVA: DeviceSlot = DeviceSlot::at(0x4F68FC); // dword_4F68FC
+const ONE_PLAYER_RVA: ObjectsSlot = ObjectsSlot::at(0x514F78); // g_onePlayer
 
 fn device(n: usize) -> u32 {
     unsafe { game_read(DEVICES_RVA + 4 * n) }

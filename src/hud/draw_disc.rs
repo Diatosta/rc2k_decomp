@@ -24,17 +24,19 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::framework::rva;
 use crate::hud::disc_vertex::disc_vertex;
+use crate::hud::store::Slot;
+use crate::hud::store::{game_addr, game_read, game_write};
 use crate::math::x87;
 use rc2k_core::hud::disc::SEGMENTS;
 
-const RING_RVA: [usize; 2] = [rva(0x75C188), rva(0x75C1CC)]; // flt_75C188, flt_75C1CC
-const TEXTURE_RING_RVA: [usize; 2] = [rva(0x75C210), rva(0x75C254)];
+const RING_RVA: [Slot; 2] = [Slot::at(0x75C188), Slot::at(0x75C1CC)]; // flt_75C188, flt_75C1CC
+const TEXTURE_RING_RVA: [Slot; 2] = [Slot::at(0x75C210), Slot::at(0x75C254)];
 const SINES_RVA: usize = rva(0xA23AE4); // g_sines
 const COSINES_RVA: usize = rva(0xA24AE4); // g_cosines
-const TURN_RVA: [usize; 3] = [rva(0x75C05C), rva(0x75C028), rva(0x75C024)];
-const SCRATCH_RVA: usize = rva(0x75C060); // dword_75C060
+const TURN_RVA: [Slot; 3] = [Slot::at(0x75C05C), Slot::at(0x75C028), Slot::at(0x75C024)];
+const SCRATCH_RVA: Slot = Slot::at(0x75C060); // dword_75C060
 const VERTICES_RVA: usize = rva(0x9605A0); // g_polygonVertices
 
 /// `fld a; fchs; fmul b; fmul c; fistp`.

@@ -32,7 +32,9 @@
 //! are the original's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::framework::rva;
+use crate::gfx::blit::Slot as BlitSlot;
+use crate::gfx::block::{game_addr, game_read, game_write};
 use crate::install::installer::{copy_picture, draw_text, lock, show, unlock};
 
 const BAR_RVA: usize = rva(0x51D4A3); // dword_51D4A3: the bar's x, y, width, height
@@ -40,7 +42,7 @@ const BAR_GLYPHS_LIST_RVA: usize = rva(0x51D483); // unk_51D483
 const BAR_GLYPHS_RVA: usize = rva(0x51BB3C); // g_installBarGlyphs
 const COPIED_RVA: usize = rva(0x51BAE8); // g_filesCopied
 const TO_COPY_RVA: usize = rva(0x51BAEC); // g_filesToCopy
-const CLIP_RIGHT_RVA: usize = rva(0x4F5040); // g_clipRight
+const CLIP_RIGHT_RVA: BlitSlot = BlitSlot::at(0x4F5040); // g_clipRight
 const TEXT_RVA: usize = rva(0x93E430); // text
 const FONT_RVA: usize = rva(0x51E6A4); // font
 const TEXTS_RVA: usize = rva(0x51D433); // unk_51D433: the copying page's two texts
@@ -82,7 +84,7 @@ pub fn progress_frame() -> Result<bool, Refused> {
             )
         }?;
         let x = g(BAR_RVA);
-        let kept_clip = g(CLIP_RIGHT_RVA);
+        let kept_clip: u32 = unsafe { game_read(CLIP_RIGHT_RVA) };
         unsafe { game_write(CLIP_RIGHT_RVA, width.wrapping_add(x).wrapping_add(1)) };
         crate::install::blit_glyph_list::blit_glyph_list(
             2,

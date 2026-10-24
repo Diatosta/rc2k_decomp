@@ -18,14 +18,13 @@
 
 use crate::d3d::draw_fan_unclipped::COUNT_RVA;
 use crate::errors::Refused;
-use crate::framework::{EAX, ECX, ESI, game_addr, game_read, game_write, rva};
+use crate::framework::{EAX, ECX, ESI, game_addr, game_read};
 use crate::scene::draw_polygon::{SWITCH_A_RVA, SWITCH_B_RVA};
 use crate::scene::polygon::{ENTRIES_RVA, dword, listed, put};
 use crate::screens::harness::Left;
+use crate::session::MACHINE;
 
 // ---- game data ----
-
-const WORK_RVA: usize = rva(0x5183C0); // dword_5183C0, flt_5183C4
 
 // ---- Rust version ----
 
@@ -48,7 +47,8 @@ pub unsafe fn scale_texture_coordinates() -> Result<Left, Refused> {
                 for at in [entry + 8 + pair * 8, entry + 0xC + pair * 8] {
                     eax = dword(at);
                     if let Some(float) = coordinates::float_of(eax) {
-                        game_write(WORK_RVA, [eax, float]);
+                        MACHINE.work.set(eax);
+                        MACHINE.work_float.set(float);
                     }
                     eax = coordinates::scaled(eax);
                     put(at, eax);

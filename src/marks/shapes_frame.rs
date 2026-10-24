@@ -14,8 +14,8 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::game_read;
 use crate::marks::lines::SETTINGS_RVA;
+use crate::marks::store::game_read;
 use crate::marks::{copy_first_point, run_shapes, scale_setting, tilt_shape};
 
 /// The Rust version (see the header).

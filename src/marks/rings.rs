@@ -3,22 +3,22 @@
 //! runs; its angles kept in a second table at esi.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::marks::masks::{RUN_COUNT_RVA, RUNS_RVA};
 use crate::marks::spans::{span_quad, spans_fit, triangle_rows};
+use crate::marks::store::{Slot, game_addr, game_read, game_write};
 use crate::math::x87;
 
-pub const CORNERS_RVA: usize = rva(0x82E422); // g_marksRingCorners: the corner table in use
-const SCALES_RVA: usize = rva(0x89C9B0); // flt_89C9B0, flt_89C9B4, flt_89C9B8
+pub const CORNERS_RVA: Slot = Slot::at(0x82E422); // g_marksRingCorners: the corner table in use
+const SCALES_RVA: Slot = Slot::at(0x89C9B0); // flt_89C9B0, flt_89C9B4, flt_89C9B8
 /// The ring's floats: 0x833D82 the two angles' ends .. 0x833DAE the step.
-const ENDS_RVA: usize = rva(0x833D82); // flt_833D82, flt_833D86
-const HALF_RVA: usize = rva(0x833D8E); // flt_833D8E
-const MIDDLE_RVA: usize = rva(0x833D8A); // flt_833D8A
-const ANGLES_RVA: usize = rva(0x833D92); // flt_833D92, flt_833D96
-const TURNS_RVA: usize = rva(0x833D9A); // flt_833D9A .. flt_833DA6
-pub const QUAD_RVA: usize = rva(0x833D5E); // g_marksRingQuad
-const ANGLE_RVA: usize = rva(0x833DAA); // dword_833DAA
-const STEP_RVA: usize = rva(0x833DAE); // flt_833DAE
+const ENDS_RVA: Slot = Slot::at(0x833D82); // flt_833D82, flt_833D86
+const HALF_RVA: Slot = Slot::at(0x833D8E); // flt_833D8E
+const MIDDLE_RVA: Slot = Slot::at(0x833D8A); // flt_833D8A
+const ANGLES_RVA: Slot = Slot::at(0x833D92); // flt_833D92, flt_833D96
+const TURNS_RVA: Slot = Slot::at(0x833D9A); // flt_833D9A .. flt_833DA6
+pub const QUAD_RVA: Slot = Slot::at(0x833D5E); // g_marksRingQuad
+const ANGLE_RVA: Slot = Slot::at(0x833DAA); // dword_833DAA
+const STEP_RVA: Slot = Slot::at(0x833DAE); // flt_833DAE
 pub const MOST_QUADS: u32 = 0x80;
 const ENTRY: u32 = 0x18;
 

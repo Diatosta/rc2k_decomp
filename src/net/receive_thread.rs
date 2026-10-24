@@ -21,8 +21,9 @@ use crate::errors::Refused;
 use crate::logfile::log_write::log_write;
 use crate::net::EVENT;
 use crate::net::lobby::{
-    POSTED, POSTED_ANSWERED, POSTED_RESULT, POSTING, QUITTING, RECEIVE_DONE, SESSION, a, g, p,
+    POSTED, POSTED_ANSWERED, POSTED_RESULT, POSTING, RECEIVE_DONE, SESSION, a, g, p,
 };
+use crate::session::FLAGS;
 use std::sync::atomic::{AtomicU32, Ordering};
 
 const START_TEXT: usize = 0x4DACD2; // "NETRXTDB:START"
@@ -64,7 +65,7 @@ pub fn receive_thread() -> Result<(), Refused> {
                             p(POSTED_ANSWERED, 1);
                         }
                     }
-                    if get(QUITTING) == 1 {
+                    if FLAGS.quitting.get() == 1 {
                         break;
                     }
                 }

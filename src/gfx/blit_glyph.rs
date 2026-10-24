@@ -16,16 +16,17 @@
 //! the pixels are copied as they are, whatever the surface depth.
 
 use crate::errors::FatalError;
-use crate::framework::{game_read, game_write, rva};
+use crate::gfx::blit::Slot as BlitSlot;
+use crate::gfx::block::{game_read, game_write};
 use crate::gfx::surface::{Clip, Surface, clip, surface};
 use std::ptr::copy_nonoverlapping;
 
 // ---- game data ----
 
-const LEFT_SKIP_RVA: usize = rva(0x4F504C); // g_blitLeftSkip
-const VISIBLE_W_RVA: usize = rva(0x4F5050); // g_blitVisibleWidth
-const TOP_SKIP_RVA: usize = rva(0x4F5054); // g_blitTopSkip
-const ROWS_LEFT_RVA: usize = rva(0x4F5058); // g_blitRowsLeft
+const LEFT_SKIP_RVA: BlitSlot = BlitSlot::at(0x4F504C); // g_blitLeftSkip
+const VISIBLE_W_RVA: BlitSlot = BlitSlot::at(0x4F5050); // g_blitVisibleWidth
+const TOP_SKIP_RVA: BlitSlot = BlitSlot::at(0x4F5054); // g_blitTopSkip
+const ROWS_LEFT_RVA: BlitSlot = BlitSlot::at(0x4F5058); // g_blitRowsLeft
 
 /// The four work globals the blitter leaves behind. Each is only written once the clipping
 /// has got that far, so a glyph that is clipped away leaves the later ones as they were.

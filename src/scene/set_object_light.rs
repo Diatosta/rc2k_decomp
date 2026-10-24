@@ -31,18 +31,21 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{game_read, game_write, rva};
+use crate::framework::rva;
+use crate::input::store::DeviceSlot;
 use crate::scene::add_car_light::add_car_light;
 use crate::scene::add_car_lights::{DRAWN_CAR_RVA, add_car_lights};
-use crate::scene::add_point_lights::{LIGHT_COLOUR_RVA, LIT_PLACE_RVA, MMX_RVA, add_point_lights};
+use crate::scene::add_point_lights::{LIGHT_COLOUR_RVA, LIT_PLACE_RVA, add_point_lights};
 use crate::scene::vertex_light::plus;
+use crate::session::MACHINE;
+use crate::store::{game_read, game_write};
 
 // ---- game data ----
 
 const ADDED_RVA: usize = rva(0x635068); // dword_635068
 const KIND_RVA: usize = rva(0x62DAF4); // g_lightKind
 const STRENGTH_RVA: usize = rva(0x635090); // g_lightStrength
-const KEY_RVA: usize = rva(0x4F6B74); // byte_4F6B74
+const KEY_RVA: DeviceSlot = DeviceSlot::at(0x4F6B74); // byte_4F6B74
 const PLACE_RVA: usize = rva(0x63501C); // dword_63501C, dword_635020, dword_635024
 const BASE_RVA: usize = rva(0x635054); // dword_635054
 const THIS_CAR_RVA: usize = rva(0x60627C); // dword_60627C
@@ -81,7 +84,7 @@ pub unsafe fn set_object_light(
         if own_car {
             game_write(DRAWN_CAR_RVA, u32::MAX);
         }
-        let mmx = game_read::<u32>(MMX_RVA) != 0;
+        let mmx = MACHINE.has_mmx.get() != 0;
         game_write(
             ADDED_RVA,
             plus(game_read(LIGHT_COLOUR_RVA), game_read(BASE_RVA), mmx),

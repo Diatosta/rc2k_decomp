@@ -14,16 +14,16 @@
 //! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, rva};
+use crate::sound::store::ObjectsSlot;
 use crate::sound::turn_parts::{COUNT, OBJECTS};
 
 /// dword_514F70, dword_514F74: the two players' cars; dword_514F78: 1 with one player.
-const FIRST: usize = 0x514F70;
-const SECOND: usize = 0x514F74;
-const ONE_PLAYER: usize = 0x514F78;
+const FIRST: ObjectsSlot = ObjectsSlot::at(0x514F70);
+const SECOND: ObjectsSlot = ObjectsSlot::at(0x514F74);
+const ONE_PLAYER: ObjectsSlot = ObjectsSlot::at(0x514F78);
 
-fn g(x: usize) -> u32 {
-    unsafe { game_read(rva(x)) }
+fn g(x: impl crate::store::Ida) -> u32 {
+    unsafe { crate::store::ida_read(x) }
 }
 
 // ---- Rust version ----

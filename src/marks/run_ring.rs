@@ -33,22 +33,22 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::marks::emitters::{RING_COUNT_RVA, RING_CURSOR_RVA};
 use crate::marks::setup::SETTINGS_RVA;
+use crate::marks::store::{Slot, game_read, game_write};
 use crate::math::x87;
 use crate::scene::matrix3::extended;
 
-const TICKS_RVA: usize = rva(0x764FD0); // g_marksFrameTicks
-const SPIN_K_RVA: usize = rva(0x764FD4); // flt_764FD4
-const WHOLE_RVA: usize = rva(0x9356C0); // dword_9356C0
-const BOX_RVA: [usize; 2] = [rva(0x935680), rva(0x935684)]; // dword_935680, dword_935684
-const FACING_RVA: usize = rva(0x9356B4); // flt_9356B4
-const NEAR_RVA: usize = rva(0x9356BC); // flt_9356BC
-const PULL_LIMIT_RVA: usize = rva(0x765140); // dword_765140
-const PULL_TO_RVA: usize = rva(0x7651DC); // flt_7651DC
-const TOP_RVA: usize = rva(0x935670); // flt_935670
-const FRAME_K_RVA: usize = rva(0x76515C); // flt_76515C
+const TICKS_RVA: Slot = Slot::at(0x764FD0); // g_marksFrameTicks
+const SPIN_K_RVA: Slot = Slot::at(0x764FD4); // flt_764FD4
+const WHOLE_RVA: Slot = Slot::at(0x9356C0); // dword_9356C0
+const BOX_RVA: [Slot; 2] = [Slot::at(0x935680), Slot::at(0x935684)]; // dword_935680, dword_935684
+const FACING_RVA: Slot = Slot::at(0x9356B4); // flt_9356B4
+const NEAR_RVA: Slot = Slot::at(0x9356BC); // flt_9356BC
+const PULL_LIMIT_RVA: Slot = Slot::at(0x765140); // dword_765140
+const PULL_TO_RVA: Slot = Slot::at(0x7651DC); // flt_7651DC
+const TOP_RVA: Slot = Slot::at(0x935670); // flt_935670
+const FRAME_K_RVA: Slot = Slot::at(0x76515C); // flt_76515C
 
 unsafe fn get(a: u32) -> u32 {
     unsafe { (a as *const u32).read_unaligned() }
@@ -58,26 +58,26 @@ unsafe fn put(a: u32, v: u32) {
     unsafe { (a as *mut u32).write_unaligned(v) }
 }
 
-fn k(addr: usize) -> u32 {
-    unsafe { game_read(rva(addr)) }
+fn k(place: Slot) -> u32 {
+    unsafe { game_read(place) }
 }
 
 /// The original's 0x4CE9AF .. 0x4CEA40 (and 0x4CEC77 ..): the place less the object's (`[p + 0x30]` ..) into `flt_935718` .., turned by the object's matrix (`m`), |x| and |z| `fistp`ed into `dword_935680` / `dword_935684`.
-unsafe fn box_(b: u32, e: u32, p: u32, m: u32) {
+unsafe fn box_(e: u32, p: u32, m: u32) {
     unsafe {
         core::arch::asm!(
             "fld dword ptr [{e} + 0x10]",
             "fsub dword ptr [{p} + 0x30]",
-            "fstp dword ptr [{b} + 0x535718]",
+            "fstp dword ptr [{mk} + 0x1D07D8]",
             "fld dword ptr [{e} + 0x14]",
             "fsub dword ptr [{p} + 0x34]",
-            "fstp dword ptr [{b} + 0x53571C]",
+            "fstp dword ptr [{mk} + 0x1D07DC]",
             "fld dword ptr [{e} + 0x18]",
             "fsub dword ptr [{p} + 0x38]",
-            "fstp dword ptr [{b} + 0x535720]",
-            "fld dword ptr [{b} + 0x535720]",
-            "fld dword ptr [{b} + 0x53571C]",
-            "fld dword ptr [{b} + 0x535718]",
+            "fstp dword ptr [{mk} + 0x1D07E0]",
+            "fld dword ptr [{mk} + 0x1D07E0]",
+            "fld dword ptr [{mk} + 0x1D07DC]",
+            "fld dword ptr [{mk} + 0x1D07D8]",
             "fld dword ptr [{m} + 0x0]",
             ".byte 0xD8, 0xC9",
             "fld dword ptr [{m} + 0x10]",
@@ -106,12 +106,12 @@ unsafe fn box_(b: u32, e: u32, p: u32, m: u32) {
             ".byte 0xDE, 0xC1",
             ".byte 0xD9, 0xCA",
             ".byte 0xD9, 0xE1",
-            "fistp dword ptr [{b} + 0x535680]",
+            "fistp dword ptr [{mk} + 0x1D0740]",
             ".byte 0xDD, 0xC0",
             ".byte 0xD9, 0xF7",
             ".byte 0xD9, 0xE1",
-            "fistp dword ptr [{b} + 0x535684]",
-            b = in(reg) b,
+            "fistp dword ptr [{mk} + 0x1D0744]",
+            mk = in(reg) crate::marks::store::base(),
             e = in(reg) e,
             p = in(reg) p,
             m = in(reg) m,
@@ -123,38 +123,38 @@ unsafe fn box_(b: u32, e: u32, p: u32, m: u32) {
 }
 
 /// The original's 0x4CEA5E .. 0x4CEAD4 (and 0x4CED26 ..): that way made one long (`flt_76516C` over its length), dotted with the object's +0x4C .. into `flt_9356B4`.
-unsafe fn facing(b: u32, o: u32) {
+unsafe fn facing(o: u32) {
     unsafe {
         core::arch::asm!(
-            "fld dword ptr [{b} + 0x535718]",
+            "fld dword ptr [{mk} + 0x1D07D8]",
             ".byte 0xD8, 0xC8",
-            "fld dword ptr [{b} + 0x53571C]",
+            "fld dword ptr [{mk} + 0x1D07DC]",
             ".byte 0xD8, 0xC8",
-            "fld dword ptr [{b} + 0x535720]",
+            "fld dword ptr [{mk} + 0x1D07E0]",
             ".byte 0xD8, 0xC8",
             ".byte 0xDE, 0xC1",
             ".byte 0xDE, 0xC1",
             ".byte 0xD9, 0xFA",
-            "fdivr dword ptr [{b} + 0x36516C]",
-            "fld dword ptr [{b} + 0x535718]",
+            "fdivr dword ptr [{mk} + 0x22C]",
+            "fld dword ptr [{mk} + 0x1D07D8]",
             ".byte 0xD8, 0xC9",
-            "fstp dword ptr [{b} + 0x535718]",
-            "fld dword ptr [{b} + 0x53571C]",
+            "fstp dword ptr [{mk} + 0x1D07D8]",
+            "fld dword ptr [{mk} + 0x1D07DC]",
             ".byte 0xD8, 0xC9",
-            "fstp dword ptr [{b} + 0x53571C]",
-            "fld dword ptr [{b} + 0x535720]",
+            "fstp dword ptr [{mk} + 0x1D07DC]",
+            "fld dword ptr [{mk} + 0x1D07E0]",
             ".byte 0xDE, 0xC9",
-            "fstp dword ptr [{b} + 0x535720]",
-            "fld dword ptr [{b} + 0x535718]",
+            "fstp dword ptr [{mk} + 0x1D07E0]",
+            "fld dword ptr [{mk} + 0x1D07D8]",
             "fmul dword ptr [{o} + 0x4C]",
-            "fld dword ptr [{b} + 0x53571C]",
+            "fld dword ptr [{mk} + 0x1D07DC]",
             "fmul dword ptr [{o} + 0x50]",
-            "fld dword ptr [{b} + 0x535720]",
+            "fld dword ptr [{mk} + 0x1D07E0]",
             "fmul dword ptr [{o} + 0x54]",
             ".byte 0xDE, 0xC1",
             ".byte 0xDE, 0xC1",
-            "fstp dword ptr [{b} + 0x5356B4]",
-            b = in(reg) b,
+            "fstp dword ptr [{mk} + 0x1D0774]",
+            mk = in(reg) crate::marks::store::base(),
             o = in(reg) o,
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
@@ -164,32 +164,32 @@ unsafe fn facing(b: u32, o: u32) {
 }
 
 /// The original's 0x4CEF8A .. 0x4CEFDA: the place less the object's into `flt_935718` .., its length (kept, 80 bits, at `l`) less `flt_93A526` into `flt_9356BC`.
-unsafe fn pull_length(b: u32, e: u32, p: u32, l: u32) {
+unsafe fn pull_length(e: u32, p: u32, l: u32) {
     unsafe {
         core::arch::asm!(
             "fld dword ptr [{e} + 0x10]",
             "fsub dword ptr [{p} + 0x30]",
-            "fstp dword ptr [{b} + 0x535718]",
+            "fstp dword ptr [{mk} + 0x1D07D8]",
             "fld dword ptr [{e} + 0x14]",
             "fsub dword ptr [{p} + 0x34]",
-            "fstp dword ptr [{b} + 0x53571C]",
+            "fstp dword ptr [{mk} + 0x1D07DC]",
             "fld dword ptr [{e} + 0x18]",
             "fsub dword ptr [{p} + 0x38]",
-            "fstp dword ptr [{b} + 0x535720]",
-            "fld dword ptr [{b} + 0x535718]",
+            "fstp dword ptr [{mk} + 0x1D07E0]",
+            "fld dword ptr [{mk} + 0x1D07D8]",
             ".byte 0xD8, 0xC8",
-            "fld dword ptr [{b} + 0x53571C]",
+            "fld dword ptr [{mk} + 0x1D07DC]",
             ".byte 0xD8, 0xC8",
-            "fld dword ptr [{b} + 0x535720]",
+            "fld dword ptr [{mk} + 0x1D07E0]",
             ".byte 0xD8, 0xC8",
             ".byte 0xDE, 0xC1",
             ".byte 0xDE, 0xC1",
             ".byte 0xD9, 0xFA",
             ".byte 0xD9, 0xC0",
-            "fsub dword ptr [{b} + 0x53A526]",
-            "fstp dword ptr [{b} + 0x5356BC]",
+            "fsub dword ptr [{mk} + 0x1D55E6]",
+            "fstp dword ptr [{mk} + 0x1D077C]",
             "fstp tbyte ptr [{l}]",
-            b = in(reg) b,
+            mk = in(reg) crate::marks::store::base(),
             e = in(reg) e,
             p = in(reg) p,
             l = in(reg) l,
@@ -201,42 +201,42 @@ unsafe fn pull_length(b: u32, e: u32, p: u32, l: u32) {
 }
 
 /// The original's 0x4CEFEC .. 0x4CF07F: the way made one long by the kept length, the object's +0x4C .. over its +0x88, minus their dot into `flt_9356B4`.
-unsafe fn pull_facing(b: u32, o: u32, l: u32) {
+unsafe fn pull_facing(o: u32, l: u32) {
     unsafe {
         core::arch::asm!(
             "fld tbyte ptr [{l}]",
-            "fdivr dword ptr [{b} + 0x36516C]",
-            "fld dword ptr [{b} + 0x535718]",
+            "fdivr dword ptr [{mk} + 0x22C]",
+            "fld dword ptr [{mk} + 0x1D07D8]",
             ".byte 0xD8, 0xC9",
-            "fstp dword ptr [{b} + 0x535718]",
-            "fld dword ptr [{b} + 0x53571C]",
+            "fstp dword ptr [{mk} + 0x1D07D8]",
+            "fld dword ptr [{mk} + 0x1D07DC]",
             ".byte 0xD8, 0xC9",
-            "fstp dword ptr [{b} + 0x53571C]",
-            "fld dword ptr [{b} + 0x535720]",
+            "fstp dword ptr [{mk} + 0x1D07DC]",
+            "fld dword ptr [{mk} + 0x1D07E0]",
             ".byte 0xDE, 0xC9",
-            "fstp dword ptr [{b} + 0x535720]",
+            "fstp dword ptr [{mk} + 0x1D07E0]",
             "fild dword ptr [{o} + 0x88]",
-            "fdivr dword ptr [{b} + 0x36516C]",
+            "fdivr dword ptr [{mk} + 0x22C]",
             "fld dword ptr [{o} + 0x4C]",
             ".byte 0xD8, 0xC9",
-            "fstp dword ptr [{b} + 0x535724]",
+            "fstp dword ptr [{mk} + 0x1D07E4]",
             "fld dword ptr [{o} + 0x50]",
             ".byte 0xD8, 0xC9",
-            "fstp dword ptr [{b} + 0x535728]",
+            "fstp dword ptr [{mk} + 0x1D07E8]",
             "fld dword ptr [{o} + 0x54]",
             ".byte 0xDE, 0xC9",
-            "fstp dword ptr [{b} + 0x53572C]",
-            "fld dword ptr [{b} + 0x535718]",
-            "fmul dword ptr [{b} + 0x535724]",
-            "fld dword ptr [{b} + 0x53571C]",
-            "fmul dword ptr [{b} + 0x535728]",
-            "fld dword ptr [{b} + 0x535720]",
-            "fmul dword ptr [{b} + 0x53572C]",
+            "fstp dword ptr [{mk} + 0x1D07EC]",
+            "fld dword ptr [{mk} + 0x1D07D8]",
+            "fmul dword ptr [{mk} + 0x1D07E4]",
+            "fld dword ptr [{mk} + 0x1D07DC]",
+            "fmul dword ptr [{mk} + 0x1D07E8]",
+            "fld dword ptr [{mk} + 0x1D07E0]",
+            "fmul dword ptr [{mk} + 0x1D07EC]",
             ".byte 0xDE, 0xC1",
             ".byte 0xDE, 0xC1",
             ".byte 0xD9, 0xE0",
-            "fstp dword ptr [{b} + 0x5356B4]",
-            b = in(reg) b,
+            "fstp dword ptr [{mk} + 0x1D0774]",
+            mk = in(reg) crate::marks::store::base(),
             o = in(reg) o,
             l = in(reg) l,
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
@@ -247,25 +247,25 @@ unsafe fn pull_facing(b: u32, o: u32, l: u32) {
 }
 
 /// The original's 0x4CF08B .. 0x4CF0D8: the entry's +0x64 pulled toward `flt_7651DC` (`fist` into `dword_9356C0`).
-unsafe fn pull_strength(b: u32, e: u32, o: u32) {
+unsafe fn pull_strength(e: u32, o: u32) {
     unsafe {
         core::arch::asm!(
             "fild dword ptr [{o} + 0x88]",
-            "fmul dword ptr [{b} + 0x53A52A]",
-            "fadd dword ptr [{b} + 0x36516C]",
-            "fdivr dword ptr [{b} + 0x36516C]",
-            "fsubr dword ptr [{b} + 0x36516C]",
-            "fstp dword ptr [{b} + 0x5356C0]",
-            "fld dword ptr [{b} + 0x3651DC]",
+            "fmul dword ptr [{mk} + 0x1D55EA]",
+            "fadd dword ptr [{mk} + 0x22C]",
+            "fdivr dword ptr [{mk} + 0x22C]",
+            "fsubr dword ptr [{mk} + 0x22C]",
+            "fstp dword ptr [{mk} + 0x1D0780]",
+            "fld dword ptr [{mk} + 0x29C]",
             "fsub dword ptr [{e} + 0x64]",
-            "fld dword ptr [{b} + 0x53A52E]",
-            "fmul dword ptr [{b} + 0x5356C0]",
+            "fld dword ptr [{mk} + 0x1D55EE]",
+            "fmul dword ptr [{mk} + 0x1D0780]",
             ".byte 0xDE, 0xC9",
-            "fimul dword ptr [{b} + 0x364FD0]",
+            "fimul dword ptr [{mk} + 0x90]",
             "fadd dword ptr [{e} + 0x64]",
-            "fist dword ptr [{b} + 0x5356C0]",
+            "fist dword ptr [{mk} + 0x1D0780]",
             "fstp dword ptr [{e} + 0x64]",
-            b = in(reg) b,
+            mk = in(reg) crate::marks::store::base(),
             e = in(reg) e,
             o = in(reg) o,
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
@@ -276,7 +276,7 @@ unsafe fn pull_strength(b: u32, e: u32, o: u32) {
 }
 
 /// The original's 0x4CF65C .. 0x4CF6B7 (and 0x4CF7C4 ..): the place turned by the object's matrix (`m`), |x| and |z| into `dword_935680` / `dword_935684`.
-unsafe fn box_place(b: u32, e: u32, m: u32) {
+unsafe fn box_place(e: u32, m: u32) {
     unsafe {
         core::arch::asm!(
             "fld dword ptr [{e} + 0x18]",
@@ -310,12 +310,12 @@ unsafe fn box_place(b: u32, e: u32, m: u32) {
             ".byte 0xDE, 0xC1",
             ".byte 0xD9, 0xCA",
             ".byte 0xD9, 0xE1",
-            "fistp dword ptr [{b} + 0x535680]",
+            "fistp dword ptr [{mk} + 0x1D0740]",
             ".byte 0xDD, 0xC0",
             ".byte 0xD9, 0xF7",
             ".byte 0xD9, 0xE1",
-            "fistp dword ptr [{b} + 0x535684]",
-            b = in(reg) b,
+            "fistp dword ptr [{mk} + 0x1D0744]",
+            mk = in(reg) crate::marks::store::base(),
             e = in(reg) e,
             m = in(reg) m,
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
@@ -327,40 +327,55 @@ unsafe fn box_place(b: u32, e: u32, m: u32) {
 
 /// The kinds' constants: (the y gain, the three dampings, the size's rate).
 struct Kind {
-    gain: usize,
-    damp: [usize; 3],
-    pull: usize,
+    gain: Option<Slot>,
+    damp: [Slot; 3],
+    pull: Option<Slot>,
+}
+
+impl Kind {
+    /// The size's rate (the kinds that pull the size have one; the original would read
+    /// address 0 for one that has none: refused).
+    fn pull(&self) -> Result<Slot, BadInput> {
+        self.pull
+            .ok_or(BadInput("a ring kind that pulls the size without a rate"))
+    }
+
+    /// The y gain (the kinds that gain have one; as `pull`).
+    fn gain(&self) -> Result<Slot, BadInput> {
+        self.gain
+            .ok_or(BadInput("a ring kind that gains without a gain"))
+    }
 }
 
 const K6: Kind = Kind {
-    gain: 0,
-    damp: [0x93A4F2, 0x93A4F6, 0x93A4FA],
-    pull: 0x93A4FE,
+    gain: None,
+    damp: [Slot::at(0x93A4F2), Slot::at(0x93A4F6), Slot::at(0x93A4FA)],
+    pull: Some(Slot::at(0x93A4FE)),
 };
 const K15: Kind = Kind {
-    gain: 0,
-    damp: [0x93A502, 0x93A506, 0x93A50A],
-    pull: 0x93A50E,
+    gain: None,
+    damp: [Slot::at(0x93A502), Slot::at(0x93A506), Slot::at(0x93A50A)],
+    pull: Some(Slot::at(0x93A50E)),
 };
 const K1: Kind = Kind {
-    gain: 0,
-    damp: [0x93A516, 0x93A51A, 0x93A51E],
-    pull: 0x93A522,
+    gain: None,
+    damp: [Slot::at(0x93A516), Slot::at(0x93A51A), Slot::at(0x93A51E)],
+    pull: Some(Slot::at(0x93A522)),
 };
 const KD: Kind = Kind {
-    gain: 0x93A532,
-    damp: [0x93A536, 0x93A53A, 0x93A53E],
-    pull: 0x93A542,
+    gain: Some(Slot::at(0x93A532)),
+    damp: [Slot::at(0x93A536), Slot::at(0x93A53A), Slot::at(0x93A53E)],
+    pull: Some(Slot::at(0x93A542)),
 };
 const K13: Kind = Kind {
-    gain: 0x93A552,
-    damp: [0x93A546, 0x93A54A, 0x93A54E],
-    pull: 0,
+    gain: Some(Slot::at(0x93A552)),
+    damp: [Slot::at(0x93A546), Slot::at(0x93A54A), Slot::at(0x93A54E)],
+    pull: None,
 };
 const K16: Kind = Kind {
-    gain: 0x93A562,
-    damp: [0x93A556, 0x93A55A, 0x93A55E],
-    pull: 0,
+    gain: Some(Slot::at(0x93A562)),
+    damp: [Slot::at(0x93A556), Slot::at(0x93A55A), Slot::at(0x93A55E)],
+    pull: None,
 };
 
 /// Why it refuses, if it does: the walk's pointers checked, nothing written.
@@ -482,7 +497,7 @@ unsafe fn spin_and_move(e: u32, spin: bool) {
     }
 }
 
-unsafe fn gain_y(e: u32, k_addr: usize) {
+unsafe fn gain_y(e: u32, k_addr: Slot) {
     unsafe {
         let t: i32 = game_read(TICKS_RVA);
         put(e + 0x30, x87::plus_times_int(get(e + 0x30), k(k_addr), t));
@@ -490,7 +505,7 @@ unsafe fn gain_y(e: u32, k_addr: usize) {
 }
 
 /// The three dampings (a part that changes sign stops at 0).
-unsafe fn damp3(e: u32, ks: [usize; 3]) {
+unsafe fn damp3(e: u32, ks: [Slot; 3]) {
     unsafe {
         let t: i32 = game_read(TICKS_RVA);
         for (o, kk) in [0x2Cu32, 0x30, 0x34].into_iter().zip(ks) {
@@ -506,7 +521,7 @@ unsafe fn damp3(e: u32, ks: [usize; 3]) {
 }
 
 /// The size pulled toward +0x70.
-unsafe fn pull_size(e: u32, k_addr: usize) {
+unsafe fn pull_size(e: u32, k_addr: Slot) {
     unsafe {
         let t: i32 = game_read(TICKS_RVA);
         let (w, f) = x87::approach(get(e + 0x70) as i32, get(e + 0x60), k(k_addr), t);
@@ -531,15 +546,14 @@ unsafe fn fade(e: u32) {
 /// The box test of kinds 6 and 0x15: whether the size is pulled.
 unsafe fn outside_and_away(e: u32) -> bool {
     unsafe {
-        let b = game_addr(0) as u32;
         let obj = get(e + 0x68);
-        box_(b, e, get(obj + 0x24), obj + 0x94);
+        box_(e, get(obj + 0x24), obj + 0x94);
         let outside = (get(e + 0x7C) as i32) < game_read::<i32>(BOX_RVA[0])
             || (get(e + 0x80) as i32) < game_read::<i32>(BOX_RVA[1]);
         if !outside {
             return false;
         }
-        facing(b, obj);
+        facing(obj);
         game_read::<i32>(FACING_RVA) <= 0
     }
 }
@@ -565,7 +579,7 @@ unsafe fn draw(
 }
 
 /// Kinds 5 and 0xB (draw 1 or 2; their y gain, size and alpha gains): whether it dies.
-unsafe fn drift_kind(e: u32, place: u32, ks: [usize; 3]) -> Result<bool, Refused> {
+unsafe fn drift_kind(e: u32, place: u32, ks: [Slot; 3]) -> Result<bool, Refused> {
     unsafe {
         if aged(e, true) {
             return Ok(true);
@@ -609,7 +623,7 @@ unsafe fn fading_kind(e: u32, kind: u32, c: &Kind) -> Result<bool, Refused> {
             let [cell, angle] = [get(e + 0x58), get(e + 0x50)];
             let alpha = whole_alpha(e);
             let size = if kind == 1 {
-                x87::plus_product_to_int(get(e + 0x60), get(e + 0x64), k(0x93A512))
+                x87::plus_product_to_int(get(e + 0x60), get(e + 0x64), k(Slot::at(0x93A512)))
             } else {
                 x87::to_int(get(e + 0x60))
             };
@@ -617,30 +631,33 @@ unsafe fn fading_kind(e: u32, kind: u32, c: &Kind) -> Result<bool, Refused> {
             draw(1, cell, angle, alpha, size, e, p)?;
         }
         spin_and_move(e, true);
-        if c.gain != 0 && kind == 0xD {
-            gain_y(e, c.gain);
+        if c.gain.is_some() && kind == 0xD {
+            gain_y(e, c.gain()?);
         }
         damp3(e, c.damp);
         match kind {
             6 | 0x15 => {
                 if outside_and_away(e) {
-                    pull_size(e, c.pull);
+                    pull_size(e, c.pull()?);
                 }
                 fade(e);
             }
             1 => {
-                pull_size(e, c.pull);
+                pull_size(e, c.pull()?);
                 fade(e);
                 pull_toward(e);
             }
             0xD => {
-                pull_size(e, c.pull);
+                pull_size(e, c.pull()?);
                 fade(e);
             }
             _ => {
                 fade(e);
                 let t: i32 = game_read(TICKS_RVA);
-                put(e + 0x60, x87::plus_times_int(get(e + 0x60), k(c.gain), t));
+                put(
+                    e + 0x60,
+                    x87::plus_times_int(get(e + 0x60), k(c.gain()?), t),
+                );
             }
         }
     }
@@ -650,19 +667,18 @@ unsafe fn fading_kind(e: u32, kind: u32, c: &Kind) -> Result<bool, Refused> {
 /// Kind 1's pull of its +0x64 when near and facing.
 unsafe fn pull_toward(e: u32) {
     unsafe {
-        let b = game_addr(0) as u32;
         let obj = get(e + 0x68);
         let mut length = [0u8; 10];
         let l = length.as_mut_ptr() as u32;
-        pull_length(b, e, get(obj + 0x24), l);
+        pull_length(e, get(obj + 0x24), l);
         if game_read::<i32>(NEAR_RVA) < 0 {
             return;
         }
-        pull_facing(b, obj, l);
+        pull_facing(obj, l);
         if game_read::<i32>(FACING_RVA) <= 0 {
             return;
         }
-        pull_strength(b, e, obj);
+        pull_strength(e, obj);
         if game_read::<i32>(WHOLE_RVA) > game_read::<i32>(PULL_LIMIT_RVA) {
             put(e + 0x64, x87::loaded(game_read(PULL_TO_RVA)));
         }
@@ -670,7 +686,7 @@ unsafe fn pull_toward(e: u32) {
 }
 
 /// Kinds 0x10, 0x11 (draw 3): boxed, no ground test of their own first. Whether it dies.
-unsafe fn boxed_kind(e: u32, gain: usize, both: bool) -> Result<bool, Refused> {
+unsafe fn boxed_kind(e: u32, gain: Slot, both: bool) -> Result<bool, Refused> {
     unsafe {
         if aged(e, true) {
             return Ok(true);
@@ -689,8 +705,7 @@ unsafe fn boxed_kind(e: u32, gain: usize, both: bool) -> Result<bool, Refused> {
             let subcell = ((f as u32) & 3).wrapping_add(get(e + 0x58));
             draw(3, subcell, 0, 0, size, e, p)?;
         }
-        let b = game_addr(0) as u32;
-        box_place(b, e, get(e + 0x68) + 0x94);
+        box_place(e, get(e + 0x68) + 0x94);
         let mut outside = (get(e + 0x7C) as i32) < game_read::<i32>(BOX_RVA[0]);
         if !outside && both {
             outside = (get(e + 0x80) as i32) < game_read::<i32>(BOX_RVA[1]);
@@ -717,16 +732,24 @@ pub unsafe fn run_ring() -> Result<(), Refused> {
             }
             let next = get(e + 4);
             let dies = match get(e + 0xC) {
-                5 => drift_kind(e, 1, [0x93A4DA, 0x93A4DE, 0x93A4E2])?,
-                0xB => drift_kind(e, 2, [0x93A4E6, 0x93A4EA, 0x93A4EE])?,
+                5 => drift_kind(
+                    e,
+                    1,
+                    [Slot::at(0x93A4DA), Slot::at(0x93A4DE), Slot::at(0x93A4E2)],
+                )?,
+                0xB => drift_kind(
+                    e,
+                    2,
+                    [Slot::at(0x93A4E6), Slot::at(0x93A4EA), Slot::at(0x93A4EE)],
+                )?,
                 6 => fading_kind(e, 6, &K6)?,
                 0x15 => fading_kind(e, 0x15, &K15)?,
                 1 => fading_kind(e, 1, &K1)?,
                 0xD => fading_kind(e, 0xD, &KD)?,
                 0x13 => fading_kind(e, 0x13, &K13)?,
                 0x16 => fading_kind(e, 0x16, &K16)?,
-                0x10 => boxed_kind(e, 0x93A566, true)?,
-                0x11 => boxed_kind(e, 0x93A56A, false)?,
+                0x10 => boxed_kind(e, Slot::at(0x93A566), true)?,
+                0x11 => boxed_kind(e, Slot::at(0x93A56A), false)?,
                 _ => false,
             };
             if dies {

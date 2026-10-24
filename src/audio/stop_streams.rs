@@ -19,7 +19,7 @@
 use crate::audio::stream::SOUND_STREAM_RVA;
 use crate::audio::stream_commands::{MusicVars, music_command, stream_command};
 use crate::errors::Refused;
-use crate::framework::game_addr;
+use crate::store::game_addr;
 
 /// Both streams stopped.
 pub fn stop_streams() -> Result<(), Refused> {

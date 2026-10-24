@@ -21,9 +21,9 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, game_write, rva};
 use crate::marks::blend_corner::blend_corner;
 use crate::marks::lines::{SETTINGS_RVA, measure_lines};
+use crate::marks::store::{Slot, game_read, game_write};
 use crate::scene::objects::{
     FIRST_POINT_RVA, POINT_COUNTS_RVA, POINTS_ROOM_RVA, POINTS_RVA, SLOTS,
 };
@@ -31,7 +31,7 @@ use crate::scene::objects::{
 const CAR_LEN: u32 = 0x4C8;
 const BLOCK: u32 = 0x29C;
 const MOST_CARS: i32 = 8;
-const KEPT_RVA: usize = rva(0x93C6D4); // dword_93C6D4 .. dword_93C6F0
+const KEPT_RVA: Slot = Slot::at(0x93C6D4); // dword_93C6D4 .. dword_93C6F0
 
 unsafe fn get(a: u32) -> u32 {
     unsafe { (a as *const u32).read_unaligned() }

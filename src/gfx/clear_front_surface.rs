@@ -15,16 +15,17 @@
 //! the menus), by address (`net::lobby`'s `CLEAR_FRONT`, the typed tables).
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, rva};
+use crate::gfx::front::Slot as FrontSlot;
+use crate::session::SCREEN;
+use crate::store::game_read;
 
-const FRONT_RVA: usize = rva(0x4F32B4); // g_frontSurface
-const HEIGHT_RVA: usize = rva(0x4F4950); // g_screenHeight
+const FRONT_RVA: FrontSlot = FrontSlot::at(0x4F32B4); // g_frontSurface
 
 /// The Rust version (see the header): in the standalone the lock fails, so only the
 /// checks are made.
 pub fn clear_front_surface() -> Result<(), Refused> {
     unsafe {
-        if game_read::<u32>(FRONT_RVA) != 0 && game_read::<u32>(HEIGHT_RVA) == 0 {
+        if game_read::<u32>(FRONT_RVA) != 0 && SCREEN.height.get() == 0 {
             return Err(BadInput("a screen height of 0 (2^32 rows)").into());
         }
     }

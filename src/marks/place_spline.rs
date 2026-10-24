@@ -20,30 +20,30 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::marks::lines::SETTINGS_RVA;
 use crate::marks::place_graded_points::place_graded_points;
 use crate::marks::splines::{OFFSET_RVA, SPLINE_LEN, TABLES, place_shape_points as place_shape};
+use crate::marks::store::{Slot, game_addr, game_read, game_write};
 use crate::math::x87;
 use crate::scene::vector3::STATUS_RVA;
 
 const SPLINES: u32 = 8;
-const SWITCH_RVA: usize = rva(0x7695CA); // dword_7695CA
+const SWITCH_RVA: Slot = Slot::at(0x7695CA); // dword_7695CA
 /// flt_788F19 .. flt_788F35.
-const K: [usize; 8] = [
-    rva(0x788F19),
-    rva(0x788F1D),
-    rva(0x788F21),
-    rva(0x788F25),
-    rva(0x788F29),
-    rva(0x788F2D),
-    rva(0x788F31),
-    rva(0x788F35),
+const K: [Slot; 8] = [
+    Slot::at(0x788F19),
+    Slot::at(0x788F1D),
+    Slot::at(0x788F21),
+    Slot::at(0x788F25),
+    Slot::at(0x788F29),
+    Slot::at(0x788F2D),
+    Slot::at(0x788F31),
+    Slot::at(0x788F35),
 ];
 
 /// The four records of spline `n`: A, B, C, D.
 fn records(n: u32) -> [u32; 4] {
-    TABLES.map(|t| game_addr(rva(t)) as u32 + n * SPLINE_LEN)
+    TABLES.map(|t| game_addr(t) as u32 + n * SPLINE_LEN)
 }
 
 unsafe fn get(a: u32) -> u32 {

@@ -37,8 +37,8 @@ use crate::input::take_key::take_key;
 use crate::menu::handle_yes_no::{ASKING_RVA, LEAVING_RVA, handle_yes_no};
 use crate::menu::navigation::{Direction, move_highlight};
 use crate::menu::update_blink::LAST_KEY_TIME_RVA;
-use crate::menu::update_frame_clock::CLOCK_RVA;
 use crate::service::state::{EDIT_MODE_RVA, TIME_BUDGET_RVA};
+use crate::session::CLOCKS;
 
 // ---- game data ----
 
@@ -103,7 +103,7 @@ pub unsafe fn handle_keys(eax: u32) -> Result<Keys, Refused> {
             }
             _ => {}
         }
-        let clock: u32 = game_read(CLOCK_RVA);
+        let clock: u32 = CLOCKS.frame.get();
         if action == Action::Enter {
             game_write(SOUND_RVA, keys::ENTER_SOUND);
             game_write(LAST_KEY_TIME_RVA, clock);

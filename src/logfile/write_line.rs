@@ -28,7 +28,7 @@ use windows_sys::Win32::System::Threading::Sleep;
 /// The log's state, out of the image since 2026-10-24 (phase 5; it was `g_logEnabled`,
 /// `g_logLevel`, `g_logLock`, `g_logIndent`, `g_logAtLineStart`, 0x4E0094 .. 0x4E00A7).
 /// Atomics: any thread logs. `LEVEL` is set from `var\ral.cfg` (`logfile=`, through
-/// `crate::moved::resolve`); the race's steps change `INDENT` and `ENABLED` through
+/// `crate::moved::place`); the race's steps change `INDENT` and `ENABLED` through
 /// their addresses (`indent_place`, `enabled_place`).
 pub mod state {
     use std::sync::atomic::{AtomicI32, AtomicU32};

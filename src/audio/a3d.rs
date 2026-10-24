@@ -3,17 +3,19 @@
 //! long time: the Rust versions make the same attempt (`CoCreateInstance`), go the
 //! original's way when it fails, and refuse when it works (the original then does it).
 
+use crate::audio::store::Slot;
 use crate::audio::voices::{read, write};
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, rva};
+use crate::store::addr32 as a;
+use crate::store::game_addr;
 
-pub const NO_A3D_SETTING_RVA: usize = rva(0x506C5C); // g_noA3dSetting: 1 no A3D, 2 no A3D2
-pub const A3D2_INTERFACE_RVA: usize = rva(0x506D58); // g_a3d2Interface
-pub const SPLASH_KEPT_RVA: usize = rva(0x506C60); // g_a3dSplashKept (1: the splash pair acts)
-const A3D_CLSID_RVA: usize = rva(0x506CD8);
-const A3D_IID_RVA: usize = rva(0x506A28);
-const A3D2_CLSID_RVA: usize = rva(0x506D6C);
-const A3D2_IID_RVA: usize = rva(0x506D8C);
+pub const NO_A3D_SETTING_RVA: Slot = Slot::at(0x506C5C); // g_noA3dSetting: 1 no A3D, 2 no A3D2
+pub const A3D2_INTERFACE_RVA: Slot = Slot::at(0x506D58); // g_a3d2Interface
+pub const SPLASH_KEPT_RVA: Slot = Slot::at(0x506C60); // g_a3dSplashKept (1: the splash pair acts)
+const A3D_CLSID_RVA: Slot = Slot::at(0x506CD8);
+const A3D_IID_RVA: Slot = Slot::at(0x506A28);
+const A3D2_CLSID_RVA: Slot = Slot::at(0x506D6C);
+const A3D2_IID_RVA: Slot = Slot::at(0x506D8C);
 /// `CoCreateInstance`'s class context: in process.
 const IN_PROCESS: u32 = 1;
 
@@ -56,7 +58,6 @@ pub struct A3dVars {
 
 impl A3dVars {
     pub fn game() -> Self {
-        let a = |r| game_addr(r) as u32;
         Self {
             setting: a(NO_A3D_SETTING_RVA),
             ready: a(crate::audio::sound_device::A3D_READY_RVA),

@@ -20,16 +20,17 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::framework::rva;
+use crate::marks::store::{Slot, game_addr, game_read, game_write};
 use crate::math::x87;
 
 const VIEW_RVA: usize = rva(0x5EA2CC); // g_viewMatrix
-const TURNED_RVA: usize = rva(0x8EB8D5); // flt_8EB8D5 .. flt_8EB8DD
-const NEAR_RVA: usize = rva(0x8EB961); // dword_8EB961
-const HALF_RVA: usize = rva(0x8EB8B5); // dword_8EB8B5, dword_8EB8B9
+const TURNED_RVA: Slot = Slot::at(0x8EB8D5); // flt_8EB8D5 .. flt_8EB8DD
+const NEAR_RVA: Slot = Slot::at(0x8EB961); // dword_8EB961
+const HALF_RVA: Slot = Slot::at(0x8EB8B5); // dword_8EB8B5, dword_8EB8B9
 const FOCAL_RVA: usize = rva(0x624088); // flt_624088
 const CENTRE_RVA: [usize; 2] = [rva(0x62409C), rva(0x6240A0)];
-const Z_K_RVA: usize = rva(0x8EB96D); // flt_8EB96D
+const Z_K_RVA: Slot = Slot::at(0x8EB96D); // flt_8EB96D
 const VERTICES_RVA: usize = rva(0x9605A0); // g_polygonVertices: TLVertex[4]
 
 /// The Rust version (see the header): `colour` (ecx), `size` (edx).

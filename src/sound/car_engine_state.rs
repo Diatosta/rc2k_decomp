@@ -45,10 +45,10 @@
 //! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, game_write, rva};
 use crate::math::x87::from_int;
-use crate::physics::flow::{base, x87_run};
-use crate::sound::turn_parts::{CLOCK, SCRATCH};
+use crate::physics::flow::x87_run;
+use crate::session::MACHINE;
+use crate::sound::turn_parts::CLOCK;
 use rc2k_core::sound::engine::{Left, Words, extrapolation, over_256, readings, state};
 
 /// off_514F90: the sound kinds, 36 pointers.
@@ -57,8 +57,8 @@ pub const KIND_COUNT: u32 = 36;
 /// dword_5BEC94: 1 holds the revs as they are.
 const HOLD: usize = 0x5BEC94;
 
-fn g(x: usize) -> u32 {
-    unsafe { game_read(rva(x)) }
+fn g(x: impl crate::store::Ida) -> u32 {
+    unsafe { crate::store::ida_read(x) }
 }
 
 /// The kind of object `o` (its +4), or a refusal.
@@ -94,7 +94,7 @@ pub fn car_engine_state(o: u32) -> Result<u32, Refused> {
     let kind = kind_of(o)?;
     let mut object = Object(o);
     let clock = g(CLOCK);
-    let (b, bx, di) = (base(), o, kind);
+    let (bx, di) = (o, kind);
     // The revs extrapolated, worked out first: its `idiv` may trap.
     let revs = extrapolation(&object, clock, || g(HOLD)).map_err(BadInput::from)?;
     // The registers the core models (written before they are read).
@@ -111,50 +111,50 @@ pub fn car_engine_state(o: u32) -> Result<u32, Refused> {
     x87_run!(
         "fld dword ptr [{bx} + 0x1C]",
         ".byte 0xD9, 0xE1",
-        "fmul dword ptr [{b} + 0x116370]",
+        "fmul dword ptr [{sf} + 0x18]",
         "fstp dword ptr [{bx} + 0x108]";
-        bx = bx, b = b
+        bx = bx, sf = crate::sound::store::surface::base()
     );
     let flags = || unsafe { (kind as *const u32).read_unaligned() };
     if let Some(low) = state(&mut object, flags, clock, &mut left) {
-        unsafe { game_write(rva(SCRATCH), low) };
+        MACHINE.scratch.set(low);
         x87_run!(
-            "fild dword ptr [{b} + 0x1183CC]",
-            "mov dword ptr [{b} + 0x1183CC], 0x3C888889",
-            "fmul dword ptr [{b} + 0x1183CC]",
-            "mov dword ptr [{b} + 0x1183CC], 0x3F400000",
-            "fadd dword ptr [{b} + 0x1183CC]",
+            "fild dword ptr [{t}]",
+            "mov dword ptr [{t}], 0x3C888889",
+            "fmul dword ptr [{t}]",
+            "mov dword ptr [{t}], 0x3F400000",
+            "fadd dword ptr [{t}]",
             "fstp dword ptr [{bx} + 0x210]";
-            b = b, bx = bx
+            bx = bx, t = crate::session::MACHINE.scratch.addr()
         );
     }
     x87_run!(
-        "fld dword ptr [{bx} + 0x134]",
-        "fld dword ptr [{bx} + 0x2C]",
-        "fmul dword ptr [{bx} + 0x2C]",
-        "fld dword ptr [{bx} + 0x30]",
-        "fmul dword ptr [{bx} + 0x30]",
-        "fld dword ptr [{bx} + 0x34]",
-        "fmul dword ptr [{bx} + 0x34]",
-        ".byte 0xDE, 0xC1",
-        ".byte 0xDE, 0xC1",
-        ".byte 0xD9, 0xFA",
-        "fst dword ptr [{bx} + 0x134]",
-        ".byte 0xDE, 0xE9",
-        "fmul dword ptr [{b} + 0x1124EC]",
-        "fstp dword ptr [{bx} + 0x138]";
-        bx = bx, b = b
+    "fld dword ptr [{bx} + 0x134]",
+    "fld dword ptr [{bx} + 0x2C]",
+    "fmul dword ptr [{bx} + 0x2C]",
+    "fld dword ptr [{bx} + 0x30]",
+    "fmul dword ptr [{bx} + 0x30]",
+    "fld dword ptr [{bx} + 0x34]",
+    "fmul dword ptr [{bx} + 0x34]",
+    ".byte 0xDE, 0xC1",
+    ".byte 0xDE, 0xC1",
+    ".byte 0xD9, 0xFA",
+    "fst dword ptr [{bx} + 0x134]",
+    ".byte 0xDE, 0xE9",
+    "fmul dword ptr [{ck} + 8]",
+    "fstp dword ptr [{bx} + 0x138]";
+    bx = bx, ck = crate::sound::store::clock::base()
     );
     object.set(0x140, 0);
     x87_run!(
-        "fld dword ptr [{bx} + 0x138]",
-        "fadd dword ptr [{b} + 0x1124F8]",
-        "fmul dword ptr [{b} + 0x1124FC]",
-        "fsub dword ptr [{bx} + 0x13C]",
-        "fmul dword ptr [{b} + 0x116360]",
-        "fadd dword ptr [{bx} + 0x13C]",
-        "fstp dword ptr [{bx} + 0x13C]";
-        bx = bx, b = b
+    "fld dword ptr [{bx} + 0x138]",
+    "fadd dword ptr [{ck} + 0x14]",
+    "fmul dword ptr [{ck} + 0x18]",
+    "fsub dword ptr [{bx} + 0x13C]",
+    "fmul dword ptr [{sf} + 0x8]",
+    "fadd dword ptr [{bx} + 0x13C]",
+    "fstp dword ptr [{bx} + 0x13C]";
+        bx = bx, ck = crate::sound::store::clock::base(), sf = crate::sound::store::surface::base()
     );
     object.set(0x140, 0x3F80_0000);
     if object.get(0x134) as i32 > 0x3F80_0000 {

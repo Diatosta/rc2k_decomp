@@ -23,11 +23,13 @@ use crate::drive::race_parts::{
     input_update, race_frame, race_keys, stop_race_sounds, take_key, wake_car_sounds,
 };
 use crate::errors::Refused;
+use crate::input::store::DeviceSlot;
 use crate::physics::flow::{a, g, p};
+use crate::session::FLAGS;
 use rc2k_core::drive::race_ticks;
 
 const B: usize = 0x70F3EC;
-const KEYS: usize = 0x4F6CDC; // g_keysPressed
+const KEYS: DeviceSlot = DeviceSlot::at(0x4F6CDC); // g_keysPressed
 
 /// Whether a key ends the pause: any of 1 .. 0x7F but 0x1D, 0x38, 0x0F, 0x3B .. 0x44, 0x57.
 fn any_ending_key() -> u32 {
@@ -66,7 +68,7 @@ pub unsafe fn pause_until_key() -> Result<(), Refused> {
         }
         take_key();
         race_frame()?;
-        if g(0x518374) == 0 {
+        if FLAGS.window_active.get() == 0 {
             hold = true;
             continue;
         }

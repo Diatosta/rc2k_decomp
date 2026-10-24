@@ -23,7 +23,7 @@
 use crate::audio::samples::*;
 use crate::audio::voices::*;
 use crate::errors::Refused;
-use crate::framework::{game_addr, game_read};
+use crate::store::{game_addr, game_read};
 
 pub unsafe fn fill_voice_in_game(at: u32, record: u32, shared: u32) -> Result<(), Refused> {
     unsafe {

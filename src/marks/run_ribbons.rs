@@ -28,20 +28,21 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::framework::rva;
 use crate::marks::emitters::{RING_COUNT_RVA, RING_CURSOR_RVA};
 use crate::marks::setup::SETTINGS_RVA;
+use crate::marks::store::{Slot, game_addr, game_read, game_write};
 use crate::math::x87;
 use crate::scene::fog_at::fog_at;
 
-const TICKS_RVA: usize = rva(0x764FD0); // g_marksFrameTicks
+const TICKS_RVA: Slot = Slot::at(0x764FD0); // g_marksFrameTicks
 const STREAK: u32 = 0x12;
-const LAST_RVA: usize = rva(0x8EB8E1); // dword_8EB8E1 .. dword_8EB8E9
-const PLACE_RVA: usize = rva(0x8EB8D5); // flt_8EB8D5 .. flt_8EB8DD
+const LAST_RVA: Slot = Slot::at(0x8EB8E1); // dword_8EB8E1 .. dword_8EB8E9
+const PLACE_RVA: Slot = Slot::at(0x8EB8D5); // flt_8EB8D5 .. flt_8EB8DD
 const SPECULAR_RVA: usize = rva(0x9605B4); // the first vertex's specular
-const INDEX_RVA: usize = rva(0x9356C0); // dword_9356C0
-const OTHER_RVA: usize = rva(0x765238); // dword_765238
-const COLOURS: [(usize, i32); 2] = [(rva(0x939DB2), 257), (rva(0x939BB2), 128)];
+const INDEX_RVA: Slot = Slot::at(0x9356C0); // dword_9356C0
+const OTHER_RVA: Slot = Slot::at(0x765238); // dword_765238
+const COLOURS: [(Slot, i32); 2] = [(Slot::at(0x939DB2), 257), (Slot::at(0x939BB2), 128)];
 
 unsafe fn get(a: u32) -> u32 {
     unsafe { (a as *const u32).read_unaligned() }
@@ -92,22 +93,23 @@ unsafe fn first_frame(b: u32, e: u32) {
             "fstp dword ptr [{e} + 0x20]",
             "fstp dword ptr [{e} + 0x24]",
             "fld dword ptr [{e} + 0x2C]",
-            "fimul dword ptr [{b} + 0x364FD0]",
+            "fimul dword ptr [{mk} + 0x90]",
             "fadd dword ptr [{e} + 0x10]",
             "fstp dword ptr [{e} + 0x10]",
             "fld dword ptr [{e} + 0x30]",
-            "fimul dword ptr [{b} + 0x364FD0]",
+            "fimul dword ptr [{mk} + 0x90]",
             "fadd dword ptr [{e} + 0x14]",
             "fstp dword ptr [{e} + 0x14]",
             "fld dword ptr [{e} + 0x34]",
-            "fimul dword ptr [{b} + 0x364FD0]",
+            "fimul dword ptr [{mk} + 0x90]",
             "fadd dword ptr [{e} + 0x18]",
             "fstp dword ptr [{e} + 0x18]",
-            "fld dword ptr [{b} + 0x53A56E]",
-            "fimul dword ptr [{b} + 0x364FD0]",
+            "fld dword ptr [{mk} + 0x1D562E]",
+            "fimul dword ptr [{mk} + 0x90]",
             "fadd dword ptr [{e} + 0x30]",
             "fstp dword ptr [{e} + 0x30]",
             b = in(reg) b,
+            mk = in(reg) crate::marks::store::base(),
             e = in(reg) e,
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
@@ -117,26 +119,26 @@ unsafe fn first_frame(b: u32, e: u32) {
 }
 
 /// The original's 0x4CF94D .. 0x4CF98C: the place moved by the motion, the motion's y by `flt_93A572`.
-unsafe fn move_(b: u32, e: u32) {
+unsafe fn move_(e: u32) {
     unsafe {
         core::arch::asm!(
             "fld dword ptr [{e} + 0x2C]",
-            "fimul dword ptr [{b} + 0x364FD0]",
+            "fimul dword ptr [{mk} + 0x90]",
             "fadd dword ptr [{e} + 0x10]",
             "fstp dword ptr [{e} + 0x10]",
             "fld dword ptr [{e} + 0x30]",
-            "fimul dword ptr [{b} + 0x364FD0]",
+            "fimul dword ptr [{mk} + 0x90]",
             "fadd dword ptr [{e} + 0x14]",
             "fstp dword ptr [{e} + 0x14]",
             "fld dword ptr [{e} + 0x34]",
-            "fimul dword ptr [{b} + 0x364FD0]",
+            "fimul dword ptr [{mk} + 0x90]",
             "fadd dword ptr [{e} + 0x18]",
             "fstp dword ptr [{e} + 0x18]",
-            "fld dword ptr [{b} + 0x53A572]",
-            "fimul dword ptr [{b} + 0x364FD0]",
+            "fld dword ptr [{mk} + 0x1D5632]",
+            "fimul dword ptr [{mk} + 0x90]",
             "fadd dword ptr [{e} + 0x30]",
             "fstp dword ptr [{e} + 0x30]",
-            b = in(reg) b,
+            mk = in(reg) crate::marks::store::base(),
             e = in(reg) e,
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
@@ -182,10 +184,11 @@ unsafe fn turn_place(b: u32, e: u32) {
             ".byte 0xDE, 0xC1",
             "fadd dword ptr [{b} + 0x1EA304]",
             ".byte 0xD9, 0xCA",
-            "fstp dword ptr [{b} + 0x4EB8D5]",
-            "fstp dword ptr [{b} + 0x4EB8D9]",
-            "fstp dword ptr [{b} + 0x4EB8DD]",
+            "fstp dword ptr [{mk} + 0x186995]",
+            "fstp dword ptr [{mk} + 0x186999]",
+            "fstp dword ptr [{mk} + 0x18699D]",
             b = in(reg) b,
+            mk = in(reg) crate::marks::store::base(),
             e = in(reg) e,
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
@@ -195,7 +198,7 @@ unsafe fn turn_place(b: u32, e: u32) {
 }
 
 /// The colour table in use and its size.
-unsafe fn colours() -> (usize, i32) {
+unsafe fn colours() -> (Slot, i32) {
     unsafe { COLOURS[(game_read::<u32>(OTHER_RVA) != 0) as usize] }
 }
 
@@ -250,7 +253,7 @@ unsafe fn streak(e: u32) -> Result<bool, Refused> {
         if get(e + 0x10) == 0 {
             first_frame(b, e);
         }
-        move_on(b, e);
+        move_on(e);
         game_write(LAST_RVA, get(e + 0x1C));
         game_write(LAST_RVA + 4, get(e + 0x20));
         game_write(LAST_RVA + 8, get(e + 0x24));
@@ -270,8 +273,8 @@ unsafe fn streak(e: u32) -> Result<bool, Refused> {
     Ok(false)
 }
 
-unsafe fn move_on(b: u32, e: u32) {
-    unsafe { move_(b, e) }
+unsafe fn move_on(e: u32) {
+    unsafe { move_(e) }
 }
 
 /// The Rust version (see the header).

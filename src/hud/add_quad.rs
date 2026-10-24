@@ -16,12 +16,13 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{game_read, game_write, rva};
 use crate::hud::batch::{POLYGON_COUNT_RVA, POLYGON_RVA};
+use crate::hud::store::Slot;
+use crate::hud::store::{game_read, game_write};
 use rc2k_core::hud::quads;
 
-pub const QUAD_RVA: usize = rva(0x75BFB0); // dword_75BFB0 .. dword_75BFE4
-const SCALE_RVA: [usize; 2] = [rva(0x75C00C), rva(0x75C010)]; // flt_75C00C, flt_75C010
+pub const QUAD_RVA: Slot = Slot::at(0x75BFB0); // dword_75BFB0 .. dword_75BFE4
+const SCALE_RVA: [Slot; 2] = [Slot::at(0x75C00C), Slot::at(0x75C010)]; // flt_75C00C, flt_75C010
 
 /// The Rust version (see the header). What the original leaves in the registers is read
 /// by none of its callers (register liveness, 2026-10-23).

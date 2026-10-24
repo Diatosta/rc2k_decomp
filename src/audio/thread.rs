@@ -25,11 +25,15 @@
 //! `routes.rs`). Plain since 2026-10-23 (phase 3): the registers above are the original's,
 //! for reference; the feeds and `close_all` get only what they read.
 
+use crate::audio::store::Slot;
 use crate::audio::voices::{read, write};
 use crate::errors::Refused;
-use crate::framework::{game_addr, rva};
+use crate::framework::rva;
+use crate::session::FLAGS;
+use crate::store::addr32 as a;
+use crate::store::game_addr;
 
-const TURN_TICK_RVA: usize = rva(0x4F82B8); // g_audioTurnTick
+const TURN_TICK_RVA: Slot = Slot::at(0x4F82B8); // g_audioTurnTick
 const START_TEXT: usize = rva(0x4DA5F2); // "AUDIOTDB:START"
 const QUIT_TEXT: usize = rva(0x4DA601); // "AUDIOTDB:QUIT"
 
@@ -46,14 +50,13 @@ pub struct ThreadVars {
 impl ThreadVars {
     pub fn game() -> Self {
         use crate::audio::voices::*;
-        let a = |r| game_addr(r) as u32;
         Self {
             slot: crate::threading::thread_slot::slot(crate::threading::thread_slot::AUDIO) as u32,
             no_audio: a(crate::sound::queue::NO_AUDIO_RVA),
             menu_mode: a(crate::audio::choose_modes::MENU_MODE_RVA),
             turn_tick: a(TURN_TICK_RVA),
             lost: a(BUFFER_LOST_RVA),
-            quitting: a(rva(0x51837C)),
+            quitting: FLAGS.quitting.addr() as u32,
         }
     }
 }

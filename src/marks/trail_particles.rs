@@ -22,26 +22,27 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, game_write, rva};
+use crate::framework::rva;
 use crate::marks::blocks::{RING_FREE_RVA, RING_USED_RVA};
 use crate::marks::jitter_point::jitter_point;
 use crate::marks::setup::SEED_RVA;
+use crate::marks::store::{Slot, game_read, game_write};
 use crate::math::x87;
 use crate::scene::matrix3::{extended, rounded};
 
 const FULL: u32 = 0xFFF;
 const COUNT: u32 = 8;
-const RADIUS_RVA: usize = rva(0x93A5E4); // g_marksBurstRadius
-const RANDOM_K: [usize; 2] = [rva(0x8EB969), rva(0x93C648)];
+const RADIUS_RVA: Slot = Slot::at(0x93A5E4); // g_marksBurstRadius
+const RANDOM_K: [Slot; 2] = [Slot::at(0x8EB969), Slot::at(0x93C648)];
 /// Per axis (place offset, last offset, motion offset, its two factors).
-const AXES: [(u32, u32, u32, usize, usize); 3] = [
-    (0xC, 0x18, 0x28, rva(0x93C64C), rva(0x93C650)),
-    (0x10, 0x1C, 0x2C, rva(0x93C654), rva(0x93C658)),
-    (0x14, 0x20, 0x34, rva(0x93C65C), rva(0x93C660)),
+const AXES: [(u32, u32, u32, Slot, Slot); 3] = [
+    (0xC, 0x18, 0x28, Slot::at(0x93C64C), Slot::at(0x93C650)),
+    (0x10, 0x1C, 0x2C, Slot::at(0x93C654), Slot::at(0x93C658)),
+    (0x14, 0x20, 0x34, Slot::at(0x93C65C), Slot::at(0x93C660)),
 ];
-const SPREAD_RVA: usize = rva(0x93C664); // flt_93C664
-const SIZE_K: [usize; 2] = [rva(0x93C668), rva(0x93C66C)];
-const LIFE_K_RVA: usize = rva(0x93C670); // flt_93C670
+const SPREAD_RVA: Slot = Slot::at(0x93C664); // flt_93C664
+const SIZE_K: [Slot; 2] = [Slot::at(0x93C668), Slot::at(0x93C66C)];
+const LIFE_K_RVA: Slot = Slot::at(0x93C670); // flt_93C670
 const VIEW_RVA: usize = rva(0x5EA3CC); // flt_5EA3CC: the view's place at +0x30
 const LIFE: u32 = 300;
 

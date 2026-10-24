@@ -11,21 +11,21 @@
 //! height of 0 is refused (the original goes round 2^32 times), before anything.
 
 use crate::errors::{BadInput, Refused};
+use crate::session::SCREEN;
 
+use crate::gfx::front::Slot as FrontSlot;
 use crate::physics::flow::g;
 
-const FRONT: usize = 0x4F32B4; // g_frontSurface
+const FRONT: FrontSlot = FrontSlot::at(0x4F32B4); // g_frontSurface
 const PIXELS: usize = 0x4F4988; // dword_4F4988
-const HEIGHT: usize = 0x4F4950; // g_screenHeight
-const ROW_DWORDS: usize = 0x4F4960; // g_screenRowDwords
 const GAP: usize = 0x4F498C; // dword_4F498C
 
 /// The Rust version (see the header).
 pub fn clear_back_surface() -> Result<(), Refused> {
-    if g(FRONT) == 0 {
+    if unsafe { crate::gfx::block::game_read::<u32>(FRONT) } == 0 {
         return Ok(());
     }
-    if g(HEIGHT) == 0 {
+    if SCREEN.height.get() == 0 {
         return Err(BadInput("a screen of no rows: the original goes round 2^32 times").into());
     }
     // `cmp g_surfaceLocked, 1`'s carry: not locked.
@@ -33,8 +33,8 @@ pub fn clear_back_surface() -> Result<(), Refused> {
         return Ok(());
     }
     let mut row = g(PIXELS);
-    for _ in 0..g(HEIGHT) {
-        let dwords = g(ROW_DWORDS);
+    for _ in 0..SCREEN.height.get() {
+        let dwords = SCREEN.row_dwords.get();
         unsafe { std::ptr::write_bytes(row as *mut u32, 0, dwords as usize) };
         row = row.wrapping_add(4 * dwords).wrapping_add(g(GAP));
     }

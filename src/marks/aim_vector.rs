@@ -18,18 +18,33 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::{game_read, game_write, rva};
+use crate::marks::store::{Slot, game_read, game_write};
 use crate::math::x87;
 
 /// Per axis: (negated, less, plus, plus).
-const TERMS: [[usize; 4]; 3] = [
-    [rva(0x7692B2), rva(0x76927A), rva(0x7692CE), rva(0x7692EA)],
-    [rva(0x7692B6), rva(0x76927E), rva(0x7692D2), rva(0x7692EE)],
-    [rva(0x7692BA), rva(0x769282), rva(0x7692D6), rva(0x7692F2)],
+const TERMS: [[Slot; 4]; 3] = [
+    [
+        Slot::at(0x7692B2),
+        Slot::at(0x76927A),
+        Slot::at(0x7692CE),
+        Slot::at(0x7692EA),
+    ],
+    [
+        Slot::at(0x7692B6),
+        Slot::at(0x76927E),
+        Slot::at(0x7692D2),
+        Slot::at(0x7692EE),
+    ],
+    [
+        Slot::at(0x7692BA),
+        Slot::at(0x769282),
+        Slot::at(0x7692D6),
+        Slot::at(0x7692F2),
+    ],
 ];
-const VECTOR_RVA: usize = rva(0x769306); // dword_769306 .. dword_76930E
-const UNIT_RVA: usize = rva(0x7692FA); // unk_7692FA
-const LENGTH_RVA: usize = rva(0x7692F6); // dword_7692F6
+const VECTOR_RVA: Slot = Slot::at(0x769306); // dword_769306 .. dword_76930E
+const UNIT_RVA: Slot = Slot::at(0x7692FA); // unk_7692FA
+const LENGTH_RVA: Slot = Slot::at(0x7692F6); // dword_7692F6
 
 /// The Rust version (see the header).
 pub unsafe fn aim_vector() {

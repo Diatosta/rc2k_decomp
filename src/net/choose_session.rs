@@ -17,10 +17,12 @@ use crate::errors::Refused;
 use crate::field;
 use crate::net::choose_connection::list_move;
 use crate::net::lobby::{
-    CHOICE, CHOICE_BEFORE, CLOCK, CLOCK_A, FRAME_CLOCK, JOINED, KEY_CLOCK, MOVE_CLOCK, POSTING,
-    QUITTING, SESSIONS, a, g, list_key, movsb, other_key, p, run_frame, session,
+    CHOICE, CHOICE_BEFORE, CLOCK_A, FRAME_CLOCK, JOINED, KEY_CLOCK, MOVE_CLOCK, POSTING, SESSIONS,
+    a, g, list_key, movsb, other_key, p, run_frame, session,
 };
 use crate::net::types::NetSession;
+use crate::session::CLOCKS;
+use crate::session::FLAGS;
 use crate::system::same_guid::same_guid;
 use rc2k_core::net::screens::{self, ListKey};
 
@@ -69,7 +71,7 @@ fn refresh() -> Result<bool, Refused> {
 
 /// The Rust version.
 pub fn choose_session() -> Result<u32, Refused> {
-    let now = g(CLOCK);
+    let now = CLOCKS.key_ticks.get();
     p(MOVE_CLOCK, now);
     p(KEY_CLOCK, now);
     p(CHOICE, 0);
@@ -85,7 +87,7 @@ pub fn choose_session() -> Result<u32, Refused> {
                 return Ok(g(CHOICE));
             }
         }
-        p(FRAME_CLOCK, g(CLOCK));
+        p(FRAME_CLOCK, CLOCKS.key_ticks.get());
         let key = list_key()?;
         let any = g(SESSIONS) != 0;
         if any && list_move(key, g(SESSIONS)) {
@@ -97,7 +99,7 @@ pub fn choose_session() -> Result<u32, Refused> {
         } else {
             other_key(key)?;
         }
-        if g(QUITTING) == 1 {
+        if FLAGS.quitting.get() == 1 {
             break;
         }
     }

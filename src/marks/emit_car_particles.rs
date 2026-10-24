@@ -24,32 +24,32 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, game_write, rva};
 use crate::marks::emit_body_particles::emit_body_particles;
 use crate::marks::emit_wheel_particles::emit_wheel_particles;
 use crate::marks::emitters::*;
+use crate::marks::store::{Slot, game_read, game_write};
 use crate::math::x87;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
 
 /// flt_9354EE .. flt_935506: the places' factors and bases.
-const K: [usize; 7] = [
-    rva(0x9354EE),
-    rva(0x9354F2),
-    rva(0x9354F6),
-    rva(0x9354FA),
-    rva(0x9354FE),
-    rva(0x935502),
-    rva(0x935506),
+const K: [Slot; 7] = [
+    Slot::at(0x9354EE),
+    Slot::at(0x9354F2),
+    Slot::at(0x9354F6),
+    Slot::at(0x9354FA),
+    Slot::at(0x9354FE),
+    Slot::at(0x935502),
+    Slot::at(0x935506),
 ];
-const LOOKS_RVA: [usize; 2] = [rva(0x935476), rva(0x93547A)];
-const SIZE_K_RVA: usize = rva(0x765158); // flt_765158
-const WHICH_RVA: usize = rva(0x935416); // dword_935416
+const LOOKS_RVA: [Slot; 2] = [Slot::at(0x935476), Slot::at(0x93547A)];
+const SIZE_K_RVA: Slot = Slot::at(0x765158); // flt_765158
+const WHICH_RVA: Slot = Slot::at(0x935416); // dword_935416
 /// flt_93545E .. flt_935466 and flt_93543A .. flt_935442: the emitters' side factors.
-const SIDE_A_RVA: usize = rva(0x93545E);
-const SIDE_B_RVA: usize = rva(0x93543A);
+const SIDE_A_RVA: Slot = Slot::at(0x93545E);
+const SIDE_B_RVA: Slot = Slot::at(0x93543A);
 /// flt_93550A .. flt_93551E: the side factors for the body record.
-const BODY_SIDES_RVA: usize = rva(0x93550A);
+const BODY_SIDES_RVA: Slot = Slot::at(0x93550A);
 /// The wheel records, then the body's.
 const RECORDS: [u32; 5] = [0xD4, 0x11C, 0x164, 0x1AC, 0x1F4];
 /// Writes a float at an address.

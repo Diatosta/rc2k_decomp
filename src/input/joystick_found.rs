@@ -26,16 +26,17 @@
 //! and the self-test was the hook's.
 
 use crate::field;
-use crate::framework::rva;
 use crate::input::devices::{at, put};
 use crate::input::di_harness::{
     CAPS_LEN, CAPS_RVA, CONTROLLER_COUNT_RVA, CONTROLLER_LEN, CONTROLLERS, CONTROLLERS_RVA,
-    DIRECT_INPUT_RVA, HWND_RVA, IID_DEVICE2_RVA, JOYSTICK_FORMAT_RVA, NEW_DEVICE_RVA,
-    NEW_DEVICE2_RVA, a, g, method, p, slot,
+    DIRECT_INPUT_RVA, IID_DEVICE2_RVA, JOYSTICK_FORMAT_RVA, NEW_DEVICE_RVA, NEW_DEVICE2_RVA, a, g,
+    method, p, slot,
 };
+use crate::input::store::DeviceSlot;
 use crate::input::types::{Controller, DiDevCaps, DiDeviceInstance};
+use crate::session::MACHINE;
 
-pub const NO_FORCE_RVA: usize = rva(0x4F68F4); // dword_4F68F4: force feedback turned off
+pub const NO_FORCE_RVA: DeviceSlot = DeviceSlot::at(0x4F68F4); // dword_4F68F4: force feedback turned off
 
 /// Looks the joystick over and fills the entry: false at the first failure.
 fn look_over(instance: u32, entry: u32) -> bool {
@@ -71,7 +72,7 @@ fn look_over(instance: u32, entry: u32) -> bool {
     if !ok(method(
         device2,
         slot::SET_COOPERATIVE_LEVEL,
-        &[g(HWND_RVA), 5],
+        &[MACHINE.window.get(), 5],
     )) {
         return false;
     }

@@ -21,19 +21,19 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, game_write, rva};
 use crate::marks::emitters::*;
 use crate::marks::jitter_point::jitter_point;
+use crate::marks::store::{Slot, game_read, game_write};
 use crate::math::x87;
 use crate::scene::matrix3::{extended, rounded};
 
-const COUNT_RVA: usize = rva(0x9356C0); // dword_9356C0
-const SIZE_K_RVA: usize = rva(0x7651D0); // flt_7651D0
+const COUNT_RVA: Slot = Slot::at(0x9356C0); // dword_9356C0
+const SIZE_K_RVA: Slot = Slot::at(0x7651D0); // flt_7651D0
 /// flt_93546A, flt_93546E, flt_935472: the motion (x, y, z).
-const MOTION_RVA: [usize; 3] = [rva(0x93546A), rva(0x93546E), rva(0x935472)];
-const SPREAD_RVA: usize = rva(0x765198); // flt_765198
-const DROP_RVA: usize = rva(0x7651DC); // flt_7651DC
-const LIFE_SCALE_RVA: usize = rva(0x7651A4); // flt_7651A4
+const MOTION_RVA: [Slot; 3] = [Slot::at(0x93546A), Slot::at(0x93546E), Slot::at(0x935472)];
+const SPREAD_RVA: Slot = Slot::at(0x765198); // flt_765198
+const DROP_RVA: Slot = Slot::at(0x7651DC); // flt_7651DC
+const LIFE_SCALE_RVA: Slot = Slot::at(0x7651A4); // flt_7651A4
 const LIFE: u32 = 0x12C;
 const ONE: u32 = 0x3F80_0000; // fld1
 

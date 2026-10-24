@@ -5,18 +5,19 @@
 //! `g_blitVisibleWidth`, `g_blitTopSkip`, `g_blitRowsLeft`.
 
 use crate::errors::Refused;
-use crate::framework::{game_write, rva};
+use crate::gfx::blit::Slot as BlitSlot;
+use crate::gfx::block::game_write;
 use crate::gfx::surface::{clip, surface};
 
-const LEFT_SKIP: usize = rva(0x4F504C); // g_blitLeftSkip
-const WIDTH: usize = rva(0x4F5050); // g_blitVisibleWidth
-const TOP_SKIP: usize = rva(0x4F5054); // g_blitTopSkip
-const ROWS: usize = rva(0x4F5058); // g_blitRowsLeft
+const LEFT_SKIP: BlitSlot = BlitSlot::at(0x4F504C); // g_blitLeftSkip
+const WIDTH: BlitSlot = BlitSlot::at(0x4F5050); // g_blitVisibleWidth
+const TOP_SKIP: BlitSlot = BlitSlot::at(0x4F5054); // g_blitTopSkip
+const ROWS: BlitSlot = BlitSlot::at(0x4F5058); // g_blitRowsLeft
 
 // Converted: `rc2k_core::gfx::raster`; here the clip and surface are read from the game, and
 // the work variables and pixels the plan holds written back.
 
-fn set(a: usize, v: i32) {
+fn set(a: BlitSlot, v: i32) {
     unsafe { game_write(a, v as u32) }
 }
 

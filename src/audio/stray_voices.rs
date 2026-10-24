@@ -12,7 +12,8 @@ use crate::audio::voices::{
     A3D_RVA, PLAYING_RVA, SOUND_MODE_RVA, STOPPING_RVA, VOICE_COUNT_RVA, VOICES, VOICES_RVA, Voice,
     read, voice,
 };
-use crate::framework::{game_addr, log};
+use crate::framework::log;
+use crate::store::addr32 as a;
 use std::collections::HashSet;
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicU32, Ordering};
@@ -41,7 +42,6 @@ pub fn check() {
     if !TURNS.fetch_add(1, Ordering::Relaxed).is_multiple_of(EVERY) {
         return;
     }
-    let a = |rva| game_addr(rva) as u32;
     unsafe {
         if read(a(A3D_RVA)) == 1 || read(a(SOUND_MODE_RVA)) & 0x1_0000 == 0 {
             return;

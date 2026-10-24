@@ -16,40 +16,41 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::marks::pick_hexagon::pick_hexagon;
 use crate::marks::setup::SEED_RVA;
+use crate::marks::store::{Slot, game_addr, game_read, game_write};
 use crate::math::x87;
 use crate::scene::vector3::STATUS_RVA;
 
-const FRAMES_RVA: usize = rva(0x814724); // dword_814724
-const RATE_RVA: usize = rva(0x81472C); // flt_81472C
-const SHARE_K_RVA: usize = rva(0x82E2B2); // flt_82E2B2
+const FRAMES_RVA: Slot = Slot::at(0x814724); // dword_814724
+const RATE_RVA: Slot = Slot::at(0x81472C); // flt_81472C
+const SHARE_K_RVA: Slot = Slot::at(0x82E2B2); // flt_82E2B2
 const MOST: i32 = 0x80;
 
 /// The original's 0x4BC60E .. 0x4BC66B: the rate, compared (`fstsw` into `g_fpuStatus`).
 unsafe fn rate(b: u32) {
     unsafe {
         core::arch::asm!(
-            "fld dword ptr [{b} + 0x36923E]",
-            "fadd dword ptr [{b} + 0x411BC3]",
+            "fld dword ptr [{mk} + 0x42FE]",
+            "fadd dword ptr [{mk} + 0xACC83]",
             ".byte 0xD9, 0xFE",
-            "fmul dword ptr [{b} + 0x414728]",
-            "fstp dword ptr [{b} + 0x41472C]",
-            "fld dword ptr [{b} + 0x414728]",
-            "fmul dword ptr [{b} + 0x411BE7]",
+            "fmul dword ptr [{mk} + 0xAF7E8]",
+            "fstp dword ptr [{mk} + 0xAF7EC]",
+            "fld dword ptr [{mk} + 0xAF7E8]",
+            "fmul dword ptr [{mk} + 0xACCA7]",
             ".byte 0xD9, 0xE0",
-            "fld dword ptr [{b} + 0x36923E]",
-            "fadd dword ptr [{b} + 0x411BC3]",
+            "fld dword ptr [{mk} + 0x42FE]",
+            "fadd dword ptr [{mk} + 0xACC83]",
             ".byte 0xD9, 0xFF",
             ".byte 0xDE, 0xC9",
-            "fmul dword ptr [{b} + 0x42E2AA]",
-            "fadd dword ptr [{b} + 0x41472C]",
-            "fstp dword ptr [{b} + 0x41472C]",
-            "fld dword ptr [{b} + 0x41472C]",
-            "fcomp dword ptr [{b} + 0x42E2AE]",
+            "fmul dword ptr [{mk} + 0xC936A]",
+            "fadd dword ptr [{mk} + 0xAF7EC]",
+            "fstp dword ptr [{mk} + 0xAF7EC]",
+            "fld dword ptr [{mk} + 0xAF7EC]",
+            "fcomp dword ptr [{mk} + 0xC936E]",
             "fstsw word ptr [{b} + 0x31C814]",
             b = in(reg) b,
+            mk = in(reg) crate::marks::store::base(),
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
             options(nostack),

@@ -22,31 +22,32 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::framework::rva;
+use crate::marks::store::{Slot, game_addr, game_read, game_write};
 use crate::math::x87;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
 
 const VIEW_RVA: usize = rva(0x5EA3CC); // flt_5EA3CC
 /// (the point, where it goes turned).
-const POINTS: [(usize, usize); 3] = [
-    (rva(0x91FF4A), rva(0x8F39A9)),
-    (rva(0x91FF56), rva(0x8F39B5)),
-    (rva(0x91FF62), rva(0x8F39C1)),
+const POINTS: [(Slot, Slot); 3] = [
+    (Slot::at(0x91FF4A), Slot::at(0x8F39A9)),
+    (Slot::at(0x91FF56), Slot::at(0x8F39B5)),
+    (Slot::at(0x91FF62), Slot::at(0x8F39C1)),
 ];
 const COURSE_INFO_RVA: usize = rva(0x5C6FA0); // g_courseInfo
 const CORNERS_FROM: u32 = 0x1C_2000;
-const CORNERS_RVA: usize = rva(0x8EB971); // g_marksCorners
+const CORNERS_RVA: Slot = Slot::at(0x8EB971); // g_marksCorners
 const CORNERS_LEN: u32 = 0x8000;
 const SOURCE_RVA: usize = rva(0x621A80); // dword_621A80
-const LAST_SOURCE_RVA: usize = rva(0x91FF6E); // dword_91FF6E
-const STEP_RVA: usize = rva(0x8F3979); // dword_8F3979: of 8
+const LAST_SOURCE_RVA: Slot = Slot::at(0x91FF6E); // dword_91FF6E
+const STEP_RVA: Slot = Slot::at(0x8F3979); // dword_8F3979: of 8
 const SOUND_RVA: [usize; 2] = [rva(0x71C8E2), rva(0x71C8E6)];
-const CLEARED_RVA: usize = rva(0x8F3981); // dword_8F3981
-const FRAME_CYCLES_RVA: usize = rva(0x765114); // dword_765114
-const TIMES: [(usize, usize); 2] = [
-    (rva(0x91FF9A), rva(0x765124)),
-    (rva(0x91FF9E), rva(0x765118)),
+const CLEARED_RVA: Slot = Slot::at(0x8F3981); // dword_8F3981
+const FRAME_CYCLES_RVA: Slot = Slot::at(0x765114); // dword_765114
+const TIMES: [(Slot, Slot); 2] = [
+    (Slot::at(0x91FF9A), Slot::at(0x765124)),
+    (Slot::at(0x91FF9E), Slot::at(0x765118)),
 ];
 
 fn rdtsc() -> u32 {

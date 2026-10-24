@@ -36,12 +36,12 @@ use crate::framework::{Regs, game_addr, log, rva};
 
 /// The variables the loop reads and writes, in the order of `Vars`'s fields.
 const VARS: [usize; 12] = [
-    0x518390, // dword_518390: the stack pointer at entry, 0 before
-    0x51837C, // dword_51837C: the quit switch
-    0x518374, // dword_518374: the window is the active one
-    0x518998, // dword_518998: counted up by the key thread
-    0x51838C, // dword_51838C
-    0x518080, // dword_518080
+    0,        // dword_518390: the stack pointer at entry, 0 before (`session`)
+    0,        // dword_51837C: the quit switch (`session`)
+    0,        // dword_518374: the window is the active one (`session`)
+    0,        // dword_518998: counted up by the key thread (`session`)
+    0,        // dword_51838C (`session`)
+    0,        // dword_518080 (`sound::store`)
     0x51D752, // word_51D752: 0xBD when the installer's script is set up
     0x51B9E0, // g_installing
     0x51B9CC, // dword_51B9CC
@@ -59,7 +59,21 @@ pub struct Vars(pub [*mut u32; 12]);
 
 impl Vars {
     fn game() -> Self {
-        Self(VARS.map(|at| crate::moved::place(at) as *mut u32))
+        use crate::session::{CLOCKS, FLAGS};
+        let mut vars = VARS.map(|at| {
+            if at == 0 {
+                std::ptr::null_mut()
+            } else {
+                crate::moved::place(at) as *mut u32
+            }
+        });
+        vars[0] = FLAGS.main_loop_stack.as_ptr();
+        vars[1] = FLAGS.quitting.as_ptr();
+        vars[2] = FLAGS.window_active.as_ptr();
+        vars[3] = CLOCKS.key_ticks.as_ptr();
+        vars[4] = FLAGS.f38c.as_ptr();
+        vars[5] = crate::sound::store::EffectsSlot::at(0x518080).address() as *mut u32;
+        Self(vars)
     }
 
     unsafe fn get(&self, n: usize) -> u32 {

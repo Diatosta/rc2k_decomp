@@ -19,13 +19,13 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{game_read, rva};
 use crate::marks::pong;
+use crate::marks::store::{Slot, game_read};
 use crate::scene::matrix3::extended;
 use rc2k_core::math::extended::from_f64;
 
-const STEP_RVA: [usize; 2] = [rva(0x7691FA), rva(0x7691FE)]; // flt_7691FA, flt_7691FE
-const SIZE_RVA: [usize; 2] = [rva(0x769202), rva(0x769206)]; // flt_769202, flt_769206
+const STEP_RVA: [Slot; 2] = [Slot::at(0x7691FA), Slot::at(0x7691FE)]; // flt_7691FA, flt_7691FE
+const SIZE_RVA: [Slot; 2] = [Slot::at(0x769202), Slot::at(0x769206)]; // flt_769202, flt_769206
 
 /// The Rust version (see the header): `pattern` the pattern byte's address (eax),
 /// `column` (ebx), `row` (ecx).

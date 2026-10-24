@@ -26,7 +26,8 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::gfx::blit::Slot as BlitSlot;
+use crate::gfx::block::{game_addr, game_read, game_write};
 use crate::gfx::fill_row_table::{ROW_TABLE_ROOM, fill_row_table, row_address};
 use crate::gfx::pcx::{DECODED_HEIGHT_RVA, DECODED_WIDTH_RVA, PIXELS_RVA, ROW_GAP_RVA};
 use crate::gfx::picture::{HEIGHT_RVA, WIDTH_RVA, picture};
@@ -36,15 +37,15 @@ use crate::memory::free_list::free_list;
 
 // ---- game data ----
 
-const COPY_MEMORY_RVA: usize = rva(0x4F505C); // dword_4F505C: the list the copy's memory is on
-pub const STEP_X_RVA: usize = rva(0x4F509C); // dword_4F509C: whole pixels a step
-const STEP_X_FRACTION_RVA: usize = rva(0x4F50A0); // dword_4F50A0
-const STEP_Y_RVA: usize = rva(0x4F50A4); // dword_4F50A4
-const STEP_Y_FRACTION_RVA: usize = rva(0x4F50A8); // dword_4F50A8
-const WEIGHT_X_RVA: usize = rva(0x4F50AC); // dword_4F50AC
-const WEIGHT_Y_RVA: usize = rva(0x4F50B0); // dword_4F50B0
-const COLUMNS_LEFT_RVA: usize = rva(0x4F50B4); // dword_4F50B4
-const ROWS_LEFT_RVA: usize = rva(0x4F50B8); // dword_4F50B8
+const COPY_MEMORY_RVA: BlitSlot = BlitSlot::at(0x4F505C); // dword_4F505C: the list the copy's memory is on
+pub const STEP_X_RVA: BlitSlot = BlitSlot::at(0x4F509C); // dword_4F509C: whole pixels a step
+const STEP_X_FRACTION_RVA: BlitSlot = BlitSlot::at(0x4F50A0); // dword_4F50A0
+const STEP_Y_RVA: BlitSlot = BlitSlot::at(0x4F50A4); // dword_4F50A4
+const STEP_Y_FRACTION_RVA: BlitSlot = BlitSlot::at(0x4F50A8); // dword_4F50A8
+const WEIGHT_X_RVA: BlitSlot = BlitSlot::at(0x4F50AC); // dword_4F50AC
+const WEIGHT_Y_RVA: BlitSlot = BlitSlot::at(0x4F50B0); // dword_4F50B0
+const COLUMNS_LEFT_RVA: BlitSlot = BlitSlot::at(0x4F50B4); // dword_4F50B4
+const ROWS_LEFT_RVA: BlitSlot = BlitSlot::at(0x4F50B8); // dword_4F50B8
 
 // ---- Rust version ----
 

@@ -17,16 +17,16 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::marks::blend_points::blend_points;
 use crate::marks::splines::{CHOSEN_RVA, MADE_RVA, MOST_POINTS, ORDERED_COORDS_RVA};
+use crate::marks::store::{Slot, game_addr, game_read, game_write};
 use crate::math::x87_run::ext_to_int;
 
-const SWITCH_RVA: usize = rva(0x7695CA); // dword_7695CA
-const A_RVA: usize = rva(0x76A1D2);
-const B_RVA: usize = rva(0x76A1DE);
-const C_RVA: usize = rva(0x76A1EA);
-const D_RVA: usize = rva(0x76A1F6);
+const SWITCH_RVA: Slot = Slot::at(0x7695CA); // dword_7695CA
+const A_RVA: Slot = Slot::at(0x76A1D2);
+const B_RVA: Slot = Slot::at(0x76A1DE);
+const C_RVA: Slot = Slot::at(0x76A1EA);
+const D_RVA: Slot = Slot::at(0x76A1F6);
 unsafe fn get(a: u32) -> u32 {
     unsafe { (a as *const u32).read_unaligned() }
 }
@@ -55,7 +55,7 @@ pub unsafe fn bend_points(s: u32) -> Result<(), Refused> {
         game_write(C_RVA, c);
         let b = [c[0], a[1], c[2]];
         game_write(B_RVA, b);
-        let at = |r: usize| game_addr(r) as u32;
+        let at = |r: Slot| game_addr(r) as u32;
         let v = blend_points(
             at(A_RVA),
             at(B_RVA),

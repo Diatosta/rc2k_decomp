@@ -4,26 +4,26 @@
 //! (`clamp_pair`); `span_ring` makes the rings of them.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::marks::shape_points::{FARTHEST_RVA, TURNED_RVA, turn_shape_checks, turn_shape_points};
+use crate::marks::store::{Slot, game_addr, game_read, game_write};
 use crate::marks::turns::{clamp_pair, smooth_pair, smooth_steps};
 use crate::math::x87;
 use crate::scene::matrix3::{extended, rounded};
 
-pub const CORNERS_RVA: [usize; 2] = [rva(0x82E426), rva(0x82F03E)]; // g_marksCornersA, _B
+pub const CORNERS_RVA: [Slot; 2] = [Slot::at(0x82E426), Slot::at(0x82F03E)]; // g_marksCornersA, _B
 pub const ENTRIES: u32 = 0x81;
 const ENTRY: u32 = 0x18;
 /// Each table's two steps' starts and the end they both go to.
-const STEPS: [([usize; 2], usize); 2] = [
-    ([rva(0x89C9CC), rva(0x89C9D4)], rva(0x884FC4)),
-    ([rva(0x89C9DC), rva(0x89C9E4)], rva(0x884FC8)),
+const STEPS: [([Slot; 2], Slot); 2] = [
+    ([Slot::at(0x89C9CC), Slot::at(0x89C9D4)], Slot::at(0x884FC4)),
+    ([Slot::at(0x89C9DC), Slot::at(0x89C9E4)], Slot::at(0x884FC8)),
 ];
 const LIFT: u32 = 0xB2A7;
-const BOXES_RVA: usize = rva(0x811BEB); // the kinds' 0x30-byte records
-const SCALE_RVA: usize = rva(0x82E38E); // flt_82E38E, flt_82E392
-const DIVISORS_RVA: usize = rva(0x89C9EC); // dword_89C9EC, dword_89C9F0
-const FLIPS_RVA: usize = rva(0x89C9F4); // dword_89C9F4, dword_89C9F8
-const OFFSETS_RVA: [usize; 2] = [rva(0x8859F4), rva(0x885A00)]; // the block's lowest points
+const BOXES_RVA: Slot = Slot::at(0x811BEB); // the kinds' 0x30-byte records
+const SCALE_RVA: Slot = Slot::at(0x82E38E); // flt_82E38E, flt_82E392
+const DIVISORS_RVA: Slot = Slot::at(0x89C9EC); // dword_89C9EC, dword_89C9F0
+const FLIPS_RVA: Slot = Slot::at(0x89C9F4); // dword_89C9F4, dword_89C9F8
+const OFFSETS_RVA: [Slot; 2] = [Slot::at(0x8859F4), Slot::at(0x885A00)]; // the block's lowest points
 
 unsafe fn get(at: u32) -> u32 {
     unsafe { (at as *const u32).read_unaligned() }

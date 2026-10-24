@@ -21,9 +21,12 @@
 //!
 //! The names of the texture and colour steps are readings of their variables.
 
+use crate::audio::store::Slot;
 use crate::errors::Refused;
-use crate::framework::{EAX, EBX, game_addr, game_read, game_write, rva};
+use crate::framework::{EAX, EBX, rva};
 use crate::screens::harness::Left;
+use crate::sound::store::EffectsSlot;
+use crate::store::{game_addr, game_read, game_write};
 
 // ---- the volume steps ----
 
@@ -42,7 +45,7 @@ pub struct Volume {
     pub then: Then,
 }
 
-const MUSIC_RVA: usize = rva(0x5180FC); // g_musicVolume
+const MUSIC_RVA: EffectsSlot = EffectsSlot::at(0x5180FC); // g_musicVolume
 const SOUNDS_VOLUME_RVA: usize = rva(0x7554E8); // dword_7554E8
 const SPEECH_PATH_RVA: usize = rva(0x50962F); // ";3files\%speech\rally\st1.wav"
 pub const MUSIC_LEVEL_RVA: usize = rva(0x755688); // dword_755688
@@ -138,25 +141,25 @@ pub fn step_colour(c: Colour, up: bool) {
 // ---- the advanced audio page's choices ----
 
 /// (the work value, the choice, the applied) by `g_audioOptions`' fields.
-const AUDIO: [(usize, usize, usize); 6] = [
-    (0x75566C, 0x506C8C, 0x506CA4), // quality
-    (0x755680, 0x506C90, 0x506CA8), // channels
-    (0x75567C, 0x506CA0, 0x506CB8), // Dolby
-    (0x755678, 0x506C9C, 0x506CB4), // A3D
-    (0x755674, 0x506C98, 0x506CB0), // EAX
-    (0x755670, 0x506C94, 0x506CAC), // DS3D
+const AUDIO: [(usize, Slot, Slot); 6] = [
+    (0x75566C, Slot::at(0x506C8C), Slot::at(0x506CA4)), // quality
+    (0x755680, Slot::at(0x506C90), Slot::at(0x506CA8)), // channels
+    (0x75567C, Slot::at(0x506CA0), Slot::at(0x506CB8)), // Dolby
+    (0x755678, Slot::at(0x506C9C), Slot::at(0x506CB4)), // A3D
+    (0x755674, Slot::at(0x506C98), Slot::at(0x506CB0)), // EAX
+    (0x755670, Slot::at(0x506C94), Slot::at(0x506CAC)), // DS3D
 ];
 /// `menu::apply_audio_choices`: the registers it leaves (`popa`'s).
 pub unsafe fn apply_audio_choices() -> Result<(), Refused> {
     unsafe {
         for (work, choice, _) in AUDIO {
-            game_write(rva(choice), game_read::<u32>(rva(work)));
+            crate::store::game_write(choice, game_read::<u32>(rva(work)));
         }
         // `audio::choose_modes` with the game's log (the original's eax there, the last
         // value copied, is read by none of it).
         crate::audio::choose_modes::in_game(&mut crate::audio::choose_modes::real_log)?;
         for (work, _, applied) in AUDIO {
-            game_write(rva(work), game_read::<u32>(rva(applied)));
+            game_write(rva(work), crate::store::game_read::<u32>(applied));
         }
     }
     Ok(())

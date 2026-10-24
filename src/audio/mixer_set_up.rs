@@ -2,11 +2,12 @@
 //! `audio::set_up_primary_mixer` (0x40BAD2), `audio::open_way` (0x40AC3A),
 //! `audio::close_way` (0x40AC58).
 
+use crate::audio::store::Slot;
 use crate::audio::voices::{read, write};
 use crate::errors::Refused;
-use crate::framework::{game_addr, rva};
+use crate::store::addr32 as a;
 
-pub const PRIMARY_CAPS_RVA: usize = rva(0x506B08); // g_primaryCaps (DSBCAPS, 0x14 bytes)
+pub const PRIMARY_CAPS_RVA: Slot = Slot::at(0x506B08); // g_primaryCaps (DSBCAPS, 0x14 bytes)
 pub const MODE_MIXER: u32 = 0x4_0000;
 /// `SetCooperativeLevel`: write the primary buffer.
 const WRITE_PRIMARY: u32 = 4;
@@ -34,11 +35,10 @@ impl MixerVars {
     pub fn game() -> Self {
         use crate::audio::mixer::*;
         use crate::audio::voices::*;
-        let a = |r| game_addr(r) as u32;
         Self {
             mode: a(SOUND_MODE_RVA),
             direct_sound: a(crate::audio::make_buffer::DIRECT_SOUND_RVA),
-            window: a(crate::audio::sound_device::WINDOW_RVA),
+            window: crate::session::MACHINE.window.addr() as u32,
             primary: a(PRIMARY_RVA),
             wave: a(crate::audio::describe_wave_format::WAVE_FORMAT_RVA),
             rate: a(MIX_RATE_RVA),

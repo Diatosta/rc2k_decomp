@@ -36,6 +36,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_read, game_write, rva};
+use crate::session::SCREEN;
 
 const VIEW_BLOCKS_RVA: usize = rva(0x63DBB0); // g_viewBlocks
 const CLEARED_RVA: usize = rva(0x63DBB8); // unk_63DBB8, 0x20 dwords
@@ -72,7 +73,6 @@ const NO_PANEL_RVA: usize = rva(0x64BB18); // dword_64BB18
 const ONE_VIEW_RVA: usize = rva(0x63DB98); // dword_63DB98
 const SIDE_BY_SIDE_RVA: usize = rva(0x6238A4); // dword_6238A4
 const DRAWN_VIEW_RVA: usize = rva(0x63DB9C); // g_drawnView
-const SCREEN_RVA: [usize; 2] = [rva(0x4F494C), rva(0x4F4950)]; // g_screenWidth, g_screenHeight
 const WINDOW_RVA: [usize; 5] = [
     rva(0x62408C), // width
     rva(0x623FB0), // x
@@ -205,7 +205,7 @@ pub unsafe fn draw_race_scene() -> Result<(), Refused> {
             let side_by_side = g(SIDE_BY_SIDE_RVA) == 1;
             for view in 0..2u32 {
                 p(DRAWN_VIEW_RVA, view);
-                let (w, h) = (g(SCREEN_RVA[0]), g(SCREEN_RVA[1]));
+                let (w, h) = (SCREEN.width.get(), SCREEN.height.get());
                 // (width, x, height, y).
                 if side_by_side {
                     p(WINDOW_RVA[0], w >> 1);

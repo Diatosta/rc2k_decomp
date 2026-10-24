@@ -4,23 +4,25 @@
 //! the radii after the curve), and sets up what follows.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::framework::rva;
+use crate::gfx::hexagon_batch::Slot as HexSlot;
+use crate::marks::store::{Slot, game_addr, game_read, game_write};
 use crate::math::x87;
 
 /// One kind's tables.
 pub struct Shapes {
-    pub done: usize,
+    pub done: Slot,
     pub resume: usize,
-    pub items: usize,
+    pub items: Slot,
     pub item_len: u32,
-    pub curve: usize,
-    pub curve_a: usize,
-    pub curve_b: usize,
-    pub radii: usize,
-    pub points: usize,
+    pub curve: Slot,
+    pub curve_a: Slot,
+    pub curve_b: Slot,
+    pub radii: Slot,
+    pub points: Slot,
     pub sides: u32,
-    pub step_c: usize,
-    pub step_d: usize,
+    pub step_c: Slot,
+    pub step_d: Slot,
 }
 
 pub const ITEMS: u32 = 0x800;
@@ -29,48 +31,54 @@ const RADII: u32 = 8;
 
 /// `sub_4BAA55`'s.
 pub const HEXAGONS: Shapes = Shapes {
-    done: rva(0x82E23E),   // g_marksHexagonsDone
-    resume: rva(0x4BAAC5), // loc_4BAAC5
-    items: rva(0x81623E),  // g_marksHexagonItems
+    done: Slot::at(0x82E23E),  // g_marksHexagonsDone
+    resume: rva(0x4BAAC5),     // loc_4BAAC5
+    items: Slot::at(0x81623E), // g_marksHexagonItems
     item_len: 0x30,
-    curve: rva(0x8147C2),   // g_marksHexagonCurve
-    curve_a: rva(0x82E25A), // flt_82E25A
-    curve_b: rva(0x82E25E), // flt_82E25E
-    radii: rva(0x814BC2),   // flt_814BC2
-    points: rva(0x814F3E),  // g_marksHexagonPoints
+    curve: Slot::at(0x8147C2),   // g_marksHexagonCurve
+    curve_a: Slot::at(0x82E25A), // flt_82E25A
+    curve_b: Slot::at(0x82E25E), // flt_82E25E
+    radii: Slot::at(0x814BC2),   // flt_814BC2
+    points: Slot::at(0x814F3E),  // g_marksHexagonPoints
     sides: 6,
-    step_c: rva(0x82E262), // dword_82E262
-    step_d: rva(0x82E266), // flt_82E266
+    step_c: Slot::at(0x82E262), // dword_82E262
+    step_d: Slot::at(0x82E266), // flt_82E266
 };
 
 /// `sub_4BF529`'s.
 pub const SQUARES: Shapes = Shapes {
-    done: rva(0x8BC18A),   // g_marksSquaresDone
-    resume: rva(0x4BF545), // loc_4BF545
-    items: rva(0x89E18A),  // g_marksSquareItems
+    done: Slot::at(0x8BC18A),  // g_marksSquaresDone
+    resume: rva(0x4BF545),     // loc_4BF545
+    items: Slot::at(0x89E18A), // g_marksSquareItems
     item_len: 0x3C,
-    curve: rva(0x89CACA),   // g_marksSquareCurve
-    curve_a: rva(0x8BC18E), // flt_8BC18E
-    curve_b: rva(0x8BC192), // flt_8BC192
-    radii: rva(0x89CECA),   // flt_89CECA
-    points: rva(0x89CFE6),  // g_marksSquarePoints
+    curve: Slot::at(0x89CACA),   // g_marksSquareCurve
+    curve_a: Slot::at(0x8BC18E), // flt_8BC18E
+    curve_b: Slot::at(0x8BC192), // flt_8BC192
+    radii: Slot::at(0x89CECA),   // flt_89CECA
+    points: Slot::at(0x89CFE6),  // g_marksSquarePoints
     sides: 4,
-    step_c: rva(0x8BC196), // dword_8BC196
-    step_d: rva(0x8BC19A), // flt_8BC19A
+    step_c: Slot::at(0x8BC196), // dword_8BC196
+    step_d: Slot::at(0x8BC19A), // flt_8BC19A
 };
 
 /// The four floats `set_up_hexagons` scales once, by one or two factors each.
-const SCALED: [(usize, &[usize]); 4] = [
-    (0x816192, &[0x82E242]),
-    (0x816196, &[0x82E246]),
-    (0x81619A, &[0x82E24A, 0x82E24E]),
-    (0x81619E, &[0x82E252, 0x82E256]),
+const SCALED: [(Slot, &[Slot]); 4] = [
+    (Slot::at(0x816192), &[Slot::at(0x82E242)]),
+    (Slot::at(0x816196), &[Slot::at(0x82E246)]),
+    (
+        Slot::at(0x81619A),
+        &[Slot::at(0x82E24A), Slot::at(0x82E24E)],
+    ),
+    (
+        Slot::at(0x81619E),
+        &[Slot::at(0x82E252), Slot::at(0x82E256)],
+    ),
 ];
-const FANS_RVA: usize = rva(0x624240); // g_marksHexagonFans: 0x40 of 4 triangles (words)
+const FANS_RVA: HexSlot = HexSlot::at(0x624240); // g_marksHexagonFans: 0x40 of 4 triangles (words)
 const FANS: u32 = 0x40;
-const FAN_RECORDS_RVA: usize = rva(0x625A44); // 0x40 of 0xC0
-const FAN_VALUE_RVA: usize = rva(0x7651A0); // dword_7651A0
-const CLEARED_RVA: usize = rva(0x8161AE); // dword_8161AE .. dword_8161BA
+const FAN_RECORDS_RVA: HexSlot = HexSlot::at(0x625A44); // 0x40 of 0xC0
+const FAN_VALUE_RVA: Slot = Slot::at(0x7651A0); // dword_7651A0
+const CLEARED_RVA: Slot = Slot::at(0x8161AE); // dword_8161AE .. dword_8161BA
 
 impl Shapes {
     /// The once-only mark: refuses one neither 0 nor `resume`; true when not yet done.
@@ -92,7 +100,7 @@ impl Shapes {
             for n in 0..ITEMS {
                 ((items + n * self.item_len) as *mut u32).write_unaligned(0);
             }
-            let f = |r: usize| f32::from_bits(game_read(r));
+            let f = |r: Slot| f32::from_bits(game_read(r));
             let curve = core::curve(f(self.curve_a), f(self.curve_b));
             game_write(self.curve, curve.map(f32::to_bits));
             let (c, d): (i32, f32) = (game_read(self.step_c), f(self.step_d));
@@ -149,21 +157,18 @@ unsafe fn hexagons_with(resume: u32, plain: bool) -> Result<(), Refused> {
     unsafe {
         if HEXAGONS.first(resume)? {
             for (to, by) in SCALED {
-                let v: u32 = game_read(rva(to));
+                let v: u32 = game_read(to);
                 let v = if plain {
-                    let by: Vec<f32> = by
-                        .iter()
-                        .map(|&b| f32::from_bits(game_read(rva(b))))
-                        .collect();
+                    let by: Vec<f32> = by.iter().map(|&b| f32::from_bits(game_read(b))).collect();
                     rc2k_core::marks::shapes::scaled(f32::from_bits(v), &by).to_bits()
                 } else {
                     match by {
-                        [b] => x87::mul(v, game_read(rva(*b))),
-                        [b, c] => x87::mul2(v, game_read(rva(*b)), game_read(rva(*c))),
+                        [b] => x87::mul(v, game_read(*b)),
+                        [b, c] => x87::mul2(v, game_read(*b), game_read(*c)),
                         _ => unreachable!(),
                     }
                 };
-                game_write(rva(to), v);
+                game_write(to, v);
             }
             game_write(HEXAGONS.done, resume);
         }

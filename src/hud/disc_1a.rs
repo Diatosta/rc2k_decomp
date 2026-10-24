@@ -10,17 +10,17 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::rva;
 use crate::hud::dials::{From, Setup};
+use crate::hud::store::Slot;
 
 pub static SETUP: Setup = Setup {
     copies: &[
-        (From::Field(0x34), rva(0x75C054), false),
-        (From::Field(0x38), rva(0x75C058), false),
-        (From::Field(0x3C), rva(0x75C05C), false),
-        (From::Var(rva(0x75C158)), rva(0x75C050), false),
-        (From::Var(rva(0x75C15C)), rva(0x75C04C), false),
-        (From::Var(rva(0x75C160)), rva(0x75C044), false),
-        (From::Var(rva(0x75C164)), rva(0x75C048), false),
+        (From::Field(0x34), Slot::at(0x75C054), false),
+        (From::Field(0x38), Slot::at(0x75C058), false),
+        (From::Field(0x3C), Slot::at(0x75C05C), false),
+        (From::Var(Slot::at(0x75C158)), Slot::at(0x75C050), false),
+        (From::Var(Slot::at(0x75C15C)), Slot::at(0x75C04C), false),
+        (From::Var(Slot::at(0x75C160)), Slot::at(0x75C044), false),
+        (From::Var(Slot::at(0x75C164)), Slot::at(0x75C048), false),
     ],
 };

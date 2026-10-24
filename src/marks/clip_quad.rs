@@ -23,20 +23,21 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::framework::rva;
 use crate::marks::lines::SETTINGS_RVA;
+use crate::marks::store::{Slot, game_addr, game_read, game_write};
 use crate::math::x87;
 
-const WORK_RVA: usize = rva(0x7687F4); // g_marksClipVertices: TLVertex[6]
+const WORK_RVA: Slot = Slot::at(0x7687F4); // g_marksClipVertices: TLVertex[6]
 const COUNT_RVA: usize = rva(0x6240F8); // g_polygonVertexCount
-const COUNT2_RVA: usize = rva(0x93CC94); // dword_93CC94
+const COUNT2_RVA: Slot = Slot::at(0x93CC94); // dword_93CC94
 /// Per mode 1 .. 4: the line's variable, its coordinate's offset, whether inside is at or
 /// below it.
-const EDGES: [(usize, u32, bool); 4] = [
-    (rva(0x7687F0), 4, true),  // 1: g_marksScreenMiddleYLess
-    (rva(0x7687EC), 4, false), // 2: g_marksScreenMiddleY
-    (rva(0x7687E8), 0, true),  // 3: g_marksScreenMiddleXLess
-    (rva(0x7687E4), 0, false), // 4: g_marksScreenMiddleX
+const EDGES: [(Slot, u32, bool); 4] = [
+    (Slot::at(0x7687F0), 4, true),  // 1: g_marksScreenMiddleYLess
+    (Slot::at(0x7687EC), 4, false), // 2: g_marksScreenMiddleY
+    (Slot::at(0x7687E8), 0, true),  // 3: g_marksScreenMiddleXLess
+    (Slot::at(0x7687E4), 0, false), // 4: g_marksScreenMiddleX
 ];
 
 unsafe fn get(a: u32) -> u32 {

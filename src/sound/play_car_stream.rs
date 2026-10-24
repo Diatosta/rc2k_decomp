@@ -12,16 +12,13 @@
 //! `routes.rs`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{game_read, game_write, rva};
+use crate::framework::{game_read, rva};
 use crate::menu::load_car_background::shown_car;
 
 // ---- game data ----
 
 // dword_755990
 const STREAMS_RVA: usize = rva(0x75A31E); // off_75A31E
-const ON_RVA: usize = rva(0xA8C188); // dword_A8C188
-const STREAM_RVA: usize = rva(0xA8C184); // dword_A8C184
-const PLACE_RVA: usize = rva(0xA8C180); // dword_A8C180
 const VOLUME_RVA: usize = rva(0x755698); // dword_755698
 
 // ---- Rust version ----
@@ -36,9 +33,9 @@ pub unsafe fn play_car_stream(start: &mut dyn FnMut(u32, u32)) -> Result<(), Ref
             |list| (list as *const u32).read_unaligned(),
             game_read(VOLUME_RVA),
         );
-        game_write(ON_RVA, s.on);
-        game_write(STREAM_RVA, s.list);
-        game_write(PLACE_RVA, s.place);
+        crate::sound::store::CAR_STREAM.on.set(s.on);
+        crate::sound::store::CAR_STREAM.stream.set(s.list);
+        crate::sound::store::CAR_STREAM.place.set(s.place);
         start(s.first, s.volume);
         Ok(())
     }

@@ -36,19 +36,21 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, game_read, rva};
+use crate::gfx::block::{game_addr, game_read};
 use crate::gfx::components_to_pixel::components_to_pixel;
+use crate::gfx::reports::Slot as RepSlot;
 use crate::gfx::texture_pixels::{halvable, halve_texture};
 use crate::gfx::texture_upload::{Record, fatal, halvings_apart, ready_picture};
+use crate::gfx::upload::Slot as UpSlot;
 use rc2k_core::gfx::uploads::{self};
 
 // ---- game data ----
 
 /// `dword_5ABA18`: the surface description `Lock` fills (0x6C bytes).
-const DESCRIPTION_RVA: usize = rva(0x5ABA18);
-const PITCH_RVA: usize = rva(0x5ABA28); // dword_5ABA28: its pitch
-const PIXELS_RVA: usize = rva(0x5ABA3C); // dword_5ABA3C: its pixels
-const REPORTS_RVA: usize = rva(0x4F52AC); // dword_4F52AC: Direct3D's errors are fatal
+const DESCRIPTION_RVA: UpSlot = UpSlot::at(0x5ABA18);
+const PITCH_RVA: UpSlot = UpSlot::at(0x5ABA28); // dword_5ABA28: its pitch
+const PIXELS_RVA: UpSlot = UpSlot::at(0x5ABA3C); // dword_5ABA3C: its pixels
+const REPORTS_RVA: RepSlot = RepSlot::at(0x4F52AC); // dword_4F52AC: Direct3D's errors are fatal
 
 // ---- Rust version ----
 

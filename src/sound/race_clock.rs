@@ -3,12 +3,13 @@
 //! milliseconds, `dword_5124F4` the turns counted. `sound::start_race_clock` (0x40F1E9)
 //! sets it going and `sound::step_race_clock` (0x40F20E) says whether a turn is due.
 
-use crate::framework::{game_read, game_write, rva};
+use crate::sound::store::ClockSlot;
+use crate::store::{game_read, game_write};
 
-pub const LAST_RVA: usize = rva(0x5124E8); // dword_5124E8
-pub const RATE_RVA: usize = rva(0x5124EC); // dword_5124EC
-pub const STEP_RVA: usize = rva(0x5124F0); // dword_5124F0
-pub const TURNS_RVA: usize = rva(0x5124F4); // dword_5124F4
+pub const LAST_RVA: ClockSlot = ClockSlot::at(0x5124E8); // dword_5124E8
+pub const RATE_RVA: ClockSlot = ClockSlot::at(0x5124EC); // dword_5124EC
+pub const STEP_RVA: ClockSlot = ClockSlot::at(0x5124F0); // dword_5124F0
+pub const TURNS_RVA: ClockSlot = ClockSlot::at(0x5124F4); // dword_5124F4
 
 fn load() -> rc2k_core::sound::clock::RaceClock {
     unsafe {

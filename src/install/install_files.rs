@@ -34,6 +34,7 @@ use crate::install::installer::{
     game_api, gb, lock, normalise, p, pb, pump, rb, run_frame, rw, set_cd, show, sleep, str_append,
     str_append_indexed, take_key, unlock, wb, wd,
 };
+use crate::session::FLAGS;
 
 const SCRIPT_COUNT: usize = 0x51BD48; // byte_51BD48 (the count script)
 const ROOM_BY_MODE: usize = 0x51C3F7; // dword_51C3F7
@@ -45,7 +46,6 @@ const MSG_ERROR: usize = 0x51D453; // unk_51D453
 const MSG_CANCEL: usize = 0x51D463; // unk_51D463
 const README: usize = 0x51BE6F; // "files\%readme\readme.txt"
 const MANUAL: usize = 0x51BE88; // "files\%readme\manual.pdf"
-const QUITTING: usize = 0x51837C; // g_quitting
 
 /// `to` = `base` + name `index` of `table`, NUL-ended (`loc_4131A3`, `loc_4131F5`).
 fn build(base: usize, to: usize, table: usize, index: u32) {
@@ -71,7 +71,7 @@ fn message(count: u32, table: usize, y: u32) -> Result<(), Refused> {
         }
         sleep(1);
         pump();
-        if g(QUITTING) == 1 {
+        if FLAGS.quitting.get() == 1 {
             break;
         }
     }

@@ -26,43 +26,43 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, game_write, rva};
 use crate::marks::emitters::*;
+use crate::marks::store::{Slot, game_read, game_write};
 use crate::math::x87;
 use crate::scene::matrix3::{extended, rounded};
 
-const FLAGS2_RVA: usize = rva(0x939BAA); // g_marksWheelFlags2: the wheel's +0x24 kept
-const DIRECTION_RVA: usize = rva(0x935688); // flt_935688 .. flt_935690
-const SCRATCH_RVA: usize = rva(0x765138); // dword_765138
-const PICK_RVA: usize = rva(0x9356C0); // dword_9356C0
-const RATE_SCALE_RVA: usize = rva(0x765190); // flt_765190
-const HALF_K_RVA: usize = rva(0x76514C); // flt_76514C
-const SPREAD_RVA: usize = rva(0x765158); // flt_765158
-const TURN_K_RVA: usize = rva(0x765150); // flt_765150
-const FADE_K_RVA: usize = rva(0x765214); // flt_765214
-const LOOKS_RVA: [usize; 2] = [rva(0x935476), rva(0x93547A)];
+const FLAGS2_RVA: Slot = Slot::at(0x939BAA); // g_marksWheelFlags2: the wheel's +0x24 kept
+const DIRECTION_RVA: Slot = Slot::at(0x935688); // flt_935688 .. flt_935690
+const SCRATCH_RVA: Slot = Slot::at(0x765138); // dword_765138
+const PICK_RVA: Slot = Slot::at(0x9356C0); // dword_9356C0
+const RATE_SCALE_RVA: Slot = Slot::at(0x765190); // flt_765190
+const HALF_K_RVA: Slot = Slot::at(0x76514C); // flt_76514C
+const SPREAD_RVA: Slot = Slot::at(0x765158); // flt_765158
+const TURN_K_RVA: Slot = Slot::at(0x765150); // flt_765150
+const FADE_K_RVA: Slot = Slot::at(0x765214); // flt_765214
+const LOOKS_RVA: [Slot; 2] = [Slot::at(0x935476), Slot::at(0x93547A)];
 const LIFE: u32 = 0x7D0;
 
 /// One half's variables.
 pub struct Half {
     pub kind: u32,
-    pub strength: usize,
-    pub rate_random: usize,
-    pub count_random: usize,
-    pub entry_random: usize,
+    pub strength: Slot,
+    pub rate_random: Slot,
+    pub count_random: Slot,
+    pub entry_random: Slot,
     /// The direction's factors (x, y, z) and whether |s| is scaled by `flt_765158` in y.
-    pub factors: [usize; 3],
+    pub factors: [Slot; 3],
     pub scaled: bool,
     /// The size's mask and base, the side's factors.
     pub size: (u32, u32),
-    pub sides: [usize; 3],
+    pub sides: [Slot; 3],
 }
 
 /// One function's variables: its two halves, the strength's factor, the blend's two.
 pub struct BurstSet {
     pub halves: [Half; 2],
-    pub strength_k: usize,
-    pub blend_k: [usize; 2],
+    pub strength_k: Slot,
+    pub blend_k: [Slot; 2],
 }
 
 /// `emit_bursts`'.
@@ -70,29 +70,29 @@ pub const FIRST: BurstSet = BurstSet {
     halves: [
         Half {
             kind: 0x11,
-            strength: rva(0x935694),
-            rate_random: rva(0x93A3D6),
-            count_random: rva(0x93A3DA),
-            entry_random: rva(0x93A3DE),
-            factors: [rva(0x93545E), rva(0x935462), rva(0x935466)],
+            strength: Slot::at(0x935694),
+            rate_random: Slot::at(0x93A3D6),
+            count_random: Slot::at(0x93A3DA),
+            entry_random: Slot::at(0x93A3DE),
+            factors: [Slot::at(0x93545E), Slot::at(0x935462), Slot::at(0x935466)],
             scaled: false,
             size: (0x7FF, 0x400),
-            sides: [rva(0x93543A), rva(0x93543E), rva(0x935442)],
+            sides: [Slot::at(0x93543A), Slot::at(0x93543E), Slot::at(0x935442)],
         },
         Half {
             kind: 0x10,
-            strength: rva(0x935698),
-            rate_random: rva(0x93A3EA),
-            count_random: rva(0x93A3EE),
-            entry_random: rva(0x93A3F2),
-            factors: [rva(0x93543A), rva(0x93543E), rva(0x935442)],
+            strength: Slot::at(0x935698),
+            rate_random: Slot::at(0x93A3EA),
+            count_random: Slot::at(0x93A3EE),
+            entry_random: Slot::at(0x93A3F2),
+            factors: [Slot::at(0x93543A), Slot::at(0x93543E), Slot::at(0x935442)],
             scaled: true,
             size: (0x3FF, 0x600),
-            sides: [rva(0x93545E), rva(0x935462), rva(0x935466)],
+            sides: [Slot::at(0x93545E), Slot::at(0x935462), Slot::at(0x935466)],
         },
     ],
-    strength_k: rva(0x93A3D2),
-    blend_k: [rva(0x93A3E2), rva(0x93A3E6)],
+    strength_k: Slot::at(0x93A3D2),
+    blend_k: [Slot::at(0x93A3E2), Slot::at(0x93A3E6)],
 };
 
 /// The half's strength and rate (`n` 0 or 1), from the wheel.

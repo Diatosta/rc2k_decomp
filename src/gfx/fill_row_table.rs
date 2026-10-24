@@ -13,11 +13,12 @@
 //! and the self-test was the hook's.
 
 use crate::errors::BadInput;
-use crate::framework::{game_addr, rva};
+use crate::gfx::block::game_addr;
+use crate::gfx::formats::Slot as FmtSlot;
 
 // ---- game data ----
 
-pub const ROW_TABLE_RVA: usize = rva(0x4F3FC4); // dword_4F3FC4
+pub const ROW_TABLE_RVA: FmtSlot = FmtSlot::at(0x4F3FC4); // dword_4F3FC4
 pub const ROW_TABLE_ROOM: u32 = 602;
 
 /// The address the table holds for a row.

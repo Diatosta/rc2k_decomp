@@ -3,7 +3,7 @@
 //! other, out to a dword a pixel, in place, from the last pixel down.
 
 use crate::errors::BadInput;
-use crate::framework::game_read;
+use crate::gfx::block::game_read;
 use crate::gfx::picture::{HEIGHT_RVA, WIDTH_RVA, picture};
 
 /// The number of pixels, `g_pictureWidth` * `g_pictureHeight`.

@@ -39,8 +39,9 @@
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::files::file_exists::file_exists;
 use crate::files::numbered_path::numbered_path_in_game;
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::gfx::block::{game_addr, game_read, game_write};
 use crate::gfx::components_to_pixel::components_to_pixel;
+use crate::gfx::decoder::Slot as DecSlot;
 use crate::gfx::fill_row_table::fill_row_table;
 use crate::gfx::glyph_builder::{
     DIRECT_COLOUR, Glyph, ONE_FILE, RUN_LENGTHS, RowTable, Sheet, WIDE_HEAD, WITH_ALPHA, append,
@@ -63,27 +64,27 @@ use crate::memory::take_from_list::{rewind_list, take_from_list};
 
 // ---- game data ----
 
-pub const BUILDER_FLAGS_RVA: usize = rva(0x519118); // dword_519118
-const TEMPLATE_RVA: usize = rva(0x51911C); // template_
-const NUMBER_RVA: usize = rva(0x519120); // number
+pub const BUILDER_FLAGS_RVA: DecSlot = DecSlot::at(0x519118); // dword_519118
+const TEMPLATE_RVA: DecSlot = DecSlot::at(0x51911C); // template_
+const NUMBER_RVA: DecSlot = DecSlot::at(0x519120); // number
 /// dword_519148: the pixel layout a sheet of components is coded in.
-pub const FORMAT_RVA: usize = rva(0x519148);
-const BACKDROP_RVA: usize = rva(0x51914C); // dword_51914C
-const TRANSPARENT_RVA: usize = rva(0x519150); // dword_519150
-const SHEET_TABLE_RVA: usize = rva(0x519598); // dword_519598: the sheet's table, and
-const SHEET_TABLE_SIZE_RVA: usize = rva(0x51959C); // dword_51959C: its size
-const TABLE_LIST_RVA: usize = rva(0x5195A0); // dword_5195A0: the list given in ebx
+pub const FORMAT_RVA: DecSlot = DecSlot::at(0x519148);
+const BACKDROP_RVA: DecSlot = DecSlot::at(0x51914C); // dword_51914C
+const TRANSPARENT_RVA: DecSlot = DecSlot::at(0x519150); // dword_519150
+const SHEET_TABLE_RVA: DecSlot = DecSlot::at(0x519598); // dword_519598: the sheet's table, and
+const SHEET_TABLE_SIZE_RVA: DecSlot = DecSlot::at(0x51959C); // dword_51959C: its size
+const TABLE_LIST_RVA: DecSlot = DecSlot::at(0x5195A0); // dword_5195A0: the list given in ebx
 /// dword_5195A4, dword_5195A8: the table being built and its size so far.
-pub const TABLE_RVA: usize = rva(0x5195A4);
-pub const TABLE_SIZE_RVA: usize = rva(0x5195A8);
-const GLYPH_COUNT_RVA: usize = rva(0x5195B0); // dword_5195B0: the sheet's glyphs, and
-const GLYPH_BYTES_RVA: usize = rva(0x5195B4); // dword_5195B4: their records' bytes
-const PIXEL_SIZE_RVA: usize = rva(0x5195CC); // dword_5195CC
+pub const TABLE_RVA: DecSlot = DecSlot::at(0x5195A4);
+pub const TABLE_SIZE_RVA: DecSlot = DecSlot::at(0x5195A8);
+const GLYPH_COUNT_RVA: DecSlot = DecSlot::at(0x5195B0); // dword_5195B0: the sheet's glyphs, and
+const GLYPH_BYTES_RVA: DecSlot = DecSlot::at(0x5195B4); // dword_5195B4: their records' bytes
+const PIXEL_SIZE_RVA: DecSlot = DecSlot::at(0x5195CC); // dword_5195CC
 /// g_lexiconMemory (stru_519558): the builder's work memory, which its callers take.
-pub const WORK_MEMORY_RVA: usize = rva(0x519558);
+pub const WORK_MEMORY_RVA: DecSlot = DecSlot::at(0x519558);
 const RECORD_HEAD: u32 = 0x1C;
 /// dword_5195D0: 1 = the sheet read last was an alpha sheet, kept for the next one.
-const ALPHA_LOADED_RVA: usize = rva(0x5195D0);
+const ALPHA_LOADED_RVA: DecSlot = DecSlot::at(0x5195D0);
 /// Half the picture buffer: where a sheet lies, and what an alpha sheet is kept behind.
 const HALF_PICTURE_DWORDS: usize = 0x3A980;
 

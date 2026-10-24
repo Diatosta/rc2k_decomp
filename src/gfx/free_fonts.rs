@@ -15,7 +15,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::BadInput;
-use crate::framework::game_addr;
+use crate::gfx::block::game_addr;
 use crate::gfx::build_fonts::PALETTES_RVA;
 use crate::gfx::glyph_tables::TABLES_LIST_RVA;
 use crate::memory::MemoryList;

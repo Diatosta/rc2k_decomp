@@ -17,14 +17,15 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{game_read, game_write, rva};
 use crate::hud::batch::{POLYGON_COUNT_RVA, POLYGON_RVA};
+use crate::hud::store::Slot;
+use crate::hud::store::{game_read, game_write};
 use rc2k_core::hud::icons;
 
-pub const SIZE_RVA: [usize; 2] = [rva(0x75C064), rva(0x75C068)]; // dword_75C064, dword_75C068
-pub const SCALE_RVA: usize = rva(0x75C06C); // dword_75C06C
-pub const SHIFT_RVA: usize = rva(0x75C070); // dword_75C070
-const SCRATCH_RVA: usize = rva(0x75C060); // dword_75C060
+pub const SIZE_RVA: [Slot; 2] = [Slot::at(0x75C064), Slot::at(0x75C068)]; // dword_75C064, dword_75C068
+pub const SCALE_RVA: Slot = Slot::at(0x75C06C); // dword_75C06C
+pub const SHIFT_RVA: Slot = Slot::at(0x75C070); // dword_75C070
+const SCRATCH_RVA: Slot = Slot::at(0x75C060); // dword_75C060
 
 /// The Rust version (see the header): the icon of the record's entry at `entry` (edi),
 /// `bottom` (ebx) its row.

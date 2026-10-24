@@ -24,13 +24,16 @@ const B: usize = 0x70F3EC; // g_carBlockStore
 /// The Rust version.
 // Converted: `rc2k_core::drive::replay_views::{first_level, rare_draw, second_level}`.
 pub unsafe fn duel_sound_levels() {
-    p(0x5165BC, first_level(g(B + 0x900)));
-    if g(0x5165BC) >= RARE_FROM {
+    p(
+        crate::sound::store::StageSlot::at(0x5165BC),
+        first_level(g(B + 0x900)),
+    );
+    if g(crate::sound::store::StageSlot::at(0x5165BC)) >= RARE_FROM {
         let r = unsafe { crate::math::next_random::next_random() };
         if rare_draw(r) {
-            p(0x5165A8, 1);
+            p(crate::sound::store::StageSlot::at(0x5165A8), 1);
         }
     }
     let (level, _) = second_level(g(B + 0x908));
-    p(0x5165C0, level);
+    p(crate::sound::store::StageSlot::at(0x5165C0), level);
 }

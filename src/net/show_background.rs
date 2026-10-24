@@ -12,19 +12,19 @@
 //! `net::choose_car`, `net::choose_stage`.
 
 use crate::errors::Refused;
-use crate::net::lobby::{MODE, SESSION, a, copy_picture, draw_string, g, p};
+use crate::net::lobby::{MODE, SESSION, copy_picture, draw_string, g};
 
-const PICTURE: usize = 0x5AB400; // "files\d\gfx\chatzone.pcx"
 const SCREEN_MODE_FLAGS: usize = 0x4F4934; // g_screenModeFlags
-const PICTURE_FLAGS: usize = 0x4F49CC; // g_pictureFlags
 pub const TITLE_FONT: usize = 0x51E944; // stru_51E944
 
 /// The Rust version.
 pub fn show_background() -> Result<(), Refused> {
     unsafe {
-        crate::gfx::load_picture::load_picture(a(PICTURE) as *mut u8)?;
+        crate::gfx::load_picture::load_picture(crate::gfx::texts::address(
+            &crate::gfx::texts::CHATZONE,
+        ) as *mut u8)?;
         crate::gfx::convert_picture::convert_picture_now()?;
-        p(PICTURE_FLAGS, g(SCREEN_MODE_FLAGS) & 0xFFF);
+        crate::gfx::block::game_write(crate::gfx::picture::FLAGS_RVA, g(SCREEN_MODE_FLAGS) & 0xFFF);
         crate::gfx::picture_as_surface::picture_as_surface()?;
     }
     let title = if g(SESSION) == 1 {

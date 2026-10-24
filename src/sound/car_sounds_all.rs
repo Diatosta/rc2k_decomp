@@ -23,18 +23,18 @@
 //! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, game_write, rva};
-use crate::physics::flow::{base, x87_run};
+use crate::physics::flow::x87_run;
+use crate::sound::store::ObjectsSlot;
 use crate::sound::turn_parts::{COUNT, OBJECTS};
 
 /// dword_514F80, dword_514F84: the nearest and the next of the computer's cars.
-const NEAREST: usize = 0x514F80;
-const NEXT: usize = 0x514F84;
+const NEAREST: ObjectsSlot = ObjectsSlot::at(0x514F80);
+const NEXT: ObjectsSlot = ObjectsSlot::at(0x514F84);
 /// flt_514F88: the squared distance.
-const DISTANCE: usize = 0x514F88;
+const DISTANCE: ObjectsSlot = ObjectsSlot::at(0x514F88);
 
-fn g(x: usize) -> u32 {
-    unsafe { game_read(rva(x)) }
+fn g(x: impl crate::store::Ida) -> u32 {
+    unsafe { crate::store::ida_read(x) }
 }
 
 fn word(o: u32, at: u32) -> u32 {
@@ -71,23 +71,23 @@ pub fn car_sounds_all() -> Result<(), Refused> {
             continue;
         }
         x87_run!(
-            "fld dword ptr [{si} + 0x2C]",
-            "fmul dword ptr [{si} + 0x2C]",
-            "fld dword ptr [{si} + 0x30]",
-            "fmul dword ptr [{si} + 0x30]",
-            "fld dword ptr [{si} + 0x34]",
-            "fmul dword ptr [{si} + 0x34]",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            "fstp dword ptr [{b} + 0x114F88]";
-            si = o, b = base()
+                "fld dword ptr [{si} + 0x2C]",
+                "fmul dword ptr [{si} + 0x2C]",
+                "fld dword ptr [{si} + 0x30]",
+                "fmul dword ptr [{si} + 0x30]",
+                "fld dword ptr [{si} + 0x34]",
+                "fmul dword ptr [{si} + 0x34]",
+                ".byte 0xDE, 0xC1",
+                ".byte 0xDE, 0xC1",
+                "fstp dword ptr [{df} + 0x2578]";
+            si = o, df = crate::sound::store::objects::base()
         );
         nearest.consider(n, g(DISTANCE));
     }
     let (first, second) = nearest.kept(g(NEAREST), g(NEXT));
     unsafe {
-        game_write(rva(NEAREST), first);
-        game_write(rva(NEXT), second);
+        crate::store::game_write(NEAREST, first);
+        crate::store::game_write(NEXT, second);
     }
     for (which, mark) in [(NEAREST, NEAREST_MARK), (NEXT, NEXT_MARK)] {
         let n = g(which);

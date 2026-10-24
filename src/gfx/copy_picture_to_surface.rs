@@ -18,13 +18,15 @@
 //! `routes.rs`); the registers above are the original's, for reference.
 
 use crate::errors::BadInput;
-use crate::framework::{game_read, rva};
+use crate::framework::rva;
+use crate::gfx::block::game_read;
+use crate::gfx::locked::Slot as LockSlot;
 use crate::gfx::picture::picture;
 use crate::gfx::surface::BASE_RVA;
 
 // ---- game data ----
 
-const LOCKED_RVA: usize = rva(0x4F3870); // dword_4F3870: 1 while the surface is locked
+const LOCKED_RVA: LockSlot = LockSlot::at(0x4F3870); // dword_4F3870: 1 while the surface is locked
 const ROWS_RVA: usize = rva(0x4F49A4); // dword_4F49A4
 const ROW_DWORDS_RVA: usize = rva(0x4F49B4); // dword_4F49B4
 const ROW_GAP_RVA: usize = rva(0x4F49C4); // dword_4F49C4: surface bytes after a row's pixels

@@ -1,12 +1,13 @@
 //! The audio thread's small set-up and tear-down parts (IDA, 2026-10-15): the work buffer
 //! for reading samples, the primary buffer's play and stop, the 3D listener's release.
 
+use crate::audio::store::Slot;
 use crate::audio::voices::{read, write};
 use crate::errors::Refused;
-use crate::framework::{game_addr, rva};
+use crate::store::addr32 as a;
 
-pub const SAMPLE_BUFFER_KB_RVA: usize = rva(0x5068EC); // g_sampleBufferKb (a setting)
-pub const SAMPLE_BUFFER_MEMORY_RVA: usize = rva(0x5068F0); // g_sampleBufferMemory
+pub const SAMPLE_BUFFER_KB_RVA: Slot = Slot::at(0x5068EC); // g_sampleBufferKb (a setting)
+pub const SAMPLE_BUFFER_MEMORY_RVA: Slot = Slot::at(0x5068F0); // g_sampleBufferMemory
 
 /// Where the sample work buffer's things are.
 #[derive(Clone, Copy)]
@@ -19,7 +20,6 @@ pub struct SampleBufferVars {
 
 impl SampleBufferVars {
     pub fn game() -> Self {
-        let a = |r| game_addr(r) as u32;
         Self {
             kb: a(SAMPLE_BUFFER_KB_RVA),
             size: a(crate::audio::samples::BUFFER_SIZE_RVA),

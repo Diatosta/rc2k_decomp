@@ -24,11 +24,12 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::field;
-use crate::framework::{game_read, rva};
 use crate::input::devices::{at, put};
+use crate::input::store::DeviceSlot;
 use crate::input::types::{ForceEffect, InputDevice};
+use crate::store::game_read;
 
-pub const CONTROLLERS_RVA: usize = rva(0x4F78E4); // dword_4F78E4: 16 entries of 0x50
+pub const CONTROLLERS_RVA: DeviceSlot = DeviceSlot::at(0x4F78E4); // dword_4F78E4: 16 entries of 0x50
 pub const CONTROLLERS: u32 = 16;
 const EFFECTS: u32 = 0x3C;
 const EFFECT_LEN: u32 = 0xA4;

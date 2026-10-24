@@ -21,17 +21,17 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, game_write, rva};
 use crate::marks::emitters::*;
+use crate::marks::store::{Slot, game_read, game_write};
 use crate::marks::{
     emit_bursts, emit_bursts_2, emit_kind_1, emit_particle_5, emit_particle_6, emit_particle_11,
     emit_particle_18,
 };
 use crate::math::x87;
 
-const CHANCE_RVA: usize = rva(0x9356C0); // dword_9356C0
-const CHANCE_K_RVA: usize = rva(0x7651DC); // flt_7651DC
-const CHANCE_RANDOM_RVA: usize = rva(0x935522); // dword_935522
+const CHANCE_RVA: Slot = Slot::at(0x9356C0); // dword_9356C0
+const CHANCE_K_RVA: Slot = Slot::at(0x7651DC); // flt_7651DC
+const CHANCE_RANDOM_RVA: Slot = Slot::at(0x935522); // dword_935522
 
 /// The chance and the random it would be met by, worked out without writing.
 unsafe fn chance(wheel: u32) -> (i32, u32) {

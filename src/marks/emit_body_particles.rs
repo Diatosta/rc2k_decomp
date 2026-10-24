@@ -18,16 +18,16 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, game_write, rva};
 use crate::marks::emit_wheel_particles::{Table, emit};
 use crate::marks::emitters::*;
+use crate::marks::store::{Slot, game_read, game_write};
 use crate::math::x87;
 
-const SIZE_K_RVA: usize = rva(0x765174); // flt_765174
-const WHICH_RVA: usize = rva(0x935416); // dword_935416: the record's number
-const CHANCE_RVA: usize = rva(0x9356C0); // dword_9356C0
-const CHANCE_K_RVA: usize = rva(0x7651DC); // flt_7651DC
-const CHANCE_RANDOM_RVA: usize = rva(0x935526); // dword_935526
+const SIZE_K_RVA: Slot = Slot::at(0x765174); // flt_765174
+const WHICH_RVA: Slot = Slot::at(0x935416); // dword_935416: the record's number
+const CHANCE_RVA: Slot = Slot::at(0x9356C0); // dword_9356C0
+const CHANCE_K_RVA: Slot = Slot::at(0x7651DC); // flt_7651DC
+const CHANCE_RANDOM_RVA: Slot = Slot::at(0x935526); // dword_935526
 const PACE: u32 = 0x386A0;
 
 /// The first part (see the header), written.

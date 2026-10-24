@@ -22,7 +22,6 @@ use crate::race::viewer::{get, put};
 
 const FONT_PALETTES: usize = 0x51DEB0; // g_fontPalettes
 const COLOURS: usize = 0x960FA0; // unk_960FA0: 256 dwords
-const SURFACE_FORMAT: usize = 0x4F496C; // g_surfaceFormat
 const TEXTURE_KINDS: usize = 0x5ABACC; // off_5ABAC0 + 0xC
 /// (to, from): the textures and slots kept.
 const KEPT: [(usize, usize); 4] = [
@@ -43,7 +42,7 @@ pub unsafe fn viewer_palettes() {
         put(at, a(COLOURS));
     }
     unsafe {
-        let screen = (a(SURFACE_FORMAT) as *const PixelFormat).read_unaligned();
+        let screen = (crate::session::SCREEN.format_addr() as *const PixelFormat).read_unaligned();
         let texture = (get(TEXTURE_KINDS).wrapping_add(8) as *const PixelFormat).read_unaligned();
         // Converted: `rc2k_core::race::viewer_flow::{font_colour, FONT_COLOURS}` (colour
         // by colour, as the original).

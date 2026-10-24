@@ -4,7 +4,7 @@
 //! apart) by the face's kind, and then made shares of what they were.
 
 use crate::errors::Refused;
-use crate::framework::{game_read, game_write, rva};
+use crate::marks::store::{Slot, game_read, game_write};
 use crate::math::x87;
 use crate::scene::objects::{
     FACE_COUNTS_RVA, FACES, FACES_RVA, FIRST_FACE_RVA, FIRST_POINT_RVA, POINT_COUNTS_RVA,
@@ -12,16 +12,16 @@ use crate::scene::objects::{
 };
 use rc2k_core::marks::lines as core;
 
-pub const SETTINGS_RVA: usize = rva(0x767A28); // g_marksSettings
+pub const SETTINGS_RVA: Slot = Slot::at(0x767A28); // g_marksSettings
 /// The last line's x, y, z differences (`dword_93C870` .. `dword_93C878`).
-pub const DIFFERENCE_RVA: usize = rva(0x93C870);
-pub const CURRENT_RVA: usize = rva(0x93C8A8); // dword_93C8A8: the block being measured
-pub const EVERY_RVA: usize = rva(0x93C8B4); // dword_93C8B4: measure every block
-pub const SHARES_RVA: usize = rva(0x93C8B8); // dword_93C8B8: make the shares
-pub const ANY_RVA: usize = rva(0x93C8BC); // dword_93C8BC: a marked block measured
-const HUNDRED_RVA: usize = rva(0x7651E8); // flt_7651E8, 100.0
-pub const TAKEN_RVA: usize = rva(0x93C6CC); // g_marksTaken: the last block taken
-const BLOCK_START_RVA: usize = rva(0x93C738); // g_marksBlockStart: eight floats
+pub const DIFFERENCE_RVA: Slot = Slot::at(0x93C870);
+pub const CURRENT_RVA: Slot = Slot::at(0x93C8A8); // dword_93C8A8: the block being measured
+pub const EVERY_RVA: Slot = Slot::at(0x93C8B4); // dword_93C8B4: measure every block
+pub const SHARES_RVA: Slot = Slot::at(0x93C8B8); // dword_93C8B8: make the shares
+pub const ANY_RVA: Slot = Slot::at(0x93C8BC); // dword_93C8BC: a marked block measured
+const HUNDRED_RVA: Slot = Slot::at(0x7651E8); // flt_7651E8, 100.0
+pub const TAKEN_RVA: Slot = Slot::at(0x93C6CC); // g_marksTaken: the last block taken
+const BLOCK_START_RVA: Slot = Slot::at(0x93C738); // g_marksBlockStart: eight floats
 
 unsafe fn get(at: u32) -> u32 {
     unsafe { (at as *const u32).read_unaligned() }

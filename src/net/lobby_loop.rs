@@ -34,11 +34,13 @@
 use crate::errors::Refused;
 use crate::field;
 use crate::net::lobby::{
-    ALL_RACED, BACK_FROM_RACE, CAR_ITEM, CHOICE, CLOCK, CLOCK_A, EDITED, FRAME_CLOCK, KEY_CLOCK,
-    MOVE_CLOCK, OWN, PLAYER, PLAYERS, QUITTING, RACING, SEND_BUFFER, SHOW_GAPS, STAGE_ITEM, SYNC,
-    SYNC_CLOCK, SYNC_FIRST, SYNCED, a, block, g, gb, list_key, other_key, p, pb, run_frame,
+    ALL_RACED, BACK_FROM_RACE, CAR_ITEM, CHOICE, CLOCK_A, EDITED, FRAME_CLOCK, KEY_CLOCK,
+    MOVE_CLOCK, OWN, PLAYER, PLAYERS, RACING, SEND_BUFFER, SHOW_GAPS, STAGE_ITEM, SYNC, SYNC_CLOCK,
+    SYNC_FIRST, SYNCED, a, block, g, gb, list_key, other_key, p, pb, run_frame,
 };
 use crate::net::types::NetPlayerBlock;
+use crate::session::CLOCKS;
+use crate::session::FLAGS;
 
 /// The players' states and-ed together (those with bit 0x80 left out), starting from
 /// `bits`, as the original's al: over `count` players (at least one turn: `count` > 0).
@@ -116,7 +118,7 @@ pub fn lobby_loop() -> Result<u32, Refused> {
     p(PLAYERS, 0);
     p(RACING, 0);
     crate::net::show_background::show_background()?;
-    let now = g(CLOCK);
+    let now = CLOCKS.key_ticks.get();
     p(MOVE_CLOCK, now);
     p(KEY_CLOCK, now);
     p(EDITED, u32::MAX);
@@ -140,7 +142,7 @@ pub fn lobby_loop() -> Result<u32, Refused> {
             // the carry, section 16).
             crate::net::list_players::list_players_regs()?;
         }
-        p(FRAME_CLOCK, g(CLOCK));
+        p(FRAME_CLOCK, CLOCKS.key_ticks.get());
         let key = list_key()?;
         let mut moved = false;
         if g(EDITED) != u32::MAX {
@@ -207,7 +209,7 @@ pub fn lobby_loop() -> Result<u32, Refused> {
         if g(PLAYERS) >= 1 && all_states(4, g(PLAYERS)) == 4 {
             p(BACK_FROM_RACE, 0);
         }
-        if g(QUITTING) == 1 {
+        if FLAGS.quitting.get() == 1 {
             break;
         }
     }

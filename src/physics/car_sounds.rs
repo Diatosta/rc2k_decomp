@@ -11,20 +11,22 @@
 //! for `place_sound_e1`'s exact version (its Rust callers).
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, game_read, rva};
+use crate::framework::rva;
 use crate::math::x87_run::ext_times;
 use crate::scene::matrix3::rounded;
 use crate::scene::rotate_point::rotate_point;
 use crate::scene::vector3::{read_floats, write_floats};
+use crate::sound::store::ObjectsSlot;
+use crate::store::game_addr;
 use rc2k_core::physics::sound_places::{PLAY, PLAYING, Slot};
 
 pub const CURRENT: usize = 0x71B3F8; // g_currentCar
 pub const LISTED: usize = 0x641680; // dword_641680
-pub const OBJECTS: usize = 0x512A10; // g_raceSoundObjects
+pub const OBJECTS: ObjectsSlot = ObjectsSlot::at(0x512A10); // g_raceSoundObjects
 pub const VIEW_TURN: usize = 0x5EA24C; // g_viewTurnMatrix
 
-pub fn g(x: usize) -> u32 {
-    unsafe { game_read(rva(x)) }
+pub fn g(x: impl crate::store::At) -> u32 {
+    unsafe { crate::store::at_read(x) }
 }
 
 pub unsafe fn put(a: u32, v: u32) {

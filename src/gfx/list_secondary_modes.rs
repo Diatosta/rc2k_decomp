@@ -10,12 +10,13 @@
 //! it directly (2026-10-23).
 
 use crate::errors::Refused;
-use crate::framework::{game_read, rva};
+use crate::gfx::block::game_read;
+use crate::gfx::cards::Slot as CardSlot;
 use crate::gfx::list_primary_modes::standalone_modes;
 use crate::gfx::mark_3d_modes::mark_3d_modes;
 
 pub const SECONDARY: u32 = 0x2000;
-const SECONDARY_3D_RVA: usize = rva(0x5AB4B0); // dword_5AB4B0: a 3D secondary card
+const SECONDARY_3D_RVA: CardSlot = CardSlot::at(0x5AB4B0); // dword_5AB4B0: a 3D secondary card
 
 /// The Rust version (see the header).
 pub fn list_secondary_modes() -> Result<(), Refused> {

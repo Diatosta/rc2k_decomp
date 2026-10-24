@@ -11,17 +11,19 @@
 //! stops. Each function begins `cmp g_useA3d, 1; jz` an A3D twin: refused.
 
 use crate::audio::buffer_settings::a3d;
+use crate::audio::store::Slot;
 use crate::errors::{BadInput, Refused};
-use crate::framework::rva;
+use crate::sound::store::EffectsSlot;
+use crate::store::addr32 as a;
 
-pub const SOUND_STREAM_RVA: usize = rva(0x506960); // g_soundStream
-pub const MUSIC_STREAM_RVA: usize = rva(0x506990); // g_musicStream
-pub const NEXT_TUNE_RVA: usize = rva(0x50698C); // g_nextTune
-pub const NO_MUSIC_RVA: usize = rva(0x5069BC); // g_noMusic
-pub const MUSIC_PATH_RVA: usize = rva(0x5069C0); // g_musicPath ";3files\music\00.wav"
-pub const HEADER_RVA: usize = rva(0x5069D8); // g_streamHeader
-pub const HEADER_MEMORY_RVA: usize = rva(0x5069DC); // g_streamHeaderMemory (a MemoryList)
-pub const TUNE_TURN_RVA: usize = rva(0x5180F8); // g_tuneTurn
+pub const SOUND_STREAM_RVA: Slot = Slot::at(0x506960); // g_soundStream
+pub const MUSIC_STREAM_RVA: Slot = Slot::at(0x506990); // g_musicStream
+pub const NEXT_TUNE_RVA: Slot = Slot::at(0x50698C); // g_nextTune
+pub const NO_MUSIC_RVA: Slot = Slot::at(0x5069BC); // g_noMusic
+pub const MUSIC_PATH_RVA: Slot = Slot::at(0x5069C0); // g_musicPath ";3files\music\00.wav"
+pub const HEADER_RVA: Slot = Slot::at(0x5069D8); // g_streamHeader
+pub const HEADER_MEMORY_RVA: Slot = Slot::at(0x5069DC); // g_streamHeaderMemory (a MemoryList)
+pub const TUNE_TURN_RVA: EffectsSlot = EffectsSlot::at(0x5180F8); // g_tuneTurn
 pub const HEADER_LEN: u32 = 0xC00;
 /// `GetCurrentPosition`, `Lock`, `Unlock` of a DirectSound buffer.
 pub const GET_POSITION: u32 = 0x10;
@@ -107,7 +109,6 @@ pub struct StartVars {
 
 impl StartVars {
     pub fn game() -> Self {
-        let a = |r| crate::framework::game_addr(r) as u32;
         Self {
             direct_sound: a(crate::audio::make_buffer::DIRECT_SOUND_RVA),
             header: a(HEADER_RVA),
@@ -127,7 +128,7 @@ pub unsafe fn start_stream(
     use crate::audio::make_buffer::{BufferDescription, DESCRIPTION_RVA};
     use crate::audio::samples::{SAMPLE_FILE_RVA, SampleFile};
     use crate::audio::voices::{read, write};
-    use crate::framework::game_addr;
+    use crate::store::game_addr;
     not_a3d("A3D (0x40CF6B)")?;
     // Checked before anything is done: the volume it sets.
     let volume = volume_of(s.volume)?;

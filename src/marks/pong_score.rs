@@ -15,11 +15,11 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{game_read, game_write};
 use crate::marks::pong;
+use crate::marks::store::{Slot, game_read, game_write};
 
 /// A number of the score as three digits.
-unsafe fn number(at: usize) -> Result<(), Refused> {
+unsafe fn number(at: Slot) -> Result<(), Refused> {
     use crate::marks::pong_digit::pong_digit;
     unsafe {
         let (n, [hundreds, tens, ones]) = rc2k_core::marks::pong::score_digits(game_read(at));

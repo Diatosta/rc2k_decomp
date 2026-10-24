@@ -32,7 +32,6 @@
 //! Hooks removed 2026-10-22 (typed tables): the menus run their `entry` (`menu::table_calls`).
 
 use crate::errors::Refused;
-use crate::framework::{game_read, game_write, rva};
 
 /// After a volume step.
 #[derive(Clone, Copy)]
@@ -87,11 +86,13 @@ pub struct Item {
     pub kind: Kind,
 }
 
+/// The items name their variables by IDA's address (`moved::place` answers where each
+/// lives now: the sound page's, the audio options', ... have left the image).
 fn get(x: usize) -> i32 {
-    unsafe { game_read(rva(x)) }
+    unsafe { crate::store::ida_read(x) }
 }
 fn set(x: usize, v: i32) {
-    unsafe { game_write(rva(x), v) }
+    unsafe { crate::store::ida_write(x, v) }
 }
 
 /// The Rust version (see the header). What it leaves in registers is read by none of its

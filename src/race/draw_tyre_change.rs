@@ -35,6 +35,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::gfx::blit::Slot as BlitSlot;
 
 const TEXTURE: usize = 0x5BEBE0; // dword_5BEBE0
 const DEVICE_TEXTURE: usize = 0x5BEBE4; // dword_5BEBE4
@@ -49,8 +50,16 @@ const LINE: usize = 0x51E2CC; // dword_51E2CC
 const RECT: usize = 0x5C2A1C; // dword_5C2A1C
 const PALETTE: usize = 0x5BEC2C; // unk_5BEC2C
 const TEXT_BUFFER: usize = 0x93E430; // text
-const CLIP_LEFT: usize = 0x4F503C; // g_clipLeft
-const CLIP_RIGHT: usize = 0x4F5040; // g_clipRight
+const CLIP_LEFT: BlitSlot = BlitSlot::at(0x4F503C); // g_clipLeft
+const CLIP_RIGHT: BlitSlot = BlitSlot::at(0x4F5040); // g_clipRight
+
+fn clip(edge: BlitSlot) -> u32 {
+    unsafe { crate::gfx::block::game_read(edge) }
+}
+
+fn set_clip(edge: BlitSlot, v: u32) {
+    unsafe { crate::gfx::block::game_write(edge, v) }
+}
 
 fn g(x: usize) -> u32 {
     unsafe { game_read(rva(x)) }
@@ -111,7 +120,7 @@ fn three_times(x: u32, y: u32) -> Result<(), Refused> {
 /// The Rust version, for the device `device` (esi). The registers it leaves (ebp = esi,
 /// the copy's flags) are read by no caller.
 pub unsafe fn draw_tyre_change(device: u32) -> Result<(), Refused> {
-    let clips = (g(CLIP_LEFT), g(CLIP_RIGHT));
+    let clips = (clip(CLIP_LEFT), clip(CLIP_RIGHT));
     let done = (|| -> Result<(), Refused> {
         let failed = unsafe { crate::d3d::lock_texture::lock_texture(g(TEXTURE)) }?.carry;
         if !failed && g(DRAWN) != 1 {
@@ -142,23 +151,23 @@ pub unsafe fn draw_tyre_change(device: u32) -> Result<(), Refused> {
                     )
                 }?;
                 if n == 0 {
-                    p(CLIP_LEFT, 0x80);
+                    set_clip(CLIP_LEFT, 0x80);
                 }
             }
         }
-        p(CLIP_LEFT, 0x80);
+        set_clip(CLIP_LEFT, 0x80);
         fill(0x80, 0x32, 0x80, 0x4B)?;
         unsafe { build_text(0x12E, Some(g(RECORD))) }?;
         three_times(0x84, 0x32)?;
-        p(CLIP_LEFT, 0);
+        set_clip(CLIP_LEFT, 0);
         fill(0, 0x99, 0x100, 0x19)?;
         p(FONT + 0x1C, 0xF8);
         text(a(FONT), a(RECORD_NAME), 4, 0x99)?;
         let x = if g(PLAYER) == 0 {
-            p(CLIP_RIGHT, 0x7F);
+            set_clip(CLIP_RIGHT, 0x7F);
             0
         } else {
-            p(CLIP_LEFT, 0x80);
+            set_clip(CLIP_LEFT, 0x80);
             0x80
         };
         fill(x, 0xB2, 0x80, 0x4B)?;
@@ -176,7 +185,7 @@ pub unsafe fn draw_tyre_change(device: u32) -> Result<(), Refused> {
         p(DRAWN, 1);
         Ok(())
     })();
-    p(CLIP_LEFT, clips.0);
-    p(CLIP_RIGHT, clips.1);
+    set_clip(CLIP_LEFT, clips.0);
+    set_clip(CLIP_RIGHT, clips.1);
     done
 }

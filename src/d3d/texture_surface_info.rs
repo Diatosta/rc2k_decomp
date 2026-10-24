@@ -12,7 +12,7 @@
 //! of the test's, the surface and the clip compared.
 
 use crate::d3d::texture_lock::{DESCRIPTION_RVA, SURFACE_RVA, get, put};
-use crate::framework::game_addr;
+use crate::gfx::block::game_addr;
 
 /// The Rust version (see the header).
 pub fn texture_surface_info(record: u32) -> Result<(), crate::errors::BadInput> {

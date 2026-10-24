@@ -29,12 +29,12 @@
 
 use crate::errors::Refused;
 use crate::framework::{Regs, game_addr, game_read, log, rva};
+use crate::session::SCREEN;
 use rc2k_core::menu::films::{self, Film, Flags, Step};
 
 // ---- game data ----
 
 const NO_FMV_RVA: usize = rva(0x5BE870); // g_noFmv
-const SCREEN_BITS_RVA: usize = rva(0x4F4954); // g_screenBits
 const AL_LOGO_RVA: usize = rva(0x529822); // ";3files\fmv\allogo.avi"
 const MF_LOGO_RVA: usize = rva(0x52980B); // ";3files\fmv\mflogo.mpg"
 const INTRO_RVA: usize = rva(0x5297F5); // ";3files\fmv\intro.mpg"
@@ -116,7 +116,7 @@ impl films::Films for Game {
     }
 
     fn screen_bits(&mut self) -> u32 {
-        unsafe { game_read(SCREEN_BITS_RVA) }
+        SCREEN.bits.get()
     }
 
     fn step(&mut self, s: Step) -> Flags {

@@ -4,35 +4,35 @@
 //! number, 0xFF elsewhere. These are the leaves.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::marks::store::{Slot, game_addr, game_read, game_write};
 use rc2k_core::marks::masks::{ShapeRows, Span};
 
-pub const WORK_RVA: usize = rva(0x82E386); // g_marksMaskWork: the 0x80000-byte block
-pub const CURSOR_RVA: usize = rva(0x82FD0E); // g_marksMaskCursor
-pub const RUNS_RVA: usize = rva(0x82FD12); // g_marksMaskRuns: where the next run goes
-const RUNS_START_RVA: usize = rva(0x831D2E); // unk_831D2E
-pub const RUN_COUNT_RVA: usize = rva(0x833D7E); // g_marksMaskRunCount
-pub const MASK_RVA: usize = rva(0x844E14); // g_marksMask: the mask being drawn
-pub const SHAPES_RVA: usize = rva(0x844E10); // g_marksMaskShapes: its shapes
-pub const VALUE_RVA: usize = rva(0x833DBA); // g_marksMaskValue: the shape's number
+pub const WORK_RVA: Slot = Slot::at(0x82E386); // g_marksMaskWork: the 0x80000-byte block
+pub const CURSOR_RVA: Slot = Slot::at(0x82FD0E); // g_marksMaskCursor
+pub const RUNS_RVA: Slot = Slot::at(0x82FD12); // g_marksMaskRuns: where the next run goes
+const RUNS_START_RVA: Slot = Slot::at(0x831D2E); // unk_831D2E
+pub const RUN_COUNT_RVA: Slot = Slot::at(0x833D7E); // g_marksMaskRunCount
+pub const MASK_RVA: Slot = Slot::at(0x844E14); // g_marksMask: the mask being drawn
+pub const SHAPES_RVA: Slot = Slot::at(0x844E10); // g_marksMaskShapes: its shapes
+pub const VALUE_RVA: Slot = Slot::at(0x833DBA); // g_marksMaskValue: the shape's number
 pub const MASK_LEN: u32 = rc2k_core::marks::masks::MASK_LEN as u32;
 
 /// The two point lists `collect_points_a` and `_b` fill: count, ids, faces.
 pub struct PointList {
-    pub count: usize,
-    pub ids: usize,
-    pub faces: usize,
+    pub count: Slot,
+    pub ids: Slot,
+    pub faces: Slot,
 }
 
 pub const POINTS_A: PointList = PointList {
-    count: rva(0x884FEC), // g_marksPointsACount
-    ids: rva(0x884FF4),   // g_marksPointsA
-    faces: rva(0x8851F4), // g_marksPointsAFaces
+    count: Slot::at(0x884FEC), // g_marksPointsACount
+    ids: Slot::at(0x884FF4),   // g_marksPointsA
+    faces: Slot::at(0x8851F4), // g_marksPointsAFaces
 };
 pub const POINTS_B: PointList = PointList {
-    count: rva(0x884FF0), // g_marksPointsBCount
-    ids: rva(0x8850F4),   // g_marksPointsB
-    faces: rva(0x8852F4), // g_marksPointsBFaces
+    count: Slot::at(0x884FF0), // g_marksPointsBCount
+    ids: Slot::at(0x8850F4),   // g_marksPointsB
+    faces: Slot::at(0x8852F4), // g_marksPointsBFaces
 };
 pub const MOST_POINTS: u32 = rc2k_core::marks::masks::MOST_POINTS;
 
@@ -128,13 +128,13 @@ pub unsafe fn draw_mask(at: u32, shapes: u32) -> Result<(), Refused> {
 
 // ---- for the self-tests ----
 
-const LIST_RVA: usize = rva(0x82E346); // stru_82E346: the work block's list
+const LIST_RVA: Slot = Slot::at(0x82E346); // stru_82E346: the work block's list
 const WORK_LEN: u32 = 0x8_0000;
 /// The two shapes' ring-angle tables, masks and pixel tables.
-const SHAPES: [usize; 2] = [rva(0x82FC56), rva(0x82FC7A)];
-const RING_ANGLES: [usize; 2] = [rva(0x843DC2), rva(0x8441CA)];
-const MASKS: [usize; 2] = [rva(0x833DC2), rva(0x83BDC2)];
-const PIXEL_TABLES: [usize; 2] = [rva(0x844E58), rva(0x864E58)];
+const SHAPES: [Slot; 2] = [Slot::at(0x82FC56), Slot::at(0x82FC7A)];
+const RING_ANGLES: [Slot; 2] = [Slot::at(0x843DC2), Slot::at(0x8441CA)];
+const MASKS: [Slot; 2] = [Slot::at(0x833DC2), Slot::at(0x83BDC2)];
+const PIXEL_TABLES: [Slot; 2] = [Slot::at(0x844E58), Slot::at(0x864E58)];
 
 /// `marks::make_masks` (0x4BDE9A), in `sub_4C0F2E`: the 0x80000-byte work block taken on
 /// its list (`memory::allocate`); `make_shape_sets`, `make_corners`, `reset_mask_cursor`;
@@ -145,7 +145,7 @@ const PIXEL_TABLES: [usize; 2] = [rva(0x844E58), rva(0x864E58)];
 pub unsafe fn make_masks() -> Result<(), Refused> {
     use crate::marks::corners::CORNERS_RVA;
     use crate::marks::rings::CORNERS_RVA as RING_CORNERS_RVA;
-    let a = |r: usize| game_addr(r) as u32;
+    let a = |r: Slot| game_addr(r) as u32;
     unsafe {
         let list = a(LIST_RVA) as *mut crate::memory::MemoryList;
         let work = crate::memory::allocate::allocate(list, WORK_LEN)? as u32;

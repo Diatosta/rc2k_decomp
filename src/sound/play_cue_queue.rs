@@ -28,7 +28,6 @@
 //! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, rva};
 use crate::sound::sample_duration::sample_duration;
 use crate::sound::turn_parts::CLOCK;
 
@@ -47,7 +46,7 @@ pub fn play_cue_queue(o: u32) -> Result<(), Refused> {
     let in_use = unsafe { ((o + 8) as *const u32).read_unaligned() } == 1;
     let q = (o + QUEUE) as *mut [u32; 0x84];
     let mut queue = CueQueue::from_words(&unsafe { q.read_unaligned() });
-    let clock: u32 = unsafe { game_read(rva(CLOCK)) };
+    let clock: u32 = unsafe { crate::store::game_read(CLOCK) };
     if !in_use {
         return Ok(());
     }

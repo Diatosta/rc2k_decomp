@@ -16,10 +16,10 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::rva;
 use crate::input::di_harness::{DIRECT_INPUT_RVA, g, method, slot};
+use crate::input::store::DeviceSlot;
 
-const OFF_RVA: usize = rva(0x4F68DC); // dword_4F68DC: joysticks turned off
+const OFF_RVA: DeviceSlot = DeviceSlot::at(0x4F68DC); // dword_4F68DC: joysticks turned off
 
 /// The Rust version.
 pub fn list_joysticks() {

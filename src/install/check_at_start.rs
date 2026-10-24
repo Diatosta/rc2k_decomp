@@ -21,18 +21,19 @@
 //! main loop and `nop`ped out in this build).
 //! Refuses a scratch path that is not a text when the source cannot be put there.
 
+use crate::audio::store::Slot;
 use crate::errors::{BadInput, FatalError, Refused};
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::framework::rva;
 use crate::install::outside::Outside;
 use crate::install::read_registry::{SOURCE_RVA, STATUS_RVA};
 use crate::install::runs_from_source::scratch_path;
+use crate::store::{game_addr, game_read, game_write};
 
 // ---- game data ----
 
 pub const INSTALLING_RVA: usize = rva(0x51B9E0); // g_installing
 pub const RECORD_RVA: usize = rva(0x5295C0); // "var\ral.zog"
-pub const NO_AUDIO_RVA: usize = rva(0x4F82B4); // g_noAudio
-const DATA_FILE_RVA: usize = rva(0x4F66C8); // "files\d\gfx\jade.bun"
+pub const NO_AUDIO_RVA: Slot = Slot::at(0x4F82B4); // g_noAudio
 const PROGRAM_RVA: usize = rva(0x51BE40); // "ral.exe" (in ".\ral.exe")
 const VERSION_RVA: usize = rva(0x4E0000); // "$VER: Rally 5.30 (4.8.2000)"
 const PATCH_TEXT_RVA: usize = rva(0xA8C054); // byte_A8C054
@@ -66,7 +67,7 @@ pub unsafe fn check_at_start(outside: &mut dyn Outside, no_audio: *mut u32) -> R
             return Ok(());
         }
         no_audio.write_unaligned(1);
-        if outside.file_exists(game_addr(DATA_FILE_RVA) as *const u8)? {
+        if outside.file_exists(crate::gfx::texts::address(&crate::gfx::texts::JADE) as *const u8)? {
             return Ok(());
         }
         let path = scratch_path();
@@ -115,7 +116,10 @@ pub unsafe fn check_at_start(outside: &mut dyn Outside, no_audio: *mut u32) -> R
             if !outside.file_exists(path)? {
                 continue;
             }
-            put(3, c_text(DATA_FILE_RVA));
+            put(
+                3,
+                &crate::gfx::texts::JADE[..crate::gfx::texts::JADE.len() - 1],
+            );
             if !outside.file_exists(path)? {
                 continue;
             }

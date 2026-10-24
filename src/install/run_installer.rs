@@ -31,9 +31,9 @@ use crate::install::installer::{
     TYPED, a, append_byte, append_string_by_id, copy_picture, draw_string, fatal, g, gb,
     load_language, lock, normalise, p, pb, rb, set_cd, show, sleep, unlock, wb,
 };
+use crate::session::MACHINE;
 
 const BASE_A: usize = 0x5189A8; // g_baseDirectory
-const KEYBOARD_TYPE: usize = 0x518404; // g_keyboardType
 const SOURCE_VAR: usize = 0x51BB8D; // g_installSource
 const RECORD_FLAG: usize = 0x51D72C; // dword_51D72C
 const UPDATING: usize = 0x51B9CC; // dword_51B9CC
@@ -62,7 +62,7 @@ pub fn run_installer() -> Result<(), Refused> {
         let cursor = append_string_by_id(0x9F, a(TYPED));
         let cursor = append_string_by_id(0xA0, cursor);
         append_byte(cursor, 0);
-        if gb(KEYBOARD_TYPE) == 2 {
+        if MACHINE.keyboard_type.get() == 2 {
             wb(a(TYPED), g(FIRST_DRIVE) as u8);
         }
         unsafe { i::read_registry::read_registry_here() };

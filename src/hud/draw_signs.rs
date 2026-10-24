@@ -17,10 +17,12 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{game_addr, game_read, rva};
+use crate::framework::rva;
 use crate::hud::draw_marker::RECTS_RVA;
+use crate::hud::store::Slot;
+use crate::hud::store::{game_addr, game_read};
 
-const WIDTHS_RVA: usize = rva(0x75BF80); // dword_75BF80: 8
+const WIDTHS_RVA: Slot = Slot::at(0x75BF80); // dword_75BF80: 8
 pub const FLAT_RVA: usize = rva(0x6D1502); // dword_6D1502
 
 /// The row: `y`, or 0x20 higher with `dword_6D1502` 0.

@@ -15,18 +15,18 @@
 
 use crate::errors::Refused;
 use crate::framework::{game_read, game_write, rva};
+use crate::session::SCREEN;
 
 const QUAD_IN_RVA: usize = rva(0x623DE8); // colour; x at +0x28 / +0x2C, y at +0x38 / +0x3C
 pub const SHARE_RVA: usize = rva(0x623700); // dword_623700: the share loaded, 0 .. 100
 const SWITCH_RVA: usize = rva(0x6240C4); // dword_6240C4
-const SCREEN_RVA: [usize; 2] = [rva(0x4F494C), rva(0x4F4950)];
 
 /// The Rust version (see the header).
 pub unsafe fn loading_bar_quad() -> Result<(), Refused> {
     // Converted: `rc2k_core::race::loading::loading_bar`.
     use rc2k_core::race::loading::{BAR_COLOUR, loading_bar};
     unsafe {
-        let [w, h] = SCREEN_RVA.map(|r| game_read::<u32>(r));
+        let [w, h] = [SCREEN.width.get(), SCREEN.height.get()];
         let q = |o: usize, v: u32| game_write(QUAD_IN_RVA + o, v);
         let bar = loading_bar(w, h, game_read(SHARE_RVA));
         q(0x28, bar.left);

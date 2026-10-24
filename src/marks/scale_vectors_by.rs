@@ -17,13 +17,13 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::{game_read, game_write, rva};
+use crate::marks::store::{Slot, game_read, game_write};
 use crate::math::x87;
 
 /// (the factor, the vector, the result).
-const PAIRS: [(usize, usize, usize); 2] = [
-    (rva(0x764F90), rva(0x764F94), rva(0x764FA0)),
-    (rva(0x764FAC), rva(0x764FB0), rva(0x764FBC)),
+const PAIRS: [(Slot, Slot, Slot); 2] = [
+    (Slot::at(0x764F90), Slot::at(0x764F94), Slot::at(0x764FA0)),
+    (Slot::at(0x764FAC), Slot::at(0x764FB0), Slot::at(0x764FBC)),
 ];
 
 /// The Rust version (see the header).
@@ -32,7 +32,7 @@ pub unsafe fn scale_vectors_by() {
 }
 
 /// Each (factor, vector, result): the vector's three floats by the factor (`fld; fmul`).
-pub unsafe fn scale_triples(pairs: &[(usize, usize, usize)]) {
+pub unsafe fn scale_triples(pairs: &[(Slot, Slot, Slot)]) {
     unsafe {
         for &(factor, from, to) in pairs {
             let k: u32 = game_read(factor);

@@ -27,7 +27,7 @@ use crate::input::effects::{EFFECT_LEN, EFFECTS, HAS_EFFECTS, RACE_ON_RVA, REQUE
 /// Converted: `rc2k_core::input::effects::wanted` and `request`.
 pub fn set_effect(record: u32, effect: u32, what: u32, a: u32, b: u32) -> Result<(), Refused> {
     use rc2k_core::input::effects::{request, wanted};
-    let race_on: u32 = unsafe { crate::framework::game_read(RACE_ON_RVA) };
+    let race_on: u32 = unsafe { crate::store::game_read(RACE_ON_RVA) };
     if wanted(at(record, HAS_EFFECTS) == 1, race_on == 1, effect, what)? {
         put(
             record,

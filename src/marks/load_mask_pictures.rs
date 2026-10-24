@@ -20,29 +20,30 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::framework::rva;
+use crate::marks::store::{Slot, game_addr, game_read, game_write};
 
-const GROUND_RVA: usize = rva(0x934CC8); // g_marksGround: which of the names
-const NAMES_RVA: usize = rva(0x934CD0); // "files\m\snow1.pcx" and five more
+const GROUND_RVA: Slot = Slot::at(0x934CC8); // g_marksGround: which of the names
+const NAMES_RVA: Slot = Slot::at(0x934CD0); // "files\m\snow1.pcx" and five more
 const NAMES: i32 = 6;
-const GROUND_PATH_RVA: usize = rva(0x934CCC); // g_marksGroundPath
+const GROUND_PATH_RVA: Slot = Slot::at(0x934CCC); // g_marksGroundPath
 /// The blocks: bytes, their list, where the pointer goes.
-const BLOCKS: [(u32, usize, usize); 3] = [
-    (0x2_0000, rva(0x934D76), rva(0x934DB6)), // g_marksMaskBlock
-    (0x2_0000, rva(0x934DBA), rva(0x934DFA)), // g_marksBMaskBlock
-    (0x8_0000, rva(0x934E29), rva(0x934E69)), // g_marksPictureCopy
+const BLOCKS: [(u32, Slot, Slot); 3] = [
+    (0x2_0000, Slot::at(0x934D76), Slot::at(0x934DB6)), // g_marksMaskBlock
+    (0x2_0000, Slot::at(0x934DBA), Slot::at(0x934DFA)), // g_marksBMaskBlock
+    (0x8_0000, Slot::at(0x934E29), Slot::at(0x934E69)), // g_marksPictureCopy
 ];
-const COPY_LIST_RVA: usize = BLOCKS[2].1;
-const COPY_RVA: usize = BLOCKS[2].2;
+const COPY_LIST_RVA: Slot = BLOCKS[2].1;
+const COPY_RVA: Slot = BLOCKS[2].2;
 const SLOT_RVA: usize = rva(0x5D0E10); // dword_5D0E10: the surface drawn into
 const TEXTURE_RVA: usize = rva(0x5D1E10); // dword_5D1E10: the texture slot forgotten
-const NUMBERS_RVA: usize = rva(0x934EA8); // g_marksKindPictureNumbers: 0x22 dwords
+const NUMBERS_RVA: Slot = Slot::at(0x934EA8); // g_marksKindPictureNumbers: 0x22 dwords
 const MOST_KIND: i32 = 0x21;
-const MASK_PATH_RVA: usize = rva(0x934E6D); // "files\m\mask00.pcx"
-const BMASK_PATH_RVA: usize = rva(0x934E80); // "files\m\bmask00.pcx"
+const MASK_PATH_RVA: Slot = Slot::at(0x934E6D); // "files\m\mask00.pcx"
+const BMASK_PATH_RVA: Slot = Slot::at(0x934E80); // "files\m\bmask00.pcx"
 /// The three paths' digits ("files\m\bdata00.pcx" the third's, not read here).
-const DIGITS_RVA: [usize; 3] = [rva(0x934E79), rva(0x934E8D), rva(0x934EA1)];
-const DONE_RVA: usize = rva(0x934D6E); // dword_934D6E: -1 at the end
+const DIGITS_RVA: [Slot; 3] = [Slot::at(0x934E79), Slot::at(0x934E8D), Slot::at(0x934EA1)];
+const DONE_RVA: Slot = Slot::at(0x934D6E); // dword_934D6E: -1 at the end
 const SURFACE_WIDTH_RVA: usize = rva(0x4F49A0); // g_surface.width
 const MOST_WIDTH: u32 = 0x100;
 const COPIED: u32 = 0x8000; // dwords
@@ -94,7 +95,7 @@ pub unsafe fn lock(slot: u32, lock: bool) -> Result<(), Refused> {
 
 /// A mask read, copied to the 0x80000 block, the ground read, and the block `to` made
 /// and drawn at rows 0x80 .. 0xFD.
-unsafe fn mask(path: usize, to: usize, width: u32) -> Result<(), Refused> {
+unsafe fn mask(path: Slot, to: Slot, width: u32) -> Result<(), Refused> {
     use crate::gfx::picture::PICTURE_RVA;
     unsafe {
         read(game_addr(path) as u32)?;

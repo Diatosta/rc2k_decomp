@@ -38,26 +38,29 @@
 
 use crate::errors::{FatalError, Refused};
 use crate::field;
-use crate::framework::{game_addr, rva};
+use crate::framework::rva;
 use crate::input::devices::{at, put};
 use crate::input::di_harness::{
-    CONTROLLER_COUNT_RVA, DIRECT_INPUT_RVA, DWORD_PROP_RVA, HWND_RVA, IID_DEVICE2_RVA,
-    JOYSTICK_FORMAT_RVA, NEW_DEVICE2_RVA, RANGE_PROP_RVA, a, entry_of, fatal, g, method, p, slot,
+    CONTROLLER_COUNT_RVA, DIRECT_INPUT_RVA, DWORD_PROP_RVA, IID_DEVICE2_RVA, JOYSTICK_FORMAT_RVA,
+    NEW_DEVICE2_RVA, RANGE_PROP_RVA, a, entry_of, fatal, g, method, p, slot,
 };
+use crate::input::store::DeviceSlot;
 use crate::input::types::{
     Controller as C, DiPropDword as W, DiPropHeader, DiPropRange as R, InputDevice as D,
 };
+use crate::session::MACHINE;
+use crate::store::game_addr;
 use rc2k_core::input::acquire::{
     Acquire, HAS_DEVICE, acquire, axis_offset, dead_zone_value, saturation, two_axes,
 };
 use std::mem::size_of;
 
-const KIND_RVA: usize = rva(0x4F68E0); // dword_4F68E0: the configuration's kind
-const CODE_RVA: usize = rva(0x4F68E4); // dword_4F68E4: its axes' code
-const DEAD_RVA: usize = rva(0x4F68E8); // dword_4F68E8: its dead zone
-const END_RVA: usize = rva(0x4F68EC); // dword_4F68EC: its end zone
-const FLAG_RVA: usize = rva(0x4F68F0); // dword_4F68F0: its +0x1C
-const STRENGTH_RVA: usize = rva(0x4F68F8); // dword_4F68F8: its strength
+const KIND_RVA: DeviceSlot = DeviceSlot::at(0x4F68E0); // dword_4F68E0: the configuration's kind
+const CODE_RVA: DeviceSlot = DeviceSlot::at(0x4F68E4); // dword_4F68E4: its axes' code
+const DEAD_RVA: DeviceSlot = DeviceSlot::at(0x4F68E8); // dword_4F68E8: its dead zone
+const END_RVA: DeviceSlot = DeviceSlot::at(0x4F68EC); // dword_4F68EC: its end zone
+const FLAG_RVA: DeviceSlot = DeviceSlot::at(0x4F68F0); // dword_4F68F0: its +0x1C
+const STRENGTH_RVA: DeviceSlot = DeviceSlot::at(0x4F68F8); // dword_4F68F8: its strength
 // dword_4F68DC .. dword_4F68F8
 
 const JOY_RVA: usize = rva(0x4DA580); // aJoy "JOY:"
@@ -257,7 +260,12 @@ pub fn acquire_device(record: u32) -> Result<(), Refused> {
     if method(device, slot::SET_DATA_FORMAT, &[a(JOYSTICK_FORMAT_RVA)]) != 0 {
         return Err(fatal(0x8023_8312).into());
     }
-    if method(device, slot::SET_COOPERATIVE_LEVEL, &[g(HWND_RVA), 5]) != 0 {
+    if method(
+        device,
+        slot::SET_COOPERATIVE_LEVEL,
+        &[MACHINE.window.get(), 5],
+    ) != 0
+    {
         return Err(fatal(0x8023_8313).into());
     }
     properties(record);

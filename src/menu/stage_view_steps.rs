@@ -41,9 +41,6 @@ const PAGES_RVA: usize = rva(0x755968); // dword_755968
 const PAGE_RVA: usize = rva(0x75596C); // dword_75596C
 const FIRST_RVA: usize = rva(0x755960); // dword_755960
 const VOLUME_RVA: usize = rva(0x755698); // dword_755698
-const SPEECH_ON_RVA: usize = rva(0xA8C188); // dword_A8C188
-const SPEECH_AT_RVA: usize = rva(0xA8C184); // dword_A8C184
-const SPEECH_CLEAR_RVA: usize = rva(0xA8C180); // dword_A8C180
 const STAGE_SPEECHES_RVA: usize = rva(0x75A37E); // off_75A37E
 const RALLY_SPEECHES_RVA: usize = rva(0x75A302); // off_75A302
 const WELCOME_RVA: usize = rva(0x75987E); // off_75987E
@@ -95,9 +92,9 @@ pub unsafe fn play_stage_speech() -> Result<(), Refused> {
         let at = stage_screens::stage_speech(get(record + 4), |n| {
             g(STAGE_SPEECHES_RVA + 4 * n as usize)
         })?;
-        p(SPEECH_ON_RVA, 1);
-        p(SPEECH_AT_RVA, at);
-        p(SPEECH_CLEAR_RVA, 0);
+        crate::sound::store::CAR_STREAM.on.set(1);
+        crate::sound::store::CAR_STREAM.stream.set(at);
+        crate::sound::store::CAR_STREAM.place.set(0);
         crate::sound::start_stream::start_stream(get(at), g(VOLUME_RVA));
     }
     Ok(())

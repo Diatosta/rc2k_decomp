@@ -18,13 +18,13 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, game_write, rva};
 use crate::marks::lines::SETTINGS_RVA;
+use crate::marks::store::{Slot, game_read, game_write};
 use crate::math::x87;
 
 const NUMBER_AT: u32 = 0x2750;
-const FACTOR_RVA: usize = rva(0x8BC39E); // flt_8BC39E
-const RESULT_RVA: usize = rva(0x8BC25E); // flt_8BC25E
+const FACTOR_RVA: Slot = Slot::at(0x8BC39E); // flt_8BC39E
+const RESULT_RVA: Slot = Slot::at(0x8BC25E); // flt_8BC25E
 
 /// The Rust version (see the header).
 pub unsafe fn scale_setting() -> Result<(), Refused> {

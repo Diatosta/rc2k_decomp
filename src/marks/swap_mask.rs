@@ -22,13 +22,14 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, game_write, rva};
+use crate::framework::rva;
 use crate::marks::setup::SETTINGS_RVA;
+use crate::marks::store::{Slot, game_read, game_write};
 
-const SEEN_RVA: usize = rva(0x934D6E); // dword_934D6E
-const CHOSEN_RVA: usize = rva(0x934D72); // dword_934D72
-const MASK_RVA: usize = rva(0x934DB6); // g_marksMaskBlock
-const BMASK_RVA: usize = rva(0x934DFA); // g_marksBMaskBlock
+const SEEN_RVA: Slot = Slot::at(0x934D6E); // dword_934D6E
+const CHOSEN_RVA: Slot = Slot::at(0x934D72); // dword_934D72
+const MASK_RVA: Slot = Slot::at(0x934DB6); // g_marksMaskBlock
+const BMASK_RVA: Slot = Slot::at(0x934DFA); // g_marksBMaskBlock
 const SLOT_RVA: usize = rva(0x5D0E10); // dword_5D0E10
 const FORGET_RVA: usize = rva(0x5D1E10); // dword_5D1E10
 const WIDTH_RVA: usize = rva(0x4F49A0); // g_surface.width

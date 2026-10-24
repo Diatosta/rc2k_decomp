@@ -22,62 +22,63 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::framework::rva;
 use crate::marks::adjugate3::adjugate3;
 use crate::marks::setup::SETTINGS_RVA;
+use crate::marks::store::{Slot, game_addr, game_read, game_write};
 use crate::scene::matrix3::{Axis, extended, turn_matrix3};
 
-const DRIFT_RVA: usize = rva(0x811BDF); // flt_811BDF ..
-const FIRST_RVA: usize = rva(0x8161AE); // dword_8161AE
-const SECOND_RVA: usize = rva(0x8161B2); // dword_8161B2
-const KEPT_RVA: usize = rva(0x8161D6); // flt_8161D6 ..
+const DRIFT_RVA: Slot = Slot::at(0x811BDF); // flt_811BDF ..
+const FIRST_RVA: Slot = Slot::at(0x8161AE); // dword_8161AE
+const SECOND_RVA: Slot = Slot::at(0x8161B2); // dword_8161B2
+const KEPT_RVA: Slot = Slot::at(0x8161D6); // flt_8161D6 ..
 const VIEW_RVA: usize = rva(0x5EA3CC); // flt_5EA3CC
-const TURN_RVA: usize = rva(0x82E2C6); // dword_82E2C6 .. 3 x 3
-const ADJUGATE_RVA: usize = rva(0x82E2F6); // unk_82E2F6
-const ANGLE_RVA: usize = rva(0x82E332); // flt_82E332
+const TURN_RVA: Slot = Slot::at(0x82E2C6); // dword_82E2C6 .. 3 x 3
+const ADJUGATE_RVA: Slot = Slot::at(0x82E2F6); // unk_82E2F6
+const ANGLE_RVA: Slot = Slot::at(0x82E332); // flt_82E332
 
 unsafe fn get(a: u32) -> u32 {
     unsafe { (a as *const u32).read_unaligned() }
 }
 
 /// The original's 0x4BCC3D .. 0x4BCD03: the view's move (the settings' +0x26AC .. less the kept `flt_8161D6` .., times `flt_764FE0`) into `flt_8161EE` .., less the last move into `flt_8161FA` .., plus the last move times `flt_82E326` ...
-unsafe fn view_moved(b: u32, s: u32) {
+unsafe fn view_moved(s: u32) {
     unsafe {
         core::arch::asm!(
             "fld dword ptr [{s} + 0x26AC]",
-            "fsub dword ptr [{b} + 0x4161D6]",
-            "fmul dword ptr [{b} + 0x364FE0]",
+            "fsub dword ptr [{mk} + 0xB1296]",
+            "fmul dword ptr [{mk} + 0xA0]",
             "fld dword ptr [{s} + 0x26B0]",
-            "fsub dword ptr [{b} + 0x4161DA]",
-            "fmul dword ptr [{b} + 0x364FE0]",
+            "fsub dword ptr [{mk} + 0xB129A]",
+            "fmul dword ptr [{mk} + 0xA0]",
             "fld dword ptr [{s} + 0x26B4]",
-            "fsub dword ptr [{b} + 0x4161DE]",
-            "fmul dword ptr [{b} + 0x364FE0]",
-            "fstp dword ptr [{b} + 0x4161F6]",
-            "fstp dword ptr [{b} + 0x4161F2]",
-            "fstp dword ptr [{b} + 0x4161EE]",
-            "fld dword ptr [{b} + 0x4161EE]",
-            "fsub dword ptr [{b} + 0x4161E2]",
-            "fld dword ptr [{b} + 0x4161F2]",
-            "fsub dword ptr [{b} + 0x4161E6]",
-            "fld dword ptr [{b} + 0x4161F6]",
-            "fsub dword ptr [{b} + 0x4161EA]",
-            "fstp dword ptr [{b} + 0x416202]",
-            "fstp dword ptr [{b} + 0x4161FE]",
-            "fstp dword ptr [{b} + 0x4161FA]",
-            "fld dword ptr [{b} + 0x4161E2]",
-            "fmul dword ptr [{b} + 0x42E326]",
-            "fadd dword ptr [{b} + 0x4161FA]",
-            "fstp dword ptr [{b} + 0x4161FA]",
-            "fld dword ptr [{b} + 0x4161E6]",
-            "fmul dword ptr [{b} + 0x42E32A]",
-            "fadd dword ptr [{b} + 0x4161FE]",
-            "fstp dword ptr [{b} + 0x4161FE]",
-            "fld dword ptr [{b} + 0x4161EA]",
-            "fmul dword ptr [{b} + 0x42E32E]",
-            "fadd dword ptr [{b} + 0x416202]",
-            "fstp dword ptr [{b} + 0x416202]",
-            b = in(reg) b,
+            "fsub dword ptr [{mk} + 0xB129E]",
+            "fmul dword ptr [{mk} + 0xA0]",
+            "fstp dword ptr [{mk} + 0xB12B6]",
+            "fstp dword ptr [{mk} + 0xB12B2]",
+            "fstp dword ptr [{mk} + 0xB12AE]",
+            "fld dword ptr [{mk} + 0xB12AE]",
+            "fsub dword ptr [{mk} + 0xB12A2]",
+            "fld dword ptr [{mk} + 0xB12B2]",
+            "fsub dword ptr [{mk} + 0xB12A6]",
+            "fld dword ptr [{mk} + 0xB12B6]",
+            "fsub dword ptr [{mk} + 0xB12AA]",
+            "fstp dword ptr [{mk} + 0xB12C2]",
+            "fstp dword ptr [{mk} + 0xB12BE]",
+            "fstp dword ptr [{mk} + 0xB12BA]",
+            "fld dword ptr [{mk} + 0xB12A2]",
+            "fmul dword ptr [{mk} + 0xC93E6]",
+            "fadd dword ptr [{mk} + 0xB12BA]",
+            "fstp dword ptr [{mk} + 0xB12BA]",
+            "fld dword ptr [{mk} + 0xB12A6]",
+            "fmul dword ptr [{mk} + 0xC93EA]",
+            "fadd dword ptr [{mk} + 0xB12BE]",
+            "fstp dword ptr [{mk} + 0xB12BE]",
+            "fld dword ptr [{mk} + 0xB12AA]",
+            "fmul dword ptr [{mk} + 0xC93EE]",
+            "fadd dword ptr [{mk} + 0xB12C2]",
+            "fstp dword ptr [{mk} + 0xB12C2]",
+            mk = in(reg) crate::marks::store::base(),
             s = in(reg) s,
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
@@ -87,12 +88,12 @@ unsafe fn view_moved(b: u32, s: u32) {
 }
 
 /// The original's 0x4BCD69 .. 0x4BCDCD: that move turned by the adjugate at m (`[esp]` temporaries at t), the three kept 80 bits at l.
-unsafe fn drift_turned(b: u32, m: u32, t: u32, l: u32) {
+unsafe fn drift_turned(m: u32, t: u32, l: u32) {
     unsafe {
         core::arch::asm!(
-            "fld dword ptr [{b} + 0x416202]",
-            "fld dword ptr [{b} + 0x4161FE]",
-            "fld dword ptr [{b} + 0x4161FA]",
+            "fld dword ptr [{mk} + 0xB12C2]",
+            "fld dword ptr [{mk} + 0xB12BE]",
+            "fld dword ptr [{mk} + 0xB12BA]",
             ".byte 0xD9, 0xC0",
             "fmul dword ptr [{m} + 0x0]",
             ".byte 0xD9, 0xC2",
@@ -123,7 +124,7 @@ unsafe fn drift_turned(b: u32, m: u32, t: u32, l: u32) {
             "fstp tbyte ptr [{l}]",
             "fstp tbyte ptr [{l} + 10]",
             "fstp tbyte ptr [{l} + 20]",
-            b = in(reg) b,
+            mk = in(reg) crate::marks::store::base(),
             m = in(reg) m,
             t = in(reg) t,
             l = in(reg) l,
@@ -135,7 +136,7 @@ unsafe fn drift_turned(b: u32, m: u32, t: u32, l: u32) {
 }
 
 /// The original's 0x4BCDE6 .. 0x4BCE6A: the three (from l) turned back by the matrix at m, negated, into `flt_81621E` .. and times `flt_82E336` .. into `flt_811BDF` ...
-unsafe fn drift_back(b: u32, m: u32, t: u32, l: u32) {
+unsafe fn drift_back(m: u32, t: u32, l: u32) {
     unsafe {
         core::arch::asm!(
             "fld tbyte ptr [{l} + 20]",
@@ -169,16 +170,16 @@ unsafe fn drift_back(b: u32, m: u32, t: u32, l: u32) {
             "fld dword ptr [{t} + 0x4]",
             "fld dword ptr [{t} + 0x0]",
             ".byte 0xD9, 0xE0",
-            "fst dword ptr [{b} + 0x41621E]",
-            "fmul dword ptr [{b} + 0x42E336]",
-            "fstp dword ptr [{b} + 0x411BDF]",
-            "fst dword ptr [{b} + 0x416222]",
-            "fmul dword ptr [{b} + 0x42E33A]",
-            "fstp dword ptr [{b} + 0x411BE3]",
-            "fst dword ptr [{b} + 0x416226]",
-            "fmul dword ptr [{b} + 0x42E33E]",
-            "fstp dword ptr [{b} + 0x411BE7]",
-            b = in(reg) b,
+            "fst dword ptr [{mk} + 0xB12DE]",
+            "fmul dword ptr [{mk} + 0xC93F6]",
+            "fstp dword ptr [{mk} + 0xACC9F]",
+            "fst dword ptr [{mk} + 0xB12E2]",
+            "fmul dword ptr [{mk} + 0xC93FA]",
+            "fstp dword ptr [{mk} + 0xACCA3]",
+            "fst dword ptr [{mk} + 0xB12E6]",
+            "fmul dword ptr [{mk} + 0xC93FE]",
+            "fstp dword ptr [{mk} + 0xACCA7]",
+            mk = in(reg) crate::marks::store::base(),
             m = in(reg) m,
             t = in(reg) t,
             l = in(reg) l,
@@ -190,22 +191,22 @@ unsafe fn drift_back(b: u32, m: u32, t: u32, l: u32) {
 }
 
 /// The original's 0x4BCE6A .. 0x4BCEB2: the view's move kept in `flt_8161E2` ...
-unsafe fn move_kept(b: u32, s: u32) {
+unsafe fn move_kept(s: u32) {
     unsafe {
         core::arch::asm!(
             "fld dword ptr [{s} + 0x26AC]",
-            "fsub dword ptr [{b} + 0x4161D6]",
-            "fmul dword ptr [{b} + 0x364FE0]",
+            "fsub dword ptr [{mk} + 0xB1296]",
+            "fmul dword ptr [{mk} + 0xA0]",
             "fld dword ptr [{s} + 0x26B0]",
-            "fsub dword ptr [{b} + 0x4161DA]",
-            "fmul dword ptr [{b} + 0x364FE0]",
+            "fsub dword ptr [{mk} + 0xB129A]",
+            "fmul dword ptr [{mk} + 0xA0]",
             "fld dword ptr [{s} + 0x26B4]",
-            "fsub dword ptr [{b} + 0x4161DE]",
-            "fmul dword ptr [{b} + 0x364FE0]",
-            "fstp dword ptr [{b} + 0x4161EA]",
-            "fstp dword ptr [{b} + 0x4161E6]",
-            "fstp dword ptr [{b} + 0x4161E2]",
-            b = in(reg) b,
+            "fsub dword ptr [{mk} + 0xB129E]",
+            "fmul dword ptr [{mk} + 0xA0]",
+            "fstp dword ptr [{mk} + 0xB12AA]",
+            "fstp dword ptr [{mk} + 0xB12A6]",
+            "fstp dword ptr [{mk} + 0xB12A2]",
+            mk = in(reg) crate::marks::store::base(),
             s = in(reg) s,
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
@@ -224,14 +225,13 @@ pub unsafe fn hexagons_drift() -> Result<(), Refused> {
         for n in 0..3 {
             game_write(DRIFT_RVA + 4 * n, 0u32);
         }
-        let b = game_addr(0) as u32;
         let first: u32 = game_read(FIRST_RVA);
         game_write(FIRST_RVA, 1u32);
         if first != 0 {
             let second: u32 = game_read(SECOND_RVA);
             game_write(SECOND_RVA, 1u32);
             if second != 0 {
-                view_moved(b, s);
+                view_moved(s);
                 let view = game_addr(VIEW_RVA) as u32;
                 for col in 0..3u32 {
                     let v = [
@@ -249,11 +249,11 @@ pub unsafe fn hexagons_drift() -> Result<(), Refused> {
                 let mut temps = [0u32; 2];
                 let mut kept = [0u8; 30];
                 let (t, l) = (temps.as_mut_ptr() as u32, kept.as_mut_ptr() as u32);
-                drift_turned(b, adj, t, l);
+                drift_turned(adj, t, l);
                 turn_matrix3(Axis::X, turn, extended(game_read(ANGLE_RVA)))?;
-                drift_back(b, turn, t, l);
+                drift_back(turn, t, l);
             }
-            move_kept(b, s);
+            move_kept(s);
         }
         for (k, v) in [get(s + 0x26AC), get(s + 0x26B0), get(s + 0x26B4)]
             .into_iter()

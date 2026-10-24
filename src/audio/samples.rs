@@ -9,15 +9,16 @@
 //! The format word: 0x10 eight bits, 0x20 sixteen; 0x100 mono, 0x200 stereo; the low four
 //! bits how many times the data was halved (the frequency is shifted right by them).
 
+use crate::audio::store::Slot;
 use crate::audio::voices::*;
 use crate::errors::Refused;
-use crate::framework::{game_addr, game_read, rva};
+use crate::store::{game_addr, game_read};
 
-pub const SAMPLE_FILE_RVA: usize = rva(0x506938); // g_sampleFile
-pub const BUFFER_RVA: usize = rva(0x506930); // g_sampleBuffer
-pub const BUFFER_SIZE_RVA: usize = rva(0x506934); // g_sampleBufferSize
-pub const SAMPLE_BITS_FLAGS_RVA: usize = rva(0x4F82E0); // g_sampleBitsFlags: {flag, bits} x 2
-pub const SAMPLE_CHANNEL_FLAGS_RVA: usize = rva(0x4F82F0); // g_sampleChannelFlags: {flag, channels} x 2
+pub const SAMPLE_FILE_RVA: Slot = Slot::at(0x506938); // g_sampleFile
+pub const BUFFER_RVA: Slot = Slot::at(0x506930); // g_sampleBuffer
+pub const BUFFER_SIZE_RVA: Slot = Slot::at(0x506934); // g_sampleBufferSize
+pub const SAMPLE_BITS_FLAGS_RVA: Slot = Slot::at(0x4F82E0); // g_sampleBitsFlags: {flag, bits} x 2
+pub const SAMPLE_CHANNEL_FLAGS_RVA: Slot = Slot::at(0x4F82F0); // g_sampleChannelFlags: {flag, channels} x 2
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -90,7 +91,7 @@ pub unsafe fn read_sample(
 }
 
 /// A table of two {flag, value} entries, as the core takes it.
-pub fn flags(table: usize) -> rc2k_core::audio::samples::Flags {
+pub fn flags(table: impl crate::store::Where) -> rc2k_core::audio::samples::Flags {
     let t: [u32; 4] = unsafe { game_read(table) };
     [(t[0], t[1]), (t[2], t[3])]
 }
@@ -142,6 +143,8 @@ pub unsafe fn fill_voice(
         shared,
         &from_file,
         sound_mode & 0x1_0000 != 0,
+        // The record's pointer (pointed at its target's home at start:
+        // `moved::point_into_homes`).
         |factor| unsafe { dword(factor) },
     )?;
     Ok(())

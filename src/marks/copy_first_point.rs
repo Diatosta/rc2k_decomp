@@ -11,14 +11,14 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::{game_read, game_write, rva};
+use crate::marks::store::{Slot, game_read, game_write};
 
 /// (from, to): the point's three floats, then `dword_7692F6`.
-const MOVES: [(usize, usize); 4] = [
-    (rva(0x769306), rva(0x811BDF)),
-    (rva(0x76930A), rva(0x811BE3)),
-    (rva(0x76930E), rva(0x811BE7)),
-    (rva(0x7692F6), rva(0x811BCF)),
+const MOVES: [(Slot, Slot); 4] = [
+    (Slot::at(0x769306), Slot::at(0x811BDF)),
+    (Slot::at(0x76930A), Slot::at(0x811BE3)),
+    (Slot::at(0x76930E), Slot::at(0x811BE7)),
+    (Slot::at(0x7692F6), Slot::at(0x811BCF)),
 ];
 
 /// The Rust version (see the header).

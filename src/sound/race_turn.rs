@@ -21,22 +21,21 @@
 //! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{game_read, rva};
+use crate::session::FLAGS;
+use crate::sound::store::ClockSlot;
 
-/// g_quitting.
-const QUITTING: usize = 0x51837C;
 /// dword_5124E4: 1 once the race's sounds are started.
-const STARTED: usize = 0x5124E4;
+const STARTED: ClockSlot = ClockSlot::at(0x5124E4);
 
-fn g(x: usize) -> u32 {
-    unsafe { game_read(rva(x)) }
+fn g(x: impl crate::store::Ida) -> u32 {
+    unsafe { crate::store::ida_read(x) }
 }
 
 // ---- Rust version ----
 
 /// The race's sounds for the frame.
 pub fn race_turn() -> Result<(), Refused> {
-    if g(QUITTING) == 1 {
+    if FLAGS.quitting.get() == 1 {
         // The original's quit jump (into `system::main_loop`'s way out): the program
         // ended as `start` ends it.
         crate::standalone::leave_from_race();

@@ -11,6 +11,7 @@
 //! menu), before anything. Hook removed 2026-10-22 (typed tables): the menus and draw lists run
 //! its `entry` (`menu::table_calls`); the registers above are the original's, for reference.
 
+use crate::audio::store::Slot;
 use crate::errors::Refused;
 use crate::framework::{game_read, rva};
 use crate::menu::disable_item::disable_item;
@@ -22,7 +23,11 @@ fn k(a: u32) -> u32 {
 }
 
 /// (the switch, its item) and (the setting, its first string).
-const SWITCHES: [(u32, u32); 3] = [(0x506CBC, 4), (0x506CC4, 5), (0x506CC0, 6)];
+const SWITCHES: [(Slot, u32); 3] = [
+    (Slot::at(0x506CBC), 4),
+    (Slot::at(0x506CC4), 5),
+    (Slot::at(0x506CC0), 6),
+];
 const NAMES: [(u32, u32); 6] = [
     (0x75566C, 0x54B),
     (0x755680, 0x554),
@@ -36,7 +41,8 @@ const NAMES: [(u32, u32); 6] = [
 pub unsafe fn draw_sound_settings(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     // Converted: `rc2k_core::screens::settings_pages::{sound_items, sound}`.
     use crate::screens::game_screen::SettingsScreen;
-    let [a, b, c] = SWITCHES.map(|(switch, _)| k(switch) == 1);
+    let [a, b, c] =
+        SWITCHES.map(|(switch, _)| unsafe { crate::store::game_read::<u32>(switch) } == 1);
     for (item, on) in rc2k_core::screens::settings_pages::sound_items(a, b, c) {
         if on {
             enable_item(item)?;

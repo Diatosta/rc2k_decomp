@@ -11,9 +11,10 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::{game_write, rva};
+use crate::hud::store::Slot;
+use crate::hud::store::game_write;
 
-const OUT_RVA: usize = rva(0x75C074); // dword_75C074 .. dword_75C088
+const OUT_RVA: Slot = Slot::at(0x75C074); // dword_75C074 .. dword_75C088
 const FIELDS: [u32; 6] = [0x24, 0x2C, 0x20, 0x54, 0x58, 0x50];
 
 /// The Rust version (see the header): the record's six times in tenths.

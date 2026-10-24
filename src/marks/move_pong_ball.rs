@@ -22,12 +22,12 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::{game_read, game_write, rva};
 use crate::marks::pong;
 use crate::marks::pong_ball_hits::pong_ball_hits;
+use crate::marks::store::{Slot, game_read, game_write};
 use crate::math::x87;
 
-const LIMITS_RVA: usize = rva(0x7691A6); // flt_7691A6 .. flt_7691C2
+const LIMITS_RVA: Slot = Slot::at(0x7691A6); // flt_7691A6 .. flt_7691C2
 
 fn limit(n: usize) -> u32 {
     unsafe { game_read(LIMITS_RVA + 4 * n) }
@@ -41,7 +41,7 @@ pub unsafe fn move_pong_ball() {
             game_write(pong::BALL[n], v);
         }
         pong_ball_hits();
-        let flip = |r: usize| game_write(r, game_read::<u32>(r) ^ 0x8000_0000);
+        let flip = |r: Slot| game_write(r, game_read::<u32>(r) ^ 0x8000_0000);
         if x87::compare_status(game_read(pong::BALL[0]), limit(0)) != 0 {
             game_write(pong::BALL[0], x87::loaded(limit(1)));
             flip(pong::BALL_WAY[0]);

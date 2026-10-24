@@ -2,14 +2,16 @@
 //! `volume_index`, `set_primary_format`, `open_listener`. Logging and calls go through
 //! `sound_device`'s named calls.
 
+use crate::audio::store::Slot;
 use crate::audio::voices::{read, write};
 use crate::errors::Refused;
-use crate::framework::{game_addr, game_read, rva};
+use crate::framework::rva;
+use crate::store::addr32 as a;
+use crate::store::{game_addr, game_read};
 
-pub const MIX_RATE_SETTING_RVA: usize = rva(0x4F82D4); // g_mixRateSetting
-pub const HAS_FPU_RVA: usize = rva(0x5183EC); // g_hasFpu (set by `system::test_processor` from `cpuid`)
-pub const NO_LISTENER_RVA: usize = rva(0x506B42); // an unaligned dword: 1 = no listener
-pub const IID_LISTENER_RVA: usize = rva(0x506A48); // g_iidListener3d
+pub const MIX_RATE_SETTING_RVA: Slot = Slot::at(0x4F82D4); // g_mixRateSetting
+pub const NO_LISTENER_RVA: Slot = Slot::at(0x506B42); // an unaligned dword: 1 = no listener
+pub const IID_LISTENER_RVA: Slot = Slot::at(0x506A48); // g_iidListener3d
 pub const MASTER_SHOWN_RVA: usize = rva(0x755684); // g_masterVolumeShown
 const OPEN_TEXT: usize = rva(0x4DA715); // "AUD: open ds3d"
 const FAILED_TEXT: usize = rva(0x4DA724); // "AUD: open ds3d failed rc="
@@ -87,7 +89,6 @@ pub struct PrimaryVars {
 impl PrimaryVars {
     pub fn game() -> Self {
         use crate::audio::voices::*;
-        let a = |r| game_addr(r) as u32;
         Self {
             direct_sound: a(crate::audio::make_buffer::DIRECT_SOUND_RVA),
             primary: a(PRIMARY_RVA),

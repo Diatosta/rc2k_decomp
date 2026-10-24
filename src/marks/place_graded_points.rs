@@ -19,13 +19,13 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, rva};
 use crate::marks::bend_points::bend_points;
 use crate::marks::splines::{
     CHOSEN_RVA, MOST_POINTS, transform_int_points_from, turn_record, turnable_record, write_point,
 };
+use crate::marks::store::{Slot, game_read};
 
-const SWITCH_RVA: usize = rva(0x7695CA); // dword_7695CA
+const SWITCH_RVA: Slot = Slot::at(0x7695CA); // dword_7695CA
 const POINTERS: u32 = 0x454;
 const COORDS: u32 = 0x654;
 /// Per grade: its start's and count's offsets and its turn's.

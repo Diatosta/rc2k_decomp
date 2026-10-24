@@ -18,7 +18,8 @@
 //! `routes.rs`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::framework::rva;
+use crate::marks::store::{game_addr, game_read, game_write};
 
 const RACE_CARS_RVA: usize = rva(0x63DB90); // g_raceCars
 const CARS_COPY_RVA: usize = rva(0x5C2FE0); // dword_5C2FE0

@@ -13,9 +13,11 @@
 
 use crate::errors::Refused;
 use crate::net::lobby::{
-    CHOICE, CHOICE_BEFORE, CLOCK, CONNECTIONS, FRAME_CLOCK, KEY_CLOCK, MOVE_CLOCK, QUITTING, g,
-    list_key, other_key, p, run_frame,
+    CHOICE, CHOICE_BEFORE, CONNECTIONS, FRAME_CLOCK, KEY_CLOCK, MOVE_CLOCK, g, list_key, other_key,
+    p, run_frame,
 };
+use crate::session::CLOCKS;
+use crate::session::FLAGS;
 use rc2k_core::net::screens::{self, ListKey};
 
 /// A list's up (0x66) or down (0x6B) on a list of `count` items: the highlight and the top
@@ -34,14 +36,14 @@ pub fn list_move(key: u8, count: u32) -> bool {
 
 /// The Rust version.
 pub fn choose_connection() -> Result<u32, Refused> {
-    let now = g(CLOCK);
+    let now = CLOCKS.key_ticks.get();
     p(MOVE_CLOCK, now);
     p(KEY_CLOCK, now);
     p(CHOICE_BEFORE, 0);
     p(CHOICE, 0);
     loop {
         run_frame(crate::net::connections_frame::connections_frame)?;
-        p(FRAME_CLOCK, g(CLOCK));
+        p(FRAME_CLOCK, CLOCKS.key_ticks.get());
         let key = list_key()?;
         if list_move(key, g(CONNECTIONS)) {
             p(MOVE_CLOCK, g(FRAME_CLOCK));
@@ -52,7 +54,7 @@ pub fn choose_connection() -> Result<u32, Refused> {
         } else {
             other_key(key)?;
         }
-        if g(QUITTING) == 1 {
+        if FLAGS.quitting.get() == 1 {
             break;
         }
     }

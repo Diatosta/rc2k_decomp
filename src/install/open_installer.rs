@@ -30,10 +30,8 @@ const BAR_GLYPHS: usize = 0x51BB3C; // dword_51BB3C
 const INSTALL_BUN: usize = 0x51BEA1; // "files\d\gfx\install.bun"
 const INSTALL_PAL: usize = 0x51BEB9; // "files\d\gfx\install.pal"
 const INSTALL_PAL_BUF: usize = 0x4F3874; // unk_4F3874
-const SURFACE_FORMAT: usize = 0x4F496C; // g_surfaceFormat
 const BACKDROP: usize = 0x51BED1; // "files\d\gfx\backdrop.pcx"
 const MODE_FLAGS: usize = 0x4F4934; // g_screenModeFlags
-const PICTURE_FLAGS: usize = 0x4F49CC; // g_pictureFlags
 const FONT_94: usize = 0x51E944; // stru_51E944
 const FONT_1000: usize = 0x51E404; // stru_51E404
 const FONT_1002: usize = 0x51E3E4; // stru_51E3E4
@@ -76,15 +74,21 @@ pub fn open_installer() -> Result<(), Refused> {
             crate::text::blend_font::BLENDED_PALETTE.addr() as *mut u32,
         )?;
         let blended = crate::text::blend_font::BLENDED_PALETTE.addr() as u32;
-        components_to_pixels(blended, blended, a(SURFACE_FORMAT));
+        components_to_pixels(
+            blended,
+            blended,
+            crate::session::SCREEN.format_addr() as u32,
+        );
         // gfx::load_picture: its carry is not read.
         crate::gfx::load_picture::load_picture(a(BACKDROP) as *mut u8)?;
         crate::gfx::convert_picture::convert_picture_now()?;
     }
-    p(
-        PICTURE_FLAGS,
-        crate::install::installer::g(MODE_FLAGS) & 0xFFF,
-    );
+    unsafe {
+        crate::gfx::block::game_write(
+            crate::gfx::picture::FLAGS_RVA,
+            crate::install::installer::g(MODE_FLAGS) & 0xFFF,
+        )
+    };
     unsafe { crate::gfx::picture_as_surface::picture_as_surface() }?;
     draw_string(0x94, a(FONT_94), 0x316, 0x2F)?;
     draw_string(0x1000, a(FONT_1000), 0x320, 0x24B)?;

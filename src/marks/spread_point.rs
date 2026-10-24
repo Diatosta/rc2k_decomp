@@ -20,12 +20,12 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::{game_read, game_write, rva};
+use crate::marks::store::{Slot, game_read, game_write};
 use crate::math::x87;
 use crate::scene::matrix3::{extended, rounded};
 
-const RANDOM_RVA: usize = rva(0x923004); // g_marksSpreadRandom
-const SCALE_RVA: usize = rva(0x76521C); // dbl_76521C
+const RANDOM_RVA: Slot = Slot::at(0x923004); // g_marksSpreadRandom
+const SCALE_RVA: Slot = Slot::at(0x76521C); // dbl_76521C
 
 /// The Rust version (see the header): the three out and eax.
 pub unsafe fn spread_point(inputs: [[u8; 10]; 4]) -> ([[u8; 10]; 3], u32) {

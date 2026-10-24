@@ -9,11 +9,12 @@
 //! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
 //! `routes.rs`); the registers above are the original's, for reference.
 
-use crate::framework::{game_addr, rva};
+use crate::sound::store::EffectsSlot;
+use crate::store::game_addr;
 
 // ---- game data ----
 
-const TRACK_RVA: usize = rva(0x518110); // dword_518110
+const TRACK_RVA: EffectsSlot = EffectsSlot::at(0x518110); // dword_518110
 const STOPS: u32 = 5;
 
 // ---- Rust version ----

@@ -5,28 +5,29 @@
 //! all of it.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::framework::rva;
 use crate::marks::masks::{CURSOR_RVA, RUNS_RVA, WORK_RVA};
+use crate::marks::store::{Slot, game_addr, game_read, game_write};
 use crate::math::x87;
 
 /// The edge pair `span_edges` works from: y0, y1, the left and right x at y0, at y1.
-pub const EDGE_RVA: usize = rva(0x82FD16); // dword_82FD16 .. dword_82FD2A
-const HEIGHT_RVA: usize = rva(0x82FCEE); // flt_82FCEE
-const ROW_INT_RVA: usize = rva(0x82FCF2); // dword_82FCF2
-const ROW_RVA: usize = rva(0x82FCF6); // flt_82FCF6
-const SLOPES_RVA: usize = rva(0x82FCFA); // flt_82FCFA, flt_82FCFE
-const XS_RVA: usize = rva(0x82FD02); // flt_82FD02, flt_82FD06
-const SPLIT_RVA: usize = rva(0x82FD0A); // flt_82FD0A
-const ONES_RVA: usize = rva(0x89C9A4); // flt_89C9A4 .. flt_89C9AC
+pub const EDGE_RVA: Slot = Slot::at(0x82FD16); // dword_82FD16 .. dword_82FD2A
+const HEIGHT_RVA: Slot = Slot::at(0x82FCEE); // flt_82FCEE
+const ROW_INT_RVA: Slot = Slot::at(0x82FCF2); // dword_82FCF2
+const ROW_RVA: Slot = Slot::at(0x82FCF6); // flt_82FCF6
+const SLOPES_RVA: Slot = Slot::at(0x82FCFA); // flt_82FCFA, flt_82FCFE
+const XS_RVA: Slot = Slot::at(0x82FD02); // flt_82FD02, flt_82FD06
+const SPLIT_RVA: Slot = Slot::at(0x82FD0A); // flt_82FD0A
+const ONES_RVA: Slot = Slot::at(0x89C9A4); // flt_89C9A4 .. flt_89C9AC
 const SCRATCH_RVA: usize = rva(0x71C880); // dword_71C880
 /// The control words: the one the triangle came with, then its own (later the compares'
 /// status words).
-pub const WORDS_RVA: usize = rva(0x82FCE6); // word_82FCE6, word_82FCE8
-pub const TRIANGLE_RVA: usize = rva(0x833D2E); // dword_833D2E: the sorted corners
-pub const QUAD_TRIANGLE_RVA: usize = rva(0x833D46); // dword_833D46: a quad's triangle
-pub const SPANS_TOTAL_RVA: usize = rva(0x82E342); // dword_82E342
-const RUNS_START: u32 = 0x831D2E;
-const RUNS_END: u32 = 0x833D2E;
+pub const WORDS_RVA: Slot = Slot::at(0x82FCE6); // word_82FCE6, word_82FCE8
+pub const TRIANGLE_RVA: Slot = Slot::at(0x833D2E); // dword_833D2E: the sorted corners
+pub const QUAD_TRIANGLE_RVA: Slot = Slot::at(0x833D46); // dword_833D46: a quad's triangle
+pub const SPANS_TOTAL_RVA: Slot = Slot::at(0x82E342); // dword_82E342
+const RUNS_START: Slot = Slot::at(0x831D2E);
+const RUNS_END: Slot = Slot::at(0x833D2E);
 const WORK_LEN: u32 = 0x80000;
 const MOST_ROWS: u32 = 0x1000;
 
@@ -171,8 +172,8 @@ pub fn triangle_rows(corners: [u32; 6]) -> Option<u32> {
 pub unsafe fn spans_fit(triangles: u32, rows: Option<u32>) -> Result<(), Refused> {
     unsafe {
         let runs: u32 = game_read(RUNS_RVA);
-        let start = game_addr(rva(RUNS_START as usize)) as u32;
-        let end = game_addr(rva(RUNS_END as usize)) as u32;
+        let start = game_addr(RUNS_START) as u32;
+        let end = game_addr(RUNS_END) as u32;
         if runs < start || runs as u64 + 16 * triangles as u64 > end as u64 {
             return Err(BadInput("mask runs past their table").into());
         }

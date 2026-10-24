@@ -24,7 +24,7 @@ use rc2k_core::physics::engine::shares_figures;
 
 /// The current car, the objects' table, the work car's 0x71A1FC .. 0x71A208, 0x71A1E0.
 const VARIABLES: [usize; 7] = [
-    0x71B3F8, 0x512A10, 0x71A1FC, 0x71A200, 0x71A204, 0x71A208, 0x71A1E0,
+    0x71B3F8, 0, 0x71A1FC, 0x71A200, 0x71A204, 0x71A208, 0x71A1E0,
 ];
 
 unsafe fn get(a: u32) -> u32 {
@@ -57,10 +57,13 @@ pub unsafe fn share_at(v: &[u32]) -> Result<Left, Refused> {
 }
 
 fn game() -> Vec<u32> {
-    VARIABLES
+    let mut v: Vec<u32> = VARIABLES
         .iter()
         .map(|&x| game_addr(rva(x)) as u32)
-        .collect()
+        .collect();
+    // The objects' table (`g_raceSoundObjects`) is the sound module's.
+    v[1] = crate::sound::store::OBJECT_TABLE.address() as u32;
+    v
 }
 
 /// The Rust version.

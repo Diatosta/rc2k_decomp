@@ -14,10 +14,10 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::{game_write, rva};
+use crate::marks::store::{Slot, game_write};
 use crate::math::x87;
 
-pub const FACTOR_RVA: usize = rva(0x93C6C8); // flt_93C6C8
+pub const FACTOR_RVA: Slot = Slot::at(0x93C6C8); // flt_93C6C8
 
 unsafe fn get(a: u32) -> u32 {
     unsafe { (a as *const u32).read_unaligned() }

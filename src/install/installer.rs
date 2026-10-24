@@ -17,6 +17,7 @@
 
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::framework::{Regs, game_addr};
+use crate::session::FLAGS;
 
 /// A Win32 call by the address of its import (`jmp` thunk), the arguments in, eax out.
 pub type Api<'a> = &'a mut dyn FnMut(u32, &[u32]) -> u32;
@@ -78,10 +79,8 @@ pub const REPEATS: usize = 0x51D40F; // g_listRepeats
 pub const KEY_CLOCK: usize = 0x51D41B; // dword_51D41B
 pub const FRAME_CLOCK: usize = 0x51D41F; // dword_51D41F
 pub const MOVE_CLOCK: usize = 0x51D423; // dword_51D423
-pub const CLOCK: usize = 0x518998; // dword_518998
 pub const FONTS: usize = 0x51D4C4; // dword_51D4C4: the page's fonts
 pub const COLOURS: usize = 0x51D528; // byte_51D528: font by mark, 8 bytes a kind
-pub const QUITTING: usize = 0x51837C; // g_quitting
 pub const TEXT: usize = 0x93E430; // text: the shared text buffer
 pub const SCRATCH: usize = 0x93E8B0; // g_pngInfo: 0x10000 bytes used as scratch
 pub const DRIVE_LETTERS: usize = 0x52A30F; // byte_52A30F: the drives' texts, 0x10 each
@@ -117,24 +116,24 @@ pub fn wd(at: u32, v: u32) {
 }
 
 /// The game's address of IDA address `x` (where its variable lives now, if it has moved).
-pub fn a(x: usize) -> u32 {
-    crate::moved::place(x) as u32
+pub fn a(x: impl crate::store::Ida) -> u32 {
+    x.here() as u32
 }
 
 /// The game's dword at IDA address `x`.
-pub fn g(x: usize) -> u32 {
+pub fn g(x: impl crate::store::Ida) -> u32 {
     rd(a(x))
 }
 
-pub fn p(x: usize, v: u32) {
+pub fn p(x: impl crate::store::Ida, v: u32) {
     wd(a(x), v)
 }
 
-pub fn gb(x: usize) -> u8 {
+pub fn gb(x: impl crate::store::Ida) -> u8 {
     rb(a(x))
 }
 
-pub fn pb(x: usize, v: u8) {
+pub fn pb(x: impl crate::store::Ida, v: u8) {
     wb(a(x), v)
 }
 
@@ -186,8 +185,6 @@ pub fn append_string_by_id(id: u32, cursor: u32) -> u32 {
 }
 
 // ---- the game's other functions the installer calls ----
-
-pub const QUIT: usize = 0x51837C; // g_quitting
 
 /// `files::set_current_directory` (0x403105): whether it worked.
 pub fn set_cd(path: u32) -> bool {
@@ -284,7 +281,7 @@ pub fn run_frame(frame: Option<Frame>) -> Result<bool, Refused> {
     // registers are this scratch's.
     crate::platform::by_address(0x405A71, &mut Regs::default());
     match frame {
-        Some(frame) if g(QUIT) != 1 => frame(),
+        Some(frame) if FLAGS.quitting.get() != 1 => frame(),
         _ => Ok(false),
     }
 }

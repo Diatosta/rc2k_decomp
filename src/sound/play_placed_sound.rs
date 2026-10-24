@@ -26,16 +26,19 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
+use crate::audio::store::SampleSlot;
+use crate::audio::store::Slot;
 use crate::errors::BadInput;
-use crate::framework::{game_addr, game_read, rva};
+use crate::sound::store::ClockSlot;
+use crate::store::{game_addr, game_read};
 use rc2k_core::sound::placed::{self, MODE_3D};
 
 // ---- game data ----
 
-pub const MODE_RVA: usize = rva(0x4F82BC); // g_soundMode
-pub const SAMPLES_RVA: usize = rva(0x50A7A4); // unk_50A7A4
-const CENTRE_RVA: usize = rva(0x512500); // flt_512500
-const PER_ANGLE_RVA: usize = rva(0x512504); // flt_512504
+pub const MODE_RVA: Slot = Slot::at(0x4F82BC); // g_soundMode
+pub const SAMPLES_RVA: SampleSlot = SampleSlot::at(0x50A7A4); // unk_50A7A4
+const CENTRE_RVA: ClockSlot = ClockSlot::at(0x512500); // flt_512500
+const PER_ANGLE_RVA: ClockSlot = ClockSlot::at(0x512504); // flt_512504
 const SAMPLE_LEN: usize = 0x40;
 // ---- the x87's arithmetic, with the original's instructions ----
 

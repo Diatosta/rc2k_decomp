@@ -16,7 +16,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, game_write};
+use crate::gfx::block::{game_read, game_write};
 use crate::gfx::texture_pixels::{
     self, GRADES_RVA, READING_RVA, SATURATION_RVA, SCALE_RVA, grading,
 };

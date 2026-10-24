@@ -22,17 +22,18 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::framework::rva;
+use crate::marks::store::{Slot, game_addr, game_read, game_write};
 use crate::math::x87;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
 use crate::scene::vector3::{dot_product3, normalise_vector3};
 
 const VIEW_RVA: usize = rva(0x5EA3CC); // flt_5EA3CC: the view matrix
-const LAST_RVA: usize = rva(0x91FFBE); // flt_91FFBE .. flt_91FFC6
-const STEP_RVA: usize = rva(0x8EB951); // flt_8EB951 .. flt_8EB959
-const FACING_RVA: usize = rva(0x8F397D); // flt_8F397D
-const TICKS_RVA: usize = rva(0x764FD0); // g_marksFrameTicks
+const LAST_RVA: Slot = Slot::at(0x91FFBE); // flt_91FFBE .. flt_91FFC6
+const STEP_RVA: Slot = Slot::at(0x8EB951); // flt_8EB951 .. flt_8EB959
+const FACING_RVA: Slot = Slot::at(0x8F397D); // flt_8F397D
+const TICKS_RVA: Slot = Slot::at(0x764FD0); // g_marksFrameTicks
 
 /// The Rust version (see the header).
 pub unsafe fn view_motion() {

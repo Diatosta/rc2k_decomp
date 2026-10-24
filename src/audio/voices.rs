@@ -11,30 +11,32 @@
 //! changes in a voice is marked in its `dirty` bits for the turn to carry out: 1 volume,
 //! 2 pan, 4 frequency, 8 place, 0x10 play, 0x20 restart.
 
-use crate::framework::{game_addr, rva};
+use crate::audio::store::SampleSlot;
+use crate::audio::store::Slot;
+use crate::store::addr32 as a;
 
 pub use rc2k_core::audio::voices::{SAMPLES, VOICES};
 
-pub const SAMPLES_RVA: usize = rva(0x50A7A4); // g_sampleRecords
-pub const VOICES_RVA: usize = rva(0x4F834C); // g_voices
-pub const VOICE_COUNT_RVA: usize = rva(0x4F8348); // g_voiceCount
-pub const PLAYING_RVA: usize = rva(0x4F8340); // g_playingVoices
-pub const STOPPING_RVA: usize = rva(0x4F8344); // g_stoppingVoices
-pub const CHANNELS_USED_RVA: usize = rva(0x506350); // g_channelsUsed
-pub const CHANNEL_COUNT_RVA: usize = rva(0x50634C); // g_channelCount
-pub const CHANNELS_RVA: usize = rva(0x506354); // g_channels
-pub const SOUND_MODE_RVA: usize = rva(0x4F82BC); // g_soundMode
-pub const A3D_RVA: usize = rva(0x506D60); // g_useA3d
-pub const PRIMARY_RVA: usize = rva(0x506A8C); // g_primaryBuffer
-pub const VOLUMES_RVA: usize = rva(0x506B4C); // g_volumeTable: 65 volumes, -10000 .. 0
-pub const MASTER_VOLUME_RVA: usize = rva(0x4F82D8); // g_masterVolume
-pub const VOICE_MANAGER_RVA: usize = rva(0x506C58); // g_voiceManager: the voice manager's IKsPropertySet
-pub const EAX_RVA: usize = rva(0x506C74); // g_eaxProperties
-pub const EAX_ROOM_RVA: usize = rva(0x506C78); // g_eaxRoom: the room asked for
-pub const EAX_ROOM_SET_RVA: usize = rva(0x506C7C); // g_eaxRoomSet: the room set
-pub const BUFFER_LOST_RVA: usize = rva(0x4F82CC); // g_soundBufferLost
-pub const COMMIT_RVA: usize = rva(0x4F82D0); // g_commit3d: 3D settings to commit
-pub const SAMPLE_MEMORY_RVA: usize = rva(0x4F8300); // g_sampleMemory (a MemoryList)
+pub const SAMPLES_RVA: SampleSlot = SampleSlot::at(0x50A7A4); // g_sampleRecords
+pub const VOICES_RVA: Slot = Slot::at(0x4F834C); // g_voices
+pub const VOICE_COUNT_RVA: Slot = Slot::at(0x4F8348); // g_voiceCount
+pub const PLAYING_RVA: Slot = Slot::at(0x4F8340); // g_playingVoices
+pub const STOPPING_RVA: Slot = Slot::at(0x4F8344); // g_stoppingVoices
+pub const CHANNELS_USED_RVA: Slot = Slot::at(0x506350); // g_channelsUsed
+pub const CHANNEL_COUNT_RVA: Slot = Slot::at(0x50634C); // g_channelCount
+pub const CHANNELS_RVA: Slot = Slot::at(0x506354); // g_channels
+pub const SOUND_MODE_RVA: Slot = Slot::at(0x4F82BC); // g_soundMode
+pub const A3D_RVA: Slot = Slot::at(0x506D60); // g_useA3d
+pub const PRIMARY_RVA: Slot = Slot::at(0x506A8C); // g_primaryBuffer
+pub const VOLUMES_RVA: Slot = Slot::at(0x506B4C); // g_volumeTable: 65 volumes, -10000 .. 0
+pub const MASTER_VOLUME_RVA: Slot = Slot::at(0x4F82D8); // g_masterVolume
+pub const VOICE_MANAGER_RVA: Slot = Slot::at(0x506C58); // g_voiceManager: the voice manager's IKsPropertySet
+pub const EAX_RVA: Slot = Slot::at(0x506C74); // g_eaxProperties
+pub const EAX_ROOM_RVA: Slot = Slot::at(0x506C78); // g_eaxRoom: the room asked for
+pub const EAX_ROOM_SET_RVA: Slot = Slot::at(0x506C7C); // g_eaxRoomSet: the room set
+pub const BUFFER_LOST_RVA: Slot = Slot::at(0x4F82CC); // g_soundBufferLost
+pub const COMMIT_RVA: Slot = Slot::at(0x4F82D0); // g_commit3d: 3D settings to commit
+pub const SAMPLE_MEMORY_RVA: Slot = Slot::at(0x4F8300); // g_sampleMemory (a MemoryList)
 // The records, voices and channels and their constants: `rc2k_core::audio::voices`.
 pub use rc2k_core::audio::voices::{LOADED, MODE_3D, MixerChannel, SampleRecord, Voice};
 
@@ -52,7 +54,6 @@ pub struct World {
 
 impl World {
     pub fn game() -> Self {
-        let a = |r| game_addr(r) as u32;
         Self {
             samples: a(SAMPLES_RVA),
             playing: a(PLAYING_RVA),

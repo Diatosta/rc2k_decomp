@@ -20,24 +20,25 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, game_write, rva};
+use crate::framework::rva;
 use crate::marks::emitters::next_c5;
 use crate::marks::lines::SETTINGS_RVA;
 use crate::marks::pick_shapes::pick_shapes;
 use crate::marks::shape_points::turn_all_shapes;
+use crate::marks::store::{Slot, game_read, game_write};
 use crate::math::x87;
 
 const CLOCK_RVA: usize = rva(0x613830); // g_sceneClock
-const NEXT_RVA: usize = rva(0x844E30); // dword_844E30
-const TIME_RANDOM_RVA: usize = rva(0x89C994); // dword_89C994
-const MOVE_RANDOM_RVA: usize = rva(0x89C998); // dword_89C998
-const MASKS_RVA: usize = rva(0x844E34); // dword_844E34: 9 masks
+const NEXT_RVA: Slot = Slot::at(0x844E30); // dword_844E30
+const TIME_RANDOM_RVA: Slot = Slot::at(0x89C994); // dword_89C994
+const MOVE_RANDOM_RVA: Slot = Slot::at(0x89C998); // dword_89C998
+const MASKS_RVA: Slot = Slot::at(0x844E34); // dword_844E34: 9 masks
 const MASKS: u32 = 9;
-const MOVING_RVA: usize = rva(0x844E2C); // dword_844E2C
-const INDEX_RVA: usize = rva(0x84460C); // dword_84460C
-const COUNT_RVA: usize = rva(0x82E38A); // dword_82E38A
-const TICKS_RVA: usize = rva(0x764FD0); // g_marksFrameTicks
-const RATE_RVA: [usize; 2] = [rva(0x89C99C), rva(0x89C9A0)];
+const MOVING_RVA: Slot = Slot::at(0x844E2C); // dword_844E2C
+const INDEX_RVA: Slot = Slot::at(0x84460C); // dword_84460C
+const COUNT_RVA: Slot = Slot::at(0x82E38A); // dword_82E38A
+const TICKS_RVA: Slot = Slot::at(0x764FD0); // g_marksFrameTicks
+const RATE_RVA: [Slot; 2] = [Slot::at(0x89C99C), Slot::at(0x89C9A0)];
 
 /// The Rust version (see the header).
 pub unsafe fn run_shapes() -> Result<(), Refused> {

@@ -23,38 +23,43 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, game_write, rva};
 use crate::marks::emitters::*;
 use crate::marks::setup::SEED_RVA;
+use crate::marks::store::{Slot, game_read, game_write};
 use crate::math::x87;
 use crate::scene::matrix3::rounded;
 
-const RATE_K: [usize; 4] = [rva(0x93A41A), rva(0x93A41E), rva(0x93A422), rva(0x93A426)];
-const SIDE_RANDOM_RVA: usize = rva(0x93A42A);
-const LIFT_RVA: usize = rva(0x93A42E);
+const RATE_K: [Slot; 4] = [
+    Slot::at(0x93A41A),
+    Slot::at(0x93A41E),
+    Slot::at(0x93A422),
+    Slot::at(0x93A426),
+];
+const SIDE_RANDOM_RVA: Slot = Slot::at(0x93A42A);
+const LIFT_RVA: Slot = Slot::at(0x93A42E);
 /// The motion: per axis (x, y, z) the three (factor, wheel speed, scale) products.
-const MOTION: [[(usize, u32, usize); 3]; 3] = [
+const MOTION: [[(Slot, u32, Slot); 3]; 3] = [
     [
-        (0x93545E, 0x10, 0x93A432),
-        (0x93543A, 0x18, 0x93A436),
-        (0x93543A, 0x0C, 0x93A43A),
+        (Slot::at(0x93545E), 0x10, Slot::at(0x93A432)),
+        (Slot::at(0x93543A), 0x18, Slot::at(0x93A436)),
+        (Slot::at(0x93543A), 0x0C, Slot::at(0x93A43A)),
     ],
     [
-        (0x935462, 0x10, 0x93A43E),
-        (0x93543E, 0x18, 0x93A442),
-        (0x93543E, 0x0C, 0x93A446),
+        (Slot::at(0x935462), 0x10, Slot::at(0x93A43E)),
+        (Slot::at(0x93543E), 0x18, Slot::at(0x93A442)),
+        (Slot::at(0x93543E), 0x0C, Slot::at(0x93A446)),
     ],
     [
-        (0x935466, 0x10, 0x93A44A),
-        (0x935442, 0x18, 0x93A44E),
-        (0x935442, 0x0C, 0x93A452),
+        (Slot::at(0x935466), 0x10, Slot::at(0x93A44A)),
+        (Slot::at(0x935442), 0x18, Slot::at(0x93A44E)),
+        (Slot::at(0x935442), 0x0C, Slot::at(0x93A452)),
     ],
 ];
-const SPIN_RANDOM_RVA: usize = rva(0x93A456);
-const LIVES_RVA: usize = rva(0x939B76); // g_marksParticleLives: by the flags' bits 6, 7
-const LIFE_SCALE_RVA: usize = rva(0x7651A4); // flt_7651A4
-const FADE_RVA: usize = rva(0x76519C); // dword_76519C
-const SIZE_K: [usize; 2] = [rva(0x93A45A), rva(0x93A45E)];
+const SPIN_RANDOM_RVA: Slot = Slot::at(0x93A456);
+const LIVES_RVA: Slot = Slot::at(0x939B76); // g_marksParticleLives: by the flags' bits 6, 7
+const LIFE_SCALE_RVA: Slot = Slot::at(0x7651A4); // flt_7651A4
+const FADE_RVA: Slot = Slot::at(0x76519C); // dword_76519C
+const SIZE_K: [Slot; 2] = [Slot::at(0x93A45A), Slot::at(0x93A45E)];
 
 /// Why the Rust version refuses these registers, if it does, worked out without writing.
 unsafe fn refusal(wheel: u32, object: u32) -> Option<&'static str> {
@@ -118,9 +123,7 @@ pub unsafe fn emit_particle_6(wheel: u32, object: u32) -> Result<(), Refused> {
         put(0x28, x87::ext_less(place[1], game_read(LIFT_RVA)));
         put(0x10, rounded(place[0]));
         let motion = MOTION.map(|axis| {
-            x87::three_products(
-                axis.map(|(f, s, k)| [game_read(rva(f)), at(wheel + s), game_read(rva(k))]),
-            )
+            x87::three_products(axis.map(|(f, s, k)| [game_read(f), at(wheel + s), game_read(k)]))
         });
         put(0x34, motion[2]);
         put(0x30, motion[1]);

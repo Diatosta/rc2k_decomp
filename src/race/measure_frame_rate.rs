@@ -15,6 +15,7 @@
 //! and the self-test was the hook's.
 
 use crate::framework::{game_read, game_write, rva};
+use crate::session::MACHINE;
 
 const COUNT_RVA: usize = rva(0x613838); // dword_613838
 const NOW_RVA: usize = rva(0x6214E8); // dword_6214E8
@@ -28,7 +29,7 @@ fn frame_rate_plain() {
     unsafe {
         let f = |a: usize| f32::from_bits(game_read(rva(a)));
         let rate = rc2k_core::race::frame_rate::frame_rate(
-            game_read(rva(0x5183E8)),
+            MACHINE.cpu_mhz.get() as i32,
             f(0x5C5D18),
             f(0x5C5D08),
             game_read(CYCLES_RVA),

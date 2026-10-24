@@ -5,9 +5,10 @@
 
 use crate::audio::voices::{read, write};
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, rva};
+use crate::session::FLAGS;
+use crate::store::addr32 as a;
+use crate::store::game_addr;
 
-pub const WINDOW_ACTIVE_RVA: usize = rva(0x518374); // g_windowActive
 pub const GET_STATUS: u32 = 0x24;
 pub const RESTORE: u32 = 0x50;
 fn lost() -> u32 {
@@ -62,7 +63,7 @@ pub fn close_primary_mixer_in_game() -> Result<bool, Refused> {
         close_primary_mixer(
             game_addr(SOUND_MODE_RVA) as u32,
             game_addr(crate::audio::make_buffer::DIRECT_SOUND_RVA) as u32,
-            game_addr(crate::audio::sound_device::WINDOW_RVA) as u32,
+            crate::session::MACHINE.window.addr() as u32,
         )
     }
 }
@@ -142,13 +143,12 @@ pub struct RestoreVars {
 impl RestoreVars {
     pub fn game() -> Self {
         use crate::audio::voices::*;
-        let a = |r| game_addr(r) as u32;
         Self {
             lost: a(BUFFER_LOST_RVA),
             primary: a(PRIMARY_RVA),
             voice_count: a(VOICE_COUNT_RVA),
             voices: a(VOICES_RVA),
-            window_active: a(WINDOW_ACTIVE_RVA),
+            window_active: FLAGS.window_active.addr() as u32,
         }
     }
 }

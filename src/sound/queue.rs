@@ -10,15 +10,17 @@
 //! `sub_40B016` with eax; 9 `sub_40C194` with eax, ecx, edx; 0xB `sub_40C4DD` with eax,
 //! ebx, ecx, edx; 0xA ends the thread's taking for this turn.
 
-use crate::framework::{game_addr, rva};
+use crate::audio::store::Slot;
+use crate::store::game_addr;
 use std::sync::atomic::{AtomicU32, Ordering};
 
 pub const RECORDS: u32 = 0x400;
 pub const RECORD_LEN: usize = 0x20;
-pub const NO_AUDIO_RVA: usize = rva(0x4F82B4); // g_noAudio
-pub const COUNT_RVA: usize = rva(0x506A1C); // dword_506A1C
-pub const WRITE_RVA: usize = rva(0x506A24); // dword_506A24
-pub const RECORDS_RVA: usize = rva(0x9566F8); // unk_9566F8
+pub const NO_AUDIO_RVA: Slot = Slot::at(0x4F82B4); // g_noAudio
+pub const COUNT_RVA: Slot = Slot::at(0x506A1C); // dword_506A1C
+pub const WRITE_RVA: Slot = Slot::at(0x506A24); // dword_506A24
+pub const RECORDS_RVA: crate::audio::store::QueueSlot =
+    crate::audio::store::QueueSlot::at(0x9566F8); // unk_9566F8
 
 /// Command numbers used by the ported senders.
 pub const START_3: u32 = 3;

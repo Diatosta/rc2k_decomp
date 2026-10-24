@@ -19,8 +19,8 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::{game_read, game_write};
 use crate::marks::setup::SEED_RVA;
+use crate::marks::store::{game_read, game_write};
 use crate::math::x87;
 use crate::scene::matrix3::{extended, rounded};
 

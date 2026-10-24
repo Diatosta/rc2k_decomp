@@ -14,8 +14,8 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::{game_read, game_write};
 use crate::hud::batch::{INDEX_COUNT_RVA, VERTEX_COUNT_RVA};
+use crate::hud::store::{game_read, game_write};
 
 /// The Rust version (see the header).
 // Converted: `rc2k_core::hud::batch::flush_due`

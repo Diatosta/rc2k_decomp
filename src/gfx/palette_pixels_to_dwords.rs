@@ -13,7 +13,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::BadInput;
-use crate::framework::game_read;
+use crate::gfx::block::game_read;
 use crate::gfx::pcx::PALETTE_RVA;
 use crate::gfx::picture::picture;
 use crate::gfx::pixels_to_dwords::pixel_count;

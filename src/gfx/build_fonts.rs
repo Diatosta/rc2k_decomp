@@ -21,17 +21,19 @@
 //! `routes.rs`); the registers above are the original's, for reference.
 
 use crate::errors::{FatalError, Refused};
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::framework::rva;
+use crate::gfx::block::{game_addr, game_read, game_write};
 use crate::gfx::build_glyphs::{BUILDER_FLAGS_RVA, TABLE_RVA, build_glyphs};
 use crate::gfx::glyph_builder::RUN_LENGTHS;
 use crate::gfx::glyph_tables::{
-    TABLES_LIST_RVA, TABLES_UNITS_RVA, UNIT_FACTOR_RVA, begin_glyph_table, begin_glyph_tables,
-    end_glyph_tables, palette_to_pixels,
+    TABLES_LIST_RVA, TABLES_UNITS_RVA, begin_glyph_table, begin_glyph_tables, end_glyph_tables,
+    palette_to_pixels,
 };
 use crate::gfx::pcx::PALETTE_RVA;
 use crate::memory::MemoryList;
 use crate::memory::allocate::allocate;
 use crate::memory::take_from_list::{rewind_list, take_from_list};
+use crate::session::SCREEN;
 
 // ---- game data ----
 
@@ -43,14 +45,16 @@ const FONT21_RVA: usize = rva(0x51DEBC); // dword_51DEBC
 const FONT13_RVA: usize = rva(0x51DEC0); // dword_51DEC0
 const PALETTE_COPY_RVA: usize = rva(0x51DEC4); // unk_51DEC4: the palette sheet's 256 dwords
 const PALETTE_BYTES: usize = 0x400;
-const PALETTE_SHEET_RVA: usize = rva(0x5297DE); // "files\d\fnt\pal_00.pcx"
 /// The four font sheets and where each one's table is kept.
-const FONT_SHEETS: [(usize, usize); 4] = [
-    (rva(0x52977A), FONT13_RVA), // fnt13_00.pcx
-    (rva(0x529793), FONT21_RVA), // fnt21_00.pcx
-    (rva(0x5297AC), FONT23_RVA), // fnt23_00.pcx
-    (rva(0x5297C5), FONT27_RVA), // fnt27_00.pcx
-];
+fn font_sheets() -> [(u32, usize); 4] {
+    use crate::gfx::texts::{FNT13, FNT21, FNT23, FNT27, address};
+    [
+        (address(&FNT13), FONT13_RVA), // fnt13_00.pcx
+        (address(&FNT21), FONT21_RVA), // fnt21_00.pcx
+        (address(&FNT23), FONT23_RVA), // fnt23_00.pcx
+        (address(&FNT27), FONT27_RVA), // fnt27_00.pcx
+    ]
+}
 
 const P: usize = PALETTES_RVA;
 const F13: usize = FONT13_RVA;
@@ -197,14 +201,17 @@ unsafe fn tables(palettes: *mut u32) -> Result<(), Refused> {
         let list = game_addr(TABLES_LIST_RVA) as *mut MemoryList;
         let bytes = game_read::<u32>(TABLES_UNITS_RVA)
             .wrapping_mul(0x400)
-            .wrapping_mul(game_read(UNIT_FACTOR_RVA));
+            .wrapping_mul(SCREEN.bytes.get());
         allocate(list, bytes)?;
         rewind_list(list);
         begin_glyph_tables()?;
         game_write(BUILDER_FLAGS_RVA, RUN_LENGTHS);
         palettes.write_unaligned(take_from_list(list, 0x400)?.unwrap_or(0));
         begin_glyph_table(list)?;
-        build_glyphs(game_addr(PALETTE_SHEET_RVA) as *const u8, list)?;
+        build_glyphs(
+            crate::gfx::texts::address(&crate::gfx::texts::PAL_00) as *const u8,
+            list,
+        )?;
         game_write(FONT27_RVA, game_read::<u32>(TABLE_RVA));
         palette_to_pixels(palettes.read_unaligned() as *mut u32)?;
         std::ptr::copy(
@@ -212,9 +219,9 @@ unsafe fn tables(palettes: *mut u32) -> Result<(), Refused> {
             game_addr(PALETTE_COPY_RVA) as *mut u8,
             PALETTE_BYTES,
         );
-        for (sheet, kept) in FONT_SHEETS {
+        for (sheet, kept) in font_sheets() {
             begin_glyph_table(list)?;
-            build_glyphs(game_addr(sheet) as *const u8, list)?;
+            build_glyphs(sheet as *const u8, list)?;
             game_write(kept, game_read::<u32>(TABLE_RVA));
         }
         end_glyph_tables()?;

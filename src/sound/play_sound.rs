@@ -17,13 +17,14 @@
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
-use crate::framework::{game_read, rva};
+use crate::audio::store::Slot;
 use crate::sound::queue::{Queue, send_command};
+use crate::store::game_read;
 
 // ---- game data ----
 
-const HELD_BACK_RVA: usize = rva(0x506C84); // dword_506C84
-const MODE_RVA: usize = rva(0x4F82BC); // dword_4F82BC
+const HELD_BACK_RVA: Slot = Slot::at(0x506C84); // dword_506C84
+const MODE_RVA: Slot = Slot::at(0x4F82BC); // dword_4F82BC
 const PLAY_1: u32 = 1;
 
 // ---- Rust version ----
