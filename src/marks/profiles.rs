@@ -7,6 +7,7 @@ use crate::errors::{BadInput, Refused};
 use crate::framework::rva;
 use crate::marks::store::{Slot, from_ida, game_addr, game_read, game_write};
 use crate::math::x87;
+use crate::race::course_lists_store::COURSE_LISTS;
 
 pub const RINGS_RVA: Slot = Slot::at(0x8DD061); // dword_8DD061, dword_8DD461, then dword_8DD861
 pub const DONE_RVA: Slot = Slot::at(0x91FF3E); // dword_91FF3E: 0, or where to go on
@@ -18,7 +19,6 @@ const RAMP_STEPS_RVA: Slot = Slot::at(0x91FF42); // flt_91FF42, 256.0
 const CURVE_STEPS_RVA: Slot = Slot::at(0x91FF46); // flt_91FF46, 256.0
 /// The profiles' work, `flt_8EB871` .. `flt_8EB899`.
 pub const WORK_RVA: Slot = Slot::at(0x8EB871);
-pub const COURSE_INFO_RVA: usize = rva(0x5C6FA0); // g_courseInfo
 pub const COURSE_CORNERS: u32 = 0x1C_2000;
 pub const CORNERS_LEN: usize = 0x8000;
 
@@ -131,7 +131,7 @@ pub unsafe fn make_profiles(resume: u32) -> Result<(), Refused> {
             make_tables();
             game_write(DONE_RVA, resume);
         }
-        let from = game_read::<u32>(COURSE_INFO_RVA).wrapping_add(COURSE_CORNERS);
+        let from = COURSE_LISTS.course_info.bits().wrapping_add(COURSE_CORNERS);
         let to = game_addr(crate::marks::blocks::CORNERS_RVA) as u32;
         std::ptr::copy(from as *const u8, to as *mut u8, CORNERS_LEN);
         crate::marks::blocks::allocate_links()?;

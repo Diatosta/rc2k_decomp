@@ -17,6 +17,7 @@
 use crate::framework::{game_addr, rva};
 use crate::math::x87;
 use crate::math::x87_run::{compare_full, weight_force};
+use crate::physics::contact_store::CONTACT_WORK;
 use crate::physics::tables_store::PHYSICS;
 use crate::physics::turn_by_inverse::turn_by_inverse;
 use crate::race::numbers_store::NUMBERS;
@@ -32,9 +33,9 @@ pub struct Places {
 
 impl Places {
     fn game() -> Self {
-        let a = |x: usize| game_addr(rva(x)) as u32;
+        let _a = |x: usize| game_addr(rva(x)) as u32;
         Self {
-            share: a(0x6D3070),
+            share: (CONTACT_WORK.wheel_share.addr() as u32),
             scratch: (DRAW.scratch.addr() as u32),
             weight: (PHYSICS.weight.addr() as u32),
             records: ((PHYSICS.forces.as_ptr() as usize) as u32),

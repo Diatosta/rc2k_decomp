@@ -15,10 +15,9 @@
 
 use crate::errors::Refused;
 use crate::physics::car_store::CAR;
-use crate::physics::flow::g;
+use crate::race::view_store::RACE_VIEW;
 use crate::race::work_store::RACE_WORK;
 
-pub const CARS: usize = 0x63DB90; // g_raceCars
 /// The Rust version (the original leaves registers nothing reads).
 pub fn step_replay_cars() -> Result<(), Refused> {
     use crate::drive::*;
@@ -27,7 +26,7 @@ pub fn step_replay_cars() -> Result<(), Refused> {
     use rc2k_core::race::viewer_flow::{
         RUN_STEPS, RunStep, car_block, car_runs, check_replay_cars, next_car,
     };
-    check_replay_cars(g(CARS))?;
+    check_replay_cars(RACE_VIEW.race_cars.get())?;
     unsafe {
         choose_shown_cars::choose_shown_cars()?;
         RACE_WORK.current_car.set(0);
@@ -54,7 +53,7 @@ pub fn step_replay_cars() -> Result<(), Refused> {
                 }
             }
             store_car::store_car()?;
-            let (next, done) = next_car(RACE_WORK.current_car.get(), g(CARS));
+            let (next, done) = next_car(RACE_WORK.current_car.get(), RACE_VIEW.race_cars.get());
             RACE_WORK.current_car.set(next);
             if done {
                 break;

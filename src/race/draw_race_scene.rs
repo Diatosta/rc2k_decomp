@@ -34,44 +34,27 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_read, game_write, rva};
+use crate::physics::ground_store::GROUND_WORK;
+use crate::race::course_store::COURSE;
+use crate::race::frame_store::FRAME_WORK;
 use crate::race::numbers_store::NUMBERS;
+use crate::race::prefs_store::STAGE_PREFS;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
 use crate::race::work_store::RACE_WORK;
 use crate::scene::draw_store::DRAW;
+use crate::scene::kind_texture_store::KIND_TEXTURES;
+use crate::scene::light_work_store::LIGHT_WORK;
 use crate::session::SCREEN;
 const VIEW_FLAGS: [usize; 2] = [rva(0x6D14F6), rva(0x6D14FA)]; // dword_6D14F6, dword_6D14FA
-const VIEW_ON: [usize; 2] = [rva(0x63DB74), rva(0x63DB78)]; // dword_63DB74, dword_63DB78
-const ZEROED: [usize; 8] = [
-    rva(0x639964),
-    rva(0x639960),
-    rva(0x6E44F8),
-    rva(0x6E44F4),
-    rva(0x6EF7C0),
-    rva(0x6EF7BC),
-    rva(0x641594), // g_carsDrawn
-    rva(0x641598), // g_carsCulled
-];
-const BITS_A: (usize, usize) = (rva(0x609354), rva(0x62DAD0));
-const BITS_B: (usize, usize) = (rva(0x609350), rva(0x62DACC));
+const ZEROED_MIDDLE: [usize; 4] = [rva(0x6E44F8), rva(0x6E44F4), rva(0x6EF7C0), rva(0x6EF7BC)];
 const FIRST_BIT_6_RVA: usize = rva(0x6D1502); // dword_6D1502
-const BLIT_SWITCH_RVA: usize = rva(0x6415E0); // dword_6415E0
-const BLIT_ON_RVA: usize = rva(0x609344); // qword_609344
 const LIGHTING_RVA: usize = rva(0x5CDA8C); // dword_5CDA8C
-const SHINE_FROM_RVA: usize = rva(0x609324); // dword_609324
-const SHINE_RVA: usize = rva(0x5CCE74); // g_shine
-const FRAMES_RVA: usize = rva(0x63967C); // dword_63967C
-const CLOCK_RVA: usize = rva(0x63DC38); // dword_63DC38
 const TEXTURE_CHANGES_RVA: usize = rva(0x6D1508); // dword_6D1508
-const KIND_TEXTURES_DONE_RVA: usize = rva(0x6415F8); // dword_6415F8
 const EXTRA_TEXTURES: [usize; 2] = [rva(0x6D1482), rva(0x6D1492)]; // unk_6D1482, unk_6D1492
-const FIRST_TEXTURE_DC_RVA: usize = rva(0x5D0E58); // g_kindFirstTextures[0xDC]
-const FIRST_SLOT_DC_RVA: usize = rva(0x5D1E58); // g_kindFirstSlots[0xDC], [0xDD] next
 const SLOT_WANTED_RVA: usize = rva(0x5DA968); // g_slotWantedTextures
 const SLOTS: u32 = 0x400;
 const NO_PANEL_RVA: usize = rva(0x64BB18); // dword_64BB18
-const ONE_VIEW_RVA: usize = rva(0x63DB98); // dword_63DB98
-const DRAWN_VIEW_RVA: usize = rva(0x63DB9C); // g_drawnView
 
 fn g(a: usize) -> u32 {
     unsafe { game_read(a) }
@@ -125,7 +108,7 @@ pub unsafe fn draw_race_scene() -> Result<(), Refused> {
     use crate::sound::race_sound_tick::race_sound_tick;
     let blocks = view_blocks()?;
     for (k, extra) in EXTRA_TEXTURES.into_iter().enumerate() {
-        if g(extra) != u32::MAX && g(FIRST_SLOT_DC_RVA + 4 * k) >= SLOTS {
+        if g(extra) != u32::MAX && KIND_TEXTURES.kind_first_slots[220 + k].get() >= SLOTS {
             return Err(BadInput("a wanted texture's slot past g_slotWantedTextures").into());
         }
     }
@@ -135,50 +118,61 @@ pub unsafe fn draw_race_scene() -> Result<(), Refused> {
         for k in 0..2 {
             p(VIEW_FLAGS[k], at_block(blocks[k], 0x220));
         }
-        for k in 0..2 {
-            if g(VIEW_ON[k]) == 0 {
-                p(VIEW_FLAGS[k], 0);
+        for (flags, on) in VIEW_FLAGS.into_iter().zip(&RACE_VIEW.view_on) {
+            if on.get() == 0 {
+                p(flags, 0);
             }
         }
-        for a in ZEROED {
+        GROUND_WORK.split_polygon_count.set(0);
+        GROUND_WORK.whole_polygon_count.set(0);
+        for a in ZEROED_MIDDLE {
             p(a, 0);
         }
-        p(BITS_A.1, (g(BITS_A.0) & 2) >> 1);
-        p(BITS_B.1, g(BITS_B.0) & 1);
+        FRAME_WORK.cars_drawn.set(0); // g_carsDrawn
+        FRAME_WORK.cars_culled.set(0); // g_carsCulled
+        LIGHT_WORK
+            .marks_mask
+            .set((STAGE_PREFS.refresh_flags_a.get() & 2) >> 1);
+        LIGHT_WORK
+            .lamps_mask
+            .set(STAGE_PREFS.refresh_flags_b.get() & 1);
         p(FIRST_BIT_6_RVA, g(VIEW_FLAGS[0]) & 0x40);
-        p(BLIT_SWITCH_RVA, 0);
-        if g(BLIT_ON_RVA) | g(BLIT_ON_RVA + 4) != 0 {
-            p(BLIT_SWITCH_RVA, at_block(blocks[0], 0x6F0));
+        FRAME_WORK.mirror_wanted.set(0); // dword_6415E0
+        if STAGE_PREFS.blit_cleared[0].get() | STAGE_PREFS.blit_cleared[1].get() != 0 {
+            FRAME_WORK.mirror_wanted.set(at_block(blocks[0], 0x6F0));
         }
         p(LIGHTING_RVA, 1);
         race_sound_tick()?; // 0xA
-        p(SHINE_RVA, g(SHINE_FROM_RVA));
+        COURSE.shine.set(STAGE_PREFS.shine_from.get());
         // pusha; pushf .. popf; popa
         crate::scene::set_filters::set_filters();
         for (value, state) in [(4, 0x15), (1, 0x1C), (5, 0x13), (6, 0x14), (1, 0x1B)] {
             set_render_state(value, state);
         }
         race_sound_tick()?; // 0xB
-        p(FRAMES_RVA, g(FRAMES_RVA).wrapping_add(1));
-        p(
-            CLOCK_RVA,
-            crate::scene::restart_clock::restart_clock(crate::system::tick_count::tick_count()),
-        );
+        GROUND_WORK
+            .frames_drawn
+            .set(GROUND_WORK.frames_drawn.get().wrapping_add(1));
+        RACE_VIEW
+            .clock_base
+            .set(crate::scene::restart_clock::restart_clock(
+                crate::system::tick_count::tick_count(),
+            ));
         crate::race::frame_views::full_view_window(true);
         crate::race::car_parts::ready_car_parts()?;
         crate::race::map_scroll::scroll_maps()?;
         p(TEXTURE_CHANGES_RVA, 0);
         crate::race::frame_views::forget_view_textures()?;
         crate::race::mud_frame::mud_frame()?;
-        p(KIND_TEXTURES_DONE_RVA, 0);
+        FRAME_WORK.kind_textures_done.set(0);
         crate::scene::assign_kind_textures::assign_kind_textures()?;
         for (k, extra) in EXTRA_TEXTURES.into_iter().enumerate() {
             let texture = g(extra);
             if texture != u32::MAX {
-                let slot = g(FIRST_SLOT_DC_RVA + 4 * k);
+                let slot = KIND_TEXTURES.kind_first_slots[220 + k].get();
                 p(
                     SLOT_WANTED_RVA.wrapping_add(4 * slot as usize),
-                    texture.wrapping_add(g(FIRST_TEXTURE_DC_RVA)),
+                    texture.wrapping_add(KIND_TEXTURES.kind_first_textures[220].get()),
                 );
             }
         }
@@ -188,13 +182,13 @@ pub unsafe fn draw_race_scene() -> Result<(), Refused> {
         if g(NO_PANEL_RVA) == 0 {
             crate::race::frame_draw::set_up_panel()?;
         }
-        if g(ONE_VIEW_RVA) == 1 {
-            p(DRAWN_VIEW_RVA, 0);
+        if RACE_VIEW.views.get() == 1 {
+            RACE_VIEW.drawn_view.set(0);
             draw_view(0, 0, true)?;
         } else {
             let side_by_side = RACE_VARS.split.bits() == 1;
             for view in 0..2u32 {
-                p(DRAWN_VIEW_RVA, view);
+                RACE_VIEW.drawn_view.set(view);
                 let (w, h) = (SCREEN.width.get(), SCREEN.height.get());
                 // (width, x, height, y).
                 if side_by_side {

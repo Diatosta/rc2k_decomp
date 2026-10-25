@@ -17,18 +17,15 @@
 //! Refuses when there is no face or no records.
 
 use crate::errors::{BadInput, FatalError, Refused};
-use crate::framework::{game_read, game_write, rva};
-use crate::math::normalise_vector::VECTOR_RVA;
 use crate::math::x87_float::{X, compare};
+use crate::physics::ground_store::GROUND_WORK;
+use crate::race::course_lists_store::COURSE_LISTS;
+use crate::race::scratch_store::FRAME_SCRATCH;
 use crate::scene::draw_store::DRAW;
 use crate::scene::polygon::dword;
-use crate::scene::project_point::RECORDS_RVA;
 use crate::scene::x87_mem::{fld, fnstsw, fstp};
 
 // ---- game data ----
-
-/// Three points and the six differences: fifteen floats from `dword_6396A0`.
-const WORK_RVA: usize = rva(0x6396A0);
 
 const BAD_POINT: FatalError = FatalError {
     code: 0x8060_0314,
@@ -113,7 +110,7 @@ unsafe fn triangle(w: &mut [u32; 19]) {
 
 pub unsafe fn face_faces_away(face: usize) -> Result<bool, Refused> {
     unsafe {
-        let records: u32 = game_read(RECORDS_RVA);
+        let records: u32 = COURSE_LISTS.point_records.bits();
         if face == 0 || records == 0 {
             return Err(BadInput("no face or no records").into());
         }
@@ -137,8 +134,8 @@ pub unsafe fn face_faces_away(face: usize) -> Result<bool, Refused> {
             triangle(&mut w);
             let work: [u32; 15] = w[..15].try_into().expect("15 dwords");
             let cross: [u32; 3] = w[15..18].try_into().expect("3 dwords");
-            game_write(WORK_RVA, work);
-            game_write(VECTOR_RVA, cross);
+            crate::session::write_bits(&GROUND_WORK.normal_work, work);
+            crate::session::write_first(&FRAME_SCRATCH.work_vector, &cross);
             // The carry of the compare: 0 below the product, or no number.
             if w[18] & 0x100 == 0 {
                 return Ok(false);

@@ -12,15 +12,13 @@
 //! Caller: `race::credits_race`, which calls the Rust version directly. Refuses nothing.
 
 use crate::errors::Refused;
-use crate::framework::{game_write, rva};
 use crate::math::next_random::next_random;
-use crate::race::settings_copy::Place::{self, Addr};
+use crate::race::settings_copy::Place;
 use crate::race::settings_copy::{car, car_bits, var};
+use crate::race::switches_store::FRAME_SWITCHES;
 use crate::race::vars_store::RACE_VARS;
+use crate::race::view_store::RACE_VIEW;
 use crate::race::work_store::RACE_WORK;
-
-const STAGE: usize = 0x623850; // g_stageNumber
-const CAR_KINDS: usize = 0x623858; // g_raceCarKinds
 
 /// The stores after the two draws, in order (the place, the value).
 pub const WRITES: [(Place, u32); 74] = [
@@ -36,14 +34,14 @@ pub const WRITES: [(Place, u32); 74] = [
     (var!(RACE_VARS.car_tyres[0]), 3),
     (var!(RACE_VARS.car_colours[0]), 1),
     (var!(RACE_VARS.mip_setting), 0),
-    (Addr(0x63DB90), 1),
-    (Addr(0x63DB94), 1),
+    (var!(RACE_VIEW.race_cars), 1),
+    (var!(RACE_VIEW.players), 1),
     (var!(RACE_VARS.settings_words[0]), 1),
     (var!(RACE_VARS.settings_words[1]), 1),
     (var!(RACE_VARS.settings_words[2]), 1),
     (var!(RACE_VARS.settings_words[3]), 0),
     (var!(RACE_VARS.settings_words[4]), 1),
-    (Addr(0x621890), 1),
+    (var!(FRAME_SWITCHES.view_marks_on), 1),
     (var!(RACE_VARS.race_level), 0),
     (var!(RACE_VARS.race_stage), 0),
     (car_bits!(0, engine_damage), 0),
@@ -110,17 +108,14 @@ fn drawn_index(n: u32) -> u32 {
 pub fn set_up_credits_race() -> Result<(), Refused> {
     // Converted: `rc2k_core::race::credits::drawn_place`.
     use rc2k_core::race::credits::{RACE_KINDS, RACE_STAGES};
-    unsafe {
-        let stage = drawn_index(RACE_STAGES);
-        game_write(rva(STAGE), RACE_WORK.credit_stages[stage as usize].get());
-        let kind = drawn_index(RACE_KINDS);
-        game_write(
-            rva(CAR_KINDS),
-            RACE_WORK.credit_car_kinds[kind as usize].get(),
-        );
-        for (at, v) in WRITES {
-            at.set(v);
-        }
-        Ok(())
+    let stage = drawn_index(RACE_STAGES);
+    RACE_VARS
+        .stage_number
+        .set(RACE_WORK.credit_stages[stage as usize].get()); // g_stageNumber
+    let kind = drawn_index(RACE_KINDS);
+    RACE_VARS.race_car_kinds[0].set(RACE_WORK.credit_car_kinds[kind as usize].get()); // g_raceCarKinds
+    for (at, v) in WRITES {
+        at.set(v);
     }
+    Ok(())
 }

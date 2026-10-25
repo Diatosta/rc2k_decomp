@@ -22,21 +22,19 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::physics::car_store::CAR;
+use crate::physics::contact_store::CONTACT_WORK;
 use crate::race::numbers_store::NUMBERS;
 use crate::race::work_store::RACE_WORK;
 use crate::scene::draw_store::DRAW;
 use crate::scene::x87_mem::{fild, fld, fstp};
 
 use crate::math::x87::loaded;
-use crate::physics::flow::{a, fill3, g, p};
+use crate::physics::flow::a;
 use crate::physics::scale_vector::scale_vector;
+use crate::physics::tables_store::PHYSICS;
 use crate::physics::vector_length::vector_length;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
-
-/// `g_car`: the work car's block.
-/// `dword_6D3BB8`: the other car's block.
-pub const OTHER: usize = 0x6D3BB8;
 
 /// The block's speed (+0x198 ..) turned by its matrix (+0x9CC) into +0x1A4 ...
 fn turn_speed(block: u32) {
@@ -49,34 +47,38 @@ fn turn_speed(block: u32) {
 
 fn steps(edi: u32) -> Result<(), Refused> {
     for k in 0..3 {
-        p(0x6D3090 + 4 * k, loaded(g(0x6D3BC8 + 4 * k)));
+        CONTACT_WORK.contact_point[k].set_bits(loaded(CONTACT_WORK.corner_turned[k].bits()));
     }
     let zero = NUMBERS.zero.bits();
     let note = [
         RACE_WORK.current_car.get(),
-        g(0x6D3CD4),
-        g(0x6D3BD4),
+        CONTACT_WORK.other_car_number.get(),
+        CONTACT_WORK.corner_in[0].bits(),
         zero,
-        g(0x6D3BDC),
-        g(0x6D3090),
+        CONTACT_WORK.corner_in[2].bits(),
+        CONTACT_WORK.contact_point[0].bits(),
         zero,
-        g(0x6D3098),
+        CONTACT_WORK.contact_point[2].bits(),
     ];
     for (k, v) in note.iter().enumerate() {
-        p(0x6D3CA0 + 4 * k, *v);
+        CONTACT_WORK.bump_note[k].set(*v);
     }
-    fill3(0x614B10, 0);
+    for v in &PHYSICS.contacts[6].force {
+        v.set_bits(0);
+    }
     CAR.contact_flag.set(1);
     unsafe { ((edi + 0x234) as *mut u32).write_unaligned(1) };
     x87_1(crate::race::store::asm_base() as usize, edi as usize);
-    p(0x6D3CD0, rounded(unsafe { vector_length(a(0x6D3CD8)) }));
-    let esi = g(OTHER);
+    CONTACT_WORK.bump_speed_length.set_bits(rounded(unsafe {
+        vector_length(a(&CONTACT_WORK.bump_relative_speed[0]))
+    }));
+    let esi = CONTACT_WORK.other_car_block.get();
     x87_2(crate::race::store::asm_base() as usize, esi as usize);
     // 0x45F98C: pushed apart by the places' difference.
-    let other = g(OTHER);
+    let other = CONTACT_WORK.other_car_block.get();
     x87_3(crate::race::store::asm_base() as usize, other as usize);
     let factor = extended(NUMBERS.three.bits());
-    unsafe { scale_vector(a(0x6D3B9C), factor) };
+    unsafe { scale_vector(CONTACT_WORK.bump_push[0].addr() as u32, factor) };
     DRAW.scratch.set(rounded(factor));
     x87_4(crate::race::store::asm_base() as usize, other as usize);
     turn_speed(esi);
@@ -87,7 +89,7 @@ fn steps(edi: u32) -> Result<(), Refused> {
 
 /// The Rust version: `edi` the other car's block (an address in the game's memory).
 pub unsafe fn bump_cars(edi: u32) -> Result<(), Refused> {
-    if edi == 0 || g(OTHER) == 0 {
+    if edi == 0 || CONTACT_WORK.other_car_block.get() == 0 {
         return Err(BadInput("a null car block").into());
     }
     steps(edi)

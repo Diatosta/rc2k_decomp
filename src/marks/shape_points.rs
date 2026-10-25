@@ -7,6 +7,7 @@ use crate::errors::{BadInput, Refused};
 use crate::marks::masks::{POINTS_A, POINTS_B, PointList};
 use crate::marks::store::{Slot, game_addr, game_read, game_write};
 use crate::math::x87;
+use crate::race::course_lists_store::COURSE_LISTS;
 use crate::scene::matrix3::{Axis, extended, turn_matrix3, turnable};
 
 pub const SET_RVA: Slot = Slot::at(0x885A6C); // g_marksShapeSet
@@ -243,7 +244,6 @@ pub unsafe fn make_shape_set(object: u32) -> Result<(), Refused> {
     use crate::marks::masks::collect_points;
     use crate::scene::objects::{
         FACE_COUNTS_RVA, FACES_RVA, FIRST_FACE_RVA, FIRST_POINT_RVA as OBJECT_FIRST_POINT_RVA,
-        POINTS_RVA,
     };
     unsafe {
         shape_set_checks(object)?;
@@ -294,7 +294,7 @@ pub unsafe fn make_shape_set(object: u32) -> Result<(), Refused> {
             }
         }
         let lists = [&POINTS_A, &POINTS_B];
-        let points: u32 = game_read(POINTS_RVA);
+        let points: u32 = COURSE_LISTS.object_points.bits();
         for list in lists {
             let ids = game_addr(list.ids) as u32;
             for k in (0..game_read::<u32>(list.count)).rev() {

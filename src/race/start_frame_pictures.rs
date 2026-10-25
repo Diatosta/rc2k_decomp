@@ -10,12 +10,10 @@
 //! Caller: `race::viewer_action` (actions 0x25 .. 0x28: eax 0, 0xA0, 0x50, 0x28).
 
 use crate::errors::Refused;
-use crate::physics::flow::a;
 use crate::race::viewer::{
     PICTURE_RATE, PICTURE_TIME, PICTURES_STARTED, PICTURES_STARTED_2, RECORDING, get, put,
 };
-
-const FOLDER: usize = 0x5C2CD8; // "rpl"
+use crate::race::viewer_screen_store::VIEWER_PANEL;
 
 /// The Rust version. `eax` the ms a picture, or 0 for the rate's.
 pub fn start_frame_pictures(eax: u32) -> Result<(), Refused> {
@@ -29,7 +27,7 @@ pub fn start_frame_pictures(eax: u32) -> Result<(), Refused> {
     // The folder made.
     unsafe {
         windows_sys::Win32::Storage::FileSystem::CreateDirectoryA(
-            a(FOLDER) as *const u8,
+            (VIEWER_PANEL.picture_folder.addr() as u32) as *const u8,
             std::ptr::null(),
         )
     };

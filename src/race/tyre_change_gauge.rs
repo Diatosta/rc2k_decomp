@@ -32,18 +32,16 @@ use crate::errors::{BadInput, Refused};
 use crate::input::store::DEVICES;
 use crate::menu::names_store::NAME_BUFFERS;
 use crate::race::tyre_store::TYRE_CHANGE as TYRE;
+use crate::race::viewer_screen_store::VIEWER_PANEL;
 use crate::session::MACHINE;
 use rc2k_core::race::tyre_change::{Gauge, Io, turn};
 
-/// flt_5C2C60: added to the square root in the press time's logarithm.
+/// flt_5C2C60 (`VIEWER_PANEL.one`): added to the square root in the press time's logarithm.
+#[cfg(test)]
 const SQRT_OFFSET: usize = 0x5C2C60;
 const GAUGE: u32 = 0x4EC;
 const STAGE: u32 = 0x4F0;
 const CLOCK: u32 = 0x4F4;
-
-fn g(x: impl crate::store::Ida) -> u32 {
-    unsafe { crate::store::ida_read(x) }
-}
 
 #[cfg(test)]
 fn p(x: usize, v: u32) {
@@ -66,7 +64,7 @@ fn constants() -> [u32; 5] {
         TYRE.time_scale.bits(),
         TYRE.gauge_unit.bits(),
         TYRE.log_two_ten.bits(),
-        g(SQRT_OFFSET),
+        VIEWER_PANEL.one.bits(),
     ]
 }
 

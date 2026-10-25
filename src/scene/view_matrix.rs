@@ -4,30 +4,19 @@
 //! cosine out (`fsincos`), where `scene::set_turn_x` and `_y` look sixteen bits up in
 //! tables; the first two write the same matrices as those.
 
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::framework::rva;
 use crate::math::x87;
+use crate::race::course_lists_store::COURSE_LISTS;
+use crate::race::matrices_store::MATRICES;
 use crate::race::numbers_store::NUMBERS;
+use crate::race::view_vars_store::VIEW_VARS;
 use crate::scene::draw_store::DRAW;
-use crate::scene::matrix::{
-    self, LIT_RVA, PLACED_RVA, TURN_X_RVA, TURN_X_WORK_RVA, TURN_Y_RVA, TURN_Y_WORK_RVA,
-    VIEW_TURN_RVA,
-};
+use crate::scene::matrix;
+use crate::session::Float;
 
+// Still named by `race::stage_prefs::get_mat_crash`.
 pub const TURN_Z_RVA: usize = rva(0x5EA00C); // flt_5EA00C
-pub const TURN_Z_WORK_RVA: usize = rva(0x624158); // dword_624158, dword_62415C
-pub const IDENTITY_RVA: usize = rva(0x5E9F4C); // unk_5E9F4C
-pub const KEPT_PLACE_RVA: usize = rva(0x5EA1CC); // unk_5EA1CC
-pub const VIEW_BACK_RVA: usize = rva(0x5EA20C); // flt_5EA20C, the view's turning undone
-pub const VIEW_RVA: usize = rva(0x5EA2CC); // g_viewMatrix
-pub const VIEW_PLACE_RVA: usize = rva(0x606298); // dword_606298, dword_60629C, dword_6062A0
-pub const VIEW_ANGLES_RVA: usize = rva(0x6062B8); // dword_6062B8 (y), dword_6062BC (x), dword_6062C0 (z)
 
-/// The squaring's work: three rows of four floats, `unk_5C6FD0`, `unk_5C6FE0`,
-/// `unk_5C6FF0`; the copy back takes the four dwords after them along.
-pub const SQUARED_RVA: usize = rva(0x5C6FD0);
-/// The inverting's work: the nine floats copied (`flt_5C7050` ..) and the nine made
-/// (`flt_5C7074` ..).
-pub const INVERTED_RVA: usize = rva(0x5C7050);
 /// Which of the three turnings.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Axis {
@@ -36,52 +25,26 @@ pub enum Axis {
     Z,
 }
 
-impl Axis {
-    pub fn matrix(self) -> usize {
-        match self {
-            Axis::X => TURN_X_RVA,
-            Axis::Y => TURN_Y_RVA,
-            Axis::Z => TURN_Z_RVA,
-        }
-    }
-
-    pub fn work(self) -> usize {
-        match self {
-            Axis::X => TURN_X_WORK_RVA,
-            Axis::Y => TURN_Y_WORK_RVA,
-            Axis::Z => TURN_Z_WORK_RVA,
-        }
-    }
-
-    /// Where the cosine, the sine, the sine negated and the cosine go.
-    fn places(self) -> [usize; 4] {
-        match self {
-            Axis::X => [0x14, 0x18, 0x24, 0x28],
-            Axis::Y => [0, 0x20, 8, 0x28],
-            Axis::Z => [0, 4, 0x10, 0x14],
-        }
-    }
-}
-
 /// `scene::set_fine_turn_x` (0x4270BA), `scene::set_fine_turn_y` (0x42710C),
 /// `scene::set_turn_z` (0x42715D).
 pub unsafe fn set_fine_turn(axis: Axis, angle: u32) {
-    unsafe {
-        DRAW.scratch.set_bits(angle);
-        let (sine, cosine) = x87::sine_cosine(
-            angle as i32,
-            NUMBERS.k65536.bits(),
-            NUMBERS.one_over_two_pi.bits(),
-        );
-        game_write(axis.work(), [sine, cosine]);
-        let negated = sine ^ 0x8000_0000;
-        for (place, value) in axis
-            .places()
-            .into_iter()
-            .zip([cosine, sine, negated, cosine])
-        {
-            game_write(axis.matrix() + place, value);
-        }
+    DRAW.scratch.set_bits(angle);
+    let (sine, cosine) = x87::sine_cosine(
+        angle as i32,
+        NUMBERS.k65536.bits(),
+        NUMBERS.one_over_two_pi.bits(),
+    );
+    let negated = sine ^ 0x8000_0000;
+    // The work pair, then where the cosine, the sine, the sine negated and the
+    // cosine go in the matrix.
+    let (work, rows, places): (&[Float; 2], &[Float; 16], [usize; 4]) = match axis {
+        Axis::X => (&DRAW.turn_x_work, &MATRICES.turn_x_matrix, [5, 6, 9, 10]),
+        Axis::Y => (&DRAW.turn_y_work, &MATRICES.turn_y_matrix, [0, 8, 2, 10]),
+        Axis::Z => (&DRAW.turn_z_work, &MATRICES.turn_z_matrix, [0, 1, 4, 5]),
+    };
+    crate::session::write_bits(work, [sine, cosine]);
+    for (place, value) in places.into_iter().zip([cosine, sine, negated, cosine]) {
+        rows[place].set_bits(value);
     }
 }
 
@@ -140,9 +103,9 @@ pub unsafe fn cross_product(b: usize, c: usize, out: usize) {
 pub unsafe fn square_matrix(at: usize) {
     unsafe {
         let (first, second, third) = (
-            game_addr(SQUARED_RVA),
-            game_addr(SQUARED_RVA) + 0x10,
-            game_addr(SQUARED_RVA) + 0x20,
+            COURSE_LISTS.squared_row_0[0].addr(),
+            COURSE_LISTS.squared_row_0[0].addr() + 0x10,
+            COURSE_LISTS.squared_row_0[0].addr() + 0x20,
         );
         unit_vector(at + 0x20, third);
         cross_product(at + 0x10, third, first);
@@ -162,7 +125,7 @@ pub unsafe fn invert_turn(from: usize, out: usize) {
         for (n, value) in m.iter_mut().enumerate() {
             *value = x87::loaded(float(from + (n / 3) * 0x10 + (n % 3) * 4));
         }
-        game_write(INVERTED_RVA, m);
+        crate::session::write_bits(&COURSE_LISTS.invert_copy, m);
         let [a, b, c, d, e, f, g, h, i] = m;
         let plain = x87::product_difference;
         let negated = x87::negated_product_difference;
@@ -177,7 +140,7 @@ pub unsafe fn invert_turn(from: usize, out: usize) {
             negated(a, h, b, g),
             plain(a, e, b, d),
         ];
-        game_write(INVERTED_RVA + 0x24, made);
+        crate::session::write_bits(&COURSE_LISTS.invert_made, made);
         for (n, value) in made.into_iter().enumerate() {
             put(out + (n / 3) * 0x10 + (n % 3) * 4, x87::loaded(value));
         }
@@ -188,30 +151,39 @@ pub unsafe fn invert_turn(from: usize, out: usize) {
 /// `scene::set_view_matrices` (0x438FBF).
 pub unsafe fn set_view_matrices() {
     unsafe {
-        game_write(VIEW_TURN_RVA, game_read::<[u32; 16]>(IDENTITY_RVA));
-        let angles: [u32; 3] = game_read(VIEW_ANGLES_RVA);
+        crate::session::write_bits(
+            &MATRICES.view_turn_matrix,
+            crate::session::read_bits(&MATRICES.identity_matrix),
+        );
+        let angles: [u32; 3] = crate::session::read_first(&VIEW_VARS.view_angles);
         set_fine_turn(Axis::Y, angles[0].wrapping_neg());
         set_fine_turn(Axis::X, angles[1].wrapping_neg());
         set_fine_turn(Axis::Z, angles[2].wrapping_neg());
         matrix::multiply_matrices(
-            game_addr(TURN_Y_RVA),
-            game_addr(TURN_X_RVA),
-            game_addr(LIT_RVA),
+            MATRICES.turn_y_matrix[0].addr(),
+            MATRICES.turn_x_matrix[0].addr(),
+            MATRICES.lit_matrix[0].addr(),
         );
         matrix::multiply_matrices(
-            game_addr(LIT_RVA),
-            game_addr(TURN_Z_RVA),
-            game_addr(VIEW_TURN_RVA),
+            MATRICES.lit_matrix[0].addr(),
+            MATRICES.turn_z_matrix[0].addr(),
+            MATRICES.view_turn_matrix[0].addr(),
         );
-        let place = game_read::<[u32; 3]>(VIEW_PLACE_RVA).map(u32::wrapping_neg);
+        let place = crate::session::read_bits::<_, 3>(&VIEW_VARS.view_place).map(u32::wrapping_neg);
         matrix::set_place(place);
-        game_write(KEPT_PLACE_RVA, game_read::<[u32; 16]>(PLACED_RVA));
-        matrix::multiply_matrices(
-            game_addr(PLACED_RVA),
-            game_addr(VIEW_TURN_RVA),
-            game_addr(VIEW_RVA),
+        crate::session::write_bits(
+            &MATRICES.view_place_matrix,
+            crate::session::read_bits(&MATRICES.placed_matrix),
         );
-        invert_turn(game_addr(VIEW_TURN_RVA), game_addr(VIEW_BACK_RVA));
+        matrix::multiply_matrices(
+            MATRICES.placed_matrix[0].addr(),
+            MATRICES.view_turn_matrix[0].addr(),
+            MATRICES.view_matrix[0].addr(),
+        );
+        invert_turn(
+            MATRICES.view_turn_matrix[0].addr(),
+            MATRICES.view_back_matrix[0].addr(),
+        );
     }
 }
 

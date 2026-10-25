@@ -6,7 +6,10 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_addr, rva};
+use crate::race::course_lists_store::COURSE_LISTS;
 use crate::race::course_store::COURSE;
+use crate::race::level_grid_store::LEVEL_GRID;
+use crate::race::prefs_store::STAGE_PREFS;
 use crate::race::vars_store::RACE_VARS;
 
 /// Where the steps' variables are (the game's, or a test's).
@@ -31,11 +34,11 @@ impl Vars {
     pub fn game() -> Self {
         let a = |v: usize| game_addr(rva(v)) as u32;
         Self {
-            course_info: a(0x5C6FA0),
-            course_memory: a(0x5C6F94),
-            first_part: a(0x5C6FC8),
-            list_total: a(0x5C6F90),
-            texture_kinds: a(0x608DB4),
+            course_info: (COURSE_LISTS.course_info.addr() as u32),
+            course_memory: (COURSE_LISTS.course_memory.addr() as u32),
+            first_part: (COURSE_LISTS.first_part.addr() as u32),
+            list_total: (COURSE_LISTS.course_bytes_total.addr() as u32),
+            texture_kinds: (STAGE_PREFS.texture_kinds[0].addr() as u32),
             texture_infos: a(0x979F30),
             checkpoint_kinds: (RACE_VARS.checkpoint_count.addr() as u32),
             checkpoint_count: (RACE_VARS.last_checkpoint.addr() as u32),
@@ -43,12 +46,14 @@ impl Vars {
             checkpoint_records: (COURSE.course_faces.addr() as u32),
             checkpoints: a(0x60102C),
             checkpoints_found: a(0x601830),
-            refresh: [a(0x63E174), a(0x63E178)],
+            refresh: [
+                (LEVEL_GRID.grid_x.addr() as u32),
+                (LEVEL_GRID.grid_z.addr() as u32),
+            ],
         }
     }
 }
 
-pub const COURSE_LIST_RVA: usize = rva(0x5C6D50); // stru_5C6D50: the course's MemoryList
 const FIRST_PART: u32 = 0xF0_0000;
 const INFO_PART: u32 = 0x40_0000;
 const TEXTURE_INFO_A_RVA: usize = rva(0x60AE36); // "files\a\textinfo"

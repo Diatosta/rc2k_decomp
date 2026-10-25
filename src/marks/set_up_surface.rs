@@ -18,11 +18,10 @@ use crate::marks::blocks::take;
 use crate::marks::load_mask_pictures::{lock, put_pixel};
 use crate::marks::store::{Slot, game_addr, game_read, game_write};
 use crate::math::x87;
+use crate::scene::kind_texture_store::KIND_TEXTURES;
 
 const MASK_LIST_RVA: Slot = Slot::at(0x93A1DA); // stru_93A1DA
 const MASK_BYTES: u32 = 0x4_0000;
-const SLOT_RVA: usize = rva(0x5D0E34); // dword_5D0E34: the surface drawn into
-const TEXTURE_RVA: usize = rva(0x5D1E34); // dword_5D1E34: the texture slot forgotten
 const SURFMASK_RVA: Slot = Slot::at(0x935751); // "files\m\surfmask.pcx"
 const SURFDATA_RVA: Slot = Slot::at(0x93573C); // "files\m\surfdata.pcx"
 const PIXELS: u32 = 0x1_0000;
@@ -67,7 +66,7 @@ unsafe fn read(path: Slot) -> Result<bool, Refused> {
 
 /// Unlocks the surface and refuses with `why`.
 unsafe fn unlock_refusing(why: &'static str) -> Result<(), Refused> {
-    unsafe { lock(game_read(SLOT_RVA), false)? };
+    unsafe { lock(KIND_TEXTURES.kind_first_textures[211].bits(), false)? };
     Err(BadInput(why).into())
 }
 
@@ -77,7 +76,7 @@ unsafe fn unlock_refusing(why: &'static str) -> Result<(), Refused> {
 pub unsafe fn set_up_surface() -> Result<(), Refused> {
     unsafe {
         let block = take(MASK_LIST_RVA, MASK_BYTES)?;
-        lock(game_read(SLOT_RVA), true)?;
+        lock(KIND_TEXTURES.kind_first_textures[211].bits(), true)?;
         if game_read::<u32>(SURFACE_WIDTH_RVA) < SIDE || game_read::<u32>(SURFACE_HEIGHT_RVA) < SIDE
         {
             return unlock_refusing("a surface under 256 x 256");
@@ -100,8 +99,10 @@ pub unsafe fn set_up_surface() -> Result<(), Refused> {
             let alpha = ((mask << 8) & 0xFF00_0000) ^ 0xFF00_0000;
             put_pixel((data & 0xFF_FFFF) | alpha, n & 0xFF, n >> 8)?;
         }
-        lock(game_read(SLOT_RVA), false)?;
-        crate::scene::forget_slot_texture::forget_slot_texture(game_read(TEXTURE_RVA))?;
+        lock(KIND_TEXTURES.kind_first_textures[211].bits(), false)?;
+        crate::scene::forget_slot_texture::forget_slot_texture(
+            KIND_TEXTURES.kind_first_slots[211].bits(),
+        )?;
         crate::memory::free_list::free_list(
             game_addr(MASK_LIST_RVA) as *mut crate::memory::MemoryList
         )?;

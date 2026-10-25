@@ -19,13 +19,15 @@
 //! without its block).
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, rva};
 use crate::race::course_store::COURSE;
 use crate::race::numbers_store::NUMBERS;
+use crate::race::prefs_store::STAGE_PREFS;
+use crate::race::switches_store::FRAME_SWITCHES;
 use crate::race::work_store::RACE_WORK;
+use crate::scene::light_store::LIGHT_STATE;
+use crate::scene::light_work_store::LIGHT_WORK;
 use crate::scene::object_store::OBJECT_WORK;
-
-const OBJECT_RVA: usize = rva(0x6214FC); // g_objectNumber
 
 fn get(a: u32) -> u32 {
     unsafe { (a as *const u32).read_unaligned() }
@@ -54,11 +56,11 @@ pub unsafe fn draw_described_object(d: u32) -> Result<(), Refused> {
         let place = get(d + 4);
         let shown = object <= 0x64
             && place < COURSE.scene_point_count.get()
-            && !(game_read::<u32>(rva(0x621480)) != 0 && object == 0x3F);
+            && !(FRAME_SWITCHES.other_way.get() != 0 && object == 0x3F);
         if shown {
             check_object(object)?;
         }
-        game_write(OBJECT_RVA, object);
+        FRAME_SWITCHES.object_number.set_bits(object);
         let end = || {
             OBJECT_WORK.only_object.set(0u32);
             OBJECT_WORK.object_place.set_bits(u32::MAX);
@@ -122,27 +124,24 @@ pub unsafe fn draw_described_object(d: u32) -> Result<(), Refused> {
             OBJECT_WORK.light_turns[0].set(byte(0x22));
             OBJECT_WORK.light_turns[1].set(byte(0x23));
             if byte(0x24) != 0 {
-                game_write(
-                    rva(0x635094),
-                    game_read::<u32>(rva(0x609338)).wrapping_neg(),
-                );
-                OBJECT_WORK.light_turns[1].set(game_read::<u32>(rva(0x60933C)));
-                OBJECT_WORK.light_level.set(game_read::<u32>(rva(0x6092E4)));
+                OBJECT_WORK.light_turns[0].set(STAGE_PREFS.sun_turn.get().wrapping_neg());
+                OBJECT_WORK.light_turns[1].set(STAGE_PREFS.sun_height.get());
+                OBJECT_WORK.light_level.set(STAGE_PREFS.light_level.get());
                 OBJECT_WORK
                     .light_strength
-                    .set(game_read::<u32>(rva(0x6092E8)));
+                    .set(STAGE_PREFS.light_strength_kept.get());
                 OBJECT_WORK.light_lowest.set(0u32);
                 OBJECT_WORK.light_highest.set(0xFFu32);
             }
         }
-        game_write(rva(0x6365C8), 2u32);
+        LIGHT_STATE.view_kind.set(2u32);
         crate::race::frame_draw::place_object_matrix();
-        game_write(rva(0x62DAF4), 2u32);
-        let object: u32 = game_read(OBJECT_RVA);
+        LIGHT_WORK.light_kind.set(2u32);
+        let object: u32 = FRAME_SWITCHES.object_number.bits();
         let kind: u32 = game_read(rva(0x5CD27C) + 4 * object as usize);
         let record = (game_addr(rva(0x97DF30)) as u32).wrapping_add(kind.wrapping_mul(0x80));
         if ((record + 0x1F) as *const u8).read() != 0 {
-            game_write(rva(0x62DAF4), 1u32);
+            LIGHT_WORK.light_kind.set(1u32);
         }
         crate::scene::draw_scene_object::draw_scene_object_in_game(record)?;
         end();

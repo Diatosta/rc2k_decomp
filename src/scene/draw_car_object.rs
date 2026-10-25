@@ -22,24 +22,22 @@
 //! (`menu::table_routes`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_write, rva};
+use crate::framework::game_write;
 use crate::menu::event_store::EVENT_STATE;
 use crate::menu::state_store::MENU_STATE;
 use crate::physics::tables_store::PHYSICS;
+use crate::race::switches_store::FRAME_SWITCHES;
 use crate::scene::assign_kind_textures::assign_kind_textures;
 use crate::scene::carousel_pictures::update;
 use crate::scene::clear_depth_buffer::clear_depth_buffer;
-use crate::scene::draw_carousel_entry::{
-    ANGLE_Y_RVA, ENTRIES, OBJECT_RVA, PLACE_RVA, find_object_of_kind,
-};
+use crate::scene::draw_carousel_entry::{ANGLE_Y_RVA, ENTRIES, PLACE_RVA, find_object_of_kind};
 use crate::scene::draw_menu_object::draw_menu_object_in_game;
+use crate::scene::light_store::LIGHT_STATE;
 use crate::scene::load_slot_textures::load_slot_textures_in_game;
 use crate::scene::map_texture_places::map_texture_places;
 use crate::session::write_all;
 
 // ---- game data ----
-
-const MODE_RVA: usize = rva(0x6365C4); // dword_6365C4
 
 // ---- Rust version ----
 
@@ -83,7 +81,7 @@ pub unsafe fn draw_shown_car(draw: &mut dyn FnMut() -> Result<(), Refused>) -> R
         let kind = MENU_STATE.carousel.kinds[car as usize].get();
         MENU_STATE.carousel.kind.set(kind);
         let object = find_object_of_kind(kind);
-        game_write(OBJECT_RVA, object);
+        FRAME_SWITCHES.object_number.set_bits(object);
         draw()
     }
 }
@@ -102,7 +100,7 @@ pub fn run() -> Result<(), crate::errors::Refused> {
         pick_pictures()?;
         map_texture_places();
         load_slot_textures_in_game()?;
-        game_write(MODE_RVA, 0u32);
+        LIGHT_STATE.draw_mode.set_bits(0u32);
         draw_shown_car(&mut || draw_menu_object_in_game())
     }
 }

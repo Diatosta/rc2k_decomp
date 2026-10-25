@@ -8,16 +8,14 @@
 //! asks for 0xC0 .. 0xDC), before anything.
 
 use crate::errors::Refused;
-use crate::framework::rva;
 use crate::hud::batch::SHOWN_TEXTURE_RVA;
+use crate::scene::kind_texture_store::KIND_TEXTURES;
 use crate::store::game_read;
-
-const SLOTS_RVA: usize = rva(0x5D1AE8); // g_kindFirstSlots
 
 /// The Rust version (see the header).
 // Converted: `rc2k_core::hud::batch::texture_slot`
 pub fn set_batch_texture() -> Result<(), Refused> {
     let n = rc2k_core::hud::batch::texture_slot(unsafe { game_read(SHOWN_TEXTURE_RVA) })?;
-    crate::scene::set_texture::set_texture(unsafe { game_read(SLOTS_RVA + 4 * n) });
+    crate::scene::set_texture::set_texture(KIND_TEXTURES.kind_first_slots[n].bits());
     Ok(())
 }

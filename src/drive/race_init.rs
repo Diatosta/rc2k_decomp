@@ -22,8 +22,9 @@
 //! as the original.
 
 use crate::errors::{FatalError, Refused};
-use crate::physics::flow::{g, p};
+use crate::race::switches_store::FRAME_SWITCHES;
 use crate::race::vars_store::RACE_VARS;
+use crate::race::viewer_screen_store::VIEWER_PANEL;
 use rc2k_core::drive::race_steps;
 
 /// `g_logIndent` changed by `by` (wrapping, as the original's `add`).
@@ -56,7 +57,7 @@ pub unsafe fn race_init() -> Result<(), Refused> {
     indent_by(race_steps::LOG_INDENT);
     unsafe { crate::race::best_line::build_best_line() }?;
     if race_steps::no_best_line(RACE_VARS.checkpoint_count.get()) {
-        if g(0x621514) != 0 {
+        if FRAME_SWITCHES.editor_mode.get() != 0 {
             return Ok(());
         }
         return Err(FatalError {
@@ -94,9 +95,9 @@ pub unsafe fn race_init() -> Result<(), Refused> {
     indent_by(race_steps::LOG_INDENT);
     for _ in 0..race_steps::SETTLING_STEPS {
         unsafe { crate::drive::race_cars_step::race_cars_step() }?;
-        p(0x5C2F94, 1);
+        VIEWER_PANEL.other_marks_shown.set(1);
         unsafe { crate::drive::share_all_cars::share_all_cars() }?;
-        p(0x5C2F94, 0);
+        VIEWER_PANEL.other_marks_shown.set(0);
         unsafe { crate::marks::frame_marks::frame_marks() }?;
         unsafe { crate::marks::run_frame::run_frame() }?;
     }

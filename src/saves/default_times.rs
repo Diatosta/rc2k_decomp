@@ -13,7 +13,6 @@
 //! written; `GameSource` and `apply` here).
 
 use crate::errors::BadInput;
-use crate::framework::{game_read, rva};
 use crate::math::random_below::random_below;
 use crate::menu::draw_work_store::DRAW_WORK;
 use crate::race::work_store::RACE_WORK;
@@ -21,7 +20,6 @@ use crate::saves::drivers::Driver;
 use rc2k_core::Invalid;
 use rc2k_core::saves::defaults::{Filled, Record};
 
-const CHECKPOINT_COUNTS_RVA: usize = rva(0x71C730); // dword_71C730[stage]
 /// Ten entries.
 pub const STAGE_LEN: u32 = 0x618;
 pub const RECORD_LEN: u32 = 0xA4;
@@ -76,7 +74,7 @@ impl rc2k_core::saves::defaults::Source for GameSource<'_> {
     }
 
     fn checkpoint_count(&mut self, stage: u32) -> u32 {
-        unsafe { game_read(CHECKPOINT_COUNTS_RVA + stage as usize * 4) }
+        RACE_WORK.checkpoint_counts[stage as usize].bits()
     }
 
     fn log(&mut self, piece: rc2k_core::saves::defaults::Piece) {

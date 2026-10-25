@@ -13,9 +13,10 @@
 //! their memory.
 
 use crate::errors::BadInput;
-use crate::framework::{game_read, game_write, rva};
+use crate::framework::{game_write, rva};
+use crate::race::course_lists_store::COURSE_LISTS;
 use crate::scene::object_store::OBJECT_WORK;
-use crate::scene::objects::{FIRST_POINT_RVA, POINT_COUNTS_RVA, POINTS_RVA, SLOTS, of_slot};
+use crate::scene::objects::{FIRST_POINT_RVA, POINT_COUNTS_RVA, SLOTS, of_slot};
 
 // ---- game data ----
 
@@ -33,7 +34,7 @@ unsafe fn points_of(slot: u32) -> Result<(usize, u32), BadInput> {
             return Err(BadInput("an object's slot past the tables"));
         }
         let count = of_slot(POINT_COUNTS_RVA, slot);
-        let memory: u32 = game_read(POINTS_RVA);
+        let memory: u32 = COURSE_LISTS.object_points.bits();
         if count > MOST || (count != 0 && memory == 0) {
             return Err(BadInput("points without their memory, or too many"));
         }

@@ -19,18 +19,17 @@
 
 use crate::errors::Refused;
 use crate::math::x87_run::{ext_to_int, int_80};
-use crate::physics::flow::{a, g, p};
+use crate::physics::contact_store::CONTACT_WORK;
+use crate::physics::flow::g;
 use crate::physics::object_turn_matrix::object_turn_matrix;
 use crate::physics::point_hits_car::point_hits_car;
 use crate::physics::tables_store::PHYSICS;
+use crate::race::course_lists_store::COURSE_LISTS;
+use crate::race::matrices_store::MATRICES;
 use crate::scene::rotate_point::rotate_point;
 use rc2k_core::physics::contacts;
-
-const OBJECT: usize = 0x6D321C; // dword_6D321C
 const FIRST: usize = 0x631F70; // g_objectFirstPoint (0x100 dwords)
 const COUNT: usize = 0x632370; // g_objectPointCount2 (0x100 dwords)
-const POINTS: usize = 0x5C6FA4; // g_objectPoints (a pointer)
-const TURN: usize = 0x5EA444; // flt_5EA444
 
 /// The Rust version: whether one of the object's points is inside the car (CF); `point`
 /// and `object` what esi and ebp hold at entry (`point_hits_car`'s). The registers it
@@ -39,7 +38,7 @@ const TURN: usize = 0x5EA444; // flt_5EA444
 // Converted: `rc2k_core::physics::contacts::{check_object, walk_points}` (the turns stay
 // x87).
 pub unsafe fn object_hits_car(point: u32, object: u32) -> Result<bool, Refused> {
-    let number = g(OBJECT);
+    let number = CONTACT_WORK.face_object.get();
     contacts::check_object(number)?;
     unsafe { object_turn_matrix() }?;
     PHYSICS.object_hits.set(
@@ -51,12 +50,21 @@ pub unsafe fn object_hits_car(point: u32, object: u32) -> Result<bool, Refused> 
     let count = g(COUNT + 4 * number as usize);
     // With no points the original skips to `clc` before it sets edx (0x45E779); the
     // points' table is read only when there are some.
-    let points = if count == 0 { 0 } else { g(POINTS) };
+    let points = if count == 0 {
+        0
+    } else {
+        COURSE_LISTS.object_points.get()
+    };
     let walk = contacts::walk_points(g(FIRST + 4 * number as usize), count, points, 0, |edx| {
         let at = |k: u32| unsafe { int_80(((edx + 4 * k) as *const i32).read_unaligned(), false) };
-        let turned = unsafe { rotate_point(a(TURN), [at(0), at(1), at(2)]) };
+        let turned = unsafe {
+            rotate_point(
+                MATRICES.object_turn_matrix[0].addr() as u32,
+                [at(0), at(1), at(2)],
+            )
+        };
         for (k, e) in turned.iter().enumerate() {
-            p(0x6D3B40 + 4 * k, ext_to_int(*e) as u32);
+            CONTACT_WORK.object_offset[k].set(ext_to_int(*e) as u32);
         }
         unsafe { point_hits_car(point, object) }
     });

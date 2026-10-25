@@ -13,14 +13,12 @@
 //!
 //! Caller: `physics::apply_torques` (in a loop over records).
 
-use crate::framework::{game_addr, rva};
 use crate::math::x87_run::neg_product2_plus;
+use crate::physics::contact_store::CONTACT_WORK;
 use crate::physics::tables_store::PHYSICS;
 use crate::physics::turn_by_inverse_at::turn_by_inverse_at;
 use crate::physics::turn_by_matrix_at::turn_by_matrix_at;
 use crate::scene::view_matrix::cross_product;
-
-const WORK_RVA: usize = rva(0x6D30B4); // dword_6D30B4
 /// Where a car block's spin is.
 pub const SPIN_OFFSET: u32 = 0x184;
 
@@ -63,7 +61,7 @@ pub unsafe fn apply_torque(rec: u32, car: u32) {
         apply_torque_at(
             rec,
             car,
-            game_addr(WORK_RVA) as u32,
+            CONTACT_WORK.contact_turn_speed[0].addr() as u32,
             PHYSICS.torque_cross[0].addr() as u32,
         )
     }

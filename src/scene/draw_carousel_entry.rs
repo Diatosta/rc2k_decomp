@@ -26,15 +26,17 @@
 //! of 0x100 or more and a kind past the records.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, game_write, rva};
+use crate::framework::{game_read, rva};
 use crate::menu::lists_store::MENU_LISTS;
 use crate::menu::state_store::MENU_STATE;
 use crate::physics::tables_store::PHYSICS;
+use crate::race::switches_store::FRAME_SWITCHES;
 use crate::scene::draw_store::DRAW;
 use crate::scene::object_store::OBJECT_WORK;
 
 // ---- game data ----
 
+// Still named by `draw_car_object` and `draw_highlighted_object`.
 pub(crate) const PLACE_RVA: usize = rva(0x63501C); // dword_63501C, dword_635020, dword_635024
 pub(crate) const ANGLE_Y_RVA: usize = rva(0x635040); // dword_635040
 pub(crate) const ENTRIES: u32 = 0x100;
@@ -42,7 +44,6 @@ pub(crate) const ENTRIES: u32 = 0x100;
 /// reads the lists that follow in the image, as the original does).
 pub(crate) const OWN: u32 = 0x88;
 const OWN_PLACES_IDA: usize = 0x75950E; // unk_75950E: `MENU_LISTS.own_places`, 12 bytes each
-pub(crate) const OBJECT_RVA: usize = rva(0x6214FC); // g_objectNumber
 // g_objectKinds
 
 // ---- Rust version ----
@@ -132,10 +133,10 @@ pub unsafe fn draw_carousel_entry(
             OBJECT_WORK.size.set_bits(size);
         }
         OBJECT_WORK.angles[0].set_bits(set.angle_x);
-        game_write(ANGLE_Y_RVA, set.angle_y);
+        OBJECT_WORK.angles[1].set_bits(set.angle_y);
         crate::session::write_bits(&DRAW.view_offset, [0u32; 2]);
         MENU_STATE.carousel.kind.set(set.kind);
-        game_write(OBJECT_RVA, set.object);
+        FRAME_SWITCHES.object_number.set_bits(set.object);
         draw()
     }
 }

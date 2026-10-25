@@ -11,13 +11,10 @@
 //! Caller: `marks::run_frame` (0x4D1693).
 
 use crate::errors::Refused;
-use crate::framework::rva;
 use crate::marks::clip::GLOW;
-use crate::marks::store::game_read;
 use crate::math::x87;
+use crate::scene::kind_texture_store::KIND_TEXTURES;
 use crate::scene::matrix3::extended;
-
-const TEXTURE_RVA: usize = rva(0x5D1E34); // dword_5D1E34
 /// The render states set (value, state).
 const STATES: [(u32, u32); 5] = [(4, 0x15), (5, 0x13), (6, 0x14), (0, 0x1C), (1, 0x1B)];
 
@@ -31,7 +28,7 @@ pub unsafe fn draw_glow() -> Result<(), Refused> {
         for (value, state) in STATES {
             crate::scene::set_render_state::set_render_state(value, state);
         }
-        crate::scene::set_texture::set_texture(game_read(TEXTURE_RVA));
+        crate::scene::set_texture::set_texture(KIND_TEXTURES.kind_first_slots[211].bits());
         let place = [
             x87::add_80(GLOW.place[2].bits(), GLOW.offset[0].bits()),
             x87::add_80(GLOW.place[1].bits(), GLOW.offset[1].bits()),

@@ -12,25 +12,25 @@
 //! original's instructions are `asm_reference` in the tests.
 //! One caller, `sub_45198C` (the reflection's texture coordinates).
 
-use crate::framework::{game_ptr, game_read, game_write, rva};
+use crate::race::matrices_store::MATRICES;
 use crate::scene::draw_store::DRAW;
 use crate::scene::x87_mem::{fld, fstp};
-
-// ---- game data ----
-
-pub const VECTOR_RVA: usize = rva(0x5EA428); // dword_5EA428, dword_5EA42C, dword_5EA430
-pub const NORMAL_RVA: usize = rva(0x5EA438); // qword_5EA438, dword_5EA440
-pub const MATRIX_RVA: usize = rva(0x5EA20C); // flt_5EA20C
 
 // ---- Rust version ----
 
 pub unsafe fn reflect_vector() {
     unsafe {
-        let (v, n): ([u32; 3], [u32; 3]) = (game_read(VECTOR_RVA), game_read(NORMAL_RVA));
+        let (v, n): ([u32; 3], [u32; 3]) = (
+            crate::session::read_bits(&MATRICES.reflect_vector),
+            crate::session::read_bits(&MATRICES.reflect_normal),
+        );
         // The vector, the normal, d.
         let mut w = [v[0], v[1], v[2], n[0], n[1], n[2], 0];
-        reflect(w.as_mut_ptr().cast(), game_ptr::<u32>(MATRIX_RVA).cast());
-        game_write(VECTOR_RVA, [w[0], w[1], w[2]]);
+        reflect(
+            w.as_mut_ptr().cast(),
+            (MATRICES.view_back_matrix[0].addr() as *mut u32).cast(),
+        );
+        crate::session::write_bits(&MATRICES.reflect_vector, [w[0], w[1], w[2]]);
         DRAW.scratch.set_bits(w[6]);
     }
 }

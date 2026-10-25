@@ -19,7 +19,7 @@
 //! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::framework::{game_read, rva};
 use crate::math::x87_run::{ext_to_int, int_80, int_mul_add};
 use crate::physics::car_store::CAR;
 use crate::race::numbers_store::NUMBERS;
@@ -28,14 +28,8 @@ use crate::scene::object_store::OBJECT_WORK;
 use crate::scene::rotate_point::rotate_point;
 use rc2k_core::physics::parts::{LAST_PART, choose_slot};
 
-pub const SLOTS: usize = 0x71BAC8; // g_raceSlots
-
 pub fn g(x: usize) -> u32 {
     unsafe { game_read(rva(x)) }
-}
-
-pub fn p(x: usize, v: u32) {
-    unsafe { game_write(rva(x), v) }
 }
 
 unsafe fn at(a: u32) -> u32 {
@@ -53,7 +47,7 @@ pub fn fill_race_slot(part: u32) -> Result<(), Refused> {
     if part > LAST_PART {
         return Err(BadInput("a part past 0xFF").into());
     }
-    let first = game_addr(rva(SLOTS)) as u32;
+    let first = RACE_WORK.race_slots[0].part.addr() as u32;
     unsafe {
         let slot_at = |c: usize| first + 0x78 * c as u32;
         let Some(choice) = choose_slot(|c| at(slot_at(c)), |c| at(slot_at(c) + 0x64)) else {
@@ -68,7 +62,7 @@ pub fn fill_race_slot(part: u32) -> Result<(), Refused> {
         );
         for (k, e) in out.iter().enumerate() {
             let n = ext_to_int(*e) as u32;
-            p(0x635004 + 4 * k, n);
+            OBJECT_WORK.object_position[k].set_bits(n);
             put(s + 4 + 4 * k as u32, n.wrapping_add(CAR.position[k].get()));
         }
         put(s + 0x60, CAR.probe_point_face[4].get());

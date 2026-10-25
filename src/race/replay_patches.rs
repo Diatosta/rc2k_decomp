@@ -10,23 +10,35 @@
 //! Both keep every register (`pusha` / `popa`).
 
 use crate::errors::Refused;
-use crate::race::viewer::{get, move_dwords, put};
+use crate::race::replay_work_store::REPLAY_WORK;
+use crate::race::viewer_screen_store::VIEWER_PANEL;
 use crate::race::work_store::RACE_WORK;
+use crate::session::Dword;
 
-const IN_HEADER: usize = 0x719C54; // dword_719C54
-const IN_FORCE: usize = 0x5C2C94; // dword_5C2C94
-const SWITCHES: usize = 0x71C6D0; // g_patchSwitch, 13 dwords
-const KEPT: usize = 0x5C2C98; // unk_5C2C98
-const REPLAYS: usize = 0x719C58; // unk_719C58
+/// `g_patchSwitch` and the twelve settings after it (13 dwords from 0x71C6D0).
+fn switches() -> impl Iterator<Item = &'static Dword> {
+    std::iter::once(&RACE_WORK.patch_switch).chain(RACE_WORK.patch_settings.iter())
+}
+
+/// `rep movsd` of the dwords, forwards.
+fn move_dwords<'a>(to: impl Iterator<Item = &'a Dword>, from: impl Iterator<Item = &'a Dword>) {
+    for (to, from) in to.zip(from) {
+        to.set(from.get());
+    }
+}
 
 /// `apply_replay_patches`.
 pub fn apply_replay_patches() -> Result<(), Refused> {
-    // Converted: `rc2k_core::race::viewer_flow::{patches_change, PATCH_DWORDS}`.
-    use rc2k_core::race::viewer_flow::{PATCH_DWORDS, patches_change};
-    if patches_change(get(IN_HEADER), get(IN_FORCE), false) {
-        put(IN_FORCE, 1);
-        move_dwords(KEPT, SWITCHES, PATCH_DWORDS);
-        move_dwords(SWITCHES, REPLAYS, PATCH_DWORDS);
+    // Converted: `rc2k_core::race::viewer_flow::patches_change`.
+    use rc2k_core::race::viewer_flow::patches_change;
+    if patches_change(
+        REPLAY_WORK.patches_in_header.get(),
+        VIEWER_PANEL.patches_in_force.get(),
+        false,
+    ) {
+        VIEWER_PANEL.patches_in_force.set(1);
+        move_dwords(VIEWER_PANEL.kept_patch_switches.iter(), switches()); // unk_5C2C98
+        move_dwords(switches(), REPLAY_WORK.header_patches.iter()); // unk_719C58
         RACE_WORK.patches_applied.set(0);
         crate::physics::apply_patches::apply_patches();
     }
@@ -35,11 +47,15 @@ pub fn apply_replay_patches() -> Result<(), Refused> {
 
 /// `restore_replay_patches`.
 pub fn restore_replay_patches() -> Result<(), Refused> {
-    // Converted: `rc2k_core::race::viewer_flow::{patches_change, PATCH_DWORDS}`.
-    use rc2k_core::race::viewer_flow::{PATCH_DWORDS, patches_change};
-    if patches_change(get(IN_HEADER), get(IN_FORCE), true) {
-        put(IN_FORCE, 0);
-        move_dwords(SWITCHES, KEPT, PATCH_DWORDS);
+    // Converted: `rc2k_core::race::viewer_flow::patches_change`.
+    use rc2k_core::race::viewer_flow::patches_change;
+    if patches_change(
+        REPLAY_WORK.patches_in_header.get(),
+        VIEWER_PANEL.patches_in_force.get(),
+        true,
+    ) {
+        VIEWER_PANEL.patches_in_force.set(0);
+        move_dwords(switches(), VIEWER_PANEL.kept_patch_switches.iter());
         RACE_WORK.patches_applied.set(0);
         crate::physics::apply_patches::apply_patches();
     }

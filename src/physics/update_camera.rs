@@ -33,13 +33,16 @@
 //! above are the original's, for reference.
 
 use crate::errors::Refused;
+use crate::physics::camera_store::CAMERA_WORK;
 use crate::physics::camera_view::{rd, record};
 use crate::physics::car_store::CAR;
-use crate::physics::flow::{a, g, hold_high, hold_low, p};
+use crate::physics::flow::{a, g, hold_high, hold_low};
 use crate::physics::touch_face::FACES;
 use crate::race::course_store::COURSE;
 use crate::race::frame_store::FRAME_WORK;
+use crate::race::kind_store::KIND_TABLES;
 use crate::race::numbers_store::NUMBERS;
+use crate::race::view_vars_store::VIEW_VARS;
 use crate::scene::draw_store::DRAW;
 use crate::scene::matrix3::rounded;
 use crate::scene::x87_mem::{fild, fistp, fld, fstp};
@@ -76,11 +79,11 @@ fn fixed_camera(second: bool) {
     let w = [dx, dy, dz];
     x87_2(w.as_ptr() as usize, crate::race::store::asm_base() as usize);
     DRAW.scratch.set(dz);
-    p(
-        0x60631C,
-        rounded(unsafe { crate::physics::vector_length::vector_length(a(0x6062D8)) }),
-    );
-    CAR.camera_zoom.set_bits(g(0x608B1C));
+    VIEW_VARS.camera_distance.set_bits(rounded(unsafe {
+        crate::physics::vector_length::vector_length(VIEW_VARS.camera_vector[0].addr() as u32)
+    }));
+    CAR.camera_zoom
+        .set_bits(CAMERA_WORK.camera_zoom_kept.bits());
     if rd(record() + 0x50) != 0 {
         CAR.camera_zoom.set_bits(0x180);
         x87_3(crate::race::store::asm_base() as usize);
@@ -103,10 +106,12 @@ pub fn steps() -> Result<(), Refused> {
     let car = CAR.car_kind.get();
     let light = car.wrapping_mul(0x134).wrapping_add(a(LIGHTS));
     x87_4(light as usize, crate::race::store::asm_base() as usize);
-    p(0x606630, rd(light + 0xC));
-    p(0x606630, rd(light + 0x1C));
-    if !camera_view::keeps_light_figure(car, || g(0x5C5AC0 + 4 * car as usize)) {
-        p(0x606574, crate::math::x87::loaded(rd(light + 0x28)));
+    VIEW_VARS.light_c.set(rd(light + 0xC));
+    VIEW_VARS.light_c.set(rd(light + 0x1C));
+    if !camera_view::keeps_light_figure(car, || KIND_TABLES.kind_has_views[car as usize].get()) {
+        VIEW_VARS
+            .light_b
+            .set_bits(crate::math::x87::loaded(rd(light + 0x28)));
     }
     if CAR.camera_switch_active.get() == 0
         && let Some(second) = camera_view::fixed_camera(CAR.camera_view.get())
@@ -115,9 +120,12 @@ pub fn steps() -> Result<(), Refused> {
         return Ok(());
     }
     // 0x437BE4: the camera at the car, the views blended.
-    for (k, copy) in [0x5CCDA0usize, 0x5CCDC0, 0x5CCDE0].iter().enumerate() {
+    for (k, copy) in [&COURSE.place_x, &COURSE.place_y, &COURSE.place_z]
+        .into_iter()
+        .enumerate()
+    {
         let v = CAR.position[k].get();
-        p(*copy, v);
+        copy.set(v);
         CAR.camera_position[k].set(v);
     }
     COURSE.place_heading.set(CAR.car_heading.get());
@@ -143,47 +151,87 @@ pub fn steps() -> Result<(), Refused> {
     }
     let (mode, before) = (CAR.camera_view.get(), CAR.camera_blend_view.get());
     camera_view::check_modes(mode, before)?;
-    unsafe { crate::physics::take_view_a::take_view_a(g(0x606320 + 4 * mode as usize)) };
-    unsafe { crate::physics::take_view_b::take_view_b(g(0x606320 + 4 * before as usize)) };
+    unsafe {
+        crate::physics::take_view_a::take_view_a(VIEW_VARS.view_records[mode as usize].get())
+    };
+    unsafe {
+        crate::physics::take_view_b::take_view_b(VIEW_VARS.view_records[before as usize].get())
+    };
     x87_6(crate::race::store::asm_base() as usize);
     // The offsets and turns: (to, from b, from a) each a + (b - a) x share, x 65536.
+    let (work, offset_turns) = (&CAMERA_WORK, &CAR.camera_offset_turns);
     for (to, x, y) in [
-        (0x608B30usize, 0x608BB0usize, 0x608B98usize),
-        (0x608B34, 0x608BB4, 0x608B9C),
-        (0x608B38, 0x608BB8, 0x608BA0),
-        (0x608B74, 0x608B8C, 0x608B80),
-        (0x608B78, 0x608B90, 0x608B84),
-        (0x608B7C, 0x608B94, 0x608B88),
-        (0x71A694, 0x608BD4, 0x608BC8),
-        (0x71A698, 0x608BD8, 0x608BCC),
-        (0x71A69C, 0x608BDC, 0x608BD0),
+        (
+            work.camera_offset_x.addr(),
+            work.view_b_offset[0].addr(),
+            work.view_a_offset[0].addr(),
+        ),
+        (
+            work.camera_offset_y.addr(),
+            work.view_b_offset[1].addr(),
+            work.view_a_offset[1].addr(),
+        ),
+        (
+            work.camera_offset_z.addr(),
+            work.view_b_offset[2].addr(),
+            work.view_a_offset[2].addr(),
+        ),
+        (
+            work.view_turn_x.addr(),
+            work.view_b_turn[0].addr(),
+            work.view_a_turn[0].addr(),
+        ),
+        (
+            work.view_turn_y.addr(),
+            work.view_b_turn[1].addr(),
+            work.view_a_turn[1].addr(),
+        ),
+        (
+            work.view_turn_z.addr(),
+            work.view_b_turn[2].addr(),
+            work.view_a_turn[2].addr(),
+        ),
+        (
+            offset_turns[0].addr(),
+            work.view_b_point[0].addr(),
+            work.view_a_point[0].addr(),
+        ),
+        (
+            offset_turns[1].addr(),
+            work.view_b_point[1].addr(),
+            work.view_a_point[1].addr(),
+        ),
+        (
+            offset_turns[2].addr(),
+            work.view_b_point[2].addr(),
+            work.view_a_point[2].addr(),
+        ),
     ] {
-        x87_7(
-            a(x) as usize,
-            a(y) as usize,
-            crate::race::store::asm_base() as usize,
-            a(to) as usize,
-        );
+        x87_7(x, y, crate::race::store::asm_base() as usize, to);
     }
     for turn in &CAR.camera_offset_turns {
         turn.set(turn.get() << 16);
     }
-    for (to, from) in [
-        (0x608BE4, 0x608BF8),
-        (0x608BE8, 0x608BFC),
-        (0x608BEC, 0x608C00),
-        (0x608BE0, 0x608BF4),
-        (0x608BF0, 0x608C04),
-    ] {
-        p(to, g(from));
-    }
+    CAMERA_WORK
+        .view_share_pitch
+        .set_bits(CAMERA_WORK.view_a_shares[0].bits());
+    CAMERA_WORK
+        .view_share_heading
+        .set_bits(CAMERA_WORK.view_a_shares[1].bits());
+    CAMERA_WORK
+        .view_share_roll
+        .set_bits(CAMERA_WORK.view_a_shares[2].bits());
+    CAMERA_WORK.view_blend_aux.set(CAMERA_WORK.view_a_aux.get());
+    CAMERA_WORK
+        .view_blend_aux_2
+        .set(CAMERA_WORK.view_a_aux_2.get());
     x87_8(crate::race::store::asm_base() as usize);
-    hold_low(&CAR.camera_zoom, 0x6062D0);
+    hold_low(&CAR.camera_zoom, &VIEW_VARS.camera_zoom_hold);
     unsafe { crate::physics::ease_view_angles::ease_view_angles() };
     unsafe { crate::physics::ease_view_blend::ease_view_blend() };
     crate::physics::camera_avoid_ground::steps()?;
     x87_9(crate::race::store::asm_base() as usize);
-    COURSE.camera_first.set(g(0x6062BC));
+    COURSE.camera_first.set(VIEW_VARS.view_angles[1].get());
     Ok(())
 }
 

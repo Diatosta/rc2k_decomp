@@ -28,6 +28,7 @@ use crate::physics::tables_store::PHYSICS;
 use crate::race::numbers_store::NUMBERS;
 use crate::scene::draw_store::DRAW;
 use crate::scene::x87_mem::{fild, fistp, fld, fstp};
+use crate::session::Cell32;
 use rc2k_core::physics::car_specs::{
     OWN_FIGURES_FROM, RECORD_LEN, check_drive, gear_count, record_of,
 };
@@ -64,20 +65,21 @@ fn record() -> u32 {
 unsafe fn words(s: u32) {
     unsafe {
         for k in 0..9u32 {
-            p(0x614B7C + 4 * k as usize, at(s + 0x7C + 4 * k));
+            PHYSICS.spec_torque[k as usize].set(at(s + 0x7C + 4 * k));
         }
         PHYSICS.spec_a0.set(at(s + 0xA0));
         let count = at(s + 0x1C);
         PHYSICS.gear_count.set(gear_count(count));
-        for (to, from) in [
-            (0x614C14usize, 0x20u32),
-            (0x614BB4, 0x2C),
-            (0x614BB8, 0x30),
-            (0x614B74, 0x24),
-            (0x614B78, 0x28),
-            (0x614BBC, 0x34),
-        ] {
-            p(to, at(s + from));
+        p(0x614C14, at(s + 0x20));
+        let places: [(&dyn Cell32, u32); 5] = [
+            (&PHYSICS.spec_surface[0], 0x2C),
+            (&PHYSICS.spec_surface[1], 0x30),
+            (&PHYSICS.grip_scale, 0x24),
+            (&PHYSICS.side_grip_scale, 0x28),
+            (&PHYSICS.spec_surface[2], 0x34),
+        ];
+        for (to, from) in places {
+            to.set_bits(at(s + from));
         }
     }
 }

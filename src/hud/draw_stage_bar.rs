@@ -15,13 +15,10 @@
 //! `dword_75BF70`'s four, before anything.
 
 use crate::errors::Refused;
-use crate::framework::rva;
 use crate::hud::store::HUD;
+use crate::race::overlay_store::RACE_OVERLAY;
 use crate::session::Dword;
-use crate::store::game_read;
 
-pub const MILES_RVA: usize = rva(0x6D150C); // g_overlayPartMiles: 0x40
-pub const KINDS_RVA: usize = rva(0x6D160C); // dword_6D160C: 0x40
 pub fn set(n: usize, v: u32) {
     HUD.quad[n].set(v);
 }
@@ -42,7 +39,7 @@ pub fn quad(colour: Option<u32>, c: [u32; 4]) -> Result<(), Refused> {
 // Converted: `rc2k_core::hud::stage_bars`
 pub unsafe fn bars(
     record: u32,
-    kinds: &[usize],
+    kinds: &[&[Dword]],
     colour_vars: &[&Dword],
     dy: u32,
 ) -> Result<(), Refused> {
@@ -51,7 +48,7 @@ pub unsafe fn bars(
         let get = |o: u32| ((record + o) as *const u32).read_unaligned();
         let count = get(0x74);
         sb::check(count, kinds.len() as u32, |p, n| {
-            game_read(kinds[p as usize] + 4 * n as usize)
+            kinds[p as usize][n as usize].get()
         })?;
         set(0, sb::SOLID);
         for (colour, c) in sb::frame(dy, kinds.len() == 2) {
@@ -69,7 +66,7 @@ pub unsafe fn bars(
             let colours: Vec<u32> = kinds
                 .iter()
                 .map(|&k| {
-                    let kind: u32 = game_read(k + 4 * n as usize);
+                    let kind: u32 = k[n as usize].get();
                     ((HUD.stage_colours.as_ptr() as u32 + kind) as *const u32).read_unaligned()
                 })
                 .collect();
@@ -77,7 +74,7 @@ pub unsafe fn bars(
                 to.set(c);
             }
             let end = sb::part_end(
-                f32::from_bits(game_read(MILES_RVA + 4 * n as usize)),
+                RACE_OVERLAY.overlay_part_miles[n as usize].get(),
                 HUD.ends[1].get(),
                 left == 1,
                 total,
@@ -102,5 +99,12 @@ pub unsafe fn bars(
 /// The Rust version (see the header).
 // Converted: `rc2k_core::hud::stage_bars` (through `bars`)
 pub unsafe fn draw_stage_bar(record: u32) -> Result<(), Refused> {
-    unsafe { bars(record, &[KINDS_RVA], &[&HUD.bar_colour], 0) }
+    unsafe {
+        bars(
+            record,
+            &[&RACE_OVERLAY.overlay_part_kinds_a],
+            &[&HUD.bar_colour],
+            0,
+        )
+    }
 }

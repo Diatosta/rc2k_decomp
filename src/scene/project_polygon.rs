@@ -17,11 +17,11 @@
 //! version stays for the Rust callers in unconverted code).
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::game_read;
+use crate::race::course_lists_store::COURSE_LISTS;
 use crate::race::course_store::COURSE;
 use crate::scene::draw_store::DRAW;
 use crate::scene::polygon::{dword, listed, put};
-use crate::scene::project_point::{NEAR, RECORDS_RVA, project_point, record_offset};
+use crate::scene::project_point::{NEAR, project_point, record_offset};
 
 // ---- game data ----
 
@@ -37,7 +37,9 @@ pub unsafe fn project_polygon() -> Result<(), Refused> {
         // The scene's points are only needed for a scene's point: the menus have none,
         // and their objects' points (negative) only need the records.
         let scene_point = entries.iter().any(|&entry| dword(entry) as i32 >= 0);
-        if game_read::<u32>(RECORDS_RVA) == 0 || (scene_point && COURSE.scene_points.bits() == 0) {
+        if COURSE_LISTS.point_records.bits() == 0
+            || (scene_point && COURSE.scene_points.bits() == 0)
+        {
             return Err(BadInput("no points or no records for them").into());
         }
         for &entry in &entries {

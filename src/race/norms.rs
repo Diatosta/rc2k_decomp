@@ -3,24 +3,21 @@
 //! points and of its last three) stored in it.
 
 use crate::errors::Refused;
-use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::math::x87;
+use crate::physics::ground_store::GROUND_WORK;
+use crate::race::course_lists_store::COURSE_LISTS;
 use crate::race::course_store::COURSE;
 use crate::race::numbers_store::NUMBERS;
+use crate::race::scratch_store::FRAME_SCRATCH;
+use crate::race::view_store::RACE_VIEW;
 use crate::scene::draw_store::DRAW;
-
-pub const WORK_VECTOR_RVA: usize = rva(0x5C5F60); // g_workVector: three floats
-pub const QUAD_RVA: usize = rva(0x63D9F8); // dword_63D9F8: -1 for faces of three points
-/// `face_normal`'s work: the three points (9 dwords) and the six differences.
-pub const NORMAL_WORK_RVA: usize = rva(0x6396A0);
-const COURSE_MEMORY_RVA: usize = rva(0x5C6F94); // g_courseMemory
 
 /// `race::normalise_work_vector` (0x41FC4D): `g_workVector` made one long by its 80-bit
 /// length (`math::x87::normalise_in_place`); a length equal to 0 makes it 0; -0.0 parts
 /// become 0. The length rounded into `dword_62400C`.
 pub unsafe fn normalise_work_vector() {
     unsafe {
-        let v = game_addr(WORK_VECTOR_RVA) as *mut u32;
+        let v = FRAME_SCRATCH.work_vector[0].addr() as *mut u32;
         let (length, zero) = x87::normalise_in_place(v, NUMBERS.zero.bits());
         DRAW.scratch.set_bits(length);
         for n in 0..3 {
@@ -56,14 +53,14 @@ pub unsafe fn face_normal(a: u32, b: u32, c: u32) {
         work[3..6].copy_from_slice(&b);
         work[6..9].copy_from_slice(&c);
         work[9..].copy_from_slice(&d);
-        game_write(NORMAL_WORK_RVA, work);
+        crate::session::write_bits(&GROUND_WORK.normal_work, work.map(|v| v as u32));
         // c4 = d[0], c8 = d[1], cc = d[2], d0 = d[3], d4 = d[4], d8 = d[5]
         let normal = [
             x87::int_product_difference(d[5], d[2], d[3], d[4]),
             x87::int_product_difference(d[1], d[4], d[5], d[0]),
             x87::int_product_difference(d[3], d[0], d[1], d[2]),
         ];
-        game_write(WORK_VECTOR_RVA, normal);
+        crate::session::write_first(&FRAME_SCRATCH.work_vector, &normal);
         normalise_work_vector();
     }
 }
@@ -88,7 +85,10 @@ pub unsafe fn store_face_normal(face_number: u32, normal: &mut dyn FnMut(u32, u3
             return;
         }
         let corners = [4, 8, 0xC, 0x10].map(dword);
-        let repeated = repeated_points(corners, || game_read::<u32>(QUAD_RVA) != u32::MAX);
+        let repeated = repeated_points(
+            corners,
+            || RACE_VIEW.corners[3].bits() != u32::MAX, /* dword_63D9F8: -1 for faces of three points */
+        );
         let flags = (face + 2) as *mut u16;
         flags.write_unaligned(with_repeated(flags.read_unaligned(), repeated));
         let count: u32 = COURSE.scene_point_count.bits();
@@ -97,7 +97,7 @@ pub unsafe fn store_face_normal(face_number: u32, normal: &mut dyn FnMut(u32, u3
             if normal_made([a, b, c], count) {
                 normal(a, b, c);
             }
-            let work: [u32; 3] = game_read(WORK_VECTOR_RVA);
+            let work: [u32; 3] = crate::session::read_first(&FRAME_SCRATCH.work_vector);
             for (place, value) in places.into_iter().zip(work) {
                 ((face + place) as *mut u32).write_unaligned(value);
             }
@@ -110,10 +110,10 @@ pub unsafe fn store_face_normal(face_number: u32, normal: &mut dyn FnMut(u32, u3
 /// (`g_scenePoints`, `g_scenePointCount` of 12), and what follows (`dword_5CCCC4`, and its
 /// offset in `dword_5CCCC8`); the first at `dword_5CCCB8`. Every register preserved.
 pub unsafe fn lay_out_course() {
-    unsafe {
+    {
         // Converted: `rc2k_core::race::faces::CourseLayout`.
         let layout = rc2k_core::race::faces::CourseLayout::of(
-            game_read(COURSE_MEMORY_RVA),
+            COURSE_LISTS.course_memory.bits(),
             COURSE.course_record_count.bits(),
             COURSE.course_face_count.bits(),
             COURSE.scene_point_count.bits(),

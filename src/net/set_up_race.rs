@@ -14,26 +14,24 @@
 //! would run past them: refused. Caller: `net::lets_rally`.
 
 use crate::errors::Refused;
-use crate::net::lobby::{g, log, log_int_nl, p};
+use crate::net::lobby::{log, log_int_nl};
 use crate::net::store::NET;
 use crate::race::blocks_store::CAR_BLOCKS;
+use crate::race::switches_store::FRAME_SWITCHES;
 use crate::race::vars_store::RACE_VARS;
+use crate::race::view_store::RACE_VIEW;
 use rc2k_core::net::record;
 
-const LOCAL: usize = 0x63DBA0; // dword_63DBA0
-const RACE_CARS: usize = 0x63DB90; // g_raceCars
-const ONE: usize = 0x63DB94; // dword_63DB94
-const CLEARED_2: usize = 0x621514; // dword_621514
 const RULE: &std::ffi::CStr = c"------------------------"; // "------------------------"
 const START: &std::ffi::CStr = c"LOADING NETWORK START   "; // "LOADING NETWORK START   "
 const COMPLETE: &std::ffi::CStr = c"LOADING NETWORK COMPLETE"; // "LOADING NETWORK COMPLETE"
 const RULE_2: &std::ffi::CStr = c"------------------------";
 /// The counts logged: (the label, the value's variable).
 const COUNTS: [(&std::ffi::CStr, Count); 11] = [
-    (c"[shaunnumcars]", Count::At(RACE_CARS)), // "[shaunnumcars]"
-    (c"[shaunnumplayers]", Count::At(ONE)),    // "[shaunnumplayers]"
-    (c"[localnpn]", Count::LocalPlayer),       // "[localnpn]"
-    (c"[shauncarnum1]", Count::Kind(0)),       // "[shauncarnum1]" ..
+    (c"[shaunnumcars]", Count::RaceCars),   // "[shaunnumcars]"
+    (c"[shaunnumplayers]", Count::Players), // "[shaunnumplayers]"
+    (c"[localnpn]", Count::LocalPlayer),    // "[localnpn]"
+    (c"[shauncarnum1]", Count::Kind(0)),    // "[shauncarnum1]" ..
     (c"[shauncarnum2]", Count::Kind(1)),
     (c"[shauncarnum3]", Count::Kind(2)),
     (c"[shauncarnum4]", Count::Kind(3)),
@@ -43,11 +41,12 @@ const COUNTS: [(&std::ffi::CStr, Count); 11] = [
     (c"[shauncarnum8]", Count::Kind(7)),
 ];
 
-/// A count logged: a variable by IDA address, this machine's player (`NET.player`), or
-/// a car's kind (`RACE_VARS.car_kinds`).
+/// A count logged: `RACE_VIEW`'s car and player counts, this machine's player (`NET.player`), or
+/// a car's kind (`RACE_VARS.race_car_kinds`).
 #[derive(Clone, Copy)]
 enum Count {
-    At(usize),
+    RaceCars,
+    Players,
     LocalPlayer,
     Kind(usize),
 }
@@ -56,23 +55,23 @@ enum Count {
 pub fn set_up_race() -> Result<(), Refused> {
     // Converted: `rc2k_core::net::record` (`race_players`, `seat`).
     let players = record::race_players(NET.players.get())?;
-    p(LOCAL, NET.player.get());
+    RACE_VIEW.local_car.set(NET.player.get());
     for n in 0..players {
         let record = &NET.player_block(n).record;
         let seat = record::seat(|n| record.head.get(n));
         let v = &RACE_VARS;
-        v.car_kinds[n as usize].set(seat.car);
+        v.race_car_kinds[n as usize].set(seat.car);
         v.car_colours[n as usize].set(seat.colours);
         v.start_numbers[n as usize].set(seat.race_number);
         if let Some((stage, direction)) = seat.stage {
-            v.stage.set(stage);
+            v.stage_number.set(stage);
             v.direction.set(direction);
         }
     }
     RACE_VARS.run_kind.set(0);
-    p(RACE_CARS, players);
-    p(ONE, 1);
-    p(CLEARED_2, 0);
+    RACE_VIEW.race_cars.set(players);
+    RACE_VIEW.players.set(1);
+    FRAME_SWITCHES.editor_mode.set(0);
     crate::net::reset_cars::reset_cars();
     unsafe {
         crate::race::race_cars::set_up_arcade_cars()?;
@@ -90,9 +89,10 @@ pub fn set_up_race() -> Result<(), Refused> {
     for (label, value) in COUNTS {
         log(label.as_ptr() as u32, false, 1);
         let value = match value {
-            Count::At(a) => g(a),
+            Count::RaceCars => RACE_VIEW.race_cars.get(),
+            Count::Players => RACE_VIEW.players.get(),
             Count::LocalPlayer => NET.player.get(),
-            Count::Kind(n) => RACE_VARS.car_kinds[n].get(),
+            Count::Kind(n) => RACE_VARS.race_car_kinds[n].get(),
         };
         log_int_nl(value, 1);
     }

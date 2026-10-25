@@ -36,36 +36,30 @@
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_read, game_write, rva};
 use crate::physics::car_store::CAR;
+use crate::physics::ground_store::GROUND_WORK;
 use crate::race::course_store::COURSE;
+use crate::race::kind_store::KIND_TABLES;
 use crate::race::numbers_store::NUMBERS;
+use crate::race::sound_spots_store::RACE_SOUND_SPOTS;
+use crate::race::switches_store::FRAME_SWITCHES;
 use crate::race::vars_store::RACE_VARS;
+use crate::race::view_vars_store::VIEW_VARS;
 use crate::race::work_store::RACE_WORK;
-use crate::scene::draw_object_faces::{LIST_RVA, LISTED_RVA};
+use crate::scene::draw_object_faces::LIST_RVA;
 use crate::scene::draw_store::DRAW;
+use crate::scene::draw_switches_store::DRAW_SWITCHES;
 use crate::scene::face_faces_away::face_faces_away;
 use crate::scene::face_sort_key::face_sort_key;
+use crate::scene::light_work_store::LIGHT_WORK;
 use crate::scene::polygon::dword;
 use rc2k_core::scene::face_tests::{Face, FaceWorld, dropped, listed_key};
 
 // ---- game data ----
 
-pub const SEE_THROUGH_RVA: usize = rva(0x639970); // g_objectSeeThrough
-const OBJECT_RVA: usize = rva(0x6214FC); // g_objectNumber
 const OBJECT_KINDS_RVA: usize = rva(0x5CD27C); // dword_5CD27C
-const KNOWN_KINDS_RVA: usize = rva(0x5C5790); // dword_5C5790
 const KIND_GROUPS_RVA: usize = rva(0x5C90DC); // dword_5C90DC, dword_5C90E0
 const KIND_LEN: usize = 0x134;
-pub const HIDDEN_GROUPS_RVA: usize = rva(0x5CCE50); // dword_5CCE50, dword_5CCE54
-const LONE_GROUP_ON_RVA: usize = rva(0x62DAD0); // dword_62DAD0
-const GROUPS_WHICH_RVA: usize = rva(0x6D18D4); // dword_6D18D4
-const GROUP_MASK_RVA: usize = rva(0x62150C); // dword_62150C
-const GROUP_MASK_2_RVA: usize = rva(0x606280); // dword_606280
-const MASK_KIND_RVA: usize = rva(0x621870); // dword_621870
-const GROUP_TABLE_RVA: usize = rva(0x621934); // dword_621934
-const SEE_THROUGH_ON_RVA: usize = rva(0x63996C); // dword_63996C
-const SEE_THROUGH_VALUE_RVA: usize = rva(0x639974); // dword_639974
 const BLOCKS: u32 = 8;
-const BLOCK_RVA: usize = rva(0x60627C); // dword_60627C
 const KIND_BYTES_RVA: usize = rva(0x5CD688); // dword_5CD688
 const LIST_ROOM: u32 = 0x1000;
 
@@ -83,62 +77,65 @@ impl FaceWorld for GameFace {
         NUMBERS.in_race.bits() != 0
     }
     fn object(&self) -> u32 {
-        unsafe { game_read(OBJECT_RVA) }
+        FRAME_SWITCHES.object_number.bits()
     }
     fn object_kind(&self, object: u32) -> u32 {
         unsafe { game_read(OBJECT_KINDS_RVA + object as usize * 4) }
     }
     fn known_kind(&self, place: usize) -> u32 {
-        unsafe { game_read(KNOWN_KINDS_RVA + place * 4) }
+        KIND_TABLES.known_object_kinds[place].get()
     }
     fn kind_groups(&self, place: usize) -> [u32; 2] {
         unsafe { game_read(KIND_GROUPS_RVA + place * KIND_LEN) }
     }
     fn hidden_groups(&self) -> [u32; 2] {
-        unsafe { game_read(HIDDEN_GROUPS_RVA) }
+        crate::session::read_first(&COURSE.group_masks[13..15])
     }
     fn set_hidden_groups(&mut self, groups: [u32; 2]) {
-        unsafe { game_write(HIDDEN_GROUPS_RVA, groups) }
+        crate::session::write_first(&COURSE.group_masks[13..15], &groups)
     }
     fn other_groups(&self) -> [u32; 2] {
         [15, 16].map(|k| COURSE.group_masks[k].get())
     }
     fn group_mask(&self) -> u32 {
-        unsafe { game_read(GROUP_MASK_RVA) }
+        FRAME_SWITCHES.group_mask.bits()
     }
     fn mask_kind(&self) -> u32 {
-        unsafe { game_read(MASK_KIND_RVA) }
+        FRAME_SWITCHES.mask_kind.bits()
     }
     fn group_table(&self, group: u32) -> u32 {
-        unsafe { game_read(GROUP_TABLE_RVA + group as usize * 4) }
+        // The table is typed by its first dword only.
+        unsafe {
+            ((DRAW_SWITCHES.group_table.addr() + group as usize * 4) as *const u32).read_unaligned()
+        }
     }
     fn no_second_mask(&self) -> u32 {
         CAR.camera_switch_active.bits()
     }
     fn second_mask(&self) -> u32 {
-        unsafe { game_read(GROUP_MASK_2_RVA) }
+        VIEW_VARS.group_mask.bits()
     }
     fn lone_group(&self) -> u32 {
         COURSE.group_masks[17].bits()
     }
     fn lone_group_on(&self) -> u32 {
-        unsafe { game_read(LONE_GROUP_ON_RVA) }
+        LIGHT_WORK.marks_mask.bits()
     }
     fn groups_which(&self) -> u32 {
-        unsafe { game_read(GROUPS_WHICH_RVA) }
+        RACE_SOUND_SPOTS.groups_which.bits()
     }
     fn see_through_on(&self) -> u32 {
-        unsafe { game_read(SEE_THROUGH_ON_RVA) }
+        GROUND_WORK.object_fading.bits()
     }
     fn see_through_value(&self) -> u32 {
-        unsafe { game_read(SEE_THROUGH_VALUE_RVA) }
+        GROUND_WORK.object_fade[0].bits()
     }
     fn set_see_through(&mut self, value: u32) {
-        unsafe { game_write(SEE_THROUGH_RVA, value) }
+        GROUND_WORK.object_see_through.set_bits(value)
     }
     fn line_value(&self, extra: u32) -> Result<u32, rc2k_core::Invalid> {
         unsafe {
-            let which: u32 = game_read(BLOCK_RVA);
+            let which: u32 = VIEW_VARS.drawn_car.bits();
             let block: u32 = if which < BLOCKS {
                 RACE_WORK.car_block(which as usize)
             } else {
@@ -173,11 +170,11 @@ pub unsafe fn list_object_face(face: usize) -> Result<(), Refused> {
         if face == 0 {
             return Err(BadInput("no face").into());
         }
-        let listed: u32 = game_read(LISTED_RVA);
+        let listed: u32 = LIGHT_WORK.listed_face_count.bits();
         if listed >= LIST_ROOM {
             return Err(BadInput("no room in the list of faces").into());
         }
-        game_write(SEE_THROUGH_RVA, 0x100u32);
+        GROUND_WORK.object_see_through.set_bits(0x100u32);
         let bytes = face_bytes(face);
         match dropped(&mut GameFace, bytes) {
             Ok(true) => return Ok(()),
@@ -202,10 +199,10 @@ pub unsafe fn list_object_face(face: usize) -> Result<(), Refused> {
                 RACE_VARS.face_number.bits(),
                 key,
                 DRAW.entry_third.bits(),
-                game_read(SEE_THROUGH_RVA),
+                GROUND_WORK.object_see_through.bits(),
             ],
         );
-        game_write(LISTED_RVA, listed + 1);
+        LIGHT_WORK.listed_face_count.set_bits(listed + 1);
         Ok(())
     }
 }

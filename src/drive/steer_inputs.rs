@@ -17,11 +17,12 @@
 //! Callers: `drive::car_controls`, `sub_460835`, `sub_460B2F`.
 
 use crate::physics::car_store::CAR;
-use crate::physics::flow::{c0, g, p};
+use crate::physics::flow::c0;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::numbers_store::NUMBERS;
 use crate::scene::draw_store::DRAW;
 use crate::scene::x87_mem::{fild, fistp, fld};
+use crate::session::Dword;
 
 /// `fild dword [rc + from]; fmul dword [rc + by]; fistp dword [rc + to]` over the race
 /// block at `rc`.
@@ -48,23 +49,20 @@ fn key_step() -> u32 {
 }
 
 /// One steering value moved by the key step (0x439DFA .. / 0x439E95 ..).
-fn steer(value: usize, step: u32) {
+fn steer(cell: &Dword, step: u32) {
     let word = PHYSICS.input_steer.get();
-    let v = g(value);
+    let v = cell.get();
     if word != 0 {
         if sign(word) {
             let n = v.wrapping_sub(step);
-            p(value, if sign(n.wrapping_sub(LEFT)) { LEFT } else { n });
+            cell.set(if sign(n.wrapping_sub(LEFT)) { LEFT } else { n });
         } else {
             let n = v.wrapping_add(step);
-            p(
-                value,
-                if sign(n.wrapping_sub(RIGHT)) {
-                    n
-                } else {
-                    RIGHT
-                },
-            );
+            cell.set(if sign(n.wrapping_sub(RIGHT)) {
+                n
+            } else {
+                RIGHT
+            });
         }
         return;
     }
@@ -74,10 +72,10 @@ fn steer(value: usize, step: u32) {
     }
     if sign(v) {
         let n = v.wrapping_add(step);
-        p(value, if sign(n) { n } else { 0 });
+        cell.set(if sign(n) { n } else { 0 });
     } else {
         let n = v.wrapping_sub(step);
-        p(value, if sign(n) { 0 } else { n });
+        cell.set(if sign(n) { 0 } else { n });
     }
 }
 
@@ -89,8 +87,8 @@ pub unsafe fn steer_inputs() {
         keys = CAR.input_keys.get() & 0x1000 != 0;
     }
     if keys {
-        steer(0x71A620, key_step());
-        steer(0x71A61C, key_step());
+        steer(&CAR.steering_raw, key_step());
+        steer(&CAR.steering, key_step());
     } else {
         CAR.steering.set(0);
         let product = i64::from(PHYSICS.input_steer.get() as i32) * i64::from(RIGHT as i32);

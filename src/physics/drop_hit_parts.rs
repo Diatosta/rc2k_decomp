@@ -15,16 +15,11 @@
 //! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{game_read, rva};
 use crate::math::x87;
 use crate::physics::car_store::CAR;
 use crate::physics::fill_slot_on_bit::fill_slot_on_bit;
 use crate::race::numbers_store::NUMBERS;
 use rc2k_core::physics::parts::{self, DROP_TESTS, Hit, HitTest};
-
-pub fn g(x: usize) -> u32 {
-    unsafe { game_read(rva(x)) }
-}
 
 /// The four tests' timers.
 pub type Timers = [crate::session::Float; 4];

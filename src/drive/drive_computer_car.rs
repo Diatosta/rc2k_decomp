@@ -30,7 +30,7 @@
 //! when the tables are to be read.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, game_read, rva};
+use crate::framework::{game_read, rva};
 use crate::math::x87;
 use crate::math::x87_run::{
     compare_full, float_hypot_to_int, int_toward_to_int, mul2_to_int, times_fist_compare,
@@ -39,16 +39,14 @@ use crate::physics::car_store::CAR;
 use crate::race::course_store::COURSE;
 use crate::race::norms::normalise_work_vector;
 use crate::race::numbers_store::NUMBERS;
+use crate::race::scratch_store::FRAME_SCRATCH;
+use crate::race::vars_store::RACE_VARS;
 use crate::race::work_store::RACE_WORK;
 use crate::scene::view_matrix::cross_product;
 use rc2k_core::drive::computer_driver as driver;
 
 fn g(x: u32) -> u32 {
     unsafe { game_read(rva(x as usize)) }
-}
-
-fn a(x: u32) -> u32 {
-    game_addr(rva(x as usize)) as u32
 }
 
 unsafe fn at(addr: u32) -> u32 {
@@ -61,12 +59,11 @@ unsafe fn put(addr: u32, v: u32) {
 
 const CHECKPOINT_FACES: u32 = 0x9E3738; // g_checkpointFaces
 const LINE: u32 = 0x9ED808; // dword_9ED808, by checkpoint
-const COUNT: u32 = 0x623640; // g_checkpointCount
 
 /// `table[n + k]`, the index held to the count less one (unsigned) as the original holds
 /// it (through `lea`, `sub` and `shr 2`).
 fn held(table: u32, n: u32, k: u32) -> u32 {
-    let i = driver::held_index(n, k, g(COUNT));
+    let i = driver::held_index(n, k, RACE_VARS.checkpoint_count.get());
     g(table.wrapping_add(i.wrapping_mul(4)))
 }
 
@@ -98,7 +95,7 @@ fn flat_way(from: u32, to: u32, out: u32) {
 /// long into `to`.
 unsafe fn normalised(from: u32, to: u32) {
     unsafe {
-        let w = a(0x5C5F60);
+        let w = FRAME_SCRATCH.work_vector[0].addr() as u32;
         for o in [0, 4, 8] {
             put(w + o, at(from + o));
         }
@@ -119,7 +116,7 @@ pub unsafe fn drive_computer_car() -> Result<(), Refused> {
                 RACE_WORK.driver_tilt_limit.bits(),
             ) & 0x100
                 == 0;
-        if reaches && g(COUNT) == 0 {
+        if reaches && RACE_VARS.checkpoint_count.get() == 0 {
             return Err(BadInput("no checkpoints (the tables' indices would be -1)").into());
         }
         let w = &RACE_WORK;
@@ -237,7 +234,7 @@ pub unsafe fn drive_computer_car() -> Result<(), Refused> {
         let k = driver::offset_entry(n, RACE_WORK.driver_slot.get());
         RACE_WORK
             .driver_speed_scale
-            .set_bits(x87::loaded(g(0x71BE9C + 4 * k)));
+            .set_bits(x87::loaded(RACE_WORK.bend_speeds[k as usize].bits())); // flt_71BE9C, 0x20 of them
         let (x, z) = face_point(held(CHECKPOINT_FACES, n, 0));
         RACE_WORK.driver_from[0].set(x);
         RACE_WORK.driver_from[2].set(z);

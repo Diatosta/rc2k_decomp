@@ -15,16 +15,13 @@
 //! differing dwords (at most `DETAILS` lines a run) and every
 //! `SUMMARY_EVERY` frames compared a count.
 
-use crate::physics::flow::{a, g};
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::numbers_store::NUMBERS;
+use crate::race::view_store::RACE_VIEW;
 use rc2k_core::drive::replay_frames::{CAR_DWORDS, PLAYING, RECORDING};
 use rc2k_core::drive::replay_frames::{StartPiece, start_layout};
 use std::sync::atomic::{AtomicU32, Ordering::Relaxed};
 
-const BLOCKS: usize = 0x70F3EC; // g_carBlockStore: four blocks of 0xFE0
-const BLOCK: usize = 0xFE0;
-const CARS: usize = 0x63DB90; // the cars' count
 const EVERY: u32 = 1000;
 const DETAILS: u32 = 40;
 const SUMMARY_EVERY: u32 = 20;
@@ -62,15 +59,16 @@ pub fn note() {
         return;
     }
     let mut line = format!("replay check: {mode}, clock {clock}:");
-    for car in 0..g(CARS).min(4) as usize {
-        let block = BLOCKS + BLOCK * car;
-        let at = a(block);
+    for car in 0..RACE_VIEW.race_cars.get().min(4) as usize {
+        // g_carBlockStore: four blocks of 0xFE0.
+        let block = &CAR_BLOCKS.cars[car];
+        let at = crate::race::blocks_store::block_addr(car) as u32;
         let h = hash(
             (0..CAR_DWORDS as u32)
                 .map(|k| unsafe { ((at + 4 * k) as *const u32).read_unaligned() }),
         );
-        let speed = f32::from_bits(g(block + 0x1AC)); // g_carSpeed's place in the block
-        let gear = g(block + 0x1D4) as i32; // g_carGear's
+        let speed = block.local_velocity[2].get(); // g_carSpeed's place in the block
+        let gear = block.gear.get() as i32; // g_carGear's
         line += &format!(" car {car} {h:08x} speed {speed:.3} gear {gear};");
     }
     crate::framework::log(&line);
@@ -95,7 +93,7 @@ pub fn compare_frame() {
     }
     let mut differing = 0;
     for (piece, offset, n) in start_layout() {
-        let ours = a(crate::drive::save_replay_cars::piece_at(piece)) as usize;
+        let ours = crate::drive::save_replay_cars::piece_addr(piece);
         for k in 0..n {
             let (now, kept) = (read(ours + 4 * k), read(saved + 4 * (offset + k)));
             if now == kept || matches!(piece, StartPiece::Car(_)) && VIEWERS.contains(&(4 * k)) {

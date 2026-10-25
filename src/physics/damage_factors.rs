@@ -44,7 +44,7 @@ pub fn steps() {
     let _ = X(1.0);
     x87_1(crate::race::store::asm_base() as usize, &DAMAGE);
     table_lerp(
-        0x71A30C,
+        &CAR.suspension_damage[0],
         &DAMAGE.lerp_tables[2],
         &DAMAGE.gauge_low,
         &DAMAGE.flt_75b474,
@@ -67,7 +67,7 @@ pub fn steps() {
         );
     }
     table_lerp(
-        0x71A310,
+        &CAR.suspension_damage[1],
         &DAMAGE.lerp_tables[2],
         &DAMAGE.gauge_low,
         &DAMAGE.flt_75b478,
@@ -90,7 +90,7 @@ pub fn steps() {
         );
     }
     table_lerp(
-        0x71A314,
+        &CAR.suspension_damage[2],
         &DAMAGE.lerp_tables[2],
         &DAMAGE.gauge_low,
         &DAMAGE.flt_75b47c,
@@ -113,7 +113,7 @@ pub fn steps() {
         );
     }
     table_lerp(
-        0x71A318,
+        &CAR.suspension_damage[3],
         &DAMAGE.lerp_tables[2],
         &DAMAGE.gauge_low,
         &DAMAGE.flt_75b480,

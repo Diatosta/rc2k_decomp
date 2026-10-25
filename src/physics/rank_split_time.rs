@@ -22,11 +22,13 @@ use crate::errors::{BadInput, Refused};
 use crate::physics::car_store::CAR;
 use crate::physics::fill_rival_table::fill_rival_table;
 use crate::physics::splits::{COUNT, g, p};
+use crate::race::overlay_store::RACE_OVERLAY;
+use crate::session::Dword;
 use crate::strings::append_string_by_id::append_string_by_id;
 use rc2k_core::physics::splits::{RIVALS, gap, rank, scaled_time, split_scale};
 
 /// A name into `text` (eight blanks first), its first eight bytes into `to`.
-fn name(id: u32, to: usize) {
+fn name(id: u32, to: &[Dword; 2]) {
     let text = crate::strings::text_buffer::TEXT_BUFFER.text.addr() as u32;
     crate::strings::text_buffer::TEXT_BUFFER
         .text
@@ -41,11 +43,8 @@ fn name(id: u32, to: usize) {
             cursor += n as u32;
         })
     };
-    p(to, crate::strings::text_buffer::TEXT_BUFFER.text.get_u32(0));
-    p(
-        to + 4,
-        crate::strings::text_buffer::TEXT_BUFFER.text.get_u32(4),
-    );
+    to[0].set(crate::strings::text_buffer::TEXT_BUFFER.text.get_u32(0));
+    to[1].set(crate::strings::text_buffer::TEXT_BUFFER.text.get_u32(4));
 }
 
 /// The Rust version. The registers the original leaves are read by none of its callers.
@@ -59,8 +58,9 @@ pub fn rank_split_time() -> Result<(), Refused> {
     for k in 0..5 {
         CAR.split_gaps[k].set(u32::MAX);
     }
-    for at in [0x6D1838, 0x6D183C, 0x6D1844, 0x6D1848] {
-        p(at, 0x2020_2020);
+    for label in [&RACE_OVERLAY.label_behind, &RACE_OVERLAY.label_ahead] {
+        label[0].set(0x2020_2020);
+        label[1].set(0x2020_2020);
     }
     let base = g(0x601030 + 4 * split as usize);
     let d = g(0x60102C + 4 * count as usize);
@@ -81,7 +81,7 @@ pub fn rank_split_time() -> Result<(), Refused> {
         CAR.split_gaps[3].set(g(0x602038 + 4 * (c - 2)));
         let id = g(0x601D68 + 4 * (c - 2));
         CAR.split_gaps[5].set(id);
-        name(id, 0x6D1844);
+        name(id, &RACE_OVERLAY.label_ahead);
     }
     if c != RIVALS {
         // The one behind: rival c - 1.
@@ -89,7 +89,7 @@ pub fn rank_split_time() -> Result<(), Refused> {
         CAR.split_gaps[4].set(g(0x602038 + 4 * (c - 1)));
         let id = g(0x601D68 + 4 * (c - 1));
         CAR.split_gaps[6].set(id);
-        name(id, 0x6D1838);
+        name(id, &RACE_OVERLAY.label_behind);
     }
     Ok(())
 }

@@ -8,11 +8,7 @@
 use crate::framework::{game_read, rva};
 
 pub const SLOTS: u32 = 0x100;
-pub const POINTS_RVA: usize = rva(0x5C6FA4); // g_objectPoints
-pub const POINTS_ROOM_RVA: usize = rva(0x5C6FAC); // dword_5C6FAC, bytes
 pub const POINT_COUNT_RVA: usize = rva(0x5CD680); // g_objectPointCount
-pub const FACE_MEMORY_RVA: usize = rva(0x5C6FA8); // dword_5C6FA8
-pub const FACE_ROOM_RVA: usize = rva(0x5C6FB0); // dword_5C6FB0, bytes
 pub const FACE_COUNT_RVA: usize = rva(0x5CD67C); // dword_5CD67C
 pub const FACES_RVA: usize = rva(0x9A3730); // g_faces
 pub const FACES: u32 = 0xC000;

@@ -25,14 +25,12 @@
 //! a text longer than the text buffer, and what its calls refuse.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, game_write, rva};
 use crate::gfx::blit::BLIT;
 use crate::gfx::fonts_store::FONTS;
 use crate::race::tyre_store::TYRE_CHANGE as TYRE;
+use crate::race::viewer_screen_store::VIEWER_PANEL;
 use crate::session::Dword;
 use crate::strings::text_buffer::TEXT_BUFFER;
-
-const RECT: usize = 0x5C2A1C; // dword_5C2A1C
 
 fn clip(edge: &Dword) -> u32 {
     edge.get()
@@ -40,14 +38,6 @@ fn clip(edge: &Dword) -> u32 {
 
 fn set_clip(edge: &Dword, v: u32) {
     edge.set(v)
-}
-
-fn p(x: usize, v: u32) {
-    unsafe { game_write(rva(x), v) }
-}
-
-fn a(x: usize) -> u32 {
-    game_addr(rva(x)) as u32
 }
 
 /// The font the tyre change's texts are drawn in (`FONTS.game_fonts[2]`).
@@ -85,10 +75,16 @@ unsafe fn build_text(id: u32, time: Option<u32>) -> Result<(), Refused> {
 /// The rectangle at `dword_5C2A1C` filled with colour 0 (`gfx::fill_rect`, palette
 /// `unk_5BEC2C`).
 fn fill(x: u32, y: u32, width: u32, height: u32) -> Result<(), Refused> {
-    for (k, v) in [x, y, width, height].into_iter().enumerate() {
-        p(RECT + 4 * k, v);
+    for (cell, v) in VIEWER_PANEL.texture_rect.iter().zip([x, y, width, height]) {
+        cell.set(v);
     }
-    unsafe { crate::gfx::rect::fill_rect(a(RECT), 0, TYRE.palette.addr() as u32) }
+    unsafe {
+        crate::gfx::rect::fill_rect(
+            VIEWER_PANEL.texture_rect[0].addr() as u32,
+            0,
+            TYRE.palette.addr() as u32,
+        )
+    }
 }
 
 /// A text (`text::draw_text_keep_regs` on the game's surface) in `font` at (`x`, `y`).

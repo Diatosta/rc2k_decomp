@@ -12,8 +12,8 @@
 //! refuse.
 
 use crate::errors::{FatalError, Refused};
-use crate::physics::flow::g;
 use crate::race::blocks_store::CAR_BLOCKS;
+use crate::race::switches_store::FRAME_SWITCHES;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
 
@@ -27,10 +27,12 @@ pub unsafe fn race_tick() -> Result<(), Refused> {
         }
         .into());
     }
-    if g(0x621884) == 0 {
+    if FRAME_SWITCHES.levers_on.get() == 0 {
         return unsafe { crate::drive::simple_car_step::simple_car_step() };
     }
-    RACE_VARS.race_ticks.set(g(0x6235F8).wrapping_add(1));
+    RACE_VARS
+        .race_ticks
+        .set(RACE_VARS.race_ticks.get().wrapping_add(1));
     if !rc2k_core::drive::race_ticks::tick_runs(
         RACE_VARS.race_ticks.get(),
         RACE_VIEW.after_credits.get(),

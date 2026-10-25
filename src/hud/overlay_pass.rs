@@ -16,13 +16,13 @@
 use crate::errors::Refused;
 use crate::framework::rva;
 use crate::race::blocks_store::CAR_BLOCKS;
+use crate::race::level_grid_store::LEVEL_GRID;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
 use crate::store::{game_read, game_write};
 const PLAYERS_COPY_RVA: usize = rva(0x6D14F2); // dword_6D14F2
 const FLAGS_RVA: [usize; 2] = [rva(0x6D14F6), rva(0x6D14FA)]; // the HUD flags
 const CLEARED_RVA: [usize; 2] = [rva(0x6D1486), rva(0x6D1496)];
-const ON_RVA: [usize; 2] = [rva(0x63E168), rva(0x63E16C)];
 
 /// The HUD's layout: `dword_6238A4`, or 0 while one view is drawn (`dword_63DB98` 1).
 /// The original reads `dword_6238A4` alone, which a replay after a split-screen race
@@ -62,8 +62,8 @@ pub unsafe fn overlay_pass() -> Result<(), Refused> {
         depth_buffer(true);
         crate::scene::full_view_window::full_view_window();
         crate::scene::set_render_state::set_render_state(3, 3);
-        game_write(ON_RVA[0], 1u32);
-        game_write(ON_RVA[1], 1u32);
+        LEVEL_GRID.plain_first.set(1);
+        LEVEL_GRID.plain_second.set(1);
         crate::hud::draw_view_strips::draw_view_strips()?;
         depth_buffer(false);
         crate::scene::set_filters::set_filters();

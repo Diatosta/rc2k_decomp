@@ -9,13 +9,11 @@
 //!
 //! See `race/mud.rs`. One caller, `race::muddy_texel`.
 
-use crate::framework::{game_read, rva};
-
-pub const MUD_COLOUR_RVA: usize = rva(0x60AD00); // dword_60AD00 .. dword_60AD08: red, green, blue
+use crate::race::prefs_store::STAGE_PREFS;
 
 /// The mud's colour, as its three dwords (red, green, blue).
 pub fn mud_colour() -> [u32; 3] {
-    unsafe { game_read(MUD_COLOUR_RVA) }
+    crate::session::read_bits(&STAGE_PREFS.mud_colour)
 }
 
 /// The Rust version (see the header): `colour` brought toward the mud's by `amount`.

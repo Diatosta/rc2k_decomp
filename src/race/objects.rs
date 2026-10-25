@@ -7,36 +7,34 @@
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::physics::car_store::Car;
+use crate::physics::contact_store::CONTACT_WORK;
+use crate::race::course_lists_store::COURSE_LISTS;
+use crate::race::kind_store::KIND_TABLES;
 use crate::race::numbers_store::NUMBERS;
+use crate::race::prefs_store::STAGE_PREFS;
+use crate::race::switches_store::FRAME_SWITCHES;
 use crate::race::view_store::RACE_VIEW;
+use crate::scene::draw_store::DRAW;
 use crate::scene::object_store::OBJECT_WORK;
+use crate::session::Dword;
 
 pub const COUNTS_RVA: usize = rva(0x63239C); // dword_63239C: each slot's points
 pub const FIRSTS_RVA: usize = rva(0x631F9C); // dword_631F9C: each slot's first point
-pub const POINTS_RVA: usize = rva(0x5C6FA4); // g_objectPoints
-pub const CAR_POINTS_RVA: usize = rva(0x6D31BC); // dword_6D31BC
-const SCRATCH_RVA: usize = rva(0x62400C); // dword_62400C: the x87's way in
 const LIFT: u32 = 0x5_0000;
 const MOST_SORTED: u32 = 0x3D;
 const MOST_CONVERTED: u32 = 0x40;
 const XS: u32 = 0xAF0;
 const YS: u32 = 0xBF0;
 const ZS: u32 = 0xCF0;
-pub const CARS_RVA: usize = rva(0x63DB90); // g_raceCars
 pub const SLOT_KINDS_RVA: usize = rva(0x5CCE7C); // g_slotKinds
-const KIND_DEFAULTS_RVA: usize = rva(0x6091B4); // dword_6091B4: slots 1 .. 0x3F
-pub const FIXED_KINDS_RVA: usize = rva(0x609294); // dword_609294 .. dword_6092B0
 pub const KEPT_RVA: usize = rva(0x5CCF7C); // dword_5CCF7C = dword_621844
-const KEPT_FROM_RVA: usize = rva(0x621844);
-pub const KIND_10_TABLE_RVA: usize = rva(0x5C5818); // dword_5C5818
-pub const KIND_11_TABLE_RVA: usize = rva(0x5C58A0); // dword_5C58A0
 
 /// `race::car_kind_10` (0x41F4A1) and `race::car_kind_11` (0x41F485): a car's entry of
 /// one of the two tables (the car held to 0 .. 0x21).
-pub fn car_table(table: usize, car: u32) -> u32 {
+pub fn car_table(table: &[Dword; 34], car: u32) -> u32 {
     // Converted: `rc2k_core::race::cars::table_entry`.
     let n = rc2k_core::race::cars::table_entry(car);
-    unsafe { game_read(table + 4 * n) }
+    table[n].get()
 }
 
 unsafe fn get(at: u32) -> u32 {
@@ -100,9 +98,9 @@ impl CarPointVars {
         Self {
             counts: a(COUNTS_RVA),
             firsts: a(FIRSTS_RVA),
-            points: a(POINTS_RVA),
-            car_points: a(CAR_POINTS_RVA),
-            scratch: a(SCRATCH_RVA),
+            points: COURSE_LISTS.object_points.addr() as u32,
+            car_points: CONTACT_WORK.car_point_count.addr() as u32,
+            scratch: DRAW.scratch.addr() as u32,
         }
     }
 }
@@ -199,12 +197,16 @@ pub unsafe fn set_object_kinds() -> Result<(), Refused> {
     };
     unsafe {
         crate::scene::clear_slot_kinds::clear_slot_kinds();
-        game_write(FIXED_KINDS_RVA, FIXED_KINDS);
+        crate::session::write_bits(&STAGE_PREFS.fixed_kinds, FIXED_KINDS);
         let kinds = game_addr(SLOT_KINDS_RVA) as u32;
         for n in DEFAULT_SLOTS {
-            put(kinds + 4 * n, game_read(KIND_DEFAULTS_RVA + 4 * n as usize));
+            // Slots 56 .. 62 read past `slot_kind_defaults` into `fixed_kinds`, just set above
+            // (the original's table is read on, a slip kept).
+            let default =
+                ((STAGE_PREFS.slot_kind_defaults[0].addr() + 4 * n as usize) as *const u32).read();
+            put(kinds + 4 * n, default);
         }
-        game_write(KEPT_RVA, game_read::<u32>(KEPT_FROM_RVA));
+        game_write(KEPT_RVA, FRAME_SWITCHES.kept_kind.bits());
         let cars: u32 = RACE_VIEW.race_cars.bits();
         if cars == 0 {
             return Ok(());
@@ -217,8 +219,8 @@ pub unsafe fn set_object_kinds() -> Result<(), Refused> {
                 let car = Car::at(block).car_kind.bits();
                 let k = match kind {
                     CarKind::Known => crate::scene::known_kind::known_kind(car),
-                    CarKind::Table11 => car_table(KIND_11_TABLE_RVA, car),
-                    CarKind::Table10 => car_table(KIND_10_TABLE_RVA, car),
+                    CarKind::Table11 => car_table(&KIND_TABLES.kind_11_table, car),
+                    CarKind::Table10 => car_table(&KIND_TABLES.kind_10_table, car),
                 };
                 put(kinds + 4 * (slots + slot), k);
             }

@@ -15,29 +15,24 @@
 use crate::errors::Refused;
 use crate::framework::rva;
 use crate::gfx::picture_store::PICTURE;
-use crate::store::{game_addr, game_read, game_write};
-
-const RECORDING_RVA: usize = rva(0x5C2CCC); // dword_5C2CCC
-const CLOCK_RVA: usize = rva(0x5C2CD0); // dword_5C2CD0
-const STARTED_RVA: usize = rva(0x5C2CD4); // dword_5C2CD4
-const NAME_RVA: usize = rva(0x5C2CDC); // "rpl\000000.pcx"
+use crate::race::viewer_screen_store::VIEWER_PANEL;
+use crate::store::game_read;
 const FRAME_TIME_RVA: usize = rva(0x5C2CF3); // dword_5C2CF3 (unaligned)
 
 /// The Rust version (see the header). (The original keeps every register.)
 pub unsafe fn replay_screenshot() -> Result<(), Refused> {
     unsafe {
-        if game_read::<u32>(RECORDING_RVA) != 1 {
+        if VIEWER_PANEL.replay_recording.bits() != 1 {
             return Ok(());
         }
-        if game_read::<u32>(STARTED_RVA) != 1 {
-            game_write(STARTED_RVA, 1u32);
-            game_write(
-                CLOCK_RVA,
-                windows_sys::Win32::System::SystemInformation::GetTickCount(),
-            );
+        if VIEWER_PANEL.pictures_started.bits() != 1 {
+            VIEWER_PANEL.pictures_started.set_bits(1u32);
+            VIEWER_PANEL
+                .picture_clock
+                .set(windows_sys::Win32::System::SystemInformation::GetTickCount());
         }
         let kept: u32 = PICTURE.name.get();
-        let name = game_addr(NAME_RVA) as u32;
+        let name = VIEWER_PANEL.picture_name[0].addr() as u32;
         // Converted: `rc2k_core::race::viewer::count_up` (the name's six digits from +4).
         let digits = (name + 4) as *mut [u8; 6];
         let (counted, _, _) = rc2k_core::race::viewer::count_up(digits.read());
@@ -54,9 +49,11 @@ pub unsafe fn replay_screenshot() -> Result<(), Refused> {
         })();
         PICTURE.name.set(kept);
         saved?;
-        game_write(
-            CLOCK_RVA,
-            game_read::<u32>(CLOCK_RVA).wrapping_add(game_read(FRAME_TIME_RVA)),
+        VIEWER_PANEL.picture_clock.set(
+            VIEWER_PANEL
+                .picture_clock
+                .bits()
+                .wrapping_add(game_read(FRAME_TIME_RVA)),
         );
     }
     Ok(())

@@ -28,13 +28,16 @@
 //! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::framework::{game_write, rva};
 use crate::math::x87;
 use crate::math::x87_run::{abs_compare, abs_of, mul2_to_int, neg_mul, neg_product_plus};
 use crate::physics::axis_turn_matrix::axis_turn_matrix;
 use crate::physics::ground::Ground;
+use crate::physics::ground_store::GROUND_WORK;
 use crate::physics::tables_store::PHYSICS;
+use crate::race::course_lists_store::COURSE_LISTS;
 use crate::race::course_store::COURSE;
+use crate::race::matrices_store::MATRICES;
 use crate::race::numbers_store::NUMBERS;
 use crate::race::work_store::RACE_WORK;
 use crate::scene::draw_store::DRAW;
@@ -43,9 +46,6 @@ use crate::scene::matrix3::rounded;
 use crate::scene::view_matrix::{square_matrix, unit_vector};
 
 pub const SLOT_LEN: u32 = 0x78;
-fn a(x: u32) -> u32 {
-    game_addr(rva(x as usize)) as u32
-}
 
 unsafe fn at(p: u32) -> u32 {
     unsafe { (p as *const u32).read_unaligned() }
@@ -71,12 +71,12 @@ pub unsafe fn slot_refusal(s: u32) -> Option<&'static str> {
             |c: u32, v: u32| at(s + c).wrapping_add(mul2_to_int(at(s + v), dt, k65536) as u32);
         let (x, z) = (moved(4, 0x50), moved(0xC, 0x58));
         let g = Ground::game();
-        let keep = (g.get(0x639824), g.get(0x63982C));
-        g.put(0x639824, x);
-        g.put(0x63982C, z);
+        let keep = (GROUND_WORK.ground_x.get(), GROUND_WORK.ground_z.get());
+        GROUND_WORK.ground_x.set(x);
+        GROUND_WORK.ground_z.set(z);
         let why = crate::physics::ground::ground_refusal(&g);
-        g.put(0x639824, keep.0);
-        g.put(0x63982C, keep.1);
+        GROUND_WORK.ground_x.set(keep.0);
+        GROUND_WORK.ground_z.set(keep.1);
         why
     }
 }
@@ -98,16 +98,19 @@ pub unsafe fn move_slot_at(s: u32) -> Result<(), Refused> {
             rounded(crate::physics::vector_length::vector_length(s + 0x68)),
         );
         if at(s + 0x74) != 0 {
-            unit_vector((s + 0x74) as usize, a(0x5C78FC) as usize);
-            game_write(rva(0x5C78F8), x87::mul(at(s + 0x74), dt));
-            axis_turn_matrix(a(0x5C7010));
-            square_matrix(a(0x5C7010) as usize);
+            unit_vector(
+                (s + 0x74) as usize,
+                (COURSE_LISTS.spin_axis_x.addr() as u32) as usize,
+            );
+            COURSE_LISTS.spin_angle.set_bits(x87::mul(at(s + 0x74), dt));
+            axis_turn_matrix(COURSE_LISTS.turn_matrix[0].addr() as u32);
+            square_matrix((COURSE_LISTS.turn_matrix[0].addr() as u32) as usize);
             multiply_matrices(
                 (s + 0x10) as usize,
-                a(0x5C7010) as usize,
-                a(0x5EA10C) as usize,
+                (COURSE_LISTS.turn_matrix[0].addr() as u32) as usize,
+                (MATRICES.turned_matrix[0].addr() as u32) as usize,
             );
-            copy(a(0x5EA10C), s + 0x10, 16);
+            copy(MATRICES.turned_matrix[0].addr() as u32, s + 0x10, 16);
         }
         for (v, c) in [(0x54, 8), (0x50, 4), (0x58, 0xC)] {
             let d = mul2_to_int(at(s + v), dt, k65536) as u32;
@@ -118,8 +121,8 @@ pub unsafe fn move_slot_at(s: u32) -> Result<(), Refused> {
             s + 0x54,
             neg_product_plus(PHYSICS.gravity.bits(), dt, at(s + 0x54)),
         );
-        game_write(rva(0x639824), at(s + 4));
-        game_write(rva(0x63982C), at(s + 0xC));
+        GROUND_WORK.ground_x.set(at(s + 4));
+        GROUND_WORK.ground_z.set(at(s + 0xC));
         COURSE.ground_face_last.set(at(s + 0x60));
         game_write(rva(0x620470), 0x80u32);
         crate::physics::find_ground::find_ground()?;
@@ -132,7 +135,7 @@ pub unsafe fn move_slot_at(s: u32) -> Result<(), Refused> {
             return Ok(());
         }
         put(s + 0x60, face);
-        let height: u32 = game_read(rva(0x639828));
+        let height: u32 = GROUND_WORK.ground_height.get();
         if (at(s + 8).wrapping_sub(height) as i32) >= 0 {
             return Ok(());
         }

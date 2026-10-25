@@ -33,7 +33,7 @@
 //! through `routes.rs`.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_write, rva};
+use crate::framework::rva;
 use crate::menu::cars_store::CAR_TABLE;
 use crate::menu::lists_store::MENU_LISTS;
 use crate::menu::state_store::MENU_STATE;
@@ -49,10 +49,10 @@ use rc2k_core::scene::carousel;
 /// One step of a carousel's set-up.
 #[derive(Clone, Copy)]
 pub enum Op {
-    /// A dword to the address (as IDA shows it).
-    Store(usize, u32),
     /// A dword to one of the physics block's variables.
     Set(&'static Dword, u32),
+    /// A dword of the race block's, found at run time (those statics do not deref in a `const`).
+    Run(fn() -> &'static Dword, u32),
     /// The eight numbers at `dword_75A622` = -1.
     Fill,
 }
@@ -66,8 +66,8 @@ const CARS_TAIL: [Op; 9] = [
     Op::Set(&MENU_STATE.carousel.y, 0xFFFF_4000),
     Op::Set(&MENU_STATE.carousel.z, 0x5F000),
     Op::Set(&MENU_STATE.carousel.forward, 0x20000),
-    Op::Store(0x63503C, 0x10FF),
-    Op::Store(0x635020, 0xFFFE_6000),
+    Op::Run(|| &OBJECT_WORK.angles[0], 0x10FF),
+    Op::Run(|| &OBJECT_WORK.place[1], 0xFFFE_6000),
 ];
 
 /// `sub_48FF83`'s six kinds.
@@ -75,15 +75,11 @@ const FIXED_KINDS: [u32; 6] = [0x195, 0x199, 0x19F, 0x1A5, 0x1AD, 0x1BD];
 
 // ---- Rust version ----
 
-unsafe fn store(address: usize, value: u32) {
-    unsafe { game_write(rva(address), value) }
-}
-
 /// A store of the tables (never a `Fill`).
 unsafe fn run_op(op: Op) {
     match op {
-        Op::Store(address, value) => unsafe { store(address, value) },
         Op::Set(cell, value) => cell.set(value),
+        Op::Run(cell, value) => cell().set(value),
         Op::Fill => unreachable!("the cars' tail has no fill"),
     }
 }
@@ -220,8 +216,8 @@ pub unsafe fn set_up_carousel(list: u32) -> Result<Left, Refused> {
                 let ops = PLAIN[menu as usize].ok_or(BadInput("a menu without its list"))?;
                 for op in ops {
                     match *op {
-                        Op::Store(address, value) => store(address, value),
                         Op::Set(cell, value) => cell.set(value),
+                        Op::Run(cell, value) => cell().set(value),
                         Op::Fill => write_all(&MENU_LISTS.carousel_textures, [u32::MAX; 8]),
                     }
                 }

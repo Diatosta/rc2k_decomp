@@ -11,27 +11,21 @@
 //! `fill_light_tables`. Refuses what its calls refuse.
 
 use crate::errors::Refused;
-use crate::framework::{game_write, rva};
-
-/// `g_lightLowest`, `g_lightHighest`, `g_lightLevel`, `g_lightStrength`, `dword_635094`,
-/// `dword_635098` and their values.
-const SETTINGS: [(usize, u32); 6] = [
-    (0x635084, 0x50),
-    (0x635088, 0xFF),
-    (0x63508C, 0xB4),
-    (0x635090, 0xB4),
-    (0x635094, 0x6E),
-    (0x635098, 0x1E),
-];
+use crate::scene::object_store::OBJECT_WORK;
 
 /// The Rust version (the original keeps every register: `pusha` / `popa`).
 pub fn set_up_lit_engine() -> Result<(), Refused> {
     unsafe {
         crate::scene::set_up_engine::set_up_engine()?;
         crate::race::find_present_courses::find_present_courses()?;
-        for (at, v) in SETTINGS {
-            game_write(rva(at), v);
-        }
+        // `g_lightLowest`, `g_lightHighest`, `g_lightLevel`, `g_lightStrength`,
+        // `dword_635094`, `dword_635098`.
+        OBJECT_WORK.light_lowest.set_bits(0x50u32);
+        OBJECT_WORK.light_highest.set_bits(0xFFu32);
+        OBJECT_WORK.light_level.set_bits(0xB4u32);
+        OBJECT_WORK.light_strength.set_bits(0xB4u32);
+        OBJECT_WORK.light_turns[0].set_bits(0x6Eu32);
+        OBJECT_WORK.light_turns[1].set_bits(0x1Eu32);
         crate::scene::fill_light_tables::fill_light_tables();
     }
     Ok(())

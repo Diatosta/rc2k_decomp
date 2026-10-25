@@ -7,20 +7,18 @@
 //! `dword_621480` is kept, set to 1 for `scene::fill_light_tables` (which then takes the
 //! scene's colours) and put back. Two callers.
 
-use crate::framework::{game_read, game_write, rva};
+use crate::race::switches_store::FRAME_SWITCHES;
 use crate::scene::fill_light_tables::fill_light_tables;
 
 // ---- game data ----
-
-const OTHER_WAY_RVA: usize = rva(0x621480); // dword_621480
 
 // ---- Rust version ----
 
 pub unsafe fn fill_scene_light_tables() {
     unsafe {
-        let kept: u32 = game_read(OTHER_WAY_RVA);
-        game_write(OTHER_WAY_RVA, 1u32);
+        let kept: u32 = FRAME_SWITCHES.other_way.bits();
+        FRAME_SWITCHES.other_way.set_bits(1u32);
         fill_light_tables();
-        game_write(OTHER_WAY_RVA, kept);
+        FRAME_SWITCHES.other_way.set_bits(kept);
     }
 }

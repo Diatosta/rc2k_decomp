@@ -23,14 +23,14 @@
 use crate::errors::{BadInput, Refused};
 use crate::framework::rva;
 use crate::marks::snow::{SNOW, SNOW_LIGHT, SnowLight};
-use crate::marks::store::{game_read, game_write};
+use crate::marks::store::game_write;
 use crate::math::x87;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::frame_store::FRAME_WORK;
 use crate::scene::draw_store::DRAW;
+use crate::scene::kind_texture_store::KIND_TEXTURES;
 
 const MOST: i32 = 0x800;
-const TEXTURE_RVA: usize = rva(0x5D1E10); // dword_5D1E10
 const VERTICES_RVA: usize = rva(0x9605A0); // g_polygonVertices
 /// The render states set (value, state).
 const STATES: [(u32, u32); 5] = [(4, 0x15), (5, 0x13), (6, 0x14), (0, 0x1C), (1, 0x1B)];
@@ -74,7 +74,7 @@ pub unsafe fn run_snow() -> Result<(), Refused> {
             s.view_place[n].set(get(settings + 0x1C + 4 * n as u32));
         }
         crate::marks::place_view_2::place_view_2()?;
-        crate::scene::set_texture::set_texture(game_read(TEXTURE_RVA));
+        crate::scene::set_texture::set_texture(KIND_TEXTURES.kind_first_slots[202].bits());
         crate::scene::depth_buffer_on::depth_buffer(true);
         crate::scene::depth_test_off::depth_test_off();
         for (value, state) in STATES {

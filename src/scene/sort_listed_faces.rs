@@ -16,8 +16,9 @@
 //! in the core's tests), before changing anything.
 
 use crate::errors::BadInput;
-use crate::framework::{game_addr, game_read};
-use crate::scene::draw_object_faces::{LIST_RVA, LISTED_RVA};
+use crate::framework::game_addr;
+use crate::scene::draw_object_faces::LIST_RVA;
+use crate::scene::light_work_store::LIGHT_WORK;
 
 const MOST: u32 = 0x1000;
 
@@ -26,7 +27,7 @@ const MOST: u32 = 0x1000;
 /// Converted: `rc2k_core::scene::face_order::sort_listed_faces`.
 pub unsafe fn sort_listed_faces() -> Result<(), BadInput> {
     unsafe {
-        let listed: u32 = game_read(LISTED_RVA);
+        let listed: u32 = LIGHT_WORK.listed_face_count.bits();
         if listed > MOST {
             return Err(BadInput("more faces listed than the list holds"));
         }

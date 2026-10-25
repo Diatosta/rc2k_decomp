@@ -16,9 +16,9 @@
 
 use crate::errors::BadInput;
 use crate::errors::Refused;
-use crate::framework::{game_read, rva};
 use crate::scene::draw_object_face::draw_object_face_in_game;
 use crate::scene::draw_object_faces::draw_object_faces;
+use crate::scene::draw_switches_store::DRAW_SWITCHES;
 use crate::scene::list_object_face::list_object_face;
 use crate::scene::list_object_faces::list_object_faces;
 use crate::scene::place_object_points::place_object_points;
@@ -28,9 +28,6 @@ use crate::scene::set_object_material::set_object_material;
 use crate::scene::sort_listed_faces::sort_listed_faces;
 
 // ---- game data ----
-
-const USE_3DNOW_RVA: usize = rva(0x621A5C); // g_use3dNow
-const USE_SSE_RVA: usize = rva(0x621A58); // g_useSse
 
 /// The seven calls, in their order.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -70,7 +67,7 @@ pub unsafe fn draw_object(
 /// refusal ends it now.
 unsafe fn place_object_points_any() -> Result<(), Refused> {
     unsafe {
-        if game_read::<u32>(USE_3DNOW_RVA) != 0 || game_read::<u32>(USE_SSE_RVA) != 0 {
+        if DRAW_SWITCHES.use_3dnow.bits() != 0 || DRAW_SWITCHES.use_sse.bits() != 0 {
             return Err(BadInput("the 3DNow and SSE ways of placing points are not ported").into());
         }
         place_object_points()?;

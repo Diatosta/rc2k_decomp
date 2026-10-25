@@ -18,7 +18,7 @@
 
 use crate::math::x87_float::X;
 use crate::physics::car_store::CAR;
-use crate::physics::flow::{a, g, p};
+use crate::physics::contact_store::CONTACT_WORK;
 use crate::physics::tables_store::PHYSICS;
 use crate::physics::turn_by_heading::turn_by_heading;
 use crate::physics::vector_length::vector_length;
@@ -26,7 +26,8 @@ use crate::scene::matrix3::rounded;
 use crate::scene::x87_mem::{fild, fistp, fld, fstp};
 use rc2k_core::physics::contacts;
 
-/// `dword_6D3624`: the kind of contact being looked at.
+/// `dword_6D3624`: the kind of contact being looked at (`CONTACT_WORK.contact_kind`; the
+/// address stays for `touch_face`).
 pub const KIND: usize = 0x6D3624;
 
 /// The Rust version: whether the point at `point` of the object at `object` is inside.
@@ -45,21 +46,24 @@ pub unsafe fn point_hits_car(point: u32, object: u32) -> bool {
         let v = contacts::point_part(
             rd(point + 4 * k),
             rd(object + 0x30 + 4 * k),
-            g(0x6D3B40 + 4 * k as usize),
+            CONTACT_WORK.object_offset[k as usize].get(),
             CAR.position[k as usize].get(),
         );
-        p(0x6D3B4C + 4 * k as usize, v);
+        CONTACT_WORK.object_point_offset[k as usize].set(v);
         if k == 1 {
             y = v;
         }
     }
     x87_1(crate::race::store::asm_base() as usize);
     for k in 0..3 {
-        p(0x6D3B58 + 4 * k, g(0x6D3B78 + 4 * k));
+        CONTACT_WORK.object_point_turned[k].set_bits(CONTACT_WORK.object_point_scaled[k].bits());
     }
-    unsafe { turn_by_heading(a(0x6D3B58), y) };
+    unsafe { turn_by_heading(CONTACT_WORK.object_point_turned[0].addr() as u32, y) };
     x87_2(crate::race::store::asm_base() as usize);
-    let (x, z) = (g(0x6D3090), g(0x6D3098));
+    let (x, z) = (
+        CONTACT_WORK.contact_point[0].bits(),
+        CONTACT_WORK.contact_point[2].bits(),
+    );
     if !contacts::inside_box(
         x,
         z,
@@ -69,14 +73,13 @@ pub unsafe fn point_hits_car(point: u32, object: u32) -> bool {
     ) {
         return false;
     }
-    if contacts::kind_hits(g(KIND)) {
+    if contacts::kind_hits(CONTACT_WORK.contact_kind.get()) {
         x87_3(crate::race::store::asm_base() as usize);
-        p(
-            0x6D3108,
-            rounded(unsafe { vector_length(CAR.velocity[0].addr() as u32) }),
-        );
+        CONTACT_WORK.contact_speed_length.set_bits(rounded(unsafe {
+            vector_length(CAR.velocity[0].addr() as u32)
+        }));
         if let Some(hit) = rc2k_core::physics::walls::raised_hit(
-            f32::from_bits(g(0x6D3108)),
+            f32::from_bits(CONTACT_WORK.contact_speed_length.bits()),
             f32::from_bits(CAR.contact_depth.bits()),
         ) {
             CAR.contact_depth.set_bits(hit.to_bits());

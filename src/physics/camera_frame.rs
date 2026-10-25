@@ -16,28 +16,30 @@
 
 use crate::errors::Refused;
 use crate::physics::car_store::CAR;
-use crate::physics::flow::{g, hold_high, hold_low, negate, p};
+use crate::physics::flow::{g, hold_high, hold_low, negate};
 use crate::physics::tables_store::PHYSICS;
 use crate::scene::draw_store::DRAW;
+use crate::scene::light_store::LIGHT_STATE;
 use crate::scene::x87_mem::{fild, fld, fstp};
 
 // Converted: `rc2k_core::physics::camera_view::shakes` (the x87 steps stay).
 fn steps() -> Result<(), Refused> {
-    for x in [0x637644, 0x637638, 0x63763C, 0x637640] {
-        p(x, 0);
-    }
+    LIGHT_STATE.listener_camera.set_bits(0);
+    LIGHT_STATE.camera_frame_a.set(0);
+    LIGHT_STATE.camera_frame_b.set(0);
+    LIGHT_STATE.camera_frame_c.set(0);
     if rc2k_core::physics::camera_view::shakes(CAR.camera_view.get(), CAR.all_wheels_off.get()) {
         x87_1(crate::race::store::asm_base() as usize);
-        hold_high(0x63763C, &PHYSICS.camera_frame_limit);
+        hold_high(&LIGHT_STATE.camera_frame_b, &PHYSICS.camera_frame_limit);
         negate(&PHYSICS.camera_frame_limit);
-        hold_low(0x63763C, &PHYSICS.camera_frame_limit);
+        hold_low(&LIGHT_STATE.camera_frame_b, &PHYSICS.camera_frame_limit);
         negate(&PHYSICS.camera_frame_limit);
         DRAW.scratch
             .set(unsafe { crate::math::next_random::next_random() });
         x87_2(crate::race::store::asm_base() as usize);
         if g(0x601024) != 0 {
-            p(0x63763C, 0);
-            p(0x637644, 0);
+            LIGHT_STATE.camera_frame_b.set(0);
+            LIGHT_STATE.listener_camera.set_bits(0);
         }
     }
     crate::physics::update_camera::steps()

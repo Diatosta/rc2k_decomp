@@ -14,37 +14,42 @@
 //! `read_packed` refuses.
 
 use crate::errors::{FatalError, Refused};
-use crate::physics::flow::{a, g, p};
+use crate::physics::flow::a;
+use crate::race::replay_file_store::REPLAY_FILE;
+use crate::race::viewer_state_store::REPLAY_VIEW;
 use rc2k_core::drive::replay_frames::{frame_fault, past_end};
 
 /// `dword_9613A4`: the frame read.
 pub const FRAME: usize = 0x9613A4;
-const FILE: usize = 0x5BEC8C; // h
-const PLACES: usize = 0x5BECD8; // lDistanceToMove: (place, count) a frame
 
 /// The Rust version: CF.
 pub unsafe fn read_replay_frame(frame: u32, tenth: u32) -> Result<bool, Refused> {
-    if g(0x5BEC88) != 1 {
+    if REPLAY_FILE.replay_open.get() != 1 {
         return Ok(true);
     }
     if let Some(code) = frame_fault(frame, tenth) {
         return Err(FatalError { code, message: "" }.into());
     }
-    if past_end(frame, g(0x5BECD0)) {
-        p(0x5BEC90, 1);
-        p(0x5C2530, g(0x5BECD0));
-        p(0x5C2534, 0);
+    if past_end(frame, REPLAY_FILE.index_block_count.get()) {
+        REPLAY_FILE.replay_at_end.set(1);
+        REPLAY_VIEW
+            .replay_block
+            .set(REPLAY_FILE.index_block_count.get());
+        REPLAY_VIEW.replay_frame.set(0);
         return Ok(false);
     }
-    p(0x5C2534, tenth);
-    p(0x5BEC90, 0);
-    p(0x5C2530, frame);
-    let place = g(PLACES + 8 * frame as usize);
-    if unsafe { crate::files::handle::seek(g(FILE), place as i32, 0) }.is_none() {
+    REPLAY_VIEW.replay_frame.set(tenth);
+    REPLAY_FILE.replay_at_end.set(0);
+    REPLAY_VIEW.replay_block.set(frame);
+    let place = REPLAY_FILE.block_places[2 * frame as usize].get(); // (place, count) a frame
+    if unsafe { crate::files::handle::seek(REPLAY_FILE.replay_handle.get(), place as i32, 0) }
+        .is_none()
+    {
         return Ok(true);
     }
-    let count = g(PLACES + 4 + 8 * frame as usize);
-    let (_, carry, _) =
-        unsafe { crate::drive::read_packed::read_packed(g(FILE), a(FRAME), count) }?;
+    let count = REPLAY_FILE.block_places[2 * frame as usize + 1].get();
+    let (_, carry, _) = unsafe {
+        crate::drive::read_packed::read_packed(REPLAY_FILE.replay_handle.get(), a(FRAME), count)
+    }?;
     Ok(carry)
 }

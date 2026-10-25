@@ -14,16 +14,16 @@
 
 use crate::errors::Refused;
 use crate::physics::car_store::CAR;
-use crate::physics::fill_race_slot::g;
 use crate::physics::fill_slot_on_bit::fill_slot_on_bit;
 use crate::race::work_store::RACE_WORK;
+use crate::scene::light_work_store::LIGHT_WORK;
 use rc2k_core::physics::parts::{BROKEN_BITS, breaks, broken_checked};
 
 /// The Rust version. The registers the original leaves are read by none of its callers.
 // Converted: `rc2k_core::physics::parts::{BROKEN_BITS, broken_checked, breaks}`.
 pub fn drop_broken_parts() -> Result<(), Refused> {
     for (k, &bit) in BROKEN_BITS.iter().enumerate() {
-        if !broken_checked(k, || g(0x62DAD0) != 0) {
+        if !broken_checked(k, || LIGHT_WORK.marks_mask.get() != 0) {
             continue;
         }
         if !breaks(CAR.part_damage_limits[k].get(), || {

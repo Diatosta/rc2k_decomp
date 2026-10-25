@@ -13,15 +13,13 @@
 //! original draws for ever).
 
 use crate::errors::{BadInput, Refused};
-use crate::physics::flow::g;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::view_store::RACE_VIEW;
+use crate::race::view_vars_store::VIEW_VARS;
 use rc2k_core::drive::replay_views::{MODES as MODE_COUNT, draw, fits, kept_mode, wish_kind};
 
-const MODES: usize = 0x606320; // off_606320
-
 fn kind_of(mode: u32) -> u32 {
-    unsafe { (g(MODES + 4 * mode as usize) as *const u32).read_unaligned() }
+    unsafe { (VIEW_VARS.view_records[mode as usize].get() as *const u32).read_unaligned() } // off_606320
 }
 
 /// The Rust version.

@@ -5,25 +5,21 @@
 //! matrix undone (`race::invert_car_matrix`).
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::framework::{game_read, rva};
 use crate::math::x87;
 use crate::physics::car_store::CAR;
+use crate::physics::ground_store::GROUND_WORK;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::best_line::{CHECK_FACES_RVA, MOST_CHECKS};
 use crate::race::course_store::COURSE;
 use crate::race::numbers_store::NUMBERS;
 use crate::race::vars_store::RACE_VARS;
 use crate::scene::draw_store::DRAW;
+use crate::scene::light_store::LIGHT_STATE;
 
-pub const FROM_X_RVA: usize = rva(0x639824); // dword_639824: the place measured from
-pub const FROM_Z_RVA: usize = rva(0x63982C); // dword_63982C
 /// The work car's place (+0x134 .. +0x13C) and heading (+0x9C0).
 /// The work car's matrix (+0xB4) and its inverse (+0x9CC).
-pub const CAR_MATRIX_RVA: usize = crate::race::stage_prefs::CRASH_MATRIX_RVA; // g_crashMatrix
-pub const LINE_PLACE_RVA: usize = rva(0x6365E4); // dword_6365E4: the checkpoint
-pub const LINE_FRACTION_RVA: usize = rva(0x6365EC); // dword_6365EC: on to the next, / 65536
 pub const LINE_HEADINGS_RVA: usize = rva(0x9ED808); // dword_9ED808 (g_checkpointAngles + 8)
-pub const PLACE_HEADING_RVA: usize = rva(0x5CCD60); // dword_5CCD60
 
 fn count() -> Result<u32, Refused> {
     let n: u32 = RACE_VARS.checkpoint_count.bits();
@@ -60,8 +56,8 @@ pub unsafe fn place_car_on_line() -> Result<(), Refused> {
     use rc2k_core::race::checkpoints::{lerp, line_neighbours};
     let count = count()?;
     unsafe {
-        let (c, n) = line_neighbours(game_read(LINE_PLACE_RVA), count)?;
-        let t: u32 = game_read(LINE_FRACTION_RVA);
+        let (c, n) = line_neighbours(LIGHT_STATE.line_place.bits(), count)?;
+        let t: u32 = LIGHT_STATE.line_fraction.bits();
         let (face, _, _, a) = check_point(c);
         COURSE.place_face.set_bits(face);
         let (_, _, _, b) = check_point(n);
@@ -99,8 +95,8 @@ pub unsafe fn distance_to_checkpoint(c: u32) -> Result<(), Refused> {
     }
     unsafe {
         let (_, _, _, place) = check_point(c);
-        let dx = get(place).wrapping_sub(game_read(FROM_X_RVA)) as i32;
-        let dz = get(place + 8).wrapping_sub(game_read(FROM_Z_RVA)) as i32;
+        let dx = get(place).wrapping_sub(GROUND_WORK.ground_x.bits()) as i32;
+        let dz = get(place + 8).wrapping_sub(GROUND_WORK.ground_z.bits()) as i32;
         DRAW.scratch.set_bits(x87::int_hypot(dx, dz) as u32);
     }
     Ok(())
@@ -146,8 +142,8 @@ pub unsafe fn nearest_checkpoint_in(from: u32, to: u32) -> Result<Nearest, Refus
 pub unsafe fn nearest_checkpoint() -> Result<u32, Refused> {
     let count = count()?;
     unsafe {
-        game_write(FROM_X_RVA, CAR.position[0].bits());
-        game_write(FROM_Z_RVA, CAR.position[2].get());
+        GROUND_WORK.ground_x.set_bits(CAR.position[0].bits());
+        GROUND_WORK.ground_z.set_bits(CAR.position[2].get());
         if count == 0 {
             return Ok(0);
         }
@@ -170,7 +166,7 @@ pub unsafe fn nearest_checkpoint() -> Result<u32, Refused> {
 pub unsafe fn invert_car_matrix() {
     unsafe {
         crate::scene::view_matrix::invert_turn(
-            game_addr(CAR_MATRIX_RVA),
+            CAR.crash_matrix[0].addr(),
             CAR.car_inverse_matrix[0].addr(),
         )
     };

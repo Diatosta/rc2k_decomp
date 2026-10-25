@@ -20,6 +20,7 @@ use crate::errors::Refused;
 use crate::framework::{game_addr, rva};
 use crate::math::x87;
 use crate::race::numbers_store::NUMBERS;
+use crate::race::overlay_store::RACE_OVERLAY;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::work_store::RACE_WORK;
 use crate::scene::draw_store::DRAW;
@@ -28,9 +29,6 @@ use crate::scene::draw_store::DRAW;
 const BLOCK: usize = 0x6D1460;
 const MILES: usize = 0x6D1466; // g_overlayMiles
 const PARTS: usize = 0x6D1472; // g_overlayParts
-const PART_MILES: usize = 0x6D150C; // g_overlayPartMiles
-const PART_A: usize = 0x6D160C; // dword_6D160C
-const PART_B: usize = 0x6D170C; // dword_6D170C
 const CLEARED: [usize; 2] = [0x6D146A, 0x6D146E]; // flt_6D146A, flt_6D146E
 /// The sizes (`rc2k_core::race::panel::OVERLAY_SIZES`): dword_6D1486 .. dword_6D149E.
 const SIZES: [usize; 6] = [0x6D1486, 0x6D148A, 0x6D148E, 0x6D1496, 0x6D149A, 0x6D149E];
@@ -97,18 +95,18 @@ pub unsafe fn init_overlay(v: &OverlayVars) -> Result<(), Refused> {
                     let half = half_length(end, start);
                     put(v.scratch, half);
                     let miles = x87::int_div_div_doubled(half as i32, scale, mile);
-                    put(v.of(PART_MILES) + 4 * n, miles);
+                    RACE_OVERLAY.overlay_part_miles[n as usize].set_bits(miles); // g_overlayPartMiles
                     put(v.of(MILES), x87::add(miles, get(v.of(MILES))));
-                    put(v.of(PART_A) + 4 * n, 0);
-                    put(v.of(PART_B) + 4 * n, 0);
+                    RACE_OVERLAY.overlay_part_kinds_a[n as usize].set(0); // dword_6D160C
+                    RACE_OVERLAY.overlay_part_kinds_b[n as usize].set(0); // dword_6D170C
                 }
             }
             None => {
                 put(v.of(PARTS), 1);
-                put(v.of(PART_MILES), ONE);
+                RACE_OVERLAY.overlay_part_miles[0].set_bits(ONE);
                 put(v.of(MILES), ONE);
-                put(v.of(PART_A), 0);
-                put(v.of(PART_B), 0);
+                RACE_OVERLAY.overlay_part_kinds_a[0].set(0);
+                RACE_OVERLAY.overlay_part_kinds_b[0].set(0);
             }
         }
         for (&variable, value) in SIZES.iter().zip(OVERLAY_SIZES) {

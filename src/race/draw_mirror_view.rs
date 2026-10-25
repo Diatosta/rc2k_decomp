@@ -10,35 +10,41 @@
 //! Out: nothing its one caller, `race::draw_race_scene`, reads
 
 use crate::errors::Refused;
-use crate::framework::{game_read, game_write, rva};
+use crate::framework::{game_read, rva};
+use crate::race::level_grid_store::LEVEL_GRID;
+use crate::race::numbers_store::NUMBERS;
+use crate::race::prefs_store::STAGE_PREFS;
+use crate::race::switches_store::FRAME_SWITCHES;
 use crate::race::view_store::RACE_VIEW;
+use crate::race::view_vars_store::VIEW_VARS;
+use crate::race::work_store::RACE_WORK;
 
-const SWITCHES: [usize; 3] = [rva(0x64BB18), rva(0x71C3E0), rva(0x621480)];
-const VIEW_VALUE_RVA: usize = rva(0x63DC58); // dword_63DC58
-const VIEW_VALUE_KEPT_RVA: usize = rva(0x63E170); // dword_63E170
-const FAR_RVA: usize = rva(0x606294); // dword_606294
-const MIRROR_FAR_RVA: usize = rva(0x5C5E2C); // flt_5C5E2C
-const GRID_REACH_RVA: usize = rva(0x60A87C); // g_gridReach
+const NO_PLACE_RVA: usize = rva(0x64BB18); // dword_64BB18
 
 /// The Rust version (see the header).
 pub unsafe fn draw_mirror_view() -> Result<(), Refused> {
     unsafe {
         let g = |a: usize| game_read::<u32>(a);
-        if g(SWITCHES[0]) != 0 || g(SWITCHES[1]) != 0 || g(SWITCHES[2]) == 0 {
+        if g(NO_PLACE_RVA) != 0
+            || RACE_WORK.in_credits.get() != 0
+            || FRAME_SWITCHES.other_way.get() == 0
+        {
             return Ok(());
         }
-        game_write(VIEW_VALUE_KEPT_RVA, g(VIEW_VALUE_RVA));
-        let saved = (g(FAR_RVA), g(GRID_REACH_RVA));
-        game_write(FAR_RVA, g(MIRROR_FAR_RVA));
-        game_write(GRID_REACH_RVA, 2u32);
+        LEVEL_GRID
+            .view_value_kept
+            .set_bits(RACE_VIEW.view_depth[1].bits());
+        let saved = (VIEW_VARS.view_scale.bits(), STAGE_PREFS.grid_reach.bits());
+        VIEW_VARS.view_scale.set_bits(NUMBERS.k256.bits());
+        STAGE_PREFS.grid_reach.set_bits(2u32);
         let drawn = (|| {
             crate::race::frame_views::mirror_view_window()?;
-            RACE_VIEW.view_depth[1].set_bits(g(VIEW_VALUE_KEPT_RVA));
+            RACE_VIEW.view_depth[1].set_bits(LEVEL_GRID.view_value_kept.bits());
             crate::race::frame_flush::draw_view_backdrop();
             crate::race::draw_view_scene::draw_view_scene()
         })();
-        game_write(GRID_REACH_RVA, saved.1);
-        game_write(FAR_RVA, saved.0);
+        STAGE_PREFS.grid_reach.set_bits(saved.1);
+        VIEW_VARS.view_scale.set_bits(saved.0);
         drawn?;
         crate::race::frame_views::full_view_window(false);
     }

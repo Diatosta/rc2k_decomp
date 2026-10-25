@@ -11,28 +11,42 @@
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
+use crate::physics::camera_store::CAMERA_WORK;
 use crate::physics::car_store::CAR;
-use crate::physics::flow::{g, p};
+use crate::physics::flow::g;
 use crate::scene::draw_store::DRAW;
 use crate::scene::x87_mem::{fild, fistp, fld};
 
 /// The Rust version (the exact one, for `physics::camera_avoid_ground`).
 pub unsafe fn ease_view_turn() {
     if g(0x6EF7CC) != 0 {
-        for x in [0x608BE4, 0x608BE8, 0x608BEC] {
-            p(x, 0x3F80_0000);
+        for share in [
+            &CAMERA_WORK.view_share_pitch,
+            &CAMERA_WORK.view_share_heading,
+            &CAMERA_WORK.view_share_roll,
+        ] {
+            share.set_bits(0x3F80_0000);
         }
     }
     for (target, turn, share) in [
-        (0x608B50, &CAR.camera_heading, 0x608BE8),
-        (0x608B58, &CAR.camera_pitch, 0x608BE4),
-        (0x608B54, &CAR.camera_roll_turn, 0x608BEC),
+        (
+            &CAMERA_WORK.start_heading,
+            &CAR.camera_heading,
+            &CAMERA_WORK.view_share_heading,
+        ),
+        (
+            &CAMERA_WORK.start_pitch,
+            &CAR.camera_pitch,
+            &CAMERA_WORK.view_share_pitch,
+        ),
+        (
+            &CAMERA_WORK.start_roll,
+            &CAR.camera_roll_turn,
+            &CAMERA_WORK.view_share_roll,
+        ),
     ] {
-        DRAW.scratch.set(g(target).wrapping_sub(turn.get()));
-        x87_1(
-            crate::race::store::asm_base() as usize,
-            crate::physics::flow::a(share) as usize,
-        );
+        DRAW.scratch.set(target.get().wrapping_sub(turn.get()));
+        x87_1(crate::race::store::asm_base() as usize, share.addr());
         turn.set(turn.get().wrapping_add(DRAW.scratch.get()));
     }
 }

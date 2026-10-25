@@ -15,17 +15,11 @@
 //! `dword_52A910` set (it would write past `dword_641680`'s eight).
 
 use crate::errors::Refused;
-use crate::framework::{game_addr, rva};
+use crate::race::frame_store::FRAME_WORK;
+use crate::race::numbers_store::NUMBERS;
+use crate::race::vars_store::RACE_VARS;
+use crate::race::view_store::RACE_VIEW;
 use rc2k_core::drive::shown_cars::{ShownCars, ShownSetup};
-
-/// The variables (IDA addresses), in the order the core uses them.
-/// Stands for `dword_52A910` (`NET.session`) in `VARIABLES`.
-const SESSION: usize = 0x52A910;
-const VARIABLES: [usize; 19] = [
-    0x63DBA8, 0x63DBAC, 0x63DB94, 0x63DB98, 0x5C5CE0, 0x63DB88, 0x6238A4, 0x52A910, 0x63DBA0,
-    0x63DBB0, 0x63DBB4, 0x641680, 0x641684, 0x641688, 0x64168C, 0x641690, 0x641694, 0x641698,
-    0x64169C,
-];
 
 unsafe fn get(v: &[u32], k: usize) -> u32 {
     unsafe { (v[k] as *const u32).read_unaligned() }
@@ -35,7 +29,7 @@ unsafe fn put(v: &[u32], k: usize, x: u32) {
     unsafe { (v[k] as *mut u32).write_unaligned(x) }
 }
 
-/// The Rust version on the variables at `v` (`VARIABLES`' order).
+/// The Rust version on the variables at `v` (`game`'s order).
 // Converted: `rc2k_core::drive::shown_cars::ShownCars::choose`.
 /// The eax it leaves is read by no caller (liveness at its five call sites).
 pub unsafe fn choose_at(v: &[u32]) -> Result<(), Refused> {
@@ -68,15 +62,23 @@ pub unsafe fn choose_at(v: &[u32]) -> Result<(), Refused> {
     }
 }
 
+/// The variables' addresses, in the order the core uses them.
 fn game() -> Vec<u32> {
-    VARIABLES
-        .iter()
-        .map(|&x| match x {
-            // `dword_52A910`: in the network's variables.
-            SESSION => crate::net::store::NET.session.addr() as u32,
-            _ => game_addr(rva(x)) as u32,
-        })
-        .collect()
+    let mut cells = vec![
+        RACE_VIEW.view_cars[0].addr(),
+        RACE_VIEW.view_cars[1].addr(),
+        RACE_VIEW.players.addr(),
+        RACE_VIEW.views.addr(),
+        NUMBERS.replay_mode.addr(),
+        RACE_VIEW.view_switch.addr(),
+        RACE_VARS.split.addr(),
+        crate::net::store::NET.session.addr(), // dword_52A910: in the network's variables
+        RACE_VIEW.local_car.addr(),
+        RACE_VIEW.view_blocks[0].addr(),
+        RACE_VIEW.view_blocks[1].addr(),
+    ];
+    cells.extend(FRAME_WORK.listed_car_sounds.iter().map(|c| c.addr()));
+    cells.into_iter().map(|a| a as u32).collect()
 }
 
 /// The Rust version.

@@ -18,7 +18,6 @@ use crate::drive::race_parts::{
 };
 use crate::errors::Refused;
 use crate::input::store::DEVICES;
-use crate::physics::flow::g;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::vars_store::RACE_VARS;
 use crate::session::FLAGS;
@@ -66,7 +65,7 @@ pub unsafe fn pause_until_key() -> Result<(), Refused> {
         hold = false;
         input_update();
         if RACE_VARS.pause_wait.get() != 0 {
-            RACE_VARS.pause_wait.set(g(0x6235F0) - 1);
+            RACE_VARS.pause_wait.set(RACE_VARS.pause_wait.get() - 1);
             continue;
         }
         race_keys()?;

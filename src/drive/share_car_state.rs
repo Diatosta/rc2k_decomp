@@ -22,15 +22,14 @@
 //! `popa`. Refuses (before anything) a car file number above 0x21 (past `g_lightRecords`).
 
 use crate::errors::Refused;
-use crate::framework::{game_addr, rva};
+use crate::framework::game_addr;
 use crate::math::x87;
 use crate::math::x87_run::{compare_full, sub_div_to_int};
 use crate::race::mud::car_file_number;
 use crate::race::numbers_store::NUMBERS;
 use crate::race::view_store::RACE_VIEW;
+use crate::scene::draw_store::DRAW;
 use rc2k_core::drive::sharing;
-
-const SCRATCH: usize = 0x62400C; // dword_62400C
 
 unsafe fn at(a: u32) -> u32 {
     unsafe { (a as *const u32).read_unaligned() }
@@ -137,5 +136,12 @@ pub unsafe fn share_car_state_at(s: u32, o: u32, p: u32, scratch: u32) -> Result
 /// object `sound` (ebp). The registers it leaves are read by no caller (liveness: only
 /// DF after `share_all_cars`' call).
 pub unsafe fn share_car_state(block: u32, record: u32, sound: u32) -> Result<(), Refused> {
-    unsafe { share_car_state_at(block, record, sound, game_addr(rva(SCRATCH)) as u32) }
+    unsafe {
+        share_car_state_at(
+            block,
+            record,
+            sound,
+            DRAW.scratch.addr() as u32, /* dword_62400C */
+        )
+    }
 }

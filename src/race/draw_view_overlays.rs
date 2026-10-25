@@ -11,9 +11,8 @@
 //! Out: nothing its one caller, `race::draw_race_scene`, reads
 
 use crate::errors::Refused;
-use crate::framework::{game_read, game_write, rva};
 use crate::physics::car_store::CAR;
-const OWN_CAR_SWITCH_RVA: usize = rva(0x621900); // dword_621900
+use crate::scene::draw_switches_store::DRAW_SWITCHES;
 
 /// The Rust version (see the header).
 pub unsafe fn draw_view_overlays() -> Result<(), Refused> {
@@ -32,10 +31,10 @@ pub unsafe fn draw_view_overlays() -> Result<(), Refused> {
         draw_flat_triangle();
         crate::scene::depth_buffer_on::depth_buffer(true);
         set_filters();
-        let kept: u32 = game_read(OWN_CAR_SWITCH_RVA);
-        game_write(OWN_CAR_SWITCH_RVA, 0u32);
+        let kept: u32 = DRAW_SWITCHES.far_on.bits();
+        DRAW_SWITCHES.far_on.set_bits(0u32);
         let drawn = draw_own_car();
-        game_write(OWN_CAR_SWITCH_RVA, kept);
+        DRAW_SWITCHES.far_on.set_bits(kept);
         drawn?;
         draw_screen_tint()?;
         crate::race::flush_draw_batch::flush_draw_batch()?;

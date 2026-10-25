@@ -15,11 +15,11 @@
 //! the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{game_write, rva};
 use crate::menu::cheats_store::CHEAT_VARS;
 use crate::menu::flow_store::SCREEN_FLOW;
 use crate::menu::table_calls::call_listed;
 use crate::platform::{lock_surface, show_frame_now, unlock_surface};
+use crate::scene::light_store::LIGHT_STATE;
 use crate::session::Dword;
 use crate::text::draw_text::GameCanvas;
 use rc2k_core::menu::notice;
@@ -29,7 +29,6 @@ use rc2k_core::menu::notice;
 const DRAW_LIST: &Dword = &SCREEN_FLOW.draw_list; // g_drawList
 const SCENE_LIST: &Dword = &SCREEN_FLOW.scene_list; // g_sceneList
 const OVERLAY_LIST: &Dword = &SCREEN_FLOW.overlay_list; // g_overlayList
-const SCENE_STATE_RVA: usize = rva(0x6365CC); // dword_6365CC
 const NOTICE_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::NOTICE;
 const END: u32 = u32::MAX;
 
@@ -79,7 +78,7 @@ pub unsafe fn frame_callback(menu: u32, palette: u32, measure_x: u32) -> Result<
         draw_menu(menu, palette, measure_x)?;
         run_listed(DRAW_LIST)?;
         unlock_surface();
-        game_write(SCENE_STATE_RVA, 4u32);
+        LIGHT_STATE.scene_state.set_bits(4u32);
         crate::scene::begin_scene::begin_scene();
         run_listed(SCENE_LIST)?;
         crate::scene::end_scene::end_scene();

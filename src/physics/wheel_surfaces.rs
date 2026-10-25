@@ -33,18 +33,16 @@
 //! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, game_read, rva};
+use crate::framework::{game_addr, rva};
 use crate::physics::car_store::CAR;
+use crate::physics::contact_store::CONTACT_WORK;
 use crate::physics::flip_cell_index::flip_cell_index;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::course_store::COURSE;
+use crate::race::view_store::RACE_VIEW;
 use crate::scene::draw_store::DRAW;
 use crate::scene::x87_mem::{fild, fistp, fld, fstp};
 use std::cmp::Ordering;
-
-fn g(x: usize) -> u32 {
-    unsafe { game_read(rva(x)) }
-}
 
 unsafe fn byte(a: u32) -> u32 {
     unsafe { (a as *const u8).read() as u32 }
@@ -88,7 +86,7 @@ unsafe fn steps() -> Result<(), Refused> {
         let mut ebx = unsafe { share_bit(0x2D2A14, c) };
         edx = (edx >> 15) & 1;
         ebx = (ebx >> 15) & 1;
-        if g(0x6D2914 + 4 * cc) == 1 {
+        if CONTACT_WORK.probe_face_flip[cc].get() == 1 {
             edx ^= 1;
             ebx ^= 1;
         }
@@ -108,9 +106,15 @@ unsafe fn steps() -> Result<(), Refused> {
             CAR.wheel_cell_b_byte14[cc].set(byte(e2 + t2 + 0x14));
             CAR.wheel_surface_blend[cc].set_bits(0);
             let kind_index = byte(t2 + 0x2C);
-            let kind = g(0x63D9D0 + 4 * kind_index as usize);
+            // The index is a byte: past the four kinds the original reads on (a slip).
+            let kind = match RACE_VIEW.surface_kinds.get(kind_index as usize) {
+                Some(cell) => cell.get(),
+                None => ((RACE_VIEW.surface_kinds[0].addr() + 4 * kind_index as usize)
+                    as *const u32)
+                    .read_volatile(),
+            };
             if kind != 5 && kind != 4 && CAR.wheel_surface_b[cc].get() != 0 && byte(f + 0x21) != 0 {
-                let (x, y, z) = if g(0x6D2914 + 4 * cc) == 1 {
+                let (x, y, z) = if CONTACT_WORK.probe_face_flip[cc].get() == 1 {
                     (byte(f + 0x25), byte(f + 0x24), byte(f + 0x23))
                 } else {
                     (byte(f + 0x22), byte(f + 0x23), byte(f + 0x24))

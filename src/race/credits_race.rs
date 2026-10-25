@@ -15,46 +15,39 @@
 //! `roll_credits`, 8 `play_race`, 9 `tidy_everything`.
 
 use crate::errors::Refused;
-use crate::framework::{game_read, game_write, rva};
+use crate::framework::{game_write, rva};
 use crate::logfile::{log_int::log_int, log_write::log_write};
+use crate::race::numbers_store::NUMBERS;
+use crate::race::replay_file_store::REPLAY_FILE;
+use crate::race::switches_store::FRAME_SWITCHES;
+use crate::race::tables_store::RACE_TABLES;
+use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
 use crate::race::work_store::RACE_WORK;
 
-const FIRST: [(usize, u32); 5] = [
-    (0x5C5CE0, 0),
-    (0x5BEC94, 0), // g_holdCarRevs
-    (0x60519C, 0x1234_5678),
-    (0x60101C, 2),
-    (0x621514, 0),
-];
-const STAGE: usize = 0x623850; // g_stageNumber
-const CAR_KINDS: usize = 0x623858; // g_raceCarKinds
 const WORDS: [&std::ffi::CStr; 2] = [c"INIT CREDITS - track", c"car"]; // "INIT CREDITS - track", "car"
-
-fn p(x: usize, v: u32) {
-    unsafe { game_write(rva(x), v) }
-}
 
 /// The Rust version: the steps in order. (The original keeps ebp, ecx and edi and leaves
 /// esi and edx; no step reads a register of the caller or of an earlier step.)
 pub fn credits_race() -> Result<(), Refused> {
     crate::framework::log("race::credits_race: the demonstration starts");
-    for (at, v) in FIRST {
-        p(at, v);
-    }
+    NUMBERS.replay_mode.set(0);
+    REPLAY_FILE.hold_car_revs.set(0); // g_holdCarRevs
+    RACE_TABLES.noise_seed.set(0x1234_5678);
+    unsafe { game_write(rva(0x60101C), 2u32) };
+    FRAME_SWITCHES.editor_mode.set(0);
     crate::race::set_up_credits_race::set_up_credits_race()?;
     unsafe {
         crate::race::race_cars::set_up_arcade_cars()?;
         crate::race::race_shell::set_start_states()?;
     }
     RACE_WORK.in_credits.set(1);
-    let g = |x: usize| unsafe { game_read::<u32>(rva(x)) };
     let word = |n: usize| WORDS[n].as_ptr() as usize as *const u8;
     unsafe {
         log_write(word(0), false, 1);
-        log_int(g(STAGE) as i32, false, 1);
+        log_int(RACE_VARS.stage_number.get() as i32, false, 1);
         log_write(word(1), false, 1);
-        log_int(g(CAR_KINDS) as i32, true, 1);
+        log_int(RACE_VARS.race_car_kinds[0].get() as i32, true, 1);
         crate::race::stage_loading::load_stage()?;
         crate::race::frame_text::roll_credits(
             0,

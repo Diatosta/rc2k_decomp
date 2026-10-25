@@ -27,7 +27,6 @@ const PLACE_RVA: Slot = Slot::at(0x8EB8D5); // flt_8EB8D5 .. flt_8EB8DD
 const NEAR_RVA: Slot = Slot::at(0x8EB961); // dword_8EB961
 const UV_RVA: Slot = Slot::at(0x93A21A); // flt_93A21A .. flt_93A236
 const HALF_RVA: Slot = Slot::at(0x8EB8BD); // dword_8EB8BD .. dword_8EB8C9
-const CENTRE_RVA: [usize; 2] = [rva(0x62409C), rva(0x6240A0)];
 const Z_K_RVA: Slot = Slot::at(0x8EB96D); // flt_8EB96D
 const VERTICES_RVA: usize = rva(0x9605A0); // g_polygonVertices: TLVertex[4]
 const SINES_RVA: usize = rva(0xA23AE4); // g_sines
@@ -62,8 +61,8 @@ pub unsafe fn draw_turned_sprite(
         let colour = colour | 0xFF_FFFF;
         let k = [
             DRAW.view_scale.bits(),
-            game_read(CENTRE_RVA[0]),
-            game_read(CENTRE_RVA[1]),
+            DRAW.view_centre[0].bits(),
+            DRAW.view_centre[1].bits(),
             game_read(Z_K_RVA),
         ];
         let sin = game_read(SINES_RVA + 4 * angle as usize);

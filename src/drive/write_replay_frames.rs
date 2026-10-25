@@ -10,20 +10,25 @@
 //! Caller: `drive::flush_replay`. Refuses what `write_replay_block` refuses.
 
 use crate::errors::Refused;
-use crate::physics::flow::{a, g, p};
+use crate::physics::flow::{a, p};
+use crate::race::replay_file_store::REPLAY_FILE;
+use crate::race::replay_work_store::REPLAY_WORK;
+use crate::race::viewer_state_store::REPLAY_VIEW;
 use rc2k_core::drive::replay_frames::written_view;
 
 /// The Rust version.
 // Converted: `rc2k_core::drive::replay_frames::written_view`.
 pub unsafe fn write_replay_frames() -> Result<(), Refused> {
-    if g(0x5BEC88) != 1 {
+    if REPLAY_FILE.replay_open.get() != 1 {
         return Ok(());
     }
-    p(0x5BECD4, g(0x5BECD4).wrapping_add(0x64));
-    p(0x5C252C, 0x64);
+    REPLAY_FILE
+        .index_frame_count
+        .set(REPLAY_FILE.index_frame_count.get().wrapping_add(0x64));
+    REPLAY_VIEW.frames_in_block.set(0x64);
     p(0x9613A4, 0);
     p(0x9613A8, 0);
-    if g(0x719B34) != 1 {
+    if REPLAY_WORK.header_one_player.get() != 1 {
         let at = a(0x9613A9) as *mut i8;
         let v = written_view(unsafe { at.read() });
         unsafe { at.write(v) };
@@ -31,6 +36,6 @@ pub unsafe fn write_replay_frames() -> Result<(), Refused> {
     // `race::write_replay_block` reads no register at entry (liveness: DF only).
     unsafe { crate::race::replay::write_replay_block() }?;
     p(0x9613A0, a(0x9613A4));
-    p(0x5C252C, 0);
+    REPLAY_VIEW.frames_in_block.set(0);
     Ok(())
 }

@@ -15,7 +15,6 @@
 //! counters and the random state put back).
 
 use crate::errors::Refused;
-use crate::framework::{game_read, game_write, rva};
 use crate::gfx::fade_colour::fade_colour;
 use crate::math::next_random::next_random;
 use crate::race::mud_texel::mud_texel;
@@ -23,7 +22,6 @@ use crate::race::muddy_texel::{strength_at, texture_and_mud};
 use crate::race::put_mud_texel::put_mud_texel;
 use crate::race::vars_store::RACE_VARS;
 
-pub const SPLASHED_RVA: usize = rva(0x623D90); // dword_623D90: each texture's count
 pub const LAST_SPLASHED: u32 = 0x1000;
 
 /// The Rust version (see the header).
@@ -34,8 +32,9 @@ pub unsafe fn splash_mud() -> Result<(), Refused> {
     };
     let (n, mud) = texture_and_mud()?;
     unsafe {
-        let count_at = SPLASHED_RVA + 4 * n as usize;
-        game_write(count_at, game_read::<u32>(count_at).wrapping_add(1));
+        // dword_623D90: each texture's count (the texture is 0 .. 3).
+        let count_cell = &RACE_VARS.mud_splash_counts[n as usize];
+        count_cell.set(count_cell.get().wrapping_add(1));
         let (mut x, mut y) = splash_place(next_random());
         let strength = u32::from(*(strength_at(mud, n, x, y) as *const u8));
         if !splash_lands(strength, || next_random() & 0xFF) {

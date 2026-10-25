@@ -26,17 +26,15 @@
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_read, game_write, rva};
 use crate::race::numbers_store::NUMBERS;
+use crate::race::prefs_store::STAGE_PREFS;
+use crate::race::switches_store::FRAME_SWITCHES;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::work_store::RACE_WORK;
+use crate::scene::light_work_store::LIGHT_WORK;
 use crate::scene::object_store::OBJECT_WORK;
 
 // ---- game data ----
-
-const DRAWING_RVA: usize = rva(0x62DA44); // dword_62DA44
-const OBJECT_RVA: usize = rva(0x6214FC); // g_objectNumber
 const KINDS_RVA: usize = rva(0x5CD27C); // g_objectKinds
-const OTHER_WAY_RVA: usize = rva(0x621480); // dword_621480
-const SHOWN_RVA: usize = rva(0x609330); // dword_609330
 const FACE_COUNTS_RVA: usize = rva(0x632F70); // dword_632F70
 const KIND_BYTES_RVA: usize = rva(0x5CD688); // dword_5CD688
 use rc2k_core::scene::shown::OBJECTS;
@@ -48,7 +46,7 @@ struct Game;
 
 impl rc2k_core::scene::shown::RaceObject for Game {
     fn object(&self) -> u32 {
-        unsafe { game_read(OBJECT_RVA) }
+        FRAME_SWITCHES.object_number.bits()
     }
     fn kind_switch(&self) -> u32 {
         RACE_WORK.in_credits.bits()
@@ -60,10 +58,10 @@ impl rc2k_core::scene::shown::RaceObject for Game {
         unsafe { game_read(KINDS_RVA + object as usize * 4) }
     }
     fn other_way(&self) -> u32 {
-        unsafe { game_read(OTHER_WAY_RVA) }
+        FRAME_SWITCHES.other_way.bits()
     }
     fn shown(&self) -> u32 {
-        unsafe { game_read(SHOWN_RVA) }
+        STAGE_PREFS.shown.bits()
     }
     fn which(&self) -> u32 {
         RACE_WORK.stage_direction.bits()
@@ -84,10 +82,10 @@ pub unsafe fn draw_shown_object(
 ) -> Result<bool, Refused> {
     unsafe {
         let race = NUMBERS.in_race.bits() != 0;
-        if race && game_read::<u32>(OBJECT_RVA) >= OBJECTS {
+        if race && FRAME_SWITCHES.object_number.bits() >= OBJECTS {
             return Err(BadInput("an object's number past the tables").into());
         }
-        game_write(DRAWING_RVA, 1u32);
+        LIGHT_WORK.drawing_object.set_bits(1u32);
         let show = if race {
             rc2k_core::scene::shown::race_shown(&Game).drawn
         } else {
@@ -97,7 +95,7 @@ pub unsafe fn draw_shown_object(
         if show {
             draw()?;
         }
-        game_write(DRAWING_RVA, 0u32);
+        LIGHT_WORK.drawing_object.set_bits(0u32);
         Ok(show)
     }
 }

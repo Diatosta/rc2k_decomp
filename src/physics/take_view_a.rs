@@ -13,33 +13,44 @@
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
+use crate::physics::camera_store::CAMERA_WORK;
 use crate::physics::camera_view::{rd, record};
 use crate::physics::car_store::CAR;
-use crate::physics::flow::p;
 use crate::scene::x87_mem::{fld, fstp};
 
 /// The Rust version (the exact one, for `physics::update_camera`): `s` the view's record
 /// (esi). The registers it leaves are read by none of its callers.
 pub unsafe fn take_view_a(s: u32) {
     x87_1(s as usize, crate::race::store::asm_base() as usize);
-    for (k, x) in COPIES.iter().enumerate() {
-        p(*x, rd(s + 0x10 + 4 * k as u32));
+    for (k, put) in copies().iter().enumerate() {
+        put(rd(s + 0x10 + 4 * k as u32));
     }
-    p(0x608B5C, CAR.car_heading.get());
+    CAMERA_WORK.view_a_heading.set(CAR.car_heading.get());
     let (mut eax, mut ebx) = (CAR.car_pitch.get(), CAR.car_roll.get());
     if rd(record() + 0x4C) != 0 {
         eax = ((eax as i32) >> 1) as u32;
         ebx = ((ebx as i32) >> 1) as u32;
     }
-    p(0x608B64, eax);
-    p(0x608B60, ebx);
+    CAMERA_WORK.view_a_pitch.set(eax);
+    CAMERA_WORK.view_a_roll.set(ebx);
 }
 
-/// Where the record's +0x10 .. +0x38 go.
-const COPIES: [usize; 11] = [
-    0x608B80, 0x608B84, 0x608B88, 0x608BC8, 0x608BCC, 0x608BD0, 0x608BF8, 0x608BFC, 0x608C00,
-    0x608BF4, 0x608C04,
-];
+/// Where the record's +0x10 .. +0x38 go (the statics deref at run time, so a function).
+fn copies() -> [fn(u32); 11] {
+    [
+        |v| CAMERA_WORK.view_a_turn[0].set_bits(v),
+        |v| CAMERA_WORK.view_a_turn[1].set_bits(v),
+        |v| CAMERA_WORK.view_a_turn[2].set_bits(v),
+        |v| CAMERA_WORK.view_a_point[0].set_bits(v),
+        |v| CAMERA_WORK.view_a_point[1].set_bits(v),
+        |v| CAMERA_WORK.view_a_point[2].set_bits(v),
+        |v| CAMERA_WORK.view_a_shares[0].set_bits(v),
+        |v| CAMERA_WORK.view_a_shares[1].set_bits(v),
+        |v| CAMERA_WORK.view_a_shares[2].set_bits(v),
+        |v| CAMERA_WORK.view_a_aux.set(v),
+        |v| CAMERA_WORK.view_a_aux_2.set(v),
+    ]
+}
 
 // ---- the arithmetic that was x87 assembly ----
 

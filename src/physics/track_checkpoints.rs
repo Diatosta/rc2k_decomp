@@ -15,16 +15,13 @@
 //! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{game_read, game_write, rva};
+use crate::framework::{game_read, rva};
 use crate::physics::car_store::CAR;
+use crate::scene::light_store::LIGHT_STATE;
 use rc2k_core::physics::splits::{at_split_end, check_tracked, split_ahead};
 
 fn g(x: usize) -> u32 {
     unsafe { game_read(rva(x)) }
-}
-
-fn p(x: usize, v: u32) {
-    unsafe { game_write(rva(x), v) }
 }
 
 /// The steps. The registers the original leaves are read by none of its callers.
@@ -33,7 +30,7 @@ pub fn track_checkpoints() -> Result<(), Refused> {
     let checkpoint = unsafe { crate::physics::find_car_checkpoint::find_car_checkpoint() }?;
     check_tracked(checkpoint, CAR.splits_passed.get())?;
     CAR.checkpoint.set(checkpoint);
-    p(0x6365E4, checkpoint);
+    LIGHT_STATE.line_place.set(checkpoint);
     unsafe { crate::physics::checkpoint_offset::checkpoint_offset() }?;
     crate::physics::off_line_warnings::off_line_warnings()?;
     let next = g(0x9E87A0 + 4 * CAR.checkpoint.get() as usize).wrapping_sub(1);

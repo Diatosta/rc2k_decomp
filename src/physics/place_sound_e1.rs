@@ -9,18 +9,19 @@
 //! anything) a car number past 7, a null sound object when it is written.
 
 use crate::errors::Refused;
-use crate::framework::rva;
-use crate::physics::car_sounds::{g, listed, object, place, put};
+use crate::physics::car_sounds::{listed, object, place, put};
 use crate::physics::sound_band_1::TWIN;
 use crate::physics::sound_bands::band_value;
+use crate::race::sound_spots_store::RACE_SOUND_SPOTS;
+use crate::race::work_store::RACE_WORK;
 
 /// The Rust version (the exact one, for `physics::wall_push_back` and
 /// `physics::wall_edge_contact`).
 pub unsafe fn place_sound_e1() -> Result<(), Refused> {
-    if !listed(g(0x71B3F8))? {
+    if !listed(RACE_WORK.current_car.bits())? {
         return Ok(());
     }
-    let scratch = g(0x6D1AEC);
+    let scratch = RACE_SOUND_SPOTS.band_scratch.bits();
     let b = unsafe { band_value(TWIN) };
     if b == 0 {
         return Ok(());
@@ -29,7 +30,7 @@ pub unsafe fn place_sound_e1() -> Result<(), Refused> {
     let o = match object() {
         Ok(o) => o,
         Err(e) => {
-            unsafe { crate::framework::game_write(rva(0x6D1AEC), scratch) };
+            RACE_SOUND_SPOTS.band_scratch.set_bits(scratch);
             return Err(e);
         }
     };

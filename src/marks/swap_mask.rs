@@ -17,13 +17,12 @@
 use crate::errors::{BadInput, Refused};
 use crate::framework::rva;
 use crate::marks::store::{Slot, game_read, game_write};
+use crate::scene::kind_texture_store::KIND_TEXTURES;
 
 const SEEN_RVA: Slot = Slot::at(0x934D6E); // dword_934D6E
 const CHOSEN_RVA: Slot = Slot::at(0x934D72); // dword_934D72
 const MASK_RVA: Slot = Slot::at(0x934DB6); // g_marksMaskBlock
 const BMASK_RVA: Slot = Slot::at(0x934DFA); // g_marksBMaskBlock
-const SLOT_RVA: usize = rva(0x5D0E10); // dword_5D0E10
-const FORGET_RVA: usize = rva(0x5D1E10); // dword_5D1E10
 const WIDTH_RVA: usize = rva(0x4F49A0); // g_surface.width
 
 /// The Rust version (see the header): the lock and unlock (`d3d::lock_texture`,
@@ -47,14 +46,14 @@ pub unsafe fn swap_mask() -> Result<(), Refused> {
             CHOSEN_RVA,
             game_read::<u32>(if second { BMASK_RVA } else { MASK_RVA }),
         );
-        lock(game_read(SLOT_RVA), true)?;
+        lock(KIND_TEXTURES.kind_first_textures[202].bits(), true)?;
         // The width is the locked texture's (`g_surface` while it is locked), not the
         // screen's: checked here (2026-10-18: checked before the lock, it refused every
         // frame). A row wider than the mask's would read past its block: unlocked, put
         // back and refused.
         let width: u32 = game_read(WIDTH_RVA);
         if let Err(e) = masks::check_width(width) {
-            lock(game_read(SLOT_RVA), false)?;
+            lock(KIND_TEXTURES.kind_first_textures[202].bits(), false)?;
             game_write(SEEN_RVA, kept[0]);
             game_write(CHOSEN_RVA, kept[1]);
             return Err(e.into());
@@ -64,8 +63,10 @@ pub unsafe fn swap_mask() -> Result<(), Refused> {
             let pixel = ((chosen + 4 * at) as *const u32).read_unaligned();
             put_pixel(pixel, col, row + masks::TEXTURE_ROW_AT)?;
         }
-        lock(game_read(SLOT_RVA), false)?;
-        crate::scene::forget_slot_texture::forget_slot_texture(game_read(FORGET_RVA))?;
+        lock(KIND_TEXTURES.kind_first_textures[202].bits(), false)?;
+        crate::scene::forget_slot_texture::forget_slot_texture(
+            KIND_TEXTURES.kind_first_slots[202].bits(),
+        )?;
     }
     Ok(())
 }

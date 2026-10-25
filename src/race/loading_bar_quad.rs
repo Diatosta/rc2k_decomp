@@ -9,12 +9,9 @@
 //! Caller: `race::loading_bar_frame`. The quad its Rust version.
 
 use crate::errors::Refused;
-use crate::framework::{game_write, rva};
 use crate::race::vars_store::RACE_VARS;
 use crate::scene::draw_store::DRAW;
 use crate::session::SCREEN;
-
-const QUAD_IN_RVA: usize = rva(0x623DE8); // colour; x at +0x28 / +0x2C, y at +0x38 / +0x3C
 
 /// The Rust version (see the header).
 pub unsafe fn loading_bar_quad() -> Result<(), Refused> {
@@ -22,13 +19,13 @@ pub unsafe fn loading_bar_quad() -> Result<(), Refused> {
     use rc2k_core::race::loading::{BAR_COLOUR, loading_bar};
     unsafe {
         let [w, h] = [SCREEN.width.get(), SCREEN.height.get()];
-        let q = |o: usize, v: u32| game_write(QUAD_IN_RVA + o, v);
         let bar = loading_bar(w, h, RACE_VARS.bar_share.bits());
-        q(0x28, bar.left);
-        q(0, BAR_COLOUR);
-        q(0x38, bar.top);
-        q(0x3C, bar.bottom);
-        q(0x2C, bar.right);
+        // The quad's colour (0x623DE8); x at +0x28 / +0x2C, y at +0x38 / +0x3C.
+        RACE_VARS.quad_corners[0].set(bar.left);
+        RACE_VARS.quad_colour[0].set(BAR_COLOUR);
+        RACE_VARS.quad_corners[4].set(bar.top);
+        RACE_VARS.quad_corners[5].set(bar.bottom);
+        RACE_VARS.quad_corners[1].set(bar.right);
         DRAW.texture_page.set_bits(0xFFFF_FFFFu32);
         // `draw_screen_quad` reads no register it is given.
         crate::race::frame_draw::draw_screen_quad()

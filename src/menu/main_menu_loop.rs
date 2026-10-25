@@ -34,13 +34,13 @@ use crate::menu::loop_store::LOOP_FLAGS;
 use crate::menu::menus_store::MENUS;
 use crate::menu::option_work_store::OPTION_WORK;
 use crate::menu::screen_items_store::{SCREEN_ITEMS, slot};
-use crate::menu::screen_loop::raw;
 use crate::menu::screen_loop::{
     Callee, Carried, Flow, List, Screen, Step, carousel, prepare_scene,
 };
 use crate::menu::state_store::MENU_STATE;
 use crate::menu::update_blink::update_blink;
 use crate::scene::draw_store::DRAW;
+use crate::scene::object_store::OBJECT_WORK;
 use crate::session::CLOCKS;
 
 // ---- game data ----
@@ -147,12 +147,12 @@ pub const SCREEN: Screen = Screen {
         Step::Call(Callee::SetUpEngine),
         Step::Call(Callee::SetUpFrontEndScene),
         Step::Call(Callee::SetUpEngine),
-        Step::Write(|| raw(rva(0x635084)), 0x50),
-        Step::Write(|| raw(rva(0x635088)), 0xFF),
-        Step::Write(|| raw(rva(0x63508C)), 0),
-        Step::Write(|| raw(rva(0x635090)), 0xFF),
-        Step::Write(|| raw(rva(0x635094)), 0x6E),
-        Step::Write(|| raw(rva(0x635098)), 0x1E),
+        Step::Write(|| &OBJECT_WORK.light_lowest, 0x50),
+        Step::Write(|| &OBJECT_WORK.light_highest, 0xFF),
+        Step::Write(|| &OBJECT_WORK.light_level, 0),
+        Step::Write(|| &OBJECT_WORK.light_strength, 0xFF),
+        Step::Write(|| &OBJECT_WORK.light_turns[0], 0x6E),
+        Step::Write(|| &OBJECT_WORK.light_turns[1], 0x1E),
         Step::Call(Callee::PlayTune4),
     ],
     set_up_first: &[Step::Do(set_up_first)],

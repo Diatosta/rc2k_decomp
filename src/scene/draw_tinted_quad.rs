@@ -15,19 +15,17 @@
 //! versions.
 
 use crate::errors::Refused;
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_write, rva};
 use crate::math::x87;
 use crate::race::numbers_store::NUMBERS;
 use crate::race::vars_store::RACE_VARS;
+use crate::race::view_store::RACE_VIEW;
 use crate::scene::draw_store::DRAW;
+use crate::session::Dword;
 
-const VERTEX_RVA: usize = rva(0x623E40); // dword_623E40: four of 0x20
 const RECORDS_RVA: usize = rva(0x975510); // g_polygonEntries: records of 0x44
-const CORNERS_RVA: usize = rva(0x623E10); // left, right; dword_623E20 top, bottom
-const COLOUR_IN_RVA: usize = rva(0x623DE8); // dword_623DE8, dword_623DEC
 const POOL_RVA: usize = rva(0x977F10); // g_polygonRecordPool
 const LIST_RVA: usize = rva(0x977710); // g_polygonList
-const MODE_RVA: usize = rva(0x63DAB4); // g_polygonMode
 const RECORD: usize = 0x44;
 
 fn set(r: usize, v: u32) {
@@ -41,23 +39,23 @@ pub unsafe fn draw_tinted_quad() -> Result<(), Refused> {
         DRAW.polygon_drawn.set_bits(0);
         for n in 0..4 {
             let rec = RECORDS_RVA + RECORD * n;
-            set(rec + 4, game_addr(VERTEX_RVA + 0x20 * n) as u32);
+            set(rec + 4, RACE_VARS.quad_vertices[8 * n].addr() as u32);
             set(rec + 8, 0);
             set(rec + 0xC, 0);
         }
-        let float = |r: usize| {
-            let v = x87::from_int(game_read(r));
+        let float = |cell: &Dword| {
+            let v = x87::from_int(cell.bits() as i32);
             DRAW.scratch.set_bits(v);
             v
         };
         let [left, right, top, bottom] = [
-            CORNERS_RVA,
-            CORNERS_RVA + 4,
-            CORNERS_RVA + 0x10,
-            CORNERS_RVA + 0x14,
+            &RACE_VARS.quad_corners[0],
+            &RACE_VARS.quad_corners[1],
+            &RACE_VARS.quad_corners[4],
+            &RACE_VARS.quad_corners[5],
         ]
         .map(float);
-        let v = |n: usize, o: usize, x: u32| set(VERTEX_RVA + 0x20 * n + o, x);
+        let v = |n: usize, o: usize, x: u32| RACE_VARS.quad_vertices[8 * n + o / 4].set_bits(x);
         for (n, x, y) in [
             (0, left, top),
             (1, right, top),
@@ -71,7 +69,7 @@ pub unsafe fn draw_tinted_quad() -> Result<(), Refused> {
         for n in 0..4 {
             v(n, 0x18, depth);
         }
-        let see: u8 = game_read(COLOUR_IN_RVA + 4);
+        let see = RACE_VARS.quad_colour[1].bits() as u8;
         DRAW.polygon_colour
             .set_bits(RACE_VARS.quad_colour[0].bits());
         for n in 0..4 {
@@ -93,13 +91,13 @@ pub unsafe fn draw_tinted_quad() -> Result<(), Refused> {
         crate::scene::clip_polygon_to_screen::clip_polygon_to_screen()?;
         if DRAW.polygon_vertex_count.bits() >= 3 {
             crate::scene::depth_buffer_on::depth_buffer(false);
-            set(MODE_RVA, 3);
+            RACE_VIEW.polygon_mode.set_bits(3);
             DRAW.polygon_textures[0].set_bits(0xFFFF_FFFF);
             DRAW.polygon_textures[1].set_bits(0xFFFF_FFFF);
             DRAW.polygon_sides[0].set_bits(0);
             DRAW.polygon_sides[1].set_bits(1);
             crate::scene::draw_polygon::draw_polygon_in_game()?;
-            set(MODE_RVA, 0);
+            RACE_VIEW.polygon_mode.set_bits(0);
             DRAW.polygon_drawn.set_bits(1);
             crate::scene::depth_buffer_on::depth_buffer(true);
         }

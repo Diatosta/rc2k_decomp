@@ -7,17 +7,19 @@
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::physics::car_store::CAR;
+use crate::physics::ground_store::GROUND_WORK;
 use crate::physics::tables_store::PHYSICS;
+use crate::race::course_lists_store::COURSE_LISTS;
 use crate::race::course_store::COURSE;
 use crate::race::frame_store::FRAME_WORK;
 use crate::race::numbers_store::NUMBERS;
+use crate::race::prefs_store::STAGE_PREFS;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
 use crate::race::work_store::RACE_WORK;
 use crate::scene::draw_store::DRAW;
 
 // unk_641AA4: the points, 0x20 bytes each
-pub const COUNT_RVA: usize = rva(0x64192C); // dword_64192C
 pub const HULL_COUNT_RVA: usize = rva(0x643ACC); // dword_643ACC
 pub const FARTHEST_RVA: usize = rva(0x643ABC); // dword_643ABC: the farthest point's record
 pub const FIRST_ANGLE_RVA: usize = rva(0x643AC0); // flt_643AC0
@@ -175,7 +177,7 @@ pub unsafe fn shadow_polygon() -> Result<(), Refused> {
             let e = entries + 0x44 * k;
             put(e, scene.wrapping_add(0x10).wrapping_add(k));
             put(e + 0x18, 0x00FF_FFFF);
-            ((e + 0x21) as *mut u8).write((game_read::<u32>(rva(0x609328)) >> 1) as u8);
+            ((e + 0x21) as *mut u8).write((STAGE_PREFS.shadow_alpha.get() >> 1) as u8);
             DRAW.scratch.set_bits(k);
             circle_place(
                 e,
@@ -206,12 +208,14 @@ fn work_entry(n: u32) -> u32 {
 unsafe fn inside_edge(n: u32) -> bool {
     unsafe {
         let p = scene_point(n);
-        game_write(rva(0x639824), get(p));
-        game_write(rva(0x63982C), get(p + 8));
+        GROUND_WORK.ground_x.set(get(p));
+        GROUND_WORK.ground_z.set(get(p + 8));
         use crate::math::x87_float::{X, compare, int};
-        let word = |a: usize| int(game_read::<u32>(rva(a)) as i32);
-        let first = (word(0x639824) - word(0x641948)) * (word(0x641954) - word(0x64194C));
-        let second = (word(0x63982C) - word(0x64194C)) * (word(0x641950) - word(0x641948));
+        let word = |d: &crate::session::Dword| int(d.bits() as i32);
+        let (x, z) = (&GROUND_WORK.ground_x, &GROUND_WORK.ground_z);
+        let c = &FRAME_WORK.shadow_corners;
+        let first = (word(x) - word(&c[0])) * (word(&c[3]) - word(&c[1]));
+        let second = (word(z) - word(&c[1])) * (word(&c[2]) - word(&c[0]));
         // `fldz; fcompp`: above 0, or not a number (C0)
         compare(X(0.0), first - second) & 0x0100 != 0
     }
@@ -227,11 +231,11 @@ unsafe fn inside_edge(n: u32) -> bool {
 unsafe fn crossing_block(pa: u32, pb: u32, ea: u32, eb: u32) {
     use crate::math::x87_float::{int, ld, st, to_int};
     unsafe {
-        let word = |a: usize| int(game_read::<u32>(rva(a)) as i32);
-        let first = word(0x641984) * word(0x641978) - word(0x641980) * word(0x64197C);
-        let second = word(0x64198C) * word(0x641978) - word(0x641988) * word(0x64197C);
+        let word = |n: usize| int(FRAME_WORK.shadow_work[n].bits() as i32);
+        let first = word(11) * word(8) - word(10) * word(9);
+        let second = word(13) * word(8) - word(12) * word(9);
         let share = st(-(first / (second - first)));
-        game_write(rva(0x639810), share);
+        GROUND_WORK.plane_f.set_bits(share);
         let share = ld(share);
         // a + (b - a) x share
         let whole = |a: u32, b: u32| {
@@ -264,34 +268,35 @@ unsafe fn edge_crossing(ea: u32, eb: u32, ed: u32) {
     unsafe {
         let pa = scene_point(get(ea));
         let pb = scene_point(get(eb));
-        let _w = |a: u32, v: u32| game_write(rva(a as usize), v);
-        let rd = |a: u32| game_read::<u32>(rva(a as usize));
-        FRAME_WORK.shadow_work[1].set(get(pb));
-        FRAME_WORK.shadow_work[5].set(get(pb + 8));
-        FRAME_WORK.shadow_work[0].set(get(pa));
-        FRAME_WORK.shadow_work[4].set(get(pa + 8));
-        FRAME_WORK.shadow_work[2].set(rd(0x641948));
-        FRAME_WORK.shadow_work[3].set(rd(0x641950));
-        FRAME_WORK.shadow_work[6].set(rd(0x64194C));
-        FRAME_WORK.shadow_work[7].set(rd(0x641954));
-        FRAME_WORK.shadow_work[8].set(rd(0x641964).wrapping_sub(rd(0x641960)));
-        FRAME_WORK.shadow_work[9].set(rd(0x641974).wrapping_sub(rd(0x641970)));
-        FRAME_WORK.shadow_work[10].set(rd(0x641958).wrapping_sub(rd(0x641960)));
-        FRAME_WORK.shadow_work[11].set(rd(0x641968).wrapping_sub(rd(0x641970)));
-        FRAME_WORK.shadow_work[12].set(rd(0x64195C).wrapping_sub(rd(0x641960)));
-        FRAME_WORK.shadow_work[13].set(rd(0x64196C).wrapping_sub(rd(0x641970)));
+        let c = &FRAME_WORK.shadow_corners;
+        let w = &FRAME_WORK.shadow_work;
+        let rd = |d: &crate::session::Dword| d.bits();
+        w[1].set(get(pb));
+        w[5].set(get(pb + 8));
+        w[0].set(get(pa));
+        w[4].set(get(pa + 8));
+        w[2].set(rd(&c[0]));
+        w[3].set(rd(&c[2]));
+        w[6].set(rd(&c[1]));
+        w[7].set(rd(&c[3]));
+        w[8].set(rd(&w[3]).wrapping_sub(rd(&w[2])));
+        w[9].set(rd(&w[7]).wrapping_sub(rd(&w[6])));
+        w[10].set(rd(&w[0]).wrapping_sub(rd(&w[2])));
+        w[11].set(rd(&w[4]).wrapping_sub(rd(&w[6])));
+        w[12].set(rd(&w[1]).wrapping_sub(rd(&w[2])));
+        w[13].set(rd(&w[5]).wrapping_sub(rd(&w[6])));
         crossing_block(pa, pb, ea, eb);
-        let n = rd(0x641990);
+        let n = rd(&FRAME_WORK.shadow_scene);
         let p = scene_point(n);
-        put(p, rd(0x623F88));
+        put(p, DRAW.clip_work[2].bits());
         put(p + 4, 0);
-        put(p + 8, rd(0x623F90));
+        put(p + 8, DRAW.clip_work[4].bits());
         put(ed, n);
         FRAME_WORK.shadow_scene.set(n.wrapping_add(1));
-        put(ed + 0x10, rd(0x623FA8));
-        put(ed + 0x14, rd(0x623FAC));
-        ((ed + 0x21) as *mut u8).write(rd(0x62419C) as u8);
-        ((ed + 0x20) as *mut u8).write(rd(0x6241AC) as u8);
+        put(ed + 0x10, DRAW.clip_work[10].bits());
+        put(ed + 0x14, DRAW.clip_work[11].bits());
+        ((ed + 0x21) as *mut u8).write(rd(&DRAW.vertex_byte_21) as u8);
+        ((ed + 0x20) as *mut u8).write(rd(&DRAW.clip_work_2[0]) as u8);
     }
 }
 
@@ -379,18 +384,18 @@ unsafe fn raise_onto_face(index: u32) {
     unsafe {
         let p = scene_point(get(work_entry(index)));
         for k in 0..3 {
-            game_write(
-                rva(0x639890 + 4 * k),
-                game_read::<u32>(rva(0x641938 + 4 * k)),
-            );
+            GROUND_WORK.face_corner_numbers[k].set_bits(FRAME_WORK.shadow_light[k].bits());
         }
-        game_write(rva(0x639824), get(p));
-        game_write(rva(0x63982C), get(p + 8));
+        GROUND_WORK.ground_x.set(get(p));
+        GROUND_WORK.ground_z.set(get(p + 8));
         face_shares_at(&Ground::game());
         crate::physics::plane_height::plane_height();
         put(
             p + 4,
-            game_read::<u32>(rva(0x639828)).wrapping_add(FRAME_WORK.shadow_strength.bits()),
+            GROUND_WORK
+                .ground_height
+                .get()
+                .wrapping_add(FRAME_WORK.shadow_strength.bits()),
         );
     }
 }
@@ -425,7 +430,7 @@ pub unsafe fn shadow_on_face() -> Result<(), Refused> {
         FRAME_WORK.shadow_scene.set(scene.wrapping_add(0x30));
         DRAW.polygon_sides[0].set(0u32);
         DRAW.polygon_sides[1].set(1u32);
-        let records: u32 = game_read(rva(0x5C6FB8));
+        let records: u32 = COURSE_LISTS.point_records.get();
         let mut at = (scene & 0xFFF) * 0x20;
         for _ in 0..0x40 {
             put(records.wrapping_add(at), u32::MAX);
@@ -487,7 +492,7 @@ unsafe fn shadow_on_record(record: u32) -> Result<(), Refused> {
             if takes_shadow(kind, || ((at + 2) as *const u16).read_unaligned()) {
                 for corners in SHADOW_TRIANGLES {
                     for (k, &o) in corners.iter().enumerate() {
-                        game_write(rva(0x641938 + 4 * k), get(at + o));
+                        FRAME_WORK.shadow_light[k].set_bits(get(at + o));
                     }
                     shadow_on_face()?;
                 }
@@ -570,26 +575,28 @@ pub unsafe fn shadow_points() -> Result<(), Refused> {
             return Err(BadInput("no shadow corners or more than 0x40").into());
         }
         let car = crate::physics::car_store::car_addr() as u32;
-        let inputs = [rva(0x639824), rva(0x63982C), rva(0x5CCC78)];
-        let was: Vec<u32> = inputs.iter().map(|&a| game_read::<u32>(a)).collect();
-        game_write(inputs[0], CAR.position[0].bits());
-        game_write(inputs[1], CAR.position[2].bits());
-        game_write(inputs[2], CAR.probe_point_face[4].bits());
+        let inputs = [
+            &GROUND_WORK.ground_x,
+            &GROUND_WORK.ground_z,
+            &COURSE.ground_face_last,
+        ];
+        let was: Vec<u32> = inputs.iter().map(|d| d.bits()).collect();
+        inputs[0].set_bits(CAR.position[0].bits());
+        inputs[1].set_bits(CAR.position[2].bits());
+        inputs[2].set_bits(CAR.probe_point_face[4].bits());
         if let Err(e) = crate::physics::find_ground::find_ground() {
             // Its inputs put back: a refusal has written nothing.
-            for (&a, &v) in inputs.iter().zip(&was) {
-                game_write(a, v);
+            for (d, &v) in inputs.iter().zip(&was) {
+                d.set_bits(v);
             }
             return Err(e);
         }
         game_write(rva(0x643AB8), (-1.0f32).to_bits());
         FRAME_WORK
             .shadow_ground
-            .set_bits(game_read::<u32>(rva(0x639828)));
-        let sun = game_read::<u32>(rva(0x60933C)).max(0x10);
-        let turn = game_read::<u32>(rva(0x609338))
-            .wrapping_neg()
-            .wrapping_sub(0x40);
+            .set_bits(GROUND_WORK.ground_height.get());
+        let sun = STAGE_PREFS.sun_height.get().max(0x10);
+        let turn = STAGE_PREFS.sun_turn.get().wrapping_neg().wrapping_sub(0x40);
         sun_slant(sun, turn);
         let (sx, sz) = (
             game_read::<u32>(rva(0x643AC4)),
@@ -697,17 +704,16 @@ pub unsafe fn cast_car_shadows() -> Result<(), Refused> {
             }
             RACE_WORK.current_car.set(n);
             crate::drive::load_car::load_car()?;
-            game_write(
-                COUNT_RVA,
-                get((crate::physics::car_store::car_addr() as u32) + 0x260),
-            );
+            FRAME_WORK
+                .shadow_point_count
+                .set_bits(get((crate::physics::car_store::car_addr() as u32) + 0x260));
             if first_pass(RACE_VARS.settings_words[2].bits()) {
                 cast_car_shadow()?;
             }
-            let sun: u32 = game_read(rva(0x60933C));
-            game_write(rva(0x60933C), SUN_PASS);
+            let sun: u32 = STAGE_PREFS.sun_height.get();
+            STAGE_PREFS.sun_height.set(SUN_PASS);
             cast_car_shadow()?;
-            game_write(rva(0x60933C), sun);
+            STAGE_PREFS.sun_height.set(sun);
         }
         crate::scene::depth_test_on::depth_test_on();
         Ok(())
@@ -807,8 +813,8 @@ mod asm_reference {
     pub(super) unsafe fn inside_edge_asm(n: u32) -> bool {
         unsafe {
             let p = scene_point(n);
-            game_write(rva(0x639824), get(p));
-            game_write(rva(0x63982C), get(p + 8));
+            GROUND_WORK.ground_x.set(get(p));
+            GROUND_WORK.ground_z.set(get(p + 8));
             let status: u16;
             core::arch::asm!(
                 "fild dword ptr [{rc} + 0x239824]",
@@ -1071,29 +1077,22 @@ mod asm_reference {
                     for a in &places[2..6] {
                         game_write(rva(*a), r.int() as u32);
                     }
-                    game_write(rva(0x639824), 0xAAAA_AAAAu32);
-                    game_write(rva(0x63982C), 0xAAAA_AAAAu32);
+                    GROUND_WORK.ground_x.set(0xAAAA_AAAAu32);
+                    GROUND_WORK.ground_z.set(0xAAAA_AAAAu32);
                 }
                 let n = r.below(4);
                 let want = unsafe { inside_edge_asm(n) };
-                let seen = unsafe {
-                    (
-                        game_read::<u32>(rva(0x639824)),
-                        game_read::<u32>(rva(0x63982C)),
-                    )
-                };
-                unsafe {
-                    game_write(rva(0x639824), 0xAAAA_AAAAu32);
-                    game_write(rva(0x63982C), 0xAAAA_AAAAu32);
+                let seen = (GROUND_WORK.ground_x.get(), GROUND_WORK.ground_z.get());
+                {
+                    GROUND_WORK.ground_x.set(0xAAAA_AAAAu32);
+                    GROUND_WORK.ground_z.set(0xAAAA_AAAAu32);
                 }
                 let got = unsafe { inside_edge(n) };
                 assert_eq!(want, got, "{points:x?} {n}");
-                assert_eq!(seen, unsafe {
-                    (
-                        game_read::<u32>(rva(0x639824)),
-                        game_read::<u32>(rva(0x63982C)),
-                    )
-                });
+                assert_eq!(
+                    seen,
+                    (GROUND_WORK.ground_x.get(), GROUND_WORK.ground_z.get())
+                );
                 if want { yes += 1 } else { no += 1 }
             }
         });

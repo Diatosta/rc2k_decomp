@@ -19,29 +19,29 @@
 //! object's number past the tables and, where a record has to be made, no records or no points.
 
 use crate::errors::BadInput;
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, rva};
 use crate::math::x87;
+use crate::physics::ground_store::GROUND_WORK;
+use crate::race::course_lists_store::COURSE_LISTS;
 use crate::race::course_store::COURSE;
+use crate::race::switches_store::FRAME_SWITCHES;
 use crate::scene::object_store::OBJECT_WORK;
 use crate::scene::polygon::dword;
-use crate::scene::project_point::{RECORDS_RVA, make_scene_record};
+use crate::scene::project_point::make_scene_record;
 use crate::scene::set_object_material::{MATERIAL_LEN, MATERIALS_RVA};
 
 // ---- game data ----
-
-const OBJECT_RVA: usize = rva(0x6214FC); // g_objectNumber
 const OBJECTS: u32 = 0x100;
 const KINDS_RVA: usize = rva(0x5CD27C); // g_objectKinds
-const WORDS_RVA: usize = rva(0x6214E0); // qword_6214E0
-const FADING_RVA: usize = rva(0x63996C); // dword_63996C
-const FADE_RVA: usize = rva(0x639974); // dword_639974, dword_639978
 
 // ---- Rust version ----
 
 unsafe fn record_at() -> Option<u32> {
-    unsafe {
-        let (place, records): (u32, u32) =
-            (OBJECT_WORK.object_place.bits(), game_read(RECORDS_RVA));
+    {
+        let (place, records): (u32, u32) = (
+            OBJECT_WORK.object_place.bits(),
+            COURSE_LISTS.point_records.bits(),
+        );
         (records != 0).then(|| records.wrapping_add((place & 0xFFF) << 5))
     }
 }
@@ -50,7 +50,7 @@ unsafe fn record_at() -> Option<u32> {
 /// None for an object's number past the tables.
 unsafe fn words() -> Option<(u32, u32, bool)> {
     unsafe {
-        let object: u32 = game_read(OBJECT_RVA);
+        let object: u32 = FRAME_SWITCHES.object_number.bits();
         if object >= OBJECTS {
             return None;
         }
@@ -81,11 +81,11 @@ pub unsafe fn set_object_fade() -> Result<(), BadInput> {
                 record
             }
         };
-        game_write(WORDS_RVA, [other_kind, distance]);
+        crate::session::write_bits(&FRAME_SWITCHES.fade_words, [other_kind, distance]);
         OBJECT_WORK.object_position[0].set_bits(0u32);
         OBJECT_WORK.object_position[2].set_bits(0u32);
-        game_write(FADING_RVA, 0u32);
-        game_write(FADE_RVA, 0x100u32);
+        GROUND_WORK.object_fading.set_bits(0u32);
+        GROUND_WORK.object_fade[0].set_bits(0x100u32);
         if !needs_record {
             return Ok(());
         }
@@ -100,12 +100,12 @@ pub unsafe fn set_object_fade() -> Result<(), BadInput> {
             return Ok(());
         }
         let fade = (near.wrapping_add(0x10_0000).max(0) as u32) >> 12;
-        game_write(FADE_RVA, [fade, fade]);
-        game_write(FADING_RVA, 1u32);
+        crate::session::write_bits(&GROUND_WORK.object_fade, [fade, fade]);
+        GROUND_WORK.object_fading.set_bits(1u32);
         if other_kind != 0 {
             let kinds: [u32; 0x100] = game_read(KINDS_RVA);
             if let Some(other) = (1..0x100).find(|&n| kinds[n] == other_kind) {
-                game_write(OBJECT_RVA, other as u32);
+                FRAME_SWITCHES.object_number.set_bits(other as u32);
             }
         }
         Ok(())

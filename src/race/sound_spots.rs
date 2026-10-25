@@ -5,17 +5,27 @@
 //! scaled by `flt_5C5DA0`, +0x10 the sound, the face's +8, 1 .. 0x15).
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::race::course_store::COURSE;
+use crate::race::level_grid_store::LEVEL_GRID;
+use crate::race::matrices_store::MATRICES;
 use crate::race::numbers_store::NUMBERS;
+use crate::race::prefs_store::STAGE_PREFS;
+use crate::race::sound_spots_store::RACE_SOUND_SPOTS;
 use crate::scene::object_store::OBJECT_WORK;
 
-const GRID: usize = rva(0x63E17C); // g_courseGrid
-const REACH: usize = rva(0x60A87C); // g_gridReach
-const SPOTS: usize = rva(0x6D1AF4); // g_soundSpots
-const COUNT: usize = rva(0x6D1DC4); // g_soundSpotCount
 /// The grid and what lies past it that the original may read (as `race::course_grid`).
 const GRID_DWORDS: u32 = 0x1084 / 4;
+
+/// `g_courseGrid`[c]. The grid is 32 x 32 cells (1024 dwords); the check below lets 1057
+/// through, and the original reads on into the variables after the grid (a slip kept).
+fn grid_cell(c: u32) -> u32 {
+    match LEVEL_GRID.course_grid.get(c as usize) {
+        Some(cell) => cell.bits(),
+        None => unsafe {
+            ((LEVEL_GRID.course_grid[0].addr() + 4 * c as usize) as *const u32).read_unaligned()
+        },
+    }
+}
 
 unsafe fn get(a: u32) -> u32 {
     unsafe { (a as *const u32).read_unaligned() }
@@ -25,29 +35,27 @@ unsafe fn get(a: u32) -> u32 {
 /// the fifth: rows 0x20 apart, from reach - 2 on the diagonal).
 fn cells() -> Vec<u32> {
     // Converted: `rc2k_core::race::view::cells_from`.
-    rc2k_core::race::view::cells_from(unsafe { game_read::<u32>(REACH) }.wrapping_sub(2), 5)
+    rc2k_core::race::view::cells_from(STAGE_PREFS.grid_reach.bits().wrapping_sub(2), 5)
 }
 
 /// What the original would read through a null or past the grid: refused before anything.
 unsafe fn check() -> Result<(), Refused> {
-    unsafe {
-        for c in cells() {
-            if c >= GRID_DWORDS {
-                return Err(BadInput("a sound spot cell past the course grid").into());
-            }
-            let record: u32 = game_read(GRID + 4 * c as usize);
-            if record >= 0x0FFF_FFFF {
-                continue;
-            }
-            if COURSE.course_records.bits() == 0
-                || COURSE.course_faces.bits() == 0
-                || COURSE.scene_points.bits() == 0
-            {
-                return Err(BadInput("no course records, faces or points").into());
-            }
+    for c in cells() {
+        if c >= GRID_DWORDS {
+            return Err(BadInput("a sound spot cell past the course grid").into());
         }
-        Ok(())
+        let record: u32 = grid_cell(c);
+        if record >= 0x0FFF_FFFF {
+            continue;
+        }
+        if COURSE.course_records.bits() == 0
+            || COURSE.course_faces.bits() == 0
+            || COURSE.scene_points.bits() == 0
+        {
+            return Err(BadInput("no course records, faces or points").into());
+        }
     }
+    Ok(())
 }
 
 /// `fld tbyte; fmul dword; fstp dword`.
@@ -72,11 +80,11 @@ pub unsafe fn face_sound_spot(face_number: u32) {
         if kind != 0xFF || !sound_object(kind, byte(1)) {
             return;
         }
-        let count: u32 = game_read(COUNT);
+        let count: u32 = RACE_SOUND_SPOTS.sound_spot_count.bits();
         if count == MOST_SPOTS {
             return;
         }
-        let spot = game_addr(SPOTS) as u32 + count * 0x14;
+        let spot = RACE_SOUND_SPOTS.sound_spots[0].addr() as u32 + count * 0x14;
         let sound = byte(8) as u32;
         if !takes_spot(count, sound) {
             return;
@@ -94,14 +102,14 @@ pub unsafe fn face_sound_spot(face_number: u32) {
         );
         crate::session::write_bits(&OBJECT_WORK.place, place);
         let t = crate::scene::rotate_point::rotate_point(
-            game_addr(rva(0x5EA2CC)) as u32,
+            MATRICES.view_matrix[0].addr() as u32,
             place.map(int_80),
         );
         let k: u32 = NUMBERS.one_over_65536.bits();
         for (i, v) in t.into_iter().enumerate() {
             put(4 + 4 * i as u32, scaled(v, k));
         }
-        game_write(COUNT, count + 1);
+        RACE_SOUND_SPOTS.sound_spot_count.set_bits(count + 1);
     }
 }
 
@@ -111,7 +119,7 @@ pub unsafe fn face_sound_spot(face_number: u32) {
 pub unsafe fn cell_sound_spots(cell: u32) {
     unsafe {
         // Converted: `rc2k_core::race::view::record_faces`.
-        let record: u32 = game_read(GRID + 4 * cell as usize);
+        let record: u32 = grid_cell(cell);
         if record >= rc2k_core::race::view::NO_RECORD {
             return;
         }
@@ -137,7 +145,7 @@ pub unsafe fn cell_sound_spots(cell: u32) {
 pub unsafe fn find_sound_spots() -> Result<(), Refused> {
     unsafe {
         check()?;
-        game_write(COUNT, 0u32);
+        RACE_SOUND_SPOTS.sound_spot_count.set_bits(0u32);
         for c in cells() {
             cell_sound_spots(c);
         }

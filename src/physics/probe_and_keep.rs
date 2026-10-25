@@ -14,6 +14,8 @@
 //! above are the original's, for reference.
 
 use crate::errors::Refused;
+use crate::physics::car_store::CAR;
+use crate::physics::contact_store::CONTACT_WORK;
 use crate::physics::ground::*;
 use crate::physics::probe_ground::probe_ground_at;
 
@@ -22,13 +24,11 @@ use crate::physics::probe_ground::probe_ground_at;
 pub unsafe fn probe_and_keep_at(g: &Ground) -> Result<(), Refused> {
     unsafe {
         probe_ground_at(g)?;
-        for (from, to, n) in [
-            (0x6D1E14u32, 0x6D2C14u32, 0xC0u32),
-            (0x71ADC8, 0x6D2F14, 0x40),
-        ] {
-            for k in 0..n {
-                g.put(to + 4 * k, g.get(from + 4 * k));
-            }
+        for k in 0..0xC0u32 {
+            g.put(0x6D2C14 + 4 * k, g.get(0x6D1E14 + 4 * k));
+        }
+        for k in 0..0x40 {
+            CONTACT_WORK.saved_probe_faces[k].set(CAR.probe_point_face[k].get());
         }
         Ok(())
     }

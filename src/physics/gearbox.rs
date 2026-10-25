@@ -20,7 +20,7 @@ use crate::physics::gearing::{
 use crate::physics::tables_store::PHYSICS;
 use std::cmp::Ordering;
 
-pub const RATIOS: usize = 0x6140C0; // g_gearRatios (gear -1 at 0x6140BC)
+/// `dword_62400C` (`DRAW.scratch`): its address stays for `auto_gearbox` and `manual_gearbox`.
 pub const SCRATCH: usize = 0x62400C;
 
 pub fn g(x: usize) -> u32 {
@@ -87,5 +87,5 @@ pub fn ratio(gear: u32) -> Result<u32, Refused> {
     if !(-1..=7).contains(&(gear as i32)) {
         return Err(BadInput("a gear outside g_gearRatios (-1 ..= 7)").into());
     }
-    Ok(g(RATIOS.wrapping_add(4 * gear as usize)))
+    Ok(PHYSICS.gear_ratios[(gear as i32 + 1) as usize].bits())
 }

@@ -41,9 +41,13 @@
 use crate::errors::{BadInput, Refused};
 use crate::math::x87::loaded;
 use crate::physics as ph;
+use crate::physics::camera_store::CAMERA_WORK;
 use crate::physics::car_store::CAR;
-use crate::physics::flow::{g, hold_high, hold_low, negate, p};
+use crate::physics::contact_store::CONTACT_WORK;
+use crate::physics::flow::{hold_high, hold_low, negate};
 use crate::physics::tables_store::PHYSICS;
+use crate::race::frame_store::FRAME_WORK;
+use crate::race::sound_spots_store::RACE_SOUND_SPOTS;
 use crate::race::work_store::RACE_WORK;
 use crate::scene::matrix3::rounded;
 use crate::scene::x87_mem::{fld, fstp};
@@ -70,10 +74,20 @@ pub fn steps() -> Result<(), Refused> {
         ph::set_handling::set_handling()?;
         ph::race_timers::race_timers()?;
     }
-    for x in [
-        0x6D1AD0, 0x6D1AD4, 0x6D1AD8, 0x6D30E4, 0x608C3C, 0x608C40, 0x608C44,
+    for cell in [
+        &RACE_SOUND_SPOTS.sound_scratch_a,
+        &RACE_SOUND_SPOTS.sound_scratch_b,
+        &RACE_SOUND_SPOTS.sound_scratch_c,
     ] {
-        p(x, 0);
+        cell.set(0);
+    }
+    CONTACT_WORK.contact_normal_speed[0].set_bits(0);
+    for cell in [
+        &CAMERA_WORK.ground_probes,
+        &CAMERA_WORK.ground_found,
+        &CAMERA_WORK.ground_same,
+    ] {
+        cell.set(0);
     }
     PHYSICS
         .vertical_speed
@@ -212,7 +226,15 @@ pub fn steps() -> Result<(), Refused> {
         ph::drop_to_neutral::drop_to_neutral();
     }
     // 0x43B96B: `physics::test_car_word_234` set only flags nobody reads: left out.
-    if g(0x641680 + 4 * RACE_WORK.current_car.get() as usize) != u32::MAX {
+    // A car number past 7 (refused further down) reads past the field.
+    let car = RACE_WORK.current_car.get() as usize;
+    let listed = match FRAME_WORK.listed_car_sounds.get(car) {
+        Some(cell) => cell.get(),
+        None => unsafe {
+            ((FRAME_WORK.listed_car_sounds[0].addr() + 4 * car) as *const u32).read_volatile()
+        },
+    };
+    if listed != u32::MAX {
         ph::camera_frame::camera_frame()?;
     }
     unsafe { ph::hold_spin_on_ground::hold_spin_on_ground() };

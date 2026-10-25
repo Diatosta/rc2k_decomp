@@ -26,84 +26,96 @@
 use crate::errors::Refused;
 use crate::math::x87;
 use crate::math::x87_run::{ext_to_int, int_80, int_over_int_plus};
-use crate::physics::mirror::Mirror;
+use crate::physics::camera_store::CAMERA_WORK;
+use crate::physics::tables_store::PHYSICS;
 use crate::race::blocks_store::CAR_BLOCKS;
+use crate::race::frame_store::FRAME_WORK;
+use crate::race::kind_store::KIND_TABLES;
+use crate::race::matrices_store::MATRICES;
 use crate::race::mud::car_file_number;
+use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
+use crate::race::view_vars_store::VIEW_VARS;
+use crate::race::viewer_screen_store::VIEWER_PANEL;
+use crate::race::work_store::RACE_WORK;
 use crate::scene::draw_store::DRAW;
+use crate::scene::light_store::LIGHT_STATE;
 use crate::scene::matrix::multiply_matrices;
 use crate::scene::rotate_point::rotate_point;
 use rc2k_core::drive::listener;
 
-const TURNED: u32 = 0x5EA10C; // g_turnedMatrix
-const LIT: u32 = 0x5EA14C; // g_litMatrix
-const VIEW_TURN: u32 = 0x5EA24C; // g_viewTurnMatrix
-const VIEW: u32 = 0x5EA2CC; // g_viewMatrix
-const MADE: u32 = 0x5EA30C; // g_madeObjectMatrix
 const LIGHT_FIGURES: u32 = 0x5C90AC; // g_lightRecords + 0x40
 
 /// The car file's six figures times 65536 over 1000, or the refusal (before anything).
-unsafe fn figures(m: &Mirror) -> Result<[i32; 6], Refused> {
-    unsafe {
-        let viewed = RACE_VIEW.drawn_view.get();
-        listener::check_viewed(viewed, || m.get(0x71B3B8 + 4 * viewed) != 0)?;
-        let n = car_file_number(CAR_BLOCKS.cars[0].car_kind.get());
-        rc2k_core::drive::sharing::check_light_record(n)?;
-        let mut out = [0i32; 6];
-        for (k, o) in out.iter_mut().enumerate() {
-            *o = listener::light_figure(m.get(LIGHT_FIGURES + 0x134 * n + 4 * k as u32))?;
-        }
-        Ok(out)
+unsafe fn figures() -> Result<[i32; 6], Refused> {
+    let viewed = RACE_VIEW.drawn_view.get();
+    listener::check_viewed(viewed, || RACE_WORK.car_block(viewed as usize) != 0)?;
+    let n = car_file_number(CAR_BLOCKS.cars[0].car_kind.get());
+    rc2k_core::drive::sharing::check_light_record(n)?;
+    let mut out = [0i32; 6];
+    for (k, o) in out.iter_mut().enumerate() {
+        *o = listener::light_figure(crate::physics::flow::g(
+            (LIGHT_FIGURES + 0x134 * n + 4 * k as u32) as usize,
+        ))?;
     }
+    Ok(out)
 }
 
-/// The Rust core on the variables `m` reaches. The registers it leaves are read by no
-/// caller (liveness: eax and ebx after `share_all_cars`' call have no read point).
+/// The Rust version. The registers it leaves are read by no caller (liveness: eax and
+/// ebx after `share_all_cars`' call have no read point).
 // Converted: `rc2k_core::drive::listener` (the matrices, turns and x87 sums stay).
-pub unsafe fn set_listener_at(m: &Mirror) -> Result<(), Refused> {
+pub unsafe fn set_listener() -> Result<(), Refused> {
     unsafe {
-        let f = figures(m)?;
-        let g = |v: u32| m.get(v);
-        let s = m.get(0x71B3B8 + 4 * RACE_VIEW.drawn_view.get());
+        let f = figures()?;
+        let car = &CAR_BLOCKS.cars[0];
+        let s = RACE_WORK.car_block(RACE_VIEW.drawn_view.get() as usize);
         let at = |o: u32| (s.wrapping_add(o) as *const u32).read_unaligned();
-        m.put(0x5C5638, x87::from_int(at(0x13C) as i32));
-        m.put(0x5C5634, x87::from_int(at(0x138) as i32));
-        m.put(0x5C5630, x87::from_int(at(0x134) as i32));
-        m.put(0x5C2FD4, u32::from(listener::car_ahead(at(0xABC))));
+        KIND_TABLES.listener_car_place[2].set_bits(x87::from_int(at(0x13C) as i32));
+        KIND_TABLES.listener_car_place[1].set_bits(x87::from_int(at(0x138) as i32));
+        KIND_TABLES.listener_car_place[0].set_bits(x87::from_int(at(0x134) as i32));
+        VIEWER_PANEL
+            .listener_near
+            .set(u32::from(listener::car_ahead(at(0xABC))));
         for k in 0..3 {
-            m.put(0x5C2FA0 + 4 * k, g(0x606298 + 4 * k).wrapping_neg());
+            VIEWER_PANEL.listener_place[k].set(VIEW_VARS.view_place[k].get().wrapping_neg());
         }
         for (k, o) in listener::TURN_OFFSETS.into_iter().enumerate() {
-            m.put(0x5C2FAC + 4 * k as u32, g(VIEW_TURN + o));
+            VIEWER_PANEL.listener_turn[k]
+                .set_bits(MATRICES.view_turn_matrix[o as usize / 4].bits());
         }
-        m.put(
-            0x5C56D8,
-            listener::first_figure(g(0x6238A8), || g(0x6415D8)),
-        );
-        m.put(0x5C56DC, g(0x6415D0));
-        m.put(0x5C56E0, g(0x6415D4));
-        let f = listener::listener_points(f, g(0x613FC4));
+        KIND_TABLES.listener_figures[0].set(listener::first_figure(
+            RACE_VARS.settings_words[0].get(),
+            || FRAME_WORK.view_out.get(),
+        ));
+        KIND_TABLES.listener_figures[1].set(FRAME_WORK.sun_place[0].get());
+        KIND_TABLES.listener_figures[2].set(FRAME_WORK.sun_place[1].get());
+        let f = listener::listener_points(f, PHYSICS.ground_drop.get());
         for (k, &v) in f.iter().enumerate() {
-            m.put(0x608C60 + 4 * k as u32, v as u32);
+            CAMERA_WORK.listener_points[k].set(v as u32);
         }
+        // The car block 0's matrix (0x70FC2C, 16 dwords of `unknown_734`).
         for k in 0..16 {
-            m.put(TURNED + 4 * k, g(0x70FC2C + 4 * k));
+            MATRICES.turned_matrix[k].set_bits(car.unknown_734[67 + k].bits());
         }
         multiply_matrices(
-            m.a(TURNED) as usize,
-            (CAR_BLOCKS.cars[0].unknown_734[83].addr() as u32) as usize,
-            m.a(LIT) as usize,
+            MATRICES.turned_matrix[0].addr(),
+            car.unknown_734[83].addr(),
+            MATRICES.lit_matrix[0].addr(),
         );
-        multiply_matrices(m.a(LIT) as usize, m.a(VIEW) as usize, m.a(MADE) as usize);
+        multiply_matrices(
+            MATRICES.lit_matrix[0].addr(),
+            MATRICES.view_matrix[0].addr(),
+            MATRICES.made_object_matrix[0].addr(),
+        );
         for k in 0..16 {
-            m.put(0x5EA0CC + 4 * k, g(MADE + 4 * k));
+            MATRICES.listener_matrix[k].set_bits(MATRICES.made_object_matrix[k].bits());
         }
-        let made = m.a(MADE);
+        let made = MATRICES.made_object_matrix[0].addr() as u32;
         for (first, out, negate) in [
-            (0, 0x5C568C, true),
-            (0, 0x5C5698, false),
-            (3, 0x5C56A4, true),
-            (3, 0x5C56B0, false),
+            (0, &KIND_TABLES.listener_point_a_negated, true),
+            (0, &KIND_TABLES.listener_point_a, false),
+            (3, &KIND_TABLES.listener_point_b_negated, true),
+            (3, &KIND_TABLES.listener_point_b, false),
         ] {
             let p = [
                 int_80(f[first], negate),
@@ -111,41 +123,54 @@ pub unsafe fn set_listener_at(m: &Mirror) -> Result<(), Refused> {
                 int_80(f[first + 2], false),
             ];
             let r = rotate_point(made, p);
-            for (k, e) in r.iter().enumerate() {
-                m.put(out + 4 * k as u32, ext_to_int(*e) as u32);
+            for (cell, e) in out.iter().zip(r.iter()) {
+                cell.set(ext_to_int(*e) as u32);
             }
         }
-        let switches = listener::switches(g(0x6415E0) != 0, g(0x70FCEC), g(0x70FCF0));
-        for (at, v) in [
-            0x5C56BC, 0x5C56E8, 0x5C56C0, 0x5C56C4, 0x5C56E4, 0x5C56D0, 0x5C56C8, 0x5C56CC,
+        let switches = listener::switches(
+            FRAME_WORK.mirror_wanted.get() != 0,
+            car.surface_noise_a.get(),
+            car.surface_noise_b.get(),
+        );
+        for (cell, v) in [
+            &KIND_TABLES.listener_switch_0,
+            &KIND_TABLES.listener_switch_1,
+            &KIND_TABLES.listener_switch_2,
+            &KIND_TABLES.listener_switch_3,
+            &KIND_TABLES.listener_switch_4,
+            &KIND_TABLES.listener_switch_5,
+            &KIND_TABLES.listener_switch_6,
+            &KIND_TABLES.listener_switch_7,
         ]
         .into_iter()
         .zip(switches)
         {
-            m.put(at, v);
+            cell.set(v);
         }
-        let old = g(0x70F628);
+        let old = car.gear_changed_2.get();
         if old != 0 {
-            m.put(0x5C5680, old);
+            KIND_TABLES.listener_gear_changed.set(old);
         }
-        CAR_BLOCKS.cars[0].gear_changed_2.set(0);
-        m.put(0x5C5684, u32::from(g(0x70FA2C) != 0));
+        car.gear_changed_2.set(0);
+        KIND_TABLES
+            .listener_flag
+            .set(u32::from(car.handbrake.get() != 0));
         DRAW.scratch.set(0x2000_0000);
-        m.put(
-            0x5C5660,
-            int_over_int_plus(g(0x70FA3C) as i32, 0x2000_0000, g(0x637644)),
-        );
-        m.put(0x5C5624, x87::loaded(g(0x70F5C4)));
-        m.put(0x5C5628, x87::loaded(g(0x7102F4)));
-        if g(0x601024) != 0 {
-            m.put(0x5C5684, 0);
-            m.put(0x5C5680, 0);
+        KIND_TABLES.listener_scale.set_bits(int_over_int_plus(
+            car.steer_angle_visual.get() as i32,
+            0x2000_0000,
+            LIGHT_STATE.listener_camera.bits(),
+        ));
+        KIND_TABLES
+            .listener_float_a
+            .set_bits(x87::loaded(car.engine_speed.bits()));
+        KIND_TABLES
+            .listener_float_b
+            .set_bits(x87::loaded(car.engine_speed_scaled.bits()));
+        if crate::physics::flow::g(0x601024usize) != 0 {
+            KIND_TABLES.listener_flag.set(0);
+            KIND_TABLES.listener_gear_changed.set(0);
         }
         Ok(())
     }
-}
-
-/// The Rust version.
-pub unsafe fn set_listener() -> Result<(), Refused> {
-    unsafe { set_listener_at(&Mirror::game()) }
 }

@@ -16,31 +16,39 @@
 
 use crate::errors::Refused;
 use crate::math::x87_run::compare_80;
+use crate::physics::car_store::CAR;
 use crate::physics::contact_force::{RECORD, contact_force};
-use crate::physics::flow::{a, copy3, fill3, negate, p};
+use crate::physics::contact_store::CONTACT_WORK;
+use crate::physics::flow::{a, copy_cells, fill_cells, negate, p};
 use crate::physics::tables_store::PHYSICS;
 use crate::physics::vector_length::vector_length;
-use crate::physics::wall_contacts::{WALL_RECORD, WORK};
 use crate::race::norms::normalise_work_vector;
 use crate::race::numbers_store::NUMBERS;
+use crate::race::scratch_store::FRAME_SCRATCH;
 
 /// The steps, not guarded. The registers the original leaves are read by none of its
 /// callers.
 pub fn steps() -> Result<(), Refused> {
-    copy3(WORK, 0x71A170);
-    negate(WORK);
-    negate(WORK + 4);
-    negate(WORK + 8);
-    if compare_80(unsafe { vector_length(a(WORK)) }, NUMBERS.zero.bits()) & 0x4000 != 0 {
-        fill3(WORK, 0);
+    let work = &FRAME_SCRATCH.work_vector;
+    copy_cells(work, &CAR.velocity);
+    negate(&work[0]);
+    negate(&work[1]);
+    negate(&work[2]);
+    if compare_80(
+        unsafe { vector_length(work[0].addr() as u32) },
+        NUMBERS.zero.bits(),
+    ) & 0x4000
+        != 0
+    {
+        fill_cells(work, 0);
     }
     unsafe { normalise_work_vector() };
-    copy3(0x6D3078, WORK);
-    copy3(0x6D30A8, 0x71A170);
-    copy3(0x6D30B4, 0x71A15C);
-    fill3(0x6D3090, 0);
-    p(0x6D3100, 0);
-    p(RECORD, a(WALL_RECORD));
+    copy_cells(&CONTACT_WORK.contact_normal, work);
+    copy_cells(&CONTACT_WORK.contact_car_speed, &CAR.velocity);
+    copy_cells(&CONTACT_WORK.contact_turn_speed, &CAR.spin);
+    fill_cells(&CONTACT_WORK.contact_point, 0);
+    CONTACT_WORK.contact_slide_limit.set_bits(0);
+    p(RECORD, a(&PHYSICS.contacts[4].force[0]));
     unsafe { contact_force() };
     unsafe { crate::physics::place_sound_e1::place_sound_e1() }?;
     PHYSICS.wall_heading.set(u32::MAX);

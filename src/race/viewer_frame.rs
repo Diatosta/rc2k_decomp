@@ -20,15 +20,12 @@
 
 use crate::errors::Refused;
 use crate::physics::flow::{a, g, p};
+use crate::race::replay_file_store::REPLAY_FILE;
 use crate::race::viewer::{
     AT_END, BLOCK, BLOCKS, FRAME, MARK_IN, MARK_OUT, MENU, SNAPSHOT, STOPPED, gb,
 };
-
-const LIST_TEXTURE: usize = 0x5BECB4; // dword_5BECB4
-const BAR_X: usize = 0x5C29CC; // dword_5C29CC: the bar's rectangle (x, .., w at +8)
-const BAR_W: usize = 0x5C29D4; // dword_5C29D4
-const MARK_RECT: usize = 0x5C29DC; // dword_5C29DC
-const PLACE_RECT: usize = 0x5C29EC; // dword_5C29EC
+use crate::race::viewer_screen_store::VIEWER_PANEL;
+use crate::session::Dword;
 
 /// The Rust version: whether the frame was lost (the carry the original leaves; it
 /// keeps the other registers).
@@ -61,7 +58,7 @@ pub fn viewer_frame() -> Result<bool, Refused> {
 fn stopped() -> Result<(), Refused> {
     // Converted: `rc2k_core::race::viewer_flow::{LIST_STATES, bar_places, mark_x, place_x}`.
     use rc2k_core::race::viewer_flow::{LIST_STATES, bar_places, mark_x, place_x};
-    crate::d3d::set_texture::set_texture(g(LIST_TEXTURE));
+    crate::d3d::set_texture::set_texture(REPLAY_FILE.viewer_list_texture.get());
     for (value, state) in LIST_STATES {
         crate::d3d::set_render_state::set_render_state(value, state);
     }
@@ -74,26 +71,30 @@ fn stopped() -> Result<(), Refused> {
         crate::race::draw_viewer_item::draw_viewer_item(item, index)?;
         item += 0x10;
     }
-    let quad = |uv: usize, rect: usize, colour: u32| unsafe {
-        crate::drive::tyre_quad::tyre_quad(a(uv), a(rect), colour)
+    let quad = |uv: &Dword, rect: &Dword, colour: u32| unsafe {
+        crate::drive::tyre_quad::tyre_quad(uv.addr() as u32, rect.addr() as u32, colour)
     };
-    quad(0x5C2C4C, 0x5C297C, 0xFF_FFFF)?;
+    let v = &VIEWER_PANEL;
+    quad(&v.frame_picture_rect[0], &v.bar_frame_rect[0], 0xFF_FFFF)?;
     let blocks = g(BLOCKS);
     if blocks != 0 {
-        let (w, x) = (g(BAR_W), g(BAR_X));
+        let (w, x) = (
+            VIEWER_PANEL.bar_rect[2].get(),
+            VIEWER_PANEL.bar_rect[0].get(),
+        );
         let [first, second, here] =
             bar_places((g(MARK_IN), g(MARK_OUT)), g(BLOCK), g(FRAME), w, blocks)?;
-        quad(0x5C2C3C, 0x5C29CC, 0xFF00)?;
-        p(MARK_RECT, mark_x(first.0, x));
-        quad(0x5C2ACC, MARK_RECT, 0xFF_FFFF)?;
-        p(MARK_RECT, mark_x(second.0, x));
-        quad(0x5C2ACC, MARK_RECT, 0xFF_FFFF)?;
-        p(PLACE_RECT, place_x(here.0, x));
-        quad(0x5C2AEC, PLACE_RECT, 0xFF_FFFF)?;
-        quad(0x5C2C2C, 0x5C298C, 0xFF_FFFF)?;
-        quad(0x5C2C2C, 0x5C29AC, 0xFF_FFFF)?;
-        quad(0x5C2C3C, 0x5C299C, 0xFF_FFFF)?;
-        quad(0x5C2C3C, 0x5C29BC, 0xFF_FFFF)?;
+        quad(&v.button_body_rect[0], &v.bar_rect[0], 0xFF00)?;
+        VIEWER_PANEL.mark_rect[0].set(mark_x(first.0, x));
+        quad(&v.mark_picture_rect[0], &v.mark_rect[0], 0xFF_FFFF)?;
+        VIEWER_PANEL.mark_rect[0].set(mark_x(second.0, x));
+        quad(&v.mark_picture_rect[0], &v.mark_rect[0], 0xFF_FFFF)?;
+        VIEWER_PANEL.place_rect[0].set(place_x(here.0, x));
+        quad(&v.place_picture_rect[0], &v.place_rect[0], 0xFF_FFFF)?;
+        quad(&v.button_picture_rect[0], &v.button_rect_a[0], 0xFF_FFFF)?;
+        quad(&v.button_picture_rect[0], &v.button_rect_c[0], 0xFF_FFFF)?;
+        quad(&v.button_body_rect[0], &v.button_rect_b[0], 0xFF_FFFF)?;
+        quad(&v.button_body_rect[0], &v.button_rect_d[0], 0xFF_FFFF)?;
         crate::race::draw_viewer_panel::draw_viewer_panel()?;
     }
     Ok(())

@@ -26,11 +26,10 @@ use crate::framework::{game_addr, game_read, rva};
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::work_store::RACE_WORK;
 use crate::scene::car_icon_number::car_icon_number;
+use crate::scene::kind_texture_store::KIND_TEXTURES;
 use crate::scene::upload_car_icon::{CarIcon, upload_car_icon};
 
 // ---- game data ----
-
-const TEXTURE_RVA: usize = rva(0x5D0DEC); // dword_5D0DEC: kind 0xC1's first texture
 const FIRSTS_RVA: usize = rva(0x5DCD9C); // dword_5DCD9C
 const SECONDS_RVA: usize = rva(0x5DCE2C); // dword_5DCE2C
 // scene::upload_car_icon
@@ -46,7 +45,7 @@ const NAMES: [usize; 4] = [rva(0x60AEB7), rva(0x60AECA), rva(0x60AEDD), rva(0x60
 pub unsafe fn load_hud_car_icons() -> Result<(), Refused> {
     use rc2k_core::scene::car_icons;
     unsafe {
-        let texture: u32 = game_read(TEXTURE_RVA);
+        let texture: u32 = KIND_TEXTURES.kind_first_textures[193].bits();
         if texture == u32::MAX {
             return Ok(());
         }

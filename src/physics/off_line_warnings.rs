@@ -19,6 +19,7 @@ use crate::errors::{BadInput, Refused};
 use crate::framework::{game_read, rva};
 use crate::physics::car_store::CAR;
 use crate::physics::tables_store::PHYSICS;
+use crate::race::replay_file_store::REPLAY_FILE;
 use rc2k_core::physics::progress::{
     LAST_CHECKPOINT, OFF_LINE_CUE, TURNED_CUE, Warnings, cue_due, off_line, spread,
 };
@@ -78,7 +79,7 @@ pub fn off_line_warnings() -> Result<(), Refused> {
         PHYSICS.off_line_word.get(),
     );
     store(&w);
-    if g(0x5BEC94) != 0 {
+    if REPLAY_FILE.hold_car_revs.get() != 0 {
         return Ok(());
     }
     for (count, time, cue) in [

@@ -11,6 +11,7 @@
 //! `sub_457B86`.
 
 use crate::framework::{game_addr, rva};
+use crate::physics::ground_store::GROUND_WORK;
 
 /// The variables' addresses: the game's, or a test's.
 #[derive(Clone, Copy)]
@@ -25,14 +26,14 @@ pub struct Plane {
 
 impl Plane {
     pub fn game() -> Self {
-        let p = |x: usize| game_addr(rva(x)) as u32;
+        let _p = |x: usize| game_addr(rva(x)) as u32;
         Self {
-            a: p(0x639718),
-            b: p(0x639724),
-            c: p(0x63970C),
-            f: p(0x639810),
-            g: p(0x639814),
-            out: p(0x639828),
+            a: (GROUND_WORK.face_corners[4].addr() as u32),
+            b: (GROUND_WORK.face_corners[7].addr() as u32),
+            c: (GROUND_WORK.face_corners[1].addr() as u32),
+            f: (GROUND_WORK.plane_f.addr() as u32),
+            g: (GROUND_WORK.plane_g.addr() as u32),
+            out: (GROUND_WORK.ground_height.addr() as u32),
         }
     }
 }

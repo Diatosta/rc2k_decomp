@@ -64,11 +64,11 @@ pub struct RaceVars {
     /// +0x120 (0x623708): not named.
     pub unknown_120: [Dword; 82],
     /// +0x268 (0x623850): `g_stageNumber` (`settings.stage`).
-    pub stage: Dword,
+    pub stage_number: Dword,
     /// +0x26c (0x623854): the stage's direction (`settings.direction`).
     pub direction: Dword,
     /// +0x270 (0x623858): `g_raceCarKinds`: [0] the current (`settings.car_kind_current`), [1] the first (`car_kind_first`), [2 ..] `[shauncarnum3]` ...
-    pub car_kinds: [Dword; 8],
+    pub race_car_kinds: [Dword; 8],
     /// +0x290 (0x623878): each car's colours word (`net::set_up_race`; the stored blocks' gearbox kind; the players' `settings.cars[n].record_30`).
     pub car_colours: [Dword; 8],
     /// +0x2b0 (0x623898): the textures' mip setting (`scene::set_filters`, `scene::try_allocate_textures`; from `dword_4F50D0`).
@@ -217,7 +217,7 @@ mod tests {
         assert_eq!(offset_of!(RaceVars, face_mark), 0x62361C - START);
         assert_eq!(offset_of!(RaceVars, line_face_kind), 0x623654 - START);
         assert_eq!(offset_of!(RaceVars, map_anchor_count), 0x6236B4 - START);
-        assert_eq!(offset_of!(RaceVars, car_kinds), 0x623858 - START);
+        assert_eq!(offset_of!(RaceVars, race_car_kinds), 0x623858 - START);
         assert_eq!(offset_of!(RaceVars, rivals), 0x6238BC - START);
         assert_eq!(offset_of!(RaceVars, mud_turn_a), 0x62390C - START);
         assert_eq!(offset_of!(RaceVars, mud_packed), 0x623D34 - START);

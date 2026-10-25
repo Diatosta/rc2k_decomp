@@ -12,20 +12,14 @@
 //!
 //! Caller: `sub_43B635` (0x43B91E), every physics step.
 
-use crate::framework::{game_read, rva};
 use crate::math::x87;
 use crate::physics::car_store::CAR;
+use crate::race::kind_store::KIND_TABLES;
 use crate::race::numbers_store::NUMBERS;
 use crate::race::vars_store::RACE_VARS;
 use crate::scene::draw_store::DRAW;
 use crate::session::Float;
 use std::cmp::Ordering;
-
-fn g(x: usize) -> u32 {
-    unsafe { game_read(rva(x)) }
-}
-
-const KINDS: usize = 0x5C5B48; // dword_5C5B48, 0x22 entries
 
 /// `fld zero; fld s; fcompp`, C0: s below zero or unordered.
 fn below(s: u32, zero: u32) -> bool {
@@ -54,7 +48,7 @@ fn add_turn(speed: Option<u32>, f1: &Float, f2: &Float, to: &[Float; 4]) {
 /// The Rust version (the exact one, for `physics::car_physics_step`).
 pub unsafe fn turn_wheel_angles() {
     let kind = CAR.car_kind.get();
-    if kind >= 0x22 || g(KINDS + 4 * kind as usize) == 0 {
+    if kind >= 0x22 || KIND_TABLES.kind_turns_wheels[kind as usize].get() == 0 {
         return;
     }
     let still = CAR.all_wheels_off.get() != 0;

@@ -26,17 +26,16 @@
 use crate::errors::Refused;
 use crate::framework::{game_addr, game_read, rva};
 use crate::physics::tables_store::PHYSICS;
+use crate::race::course_lists_store::COURSE_LISTS;
 use crate::race::course_store::COURSE;
 use crate::race::vars_store::RACE_VARS;
 pub use rc2k_core::race::pace_notes::IMAGE_START;
 use rc2k_core::race::pace_notes::{IMAGE_LEN, Notes, Registers, Stage};
 
-const SLOT_OFFSETS_RVA: usize = rva(0x614D14); // dword_614D14: each slot's byte in the face
 const WORDS_RVA: usize = rva(0x614D38); // byte_614D38: the distance's word by tens (41)
 pub const CHECKPOINT_FACES_RVA: usize = rva(0x9E3738); // g_checkpointFaces
 pub const DISTANCES_RVA: usize = rva(0x9F78D8); // g_checkpointDistances
 pub const ANGLES_RVA: usize = rva(0x9ED808); // dword_9ED808: the checkpoints' angles
-const COURSE_MEMORY_RVA: usize = rva(0x5C6F94); // g_courseMemory
 const COURSE_MEMORY_LEN: u32 = 0x130_0000;
 
 /// Where the course is (`rc2k_core::race::pace_notes::Course`).
@@ -49,8 +48,8 @@ static TEST_WINDOW: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64:
 /// The game's course: the faces (`g_courseFaces`), where they may be read (the course
 /// memory, or a test stage's faces), the checkpoints' count.
 pub fn game_course() -> Course {
-    unsafe {
-        let memory: u32 = game_read(COURSE_MEMORY_RVA);
+    {
+        let memory: u32 = COURSE_LISTS.course_memory.bits();
         let faces: u32 = COURSE.course_faces.bits();
         let test = TEST_WINDOW.load(std::sync::atomic::Ordering::SeqCst);
         let (lo, hi) = (test as u32, (test >> 32) as u32);
@@ -82,7 +81,7 @@ impl Stage for GameStage {
         unsafe { game_read(ANGLES_RVA + 4 * k as usize) }
     }
     fn slot_offset(&self, slot: u32) -> u32 {
-        unsafe { game_read(SLOT_OFFSETS_RVA + 4 * slot as usize) }
+        PHYSICS.pace_slot_offsets[slot as usize].bits() // dword_614D14: each slot's byte in the face
     }
     fn word(&self, tens: u32) -> u8 {
         unsafe { game_read(WORDS_RVA + tens as usize) }

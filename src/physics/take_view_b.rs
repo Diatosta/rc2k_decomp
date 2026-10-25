@@ -13,33 +13,46 @@
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
+use crate::physics::camera_store::CAMERA_WORK;
 use crate::physics::camera_view::rd;
 use crate::physics::car_store::CAR;
-use crate::physics::flow::p;
 use crate::scene::x87_mem::{fld, fstp};
+use crate::session::Cell32;
 
 /// The Rust version (the exact one, for `physics::update_camera`): `s` the view's record
 /// (esi). The eax and ebx it leaves are read by none of its callers.
 pub unsafe fn take_view_b(s: u32) {
     x87_1(s as usize, crate::race::store::asm_base() as usize);
-    for (k, x) in COPIES.iter().enumerate() {
-        p(*x, rd(s + 0x10 + 4 * k as u32));
+    for (k, x) in copies().iter().enumerate() {
+        x.set_bits(rd(s + 0x10 + 4 * k as u32));
     }
-    p(0x608B68, CAR.car_heading.get());
+    CAMERA_WORK.view_b_heading.set(CAR.car_heading.get());
     let (mut eax, mut ebx) = (CAR.car_pitch.get(), CAR.car_roll.get());
     if !matches!(CAR.camera_blend_view.get(), 1..=3) {
         eax = ((eax as i32) >> 1) as u32;
         ebx = ((ebx as i32) >> 1) as u32;
     }
-    p(0x608B70, eax);
-    p(0x608B6C, ebx);
+    CAMERA_WORK.view_b_pitch.set(eax);
+    CAMERA_WORK.view_b_roll.set(ebx);
 }
 
 /// Where the record's +0x10 .. +0x38 go.
-const COPIES: [usize; 11] = [
-    0x608B8C, 0x608B90, 0x608B94, 0x608BD4, 0x608BD8, 0x608BDC, 0x608C0C, 0x608C10, 0x608C14,
-    0x608C08, 0x608C18,
-];
+fn copies() -> [&'static dyn Cell32; 11] {
+    let w = &*CAMERA_WORK;
+    [
+        &w.view_b_turn[0],
+        &w.view_b_turn[1],
+        &w.view_b_turn[2],
+        &w.view_b_point[0],
+        &w.view_b_point[1],
+        &w.view_b_point[2],
+        &w.view_b_shares[0],
+        &w.view_b_shares[1],
+        &w.view_b_shares[2],
+        &w.view_b_aux,
+        &w.view_b_aux_2,
+    ]
+}
 
 // ---- the arithmetic that was x87 assembly ----
 

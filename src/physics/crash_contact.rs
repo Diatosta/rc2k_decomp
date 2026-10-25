@@ -26,9 +26,10 @@ use crate::errors::Refused;
 use crate::math::x87::{loaded, mul};
 use crate::math::x87_run::neg_rounded;
 use crate::physics::car_store::CAR;
-use crate::physics::contact_force::{RECORD, contact_force};
+use crate::physics::contact_force::contact_force;
+use crate::physics::contact_store::CONTACT_WORK;
 use crate::physics::dot_product::dot_product;
-use crate::physics::flow::{a, copy3, fill3, g, hold_high, p};
+use crate::physics::flow::{g, hold_high, p};
 use crate::physics::lowest_body_point::lowest_body_point;
 use crate::physics::place_sound_e5::place_sound_e5;
 use crate::physics::sound_cue_e5::sound_cue_e5;
@@ -38,10 +39,15 @@ use crate::race::numbers_store::NUMBERS;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
 use crate::scene::x87_mem::{fld, fstp};
+use crate::session::Float;
 use rc2k_core::physics::contacts;
 
-/// Force record 21 (`g_forceRecords` + 0x2A0).
-const FORCE: usize = 0x614A10;
+/// Three floats copied as bits, in order.
+fn copy3(to: &[Float], from: &[Float]) {
+    for k in 0..3 {
+        to[k].set_bits(from[k].bits());
+    }
+}
 
 /// The sign of a `cmp`'s difference (`js`).
 pub fn sign(v: u32) -> bool {
@@ -55,22 +61,22 @@ pub fn sign(v: u32) -> bool {
 /// ..; the point (`flt_6D2214[n]`, `flt_6D2314[n]`, `flt_6D2414[n]`) into
 /// `dword_6D3090` ...
 pub fn take_contact(n: usize) {
-    copy3(0x6D30A8, 0x71A170);
+    copy3(&CONTACT_WORK.contact_car_speed, &CAR.velocity);
     let face = (CAR.probe_point_face[n].get() << 6).wrapping_add(g(FACES));
-    let parts = contacts::normal_offsets(g(0x6D2914 + 4 * n));
+    let parts = contacts::normal_offsets(CONTACT_WORK.probe_face_flip[n].get());
     for (k, o) in parts.iter().enumerate() {
         let v = unsafe { ((face + o) as *const u32).read_unaligned() };
-        p(0x6D3078 + 4 * k, loaded(v));
+        CONTACT_WORK.contact_normal[k].set_bits(loaded(v));
     }
-    copy3(0x6D30B4, 0x71A15C);
-    p(0x6D3090, g(0x6D2214 + 4 * n));
-    p(0x6D3094, g(0x6D2314 + 4 * n));
-    p(0x6D3098, g(0x6D2414 + 4 * n));
+    copy3(&CONTACT_WORK.contact_turn_speed, &CAR.spin);
+    CONTACT_WORK.contact_point[0].set_bits(CONTACT_WORK.probe_turned_x[n].bits());
+    CONTACT_WORK.contact_point[1].set_bits(CONTACT_WORK.probe_turned_y[n].bits());
+    CONTACT_WORK.contact_point[2].set_bits(CONTACT_WORK.probe_turned_z[n].bits());
 }
 
 /// The deepest point's number (`dword_6D306C`) for the long path; refused past 0x3F.
 pub fn point_number() -> Result<usize, Refused> {
-    let n = g(0x6D306C);
+    let n = CONTACT_WORK.lowest_point.get();
     contacts::check_body_point(n)?;
     Ok(n as usize)
 }
@@ -80,7 +86,7 @@ pub fn point_number() -> Result<usize, Refused> {
 fn steps() -> Result<(), Refused> {
     CAR.contact_found.set(0);
     unsafe { lowest_body_point() }?;
-    let depth = g(0x6D3068);
+    let depth = CONTACT_WORK.lowest_depth.get();
     if !contacts::touches(
         depth,
         PHYSICS.crash_depth.get(),
@@ -90,9 +96,10 @@ fn steps() -> Result<(), Refused> {
         return Ok(());
     }
     let n = point_number()?;
-    CAR.contact_point_x.set(g(0x6D1E14 + 4 * n));
-    CAR.contact_point_ground.set(g(0x6D2114 + 4 * n));
-    CAR.contact_point_z.set(g(0x6D2014 + 4 * n));
+    CAR.contact_point_x.set(CONTACT_WORK.probe_x[n].get());
+    CAR.contact_point_ground
+        .set(CONTACT_WORK.probe_ground_height[n].get());
+    CAR.contact_point_z.set(CONTACT_WORK.probe_z[n].get());
     CAR.contact_found.set(1);
     take_contact(n);
     let up = unsafe {
@@ -102,25 +109,34 @@ fn steps() -> Result<(), Refused> {
         )
     };
     for (k, e) in up.iter().enumerate() {
-        p(0x6D31C4 + 4 * k, rounded(*e));
+        CONTACT_WORK.crash_car_up[k].set_bits(rounded(*e));
     }
-    p(
-        0x6D31D0,
-        neg_rounded(unsafe { dot_product(a(0x6D31C4), a(0x6D3078)) }),
-    );
+    CONTACT_WORK.crash_up_dot.set_bits(neg_rounded(unsafe {
+        dot_product(
+            CONTACT_WORK.crash_car_up[0].addr() as u32,
+            CONTACT_WORK.contact_normal[0].addr() as u32,
+        )
+    }));
     x87_1(crate::race::store::asm_base() as usize);
-    p(RECORD, PHYSICS.forces[21].force[0].addr() as u32);
+    p(
+        &PHYSICS.contact_record,
+        PHYSICS.forces[21].force[0].addr() as u32,
+    );
     unsafe { contact_force() };
     unsafe { place_sound_e5() }?;
-    copy3(0x6D3018, FORCE);
-    fill3(FORCE + 0xC, 0);
+    for k in 0..3 {
+        CONTACT_WORK.ground_force[k].set(PHYSICS.forces[21].force[k].bits());
+    }
+    for cell in &PHYSICS.forces[21].point {
+        cell.set_bits(0);
+    }
     x87_2(crate::race::store::asm_base() as usize);
-    hold_high(0x6D3014, &NUMBERS.one);
+    hold_high(&CONTACT_WORK.crash_ground_scale, &NUMBERS.one);
     CAR.spin[1].set_bits(mul(
-        g(0x6D3014),
+        CONTACT_WORK.crash_ground_scale.bits(),
         crate::physics::car_store::CAR.spin[1].bits(),
     ));
-    CAR.contact_value.set(g(0x6D310C));
+    CAR.contact_value.set(CONTACT_WORK.contact_value.bits());
     Ok(())
 }
 

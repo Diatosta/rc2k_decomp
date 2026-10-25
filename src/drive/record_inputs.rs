@@ -9,12 +9,11 @@
 //!
 //! Caller: `drive::record_inputs_if`.
 
-use crate::physics::flow::{a, g};
+use crate::physics::flow::g;
 use crate::physics::tables_store::PHYSICS;
+use crate::race::replay_work_store::REPLAY_WORK;
 use crate::race::work_store::RACE_WORK;
 use rc2k_core::drive::replay_frames::{on_tape, tape_offset};
-
-const TAPE: usize = 0x7194BC; // dword_7194BC / 7194C0: the replay's inputs, 16 bytes a frame
 
 /// The Rust version.
 // Converted: `rc2k_core::drive::replay_frames::{on_tape, tape_offset}`.
@@ -31,7 +30,11 @@ pub unsafe fn record_inputs() {
     );
     let packed = crate::drive::pack_inputs::pack_inputs(eax, ecx, edx);
     let esi = tape_offset(g(0x6EF7DC), car);
-    let at = |o: u32| a(TAPE).wrapping_add(esi).wrapping_add(o) as *mut u32;
+    let at = |o: u32| {
+        (REPLAY_WORK.replay_tape[0].addr() as u32)
+            .wrapping_add(esi)
+            .wrapping_add(o) as *mut u32
+    };
     unsafe {
         at(0).write_unaligned(ebx);
         at(4).write_unaligned(packed);

@@ -6,9 +6,9 @@
 use crate::errors::Refused;
 use crate::marks::store::{Slot, game_read, game_write};
 use crate::math::x87;
+use crate::race::course_lists_store::COURSE_LISTS;
 use crate::scene::objects::{
     FACE_COUNTS_RVA, FACES, FACES_RVA, FIRST_FACE_RVA, FIRST_POINT_RVA, POINT_COUNTS_RVA,
-    POINTS_RVA,
 };
 use rc2k_core::marks::lines as core;
 
@@ -49,7 +49,7 @@ fn x87_length(d: [i32; 3], sum: i32) -> i32 {
 unsafe fn lines_with(from: u32, to: u32, sum: u32, length: fn([i32; 3], i32) -> i32) {
     unsafe {
         let count = get(from);
-        let points: u32 = game_read(POINTS_RVA);
+        let points: u32 = COURSE_LISTS.object_points.bits();
         let mut n = 0u32;
         while n != count {
             let (a, b) = (get(from + 0x10 + 0x10 * n), get(to + 0x10 + 0x10 * n));
@@ -257,7 +257,9 @@ pub unsafe fn copy_block_points(block: u32) -> Result<(), Refused> {
         let mut to = get(block + 0x8C);
         let count: i32 = game_read(POINT_COUNTS_RVA + 4 * object as usize);
         let first: u32 = game_read(FIRST_POINT_RVA + 4 * object as usize);
-        let mut from = first.wrapping_mul(12).wrapping_add(game_read(POINTS_RVA));
+        let mut from = first
+            .wrapping_mul(12)
+            .wrapping_add(COURSE_LISTS.object_points.bits());
         for _ in 0..count.max(0) {
             for k in 0..3 {
                 put(to + 4 * k, get(from + 4 * k));

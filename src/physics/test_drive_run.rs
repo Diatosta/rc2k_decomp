@@ -27,7 +27,6 @@ use crate::physics::tables_store::PHYSICS;
 use crate::race::numbers_store::NUMBERS;
 use crate::scene::x87_mem::{fild, fld, fstp};
 
-const DRIVE: usize = 0x71A190; // g_carDriveSpeed
 pub const STEPS: u32 = 0x1388;
 
 /// One step (0x42189D .., in `pusha` / `popa`).
@@ -53,9 +52,12 @@ fn step() -> Result<(), Refused> {
 }
 
 fn steps() -> Result<(), Refused> {
-    for x in [0x5CB97C, 0x5CB980, 0x5CB984, DRIVE, 0x71A194, 0x71A1B0] {
+    for x in [0x5CB97C, 0x5CB980, 0x5CB984] {
         p(x, 0);
     }
+    CAR.drive_speed_a.set_bits(0);
+    CAR.drive_speed_b.set_bits(0);
+    CAR.engine_speed.set_bits(0);
     CAR.gear.set(1);
     CAR.gearbox_kind.set(1);
     for n in 0..STEPS {

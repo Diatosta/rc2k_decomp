@@ -12,14 +12,11 @@
 //! `scene::set_up_object_memory`.
 
 use crate::errors::Refused;
-use crate::framework::{game_addr, game_ptr, game_read, game_write, rva};
 use crate::memory::allocate::allocate;
+use crate::race::course_lists_store::COURSE_LISTS;
 use crate::race::numbers_store::NUMBERS;
-use crate::scene::objects::{FACE_MEMORY_RVA, FACE_ROOM_RVA, POINTS_ROOM_RVA, POINTS_RVA};
 
 // ---- game data ----
-const LIST_RVA: usize = rva(0x5C6DD0); // stru_5C6DD0
-pub const TAKEN_RVA: usize = rva(0x5C6F90); // dword_5C6F90
 
 use rc2k_core::scene::objects::object_rooms as rooms;
 
@@ -30,24 +27,28 @@ use rc2k_core::scene::objects::object_rooms as rooms;
 pub unsafe fn allocate_object_memory(
     take: &mut dyn FnMut(u32, u32) -> Result<u32, Refused>,
 ) -> Result<(), Refused> {
-    unsafe {
-        let (points, faces) = rooms(NUMBERS.in_race.bits() != 0);
-        let list = game_addr(LIST_RVA) as u32;
-        game_write(
-            TAKEN_RVA,
-            game_read::<u32>(TAKEN_RVA).wrapping_add(points + faces),
-        );
-        let block = take(points + faces, list)?;
-        game_write(POINTS_RVA, block);
-        game_write(FACE_MEMORY_RVA, block.wrapping_add(points));
-        game_write(POINTS_ROOM_RVA, points);
-        game_write(FACE_ROOM_RVA, faces);
-        Ok(())
-    }
+    let (points, faces) = rooms(NUMBERS.in_race.bits() != 0);
+    let list = COURSE_LISTS.object_points_list[0].addr() as u32;
+    COURSE_LISTS.course_bytes_total.set_bits(
+        COURSE_LISTS
+            .course_bytes_total
+            .bits()
+            .wrapping_add(points + faces),
+    );
+    let block = take(points + faces, list)?;
+    COURSE_LISTS.object_points.set_bits(block);
+    COURSE_LISTS
+        .face_memory
+        .set_bits(block.wrapping_add(points));
+    COURSE_LISTS.object_points_room.set_bits(points);
+    COURSE_LISTS.face_memory_room.set_bits(faces);
+    Ok(())
 }
 
 pub unsafe fn allocate_object_memory_in_game() -> Result<(), Refused> {
     unsafe {
-        allocate_object_memory(&mut |bytes, _| Ok(allocate(game_ptr(LIST_RVA), bytes)? as u32))
+        allocate_object_memory(&mut |bytes, _| {
+            Ok(allocate(COURSE_LISTS.object_points_list[0].addr() as *mut _, bytes)? as u32)
+        })
     }
 }

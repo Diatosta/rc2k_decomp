@@ -8,25 +8,19 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_read, game_write, rva};
+use crate::physics::camera_store::CAMERA_WORK;
 use crate::physics::car_store::CAR;
+use crate::physics::contact_store::CONTACT_WORK;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::best_line::{CHECKS_RVA, MOST_CHECKS};
+use crate::race::course_store::COURSE;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
+use crate::scene::light_store::LIGHT_STATE;
 use crate::session::Dword;
 
-pub const RACE_CARS_RVA: usize = crate::race::objects::CARS_RVA; // g_raceCars
 const SETTLE_MARK_RVA: usize = rva(0x620470); // dword_620470
-/// dword_6D2514 .. dword_6D2520: the four wheels' heights (made by `sub_45D305`).
-pub const WHEELS_RVA: usize = rva(0x6D2514);
-/// dword_6D1F14 .. dword_6D1F20: four more lowered with them.
-pub const WHEELS_2_RVA: usize = rva(0x6D1F14);
-/// dword_608B50, dword_608B54, dword_608B58: the start's heading, roll and pitch.
-const START_ANGLES_RVA: usize = rva(0x608B50);
 const NO_PLACE_RVA: usize = rva(0x64BB18); // dword_64BB18
-const PLACE_HEADING_RVA: usize = crate::race::start_place::PLACE_HEADING_RVA; // dword_5CCD60
-const LINE_PLACE_RVA: usize = crate::race::start_place::LINE_PLACE_RVA; // dword_6365E4
-const LINE_FRACTION_RVA: usize = crate::race::start_place::LINE_FRACTION_RVA; // dword_6365EC
 /// The most cars `g_carBlocks` has.
 pub const MOST_CARS: u32 = 8;
 
@@ -41,7 +35,7 @@ fn zero(cells: &[&Dword]) {
 }
 
 unsafe fn wheels() -> [u32; 4] {
-    unsafe { game_read(WHEELS_RVA) }
+    crate::session::read_first(&CONTACT_WORK.probe_height)
 }
 
 /// One bisection step of `settle_car`: `angle` moved by `step` towards the higher pair
@@ -103,12 +97,13 @@ pub unsafe fn settle_car() -> Result<(), Refused> {
             }
         }
         CAR.position[1].set(CAR.position[1].get().wrapping_sub(lowest));
+        // dword_6D2514 .. 20: the four wheels' heights (made by `sub_45D305`).
         for (k, h) in w.iter().enumerate() {
-            game_write(WHEELS_RVA + 4 * k, h.wrapping_sub(lowest));
+            CONTACT_WORK.probe_height[k].set(h.wrapping_sub(lowest));
         }
-        for k in 0..4 {
-            let at = WHEELS_2_RVA + 4 * k;
-            game_write(at, game_read::<u32>(at).wrapping_sub(lowest));
+        // dword_6D1F14 .. 20: four more lowered with them.
+        for cell in &CONTACT_WORK.probe_y[..4] {
+            cell.set(cell.get().wrapping_sub(lowest));
         }
     }
     Ok(())
@@ -133,13 +128,13 @@ pub unsafe fn reset_car_motion() -> Result<(), Refused> {
             v.set_bits(0);
         }
         let heading = CAR.car_heading.get();
-        game_write(START_ANGLES_RVA, heading);
+        CAMERA_WORK.start_heading.set_bits(heading);
         CAR.camera_heading.set(heading);
         let pitch = CAR.car_pitch.get();
-        game_write(START_ANGLES_RVA + 8, pitch);
+        CAMERA_WORK.start_pitch.set_bits(pitch);
         CAR.camera_pitch.set(pitch);
         let roll = CAR.car_roll.get();
-        game_write(START_ANGLES_RVA + 4, roll);
+        CAMERA_WORK.start_roll.set_bits(roll);
         CAR.camera_roll_turn.set(roll);
         CAR.stuck_count.set(0);
         CAR.drive_speed_a.set_bits(0);
@@ -168,7 +163,7 @@ unsafe fn move_turned(x: u32, z: u32) {
             x as i32,
             0,
             z as i32,
-            game_read(PLACE_HEADING_RVA),
+            COURSE.place_heading.bits(),
         );
         add(&CAR.position[0], x);
         add(&CAR.position[2], z);
@@ -212,11 +207,11 @@ pub unsafe fn start_car() -> Result<(), Refused> {
                 mode,
                 crate::race::work_store::RACE_WORK.current_car.get(),
             );
-            game_write(LINE_PLACE_RVA, place);
-            game_write(LINE_FRACTION_RVA, 0u32);
+            LIGHT_STATE.line_place.set(place);
+            LIGHT_STATE.line_fraction.set(0);
             if game_read::<u32>(NO_PLACE_RVA) != 0 {
-                game_write(LINE_PLACE_RVA, 0u32);
-                game_write(LINE_FRACTION_RVA, 0u32);
+                LIGHT_STATE.line_place.set(0);
+                LIGHT_STATE.line_fraction.set(0);
             }
             crate::race::start_place::place_car_on_line()?;
             if game_read::<u32>(NO_PLACE_RVA) == 0 {
@@ -260,7 +255,7 @@ pub unsafe fn start_car() -> Result<(), Refused> {
 /// 0, `drive::store_car`; every register kept round each car (`pusha` / `popa`). Refuses
 /// no cars (the original's `jnz` runs on) or more than 8, before anything.
 pub unsafe fn start_cars() -> Result<(), Refused> {
-    let cars: u32 = unsafe { game_read(RACE_CARS_RVA) };
+    let cars: u32 = RACE_VIEW.race_cars.bits();
     if cars == 0 || cars > MOST_CARS {
         return Err(BadInput("no cars or more than eight").into());
     }

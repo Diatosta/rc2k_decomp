@@ -17,7 +17,8 @@
 
 use crate::errors::Refused;
 use crate::math::x87_run::{abs_compare, ext_times};
-use crate::physics::flow::{a, g, p};
+use crate::physics::contact_store::CONTACT_WORK;
+use crate::physics::flow::a;
 use crate::race::numbers_store::NUMBERS;
 use crate::scene::matrix3::extended;
 use crate::scene::rotate_point::rotate_point;
@@ -26,16 +27,25 @@ use crate::scene::x87_mem::{fld, fld80, fstp};
 /// Whether the corner is inside (`flt_6D3BC8` .. written either way).
 pub fn corner_inside() -> bool {
     let k = NUMBERS.k65536.bits();
-    let corner = [0x6D3BD4, 0x6D3BD8, 0x6D3BDC].map(|x| ext_times(extended(g(x)), k));
-    let turned = unsafe { rotate_point(a(0x6D3C40), corner) };
+    let corner = CONTACT_WORK
+        .corner_in
+        .each_ref()
+        .map(|x| ext_times(extended(x.bits()), k));
+    let turned = unsafe { rotate_point(CONTACT_WORK.corner_matrix[0].addr() as u32, corner) };
     for (n, e) in turned.iter().enumerate() {
         x87_1(
             e.as_ptr() as usize,
             crate::race::store::asm_base() as usize,
-            a(0x6D3BC8 + 4 * n) as usize,
+            a(&CONTACT_WORK.corner_turned[n]) as usize,
         );
     }
-    (0..3).all(|n| abs_compare(g(0x6D3BC8 + 4 * n), g(0x6D3BBC + 4 * n)) & 0x100 != 0)
+    (0..3).all(|n| {
+        abs_compare(
+            CONTACT_WORK.corner_turned[n].bits(),
+            CONTACT_WORK.box_size[n].bits(),
+        ) & 0x100
+            != 0
+    })
 }
 
 /// The Rust version: `block` the other car's block (edi). The registers it leaves are
@@ -44,7 +54,7 @@ pub unsafe fn corner_hits_car(block: u32) -> Result<(), Refused> {
     if !corner_inside() {
         return Ok(());
     }
-    p(0x6D3BB4, 1);
+    CONTACT_WORK.corner_inside.set(1);
     unsafe { crate::physics::restore_saved_car::restore_saved_car() }?;
     unsafe { crate::physics::bump_cars::bump_cars(block) }?;
     Ok(())

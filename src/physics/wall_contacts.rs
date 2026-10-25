@@ -23,14 +23,10 @@
 
 use crate::errors::Refused;
 use crate::physics::car_store::CAR;
-use crate::physics::flow::{g, p};
+use crate::physics::contact_store::CONTACT_WORK;
+use crate::physics::flow::g;
 use crate::physics::touch_face::FACES;
 use rc2k_core::physics::walls;
-
-/// `g_workVector`.
-pub const WORK: usize = 0x5C5F60;
-/// Contact record 4 (`g_contactRecords` + 0x80).
-pub const WALL_RECORD: usize = 0x614AD0;
 
 fn word(face: u32) -> u32 {
     let at = (face << 6).wrapping_add(g(FACES)) + 2;
@@ -51,11 +47,11 @@ pub fn steps() -> Result<(), Refused> {
     let walked = walls::walk(CAR.probe_count.get(), |k| {
         let k = k as usize;
         let now = CAR.probe_point_face[k].get();
-        p(0x6D3174, now);
+        CONTACT_WORK.wall_face_now.set(now);
         let now_word = word(now);
-        let before = g(0x6D2814 + 4 * k);
+        let before = CONTACT_WORK.probe_saved_faces[k].get();
         let before_word = (now != before).then(|| {
-            p(0x6D3170, before);
+            CONTACT_WORK.wall_face_before.set(before);
             word(before)
         });
         Ok::<_, Refused>(walls::ProbeFaces {
@@ -67,13 +63,13 @@ pub fn steps() -> Result<(), Refused> {
         walls::Walk::Met { probe, .. } => {
             // 0x45D83E: a wall met.
             let k = probe as usize;
-            p(0x6D3214, probe);
+            CONTACT_WORK.probe_index.set(probe);
             CAR.contact_point[0].set_bits(CAR.probe_point_x[k].bits());
             CAR.contact_point[1].set_bits(CAR.probe_point_y[k].bits());
             CAR.contact_point[2].set_bits(CAR.probe_point_z[k].bits());
             crate::physics::wall_edge_contact::steps()?;
             if let Some(hit) = rc2k_core::physics::walls::raised_hit(
-                f32::from_bits(g(0x6D3108)),
+                f32::from_bits(CONTACT_WORK.contact_speed_length.bits()),
                 f32::from_bits(CAR.contact_depth.bits()),
             ) {
                 CAR.contact_depth.set_bits(hit.to_bits());
@@ -81,8 +77,10 @@ pub fn steps() -> Result<(), Refused> {
             after()
         }
         walls::Walk::Clear { bits } => {
-            p(0x6D3174, g(0x6D3170));
-            p(0x6D3038, bits);
+            CONTACT_WORK
+                .wall_face_now
+                .set(CONTACT_WORK.wall_face_before.get());
+            CONTACT_WORK.wall_bits.set(bits);
             if bits != walls::WALL_BITS {
                 return Ok(());
             }

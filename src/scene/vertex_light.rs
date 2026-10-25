@@ -29,25 +29,20 @@
 //! no records and when the table's place is outside it.
 
 use crate::errors::BadInput;
-use crate::framework::{game_read, game_write, rva};
+use crate::framework::{game_read, rva};
 use crate::math::x87;
-use crate::scene::light_dot::{INPUTS_RVA, light_dot};
+use crate::race::course_lists_store::COURSE_LISTS;
+use crate::race::prefs_store::STAGE_PREFS;
+use crate::race::switches_store::FRAME_SWITCHES;
+use crate::scene::draw_store::DRAW;
+use crate::scene::light_dot::light_dot;
+use crate::scene::light_work_store::LIGHT_WORK;
 use crate::scene::object_store::OBJECT_WORK;
-use crate::scene::project_point::RECORDS_RVA;
 use crate::session::MACHINE;
 
 // ---- game data ----
-
-const KIND_RVA: usize = rva(0x62DAF4); // dword_62DAF4
-const LIT_A_RVA: usize = rva(0x621480); // dword_621480
-const LIT_B_RVA: usize = rva(0x60931C); // dword_60931C
-const COLOUR_RVA: usize = rva(0x62DAC4); // dword_62DAC4
-const BASE_RVA: usize = rva(0x62DAD4); // dword_62DAD4
-const DIRECTION_RVA: usize = rva(0x6240A8); // dword_6240A8, dword_6240AC, dword_6240B0
 const TABLE_RVA: usize = rva(0x635118); // dword_635118
 const TABLE_LEN: u32 = 0x100;
-const TOWARDS_DARK_RVA: usize = rva(0x6092B4); // dword_6092B4, dword_6092B8, dword_6092BC
-const TOWARDS_LIGHT_RVA: usize = rva(0x6092C0); // dword_6092C0, dword_6092C4, dword_6092C8
 
 // ---- Rust version ----
 
@@ -74,14 +69,14 @@ fn held(value: i32, low: i32, high: i32) -> i32 {
 /// The normal's place in the view to the light's work variables, the colour set to 0.
 unsafe fn set_normal(number: u32) -> Result<(), BadInput> {
     unsafe {
-        let records: u32 = game_read(RECORDS_RVA);
+        let records: u32 = COURSE_LISTS.point_records.bits();
         if records == 0 {
             return Err(BadInput("no records for the points"));
         }
         let record = records.wrapping_add(((number & 0xFFF) + 0x1000) << 5) as usize;
-        game_write(COLOUR_RVA, 0u32);
+        LIGHT_WORK.light_colour.set_bits(0u32);
         let place: [u32; 3] = ((record + 0x10) as *const [u32; 3]).read_unaligned();
-        game_write(INPUTS_RVA, place);
+        crate::session::write_bits(&LIGHT_WORK.light_dot_point, place);
         Ok(())
     }
 }
@@ -93,8 +88,13 @@ unsafe fn light() -> i32 {
         if strength == 0 {
             return 0;
         }
-        game_write(INPUTS_RVA + 12, game_read::<[u32; 3]>(DIRECTION_RVA));
-        game_write(INPUTS_RVA + 24, x87::from_int(strength));
+        crate::session::write_bits(
+            &LIGHT_WORK.light_dot_light,
+            crate::session::read_bits::<_, 3>(&DRAW.light_direction),
+        );
+        LIGHT_WORK
+            .light_dot_factor
+            .set_bits(x87::from_int(strength));
         light_dot()
     }
 }
@@ -120,8 +120,12 @@ unsafe fn lit(number: u32, mmx: bool) -> Result<u32, BadInput> {
         // The checks first, on a copy of what they would write.
         let place = set_normal(number).and_then(|()| table_place());
         let place = place?;
-        let colour = plus(game_read(TABLE_RVA + place * 4), game_read(COLOUR_RVA), mmx);
-        game_write(COLOUR_RVA, colour);
+        let colour = plus(
+            game_read(TABLE_RVA + place * 4),
+            LIGHT_WORK.light_colour.bits(),
+            mmx,
+        );
+        LIGHT_WORK.light_colour.set_bits(colour);
         Ok(colour)
     }
 }
@@ -131,12 +135,12 @@ unsafe fn blend() {
     unsafe {
         let amount = held(light(), -255, 255);
         let (amount, towards) = if amount < 0 {
-            (amount.wrapping_neg(), TOWARDS_DARK_RVA)
+            (amount.wrapping_neg(), &STAGE_PREFS.dark_colour)
         } else {
-            (amount, TOWARDS_LIGHT_RVA)
+            (amount, &STAGE_PREFS.lit_colour)
         };
-        let towards: [i32; 3] = game_read(towards);
-        let mut colour: u32 = game_read(COLOUR_RVA);
+        let towards = crate::session::read_bits::<_, 3>(towards).map(|bits| bits as i32);
+        let mut colour: u32 = LIGHT_WORK.light_colour.bits();
         // The third byte first, towards the first of the three.
         for (n, to) in towards.into_iter().enumerate() {
             let at = (2 - n) * 8;
@@ -144,19 +148,19 @@ unsafe fn blend() {
             let moved = (amount.wrapping_mul(to.wrapping_sub(byte)) >> 8).wrapping_add(byte);
             colour = colour & !(0xFF << at) | (moved.clamp(0, 0xFF) as u32) << at;
         }
-        game_write(COLOUR_RVA, colour);
+        LIGHT_WORK.light_colour.set_bits(colour);
     }
 }
 
 pub unsafe fn vertex_light(number: u32) -> Result<u32, BadInput> {
     unsafe {
-        let kind: u32 = game_read(KIND_RVA);
+        let kind: u32 = LIGHT_WORK.light_kind.bits();
         let mmx = MACHINE.has_mmx.get() != 0;
         if kind == 4 {
             // 0 plus the lit colour.
             return Ok(plus(0, lit(number, mmx)?, mmx));
         }
-        let lit_at_all = game_read::<u32>(LIT_A_RVA) != 0 || game_read::<u32>(LIT_B_RVA) != 0;
+        let lit_at_all = FRAME_SWITCHES.other_way.bits() != 0 || STAGE_PREFS.lit_b.bits() != 0;
         if !lit_at_all || kind == 0 {
             return Ok(0x00FF_FFFF);
         }
@@ -173,10 +177,10 @@ pub unsafe fn vertex_light(number: u32) -> Result<u32, BadInput> {
             3 => {
                 set_normal(number)?;
                 // The colour was just set to 0.
-                let colour = plus(plus(game_read(BASE_RVA), 0, mmx), added, mmx);
-                game_write(COLOUR_RVA, colour);
+                let colour = plus(plus(LIGHT_WORK.view_light_base.bits(), 0, mmx), added, mmx);
+                LIGHT_WORK.light_colour.set_bits(colour);
                 blend();
-                Ok(game_read(COLOUR_RVA))
+                Ok(LIGHT_WORK.light_colour.bits())
             }
             _ => Ok(number),
         }

@@ -12,13 +12,16 @@ use crate::errors::Refused;
 use crate::physics::flow::a;
 use crate::race::work_store::RACE_WORK;
 
-const B: usize = 0x70F3EC;
-
 /// The Rust version.
 pub unsafe fn countdown_beeps() -> Result<(), Refused> {
-    for (car, block, to) in [(0u32, B, 0x6D1482usize), (1, B + 0xFE0, 0x6D1492)] {
+    for (car, to) in [(0u32, 0x6D1482usize), (1, 0x6D1492)] {
         RACE_WORK.current_car.set(car);
-        unsafe { crate::drive::countdown_beep::countdown_beep(a(block), a(to)) }?;
+        unsafe {
+            crate::drive::countdown_beep::countdown_beep(
+                crate::race::blocks_store::block_addr(car as usize) as u32,
+                a(to),
+            )
+        }?;
     }
     Ok(())
 }

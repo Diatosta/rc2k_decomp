@@ -19,19 +19,15 @@
 //! Refuses when there are no records and what `math::normalise_vector` refuses.
 
 use crate::errors::BadInput;
-use crate::framework::{game_read, game_write, rva};
-use crate::math::normalise_vector::{VECTOR_RVA, normalise_vector};
+use crate::math::normalise_vector::normalise_vector;
 use crate::math::x87;
+use crate::physics::ground_store::GROUND_WORK;
+use crate::race::course_lists_store::COURSE_LISTS;
+use crate::race::matrices_store::MATRICES;
 use crate::race::numbers_store::NUMBERS;
-use crate::scene::project_point::RECORDS_RVA;
-use crate::scene::reflect_vector::{NORMAL_RVA, VECTOR_RVA as MIRRORED_RVA, reflect_vector};
+use crate::race::scratch_store::FRAME_SCRATCH;
+use crate::scene::reflect_vector::reflect_vector;
 use crate::scene::x87_mem::{fistp, fld, fstp};
-
-// ---- game data ----
-
-pub const NORMAL_NUMBER_RVA: usize = rva(0x6399A8); // dword_6399A8
-pub const POINT_NUMBER_RVA: usize = rva(0x6399AC); // dword_6399AC
-pub const COORDINATES_RVA: usize = rva(0x6399B0); // dword_6399B0, dword_6399B4
 
 // ---- Rust version ----
 
@@ -74,38 +70,38 @@ unsafe fn negated_at(a: *const u8, o: *mut u8) {
 
 pub unsafe fn reflection_coordinates() -> Result<(), BadInput> {
     unsafe {
-        let records: u32 = game_read(RECORDS_RVA);
+        let records: u32 = COURSE_LISTS.point_records.bits();
         if records == 0 {
             return Err(BadInput("no records for the points"));
         }
         let record = |number: u32| records.wrapping_add(((number & 0xFFF) + 0x1000) << 5);
         let place = |record: u32| ((record as usize + 0x10) as *const [u32; 3]).read_unaligned();
-        let normal = record(game_read(NORMAL_NUMBER_RVA));
-        game_write(MIRRORED_RVA, place(normal));
-        let point = record(game_read::<u32>(POINT_NUMBER_RVA).wrapping_neg());
-        game_write(VECTOR_RVA, place(point).map(negated));
+        let normal = record(GROUND_WORK.reflection_normal_number.bits());
+        crate::session::write_bits(&MATRICES.reflect_vector, place(normal));
+        let point = record(GROUND_WORK.reflection_point_number.bits().wrapping_neg());
+        crate::session::write_first(&FRAME_SCRATCH.work_vector, &place(point).map(negated));
         normalise_vector()?;
-        let to_eye: [u32; 3] = game_read(VECTOR_RVA);
-        game_write(NORMAL_RVA, to_eye);
+        let to_eye: [u32; 3] = crate::session::read_first(&FRAME_SCRATCH.work_vector);
+        crate::session::write_bits(&MATRICES.reflect_normal, to_eye);
         reflect_vector();
-        let mirrored: [u32; 3] = game_read(MIRRORED_RVA);
-        game_write(
-            VECTOR_RVA,
-            [
+        let mirrored: [u32; 3] = crate::session::read_bits(&MATRICES.reflect_vector);
+        crate::session::write_first(
+            &FRAME_SCRATCH.work_vector,
+            &[
                 x87::loaded(mirrored[0]),
                 x87::add(mirrored[1], NUMBERS.one.bits()),
                 x87::loaded(mirrored[2]),
             ],
         );
         normalise_vector()?;
-        let looks: [u32; 3] = game_read(VECTOR_RVA);
+        let looks: [u32; 3] = crate::session::read_first(&FRAME_SCRATCH.work_vector);
         let half: u32 = NUMBERS.half.bits();
         let scales = [NUMBERS.k65536.bits(), NUMBERS.k256.bits()];
-        game_write(
-            COORDINATES_RVA,
+        crate::session::write_bits(
+            &GROUND_WORK.reflection_coordinates,
             [
-                coordinate(looks[0], half, scales),
-                coordinate(looks[2], half, scales),
+                coordinate(looks[0], half, scales) as u32,
+                coordinate(looks[2], half, scales) as u32,
             ],
         );
         Ok(())

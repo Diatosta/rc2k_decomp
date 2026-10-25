@@ -24,18 +24,16 @@
 //! registers above are the original's, for reference.
 
 use crate::errors::BadInput;
-use crate::framework::{game_read, game_write, rva};
 use crate::math::x87_float::{ONE, compare, ld, st};
+use crate::race::course_lists_store::COURSE_LISTS;
+use crate::race::scratch_store::FRAME_SCRATCH;
 use crate::scene::draw_store::DRAW;
+use crate::scene::draw_switches_store::DRAW_SWITCHES;
 
 // ---- game data ----
 
 // Still the image's: the work vector and the SSE switch (the race's), the root tables
 // (`scene::fill_engine_tables` makes them), `dword_62400C` (scratch many functions share).
-pub const VECTOR_RVA: usize = rva(0x5C5F60); // xmmword_5C5F60
-const SSE_RVA: usize = rva(0x621A58); // dword_621A58
-const ROOTS_RVA: usize = rva(0x5C70F8); // flt_5C70F8
-const EXPONENT_ROOTS_RVA: usize = rva(0x5C74F8); // flt_5C74F8
 // The squares (`xmmword_5C5F70`) and the length (`g_workVectorLength`, 0x6D18C8) are no
 // longer stored (2026-10-24, phase 5): no function the game reaches reads them (IDA: the
 // length's one reader, 0x4517F3, is unreached).
@@ -67,14 +65,14 @@ pub(crate) fn scaled_by_inverse(v: [u32; 3], root: u32, exponent_root: u32) -> (
 
 /// Returns what the function leaves in eax, if it changes it.
 pub unsafe fn normalise_vector() -> Result<Option<u32>, BadInput> {
-    unsafe { normalise(game_read::<u32>(SSE_RVA) != 0) }
+    unsafe { normalise(DRAW_SWITCHES.use_sse.bits() != 0) }
 }
 
 /// Exactly as the original (the x87 at its precision, the SSE instructions): what the
 /// Rust callers in modules not yet converted use.
 pub unsafe fn normalise(sse: bool) -> Result<Option<u32>, BadInput> {
     unsafe {
-        let v: [u32; 4] = game_read(VECTOR_RVA);
+        let v: [u32; 4] = crate::session::read_bits(&FRAME_SCRATCH.work_vector);
         if sse {
             // The vector, the squares, the length.
             let mut w = [v[0], v[1], v[2], v[3], 0, 0, 0, 0, 0];
@@ -96,13 +94,13 @@ pub unsafe fn normalise(sse: bool) -> Result<Option<u32>, BadInput> {
                 out("xmm0") _, out("xmm1") _, out("xmm2") _,
                 options(nostack),
             );
-            game_write(VECTOR_RVA, [w[0], w[1], w[2], w[3]]);
+            crate::session::write_bits(&FRAME_SCRATCH.work_vector, [w[0], w[1], w[2], w[3]]);
             return Ok(None);
         }
         let sum = squares_sum([v[0], v[1], v[2]]);
-        let root: u32 = game_read(ROOTS_RVA + ((sum >> 15) & 0xFF) as usize * 4);
+        let root: u32 = COURSE_LISTS.root_table[((sum >> 15) & 0xFF) as usize].bits();
         let exponent_root: u32 =
-            game_read(EXPONENT_ROOTS_RVA + ((sum & 0x7F80_0000) >> 23) as usize * 4);
+            COURSE_LISTS.exponent_root_table[((sum & 0x7F80_0000) >> 23) as usize].bits();
         // The product of two floats is exact in a double, as it is in the x87.
         let length = ld(root) * ld(exponent_root);
         if compare(length, ld(NOTHING)) & 0x4000 != 0 {
@@ -110,7 +108,7 @@ pub unsafe fn normalise(sse: bool) -> Result<Option<u32>, BadInput> {
         }
         let (scaled, inverse) = scaled_by_inverse([v[0], v[1], v[2]], root, exponent_root);
         let unsigned_zero = |bits: u32| if bits == 0x8000_0000 { 0 } else { bits };
-        game_write(VECTOR_RVA, scaled.map(unsigned_zero));
+        crate::session::write_first(&FRAME_SCRATCH.work_vector, &scaled.map(unsigned_zero));
         DRAW.scratch.set_bits(inverse);
         Ok(Some(sum))
     }

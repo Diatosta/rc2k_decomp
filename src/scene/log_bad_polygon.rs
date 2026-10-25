@@ -16,42 +16,44 @@
 //! vertices (the original's loop would run through memory).
 
 use crate::errors::BadInput;
-use crate::framework::{game_read, rva};
+use crate::race::course_store::COURSE;
+use crate::race::switches_store::FRAME_SWITCHES;
+use crate::race::vars_store::RACE_VARS;
 use crate::scene::draw_store::DRAW;
+use crate::scene::light_work_store::LIGHT_WORK;
 
 const WRITE: u32 = 0;
 const HEX8: u32 = 1;
+/// The value column: what the line shows.
+type Value = fn() -> u32;
 const FLOAT: u32 = 2;
 const INT: u32 = 3;
 const INT_NL: u32 = 4;
 const NEWLINE: u32 = 5;
-const OBJECT_RVA: usize = rva(0x62DA44); // g_drawingObject
 const MOST: u32 = 64;
-/// Stand-ins in the value column for the session's screen size (not addresses).
-const SCREEN_WIDTH: usize = 1;
-const SCREEN_HEIGHT: usize = 2;
 
 /// (label, kind, value): the head's lines before the mask's clearing, and after.
-const HEAD: [(&std::ffi::CStr, u32, usize); 10] = [
-    (c"videox", HEX8, SCREEN_WIDTH),  // "videox" g_screenWidth
-    (c"videoy", HEX8, SCREEN_HEIGHT), // "videoy" g_screenHeight
-    (c"videoy", HEX8, SCREEN_HEIGHT), // "videoy" g_screenHeight
-    (c"r", FLOAT, 0x6241F0),          // "r" g_clipScreenRight
-    (c"l", FLOAT, 0x6241EC),          // "l" g_clipScreenLeft
-    (c"b", FLOAT, 0x6241E8),          // "b" g_clipScreenBottom
-    (c"t", FLOAT, 0x6241E4),          // "t" g_clipScreenTop
-    (c"donezcut", INT, 0x624124),     // "donezcut"
-    (c"donesuth", INT, 0x624120),     // "donesuth"
-    (c"cuttest", INT_NL, 0x624118),   // "cuttest" g_polygonClipMask
+const HEAD: [(&std::ffi::CStr, u32, Value); 10] = [
+    (c"videox", HEX8, || crate::session::SCREEN.width.get()), // "videox" g_screenWidth
+    (c"videoy", HEX8, || crate::session::SCREEN.height.get()), // "videoy" g_screenHeight
+    (c"videoy", HEX8, || crate::session::SCREEN.height.get()), // "videoy" g_screenHeight
+    (c"r", FLOAT, || DRAW.clip_screen[3].bits()),             // "r" g_clipScreenRight
+    (c"l", FLOAT, || DRAW.clip_screen[2].bits()),             // "l" g_clipScreenLeft
+    (c"b", FLOAT, || DRAW.clip_screen[1].bits()),             // "b" g_clipScreenBottom
+    (c"t", FLOAT, || DRAW.clip_screen[0].bits()),             // "t" g_clipScreenTop
+    (c"donezcut", INT, || DRAW.depth_clipped.bits()),         // "donezcut"
+    (c"donesuth", INT, || DRAW.screen_clipped.bits()),        // "donesuth"
+    (c"cuttest", INT_NL, || DRAW.polygon_clip_mask.bits()),   // "cuttest" g_polygonClipMask
 ];
-const AFTER: [(&std::ffi::CStr, u32, usize); 2] = [
-    (c"tpage", HEX8, 0x6240C4), // "tpage"
-    (c"points", INT, 0x6240F8), // "points" g_polygonVertexCount
+const AFTER: [(&std::ffi::CStr, u32, Value); 2] = [
+    (c"tpage", HEX8, || DRAW.texture_page.bits()), // "tpage"
+    (c"points", INT, || DRAW.polygon_vertex_count.bits()), // "points" g_polygonVertexCount
 ];
-const COURSE: [(&std::ffi::CStr, u32, usize); 1] = [(c"polynum", INT, 0x5CCCD0)]; // "polynum"
-const OBJECT: [(&std::ffi::CStr, u32, usize); 2] = [
-    (c"objdraw", INT, 0x6214FC),  // "objdraw" g_objectNumber
-    (c"objfaced", INT, 0x623620), // "objfaced" g_faceNumber
+const POLYGON_NUMBER: [(&std::ffi::CStr, u32, Value); 1] =
+    [(c"polynum", INT, || COURSE.current_course_face.bits())]; // "polynum"
+const OBJECT: [(&std::ffi::CStr, u32, Value); 2] = [
+    (c"objdraw", INT, || FRAME_SWITCHES.object_number.bits()), // "objdraw" g_objectNumber
+    (c"objfaced", INT, || RACE_VARS.face_number.bits()),       // "objfaced" g_faceNumber
 ];
 /// A vertex's: (label, kind, offset).
 const VERTEX: [(&std::ffi::CStr, u32, u32); 8] = [
@@ -73,21 +75,16 @@ pub unsafe fn log_bad_polygon(vertices: u32) -> Result<(), BadInput> {
         return Err(BadInput("more than 64 vertices"));
     }
     let text = |s: &std::ffi::CStr| s.as_ptr() as u32;
-    let value = |a: usize| match a {
-        SCREEN_WIDTH => crate::session::SCREEN.width.get(),
-        SCREEN_HEIGHT => crate::session::SCREEN.height.get(),
-        a => unsafe { game_read::<u32>(rva(a)) },
-    };
     for (label, kind, at) in HEAD {
         log(WRITE, text(label));
-        log(kind, value(at));
+        log(kind, at());
     }
     DRAW.polygon_clip_mask.set_bits(0u32);
-    let object = unsafe { game_read::<u32>(OBJECT_RVA) } == 1;
-    let tail: &[(&std::ffi::CStr, u32, usize)] = if object { &OBJECT } else { &COURSE };
+    let object = LIGHT_WORK.drawing_object.bits() == 1;
+    let tail: &[(&std::ffi::CStr, u32, Value)] = if object { &OBJECT } else { &POLYGON_NUMBER };
     for &(label, kind, at) in AFTER.iter().chain(tail) {
         log(WRITE, text(label));
-        log(kind, value(at));
+        log(kind, at());
     }
     log(NEWLINE, 0);
     if count == 0 {

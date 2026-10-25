@@ -17,20 +17,18 @@
 
 use crate::errors::Refused;
 use crate::gfx::screen_state::DRAW_SURFACE;
-use crate::physics::flow::{a, g, p};
+use crate::physics::flow::{a, g};
+use crate::race::replay_file_store::REPLAY_FILE;
 use crate::race::viewer::{BLOCK, BLOCKS, CAMERA_NAMES, CAMERAS, FRAME, gb};
+use crate::race::viewer_screen_store::VIEWER_PANEL;
+use crate::session::Dword;
 use crate::strings::text_buffer::TEXT_BUFFER;
 use crate::text::draw_text::GameCanvas;
-
-const TEXTURE: usize = 0x5BECB8; // dword_5BECB8: the panel's texture
-const DEVICE_TEXTURE: usize = 0x5BECBC; // dword_5BECBC
 const FONT_A: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::PANEL_A;
 const FONT_B: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::PANEL_B;
 const FONT_C: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::PANEL_C;
 const FONT_D: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::PANEL_D;
 const FONT_E: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::PANEL_E;
-const UV: usize = 0x5C2A1C; // dword_5C2A1C: the texture's rectangle
-const RECT: usize = 0x5C2A0C; // dword_5C2A0C: the screen's
 
 /// The Rust version (the original keeps every register of its caller).
 pub fn draw_viewer_panel() -> Result<(), Refused> {
@@ -38,7 +36,7 @@ pub fn draw_viewer_panel() -> Result<(), Refused> {
     // switch_lights}`.
     use rc2k_core::race::viewer_flow::{camera_name, replay_length, shown_time, switch_lights};
     unsafe {
-        if crate::d3d::lock_texture::lock_texture(g(TEXTURE))?.carry {
+        if crate::d3d::lock_texture::lock_texture(REPLAY_FILE.viewer_panel_texture.get())?.carry {
             return Ok(());
         }
         // The surface cleared (as `rep stosd` row by row; a height of 0 goes round 2^32
@@ -132,46 +130,57 @@ pub fn draw_viewer_panel() -> Result<(), Refused> {
         }
         string(0x560, FONT_E, 0x75, 0)?;
         string(0x561, FONT_E, 0x75, 0xF)?;
-        crate::d3d::unlock_texture::unlock_texture(g(TEXTURE))?;
-        crate::d3d::copy_to_device_texture::copy_to_device_texture(g(TEXTURE), g(DEVICE_TEXTURE));
-        crate::d3d::set_texture::set_texture(g(DEVICE_TEXTURE));
+        crate::d3d::unlock_texture::unlock_texture(REPLAY_FILE.viewer_panel_texture.get())?;
+        crate::d3d::copy_to_device_texture::copy_to_device_texture(
+            REPLAY_FILE.viewer_panel_texture.get(),
+            REPLAY_FILE.viewer_device_texture.get(),
+        );
+        crate::d3d::set_texture::set_texture(REPLAY_FILE.viewer_device_texture.get());
         // The quads.
         let camera_5 = gb((CAMERAS + 5).wrapping_add(8 * g(BLOCK) as usize));
         let (first, second) = switch_lights(camera_5);
         let white = 0x00FF_FFFF;
-        let quad = |colour: u32| crate::drive::tyre_quad::tyre_quad(a(UV), a(RECT), colour);
-        let set = |at: usize, v: [u32; 4]| {
-            for (n, x) in v.into_iter().enumerate() {
-                p(at + 4 * n, x);
+        let quad = |colour: u32| {
+            crate::drive::tyre_quad::tyre_quad(
+                VIEWER_PANEL.texture_rect[0].addr() as u32,
+                VIEWER_PANEL.screen_rect[0].addr() as u32,
+                colour,
+            )
+        };
+        // dword_5C2A1C: the texture's rectangle; dword_5C2A0C: the screen's.
+        let (uv, rect) = (&VIEWER_PANEL.texture_rect, &VIEWER_PANEL.screen_rect);
+        let set = |cells: &[Dword; 4], v: [u32; 4]| {
+            for (cell, x) in cells.iter().zip(v) {
+                cell.set(x);
             }
         };
-        let add = |at: usize, v: u32| p(at, g(at).wrapping_add(v));
-        set(UV, [0, 0, 0xC8, 0x32]);
-        set(RECT, [4, 2, 0x64, 0x19]);
+        let add = |cell: &Dword, v: u32| cell.set(cell.get().wrapping_add(v));
+        set(uv, [0, 0, 0xC8, 0x32]);
+        set(rect, [4, 2, 0x64, 0x19]);
         quad(white)?;
-        p(UV + 4, 0x32);
-        p(RECT, 0x2B8);
+        uv[1].set(0x32);
+        VIEWER_PANEL.screen_rect[0].set(0x2B8);
         quad(white)?;
-        set(UV, [0xDC, 0, 0x1A, 0x1A]);
-        set(RECT, [1, 0x20, 0xD, 0xD]);
+        set(uv, [0xDC, 0, 0x1A, 0x1A]);
+        set(rect, [1, 0x20, 0xD, 0xD]);
         quad(first)?;
-        p(UV + 4, 0x1E);
-        p(RECT, 0x191);
+        uv[1].set(0x1E);
+        VIEWER_PANEL.screen_rect[0].set(0x191);
         quad(second)?;
-        set(UV, [0, 0x64, 0x100, 0x1A]);
-        set(RECT, [0x11, 0x20, 0x80, 0xD]);
+        set(uv, [0, 0x64, 0x100, 0x1A]);
+        set(rect, [0x11, 0x20, 0x80, 0xD]);
         quad(first)?;
         for _ in 0..2 {
-            add(UV + 4, 0x1A);
-            add(RECT, 0x78);
+            add(&uv[1], 0x1A);
+            add(&rect[0], 0x78);
             quad(first)?;
         }
-        p(UV + 4, 0xB2);
-        p(RECT, 0x1A1);
+        uv[1].set(0xB2);
+        VIEWER_PANEL.screen_rect[0].set(0x1A1);
         quad(second)?;
         for _ in 0..2 {
-            add(UV + 4, 0x1A);
-            add(RECT, 0x78);
+            add(&uv[1], 0x1A);
+            add(&rect[0], 0x78);
             quad(second)?;
         }
     }

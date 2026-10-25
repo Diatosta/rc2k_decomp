@@ -17,18 +17,18 @@
 //! Refuses more than 0x100 lamps and lamps without the scene's points.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, game_write, rva};
+use crate::framework::rva;
+use crate::physics::ground_store::GROUND_WORK;
 use crate::race::course_store::COURSE;
+use crate::race::level_grid_store::LEVEL_GRID;
 use crate::race::view_store::RACE_VIEW;
-use crate::scene::draw_polygon::CHECKED_RVA;
+use crate::scene::draw_store::DRAW;
+use crate::scene::light_store::LIGHT_STATE;
+use crate::scene::light_work_store::LIGHT_WORK;
 use crate::session::MACHINE;
 
 // ---- game data ----
-const LAMP_LIST_RVA: usize = rva(0x63E05C); // dword_63E05C
 const MOST: u32 = 0x100;
-const STRENGTH_RVA: usize = rva(0x639958); // dword_639958
-const LAMP_COLOUR_RVA: usize = rva(0x62DA7C); // dword_62DA7C
-pub const LIT_PLACE_RVA: usize = rva(0x636588); // dword_636588, dword_63658C, dword_636590
 pub const LIGHT_COLOUR_RVA: usize = rva(0x62DAC4); // g_lightColour
 
 // ---- Rust version ----
@@ -46,9 +46,11 @@ pub unsafe fn add_point_lights() -> Result<(), Refused> {
             return Err(BadInput("more lamps than the list holds, or no points").into());
         }
         let mmx = MACHINE.has_mmx.get() != 0;
-        let place: [u32; 3] = game_read(LIT_PLACE_RVA);
+        let place: [u32; 3] = crate::session::read_bits(&LIGHT_STATE.lit_place);
         let list = (0..lamps as usize).map(|n| {
-            let [point, strength, colour]: [u32; 3] = game_read(LAMP_LIST_RVA + n * 0x10);
+            // The list holds 16 lamps, the refusal allows `MOST`: read by address.
+            let [point, strength, colour] =
+                ((LEVEL_GRID.lamps[0].addr() + n * 0x10) as *const [u32; 3]).read_unaligned();
             Lamp {
                 point,
                 strength,
@@ -58,15 +60,15 @@ pub unsafe fn add_point_lights() -> Result<(), Refused> {
         let at = |point: u32| {
             (points.wrapping_add(point.wrapping_mul(12)) as *const [u32; 3]).read_unaligned()
         };
-        let out = lamps::add_point_lights(list, place, at, game_read(LIGHT_COLOUR_RVA), mmx);
+        let out = lamps::add_point_lights(list, place, at, LIGHT_WORK.light_colour.bits(), mmx);
         for (to, value) in [
-            (STRENGTH_RVA, out.strength),
-            (LAMP_COLOUR_RVA, out.colour),
-            (CHECKED_RVA, out.distance),
-            (LIGHT_COLOUR_RVA, out.light),
+            (&GROUND_WORK.point_light_strength, out.strength),
+            (&LIGHT_WORK.lamp_tint, out.colour),
+            (&DRAW.scratch, out.distance),
+            (&LIGHT_WORK.light_colour, out.light),
         ] {
             if let Some(v) = value {
-                game_write(to, v);
+                to.set_bits(v);
             }
         }
         Ok(())

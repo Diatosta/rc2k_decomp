@@ -11,13 +11,10 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::{game_read, rva};
+use crate::race::viewer_screen_store::VIEWER_PANEL;
 use windows_sys::Win32::System::SystemInformation::GetTickCount;
 
 // ---- game data ----
-
-const OVERRIDE_ON_RVA: usize = rva(0x5C2CD4); // dword_5C2CD4
-const OVERRIDE_RVA: usize = rva(0x5C2CD0); // dword_5C2CD0
 
 // ---- Rust version ----
 
@@ -26,6 +23,8 @@ pub fn tick_count() -> u32 {
         // The original asks Windows first in both cases.
         let now = GetTickCount();
         // Converted: `rc2k_core::system::time::clock`.
-        rc2k_core::system::time::clock(now, game_read(OVERRIDE_ON_RVA), || game_read(OVERRIDE_RVA))
+        rc2k_core::system::time::clock(now, VIEWER_PANEL.pictures_started.bits(), || {
+            VIEWER_PANEL.picture_clock.bits()
+        })
     }
 }

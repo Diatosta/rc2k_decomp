@@ -19,27 +19,30 @@ use crate::errors::{BadInput, Refused};
 use crate::physics::car_store::CAR;
 use crate::physics::flow::{g, p};
 use crate::race::frame_store::FRAME_WORK;
-use crate::race::step_replay_cars::CARS;
 use crate::race::vars_store::RACE_VARS;
-use crate::race::viewer::{BLOCK, BLOCK_DATA, FRAME, move_dwords};
+use crate::race::view_store::RACE_VIEW;
+use crate::race::viewer::{BLOCK, BLOCK_DATA, FRAME};
 use crate::race::work_store::RACE_WORK;
 
 const STILL: usize = 0x601024; // dword_601024
-const REPLAY_FRAME: usize = 0x7172EC; // unk_7172EC
 const STEP_FRAME: usize = 0x6EF7E4; // dword_6EF7E4
 const STEP_BLOCK: usize = 0x6EF7E0; // dword_6EF7E0
 const STEP_FIRST: usize = 0x6EF7CC; // dword_6EF7CC
-const SWITCHES: [usize; 2] = [0x63DB74, 0x63DB78];
 
 /// The frame's block copied to the replay's (`drive::load_replay_cars` reads it).
 fn load_frame() {
-    move_dwords(REPLAY_FRAME, BLOCK_DATA, 0xA04);
+    // unk_7172EC: car block 8's start (the copy runs on past the block).
+    let to = crate::race::blocks_store::block_addr(8) as *mut u32;
+    let from = crate::physics::flow::a(BLOCK_DATA) as *const u32;
+    for n in 0..0xA04 {
+        unsafe { to.add(n).write_unaligned(from.add(n).read_unaligned()) };
+    }
 }
 
 /// The Rust version (the original leaves registers nothing reads).
 pub fn show_replay_still() -> Result<(), Refused> {
     use crate::drive::*;
-    if !(1..=8).contains(&g(CARS)) {
+    if !(1..=8).contains(&RACE_VIEW.race_cars.get()) {
         return Err(BadInput("a cars' count of 0 or past 8").into());
     }
     unsafe {
@@ -72,13 +75,12 @@ pub fn show_replay_still() -> Result<(), Refused> {
             RACE_WORK
                 .current_car
                 .set(RACE_WORK.current_car.get().wrapping_add(1));
-            if RACE_WORK.current_car.get() == g(CARS) {
+            if RACE_WORK.current_car.get() == RACE_VIEW.race_cars.get() {
                 break;
             }
         }
-        for at in SWITCHES {
-            p(at, 0);
-        }
+        RACE_VIEW.view_on[0].set(0);
+        RACE_VIEW.view_on[1].set(0);
         FRAME_WORK.drawing.set(1);
         let kept = RACE_VARS.scene_switch.get();
         RACE_VARS.scene_switch.set(1);

@@ -14,8 +14,7 @@
 use crate::framework::rva;
 use crate::marks::store::{Slot, game_read, game_write};
 use crate::scene::draw_store::DRAW;
-
-const TEXTURE_RVA: usize = rva(0x5D1E10); // dword_5D1E10
+use crate::scene::kind_texture_store::KIND_TEXTURES;
 const VERTICES_RVA: usize = rva(0x9605A0); // g_polygonVertices: 0x20 bytes each
 const COLOUR_RVA: Slot = Slot::at(0x91FFA6); // dword_91FFA6
 const PLACES_RVA: Slot = Slot::at(0x91FFAA); // dword_91FFAA .. dword_91FFB6
@@ -28,7 +27,7 @@ const STATES: [(u32, u32); 5] = [(4, 0x15), (5, 0x13), (6, 0x14), (0, 0x1C), (1,
 /// `scene::depth_test_off`, the render states (`scene::set_render_state`).
 pub unsafe fn begin_quads() {
     unsafe {
-        crate::scene::set_texture::set_texture(game_read(TEXTURE_RVA));
+        crate::scene::set_texture::set_texture(KIND_TEXTURES.kind_first_slots[202].bits());
         crate::scene::depth_buffer_on::depth_buffer(true);
         crate::scene::depth_test_off::depth_test_off();
         for (value, state) in STATES {

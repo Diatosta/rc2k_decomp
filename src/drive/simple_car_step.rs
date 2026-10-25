@@ -14,13 +14,11 @@
 
 use crate::errors::Refused;
 use crate::physics::car_store::CAR;
-use crate::physics::flow::{g, p};
+use crate::physics::ground_store::GROUND_WORK;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::course_store::COURSE;
 use rc2k_core::drive::roaming::{roam_distance, roam_turn};
-
-const B: usize = 0x70F3EC; // g_carBlockStore
 
 /// The Rust version. The registers it leaves are read by no caller (liveness: ecx, edi
 /// and esi after `drive::race_tick`'s call have no read point).
@@ -51,19 +49,21 @@ pub unsafe fn simple_car_step() -> Result<(), Refused> {
     };
     CAR_BLOCKS.cars[0].position[0].set_bits(CAR_BLOCKS.cars[0].position[0].bits().wrapping_add(x));
     CAR_BLOCKS.cars[0].position[2].set_bits(CAR_BLOCKS.cars[0].position[2].bits().wrapping_add(z));
-    p(
-        B + 0x9C0,
+    CAR_BLOCKS.cars[0].car_heading.set_bits(
         CAR_BLOCKS.cars[0]
             .car_heading
             .bits()
             .wrapping_add(roam_turn(CAR_BLOCKS.cars[0].steering.bits())),
     );
     unsafe { crate::physics::wheel_surfaces::wheel_surfaces() }?;
-    p(0x639824, COURSE.place_x.get());
-    p(0x63982C, COURSE.place_z.get());
+    GROUND_WORK.ground_x.set(COURSE.place_x.get());
+    GROUND_WORK.ground_z.set(COURSE.place_z.get());
     unsafe { crate::physics::find_ground::find_ground() }?;
     if COURSE.ground_slot.get() != u32::MAX {
-        let y = g(0x639828).wrapping_add(PHYSICS.ground_drop.get());
+        let y = GROUND_WORK
+            .ground_height
+            .get()
+            .wrapping_add(PHYSICS.ground_drop.get());
         COURSE.place_y.set(y);
         CAR_BLOCKS.cars[0].position[1].set_bits(y);
     }

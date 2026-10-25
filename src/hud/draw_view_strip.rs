@@ -20,15 +20,21 @@ use crate::framework::rva;
 use crate::gfx::strips::STRIPS;
 use crate::scene::draw_store::DRAW;
 use crate::session::SCREEN;
-use crate::store::{game_read, game_write};
+use crate::store::game_read;
 use rc2k_core::hud::strips;
 
 const FLAT_RVA: usize = rva(0x6D1502); // dword_6D1502
-pub const QUAD_IN_RVA: usize = rva(0x623DE8); // dword_623DE8 .. dword_623E24
 const SHOWN_RVA: usize = rva(0x6D14F6); // dword_6D14F6
 
-fn set(r: impl crate::store::Where, v: u32) {
-    unsafe { game_write(r, v) };
+/// The quad's input at byte offset `o` from `dword_623DE8`: its colour and see-through,
+/// texture coordinates, then corners (three consecutive fields).
+fn quad_input(o: usize) -> &'static crate::session::Dword {
+    use crate::race::vars_store::RACE_VARS;
+    match o {
+        0..0x8 => &RACE_VARS.quad_colour[o / 4],
+        0x8..0x28 => &RACE_VARS.quad_uv[(o - 8) / 4],
+        _ => &RACE_VARS.quad_corners[(o - 0x28) / 4],
+    }
 }
 
 /// The strip's sizes into `dword_6D1870` .. (`strips::sizes`).
@@ -44,13 +50,13 @@ fn sizes(v: [u32; 4]) {
 fn quad(left: u32, width: u32, rows: u32, texture: Option<u32>) -> Result<(), Refused> {
     let sizes: [u32; 4] = std::array::from_fn(|n| STRIPS.sizes[n].get());
     for (o, v) in strips::quad_inputs(left, width, &sizes, rows) {
-        set(QUAD_IN_RVA + o, v);
+        quad_input(o).set_bits(v);
     }
     if let Some(t) = texture {
         DRAW.polygon_textures[0].set_bits(t);
     }
     DRAW.polygon_alpha.set_bits(0xFF);
-    set(QUAD_IN_RVA, 0xFFFF_FFFF);
+    quad_input(0).set_bits(0xFFFF_FFFF);
     DRAW.polygon_sides[0].set_bits(1);
     DRAW.polygon_sides[1].set_bits(0);
     unsafe { crate::scene::draw_flat_quad::draw_flat_quad() }

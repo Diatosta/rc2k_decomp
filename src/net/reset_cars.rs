@@ -9,11 +9,9 @@
 //! Caller: `net::set_up_race`.
 
 use crate::net::clear_car_state::clear_car_state;
-use crate::net::lobby::p;
+use crate::race::vars_store::RACE_VARS;
 use crate::race::work_store::RACE_WORK;
 use rc2k_core::net::cars;
-
-const AFTER: [usize; 2] = [0x6238CC, 0x6238D0]; // dword_6238CC, dword_6238D0
 
 /// The Rust version.
 pub fn reset_cars() {
@@ -25,7 +23,6 @@ pub fn reset_cars() {
         }
         clear_car_state(block);
     }
-    for x in AFTER {
-        p(x, 0);
-    }
+    RACE_VARS.race_level.set(0);
+    RACE_VARS.race_stage.set(0);
 }

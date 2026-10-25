@@ -16,20 +16,25 @@
 //! refuse.
 
 use crate::errors::Refused;
-use crate::framework::{game_read, game_write, rva};
 use crate::math::x87;
 use crate::physics::car_store::CAR;
 use crate::race::blocks_store::CAR_BLOCKS;
+use crate::race::numbers_store::NUMBERS;
+use crate::race::tables_store::RACE_TABLES;
+use crate::scene::light_store::LIGHT_STATE;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
 use rc2k_core::drive::start_places;
 
-fn g(x: u32) -> u32 {
-    unsafe { game_read(rva(x as usize)) }
-}
-
-fn p(x: u32, v: u32) {
-    unsafe { game_write(rva(x as usize), v) }
+/// `dword_605034`[start]: each car's number. The table holds 90; a start past it (the
+/// check lets up to 0x400 through) reads on into the variables after it, as the original.
+pub fn car_number(start: usize) -> u32 {
+    match RACE_TABLES.arcade_car_numbers.get(start) {
+        Some(number) => number.get(),
+        None => unsafe {
+            ((RACE_TABLES.arcade_car_numbers[0].addr() + 4 * start) as *const u32).read_unaligned()
+        },
+    }
 }
 
 /// The Rust version: `distance` (ebx) checkpoints on from the lead car. The registers it
@@ -38,34 +43,32 @@ fn p(x: u32, v: u32) {
 // turn stays x87).
 pub unsafe fn start_car_on_line(distance: u32) -> Result<(), Refused> {
     unsafe {
-        let start = g(0x6051A0);
+        let start = RACE_TABLES.start_slot.get();
         start_places::check_start(start)?;
-        CAR.start_slot_value.set(g(0x605034 + 4 * start));
+        CAR.start_slot_value.set(car_number(start as usize));
         CAR.driver_kind.set(start_places::STARTED_MODE);
         let checkpoint =
             start_places::start_checkpoint(CAR_BLOCKS.cars[0].checkpoint.get(), distance);
         for cell in [&CAR.checkpoint, &CAR.reset_checkpoint, &CAR.last_pace_call] {
             cell.set(checkpoint);
         }
-        for v in [0x6365E4, 0x6365EC] {
-            p(v, checkpoint);
-        }
-        let f = |x: u32| f32::from_bits(g(x));
+        LIGHT_STATE.line_place.set(checkpoint);
+        LIGHT_STATE.line_fraction.set(checkpoint);
         let share = start_places::start_share(
             start as i32,
-            g(0x6051B4) as i32,
-            f(0x5C5D38),
-            f(0x6051A8),
-            f(0x6051A4),
+            RACE_TABLES.arcade_cars.get() as i32,
+            NUMBERS.one.get(),
+            RACE_TABLES.arcade_b.get(),
+            RACE_TABLES.arcade_a.get(),
         )
         .to_bits();
-        p(0x6051AC, share);
+        RACE_TABLES.start_share.set_bits(share);
         CAR.start_share.set_bits(share);
         crate::race::start_place::place_car_on_line()?;
         crate::race::car_starts::reset_car_motion()?;
         CAR.local_velocity[0].set_bits(0);
         CAR.local_velocity[1].set_bits(0);
-        CAR.local_velocity[2].set_bits(x87::loaded(g(0x6051B0)));
+        CAR.local_velocity[2].set_bits(x87::loaded(RACE_TABLES.start_speed.bits()));
         let m = CAR.crash_matrix[0].addr() as u32;
         let out = rotate_point(
             m,

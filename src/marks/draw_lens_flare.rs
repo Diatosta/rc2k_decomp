@@ -15,12 +15,11 @@
 //! before anything.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::rva;
 use crate::marks::draw_flare_part::draw_flare_part;
 use crate::marks::store::{Slot, game_addr, game_read, game_write};
 use crate::math::x87;
+use crate::scene::draw_store::DRAW;
 
-const CENTRE_RVA: [usize; 2] = [rva(0x62409C), rva(0x6240A0)];
 const WAY_RVA: [Slot; 2] = [Slot::at(0x91FFDA), Slot::at(0x91FFDE)]; // flt_91FFDA, flt_91FFDE
 const UNIT_RVA: Slot = Slot::at(0x92051E); // flt_92051E .. flt_920526
 const LENGTH_RVA: Slot = Slot::at(0x91FFD6); // flt_91FFD6
@@ -44,7 +43,7 @@ pub unsafe fn draw_lens_flare() -> Result<(), Refused> {
         if (0..PARTS).any(|k| game_read::<u32>(CORNER_RVA + 4 * k as usize) >= 0x100) {
             return Err(BadInput("a flare corner past g_marksCorners").into());
         }
-        let [cx, cy] = CENTRE_RVA.map(|r| game_read::<u32>(r));
+        let [cx, cy] = [DRAW.view_centre[0].bits(), DRAW.view_centre[1].bits()];
         let dx = x87::sub(get(settings + 0x2758), cx);
         let dy = x87::sub(get(settings + 0x275C), cy) ^ 0x8000_0000;
         game_write(WAY_RVA[0], dx);

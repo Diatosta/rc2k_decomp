@@ -15,12 +15,12 @@
 use crate::errors::Refused;
 use crate::files::read_whole_file::read_whole_file;
 use crate::files::state::BYTES_READ;
-use crate::framework::{game_addr, game_write, rva};
+use crate::framework::{game_addr, rva};
 use crate::race::course_data::set_cdat_number;
 use crate::race::level_init::set_course_number;
+use crate::race::switches_store::FRAME_SWITCHES;
 use crate::scene::draw_store::DRAW;
 
-const FLAGS_RVA: usize = rva(0x621518); // dword_621518, 100 flags
 /// `srclvls\level01\cdat00c`, `files\levels\level01\cdat00c.sq`.
 const PATHS_RVA: [usize; 2] = [rva(0x60B02B), rva(0x60B07A)];
 use rc2k_core::race::stage_objects::COURSES;
@@ -33,7 +33,7 @@ pub fn find_present_courses() -> Result<(), Refused> {
         unsafe {
             set_course_number(n);
             set_cdat_number(0);
-            game_write(FLAGS_RVA + 4 * n as usize, 0u32);
+            FRAME_SWITCHES.course_present[n as usize].set(0); // dword_621518, 100 flags
             let present = course_present(PATHS_RVA.len() as u32, |file| {
                 BYTES_READ.store(0, std::sync::atomic::Ordering::Relaxed);
                 let buffer = DRAW.work_dword.addr() as u32;
@@ -42,7 +42,7 @@ pub fn find_present_courses() -> Result<(), Refused> {
                 Ok::<u32, Refused>(BYTES_READ.load(std::sync::atomic::Ordering::Relaxed))
             })?;
             if present {
-                game_write(FLAGS_RVA + 4 * n as usize, 1u32);
+                FRAME_SWITCHES.course_present[n as usize].set(1);
             }
         }
     }

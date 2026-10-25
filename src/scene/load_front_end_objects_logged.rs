@@ -11,16 +11,19 @@
 use crate::errors::Refused;
 use crate::framework::{game_read, rva};
 use crate::logfile::{log_hex8::log_hex8, log_write::log_write};
+use crate::scene::object_store::OBJECT_WORK;
 
 const RULE: &std::ffi::CStr = c"===========================";
 const LOADED: &std::ffi::CStr = c"Front end objects loaded";
 const RULE_2: &std::ffi::CStr = c"===========================";
 /// (label, value)
-const TOTALS: [(&std::ffi::CStr, usize); 4] = [
-    (c"total points", 0x5CD680),   // "total points", g_objectPointCount
-    (c"total pointmem", 0x634FA4), // "total pointmem"
-    (c"total faces", 0x5CD67C),    // "total faces"
-    (c"total facemem", 0x634FA8),  // "total facemem"
+type Total = (&'static std::ffi::CStr, fn() -> u32);
+const TOTALS: [Total; 4] = [
+    // "total points", g_objectPointCount
+    (c"total points", || unsafe { game_read(rva(0x5CD680)) }),
+    (c"total pointmem", || OBJECT_WORK.point_memory_total.bits()),
+    (c"total faces", || unsafe { game_read(rva(0x5CD67C)) }),
+    (c"total facemem", || OBJECT_WORK.face_memory_total.bits()),
 ];
 
 /// The Rust version.
@@ -32,7 +35,7 @@ pub unsafe fn load_front_end_objects_logged() -> Result<(), Refused> {
         log_write(text(LOADED), true, 1);
         for (label, value) in TOTALS {
             log_write(text(label), false, 1);
-            log_hex8(game_read(rva(value)), true, 1);
+            log_hex8(value(), true, 1);
         }
         log_write(text(RULE_2), true, 1);
     }

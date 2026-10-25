@@ -28,18 +28,15 @@ use crate::marks::mark_slots::{SLOTS, TUNING};
 use crate::marks::setup::CLOCK;
 use crate::marks::store::{Slot, game_addr, game_read, game_write};
 use crate::math::x87;
+use crate::race::matrices_store::MATRICES;
 use crate::race::numbers_store::NUMBERS;
 use crate::scene::draw_store::DRAW;
+use crate::scene::kind_texture_store::KIND_TEXTURES;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
-
-const PLACE_RVA: usize = rva(0x5EA3CC); // flt_5EA3CC: add_mark_slot's esi
-const TEXTURE_RVA: usize = rva(0x5D1E10); // dword_5D1E10
 const POINTS_RVA: Slot = Slot::at(0x769312); // flt_769312: 12 bytes each
-const VIEW_RVA: usize = rva(0x5EA2CC); // g_viewMatrix
 const CORNERS_RVA: Slot = Slot::at(0x8EB971); // g_marksCorners
 const UV_K_RVA: Slot = Slot::at(0x8EB969); // flt_8EB969
-const CENTRE_RVA: [usize; 2] = [rva(0x62409C), rva(0x6240A0)];
 const Z_K_RVA: Slot = Slot::at(0x8EB96D); // flt_8EB96D
 const VERTICES_RVA: usize = rva(0x9605A0); // g_polygonVertices: TLVertex[4]
 /// Each vertex's texture place: the corner entry's word offsets (u, v).
@@ -75,10 +72,10 @@ pub unsafe fn draw_mark_slots() -> Result<(), Refused> {
         if get(settings + 0x8C) != 0 {
             crate::marks::add_mark_slot::add_mark_slot(
                 get(settings + 0x64),
-                game_addr(PLACE_RVA) as u32,
+                MATRICES.view_place[0].addr() as u32,
             );
         }
-        crate::scene::set_texture::set_texture(game_read(TEXTURE_RVA));
+        crate::scene::set_texture::set_texture(KIND_TEXTURES.kind_first_slots[202].bits());
         for s in SLOTS.slots.iter().rev() {
             if (s.life.get() as i32) <= 0 {
                 continue;
@@ -92,7 +89,7 @@ pub unsafe fn draw_mark_slots() -> Result<(), Refused> {
             let y = crate::math::x87_run::sub_mul(b, k4[1], k4[2]);
             let x = x87::mul(a, k4[3]);
             let once = rotate_point(s.matrix.get(), [extended(z), extended(y), extended(x)]);
-            let twice = rotate_point(game_addr(VIEW_RVA) as u32, once);
+            let twice = rotate_point(MATRICES.view_matrix[0].addr() as u32, once);
             let [z, y, x] = twice.map(rounded);
             for (n, v) in [z, y, x].into_iter().enumerate() {
                 SLOTS.work[n].set(v);
@@ -121,9 +118,9 @@ pub unsafe fn draw_mark_slots() -> Result<(), Refused> {
                 DRAW.view_scale.bits(),
                 x,
                 z,
-                game_read(CENTRE_RVA[0]),
+                DRAW.view_centre[0].bits(),
                 y,
-                game_read(CENTRE_RVA[1]),
+                DRAW.view_centre[1].bits(),
                 SLOTS.slots[0].size.bits(),
             );
             SLOTS.work[0].set(px);

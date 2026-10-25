@@ -5,23 +5,12 @@
 //! 2 unlock (eax the slot), 3 a text (eax font, ebx text, ecx x, edx y).
 
 use crate::errors::Refused;
-use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::gfx::fonts_store::FONTS;
 use crate::gfx::screen_state::DRAW_SURFACE;
+use crate::race::overlay_store::RACE_OVERLAY as OVERLAY;
 use crate::race::view_store::RACE_VIEW;
+use crate::scene::kind_texture_store::KIND_TEXTURES;
 use crate::strings::text_buffer::TEXT_BUFFER;
-
-fn k(a: u32) -> u32 {
-    unsafe { game_read(rva(a as usize)) }
-}
-
-fn w(a: u32, v: u32) {
-    unsafe { game_write(rva(a as usize), v) }
-}
-
-fn ga(a: u32) -> u32 {
-    game_addr(rva(a as usize)) as u32
-}
 
 /// `rows` rows of the locked surface from `edi` cleared (`rep stosd` of the row's dwords, then
 /// the row's gap). Gives edi after them.
@@ -97,9 +86,12 @@ pub unsafe fn draw_time_plate(slot: u32) -> Result<(), Refused> {
             start.wrapping_add(DRAW_SURFACE.pixels.get()),
             time_rows(line),
         );
-        for (text, (x, y)) in [0x6D1838u32, 0x6D1844].into_iter().zip(time_places(line)) {
+        for (text, (x, y)) in [&OVERLAY.label_behind[0], &OVERLAY.label_ahead[0]]
+            .into_iter()
+            .zip(time_places(line))
+        {
             FONTS.game_fonts[3].update(|f| f.box_width = TIME_BOX);
-            draw_text_in_game(FONTS.game_fonts[3].addr() as u32, ga(text), x, y)?;
+            draw_text_in_game(FONTS.game_fonts[3].addr() as u32, text.addr() as u32, x, y)?;
         }
         unlock_texture(slot)?;
         Ok(())
@@ -126,28 +118,42 @@ pub unsafe fn update_name_plates() -> Result<(), Refused> {
         // Converted: `rc2k_core::race::plates::{times_changed, NameAsk}`.
         use rc2k_core::race::plates::{NameAsk, times_changed};
         let field = |b: u32, o: u32| (b + o) as *mut u32;
-        let now = [0x6D1838, 0x6D183C, 0x6D1844, 0x6D1848].map(k);
-        let kept = [0x6D1850, 0x6D1854, 0x6D185C, 0x6D1860].map(k);
+        let now = [
+            OVERLAY.label_behind[0].get(),
+            OVERLAY.label_behind[1].get(),
+            OVERLAY.label_ahead[0].get(),
+            OVERLAY.label_ahead[1].get(),
+        ];
+        let kept = [
+            OVERLAY.kept_behind[0].get(),
+            OVERLAY.kept_behind[1].get(),
+            OVERLAY.kept_ahead[0].get(),
+            OVERLAY.kept_ahead[1].get(),
+        ];
         if times_changed(now, kept) {
-            draw_time_plate(k(0x5D0DF8))?;
+            draw_time_plate(KIND_TEXTURES.kind_first_textures[196].get())?;
             for (from, to) in [
-                (0x6D1838u32, 0x6D1850u32),
-                (0x6D183C, 0x6D1854),
-                (0x6D1844, 0x6D185C),
-                (0x6D1848, 0x6D1860),
+                (&OVERLAY.label_behind[0], &OVERLAY.kept_behind[0]),
+                (&OVERLAY.label_behind[1], &OVERLAY.kept_behind[1]),
+                (&OVERLAY.label_ahead[0], &OVERLAY.kept_ahead[0]),
+                (&OVERLAY.label_ahead[1], &OVERLAY.kept_ahead[1]),
             ] {
-                w(to, k(from));
+                to.set(from.get());
             }
             for &b in &blocks {
                 field(b, 0x720).write_unaligned(1);
             }
         }
-        for (b, slot) in blocks.into_iter().zip([0x5D0DF8u32, 0x5D0DFC]) {
+        for (b, slot) in blocks.into_iter().zip([196, 197]) {
             let asked = field(b, 0x71C).read_unaligned();
             match NameAsk::of(asked) {
                 NameAsk::Nothing => continue,
-                NameAsk::Id(_) => draw_plate_by_id(k(slot), asked)?,
-                NameAsk::Text(_) => draw_name_plate(k(slot), asked)?,
+                NameAsk::Id(_) => {
+                    draw_plate_by_id(KIND_TEXTURES.kind_first_textures[slot].get(), asked)?
+                }
+                NameAsk::Text(_) => {
+                    draw_name_plate(KIND_TEXTURES.kind_first_textures[slot].get(), asked)?
+                }
             }
             // ebx at the store: the name asked for (every drawing keeps its registers).
             field(b, 0x724).write_unaligned(asked);

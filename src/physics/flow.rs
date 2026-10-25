@@ -79,20 +79,6 @@ pub fn ease_zero(v: impl crate::store::At, step: impl crate::store::At) {
     }
 }
 
-/// Three dwords copied as integers (`mov eax, [from]; mov [to], eax`, three times).
-pub fn copy3(to: usize, from: usize) {
-    for k in 0..3 {
-        p(to + 4 * k, g(from + 4 * k));
-    }
-}
-
-/// Three dwords set to `v`.
-pub fn fill3(to: usize, v: u32) {
-    for k in 0..3 {
-        p(to + 4 * k, v);
-    }
-}
-
 /// A clamped table lerp (the damage model's, e.g. 0x4AB61C .. 0x4AB680): the table at
 /// `t` is (x0, y0, x1, y1); the value at `x` below x0 (or unordered) gives y0, below x1
 /// gives y0 + (x - x0) / (x1 - x0) x (y1 - y0) (y0 when x1 - x0, unrounded, equals the
@@ -165,6 +151,22 @@ fn x87_2(x: usize, t: usize, o: usize) {
         let t11 = fld(t, 4);
         let t12 = t10 + t11;
         fstp(o, 0, t12);
+    }
+}
+
+/// The first three cells of `from` copied as integers (`mov eax, [from]; mov [to], eax`,
+/// three times) into the first three of `to`: `copy3` for typed cells (a `Float` goes by
+/// its bits).
+pub fn copy_cells<A: crate::session::Cell32, B: crate::session::Cell32>(to: &[A], from: &[B]) {
+    for k in 0..3 {
+        to[k].set_bits(from[k].bits());
+    }
+}
+
+/// The first three cells of `to` set to the bits `v` (`fill3` for typed cells).
+pub fn fill_cells<A: crate::session::Cell32>(to: &[A], v: u32) {
+    for cell in &to[..3] {
+        cell.set_bits(v);
     }
 }
 

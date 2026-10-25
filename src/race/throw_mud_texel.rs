@@ -12,12 +12,10 @@
 //! refusals (the counts and the random state put back).
 
 use crate::errors::Refused;
-use crate::framework::{game_read, game_write, rva};
 use crate::math::next_random::next_random;
 use crate::race::muddy_texel::{muddy_texel, texture_and_mud};
 use crate::race::vars_store::RACE_VARS;
 
-pub const THROWN_RVA: usize = rva(0x623D80); // dword_623D80: each texture's count
 pub use rc2k_core::race::mud::LAST_THROWN;
 
 /// The Rust version (see the header).
@@ -25,12 +23,13 @@ pub unsafe fn throw_mud_texel() -> Result<(), Refused> {
     // Converted: `rc2k_core::race::mud::{LAST_THROWN, extra_throw}`.
     let (n, _) = texture_and_mud()?;
     unsafe {
-        let count_at = THROWN_RVA + 4 * n as usize;
-        let count: u32 = game_read(count_at);
+        // dword_623D80: each texture's count (the texture is 0 .. 3).
+        let count_cell = &RACE_VARS.mud_thrown_counts[n as usize];
+        let count: u32 = count_cell.bits();
         if count >= LAST_THROWN {
             return Ok(());
         }
-        game_write(count_at, count + 1);
+        count_cell.set(count + 1);
         muddy_texel(count)?;
         let (sum, carried) = rc2k_core::race::mud::extra_throw(RACE_VARS.mud_extra_sum.bits());
         RACE_VARS.mud_extra_sum.set_bits(sum);

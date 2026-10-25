@@ -30,11 +30,12 @@ use crate::math::x87;
 use crate::math::x87_float::X;
 use crate::math::x87_run::{abs_compare, mul_status};
 use crate::physics::car_store::CAR;
-use crate::physics::flow::{a, c3, ease_zero, g, hold_high, hold_low, negate};
+use crate::physics::flow::{c3, ease_zero, hold_high, hold_low, negate};
 use crate::physics::tables_store::PHYSICS;
 use crate::race::numbers_store::NUMBERS;
 use crate::scene::draw_store::DRAW;
 use crate::scene::x87_mem::{fild, fistp, fld, fstp};
+use crate::session::Float;
 
 /// `edx` = the steer angle's table index (+0x64C >> 20).
 fn steer_index() -> u32 {
@@ -67,16 +68,20 @@ pub unsafe fn drive_grip_forces() {
     steer_force(edx);
     if !c3(CAR.local_velocity[2].bits(), NUMBERS.zero.bits()) {
         // 0x43CE53: the slip limit, by the drive kind's factor.
-        let factor = if kind == 1 { 0x613EB0 } else { 0x613EAC };
-        x87_3(crate::race::store::asm_base() as usize, a(factor) as usize);
+        let factor = if kind == 1 {
+            &PHYSICS.grip_factor[1]
+        } else {
+            &PHYSICS.grip_factor[0]
+        };
+        x87_3(crate::race::store::asm_base() as usize, factor.addr());
         DRAW.scratch.set(CAR.grip_forces[0].bits());
         // +0x210 held to ±the limit (the value negated in place between).
         hold_high(&CAR.grip_forces[0], &PHYSICS.grip_limit);
         negate(&crate::physics::car_store::CAR.grip_forces[0]);
         hold_high(&CAR.grip_forces[0], &PHYSICS.grip_limit);
         negate(&crate::physics::car_store::CAR.grip_forces[0]);
-        let slow = |v: usize| abs_compare(g(v), PHYSICS.grip_slow_speed.bits()) & 0x100 != 0;
-        if !slow(0x71A184) && slow(0x71A190) {
+        let slow = |v: &Float| abs_compare(v.bits(), PHYSICS.grip_slow_speed.bits()) & 0x100 != 0;
+        if !slow(&CAR.local_velocity[2]) && slow(&CAR.drive_speed_a) {
             CAR.grip_forces[0].set_bits(0);
         }
         if CAR.input_keys.get() & 0x1000 != 0 {
@@ -92,10 +97,14 @@ pub unsafe fn drive_grip_forces() {
     }
     // 0x43CFB7
     if CAR.parts_state.get() == 1 {
-        let k = if kind == 1 { 0x613E5C } else { 0x613E60 };
+        let k = if kind == 1 {
+            &PHYSICS.grip_rear_drive[0]
+        } else {
+            &PHYSICS.grip_rear_drive[1]
+        };
         CAR.grip_forces[0].set_bits(x87::mul(
             crate::physics::car_store::CAR.grip_forces[0].bits(),
-            g(k),
+            k.bits(),
         ));
     }
     CAR.grip_forces[3].set_bits(0);
@@ -138,10 +147,14 @@ pub unsafe fn drive_grip_forces() {
         ));
     }
     if CAR.parts_state.get() == u32::MAX {
-        let k = if kind == 1 { 0x613E54 } else { 0x613E58 };
+        let k = if kind == 1 {
+            &PHYSICS.grip_front_drive[0]
+        } else {
+            &PHYSICS.grip_front_drive[1]
+        };
         CAR.grip_forces[1].set_bits(x87::mul(
             crate::physics::car_store::CAR.grip_forces[1].bits(),
-            g(k),
+            k.bits(),
         ));
     }
     CAR.grip_forces[2].set_bits(0);

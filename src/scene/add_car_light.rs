@@ -25,16 +25,16 @@
 use crate::errors::BadInput;
 use crate::framework::{game_read, game_write, rva};
 use crate::race::numbers_store::NUMBERS;
-use crate::scene::add_point_lights::{LIGHT_COLOUR_RVA, LIT_PLACE_RVA};
+use crate::scene::add_point_lights::LIGHT_COLOUR_RVA;
 use crate::scene::draw_polygon::CHECKED_RVA;
+use crate::scene::light_store::LIGHT_STATE;
+use crate::scene::light_work_store::LIGHT_WORK;
 use crate::scene::polygon::dword;
 use crate::scene::vertex_light::plus;
 use crate::scene::x87_mem::{fild, fistp, fld};
 use crate::session::MACHINE;
 
 // ---- game data ----
-
-const SEEN_RVA: usize = rva(0x6365B8); // dword_6365B8, dword_6365BC, dword_6365C0
 const TABLE_RVA: usize = rva(0x635D18); // dword_635D18
 /// In a car's block.
 const LAMPS_ON: usize = 0x84;
@@ -154,10 +154,10 @@ pub unsafe fn add_car_light(car: usize) -> Result<(), BadInput> {
         if dword(car + LAMPS_ON) == 0 {
             return Ok(());
         }
-        let place: [u32; 3] = game_read(LIT_PLACE_RVA);
+        let place: [u32; 3] = crate::session::read_bits(&LIGHT_STATE.lit_place);
         let from = [0, 1, 2].map(|k| place[k].wrapping_sub(dword(car + PLACE + k * 4)));
         let seen = turned(from, (car + MATRIX) as *const u32);
-        game_write(SEEN_RVA, seen);
+        crate::session::write_bits(&LIGHT_STATE.turned_light, seen);
         let [x, y, z] = seen;
         let factor: u32 = NUMBERS.one_over_65536.bits();
         let ahead = squares(z.wrapping_sub(0x20_0000), x.wrapping_add(x), factor, true);
@@ -174,7 +174,7 @@ pub unsafe fn add_car_light(car: usize) -> Result<(), BadInput> {
         let mmx = MACHINE.has_mmx.get() != 0;
         game_write(
             LIGHT_COLOUR_RVA,
-            plus(colour, game_read(LIGHT_COLOUR_RVA), mmx),
+            plus(colour, LIGHT_WORK.light_colour.bits(), mmx),
         );
         Ok(())
     }

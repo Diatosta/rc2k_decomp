@@ -20,6 +20,7 @@ use crate::physics::flow::{c0, g, p};
 use crate::physics::tables_store::PHYSICS;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::state_store::RACE_STATE;
+use crate::race::viewer_state_store::REPLAY_VIEW;
 use crate::scene::x87_mem::{fild, fistp, fld};
 
 /// The car's lift: `dword_70F524` += `flt_64BB38` x `flt_5C5D98` (`fiadd`, `fistp`), over the
@@ -45,7 +46,7 @@ pub unsafe fn finish_run() -> Result<(), Refused> {
     for k in 0..0x20 {
         p(0x5CC1B0 + 4 * k, u32::MAX);
     }
-    p(0x5C2538, u32::MAX);
+    REPLAY_VIEW.play_end.set(u32::MAX);
     restart_clock();
     p(0x64BB60, PHYSICS.scene_clock.get());
     loop {

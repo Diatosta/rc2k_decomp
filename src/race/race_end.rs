@@ -4,29 +4,52 @@
 
 use crate::errors::Refused;
 use crate::framework::rva;
+use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::numbers_store::NUMBERS;
+use crate::race::replay_work_store::REPLAY_WORK;
 use crate::race::state_store::RACE_STATE;
+use crate::race::switches_store::FRAME_SWITCHES;
+use crate::race::tables_store::RACE_TABLES;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
+use crate::race::view_vars_store::VIEW_VARS;
 use crate::sound::sets_store::SPOT_VOICES;
-use crate::store::{game_read, game_write};
-
-/// The replay's car header (`dword_719B14` ..).
-pub const HEADER: usize = 0x719B14;
+use crate::store::game_write;
 
 /// Where a header setting lives in the race's variables (its first place).
-pub fn setting_place(s: rc2k_core::race::replay::Setting) -> usize {
+pub fn setting_cell(s: rc2k_core::race::replay::Setting) -> &'static crate::session::Dword {
     use rc2k_core::race::replay::Setting::*;
     match s {
-        Seed => 0x60519C,
-        StartPlace => 0x6051BC,
-        ArcadeCars => 0x6051B4,
-        Stage => 0x623850,
-        Mode => 0x62389C,
-        Players => 0x63DB94,
-        Cars => 0x63DB90,
-        Kind(n) => 0x70F410 + 0xFE0 * n as usize,
-        GameOver(n) => 0x70F49C + 0xFE0 * n as usize,
+        Seed => &RACE_TABLES.noise_seed,
+        StartPlace => &RACE_TABLES.start_place,
+        ArcadeCars => &RACE_TABLES.arcade_cars,
+        Stage => &RACE_VARS.stage_number,
+        Mode => &RACE_VARS.run_kind,
+        Players => &RACE_VIEW.players,
+        Cars => &RACE_VIEW.race_cars,
+        Kind(n) => &CAR_BLOCKS.cars[n as usize].car_kind,
+        GameOver(n) => &CAR_BLOCKS.cars[n as usize].stop_state,
+    }
+}
+
+/// Where a header setting lives in the replay's car header (`dword_719B14` ..).
+pub fn header_cell(s: rc2k_core::race::replay::Setting) -> &'static crate::session::Dword {
+    use rc2k_core::race::replay::Setting::*;
+    match s {
+        Stage => &REPLAY_WORK.header_stage,
+        Mode => &REPLAY_WORK.header_mode,
+        Players => &REPLAY_WORK.header_players,
+        Cars => &REPLAY_WORK.header_cars,
+        Kind(0) => &REPLAY_WORK.header_kind_0,
+        Kind(1) => &REPLAY_WORK.header_kind_1,
+        Kind(2) => &REPLAY_WORK.header_kind_2,
+        Kind(3) => &REPLAY_WORK.header_kind_3,
+        StartPlace => &REPLAY_WORK.header_start_place,
+        ArcadeCars => &REPLAY_WORK.header_arcade_cars,
+        Seed => &REPLAY_WORK.header_seed,
+        GameOver(0) => &REPLAY_WORK.header_game_over_0,
+        GameOver(1) => &REPLAY_WORK.header_game_over_1,
+        Kind(_) | GameOver(_) => unreachable!("the header holds four kinds and two flags"),
     }
 }
 
@@ -53,21 +76,20 @@ const REPLAY_WORDS: [&std::ffi::CStr; 13] = [
 /// "[replayheader.x]" (`log_write_l1`) and its value (`log_int_l1_nl`). Every register
 /// kept (the logs inside `pusha`); it reads none.
 pub unsafe fn record_replay_header() {
-    // Converted: `rc2k_core::race::replay::{HEADER_SETTINGS, Setting::offset}`.
+    // Converted: `rc2k_core::race::replay::HEADER_SETTINGS`.
     use rc2k_core::race::replay::HEADER_SETTINGS;
-    let to = |s: rc2k_core::race::replay::Setting| rva(HEADER) + s.offset() as usize;
-    unsafe {
-        for s in HEADER_SETTINGS {
-            game_write(to(s), game_read::<u32>(rva(setting_place(s))));
-        }
-        for (n, &s) in HEADER_SETTINGS.iter().enumerate() {
+    for s in HEADER_SETTINGS {
+        header_cell(s).set(setting_cell(s).get());
+    }
+    for (n, &s) in HEADER_SETTINGS.iter().enumerate() {
+        unsafe {
             crate::logfile::log_write::log_write(
                 REPLAY_WORDS[n].as_ptr() as usize as *const u8,
                 false,
                 1,
-            );
-            crate::logfile::log_int::log_int(game_read::<u32>(to(s)) as i32, true, 1);
-        }
+            )
+        };
+        crate::logfile::log_int::log_int(header_cell(s).get() as i32, true, 1);
     }
 }
 
@@ -278,7 +300,7 @@ pub unsafe fn tidy_stage(v: &LoadVars) -> Result<(), Refused> {
         s.indent(3);
         free(&OBJECT_POINTS)?;
         (v.in_race as *mut u32).write_unaligned(0);
-        game_write(rva(0x606294), RACE_VARS.kept_scale.get());
+        VIEW_VARS.view_scale.set_bits(RACE_VARS.kept_scale.get());
         s.indent(-3);
         s.log(STAGE_WORDS[9]);
     }
@@ -331,9 +353,11 @@ pub unsafe fn run_race(indent: u32) -> Result<(), Refused> {
         game_write(rva(0x60101C), 1u32);
         (indent as *mut u32).write_unaligned(0);
         if RACE_STATE.results.race_stage.get() == 0 && RACE_STATE.settings.run_kind.get() == 2 {
-            game_write(rva(0x60519C), crate::math::next_random::next_random());
+            RACE_TABLES
+                .noise_seed
+                .set(crate::math::next_random::next_random());
         }
-        game_write(rva(0x621514), 0u32);
+        FRAME_SWITCHES.editor_mode.set(0u32);
         NUMBERS.replay_mode.set_bits(1u32);
         crate::race::settings_copy::copy_settings_in()?;
         crate::race::race_cars::set_up_arcade_cars()?;
@@ -364,7 +388,7 @@ pub unsafe fn release_textures() {
 /// `race::start_race` (0x4278B7): `dword_621870` 0, `race::run_race`.
 pub unsafe fn start_race() -> Result<(), Refused> {
     unsafe {
-        game_write(rva(0x621870), 0u32);
+        FRAME_SWITCHES.mask_kind.set(0u32);
         run_race(crate::logfile::write_line::indent_place()) // g_logIndent
     }
 }

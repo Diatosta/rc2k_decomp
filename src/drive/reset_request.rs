@@ -15,7 +15,7 @@
 
 use crate::errors::Refused;
 use crate::physics::car_store::CAR;
-use crate::physics::flow::{c0, p};
+use crate::physics::flow::c0;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::vars_store::RACE_VARS;
 use rc2k_core::drive::controls::{
@@ -58,8 +58,7 @@ pub unsafe fn reset_request() -> Result<(), Refused> {
     if !reset {
         return Ok(());
     }
-    p(
-        0x71A060,
+    CAR.stage_time.set(
         CAR.stage_time
             .get()
             .wrapping_add(reset_penalty(CAR.stuck_count.get())),

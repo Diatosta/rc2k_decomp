@@ -14,7 +14,7 @@ use crate::errors::{BadInput, Refused};
 use crate::math::x87_run::{mul_div2, sum_times_int_over_minus};
 use crate::physics::car_store::CAR;
 use crate::physics::drive_torque_share::drive_torque_share;
-use crate::physics::engine_torque::{g, p};
+use crate::physics::engine_torque::g;
 use crate::physics::engine_torque_or_cut::engine_torque_or_cut;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::numbers_store::NUMBERS;
@@ -26,24 +26,18 @@ pub unsafe fn drive_force() -> Result<(), Refused> {
         return Err(BadInput("a gear outside g_gearRatios (-1 ..= 7)").into());
     }
     unsafe { engine_torque_or_cut() };
-    p(
-        0x614740,
-        sum_times_int_over_minus(
-            PHYSICS.engine_force.bits(),
-            PHYSICS.engine_torque.bits(),
-            CAR.throttle.get() as i32,
-            NUMBERS.k256.bits(),
-        ),
-    );
-    p(
-        0x614750,
-        mul_div2(
-            PHYSICS.drive_ratio.bits(),
-            g(0x5CB968),
-            g(0x6140C0 + 4 * gear as usize),
-            NUMBERS.k10000.bits(),
-        ),
-    );
+    PHYSICS.drive_ratio.set_bits(sum_times_int_over_minus(
+        PHYSICS.engine_force.bits(),
+        PHYSICS.engine_torque.bits(),
+        CAR.throttle.get() as i32,
+        NUMBERS.k256.bits(),
+    ));
+    PHYSICS.drive_torque.set_bits(mul_div2(
+        PHYSICS.drive_ratio.bits(),
+        g(0x5CB968),
+        PHYSICS.gear_ratios[(gear as i32 + 1) as usize].bits(),
+        NUMBERS.k10000.bits(),
+    ));
     if CAR.drive_cut_steps.get() != 0 {
         PHYSICS.drive_torque.set_bits(0);
     }

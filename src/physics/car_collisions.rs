@@ -21,8 +21,9 @@
 use crate::errors::{BadInput, Refused};
 use crate::physics::car_store::CAR;
 use crate::physics::car_store::Car;
+use crate::physics::contact_store::CONTACT_WORK;
 use crate::physics::corner_hits_car::corner_hits_car;
-use crate::physics::flow::{a, g, p};
+use crate::race::matrices_store::MATRICES;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
 use crate::race::work_store::RACE_WORK;
@@ -51,37 +52,39 @@ pub unsafe fn car_collisions() -> Result<(), Refused> {
         return Err(BadInput("a null car block").into());
     }
     {
-        p(0x6D3BB4, 0);
+        CONTACT_WORK.corner_inside.set(0);
         for car in 0..n {
             if car == RACE_WORK.current_car.get() {
                 continue;
             }
-            p(0x6D3CD4, car);
+            CONTACT_WORK.other_car_number.set(car);
             let block = RACE_WORK.car_block(car as usize);
-            p(0x6D3BB8, block);
+            CONTACT_WORK.other_car_block.set(block);
             // SAFETY: a `g_carBlocks` entry of the eight, not null (both checked above).
             if unsafe { Car::at(block) }.driver_kind.bits() == 0 {
                 continue;
             }
             unsafe {
-                set_place(
-                    [0, 4, 8].map(|o| g(0x71A10C + o).wrapping_sub(rd(block + 0x134 + o as u32))),
-                );
+                set_place([0usize, 1, 2].map(|k| {
+                    CAR.position[k]
+                        .get()
+                        .wrapping_sub(rd(block + 0x134 + 4 * k as u32))
+                }));
                 multiply_matrices(
                     CAR.crash_matrix[0].addr() as u32 as usize,
-                    a(0x5EA04C) as usize,
-                    a(0x5EA10C) as usize,
+                    (MATRICES.placed_matrix[0].addr() as u32) as usize,
+                    (MATRICES.turned_matrix[0].addr() as u32) as usize,
                 );
                 multiply_matrices(
-                    a(0x5EA10C) as usize,
+                    (MATRICES.turned_matrix[0].addr() as u32) as usize,
                     (block + 0x9CC) as usize,
-                    a(0x6D3C40) as usize,
+                    (CONTACT_WORK.corner_matrix[0].addr() as u32) as usize,
                 );
             }
             for k in 0..8 {
-                p(0x6D3BD4, g(0x6D3BE0 + 4 * k));
-                p(0x6D3BD8, g(0x6D3C00 + 4 * k));
-                p(0x6D3BDC, g(0x6D3C20 + 4 * k));
+                CONTACT_WORK.corner_in[0].set_bits(CONTACT_WORK.corner_x[k].bits());
+                CONTACT_WORK.corner_in[1].set_bits(CONTACT_WORK.corner_y[k].bits());
+                CONTACT_WORK.corner_in[2].set_bits(CONTACT_WORK.corner_z[k].bits());
                 unsafe { corner_hits_car(block) }?;
             }
         }

@@ -15,16 +15,10 @@
 //! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, rva};
 use crate::math::x87;
+use crate::physics::car_store::CAR;
+use crate::physics::contact_store::CONTACT_WORK;
 use crate::race::numbers_store::NUMBERS;
-
-/// The count, the lowest, its number, the share, then the 0x40 depths.
-fn variables() -> Vec<usize> {
-    let mut v = vec![0x71A238, 0x6D3068, 0x6D306C, 0x6D3070];
-    v.extend((0..0x40).map(|k| 0x6D2514 + 4 * k));
-    v
-}
 
 /// The Rust core on the variables at `v`. The registers it leaves (ebx the count, eax
 /// the last depth) are read by none of its callers.
@@ -52,11 +46,20 @@ pub unsafe fn lowest_at(v: &[u32]) -> Result<(), Refused> {
     }
 }
 
+/// The addresses: the count, the lowest, its number, the share, then the 0x40 depths.
 fn game() -> Vec<u32> {
-    variables()
-        .iter()
-        .map(|&x| game_addr(rva(x)) as u32)
-        .collect()
+    let mut v = vec![
+        CAR.probe_count.addr() as u32,
+        CONTACT_WORK.lowest_depth.addr() as u32,
+        CONTACT_WORK.lowest_point.addr() as u32,
+        CONTACT_WORK.wheel_share.addr() as u32,
+    ];
+    v.extend(
+        CONTACT_WORK.probe_height[..0x40]
+            .iter()
+            .map(|c| c.addr() as u32),
+    );
+    v
 }
 
 /// The Rust version (the exact one, for `physics::feel_ground`, `ground_contact`,

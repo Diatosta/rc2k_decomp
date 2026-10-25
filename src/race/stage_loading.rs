@@ -5,8 +5,13 @@
 
 use crate::errors::Refused;
 use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::physics::ground_store::GROUND_WORK;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::blocks_store::CAR_BLOCKS;
+use crate::race::overlay_store::RACE_OVERLAY;
+use crate::race::switches_store::FRAME_SWITCHES;
+use crate::race::view_store::RACE_VIEW;
+use crate::race::work_store::RACE_WORK;
 
 /// "------", "SHAUNINITEVERYTHING - START", ": loading screen / ..", ": loadlevel_init",
 /// ": doingamemusic", ": createcontrols", ": race init", "- FINIS", "------".
@@ -21,27 +26,8 @@ const WORDS: [&std::ffi::CStr; 9] = [
     c"SHAUNINITEVERYTHING - FINIS",
     c"----------------------------",
 ];
-const REPLAY_RVA: usize = crate::race::sounds::REPLAY_RVA; // dword_71C3E0
 const CAR_MINUS_4_RVA: usize = rva(0x70F3E8); // dword_70F3E8
 const NO_PLACE_RVA: usize = rva(0x64BB18); // dword_64BB18
-/// The starting values: (address, value; `None` the clock).
-const STARTS: [(usize, Option<u32>); 7] = [
-    (0x5CC3BC, None),
-    (0x5CC3B8, Some(0)),
-    (0x61383C, None),
-    (0x613840, None),
-    (0x6D1810, Some(0)),
-    (0x6D1482, Some(u32::MAX)),
-    (0x6D1492, Some(u32::MAX)),
-];
-const LAST_STARTS: [(usize, u32); 5] = [
-    (0x621480, 1),
-    (0x621890, 1),
-    (0x639684, 0),
-    (0x63DB74, 1),
-    (0x63DB78, 1),
-];
-
 unsafe fn put(at: usize, v: u32) {
     unsafe { (game_addr(rva(at)) as *mut u32).write_unaligned(v) };
 }
@@ -73,7 +59,9 @@ pub unsafe fn load_stage() -> Result<(), Refused> {
         log();
         log();
         indent(3);
-        if game_read::<u32>(REPLAY_RVA) == 0 {
+        if RACE_WORK.in_credits.get() == 0
+        /* dword_71C3E0 */
+        {
             // As `menu::show_loading_picture`.
             crate::gfx::show_picture_file::show_picture_file(
                 crate::menu::texts_store::MENU_TEXTS.loading_pcx.addr() as *mut u8,
@@ -103,18 +91,24 @@ pub unsafe fn load_stage() -> Result<(), Refused> {
         crate::drive::race_init::race_init()?;
         crate::scene::restart_clock::restart_clock(crate::system::tick_count::tick_count());
         let clock: u32 = PHYSICS.scene_clock.bits();
-        for (at, value) in STARTS {
-            put(at, value.unwrap_or(clock));
-        }
+        put(0x5CC3BC, clock);
+        put(0x5CC3B8, 0);
+        PHYSICS.race_clock_now.set(clock);
+        PHYSICS.race_clock_base.set(clock);
+        RACE_OVERLAY.start_lights_lit.set(0);
+        put(0x6D1482, u32::MAX);
+        put(0x6D1492, u32::MAX);
         for car in &CAR_BLOCKS.cars[..8] {
             car.light_hold_steps.set(3);
         }
         for car in &CAR_BLOCKS.cars[..8] {
             car.value_jump_steps.set(8);
         }
-        for (at, value) in LAST_STARTS {
-            put(at, value);
-        }
+        FRAME_SWITCHES.other_way.set(1);
+        FRAME_SWITCHES.view_marks_on.set(1);
+        GROUND_WORK.stage_loading.set(0);
+        RACE_VIEW.view_on[0].set(1);
+        RACE_VIEW.view_on[1].set(1);
         indent(-3);
         log();
         log();

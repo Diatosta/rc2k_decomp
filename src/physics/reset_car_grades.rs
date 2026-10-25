@@ -11,12 +11,8 @@
 //! Callers: `physics::reset_current_car` (esi `g_car`), and unreferenced code at 0x43FDDF
 //! that runs it over every car before `race::grade_all_cars`.
 
-use crate::framework::{game_read, rva};
+use crate::race::numbers_store::NUMBERS;
 use rc2k_core::physics::grades::{percentage, reset_writes};
-
-const ONE_RVA: usize = rva(0x5C5D38); // flt_5C5D38, 1.0
-const K256_RVA: usize = rva(0x5C5E2C); // flt_5C5E2C, 256.0
-const K100_RVA: usize = rva(0x5C5D14); // flt_5C5D14, 100.0
 
 unsafe fn put(a: u32, v: u32) {
     unsafe { (a as *mut u32).write_unaligned(v) }
@@ -27,11 +23,10 @@ unsafe fn put(a: u32, v: u32) {
 // Converted: `rc2k_core::physics::grades::{percentage, reset_writes}`.
 pub unsafe fn reset_grades_at(b: u32, s0c: u32, s08: u32) {
     unsafe {
-        let k = |a: usize| f32::from_bits(game_read(a));
-        let (k256, k100) = (k(K256_RVA), k(K100_RVA));
+        let (k256, k100) = (NUMBERS.k256.get(), NUMBERS.hundred.get());
         let a = percentage((s0c as *const i32).read_unaligned(), k256, k100);
         let c = percentage((s08 as *const i32).read_unaligned(), k256, k100);
-        for (offset, v) in reset_writes(k(ONE_RVA), a, c) {
+        for (offset, v) in reset_writes(NUMBERS.one.get(), a, c) {
             put(b + offset, v);
         }
     }

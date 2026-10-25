@@ -7,6 +7,7 @@ use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::race::numbers_store::NUMBERS;
 use crate::race::vars_store::RACE_VARS;
 use crate::scene::draw_store::DRAW;
+use crate::scene::kind_texture_store::KIND_TEXTURES;
 
 fn k(a: u32) -> u32 {
     unsafe { game_read(rva(a as usize)) }
@@ -69,7 +70,7 @@ pub unsafe fn flush_batch(b: &Batch, textured: bool) -> Result<(), Refused> {
     use crate::scene::{set_render_state::set_render_state, set_texture::set_texture};
     unsafe {
         if !textured {
-            set_texture(k(0x5D1D04));
+            set_texture(KIND_TEXTURES.kind_first_slots[135].get());
         }
         for (value, state) in STATES {
             set_render_state(if state == 0x14 { b.blend } else { value }, state);
@@ -156,7 +157,7 @@ pub unsafe fn draw_view_backdrop() {
     }
     DRAW.polygon_vertex_count.set(4);
     crate::scene::glow_render_states::glow_render_states();
-    crate::scene::set_texture::set_texture(k(0x5D1DE8));
+    crate::scene::set_texture::set_texture(KIND_TEXTURES.kind_first_slots[192].get());
     crate::d3d::draw_fan_unclipped::draw_fan_unclipped();
     crate::scene::depth_buffer_on::depth_buffer(true);
 }

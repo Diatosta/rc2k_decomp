@@ -27,6 +27,7 @@ use crate::menu::flow_store::SCREEN_FLOW;
 use crate::menu::option_work_store::OPTION_WORK;
 use crate::menu::players_store::PLAYER_TABLE;
 use crate::race::state_store::RACE_STATE;
+use crate::race::viewer_screen_store::VIEWER_PANEL;
 use crate::session::{Bytes, Dword, Float};
 
 /// A player's or a track's record: a game address.
@@ -41,7 +42,6 @@ const PLAYERS: &Dword = &PLAYER_TABLE.pointers[0];
 const SUMMARY: &Dword = &CHAMP_VIEW.summary;
 /// dword_7558DC, copied to dword_5C2FD0 after the loading picture.
 const AFTER_LOADING: &Dword = &EVENT_STATE.sparks_mode;
-const AFTER_LOADING_COPY: usize = 0x5C2FD0;
 /// dword_7554C8: kept over the race (`RACE_KEPT`).
 const KEPT: &Dword = &SCREEN_FLOW.kept;
 /// dword_755984: the number of players.
@@ -644,7 +644,7 @@ unsafe fn single_rally(
         step(2)?; // sound::stop_music
         step(3)?; // race::set_race_screen_mode
         step(4)?; // menu::show_loading_picture
-        set_var(AFTER_LOADING_COPY, var(AFTER_LOADING));
+        set_var(&VIEWER_PANEL.after_loading_copy, var(AFTER_LOADING));
 
         // The stage's entry in the track list.
         let stage = STAGE.get();

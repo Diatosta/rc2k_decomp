@@ -23,22 +23,19 @@
 //! Converted 2026-10-21: the kind's way through `rc2k_core::scene::lamps::object_light`.
 
 use crate::errors::Refused;
-use crate::framework::rva;
 use crate::input::store::DEVICES;
+use crate::physics::ground_store::GROUND_WORK;
+use crate::race::view_vars_store::VIEW_VARS;
 use crate::scene::add_car_light::add_car_light;
-use crate::scene::add_car_lights::{DRAWN_CAR_RVA, add_car_lights};
-use crate::scene::add_point_lights::{LIGHT_COLOUR_RVA, LIT_PLACE_RVA, add_point_lights};
+use crate::scene::add_car_lights::add_car_lights;
+use crate::scene::add_point_lights::add_point_lights;
+use crate::scene::light_store::LIGHT_STATE;
+use crate::scene::light_work_store::LIGHT_WORK;
 use crate::scene::object_store::OBJECT_WORK;
 use crate::scene::vertex_light::plus;
 use crate::session::MACHINE;
-use crate::store::{game_read, game_write};
 
 // ---- game data ----
-
-const ADDED_RVA: usize = rva(0x635068); // dword_635068
-const KIND_RVA: usize = rva(0x62DAF4); // g_lightKind
-const PLACE_RVA: usize = rva(0x63501C); // dword_63501C, dword_635020, dword_635024
-const THIS_CAR_RVA: usize = rva(0x60627C); // dword_60627C
 
 // ---- Rust version ----
 
@@ -47,45 +44,45 @@ const THIS_CAR_RVA: usize = rva(0x60627C); // dword_60627C
 pub unsafe fn set_object_light(
     gather: &mut dyn FnMut() -> Result<(), Refused>,
 ) -> Result<(), Refused> {
-    unsafe {
-        use rc2k_core::scene::lamps::{ObjectLight, WHITE, object_light};
-        OBJECT_WORK.light_added.set_bits(0u32);
-        let (clear_strength, own_car) = match object_light(game_read(KIND_RVA), || {
-            DEVICES.keys_now.get(0x18) != 0 // byte_4F6B74
-        }) {
-            ObjectLight::White => {
-                OBJECT_WORK.light_added.set_bits(WHITE);
-                return Ok(());
-            }
-            ObjectLight::Gathered {
-                clear_strength,
-                own_car,
-            } => (clear_strength, own_car),
-            ObjectLight::Nothing => return Ok(()),
-        };
-        if clear_strength {
-            OBJECT_WORK.light_strength.set_bits(0u32);
+    use rc2k_core::scene::lamps::{ObjectLight, WHITE, object_light};
+    OBJECT_WORK.light_added.set_bits(0u32);
+    let (clear_strength, own_car) = match object_light(LIGHT_WORK.light_kind.bits(), || {
+        DEVICES.keys_now.get(0x18) != 0 // byte_4F6B74
+    }) {
+        ObjectLight::White => {
+            OBJECT_WORK.light_added.set_bits(WHITE);
+            return Ok(());
         }
-        game_write(LIT_PLACE_RVA, game_read::<[u32; 3]>(PLACE_RVA));
-        if own_car {
-            game_write(DRAWN_CAR_RVA, game_read::<u32>(THIS_CAR_RVA));
-        }
-        game_write(LIGHT_COLOUR_RVA, 0u32);
-        gather()?;
-        if own_car {
-            game_write(DRAWN_CAR_RVA, u32::MAX);
-        }
-        let mmx = MACHINE.has_mmx.get() != 0;
-        game_write(
-            ADDED_RVA,
-            plus(
-                game_read(LIGHT_COLOUR_RVA),
-                OBJECT_WORK.other_light.bits(),
-                mmx,
-            ),
-        );
-        Ok(())
+        ObjectLight::Gathered {
+            clear_strength,
+            own_car,
+        } => (clear_strength, own_car),
+        ObjectLight::Nothing => return Ok(()),
+    };
+    if clear_strength {
+        OBJECT_WORK.light_strength.set_bits(0u32);
     }
+    crate::session::write_bits(
+        &LIGHT_STATE.lit_place,
+        crate::session::read_bits::<_, 3>(&OBJECT_WORK.place),
+    );
+    if own_car {
+        GROUND_WORK
+            .drawn_car_light
+            .set_bits(VIEW_VARS.drawn_car.bits());
+    }
+    LIGHT_WORK.light_colour.set_bits(0u32);
+    gather()?;
+    if own_car {
+        GROUND_WORK.drawn_car_light.set_bits(u32::MAX);
+    }
+    let mmx = MACHINE.has_mmx.get() != 0;
+    OBJECT_WORK.light_added.set_bits(plus(
+        LIGHT_WORK.light_colour.bits(),
+        OBJECT_WORK.other_light.bits(),
+        mmx,
+    ));
+    Ok(())
 }
 
 /// With the lamps' Rust versions.

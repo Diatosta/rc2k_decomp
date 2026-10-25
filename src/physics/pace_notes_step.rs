@@ -21,28 +21,33 @@
 //! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{game_read, rva};
 use crate::physics::car_store::CAR;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::numbers_store::NUMBERS;
+use crate::race::replay_file_store::REPLAY_FILE;
 use crate::race::vars_store::RACE_VARS;
+use crate::race::work_store::RACE_WORK;
 use crate::scene::draw_store::DRAW;
 use rc2k_core::physics::pace_calls::{call_target, calling, calls};
 
-/// The gates: (variable, the value it must have); the last is "1000 or more".
-const ZERO: [usize; 7] = [
-    0x71A080, 0x71A07C, 0x71A078, 0x5BEC94, 0x71C3E0, 0x719FF4, 0x71A22C,
-];
-const ONE_F32: u32 = 0x3F80_0000;
-
-fn g(x: usize) -> u32 {
-    unsafe { game_read(rva(x)) }
+/// The gates' variables (each must be 0; the last is "1000 or more").
+fn gates() -> [u32; 7] {
+    [
+        CAR.finish_flag.get(),
+        CAR.go_stand_timer.get(),
+        CAR.started_stand_timer.get(),
+        REPLAY_FILE.hold_car_revs.get(),
+        RACE_WORK.in_credits.get(),
+        CAR.false_start_count.get(),
+        CAR.all_wheels_off.get(),
+    ]
 }
+const ONE_F32: u32 = 0x3F80_0000;
 
 /// The Rust version. The registers the original leaves are read by none of its callers.
 // Converted: `rc2k_core::physics::pace_calls::{calling, call_target, calls}`.
 pub fn pace_notes_step() -> Result<(), Refused> {
-    if !calling(ZERO.map(g), CAR.driver_kind.get(), CAR.run_ticks.get()) {
+    if !calling(gates(), CAR.driver_kind.get(), CAR.run_ticks.get()) {
         return Ok(());
     }
     // `fld; fmul; fdiv; fistp` (the extra division by 1.0 is exact).

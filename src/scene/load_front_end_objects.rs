@@ -22,8 +22,6 @@ use crate::scene::reset_objects::reset_objects;
 const TEXTURE_COUNT_RVA: usize = rva(0x631B68); // dword_631B68
 const NO_NORMALS_RVA: usize = rva(0x631F6C); // dword_631F6C
 const SLOT_KINDS_RVA: usize = rva(0x5CCE7C); // dword_5CCE7C
-/// `dword_634FA4` the points used in bytes, `dword_634FA8` the faces' memory used.
-const USED_RVA: usize = rva(0x634FA4);
 
 // ---- Rust version ----
 
@@ -42,10 +40,10 @@ pub unsafe fn load_front_end_objects() -> Result<(), Refused> {
             load_object()?;
         }
         let cursor: u32 = OBJECT_WORK.face_cursor.bits();
-        game_write(
-            USED_RVA,
-            [game_read::<u32>(POINT_COUNT_RVA).wrapping_mul(12), cursor],
-        );
+        OBJECT_WORK
+            .point_memory_total
+            .set_bits(game_read::<u32>(POINT_COUNT_RVA).wrapping_mul(12));
+        OBJECT_WORK.face_memory_total.set_bits(cursor);
         Ok(())
     }
 }

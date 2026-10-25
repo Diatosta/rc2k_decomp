@@ -9,17 +9,15 @@
 //! table length of 0 or past the table's 0x1000 bytes (the original reads past it).
 
 use crate::errors::Refused;
-use crate::framework::{game_read, rva};
-
-const TABLE_RVA: usize = rva(0x63661C); // g_fogTable: 0x1000 bytes
-const LENGTH_RVA: usize = rva(0x63761C); // g_fogTableLength
+use crate::scene::light_store::LIGHT_STATE;
 
 /// The Rust version (see the header).
 pub unsafe fn fog_at(depth: u32) -> Result<u32, Refused> {
     // Converted: `rc2k_core::scene::fog::fog_at`.
     Ok(rc2k_core::scene::fog::fog_at(
         depth,
-        unsafe { game_read(LENGTH_RVA) },
-        |n| unsafe { game_read(TABLE_RVA + n) },
+        LIGHT_STATE.fog_table_length.bits() as i32,
+        // A byte of the table (the store types it in dwords).
+        |n| unsafe { ((LIGHT_STATE.fog_table[0].addr() + n) as *const u8).read() },
     )?)
 }

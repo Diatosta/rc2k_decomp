@@ -15,8 +15,9 @@
 use crate::math::x87_float::X;
 use crate::physics::camera_view::{rd, record};
 use crate::physics::car_store::CAR;
-use crate::physics::flow::{hold_high, hold_low, p};
+use crate::physics::flow::{hold_high, hold_low};
 use crate::race::numbers_store::NUMBERS;
+use crate::race::view_vars_store::VIEW_VARS;
 use crate::scene::draw_store::DRAW;
 use crate::scene::x87_mem::{fistp, fld, fstp};
 
@@ -34,7 +35,7 @@ pub unsafe fn camera_height_bias() {
     }
     x87_3(crate::race::store::asm_base() as usize);
     let eax = DRAW.scratch.get();
-    p(0x606288, eax);
+    VIEW_VARS.camera_height_bias.set(eax);
     CAR.camera_position[1].set(
         crate::physics::car_store::CAR.camera_position[1]
             .get()

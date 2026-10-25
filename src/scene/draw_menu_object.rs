@@ -10,13 +10,12 @@
 //! menus' objects.
 
 use crate::errors::Refused;
-use crate::framework::{game_write, rva};
 use crate::race::course_store::COURSE;
+use crate::scene::light_store::LIGHT_STATE;
+use crate::scene::light_work_store::LIGHT_WORK;
 use crate::scene::matrix::make_object_matrix;
 
 // ---- game data ----
-const VIEW_KIND_RVA: usize = rva(0x6365C8); // dword_6365C8
-const LIGHT_KIND_RVA: usize = rva(0x62DAF4); // g_lightKind
 
 /// The two calls.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -32,11 +31,11 @@ pub enum Step {
 pub unsafe fn draw_menu_object(
     step: &mut dyn FnMut(Step) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
-    unsafe {
+    {
         COURSE.shine.set_bits(0x200u32);
         step(Step::Matrix)?;
-        game_write(VIEW_KIND_RVA, 5u32);
-        game_write(LIGHT_KIND_RVA, 4u32);
+        LIGHT_STATE.view_kind.set_bits(5u32);
+        LIGHT_WORK.light_kind.set_bits(4u32);
         step(Step::Draw)?;
         COURSE.shine.set_bits(0x100u32);
         Ok(())

@@ -10,16 +10,13 @@
 //!
 //! Callers: `physics::car_angles` (`g_crashMatrix`).
 
-use crate::framework::{game_addr, rva};
 use crate::math::x87_run::{neg_rounded, over_cos_80, patan};
 use crate::physics::clamped_asin::clamped_asin_at;
+use crate::race::course_lists_store::COURSE_LISTS;
 use crate::race::numbers_store::NUMBERS;
 use crate::scene::draw_store::DRAW;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
-
-const TURNED_RVA: usize = rva(0x5C70E0); // flt_5C70E0, E4, E8
-const ANGLES_RVA: usize = rva(0x5C70D4); // flt_5C70D4 (pitch), D8 (heading), DC (roll)
 
 /// Where the function's variables are: the game's or a test's.
 #[derive(Clone, Copy)]
@@ -35,8 +32,8 @@ pub struct AnglePlaces {
 impl AnglePlaces {
     pub fn game() -> Self {
         Self {
-            turned: game_addr(TURNED_RVA) as u32,
-            angles: game_addr(ANGLES_RVA) as u32,
+            turned: COURSE_LISTS.turned_x.addr() as u32,
+            angles: COURSE_LISTS.car_pitch.addr() as u32,
             scratch: DRAW.scratch.addr() as u32,
             limit: NUMBERS.one.addr() as u32,
         }

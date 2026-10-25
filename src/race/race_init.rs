@@ -4,25 +4,16 @@
 //! (`sub_4608BB`, `sub_456484`, the marks) and `sub_43FDFE`. Here its small steps.
 
 use crate::errors::Refused;
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::framework::game_read;
 use crate::physics::car_store::Car;
 use crate::race::best_line::CHECK_FACES_RVA;
 use crate::race::course_store::COURSE;
+use crate::race::overlay_store::RACE_OVERLAY;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::work_store::RACE_WORK;
 
-pub const SLOTS_RVA: usize = rva(0x71BAC8); // g_raceSlots: 8 records of 0x78, +0 in use
-pub const SLOT_SIZE: u32 = 0x78;
-pub const SLOTS: u32 = 8;
 /// The car blocks `g_carBlocks` lists (all eight, whatever the race's count).
 pub const BLOCKS: u32 = 8;
-/// dword_6D1838, a64, dword_6D1844, a32: four dwords of spaces.
-pub const BLANK_TEXT_RVAS: [usize; 4] =
-    [rva(0x6D1838), rva(0x6D183C), rva(0x6D1844), rva(0x6D1848)];
-/// dword_6D1850, a64_0, dword_6D185C, a32_0: four dwords of -1.
-pub const UNSET_TEXT_RVAS: [usize; 4] =
-    [rva(0x6D1850), rva(0x6D1854), rva(0x6D185C), rva(0x6D1860)];
-
 /// Car block n (`g_carBlocks`[n]).
 pub fn block(n: u32) -> u32 {
     crate::race::work_store::RACE_WORK.car_block(n as usize)
@@ -34,9 +25,8 @@ unsafe fn put(at: u32, value: u32) {
 
 /// `race::clear_race_slots` (0x4621CD): the eight `g_raceSlots` records' first dword 0.
 pub unsafe fn clear_race_slots() {
-    let first = game_addr(SLOTS_RVA) as u32;
-    for n in 0..SLOTS {
-        unsafe { put(first + n * SLOT_SIZE, 0) };
+    for slot in &RACE_WORK.race_slots {
+        slot.part.set(0);
     }
 }
 
@@ -85,13 +75,23 @@ pub unsafe fn reset_car_race_state() {
             unsafe { put(b + off, v) };
         }
     }
-    unsafe {
-        for at in BLANK_TEXT_RVAS {
-            game_write(at, BLANK_TEXT);
-        }
-        for at in UNSET_TEXT_RVAS {
-            game_write(at, UNSET_TEXT);
-        }
+    // dword_6D1838, a64, dword_6D1844, a32: four dwords of spaces.
+    for cell in [
+        &RACE_OVERLAY.label_behind[0],
+        &RACE_OVERLAY.label_behind[1],
+        &RACE_OVERLAY.label_ahead[0],
+        &RACE_OVERLAY.label_ahead[1],
+    ] {
+        cell.set(BLANK_TEXT);
+    }
+    // dword_6D1850, a64_0, dword_6D185C, a32_0: four dwords of -1.
+    for cell in [
+        &RACE_OVERLAY.kept_behind[0],
+        &RACE_OVERLAY.kept_behind[1],
+        &RACE_OVERLAY.kept_ahead[0],
+        &RACE_OVERLAY.kept_ahead[1],
+    ] {
+        cell.set(UNSET_TEXT);
     }
 }
 

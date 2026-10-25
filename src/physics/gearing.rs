@@ -8,13 +8,10 @@
 //! the gearbox.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, rva};
 use crate::math::x87;
 use crate::physics::car_store::CAR;
+use crate::physics::tables_store::PHYSICS;
 use crate::race::numbers_store::NUMBERS;
-
-pub const GEAR_RATIOS_RVA: usize = rva(0x6140C0); // g_gearRatios, indexed by the gear
-pub const SPEED_RVA: usize = rva(0x71A184); // g_carSpeed (a reading: times sines in sub_43CD79)
 
 /// The variables' addresses: the game's, or a test's (`ratios` is gear 0's entry).
 #[derive(Clone, Copy)]
@@ -36,8 +33,8 @@ impl GearPlaces {
             drive_speed: CAR.drive_speed_a.addr() as u32,
             drive_speed_2: CAR.drive_speed_b.addr() as u32,
             drive_kind: CAR.drive_kind.addr() as u32,
-            ratios: game_addr(GEAR_RATIOS_RVA) as u32,
-            speed: game_addr(SPEED_RVA) as u32,
+            ratios: PHYSICS.gear_ratios[1].addr() as u32,
+            speed: CAR.local_velocity[2].addr() as u32,
         }
     }
 }

@@ -21,19 +21,17 @@
 //! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, rva};
 use crate::physics::car_store::CAR;
+use crate::physics::ground_store::GROUND_WORK;
 use crate::race::course_store::COURSE;
 use crate::race::vars_store::RACE_VARS;
+use crate::scene::light_work_store::LIGHT_WORK;
 use crate::session::MACHINE;
 use rc2k_core::physics::lighting;
 
 fn g(x: usize) -> u32 {
     unsafe { game_read(rva(x)) }
-}
-
-fn p(x: usize, v: u32) {
-    unsafe { game_write(rva(x), v) }
 }
 
 unsafe fn byte(a: u32) -> u32 {
@@ -43,8 +41,8 @@ unsafe fn byte(a: u32) -> u32 {
 /// The two-way blend of the four corners now in `dword_5CCC90` ..: into `5CCCA4`,
 /// `5CCCA0`, returned.
 fn corners() -> u32 {
-    let c = [0, 1, 2, 3].map(|k| g(0x5CCC90 + 4 * k));
-    let ([a, b], v, _) = lighting::corners(c, g(0x639800), g(0x639804));
+    let c = [0usize, 1, 2, 3].map(|k| COURSE.face_light_bytes[k].get());
+    let ([a, b], v, _) = lighting::corners(c, GROUND_WORK.share_s.get(), GROUND_WORK.share_t.get());
     COURSE.face_light_a.set(a);
     COURSE.face_light_b.set(b);
     v
@@ -53,11 +51,11 @@ fn corners() -> u32 {
 /// The Rust version. The registers the original leaves are read by none of its callers.
 // Converted: `rc2k_core::physics::lighting`.
 pub fn car_lighting() -> Result<(), Refused> {
-    p(0x639824, CAR.position[0].get());
-    p(0x63982C, CAR.position[2].get());
+    GROUND_WORK.ground_x.set(CAR.position[0].get());
+    GROUND_WORK.ground_z.set(CAR.position[2].get());
     COURSE.light_kept.set(CAR.light_level.get());
-    p(0x62DAFC, 0);
-    p(0x62DB00, 0);
+    LIGHT_WORK.car_light_colour.set(0);
+    LIGHT_WORK.lamp_a_colour.set(0);
     COURSE.ground_face_last.set(CAR.probe_point_face[4].get());
     unsafe { crate::physics::find_ground::find_ground() }?;
     let face = COURSE.ground_slot.get();
@@ -68,23 +66,23 @@ pub fn car_lighting() -> Result<(), Refused> {
         return Err(BadInput("no course faces").into());
     }
     if COURSE.ground_half.get() == 1 {
-        let (s, t) = lighting::half_shares(1, g(0x639800), g(0x639804));
-        p(0x639800, s);
-        p(0x639804, t);
+        let (s, t) = lighting::half_shares(1, GROUND_WORK.share_s.get(), GROUND_WORK.share_t.get());
+        GROUND_WORK.share_s.set(s);
+        GROUND_WORK.share_t.set(t);
     }
-    p(0x62DB08, g(0x639800));
-    p(0x62DB0C, g(0x639804));
+    LIGHT_WORK.ground_texture_s.set(GROUND_WORK.share_s.get());
+    LIGHT_WORK.ground_texture_t.set(GROUND_WORK.share_t.get());
     let f = (face << 6).wrapping_add(COURSE.course_faces.get());
     unsafe {
         for k in 0..4u32 {
-            p(0x5CCC90 + 4 * k as usize, byte(f + 0x14 + k));
+            COURSE.face_light_bytes[k as usize].set(byte(f + 0x14 + k));
         }
         let material = (game_addr(rva(0x979F30)) as u32).wrapping_add(byte(f + 0x21) << 6);
         if byte(material + 0x2C) == 1 {
             for k in 0..4u32 {
-                let at = 0x5CCC90 + 4 * k as usize;
-                let (v, _) = lighting::shaded(g(at), byte(f + 0x22 + k) as u8);
-                p(at, v);
+                let at = &COURSE.face_light_bytes[k as usize];
+                let (v, _) = lighting::shaded(at.get(), byte(f + 0x22 + k) as u8);
+                at.set(v);
             }
         }
         let light = corners();
@@ -102,28 +100,29 @@ pub fn car_lighting() -> Result<(), Refused> {
             return Err(BadInput("a light index past 0xFF").into());
         }
         let colour = g(0x635118 + 4 * light as usize);
-        p(0x62DAFC, colour);
+        LIGHT_WORK.car_light_colour.set(colour);
         CAR.light_colour.set(colour);
         if byte(f + 2) & 4 == 0 {
             return Ok(());
         }
         for (first, table, to) in [
-            (0x28u32, 0x635518usize, 0x62DB00usize),
-            (0x2C, 0x635918, 0x62DB04),
+            (0x28u32, 0x635518usize, &LIGHT_WORK.lamp_a_colour),
+            (0x2C, 0x635918, &LIGHT_WORK.lamp_b_colour),
         ] {
             for k in 0..4u32 {
-                p(0x5CCC90 + 4 * k as usize, byte(f + first + k));
+                COURSE.face_light_bytes[k as usize].set(byte(f + first + k));
             }
             let i = corners();
             if i >= lighting::TABLE {
                 return Err(BadInput("a colour index past 0xFF").into());
             }
             let colour = g(table + 4 * i as usize);
-            p(to, colour);
-            p(
-                0x71A218,
-                lighting::add_colour(colour, CAR.light_colour.get(), MACHINE.has_mmx.get() != 0),
-            );
+            to.set(colour);
+            CAR.light_colour.set(lighting::add_colour(
+                colour,
+                CAR.light_colour.get(),
+                MACHINE.has_mmx.get() != 0,
+            ));
         }
     }
     Ok(())

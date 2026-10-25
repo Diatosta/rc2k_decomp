@@ -4,32 +4,21 @@
 //! kept in the block (+0x740 .. +0x8FF) for `race::draw_car`.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::framework::{game_read, rva};
+use crate::physics::camera_store::CAMERA_WORK;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::frame_store::FRAME_WORK;
+use crate::race::matrices_store::MATRICES;
 use crate::race::numbers_store::NUMBERS;
 use crate::race::view_store::RACE_VIEW;
 use crate::race::work_store::RACE_WORK;
+use crate::scene::light_work_store::LIGHT_WORK;
 use crate::scene::matrix::{multiply_matrices, set_place, set_turn_x, set_turn_y};
 use crate::scene::object_store::OBJECT_WORK;
 
 fn k(a: u32) -> u32 {
     unsafe { game_read(rva(a as usize)) }
 }
-
-fn w(a: u32, v: u32) {
-    unsafe { game_write(rva(a as usize), v) }
-}
-
-fn ga(a: u32) -> usize {
-    game_addr(rva(a as usize))
-}
-
-const PLACED: u32 = 0x5EA04C; // g_placedMatrix
-const TURN_X: u32 = 0x5E9F8C; // g_turnXMatrix
-const TURN_Y: u32 = 0x5E9FCC; // g_turnYMatrix
-const TURNED: u32 = 0x5EA10C; // g_turnedMatrix
-const LIT: u32 = 0x5EA14C; // g_litMatrix
 
 /// The five axle values (`rc2k_core::race::car_parts::axles`) from the model's record
 /// (`dword_5C9098` .. of its 0x134-byte record) and the lift.
@@ -69,8 +58,8 @@ pub unsafe fn car_part_matrices(car: u32) -> Result<(), Refused> {
         let on = f(0x84);
         let s = mark_switches(&PartState {
             on,
-            marks_mask: k(0x62DAD0),
-            lamps_mask: k(0x62DACC),
+            marks_mask: LIGHT_WORK.marks_mask.get(),
+            lamps_mask: LIGHT_WORK.lamps_mask.get(),
             inside: f(0x63C),
             mode: f(0x684),
             reversing: f(0x1D4),
@@ -88,22 +77,26 @@ pub unsafe fn car_part_matrices(car: u32) -> Result<(), Refused> {
         set(0xABC, marks_bytes(s.count, slow, on));
         set(0xAAC, steering(f(0x650)));
         let [front, rear_lift, height, front_z, _] = ax;
-        w(0x608C50, front);
-        w(0x608C4C, front.wrapping_neg());
-        w(0x608C54, rear_lift);
-        w(0x608C58, height);
-        w(0x608C5C, front_z);
-        w(0x608C48, ax[4]);
+        CAMERA_WORK.axle_front.set(front);
+        CAMERA_WORK.axle_front_neg.set(front.wrapping_neg());
+        CAMERA_WORK.axle_rear_lift.set(rear_lift);
+        CAMERA_WORK.axle_height.set(height);
+        CAMERA_WORK.axle_front_z.set(front_z);
+        CAMERA_WORK.car_axles.set(ax[4]);
         OBJECT_WORK.size.set(0x10);
         OBJECT_WORK.part_values[2].set(f(0xAAC));
         OBJECT_WORK.part_values[0].set(f(0x1F8));
         OBJECT_WORK.part_values[1].set(f(0x1FC));
         for (i, o) in [0x134u32, 0x138, 0x13C].into_iter().enumerate() {
-            w(0x63501C + 4 * i as u32, f(o));
+            OBJECT_WORK.place[i].set(f(o));
         }
-        std::ptr::copy((car + 0xB4) as *const u8, ga(0x5EA08C) as *mut u8, 0x40);
+        std::ptr::copy(
+            (car + 0xB4) as *const u8,
+            MATRICES.body_turn_matrix[0].addr() as *mut u8,
+            0x40,
+        );
         for i in 0..4 {
-            w(0x635074 + 4 * i, f(0x910 + 4 * i));
+            OBJECT_WORK.part_weights[i as usize].set(f(0x910 + 4 * i));
         }
         set_place([
             OBJECT_WORK.place[0].get(),
@@ -111,22 +104,42 @@ pub unsafe fn car_part_matrices(car: u32) -> Result<(), Refused> {
             OBJECT_WORK.place[2].get(),
         ]);
         std::ptr::copy(
-            ga(PLACED) as *const u8,
+            MATRICES.placed_matrix[0].addr() as *const u8,
             FRAME_WORK.placed_matrices[0].addr() as *mut u8,
             0x40,
         );
         // (x, z, the x turn, the height, the matrix): the four wheels.
+        let (c, o) = (&CAMERA_WORK, &OBJECT_WORK);
+        let parts = |n: usize| FRAME_WORK.part_matrices[n].addr();
         for (n, (x, z, spin, lift, out)) in [
             (
-                0x608C4Cu32,
-                0x608C58u32,
-                0x635048u32,
-                0x635074u32,
-                0x6417E0u32,
+                &c.axle_front_neg,
+                &c.axle_height,
+                &o.part_values[0],
+                &o.part_weights[0],
+                parts(0),
             ),
-            (0x608C50, 0x608C58, 0x635048, 0x635078, 0x641820),
-            (0x608C4C, 0x608C5C, 0x63504C, 0x63507C, 0x641860),
-            (0x608C50, 0x608C5C, 0x63504C, 0x635080, 0x6418A0),
+            (
+                &c.axle_front,
+                &c.axle_height,
+                &o.part_values[0],
+                &o.part_weights[1],
+                parts(16),
+            ),
+            (
+                &c.axle_front_neg,
+                &c.axle_front_z,
+                &o.part_values[1],
+                &o.part_weights[2],
+                parts(32),
+            ),
+            (
+                &c.axle_front,
+                &c.axle_front_z,
+                &o.part_values[1],
+                &o.part_weights[3],
+                parts(48),
+            ),
         ]
         .into_iter()
         .enumerate()
@@ -135,16 +148,19 @@ pub unsafe fn car_part_matrices(car: u32) -> Result<(), Refused> {
                 OBJECT_WORK.part_values[2].set(0);
             }
             set_place([
-                k(x).wrapping_neg(),
-                k(0x608C54).wrapping_neg(),
-                k(z).wrapping_neg(),
+                x.get().wrapping_neg(),
+                CAMERA_WORK.axle_rear_lift.get().wrapping_neg(),
+                z.get().wrapping_neg(),
             ]);
-            set_turn_x(k(spin));
-            multiply_matrices(ga(PLACED), ga(TURN_X), ga(TURNED));
+            set_turn_x(spin.get());
+            let placed = MATRICES.placed_matrix[0].addr();
+            let turned = MATRICES.turned_matrix[0].addr();
+            let lit = MATRICES.lit_matrix[0].addr();
+            multiply_matrices(placed, MATRICES.turn_x_matrix[0].addr(), turned);
             set_turn_y(OBJECT_WORK.part_values[2].get());
-            multiply_matrices(ga(TURNED), ga(TURN_Y), ga(LIT));
-            set_place([k(x), k(lift), k(z)]);
-            multiply_matrices(ga(LIT), ga(PLACED), ga(out));
+            multiply_matrices(turned, MATRICES.turn_y_matrix[0].addr(), lit);
+            set_place([x.get(), lift.get(), z.get()]);
+            multiply_matrices(lit, placed, out);
         }
         Ok(())
     }
@@ -171,29 +187,33 @@ pub unsafe fn ready_car_parts() -> Result<(), Refused> {
             if parts_shown(((car + 0x25C) as *const u32).read_unaligned()) {
                 car_part_matrices(car)?;
                 for (i, from) in [
-                    0x6417E0u32,
-                    0x641820,
-                    0x641860,
-                    0x6418A0,
-                    0x5EA08C,
-                    0x641760,
+                    FRAME_WORK.part_matrices[0].addr(),
+                    FRAME_WORK.part_matrices[16].addr(),
+                    FRAME_WORK.part_matrices[32].addr(),
+                    FRAME_WORK.part_matrices[48].addr(),
+                    MATRICES.body_turn_matrix[0].addr(),
+                    FRAME_WORK.placed_matrices[0].addr(),
                 ]
                 .into_iter()
                 .take(KEPT_MATRICES as usize)
                 .enumerate()
                 {
                     std::ptr::copy(
-                        ga(from) as *const u8,
+                        from as *const u8,
                         (car + KEPT_AT + 0x40 * i as u32) as *mut u8,
                         0x40,
                     );
                 }
                 multiply_matrices(
-                    ga(0x5EA08C),
+                    MATRICES.body_turn_matrix[0].addr(),
                     FRAME_WORK.placed_matrices[0].addr(),
-                    ga(0x5EA3CC),
+                    MATRICES.view_place[0].addr(),
                 );
-                std::ptr::copy(ga(0x5EA3CC) as *const u8, (car + BODY_AT) as *mut u8, 0x40);
+                std::ptr::copy(
+                    MATRICES.view_place[0].addr() as *const u8,
+                    (car + BODY_AT) as *mut u8,
+                    0x40,
+                );
             }
             c += 1;
             if c == count {

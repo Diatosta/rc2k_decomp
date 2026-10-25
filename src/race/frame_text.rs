@@ -4,6 +4,7 @@
 use crate::audio::store::AUDIO;
 use crate::errors::Refused;
 use crate::framework::rva;
+use crate::race::switches_store::FRAME_SWITCHES;
 use crate::scene::draw_store::DRAW;
 use crate::screens::font_at;
 use crate::session::{Dword, SCREEN};
@@ -20,7 +21,7 @@ pub unsafe fn draw_frame_rate(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     use rc2k_core::race::frame_rate::{fps_text, shown_rate};
     unsafe {
         game_write(rva(0x5C6604), 2u32);
-        let rate = shown_rate(f32::from_bits(game_read(rva(0x6214F0))));
+        let rate = shown_rate(f32::from_bits(FRAME_SWITCHES.frame_rate.bits()));
         DRAW.scratch.set(rate as u32);
         if rate == 0 || game_read::<u32>(rva(0x5EB100)) == 0 {
             return Ok(());

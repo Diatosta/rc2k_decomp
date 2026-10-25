@@ -5,15 +5,16 @@
 //! steps.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_write, rva};
+use crate::physics::contact_store::CONTACT_WORK;
+use crate::race::course_lists_store::COURSE_LISTS;
 use crate::race::course_store::COURSE;
+use crate::race::prefs_store::STAGE_PREFS;
 
 /// `files\levels\levelxx\cdat00c`'s two digits, in `srclvls\..` (0x60B02B) and
 /// `\levels\..` (0x60B07F): tens, units.
 pub const CDAT_DIGITS: [usize; 2] = [rva(0x60B03F), rva(0x60B093)];
-pub const COURSE_MEMORY_RVA: usize = rva(0x5C6F94); // g_courseMemory
 pub const HEADER_LEN: usize = 0x100;
-pub const LIT_COUNT_RVA: usize = rva(0x6D3620); // g_litFaceCount
 /// `g_kindFirstRecords` (0x100 dwords), followed by `g_kindLastRecords` (0x5CC7E4).
 pub const KIND_TABLES_RVA: usize = rva(0x5CC3E4);
 const KINDS: u32 = 0x100;
@@ -38,7 +39,7 @@ pub unsafe fn set_cdat_number(number: u32) {
 /// `g_courseHeader`.
 pub unsafe fn copy_course_header() {
     unsafe {
-        let from: u32 = game_read(COURSE_MEMORY_RVA);
+        let from: u32 = COURSE_LISTS.course_memory.bits();
         std::ptr::copy(
             from as *const u8,
             COURSE.course_header.addr() as *mut u8,
@@ -49,7 +50,7 @@ pub unsafe fn copy_course_header() {
 
 /// `race::clear_lit_faces` (0x45E9D5): `g_litFaceCount` 0.
 pub unsafe fn clear_lit_faces() {
-    unsafe { game_write(LIT_COUNT_RVA, 0u32) };
+    CONTACT_WORK.lit_face_count.set_bits(0u32);
 }
 
 /// `race::reset_face_lights` (0x45ED70): each face whose first byte is 0xFF gets its
@@ -109,7 +110,6 @@ pub unsafe fn group_records_by_kind() -> Result<(), Refused> {
 }
 
 const COURSE_PATH_RVA: usize = rva(0x60B02B); // "srclvls\level01\cdat00c"
-const FIRST_PART_RVA: usize = rva(0x5C6FC8); // dword_5C6FC8: the course memory's first part
 /// "loadlevel", "done", "next", "this", "then", "ok".
 const LOAD_LOG: [&std::ffi::CStr; 6] = [c"loadlevel", c"done", c"next", c"this", c"then", c"ok"];
 const NOT_READ: crate::errors::FatalError = crate::errors::FatalError {
@@ -134,8 +134,8 @@ pub unsafe fn load_level() -> Result<(), Refused> {
         load_log(0);
         let out = read_level_file::read_level_file(
             game_addr(COURSE_PATH_RVA) as u32,
-            game_read(COURSE_MEMORY_RVA),
-            game_read(FIRST_PART_RVA),
+            COURSE_LISTS.course_memory.bits(),
+            COURSE_LISTS.first_part.bits(),
             &mut read_level_file::game_exists,
             &mut read_packed_file::game_read,
         )?;
@@ -155,14 +155,12 @@ pub unsafe fn load_level() -> Result<(), Refused> {
     Ok(())
 }
 
-const CDAT_NUMBER_RVA: usize = rva(0x609380); // dword_609380
-
 /// `race::locate_current_course` (0x4394CB, "locacurrcourse"): `dword_609380` 0,
 /// `load_level`, `lay_out_course` (its test of `dword_621514` jumps to the next
 /// instruction either way: section 16), `group_records_by_kind`, `build_best_line`.
 pub unsafe fn locate_current_course() -> Result<(), Refused> {
     unsafe {
-        game_write(CDAT_NUMBER_RVA, 0u32);
+        STAGE_PREFS.cdat_number.set_bits(0u32);
         load_level()?;
         crate::race::norms::lay_out_course();
         group_records_by_kind()?;

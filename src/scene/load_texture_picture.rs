@@ -26,18 +26,19 @@
 
 use crate::errors::Refused;
 use crate::files::file_exists::file_exists;
-use crate::framework::{game_addr, game_ptr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_ptr, rva};
 use crate::gfx::load_picture_to_texture::load_picture_to_texture_in_game;
 use crate::logfile::log_int::log_int;
 use crate::logfile::log_write::log_write;
+use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
-use crate::scene::textures::KIND_TEXTURE_RVA;
+use crate::scene::file_numbers_store::FILE_NUMBERS;
+use crate::scene::kind_texture_store::KIND_TEXTURES;
 
 // ---- game data ----
 
 /// `dword_60AF04` the picture's number, `dword_60AF08` the texture, then the twelve
 /// names up to the end of `files\s\extr\txxxxx.pcx`.
-const WORK_RVA: usize = rva(0x60AF04);
 /// The six folders' names and second names, and where the number is in the name.
 const FOLDERS: [(usize, usize, usize); 6] = [
     (rva(0x60AF0C), rva(0x60AF8F), 0x0A), // files\a
@@ -48,8 +49,6 @@ const FOLDERS: [(usize, usize, usize); 6] = [
     (rva(0x60AF77), rva(0x60AFFA), 0x0F), // files\s\extr
 ];
 use rc2k_core::scene::pictures::{GRAVEL, folder, names, picture_car, takes_gravel};
-const FIRST_CAR_TEXTURE_RVA: usize = KIND_TEXTURE_RVA + 0x100 * 4; // dword_5D0EE8
-const CAR_GRAVEL_RVA: usize = rva(0x6235FC); // dword_6235FC
 // gfx::load_picture_to_texture
 
 /// What the function calls.
@@ -67,7 +66,8 @@ pub enum Call {
 /// The numbers and the names: everything the function writes.
 unsafe fn write_names(number: u32, texture: u32) {
     unsafe {
-        game_write(WORK_RVA, [number, texture]);
+        FILE_NUMBERS.picture_number.set(number);
+        FILE_NUMBERS.picture_texture.set(texture);
         for (&(name, second_name, at), (first, second)) in FOLDERS.iter().zip(names(number)) {
             (game_addr(name + at) as *mut [u8; 4]).write(first);
             if let Some(second) = second {
@@ -85,14 +85,16 @@ pub unsafe fn load_texture_picture(number: u32, texture: u32, call: &mut dyn FnM
         let car = picture_car(
             number,
             texture,
-            || game_read(FIRST_CAR_TEXTURE_RVA),
+            || KIND_TEXTURES.kind_first_textures[0x100].get(), // dword_5D0EE8,
             || RACE_VIEW.race_cars.bits(),
         );
         if let Some(car) = car {
             call(Call::Text(c"carnum".as_ptr().cast()));
             call(Call::Number(car));
             call(Call::Text(c"grav".as_ptr().cast()));
-            let gravel: u32 = game_read(CAR_GRAVEL_RVA + car as usize * 4);
+            // Eight cars' gravel switches: `car_tyres` and the six unnamed dwords after it.
+            let gravel =
+                ((RACE_VARS.car_tyres[0].addr() + car as usize * 4) as *const u32).read_unaligned();
             call(Call::Number(gravel));
             if takes_gravel(gravel) && call(Call::Exists(FOLDERS[GRAVEL].0)) {
                 gravel_chosen = true;

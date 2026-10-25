@@ -9,11 +9,9 @@
 //! Callers: `scene::full_view_window`, code at 0x446810. `set_view_window` is its Rust version.
 
 use crate::framework::{game_read, rva};
+use crate::race::switches_store::FRAME_SWITCHES;
 use crate::scene::draw_store::DRAW;
 use crate::session::SCREEN;
-
-const FRAMED_RVA: usize = rva(0x621514); // dword_621514
-const WIDE_RVA: usize = rva(0x621480); // dword_621480
 pub const MODE_RVA: usize = rva(0x636526); // word_636526
 
 /// The window chosen, then `set_view_window`.
@@ -22,8 +20,8 @@ pub unsafe fn choose_view_window() {
     use rc2k_core::scene::view_window::{ViewSettings, choose};
     unsafe {
         let settings = ViewSettings {
-            framed: game_read::<u32>(FRAMED_RVA) != 0,
-            wide: game_read::<u32>(WIDE_RVA) != 0,
+            framed: FRAME_SWITCHES.editor_mode.bits() != 0,
+            wide: FRAME_SWITCHES.other_way.bits() != 0,
             mode: game_read(MODE_RVA),
         };
         let window = choose(settings, || [SCREEN.width.get(), SCREEN.height.get()]);

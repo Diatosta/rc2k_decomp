@@ -49,13 +49,6 @@ use crate::session::MACHINE;
 use rc2k_core::sound::engine::{Left, Words, extrapolation, over_256, readings, state};
 
 pub const KIND_COUNT: u32 = 36;
-/// dword_5BEC94: 1 holds the revs as they are.
-const HOLD: usize = 0x5BEC94;
-
-fn g(x: impl crate::store::Ida) -> u32 {
-    unsafe { crate::store::ida_read(x) }
-}
-
 /// The kind of object `o` (its +4), or a refusal.
 pub fn kind_of(o: u32) -> Result<u32, BadInput> {
     let n = unsafe { ((o + 4) as *const u32).read_unaligned() };
@@ -91,10 +84,25 @@ pub fn car_engine_state(o: u32) -> Result<u32, Refused> {
     let clock = crate::sound::store::RACE_CLOCK.last.get();
     let (bx, di) = (o, kind);
     // The revs extrapolated, worked out first: its `idiv` may trap.
-    let revs = extrapolation(&object, clock, || g(HOLD)).map_err(BadInput::from)?;
+    let revs = extrapolation(&object, clock, || {
+        crate::race::replay_file_store::REPLAY_FILE
+            .hold_car_revs
+            .get()
+    })
+    .map_err(BadInput::from)?;
     // The registers the core models (written before they are read).
     let mut left = Left::default();
-    readings(&mut object, clock, revs, || g(HOLD), &mut left);
+    readings(
+        &mut object,
+        clock,
+        revs,
+        || {
+            crate::race::replay_file_store::REPLAY_FILE
+                .hold_car_revs
+                .get()
+        },
+        &mut left,
+    );
     let so = unsafe { crate::sound::store::SoundObject::at(bx) };
     x87_1(so, di as usize);
     object.set(0x104, over_256(from_int(object.get(0x18) as i32)));

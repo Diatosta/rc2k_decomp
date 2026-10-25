@@ -19,14 +19,11 @@ use crate::drive::put_back_lead_car_values::put_back_lead_car_values;
 use crate::drive::set_listener::set_listener;
 use crate::drive::share_car_state::share_car_state;
 use crate::errors::{BadInput, Refused};
-use crate::framework::rva;
 use crate::race::blocks_store::CAR_BLOCKS;
+use crate::race::kind_store::KIND_TABLES;
 use crate::race::mud::car_file_number;
 use crate::race::work_store::RACE_WORK;
-use crate::store::game_write;
 use rc2k_core::drive::sharing;
-
-const SHOWN_RVA: usize = rva(0x5C5688); // dword_5C5688
 
 fn cars() -> [(u32, u32, u32); 8] {
     std::array::from_fn(|n| {
@@ -69,12 +66,12 @@ pub unsafe fn share_all_cars() -> Result<(), Refused> {
             share_car_state(block, record, sound)?;
         }
         let first_record: u32 = RACE_WORK.car_records[0].bits();
-        game_write(SHOWN_RVA, 0u32);
+        KIND_TABLES.sound_objects_shown.set_bits(0u32);
         let (shown, _) = sharing::cars_shown(CAR_BLOCKS.cars[0].car_kind.bits(), || {
             ((first_record + 0x258) as *const u32).read_unaligned()
         });
         if shown {
-            game_write(SHOWN_RVA, 1u32);
+            KIND_TABLES.sound_objects_shown.set_bits(1u32);
         }
         put_back_lead_car_values();
         Ok(())

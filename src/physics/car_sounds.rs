@@ -10,20 +10,18 @@
 //! `place_sound_e1`'s exact version (its Rust callers).
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::rva;
 use crate::math::x87_run::ext_times;
 use crate::physics::car_store::CAR;
+use crate::race::frame_store::FRAME_WORK;
+use crate::race::matrices_store::MATRICES;
 use crate::race::numbers_store::NUMBERS;
 use crate::race::work_store::RACE_WORK;
 use crate::scene::matrix3::rounded;
 use crate::scene::rotate_point::rotate_point;
 use crate::scene::vector3::{read_floats, write_floats};
 use crate::scene::x87_mem::{fild, fstp80};
-use crate::store::game_addr;
+use crate::session::Dword;
 use rc2k_core::physics::sound_places::{PLAY, PLAYING, Slot};
-
-pub const LISTED: usize = 0x641680; // dword_641680
-pub const VIEW_TURN: usize = 0x5EA24C; // g_viewTurnMatrix
 
 pub fn g(x: impl crate::store::At) -> u32 {
     unsafe { crate::store::at_read(x) }
@@ -38,7 +36,7 @@ pub fn listed(car: u32) -> Result<bool, Refused> {
     if car > 7 {
         return Err(BadInput("a car number past 7").into());
     }
-    Ok(g(LISTED + 4 * car as usize) != u32::MAX)
+    Ok(FRAME_WORK.listed_car_sounds[car as usize].get() != u32::MAX)
 }
 
 /// The current car's sound object; refused when null.
@@ -67,7 +65,7 @@ pub unsafe fn place(o: u32, at: u32, offset: Option<[u32; 3]>) {
     };
     unsafe {
         let out = rotate_point(
-            game_addr(rva(VIEW_TURN)) as u32,
+            MATRICES.view_turn_matrix[0].addr() as u32,
             [part(0), part(1), part(2)],
         );
         let k = NUMBERS.one_over_65536.bits();
@@ -80,13 +78,13 @@ pub unsafe fn place(o: u32, at: u32, offset: Option<[u32; 3]>) {
 /// The converted place (`rc2k_core::physics::sound_places::place`) into the object at
 /// +`at` .. +`at` + 8.
 pub unsafe fn place_plain(o: u32, at: u32, offset: Option<[u32; 3]>) {
-    let whole = |x: usize| [0, 1, 2].map(|k| g(x + 4 * k) as i32);
+    let whole = |x: &[Dword; 3]| [0, 1, 2].map(|k| x[k].get() as i32);
     unsafe {
         let p = rc2k_core::physics::sound_places::place(
-            whole(0x71A10C),
-            whole(0x71A67C),
+            whole(&CAR.position),
+            whole(&CAR.camera_position),
             offset.map(|o| o.map(|v| v as i32)),
-            &read_floats(game_addr(rva(VIEW_TURN)) as u32),
+            &read_floats(MATRICES.view_turn_matrix[0].addr() as u32),
             f32::from_bits(NUMBERS.one_over_65536.bits()),
         );
         write_floats(o + at, &p);

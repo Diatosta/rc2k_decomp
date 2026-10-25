@@ -6,26 +6,21 @@
 //! address).
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, rva};
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::game_map::MAP;
 use crate::race::numbers_store::NUMBERS;
+use crate::race::prefs_store::STAGE_PREFS;
+use crate::race::replay_work_store::REPLAY_WORK;
+use crate::race::switches_store::FRAME_SWITCHES;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::work_store::RACE_WORK;
-
-const EDITOR_RVA: usize = rva(0x621514); // dword_621514
+use crate::scene::light_work_store::LIGHT_WORK;
 const BAR_RVA: usize = rva(0x4467C7); // sub_4467C7: the loading bar's 3D frame
 const BAR_DONE_RVA: usize = rva(0x4467C6); // nullsub_8
-const OBJECT_SPAN_RVA: [usize; 2] = [rva(0x623634), rva(0x623638)]; // dword_623634 / 38
 const MAP_PATH_RVA: usize = rva(0x60AE12); // "srcmaps\map"
 const MAP_KEY_RVA: usize = rva(0x60AE24); // unk_60AE24
-const REFRESH_FLAGS_RVA: usize = rva(0x609354); // dword_609354
-const REFRESH_FLAGS_2_RVA: usize = rva(0x609350); // dword_609350
-const REFRESH_A_RVA: usize = rva(0x62DAD0); // dword_62DAD0
-const REFRESH_B_RVA: usize = rva(0x62DACC); // dword_62DACC
 const NO_PLACE_RVA: usize = rva(0x64BB18); // dword_64BB18
-const MARKER_OBJECT_RVA: usize = rva(0x621508); // dword_621508
-const CLEARED_RVA: [usize; 2] = [rva(0x719FD0), rva(0x719FD4)]; // dword_719FD0 / D4
 
 /// The step words ("LOADLEVEL_INIT : start" .. "finis"), in order.
 const WORDS: [&std::ffi::CStr; 28] = [
@@ -165,9 +160,10 @@ pub unsafe fn loadlevel_init() -> Result<(), Refused> {
         s.log();
         s.indent(3);
         MAP.use_packed.set(1u32);
-        MAP.packed_2.set((game_read::<u32>(EDITOR_RVA) == 0) as u32);
+        MAP.packed_2
+            .set((FRAME_SWITCHES.editor_mode.bits() == 0) as u32);
         let mut direction: u32 = RACE_VARS.direction.bits();
-        if [0x1F, 0x22, 0x51].contains(&RACE_VARS.stage.bits()) {
+        if [0x1F, 0x22, 0x51].contains(&RACE_VARS.stage_number.bits()) {
             direction ^= 1;
         }
         RACE_WORK.stage_direction.set(direction);
@@ -186,7 +182,10 @@ pub unsafe fn loadlevel_init() -> Result<(), Refused> {
         // them changes nothing).
         s.log();
         s.indent(3);
-        level::allocate_course_memory(&Vars::game(), game_addr(level::COURSE_LIST_RVA) as u32)?;
+        level::allocate_course_memory(
+            &Vars::game(),
+            crate::race::course_lists_store::COURSE_LISTS.course_memory_list[0].addr() as u32, /* stru_5C6D50: the course's MemoryList */
+        )?;
         s.progress(2)?;
         s.progress(4)?;
         s.indent(-3);
@@ -194,7 +193,7 @@ pub unsafe fn loadlevel_init() -> Result<(), Refused> {
         s.log();
         s.indent(3);
         level::load_texture_info(&Vars::game())?;
-        level::set_course_number(RACE_VARS.stage.bits());
+        level::set_course_number(RACE_VARS.stage_number.bits());
         s.progress(6)?;
         s.indent(-3);
         s.step(&mut || stage_prefs::load_prefs(), Some(7))?;
@@ -224,8 +223,8 @@ pub unsafe fn loadlevel_init() -> Result<(), Refused> {
         s.indent(3);
         crate::race::objects::reload_objects()?;
         s.progress(0x1E)?;
-        game_write(OBJECT_SPAN_RVA[0], 0x1Eu32);
-        game_write(OBJECT_SPAN_RVA[1], 0x50u32);
+        RACE_VARS.bar_span[0].set(0x1E); // dword_623634
+        RACE_VARS.bar_span[1].set(0x50); // dword_623638
         s.indent(-3);
         s.step(
             &mut || crate::race::set_all_plates::set_all_plates(),
@@ -257,12 +256,14 @@ pub unsafe fn loadlevel_init() -> Result<(), Refused> {
         s.log();
         s.indent(3);
         level::reset_refresh(&Vars::game());
-        let flags: u32 = game_read(REFRESH_FLAGS_RVA);
-        game_write(REFRESH_A_RVA, (flags & 2) >> 1);
+        let flags: u32 = STAGE_PREFS.refresh_flags_a.bits();
+        LIGHT_WORK.marks_mask.set_bits((flags & 2) >> 1);
         for car in &CAR_BLOCKS.cars[..8] {
             car.lights_on.set(flags & 1);
         }
-        game_write(REFRESH_B_RVA, game_read::<u32>(REFRESH_FLAGS_2_RVA) & 1);
+        LIGHT_WORK
+            .lamps_mask
+            .set_bits(STAGE_PREFS.refresh_flags_b.bits() & 1);
         s.indent(-3);
         s.step(
             &mut || {
@@ -325,13 +326,14 @@ pub unsafe fn loadlevel_init() -> Result<(), Refused> {
         }
         use crate::scene::find_object_of_kind::find_object_of_kind;
         let mut marker = find_object_of_kind(0x7A);
-        game_write(MARKER_OBJECT_RVA, marker);
+        FRAME_SWITCHES.marker_object.set_bits(marker);
         if marker == 0 {
             marker = find_object_of_kind(0x79);
-            game_write(MARKER_OBJECT_RVA, marker);
+            FRAME_SWITCHES.marker_object.set_bits(marker);
         }
-        for at in CLEARED_RVA {
-            game_write(at, 0u32);
+        // dword_719FD0 / D4.
+        for cell in &REPLAY_WORK.camera_last_frame {
+            cell.set(0);
         }
         s.indent(-3);
         s.log();

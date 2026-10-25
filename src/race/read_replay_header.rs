@@ -9,16 +9,17 @@
 //!
 //! Callers: `race::viewer_load_stage`, 0x44401B (the replay run of `sub_443FxF`).
 
-use crate::race::race_end::{HEADER, setting_place};
-use crate::race::viewer::{get, put};
+use crate::race::race_end::{header_cell, setting_cell};
+use crate::race::vars_store::RACE_VARS;
+use crate::session::Dword;
 use rc2k_core::race::replay::{HEADER_SETTINGS, Setting, read_logged};
 
 /// The race's places a header setting goes back to, in the original's order (a kind
 /// into its block and into `g_raceCarKinds`).
-fn targets(s: Setting) -> Vec<usize> {
+fn targets(s: Setting) -> Vec<&'static Dword> {
     match s {
-        Setting::Kind(n) => vec![setting_place(s), 0x623858 + 4 * n as usize],
-        _ => vec![setting_place(s)],
+        Setting::Kind(n) => vec![setting_cell(s), &RACE_VARS.race_car_kinds[n as usize]],
+        _ => vec![setting_cell(s)],
     }
 }
 
@@ -49,14 +50,13 @@ fn log_text(text: u32, newline: bool) {
 pub fn read_replay_header() {
     // Converted: `rc2k_core::race::replay::{HEADER_SETTINGS, read_logged}`.
     log_text(TITLE.as_ptr() as u32, true);
-    let from = |s: Setting| HEADER + s.offset() as usize;
     for s in HEADER_SETTINGS {
         for to in targets(s) {
-            put(to, get(from(s)));
+            to.set(header_cell(s).get());
         }
     }
     for (&text, &s) in NAMES.iter().zip(read_logged()) {
         log_text(text.as_ptr() as u32, false);
-        crate::logfile::log_int::log_int(get(from(s)) as i32, true, 1);
+        crate::logfile::log_int::log_int(header_cell(s).get() as i32, true, 1);
     }
 }

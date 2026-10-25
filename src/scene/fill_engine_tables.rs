@@ -31,23 +31,21 @@
 use crate::framework::{game_read, game_write, rva};
 use crate::math::x87;
 use crate::physics::tables_store::PHYSICS;
+use crate::race::course_lists_store::COURSE_LISTS;
 use crate::race::numbers_store::NUMBERS;
+use crate::race::scratch_store::FRAME_SCRATCH;
 use crate::scene::angle_between::angle_of;
 use crate::scene::draw_store::DRAW;
 use crate::scene::next_noise::next_noise;
 
 // ---- game data ----
 
-const ROOTS_RVA: usize = rva(0x5C70F8); // g_rootTable
-const EXPONENT_ROOTS_RVA: usize = rva(0x5C74F8); // g_exponentRootTable
 const SHUFFLED_RVA: usize = rva(0xA6BB54); // word_A6BB54, 0x10000 words
 const NOISE_RVA: usize = rva(0xA2AAE4); // byte_A2AAE4, 0x1070 bytes
 const NOISE_LEN: usize = 0x1070;
-const FACTORS_RVA: usize = rva(0x5C6950); // g_faceKeyFactors
 const SINES_RVA: usize = rva(0xA23AE4); // g_sines, 0x1400 floats
 const SINES: usize = 0x1400;
 const ARCTANGENTS_RVA: usize = rva(0xA28AE4); // unk_A28AE4, 0x1000 words
-const TANGENT_RVA: usize = rva(0x5C5F48); // dword_5C5F48
 const SEED: u32 = 0x0012_D687;
 
 // ---- Rust version ----
@@ -65,7 +63,7 @@ unsafe fn tangent(angle: u32) -> u32 {
             0x8000,
         ) as u32)
             << 1;
-        game_write(TANGENT_RVA, tangent);
+        FRAME_SCRATCH.tangent_scratch.set_bits(tangent);
         tangent
     }
 }
@@ -79,10 +77,10 @@ pub unsafe fn fill_engine_tables() {
         // sub_42142B
         for n in 0..0x100usize {
             let root = x87::int_over_root(n as i32 + 0x100, NUMBERS.k256.bits());
-            game_write(ROOTS_RVA + n * 4, root);
+            COURSE_LISTS.root_table[n].set_bits(root);
         }
         for n in 0..0x100usize {
-            game_write(EXPONENT_ROOTS_RVA + n * 4, x87::sqrt((n as u32) << 23));
+            COURSE_LISTS.exponent_root_table[n].set_bits(x87::sqrt((n as u32) << 23));
         }
         // sub_41F661
         PHYSICS.noise_state.set_bits(SEED);
@@ -103,9 +101,9 @@ pub unsafe fn fill_engine_tables() {
         }
         // sub_41F716
         for n in 1..0x100usize {
-            game_write(FACTORS_RVA + n * 4, x87::int_ratio(1, n as i32));
+            COURSE_LISTS.face_key_factors[n].set_bits(x87::int_ratio(1, n as i32));
         }
-        game_write(FACTORS_RVA, 1.0f32.to_bits());
+        COURSE_LISTS.face_key_factors[0].set_bits(1.0f32.to_bits());
         // sub_41F5EF
         for n in 0..SINES {
             game_write(SINES_RVA + n * 4, x87::sine_of_pi_fraction(n as i32, 0x800));

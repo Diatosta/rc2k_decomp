@@ -5,14 +5,23 @@
 //! shown parts' mask.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_write, rva};
+use crate::physics::camera_store::CAMERA_WORK;
 use crate::physics::car_store::Car;
 use crate::race::course_store::COURSE;
 use crate::race::frame_store::FRAME_WORK;
+use crate::race::matrices_store::MATRICES;
 use crate::race::numbers_store::NUMBERS;
+use crate::race::prefs_store::STAGE_PREFS;
+use crate::race::sound_spots_store::RACE_SOUND_SPOTS;
+use crate::race::switches_store::FRAME_SWITCHES;
 use crate::race::vars_store::RACE_VARS;
+use crate::race::view_store::RACE_VIEW;
+use crate::race::view_vars_store::VIEW_VARS;
 use crate::race::work_store::RACE_WORK;
 use crate::scene::draw_store::DRAW;
+use crate::scene::light_store::LIGHT_STATE;
+use crate::scene::light_work_store::LIGHT_WORK;
 use crate::scene::matrix::multiply_matrices;
 use crate::scene::object_store::OBJECT_WORK;
 
@@ -24,25 +33,40 @@ unsafe fn get(a: u32) -> u32 {
     unsafe { (a as *const u32).read_unaligned() }
 }
 
-const VIEW_MATRIX: u32 = 0x5EA2CC; // g_viewMatrix
-const TURNED: u32 = 0x5EA10C; // g_turnedMatrix
-const LIT: u32 = 0x5EA14C; // g_litMatrix
-const MADE: u32 = 0x5EA30C; // g_madeObjectMatrix
-const BODY_TURN: u32 = 0x5EA08C; // flt_5EA08C: the car's +0x840
-const CAR_TURN: u32 = 0x641760; // flt_641760: the car's +0x880
+// The matrices are handed to code that walks memory by pointer: absolute addresses.
+fn view_matrix() -> usize {
+    MATRICES.view_matrix[0].addr() // g_viewMatrix
+}
+fn turned() -> usize {
+    MATRICES.turned_matrix[0].addr() // g_turnedMatrix
+}
+fn lit() -> usize {
+    MATRICES.lit_matrix[0].addr() // g_litMatrix
+}
+fn made() -> usize {
+    MATRICES.made_object_matrix[0].addr() // g_madeObjectMatrix
+}
+fn body_turn() -> usize {
+    MATRICES.body_turn_matrix[0].addr() // flt_5EA08C: the car's +0x840
+}
+fn car_turn() -> usize {
+    FRAME_WORK.placed_matrices[0].addr() // flt_641760: the car's +0x880
+}
 /// The four parts' matrices (`flt_6417E0` .., the car's +0x740 ..).
-pub const PART_MATRICES: [u32; 4] = [0x6417E0, 0x641820, 0x641860, 0x6418A0];
+pub fn part_matrices() -> [usize; 4] {
+    [0, 16, 32, 48].map(|k| FRAME_WORK.part_matrices[k].addr())
+}
 
 /// `race::car_part_matrix_1` .. `_4` (0x461F12, 0x461F58, 0x461F9E, 0x461FE4): matrix `a`
 /// times the body's turn (`flt_5EA08C`) into `g_turnedMatrix`, times the car's turn
 /// (`flt_641760`) into `g_litMatrix`, times `g_viewMatrix` into `g_madeObjectMatrix`. The
 /// original leaves esi `g_litMatrix` (which `draw_car`'s drawing takes, see there), edi
 /// and ebp the last product's other two.
-pub unsafe fn car_part_matrix(a: u32) {
+pub unsafe fn car_part_matrix(a: usize) {
     unsafe {
-        multiply_matrices(ga(a), ga(BODY_TURN), ga(TURNED));
-        multiply_matrices(ga(TURNED), ga(CAR_TURN), ga(LIT));
-        multiply_matrices(ga(LIT), ga(VIEW_MATRIX), ga(MADE));
+        multiply_matrices(a, body_turn(), turned());
+        multiply_matrices(turned(), car_turn(), lit());
+        multiply_matrices(lit(), view_matrix(), made());
     }
 }
 
@@ -53,8 +77,12 @@ pub unsafe fn car_body_matrix() {
     unsafe {
         set_fine_turn(Axis::X, 0);
         set_fine_turn(Axis::Z, 0);
-        multiply_matrices(ga(0x5E9F8C), ga(0x5EA00C), ga(LIT));
-        car_part_matrix(LIT);
+        multiply_matrices(
+            MATRICES.turn_x_matrix[0].addr(),
+            MATRICES.turn_z_matrix[0].addr(),
+            lit(),
+        );
+        car_part_matrix(lit());
     }
 }
 
@@ -106,15 +134,15 @@ pub unsafe fn car_number_textures(car: u32) {
         game_write(rva(0x5CD6A0), d.tens);
         game_write(rva(0x5CD6A4), d.units);
         game_write(rva(0x5CD6AC), d.alone);
-        let (tens, _) = stage_plate(RACE_VARS.stage.bits());
+        let (tens, _) = stage_plate(RACE_VARS.stage_number.bits());
         game_write(
             rva(0x5CD6A8),
-            game_read::<u32>(rva(0x71BA10) + 4 * tens as usize),
+            RACE_WORK.number_tens_textures[tens as usize].bits(),
         );
         if decals_shown(float(car + 0x310), f32::from_bits(NUMBERS.hundred.bits())) {
             for k in 0..0x11u32 {
                 let byte = ((car + 0xAC0 + k) as *const u8).read() as u32;
-                let to: u32 = game_read(rva(0x6416F8) + 4 * k as usize);
+                let to: u32 = FRAME_WORK.car_decal_places[k as usize].bits();
                 game_write(rva(0x5CD688) + 4 * to as usize, byte);
             }
         }
@@ -155,42 +183,30 @@ fn with_bit(value: u32, bit: u32) -> u32 {
 /// `dword_60627C` (below eight) without its block.
 pub unsafe fn draw_car(car: u32) -> Result<(), Refused> {
     unsafe {
-        let n: u32 = game_read(rva(0x60627C));
+        let n: u32 = VIEW_VARS.drawn_car.get();
         if NUMBERS.in_race.bits() != 0 && n < 8 && RACE_WORK.car_block(n as usize) == 0 {
             return Err(BadInput("the drawn car without its block").into());
         }
         car_number_textures(car);
-        for (k, to) in [
-            0x6417E0u32,
-            0x641820,
-            0x641860,
-            0x6418A0,
-            BODY_TURN,
-            CAR_TURN,
-        ]
-        .into_iter()
-        .enumerate()
+        let [p0, p1, p2, p3] = part_matrices();
+        for (k, to) in [p0, p1, p2, p3, body_turn(), car_turn()]
+            .into_iter()
+            .enumerate()
         {
             std::ptr::copy(
                 (car + 0x740 + 0x40 * k as u32) as *const u8,
-                ga(to) as *mut u8,
+                to as *mut u8,
                 0x40,
             );
         }
-        let w = |a: u32, v: u32| game_write(rva(a as usize), v);
-        let k = |a: u32| game_read::<u32>(rva(a as usize));
-        w(0x6D18D4, Car::at(car).unknown_ab4[1].bits());
+        RACE_SOUND_SPOTS
+            .groups_which
+            .set(Car::at(car).unknown_ab4[1].bits());
         let model = Car::at(car).car_kind.bits();
-        w(0x5E9EC8, model);
+        MATRICES.known_object.set(model);
         let rec = model.wrapping_mul(0x134);
-        for (to, offset) in [
-            (0x5CCE1Cu32, 0u32),
-            (0x5CCE20, 4),
-            (0x5CCE24, 8),
-            (0x5CCE28, 0xC),
-            (0x5CCE34, 0x14),
-        ] {
-            w(to, model_bit(rec, offset));
+        for (to, offset) in [(0usize, 0u32), (1, 4), (2, 8), (3, 0xC), (6, 0x14)] {
+            COURSE.group_masks[to].set(model_bit(rec, offset));
         }
         let mut lamps = model_bit(rec, 0x34);
         if lamps != 0 {
@@ -203,91 +219,90 @@ pub unsafe fn draw_car(car: u32) -> Result<(), Refused> {
         }
         COURSE.group_masks[9].set(lamps);
         for (to, offset) in [
-            (0x5CCE44u32, 0x38u32),
-            (0x5CCE38, 0x2C),
-            (0x5CCE3C, 0x30),
-            (0x5CCE48, 0x28),
-            (0x5CCE4C, 0x3C),
+            (10usize, 0x38u32),
+            (7, 0x2C),
+            (8, 0x30),
+            (11, 0x28),
+            (12, 0x3C),
         ] {
-            w(to, model_bit(rec, offset));
+            COURSE.group_masks[to].set(model_bit(rec, offset));
         }
         let switches = Car::at(car).parts_present.bits();
         let mut shown = u32::MAX;
         for (bit, var) in [
-            (9u32, 0x5CCE34u32),
-            (12, 0x5CCE48),
-            (13, 0x5CCE40),
-            (14, 0x5CCE44),
-            (15, 0x5CCE4C),
-            (16, 0x5CCE38),
-            (17, 0x5CCE3C),
+            (9u32, 6usize),
+            (12, 11),
+            (13, 9),
+            (14, 10),
+            (15, 12),
+            (16, 7),
+            (17, 8),
         ] {
             if switches & (1 << bit) == 0 {
-                shown &= !k(var);
+                shown &= !COURSE.group_masks[var].bits();
             }
         }
-        w(0x62150C, shown);
+        FRAME_SWITCHES.group_mask.set(shown);
         let field = |offset: u32| get(ga(0x5C90C4) as u32 + rec + offset);
-        w(0x608CAC, field(0x10));
-        w(
-            0x5CCE2C,
+        CAMERA_WORK.faded_bits.set(field(0x10));
+        COURSE.group_masks[4].set(
             u32::MAX
-                .wrapping_sub(k(0x5CCE1C))
-                .wrapping_sub(k(0x5CCE20))
-                .wrapping_sub(k(0x5CCE24))
-                .wrapping_sub(k(0x5CCE28)),
+                .wrapping_sub(COURSE.group_masks[0].bits())
+                .wrapping_sub(COURSE.group_masks[1].bits())
+                .wrapping_sub(COURSE.group_masks[2].bits())
+                .wrapping_sub(COURSE.group_masks[3].bits()),
         );
-        w(0x608CA8, 0x210_0000);
+        CAMERA_WORK.car_draw_kept.set(0x210_0000);
         for (to, offset) in [
-            (0x5CCE50u32, 0x18u32),
-            (0x5CCE54, 0x1C),
-            (0x5CCE58, 0x20),
-            (0x5CCE5C, 0x24),
-            (0x5CCE60, 0x14),
+            (13usize, 0x18u32),
+            (14, 0x1C),
+            (15, 0x20),
+            (16, 0x24),
+            (17, 0x14),
         ] {
-            w(to, field(offset));
+            COURSE.group_masks[to].set(field(offset));
         }
         let state = Car::at(car).unknown_6f4[2].bits();
-        let bit = k(0x5CCE60);
-        w(0x606280, u32::MAX);
+        let bit = COURSE.group_masks[17].bits();
+        VIEW_VARS.group_mask.set(u32::MAX);
         if state & 2 != 0 {
-            w(0x606280, with_bit(field(0x48), bit));
+            VIEW_VARS.group_mask.set(with_bit(field(0x48), bit));
         }
         if state & 4 != 0 {
-            w(0x606280, with_bit(field(0x44), bit));
+            VIEW_VARS.group_mask.set(with_bit(field(0x44), bit));
         }
-        RACE_WORK.car_nearness.set_bits(k(0x5C5D90));
-        let mut stage = k(0x606270);
+        RACE_WORK.car_nearness.set_bits(NUMBERS.zero.bits());
+        let mut stage = VIEW_VARS.view_car_stage.bits();
         if (stage as i32) < 0 {
             stage = 0;
         }
         if !below(stage, 0x33) {
             stage = 0x33;
         }
-        let record = k(0x606320 + 4 * stage);
+        let record = VIEW_VARS.view_records[stage as usize].bits();
         if get(record + 0x50) != 0 {
             FRAME_WORK.car_depth.set(0x5_0000);
         }
-        let and = |mask: u32| w(0x606280, k(0x606280) & mask);
+        let and = |mask: u32| VIEW_VARS.group_mask.set(VIEW_VARS.group_mask.bits() & mask);
         if state & 0x10 == 0 {
             nearness();
-            let depth = k(0x6415A4);
+            let depth = FRAME_WORK.car_depth.bits();
             if !below(depth, 0x14_0000) {
                 and(with_bit(field(0x40), bit));
-                for var in [0x5CCE50u32, 0x5CCE54, 0x5CCE58, 0x5CCE5C] {
-                    and(!(1u32 << (k(var) & 31)));
+                for var in [13usize, 14, 15, 16] {
+                    and(!(1u32 << (COURSE.group_masks[var].bits() & 31)));
                 }
-                and(!k(0x5CCE38));
-                and(!k(0x5CCE3C));
+                and(!COURSE.group_masks[7].bits());
+                and(!COURSE.group_masks[8].bits());
             }
             if !below(depth, 0x28_0000) {
-                and(!k(0x5CCE40));
-                and(!k(0x5CCE44));
-                and(!k(0x5CCE34));
+                and(!COURSE.group_masks[9].bits());
+                and(!COURSE.group_masks[10].bits());
+                and(!COURSE.group_masks[6].bits());
             }
             if !below(depth, 0x3C_0000) {
-                and(!k(0x5CCE4C));
-                and(!k(0x5CCE48));
+                and(!COURSE.group_masks[12].bits());
+                and(!COURSE.group_masks[11].bits());
             }
         }
         let mut ecx = 0x60u32.wrapping_add(near_size());
@@ -298,50 +313,67 @@ pub unsafe fn draw_car(car: u32) -> Result<(), Refused> {
             }
             ecx = 0xF0;
         }
-        w(0x606284, ecx);
-        ((car + 0xF04) as *mut u32).write_unaligned(k(0x606280));
-        if k(0x63DBA8 + 4 * k(0x63DB9C)) == k(0x60627C) && k(0x60626C) != 0 {
-            w(0x606280, u32::MAX);
+        VIEW_VARS.fade_alpha.set(ecx);
+        ((car + 0xF04) as *mut u32).write_unaligned(VIEW_VARS.group_mask.bits());
+        // `view_cars[drawn_view]`: read by address, as the original does for a view past the two.
+        let view_car = (RACE_VIEW.view_cars[0].addr() as *const u32)
+            .wrapping_add(RACE_VIEW.drawn_view.bits() as usize)
+            .read_unaligned();
+        if view_car == VIEW_VARS.drawn_car.bits() && VIEW_VARS.view_car_flag_a.bits() != 0 {
+            VIEW_VARS.group_mask.set(u32::MAX);
         }
         OBJECT_WORK.light_lowest.set(0);
         OBJECT_WORK.light_highest.set(0xFF);
-        OBJECT_WORK.light_level.set(k(0x6092E4));
-        OBJECT_WORK.light_strength.set(k(0x60935C));
-        OBJECT_WORK.light_turns[0].set(k(0x609338).wrapping_neg());
-        OBJECT_WORK.light_turns[1].set(k(0x60933C));
-        w(0x6365C8, 1);
-        w(0x62DAF4, 3);
-        let place = |_w: &dyn Fn(u32, u32)| {
+        OBJECT_WORK.light_level.set(STAGE_PREFS.light_level.bits());
+        OBJECT_WORK
+            .light_strength
+            .set(STAGE_PREFS.light_strength.bits());
+        OBJECT_WORK.light_turns[0].set(STAGE_PREFS.sun_turn.bits().wrapping_neg());
+        OBJECT_WORK.light_turns[1].set(STAGE_PREFS.sun_height.bits());
+        LIGHT_STATE.view_kind.set(1);
+        LIGHT_WORK.light_kind.set(3);
+        let place = || {
             OBJECT_WORK.place[0].set(Car::at(car).position[0].bits());
             OBJECT_WORK.place[1].set(Car::at(car).position[1].bits());
             OBJECT_WORK.place[2].set(Car::at(car).position[2].bits());
         };
-        place(&w);
+        place();
         OBJECT_WORK.size.set(0x10);
         crate::scene::matrix::set_light_direction();
-        place(&w);
+        place();
         OBJECT_WORK.car_switches.set(switches);
-        w(0x608CB0, 1);
+        CAMERA_WORK.drawing_car.set(1);
         OBJECT_WORK.other_light.set(0);
-        w(0x62DAF4, 3);
-        w(0x62DAF8, 0);
-        w(0x6214FC, k(0x60627C).wrapping_mul(0x14).wrapping_add(0x50));
+        LIGHT_WORK.light_kind.set(3);
+        LIGHT_WORK.light_kind_extra.set(0);
+        FRAME_SWITCHES.object_number.set(
+            VIEW_VARS
+                .drawn_car
+                .bits()
+                .wrapping_mul(0x14)
+                .wrapping_add(0x50),
+        );
         car_body_matrix();
         crate::race::frame_draw::start_kept_reflections();
-        crate::scene::draw_scene_object::draw_scene_object_in_game(ga(LIT) as u32)?;
+        crate::scene::draw_scene_object::draw_scene_object_in_game(lit() as u32)?;
         crate::race::frame_draw::end_kept_reflections();
-        w(0x62DAF8, 1);
-        if below(k(0x6415A4), 0x3C_0000) {
-            for (bit, matrix) in [0x20u32, 0x40, 0x80, 0x100].into_iter().zip(PART_MATRICES) {
-                w(0x6214FC, k(0x6214FC).wrapping_add(1));
-                if k(0x635028) & bit != 0 {
+        LIGHT_WORK.light_kind_extra.set(1);
+        if below(FRAME_WORK.car_depth.bits(), 0x3C_0000) {
+            for (bit, matrix) in [0x20u32, 0x40, 0x80, 0x100]
+                .into_iter()
+                .zip(part_matrices())
+            {
+                FRAME_SWITCHES
+                    .object_number
+                    .set(FRAME_SWITCHES.object_number.bits().wrapping_add(1));
+                if OBJECT_WORK.car_switches.bits() & bit != 0 {
                     car_part_matrix(matrix);
-                    crate::scene::draw_scene_object::draw_scene_object_in_game(ga(LIT) as u32)?;
+                    crate::scene::draw_scene_object::draw_scene_object_in_game(lit() as u32)?;
                 }
             }
         }
-        w(0x608CB0, 0);
-        w(0x608CAC, u32::MAX);
+        CAMERA_WORK.drawing_car.set(0);
+        CAMERA_WORK.faded_bits.set(u32::MAX);
         clear_car_marks();
         Ok(())
     }
@@ -401,7 +433,7 @@ pub unsafe fn draw_car_shined(car: u32) -> Result<(), Refused> {
         if !below(eax, 0x4_0000) {
             eax = 0x4_0000;
         }
-        let product = eax as u64 * game_read::<u32>(rva(0x60AD0C)) as u64;
+        let product = eax as u64 * STAGE_PREFS.shine_scale.get() as u64;
         COURSE.shine.set((product as u32) >> 18);
         let done = draw_car(car);
         COURSE.shine.set(shine);
@@ -423,10 +455,12 @@ pub unsafe fn draw_car_entry(entry: u32) -> Result<(), Refused> {
         if car == 0 {
             return Err(BadInput("a car without its block").into());
         }
-        game_write(rva(0x60627C), n);
-        game_write(rva(0x62DAD4), Car::at(car).light_colour.bits());
+        VIEW_VARS.drawn_car.set(n);
+        LIGHT_WORK
+            .view_light_base
+            .set(Car::at(car).light_colour.bits());
         let t = crate::scene::rotate_point::rotate_point(
-            ga(VIEW_MATRIX) as u32,
+            view_matrix() as u32,
             [
                 int_80(Car::at(car).position[0].bits()),
                 int_80(Car::at(car).position[1].bits()),
@@ -434,13 +468,15 @@ pub unsafe fn draw_car_entry(entry: u32) -> Result<(), Refused> {
             ],
         );
         let place = t.map(tbyte_to_int);
-        for (k, p) in place.iter().enumerate() {
-            game_write(rva(0x64159C) + 4 * k, *p);
-        }
+        FRAME_WORK.car_kept[0].set_bits(place[0]);
+        FRAME_WORK.car_kept[1].set_bits(place[1]);
+        FRAME_WORK.car_depth.set_bits(place[2]);
         let depth = place[2];
         let mut x = place[0];
         if below(depth, 0xFFFC_0000) {
-            game_write(rva(0x641598), FRAME_WORK.cars_culled.get().wrapping_add(1));
+            FRAME_WORK
+                .cars_culled
+                .set(FRAME_WORK.cars_culled.get().wrapping_add(1));
             return Ok(());
         }
         if (x as i32) < 0 {
@@ -448,10 +484,14 @@ pub unsafe fn draw_car_entry(entry: u32) -> Result<(), Refused> {
         }
         x = x.wrapping_sub(0x8_0000);
         if !below(x, depth) {
-            game_write(rva(0x641598), FRAME_WORK.cars_culled.get().wrapping_add(1));
+            FRAME_WORK
+                .cars_culled
+                .set(FRAME_WORK.cars_culled.get().wrapping_add(1));
             return Ok(());
         }
-        game_write(rva(0x641594), FRAME_WORK.cars_drawn.get().wrapping_add(1));
+        FRAME_WORK
+            .cars_drawn
+            .set(FRAME_WORK.cars_drawn.get().wrapping_add(1));
         draw_car_shined(car)
     }
 }
@@ -459,6 +499,7 @@ pub unsafe fn draw_car_entry(entry: u32) -> Result<(), Refused> {
 #[cfg(test)]
 mod asm_reference {
     use super::*;
+    use crate::framework::game_read;
     use crate::race::asm_test::{Rng, Saved, at_each_control_word, lock};
 
     // The original blocks, verbatim (with the clamps between them).

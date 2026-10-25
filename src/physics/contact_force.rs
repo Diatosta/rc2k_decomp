@@ -29,8 +29,9 @@
 use crate::math::x87_float::X;
 use crate::math::x87_float::compare;
 use crate::math::x87_run::{compare_80, neg_rounded};
+use crate::physics::contact_store::CONTACT_WORK;
 use crate::physics::dot_product::dot_product;
-use crate::physics::flow::{a, copy3, fill3, g, hold_low, negate, p};
+use crate::physics::flow::{hold_low, negate, p};
 use crate::physics::multiply_parts::multiply_parts;
 use crate::physics::scale_vector::scale_vector;
 use crate::physics::tables_store::PHYSICS;
@@ -42,18 +43,37 @@ use crate::scene::draw_store::DRAW;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::view_matrix::cross_product;
 use crate::scene::x87_mem::{fild, fld, fnstsw, fstp, fstp80};
+use crate::session::Float;
 
 /// `dword_614B40`: the record the force goes to.
 pub const RECORD: usize = 0x614B40;
 
 /// `scene::cross_product` with the original's ebx, ecx, edx.
-fn cross(ebx: usize, ecx: usize, edx: usize) {
-    unsafe { cross_product(a(ebx) as usize, a(ecx) as usize, a(edx) as usize) };
+fn cross(ebx: &Float, ecx: &Float, edx: &Float) {
+    unsafe { cross_product(ebx.addr(), ecx.addr(), edx.addr()) };
+}
+
+/// Three floats copied as bits, in order.
+fn copy3(to: &[Float], from: &[Float]) {
+    for k in 0..3 {
+        to[k].set_bits(from[k].bits());
+    }
+}
+
+/// Three floats set to the bits `v`.
+fn fill3(to: &[Float], v: u32) {
+    for cell in &to[..3] {
+        cell.set_bits(v);
+    }
 }
 
 /// The Rust version.
 pub unsafe fn contact_force() {
-    cross(0x6D30B4, 0x6D3090, 0x6D30C0);
+    cross(
+        &CONTACT_WORK.contact_turn_speed[0],
+        &CONTACT_WORK.contact_point[0],
+        &CONTACT_WORK.contact_turn_cross[0],
+    );
     x87_1(
         crate::race::store::asm_base() as usize,
         0x2D30C0,
@@ -61,45 +81,87 @@ pub unsafe fn contact_force() {
         0x2D30CC,
     );
     p(
-        0x6D31DC,
-        neg_rounded(unsafe { dot_product(a(0x6D30CC), a(0x6D3078)) }),
+        &CONTACT_WORK.contact_depth,
+        neg_rounded(unsafe {
+            dot_product(
+                CONTACT_WORK.contact_point_speed[0].addr() as u32,
+                CONTACT_WORK.contact_normal[0].addr() as u32,
+            )
+        }),
     );
     x87_2(crate::race::store::asm_base() as usize);
-    hold_low(0x6D31DC, &DRAW.scratch);
+    hold_low(&CONTACT_WORK.contact_depth, &DRAW.scratch);
     // 0x45F222: the push the turn would give.
-    cross(0x6D3090, 0x6D3078, 0x6D31E4);
-    unsafe { turn_by_inverse(a(0x6D31E4)) };
-    unsafe { multiply_parts(a(0x6D31E4), PHYSICS.inertia[0].addr() as u32, a(0x6D31F4)) };
-    unsafe { turn_by_car_matrix(a(0x6D31F4)) };
-    cross(0x6D3090, 0x6D31F4, 0x6D31E4);
+    cross(
+        &CONTACT_WORK.contact_point[0],
+        &CONTACT_WORK.contact_normal[0],
+        &CONTACT_WORK.contact_scratch_a[0],
+    );
+    unsafe { turn_by_inverse(CONTACT_WORK.contact_scratch_a[0].addr() as u32) };
+    unsafe {
+        multiply_parts(
+            CONTACT_WORK.contact_scratch_a[0].addr() as u32,
+            PHYSICS.inertia[0].addr() as u32,
+            CONTACT_WORK.contact_scratch_b[0].addr() as u32,
+        )
+    };
+    unsafe { turn_by_car_matrix(CONTACT_WORK.contact_scratch_b[0].addr() as u32) };
+    cross(
+        &CONTACT_WORK.contact_point[0],
+        &CONTACT_WORK.contact_scratch_b[0],
+        &CONTACT_WORK.contact_scratch_a[0],
+    );
     p(
-        0x6D31D8,
-        neg_rounded(unsafe { dot_product(a(0x6D31E4), a(0x6D3078)) }),
+        &CONTACT_WORK.contact_turn_push,
+        neg_rounded(unsafe {
+            dot_product(
+                CONTACT_WORK.contact_scratch_a[0].addr() as u32,
+                CONTACT_WORK.contact_normal[0].addr() as u32,
+            )
+        }),
     );
     x87_3(crate::race::store::asm_base() as usize);
     // 0x45F2C2: the normal push, the speed along the normal and across it.
-    copy3(0x6D3130, 0x6D3078);
-    let factor = extended(g(0x6D3204));
-    unsafe { scale_vector(a(0x6D3130), factor) };
+    copy3(
+        &CONTACT_WORK.contact_normal_push,
+        &CONTACT_WORK.contact_normal,
+    );
+    let factor = extended(CONTACT_WORK.contact_factor.bits());
+    unsafe { scale_vector(CONTACT_WORK.contact_normal_push[0].addr() as u32, factor) };
     DRAW.scratch.set(rounded(factor));
-    let along = unsafe { dot_product(a(0x6D30CC), a(0x6D3078)) };
-    copy3(0x6D30E4, 0x6D3078);
-    unsafe { scale_vector(a(0x6D30E4), along) };
+    let along = unsafe {
+        dot_product(
+            CONTACT_WORK.contact_point_speed[0].addr() as u32,
+            CONTACT_WORK.contact_normal[0].addr() as u32,
+        )
+    };
+    copy3(
+        &CONTACT_WORK.contact_normal_speed,
+        &CONTACT_WORK.contact_normal,
+    );
+    unsafe { scale_vector(CONTACT_WORK.contact_normal_speed[0].addr() as u32, along) };
     DRAW.scratch.set(rounded(along));
-    copy3(0x6D30F0, 0x6D30CC);
+    copy3(
+        &CONTACT_WORK.contact_side_speed,
+        &CONTACT_WORK.contact_point_speed,
+    );
     x87_4(crate::race::store::asm_base() as usize);
-    p(0x6D3108, rounded(unsafe { vector_length(a(0x6D30E4)) }));
-    p(0x6D310C, rounded(unsafe { vector_length(a(0x6D30F0)) }));
-    fill3(0x6D3160, 0);
+    CONTACT_WORK.contact_speed_length.set_bits(rounded(unsafe {
+        vector_length(CONTACT_WORK.contact_normal_speed[0].addr() as u32)
+    }));
+    CONTACT_WORK.contact_value.set_bits(rounded(unsafe {
+        vector_length(CONTACT_WORK.contact_side_speed[0].addr() as u32)
+    }));
+    fill3(&CONTACT_WORK.contact_extra, 0);
     if PHYSICS.contact_step.get() != 0 {
-        fill3(0x6D3130, 0);
-        copy3(0x6D3160, 0x6D3078);
+        fill3(&CONTACT_WORK.contact_normal_push, 0);
+        copy3(&CONTACT_WORK.contact_extra, &CONTACT_WORK.contact_normal);
         let mut part = [0u8; 10];
         x87_5(
             crate::race::store::asm_base() as usize,
             part.as_mut_ptr() as usize,
         );
-        unsafe { scale_vector(a(0x6D3160), part) };
+        unsafe { scale_vector(CONTACT_WORK.contact_extra[0].addr() as u32, part) };
         DRAW.scratch.set(rounded(part));
     }
     x87_1(
@@ -108,15 +170,30 @@ pub unsafe fn contact_force() {
         0x2D3160,
         0x2D3130,
     );
-    copy3(0x6D3150, 0x6D3130);
-    p(0x6D30FC, crate::math::x87::loaded(g(0x6D3100)));
+    copy3(
+        &CONTACT_WORK.contact_total,
+        &CONTACT_WORK.contact_normal_push,
+    );
+    CONTACT_WORK
+        .contact_slide_limit_held
+        .set_bits(crate::math::x87::loaded(
+            CONTACT_WORK.contact_slide_limit.bits(),
+        ));
     // 0x45F48D: the slide against the motion, held to `flt_6D30FC` long.
-    copy3(0x6D3140, 0x6D30F0);
-    negate(0x6D3140);
-    negate(0x6D3144);
-    negate(0x6D3148);
-    if compare_80(unsafe { vector_length(a(0x6D3140)) }, NUMBERS.zero.bits()) & 0x4000 != 0 {
-        fill3(0x6D3140, 0);
+    copy3(
+        &CONTACT_WORK.contact_slide,
+        &CONTACT_WORK.contact_side_speed,
+    );
+    negate(&CONTACT_WORK.contact_slide[0]);
+    negate(&CONTACT_WORK.contact_slide[1]);
+    negate(&CONTACT_WORK.contact_slide[2]);
+    if compare_80(
+        unsafe { vector_length(CONTACT_WORK.contact_slide[0].addr() as u32) },
+        NUMBERS.zero.bits(),
+    ) & 0x4000
+        != 0
+    {
+        fill3(&CONTACT_WORK.contact_slide, 0);
     }
     let mut status = 0u16;
     x87_6(
@@ -133,12 +210,15 @@ pub unsafe fn contact_force() {
         0x2D3130,
         0x2D3150,
     );
-    let edi = g(RECORD);
-    unsafe { turn_by_inverse(a(0x6D3150)) };
+    let edi = PHYSICS.contact_record.get();
+    unsafe { turn_by_inverse(CONTACT_WORK.contact_total[0].addr() as u32) };
     x87_8(crate::race::store::asm_base() as usize, edi as usize);
-    unsafe { turn_by_inverse(a(0x6D3090)) };
+    unsafe { turn_by_inverse(CONTACT_WORK.contact_point[0].addr() as u32) };
     for k in 0..3 {
-        unsafe { ((edi + 0xC + 4 * k) as *mut u32).write_unaligned(g(0x6D3090 + 4 * k as usize)) };
+        unsafe {
+            ((edi + 0xC + 4 * k) as *mut u32)
+                .write_unaligned(CONTACT_WORK.contact_point[k as usize].bits())
+        };
     }
 }
 

@@ -33,21 +33,19 @@ use crate::math::x87::int_hypot;
 use crate::math::x87_run::compare_80;
 use crate::physics::car_store::CAR;
 use crate::physics::contact_force::{RECORD, contact_force};
-use crate::physics::flow::{a, copy3, fill3, g, negate, p};
-use crate::physics::point_hits_car::KIND;
+use crate::physics::contact_store::CONTACT_WORK;
+use crate::physics::flow::{a, copy_cells, fill_cells, g, negate, p};
 use crate::physics::tables_store::PHYSICS;
 use crate::physics::touch_face::{FACES, touch_face};
 use crate::physics::vector_length::vector_length;
 use crate::race::norms::normalise_work_vector;
 use crate::race::numbers_store::NUMBERS;
+use crate::race::scratch_store::FRAME_SCRATCH;
 use crate::race::work_store::RACE_WORK;
 use crate::scene::draw_store::DRAW;
 use crate::scene::object_store::OBJECT_WORK;
 use crate::scene::x87_mem::{fild, fistp, fld, fstp};
 use rc2k_core::physics::face_contacts::{self as contacts, FaceObject, Inside};
-
-const WORK: usize = 0x5C5F60; // g_workVector
-const OBJECT: usize = 0x6D321C; // dword_6D321C
 
 fn byte(x: u32) -> u32 {
     unsafe { (x as *const u8).read() as u32 }
@@ -66,7 +64,7 @@ fn touch() -> Result<(), Refused> {
 /// of its callers.
 // Converted: `rc2k_core::physics::face_contacts` (the x87 steps stay).
 pub fn steps(number: u32) -> Result<(), Refused> {
-    p(0x6D3218, number);
+    CONTACT_WORK.face_number.set(number);
     let face = (number << 6).wrapping_add(g(FACES));
     if unsafe { crate::scene::kind_hidden_at::kind_hidden_at(face) } {
         return Ok(());
@@ -74,27 +72,29 @@ pub fn steps(number: u32) -> Result<(), Refused> {
     let object = match contacts::face_object(byte(face), || byte(face + 1)) {
         FaceObject::NotObject => return Ok(()),
         FaceObject::TouchOnly => {
-            p(KIND, 0xFF);
+            CONTACT_WORK.contact_kind.set(0xFF);
             return touch();
         }
         FaceObject::Object(object) => object,
     };
-    p(OBJECT, object);
+    CONTACT_WORK.face_object.set(object);
     let kind = g(0x5CD27C + 4 * object as usize);
     contacts::check_material(kind)?;
-    p(KIND, byte(a(0x97DF30) + 0x80 * kind + 0x1C));
+    CONTACT_WORK
+        .contact_kind
+        .set(byte(a(0x97DF30) + 0x80 * kind + 0x1C));
     if contacts::object_tried(byte(face + 0x25), RACE_WORK.stage_direction.get(), object).is_err() {
         return Ok(());
     }
     for (k, o) in [8u32, 0xC, 0x10].iter().enumerate() {
-        p(0x63503C + 4 * k, contacts::turn_word(byte(face + o)));
+        OBJECT_WORK.angles[k].set(contacts::turn_word(byte(face + o)));
     }
     OBJECT_WORK.size.set(byte(face + 0x18));
     // esi and ebp both the face here.
     let (inside, _, point) =
         unsafe { crate::physics::scene_point_hits_car::scene_point_hits_car(face, face) };
     if !inside {
-        if !contacts::tries_points(g(KIND)) {
+        if !contacts::tries_points(CONTACT_WORK.contact_kind.get()) {
             return Ok(());
         }
         let dx = rd(point)
@@ -105,8 +105,10 @@ pub fn steps(number: u32) -> Result<(), Refused> {
             .wrapping_sub(CAR.position[2].get());
         let distance = int_hypot(dx as i32, dz as i32) as u32;
         DRAW.scratch.set(distance);
-        let (reach, _) =
-            contacts::reach(g(0x634BA0 + 4 * g(OBJECT) as usize), OBJECT_WORK.size.get());
+        let (reach, _) = contacts::reach(
+            g(0x634BA0 + 4 * CONTACT_WORK.face_object.get() as usize),
+            OBJECT_WORK.size.get(),
+        );
         if contacts::out_of_reach(reach, distance) {
             return Ok(());
         }
@@ -117,9 +119,11 @@ pub fn steps(number: u32) -> Result<(), Refused> {
     }
     // 0x45E523: inside.
     x87_1(crate::race::store::asm_base() as usize);
-    p(0x6D3B70, g(0x6D3B70).wrapping_add(0x80) & 0xFF);
+    CONTACT_WORK
+        .face_angle
+        .set(CONTACT_WORK.face_angle.get().wrapping_add(0x80) & 0xFF);
     x87_2(crate::race::store::asm_base() as usize);
-    match contacts::inside(g(KIND)) {
+    match contacts::inside(CONTACT_WORK.contact_kind.get()) {
         Inside::PushBack => {}
         Inside::Touch => return touch(),
         Inside::Nothing => return Ok(()),
@@ -128,21 +132,29 @@ pub fn steps(number: u32) -> Result<(), Refused> {
     unsafe { crate::physics::feel_ground::feel_ground() }?;
     touch()?;
     // 0x45E62A: pushed back against the motion, level.
-    copy3(WORK, 0x71A170);
-    negate(WORK);
-    negate(WORK + 4);
-    negate(WORK + 8);
-    if compare_80(unsafe { vector_length(a(WORK)) }, NUMBERS.zero.bits()) & 0x4000 != 0 {
-        fill3(WORK, 0);
+    copy_cells(&FRAME_SCRATCH.work_vector, &CAR.velocity);
+    negate(&FRAME_SCRATCH.work_vector[0]);
+    negate(&FRAME_SCRATCH.work_vector[1]);
+    negate(&FRAME_SCRATCH.work_vector[2]);
+    if compare_80(
+        unsafe { vector_length(FRAME_SCRATCH.work_vector[0].addr() as u32) },
+        NUMBERS.zero.bits(),
+    ) & 0x4000
+        != 0
+    {
+        fill_cells(&FRAME_SCRATCH.work_vector, 0);
     }
-    p(WORK + 4, 0);
+    FRAME_SCRATCH.work_vector[1].set(0);
     unsafe { normalise_work_vector() };
-    copy3(0x6D3078, WORK);
-    copy3(0x6D30A8, 0x71A170);
-    copy3(0x6D30B4, 0x71A15C);
-    copy3(0x6D3090, 0x6D3B78);
-    p(0x6D3094, 0);
-    p(0x6D3100, 0);
+    copy_cells(&CONTACT_WORK.contact_normal, &FRAME_SCRATCH.work_vector);
+    copy_cells(&CONTACT_WORK.contact_car_speed, &CAR.velocity);
+    copy_cells(&CONTACT_WORK.contact_turn_speed, &CAR.spin);
+    copy_cells(
+        &CONTACT_WORK.contact_point,
+        &CONTACT_WORK.object_point_scaled,
+    );
+    CONTACT_WORK.contact_point[1].set_bits(0);
+    CONTACT_WORK.contact_slide_limit.set_bits(0);
     p(RECORD, (PHYSICS.contacts.as_ptr() as usize) as u32);
     unsafe { contact_force() };
     Ok(())

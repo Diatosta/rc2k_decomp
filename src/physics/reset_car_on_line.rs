@@ -10,8 +10,8 @@
 //! Caller: `physics::reset_car` (its end). Refuses what the three calls refuse.
 
 use crate::errors::Refused;
-use crate::framework::{game_write, rva};
 use crate::physics::car_store::CAR;
+use crate::scene::light_store::LIGHT_STATE;
 
 /// The Rust version: the nearest checkpoint (`race::nearest_checkpoint`), the car placed
 /// there (`race::place_car_on_line`) and its motion reset (`race::reset_car_motion`).
@@ -23,8 +23,8 @@ pub unsafe fn reset_car_on_line() -> Result<(), Refused> {
         for cell in [&CAR.checkpoint, &CAR.reset_checkpoint, &CAR.last_pace_call] {
             cell.set(nearest);
         }
-        for v in [0x6365E4usize, 0x6365EC] {
-            game_write(rva(v), nearest);
+        for cell in [&LIGHT_STATE.line_place, &LIGHT_STATE.line_fraction] {
+            cell.set(nearest);
         }
         crate::race::start_place::place_car_on_line()?;
         crate::race::car_starts::reset_car_motion()?;

@@ -11,11 +11,11 @@
 //! memory.
 
 use crate::errors::BadInput;
-use crate::framework::{game_addr, game_read, game_write};
+use crate::framework::{game_addr, game_write};
+use crate::race::course_lists_store::COURSE_LISTS;
 use crate::scene::object_store::OBJECT_WORK;
 use crate::scene::objects::{
-    FACE_COUNT_RVA, FIRST_POINT_RVA, OBJECT_KINDS_RVA, POINT_COUNT_RVA, POINTS_ROOM_RVA,
-    POINTS_RVA, SLOTS,
+    FACE_COUNT_RVA, FIRST_POINT_RVA, OBJECT_KINDS_RVA, POINT_COUNT_RVA, SLOTS,
 };
 
 /// The five tables of 0x100 dwords from `g_objectFirstPoint` on.
@@ -25,7 +25,10 @@ const TABLES_LEN: usize = SLOTS as usize * 4 * 5;
 
 pub unsafe fn reset_objects() -> Result<(), BadInput> {
     unsafe {
-        let (memory, room): (u32, u32) = (game_read(POINTS_RVA), game_read(POINTS_ROOM_RVA));
+        let (memory, room): (u32, u32) = (
+            COURSE_LISTS.object_points.bits(),
+            COURSE_LISTS.object_points_room.bits(),
+        );
         if memory == 0 && room >= 4 {
             return Err(BadInput("room for the objects' points without memory"));
         }

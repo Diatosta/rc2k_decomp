@@ -16,12 +16,14 @@
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
+use crate::physics::camera_store::CAMERA_WORK;
 use crate::physics::camera_view::rd;
 use crate::physics::car_store::CAR;
-use crate::physics::flow::{a, g, p};
+use crate::physics::flow::a;
 use crate::race::frame_store::FRAME_WORK;
 use crate::race::numbers_store::NUMBERS;
 use crate::race::vars_store::RACE_VARS;
+use crate::race::view_vars_store::VIEW_VARS;
 use crate::scene::draw_store::DRAW;
 use crate::scene::x87_mem::{fild, fld, fstp80};
 use rc2k_core::physics::camera_place::{SECOND_RECORD_MODE, add_offset};
@@ -40,24 +42,30 @@ unsafe fn place_with(turns: Turns, second: &dyn Fn() -> [i32; 3]) {
     } else {
         a(0x6077B0)
     };
-    for (k, to) in [
-        0x606678usize,
-        0x60667C,
-        0x6066D4,
-        0x6066D8,
-        0x606730,
-        0x606734,
-    ]
-    .iter()
-    .enumerate()
-    {
-        p(*to, rd(esi + 4 * k as u32));
+    let places = [
+        &VIEW_VARS.place_a,
+        &VIEW_VARS.place_b,
+        &VIEW_VARS.place_c,
+        &VIEW_VARS.place_d,
+        &VIEW_VARS.place_e,
+        &VIEW_VARS.place_f,
+    ];
+    for (k, to) in places.iter().enumerate() {
+        to.set(rd(esi + 4 * k as u32));
     }
     let last = rd(esi + 0x18);
-    for to in [0x60668C, 0x6066E8, 0x606744] {
-        p(to, last);
+    for to in [
+        &VIEW_VARS.place_last_a,
+        &VIEW_VARS.place_last_b,
+        &VIEW_VARS.place_last_c,
+    ] {
+        to.set(last);
     }
-    let (mut eax, mut ebx, mut ecx) = (g(0x608B30), g(0x608B34), g(0x608B38));
+    let (mut eax, mut ebx, mut ecx) = (
+        CAMERA_WORK.camera_offset_x.get(),
+        CAMERA_WORK.camera_offset_y.get(),
+        CAMERA_WORK.camera_offset_z.get(),
+    );
     for (ebx_turn, ecx_turn, eax_turn) in [
         (
             &CAR.camera_offset_turns[2],
@@ -109,9 +117,14 @@ pub unsafe fn place_camera() {
     use crate::math::{turn_point_xz, turn_point_xz_ebx, turn_point_xz_ecx};
     let second = || {
         let mut parts = [[0u8; 10]; 3];
-        for (k, x) in [0x608B74usize, 0x608B78, 0x608B7C].iter().enumerate() {
+        let turns = [
+            &CAMERA_WORK.view_turn_x,
+            &CAMERA_WORK.view_turn_y,
+            &CAMERA_WORK.view_turn_z,
+        ];
+        for (k, x) in turns.iter().enumerate() {
             x87_1(
-                a(*x) as usize,
+                x.addr(),
                 crate::race::store::asm_base() as usize,
                 (parts[k].as_mut_ptr()) as usize,
             );

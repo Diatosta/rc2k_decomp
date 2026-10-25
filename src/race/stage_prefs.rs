@@ -3,36 +3,33 @@
 //! lists below), "skidmarks init", "render3d loadlightsdat" and "getmatcrash".
 
 use crate::errors::Refused;
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_write, rva};
+use crate::physics::camera_store::CAMERA_WORK;
 use crate::physics::car_store::CAR;
+use crate::race::prefs_store::STAGE_PREFS;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::work_store::RACE_WORK;
 use crate::scene::object_store::OBJECT_WORK;
 
-pub const STAGE_RVA: usize = rva(0x623850); // dword_623850: the stage's number
-pub const PREFS_RVA: usize = rva(0x608CB4); // the stage's localdat
+// The stage's localdat is `STAGE_PREFS.prefs_head` (0x608CB4).
 pub const PREFS_LEN: u32 = 0x206C;
 /// `files\levels\levelxx\localdat`, `srclvls\levelxx\localdat` (the xx the course's).
 const PREFS_PATHS: [usize; 2] = [rva(0x60B05C), rva(0x60B043)];
-const KINDS_RVA: usize = rva(0x608DB4); // g_textureKinds
-const SWAPPED_RVA: usize = rva(0x60A67C); // dword_60A67C: 0x40 kinds (>> 4) swapped in
-const TWEAKED_RVA: usize = rva(0x60A564); // dword_60A564 .. dword_60A56C
-const CLEARED_RVA: usize = rva(0x609344); // qword_609344
 const SKID_MARKS_RVA: usize = rva(0x643AE8); // word_643AE8: 0x400 of 8 bytes
 const SKID_COUNT_RVA: usize = rva(0x645B10); // dword_645B10
 pub const LIGHTS_RVA: usize = rva(0x6077E8); // the lights' data, 0x1320 bytes
-const LIGHTS_PATH_RVA: usize = rva(0x608B08); // "files\s\data\ldata"
 pub const LIGHTS_LEN: u32 = 0x1320;
 pub const LIGHT_RECORDS_RVA: usize = rva(0x5C906C); // 0x22 records of 0x134
 pub const LIGHT_RECORDS: u32 = rc2k_core::race::stage_objects::LIGHT_RECORDS as u32;
-pub const CRASH_MATRIX_RVA: usize = rva(0x71A08C); // dword_71A08C
 
-unsafe fn kind(n: u32) -> u32 {
-    unsafe { game_read(KINDS_RVA + 4 * n as usize) }
+/// `g_textureKinds`.
+fn kind(n: u32) -> u32 {
+    STAGE_PREFS.texture_kinds[n as usize].get()
 }
 
-unsafe fn swapped(n: u32) -> u32 {
-    unsafe { game_read(SWAPPED_RVA + 4 * n as usize) }
+/// `dword_60A67C`: 0x40 kinds (>> 4) swapped in.
+fn swapped(n: u32) -> u32 {
+    STAGE_PREFS.picture_lists_b[n as usize].get()
 }
 
 /// `race::swap_stage_texture` (0x439B03): for the stages of the core's `TEXTURE_SWAPS`,
@@ -43,46 +40,42 @@ unsafe fn swapped(n: u32) -> u32 {
 pub unsafe fn swap_stage_texture() {
     // Converted: `rc2k_core::race::stage::swap_texture`.
     use rc2k_core::race::stage::{Swap, swap_texture};
-    unsafe {
-        let stage: u32 = RACE_VARS.stage.bits();
-        let ((_, new), swap) = swap_texture(stage, |n| kind(n), |n| swapped(n));
-        let swapped_kind = match swap {
-            Swap::NotThisStage | Swap::NotFound => return,
-            Swap::Listed { kind, .. } | Swap::Full { kind } => kind,
-            Swap::Added { kind, at } => {
-                game_write(SWAPPED_RVA + 4 * at as usize, new >> 4);
-                kind
-            }
-        };
-        game_write(KINDS_RVA + 4 * swapped_kind as usize, new);
-    }
+    let stage: u32 = RACE_VARS.stage_number.bits();
+    let ((_, new), swap) = swap_texture(stage, kind, swapped);
+    let swapped_kind = match swap {
+        Swap::NotThisStage | Swap::NotFound => return,
+        Swap::Listed { kind, .. } | Swap::Full { kind } => kind,
+        Swap::Added { kind, at } => {
+            STAGE_PREFS.picture_lists_b[at as usize].set(new >> 4);
+            kind
+        }
+    };
+    STAGE_PREFS.texture_kinds[swapped_kind as usize].set(new);
 }
 
 /// `race::tweak_stage` (0x439AAB): for the stages 0x15, 0x3E and 0x36, `dword_60A564` ..
 /// `dword_60A56C` 0xFF.
 pub unsafe fn tweak_stage() {
-    unsafe {
+    {
         // Converted: `rc2k_core::race::stage::stage_tweaked`.
-        if rc2k_core::race::stage::stage_tweaked(RACE_VARS.stage.bits()) {
-            game_write(TWEAKED_RVA, [0xFFu32; 3]);
+        if rc2k_core::race::stage::stage_tweaked(RACE_VARS.stage_number.bits()) {
+            crate::session::write_bits(&STAGE_PREFS.car_light_table, [0xFFu32; 3]);
         }
     }
 }
 
 /// `race::clear_prefs_qword` (0x465381): with `dword_71C800` set, `qword_609344` 0.
 pub unsafe fn clear_prefs_qword() {
-    unsafe {
+    {
         if RACE_WORK.no_precipitation.get() != 0 {
-            game_write(CLEARED_RVA, [0u32; 2]);
+            crate::session::write_bits(&STAGE_PREFS.blit_cleared, [0u32; 2]);
         }
     }
 }
 
 /// `files::read_whole_file` inside `pusha`.
 unsafe fn read(path: usize, buffer: usize, count: u32) -> Result<(), Refused> {
-    unsafe {
-        crate::race::level_init::read(game_addr(path) as u32, game_addr(buffer) as u32, count)
-    }
+    unsafe { crate::race::level_init::read(path as u32, buffer as u32, count) }
 }
 
 /// `race::load_prefs` (0x445698): `files\levels\levelxx\localdat`, then
@@ -91,7 +84,7 @@ unsafe fn read(path: usize, buffer: usize, count: u32) -> Result<(), Refused> {
 pub unsafe fn load_prefs() -> Result<(), Refused> {
     unsafe {
         for path in PREFS_PATHS {
-            read(path, PREFS_RVA, PREFS_LEN)?;
+            read(game_addr(path), STAGE_PREFS.prefs_head[0].addr(), PREFS_LEN)?;
         }
         swap_stage_texture();
         tweak_stage();
@@ -142,7 +135,11 @@ pub unsafe fn copy_lights_data() {
 /// the lights' data, then `copy_lights_data`.
 pub unsafe fn load_lights_data() -> Result<(), Refused> {
     unsafe {
-        read(LIGHTS_PATH_RVA, LIGHTS_RVA, LIGHTS_LEN)?;
+        read(
+            CAMERA_WORK.lights_path[0].addr(), // "files\s\data\ldata"
+            game_addr(LIGHTS_RVA),
+            LIGHTS_LEN,
+        )?;
         copy_lights_data();
     }
     Ok(())
@@ -168,6 +165,6 @@ pub unsafe fn get_mat_crash() {
         matrix::set_turn_z_16(turns[2]);
         let a = |r: usize| game_addr(r);
         matrix::multiply_matrices(a(TURN_Z_RVA), a(TURN_X_RVA), a(LIT_RVA));
-        matrix::multiply_matrices(a(LIT_RVA), a(TURN_Y_RVA), a(CRASH_MATRIX_RVA));
+        matrix::multiply_matrices(a(LIT_RVA), a(TURN_Y_RVA), CAR.crash_matrix[0].addr());
     }
 }

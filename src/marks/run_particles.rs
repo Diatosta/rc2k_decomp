@@ -28,17 +28,16 @@
 //! (a broken ring). its seven calls relocated), manual patch.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::rva;
 use crate::marks::blocks::{RING_FREE_RVA, RING_USED_RVA};
 use crate::marks::setup::CLOCK;
 use crate::marks::setup::SEED_RVA;
-use crate::marks::store::{Slot, game_addr, game_read, game_write};
+use crate::marks::store::{Slot, game_read, game_write};
 use crate::math::x87;
+use crate::race::matrices_store::MATRICES;
 use crate::scene::matrix3::extended;
 use crate::scene::vector3::STATUS_RVA;
 
 const STEPS_RVA: Slot = Slot::at(0x76513C); // dword_76513C
-const VIEW_RVA: usize = rva(0x5EA3CC); // flt_5EA3CC: the view's place at +0x30
 const INDEX_RVA: Slot = Slot::at(0x93A5E8); // dword_93A5E8
 const TRAIL_COLOURS_RVA: Slot = Slot::at(0x922B38); // dword_922B38: 298 dwords
 const TRAIL_COLOURS: i32 = 298;
@@ -310,7 +309,7 @@ pub unsafe fn run_particles() -> Result<(), Refused> {
             s & 0xFFFF
         };
         let r = seed();
-        let at = game_addr(VIEW_RVA) as u32;
+        let at = MATRICES.view_place[0].addr() as u32;
         let view = |o: u32| get(at + o);
         let uv_k: u32 = game_read(UV_K_RVA);
         let wave = |k: [Slot; 3], add: u32, cosine: bool| {

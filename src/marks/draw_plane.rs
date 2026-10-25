@@ -25,12 +25,12 @@ use crate::math::x87;
 use crate::race::frame_store::FRAME_WORK;
 use crate::race::numbers_store::NUMBERS;
 use crate::scene::cross_product3::cross_product3;
+use crate::scene::kind_texture_store::KIND_TEXTURES;
 use crate::scene::vector3::normalise_vector3;
 
 const AXES: [Slot; 3] = [Slot::at(0x89CF1A), Slot::at(0x89CF26), Slot::at(0x89CF32)];
 const PLACE_RVA: Slot = Slot::at(0x8161A2); // flt_8161A2
 const FACING_RVA: Slot = Slot::at(0x814718); // flt_814718
-const TEXTURE_RVA: usize = rva(0x5D1E10); // dword_5D1E10
 const CORNER_RVA: Slot = Slot::at(0x934C64); // dword_934C64
 const MARK_CORNERS_RVA: Slot = Slot::at(0x8EB971); // g_marksCorners
 const UV_K_RVA: Slot = Slot::at(0x8EB969); // flt_8EB969
@@ -117,7 +117,7 @@ pub unsafe fn draw_plane() -> Result<(), Refused> {
         for state in [0x11, 0x12] {
             set_render_state(2, state);
         }
-        crate::scene::set_texture::set_texture(game_read(TEXTURE_RVA));
+        crate::scene::set_texture::set_texture(KIND_TEXTURES.kind_first_slots[202].bits());
         plane_corners();
         let at = addr(MARK_CORNERS_RVA) + corner * 0x80;
         let word = |off: u32| ((at + off) as *const u16).read_unaligned() as u32;

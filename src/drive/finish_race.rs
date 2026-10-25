@@ -12,15 +12,17 @@
 
 use crate::drive::race_parts::log_line;
 use crate::errors::Refused;
-use crate::physics::flow::{g, p};
+use crate::physics::flow::g;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::settings_copy::Place::{self, Addr};
 use crate::race::settings_copy::var;
 use crate::race::state_store::RACE_STATE;
+use crate::race::switches_store::FRAME_SWITCHES;
 use crate::race::vars_store::RACE_VARS;
+use crate::race::view_store::RACE_VIEW;
+use crate::race::view_vars_store::VIEW_VARS;
+use crate::race::viewer_screen_store::VIEWER_PANEL;
 use rc2k_core::drive::finish_routine::{self, Set, Var};
-
-const B: usize = 0x70F3EC;
 
 fn log_text(text: &std::ffi::CStr) {
     unsafe { crate::logfile::log_write::log_write(text.as_ptr().cast(), false, 1) };
@@ -34,26 +36,26 @@ fn log_number(v: u32) {
 fn var(v: Var) -> Place {
     match v {
         Var::D60101C => Addr(0x60101C),
-        Var::D621514 => Addr(0x621514),
+        Var::D621514 => var!(FRAME_SWITCHES.editor_mode),
         Var::D623854 => var!(RACE_VARS.direction),
         Var::D6235FC => var!(RACE_VARS.car_tyres[0]),
         Var::RaceMode => var!(RACE_VARS.run_kind),
         Var::D6238A4 => var!(RACE_VARS.split),
-        Var::RaceCars => Addr(0x63DB94),
-        Var::D63DB90 => Addr(0x63DB90),
+        Var::RaceCars => var!(RACE_VIEW.players),
+        Var::D63DB90 => var!(RACE_VIEW.race_cars),
         Var::D6238A8 => var!(RACE_VARS.settings_words[0]),
         Var::D6238AC => var!(RACE_VARS.settings_words[1]),
         Var::D6238B0 => var!(RACE_VARS.settings_words[2]),
         Var::D6238B4 => var!(RACE_VARS.settings_words[3]),
         Var::D6238B8 => var!(RACE_VARS.settings_words[4]),
-        Var::D621890 => Addr(0x621890),
+        Var::D621890 => var!(FRAME_SWITCHES.view_marks_on),
         Var::D6238CC => var!(RACE_VARS.race_level),
         Var::D6238D0 => var!(RACE_VARS.race_stage),
         Var::D64BB18 => Addr(0x64BB18),
-        Var::D5C2F88 => Addr(0x5C2F88),
-        Var::D606744 => Addr(0x606744),
-        Var::D606748 => Addr(0x606748),
-        Var::D63DB84 => Addr(0x63DB84),
+        Var::D5C2F88 => var!(VIEWER_PANEL.race_done),
+        Var::D606744 => var!(VIEW_VARS.place_last_c),
+        Var::D606748 => var!(VIEW_VARS.finish_value),
+        Var::D63DB84 => var!(RACE_VIEW.after_credits),
     }
 }
 
@@ -62,7 +64,11 @@ fn set_up() {
     for (at, v) in finish_routine::set_up() {
         match at {
             Set::Var(x) => var(x).set(v),
-            Set::Lead(o) => p(B + o as usize, v),
+            Set::Lead(o) => unsafe {
+                // Car block 0 (0x70F3EC) + o.
+                ((crate::race::blocks_store::block_addr(0) + o as usize) as *mut u32)
+                    .write_unaligned(v)
+            },
         }
     }
 }
@@ -76,22 +82,22 @@ fn set_up() {
 /// registers this leaves are read by no caller (liveness: esi after the menus' calls has
 /// no read point).
 pub unsafe fn finish_race() -> Result<(), Refused> {
-    RACE_VARS.stage.set(g(
+    RACE_VARS.stage_number.set(g(
         0x64BB1C + 4 * RACE_STATE.results.stage_index.get() as usize
     ));
-    RACE_VARS.car_kinds[0].set(RACE_STATE.results.finish_kind.get());
+    RACE_VARS.race_car_kinds[0].set(RACE_STATE.results.finish_kind.get());
     CAR_BLOCKS.cars[0]
         .car_kind
-        .set_bits(RACE_VARS.car_kinds[0].get());
+        .set_bits(RACE_VARS.race_car_kinds[0].get());
     CAR_BLOCKS.cars[0]
         .start_slot_value
         .set_bits(RACE_STATE.results.finish_player.get());
     log_line(c"----------------------");
     log_line(c"CALLING FINISH ROUTINE");
     log_text(c"[shauntracknum]");
-    log_number(RACE_VARS.stage.get());
+    log_number(RACE_VARS.stage_number.get());
     log_text(c"[shauncarnum1]");
-    log_number(RACE_VARS.car_kinds[0].get());
+    log_number(RACE_VARS.race_car_kinds[0].get());
     log_text(c"[car1.ctd_carnum]");
     log_number(CAR_BLOCKS.cars[0].start_slot_value.bits());
     set_up();

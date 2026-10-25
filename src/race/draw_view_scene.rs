@@ -13,10 +13,9 @@
 //! Out: nothing its callers (`race::draw_race_scene`, `race::draw_mirror_view`) read
 
 use crate::errors::Refused;
-use crate::framework::{game_write, rva};
 use crate::physics::car_store::CAR;
 use crate::race::view_store::RACE_VIEW;
-const CLEARED: [usize; 2] = [rva(0x635014), rva(0x635018)]; // dword_635014, dword_635018
+use crate::scene::object_store::OBJECT_WORK;
 const SORT_ENTRIES: u32 = 0x9DB730; // g_sortEntries
 const DEPTH_ENTRIES: u32 = 0x9D3730; // g_depthEntries
 
@@ -28,8 +27,9 @@ pub unsafe fn draw_view_scene() -> Result<(), Refused> {
         if CAR.view_covered.get() != 0 {
             return draw_view_tint();
         }
-        for at in CLEARED {
-            game_write(at, 0u32);
+        // dword_635014, dword_635018.
+        for cell in &OBJECT_WORK.view_cleared {
+            cell.set(0);
         }
         race_sound_tick()?; // 0x14
         car_light_modes()?;

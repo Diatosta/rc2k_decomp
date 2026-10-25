@@ -16,16 +16,27 @@
 //! refuses (everything written put back).
 
 use crate::errors::Refused;
-use crate::physics::flow::{a, g, p};
+use crate::physics::flow::p;
 use crate::race::blocks_store::CAR_BLOCKS;
+use crate::race::replay_work_store::REPLAY_WORK;
 use crate::race::view_store::RACE_VIEW;
+use crate::race::viewer_state_store::REPLAY_VIEW;
 use rc2k_core::drive::replay_views::{WishStep, wish_step};
 
-const B: usize = 0x70F3EC; // g_carBlockStore
-const NEXT: usize = 0xFE0;
+/// Byte `k` of the frame's head (the first car block's start, `g_carBlockStore`).
+fn head_byte(k: usize) -> u32 {
+    unsafe { ((CAR_BLOCKS.cars[0].unknown_0[0].addr() + k) as *const u8).read() as u32 }
+}
 
-fn byte(x: usize) -> u32 {
-    unsafe { (a(x) as *const u8).read() as u32 }
+/// `dword_719F14[head byte]`: the table holds 47; a larger byte reads on into the
+/// variables after it, as the original does.
+fn wish_of(byte: usize) -> u32 {
+    match REPLAY_WORK.replay_camera_wishes.get(byte) {
+        Some(wish) => wish.get(),
+        None => unsafe {
+            ((REPLAY_WORK.replay_camera_wishes[0].addr() + 4 * byte) as *const u32).read_unaligned()
+        },
+    }
 }
 
 // Converted: `rc2k_core::drive::replay_views::wish_step`.
@@ -33,27 +44,33 @@ fn steps() -> Result<(), Refused> {
     p(0x6EF7D0, CAR_BLOCKS.cars[0].unknown_0[0].bits());
     p(0x6EF7D4, CAR_BLOCKS.cars[0].unknown_0[1].bits());
     for c in 0..2usize {
-        let block = B + NEXT * c;
-        let wish = g(0x719F14 + 4 * byte(B + c) as usize);
-        match wish_step(wish, g(0x5C2530), g(0x719FD0 + 4 * c), || g(block + 0x684)) {
+        let car = &CAR_BLOCKS.cars[c];
+        let wish = wish_of(head_byte(c) as usize);
+        match wish_step(
+            wish,
+            REPLAY_VIEW.replay_block.get(),
+            REPLAY_WORK.camera_last_frame[c].get(),
+            || car.camera_view.get(),
+        ) {
             WishStep::Draw(_) => {
-                p(0x719FD0 + 4 * c, g(0x5C2530));
+                REPLAY_WORK.camera_last_frame[c].set(REPLAY_VIEW.replay_block.get());
                 // `Draw` comes only for the wishes that draw: the mode is there.
                 if let Some(mode) =
                     unsafe { crate::drive::pick_replay_camera::pick_replay_camera(wish) }?
                 {
-                    p(block + 0x684, mode);
+                    car.camera_view.set(mode);
                 }
-                p(block + 0x694, 0);
-                p(block + 0x690, g(block + 8));
+                car.camera_switch_active.set(0);
+                car.camera_switch_clock.set(car.step_clock.get());
             }
             WishStep::Nothing(_) => {}
             WishStep::Set => {
-                p(block + 0x688, wish);
-                p(block + 0x684, wish);
-                p(block + 0x694, 0);
-                p(block + 0x690, g(block + 8));
-                p(0x719FD0 + 4 * c, 0);
+                car.camera_blend_view.set(wish);
+                car.camera_view.set(wish);
+                car.camera_view.set(wish);
+                car.camera_switch_active.set(0);
+                car.camera_switch_clock.set(car.step_clock.get());
+                REPLAY_WORK.camera_last_frame[c].set(0);
             }
         }
     }
@@ -63,11 +80,17 @@ fn steps() -> Result<(), Refused> {
     CAR_BLOCKS.cars[1]
         .option_bits
         .set_bits(RACE_VIEW.player_options[1].get());
-    for (k, to) in [0x63DB74usize, 0x63DB78, 0x63DB84, 0x63DB88]
-        .iter()
-        .enumerate()
+    // The head's bytes 2 .. 5 into `dword_63DB74`, `63DB78`, `63DB84`, `63DB88`.
+    for (k, to) in [
+        &RACE_VIEW.view_on[0],
+        &RACE_VIEW.view_on[1],
+        &RACE_VIEW.after_credits,
+        &RACE_VIEW.view_switch,
+    ]
+    .into_iter()
+    .enumerate()
     {
-        p(*to, byte(B + 2 + k));
+        to.set(head_byte(2 + k));
     }
     Ok(())
 }

@@ -17,7 +17,7 @@
 //! The commands carry the loop's leftovers in the other registers, reproduced.
 //! What the two counts and "a replay" are is a reading.
 //! One caller, `sound::set_up_race_sounds`. Refuses a car number of 8 or more, a missing
-//! object, a kind of 0x20 or more and a list of names that does not hold 95 of at most 0x100
+//! object, a kind of 0x22 or more and a list of names that does not hold 95 of at most 0x100
 //! bytes.
 
 use crate::audio::names_store::SAMPLE_NAMES;
@@ -31,7 +31,9 @@ use crate::sound::sets_store::RACE_SOUND_SETS;
 const FIRST_SAMPLE: usize = 0xED;
 const NAMES: usize = 95;
 const OBJECTS: u32 = 8;
-const KINDS: u32 = 0x20;
+/// The kinds `off_512360` has sets for: 0x22, the cars' kinds (0x20 and 0x21, the Clio's,
+/// share kind 0xD's sets). The original reads it unchecked.
+const KINDS: u32 = 0x22;
 
 /// The variables, as addresses: the game's, or a test's.
 #[derive(Clone, Copy)]

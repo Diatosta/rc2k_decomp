@@ -23,12 +23,13 @@
 use crate::errors::Refused;
 use crate::math::turn_float_point_xz::turn_float_point_xz;
 use crate::math::x87::mul;
+use crate::physics::car_store::CAR;
 use crate::physics::contact_force::{RECORD, contact_force};
-use crate::physics::flow::{a, copy3, g, p};
-use crate::physics::scene_point_hits_car::SCENE_POINTS;
+use crate::physics::contact_store::CONTACT_WORK;
+use crate::physics::flow::{a, copy_cells, g, p};
 use crate::physics::tables_store::PHYSICS;
 use crate::physics::touch_face::FACES;
-use crate::physics::wall_contacts::WALL_RECORD;
+use crate::race::course_store::COURSE;
 use crate::race::numbers_store::NUMBERS;
 use crate::scene::draw_store::DRAW;
 use crate::scene::x87_mem::{fild, fistp, fld};
@@ -45,7 +46,7 @@ fn rd(x: u32) -> u32 {
 /// into `dword_6141C8`; (0, 0, 1) turned by it (`math::turn_float_point_xz`) into
 /// `qword_6D3078` ... Returns what that leaves in eax, ebx, ecx, edx.
 pub fn edge_normal(first: u32, second: u32) -> [u32; 4] {
-    let point = |k: u32| k.wrapping_mul(12).wrapping_add(g(SCENE_POINTS));
+    let point = |k: u32| k.wrapping_mul(12).wrapping_add(COURSE.scene_points.get());
     PHYSICS.edge_points[0].set(rd(point(first)));
     PHYSICS.edge_points[1].set(rd(point(first) + 8));
     PHYSICS.edge_points[2].set(rd(point(second)));
@@ -58,7 +59,7 @@ pub fn edge_normal(first: u32, second: u32) -> [u32; 4] {
         .wrapping_sub(PHYSICS.edge_points[1].get());
     let d = [dx, dz];
     x87_1(d.as_ptr() as usize, crate::race::store::asm_base() as usize);
-    DRAW.scratch.set(g(0x62400C) & 0xFFFF);
+    DRAW.scratch.set(DRAW.scratch.get() & 0xFFFF);
     let heading = (DRAW.scratch.get() << 16).wrapping_add(0x4000_0000);
     PHYSICS.wall_heading.set(heading);
     let out = unsafe {
@@ -69,9 +70,9 @@ pub fn edge_normal(first: u32, second: u32) -> [u32; 4] {
             heading,
         )
     };
-    p(0x6D3078, out[0]);
-    p(0x6D307C, out[1]);
-    p(0x6D3080, out[2]);
+    CONTACT_WORK.contact_normal[0].set_bits(out[0]);
+    CONTACT_WORK.contact_normal[1].set_bits(out[1]);
+    CONTACT_WORK.contact_normal[2].set_bits(out[2]);
     out
 }
 
@@ -79,28 +80,31 @@ pub fn edge_normal(first: u32, second: u32) -> [u32; 4] {
 /// callers.
 // Converted: `rc2k_core::physics::walls::shared_edge` (the edge's heading stays x87).
 pub fn steps() -> Result<(), Refused> {
-    let wall = (g(0x6D3170) << 6).wrapping_add(g(FACES));
-    let face = (g(0x6D3174) << 6).wrapping_add(g(FACES));
+    let wall = (CONTACT_WORK.wall_face_before.get() << 6).wrapping_add(g(FACES));
+    let face = (CONTACT_WORK.wall_face_now.get() << 6).wrapping_add(g(FACES));
     let corners = [rd(face + 4), rd(face + 8), rd(face + 0xC), rd(face + 0x10)];
     let (shared, to, from) = walls::shared_edge(|j| rd(wall + 4 + 4 * j as u32), corners);
     if !shared {
         return crate::physics::wall_push_back::steps();
     }
     // 0x45DA9E: along the edge.
-    let n = g(0x6D3214);
+    let n = CONTACT_WORK.probe_index.get();
     walls::check_probe(n)?;
-    p(0x6D3178, from);
-    p(0x6D317C, to);
+    CONTACT_WORK.wall_edge_from.set(from);
+    CONTACT_WORK.wall_edge_to.set(to);
     edge_normal(to, from);
-    copy3(0x6D30A8, 0x71A170);
-    copy3(0x6D30B4, 0x71A15C);
+    copy_cells(&CONTACT_WORK.contact_car_speed, &CAR.velocity);
+    copy_cells(&CONTACT_WORK.contact_turn_speed, &CAR.spin);
     let n = n as usize;
-    p(0x6D3090, g(0x6D2214 + 4 * n));
-    p(0x6D3094, g(0x6D2314 + 4 * n));
-    p(0x6D3098, g(0x6D2414 + 4 * n));
-    p(0x6D3094, mul(g(0x6D3094), NUMBERS.tenth.bits()));
-    p(0x6D3100, 0);
-    p(RECORD, a(WALL_RECORD));
+    CONTACT_WORK.contact_point[0].set_bits(CONTACT_WORK.probe_turned_x[n].bits());
+    CONTACT_WORK.contact_point[1].set_bits(CONTACT_WORK.probe_turned_y[n].bits());
+    CONTACT_WORK.contact_point[2].set_bits(CONTACT_WORK.probe_turned_z[n].bits());
+    CONTACT_WORK.contact_point[1].set_bits(mul(
+        CONTACT_WORK.contact_point[1].bits(),
+        NUMBERS.tenth.bits(),
+    ));
+    CONTACT_WORK.contact_slide_limit.set_bits(0);
+    p(RECORD, a(&PHYSICS.contacts[4].force[0]));
     unsafe { contact_force() };
     unsafe { crate::physics::place_sound_e1::place_sound_e1() }?;
     Ok(())

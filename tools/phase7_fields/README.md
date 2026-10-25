@@ -14,6 +14,8 @@ Scripts used to type pieces of the race block (2026-10-25). Run from the reposit
 - `const_fields.py ROOT DIR`: named constants of typed places -> field accesses.
 
 The maps are generated: `gen_store.py` writes them; the car's from `src/physics/car_store.rs`.
+The converters read the list of maps from `DIR/maps.list` (`maps.py`: one line per piece,
+`map file<TAB>static<TAB>path`, in the order they are tried); a new piece is one line there.
 After each: `cargo fmt`, `cargo fix` for imports, clippy both ways (touch a file first).
 - `closures.py ROOT DIR`: local address / value closures and helper fns on typed literals.
 - `inline.py ROOT DIR`: inline `game_read` / `game_write` / `game_addr` on `rva(typed literal)`.

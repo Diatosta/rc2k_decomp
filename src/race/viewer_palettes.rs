@@ -13,16 +13,10 @@
 use crate::gfx::fonts_store::FONTS;
 use crate::gfx::pixel_format::PixelFormat;
 use crate::physics::flow::a;
-use crate::race::viewer::{get, put};
+use crate::race::replay_file_store::REPLAY_FILE;
+use crate::scene::kind_texture_store::KIND_TEXTURES;
 
 const COLOURS: usize = 0x960FA0; // unk_960FA0: 256 dwords
-/// (to, from): the textures and slots kept.
-const KEPT: [(usize, usize); 4] = [
-    (0x5BECB0, 0x5D0E38), // g_kindFirstTextures + 0x350
-    (0x5BECB4, 0x5D1E38), // g_kindFirstSlots + 0x350
-    (0x5BECB8, 0x5D0E0C), // g_kindFirstTextures + 0x324
-    (0x5BECBC, 0x5D1E0C), // g_kindFirstSlots + 0x324
-];
 /// The replay viewer's panel fonts, whose palettes are pointed at the colours, in the
 /// original's order.
 const PALETTES: [crate::gfx::typefaces::FontId; 6] = {
@@ -32,8 +26,26 @@ const PALETTES: [crate::gfx::typefaces::FontId; 6] = {
 
 /// The Rust version.
 pub unsafe fn viewer_palettes() {
-    for (to, from) in KEPT {
-        put(to, get(from));
+    // The textures and slots kept: (to, from).
+    for (to, from) in [
+        (
+            &REPLAY_FILE.viewer_first_texture_a,
+            &KIND_TEXTURES.kind_first_textures[212],
+        ), // g_kindFirstTextures + 0x350
+        (
+            &REPLAY_FILE.viewer_list_texture,
+            &KIND_TEXTURES.kind_first_slots[212],
+        ), // g_kindFirstSlots + 0x350
+        (
+            &REPLAY_FILE.viewer_panel_texture,
+            &KIND_TEXTURES.kind_first_textures[201],
+        ), // g_kindFirstTextures + 0x324
+        (
+            &REPLAY_FILE.viewer_device_texture,
+            &KIND_TEXTURES.kind_first_slots[201],
+        ), // g_kindFirstSlots + 0x324
+    ] {
+        to.set(from.get());
     }
     for font in PALETTES {
         font.object().palette.set(a(COLOURS));

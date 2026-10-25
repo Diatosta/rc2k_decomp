@@ -8,17 +8,14 @@
 //! camera's mode, place, turns, a view's figures) is a reading.
 
 use crate::physics::car_store::CAR;
-use crate::physics::flow::g;
+use crate::race::view_vars_store::VIEW_VARS;
 use crate::scene::draw_store::DRAW;
 use crate::scene::x87_mem::{fild, fstp};
-
-/// `off_606320`: the camera modes' records (0x34).
-pub const MODES: usize = 0x606320;
 
 /// esi as the original leaves it: the mode's record.
 pub fn record() -> u32 {
     let mode = (CAR.camera_view.get() as i32).clamp(0, 0x33);
-    g(MODES + 4 * mode as usize)
+    VIEW_VARS.view_records[mode as usize].get()
 }
 
 pub fn rd(x: u32) -> u32 {

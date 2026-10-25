@@ -18,9 +18,8 @@ use crate::errors::{BadInput, Refused};
 use crate::marks::blend_corner::blend_corner;
 use crate::marks::lines::measure_lines;
 use crate::marks::store::{Slot, game_read, game_write};
-use crate::scene::objects::{
-    FIRST_POINT_RVA, POINT_COUNTS_RVA, POINTS_ROOM_RVA, POINTS_RVA, SLOTS,
-};
+use crate::race::course_lists_store::COURSE_LISTS;
+use crate::scene::objects::{FIRST_POINT_RVA, POINT_COUNTS_RVA, SLOTS};
 
 const CAR_LEN: u32 = 0x4C8;
 const BLOCK: u32 = 0x29C;
@@ -52,7 +51,7 @@ unsafe fn changed(b: u32) -> bool {
 /// A block's objects' first points (in `g_objectPoints`) and their count.
 unsafe fn points(b: u32) -> (u32, u32, i32) {
     unsafe {
-        let base: u32 = game_read(POINTS_RVA);
+        let base: u32 = COURSE_LISTS.object_points.bits();
         let first =
             |id: u32| base.wrapping_add(12 * game_read::<u32>(FIRST_POINT_RVA + 4 * id as usize));
         let (a, c) = (get(b), get(b + 4));
@@ -73,8 +72,8 @@ unsafe fn refusal(settings: u32) -> Option<&'static str> {
         if get(settings + 0x5C) as i32 > MOST_CARS {
             return Some("more than 8 cars");
         }
-        let base: u32 = game_read(POINTS_RVA);
-        let room: u32 = game_read(POINTS_ROOM_RVA);
+        let base: u32 = COURSE_LISTS.object_points.bits();
+        let room: u32 = COURSE_LISTS.object_points_room.bits();
         for b in blocks(settings) {
             if !changed(b) {
                 continue;

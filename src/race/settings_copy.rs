@@ -10,8 +10,12 @@ use crate::framework::{game_addr, rva};
 use crate::math::x87;
 use crate::physics::car_store::Car;
 use crate::race::blocks_store::CAR_BLOCKS;
+use crate::race::numbers_store::NUMBERS;
+use crate::race::replay_file_store::REPLAY_FILE;
 use crate::race::state_store::RACE_STATE;
+use crate::race::tables_store::RACE_TABLES;
 use crate::race::vars_store::RACE_VARS;
+use crate::race::view_store::RACE_VIEW;
 use crate::session::{Dword, Float};
 
 use Step::*;
@@ -30,7 +34,7 @@ pub enum Place {
     CarCell(usize, fn(&Car) -> &Dword),
     /// A float of car block n, by its bits (`car_bits!`).
     CarBits(usize, fn(&Car) -> &Float),
-    /// A dword of an overlay store on the race block (`var!`: `RACE_VARS.stage`).
+    /// A dword of an overlay store on the race block (`var!`: `RACE_VARS.stage_number`).
     Var(fn() -> &'static Dword),
 }
 use Place::{Addr, Bits, CarBits, CarCell, Cell, Var};
@@ -150,7 +154,7 @@ impl rc2k_core::race::settings_copy::Machine<Place> for Game {
         x87::loaded(v)
     }
     fn scaled_brake(&mut self, v: i32) -> u32 {
-        x87::int_times_to_int(v, unsafe { get(0x5C5E00) }) as u32
+        x87::int_times_to_int(v, NUMBERS.brake_scale.bits()) as u32
     }
     fn text(&mut self, text: &'static std::ffi::CStr, nl: bool) -> Result<(), Refused> {
         unsafe { crate::logfile::log_write::log_write(text.as_ptr().cast(), nl, 1) };
@@ -214,16 +218,22 @@ pub const GRAHAM_TO_SHAUN: [Step<Place>; 446] = [
     ),
     Copy(var!(RACE_VARS.rivals), Cell(&RACE_STATE.settings.rivals)),
     Copy(
-        var!(RACE_VARS.car_kinds[0]),
+        var!(RACE_VARS.race_car_kinds[0]),
         Cell(&RACE_STATE.settings.car_kind_current),
     ),
     Copy(
-        var!(RACE_VARS.car_kinds[1]),
+        var!(RACE_VARS.race_car_kinds[1]),
         Cell(&RACE_STATE.settings.car_kind_first),
     ),
-    Copy(Addr(0x63DB94), Cell(&RACE_STATE.settings.race_mode)),
+    Copy(
+        var!(RACE_VIEW.players),
+        Cell(&RACE_STATE.settings.race_mode),
+    ),
     Copy(var!(RACE_VARS.split), Cell(&RACE_STATE.settings.kept)),
-    Copy(var!(RACE_VARS.stage), Cell(&RACE_STATE.settings.stage)),
+    Copy(
+        var!(RACE_VARS.stage_number),
+        Cell(&RACE_STATE.settings.stage),
+    ),
     Copy(
         var!(RACE_VARS.direction),
         Cell(&RACE_STATE.settings.direction),
@@ -241,7 +251,7 @@ pub const GRAHAM_TO_SHAUN: [Step<Place>; 446] = [
         var!(RACE_VARS.run_kind),
         Cell(&RACE_STATE.settings.run_kind),
     ),
-    Copy(Addr(0x63DB90), Addr(0x63DB94)),
+    Copy(var!(RACE_VIEW.race_cars), var!(RACE_VIEW.players)),
     Copy(
         var!(RACE_VARS.car_tyres[0]),
         Cell(&RACE_STATE.settings.cars[0].tyre),
@@ -272,11 +282,11 @@ pub const GRAHAM_TO_SHAUN: [Step<Place>; 446] = [
         Cell(&RACE_STATE.settings.setting_4),
     ),
     Text(c"[shaunnumplayers]", false),
-    Value(Addr(0x63DB94), Kind::Int),
+    Value(var!(RACE_VIEW.players), Kind::Int),
     Text(c"[shaunsplitmode]", false),
     Value(var!(RACE_VARS.split), Kind::Int),
     Text(c"[shauntracknum]", false),
-    Value(var!(RACE_VARS.stage), Kind::Int),
+    Value(var!(RACE_VARS.stage_number), Kind::Int),
     Text(c"[shauncrsdirec]", false),
     Value(var!(RACE_VARS.direction), Kind::Int),
     Text(c"[shaunrallynumber]", false),
@@ -286,7 +296,7 @@ pub const GRAHAM_TO_SHAUN: [Step<Place>; 446] = [
     Text(c"[shaungmode]", false),
     Value(var!(RACE_VARS.run_kind), Kind::Int),
     Text(c"[shaunnumcars]", false),
-    Value(Addr(0x63DB90), Kind::Int),
+    Value(var!(RACE_VIEW.race_cars), Kind::Int),
     Text(c"[shaunmipmapping]", false),
     Value(var!(RACE_VARS.mip_setting), Kind::Int),
     Text(c"[shaunlensflare]", false),
@@ -377,7 +387,7 @@ pub const GRAHAM_TO_SHAUN: [Step<Place>; 446] = [
     BitIf(Cell(&RACE_STATE.settings.cars[0].car_info), 0x20),
     BitIf(Cell(&RACE_STATE.settings.cars[0].pace_notes), 0x80),
     Store(car!(0, option_bits)),
-    Store(Addr(0x63DB7C)),
+    Store(var!(RACE_VIEW.player_options[0])),
     Load(Cell(&RACE_STATE.results.hud_bits_first)),
     JumpIfEaxNot(0xFFFFFFFF, 106),
     LoadImm(0),
@@ -391,7 +401,7 @@ pub const GRAHAM_TO_SHAUN: [Step<Place>; 446] = [
     BitIf(Cell(&RACE_STATE.settings.cars[1].car_info), 0x20),
     BitIf(Cell(&RACE_STATE.settings.cars[1].pace_notes), 0x80),
     Store(car!(1, option_bits)),
-    Store(Addr(0x63DB80)),
+    Store(var!(RACE_VIEW.player_options[1])),
     IntToFloat(
         car_bits!(0, engine_damage),
         Cell(&RACE_STATE.settings.cars[0].damage[0]),
@@ -808,7 +818,10 @@ pub const GRAHAM_TO_SHAUN: [Step<Place>; 446] = [
         car!(1, parts_present),
         Cell(&RACE_STATE.results.flags_first),
     ),
-    Copy(Addr(0x6051BC), Cell(&RACE_STATE.results.figure_000)),
+    Copy(
+        var!(RACE_TABLES.start_place),
+        Cell(&RACE_STATE.results.figure_000),
+    ),
     Copy(car!(0, mode2_place), Cell(&RACE_STATE.results.figure_000)),
     Text(c"[car1.shauncarnum1]", false),
     Value(car!(0, car_kind), Kind::Int),
@@ -918,7 +931,7 @@ pub const GRAHAM_TO_SHAUN: [Step<Place>; 446] = [
     Float(car_bits!(0, impact_octant_marks[6])),
     Text(c"[car1.caroctdamage7]", false),
     Float(car_bits!(0, impact_octant_marks[7])),
-    JumpIfNot(Addr(0x63DB94), 0x2, 431),
+    JumpIfNot(var!(RACE_VIEW.players), 0x2, 431),
     Text(c"[car2.shauncarnum1]", false),
     Value(car!(1, car_kind), Kind::Int),
     Text(c"[car2.carpartsleft]", false),
@@ -1033,7 +1046,7 @@ pub const GRAHAM_TO_SHAUN: [Step<Place>; 446] = [
     Load(Cell(&RACE_STATE.results.results[1].result)),
     Store(car!(1, stop_state)),
     Text(c"[arcadestartposition]", false),
-    Value(Addr(0x6051BC), Kind::Int),
+    Value(var!(RACE_TABLES.start_place), Kind::Int),
     Text(c"[car1.arcadeposition]", false),
     Value(car!(0, mode2_place), Kind::Int),
     Text(c"[onerace.car1arcadeposition]", false),
@@ -1047,7 +1060,7 @@ pub const GRAHAM_TO_SHAUN: [Step<Place>; 446] = [
 pub const SHAUN_TO_GRAHAM: [Step<Place>; 344] = [
     Text(c"-------------------------------------", true),
     Text(c"COPY SHAUN TO GRAHAM", true),
-    JumpIfNot(Addr(0x5BEC94), 0x0, 340),
+    JumpIfNot(var!(REPLAY_FILE.hold_car_revs), 0x0, 340),
     Copy(
         Cell(&RACE_STATE.results.hud_bits_current),
         car!(0, option_bits),
@@ -1593,7 +1606,7 @@ pub const SHAUN_TO_GRAHAM: [Step<Place>; 344] = [
     Float(car_bits!(0, impact_octant_marks[6])),
     Text(c"[car1.caroctdamage7]", false),
     Float(car_bits!(0, impact_octant_marks[7])),
-    JumpIfNot(Addr(0x63DB94), 0x2, 333),
+    JumpIfNot(var!(RACE_VIEW.players), 0x2, 333),
     Text(c"[car2.shauncarnum1]", false),
     Value(car!(1, car_kind), Kind::Int),
     Text(c"[car2.carpartsleft]", false),
@@ -1703,7 +1716,7 @@ pub const SHAUN_TO_GRAHAM: [Step<Place>; 344] = [
     Text(c"[car2.caroctdamage7]", false),
     Float(car_bits!(1, impact_octant_marks[7])),
     Text(c"[arcadestartposition]", false),
-    Value(Addr(0x6051BC), Kind::Int),
+    Value(var!(RACE_TABLES.start_place), Kind::Int),
     Text(c"[car1.arcadeposition]", false),
     Value(car!(0, mode2_place), Kind::Int),
     Text(c"[onerace.car1arcadeposition]", false),

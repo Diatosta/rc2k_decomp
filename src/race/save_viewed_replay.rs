@@ -26,10 +26,10 @@ use crate::race::viewer::{
     BLOCK_DATA, BLOCKS, CAMERAS, INDEX, PLACES, TABLE_LEN, UNDO_BLOCKS, UNDO_PLACES, get,
     move_dwords, put,
 };
+use crate::race::viewer_state_store::REPLAY_VIEW;
 
 const FROM: usize = 0x975508; // dword_975508
 const TO: usize = 0x97550C; // dword_97550C
-const OFFSET: usize = 0x5C2528; // dword_5C2528: the new file's length so far
 
 /// The Rust version: whether it was saved (the original leaves the carry clear and the
 /// zero flag set for a yes, and keeps the registers). `slot` the slot to save into (the
@@ -81,7 +81,7 @@ fn save(slot: u32) -> Result<bool, Refused> {
             handle::close(get(FROM));
         };
         let write = |buffer: u32, len: u32| handle::write(get(TO), buffer as *const u8, len).1;
-        put(OFFSET, HEADER_LEN);
+        REPLAY_VIEW.file_offset.set(HEADER_LEN); // the new file's length so far
         if !write(
             crate::race::replay::REPLAYS.header.addr() as u32,
             HEADER_LEN,
@@ -98,7 +98,10 @@ fn save(slot: u32) -> Result<bool, Refused> {
                 get(PLACES + 8 * block as usize + 4),
             )?;
             move_dwords(BLOCK_DATA, CAMERAS + 8 * block as usize, CAMERA_DWORDS);
-            put(UNDO_PLACES + 8 * block as usize, get(OFFSET));
+            put(
+                UNDO_PLACES + 8 * block as usize,
+                REPLAY_VIEW.file_offset.get(),
+            );
             let (written, failed) =
                 crate::race::replay::write_replay_chunk(get(TO), a(BLOCK_DATA), BLOCK_LEN)?;
             if failed {
@@ -106,7 +109,9 @@ fn save(slot: u32) -> Result<bool, Refused> {
                 return Ok(false);
             }
             put(UNDO_PLACES + 8 * block as usize + 4, written);
-            put(OFFSET, next_offset(get(OFFSET), written));
+            REPLAY_VIEW
+                .file_offset
+                .set(next_offset(REPLAY_VIEW.file_offset.get(), written));
             block += 1;
             if block == get(BLOCKS) {
                 break;

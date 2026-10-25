@@ -16,12 +16,12 @@
 //! particle or ring (an entry to take), before anything.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::rva;
 use crate::marks::blocks::{RING_FREE_RVA, RING_USED_RVA};
 use crate::marks::jitter_point::jitter_point;
 use crate::marks::setup::SEED_RVA;
 use crate::marks::store::{Slot, game_read, game_write};
 use crate::math::x87;
+use crate::race::matrices_store::MATRICES;
 use crate::scene::matrix3::{extended, rounded};
 
 const FULL: u32 = 0xFFF;
@@ -37,7 +37,6 @@ const AXES: [(u32, u32, u32, Slot, Slot); 3] = [
 const SPREAD_RVA: Slot = Slot::at(0x93C664); // flt_93C664
 const SIZE_K: [Slot; 2] = [Slot::at(0x93C668), Slot::at(0x93C66C)];
 const LIFE_K_RVA: Slot = Slot::at(0x93C670); // flt_93C670
-const VIEW_RVA: usize = rva(0x5EA3CC); // flt_5EA3CC: the view's place at +0x30
 const LIFE: u32 = 300;
 
 unsafe fn get(a: u32) -> u32 {
@@ -126,7 +125,7 @@ pub unsafe fn trail_particles(p: u32) -> Result<(), Refused> {
             put(0x3C, 0xFF00_0000);
             put(0x44, LIFE);
             put(0x40, x87::over_int(game_read(LIFE_K_RVA), LIFE as i32));
-            put(0x24, x87::loaded(game_read(VIEW_RVA + 0x34)));
+            put(0x24, x87::loaded(MATRICES.view_place[13].bits()));
         }
     }
     Ok(())

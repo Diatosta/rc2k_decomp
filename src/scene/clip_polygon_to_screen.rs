@@ -15,17 +15,12 @@
 //! (what it had written is put back first).
 
 use crate::errors::BadInput;
-use crate::framework::{game_read, rva};
 use crate::scene::clip::{Edge, below, clip_pass, listed_with_records, or_undone};
 use crate::scene::draw_store::DRAW;
 use crate::scene::polygon::dword;
+use crate::session::Float;
 
 // ---- game data ----
-
-const LEFT_RVA: usize = rva(0x6241EC); // flt_6241EC
-const RIGHT_RVA: usize = rva(0x6241F0); // flt_6241F0
-const TOP_RVA: usize = rva(0x6241E4); // flt_6241E4
-const BOTTOM_RVA: usize = rva(0x6241E8); // flt_6241E8
 
 // ---- Rust version ----
 
@@ -33,12 +28,12 @@ const BOTTOM_RVA: usize = rva(0x6241E8); // flt_6241E8
 unsafe fn outside_mask() -> Result<u32, BadInput> {
     unsafe {
         let entries = listed_with_records()?;
-        let edge = |at: usize| f32::from_bits(game_read(at)) as f64;
+        let edge = |cell: &Float| cell.get() as f64;
         let (left, right, top, bottom) = (
-            edge(LEFT_RVA),
-            edge(RIGHT_RVA),
-            edge(TOP_RVA),
-            edge(BOTTOM_RVA),
+            edge(&DRAW.clip_screen[2]),
+            edge(&DRAW.clip_screen[3]),
+            edge(&DRAW.clip_screen[0]),
+            edge(&DRAW.clip_screen[1]),
         );
         let mut mask = 0;
         for &entry in &entries {

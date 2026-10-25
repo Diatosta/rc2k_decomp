@@ -13,16 +13,15 @@
 //! The surface and the showing are the platform's, as in `frame_callback`.
 
 use crate::errors::Refused;
-use crate::framework::{game_write, rva};
 use crate::menu::flow_store::SCREEN_FLOW;
 use crate::menu::frame_callback::{copy_picture, draw_menu, lock_failed, run_listed};
 use crate::platform::{show_frame_now, unlock_surface};
+use crate::scene::light_store::LIGHT_STATE;
 use crate::session::Dword;
 
 const DRAW_LIST: &Dword = &SCREEN_FLOW.draw_list; // g_drawList
 const SCENE_LIST: &Dword = &SCREEN_FLOW.scene_list; // g_sceneList
 const OVERLAY_LIST: &Dword = &SCREEN_FLOW.overlay_list; // g_overlayList
-const SCENE_STATE_RVA: usize = rva(0x6365CC); // dword_6365CC
 
 /// The Rust version, `menu`, `palette` and `measure_x` being edi, ebx and ecx at entry:
 /// whether the frame was made.
@@ -34,7 +33,7 @@ pub unsafe fn inspection_frame(menu: u32, palette: u32, measure_x: u32) -> Resul
         copy_picture()?;
         run_listed(DRAW_LIST)?;
         unlock_surface();
-        game_write(SCENE_STATE_RVA, 4u32);
+        LIGHT_STATE.scene_state.set_bits(4u32);
         crate::scene::begin_scene::begin_scene();
         run_listed(SCENE_LIST)?;
         crate::scene::end_scene::end_scene();

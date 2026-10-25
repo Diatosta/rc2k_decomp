@@ -10,16 +10,14 @@ use crate::math::x87;
 use crate::race::course_store::COURSE;
 use crate::race::numbers_store::NUMBERS;
 use crate::race::vars_store::RACE_VARS;
+use crate::race::view_store::RACE_VIEW;
 use crate::race::work_store::RACE_WORK;
 use crate::scene::draw_store::DRAW;
+use crate::scene::light_store::LIGHT_STATE;
+use crate::session::Dword;
 
-pub const DIRECTION_RVA: usize = rva(0x71B400); // g_stageDirection ("dir")
 pub const CHECK_FACES_RVA: usize = rva(0x9E3738); // g_checkpointFaces
-pub const CHECK_COUNT_RVA: usize = rva(0x623640); // g_checkpointCount
 pub const CHECKS_RVA: usize = rva(0x9E87A0); // g_checkCounts
-pub const WEIGHT_RVA: usize = rva(0x6236B0); // g_surfaceWeight
-pub const SHARES_RVA: usize = rva(0x623670); // g_surfaceShares: 16 floats
-const SHARE_SCALE: [usize; 3] = [rva(0x5C5E2C), rva(0x5C5DA4), rva(0x5C5D14)]; // 256, 0.25, 100
 /// The entries `g_checkpointFaces` and the lists after it have room for.
 pub const MOST_CHECKS: u32 = rc2k_core::race::checkpoints::MOST_CHECKS;
 
@@ -56,19 +54,20 @@ pub unsafe fn set_line_face_kind() {
 /// the count as a whole number). The exact x87 version (for `race::surface_shares`, whose
 /// whole numbers are rounded from the shares).
 pub unsafe fn add_surface_share(surface: u32) {
-    unsafe {
-        let weight = RACE_VARS.surface_weight.bits() as i32;
-        if weight == 0 {
-            return;
-        }
-        let at = SHARES_RVA + 4 * (surface & 0xF) as usize;
-        let [a, b, c] = SHARE_SCALE.map(|r| game_read::<u32>(r));
-        let count = RACE_VARS.checkpoint_count.bits() as i32;
-        game_write(
-            at,
-            x87::surface_share(weight, a, b, count, c, game_read(at)),
-        );
+    let weight = RACE_VARS.surface_weight.bits() as i32;
+    if weight == 0 {
+        return;
     }
+    // g_surfaceShares: 16 floats
+    let share = &RACE_VARS.surface_shares[(surface & 0xF) as usize];
+    // 256, 0.25, 100
+    let [a, b, c] = [
+        NUMBERS.k256.bits(),
+        NUMBERS.quarter.bits(),
+        NUMBERS.hundred.bits(),
+    ];
+    let count = RACE_VARS.checkpoint_count.bits() as i32;
+    share.set_bits(x87::surface_share(weight, a, b, count, c, share.bits()));
 }
 
 /// `race::next_map_anchor` (0x445FEE): from checkpoint `from` on, the first whose face has
@@ -110,16 +109,10 @@ pub unsafe fn count_checks() -> Result<(), Refused> {
     Ok(())
 }
 
-pub const FOUND_RVA: usize = rva(0x62363C); // g_lineFaceTotal ("numblo")
-pub const LAST_CHECK_RVA: usize = rva(0x623644); // g_lastCheckpoint ("numsortedm1")
 pub const ANGLES_RVA: usize = rva(0x9ED800); // g_checkpointAngles (from +4: one a link)
 pub const DISTANCES_RVA: usize = rva(0x9F78D8); // g_checkpointDistances
 pub const LINE_LENGTH_RVA: usize = rva(0xA10AE0); // g_lineLength
-pub const SCRATCH_RVA: usize = rva(0x62400C); // dword_62400C
 pub const TEXTURE_INFOS_RVA: usize = rva(0x979F30); // g_textureInfos, 0x40 each
-const SURFACE_KINDS_RVA: usize = rva(0x63D9D0); // dword_63D9D0
-/// The map: the stretch's two anchors and what is made of them (0x6236B8 .. 0x6236F8).
-pub const MAP_WORK_RVA: usize = rva(0x6236B8);
 pub const MAP_X_RVA: usize = rva(0x9FC940); // g_mapX
 pub const MAP_Y_RVA: usize = rva(0xA019A8); // g_mapY
 const MOST_FACES: u32 = 0x10_0000;
@@ -130,7 +123,7 @@ const MOST_FACES: u32 = 0x10_0000;
 pub struct Cameras {
     pub kind: u8,
     pub list: usize,
-    pub count: usize,
+    pub count: fn() -> &'static Dword,
     pub nearest: usize,
 }
 
@@ -139,13 +132,13 @@ pub const CAMERAS: [Cameras; 2] = [
     Cameras {
         kind: 0x3C,
         list: rva(0xA10AE4),
-        count: rva(0x623660),
+        count: || &RACE_VARS.replay_camera_counts[0],
         nearest: rva(0xA06A10),
     },
     Cameras {
         kind: 0x38,
         list: rva(0xA11AE4),
-        count: rva(0x623664),
+        count: || &RACE_VARS.replay_camera_counts[1],
         nearest: rva(0xA0BA78),
     },
 ];
@@ -329,7 +322,7 @@ pub unsafe fn replay_cameras(set: &Cameras) -> Result<(), Refused> {
             write_n(set.list, e as u32, f);
         }
         let m = cameras.len() as u32;
-        game_write(set.count, m);
+        (set.count)().set(m);
         if m == 0 {
             return Ok(());
         }
@@ -381,22 +374,27 @@ pub unsafe fn surface_shares() -> Result<(), Refused> {
             // Converted: `rc2k_core::race::best_line::{second_weight, first_weight}`.
             let blend = [0x22, 0x23, 0x24, 0x25].map(|o| byte(f + o) as u8);
             let second = byte(f + 0x21);
-            let kind: u32 =
-                game_read(SURFACE_KINDS_RVA + 4 * byte(infos + second * 0x40 + 0x2C) as usize);
+            // dword_63D9D0: indexed by a byte of the texture info (not bounded by the
+            // field's 4 dwords), so read by address.
+            let kind: u32 = ((RACE_VIEW.surface_kinds[0].addr()
+                + 4 * byte(infos + second * 0x40 + 0x2C) as usize)
+                as *const u32)
+                .read_unaligned();
             let weight = rc2k_core::race::best_line::second_weight(blend, second as u8, kind);
             RACE_VARS
                 .surface_weight
                 .set_bits(rc2k_core::race::best_line::first_weight(weight));
             four(infos + byte(f + 1) * 0x40);
-            game_write(
-                WEIGHT_RVA,
-                rc2k_core::race::best_line::first_weight(RACE_VARS.surface_weight.bits()),
-            );
+            RACE_VARS
+                .surface_weight
+                .set_bits(rc2k_core::race::best_line::first_weight(
+                    RACE_VARS.surface_weight.bits(),
+                ));
             four(infos + second * 0x40);
         }
         for c in 0..16 {
-            let at = SHARES_RVA + 4 * c;
-            game_write(at, x87::to_int(game_read(at)) as u32);
+            let share = &RACE_VARS.surface_shares[c];
+            share.set_bits(x87::to_int(share.bits()) as u32);
         }
     }
     Ok(())
@@ -501,8 +499,9 @@ pub unsafe fn map_checkpoints() -> Result<(), Refused> {
         rc2k_core::race::best_line::map_stretches(
             |start| next_map_anchor(start),
             |from, to| {
-                game_write(MAP_WORK_RVA + 0xC4 - 0xB8, from);
-                game_write(MAP_WORK_RVA + 0xC0 - 0xB8, to);
+                // The stretch's two anchors (0x6236C4, 0x6236C0 of the map work).
+                RACE_VARS.map_work[3].set(from);
+                RACE_VARS.map_work[2].set(to);
                 map_segment()
             },
         )
@@ -527,13 +526,13 @@ const STEP_WORDS: [(&std::ffi::CStr, u32); 7] = [
 const COMPLETED_RVA: &std::ffi::CStr = c"best line completed"; // "best line completed"
 /// "dir" `g_stageDirection`, ": numblo" `g_lineFaceTotal`, "numsorted"
 /// `g_checkpointCount`, "numsortedm1" `g_lastCheckpoint` (the last with the line's end).
-const SUMMARY: [(&std::ffi::CStr, usize); 4] = [
-    (c"dir", DIRECTION_RVA),
-    (c": numblo", FOUND_RVA),
-    (c"numsorted", CHECK_COUNT_RVA),
-    (c"numsortedm1", LAST_CHECK_RVA),
+type Summary = [(&'static std::ffi::CStr, fn() -> u32); 4];
+const SUMMARY: Summary = [
+    (c"dir", || RACE_WORK.stage_direction.get()),
+    (c": numblo", || RACE_VARS.line_face_total.get()),
+    (c"numsorted", || RACE_VARS.checkpoint_count.get()),
+    (c"numsortedm1", || RACE_VARS.last_checkpoint.get()),
 ];
-const CLEARED_RVA: [usize; 2] = [rva(0x6365E4), rva(0x6365EC)]; // dword_6365E4, dword_6365EC
 
 /// `race::build_best_line` (0x445772): a rule in the log; `sort_checkpoints`; with two
 /// line faces or more, each step with its word in the log (angles, checks, "speeds" =
@@ -566,12 +565,12 @@ pub unsafe fn build_best_line() -> Result<(), Refused> {
         text(COMPLETED_RVA, true);
         for (n, (at, value)) in SUMMARY.into_iter().enumerate() {
             text(at, false);
-            log_int(game_read::<u32>(value) as i32, n == 3, 1);
+            log_int(value() as i32, n == 3, 1);
         }
         text(RULE_RVA[1], true);
-        for at in CLEARED_RVA {
-            game_write(at, 0u32);
-        }
+        // dword_6365E4, dword_6365EC
+        LIGHT_STATE.line_place.set(0);
+        LIGHT_STATE.line_fraction.set(0);
     }
     Ok(())
 }

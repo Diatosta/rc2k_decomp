@@ -50,6 +50,7 @@ use crate::menu::screen_items_store::{SCREEN_ITEMS, slot};
 use crate::menu::screen_loop::raw;
 use crate::menu::screen_loop::{Callee, FRAME_CALLBACK, List, Screen, Step};
 use crate::menu::state_store::MENU_STATE;
+use crate::scene::draw_store::DRAW;
 
 // ---- game data ----
 
@@ -96,13 +97,15 @@ pub const SCREEN: Screen = Screen {
     ],
     set_up_first: &[Step::Write(|| &SCREEN_FLOW.left_service, 0)],
     prepare: &[
-        Step::Write(|| raw(rva(0x623FB0)), 0),     // dword_623FB0
-        Step::Write(|| raw(rva(0x623FB4)), 0),     // dword_623FB4
-        Step::Write(|| raw(rva(0x624080)), 0x100), // dword_624080
+        Step::Write(|| &DRAW.view_offset[0], 0), // dword_623FB0
+        Step::Write(|| &DRAW.view_offset[1], 0), // dword_623FB4
+        Step::Write(|| &DRAW.view_zoom, 0x100),  // dword_624080
         Step::Call(Callee::PrepareScene),
-        Step::Write(|| raw(rva(0x6241DC)), 0),   // dword_6241DC
-        Step::Write(|| raw(rva(0x6241E0)), 800), // dword_6241E0
+        Step::Write(|| &DRAW.clip_edges[2], 0), // dword_6241DC
+        Step::Write(|| &DRAW.clip_edges[3], 800), // dword_6241E0
+        // DRAW.clip_screen[2]: `WriteF32` takes a `Dword` cell, not a `Float`.
         Step::WriteF32(|| raw(rva(0x6241EC)), 0.0), // flt_6241EC
+        // DRAW.clip_screen[3]
         Step::WriteF32(|| raw(rva(0x6241F0)), 800.0), // flt_6241F0
         Step::Call(Callee::PlayTune9),
     ],

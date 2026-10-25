@@ -15,14 +15,12 @@
 //! Callers: `sub_44426F` (loadlevel_init) and the code at 0x425B29. Refuses more than 8 cars.
 
 use crate::errors::Refused;
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_write, rva};
+use crate::race::prefs_store::STAGE_PREFS;
+use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
 
 const PICTURES_RVA: usize = rva(0x5D7968); // g_kindPictures
-/// The prefs' picture lists (`PREF_PIECES`' kinds) start here, 0x32C14 bytes above the
-/// pictures.
-const PREF_LISTS: usize = 0x60A57C;
-const CAR_KINDS_RVA: usize = rva(0x623858); // g_raceCarKinds
 /// `race::set_all_plates` (see the header).
 pub unsafe fn set_all_plates() -> Result<(), Refused> {
     // Converted: `rc2k_core::race::stage_objects::{check_picture_cars, PREF_PIECES,
@@ -35,7 +33,9 @@ pub unsafe fn set_all_plates() -> Result<(), Refused> {
         check_picture_cars(cars)?;
         let pictures = game_addr(PICTURES_RVA);
         for (kind, dwords) in PREF_PIECES {
-            let from = game_addr(rva(PREF_LISTS)) + 4 * kind;
+            // The prefs' picture lists (`PREF_PIECES`' kinds) start at `picture_lists_a`
+            // (0x60A57C), 0x32C14 bytes above the pictures; a piece runs past the field.
+            let from = STAGE_PREFS.picture_lists_a[0].addr() + 4 * kind;
             let to = pictures + 4 * kind;
             std::ptr::copy(from as *const u32, to as *mut u32, dwords);
         }
@@ -44,9 +44,9 @@ pub unsafe fn set_all_plates() -> Result<(), Refused> {
         }
         let mut at = (pictures + 4 * CAR_PICTURE_KINDS) as *mut u32;
         for car in 0..cars {
-            let first = crate::scene::known_kind_picture::known_kind_picture(game_read(
-                CAR_KINDS_RVA + 4 * car as usize,
-            ));
+            let first = crate::scene::known_kind_picture::known_kind_picture(
+                RACE_VARS.race_car_kinds[car as usize].get(), // g_raceCarKinds
+            );
             for picture in car_pictures(first) {
                 at.write_unaligned(picture);
                 at = at.add(1);

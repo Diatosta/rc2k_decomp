@@ -11,19 +11,14 @@
 //! Caller: `sub_441324` (its tail). Refuses (before anything) a null sound object.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::rva;
 use crate::math::x87_run::{ext_times, ints_diff_80};
+use crate::physics::car_store::CAR;
+use crate::race::matrices_store::MATRICES;
 use crate::race::numbers_store::NUMBERS;
 use crate::race::work_store::RACE_WORK;
 use crate::scene::matrix3::rounded;
 use crate::scene::rotate_point::rotate_point;
-use crate::store::game_addr;
-
-fn g(x: impl crate::store::At) -> u32 {
-    unsafe { crate::store::at_read(x) }
-}
-
-const VIEW_TURN: usize = 0x5EA24C; // g_viewTurnMatrix
+use crate::session::Dword;
 
 fn object() -> u32 {
     crate::sound::store::RACE_SOUNDS.table[(RACE_WORK.current_car.get() & 7) as usize].get()
@@ -38,13 +33,13 @@ pub unsafe fn place_car_sound() -> Result<(), Refused> {
     let so = unsafe { crate::sound::store::SoundObject::at(o) };
     unsafe {
         so.slot_b.start.set(1);
-        let d = |a: usize, b: usize| ints_diff_80(g(a) as i32, g(b) as i32);
+        let d = |a: &Dword, b: &Dword| ints_diff_80(a.get() as i32, b.get() as i32);
         let p = [
-            d(0x71A10C, 0x71A67C),
-            d(0x71A110, 0x71A680),
-            d(0x71A114, 0x71A684),
+            d(&CAR.position[0], &CAR.camera_position[0]),
+            d(&CAR.position[1], &CAR.camera_position[1]),
+            d(&CAR.position[2], &CAR.camera_position[2]),
         ];
-        let out = rotate_point(game_addr(rva(VIEW_TURN)) as u32, p);
+        let out = rotate_point(MATRICES.view_turn_matrix[0].addr() as u32, p);
         let k = NUMBERS.one_over_65536.bits();
         for (n, e) in out.iter().enumerate() {
             so.place_b[n].set_bits(rounded(ext_times(*e, k)));

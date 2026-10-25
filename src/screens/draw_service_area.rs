@@ -28,13 +28,13 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_write, rva};
 use crate::gfx::blit_bar::{Bar, blit_bar};
 use crate::gfx::blit_glyph::BlitCall;
 use crate::gfx::blit_marker_pair::sprite_table;
 use crate::menu::draw_work_store::DRAW_WORK;
 use crate::menu::event_store::EVENT_STATE;
 use crate::menu::state_store::MENU_STATE;
+use crate::race::switches_store::FRAME_SWITCHES;
 use crate::screens::draw_inspection_status::draw_inspection_status;
 use crate::screens::draw_repair_times::draw_repair_times;
 use crate::screens::draw_service_time::draw_service_time;
@@ -54,8 +54,6 @@ use rc2k_core::screens::service::{
 };
 
 // ---- game data ----
-
-const CLEARED_RVA: usize = rva(0x6218AC); // dword_6218AC: set to 0 here, read nowhere known
 const SETTING_FIRST_STRING: u32 = rc2k_core::screens::service::TYRE_FIRST_STRING;
 
 /// The fonts' places.
@@ -77,7 +75,7 @@ fn font_of(font: AreaFont) -> crate::gfx::typefaces::FontId {
 /// that does not fit the text buffer.
 pub unsafe fn draw_service_area(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
     unsafe {
-        game_write(CLEARED_RVA, 0u32);
+        FRAME_SWITCHES.service_cleared.set_bits(0u32);
 
         // Converted: `rc2k_core::screens::service` (`area_title`, `AREA_STEPS`).
         let string = |id: u32| {

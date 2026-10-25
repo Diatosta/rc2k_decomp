@@ -15,13 +15,9 @@
 
 use crate::errors::Refused;
 use crate::install::vars::INSTALLER_PAGES;
-use crate::physics::flow::{a, g, p};
+use crate::physics::flow::g;
 use crate::race::viewer::{BLOCK, CAMERA_EDIT, CAMERAS, gb};
-
-const SWITCH_A: usize = 0x5C2C70; // off_5C2C70: by camera byte 2 or 3
-const SWITCH_B: usize = 0x5C2C78; // off_5C2C78: by byte 5
-const SWITCH_C: usize = 0x5C2C88; // off_5C2C88: by byte 4
-const PLACE: usize = 0x5C29FC; // dword_5C29FC: the quad's place
+use crate::race::viewer_screen_store::VIEWER_PANEL;
 
 fn camera_byte(byte: usize) -> u32 {
     gb((CAMERAS + byte).wrapping_add(8 * g(BLOCK) as usize)) as u32
@@ -38,22 +34,22 @@ pub fn draw_viewer_item(item: u32, index: u32) -> Result<(), Refused> {
     let mut picture = word(item + 0xC);
     // Converted: `rc2k_core::race::viewer::{switch_byte, centred, item_colour}`.
     use rc2k_core::race::viewer::{centred, item_colour, switch_byte};
-    if picture == a(SWITCH_A) {
+    if picture == (VIEWER_PANEL.switch_pictures_a[0].addr() as u32) {
         let n = camera_byte(switch_byte(byte(1)) as usize);
         picture = word(picture.wrapping_add(4 * n));
     }
-    if picture == a(SWITCH_B) {
+    if picture == (VIEWER_PANEL.switch_pictures_b[0].addr() as u32) {
         picture = word(picture.wrapping_add(4 * camera_byte(5)));
     }
-    if picture == a(SWITCH_C) {
+    if picture == (VIEWER_PANEL.switch_pictures_c[0].addr() as u32) {
         picture = word(picture.wrapping_add(4 * camera_byte(4)));
     }
     let place = word(item + 4);
     let width = (word(picture + 8) as i32).unsigned_abs();
-    p(PLACE + 8, width);
-    p(PLACE, centred(word(place), word(place + 8), width));
-    p(PLACE + 4, word(place + 4));
-    p(PLACE + 0xC, word(place + 0xC));
+    VIEWER_PANEL.item_place[2].set(width); // dword_5C29FC: the quad's place
+    VIEWER_PANEL.item_place[0].set(centred(word(place), word(place + 8), width));
+    VIEWER_PANEL.item_place[1].set(word(place + 4));
+    VIEWER_PANEL.item_place[3].set(word(place + 0xC));
     let colour = item_colour(
         byte(0),
         index == INSTALLER_PAGES.choice.get(),
@@ -65,5 +61,11 @@ pub fn draw_viewer_item(item: u32, index: u32) -> Result<(), Refused> {
                 .wrapping_sub(INSTALLER_PAGES.move_clock.get())
         },
     );
-    unsafe { crate::drive::tyre_quad::tyre_quad(picture, a(PLACE), colour) }
+    unsafe {
+        crate::drive::tyre_quad::tyre_quad(
+            picture,
+            VIEWER_PANEL.item_place[0].addr() as u32,
+            colour,
+        )
+    }
 }

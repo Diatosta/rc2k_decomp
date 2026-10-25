@@ -42,11 +42,18 @@ use crate::d3d::{NO_TEXTURE, VERTEX_LEN};
 use crate::errors::BadInput;
 use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::math::x87;
+use crate::physics::ground_store::GROUND_WORK;
 use crate::race::frame_store::FRAME_WORK;
+use crate::race::level_grid_store::LEVEL_GRID;
 use crate::race::numbers_store::NUMBERS;
+use crate::race::overlay_store::RACE_OVERLAY;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
+use crate::race::view_vars_store::VIEW_VARS;
 use crate::scene::draw_store::DRAW;
+use crate::scene::draw_switches_store::DRAW_SWITCHES;
+use crate::scene::kind_texture_store::KIND_TEXTURES;
+use crate::scene::light_store::LIGHT_STATE;
 use crate::scene::submit_polygon::{self, submit_polygon};
 
 // ---- game data ----
@@ -57,24 +64,9 @@ pub const ENTRIES: u32 = 0x80;
 pub const LIST_RVA: usize = rva(0x977710); // dword_977710
 pub const MOST: u32 = 0x100;
 pub const SWITCH_B_RVA: usize = rva(0x6240E4); // dword_6240E4
-const TEXTURE_A_RVA: usize = rva(0x6240BC); // dword_6240BC
-const TEXTURE_B_RVA: usize = rva(0x6240C0); // dword_6240C0
-const SMOOTH_A_RVA: usize = rva(0x63E168); // dword_63E168
-const SMOOTH_B_RVA: usize = rva(0x63E16C); // dword_63E16C
-const SMOOTH_RVA: usize = rva(0x63E164); // dword_63E164
-const TEXTURE_OF_RVA: usize = rva(0x5D1AE8); // dword_5D1AE8
 const OTHER_TEXTURE_OF_RVA: usize = rva(0x5D3AE8); // dword_5D3AE8
 const TEXTURES_LOADED_RVA: usize = rva(0x5DC970); // dword_5DC970
-
-const MIRRORED_RVA: usize = rva(0x63993C); // dword_63993C
-const W_FACTOR_RVA: usize = rva(0x6D180C); // flt_6D180C
-const SSE_RVA: usize = rva(0x621A58); // dword_621A58
-
-const FADED_RVA: usize = rva(0x63660C); // dword_63660C
-const FADE_ALPHA_RVA: usize = rva(0x606284); // dword_606284
 const FADE_TEXTURE: u32 = 0xC0;
-const HIT_WORK_RVA: usize = rva(0x637648); // dword_637648 .. dword_63765C
-const CLEARS_SWITCH_RVA: usize = rva(0x621904); // dword_621904
 const MATERIALS_RVA: usize = rva(0x979F30); // unk_979F30
 pub const CHECKED_RVA: usize = rva(0x62400C); // dword_62400C
 
@@ -237,7 +229,7 @@ unsafe fn hit_test(entries: &[usize]) {
             return;
         }
         let point = crate::session::read_bits(&FRAME_WORK.sun_hit).map(|v| v as i32);
-        game_write(HIT_WORK_RVA, point);
+        crate::session::write_first(&LIGHT_STATE.hit_work, &point.map(|v| v as u32));
         if entries.len() < 3 {
             return;
         }
@@ -250,7 +242,10 @@ unsafe fn hit_test(entries: &[usize]) {
                 ]
             };
             let (from, to) = (corner(entries[n]), corner(entries[(n + 1) % entries.len()]));
-            game_write(HIT_WORK_RVA + 8, [from, to]);
+            crate::session::write_first(
+                &LIGHT_STATE.hit_work[2..6],
+                &[from[0] as u32, from[1] as u32, to[0] as u32, to[1] as u32],
+            );
             let along = point[1].wrapping_sub(from[1]) as i64 * to[0].wrapping_sub(from[0]) as i64;
             let across = point[0].wrapping_sub(from[0]) as i64 * to[1].wrapping_sub(from[1]) as i64;
             // Not on the inner side of this edge: the switch stays.
@@ -270,7 +265,7 @@ unsafe fn place(entries: &[usize], mirrored: bool) {
             DRAW.view_offset_float[1].bits(),
         );
         let depth_factor: u32 = DRAW.one_over_farthest.bits();
-        let sse = game_read::<u32>(SSE_RVA) != 0;
+        let sse = DRAW_SWITCHES.use_sse.bits() != 0;
         let mirror_at: u32 = DRAW.view_centre[0].bits();
         for (n, &entry) in entries.iter().enumerate() {
             let vertex = dword(entry + 4) as usize;
@@ -284,7 +279,7 @@ unsafe fn place(entries: &[usize], mirrored: bool) {
                 if sse {
                     x87::rcpss_times(dword(vertex + 0x18), NUMBERS.k65536.bits())
                 } else {
-                    x87::reciprocal_times(depth, game_read(W_FACTOR_RVA))
+                    x87::reciprocal_times(depth, RACE_OVERLAY.w_factor.bits())
                 },
             );
             if mirrored && entries.len() > 2 {
@@ -316,7 +311,7 @@ unsafe fn copy_set(entries: &[usize], set: Set) {
 /// texture from the number in `dword_6240C4`.
 unsafe fn choose_texture(outside: &mut dyn Outside) {
     unsafe {
-        let smooth = game_read::<u32>(SMOOTH_RVA) == 1;
+        let smooth = LEVEL_GRID.smooth.bits() == 1;
         outside.state(3, if smooth { 3 } else { 1 });
         let number: u32 = DRAW.texture_page.bits();
         let loaded: u32 = game_read(TEXTURES_LOADED_RVA);
@@ -326,7 +321,7 @@ unsafe fn choose_texture(outside: &mut dyn Outside) {
                 let number = number & 0x7FFF_FFFF;
                 (number < 0xFA0).then(|| game_read(OTHER_TEXTURE_OF_RVA + number as usize * 4))
             }
-            _ => (number < 0x400).then(|| game_read(TEXTURE_OF_RVA + number as usize * 4)),
+            _ => (number < 0x400).then(|| KIND_TEXTURES.kind_first_slots[number as usize].get()),
         };
         let texture = texture.filter(|&texture: &u32| texture < loaded);
         DRAW.polygon_texture.set_bits(texture.unwrap_or(NO_TEXTURE));
@@ -336,7 +331,7 @@ unsafe fn choose_texture(outside: &mut dyn Outside) {
 /// `sub_44B94F`: clears a switch by what the entries' bytes +0x21 hold.
 unsafe fn clear_a_switch(entries: &[usize]) {
     unsafe {
-        if DRAW.polygon_sides[0].bits() == 0 || game_read::<u32>(SWITCH_B_RVA) == 0 {
+        if DRAW.polygon_sides[0].bits() == 0 || DRAW.polygon_sides[1].bits() == 0 {
             return;
         }
         let bytes = entries
@@ -404,11 +399,11 @@ pub unsafe fn draw_polygon(outside: &mut dyn Outside) -> Result<(), BadInput> {
         hit_test(&entries);
         let kept: [u32; 3] = [
             DRAW.polygon_sides[0].bits(),
-            game_read(SWITCH_B_RVA),
+            DRAW.polygon_sides[1].bits(),
             RACE_VIEW.polygon_mode.bits(),
         ];
         crate::session::write_bits(&DRAW.polygon_kept, kept);
-        let mirrored = game_read::<u32>(MIRRORED_RVA) != 0;
+        let mirrored = GROUND_WORK.view_mirrored.bits() != 0;
         if mirrored && count > 2 {
             // `sub_44E6B9`: the list's entries after the first, turned round.
             entries[1..].reverse();
@@ -419,11 +414,11 @@ pub unsafe fn draw_polygon(outside: &mut dyn Outside) -> Result<(), BadInput> {
         }
         place(&entries, mirrored);
 
-        if game_read::<u32>(FADED_RVA) != 0 {
+        if LIGHT_STATE.faded.bits() != 0 {
             let (mode, texture): (u32, u32) =
                 (RACE_VIEW.polygon_mode.bits(), DRAW.texture_page.bits());
             // `sub_44CAD5`.
-            let (from, alpha): (u32, u32) = (CARDS_3D.fade_from.get(), game_read(FADE_ALPHA_RVA));
+            let (from, alpha): (u32, u32) = (CARDS_3D.fade_from.get(), VIEW_VARS.fade_alpha.bits());
             let uv = crate::session::read_bits(&RACE_VARS.fade_uv);
             for (n, &entry) in entries.iter().enumerate() {
                 let out = game_addr(VERTICES_RVA) + n * VERTEX_LEN;
@@ -446,11 +441,11 @@ pub unsafe fn draw_polygon(outside: &mut dyn Outside) -> Result<(), BadInput> {
 
         // The mode, with its fallbacks.
         let mut mode: u32 = RACE_VIEW.polygon_mode.bits();
-        if mode == 3 && game_read::<u32>(CLEARS_SWITCH_RVA) != 0 {
+        if mode == 3 && DRAW_SWITCHES.clears_switch.bits() != 0 {
             clear_a_switch(&entries);
         }
         if matches!(mode, 3..=5) {
-            let fallback = if game_read::<u32>(SWITCH_B_RVA) == 0 {
+            let fallback = if DRAW.polygon_sides[1].bits() == 0 {
                 Some(2)
             } else if DRAW.polygon_sides[0].bits() == 0 {
                 Some([8, 9, 0xA][mode as usize - 3])
@@ -466,11 +461,11 @@ pub unsafe fn draw_polygon(outside: &mut dyn Outside) -> Result<(), BadInput> {
             shade(&entries, how);
             for pass in passes {
                 let (texture, smooth) = match pass.set {
-                    Set::A => (TEXTURE_A_RVA, SMOOTH_A_RVA),
-                    Set::B => (TEXTURE_B_RVA, SMOOTH_B_RVA),
+                    Set::A => (&DRAW.polygon_textures[0], &LEVEL_GRID.plain_first),
+                    Set::B => (&DRAW.polygon_textures[1], &LEVEL_GRID.plain_second),
                 };
-                DRAW.texture_page.set_bits(game_read::<u32>(texture));
-                game_write(SMOOTH_RVA, game_read::<u32>(smooth));
+                DRAW.texture_page.set_bits(texture.bits());
+                LEVEL_GRID.smooth.set_bits(smooth.bits());
                 copy_set(&entries, pass.set);
                 if let Some(as_mode) = pass.as_mode {
                     RACE_VIEW.polygon_mode.set_bits(as_mode);

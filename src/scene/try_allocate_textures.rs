@@ -27,17 +27,17 @@
 //! sizes' table).
 
 use crate::errors::BadInput;
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 use crate::logfile::log_int::log_int;
 use crate::logfile::log_write::log_write;
 use crate::race::vars_store::RACE_VARS;
+use crate::scene::kind_texture_store::KIND_TEXTURES;
 use crate::scene::texture_needs::{LEVEL_SIZES_RVA, SYSTEM_LEVELS_RVA, TEXTURES, VIDEO_LEVELS_RVA};
 use crate::scene::textures::{KIND_SLOT_RVA, KIND_TEXTURE_RVA};
 
 // ---- game data ----
 
 /// `dword_5D0AE0` video, `dword_5D0AE4` system: the memory asked for.
-const ASKED_RVA: usize = rva(0x5D0AE0);
 /// Mip levels a level has: the sizes' table from its fifth entry.
 const LEVEL_MIPS_RVA: usize = rva(0x5CDABC); // dword_5CDABC
 const TEXTURE_OF_RVA: usize = rva(0x5D2AE8); // dword_5D2AE8
@@ -68,12 +68,21 @@ impl rc2k_core::scene::textures::TextureMemory for GameMemory {
     }
     fn forget_kinds(&mut self) {
         unsafe {
-            std::ptr::write_bytes(game_addr(KIND_SLOT_RVA) as *mut u8, 0xFF, TEXTURES * 4);
-            std::ptr::write_bytes(game_addr(KIND_TEXTURE_RVA) as *mut u8, 0xFF, TEXTURES * 4);
+            std::ptr::write_bytes(
+                KIND_TEXTURES.kind_first_slots[0].addr() as *mut u8,
+                0xFF,
+                TEXTURES * 4,
+            );
+            std::ptr::write_bytes(
+                KIND_TEXTURES.kind_first_textures[0].addr() as *mut u8,
+                0xFF,
+                TEXTURES * 4,
+            );
         }
     }
     fn set_asked(&mut self, asked: [u32; 2]) {
-        unsafe { game_write(ASKED_RVA, asked) }
+        KIND_TEXTURES.textures_asked.set(asked[0]);
+        KIND_TEXTURES.textures_asked_other.set(asked[1]);
     }
     fn set_first_slot(&mut self, texture: u32, slot: u32) {
         unsafe { game_write(KIND_SLOT_RVA + texture as usize * 4, slot) }

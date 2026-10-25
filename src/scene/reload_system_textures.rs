@@ -25,6 +25,7 @@ use crate::errors::{BadInput, Refused};
 use crate::framework::rva;
 use crate::gfx::texture_pixels::GRADING;
 use crate::logfile::log_write::log_write;
+use crate::race::prefs_store::STAGE_PREFS;
 use crate::scene::load_changed_texture_picture::{
     TEXTURES, WANTED_PICTURES_RVA, load_changed_texture_picture_in_game,
 };
@@ -39,7 +40,6 @@ use rc2k_core::scene::pictures::{kind_picture, read_size};
 const KIND_PICTURES_RVA: usize = rva(0x5D7968); // dword_5D7968
 const SYSTEM_TEXTURES_RVA: usize = rva(0x5DC974); // dword_5DC974
 /// `dword_609300`, `dword_609304`: the scene's size for them.
-const SCENE_SIZE_RVA: usize = rva(0x609300);
 // scene::load_hud_car_icons
 const TEXTS: [&std::ffi::CStr; 4] = [
     c"-----------------------------",
@@ -76,7 +76,10 @@ pub unsafe fn reload_system_textures() -> Result<(), Refused> {
             let picture = kind_picture(game_read(KIND_PICTURES_RVA + kind as usize * 4));
             game_write(WANTED_PICTURES_RVA + texture as usize * 4, picture);
         }
-        let scene: [u32; 2] = game_read(SCENE_SIZE_RVA);
+        let scene = [
+            STAGE_PREFS.scene_size_a.get(),
+            STAGE_PREFS.scene_size_b.get(),
+        ];
         for texture in 0..textures {
             GRADING.reading.set(1u32);
             let wanted = game_read(WANTED_PICTURES_RVA + texture as usize * 4);

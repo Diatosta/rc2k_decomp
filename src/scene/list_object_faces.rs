@@ -12,9 +12,9 @@
 //! number past the table and a face that is not there.
 
 use crate::errors::Refused;
-use crate::framework::{game_read, game_write, rva};
+use crate::framework::{game_read, rva};
 use crate::race::vars_store::RACE_VARS;
-use crate::scene::draw_object_faces::LISTED_RVA;
+use crate::scene::light_work_store::LIGHT_WORK;
 use crate::scene::object_store::OBJECT_WORK;
 
 // ---- game data ----
@@ -35,7 +35,7 @@ pub unsafe fn list_object_faces(
         let faces = rc2k_core::scene::objects::object_faces(first, count, |number| {
             game_read(FACES_RVA + number as usize * 4)
         })?;
-        game_write(LISTED_RVA, 0u32);
+        LIGHT_WORK.listed_face_count.set_bits(0u32);
         RACE_VARS.face_mark.set_bits(u32::MAX);
         for (n, &face) in faces.iter().enumerate() {
             RACE_VARS.face_number.set_bits(n as u32);

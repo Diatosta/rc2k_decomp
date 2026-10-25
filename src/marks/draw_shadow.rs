@@ -23,13 +23,13 @@ use crate::errors::{BadInput, Refused};
 use crate::framework::rva;
 use crate::marks::store::{Slot, Where, game_addr, game_read, game_write};
 use crate::math::{x87, x87_run};
+use crate::race::matrices_store::MATRICES;
 use crate::race::numbers_store::NUMBERS;
 use crate::scene::cross_product3::cross_product3;
 use crate::scene::matrix3::{Axis, extended, rounded, turn_matrix3, turnable};
 use crate::scene::rotate_point::rotate_point;
 use crate::scene::vector3::normalise_vector3;
 
-const VIEW_RVA: usize = rva(0x5EA0CC); // unk_5EA0CC
 const MARK_CORNERS_RVA: Slot = Slot::at(0x8EB971); // g_marksCorners
 const UV_K_RVA: Slot = Slot::at(0x8EB969); // flt_8EB969
 const TINT_RVA: Slot = Slot::at(0x939BA6); // dword_939BA6
@@ -256,7 +256,7 @@ pub unsafe fn draw_shadow_with(sh: &Shadow, depth: bool) -> Result<(), Refused> 
         (sh.corners_block)();
         normalise_vector3(addr(sh.way));
         (sh.corners_in)();
-        let view = addr(VIEW_RVA);
+        let view = MATRICES.listener_matrix[0].addr() as u32;
         for n in 0..4 {
             let c = sh.corners + 12 * n;
             let p: [u32; 3] = game_read(c);

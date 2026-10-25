@@ -35,6 +35,8 @@
 
 use crate::errors::Refused;
 use crate::framework::{game_addr, game_write, rva};
+use crate::race::prefs_store::STAGE_PREFS;
+use crate::race::switches_store::FRAME_SWITCHES;
 use crate::race::vars_store::RACE_VARS;
 use crate::scene::allocate_point_records::allocate_point_records_in_game;
 use crate::scene::clear_fog::clear_fog;
@@ -52,9 +54,6 @@ use crate::scene::view_matrix::set_view_matrices;
 
 // ---- game data ----
 const SHOW_BAR_RVA: usize = rva(0x4467C7); // sub_4467C7
-const LIT_COLOUR_RVA: usize = rva(0x6092C0); // dword_6092C0, three dwords
-const DARK_COLOUR_RVA: usize = rva(0x6092B4); // dword_6092B4, three dwords
-const OTHER_WAY_RVA: usize = rva(0x621480); // dword_621480
 const SLOT_KINDS_RVA: usize = rva(0x5CCE7C); // g_slotKinds
 const KIND_PICTURES_RVA: usize = rva(0x5D7968); // g_kindPictures
 /// The textures needed: how many, the first, the levels' table, the tag.
@@ -65,20 +64,6 @@ const NEEDS: [(usize, usize, usize, u32); 6] = [
     (0x20, 0x2BC, VIDEO_LEVELS_RVA, 0x51),
     (1, 0x87, SYSTEM_LEVELS_RVA, 0x63),
     (1, 0x87, VIDEO_LEVELS_RVA, 0x63),
-];
-
-/// The scene's settings stored before the fog is cleared, after the two colours.
-const FIRST_STORES: [(usize, u32); 10] = [
-    (rva(0x609300), 0x100),
-    (rva(0x609304), 0x100),
-    (rva(0x609308), 0),
-    (rva(0x609320), 0),
-    (rva(0x6092CC), 0),
-    (rva(0x6092D0), 0),
-    (rva(0x6092D4), 0),
-    (rva(0x609310), 0),
-    (rva(0x609358), 0),
-    (rva(0x60930C), 0),
 ];
 
 /// The pictures of kinds 0x258 on.
@@ -95,9 +80,9 @@ fn picture_places() -> impl Iterator<Item = u32> {
 // ---- Rust version ----
 
 unsafe fn colours(dark_third: u32) {
-    unsafe {
-        game_write(LIT_COLOUR_RVA, [0xFFu32; 3]);
-        game_write(DARK_COLOUR_RVA, [0u32, 0, dark_third]);
+    {
+        crate::session::write_bits(&STAGE_PREFS.lit_colour, [0xFFu32; 3]);
+        crate::session::write_bits(&STAGE_PREFS.dark_colour, [0u32, 0, dark_third]);
     }
 }
 
@@ -120,11 +105,19 @@ pub unsafe fn set_up_front_end_scene() -> Result<(), Refused> {
         set_up_object_memory()?;
         clear_slot_kinds();
         colours(0);
-        for (place, value) in FIRST_STORES {
-            game_write(place, value);
-        }
+        // The scene's settings stored before the fog is cleared, after the two colours.
+        STAGE_PREFS.scene_size_a.set_bits(0x100u32);
+        STAGE_PREFS.scene_size_b.set_bits(0x100u32);
+        STAGE_PREFS.fog_low.set_bits(0u32);
+        STAGE_PREFS.fog_high.set_bits(0u32);
+        STAGE_PREFS.fog_colour[0].set_bits(0u32);
+        STAGE_PREFS.fog_colour[1].set_bits(0u32);
+        STAGE_PREFS.fog_colour[2].set_bits(0u32);
+        STAGE_PREFS.fog_near.set_bits(0u32);
+        STAGE_PREFS.fog_start.set_bits(0u32);
+        STAGE_PREFS.fog_end.set_bits(0u32);
         clear_fog();
-        game_write(OTHER_WAY_RVA, 1u32);
+        FRAME_SWITCHES.other_way.set_bits(1u32);
         fill_light_tables();
 
         game_write(SLOT_KINDS_RVA, 1u32);
@@ -165,7 +158,7 @@ pub unsafe fn set_up_front_end_scene() -> Result<(), Refused> {
         set_view_matrices();
         reload_slot_textures()?;
         colours(0x7F);
-        game_write(OTHER_WAY_RVA, 1u32);
+        FRAME_SWITCHES.other_way.set_bits(1u32);
         fill_light_tables();
         RACE_VARS.settings_words[1].set_bits(1u32);
         Ok(())

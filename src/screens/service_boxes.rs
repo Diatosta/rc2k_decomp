@@ -18,17 +18,15 @@ pub fn at_esi(p: u32) -> u32 {
     unsafe { (p as *const u32).read_unaligned() }
 }
 
-const QUAD_IN: usize = 0x623DE8; // dword_623DE8: colour, see-through; x at +0x28 / +0x2C, y at +0x38 / +0x3C
-
 /// One quad: x .. x + w, y .. y + h, the colour and see-through, then `draw_tinted_quad`.
 pub fn quad(x: u32, y: u32, w: u32, h: u32, colour: u32, see: u32) -> Result<(), Refused> {
-    let put =
-        |at: usize, v: u32| unsafe { crate::framework::game_write(crate::framework::rva(at), v) };
-    put(QUAD_IN + 0x28, x);
-    put(QUAD_IN + 0x38, y);
-    put(QUAD_IN + 0x2C, x.wrapping_add(w));
-    put(QUAD_IN + 0x3C, y.wrapping_add(h));
-    put(QUAD_IN, colour);
-    put(QUAD_IN + 4, see);
+    // dword_623DE8: colour, see-through; x at +0x28 / +0x2C, y at +0x38 / +0x3C (`quad_corners`)
+    let q = &crate::race::vars_store::RACE_VARS;
+    q.quad_corners[0].set(x);
+    q.quad_corners[4].set(y);
+    q.quad_corners[1].set(x.wrapping_add(w));
+    q.quad_corners[5].set(y.wrapping_add(h));
+    q.quad_colour[0].set(colour);
+    q.quad_colour[1].set(see);
     unsafe { crate::scene::draw_tinted_quad::draw_tinted_quad() }
 }

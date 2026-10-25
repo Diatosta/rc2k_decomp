@@ -28,10 +28,10 @@
 //! put back first; the calls' scratch is not).
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, game_write, rva};
 use crate::math::x87;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::numbers_store::NUMBERS;
+use crate::race::tables_store::RACE_TABLES;
 use crate::race::work_store::RACE_WORK;
 use crate::session::Dword;
 use rc2k_core::drive::pace_cars::{
@@ -39,20 +39,21 @@ use rc2k_core::drive::pace_cars::{
     wanted_gap,
 };
 
-fn g(x: u32) -> u32 {
-    unsafe { game_read(rva(x as usize)) }
-}
-
-fn p(x: u32, v: u32) {
-    unsafe { game_write(rva(x as usize), v) }
-}
-
 unsafe fn at(a: u32) -> u32 {
     unsafe { (a as *const u32).read_unaligned() }
 }
 
-const COUNT: u32 = 0x6051B4; // the starts
-const CARS_BY_START: u32 = 0x604ECC; // dword_604ECC
+/// `dword_604ECC`[k]: the car of each start. The table holds 89; the refusal below reads
+/// one past it (the start count's 0x58 + 1), the next variable, as the original.
+fn car_by_start(k: u32) -> u32 {
+    match RACE_TABLES.arcade_car_kinds.get(k as usize) {
+        Some(car) => car.get(),
+        None => unsafe {
+            ((RACE_TABLES.arcade_car_kinds[0].addr() + 4 * k as usize) as *const u32)
+                .read_unaligned()
+        },
+    }
+}
 
 fn block(car: u32) -> u32 {
     RACE_WORK.car_block(car as usize)
@@ -61,12 +62,12 @@ fn block(car: u32) -> u32 {
 /// The refusals worked out before anything.
 fn refusal() -> Option<&'static str> {
     let lead = &CAR_BLOCKS.cars[0];
-    let count = g(COUNT);
+    let count = RACE_TABLES.arcade_cars.get();
     if count > 0x58 {
         return Some("a start count above 0x58 (the start tables' room)");
     }
     for k in 0..=count + 1 {
-        if g(CARS_BY_START + 4 * k) > 7 {
+        if car_by_start(k) > 7 {
             return Some("a start table car past the eight blocks");
         }
     }
@@ -86,13 +87,13 @@ unsafe fn put_car(
     speed: u32,
 ) -> Result<(), Refused> {
     number.set(start);
-    p(0x6051A0, start);
-    let car = g(CARS_BY_START + 4 * start);
+    RACE_TABLES.start_slot.set(start);
+    let car = car_by_start(start);
     RACE_WORK.current_car.set(car);
     slot.set(car);
     unsafe {
         crate::drive::load_car::load_car()?;
-        p(0x6051B0, speed);
+        RACE_TABLES.start_speed.set_bits(speed);
         crate::drive::start_car_on_line::start_car_on_line(dist)?;
         crate::drive::store_car::store_car()?;
     }
@@ -121,76 +122,101 @@ pub unsafe fn start_cars_behind() -> Result<(), Refused> {
     let lead = &CAR_BLOCKS.cars[0];
     unsafe {
         if lead.pace_placed.get() == 0 {
-            let [(a, a_dist), (b, b_dist)] = first_starts(g(0x6051BC));
-            p(0x6051C4, a);
-            p(0x6051C8, b);
-            p(0x6051CC, a_dist);
-            p(0x6051D0, b_dist);
+            let [(a, a_dist), (b, b_dist)] = first_starts(RACE_TABLES.start_place.get());
+            RACE_TABLES.pace_start_a.set(a);
+            RACE_TABLES.pace_start_b.set(b);
+            RACE_TABLES.pace_distance_a.set(a_dist);
+            RACE_TABLES.pace_distance_b.set(b_dist);
             for (start, slot, dist) in [
-                (0x6051C4, &lead.pace_cars[0], 0x6051CC),
-                (0x6051C8, &lead.pace_cars[1], 0x6051D0),
+                (
+                    &RACE_TABLES.pace_start_a,
+                    &lead.pace_cars[0],
+                    &RACE_TABLES.pace_distance_a,
+                ),
+                (
+                    &RACE_TABLES.pace_start_b,
+                    &lead.pace_cars[1],
+                    &RACE_TABLES.pace_distance_b,
+                ),
             ] {
-                put_car(g(start), slot, &lead.pace_starts[0], g(dist), 0)?;
+                put_car(start.get(), slot, &lead.pace_starts[0], dist.get(), 0)?;
             }
             lead.pace_placed.set(1);
         }
-        let count = g(COUNT);
+        let count = RACE_TABLES.arcade_cars.get();
         let start = gap_start(lead.mode2_place.get(), count);
-        let word = g(0x605034 + 4 * start);
+        let word = crate::drive::start_car_on_line::car_number(start as usize);
         let (pass, back, sum) = gaps(word);
-        p(0x6051D4, pass);
-        p(0x6051D8, back);
-        p(0x6051DC, sum);
+        RACE_TABLES.pace_pass_gap.set(pass);
+        RACE_TABLES.pace_back_gap.set(back);
+        RACE_TABLES.pace_gap_sum.set(sum);
         'moves: {
             if lead.mode2_behind.get() != 0 {
                 let car = lead.pace_cars[0].get();
                 let gone = at(block(car) + 0x98).wrapping_sub(lead.checkpoint.get());
-                if passed(gone, g(0x6051D4)) {
-                    let to = lead.checkpoint.get().wrapping_sub(g(0x6051D8));
+                if passed(gone, RACE_TABLES.pace_pass_gap.get()) {
+                    let to = lead
+                        .checkpoint
+                        .get()
+                        .wrapping_sub(RACE_TABLES.pace_back_gap.get());
                     if crate::drive::checkpoint_taken::checkpoint_taken(to) {
                         break 'moves;
                     }
                     clear_car(car)?;
                     lead.pace_cars[0].set(lead.pace_cars[1].get());
                     lead.pace_starts[0].set(lead.pace_starts[1].get());
-                    let start = g(COUNT).wrapping_sub(lead.mode2_behind.get());
+                    let start = RACE_TABLES
+                        .arcade_cars
+                        .get()
+                        .wrapping_sub(lead.mode2_behind.get());
                     put_car(
                         start,
                         &lead.pace_cars[1],
                         &lead.pace_starts[1],
-                        g(0x6051D8).wrapping_neg(),
+                        RACE_TABLES.pace_back_gap.get().wrapping_neg(),
                         NUMBERS.twenty.bits(),
                     )?;
                     lead.mode2_behind
                         .set(lead.mode2_behind.get().wrapping_sub(1));
                 }
             }
-            if lead.mode2_behind.get() == g(COUNT).wrapping_sub(3) {
+            if lead.mode2_behind.get() == RACE_TABLES.arcade_cars.get().wrapping_sub(3) {
                 break 'moves;
             }
-            if lead.mode2_behind.get() >= g(COUNT).wrapping_sub(2).wrapping_sub(g(0x6051C0)) {
+            if lead.mode2_behind.get()
+                >= RACE_TABLES
+                    .arcade_cars
+                    .get()
+                    .wrapping_sub(2)
+                    .wrapping_sub(RACE_TABLES.best_place.get())
+            {
                 break 'moves;
             }
             let car = lead.pace_cars[1].get();
             let ahead = lead.checkpoint.get().wrapping_sub(at(block(car) + 0x98));
-            if !passed(ahead, g(0x6051D4)) {
+            if !passed(ahead, RACE_TABLES.pace_pass_gap.get()) {
                 break 'moves;
             }
-            let to = lead.checkpoint.get().wrapping_add(g(0x6051D8));
+            let to = lead
+                .checkpoint
+                .get()
+                .wrapping_add(RACE_TABLES.pace_back_gap.get());
             if crate::drive::checkpoint_taken::checkpoint_taken(to) {
                 break 'moves;
             }
             clear_car(car)?;
             lead.pace_starts[1].set(lead.pace_starts[0].get());
             lead.pace_cars[1].set(lead.pace_cars[0].get());
-            let start = g(COUNT)
+            let start = RACE_TABLES
+                .arcade_cars
+                .get()
                 .wrapping_sub(3)
                 .wrapping_sub(lead.mode2_behind.get());
             put_car(
                 start,
                 &lead.pace_cars[0],
                 &lead.pace_starts[0],
-                g(0x6051D8),
+                RACE_TABLES.pace_back_gap.get(),
                 NUMBERS.twenty.bits(),
             )?;
             lead.mode2_behind
@@ -199,7 +225,10 @@ pub unsafe fn start_cars_behind() -> Result<(), Refused> {
         if lead.finish_flag.get() == 0 {
             lead.pace_gaps[0].set(u32::MAX);
             lead.pace_gaps[1].set(u32::MAX);
-            let mut behind = g(COUNT).wrapping_sub(lead.mode2_behind.get());
+            let mut behind = RACE_TABLES
+                .arcade_cars
+                .get()
+                .wrapping_sub(lead.mode2_behind.get());
             let lead_checkpoint = lead.checkpoint.get();
             // edx: `dword_70FA10` for the first car, then the gap the first car's note
             // left (the original's register, read again for the second car).
@@ -214,7 +243,13 @@ pub unsafe fn start_cars_behind() -> Result<(), Refused> {
                 };
             }
             lead.mode2_place.set(behind);
-            let gap = |other: &Dword| wanted_gap(g(0x6051DC), other.get(), g(0x6051D8));
+            let gap = |other: &Dword| {
+                wanted_gap(
+                    RACE_TABLES.pace_gap_sum.get(),
+                    other.get(),
+                    RACE_TABLES.pace_back_gap.get(),
+                )
+            };
             let mut to_ease = true;
             if lead.pace_gaps[1].get() == u32::MAX {
                 if lead.mode2_behind.get() == 0 {
@@ -249,7 +284,7 @@ pub unsafe fn start_cars_behind() -> Result<(), Refused> {
         let put = |a: u32, v: u32| (a as *mut u32).write_unaligned(v);
         put(first + 0x674, push);
         put(second + 0x674, push.wrapping_neg());
-        let k = g(0x604EC4);
+        let k = RACE_TABLES.pace_push_scale.bits();
         for b in [first, second] {
             put(b + 0x674, x87::int_times(at(b + 0x674) as i32, k));
         }

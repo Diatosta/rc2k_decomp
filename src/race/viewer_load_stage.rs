@@ -24,22 +24,36 @@
 use crate::errors::Refused;
 use crate::gfx::fonts_store::FONTS;
 use crate::race::blocks_store::CAR_BLOCKS;
+use crate::race::replay_file_store::REPLAY_FILE;
+use crate::race::replay_work_store::REPLAY_WORK;
 use crate::race::state_store::RACE_STATE;
-use crate::race::viewer::{OPEN, gb, get, put};
+use crate::race::viewer::{OPEN, gb, get};
 use crate::session::Dword;
 
-const LOADED: usize = 0x5BECC0; // dword_5BECC0: the viewer's stage is loaded
-pub const FONTS_BUILT: usize = 0x5BECC4; // dword_5BECC4: the viewer built the fonts
 const DOOR: usize = 0x719C8C; // byte_719C8C
 const DOOR_TEXT: &std::ffi::CStr = c"doornr="; // "doornr="
 /// (to, from): the header's settings.
-const SETTINGS: [(&Dword, usize); 5] = [
-    (&RACE_STATE.settings.run_kind, 0x719B18),
-    (&RACE_STATE.settings.car_kind_current, 0x719B24),
-    (&RACE_STATE.settings.car_kind_first, 0x719B28),
-    (&RACE_STATE.settings.cars[0].codriver_sex, 0x719B38),
-    (&RACE_STATE.settings.cars[1].codriver_sex, 0x719B3C),
-];
+fn settings() -> [(&'static Dword, &'static Dword); 5] {
+    [
+        (&RACE_STATE.settings.run_kind, &REPLAY_WORK.header_mode),
+        (
+            &RACE_STATE.settings.car_kind_current,
+            &REPLAY_WORK.header_kind_0,
+        ),
+        (
+            &RACE_STATE.settings.car_kind_first,
+            &REPLAY_WORK.header_kind_1,
+        ),
+        (
+            &RACE_STATE.settings.cars[0].codriver_sex,
+            &REPLAY_WORK.header_codriver_sex_0,
+        ),
+        (
+            &RACE_STATE.settings.cars[1].codriver_sex,
+            &REPLAY_WORK.header_codriver_sex_1,
+        ),
+    ]
+}
 
 /// The Rust version (every register kept).
 pub fn viewer_load_stage() -> Result<(), Refused> {
@@ -53,13 +67,13 @@ pub fn viewer_load_stage() -> Result<(), Refused> {
             race_shell::set_race_screen_mode();
         }
         crate::menu::show_loading_picture::show_loading_picture()?;
-        for (to, from) in SETTINGS {
-            to.set(get(from));
+        for (to, from) in settings() {
+            to.set(from.get());
         }
         // g_onePlayer (the sound module's) takes the header's setting too.
         crate::sound::store::RACE_SOUNDS
             .one_player
-            .set(get(0x719B34));
+            .set(REPLAY_WORK.header_one_player.get());
         RACE_STATE.settings.cars[0].record_2c.set(0);
         RACE_STATE.settings.cars[1].record_2c.set(0);
         RACE_STATE
@@ -77,13 +91,13 @@ pub fn viewer_load_stage() -> Result<(), Refused> {
         crate::sound::set_up_race_sounds::set_up_race_sounds()?;
         if FONTS.palettes.get() == 0 {
             unsafe { crate::gfx::build_fonts::build_fonts() }?;
-            put(FONTS_BUILT, 1);
+            REPLAY_FILE.viewer_fonts_built.set(1);
         }
         crate::race::read_replay_header::read_replay_header();
         unsafe { stage_loading::load_stage() }?;
         race_end::reset_race_sounds(&race_end::SoundVars::game())?;
         unsafe { crate::race::viewer_palettes::viewer_palettes() };
-        put(LOADED, 1);
+        REPLAY_FILE.viewer_stage_loaded.set(1);
     }
     crate::input::take_key::take_key();
     Ok(())

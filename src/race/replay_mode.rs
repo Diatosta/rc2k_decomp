@@ -3,8 +3,9 @@
 //! `race::replay_viewer` (0x41CF0C) with eax the mode.
 
 use crate::errors::Refused;
-use crate::framework::{game_read, rva};
+use crate::framework::rva;
 use crate::menu::screen_loop::Carried;
+use crate::race::replay_file_store::REPLAY_FILE;
 
 pub const REPLAY_RVA: usize = rva(0x5BEC84); // dword_5BEC84: a replay there
 
@@ -13,7 +14,7 @@ pub const REPLAY_RVA: usize = rva(0x5BEC84); // dword_5BEC84: a replay there
 /// every register; nothing reads them.)
 pub unsafe fn replay_mode(c: &Carried, mode: u32) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::viewer_flow::views_replay`.
-    if rc2k_core::race::viewer_flow::views_replay(unsafe { game_read::<u32>(REPLAY_RVA) }) {
+    if rc2k_core::race::viewer_flow::views_replay(REPLAY_FILE.replay_closed.bits()) {
         crate::race::replay_viewer::replay_viewer(c, mode)?;
     }
     Ok(())

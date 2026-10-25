@@ -19,13 +19,13 @@
 use crate::errors::Refused;
 use crate::files::handle;
 use crate::physics::flow::a;
+use crate::race::replay_file_store::REPLAY_FILE;
 use crate::race::replay_path::replay_path;
 use crate::race::viewer::{
     BLOCK, BLOCK_CURSOR, BLOCK_DATA, BLOCKS, CAMERAS, CAR_HEADER, FRAME, HANDLE, HEADER, INDEX,
     MARK_IN, MARK_OUT, OPEN, get, put,
 };
 
-const RECORDED: usize = 0x5BEC84; // dword_5BEC84: a replay was recorded
 use rc2k_core::race::viewer_flow::{HEADER_LEN, INDEX_LEN};
 
 /// The Rust version: whether it failed (the carry the original leaves; it keeps the
@@ -44,7 +44,10 @@ pub fn open_viewed_replay(slot: u32) -> Result<bool, Refused> {
     };
     let found = replay_path(slot)?;
     let mut path = found.path;
-    if last_race_missing(found.last_race, || get(RECORDED)) {
+    if last_race_missing(
+        found.last_race,
+        || REPLAY_FILE.replay_closed.get(), /* dword_5BEC84: a replay was recorded */
+    ) {
         return failed();
     }
     if copied_first(found.number) {

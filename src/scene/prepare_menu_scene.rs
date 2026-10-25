@@ -9,11 +9,11 @@
 //! and strength 0xB4, its direction's angles `dword_635094` = 0x6E and `dword_635098` = 0x1E;
 //! `scene::set_view_matrices`. 29 callers (the screen loops' set-up).
 
-use crate::framework::game_write;
+use crate::race::view_vars_store::VIEW_VARS;
 use crate::scene::draw_store::DRAW;
 use crate::scene::object_store::OBJECT_WORK;
 use crate::scene::set_view_window::set_view_window;
-use crate::scene::view_matrix::{VIEW_ANGLES_RVA, VIEW_PLACE_RVA, set_view_matrices};
+use crate::scene::view_matrix::set_view_matrices;
 
 // ---- game data ----
 
@@ -21,8 +21,8 @@ use crate::scene::view_matrix::{VIEW_ANGLES_RVA, VIEW_PLACE_RVA, set_view_matric
 
 pub unsafe fn prepare_menu_scene() {
     unsafe {
-        game_write(VIEW_PLACE_RVA, [0u32; 3]);
-        game_write(VIEW_ANGLES_RVA, [0u32; 3]);
+        crate::session::write_bits(&VIEW_VARS.view_place, [0u32; 3]);
+        crate::session::write_first(&VIEW_VARS.view_angles, &[0u32; 3]);
         crate::session::write_bits(&DRAW.view_size, [0x320u32, 0x258]);
         set_view_window();
         let o = &OBJECT_WORK;

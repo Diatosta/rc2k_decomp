@@ -7,7 +7,9 @@ use crate::errors::Refused;
 use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::race::course_store::COURSE;
 use crate::race::frame_store::FRAME_WORK;
+use crate::race::matrices_store::MATRICES;
 use crate::race::numbers_store::NUMBERS;
+use crate::race::prefs_store::STAGE_PREFS;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
 use crate::scene::draw_store::DRAW;
@@ -49,16 +51,15 @@ pub(crate) unsafe fn project_vertex(v: u32) {
     use crate::math::x87_float::{ONE, int, ld, st};
     unsafe {
         let (x, y, z) = (ld(get(v + 0x10)), ld(get(v + 0x14)), ld(get(v + 0x18)));
-        let centre = |a: usize| ld(game_read::<u32>(rva(a)));
-        let reach = centre(0x624088);
-        let scale = if game_read::<u32>(rva(0x60932C)) != 0 {
+        let reach = ld(DRAW.view_scale.bits());
+        let scale = if STAGE_PREFS.flat_depth.get() != 0 {
             DRAW.scratch.set(st(z));
             reach / (int(COURSE.flat_depth.get() as i32) + ONE)
         } else {
             reach / z
         };
-        put(v + 0xC, st(x * scale + centre(0x62409C)));
-        put(v + 0x1C, st(-(y * scale) + centre(0x6240A0)));
+        put(v + 0xC, st(x * scale + ld(DRAW.view_centre[0].bits())));
+        put(v + 0x1C, st(-(y * scale) + ld(DRAW.view_centre[1].bits())));
     }
 }
 
@@ -74,7 +75,8 @@ unsafe fn skid_vertex(n: u32, v: u32) {
             int_plus_float_80(get(p + 4), lift),
             int_80(get(p + 8)),
         ];
-        let t = crate::scene::rotate_point::rotate_point(g(0x5EA2CC), point);
+        let t =
+            crate::scene::rotate_point::rotate_point(MATRICES.view_matrix[0].addr() as u32, point);
         put(v + 0x10, float_of_80(t[0]));
         put(v + 0x14, float_of_80(t[1]));
         put(v + 0x18, float_of_80(t[2]));
@@ -308,8 +310,8 @@ mod asm_reference {
         at_each_control_word(|| {
             for n in 0..20000 {
                 let flat = n % 2 == 0;
-                unsafe {
-                    game_write(rva(0x60932C), flat as u32);
+                {
+                    STAGE_PREFS.flat_depth.set(flat as u32);
                     COURSE.flat_depth.set(r.int() as u32);
                     DRAW.view_scale.set_bits(r.float());
                     DRAW.view_centre[1].set_bits(r.float());

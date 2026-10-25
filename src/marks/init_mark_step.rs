@@ -18,15 +18,13 @@
 
 use crate::errors::Refused;
 use crate::framework::rva;
-use crate::marks::store::{game_addr, game_read, game_write};
+use crate::marks::store::game_read;
 use crate::race::blocks_store::CAR_BLOCKS;
+use crate::race::kind_store::KIND_TABLES;
 use crate::race::view_store::RACE_VIEW;
+use crate::race::viewer_screen_store::VIEWER_PANEL;
 use crate::race::work_store::RACE_WORK;
-const CARS_COPY_RVA: usize = rva(0x5C2FE0); // dword_5C2FE0
-const SET_RVA: [usize; 2] = [rva(0x5C5640), rva(0x5C563C)];
-const FILE_RVA: usize = rva(0x5C562C); // dword_5C562C
 const ROWS_RVA: usize = rva(0x5C90D8); // dword_5C90D8 ..: rows of 0x134
-const SETTINGS_RVA: usize = rva(0x5C2F84); // asc_5C2F84
 /// The Rust version (see the header).
 // Converted: `rc2k_core::marks::race::{check_cars, kind_row, car_fields}`
 pub unsafe fn init_mark_step() -> Result<(), Refused> {
@@ -36,11 +34,11 @@ pub unsafe fn init_mark_step() -> Result<(), Refused> {
         let block = |n: u32| RACE_WORK.car_block(n as usize);
         let record = |n: u32| RACE_WORK.car_record(n as usize);
         race::check_cars(count, |n| block(n) != 0 && record(n) != 0)?;
-        game_write(CARS_COPY_RVA, RACE_VIEW.race_cars.bits());
-        game_write(SET_RVA[0], 0x50u32);
-        game_write(SET_RVA[1], 1u32);
+        VIEWER_PANEL.cars_copy.set_bits(RACE_VIEW.race_cars.bits());
+        KIND_TABLES.mark_set_count.set_bits(0x50u32);
+        KIND_TABLES.mark_set_flag.set_bits(1u32);
         let file = crate::race::mud::car_file_number(CAR_BLOCKS.cars[0].car_kind.bits());
-        game_write(FILE_RVA, file);
+        KIND_TABLES.mark_car_file_number.set_bits(file);
         for n in 0..count {
             let kind = ((block(n) + 0x24) as *const i32).read_unaligned();
             let row = ROWS_RVA + race::kind_row(kind);
@@ -49,7 +47,7 @@ pub unsafe fn init_mark_step() -> Result<(), Refused> {
             }
         }
         // The file number is left in eax: `init_marks`' seed.
-        crate::marks::init_marks::init_marks(game_addr(SETTINGS_RVA) as u32, file)?;
+        crate::marks::init_marks::init_marks(VIEWER_PANEL.settings_text.addr() as u32, file)?;
     }
     Ok(())
 }

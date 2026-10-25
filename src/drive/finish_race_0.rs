@@ -7,10 +7,10 @@
 //! what `finish_race` refuses.
 
 use crate::errors::Refused;
-use crate::physics::flow::p;
+use crate::race::switches_store::FRAME_SWITCHES;
 
 /// The Rust version.
 pub unsafe fn finish_race_0() -> Result<(), Refused> {
-    p(0x621870, 0);
+    FRAME_SWITCHES.mask_kind.set(0);
     unsafe { crate::drive::finish_race::finish_race() }
 }

@@ -10,13 +10,12 @@
 //!
 //! Caller: `menu::calc_cpu_times`. Logs through the `logfile::` Rust versions (level 1).
 use crate::errors::Refused;
-use crate::framework::{game_read, rva};
 use crate::menu::standings::*;
 use crate::menu::state_store::MENU_STATE;
+use crate::race::tables_store::RACE_TABLES;
 use crate::race::work_store::RACE_WORK;
 use crate::session::{read_all, write_all};
 
-const FACTORS_RVA: [usize; 2] = [rva(0x60463C), rva(0x604654)]; // flt_60463C, flt_604654: 6
 const TEXTS_RVA: [&std::ffi::CStr; 4] = [c"stage times info", c"a7x", c"a8x", c"times a8-a5"];
 /// The section held to 0 .. 5.
 pub fn held_section() -> u32 {
@@ -25,7 +24,12 @@ pub fn held_section() -> u32 {
 
 /// The four times as scaled (see the header), and the two factors.
 pub fn scaled(times: [u32; 4], section: u32) -> ([u32; 4], [u32; 2]) {
-    let f: [u32; 2] = FACTORS_RVA.map(|r| unsafe { game_read(r + 4 * section as usize) });
+    // flt_60463C, flt_604654: 6 each
+    let s = section as usize;
+    let f: [u32; 2] = [
+        RACE_TABLES.stage_time_factors_last[s].bits(),
+        RACE_TABLES.stage_time_factors_first[s].bits(),
+    ];
     // Converted: `rc2k_core::menu::stage_scale` (exact at the game's precisions for times
     // below 2^29; its header).
     let out = rc2k_core::menu::stage_scale::scale_times(times, f.map(f32::from_bits));

@@ -7,25 +7,23 @@
 use crate::errors::Refused;
 use crate::framework::rva;
 use crate::gfx::screen_state::DRAW_SURFACE;
+use crate::race::course_lists_store::COURSE_LISTS;
+use crate::race::kind_store::KIND_TABLES;
 use crate::race::vars_store::RACE_VARS;
-use crate::store::{game_addr, game_read, game_write};
+use crate::scene::kind_texture_store::KIND_TEXTURES;
+use crate::store::game_addr;
 
-pub const MUD_LIST_RVA: usize = rva(0x5C6F50); // stru_5C6F50
 pub const MUD_RVA: crate::race::store::vars::Slot = crate::race::store::vars::Slot::at(0x623D50); // dword_623D50
 pub const MUD_LEN: u32 = 0x1_0000;
-pub const LIST_TOTAL_RVA: usize = rva(0x5C6F90); // dword_5C6F90
-const FILE_NUMBERS_RVA: usize = rva(0x5C5928); // dword_5C5928: 0x22 cars' file numbers
 pub const MUD_PATH_RVA: usize = rva(0x6238F4); // "files\b\mudfile.0xx"
 pub const MUD_PATH_DIGITS_RVA: usize = rva(0x623905);
-pub const STATE_MORE: [usize; 2] = [rva(0x62390C), rva(0x623918)];
-pub const PICTURE_RVA: usize = rva(0x5D0DEC); // dword_5D0DEC: the surface sampled
 
 /// `race::car_file_number` (0x41F4FD): eax held to 0 .. 0x21 (signed), its entry of
 /// `dword_5C5928`.
 pub fn car_file_number(car: u32) -> u32 {
     // Converted: `rc2k_core::race::cars::table_entry`.
     let n = rc2k_core::race::cars::table_entry(car);
-    unsafe { game_read(FILE_NUMBERS_RVA + 4 * n) }
+    KIND_TABLES.car_file_numbers[n].get()
 }
 
 /// `gfx::read_pixel` (0x406584): the pixel at (ecx, edx) of `g_surface`, taken apart by
@@ -82,7 +80,7 @@ pub unsafe fn load_mud() -> Result<(), Refused> {
         let digits = game_addr(MUD_PATH_DIGITS_RVA) as *mut u8;
         *digits = tens as u8;
         *digits.add(1) = units as u8;
-        let mud: u32 = game_read(MUD_RVA);
+        let mud: u32 = RACE_VARS.mud.get();
         crate::files::read_whole_file::read_whole_file(
             game_addr(MUD_PATH_RVA) as *const u8,
             mud as *mut u8,
@@ -94,21 +92,18 @@ pub unsafe fn load_mud() -> Result<(), Refused> {
 
 /// `race::clear_mud_state` (0x449E01): the 18 dwords at 0x623D58 and the two more 0.
 pub unsafe fn clear_mud_state() {
-    unsafe {
-        // The 18 dwords from `mud_frames` to the end of `mud_splash_counts`.
-        let v = &RACE_VARS;
-        v.mud_frames.set(0);
-        v.mud_texture.set(0);
-        for k in 0..4 {
-            v.mud_thrown_in[k].set_bits(0);
-            v.mud_splashes_in[k].set_bits(0);
-            v.mud_thrown_counts[k].set(0);
-            v.mud_splash_counts[k].set(0);
-        }
-        for at in STATE_MORE {
-            game_write(at, 0u32);
-        }
+    // The 18 dwords from `mud_frames` to the end of `mud_splash_counts`.
+    let v = &RACE_VARS;
+    v.mud_frames.set(0);
+    v.mud_texture.set(0);
+    for k in 0..4 {
+        v.mud_thrown_in[k].set_bits(0);
+        v.mud_splashes_in[k].set_bits(0);
+        v.mud_thrown_counts[k].set(0);
+        v.mud_splash_counts[k].set(0);
     }
+    v.mud_turn_a[0].set(0);
+    v.mud_turn_b[0].set(0);
 }
 
 /// `race::sample_mud_colours` (0x44A0D6): the surface locked (`d3d::lock_texture`), 256
@@ -116,14 +111,15 @@ pub unsafe fn clear_mud_state() {
 /// `mud_pixel`, unlocked (`d3d::unlock_texture`).
 pub unsafe fn sample_mud_colours() -> Result<(), Refused> {
     unsafe {
-        crate::d3d::lock_texture::lock_texture(game_read(PICTURE_RVA))?;
+        // dword_5D0DEC (`g_kindFirstTextures` + 0x304): the surface sampled.
+        crate::d3d::lock_texture::lock_texture(KIND_TEXTURES.kind_first_textures[193].get())?;
         let colours = RACE_VARS.mud_colours[0].addr() as *mut u32;
         // Converted: `rc2k_core::race::mud::sample_place`.
         for n in 0..rc2k_core::race::mud::SAMPLES {
             let (x, y) = rc2k_core::race::mud::sample_place(n);
             colours.add(n as usize).write_unaligned(mud_pixel(x, y));
         }
-        crate::d3d::unlock_texture::unlock_texture(game_read(PICTURE_RVA))?;
+        crate::d3d::unlock_texture::unlock_texture(KIND_TEXTURES.kind_first_textures[193].get())?;
     }
     Ok(())
 }
@@ -133,12 +129,12 @@ pub unsafe fn sample_mud_colours() -> Result<(), Refused> {
 /// `sample_mud_colours`.
 pub unsafe fn init_mud() -> Result<(), Refused> {
     unsafe {
-        game_write(
-            LIST_TOTAL_RVA,
-            game_read::<u32>(LIST_TOTAL_RVA).wrapping_add(MUD_LEN),
-        );
-        let mud = crate::memory::allocate::allocate(game_addr(MUD_LIST_RVA) as *mut _, MUD_LEN)?;
-        game_write(MUD_RVA, mud as u32);
+        COURSE_LISTS
+            .course_bytes_total
+            .set(COURSE_LISTS.course_bytes_total.bits().wrapping_add(MUD_LEN));
+        let mud =
+            crate::memory::allocate::allocate(COURSE_LISTS.mud_list[0].addr() as *mut _, MUD_LEN)?;
+        RACE_VARS.mud.set(mud as u32);
         load_mud()?;
         clear_mud_state();
         sample_mud_colours()

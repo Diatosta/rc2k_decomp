@@ -7,7 +7,7 @@
 //!
 //! Caller: `sub_43907F` (0x4392F3).
 
-use crate::framework::{game_addr, rva};
+use crate::physics::camera_store::CAMERA_WORK;
 use crate::physics::car_store::CAR;
 use crate::physics::cells::{get, put};
 use rc2k_core::physics::easing::ease_down;
@@ -15,8 +15,8 @@ use rc2k_core::physics::easing::ease_down;
 fn game() -> Vec<u32> {
     vec![
         CAR.camera_pitch.addr() as u32,
-        game_addr(rva(0x608C1C)) as u32,
-        game_addr(rva(0x608C24)) as u32,
+        CAMERA_WORK.pitch_floor.addr() as u32,
+        CAMERA_WORK.pitch_step.addr() as u32,
     ]
 }
 

@@ -22,14 +22,10 @@
 //! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_write, rva};
 use crate::physics::car_store::CAR;
+use crate::physics::tables_store::PHYSICS;
 use crate::race::course_store::COURSE;
 use rc2k_core::physics::walls::WheelsOff;
-
-fn p(x: u32, v: u32) {
-    unsafe { game_write(rva(x as usize), v) }
-}
 
 /// The Rust version. The registers it leaves (eax the face's word +0x26, ebx the face,
 /// esi its address) are read by none of its callers.
@@ -57,10 +53,9 @@ pub unsafe fn feel_ground() -> Result<(), Refused> {
             CAR.stuck_count.set(0);
         }
         let face = (CAR.probe_point_face[4].get() << 6).wrapping_add(COURSE.course_faces.get());
-        p(
-            0x6141DC,
-            u32::from(((face + 0x26) as *const u16).read_unaligned()),
-        );
+        PHYSICS
+            .feel_word
+            .set(u32::from(((face + 0x26) as *const u16).read_unaligned()));
         Ok(())
     }
 }

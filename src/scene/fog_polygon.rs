@@ -16,18 +16,13 @@
 //! makes every place the byte before the table (the original's `length - 1`): kept.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, game_read, rva};
 use crate::math::x87;
 use crate::scene::draw_store::DRAW;
+use crate::scene::light_store::LIGHT_STATE;
 use crate::scene::polygon::{dword, listed};
 
 // ---- game data ----
-
-const TABLE_RVA: usize = rva(0x63661C); // byte_63661C
 const TABLE_LEN: u32 = 0x1000;
-const LENGTH_RVA: usize = rva(0x63761C); // dword_63761C
-const KIND_RVA: usize = rva(0x6365C8); // dword_6365C8
-const FIXED_RVA: usize = rva(0x636610); // dword_636610
 
 // ---- Rust version ----
 
@@ -40,11 +35,11 @@ pub unsafe fn fog_polygon() -> Result<(), Refused> {
         if entries.iter().any(|&entry| dword(entry + 4) == 0) {
             return Err(BadInput("an entry without its record").into());
         }
-        let length: u32 = game_read(LENGTH_RVA);
+        let length: u32 = LIGHT_STATE.fog_table_length.bits();
         if length > TABLE_LEN {
             return Err(BadInput("a fog table longer than its room").into());
         }
-        let fixed = (game_read::<u32>(KIND_RVA) == 4).then(|| game_read::<u32>(FIXED_RVA));
+        let fixed = (LIGHT_STATE.view_kind.bits() == 4).then(|| LIGHT_STATE.fog_next.bits());
         for &entry in &entries {
             let record = dword(entry + 4);
             let depth = x87::to_int(dword(record as usize + 0x18));
@@ -57,8 +52,8 @@ pub unsafe fn fog_polygon() -> Result<(), Refused> {
             } else {
                 length.wrapping_sub(1)
             };
-            let fog =
-                ((game_addr(TABLE_RVA) as u32).wrapping_add(place) as *const u8).read() as u32;
+            let fog = ((LIGHT_STATE.fog_table[0].addr() as u32).wrapping_add(place) as *const u8)
+                .read() as u32;
             ((entry + 0x20) as *mut u8).write((fixed.unwrap_or(fog) ^ 0xFF) as u8);
         }
         Ok(())

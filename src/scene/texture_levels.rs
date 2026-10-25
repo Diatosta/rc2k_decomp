@@ -6,47 +6,66 @@
 //! it otherwise).
 
 use crate::errors::Refused;
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
+use crate::race::prefs_store::STAGE_PREFS;
+use crate::race::switches_store::FRAME_SWITCHES;
 use crate::race::view_store::RACE_VIEW;
 use crate::scene::texture_needs::{SYSTEM_LEVELS_RVA, TAGS_RVA, VIDEO_LEVELS_RVA};
+use crate::session::Dword;
 
 pub const OTHER_LEVELS_RVA: usize = rva(0x5CDADC); // dword_5CDADC
 pub const KIND_SLOTS_RVA: usize = rva(0x5DC978); // g_kindSlotBytes: + 4 (or 1) a kind's slot
-const EXTRA_RVA: usize = rva(0x621514); // dword_621514
 pub const SLOTS: u32 = 0x400;
 
-/// A kind's block: its first-texture variable (only its place in `g_textureWantedPictures`
+/// A kind's block: its first-texture variable (an index in `kind_first_textures`; only its place in `g_textureWantedPictures`
 /// is worked out, and not used: section 16), its prefs entries, the first slot, how many,
 /// the tag, the level, the other level, and what `dword_5DC978` gets a slot (4, or 1 for
 /// the kinds of slots 0x40 .. 0x6F).
-type Block = (usize, usize, u32, u32, u32, u32, u32, u32);
+type Block = (usize, Prefs, usize, u32, u32, u32, u32, u32, u32);
+#[derive(Clone, Copy)]
+enum Prefs {
+    A,
+    B,
+    C,
+}
+
+impl Prefs {
+    fn list(self) -> &'static [Dword] {
+        match self {
+            Prefs::A => &STAGE_PREFS.picture_lists_a,
+            Prefs::B => &STAGE_PREFS.picture_lists_b,
+            Prefs::C => &STAGE_PREFS.picture_lists_c,
+        }
+    }
+}
+
 const BLOCKS: [Block; 26] = [
-    (0x5D0AE8, 0x60A57C, 0x00, 4, 0x0D, 0, 2, 4),
-    (0x5D0AF8, 0x60A58C, 0x04, 4, 0x0C, 0, 2, 4),
-    (0x5D0B08, 0x60A59C, 0x08, 4, 0x0B, 0, 2, 4),
-    (0x5D0B18, 0x60A5AC, 0x0C, 4, 0x0A, 0, 2, 4),
-    (0x5D0B28, 0x60A5BC, 0x10, 4, 0x09, 0, 2, 4),
-    (0x5D0B38, 0x60A5CC, 0x14, 4, 0x08, 0, 2, 4),
-    (0x5D0B48, 0x60A5DC, 0x18, 4, 0x07, 0, 2, 4),
-    (0x5D0B58, 0x60A5EC, 0x1C, 4, 0x06, 0, 2, 4),
-    (0x5D0B68, 0x60A5FC, 0x20, 4, 0x05, 0, 2, 4),
-    (0x5D0B78, 0x60A60C, 0x24, 4, 0x04, 0, 2, 4),
-    (0x5D0B88, 0x60A61C, 0x28, 4, 0x03, 0, 2, 4),
-    (0x5D0B98, 0x60A62C, 0x2C, 4, 0x02, 0, 2, 4),
-    (0x5D0BA8, 0x60A63C, 0x30, 4, 0x01, 0, 2, 4),
-    (0x5D0BE8, 0x60A67C, 0x40, 4, 0x20, 1, 2, 1),
-    (0x5D0BF8, 0x60A68C, 0x44, 4, 0x1F, 1, 2, 1),
-    (0x5D0C08, 0x60A69C, 0x48, 4, 0x1E, 1, 2, 1),
-    (0x5D0C18, 0x60A6AC, 0x4C, 4, 0x1D, 1, 2, 1),
-    (0x5D0C28, 0x60A6BC, 0x50, 4, 0x1C, 1, 2, 1),
-    (0x5D0C38, 0x60A6CC, 0x54, 4, 0x1B, 1, 2, 1),
-    (0x5D0C48, 0x60A6DC, 0x58, 4, 0x1A, 1, 2, 1),
-    (0x5D0C58, 0x60A6EC, 0x5C, 4, 0x19, 1, 2, 1),
-    (0x5D0C68, 0x60A6FC, 0x60, 4, 0x18, 1, 2, 1),
-    (0x5D0C78, 0x60A70C, 0x64, 4, 0x17, 1, 2, 1),
-    (0x5D0C88, 0x60A71C, 0x68, 4, 0x16, 1, 2, 1),
-    (0x5D0C98, 0x60A72C, 0x6C, 4, 0x15, 1, 2, 1),
-    (0x5D0CE8, 0x60A77C, 0x80, 7, 0x3D, 0, 1, 4),
+    (0, Prefs::A, 0, 0x00, 4, 0x0D, 0, 2, 4),
+    (4, Prefs::A, 4, 0x04, 4, 0x0C, 0, 2, 4),
+    (8, Prefs::A, 8, 0x08, 4, 0x0B, 0, 2, 4),
+    (12, Prefs::A, 12, 0x0C, 4, 0x0A, 0, 2, 4),
+    (16, Prefs::A, 16, 0x10, 4, 0x09, 0, 2, 4),
+    (20, Prefs::A, 20, 0x14, 4, 0x08, 0, 2, 4),
+    (24, Prefs::A, 24, 0x18, 4, 0x07, 0, 2, 4),
+    (28, Prefs::A, 28, 0x1C, 4, 0x06, 0, 2, 4),
+    (32, Prefs::A, 32, 0x20, 4, 0x05, 0, 2, 4),
+    (36, Prefs::A, 36, 0x24, 4, 0x04, 0, 2, 4),
+    (40, Prefs::A, 40, 0x28, 4, 0x03, 0, 2, 4),
+    (44, Prefs::A, 44, 0x2C, 4, 0x02, 0, 2, 4),
+    (48, Prefs::A, 48, 0x30, 4, 0x01, 0, 2, 4),
+    (64, Prefs::B, 0, 0x40, 4, 0x20, 1, 2, 1),
+    (68, Prefs::B, 4, 0x44, 4, 0x1F, 1, 2, 1),
+    (72, Prefs::B, 8, 0x48, 4, 0x1E, 1, 2, 1),
+    (76, Prefs::B, 12, 0x4C, 4, 0x1D, 1, 2, 1),
+    (80, Prefs::B, 16, 0x50, 4, 0x1C, 1, 2, 1),
+    (84, Prefs::B, 20, 0x54, 4, 0x1B, 1, 2, 1),
+    (88, Prefs::B, 24, 0x58, 4, 0x1A, 1, 2, 1),
+    (92, Prefs::B, 28, 0x5C, 4, 0x19, 1, 2, 1),
+    (96, Prefs::B, 32, 0x60, 4, 0x18, 1, 2, 1),
+    (100, Prefs::B, 36, 0x64, 4, 0x17, 1, 2, 1),
+    (104, Prefs::B, 40, 0x68, 4, 0x16, 1, 2, 1),
+    (108, Prefs::B, 44, 0x6C, 4, 0x15, 1, 2, 1),
+    (128, Prefs::C, 0, 0x80, 7, 0x3D, 0, 1, 4),
 ];
 
 fn other() -> bool {
@@ -79,22 +98,22 @@ pub unsafe fn init_texture_levels() -> Result<(), Refused> {
         crate::input::keys::update_input(&mut crate::input::keys::game_screenshot);
         let kinds: Vec<(KindSlots, Vec<u32>)> = BLOCKS
             .iter()
-            .map(|&(_, prefs, first, count, tag, level, other_level, step)| {
-                let k = KindSlots {
-                    first,
-                    tag,
-                    level,
-                    other_level,
-                    step,
-                };
-                let at = game_addr(rva(prefs)) as *const u32;
-                (
-                    k,
-                    (0..count as usize)
-                        .map(|n| at.add(n).read_unaligned())
-                        .collect(),
-                )
-            })
+            .map(
+                |&(_, list, from, first, count, tag, level, other_level, step)| {
+                    let k = KindSlots {
+                        first,
+                        tag,
+                        level,
+                        other_level,
+                        step,
+                    };
+                    let prefs = list.list();
+                    (
+                        k,
+                        (0..count as usize).map(|n| prefs[from + n].get()).collect(),
+                    )
+                },
+            )
             .collect();
         let set = set_levels(
             &mut rc2k_core::scene::textures::LevelTables {
@@ -105,7 +124,7 @@ pub unsafe fn init_texture_levels() -> Result<(), Refused> {
             cars,
             RACE_VIEW.players.bits() == 1,
             &kinds,
-            game_read::<u32>(EXTRA_RVA) != 0,
+            FRAME_SWITCHES.editor_mode.bits() != 0,
             other(),
         )?;
         game_write(

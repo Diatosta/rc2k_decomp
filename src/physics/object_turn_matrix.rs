@@ -16,57 +16,46 @@
 //! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::math::x87;
 use crate::math::x87_run::{ext_div2, int_80};
+use crate::physics::contact_store::CONTACT_WORK;
+use crate::race::matrices_store::MATRICES;
 use crate::scene::draw_store::DRAW;
 use crate::scene::matrix::{multiply_matrices, set_turn_x, set_turn_y};
 use crate::scene::object_store::OBJECT_WORK;
 
-fn g(x: usize) -> u32 {
-    unsafe { game_read(rva(x)) }
-}
-
-fn p(x: usize, v: u32) {
-    unsafe { game_write(rva(x), v) }
-}
-
-fn a(x: usize) -> u32 {
-    game_addr(rva(x)) as u32
-}
-
-const OUT: usize = 0x5EA444; // flt_5EA444
-const TURN_Y: usize = 0x5E9FCC; // g_turnYMatrix
-const TURN_X: usize = 0x5E9F8C; // g_turnXMatrix
-const LIT: usize = 0x5EA14C; // g_litMatrix
-const TURNED: usize = 0x5EA10C; // g_turnedMatrix
-
 /// The Rust version. The registers it leaves are read by none of its callers.
 pub unsafe fn object_turn_matrix() -> Result<(), Refused> {
-    let object = g(0x6D321C);
+    let object = CONTACT_WORK.face_object.get();
     if object > 0xFF {
         return Err(BadInput("an object past 0xFF").into());
     }
     unsafe {
         set_turn_y(OBJECT_WORK.angles[0].get().wrapping_neg());
+        let (out, turn_y, turn_x) = (
+            &MATRICES.object_turn_matrix,
+            &MATRICES.turn_y_matrix,
+            &MATRICES.turn_x_matrix,
+        );
+        let (lit, turned) = (&MATRICES.lit_matrix, &MATRICES.turned_matrix);
         for k in 0..16 {
-            p(OUT + 4 * k, g(TURN_Y + 4 * k));
+            out[k].set_bits(turn_y[k].bits());
         }
         if OBJECT_WORK.angles[1].get() != 0 {
             set_turn_y(OBJECT_WORK.angles[2].get().wrapping_neg());
-            multiply_matrices(a(OUT) as usize, a(TURN_Y) as usize, a(LIT) as usize);
+            multiply_matrices(out[0].addr(), turn_y[0].addr(), lit[0].addr());
             set_turn_x(OBJECT_WORK.angles[1].get().wrapping_neg());
-            multiply_matrices(a(LIT) as usize, a(TURN_X) as usize, a(TURNED) as usize);
+            multiply_matrices(lit[0].addr(), turn_x[0].addr(), turned[0].addr());
             set_turn_y(OBJECT_WORK.angles[2].get());
-            multiply_matrices(a(TURNED) as usize, a(TURN_Y) as usize, a(OUT) as usize);
+            multiply_matrices(turned[0].addr(), turn_y[0].addr(), out[0].addr());
         }
         let figure = OBJECT_WORK.size.get();
         DRAW.scratch.set(figure);
         let sixteen = 16.0f32.to_bits();
         let share = ext_div2(int_80(figure as i32, false), sixteen, 0x3F80_0000);
         DRAW.scratch.set(share);
-        for k in 0..16 {
-            p(OUT + 4 * k, x87::mul(g(OUT + 4 * k), share));
+        for cell in out {
+            cell.set_bits(x87::mul(cell.bits(), share));
         }
     }
     Ok(())

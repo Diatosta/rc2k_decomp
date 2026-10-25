@@ -16,17 +16,16 @@
 //! as 80 bits); the calls their Rust versions. Refuses null settings, before anything.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::rva;
 use crate::marks::adjugate3::adjugate3;
 use crate::marks::setup::{CLOCK, MarksClock};
 use crate::marks::store::{Slot, game_addr, game_read, game_write};
+use crate::race::matrices_store::MATRICES;
 use crate::scene::matrix3::{Axis, extended, turn_matrix3};
 
 const DRIFT_RVA: Slot = Slot::at(0x811BDF); // flt_811BDF ..
 const FIRST_RVA: Slot = Slot::at(0x8161AE); // dword_8161AE
 const SECOND_RVA: Slot = Slot::at(0x8161B2); // dword_8161B2
 const KEPT_RVA: Slot = Slot::at(0x8161D6); // flt_8161D6 ..
-const VIEW_RVA: usize = rva(0x5EA3CC); // flt_5EA3CC
 const TURN_RVA: Slot = Slot::at(0x82E2C6); // dword_82E2C6 .. 3 x 3
 const ADJUGATE_RVA: Slot = Slot::at(0x82E2F6); // unk_82E2F6
 const ANGLE_RVA: Slot = Slot::at(0x82E332); // flt_82E332
@@ -86,7 +85,7 @@ pub unsafe fn hexagons_drift() -> Result<(), Refused> {
             game_write(SECOND_RVA, 1u32);
             if second != 0 {
                 view_moved(s);
-                let view = game_addr(VIEW_RVA) as u32;
+                let view = MATRICES.view_place[0].addr() as u32;
                 for col in 0..3u32 {
                     let v = [
                         get(view + 4 * col),

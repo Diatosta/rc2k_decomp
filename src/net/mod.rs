@@ -133,17 +133,6 @@ pub mod take_player_settings;
 pub mod types;
 pub mod unlock_received;
 
-/// dword_63DBA0: logged with each message (a step count, it seems).
-pub const STEP: usize = 0x63DBA0;
-
-pub fn g(x: usize) -> u32 {
-    unsafe { crate::framework::game_read(rva(x)) }
-}
-
-pub fn p(x: usize, v: u32) {
-    unsafe { crate::framework::game_write(rva(x), v) }
-}
-
 /// The address of a game variable.
 pub fn a(x: usize) -> u32 {
     game_addr(rva(x)) as u32
@@ -154,5 +143,9 @@ pub fn log_send(text: &std::ffi::CStr) {
     use crate::logfile::{log_int::log_int, log_write::log_write};
     unsafe { log_write(text.as_ptr().cast(), false, 1) };
     log_int(NET.player.get() as i32, false, 1);
-    log_int(g(STEP) as i32, true, 1);
+    log_int(
+        crate::race::view_store::RACE_VIEW.local_car.get() as i32,
+        true,
+        1,
+    );
 }

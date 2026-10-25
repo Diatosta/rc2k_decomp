@@ -18,10 +18,7 @@
 use crate::errors::Refused;
 use crate::gfx::fonts_store::FONTS;
 
-use crate::race::viewer::{get, put};
-use crate::race::viewer_load_stage::FONTS_BUILT;
-
-const LOADED: usize = 0x5BECC0; // dword_5BECC0
+use crate::race::replay_file_store::REPLAY_FILE;
 
 /// The Rust version. `set_up_engine` and `set_up_front_end_scene` run on a scratch
 /// register set (they read none of the caller's: attrib finds only esi read at entry).
@@ -29,12 +26,12 @@ pub fn viewer_tidy_stage() -> Result<(), Refused> {
     // Converted: `rc2k_core::race::viewer_flow::{tidies, TIDY_FIRST, frees_fonts,
     // TIDY_AFTER}` (the fonts' switch read after the first steps, as the original).
     use rc2k_core::race::viewer_flow::{TIDY_AFTER, TIDY_FIRST, TidyStep, frees_fonts, tidies};
-    if tidies(get(LOADED)) {
-        put(LOADED, 0);
+    if tidies(REPLAY_FILE.viewer_stage_loaded.get()) {
+        REPLAY_FILE.viewer_stage_loaded.set(0);
         for step in TIDY_FIRST {
             run(step)?;
         }
-        if frees_fonts(get(FONTS_BUILT)) {
+        if frees_fonts(REPLAY_FILE.viewer_fonts_built.get()) {
             run(TidyStep::FreeFonts)?;
         }
         for step in TIDY_AFTER {

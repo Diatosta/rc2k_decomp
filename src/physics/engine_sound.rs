@@ -31,10 +31,6 @@ use crate::scene::x87_mem::{fistp, fld, fstp};
 use rc2k_core::physics::engine::ease_revs;
 use rc2k_core::physics::x87::hold_low;
 
-fn g(x: impl crate::store::At) -> u32 {
-    unsafe { crate::store::at_read(x) }
-}
-
 /// 0x43DC72 .. 0x43DCC6: the speed figures (the original's `test` / `jz` is the `if`).
 unsafe fn run() {
     run_at(crate::race::store::asm_base() as usize);
@@ -78,7 +74,8 @@ pub unsafe fn engine_sound() -> Result<(), Refused> {
     let floor = PHYSICS.idle_engine_speed.bits();
     let held = hold_low(f32::from_bits(DRAW.scratch.get()), f32::from_bits(floor));
     DRAW.scratch.set(held.to_bits());
-    DRAW.scratch.set(ext_to_int(extended(g(0x62400C))) as u32);
+    DRAW.scratch
+        .set(ext_to_int(extended(DRAW.scratch.get())) as u32);
     let (revs, _) = ease_revs(CAR.engine_sound_revs.get(), DRAW.scratch.get());
     CAR.engine_sound_revs.set(revs);
     unsafe { car_sound_state() }?;

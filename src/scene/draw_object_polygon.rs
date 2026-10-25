@@ -19,7 +19,9 @@
 //! `rc2k_core::scene::polygons` (compares of stored floats: exact).
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_write, rva};
+use crate::physics::ground_store::GROUND_WORK;
+use crate::race::numbers_store::NUMBERS;
 use crate::scene::clip::POOL_RVA;
 use crate::scene::draw_store::DRAW;
 use crate::scene::polygon::{ENTRIES_RVA, ENTRY_LEN, LIST_RVA, dword};
@@ -27,11 +29,6 @@ use crate::scene::polygon::{ENTRIES_RVA, ENTRY_LEN, LIST_RVA, dword};
 // ---- game data ----
 
 const KEPT_RVA: usize = rva(0x976610); // unk_976610
-const LEAST_RVA: usize = rva(0x5C5D90); // flt_5C5D90
-const RIGHT_RVA: usize = rva(0x6241F0); // g_clipScreenRight
-const BOTTOM_RVA: usize = rva(0x6241E8); // g_clipScreenBottom
-const WHOLE_COUNT_RVA: usize = rva(0x639960); // dword_639960
-const SPLIT_COUNT_RVA: usize = rva(0x639964); // dword_639964
 
 // ---- Rust version ----
 
@@ -48,11 +45,10 @@ unsafe fn needs_clipping(count: u32) -> Result<bool, BadInput> {
         if (count as i32).wrapping_sub(3) < 0 {
             return Ok(false);
         }
-        let number = |at: usize| f32::from_bits(game_read(at));
         let edges = Edges {
-            least: number(LEAST_RVA),
-            right: number(RIGHT_RVA),
-            bottom: number(BOTTOM_RVA),
+            least: NUMBERS.zero.get(),
+            right: DRAW.clip_screen[3].get(),
+            bottom: DRAW.clip_screen[1].get(),
         };
         rc2k_core::scene::polygons::needs_clipping(count, &edges, |n| {
             let record = dword(game_addr(ENTRIES_RVA) + n * ENTRY_LEN + 4) as usize;
@@ -87,16 +83,14 @@ pub unsafe fn draw_object_polygon(
         DRAW.polygon_next_entry.set_bits(count);
         step(Step::Project)?;
         if drawn_whole(count, needs_clipping(count)?) {
-            game_write(
-                WHOLE_COUNT_RVA,
-                game_read::<u32>(WHOLE_COUNT_RVA).wrapping_add(1),
-            );
+            GROUND_WORK
+                .whole_polygon_count
+                .set_bits(GROUND_WORK.whole_polygon_count.bits().wrapping_add(1));
             return step(Step::Draw);
         }
-        game_write(
-            SPLIT_COUNT_RVA,
-            game_read::<u32>(SPLIT_COUNT_RVA).wrapping_add(1),
-        );
+        GROUND_WORK
+            .split_polygon_count
+            .set_bits(GROUND_WORK.split_polygon_count.bits().wrapping_add(1));
         let entries = game_addr(ENTRIES_RVA);
         let kept = game_addr(KEPT_RVA);
         std::ptr::copy(

@@ -5,12 +5,22 @@
 use crate::errors::{BadInput, Refused};
 use crate::framework::rva;
 use crate::gfx::screen_state::DRAW_SURFACE;
+use crate::physics::ground_store::GROUND_WORK;
 use crate::race::frame_store::FRAME_WORK;
+use crate::race::matrices_store::MATRICES;
 use crate::race::numbers_store::NUMBERS;
+use crate::race::overlay_store::RACE_OVERLAY;
+use crate::race::prefs_store::STAGE_PREFS;
+use crate::race::switches_store::FRAME_SWITCHES;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
+use crate::race::view_vars_store::VIEW_VARS;
+use crate::race::viewer_screen_store::VIEWER_PANEL;
 use crate::race::work_store::RACE_WORK;
 use crate::scene::draw_store::DRAW;
+use crate::scene::kind_texture_store::KIND_TEXTURES;
+use crate::scene::light_store::LIGHT_STATE;
+use crate::scene::light_work_store::LIGHT_WORK;
 use crate::scene::object_store::OBJECT_WORK;
 use crate::session::SCREEN;
 use crate::store::{game_addr, game_read, game_write};
@@ -37,9 +47,9 @@ pub unsafe fn full_view_window(first: bool) {
         DRAW.view_zoom.set(0x100);
         crate::scene::set_view_window::set_view_window();
         if first {
-            w(0x6365C4, 0);
+            LIGHT_STATE.draw_mode.set(0);
         }
-        w(0x63993C, 0);
+        GROUND_WORK.view_mirrored.set(0);
     }
 }
 
@@ -58,16 +68,19 @@ pub unsafe fn mirror_view_window() -> Result<(), Refused> {
             RACE_VIEW.drawn_view.get(),
             ((crate::store::game_addr(rva(0x6D1502))) as *const u32).read_unaligned() == 0,
         );
-        let at = |base: u32| k(base.wrapping_add(n.wrapping_mul(8)));
+        // g_mirrorPlaces: 8 bytes an entry, entries 0 .. 11 or so: past the field (it holds
+        // the first entry, the rest is not named), so read by address.
+        let at = |word: usize| {
+            ((FRAME_WORK.mirror_places[0].addr().wrapping_add(4 * word))
+                .wrapping_add((n as usize).wrapping_mul(8)) as *const u32)
+                .read_unaligned()
+        };
         let Some(Window {
             x,
             y,
             width: sx,
             height: sy,
-        }) = mirror_window(
-            (at(0x6415FC), at(0x641600)),
-            (SCREEN.width.get(), SCREEN.height.get()),
-        )
+        }) = mirror_window((at(0), at(1)), (SCREEN.width.get(), SCREEN.height.get()))
         else {
             return Err(BadInput("a mirror place whose scaling overflows").into());
         };
@@ -82,8 +95,8 @@ pub unsafe fn mirror_view_window() -> Result<(), Refused> {
         DRAW.view_zoom.set(0x100);
         crate::scene::set_view_window::set_view_window();
         crate::race::frame_draw::set_up_fog()?;
-        w(0x6365C4, 0);
-        w(0x63993C, 1);
+        LIGHT_STATE.draw_mode.set(0);
+        GROUND_WORK.view_mirrored.set(1);
         Ok(())
     }
 }
@@ -169,7 +182,10 @@ pub unsafe fn copy_mirror_picture() -> Result<(), Refused> {
     use crate::gfx::pixel_format::PixelFormat;
     use rc2k_core::race::view_steps::{PictureCopy, copy_picture};
     unsafe {
-        let (from, to) = (DRAW.mirror_picture.get(), k(0x5D0E08));
+        let (from, to) = (
+            DRAW.mirror_picture.get(),
+            KIND_TEXTURES.kind_first_textures[200].get(),
+        );
         if lock_texture(from)?.carry {
             return Ok(());
         }
@@ -260,10 +276,14 @@ pub unsafe fn forget_view_textures() -> Result<(), Refused> {
         }
         let field = |b: u32, o: u32| ((b + o) as *const u32).read_unaligned();
         // (the switch, the slot's variable) of each.
+        let slot_of = |n: usize| &KIND_TEXTURES.kind_first_slots[n];
         let source = |f: Forget| match f {
-            Forget::Changing(v) => (field(blocks[v], 0xADC), [0x5D1E00u32, 0x5D1E04][v]),
-            Forget::Counted(v) => (field(blocks[v], 0x720), [0x5D1DF8, 0x5D1DFC][v]),
-            Forget::Extra(n) => (k([0x6D1830u32, 0x6D1834][n]), [0x5D1E58, 0x5D1E5C][n]),
+            Forget::Changing(v) => (field(blocks[v], 0xADC), slot_of(198 + v)),
+            Forget::Counted(v) => (field(blocks[v], 0x720), slot_of(196 + v)),
+            Forget::Extra(n) => (
+                [&RACE_OVERLAY.forget_flag_0, &RACE_OVERLAY.forget_flag_1][n].get(),
+                slot_of(220 + n),
+            ),
         };
         let mirror = mirror_on(
             FRAME_WORK.mirror_wanted.get(),
@@ -274,10 +294,10 @@ pub unsafe fn forget_view_textures() -> Result<(), Refused> {
             .iter()
             .map(|&(f, _)| source(f))
             .filter(|&(switch, _)| forgets(switch))
-            .map(|(_, slot)| k(slot))
+            .map(|(_, slot)| slot.get())
             .collect();
         if mirror {
-            slots.push(k(0x5D0E08));
+            slots.push(KIND_TEXTURES.kind_first_textures[200].get());
         }
         check_slots(&slots)?;
         FRAME_WORK.view_textures_forgotten.set(0);
@@ -286,9 +306,11 @@ pub unsafe fn forget_view_textures() -> Result<(), Refused> {
             if !forgets(switch) {
                 continue;
             }
-            forget_slot_texture(k(slot))?;
+            forget_slot_texture(slot.get())?;
             w(0x6D1508, k(0x6D1508).wrapping_add(FORGET_COST));
-            FRAME_WORK.view_textures_forgotten.set(k(0x6415F4) | bit);
+            FRAME_WORK
+                .view_textures_forgotten
+                .set(FRAME_WORK.view_textures_forgotten.get() | bit);
             if let Forget::Counted(v) = f {
                 let at = (blocks[v] + 0x720) as *mut u32;
                 at.write_unaligned(at.read_unaligned().wrapping_sub(1));
@@ -299,10 +321,10 @@ pub unsafe fn forget_view_textures() -> Result<(), Refused> {
         }
         FRAME_WORK
             .view_textures_forgotten
-            .set(k(0x6415F4) | MIRROR_BIT);
+            .set(FRAME_WORK.view_textures_forgotten.get() | MIRROR_BIT);
         if !uploaded {
             copy_mirror_picture()?;
-            forget_slot_texture(k(0x5D0E08))?;
+            forget_slot_texture(KIND_TEXTURES.kind_first_textures[200].get())?;
         } else {
             // `sub_44E828`, the platform's upload (then the slot forgotten): through the
             // game, esi the picture, eax the slot (the only registers it reads).
@@ -336,16 +358,17 @@ pub unsafe fn draw_screen_tint() -> Result<(), Refused> {
         return unsafe { crate::scene::draw_tinted_quad::draw_tinted_quad() };
     }
     let sun = FRAME_WORK.sun_on_screen.get();
-    let a = glare_alpha(k(0x6365F4));
+    let a = glare_alpha(LIGHT_STATE.fog_far.get());
     RACE_VARS.quad_colour[1].set(a);
     let mut done = Ok(());
     if a != 0 {
         window_corners();
         let byte = |x: u32| unsafe { (game_addr(rva(x as usize)) as *const u8).read() };
-        w(
-            0x623DE8,
-            glare_colour(k(0x60A570), byte(0x60A574), byte(0x60A578)),
-        );
+        RACE_VARS.quad_colour[0].set(glare_colour(
+            STAGE_PREFS.lamp_table_c.get(),
+            byte(0x60A574),
+            byte(0x60A578),
+        ));
         done = unsafe { crate::scene::draw_tinted_quad::draw_tinted_quad() };
     }
     FRAME_WORK.sun_on_screen.set(sun);
@@ -377,20 +400,20 @@ pub unsafe fn draw_own_car() -> Result<(), Refused> {
     // Converted: `rc2k_core::race::view_steps::{car_number, seen_inside, clears_depth}`.
     use rc2k_core::race::view_steps::{car_number, clears_depth, seen_inside};
     unsafe {
-        if k(0x621480) == 0 {
+        if FRAME_SWITCHES.other_way.get() == 0 {
             return Ok(());
         }
-        let number = k(0x63DBA8 + 4 * RACE_VIEW.drawn_view.get());
+        let number = RACE_VIEW.view_cars[RACE_VIEW.drawn_view.get() as usize].get();
         let car = RACE_WORK.car_block(car_number(number) as usize);
         if car == 0 {
             return Err(BadInput("the drawn car without its block").into());
         }
-        w(0x60627C, number);
+        VIEW_VARS.drawn_car.set(number);
         let field = |o: u32| ((car + o) as *const u32).read_unaligned();
         if !seen_inside(field(0x6FC)) {
             return Ok(());
         }
-        w(0x62DAD4, field(0x240));
+        LIGHT_WORK.view_light_base.set(field(0x240));
         if clears_depth(
             field(0x900),
             || field(0x904),
@@ -401,8 +424,8 @@ pub unsafe fn draw_own_car() -> Result<(), Refused> {
         }
         // `race::draw_car_shined` reads only esi, the car's block.
         crate::race::car_draw::draw_car_shined(car)?;
-        w(0x606280, u32::MAX);
-        crate::scene::set_texture::set_texture(k(0x5D1E10));
+        VIEW_VARS.group_mask.set(u32::MAX);
+        crate::scene::set_texture::set_texture(KIND_TEXTURES.kind_first_slots[202].get());
         crate::scene::set_render_state::set_render_state(2, 0x14);
         DRAW.polygon_vertex_count.set(4);
         draw_marks_overlays()
@@ -431,25 +454,25 @@ pub unsafe fn run_view_marks() -> Result<(), Refused> {
         CAR_RECORDS, check_view_marks, first_word, layout_index, marks_shown,
     };
     unsafe {
-        if k(0x621890) == 0 {
+        if FRAME_SWITCHES.view_marks_on.get() == 0 {
             return Ok(());
         }
         let view = RACE_VIEW.drawn_view.get();
-        let block = k(0x63DBB0 + 4 * view);
+        let block = RACE_VIEW.view_blocks[view as usize].get();
         check_view_marks(
             block,
             |b| RACE_WORK.car_record(b as usize),
             || crate::marks::setup::SETTINGS.pointer.get(),
         )?;
         let (other, own) = marks_shown(view, RACE_VARS.scene_switch.get(), k(0x601024));
-        w(0x5C2F94, other);
-        w(0x5C2F90, own);
+        VIEWER_PANEL.other_marks_shown.set(other);
+        VIEWER_PANEL.own_marks_shown.set(own);
         let layout_at = layout_index(view, RACE_VARS.split.get());
-        let layout = k(0x6416A0 + 4 * layout_at);
-        w(0x5C2F8C, layout);
+        let layout = FRAME_WORK.view_layouts[layout_at as usize].get();
+        VIEWER_PANEL.marks_layout.set(layout);
         std::ptr::copy(
             (block + 0x8C0) as *const u8,
-            game_addr(rva(0x5EA3CC)) as *mut u8,
+            MATRICES.view_place[0].addr() as *mut u8,
             0x40,
         );
         crate::drive::share_all_cars::share_all_cars()?;
@@ -459,19 +482,17 @@ pub unsafe fn run_view_marks() -> Result<(), Refused> {
         }
         (RACE_WORK.car_record(view as usize) as *mut u32).write_unaligned(1);
         let centre = (DRAW.view_centre[0].bits(), DRAW.view_centre[1].bits());
-        let n = k(0x6416A0 + 4 * layout_at);
-        w(
-            0x62409C,
-            int_over_times(SCREEN.width.get(), NUMBERS.k800.bits(), k(0x6416C0 + 4 * n)),
-        );
-        w(
-            0x6240A0,
-            int_over_times(
-                SCREEN.height.get(),
-                NUMBERS.k600.bits(),
-                k(0x6416D4 + 4 * n),
-            ),
-        );
+        let n = FRAME_WORK.view_layouts[layout_at as usize].get() as usize;
+        DRAW.view_centre[0].set_bits(int_over_times(
+            SCREEN.width.get(),
+            NUMBERS.k800.bits(),
+            FRAME_WORK.view_scale_x[n].bits(),
+        ));
+        DRAW.view_centre[1].set_bits(int_over_times(
+            SCREEN.height.get(),
+            NUMBERS.k600.bits(),
+            FRAME_WORK.view_scale_y[n].bits(),
+        ));
         // Neither reads a register nor leaves one read after it (0x456464, 0x456472).
         let done = crate::marks::frame_marks::frame_marks().and_then(|_| {
             if FRAME_WORK.drawing.get() == 0 {

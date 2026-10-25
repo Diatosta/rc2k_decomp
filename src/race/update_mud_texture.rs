@@ -21,22 +21,17 @@
 //! state were put back).
 
 use crate::errors::Refused;
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 use crate::physics::flow::c0;
 use crate::race::muddy_texel::texture_and_mud;
 use crate::race::numbers_store::NUMBERS;
-use crate::race::splash_mud::{LAST_SPLASHED, SPLASHED_RVA, splash_mud};
-use crate::race::throw_mud_texel::{LAST_THROWN, THROWN_RVA, throw_mud_texel};
+use crate::race::splash_mud::{LAST_SPLASHED, splash_mud};
+use crate::race::throw_mud_texel::{LAST_THROWN, throw_mud_texel};
 use crate::race::vars_store::RACE_VARS;
+use crate::scene::kind_texture_store::KIND_TEXTURES;
 use crate::scene::x87_mem::{fild, fistp, fld, fstp};
-
-const FIRST_SLOT_RVA: usize = rva(0x5D1EE8); // g_kindFirstSlots[0x100]
-const FIRST_TEXTURE_RVA: usize = rva(0x5D0EE8); // g_kindFirstTextures[0x100]
+use crate::session::{Dword, Float};
 const CHANGES_RVA: usize = rva(0x6D1508); // dword_6D1508
-const THROWS_IN_RVA: usize = rva(0x623D60); // dword_623D60: each texture's thrown mud (float)
-const SPLASHES_IN_RVA: usize = rva(0x623D70); // dword_623D70: each texture's splashes (float)
-const THROWS_RVA: usize = rva(0x623920); // dword_623920
-const SPLASHES_RVA: usize = rva(0x623924); // dword_623924
 
 /// `fld dword [f]; fistp dword [t]`.
 fn round_units(f: usize, t: usize) {
@@ -56,33 +51,35 @@ fn subtract_units(a: usize, u: usize) {
 
 /// `fld [from]; fistp [to]`, then `fld zero; fld [to]; fcompp` and, with C0, `fld zero;
 /// fstp [to]`: the units of a float count, negatives 0 (as the original, by bits).
-fn whole_units(from: usize, to: usize) -> i32 {
-    round_units(game_addr(from), game_addr(to));
+fn whole_units(from: &Float, to: &Dword) -> i32 {
+    round_units(from.addr(), to.addr());
     let zero: u32 = NUMBERS.zero.bits();
-    if c0(unsafe { game_read(to) }, zero) {
-        unsafe { game_write(to, zero) };
+    if c0(to.bits(), zero) {
+        to.set_bits(zero);
     }
-    unsafe { game_read(to) }
+    to.bits() as i32
 }
 
 /// `fld [at]; fisub [units]; fstp [at]`.
-fn take_units(at: usize, units: usize) {
-    subtract_units(game_addr(at), game_addr(units));
+fn take_units(at: &Float, units: &Dword) {
+    subtract_units(at.addr(), units.addr());
 }
 
 /// The Rust version (see the header).
 pub unsafe fn update_mud_texture() -> Result<(), Refused> {
     let (n, _) = texture_and_mud()?;
-    let k = 4 * n as usize;
+    let k = n as usize;
     unsafe {
         crate::scene::forget_slot_texture::forget_slot_texture(
-            game_read::<u32>(FIRST_SLOT_RVA).wrapping_add(n),
+            KIND_TEXTURES.kind_first_slots[256].bits().wrapping_add(n),
         )?;
         game_write(
             CHANGES_RVA,
             game_read::<u32>(CHANGES_RVA).wrapping_add(0x1_0000),
         );
-        let texture = game_read::<u32>(FIRST_TEXTURE_RVA).wrapping_add(n);
+        let texture = KIND_TEXTURES.kind_first_textures[256]
+            .bits()
+            .wrapping_add(n);
         RACE_VARS.mud_locked.set_bits(texture);
         if texture == 0 {
             return Ok(());
@@ -91,8 +88,8 @@ pub unsafe fn update_mud_texture() -> Result<(), Refused> {
             return Ok(());
         }
         // The throws.
-        let throws = whole_units(THROWS_IN_RVA + k, THROWS_RVA);
-        let count: u32 = game_read(THROWN_RVA + k);
+        let throws = whole_units(&RACE_VARS.mud_thrown_in[k], &RACE_VARS.mud_throws);
+        let count: u32 = RACE_VARS.mud_thrown_counts[k].bits();
         if count <= LAST_THROWN {
             let over = (count & 0xFFFF).wrapping_add(throws as u32);
             if (over.wrapping_sub(0x100_0000) as i32) >= 0 {
@@ -101,7 +98,7 @@ pub unsafe fn update_mud_texture() -> Result<(), Refused> {
                     .mud_throws
                     .set_bits((throws as u32).wrapping_sub(over));
             }
-            take_units(THROWS_IN_RVA + k, THROWS_RVA);
+            take_units(&RACE_VARS.mud_thrown_in[k], &RACE_VARS.mud_throws);
             let throws = RACE_VARS.mud_throws.bits() as i32;
             if throws > 0 {
                 let mut done = 0u32;
@@ -115,14 +112,14 @@ pub unsafe fn update_mud_texture() -> Result<(), Refused> {
             }
         }
         // The splashes.
-        whole_units(SPLASHES_IN_RVA + k, SPLASHES_RVA);
-        if game_read::<u32>(SPLASHED_RVA + k) < LAST_SPLASHED {
-            take_units(SPLASHES_IN_RVA + k, SPLASHES_RVA);
+        whole_units(&RACE_VARS.mud_splashes_in[k], &RACE_VARS.mud_splashes);
+        if RACE_VARS.mud_splash_counts[k].bits() < LAST_SPLASHED {
+            take_units(&RACE_VARS.mud_splashes_in[k], &RACE_VARS.mud_splashes);
             let splashes = RACE_VARS.mud_splashes.bits() as i32;
             if splashes > 0 {
                 let mut done = 0u32;
                 loop {
-                    if game_read::<u32>(SPLASHED_RVA + k) >= LAST_SPLASHED {
+                    if RACE_VARS.mud_splash_counts[k].bits() >= LAST_SPLASHED {
                         break;
                     }
                     splash_mud()?;

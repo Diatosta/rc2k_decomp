@@ -16,9 +16,9 @@
 use crate::errors::Refused;
 use crate::input::store::DEVICES;
 use crate::physics::tables_store::PHYSICS;
-use crate::race::viewer::{BLOCK, PLAY_END, get, put};
+use crate::race::numbers_store::NUMBERS;
+use crate::race::viewer::{BLOCK, PLAY_END, get};
 
-const STATE: usize = 0x5C5CE0; // dword_5C5CE0
 const TEXTS: [&std::ffi::CStr; 4] = [
     c"dpg replay",
     c"[replaycurchunk]",
@@ -44,7 +44,7 @@ pub fn play_movie_loop() -> Result<(), Refused> {
     log_number(get(BLOCK));
     log_text(TEXTS[2], false);
     log_number(get(PLAY_END));
-    put(STATE, 2);
+    NUMBERS.replay_mode.set(2); // dword_5C5CE0
     race_parts::restart_clock();
     PHYSICS.race_clock_base.set(PHYSICS.scene_clock.get());
     loop {

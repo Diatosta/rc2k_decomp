@@ -18,11 +18,10 @@
 //! by address goes through `routes.rs`.
 
 use crate::errors::Refused;
-use crate::framework::{game_read, game_write, rva};
+use crate::race::switches_store::FRAME_SWITCHES;
 use crate::race::work_store::RACE_WORK;
+use crate::scene::light_store::LIGHT_STATE;
 use crate::session::FLAGS;
-const MARK_RVA: usize = rva(0x6365CC); // dword_6365CC
-const FRAMED_RVA: usize = rva(0x621514); // dword_621514
 const RESTORE: usize = 0x405B10; // sub_405B10: the surfaces restored (the platform's)
 
 /// The Rust version (see the header).
@@ -34,7 +33,7 @@ pub unsafe fn loading_bar_frame() -> Result<(), Refused> {
         if RACE_WORK.in_credits.get() == 0 {
             return Ok(());
         }
-        game_write(MARK_RVA, FRAME_MARK);
+        LIGHT_STATE.scene_state.set_bits(FRAME_MARK);
         if FLAGS.quitting.get() == 1 {
             return Ok(());
         }
@@ -45,10 +44,10 @@ pub unsafe fn loading_bar_frame() -> Result<(), Refused> {
             }
             // `scene::begin_scene` leaves the carry clear.
             begin_scene::begin_scene();
-            let framed: u32 = game_read(FRAMED_RVA);
-            game_write(FRAMED_RVA, 0u32);
+            let framed: u32 = FRAME_SWITCHES.editor_mode.bits();
+            FRAME_SWITCHES.editor_mode.set_bits(0u32);
             choose_view_window::choose_view_window();
-            game_write(FRAMED_RVA, framed);
+            FRAME_SWITCHES.editor_mode.set_bits(framed);
             crate::race::loading_bar_quad::loading_bar_quad()?;
             end_scene::end_scene();
             if lock_frame::lock_frame().0 < 1 {

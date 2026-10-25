@@ -15,17 +15,14 @@
 //! One caller, `sub_45188C`.
 
 use crate::errors::Refused;
-use crate::framework::{game_read, game_write, rva};
+use crate::physics::ground_store::GROUND_WORK;
 use crate::race::view_store::RACE_VIEW;
-use crate::scene::reflection_coordinates::{
-    COORDINATES_RVA, NORMAL_NUMBER_RVA, POINT_NUMBER_RVA, reflection_coordinates,
-};
+use crate::scene::reflection_coordinates::reflection_coordinates;
 
 // ---- game data ----
-/// The four tables, 0x1000 bytes apart: the normal's number, the point's, the two
-/// coordinates.
-const TABLES_RVA: usize = rva(0x6399B8); // dword_6399B8, dword_63A9B8, dword_63B9B8, dword_63C9B8
-const TABLE_BYTES: usize = 0x1000;
+/// The four tables (`GROUND_WORK.kept_reflections`), 0x400 dwords apart: the normal's
+/// number, the point's, the two coordinates.
+const TABLE_CELLS: usize = 0x400;
 
 // ---- Rust version ----
 
@@ -36,22 +33,25 @@ pub unsafe fn cached_reflection_coordinates() -> Result<(), Refused> {
         if RACE_VIEW.reflections_kept.bits() == 0 {
             return Ok(reflection_coordinates()?);
         }
-        let asked: [u32; 2] = [game_read(NORMAL_NUMBER_RVA), game_read(POINT_NUMBER_RVA)];
+        let asked: [u32; 2] = [
+            GROUND_WORK.reflection_normal_number.bits(),
+            GROUND_WORK.reflection_point_number.bits(),
+        ];
         let place = cache_place(asked[0]);
-        let slot = |table: usize| TABLES_RVA + table * TABLE_BYTES + place * 4;
-        if let Some(coordinates) = cached(asked, [game_read(slot(0)), game_read(slot(1))], || {
-            [game_read(slot(2)), game_read(slot(3))]
+        let slot = |table: usize| &GROUND_WORK.kept_reflections[table * TABLE_CELLS + place];
+        if let Some(coordinates) = cached(asked, [slot(0).bits(), slot(1).bits()], || {
+            [slot(2).bits(), slot(3).bits()]
         }) {
-            game_write(COORDINATES_RVA, coordinates);
+            crate::session::write_bits(&GROUND_WORK.reflection_coordinates, coordinates);
             return Ok(());
         }
         reflection_coordinates()?;
-        let coordinates: [u32; 2] = game_read(COORDINATES_RVA);
+        let coordinates: [u32; 2] = crate::session::read_bits(&GROUND_WORK.reflection_coordinates);
         for (table, value) in [asked[0], asked[1], coordinates[0], coordinates[1]]
             .into_iter()
             .enumerate()
         {
-            game_write(slot(table), value);
+            slot(table).set_bits(value);
         }
         Ok(())
     }

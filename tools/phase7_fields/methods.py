@@ -1,17 +1,7 @@
 # recv.get(LIT) / recv.put(LIT, v) / recv.a(LIT) on Ground / Mirror receivers -> fields.
 import re, os, sys, json, collections
 ROOT, S = sys.argv[1], sys.argv[2]
-maps = [(json.load(open(S + '/car_map.json')), 'CAR', 'crate::physics::car_store::CAR'),
-        (json.load(open(S + '/tables_map.json')), 'PHYSICS', 'crate::physics::tables_store::PHYSICS'),
-        (json.load(open(S + '/p8_map.json')), 'RACE_WORK', 'crate::race::work_store::RACE_WORK'),
-        (json.load(open(S + '/blocks_map.json')), 'CAR_BLOCKS', 'crate::race::blocks_store::CAR_BLOCKS'),
-        (json.load(open(S + '/num_map.json')), 'NUMBERS', 'crate::race::numbers_store::NUMBERS'),
-        (json.load(open(S + '/draw_map.json')), 'DRAW', 'crate::scene::draw_store::DRAW'),
-        (json.load(open(S + '/vars_map.json')), 'RACE_VARS', 'crate::race::vars_store::RACE_VARS'),
-        (json.load(open(S + '/view_map.json')), 'RACE_VIEW', 'crate::race::view_store::RACE_VIEW'),
-        (json.load(open(S + '/obj_map.json')), 'OBJECT_WORK', 'crate::scene::object_store::OBJECT_WORK'),
-        (json.load(open(S + '/course_map.json')), 'COURSE', 'crate::race::course_store::COURSE'),
-        (json.load(open(S + '/frame_map.json')), 'FRAME_WORK', 'crate::race::frame_store::FRAME_WORK')]
+maps = __import__('maps').load(S)
 def typed(v):
     for m, st, use in maps:
         if hex(v) in m: return st, use, m[hex(v)][0], m[hex(v)][1]

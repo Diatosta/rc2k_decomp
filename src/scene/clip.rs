@@ -22,13 +22,14 @@
 use crate::errors::BadInput;
 use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::race::course_store::COURSE;
+use crate::race::prefs_store::STAGE_PREFS;
 use crate::scene::clip_asm::{
     BYTES_A, BYTES_B, CHECKED, ENTRY_A, ENTRY_B, OUT_1, OUT_2, PLANE, RECORD_A, RECORD_B, Work,
     cut_at_depth, cut_at_x, cut_at_y,
 };
 use crate::scene::draw_store::DRAW;
 use crate::scene::polygon::{ENTRIES, ENTRIES_RVA, ENTRY_LEN, LIST_RVA, dword, listed, put};
-use crate::scene::project_point::{CENTRE_Y_RVA, FLAT_RVA, RECORD_LEN, to_screen};
+use crate::scene::project_point::{CENTRE_Y_RVA, RECORD_LEN, to_screen};
 
 // ---- game data ----
 
@@ -123,7 +124,7 @@ unsafe fn cut(edge: Edge, a: usize, b: usize, mask: u32) -> Result<u32, BadInput
                     game_read(CENTRE_Y_RVA),
                     COURSE.flat_depth.bits(),
                 ];
-                let flat = game_read::<u32>(FLAT_RVA) != 0;
+                let flat = STAGE_PREFS.flat_depth.bits() != 0;
                 to_screen(point.as_mut_ptr(), &v, flat, &raw mut w[CHECKED / 4]);
                 (w[OUT_1 / 4], w[OUT_1 / 4 + 1]) = (point[3], point[7]);
             }

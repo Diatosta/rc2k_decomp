@@ -8,6 +8,7 @@ use crate::errors::{BadInput, Refused};
 use crate::framework::rva;
 use crate::marks::store::{Slot, game_addr, game_read, game_write};
 use crate::math::x87;
+use crate::race::course_lists_store::COURSE_LISTS;
 
 pub const SPLINE_LEN: u32 = 0xE90;
 /// The most points a record holds.
@@ -186,7 +187,7 @@ pub fn reset_pong() {
 /// nothing (section 16): not made. Refuses an object past 0xFF, a negative face count or
 /// faces past `g_faces`.
 pub unsafe fn gather_spline_points(s: u32, object: u32, kind: u32) -> Result<(), Refused> {
-    use crate::scene::objects::{FACE_COUNTS_RVA, FACES, FACES_RVA, FIRST_FACE_RVA, POINTS_RVA};
+    use crate::scene::objects::{FACE_COUNTS_RVA, FACES, FACES_RVA, FIRST_FACE_RVA};
     unsafe {
         let object = object as usize;
         if object >= 0x100 {
@@ -207,7 +208,7 @@ pub unsafe fn gather_spline_points(s: u32, object: u32, kind: u32) -> Result<(),
             }
         }
         let n = get(s + COUNT);
-        let points: u32 = game_read(POINTS_RVA);
+        let points: u32 = COURSE_LISTS.object_points.bits();
         for k in (0..n).rev() {
             put(
                 s + IDS + 4 * k,

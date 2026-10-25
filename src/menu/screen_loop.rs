@@ -67,6 +67,7 @@ use crate::menu::run_item_action::run_item_action;
 use crate::menu::run_list::run_list;
 use crate::menu::update_blink::update_blink;
 use crate::physics::tables_store::PHYSICS;
+use crate::race::matrices_store::MATRICES;
 use crate::session::CLOCKS;
 use crate::session::Dword;
 use crate::session::FLAGS;
@@ -271,7 +272,7 @@ pub fn quitting() -> bool {
 pub unsafe fn prepare_scene(c: &mut Carried) {
     unsafe { crate::scene::prepare_menu_scene::prepare_menu_scene() };
     (c.arg, c.palette, c.measure_x, c.clock) = (0, 0, 0, 0);
-    c.cars = game_addr(crate::scene::matrix::VIEW_TURN_RVA) as u32;
+    c.cars = MATRICES.view_turn_matrix[0].addr() as u32;
 }
 
 /// `scene::set_up_carousel` (0x4904DD): reads the list of cars (esi) for menus 0xD and 0xE

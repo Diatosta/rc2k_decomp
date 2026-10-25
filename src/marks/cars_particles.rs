@@ -19,7 +19,7 @@
 //!      `cars`); the rest as the last car leaves them
 //!
 //! Caller: `sub_4C3EEE` (0x4C4006). Refuses null settings, more than 8 cars, a car's null
-//! matrix or vector, a car model (+4) of 33 or more, and the emitters' refusals; on a
+//! matrix or vector, a car model (+4) of 34 or more, and the emitters' refusals; on a
 //! refusal nothing stays written (all it may write is put back).
 
 use crate::errors::{BadInput, Refused};
@@ -40,9 +40,12 @@ const UP_RVA: Slot = Slot::at(0x935446); // flt_935446 .. flt_93544E
 const ACROSS_RVA: Slot = Slot::at(0x935452); // flt_935452 .. flt_93545A
 const SIDE_B_RVA: Slot = Slot::at(0x93543A); // flt_93543A .. flt_935442
 const SIDE_A_RVA: Slot = Slot::at(0x93545E); // flt_93545E .. flt_935466
-/// dword_7694AA, dword_7694B2: the looks by the car's model (8 bytes apart, 33).
+/// dword_7694AA, dword_7694B2: the looks by the car's model (8 bytes apart, 33 pairs to
+/// 0x7695B2). The cars have 34 models: model 32's second dword is `g_marksSplineFaces`,
+/// model 33 (the Clio's) reads `g_marksSplineFaces` and `flt_7695BA`, as the original
+/// does (`notes/bugs.md`); all within the marks block.
 const LOOKS_TABLE_RVA: Slot = Slot::at(0x7694AA);
-const MODELS: u32 = 33;
+const MODELS: u32 = 34;
 const LOOKS_RVA: [Slot; 2] = [Slot::at(0x935476), Slot::at(0x93547A)];
 
 unsafe fn put(a: u32, v: u32) {
@@ -77,7 +80,7 @@ unsafe fn refusal(settings: u32) -> Option<&'static str> {
                 return Some("a car's null matrix or vector");
             }
             if at(car + 4) >= MODELS {
-                return Some("a car model past dword_7694AA's 33 entries");
+                return Some("a car model past the cars' 34");
             }
         }
         None

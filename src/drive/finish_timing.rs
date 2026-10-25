@@ -14,6 +14,7 @@
 use crate::math::x87::loaded;
 use crate::physics::flow::{c0, g, p};
 use crate::race::state_store::RACE_STATE;
+use crate::race::viewer_screen_store::VIEWER_PANEL;
 use crate::scene::draw_store::DRAW;
 use crate::scene::x87_mem::{fild, fld, fstp};
 
@@ -78,7 +79,7 @@ pub fn timing_from(now: u32) {
         }
     }
     if late && RACE_STATE.results.finished.get() != 0 {
-        p(0x5C2F88, 1);
+        VIEWER_PANEL.race_done.set(1);
     }
 }
 

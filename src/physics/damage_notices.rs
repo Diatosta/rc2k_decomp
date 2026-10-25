@@ -20,21 +20,24 @@
 use crate::errors::Refused;
 use crate::math::x87::from_int;
 use crate::physics::car_store::CAR;
-use crate::physics::flow::g;
 use crate::physics::queue_notice::queue_notice;
 use crate::physics::store::DAMAGE;
 use rc2k_core::physics::damage_notices::{LEVELS, damage_notices as damage_notices_core};
 
-const GAUGES_AT: usize = 0x71A284; // unk_71A284: the gauges
+/// `unk_71A284` .. `unk_71A33C`: the gauges, dwords from `CAR.brake_heat` on (the store
+/// types only the first two).
+fn gauge(k: usize) -> u32 {
+    unsafe { ((CAR.brake_heat[0].addr() + 4 * k) as *const u32).read_unaligned() }
+}
 
 // Converted: `rc2k_core::physics::damage_notices::damage_notices`.
 fn steps() -> Result<(), Refused> {
     let mut levels: [u32; LEVELS] = std::array::from_fn(|k| CAR.damage_levels[k].get());
     let result = damage_notices_core(
         &mut levels,
-        |k| f32::from_bits(g(GAUGES_AT + 4 * k)),
+        |k| f32::from_bits(gauge(k)),
         |t| DAMAGE.scratch.set_bits(from_int(t)),
-        |q| unsafe { queue_notice(q.notice, q.rank, g(GAUGES_AT + 4 * q.gauge)) },
+        |q| unsafe { queue_notice(q.notice, q.rank, gauge(q.gauge)) },
     );
     for (k, &v) in levels.iter().enumerate() {
         CAR.damage_levels[k].set(v);

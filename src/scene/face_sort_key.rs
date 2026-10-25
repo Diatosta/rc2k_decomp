@@ -13,22 +13,20 @@
 //! count past the table, no face and no records.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, rva};
 use crate::math::x87;
+use crate::race::course_lists_store::COURSE_LISTS;
 use crate::scene::draw_store::DRAW;
 use crate::scene::polygon::dword;
-use crate::scene::project_point::RECORDS_RVA;
 
 // ---- game data ----
 
-const FACTORS_RVA: usize = rva(0x5C6950); // flt_5C6950
 const FACTORS: u32 = 0x100;
 
 // ---- Rust version ----
 
 pub unsafe fn face_sort_key(face: usize, count: u32) -> Result<(), Refused> {
     unsafe {
-        let records: u32 = game_read(RECORDS_RVA);
+        let records: u32 = COURSE_LISTS.point_records.bits();
         let vertices: u32 = DRAW.polygon_vertex_count.bits();
         if face == 0 || records == 0 || count == 0 || count > 0x1000 || vertices >= FACTORS {
             return Err(
@@ -41,7 +39,7 @@ pub unsafe fn face_sort_key(face: usize, count: u32) -> Result<(), Refused> {
             let record = records.wrapping_add(offset);
             sum = x87::add(dword(record as usize + 0x18), sum);
         }
-        let factor: u32 = game_read(FACTORS_RVA + vertices as usize * 4);
+        let factor = COURSE_LISTS.face_key_factors[vertices as usize].bits();
         DRAW.face_sort_key
             .set_bits(x87::mul_to_int(sum, factor) as u32);
         Ok(())

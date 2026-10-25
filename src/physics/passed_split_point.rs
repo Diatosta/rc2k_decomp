@@ -24,8 +24,9 @@
 //! above are the original's, for reference.
 
 use crate::errors::{BadInput, FatalError, Refused};
-use crate::framework::{game_read, game_write, rva};
+use crate::framework::{game_read, rva};
 use crate::physics::car_store::CAR;
+use crate::physics::ground_store::GROUND_WORK;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::course_store::COURSE;
 use crate::scene::draw_store::DRAW;
@@ -35,10 +36,6 @@ use std::cmp::Ordering;
 
 fn g(x: usize) -> u32 {
     unsafe { game_read(rva(x)) }
-}
-
-fn p(x: usize, v: u32) {
-    unsafe { game_write(rva(x), v) }
 }
 
 /// 0x4416EC .. 0x441727: the distance to the point at `point`.
@@ -129,8 +126,8 @@ pub unsafe fn passed_split_point() -> Result<bool, Refused> {
         return Ok(false);
     }
     let (cp, _, pt) = point()?;
-    p(0x639824, CAR.position[0].get());
-    p(0x63982C, CAR.position[2].get());
+    GROUND_WORK.ground_x.set(CAR.position[0].get());
+    GROUND_WORK.ground_z.set(CAR.position[2].get());
     unsafe { distance(pt) };
     let within = !matches!(
         f32::from_bits(PHYSICS.split_point_distance.bits())

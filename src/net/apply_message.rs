@@ -18,16 +18,14 @@
 //! See `net/mod.rs`. One caller, `net::apply_received`. The distance with the original's
 //! x87 instructions.
 
-use crate::framework::{game_read, rva};
 use crate::logfile::{log_int::log_int, log_write::log_write};
 use crate::net::store::NET;
-use crate::net::{STEP, g};
+use crate::race::view_store::RACE_VIEW;
 use crate::race::work_store::RACE_WORK;
 use rc2k_core::net::race::{self, Arrival, Kind};
 
 /// g_carBlocks: the eight cars' blocks.
 const TEXT: &std::ffi::CStr = c"rcvd fm plyr"; // "rcvd fm plyr"
-const NEAR: usize = 0x5C5D54; // flt_5C5D54: 10.0
 
 /// The Rust version.
 pub fn apply_message(player: u32, message: *const u8) {
@@ -35,7 +33,7 @@ pub fn apply_message(player: u32, message: *const u8) {
     let wr = |at: u32, v: u32| unsafe { (at as *mut u32).write_unaligned(v) };
     let message = message as u32;
     log_int(NET.player.get() as i32, false, 1);
-    log_int(g(STEP) as i32, false, 1);
+    log_int(RACE_VIEW.local_car.get() as i32, false, 1);
     log_int(unsafe { (message as *const u8).read() } as i32, false, 1);
     unsafe { log_write(TEXT.as_ptr().cast(), false, 1) };
     log_int(player as i32, true, 1);
@@ -60,7 +58,7 @@ pub fn apply_message(player: u32, message: *const u8) {
     let three = |at: u32| [rd(block + at), rd(block + at + 4), rd(block + at + 8)];
     let (wanted, now) = (three(race::WANTED), three(race::PLACE));
     let steps = rd(block + race::STEPS);
-    let near = f32::from_bits(unsafe { game_read(rva(NEAR)) });
+    let near = crate::race::numbers_store::NUMBERS.ten.get();
     match race::arrival(wanted, now, steps, near) {
         Arrival::Jump => {
             for (k, v) in (0..).zip(wanted) {

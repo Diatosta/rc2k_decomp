@@ -9,19 +9,18 @@
 //!
 //! Caller: `drive::replay_step`.
 
-use crate::physics::flow::g;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
 use rc2k_core::drive::places;
 
-const B: usize = 0x70F3EC; // g_carBlockStore
-const NEXT: usize = 0xFE0;
-
 /// The Rust version.
 // Converted: `rc2k_core::drive::places::two_car_order`.
 pub fn two_car_order() {
-    let figure = |car: usize, o: u32| g(B + car * NEXT + o as usize);
+    // g_carBlockStore: the figures of car block `car`.
+    let figure = |car: usize, o: u32| unsafe {
+        ((crate::race::blocks_store::block_addr(car) + o as usize) as *const u32).read_unaligned()
+    };
     // The last argument is only handed back as `last` (ebx), which no caller reads.
     let order = places::two_car_order(RACE_VARS.run_kind.get(), RACE_VIEW.players.get(), figure, 0);
     if let Some([x, y]) = order.places {

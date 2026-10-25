@@ -14,13 +14,11 @@
 //! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{game_read, game_write, rva};
+use crate::framework::{game_write, rva};
+use crate::physics::camera_store::CAMERA_WORK;
+use crate::physics::ground_store::GROUND_WORK;
 use crate::race::course_store::COURSE;
 use rc2k_core::physics::walls::ProbeCounts;
-
-fn g(x: usize) -> u32 {
-    unsafe { game_read(rva(x)) }
-}
 
 fn p(x: usize, v: u32) {
     unsafe { game_write(rva(x), v) }
@@ -31,22 +29,22 @@ fn p(x: usize, v: u32) {
 // Converted: `rc2k_core::physics::walls::ProbeCounts`.
 pub unsafe fn count_ground_probe() -> Result<(), Refused> {
     let mut counts = ProbeCounts {
-        tries: g(0x608C3C),
-        found: g(0x608C40),
-        same: g(0x608C44),
+        tries: CAMERA_WORK.ground_probes.get(),
+        found: CAMERA_WORK.ground_found.get(),
+        same: CAMERA_WORK.ground_same.get(),
     };
     p(0x620470, 0x40);
     counts.tried();
-    p(0x608C3C, counts.tries);
+    CAMERA_WORK.ground_probes.set(counts.tries);
     unsafe { crate::physics::find_ground::find_ground() }?;
-    if g(0x639830) != 0 {
+    if GROUND_WORK.ground_found.get() != 0 {
         counts.searched(
             true,
             COURSE.ground_face_last.get(),
             COURSE.ground_slot.get(),
         );
-        p(0x608C40, counts.found);
-        p(0x608C44, counts.same);
+        CAMERA_WORK.ground_found.set(counts.found);
+        CAMERA_WORK.ground_same.set(counts.same);
     }
     Ok(())
 }

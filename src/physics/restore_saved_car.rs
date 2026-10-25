@@ -16,6 +16,7 @@
 use crate::errors::Refused;
 use crate::framework::{game_addr, rva};
 use crate::physics::car_store::CAR;
+use crate::physics::contact_store::CONTACT_WORK;
 use crate::physics::tables_store::PHYSICS;
 use rc2k_core::physics::saved_car::{restore_count, restored};
 
@@ -34,14 +35,14 @@ pub struct SavedCar {
 
 impl SavedCar {
     pub fn game() -> Self {
-        let a = |x: usize| game_addr(rva(x)) as u32;
+        let _a = |x: usize| game_addr(rva(x)) as u32;
         Self {
             counter: (PHYSICS.clear_place_count.addr() as u32),
             saved_place: (PHYSICS.saved_place[0].addr() as u32),
             place: (CAR.position[0].addr() as u32),
             saved_matrix: (PHYSICS.saved_matrix[0].addr() as u32),
             matrix: (CAR.crash_matrix[0].addr() as u32),
-            saved_list: a(0x6D2814),
+            saved_list: (CONTACT_WORK.probe_saved_faces[0].addr() as u32),
             list: (CAR.probe_point_face[0].addr() as u32),
             count: (CAR.probe_count.addr() as u32),
         }

@@ -148,7 +148,7 @@ pub fn steps() {
     hold_low(&CAR.brake_fade, &DAMAGE.gauge_low);
     hold_high(&CAR.brake_fade, &DAMAGE.gauge_top);
     table_lerp(
-        0x71A29C,
+        &CAR.cooling_damage,
         &DAMAGE.lerp_tables[1],
         &DAMAGE.gauge_low,
         &DAMAGE.flt_75b460,
@@ -185,21 +185,21 @@ pub fn steps() {
     hold_low(&CAR.engine_heat, &DAMAGE.gauge_low);
     hold_high(&CAR.engine_heat, &DAMAGE.gauge_top);
     table_lerp(
-        0x71A430,
+        &CAR.stiffness_mean,
         &DAMAGE.lerp_tables_b[2],
         &DAMAGE.gauge_low,
         &DAMAGE.flt_75b44c,
     );
     x87_5(&DAMAGE.flt_75b44c, &DAMAGE.flt_75b44c);
     table_lerp(
-        0x71A430,
+        &CAR.stiffness_mean,
         &DAMAGE.lerp_tables_b[0],
         &DAMAGE.gauge_low,
         &DAMAGE.flt_75b448,
     );
     x87_5(&DAMAGE.flt_75b448, &DAMAGE.flt_75b448);
     table_lerp(
-        0x71A434,
+        &CAR.ride_height_mean,
         &DAMAGE.lerp_tables_b[1],
         &DAMAGE.gauge_low,
         &DAMAGE.flt_75b468,

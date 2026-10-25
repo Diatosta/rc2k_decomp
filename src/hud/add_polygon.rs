@@ -18,6 +18,7 @@
 use crate::errors::Refused;
 use crate::hud::batch::*;
 use crate::hud::store::HUD;
+use crate::scene::draw_store::DRAW;
 use crate::session::SCREEN;
 use crate::store::{game_addr, game_read, game_write};
 
@@ -29,7 +30,7 @@ pub unsafe fn add_polygon() -> Result<(), Refused> {
     use rc2k_core::hud::batch::{self, MOST_VERTICES};
     use rc2k_core::hud::quads::screen_scaled;
     unsafe {
-        let count: u32 = game_read(POLYGON_COUNT_RVA);
+        let count: u32 = DRAW.polygon_vertex_count.bits();
         let texture = HUD.texture.get();
         let vertices = HUD.vertex_count.get();
         let flushes = if count == 0 || count > MOST_VERTICES {

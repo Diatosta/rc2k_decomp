@@ -18,7 +18,8 @@
 use crate::errors::Refused;
 use crate::physics::camera_ground::probe_at;
 use crate::physics::car_store::CAR;
-use crate::physics::flow::{c0, g};
+use crate::physics::flow::c0;
+use crate::physics::ground_store::GROUND_WORK;
 use crate::race::numbers_store::NUMBERS;
 use rc2k_core::physics::camera_ground::{is_low, low_switch, low_switch_looks, over};
 
@@ -39,7 +40,10 @@ pub fn camera_low_switch() -> Result<(), Refused> {
     )? {
         return Ok(());
     }
-    if !is_low(over(CAR.camera_position[1].get(), g(0x639828))) {
+    if !is_low(over(
+        CAR.camera_position[1].get(),
+        GROUND_WORK.ground_height.get(),
+    )) {
         return Ok(());
     }
     let s = low_switch(CAR.camera_blend_view.get(), CAR.step_clock.get());

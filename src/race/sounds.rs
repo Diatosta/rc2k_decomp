@@ -2,11 +2,9 @@
 //! pointers to the cars' sound objects (`sound::load_race_sounds`), each with a flag at +8.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::rva;
 use crate::race::view_store::RACE_VIEW;
 use crate::race::work_store::RACE_WORK;
 
-pub const REPLAY_RVA: usize = rva(0x71C3E0); // dword_71C3E0
 const OBJECTS: u32 = 8;
 const MOST_CARS: u32 = 0x1_0000;
 

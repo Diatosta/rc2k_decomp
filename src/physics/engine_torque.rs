@@ -11,7 +11,7 @@
 //!
 //! Callers: `physics::engine_torque_or_cut`, `sub_421848`, `sub_43CAAB`, `sub_43EA80`.
 
-use crate::framework::{game_read, game_write, rva};
+use crate::framework::{game_read, rva};
 use crate::math::x87;
 use crate::math::x87_run::{div_then_mul, lerp_table, trunc_mul_to_int};
 use crate::physics::car_store::CAR;
@@ -22,10 +22,6 @@ use std::cmp::Ordering;
 
 pub fn g(x: usize) -> u32 {
     unsafe { game_read(rva(x)) }
-}
-
-pub fn p(x: usize, v: u32) {
-    unsafe { game_write(rva(x), v) }
 }
 
 /// C0 of comparing `a` with `b`: below, or unordered.
@@ -44,32 +40,26 @@ pub unsafe fn engine_torque() {
     if below(s, NUMBERS.one.bits()) && !below(s, NUMBERS.zero.bits()) {
         let i = trunc_mul_to_int(s, NUMBERS.eight.bits()) as u32;
         DRAW.work_dword.set(i);
-        let k = 4 * i as usize;
-        p(
-            0x614748,
-            lerp_table(
-                s,
-                g(0x613FF0 + k),
-                g(0x613FF4 + k),
-                g(0x614B7C + k),
-                g(0x614B80 + k),
-            ),
-        );
+        let k = i as usize;
+        PHYSICS.engine_force.set_bits(lerp_table(
+            s,
+            PHYSICS.torque_curve[k].bits(),
+            PHYSICS.torque_curve[k + 1].bits(),
+            PHYSICS.spec_torque[k].get(),
+            PHYSICS.spec_torque[k + 1].get(),
+        ));
     } else {
         PHYSICS.engine_force.set_bits(x87::loaded(
             crate::physics::tables_store::PHYSICS.spec_torque[0].get(),
         ));
     }
-    p(
-        0x614744,
-        div_then_mul(
-            CAR.engine_speed.bits(),
-            CAR.engine_speed_limit.bits(),
-            PHYSICS.torque_ease.bits(),
-        ),
-    );
-    p(
-        0x614748,
-        x87::mul(PHYSICS.engine_force.bits(), CAR.engine_power_factor.bits()),
-    );
+    PHYSICS.engine_torque.set_bits(div_then_mul(
+        CAR.engine_speed.bits(),
+        CAR.engine_speed_limit.bits(),
+        PHYSICS.torque_ease.bits(),
+    ));
+    PHYSICS.engine_force.set_bits(x87::mul(
+        PHYSICS.engine_force.bits(),
+        CAR.engine_power_factor.bits(),
+    ));
 }

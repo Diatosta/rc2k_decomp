@@ -10,11 +10,10 @@
 //! Callers: `sub_43A35A` (0x43A454), `sub_43A649` (0x43A66C).
 
 use crate::drive::set_camera_view::set_view_at;
-use crate::framework::{game_read, rva};
 use crate::physics::car_store::CAR;
+use crate::race::kind_store::KIND_TABLES;
 use crate::race::view_store::RACE_VIEW;
 use rc2k_core::drive::camera_views::next_view;
-const HAS_VIEWS_RVA: usize = rva(0x5C5AC0); // dword_5C5AC0, by car (0x22)
 
 unsafe fn at(a: u32) -> u32 {
     unsafe { (a as *const u32).read_unaligned() }
@@ -31,7 +30,7 @@ pub unsafe fn next_view_at(s: u32, players: u32, step: u32) {
         let view = next_view(
             at(s + 0x684),
             || at(s + 0x24),
-            |car| game_read::<u32>(HAS_VIEWS_RVA + 4 * car as usize) != 0,
+            |car| KIND_TABLES.kind_has_views[car as usize].get() != 0, /* dword_5C5AC0, by car (0x22) */
             || at(players),
         );
         (s.wrapping_add(0x688) as *mut u32).write_unaligned(view);

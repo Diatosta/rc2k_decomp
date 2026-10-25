@@ -12,26 +12,37 @@
 
 use crate::math::x87;
 use crate::math::x87_run::{abs_sqrt_times_plus, one_less, sine_cosine_of};
-use crate::physics::mirror::Mirror;
+use crate::race::course_lists_store::COURSE_LISTS;
 
-/// The Rust core on the variables `m` reaches; the matrix at `out`.
-pub unsafe fn axis_turn_at(m: &Mirror, out: u32) {
+/// The Rust core on the game's variables; the matrix at `out`.
+pub unsafe fn axis_turn_at(out: u32) {
     unsafe {
-        let g = |v: u32| m.get(v);
-        let (s, c) = sine_cosine_of(g(0x5C78F8));
-        m.put(0x5C709C, c);
-        m.put(0x5C7098, s);
-        let t = one_less(g(0x5C709C));
-        m.put(0x5C70A0, t);
-        let (x, y, z) = (g(0x5C78FC), g(0x5C7900), g(0x5C7904));
-        m.put(0x5C70A4, x87::mul2(t, x, z));
-        m.put(0x5C70A8, x87::mul2(t, x, y));
-        m.put(0x5C70AC, x87::mul2(t, y, z));
-        m.put(0x5C70B0, x87::mul(x, s));
-        m.put(0x5C70B4, x87::mul(y, s));
-        m.put(0x5C70B8, x87::mul(z, s));
-        let (p1, p2, p3) = (g(0x5C70A4), g(0x5C70A8), g(0x5C70AC));
-        let (q1, q2, q3) = (g(0x5C70B0), g(0x5C70B4), g(0x5C70B8));
+        let (s, c) = sine_cosine_of(COURSE_LISTS.spin_angle.bits());
+        COURSE_LISTS.turn_cosine.set_bits(c);
+        COURSE_LISTS.turn_sine.set_bits(s);
+        let t = one_less(COURSE_LISTS.turn_cosine.bits());
+        COURSE_LISTS.turn_one_less_cosine.set_bits(t);
+        let (x, y, z) = (
+            COURSE_LISTS.spin_axis_x.bits(),
+            COURSE_LISTS.spin_axis_y.bits(),
+            COURSE_LISTS.spin_axis_z.bits(),
+        );
+        COURSE_LISTS.turn_product_xz.set_bits(x87::mul2(t, x, z));
+        COURSE_LISTS.turn_product_xy.set_bits(x87::mul2(t, x, y));
+        COURSE_LISTS.turn_product_yz.set_bits(x87::mul2(t, y, z));
+        COURSE_LISTS.turn_sine_x.set_bits(x87::mul(x, s));
+        COURSE_LISTS.turn_sine_y.set_bits(x87::mul(y, s));
+        COURSE_LISTS.turn_sine_z.set_bits(x87::mul(z, s));
+        let (p1, p2, p3) = (
+            COURSE_LISTS.turn_product_xz.bits(),
+            COURSE_LISTS.turn_product_xy.bits(),
+            COURSE_LISTS.turn_product_yz.bits(),
+        );
+        let (q1, q2, q3) = (
+            COURSE_LISTS.turn_sine_x.bits(),
+            COURSE_LISTS.turn_sine_y.bits(),
+            COURSE_LISTS.turn_sine_z.bits(),
+        );
         let put = |o: u32, v: u32| ((out + o) as *mut u32).write_unaligned(v);
         put(0x00, abs_sqrt_times_plus(x, t, c));
         put(0x04, x87::add(p2, q3));
@@ -51,5 +62,5 @@ pub unsafe fn axis_turn_at(m: &Mirror, out: u32) {
 
 /// The Rust version.
 pub unsafe fn axis_turn_matrix(out: u32) {
-    unsafe { axis_turn_at(&Mirror::game(), out) }
+    unsafe { axis_turn_at(out) }
 }

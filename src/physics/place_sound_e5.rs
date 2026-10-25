@@ -9,15 +9,16 @@
 //! when it is written.
 
 use crate::errors::Refused;
-use crate::physics::car_sounds::{cue_plain, g, listed, object};
+use crate::physics::car_sounds::{cue_plain, listed, object};
 use crate::physics::sound_band_4::TWIN;
 use crate::physics::sound_bands::band_value_plain;
+use crate::race::work_store::RACE_WORK;
 use rc2k_core::physics::sound_places::{SECOND, SOUND_E5};
 
 /// The Rust version.
 // Converted: `rc2k_core::physics::sound_places`.
 pub unsafe fn place_sound_e5() -> Result<(), Refused> {
-    if !listed(g(0x71B3F8))? {
+    if !listed(RACE_WORK.current_car.bits())? {
         return Ok(());
     }
     let o = object()?;

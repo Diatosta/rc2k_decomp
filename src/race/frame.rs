@@ -11,8 +11,6 @@ use crate::physics::tables_store::PHYSICS;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
 
-use crate::store::{game_addr, game_read};
-
 fn block(n: u32) -> u32 {
     crate::race::work_store::RACE_WORK.car_block(n as usize)
 }
@@ -59,6 +57,16 @@ pub unsafe fn set_both_counters(value: u32) {
 /// The view cars' numbers: `dword_63DBA8`, `dword_63DBAC`, `dword_63DBA0`.
 pub const VIEW_CARS: [usize; 3] = [rva(0x63DBA8), rva(0x63DBAC), rva(0x63DBA0)];
 
+/// The view car `n`'s number: `dword_63DBA8`, `dword_63DBAC`, `dword_63DBA0`.
+fn view_car(n: usize) -> &'static crate::session::Dword {
+    match n {
+        0 => &RACE_VIEW.view_cars[0],
+        1 => &RACE_VIEW.view_cars[1],
+        2 => &RACE_VIEW.local_car,
+        _ => panic!("a view car past the third"),
+    }
+}
+
 /// `race::load_car_a` / `_b` / `_c` (0x45422F, 0x454241, 0x454277): `g_currentCar` the
 /// view car's number, `drive::load_car`. (Its callers, `race::draw_race_scene` and
 /// `race::scroll_maps`, read no register it leaves.)
@@ -72,16 +80,14 @@ unsafe fn with_view_car(
     n: usize,
     then: impl FnOnce() -> Result<(), Refused>,
 ) -> Result<(), Refused> {
-    unsafe {
-        let current = &crate::race::work_store::RACE_WORK.current_car;
-        let was = current.get();
-        current.set(game_read::<u32>(VIEW_CARS[n]));
-        let result = then();
-        if result.is_err() {
-            current.set(was);
-        }
-        result
+    let current = &crate::race::work_store::RACE_WORK.current_car;
+    let was = current.get();
+    current.set(view_car(n).get());
+    let result = then();
+    if result.is_err() {
+        current.set(was);
     }
+    result
 }
 
 /// `race::store_car_a` / `_b` / `_c` (0x454253, 0x454265, 0x454289): `g_currentCar` the
@@ -114,7 +120,7 @@ pub unsafe fn race_keys() -> Result<(), Refused> {
     unsafe {
         crate::drive::choose_shown_cars::choose_shown_cars()?;
         let second = DEVICES.keys_now.get(VIEW_MODE_KEY) != 0;
-        let view = game_read::<u32>(VIEW_BLOCKS[usize::from(second)]);
+        let view = RACE_VIEW.view_blocks[usize::from(second)].bits();
         // Converted: `rc2k_core::race::keys::{first_key, split_flip, volume_key,
         // volume_step, flip_bit}`.
         use rc2k_core::race::keys::{
@@ -182,7 +188,7 @@ pub unsafe fn race_keys() -> Result<(), Refused> {
                 set_car_counter(view, counter);
             }
             Some(Key::Shared) => {
-                let counter = flip(game_read(VIEW_BLOCKS[0]), SHARED_BIT);
+                let counter = flip(RACE_VIEW.view_blocks[0].bits(), SHARED_BIT);
                 set_both_counters(counter);
             }
             None => {}
@@ -190,15 +196,6 @@ pub unsafe fn race_keys() -> Result<(), Refused> {
         Ok(())
     }
 }
-
-/// `race::tyre_change`'s variables (IDA addresses) after the copies `TyreChange::texture` /
-/// `device_texture`: their sources `dword_5D1444` / `dword_5D2444`; car 0's (block at
-/// 0x70F3EC) +0x268 "c1 tyrec" count `dword_70F654`, +0x26C the change's state
-/// `dword_70F658`, +0x298 the tyre bits `dword_70F684`, +0x88 the time `dword_70F474`, and
-/// +0x354 .. +0x360 `dword_70F740` .. `dword_70F74C` (one per bit 1 .. 4).
-pub const TYRE_VARIABLES: [usize; 7] = [
-    0x5D1444, 0x5D2444, 0x70F654, 0x70F658, 0x70F684, 0x70F474, 0x70F740,
-];
 
 /// `race::tyre_change` (0x444F7A), on the variables at `v` (`tyre_variables`' order; the
 /// last is the first of four dwords): `race::tyre_change_gauge` for player 0 started, then
@@ -233,13 +230,27 @@ pub unsafe fn tyre_change_at(v: &[u32]) -> Result<(), Refused> {
     Ok(())
 }
 
+/// `race::tyre_change`'s variables' addresses after the copies `TyreChange::texture` /
+/// `device_texture`: their sources `dword_5D1444` / `dword_5D2444`; car 0's (block at
+/// 0x70F3EC) +0x268 "c1 tyrec" count `dword_70F654`, +0x26C the change's state
+/// `dword_70F658`, +0x298 the tyre bits `dword_70F684`, +0x88 the time `dword_70F474`, and
+/// +0x354 .. +0x360 `dword_70F740` .. `dword_70F74C` (one per bit 1 .. 4).
 pub fn tyre_variables() -> Vec<u32> {
+    use crate::race::blocks_store::CAR_BLOCKS;
     use crate::race::tyre_store::TYRE_CHANGE as TYRE;
+    use crate::scene::kind_texture_store::KIND_TEXTURES;
+    let car = &CAR_BLOCKS.cars[0];
     [
-        TYRE.texture.addr() as u32,
-        TYRE.device_texture.addr() as u32,
+        TYRE.texture.addr(),
+        TYRE.device_texture.addr(),
+        KIND_TEXTURES.kind_first_textures[599].addr(), // dword_5D1444
+        KIND_TEXTURES.kind_first_slots[599].addr(),    // dword_5D2444
+        car.stopped_steps.addr(),                      // dword_70F654
+        car.tyre_change_state.addr(),                  // dword_70F658
+        car.parts_present.addr(),                      // dword_70F684
+        car.stage_time.addr(),                         // dword_70F474
+        car.part_hit_damage[0].addr(),                 // dword_70F740
     ]
-    .into_iter()
-    .chain(TYRE_VARIABLES.iter().map(|&a| game_addr(rva(a)) as u32))
-    .collect()
+    .map(|a| a as u32)
+    .to_vec()
 }

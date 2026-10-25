@@ -9,14 +9,11 @@
 //! caller, the front end's 3D set-up.
 
 use crate::errors::Refused;
-use crate::framework::{game_addr, game_ptr, game_read, game_write, rva};
 use crate::memory::allocate::allocate;
-use crate::scene::allocate_object_memory::TAKEN_RVA;
-use crate::scene::project_point::RECORDS_RVA;
+use crate::race::course_lists_store::COURSE_LISTS;
 
 // ---- game data ----
 
-const LIST_RVA: usize = rva(0x5C6E50); // stru_5C6E50
 const BYTES: u32 = 0x4_0000;
 
 // ---- Rust version ----
@@ -25,17 +22,21 @@ const BYTES: u32 = 0x4_0000;
 pub unsafe fn allocate_point_records(
     take: &mut dyn FnMut(u32, u32) -> Result<u32, Refused>,
 ) -> Result<(), Refused> {
-    unsafe {
-        let list = game_addr(LIST_RVA) as u32;
-        game_write(TAKEN_RVA, game_read::<u32>(TAKEN_RVA).wrapping_add(BYTES));
+    {
+        let list = COURSE_LISTS.point_records_list[0].addr() as u32;
+        COURSE_LISTS
+            .course_bytes_total
+            .set_bits(COURSE_LISTS.course_bytes_total.bits().wrapping_add(BYTES));
         let block = take(BYTES, list)?;
-        game_write(RECORDS_RVA, block);
+        COURSE_LISTS.point_records.set_bits(block);
         Ok(())
     }
 }
 
 pub unsafe fn allocate_point_records_in_game() -> Result<(), Refused> {
     unsafe {
-        allocate_point_records(&mut |bytes, _| Ok(allocate(game_ptr(LIST_RVA), bytes)? as u32))
+        allocate_point_records(&mut |bytes, _| {
+            Ok(allocate(COURSE_LISTS.point_records_list[0].addr() as *mut _, bytes)? as u32)
+        })
     }
 }

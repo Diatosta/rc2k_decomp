@@ -12,18 +12,14 @@
 //!
 //! Callers: `sub_43B635` (0x43B831, 0x43B8AA), every physics step.
 
-use crate::framework::{game_read, rva};
 use crate::math::x87;
 use crate::math::x87_run::{lever_share, one_less};
 use crate::physics::car_store::CAR;
 use crate::physics::lever_push::lever_push;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::numbers_store::NUMBERS;
+use crate::race::switches_store::FRAME_SWITCHES;
 use std::cmp::Ordering;
-
-fn g(x: usize) -> u32 {
-    unsafe { game_read(rva(x)) }
-}
 
 /// `fld limit; fld share; fcompp` and its C0: share below limit, or unordered.
 fn below(share: u32, limit: u32) -> bool {
@@ -37,7 +33,7 @@ fn below(share: u32, limit: u32) -> bool {
 pub unsafe fn lever_pushes() {
     PHYSICS.lever_pushes[0].set(0);
     PHYSICS.lever_pushes[1].set(0);
-    if g(0x621884) != 1 || CAR.all_wheels_off.get() != 0 {
+    if FRAME_SWITCHES.levers_on.get() != 1 || CAR.all_wheels_off.get() != 0 {
         return;
     }
     PHYSICS.lever_push_vector[0].set(0);

@@ -38,7 +38,9 @@ use crate::framework::rva;
 use crate::math::x87;
 use crate::math::x87_run::{int_times_times_over_to_int, less_plus_less_product_80};
 use crate::physics::car_store::CAR;
+use crate::physics::contact_store::CONTACT_WORK;
 use crate::physics::ground::*;
+use crate::physics::ground_store::GROUND_WORK;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::course_store::COURSE;
 use crate::race::numbers_store::NUMBERS;
@@ -71,9 +73,10 @@ pub unsafe fn probe_ground_at(g: &Ground) -> Result<(), Refused> {
 unsafe fn probe_points(g: &Ground, n: u32) -> Result<(), Refused> {
     unsafe {
         let k65536 = NUMBERS.k65536.bits();
-        g.put(0x6D3B84, u32::MAX);
+        CONTACT_WORK.crossed_probe.set(u32::MAX);
         for b in 0..n {
-            let at = |base: u32| base + 4 * b;
+            let i = b as usize;
+            let work = &CONTACT_WORK;
             let z = CAR.probe_point_z[b as usize].bits();
             let y = CAR.probe_point_y[b as usize].bits();
             let y = if b < 4 {
@@ -93,37 +96,37 @@ unsafe fn probe_points(g: &Ground, n: u32) -> Result<(), Refused> {
             let x = extended(CAR.probe_point_x[b as usize].bits());
             let out = rotate_point(CAR.crash_matrix[0].addr() as u32, [x, y, extended(z)]);
             let (ox, oy, oz) = (rounded(out[0]), rounded(out[1]), rounded(out[2]));
-            g.put(0x6D3628, ox);
-            g.put(at(0x6D2214), ox);
-            g.put(at(0x6D2314), oy);
-            g.put(0x6D3630, oz);
-            g.put(at(0x6D2414), oz);
+            CONTACT_WORK.probe_turned_x_last.set_bits(ox);
+            work.probe_turned_x[i].set_bits(ox);
+            work.probe_turned_y[i].set_bits(oy);
+            CONTACT_WORK.probe_turned_z_last.set_bits(oz);
+            work.probe_turned_z[i].set_bits(oz);
             for (v, place, list) in [
-                (ox, &CAR.position[0], 0x6D1E14),
-                (oy, &CAR.position[1], 0x6D1F14),
-                (oz, &CAR.position[2], 0x6D2014),
+                (ox, &CAR.position[0], &work.probe_x[i]),
+                (oy, &CAR.position[1], &work.probe_y[i]),
+                (oz, &CAR.position[2], &work.probe_z[i]),
             ] {
                 let w = (x87::mul_to_int(v, k65536) as u32).wrapping_add(place.get());
-                g.put(at(list), w);
+                list.set(w);
             }
-            g.put(0x639824, g.get(at(0x6D1E14)));
-            g.put(0x63982C, g.get(at(0x6D2014)));
+            GROUND_WORK.ground_x.set(work.probe_x[i].get());
+            GROUND_WORK.ground_z.set(work.probe_z[i].get());
             COURSE
                 .ground_face_last
                 .set(CAR.probe_point_face[b as usize].get());
             g.put(0x620470, 0x80);
             ground_search_at(g)?;
-            g.put(at(0x6D2114), 0);
-            if g.get(0x639830) == 0 {
-                g.put(0x6D3B84, b);
-                g.put(at(0x6D2714), 0);
+            work.probe_ground_height[i].set(0);
+            if GROUND_WORK.ground_found.get() == 0 {
+                CONTACT_WORK.crossed_probe.set(b);
+                work.probe_found[i].set(0);
                 continue;
             }
-            g.put(at(0x6D2714), 1);
-            g.put(at(0x6D2114), g.get(0x639828));
-            let cell = ground::noise_cell(g.get(0x639824), g.get(0x63982C));
-            g.put(0x6D3060, cell.row);
-            g.put(0x6D3064, cell.row_offset);
+            work.probe_found[i].set(1);
+            work.probe_ground_height[i].set(GROUND_WORK.ground_height.get());
+            let cell = ground::noise_cell(GROUND_WORK.ground_x.get(), GROUND_WORK.ground_z.get());
+            CONTACT_WORK.ground_cell_row[0].set(cell.row);
+            CONTACT_WORK.ground_cell_row[1].set(cell.row_offset);
             let noise = |i: u32| {
                 u32::from(
                     (crate::framework::game_addr(rva(NOISE as usize) + i as usize) as *const u8)
@@ -131,13 +134,14 @@ unsafe fn probe_points(g: &Ground, n: u32) -> Result<(), Refused> {
                 )
             };
             let n = cell.corners.map(noise);
-            for (v, x) in [0x6D3044, 0x6D3048, 0x6D3050, 0x6D304C].into_iter().zip(n) {
-                g.put(v, x);
+            for (c, x) in [0, 1, 3, 2].into_iter().zip(n) {
+                work.ground_noise_corners[c].set(x);
             }
-            let (n58, n54, n5c, _) = ground::bump_noise(n, g.get(0x639824), g.get(0x63982C));
-            g.put(0x6D3058, n58);
-            g.put(0x6D3054, n54);
-            g.put(0x6D305C, n5c);
+            let (n58, n54, n5c, _) =
+                ground::bump_noise(n, GROUND_WORK.ground_x.get(), GROUND_WORK.ground_z.get());
+            CONTACT_WORK.ground_noise_mix[1].set(n58);
+            CONTACT_WORK.ground_noise_mix[0].set(n54);
+            CONTACT_WORK.ground_noise_mix[2].set(n5c);
             DRAW.scratch.set(n5c);
             let bump = int_times_times_over_to_int(
                 n5c as i32,
@@ -146,30 +150,30 @@ unsafe fn probe_points(g: &Ground, n: u32) -> Result<(), Refused> {
                 NUMBERS.hundred.bits(),
             );
             DRAW.scratch.set(bump as u32);
-            g.put(at(0x6D2114), g.get(at(0x6D2114)).wrapping_add(bump as u32));
-            g.put(at(0x6D2914), COURSE.ground_half.get());
-            g.put(at(0x6D2A14), g.get(0x639810));
-            g.put(at(0x6D2B14), g.get(0x639814));
-            let d = g.get(at(0x6D1F14)).wrapping_sub(g.get(at(0x6D2114)));
-            g.put(at(0x6D2514), d);
+            work.probe_ground_height[i]
+                .set(work.probe_ground_height[i].get().wrapping_add(bump as u32));
+            work.probe_face_flip[i].set(COURSE.ground_half.get());
+            work.probe_share_u[i].set(GROUND_WORK.plane_f.bits());
+            work.probe_share_v[i].set(GROUND_WORK.plane_g.bits());
+            let d = work.probe_y[i]
+                .get()
+                .wrapping_sub(work.probe_ground_height[i].get());
+            work.probe_height[i].set(d);
             if b < 4 {
                 DRAW.scratch.set(x87::loaded(CAR.crash_matrix[5].bits()));
                 if x87::compare_status(DRAW.scratch.get(), NUMBERS.zero.bits()) & 0x100 != 0 {
                     DRAW.scratch.set(x87::loaded(NUMBERS.zero.bits()));
                 }
-                g.put(at(0x6D2614), d);
-                g.put(
-                    at(0x6D2514),
-                    x87::int_times_to_int(d as i32, DRAW.scratch.get()) as u32,
-                );
+                work.wheel_height_raw[i].set(d);
+                work.probe_height[i]
+                    .set(x87::int_times_to_int(d as i32, DRAW.scratch.get()) as u32);
             }
             CAR.probe_point_face[b as usize].set(COURSE.ground_slot.get());
         }
-        for k in 0..4u32 {
-            let i = k as usize;
-            CAR.wheel_ground_x[i].set(g.get(0x6D1E14 + 4 * k));
-            CAR.wheel_ground_height[i].set(g.get(0x6D2114 + 4 * k));
-            CAR.wheel_ground_z[i].set(g.get(0x6D2014 + 4 * k));
+        for i in 0..4 {
+            CAR.wheel_ground_x[i].set(CONTACT_WORK.probe_x[i].get());
+            CAR.wheel_ground_height[i].set(CONTACT_WORK.probe_ground_height[i].get());
+            CAR.wheel_ground_z[i].set(CONTACT_WORK.probe_z[i].get());
         }
         Ok(())
     }

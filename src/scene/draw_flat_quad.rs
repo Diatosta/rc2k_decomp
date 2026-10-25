@@ -18,19 +18,17 @@
 //! their Rust versions; a refusal of theirs comes after the writes.
 
 use crate::errors::Refused;
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_write, rva};
 use crate::math::x87;
 use crate::race::numbers_store::NUMBERS;
 use crate::race::vars_store::RACE_VARS;
+use crate::race::view_store::RACE_VIEW;
 use crate::scene::draw_store::DRAW;
+use crate::session::Dword;
 
-const VERTEX_RVA: usize = rva(0x623E40); // dword_623E40: four of 0x20
 const RECORDS_RVA: usize = rva(0x975510); // g_polygonEntries: records of 0x44
-const UV_RVA: usize = rva(0x623DF0); // dword_623DF0 .. dword_623E0C
-const CORNERS_RVA: usize = rva(0x623E10); // left, right; dword_623E20 top, bottom
 const POOL_RVA: usize = rva(0x977F10); // g_polygonRecordPool
 const LIST_RVA: usize = rva(0x977710); // g_polygonList
-const MODE_RVA: usize = rva(0x63DAB4); // g_polygonMode
 const RECORD: usize = 0x44;
 
 fn set(r: usize, v: u32) {
@@ -44,23 +42,23 @@ pub unsafe fn draw_flat_quad() -> Result<(), Refused> {
         DRAW.polygon_drawn.set_bits(0);
         for n in 0..4 {
             let rec = RECORDS_RVA + RECORD * n;
-            set(rec + 4, game_addr(VERTEX_RVA + 0x20 * n) as u32);
-            set(rec + 8, game_read(UV_RVA + 4 * n));
-            set(rec + 0xC, game_read(UV_RVA + 0x10 + 4 * n));
+            set(rec + 4, RACE_VARS.quad_vertices[8 * n].addr() as u32);
+            set(rec + 8, RACE_VARS.quad_uv[n].bits());
+            set(rec + 0xC, RACE_VARS.quad_uv[4 + n].bits());
         }
-        let float = |r: usize| {
-            let v = x87::from_int(game_read(r));
+        let float = |cell: &Dword| {
+            let v = x87::from_int(cell.bits() as i32);
             DRAW.scratch.set_bits(v);
             v
         };
         let [left, right, top, bottom] = [
-            CORNERS_RVA,
-            CORNERS_RVA + 4,
-            CORNERS_RVA + 0x10,
-            CORNERS_RVA + 0x14,
+            &RACE_VARS.quad_corners[0],
+            &RACE_VARS.quad_corners[1],
+            &RACE_VARS.quad_corners[4],
+            &RACE_VARS.quad_corners[5],
         ]
         .map(float);
-        let v = |n: usize, o: usize, x: u32| set(VERTEX_RVA + 0x20 * n + o, x);
+        let v = |n: usize, o: usize, x: u32| RACE_VARS.quad_vertices[8 * n + o / 4].set_bits(x);
         for (n, x, y) in [
             (0, left, top),
             (1, right, top),
@@ -93,7 +91,7 @@ pub unsafe fn draw_flat_quad() -> Result<(), Refused> {
         crate::scene::scale_texture_coordinates::scale_texture_coordinates()?;
         crate::scene::clip_polygon_to_screen::clip_polygon_to_screen()?;
         if DRAW.polygon_vertex_count.bits() >= 3 {
-            set(MODE_RVA, 6);
+            RACE_VIEW.polygon_mode.set_bits(6);
             DRAW.polygon_sides[0].set_bits(1);
             DRAW.polygon_sides[1].set_bits(0);
             crate::scene::depth_buffer_on::depth_buffer(false);

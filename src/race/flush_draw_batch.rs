@@ -9,10 +9,8 @@
 //!      `race::draw_view_overlays`) read
 
 use crate::errors::Refused;
-use crate::framework::{game_addr, game_read, game_write, rva};
-
-const INDEX_COUNT_RVA: usize = rva(0x6D3CEC); // dword_6D3CEC
-const VERTEX_COUNT_RVA: usize = rva(0x6D3CF0); // dword_6D3CF0
+use crate::framework::{game_addr, rva};
+use crate::physics::contact_store::CONTACT_WORK;
 const VERTICES_RVA: usize = rva(0x6D3CF4); // unk_6D3CF4
 const INDICES_RVA: usize = rva(0x6D7CF4); // unk_6D7CF4
 const DRAWTRI_RVA: &std::ffi::CStr = c"drawtri"; // "drawtri"
@@ -20,11 +18,11 @@ const DRAWTRI_RVA: &std::ffi::CStr = c"drawtri"; // "drawtri"
 /// The Rust version (see the header).
 pub unsafe fn flush_draw_batch() -> Result<(), Refused> {
     unsafe {
-        let indices: u32 = game_read(INDEX_COUNT_RVA);
+        let indices: u32 = CONTACT_WORK.batch_index_count.bits();
         if indices != 0 {
             let result = crate::platform_3d::draw_indexed(
                 game_addr(VERTICES_RVA) as u32,
-                game_read(VERTEX_COUNT_RVA),
+                CONTACT_WORK.batch_vertex_count.bits(),
                 game_addr(INDICES_RVA) as u32,
                 indices,
             );
@@ -37,8 +35,8 @@ pub unsafe fn flush_draw_batch() -> Result<(), Refused> {
                 crate::logfile::log_hex8::log_hex8(result, false, 1);
             }
         }
-        game_write(INDEX_COUNT_RVA, 0u32);
-        game_write(VERTEX_COUNT_RVA, 0u32);
+        CONTACT_WORK.batch_index_count.set_bits(0u32);
+        CONTACT_WORK.batch_vertex_count.set_bits(0u32);
     }
     Ok(())
 }

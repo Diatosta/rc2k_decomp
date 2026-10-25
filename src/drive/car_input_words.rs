@@ -12,8 +12,8 @@
 //! (before anything) a current car past 7, and what `device_axes` refuses.
 
 use crate::errors::Refused;
-use crate::physics::flow::g;
 use crate::physics::tables_store::PHYSICS;
+use crate::race::frame_store::FRAME_WORK;
 use crate::race::work_store::RACE_WORK;
 
 /// The Rust version.
@@ -22,7 +22,7 @@ pub unsafe fn car_input_words() -> Result<(), Refused> {
     use rc2k_core::drive::inputs::{NO_DEVICE, ReplayWords, check_car, device_words, replay_words};
     let car = RACE_WORK.current_car.get();
     check_car(car)?;
-    let device = g(0x641680 + 4 * car as usize);
+    let device = FRAME_WORK.listed_car_sounds[car as usize].get();
     let readings = if device != NO_DEVICE {
         Some(unsafe { crate::drive::device_axes::device_axes(device) }?)
     } else {

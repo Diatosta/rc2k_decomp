@@ -15,21 +15,14 @@
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, rva};
 use crate::math::x87_run::{ext_div2, int_80};
 use crate::physics::car_store::CAR;
 use crate::race::frame_draw::sample_noise;
 use crate::race::numbers_store::NUMBERS;
+use crate::race::prefs_store::STAGE_PREFS;
 use crate::scene::draw_store::DRAW;
 use rc2k_core::physics::ground::{noise_level, rough_floor};
-
-fn g(x: usize) -> u32 {
-    unsafe { game_read(rva(x)) }
-}
-
-fn p(x: usize, v: u32) {
-    unsafe { game_write(rva(x), v) }
-}
 
 /// lo + (hi - lo) x sample >> 16, held to 0 ..= 0xFF.
 fn scaled(sample: u32, lo: u32, hi: u32) -> u32 {
@@ -46,22 +39,27 @@ unsafe fn sample(x: usize) -> u32 {
 // stays x87).
 pub unsafe fn surface_noise() {
     unsafe {
-        let first = scaled(sample(0xA2AB34), g(0x609344), g(0x609348));
+        let first = scaled(
+            sample(0xA2AB34),
+            STAGE_PREFS.blit_cleared[0].get(),
+            STAGE_PREFS.blit_cleared[1].get(),
+        );
         CAR.surface_noise_a.set(first);
         CAR.surface_noise_b.set(first);
-        let second = scaled(sample(0xA2AB04), g(0x60AD18), g(0x60AD1C));
-        CAR.surface_noise_second.set(second);
-        let floor = rough_floor(second, g(0x60AD10));
-        DRAW.scratch.set(floor);
-        p(
-            0x71A258,
-            ext_div2(
-                int_80(floor as i32, false),
-                NUMBERS.k256.bits(),
-                0x3F80_0000,
-            ),
+        let second = scaled(
+            sample(0xA2AB04),
+            STAGE_PREFS.surface_scale[0].get(),
+            STAGE_PREFS.surface_scale[1].get(),
         );
-        if g(0x60934C) != 0 {
+        CAR.surface_noise_second.set(second);
+        let floor = rough_floor(second, STAGE_PREFS.surface_floor.get());
+        DRAW.scratch.set(floor);
+        CAR.surface_blend.set_bits(ext_div2(
+            int_80(floor as i32, false),
+            NUMBERS.k256.bits(),
+            0x3F80_0000,
+        ));
+        if STAGE_PREFS.noise_pick.get() != 0 {
             CAR.surface_noise_a.set(0);
         } else {
             CAR.surface_noise_b.set(0);

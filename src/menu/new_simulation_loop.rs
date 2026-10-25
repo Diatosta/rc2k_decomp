@@ -18,9 +18,9 @@ use crate::menu::flow_store::SCREEN_FLOW;
 use crate::menu::loop_store::LOOP_FLAGS;
 use crate::menu::menus_store::MENUS;
 use crate::menu::screen_items_store::{SCREEN_ITEMS, slot};
-use crate::menu::screen_loop::raw;
 use crate::menu::screen_loop::{Callee, Carried, List, Screen, Step, carousel, screen_entry};
 use crate::menu::state_store::MENU_STATE;
+use crate::scene::draw_store::DRAW;
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
@@ -80,9 +80,9 @@ pub const SCREEN: Screen = Screen {
         Step::CallOrFatal(Callee::LoadBackground, 0x80712345),
     ],
     after_first_frame: &[
-        Step::Write(|| raw(rva(0x623FB0)), 0x7),
-        Step::Write(|| raw(rva(0x623FB4)), 0xA),
-        Step::Write(|| raw(rva(0x624080)), 0x100),
+        Step::Write(|| &DRAW.view_offset[0], 0x7),
+        Step::Write(|| &DRAW.view_offset[1], 0xA),
+        Step::Write(|| &DRAW.view_zoom, 0x100),
         Step::Call(Callee::PrepareScene),
     ],
     confirm: None,

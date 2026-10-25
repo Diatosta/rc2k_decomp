@@ -9,15 +9,13 @@
 //!
 //! Caller: `sub_43A35A` (0x43A486).
 
-use crate::framework::{game_read, rva};
 use crate::math::x87;
 use crate::math::x87_run::{add3, compare_full};
 use crate::physics::car_store::CAR;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::numbers_store::NUMBERS;
+use crate::race::tables_store::RACE_TABLES;
 use crate::scene::draw_store::DRAW;
-
-const STEP_RVA: usize = rva(0x604EC0); // flt_604EC0
 
 unsafe fn get(v: &[u32], k: usize) -> u32 {
     unsafe { (v[k] as *const u32).read_unaligned() }
@@ -38,7 +36,11 @@ pub unsafe fn blend_at(v: &[u32]) -> u32 {
             n = 100;
         }
         put(v, 2, n);
-        put(v, 3, x87::int_times(n as i32, game_read(STEP_RVA)));
+        put(
+            v,
+            3,
+            x87::int_times(n as i32, RACE_TABLES.start_blend_step.bits()),
+        );
         put(v, 6, add3(get(v, 4), get(v, 3), get(v, 5)));
         let (low, high) = (NUMBERS.zero.bits(), NUMBERS.one.bits());
         if compare_full(get(v, 6), low) & 0x100 != 0 {

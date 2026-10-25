@@ -14,8 +14,7 @@ use crate::framework::rva;
 use crate::marks::store::{Slot, game_read, game_write};
 use crate::math::x87;
 use crate::scene::draw_store::DRAW;
-
-const TEXTURE_RVA: usize = rva(0x5D1E10); // dword_5D1E10
+use crate::scene::kind_texture_store::KIND_TEXTURES;
 const VERTICES_RVA: usize = rva(0x9605A0); // g_polygonVertices
 const PLACES_RVA: Slot = Slot::at(0x8BC212); // dword_8BC212 .. dword_8BC21E
 const INVERSE_RVA: Slot = Slot::at(0x89CEEA); // flt_89CEEA
@@ -39,7 +38,7 @@ pub unsafe fn setup_with(places: [u32; 4]) {
     use crate::scene::set_render_state::set_render_state;
     unsafe {
         crate::scene::depth_buffer_on::depth_buffer(true);
-        crate::scene::set_texture::set_texture(game_read(TEXTURE_RVA));
+        crate::scene::set_texture::set_texture(KIND_TEXTURES.kind_first_slots[202].bits());
         for (value, state) in STATES {
             set_render_state(value, state);
         }

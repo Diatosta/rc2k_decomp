@@ -12,6 +12,7 @@ use crate::race::course_store::COURSE;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
 use crate::race::work_store::RACE_WORK;
+use crate::scene::kind_texture_store::KIND_TEXTURES;
 
 fn k(a: u32) -> u32 {
     unsafe { game_read(rva(a as usize)) }
@@ -26,7 +27,7 @@ pub unsafe fn map_tiles() -> Result<(), Refused> {
     let one_view = crate::net::store::NET.session.get() != 0;
     // The car is read only for both views.
     let slot = picture_slot(
-        k(0x5D0E00),
+        KIND_TEXTURES.kind_first_textures[198].get(),
         one_view,
         if one_view {
             0

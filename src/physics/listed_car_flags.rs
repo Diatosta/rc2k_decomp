@@ -11,10 +11,11 @@
 //! anything) a current car past 7 (the table's size not worked out).
 
 use crate::errors::Refused;
-use crate::framework::game_addr;
 use crate::physics::cells::{get, put};
+use crate::race::frame_store::FRAME_WORK;
 use rc2k_core::physics::listed_cars::listed_entry;
 
+/// Still named by `count_down_start` and `start_go_notice`.
 pub const TABLE: usize = 0x641680; // dword_641680
 
 /// The Rust version: the current car at `current`, the table at `table`, the flag at
@@ -32,7 +33,12 @@ pub unsafe fn set_flag_at(current: u32, table: u32, flag: u32) -> Result<(), Ref
 
 /// On the game's variables.
 pub unsafe fn set_flag(flag: &crate::session::Dword) -> Result<(), Refused> {
-    let a = |x: usize| game_addr(crate::framework::rva(x)) as u32;
     let current = crate::race::work_store::RACE_WORK.current_car.addr() as u32;
-    unsafe { set_flag_at(current, a(TABLE), flag.addr() as u32) }
+    unsafe {
+        set_flag_at(
+            current,
+            FRAME_WORK.listed_car_sounds[0].addr() as u32,
+            flag.addr() as u32,
+        )
+    }
 }

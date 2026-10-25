@@ -18,21 +18,20 @@ use crate::errors::{BadInput, Refused};
 use crate::framework::rva;
 use crate::marks::store::{Slot, game_addr, game_read, game_write};
 use crate::math::x87;
+use crate::race::course_lists_store::COURSE_LISTS;
+use crate::race::matrices_store::MATRICES;
+use crate::scene::draw_switches_store::DRAW_SWITCHES;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
-
-const VIEW_RVA: usize = rva(0x5EA3CC); // flt_5EA3CC
 /// (the point, where it goes turned).
 const POINTS: [(Slot, Slot); 3] = [
     (Slot::at(0x91FF4A), Slot::at(0x8F39A9)),
     (Slot::at(0x91FF56), Slot::at(0x8F39B5)),
     (Slot::at(0x91FF62), Slot::at(0x8F39C1)),
 ];
-const COURSE_INFO_RVA: usize = rva(0x5C6FA0); // g_courseInfo
 const CORNERS_FROM: u32 = 0x1C_2000;
 const CORNERS_RVA: Slot = Slot::at(0x8EB971); // g_marksCorners
 const CORNERS_LEN: u32 = 0x8000;
-const SOURCE_RVA: usize = rva(0x621A80); // dword_621A80
 const LAST_SOURCE_RVA: Slot = Slot::at(0x91FF6E); // dword_91FF6E
 const STEP_RVA: Slot = Slot::at(0x8F3979); // dword_8F3979: of 8
 const SOUND_RVA: [usize; 2] = [rva(0x71C8E2), rva(0x71C8E6)];
@@ -52,11 +51,11 @@ fn rdtsc() -> u32 {
 pub unsafe fn draw_frame() -> Result<(), Refused> {
     use crate::marks::{begin_quads, cars_particles, view_heading, view_motion};
     unsafe {
-        let info: u32 = game_read(COURSE_INFO_RVA);
+        let info: u32 = COURSE_LISTS.course_info.bits();
         if info == 0 {
             return Err(BadInput("no course info (g_courseInfo 0)").into());
         }
-        let m = game_addr(VIEW_RVA) as u32;
+        let m = MATRICES.view_place[0].addr() as u32;
         for (from, to) in POINTS {
             let p: [u32; 3] = game_read(from);
             let turned = rotate_point(m, [extended(p[2]), extended(p[1]), extended(p[0])]);
@@ -69,7 +68,7 @@ pub unsafe fn draw_frame() -> Result<(), Refused> {
             game_addr(CORNERS_RVA) as *mut u8,
             CORNERS_LEN as usize,
         );
-        let source: u32 = game_read(SOURCE_RVA);
+        let source: u32 = DRAW_SWITCHES.marks_source.bits();
         if source != game_read::<u32>(LAST_SOURCE_RVA) {
             game_write(STEP_RVA, game_read::<u32>(STEP_RVA).wrapping_add(1) & 7);
         }

@@ -13,9 +13,8 @@
 //! Out: ebx the band; the rest kept; no flags read (the callers compare ebx next)
 
 use crate::math::x87;
+use crate::race::sound_spots_store::RACE_SOUND_SPOTS;
 use rc2k_core::physics::sound_bands::sound_band;
-
-pub const SCRATCH: usize = 0x6D1AEC; // dword_6D1AEC
 
 /// One twin: (address, value, factor, step).
 pub type Twin = (usize, usize, usize, u32);
@@ -44,7 +43,14 @@ pub unsafe fn band_at(value: u32, factor: u32, scratch: u32, step: u32) -> u32 {
 /// The band on the game's variables (the exact x87 version).
 pub unsafe fn band_value(twin: Twin) -> u32 {
     let g = |a: usize| crate::framework::game_addr(crate::framework::rva(a)) as u32;
-    unsafe { band_at(g(twin.1), g(twin.2), g(SCRATCH), twin.3) }
+    unsafe {
+        band_at(
+            g(twin.1),
+            g(twin.2),
+            RACE_SOUND_SPOTS.band_scratch.addr() as u32,
+            twin.3,
+        )
+    }
 }
 
 /// The converted version (`rc2k_core::physics::sound_bands`, plain floats) on the
@@ -61,5 +67,12 @@ pub unsafe fn band_at_plain(value: u32, factor: u32, scratch: u32, step: u32) ->
 /// The converted band on the game's variables.
 pub unsafe fn band_value_plain(twin: Twin) -> u32 {
     let g = |a: usize| crate::framework::game_addr(crate::framework::rva(a)) as u32;
-    unsafe { band_at_plain(g(twin.1), g(twin.2), g(SCRATCH), twin.3) }
+    unsafe {
+        band_at_plain(
+            g(twin.1),
+            g(twin.2),
+            RACE_SOUND_SPOTS.band_scratch.addr() as u32,
+            twin.3,
+        )
+    }
 }

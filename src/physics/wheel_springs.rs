@@ -22,22 +22,16 @@
 //!
 //! Caller: `sub_43B635` (0x43B813), every physics step.
 
-use crate::framework::{game_read, rva};
 use crate::math::x87;
 use crate::math::x87_run::{ext_div2, int_80, neg_mul2, neg_rounded, sub_mul, wheel_int};
 use crate::physics::car_store::CAR;
+use crate::physics::contact_store::CONTACT_WORK;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::numbers_store::NUMBERS;
 use crate::scene::draw_store::DRAW;
 use crate::scene::matrix3::extended;
 use std::cmp::Ordering;
-
-fn g(x: usize) -> u32 {
-    unsafe { game_read(rva(x)) }
-}
-
-const HEIGHTS: usize = 0x6D2514; // the wheels' heights (ints)
 
 /// `fld b; fld x; fcompp` (or `fld x; fcomp b`), C0: x below b, or unordered.
 fn below(x: u32, b: u32) -> bool {
@@ -56,7 +50,7 @@ pub unsafe fn wheel_springs() {
         let old = x87::loaded(q.bits());
         DRAW.work_dword.set(old);
         c.wheel_squeeze_last[k].set_bits(old);
-        let eax = g(HEIGHTS + 4 * k).wrapping_neg();
+        let eax = CONTACT_WORK.probe_height[k].get().wrapping_neg();
         DRAW.scratch.set(eax);
         q.set_bits(ext_div2(
             int_80(eax as i32, false),

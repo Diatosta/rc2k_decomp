@@ -16,25 +16,21 @@
 //! caller, `sub_45045D`. Refuses a face's number past the table and a face that is not there.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, rva};
+use crate::physics::ground_store::GROUND_WORK;
+use crate::race::sound_spots_store::RACE_SOUND_SPOTS;
 use crate::race::vars_store::RACE_VARS;
 use crate::scene::draw_store::DRAW;
+use crate::scene::light_work_store::LIGHT_WORK;
 use crate::scene::object_store::OBJECT_WORK;
 use crate::scene::polygon::dword;
 
 // ---- game data ----
 
-pub const LISTED_RVA: usize = rva(0x62DB58); // dword_62DB58
 pub const LIST_RVA: usize = rva(0x62DB5C); // dword_62DB5C
 const LIST_ENTRY_LEN: usize = 0x10;
 const FACES_RVA: usize = rva(0x9A3730); // dword_9A3730
 const FACES: u32 = 0xC000;
-const SEE_THROUGH_RVA: usize = rva(0x639970); // g_objectSeeThrough
-const TEXTURE_A_RVA: usize = rva(0x6240BC); // dword_6240BC
-const FIRST_TEXTURE_RVA: usize = rva(0x639954); // dword_639954
-const FACE_KIND_RVA: usize = rva(0x6D18CC); // g_faceKind
-const FACE_UNLIT_RVA: usize = rva(0x6D18D0); // dword_6D18D0
-const COLOUR_RVA: usize = rva(0x6240CC); // g_polygonColour
 
 // ---- Rust version ----
 
@@ -42,7 +38,7 @@ pub unsafe fn draw_object_faces(
     draw: &mut dyn FnMut(usize) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
     unsafe {
-        let listed: u32 = game_read(LISTED_RVA);
+        let listed: u32 = LIGHT_WORK.listed_face_count.bits();
         if listed == 0 {
             return Ok(());
         }
@@ -62,24 +58,24 @@ pub unsafe fn draw_object_faces(
             faces.push((entry, number, face as usize));
         }
         for &(entry, _, face) in &faces {
-            game_write(SEE_THROUGH_RVA, dword(entry + 0xC));
+            GROUND_WORK.object_see_through.set_bits(dword(entry + 0xC));
             RACE_VARS.face_number.set_bits(dword(entry));
             let texture = ((face + 4) as *const u16).read_unaligned() as u32;
-            game_write(
-                TEXTURE_A_RVA,
-                texture.wrapping_add(game_read(FIRST_TEXTURE_RVA)) | 0x8000_0000,
+            DRAW.polygon_textures[0].set_bits(
+                texture.wrapping_add(GROUND_WORK.object_texture_set.bits()) | 0x8000_0000,
             );
-            game_write(FACE_KIND_RVA, ((face + 6) as *const u8).read() as u32);
-            game_write(FACE_UNLIT_RVA, ((face + 0xB) as *const u8).read() as u32);
+            RACE_SOUND_SPOTS
+                .face_kind
+                .set_bits(((face + 6) as *const u8).read() as u32);
+            RACE_SOUND_SPOTS
+                .face_unlit
+                .set_bits(((face + 0xB) as *const u8).read() as u32);
             let shade = ((face + 0xA) as *const u8).read() as u32;
-            game_write(
-                COLOUR_RVA,
-                if shade == 0 {
-                    0x00FF_FFFF
-                } else {
-                    0x0001_0101 * shade
-                },
-            );
+            DRAW.polygon_colour.set_bits(if shade == 0 {
+                0x00FF_FFFF
+            } else {
+                0x0001_0101 * shade
+            });
             draw(face)?;
             DRAW.polygon_colour.set_bits(0x00FF_FFFFu32);
         }

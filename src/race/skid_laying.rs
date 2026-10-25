@@ -102,7 +102,7 @@ pub unsafe fn add_skid_point(slot: u32) -> Result<(), Refused> {
 
 /// What `lay_skidmarks` reads: the cars' blocks.
 unsafe fn cars_refuse() -> Result<(), Refused> {
-    for n in 0..k(0x63DB90).min(8) {
+    for n in 0..RACE_VIEW.race_cars.get().min(8) {
         if RACE_WORK.car_block(n as usize) == 0 {
             return Err(BadInput("a race car without its block").into());
         }

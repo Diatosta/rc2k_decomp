@@ -7,7 +7,7 @@
 //!
 //! Caller: `drive::finish_run`.
 
-use crate::physics::flow::p;
+use crate::race::view_vars_store::VIEW_VARS;
 use crate::scene::x87_mem::{fld, fstp};
 
 /// `dword_606748`, `606730`, `606734` from the eased time, the share and the lines'
@@ -36,7 +36,7 @@ fn last_line(rc: usize) {
 /// The Rust version (the exact one, for `drive::finish_run`).
 pub fn finish_camera() {
     lines(crate::race::store::asm_base() as usize);
-    p(0x60672C, 0);
+    VIEW_VARS.finish_zero.set(0);
     last_line(crate::race::store::asm_base() as usize);
 }
 

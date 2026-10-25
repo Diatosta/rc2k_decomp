@@ -11,14 +11,10 @@
 //! Caller: `sub_45A893` (0x45A92E).
 
 use crate::errors::Refused;
-use crate::framework::rva;
 use crate::hud::overlay_pass::shown_layout;
+use crate::race::replay_file_store::REPLAY_FILE;
 use crate::race::view_store::RACE_VIEW;
 use crate::scene::draw_store::DRAW;
-use crate::store::game_read;
-
-const OFF_RVA: usize = rva(0x5BEC94); // dword_5BEC94
-const BLOCKS_RVA: usize = rva(0x63DBB0); // g_viewBlocks
 
 /// Whether the block at `block`'s strip is shown (see the header).
 unsafe fn flashing(block: u32) -> bool {
@@ -33,12 +29,12 @@ pub unsafe fn draw_view_strips() -> Result<(), Refused> {
     use crate::hud::draw_view_strip::{draw_view_strip, overlay_tail};
     use rc2k_core::hud::strips::{SECOND_VIEW, TEXTURES};
     unsafe {
-        if game_read::<u32>(OFF_RVA) == 0 {
+        if REPLAY_FILE.hold_car_revs.bits() == 0 {
             if flashing(RACE_VIEW.view_blocks[0].bits()) {
                 DRAW.polygon_textures[0].set_bits(TEXTURES[0]);
                 draw_view_strip(shown_layout())?;
             }
-            if shown_layout() != 0 && flashing(game_read(BLOCKS_RVA + 4)) {
+            if shown_layout() != 0 && flashing(RACE_VIEW.view_blocks[1].bits()) {
                 DRAW.polygon_textures[0].set_bits(TEXTURES[1]);
                 draw_view_strip(shown_layout().wrapping_add(SECOND_VIEW))?;
             }

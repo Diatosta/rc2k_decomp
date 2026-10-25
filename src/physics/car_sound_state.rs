@@ -19,20 +19,17 @@
 //! null view block when it is read.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, rva};
 use crate::math::x87_float::{X, st};
 use crate::math::x87_run::{ext_times, ints_diff_80};
 use crate::physics::car_store::CAR;
+use crate::race::matrices_store::MATRICES;
 use crate::race::numbers_store::NUMBERS;
 use crate::race::view_store::RACE_VIEW;
 use crate::race::work_store::RACE_WORK;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
 use crate::scene::x87_mem::{fld, fstp};
-
-fn g(x: impl crate::store::At) -> u32 {
-    unsafe { crate::store::at_read(x) }
-}
+use crate::session::Dword;
 
 unsafe fn get(a: u32) -> u32 {
     unsafe { (a as *const u32).read_unaligned() }
@@ -87,9 +84,13 @@ pub unsafe fn car_sound_state() -> Result<(), Refused> {
         so.flag_ac
             .set(CAR.front_wheels_off.get() & CAR.rear_wheels_off.get());
         so.view_flag.set(CAR.camera_mode_is_2_or_3.get() ^ 1);
-        let d = |c: usize, k: u32| ints_diff_80(g(c) as i32, get(l + k) as i32);
-        let place = [d(0x71A10C, 0x6A4), d(0x71A110, 0x6A8), d(0x71A114, 0x6AC)];
-        let m = game_addr(rva(0x5EA24C)) as u32;
+        let d = |c: &Dword, k: u32| ints_diff_80(c.get() as i32, get(l + k) as i32);
+        let place = [
+            d(&CAR.position[0], 0x6A4),
+            d(&CAR.position[1], 0x6A8),
+            d(&CAR.position[2], 0x6AC),
+        ];
+        let m = MATRICES.view_turn_matrix[0].addr() as u32;
         let out = rotate_point(m, place);
         let k = NUMBERS.one_over_65536.bits();
         for (i, e) in out.iter().enumerate() {

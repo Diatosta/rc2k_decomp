@@ -5,7 +5,10 @@ use crate::framework::rva;
 use crate::gfx::screen_state::SCREEN_MODE;
 use crate::input::store::DEVICES;
 use crate::race::blocks_store::CAR_BLOCKS;
+use crate::race::kind_store::KIND_TABLES;
+use crate::race::replay_file_store::REPLAY_FILE;
 use crate::race::state_store::RACE_STATE;
+use crate::race::tables_store::RACE_TABLES;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
 use crate::store::{game_addr, game_read, game_write};
@@ -60,7 +63,6 @@ use crate::errors::{BadInput, Refused};
 pub fn release_stage_textures() {
     crate::platform_3d::release_textures();
 }
-pub const SEAL_RVA: usize = rva(0x5BECCC); // the dword after "RCIB"
 
 /// `race::seal_stage_time` (0x41F29D): the first block's time (+0x88, held to
 /// 0x22550FF unsigned; its +0xB0 if that is negative) `xor` `dword_4F66F9` and turned
@@ -74,7 +76,7 @@ pub unsafe fn seal_stage_time() {
             || CAR_BLOCKS.cars[0].stage_time.bits(),
             key,
         );
-        (game_addr(SEAL_RVA) as *mut u32).write_unaligned(sealed);
+        (REPLAY_FILE.index_seal.addr() as *mut u32).write_unaligned(sealed);
     }
 }
 const LEAGUE_A_RVA: usize = rva(0x60410C); // dword_60410C: 10 dwords
@@ -101,7 +103,6 @@ pub unsafe fn copy_league_table() {
 const CAR_RECORDS_LIMIT_RVA: usize = rva(0x5C7980); // dword_5C7980: per kind (0xB0 apart)
 const CAR_RECORDS_VALUE_RVA: usize = rva(0x5C7924); // a00RenaultMaxiM+0x18
 pub const START_VALUES_RVA: [usize; 2] = [rva(0x6D14CA), rva(0x6D14CE)]; // unaligned
-const KIND_FLAGS_RVA: usize = rva(0x5C5AC0); // dword_5C5AC0: 0x22
 
 /// A kind's value for `set_start_states`: the record of the kind (held to 0x21) its
 /// +0x18 when its limit (`dword_5C7980`) is 0x1B58 or less, else 0.
@@ -117,7 +118,7 @@ unsafe fn start_value(kind: u32) -> u32 {
 
 /// Whether a kind is one with its flag (`dword_5C5AC0`) set (below 0x22).
 unsafe fn flagged(kind: u32) -> bool {
-    kind < 0x22 && unsafe { game_read::<u32>(KIND_FLAGS_RVA + 4 * kind as usize) } != 0
+    kind < 0x22 && KIND_TABLES.kind_has_views[kind as usize].get() != 0 // dword_5C5AC0: 0x22
 }
 
 /// A block's +0x684 of 2 or 3 made 4.
@@ -149,13 +150,13 @@ pub unsafe fn set_start_states() -> Result<(), Refused> {
             return Err(BadInput("a chosen car past the eight").into());
         }
         let first_kind: u32 = if one {
-            RACE_VARS.car_kinds[chosen as usize].get()
+            RACE_VARS.race_car_kinds[chosen as usize].get()
         } else {
-            RACE_VARS.car_kinds[0].bits()
+            RACE_VARS.race_car_kinds[0].bits()
         };
         let v = start_value(first_kind);
         (game_addr(START_VALUES_RVA[0]) as *mut u32).write_unaligned(v);
-        let v = start_value(RACE_VARS.car_kinds[1].bits());
+        let v = start_value(RACE_VARS.race_car_kinds[1].bits());
         (game_addr(START_VALUES_RVA[1]) as *mut u32).write_unaligned(v);
         if one {
             let block: u32 = crate::race::work_store::RACE_WORK.car_block(chosen as usize);
@@ -186,9 +187,8 @@ pub unsafe fn set_start_states() -> Result<(), Refused> {
 pub unsafe fn store_results_by_mode() {
     // Converted: `rc2k_core::race::cars::margin`.
     use rc2k_core::race::cars::margin;
-    let put = |a: usize, v: u32| unsafe { game_write(rva(a), v) };
     let get = |a: usize| -> u32 { unsafe { game_read(rva(a)) } };
-    match get(0x62389C) {
+    match RACE_VARS.run_kind.bits() {
         2 => {
             RACE_STATE
                 .results
@@ -196,7 +196,7 @@ pub unsafe fn store_results_by_mode() {
                 .set(CAR_BLOCKS.cars[0].time_left.get());
             let v = CAR_BLOCKS.cars[0].mode2_place.get();
             RACE_STATE.results.figure_000.set(v);
-            put(0x6051BC, v);
+            RACE_TABLES.start_place.set_bits(v);
             RACE_STATE.results.results[0]
                 .time
                 .set(CAR_BLOCKS.cars[0].stage_time.get());

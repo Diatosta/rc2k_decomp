@@ -9,16 +9,14 @@
 //! Caller: `drive::tyre_screen`.
 
 use crate::errors::Refused;
-use crate::physics::flow::{a, p};
 use crate::race::tyre_store::TYRE_CHANGE as TYRE;
+use crate::race::viewer_screen_store::VIEWER_PANEL;
+use crate::session::Dword;
 use rc2k_core::drive::tyre_screen::fixed_parts;
 
-const UV: usize = 0x5C2A1C;
-const RECT: usize = 0x5C2A0C;
-
-fn set(at: usize, v: [u32; 4]) {
-    for (k, x) in v.iter().enumerate() {
-        p(at + 4 * k, *x);
+fn set(cells: &[Dword; 4], v: [u32; 4]) {
+    for (cell, x) in cells.iter().zip(v) {
+        cell.set(x);
     }
 }
 
@@ -28,9 +26,15 @@ pub unsafe fn tyre_screen_parts() -> Result<(), Refused> {
     let parts = std::array::from_fn(|k| TYRE.parts[k].get());
     let wheel = std::array::from_fn(|k| TYRE.wheel[k].get());
     for (uv, rect) in fixed_parts(parts, wheel, TYRE.player.get() != 0) {
-        set(UV, uv);
-        set(RECT, rect);
-        unsafe { crate::drive::tyre_quad::tyre_quad(a(UV), a(RECT), 0xFF_FFFF) }?;
+        set(&VIEWER_PANEL.texture_rect, uv); // dword_5C2A1C
+        set(&VIEWER_PANEL.screen_rect, rect); // dword_5C2A0C
+        unsafe {
+            crate::drive::tyre_quad::tyre_quad(
+                VIEWER_PANEL.texture_rect[0].addr() as u32,
+                VIEWER_PANEL.screen_rect[0].addr() as u32,
+                0xFF_FFFF,
+            )
+        }?;
     }
     Ok(())
 }

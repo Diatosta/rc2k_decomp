@@ -21,16 +21,17 @@ use crate::drive::race_parts::{
     input_update, players_all_out, race_frame, race_keys, restart_clock, tyre_change,
 };
 use crate::errors::Refused;
-use crate::physics::flow::{g, p};
+use crate::physics::flow::p;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
+use crate::race::viewer_state_store::REPLAY_VIEW;
 use crate::race::work_store::RACE_WORK;
-use crate::session::FLAGS;
+use crate::session::{Dword, FLAGS};
 
-fn view_bit(view: usize) -> bool {
-    let bits = unsafe { ((g(view) + 0x468) as *const u32).read_unaligned() };
+fn view_bit(view: &Dword) -> bool {
+    let bits = unsafe { ((view.get() + 0x468) as *const u32).read_unaligned() };
     bits & 0x40 != 0
 }
 
@@ -68,7 +69,7 @@ pub unsafe fn race_loop() -> Result<(), Refused> {
     for k in 0..0x20 {
         p(0x5CC1B0 + 4 * k, u32::MAX);
     }
-    p(0x5C2538, u32::MAX);
+    REPLAY_VIEW.play_end.set(u32::MAX);
     loop {
         restart_clock();
         PHYSICS
@@ -125,10 +126,10 @@ pub unsafe fn race_loop() -> Result<(), Refused> {
                 return Ok(());
             }
             if RACE_VARS.hold_count.get() == 0 {
-                if view_bit(0x63DBB0) {
+                if view_bit(&RACE_VIEW.view_blocks[0]) {
                     break true;
                 }
-                if RACE_VIEW.views.get() != 1 && view_bit(0x63DBB4) {
+                if RACE_VIEW.views.get() != 1 && view_bit(&RACE_VIEW.view_blocks[1]) {
                     break true;
                 }
             }

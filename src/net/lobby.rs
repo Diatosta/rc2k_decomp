@@ -27,7 +27,7 @@ use crate::net::store::NET;
 use crate::session::Dword;
 use crate::strings::text_buffer::TEXT_BUFFER;
 
-pub use crate::net::{a, g, p};
+pub use crate::net::a;
 
 // ---- game data (IDA addresses) ----
 

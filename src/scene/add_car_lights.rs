@@ -16,15 +16,13 @@
 //! than the eight blocks.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, rva};
+use crate::physics::ground_store::GROUND_WORK;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
 use crate::race::work_store::RACE_WORK;
 
 // ---- game data ----
 const BLOCKS: u32 = 8;
-pub const DRAWN_CAR_RVA: usize = rva(0x639968); // dword_639968
-const VIEW_CARS_RVA: usize = rva(0x63DBA8); // dword_63DBA8
 
 // ---- Rust version ----
 
@@ -48,11 +46,15 @@ impl rc2k_core::scene::lamps::CarLights for GameCars {
         RACE_VARS.run_kind.bits()
     }
     fn drawn(&self) -> u32 {
-        unsafe { game_read(DRAWN_CAR_RVA) }
+        GROUND_WORK.drawn_car_light.bits()
     }
     fn viewed(&self) -> u32 {
+        // The store holds two views; the original's index is not held to them.
         unsafe {
-            game_read(VIEW_CARS_RVA.wrapping_add((RACE_VIEW.drawn_view.bits() as usize) << 2))
+            ((RACE_VIEW.view_cars[0].addr())
+                .wrapping_add((RACE_VIEW.drawn_view.bits() as usize) << 2)
+                as *const u32)
+                .read_unaligned()
         }
     }
 }

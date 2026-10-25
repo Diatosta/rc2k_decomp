@@ -10,10 +10,8 @@
 //! Caller: `marks::run_frame` (0x4D160B). Refuses null settings, before anything.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::rva;
-use crate::marks::store::{Slot, game_read, game_write};
-
-const TEXTURE_RVA: usize = rva(0x5D1E34); // dword_5D1E34
+use crate::marks::store::{Slot, game_write};
+use crate::scene::kind_texture_store::KIND_TEXTURES;
 const TINT_RVA: Slot = Slot::at(0x939BA6); // dword_939BA6
 const CHOICE_RVA: Slot = Slot::at(0x93A1D6); // g_marksKind1Choice
 /// The render states set (value, state).
@@ -31,7 +29,7 @@ pub unsafe fn ring_frame() -> Result<(), Refused> {
         for (value, state) in STATES {
             set_render_state(value, state);
         }
-        crate::scene::set_texture::set_texture(game_read(TEXTURE_RVA));
+        crate::scene::set_texture::set_texture(KIND_TEXTURES.kind_first_slots[211].bits());
         crate::scene::depth_test_off::depth_test_off();
         let settings: u32 = crate::marks::setup::SETTINGS.pointer.get();
         game_write(

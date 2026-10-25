@@ -30,23 +30,23 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_ptr, game_read, rva};
+use crate::race::course_lists_store::COURSE_LISTS;
 use crate::race::course_store::COURSE;
+use crate::race::matrices_store::MATRICES;
+use crate::race::prefs_store::STAGE_PREFS;
+use crate::race::switches_store::FRAME_SWITCHES;
 use crate::race::vars_store::RACE_VARS;
 use crate::scene::draw_polygon::CHECKED_RVA;
 use crate::scene::draw_store::DRAW;
 use crate::scene::polygon::{dword, put};
-use crate::scene::project_point::{CENTRE_Y_RVA, FLAT_RVA, NEAR, RECORDS_RVA, rotate, to_screen};
+use crate::scene::project_point::{CENTRE_Y_RVA, NEAR, rotate, to_screen};
 use crate::scene::x87_mem::{fild, fistp, fld, fstp};
 
 // ---- game data ----
-
-const OBJECT_RVA: usize = rva(0x6214FC); // g_objectNumber
 const OBJECTS: u32 = 0x100;
 const FIRST_RVA: usize = rva(0x631F70); // dword_631F70
 const POINT_COUNT_RVA: usize = rva(0x632370); // dword_632370
 const NORMAL_COUNT_RVA: usize = rva(0x632770); // dword_632770
-const TABLE_RVA: usize = rva(0x5C6FA4); // dword_5C6FA4
-const MATRIX_RVA: usize = rva(0x5EA40C); // off_5EA40C
 
 // ---- Rust version ----
 
@@ -161,7 +161,7 @@ struct Object {
 
 unsafe fn object() -> Result<Object, BadInput> {
     unsafe {
-        let number: u32 = game_read(OBJECT_RVA);
+        let number: u32 = FRAME_SWITCHES.object_number.bits();
         if number >= OBJECTS {
             return Err(BadInput("an object's number past the tables"));
         }
@@ -170,9 +170,9 @@ unsafe fn object() -> Result<Object, BadInput> {
             first: game_read(FIRST_RVA + at),
             points: game_read(POINT_COUNT_RVA + at),
             normals: game_read(NORMAL_COUNT_RVA + at),
-            table: game_read(TABLE_RVA),
-            records: game_read(RECORDS_RVA),
-            matrix: game_read(MATRIX_RVA),
+            table: COURSE_LISTS.object_points.bits(),
+            records: COURSE_LISTS.point_records.bits(),
+            matrix: MATRICES.object_matrix_ptr.bits(),
         };
         if object.points <= 0 && object.normals > 0 {
             return Err(BadInput("an object of normals and no points"));
@@ -220,7 +220,7 @@ pub unsafe fn place_object_points() -> Result<(), Refused> {
                     game_read(CENTRE_Y_RVA),
                     COURSE.flat_depth.bits(),
                 ];
-                let flat = game_read::<u32>(FLAT_RVA) != 0;
+                let flat = STAGE_PREFS.flat_depth.bits() != 0;
                 to_screen(record as *mut u32, &v, flat, game_ptr(CHECKED_RVA));
             }
             from = from.wrapping_add(12);

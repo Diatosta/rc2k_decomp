@@ -11,18 +11,19 @@
 //! `dword_75BF70`'s four, before anything.
 
 use crate::errors::Refused;
-use crate::framework::rva;
 use crate::hud::draw_stage_bar::*;
 use crate::hud::store::HUD;
-
-const KINDS_2_RVA: usize = rva(0x6D170C); // dword_6D170C: 0x40
+use crate::race::overlay_store::RACE_OVERLAY;
 
 /// The two players' bars `dy` lower (see the header).
 pub unsafe fn bars_with(record: u32, dy: u32) -> Result<(), Refused> {
     unsafe {
         bars(
             record,
-            &[KINDS_RVA, KINDS_2_RVA],
+            &[
+                &RACE_OVERLAY.overlay_part_kinds_a,
+                &RACE_OVERLAY.overlay_part_kinds_b,
+            ],
             &[&HUD.bar_colours[0], &HUD.bar_colours[1]],
             dy,
         )

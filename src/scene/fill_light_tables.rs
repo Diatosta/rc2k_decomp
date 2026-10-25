@@ -12,39 +12,41 @@
 //! the four lamp tables the colours at `unk_60A54C`, `unk_60A558`, `dword_60A564`,
 //! `dword_60A570` scaled. Four callers.
 
-use crate::framework::{game_ptr, game_read, rva};
+use crate::framework::game_ptr;
+use crate::race::prefs_store::STAGE_PREFS;
+use crate::race::switches_store::FRAME_SWITCHES;
 use crate::scene::light_tables::{
     CAR_LIGHT_TABLE_RVA, LAMP_TABLE_A_RVA, LAMP_TABLE_B_RVA, LAMP_TABLE_C_RVA, LIGHT_TABLE_RVA,
     fill_light_ramp, fill_light_scale,
 };
-
-// ---- game data ----
-
-const OTHER_WAY_RVA: usize = rva(0x621480); // dword_621480
-const OTHER_WAY_B_RVA: usize = rva(0x60931C); // dword_60931C
-const PLAIN_RVA: usize = rva(0x62DB10); // unk_62DB10: two colours
-const SCENE_RVA: usize = rva(0x6092B4); // dword_6092B4: two colours
-/// The four lamp tables and, the other way, their colours.
-const LAMPS: [(usize, usize); 4] = [
-    (LAMP_TABLE_A_RVA, rva(0x60A54C)),
-    (LAMP_TABLE_B_RVA, rva(0x60A558)),
-    (CAR_LIGHT_TABLE_RVA, rva(0x60A564)),
-    (LAMP_TABLE_C_RVA, rva(0x60A570)),
-];
+use crate::scene::light_work_store::LIGHT_WORK;
 
 // ---- Rust version ----
 
 // Converted: `rc2k_core::scene::lamps::plain_light`
 pub unsafe fn fill_light_tables() {
     unsafe {
-        let plain = rc2k_core::scene::lamps::plain_light(game_read(OTHER_WAY_RVA), || {
-            game_read(OTHER_WAY_B_RVA)
+        let plain = rc2k_core::scene::lamps::plain_light(FRAME_SWITCHES.other_way.bits(), || {
+            STAGE_PREFS.lit_b.bits()
         });
-        let ramp = if plain { PLAIN_RVA } else { SCENE_RVA };
-        fill_light_ramp(game_ptr(ramp), game_ptr(LIGHT_TABLE_RVA));
-        for (table, colour) in LAMPS {
-            let colour = if plain { PLAIN_RVA } else { colour };
-            fill_light_scale(game_ptr(colour), game_ptr(table));
+        // `unk_62DB10`: two colours; `dword_6092B4`: two colours.
+        let plain_colours = LIGHT_WORK.plain_light_colours[0].addr();
+        let ramp = if plain {
+            plain_colours
+        } else {
+            STAGE_PREFS.dark_colour[0].addr()
+        };
+        fill_light_ramp(ramp as *const [u32; 6], game_ptr(LIGHT_TABLE_RVA));
+        // The four lamp tables and, the other way, their colours.
+        let lamps = [
+            (LAMP_TABLE_A_RVA, STAGE_PREFS.lamp_table_a[0].addr()),
+            (LAMP_TABLE_B_RVA, STAGE_PREFS.lamp_table_b[0].addr()),
+            (CAR_LIGHT_TABLE_RVA, STAGE_PREFS.car_light_table[0].addr()),
+            (LAMP_TABLE_C_RVA, STAGE_PREFS.lamp_table_c.addr()),
+        ];
+        for (table, colour) in lamps {
+            let colour = if plain { plain_colours } else { colour };
+            fill_light_scale(colour as *const [u32; 3], game_ptr(table));
         }
     }
 }

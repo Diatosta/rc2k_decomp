@@ -30,7 +30,9 @@
 //! refusals mid-way (what it wrote is put back first).
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, game_write, rva};
+use crate::framework::{game_read, rva};
+use crate::physics::contact_store::CONTACT_WORK;
+use crate::physics::ground_store::GROUND_WORK;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::course_store::COURSE;
 use crate::scene::draw_store::DRAW;
@@ -38,8 +40,6 @@ use rc2k_core::drive::lit_faces::{
     COUNTDOWN_OBJECT, FaceBytes, RISE_TOP, align, blink, count_down, fall_turn, pace, rise,
 };
 
-const LIST_RVA: usize = rva(0x6D3220); // g_litFaces
-const COUNT_RVA: usize = rva(0x6D3620); // g_litFaceCount
 const MOST: u32 = 0x100;
 const OBJECT_KINDS_RVA: usize = rva(0x5CD27C); // g_objectKinds
 const KIND_TABLE_RVA: usize = rva(0x97DF4C); // byte_97DF4C, by kind * 0x80
@@ -82,25 +82,24 @@ unsafe fn store(f: u32, b: &FaceBytes) {
     }
 }
 
-fn list(k: u32) -> usize {
-    LIST_RVA + 4 * k as usize
+/// `g_litFaces`[k] (0x100 of them; the count is checked below).
+fn list(k: u32) -> &'static crate::session::Dword {
+    &CONTACT_WORK.lit_faces[k as usize]
 }
 
 /// The refusals, worked out before anything is written.
-unsafe fn refusal() -> Option<&'static str> {
-    unsafe {
-        let count: u32 = game_read(COUNT_RVA);
-        if count > MOST {
-            return Some("more than 0x100 lit faces (past g_litFaces)");
-        }
-        let faces: u32 = COURSE.course_face_count.bits();
-        for k in 0..count {
-            if game_read::<u32>(list(k)) >= faces {
-                return Some("a lit face past g_courseFaceCount");
-            }
-        }
-        None
+fn refusal() -> Option<&'static str> {
+    let count: u32 = CONTACT_WORK.lit_face_count.bits();
+    if count > MOST {
+        return Some("more than 0x100 lit faces (past g_litFaces)");
     }
+    let faces: u32 = COURSE.course_face_count.bits();
+    for k in 0..count {
+        if list(k).get() >= faces {
+            return Some("a lit face past g_courseFaceCount");
+        }
+    }
+    None
 }
 
 /// The Rust core. The registers it leaves are read by no caller.
@@ -109,7 +108,7 @@ pub unsafe fn animate_at() -> Result<(), Refused> {
         if let Some(why) = refusal() {
             return Err(BadInput(why).into());
         }
-        if game_read::<u32>(COUNT_RVA) == 0 {
+        if CONTACT_WORK.lit_face_count.bits() == 0 {
             return Ok(());
         }
 
@@ -125,7 +124,7 @@ unsafe fn animate_faces() -> Result<(), Refused> {
         let point = |n: u32| points.wrapping_add(n.wrapping_mul(12));
         let mut k = 0;
         loop {
-            let f = faces.wrapping_add(game_read::<u32>(list(k)) << 6);
+            let f = faces.wrapping_add(list(k).get() << 6);
             let mut bytes = load(f);
             let leave = 'face: {
                 let object = byte(f + 1);
@@ -139,9 +138,9 @@ unsafe fn animate_faces() -> Result<(), Refused> {
                 let dz = at(p + 8).wrapping_sub(CAR_BLOCKS.cars[0].position[2].bits());
                 DRAW.scratch.set(dz);
                 let d = crate::math::x87::int_hypot(dx as i32, dz as i32) as u32;
-                game_write(rva(0x6D303C), d);
+                CONTACT_WORK.lit_face_distance.set(d);
                 let step = pace(d);
-                game_write(rva(0x6D3040), step);
+                CONTACT_WORK.lit_face_pace.set(step);
                 let kind_of: u32 = game_read(OBJECT_KINDS_RVA + 4 * object as usize);
                 let kind = game_read::<u8>(KIND_TABLE_RVA + (kind_of.wrapping_mul(0x80)) as usize);
                 match kind {
@@ -160,24 +159,26 @@ unsafe fn animate_faces() -> Result<(), Refused> {
                             distance as i32,
                             angle,
                         );
-                        game_write(rva(0x6D302C), at(f + 0x30));
-                        game_write(rva(0x6D3030), at(f + 0x38));
+                        CONTACT_WORK.lit_face_saved_30.set(at(f + 0x30));
+                        CONTACT_WORK.lit_face_saved_38.set(at(f + 0x38));
                         put(f + 0x30, at(f + 0x30).wrapping_add(x));
                         put(f + 0x38, at(f + 0x38).wrapping_add(z));
                         let p = point(at(f + 4));
-                        game_write(rva(0x639824), at(p).wrapping_add(at(f + 0x30)));
-                        game_write(rva(0x63982C), at(p + 8).wrapping_add(at(f + 0x38)));
+                        GROUND_WORK.ground_x.set(at(p).wrapping_add(at(f + 0x30)));
+                        GROUND_WORK
+                            .ground_z
+                            .set(at(p + 8).wrapping_add(at(f + 0x38)));
                         COURSE
                             .ground_face_last
                             .set(CAR_BLOCKS.cars[0].probe_point_face[4].bits());
                         crate::physics::find_ground::find_ground()?;
                         put(
                             f + 0x34,
-                            game_read::<u32>(rva(0x639828)).wrapping_sub(at(p + 4)),
+                            GROUND_WORK.ground_height.get().wrapping_sub(at(p + 4)),
                         );
                         if COURSE.ground_slot.get() == u32::MAX {
-                            put(f + 0x30, game_read(rva(0x6D302C)));
-                            put(f + 0x38, game_read(rva(0x6D3030)));
+                            put(f + 0x30, CONTACT_WORK.lit_face_saved_30.bits());
+                            put(f + 0x38, CONTACT_WORK.lit_face_saved_38.bits());
                         }
                         bytes.b11 = bytes.b11.wrapping_sub(1);
                         false
@@ -187,12 +188,12 @@ unsafe fn animate_faces() -> Result<(), Refused> {
             };
             store(f, &bytes);
             if leave {
-                let last = game_read::<u32>(COUNT_RVA).wrapping_sub(1);
-                game_write(list(k), game_read::<u32>(list(last)));
-                game_write(COUNT_RVA, last);
+                let last = CONTACT_WORK.lit_face_count.bits().wrapping_sub(1);
+                list(k).set(list(last).get());
+                CONTACT_WORK.lit_face_count.set_bits(last);
             }
             k += 1;
-            if k >= game_read::<u32>(COUNT_RVA) {
+            if k >= CONTACT_WORK.lit_face_count.bits() {
                 return Ok(());
             }
         }

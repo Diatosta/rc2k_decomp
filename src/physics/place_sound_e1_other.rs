@@ -11,19 +11,21 @@
 //! the band).
 
 use crate::errors::Refused;
-use crate::framework::rva;
-use crate::physics::car_sounds::{cue_plain, g, listed, object};
+use crate::physics::car_sounds::{cue_plain, listed, object};
+use crate::physics::contact_store::CONTACT_WORK;
 use crate::physics::sound_band_3::TWIN;
 use crate::physics::sound_bands::band_value_plain;
+use crate::race::sound_spots_store::RACE_SOUND_SPOTS;
+use crate::race::work_store::RACE_WORK;
 use rc2k_core::physics::sound_places::{FIRST, SOUND_E1};
 
 /// The Rust version.
 // Converted: `rc2k_core::physics::sound_places`.
 pub unsafe fn place_sound_e1_other() -> Result<(), Refused> {
-    if !listed(g(0x6D3CD4))? && !listed(g(0x71B3F8))? {
+    if !listed(CONTACT_WORK.other_car_number.get())? && !listed(RACE_WORK.current_car.get())? {
         return Ok(());
     }
-    let scratch = g(0x6D1AEC);
+    let scratch = RACE_SOUND_SPOTS.band_scratch.get();
     let b = unsafe { band_value_plain(TWIN) };
     if b == 0 {
         return Ok(());
@@ -32,12 +34,12 @@ pub unsafe fn place_sound_e1_other() -> Result<(), Refused> {
     let o = match object() {
         Ok(o) => o,
         Err(e) => {
-            unsafe { crate::framework::game_write(rva(0x6D1AEC), scratch) };
+            RACE_SOUND_SPOTS.band_scratch.set_bits(scratch);
             return Err(e);
         }
     };
     unsafe {
-        crate::framework::game_write(rva(0x6D1AD4), b);
+        RACE_SOUND_SPOTS.sound_scratch_b.set(b);
         cue_plain(o, FIRST, SOUND_E1, b, None);
     }
     Ok(())

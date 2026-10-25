@@ -6,20 +6,20 @@
 //!
 //! Caller: `drive::replay_step`.
 
-use crate::physics::flow::{g, p};
+use crate::race::viewer_state_store::REPLAY_VIEW;
 use rc2k_core::drive::clocks::ReplayClock;
 
 /// The Rust version.
 // Converted: `rc2k_core::drive::clocks::ReplayClock::tick`.
 pub fn replay_clock_tick() {
     let was = ReplayClock {
-        frame: g(0x5C2530),
-        hundredths: g(0x5C2534),
+        frame: REPLAY_VIEW.replay_block.get(),
+        hundredths: REPLAY_VIEW.replay_frame.get(),
     };
     let mut c = was;
     c.tick();
-    p(0x5C2534, c.hundredths);
+    REPLAY_VIEW.replay_frame.set(c.hundredths);
     if c.frame != was.frame {
-        p(0x5C2530, c.frame);
+        REPLAY_VIEW.replay_block.set(c.frame);
     }
 }

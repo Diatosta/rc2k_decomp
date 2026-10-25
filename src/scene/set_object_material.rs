@@ -32,29 +32,25 @@ use crate::math::next_random::next_random;
 use crate::math::x87;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::course_store::COURSE;
+use crate::race::switches_store::FRAME_SWITCHES;
 use crate::race::vars_store::RACE_VARS;
 use crate::scene::draw_store::DRAW;
+use crate::scene::light_work_store::LIGHT_WORK;
 use crate::scene::object_store::OBJECT_WORK;
 
 // ---- game data ----
-
-const OBJECT_RVA: usize = rva(0x6214FC); // g_objectNumber
 const OBJECTS: u32 = 0xFF;
 const KINDS_RVA: usize = rva(0x5CD27C); // g_objectKinds
 pub const MATERIALS_RVA: usize = rva(0x97DF30); // unk_97DF30
 pub const MATERIAL_LEN: usize = 0x80;
-const MOVE_BY_RVA: usize = rva(0x623DD0); // dword_623DD0
-const WAY_RVA: usize = rva(0x6214DC); // dword_6214DC
 const FIRST_POINT_RVA: usize = rva(0x631F70); // g_objectFirstPoint
 const FIRST_FACES_RVA: usize = rva(0x632B70); // dword_632B70
 const FACE_COUNTS_RVA: usize = rva(0x632F70); // dword_632F70
 /// The state as the function works on it: the clock when last here (`dword_62DB54`),
 /// then `dword_631B5C` the phase's length, `dword_631B60` the time into it,
 /// `dword_631B64` the phase.
-const LAST_RVA: usize = rva(0x62DB54);
 const PHASE_WORK_RVA: usize = rva(0x631B5C);
 /// `dword_62DB30` ..: four bases, four random parts, and a 0.
-const LENGTHS_RVA: usize = rva(0x62DB30);
 const LENGTHS: [u32; 9] = [200, 400, 200, 400, 400, 400, 400, 400, 0];
 
 // ---- Rust version ----
@@ -73,7 +69,7 @@ unsafe fn step_shape(state: usize) {
     unsafe {
         let [last, mut time, mut length, mut phase]: [u32; 4] =
             (state as *const [u32; 4]).read_unaligned();
-        game_write(LENGTHS_RVA, LENGTHS);
+        crate::session::write_bits(&LIGHT_WORK.phase_lengths, LENGTHS);
         let clock: u32 = PHYSICS.scene_clock.bits();
         time = time.wrapping_add(clock.wrapping_sub(last).min(100));
         while time >= length {
@@ -89,7 +85,7 @@ unsafe fn step_shape(state: usize) {
             _ => 0f32.to_bits(),
         };
         RACE_VARS.move_fraction.set_bits(fraction);
-        game_write(LAST_RVA, clock);
+        LIGHT_WORK.phase_clock.set_bits(clock);
         game_write(PHASE_WORK_RVA, [length, time, phase]);
         (state as *mut [u32; 4]).write_unaligned([clock, time, length, phase]);
     }
@@ -97,7 +93,7 @@ unsafe fn step_shape(state: usize) {
 
 pub unsafe fn set_object_material() -> Result<(), BadInput> {
     unsafe {
-        let object: u32 = game_read(OBJECT_RVA);
+        let object: u32 = FRAME_SWITCHES.object_number.bits();
         if object >= OBJECTS {
             return Err(BadInput("an object's number past the tables"));
         }
@@ -112,13 +108,12 @@ pub unsafe fn set_object_material() -> Result<(), BadInput> {
         }
         RACE_VARS.move_by.set_bits(0u32);
         DRAW.polygon_colour.set_bits(0x00FF_FFFFu32);
-        game_write(WAY_RVA, way);
+        FRAME_SWITCHES.other_way_kind.set_bits(way);
         if let (4, Some(state)) = (way, state) {
             let points: [u32; 2] = game_read(FIRST_POINT_RVA + slot);
-            game_write(
-                MOVE_BY_RVA,
-                points[1].wrapping_sub(points[0]).wrapping_mul(12),
-            );
+            RACE_VARS
+                .move_by
+                .set_bits(points[1].wrapping_sub(points[0]).wrapping_mul(12));
             step_shape(state);
         }
         OBJECT_WORK

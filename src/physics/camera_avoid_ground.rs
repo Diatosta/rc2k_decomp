@@ -25,14 +25,15 @@
 use crate::errors::Refused;
 use crate::physics::camera_clear_of_ground::camera_clear_of_ground;
 use crate::physics::camera_over_ground::camera_over_ground;
+use crate::physics::camera_store::CAMERA_WORK;
 use crate::physics::camera_view::{rd, record};
 use crate::physics::car_store::CAR;
-use crate::physics::flow::{g, p};
+use crate::physics::flow::g;
 use crate::physics::touch_face::FACES;
+use crate::race::tables_store::RACE_TABLES;
 use crate::scene::draw_store::DRAW;
+use crate::session::Dword;
 use rc2k_core::physics::camera_ground;
-
-const STEP: usize = 0x605264;
 
 fn place() {
     unsafe { crate::physics::place_camera::place_camera() };
@@ -54,19 +55,33 @@ fn face_checkpoint(back: u32) -> bool {
     true
 }
 
+/// The five dwords from 0x71AEC8 the loop below saves: the three ground faces and the
+/// two dwords after them (`unknown_efc`, a read past the typed field).
+fn ground_faces() -> [&'static Dword; 5] {
+    [
+        &CAR.camera_ground_faces[0],
+        &CAR.camera_ground_faces[1],
+        &CAR.camera_ground_faces[2],
+        &CAR.unknown_efc[0],
+        &CAR.unknown_efc[1],
+    ]
+}
+
 /// The turn back toward the kept heading (0x43919D ..).
 fn turn_back() -> Result<(), Refused> {
-    p(STEP, camera_ground::FIRST_TURN_STEP);
+    RACE_TABLES
+        .camera_turn_step
+        .set(camera_ground::FIRST_TURN_STEP);
     loop {
         DRAW.camera_heading_saved.set(CAR.camera_heading.get());
         for k in 0..5 {
-            DRAW.camera_saved[k].set(g(0x71AEC8 + 4 * k));
+            DRAW.camera_saved[k].set(ground_faces()[k].get());
         }
         let mut stepped_back = false;
         if let Some(step) = camera_ground::turn_step(
             DRAW.camera_heading_kept.get(),
             CAR.camera_heading.get(),
-            g(STEP),
+            RACE_TABLES.camera_turn_step.get(),
         ) {
             CAR.camera_heading
                 .set(CAR.camera_heading.get().wrapping_add(step));
@@ -79,11 +94,11 @@ fn turn_back() -> Result<(), Refused> {
         if stepped_back {
             CAR.camera_heading.set(DRAW.camera_heading_saved.get());
             for k in 0..5 {
-                p(0x71AEC8 + 4 * k, DRAW.camera_saved[k].get());
+                ground_faces()[k].set(DRAW.camera_saved[k].get());
             }
         }
-        let (next, last) = camera_ground::next_turn_step(g(STEP));
-        p(STEP, next);
+        let (next, last) = camera_ground::next_turn_step(RACE_TABLES.camera_turn_step.get());
+        RACE_TABLES.camera_turn_step.set(next);
         if last {
             return Ok(());
         }
@@ -95,8 +110,8 @@ fn turn_back() -> Result<(), Refused> {
 // next_turn_step}`.
 pub fn steps() -> Result<(), Refused> {
     unsafe { crate::physics::ease_view_turn::ease_view_turn() };
-    p(0x605268, 0);
-    p(STEP, u32::MAX);
+    RACE_TABLES.camera_ground_flag.set(0);
+    RACE_TABLES.camera_turn_step.set(u32::MAX);
     DRAW.camera_heading_kept.set(CAR.camera_heading.get());
     place();
     if rd(record() + 0x4C) == 0 {
@@ -121,22 +136,22 @@ pub fn steps() -> Result<(), Refused> {
         }
     }
     // 0x4392A3: clear of the ground by the pitch.
-    p(0x605268, u32::MAX);
+    RACE_TABLES.camera_ground_flag.set(u32::MAX);
     place();
     if camera_clear_of_ground()? {
         return Ok(());
     }
-    p(0x608C20, camera_ground::PITCH_START);
+    CAMERA_WORK.pitch_ceiling.set(camera_ground::PITCH_START);
     let mut up = true;
     loop {
         if up {
-            p(0x608C1C, CAR.camera_pitch.get());
+            CAMERA_WORK.pitch_floor.set(CAR.camera_pitch.get());
             unsafe { crate::physics::ease_pitch_up::ease_pitch_up() };
         } else {
-            p(0x608C20, CAR.camera_pitch.get());
+            CAMERA_WORK.pitch_ceiling.set(CAR.camera_pitch.get());
             unsafe { crate::physics::ease_pitch_down::ease_pitch_down() };
         }
-        if g(0x608C24) == 0 {
+        if CAMERA_WORK.pitch_step.get() == 0 {
             return Ok(());
         }
         place();

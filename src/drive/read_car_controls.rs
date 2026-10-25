@@ -23,22 +23,14 @@ use crate::drive::drive_computer_car::drive_computer_car;
 use crate::drive::next_camera_view::next_camera_view;
 use crate::drive::start_blend::start_blend;
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, game_write, rva};
 use crate::math::x87;
 use crate::physics::car_store::CAR;
 use crate::physics::tables_store::PHYSICS;
+use crate::race::course_lists_store::COURSE_LISTS;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
 use crate::race::work_store::RACE_WORK;
 use rc2k_core::drive::controls::{FLIP_BIT, VIEW_BIT, computer_drives, flipped, read_keys};
-
-fn g(x: u32) -> u32 {
-    unsafe { game_read(rva(x as usize)) }
-}
-
-fn p(x: u32, v: u32) {
-    unsafe { game_write(rva(x as usize), v) }
-}
 
 /// Does a computer drive this step?
 fn computer() -> bool {
@@ -64,7 +56,7 @@ pub unsafe fn read_car_controls() -> Result<(), Refused> {
                 return Err(BadInput("no checkpoints for the computer's driving").into());
             }
         }
-        p(0x5C694C, CAR.input_keys.get());
+        COURSE_LISTS.input_keys_mask.set(CAR.input_keys.get());
         CAR.input_keys.set(0);
         CAR.keys_pressed.set(0);
         // The four input words (recorded or replayed) into the car's inputs.
@@ -77,7 +69,7 @@ pub unsafe fn read_car_controls() -> Result<(), Refused> {
         for (to, from) in words.into_iter().zip(&PHYSICS.input_words) {
             to.set(from.get());
         }
-        let keys = read_keys(g(0x5C694C), CAR.input_keys.get());
+        let keys = read_keys(COURSE_LISTS.input_keys_mask.get(), CAR.input_keys.get());
         let pressed = keys.pressed;
         CAR.keys_pressed.set(pressed);
         PHYSICS.input_throttle.set(CAR.input_throttle.get());

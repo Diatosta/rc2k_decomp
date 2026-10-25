@@ -12,18 +12,14 @@
 //! Caller: `sub_44157B`. Refuses what the two calls refuse.
 
 use crate::errors::Refused;
-use crate::framework::{game_write, rva};
 use crate::math::x87_run::{ext_div2, int_80};
 use crate::physics::car_store::CAR;
+use crate::physics::ground_store::GROUND_WORK;
+use crate::physics::tables_store::PHYSICS;
 use crate::race::numbers_store::NUMBERS;
 use crate::race::vars_store::RACE_VARS;
 use crate::scene::draw_store::DRAW;
 use rc2k_core::physics::progress;
-
-fn p(x: usize, v: u32) {
-    unsafe { game_write(rva(x), v) }
-}
-const DISTANCE: usize = 0x614C68; // g_nearestCheckpointDistance
 
 /// The Rust version: the car's checkpoint (eax): the nearest within the window about the
 /// one it had (`race::nearest_checkpoint_in`), or, when that is too far, of them all
@@ -31,22 +27,20 @@ const DISTANCE: usize = 0x614C68; // g_nearestCheckpointDistance
 /// callers.
 // Converted: `rc2k_core::physics::progress::{near_window, search_all}`.
 pub unsafe fn find_car_checkpoint() -> Result<u32, Refused> {
-    p(0x639824, CAR.position[0].get());
-    p(0x63982C, CAR.position[2].get());
+    GROUND_WORK.ground_x.set(CAR.position[0].get());
+    GROUND_WORK.ground_z.set(CAR.position[2].get());
     if RACE_VARS.checkpoint_count.get() == 0 {
         return Ok(0);
     }
     let (from, to) = progress::near_window(CAR.checkpoint.get());
     let near = unsafe { crate::race::start_place::nearest_checkpoint_in(from, to) }?;
     DRAW.scratch.set(near.distance);
-    p(
-        DISTANCE,
-        ext_div2(
-            int_80(near.distance as i32, false),
-            NUMBERS.k65536.bits(),
-            0x3F80_0000,
-        ),
-    );
+    // g_nearestCheckpointDistance
+    PHYSICS.nearest_checkpoint_distance.set_bits(ext_div2(
+        int_80(near.distance as i32, false),
+        NUMBERS.k65536.bits(),
+        0x3F80_0000,
+    ));
     if progress::search_all(near.distance) {
         return unsafe { crate::race::start_place::nearest_checkpoint() };
     }
