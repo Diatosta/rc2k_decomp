@@ -22,16 +22,13 @@
 //! Refuses a scratch path that is not a text when the source cannot be put there.
 
 use crate::errors::{BadInput, FatalError, Refused};
-use crate::framework::rva;
 use crate::install::outside::Outside;
 use crate::install::runs_from_source::scratch_path;
 use crate::install::vars::INSTALLER_NAMES;
 use crate::install::vars::INSTALLER_PAGES;
 use crate::install::vars::INSTALLER_RUN;
-use crate::store::game_addr;
 use crate::system::start_texts::START_TEXTS;
 
-const PATCH_TEXT_RVA: usize = rva(0xA8C054); // byte_A8C054
 const PATH_ROOM: usize = 0x100;
 
 // ---- game data ----
@@ -95,7 +92,9 @@ pub unsafe fn check_at_start(outside: &mut dyn Outside, no_audio: *mut u32) -> R
                 let text = [b"patch6: ", &version[from..], b"\n\0"].concat();
                 std::ptr::copy(
                     text.as_ptr(),
-                    game_addr(PATCH_TEXT_RVA) as *mut u8,
+                    crate::screens::text_buffers_store::TEXT_BUFFERS
+                        .number_text
+                        .addr() as *mut u8,
                     text.len(),
                 );
                 set_script_entry(0x1006);

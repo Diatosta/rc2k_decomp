@@ -5,24 +5,20 @@
 //! rows and columns and moved by the fourth row's first three floats.
 //! The two turning matrices keep their other floats (an identity's) from the image.
 
-use crate::framework::{game_read, rva};
 use crate::math::x87;
 use crate::race::matrices_store::MATRICES;
 use crate::scene::draw_store::DRAW;
 use crate::scene::object_store::OBJECT_WORK;
 use crate::scene::project_point::rotate;
 
-pub const SINES_RVA: usize = rva(0xA23AE4); // flt_A23AE4, 0x1000 floats
-pub const COSINES_RVA: usize = rva(0xA24AE4); // dword_A24AE4
-
 /// An angle's sine and cosine from the game's tables: sixteen bits a turn, the low
 /// four dropped.
 unsafe fn sine_cosine(angle: u32) -> (u32, u32) {
     let place = ((angle & 0xFFFF) >> 4) as usize;
-    unsafe {
+    {
         (
-            game_read(SINES_RVA + place * 4),
-            game_read(COSINES_RVA + place * 4),
+            crate::scene::engine_tables_store::sine(place).bits(),
+            crate::scene::engine_tables_store::cosine(place).bits(),
         )
     }
 }

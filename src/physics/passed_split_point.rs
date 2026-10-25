@@ -24,19 +24,15 @@
 //! above are the original's, for reference.
 
 use crate::errors::{BadInput, FatalError, Refused};
-use crate::framework::{game_read, rva};
 use crate::physics::car_store::CAR;
 use crate::physics::ground_store::GROUND_WORK;
+use crate::physics::split_tables_store::SPLIT_TABLES;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::course_store::COURSE;
 use crate::scene::draw_store::DRAW;
 use crate::scene::x87_mem::{fild, fistp, fld, fstp, mov};
 use rc2k_core::physics::progress;
 use std::cmp::Ordering;
-
-fn g(x: usize) -> u32 {
-    unsafe { game_read(rva(x)) }
-}
 
 /// 0x4416EC .. 0x441727: the distance to the point at `point`.
 unsafe fn distance(point: u32) {
@@ -94,8 +90,9 @@ fn angle_at(rc: usize, s: usize) {
 /// as said.
 fn point() -> Result<(u32, u32, u32), Refused> {
     let split = CAR.splits_passed.get();
-    let cp = progress::check_split_point(split, || g(0x601030 + 4 * split as usize))?;
-    let face = g(0x9E3738 + 4 * cp as usize);
+    let cp =
+        progress::check_split_point(split, || SPLIT_TABLES.checkpoints[1 + split as usize].get())?;
+    let face = crate::race::checkpoints_store::face(cp as usize).get();
     if !progress::face_known(face, COURSE.course_face_count.get()) {
         return Err(FatalError {
             code: progress::SEGMENT_FATAL,
@@ -122,7 +119,7 @@ fn point() -> Result<(u32, u32, u32), Refused> {
 // Converted: `rc2k_core::physics::progress::{check_split_point, face_known, passed_point}`
 // (the distance and the angle stay x87).
 pub unsafe fn passed_split_point() -> Result<bool, Refused> {
-    if g(0x64BB18) != 0 {
+    if crate::drive::finish_store::FINISH.no_place.get() != 0 {
         return Ok(false);
     }
     let (cp, _, pt) = point()?;
@@ -140,7 +137,7 @@ pub unsafe fn passed_split_point() -> Result<bool, Refused> {
     unsafe { angle(pt) };
     let eax = DRAW.scratch.get() << 16;
     PHYSICS.split_word.set(eax);
-    let heading = g(0x9ED808 + 4 * cp as usize);
+    let heading = crate::race::checkpoints_store::angle(cp as usize).get();
     PHYSICS.split_heading.set(heading);
     let (carry, _) = progress::passed_point(eax, heading);
     Ok(carry)

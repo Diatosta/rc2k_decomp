@@ -28,7 +28,6 @@
 //! for `fsin` being the processor's. One caller, `sub_442AF6` (eight callers: around the front
 //! end's 3D set-up and at the ends of events).
 
-use crate::framework::{game_read, game_write, rva};
 use crate::math::x87;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::course_lists_store::COURSE_LISTS;
@@ -40,12 +39,8 @@ use crate::scene::next_noise::next_noise;
 
 // ---- game data ----
 
-const SHUFFLED_RVA: usize = rva(0xA6BB54); // word_A6BB54, 0x10000 words
-const NOISE_RVA: usize = rva(0xA2AAE4); // byte_A2AAE4, 0x1070 bytes
 const NOISE_LEN: usize = 0x1070;
-const SINES_RVA: usize = rva(0xA23AE4); // g_sines, 0x1400 floats
 const SINES: usize = 0x1400;
-const ARCTANGENTS_RVA: usize = rva(0xA28AE4); // unk_A28AE4, 0x1000 words
 const SEED: u32 = 0x0012_D687;
 
 // ---- Rust version ----
@@ -53,12 +48,12 @@ const SEED: u32 = 0x0012_D687;
 /// `sub_41F792`: the tangent of an angle (0x2000 a turn here, its low four bits
 /// dropped) into `dword_5C5F48`.
 unsafe fn tangent(angle: u32) -> u32 {
-    unsafe {
-        let place = SINES_RVA + (angle >> 4) as usize * 4;
+    {
+        let place = (angle >> 4) as usize;
         DRAW.scratch.set_bits(0x8000u32);
         let tangent = (x87::ratio_scaled_to_int(
-            game_read(place),
-            game_read(place + 0x1000),
+            crate::scene::engine_tables_store::ENGINE_TABLES.sines[place].bits(),
+            crate::scene::engine_tables_store::ENGINE_TABLES.sines[place + 0x400].bits(),
             0x1_0000,
             0x8000,
         ) as u32)
@@ -84,20 +79,22 @@ pub unsafe fn fill_engine_tables() {
         }
         // sub_41F661
         PHYSICS.noise_state.set_bits(SEED);
-        let word = |n: usize| SHUFFLED_RVA + n * 2;
+        let word = |n: usize| &crate::scene::engine_tables_store::ENGINE_TABLES.shuffled_words[n];
         for n in 0..0x1_0000usize {
-            game_write(word(n), n as u16);
+            word(n).set(n as u16);
         }
         for n in 0..0x1_0000usize {
             let other = (next_noise() & 0xFFFF) as usize;
-            let (here, there): (u16, u16) = (game_read(word(n)), game_read(word(other)));
-            game_write(word(n), there);
-            game_write(word(other), here);
+            let (here, there) = (word(n).get(), word(other).get());
+            word(n).set(there);
+            word(other).set(here);
         }
         // sub_41F635
         PHYSICS.noise_state.set_bits(SEED);
         for n in 0..NOISE_LEN {
-            game_write(NOISE_RVA + n, (next_noise() >> 12) as u8);
+            crate::scene::engine_tables_store::ENGINE_TABLES
+                .noise_bytes
+                .set(n, (next_noise() >> 12) as u8);
         }
         // sub_41F716
         for n in 1..0x100usize {
@@ -106,7 +103,8 @@ pub unsafe fn fill_engine_tables() {
         COURSE_LISTS.face_key_factors[0].set_bits(1.0f32.to_bits());
         // sub_41F5EF
         for n in 0..SINES {
-            game_write(SINES_RVA + n * 4, x87::sine_of_pi_fraction(n as i32, 0x800));
+            crate::scene::engine_tables_store::ENGINE_TABLES.sines[n]
+                .set_bits(x87::sine_of_pi_fraction(n as i32, 0x800));
         }
         // sub_41F74A
         for n in 0..0x1000usize {
@@ -120,7 +118,8 @@ pub unsafe fn fill_engine_tables() {
                 }
                 step >>= 1;
             }
-            game_write(ARCTANGENTS_RVA + n * 2, (angle & 0x1FF0) as u16);
+            crate::scene::engine_tables_store::ENGINE_TABLES.arctangents[n]
+                .set((angle & 0x1FF0) as u16);
         }
         // The two loops whose results nothing keeps.
         for angle in (0..0x2000).step_by(0x40) {

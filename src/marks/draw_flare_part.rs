@@ -17,18 +17,14 @@
 //! (0x100 or more) and null marks settings (`clip_quad`'s refusal), before anything.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::rva;
 use crate::marks::blocks::MARK_CORNERS;
 use crate::marks::clip_quad::{clip_quad, draw_fan};
 use crate::marks::frame_state::{DRAW_WORK, FLARE_SCALES, VIEW_VARS};
-use crate::marks::store::{game_addr, game_read, game_write};
 use crate::math::x87;
 use crate::scene::matrix3::rounded;
 
 const CORNERS: u32 = 0x100;
-const VERTICES_RVA: usize = rva(0x9605A0); // g_polygonVertices: TLVertex[4], a fifth's x, y
-const SINES_RVA: usize = rva(0xA23AE4); // g_sines
-const COSINES_RVA: usize = rva(0xA24AE4); // g_cosines
+use crate::d3d::vertices_store::VERTICES;
 /// Each vertex's texture place: the corner entry's word offsets (u, v).
 const UV_WORDS: [(u32, u32); 4] = [(0, 2), (4, 6), (0xC, 0xE), (8, 0xA)];
 
@@ -60,19 +56,19 @@ pub unsafe fn draw_flare_part(
         }
         let colour = (alpha << 24) | colour;
         for n in 0..4 {
-            game_write(VERTICES_RVA + 0x20 * n + 0x10, colour);
+            VERTICES.vertices[n].colour.set(colour);
         }
         let entry = &MARK_CORNERS.corners[corner as usize];
         let word = |off: u32| u32::from(entry.words[off as usize / 2].get());
         let uv_k: u32 = DRAW_WORK.uv_k.bits();
         for (n, (u, v)) in UV_WORDS.into_iter().enumerate() {
-            let vertex = VERTICES_RVA + 0x20 * n;
-            game_write(vertex + 0x18, x87::int_times(word(u) as i32, uv_k));
-            game_write(vertex + 0x1C, x87::int_times(word(v) as i32, uv_k));
+            let vertex = &VERTICES.vertices[n];
+            vertex.u.set_bits(x87::int_times(word(u) as i32, uv_k));
+            vertex.v.set_bits(x87::int_times(word(v) as i32, uv_k));
         }
         let [cx, cy] = centre.map(rounded);
-        game_write(VERTICES_RVA + 0x80, cx);
-        game_write(VERTICES_RVA + 0x84, cy);
+        VERTICES.vertices[4].x.set_bits(cx);
+        VERTICES.vertices[4].y.set_bits(cy);
         let across = abs16(word(4), word(0));
         let along = abs16(word(0xA), word(2));
         let ratio = x87::int_over_int(along as i32, across as i32);
@@ -91,20 +87,20 @@ pub unsafe fn draw_flare_part(
             (x87::sub(width, sw), x87::sub(height, sh)),
             (x87::sub(0, sw), x87::sub(height, sh)),
         ];
-        let sin: u32 = game_read(SINES_RVA + 4 * turn as usize);
-        let cos: u32 = game_read(COSINES_RVA + 4 * turn as usize);
+        let sin: u32 = crate::scene::engine_tables_store::sine(turn as usize).bits();
+        let cos: u32 = crate::scene::engine_tables_store::cosine(turn as usize).bits();
         let depth = x87::mul(DRAW_WORK.near.bits(), DRAW_WORK.z_k.bits());
         for (n, (x, y)) in corners.into_iter().enumerate() {
-            let vertex = VERTICES_RVA + 0x20 * n;
+            let vertex = &VERTICES.vertices[n];
             let [tx, ty] = x87::turn_about(x, y, sin, cos, cx, cy);
-            game_write(vertex, tx);
-            game_write(vertex + 4, ty);
-            game_write(vertex + 8, depth);
+            vertex.x.set_bits(tx);
+            vertex.y.set_bits(ty);
+            vertex.z.set_bits(depth);
         }
         VIEW_VARS
             .cleared
             .set(VIEW_VARS.cleared.get().wrapping_add(1));
-        if clip_quad(game_addr(VERTICES_RVA) as u32)? {
+        if clip_quad(crate::d3d::vertices_store::piece_addr() as u32)? {
             return Ok(());
         }
         draw_fan();

@@ -13,7 +13,7 @@
 
 use crate::errors::Refused;
 use crate::physics::car_store::CAR;
-use crate::physics::flow::g;
+use crate::physics::gear_store::GEAR;
 use crate::physics::test_drive_run;
 
 /// What the original leaves in eax, ebx, ecx and edx (`test_drive_run`'s last step:
@@ -37,7 +37,8 @@ pub unsafe fn test_drive() -> Result<(), Refused> {
         CAR.engine_speed.bits(),
         CAR.gearbox_kind.bits(),
     ];
-    CAR.engine_power_factor.set_bits(g(0x5CC190));
+    CAR.engine_power_factor
+        .set_bits(GEAR.test_power_factor.bits());
     test_drive_run::test_drive_run()?;
     let [a, b, speed, gear, engine, kind] = kept;
     CAR.drive_speed_a.set_bits(a);

@@ -10,14 +10,12 @@
 //!
 //! Caller: `sub_4BFFEC` (0x4C000F).
 
-use crate::framework::rva;
+use crate::d3d::vertices_store::VERTICES;
 use crate::marks::squares_store::{SQUARE_STATE, SQUARE_TABLES};
-use crate::marks::store::game_write;
 use crate::math::x87;
 use crate::scene::draw_store::DRAW;
 use crate::scene::kind_texture_store::KIND_TEXTURES;
 use crate::session::read_bits;
-const VERTICES_RVA: usize = rva(0x9605A0); // g_polygonVertices
 const STATES: [(u32, u32); 7] = [
     (2, 0x11),
     (2, 0x12),
@@ -36,7 +34,7 @@ pub unsafe fn squares_setup() {
 /// The set-up with the texture places `places` (`marks::pong_setup` has its own).
 pub unsafe fn setup_with(places: [u32; 4]) {
     use crate::scene::set_render_state::set_render_state;
-    unsafe {
+    {
         crate::scene::depth_buffer_on::depth_buffer(true);
         crate::scene::set_texture::set_texture(KIND_TEXTURES.kind_first_slots[202].bits());
         for (value, state) in STATES {
@@ -44,16 +42,16 @@ pub unsafe fn setup_with(places: [u32; 4]) {
         }
         for n in 0..4 {
             DRAW.scratch.set_bits(0x100u32);
-            game_write(VERTICES_RVA + 0x20 * n + 0xC, x87::int_to_float(0x100));
+            VERTICES.vertices[n].rhw.set_bits(x87::int_to_float(0x100));
         }
         for n in 0..4 {
-            game_write(VERTICES_RVA + 0x20 * n + 0x10, 0xFFFF_FFFFu32);
-            game_write(VERTICES_RVA + 0x20 * n + 0x14, 0xFF00_0000u32);
+            VERTICES.vertices[n].colour.set(0xFFFF_FFFFu32);
+            VERTICES.vertices[n].specular.set(0xFF00_0000u32);
         }
         let [a, b, c, d] = places;
         for (n, (u, v)) in [(a, b), (c, b), (c, d), (a, d)].into_iter().enumerate() {
-            game_write(VERTICES_RVA + 0x20 * n + 0x18, u);
-            game_write(VERTICES_RVA + 0x20 * n + 0x1C, v);
+            VERTICES.vertices[n].u.set_bits(u);
+            VERTICES.vertices[n].v.set_bits(v);
         }
         DRAW.polygon_vertex_count.set_bits(4u32);
         SQUARE_TABLES

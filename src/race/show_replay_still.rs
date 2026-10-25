@@ -15,26 +15,21 @@
 //!
 //! Caller: `race::viewer_frame`. Refuses (before anything) a cars' count of 0 or past 8.
 
+use crate::drive::replay_frames_store::REPLAY_FRAMES;
 use crate::errors::{BadInput, Refused};
 use crate::physics::car_store::CAR;
-use crate::physics::flow::{g, p};
+use crate::physics::flow::g;
 use crate::race::frame_store::FRAME_WORK;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
-use crate::race::viewer::BLOCK_DATA;
 use crate::race::viewer_state_store::REPLAY_VIEW;
 use crate::race::work_store::RACE_WORK;
-
-const STILL: usize = 0x601024; // dword_601024
-const STEP_FRAME: usize = 0x6EF7E4; // dword_6EF7E4
-const STEP_BLOCK: usize = 0x6EF7E0; // dword_6EF7E0
-const STEP_FIRST: usize = 0x6EF7CC; // dword_6EF7CC
 
 /// The frame's block copied to the replay's (`drive::load_replay_cars` reads it).
 fn load_frame() {
     // unk_7172EC: car block 8's start (the copy runs on past the block).
     let to = crate::race::blocks_store::block_addr(8) as *mut u32;
-    let from = crate::physics::flow::a(BLOCK_DATA) as *const u32;
+    let from = crate::race::viewer_buffers_store::VIEWER_BUFFERS.block[0].addr() as *const u32;
     for n in 0..0xA04 {
         unsafe { to.add(n).write_unaligned(from.add(n).read_unaligned()) };
     }
@@ -47,20 +42,22 @@ pub fn show_replay_still() -> Result<(), Refused> {
         return Err(BadInput("a cars' count of 0 or past 8").into());
     }
     unsafe {
-        p(STILL, 1);
+        crate::physics::split_tables_store::SPLIT_TABLES
+            .still
+            .set(1);
         FRAME_WORK.still_2.set(1);
         load_frame();
         load_replay_cars::load_replay_cars();
         replay_cameras::replay_cameras()?;
         for step in 0..g(&REPLAY_VIEW.replay_frame) {
-            p(STEP_FRAME, step);
-            p(STEP_BLOCK, REPLAY_VIEW.replay_block.get());
+            REPLAY_FRAMES.step_frame.set(step);
+            REPLAY_FRAMES.step_block.set(REPLAY_VIEW.replay_block.get());
             crate::race::step_replay_cars::step_replay_cars()?;
         }
         if REPLAY_VIEW.replay_frame.get() == 0 {
-            p(STEP_FIRST, 1);
+            REPLAY_FRAMES.step_first.set(1);
             crate::race::step_replay_cars::step_replay_cars()?;
-            p(STEP_FIRST, 0);
+            REPLAY_FRAMES.step_first.set(0);
             load_frame();
             load_replay_cars::load_replay_cars();
         }
@@ -68,9 +65,9 @@ pub fn show_replay_still() -> Result<(), Refused> {
         loop {
             load_car::load_car()?;
             if !matches!(CAR.driver_kind.get(), 0 | 2) {
-                p(STEP_FIRST, 1);
+                REPLAY_FRAMES.step_first.set(1);
                 crate::physics::camera_frame::camera_frame()?;
-                p(STEP_FIRST, 0);
+                REPLAY_FRAMES.step_first.set(0);
             }
             store_car::store_car()?;
             RACE_WORK
@@ -90,7 +87,9 @@ pub fn show_replay_still() -> Result<(), Refused> {
         RACE_VARS.scene_switch.set(kept);
         FRAME_WORK.drawing.set(0);
         FRAME_WORK.still_2.set(0);
-        p(STILL, 0);
+        crate::physics::split_tables_store::SPLIT_TABLES
+            .still
+            .set(0);
     }
     Ok(())
 }

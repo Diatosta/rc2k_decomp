@@ -40,7 +40,7 @@ use crate::install::vars::INSTALLER_PAGES;
 use crate::menu::event_flow::Flow;
 use crate::menu::screen_loop::Carried;
 use crate::race::replay_file_store::REPLAY_FILE;
-use crate::race::viewer::{CAMERA_EDIT, DEVELOPER_KEYS, LAST_RACE, get, put};
+use crate::race::viewer::{DEVELOPER_KEYS, LAST_RACE, get};
 use crate::race::viewer_state_store::REPLAY_VIEW;
 use crate::session::CLOCKS;
 use crate::session::FLAGS;
@@ -146,7 +146,9 @@ fn view(r: &mut Flow) -> Result<(), Refused> {
     if r.c.carry {
         return Ok(());
     }
-    put(CAMERA_EDIT, 0);
+    crate::race::viewer_buffers_store::VIEWER_BUFFERS
+        .camera_edit
+        .set(0);
     r.c.arg = (REPLAY_FILE.viewer_slot.get() == LAST_RACE) as u32;
     REPLAY_VIEW.last_race_viewed.set(r.c.arg);
     step(4, r)?;
@@ -242,7 +244,11 @@ fn stopped_key(r: &mut Flow, key: u8) -> Result<Next, Refused> {
     if crate::gfx::shots::on() != 0 && key == 0x52 {
         step(12, r)?;
     }
-    if get(CAMERA_EDIT) != 0 {
+    if crate::race::viewer_buffers_store::VIEWER_BUFFERS
+        .camera_edit
+        .get()
+        != 0
+    {
         return Ok(match key {
             0x68 => Next::Action(0x1E),
             0x69 => Next::Action(0x1F),

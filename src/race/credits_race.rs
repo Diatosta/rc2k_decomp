@@ -15,7 +15,6 @@
 //! `roll_credits`, 8 `play_race`, 9 `tidy_everything`.
 
 use crate::errors::Refused;
-use crate::framework::{game_write, rva};
 use crate::logfile::{log_int::log_int, log_write::log_write};
 use crate::race::numbers_store::NUMBERS;
 use crate::race::replay_file_store::REPLAY_FILE;
@@ -34,7 +33,9 @@ pub fn credits_race() -> Result<(), Refused> {
     NUMBERS.replay_mode.set(0);
     REPLAY_FILE.hold_car_revs.set(0); // g_holdCarRevs
     RACE_TABLES.noise_seed.set(0x1234_5678);
-    unsafe { game_write(rva(0x60101C), 2u32) };
+    crate::physics::split_tables_store::SPLIT_TABLES
+        .arcade_kind
+        .set(2);
     FRAME_SWITCHES.editor_mode.set(0);
     crate::race::set_up_credits_race::set_up_credits_race()?;
     unsafe {

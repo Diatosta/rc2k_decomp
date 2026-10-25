@@ -1,6 +1,5 @@
 //! Functions that lay out parts of a screen: fixed positions, fonts and string ids.
 
-use crate::framework::{game_ptr, rva};
 use crate::text::font::Font;
 
 pub mod best_scores;
@@ -94,13 +93,13 @@ pub mod slideshow_title;
 pub mod stage_info;
 pub mod stage_panel;
 pub mod stage_results;
+pub mod text_buffers_store;
 pub mod yes_no_caption;
 
-/// byte_A8BB54: the text buffer these functions build their lines in.
-pub const LINE_BUFFER_RVA: usize = rva(0xA8BB54);
-
 pub fn line_buffer() -> *mut u8 {
-    game_ptr(LINE_BUFFER_RVA)
+    crate::screens::text_buffers_store::TEXT_BUFFERS
+        .line
+        .as_ptr()
 }
 
 /// A font object in game memory, by its address in IDA (where it lives now, if it has moved:

@@ -14,14 +14,12 @@
 //! textures, and a list that would leave the records.
 
 use crate::errors::BadInput;
-use crate::framework::{game_addr, game_write, rva};
 use crate::scene::object_store::OBJECT_WORK;
-use crate::scene::objects::{FILE_ROOM, FILE_RVA};
+use crate::scene::objects::FILE_ROOM;
+use crate::scene::texture_places_store::TEXTURE_PLACES;
 
 // ---- game data ----
 
-const COUNT_RVA: usize = rva(0x631B68); // dword_631B68, then the list dword_631B6C
-const RECORDS_RVA: usize = rva(0x5DCEBC); // unk_5DCEBC
 // ---- Rust version ----
 
 /// The file's bytes at an offset, if they lie in its room.
@@ -29,7 +27,7 @@ pub unsafe fn file_dword(offset: usize) -> Result<u32, BadInput> {
     if offset + 4 > FILE_ROOM {
         return Err(BadInput("the object's file runs past its room"));
     }
-    Ok(unsafe { (game_addr(FILE_RVA + offset) as *const u32).read_unaligned() })
+    Ok(unsafe { ((crate::scene::objects::file_addr() + offset) as *const u32).read_unaligned() })
 }
 
 // Converted: `rc2k_core::scene::objects::{texture_list, texture_record}`
@@ -40,14 +38,18 @@ pub unsafe fn list_object_textures() -> Result<(), BadInput> {
             texture_list(|offset| file_dword(offset).map_err(|e| rc2k_core::Invalid(e.0)))?;
         let slot: u32 = OBJECT_WORK.loading_slot.bits();
         let record = texture_record(slot, textures.len())?;
-        game_write(COUNT_RVA, textures.len() as u32);
+        crate::scene::object_slots_store::OBJECT_SLOTS
+            .texture_count
+            .set(textures.len() as u32);
         for (n, &texture) in textures.iter().enumerate() {
-            game_write(COUNT_RVA + 4 + n * 4, texture);
+            crate::scene::object_slots_store::OBJECT_SLOTS.texture_list[n].set(texture);
         }
         if let Some(record) = record {
-            game_write(RECORDS_RVA + record, textures.len() as u32);
+            // `unk_5DCEBC`: the records (`record` a byte offset in 64 of 0x40 bytes).
+            let records = &TEXTURE_PLACES.object_texture_records;
+            records[record / 4].set(textures.len() as u32);
             for (n, &texture) in textures.iter().enumerate() {
-                game_write(RECORDS_RVA + record + 4 + n * 4, texture);
+                records[record / 4 + 1 + n].set(texture);
             }
         }
         Ok(())

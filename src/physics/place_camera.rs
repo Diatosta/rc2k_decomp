@@ -19,7 +19,6 @@
 use crate::physics::camera_store::CAMERA_WORK;
 use crate::physics::camera_view::rd;
 use crate::physics::car_store::CAR;
-use crate::physics::flow::a;
 use crate::race::frame_store::FRAME_WORK;
 use crate::race::numbers_store::NUMBERS;
 use crate::race::vars_store::RACE_VARS;
@@ -38,9 +37,9 @@ type Turns = (
 /// The steps both versions share; `second` the second offset turned with the car.
 unsafe fn place_with(turns: Turns, second: &dyn Fn() -> [i32; 3]) {
     let esi = if RACE_VARS.split.get() == SECOND_RECORD_MODE {
-        a(0x6077CC)
+        crate::race::lights_store::LIGHTS_DATA.place_second[0].addr() as u32
     } else {
-        a(0x6077B0)
+        crate::race::lights_store::LIGHTS_DATA.place_usual[0].addr() as u32
     };
     let places = [
         &VIEW_VARS.place_a,

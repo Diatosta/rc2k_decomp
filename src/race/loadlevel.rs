@@ -6,7 +6,7 @@
 //! address).
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, game_read, rva};
+use crate::framework::{game_addr, rva};
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::game_map::MAP;
 use crate::race::numbers_store::NUMBERS;
@@ -20,7 +20,6 @@ const BAR_RVA: usize = rva(0x4467C7); // sub_4467C7: the loading bar's 3D frame
 const BAR_DONE_RVA: usize = rva(0x4467C6); // nullsub_8
 const MAP_PATH_RVA: usize = rva(0x60AE12); // "srcmaps\map"
 const MAP_KEY_RVA: usize = rva(0x60AE24); // unk_60AE24
-const NO_PLACE_RVA: usize = rva(0x64BB18); // dword_64BB18
 
 /// The step words ("LOADLEVEL_INIT : start" .. "finis"), in order.
 const WORDS: [&std::ffi::CStr; 28] = [
@@ -309,7 +308,7 @@ pub unsafe fn loadlevel_init() -> Result<(), Refused> {
         s.log();
         s.indent(3);
         crate::race::norms::store_norms(&mut crate::race::norms::game_normal)?;
-        if game_read::<u32>(NO_PLACE_RVA) == 0 {
+        if crate::drive::finish_store::FINISH.no_place.get() == 0 {
             s.indent(-3);
             s.step(&mut || level::init_checkpoints(&Vars::game()), None)?;
             s.step(

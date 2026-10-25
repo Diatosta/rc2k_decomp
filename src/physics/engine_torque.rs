@@ -11,7 +11,6 @@
 //!
 //! Callers: `physics::engine_torque_or_cut`, `sub_421848`, `sub_43CAAB`, `sub_43EA80`.
 
-use crate::framework::{game_read, rva};
 use crate::math::x87;
 use crate::math::x87_run::{div_then_mul, lerp_table, trunc_mul_to_int};
 use crate::physics::car_store::CAR;
@@ -19,10 +18,6 @@ use crate::physics::tables_store::PHYSICS;
 use crate::race::numbers_store::NUMBERS;
 use crate::scene::draw_store::DRAW;
 use std::cmp::Ordering;
-
-pub fn g(x: usize) -> u32 {
-    unsafe { game_read(rva(x)) }
-}
 
 /// C0 of comparing `a` with `b`: below, or unordered.
 pub fn below(a: u32, b: u32) -> bool {

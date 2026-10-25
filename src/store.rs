@@ -3,10 +3,10 @@
 //! sound and input modules).
 //!
 //! A block (`block!`) is a byte array whose first values are the image's bytes (generated
-//! runs of the non-zero ones) and which a `Slot` addresses: a `Slot` is an IDA address
-//! checked against its block when it is written, so a name the code keeps for a variable of
-//! the block cannot reach the image's old, unchanging copy (it is not a `usize`). The
-//! functions here take a `Slot` or, as the framework's, an RVA of the image.
+//! runs of the non-zero ones); its variables are typed overlays (phase 7) or named by IDA
+//! address through `moved::place`. The functions here take a typed cell or, as the
+//! framework's, an RVA of the image. (The checked `Slot` places went once the last user was
+//! typed, 2026-10-25.)
 //!
 //! The block keeps gaps and unreferenced bytes, so a slip that reads past a variable reads
 //! what the original read. 16-byte alignment holds relative to IDA's address (the block
@@ -16,78 +16,14 @@
 //! key thread) still does; the reads and writes are volatile, as the image's were.
 
 use crate::framework;
-use core::marker::PhantomData;
-use core::ops::Add;
 
-/// A block's description: IDA's address range and where its first byte now is.
+/// A block's description: where its first byte now is.
 pub trait Block: Copy {
-    const START: usize;
-    const END: usize;
     /// The address of the byte IDA calls `START`.
     fn base() -> usize;
 }
 
-/// A place in a block: the offset from its start.
-pub struct Slot<B: Block>(usize, PhantomData<B>);
-
-impl<B: Block> Clone for Slot<B> {
-    fn clone(&self) -> Self {
-        *self
-    }
-}
-impl<B: Block> Copy for Slot<B> {}
-
-impl<B: Block> core::fmt::Debug for Slot<B> {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(f, "Slot({:#x})", B::START.wrapping_add(self.0))
-    }
-}
-
-impl<B: Block> PartialEq for Slot<B> {
-    fn eq(&self, other: &Self) -> bool {
-        self.0 == other.0
-    }
-}
-
-impl<B: Block> Slot<B> {
-    /// The place of IDA's address `ida`; one outside the block does not compile (a
-    /// constant) or stops the program.
-    pub const fn at(ida: usize) -> Self {
-        assert!(
-            B::START <= ida && ida < B::END,
-            "not a variable of the block"
-        );
-        Slot(ida - B::START, PhantomData)
-    }
-
-    /// The place's address.
-    pub fn address(self) -> usize {
-        B::base().wrapping_add(self.0)
-    }
-}
-
-impl<B: Block> Add<usize> for Slot<B> {
-    type Output = Slot<B>;
-    fn add(self, n: usize) -> Slot<B> {
-        Slot(self.0.wrapping_add(n), PhantomData)
-    }
-}
-
-impl<B: Block> Add<u32> for Slot<B> {
-    type Output = Slot<B>;
-    fn add(self, n: u32) -> Slot<B> {
-        Slot(self.0.wrapping_add(n as usize), PhantomData)
-    }
-}
-
-impl<B: Block> Add<i32> for Slot<B> {
-    type Output = Slot<B>;
-    fn add(self, n: i32) -> Slot<B> {
-        Slot(self.0.wrapping_add(n as usize), PhantomData)
-    }
-}
-
-/// What `game_read` and the others take: a place in a block, or an RVA of the image.
+/// What `game_read` and the others take: an RVA of the image, or a typed cell.
 pub trait Where: Copy {
     fn address(self) -> usize;
 }
@@ -98,15 +34,9 @@ impl Where for usize {
     }
 }
 
-impl<B: Block> Where for Slot<B> {
-    fn address(self) -> usize {
-        Slot::address(self)
-    }
-}
-
 /// A variable named by IDA's address (a plain `usize`: where it lives now, `moved::place`) or
-/// by a place of a block (checked): what the helpers of modules whose variables are named
-/// by IDA's addresses (`g(0x5165F0)`) take, so that a converted one is a `Slot`.
+/// a typed cell: what the helpers of modules whose variables are named by IDA's addresses
+/// (`g(0x5165F0)`) take.
 pub trait Ida: Copy {
     fn here(self) -> usize;
 }
@@ -117,14 +47,8 @@ impl Ida for usize {
     }
 }
 
-impl<B: Block> Ida for Slot<B> {
-    fn here(self) -> usize {
-        Slot::address(self)
-    }
-}
-
 /// A variable named by IDA's address in the image (a plain `usize`, no lookup: for the hot
-/// helpers of the physics, race and drive modules) or by a place of a block (checked).
+/// helpers of the physics, race and drive modules).
 pub trait At: Copy {
     fn here(self) -> usize;
 }
@@ -132,12 +56,6 @@ pub trait At: Copy {
 impl At for usize {
     fn here(self) -> usize {
         framework::game_addr(framework::rva(self))
-    }
-}
-
-impl<B: Block> At for Slot<B> {
-    fn here(self) -> usize {
-        Slot::address(self)
     }
 }
 
@@ -161,7 +79,7 @@ macro_rules! typed_places {
 
 typed_places!(crate::session::Dword, crate::session::Float);
 
-/// Reads the variable named by `at` (an IDA address of the image, or a `Slot`).
+/// Reads the variable named by `at` (an IDA address of the image).
 pub unsafe fn at_read<T: Copy>(at: impl At) -> T {
     let p = at.here() as *const T;
     unsafe {
@@ -173,7 +91,7 @@ pub unsafe fn at_read<T: Copy>(at: impl At) -> T {
     }
 }
 
-/// Writes the variable named by `at` (an IDA address of the image, or a `Slot`).
+/// Writes the variable named by `at` (an IDA address of the image).
 pub unsafe fn at_write<T: Copy>(at: impl At, value: T) {
     let p = at.here() as *mut T;
     unsafe {
@@ -185,7 +103,7 @@ pub unsafe fn at_write<T: Copy>(at: impl At, value: T) {
     }
 }
 
-/// Reads the variable named by `at` (an IDA address or a `Slot`).
+/// Reads the variable named by `at` (an IDA address, or a typed cell).
 pub unsafe fn ida_read<T: Copy>(at: impl Ida) -> T {
     let p = at.here() as *const T;
     unsafe {
@@ -197,7 +115,7 @@ pub unsafe fn ida_read<T: Copy>(at: impl Ida) -> T {
     }
 }
 
-/// Writes the variable named by `at` (an IDA address or a `Slot`).
+/// Writes the variable named by `at` (an IDA address, or a typed cell).
 pub unsafe fn ida_write<T: Copy>(at: impl Ida, value: T) {
     let p = at.here() as *mut T;
     unsafe {
@@ -244,7 +162,7 @@ pub unsafe fn game_write<T: Copy>(place: impl Where, value: T) {
 }
 
 /// Declares a block: `block!(pub mod name { start: IDA, end: IDA, runs: PATH });` makes
-/// `name::{START, END, LEN, STORE, Slot, base(), from_ida(ida)}`; `PATH` is the generated
+/// `name::{START, END, LEN, STORE, base(), from_ida(ida)}`; `PATH` is the generated
 /// `&[(offset, &[u8])]` of the non-zero runs of the image's bytes.
 #[macro_export]
 macro_rules! block {
@@ -285,16 +203,10 @@ macro_rules! block {
             pub struct Zone;
 
             impl $crate::store::Block for Zone {
-                const START: usize = START;
-                const END: usize = END;
                 fn base() -> usize {
                     STORE.addr() + PAD
                 }
             }
-
-            /// A place of the block, checked when it is made.
-            #[allow(dead_code)] // the code of some blocks still names them by IDA's address only
-            pub type Slot = $crate::store::Slot<Zone>;
 
             /// The address of IDA's first byte of the block.
             pub fn base() -> usize {

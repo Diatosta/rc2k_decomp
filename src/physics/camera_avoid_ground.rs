@@ -28,7 +28,6 @@ use crate::physics::camera_over_ground::camera_over_ground;
 use crate::physics::camera_store::CAMERA_WORK;
 use crate::physics::camera_view::{rd, record};
 use crate::physics::car_store::CAR;
-use crate::physics::flow::g;
 use crate::race::course_store::COURSE;
 use crate::race::tables_store::RACE_TABLES;
 use crate::scene::draw_store::DRAW;
@@ -44,7 +43,8 @@ fn face_checkpoint(back: u32) -> bool {
     let Some(checkpoint) = camera_ground::back_checkpoint(CAR.checkpoint.get(), back) else {
         return false;
     };
-    let face = (g(0x9E3738 + 4 * checkpoint as usize) << 6).wrapping_add(COURSE.course_faces.get());
+    let face = (crate::race::checkpoints_store::face(checkpoint as usize).get() << 6)
+        .wrapping_add(COURSE.course_faces.get());
     let point = rd(face + 4)
         .wrapping_mul(12)
         .wrapping_add(COURSE.scene_points.get());

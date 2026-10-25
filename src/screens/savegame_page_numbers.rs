@@ -12,13 +12,9 @@
 //! the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{game_addr, rva};
 use crate::menu::pages_store::MENU_PAGES;
 
 // ---- game data ----
-
-const CAPTION_RVA: usize = rva(0xA8BE54); // g_captionText
-const NUMBERS_RVA: usize = rva(0xA8C158); // byte_A8C158: ten texts of four bytes
 
 // ---- Rust version ----
 
@@ -30,11 +26,15 @@ pub fn savegame_page_numbers() -> Result<(), Refused> {
     unsafe {
         std::ptr::copy_nonoverlapping(
             caption.as_ptr(),
-            game_addr(CAPTION_RVA) as *mut u8,
+            crate::screens::text_buffers_store::TEXT_BUFFERS
+                .caption
+                .addr() as *mut u8,
             caption.len(),
         );
         for (n, text) in numbers.iter().enumerate() {
-            let place = game_addr(NUMBERS_RVA) as *mut u8;
+            let place = crate::screens::text_buffers_store::TEXT_BUFFERS
+                .page_numbers
+                .addr() as *mut u8;
             std::ptr::copy_nonoverlapping(text.as_ptr(), place.add(n * 4), text.len());
             *place.add(n * 4 + text.len()) = 0;
         }

@@ -14,7 +14,6 @@
 
 use crate::race::replay_file_store::REPLAY_FILE;
 use crate::race::replay_work_store::REPLAY_WORK;
-use crate::race::viewer::{CAMERAS, CLIP_BLOCKS, MARK_IN, MARK_OUT, UNDO_BLOCKS, gb, get};
 use crate::race::viewer_state_store::REPLAY_VIEW;
 
 /// The Rust version.
@@ -26,11 +25,21 @@ pub unsafe fn mark_viewer_items(list: u32) {
         last_race: REPLAY_VIEW.last_race_viewed.get() == 1,
         block,
         blocks: REPLAY_FILE.index_block_count.get(),
-        mark_in: get(MARK_IN),
-        mark_out: get(MARK_OUT),
-        clip_blocks: get(CLIP_BLOCKS),
-        undo_blocks: get(UNDO_BLOCKS),
-        camera: gb((CAMERAS + 5).wrapping_add(block.wrapping_mul(8) as usize)),
+        mark_in: crate::race::viewer_buffers_store::VIEWER_BUFFERS
+            .mark_in
+            .get(),
+        mark_out: crate::race::viewer_buffers_store::VIEWER_BUFFERS
+            .mark_out
+            .get(),
+        clip_blocks: crate::race::viewer_buffers_store::VIEWER_BUFFERS
+            .clip_blocks
+            .get(),
+        undo_blocks: crate::race::viewer_buffers_store::VIEWER_BUFFERS
+            .undo_blocks
+            .get(),
+        camera: crate::race::viewer::camera_byte_at(
+            5usize.wrapping_add(block.wrapping_mul(8) as usize),
+        ),
         one_player: REPLAY_WORK.header_one_player.get() == 1,
     };
     for (item, bit) in rc2k_core::race::viewer::item_marks(&state) {

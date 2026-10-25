@@ -1,5 +1,5 @@
 //! The piece from the input keys word 0x5C694C to the spin axis at 0x5C7904: the face-key factors, the course memory's lists and pointers, the object and point-record pointers, the matrix work areas (squaring, turn, inversion, angles), the two root tables and the spin variables.
-//! It stops before the car records at 0x5C790C (0xB0 bytes each, up to 0x21, running past 0x5C7A00).
+//! It stops before the car records at 0x5C790C (`race::car_specs_store`).
 //! Names are readings unless IDA's.
 
 use crate::session::{Dword, Float};

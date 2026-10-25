@@ -27,7 +27,6 @@
 //! are kept as `asm_reference` in the tests (2026-10-24).
 
 use crate::errors::{BadInput, FatalError, Refused};
-use crate::framework::{game_read, rva};
 use crate::math::x87;
 use crate::math::x87_float::ONE;
 use crate::race::course_lists_store::COURSE_LISTS;
@@ -36,13 +35,13 @@ use crate::race::matrices_store::MATRICES;
 use crate::race::prefs_store::STAGE_PREFS;
 use crate::scene::draw_store::DRAW;
 use crate::scene::light_store::LIGHT_STATE;
+use crate::scene::object_tables_store::OBJECT_TABLES;
 use crate::scene::polygon::{dword, put};
 use crate::scene::x87_mem::{fild, fld, fstp};
 
 // ---- game data ----
 
 pub const RECORD_LEN: usize = 0x20;
-pub const OBJECT_POINTS_RVA: usize = rva(0x5CD680); // dword_5CD680
 /// `flt_5C5E18`: a point nearer than this is not put on the screen.
 pub const NEAR: f32 = 4096.0;
 /// `flt_5C5E1C`.
@@ -168,17 +167,15 @@ unsafe fn screen_plain(o: *mut u8, v: *const u8) {
 // Converted: `rc2k_core::scene::projection::record_offset`
 pub unsafe fn record_offset(point: u32) -> Result<u32, FatalError> {
     use rc2k_core::scene::projection::TooHigh;
-    unsafe {
-        rc2k_core::scene::projection::record_offset(
-            point,
-            game_read(OBJECT_POINTS_RVA),
-            COURSE.scene_point_count.bits(),
-        )
-        .map_err(|e| match e {
-            TooHigh::Object => TOO_HIGH_OBJECT,
-            TooHigh::Scene => TOO_HIGH,
-        })
-    }
+    rc2k_core::scene::projection::record_offset(
+        point,
+        OBJECT_TABLES.point_count.get(),
+        COURSE.scene_point_count.bits(),
+    )
+    .map_err(|e| match e {
+        TooHigh::Object => TOO_HIGH_OBJECT,
+        TooHigh::Scene => TOO_HIGH,
+    })
 }
 
 /// What the function leaves.

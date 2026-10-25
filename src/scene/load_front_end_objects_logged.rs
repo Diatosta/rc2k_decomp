@@ -9,9 +9,9 @@
 //! Caller: `scene::set_up_front_end_scene`.
 
 use crate::errors::Refused;
-use crate::framework::{game_read, rva};
 use crate::logfile::{log_hex8::log_hex8, log_write::log_write};
 use crate::scene::object_store::OBJECT_WORK;
+use crate::scene::object_tables_store::OBJECT_TABLES;
 
 const RULE: &std::ffi::CStr = c"===========================";
 const LOADED: &std::ffi::CStr = c"Front end objects loaded";
@@ -20,9 +20,9 @@ const RULE_2: &std::ffi::CStr = c"===========================";
 type Total = (&'static std::ffi::CStr, fn() -> u32);
 const TOTALS: [Total; 4] = [
     // "total points", g_objectPointCount
-    (c"total points", || unsafe { game_read(rva(0x5CD680)) }),
+    (c"total points", || OBJECT_TABLES.point_count.get()),
     (c"total pointmem", || OBJECT_WORK.point_memory_total.bits()),
-    (c"total faces", || unsafe { game_read(rva(0x5CD67C)) }),
+    (c"total faces", || OBJECT_TABLES.face_count.get()),
     (c"total facemem", || OBJECT_WORK.face_memory_total.bits()),
 ];
 

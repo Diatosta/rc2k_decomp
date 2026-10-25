@@ -22,6 +22,7 @@ use crate::math::x87;
 use crate::math::x87_run::sub_mul_add;
 use crate::physics::car_store::CAR;
 use crate::physics::copy_car_word_8::copy_car_word_8;
+use crate::physics::gear_store::GEAR;
 use crate::physics::gearbox::*;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::numbers_store::NUMBERS;
@@ -43,7 +44,7 @@ pub fn pick_start_gear() -> Result<(), Refused> {
         CAR.gear.set(gear);
         revs_speed()?;
         CAR.engine_speed.set_bits(over_top());
-        Ok(below(CAR.engine_speed.bits(), g(0x5CB958)))
+        Ok(below(CAR.engine_speed.bits(), GEAR.shift_up_point.bits()))
     })?;
     let Some(gear) = taken else {
         return Ok(());

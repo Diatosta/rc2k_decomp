@@ -18,7 +18,6 @@
 //! `rc2k_core::scene::shown`.
 
 use crate::errors::{BadInput, FatalError, Refused};
-use crate::framework::{game_read, rva};
 use crate::physics::ground_store::GROUND_WORK;
 use crate::race::numbers_store::NUMBERS;
 use crate::race::switches_store::FRAME_SWITCHES;
@@ -26,10 +25,9 @@ use crate::race::work_store::RACE_WORK;
 use crate::scene::draw_object::draw_object_in_game;
 use crate::scene::draw_shown_object::draw_shown_object;
 use crate::scene::light_store::LIGHT_STATE;
+use crate::scene::object_tables_store::OBJECT_TABLES;
 
 // ---- game data ----
-const KINDS_RVA: usize = rva(0x5CD27C); // g_objectKinds
-const FACE_COUNTS_RVA: usize = rva(0x632F70); // dword_632F70
 // scene::draw_described_object
 
 const TOO_HIGH: FatalError = FatalError {
@@ -52,7 +50,7 @@ unsafe fn texture_set() -> Result<(u32, u32), Refused> {
             object,
             NUMBERS.in_race.bits() != 0,
             0,
-            |object| game_read(KINDS_RVA + object as usize * 4),
+            |object| OBJECT_TABLES.object_kind(object),
             |car| {
                 let block: u32 = RACE_WORK.car_block(car as usize);
                 (block != 0).then(|| ((block + 0x24) as *const u32).read_unaligned())
@@ -78,7 +76,8 @@ pub unsafe fn draw_scene_object(
     unsafe {
         let (set, object) = texture_set()?;
         GROUND_WORK.object_texture_set.set_bits(set);
-        let faces: u32 = game_read(FACE_COUNTS_RVA + object as usize * 4);
+        let faces: u32 =
+            crate::scene::object_slots_store::OBJECT_SLOTS.face_counts[object as usize].get();
         match rc2k_core::scene::shown::way(faces, LIGHT_STATE.draw_mode.bits()) {
             Some(way) => draw(way),
             None => Ok(()),

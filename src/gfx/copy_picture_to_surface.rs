@@ -18,17 +18,14 @@
 //! `routes.rs`.
 
 use crate::errors::BadInput;
-use crate::framework::rva;
 use crate::gfx::locked::LOCKED;
 use crate::gfx::picture::picture;
-use crate::gfx::surface::BASE_RVA;
-use crate::store::game_read;
+use crate::gfx::screen_state::DRAW_SURFACE;
 
 // ---- game data ----
 
-const ROWS_RVA: usize = rva(0x4F49A4); // dword_4F49A4
-const ROW_DWORDS_RVA: usize = rva(0x4F49B4); // dword_4F49B4
-const ROW_GAP_RVA: usize = rva(0x4F49C4); // dword_4F49C4: surface bytes after a row's pixels
+// The surface's height (dword_4F49A4: rows), row_dwords (dword_4F49B4) and row_gap
+// (dword_4F49C4: surface bytes after a row's pixels) are `DRAW_SURFACE`'s.
 
 // ---- Rust version ----
 
@@ -64,16 +61,16 @@ impl PictureSurface for GameSurface {
         picture()
     }
     fn pixels(&self) -> *mut u8 {
-        unsafe { game_read::<u32>(BASE_RVA) as *mut u8 }
+        DRAW_SURFACE.pixels.get() as *mut u8
     }
     fn rows(&self) -> u32 {
-        unsafe { game_read(ROWS_RVA) }
+        DRAW_SURFACE.height.get()
     }
     fn row_dwords(&self) -> u32 {
-        unsafe { game_read(ROW_DWORDS_RVA) }
+        DRAW_SURFACE.row_dwords.get()
     }
     fn row_gap(&self) -> u32 {
-        unsafe { game_read(ROW_GAP_RVA) }
+        DRAW_SURFACE.row_gap.get()
     }
 }
 

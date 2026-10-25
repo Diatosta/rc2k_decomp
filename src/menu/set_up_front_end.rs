@@ -24,23 +24,16 @@ use crate::menu::draw_work_store::DRAW_WORK;
 use crate::menu::loop_store::LOOP_FLAGS;
 use crate::saves::best_times_store::BEST_TIMES;
 use crate::saves::default_times::to_the_log;
+use crate::sound::store::SOUND_OPTIONS;
 
 // ---- game data ----
 
-/// (from, to): two dwords, then the nine tables of `saves::allocate_best_times`.
-const COPIES: [(usize, usize); 11] = [
-    (0x755688, 0x5180FC),
-    (0x75568C, 0x518100),
-    (0x747618, 0x7556F4),
-    (0x747620, 0x7556D4),
-    (0x747628, 0x7556D8),
-    (0x747630, 0x7556DC),
-    (0x747638, 0x7556E0),
-    (0x747640, 0x7556EC),
-    (0x747648, 0x7556F0),
-    (0x747650, 0x7556E4),
-    (0x747658, 0x7556E8),
+/// Where each of the nine tables of `saves::allocate_best_times` (`BEST_TIMES.tables`:
+/// `dword_747618`, `dword_747620` .. `dword_747658`, in order) is copied to, by IDA's address.
+const COPIES: [usize; 9] = [
+    0x7556F4, 0x7556D4, 0x7556D8, 0x7556DC, 0x7556E0, 0x7556EC, 0x7556F0, 0x7556E4, 0x7556E8,
 ];
+
 /// The record tables that get made-up records: the championship's and the twelve events'
 /// (IDA 0x739642, 0x7391C2, 0x738D42, 0x7388C2, 0x738442, 0x737FC2, then 0x739AC2 ..
 /// 0x73B142), in the original's order.
@@ -76,16 +69,22 @@ pub unsafe fn set_up_front_end(stage: u32, x: u32) -> Result<(), Refused> {
         crate::menu::show_loading_picture::show_loading_picture()?;
         crate::gfx::build_menu_sprites::build_menu_sprites_in_game()?;
         crate::menu::fit_player_names::fit_player_names(x)?;
-        for (n, (from, to)) in COPIES.into_iter().enumerate() {
-            if n == 2 {
-                allocate_best_times::allocate_best_times(
-                    BEST_TIMES.vars(),
-                    BEST_TIMES.list(),
-                    crate::records::stages_store::STAGE_TABLES.championship() as *const u8,
-                )?;
-            }
-            // The pairs name their variables by IDA's address (`moved::place`).
-            crate::store::ida_write(to, crate::store::ida_read::<u32>(from));
+        // The two dwords: the music volumes, then the tables' copies.
+        SOUND_OPTIONS
+            .music_volume
+            .set(crate::store::ida_read::<u32>(0x755688));
+        SOUND_OPTIONS
+            .race_music_volume
+            .set(crate::store::ida_read::<u32>(0x75568C));
+        allocate_best_times::allocate_best_times(
+            BEST_TIMES.vars(),
+            BEST_TIMES.list(),
+            crate::records::stages_store::STAGE_TABLES.championship() as *const u8,
+        )?;
+        for (table, to) in BEST_TIMES.tables.iter().zip(COPIES) {
+            // The destinations are named by IDA's address (`moved::place`).
+            let value = table.address.get();
+            crate::store::ida_write(to, value);
         }
         if BEST_TIMES.loaded.get() != 1 {
             DRAW_WORK.work_0c.set(0u32);

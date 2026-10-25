@@ -18,20 +18,18 @@
 //! `routes.rs`.
 
 use crate::errors::{FatalError, Refused};
-use crate::framework::rva;
 use crate::gfx::modes::MODES;
 use crate::gfx::picture_store::PICTURE;
 use crate::gfx::pixel_format::surface_format_addr;
+use crate::gfx::screen_state::DRAW_SURFACE;
 use crate::gfx::set_clip::set_clip;
-use crate::store::{game_addr, game_write};
 use crate::system::find_entry::entries;
 
 // ---- game data ----
 
-/// unk_4F4998: the surface block, twelve dwords: x, y, width, height, bits a pixel, bytes
-/// a pixel, bytes of a row's pixels, dwords of a row, the pixel format, the pitch, the
-/// pixels, the gap after a row.
-pub const SURFACE_RVA: usize = rva(0x4F4998);
+// unk_4F4998 is `DRAW_SURFACE`'s x: the surface block, twelve dwords: x, y, width, height,
+// bits a pixel, bytes a pixel, bytes of a row's pixels, dwords of a row, the pixel format,
+// the pitch, the pixels, the gap after a row.
 pub const SURFACE_DWORDS: usize = 12;
 const SIZE_COUNT: u32 = 8;
 const PIXEL_KIND_COUNT: u32 = 2;
@@ -63,8 +61,18 @@ pub unsafe fn surface_of(flags: u32, pixels: u32) -> Result<[u32; SURFACE_DWORDS
 pub unsafe fn picture_as_surface() -> Result<(), Refused> {
     unsafe {
         let block = surface_of(PICTURE.flags.get(), PICTURE.buffer.get())?;
-        game_write(SURFACE_RVA + 8, block);
-        set_clip(game_addr(SURFACE_RVA) as *const [u32; 4])?;
+        let s = &DRAW_SURFACE;
+        s.width.set(block[0]);
+        s.height.set(block[1]);
+        s.bits_per_pixel.set(block[2]);
+        s.bytes_per_pixel.set(block[3]);
+        s.row_bytes.set(block[4]);
+        s.row_dwords.set(block[5]);
+        s.format.set(block[6]);
+        s.pitch.set(block[7]);
+        s.pixels.set(block[8]);
+        s.row_gap.set(block[9]);
+        set_clip(s.x.addr() as *const [u32; 4])?;
         Ok(())
     }
 }

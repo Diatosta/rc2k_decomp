@@ -3,10 +3,10 @@
 //! `scene::choose_carousel_pictures` and `scene::update_carousel_pictures`.
 
 use crate::errors::BadInput;
-use crate::framework::game_write;
 use crate::menu::state_store::MENU_STATE;
 use crate::scene::kind_texture_store::KIND_TEXTURES;
-use crate::scene::textures::{SLOTS, WANTED_RVA};
+use crate::scene::texture_places_store::TEXTURE_PLACES;
+use crate::scene::textures::SLOTS;
 use crate::session::{read_all, write_all};
 
 const KIND: usize = 0x2BC;
@@ -51,7 +51,9 @@ pub unsafe fn update(entries: [u32; 4]) -> Result<(), BadInput> {
         write_all(&MENU_STATE.carousel_pictures.wanted, wanted);
         write_all(&MENU_STATE.carousel_pictures.held, held);
         let textures = rc2k_core::scene::carousel::picture_textures(held, first_texture);
-        game_write(WANTED_RVA + first_slot as usize * 4, textures);
+        for (n, texture) in textures.into_iter().enumerate() {
+            TEXTURE_PLACES.slot_wanted[first_slot as usize + n].set(texture);
+        }
         // What the original leaves in eax, ebx, ecx, esi and edi its callers' later calls
         // overwrite or never read (the carousel takes ebx and ecx anew).
         let _ = record;

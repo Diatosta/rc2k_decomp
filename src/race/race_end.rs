@@ -3,7 +3,6 @@
 //! their steps.
 
 use crate::errors::Refused;
-use crate::framework::rva;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::numbers_store::NUMBERS;
 use crate::race::replay_work_store::REPLAY_WORK;
@@ -14,7 +13,6 @@ use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
 use crate::race::view_vars_store::VIEW_VARS;
 use crate::sound::sets_store::SPOT_VOICES;
-use crate::store::game_write;
 
 /// Where a header setting lives in the race's variables (its first place).
 pub fn setting_cell(s: rc2k_core::race::replay::Setting) -> &'static crate::session::Dword {
@@ -350,7 +348,9 @@ pub unsafe fn tidy_everything(v: &LoadVars) -> Result<(), Refused> {
 /// address. Its callers read only esi of what it leaves, which every step keeps.
 pub unsafe fn run_race(indent: u32) -> Result<(), Refused> {
     unsafe {
-        game_write(rva(0x60101C), 1u32);
+        crate::physics::split_tables_store::SPLIT_TABLES
+            .arcade_kind
+            .set(1);
         (indent as *mut u32).write_unaligned(0);
         if RACE_STATE.results.race_stage.get() == 0 && RACE_STATE.settings.run_kind.get() == 2 {
             RACE_TABLES

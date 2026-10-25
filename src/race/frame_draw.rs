@@ -7,6 +7,7 @@ use crate::physics::car_store::CAR;
 use crate::physics::car_store::Car;
 use crate::physics::contact_store::CONTACT_WORK;
 use crate::physics::ground_store::GROUND_WORK;
+use crate::physics::split_tables_store::SPLIT_TABLES;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::course_lists_store::COURSE_LISTS;
@@ -14,9 +15,11 @@ use crate::race::course_store::COURSE;
 use crate::race::frame_store::FRAME_WORK;
 use crate::race::kind_store::KIND_TABLES;
 use crate::race::level_grid_store::LEVEL_GRID;
+use crate::race::light_records_store::LIGHT_RECORDS;
 use crate::race::matrices_store::MATRICES;
 use crate::race::numbers_store::NUMBERS;
 use crate::race::overlay_store::RACE_OVERLAY;
+use crate::race::panel_store::PANEL;
 use crate::race::prefs_store::STAGE_PREFS;
 use crate::race::sound_spots_store::RACE_SOUND_SPOTS;
 use crate::race::switches_store::FRAME_SWITCHES;
@@ -30,9 +33,10 @@ use crate::scene::draw_switches_store::DRAW_SWITCHES;
 use crate::scene::light_store::LIGHT_STATE;
 use crate::scene::light_work_store::LIGHT_WORK;
 use crate::scene::object_store::OBJECT_WORK;
+use crate::scene::object_tables_store::OBJECT_TABLES;
 use crate::session::MACHINE;
 use crate::session::SCREEN;
-use crate::store::{game_read, game_write};
+use crate::store::game_read;
 
 unsafe fn get(a: u32) -> u32 {
     unsafe { (a as *const u32).read_unaligned() }
@@ -51,7 +55,6 @@ pub unsafe fn car_label(edi: u32, eax: u32, ecx: u32) {
     unsafe { std::ptr::copy_nonoverlapping(label.as_ptr(), edi as *mut u8, 7) };
 }
 
-pub const MARK_COUNT_RVA: usize = rva(0x601830); // dword_601830: the dwords cleared to 0xC
 /// `race::split_colours` (0x45B16A): `dword_601830` dwords at edi set to 0xC; then for each
 /// of the block esi's +0x90 values at +0x140 (none when +0x90 is 0 or negative), edi's
 /// dword 8 when it is not above the one before (0x63 before the first; the sign of the
@@ -79,8 +82,6 @@ pub unsafe fn split_colours(esi: u32, edi: u32, fill: u32) -> Result<(), Refused
     }
 }
 
-pub const PANEL_FIELDS: [usize; 4] = [rva(0x6D141A), rva(0x6D144A), rva(0x6D1426), rva(0x6D142E)];
-
 /// `race::panel_players` (0x45ACDB): unless `dword_62389C` is set, `dword_6D141A` and
 /// `dword_6D144A` -1; with more than one player also `dword_6D1426` and `dword_6D142E` -1,
 /// and `dword_6D141A` / `dword_6D144A` the two view blocks' +0xFA4.
@@ -92,17 +93,17 @@ pub unsafe fn panel_players() {
         if step == PanelPlayers::Kept {
             return;
         }
-        game_write(PANEL_FIELDS[0], u32::MAX);
-        game_write(PANEL_FIELDS[1], u32::MAX);
+        PANEL.view_a.place.set(u32::MAX);
+        PANEL.view_b.place.set(u32::MAX);
         if step == PanelPlayers::One {
             return;
         }
-        game_write(PANEL_FIELDS[2], u32::MAX);
-        game_write(PANEL_FIELDS[3], u32::MAX);
+        PANEL.view_a.back.set(u32::MAX);
+        PANEL.view_a.front.set(u32::MAX);
         let a = get(RACE_VIEW.view_blocks[0].get() + 0xFA4);
-        game_write(PANEL_FIELDS[0], a);
+        PANEL.view_a.place.set(a);
         let b = get(RACE_VIEW.view_blocks[1].get() + 0xFA4);
-        game_write(PANEL_FIELDS[1], b);
+        PANEL.view_b.place.set(b);
     }
 }
 
@@ -218,9 +219,17 @@ pub unsafe fn clear_point_records() {
 /// `dword_5D3AE8`, the objects' face counts `dword_632F70` and first faces `dword_632B70`,
 /// `g_faces`, and the four 0x100-byte outputs `byte_63DC5C`, `byte_63DD5C`, `byte_63DE5C`,
 /// `byte_63DF5C`.
-pub const OBJECT_TABLES: [usize; 5] = [0x979F50, 0x5D3AE8, 0x632F70, 0x632B70, 0x9A3730];
+pub fn object_table_places() -> [usize; 5] {
+    [
+        crate::scene::polygon_store::POLYGON_WORK.texture_infos[0].words[8].addr(),
+        crate::scene::texture_places_store::TEXTURE_PLACES.place_slot[0].addr(),
+        crate::scene::object_slots_store::OBJECT_SLOTS.face_counts[0].addr(),
+        crate::scene::object_slots_store::OBJECT_SLOTS.first_face[0].addr(),
+        crate::scene::faces_store::FACES.faces[0].addr(),
+    ]
+}
 
-/// `race::object_bytes` (0x455263), on tables at `t` (`OBJECT_TABLES`' order): for each of
+/// `race::object_bytes` (0x455263), on tables at `t` (`object_table_places`' order): for each of
 /// the 0x100 objects, out0 = record +0xE bit 0, out1 = 1, out2 = the kinds' byte of the
 /// record's kind, out3 = 0xFF, or with faces the kinds' byte of the first face's +4 word.
 pub unsafe fn object_bytes_at(t: &[u32]) {
@@ -247,9 +256,8 @@ pub unsafe fn object_bytes_at(t: &[u32]) {
 pub fn object_tables() -> Vec<u32> {
     // The four outputs are byte tables, walked by pointer: absolute addresses.
     let outputs = face_tables();
-    OBJECT_TABLES
-        .iter()
-        .map(|&a| crate::framework::game_addr(rva(a)))
+    object_table_places()
+        .into_iter()
         .chain(outputs)
         .map(|a| a as u32)
         .collect()
@@ -259,49 +267,57 @@ pub unsafe fn object_bytes() {
     unsafe { object_bytes_at(&object_tables()) }
 }
 
-const DISTANCES_RVA: usize = rva(0x9F78D8); // g_checkpointDistances
-const START_CHECKPOINT_RVA: usize = rva(0x60102C); // dword_60102C
-
 /// One view's half of `race::panel_values`: block `b`'s values into the panel fields
 /// (+0x718 rounded, +0xAB0, +0x1D4, the distance, +0x88 x 10, +0xA0C, -(+0xA10),
 /// +0xA14, and for the first view also +0xA18, +0xA1C, +0xA20, +0xA24).
 unsafe fn panel_half(b: u32, first: bool) {
     use rc2k_core::race::panel::{distance_shown, shown_whole, travelled};
     unsafe {
-        let f = |a: u32| crate::framework::game_addr(rva(a as usize)) as u32;
-        let (base, distance) = if first {
-            (0x6D140E, 0x6D146A)
+        let panel = &*PANEL;
+        let (cells, distance) = if first {
+            let v = &panel.view_a;
+            (
+                [
+                    &v.whole, &v.speed, &v.gear, &v.place, &v.time, &v.split2, &v.negated,
+                ],
+                &panel.distance[0],
+            )
         } else {
-            (0x6D143E, 0x6D146E)
+            let v = &panel.view_b;
+            (
+                [
+                    &v.whole, &v.speed, &v.gear, &v.place, &v.time, &v.split2, &v.negated,
+                ],
+                &panel.distance[1],
+            )
         };
         let whole = shown_whole(f32::from_bits(Car::at(b).unknown_6f4[9].bits()));
-        put(f(base), whole as u32);
-        put(f(base + 4), Car::at(b).engine_sound_speed_int.bits());
-        put(f(base + 8), Car::at(b).gear.bits());
-        let at = |n: u32| game_read::<u32>(DISTANCES_RVA + 4 * n as usize);
-        let from: u32 = game_read(START_CHECKPOINT_RVA);
+        cells[0].set(whole as u32);
+        cells[1].set(Car::at(b).engine_sound_speed_int.bits());
+        cells[2].set(Car::at(b).gear.bits());
+        let at = |n: u32| {
+            crate::race::checkpoints_store::nth(
+                &crate::race::checkpoints_store::CHECKPOINTS.distances[0],
+                n as usize,
+            )
+            .get()
+        };
+        let from: u32 = SPLIT_TABLES.checkpoints[0].get();
         let d = travelled(at(Car::at(b).checkpoint.bits()), at(from));
         DRAW.scratch.set_bits(d);
         let (unit, miles): (u32, u32) = (NUMBERS.k65536.bits(), NUMBERS.metres_in_mile.bits());
         let shown = distance_shown(d as i32, f32::from_bits(unit), f32::from_bits(miles)).to_bits();
-        put(f(distance), shown);
-        put(
-            f(base + 0x10),
-            Car::at(b).stage_time.bits().wrapping_mul(10),
-        );
-        put(f(base + 0xC), Car::at(b).split_gaps[0].bits());
-        // -(+0xA10): `dword_6D142A` for the first view, `dword_6D1456` (+0x18) for the second.
-        let negated = if first { 0x1C } else { 0x18 };
-        put(
-            f(base + negated),
-            Car::at(b).split_gaps[1].bits().wrapping_neg(),
-        );
-        put(f(base + 0x14), Car::at(b).split_gaps[2].bits());
+        distance.set(shown);
+        cells[4].set(Car::at(b).stage_time.bits().wrapping_mul(10));
+        cells[3].set(Car::at(b).split_gaps[0].bits());
+        // -(+0xA10): `dword_6D142A` for the first view, `dword_6D1456` for the second.
+        cells[6].set(Car::at(b).split_gaps[1].bits().wrapping_neg());
+        cells[5].set(Car::at(b).split_gaps[2].bits());
         if first {
-            put(f(0x6D142E), Car::at(b).split_gaps[3].bits());
-            put(f(0x6D1426), Car::at(b).split_gaps[4].bits());
-            put(f(0x6D1402), Car::at(b).split_gaps[5].bits());
-            put(f(0x6D13FE), Car::at(b).split_gaps[6].bits());
+            panel.view_a.front.set(Car::at(b).split_gaps[3].bits());
+            panel.view_a.back.set(Car::at(b).split_gaps[4].bits());
+            panel.split_5.set(Car::at(b).split_gaps[5].bits());
+            panel.split_6.set(Car::at(b).split_gaps[6].bits());
         }
     }
 }
@@ -413,32 +429,31 @@ pub unsafe fn panel_neighbours() -> Result<(), Refused> {
         };
         let behind = block_of(table(CAR_BY_PLACE + 4))?;
         let ahead = block_of(table(CAR_BY_PLACE))?;
-        put(g(0x6D141A), place);
-        put(g(0x6D141E), get(a + 0x8C).wrapping_mul(10));
+        PANEL.view_a.place.set(place);
+        PANEL.view_a.time.set(get(a + 0x8C).wrapping_mul(10));
         // Converted: `rc2k_core::race::frame::neighbour_number` (and the labels'
         // `rc2k_core::race::start::car_label`).
         use rc2k_core::race::frame::neighbour_number;
         let number = get(behind + 0x24);
         let back = neighbour_number(place == RACE_TABLES.arcade_cars.bits(), number);
-        put(g(0x6D1426), back);
+        PANEL.view_a.back.set(back);
         car_label(
             RACE_OVERLAY.label_behind[0].addr() as u32,
             numbers(RACE_TABLES.arcade_car_numbers[0].addr()),
             back,
         );
-        put(g(0x6D1422), get(a + 0x634));
+        PANEL.view_a.split2.set(get(a + 0x634));
         let front = neighbour_number(place == 1, get(ahead + 0x24));
-        put(g(0x6D142E), front);
+        PANEL.view_a.front.set(front);
         car_label(
             RACE_OVERLAY.label_ahead[0].addr() as u32,
             numbers(RACE_TABLES.number_before_first.addr()),
             front,
         );
-        put(g(0x6D142A), get(a + 0x630).wrapping_neg());
+        PANEL.view_a.negated.set(get(a + 0x630).wrapping_neg());
         Ok(())
     }
 }
-const SHOWN_SINCE_RVA: usize = rva(0x62290C); // dword_62290C
 
 /// `race::panel_motion` (0x45AE1D), converted (`set_up_panel`'s too): for
 /// each view block, +0xAE8 and +0xAEC x 0.5 / 65536 (floats) and the heading,
@@ -455,27 +470,25 @@ pub unsafe fn panel_motion_plain() {
             NUMBERS.one_over_65536.get(),
             NUMBERS.k65536.get(),
         );
-        for (view, out) in PANEL_MOTION {
+        for (view, out) in [(0, &PANEL.view_a.motion), (1, &PANEL.view_b.motion)] {
             let b = RACE_VIEW.view_blocks[view].get();
-            put(
-                g(out),
-                motion(Car::at(b).map_picture_place[0].bits() as i32, half, small).to_bits(),
-            );
-            put(
-                g(out + 4),
-                motion(Car::at(b).map_picture_place[1].bits() as i32, half, small).to_bits(),
-            );
+            out[0]
+                .set(motion(Car::at(b).map_picture_place[0].bits() as i32, half, small).to_bits());
+            out[1]
+                .set(motion(Car::at(b).map_picture_place[1].bits() as i32, half, small).to_bits());
             let turn = heading_turn(Car::at(b).car_heading.bits());
             DRAW.scratch.set_bits(turn);
-            put(g(out + 8), heading(turn as i32, half, big).to_bits());
+            out[2].set(heading(turn as i32, half, big).to_bits());
         }
-        let shown = shown_for(PHYSICS.scene_clock.bits(), game_read(SHOWN_SINCE_RVA));
+        let shown = shown_for(
+            PHYSICS.scene_clock.bits(),
+            crate::race::panel_clock_store::PANEL_CLOCK
+                .shown_since
+                .get(),
+        );
         DRAW.scratch.set_bits(shown);
     }
 }
-
-/// `panel_motion`'s views and their three floats' places (IDA addresses).
-pub const PANEL_MOTION: [(usize, u32); 2] = [(0, 0x6D1432), (1, 0x6D145A)];
 
 /// `race::panel_marks` (0x45AEFE): the eight dwords at 0x6D14A2 .. 0x6D14C2 (but 0x6D14B2)
 /// 0; for each view block, `dword_6D14B2` / `dword_6D14C6` = 400 + (+0xFA0), and its first
@@ -483,20 +496,20 @@ pub const PANEL_MOTION: [(usize, u32); 2] = [(0, 0x6D1432), (1, 0x6D145A)];
 pub unsafe fn panel_marks() {
     // Converted: `rc2k_core::race::frame::view_marks`.
     unsafe {
-        for a in [
-            0x6D14A2, 0x6D14A6, 0x6D14AA, 0x6D14AE, 0x6D14B6, 0x6D14BA, 0x6D14BE, 0x6D14C2,
-        ] {
-            put(g(a), 0);
+        for view in &PANEL.marks {
+            for mark in &view.marks {
+                mark.set(0);
+            }
         }
-        for (view, base, marks) in [(0, 0x6D14B2, 0x6D14A2), (1, 0x6D14C6, 0x6D14B6)] {
+        for (view, shown) in PANEL.marks.iter().enumerate() {
             let b: u32 = RACE_VIEW.view_blocks[view].get();
             let offset = Car::at(b).car_event_position.bits();
             let count = Car::at(b).car_event_count.bits();
             let m = rc2k_core::race::frame::view_marks(offset, count, |k| get(b + 0xF78 + 4 * k));
-            put(g(base), m.base);
+            shown.base.set(m.base);
             if count != 0 {
                 for k in 0..m.shown {
-                    put(g(marks) + 4 * k, m.marks[k as usize]);
+                    shown.marks[k as usize].set(m.marks[k as usize]);
                 }
             }
         }
@@ -507,12 +520,11 @@ pub unsafe fn panel_marks() {
 /// the view's fields at 0x6D1482 + it), `block` (esi) the view's block, `flag` (ebp) where
 /// a "step" flag goes. See the header for the steps. (The registers its divisions leave
 /// are read by no caller.)
-pub unsafe fn countdown_lights(fields: u32, block: u32, flag: u32) {
+pub unsafe fn countdown_lights(view: &crate::race::panel_store::Lights, block: u32, flag: u32) {
     unsafe {
-        let f = |off: u32| g(0x6D1482).wrapping_add(off).wrapping_add(fields);
-        let (lit, fade, size, shift) = (f(0), f(4), f(8), f(0xC));
-        put(fade, 0);
-        put(shift, 0);
+        let (lit, fade, size, shift) = (&view.lit, &view.fade, &view.size, &view.shift);
+        fade.set(0);
+        shift.set(0);
         put(flag, 0);
         if Car::at(block).false_start_count.bits() != 0 {
             return;
@@ -528,13 +540,13 @@ pub unsafe fn countdown_lights(fields: u32, block: u32, flag: u32) {
             return;
         };
         RACE_OVERLAY.start_lights_lit.set_bits(l.shown);
-        put(lit, l.lit);
+        lit.set(l.lit);
         if l.whole {
             put(flag, 1);
         }
-        put(size, l.size);
-        put(fade, l.fade);
-        put(shift, l.shift);
+        size.set(l.size);
+        fade.set(l.fade);
+        shift.set(l.shift);
     }
 }
 
@@ -542,12 +554,12 @@ pub unsafe fn countdown_lights(fields: u32, block: u32, flag: u32) {
 /// 0, flag `dword_6D1830`) and the second (fields 0x10, `dword_6D1834`).
 pub unsafe fn both_countdown_lights() {
     unsafe {
-        for (view, fields, flag) in [
-            (0, 0, &RACE_OVERLAY.forget_flag_0),
-            (1, 0x10, &RACE_OVERLAY.forget_flag_1),
+        for (view, flag) in [
+            (0, &RACE_OVERLAY.forget_flag_0),
+            (1, &RACE_OVERLAY.forget_flag_1),
         ] {
             countdown_lights(
-                fields,
+                &PANEL.lights[view],
                 RACE_VIEW.view_blocks[view].get(),
                 flag.addr() as u32,
             );
@@ -567,7 +579,7 @@ pub fn colour_buffers() -> [u32; 2] {
 /// `split_colours`' refusal, for both views, before anything is written.
 pub unsafe fn check_split_colours() -> Result<(), Refused> {
     unsafe {
-        let fill: u32 = game_read(MARK_COUNT_RVA);
+        let fill: u32 = SPLIT_TABLES.split_colour_count.get();
         for view in &RACE_VIEW.view_blocks {
             let n = get(view.get() + 0x90);
             rc2k_core::race::frame::check_split_colours(fill, n)?;
@@ -583,7 +595,7 @@ pub unsafe fn both_split_colours() -> Result<(), Refused> {
     unsafe {
         check_split_colours()?;
         for (view, buffer) in RACE_VIEW.view_blocks.iter().zip(colour_buffers()) {
-            split_colours(view.get(), buffer, game_read(MARK_COUNT_RVA))?;
+            split_colours(view.get(), buffer, SPLIT_TABLES.split_colour_count.get())?;
         }
         Ok(())
     }
@@ -659,7 +671,7 @@ pub unsafe fn add_sort_entry(eax: u32, ebx: u32) -> Result<(), Refused> {
         }
         // Converted: `rc2k_core::race::frame::sort_entry`.
         let entry = rc2k_core::race::frame::sort_entry(eax, ebx);
-        let at = g(0x9DB730) + 8 * n;
+        let at = crate::scene::faces_store::FACES.sort_entries[0].addr() as u32 + 8 * n;
         put(at, entry.first.unwrap_or(0));
         put(at + 4, ebx);
         RACE_VIEW.sort_entry_count.set_bits(n.wrapping_add(1));
@@ -677,10 +689,18 @@ pub unsafe fn checkpoint_colours() {
     // Converted: `rc2k_core::race::frame::checkpoint_colours`.
     unsafe {
         let n: u32 = CAR.checkpoint.get();
-        let face = get(g(0x9E3738).wrapping_add(n.wrapping_mul(4)));
+        let face = crate::race::checkpoints_store::nth(
+            &crate::race::checkpoints_store::CHECKPOINTS.checkpoint_faces[0],
+            n as usize,
+        )
+        .get();
         let esi = (face << 6).wrapping_add(COURSE.course_faces.bits());
         let byte = ((esi + 0x10) as *const u8).read();
-        let along = get(g(0x9ED808).wrapping_add(n.wrapping_mul(4)));
+        let along = crate::race::checkpoints_store::nth(
+            &crate::race::checkpoints_store::CHECKPOINTS.angles[2],
+            n as usize,
+        )
+        .get();
         let c = rc2k_core::race::frame::checkpoint_colours(byte, along, CAR.car_heading.bits());
         PHYSICS.checkpoint_colours[0].set(c.near);
         PHYSICS.checkpoint_colours[1].set(c.far);
@@ -777,7 +797,10 @@ pub unsafe fn face_depth(ebx: u32) -> Result<(), Refused> {
         let kind = (face as *const u8).read();
         let by = depth_by(kind, || {
             let object = ((face + 1) as *const u8).read() as u32;
-            ((g(0x979F5E) + (object << 6)) as *const u8).read()
+            ((crate::scene::polygon_store::POLYGON_WORK.texture_infos[0].words[0].addr() as u32
+                + 0x2E
+                + (object << 6)) as *const u8)
+                .read()
         });
         let key = match by {
             DepthBy::First => {
@@ -826,7 +849,7 @@ pub unsafe fn add_depth_entry(ebx: u32) -> Result<(), Refused> {
         rc2k_core::race::faces::depth_entry_room(n)?;
         face_depth(ebx)?;
         let key: u32 = RACE_VIEW.face_depth_key.bits();
-        let at = g(0x9D3730) + 8 * n;
+        let at = crate::scene::faces_store::FACES.depth_entries[0].addr() as u32 + 8 * n;
         put(at, key);
         put(at + 4, ebx);
         RACE_VIEW.depth_entry_count.set_bits(n.wrapping_add(1));
@@ -1201,8 +1224,9 @@ unsafe fn add_lamp_entry(lamp: u32) {
         RACE_VIEW.face_depth_key.set_bits(key);
         let second = RACE_VIEW.lamp_count.bits().wrapping_add(0x300_0000);
         let n: u32 = RACE_VIEW.depth_entry_count.bits();
-        put(g(0x9D3730) + 8 * n, key);
-        put(g(0x9D3730) + 8 * n + 4, second);
+        let at = crate::scene::faces_store::FACES.depth_entries[0].addr() as u32 + 8 * n;
+        put(at, key);
+        put(at + 4, second);
         RACE_VIEW.depth_entry_count.set_bits(n.wrapping_add(1));
         FRAME_WORK
             .lamp_entry_count
@@ -1252,6 +1276,7 @@ pub unsafe fn gather_lamps() -> Result<(), Refused> {
 /// entries by their first dword, the largest first) from its first entry to its last.
 /// Refuses (before anything) a sort that would go past the
 /// list.
+/// `entries` the list's address.
 pub unsafe fn sort_entries(count: &crate::session::Dword, entries: u32) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::quick_sort::quick_sort` (through `sort_records`).
     use rc2k_core::race::quick_sort::Order;
@@ -1260,7 +1285,7 @@ pub unsafe fn sort_entries(count: &crate::session::Dword, entries: u32) -> Resul
         if n < 2 {
             return Ok(());
         }
-        let first = g(entries);
+        let first = entries;
         let last = n.wrapping_mul(8).wrapping_add(first).wrapping_sub(8);
         crate::race::sorting::sort_records::<2>(first, last, 0, Order::Down)
     }
@@ -1394,8 +1419,6 @@ pub unsafe fn eax_environment() {
     }
 }
 
-const CAR_LIGHT_TABLE: u32 = 0x635D18; // g_carLightTable: 256 colours
-
 /// Whether the game uses MMX (`g_hasMmx`).
 pub fn has_mmx() -> bool {
     MACHINE.has_mmx.get() != 0
@@ -1444,7 +1467,8 @@ unsafe fn car_light_on_point(b: u32) {
             int_square_sum_scaled_to_int(t[2].wrapping_sub(0x10_0000) as i32, t[0] as i32, k, 1);
         DRAW.scratch.set_bits(s2);
         let index = headlight_index(s1, t[1], Car::at(b).unknown_ab4[2].bits());
-        let colour = get(g(CAR_LIGHT_TABLE) + 4 * index);
+        let colour =
+            crate::scene::light_tables_store::LIGHT_TABLES.car_light_table[index as usize].get();
         LIGHT_WORK
             .light_colour
             .set_bits(add_colours(colour, LIGHT_WORK.light_colour.bits()));
@@ -1643,7 +1667,11 @@ pub unsafe fn fog_table() -> Result<(), Refused> {
         }
         // Converted: `rc2k_core::race::view::fog_table`.
         draw_distance_settings();
-        let noise = sample_noise(g(0xA2AAE4));
+        let noise = sample_noise(
+            crate::scene::engine_tables_store::ENGINE_TABLES
+                .noise_bytes
+                .addr() as u32,
+        );
         let _k = |a: usize| game_read::<u32>(rva(a));
         let fog = rc2k_core::race::view::fog_table(
             noise,
@@ -2226,7 +2254,9 @@ pub unsafe fn draw_race_slots() -> Result<(), Refused> {
 pub unsafe fn draw_screen_quad() -> Result<(), Refused> {
     unsafe {
         DRAW.polygon_drawn.set(0u32);
-        let entries = g(0x975510);
+        let entries = crate::scene::polygon_store::POLYGON_WORK.entries[0]
+            .point
+            .addr() as u32;
         let vertices = RACE_VARS.quad_vertices[0].addr() as u32;
         for k in 0..4u32 {
             let e = entries + 0x44 * k;
@@ -2254,11 +2284,18 @@ pub unsafe fn draw_screen_quad() -> Result<(), Refused> {
         }
         DRAW.polygon_colour.set(RACE_VARS.quad_colour[0].get());
         DRAW.polygon_vertex_count.set(4u32);
-        DRAW.polygon_next_record.set(g(0x977F10));
+        DRAW.polygon_next_record
+            .set(crate::scene::polygon_store::POLYGON_WORK.record_pool[0].addr() as u32);
         for k in 0..4u32 {
-            put(g(0x977710) + 4 * k, k);
+            put(
+                crate::scene::polygon_store::POLYGON_WORK.list[0].addr() as u32 + 4 * k,
+                k,
+            );
         }
-        put(g(0x977710) + 16, 0);
+        put(
+            crate::scene::polygon_store::POLYGON_WORK.list[0].addr() as u32 + 16,
+            0,
+        );
         DRAW.polygon_next_entry.set(4u32);
         // No callee reads a register (the clip keeps them; the depth buffer's switches and
         // the polygon's drawing take none).
@@ -2327,8 +2364,9 @@ pub unsafe fn add_car_depth_entry(esi: u32, ebx: u32) -> Result<(), Refused> {
         let key = t[2].wrapping_add(0x200_0000) >> 10;
         RACE_VIEW.face_depth_key.set_bits(key);
         let second = ebx.wrapping_add(0x200_0000);
-        put(g(0x9D3730) + 8 * n, key);
-        put(g(0x9D3730) + 8 * n + 4, second);
+        let at = crate::scene::faces_store::FACES.depth_entries[0].addr() as u32 + 8 * n;
+        put(at, key);
+        put(at + 4, second);
         RACE_VIEW.depth_entry_count.set_bits(n + 1);
         Ok(())
     }
@@ -2354,12 +2392,27 @@ unsafe fn add_flare() {
         // `flare_place_x` is 0x100 dwords, but `n` runs to `FLARES_MAX`: the tables follow
         // one another 0x400 bytes apart, so by address (a slip of the original's).
         for (table, v) in [
-            (g(0x64058C), FRAME_SWITCHES.object_number.get()),
+            (
+                crate::race::flares_store::FLARE_TABLES.object_number[0].addr() as u32,
+                FRAME_SWITCHES.object_number.get(),
+            ),
             (LEVEL_GRID.flare_place_x[0].addr() as u32, place[0]),
-            (g(0x63F58C), place[1]),
-            (g(0x63F98C), place[2]),
-            (g(0x64018C), OBJECT_WORK.size.bits()),
-            (g(0x63FD8C), OBJECT_WORK.other_light.bits()),
+            (
+                crate::race::flares_store::FLARE_TABLES.place_y[0].addr() as u32,
+                place[1],
+            ),
+            (
+                crate::race::flares_store::FLARE_TABLES.place_z[0].addr() as u32,
+                place[2],
+            ),
+            (
+                crate::race::flares_store::FLARE_TABLES.size[0].addr() as u32,
+                OBJECT_WORK.size.bits(),
+            ),
+            (
+                crate::race::flares_store::FLARE_TABLES.other_light[0].addr() as u32,
+                OBJECT_WORK.other_light.bits(),
+            ),
         ] {
             put(table + 4 * n, v);
         }
@@ -2374,8 +2427,9 @@ unsafe fn add_flare() {
         let key = out[2].wrapping_add(0x200_0000) >> 10;
         RACE_VIEW.face_depth_key.set_bits(key);
         let entry: u32 = RACE_VIEW.depth_entry_count.bits();
-        put(g(0x9D3730) + 8 * entry, key);
-        put(g(0x9D3730) + 8 * entry + 4, n.wrapping_add(0x100_0000));
+        let at = crate::scene::faces_store::FACES.depth_entries[0].addr() as u32 + 8 * entry;
+        put(at, key);
+        put(at + 4, n.wrapping_add(0x100_0000));
         RACE_VIEW.depth_entry_count.set_bits(entry + 1);
         FRAME_WORK.flare_count.set_bits(n + 1);
     }
@@ -2470,7 +2524,7 @@ pub unsafe fn car_light_flares(b: u32) -> Result<(), Refused> {
         }
         // `sub_41F4E1`: the kind held to 0 ..= 0x21 (by sign), through `dword_5C59B0`.
         let index = KIND_TABLES.kind_light_records[(kind as i32).clamp(0, 0x21) as usize].bits();
-        let record = index.wrapping_mul(0x134).wrapping_add(g(0x5C906C));
+        let record = LIGHT_RECORDS.record_addr(index);
         LIGHT_STATE.view_kind.set(1u32);
         LIGHT_WORK.light_kind.set(3u32);
         OBJECT_WORK.size.set(2u32);
@@ -2591,7 +2645,6 @@ pub unsafe fn place_object_matrix() {
     };
     use crate::scene::view_matrix::{Axis, set_fine_turn};
     unsafe {
-        let k = |a: usize| game_read::<u32>(rva(a));
         let (turn_y, turn_x, turn_z) = (
             MATRICES.turn_y_matrix[0].addr(),
             MATRICES.turn_x_matrix[0].addr(),
@@ -2615,8 +2668,10 @@ pub unsafe fn place_object_matrix() {
         if LIGHT_STATE.view_kind.get() == 4 {
             return;
         }
-        let kind = k(0x5CD27C + 4 * FRAME_SWITCHES.object_number.get() as usize);
-        let record = g(0x97DF30).wrapping_add(kind.wrapping_mul(0x80));
+        let kind = OBJECT_TABLES.object_kind(FRAME_SWITCHES.object_number.get());
+        let record = (crate::scene::polygon_store::POLYGON_WORK.object_materials[0].words[0].addr()
+            as u32)
+            .wrapping_add(kind.wrapping_mul(0x80));
         let material = ((record + 0x20) as *const u8).read();
         match material {
             1 | 2 => {
@@ -2679,11 +2734,26 @@ pub unsafe fn draw_flare(flare: u32, esi: u32) -> Result<(), Refused> {
                 LEVEL_GRID.flare_place_x[0].addr() as u32,
                 &OBJECT_WORK.place[0],
             ),
-            (g(0x63F58C), &OBJECT_WORK.place[1]),
-            (g(0x63F98C), &OBJECT_WORK.place[2]),
-            (g(0x64018C), &OBJECT_WORK.size),
-            (g(0x63FD8C), &OBJECT_WORK.other_light),
-            (g(0x64058C), &FRAME_SWITCHES.object_number),
+            (
+                crate::race::flares_store::FLARE_TABLES.place_y[0].addr() as u32,
+                &OBJECT_WORK.place[1],
+            ),
+            (
+                crate::race::flares_store::FLARE_TABLES.place_z[0].addr() as u32,
+                &OBJECT_WORK.place[2],
+            ),
+            (
+                crate::race::flares_store::FLARE_TABLES.size[0].addr() as u32,
+                &OBJECT_WORK.size,
+            ),
+            (
+                crate::race::flares_store::FLARE_TABLES.other_light[0].addr() as u32,
+                &OBJECT_WORK.other_light,
+            ),
+            (
+                crate::race::flares_store::FLARE_TABLES.object_number[0].addr() as u32,
+                &FRAME_SWITCHES.object_number,
+            ),
         ] {
             to.set_bits(get(table.wrapping_add(flare.wrapping_mul(4))));
         }
@@ -2773,10 +2843,11 @@ pub unsafe fn draw_list_entry(at: u32, ebx: u32) -> Result<(), Refused> {
 /// `race::draw_sorted_entries` (0x454EAB) / `race::draw_depth_entries` (0x454E84): each
 /// entry of the list (`count` its count, `entries` its 8-byte entries) by
 /// `draw_list_entry`. Refuses (before anything) what `draw_list_entry` would for any.
+/// `entries` the list's address.
 pub unsafe fn draw_entries(count: &crate::session::Dword, entries: u32) -> Result<(), Refused> {
     unsafe {
         let n: u32 = count.get();
-        let list = g(entries);
+        let list = entries;
         if (0..n).any(|k| get(list + 8 * k + 4) & 0x7FFF_FFFF >= 0x400_0000) {
             return Err(BadInput("a list entry of 0x4000000 or more").into());
         }

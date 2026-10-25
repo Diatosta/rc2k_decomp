@@ -7,7 +7,6 @@
 use crate::errors::{BadInput, Refused};
 use crate::framework::rva;
 use crate::marks::kind_values::MARKS_KIND;
-use crate::marks::store::game_read;
 use crate::math::x87;
 use crate::race::course_lists_store::COURSE_LISTS;
 use crate::session::{Bytes, Dword, Float, read_bits};
@@ -165,21 +164,22 @@ pub fn reset_pong() {
 /// nothing (section 16): not made. Refuses an object past 0xFF, a negative face count or
 /// faces past `g_faces`.
 pub unsafe fn gather_spline_points(s: u32, object: u32, kind: u32) -> Result<(), Refused> {
-    use crate::scene::objects::{FACE_COUNTS_RVA, FACES, FACES_RVA, FIRST_FACE_RVA};
+    use crate::scene::object_slots_store::OBJECT_SLOTS;
+    use crate::scene::objects::FACES;
     unsafe {
         let object = object as usize;
         if object >= 0x100 {
             return Err(BadInput("an object past 0xFF").into());
         }
-        let first: u32 = game_read(FIRST_FACE_RVA + 4 * object);
-        let faces: u32 = game_read(FACE_COUNTS_RVA + 4 * object);
+        let first: u32 = OBJECT_SLOTS.first_face[object].get();
+        let faces: u32 = OBJECT_SLOTS.face_counts[object].get();
         if (faces as i32) < 0 || first.checked_add(faces).is_none_or(|end| end > FACES) {
             return Err(BadInput("an object's faces past g_faces").into());
         }
         put(s + COUNT, 0);
         SPLINE_HEAD.found.set_bits(0u32);
         for f in first..first + faces {
-            let face: u32 = game_read(FACES_RVA + 4 * f as usize);
+            let face: u32 = crate::scene::objects::face_cell(f as usize).get();
             if (*((face + 7) as *const u8) & 0x1F) as u32 == kind {
                 SPLINE_HEAD
                     .found
@@ -422,19 +422,18 @@ pub unsafe fn bound_spline_points(s: u32) -> Result<(), Refused> {
 /// What `make_spline` refuses for an object: past 0xFF, a negative face count or faces past
 /// `g_faces`, an angle of its tables `fsincos` cannot take.
 unsafe fn spline_checks(object: u32) -> Result<(), Refused> {
-    use crate::scene::objects::{FACE_COUNTS_RVA, FACES, FIRST_FACE_RVA};
-    unsafe {
-        if object >= 0x100 {
-            return Err(BadInput("an object past 0xFF").into());
-        }
-        let first: u32 = game_read(FIRST_FACE_RVA + 4 * object as usize);
-        let faces: u32 = game_read(FACE_COUNTS_RVA + 4 * object as usize);
-        if (faces as i32) < 0 || first.checked_add(faces).is_none_or(|end| end > FACES) {
-            return Err(BadInput("an object's faces past g_faces").into());
-        }
-        for n in 0..12 {
-            crate::scene::matrix3::turnable(&negated(SPLINE_CONSTANTS.angles[n].bits()))?;
-        }
+    use crate::scene::object_slots_store::OBJECT_SLOTS;
+    use crate::scene::objects::FACES;
+    if object >= 0x100 {
+        return Err(BadInput("an object past 0xFF").into());
+    }
+    let first: u32 = OBJECT_SLOTS.first_face[object as usize].get();
+    let faces: u32 = OBJECT_SLOTS.face_counts[object as usize].get();
+    if (faces as i32) < 0 || first.checked_add(faces).is_none_or(|end| end > FACES) {
+        return Err(BadInput("an object's faces past g_faces").into());
+    }
+    for n in 0..12 {
+        crate::scene::matrix3::turnable(&negated(SPLINE_CONSTANTS.angles[n].bits()))?;
     }
     Ok(())
 }

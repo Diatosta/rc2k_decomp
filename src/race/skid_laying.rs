@@ -4,29 +4,12 @@
 //! (`g_skidLinks`, 8 bytes: +0 the next, +2 the previous, +4 the angle, +6 the car's bit).
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::physics::car_store::Car;
 use crate::race::frame_store::FRAME_WORK;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
 use crate::race::work_store::RACE_WORK;
 use crate::scene::draw_store::DRAW;
-
-fn k(a: u32) -> u32 {
-    unsafe { game_read(rva(a as usize)) }
-}
-
-fn w(a: u32, v: u32) {
-    unsafe { game_write(rva(a as usize), v) }
-}
-
-const POINTS_TABLE: u32 = 0x645B18; // g_skidPoints
-const LINKS: u32 = 0x643AE8; // g_skidLinks
-const NEXT: u32 = 0x645B10; // dword_645B10: the next point
-const PLACE: u32 = 0x643AD8; // dword_643AD8 .. dword_643AE0: the wheel's place
-const OFFSET_X: u32 = 0x645B08;
-const OFFSET_Z: u32 = 0x645B0C;
-const ANGLE: u32 = 0x645B00;
 
 unsafe fn get(a: u32) -> u32 {
     unsafe { (a as *const u32).read_unaligned() }
@@ -60,42 +43,65 @@ pub unsafe fn add_skid_point(slot: u32) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::skids::add_skid_point`.
     use rc2k_core::race::skids::{Link, POINTS, Point, Ring, add_skid_point, next_point};
     unsafe {
-        let n = k(NEXT);
+        let n = crate::race::shadow_skids_store::SHADOW_SKIDS
+            .skid_next
+            .get();
         let last = get(slot);
         let points = std::slice::from_raw_parts_mut(
-            game_addr(rva(POINTS_TABLE as usize)) as *mut Point,
+            crate::race::shadow_skids_store::SHADOW_SKIDS
+                .skid_points
+                .addr() as *mut Point,
             POINTS as usize,
         );
         let links = std::slice::from_raw_parts_mut(
-            game_addr(rva(LINKS as usize)) as *mut Link,
+            crate::race::shadow_skids_store::SHADOW_SKIDS
+                .skid_links
+                .addr() as *mut Link,
             POINTS as usize,
         );
-        let place = [k(PLACE), k(PLACE + 4), k(PLACE + 8)];
+        let place =
+            crate::session::read_bits(&crate::race::shadow_skids_store::SHADOW_SKIDS.skid_place);
         let a = add_skid_point(
             Ring { points, links },
             n,
             last,
             place,
-            k(0x645B14) as u16,
+            crate::race::shadow_skids_store::SHADOW_SKIDS
+                .skid_cars
+                .get() as u16,
             |dx, dz| crate::scene::angle_between::angle_of(dx, dz),
             |angle, y| offsets(angle, y),
         )?;
         put(slot, n);
-        w(ANGLE, a.angle);
-        w(OFFSET_X, a.offset.0);
-        w(OFFSET_Z, a.offset.1);
+        crate::race::shadow_skids_store::SHADOW_SKIDS
+            .skid_angle
+            .set(a.angle);
+        crate::race::shadow_skids_store::SHADOW_SKIDS
+            .skid_offset_x
+            .set(a.offset.0);
+        crate::race::shadow_skids_store::SHADOW_SKIDS
+            .skid_offset_z
+            .set(a.offset.1);
         if let Some(m) = a.from {
             for (i, v) in m.iter().enumerate() {
-                w(0x645AF4 + 4 * i as u32, *v);
+                crate::race::shadow_skids_store::SHADOW_SKIDS.skid_from[i].set(*v);
             }
         }
         if let Some((turned, m)) = a.turned {
-            w(0x645B04, turned);
+            crate::race::shadow_skids_store::SHADOW_SKIDS
+                .skid_turned_angle
+                .set(turned);
             for (i, v) in m.iter().enumerate() {
-                w(0x645AE8 + 4 * i as u32, *v);
+                crate::race::shadow_skids_store::SHADOW_SKIDS.skid_turned[i].set(*v);
             }
         }
-        w(NEXT, next_point(k(NEXT)));
+        crate::race::shadow_skids_store::SHADOW_SKIDS
+            .skid_next
+            .set(next_point(
+                crate::race::shadow_skids_store::SHADOW_SKIDS
+                    .skid_next
+                    .get(),
+            ));
         Ok(())
     }
 }
@@ -128,10 +134,14 @@ pub unsafe fn lay_skidmarks() -> Result<(), Refused> {
         if count == 0 {
             return Ok(());
         }
-        let grip: u32 = k(0x643AD0);
+        let grip: u32 = crate::race::shadow_skids_store::SHADOW_SKIDS
+            .skid_grip
+            .bits();
         let zero = int_80(0);
         for c in 0..count {
-            w(0x645B14, 1 << (c & 31));
+            crate::race::shadow_skids_store::SHADOW_SKIDS
+                .skid_cars
+                .set(1 << (c & 31));
             let car = RACE_WORK.car_block(c as usize);
             for wheel in 0..4u32 {
                 let slot = car + 0xF48 + 4 * wheel;
@@ -146,7 +156,8 @@ pub unsafe fn lay_skidmarks() -> Result<(), Refused> {
                     continue;
                 }
                 for i in 0..3 {
-                    w(PLACE + 4 * i, get(car + 0xF10 + 0x10 * i + 4 * wheel));
+                    crate::race::shadow_skids_store::SHADOW_SKIDS.skid_place[i as usize]
+                        .set(get(car + 0xF10 + 0x10 * i + 4 * wheel));
                 }
                 let side = if wheel % 2 == 0 {
                     0x1555u32
@@ -161,9 +172,10 @@ pub unsafe fn lay_skidmarks() -> Result<(), Refused> {
                 for (i, v) in t.into_iter().enumerate() {
                     let n = crate::math::x87_load::tbyte_to_int(v);
                     DRAW.scratch.set(n);
-                    w(
-                        PLACE + 4 * i as u32,
-                        k(PLACE + 4 * i as u32).wrapping_add(n),
+                    crate::race::shadow_skids_store::SHADOW_SKIDS.skid_place[i].set(
+                        crate::race::shadow_skids_store::SHADOW_SKIDS.skid_place[i]
+                            .get()
+                            .wrapping_add(n),
                     );
                 }
                 add_skid_point(slot)?;

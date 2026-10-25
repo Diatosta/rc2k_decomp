@@ -27,7 +27,6 @@
 //! Rust callers in unconverted code).
 
 use crate::errors::BadInput;
-use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::math::next_random::next_random;
 use crate::math::x87;
 use crate::physics::tables_store::PHYSICS;
@@ -37,19 +36,14 @@ use crate::race::vars_store::RACE_VARS;
 use crate::scene::draw_store::DRAW;
 use crate::scene::light_work_store::LIGHT_WORK;
 use crate::scene::object_store::OBJECT_WORK;
+use crate::scene::object_tables_store::OBJECT_TABLES;
 
 // ---- game data ----
 const OBJECTS: u32 = 0xFF;
-const KINDS_RVA: usize = rva(0x5CD27C); // g_objectKinds
-pub const MATERIALS_RVA: usize = rva(0x97DF30); // unk_97DF30
 pub const MATERIAL_LEN: usize = 0x80;
-const FIRST_POINT_RVA: usize = rva(0x631F70); // g_objectFirstPoint
-const FIRST_FACES_RVA: usize = rva(0x632B70); // dword_632B70
-const FACE_COUNTS_RVA: usize = rva(0x632F70); // dword_632F70
 /// The state as the function works on it: the clock when last here (`dword_62DB54`),
 /// then `dword_631B5C` the phase's length, `dword_631B60` the time into it,
 /// `dword_631B64` the phase.
-const PHASE_WORK_RVA: usize = rva(0x631B5C);
 /// `dword_62DB30` ..: four bases, four random parts, and a 0.
 const LENGTHS: [u32; 9] = [200, 400, 200, 400, 400, 400, 400, 400, 0];
 
@@ -86,7 +80,10 @@ unsafe fn step_shape(state: usize) {
         };
         RACE_VARS.move_fraction.set_bits(fraction);
         LIGHT_WORK.phase_clock.set_bits(clock);
-        game_write(PHASE_WORK_RVA, [length, time, phase]);
+        crate::session::write_first(
+            &crate::scene::object_slots_store::OBJECT_SLOTS.phase_work,
+            &[length, time, phase],
+        );
         (state as *mut [u32; 4]).write_unaligned([clock, time, length, phase]);
     }
 }
@@ -97,10 +94,9 @@ pub unsafe fn set_object_material() -> Result<(), BadInput> {
         if object >= OBJECTS {
             return Err(BadInput("an object's number past the tables"));
         }
-        let slot = object as usize * 4;
-        let kind: u32 = game_read(KINDS_RVA + slot);
-        let material =
-            game_addr(MATERIALS_RVA).wrapping_add((kind as usize).wrapping_mul(MATERIAL_LEN));
+        let kind: u32 = OBJECT_TABLES.object_kind(object);
+        let material = crate::scene::polygon::materials_addr()
+            .wrapping_add((kind as usize).wrapping_mul(MATERIAL_LEN));
         let way = ((material + 0x20) as *const u8).read() as u32;
         let state = state();
         if way == 4 && state.is_none() {
@@ -110,18 +106,22 @@ pub unsafe fn set_object_material() -> Result<(), BadInput> {
         DRAW.polygon_colour.set_bits(0x00FF_FFFFu32);
         FRAME_SWITCHES.other_way_kind.set_bits(way);
         if let (4, Some(state)) = (way, state) {
-            let points: [u32; 2] = game_read(FIRST_POINT_RVA + slot);
+            let points: [u32; 2] = [
+                crate::scene::object_slots_store::OBJECT_SLOTS.first_point[object as usize].get(),
+                crate::scene::object_slots_store::OBJECT_SLOTS.first_point[object as usize + 1]
+                    .get(),
+            ];
             RACE_VARS
                 .move_by
                 .set_bits(points[1].wrapping_sub(points[0]).wrapping_mul(12));
             step_shape(state);
         }
-        OBJECT_WORK
-            .object_first_face
-            .set_bits(game_read::<u32>(FIRST_FACES_RVA + slot));
-        OBJECT_WORK
-            .object_face_count
-            .set_bits(game_read::<u32>(FACE_COUNTS_RVA + slot));
+        OBJECT_WORK.object_first_face.set_bits(
+            crate::scene::object_slots_store::OBJECT_SLOTS.first_face[object as usize].get(),
+        );
+        OBJECT_WORK.object_face_count.set_bits(
+            crate::scene::object_slots_store::OBJECT_SLOTS.face_counts[object as usize].get(),
+        );
         Ok(())
     }
 }

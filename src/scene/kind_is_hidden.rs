@@ -11,10 +11,9 @@
 //! original reads past the table).
 
 use crate::errors::Refused;
-use crate::framework::{game_read, rva};
 use crate::race::vars_store::RACE_VARS;
 use crate::race::work_store::RACE_WORK;
-const KINDS_RVA: usize = rva(0x5CD27C); // g_objectKinds (0x100 dwords)
+use crate::scene::object_tables_store::OBJECT_TABLES;
 
 /// The Rust version: the object's (hidden, eax left).
 pub unsafe fn kind_is_hidden(object: u32) -> Result<(bool, u32), Refused> {
@@ -26,6 +25,6 @@ pub unsafe fn kind_is_hidden(object: u32) -> Result<(bool, u32), Refused> {
     Ok(rc2k_core::scene::kinds::kind_is_hidden(
         settings,
         object,
-        |n| unsafe { game_read(KINDS_RVA + 4 * n) },
+        |n| OBJECT_TABLES.object_kind(n as u32),
     )?)
 }

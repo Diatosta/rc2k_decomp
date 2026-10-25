@@ -8,15 +8,21 @@
 //! registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::rva;
 use crate::screens::car_caption::put_string;
 
-const TITLE_RVA: usize = rva(0xA8BF54); // byte_A8BF54
 const TITLE_LEN: usize = 0x100;
 const TITLE: u32 = 0x33D;
 
 // ---- Rust version ----
 
 pub unsafe fn slideshow_title() -> Result<(), Refused> {
-    unsafe { put_string(TITLE, TITLE_RVA, TITLE_LEN) }
+    unsafe {
+        put_string(
+            TITLE,
+            crate::screens::text_buffers_store::TEXT_BUFFERS
+                .title
+                .addr(),
+            TITLE_LEN,
+        )
+    }
 }

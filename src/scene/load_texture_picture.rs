@@ -26,7 +26,6 @@
 
 use crate::errors::Refused;
 use crate::files::file_exists::file_exists;
-use crate::framework::{game_addr, game_ptr, rva};
 use crate::gfx::load_picture_to_texture::load_picture_to_texture_in_game;
 use crate::logfile::log_int::log_int;
 use crate::logfile::log_write::log_write;
@@ -40,14 +39,17 @@ use crate::scene::kind_texture_store::KIND_TEXTURES;
 /// `dword_60AF04` the picture's number, `dword_60AF08` the texture, then the twelve
 /// names up to the end of `files\s\extr\txxxxx.pcx`.
 /// The six folders' names and second names, and where the number is in the name.
-const FOLDERS: [(usize, usize, usize); 6] = [
-    (rva(0x60AF0C), rva(0x60AF8F), 0x0A), // files\a
-    (rva(0x60AF1F), rva(0x60AFA2), 0x0A), // files\m
-    (rva(0x60AF32), rva(0x60AFB5), 0x0A), // files\b
-    (rva(0x60AF45), rva(0x60AFC8), 0x11), // files\b\gravel
-    (rva(0x60AF5F), rva(0x60AFE2), 0x0F), // files\g\frnt
-    (rva(0x60AF77), rva(0x60AFFA), 0x0F), // files\s\extr
-];
+fn folders() -> [(usize, usize, usize); 6] {
+    let p = &crate::race::level_paths_store::LEVEL_PATHS;
+    [
+        (p.picture_a.addr(), p.second_a.addr(), 0x0A), // files\a
+        (p.picture_m.addr(), p.second_m.addr(), 0x0A), // files\m
+        (p.picture_b.addr(), p.second_b.addr(), 0x0A), // files\b
+        (p.picture_gravel.addr(), p.second_gravel.addr(), 0x11), // files\b\gravel
+        (p.picture_front.addr(), p.second_front.addr(), 0x0F), // files\g\frnt
+        (p.picture_extra.addr(), p.second_extra.addr(), 0x0F), // files\s\extr
+    ]
+}
 use rc2k_core::scene::pictures::{GRAVEL, folder, names, picture_car, takes_gravel};
 // gfx::load_picture_to_texture
 
@@ -68,10 +70,10 @@ unsafe fn write_names(number: u32, texture: u32) {
     unsafe {
         FILE_NUMBERS.picture_number.set(number);
         FILE_NUMBERS.picture_texture.set(texture);
-        for (&(name, second_name, at), (first, second)) in FOLDERS.iter().zip(names(number)) {
-            (game_addr(name + at) as *mut [u8; 4]).write(first);
+        for ((name, second_name, at), (first, second)) in folders().into_iter().zip(names(number)) {
+            ((name + at) as *mut [u8; 4]).write(first);
             if let Some(second) = second {
-                (game_addr(second_name + at) as *mut [u8; 4]).write(second);
+                ((second_name + at) as *mut [u8; 4]).write(second);
             }
         }
     }
@@ -100,12 +102,12 @@ pub unsafe fn load_texture_picture(number: u32, texture: u32, call: &mut dyn FnM
                 |c| c.get(),
             );
             call(Call::Number(gravel));
-            if takes_gravel(gravel) && call(Call::Exists(FOLDERS[GRAVEL].0)) {
+            if takes_gravel(gravel) && call(Call::Exists(folders()[GRAVEL].0)) {
                 gravel_chosen = true;
-                call(Call::Text(game_ptr(FOLDERS[GRAVEL].1)));
+                call(Call::Text(folders()[GRAVEL].1 as *const u8));
             }
         }
-        let (name, second, _) = FOLDERS[folder(number, gravel_chosen)];
+        let (name, second, _) = folders()[folder(number, gravel_chosen)];
         call(Call::Load(name, second, texture));
     }
 }
@@ -118,18 +120,16 @@ pub unsafe fn load_texture_picture_in_game(number: u32, texture: u32) -> Result<
             match call {
                 Call::Text(text) => log_write(text, false, 1),
                 Call::Number(number) => log_int(number as i32, false, 1),
-                Call::Exists(path) => match file_exists(game_ptr(path)) {
+                Call::Exists(path) => match file_exists(path as *const u8) {
                     Ok(exists) => return exists,
                     Err(e) => {
                         refused.get_or_insert(e.into());
                     }
                 },
                 Call::Load(name, second, texture) => {
-                    if let Err(e) = load_picture_to_texture_in_game(
-                        game_addr(name) as u32,
-                        game_addr(second) as u32,
-                        texture,
-                    ) {
+                    if let Err(e) =
+                        load_picture_to_texture_in_game(name as u32, second as u32, texture)
+                    {
                         refused.get_or_insert(e);
                     }
                 }

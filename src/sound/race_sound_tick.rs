@@ -12,15 +12,10 @@
 //! skips their frames (held for the owner: notes/open_items_full.md).
 
 use crate::errors::Refused;
-use crate::framework::{game_write, rva};
 use crate::physics::tables_store::PHYSICS;
+use crate::race::clock_ticks_store::CLOCK_TICKS;
 
-/// g_sceneClock, dword_5CC3B0 the last tick, dword_5CC3B8 the ticks counted.
-const LAST: usize = 0x5CC3B0;
-const TICKS: usize = 0x5CC3B8;
-fn g(x: impl crate::store::Ida) -> u32 {
-    unsafe { crate::store::ida_read(x) }
-}
+// g_sceneClock, dword_5CC3B0 the last tick, dword_5CC3B8 the ticks counted.
 
 // ---- Rust version ----
 
@@ -28,11 +23,16 @@ fn g(x: impl crate::store::Ida) -> u32 {
 /// registers, 2026-10-23): the Rust version leaves nothing.
 pub fn race_sound_tick() -> Result<(), Refused> {
     // Converted: `rc2k_core::sound::turn::tick_due`.
-    if !rc2k_core::sound::turn::tick_due(PHYSICS.scene_clock.get(), g(LAST)) {
+    if !rc2k_core::sound::turn::tick_due(
+        PHYSICS.scene_clock.get(),
+        CLOCK_TICKS.sound_tick_last.get(),
+    ) {
         return Ok(());
     }
-    unsafe { game_write(rva(LAST), PHYSICS.scene_clock.get()) };
+    CLOCK_TICKS.sound_tick_last.set(PHYSICS.scene_clock.get());
     crate::sound::race_turn_if::race_turn_if()?;
-    unsafe { game_write(rva(TICKS), g(TICKS).wrapping_add(1)) };
+    CLOCK_TICKS
+        .sound_ticks
+        .set(CLOCK_TICKS.sound_ticks.get().wrapping_add(1));
     Ok(())
 }

@@ -3,13 +3,12 @@
 //! variables game dwords; drawn through the text functions and the canvas.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::rva;
 use crate::gfx::blit_glyph::BlitCall;
 use crate::menu::champ_store::CHAMP_VIEW;
 use crate::menu::draw_work_store::DRAW_WORK;
 use crate::menu::loop_store::LOOP_FLAGS;
 use crate::menu::results_store::RESULT_FIGURES;
-use crate::screens::{font_at, line_buffer};
+use crate::screens::line_buffer;
 use crate::session::Dword;
 use crate::text::draw_text::{Canvas, draw_text_at};
 use crate::text::font::Font;
@@ -77,7 +76,9 @@ pub fn buffer_at(buffer: Buffer) -> *mut u8 {
     match buffer {
         Buffer::Line => line_buffer(),
         Buffer::Text => crate::strings::text_from_ids::text(),
-        Buffer::Cells => crate::framework::game_ptr(rva(0xA8BC54)),
+        Buffer::Cells => crate::screens::text_buffers_store::TEXT_BUFFERS
+            .cells
+            .as_ptr(),
     }
 }
 
@@ -727,8 +728,8 @@ impl GameFont for rc2k_core::screens::highlighted_caption::Font {
             Font::Measure => crate::gfx::typefaces::fonts::MEASURE.as_ptr(),
             Font::A => crate::gfx::typefaces::fonts::CAPTION_A.as_ptr(),
             Font::B => crate::gfx::typefaces::fonts::CAPTION_B.as_ptr(),
-            // g_blendedFont, moved (`font_at` asks `crate::moved::place`).
-            Font::Blended => font_at(0x51E384),
+            // g_blendedFont.
+            Font::Blended => crate::text::blend_font::BLENDED_FONT.ptr().cast(),
         }
     }
 }

@@ -33,11 +33,12 @@
 //! `g_slotWantedTextures`' 0x400; then what its steps refuse.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, game_write, rva};
 use crate::physics::ground_store::GROUND_WORK;
 use crate::race::course_store::COURSE;
+use crate::race::draw_batches_store::DRAW_BATCHES;
 use crate::race::frame_store::FRAME_WORK;
 use crate::race::numbers_store::NUMBERS;
+use crate::race::panel_store::PANEL;
 use crate::race::prefs_store::STAGE_PREFS;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
@@ -45,24 +46,10 @@ use crate::race::work_store::RACE_WORK;
 use crate::scene::draw_store::DRAW;
 use crate::scene::kind_texture_store::KIND_TEXTURES;
 use crate::scene::light_work_store::LIGHT_WORK;
+use crate::scene::object_tables_store::OBJECT_TABLES;
+use crate::scene::texture_places_store::TEXTURE_PLACES;
 use crate::session::SCREEN;
-const VIEW_FLAGS: [usize; 2] = [rva(0x6D14F6), rva(0x6D14FA)]; // dword_6D14F6, dword_6D14FA
-const ZEROED_MIDDLE: [usize; 4] = [rva(0x6E44F8), rva(0x6E44F4), rva(0x6EF7C0), rva(0x6EF7BC)];
-const FIRST_BIT_6_RVA: usize = rva(0x6D1502); // dword_6D1502
-const LIGHTING_RVA: usize = rva(0x5CDA8C); // dword_5CDA8C
-const TEXTURE_CHANGES_RVA: usize = rva(0x6D1508); // dword_6D1508
-const EXTRA_TEXTURES: [usize; 2] = [rva(0x6D1482), rva(0x6D1492)]; // unk_6D1482, unk_6D1492
-const SLOT_WANTED_RVA: usize = rva(0x5DA968); // g_slotWantedTextures
 const SLOTS: u32 = 0x400;
-const NO_PANEL_RVA: usize = rva(0x64BB18); // dword_64BB18
-
-fn g(a: usize) -> u32 {
-    unsafe { game_read(a) }
-}
-
-fn p(a: usize, v: u32) {
-    unsafe { game_write(a, v) }
-}
 
 /// The two view blocks, or the refusal.
 fn view_blocks() -> Result<[u32; 2], Refused> {
@@ -94,7 +81,7 @@ unsafe fn draw_view(car: usize, flags: usize, blit: bool) -> Result<(), Refused>
         }
         crate::race::draw_view_overlays::draw_view_overlays()?;
         race_sound_tick()?; // 0xF
-        if g(VIEW_FLAGS[flags]) & 8 != 0 {
+        if PANEL.hud_flags[flags].get() & 8 != 0 {
             load_view_car(car)?;
             crate::race::draw_mirror_view::draw_mirror_view()?;
         }
@@ -107,26 +94,31 @@ pub unsafe fn draw_race_scene() -> Result<(), Refused> {
     use crate::scene::set_render_state::set_render_state;
     use crate::sound::race_sound_tick::race_sound_tick;
     let blocks = view_blocks()?;
-    for (k, extra) in EXTRA_TEXTURES.into_iter().enumerate() {
-        if g(extra) != u32::MAX && KIND_TEXTURES.kind_first_slots[220 + k].get() >= SLOTS {
+    for (k, extra) in PANEL.lights.iter().map(|l| &l.lit).enumerate() {
+        if extra.get() != u32::MAX && KIND_TEXTURES.kind_first_slots[220 + k].get() >= SLOTS {
             return Err(BadInput("a wanted texture's slot past g_slotWantedTextures").into());
         }
     }
     unsafe {
         crate::drive::choose_shown_cars::choose_shown_cars()?;
         crate::session::write_bits(&RACE_VIEW.view_cleared, [0u32; 0x20]);
-        for k in 0..2 {
-            p(VIEW_FLAGS[k], at_block(blocks[k], 0x220));
+        for (flags, block) in PANEL.hud_flags.iter().zip(blocks) {
+            flags.set(at_block(block, 0x220));
         }
-        for (flags, on) in VIEW_FLAGS.into_iter().zip(&RACE_VIEW.view_on) {
+        for (flags, on) in PANEL.hud_flags.iter().zip(&RACE_VIEW.view_on) {
             if on.get() == 0 {
-                p(flags, 0);
+                flags.set(0);
             }
         }
         GROUND_WORK.split_polygon_count.set(0);
         GROUND_WORK.whole_polygon_count.set(0);
-        for a in ZEROED_MIDDLE {
-            p(a, 0);
+        for cell in [
+            &DRAW_BATCHES.plain_word,
+            &DRAW_BATCHES.plain_count,
+            &DRAW_BATCHES.textured_word,
+            &DRAW_BATCHES.textured_count,
+        ] {
+            cell.set(0);
         }
         FRAME_WORK.cars_drawn.set(0); // g_carsDrawn
         FRAME_WORK.cars_culled.set(0); // g_carsCulled
@@ -136,12 +128,12 @@ pub unsafe fn draw_race_scene() -> Result<(), Refused> {
         LIGHT_WORK
             .lamps_mask
             .set(STAGE_PREFS.refresh_flags_b.get() & 1);
-        p(FIRST_BIT_6_RVA, g(VIEW_FLAGS[0]) & 0x40);
+        PANEL.flat.set(PANEL.hud_flags[0].get() & 0x40);
         FRAME_WORK.mirror_wanted.set(0); // dword_6415E0
         if STAGE_PREFS.blit_cleared[0].get() | STAGE_PREFS.blit_cleared[1].get() != 0 {
             FRAME_WORK.mirror_wanted.set(at_block(blocks[0], 0x6F0));
         }
-        p(LIGHTING_RVA, 1);
+        OBJECT_TABLES.has_3d.set(1);
         race_sound_tick()?; // 0xA
         COURSE.shine.set(STAGE_PREFS.shine_from.get());
         // pusha; pushf .. popf; popa
@@ -161,25 +153,23 @@ pub unsafe fn draw_race_scene() -> Result<(), Refused> {
         crate::race::frame_views::full_view_window(true);
         crate::race::car_parts::ready_car_parts()?;
         crate::race::map_scroll::scroll_maps()?;
-        p(TEXTURE_CHANGES_RVA, 0);
+        PANEL.texture_changes.set(0);
         crate::race::frame_views::forget_view_textures()?;
         crate::race::mud_frame::mud_frame()?;
         FRAME_WORK.kind_textures_done.set(0);
         crate::scene::assign_kind_textures::assign_kind_textures()?;
-        for (k, extra) in EXTRA_TEXTURES.into_iter().enumerate() {
-            let texture = g(extra);
+        for (k, extra) in PANEL.lights.iter().map(|l| &l.lit).enumerate() {
+            let texture = extra.get();
             if texture != u32::MAX {
                 let slot = KIND_TEXTURES.kind_first_slots[220 + k].get();
-                p(
-                    SLOT_WANTED_RVA.wrapping_add(4 * slot as usize),
-                    texture.wrapping_add(KIND_TEXTURES.kind_first_textures[220].get()),
-                );
+                crate::scene::texture_places_store::cell_at(&TEXTURE_PLACES.slot_wanted[0], slot)
+                    .set(texture.wrapping_add(KIND_TEXTURES.kind_first_textures[220].get()));
             }
         }
         crate::scene::map_texture_places::map_texture_places();
         crate::scene::load_slot_textures::load_slot_textures_in_game()?;
         race_sound_tick()?; // 0xC
-        if g(NO_PANEL_RVA) == 0 {
+        if crate::drive::finish_store::FINISH.no_place.get() == 0 {
             crate::race::frame_draw::set_up_panel()?;
         }
         if RACE_VIEW.views.get() == 1 {
@@ -208,9 +198,9 @@ pub unsafe fn draw_race_scene() -> Result<(), Refused> {
             }
         }
         crate::race::frame_views::load_first_car()?;
-        use crate::race::frame_flush::{PLAIN, TEXTURED, flush_batch};
-        flush_batch(&PLAIN, false)?;
-        flush_batch(&TEXTURED, true)?;
+        use crate::race::frame_flush::{flush_batch, plain, textured};
+        flush_batch(&plain(), false)?;
+        flush_batch(&textured(), true)?;
         crate::race::sound_spots::find_sound_spots()?;
         crate::race::frame_draw::share_sound_spots()?;
         crate::race::frame_draw::wake_part_sounds()?;
@@ -218,7 +208,9 @@ pub unsafe fn draw_race_scene() -> Result<(), Refused> {
         for state in [0x11, 0x12] {
             set_render_state(2, state);
         }
-        if RACE_WORK.in_credits.bits() == 0 && g(NO_PANEL_RVA) == 0 {
+        if RACE_WORK.in_credits.bits() == 0
+            && crate::drive::finish_store::FINISH.no_place.get() == 0
+        {
             crate::hud::overlay_pass::overlay_pass()?;
         }
         race_sound_tick()?; // 0x11

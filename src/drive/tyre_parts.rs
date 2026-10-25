@@ -8,12 +8,15 @@
 //!
 //! This file: the places, the quads' shared steps and the tests' frame.
 
+use crate::d3d::vertices_store::VERTICES;
 use crate::errors::Refused;
-use crate::physics::flow::{a, p};
+
 use crate::scene::x87_mem::{fild, fld, fstp};
 
 /// `g_polygonVertices`: the four vertices (0x20 bytes each) a quad draws.
-pub const VERTS: usize = 0x9605A0;
+pub fn verts() -> usize {
+    crate::d3d::vertices_store::piece_addr()
+}
 
 /// `d3d::set_texture` (0x41ACF5): eax the texture.
 pub fn set_texture(texture: u32) {
@@ -29,11 +32,11 @@ pub fn set_render_state(value: u32, state: u32) {
 /// specular 0.
 pub fn quad_words(colour: u32) {
     for k in 0..4 {
-        let v = VERTS + 0x20 * k;
-        p(v + 8, 0);
-        p(v + 0xC, 0x3F80_0000);
-        p(v + 0x10, colour);
-        p(v + 0x14, 0);
+        let v = &VERTICES.vertices[k];
+        v.z.set_bits(0);
+        v.rhw.set_bits(0x3F80_0000);
+        v.colour.set(colour);
+        v.specular.set(0);
     }
 }
 
@@ -44,7 +47,7 @@ pub fn quad_words(colour: u32) {
 pub fn quad_tail(uv: u32) {
     quad_tail_math(
         uv as usize,
-        a(VERTS) as usize,
+        verts(),
         crate::session::SCREEN.width.addr(),
         crate::session::MACHINE.scratch.addr(),
         crate::race::store::asm_base() as usize,
@@ -91,7 +94,7 @@ fn quad_tail_math(s: usize, v: usize, sc: usize, t: usize, rc: usize) {
 /// its result (Direct3D's, always 0) is read by no one: the quads keep every register
 /// round it (`pusha` / `popa`).
 pub fn draw() -> Result<(), Refused> {
-    unsafe { crate::d3d::draw_vertex_strip::draw_vertex_strip(a(VERTS), 4) };
+    unsafe { crate::d3d::draw_vertex_strip::draw_vertex_strip(verts() as u32, 4) };
     Ok(())
 }
 

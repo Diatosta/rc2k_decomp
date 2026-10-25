@@ -1,16 +1,11 @@
 //! The time trial stage results page (`sub_48E740`; stream A, part F1, 2026-10-18).
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, game_write, rva};
 use crate::menu::captions_store::CAPTIONS;
 use crate::menu::champ_store::CHAMP_VIEW;
 use crate::menu::loop_store::LOOP_FLAGS;
 use crate::menu::state_store::MENU_STATE;
 use crate::text::draw_text::Canvas;
-
-fn w(a: usize, v: u32) {
-    unsafe { game_write(rva(a), v) }
-}
 
 unsafe fn get(a: u32) -> u32 {
     unsafe { (a as *const u32).read_unaligned() }
@@ -116,10 +111,14 @@ pub unsafe fn draw_stage_results(canvas: &mut dyn Canvas) -> Result<(), Refused>
             },
         );
         set_item(3, get(base + 0x38));
-        w(0xA8C154, get(record + 4));
+        crate::screens::text_buffers_store::TEXT_BUFFERS
+            .stage_result_value
+            .set(get(record + 4));
         std::ptr::copy_nonoverlapping(
             stage.as_ptr(),
-            game_addr(rva(0xA8BD54)) as *mut u8,
+            crate::screens::text_buffers_store::TEXT_BUFFERS
+                .stage_heading
+                .addr() as *mut u8,
             stage.len(),
         );
         // Converted: `rc2k_core::screens::stage_results`.

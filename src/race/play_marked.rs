@@ -19,7 +19,6 @@
 
 use crate::errors::Refused;
 use crate::race::replay_file_store::REPLAY_FILE;
-use crate::race::viewer::{MARK_IN, MARK_OUT, get};
 use crate::race::viewer_state_store::REPLAY_VIEW;
 use rc2k_core::race::viewer_flow::Play;
 
@@ -38,8 +37,12 @@ pub fn play_tail(play: Play) -> Result<(), Refused> {
 pub fn play_marked() -> Result<(), Refused> {
     // Converted: `rc2k_core::race::viewer_flow::marked_play`.
     play_tail(rc2k_core::race::viewer_flow::marked_play(
-        get(MARK_IN),
-        get(MARK_OUT),
+        crate::race::viewer_buffers_store::VIEWER_BUFFERS
+            .mark_in
+            .get(),
+        crate::race::viewer_buffers_store::VIEWER_BUFFERS
+            .mark_out
+            .get(),
     ))
 }
 

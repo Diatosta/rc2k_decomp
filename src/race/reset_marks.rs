@@ -11,7 +11,6 @@
 
 use crate::errors::Refused;
 use crate::race::replay_file_store::REPLAY_FILE;
-use crate::race::viewer::{MARK_IN, MARK_OUT, put};
 use crate::race::viewer_state_store::REPLAY_VIEW;
 
 /// The Rust version.
@@ -23,8 +22,12 @@ pub fn reset_marks() -> Result<(), Refused> {
             REPLAY_FILE.index_block_count.get(),
         );
         REPLAY_VIEW.replay_block.set(block);
-        put(MARK_IN, mark_in);
-        put(MARK_OUT, mark_out);
+        crate::race::viewer_buffers_store::VIEWER_BUFFERS
+            .mark_in
+            .set(mark_in);
+        crate::race::viewer_buffers_store::VIEWER_BUFFERS
+            .mark_out
+            .set(mark_out);
         unsafe {
             crate::drive::read_replay_frame_0::read_replay_frame_0(REPLAY_VIEW.replay_block.get())
         }?;

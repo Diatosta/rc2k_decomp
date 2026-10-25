@@ -23,7 +23,6 @@
 //! Refuses when there is no block.
 
 use crate::errors::BadInput;
-use crate::framework::{game_read, rva};
 use crate::race::numbers_store::NUMBERS;
 use crate::scene::draw_store::DRAW;
 use crate::scene::light_store::LIGHT_STATE;
@@ -34,7 +33,6 @@ use crate::scene::x87_mem::{fild, fistp, fld};
 use crate::session::MACHINE;
 
 // ---- game data ----
-const TABLE_RVA: usize = rva(0x635D18); // dword_635D18
 /// In a car's block.
 const LAMPS_ON: usize = 0x84;
 const PLACE: usize = 0x134;
@@ -167,7 +165,9 @@ pub unsafe fn add_car_light(car: usize) -> Result<(), BadInput> {
         let height = if (y as i32) < 0 { y.wrapping_neg() } else { y };
         let level = held((0x10_0000u32.wrapping_sub(height) as i32) >> 12);
         let amount = (level.wrapping_mul(cone * 2) >> 8).wrapping_mul(dword(car + STRENGTH)) >> 8;
-        let colour: u32 = game_read(TABLE_RVA + held(amount as i32) as usize * 4);
+        let colour: u32 = crate::scene::light_tables_store::LIGHT_TABLES.car_light_table
+            [held(amount as i32) as usize]
+            .get();
         let mmx = MACHINE.has_mmx.get() != 0;
         LIGHT_WORK
             .light_colour

@@ -4,7 +4,7 @@
 //! (`sub_437971`: per stage, three-digit numbers into `dword_601430`). Here the steps.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::physics::split_tables_store::SPLIT_TABLES;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::numbers_store::NUMBERS;
@@ -17,7 +17,6 @@ use crate::scene::draw_store::DRAW;
 use crate::session::Dword;
 
 /// The eight car blocks (fixed; `g_carBlocks` lists them), 0xFE0 apart.
-pub const SPEEDS_RVA: usize = rva(0x601430); // dword_601430: the stage's numbers from the file
 /// Player n's (0, 1) kind, tyre and colours word: `car_kinds[n]`, `car_tyres[n]`,
 /// `car_colours[n]`.
 fn player_kinds(n: usize) -> [&'static Dword; 3] {
@@ -38,7 +37,7 @@ pub unsafe fn reset_car_blocks() {
         let cars: u32 = RACE_VIEW.race_cars.bits();
         for n in 0..BLOCK_COUNT {
             let b: u32 = crate::race::work_store::RACE_WORK.car_block(n as usize);
-            for (off, v) in reset_block(n, cars, game_read(SPEEDS_RVA)) {
+            for (off, v) in reset_block(n, cars, SPLIT_TABLES.stage_numbers[0].get()) {
                 ((b + off) as *mut u32).write_unaligned(v);
             }
         }
@@ -98,11 +97,8 @@ pub unsafe fn set_up_race_cars() {
 
 // ---- the set-ups ----
 
-pub const STAGE_TOTAL_RVA: usize = rva(0x601C4C); // g_stageCarTotal
 /// The most numbers `g_stageCarNumbers` holds (`dword_601830` follows it).
 pub const MOST_NUMBERS: usize = rc2k_core::race::stage::MOST_NUMBERS;
-/// dword_6043FC: the automatic set-ups, 0x10 bytes each (h, s, g5, g4 + 1).
-pub const SET_UPS_RVA: usize = rva(0x6043FC);
 /// "autosetup", "t", "off", "h", "(0-255)", "s", "(0-255)", "g", "(0-4)", "g", "(0-5)".
 const SET_UP_WORDS: [&std::ffi::CStr; 11] = [
     c"autosetup",
@@ -145,20 +141,18 @@ fn word(n: usize) -> u32 {
 pub unsafe fn read_stage_car_numbers() -> Result<(), Refused> {
     // Converted: `rc2k_core::race::stage::stage_car_numbers`.
     let len = TEXT_LEN as u32;
-    unsafe {
-        let found = rc2k_core::race::stage::stage_car_numbers(
-            &text_data(),
-            len,
-            RACE_VARS.stage_number.bits(),
-        )?;
-        crate::files::state::BYTES_READ.store(len, std::sync::atomic::Ordering::Relaxed);
-        let mut total = 0u32;
-        for (k, &n) in found.numbers.iter().enumerate() {
-            game_write(SPEEDS_RVA + 4 * k, n);
-            total = total.wrapping_add(n);
-        }
-        game_write(STAGE_TOTAL_RVA, total);
+    let found = rc2k_core::race::stage::stage_car_numbers(
+        &text_data(),
+        len,
+        RACE_VARS.stage_number.bits(),
+    )?;
+    crate::files::state::BYTES_READ.store(len, std::sync::atomic::Ordering::Relaxed);
+    let mut total = 0u32;
+    for (k, &n) in found.numbers.iter().enumerate() {
+        SPLIT_TABLES.stage_numbers[k].set(n);
+        total = total.wrapping_add(n);
     }
+    SPLIT_TABLES.stage_car_total.set(total);
     Ok(())
 }
 
@@ -187,7 +181,8 @@ pub unsafe fn auto_set_up_car(b: u32) -> Result<(), Refused> {
         };
         text(word(2), false);
         number(pick.index, false);
-        let set_up = (game_addr(SET_UPS_RVA) as u32).wrapping_add(pick.index << 4);
+        let set_up = (crate::race::league_store::LEAGUE.auto_setups[0].addr() as u32)
+            .wrapping_add(pick.index << 4);
         let at = |k: u32| ((set_up + k) as *const u32).read_unaligned();
         for (value, off, words) in [
             (at(0), 0x30, [3, 4]),
@@ -312,9 +307,6 @@ pub fn clear_race_tables() {
     }
 }
 
-pub const KIND_FACTOR_RVA: usize = rva(0x601C64); // flt_601C64
-pub const EXTRA_TIME_RVA: usize = rva(0x601C50); // dword_601C50
-pub const CHECK_POSITS_RVA: usize = rva(0x601830); // dword_601830 ("numcheckposits")
 /// "numcheckposits =", "difficultyindex=", "time percentage=", "total time =", "extra
 /// time =", "chkp", "orig time", "car time".
 const TIME_WORDS: [&std::ffi::CStr; 8] = [
@@ -341,7 +333,7 @@ pub unsafe fn set_car_times() -> Result<(), Refused> {
     let w = |n: usize| TIME_WORDS[n].as_ptr() as usize as u32;
     unsafe {
         let stage: u32 = RACE_VARS.stage_number.bits();
-        let count: u32 = game_read(CHECK_POSITS_RVA);
+        let count: u32 = SPLIT_TABLES.split_colour_count.get();
         if stage < rc2k_core::race::stage::UNTIMED_STAGES
             && (count == 0 || count as usize > MOST_NUMBERS)
         {
@@ -352,7 +344,7 @@ pub unsafe fn set_car_times() -> Result<(), Refused> {
         use rc2k_core::race::stage::{difficulty, rally_of, timed_kind};
         let kind = timed_kind(RACE_VARS.race_car_kinds[0].bits() as i32);
         let factor = crate::math::x87::loaded(RACE_TABLES.kind_time_factors[kind as usize].bits());
-        game_write(KIND_FACTOR_RVA, factor);
+        SPLIT_TABLES.kind_factor.set_bits(factor);
         let Some(rally) = rally_of(stage) else {
             return Ok(());
         };
@@ -367,27 +359,31 @@ pub unsafe fn set_car_times() -> Result<(), Refused> {
         text(w(2), false);
         number(percentage, false);
         DRAW.scratch.set_bits(percentage);
-        let total: i32 = game_read(STAGE_TOTAL_RVA);
+        let total: i32 = SPLIT_TABLES.stage_car_total.get() as i32;
         let extra = crate::math::x87_load::int_times_int_over_to_int(
             percentage as i32,
             total,
             NUMBERS.hundred.bits(),
         );
-        game_write(EXTRA_TIME_RVA, extra);
+        SPLIT_TABLES.extra_time.set(extra as u32);
         text(w(3), false);
         number(total as u32, false);
         text(w(4), false);
         number(extra as u32, true);
-        add(SPEEDS_RVA, extra as u32);
+        SPLIT_TABLES.stage_numbers[0].set(
+            SPLIT_TABLES.stage_numbers[0]
+                .get()
+                .wrapping_add(extra as u32),
+        );
         let mut k = 0u32;
         loop {
-            let at = SPEEDS_RVA + 4 * k as usize;
+            let at = &SPLIT_TABLES.stage_numbers[k as usize];
             text(w(5), false);
             number(k, false);
             text(w(6), false);
-            number(game_read(at), false);
-            let n = crate::math::x87::int_times_to_int(game_read(at), factor);
-            game_write(at, n);
+            number(at.get(), false);
+            let n = crate::math::x87::int_times_to_int(at.get() as i32, factor);
+            at.set(n as u32);
             text(w(7), false);
             number(n as u32, true);
             k += 1;
@@ -399,10 +395,6 @@ pub unsafe fn set_car_times() -> Result<(), Refused> {
     Ok(())
 }
 
-unsafe fn add(at: usize, by: u32) {
-    unsafe { game_write(at, game_read::<u32>(at).wrapping_add(by)) };
-}
-const ARCADE_KIND_RVA: usize = rva(0x60101C); // dword_60101C
 /// The room `dword_604ECC` has (`dword_605030` follows it).
 pub const MOST_ARCADE_CARS: u32 = 89;
 /// "ARCADE GAME MODE INIT", "rallynum", "stagenum", "NUM arcadecars", "bestpos", "arc
@@ -463,7 +455,7 @@ pub unsafe fn set_up_mode_2_cars() -> Result<(), Refused> {
         use rc2k_core::race::cars::{
             arcade_number, arcade_start_is_last, arcade_swap_draw, arcade_type_draw,
         };
-        if arcade_start_is_last(game_read(ARCADE_KIND_RVA), stage_in) {
+        if arcade_start_is_last(SPLIT_TABLES.arcade_kind.get(), stage_in) {
             RACE_TABLES.start_place.set_bits(cars);
         }
         RACE_TABLES
@@ -569,7 +561,7 @@ pub unsafe fn set_up_cars() -> Result<(), Refused> {
                 CarsStep::SetUp(_) => set_up_mode_4_cars(),
                 CarsStep::ClearArcadeTable => {
                     for k in 0..0x40 {
-                        game_write(rva(0x601C68) + 4 * k, 0u32);
+                        SPLIT_TABLES.kept_times[k].set(0);
                     }
                 }
             }

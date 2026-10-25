@@ -20,7 +20,7 @@
 
 use crate::bridge::Raw;
 use crate::errors::{BadInput, Refused};
-use crate::install::installer::{MEDIA_MODE, fatal, gb, rb, wb};
+use crate::install::installer::{fatal, media_mode, rb, wb};
 use crate::install::vars::INSTALLER_PATHS;
 use rc2k_core::install::script::{self, Op};
 
@@ -31,7 +31,7 @@ pub fn run_script(script: u32) -> Result<(), Refused> {
     let mut end = INSTALLER_PATHS.script_path.addr() as u32;
     wb(end, 0);
     let mut stack: Vec<u32> = Vec::new();
-    let media = gb(MEDIA_MODE);
+    let media = media_mode() as u8;
     let mut guard = 0usize;
     // Converted: `rc2k_core::install::script` (`Op`, `skipped`, `skip`).
     loop {

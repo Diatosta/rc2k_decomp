@@ -59,8 +59,8 @@ fn side(x: u32, z: u32) -> bool {
         ),
         (x, z),
     );
-    p(0x620460, first as u32);
-    p(0x620464, (first >> 32) as u32);
+    crate::physics::ground_probe_store::GROUND_PROBE.product[0].set(first as u32);
+    crate::physics::ground_probe_store::GROUND_PROBE.product[1].set((first >> 32) as u32);
     difference >= 0
 }
 

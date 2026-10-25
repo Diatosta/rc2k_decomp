@@ -19,9 +19,7 @@
 //! `screens::run_frame` (eax, from `race::replay_viewer`).
 
 use crate::errors::Refused;
-use crate::physics::flow::g;
 use crate::race::replay_file_store::REPLAY_FILE;
-use crate::race::viewer::{MARK_IN, MARK_OUT};
 use crate::race::viewer_screen_store::VIEWER_PANEL;
 use crate::race::viewer_state_store::REPLAY_VIEW;
 use crate::session::Dword;
@@ -82,7 +80,14 @@ fn stopped() -> Result<(), Refused> {
             VIEWER_PANEL.bar_rect[0].get(),
         );
         let [first, second, here] = bar_places(
-            (g(MARK_IN), g(MARK_OUT)),
+            (
+                crate::race::viewer_buffers_store::VIEWER_BUFFERS
+                    .mark_in
+                    .get(),
+                crate::race::viewer_buffers_store::VIEWER_BUFFERS
+                    .mark_out
+                    .get(),
+            ),
             REPLAY_VIEW.replay_block.get(),
             REPLAY_VIEW.replay_frame.get(),
             w,

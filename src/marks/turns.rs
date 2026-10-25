@@ -1,16 +1,10 @@
 //! Small float steps of `make_masks`' tree (IDA, 2026-10-17): the 2 x 2 turn a line gives,
 //! three rows scaled to set lengths, and two cosine-eased steps.
 
-use crate::framework::rva;
 use crate::marks::mask_constants::MASK_CONSTANTS;
 use crate::marks::mask_vars::MASKS;
-use crate::marks::store::game_write;
+use crate::marks::work_store::MARKS_WORK;
 use crate::math::x87;
-
-/// The 2 x 2 turn: `flt_82E396`, `flt_82E39A`, `flt_82E3A2`, `flt_82E3A6`.
-// (`MASKS.turn`'s elements 0, 1, 3 and 4, in a 3 x 3 matrix.)
-/// The three rows' lengths for `scale_rows3`.
-const SCRATCH_2_RVA: usize = rva(0x71C880); // dword_71C880
 
 unsafe fn get(at: u32) -> u32 {
     unsafe { (at as *const u32).read_unaligned() }
@@ -52,10 +46,8 @@ pub unsafe fn scale_rows3(rows: u32) {
 /// cos(pi (n plus 1) / `dword_89C9C4`) and the second (its ebx) the same with n over `dword_89C9C8`.
 /// `dword_764F40` and `dword_71C880` left holding a.
 pub unsafe fn smooth_steps(n: u32, a: u32, b: u32) -> (u32, u32) {
-    unsafe {
-        crate::marks::shape_points::SHAPE_INPUTS.scratch.set(a);
-        game_write(SCRATCH_2_RVA, a);
-    }
+    crate::marks::shape_points::SHAPE_INPUTS.scratch.set(a);
+    MARKS_WORK.scratch.set(a);
     smooth_pair(n, a, b)
 }
 /// `smooth_steps`' two results (ecx, ebx) from step n, a and b, writing nothing.

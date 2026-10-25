@@ -156,3 +156,4 @@ pub mod view_motion;
 pub mod view_step;
 pub mod view_vectors;
 pub mod waves;
+pub mod work_store;

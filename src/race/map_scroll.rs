@@ -6,17 +6,12 @@
 //! the picture.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, rva};
 use crate::physics::car_store::CAR;
 use crate::race::course_store::COURSE;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
 use crate::race::work_store::RACE_WORK;
 use crate::scene::kind_texture_store::KIND_TEXTURES;
-
-fn k(a: u32) -> u32 {
-    unsafe { game_read(rva(a as usize)) }
-}
 
 /// `race::map_tiles` (0x45B663): the map picture's slot `dword_5D0E00` (+ `g_currentCar`
 /// unless `dword_52A910`) drawn from tile (corner x >> 4, corner y >> 4)
@@ -73,12 +68,24 @@ pub unsafe fn scroll_map() -> Result<(), Refused> {
         let [corner_x, corner_y] = &CAR.map_corner;
         let [map_x, map_y] = &CAR.map_place;
         let n = CAR.checkpoint.get();
-        map_x.set(k(0x9FC940 + 4 * n));
-        map_y.set(k(0xA019A8 + 4 * n));
+        map_x.set(
+            crate::race::checkpoints_store::nth(
+                &crate::race::checkpoints_store::CHECKPOINTS.map_x[0],
+                n as usize,
+            )
+            .get(),
+        );
+        map_y.set(
+            crate::race::checkpoints_store::nth(
+                &crate::race::checkpoints_store::CHECKPOINTS.map_y[0],
+                n as usize,
+            )
+            .get(),
+        );
         let face = COURSE
             .course_faces
             .get()
-            .wrapping_add(k(0x9E3738 + 4 * n) << 6);
+            .wrapping_add(crate::race::checkpoints_store::face(n as usize).get() << 6);
         let point = ((face + 4) as *const u32).read_unaligned();
         let p = point
             .wrapping_mul(12)

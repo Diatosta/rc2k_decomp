@@ -12,12 +12,10 @@
 //! again, the 0x40000 block left taken).
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::rva;
 use crate::gfx::picture_store::PICTURE;
 use crate::marks::blocks::{Address, take};
 use crate::marks::load_mask_pictures::{lock, put_pixel};
 use crate::marks::ring_store::{PICTURE_NAMES, RING_WORK};
-use crate::marks::store::game_read;
 use crate::marks::surface_store::SURFACE;
 use crate::marks::tuning::MARKS_FLOATS;
 use crate::math::x87;
@@ -26,8 +24,6 @@ use crate::session::{Bytes, Dword};
 
 const MASK_BYTES: u32 = 0x4_0000;
 const PIXELS: u32 = 0x1_0000;
-const SURFACE_WIDTH_RVA: usize = rva(0x4F49A0); // g_surface.width
-const SURFACE_HEIGHT_RVA: usize = rva(0x4F49A4); // g_surface.height
 const SIDE: u32 = 0x100;
 const RING_BYTES: u32 = 0x2_5000;
 const RING: u32 = 0x400;
@@ -66,7 +62,8 @@ pub unsafe fn set_up_surface() -> Result<(), Refused> {
     unsafe {
         let block = take(Address(MASK_LIST.list[0].as_ptr() as usize), MASK_BYTES)?;
         lock(KIND_TEXTURES.kind_first_textures[211].bits(), true)?;
-        if game_read::<u32>(SURFACE_WIDTH_RVA) < SIDE || game_read::<u32>(SURFACE_HEIGHT_RVA) < SIDE
+        if crate::gfx::screen_state::DRAW_SURFACE.width.get() < SIDE
+            || crate::gfx::screen_state::DRAW_SURFACE.height.get() < SIDE
         {
             return unlock_refusing("a surface under 256 x 256");
         }

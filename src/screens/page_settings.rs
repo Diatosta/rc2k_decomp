@@ -2,7 +2,6 @@
 //! A, part F1, 2026-10-18).
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::rva;
 use crate::menu::captions_store::CAPTIONS;
 use crate::menu::champ_store::CHAMP_VIEW;
 use crate::menu::event_store::EVENT_STATE;
@@ -11,7 +10,6 @@ use crate::menu::menus_store::MENUS;
 use crate::menu::option_work_store::OPTION_WORK;
 use crate::menu::results_store::RESULT_FIGURES;
 use crate::menu::state_store::MENU_STATE;
-use crate::store::game_addr;
 
 /// `screens::pick_player_1` .. `_4` (0x46AEC5, 0x46AF21, 0x46AF58, 0x46AF8F): player `n`
 /// the current one (`dword_75598C`), its +0x2C into `dword_7558C4` and its 0x2C bytes at
@@ -66,7 +64,9 @@ unsafe fn stage_line(id: u32, record: u32) -> Result<(), Refused> {
         }
         std::ptr::copy_nonoverlapping(
             line.as_ptr(),
-            game_addr(rva(0xA8BD54)) as *mut u8,
+            crate::screens::text_buffers_store::TEXT_BUFFERS
+                .stage_heading
+                .addr() as *mut u8,
             line.len(),
         );
         Ok(())
@@ -125,7 +125,9 @@ pub unsafe fn stage_options_texts() -> Result<(), Refused> {
         caption.push(0);
         std::ptr::copy_nonoverlapping(
             caption.as_ptr(),
-            game_addr(crate::screens::best_scores::CAPTION_RVA) as *mut u8,
+            crate::screens::text_buffers_store::TEXT_BUFFERS
+                .caption
+                .addr() as *mut u8,
             caption.len(),
         );
         Ok(())

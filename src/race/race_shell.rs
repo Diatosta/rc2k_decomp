@@ -6,12 +6,13 @@ use crate::gfx::screen_state::SCREEN_MODE;
 use crate::input::store::DEVICES;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::kind_store::KIND_TABLES;
+use crate::race::panel_store::PANEL;
 use crate::race::replay_file_store::REPLAY_FILE;
 use crate::race::state_store::RACE_STATE;
 use crate::race::tables_store::RACE_TABLES;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
-use crate::store::{game_addr, game_read, game_write};
+use crate::store::game_read;
 
 pub const KIND_ORDER_RVA: usize = rva(0x6051E0); // dword_6051E0: 0x22 kinds
 pub const KIND_ORDER_LEN: u32 = rc2k_core::race::cars::KIND_ORDER_LEN;
@@ -79,8 +80,6 @@ pub unsafe fn seal_stage_time() {
         (REPLAY_FILE.index_seal.addr() as *mut u32).write_unaligned(sealed);
     }
 }
-const LEAGUE_A_RVA: usize = rva(0x60410C); // dword_60410C: 10 dwords
-const LEAGUE_B_RVA: usize = rva(0x604134); // unk_604134: 16 rows of 10 dwords (0x28)
 
 /// `race::copy_league_table` (0x4650B7): with a source (`dword_75ACD0`), its ten records'
 /// +8 into `dword_60410C` and their sixteen dwords from +0x10 into column n of the
@@ -95,25 +94,22 @@ pub unsafe fn copy_league_table() {
             return;
         }
         let l = league(|n, off| ((source + 0x50 * n as u32 + off) as *const u32).read_unaligned());
-        game_write(LEAGUE_A_RVA, l.firsts);
-        game_write(LEAGUE_B_RVA, l.rows);
+        crate::session::write_bits(&crate::race::league_store::LEAGUE.names, l.firsts);
+        for (k, row) in l.rows.iter().enumerate() {
+            crate::session::write_first(
+                &crate::race::league_store::LEAGUE.rows[10 * k..10 * k + 10],
+                row,
+            );
+        }
     }
 }
-
-const CAR_RECORDS_LIMIT_RVA: usize = rva(0x5C7980); // dword_5C7980: per kind (0xB0 apart)
-const CAR_RECORDS_VALUE_RVA: usize = rva(0x5C7924); // a00RenaultMaxiM+0x18
-pub const START_VALUES_RVA: [usize; 2] = [rva(0x6D14CA), rva(0x6D14CE)]; // unaligned
 
 /// A kind's value for `set_start_states`: the record of the kind (held to 0x21) its
 /// +0x18 when its limit (`dword_5C7980`) is 0x1B58 or less, else 0.
 unsafe fn start_value(kind: u32) -> u32 {
     use rc2k_core::race::cars::{start_record, start_state_value};
-    let record = start_record(kind) as usize * 0xB0;
-    unsafe {
-        start_state_value(game_read(CAR_RECORDS_LIMIT_RVA + record), || {
-            game_read(CAR_RECORDS_VALUE_RVA + record)
-        })
-    }
+    let record = &crate::race::car_specs_store::CAR_SPECS.cars[start_record(kind) as usize];
+    start_state_value(record.engine_top.get(), || record.drive_kind.get())
 }
 
 /// Whether a kind is one with its flag (`dword_5C5AC0`) set (below 0x22).
@@ -155,9 +151,9 @@ pub unsafe fn set_start_states() -> Result<(), Refused> {
             RACE_VARS.race_car_kinds[0].bits()
         };
         let v = start_value(first_kind);
-        (game_addr(START_VALUES_RVA[0]) as *mut u32).write_unaligned(v);
+        PANEL.start_values[0].set(v);
         let v = start_value(RACE_VARS.race_car_kinds[1].bits());
-        (game_addr(START_VALUES_RVA[1]) as *mut u32).write_unaligned(v);
+        PANEL.start_values[1].set(v);
         if one {
             let block: u32 = crate::race::work_store::RACE_WORK.car_block(chosen as usize);
             RACE_VARS.split.set_bits(0u32);
@@ -187,7 +183,6 @@ pub unsafe fn set_start_states() -> Result<(), Refused> {
 pub unsafe fn store_results_by_mode() {
     // Converted: `rc2k_core::race::cars::margin`.
     use rc2k_core::race::cars::margin;
-    let get = |a: usize| -> u32 { unsafe { game_read(rva(a)) } };
     match RACE_VARS.run_kind.bits() {
         2 => {
             RACE_STATE
@@ -208,7 +203,9 @@ pub unsafe fn store_results_by_mode() {
             RACE_STATE.results.results[1]
                 .time
                 .set(CAR_BLOCKS.cars[1].stage_time.get());
-            let total = get(0x601C4C);
+            let total = crate::physics::split_tables_store::SPLIT_TABLES
+                .stage_car_total
+                .get();
             RACE_STATE.results.results[0]
                 .word
                 .set(margin(total, CAR_BLOCKS.cars[0].stage_time.get()));

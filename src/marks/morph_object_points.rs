@@ -17,9 +17,9 @@
 use crate::errors::{BadInput, Refused};
 use crate::marks::blend_corner::blend_corner;
 use crate::marks::lines::measure_lines;
-use crate::marks::store::game_read;
 use crate::race::course_lists_store::COURSE_LISTS;
-use crate::scene::objects::{FIRST_POINT_RVA, POINT_COUNTS_RVA, SLOTS};
+use crate::scene::object_slots_store::{OBJECT_SLOTS, ObjectTables};
+use crate::scene::objects::SLOTS;
 use crate::session::{Bytes, Dword};
 
 const CAR_LEN: u32 = 0x4C8;
@@ -52,13 +52,14 @@ unsafe fn changed(b: u32) -> bool {
 unsafe fn points(b: u32) -> (u32, u32, i32) {
     unsafe {
         let base: u32 = COURSE_LISTS.object_points.bits();
-        let first =
-            |id: u32| base.wrapping_add(12 * game_read::<u32>(FIRST_POINT_RVA + 4 * id as usize));
+        let first = |id: u32| {
+            base.wrapping_add(12 * ObjectTables::slot_value(&OBJECT_SLOTS.first_point, id as usize))
+        };
         let (a, c) = (get(b), get(b + 4));
         (
             first(a),
             first(c),
-            game_read(POINT_COUNTS_RVA + 4 * a as usize),
+            ObjectTables::slot_value(&OBJECT_SLOTS.point_counts, a as usize) as i32,
         )
     }
 }

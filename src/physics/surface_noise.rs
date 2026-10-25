@@ -15,7 +15,6 @@
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
-use crate::framework::{game_addr, rva};
 use crate::math::x87_run::{ext_div2, int_80};
 use crate::physics::car_store::CAR;
 use crate::race::frame_draw::sample_noise;
@@ -31,7 +30,7 @@ fn scaled(sample: u32, lo: u32, hi: u32) -> u32 {
 
 /// The noise map `x`'s sample under the work car (what `race::sample_noise` leaves in eax).
 unsafe fn sample(x: usize) -> u32 {
-    unsafe { sample_noise(game_addr(rva(x)) as u32) }
+    unsafe { sample_noise(x as u32) }
 }
 
 /// The Rust version.
@@ -40,14 +39,24 @@ unsafe fn sample(x: usize) -> u32 {
 pub unsafe fn surface_noise() {
     unsafe {
         let first = scaled(
-            sample(0xA2AB34),
+            sample(
+                crate::scene::engine_tables_store::ENGINE_TABLES
+                    .noise_bytes
+                    .addr()
+                    + 0x50,
+            ),
             STAGE_PREFS.blit_cleared[0].get(),
             STAGE_PREFS.blit_cleared[1].get(),
         );
         CAR.surface_noise_a.set(first);
         CAR.surface_noise_b.set(first);
         let second = scaled(
-            sample(0xA2AB04),
+            sample(
+                crate::scene::engine_tables_store::ENGINE_TABLES
+                    .noise_bytes
+                    .addr()
+                    + 0x20,
+            ),
             STAGE_PREFS.surface_scale[0].get(),
             STAGE_PREFS.surface_scale[1].get(),
         );

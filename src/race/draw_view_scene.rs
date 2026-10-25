@@ -16,8 +16,13 @@ use crate::errors::Refused;
 use crate::physics::car_store::CAR;
 use crate::race::view_store::RACE_VIEW;
 use crate::scene::object_store::OBJECT_WORK;
-const SORT_ENTRIES: u32 = 0x9DB730; // g_sortEntries
-const DEPTH_ENTRIES: u32 = 0x9D3730; // g_depthEntries
+fn sort_list() -> u32 {
+    crate::scene::faces_store::FACES.sort_entries[0].addr() as u32
+}
+
+fn depth_list() -> u32 {
+    crate::scene::faces_store::FACES.depth_entries[0].addr() as u32
+}
 
 /// The Rust version (see the header).
 pub unsafe fn draw_view_scene() -> Result<(), Refused> {
@@ -48,17 +53,17 @@ pub unsafe fn draw_view_scene() -> Result<(), Refused> {
         gather_lamps()?;
         lamps_wanted()?;
         race_sound_tick()?; // 0x16
-        sort_entries(&RACE_VIEW.sort_entry_count, SORT_ENTRIES)?;
-        draw_entries(&RACE_VIEW.sort_entry_count, SORT_ENTRIES)?;
+        sort_entries(&RACE_VIEW.sort_entry_count, sort_list())?;
+        draw_entries(&RACE_VIEW.sort_entry_count, sort_list())?;
         draw_race_slots()?;
         race_sound_tick()?; // 0x17
         crate::race::car_shadow::cast_car_shadows()?;
         crate::race::skidmarks::draw_skidmarks_if_on()?;
         car_lights()?;
         race_sound_tick()?; // 0x18
-        sort_entries(&RACE_VIEW.depth_entry_count, DEPTH_ENTRIES)?;
+        sort_entries(&RACE_VIEW.depth_entry_count, depth_list())?;
         race_sound_tick()?; // 0x19
-        draw_entries(&RACE_VIEW.depth_entry_count, DEPTH_ENTRIES)?;
+        draw_entries(&RACE_VIEW.depth_entry_count, depth_list())?;
         race_sound_tick()?; // 0x1A
         crate::race::flush_draw_batch::flush_draw_batch()?;
         store_view_value()

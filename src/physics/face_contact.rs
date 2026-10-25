@@ -34,7 +34,7 @@ use crate::math::x87_run::compare_80;
 use crate::physics::car_store::CAR;
 use crate::physics::contact_force::contact_force;
 use crate::physics::contact_store::CONTACT_WORK;
-use crate::physics::flow::{a, copy_cells, fill_cells, g, negate};
+use crate::physics::flow::{copy_cells, fill_cells, negate};
 use crate::physics::tables_store::PHYSICS;
 use crate::physics::touch_face::touch_face;
 use crate::physics::vector_length::vector_length;
@@ -45,6 +45,7 @@ use crate::race::scratch_store::FRAME_SCRATCH;
 use crate::race::work_store::RACE_WORK;
 use crate::scene::draw_store::DRAW;
 use crate::scene::object_store::OBJECT_WORK;
+use crate::scene::object_tables_store::OBJECT_TABLES;
 use crate::scene::x87_mem::{fild, fistp, fld, fstp};
 use rc2k_core::physics::face_contacts::{self as contacts, FaceObject, Inside};
 
@@ -79,11 +80,11 @@ pub fn steps(number: u32) -> Result<(), Refused> {
         FaceObject::Object(object) => object,
     };
     CONTACT_WORK.face_object.set(object);
-    let kind = g(0x5CD27C + 4 * object as usize);
+    let kind = OBJECT_TABLES.object_kind(object);
     contacts::check_material(kind)?;
-    CONTACT_WORK
-        .contact_kind
-        .set(byte(a(0x97DF30) + 0x80 * kind + 0x1C));
+    CONTACT_WORK.contact_kind.set(byte(
+        crate::scene::polygon::materials_addr() as u32 + 0x80 * kind + 0x1C,
+    ));
     if contacts::object_tried(byte(face + 0x25), RACE_WORK.stage_direction.get(), object).is_err() {
         return Ok(());
     }
@@ -107,7 +108,9 @@ pub fn steps(number: u32) -> Result<(), Refused> {
         let distance = int_hypot(dx as i32, dz as i32) as u32;
         DRAW.scratch.set(distance);
         let (reach, _) = contacts::reach(
-            g(0x634BA0 + 4 * CONTACT_WORK.face_object.get() as usize),
+            crate::scene::object_slots_store::OBJECT_SLOTS.radii
+                [CONTACT_WORK.face_object.get() as usize]
+                .get(),
             OBJECT_WORK.size.get(),
         );
         if contacts::out_of_reach(reach, distance) {

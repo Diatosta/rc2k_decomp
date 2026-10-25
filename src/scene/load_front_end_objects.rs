@@ -11,17 +11,13 @@
 //! callers (the front end's start and a stage's leaving).
 
 use crate::errors::Refused;
-use crate::framework::{game_read, game_write, rva};
 use crate::scene::load_object::load_object;
 use crate::scene::object_store::OBJECT_WORK;
-use crate::scene::objects::{POINT_COUNT_RVA, SLOTS};
+use crate::scene::object_tables_store::OBJECT_TABLES;
+use crate::scene::objects::SLOTS;
 use crate::scene::reset_objects::reset_objects;
 
 // ---- game data ----
-
-const TEXTURE_COUNT_RVA: usize = rva(0x631B68); // dword_631B68
-const NO_NORMALS_RVA: usize = rva(0x631F6C); // dword_631F6C
-const SLOT_KINDS_RVA: usize = rva(0x5CCE7C); // dword_5CCE7C
 
 // ---- Rust version ----
 
@@ -31,10 +27,14 @@ const SLOT_KINDS_RVA: usize = rva(0x5CCE7C); // dword_5CCE7C
 pub unsafe fn load_front_end_objects() -> Result<(), Refused> {
     unsafe {
         reset_objects()?;
-        game_write(TEXTURE_COUNT_RVA, 0u32);
-        game_write(NO_NORMALS_RVA, 0u32);
+        crate::scene::object_slots_store::OBJECT_SLOTS
+            .texture_count
+            .set(0);
+        crate::scene::object_slots_store::OBJECT_SLOTS
+            .no_normals
+            .set(0);
         for slot in 0..SLOTS {
-            let kind: u32 = game_read(SLOT_KINDS_RVA + slot as usize * 4);
+            let kind: u32 = OBJECT_TABLES.slot_kinds[slot as usize].get();
             OBJECT_WORK.loading_kind.set_bits(kind);
             OBJECT_WORK.loading_slot.set_bits(slot);
             load_object()?;
@@ -42,7 +42,7 @@ pub unsafe fn load_front_end_objects() -> Result<(), Refused> {
         let cursor: u32 = OBJECT_WORK.face_cursor.bits();
         OBJECT_WORK
             .point_memory_total
-            .set_bits(game_read::<u32>(POINT_COUNT_RVA).wrapping_mul(12));
+            .set_bits(OBJECT_TABLES.point_count.get().wrapping_mul(12));
         OBJECT_WORK.face_memory_total.set_bits(cursor);
         Ok(())
     }

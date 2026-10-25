@@ -10,11 +10,12 @@
 //!
 //! Callers: `drive::finish_race_0`, `sub_442FEF`. Refuses what its calls refuse.
 
+use crate::drive::finish_store::FINISH;
 use crate::drive::race_parts::log_line;
 use crate::errors::Refused;
-use crate::physics::flow::g;
+use crate::physics::split_tables_store::SPLIT_TABLES;
 use crate::race::blocks_store::CAR_BLOCKS;
-use crate::race::settings_copy::Place::{self, Addr};
+use crate::race::settings_copy::Place;
 use crate::race::settings_copy::var;
 use crate::race::state_store::RACE_STATE;
 use crate::race::switches_store::FRAME_SWITCHES;
@@ -35,7 +36,7 @@ fn log_number(v: u32) {
 /// A variable's place.
 fn var(v: Var) -> Place {
     match v {
-        Var::D60101C => Addr(0x60101C),
+        Var::D60101C => var!(SPLIT_TABLES.arcade_kind),
         Var::D621514 => var!(FRAME_SWITCHES.editor_mode),
         Var::D623854 => var!(RACE_VARS.direction),
         Var::D6235FC => var!(RACE_VARS.car_tyres[0]),
@@ -51,7 +52,7 @@ fn var(v: Var) -> Place {
         Var::D621890 => var!(FRAME_SWITCHES.view_marks_on),
         Var::D6238CC => var!(RACE_VARS.race_level),
         Var::D6238D0 => var!(RACE_VARS.race_stage),
-        Var::D64BB18 => Addr(0x64BB18),
+        Var::D64BB18 => var!(FINISH.no_place),
         Var::D5C2F88 => var!(VIEWER_PANEL.race_done),
         Var::D606744 => var!(VIEW_VARS.place_last_c),
         Var::D606748 => var!(VIEW_VARS.finish_value),
@@ -82,9 +83,12 @@ fn set_up() {
 /// registers this leaves are read by no caller (liveness: esi after the menus' calls has
 /// no read point).
 pub unsafe fn finish_race() -> Result<(), Refused> {
-    RACE_VARS.stage_number.set(g(
-        0x64BB1C + 4 * RACE_STATE.results.stage_index.get() as usize
-    ));
+    // The stage index is not checked against the seven (a read past them is the original's).
+    RACE_VARS.stage_number.set(unsafe {
+        ((FINISH.finish_stages[0].addr() + 4 * RACE_STATE.results.stage_index.get() as usize)
+            as *const u32)
+            .read_volatile()
+    });
     RACE_VARS.race_car_kinds[0].set(RACE_STATE.results.finish_kind.get());
     CAR_BLOCKS.cars[0]
         .car_kind

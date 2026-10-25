@@ -7,10 +7,6 @@
 //! `physics::fill_rival_table`, 0x436BD6), mode 3 `physics::compare_split_times` (0x436E11,
 //! against ten times kept per split). This file: the shared names and the test.
 
-use crate::framework::{game_read, game_write, rva};
-
-pub const COUNT: usize = 0x601830; // g_splitColourCount
-
 /// `g_car + 0x140 + 4 split`: the splits run to 0x3F, past the sixteen figures of
 /// `split_times` (into the car's next fields), as the original writes them.
 pub fn put_split_time(split: usize, v: u32) {
@@ -19,12 +15,4 @@ pub fn put_split_time(split: usize, v: u32) {
             .add(split)
             .write_unaligned(v)
     }
-}
-
-pub fn g(x: usize) -> u32 {
-    unsafe { game_read(rva(x)) }
-}
-
-pub fn p(x: usize, v: u32) {
-    unsafe { game_write(rva(x), v) }
 }

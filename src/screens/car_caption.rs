@@ -10,14 +10,12 @@
 //! for reference.
 
 use crate::errors::Refused;
-use crate::framework::{game_addr, rva};
 use crate::menu::car_description::{read, shown_description};
 use crate::strings::append_string_by_id::append_string_by_id;
 
 // ---- game data ----
 
 // dword_755990
-const CAPTION_RVA: usize = rva(0xA8BE54); // g_captionText
 const CAPTION_LEN: usize = 0x100;
 
 // ---- Rust version ----
@@ -31,7 +29,7 @@ pub unsafe fn put_string(id: u32, place: usize, room: usize) -> Result<(), Refus
         });
         // Converted: `rc2k_core::screens::captions::fit`.
         let text = rc2k_core::screens::captions::fit(text, room)?;
-        std::ptr::copy_nonoverlapping(text.as_ptr(), game_addr(place) as *mut u8, text.len());
+        std::ptr::copy_nonoverlapping(text.as_ptr(), place as *mut u8, text.len());
         Ok(())
     }
 }
@@ -39,6 +37,12 @@ pub unsafe fn put_string(id: u32, place: usize, room: usize) -> Result<(), Refus
 pub unsafe fn car_caption() -> Result<(), Refused> {
     unsafe {
         let id = read(shown_description()?).name;
-        put_string(id, CAPTION_RVA, CAPTION_LEN)
+        put_string(
+            id,
+            crate::screens::text_buffers_store::TEXT_BUFFERS
+                .caption
+                .addr(),
+            CAPTION_LEN,
+        )
     }
 }

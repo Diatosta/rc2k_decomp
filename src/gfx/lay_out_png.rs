@@ -13,14 +13,13 @@
 use crate::gfx::decoder::DECODER;
 use crate::gfx::palette_to_dwords::palette_to_dwords;
 use crate::gfx::picture_store::PICTURE;
-use crate::gfx::png::{INFO_RVA, PngInfo};
-use crate::store::game_ptr;
+use crate::gfx::png::{PngInfo, info};
 
 // ---- Rust version ----
 
 pub unsafe fn lay_out_png() {
     unsafe {
-        let info: *mut PngInfo = game_ptr(INFO_RVA);
+        let info: *mut PngInfo = info();
         // Converted: `rc2k_core::gfx::png::layout`.
         let layout = rc2k_core::gfx::png::layout(
             (&raw const (*info).width).read_unaligned(),

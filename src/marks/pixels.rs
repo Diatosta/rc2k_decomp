@@ -4,19 +4,14 @@
 //! of 0x400 a row (`dword_8445D2`).
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::rva;
 use crate::marks::mask_constants::MASK_CONSTANTS;
 use crate::marks::mask_picks::PICKS;
 use crate::marks::mask_vars::MASKS;
-use crate::marks::setup::SEED_RVA;
-use crate::marks::store::{game_read, game_write};
 use crate::marks::turns::{scale_rows3, set_line_turn, turn_pair};
+use crate::marks::work_store::MARKS_WORK;
 use crate::math::x87;
 use crate::scene::matrix3::{extended, rounded};
-use crate::scene::vector3::STATUS_RVA;
 use crate::session::{read_bits, write_bits};
-
-const SHAKE_RVA: usize = rva(0x71C870); // flt_71C870, 1 / 65536
 
 unsafe fn get(at: u32) -> u32 {
     unsafe { (at as *const u32).read_unaligned() }
@@ -65,7 +60,7 @@ pub unsafe fn map_pixel(row: u32, x: u32) {
         MASKS.pixel[0].set(x);
         let pixel: [u32; 2] = read_bits(&MASKS.pixel);
         let turn = MASKS.turn.as_ptr() as u32;
-        let shake: u32 = game_read(SHAKE_RVA);
+        let shake: u32 = MARKS_WORK.shake.get();
         for half in HALVES {
             write_bits(&MASKS.work_pixel, pixel);
             crate::scene::matrix3::identity_matrix3(turn);
@@ -102,8 +97,8 @@ pub unsafe fn map_pixel(row: u32, x: u32) {
                 MASKS.slope[0].set_bits(span);
             }
             let status = x87::sub_compare(px, ends[0], negative, span);
-            game_write(STATUS_RVA, status as u32);
-            let mut seed = next_seed(game_read(SEED_RVA));
+            MARKS_WORK.fpu_status.set(status as u32);
+            let mut seed = next_seed(MARKS_WORK.seed.get());
             let (mut r, mut c) = (
                 seed & 0x3FFF,
                 MASK_CONSTANTS.pixel_constants[half.constants].bits(),
@@ -115,7 +110,7 @@ pub unsafe fn map_pixel(row: u32, x: u32) {
                     MASK_CONSTANTS.pixel_constants[half.constants + 1].bits(),
                 );
             }
-            game_write(SEED_RVA, seed);
+            MARKS_WORK.seed.set(seed);
             let k: u32 = MASK_CONSTANTS.pixel_constants[half.constants + 2].bits();
             let y = x87::random_step(r as i32, [shake, c, px, ends[0], rise, ends[1], k]);
             MASKS.work_pixel[1].set(y);

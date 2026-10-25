@@ -7,20 +7,17 @@
 //! `physics::probe_ground` (since 2026-10-17).
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, game_write, rva};
 use crate::physics::camera_store::CAMERA_WORK;
 use crate::physics::car_store::CAR;
 use crate::physics::contact_store::CONTACT_WORK;
 use crate::physics::tables_store::PHYSICS;
-use crate::race::best_line::{CHECKS_RVA, MOST_CHECKS};
+use crate::race::best_line::MOST_CHECKS;
 use crate::race::course_store::COURSE;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
 use crate::scene::light_store::LIGHT_STATE;
 use crate::session::Dword;
 
-const SETTLE_MARK_RVA: usize = rva(0x620470); // dword_620470
-const NO_PLACE_RVA: usize = rva(0x64BB18); // dword_64BB18
 /// The most cars `g_carBlocks` has.
 pub const MOST_CARS: u32 = 8;
 
@@ -73,7 +70,9 @@ pub unsafe fn settle_car() -> Result<(), Refused> {
         CAR.car_roll.set(0);
         PHYSICS.settle_steps[0].set(0x2000_0000u32);
         PHYSICS.settle_steps[1].set(0x2000_0000u32);
-        game_write(SETTLE_MARK_RVA, 0x80u32);
+        crate::physics::ground_probe_store::GROUND_PROBE
+            .settle_mark
+            .set(0x80);
         for _ in 0..8 {
             let w = matrix_and_wheels()?;
             settle_step(
@@ -209,12 +208,12 @@ pub unsafe fn start_car() -> Result<(), Refused> {
             );
             LIGHT_STATE.line_place.set(place);
             LIGHT_STATE.line_fraction.set(0);
-            if game_read::<u32>(NO_PLACE_RVA) != 0 {
+            if crate::drive::finish_store::FINISH.no_place.get() != 0 {
                 LIGHT_STATE.line_place.set(0);
                 LIGHT_STATE.line_fraction.set(0);
             }
             crate::race::start_place::place_car_on_line()?;
-            if game_read::<u32>(NO_PLACE_RVA) == 0 {
+            if crate::drive::finish_store::FINISH.no_place.get() == 0 {
                 move_turned(0, 0xFFFE_0000);
                 let side = starts_aside(
                     crate::net::store::NET.session.get(),
@@ -236,8 +235,13 @@ pub unsafe fn start_car() -> Result<(), Refused> {
         if nearest >= MOST_CHECKS {
             return Err(BadInput("a nearest checkpoint past the lists").into());
         }
-        let checks =
-            rc2k_core::race::start::start_checks(game_read(CHECKS_RVA + 4 * nearest as usize));
+        let checks = rc2k_core::race::start::start_checks(
+            crate::race::checkpoints_store::nth(
+                &crate::race::checkpoints_store::CHECKPOINTS.check_counts[0],
+                nearest as usize,
+            )
+            .get(),
+        );
         CAR.splits_passed.set(checks);
         CAR.splits_recorded.set(checks);
         reset_car_motion()?;

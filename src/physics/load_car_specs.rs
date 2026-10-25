@@ -21,31 +21,21 @@
 //! past 3 (`flt_613FB8`'s size not worked out).
 
 use crate::errors::Refused;
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::framework::{game_write, rva};
 use crate::math::x87;
 use crate::physics::car_store::CAR;
+use crate::physics::gear_store::GEAR;
 use crate::physics::tables_store::PHYSICS;
+use crate::race::car_specs_store::{CAR_SPECS, CarSpec};
 use crate::race::numbers_store::NUMBERS;
 use crate::scene::draw_store::DRAW;
 use crate::scene::x87_mem::{fild, fistp, fld, fstp};
-use crate::session::Cell32;
-use rc2k_core::physics::car_specs::{
-    OWN_FIGURES_FROM, RECORD_LEN, check_drive, gear_count, record_of,
-};
+use crate::session::{Cell32, Dword};
+use rc2k_core::physics::car_specs::{OWN_FIGURES_FROM, check_drive, gear_count, record_of};
 use std::cmp::Ordering;
-
-const RECORDS: usize = 0x5C790C; // the kinds' records
-
-fn g(x: usize) -> u32 {
-    unsafe { game_read(rva(x)) }
-}
 
 fn p(x: usize, v: u32) {
     unsafe { game_write(rva(x), v) }
-}
-
-unsafe fn at(a: u32) -> u32 {
-    unsafe { (a as *const u32).read_unaligned() }
 }
 
 fn below(a: u32, b: u32) -> bool {
@@ -55,32 +45,29 @@ fn below(a: u32, b: u32) -> bool {
     )
 }
 
-/// The record of the work car's kind.
-fn record() -> u32 {
-    game_addr(rva(RECORDS)) as u32 + RECORD_LEN * record_of(CAR.car_kind.get())
+/// The record of the work car's kind (`record_of` holds it to the last).
+fn record() -> &'static CarSpec {
+    &CAR_SPECS.cars[record_of(CAR.car_kind.get()) as usize]
 }
 
 /// The whole-number steps both versions share, after the floats: the torque curve, the
 /// gear count (held), the words copied.
-unsafe fn words(s: u32) {
-    unsafe {
-        for k in 0..9u32 {
-            PHYSICS.spec_torque[k as usize].set(at(s + 0x7C + 4 * k));
-        }
-        PHYSICS.spec_a0.set(at(s + 0xA0));
-        let count = at(s + 0x1C);
-        PHYSICS.gear_count.set(gear_count(count));
-        p(0x614C14, at(s + 0x20));
-        let places: [(&dyn Cell32, u32); 5] = [
-            (&PHYSICS.spec_surface[0], 0x2C),
-            (&PHYSICS.spec_surface[1], 0x30),
-            (&PHYSICS.grip_scale, 0x24),
-            (&PHYSICS.side_grip_scale, 0x28),
-            (&PHYSICS.spec_surface[2], 0x34),
-        ];
-        for (to, from) in places {
-            to.set_bits(at(s + from));
-        }
+fn words(spec: &CarSpec) {
+    for (to, from) in PHYSICS.spec_torque.iter().zip(&spec.torque_curve) {
+        to.set(from.get());
+    }
+    PHYSICS.spec_a0.set(spec.spec_a0.get());
+    PHYSICS.gear_count.set(gear_count(spec.gear_count.get()));
+    p(0x614C14, spec.copy_20.get());
+    let places: [(&dyn Cell32, &Dword); 5] = [
+        (&PHYSICS.spec_surface[0], &spec.surface[0]),
+        (&PHYSICS.spec_surface[1], &spec.surface[1]),
+        (&PHYSICS.grip_scale, &spec.grip_scale),
+        (&PHYSICS.side_grip_scale, &spec.side_grip_scale),
+        (&PHYSICS.spec_surface[2], &spec.surface[2]),
+    ];
+    for (to, from) in places {
+        to.set_bits(from.get());
     }
 }
 
@@ -88,46 +75,45 @@ unsafe fn words(s: u32) {
 /// `physics::test_drive`).
 pub unsafe fn load_car_specs() -> Result<(), Refused> {
     let kind = CAR.car_kind.get();
-    let s = record();
-    let drive = check_drive(unsafe { at(s + 0x18) })?;
+    let spec = record();
+    // The x87 runs read the record at their operands' offsets.
+    let s = spec as *const CarSpec as usize;
+    let drive = check_drive(spec.drive_kind.get())?;
     CAR.drive_kind.set(drive);
     // 0x4214A7 .. 0x421543
-    x87_1(s as usize, crate::race::store::asm_base() as usize);
+    x87_1(s, crate::race::store::asm_base() as usize);
     if below(CAR.engine_speed_limit.bits(), NUMBERS.thousand.bits()) {
         CAR.engine_speed_limit
             .set_bits(x87::loaded(NUMBERS.thousand.bits()));
     }
-    for k in 0..4usize {
-        let at_k = 0x5CB96C + 4 * k;
-        if below(g(at_k), NUMBERS.eight.bits()) {
-            p(at_k, x87::loaded(NUMBERS.eight.bits()));
+    for figure in &GEAR.figures {
+        if below(figure.bits(), NUMBERS.eight.bits()) {
+            figure.set_bits(x87::loaded(NUMBERS.eight.bits()));
         }
     }
-    unsafe {
-        words(s);
-        // 0x4216C5 .. 0x421704
-        x87_2(s as usize, crate::race::store::asm_base() as usize);
-        if kind < OWN_FIGURES_FROM {
-            // 0x42170D .. 0x421755
-            x87_3(crate::race::store::asm_base() as usize);
-        }
-        PHYSICS
-            .spec_grip
-            .set_bits(crate::physics::tables_store::PHYSICS.spec_default_ba0.get());
-        PHYSICS
-            .spec_grip_b
-            .set_bits(crate::physics::tables_store::PHYSICS.spec_default_ba4.get());
-        PHYSICS
-            .spec_wheel
-            .set_bits(crate::physics::tables_store::PHYSICS.spec_default_ba8.get());
-        // 0x421794 .. 0x4217B2
-        x87_4(s as usize, crate::race::store::asm_base() as usize);
-        DRAW.scratch.set(at(s + 0x5C));
-        PHYSICS.downforce_spec.set(at(s + 0x60));
-        // 0x4217CA .. 0x4217E3
-        x87_5(crate::race::store::asm_base() as usize, drive as usize);
-        Ok(())
+    words(spec);
+    // 0x4216C5 .. 0x421704
+    x87_2(s, crate::race::store::asm_base() as usize);
+    if kind < OWN_FIGURES_FROM {
+        // 0x42170D .. 0x421755
+        x87_3(crate::race::store::asm_base() as usize);
     }
+    PHYSICS
+        .spec_grip
+        .set_bits(crate::physics::tables_store::PHYSICS.spec_default_ba0.get());
+    PHYSICS
+        .spec_grip_b
+        .set_bits(crate::physics::tables_store::PHYSICS.spec_default_ba4.get());
+    PHYSICS
+        .spec_wheel
+        .set_bits(crate::physics::tables_store::PHYSICS.spec_default_ba8.get());
+    // 0x421794 .. 0x4217B2
+    x87_4(s, crate::race::store::asm_base() as usize);
+    DRAW.scratch.set(spec.scratch_value.get());
+    PHYSICS.downforce_spec.set(spec.downforce.get());
+    // 0x4217CA .. 0x4217E3
+    x87_5(crate::race::store::asm_base() as usize, drive as usize);
+    Ok(())
 }
 
 // ---- the arithmetic that was x87 assembly ----

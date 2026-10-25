@@ -5,34 +5,29 @@
 //! steps.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, game_write, rva};
 use crate::physics::contact_store::CONTACT_WORK;
 use crate::race::course_lists_store::COURSE_LISTS;
 use crate::race::course_store::COURSE;
+use crate::race::kind_records_store::KIND_RECORDS;
 use crate::race::prefs_store::STAGE_PREFS;
 
 /// `files\levels\levelxx\cdat00c`'s two digits, in `srclvls\..` (0x60B02B) and
 /// `\levels\..` (0x60B07F): tens, units.
-pub const CDAT_DIGITS: [usize; 2] = [rva(0x60B03F), rva(0x60B093)];
 pub const HEADER_LEN: usize = 0x100;
-/// `g_kindFirstRecords` (0x100 dwords), followed by `g_kindLastRecords` (0x5CC7E4).
-pub const KIND_TABLES_RVA: usize = rva(0x5CC3E4);
 const KINDS: u32 = 0x100;
 /// The records the course memory's first part (0xF00000 bytes) can hold.
 pub const MOST_RECORDS: u32 = 0x7_8000;
-
-unsafe fn put(at: u32, value: u32) {
-    unsafe { (at as *mut u32).write_unaligned(value) };
-}
 
 /// `race::set_cdat_number` (0x4456DD): `number`'s two digits (its low byte's `div 10`, +
 /// '0') into both cdat paths.
 pub unsafe fn set_cdat_number(number: u32) {
     // Converted: `rc2k_core::race::stage::two_digits`.
     let digits = rc2k_core::race::stage::two_digits(number as u8);
-    for at in CDAT_DIGITS {
-        unsafe { game_write(at, digits) };
-    }
+    let p = &crate::race::level_paths_store::LEVEL_PATHS;
+    p.cdat_src.set(0x14, digits[0]);
+    p.cdat_src.set(0x15, digits[1]);
+    p.cdat_files.set(0x19, digits[0]);
+    p.cdat_files.set(0x1A, digits[1]);
 }
 
 /// `race::copy_course_header` (0x445736): the course memory's first 0x100 bytes to
@@ -99,17 +94,14 @@ pub unsafe fn group_records_by_kind() -> Result<(), Refused> {
         for (n, r) in list.iter().enumerate() {
             at.add(n).write_unaligned(*r);
         }
-        let first = game_addr(KIND_TABLES_RVA) as u32;
-        let last = first + 4 * KINDS;
-        for kind in 0..KINDS {
-            put(first + 4 * kind, grouped.first[kind as usize]);
-            put(last + 4 * kind, grouped.last[kind as usize]);
+        for kind in 0..KINDS as usize {
+            KIND_RECORDS.first_records[kind].set(grouped.first[kind]);
+            KIND_RECORDS.last_records[kind].set(grouped.last[kind]);
         }
     }
     Ok(())
 }
 
-const COURSE_PATH_RVA: usize = rva(0x60B02B); // "srclvls\level01\cdat00c"
 /// "loadlevel", "done", "next", "this", "then", "ok".
 const LOAD_LOG: [&std::ffi::CStr; 6] = [c"loadlevel", c"done", c"next", c"this", c"then", c"ok"];
 const NOT_READ: crate::errors::FatalError = crate::errors::FatalError {
@@ -133,7 +125,7 @@ pub unsafe fn load_level() -> Result<(), Refused> {
         crate::files::state::BYTES_READ.store(0, std::sync::atomic::Ordering::Relaxed);
         load_log(0);
         let out = read_level_file::read_level_file(
-            game_addr(COURSE_PATH_RVA) as u32,
+            crate::race::level_paths_store::LEVEL_PATHS.cdat_src.addr() as u32,
             COURSE_LISTS.course_memory.bits(),
             COURSE_LISTS.first_part.bits(),
             &mut read_level_file::game_exists,

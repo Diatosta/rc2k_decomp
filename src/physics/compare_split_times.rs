@@ -16,10 +16,9 @@
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 use crate::errors::{BadInput, Refused};
-use crate::framework::rva;
 use crate::physics::car_store::CAR;
 use crate::physics::cells::get_list;
-use crate::physics::splits::{g, p};
+use crate::race::league_store::LEAGUE;
 use crate::race::state_store::RACE_STATE;
 use crate::race::work_store::RACE_WORK;
 use rc2k_core::physics::splits::{LAST_COMPARED_SPLIT, compare_split};
@@ -31,11 +30,12 @@ pub fn compare_split_times() -> Result<(), Refused> {
         return Err(BadInput("a split past 27").into());
     }
     let time = CAR.stage_time.get();
-    p(0x6043F8, time);
-    let list = (crate::framework::game_addr(rva(0x604134)) as u32)
-        .wrapping_add(CAR.splits_recorded.get().wrapping_mul(0x28));
+    LEAGUE.car_time.set(time);
+    // Splits 16 .. 27 read past the sixteen rows (a slip of the original, kept).
+    let list =
+        (LEAGUE.rows[0].addr() as u32).wrapping_add(CAR.splits_recorded.get().wrapping_mul(0x28));
     let kept: [u32; 10] = unsafe { get_list(list) };
-    let c = compare_split(time, &kept, |c| g(0x60410C + 4 * c));
+    let c = compare_split(time, &kept, |c| LEAGUE.names[c].get());
     let f = c.figures;
     for (k, v) in [
         f.place,

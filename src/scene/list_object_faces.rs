@@ -12,13 +12,11 @@
 //! number past the table and a face that is not there.
 
 use crate::errors::Refused;
-use crate::framework::{game_read, rva};
 use crate::race::vars_store::RACE_VARS;
 use crate::scene::light_work_store::LIGHT_WORK;
 use crate::scene::object_store::OBJECT_WORK;
 
 // ---- game data ----
-const FACES_RVA: usize = rva(0x9A3730); // g_faces
 
 // ---- Rust version ----
 
@@ -26,14 +24,14 @@ const FACES_RVA: usize = rva(0x9A3730); // g_faces
 pub unsafe fn list_object_faces(
     list: &mut dyn FnMut(usize) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
-    unsafe {
+    {
         let (first, count): (u32, u32) = (
             OBJECT_WORK.object_first_face.bits(),
             OBJECT_WORK.object_face_count.bits(),
         );
         // Every face is looked up before anything is written.
         let faces = rc2k_core::scene::objects::object_faces(first, count, |number| {
-            game_read(FACES_RVA + number as usize * 4)
+            crate::scene::objects::face_cell(number as usize).get()
         })?;
         LIGHT_WORK.listed_face_count.set_bits(0u32);
         RACE_VARS.face_mark.set_bits(u32::MAX);

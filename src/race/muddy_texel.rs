@@ -15,20 +15,19 @@
 //! (`dword_62400C` put back).
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::rva;
 use crate::race::mud_texel::mud_texel;
 use crate::race::put_mud_texel::put_mud_texel;
 use crate::race::tint_to_mud_colour::tint_to_mud_colour;
 use crate::race::vars_store::RACE_VARS;
 use crate::scene::draw_store::DRAW;
-use crate::store::game_read;
 
-pub const SHUFFLED_RVA: usize = rva(0xA6BB54); // g_shuffledWords, 0x10000 words
 // g_surface.format
 
 /// The place (x, y) of number `n` (its low 16 bits).
 pub fn shuffled_place(n: u32) -> (u32, u32) {
-    let word: u16 = unsafe { game_read(SHUFFLED_RVA + 2 * (n & 0xFFFF) as usize) };
+    let word: u16 = crate::scene::engine_tables_store::ENGINE_TABLES.shuffled_words
+        [(n & 0xFFFF) as usize]
+        .get();
     rc2k_core::race::mud::shuffled_place(word)
 }
 

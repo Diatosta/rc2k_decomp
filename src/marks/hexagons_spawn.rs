@@ -14,11 +14,9 @@
 use crate::marks::hexagon_state::HEXAGON_STATE;
 use crate::marks::hexagon_vars::HEX;
 use crate::marks::pick_hexagon::pick_hexagon;
-use crate::marks::setup::SEED_RVA;
-use crate::marks::store::{game_read, game_write};
 use crate::marks::tilt_shape::SHAPE_TILT;
+use crate::marks::work_store::MARKS_WORK;
 use crate::math::x87;
-use crate::scene::vector3::STATUS_RVA;
 
 const MOST: i32 = 0x80;
 
@@ -41,8 +39,8 @@ pub unsafe fn hexagons_spawn() {
             .set(HEXAGON_STATE.frames.get().wrapping_add(1));
         let old = x87::set_chop();
         rate();
-        let status = game_read::<u32>(STATUS_RVA) & 0x700;
-        game_write(STATUS_RVA, status);
+        let status = MARKS_WORK.fpu_status.get() & 0x700;
+        MARKS_WORK.fpu_status.set(status);
         if status != 0x100 {
             let v: u32 = HEXAGON_STATE.spawn_rate.bits();
             let n = x87::to_int(v).min(MOST);
@@ -50,10 +48,8 @@ pub unsafe fn hexagons_spawn() {
                 pick_hexagon();
             }
             let share = x87::fraction_times_to_int(v, HEX.share_k.bits());
-            let s = game_read::<u32>(SEED_RVA)
-                .wrapping_mul(0x9D)
-                .wrapping_add(0x47);
-            game_write(SEED_RVA, s);
+            let s = MARKS_WORK.seed.get().wrapping_mul(0x9D).wrapping_add(0x47);
+            MARKS_WORK.seed.set(s);
             if ((s >> 8) & 0xFFFF) as i32 <= share {
                 pick_hexagon();
             }

@@ -22,14 +22,13 @@
 //! Caller: `marks::run_frame` (0x4D1659). Refuses (before anything) null settings and a
 //! live slot with a null matrix.
 
+use crate::d3d::vertices_store::VERTICES;
 use crate::errors::{BadInput, Refused};
-use crate::framework::rva;
 use crate::marks::blocks::MARK_CORNERS;
 use crate::marks::frame_state::DRAW_WORK;
 use crate::marks::mark_slots::{SLOTS, TUNING};
 use crate::marks::setup::CLOCK;
 use crate::marks::splines::SPLINE_HEAD;
-use crate::marks::store::game_write;
 use crate::math::x87;
 use crate::race::matrices_store::MATRICES;
 use crate::race::numbers_store::NUMBERS;
@@ -37,7 +36,6 @@ use crate::scene::draw_store::DRAW;
 use crate::scene::kind_texture_store::KIND_TEXTURES;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
-const VERTICES_RVA: usize = rva(0x9605A0); // g_polygonVertices: TLVertex[4]
 /// Each vertex's texture place: the corner entry's word offsets (u, v).
 const UV_WORDS: [(u32, u32); 4] = [(0xC, 0xE), (8, 0xA), (0, 2), (4, 6)];
 
@@ -104,12 +102,12 @@ pub unsafe fn draw_mark_slots() -> Result<(), Refused> {
             let word = |off: u32| u32::from(corner.words[off as usize / 2].get());
             let uv_k: u32 = DRAW_WORK.uv_k.bits();
             for (n, (u, v)) in UV_WORDS.into_iter().enumerate() {
-                let vertex = VERTICES_RVA + 0x20 * n;
-                game_write(vertex + 0x18, x87::int_times(word(u) as i32, uv_k));
-                game_write(vertex + 0x1C, x87::int_times(word(v) as i32, uv_k));
+                let vertex = &VERTICES.vertices[n];
+                vertex.u.set_bits(x87::int_times(word(u) as i32, uv_k));
+                vertex.v.set_bits(x87::int_times(word(v) as i32, uv_k));
             }
             for n in 0..4 {
-                game_write(VERTICES_RVA + 0x20 * n + 0x10, 0xFFFF_FFFFu32);
+                VERTICES.vertices[n].colour.set(0xFFFF_FFFFu32);
             }
             if (x as i32) <= (NUMBERS.k4096_a.bits() as i32) {
                 continue;
@@ -135,11 +133,11 @@ pub unsafe fn draw_mark_slots() -> Result<(), Refused> {
             let depth = x87::mul(x, DRAW_WORK.z_k.bits());
             let rhw = x87::reciprocal_times(x, TUNING.rhw_k.bits());
             for (n, (vx, vy)) in corners.into_iter().enumerate() {
-                let vertex = VERTICES_RVA + 0x20 * n;
-                game_write(vertex, vx);
-                game_write(vertex + 4, vy);
-                game_write(vertex + 8, depth);
-                game_write(vertex + 0xC, rhw);
+                let vertex = &VERTICES.vertices[n];
+                vertex.x.set_bits(vx);
+                vertex.y.set_bits(vy);
+                vertex.z.set_bits(depth);
+                vertex.rhw.set_bits(rhw);
             }
             crate::marks::clip_quad::draw_fan();
         }

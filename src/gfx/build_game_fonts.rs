@@ -16,11 +16,11 @@
 //! 0x51E364 get with the same table.
 
 use crate::errors::{BadInput, FatalError, Refused};
-use crate::framework::rva;
 use crate::gfx::build_glyphs::SHEET;
 use crate::gfx::build_glyphs::build_glyphs;
 use crate::gfx::components_to_pixel::components_to_pixel;
 use crate::gfx::decoder::DECODER;
+use crate::gfx::fonts_store::FONTS;
 use crate::gfx::glyph_builder::{RUN_LENGTHS, WITH_ALPHA};
 use crate::gfx::glyph_tables::{
     alpha_palette, begin_glyph_table, begin_glyph_tables, end_glyph_tables, palette_to_pixels,
@@ -30,7 +30,6 @@ use crate::memory::MemoryList;
 use crate::memory::allocate::allocate;
 use crate::memory::take_from_list::{rewind_list, take_from_list};
 use crate::session::SCREEN;
-use crate::store::{game_addr, game_read, game_write};
 
 // ---- game data ----
 
@@ -68,14 +67,9 @@ pub fn home() -> usize {
     &GAME_FONTS as *const GameFontsMemory as usize
 }
 
-const PALETTE_A_RVA: usize = rva(0x51E2D8); // dword_51E2D8: the first palette's place
-const GLYPHS_RVA: usize = rva(0x51E2DC); // dword_51E2DC: the table
-/// The five font objects, 0x20 bytes each: palette at +0x14, glyph table at +0x18.
-const FONTS_RVA: usize = rva(0x51E2E4);
-const FONT_PALETTE: usize = 0x14;
-const FONT_GLYPHS: usize = 0x18;
-/// The palette of the third font: where the second palette's place is kept.
-const PALETTE_B_RVA: usize = FONTS_RVA + 2 * 0x20 + FONT_PALETTE;
+// The first palette's place (dword_51E2D8) and the table (dword_51E2DC) are the palette and
+// glyph table of `FONTS.game_fonts[0]`; the five font objects after it (IDA 0x51E2E4) are
+// `game_fonts[1 ..]`. The second palette's place is the palette of `game_fonts[3]`.
 
 // ---- Rust version ----
 
@@ -103,25 +97,33 @@ pub unsafe fn build_game_fonts(pixels_b: *const u32) -> Result<(), Refused> {
             .get()
             .wrapping_add(8);
         DECODER.format.set(format);
-        game_write(PALETTE_A_RVA, take_from_list(list, 0x400)?.unwrap_or(0));
-        game_write(PALETTE_B_RVA, take_from_list(list, 0x400)?.unwrap_or(0));
+        let palette_a = take_from_list(list, 0x400)?.unwrap_or(0);
+        FONTS.game_fonts[0].update(|f| f.palette = palette_a);
+        let palette_b = take_from_list(list, 0x400)?.unwrap_or(0);
+        FONTS.game_fonts[3].update(|f| f.palette = palette_b);
         begin_glyph_table(list)?;
         build_glyphs(
             crate::gfx::texts::address(&crate::gfx::texts::FNT22) as *const u8,
             list,
         )?;
-        game_write(GLYPHS_RVA, SHEET.table.get());
+        let table = SHEET.table.get();
+        FONTS.game_fonts[0].update(|f| f.glyph_table = table);
         if SHEET.table_size.get() == 0 {
             return Err(fatal(0x80E4_8062));
         }
         alpha_palette();
-        palette_to_pixels(game_read::<u32>(PALETTE_A_RVA) as *mut u32)?;
+        palette_to_pixels(FONTS.game_fonts[0].get().palette as *mut u32)?;
         end_glyph_tables()?;
 
-        let (glyphs, palette_a): (u32, u32) = (game_read(GLYPHS_RVA), game_read(PALETTE_A_RVA));
-        for font in 0..2 {
-            game_write(FONTS_RVA + font * 0x20 + FONT_GLYPHS, glyphs);
-            game_write(FONTS_RVA + font * 0x20 + FONT_PALETTE, palette_a);
+        let (glyphs, palette_a): (u32, u32) = (
+            FONTS.game_fonts[0].get().glyph_table,
+            FONTS.game_fonts[0].get().palette,
+        );
+        for font in 1..3 {
+            FONTS.game_fonts[font].update(|f| {
+                f.glyph_table = glyphs;
+                f.palette = palette_a;
+            });
         }
 
         // The sheet's palette made brighter where it lies, and its pixels.
@@ -140,11 +142,13 @@ pub unsafe fn build_game_fonts(pixels_b: *const u32) -> Result<(), Refused> {
                 .write_unaligned(components_to_pixel(&layout, brighter));
         }
 
-        let palette_b: u32 = game_read(PALETTE_B_RVA);
-        game_write(FONTS_RVA + 2 * 0x20 + FONT_GLYPHS, glyphs);
-        for font in 3..5 {
-            game_write(FONTS_RVA + font * 0x20 + FONT_GLYPHS, glyphs);
-            game_write(FONTS_RVA + font * 0x20 + FONT_PALETTE, palette_b);
+        let palette_b: u32 = FONTS.game_fonts[3].get().palette;
+        FONTS.game_fonts[3].update(|f| f.glyph_table = glyphs);
+        for font in 4..6 {
+            FONTS.game_fonts[font].update(|f| {
+                f.glyph_table = glyphs;
+                f.palette = palette_b;
+            });
         }
         Ok(())
     }
@@ -152,7 +156,7 @@ pub unsafe fn build_game_fonts(pixels_b: *const u32) -> Result<(), Refused> {
 
 /// With the third font's palette's place, as the stage's loading calls it.
 pub unsafe fn build_game_fonts_in_game() -> Result<(), Refused> {
-    unsafe { build_game_fonts(game_addr(PALETTE_B_RVA) as *const u32) }
+    unsafe { build_game_fonts(&raw const (*FONTS.game_fonts[3].as_ptr()).palette) }
 }
 
 #[cfg(test)]

@@ -15,7 +15,6 @@
 //! versions.
 
 use crate::errors::Refused;
-use crate::framework::{game_addr, game_write, rva};
 use crate::math::x87;
 use crate::race::numbers_store::NUMBERS;
 use crate::race::vars_store::RACE_VARS;
@@ -23,25 +22,16 @@ use crate::race::view_store::RACE_VIEW;
 use crate::scene::draw_store::DRAW;
 use crate::session::Dword;
 
-const RECORDS_RVA: usize = rva(0x975510); // g_polygonEntries: records of 0x44
-const POOL_RVA: usize = rva(0x977F10); // g_polygonRecordPool
-const LIST_RVA: usize = rva(0x977710); // g_polygonList
-const RECORD: usize = 0x44;
-
-fn set(r: usize, v: u32) {
-    unsafe { game_write(r, v) };
-}
-
 /// The Rust version (see the header). It reads no register, and what it leaves is read by
 /// none of its 856 call sites (register liveness, 2026-10-23).
 pub unsafe fn draw_tinted_quad() -> Result<(), Refused> {
     unsafe {
         DRAW.polygon_drawn.set_bits(0);
         for n in 0..4 {
-            let rec = RECORDS_RVA + RECORD * n;
-            set(rec + 4, RACE_VARS.quad_vertices[8 * n].addr() as u32);
-            set(rec + 8, 0);
-            set(rec + 0xC, 0);
+            let rec = &crate::scene::polygon_store::POLYGON_WORK.entries[n];
+            rec.record.set(RACE_VARS.quad_vertices[8 * n].addr() as u32);
+            rec.u.set(0);
+            rec.v.set(0);
         }
         let float = |cell: &Dword| {
             let v = x87::from_int(cell.bits() as i32);
@@ -73,20 +63,20 @@ pub unsafe fn draw_tinted_quad() -> Result<(), Refused> {
         DRAW.polygon_colour
             .set_bits(RACE_VARS.quad_colour[0].bits());
         for n in 0..4 {
-            let rec = RECORDS_RVA + RECORD * n;
-            set(rec, 0xFFFF_FFFF);
-            game_write(rec + 0x21, see);
-            set(rec + 0x18, 0xFF_FFFF);
-            set(rec + 0x1C, 0);
-            game_write(rec + 0x20, 0xFFu8);
+            let rec = &crate::scene::polygon_store::POLYGON_WORK.entries[n];
+            rec.point.set(0xFFFF_FFFF);
+            rec.amount.set(see);
+            rec.light.set(0xFF_FFFF);
+            rec.unknown_1c.set(0);
+            rec.fog.set(0xFF);
         }
         DRAW.polygon_vertex_count.set_bits(4);
         DRAW.polygon_next_record
-            .set_bits(game_addr(POOL_RVA) as u32);
+            .set_bits(crate::scene::polygon::pool_addr() as u32);
         for n in 0..4u32 {
-            set(LIST_RVA + 4 * n as usize, n);
+            crate::scene::polygon::list_cell(n as usize).set(n);
         }
-        set(LIST_RVA + 16, 0);
+        crate::scene::polygon::list_cell(4).set(0);
         DRAW.polygon_next_entry.set_bits(4);
         crate::scene::clip_polygon_to_screen::clip_polygon_to_screen()?;
         if DRAW.polygon_vertex_count.bits() >= 3 {

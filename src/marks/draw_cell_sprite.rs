@@ -18,15 +18,14 @@
 //! fog's and the clip's refusals.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::rva;
 use crate::marks::clip_quad::{clip_quad, draw_fan};
 use crate::marks::ring_store::{RING_WORK, RingWork};
-use crate::marks::store::{game_addr, game_write};
 use crate::marks::surface_store::SURFACE;
 use crate::scene::draw_store::DRAW;
 use crate::scene::fog_at::fog_at;
 
-const VERTICES_RVA: usize = rva(0x9605A0); // g_polygonVertices
+use crate::d3d::vertices_store::VERTICES;
+
 const CELLS: u32 = 0x41;
 const ANGLES: u32 = 0x1000;
 
@@ -50,7 +49,8 @@ unsafe fn square(k: u32, s: u32) -> u32 {
     unsafe {
         edi = square_x87(
             crate::race::store::asm_base() as usize,
-            crate::race::store::buffers_asm_base() as usize,
+            crate::d3d::vertices_store::piece_addr(),
+            crate::scene::engine_tables_store::piece_addr(),
             k as usize,
             s as usize,
             &DRAW_WORK,
@@ -92,8 +92,8 @@ pub unsafe fn draw_cell_sprite(
         let fog = fog_at(RING_WORK.whole.get())?;
         let colour = (alpha & 0xFF00_0000) | ((entry + 0x90) as *const u32).read_unaligned();
         for n in 0..4 {
-            game_write(VERTICES_RVA + 0x20 * n + 0x14, fog);
-            game_write(VERTICES_RVA + 0x20 * n + 0x10, colour);
+            VERTICES.vertices[n].specular.set(fog);
+            VERTICES.vertices[n].colour.set(colour);
         }
         DRAW_WORK.sprite_half[0].set_bits(size);
         let at = cell << 4;
@@ -103,11 +103,11 @@ pub unsafe fn draw_cell_sprite(
             .into_iter()
             .enumerate()
         {
-            game_write(VERTICES_RVA + 0x20 * n + 0x18, u);
-            game_write(VERTICES_RVA + 0x20 * n + 0x1C, v);
+            VERTICES.vertices[n].u.set_bits(u);
+            VERTICES.vertices[n].v.set_bits(v);
         }
         square(at, 4 * angle);
-        if clip_quad(game_addr(VERTICES_RVA) as u32)? {
+        if clip_quad(crate::d3d::vertices_store::piece_addr() as u32)? {
             return Ok(());
         }
         draw_fan();
@@ -168,7 +168,8 @@ unsafe fn turn_x87(rc: usize, p: usize, w: &RingWork, dw: &DrawWork) {
 /// field it falls on: section 16), so that read stays by address.
 unsafe fn square_x87(
     rc: usize,
-    bf: usize,
+    vt: usize,
+    sn: usize,
     k: usize,
     s: usize,
     dw: &DrawWork,
@@ -179,10 +180,10 @@ unsafe fn square_x87(
         let t1 = t0 / bh::ld(dw.turned[2].bits());
         let t2 = bh::ld(dw.turned[2].bits());
         let t3 = t2 * bh::ld(dw.z_k.bits());
-        st(bf, 0x5605A8, t3);
-        st(bf, 0x5605C8, t3);
-        st(bf, 0x5605E8, t3);
-        st(bf, 0x560608, t3);
+        st(vt, 0x8, t3);
+        st(vt, 0x28, t3);
+        st(vt, 0x48, t3);
+        st(vt, 0x68, t3);
         let t4 = bh::int(dw.sprite_half[0].bits() as i32);
         let t5 = t4 * t1;
         dw.sprite_half[0].set_bits(bh::st(t5));
@@ -195,24 +196,24 @@ unsafe fn square_x87(
         dw.sprite_half[2].set_bits(t9);
         let t10 = bh::ld(dw.sprite_half[0].bits());
         let t11 = bh::ld(dw.sprite_half[1].bits());
-        let t12 = t11 * ld(bf, s.wrapping_add(0x624AE4));
-        let t13 = t10 * ld(bf, s.wrapping_add(0x623AE4));
+        let t12 = t11 * ld(sn, s.wrapping_add(0x1000));
+        let t13 = t10 * ld(sn, s);
         let t14 = t12 + t13;
         dw.sprite_half[0].set_bits(bh::st(t14));
         let t15 = -t11;
-        let t16 = t15 * ld(bf, s.wrapping_add(0x623AE4));
-        let t17 = t10 * ld(bf, s.wrapping_add(0x624AE4));
+        let t16 = t15 * ld(sn, s);
+        let t17 = t10 * ld(sn, s.wrapping_add(0x1000));
         let t18 = t16 + t17;
         dw.sprite_half[1].set_bits(bh::st(t18));
         let t19 = bh::ld(dw.sprite_half[2].bits());
         let t20 = bh::ld(dw.sprite_half[3].bits());
-        let t21 = t20 * ld(bf, s.wrapping_add(0x624AE4));
-        let t22 = t19 * ld(bf, s.wrapping_add(0x623AE4));
+        let t21 = t20 * ld(sn, s.wrapping_add(0x1000));
+        let t22 = t19 * ld(sn, s);
         let t23 = t21 + t22;
         dw.sprite_half[2].set_bits(bh::st(t23));
         let t24 = -t20;
-        let t25 = t24 * ld(bf, s.wrapping_add(0x623AE4));
-        let t26 = t19 * ld(bf, s.wrapping_add(0x624AE4));
+        let t25 = t24 * ld(sn, s);
+        let t26 = t19 * ld(sn, s.wrapping_add(0x1000));
         let t27 = t25 + t26;
         dw.sprite_half[3].set_bits(bh::st(t27));
         let t28 = t1 * bh::ld(dw.turned[0].bits());
@@ -220,22 +221,22 @@ unsafe fn square_x87(
         let t30 = -t29;
         let t31 = t30 + ld(rc, 0x2240A0);
         let t32 = t31 - bh::ld(dw.sprite_half[1].bits());
-        st(bf, 0x5605A4, t32);
+        st(vt, 0x4, t32);
         let t33 = t31 - bh::ld(dw.sprite_half[3].bits());
-        st(bf, 0x5605C4, t33);
+        st(vt, 0x24, t33);
         let t34 = t31 + bh::ld(dw.sprite_half[1].bits());
-        st(bf, 0x5605E4, t34);
+        st(vt, 0x44, t34);
         let t35 = t31 + bh::ld(dw.sprite_half[3].bits());
-        st(bf, 0x560604, t35);
+        st(vt, 0x64, t35);
         let t36 = t28 + ld(rc, 0x22409C);
         let t37 = t36 - bh::ld(dw.sprite_half[0].bits());
-        st(bf, 0x5605A0, t37);
+        st(vt, 0x0, t37);
         let t38 = t36 - bh::ld(dw.sprite_half[2].bits());
-        st(bf, 0x5605C0, t38);
+        st(vt, 0x20, t38);
         let t39 = t36 + bh::ld(dw.sprite_half[0].bits());
-        st(bf, 0x5605E0, t39);
+        st(vt, 0x40, t39);
         let t40 = t36 + bh::ld(dw.sprite_half[2].bits());
-        st(bf, 0x560600, t40);
+        st(vt, 0x60, t40);
         t9
     }
 }
@@ -534,7 +535,15 @@ mod asm_differential {
             |b| {
                 with_copy::<DrawWork, _>(b[2], DrawWork::START, |dw| {
                     with_copy::<CornerSlopes, _>(b[2], CornerSlopes::START, |cs| unsafe {
-                        super::square_x87(b[0], b[1], b[3], b[4], dw, cs)
+                        super::square_x87(
+                            b[0],
+                            b[1].wrapping_add(0x5605A0),
+                            b[1].wrapping_add(0x623AE4),
+                            b[3],
+                            b[4],
+                            dw,
+                            cs,
+                        )
                     })
                 })
             },

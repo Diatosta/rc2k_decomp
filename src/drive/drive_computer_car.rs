@@ -57,14 +57,11 @@ unsafe fn put(addr: u32, v: u32) {
     unsafe { (addr as *mut u32).write_unaligned(v) }
 }
 
-const CHECKPOINT_FACES: u32 = 0x9E3738; // g_checkpointFaces
-const LINE: u32 = 0x9ED808; // dword_9ED808, by checkpoint
-
 /// `table[n + k]`, the index held to the count less one (unsigned) as the original holds
 /// it (through `lea`, `sub` and `shr 2`).
-fn held(table: u32, n: u32, k: u32) -> u32 {
+fn held(table: fn(usize) -> &'static crate::session::Dword, n: u32, k: u32) -> u32 {
     let i = driver::held_index(n, k, RACE_VARS.checkpoint_count.get());
-    g(table.wrapping_add(i.wrapping_mul(4)))
+    table(i as usize).get()
 }
 
 /// A checkpoint face's first point: (x, z).
@@ -151,7 +148,7 @@ pub unsafe fn drive_computer_car() -> Result<(), Refused> {
         let f = COURSE
             .course_faces
             .get()
-            .wrapping_add(held(CHECKPOINT_FACES, n, 2) << 6);
+            .wrapping_add(held(crate::race::checkpoints_store::face, n, 2) << 6);
         let (b1, b2) = (
             u32::from((f as *const u8).add(0xA).read()),
             u32::from((f as *const u8).add(0xB).read()),
@@ -172,7 +169,10 @@ pub unsafe fn drive_computer_car() -> Result<(), Refused> {
             CAR.wheel_surface_a[0].get(),
             speed,
         );
-        let turn = driver::turn(held(LINE, n, first), held(LINE, n, second));
+        let turn = driver::turn(
+            held(crate::race::checkpoints_store::angle, n, first),
+            held(crate::race::checkpoints_store::angle, n, second),
+        );
         RACE_WORK.driver_turn.set(turn);
         if driver::bend_noted(turn, RACE_WORK.driver_lookahead.get() == 1) {
             if driver::sharp(turn) {
@@ -189,7 +189,10 @@ pub unsafe fn drive_computer_car() -> Result<(), Refused> {
             RACE_WORK.driver_bend_to[edx as usize].set(0);
             RACE_WORK.driver_bend_turn[edx as usize].set(0);
         }
-        let bend = driver::table_entry(held(LINE, n, 0), held(LINE, n, 4));
+        let bend = driver::table_entry(
+            held(crate::race::checkpoints_store::angle, n, 0),
+            held(crate::race::checkpoints_store::angle, n, 4),
+        );
         if driver::tight(bend) {
             RACE_WORK.driver_aim.set(1);
         }
@@ -235,13 +238,13 @@ pub unsafe fn drive_computer_car() -> Result<(), Refused> {
         RACE_WORK
             .driver_speed_scale
             .set_bits(x87::loaded(RACE_WORK.bend_speeds[k as usize].bits())); // flt_71BE9C, 0x20 of them
-        let (x, z) = face_point(held(CHECKPOINT_FACES, n, 0));
+        let (x, z) = face_point(held(crate::race::checkpoints_store::face, n, 0));
         RACE_WORK.driver_from[0].set(x);
         RACE_WORK.driver_from[2].set(z);
         RACE_WORK.driver_from[1].set(0);
         let sharp = RACE_WORK.driver_bend_noted[RACE_WORK.driver_slot.get() as usize].get() != 0;
         let aim = driver::aim_ahead(sharp, !sharp && RACE_WORK.driver_aim.get() == 1, speed);
-        let (x, z) = face_point(held(CHECKPOINT_FACES, n, aim));
+        let (x, z) = face_point(held(crate::race::checkpoints_store::face, n, aim));
         RACE_WORK.driver_to[0].set(x);
         RACE_WORK.driver_to[2].set(z);
         RACE_WORK.driver_to[1].set(0);

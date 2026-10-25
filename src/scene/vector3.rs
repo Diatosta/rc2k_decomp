@@ -4,7 +4,7 @@
 //! Plain Rust since 2026-10-24 (the x87's arithmetic in `X`, `math/x87_float.rs`); the
 //! original's instructions are `asm_reference` in the tests.
 
-use crate::framework::{game_read, game_write, rva};
+use crate::marks::work_store::MARKS_WORK;
 use crate::math::x87_float::{ONE, compare};
 use crate::scene::x87_mem::{fld, fnstsw, fstp, fstp80};
 
@@ -77,11 +77,6 @@ pub unsafe fn write_floats(at: u32, v: &[f32]) {
     }
 }
 
-const START_RVA: usize = rva(0x71CA36); // flt_71CA36, pi / 2
-const STEP_RVA: usize = rva(0x71CA3A); // flt_71CA3A, pi / 4
-const HALF_RVA: usize = rva(0x71CA3E); // flt_71CA3E, 0.5
-pub const STATUS_RVA: usize = rva(0x71C814); // dword_71C814: the last compare's C0 .. C2
-
 /// `fld a; fcos; fcomp b; fstsw`: the status word's C0 .. C2 (0x700).
 fn cosine_against(a: u32, b: u32) -> u32 {
     let mut status = 0u16;
@@ -112,15 +107,15 @@ unsafe fn cosine(a: *const u8, b: *const u8, s: *mut u8) {
 /// Returns the angle (a float, loaded).
 pub unsafe fn angle_between_vectors(a: u32, b: u32) -> [u8; 10] {
     unsafe {
-        let mut angle = crate::math::x87::loaded(game_read(START_RVA));
-        let mut step = crate::math::x87::loaded(game_read(STEP_RVA));
+        let mut angle = crate::math::x87::loaded(MARKS_WORK.cosine_start.get());
+        let mut step = crate::math::x87::loaded(MARKS_WORK.cosine_step.get());
         normalise_vector3(b);
         normalise_vector3(a);
         let dot = crate::scene::matrix3::rounded(dot_product3(a, b));
-        let half: u32 = game_read(HALF_RVA);
+        let half: u32 = MARKS_WORK.cosine_half.get();
         for _ in 0..16 {
             let status = cosine_against(angle, dot);
-            game_write(STATUS_RVA, status);
+            MARKS_WORK.fpu_status.set(status);
             match status {
                 0x400 => break,
                 0x100 => angle = crate::math::x87::sub(angle, step),

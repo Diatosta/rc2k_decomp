@@ -12,19 +12,17 @@
 //!
 //! Caller: `sub_4BF60F` (0x4BF7E9). The spawning is its Rust version.
 
-use crate::framework::rva;
 use crate::marks::edges::EDGE_MASK;
 use crate::marks::setup::CLOCK;
 use crate::marks::squares_spawn::squares_spawn;
 use crate::marks::squares_store::{SQUARE_ITEMS, SQUARE_STATE};
-use crate::marks::store::game_write;
 use crate::marks::tuning::MARKS_KIND_FLOATS;
 use crate::math::x87;
 use crate::race::frame_store::FRAME_WORK;
 use crate::scene::matrix3::extended;
 use crate::session::{address_of, read_bits};
 
-const VERTICES_RVA: usize = rva(0x9605A0); // g_polygonVertices
+use crate::d3d::vertices_store::VERTICES;
 const LIFE: i32 = 0xFA0;
 
 /// `fld k; fsub z`, kept extended.
@@ -46,8 +44,8 @@ unsafe fn run() {
         crate::marks::squares_setup::squares_setup();
         let [a, b, c, d]: [u32; 4] = read_bits(&SQUARE_STATE.run_places);
         for (n, (u, v)) in [(a, b), (c, b), (c, d), (a, d)].into_iter().enumerate() {
-            game_write(VERTICES_RVA + 0x20 * n + 0x18, u);
-            game_write(VERTICES_RVA + 0x20 * n + 0x1C, v);
+            VERTICES.vertices[n].u.set_bits(u);
+            VERTICES.vertices[n].v.set_bits(v);
         }
         if MARKS_KIND_FLOATS.running.bits() != 0 {
             squares_spawn();

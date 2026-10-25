@@ -15,8 +15,9 @@ use crate::errors::{BadInput, Refused};
 use crate::marks::clip::CLIP;
 use crate::marks::kind_values::MARKS_KIND;
 use crate::marks::setup::CLOCK;
-use crate::marks::store::{game_addr, game_write};
+use crate::marks::store::game_addr;
 use crate::marks::tuning::{MARKS_FLOATS, MARKS_FRAME, MARKS_KIND_FLOATS};
+use crate::marks::work_store::MARKS_WORK;
 use crate::math::x87;
 use crate::session::SCREEN;
 
@@ -40,7 +41,7 @@ pub unsafe fn init_marks(settings: u32, seed: u32) -> Result<(), Refused> {
             return Err(BadInput("a marks kind of 0x22 or more").into());
         }
         crate::marks::setup::SETTINGS.pointer.set(settings);
-        game_write(crate::marks::setup::SEED_RVA, seed);
+        MARKS_WORK.seed.set(seed);
         CLOCK.started.set(0);
         edges::load_kind_data()?;
         setup::make_wave_tables()?;

@@ -11,31 +11,28 @@
 //! table.
 
 use crate::errors::BadInput;
-use crate::framework::game_write;
 use crate::race::frame_store::FRAME_WORK;
-use crate::scene::textures::{LOADED_RVA, WANTED_RVA, entry as slot_entry};
+use crate::scene::texture_places_store::TEXTURE_PLACES;
 
 // ---- Rust version ----
 
 /// `load`: what stands for `scene::load_texture`, given the texture and the slot.
 // Converted: `rc2k_core::scene::textures::slot_load`
 pub unsafe fn load_slot_texture(slot: u32, load: &mut dyn FnMut(u32, u32)) -> Result<(), BadInput> {
-    unsafe {
-        let Some(wanted) = rc2k_core::scene::textures::slot_load(
-            slot,
-            || slot_entry(WANTED_RVA, slot),
-            || slot_entry(LOADED_RVA, slot),
-        )?
-        else {
-            return Ok(());
-        };
-        load(wanted, slot);
-        FRAME_WORK
-            .kind_textures_done
-            .set_bits(FRAME_WORK.kind_textures_done.bits().wrapping_add(1));
-        game_write(LOADED_RVA + slot as usize * 4, wanted);
-        Ok(())
-    }
+    let Some(wanted) = rc2k_core::scene::textures::slot_load(
+        slot,
+        || TEXTURE_PLACES.slot_wanted[slot as usize].get(),
+        || TEXTURE_PLACES.slot_loaded[slot as usize].get(),
+    )?
+    else {
+        return Ok(());
+    };
+    load(wanted, slot);
+    FRAME_WORK
+        .kind_textures_done
+        .set_bits(FRAME_WORK.kind_textures_done.bits().wrapping_add(1));
+    TEXTURE_PLACES.slot_loaded[slot as usize].set(wanted);
+    Ok(())
 }
 
 /// With the game's loading (`scene::load_texture`, the platform's).

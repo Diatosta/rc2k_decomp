@@ -21,10 +21,10 @@
 //! `routes.rs`.
 
 use crate::errors::{FatalError, Refused};
-use crate::framework::rva;
 use crate::gfx::build_glyphs::SHEET;
 use crate::gfx::build_glyphs::build_glyphs;
 use crate::gfx::decoder::DECODER;
+use crate::gfx::fonts_store::FONTS as MENU_FONTS;
 use crate::gfx::glyph_builder::RUN_LENGTHS;
 use crate::gfx::glyph_tables::{
     TABLES, begin_glyph_table, begin_glyph_tables, end_glyph_tables, palette_to_pixels,
@@ -32,35 +32,49 @@ use crate::gfx::glyph_tables::{
 use crate::gfx::typefaces::FONTS;
 use crate::memory::allocate::allocate;
 use crate::memory::take_from_list::{rewind_list, take_from_list};
-use crate::session::SCREEN;
-use crate::store::{game_addr, game_read, game_write};
+use crate::session::{Dword, SCREEN};
 
 // ---- game data ----
 
-/// dword_51DEB0: 256 pixels, the fonts' palettes; 0 = the fonts are not built.
-pub const PALETTES_RVA: usize = rva(0x51DEB0);
-const FONT27_RVA: usize = rva(0x51DEB4); // dword_51DEB4 (first the palette sheet's table)
-const FONT23_RVA: usize = rva(0x51DEB8); // dword_51DEB8
-const FONT21_RVA: usize = rva(0x51DEBC); // dword_51DEBC
-const FONT13_RVA: usize = rva(0x51DEC0); // dword_51DEC0
-const PALETTE_COPY_RVA: usize = rva(0x51DEC4); // unk_51DEC4: the palette sheet's 256 dwords
+/// The variables a store of `HUNG` reads: `FONTS.palettes` (dword_51DEB0: 256 pixels, the
+/// fonts' palettes; 0 = the fonts are not built) and the four glyph tables' places.
+#[derive(Clone, Copy)]
+enum Source {
+    Palettes,
+    Font13,
+    Font21,
+    Font23,
+    Font27,
+}
+
+impl Source {
+    fn cell(self) -> &'static Dword {
+        match self {
+            Source::Palettes => &MENU_FONTS.palettes,
+            Source::Font13 => &MENU_FONTS.font13_glyphs,
+            Source::Font21 => &MENU_FONTS.font21_glyphs,
+            Source::Font23 => &MENU_FONTS.font23_glyphs,
+            Source::Font27 => &MENU_FONTS.font27_glyphs,
+        }
+    }
+}
 const PALETTE_BYTES: usize = 0x400;
 /// The four font sheets and where each one's table is kept.
-fn font_sheets() -> [(u32, usize); 4] {
+fn font_sheets() -> [(u32, &'static Dword); 4] {
     use crate::gfx::texts::{FNT13, FNT21, FNT23, FNT27, address};
     [
-        (address(&FNT13), FONT13_RVA), // fnt13_00.pcx
-        (address(&FNT21), FONT21_RVA), // fnt21_00.pcx
-        (address(&FNT23), FONT23_RVA), // fnt23_00.pcx
-        (address(&FNT27), FONT27_RVA), // fnt27_00.pcx
+        (address(&FNT13), &MENU_FONTS.font13_glyphs), // fnt13_00.pcx
+        (address(&FNT21), &MENU_FONTS.font21_glyphs), // fnt21_00.pcx
+        (address(&FNT23), &MENU_FONTS.font23_glyphs), // fnt23_00.pcx
+        (address(&FNT27), &MENU_FONTS.font27_glyphs), // fnt27_00.pcx
     ]
 }
 
-const P: usize = PALETTES_RVA;
-const F13: usize = FONT13_RVA;
-const F21: usize = FONT21_RVA;
-const F23: usize = FONT23_RVA;
-const F27: usize = FONT27_RVA;
+const P: Source = Source::Palettes;
+const F13: Source = Source::Font13;
+const F21: Source = Source::Font21;
+const F23: Source = Source::Font23;
+const F27: Source = Source::Font27;
 /// Which field of a font object a store sets.
 #[derive(Clone, Copy)]
 enum Field {
@@ -72,7 +86,7 @@ use Field::{GlyphTable, Palette};
 /// The stores, in the original's order: (the font object's number, its field, the variable
 /// stored, plus this much).
 #[rustfmt::skip]
-const HUNG: [(usize, Field, usize, u32); 125] = [
+const HUNG: [(usize, Field, Source, u32); 125] = [
     (0, Palette, P, 0x0),
     (0, GlyphTable, F13, 0x0),
     (2, Palette, P, 0x300),
@@ -223,17 +237,17 @@ unsafe fn tables(palettes: *mut u32) -> Result<(), Refused> {
             crate::gfx::texts::address(&crate::gfx::texts::PAL_00) as *const u8,
             list,
         )?;
-        game_write(FONT27_RVA, SHEET.table.get());
+        MENU_FONTS.font27_glyphs.set(SHEET.table.get());
         palette_to_pixels(palettes.read_unaligned() as *mut u32)?;
         std::ptr::copy(
             DECODER.palette_ptr() as *const u8,
-            game_addr(PALETTE_COPY_RVA) as *mut u8,
+            crate::session::address_of(&MENU_FONTS.palette_sheet) as *mut u8,
             PALETTE_BYTES,
         );
         for (sheet, kept) in font_sheets() {
             begin_glyph_table(list)?;
             build_glyphs(sheet as *const u8, list)?;
-            game_write(kept, SHEET.table.get());
+            kept.set(SHEET.table.get());
         }
         end_glyph_tables()?;
         Ok(())
@@ -241,20 +255,20 @@ unsafe fn tables(palettes: *mut u32) -> Result<(), Refused> {
 }
 
 /// What a store of `HUNG` stores.
-unsafe fn hung_value(variable: usize, plus: u32) -> u32 {
-    unsafe { game_read::<u32>(variable).wrapping_add(plus) }
+fn hung_value(variable: Source, plus: u32) -> u32 {
+    variable.cell().get().wrapping_add(plus)
 }
 
 pub unsafe fn build_fonts() -> Result<(), Refused> {
     unsafe {
-        if game_read::<u32>(PALETTES_RVA) != 0 {
+        if MENU_FONTS.palettes.get() != 0 {
             return Err(FatalError {
                 code: 0x80A4_8020,
                 message: "",
             }
             .into());
         }
-        tables(game_addr(PALETTES_RVA) as *mut u32)?;
+        tables(MENU_FONTS.palettes.as_ptr())?;
         for (font, field, variable, plus) in HUNG {
             let object = &FONTS.objects[font];
             let value = hung_value(variable, plus);

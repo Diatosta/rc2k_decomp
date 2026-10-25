@@ -1,13 +1,7 @@
 //! The global drawing surface and clip rectangle that the game's blitters read.
 
-use crate::framework::rva;
 use crate::gfx::blit::BLIT;
-use crate::store::game_read;
-
-pub const BITS_PER_PIXEL_RVA: usize = rva(0x4F49A8); // g_surfaceBitsPerPixel
-pub const BYTES_PER_PIXEL_RVA: usize = rva(0x4F49AC); // g_surfaceBytesPerPixel
-pub const PITCH_RVA: usize = rva(0x4F49BC); // g_surfacePitch
-pub const BASE_RVA: usize = rva(0x4F49C0); // g_surfacePixels
+use crate::gfx::screen_state::DRAW_SURFACE;
 
 /// Where pixels go. `base` is an address; 0 means no surface is set.
 #[derive(Clone, Copy, Debug)]
@@ -29,13 +23,11 @@ pub struct Clip {
 }
 
 pub fn surface() -> Surface {
-    unsafe {
-        Surface {
-            base: game_read(BASE_RVA),
-            pitch: game_read(PITCH_RVA),
-            bytes_per_pixel: game_read(BYTES_PER_PIXEL_RVA),
-            bits_per_pixel: game_read(BITS_PER_PIXEL_RVA),
-        }
+    Surface {
+        base: DRAW_SURFACE.pixels.get(),
+        pitch: DRAW_SURFACE.pitch.get() as i32,
+        bytes_per_pixel: DRAW_SURFACE.bytes_per_pixel.get() as i32,
+        bits_per_pixel: DRAW_SURFACE.bits_per_pixel.get(),
     }
 }
 

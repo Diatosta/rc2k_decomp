@@ -9,37 +9,32 @@
 //! marks' snow textures). Refuses no format (with components not 0) and no surface.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, rva};
 use crate::gfx::components_to_pixel::components_to_pixel;
 use crate::gfx::pixel_format::PixelFormat;
-use crate::gfx::surface::{BASE_RVA, BITS_PER_PIXEL_RVA, PITCH_RVA};
-
-/// `g_surface`'s format pointer.
-pub const FORMAT_POINTER_RVA: usize = rva(0x4F49B8);
+use crate::gfx::screen_state::DRAW_SURFACE;
 
 /// Where the pixel goes and how wide it is.
 pub unsafe fn place(x: u32, y: u32) -> (u32, u32) {
     // Converted: `rc2k_core::gfx::picture_size::pixel_place`.
-    unsafe {
-        rc2k_core::gfx::picture_size::pixel_place(
-            game_read(BASE_RVA),
-            game_read(PITCH_RVA),
-            game_read(BITS_PER_PIXEL_RVA),
-            x,
-            y,
-        )
-    }
+    rc2k_core::gfx::picture_size::pixel_place(
+        DRAW_SURFACE.pixels.get(),
+        DRAW_SURFACE.pitch.get(),
+        DRAW_SURFACE.bits_per_pixel.get(),
+        x,
+        y,
+    )
 }
 
 /// The Rust version (see the header): `components` made a pixel and put at (`x`, `y`);
 /// the pixel (the original's eax).
 pub unsafe fn put_surface_pixel(components: u32, x: u32, y: u32) -> Result<u32, Refused> {
     unsafe {
-        let format: u32 = game_read(FORMAT_POINTER_RVA);
+        // `g_surface`'s format pointer.
+        let format: u32 = DRAW_SURFACE.format.get();
         if components != 0 && format == 0 {
             return Err(BadInput("no surface format").into());
         }
-        if game_read::<u32>(BASE_RVA) == 0 {
+        if DRAW_SURFACE.pixels.get() == 0 {
             return Err(BadInput("no surface").into());
         }
         let pixel = if components == 0 {

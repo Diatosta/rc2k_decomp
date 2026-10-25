@@ -12,13 +12,9 @@
 //! the four lamp tables the colours at `unk_60A54C`, `unk_60A558`, `dword_60A564`,
 //! `dword_60A570` scaled. Four callers.
 
-use crate::framework::game_ptr;
 use crate::race::prefs_store::STAGE_PREFS;
 use crate::race::switches_store::FRAME_SWITCHES;
-use crate::scene::light_tables::{
-    CAR_LIGHT_TABLE_RVA, LAMP_TABLE_A_RVA, LAMP_TABLE_B_RVA, LAMP_TABLE_C_RVA, LIGHT_TABLE_RVA,
-    fill_light_ramp, fill_light_scale,
-};
+use crate::scene::light_tables::{fill_light_ramp, fill_light_scale};
 use crate::scene::light_work_store::LIGHT_WORK;
 
 // ---- Rust version ----
@@ -36,17 +32,33 @@ pub unsafe fn fill_light_tables() {
         } else {
             STAGE_PREFS.dark_colour[0].addr()
         };
-        fill_light_ramp(ramp as *const [u32; 6], game_ptr(LIGHT_TABLE_RVA));
+        fill_light_ramp(
+            ramp as *const [u32; 6],
+            crate::scene::light_tables_store::LIGHT_TABLES.light_table[0].addr()
+                as *mut [u32; 0x100],
+        );
         // The four lamp tables and, the other way, their colours.
         let lamps = [
-            (LAMP_TABLE_A_RVA, STAGE_PREFS.lamp_table_a[0].addr()),
-            (LAMP_TABLE_B_RVA, STAGE_PREFS.lamp_table_b[0].addr()),
-            (CAR_LIGHT_TABLE_RVA, STAGE_PREFS.car_light_table[0].addr()),
-            (LAMP_TABLE_C_RVA, STAGE_PREFS.lamp_table_c.addr()),
+            (
+                crate::scene::light_tables_store::LIGHT_TABLES.lamp_table_a[0].addr(),
+                STAGE_PREFS.lamp_table_a[0].addr(),
+            ),
+            (
+                crate::scene::light_tables_store::LIGHT_TABLES.lamp_table_b[0].addr(),
+                STAGE_PREFS.lamp_table_b[0].addr(),
+            ),
+            (
+                crate::scene::light_tables_store::LIGHT_TABLES.car_light_table[0].addr(),
+                STAGE_PREFS.car_light_table[0].addr(),
+            ),
+            (
+                crate::scene::light_tables_store::LIGHT_TABLES.lamp_table_c[0].addr(),
+                STAGE_PREFS.lamp_table_c.addr(),
+            ),
         ];
         for (table, colour) in lamps {
             let colour = if plain { plain_colours } else { colour };
-            fill_light_scale(colour as *const [u32; 3], game_ptr(table));
+            fill_light_scale(colour as *const [u32; 3], table as *mut [u32; 0x100]);
         }
     }
 }

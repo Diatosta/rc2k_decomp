@@ -32,34 +32,30 @@
 use crate::errors::{FatalError, Refused};
 use crate::files::read_whole_file::read_whole_file;
 use crate::files::state::BYTES_READ;
-use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::race::course_lists_store::COURSE_LISTS;
 use crate::race::course_store::COURSE;
 use crate::race::kind_store::KIND_TABLES;
+use crate::race::light_records_store::LIGHT_RECORDS;
 use crate::race::matrices_store::MATRICES;
 use crate::scene::add_object_shape::add_object_shape;
 use crate::scene::draw_switches_store::DRAW_SWITCHES;
 use crate::scene::file_numbers_store::FILE_NUMBERS;
 use crate::scene::list_object_textures::list_object_textures;
-use crate::scene::measure_object::{MEASURES_RVA, measure_object};
+use crate::scene::measure_object::measure_object;
+use crate::scene::object_slots_store::OBJECT_SLOTS;
 use crate::scene::object_store::OBJECT_WORK;
-use crate::scene::objects::{
-    FACE_COUNT_RVA, FACES, FILE_ROOM, FILE_RVA, OBJECT_KINDS_RVA, POINT_COUNT_RVA, SLOTS,
-};
+use crate::scene::object_tables_store::OBJECT_TABLES;
+use crate::scene::objects::{FACES, FILE_ROOM, SLOTS};
 use crate::scene::set_object_file_names::set_object_file_names;
 
 // ---- game data ----
 
 const KNOWN_KINDS: u32 = 0x22;
-/// The kinds' records of 0x134 bytes, as far as this function reads them: from
-/// `dword_5C90C4`.
-const GROUPS_RVA: usize = rva(0x5C90C4);
-const GROUPS_LEN: usize = 0x134;
 /// `dword_5CCE1C` .. `dword_5CCE4C`: the masks (`COURSE.group_masks`).
 const REST: usize = 0x10; // dword_5CCE2C
 /// `dword_634FF0` the car, `dword_634FF4` the part, `dword_634FF8` the first slot.
-/// Six tables of a dword a slot: the middles' x, y, z and the half extents' x, y, z.
-const MIDDLES_RVA: usize = rva(0x633370);
+/// Six tables of a dword a slot: the middles' x, y, z and the half extents' x, y, z
+/// (`OBJECT_SLOTS.part_extents`).
 /// A part's mask: where it is kept (from `dword_5CCE1C`) and where its group's number
 /// is in the kind's record (from `dword_5C90C4`).
 struct Part {
@@ -173,7 +169,7 @@ pub unsafe fn load_object() -> Result<(), Refused> {
         if slot >= SLOTS {
             return Err(crate::errors::BadInput("an object's slot past the tables").into());
         }
-        game_write(OBJECT_KINDS_RVA + slot as usize * 4, kind);
+        OBJECT_TABLES.object_kinds[slot as usize].set(kind);
         set_object_file_names(kind);
         let name = FILE_NUMBERS.object_ro3_number.bits();
         // The file read is the `.ro3` one, whatever the name's last character was.
@@ -181,7 +177,7 @@ pub unsafe fn load_object() -> Result<(), Refused> {
         BYTES_READ.store(0, std::sync::atomic::Ordering::Relaxed);
         read_whole_file(
             FILE_NUMBERS.object_ro3_path.bits() as *const u8,
-            game_addr(FILE_RVA) as *mut u8,
+            crate::scene::objects::file_addr() as *mut u8,
             FILE_ROOM as u32,
         )?;
         if BYTES_READ.load(std::sync::atomic::Ordering::Relaxed) == 0 {
@@ -198,9 +194,10 @@ pub unsafe fn load_object() -> Result<(), Refused> {
         DRAW_SWITCHES.loading_group_mask.set_bits(u32::MAX);
         let known = find_object_kind(kind);
         MATRICES.known_object.set_bits(known);
-        let record = GROUPS_RVA + known as usize * GROUPS_LEN;
+        // The kind's record from `dword_5C90C4` (its `groups`); the kind is not bounded.
+        let record = LIGHT_RECORDS.record_addr(known) as usize + 0x58;
         for part in &PARTS {
-            let group: u32 = game_read(record + part.group);
+            let group: u32 = ((record + part.group) as *const u32).read_unaligned();
             let mut bits = 0;
             if group != u32::MAX {
                 bits = 1u32 << (group & 31);
@@ -233,12 +230,9 @@ pub unsafe fn load_object() -> Result<(), Refused> {
                     OBJECT_WORK.loading_slot.set_bits(slot);
                     shape(mask(at))?;
                     measure_object()?;
-                    let measures: [u32; 6] = game_read(MEASURES_RVA);
+                    let measures: [u32; 6] = crate::session::read_first(&OBJECT_SLOTS.measures);
                     for (table, &measure) in measures.iter().enumerate() {
-                        game_write(
-                            MIDDLES_RVA + (table * SLOTS as usize + slot as usize) * 4,
-                            measure,
-                        );
+                        OBJECT_SLOTS.part_extents[table][slot as usize].set(measure);
                     }
                 }
             }
@@ -253,23 +247,19 @@ pub unsafe fn load_object() -> Result<(), Refused> {
 /// One `scene::add_object_shape` with a mask.
 unsafe fn shape(mask: u32) -> Result<(), Refused> {
     DRAW_SWITCHES.loading_group_mask.set_bits(mask);
-    Ok(unsafe { add_object_shape(game_addr(FILE_RVA)) }?)
+    Ok(unsafe { add_object_shape(crate::scene::objects::file_addr()) }?)
 }
 
 /// The three fatal errors at the end, in the original's order.
 unsafe fn check() -> Result<(), Refused> {
-    unsafe {
-        if OBJECT_WORK.face_cursor.bits() > COURSE_LISTS.face_memory_room.bits() {
-            return Err(NO_FACE_MEMORY.into());
-        }
-        if game_read::<u32>(POINT_COUNT_RVA).wrapping_mul(12)
-            > COURSE_LISTS.object_points_room.bits()
-        {
-            return Err(NO_POINT_MEMORY.into());
-        }
-        if game_read::<u32>(FACE_COUNT_RVA) >= FACES {
-            return Err(NO_FACE_ROOM.into());
-        }
-        Ok(())
+    if OBJECT_WORK.face_cursor.bits() > COURSE_LISTS.face_memory_room.bits() {
+        return Err(NO_FACE_MEMORY.into());
     }
+    if OBJECT_TABLES.point_count.get().wrapping_mul(12) > COURSE_LISTS.object_points_room.bits() {
+        return Err(NO_POINT_MEMORY.into());
+    }
+    if OBJECT_TABLES.face_count.get() >= FACES {
+        return Err(NO_FACE_ROOM.into());
+    }
+    Ok(())
 }

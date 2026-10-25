@@ -36,13 +36,12 @@ use crate::physics::ground_store::GROUND_WORK;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::course_store::COURSE;
 use crate::scene::draw_store::DRAW;
+use crate::scene::object_tables_store::OBJECT_TABLES;
 use rc2k_core::drive::lit_faces::{
     COUNTDOWN_OBJECT, FaceBytes, RISE_TOP, align, blink, count_down, fall_turn, pace, rise,
 };
 
 const MOST: u32 = 0x100;
-const OBJECT_KINDS_RVA: usize = rva(0x5CD27C); // g_objectKinds
-const KIND_TABLE_RVA: usize = rva(0x97DF4C); // byte_97DF4C, by kind * 0x80
 const BLINK_RVA: usize = rva(0x6D1DFC); // byte_6D1DFC
 
 unsafe fn at(p: u32) -> u32 {
@@ -141,8 +140,12 @@ unsafe fn animate_faces() -> Result<(), Refused> {
                 CONTACT_WORK.lit_face_distance.set(d);
                 let step = pace(d);
                 CONTACT_WORK.lit_face_pace.set(step);
-                let kind_of: u32 = game_read(OBJECT_KINDS_RVA + 4 * object as usize);
-                let kind = game_read::<u8>(KIND_TABLE_RVA + (kind_of.wrapping_mul(0x80)) as usize);
+                let kind_of: u32 = OBJECT_TABLES.object_kind(object as u32);
+                let kind = ((crate::scene::polygon::materials_addr()
+                    + 0x1C
+                    + (kind_of.wrapping_mul(0x80)) as usize)
+                    as *const u8)
+                    .read();
                 match kind {
                     1 | 9 => {
                         blink(&mut bytes, |n| game_read::<u8>(BLINK_RVA + n as usize)).is_none()

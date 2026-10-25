@@ -36,26 +36,36 @@ use crate::errors::Refused;
 use crate::physics::camera_store::CAMERA_WORK;
 use crate::physics::camera_view::{rd, record};
 use crate::physics::car_store::CAR;
-use crate::physics::flow::{a, g, hold_high, hold_low};
+use crate::physics::flow::{hold_high, hold_low};
 use crate::race::course_store::COURSE;
 use crate::race::frame_store::FRAME_WORK;
 use crate::race::kind_store::KIND_TABLES;
+use crate::race::light_records_store::LIGHT_RECORDS;
 use crate::race::numbers_store::NUMBERS;
 use crate::race::view_vars_store::VIEW_VARS;
 use crate::scene::draw_store::DRAW;
 use crate::scene::matrix3::rounded;
 use crate::scene::x87_mem::{fild, fistp, fld, fstp};
 use rc2k_core::physics::camera_view;
-const LIGHTS: usize = 0x5C906C; // g_lightRecords
 
 /// The fixed camera (the second chunk, 0x4380E9 ..): `second` the second tables.
 fn fixed_camera(second: bool) {
     let (nearest, replay) = if second {
-        (0xA0BA78, 0xA11AE4)
+        (
+            &crate::race::checkpoints_store::CHECKPOINTS.nearest_camera_2[0],
+            &crate::race::checkpoints_store::CHECKPOINTS.replay_cameras_2[0],
+        )
     } else {
-        (0xA06A10, 0xA10AE4)
+        (
+            &crate::race::checkpoints_store::CHECKPOINTS.nearest_camera_1[0],
+            &crate::race::checkpoints_store::CHECKPOINTS.replay_cameras_1[0],
+        )
     };
-    let face = g(replay + 4 * g(nearest + 4 * CAR.checkpoint.get() as usize) as usize);
+    let face = crate::race::checkpoints_store::nth(
+        replay,
+        crate::race::checkpoints_store::nth(nearest, CAR.checkpoint.get() as usize).get() as usize,
+    )
+    .get();
     let face = (face << 6).wrapping_add(COURSE.course_faces.get());
     let point = rd(face + 4)
         .wrapping_mul(12)
@@ -103,7 +113,7 @@ pub fn steps() -> Result<(), Refused> {
         FRAME_WORK.camera_car[k].set(CAR.position[k].get());
     }
     let car = CAR.car_kind.get();
-    let light = car.wrapping_mul(0x134).wrapping_add(a(LIGHTS));
+    let light = LIGHT_RECORDS.record_addr(car);
     x87_4(light as usize, crate::race::store::asm_base() as usize);
     VIEW_VARS.light_c.set(rd(light + 0xC));
     VIEW_VARS.light_c.set(rd(light + 0x1C));

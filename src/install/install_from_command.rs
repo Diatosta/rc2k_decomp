@@ -15,7 +15,7 @@
 //! are the original's.
 
 use crate::errors::Refused;
-use crate::install::installer::{MEDIA_MODE, load_language, logged, normalise, p, set_cd};
+use crate::install::installer::{load_language, logged, normalise, set_cd, set_media_mode};
 use crate::install::vars::INSTALLER_PATHS;
 use crate::install::vars::INSTALLER_RUN;
 
@@ -36,7 +36,7 @@ pub fn install_from_command() -> Result<(), Refused> {
     // (above 0): a mode of 0 or less goes straight to the install.
     let mode = INSTALLER_RUN.given_mode.get();
     if (mode as i32) > 0 {
-        p(MEDIA_MODE, (mode as i32).min(3) as u32);
+        set_media_mode((mode as i32).min(3) as u32);
         let language = INSTALLER_RUN.given_language.get();
         if (language as i32) > 0 {
             unsafe { crate::install::choose_language::choose_language(language) }?;

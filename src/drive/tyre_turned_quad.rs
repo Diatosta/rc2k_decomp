@@ -12,7 +12,6 @@
 use crate::drive::tyre_parts::*;
 use crate::errors::Refused;
 use crate::math::x87_float::{int, ld, st};
-use crate::physics::flow::a;
 use crate::race::tyre_store::{TYRE_CHANGE, TyreChange};
 use crate::scene::x87_mem::{fild, fld, fstp};
 use crate::session::MACHINE;
@@ -65,7 +64,7 @@ pub unsafe fn tyre_turned_quad(
         &TYRE_CHANGE,
         device as usize,
         rect as usize,
-        a(VERTS) as usize,
+        verts(),
         crate::session::MACHINE.scratch.addr(),
     );
     quad_words(colour);

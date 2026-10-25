@@ -10,6 +10,7 @@ use crate::race::frame_store::FRAME_WORK;
 use crate::race::matrices_store::MATRICES;
 use crate::race::numbers_store::NUMBERS;
 use crate::race::overlay_store::RACE_OVERLAY;
+use crate::race::panel_store::PANEL;
 use crate::race::prefs_store::STAGE_PREFS;
 use crate::race::switches_store::FRAME_SWITCHES;
 use crate::race::vars_store::RACE_VARS;
@@ -22,16 +23,9 @@ use crate::scene::kind_texture_store::KIND_TEXTURES;
 use crate::scene::light_store::LIGHT_STATE;
 use crate::scene::light_work_store::LIGHT_WORK;
 use crate::scene::object_store::OBJECT_WORK;
+use crate::scene::object_tables_store::OBJECT_TABLES;
 use crate::session::SCREEN;
-use crate::store::{game_addr, game_read, game_write};
-
-fn k(a: u32) -> u32 {
-    unsafe { game_read(rva(a as usize)) }
-}
-
-fn w(a: u32, v: u32) {
-    unsafe { game_write(rva(a as usize), v) }
-}
+use crate::store::game_addr;
 
 /// `race::full_view_window` (0x455ECB) / `race::full_view_window_2` (0x456004): the view
 /// window the whole screen (`dword_62408C` / `dword_624090` its size, `dword_623FB0` /
@@ -66,7 +60,7 @@ pub unsafe fn mirror_view_window() -> Result<(), Refused> {
         let n = mirror_entry(
             RACE_VARS.split.get(),
             RACE_VIEW.drawn_view.get(),
-            ((crate::store::game_addr(rva(0x6D1502))) as *const u32).read_unaligned() == 0,
+            PANEL.flat.get() == 0,
         );
         // g_mirrorPlaces: 12 entries of two dwords; an entry past them reads on, as the
         // original.
@@ -104,23 +98,20 @@ pub unsafe fn mirror_view_window() -> Result<(), Refused> {
     }
 }
 
-/// The vertices' floats `race::draw_flat_triangle` sets: 1.0 at these, 0.0 at the rest of
-/// its list (`g_polygonVertices` 0x9605A0, 0x20 bytes a vertex).
-const ONES: [u32; 6] = [0x9605A0, 0x9605C0, 0x9605E0, 0x9605A4, 0x9605C4, 0x9605E4];
-const ZEROS: [u32; 15] = [
-    0x9605A8, 0x9605C8, 0x9605E8, 0x9605B8, 0x9605D8, 0x9605F8, 0x9605BC, 0x9605DC, 0x9605FC,
-    0x9605B0, 0x9605D0, 0x9605F0, 0x9605B4, 0x9605D4, 0x9605F4,
-];
-
 /// `race::draw_flat_triangle` (0x455912): three vertices at (1, 1, 0) with texture 0, 0,
 /// colour 0 (the original's `fld1` / `fldz` stores), `g_polygonVertexCount` 3, drawn
 /// (`scene::draw_fan`). Every register kept (`pusha` .. `popa`).
 pub unsafe fn draw_flat_triangle() {
-    for a in ONES {
-        w(a, 1.0f32.to_bits());
-    }
-    for a in ZEROS {
-        w(a, 0);
+    // 1.0 at x, y of each of the three vertices; 0.0 at the rest of their floats (z, rhw,
+    // u, v) and the specular.
+    for vertex in &crate::d3d::vertices_store::VERTICES.vertices[..3] {
+        vertex.x.set_bits(1.0f32.to_bits());
+        vertex.y.set_bits(1.0f32.to_bits());
+        vertex.z.set_bits(0);
+        vertex.u.set_bits(0);
+        vertex.v.set_bits(0);
+        vertex.rhw.set_bits(0);
+        vertex.specular.set(0);
     }
     DRAW.polygon_vertex_count.set(3);
     crate::scene::draw_fan::draw_fan();
@@ -310,7 +301,9 @@ pub unsafe fn forget_view_textures() -> Result<(), Refused> {
                 continue;
             }
             forget_slot_texture(slot.get())?;
-            w(0x6D1508, k(0x6D1508).wrapping_add(FORGET_COST));
+            PANEL
+                .texture_changes
+                .set(PANEL.texture_changes.get().wrapping_add(FORGET_COST));
             FRAME_WORK
                 .view_textures_forgotten
                 .set(FRAME_WORK.view_textures_forgotten.get() | bit);
@@ -333,7 +326,9 @@ pub unsafe fn forget_view_textures() -> Result<(), Refused> {
             // game, esi the picture, eax the slot (the only registers it reads).
             crate::standalone::not_ported(0x44E828, "race::frame_views");
         }
-        w(0x6D1508, k(0x6D1508).wrapping_add(MIRROR_COST));
+        PANEL
+            .texture_changes
+            .set(PANEL.texture_changes.get().wrapping_add(MIRROR_COST));
         Ok(())
     }
 }
@@ -382,7 +377,7 @@ pub unsafe fn draw_screen_tint() -> Result<(), Refused> {
 /// rectangle (`dword_624138` ..) the whole screen and the depth cleared there
 /// (`d3d::clear_viewport_unless_held`, the platform's `Clear`).
 pub unsafe fn clear_view_depth() {
-    if k(0x5CDA8C) == 0 {
+    if OBJECT_TABLES.has_3d.get() == 0 {
         return;
     }
     DRAW.cleared_rectangle[0].set(0);
@@ -467,7 +462,11 @@ pub unsafe fn run_view_marks() -> Result<(), Refused> {
             |b| RACE_WORK.car_record(b as usize),
             || crate::marks::setup::SETTINGS.pointer.get(),
         )?;
-        let (other, own) = marks_shown(view, RACE_VARS.scene_switch.get(), k(0x601024));
+        let (other, own) = marks_shown(
+            view,
+            RACE_VARS.scene_switch.get(),
+            crate::physics::split_tables_store::SPLIT_TABLES.still.get(),
+        );
         VIEWER_PANEL.other_marks_shown.set(other);
         VIEWER_PANEL.own_marks_shown.set(own);
         let layout_at = layout_index(view, RACE_VARS.split.get());

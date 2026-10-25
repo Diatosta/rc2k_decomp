@@ -27,19 +27,19 @@
 //! sizes' table).
 
 use crate::errors::BadInput;
-use crate::framework::{game_read, game_write, rva};
 use crate::logfile::log_int::log_int;
 use crate::logfile::log_write::log_write;
 use crate::race::vars_store::RACE_VARS;
 use crate::scene::kind_texture_store::KIND_TEXTURES;
-use crate::scene::texture_needs::{LEVEL_SIZES_RVA, SYSTEM_LEVELS_RVA, TEXTURES, VIDEO_LEVELS_RVA};
+use crate::scene::object_tables_store::OBJECT_TABLES;
+use crate::scene::texture_needs::TEXTURES;
+use crate::scene::texture_places_store::TEXTURE_PLACES;
+use crate::scene::texture_places_store::cell_at;
 
 // ---- game data ----
 
 /// `dword_5D0AE0` video, `dword_5D0AE4` system: the memory asked for.
-/// Mip levels a level has: the sizes' table from its fifth entry.
-const LEVEL_MIPS_RVA: usize = rva(0x5CDABC); // dword_5CDABC
-const TEXTURE_OF_RVA: usize = rva(0x5D2AE8); // dword_5D2AE8
+/// Mip levels a level has: `OBJECT_TABLES.level_mips` (the sizes' table from its fifth entry).
 pub use rc2k_core::scene::textures::Call;
 
 // ---- Rust version ----
@@ -50,20 +50,20 @@ struct GameMemory;
 impl rc2k_core::scene::textures::TextureMemory for GameMemory {
     fn level(&self, video: bool, texture: u32) -> u32 {
         let table = if video {
-            VIDEO_LEVELS_RVA
+            &OBJECT_TABLES.video_levels
         } else {
-            SYSTEM_LEVELS_RVA
+            &OBJECT_TABLES.system_levels
         };
-        unsafe { game_read(table + texture as usize * 4) }
+        cell_at(&table[0], texture).get()
     }
     fn size(&self, level: u32) -> u32 {
-        unsafe { game_read(LEVEL_SIZES_RVA + level as usize * 4) }
+        cell_at(&OBJECT_TABLES.level_sizes[0], level).get()
     }
     fn mips(&self) -> u32 {
         RACE_VARS.mip_setting.bits()
     }
     fn level_mips(&self, level: u32) -> u32 {
-        unsafe { game_read(LEVEL_MIPS_RVA + level as usize * 4) }
+        cell_at(&OBJECT_TABLES.level_mips[0], level).get()
     }
     fn forget_kinds(&mut self) {
         unsafe {
@@ -87,10 +87,8 @@ impl rc2k_core::scene::textures::TextureMemory for GameMemory {
         KIND_TEXTURES.kind_first_slots[texture as usize].set(slot)
     }
     fn set_first_texture(&mut self, texture: u32, first: u32) {
-        unsafe {
-            game_write(TEXTURE_OF_RVA + first as usize * 4, texture);
-            KIND_TEXTURES.kind_first_textures[texture as usize].set(first);
-        }
+        cell_at(&TEXTURE_PLACES.texture_of[0], first).set(texture);
+        KIND_TEXTURES.kind_first_textures[texture as usize].set(first);
     }
 }
 

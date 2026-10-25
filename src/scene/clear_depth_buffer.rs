@@ -9,13 +9,11 @@
 //! and height, and `d3d::clear_viewport` (0x44E9D9: the viewport's Clear with that one
 //! rectangle and flag 2, the depth buffer; Direct3D, not ported). Three callers.
 
-use crate::framework::{game_read, rva};
 use crate::scene::draw_store::DRAW;
+use crate::scene::object_tables_store::OBJECT_TABLES;
 use crate::session::SCREEN;
 
 // ---- game data ----
-
-const HAS_3D_RVA: usize = rva(0x5CDA8C); // dword_5CDA8C
 
 // ---- Rust version ----
 
@@ -23,12 +21,10 @@ const HAS_3D_RVA: usize = rva(0x5CDA8C); // dword_5CDA8C
 /// is no 3D. What the original leaves (eax 0, ebx the height) its three callers overwrite
 /// before reading (each next calls `scene::assign_kind_textures`, which sets both).
 pub fn clear_depth_buffer() {
-    unsafe {
-        if game_read::<u32>(HAS_3D_RVA) == 0 {
-            return;
-        }
-        let (width, height): (u32, u32) = (SCREEN.width.get(), SCREEN.height.get());
-        crate::session::write_bits(&DRAW.cleared_rectangle, [0, 0, width, height]);
-        crate::platform_3d::clear_viewport();
+    if OBJECT_TABLES.has_3d.get() == 0 {
+        return;
     }
+    let (width, height): (u32, u32) = (SCREEN.width.get(), SCREEN.height.get());
+    crate::session::write_bits(&DRAW.cleared_rectangle, [0, 0, width, height]);
+    crate::platform_3d::clear_viewport();
 }

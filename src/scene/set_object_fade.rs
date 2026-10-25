@@ -19,20 +19,19 @@
 //! object's number past the tables and, where a record has to be made, no records or no points.
 
 use crate::errors::BadInput;
-use crate::framework::{game_addr, game_read, rva};
 use crate::math::x87;
 use crate::physics::ground_store::GROUND_WORK;
 use crate::race::course_lists_store::COURSE_LISTS;
 use crate::race::course_store::COURSE;
 use crate::race::switches_store::FRAME_SWITCHES;
 use crate::scene::object_store::OBJECT_WORK;
+use crate::scene::object_tables_store::OBJECT_TABLES;
 use crate::scene::polygon::dword;
 use crate::scene::project_point::make_scene_record;
-use crate::scene::set_object_material::{MATERIAL_LEN, MATERIALS_RVA};
+use crate::scene::set_object_material::MATERIAL_LEN;
 
 // ---- game data ----
 const OBJECTS: u32 = 0x100;
-const KINDS_RVA: usize = rva(0x5CD27C); // g_objectKinds
 
 // ---- Rust version ----
 
@@ -54,9 +53,9 @@ unsafe fn words() -> Option<(u32, u32, bool)> {
         if object >= OBJECTS {
             return None;
         }
-        let kind: u32 = game_read(KINDS_RVA + object as usize * 4);
-        let material =
-            game_addr(MATERIALS_RVA).wrapping_add((kind as usize).wrapping_mul(MATERIAL_LEN));
+        let kind: u32 = OBJECT_TABLES.object_kind(object);
+        let material = crate::scene::polygon::materials_addr()
+            .wrapping_add((kind as usize).wrapping_mul(MATERIAL_LEN));
         let word = |at: usize| ((material + at) as *const u16).read_unaligned() as u32;
         let (other_kind, distance) = (word(0x1D), word(0x22));
         let looked_at = (other_kind | distance) != 0 && OBJECT_WORK.object_place.bits() != u32::MAX;
@@ -103,7 +102,7 @@ pub unsafe fn set_object_fade() -> Result<(), BadInput> {
         crate::session::write_bits(&GROUND_WORK.object_fade, [fade, fade]);
         GROUND_WORK.object_fading.set_bits(1u32);
         if other_kind != 0 {
-            let kinds: [u32; 0x100] = game_read(KINDS_RVA);
+            let kinds: [u32; 0x100] = crate::session::read_bits(&OBJECT_TABLES.object_kinds);
             if let Some(other) = (1..0x100).find(|&n| kinds[n] == other_kind) {
                 FRAME_SWITCHES.object_number.set_bits(other as u32);
             }

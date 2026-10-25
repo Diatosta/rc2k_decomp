@@ -37,10 +37,8 @@
 //! work table and an entry without its vertex.
 
 use crate::d3d::cards_store::CARDS_3D;
-use crate::d3d::draw_fan_unclipped::VERTICES_RVA;
 use crate::d3d::{NO_TEXTURE, VERTEX_LEN};
 use crate::errors::BadInput;
-use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::math::x87;
 use crate::physics::ground_store::GROUND_WORK;
 use crate::race::frame_store::FRAME_WORK;
@@ -55,18 +53,14 @@ use crate::scene::draw_switches_store::DRAW_SWITCHES;
 use crate::scene::kind_texture_store::KIND_TEXTURES;
 use crate::scene::light_store::LIGHT_STATE;
 use crate::scene::submit_polygon::{self, submit_polygon};
+use crate::scene::texture_places_store::TEXTURE_PLACES;
 
 // ---- game data ----
 
-pub const ENTRIES_RVA: usize = rva(0x975510); // dword_975510
 pub const ENTRY_LEN: usize = 0x44;
 pub const ENTRIES: u32 = 0x80;
-pub const LIST_RVA: usize = rva(0x977710); // dword_977710
 pub const MOST: u32 = 0x100;
-const OTHER_TEXTURE_OF_RVA: usize = rva(0x5D3AE8); // dword_5D3AE8
-const TEXTURES_LOADED_RVA: usize = rva(0x5DC970); // dword_5DC970
 const FADE_TEXTURE: u32 = 0xC0;
-const MATERIALS_RVA: usize = rva(0x979F30); // unk_979F30
 
 // ---- what the modes do ----
 
@@ -207,11 +201,11 @@ fn faded(from: u32, to: u32, by: u32) -> u32 {
 unsafe fn entries(count: u32) -> Result<Vec<usize>, BadInput> {
     (0..count as usize)
         .map(|n| unsafe {
-            let number: u32 = game_read(LIST_RVA + n * 4);
+            let number: u32 = crate::scene::polygon::list_cell(n).get();
             if number >= ENTRIES {
                 return Err(BadInput("a list entry past the work table"));
             }
-            let entry = game_addr(ENTRIES_RVA) + number as usize * ENTRY_LEN;
+            let entry = crate::scene::polygon::entries_addr() + number as usize * ENTRY_LEN;
             if dword(entry + 4) == 0 {
                 return Err(BadInput("an entry without its vertex"));
             }
@@ -267,7 +261,7 @@ unsafe fn place(entries: &[usize], mirrored: bool) {
         let mirror_at: u32 = DRAW.view_centre[0].bits();
         for (n, &entry) in entries.iter().enumerate() {
             let vertex = dword(entry + 4) as usize;
-            let out = game_addr(VERTICES_RVA) + n * VERTEX_LEN;
+            let out = crate::d3d::vertices_store::piece_addr() + n * VERTEX_LEN;
             let mut x = x87::add(dword(vertex + 0x0C), x_offset);
             let depth = x87::mul(dword(vertex + 0x18), depth_factor);
             put(out + 4, x87::add(dword(vertex + 0x1C), y_offset));
@@ -296,7 +290,7 @@ unsafe fn copy_set(entries: &[usize], set: Set) {
     };
     for (n, &entry) in entries.iter().enumerate() {
         unsafe {
-            let out = game_addr(VERTICES_RVA) + n * VERTEX_LEN;
+            let out = crate::d3d::vertices_store::piece_addr() + n * VERTEX_LEN;
             put(out + 0x18, x87::loaded(dword(entry + uv)));
             put(out + 0x1C, x87::loaded(dword(entry + uv + 4)));
             put(out + 0x10, dword(entry + colour));
@@ -308,22 +302,20 @@ unsafe fn copy_set(entries: &[usize], set: Set) {
 /// `sub_44CC8D` with `sub_44E668`: the texture filter's state, and the polygon's
 /// texture from the number in `dword_6240C4`.
 unsafe fn choose_texture(outside: &mut dyn Outside) {
-    unsafe {
-        let smooth = LEVEL_GRID.smooth.bits() == 1;
-        outside.state(3, if smooth { 3 } else { 1 });
-        let number: u32 = DRAW.texture_page.bits();
-        let loaded: u32 = game_read(TEXTURES_LOADED_RVA);
-        let texture = match number {
-            u32::MAX => None,
-            0x8000_0000.. => {
-                let number = number & 0x7FFF_FFFF;
-                (number < 0xFA0).then(|| game_read(OTHER_TEXTURE_OF_RVA + number as usize * 4))
-            }
-            _ => (number < 0x400).then(|| KIND_TEXTURES.kind_first_slots[number as usize].get()),
-        };
-        let texture = texture.filter(|&texture: &u32| texture < loaded);
-        DRAW.polygon_texture.set_bits(texture.unwrap_or(NO_TEXTURE));
-    }
+    let smooth = LEVEL_GRID.smooth.bits() == 1;
+    outside.state(3, if smooth { 3 } else { 1 });
+    let number: u32 = DRAW.texture_page.bits();
+    let loaded: u32 = TEXTURE_PLACES.totals[2].get();
+    let texture = match number {
+        u32::MAX => None,
+        0x8000_0000.. => {
+            let number = number & 0x7FFF_FFFF;
+            (number < 0xFA0).then(|| TEXTURE_PLACES.place_slot[number as usize].get())
+        }
+        _ => (number < 0x400).then(|| KIND_TEXTURES.kind_first_slots[number as usize].get()),
+    };
+    let texture = texture.filter(|&texture: &u32| texture < loaded);
+    DRAW.polygon_texture.set_bits(texture.unwrap_or(NO_TEXTURE));
 }
 
 /// `sub_44B94F`: clears a switch by what the entries' bytes +0x21 hold.
@@ -337,7 +329,8 @@ unsafe fn clear_a_switch(entries: &[usize]) {
             .map(|&entry| ((entry + 0x21) as *const u8).read());
         let (all, any) = bytes.fold((0xFFu8, 0u8), |(all, any), b| (all & b, any | b));
         if all == 0xFF {
-            let material = game_addr(MATERIALS_RVA) + RACE_VIEW.texture_b.bits() as usize * 0x40;
+            let material = crate::scene::polygon::texture_infos_addr()
+                + RACE_VIEW.texture_b.bits() as usize * 0x40;
             if ((material + 0x2E) as *const u8).read() == 0 {
                 DRAW.polygon_sides[0].set_bits(0u32);
             }
@@ -406,8 +399,8 @@ pub unsafe fn draw_polygon(outside: &mut dyn Outside) -> Result<(), BadInput> {
             // `sub_44E6B9`: the list's entries after the first, turned round.
             entries[1..].reverse();
             for (n, entry) in entries.iter().enumerate().skip(1) {
-                let number = (entry - game_addr(ENTRIES_RVA)) / ENTRY_LEN;
-                game_write(LIST_RVA + n * 4, number as u32);
+                let number = (entry - crate::scene::polygon::entries_addr()) / ENTRY_LEN;
+                crate::scene::polygon::list_cell(n).set(number as u32);
             }
         }
         place(&entries, mirrored);
@@ -419,7 +412,7 @@ pub unsafe fn draw_polygon(outside: &mut dyn Outside) -> Result<(), BadInput> {
             let (from, alpha): (u32, u32) = (CARDS_3D.fade_from.get(), VIEW_VARS.fade_alpha.bits());
             let uv = crate::session::read_bits(&RACE_VARS.fade_uv);
             for (n, &entry) in entries.iter().enumerate() {
-                let out = game_addr(VERTICES_RVA) + n * VERTEX_LEN;
+                let out = crate::d3d::vertices_store::piece_addr() + n * VERTEX_LEN;
                 let by = ((entry + 0x20) as *const u8).read() as u32;
                 put(out + 0x10, faded(from, 0x10, by) & 0xFF_FFFF | alpha << 24);
                 put(out + 0x14, 0xFF00_0000);

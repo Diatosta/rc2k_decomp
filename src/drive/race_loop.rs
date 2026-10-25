@@ -21,9 +21,9 @@ use crate::drive::race_parts::{
     input_update, players_all_out, race_frame, race_keys, restart_clock, tyre_change,
 };
 use crate::errors::Refused;
-use crate::physics::flow::p;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::blocks_store::CAR_BLOCKS;
+use crate::race::clock_ticks_store::CLOCK_TICKS;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
 use crate::race::viewer_state_store::REPLAY_VIEW;
@@ -64,10 +64,10 @@ pub unsafe fn race_loop() -> Result<(), Refused> {
     FLAGS.paused.set(0);
     RACE_VARS.scene_switch.set(0);
     restart_clock();
-    p(0x5CC3B4, PHYSICS.scene_clock.get());
-    p(0x5CC3B0, PHYSICS.scene_clock.get());
-    for k in 0..0x20 {
-        p(0x5CC1B0 + 4 * k, u32::MAX);
+    CLOCK_TICKS.clock_a.set(PHYSICS.scene_clock.get());
+    CLOCK_TICKS.sound_tick_last.set(PHYSICS.scene_clock.get());
+    for mark in &CLOCK_TICKS.marks {
+        mark.set(u32::MAX);
     }
     REPLAY_VIEW.play_end.set(u32::MAX);
     loop {

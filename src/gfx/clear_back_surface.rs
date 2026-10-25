@@ -14,10 +14,7 @@ use crate::errors::{BadInput, Refused};
 use crate::session::SCREEN;
 
 use crate::gfx::front::SURFACES;
-use crate::physics::flow::g;
-
-const PIXELS: usize = 0x4F4988; // dword_4F4988
-const GAP: usize = 0x4F498C; // dword_4F498C
+use crate::gfx::screen_state::DRAW_SURFACE;
 
 /// The Rust version (see the header).
 pub fn clear_back_surface() -> Result<(), Refused> {
@@ -31,11 +28,13 @@ pub fn clear_back_surface() -> Result<(), Refused> {
     if crate::platform::lock_surface() < 1 {
         return Ok(());
     }
-    let mut row = g(PIXELS);
+    let mut row = DRAW_SURFACE.present_pixels.get();
     for _ in 0..SCREEN.height.get() {
         let dwords = SCREEN.row_dwords.get();
         unsafe { std::ptr::write_bytes(row as *mut u32, 0, dwords as usize) };
-        row = row.wrapping_add(4 * dwords).wrapping_add(g(GAP));
+        row = row
+            .wrapping_add(4 * dwords)
+            .wrapping_add(DRAW_SURFACE.present_gap.get());
     }
     crate::platform::unlock_surface();
     Ok(())

@@ -22,9 +22,9 @@
 //! `popa`. Refuses (before anything) a car file number above 0x21 (past `g_lightRecords`).
 
 use crate::errors::Refused;
-use crate::framework::game_addr;
 use crate::math::x87;
 use crate::math::x87_run::{compare_full, sub_div_to_int};
+use crate::race::light_records_store::LIGHT_RECORDS;
 use crate::race::mud::car_file_number;
 use crate::race::numbers_store::NUMBERS;
 use crate::race::view_store::RACE_VIEW;
@@ -68,7 +68,7 @@ pub unsafe fn share_car_state_at(s: u32, o: u32, p: u32, scratch: u32) -> Result
             }
         }
         put(o + 0x1C, at(s + 0x240));
-        let light = game_addr(crate::race::stage_prefs::LIGHT_RECORDS_RVA) as u32 + 0x134 * n;
+        let light = LIGHT_RECORDS.record_addr(n);
         for (r, l) in sharing::LIGHT_MOVES {
             put(o + r, at(light + l));
         }

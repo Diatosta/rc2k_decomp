@@ -24,7 +24,6 @@
 //! `rc2k_core::scene::shown` (the variables read where the tests read them).
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, game_write, rva};
 use crate::race::numbers_store::NUMBERS;
 use crate::race::prefs_store::STAGE_PREFS;
 use crate::race::switches_store::FRAME_SWITCHES;
@@ -32,11 +31,9 @@ use crate::race::vars_store::RACE_VARS;
 use crate::race::work_store::RACE_WORK;
 use crate::scene::light_work_store::LIGHT_WORK;
 use crate::scene::object_store::OBJECT_WORK;
+use crate::scene::object_tables_store::OBJECT_TABLES;
 
 // ---- game data ----
-const KINDS_RVA: usize = rva(0x5CD27C); // g_objectKinds
-const FACE_COUNTS_RVA: usize = rva(0x632F70); // dword_632F70
-const KIND_BYTES_RVA: usize = rva(0x5CD688); // dword_5CD688
 use rc2k_core::scene::shown::OBJECTS;
 
 // ---- Rust version ----
@@ -55,7 +52,7 @@ impl rc2k_core::scene::shown::RaceObject for Game {
         RACE_VARS.run_kind.bits()
     }
     fn kind(&self, object: u32) -> u32 {
-        unsafe { game_read(KINDS_RVA + object as usize * 4) }
+        OBJECT_TABLES.object_kind(object)
     }
     fn other_way(&self) -> u32 {
         FRAME_SWITCHES.other_way.bits()
@@ -70,7 +67,7 @@ impl rc2k_core::scene::shown::RaceObject for Game {
         OBJECT_WORK.only_object.bits()
     }
     fn faces(&self, object: u32) -> u32 {
-        unsafe { game_read(FACE_COUNTS_RVA + object as usize * 4) }
+        crate::scene::object_slots_store::OBJECT_SLOTS.face_counts[object as usize].get()
     }
 }
 
@@ -80,22 +77,26 @@ impl rc2k_core::scene::shown::RaceObject for Game {
 pub unsafe fn draw_shown_object(
     draw: &mut dyn FnMut() -> Result<(), Refused>,
 ) -> Result<bool, Refused> {
-    unsafe {
-        let race = NUMBERS.in_race.bits() != 0;
-        if race && FRAME_SWITCHES.object_number.bits() >= OBJECTS {
-            return Err(BadInput("an object's number past the tables").into());
-        }
-        LIGHT_WORK.drawing_object.set_bits(1u32);
-        let show = if race {
-            rc2k_core::scene::shown::race_shown(&Game).drawn
-        } else {
-            game_write(KIND_BYTES_RVA, rc2k_core::scene::shown::kind_bytes());
-            true
-        };
-        if show {
-            draw()?;
-        }
-        LIGHT_WORK.drawing_object.set_bits(0u32);
-        Ok(show)
+    let race = NUMBERS.in_race.bits() != 0;
+    if race && FRAME_SWITCHES.object_number.bits() >= OBJECTS {
+        return Err(BadInput("an object's number past the tables").into());
     }
+    LIGHT_WORK.drawing_object.set_bits(1u32);
+    let show = if race {
+        rc2k_core::scene::shown::race_shown(&Game).drawn
+    } else {
+        for (cell, byte) in OBJECT_TABLES
+            .car_mark_textures
+            .iter()
+            .zip(rc2k_core::scene::shown::kind_bytes())
+        {
+            cell.set(byte);
+        }
+        true
+    };
+    if show {
+        draw()?;
+    }
+    LIGHT_WORK.drawing_object.set_bits(0u32);
+    Ok(show)
 }

@@ -10,7 +10,6 @@
 //! run time (0 in the file); the tests set them.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, rva};
 use crate::math::x87;
 use crate::physics::car_store::CAR;
 use crate::physics::gear_bit::gear_bit;
@@ -19,10 +18,6 @@ use crate::physics::gearing::{
 };
 use crate::physics::tables_store::PHYSICS;
 use std::cmp::Ordering;
-
-pub fn g(x: usize) -> u32 {
-    unsafe { game_read(rva(x)) }
-}
 
 /// C0 of comparing `a` with `b`: below, or unordered.
 pub fn below(a: u32, b: u32) -> bool {

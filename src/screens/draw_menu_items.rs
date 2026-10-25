@@ -95,7 +95,7 @@ pub unsafe fn draw_menu_items(
         };
         let mut screen = MenuScreen::new(canvas);
         screen.menu_items = first;
-        let line: *const u8 = crate::framework::game_ptr(crate::screens::LINE_BUFFER_RVA);
+        let line: *const u8 = crate::screens::line_buffer();
         rc2k_core::screens::menus::items(
             &mut screen,
             &list,

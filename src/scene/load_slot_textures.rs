@@ -9,9 +9,8 @@
 //! original's; a call by address goes through `routes.rs`, which maps them.
 
 use crate::errors::BadInput;
-use crate::framework::game_read;
 use crate::scene::load_slot_texture::load_slot_texture_in_game;
-use crate::scene::textures::SLOT_COUNT_RVA;
+use crate::scene::texture_places_store::TEXTURE_PLACES;
 
 // ---- Rust version ----
 
@@ -21,13 +20,11 @@ use crate::scene::textures::SLOT_COUNT_RVA;
 pub unsafe fn load_slot_textures(
     load: &mut dyn FnMut(u32) -> Result<(), BadInput>,
 ) -> Result<u32, BadInput> {
-    unsafe {
-        let count = rc2k_core::scene::textures::slots_in_use(game_read(SLOT_COUNT_RVA))?;
-        for slot in 0..count {
-            load(slot)?;
-        }
-        Ok(count)
+    let count = rc2k_core::scene::textures::slots_in_use(TEXTURE_PLACES.totals[2].get())?;
+    for slot in 0..count {
+        load(slot)?;
     }
+    Ok(count)
 }
 
 /// With the game's loading.

@@ -23,19 +23,11 @@
 //! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{game_read, rva};
+use crate::physics::pace_store::PACE;
 use rc2k_core::physics::pace_calls::{Code, code, find_group, text_place};
 
-const GROUPS: usize = 0x615E14; // dword_615E14
-const GROUP_CHECKPOINTS: usize = 0x619E18; // dword_619E18
-const GROUP_TEXTS: usize = 0x61AE18; // dword_61AE18
-const TEXT: usize = 0x61BE18; // byte_61BE18
 /// "!!! invalid pace data", "data", "ecx", "pointer".
 const WORDS: [&std::ffi::CStr; 4] = [c"!!! invalid pace data", c"data", c"ecx", c"pointer"];
-
-fn g(x: usize) -> u32 {
-    unsafe { game_read(rva(x)) }
-}
 
 /// The Rust version: the pace notes of checkpoint `checkpoint` (edx), each cued
 /// (`physics::cue_listed_car_sound_last`) and queued (`physics::queue_listed_event`). The
@@ -43,21 +35,19 @@ fn g(x: usize) -> u32 {
 // Converted: `rc2k_core::physics::pace_calls::{find_group, code, text_place}`.
 pub fn queue_pace_note(checkpoint: u32) -> Result<(), Refused> {
     use crate::logfile::{log_int::log_int, log_write::log_write};
-    let groups = g(GROUPS);
-    let found = find_group(
-        groups,
-        checkpoint,
-        |n| g(GROUP_CHECKPOINTS + 4 * n as usize),
-    )?;
+    let groups = PACE.group_count.get();
+    let found = find_group(groups, checkpoint, |n| {
+        PACE.group_checkpoints[n as usize].get()
+    })?;
     if groups == 0 {
         return Ok(());
     }
     let Some(group) = found else {
         return Ok(());
     };
-    let mut at = g(GROUP_TEXTS + 4 * group as usize);
+    let mut at = PACE.group_texts[group as usize].get();
     loop {
-        let byte = unsafe { game_read::<u8>(rva(TEXT) + text_place(at)? as usize) } as u32;
+        let byte = PACE.text.get(text_place(at)? as usize) as u32;
         match code(byte as u8) {
             Code::End => return Ok(()),
             Code::Bad => {

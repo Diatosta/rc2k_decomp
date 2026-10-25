@@ -15,12 +15,11 @@
 //! Callers: `sub_44426F` (loadlevel_init) and the code at 0x425B29. Refuses more than 8 cars.
 
 use crate::errors::Refused;
-use crate::framework::{game_addr, game_write, rva};
 use crate::race::prefs_store::STAGE_PREFS;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
+use crate::scene::texture_places_store::TEXTURE_PLACES;
 
-const PICTURES_RVA: usize = rva(0x5D7968); // g_kindPictures
 /// `race::set_all_plates` (see the header).
 pub unsafe fn set_all_plates() -> Result<(), Refused> {
     // Converted: `rc2k_core::race::stage_objects::{check_picture_cars, PREF_PIECES,
@@ -31,7 +30,7 @@ pub unsafe fn set_all_plates() -> Result<(), Refused> {
     unsafe {
         let cars: u32 = RACE_VIEW.race_cars.bits();
         check_picture_cars(cars)?;
-        let pictures = game_addr(PICTURES_RVA);
+        let pictures = TEXTURE_PLACES.kind_pictures[0].addr();
         for (kind, dwords) in PREF_PIECES {
             // The prefs' picture lists (`PREF_PIECES`' kinds) start at `picture_lists_a`
             // (0x60A57C), 0x32C14 bytes above the pictures; a piece runs past the field.
@@ -40,7 +39,11 @@ pub unsafe fn set_all_plates() -> Result<(), Refused> {
             std::ptr::copy(from as *const u32, to as *mut u32, dwords);
         }
         for (kind, picture) in FIXED_PICTURES {
-            game_write(PICTURES_RVA + 4 * kind, picture);
+            crate::scene::texture_places_store::cell_at(
+                &TEXTURE_PLACES.kind_pictures[0],
+                kind as u32,
+            )
+            .set(picture);
         }
         let mut at = (pictures + 4 * CAR_PICTURE_KINDS) as *mut u32;
         for car in 0..cars {

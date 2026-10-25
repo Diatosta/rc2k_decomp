@@ -9,15 +9,13 @@
 //!
 //! See `race/mud.rs`. Callers: `race::muddy_texel`, `race::splash_mud`.
 
-use crate::framework::{game_read, rva};
 use crate::race::mud::mud_pixel;
-
-pub const HALVINGS_RVA: usize = rva(0x5CEEE0); // dword_5CEEE0
+use crate::scene::object_tables_store::OBJECT_TABLES;
 
 /// The texel's place on the texture, or None when it is skipped (an odd place halved).
 pub fn texel_place(x: u32, y: u32) -> Option<(u32, u32)> {
     // Converted: `rc2k_core::race::mud::texel_place`.
-    rc2k_core::race::mud::texel_place(x, y, unsafe { game_read(HALVINGS_RVA) })
+    rc2k_core::race::mud::texel_place(x, y, OBJECT_TABLES.system_levels[256].get())
 }
 
 /// The Rust version (see the header): eax as it leaves it.

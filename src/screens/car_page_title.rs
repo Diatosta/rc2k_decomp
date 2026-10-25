@@ -9,14 +9,12 @@
 //! the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::rva;
 use crate::menu::event_store::EVENT_STATE;
 use crate::menu::lists_store::MENU_LISTS;
 use crate::screens::car_caption::put_string;
 
 // ---- game data ----
 
-const TITLE_RVA: usize = rva(0xA8BF54); // byte_A8BF54
 const TITLE_LEN: usize = 0x100;
 const PAGES: u32 = 4;
 
@@ -30,7 +28,9 @@ pub unsafe fn car_page_title() -> Result<(), Refused> {
         }
         put_string(
             MENU_LISTS.car_page_titles[page as usize].get(),
-            TITLE_RVA,
+            crate::screens::text_buffers_store::TEXT_BUFFERS
+                .title
+                .addr(),
             TITLE_LEN,
         )
     }

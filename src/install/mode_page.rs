@@ -9,7 +9,7 @@
 //! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
 //! are the original's.
 
-use crate::install::installer::{MEDIA_MODE, g, p};
+use crate::install::installer::{media_mode, set_media_mode};
 use crate::install::vars::INSTALLER_PAGES;
 use crate::install::vars::INSTALLER_RUN;
 
@@ -19,10 +19,10 @@ pub fn mode_page(state: u32) {
         // Converted: `rc2k_core::install::pages::mode_highlight`.
         INSTALLER_PAGES
             .choice
-            .set(rc2k_core::install::pages::mode_highlight(g(MEDIA_MODE)));
+            .set(rc2k_core::install::pages::mode_highlight(media_mode()));
         INSTALLER_RUN.path_problem.set(0);
     }
     if (state as i32) < 0 {
-        p(MEDIA_MODE, INSTALLER_PAGES.list_answer.get() as u32);
+        set_media_mode(INSTALLER_PAGES.list_answer.get() as u32);
     }
 }

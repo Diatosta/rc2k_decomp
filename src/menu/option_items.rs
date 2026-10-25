@@ -30,6 +30,9 @@
 //! general, race music, race effects, menu effects).
 
 use crate::errors::Refused;
+use crate::gfx::choices_store::SCREEN_CHOICES;
+use crate::race::settings_copy::{Place, Place::Addr, var};
+use crate::sound::store::SOUND_OPTIONS;
 
 /// After a volume step.
 #[derive(Clone, Copy)]
@@ -37,7 +40,7 @@ pub enum Then {
     /// `sound::send_command_8` with eax the value.
     Send,
     /// eax the value, stored there.
-    Store(usize),
+    Store(Place),
     /// `sound::play_menu_sound` with eax this.
     Sound(u32),
 }
@@ -48,12 +51,12 @@ pub enum Kind {
     Switch,
     /// Flipped, eax the value, `other` flipped (true) or given eax (false).
     SwitchCopy {
-        other: usize,
+        other: Place,
         flip: bool,
     },
     /// 0x470017.
     SwitchModes {
-        other: usize,
+        other: Place,
     },
     /// Flipped, then `menu::apply_audio_choices`.
     SwitchAudio,
@@ -72,7 +75,7 @@ pub enum Kind {
     },
     /// 0x46FFDB: `other` is how many modes there are.
     PreviousMode {
-        other: usize,
+        other: Place,
     },
 }
 
@@ -80,17 +83,17 @@ pub enum Kind {
 /// (for the test's copy), the dword it changes (IDA address) and its kind.
 #[derive(Clone, Copy)]
 pub struct Item {
-    pub var: usize,
+    pub var: Place,
     pub kind: Kind,
 }
 
-/// The items name their variables by IDA's address (`moved::place` answers where each
-/// lives now: the sound page's, the audio options', ... have left the image).
-fn get(x: usize) -> i32 {
-    unsafe { crate::store::ida_read(x) }
+/// The items name their variables by a `Place`: a typed cell, or an IDA address
+/// (`moved::place` answers where each lives now) for what is not typed yet.
+fn get(x: Place) -> i32 {
+    x.get() as i32
 }
-fn set(x: usize, v: i32) {
-    unsafe { crate::store::ida_write(x, v) }
+fn set(x: Place, v: i32) {
+    x.set(v as u32)
 }
 
 /// The Rust version (see the header). What it leaves in registers is read by none of its
@@ -167,7 +170,7 @@ macro_rules! switch {
             $module,
             $name,
             Item {
-                var: $var as usize,
+                var: Addr($var as usize),
                 kind: $kind,
             }
         );
@@ -180,7 +183,7 @@ macro_rules! step {
             $module,
             $name,
             Item {
-                var: $var as usize,
+                var: Addr($var as usize),
                 kind: $kind,
             }
         );
@@ -189,13 +192,14 @@ macro_rules! step {
 
 // ---- the sound page ----
 
-switch!(
+// 0x467EF8, 8 bytes.
+option_item!(
     toggle_5180f4,
     "menu::toggle_5180f4",
-    0x467EF8,
-    8,
-    0x5180F4,
-    Kind::Switch
+    Item {
+        var: var!(SOUND_OPTIONS.name_switch),
+        kind: Kind::Switch,
+    }
 );
 step!(
     master_volume_down,
@@ -221,28 +225,28 @@ step!(
         then: Then::Send
     }
 );
-step!(
+// 0x467F9A, 0x24 bytes.
+option_item!(
     race_music_volume_down,
     "menu::race_music_volume_down",
-    0x467F9A,
-    0x24,
-    0x75568C,
-    false,
-    Kind::Volume {
-        up: false,
-        then: Then::Store(0x518100)
+    Item {
+        var: Addr(0x75568C),
+        kind: Kind::Volume {
+            up: false,
+            then: Then::Store(var!(SOUND_OPTIONS.race_music_volume))
+        },
     }
 );
-step!(
+// 0x467FBE, 0x24 bytes.
+option_item!(
     race_music_volume_up,
     "menu::race_music_volume_up",
-    0x467FBE,
-    0x24,
-    0x75568C,
-    true,
-    Kind::Volume {
-        up: true,
-        then: Then::Store(0x518100)
+    Item {
+        var: Addr(0x75568C),
+        kind: Kind::Volume {
+            up: true,
+            then: Then::Store(var!(SOUND_OPTIONS.race_music_volume))
+        },
     }
 );
 step!(
@@ -374,7 +378,7 @@ switch!(
     0x14,
     0x755640,
     Kind::SwitchCopy {
-        other: 0x4F50D0,
+        other: var!(SCREEN_CHOICES.switch_copy),
         flip: true
     }
 );
@@ -385,7 +389,7 @@ switch!(
     0x14,
     0x755644,
     Kind::SwitchCopy {
-        other: 0x4F50CC,
+        other: var!(SCREEN_CHOICES.switch_hud),
         flip: true
     }
 );
@@ -393,8 +397,10 @@ option_item!(
     previous_screen_mode,
     "menu::previous_screen_mode",
     Item {
-        var: 0x4F50C8,
-        kind: Kind::PreviousMode { other: 0x4F50E4 },
+        var: var!(SCREEN_CHOICES.mode),
+        kind: Kind::PreviousMode {
+            other: var!(SCREEN_CHOICES.modes)
+        },
     }
 );
 switch!(
@@ -403,7 +409,9 @@ switch!(
     0x470017,
     0x1E,
     0x75564C,
-    Kind::SwitchModes { other: 0x4F50C4 }
+    Kind::SwitchModes {
+        other: var!(SCREEN_CHOICES.switch_modes)
+    }
 );
 switch!(
     toggle_755650,
@@ -412,7 +420,7 @@ switch!(
     0x12,
     0x755650,
     Kind::SwitchCopy {
-        other: 0x75AD00,
+        other: Addr(0x75AD00),
         flip: false
     }
 );
@@ -423,7 +431,7 @@ switch!(
     0x12,
     0x75565C,
     Kind::SwitchCopy {
-        other: 0x75AD0C,
+        other: Addr(0x75AD0C),
         flip: false
     }
 );
@@ -434,7 +442,7 @@ switch!(
     0x12,
     0x755660,
     Kind::SwitchCopy {
-        other: 0x75AD10,
+        other: Addr(0x75AD10),
         flip: false
     }
 );
@@ -445,7 +453,7 @@ switch!(
     0x12,
     0x755668,
     Kind::SwitchCopy {
-        other: 0x75AD18,
+        other: Addr(0x75AD18),
         flip: false
     }
 );
@@ -456,7 +464,7 @@ option_item!(
     next_audio_quality,
     "menu::next_audio_quality",
     Item {
-        var: 0x75566C,
+        var: Addr(0x75566C),
         kind: Kind::Quality { up: true },
     }
 );
@@ -464,7 +472,7 @@ option_item!(
     previous_audio_quality,
     "menu::previous_audio_quality",
     Item {
-        var: 0x75566C,
+        var: Addr(0x75566C),
         kind: Kind::Quality { up: false },
     }
 );

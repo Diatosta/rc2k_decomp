@@ -11,15 +11,15 @@
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
+use crate::drive::replay_frames_store::REPLAY_FRAMES;
 use crate::physics::camera_store::CAMERA_WORK;
 use crate::physics::car_store::CAR;
-use crate::physics::flow::g;
 use crate::scene::draw_store::DRAW;
 use crate::scene::x87_mem::{fild, fistp, fld};
 
 /// The Rust version (the exact one, for `physics::camera_avoid_ground`).
 pub unsafe fn ease_view_turn() {
-    if g(0x6EF7CC) != 0 {
+    if REPLAY_FRAMES.step_first.get() != 0 {
         for share in [
             &CAMERA_WORK.view_share_pitch,
             &CAMERA_WORK.view_share_heading,

@@ -21,17 +21,16 @@
 //! state were put back).
 
 use crate::errors::Refused;
-use crate::framework::{game_read, game_write, rva};
 use crate::physics::flow::c0;
 use crate::race::muddy_texel::texture_and_mud;
 use crate::race::numbers_store::NUMBERS;
+use crate::race::panel_store::PANEL;
 use crate::race::splash_mud::{LAST_SPLASHED, splash_mud};
 use crate::race::throw_mud_texel::{LAST_THROWN, throw_mud_texel};
 use crate::race::vars_store::RACE_VARS;
 use crate::scene::kind_texture_store::KIND_TEXTURES;
 use crate::scene::x87_mem::{fild, fistp, fld, fstp};
 use crate::session::{Dword, Float};
-const CHANGES_RVA: usize = rva(0x6D1508); // dword_6D1508
 
 /// `fld dword [f]; fistp dword [t]`.
 fn round_units(f: usize, t: usize) {
@@ -73,10 +72,9 @@ pub unsafe fn update_mud_texture() -> Result<(), Refused> {
         crate::scene::forget_slot_texture::forget_slot_texture(
             KIND_TEXTURES.kind_first_slots[256].bits().wrapping_add(n),
         )?;
-        game_write(
-            CHANGES_RVA,
-            game_read::<u32>(CHANGES_RVA).wrapping_add(0x1_0000),
-        );
+        PANEL
+            .texture_changes
+            .set(PANEL.texture_changes.get().wrapping_add(0x1_0000));
         let texture = KIND_TEXTURES.kind_first_textures[256]
             .bits()
             .wrapping_add(n);

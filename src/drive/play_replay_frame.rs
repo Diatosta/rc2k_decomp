@@ -8,8 +8,8 @@
 //!
 //! Caller: `drive::replay_step`. Refuses what its calls refuse.
 
+use crate::drive::replay_frames_store::REPLAY_FRAMES;
 use crate::errors::Refused;
-use crate::physics::flow::{g, p};
 use crate::race::numbers_store::NUMBERS;
 use crate::race::viewer_state_store::REPLAY_VIEW;
 
@@ -17,9 +17,9 @@ use crate::race::viewer_state_store::REPLAY_VIEW;
 // Converted: `rc2k_core::drive::race_steps::play_frame`.
 pub unsafe fn play_replay_frame() -> Result<(), Refused> {
     let Some(whole) = rc2k_core::drive::race_steps::play_frame(NUMBERS.replay_mode.get(), || {
-        p(0x6EF7E0, REPLAY_VIEW.replay_block.get());
-        p(0x6EF7E4, REPLAY_VIEW.replay_frame.get());
-        g(0x6EF7E4)
+        REPLAY_FRAMES.step_block.set(REPLAY_VIEW.replay_block.get());
+        REPLAY_FRAMES.step_frame.set(REPLAY_VIEW.replay_frame.get());
+        REPLAY_FRAMES.step_frame.get()
     }) else {
         return Ok(());
     };

@@ -21,12 +21,10 @@
 //! entries and a fade index past the 17.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::rva;
 use crate::marks::clip_quad::{clip_quad, draw_fan};
 use crate::marks::snow::{
     SNOW, SNOW_CURVE, SNOW_LIGHT, SNOW_TABLES, SNOW_VARS, SnowLight, SnowState, SnowTables,
 };
-use crate::marks::store::{game_addr, game_write};
 use crate::marks::tuning::{MARKS_FLOATS, MARKS_KIND_FLOATS, MarksFloats};
 use crate::scene::draw_store::DRAW;
 use crate::service::harness::{Region, capture, restore};
@@ -34,7 +32,7 @@ use crate::service::harness::{Region, capture, restore};
 const MOST: i32 = 0x800;
 const CURVE: u32 = 4095;
 const FADES: u32 = 17;
-const VERTICES_RVA: usize = rva(0x9605A0); // g_polygonVertices
+use crate::d3d::vertices_store::VERTICES;
 /// What the x87 blocks write: flt_8D22D4 .. flt_8D22DC, dword_8D21F4, flt_8DB448 ..
 /// dword_8DB460, flt_8DB4C8.
 fn scratch() -> Vec<Region> {
@@ -61,7 +59,7 @@ unsafe fn square(i: u32) {
     unsafe {
         square_x87(
             crate::race::store::asm_base() as usize,
-            crate::race::store::buffers_asm_base() as usize,
+            crate::d3d::vertices_store::piece_addr(),
             i as usize,
             &SNOW_TABLES,
             &SNOW,
@@ -154,18 +152,17 @@ pub unsafe fn draw_snow() -> Result<(), Refused> {
                     }
                     let colour = SNOW_LIGHT.fade_colours[index as usize].get();
                     for n in 0..4 {
-                        game_write(VERTICES_RVA + 0x20 * n + 0x10, colour);
+                        VERTICES.vertices[n].colour.set(colour);
                     }
                 }
                 square(4 * k);
                 let [top, bottom] = SNOW_LIGHT.v.each_ref().map(|d| d.get());
                 for n in 0..4 {
-                    game_write(
-                        VERTICES_RVA + 0x20 * n + 0x1C,
-                        if n < 2 { top } else { bottom },
-                    );
+                    VERTICES.vertices[n]
+                        .v
+                        .set_bits(if n < 2 { top } else { bottom });
                 }
-                if !clip_quad(game_addr(VERTICES_RVA) as u32)? {
+                if !clip_quad(crate::d3d::vertices_store::piece_addr() as u32)? {
                     draw_fan();
                     SNOW.drawn.set(SNOW.drawn.get().wrapping_add(1));
                     DRAW.polygon_vertex_count.set_bits(4u32);
@@ -248,7 +245,7 @@ unsafe fn fade_x87(s: &SnowState, l: &SnowLight, f: &MarksFloats) {
 }
 
 /// `square`'s x87 block as plain Rust on the x87 model (38 instructions), same order and memory places.
-unsafe fn square_x87(rc: usize, bf: usize, i: usize, t: &SnowTables, s: &SnowState, l: &SnowLight) {
+unsafe fn square_x87(rc: usize, vt: usize, i: usize, t: &SnowTables, s: &SnowState, l: &SnowLight) {
     unsafe {
         let t0 = bh::ld(s.turned[2].bits());
         let t1 = ld(rc, 0x224088) / t0;
@@ -258,34 +255,34 @@ unsafe fn square_x87(rc: usize, bf: usize, i: usize, t: &SnowTables, s: &SnowSta
         let t4 = t1 * bh::ld(s.turned[0].bits());
         let t5 = -t3;
         let t6 = t5 + ld(rc, 0x2240A0);
-        st(bf, 0x5605A4, t6);
+        st(vt, 0x4, t6);
         let t7 = t4 + ld(rc, 0x22409C);
-        st(bf, 0x5605A0, t7);
+        st(vt, 0x0, t7);
         let t8 = bh::ld(l.side.bits());
         let t9 = t8 * bh::ld(s.depth.get());
-        let t10 = ld(bf, 0x5605A0);
+        let t10 = ld(vt, 0x0);
         let t11 = t10 + t9;
-        st(bf, 0x5605C0, t11);
-        st(bf, 0x5605E0, t11);
+        st(vt, 0x20, t11);
+        st(vt, 0x40, t11);
         let t12 = t11 - t9;
-        st(bf, 0x560600, t12);
-        let t13 = ld(bf, 0x5605A4);
-        st(bf, 0x5605C4, t13);
+        st(vt, 0x60, t12);
+        let t13 = ld(vt, 0x4);
+        st(vt, 0x24, t13);
         let t14 = t9 + t13;
-        st(bf, 0x5605E4, t14);
-        st(bf, 0x560604, t14);
+        st(vt, 0x44, t14);
+        st(vt, 0x64, t14);
         let t15 = bh::ld(s.turned[2].bits());
         let t16 = t15 * bh::ld(s.inverse.bits());
-        st(bf, 0x5605A8, t16);
-        st(bf, 0x5605C8, t16);
-        st(bf, 0x5605E8, t16);
-        st(bf, 0x560608, t16);
+        st(vt, 0x8, t16);
+        st(vt, 0x28, t16);
+        st(vt, 0x48, t16);
+        st(vt, 0x68, t16);
         let t17 = crate::math::x87_float::ld(t.spreads[i / 4].bits());
-        st(bf, 0x5605B8, t17);
-        st(bf, 0x560618, t17);
+        st(vt, 0x18, t17);
+        st(vt, 0x78, t17);
         let t18 = t17 + bh::ld(l.u_offset.bits());
-        st(bf, 0x5605D8, t18);
-        st(bf, 0x5605F8, t18);
+        st(vt, 0x38, t18);
+        st(vt, 0x58, t18);
     }
 }
 
@@ -607,7 +604,7 @@ mod asm_differential {
                 with_copy(b[2], SnowTables::START, |t| {
                     with_copy(b[2], SnowState::START, |s| {
                         with_copy(b[2], SnowLight::START, |l| unsafe {
-                            super::square_x87(b[0], b[1], b[3], t, s, l)
+                            super::square_x87(b[0], b[1].wrapping_add(0x5605A0), b[3], t, s, l)
                         })
                     })
                 })

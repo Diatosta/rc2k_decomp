@@ -15,20 +15,15 @@
 //! stays the x87's).
 
 use crate::marks::rain::{RAIN, RAIN_RULES};
-use crate::marks::setup::SEED_RVA;
-use crate::marks::store::{game_read, game_write};
+use crate::marks::work_store::MARKS_WORK;
 use crate::math::x87;
 use crate::physics::tables_store::PHYSICS;
 
 /// The marks' random: times 0x9D plus 0x47.
 unsafe fn next_seed() -> u32 {
-    unsafe {
-        let s = game_read::<u32>(SEED_RVA)
-            .wrapping_mul(0x9D)
-            .wrapping_add(0x47);
-        game_write(SEED_RVA, s);
-        s
-    }
+    let s = MARKS_WORK.seed.get().wrapping_mul(0x9D).wrapping_add(0x47);
+    MARKS_WORK.seed.set(s);
+    s
 }
 
 /// The Rust version (see the header).

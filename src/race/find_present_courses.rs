@@ -15,14 +15,16 @@
 use crate::errors::Refused;
 use crate::files::read_whole_file::read_whole_file;
 use crate::files::state::BYTES_READ;
-use crate::framework::{game_addr, rva};
 use crate::race::course_data::set_cdat_number;
 use crate::race::level_init::set_course_number;
 use crate::race::switches_store::FRAME_SWITCHES;
 use crate::scene::draw_store::DRAW;
 
 /// `srclvls\level01\cdat00c`, `files\levels\level01\cdat00c.sq`.
-const PATHS_RVA: [usize; 2] = [rva(0x60B02B), rva(0x60B07A)];
+fn paths() -> [usize; 2] {
+    let p = &crate::race::level_paths_store::LEVEL_PATHS;
+    [p.cdat_src.addr(), p.cdat_files.addr()]
+}
 use rc2k_core::race::stage_objects::COURSES;
 
 /// The Rust version (nothing written when it refuses).
@@ -34,10 +36,10 @@ pub fn find_present_courses() -> Result<(), Refused> {
             set_course_number(n);
             set_cdat_number(0);
             FRAME_SWITCHES.course_present[n as usize].set(0); // dword_621518, 100 flags
-            let present = course_present(PATHS_RVA.len() as u32, |file| {
+            let present = course_present(paths().len() as u32, |file| {
                 BYTES_READ.store(0, std::sync::atomic::Ordering::Relaxed);
                 let buffer = DRAW.work_dword.addr() as u32;
-                let path = game_addr(PATHS_RVA[file as usize]) as *const u8;
+                let path = paths()[file as usize] as *const u8;
                 read_whole_file(path, buffer as *mut u8, PROBE_BYTES)?;
                 Ok::<u32, Refused>(BYTES_READ.load(std::sync::atomic::Ordering::Relaxed))
             })?;

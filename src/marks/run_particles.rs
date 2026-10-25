@@ -30,13 +30,12 @@
 use crate::errors::{BadInput, Refused};
 use crate::marks::blocks::RING_POOL;
 use crate::marks::frame_state::DRAW_WORK;
-use crate::marks::setup::{CLOCK, SEED_RVA};
-use crate::marks::store::{game_read, game_write};
+use crate::marks::setup::CLOCK;
 use crate::marks::tuning::MARKS_FRAME;
+use crate::marks::work_store::MARKS_WORK;
 use crate::math::x87;
 use crate::race::matrices_store::MATRICES;
 use crate::scene::matrix3::extended;
-use crate::scene::vector3::STATUS_RVA;
 use crate::session::{Bytes, Dword, Float};
 const TRAIL_COLOURS: i32 = 298;
 const BURST_COLOURS_LEN: i32 = 0x2000;
@@ -144,7 +143,7 @@ unsafe fn step(e: u32) -> Result<bool, Refused> {
                 );
                 gain_int(&PARTICLE_TUNING.dust[1]);
                 let s = x87::compare_status(PARTICLE_TUNING.dust[2].bits(), get(e + 0x2C));
-                game_write(STATUS_RVA, s as u32);
+                MARKS_WORK.fpu_status.set(s as u32);
                 if s != 0x100 {
                     burst_particles::burst_particles(e)?;
                     return Ok(true);
@@ -192,10 +191,8 @@ unsafe fn step(e: u32) -> Result<bool, Refused> {
                 let colour = (get(e + 0x3C) & 0xFF00_0000) | tint;
                 let mut size = get(e + 0x38);
                 if kind == 9 {
-                    let s = game_read::<u32>(SEED_RVA)
-                        .wrapping_mul(0x9D)
-                        .wrapping_add(0x47);
-                    game_write(SEED_RVA, s);
+                    let s = MARKS_WORK.seed.get().wrapping_mul(0x9D).wrapping_add(0x47);
+                    MARKS_WORK.seed.set(s);
                     if s.rotate_right(16) & 0x7F == 0 {
                         size = size.wrapping_add(BIGGER);
                     }
@@ -232,7 +229,7 @@ pub unsafe fn run_particles() -> Result<(), Refused> {
             let mut dies = life < t;
             if !dies {
                 let s = x87::compare_status(get(e + 0x10), get(e + 0x24));
-                game_write(STATUS_RVA, s as u32);
+                MARKS_WORK.fpu_status.set(s as u32);
                 dies = s == 0x100;
                 if !dies {
                     dies = step(e)?;
@@ -261,10 +258,8 @@ pub unsafe fn run_particles() -> Result<(), Refused> {
         }
         crate::sound::store::STAGE_SOUNDS.random[0].set(1);
         let seed = || {
-            let s = game_read::<u32>(SEED_RVA)
-                .wrapping_mul(0x9D)
-                .wrapping_add(0x47);
-            game_write(SEED_RVA, s);
+            let s = MARKS_WORK.seed.get().wrapping_mul(0x9D).wrapping_add(0x47);
+            MARKS_WORK.seed.set(s);
             s & 0xFFFF
         };
         let r = seed();

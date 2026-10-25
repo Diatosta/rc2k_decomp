@@ -14,15 +14,13 @@
 
 use crate::errors::{FatalError, Refused};
 use crate::files::read_file::read_file;
-use crate::framework::{game_addr, game_write, rva};
 use crate::gfx::components_to_pixel::components_to_pixel;
+use crate::gfx::jade_store::JADE_FONT;
 use crate::gfx::pixel_format::surface_format;
 
 // ---- game data ----
 
-const GLYPHS_RVA: usize = rva(0x4F52C4); // unk_4F52C4
 const ROOM: u32 = rc2k_core::gfx::screenshot::JADE_ROOM;
-const COLOUR_RVA: usize = rva(0x4F66C4); // dword_4F66C4
 
 // ---- Rust version ----
 
@@ -30,12 +28,11 @@ pub unsafe fn load_jade(path: *const u8) -> Result<(), Refused> {
     unsafe {
         // Converted: `rc2k_core::gfx::screenshot::jade_read`.
         use rc2k_core::gfx::screenshot::{JADE_COLOUR, jade_read};
-        let read = read_file(path, game_addr(GLYPHS_RVA) as *mut u8, ROOM, 0)?;
+        let read = read_file(path, JADE_FONT.glyphs.as_ptr(), ROOM, 0)?;
         jade_read(read.ok, read.bytes_read).map_err(|code| FatalError { code, message: "" })?;
-        game_write(
-            COLOUR_RVA,
-            components_to_pixel(&surface_format(), JADE_COLOUR),
-        );
+        JADE_FONT
+            .colour
+            .set(components_to_pixel(&surface_format(), JADE_COLOUR));
         Ok(())
     }
 }

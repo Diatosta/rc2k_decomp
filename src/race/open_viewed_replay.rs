@@ -18,11 +18,10 @@
 
 use crate::errors::Refused;
 use crate::files::handle;
-use crate::physics::flow::a;
+use crate::race::replay::REPLAYS;
 use crate::race::replay_file_store::REPLAY_FILE;
 use crate::race::replay_path::replay_path;
 use crate::race::replay_work_store::REPLAY_WORK;
-use crate::race::viewer::{BLOCK_CURSOR, BLOCK_DATA, CAMERAS, HEADER, MARK_IN, MARK_OUT, get, put};
 use crate::race::viewer_state_store::REPLAY_VIEW;
 
 use rc2k_core::race::viewer_flow::{HEADER_LEN, INDEX_LEN};
@@ -74,9 +73,9 @@ pub fn open_viewed_replay(slot: u32) -> Result<bool, Refused> {
         let (n, ok) =
             unsafe { handle::read(REPLAY_FILE.replay_handle.get(), buffer as *mut u8, len) };
         let first = unsafe { (buffer as *const u32).read_unaligned() };
-        read_good(!ok, n, len, first, buffer == a(HEADER) as usize)
+        read_good(!ok, n, len, first, buffer == REPLAYS.header.addr())
     };
-    if !read(a(HEADER) as usize, HEADER_LEN) || !version_good(get(HEADER + 8)) {
+    if !read(REPLAYS.header.addr(), HEADER_LEN) || !version_good(REPLAYS.header.get_u32(8)) {
         return failed();
     }
     // The index is the file's last 0x3850 bytes.
@@ -101,8 +100,11 @@ pub fn open_viewed_replay(slot: u32) -> Result<bool, Refused> {
             return failed();
         }
         crate::race::viewer::move_dwords(
-            a(CAMERAS) as usize + 8 * block as usize,
-            a(BLOCK_DATA) as usize,
+            crate::race::viewer_buffers_store::VIEWER_BUFFERS
+                .block_cameras
+                .addr()
+                + 8 * block as usize,
+            crate::race::viewer_buffers_store::VIEWER_BUFFERS.block[0].addr(),
             CAMERA_DWORDS,
         );
         block += 1;
@@ -111,9 +113,15 @@ pub fn open_viewed_replay(slot: u32) -> Result<bool, Refused> {
         }
     }
     let (mark_in, mark_out) = opened_marks(REPLAY_FILE.index_block_count.get());
-    put(MARK_IN, mark_in);
-    put(MARK_OUT, mark_out);
-    put(BLOCK_CURSOR, a(BLOCK_DATA));
+    crate::race::viewer_buffers_store::VIEWER_BUFFERS
+        .mark_in
+        .set(mark_in);
+    crate::race::viewer_buffers_store::VIEWER_BUFFERS
+        .mark_out
+        .set(mark_out);
+    crate::race::viewer_buffers_store::VIEWER_BUFFERS
+        .block_cursor
+        .set(crate::race::viewer_buffers_store::VIEWER_BUFFERS.block[0].addr() as u32);
     if unsafe { crate::drive::read_replay_frame_0::read_replay_frame_0(0) }? {
         return failed();
     }

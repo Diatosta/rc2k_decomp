@@ -20,11 +20,9 @@
 //! link on the way, and a colour index out of its table.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::rva;
 use crate::marks::ring_store::RING_WORK;
 use crate::marks::run_ring::{RING_KINDS, RingKinds};
 use crate::marks::setup::{CLOCK, MarksClock};
-use crate::marks::store::game_write;
 use crate::marks::surface_store::SURFACE;
 use crate::marks::tuning::MARKS_KIND_FLOATS;
 use crate::math::x87;
@@ -32,7 +30,7 @@ use crate::scene::fog_at::fog_at;
 use crate::session::Dword;
 
 const STREAK: u32 = 0x12;
-const SPECULAR_RVA: usize = rva(0x9605B4); // the first vertex's specular
+
 /// The colour table used while `MARKS_KIND_FLOATS.other` is 0: 257 colours (past `SURFACE`'s
 /// 128: the table `SURFACE.colours` is the one in use while it is not).
 #[repr(C)]
@@ -198,7 +196,9 @@ unsafe fn streak(e: u32) -> Result<bool, Refused> {
             put(e + 0x20, DRAW_WORK.turned[1].bits());
             put(e + 0x24, DRAW_WORK.turned[2].bits());
         }
-        game_write(SPECULAR_RVA, fog_at(get(e + 0x24))?);
+        crate::d3d::vertices_store::VERTICES.vertices[0]
+            .specular
+            .set(fog_at(get(e + 0x24))?);
         let i = x87::int_times_to_int(get(e + 0x84) as i32, get(e + 0x78));
         RING_WORK.whole.set(i as u32);
         let colour = colour_at(i as usize);

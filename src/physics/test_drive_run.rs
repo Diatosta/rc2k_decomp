@@ -22,7 +22,8 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::physics::car_store::CAR;
-use crate::physics::flow::{c0, g, p};
+use crate::physics::flow::c0;
+use crate::physics::gear_store::GEAR;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::numbers_store::NUMBERS;
 use crate::scene::x87_mem::{fild, fld, fstp};
@@ -52,8 +53,8 @@ fn step() -> Result<(), Refused> {
 }
 
 fn steps() -> Result<(), Refused> {
-    for x in [0x5CB97C, 0x5CB980, 0x5CB984] {
-        p(x, 0);
+    for mark in &GEAR.test_marks {
+        mark.set(0);
     }
     CAR.drive_speed_a.set_bits(0);
     CAR.drive_speed_b.set_bits(0);
@@ -62,19 +63,23 @@ fn steps() -> Result<(), Refused> {
     CAR.gearbox_kind.set(1);
     for n in 0..STEPS {
         step()?;
-        if g(0x5CB97C) == 0 && !c0(CAR.drive_speed_a.bits(), g(0x5CB988)) {
-            p(0x5CB97C, n);
+        if GEAR.test_marks[0].get() == 0
+            && !c0(CAR.drive_speed_a.bits(), GEAR.test_limits[0].bits())
+        {
+            GEAR.test_marks[0].set(n);
         }
-        if g(0x5CB980) == 0 && !c0(CAR.drive_speed_a.bits(), g(0x5CB98C)) {
-            p(0x5CB980, n);
+        if GEAR.test_marks[1].get() == 0
+            && !c0(CAR.drive_speed_a.bits(), GEAR.test_limits[1].bits())
+        {
+            GEAR.test_marks[1].set(n);
         }
         if n % 20 == 0 {
-            let slot = 4 * (n / 20) as usize;
-            p(
-                0x5CB990 + slot,
-                crate::math::x87::mul(CAR.drive_speed_a.bits(), NUMBERS.two_and_a_quarter.bits()),
-            );
-            p(0x5CBD90 + slot, CAR.gear.get());
+            let slot = (n / 20) as usize;
+            GEAR.test_speeds[slot].set_bits(crate::math::x87::mul(
+                CAR.drive_speed_a.bits(),
+                NUMBERS.two_and_a_quarter.bits(),
+            ));
+            GEAR.test_gears[slot].set(CAR.gear.get());
         }
     }
     x87_3(crate::race::store::asm_base() as usize);

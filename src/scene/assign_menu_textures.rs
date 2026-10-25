@@ -9,10 +9,9 @@
 //! texture (`dword_5D1448`). Two callers. Refuses a slot past the table.
 
 use crate::errors::BadInput;
-use crate::framework::game_write;
 use crate::menu::lists_store::MENU_LISTS;
 use crate::scene::kind_texture_store::KIND_TEXTURES;
-use crate::scene::textures::WANTED_RVA;
+use crate::scene::texture_places_store::TEXTURE_PLACES;
 use crate::session::read_all;
 
 // ---- game data ----
@@ -22,15 +21,14 @@ const KIND: usize = 0x258;
 
 pub unsafe fn assign_menu_textures() -> Result<(), BadInput> {
     // Converted: `rc2k_core::scene::textures::menu_textures`.
-    unsafe {
-        let wanted = rc2k_core::scene::textures::menu_textures(
-            read_all(&MENU_LISTS.carousel_textures),
-            KIND_TEXTURES.kind_first_slots[KIND].get(),
-            KIND_TEXTURES.kind_first_textures[KIND].get(),
-        )?;
-        for (slot, texture) in wanted {
-            game_write(WANTED_RVA + slot as usize * 4, texture);
-        }
-        Ok(())
+    let wanted = rc2k_core::scene::textures::menu_textures(
+        read_all(&MENU_LISTS.carousel_textures),
+        KIND_TEXTURES.kind_first_slots[KIND].get(),
+        KIND_TEXTURES.kind_first_textures[KIND].get(),
+    )?;
+    for (slot, texture) in wanted {
+        crate::scene::texture_places_store::cell_at(&TEXTURE_PLACES.slot_wanted[0], slot)
+            .set(texture);
     }
+    Ok(())
 }

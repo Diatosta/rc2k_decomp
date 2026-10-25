@@ -36,18 +36,18 @@ use crate::framework::log;
 
 /// The variables the loop reads and writes, in the order of `Vars`'s fields.
 const VARS: [usize; 12] = [
-    0,        // dword_518390: the stack pointer at entry, 0 before (`session`)
-    0,        // dword_51837C: the quit switch (`session`)
-    0,        // dword_518374: the window is the active one (`session`)
-    0,        // dword_518998: counted up by the key thread (`session`)
-    0,        // dword_51838C (`session`)
-    0,        // dword_518080 (`sound::store`)
-    0,        // word_51D752: 0xBD when the installer's script is set up (`install::vars`)
-    0,        // g_installing (`install::vars`)
-    0,        // dword_51B9CC (`install::vars`)
-    0,        // dword_51B9D0 (`install::vars`)
-    0x5189A8, // g_baseDirectory
-    0,        // dword_5AB290: `g_lobbyLaunched` (`net::store`)
+    0, // dword_518390: the stack pointer at entry, 0 before (`session`)
+    0, // dword_51837C: the quit switch (`session`)
+    0, // dword_518374: the window is the active one (`session`)
+    0, // dword_518998: counted up by the key thread (`session`)
+    0, // dword_51838C (`session`)
+    0, // dword_518080 (`sound::store`)
+    0, // word_51D752: 0xBD when the installer's script is set up (`install::vars`)
+    0, // g_installing (`install::vars`)
+    0, // dword_51B9CC (`install::vars`)
+    0, // dword_51B9D0 (`install::vars`)
+    0, // g_baseDirectory (`files::state`)
+    0, // dword_5AB290: `g_lobbyLaunched` (`net::store`)
 ];
 const ENTERING_RVA: &std::ffi::CStr = c"Entering main loop..."; // "Entering main loop..."
 const LEAVING_RVA: &std::ffi::CStr = c"Leaving main loop..."; // "Leaving main loop..."
@@ -77,6 +77,7 @@ impl Vars {
         vars[7] = crate::install::vars::INSTALLER_RUN.installing.as_ptr();
         vars[8] = crate::install::vars::INSTALLER_RUN.updating.as_ptr();
         vars[9] = crate::install::vars::INSTALLER_RUN.from_command.as_ptr();
+        vars[10] = crate::files::state::base_directory().cast();
         vars[11] = crate::net::store::NET.lobby_launched.as_ptr();
         Self(vars)
     }

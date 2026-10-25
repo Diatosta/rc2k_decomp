@@ -12,13 +12,11 @@
 //! Converted 2026-10-21: the rule through `rc2k_core::scene::pictures::changed_picture`.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, game_write, rva};
 use crate::scene::load_texture_picture::load_texture_picture_in_game;
+use crate::scene::texture_places_store::TEXTURE_PLACES;
 
 // ---- game data ----
 
-pub const WANTED_PICTURES_RVA: usize = rva(0x5D8968); // dword_5D8968
-pub const LOADED_PICTURES_RVA: usize = rva(0x5D9968); // dword_5D9968
 pub const TEXTURES: u32 = 0x400;
 
 // ---- Rust version ----
@@ -30,21 +28,19 @@ pub unsafe fn load_changed_texture_picture(
     texture: u32,
     load: &mut dyn FnMut(u32, u32) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
-    unsafe {
-        if texture >= TEXTURES {
-            return Err(BadInput("a texture past the pictures' tables").into());
-        }
-        let at = texture as usize * 4;
-        let Some(wanted) = rc2k_core::scene::pictures::changed_picture(
-            game_read(WANTED_PICTURES_RVA + at),
-            || game_read(LOADED_PICTURES_RVA + at),
-        ) else {
-            return Ok(());
-        };
-        load(wanted, texture)?;
-        game_write(LOADED_PICTURES_RVA + at, wanted);
-        Ok(())
+    if texture >= TEXTURES {
+        return Err(BadInput("a texture past the pictures' tables").into());
     }
+    let at = texture as usize;
+    let Some(wanted) = rc2k_core::scene::pictures::changed_picture(
+        TEXTURE_PLACES.wanted_pictures[at].get(),
+        || TEXTURE_PLACES.loaded_pictures[at].get(),
+    ) else {
+        return Ok(());
+    };
+    load(wanted, texture)?;
+    TEXTURE_PLACES.loaded_pictures[at].set(wanted);
+    Ok(())
 }
 
 pub unsafe fn load_changed_texture_picture_in_game(texture: u32) -> Result<(), Refused> {

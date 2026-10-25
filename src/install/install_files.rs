@@ -20,16 +20,14 @@
 
 use crate::errors::Refused;
 use crate::install::installer::{
-    MEDIA_MODE, append_byte, g, game_api, gb, lock, normalise, pump, rb, run_frame, rw, set_cd,
-    show, sleep, str_append, str_append_indexed, take_key, unlock, wb, wd,
+    append_byte, game_api, lock, normalise, pump, rb, run_frame, rw, set_cd, show, sleep,
+    str_append, str_append_indexed, take_key, unlock, wb, wd,
 };
 use crate::install::vars::INSTALLER_NAMES;
 use crate::install::vars::INSTALLER_PAGES;
 use crate::install::vars::INSTALLER_PATHS;
 use crate::install::vars::INSTALLER_RUN;
 use crate::session::FLAGS;
-
-const LOCALE: usize = 0x518AA8; // g_localeDirectory
 
 fn game_dir() -> u32 {
     INSTALLER_PATHS.game_dir.addr() as u32
@@ -103,7 +101,7 @@ pub fn install_files() -> Result<(), Refused> {
         .set(INSTALLER_RUN.file_count.get());
     let room = unsafe {
         (INSTALLER_NAMES.room_by_mode.addr() as u32 as *const u32)
-            .add(g(MEDIA_MODE) as usize)
+            .add(crate::install::installer::media_mode() as usize)
             .read_unaligned()
     };
     INSTALLER_RUN.room_needed.set(room);
@@ -183,7 +181,7 @@ pub fn install_files() -> Result<(), Refused> {
     if !i::write_record::write_record()? {
         return message(2, INSTALLER_PAGES.msg_error.addr() as u32, 0);
     }
-    if gb(LOCALE) != 0 {
+    if unsafe { crate::files::state::locale_directory().read_volatile() } != 0 {
         // readme.txt then manual.pdf
         for (full, base) in [
             (

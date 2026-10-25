@@ -7,6 +7,7 @@
 
 use crate::errors::Refused;
 use crate::framework::{game_addr, rva};
+use crate::gfx::choices_store::SCREEN_CHOICES;
 use crate::math::x87;
 use crate::physics::car_store::Car;
 use crate::race::blocks_store::CAR_BLOCKS;
@@ -260,7 +261,10 @@ pub const GRAHAM_TO_SHAUN: [Step<Place>; 446] = [
         var!(RACE_VARS.car_tyres[1]),
         Cell(&RACE_STATE.settings.cars[1].tyre),
     ),
-    Copy(var!(RACE_VARS.mip_setting), Addr(0x4F50D0)),
+    Copy(
+        var!(RACE_VARS.mip_setting),
+        var!(SCREEN_CHOICES.switch_copy),
+    ),
     Copy(
         var!(RACE_VARS.settings_words[0]),
         Cell(&RACE_STATE.settings.setting_0),

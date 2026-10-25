@@ -16,16 +16,11 @@
 //! the same value out sixteen times into `dword_75C060`).
 
 use crate::errors::Refused;
-use crate::framework::rva;
 use crate::hud::disc_vertex::disc_vertex;
 use crate::hud::store::HUD;
 use crate::math::x87;
 use crate::scene::x87_mem::{fistp, fld};
-use crate::store::game_read;
 use rc2k_core::hud::disc::SEGMENTS;
-
-const SINES_RVA: usize = rva(0xA23AE4); // g_sines
-const COSINES_RVA: usize = rva(0xA24AE4); // g_cosines
 
 /// `fld a; fchs; fmul b; fmul c; fistp`.
 fn negated_times_times_to_int(a: u32, b: u32, c: u32) -> u32 {
@@ -45,16 +40,20 @@ pub unsafe fn draw_disc() -> Result<(), Refused> {
             HUD.disc_turn_a.bits(),
             HUD.disc_turn_b.bits(),
         );
-        let table = |r: usize, a: u32| x87::loaded(game_read(r + 4 * a as usize));
+        let table = |cell: &crate::session::Float| x87::loaded(cell.bits());
         for (k, [a, b]) in ring_angles(t).into_iter().enumerate() {
             let n = k + 1;
-            HUD.ring_sines[n].set_bits(table(SINES_RVA, a));
-            HUD.ring_cosines[n].set_bits(table(COSINES_RVA, a));
-            HUD.texture_ring_sines[n].set_bits(table(SINES_RVA, b));
-            HUD.texture_ring_cosines[n].set_bits(table(COSINES_RVA, b));
+            HUD.ring_sines[n].set_bits(table(crate::scene::engine_tables_store::sine(a as usize)));
+            HUD.ring_cosines[n]
+                .set_bits(table(crate::scene::engine_tables_store::cosine(a as usize)));
+            HUD.texture_ring_sines[n]
+                .set_bits(table(crate::scene::engine_tables_store::sine(b as usize)));
+            HUD.texture_ring_cosines[n]
+                .set_bits(table(crate::scene::engine_tables_store::cosine(b as usize)));
         }
         HUD.scratch.set(t);
-        let base = crate::store::game_addr(crate::hud::batch::POLYGON_RVA) as u32;
+        let base = crate::d3d::vertices_store::piece_addr() as u32;
+
         for k in 0..SEGMENTS {
             for (n, e) in disc_triangle(k).into_iter().enumerate() {
                 disc_vertex(e, base + 0x20 * n as u32)?;

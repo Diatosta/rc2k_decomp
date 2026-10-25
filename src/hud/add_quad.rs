@@ -9,11 +9,11 @@
 //! Callers: `sub_4B716A`, `sub_4B7216`, `sub_4B70EE` (reached through code at 0x4B7163,
 //! 0x4B720F, 0x4B7266).
 
+use crate::d3d::vertices_store::VERTICES;
 use crate::errors::Refused;
-use crate::hud::batch::POLYGON_RVA;
+
 use crate::hud::store::HUD;
 use crate::scene::draw_store::DRAW;
-use crate::store::game_write;
 use rc2k_core::hud::quads;
 
 /// The Rust version (see the header). What the original leaves in the registers is read
@@ -25,10 +25,12 @@ pub unsafe fn add_quad() -> Result<(), Refused> {
         let (a, b) = (HUD.uv_scale_x.get(), HUD.uv_scale_y.get());
         let (vertices, _, _) = quads::quad_vertices(&q, a, b);
         for (n, v) in vertices.into_iter().enumerate() {
-            let at = POLYGON_RVA + 0x20 * n;
-            game_write(at, [v.x.to_bits(), v.y.to_bits()]);
-            game_write(at + 0x10, v.colour);
-            game_write(at + 0x18, [v.u.to_bits(), v.v.to_bits()]);
+            let at = &VERTICES.vertices[n];
+            at.x.set_bits(v.x.to_bits());
+            at.y.set_bits(v.y.to_bits());
+            at.colour.set(v.colour);
+            at.u.set_bits(v.u.to_bits());
+            at.v.set_bits(v.v.to_bits());
         }
         DRAW.polygon_vertex_count.set_bits(4u32);
         crate::hud::add_polygon::add_polygon()

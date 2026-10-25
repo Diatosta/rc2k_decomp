@@ -12,24 +12,19 @@
 //! registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{game_read, rva};
 use crate::gfx::choices_store::SCREEN_CHOICES;
 use crate::menu::disable_item::disable_item;
 use crate::menu::enable_item::enable_item;
 use crate::menu::option_work_store::OPTION_WORK;
 use crate::text::draw_text::Canvas;
 
-fn k(a: u32) -> u32 {
-    unsafe { game_read(rva(a as usize)) }
-}
-
 /// (the setting, its first string, its row) for the names; row 1 is the screen mode.
 type Name = (fn() -> u32, u32, i32);
 
 const NAMES: [Name; 8] = [
-    (|| k(0x4F50C4), 0x38F, 0),
-    (|| k(0x4F50CC), 0x391, 2),
-    (|| k(0x4F50D0), 0x56D, 3),
+    (|| SCREEN_CHOICES.switch_modes.get(), 0x38F, 0),
+    (|| SCREEN_CHOICES.switch_hud.get(), 0x391, 2),
+    (|| SCREEN_CHOICES.switch_copy.get(), 0x56D, 3),
     (|| OPTION_WORK.setting_0.get(), 0x56D, 4),
     (|| OPTION_WORK.setting_1.get(), 0x56D, 5),
     (|| OPTION_WORK.setting_2.get(), 0x396, 6),

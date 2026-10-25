@@ -22,17 +22,15 @@
 //! settings' +8), before anything.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::rva;
 use crate::marks::rain::{RAIN, RAIN_RULES, RainRules, RainState};
-use crate::marks::store::{game_read, game_write};
 use crate::marks::tuning::MARKS_KIND_FLOATS;
+use crate::marks::work_store::MARKS_WORK;
 use crate::math::{x87, x87_run};
 use crate::physics::tables_store::PHYSICS;
 use crate::scene::draw_store::DRAW;
-use crate::scene::vector3::STATUS_RVA;
 
 const MOST_DROPS: i32 = 0x100;
-const VERTICES_RVA: usize = rva(0x9605A0); // g_polygonVertices
+use crate::d3d::vertices_store::VERTICES;
 const ENTRIES: u32 = 5;
 /// The render states set (value, state).
 const STATES: [(u32, u32); 5] = [(4, 0x15), (5, 0x13), (6, 0x14), (0, 0x1C), (1, 0x1B)];
@@ -99,13 +97,13 @@ pub unsafe fn run_rain() -> Result<(), Refused> {
         crate::scene::clear_texture::clear_texture();
         let rhw = RAIN_RULES.rhw.get();
         for (n, colour) in COLOURS.into_iter().enumerate() {
-            let v = VERTICES_RVA + 0x20 * n;
+            let v = &VERTICES.vertices[n];
             DRAW.scratch.set_bits(rhw);
-            game_write(v + 0xC, x87::int_to_float(rhw as i32));
-            game_write(v + 0x10, colour);
-            for o in [0x14, 0x18, 0x1C] {
-                game_write(v + o, 0u32);
-            }
+            v.rhw.set_bits(x87::int_to_float(rhw as i32));
+            v.colour.set(colour);
+            v.specular.set(0);
+            v.u.set_bits(0);
+            v.v.set_bits(0);
         }
         DRAW.polygon_vertex_count.set_bits(4u32);
         if MARKS_KIND_FLOATS.running.bits() != 0 {
@@ -120,8 +118,8 @@ pub unsafe fn run_rain() -> Result<(), Refused> {
             r.motion[n].set_bits(r.moves[e][n].bits());
         }
         move_length();
-        let status = game_read::<u32>(STATUS_RVA) & 0x700;
-        game_write(STATUS_RVA, status);
+        let status = MARKS_WORK.fpu_status.get() & 0x700;
+        MARKS_WORK.fpu_status.set(status);
         if status != 0x100 {
             move_held();
         }

@@ -19,23 +19,16 @@ pub const DEVELOPER_KEYS: usize = 0x5C2CEB; // dword_5C2CEB
 pub const PICTURE_RATE: usize = 0x5C2CEF; // dword_5C2CEF: pictures a second, 1 .. 100
 pub const PICTURE_TIME: usize = 0x5C2CF3; // dword_5C2CF3: ms a picture
 pub const CAMERA_NAMES: usize = 0x5C291C; // word_5C291C: the cameras' text ids, 0x2F
-/// A variable of the image's zeroed tail (`race::store::buffers`).
-type Buffer = crate::race::store::buffers::Slot;
-
-pub const BLOCK_DATA: usize = 0x9613A4; // dword_9613A4: the block read, 0x2810 bytes
-pub const BLOCK_CURSOR: Buffer = Buffer::at(0x9613A0); // dword_9613A0
-pub const CAMERAS: usize = 0x963BB4; // unk_963BB4: 8 bytes a block
-pub const UNDO_BLOCKS: Buffer = Buffer::at(0x9673F4); // dword_9673F4: 0 = nothing to undo
-pub const UNDO_PLACES: usize = 0x9673F8; // dword_9673F8: 0x3840 bytes
-pub const UNDO_CAMERAS: usize = 0x96AC38; // unk_96AC38: 0x3840 bytes
 pub const TABLE_LEN: usize = 0x3840; // 0x708 blocks of 8 bytes
-pub const MARK_IN: usize = 0x96E478; // dword_96E478
-pub const MARK_OUT: usize = 0x96E47C; // dword_96E47C
-pub const CAMERA_EDIT: Buffer = Buffer::at(0x96E480); // dword_96E480: 0, or the camera (1, 2) edited
-pub const CLIP_BLOCKS: Buffer = Buffer::at(0x96E484); // dword_96E484: blocks on the clipboard
-pub const CLIP_PLACES: usize = 0x96E488; // unk_96E488
-pub const CLIP_CAMERAS: usize = 0x971CC8; // unk_971CC8
-pub const HEADER: usize = 0x528504; // dword_528504: the file's header, 0x430
+/// The byte `offset` on from the first block's cameras (8 bytes a block; the original does not
+/// check the offset).
+pub fn camera_byte_at(offset: usize) -> u8 {
+    let at = crate::race::viewer_buffers_store::VIEWER_BUFFERS
+        .block_cameras
+        .addr()
+        .wrapping_add(offset);
+    unsafe { (at as *const u8).read() }
+}
 
 // ---- the list menu (`menu::list_*`) ----
 

@@ -9,9 +9,10 @@
 //!
 //! Callers: `drive::tyre_screen` (two), `drive::tyre_screen_parts` (ten).
 
+use crate::d3d::vertices_store::VERTICES;
 use crate::drive::tyre_parts::*;
 use crate::errors::Refused;
-use crate::physics::flow::p;
+
 use rc2k_core::drive::tyre_screen::quad_corners;
 
 /// The Rust version: the texture rectangle at `uv` (eax), the screen rectangle at `rect`
@@ -21,8 +22,8 @@ pub unsafe fn tyre_quad(uv: u32, rect: u32, colour: u32) -> Result<(), Refused> 
     let at = |o: u32| unsafe { ((rect + o) as *const u32).read_unaligned() };
     let corners = quad_corners([at(0), at(4), at(8), at(0xC)]);
     for (k, [x, y]) in corners.into_iter().enumerate() {
-        p(VERTS + 0x20 * k, x.to_bits());
-        p(VERTS + 0x20 * k + 4, y.to_bits());
+        VERTICES.vertices[k].x.set_bits(x.to_bits());
+        VERTICES.vertices[k].y.set_bits(y.to_bits());
     }
     quad_words(colour);
     quad_tail(uv);

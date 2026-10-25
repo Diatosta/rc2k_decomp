@@ -3,23 +3,12 @@
 //! `DrawPrimitive`), and a quad over the view window.
 
 use crate::errors::Refused;
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::race::draw_batches_store::DRAW_BATCHES;
 use crate::race::numbers_store::NUMBERS;
 use crate::race::vars_store::RACE_VARS;
 use crate::scene::draw_store::DRAW;
 use crate::scene::kind_texture_store::KIND_TEXTURES;
-
-fn k(a: u32) -> u32 {
-    unsafe { game_read(rva(a as usize)) }
-}
-
-fn w(a: u32, v: u32) {
-    unsafe { game_write(rva(a as usize), v) }
-}
-
-fn ga(a: u32) -> u32 {
-    game_addr(rva(a as usize)) as u32
-}
+use crate::session::Dword;
 
 /// The render states both batches set: (value, state).
 const STATES: [(u32, u32); 5] = [(4, 0x15), (1, 0x1C), (5, 0x13), (2, 0x14), (1, 0x1B)];
@@ -27,36 +16,41 @@ const STATES: [(u32, u32); 5] = [(4, 0x15), (1, 0x1C), (5, 0x13), (2, 0x14), (1,
 /// A batch: its count, its first word (into eax for the draw), the vertices (ebx) and
 /// indices (ecx), where the count is kept, and the second render state's value (+0x14).
 pub struct Batch {
-    pub count: u32,
-    pub word: u32,
-    pub vertices: u32,
-    pub indices: u32,
-    pub kept: u32,
+    pub count: &'static Dword,
+    pub word: &'static Dword,
+    /// Where the vertices and indices are (the platform's draw takes their addresses).
+    pub vertices: usize,
+    pub indices: usize,
+    pub kept: &'static Dword,
     pub blend: u32,
     pub text: &'static std::ffi::CStr,
 }
 
 /// `race::flush_triangle_batch`'s (0x45FDCF).
-pub const PLAIN: Batch = Batch {
-    count: 0x6E44F4,
-    word: 0x6E44F8,
-    vertices: 0x6D94F4,
-    indices: 0x6E14F4,
-    kept: 0x6EF7C4,
-    blend: 2,
-    text: c"drawtri",
-};
+pub fn plain() -> Batch {
+    Batch {
+        count: &DRAW_BATCHES.plain_count,
+        word: &DRAW_BATCHES.plain_word,
+        vertices: DRAW_BATCHES.plain_vertices.addr(),
+        indices: DRAW_BATCHES.plain_indices.addr(),
+        kept: &DRAW_BATCHES.plain_kept,
+        blend: 2,
+        text: c"drawtri",
+    }
+}
 
 /// `race::flush_texture_batch`'s (0x45FEFE).
-pub const TEXTURED: Batch = Batch {
-    count: 0x6EF7BC,
-    word: 0x6EF7C0,
-    vertices: 0x6E44FC,
-    indices: 0x6EC6FC,
-    kept: 0x6EF7C8,
-    blend: 6,
-    text: c"drawtri",
-};
+pub fn textured() -> Batch {
+    Batch {
+        count: &DRAW_BATCHES.textured_count,
+        word: &DRAW_BATCHES.textured_word,
+        vertices: DRAW_BATCHES.textured_vertices.addr(),
+        indices: DRAW_BATCHES.textured_indices.addr(),
+        kept: &DRAW_BATCHES.textured_kept,
+        blend: 6,
+        text: c"drawtri",
+    }
+}
 
 /// `race::flush_triangle_batch` (0x45FDCF) / `race::flush_texture_batch` (0x45FEFE): the
 /// first sets texture `dword_5D1D04` (`scene::set_texture`); the render states
@@ -75,23 +69,27 @@ pub unsafe fn flush_batch(b: &Batch, textured: bool) -> Result<(), Refused> {
         for (value, state) in STATES {
             set_render_state(if state == 0x14 { b.blend } else { value }, state);
         }
-        let count = k(b.count);
-        w(b.kept, count);
+        let count = b.count.get();
+        b.kept.set(count);
         if count != 0 {
             if textured {
                 // Inside `pusha`: the look-up, then its texture set.
                 crate::scene::look_up_texture::look_up_texture();
                 set_texture(DRAW.polygon_texture.get());
             }
-            let result =
-                crate::platform_3d::draw_indexed(ga(b.vertices), k(b.word), ga(b.indices), count);
+            let result = crate::platform_3d::draw_indexed(
+                b.vertices as u32,
+                b.word.get(),
+                b.indices as u32,
+                count,
+            );
             if result != 0 {
                 crate::logfile::log_write::log_write(b.text.as_ptr().cast(), false, 1);
                 crate::logfile::log_hex8::log_hex8(result, false, 1);
             }
         }
-        w(b.count, 0);
-        w(b.word, 0);
+        b.count.set(0);
+        b.word.set(0);
         Ok(())
     }
 }
@@ -126,34 +124,32 @@ pub unsafe fn draw_view_backdrop() {
     let top = DRAW.view_offset[1].get();
     RACE_VARS.quad_corners[4].set(top);
     RACE_VARS.quad_corners[5].set(top.wrapping_add(DRAW.view_size[1].get()));
-    let v = |o: u32| 0x9605A0 + o;
+    let v = &crate::d3d::vertices_store::VERTICES.vertices;
     let x0 = int_and_one(RACE_VARS.quad_corners[0].get(), false);
-    w(v(0), x0);
-    w(v(0x60), x0);
+    v[0].x.set_bits(x0);
+    v[3].x.set_bits(x0);
     let x1 = int_and_one(RACE_VARS.quad_corners[1].get(), true);
-    w(v(0x20), x1);
-    w(v(0x40), x1);
+    v[1].x.set_bits(x1);
+    v[2].x.set_bits(x1);
     let y0 = int_and_one(RACE_VARS.quad_corners[4].get(), false);
-    w(v(4), y0);
-    w(v(0x24), y0);
+    v[0].y.set_bits(y0);
+    v[1].y.set_bits(y0);
     let y1 = int_and_one(RACE_VARS.quad_corners[5].get(), true);
-    w(v(0x44), y1);
-    w(v(0x64), y1);
+    v[2].y.set_bits(y1);
+    v[3].y.set_bits(y1);
     let (a, b) = (NUMBERS.k256.bits(), NUMBERS.k65536.bits());
-    for n in 0..4 {
-        w(
-            v(0x18 + 0x20 * n),
-            int_over_two(RACE_VARS.quad_uv[0].get(), a, b),
-        );
+    for vertex in &v[..4] {
+        vertex
+            .u
+            .set_bits(int_over_two(RACE_VARS.quad_uv[0].get(), a, b));
     }
-    for n in 0..4 {
-        w(
-            v(0x1C + 0x20 * n),
-            int_over_two(RACE_VARS.quad_uv[4].get(), a, b),
-        );
+    for vertex in &v[..4] {
+        vertex
+            .v
+            .set_bits(int_over_two(RACE_VARS.quad_uv[4].get(), a, b));
     }
-    for n in 0..4 {
-        w(v(0x10 + 0x20 * n), 0xFF00_0000);
+    for vertex in &v[..4] {
+        vertex.colour.set(0xFF00_0000);
     }
     DRAW.polygon_vertex_count.set(4);
     crate::scene::glow_render_states::glow_render_states();

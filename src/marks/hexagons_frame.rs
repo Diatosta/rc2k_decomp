@@ -17,17 +17,15 @@
 //! of a kind past 7.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::rva;
 use crate::gfx::hexagon_batch::HEXAGON_BATCH;
 use crate::marks::edges::EDGE_MASK;
 use crate::marks::expire_hexagons::{ITEM_LEN, ITEMS};
 use crate::marks::hexagon_state::{HEXAGON_STATE, HEXAGON_WORK};
 use crate::marks::hexagon_vars::HEX;
-use crate::marks::store::game_write;
 use crate::marks::tilt_shape::SHAPE_TILT;
 use crate::marks::tuning::MARKS_KIND_FLOATS;
+use crate::marks::work_store::MARKS_WORK;
 use crate::math::x87;
-const CELL_X_RVA: usize = rva(0x71C880); // dword_71C880
 /// `unk_628A44`, past the 0x40 records of 0xC0 bytes.
 const BUFFER_BYTES: usize = 0x3000;
 const KINDS: u32 = 8;
@@ -121,7 +119,7 @@ pub unsafe fn hexagons_frame() -> Result<(), Refused> {
                 .set(HEXAGON_STATE.live.get().wrapping_add(1));
             if MARKS_KIND_FLOATS.running.bits() != 0 {
                 let x = x87::to_int(get(e + 0x14));
-                game_write(CELL_X_RVA, x);
+                MARKS_WORK.scratch.set(x as u32);
                 drift_cell(4 * (((x as u32) >> 3) & 0xFF));
                 drift_move(4 * get(e + 4), e);
             }

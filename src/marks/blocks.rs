@@ -3,9 +3,8 @@
 //! scaled, and the eight settings blocks reset.
 
 use crate::errors::Refused;
-use crate::framework::rva;
 use crate::marks::frame_state::DRAW_WORK;
-use crate::marks::store::{game_addr, game_write};
+use crate::marks::store::game_addr;
 use crate::math::x87;
 use crate::memory::MemoryList;
 use crate::session::write_bits;
@@ -16,8 +15,7 @@ pub const RING_LEN: u32 = 0x4C000;
 pub const RING_ENTRY: u32 = rc2k_core::marks::rings::RING_ENTRY;
 pub const LINKS_LEN: u32 = 0x71020;
 pub const CORNERS: u32 = 0x100;
-/// Where the corners' eight values are made (two dwords each at +0, +0x20, +0x40, +0x60).
-pub const CORNER_WORK_RVA: usize = rva(0x9605B8);
+
 pub const SETTINGS_BLOCKS: u32 = 8;
 pub const SETTINGS_BLOCK: u32 = 0x4C8;
 
@@ -98,7 +96,7 @@ const CORNER_PAIRS: [u32; 4] = [0, 4, 0xC, 8];
 /// of the record's 0x24 at `g_marksCornerSlopes`; +0 there the slope: |+0xA - +2| over
 /// |+4 - +0| (sixteen-bit differences; `dword_8EB8B5`, `dword_8EB8B9`).
 pub unsafe fn scale_corners() {
-    unsafe {
+    {
         let scale: u32 = DRAW_WORK.uv_k.bits();
         for n in (0..CORNERS).rev() {
             let record = &MARK_CORNERS.corners[n as usize];
@@ -108,7 +106,12 @@ pub unsafe fn scale_corners() {
                 for h in 0..2 {
                     let v = x87::int_times(word(o + 2 * h as u32) as i32, scale);
                     values[2 * k + h] = v;
-                    game_write(CORNER_WORK_RVA + 0x20 * k + 4 * h, v);
+                    let vertex = &crate::d3d::vertices_store::VERTICES.vertices[k];
+                    if h == 0 {
+                        vertex.u.set_bits(v);
+                    } else {
+                        vertex.v.set_bits(v);
+                    }
                 }
             }
             let side = |a: u32, b: u32| {

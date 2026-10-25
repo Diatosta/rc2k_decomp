@@ -23,10 +23,6 @@ use crate::scene::x87_mem::{fild, fstp80};
 use crate::session::Dword;
 use rc2k_core::physics::sound_places::{PLAY, PLAYING, Slot};
 
-pub fn g(x: impl crate::store::At) -> u32 {
-    unsafe { crate::store::at_read(x) }
-}
-
 pub unsafe fn put(a: u32, v: u32) {
     unsafe { (a as *mut u32).write_unaligned(v) }
 }

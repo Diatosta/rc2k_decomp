@@ -9,7 +9,6 @@ use crate::marks::mask_picks::PICKS;
 use crate::marks::mask_vars::MASKS;
 use crate::marks::masks::{POINTS_A, POINTS_B, PointList};
 use crate::marks::shape_work::{MarkShapes, SHAPE_WORK};
-use crate::marks::store::game_read;
 use crate::marks::tilt_shape::SHAPE_TILT;
 use crate::math::x87;
 use crate::race::course_lists_store::COURSE_LISTS;
@@ -242,29 +241,28 @@ const SETS_HELD: u32 = 33;
 /// What `make_shape_set` refuses for object `object`: a set count past 0x22 (or below 0),
 /// an object past 0xFF or its faces past `g_faces`, a tilt `fsincos` cannot take.
 unsafe fn shape_set_checks(object: u32) -> Result<(), Refused> {
-    use crate::scene::objects::{FACE_COUNTS_RVA, FACES, FIRST_FACE_RVA};
-    unsafe {
-        let made = SHAPE_WORK.sets_made.get();
-        if made > SETS {
-            return Err(BadInput("more than 0x22 shape sets").into());
-        }
-        if made == SETS {
-            return Ok(());
-        }
-        if object >= 0x100 {
-            return Err(BadInput("an object past 0xFF").into());
-        }
-        let first: u32 = game_read(FIRST_FACE_RVA + 4 * object as usize);
-        let faces: u32 = game_read(FACE_COUNTS_RVA + 4 * object as usize);
-        if (faces as i32) < 0 || first.checked_add(faces).is_none_or(|end| end > FACES) {
-            return Err(BadInput("an object's faces past g_faces").into());
-        }
-        let steps: [u32; 2] = read_bits(&SHAPE_INPUTS.tilts);
-        for t in steps {
-            let mut a = extended(t);
-            a[9] ^= 0x80;
-            turnable(&a)?;
-        }
+    use crate::scene::object_slots_store::OBJECT_SLOTS;
+    use crate::scene::objects::FACES;
+    let made = SHAPE_WORK.sets_made.get();
+    if made > SETS {
+        return Err(BadInput("more than 0x22 shape sets").into());
+    }
+    if made == SETS {
+        return Ok(());
+    }
+    if object >= 0x100 {
+        return Err(BadInput("an object past 0xFF").into());
+    }
+    let first: u32 = OBJECT_SLOTS.first_face[object as usize].get();
+    let faces: u32 = OBJECT_SLOTS.face_counts[object as usize].get();
+    if (faces as i32) < 0 || first.checked_add(faces).is_none_or(|end| end > FACES) {
+        return Err(BadInput("an object's faces past g_faces").into());
+    }
+    let steps: [u32; 2] = read_bits(&SHAPE_INPUTS.tilts);
+    for t in steps {
+        let mut a = extended(t);
+        a[9] ^= 0x80;
+        turnable(&a)?;
     }
     Ok(())
 }
@@ -280,9 +278,7 @@ unsafe fn shape_set_checks(object: u32) -> Result<(), Refused> {
 /// 0xFF or faces past `g_faces`, a tilt `fsincos` cannot take, before writing.
 pub unsafe fn make_shape_set(object: u32) -> Result<(), Refused> {
     use crate::marks::masks::collect_points;
-    use crate::scene::objects::{
-        FACE_COUNTS_RVA, FACES_RVA, FIRST_FACE_RVA, FIRST_POINT_RVA as OBJECT_FIRST_POINT_RVA,
-    };
+    use crate::scene::object_slots_store::OBJECT_SLOTS;
     unsafe {
         shape_set_checks(object)?;
         let made: u32 = SHAPE_WORK.sets_made.get();
@@ -320,14 +316,14 @@ pub unsafe fn make_shape_set(object: u32) -> Result<(), Refused> {
             list.count.set(0);
         }
         let object = object as usize;
-        let first: u32 = game_read(FIRST_FACE_RVA + 4 * object);
+        let first: u32 = OBJECT_SLOTS.first_face[object].get();
         SHAPE_WORK
             .first_point
-            .set(game_read::<u32>(OBJECT_FIRST_POINT_RVA + 4 * object));
-        let faces: u32 = game_read(FACE_COUNTS_RVA + 4 * object);
+            .set(OBJECT_SLOTS.first_point[object].get());
+        let faces: u32 = OBJECT_SLOTS.face_counts[object].get();
         let kinds: [u32; 2] = read_bits(&SHAPE_SET_TUNING.face_kinds);
         for f in first..first + faces {
-            let face: u32 = game_read(FACES_RVA + 4 * f as usize);
+            let face: u32 = crate::scene::objects::face_cell(f as usize).get();
             let kind = *((face + 7) as *const u8);
             if kind == kinds[0] as u8 {
                 collect_points(&POINTS_A, face)?;

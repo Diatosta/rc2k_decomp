@@ -5,15 +5,13 @@
 //! all of it.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::rva;
 use crate::marks::mask_constants::MASK_CONSTANTS;
 use crate::marks::mask_vars::MASKS;
-use crate::marks::store::game_write;
+use crate::marks::work_store::MARKS_WORK;
 use crate::math::x87;
 use crate::session::{read_bits, write_bits};
 
 /// The edge pair `span_edges` works from (`MASKS.edge`): y0, y1, the left and right x at y0, at y1.
-const SCRATCH_RVA: usize = rva(0x71C880); // dword_71C880
 /// The control words (`MASKS.control_word`, `MASKS.status_word`): the one the triangle came
 /// with, then its own (later the compares' status words).
 const WORK_LEN: u32 = 0x80000;
@@ -85,7 +83,7 @@ pub unsafe fn span_edges(to: u32) -> Result<u32, Refused> {
         loop {
             let r = x87::to_int(row);
             let end = x87::to_int(y1);
-            game_write(SCRATCH_RVA, end as u32);
+            MARKS_WORK.scratch.set(end as u32);
             row = x87::add(row, ones[2]);
             if r >= end {
                 break;
@@ -211,7 +209,7 @@ pub unsafe fn span_triangle(at: u32) -> Result<(), Refused> {
         let count = (to - cursor) >> 3;
         // Through `dword_71C880`, as the original's `fistp`.
         let first = x87::to_int(y0) as u32;
-        game_write(SCRATCH_RVA, first);
+        MARKS_WORK.scratch.set(first);
         put(runs + 4, first);
         put(runs + 8, count);
         MASKS

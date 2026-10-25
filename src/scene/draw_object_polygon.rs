@@ -19,16 +19,12 @@
 //! `rc2k_core::scene::polygons` (compares of stored floats: exact).
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, game_write, rva};
 use crate::physics::ground_store::GROUND_WORK;
 use crate::race::numbers_store::NUMBERS;
-use crate::scene::clip::POOL_RVA;
 use crate::scene::draw_store::DRAW;
-use crate::scene::polygon::{ENTRIES_RVA, ENTRY_LEN, LIST_RVA, dword};
+use crate::scene::polygon::{ENTRY_LEN, dword};
 
 // ---- game data ----
-
-const KEPT_RVA: usize = rva(0x976610); // unk_976610
 
 // ---- Rust version ----
 
@@ -51,7 +47,7 @@ unsafe fn needs_clipping(count: u32) -> Result<bool, BadInput> {
             bottom: DRAW.clip_screen[1].get(),
         };
         rc2k_core::scene::polygons::needs_clipping(count, &edges, |n| {
-            let record = dword(game_addr(ENTRIES_RVA) + n * ENTRY_LEN + 4) as usize;
+            let record = dword(crate::scene::polygon::entries_addr() + n * ENTRY_LEN + 4) as usize;
             if record == 0 {
                 return Err(BadInput("an entry without its record"));
             }
@@ -76,9 +72,9 @@ pub unsafe fn draw_object_polygon(
             return Err(BadInput("a polygon of no vertices, or of more than 64").into());
         }
         DRAW.polygon_next_record
-            .set_bits(game_addr(POOL_RVA) as u32);
+            .set_bits(crate::scene::polygon::pool_addr() as u32);
         for (n, number) in first_list(count).into_iter().enumerate() {
-            game_write(LIST_RVA + n * 4, number);
+            crate::scene::polygon::list_cell(n).set(number);
         }
         DRAW.polygon_next_entry.set_bits(count);
         step(Step::Project)?;
@@ -91,8 +87,8 @@ pub unsafe fn draw_object_polygon(
         GROUND_WORK
             .split_polygon_count
             .set_bits(GROUND_WORK.split_polygon_count.bits().wrapping_add(1));
-        let entries = game_addr(ENTRIES_RVA);
-        let kept = game_addr(KEPT_RVA);
+        let entries = crate::scene::polygon::entries_addr();
+        let kept = crate::scene::polygon::entries_addr() + 64 * ENTRY_LEN;
         std::ptr::copy(
             entries as *const u8,
             kept as *mut u8,

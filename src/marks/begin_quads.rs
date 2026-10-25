@@ -11,20 +11,19 @@
 //!
 //! Caller: `sub_4C3EEE`.
 
-use crate::framework::rva;
+use crate::d3d::vertices_store::VERTICES;
 use crate::marks::frame_state::{DRAW_FRAME, DRAW_WORK};
-use crate::marks::store::game_write;
 use crate::scene::draw_store::DRAW;
 use crate::scene::kind_texture_store::KIND_TEXTURES;
 use crate::session::read_bits;
-const VERTICES_RVA: usize = rva(0x9605A0); // g_polygonVertices: 0x20 bytes each
+
 /// The render states set (value, state).
 const STATES: [(u32, u32); 5] = [(4, 0x15), (5, 0x13), (6, 0x14), (0, 0x1C), (1, 0x1B)];
 
 /// The Rust version (see the header): `scene::set_texture`, `scene::depth_buffer_on`,
 /// `scene::depth_test_off`, the render states (`scene::set_render_state`).
 pub unsafe fn begin_quads() {
-    unsafe {
+    {
         crate::scene::set_texture::set_texture(KIND_TEXTURES.kind_first_slots[202].bits());
         crate::scene::depth_buffer_on::depth_buffer(true);
         crate::scene::depth_test_off::depth_test_off();
@@ -35,12 +34,12 @@ pub unsafe fn begin_quads() {
         let [a, b, c, d]: [u32; 4] = read_bits(&DRAW_FRAME.places);
         let uv = [(a, b), (c, b), (c, d), (a, d)];
         for (k, (u, v)) in uv.into_iter().enumerate() {
-            let at = VERTICES_RVA + 0x20 * k;
-            game_write(at + 0xC, colour);
-            game_write(at + 0x10, 0xFFFF_FFFFu32);
-            game_write(at + 0x14, 0u32);
-            game_write(at + 0x18, u);
-            game_write(at + 0x1C, v);
+            let at = &VERTICES.vertices[k];
+            at.rhw.set_bits(colour);
+            at.colour.set(0xFFFF_FFFF);
+            at.specular.set(0);
+            at.u.set_bits(u);
+            at.v.set_bits(v);
         }
         DRAW.polygon_vertex_count.set_bits(4u32);
         DRAW_WORK

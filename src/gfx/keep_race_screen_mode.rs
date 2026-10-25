@@ -11,19 +11,16 @@
 
 use crate::errors::Refused;
 use crate::framework::Flags;
-use crate::race::viewer::put;
-
-pub const RACE_MODE: usize = 0x4F4948; // g_raceScreenMode
-pub const MENU_MODE: usize = 0x4F4944; // g_menuScreenMode
+use crate::gfx::screen_state::SCREEN_MODE;
 
 /// The Rust version on the race's mode `mode`: the flags it leaves (`try_screen_mode`'s).
 pub fn keep_race_screen_mode(mode: u32) -> Result<Flags, Refused> {
-    put(RACE_MODE, mode);
+    SCREEN_MODE.race_mode.set(mode);
     // Converted: `rc2k_core::gfx::screen_modes::menu_mode_for`.
     let menu = rc2k_core::gfx::screen_modes::menu_mode_for(mode);
     let flags = crate::gfx::try_screen_mode::try_screen_mode(menu)?;
     if !flags.carry {
-        put(MENU_MODE, menu);
+        SCREEN_MODE.menu_mode.set(menu);
     }
     Ok(flags)
 }

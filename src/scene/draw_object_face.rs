@@ -32,7 +32,6 @@
 //! through 2^32) or of more than 64, and when there are no records.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::game_addr;
 use crate::physics::camera_store::CAMERA_WORK;
 use crate::physics::ground_store::GROUND_WORK;
 use crate::race::course_lists_store::COURSE_LISTS;
@@ -50,7 +49,7 @@ use crate::scene::draw_store::DRAW;
 use crate::scene::light_store::LIGHT_STATE;
 use crate::scene::light_work_store::LIGHT_WORK;
 use crate::scene::object_store::OBJECT_WORK;
-use crate::scene::polygon::{ENTRIES_RVA, ENTRY_LEN, dword, put};
+use crate::scene::polygon::{ENTRY_LEN, dword, put};
 use crate::scene::project_polygon::project_polygon;
 use crate::scene::vertex_light::vertex_light;
 
@@ -84,7 +83,7 @@ pub unsafe fn draw_object_face(
         if count == 0 || count > MOST || records == 0 {
             return Err(BadInput("a face of no vertices or more than 64, or no records").into());
         }
-        let entries = game_addr(ENTRIES_RVA);
+        let entries = crate::scene::polygon::entries_addr();
         let vertices =
             (0..count as usize).map(|n| (entries + n * ENTRY_LEN, face + 0x10 + n * 0x10));
         let view_kind: u32 = LIGHT_STATE.view_kind.bits();

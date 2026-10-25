@@ -19,7 +19,6 @@
 //! without its block).
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, game_read, rva};
 use crate::race::course_store::COURSE;
 use crate::race::numbers_store::NUMBERS;
 use crate::race::prefs_store::STAGE_PREFS;
@@ -28,6 +27,7 @@ use crate::race::work_store::RACE_WORK;
 use crate::scene::light_store::LIGHT_STATE;
 use crate::scene::light_work_store::LIGHT_WORK;
 use crate::scene::object_store::OBJECT_WORK;
+use crate::scene::object_tables_store::OBJECT_TABLES;
 
 fn get(a: u32) -> u32 {
     unsafe { (a as *const u32).read_unaligned() }
@@ -138,8 +138,9 @@ pub unsafe fn draw_described_object(d: u32) -> Result<(), Refused> {
         crate::race::frame_draw::place_object_matrix();
         LIGHT_WORK.light_kind.set(2u32);
         let object: u32 = FRAME_SWITCHES.object_number.bits();
-        let kind: u32 = game_read(rva(0x5CD27C) + 4 * object as usize);
-        let record = (game_addr(rva(0x97DF30)) as u32).wrapping_add(kind.wrapping_mul(0x80));
+        let kind: u32 = OBJECT_TABLES.object_kind(object);
+        let record =
+            (crate::scene::polygon::materials_addr() as u32).wrapping_add(kind.wrapping_mul(0x80));
         if ((record + 0x1F) as *const u8).read() != 0 {
             LIGHT_WORK.light_kind.set(1u32);
         }

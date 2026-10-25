@@ -5,7 +5,6 @@
 //! second's flags and object). Here its leaves.
 
 use crate::errors::Refused;
-use crate::framework::{game_addr, game_write, rva};
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::course_lists_store::COURSE_LISTS;
 use crate::race::course_store::COURSE;
@@ -20,10 +19,6 @@ use crate::scene::draw_store::DRAW;
 use crate::scene::light_store::LIGHT_STATE;
 use crate::scene::light_work_store::LIGHT_WORK;
 use crate::session::{Dword, Float};
-
-fn g(a: u32) -> u32 {
-    game_addr(rva(a as usize)) as u32
-}
 
 unsafe fn get(a: u32) -> u32 {
     unsafe { (a as *const u32).read_unaligned() }
@@ -355,7 +350,9 @@ pub unsafe fn face_texture_coordinates(set: &TextureSet) {
     use rc2k_core::race::faces::{TextureInfo, texture_coordinates};
     unsafe {
         let texture: u32 = set.texture.get();
-        let info = g(0x979F30).wrapping_add(texture << 6);
+        let info = (crate::scene::polygon_store::POLYGON_WORK.texture_infos[0].words[0].addr()
+            as u32)
+            .wrapping_add(texture << 6);
         let texture_info = TextureInfo {
             size: get(info + 0x20),
             mapping: ((info + 0x2D) as *const i8).read(),
@@ -410,11 +407,13 @@ pub unsafe fn face_corners_to_new_points() -> Result<(), Refused> {
     }
 }
 
-const ENTRIES: u32 = 0x975510; // g_polygonEntries: 0x44 bytes each
 const ENTRY_SIZE: u32 = 0x44;
 
 fn entry(slot: u32) -> u32 {
-    g(ENTRIES + ENTRY_SIZE * slot)
+    (crate::scene::polygon_store::POLYGON_WORK.entries[0]
+        .point
+        .addr() as u32)
+        .wrapping_add(ENTRY_SIZE * slot)
 }
 
 /// One polygon entry filled from one of the face's corners: +0 its point, +8 / +0xC the
@@ -444,12 +443,20 @@ unsafe fn lamp_byte(slot: u32) -> u8 {
 /// `g_polygonList` 0 .. count - 1 and a closing 0, `g_polygonVertexCount` count,
 /// `g_polygonNextEntry` `next`.
 unsafe fn plain_list(count: u32, next: u32) {
-    unsafe {
+    {
         DRAW.polygon_vertex_count.set(count);
         for k in 0..count {
-            game_write(rva(0x977710) + 4 * k as usize, k);
+            crate::race::checkpoints_store::nth(
+                &crate::scene::polygon_store::POLYGON_WORK.list[0],
+                k as usize,
+            )
+            .set(k);
         }
-        game_write(rva(0x977710) + 4 * count as usize, 0u32);
+        crate::race::checkpoints_store::nth(
+            &crate::scene::polygon_store::POLYGON_WORK.list[0],
+            count as usize,
+        )
+        .set(0);
         DRAW.polygon_next_entry.set(next);
     }
 }
@@ -564,7 +571,9 @@ pub unsafe fn draw_face() -> Result<(), Refused> {
     unsafe {
         let second: u32 = RACE_VIEW.texture_b.get();
         let picked = || {
-            let record = g(0x979F30).wrapping_add(second << 6);
+            let record =
+                (crate::scene::polygon_store::POLYGON_WORK.texture_infos[0].words[0].addr() as u32)
+                    .wrapping_add(second << 6);
             let pick = ((record + 0x2C) as *const u8).read() as usize;
             // dword_63D9D0: indexed by a byte (not bounded by the field's 4 dwords), so
             // read by address.
@@ -655,7 +664,8 @@ pub unsafe fn draw_lit_triangle() -> Result<(), Refused> {
         crate::race::frame_draw::points_there()?;
         crate::race::frame_draw::check_light_colour()?;
         DRAW.polygon_drawn.set(0u32);
-        DRAW.polygon_next_record.set(g(0x977F10));
+        DRAW.polygon_next_record
+            .set(crate::scene::polygon_store::POLYGON_WORK.record_pool[0].addr() as u32);
         plain_list(DRAW.polygon_vertex_count.bits(), 6);
         crate::scene::project_polygon::project_polygon()?;
         if DRAW.polygon_outside_count.get() == DRAW.polygon_vertex_count.get() {
@@ -699,9 +709,13 @@ pub unsafe fn draw_lit_triangle() -> Result<(), Refused> {
         }
         for list in [[0u32, 3, 5], [1, 4, 3], [2, 5, 4], [3, 4, 5]] {
             for (k, n) in list.iter().enumerate() {
-                game_write(rva(0x977710) + 4 * k, *n);
+                crate::race::checkpoints_store::nth(
+                    &crate::scene::polygon_store::POLYGON_WORK.list[0],
+                    k,
+                )
+                .set(*n);
             }
-            game_write(rva(0x977710) + 12, list[0]);
+            crate::scene::polygon_store::POLYGON_WORK.list[3].set(list[0]);
             DRAW.polygon_vertex_count.set(3u32);
             DRAW.polygon_next_entry.set(6u32);
             clip_and_draw_face()?;
@@ -709,8 +723,6 @@ pub unsafe fn draw_lit_triangle() -> Result<(), Refused> {
         Ok(())
     }
 }
-
-const LIGHT_TABLE: u32 = 0x635118; // g_lightTable: 256 colours
 
 /// `race::face_colours` (0x452887): the corners' colours from `g_lightTable` by the face's
 /// bytes +0x14 .. +0x17, with flag 4 of +2 plus `dword_635518[+0x28 ..]` and
@@ -722,13 +734,19 @@ pub unsafe fn face_colours(face: u32) -> Result<(), Refused> {
     unsafe {
         let byte = |o: u32| ((face + o) as *const u8).read() as u32;
         for k in 0..4 {
-            let c = get(g(LIGHT_TABLE) + 4 * byte(0x14 + k));
+            let c = crate::scene::light_tables_store::LIGHT_TABLES.light_table
+                [byte(0x14 + k) as usize]
+                .get();
             RACE_VIEW.corner_colours[k as usize].set(c);
             let lit = ((face + 2) as *const u16).read_unaligned() & EXTRA_LIGHTS != 0;
             if lit {
                 let extra = || {
-                    let a = get(g(0x635518) + 4 * byte(0x28 + k));
-                    let b = get(g(0x635918) + 4 * byte(0x2C + k));
+                    let a = crate::scene::light_tables_store::LIGHT_TABLES.lamp_table_a
+                        [byte(0x28 + k) as usize]
+                        .get();
+                    let b = crate::scene::light_tables_store::LIGHT_TABLES.lamp_table_b
+                        [byte(0x2C + k) as usize]
+                        .get();
                     (a, b)
                 };
                 let c = corner_colour(c, lit, extra, crate::race::frame_draw::has_mmx());
@@ -779,7 +797,10 @@ pub unsafe fn draw_back_face(face: u32) -> Result<(), Refused> {
         let byte = |o: u32| ((face + o) as *const u8).read() as u32;
         turn_over();
         for k in 0..4 {
-            RACE_VIEW.corner_colours[k as usize].set(get(g(LIGHT_TABLE) + 4 * byte(0x28 + k)));
+            RACE_VIEW.corner_colours[k as usize].set(
+                crate::scene::light_tables_store::LIGHT_TABLES.light_table[byte(0x28 + k) as usize]
+                    .get(),
+            );
         }
         for k in 0..4 {
             RACE_VIEW.corner_alphas[k as usize].set(byte(0x2C + k));
@@ -888,6 +909,7 @@ pub unsafe fn draw_tinted_face(face: u32) -> Result<(), Refused> {
 #[cfg(test)]
 mod asm_reference {
     use super::*;
+    use crate::framework::{game_write, rva};
     use crate::race::asm_test::{Rng, Saved, at_each_control_word, lock, same};
 
     // The original functions, verbatim.

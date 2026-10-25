@@ -12,7 +12,8 @@
 
 use crate::errors::BadInput;
 use crate::scene::kind_texture_store::KIND_TEXTURES;
-use crate::scene::textures::{SLOTS, WANTED_RVA, cells_mut, slice};
+use crate::scene::texture_places_store::TEXTURE_PLACES;
+use crate::scene::textures::cells_mut;
 
 // ---- Rust version ----
 
@@ -24,7 +25,7 @@ pub unsafe fn assign_kind_textures() -> Result<(), BadInput> {
         rc2k_core::scene::textures::assign_kind_textures(
             cells_mut(&KIND_TEXTURES.kind_first_slots),
             cells_mut(&KIND_TEXTURES.kind_first_textures),
-            slice(WANTED_RVA, SLOTS),
+            cells_mut(&TEXTURE_PLACES.slot_wanted),
         )?;
         Ok(())
     }

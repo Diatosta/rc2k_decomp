@@ -3,7 +3,6 @@
 //! lists below), "skidmarks init", "render3d loadlightsdat" and "getmatcrash".
 
 use crate::errors::Refused;
-use crate::framework::{game_addr, game_write, rva};
 use crate::physics::camera_store::CAMERA_WORK;
 use crate::physics::car_store::CAR;
 use crate::race::matrices_store::MATRICES;
@@ -15,12 +14,11 @@ use crate::scene::object_store::OBJECT_WORK;
 // The stage's localdat is `STAGE_PREFS.prefs_head` (0x608CB4).
 pub const PREFS_LEN: u32 = 0x206C;
 /// `files\levels\levelxx\localdat`, `srclvls\levelxx\localdat` (the xx the course's).
-const PREFS_PATHS: [usize; 2] = [rva(0x60B05C), rva(0x60B043)];
-const SKID_MARKS_RVA: usize = rva(0x643AE8); // word_643AE8: 0x400 of 8 bytes
-const SKID_COUNT_RVA: usize = rva(0x645B10); // dword_645B10
-pub const LIGHTS_RVA: usize = rva(0x6077E8); // the lights' data, 0x1320 bytes
+fn prefs_paths() -> [usize; 2] {
+    let p = &crate::race::level_paths_store::LEVEL_PATHS;
+    [p.localdat_files.addr(), p.localdat_src.addr()]
+}
 pub const LIGHTS_LEN: u32 = 0x1320;
-pub const LIGHT_RECORDS_RVA: usize = rva(0x5C906C); // 0x22 records of 0x134
 pub const LIGHT_RECORDS: u32 = rc2k_core::race::stage_objects::LIGHT_RECORDS as u32;
 
 /// `g_textureKinds`.
@@ -84,8 +82,8 @@ unsafe fn read(path: usize, buffer: usize, count: u32) -> Result<(), Refused> {
 /// `swap_stage_texture`, `tweak_stage`, `clear_prefs_qword`.
 pub unsafe fn load_prefs() -> Result<(), Refused> {
     unsafe {
-        for path in PREFS_PATHS {
-            read(game_addr(path), STAGE_PREFS.prefs_head[0].addr(), PREFS_LEN)?;
+        for path in prefs_paths() {
+            read(path, STAGE_PREFS.prefs_head[0].addr(), PREFS_LEN)?;
         }
         swap_stage_texture();
         tweak_stage();
@@ -107,11 +105,15 @@ pub unsafe fn init_skidmarks() {
         for n in 0..2 {
             reset_skid_slots(crate::race::blocks_store::block_addr(n) as u32);
         }
-        let marks = game_addr(SKID_MARKS_RVA) as *mut [u32; 2];
+        let marks = crate::race::shadow_skids_store::SHADOW_SKIDS
+            .skid_links
+            .addr() as *mut [u32; 2];
         for n in 0..0x400 {
             (marks.add(n) as *mut u32).write_unaligned(u32::MAX);
         }
-        game_write(SKID_COUNT_RVA, 0u32);
+        crate::race::shadow_skids_store::SHADOW_SKIDS
+            .skid_next
+            .set(0);
     }
 }
 
@@ -120,7 +122,10 @@ pub unsafe fn init_skidmarks() {
 pub unsafe fn copy_lights_data() {
     // Converted: `rc2k_core::race::stage_objects::lay_lights`.
     use rc2k_core::race::stage_objects::{LIGHT_RECORD, lay_lights};
-    let (data, records) = (game_addr(LIGHTS_RVA), game_addr(LIGHT_RECORDS_RVA));
+    let (data, records) = (
+        crate::race::lights_store::LIGHTS_DATA.lights.addr(),
+        crate::race::light_records_store::LIGHT_RECORDS.record_addr(0) as usize,
+    );
     unsafe {
         lay_lights(
             std::slice::from_raw_parts(data as *const u8, LIGHTS_LEN as usize),
@@ -138,7 +143,7 @@ pub unsafe fn load_lights_data() -> Result<(), Refused> {
     unsafe {
         read(
             CAMERA_WORK.lights_path[0].addr(), // "files\s\data\ldata"
-            game_addr(LIGHTS_RVA),
+            crate::race::lights_store::LIGHTS_DATA.lights.addr(),
             LIGHTS_LEN,
         )?;
         copy_lights_data();

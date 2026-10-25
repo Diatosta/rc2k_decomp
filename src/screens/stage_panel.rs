@@ -4,7 +4,6 @@
 //! and which best-time table the record rows use.
 
 use crate::errors::{FatalError, Refused};
-use crate::framework::{game_ptr, rva};
 use crate::gfx::blit_marker_pair::{marker_calls, set_marker_position, sprite_table};
 use crate::menu::champ_store::CHAMP_VIEW;
 use crate::menu::loop_store::LOOP_FLAGS;
@@ -22,8 +21,6 @@ use std::ptr::copy_nonoverlapping;
 // dword_7559EC: a work variable used all over the game
 // mmss: receives the finish time
 // dword_75ACD0[1]: copy of entry +0x34
-pub const SECOND_HEADING_RVA: usize = rva(0xA8BD54); // byte_A8BD54: the 0x482 heading text
-
 pub const BEST_TIME_ENTRY_SIZE: u32 = 0x618;
 const SECOND_HEADING_STRING: u32 = 0x482;
 
@@ -58,7 +55,9 @@ pub unsafe fn build_second_heading(record: u32) -> Result<(), FatalError> {
         let bytes = heading_text(record as *const u8, SECOND_HEADING_STRING)?;
         copy_nonoverlapping(
             bytes.as_ptr(),
-            game_ptr::<u8>(SECOND_HEADING_RVA),
+            crate::screens::text_buffers_store::TEXT_BUFFERS
+                .stage_heading
+                .as_ptr(),
             bytes.len(),
         );
     }

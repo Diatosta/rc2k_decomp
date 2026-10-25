@@ -20,6 +20,7 @@ pub mod set_texture;
 pub mod texture_lock;
 pub mod texture_surface_info;
 pub mod unlock_texture;
+pub mod vertices_store;
 
 /// A vertex as the game hands it over: x, y, z, 1/w (floats), colour, specular, u, v
 /// (floats), as their bits.

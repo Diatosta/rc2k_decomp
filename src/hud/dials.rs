@@ -4,10 +4,9 @@
 //! the copies by `push` / `pop`, so no register changes before the call. The layouts are
 //! the HUD's three (the record's +0xF4, `sub_4B1CD0`).
 
-use crate::framework::rva;
 use crate::hud::store::{HUD, Hud};
+use crate::race::panel_store::PANEL;
 use crate::session::Cell32;
-use crate::store::game_read;
 
 /// Where a copy reads.
 #[derive(Clone, Copy)]
@@ -26,13 +25,11 @@ pub struct Setup {
     pub copies: &'static [(From, Cell, bool)],
 }
 
-const FLAT_RVA: usize = rva(0x6D1502); // dword_6D1502
-
 /// The Rust version of a set-up's copies (see the header); its caller then draws the
 /// shape (`hud::draw_disc` or `hud::draw_needle`).
 pub unsafe fn set_up(record: u32, s: &Setup) {
     unsafe {
-        let flat = game_read::<u32>(FLAT_RVA) == 0;
+        let flat = PANEL.flat.get() == 0;
         for &(from, to, only_flat) in s.copies {
             if only_flat && !flat {
                 continue;

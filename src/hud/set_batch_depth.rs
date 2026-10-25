@@ -6,21 +6,21 @@
 //!
 //! Caller: `sub_4B1CD0` (the HUD's start).
 
-use crate::hud::batch::POLYGON_RVA;
+use crate::d3d::vertices_store::VERTICES;
+
 use crate::hud::store::HUD;
 use crate::math::x87;
-use crate::store::game_write;
 
 /// The Rust version (see the header).
 pub unsafe fn set_batch_depth() {
-    unsafe {
+    {
         let rhw = x87::loaded(HUD.rhw.bits());
         let depth = x87::loaded(HUD.depth.bits());
         for n in 0..4 {
-            let v = POLYGON_RVA + 0x20 * n;
-            game_write(v + 0xC, rhw);
-            game_write(v + 0x14, 0u32);
-            game_write(v + 8, depth);
+            let v = &VERTICES.vertices[n];
+            v.rhw.set_bits(rhw);
+            v.specular.set(0);
+            v.z.set_bits(depth);
         }
     }
 }

@@ -5,7 +5,6 @@
 //! cameras and the surface shares. Here the small steps.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::math::x87;
 use crate::race::course_store::COURSE;
 use crate::race::numbers_store::NUMBERS;
@@ -16,8 +15,6 @@ use crate::scene::draw_store::DRAW;
 use crate::scene::light_store::LIGHT_STATE;
 use crate::session::Dword;
 
-pub const CHECK_FACES_RVA: usize = rva(0x9E3738); // g_checkpointFaces
-pub const CHECKS_RVA: usize = rva(0x9E87A0); // g_checkCounts
 /// The entries `g_checkpointFaces` and the lists after it have room for.
 pub const MOST_CHECKS: u32 = rc2k_core::race::checkpoints::MOST_CHECKS;
 
@@ -27,8 +24,8 @@ unsafe fn get(at: u32) -> u32 {
 
 /// Checkpoint n's face.
 unsafe fn check_face(n: u32) -> u32 {
-    unsafe {
-        let face: u32 = game_read(CHECK_FACES_RVA + 4 * n as usize);
+    {
+        let face: u32 = crate::race::checkpoints_store::face(n as usize).get();
         (face << 6).wrapping_add(COURSE.course_faces.bits())
     }
 }
@@ -103,18 +100,16 @@ pub unsafe fn count_checks() -> Result<(), Refused> {
             *((check_face(k) + 0x26) as *const u8)
         });
         for (k, &c) in counts.iter().enumerate() {
-            game_write(CHECKS_RVA + 4 * k, c);
+            crate::race::checkpoints_store::nth(
+                &crate::race::checkpoints_store::CHECKPOINTS.check_counts[0],
+                k,
+            )
+            .set(c);
         }
     }
     Ok(())
 }
 
-pub const ANGLES_RVA: usize = rva(0x9ED800); // g_checkpointAngles (from +4: one a link)
-pub const DISTANCES_RVA: usize = rva(0x9F78D8); // g_checkpointDistances
-pub const LINE_LENGTH_RVA: usize = rva(0xA10AE0); // g_lineLength
-pub const TEXTURE_INFOS_RVA: usize = rva(0x979F30); // g_textureInfos, 0x40 each
-pub const MAP_X_RVA: usize = rva(0x9FC940); // g_mapX
-pub const MAP_Y_RVA: usize = rva(0xA019A8); // g_mapY
 const MOST_FACES: u32 = 0x10_0000;
 
 /// A replay camera's set: the face kind, the list (0x400) of such faces, its count, and
@@ -122,40 +117,42 @@ const MOST_FACES: u32 = 0x10_0000;
 #[derive(Clone, Copy)]
 pub struct Cameras {
     pub kind: u8,
-    pub list: usize,
+    pub list: fn() -> &'static Dword,
     pub count: fn() -> &'static Dword,
-    pub nearest: usize,
+    pub nearest: fn() -> &'static Dword,
 }
 
 /// `sub_445BB2` ("replaycam1") and `sub_445CF1` ("replaycam2").
-pub const CAMERAS: [Cameras; 2] = [
-    Cameras {
-        kind: 0x3C,
-        list: rva(0xA10AE4),
-        count: || &RACE_VARS.replay_camera_counts[0],
-        nearest: rva(0xA06A10),
-    },
-    Cameras {
-        kind: 0x38,
-        list: rva(0xA11AE4),
-        count: || &RACE_VARS.replay_camera_counts[1],
-        nearest: rva(0xA0BA78),
-    },
-];
+pub fn cameras() -> [Cameras; 2] {
+    [
+        Cameras {
+            kind: 0x3C,
+            list: || &crate::race::checkpoints_store::CHECKPOINTS.replay_cameras_1[0],
+            count: || &RACE_VARS.replay_camera_counts[0],
+            nearest: || &crate::race::checkpoints_store::CHECKPOINTS.nearest_camera_1[0],
+        },
+        Cameras {
+            kind: 0x38,
+            list: || &crate::race::checkpoints_store::CHECKPOINTS.replay_cameras_2[0],
+            count: || &RACE_VARS.replay_camera_counts[1],
+            nearest: || &crate::race::checkpoints_store::CHECKPOINTS.nearest_camera_2[0],
+        },
+    ]
+}
 
 unsafe fn put(at: u32, value: u32) {
     unsafe { (at as *mut u32).write_unaligned(value) };
 }
 
-unsafe fn at_n(table: usize, n: u32) -> u32 {
-    game_addr(table) as u32 + 4 * n
+unsafe fn at_n(table: &Dword, n: u32) -> u32 {
+    table.addr() as u32 + 4 * n
 }
 
-unsafe fn read_n(table: usize, n: u32) -> u32 {
+unsafe fn read_n(table: &Dword, n: u32) -> u32 {
     unsafe { get(at_n(table, n)) }
 }
 
-unsafe fn write_n(table: usize, n: u32, value: u32) {
+unsafe fn write_n(table: &Dword, n: u32, value: u32) {
     unsafe { put(at_n(table, n), value) };
 }
 
@@ -210,7 +207,11 @@ pub unsafe fn sort_checkpoints() -> Result<(), Refused> {
             if *(f as *const u8) == 0xFF
                 && *((f + 1) as *const u8) == RACE_VARS.line_face_kind.bits() as u8
             {
-                write_n(CHECK_FACES_RVA, list.len() as u32, b);
+                write_n(
+                    &crate::race::checkpoints_store::CHECKPOINTS.checkpoint_faces[0],
+                    list.len() as u32,
+                    b,
+                );
                 list.push(b);
             }
         }
@@ -225,7 +226,11 @@ pub unsafe fn sort_checkpoints() -> Result<(), Refused> {
             |f| get(face(f) + 0xC),
         );
         for (k, &f) in list.iter().enumerate() {
-            write_n(CHECK_FACES_RVA, k as u32, f);
+            write_n(
+                &crate::race::checkpoints_store::CHECKPOINTS.checkpoint_faces[0],
+                k as u32,
+                f,
+            );
         }
         RACE_VARS.checkpoint_count.set_bits(c.length);
         RACE_VARS.line_face_total.set_bits(c.length);
@@ -254,10 +259,14 @@ pub unsafe fn checkpoint_angles() -> Result<(), Refused> {
                 DRAW.scratch.set_bits(dz as u32);
                 x87::angle_scaled3_to_int(dx, dz, half, scale, scale) as u32
             },
-            || read_n(ANGLES_RVA, 2),
+            || read_n(&crate::race::checkpoints_store::CHECKPOINTS.angles[0], 2),
         );
         for (k, angle) in writes {
-            write_n(ANGLES_RVA, k, angle);
+            write_n(
+                &crate::race::checkpoints_store::CHECKPOINTS.angles[0],
+                k,
+                angle,
+            );
         }
     }
     Ok(())
@@ -294,10 +303,20 @@ pub unsafe fn checkpoint_distances() -> Result<(), Refused> {
             length
         });
         for (k, &sum) in sums[..last as usize].iter().enumerate() {
-            write_n(DISTANCES_RVA, k as u32, sum);
+            write_n(
+                &crate::race::checkpoints_store::CHECKPOINTS.distances[0],
+                k as u32,
+                sum,
+            );
         }
-        write_n(DISTANCES_RVA, last, sums[last as usize]);
-        game_write(LINE_LENGTH_RVA, sums[last as usize]);
+        write_n(
+            &crate::race::checkpoints_store::CHECKPOINTS.distances[0],
+            last,
+            sums[last as usize],
+        );
+        crate::race::checkpoints_store::CHECKPOINTS
+            .line_length
+            .set(sums[last as usize]);
     }
     Ok(())
 }
@@ -319,7 +338,7 @@ pub unsafe fn replay_cameras(set: &Cameras) -> Result<(), Refused> {
             *(f as *const u8) == 0xFF && *((f + 1) as *const u8) == set.kind
         });
         for (e, &f) in cameras.iter().enumerate() {
-            write_n(set.list, e as u32, f);
+            write_n((set.list)(), e as u32, f);
         }
         let m = cameras.len() as u32;
         (set.count)().set(m);
@@ -331,14 +350,14 @@ pub unsafe fn replay_cameras(set: &Cameras) -> Result<(), Refused> {
             let from = [get(p), get(p + 8)];
             crate::session::write_bits(&RACE_VARS.line_from, from);
             let nearest = rc2k_core::race::best_line::nearest_camera(m, |e| {
-                let (_, q) = point_of(face(read_n(set.list, e)));
+                let (_, q) = point_of(face(read_n((set.list)(), e)));
                 let dz = get(q + 8).wrapping_sub(from[1]);
                 let d = x87::int_hypot(get(q).wrapping_sub(from[0]) as i32, dz as i32) as u32;
                 DRAW.scratch.set_bits(d);
                 d
             });
             crate::session::write_bits(&RACE_VARS.line_nearest, [nearest.0, nearest.1]);
-            write_n(set.nearest, c, nearest.1);
+            write_n((set.nearest)(), c, nearest.1);
         }
     }
     Ok(())
@@ -358,7 +377,7 @@ pub unsafe fn surface_shares() -> Result<(), Refused> {
     unsafe {
         std::ptr::write_bytes(RACE_VARS.surface_shares[0].addr() as *mut u8, 0, 0x40);
         let faces: u32 = COURSE.course_face_count.bits();
-        let infos = game_addr(TEXTURE_INFOS_RVA) as u32;
+        let infos = crate::scene::polygon::texture_infos_addr() as u32;
         let byte = |at: u32| *(at as *const u8) as u32;
         let four = |info: u32| {
             for k in 0..4 {
@@ -474,8 +493,16 @@ pub unsafe fn map_segment() -> Result<(), Refused> {
             let z = x87::int_times_to_int(z as i32, scale);
             DRAW.scratch.set_bits(z as u32);
             let [x, _, z, _] = turn_point_xz(x, number as i32, z, map_angle);
-            write_n(MAP_X_RVA, e, x.wrapping_add(place_a[0]));
-            write_n(MAP_Y_RVA, e, z.wrapping_add(place_a[1]).wrapping_neg());
+            write_n(
+                &crate::race::checkpoints_store::CHECKPOINTS.map_x[0],
+                e,
+                x.wrapping_add(place_a[0]),
+            );
+            write_n(
+                &crate::race::checkpoints_store::CHECKPOINTS.map_y[0],
+                e,
+                z.wrapping_add(place_a[1]).wrapping_neg(),
+            );
             e += 1;
             if e > b {
                 break;
@@ -556,8 +583,8 @@ pub unsafe fn build_best_line() -> Result<(), Refused> {
                     3 => {} // `nullsub_7`
                     4 => checkpoint_distances()?,
                     5 => map_checkpoints()?,
-                    6 => replay_cameras(&CAMERAS[0])?,
-                    _ => replay_cameras(&CAMERAS[1])?,
+                    6 => replay_cameras(&cameras()[0])?,
+                    _ => replay_cameras(&cameras()[1])?,
                 }
             }
             surface_shares()?;

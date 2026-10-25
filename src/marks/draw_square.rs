@@ -15,13 +15,11 @@
 //! Caller: `sub_4BFFEC` (0x4C00FE). The x87 runs are plain Rust on the x87 model (`math::x87_float`), in the original's order, over the
 //! game's variables.
 
-use crate::framework::rva;
 use crate::marks::squares_store::SQUARE_STATE;
-use crate::marks::store::{game_addr, game_write};
 use crate::marks::tuning::{MARKS_KIND_FLOATS, MarksKindFloats};
 use crate::session::read_bits;
 
-const VERTICES_RVA: usize = rva(0x9605A0); // g_polygonVertices
+use crate::d3d::vertices_store::VERTICES;
 const FAR_ENOUGH: i32 = 0x4580_0000; // 4096.0
 
 /// The original's 0x4BF845 .. 0x4BF88D: the item's texture shift added to the places.
@@ -49,11 +47,11 @@ unsafe fn projected(p: u32) {
 /// The Rust version (see the header): `item` (esi), `colour` (edx).
 pub unsafe fn draw_square(item: u32, colour: u32, shares: [[u8; 10]; 2]) {
     unsafe {
-        let vertices = game_addr(VERTICES_RVA) as u32;
+        let vertices = crate::d3d::vertices_store::piece_addr() as u32;
         let [a, pb, c, d]: [u32; 4] = read_bits(&SQUARE_STATE.places);
         for (n, (u, v)) in [(a, pb), (c, pb), (c, d), (a, d)].into_iter().enumerate() {
-            game_write(VERTICES_RVA + 0x20 * n + 0x18, u);
-            game_write(VERTICES_RVA + 0x20 * n + 0x1C, v);
+            VERTICES.vertices[n].u.set_bits(u);
+            VERTICES.vertices[n].v.set_bits(v);
         }
         shifted_places(item, vertices);
         corners(&shares);
@@ -62,7 +60,7 @@ pub unsafe fn draw_square(item: u32, colour: u32, shares: [[u8; 10]; 2]) {
         }
         projected(vertices);
         for n in 0..4 {
-            game_write(VERTICES_RVA + 0x20 * n + 0x10, colour);
+            VERTICES.vertices[n].colour.set(colour);
         }
         crate::marks::clip_quad::draw_fan();
     }

@@ -22,21 +22,19 @@
 //! enough textures" and fatal error 0x80600403. One caller, `scene::set_up_textures`.
 
 use crate::errors::{FatalError, Refused};
-use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::logfile::log_int::log_int;
 use crate::logfile::log_write::log_write;
 use crate::scene::count_texture_needs::count_texture_needs_in_game;
 use crate::scene::raise_texture_needs::raise_texture_needs;
+use crate::scene::texture_places_store::TEXTURE_PLACES;
 use crate::scene::texture_steps::{DONE, FAILED, STEPS};
 use crate::scene::try_allocate_textures::try_allocate_textures_in_game;
 use std::ffi::CStr;
 
 // ---- game data ----
 
-const COUNTERS_RVA: usize = rva(0x5DC97C); // dword_5DC97C, 0x100 dwords
-const COUNTERS_LEN: usize = 0x100 * 4;
-/// `dword_5DCD7C` .. `dword_5DCD98`: which of the eight cars keep their size.
-const FLAGS_RVA: usize = rva(0x5DCD7C);
+/// `TEXTURE_PLACES.counters` (`dword_5DC97C`, 0x100 dwords) and `step_flags` (`dword_5DCD7C`
+/// .. `dword_5DCD98`: which of the eight cars keep their size).
 const NOT_ENOUGH: FatalError = FatalError {
     code: 0x8060_0403,
     message: "",
@@ -55,7 +53,7 @@ pub enum Step {
     Try,
     Release,
     CountNeeds,
-    /// The steps, unless the flag is set.
+    /// The steps, unless the flag (an index into `step_flags`) is set.
     Unless(usize, &'static [Step]),
 }
 
@@ -91,10 +89,11 @@ unsafe fn run(
             Step::Raise { level, tag } => {
                 call(Call::Raise { level, tag })?;
             }
-            Step::Count(index) => unsafe {
-                let at = COUNTERS_RVA + index as usize * 4;
-                game_write(at, game_read::<u32>(at).wrapping_add(1));
-            },
+            Step::Count(index) => {
+                let counter =
+                    crate::scene::texture_places_store::cell_at(&TEXTURE_PLACES.counters[0], index);
+                counter.set(counter.get().wrapping_add(1));
+            }
             Step::Try => {
                 if call(Call::Try)? {
                     return Ok(true);
@@ -107,7 +106,7 @@ unsafe fn run(
                 call(Call::CountNeeds)?;
             }
             Step::Unless(flag, inner) => {
-                if unsafe { game_read::<u32>(flag) } == 0 && unsafe { run(inner, call) }? {
+                if TEXTURE_PLACES.step_flags[flag].get() == 0 && unsafe { run(inner, call) }? {
                     return Ok(true);
                 }
             }
@@ -122,8 +121,12 @@ pub unsafe fn build_texture_catalogue(
     unsafe {
         // The original does this after the first two log lines and the count, which
         // touch neither.
-        std::ptr::write_bytes(game_addr(COUNTERS_RVA) as *mut u8, 0, COUNTERS_LEN);
-        game_write(FLAGS_RVA, [1u32, 0, 0, 0, 0, 0, 0, 0]);
+        for counter in &TEXTURE_PLACES.counters {
+            counter.set(0);
+        }
+        for (n, flag) in TEXTURE_PLACES.step_flags.iter().enumerate() {
+            flag.set((n == 0) as u32);
+        }
         if run(&STEPS, call)? {
             run(&DONE, call)?;
             return Ok(());

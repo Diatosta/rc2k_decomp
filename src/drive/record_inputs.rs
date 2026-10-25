@@ -9,7 +9,7 @@
 //!
 //! Caller: `drive::record_inputs_if`.
 
-use crate::physics::flow::g;
+use crate::drive::replay_frames_store::REPLAY_FRAMES;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::replay_work_store::REPLAY_WORK;
 use crate::race::work_store::RACE_WORK;
@@ -29,7 +29,7 @@ pub unsafe fn record_inputs() {
         PHYSICS.input_words[3].get(),
     );
     let packed = crate::drive::pack_inputs::pack_inputs(eax, ecx, edx);
-    let esi = tape_offset(g(0x6EF7DC), car);
+    let esi = tape_offset(REPLAY_FRAMES.tenth.get(), car);
     let at = |o: u32| {
         (REPLAY_WORK.replay_tape[0].addr() as u32)
             .wrapping_add(esi)

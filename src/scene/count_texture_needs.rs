@@ -12,29 +12,33 @@
 //! `sub_42274B`. Refuses a level past the sizes' table.
 
 use crate::errors::BadInput;
-use crate::framework::{game_read, game_write, rva};
 use crate::logfile::log_int::log_int;
 use crate::logfile::log_write::log_write;
-use crate::scene::texture_needs::{LEVEL_SIZES_RVA, SYSTEM_LEVELS_RVA, TEXTURES, VIDEO_LEVELS_RVA};
+use crate::scene::object_tables_store::OBJECT_TABLES;
+use crate::scene::texture_places_store::TEXTURE_PLACES;
 
 // ---- game data ----
 
-/// `dword_5DC968` video k, `dword_5DC96C` system k, `dword_5DC970` video textures,
-/// `dword_5DC974` system textures.
-const TOTALS_RVA: usize = rva(0x5DC968);
+// `TEXTURE_PLACES.totals`: `dword_5DC968` video k, `dword_5DC96C` system k, `dword_5DC970`
+// video textures, `dword_5DC974` system textures.
 
 // ---- Rust version ----
 
 /// The four totals. Reads only.
 unsafe fn totals() -> Result<[u32; 4], BadInput> {
     // Converted: `rc2k_core::scene::textures::count_needs`.
-    use crate::scene::textures::slice;
-    let n = TEXTURES as u32;
+    use crate::scene::textures::cells_mut;
     let (totals, _) = unsafe {
         rc2k_core::scene::textures::count_needs(
-            slice(SYSTEM_LEVELS_RVA, n),
-            slice(VIDEO_LEVELS_RVA, n),
-            |level| game_read(LEVEL_SIZES_RVA + level * 4),
+            cells_mut(&OBJECT_TABLES.system_levels),
+            cells_mut(&OBJECT_TABLES.video_levels),
+            |level| {
+                crate::scene::texture_places_store::cell_at(
+                    &OBJECT_TABLES.level_sizes[0],
+                    level as u32,
+                )
+                .get()
+            },
         )
     }?;
     Ok(totals.to_array())
@@ -46,7 +50,9 @@ pub unsafe fn count_texture_needs(
 ) -> Result<(), BadInput> {
     unsafe {
         let totals = totals()?;
-        game_write(TOTALS_RVA, totals);
+        for (cell, total) in TEXTURE_PLACES.totals.iter().zip(totals) {
+            cell.set(total);
+        }
         log(Ok(c"VID"), false);
         log(Err(totals[0]), false);
         log(Ok(c"k in"), false);

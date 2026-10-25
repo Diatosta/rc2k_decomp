@@ -8,7 +8,6 @@
 //! `rc2k_core::screens::best_scores` draws through `game_screen::GameScreen`.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, rva};
 use crate::menu::arcade_store::ARCADE_GAME;
 use crate::menu::champ_store::CHAMP_VIEW;
 use crate::menu::event_store::EVENT_STATE;
@@ -20,8 +19,6 @@ use crate::text::draw_text::Canvas;
 use rc2k_core::screens::best_scores::{Row, Rows};
 
 const PAGE: &Dword = &MENU_PAGES.scores_page; // dword_755240
-pub const CAPTION_RVA: usize = rva(0xA8BE54); // g_captionText
-
 /// A table's layout: where it is, its group and entry sizes, and the entry's name, value
 /// and car offsets (the nationality is +8).
 pub struct Table {
@@ -170,7 +167,13 @@ pub unsafe fn best_scores_caption() -> Result<(), Refused> {
     unsafe {
         let id = ((MENU_LISTS.page_titles_a[0].addr() as u32 + 4 * PAGE.get()) as *const u32)
             .read_unaligned();
-        crate::screens::car_caption::put_string(id, CAPTION_RVA, 0x100)
+        crate::screens::car_caption::put_string(
+            id,
+            crate::screens::text_buffers_store::TEXT_BUFFERS
+                .caption
+                .addr(),
+            0x100,
+        )
     }
 }
 
@@ -183,7 +186,9 @@ pub unsafe fn replay_range_caption() {
     unsafe {
         std::ptr::copy_nonoverlapping(
             bytes.as_ptr(),
-            game_addr(CAPTION_RVA) as *mut u8,
+            crate::screens::text_buffers_store::TEXT_BUFFERS
+                .caption
+                .addr() as *mut u8,
             bytes.len(),
         )
     };

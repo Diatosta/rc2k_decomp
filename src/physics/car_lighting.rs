@@ -21,7 +21,6 @@
 //! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, game_read, rva};
 use crate::physics::car_store::CAR;
 use crate::physics::ground_store::GROUND_WORK;
 use crate::race::course_store::COURSE;
@@ -29,10 +28,6 @@ use crate::race::vars_store::RACE_VARS;
 use crate::scene::light_work_store::LIGHT_WORK;
 use crate::session::MACHINE;
 use rc2k_core::physics::lighting;
-
-fn g(x: usize) -> u32 {
-    unsafe { game_read(rva(x)) }
-}
 
 unsafe fn byte(a: u32) -> u32 {
     unsafe { (a as *const u8).read() as u32 }
@@ -77,7 +72,8 @@ pub fn car_lighting() -> Result<(), Refused> {
         for k in 0..4u32 {
             COURSE.face_light_bytes[k as usize].set(byte(f + 0x14 + k));
         }
-        let material = (game_addr(rva(0x979F30)) as u32).wrapping_add(byte(f + 0x21) << 6);
+        let material =
+            (crate::scene::polygon::texture_infos_addr() as u32).wrapping_add(byte(f + 0x21) << 6);
         if byte(material + 0x2C) == 1 {
             for k in 0..4u32 {
                 let at = &COURSE.face_light_bytes[k as usize];
@@ -99,15 +95,24 @@ pub fn car_lighting() -> Result<(), Refused> {
         if light >= lighting::TABLE {
             return Err(BadInput("a light index past 0xFF").into());
         }
-        let colour = g(0x635118 + 4 * light as usize);
+        let colour =
+            crate::scene::light_tables_store::LIGHT_TABLES.light_table[light as usize].get();
         LIGHT_WORK.car_light_colour.set(colour);
         CAR.light_colour.set(colour);
         if byte(f + 2) & 4 == 0 {
             return Ok(());
         }
         for (first, table, to) in [
-            (0x28u32, 0x635518usize, &LIGHT_WORK.lamp_a_colour),
-            (0x2C, 0x635918, &LIGHT_WORK.lamp_b_colour),
+            (
+                0x28u32,
+                &crate::scene::light_tables_store::LIGHT_TABLES.lamp_table_a,
+                &LIGHT_WORK.lamp_a_colour,
+            ),
+            (
+                0x2C,
+                &crate::scene::light_tables_store::LIGHT_TABLES.lamp_table_b,
+                &LIGHT_WORK.lamp_b_colour,
+            ),
         ] {
             for k in 0..4u32 {
                 COURSE.face_light_bytes[k as usize].set(byte(f + first + k));
@@ -116,7 +121,7 @@ pub fn car_lighting() -> Result<(), Refused> {
             if i >= lighting::TABLE {
                 return Err(BadInput("a colour index past 0xFF").into());
             }
-            let colour = g(table + 4 * i as usize);
+            let colour = table[i as usize].get();
             to.set(colour);
             CAR.light_colour.set(lighting::add_colour(
                 colour,

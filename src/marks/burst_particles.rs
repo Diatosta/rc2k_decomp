@@ -15,29 +15,21 @@
 //! is to be taken), before anything.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::rva;
 use crate::marks::blocks::RING_POOL;
 use crate::marks::frame_state::DRAW_WORK;
 use crate::marks::run_particles::PARTICLE_TUNING;
-use crate::marks::setup::SEED_RVA;
-use crate::marks::store::{game_read, game_write};
+use crate::marks::work_store::MARKS_WORK;
 use crate::math::x87;
 
-const SINES_RVA: usize = rva(0xA23AE4); // g_sines (g_cosines 0x400 further)
-const COSINES_RVA: usize = rva(0xA24AE4); // g_cosines
 const ENTRIES: u32 = 0x100;
 const FULL: u32 = 0xFFF;
 const LIFE: u32 = 0xBB8;
 
 /// The marks' random: times 0x9D plus 0x47.
 unsafe fn next_seed() -> u32 {
-    unsafe {
-        let s = game_read::<u32>(SEED_RVA)
-            .wrapping_mul(0x9D)
-            .wrapping_add(0x47);
-        game_write(SEED_RVA, s);
-        s
-    }
+    let s = MARKS_WORK.seed.get().wrapping_mul(0x9D).wrapping_add(0x47);
+    MARKS_WORK.seed.set(s);
+    s
 }
 
 /// The entries the burst takes, from `g_marksRingFree` along +0.
@@ -82,8 +74,8 @@ pub unsafe fn burst_particles(record: u32) -> Result<(), Refused> {
         RING_POOL.burst_radius.set_bits(radius);
         RING_POOL.kind.set((s & 7) * 0x400);
         RING_POOL.nine.set((s.rotate_right(16) & 1) + 8);
-        let sine = |n: u32| game_read::<u32>(SINES_RVA + 4 * n as usize);
-        let cosine = |n: u32| game_read::<u32>(COSINES_RVA + 4 * n as usize);
+        let sine = |n: u32| crate::scene::engine_tables_store::sine(n as usize).bits();
+        let cosine = |n: u32| crate::scene::engine_tables_store::cosine(n as usize).bits();
         for _ in 0..ENTRIES {
             let used: u32 = RING_POOL.used.get();
             if used == FULL {

@@ -16,7 +16,6 @@
 //! caller, `sub_45045D`. Refuses a face's number past the table and a face that is not there.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, game_read, rva};
 use crate::physics::ground_store::GROUND_WORK;
 use crate::race::sound_spots_store::RACE_SOUND_SPOTS;
 use crate::race::vars_store::RACE_VARS;
@@ -27,9 +26,7 @@ use crate::scene::polygon::dword;
 
 // ---- game data ----
 
-pub const LIST_RVA: usize = rva(0x62DB5C); // dword_62DB5C
 const LIST_ENTRY_LEN: usize = 0x10;
-const FACES_RVA: usize = rva(0x9A3730); // dword_9A3730
 const FACES: u32 = 0xC000;
 
 // ---- Rust version ----
@@ -46,12 +43,13 @@ pub unsafe fn draw_object_faces(
         // Every face is looked up before anything is written.
         let mut faces = Vec::with_capacity(listed as usize);
         for n in 0..listed as usize {
-            let entry = game_addr(LIST_RVA) + n * LIST_ENTRY_LEN;
+            let entry = crate::scene::object_slots_store::OBJECT_SLOTS.listed_faces[0].addr()
+                + n * LIST_ENTRY_LEN;
             let number = dword(entry).wrapping_add(first);
             if number >= FACES {
                 return Err(BadInput("a face's number past the table").into());
             }
-            let face: u32 = game_read(FACES_RVA + number as usize * 4);
+            let face: u32 = crate::scene::objects::face_cell(number as usize).get();
             if face == 0 {
                 return Err(BadInput("a face that is not there").into());
             }

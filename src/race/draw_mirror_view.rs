@@ -10,7 +10,6 @@
 //! Out: nothing its one caller, `race::draw_race_scene`, reads
 
 use crate::errors::Refused;
-use crate::framework::{game_read, rva};
 use crate::race::level_grid_store::LEVEL_GRID;
 use crate::race::numbers_store::NUMBERS;
 use crate::race::prefs_store::STAGE_PREFS;
@@ -19,13 +18,10 @@ use crate::race::view_store::RACE_VIEW;
 use crate::race::view_vars_store::VIEW_VARS;
 use crate::race::work_store::RACE_WORK;
 
-const NO_PLACE_RVA: usize = rva(0x64BB18); // dword_64BB18
-
 /// The Rust version (see the header).
 pub unsafe fn draw_mirror_view() -> Result<(), Refused> {
     unsafe {
-        let g = |a: usize| game_read::<u32>(a);
-        if g(NO_PLACE_RVA) != 0
+        if crate::drive::finish_store::FINISH.no_place.get() != 0
             || RACE_WORK.in_credits.get() != 0
             || FRAME_SWITCHES.other_way.get() == 0
         {

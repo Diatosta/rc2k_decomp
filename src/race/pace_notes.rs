@@ -24,7 +24,7 @@
 //! here the game's stage it asks and the image's load and store.
 
 use crate::errors::Refused;
-use crate::framework::{game_addr, game_read, rva};
+use crate::framework::{game_addr, rva};
 use crate::physics::tables_store::PHYSICS;
 use crate::race::course_lists_store::COURSE_LISTS;
 use crate::race::course_store::COURSE;
@@ -32,10 +32,6 @@ use crate::race::vars_store::RACE_VARS;
 pub use rc2k_core::race::pace_notes::IMAGE_START;
 use rc2k_core::race::pace_notes::{IMAGE_LEN, Notes, Registers, Stage};
 
-const WORDS_RVA: usize = rva(0x614D38); // byte_614D38: the distance's word by tens (41)
-pub const CHECKPOINT_FACES_RVA: usize = rva(0x9E3738); // g_checkpointFaces
-pub const DISTANCES_RVA: usize = rva(0x9F78D8); // g_checkpointDistances
-pub const ANGLES_RVA: usize = rva(0x9ED808); // dword_9ED808: the checkpoints' angles
 const COURSE_MEMORY_LEN: u32 = 0x130_0000;
 
 /// Where the course is (`rc2k_core::race::pace_notes::Course`).
@@ -72,19 +68,21 @@ pub struct GameStage;
 
 impl Stage for GameStage {
     fn checkpoint_face(&self, k: u32) -> u32 {
-        unsafe { game_read(CHECKPOINT_FACES_RVA + 4 * k as usize) }
+        crate::race::checkpoints_store::face(k as usize).get()
     }
     fn distance(&self, k: u32) -> u32 {
-        unsafe { game_read(DISTANCES_RVA + 4 * k as usize) }
+        crate::race::checkpoints_store::distance(k as usize).get()
     }
     fn angle(&self, k: u32) -> u32 {
-        unsafe { game_read(ANGLES_RVA + 4 * k as usize) }
+        crate::race::checkpoints_store::angle(k as usize).get()
     }
     fn slot_offset(&self, slot: u32) -> u32 {
         PHYSICS.pace_slot_offsets[slot as usize].bits() // dword_614D14: each slot's byte in the face
     }
     fn word(&self, tens: u32) -> u8 {
-        unsafe { game_read(WORDS_RVA + tens as usize) }
+        crate::physics::pace_store::PACE
+            .distance_words
+            .get(tens as usize)
     }
     fn face_byte(&self, at: u32) -> u8 {
         unsafe { (at as *const u8).read() }

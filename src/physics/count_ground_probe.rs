@@ -14,15 +14,10 @@
 //! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{game_write, rva};
 use crate::physics::camera_store::CAMERA_WORK;
 use crate::physics::ground_store::GROUND_WORK;
 use crate::race::course_store::COURSE;
 use rc2k_core::physics::walls::ProbeCounts;
-
-fn p(x: usize, v: u32) {
-    unsafe { game_write(rva(x), v) }
-}
 
 /// The Rust version. The eax it leaves (`dword_5CCC78` when found) is read by none of its
 /// callers.
@@ -33,7 +28,9 @@ pub unsafe fn count_ground_probe() -> Result<(), Refused> {
         found: CAMERA_WORK.ground_found.get(),
         same: CAMERA_WORK.ground_same.get(),
     };
-    p(0x620470, 0x40);
+    crate::physics::ground_probe_store::GROUND_PROBE
+        .settle_mark
+        .set(0x40);
     counts.tried();
     CAMERA_WORK.ground_probes.set(counts.tries);
     unsafe { crate::physics::find_ground::find_ground() }?;

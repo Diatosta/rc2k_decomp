@@ -317,18 +317,6 @@ pub unsafe fn game_read<T: Copy>(place: impl Where) -> T {
     }
 }
 
-/// Writes a variable (`framework::game_write`, over the block or the image).
-pub unsafe fn game_write<T: Copy>(place: impl Where, value: T) {
-    let p = game_ptr::<T>(place);
-    unsafe {
-        if p.is_aligned() {
-            p.write_volatile(value)
-        } else {
-            p.write_unaligned(value)
-        }
-    }
-}
-
 /// The block's address for the x87 blocks (`mk`): `mk + offset` with `offset` IDA's
 /// address less `START` (0x764F40) is the variable.
 pub fn base() -> u32 {

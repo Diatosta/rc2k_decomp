@@ -6,6 +6,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_addr, rva};
+use crate::physics::split_tables_store::SPLIT_TABLES;
 use crate::race::course_lists_store::COURSE_LISTS;
 use crate::race::course_store::COURSE;
 use crate::race::level_grid_store::LEVEL_GRID;
@@ -32,20 +33,21 @@ pub struct Vars {
 
 impl Vars {
     pub fn game() -> Self {
-        let a = |v: usize| game_addr(rva(v)) as u32;
+        let _a = |v: usize| game_addr(rva(v)) as u32;
         Self {
             course_info: (COURSE_LISTS.course_info.addr() as u32),
             course_memory: (COURSE_LISTS.course_memory.addr() as u32),
             first_part: (COURSE_LISTS.first_part.addr() as u32),
             list_total: (COURSE_LISTS.course_bytes_total.addr() as u32),
             texture_kinds: (STAGE_PREFS.texture_kinds[0].addr() as u32),
-            texture_infos: a(0x979F30),
+            texture_infos: crate::scene::polygon::texture_infos_addr() as u32,
             checkpoint_kinds: (RACE_VARS.checkpoint_count.addr() as u32),
             checkpoint_count: (RACE_VARS.last_checkpoint.addr() as u32),
-            checkpoint_table: a(0x9E3738),
+            checkpoint_table: crate::race::checkpoints_store::CHECKPOINTS.checkpoint_faces[0].addr()
+                as u32,
             checkpoint_records: (COURSE.course_faces.addr() as u32),
-            checkpoints: a(0x60102C),
-            checkpoints_found: a(0x601830),
+            checkpoints: (SPLIT_TABLES.checkpoints[0].addr() as u32),
+            checkpoints_found: (SPLIT_TABLES.split_colour_count.addr() as u32),
             refresh: [
                 (LEVEL_GRID.grid_x.addr() as u32),
                 (LEVEL_GRID.grid_z.addr() as u32),
@@ -60,11 +62,21 @@ const TEXTURE_INFO_A_RVA: usize = rva(0x60AE36); // "files\a\textinfo"
 const MARK_INFO_RVA: usize = rva(0x60AE47); // "files\m\markinfo"
 const TEXTURE_INFO_B_RVA: usize = rva(0x60AE58); // "files\b\textinfo"
 const ERROR_LIST_PATH_RVA: usize = rva(0x60AE02);
-const ERROR_LIST_RVA: usize = rva(0x637660);
 /// The path strings the course's number is written into: the tens' and the units' places.
-pub const NUMBER_PLACES: [usize; 9] = [
-    0x60B01F, 0x60B038, 0x60B08C, 0x60B0A7, 0x60B050, 0x60B06E, 0x60AE0F, 0x60AE1D, 0x60AE2F,
-];
+pub fn number_places() -> [usize; 9] {
+    let p = &crate::race::level_paths_store::LEVEL_PATHS;
+    [
+        p.edit_path.addr() + 0xD,
+        p.cdat_src.addr() + 0xD,
+        p.cdat_files.addr() + 0x12,
+        p.cdat_src_2.addr() + 0xD,
+        p.localdat_src.addr() + 0xD,
+        p.localdat_files.addr() + 0x12,
+        game_addr(rva(0x60AE0F)),
+        game_addr(rva(0x60AE1D)),
+        game_addr(rva(0x60AE2F)),
+    ]
+}
 const TEXTURES: u32 = 0x100;
 unsafe fn get(at: u32) -> u32 {
     unsafe { (at as *const u32).read_unaligned() }
@@ -144,8 +156,8 @@ pub unsafe fn load_texture_info(v: &Vars) -> Result<(), Refused> {
 pub unsafe fn set_course_number(eax: u32) {
     // Converted: `rc2k_core::race::stage::two_digits`.
     let [tens, units] = rc2k_core::race::stage::two_digits(eax as u8);
-    for place in NUMBER_PLACES {
-        let at = game_addr(rva(place)) as *mut u8;
+    for place in number_places() {
+        let at = place as *mut u8;
         unsafe {
             *at = tens;
             *at.add(1) = units;
@@ -159,7 +171,7 @@ pub unsafe fn load_error_list() -> Result<(), Refused> {
     unsafe {
         read(
             game_addr(ERROR_LIST_PATH_RVA) as u32,
-            game_addr(ERROR_LIST_RVA) as u32,
+            crate::race::error_list_store::ERROR_LIST.list.addr() as u32,
             0x2000,
         )
     }

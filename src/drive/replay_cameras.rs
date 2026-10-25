@@ -15,8 +15,8 @@
 //! Callers: `drive::play_replay_frame`, `sub_46062E`. Refuses what `pick_replay_camera`
 //! refuses (everything written put back).
 
+use crate::drive::replay_frames_store::REPLAY_FRAMES;
 use crate::errors::Refused;
-use crate::physics::flow::p;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::replay_work_store::REPLAY_WORK;
 use crate::race::view_store::RACE_VIEW;
@@ -41,8 +41,12 @@ fn wish_of(byte: usize) -> u32 {
 
 // Converted: `rc2k_core::drive::replay_views::wish_step`.
 fn steps() -> Result<(), Refused> {
-    p(0x6EF7D0, CAR_BLOCKS.cars[0].unknown_0[0].bits());
-    p(0x6EF7D4, CAR_BLOCKS.cars[0].unknown_0[1].bits());
+    REPLAY_FRAMES
+        .camera_word_0
+        .set(CAR_BLOCKS.cars[0].unknown_0[0].bits());
+    REPLAY_FRAMES
+        .camera_word_1
+        .set(CAR_BLOCKS.cars[0].unknown_0[1].bits());
     for c in 0..2usize {
         let car = &CAR_BLOCKS.cars[c];
         let wish = wish_of(head_byte(c) as usize);

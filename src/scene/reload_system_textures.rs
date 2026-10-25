@@ -22,24 +22,19 @@
 //! `rc2k_core::scene::pictures`.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::rva;
 use crate::gfx::texture_pixels::GRADING;
 use crate::logfile::log_write::log_write;
 use crate::race::prefs_store::STAGE_PREFS;
 use crate::scene::kind_texture_store::KIND_TEXTURES;
-use crate::scene::load_changed_texture_picture::{
-    TEXTURES, WANTED_PICTURES_RVA, load_changed_texture_picture_in_game,
-};
+use crate::scene::load_changed_texture_picture::{TEXTURES, load_changed_texture_picture_in_game};
 use crate::scene::load_hud_car_icons::load_hud_car_icons;
 use crate::scene::step_loading_bar::step_loading_bar;
+use crate::scene::texture_places_store::TEXTURE_PLACES;
 use crate::scene::textures::KINDS;
-use crate::store::{game_read, game_write};
 use rc2k_core::scene::pictures::{kind_picture, read_size};
 
 // ---- game data ----
 
-const KIND_PICTURES_RVA: usize = rva(0x5D7968); // dword_5D7968
-const SYSTEM_TEXTURES_RVA: usize = rva(0x5DC974); // dword_5DC974
 /// `dword_609300`, `dword_609304`: the scene's size for them.
 // scene::load_hud_car_icons
 const TEXTS: [&std::ffi::CStr; 4] = [
@@ -59,7 +54,7 @@ const TEXTS: [&std::ffi::CStr; 4] = [
 // Converted: `rc2k_core::scene::pictures::{kind_picture, read_size}`
 pub unsafe fn reload_system_textures() -> Result<(), Refused> {
     unsafe {
-        let textures: u32 = game_read(SYSTEM_TEXTURES_RVA);
+        let textures: u32 = TEXTURE_PLACES.totals[3].get();
         if textures == 0 || textures > TEXTURES {
             return Err(BadInput("no system textures, or more than the table has").into());
         }
@@ -74,8 +69,8 @@ pub unsafe fn reload_system_textures() -> Result<(), Refused> {
             if texture == u32::MAX {
                 continue;
             }
-            let picture = kind_picture(game_read(KIND_PICTURES_RVA + kind as usize * 4));
-            game_write(WANTED_PICTURES_RVA + texture as usize * 4, picture);
+            let picture = kind_picture(TEXTURE_PLACES.kind_pictures[kind as usize].get());
+            TEXTURE_PLACES.wanted_pictures[texture as usize].set(picture);
         }
         let scene = [
             STAGE_PREFS.scene_size_a.get(),
@@ -83,7 +78,7 @@ pub unsafe fn reload_system_textures() -> Result<(), Refused> {
         ];
         for texture in 0..textures {
             GRADING.reading.set(1u32);
-            let wanted = game_read(WANTED_PICTURES_RVA + texture as usize * 4);
+            let wanted = TEXTURE_PLACES.wanted_pictures[texture as usize].get();
             let [scale, saturation] = read_size(wanted, scene);
             GRADING.scale.set(scale);
             GRADING.saturation.set(saturation);

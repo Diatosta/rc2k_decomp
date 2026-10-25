@@ -21,7 +21,7 @@
 use crate::errors::Refused;
 use crate::install::installer::{
     append_byte, append_string_by_id, copy_picture, draw_string, fatal, load_language, lock,
-    normalise, pb, rb, set_cd, show, sleep, unlock, wb,
+    normalise, rb, set_cd, show, sleep, unlock, wb,
 };
 use crate::install::vars::INSTALLER_NAMES;
 use crate::install::vars::INSTALLER_PAGES;
@@ -31,11 +31,9 @@ use crate::session::MACHINE;
 
 const FONT_BE: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::BOX_TEXT;
 
-const BASE_A: usize = 0x5189A8; // g_baseDirectory
-
 pub fn run_installer() -> Result<(), Refused> {
     use crate::install as i;
-    pb(BASE_A, 0);
+    unsafe { crate::files::state::base_directory().write_volatile(0) };
     unsafe {
         i::read_languages::read_languages(INSTALLER_NAMES.lang_cfg.addr() as u32 as *const u8)
     }?;
@@ -82,7 +80,7 @@ pub fn run_installer() -> Result<(), Refused> {
                     crate::install::installer::INSTALL_TEXTS.record_path.addr() as *const u8,
                 )
             }?;
-            pb(BASE_A, 0);
+            unsafe { crate::files::state::base_directory().write_volatile(0) };
             set_cd(INSTALLER_PATHS.game_dir.addr() as u32);
             load_language()?;
         }

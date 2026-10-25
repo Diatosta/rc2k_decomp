@@ -31,6 +31,7 @@ use crate::physics::tables_store::PHYSICS;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::frame_store::FRAME_WORK;
 use crate::race::kind_store::KIND_TABLES;
+use crate::race::light_records_store::LIGHT_RECORDS;
 use crate::race::matrices_store::MATRICES;
 use crate::race::mud::car_file_number;
 use crate::race::vars_store::RACE_VARS;
@@ -44,8 +45,6 @@ use crate::scene::matrix::multiply_matrices;
 use crate::scene::rotate_point::rotate_point;
 use rc2k_core::drive::listener;
 
-const LIGHT_FIGURES: u32 = 0x5C90AC; // g_lightRecords + 0x40
-
 /// The car file's six figures times 65536 over 1000, or the refusal (before anything).
 unsafe fn figures() -> Result<[i32; 6], Refused> {
     let viewed = RACE_VIEW.drawn_view.get();
@@ -54,9 +53,8 @@ unsafe fn figures() -> Result<[i32; 6], Refused> {
     rc2k_core::drive::sharing::check_light_record(n)?;
     let mut out = [0i32; 6];
     for (k, o) in out.iter_mut().enumerate() {
-        *o = listener::light_figure(crate::physics::flow::g(
-            (LIGHT_FIGURES + 0x134 * n + 4 * k as u32) as usize,
-        ))?;
+        // `g_lightRecords + 0x40` of the car file's record: `axles[5 + k]`.
+        *o = listener::light_figure(LIGHT_RECORDS.records[n as usize].axles[5 + k].get())?;
     }
     Ok(out)
 }
@@ -167,7 +165,7 @@ pub unsafe fn set_listener() -> Result<(), Refused> {
         KIND_TABLES
             .listener_float_b
             .set_bits(x87::loaded(car.engine_speed_scaled.bits()));
-        if crate::physics::flow::g(0x601024usize) != 0 {
+        if crate::physics::split_tables_store::SPLIT_TABLES.still.get() != 0 {
             KIND_TABLES.listener_flag.set(0);
             KIND_TABLES.listener_gear_changed.set(0);
         }

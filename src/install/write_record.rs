@@ -12,7 +12,7 @@
 //! are the original's.
 
 use crate::errors::Refused;
-use crate::install::installer::{LOCALE, MEDIA_MODE, a, g, gb, wb};
+use crate::install::installer::{media_mode, wb};
 use crate::install::vars::INSTALLER_PATHS;
 use crate::strings::text_buffer::TEXT_BUFFER;
 
@@ -24,11 +24,13 @@ pub fn write_record() -> Result<bool, Refused> {
     // Converted: `rc2k_core::install::config::record_text` (the header and keys as its
     // constants).
     let text_at = |x: u32| unsafe { std::ffi::CStr::from_ptr(x as *const _) }.to_bytes();
-    let locale = (gb(LOCALE) != 0).then(|| text_at(a(LOCALE)));
+    let locale_at = crate::files::state::locale_directory() as u32;
+    let locale = (unsafe { crate::files::state::locale_directory().read_volatile() } != 0)
+        .then(|| text_at(locale_at));
     let text = rc2k_core::install::config::record_text(
         text_at(INSTALLER_PATHS.game_dir.addr() as u32),
         locale,
-        g(MEDIA_MODE),
+        media_mode(),
     );
     for (n, &b) in text.iter().enumerate() {
         wb(start + n as u32, b);

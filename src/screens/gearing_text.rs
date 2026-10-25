@@ -10,13 +10,11 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::rva;
 use crate::menu::event_store::EVENT_STATE;
 use crate::menu::flow_store::SCREEN_FLOW;
 use crate::menu::player::{Player, player_at};
 use crate::screens::car_caption::put_string;
 
-pub const TEXT_RVA: usize = rva(0xA8BF54); // byte_A8BF54
 pub const TEXT_LEN: usize = 0x100;
 const FIRST_STRING: u32 = 0x21F;
 
@@ -34,7 +32,13 @@ pub fn current() -> Result<u32, Refused> {
 pub unsafe fn gearing_text() -> Result<(), Refused> {
     let value = unsafe { (*(current()? as *const Player)).gearing };
     unsafe {
-        put_string(FIRST_STRING.wrapping_add(value), TEXT_RVA, TEXT_LEN)?;
+        put_string(
+            FIRST_STRING.wrapping_add(value),
+            crate::screens::text_buffers_store::TEXT_BUFFERS
+                .title
+                .addr(),
+            TEXT_LEN,
+        )?;
         SCREEN_FLOW.shown_gearing.set(value);
     }
     Ok(())
@@ -48,7 +52,13 @@ pub unsafe fn step_gearing(on: bool) -> Result<(), Refused> {
         let kept = SCREEN_FLOW.shown_gearing.get() as i32;
         // Converted: `rc2k_core::screens::captions::step_gearing`.
         let value = rc2k_core::screens::captions::step_gearing(kept, on);
-        put_string(FIRST_STRING.wrapping_add(value), TEXT_RVA, TEXT_LEN)?;
+        put_string(
+            FIRST_STRING.wrapping_add(value),
+            crate::screens::text_buffers_store::TEXT_BUFFERS
+                .title
+                .addr(),
+            TEXT_LEN,
+        )?;
         SCREEN_FLOW.shown_gearing.set(value);
         (*(p as *mut Player)).gearing = value;
     }

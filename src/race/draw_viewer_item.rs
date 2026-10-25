@@ -15,13 +15,13 @@
 
 use crate::errors::Refused;
 use crate::install::vars::INSTALLER_PAGES;
-use crate::physics::flow::g;
-use crate::race::viewer::{CAMERA_EDIT, CAMERAS, gb};
 use crate::race::viewer_screen_store::VIEWER_PANEL;
 use crate::race::viewer_state_store::REPLAY_VIEW;
 
 fn camera_byte(byte: usize) -> u32 {
-    gb((CAMERAS + byte).wrapping_add(8 * REPLAY_VIEW.replay_block.get() as usize)) as u32
+    crate::race::viewer::camera_byte_at(
+        byte.wrapping_add(8 * REPLAY_VIEW.replay_block.get() as usize),
+    ) as u32
 }
 
 /// The Rust version. `item` the list item (the original's esi), `index` its number
@@ -54,7 +54,12 @@ pub fn draw_viewer_item(item: u32, index: u32) -> Result<(), Refused> {
     let colour = item_colour(
         byte(0),
         index == INSTALLER_PAGES.choice.get(),
-        || g(CAMERA_EDIT) != 0,
+        || {
+            crate::race::viewer_buffers_store::VIEWER_BUFFERS
+                .camera_edit
+                .get()
+                != 0
+        },
         || {
             INSTALLER_PAGES
                 .frame_clock

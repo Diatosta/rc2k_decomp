@@ -21,14 +21,13 @@
 use crate::d3d::cards_store::CARDS_3D;
 use crate::d3d::draw_fan_unclipped::polygon;
 use crate::d3d::{NO_TEXTURE, Vertex};
-use crate::framework::{game_read, rva};
 use crate::logfile::log_hex8::log_hex8;
 use crate::logfile::log_write::log_write;
 use crate::scene::draw_store::DRAW;
+use crate::scene::object_tables_store::OBJECT_TABLES;
 use crate::session::SCREEN;
 
 // ---- game data ----
-const HAS_3D_RVA: usize = rva(0x5CDA8C); // dword_5CDA8C
 const TEXTURES: u32 = 0x400;
 
 const SHOW_VERTICES: usize = 0x443AEC; // sub_443AEC
@@ -62,33 +61,31 @@ pub fn vertices_fit(vertices: &[Vertex], width: u32, height: u32) -> bool {
 }
 
 pub unsafe fn submit_polygon(outside: &mut dyn Outside) {
-    unsafe {
-        let has_3d = game_read::<u32>(HAS_3D_RVA) != 0;
-        let texture: u32 = DRAW.polygon_texture.bits();
-        if texture == NO_TEXTURE {
-            if has_3d {
-                outside.set_texture(NO_TEXTURE);
-            }
-        } else {
-            let texture = if texture >= TEXTURES { 0 } else { texture };
-            if texture != CARDS_3D.current_texture.get() && has_3d {
-                outside.set_texture(texture);
-            }
-        }
-        let vertices = polygon();
-        if !vertices.is_empty() {
-            // The check clears this before it looks at a vertex.
-            DRAW.scratch.set_bits(0u32);
-        }
-        if !vertices_fit(&vertices, SCREEN.width.get(), SCREEN.height.get()) {
-            outside.bad_vertex();
-            return;
-        }
+    let has_3d = OBJECT_TABLES.has_3d.get() != 0;
+    let texture: u32 = DRAW.polygon_texture.bits();
+    if texture == NO_TEXTURE {
         if has_3d {
-            let result = outside.draw_fan();
-            if result != 0 {
-                outside.not_drawn(result);
-            }
+            outside.set_texture(NO_TEXTURE);
+        }
+    } else {
+        let texture = if texture >= TEXTURES { 0 } else { texture };
+        if texture != CARDS_3D.current_texture.get() && has_3d {
+            outside.set_texture(texture);
+        }
+    }
+    let vertices = polygon();
+    if !vertices.is_empty() {
+        // The check clears this before it looks at a vertex.
+        DRAW.scratch.set_bits(0u32);
+    }
+    if !vertices_fit(&vertices, SCREEN.width.get(), SCREEN.height.get()) {
+        outside.bad_vertex();
+        return;
+    }
+    if has_3d {
+        let result = outside.draw_fan();
+        if result != 0 {
+            outside.not_drawn(result);
         }
     }
 }

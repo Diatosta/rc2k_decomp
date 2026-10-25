@@ -18,15 +18,13 @@
 //! clip's refusals.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::rva;
 use crate::marks::clip_quad::{clip_quad, draw_fan};
 use crate::marks::ring_store::{RING_WORK, RingWork};
-use crate::marks::store::{game_addr, game_write};
 use crate::marks::surface_store::SURFACE;
 use crate::scene::draw_store::DRAW;
 use crate::scene::fog_at::fog_at;
 
-const VERTICES_RVA: usize = rva(0x9605A0); // g_polygonVertices
+use crate::d3d::vertices_store::VERTICES;
 const SUBCELLS: u32 = 0x410;
 
 /// The original's 0x4CBF47 .. 0x4CBFCB: the place turned by the view.
@@ -47,7 +45,7 @@ unsafe fn square() {
     unsafe {
         square_x87(
             crate::race::store::asm_base() as usize,
-            crate::race::store::buffers_asm_base() as usize,
+            crate::d3d::vertices_store::piece_addr(),
             &DRAW_WORK,
         )
     }
@@ -79,8 +77,8 @@ pub unsafe fn draw_subcell_sprite(
         let fog = fog_at(RING_WORK.whole.get())?;
         let colour = ((entry + 0x90) as *const u32).read_unaligned() | 0xFF00_0000;
         for n in 0..4 {
-            game_write(VERTICES_RVA + 0x20 * n + 0x14, fog);
-            game_write(VERTICES_RVA + 0x20 * n + 0x10, colour);
+            VERTICES.vertices[n].specular.set(fog);
+            VERTICES.vertices[n].colour.set(colour);
         }
         DRAW_WORK.half[0].set_bits(size);
         let at = subcell << 4;
@@ -90,11 +88,11 @@ pub unsafe fn draw_subcell_sprite(
             .into_iter()
             .enumerate()
         {
-            game_write(VERTICES_RVA + 0x20 * n + 0x18, u);
-            game_write(VERTICES_RVA + 0x20 * n + 0x1C, v);
+            VERTICES.vertices[n].u.set_bits(u);
+            VERTICES.vertices[n].v.set_bits(v);
         }
         square();
-        if clip_quad(game_addr(VERTICES_RVA) as u32)? {
+        if clip_quad(crate::d3d::vertices_store::piece_addr() as u32)? {
             return Ok(());
         }
         draw_fan();
@@ -148,16 +146,16 @@ unsafe fn turn_x87(rc: usize, p: usize, w: &RingWork, dw: &DrawWork) {
 }
 
 /// `square`'s x87 block as plain Rust on the x87 model (41 instructions), same order and memory places.
-unsafe fn square_x87(rc: usize, bf: usize, dw: &DrawWork) {
+unsafe fn square_x87(rc: usize, vt: usize, dw: &DrawWork) {
     unsafe {
         let t0 = ld(rc, 0x224088);
         let t1 = t0 / bh::ld(dw.turned[2].bits());
         let t2 = bh::ld(dw.turned[2].bits());
         let t3 = t2 * bh::ld(dw.z_k.bits());
-        st(bf, 0x5605A8, t3);
-        st(bf, 0x5605C8, t3);
-        st(bf, 0x5605E8, t3);
-        st(bf, 0x560608, t3);
+        st(vt, 0x8, t3);
+        st(vt, 0x28, t3);
+        st(vt, 0x48, t3);
+        st(vt, 0x68, t3);
         let t4 = bh::ld(dw.half[0].bits());
         let t5 = t4 * t1;
         dw.half[0].set_bits(bh::st(t5));
@@ -167,22 +165,22 @@ unsafe fn square_x87(rc: usize, bf: usize, dw: &DrawWork) {
         let t8 = -t7;
         let t9 = t8 + ld(rc, 0x2240A0);
         let t10 = t9 - bh::ld(dw.half[1].bits());
-        st(bf, 0x5605A4, t10);
+        st(vt, 0x4, t10);
         let t11 = t9 - bh::ld(dw.half[1].bits());
-        st(bf, 0x5605C4, t11);
+        st(vt, 0x24, t11);
         let t12 = t9 + bh::ld(dw.half[1].bits());
-        st(bf, 0x5605E4, t12);
+        st(vt, 0x44, t12);
         let t13 = t9 + bh::ld(dw.half[1].bits());
-        st(bf, 0x560604, t13);
+        st(vt, 0x64, t13);
         let t14 = t6 + ld(rc, 0x22409C);
         let t15 = t14 - bh::ld(dw.half[0].bits());
-        st(bf, 0x5605A0, t15);
+        st(vt, 0x0, t15);
         let t16 = t14 + bh::ld(dw.half[0].bits());
-        st(bf, 0x5605C0, t16);
+        st(vt, 0x20, t16);
         let t17 = t14 + bh::ld(dw.half[0].bits());
-        st(bf, 0x5605E0, t17);
+        st(vt, 0x40, t17);
         let t18 = t14 - bh::ld(dw.half[0].bits());
-        st(bf, 0x560600, t18);
+        st(vt, 0x60, t18);
     }
 }
 
@@ -409,7 +407,7 @@ mod asm_differential {
             |b| unsafe { reference::square_x87(b[0], b[1], b[2]) },
             |b| {
                 with_copy::<DrawWork, _>(b[2], DrawWork::START, |dw| unsafe {
-                    super::square_x87(b[0], b[1], dw)
+                    super::square_x87(b[0], b[1].wrapping_add(0x5605A0), dw)
                 })
             },
         );

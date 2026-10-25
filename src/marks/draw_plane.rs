@@ -19,14 +19,12 @@
 //! settings and a corner past `g_marksCorners`, before anything.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::rva;
 use crate::marks::blocks::MARK_CORNERS;
 use crate::marks::frame_state::DRAW_WORK;
 use crate::marks::hexagon_state::HEXAGON_STATE;
 use crate::marks::hexagon_vars::HEX;
 use crate::marks::kind_store::{QUAD_3, QuadWork};
 use crate::marks::squares_store::SQUARE_TABLES;
-use crate::marks::store::game_write;
 use crate::marks::tuning::MARKS_KIND_FLOATS;
 use crate::math::x87;
 use crate::race::frame_store::FRAME_WORK;
@@ -36,7 +34,7 @@ use crate::scene::kind_texture_store::KIND_TEXTURES;
 use crate::scene::vector3::normalise_vector3;
 use crate::session::{Float, address_of};
 
-const VERTICES_RVA: usize = rva(0x9605A0); // g_polygonVertices
+use crate::d3d::vertices_store::VERTICES;
 /// Each vertex's texture place: the corner entry's word offsets (u, v).
 const UV_WORDS: [(u32, u32); 4] = [(0xC, 0xE), (8, 0xA), (0, 2), (4, 6)];
 
@@ -153,18 +151,22 @@ pub unsafe fn draw_plane() -> Result<(), Refused> {
         let word = |off: u32| u32::from(entry.words[off as usize / 2].get());
         let uv_k: u32 = DRAW_WORK.uv_k.bits();
         for (n, (u, v)) in UV_WORDS.into_iter().enumerate() {
-            let vertex = VERTICES_RVA + 0x20 * n;
-            game_write(vertex + 0x18, x87::int_times(word(u) as i32, uv_k));
-            game_write(vertex + 0x1C, x87::int_times(word(v) as i32, uv_k));
+            let vertex = &VERTICES.vertices[n];
+            vertex.u.set_bits(x87::int_times(word(u) as i32, uv_k));
+            vertex.v.set_bits(x87::int_times(word(v) as i32, uv_k));
         }
         for n in 0..4 {
-            let vertex = VERTICES_RVA + 0x20 * n;
-            game_write(vertex + 0x18, x87::loaded(PLANE_TUNING.places[n][0].bits()));
-            game_write(vertex + 0x1C, x87::loaded(PLANE_TUNING.places[n][1].bits()));
+            let vertex = &VERTICES.vertices[n];
+            vertex
+                .u
+                .set_bits(x87::loaded(PLANE_TUNING.places[n][0].bits()));
+            vertex
+                .v
+                .set_bits(x87::loaded(PLANE_TUNING.places[n][1].bits()));
         }
         let light: u32 = FRAME_WORK.view_light.bits();
         for n in 0..4 {
-            game_write(VERTICES_RVA + 0x20 * n + 0x10, light);
+            VERTICES.vertices[n].colour.set(light);
         }
         for n in 0..4 {
             if (QUAD_3.corners[n][2].bits() as i32) <= (NUMBERS.k4096_a.bits() as i32) {
@@ -175,21 +177,22 @@ pub unsafe fn draw_plane() -> Result<(), Refused> {
         let [kind, z_k]: [u32; 2] = [MARKS_KIND_FLOATS.kind_float.bits(), DRAW_WORK.z_k.bits()];
         for n in 0..4 {
             let c = &QUAD_3.corners[n];
-            let vertex = VERTICES_RVA + 0x20 * n;
-            game_write(vertex, c[0].bits());
-            game_write(vertex + 4, c[1].bits());
+            let vertex = &VERTICES.vertices[n];
+            vertex.x.set_bits(c[0].bits());
+            vertex.y.set_bits(c[1].bits());
             let depth: u32 = c[2].bits();
-            game_write(
-                vertex + 8,
-                x87::sum3_times(depth, kind, PLANE_TUNING.lifts[n].bits(), z_k),
-            );
+            vertex.z.set_bits(x87::sum3_times(
+                depth,
+                kind,
+                PLANE_TUNING.lifts[n].bits(),
+                z_k,
+            ));
         }
         for n in 0..4 {
             let depth: u32 = QUAD_3.corners[n][2].bits();
-            game_write(
-                VERTICES_RVA + 0x20 * n + 0xC,
-                x87::reciprocal_times(depth, PLANE_TUNING.rhw_k[n].bits()),
-            );
+            VERTICES.vertices[n]
+                .rhw
+                .set_bits(x87::reciprocal_times(depth, PLANE_TUNING.rhw_k[n].bits()));
         }
         crate::marks::clip_quad::draw_fan();
         crate::scene::depth_test_on::depth_test_on();

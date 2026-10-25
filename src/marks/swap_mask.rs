@@ -15,12 +15,8 @@
 //! was written put back).
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::rva;
 use crate::marks::mask_store::MASK_BLOCKS;
-use crate::marks::store::game_read;
 use crate::scene::kind_texture_store::KIND_TEXTURES;
-
-const WIDTH_RVA: usize = rva(0x4F49A0); // g_surface.width
 
 /// The Rust version (see the header): the lock and unlock (`d3d::lock_texture`,
 /// `unlock_texture`), `gfx::put_surface_pixel`, `scene::forget_slot_texture`.
@@ -49,7 +45,7 @@ pub unsafe fn swap_mask() -> Result<(), Refused> {
         // screen's: checked here (2026-10-18: checked before the lock, it refused every
         // frame). A row wider than the mask's would read past its block: unlocked, put
         // back and refused.
-        let width: u32 = game_read(WIDTH_RVA);
+        let width: u32 = crate::gfx::screen_state::DRAW_SURFACE.width.get();
         if let Err(e) = masks::check_width(width) {
             lock(KIND_TEXTURES.kind_first_textures[202].bits(), false)?;
             MASK_BLOCKS.seen.set(kept[0]);

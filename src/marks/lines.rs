@@ -5,13 +5,11 @@
 
 use crate::errors::Refused;
 use crate::marks::morph_object_points::MORPH_WORK;
-use crate::marks::store::game_read;
 use crate::marks::tuning::MARKS_FLOATS;
 use crate::math::x87;
 use crate::race::course_lists_store::COURSE_LISTS;
-use crate::scene::objects::{
-    FACE_COUNTS_RVA, FACES, FACES_RVA, FIRST_FACE_RVA, FIRST_POINT_RVA, POINT_COUNTS_RVA,
-};
+use crate::scene::object_slots_store::{OBJECT_SLOTS, ObjectTables};
+use crate::scene::objects::FACES;
 use crate::session::{Bytes, Dword, Float};
 use rc2k_core::marks::lines as core;
 
@@ -99,10 +97,10 @@ impl core::Blocks for GameBlocks {
         unsafe { [get(block), get(block + 4)] }
     }
     fn face_count(&self, object: u32) -> u32 {
-        unsafe { game_read(FACE_COUNTS_RVA + 4 * object as usize) }
+        ObjectTables::slot_value(&OBJECT_SLOTS.face_counts, object as usize)
     }
     fn first_face(&self, object: u32) -> u32 {
-        unsafe { game_read(FIRST_FACE_RVA + 4 * object as usize) }
+        ObjectTables::slot_value(&OBJECT_SLOTS.first_face, object as usize)
     }
 }
 
@@ -166,8 +164,8 @@ pub unsafe fn measure_lines() -> Result<(), Refused> {
                 put(block + 0x240 + 4 * n, 0);
             }
             for n in 0..(faces as i32).max(0) as u32 {
-                let from: u32 = game_read(FACES_RVA + 4 * (first_a + n) as usize);
-                let to: u32 = game_read(FACES_RVA + 4 * (first_b + n) as usize);
+                let from: u32 = crate::scene::objects::face_cell((first_a + n) as usize).get();
+                let to: u32 = crate::scene::objects::face_cell((first_b + n) as usize).get();
                 if byte(from + 6) == 0x1C {
                     let kind = byte(from + 0xB) as u32;
                     if (1..=6).contains(&kind) {
@@ -250,8 +248,8 @@ pub unsafe fn copy_block_points(block: u32) -> Result<(), Refused> {
         let object = get(block);
         core::check_object(object)?;
         let mut to = get(block + 0x8C);
-        let count: i32 = game_read(POINT_COUNTS_RVA + 4 * object as usize);
-        let first: u32 = game_read(FIRST_POINT_RVA + 4 * object as usize);
+        let count = OBJECT_SLOTS.point_counts[object as usize].get() as i32;
+        let first: u32 = OBJECT_SLOTS.first_point[object as usize].get();
         let mut from = first
             .wrapping_mul(12)
             .wrapping_add(COURSE_LISTS.object_points.bits());
@@ -283,7 +281,8 @@ pub unsafe fn set_up_blocks() -> Result<(), Refused> {
             for o in (0x90..=0xCC).step_by(4) {
                 put(block + o, u32::MAX);
             }
-            let points: u32 = game_read(POINT_COUNTS_RVA + 4 * get(block) as usize);
+            let points: u32 =
+                ObjectTables::slot_value(&OBJECT_SLOTS.point_counts, get(block) as usize);
             let taken = crate::memory::allocate::allocate(
                 (block + 0x4C) as *mut crate::memory::MemoryList,
                 points.wrapping_mul(12),

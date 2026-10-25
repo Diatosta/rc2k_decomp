@@ -9,11 +9,11 @@
 //!
 //! Callers: `hud::icons_0`, `hud::icons_1`, `hud::icons_2`.
 
+use crate::d3d::vertices_store::VERTICES;
 use crate::errors::Refused;
-use crate::hud::batch::POLYGON_RVA;
+
 use crate::hud::store::HUD;
 use crate::scene::draw_store::DRAW;
-use crate::store::game_write;
 use rc2k_core::hud::icons;
 
 /// The Rust version (see the header): the icon of the record's entry at `entry` (edi),
@@ -33,10 +33,13 @@ pub unsafe fn draw_icon(record: u32, bottom: u32, entry: u32) -> Result<(), Refu
         HUD.icon_size[1].set(icons::scaled(drop, scale));
         let i = icons::icon(width, get(0x8C), drop, scale, HUD.icon_shift.get(), bottom);
         for (n, u, v, x, y) in icons::corners(&i) {
-            let at = POLYGON_RVA + 0x20 * n;
-            game_write(at + 0x18, [u, v].map(|k| (k as i32 as f32).to_bits()));
-            game_write(at, [x, y].map(|k| (k as i32 as f32).to_bits()));
-            game_write(at + 0x10, [i.colour, 0]);
+            let at = &VERTICES.vertices[n];
+            at.u.set_bits((u as i32 as f32).to_bits());
+            at.v.set_bits((v as i32 as f32).to_bits());
+            at.x.set_bits((x as i32 as f32).to_bits());
+            at.y.set_bits((y as i32 as f32).to_bits());
+            at.colour.set(i.colour);
+            at.specular.set(0);
             // `fild` through `dword_75C060`: it keeps the last.
             HUD.scratch.set(y);
         }

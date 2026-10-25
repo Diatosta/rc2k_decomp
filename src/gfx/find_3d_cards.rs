@@ -13,26 +13,22 @@
 //! `dword_5AB950`), as the callback would set it. One caller, `start` (0x401093), which
 //! calls it directly (2026-10-23).
 
-use crate::framework::rva;
+use crate::d3d::cards_store::CARDS_3D;
 use crate::gfx::cards::CARDS;
 use crate::logfile::log_write::{log_newline_l1, log_write};
-use crate::store::game_read;
-
-const NO_SEARCH_RVA: usize = rva(0x5AB94C); // dword_5AB94C: not 0, no search
-const NOT_PRIMARY_RVA: usize = rva(0x5AB950); // dword_5AB950: no 3D primary card
 
 /// The Rust version (see the header).
 pub fn find_3d_cards() {
     unsafe {
         CARDS.primary.set(0);
         CARDS.secondary.set(0);
-        if game_read::<u32>(NO_SEARCH_RVA) == 0 {
+        if CARDS_3D.no_search.get() == 0 {
             log_write(
                 crate::gfx::texts::address(&crate::gfx::texts::FINDING_3D) as *const u8,
                 true,
                 1,
             );
-            if game_read::<u32>(NOT_PRIMARY_RVA) == 0 {
+            if CARDS_3D.not_primary.get() == 0 {
                 CARDS.primary.set(1);
             }
         }

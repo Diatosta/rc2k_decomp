@@ -28,7 +28,6 @@
 //! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{game_write, rva};
 use crate::math::x87;
 use crate::math::x87_run::{abs_compare, abs_of, mul2_to_int, neg_mul, neg_product_plus};
 use crate::physics::axis_turn_matrix::axis_turn_matrix;
@@ -124,7 +123,9 @@ pub unsafe fn move_slot_at(s: u32) -> Result<(), Refused> {
         GROUND_WORK.ground_x.set(at(s + 4));
         GROUND_WORK.ground_z.set(at(s + 0xC));
         COURSE.ground_face_last.set(at(s + 0x60));
-        game_write(rva(0x620470), 0x80u32);
+        crate::physics::ground_probe_store::GROUND_PROBE
+            .settle_mark
+            .set(0x80);
         crate::physics::find_ground::find_ground()?;
         let face: u32 = COURSE.ground_slot.get();
         if face == u32::MAX {

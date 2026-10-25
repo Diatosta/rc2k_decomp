@@ -15,11 +15,10 @@
 //! wrote before is put back first).
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::rva;
 use crate::marks::blocks::MARK_CORNERS;
 use crate::marks::frame_state::{DRAW_FRAME, VIEW_VARS};
-use crate::marks::store::game_write;
 use crate::marks::tuning::MARKS_FRAME;
+use crate::marks::work_store::MARKS_WORK;
 use crate::math::x87;
 use crate::race::course_lists_store::COURSE_LISTS;
 use crate::race::matrices_store::MATRICES;
@@ -29,7 +28,6 @@ use crate::scene::rotate_point::rotate_point;
 use crate::session::{Float, read_bits};
 const CORNERS_FROM: u32 = 0x1C_2000;
 const CORNERS_LEN: u32 = 0x8000;
-const SOUND_RVA: [usize; 2] = [rva(0x71C8E2), rva(0x71C8E6)];
 /// (the time kept, where it goes).
 static TIMES: [(&Float, &Float); 2] = [
     (&DRAW_FRAME.times[0], &MARKS_FRAME.quads_share),
@@ -67,8 +65,8 @@ pub unsafe fn draw_frame() -> Result<(), Refused> {
             VIEW_VARS.step.set(VIEW_VARS.step.get().wrapping_add(1) & 7);
         }
         DRAW_FRAME.last_source.set(source);
-        game_write(SOUND_RVA[0], source);
-        game_write(SOUND_RVA[1], 0u32);
+        MARKS_WORK.sound_source.set(source);
+        MARKS_WORK.sound_zero.set(0);
         VIEW_VARS.cleared.set(0);
         cars_particles::cars_particles()?;
         view_heading::view_heading();

@@ -12,13 +12,11 @@
 //! Callers: `marks::run_pong` (ball, bat), `marks::pong_cell`. The x87 runs are plain Rust on the x87 model
 //! (`math::x87_float`), in the original's order, over the game's variables.
 
-use crate::framework::rva;
 use crate::marks::pong::{PONG, PONG_RULES, PongState};
-use crate::marks::store::{game_addr, game_write};
 use crate::marks::tuning::{MARKS_FLOATS, MarksFloats};
 use crate::math::x87;
 
-const VERTICES_RVA: usize = rva(0x9605A0); // g_polygonVertices
+use crate::d3d::vertices_store::VERTICES;
 
 /// The original's 0x4B8599 .. 0x4B8659 on the four values: the sides; the place's two
 /// values (left untouched) popped after.
@@ -51,17 +49,17 @@ pub unsafe fn draw_pong_box(v: [[u8; 10]; 4]) {
             .into_iter()
             .enumerate()
         {
-            game_write(VERTICES_RVA + 0x20 * n + 0x18, u);
-            game_write(VERTICES_RVA + 0x20 * n + 0x1C, w);
+            VERTICES.vertices[n].u.set_bits(u);
+            VERTICES.vertices[n].v.set_bits(w);
         }
         corners(&v);
         if x87::compare_status(SQUARE_TABLES.corners[0][2].bits(), PONG_RULES.near.bits()) == 0x100
         {
             return;
         }
-        projected(game_addr(VERTICES_RVA) as u32);
+        projected(crate::d3d::vertices_store::piece_addr() as u32);
         for n in 0..4 {
-            game_write(VERTICES_RVA + 0x20 * n + 0x10, 0xFFFF_FFFFu32);
+            VERTICES.vertices[n].colour.set(0xFFFF_FFFFu32);
         }
         crate::marks::clip_quad::draw_fan();
     }

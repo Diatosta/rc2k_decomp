@@ -29,7 +29,6 @@
 //! no records and when the table's place is outside it.
 
 use crate::errors::BadInput;
-use crate::framework::{game_read, rva};
 use crate::math::x87;
 use crate::race::course_lists_store::COURSE_LISTS;
 use crate::race::prefs_store::STAGE_PREFS;
@@ -41,7 +40,6 @@ use crate::scene::object_store::OBJECT_WORK;
 use crate::session::MACHINE;
 
 // ---- game data ----
-const TABLE_RVA: usize = rva(0x635118); // dword_635118
 const TABLE_LEN: u32 = 0x100;
 
 // ---- Rust version ----
@@ -121,7 +119,7 @@ unsafe fn lit(number: u32, mmx: bool) -> Result<u32, BadInput> {
         let place = set_normal(number).and_then(|()| table_place());
         let place = place?;
         let colour = plus(
-            game_read(TABLE_RVA + place * 4),
+            crate::scene::light_tables_store::LIGHT_TABLES.light_table[place].get(),
             LIGHT_WORK.light_colour.bits(),
             mmx,
         );
@@ -172,7 +170,12 @@ pub unsafe fn vertex_light(number: u32) -> Result<u32, BadInput> {
                 if level >= TABLE_LEN {
                     return Err(BadInput("a place outside the light table"));
                 }
-                Ok(plus(game_read(TABLE_RVA + level as usize * 4), added, mmx))
+                Ok(plus(
+                    crate::scene::light_tables_store::LIGHT_TABLES.light_table[level as usize]
+                        .get(),
+                    added,
+                    mmx,
+                ))
             }
             3 => {
                 set_normal(number)?;

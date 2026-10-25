@@ -26,8 +26,6 @@ pub static SEAL_KEY: crate::session::Dword = crate::session::Dword::new(0);
 
 pub const INDEX_LEN: u32 = 0x3850;
 pub const MOST_BLOCKS: u32 = rc2k_core::race::replay::MOST_BLOCKS;
-pub const CURSOR_RVA: usize = rva(0x9613A0); // dword_9613A0: where the next frame goes
-pub const BLOCK_RVA: usize = rva(0x9613A4); // dword_9613A4: the block, 0x2810 bytes
 pub const BLOCK_LEN: u32 = 0x2810;
 pub const HEADER_LEN: u32 = 0x430;
 
@@ -232,7 +230,7 @@ pub unsafe fn write_replay_block() -> Result<(), Refused> {
         REPLAY_FILE.block_places[2 * n as usize].set(REPLAY_VIEW.file_offset.get());
         let (written, failed) = write_replay_chunk(
             REPLAY_FILE.replay_handle.get(),
-            game_addr(BLOCK_RVA) as u32,
+            crate::race::viewer_buffers_store::VIEWER_BUFFERS.block[0].addr() as u32,
             BLOCK_LEN,
         )?;
         let failed = failed || {
@@ -264,8 +262,10 @@ pub unsafe fn add_replay_frame(from: u32, bytes: u32) -> Result<(), Refused> {
         }
         // Converted: `rc2k_core::race::replay::{fits, frame_added}`.
         use rc2k_core::race::replay::{FRAME_BYTES, fits, frame_added};
-        let cursor = get(CURSOR_RVA);
-        let block = game_addr(BLOCK_RVA) as u32;
+        let cursor = crate::race::viewer_buffers_store::VIEWER_BUFFERS
+            .block_cursor
+            .get();
+        let block = crate::race::viewer_buffers_store::VIEWER_BUFFERS.block[0].addr() as u32;
         let dwords = bytes >> 2;
         if cursor < block || !fits(cursor - block, dwords, BLOCK_LEN) {
             return Err(BadInput("a frame past the replay block's room").into());
@@ -278,10 +278,14 @@ pub unsafe fn add_replay_frame(from: u32, bytes: u32) -> Result<(), Refused> {
             REPLAY_VIEW.frames_in_block.set(in_block);
         }
         std::ptr::copy(from as *const u8, cursor as *mut u8, 4 * dwords as usize);
-        set(CURSOR_RVA, cursor + 4 * dwords);
+        crate::race::viewer_buffers_store::VIEWER_BUFFERS
+            .block_cursor
+            .set(cursor + 4 * dwords);
         if full {
             write_replay_block()?;
-            set(CURSOR_RVA, game_addr(BLOCK_RVA) as u32);
+            crate::race::viewer_buffers_store::VIEWER_BUFFERS
+                .block_cursor
+                .set(crate::race::viewer_buffers_store::VIEWER_BUFFERS.block[0].addr() as u32);
             REPLAY_VIEW.frames_in_block.set(0);
         }
     }
@@ -387,7 +391,9 @@ pub unsafe fn open_replay() -> Result<(), Refused> {
             INDEX_LEN as usize,
         );
         REPLAY_FILE.index_magic.set(INDEX_MAGIC);
-        set(CURSOR_RVA, game_addr(BLOCK_RVA) as u32);
+        crate::race::viewer_buffers_store::VIEWER_BUFFERS
+            .block_cursor
+            .set(crate::race::viewer_buffers_store::VIEWER_BUFFERS.block[0].addr() as u32);
         REPLAY_VIEW.frames_in_block.set(0);
         REPLAY_VIEW.file_offset.set(0);
         let opened = crate::files::handle::open_by_mode(

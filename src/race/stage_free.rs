@@ -4,7 +4,6 @@
 //! pointers 0.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, rva};
 use crate::memory::{MemoryList, own_heap};
 use crate::race::course_lists_store::COURSE_LISTS;
 use crate::race::vars_store::RACE_VARS;
@@ -72,7 +71,9 @@ pub const FONTS: Freeing = Freeing {
     list: || crate::gfx::build_game_fonts::GAME_FONTS.memory.as_ptr(),
     counted: false,
     // g_gameFontGlyphs
-    cleared: &[|| game_addr(rva(0x51E2DC)) as *mut u32],
+    cleared: &[|| unsafe {
+        &raw mut (*crate::gfx::fonts_store::FONTS.game_fonts[0].as_ptr()).glyph_table
+    }],
 };
 
 /// The freeing: the count down by the list's total (`counted`), `free_list`, the

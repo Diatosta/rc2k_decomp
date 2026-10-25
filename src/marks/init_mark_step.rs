@@ -17,14 +17,12 @@
 //! anything.
 
 use crate::errors::Refused;
-use crate::framework::rva;
-use crate::marks::store::game_read;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::kind_store::KIND_TABLES;
+use crate::race::light_records_store::LIGHT_RECORDS;
 use crate::race::view_store::RACE_VIEW;
 use crate::race::viewer_screen_store::VIEWER_PANEL;
 use crate::race::work_store::RACE_WORK;
-const ROWS_RVA: usize = rva(0x5C90D8); // dword_5C90D8 ..: rows of 0x134
 /// The Rust version (see the header).
 // Converted: `rc2k_core::marks::race::{check_cars, kind_row, car_fields}`
 pub unsafe fn init_mark_step() -> Result<(), Refused> {
@@ -41,8 +39,11 @@ pub unsafe fn init_mark_step() -> Result<(), Refused> {
         KIND_TABLES.mark_car_file_number.set_bits(file);
         for n in 0..count {
             let kind = ((block(n) + 0x24) as *const i32).read_unaligned();
-            let row = ROWS_RVA + race::kind_row(kind);
-            for (field, v) in race::car_fields(n, |offset| game_read(row + offset)) {
+            // `dword_5C90D8 ..`: rows of 0x134 (`groups[5]` of the kind's record on).
+            let row = LIGHT_RECORDS.record_addr(0) as usize + 0x6C + race::kind_row(kind);
+            for (field, v) in
+                race::car_fields(n, |offset| ((row + offset) as *const u32).read_unaligned())
+            {
                 ((record(n) + field) as *mut u32).write_unaligned(v);
             }
         }

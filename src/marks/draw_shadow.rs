@@ -20,13 +20,11 @@
 //! anything, a corner past `g_marksCorners` and an angle `fsincos` cannot take.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::rva;
 use crate::marks::blocks::MARK_CORNERS;
 use crate::marks::frame_state::DRAW_WORK;
 use crate::marks::kind_store::{
     CONSTS_1, CONSTS_2, EXTRA_2, EXTRAS_1, KindConsts, QUAD_1, QUAD_2, QuadWork,
 };
-use crate::marks::store::game_write;
 use crate::marks::surface_store::SURFACE;
 use crate::math::{x87, x87_run};
 use crate::race::matrices_store::MATRICES;
@@ -37,7 +35,7 @@ use crate::scene::rotate_point::rotate_point;
 use crate::scene::vector3::normalise_vector3;
 use crate::session::Float;
 
-const VERTICES_RVA: usize = rva(0x9605A0); // g_polygonVertices
+use crate::d3d::vertices_store::VERTICES;
 
 /// A shadow's variables (the typed statics of `marks::kind_store`: the second shadow's,
 /// `sub_4C74DA`'s, are set 1's, the first's set 2's) and its x87 blocks.
@@ -165,16 +163,16 @@ pub unsafe fn draw_shadow_with(sh: &Shadow, depth: bool) -> Result<(), Refused> 
         let word = |off: u32| u32::from(entry.words[off as usize / 2].get());
         let uv_k: u32 = DRAW_WORK.uv_k.bits();
         for (n, (u, v)) in UV_WORDS.into_iter().enumerate() {
-            let vertex = VERTICES_RVA + 0x20 * n;
-            game_write(vertex + 0x18, x87::int_times(word(u) as i32, uv_k));
-            game_write(vertex + 0x1C, x87::int_times(word(v) as i32, uv_k));
+            let vertex = &VERTICES.vertices[n];
+            vertex.u.set_bits(x87::int_times(word(u) as i32, uv_k));
+            vertex.v.set_bits(x87::int_times(word(v) as i32, uv_k));
         }
         let mut c = SURFACE.lives_by_level[8].get() | 0xFF00_0000;
         let half = |shift: u32| ((!(c >> shift) & 0xFF) >> 1) << shift;
         let (r, gr, bl) = (half(16), half(8), half(0));
         c = c.wrapping_add(r).wrapping_add(gr).wrapping_add(bl);
         for n in 0..4 {
-            game_write(VERTICES_RVA + 0x20 * n + 0x10, c);
+            VERTICES.vertices[n].colour.set(c);
         }
         for n in 0..4 {
             if (q.corners[n][2].bits() as i32) <= (NUMBERS.k4096_a.bits() as i32) {
@@ -184,11 +182,11 @@ pub unsafe fn draw_shadow_with(sh: &Shadow, depth: bool) -> Result<(), Refused> 
         projected_x87(crate::race::store::asm_base() as usize, sh);
         let z_k: u32 = DRAW_WORK.z_k.bits();
         for n in 0..4 {
-            let vertex = VERTICES_RVA + 0x20 * n;
-            game_write(vertex, q.corners[n][0].bits());
-            game_write(vertex + 4, q.corners[n][1].bits());
+            let vertex = &VERTICES.vertices[n];
+            vertex.x.set_bits(q.corners[n][0].bits());
+            vertex.y.set_bits(q.corners[n][1].bits());
             let depth = x87_run::sub_mul(q.corners[n][2].bits(), sh.consts.lifts[n].bits(), z_k);
-            game_write(vertex + 8, depth);
+            vertex.z.set_bits(depth);
         }
         crate::marks::clip_quad::draw_fan();
     }

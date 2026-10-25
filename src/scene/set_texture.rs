@@ -5,14 +5,12 @@
 //!
 //! 21 callers, none reading flags. `d3d::set_texture` is the platform's.
 
-use crate::framework::{game_read, rva};
-
-const SWITCH_RVA: usize = rva(0x5CDA8C); // dword_5CDA8C
+use crate::scene::object_tables_store::OBJECT_TABLES;
 
 /// `d3d::set_texture` with the texture, unless the switch is 0. What it leaves in the
 /// registers is read by none of its callers (register liveness, 2026-10-23).
 pub fn set_texture(texture: u32) {
-    if unsafe { game_read::<u32>(SWITCH_RVA) } != 0 {
+    if OBJECT_TABLES.has_3d.get() != 0 {
         crate::d3d::set_texture::set_texture(texture);
     }
 }

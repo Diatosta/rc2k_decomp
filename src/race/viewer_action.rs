@@ -36,13 +36,9 @@
 use crate::errors::Refused;
 use crate::install::vars::INSTALLER_PAGES;
 use crate::menu::screen_loop::Carried;
-use crate::physics::flow::a;
 use crate::race::replay_file_store::REPLAY_FILE;
 use crate::race::replay_work_store::REPLAY_WORK;
-use crate::race::viewer::{
-    CAMERA_EDIT, CAMERAS, CLIP_BLOCKS, CLIP_CAMERAS, CLIP_PLACES, MARK_IN, MARK_OUT, get,
-    move_dwords, put,
-};
+use crate::race::viewer::move_dwords;
 use crate::race::viewer_state_store::REPLAY_VIEW;
 
 /// The Rust version: whether the action is one (the zero flag the original leaves; it
@@ -69,19 +65,37 @@ pub fn viewer_action(action: u32, c: &Carried) -> Result<bool, Refused> {
             r.arg = goto_block(goto, |v| match v {
                 Var::Block => REPLAY_VIEW.replay_block.get(),
                 Var::Blocks => REPLAY_FILE.index_block_count.get(),
-                Var::MarkIn => get(MARK_IN),
-                Var::MarkOut => get(MARK_OUT),
+                Var::MarkIn => crate::race::viewer_buffers_store::VIEWER_BUFFERS
+                    .mark_in
+                    .get(),
+                Var::MarkOut => crate::race::viewer_buffers_store::VIEWER_BUFFERS
+                    .mark_out
+                    .get(),
             });
             read_replay_frame_0(r)?;
         }
         Action::MarkIn => {
-            if mark_in_here(REPLAY_VIEW.replay_block.get(), get(MARK_OUT)) {
-                put(MARK_IN, REPLAY_VIEW.replay_block.get());
+            if mark_in_here(
+                REPLAY_VIEW.replay_block.get(),
+                crate::race::viewer_buffers_store::VIEWER_BUFFERS
+                    .mark_out
+                    .get(),
+            ) {
+                crate::race::viewer_buffers_store::VIEWER_BUFFERS
+                    .mark_in
+                    .set(REPLAY_VIEW.replay_block.get());
             }
         }
         Action::MarkOut => {
-            if mark_out_here(REPLAY_VIEW.replay_block.get(), get(MARK_IN)) {
-                put(MARK_OUT, REPLAY_VIEW.replay_block.get());
+            if mark_out_here(
+                REPLAY_VIEW.replay_block.get(),
+                crate::race::viewer_buffers_store::VIEWER_BUFFERS
+                    .mark_in
+                    .get(),
+            ) {
+                crate::race::viewer_buffers_store::VIEWER_BUFFERS
+                    .mark_out
+                    .set(REPLAY_VIEW.replay_block.get());
             }
         }
         Action::FrameBack => {
@@ -122,7 +136,9 @@ pub fn viewer_action(action: u32, c: &Carried) -> Result<bool, Refused> {
         Action::Undo { end_edit } => {
             crate::race::undo_edit::undo_edit()?;
             if end_edit {
-                put(CAMERA_EDIT, 0);
+                crate::race::viewer_buffers_store::VIEWER_BUFFERS
+                    .camera_edit
+                    .set(0);
             }
         }
         Action::AnotherReplay => another_replay(r)?,
@@ -137,7 +153,11 @@ pub fn viewer_action(action: u32, c: &Carried) -> Result<bool, Refused> {
             crate::race::keep_undo::keep_undo();
             let block = REPLAY_VIEW.replay_block.get();
             if block != REPLAY_FILE.index_block_count.get() {
-                let byte = a(CAMERAS + byte as usize).wrapping_add(block.wrapping_mul(8));
+                let byte = (crate::race::viewer_buffers_store::VIEWER_BUFFERS
+                    .block_cameras
+                    .addr() as u32)
+                    .wrapping_add(byte)
+                    .wrapping_add(block.wrapping_mul(8));
                 let at = byte as *mut u8;
                 let old = unsafe { at.read() };
                 unsafe { at.write(old ^ 1) };
@@ -147,13 +167,17 @@ pub fn viewer_action(action: u32, c: &Carried) -> Result<bool, Refused> {
         Action::EditAndStep { camera, back } => {
             crate::race::edit_camera::edit_camera(camera);
             unsafe { crate::race::edit_camera::step_camera(if back { -1 } else { 1 }) }?;
-            put(CAMERA_EDIT, 0);
+            crate::race::viewer_buffers_store::VIEWER_BUFFERS
+                .camera_edit
+                .set(0);
         }
         Action::Edit { camera } => crate::race::edit_camera::edit_camera(camera),
         Action::Step { back } => {
             unsafe { crate::race::edit_camera::step_camera(if back { -1 } else { 1 }) }?
         }
-        Action::EndEdit => put(CAMERA_EDIT, 0),
+        Action::EndEdit => crate::race::viewer_buffers_store::VIEWER_BUFFERS
+            .camera_edit
+            .set(0),
         Action::Pictures { time } => {
             crate::race::start_frame_pictures::start_frame_pictures(time)?;
             crate::race::play_marked::play_marked()?;
@@ -186,7 +210,11 @@ fn cycle_byte(byte: usize) -> Result<(), Refused> {
     if block == REPLAY_FILE.index_block_count.get() {
         return Ok(());
     }
-    let byte_at = a(CAMERAS + byte).wrapping_add(block.wrapping_mul(8));
+    let byte_at = (crate::race::viewer_buffers_store::VIEWER_BUFFERS
+        .block_cameras
+        .addr() as u32)
+        .wrapping_add(byte as u32)
+        .wrapping_add(block.wrapping_mul(8));
     let at = byte_at as *mut u8;
     let old = unsafe { at.read() };
     let dl = rc2k_core::race::viewer::next_byte(byte as u32, old);
@@ -197,8 +225,12 @@ fn cycle_byte(byte: usize) -> Result<(), Refused> {
 /// 0x11: the marked blocks cut (`viewer::cut_marks`).
 fn cut(_r: &mut Carried) -> Result<(), Refused> {
     let Some((first, second)) = rc2k_core::race::viewer::cut_marks(
-        get(MARK_IN),
-        get(MARK_OUT),
+        crate::race::viewer_buffers_store::VIEWER_BUFFERS
+            .mark_in
+            .get(),
+        crate::race::viewer_buffers_store::VIEWER_BUFFERS
+            .mark_out
+            .get(),
         REPLAY_FILE.index_block_count.get(),
     )?
     else {
@@ -214,7 +246,12 @@ fn cut(_r: &mut Carried) -> Result<(), Refused> {
         .index_block_count
         .set(REPLAY_FILE.index_block_count.get().wrapping_sub(count));
     let rest = (REPLAY_FILE.index_block_count.get() + count) - second;
-    for table in [REPLAY_FILE.block_places[0].addr(), a(CAMERAS) as usize] {
+    for table in [
+        REPLAY_FILE.block_places[0].addr(),
+        crate::race::viewer_buffers_store::VIEWER_BUFFERS
+            .block_cameras
+            .addr(),
+    ] {
         move_dwords(
             table + 8 * first as usize,
             table + 8 * second as usize,
@@ -228,7 +265,9 @@ fn cut(_r: &mut Carried) -> Result<(), Refused> {
 
 /// 0x12: the clipboard pasted at the block shown (`viewer::pastes`).
 fn paste() -> Result<(), Refused> {
-    let clip = get(CLIP_BLOCKS);
+    let clip = crate::race::viewer_buffers_store::VIEWER_BUFFERS
+        .clip_blocks
+        .get();
     let (block, blocks) = (
         REPLAY_VIEW.replay_block.get(),
         REPLAY_FILE.index_block_count.get(),
@@ -240,7 +279,12 @@ fn paste() -> Result<(), Refused> {
     // The blocks from the one shown up by the clipboard's count, from the top down.
     // (The original's `std; rep movsd` from the last dword, `dword_5BECD4` and
     // `unk_963BB0` + count * 8, down: a move that may overlap.)
-    for base in [REPLAY_FILE.block_places[0].addr(), a(CAMERAS) as usize] {
+    for base in [
+        REPLAY_FILE.block_places[0].addr(),
+        crate::race::viewer_buffers_store::VIEWER_BUFFERS
+            .block_cameras
+            .addr(),
+    ] {
         unsafe {
             std::ptr::copy(
                 (base + 8 * block as usize) as *const u8,
@@ -251,12 +295,15 @@ fn paste() -> Result<(), Refused> {
     }
     move_dwords(
         REPLAY_FILE.block_places[0].addr() + 8 * block as usize,
-        a(CLIP_PLACES) as usize,
+        crate::race::viewer_buffers_store::VIEWER_BUFFERS.clip_places[0].addr(),
         2 * clip as usize,
     );
     move_dwords(
-        a(CAMERAS) as usize + 8 * block as usize,
-        a(CLIP_CAMERAS) as usize,
+        crate::race::viewer_buffers_store::VIEWER_BUFFERS
+            .block_cameras
+            .addr()
+            + 8 * block as usize,
+        crate::race::viewer_buffers_store::VIEWER_BUFFERS.clip_cameras[0].addr(),
         2 * clip as usize,
     );
     REPLAY_FILE.index_block_count.set(blocks + clip);

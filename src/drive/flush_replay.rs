@@ -8,7 +8,6 @@
 //! Caller: `drive::flush_replay_if`. Refuses what `write_replay_frames` refuses.
 
 use crate::errors::Refused;
-use crate::physics::flow::a;
 
 const DWORDS: usize = 0xA04;
 
@@ -17,7 +16,7 @@ pub unsafe fn flush_replay() -> Result<(), Refused> {
     unsafe {
         std::ptr::copy(
             crate::race::blocks_store::block_addr(8) as *const u32,
-            a(0x9613A4) as *mut u32,
+            crate::race::viewer_buffers_store::VIEWER_BUFFERS.block[0].addr() as *mut u32,
             DWORDS,
         )
     };

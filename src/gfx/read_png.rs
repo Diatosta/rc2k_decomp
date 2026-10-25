@@ -26,12 +26,10 @@ use crate::gfx::lay_out_png::lay_out_png;
 use crate::gfx::palette_pixels_to_dwords::palette_pixels_to_dwords;
 use crate::gfx::picture::picture;
 use crate::gfx::picture_store::PICTURE;
-use crate::gfx::png::INFO_RVA;
 use crate::gfx::png_file::PNG_FILE;
 use crate::gfx::rgb_pixels_to_dwords::rgb_pixels_to_dwords;
 use crate::memory::allocate::allocate;
 use crate::memory::free_list::free_list;
-use crate::store::{game_addr, game_ptr, game_read};
 
 // ---- game data ----
 
@@ -42,7 +40,7 @@ const HEAD_LEN: u32 = 0x80;
 /// What comes before the memory is taken: whether the file's head is a PNG the game takes.
 unsafe fn head_is_taken(path: *const u8) -> Result<bool, Refused> {
     unsafe {
-        let head = game_addr(INFO_RVA) as *mut u8;
+        let head = crate::gfx::png::info().cast::<u8>();
         (head as *mut u32).write_unaligned(0);
         let read = read_file(path, head, HEAD_LEN, 0)?;
         if !read.ok || read.bytes_read.is_none_or(|n| n < HEAD_LEN) {
@@ -67,14 +65,14 @@ unsafe fn read_held(path: *const u8, size: u32) -> Result<bool, Refused> {
         decode_png(
             std::slice::from_raw_parts(file, size as usize),
             picture(),
-            game_ptr(INFO_RVA),
+            crate::gfx::png::info(),
         )?;
         PICTURE.flags.set(0x802u32);
         lay_out_png();
         PICTURE.width.set(DECODER.width.get());
         PICTURE.height.set(DECODER.height.get());
         PICTURE.row_bytes.set(DECODER.stride.get());
-        if game_read::<u8>(INFO_RVA) == 1 {
+        if (*crate::gfx::png::info()).has_palette == 1 {
             palette_pixels_to_dwords()?;
         } else {
             rgb_pixels_to_dwords()?;

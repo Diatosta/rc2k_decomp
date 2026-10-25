@@ -6,16 +6,12 @@
 //! it otherwise).
 
 use crate::errors::Refused;
-use crate::framework::{game_read, game_write, rva};
 use crate::race::prefs_store::STAGE_PREFS;
 use crate::race::switches_store::FRAME_SWITCHES;
 use crate::race::view_store::RACE_VIEW;
-use crate::scene::texture_needs::{SYSTEM_LEVELS_RVA, TAGS_RVA, VIDEO_LEVELS_RVA};
+use crate::scene::object_tables_store::OBJECT_TABLES;
+use crate::scene::texture_places_store::TEXTURE_PLACES;
 use crate::session::Dword;
-
-pub const OTHER_LEVELS_RVA: usize = rva(0x5CDADC); // dword_5CDADC
-pub const KIND_SLOTS_RVA: usize = rva(0x5DC978); // g_kindSlotBytes: + 4 (or 1) a kind's slot
-pub const SLOTS: u32 = 0x400;
 
 /// A kind's block: its first-texture variable (an index in `kind_first_textures`; only its place in `g_textureWantedPictures`
 /// is worked out, and not used: section 16), its prefs entries, the first slot, how many,
@@ -69,7 +65,7 @@ const BLOCKS: [Block; 26] = [
 ];
 
 fn other() -> bool {
-    unsafe { game_read::<u32>(OTHER_LEVELS_RVA) != 0 }
+    OBJECT_TABLES.other_levels.get() != 0
 }
 
 const COUNT_TEXT_RVA: &std::ffi::CStr = c"NUM DIFFERENT CARS/OBJECTS/TEXTURE SETS "; // "NUM DIFFERENT CARS/OBJECTS/TEXTURE SETS "
@@ -86,7 +82,7 @@ const COUNT_TEXT_RVA: &std::ffi::CStr = c"NUM DIFFERENT CARS/OBJECTS/TEXTURE SET
 pub unsafe fn init_texture_levels() -> Result<(), Refused> {
     // Converted: `rc2k_core::scene::texture_levels::{held_cars, set_levels}`.
     use crate::logfile::{log_int::log_int, log_write::log_write};
-    use crate::scene::textures::slice;
+    use crate::scene::textures::cells_mut;
     use rc2k_core::scene::texture_levels::{KindSlots, held_cars, set_levels};
     unsafe {
         let cars = held_cars(RACE_VIEW.race_cars.bits());
@@ -94,7 +90,7 @@ pub unsafe fn init_texture_levels() -> Result<(), Refused> {
         crate::scene::reset_texture_tables::reset_texture_tables();
         log_write(COUNT_TEXT_RVA.as_ptr() as usize as *const u8, false, 1);
         log_int(cars as i32, true, 1);
-        game_write(OTHER_LEVELS_RVA, 0u32);
+        OBJECT_TABLES.other_levels.set(0);
         crate::input::keys::update_input(&mut crate::input::keys::game_screenshot);
         let kinds: Vec<(KindSlots, Vec<u32>)> = BLOCKS
             .iter()
@@ -117,9 +113,9 @@ pub unsafe fn init_texture_levels() -> Result<(), Refused> {
             .collect();
         let set = set_levels(
             &mut rc2k_core::scene::textures::LevelTables {
-                tags: slice(TAGS_RVA, SLOTS),
-                system: slice(SYSTEM_LEVELS_RVA, SLOTS),
-                video: slice(VIDEO_LEVELS_RVA, SLOTS),
+                tags: cells_mut(&OBJECT_TABLES.texture_tags),
+                system: cells_mut(&OBJECT_TABLES.system_levels),
+                video: cells_mut(&OBJECT_TABLES.video_levels),
             },
             cars,
             RACE_VIEW.players.bits() == 1,
@@ -127,9 +123,12 @@ pub unsafe fn init_texture_levels() -> Result<(), Refused> {
             FRAME_SWITCHES.editor_mode.bits() != 0,
             other(),
         )?;
-        game_write(
-            KIND_SLOTS_RVA,
-            game_read::<u32>(KIND_SLOTS_RVA).wrapping_add(set.kind_slots_added),
+        // `g_kindSlotBytes`: + 4 (or 1) a kind's slot.
+        TEXTURE_PLACES.kind_slot_bytes.set(
+            TEXTURE_PLACES
+                .kind_slot_bytes
+                .get()
+                .wrapping_add(set.kind_slots_added),
         );
     }
     Ok(())

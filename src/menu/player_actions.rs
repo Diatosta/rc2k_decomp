@@ -22,7 +22,6 @@
 //! Refuses (before anything) no current player (or one past the four).
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, rva};
 use crate::menu::event_store::EVENT_STATE;
 use crate::menu::keys_store::KEY_TABLES;
 use crate::menu::pages_store::MENU_PAGES;
@@ -30,8 +29,6 @@ use crate::menu::screen_loop::Carried;
 use crate::menu::state_store::MENU_STATE;
 use rc2k_core::menu::player::Player;
 use rc2k_core::menu::steps;
-
-const CAPTION_RVA: usize = rva(0xA8BE54); // g_captionText
 
 /// The current player's record.
 fn player() -> Result<u32, Refused> {
@@ -118,7 +115,9 @@ pub fn next_replay_range() {
 pub fn toggle_caption_choice() -> (u32, u32) {
     let choice = steps::flip(MENU_STATE.menus.caption_choice.get());
     MENU_STATE.menus.caption_choice.set(choice);
-    let mut cursor = game_addr(CAPTION_RVA) as u32;
+    let mut cursor = crate::screens::text_buffers_store::TEXT_BUFFERS
+        .caption
+        .addr() as u32;
     let caption = rc2k_core::screens::page_values::stage_options_caption(choice);
     let eax = unsafe {
         crate::strings::append_string_by_id::append_string_by_id(caption, &mut |at, n| {

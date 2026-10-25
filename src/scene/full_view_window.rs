@@ -6,14 +6,17 @@
 //!
 //! Callers: `sub_45A893` (0x45A906), code at 0x4435B8.
 
-use crate::framework::game_write;
-use crate::scene::choose_view_window::{MODE_RVA, choose_view_window};
+use crate::scene::choose_view_window::choose_view_window;
 
 /// `choose_view_window` with the mode 2, the mode back to 0 after.
 pub unsafe fn full_view_window() {
     unsafe {
-        game_write(MODE_RVA, 2u16);
+        crate::scene::light_tables_store::LIGHT_TABLES
+            .view_mode
+            .set(2);
         choose_view_window();
-        game_write(MODE_RVA, 0u16);
+        crate::scene::light_tables_store::LIGHT_TABLES
+            .view_mode
+            .set(0);
     }
 }

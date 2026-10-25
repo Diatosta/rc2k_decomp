@@ -18,13 +18,12 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::game_ptr;
 use crate::menu::results_store::RESULT_FIGURES;
 use crate::race::state_store::RACE_STATE;
 use crate::screens::draw_stage_records::selection;
 use crate::screens::stage_panel::{
-    SECOND_HEADING_RVA, TITLE_FONT, build_second_heading, draw_records_for_group, draw_stage_body,
-    dword, label, table_dword_at,
+    TITLE_FONT, build_second_heading, draw_records_for_group, draw_stage_body, dword, label,
+    table_dword_at,
 };
 use crate::session::Dword;
 use crate::text::draw_text::{Canvas, draw_text_at};
@@ -67,7 +66,9 @@ pub unsafe fn draw_time_trial_stage_info(canvas: &mut dyn Canvas) -> Result<bool
         build_second_heading(sel.record)?;
         let heading = draw_text_at(
             TITLE_FONT.as_ptr(),
-            game_ptr::<u8>(SECOND_HEADING_RVA),
+            crate::screens::text_buffers_store::TEXT_BUFFERS
+                .stage_heading
+                .as_ptr(),
             TITLE_X,
             HEADING_Y,
             canvas,

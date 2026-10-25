@@ -11,18 +11,19 @@
 //! (everything put back).
 
 use crate::errors::Refused;
-use crate::physics::flow::a;
 use crate::race::replay_file_store::REPLAY_FILE;
-use crate::race::viewer::{
-    CAMERAS, TABLE_LEN, UNDO_BLOCKS, UNDO_CAMERAS, UNDO_PLACES, get, put, table,
-};
+use crate::race::viewer::{TABLE_LEN, table};
 
 /// The Rust version. What the original leaves its one caller, `viewer_action` (which
 /// keeps every register), does not read.
 pub fn undo_edit() -> Result<(), Refused> {
     // Converted: `rc2k_core::race::viewer_flow::{undo_count, copy_tables}`.
     use rc2k_core::race::viewer_flow::{copy_tables, undo_count};
-    let Some(count) = undo_count(get(UNDO_BLOCKS)) else {
+    let Some(count) = undo_count(
+        crate::race::viewer_buffers_store::VIEWER_BUFFERS
+            .undo_blocks
+            .get(),
+    ) else {
         return Ok(());
     };
     REPLAY_FILE.index_block_count.set(count);
@@ -31,14 +32,27 @@ pub fn undo_edit() -> Result<(), Refused> {
         copy_tables(
             (
                 table(REPLAY_FILE.block_places[0].addr(), n),
-                table(a(CAMERAS) as usize, n),
+                table(
+                    crate::race::viewer_buffers_store::VIEWER_BUFFERS
+                        .block_cameras
+                        .addr(),
+                    n,
+                ),
             ),
             (
-                table(a(UNDO_PLACES) as usize, n),
-                table(a(UNDO_CAMERAS) as usize, n),
+                table(
+                    crate::race::viewer_buffers_store::VIEWER_BUFFERS.undo_places[0].addr(),
+                    n,
+                ),
+                table(
+                    crate::race::viewer_buffers_store::VIEWER_BUFFERS.undo_cameras[0].addr(),
+                    n,
+                ),
             ),
         );
     }
-    put(UNDO_BLOCKS, 0);
+    crate::race::viewer_buffers_store::VIEWER_BUFFERS
+        .undo_blocks
+        .set(0);
     crate::race::reset_marks::reset_marks()
 }

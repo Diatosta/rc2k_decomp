@@ -13,11 +13,9 @@
 //! taken), memory or a picture not had, as its steps do.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::rva;
 use crate::gfx::picture_store::PICTURE;
 use crate::marks::kind_values::MARKS_KIND;
 use crate::marks::mask_store::{GROUND_NAMES, KIND_PICTURES, MASK_BLOCKS, PICTURE_COPY};
-use crate::marks::store::game_read;
 use crate::memory::MemoryList;
 use crate::scene::kind_texture_store::KIND_TEXTURES;
 use crate::session::Dword;
@@ -37,7 +35,6 @@ const MOST_KIND: i32 = 0x21;
 const MASK_PATH_AT: usize = 0;
 const BMASK_PATH_AT: usize = 0x13;
 const DIGITS_AT: [usize; 3] = [0xC, 0x20, 0x34];
-const SURFACE_WIDTH_RVA: usize = rva(0x4F49A0); // g_surface.width
 const MOST_WIDTH: u32 = 0x100;
 const COPIED: u32 = 0x8000; // dwords
 const ROWS: u32 = 0x7E;
@@ -135,7 +132,7 @@ pub unsafe fn load_mask_pictures() -> Result<(), Refused> {
             to.set(crate::memory::allocate::allocate(list, bytes)? as u32);
         }
         lock(KIND_TEXTURES.kind_first_textures[202].bits(), true)?;
-        let width: u32 = game_read(SURFACE_WIDTH_RVA);
+        let width: u32 = crate::gfx::screen_state::DRAW_SURFACE.width.get();
         if width > MOST_WIDTH {
             lock(KIND_TEXTURES.kind_first_textures[202].bits(), false)?;
             return Err(BadInput("a mask surface wider than 256").into());

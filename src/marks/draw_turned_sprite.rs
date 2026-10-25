@@ -16,18 +16,14 @@
 //! before anything.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::rva;
 use crate::marks::clip_quad::{clip_quad, draw_fan};
 use crate::marks::frame_state::DRAW_WORK;
-use crate::marks::store::{game_addr, game_read, game_write};
 use crate::math::x87;
 use crate::scene::draw_store::DRAW;
 use crate::scene::matrix3::rounded;
 use crate::session::Float;
 
-const VERTICES_RVA: usize = rva(0x9605A0); // g_polygonVertices: TLVertex[4]
-const SINES_RVA: usize = rva(0xA23AE4); // g_sines
-const COSINES_RVA: usize = rva(0xA24AE4); // g_cosines: 0x1000 entries
+use crate::d3d::vertices_store::VERTICES;
 const ANGLES: u32 = 0x1000;
 
 /// The Rust version (see the header): `angle` (the original's ebx), `colour` (ecx, its
@@ -62,22 +58,22 @@ pub unsafe fn draw_turned_sprite(
             DRAW.view_centre[1].bits(),
             DRAW_WORK.z_k.bits(),
         ];
-        let sin = game_read(SINES_RVA + 4 * angle as usize);
-        let cos = game_read(COSINES_RVA + 4 * angle as usize);
+        let sin = crate::scene::engine_tables_store::sine(angle as usize).bits();
+        let cos = crate::scene::engine_tables_store::cosine(angle as usize).bits();
         let sq = x87::turned_sprite(a, b, c, k, size as i32, sin, cos);
         for n in 0..4 {
-            let v = VERTICES_RVA + 0x20 * n;
-            game_write(v + 0x10, colour);
-            game_write(v + 0x18, x87::loaded(SPRITE_UV.uv[2 * n].bits()));
-            game_write(v + 0x1C, x87::loaded(SPRITE_UV.uv[2 * n + 1].bits()));
-            game_write(v + 8, sq[1]);
-            game_write(v, sq[10 + n]);
-            game_write(v + 4, sq[6 + n]);
+            let v = &VERTICES.vertices[n];
+            v.colour.set(colour);
+            v.u.set_bits(x87::loaded(SPRITE_UV.uv[2 * n].bits()));
+            v.v.set_bits(x87::loaded(SPRITE_UV.uv[2 * n + 1].bits()));
+            v.z.set_bits(sq[1]);
+            v.x.set_bits(sq[10 + n]);
+            v.y.set_bits(sq[6 + n]);
         }
         for (n, v) in sq[2..6].iter().enumerate() {
             DRAW_WORK.sprite_half[n].set_bits(*v);
         }
-        if clip_quad(game_addr(VERTICES_RVA) as u32)? {
+        if clip_quad(crate::d3d::vertices_store::piece_addr() as u32)? {
             return Ok(());
         }
         draw_fan();

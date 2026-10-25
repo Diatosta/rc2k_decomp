@@ -37,27 +37,23 @@
 //! writes past it, and `load_object` reports the fatal error afterwards).
 
 use crate::errors::BadInput;
-use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::math::x87;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::course_lists_store::COURSE_LISTS;
 use crate::race::course_store::COURSE;
 use crate::scene::draw_store::DRAW;
 use crate::scene::draw_switches_store::DRAW_SWITCHES;
+use crate::scene::object_slots_store::OBJECT_SLOTS;
 use crate::scene::object_store::OBJECT_WORK;
-use crate::scene::objects::{
-    FACE_COUNT_RVA, FACE_COUNTS_RVA, FACES, FACES_RVA, FILE_ROOM, FILE_RVA, FIRST_FACE_RVA,
-    FIRST_POINT_RVA, NORMAL_COUNTS_RVA, POINT_COUNT_RVA, POINT_COUNTS_RVA, SLOTS,
-};
+use crate::scene::object_tables_store::OBJECT_TABLES;
+use crate::scene::objects::{FACES, FILE_ROOM, SLOTS};
+use crate::scene::texture_places_store::TEXTURE_PLACES;
 
 // ---- game data ----
 
-/// `dword_5DDEBC` the faces', `dword_5E1EBC` the points', `dword_5E5EBC` the normals'.
-const MARKS_RVA: usize = rva(0x5DDEBC);
+/// `face_marks` (`dword_5DDEBC`) the faces', `point_marks` (`dword_5E1EBC`) the points',
+/// `normal_marks` (`dword_5E5EBC`) the normals'.
 const MARKS: usize = 0x1000;
-const RADII_RVA: usize = rva(0x634BA0); // dword_634BA0
-const NORMALS_AT_RVA: usize = rva(0x5CD684); // dword_5CD684
-const NO_NORMALS_RVA: usize = rva(0x631F6C); // dword_631F6C
 
 // ---- Rust version ----
 
@@ -88,7 +84,7 @@ unsafe fn dword(offset: usize) -> Result<u32, BadInput> {
     if offset.checked_add(4).is_none_or(|end| end > FILE_ROOM) {
         return Err(PAST);
     }
-    Ok(unsafe { (game_addr(FILE_RVA + offset) as *const u32).read_unaligned() })
+    Ok(unsafe { ((crate::scene::objects::file_addr() + offset) as *const u32).read_unaligned() })
 }
 
 fn numbered(marks: &mut [u32]) {
@@ -200,36 +196,33 @@ struct Room {
 }
 
 unsafe fn room(shape: &Shape) -> Result<Room, BadInput> {
-    unsafe {
-        let room = Room {
-            slot: OBJECT_WORK.loading_slot.bits(),
-            points: COURSE_LISTS.object_points.bits(),
-            point_count: game_read(POINT_COUNT_RVA),
-            face_memory: COURSE_LISTS.face_memory.bits(),
-            face_cursor: OBJECT_WORK.face_cursor.bits(),
-            face_count: game_read(FACE_COUNT_RVA),
-        };
-        if room.slot >= SLOTS || room.points == 0 || room.face_memory == 0 {
-            return Err(BadInput(
-                "a slot past the tables, or no memory for the objects",
-            ));
-        }
-        let [points, normals, faces, face_bytes] = shape.added;
-        let fits = (room.point_count as usize + points + normals) * 12
-            <= COURSE_LISTS.object_points_room.bits() as usize
-            && room.face_cursor as usize + face_bytes
-                <= COURSE_LISTS.face_memory_room.bits() as usize
-            && room.face_count as usize + faces <= FACES as usize;
-        if !fits {
-            return Err(BadInput("a shape that does not fit the objects' memory"));
-        }
-        Ok(room)
+    let room = Room {
+        slot: OBJECT_WORK.loading_slot.bits(),
+        points: COURSE_LISTS.object_points.bits(),
+        point_count: OBJECT_TABLES.point_count.get(),
+        face_memory: COURSE_LISTS.face_memory.bits(),
+        face_cursor: OBJECT_WORK.face_cursor.bits(),
+        face_count: OBJECT_TABLES.face_count.get(),
+    };
+    if room.slot >= SLOTS || room.points == 0 || room.face_memory == 0 {
+        return Err(BadInput(
+            "a slot past the tables, or no memory for the objects",
+        ));
     }
+    let [points, normals, faces, face_bytes] = shape.added;
+    let fits = (room.point_count as usize + points + normals) * 12
+        <= COURSE_LISTS.object_points_room.bits() as usize
+        && room.face_cursor as usize + face_bytes <= COURSE_LISTS.face_memory_room.bits() as usize
+        && room.face_count as usize + faces <= FACES as usize;
+    if !fits {
+        return Err(BadInput("a shape that does not fit the objects' memory"));
+    }
+    Ok(room)
 }
 
 pub unsafe fn add_object_shape(file: usize) -> Result<(), BadInput> {
     unsafe {
-        if file != game_addr(FILE_RVA) {
+        if file != crate::scene::objects::file_addr() {
             return Err(BadInput("an object's file elsewhere than in its buffer"));
         }
         let shape = match shape()? {
@@ -243,8 +236,10 @@ pub unsafe fn add_object_shape(file: usize) -> Result<(), BadInput> {
             }
         };
         let room = room(&shape)?;
-        let slot = room.slot as usize * 4;
-        let read = |offset: usize| (game_addr(FILE_RVA + offset) as *const u32).read_unaligned();
+        let slot = room.slot as usize;
+        let read = |offset: usize| {
+            ((crate::scene::objects::file_addr() + offset) as *const u32).read_unaligned()
+        };
 
         crate::session::write_first(&OBJECT_WORK.shape_counts[5..7], &[u32::MAX, 0]);
         OBJECT_WORK.shape_counts[1].set_bits(shape.points as u32);
@@ -252,16 +247,16 @@ pub unsafe fn add_object_shape(file: usize) -> Result<(), BadInput> {
         OBJECT_WORK.shape_counts[3].set_bits(shape.normals as u32);
         for n in 0..MARKS {
             let taken = shape.faces.get(n).is_some_and(|face| face.taken);
-            game_write(MARKS_RVA + n * 4, taken as u32);
-            game_write(MARKS_RVA + (MARKS + n) * 4, shape.point_marks[n]);
-            game_write(MARKS_RVA + (2 * MARKS + n) * 4, shape.normal_marks[n]);
+            TEXTURE_PLACES.face_marks[n].set(taken as u32);
+            TEXTURE_PLACES.point_marks[n].set(shape.point_marks[n]);
+            TEXTURE_PLACES.normal_marks[n].set(shape.normal_marks[n]);
         }
 
         // The points.
         let (first_point, first_face) = (room.point_count, room.face_count);
         crate::session::write_prefix(&OBJECT_WORK.shape_firsts, &[first_point, first_face]);
-        game_write(FIRST_POINT_RVA + slot, first_point);
-        game_write(FIRST_FACE_RVA + slot, first_face);
+        OBJECT_SLOTS.first_point[slot].set(first_point);
+        OBJECT_SLOTS.first_face[slot].set(first_face);
         let kind: u32 = OBJECT_WORK.loading_kind.bits();
         let turned = (0x190..0x258).contains(&kind);
         let drop: u32 = PHYSICS.ground_drop.bits();
@@ -291,14 +286,14 @@ pub unsafe fn add_object_shape(file: usize) -> Result<(), BadInput> {
             to = to.add(1);
         }
         COURSE.shape_radius.set_bits(radius);
-        game_write(RADII_RVA + slot, radius);
-        game_write(POINT_COUNTS_RVA + slot, count - first_point);
+        OBJECT_SLOTS.radii[slot].set(radius);
+        OBJECT_SLOTS.point_counts[slot].set(count - first_point);
         let first_normal = count;
         OBJECT_WORK.shape_firsts[2].set_bits(first_normal);
 
         // The faces.
         let no_normals = shape.normals == 0;
-        let mut without: u32 = game_read(NO_NORMALS_RVA);
+        let mut without: u32 = OBJECT_SLOTS.no_normals.get();
         let (mut lowest, mut highest) = (u32::MAX, 0u32);
         let mut face_number = first_face;
         let mut out = (room.face_memory + room.face_cursor) as usize;
@@ -311,7 +306,7 @@ pub unsafe fn add_object_shape(file: usize) -> Result<(), BadInput> {
             }
         };
         for face in shape.faces.iter().filter(|face| face.taken) {
-            game_write(FACES_RVA + face_number as usize * 4, out as u32);
+            crate::scene::objects::face_cell(face_number as usize).set(out as u32);
             let put = |at: usize, value: u32| (at as *mut u32).write_unaligned(value);
             put(out, read(face.at));
             put(out + 4, read(face.at + 4));
@@ -338,9 +333,11 @@ pub unsafe fn add_object_shape(file: usize) -> Result<(), BadInput> {
             face_number += 1;
         }
         crate::session::write_first(&OBJECT_WORK.shape_counts[5..7], &[lowest, highest]);
-        game_write(NO_NORMALS_RVA, without);
-        game_write(FACE_COUNT_RVA, face_number);
-        game_write(NORMALS_AT_RVA, (file + shape.normals_at) as u32);
+        OBJECT_SLOTS.no_normals.set(without);
+        OBJECT_TABLES.face_count.set(face_number);
+        OBJECT_TABLES
+            .normals_at
+            .set((file + shape.normals_at) as u32);
         OBJECT_WORK
             .face_cursor
             .set_bits(out as u32 - room.face_memory);
@@ -355,9 +352,9 @@ pub unsafe fn add_object_shape(file: usize) -> Result<(), BadInput> {
             count += 1;
             to = to.add(1);
         }
-        game_write(POINT_COUNT_RVA, count);
-        game_write(NORMAL_COUNTS_RVA + slot, count - first_normal);
-        game_write(FACE_COUNTS_RVA + slot, face_number - first_face);
+        OBJECT_TABLES.point_count.set(count);
+        OBJECT_SLOTS.normal_counts[slot].set(count - first_normal);
+        OBJECT_SLOTS.face_counts[slot].set(face_number - first_face);
         Ok(())
     }
 }

@@ -19,9 +19,8 @@ use crate::marks::splines::{
     SPLINE_CONSTANTS, SPLINE_HEAD, SPLINE_LEN, SPLINE_TABLES, SPLINE_WORK,
     place_shape_points as place_shape,
 };
-use crate::marks::store::game_write;
+use crate::marks::work_store::MARKS_WORK;
 use crate::math::x87;
-use crate::scene::vector3::STATUS_RVA;
 
 const SPLINES: u32 = 8;
 
@@ -67,13 +66,13 @@ pub unsafe fn place_spline(n: u32) -> Result<(), Refused> {
             place_shape(r)?;
         }
         let status = x87::compare_status(get(b + 0x24), k[2]);
-        game_write(STATUS_RVA, status as u32);
+        MARKS_WORK.fpu_status.set(status as u32);
         let f = if status == 0x100 { k[4] } else { k[3] };
         put(b + 0x2C, x87::mul(get(b + 0x24), f));
         SPLINE_HEAD.switch.set(0);
         place_graded_points(b)?;
         let status = x87::compare_status(get(c + 0x24), k[5]);
-        game_write(STATUS_RVA, status as u32);
+        MARKS_WORK.fpu_status.set(status as u32);
         let f = if status == 0 { k[7] } else { k[6] };
         put(c + 0x2C, x87::mul(get(c + 0x24), f));
         SPLINE_HEAD.switch.set(1);

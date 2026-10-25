@@ -20,7 +20,6 @@
 //! where they are copied.
 
 use crate::errors::BadInput;
-use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::race::course_store::COURSE;
 use crate::race::prefs_store::STAGE_PREFS;
 use crate::scene::clip_asm::{
@@ -28,13 +27,11 @@ use crate::scene::clip_asm::{
     cut_at_depth, cut_at_x, cut_at_y,
 };
 use crate::scene::draw_store::DRAW;
-use crate::scene::polygon::{ENTRIES, ENTRIES_RVA, ENTRY_LEN, LIST_RVA, dword, listed, put};
+use crate::scene::polygon::{ENTRIES, ENTRY_LEN, dword, listed, put};
 use crate::scene::project_point::{RECORD_LEN, to_screen};
 
 // ---- game data ----
 
-pub const OLD_LIST_RVA: usize = rva(0x977810); // dword_977810
-pub const POOL_RVA: usize = rva(0x977F10); // unk_977F10
 /// Where an entry's five interpolated bytes are.
 const BYTES: [usize; 5] = [0x18, 0x19, 0x1A, 0x20, 0x21];
 
@@ -82,7 +79,7 @@ unsafe fn cut(edge: Edge, a: usize, b: usize, mask: u32) -> Result<u32, BadInput
         if record == 0 {
             return Err(BadInput("no pool of records"));
         }
-        let new = game_addr(ENTRIES_RVA) + number as usize * ENTRY_LEN;
+        let new = crate::scene::polygon::entries_addr() + number as usize * ENTRY_LEN;
         let mut w: Work = [0; 0x51];
         let base = w.as_mut_ptr() as *mut u8;
         for (entry, record_at, entry_at, bytes_at) in [
@@ -168,9 +165,11 @@ pub unsafe fn clip_pass(edge: Edge, inside_past: bool, mask: u32) -> Result<(), 
     unsafe {
         let entries = listed_with_records()?;
         let count = entries.len();
-        let numbers: Vec<u32> = (0..count).map(|n| game_read(LIST_RVA + n * 4)).collect();
+        let numbers: Vec<u32> = (0..count)
+            .map(|n| crate::scene::polygon::list_cell(n).get())
+            .collect();
         for (n, &number) in numbers.iter().chain([&numbers[0]]).enumerate() {
-            game_write(OLD_LIST_RVA + n * 4, number);
+            crate::scene::polygon::old_list_cell(n).set(number);
         }
         let (bound, coordinate) = match edge {
             Edge::X(at) => (f32::from_bits(at) as f64, 0xC),
@@ -186,12 +185,12 @@ pub unsafe fn clip_pass(edge: Edge, inside_past: bool, mask: u32) -> Result<(), 
             let (a, b) = (entries[n], entries[(n + 1) % count]);
             let (a_inside, b_inside) = (inside(a), inside(b));
             if a_inside {
-                game_write(LIST_RVA + out * 4, numbers[n]);
+                crate::scene::polygon::list_cell(out).set(numbers[n]);
                 out += 1;
             }
             if a_inside != b_inside {
                 let number = cut(edge, a, b, mask)?;
-                game_write(LIST_RVA + out * 4, number);
+                crate::scene::polygon::list_cell(out).set(number);
                 DRAW.polygon_next_entry.set_bits(number + 1);
                 out += 1;
             }

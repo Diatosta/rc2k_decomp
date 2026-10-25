@@ -16,7 +16,6 @@
 //! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, rva};
 use crate::physics::car_store::CAR;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::replay_file_store::REPLAY_FILE;
@@ -24,10 +23,6 @@ use rc2k_core::physics::progress::{
     LAST_CHECKPOINT, OFF_LINE_CUE, TURNED_CUE, Warnings, cue_due, off_line, spread,
 };
 use rc2k_core::physics::x87::below as x87_below;
-
-fn g(x: usize) -> u32 {
-    unsafe { game_read(rva(x)) }
-}
 
 /// The counters: off, turned, their times.
 fn counters() -> [&'static crate::session::Dword; 4] {
@@ -75,7 +70,10 @@ pub fn off_line_warnings() -> Result<(), Refused> {
     let mut w = load();
     w.count_off(off_line(near, || spread(cp, CAR.reset_checkpoint.get())));
     w.count_turned(
-        spread(CAR.car_heading.get(), g(0x9ED808 + 4 * cp as usize)),
+        spread(
+            CAR.car_heading.get(),
+            crate::race::checkpoints_store::angle(cp as usize).get(),
+        ),
         PHYSICS.off_line_word.get(),
     );
     store(&w);

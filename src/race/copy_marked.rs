@@ -12,30 +12,40 @@
 //! outside the tables).
 
 use crate::errors::Refused;
-use crate::physics::flow::a;
 use crate::race::replay_file_store::REPLAY_FILE;
-use crate::race::viewer::{
-    CAMERAS, CLIP_BLOCKS, CLIP_CAMERAS, CLIP_PLACES, MARK_IN, MARK_OUT, get, move_dwords, put,
-};
+use crate::race::viewer::move_dwords;
 
 /// The Rust version: the count copied (edx), none when the marks are not in order. Of
 /// what the original leaves, its caller `viewer_action` reads only edx, in the cut.
 pub fn copy_marked() -> Result<Option<u32>, Refused> {
     // Converted: `rc2k_core::race::viewer::clip`.
-    let first = get(MARK_IN);
-    let Some((_, blocks)) = rc2k_core::race::viewer::clip(first, get(MARK_OUT))? else {
+    let first = crate::race::viewer_buffers_store::VIEWER_BUFFERS
+        .mark_in
+        .get();
+    let Some((_, blocks)) = rc2k_core::race::viewer::clip(
+        first,
+        crate::race::viewer_buffers_store::VIEWER_BUFFERS
+            .mark_out
+            .get(),
+    )?
+    else {
         return Ok(None);
     };
-    put(CLIP_BLOCKS, blocks);
+    crate::race::viewer_buffers_store::VIEWER_BUFFERS
+        .clip_blocks
+        .set(blocks);
     let dwords = 2 * blocks as usize;
     move_dwords(
-        a(CLIP_PLACES) as usize,
+        crate::race::viewer_buffers_store::VIEWER_BUFFERS.clip_places[0].addr(),
         REPLAY_FILE.block_places[0].addr() + 8 * first as usize,
         dwords,
     );
     move_dwords(
-        a(CLIP_CAMERAS) as usize,
-        a(CAMERAS) as usize + 8 * first as usize,
+        crate::race::viewer_buffers_store::VIEWER_BUFFERS.clip_cameras[0].addr(),
+        crate::race::viewer_buffers_store::VIEWER_BUFFERS
+            .block_cameras
+            .addr()
+            + 8 * first as usize,
         dwords,
     );
     Ok(Some(blocks))

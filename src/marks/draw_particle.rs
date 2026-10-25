@@ -12,13 +12,11 @@
 //!
 //! Callers: the ring's update (code at 0x4D03E7, 0x4D04BE, 0x4D05AC).
 
-use crate::framework::rva;
+use crate::d3d::vertices_store::VERTICES;
 use crate::marks::frame_state::DRAW_WORK;
-use crate::marks::store::game_write;
 use crate::math::x87;
 use crate::race::matrices_store::MATRICES;
 use crate::scene::draw_store::DRAW;
-const VERTICES_RVA: usize = rva(0x9605A0); // g_polygonVertices: TLVertex[4]
 
 /// The Rust version (see the header): `colour` (ecx), `size` (edx).
 pub unsafe fn draw_particle(place: [[u8; 10]; 3], colour: u32, size: u32) {
@@ -39,11 +37,11 @@ pub unsafe fn draw_particle(place: [[u8; 10]; 3], colour: u32, size: u32) {
         ];
         let sq = x87::particle_square(a, b, c, k, size as i32);
         for n in 0..4 {
-            let v = VERTICES_RVA + 0x20 * n;
-            game_write(v + 0x10, colour);
-            game_write(v + 8, sq[1]);
-            game_write(v, sq[6 + n]);
-            game_write(v + 4, sq[2 + n]);
+            let v = &VERTICES.vertices[n];
+            v.colour.set(colour);
+            v.z.set_bits(sq[1]);
+            v.x.set_bits(sq[6 + n]);
+            v.y.set_bits(sq[2 + n]);
         }
         DRAW_WORK.half[0].set_bits(sq[0]);
         DRAW_WORK.half[1].set_bits(sq[0]);

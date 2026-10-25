@@ -20,23 +20,19 @@
 
 use crate::errors::Refused;
 use crate::files::handle;
-use crate::physics::flow::a;
 use crate::race::replay_file_store::REPLAY_FILE;
 use crate::race::replay_path::{LAST_RACE, replay_path};
-use crate::race::viewer::{
-    BLOCK_DATA, CAMERAS, TABLE_LEN, UNDO_BLOCKS, UNDO_PLACES, get, move_dwords, put,
-};
+use crate::race::viewer::{TABLE_LEN, move_dwords};
 use crate::race::viewer_state_store::REPLAY_VIEW;
-
-const FROM: usize = 0x975508; // dword_975508
-const TO: usize = 0x97550C; // dword_97550C
 
 /// The Rust version: whether it was saved (the original leaves the carry clear and the
 /// zero flag set for a yes, and keeps the registers). `slot` the slot to save into (the
 /// original's ebx).
 pub fn save_viewed_replay(slot: u32) -> Result<bool, Refused> {
     let done = save(slot)?;
-    put(UNDO_BLOCKS, 0);
+    crate::race::viewer_buffers_store::VIEWER_BUFFERS
+        .undo_blocks
+        .set(0);
     Ok(done)
 }
 
@@ -66,21 +62,51 @@ fn save(slot: u32) -> Result<bool, Refused> {
         let Some(from) = handle::open_by_mode(LAST_RACE.addr() as *const u8, 0)? else {
             return Ok(false);
         };
-        put(FROM, from);
+        crate::race::viewer_buffers_store::VIEWER_BUFFERS
+            .from_file
+            .set(from);
         let path = replay_path(slot)?.path;
         let Some(to) = handle::open_by_mode(path as *const u8, 1)? else {
-            handle::close(get(FROM));
+            handle::close(
+                crate::race::viewer_buffers_store::VIEWER_BUFFERS
+                    .from_file
+                    .get(),
+            );
             return Ok(false);
         };
-        put(TO, to);
-        put(UNDO_BLOCKS, 0);
-        crate::system::zero_memory::zero_memory(a(UNDO_PLACES) as *mut u8, TABLE_LEN as u32)?;
+        crate::race::viewer_buffers_store::VIEWER_BUFFERS
+            .to_file
+            .set(to);
+        crate::race::viewer_buffers_store::VIEWER_BUFFERS
+            .undo_blocks
+            .set(0);
+        crate::system::zero_memory::zero_memory(
+            crate::race::viewer_buffers_store::VIEWER_BUFFERS.undo_places[0].addr() as *mut u8,
+            TABLE_LEN as u32,
+        )?;
         // Both files closed on the way out (the new one only when it was made).
         let close = || {
-            handle::close(get(TO));
-            handle::close(get(FROM));
+            handle::close(
+                crate::race::viewer_buffers_store::VIEWER_BUFFERS
+                    .to_file
+                    .get(),
+            );
+            handle::close(
+                crate::race::viewer_buffers_store::VIEWER_BUFFERS
+                    .from_file
+                    .get(),
+            );
         };
-        let write = |buffer: u32, len: u32| handle::write(get(TO), buffer as *const u8, len).1;
+        let write = |buffer: u32, len: u32| {
+            handle::write(
+                crate::race::viewer_buffers_store::VIEWER_BUFFERS
+                    .to_file
+                    .get(),
+                buffer as *const u8,
+                len,
+            )
+            .1
+        };
         REPLAY_VIEW.file_offset.set(HEADER_LEN); // the new file's length so far
         if !write(
             crate::race::replay::REPLAYS.header.addr() as u32,
@@ -92,31 +118,48 @@ fn save(slot: u32) -> Result<bool, Refused> {
         let mut block = 0u32;
         loop {
             handle::seek(
-                get(FROM),
+                crate::race::viewer_buffers_store::VIEWER_BUFFERS
+                    .from_file
+                    .get(),
                 crate::race::replay::block_place(2 * block as usize) as i32,
                 0,
             );
             crate::drive::read_packed::read_packed(
-                get(FROM),
-                a(BLOCK_DATA),
+                crate::race::viewer_buffers_store::VIEWER_BUFFERS
+                    .from_file
+                    .get(),
+                crate::race::viewer_buffers_store::VIEWER_BUFFERS.block[0].addr() as u32,
                 crate::race::replay::block_place(2 * block as usize + 1),
             )?;
             move_dwords(
-                a(BLOCK_DATA) as usize,
-                a(CAMERAS) as usize + 8 * block as usize,
+                crate::race::viewer_buffers_store::VIEWER_BUFFERS.block[0].addr(),
+                crate::race::viewer_buffers_store::VIEWER_BUFFERS
+                    .block_cameras
+                    .addr()
+                    + 8 * block as usize,
                 CAMERA_DWORDS,
             );
-            put(
-                UNDO_PLACES + 8 * block as usize,
-                REPLAY_VIEW.file_offset.get(),
-            );
-            let (written, failed) =
-                crate::race::replay::write_replay_chunk(get(TO), a(BLOCK_DATA), BLOCK_LEN)?;
+            crate::race::checkpoints_store::nth(
+                &crate::race::viewer_buffers_store::VIEWER_BUFFERS.undo_places[0],
+                2 * block as usize,
+            )
+            .set(REPLAY_VIEW.file_offset.get());
+            let (written, failed) = crate::race::replay::write_replay_chunk(
+                crate::race::viewer_buffers_store::VIEWER_BUFFERS
+                    .to_file
+                    .get(),
+                crate::race::viewer_buffers_store::VIEWER_BUFFERS.block[0].addr() as u32,
+                BLOCK_LEN,
+            )?;
             if failed {
                 close();
                 return Ok(false);
             }
-            put(UNDO_PLACES + 8 * block as usize + 4, written);
+            crate::race::checkpoints_store::nth(
+                &crate::race::viewer_buffers_store::VIEWER_BUFFERS.undo_places[0],
+                2 * block as usize + 1,
+            )
+            .set(written);
             REPLAY_VIEW
                 .file_offset
                 .set(next_offset(REPLAY_VIEW.file_offset.get(), written));
@@ -126,7 +169,10 @@ fn save(slot: u32) -> Result<bool, Refused> {
             }
         }
         let done = write(REPLAY_FILE.index_magic.addr() as u32, INDEX_HEAD_LEN)
-            && write(a(UNDO_PLACES), TABLE_LEN as u32);
+            && write(
+                crate::race::viewer_buffers_store::VIEWER_BUFFERS.undo_places[0].addr() as u32,
+                TABLE_LEN as u32,
+            );
         close();
         Ok(done)
     }

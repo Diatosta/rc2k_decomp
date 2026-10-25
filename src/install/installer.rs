@@ -61,9 +61,16 @@ pub fn texts_home() -> usize {
     &INSTALL_TEXTS as *const InstallTexts as usize
 }
 
-// g_baseDirectory
-pub const LOCALE: usize = 0x518AA8; // g_localeDirectory
-pub const MEDIA_MODE: usize = 0x5189A4; // g_mediaMode
+// g_baseDirectory, g_localeDirectory: `files::state::{base_directory, locale_directory}`
+
+/// g_mediaMode (`files::state::MEDIA_MODE`).
+pub fn media_mode() -> u32 {
+    crate::files::state::MEDIA_MODE.load(std::sync::atomic::Ordering::Relaxed)
+}
+
+pub fn set_media_mode(mode: u32) {
+    crate::files::state::MEDIA_MODE.store(mode, std::sync::atomic::Ordering::Relaxed)
+}
 // dword_51B9CC (-u)
 // g_removeStartItems
 // dword_51BAF0
@@ -98,28 +105,6 @@ pub fn rd(at: u32) -> u32 {
 
 pub fn wd(at: u32, v: u32) {
     unsafe { (at as *mut u32).write_unaligned(v) }
-}
-
-/// The game's address of IDA address `x` (where its variable lives now, if it has moved).
-pub fn a(x: impl crate::store::Ida) -> u32 {
-    x.here() as u32
-}
-
-/// The game's dword at IDA address `x`.
-pub fn g(x: impl crate::store::Ida) -> u32 {
-    rd(a(x))
-}
-
-pub fn p(x: impl crate::store::Ida, v: u32) {
-    wd(a(x), v)
-}
-
-pub fn gb(x: impl crate::store::Ida) -> u8 {
-    rb(a(x))
-}
-
-pub fn pb(x: impl crate::store::Ida, v: u8) {
-    wb(a(x), v)
 }
 
 pub fn fatal(code: u32) -> Refused {

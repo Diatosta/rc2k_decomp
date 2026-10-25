@@ -9,9 +9,7 @@
 //! (0x74BA9C, a left/right handler of an item of the car choice). The menus and draw lists run its
 //! `entry` (`menu::table_calls`); the registers above are the original's, for reference.
 
-use crate::framework::game_addr;
 use crate::menu::flow_store::SCREEN_FLOW;
-use crate::screens::gearing_text::TEXT_RVA;
 use crate::strings::append_string_by_id::push_string;
 
 /// The Rust version (see the header).
@@ -24,6 +22,12 @@ pub unsafe fn flip_gearing() {
         let mut text = Vec::new();
         push_string(&mut text, gearing_switch_text(kept));
         text.push(0);
-        std::ptr::copy_nonoverlapping(text.as_ptr(), game_addr(TEXT_RVA) as *mut u8, text.len());
+        std::ptr::copy_nonoverlapping(
+            text.as_ptr(),
+            crate::screens::text_buffers_store::TEXT_BUFFERS
+                .title
+                .addr() as *mut u8,
+            text.len(),
+        );
     }
 }

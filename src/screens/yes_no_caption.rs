@@ -11,13 +11,11 @@
 //! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{game_addr, rva};
 use crate::menu::pages_store::MENU_PAGES;
 use crate::strings::append_string_by_id::append_string_by_id;
 
 // ---- game data ----
 
-const CAPTION_RVA: usize = rva(0xA8BE54); // g_captionText
 const CAPTION_LEN: usize = 0x100;
 const FIRST: u32 = 0x56B;
 
@@ -33,7 +31,9 @@ pub unsafe fn yes_no_caption() -> Result<(u32, u32), Refused> {
         });
         // Converted: `rc2k_core::screens::captions::fit`.
         let text = rc2k_core::screens::captions::fit(text, CAPTION_LEN)?;
-        let caption = game_addr(CAPTION_RVA) as *mut u8;
+        let caption = crate::screens::text_buffers_store::TEXT_BUFFERS
+            .caption
+            .addr() as *mut u8;
         std::ptr::copy_nonoverlapping(text.as_ptr(), caption, text.len());
         Ok((eax, caption as u32 + text.len() as u32))
     }

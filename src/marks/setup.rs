@@ -5,8 +5,9 @@
 use crate::errors::{BadInput, Refused};
 use crate::framework::rva;
 use crate::marks::snow::{SNOW, SNOW_CURVE, SNOW_LIGHT, SNOW_TABLES, SNOW_VARS};
-use crate::marks::store::{game_addr, game_read, game_write};
+use crate::marks::store::{game_addr, game_read};
 use crate::marks::tuning::MARKS_FLOATS;
+use crate::marks::work_store::MARKS_WORK;
 use crate::math::x87;
 use crate::physics::tables_store::PHYSICS;
 use crate::session::{Bytes, Dword, Float};
@@ -64,7 +65,6 @@ impl MarksClock {
     }
 }
 
-pub const SEED_RVA: usize = rva(0x71C8CC); // g_marksSeed
 const WAVE_DONE_TARGET_RVA: usize = rva(0x4C4EA0); // nullsub_23
 pub const WAVE_LEVELS: u32 = 0x11;
 pub const SINES: u32 = 0x140;
@@ -84,16 +84,14 @@ pub fn clock_at(mk: usize) -> &'static MarksClock {
 /// turned right 10 and turned right 20; `dword_8BC405` 0.
 pub unsafe fn seed_noise() {
     // Converted: `rc2k_core::marks::noise::seed_noise`.
-    unsafe {
-        let (tables, seed) = rc2k_core::marks::noise::seed_noise(game_read(SEED_RVA));
-        for (table, values) in crate::marks::rain::RAIN.noise.iter().zip(tables) {
-            for (cell, v) in table.iter().zip(values) {
-                cell.set(v);
-            }
+    let (tables, seed) = rc2k_core::marks::noise::seed_noise(MARKS_WORK.seed.get());
+    for (table, values) in crate::marks::rain::RAIN.noise.iter().zip(tables) {
+        for (cell, v) in table.iter().zip(values) {
+            cell.set(v);
         }
-        game_write(SEED_RVA, seed);
-        crate::marks::rain::RAIN.drawn.set(0);
     }
+    MARKS_WORK.seed.set(seed);
+    crate::marks::rain::RAIN.drawn.set(0);
 }
 
 /// `marks::make_wave_tables` (0x4C4E2F): once (`g_marksWaveDone` 0): the 0x11 levels,
@@ -262,7 +260,7 @@ pub unsafe fn make_noise_curve() -> Result<(), Refused> {
                 cell.set(*v);
             }
         }
-        game_write(SEED_RVA, t.seed);
+        MARKS_WORK.seed.set(t.seed);
         SNOW.flag.set(0);
         let values = SNOW_LIGHT.record_values.each_ref().map(|f| f.bits());
         let layout = core::record_values(values);

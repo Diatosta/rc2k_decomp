@@ -15,12 +15,13 @@
 //! of 0 (the original's loop would run on) or past 0x10, and a batch it would write past,
 //! before anything.
 
+use crate::d3d::vertices_store::VERTICES;
 use crate::errors::Refused;
-use crate::hud::batch::*;
+
 use crate::hud::store::HUD;
+use crate::race::panel_store::PANEL;
 use crate::scene::draw_store::DRAW;
 use crate::session::SCREEN;
-use crate::store::{game_addr, game_read, game_write};
 
 /// The Rust version (see the header). What the original leaves in eax, ecx, esi and edi
 /// is read by none of its callers (register liveness, 2026-10-23).
@@ -41,21 +42,20 @@ pub unsafe fn add_polygon() -> Result<(), Refused> {
         batch::check_polygon(count, vertices, HUD.index_count.get(), flushes)?;
         let [w, h]: [u32; 2] = [SCREEN.width.get(), SCREEN.height.get()];
         let [kx, ky] = [HUD.virtual_screen[0].get(), HUD.virtual_screen[1].get()];
-        let f = |r: usize| f32::from_bits(game_read(r));
         for n in 0..count as usize {
-            let v = POLYGON_RVA + 0x20 * n;
-            game_write(v, screen_scaled(f(v), w, kx).to_bits());
-            game_write(v + 4, screen_scaled(f(v + 4), h, ky).to_bits());
+            let v = &VERTICES.vertices[n];
+            v.x.set_bits(screen_scaled(v.x.get(), w, kx).to_bits());
+            v.y.set_bits(screen_scaled(v.y.get(), h, ky).to_bits());
         }
         if flushes {
             crate::hud::flush_batch::flush_batch();
-            game_write(SHOWN_TEXTURE_RVA, texture);
+            PANEL.shown_texture.set(texture);
             HUD.batch_texture.set(texture);
             crate::hud::set_batch_texture::set_batch_texture()?;
         }
         let vc = HUD.vertex_count.get();
         std::ptr::copy(
-            game_addr(POLYGON_RVA) as *const u8,
+            crate::d3d::vertices_store::piece_addr() as *const u8,
             (HUD.vertices.as_ptr() as u32 + vc * 0x20) as *mut u8,
             (count * 0x20) as usize,
         );

@@ -18,12 +18,8 @@ use crate::errors::Refused;
 use crate::framework::Flags;
 use crate::gfx::modes::MODES;
 use crate::gfx::reports::REPORTS;
+use crate::gfx::screen_state::SCREEN_MODE;
 use crate::gfx::upload::UPLOAD;
-use crate::race::viewer::get;
-
-// ---- game data (IDA addresses) ----
-
-const MODE_FLAGS: usize = 0x4F4934; // g_screenModeFlags
 
 // ---- Rust version ----
 
@@ -53,7 +49,7 @@ pub fn try_screen_mode(mode: u32) -> Result<Flags, Refused> {
         if !crate::platform::set_mode_now(mode) {
             return Ok(Err(true));
         }
-        if get(MODE_FLAGS) & 0x10_0000 == 0 {
+        if SCREEN_MODE.mode_flags.get() & 0x10_0000 == 0 {
             return Ok(Ok(mode));
         }
         let (video, _) = crate::platform_3d::allocate_textures_now(0x40, 0x40, 1, 2, 0)?;

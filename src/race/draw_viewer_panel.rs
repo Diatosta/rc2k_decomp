@@ -19,7 +19,7 @@ use crate::errors::Refused;
 use crate::gfx::screen_state::DRAW_SURFACE;
 use crate::physics::flow::a;
 use crate::race::replay_file_store::REPLAY_FILE;
-use crate::race::viewer::{CAMERA_NAMES, CAMERAS, gb};
+use crate::race::viewer::CAMERA_NAMES;
 use crate::race::viewer_screen_store::VIEWER_PANEL;
 use crate::race::viewer_state_store::REPLAY_VIEW;
 use crate::session::Dword;
@@ -110,8 +110,8 @@ pub fn draw_viewer_panel() -> Result<(), Refused> {
         // The two cameras' names, three times each, 0xD lower and 0x78 to the left.
         let mut y = 0x32;
         for byte in 0..2usize {
-            let camera = camera_name(gb(
-                (CAMERAS + byte).wrapping_add(8 * REPLAY_VIEW.replay_block.get() as usize)
+            let camera = camera_name(crate::race::viewer::camera_byte_at(
+                byte.wrapping_add(8 * REPLAY_VIEW.replay_block.get() as usize),
             ));
             let id = (a(CAMERA_NAMES + 2 * camera as usize) as *const u16).read_unaligned();
             let mut out = TEXT_BUFFER.text.addr() as u32 as *mut u8;
@@ -143,7 +143,9 @@ pub fn draw_viewer_panel() -> Result<(), Refused> {
         );
         crate::d3d::set_texture::set_texture(REPLAY_FILE.viewer_device_texture.get());
         // The quads.
-        let camera_5 = gb((CAMERAS + 5).wrapping_add(8 * REPLAY_VIEW.replay_block.get() as usize));
+        let camera_5 = crate::race::viewer::camera_byte_at(
+            5usize.wrapping_add(8 * REPLAY_VIEW.replay_block.get() as usize),
+        );
         let (first, second) = switch_lights(camera_5);
         let white = 0x00FF_FFFF;
         let quad = |colour: u32| {

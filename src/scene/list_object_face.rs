@@ -34,33 +34,29 @@
 //! parts refuse.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, game_write, rva};
 use crate::physics::car_store::CAR;
 use crate::physics::ground_store::GROUND_WORK;
 use crate::race::course_store::COURSE;
 use crate::race::kind_store::KIND_TABLES;
+use crate::race::light_records_store::LIGHT_RECORDS;
 use crate::race::numbers_store::NUMBERS;
 use crate::race::sound_spots_store::RACE_SOUND_SPOTS;
 use crate::race::switches_store::FRAME_SWITCHES;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_vars_store::VIEW_VARS;
 use crate::race::work_store::RACE_WORK;
-use crate::scene::draw_object_faces::LIST_RVA;
 use crate::scene::draw_store::DRAW;
 use crate::scene::draw_switches_store::DRAW_SWITCHES;
 use crate::scene::face_faces_away::face_faces_away;
 use crate::scene::face_sort_key::face_sort_key;
 use crate::scene::light_work_store::LIGHT_WORK;
+use crate::scene::object_tables_store::OBJECT_TABLES;
 use crate::scene::polygon::dword;
 use rc2k_core::scene::face_tests::{Face, FaceWorld, dropped, listed_key};
 
 // ---- game data ----
 
-const OBJECT_KINDS_RVA: usize = rva(0x5CD27C); // dword_5CD27C
-const KIND_GROUPS_RVA: usize = rva(0x5C90DC); // dword_5C90DC, dword_5C90E0
-const KIND_LEN: usize = 0x134;
 const BLOCKS: u32 = 8;
-const KIND_BYTES_RVA: usize = rva(0x5CD688); // dword_5CD688
 const LIST_ROOM: u32 = 0x1000;
 
 // ---- Rust version ----
@@ -80,13 +76,17 @@ impl FaceWorld for GameFace {
         FRAME_SWITCHES.object_number.bits()
     }
     fn object_kind(&self, object: u32) -> u32 {
-        unsafe { game_read(OBJECT_KINDS_RVA + object as usize * 4) }
+        OBJECT_TABLES.object_kind(object)
     }
     fn known_kind(&self, place: usize) -> u32 {
         KIND_TABLES.known_object_kinds[place].get()
     }
     fn kind_groups(&self, place: usize) -> [u32; 2] {
-        unsafe { game_read(KIND_GROUPS_RVA + place * KIND_LEN) }
+        // `dword_5C90DC`, `dword_5C90E0`: groups [6] and [7] of the place's record.
+        unsafe {
+            ((LIGHT_RECORDS.record_addr(place as u32) as usize + 0x70) as *const [u32; 2])
+                .read_unaligned()
+        }
     }
     fn hidden_groups(&self) -> [u32; 2] {
         crate::session::read_first(&COURSE.group_masks[13..15])
@@ -148,7 +148,10 @@ impl FaceWorld for GameFace {
         }
     }
     fn kind_byte(&self, kind: u32) -> u32 {
-        unsafe { game_read(KIND_BYTES_RVA + kind as usize * 4) }
+        let at = OBJECT_TABLES.car_mark_textures[0]
+            .addr()
+            .wrapping_add((kind as usize).wrapping_mul(4));
+        unsafe { (at as *const u32).read_unaligned() }
     }
 }
 
@@ -191,17 +194,16 @@ pub unsafe fn list_object_face(face: usize) -> Result<(), Refused> {
         DRAW.polygon_vertex_count.set_bits(count);
         DRAW.face_sort_key.set_bits(0u32);
         face_sort_key(face, count)?;
-        let entry = LIST_RVA + listed as usize * 0x10;
+        // The room is 0x1000 entries but 0x400 lie before the next table (a slip, kept).
+        let entry = crate::scene::object_slots_store::OBJECT_SLOTS.listed_faces[0].addr()
+            + listed as usize * 0x10;
         let key = listed_key(bytes, DRAW.face_sort_key.bits());
-        game_write(
-            entry,
-            [
-                RACE_VARS.face_number.bits(),
-                key,
-                DRAW.entry_third.bits(),
-                GROUND_WORK.object_see_through.bits(),
-            ],
-        );
+        (entry as *mut [u32; 4]).write_unaligned([
+            RACE_VARS.face_number.bits(),
+            key,
+            DRAW.entry_third.bits(),
+            GROUND_WORK.object_see_through.bits(),
+        ]);
         LIGHT_WORK.listed_face_count.set_bits(listed + 1);
         Ok(())
     }

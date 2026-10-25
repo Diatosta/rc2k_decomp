@@ -13,16 +13,14 @@
 //! Caller: `sub_4BC0B1` (0x4BC0BF). The x87 run is plain Rust on the x87 model (`math::x87_float`), in the original's order, over the
 //! game's variables.
 
-use crate::framework::rva;
 use crate::marks::hexagon_state::HEXAGON_WORK;
 use crate::marks::hexagon_vars::HEX;
-use crate::marks::store::{game_read, game_write};
 use crate::math::x87;
 use crate::math::x87_float as bh;
 use crate::scene::draw_store::DRAW;
+use crate::scene::texture_places_store::TEXTURE_PLACES;
 
-const TEXTURE_RVA: usize = rva(0x5D5A24); // dword_5D5A24
-const VERTICES_RVA: usize = rva(0x9605A0); // g_polygonVertices
+use crate::d3d::vertices_store::VERTICES;
 const STATES: [(u32, u32); 8] = [
     (1, 0x11),
     (1, 0x12),
@@ -45,25 +43,26 @@ pub unsafe fn hexagons_setup() {
     unsafe {
         axes();
         crate::scene::depth_buffer_on::depth_buffer(true);
-        crate::scene::set_texture::set_texture(game_read(TEXTURE_RVA));
+        // `dword_5D5A24`, entry 1999 of the places' slots.
+        crate::scene::set_texture::set_texture(TEXTURE_PLACES.place_slot[1999].get());
         for (value, state) in STATES {
             set_render_state(value, state);
         }
         for n in 0..6 {
             DRAW.scratch.set_bits(0x100u32);
-            game_write(VERTICES_RVA + 0x20 * n + 0xC, x87::int_to_float(0x100));
+            VERTICES.vertices[n].rhw.set_bits(x87::int_to_float(0x100));
         }
         for n in 0..6 {
-            game_write(VERTICES_RVA + 0x20 * n + 0x10, 0xFFFF_FFFFu32);
-            game_write(VERTICES_RVA + 0x20 * n + 0x14, 0xFF00_0000u32);
+            VERTICES.vertices[n].colour.set(0xFFFF_FFFFu32);
+            VERTICES.vertices[n].specular.set(0xFF00_0000u32);
         }
         let side: u32 = HEX.side.get();
         for (n, (u, v)) in [(0, 0), (side, 0), (side, side), (0, side)]
             .into_iter()
             .enumerate()
         {
-            game_write(VERTICES_RVA + 0x20 * n + 0x18, u);
-            game_write(VERTICES_RVA + 0x20 * n + 0x1C, v);
+            VERTICES.vertices[n].u.set_bits(u);
+            VERTICES.vertices[n].v.set_bits(v);
         }
         DRAW.polygon_vertex_count.set_bits(6u32);
         HEXAGON_WORK

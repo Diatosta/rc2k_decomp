@@ -4,7 +4,6 @@
 //! point: x, y, z whole numbers); each link and the one before give a quad.
 
 use crate::errors::Refused;
-use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::race::course_store::COURSE;
 use crate::race::frame_store::FRAME_WORK;
 use crate::race::matrices_store::MATRICES;
@@ -13,10 +12,6 @@ use crate::race::prefs_store::STAGE_PREFS;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
 use crate::scene::draw_store::DRAW;
-
-fn g(a: u32) -> u32 {
-    game_addr(rva(a as usize)) as u32
-}
 
 unsafe fn get(a: u32) -> u32 {
     unsafe { (a as *const u32).read_unaligned() }
@@ -68,8 +63,13 @@ pub(crate) unsafe fn project_vertex(v: u32) {
 /// projected when its depth is not below 4096.0.
 unsafe fn skid_vertex(n: u32, v: u32) {
     unsafe {
-        let p = g(0x645B18).wrapping_add(n.wrapping_mul(0xC));
-        let lift: u32 = game_read(rva(0x643AD4));
+        let p = (crate::race::shadow_skids_store::SHADOW_SKIDS
+            .skid_points
+            .addr() as u32)
+            .wrapping_add(n.wrapping_mul(0xC));
+        let lift: u32 = crate::race::shadow_skids_store::SHADOW_SKIDS
+            .skid_lift
+            .bits();
         let point = [
             int_80(get(p)),
             int_plus_float_80(get(p + 4), lift),
@@ -102,8 +102,12 @@ pub unsafe fn draw_skidmarks() -> Result<(), Refused> {
         if mode != 0 && mode != 2 {
             views = 1u32.wrapping_shl(RACE_VIEW.drawn_view.get() & 0x1F);
         }
-        game_write(rva(0x643AE4), views);
-        let entries = g(0x975510);
+        crate::race::shadow_skids_store::SHADOW_SKIDS
+            .skid_views
+            .set(views);
+        let entries = crate::scene::polygon_store::POLYGON_WORK.entries[0]
+            .point
+            .addr() as u32;
         let vertices = RACE_VARS.quad_vertices[0].addr() as u32;
         for k in 0..4u32 {
             let e = entries + 0x44 * k;
@@ -124,7 +128,9 @@ pub unsafe fn draw_skidmarks() -> Result<(), Refused> {
         }
         DRAW.polygon_textures[0].set(0xC0u32);
         DRAW.polygon_textures[1].set(0xC0u32);
-        let links = g(0x643AE8);
+        let links = crate::race::shadow_skids_store::SHADOW_SKIDS
+            .skid_links
+            .addr() as u32;
         for n in 0..0x400u32 {
             let before = ((links + 8 * n) as *const i16).read_unaligned() as i32 as u32;
             if before == u32::MAX {
@@ -140,8 +146,9 @@ pub unsafe fn draw_skidmarks() -> Result<(), Refused> {
             skid_vertex(before.wrapping_mul(2), vertices);
             skid_vertex(before.wrapping_mul(2).wrapping_add(1), vertices + 0x20);
             DRAW.polygon_vertex_count.set(4u32);
-            DRAW.polygon_next_record.set(g(0x977F10));
-            let list = g(0x977710);
+            DRAW.polygon_next_record
+                .set(crate::scene::polygon_store::POLYGON_WORK.record_pool[0].addr() as u32);
+            let list = crate::scene::polygon_store::POLYGON_WORK.list[0].addr() as u32;
             for k in 0..4u32 {
                 put(list + 4 * k, k);
             }

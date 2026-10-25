@@ -3,12 +3,12 @@
 
 use crate::audio::store::AUDIO;
 use crate::errors::Refused;
-use crate::framework::rva;
+use crate::race::frame_counter_store::FRAME_COUNTER;
 use crate::race::switches_store::FRAME_SWITCHES;
+use crate::race::text_state_store::TEXT_STATE;
 use crate::scene::draw_store::DRAW;
 use crate::screens::font_at;
 use crate::session::{Dword, SCREEN};
-use crate::store::{game_read, game_write};
 use crate::strings::text_from_ids::text;
 use crate::text::draw_string_by_id::draw_string_by_id_at;
 use crate::text::draw_text::{Canvas, draw_text_at};
@@ -20,10 +20,10 @@ pub unsafe fn draw_frame_rate(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::frame_rate::{shown_rate, fps_text}`.
     use rc2k_core::race::frame_rate::{fps_text, shown_rate};
     unsafe {
-        game_write(rva(0x5C6604), 2u32);
+        TEXT_STATE.text_mode.set(2);
         let rate = shown_rate(f32::from_bits(FRAME_SWITCHES.frame_rate.bits()));
         DRAW.scratch.set(rate as u32);
-        if rate == 0 || game_read::<u32>(rva(0x5EB100)) == 0 {
+        if rate == 0 || FRAME_COUNTER.show.get() == 0 {
             return Ok(());
         }
         let t = text();

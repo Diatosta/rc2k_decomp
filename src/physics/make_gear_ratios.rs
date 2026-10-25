@@ -15,10 +15,10 @@
 //! (before anything) a gear count above 7 (past `g_gearRatios`).
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, rva};
 use crate::math::x87;
 use crate::math::x87_run::{ext_add, gear_step_80, lerp_int_over2};
 use crate::physics::car_store::CAR;
+use crate::physics::gear_store::GEAR;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::numbers_store::NUMBERS;
 use crate::scene::draw_store::DRAW;
@@ -67,10 +67,10 @@ pub unsafe fn ratios_at(v: &[u32]) -> Result<u32, Refused> {
 fn game() -> Vec<u32> {
     vec![
         PHYSICS.gear_count.addr() as u32,
-        game_addr(rva(0x5CB978)) as u32,
-        game_addr(rva(0x5CB970)) as u32,
-        game_addr(rva(0x5CB974)) as u32,
-        game_addr(rva(0x5CB96C)) as u32,
+        GEAR.figures[3].addr() as u32,
+        GEAR.figures[1].addr() as u32,
+        GEAR.figures[2].addr() as u32,
+        GEAR.figures[0].addr() as u32,
         CAR.gear_ratio_setting.addr() as u32,
         CAR.engine_speed_limit.addr() as u32,
         PHYSICS.gear_ratios[0].addr() as u32,

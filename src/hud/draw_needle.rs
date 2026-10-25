@@ -20,14 +20,10 @@
 //! the value there between, read by nothing).
 
 use crate::errors::Refused;
-use crate::framework::rva;
 use crate::hud::store::HUD;
 use crate::math::x87;
 use crate::scene::matrix3::extended;
 use crate::scene::x87_mem::{fistp, fld};
-use crate::store::game_addr;
-
-const VERTICES_RVA: usize = rva(0x9605A0); // g_polygonVertices
 
 /// `fld v [; fsub less]; fdiv over; fadd plus; fmul k0; fmul k1; fistp`.
 fn turn_of(v: u32, less: Option<u32>, over: u32, plus: u32, k: [u32; 2]) -> u32 {
@@ -64,7 +60,7 @@ pub unsafe fn draw_needle() -> Result<(), Refused> {
             .into_iter()
             .enumerate()
         {
-            let vertex = game_addr(VERTICES_RVA) as u32 + 0x20 * n as u32;
+            let vertex = crate::d3d::vertices_store::piece_addr() as u32 + 0x20 * n as u32;
             let point = [extended(y), extended(x)].map(to_f64);
             crate::hud::turned_vertex::turned_vertex(vertex, angle, point);
         }

@@ -8,15 +8,12 @@
 //! 0x400 dwords).
 
 use crate::errors::Refused;
-use crate::framework::rva;
-
-const LOADED_RVA: usize = rva(0x5DB968); // g_slotLoadedTextures
-const SLOTS: u32 = 0x400;
+use crate::scene::texture_places_store::TEXTURE_PLACES;
 
 /// The Rust version (see the header).
 pub unsafe fn forget_slot_texture(slot: u32) -> Result<(), Refused> {
     // Converted: `rc2k_core::scene::textures::forget_slot_texture`.
-    let loaded = unsafe { crate::scene::textures::slice(LOADED_RVA, SLOTS) };
+    let loaded = unsafe { crate::scene::textures::cells_mut(&TEXTURE_PLACES.slot_loaded) };
     Ok(rc2k_core::scene::textures::forget_slot_texture(
         loaded, slot,
     )?)

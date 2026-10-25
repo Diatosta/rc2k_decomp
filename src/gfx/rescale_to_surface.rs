@@ -17,7 +17,6 @@
 //! `routes.rs`.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::rva;
 use crate::gfx::components_to_pixel::components_to_pixel;
 use crate::gfx::decoder::DECODER;
 use crate::gfx::fill_row_table::{ROW_TABLE_ROOM, fill_row_table, row_address};
@@ -26,8 +25,7 @@ use crate::gfx::rescale_picture::RESCALE;
 
 // ---- game data ----
 
-/// `g_surface` (0x4F4998), twelve dwords, and the fields used here.
-pub const SURFACE_RVA: usize = rva(0x4F4998);
+// The fields used here of `g_surface` (`DRAW_SURFACE`, from 0x4F4998), twelve dwords.
 const WIDTH: usize = 0x08;
 const HEIGHT: usize = 0x0C;
 const BITS: usize = 0x10;

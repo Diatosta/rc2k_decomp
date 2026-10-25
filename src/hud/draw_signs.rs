@@ -10,11 +10,8 @@
 //! Caller: layout 0's drawer (0x4B1F27).
 
 use crate::errors::Refused;
-use crate::framework::rva;
 use crate::hud::store::HUD;
-use crate::store::game_read;
-
-pub const FLAT_RVA: usize = rva(0x6D1502); // dword_6D1502
+use crate::race::panel_store::PANEL;
 
 /// The row: `y`, or 0x20 higher with `dword_6D1502` 0.
 pub fn row(y: u32) -> u32 {
@@ -23,7 +20,7 @@ pub fn row(y: u32) -> u32 {
 
 /// The row: `y`, or `lift` higher with `dword_6D1502` 0.
 pub fn row_by(y: u32, lift: u32) -> u32 {
-    rc2k_core::hud::signs::row(y, lift, unsafe { game_read(FLAT_RVA) })
+    rc2k_core::hud::signs::row(y, lift, PANEL.flat.get())
 }
 
 /// The Rust version (see the header).

@@ -14,10 +14,9 @@
 //! game's variables; the picks their Rust versions (under the same rounding).
 
 use crate::marks::pick_square::pick_square;
-use crate::marks::store::{game_read, game_write};
 use crate::marks::tilt_shape::SHAPE_TILT;
+use crate::marks::work_store::MARKS_WORK;
 use crate::math::x87;
-use crate::scene::vector3::STATUS_RVA;
 
 const MOST: i32 = 0x80;
 
@@ -41,8 +40,8 @@ pub unsafe fn squares_spawn() {
             .set(SQUARE_TIMING.frames.get().wrapping_add(1));
         let old = x87::set_chop();
         rate();
-        let status = game_read::<u32>(STATUS_RVA) & 0x700;
-        game_write(STATUS_RVA, status);
+        let status = MARKS_WORK.fpu_status.get() & 0x700;
+        MARKS_WORK.fpu_status.set(status);
         if status != 0x100 {
             let v: u32 = SQUARE_TIMING.spawn_rate.bits();
             let n = x87::to_int(v).min(MOST);

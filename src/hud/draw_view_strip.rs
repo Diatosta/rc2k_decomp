@@ -16,15 +16,11 @@
 //! before anything.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::rva;
 use crate::gfx::strips::STRIPS;
+use crate::race::panel_store::PANEL;
 use crate::scene::draw_store::DRAW;
 use crate::session::SCREEN;
-use crate::store::game_read;
 use rc2k_core::hud::strips;
-
-const FLAT_RVA: usize = rva(0x6D1502); // dword_6D1502
-const SHOWN_RVA: usize = rva(0x6D14F6); // dword_6D14F6
 
 /// The quad's input at byte offset `o` from `dword_623DE8`: its colour and see-through,
 /// texture coordinates, then corners (three consecutive fields).
@@ -65,12 +61,10 @@ fn quad(left: u32, width: u32, rows: u32, texture: Option<u32>) -> Result<(), Re
 /// The shared tail (0x45B9AA, see the header).
 // Converted: `rc2k_core::hud::strips::{tail_shown, TAIL}`
 pub unsafe fn overlay_tail() -> Result<(), Refused> {
-    let (shown, players) = unsafe {
-        (
-            game_read(SHOWN_RVA),
-            crate::hud::overlay_pass::shown_layout(),
-        )
-    };
+    let (shown, players) = (
+        PANEL.hud_flags[0].get(),
+        crate::hud::overlay_pass::shown_layout(),
+    );
     if !strips::tail_shown(shown, players) {
         return Ok(());
     }
@@ -89,7 +83,7 @@ pub unsafe fn draw_view_strip(view: u32) -> Result<(), Refused> {
         return Err(BadInput("a view past the overlay's tables").into());
     }
     unsafe {
-        let top = strips::top_entry(view, game_read(FLAT_RVA));
+        let top = strips::top_entry(view, PANEL.flat.get());
         let top: u32 = STRIPS.tops[top as usize].get();
         let left: u32 = STRIPS.lefts[view as usize].get();
         sizes([top, strips::HEIGHT, left, strips::WIDTH]);

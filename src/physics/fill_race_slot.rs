@@ -19,7 +19,6 @@
 //! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, rva};
 use crate::math::x87_run::{ext_to_int, int_80, int_mul_add};
 use crate::physics::car_store::CAR;
 use crate::race::numbers_store::NUMBERS;
@@ -27,10 +26,6 @@ use crate::race::work_store::RACE_WORK;
 use crate::scene::object_store::OBJECT_WORK;
 use crate::scene::rotate_point::rotate_point;
 use rc2k_core::physics::parts::{LAST_PART, choose_slot};
-
-pub fn g(x: usize) -> u32 {
-    unsafe { game_read(rva(x)) }
-}
 
 unsafe fn at(a: u32) -> u32 {
     unsafe { (a as *const u32).read_unaligned() }
@@ -55,11 +50,14 @@ pub fn fill_race_slot(part: u32) -> Result<(), Refused> {
         };
         let s = slot_at(choice.slot);
         put(s, part);
-        let i = |t: usize| int_80(g(t + 4 * part as usize) as i32, false);
-        let out = rotate_point(
-            CAR.crash_matrix[0].addr() as u32,
-            [i(0x633370), i(0x633770), i(0x633B70)],
-        );
+        let i = |t: usize| {
+            int_80(
+                crate::scene::object_slots_store::OBJECT_SLOTS.part_extents[t][part as usize].get()
+                    as i32,
+                false,
+            )
+        };
+        let out = rotate_point(CAR.crash_matrix[0].addr() as u32, [i(0), i(1), i(2)]);
         for (k, e) in out.iter().enumerate() {
             let n = ext_to_int(*e) as u32;
             OBJECT_WORK.object_position[k].set_bits(n);

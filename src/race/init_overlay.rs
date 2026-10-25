@@ -19,19 +19,14 @@
 use crate::errors::Refused;
 use crate::framework::{game_addr, rva};
 use crate::math::x87;
+use crate::physics::split_tables_store::SPLIT_TABLES;
 use crate::race::numbers_store::NUMBERS;
 use crate::race::overlay_store::RACE_OVERLAY;
+use crate::race::panel_store::PANEL;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::work_store::RACE_WORK;
 use crate::scene::draw_store::DRAW;
 
-/// The overlay's variables: 0x6D1460 .. 0x6D180C (unaligned, packed).
-const BLOCK: usize = 0x6D1460;
-const MILES: usize = 0x6D1466; // g_overlayMiles
-const PARTS: usize = 0x6D1472; // g_overlayParts
-const CLEARED: [usize; 2] = [0x6D146A, 0x6D146E]; // flt_6D146A, flt_6D146E
-/// The sizes (`rc2k_core::race::panel::OVERLAY_SIZES`): dword_6D1486 .. dword_6D149E.
-const SIZES: [usize; 6] = [0x6D1486, 0x6D148A, 0x6D148E, 0x6D1496, 0x6D149A, 0x6D149E];
 const CARS: u32 = 8;
 const ONE: u32 = 0x3F80_0000;
 
@@ -42,26 +37,20 @@ pub struct OverlayVars {
     pub list: u32,
     pub distances: u32,
     pub scratch: u32,
-    pub block: u32,
     pub car_blocks: u32,
 }
 
 impl OverlayVars {
     pub fn game() -> Self {
-        let a = |v: usize| game_addr(rva(v)) as u32;
+        let _a = |v: usize| game_addr(rva(v)) as u32;
         Self {
             kinds: (RACE_VARS.checkpoint_count.addr() as u32),
-            found: a(0x601830),
-            list: a(0x60102C),
-            distances: a(0x9F78D8),
+            found: (SPLIT_TABLES.split_colour_count.addr() as u32),
+            list: (SPLIT_TABLES.checkpoints[0].addr() as u32),
+            distances: crate::race::checkpoints_store::CHECKPOINTS.distances[0].addr() as u32,
             scratch: (DRAW.scratch.addr() as u32),
-            block: a(BLOCK),
             car_blocks: (RACE_WORK.car_blocks[0].addr() as u32),
         }
-    }
-
-    fn of(&self, variable: usize) -> u32 {
-        self.block + (variable - BLOCK) as u32
     }
 }
 
@@ -81,11 +70,11 @@ pub unsafe fn init_overlay(v: &OverlayVars) -> Result<(), Refused> {
         use rc2k_core::race::panel::{OVERLAY_CLEARED, OVERLAY_SIZES, half_length, overlay_parts};
         let (found, parts) = overlay_parts(get(v.kinds), || get(v.found))?;
         if let Some(count) = found {
-            put(v.of(PARTS), count);
+            PANEL.overlay_parts.set(count);
         }
         match parts {
             Some(count) => {
-                put(v.of(MILES), 0);
+                PANEL.overlay_miles.set(0);
                 let (scale, mile): (u32, u32) =
                     (NUMBERS.k65536.bits(), NUMBERS.metres_in_mile.bits());
                 let distance = |k: u32| get(v.distances.wrapping_add(k.wrapping_mul(4)));
@@ -96,21 +85,32 @@ pub unsafe fn init_overlay(v: &OverlayVars) -> Result<(), Refused> {
                     put(v.scratch, half);
                     let miles = x87::int_div_div_doubled(half as i32, scale, mile);
                     RACE_OVERLAY.overlay_part_miles[n as usize].set_bits(miles); // g_overlayPartMiles
-                    put(v.of(MILES), x87::add(miles, get(v.of(MILES))));
+                    PANEL
+                        .overlay_miles
+                        .set(x87::add(miles, PANEL.overlay_miles.get()));
                     RACE_OVERLAY.overlay_part_kinds_a[n as usize].set(0); // dword_6D160C
                     RACE_OVERLAY.overlay_part_kinds_b[n as usize].set(0); // dword_6D170C
                 }
             }
             None => {
-                put(v.of(PARTS), 1);
+                PANEL.overlay_parts.set(1);
                 RACE_OVERLAY.overlay_part_miles[0].set_bits(ONE);
-                put(v.of(MILES), ONE);
+                PANEL.overlay_miles.set(ONE);
                 RACE_OVERLAY.overlay_part_kinds_a[0].set(0);
                 RACE_OVERLAY.overlay_part_kinds_b[0].set(0);
             }
         }
-        for (&variable, value) in SIZES.iter().zip(OVERLAY_SIZES) {
-            put(v.of(variable), value);
+        // The sizes (`rc2k_core::race::panel::OVERLAY_SIZES`): dword_6D1486 .. dword_6D149E.
+        let sizes = [
+            &PANEL.lights[0].fade,
+            &PANEL.lights[0].size,
+            &PANEL.lights[0].shift,
+            &PANEL.lights[1].fade,
+            &PANEL.lights[1].size,
+            &PANEL.lights[1].shift,
+        ];
+        for (cell, value) in sizes.into_iter().zip(OVERLAY_SIZES) {
+            cell.set(value);
         }
         for n in 0..CARS {
             let block = get(v.car_blocks + 4 * n);
@@ -118,8 +118,8 @@ pub unsafe fn init_overlay(v: &OverlayVars) -> Result<(), Refused> {
                 put(block + off, 0);
             }
         }
-        for variable in CLEARED {
-            put(v.of(variable), 0);
+        for distance in &PANEL.distance {
+            distance.set(0);
         }
     }
     Ok(())

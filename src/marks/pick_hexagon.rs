@@ -10,17 +10,14 @@
 //! compared exactly as before (the earlier version stays for the Rust callers in
 //! unconverted code).
 
-use crate::marks::setup::SEED_RVA;
 use crate::marks::spawn_hexagon::spawn_hexagon;
-use crate::marks::store::{game_read, game_write};
+use crate::marks::work_store::MARKS_WORK;
 
 /// The Rust version (see the header).
 pub unsafe fn pick_hexagon() {
     unsafe {
-        let s = game_read::<u32>(SEED_RVA)
-            .wrapping_mul(0x9D)
-            .wrapping_add(0x47);
-        game_write(SEED_RVA, s);
+        let s = MARKS_WORK.seed.get().wrapping_mul(0x9D).wrapping_add(0x47);
+        MARKS_WORK.seed.set(s);
         spawn_hexagon(
             s & 0x7FF,
             s.rotate_right(11) & 0x3FF,

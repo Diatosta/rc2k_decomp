@@ -5,7 +5,6 @@
 //! `dword_64192C`, the hull's `dword_643ACC`.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::physics::car_store::CAR;
 use crate::physics::ground_store::GROUND_WORK;
 use crate::physics::tables_store::PHYSICS;
@@ -20,14 +19,6 @@ use crate::race::work_store::RACE_WORK;
 use crate::scene::draw_store::DRAW;
 
 // unk_641AA4: the points, 0x20 bytes each
-pub const HULL_COUNT_RVA: usize = rva(0x643ACC); // dword_643ACC
-pub const FARTHEST_RVA: usize = rva(0x643ABC); // dword_643ABC: the farthest point's record
-pub const FIRST_ANGLE_RVA: usize = rva(0x643AC0); // flt_643AC0
-pub const PRODUCT_RVA: usize = rva(0x620460); // qword_620460
-
-fn g(a: u32) -> u32 {
-    game_addr(rva(a as usize)) as u32
-}
 
 unsafe fn get(a: u32) -> u32 {
     unsafe { (a as *const u32).read_unaligned() }
@@ -68,15 +59,19 @@ pub unsafe fn shadow_angles() -> Result<(), Refused> {
         if count == 0 || count > 0x40 {
             return Err(BadInput("no shadow points or more than 0x40").into());
         }
-        let records = g(0x641AA4);
-        let farthest: u32 = game_read(FARTHEST_RVA);
+        let records = crate::race::shadow_skids_store::SHADOW_SKIDS
+            .shadow_points
+            .addr() as u32;
+        let farthest: u32 = crate::race::shadow_skids_store::SHADOW_SKIDS.farthest.get();
         for k in 0..8 {
             let (a, b) = (get(records + 4 * k), get(farthest + 4 * k));
             put(records + 4 * k, b);
             put(farthest + 4 * k, a);
         }
         let first = get(records + 0xC);
-        game_write(FIRST_ANGLE_RVA, first);
+        crate::race::shadow_skids_store::SHADOW_SKIDS
+            .first_angle
+            .set_bits(first);
         let zero: u32 = NUMBERS.zero.bits();
         let unit: u32 = NUMBERS.k65536.bits();
         for k in 0..count {
@@ -116,7 +111,9 @@ pub unsafe fn shadow_hull() -> Result<(), Refused> {
         if !(2..=0x40).contains(&count) {
             return Err(BadInput("fewer than two shadow points or more than 0x40").into());
         }
-        let base = g(0x641AA4);
+        let base = crate::race::shadow_skids_store::SHADOW_SKIDS
+            .shadow_points
+            .addr() as u32;
         let at = |n: usize| (base as usize + 0x20 * n) as *mut Record;
         let mut records: Vec<Record> = (0..hull_records(count))
             .map(|n| at(n).read_unaligned())
@@ -128,8 +125,12 @@ pub unsafe fn shadow_hull() -> Result<(), Refused> {
                 at(n).write_unaligned(*now);
             }
         }
-        game_write(PRODUCT_RVA, h.product as u64);
-        game_write(HULL_COUNT_RVA, h.count);
+        crate::physics::ground_probe_store::GROUND_PROBE.product[0].set(h.product as u32);
+        crate::physics::ground_probe_store::GROUND_PROBE.product[1]
+            .set((h.product as u64 >> 32) as u32);
+        crate::race::shadow_skids_store::SHADOW_SKIDS
+            .hull_count
+            .set(h.count);
         Ok(())
     }
 }
@@ -158,7 +159,9 @@ unsafe fn circle_place(e: u32, k: u32, n: u32, radius: u32, unit: u32) {
 /// (before anything) a hull of no points (its loop tests at its end) or more than 0x40.
 pub unsafe fn shadow_polygon() -> Result<(), Refused> {
     unsafe {
-        let n: u32 = game_read(HULL_COUNT_RVA);
+        let n: u32 = crate::race::shadow_skids_store::SHADOW_SKIDS
+            .hull_count
+            .get();
         if n == 0 || n > 0x40 {
             return Err(BadInput("a shadow hull of no points or more than 0x40").into());
         }
@@ -167,8 +170,12 @@ pub unsafe fn shadow_polygon() -> Result<(), Refused> {
             .wrapping_mul(12)
             .wrapping_add(COURSE.scene_points.bits())
             + 0xC0;
-        let records = g(0x641AA4);
-        let entries = g(0x975510);
+        let records = crate::race::shadow_skids_store::SHADOW_SKIDS
+            .shadow_points
+            .addr() as u32;
+        let entries = crate::scene::polygon_store::POLYGON_WORK.entries[0]
+            .point
+            .addr() as u32;
         for k in 0..n {
             let (record, point) = (records + 0x20 * k, points.wrapping_add(0xC * k));
             put(point, get(record));
@@ -198,7 +205,10 @@ unsafe fn scene_point(n: u32) -> u32 {
 
 /// A polygon work entry's address (`dword_975510` + 0x44 x n).
 fn work_entry(n: u32) -> u32 {
-    g(0x975510).wrapping_add(n.wrapping_mul(0x44))
+    (crate::scene::polygon_store::POLYGON_WORK.entries[0]
+        .point
+        .addr() as u32)
+        .wrapping_add(n.wrapping_mul(0x44))
 }
 
 /// `sub_457BE8`: whether scene point `n` is on the inner side of the edge from
@@ -300,9 +310,6 @@ unsafe fn edge_crossing(ea: u32, eb: u32, ed: u32) {
     }
 }
 
-const LIST_RVA: usize = rva(0x977710); // g_polygonList
-const OLD_LIST_RVA: usize = rva(0x977810); // g_polygonOldList
-
 /// `sub_457A85`: the polygon cut by the edge from scene point `from` (eax) to scene point
 /// `to` (ebx) (kept: those on the inner side, and the crossings), with three vertices or
 /// more. The registers it leaves are read by no one.
@@ -317,7 +324,10 @@ unsafe fn clip_to_edge(from: u32, to: u32) {
         FRAME_WORK.shadow_corners[3].set(get(b + 8));
         FRAME_WORK.shadow_corners[0].set(get(a));
         FRAME_WORK.shadow_corners[1].set(get(a + 8));
-        let (list, old) = (game_addr(LIST_RVA) as u32, game_addr(OLD_LIST_RVA) as u32);
+        let (list, old) = (
+            crate::scene::polygon_store::POLYGON_WORK.list[0].addr() as u32,
+            crate::scene::polygon_store::POLYGON_WORK.old_list[0].addr() as u32,
+        );
         std::ptr::copy(list as *const u8, old as *mut u8, 4 * count as usize);
         put(old + 4 * count, get(list));
         // Converted: `rc2k_core::race::shadow::clip_by_edge`.
@@ -417,7 +427,7 @@ pub unsafe fn shadow_on_face() -> Result<(), Refused> {
             return Err(BadInput("a shadow list past 0x40").into());
         }
         DRAW.polygon_drawn.set(0u32);
-        let list = game_addr(LIST_RVA) as u32;
+        let list = crate::scene::polygon_store::POLYGON_WORK.list[0].addr() as u32;
         std::ptr::copy(
             (FRAME_WORK.shadow_list[0].addr() as u32) as *const u8,
             list as *mut u8,
@@ -446,7 +456,8 @@ pub unsafe fn shadow_on_face() -> Result<(), Refused> {
         }
         crate::scene::project_polygon::project_polygon()?;
         crate::scene::fog_polygon::fog_polygon()?;
-        DRAW.polygon_next_record.set(g(0x977F10));
+        DRAW.polygon_next_record
+            .set(crate::scene::polygon_store::POLYGON_WORK.record_pool[0].addr() as u32);
         let outside: u32 = DRAW.polygon_outside_count.get();
         if outside != 0 {
             if outside == DRAW.polygon_vertex_count.bits() {
@@ -540,16 +551,18 @@ fn tbyte_to_float(t: [u8; 10]) -> u32 {
 /// = cos(turn) x cot(sun), `flt_643AC8` = sin(turn) x cot(sun); `dword_62400C` is left 0x80.
 unsafe fn sun_slant(sun: u32, turn: u32) {
     use crate::math::x87_float::{int, st};
-    unsafe {
-        let cot = {
-            let (sin, cos) = (int(sun as i32) / int(0x80)).times_pi().sin_cos();
-            cos / sin
-        };
-        let (sin, cos) = (int(turn as i32) / int(0x80)).times_pi().sin_cos();
-        game_write(rva(0x643AC4), st(cos * cot));
-        game_write(rva(0x643AC8), st(cot * sin));
-        DRAW.scratch.set(0x80u32);
-    }
+    let cot = {
+        let (sin, cos) = (int(sun as i32) / int(0x80)).times_pi().sin_cos();
+        cos / sin
+    };
+    let (sin, cos) = (int(turn as i32) / int(0x80)).times_pi().sin_cos();
+    crate::race::shadow_skids_store::SHADOW_SKIDS
+        .slant_x
+        .set_bits(st(cos * cot));
+    crate::race::shadow_skids_store::SHADOW_SKIDS
+        .slant_z
+        .set_bits(st(cot * sin));
+    DRAW.scratch.set(0x80u32);
 }
 
 /// `fld x; fld z; fpatan; fstp`: the angle of the corner at `at` (x at +0, z at +8).
@@ -591,7 +604,9 @@ pub unsafe fn shadow_points() -> Result<(), Refused> {
             }
             return Err(e);
         }
-        game_write(rva(0x643AB8), (-1.0f32).to_bits());
+        crate::race::shadow_skids_store::SHADOW_SKIDS
+            .farthest_length
+            .set(-1.0f32);
         FRAME_WORK
             .shadow_ground
             .set_bits(GROUND_WORK.ground_height.get());
@@ -599,13 +614,15 @@ pub unsafe fn shadow_points() -> Result<(), Refused> {
         let turn = STAGE_PREFS.sun_turn.get().wrapping_neg().wrapping_sub(0x40);
         sun_slant(sun, turn);
         let (sx, sz) = (
-            game_read::<u32>(rva(0x643AC4)),
-            game_read::<u32>(rva(0x643AC8)),
+            crate::race::shadow_skids_store::SHADOW_SKIDS.slant_x.bits(),
+            crate::race::shadow_skids_store::SHADOW_SKIDS.slant_z.bits(),
         );
         let lift: u32 = PHYSICS.camera_drop.bits();
         let unit: u32 = NUMBERS.k65536.bits();
         let matrix = car + 0x840;
-        let mut at = g(0x641AA4);
+        let mut at = crate::race::shadow_skids_store::SHADOW_SKIDS
+            .shadow_points
+            .addr() as u32;
         for k in 0..count {
             let p = [
                 to_tbyte(get(car + 0xAF0 + 4 * k)),
@@ -623,9 +640,18 @@ pub unsafe fn shadow_points() -> Result<(), Refused> {
             put(at + 0xC, angle);
             let length = crate::math::x87_load::float_hypot(x, z);
             put(at + 0x10, length);
-            if !below_or_unordered(length, game_read(rva(0x643AB8))) {
-                game_write(rva(0x643AB8), length);
-                game_write(FARTHEST_RVA, at);
+            if !below_or_unordered(
+                length,
+                crate::race::shadow_skids_store::SHADOW_SKIDS
+                    .farthest_length
+                    .bits(),
+            ) {
+                crate::race::shadow_skids_store::SHADOW_SKIDS
+                    .farthest_length
+                    .set_bits(length);
+                crate::race::shadow_skids_store::SHADOW_SKIDS
+                    .farthest
+                    .set(at);
             }
             put(
                 at,
@@ -666,11 +692,17 @@ pub unsafe fn cast_car_shadow() -> Result<(), Refused> {
         shadow_points()?;
         shadow_angles()?;
         shadow_hull()?;
-        if !hull_drawn(game_read(HULL_COUNT_RVA)) {
+        if !hull_drawn(
+            crate::race::shadow_skids_store::SHADOW_SKIDS
+                .hull_count
+                .get(),
+        ) {
             return Ok(());
         }
         shadow_polygon()?;
-        let n: u32 = game_read(HULL_COUNT_RVA);
+        let n: u32 = crate::race::shadow_skids_store::SHADOW_SKIDS
+            .hull_count
+            .get();
         FRAME_WORK.shadow_list_count.set(n);
         for k in hull_list(n) {
             put((FRAME_WORK.shadow_list[0].addr() as u32) + 4 * k, k);
@@ -984,6 +1016,7 @@ mod asm_reference {
         }
     }
 
+    use crate::framework::{game_read, game_write, rva};
     use crate::race::asm_test::{Rng, Saved, at_each_control_word, lock, same, within_ulps};
 
     #[test]

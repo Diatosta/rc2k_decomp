@@ -10,8 +10,8 @@
 //! original writes past it; race init clears 0x40).
 
 use crate::errors::Refused;
-use crate::framework::{game_addr, rva};
 use crate::physics::car_store::CAR;
+use crate::physics::split_tables_store::SPLIT_TABLES;
 use rc2k_core::physics::splits::kept_split_slot;
 
 /// Where the variables are: the time, the checks, the count, the table.
@@ -25,12 +25,11 @@ pub struct SplitPlaces {
 
 impl SplitPlaces {
     pub fn game() -> Self {
-        let g = |a: usize| game_addr(rva(a)) as u32;
         Self {
             time: (CAR.stage_time.addr() as u32),
             checks: (CAR.splits_passed.addr() as u32),
-            count: g(0x601830),
-            table: g(0x601C68),
+            count: (SPLIT_TABLES.split_colour_count.addr() as u32),
+            table: (SPLIT_TABLES.kept_times[0].addr() as u32),
         }
     }
 }

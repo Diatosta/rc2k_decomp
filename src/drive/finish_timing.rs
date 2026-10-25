@@ -11,14 +11,13 @@
 //!
 //! Caller: `drive::finish_run`.
 
+use crate::drive::finish_store::FINISH;
 use crate::math::x87::loaded;
-use crate::physics::flow::{c0, g, p};
+use crate::physics::flow::c0;
 use crate::race::state_store::RACE_STATE;
 use crate::race::viewer_screen_store::VIEWER_PANEL;
 use crate::scene::draw_store::DRAW;
 use crate::scene::x87_mem::{fild, fld, fstp};
-
-const T: usize = 0x64BB64;
 
 /// `flt_64BB64` = the clock less the start (`dword_62400C`) over `flt_5C5D18`, over the race
 /// block at `rc`.
@@ -60,21 +59,21 @@ fn share(rc: usize) {
 /// The core from the clock's reading `now` (already in `g_sceneClock`).
 pub fn timing_from(now: u32) {
     let rc = crate::race::store::asm_base() as usize;
-    let since = now.wrapping_sub(g(0x64BB60));
+    let since = now.wrapping_sub(FINISH.start_clock.get());
     DRAW.scratch.set(since);
     time(rc);
-    if c0(g(T), g(0x64BB44)) {
-        p(0x64BB68, loaded(g(T)));
-    } else if c0(g(T), g(0x64BB48)) {
+    if c0(FINISH.time.bits(), FINISH.limit_a.bits()) {
+        FINISH.eased.set_bits(loaded(FINISH.time.bits()));
+    } else if c0(FINISH.time.bits(), FINISH.limit_b.bits()) {
         eased_middle(rc);
     } else {
         eased_end(rc);
     }
-    p(0x64BB6C, 0);
-    let late = !c0(g(T), g(0x64BB70));
+    FINISH.share.set_bits(0);
+    let late = !c0(FINISH.time.bits(), FINISH.limit_c.bits());
     if RACE_STATE.results.finished.get() != 0 && late {
-        p(0x64BB6C, 0x3F80_0000);
-        if c0(g(T), g(0x64BB74)) {
+        FINISH.share.set_bits(0x3F80_0000);
+        if c0(FINISH.time.bits(), FINISH.limit_d.bits()) {
             share(rc);
         }
     }

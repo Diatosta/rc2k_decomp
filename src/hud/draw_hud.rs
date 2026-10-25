@@ -9,11 +9,8 @@
 //! Caller: `sub_45A893` (0x45A8F0).
 
 use crate::errors::Refused;
-use crate::framework::rva;
 use crate::hud::store::HUD;
-use crate::store::game_addr;
-
-pub const RECORD_RVA: usize = rva(0x6D13FE); // unk_6D13FE
+use crate::race::panel_store::PANEL;
 
 /// The Rust version (see the header). What the original leaves in the registers is read
 /// by none of its callers (register liveness, 2026-10-23).
@@ -26,7 +23,7 @@ pub unsafe fn draw_hud() -> Result<(), Refused> {
         HUD.batch_texture.set(batch::NO_TEXTURE);
         HUD.vertex_count.set(0);
         HUD.index_count.set(0);
-        let record = game_addr(RECORD_RVA) as u32;
+        let record = PANEL.split_6.addr() as u32;
         tenths::tenths(record);
         match batch::Layout::of(((record + 0xF4) as *const u32).read_unaligned()) {
             batch::Layout::Single => layout_0::layout_0(record)?,

@@ -28,6 +28,7 @@
 use crate::errors::Refused;
 use crate::math::x87_run::{mul_div_status, mul_status};
 use crate::physics::car_store::CAR;
+use crate::physics::gear_store::GEAR;
 use crate::physics::gearbox::*;
 use crate::physics::manual_gearbox::reverse;
 use crate::physics::pick_start_gear::pick_start_gear;
@@ -73,7 +74,7 @@ fn tests() -> Result<Shift, Refused> {
         gear,
         || CAR.all_wheels_off.get() != 0,
         || CAR.brake.get() != 0,
-        || !below(DRAW.scratch.get(), g(0x5CB958)),
+        || !below(DRAW.scratch.get(), GEAR.shift_up_point.bits()),
         || {
             !below(
                 CAR.local_velocity[2].bits(),
@@ -86,15 +87,17 @@ fn tests() -> Result<Shift, Refused> {
                 return Ok(false);
             }
             let (rb, rl) = (ratio(gear)?, ratio(gear.wrapping_sub(1))?);
-            if mul_div_status(DRAW.scratch.get(), rb, rl, g(0x5CB964)) & 0x100 == 0 {
+            if mul_div_status(DRAW.scratch.get(), rb, rl, GEAR.shift_ratio_figure.bits()) & 0x100
+                == 0
+            {
                 return Ok(false);
             }
             let point = if shifts::down_point_clutch(CAR.brake.get()) {
-                0x5CB960
+                GEAR.shift_down_clutch_point.bits()
             } else {
-                0x5CB95C
+                GEAR.shift_down_point.bits()
             };
-            Ok(below(DRAW.scratch.get(), g(point)))
+            Ok(below(DRAW.scratch.get(), point))
         },
         || {
             below(

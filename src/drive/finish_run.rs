@@ -16,9 +16,10 @@
 
 use crate::drive::race_parts::{input_update, race_frame, restart_clock};
 use crate::errors::{BadInput, Refused};
-use crate::physics::flow::{c0, g, p};
+use crate::physics::flow::c0;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::blocks_store::CAR_BLOCKS;
+use crate::race::clock_ticks_store::CLOCK_TICKS;
 use crate::race::state_store::RACE_STATE;
 use crate::race::viewer_state_store::REPLAY_VIEW;
 use crate::scene::x87_mem::{fild, fistp, fld};
@@ -41,14 +42,16 @@ fn lift_car(rc: usize) {
 pub unsafe fn finish_run() -> Result<(), Refused> {
     lift_car(crate::race::store::asm_base() as usize);
     restart_clock();
-    p(0x5CC3B4, PHYSICS.scene_clock.get());
-    p(0x5CC3B0, PHYSICS.scene_clock.get());
-    for k in 0..0x20 {
-        p(0x5CC1B0 + 4 * k, u32::MAX);
+    CLOCK_TICKS.clock_a.set(PHYSICS.scene_clock.get());
+    CLOCK_TICKS.sound_tick_last.set(PHYSICS.scene_clock.get());
+    for mark in &CLOCK_TICKS.marks {
+        mark.set(u32::MAX);
     }
     REPLAY_VIEW.play_end.set(u32::MAX);
     restart_clock();
-    p(0x64BB60, PHYSICS.scene_clock.get());
+    crate::drive::finish_store::FINISH
+        .start_clock
+        .set(PHYSICS.scene_clock.get());
     loop {
         crate::sound::store::RACE_SOUNDS.objects[0].revs.set(0);
         input_update();
@@ -57,7 +60,10 @@ pub unsafe fn finish_run() -> Result<(), Refused> {
         if n > 1 {
             return Err(BadInput("a finish length past the table's two").into());
         }
-        if !c0(g(0x64BB64), g(0x64BB3C + 4 * n as usize)) {
+        if !c0(
+            crate::drive::finish_store::FINISH.time.bits(),
+            crate::drive::finish_store::FINISH.finish_lengths[n as usize].bits(),
+        ) {
             break;
         }
         let pressed = |key: usize| crate::input::store::DEVICES.keys_pressed.get(key) != 0;

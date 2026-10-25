@@ -12,8 +12,8 @@
 
 use crate::errors::Refused;
 use crate::files::read_whole_file::read_whole_file;
-use crate::framework::{game_addr, game_ptr, rva};
-use crate::scene::set_object_material::{MATERIAL_LEN, MATERIALS_RVA};
+use crate::framework::{game_ptr, rva};
+use crate::scene::set_object_material::MATERIAL_LEN;
 use crate::service::harness::Region;
 
 // ---- game data ----
@@ -51,7 +51,7 @@ const FILES: [KindFile; 4] = [
 
 fn records(file: &KindFile) -> Region {
     (
-        (game_addr(MATERIALS_RVA) + file.first_kind * MATERIAL_LEN) as u32,
+        (crate::scene::polygon::materials_addr() + file.first_kind * MATERIAL_LEN) as u32,
         file.kinds * MATERIAL_LEN,
     )
 }

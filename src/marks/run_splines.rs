@@ -14,9 +14,9 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::marks::place_spline::place_spline;
-use crate::marks::setup::{CLOCK, SEED_RVA};
+use crate::marks::setup::CLOCK;
 use crate::marks::splines::{SPLINE_CONSTANTS, SPLINE_HEAD, SPLINE_WORK};
-use crate::marks::store::{game_read, game_write};
+use crate::marks::work_store::MARKS_WORK;
 use crate::math::x87;
 
 const MOST_SPLINES: i32 = 8;
@@ -82,10 +82,8 @@ pub unsafe fn run_splines() -> Result<(), Refused> {
     }
     unsafe {
         step_made(settings, CLOCK.frame_ticks.get() >> 1);
-        let s = game_read::<u32>(SEED_RVA)
-            .wrapping_mul(0x9D)
-            .wrapping_add(0x47);
-        game_write(SEED_RVA, s);
+        let s = MARKS_WORK.seed.get().wrapping_mul(0x9D).wrapping_add(0x47);
+        MARKS_WORK.seed.set(s);
         let k = SPLINE_CONSTANTS.wave_k.each_ref().map(|f| f.bits());
         let (angle, wave) = x87::angle_and_wave(
             SPLINE_HEAD.angle.bits(),

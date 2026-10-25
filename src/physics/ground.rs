@@ -11,12 +11,12 @@
 //! their callers (`ground_search` keeps them all: `pusha` / `popa`).
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, rva};
 use crate::physics::edge_side::{EdgePlaces, edge_side_at};
 use crate::physics::find_course_record::{RecordPlaces, find_course_record_at};
 use crate::physics::ground_store::GROUND_WORK;
 use crate::physics::plane_height::{Plane, plane_height_at};
 use crate::race::course_store::COURSE;
+use crate::race::kind_records_store::KIND_RECORDS;
 use crate::race::numbers_store::NUMBERS;
 use crate::scene::draw_switches_store::DRAW_SWITCHES;
 use rc2k_core::physics::ground_search::{self, FaceTest};
@@ -30,24 +30,11 @@ impl Ground {
         Self
     }
 
-    /// The address of the variable IDA shows at `ida`.
-    pub fn a(&self, ida: u32) -> u32 {
-        game_addr(rva(ida as usize)) as u32
-    }
-
-    pub unsafe fn get(&self, ida: u32) -> u32 {
-        unsafe { (self.a(ida) as *const u32).read_unaligned() }
-    }
-
-    pub unsafe fn put(&self, ida: u32, v: u32) {
-        unsafe { (self.a(ida) as *mut u32).write_unaligned(v) }
-    }
-
     pub fn edge(&self) -> EdgePlaces {
         EdgePlaces {
             x: GROUND_WORK.ground_x.addr() as u32,
             z: GROUND_WORK.ground_z.addr() as u32,
-            product: self.a(0x620460),
+            product: (crate::physics::ground_probe_store::GROUND_PROBE.product[0].addr() as u32),
         }
     }
 
@@ -64,8 +51,8 @@ impl Ground {
 
     pub unsafe fn records(&self) -> RecordPlaces {
         RecordPlaces {
-            firsts: self.a(0x5CC3E4),
-            lasts: self.a(0x5CC7E4),
+            firsts: KIND_RECORDS.first_records[0].addr() as u32,
+            lasts: KIND_RECORDS.last_records[0].addr() as u32,
             records: COURSE.course_records.addr() as u32,
             count: COURSE.course_record_count.get(),
         }
@@ -190,7 +177,9 @@ pub unsafe fn face_under_point_at(g: &Ground, number: u32) -> Result<bool, Refus
         let test = ground_search::face_under_point(
             kind,
             || ((face + 2) as *const u16).read_unaligned(),
-            g.get(0x620470),
+            crate::physics::ground_probe_store::GROUND_PROBE
+                .settle_mark
+                .get(),
             |o| at(face + o),
             side,
         );

@@ -18,9 +18,8 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::marks::emitters::*;
-use crate::marks::setup::SEED_RVA;
-use crate::marks::store::{game_read, game_write};
 use crate::marks::tuning::MARKS_FLOATS;
+use crate::marks::work_store::MARKS_WORK;
 use crate::math::x87;
 use crate::scene::matrix3::rounded;
 use crate::session::{Bytes, Dword, Float};
@@ -104,10 +103,8 @@ pub unsafe fn emit_particle_21(wheel: u32, object: u32) -> Result<(), Refused> {
         put(0x54, (r & 0x3F).wrapping_sub(0x20));
         put(0x50, r.rotate_right(6) & 0xFFF);
         put(0x58, LOOK);
-        let s = game_read::<u32>(SEED_RVA)
-            .wrapping_mul(0x9D)
-            .wrapping_add(0x47);
-        game_write(SEED_RVA, s);
+        let s = MARKS_WORK.seed.get().wrapping_mul(0x9D).wrapping_add(0x47);
+        MARKS_WORK.seed.set(s);
         put(0x60, x87::from_int(((s & 0x3FFF) + 0x4000) as i32));
         put(0x84, LIFE);
         put(

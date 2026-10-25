@@ -1,13 +1,6 @@
 //! The tables of 0x100 colours the lighting picks from, and the two functions that fill one:
 //! shared by their three functions.
 
-use crate::framework::rva;
-
-pub const LIGHT_TABLE_RVA: usize = rva(0x635118); // g_lightTable
-pub const LAMP_TABLE_A_RVA: usize = rva(0x635518); // dword_635518
-pub const LAMP_TABLE_B_RVA: usize = rva(0x635918); // dword_635918
-pub const CAR_LIGHT_TABLE_RVA: usize = rva(0x635D18); // g_carLightTable
-pub const LAMP_TABLE_C_RVA: usize = rva(0x636118); // unk_636118
 unsafe fn store(table: *mut [u32; 0x100], entries: &[u32; 0x100]) {
     unsafe { table.write_unaligned(*entries) };
 }

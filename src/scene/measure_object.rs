@@ -13,34 +13,29 @@
 //! their memory.
 
 use crate::errors::BadInput;
-use crate::framework::{game_write, rva};
 use crate::race::course_lists_store::COURSE_LISTS;
+use crate::scene::object_slots_store::OBJECT_SLOTS;
 use crate::scene::object_store::OBJECT_WORK;
-use crate::scene::objects::{FIRST_POINT_RVA, POINT_COUNTS_RVA, SLOTS, of_slot};
+use crate::scene::objects::SLOTS;
 
 // ---- game data ----
 
-/// `dword_634B70` .. `dword_634B9C`: the middle, half the extent, the lowest, the
-/// highest, three dwords each.
-pub const MEASURES_RVA: usize = rva(0x634B70);
 /// More points than this are not an object's (the test and the regions' guard).
 const MOST: u32 = 0x10_0000;
 
 // ---- Rust version ----
 
 unsafe fn points_of(slot: u32) -> Result<(usize, u32), BadInput> {
-    unsafe {
-        if slot >= SLOTS {
-            return Err(BadInput("an object's slot past the tables"));
-        }
-        let count = of_slot(POINT_COUNTS_RVA, slot);
-        let memory: u32 = COURSE_LISTS.object_points.bits();
-        if count > MOST || (count != 0 && memory == 0) {
-            return Err(BadInput("points without their memory, or too many"));
-        }
-        let first = of_slot(FIRST_POINT_RVA, slot);
-        Ok((memory.wrapping_add(first.wrapping_mul(12)) as usize, count))
+    if slot >= SLOTS {
+        return Err(BadInput("an object's slot past the tables"));
     }
+    let count = OBJECT_SLOTS.point_counts[slot as usize].get();
+    let memory: u32 = COURSE_LISTS.object_points.bits();
+    if count > MOST || (count != 0 && memory == 0) {
+        return Err(BadInput("points without their memory, or too many"));
+    }
+    let first = OBJECT_SLOTS.first_point[slot as usize].get();
+    Ok((memory.wrapping_add(first.wrapping_mul(12)) as usize, count))
 }
 
 // Converted: `rc2k_core::scene::objects::measure`
@@ -56,11 +51,17 @@ pub unsafe fn measure_object() -> Result<(), BadInput> {
         };
         let Some(m) = measure(points) else {
             // The half extents are not touched for an object of no points.
-            game_write(MEASURES_RVA, [0u32; 3]);
-            game_write(MEASURES_RVA + 0x18, [[LOWEST_START; 3], [HIGHEST_START; 3]]);
+            crate::session::write_first(&OBJECT_SLOTS.measures[..3], &[0u32; 3]);
+            crate::session::write_first(
+                &OBJECT_SLOTS.measures[6..],
+                &[[LOWEST_START; 3], [HIGHEST_START; 3]].concat(),
+            );
             return Ok(());
         };
-        game_write(MEASURES_RVA, [m.middle, m.half, m.lowest, m.highest]);
+        crate::session::write_first(
+            &OBJECT_SLOTS.measures,
+            &[m.middle, m.half, m.lowest, m.highest].concat(),
+        );
         Ok(())
     }
 }

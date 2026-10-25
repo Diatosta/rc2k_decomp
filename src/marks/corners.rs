@@ -10,8 +10,8 @@ use crate::marks::mask_constants::MASK_CONSTANTS;
 use crate::marks::mask_vars::MASKS;
 use crate::marks::shape_points::{farthest_pair, turn_shape_checks, turn_shape_points, turned};
 use crate::marks::shape_work::SHAPE_WORK;
-use crate::marks::store::game_write;
 use crate::marks::turns::{clamp_pair, smooth_pair, smooth_steps};
+use crate::marks::work_store::MARKS_WORK;
 use crate::math::x87;
 use crate::scene::matrix3::{extended, rounded};
 use crate::session::{Dword, read_bits, read_first, write_bits};
@@ -108,7 +108,7 @@ pub unsafe fn make_corners() -> Result<(), Refused> {
                 let e = table + k * ENTRY;
                 let c = |o: u32| get(e + o) as i32;
                 let status = x87::compare_squares(c(0), c(4), c(0xC), c(0x10));
-                game_write(crate::scene::vector3::STATUS_RVA, status as u32);
+                MARKS_WORK.fpu_status.set(status as u32);
                 if status != 0 {
                     for (a, b) in [(0, 0xC), (4, 0x10)] {
                         let (x, y) = (get(e + a), get(e + b));

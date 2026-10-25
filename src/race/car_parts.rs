@@ -4,10 +4,10 @@
 //! kept in the block (+0x740 .. +0x8FF) for `race::draw_car`.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, rva};
 use crate::physics::camera_store::CAMERA_WORK;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::frame_store::FRAME_WORK;
+use crate::race::light_records_store::LIGHT_RECORDS;
 use crate::race::matrices_store::MATRICES;
 use crate::race::numbers_store::NUMBERS;
 use crate::race::view_store::RACE_VIEW;
@@ -16,14 +16,12 @@ use crate::scene::light_work_store::LIGHT_WORK;
 use crate::scene::matrix::{multiply_matrices, set_place, set_turn_x, set_turn_y};
 use crate::scene::object_store::OBJECT_WORK;
 
-fn k(a: u32) -> u32 {
-    unsafe { game_read(rva(a as usize)) }
-}
-
 /// The five axle values (`rc2k_core::race::car_parts::axles`) from the model's record
 /// (`dword_5C9098` .. of its 0x134-byte record) and the lift.
 fn axles(model: u32) -> Option<[u32; 5]> {
-    let record = [0u32, 4, 8, 0xC, 0x10].map(|o| k(0x5C9098 + model.wrapping_mul(0x134) + o));
+    let at = LIGHT_RECORDS.records[0].axles[0].addr() as u32 + model.wrapping_mul(0x134);
+    let record =
+        [0u32, 4, 8, 0xC, 0x10].map(|o| unsafe { ((at + o) as *const u32).read_unaligned() });
     rc2k_core::race::car_parts::axles(record, PHYSICS.ground_drop.get())
 }
 

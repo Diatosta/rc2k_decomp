@@ -18,13 +18,9 @@
 //! refusal), before anything.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::rva;
 use crate::marks::clip_quad::{clip_quad, draw_fan};
 use crate::marks::rain::{RAIN, RAIN_RULES, RainRules, RainState};
-use crate::marks::store::game_addr;
 use crate::scene::draw_store::DRAW;
-
-const VERTICES_RVA: usize = rva(0x9605A0); // g_polygonVertices
 
 /// The original's 0x4C1DCD .. 0x4C1F11: the point scaled and turned, and the last place.
 unsafe fn turn(p: &[[u8; 10]; 3]) {
@@ -36,7 +32,7 @@ unsafe fn project() {
     unsafe {
         project_x87(
             crate::race::store::asm_base() as usize,
-            crate::race::store::buffers_asm_base() as usize,
+            crate::d3d::vertices_store::piece_addr(),
             &RAIN,
             &RAIN_RULES,
         )
@@ -57,7 +53,7 @@ pub unsafe fn draw_streak(place: [[u8; 10]; 3]) -> Result<(), Refused> {
             return Ok(());
         }
         project();
-        if clip_quad(game_addr(VERTICES_RVA) as u32)? {
+        if clip_quad(crate::d3d::vertices_store::piece_addr() as u32)? {
             return Ok(());
         }
         draw_fan();
@@ -134,7 +130,7 @@ unsafe fn turn_x87(p: usize, r: &RainState) {
 }
 
 /// `project`'s x87 block as plain Rust on the x87 model (85 instructions), same order and memory places.
-unsafe fn project_x87(rc: usize, bf: usize, r: &RainState, k: &RainRules) {
+unsafe fn project_x87(rc: usize, vt: usize, r: &RainState, k: &RainRules) {
     unsafe {
         let t0 = bh::ld(r.second[2].bits());
         let t1 = ld(rc, 0x224088) / t0;
@@ -189,26 +185,26 @@ unsafe fn project_x87(rc: usize, bf: usize, r: &RainState, k: &RainRules) {
         r.depth_scale.set_bits(bh::st(t21));
         let t38 = bh::ld(r.second[2].bits());
         let t39 = t38 * bh::ld(r.depth_scale.bits());
-        st(bf, 0x5605A8, t39);
-        st(bf, 0x5605C8, t39);
-        st(bf, 0x5605E8, t39);
-        st(bf, 0x560608, t39);
+        st(vt, 0x8, t39);
+        st(vt, 0x28, t39);
+        st(vt, 0x48, t39);
+        st(vt, 0x68, t39);
         let t40 = bh::ld(r.ends[0][0].bits());
-        st(bf, 0x5605A0, t40);
+        st(vt, 0x0, t40);
         let t41 = t40 - bh::ld(r.edge_a[0].bits());
-        st(bf, 0x5605C0, t41);
+        st(vt, 0x20, t41);
         let t42 = bh::ld(r.ends[1][0].bits());
-        st(bf, 0x560600, t42);
+        st(vt, 0x60, t42);
         let t43 = t42 - bh::ld(r.edge_b[0].bits());
-        st(bf, 0x5605E0, t43);
+        st(vt, 0x40, t43);
         let t44 = bh::ld(r.ends[0][1].bits());
-        st(bf, 0x5605A4, t44);
+        st(vt, 0x4, t44);
         let t45 = t44 - bh::ld(r.edge_a[1].bits());
-        st(bf, 0x5605C4, t45);
+        st(vt, 0x24, t45);
         let t46 = bh::ld(r.ends[1][1].bits());
-        st(bf, 0x560604, t46);
+        st(vt, 0x64, t46);
         let t47 = t46 - bh::ld(r.edge_b[1].bits());
-        st(bf, 0x5605E4, t47);
+        st(vt, 0x44, t47);
     }
 }
 
@@ -548,7 +544,11 @@ mod asm_differential {
         differential(
             &SPEC,
             |b| unsafe { reference::project_x87(b[0], b[1], b[2]) },
-            |b| with_state_at(b[2], |r, k| unsafe { super::project_x87(b[0], b[1], r, k) }),
+            |b| {
+                with_state_at(b[2], |r, k| unsafe {
+                    super::project_x87(b[0], b[1].wrapping_add(0x5605A0), r, k)
+                })
+            },
         );
     }
 }

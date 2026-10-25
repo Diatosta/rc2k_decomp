@@ -12,11 +12,9 @@
 
 use crate::gfx::fonts_store::FONTS;
 use crate::gfx::pixel_format::PixelFormat;
-use crate::physics::flow::a;
 use crate::race::replay_file_store::REPLAY_FILE;
 use crate::scene::kind_texture_store::KIND_TEXTURES;
 
-const COLOURS: usize = 0x960FA0; // unk_960FA0: 256 dwords
 /// The replay viewer's panel fonts, whose palettes are pointed at the colours, in the
 /// original's order.
 const PALETTES: [crate::gfx::typefaces::FontId; 6] = {
@@ -48,7 +46,9 @@ pub unsafe fn viewer_palettes() {
         to.set(from.get());
     }
     for font in PALETTES {
-        font.object().palette.set(a(COLOURS));
+        font.object()
+            .palette
+            .set(crate::race::viewer_buffers_store::VIEWER_BUFFERS.colours[0].addr() as u32);
     }
     unsafe {
         let screen = (crate::session::SCREEN.format_addr() as *const PixelFormat).read_unaligned();
@@ -60,7 +60,7 @@ pub unsafe fn viewer_palettes() {
         // by colour, as the original).
         use rc2k_core::race::viewer_flow::{FONT_COLOURS, font_colour};
         let from = FONTS.palettes.get() as *const u32;
-        let to = a(COLOURS) as *mut u32;
+        let to = crate::race::viewer_buffers_store::VIEWER_BUFFERS.colours[0].addr() as *mut u32;
         for n in 0..FONT_COLOURS {
             let colour = font_colour(
                 from.add(n).read_unaligned(),

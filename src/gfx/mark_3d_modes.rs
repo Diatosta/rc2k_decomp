@@ -21,15 +21,11 @@
 //! Callers: `gfx::list_primary_modes`, `gfx::list_secondary_modes`.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::rva;
 use crate::gfx::modes::MODES;
+use crate::gfx::screen_state::SCREEN_MODE;
 use crate::session::MACHINE;
-use crate::store::{game_read, game_write};
 
 pub use rc2k_core::gfx::screen_modes::MODES_ROOM;
-
-const DEPTH_RVA: usize = rva(0x4F492C); // dword_4F492C: the depth formats' bits
-const EXTRA_RVA: usize = rva(0x4F4930); // dword_4F4930: the extra flags
 
 /// The Rust version on the modes listed for card `kind` (see the header).
 pub fn mark_3d_modes(kind: u32) -> Result<(), Refused> {
@@ -42,11 +38,15 @@ pub fn mark_3d_modes(kind: u32) -> Result<(), Refused> {
             return Err(BadInput("more screen modes than the table has room for").into());
         }
         // The device: 16 and 32 bits (`g_pixelKinds`' 0x200 and 0x800) for both.
-        game_write(DEPTH_RVA, 0xA00u32);
-        game_write(EXTRA_RVA, 0xA00u32);
-        for at in (0x5AB98C..=0x5AB9AC).step_by(4) {
-            game_write(rva(at), 1u32);
+        SCREEN_MODE.depth_bits.set(0xA00);
+        SCREEN_MODE.depth_extra.set(0xA00);
+        // 0x5AB98C ..= 0x5AB9AC, every dword of them.
+        let cards = &crate::d3d::cards_store::CARDS_3D;
+        for cell in cards.mode_switches.iter().chain(&cards.mode_switches_end) {
+            cell.set(1);
         }
+        cards.fog_state.set(1);
+        cards.mips.set(1);
         // Converted: `rc2k_core::gfx::screen_modes::mark_3d`.
         let table = MODES.table_addr() as u32;
         let before: Vec<_> = crate::system::find_entry::entries(table, count).collect();
@@ -54,8 +54,8 @@ pub fn mark_3d_modes(kind: u32) -> Result<(), Refused> {
         rc2k_core::gfx::screen_modes::mark_3d(
             &mut marked,
             kind,
-            game_read(DEPTH_RVA),
-            game_read(EXTRA_RVA),
+            SCREEN_MODE.depth_bits.get(),
+            SCREEN_MODE.depth_extra.get(),
         );
         for (n, e) in marked.into_iter().enumerate() {
             if e != before[n] {

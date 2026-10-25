@@ -15,16 +15,9 @@
 //! bits), and no surface, format, piece or picture.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::rva;
 use crate::gfx::pixel_format::PixelFormat;
-use crate::gfx::surface::{BASE_RVA, BYTES_PER_PIXEL_RVA, PITCH_RVA};
+use crate::gfx::screen_state::DRAW_SURFACE;
 use crate::service::harness::Region;
-use crate::store::game_read;
-
-// ---- game data ----
-
-/// `g_surface.format`: the address of the surface's `PixelFormat`.
-const FORMAT_RVA: usize = rva(0x4F49B8);
 
 // ---- Rust version ----
 
@@ -38,13 +31,12 @@ pub struct Target {
 }
 
 pub fn game_target() -> Target {
-    unsafe {
-        Target {
-            pixels: game_read(BASE_RVA),
-            pitch: game_read(PITCH_RVA),
-            bytes_per_pixel: game_read(BYTES_PER_PIXEL_RVA),
-            format: game_read(FORMAT_RVA),
-        }
+    Target {
+        pixels: DRAW_SURFACE.pixels.get(),
+        pitch: DRAW_SURFACE.pitch.get(),
+        bytes_per_pixel: DRAW_SURFACE.bytes_per_pixel.get(),
+        // `g_surface.format`: the address of the surface's `PixelFormat`.
+        format: DRAW_SURFACE.format.get(),
     }
 }
 

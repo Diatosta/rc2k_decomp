@@ -10,7 +10,8 @@
 //! stays. Six callers. The registers above are the original's; a call by address goes through
 //! `routes.rs`, which maps them.
 
-use crate::scene::textures::{PLACE_SLOT_RVA, PLACES, SLOTS, TEXTURE_PLACE_RVA, WANTED_RVA, slice};
+use crate::scene::texture_places_store::TEXTURE_PLACES;
+use crate::scene::textures::cells_mut;
 
 // ---- Rust version ----
 
@@ -20,9 +21,9 @@ pub unsafe fn map_texture_places() {
     // Converted: `rc2k_core::scene::textures::map_places`.
     unsafe {
         rc2k_core::scene::textures::map_places(
-            slice(WANTED_RVA, SLOTS),
-            slice(TEXTURE_PLACE_RVA, SLOTS),
-            slice(PLACE_SLOT_RVA, PLACES),
+            cells_mut(&TEXTURE_PLACES.slot_wanted),
+            cells_mut(&TEXTURE_PLACES.wanted_pictures),
+            cells_mut(&TEXTURE_PLACES.place_slot),
         );
     }
 }

@@ -14,13 +14,9 @@
 //! `read_packed` refuses.
 
 use crate::errors::{FatalError, Refused};
-use crate::physics::flow::a;
 use crate::race::replay_file_store::REPLAY_FILE;
 use crate::race::viewer_state_store::REPLAY_VIEW;
 use rc2k_core::drive::replay_frames::{frame_fault, past_end};
-
-/// `dword_9613A4`: the frame read.
-pub const FRAME: usize = 0x9613A4;
 
 /// The Rust version: CF.
 pub unsafe fn read_replay_frame(frame: u32, tenth: u32) -> Result<bool, Refused> {
@@ -49,7 +45,11 @@ pub unsafe fn read_replay_frame(frame: u32, tenth: u32) -> Result<bool, Refused>
     }
     let count = crate::race::replay::block_place(2 * frame as usize + 1);
     let (_, carry, _) = unsafe {
-        crate::drive::read_packed::read_packed(REPLAY_FILE.replay_handle.get(), a(FRAME), count)
+        crate::drive::read_packed::read_packed(
+            REPLAY_FILE.replay_handle.get(),
+            crate::race::viewer_buffers_store::VIEWER_BUFFERS.block[0].addr() as u32,
+            count,
+        )
     }?;
     Ok(carry)
 }

@@ -34,6 +34,7 @@ use crate::errors::Refused;
 use crate::math::x87;
 use crate::math::x87_run::mul_div_status;
 use crate::physics::car_store::CAR;
+use crate::physics::gear_store::GEAR;
 use crate::physics::gearbox::*;
 use crate::physics::higher_free_gear::higher_free_gear;
 use crate::physics::lower_free_gear::lower_free_gear;
@@ -115,7 +116,7 @@ fn start_line() -> Result<Shift, Refused> {
         revs_speed()?;
         DRAW.scratch.set(over_top());
         CAR.engine_speed.set_bits(kept);
-        if !below(DRAW.scratch.get(), g(0x5CB958)) {
+        if !below(DRAW.scratch.get(), GEAR.shift_up_point.bits()) {
             return Ok(Shift::Up);
         }
     }
@@ -127,15 +128,15 @@ fn start_line() -> Result<Shift, Refused> {
         return Ok(Shift::Done);
     };
     let (rb, rc) = (ratio(gear)?, ratio(lower)?);
-    if mul_div_status(DRAW.scratch.get(), rb, rc, g(0x5CB964)) & 0x100 == 0 {
+    if mul_div_status(DRAW.scratch.get(), rb, rc, GEAR.shift_ratio_figure.bits()) & 0x100 == 0 {
         return Ok(Shift::Done);
     }
     let point = if shifts::down_point_clutch(CAR.brake.get()) {
-        0x5CB960
+        GEAR.shift_down_clutch_point.bits()
     } else {
-        0x5CB95C
+        GEAR.shift_down_point.bits()
     };
-    if !below(DRAW.scratch.get(), g(point)) {
+    if !below(DRAW.scratch.get(), point) {
         return Ok(Shift::Done);
     }
     Ok(Shift::Down)

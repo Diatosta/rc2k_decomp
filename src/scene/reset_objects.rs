@@ -11,12 +11,11 @@
 //! memory.
 
 use crate::errors::BadInput;
-use crate::framework::{game_addr, game_write};
 use crate::race::course_lists_store::COURSE_LISTS;
+use crate::scene::object_slots_store::OBJECT_SLOTS;
 use crate::scene::object_store::OBJECT_WORK;
-use crate::scene::objects::{
-    FACE_COUNT_RVA, FIRST_POINT_RVA, OBJECT_KINDS_RVA, POINT_COUNT_RVA, SLOTS,
-};
+use crate::scene::object_tables_store::OBJECT_TABLES;
+use crate::scene::objects::SLOTS;
 
 /// The five tables of 0x100 dwords from `g_objectFirstPoint` on.
 const TABLES_LEN: usize = SLOTS as usize * 4 * 5;
@@ -33,11 +32,13 @@ pub unsafe fn reset_objects() -> Result<(), BadInput> {
             return Err(BadInput("room for the objects' points without memory"));
         }
         std::ptr::write_bytes(memory as *mut u32, 0, (room >> 2) as usize);
-        std::ptr::write_bytes(game_addr(FIRST_POINT_RVA) as *mut u8, 0, TABLES_LEN);
-        game_write(POINT_COUNT_RVA, 1u32);
-        game_write(FACE_COUNT_RVA, 0u32);
+        std::ptr::write_bytes(OBJECT_SLOTS.first_point[0].addr() as *mut u8, 0, TABLES_LEN);
+        OBJECT_TABLES.point_count.set(1);
+        OBJECT_TABLES.face_count.set(0);
         OBJECT_WORK.face_cursor.set_bits(0u32);
-        game_write(OBJECT_KINDS_RVA, [u32::MAX; SLOTS as usize]);
+        for kind in &OBJECT_TABLES.object_kinds {
+            kind.set(u32::MAX);
+        }
         Ok(())
     }
 }

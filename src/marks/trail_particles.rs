@@ -20,8 +20,7 @@ use crate::marks::blocks::RING_POOL;
 use crate::marks::frame_state::DRAW_WORK;
 use crate::marks::jitter_point::jitter_point;
 use crate::marks::run_particles::PARTICLE_TUNING;
-use crate::marks::setup::SEED_RVA;
-use crate::marks::store::{game_read, game_write};
+use crate::marks::work_store::MARKS_WORK;
 use crate::math::x87;
 use crate::race::matrices_store::MATRICES;
 use crate::scene::matrix3::{extended, rounded};
@@ -80,10 +79,8 @@ pub unsafe fn trail_particles(p: u32) -> Result<(), Refused> {
             RING_POOL.used.set(used.wrapping_add(1));
             let put = |o: u32, v: u32| ((e + o) as *mut u32).write_unaligned(v);
             put(8, 4);
-            let s = game_read::<u32>(SEED_RVA)
-                .wrapping_mul(0x9D)
-                .wrapping_add(0x47);
-            game_write(SEED_RVA, s);
+            let s = MARKS_WORK.seed.get().wrapping_mul(0x9D).wrapping_add(0x47);
+            MARKS_WORK.seed.set(s);
             let k1 = DRAW_WORK.uv_k.bits();
             let k2 = PARTICLE_TUNING.trail_random_k.bits();
             RING_POOL

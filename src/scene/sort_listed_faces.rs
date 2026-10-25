@@ -16,8 +16,6 @@
 //! in the core's tests), before changing anything.
 
 use crate::errors::BadInput;
-use crate::framework::game_addr;
-use crate::scene::draw_object_faces::LIST_RVA;
 use crate::scene::light_work_store::LIGHT_WORK;
 
 const MOST: u32 = 0x1000;
@@ -32,7 +30,8 @@ pub unsafe fn sort_listed_faces() -> Result<(), BadInput> {
             return Err(BadInput("more faces listed than the list holds"));
         }
         let list = std::slice::from_raw_parts_mut(
-            game_addr(LIST_RVA) as *mut rc2k_core::scene::face_order::ListedFace,
+            crate::scene::object_slots_store::OBJECT_SLOTS.listed_faces[0].addr()
+                as *mut rc2k_core::scene::face_order::ListedFace,
             listed as usize,
         );
         Ok(rc2k_core::scene::face_order::sort_listed_faces(list)?)

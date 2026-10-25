@@ -29,7 +29,6 @@
 //! instructions are `asm_reference` in the tests (2026-10-24).
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, rva};
 use crate::race::course_lists_store::COURSE_LISTS;
 use crate::race::course_store::COURSE;
 use crate::race::matrices_store::MATRICES;
@@ -43,9 +42,6 @@ use crate::scene::x87_mem::{fild, fistp, fld, fstp};
 
 // ---- game data ----
 const OBJECTS: u32 = 0x100;
-const FIRST_RVA: usize = rva(0x631F70); // dword_631F70
-const POINT_COUNT_RVA: usize = rva(0x632370); // dword_632370
-const NORMAL_COUNT_RVA: usize = rva(0x632770); // dword_632770
 
 // ---- Rust version ----
 
@@ -159,28 +155,27 @@ struct Object {
 }
 
 unsafe fn object() -> Result<Object, BadInput> {
-    unsafe {
-        let number: u32 = FRAME_SWITCHES.object_number.bits();
-        if number >= OBJECTS {
-            return Err(BadInput("an object's number past the tables"));
-        }
-        let at = number as usize * 4;
-        let object = Object {
-            first: game_read(FIRST_RVA + at),
-            points: game_read(POINT_COUNT_RVA + at),
-            normals: game_read(NORMAL_COUNT_RVA + at),
-            table: COURSE_LISTS.object_points.bits(),
-            records: COURSE_LISTS.point_records.bits(),
-            matrix: MATRICES.object_matrix_ptr.bits(),
-        };
-        if object.points <= 0 && object.normals > 0 {
-            return Err(BadInput("an object of normals and no points"));
-        }
-        if object.points > 0 && (object.table == 0 || object.records == 0 || object.matrix == 0) {
-            return Err(BadInput("no points' table, no records or no matrix"));
-        }
-        Ok(object)
+    let number: u32 = FRAME_SWITCHES.object_number.bits();
+    if number >= OBJECTS {
+        return Err(BadInput("an object's number past the tables"));
     }
+    let object = Object {
+        first: crate::scene::object_slots_store::OBJECT_SLOTS.first_point[number as usize].get(),
+        points: crate::scene::object_slots_store::OBJECT_SLOTS.point_counts[number as usize].get()
+            as i32,
+        normals: crate::scene::object_slots_store::OBJECT_SLOTS.normal_counts[number as usize].get()
+            as i32,
+        table: COURSE_LISTS.object_points.bits(),
+        records: COURSE_LISTS.point_records.bits(),
+        matrix: MATRICES.object_matrix_ptr.bits(),
+    };
+    if object.points <= 0 && object.normals > 0 {
+        return Err(BadInput("an object of normals and no points"));
+    }
+    if object.points > 0 && (object.table == 0 || object.records == 0 || object.matrix == 0) {
+        return Err(BadInput("no points' table, no records or no matrix"));
+    }
+    Ok(object)
 }
 
 fn record_of(records: u32, number: u32) -> u32 {

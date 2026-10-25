@@ -33,7 +33,6 @@
 //! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, rva};
 use crate::physics::car_store::CAR;
 use crate::physics::contact_store::CONTACT_WORK;
 use crate::physics::flip_cell_index::flip_cell_index;
@@ -76,7 +75,7 @@ fn check() -> Result<(), Refused> {
 /// back).
 unsafe fn steps() -> Result<(), Refused> {
     check()?;
-    let infos = game_addr(rva(0x979F30)) as u32;
+    let infos = crate::scene::polygon::texture_infos_addr() as u32;
     let surfaces = PHYSICS.surfaces.as_ptr() as u32;
     for c in 0..5u32 {
         let cc = c as usize;

@@ -14,15 +14,11 @@
 //! call by address goes through `routes.rs`.
 
 use crate::errors::Refused;
-use crate::framework::rva;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::level_grid_store::LEVEL_GRID;
+use crate::race::panel_store::PANEL;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
-use crate::store::{game_read, game_write};
-const PLAYERS_COPY_RVA: usize = rva(0x6D14F2); // dword_6D14F2
-const FLAGS_RVA: [usize; 2] = [rva(0x6D14F6), rva(0x6D14FA)]; // the HUD flags
-const CLEARED_RVA: [usize; 2] = [rva(0x6D1486), rva(0x6D1496)];
 
 /// The HUD's layout: `dword_6238A4`, or 0 while one view is drawn (`dword_63DB98` 1).
 /// The original reads `dword_6238A4` alone, which a replay after a split-screen race
@@ -43,21 +39,21 @@ pub fn shown_layout() -> u32 {
 pub unsafe fn overlay_pass() -> Result<(), Refused> {
     use crate::scene::depth_buffer_on::depth_buffer;
     unsafe {
-        game_write(PLAYERS_COPY_RVA, shown_layout());
+        PANEL.players.set(shown_layout());
         depth_buffer(false);
         crate::hud::overlay_states::overlay_states();
-        let kept: [u32; 2] = FLAGS_RVA.map(|r| game_read(r));
+        let kept: [u32; 2] = [PANEL.hud_flags[0].get(), PANEL.hud_flags[1].get()];
         if RACE_VIEW.views.bits() == 2 {
             for n in 0..2 {
                 if CAR_BLOCKS.cars[n].view_covered.get() != 0 {
-                    game_write(FLAGS_RVA[n], game_read::<u32>(FLAGS_RVA[n]) & 0x40);
-                    game_write(CLEARED_RVA[n], 0u32);
+                    PANEL.hud_flags[n].set(PANEL.hud_flags[n].get() & 0x40);
+                    PANEL.lights[n].fade.set(0);
                 }
             }
         }
         let done = crate::hud::draw_hud::draw_hud();
-        game_write(FLAGS_RVA[1], kept[1]);
-        game_write(FLAGS_RVA[0], kept[0]);
+        PANEL.hud_flags[1].set(kept[1]);
+        PANEL.hud_flags[0].set(kept[0]);
         done?;
         depth_buffer(true);
         crate::scene::full_view_window::full_view_window();

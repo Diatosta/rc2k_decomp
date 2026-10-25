@@ -14,18 +14,11 @@
 //! no faces or points.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, rva};
 use crate::math::turn_point_xz::turn_point_xz;
 use crate::physics::car_store::CAR;
 use crate::race::course_store::COURSE;
 use crate::race::vars_store::RACE_VARS;
 use rc2k_core::physics::progress::checkpoint_ahead;
-
-fn g(x: usize) -> u32 {
-    unsafe { game_read(rva(x)) }
-}
-const ANGLES: usize = 0x9ED808; // dword_9ED808
-const CHECK_FACES: usize = 0x9E3738; // g_checkpointFaces
 
 unsafe fn at(a: u32) -> u32 {
     unsafe { (a as *const u32).read_unaligned() }
@@ -45,8 +38,8 @@ pub unsafe fn checkpoint_offset() -> Result<(), Refused> {
         return Err(BadInput("no course faces or points").into());
     }
     unsafe {
-        let angle = g(ANGLES + 4 * c as usize);
-        let face = g(CHECK_FACES + 4 * c as usize);
+        let angle = crate::race::checkpoints_store::angle(c as usize).get();
+        let face = crate::race::checkpoints_store::face(c as usize).get();
         let f = (face << 6).wrapping_add(COURSE.course_faces.get());
         let point = at(f + 4);
         let pt = point

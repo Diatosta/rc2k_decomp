@@ -5,21 +5,16 @@
 //! matrix undone (`race::invert_car_matrix`).
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, rva};
 use crate::math::x87;
 use crate::physics::car_store::CAR;
 use crate::physics::ground_store::GROUND_WORK;
 use crate::physics::tables_store::PHYSICS;
-use crate::race::best_line::{CHECK_FACES_RVA, MOST_CHECKS};
+use crate::race::best_line::MOST_CHECKS;
 use crate::race::course_store::COURSE;
 use crate::race::numbers_store::NUMBERS;
 use crate::race::vars_store::RACE_VARS;
 use crate::scene::draw_store::DRAW;
 use crate::scene::light_store::LIGHT_STATE;
-
-/// The work car's place (+0x134 .. +0x13C) and heading (+0x9C0).
-/// The work car's matrix (+0xB4) and its inverse (+0x9CC).
-pub const LINE_HEADINGS_RVA: usize = rva(0x9ED808); // dword_9ED808 (g_checkpointAngles + 8)
 
 fn count() -> Result<u32, Refused> {
     let n: u32 = RACE_VARS.checkpoint_count.bits();
@@ -32,7 +27,7 @@ fn count() -> Result<u32, Refused> {
 /// Checkpoint n's face (number, address) and its first point's (+4) number and address.
 unsafe fn check_point(n: u32) -> (u32, u32, u32, u32) {
     unsafe {
-        let face: u32 = game_read(CHECK_FACES_RVA + 4 * n as usize);
+        let face: u32 = crate::race::checkpoints_store::face(n as usize).get();
         let address = (face << 6).wrapping_add(COURSE.course_faces.bits());
         let point = *((address + 4) as *const u32);
         let place = (point.wrapping_mul(3) << 2).wrapping_add(COURSE.scene_points.bits());
@@ -65,7 +60,8 @@ pub unsafe fn place_car_on_line() -> Result<(), Refused> {
         let (y, _) = lerp(get(a + 4), get(b + 4), t);
         let y = y.wrapping_add(PHYSICS.ground_drop.bits());
         let (z, _) = lerp(get(a + 8), get(b + 8), t);
-        let heading_of = |k: u32| -> u32 { game_read(LINE_HEADINGS_RVA + 4 * k as usize) };
+        let heading_of =
+            |k: u32| -> u32 { crate::race::checkpoints_store::angle(k as usize).get() };
         let (heading, _) = lerp(heading_of(c), heading_of(n), t);
         COURSE.place_x.set_bits(x);
         COURSE.place_y.set_bits(y);

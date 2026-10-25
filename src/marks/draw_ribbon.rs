@@ -15,13 +15,11 @@
 //! null marks settings (the clip's refusal).
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::rva;
 use crate::marks::clip_quad::{clip_quad, draw_fan};
-use crate::marks::store::{game_addr, game_write};
 use crate::marks::surface_store::SURFACE;
 use crate::scene::draw_store::DRAW;
 
-const VERTICES_RVA: usize = rva(0x9605A0); // g_polygonVertices
+use crate::d3d::vertices_store::VERTICES;
 const CELLS: u32 = 0x41;
 
 /// The original's 0x4C5EF7 .. 0x4C60E9: the two projected and the ribbon's corners.
@@ -29,7 +27,7 @@ unsafe fn ribbon() {
     unsafe {
         ribbon_x87(
             crate::race::store::asm_base() as usize,
-            crate::race::store::buffers_asm_base() as usize,
+            crate::d3d::vertices_store::piece_addr(),
             &DRAW_WORK,
             &VIEW_VARS,
         )
@@ -49,7 +47,7 @@ pub unsafe fn draw_ribbon(cell: u32, alpha: u32, width: u32, colour: u32) -> Res
         DRAW_WORK.half[0].set_bits(width >> 1);
         let colour = (alpha << 24) | colour;
         for n in 0..4 {
-            game_write(VERTICES_RVA + 0x20 * n + 0x10, colour);
+            VERTICES.vertices[n].colour.set(colour);
         }
         let at = cell << 4;
         let place = |n: usize| SURFACE.places.get_u32(at as usize + 4 * n);
@@ -58,8 +56,8 @@ pub unsafe fn draw_ribbon(cell: u32, alpha: u32, width: u32, colour: u32) -> Res
             .into_iter()
             .enumerate()
         {
-            game_write(VERTICES_RVA + 0x20 * n + 0x18, u);
-            game_write(VERTICES_RVA + 0x20 * n + 0x1C, v);
+            VERTICES.vertices[n].u.set_bits(u);
+            VERTICES.vertices[n].v.set_bits(v);
         }
         for depth in [DRAW_WORK.turned[2].bits(), DRAW_WORK.second[2].bits()] {
             if depth as i32 <= DRAW_WORK.near.bits() as i32 {
@@ -67,7 +65,7 @@ pub unsafe fn draw_ribbon(cell: u32, alpha: u32, width: u32, colour: u32) -> Res
             }
         }
         ribbon();
-        if clip_quad(game_addr(VERTICES_RVA) as u32)? {
+        if clip_quad(crate::d3d::vertices_store::piece_addr() as u32)? {
             return Ok(());
         }
         draw_fan();
@@ -81,7 +79,7 @@ use crate::marks::plain::{ld, st};
 use crate::math::x87_float as bh;
 
 /// `ribbon`'s x87 block as plain Rust on the x87 model (93 instructions), same order and memory places.
-unsafe fn ribbon_x87(rc: usize, bf: usize, dw: &DrawWork, vv: &ViewVars) {
+unsafe fn ribbon_x87(rc: usize, vt: usize, dw: &DrawWork, vv: &ViewVars) {
     unsafe {
         let t0 = ld(rc, 0x224088);
         let t1 = t0 / bh::ld(dw.turned[2].bits());
@@ -142,36 +140,36 @@ unsafe fn ribbon_x87(rc: usize, bf: usize, dw: &DrawWork, vv: &ViewVars) {
         vv.ribbon_sides_2[1].set_bits(bh::st(t42));
         let t43 = bh::ld(dw.turned[0].bits());
         let t44 = t43 - bh::ld(vv.ribbon_sides[0].bits());
-        st(bf, 0x5605A0, t44);
+        st(vt, 0x0, t44);
         let t45 = bh::ld(dw.turned[1].bits());
         let t46 = t45 - bh::ld(vv.ribbon_sides[1].bits());
-        st(bf, 0x5605A4, t46);
+        st(vt, 0x4, t46);
         let t47 = bh::ld(dw.turned[0].bits());
         let t48 = t47 + bh::ld(vv.ribbon_sides[0].bits());
-        st(bf, 0x5605C0, t48);
+        st(vt, 0x20, t48);
         let t49 = bh::ld(dw.turned[1].bits());
         let t50 = t49 + bh::ld(vv.ribbon_sides[1].bits());
-        st(bf, 0x5605C4, t50);
+        st(vt, 0x24, t50);
         let t51 = bh::ld(dw.second[0].bits());
         let t52 = t51 + bh::ld(vv.ribbon_sides_2[0].bits());
-        st(bf, 0x5605E0, t52);
+        st(vt, 0x40, t52);
         let t53 = bh::ld(dw.second[1].bits());
         let t54 = t53 + bh::ld(vv.ribbon_sides_2[1].bits());
-        st(bf, 0x5605E4, t54);
+        st(vt, 0x44, t54);
         let t55 = bh::ld(dw.second[0].bits());
         let t56 = t55 - bh::ld(vv.ribbon_sides_2[0].bits());
-        st(bf, 0x560600, t56);
+        st(vt, 0x60, t56);
         let t57 = bh::ld(dw.second[1].bits());
         let t58 = t57 - bh::ld(vv.ribbon_sides_2[1].bits());
-        st(bf, 0x560604, t58);
+        st(vt, 0x64, t58);
         let t59 = bh::ld(dw.turned[2].bits());
         let t60 = t59 * bh::ld(dw.z_k.bits());
-        st(bf, 0x5605A8, t60);
-        st(bf, 0x5605C8, t60);
+        st(vt, 0x8, t60);
+        st(vt, 0x28, t60);
         let t61 = bh::ld(dw.second[2].bits());
         let t62 = t61 * bh::ld(dw.z_k.bits());
-        st(bf, 0x5605E8, t62);
-        st(bf, 0x560608, t62);
+        st(vt, 0x48, t62);
+        st(vt, 0x68, t62);
     }
 }
 
@@ -368,7 +366,7 @@ mod asm_differential {
             |b| {
                 with_copy::<DrawWork, _>(b[2], DrawWork::START, |dw| {
                     with_copy::<ViewVars, _>(b[2], ViewVars::START, |vv| unsafe {
-                        super::ribbon_x87(b[0], b[1], dw, vv)
+                        super::ribbon_x87(b[0], b[1].wrapping_add(0x5605A0), dw, vv)
                     })
                 })
             },

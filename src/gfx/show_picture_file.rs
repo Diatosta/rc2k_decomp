@@ -22,14 +22,14 @@
 //! Callers: `menu::show_loading_picture`, `race::stage_loading`.
 
 use crate::errors::Refused;
-use crate::framework::rva;
 use crate::gfx::copy_picture_to_surface::{GameSurface, copy_picture_to_surface};
 use crate::gfx::decoder::DECODER;
+use crate::gfx::fonts_store::FONTS;
 use crate::gfx::picture_store::PICTURE;
+use crate::gfx::screen_state::SCREEN_MODE;
 use crate::platform::{lock_surface, pump_messages_now, show_frame_now, unlock_surface};
 use crate::session::Dword;
 use crate::session::SCREEN;
-use crate::store::{game_addr, game_read};
 use rc2k_core::gfx::picture_size as sizes;
 
 // ---- game data ----
@@ -44,8 +44,6 @@ pub static SHOWING: Dword = Dword::new(0);
 pub fn showing_home() -> usize {
     SHOWING.addr()
 }
-const SCREEN_MODE_FLAGS_RVA: usize = rva(0x4F4934); // g_screenModeFlags
-const FONT_PALETTES_RVA: usize = rva(0x51DEB0); // g_fontPalettes
 const LOADING_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::LOADING;
 
 // ---- Rust version ----
@@ -66,14 +64,14 @@ pub unsafe fn show_picture_file(path: *mut u8) -> Result<u32, Refused> {
         };
         let (width, height): (u32, u32) = (SCREEN.width.get(), SCREEN.height.get());
         crate::gfx::picture::set_size(sizes::screen(width, height));
-        let pages = sizes::pages(game_read::<u32>(SCREEN_MODE_FLAGS_RVA));
+        let pages = sizes::pages(SCREEN_MODE.mode_flags.get());
         let mut eax = path as u32;
         if !read {
             crate::gfx::clear_picture::clear_picture()?;
         } else {
             eax = SHOWING.get();
             SHOWING.set(0);
-            if eax != 0 && game_read::<u32>(FONT_PALETTES_RVA) != 0 {
+            if eax != 0 && FONTS.palettes.get() != 0 {
                 PICTURE.flags.set(0x802u32);
                 crate::gfx::picture_as_surface::picture_as_surface()?;
                 crate::text::draw_string_by_id::draw_string_by_id_at(
@@ -90,10 +88,9 @@ pub unsafe fn show_picture_file(path: *mut u8) -> Result<u32, Refused> {
                     if lock_surface() < 1 {
                         return Ok(eax);
                     }
-                    crate::gfx::rescale_to_surface::rescale_to_surface(game_addr(
-                        crate::gfx::rescale_to_surface::SURFACE_RVA,
-                    )
-                        as *const u32)?;
+                    crate::gfx::rescale_to_surface::rescale_to_surface(
+                        crate::gfx::screen_state::DRAW_SURFACE.x.addr() as *const u32,
+                    )?;
                     unlock_surface();
                     show_frame_now();
                 }

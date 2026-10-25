@@ -3,12 +3,14 @@
 //! in-game music, the controls, race init (`sub_4462B9`, the game's until ported), the
 //! clock restarted and the race's starting values; each step logged and indented.
 
+use crate::drive::replay_frames_store::REPLAY_FRAMES;
 use crate::errors::Refused;
-use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::physics::ground_store::GROUND_WORK;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::blocks_store::CAR_BLOCKS;
+use crate::race::clock_ticks_store::CLOCK_TICKS;
 use crate::race::overlay_store::RACE_OVERLAY;
+use crate::race::panel_store::PANEL;
 use crate::race::switches_store::FRAME_SWITCHES;
 use crate::race::view_store::RACE_VIEW;
 use crate::race::work_store::RACE_WORK;
@@ -26,11 +28,6 @@ const WORDS: [&std::ffi::CStr; 9] = [
     c"SHAUNINITEVERYTHING - FINIS",
     c"----------------------------",
 ];
-const CAR_MINUS_4_RVA: usize = rva(0x70F3E8); // dword_70F3E8
-const NO_PLACE_RVA: usize = rva(0x64BB18); // dword_64BB18
-unsafe fn put(at: usize, v: u32) {
-    unsafe { (game_addr(rva(at)) as *mut u32).write_unaligned(v) };
-}
 
 /// `race::load_stage` (0x444040): a line break, a rule, "START", "loading screen" (indent
 /// in): the loading picture (`menu::show_loading_picture`) unless `dword_71C3E0`,
@@ -67,7 +64,7 @@ pub unsafe fn load_stage() -> Result<(), Refused> {
                 crate::menu::texts_store::MENU_TEXTS.loading_pcx.addr() as *mut u8,
             )?;
         }
-        game_write(CAR_MINUS_4_RVA, u32::MAX);
+        REPLAY_FRAMES.last_kept.set(u32::MAX);
         crate::race::sounds::wake_car_sounds()?;
         indent(-3);
         log();
@@ -76,7 +73,7 @@ pub unsafe fn load_stage() -> Result<(), Refused> {
         indent(-3);
         log();
         indent(3);
-        if game_read::<u32>(NO_PLACE_RVA) != 0 {
+        if crate::drive::finish_store::FINISH.no_place.get() != 0 {
             crate::race::music::game_music();
         } else {
             crate::race::music::game_music_8();
@@ -91,13 +88,13 @@ pub unsafe fn load_stage() -> Result<(), Refused> {
         crate::drive::race_init::race_init()?;
         crate::scene::restart_clock::restart_clock(crate::system::tick_count::tick_count());
         let clock: u32 = PHYSICS.scene_clock.bits();
-        put(0x5CC3BC, clock);
-        put(0x5CC3B8, 0);
+        CLOCK_TICKS.clock_b.set(clock);
+        CLOCK_TICKS.sound_ticks.set(0);
         PHYSICS.race_clock_now.set(clock);
         PHYSICS.race_clock_base.set(clock);
         RACE_OVERLAY.start_lights_lit.set(0);
-        put(0x6D1482, u32::MAX);
-        put(0x6D1492, u32::MAX);
+        PANEL.lights[0].lit.set(u32::MAX);
+        PANEL.lights[1].lit.set(u32::MAX);
         for car in &CAR_BLOCKS.cars[..8] {
             car.light_hold_steps.set(3);
         }

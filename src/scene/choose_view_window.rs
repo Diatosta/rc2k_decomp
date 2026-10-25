@@ -8,11 +8,9 @@
 //!
 //! Callers: `scene::full_view_window`, code at 0x446810. `set_view_window` is its Rust version.
 
-use crate::framework::{game_read, rva};
 use crate::race::switches_store::FRAME_SWITCHES;
 use crate::scene::draw_store::DRAW;
 use crate::session::SCREEN;
-pub const MODE_RVA: usize = rva(0x636526); // word_636526
 
 /// The window chosen, then `set_view_window`.
 pub unsafe fn choose_view_window() {
@@ -22,7 +20,9 @@ pub unsafe fn choose_view_window() {
         let settings = ViewSettings {
             framed: FRAME_SWITCHES.editor_mode.bits() != 0,
             wide: FRAME_SWITCHES.other_way.bits() != 0,
-            mode: game_read(MODE_RVA),
+            mode: crate::scene::light_tables_store::LIGHT_TABLES
+                .view_mode
+                .get(),
         };
         let window = choose(settings, || [SCREEN.width.get(), SCREEN.height.get()]);
         DRAW.view_size[0].set_bits(window.size[0]);

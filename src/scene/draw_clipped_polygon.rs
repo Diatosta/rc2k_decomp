@@ -16,15 +16,13 @@
 //! the texture coordinates were scaled hands the original a polygon it scales once more.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, game_write};
-use crate::scene::clip::POOL_RVA;
 use crate::scene::clip_polygon_by_depth::clip_polygon_by_depth;
 use crate::scene::clip_polygon_to_screen::clip_polygon_to_screen;
 use crate::scene::draw_marked_polygon::draw_marked_polygon;
 use crate::scene::draw_polygon::{Game, draw_polygon};
 use crate::scene::draw_store::DRAW;
 use crate::scene::fog_polygon::fog_polygon;
-use crate::scene::polygon::{LIST_RVA, MOST};
+use crate::scene::polygon::MOST;
 use crate::scene::project_polygon::project_polygon;
 use crate::scene::scale_texture_coordinates::scale_texture_coordinates;
 
@@ -46,7 +44,7 @@ pub enum Step {
 pub unsafe fn draw_clipped_polygon(
     step: &mut dyn FnMut(Step) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
-    unsafe {
+    {
         let count: u32 = DRAW.polygon_vertex_count.bits();
         if count == 0 || count > MOST {
             return Err(BadInput("a polygon of no vertices, or of more than 256").into());
@@ -55,11 +53,11 @@ pub unsafe fn draw_clipped_polygon(
         DRAW.depth_clipped.set_bits(0u32);
         DRAW.polygon_drawn.set_bits(0u32);
         DRAW.polygon_next_record
-            .set_bits(game_addr(POOL_RVA) as u32);
+            .set_bits(crate::scene::polygon::pool_addr() as u32);
         for n in 0..count {
-            game_write(LIST_RVA + n as usize * 4, n);
+            crate::scene::polygon::list_cell(n as usize).set(n);
         }
-        game_write(LIST_RVA + count as usize * 4, 0u32);
+        crate::scene::polygon::list_cell(count as usize).set(0u32);
         DRAW.polygon_next_entry.set_bits(count);
         step(Step::Project)?;
         let outside: u32 = DRAW.polygon_outside_count.bits();

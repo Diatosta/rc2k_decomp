@@ -9,10 +9,8 @@
 //!      `race::draw_view_overlays`) read
 
 use crate::errors::Refused;
-use crate::framework::{game_addr, rva};
 use crate::physics::contact_store::CONTACT_WORK;
-const VERTICES_RVA: usize = rva(0x6D3CF4); // unk_6D3CF4
-const INDICES_RVA: usize = rva(0x6D7CF4); // unk_6D7CF4
+use crate::race::draw_batches_store::DRAW_BATCHES;
 const DRAWTRI_RVA: &std::ffi::CStr = c"drawtri"; // "drawtri"
 
 /// The Rust version (see the header).
@@ -21,9 +19,9 @@ pub unsafe fn flush_draw_batch() -> Result<(), Refused> {
         let indices: u32 = CONTACT_WORK.batch_index_count.bits();
         if indices != 0 {
             let result = crate::platform_3d::draw_indexed(
-                game_addr(VERTICES_RVA) as u32,
+                DRAW_BATCHES.scene_vertices.addr() as u32,
                 CONTACT_WORK.batch_vertex_count.bits(),
-                game_addr(INDICES_RVA) as u32,
+                DRAW_BATCHES.scene_indices.addr() as u32,
                 indices,
             );
             if result != 0 {

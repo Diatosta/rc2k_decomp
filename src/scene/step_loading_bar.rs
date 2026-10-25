@@ -10,15 +10,15 @@
 //! Refuses no function to call.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, game_read, rva};
+use crate::framework::{game_addr, rva};
 use crate::race::vars_store::RACE_VARS;
+use crate::scene::texture_places_store::TEXTURE_PLACES;
 
 // ---- game data ----
 
 /// `dword_623634` the low end, `dword_623638` the high end.
 const BAR_RVA: usize = rva(0x4467C7); // race::loading_bar_frame
 const NOTHING_RVA: usize = rva(0x4467C6); // nullsub_8
-const SYSTEM_TEXTURES_RVA: usize = rva(0x5DC974); // dword_5DC974
 
 // ---- Rust version ----
 
@@ -30,7 +30,7 @@ fn ends() -> rc2k_core::scene::loading::BarEnds {
 /// The progress, or None where it is left as it is. Converted:
 /// `rc2k_core::scene::loading::BarEnds::progress`.
 unsafe fn progress(done: u32) -> Option<u32> {
-    let textures: u32 = unsafe { game_read(SYSTEM_TEXTURES_RVA) };
+    let textures: u32 = TEXTURE_PLACES.totals[3].get();
     ends().progress(done, textures)
 }
 

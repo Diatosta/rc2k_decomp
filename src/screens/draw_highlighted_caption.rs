@@ -18,7 +18,7 @@
 //! its `entry` (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, rva};
+use crate::framework::rva;
 use crate::menu::champ_store::CHAMP_VIEW;
 use crate::menu::loop_store::LOOP_FLAGS;
 use crate::menu::state_store::MENU_STATE;
@@ -33,7 +33,6 @@ use crate::text::draw_text::Canvas;
 const LISTS: [usize; 7] = [
     0x758A12, 0x758A2A, 0x758A86, 0x758AA2, 0x758AB2, 0x758AC2, 0x758AE2,
 ];
-const CAPTION_RVA: usize = rva(0xA8BE54); // byte_A8BE54
 const CAPTION_LEN: usize = 0x100;
 const ITEMS: u32 = 32;
 
@@ -61,7 +60,9 @@ pub unsafe fn draw_highlighted_caption(
         }
         std::ptr::copy_nonoverlapping(
             caption.as_ptr(),
-            game_addr(CAPTION_RVA) as *mut u8,
+            crate::screens::text_buffers_store::TEXT_BUFFERS
+                .caption
+                .addr() as *mut u8,
             caption.len(),
         );
         // Converted: `rc2k_core::screens::highlighted_caption`.

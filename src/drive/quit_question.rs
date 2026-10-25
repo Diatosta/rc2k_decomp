@@ -12,8 +12,8 @@
 //! Caller: `drive::race_loop`. Refuses what its calls refuse.
 
 use crate::drive::race_parts::{stop_race_sounds, wake_car_sounds};
+use crate::drive::replay_frames_store::REPLAY_FRAMES;
 use crate::errors::Refused;
-use crate::physics::flow::{g, p};
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::vars_store::RACE_VARS;
 use rc2k_core::drive::race_ticks;
@@ -29,8 +29,8 @@ pub unsafe fn quit_question() -> Result<u32, Refused> {
     // eax: the best frame, then each key's answer, then what the frame leaves; it goes
     // into `input::yes_no_key` (the key given, when one is).
     let (mut eax, _) = race_ticks::best_frame(CAR_BLOCKS.cars[0].step_clock.bits());
-    if race_ticks::keeps_frame(eax, g(0x70F3E8)) {
-        p(0x70F3E8, eax);
+    if race_ticks::keeps_frame(eax, REPLAY_FRAMES.last_kept.get()) {
+        REPLAY_FRAMES.last_kept.set(eax);
     }
     let kind = race_ticks::quit_notice(RACE_VARS.no_replay.get() != 0);
     for c in 0..8 {

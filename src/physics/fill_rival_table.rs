@@ -12,7 +12,7 @@
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 use crate::errors::Refused;
-use crate::physics::splits::p;
+use crate::physics::split_tables_store::SPLIT_TABLES;
 use crate::race::vars_store::RACE_VARS;
 use rc2k_core::physics::splits::{RIVALS, default_rival};
 
@@ -21,9 +21,9 @@ use rc2k_core::physics::splits::{RIVALS, default_rival};
 pub fn fill_rival_table() -> Result<(), Refused> {
     for c in 0..RIVALS as u32 {
         let (time, car, name) = default_rival(c);
-        p(0x601ED0 + 4 * c as usize, time);
-        p(0x602038 + 4 * c as usize, car);
-        p(0x601D68 + 4 * c as usize, name);
+        SPLIT_TABLES.rival_times[c as usize].set(time);
+        SPLIT_TABLES.rival_cars[c as usize].set(car);
+        SPLIT_TABLES.rival_names[c as usize].set(name);
     }
     let mut rival = RACE_VARS.rivals.get();
     if rival == 0 {
@@ -31,9 +31,9 @@ pub fn fill_rival_table() -> Result<(), Refused> {
     }
     for c in 0..RIVALS {
         let at = |o: u32| unsafe { ((rival + o) as *const u32).read_unaligned() };
-        p(0x601D68 + 4 * c, at(0));
-        p(0x602038 + 4 * c, at(8));
-        p(0x601ED0 + 4 * c, at(12));
+        SPLIT_TABLES.rival_names[c].set(at(0));
+        SPLIT_TABLES.rival_cars[c].set(at(8));
+        SPLIT_TABLES.rival_times[c].set(at(12));
         rival = rival.wrapping_add(0x50);
     }
     Ok(())

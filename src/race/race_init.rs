@@ -4,9 +4,7 @@
 //! (`sub_4608BB`, `sub_456484`, the marks) and `sub_43FDFE`. Here its small steps.
 
 use crate::errors::Refused;
-use crate::framework::game_read;
 use crate::physics::car_store::Car;
-use crate::race::best_line::CHECK_FACES_RVA;
 use crate::race::course_store::COURSE;
 use crate::race::overlay_store::RACE_OVERLAY;
 use crate::race::vars_store::RACE_VARS;
@@ -104,7 +102,7 @@ pub unsafe fn first_check_checkpoint() -> Result<u32, Refused> {
     let count: u32 = RACE_VARS.checkpoint_count.bits();
     let last = || RACE_VARS.last_checkpoint.bits();
     let look = rc2k_core::race::checkpoints::first_check_checkpoint(count, last, |n| {
-        let face: u32 = unsafe { game_read(CHECK_FACES_RVA + 4 * n as usize) };
+        let face: u32 = crate::race::checkpoints_store::face(n as usize).get();
         let address = (face << 6).wrapping_add(COURSE.course_faces.bits());
         unsafe { *((address + 0x26) as *const u8) }
     })?;

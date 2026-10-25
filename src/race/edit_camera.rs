@@ -14,7 +14,7 @@ use crate::errors::Refused;
 use crate::physics::flow::a;
 use crate::race::replay_file_store::REPLAY_FILE;
 use crate::race::replay_work_store::REPLAY_WORK;
-use crate::race::viewer::{CAMERA_EDIT, CAMERA_NAMES, get, put};
+use crate::race::viewer::CAMERA_NAMES;
 use crate::race::viewer_state_store::REPLAY_VIEW;
 
 /// `edit_camera_1` / `_2` (eax the block shown is left; its caller, `viewer_action`,
@@ -26,7 +26,9 @@ pub fn edit_camera(camera: u32) {
         REPLAY_VIEW.replay_block.get(),
         REPLAY_FILE.index_block_count.get(),
     ) {
-        put(CAMERA_EDIT, camera);
+        crate::race::viewer_buffers_store::VIEWER_BUFFERS
+            .camera_edit
+            .set(camera);
     }
 }
 
@@ -41,8 +43,15 @@ pub unsafe fn step_camera(step: i8) -> Result<(), Refused> {
     if block == REPLAY_FILE.index_block_count.get() {
         return Ok(());
     }
-    let byte = a(0x963BB3)
-        .wrapping_add(get(CAMERA_EDIT))
+    let byte = (crate::race::viewer_buffers_store::VIEWER_BUFFERS
+        .block_cameras
+        .addr() as u32)
+        .wrapping_sub(1)
+        .wrapping_add(
+            crate::race::viewer_buffers_store::VIEWER_BUFFERS
+                .camera_edit
+                .get(),
+        )
         .wrapping_add(block.wrapping_mul(8));
     let at = byte as *mut u8;
     let old = unsafe { at.read() };

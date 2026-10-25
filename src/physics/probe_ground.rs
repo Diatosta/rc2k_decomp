@@ -34,7 +34,6 @@
 //! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::rva;
 use crate::math::x87;
 use crate::math::x87_run::{int_times_times_over_to_int, less_plus_less_product_80};
 use crate::physics::car_store::CAR;
@@ -50,7 +49,6 @@ use crate::scene::rotate_point::rotate_point;
 use rc2k_core::physics::ground;
 
 pub const MOST_POINTS: u32 = 0x40;
-const NOISE: u32 = 0xA2AAE4; // g_noiseBytes, 0x1000
 
 /// The Rust core. The registers the original leaves (ebx the count, eax, ecx, edx, esi
 /// the last point's) are read by none of its callers.
@@ -114,7 +112,9 @@ unsafe fn probe_points(g: &Ground, n: u32) -> Result<(), Refused> {
             COURSE
                 .ground_face_last
                 .set(CAR.probe_point_face[b as usize].get());
-            g.put(0x620470, 0x80);
+            crate::physics::ground_probe_store::GROUND_PROBE
+                .settle_mark
+                .set(0x80);
             ground_search_at(g)?;
             work.probe_ground_height[i].set(0);
             if GROUND_WORK.ground_found.get() == 0 {
@@ -129,7 +129,10 @@ unsafe fn probe_points(g: &Ground, n: u32) -> Result<(), Refused> {
             CONTACT_WORK.ground_cell_row[1].set(cell.row_offset);
             let noise = |i: u32| {
                 u32::from(
-                    (crate::framework::game_addr(rva(NOISE as usize) + i as usize) as *const u8)
+                    ((crate::scene::engine_tables_store::ENGINE_TABLES
+                        .noise_bytes
+                        .addr()
+                        + i as usize) as *const u8)
                         .read(),
                 )
             };

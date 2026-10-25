@@ -12,13 +12,13 @@
 //! when it is written, an object past 0x100 or a kind past the 0x4B0 records.
 
 use crate::errors::Refused;
-use crate::framework::{game_addr, rva};
-use crate::physics::car_sounds::{cue_plain, g, listed, object};
+use crate::physics::car_sounds::{cue_plain, listed, object};
 use crate::physics::contact_store::CONTACT_WORK;
 use crate::physics::sound_band_2::TWIN;
 use crate::physics::sound_bands::band_value_plain;
 use crate::race::sound_spots_store::RACE_SOUND_SPOTS;
 use crate::race::work_store::RACE_WORK;
+use crate::scene::object_tables_store::OBJECT_TABLES;
 use rc2k_core::physics::sound_places::{FIRST, object_sound};
 
 /// The Rust version.
@@ -29,8 +29,10 @@ pub unsafe fn place_sound_object() -> Result<(), Refused> {
     }
     let sound = object_sound(
         CONTACT_WORK.face_object.get(),
-        |thing| g(0x5CD27C + 4 * thing as usize),
-        |kind| unsafe { *(game_addr(rva(0x97DF54 + 0x80 * kind as usize)) as *const u8) },
+        |thing| OBJECT_TABLES.object_kind(thing),
+        |kind| unsafe {
+            *((crate::scene::polygon::materials_addr() + 0x24 + 0x80 * kind as usize) as *const u8)
+        },
         |n| RACE_SOUND_SPOTS.object_kind_sounds[n as usize].get(),
     )?;
     let scratch = RACE_SOUND_SPOTS.band_scratch.get();

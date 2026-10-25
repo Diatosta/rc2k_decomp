@@ -21,9 +21,7 @@
 //! over the game's variables. Refuses null settings, before anything.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::rva;
 use crate::marks::snow::{SNOW, SNOW_LIGHT, SnowLight};
-use crate::marks::store::game_write;
 use crate::math::x87;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::frame_store::FRAME_WORK;
@@ -31,7 +29,7 @@ use crate::scene::draw_store::DRAW;
 use crate::scene::kind_texture_store::KIND_TEXTURES;
 
 const MOST: i32 = 0x800;
-const VERTICES_RVA: usize = rva(0x9605A0); // g_polygonVertices
+use crate::d3d::vertices_store::VERTICES;
 /// The render states set (value, state).
 const STATES: [(u32, u32); 5] = [(4, 0x15), (5, 0x13), (6, 0x14), (0, 0x1C), (1, 0x1B)];
 
@@ -85,12 +83,12 @@ pub unsafe fn run_snow() -> Result<(), Refused> {
         let [u0, v0, u1, v1] = l.uv.each_ref().map(|d| d.get());
         let uv = [(u0, v0), (u1, v0), (u1, v1), (u0, v1)];
         for (n, (u, v)) in uv.into_iter().enumerate() {
-            let at = VERTICES_RVA + 0x20 * n;
-            game_write(at + 0xC, rhw);
-            game_write(at + 0x10, light);
-            game_write(at + 0x14, 0u32);
-            game_write(at + 0x18, u);
-            game_write(at + 0x1C, v);
+            let at = &VERTICES.vertices[n];
+            at.rhw.set_bits(rhw);
+            at.colour.set(light);
+            at.specular.set(0u32);
+            at.u.set_bits(u);
+            at.v.set_bits(v);
         }
         DRAW.polygon_vertex_count.set_bits(4u32);
         let inverse = x87::reciprocal(DRAW.farthest.bits());

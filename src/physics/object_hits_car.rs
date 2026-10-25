@@ -20,7 +20,6 @@
 use crate::errors::Refused;
 use crate::math::x87_run::{ext_to_int, int_80};
 use crate::physics::contact_store::CONTACT_WORK;
-use crate::physics::flow::g;
 use crate::physics::object_turn_matrix::object_turn_matrix;
 use crate::physics::point_hits_car::point_hits_car;
 use crate::physics::tables_store::PHYSICS;
@@ -28,8 +27,6 @@ use crate::race::course_lists_store::COURSE_LISTS;
 use crate::race::matrices_store::MATRICES;
 use crate::scene::rotate_point::rotate_point;
 use rc2k_core::physics::contacts;
-const FIRST: usize = 0x631F70; // g_objectFirstPoint (0x100 dwords)
-const COUNT: usize = 0x632370; // g_objectPointCount2 (0x100 dwords)
 
 /// The Rust version: whether one of the object's points is inside the car (CF); `point`
 /// and `object` what esi and ebp hold at entry (`point_hits_car`'s). The registers it
@@ -47,7 +44,7 @@ pub unsafe fn object_hits_car(point: u32, object: u32) -> Result<bool, Refused> 
             .get()
             .wrapping_add(1),
     );
-    let count = g(COUNT + 4 * number as usize);
+    let count = crate::scene::object_slots_store::OBJECT_SLOTS.point_counts[number as usize].get();
     // With no points the original skips to `clc` before it sets edx (0x45E779); the
     // points' table is read only when there are some.
     let points = if count == 0 {
@@ -55,18 +52,25 @@ pub unsafe fn object_hits_car(point: u32, object: u32) -> Result<bool, Refused> 
     } else {
         COURSE_LISTS.object_points.get()
     };
-    let walk = contacts::walk_points(g(FIRST + 4 * number as usize), count, points, 0, |edx| {
-        let at = |k: u32| unsafe { int_80(((edx + 4 * k) as *const i32).read_unaligned(), false) };
-        let turned = unsafe {
-            rotate_point(
-                MATRICES.object_turn_matrix[0].addr() as u32,
-                [at(0), at(1), at(2)],
-            )
-        };
-        for (k, e) in turned.iter().enumerate() {
-            CONTACT_WORK.object_offset[k].set(ext_to_int(*e) as u32);
-        }
-        unsafe { point_hits_car(point, object) }
-    });
+    let walk = contacts::walk_points(
+        crate::scene::object_slots_store::OBJECT_SLOTS.first_point[number as usize].get(),
+        count,
+        points,
+        0,
+        |edx| {
+            let at =
+                |k: u32| unsafe { int_80(((edx + 4 * k) as *const i32).read_unaligned(), false) };
+            let turned = unsafe {
+                rotate_point(
+                    MATRICES.object_turn_matrix[0].addr() as u32,
+                    [at(0), at(1), at(2)],
+                )
+            };
+            for (k, e) in turned.iter().enumerate() {
+                CONTACT_WORK.object_offset[k].set(ext_to_int(*e) as u32);
+            }
+            unsafe { point_hits_car(point, object) }
+        },
+    );
     Ok(walk.inside)
 }

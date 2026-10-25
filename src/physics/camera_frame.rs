@@ -16,7 +16,7 @@
 
 use crate::errors::Refused;
 use crate::physics::car_store::CAR;
-use crate::physics::flow::{g, hold_high, hold_low, negate};
+use crate::physics::flow::{hold_high, hold_low, negate};
 use crate::physics::tables_store::PHYSICS;
 use crate::scene::draw_store::DRAW;
 use crate::scene::light_store::LIGHT_STATE;
@@ -37,7 +37,7 @@ fn steps() -> Result<(), Refused> {
         DRAW.scratch
             .set(unsafe { crate::math::next_random::next_random() });
         x87_2(crate::race::store::asm_base() as usize);
-        if g(0x601024) != 0 {
+        if crate::physics::split_tables_store::SPLIT_TABLES.still.get() != 0 {
             LIGHT_STATE.camera_frame_b.set(0);
             LIGHT_STATE.listener_camera.set_bits(0);
         }
