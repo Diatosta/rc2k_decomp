@@ -7,17 +7,19 @@
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::math::x87;
+use crate::race::course_store::COURSE;
+use crate::race::numbers_store::NUMBERS;
+use crate::race::vars_store::RACE_VARS;
+use crate::race::work_store::RACE_WORK;
+use crate::scene::draw_store::DRAW;
 
 pub const DIRECTION_RVA: usize = rva(0x71B400); // g_stageDirection ("dir")
-pub const LINE_KIND_RVA: usize = rva(0x623654); // g_lineFaceKind
 pub const CHECK_FACES_RVA: usize = rva(0x9E3738); // g_checkpointFaces
 pub const CHECK_COUNT_RVA: usize = rva(0x623640); // g_checkpointCount
 pub const CHECKS_RVA: usize = rva(0x9E87A0); // g_checkCounts
 pub const WEIGHT_RVA: usize = rva(0x6236B0); // g_surfaceWeight
 pub const SHARES_RVA: usize = rva(0x623670); // g_surfaceShares: 16 floats
-pub const ANCHORS_RVA: usize = rva(0x6236B4); // g_mapAnchorCount
 const SHARE_SCALE: [usize; 3] = [rva(0x5C5E2C), rva(0x5C5DA4), rva(0x5C5D14)]; // 256, 0.25, 100
-pub const FACES_RVA: usize = rva(0x5CCCBC); // g_courseFaces
 /// The entries `g_checkpointFaces` and the lists after it have room for.
 pub const MOST_CHECKS: u32 = rc2k_core::race::checkpoints::MOST_CHECKS;
 
@@ -29,12 +31,12 @@ unsafe fn get(at: u32) -> u32 {
 unsafe fn check_face(n: u32) -> u32 {
     unsafe {
         let face: u32 = game_read(CHECK_FACES_RVA + 4 * n as usize);
-        (face << 6).wrapping_add(game_read(FACES_RVA))
+        (face << 6).wrapping_add(COURSE.course_faces.bits())
     }
 }
 
 fn count() -> Result<u32, Refused> {
-    let n: u32 = unsafe { game_read(CHECK_COUNT_RVA) };
+    let n: u32 = RACE_VARS.checkpoint_count.bits();
     if n > MOST_CHECKS {
         return Err(BadInput("more checkpoints than the lists hold").into());
     }
@@ -45,8 +47,8 @@ fn count() -> Result<u32, Refused> {
 /// 0, 0x3D with 1, else 0.
 pub unsafe fn set_line_face_kind() {
     // Converted: `rc2k_core::race::checkpoints::line_face_kind`.
-    let kind = rc2k_core::race::checkpoints::line_face_kind(unsafe { game_read(DIRECTION_RVA) });
-    unsafe { game_write(LINE_KIND_RVA, kind) };
+    let kind = rc2k_core::race::checkpoints::line_face_kind(RACE_WORK.stage_direction.bits());
+    RACE_VARS.line_face_kind.set_bits(kind);
 }
 
 /// `race::add_surface_share` (0x445F7B): with `g_surfaceWeight` not 0, surface `surface`
@@ -55,13 +57,13 @@ pub unsafe fn set_line_face_kind() {
 /// whole numbers are rounded from the shares).
 pub unsafe fn add_surface_share(surface: u32) {
     unsafe {
-        let weight: i32 = game_read(WEIGHT_RVA);
+        let weight = RACE_VARS.surface_weight.bits() as i32;
         if weight == 0 {
             return;
         }
         let at = SHARES_RVA + 4 * (surface & 0xF) as usize;
         let [a, b, c] = SHARE_SCALE.map(|r| game_read::<u32>(r));
-        let count = game_read(CHECK_COUNT_RVA);
+        let count = RACE_VARS.checkpoint_count.bits() as i32;
         game_write(
             at,
             x87::surface_share(weight, a, b, count, c, game_read(at)),
@@ -80,7 +82,9 @@ pub unsafe fn next_map_anchor(from: u32) -> Result<Option<u32>, Refused> {
             get(check_face(c) + 0x2C) != 0
         });
         if anchor.is_some() {
-            game_write(ANCHORS_RVA, game_read::<u32>(ANCHORS_RVA).wrapping_add(1));
+            RACE_VARS
+                .map_anchor_count
+                .set_bits(RACE_VARS.map_anchor_count.bits().wrapping_add(1));
         }
         Ok(anchor)
     }
@@ -112,12 +116,6 @@ pub const ANGLES_RVA: usize = rva(0x9ED800); // g_checkpointAngles (from +4: one
 pub const DISTANCES_RVA: usize = rva(0x9F78D8); // g_checkpointDistances
 pub const LINE_LENGTH_RVA: usize = rva(0xA10AE0); // g_lineLength
 pub const SCRATCH_RVA: usize = rva(0x62400C); // dword_62400C
-const FROM_RVA: usize = rva(0x623658); // dword_623658, dword_62365C: a point's x, z
-const NEAREST_RVA: usize = rva(0x623668); // dword_623668 the distance, dword_62366C the one
-pub const FACE_COUNT_RVA: usize = rva(0x5CCD1C); // g_courseFaceCount
-pub const POINTS_RVA: usize = rva(0x5CCCC0); // g_scenePoints
-const HALF_RVA: usize = rva(0x5C5E40); // flt_5C5E40, 0.5
-const SCALE_RVA: usize = rva(0x5C5D98); // flt_5C5D98, 65536.0
 pub const TEXTURE_INFOS_RVA: usize = rva(0x979F30); // g_textureInfos, 0x40 each
 const SURFACE_KINDS_RVA: usize = rva(0x63D9D0); // dword_63D9D0
 /// The map: the stretch's two anchors and what is made of them (0x6236B8 .. 0x6236F8).
@@ -169,19 +167,22 @@ unsafe fn write_n(table: usize, n: u32, value: u32) {
 }
 
 unsafe fn face(n: u32) -> u32 {
-    unsafe { (n << 6).wrapping_add(game_read(FACES_RVA)) }
+    (n << 6).wrapping_add(COURSE.course_faces.bits())
 }
 
 /// A face's first point: its number (+4) and address.
 unsafe fn point_of(face_address: u32) -> (u32, u32) {
     unsafe {
         let n = get(face_address + 4);
-        (n, n.wrapping_mul(12).wrapping_add(game_read(POINTS_RVA)))
+        (
+            n,
+            n.wrapping_mul(12).wrapping_add(COURSE.scene_points.bits()),
+        )
     }
 }
 
 fn face_count() -> Result<u32, Refused> {
-    let n: u32 = unsafe { game_read(FACE_COUNT_RVA) };
+    let n: u32 = COURSE.course_face_count.bits();
     if n == 0 || n >= MOST_FACES {
         return Err(BadInput("no faces, or 0x100000 or more: the original counts round").into());
     }
@@ -201,7 +202,7 @@ pub unsafe fn sort_checkpoints() -> Result<(), Refused> {
     use rc2k_core::race::checkpoints::{chain, line_face_kind};
     unsafe {
         let n = face_count()?;
-        let kind = line_face_kind(game_read(DIRECTION_RVA));
+        let kind = line_face_kind(RACE_WORK.stage_direction.bits());
         let of_kind = |b: u32| {
             let f = face(b);
             *(f as *const u8) == 0xFF && *((f + 1) as *const u8) == kind as u8
@@ -214,15 +215,15 @@ pub unsafe fn sort_checkpoints() -> Result<(), Refused> {
         for b in 0..n {
             let f = face(b);
             if *(f as *const u8) == 0xFF
-                && *((f + 1) as *const u8) == game_read::<u32>(LINE_KIND_RVA) as u8
+                && *((f + 1) as *const u8) == RACE_VARS.line_face_kind.bits() as u8
             {
                 write_n(CHECK_FACES_RVA, list.len() as u32, b);
                 list.push(b);
             }
         }
         if list.len() < 2 {
-            game_write(FOUND_RVA, 0u32);
-            game_write(CHECK_COUNT_RVA, 0u32);
+            RACE_VARS.line_face_total.set_bits(0u32);
+            RACE_VARS.checkpoint_count.set_bits(0u32);
             return Ok(());
         }
         let c = chain(
@@ -233,9 +234,9 @@ pub unsafe fn sort_checkpoints() -> Result<(), Refused> {
         for (k, &f) in list.iter().enumerate() {
             write_n(CHECK_FACES_RVA, k as u32, f);
         }
-        game_write(CHECK_COUNT_RVA, c.length);
-        game_write(FOUND_RVA, c.length);
-        game_write(LAST_CHECK_RVA, c.length.wrapping_sub(1));
+        RACE_VARS.checkpoint_count.set_bits(c.length);
+        RACE_VARS.line_face_total.set_bits(c.length);
+        RACE_VARS.last_checkpoint.set_bits(c.length.wrapping_sub(1));
         Ok(())
     }
 }
@@ -248,7 +249,7 @@ pub unsafe fn checkpoint_angles() -> Result<(), Refused> {
     // Converted: `rc2k_core::race::best_line::link_angles`; each link's angle the x87's.
     let n = count()?;
     unsafe {
-        let scales = (n >= 2).then(|| (game_read::<u32>(HALF_RVA), game_read::<u32>(SCALE_RVA)));
+        let scales = (n >= 2).then(|| (NUMBERS.half.bits(), NUMBERS.k65536.bits()));
         let (writes, _) = rc2k_core::race::best_line::link_angles(
             n,
             |b| {
@@ -257,7 +258,7 @@ pub unsafe fn checkpoint_angles() -> Result<(), Refused> {
                 let (_, q) = point_of(check_face(b));
                 let dx = get(q).wrapping_sub(get(p)) as i32;
                 let dz = get(q + 8).wrapping_sub(get(p + 8)) as i32;
-                game_write(SCRATCH_RVA, dz);
+                DRAW.scratch.set_bits(dz as u32);
                 x87::angle_scaled3_to_int(dx, dz, half, scale, scale) as u32
             },
             || read_n(ANGLES_RVA, 2),
@@ -282,7 +283,7 @@ pub unsafe fn checkpoint_distances() -> Result<(), Refused> {
         return Err(BadInput("fewer than two checkpoints: the original writes at ecx").into());
     }
     unsafe {
-        let last: u32 = game_read(LAST_CHECK_RVA);
+        let last: u32 = RACE_VARS.last_checkpoint.bits();
         if last == 0 || last >= MOST_CHECKS {
             return Err(BadInput("a last checkpoint of 0 or past the lists").into());
         }
@@ -294,9 +295,9 @@ pub unsafe fn checkpoint_distances() -> Result<(), Refused> {
                 get(a).wrapping_sub(get(b)),
                 get(a + 8).wrapping_sub(get(b + 8)),
             ];
-            game_write(FROM_RVA, d);
+            crate::session::write_bits(&RACE_VARS.line_from, d);
             let length = x87::int_hypot(d[0] as i32, d[1] as i32) as u32;
-            game_write(SCRATCH_RVA, length);
+            DRAW.scratch.set_bits(length);
             length
         });
         for (k, &sum) in sums[..last as usize].iter().enumerate() {
@@ -335,15 +336,15 @@ pub unsafe fn replay_cameras(set: &Cameras) -> Result<(), Refused> {
         for c in 0..n {
             let (_, p) = point_of(check_face(c));
             let from = [get(p), get(p + 8)];
-            game_write(FROM_RVA, from);
+            crate::session::write_bits(&RACE_VARS.line_from, from);
             let nearest = rc2k_core::race::best_line::nearest_camera(m, |e| {
                 let (_, q) = point_of(face(read_n(set.list, e)));
                 let dz = get(q + 8).wrapping_sub(from[1]);
                 let d = x87::int_hypot(get(q).wrapping_sub(from[0]) as i32, dz as i32) as u32;
-                game_write(SCRATCH_RVA, d);
+                DRAW.scratch.set_bits(d);
                 d
             });
-            game_write(NEAREST_RVA, [nearest.0, nearest.1]);
+            crate::session::write_bits(&RACE_VARS.line_nearest, [nearest.0, nearest.1]);
             write_n(set.nearest, c, nearest.1);
         }
     }
@@ -362,8 +363,8 @@ pub unsafe fn surface_shares() -> Result<(), Refused> {
         return Ok(());
     }
     unsafe {
-        std::ptr::write_bytes(game_addr(SHARES_RVA) as *mut u8, 0, 0x40);
-        let faces: u32 = game_read(FACE_COUNT_RVA);
+        std::ptr::write_bytes(RACE_VARS.surface_shares[0].addr() as *mut u8, 0, 0x40);
+        let faces: u32 = COURSE.course_face_count.bits();
         let infos = game_addr(TEXTURE_INFOS_RVA) as u32;
         let byte = |at: u32| *(at as *const u8) as u32;
         let four = |info: u32| {
@@ -383,11 +384,13 @@ pub unsafe fn surface_shares() -> Result<(), Refused> {
             let kind: u32 =
                 game_read(SURFACE_KINDS_RVA + 4 * byte(infos + second * 0x40 + 0x2C) as usize);
             let weight = rc2k_core::race::best_line::second_weight(blend, second as u8, kind);
-            game_write(WEIGHT_RVA, rc2k_core::race::best_line::first_weight(weight));
+            RACE_VARS
+                .surface_weight
+                .set_bits(rc2k_core::race::best_line::first_weight(weight));
             four(infos + byte(f + 1) * 0x40);
             game_write(
                 WEIGHT_RVA,
-                rc2k_core::race::best_line::first_weight(game_read(WEIGHT_RVA)),
+                rc2k_core::race::best_line::first_weight(RACE_VARS.surface_weight.bits()),
             );
             four(infos + second * 0x40);
         }
@@ -410,7 +413,7 @@ pub unsafe fn surface_shares() -> Result<(), Refused> {
 pub unsafe fn map_segment() -> Result<(), Refused> {
     use crate::math::turn_point_xz::turn_point_xz;
     unsafe {
-        let w = |o: u32| game_addr(MAP_WORK_RVA) as u32 + o - 0xB8;
+        let w = |o: u32| RACE_VARS.map_work[0].addr() as u32 + o - 0xB8;
         let (a, b) = (get(w(0xC4)), get(w(0xC0)));
         if a >= MOST_CHECKS || b >= MOST_CHECKS {
             return Err(BadInput("map anchors past the lists").into());
@@ -449,7 +452,7 @@ pub unsafe fn map_segment() -> Result<(), Refused> {
             ground[1] as i32,
         );
         put(w(0xC8), scale);
-        let (half, unit) = (game_read::<u32>(HALF_RVA), game_read::<u32>(SCALE_RVA));
+        let (half, unit) = (NUMBERS.half.bits(), NUMBERS.k65536.bits());
         let map_angle =
             (x87::angle_scaled5_to_int(map[0] as i32, map[1] as i32, half, unit) as u32) << 2;
         put(w(0xB8), map_angle);
@@ -471,7 +474,7 @@ pub unsafe fn map_segment() -> Result<(), Refused> {
             );
             let x = x87::int_times_to_int(x as i32, scale);
             let z = x87::int_times_to_int(z as i32, scale);
-            game_write(SCRATCH_RVA, z as u32);
+            DRAW.scratch.set_bits(z as u32);
             let [x, _, z, _] = turn_point_xz(x, number as i32, z, map_angle);
             write_n(MAP_X_RVA, e, x.wrapping_add(place_a[0]));
             write_n(MAP_Y_RVA, e, z.wrapping_add(place_a[1]).wrapping_neg());
@@ -491,7 +494,7 @@ pub unsafe fn map_checkpoints() -> Result<(), Refused> {
     // Converted: `rc2k_core::race::best_line::map_stretches`.
     let n = count()?;
     unsafe {
-        game_write(ANCHORS_RVA, 0u32);
+        RACE_VARS.map_anchor_count.set_bits(0u32);
         if n < 2 {
             return Ok(());
         }
@@ -545,7 +548,7 @@ pub unsafe fn build_best_line() -> Result<(), Refused> {
     unsafe {
         text(RULE_RVA[0], true);
         sort_checkpoints()?;
-        if game_read::<u32>(FOUND_RVA) >= 2 {
+        if RACE_VARS.line_face_total.bits() >= 2 {
             for (word, step) in STEP_WORDS {
                 text(word, false);
                 match step {

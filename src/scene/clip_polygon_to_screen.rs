@@ -14,12 +14,10 @@
 //! polygon of no vertices, an entry without its record, and a clipping that runs out of entries
 //! (what it had written is put back first).
 
-use crate::d3d::draw_fan_unclipped::COUNT_RVA;
 use crate::errors::BadInput;
-use crate::framework::{game_read, game_write, rva};
-use crate::scene::clip::{
-    Edge, MASK_RVA, SCREEN_CLIPPED_RVA, below, clip_pass, listed_with_records, or_undone,
-};
+use crate::framework::{game_read, rva};
+use crate::scene::clip::{Edge, below, clip_pass, listed_with_records, or_undone};
+use crate::scene::draw_store::DRAW;
 use crate::scene::polygon::dword;
 
 // ---- game data ----
@@ -65,21 +63,21 @@ unsafe fn outside_mask() -> Result<u32, BadInput> {
 pub unsafe fn clip_polygon_to_screen() -> Result<(), BadInput> {
     unsafe {
         let mask = outside_mask()?;
-        game_write(SCREEN_CLIPPED_RVA, 1u32);
+        DRAW.screen_clipped.set_bits(1u32);
         if mask == 0 {
             return Ok(());
         }
-        game_write(MASK_RVA, mask);
+        DRAW.polygon_clip_mask.set_bits(mask);
         or_undone(|| {
             for (bit, edge, inside_past) in [
-                (1, Edge::X(game_read(LEFT_RVA)), true),
-                (2, Edge::X(game_read(RIGHT_RVA)), false),
-                (4, Edge::Y(game_read(TOP_RVA)), true),
-                (8, Edge::Y(game_read(BOTTOM_RVA)), false),
+                (1, Edge::X(DRAW.clip_screen[2].bits()), true),
+                (2, Edge::X(DRAW.clip_screen[3].bits()), false),
+                (4, Edge::Y(DRAW.clip_screen[0].bits()), true),
+                (8, Edge::Y(DRAW.clip_screen[1].bits()), false),
             ] {
                 if mask & bit != 0 {
                     clip_pass(edge, inside_past, mask)?;
-                    if game_read::<u32>(COUNT_RVA) < 3 {
+                    if DRAW.polygon_vertex_count.bits() < 3 {
                         break;
                     }
                 }

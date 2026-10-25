@@ -17,27 +17,37 @@
 
 use crate::errors::Refused;
 use crate::physics::camera_ground::probe_at;
-use crate::physics::flow::{c0, g, p};
+use crate::physics::car_store::CAR;
+use crate::physics::flow::{c0, g};
+use crate::race::numbers_store::NUMBERS;
 use rc2k_core::physics::camera_ground::{is_low, low_switch, low_switch_looks, over};
 
 /// The Rust version. The eax it leaves is read by none of its callers.
 // Converted: `rc2k_core::physics::camera_ground::{low_switch_looks, is_low, low_switch}`.
 pub fn camera_low_switch() -> Result<(), Refused> {
-    if !low_switch_looks(c0(g(0x71A0A0), g(0x5C5D90)), g(0x71A66C), g(0x71A65C)) {
+    if !low_switch_looks(
+        c0(CAR.crash_matrix[5].bits(), NUMBERS.zero.bits()),
+        CAR.camera_switch_active.get(),
+        CAR.camera_view.get(),
+    ) {
         return Ok(());
     }
-    if !probe_at(g(0x71A67C), g(0x71A684), 0x71AEC8)? {
+    if !probe_at(
+        CAR.camera_position[0].get(),
+        CAR.camera_position[2].get(),
+        &CAR.camera_ground_faces[0],
+    )? {
         return Ok(());
     }
-    if !is_low(over(g(0x71A680), g(0x639828))) {
+    if !is_low(over(CAR.camera_position[1].get(), g(0x639828))) {
         return Ok(());
     }
-    let s = low_switch(g(0x71A660), g(0x719FE0));
-    p(0x71A664, s.before);
-    p(0x71A660, s.mode);
-    p(0x71A66C, s.switching);
-    p(0x71A674, s.w674);
-    p(0x71A670, s.w670);
-    p(0x71A668, s.clock);
+    let s = low_switch(CAR.camera_blend_view.get(), CAR.step_clock.get());
+    CAR.camera_view_return.set(s.before);
+    CAR.camera_blend_view.set(s.mode);
+    CAR.camera_switch_active.set(s.switching);
+    CAR.camera_switch_share.set_bits(s.w674);
+    CAR.camera_switch_length.set(s.w670);
+    CAR.camera_switch_clock.set(s.clock);
     Ok(())
 }

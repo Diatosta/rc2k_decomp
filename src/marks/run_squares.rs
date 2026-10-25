@@ -18,6 +18,7 @@ use crate::marks::setup::CLOCK;
 use crate::marks::squares_spawn::squares_spawn;
 use crate::marks::store::{Slot, game_addr, game_read, game_write};
 use crate::math::x87;
+use crate::race::frame_store::FRAME_WORK;
 use crate::scene::matrix3::extended;
 
 const VERTICES_RVA: usize = rva(0x9605A0); // g_polygonVertices
@@ -25,7 +26,6 @@ const PLACES_RVA: Slot = Slot::at(0x8BC222); // dword_8BC222 .. dword_8BC22E
 const RUNNING_RVA: Slot = Slot::at(0x7652A0); // dword_7652A0
 const EDGE_RVA: Slot = Slot::at(0x809BC3); // g_marksEdgeMask
 const FADE_RVA: Slot = Slot::at(0x8BC232); // dword_8BC232
-const LIGHT_RVA: usize = rva(0x6415E4); // g_viewLight
 const FAR_RVA: Slot = Slot::at(0x8BC236); // flt_8BC236
 const LIFE: i32 = 0xFA0;
 
@@ -78,7 +78,7 @@ unsafe fn run() {
                 continue;
             }
             let alpha = x87::int_over_int_to_int(get(8) as i32, game_read(FADE_RVA)) as u32;
-            let colour = ((!alpha) << 24) | (game_read::<u32>(LIGHT_RVA) & 0xFF_FFFF);
+            let colour = ((!alpha) << 24) | (FRAME_WORK.view_light.bits() & 0xFF_FFFF);
             let values = [less(game_read(FAR_RVA), get(0x24)), extended(get(0x20))];
             crate::marks::draw_square::draw_square(e, colour, values);
         }

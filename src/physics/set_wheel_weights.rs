@@ -14,10 +14,13 @@
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
-use crate::framework::{game_addr, game_read, rva};
+use crate::framework::{game_addr, rva};
 use crate::math::x87;
 use crate::math::x87_run::{compare_full, weight_force};
+use crate::physics::tables_store::PHYSICS;
 use crate::physics::turn_by_inverse::turn_by_inverse;
+use crate::race::numbers_store::NUMBERS;
+use crate::scene::draw_store::DRAW;
 
 /// The share, the scratch, the weight, the records (0x80 bytes).
 pub struct Places {
@@ -32,9 +35,9 @@ impl Places {
         let a = |x: usize| game_addr(rva(x)) as u32;
         Self {
             share: a(0x6D3070),
-            scratch: a(0x62400C),
-            weight: a(0x614170),
-            records: a(0x614770),
+            scratch: (DRAW.scratch.addr() as u32),
+            weight: (PHYSICS.weight.addr() as u32),
+            records: ((PHYSICS.forces.as_ptr() as usize) as u32),
         }
     }
 }
@@ -50,9 +53,9 @@ unsafe fn put(a: u32, v: u32) {
 /// The Rust core on the variables at `p`. The registers the original leaves are read by none of its callers (esi).
 pub unsafe fn weights_at(p: &Places) {
     unsafe {
-        let one: u32 = game_read(rva(0x5C5D38));
-        let high: u32 = game_read(rva(0x5C5D48));
-        let k: u32 = game_read(rva(0x5C5DA4));
+        let one: u32 = NUMBERS.one.bits();
+        let high: u32 = NUMBERS.five.bits();
+        let k: u32 = NUMBERS.quarter.bits();
         put(p.scratch, x87::loaded(at(p.share)));
         if compare_full(at(p.scratch), one) & 0x100 != 0 {
             put(p.scratch, x87::loaded(one));
@@ -60,13 +63,7 @@ pub unsafe fn weights_at(p: &Places) {
         if compare_full(at(p.scratch), high) & 0x100 == 0 {
             put(p.scratch, x87::loaded(high));
         }
-        let f = weight_force(
-            at(p.scratch),
-            one,
-            k,
-            game_read(rva(0x613FC8)),
-            at(p.weight),
-        );
+        let f = weight_force(at(p.scratch), one, k, PHYSICS.gravity.bits(), at(p.weight));
         for c in 0..4 {
             put(p.records + 0x20 * c + 4, f);
         }

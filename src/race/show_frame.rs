@@ -19,11 +19,8 @@
 //! `race::measure_frame_rate` (0x42009E).
 
 use crate::errors::Refused;
-use crate::framework::{game_read, game_write, rva};
-
-const CREDITS_RVA: usize = rva(0x71C3E0); // dword_71C3E0
-const CLOCK_BASE_RVA: usize = rva(0x63DC38); // dword_63DC38
-const FRAME_TIME_RVA: usize = rva(0x63DC3C); // dword_63DC3C
+use crate::race::view_store::RACE_VIEW;
+use crate::race::work_store::RACE_WORK;
 
 /// What `show_frame` leaves: whether the frame was lost (the carry) and eax.
 pub struct Shown {
@@ -42,7 +39,7 @@ pub unsafe fn show_frame() -> Result<Shown, Refused> {
     }
     // The sound tick with eax 0x13 (it reads no register).
     crate::sound::race_sound_tick::race_sound_tick()?;
-    if unsafe { game_read::<u32>(CREDITS_RVA) } != 0 {
+    if RACE_WORK.in_credits.get() != 0 {
         unsafe {
             crate::race::frame_text::roll_credits(
                 1,
@@ -60,8 +57,8 @@ pub unsafe fn show_frame() -> Result<Shown, Refused> {
     // The sound tick with eax 0x14.
     crate::sound::race_sound_tick::race_sound_tick()?;
     let clock = crate::scene::restart_clock::restart_clock(crate::system::tick_count::tick_count());
-    let time = clock.wrapping_sub(unsafe { game_read(CLOCK_BASE_RVA) });
-    unsafe { game_write(FRAME_TIME_RVA, time) };
+    let time = clock.wrapping_sub(RACE_VIEW.clock_base.bits());
+    RACE_VIEW.frame_time.set_bits(time);
     // The measuring leaves eax the counter's low half on the 16th call, else as it was.
     let eax = unsafe { crate::race::measure_frame_rate::measure_frame_rate() }.unwrap_or(time);
     Ok(Shown { lost: false, eax })

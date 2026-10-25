@@ -17,14 +17,13 @@
 //! version stays for the Rust callers in unconverted code).
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, game_write, rva};
+use crate::framework::game_read;
+use crate::race::course_store::COURSE;
+use crate::scene::draw_store::DRAW;
 use crate::scene::polygon::{dword, listed, put};
-use crate::scene::project_point::{NEAR, POINTS_RVA, RECORDS_RVA, project_point, record_offset};
+use crate::scene::project_point::{NEAR, RECORDS_RVA, project_point, record_offset};
 
 // ---- game data ----
-
-pub const OUTSIDE_RVA: usize = rva(0x6240F4); // dword_6240F4
-const FAR_RVA: usize = rva(0x6241C8); // flt_6241C8
 
 // ---- Rust version ----
 
@@ -38,14 +37,13 @@ pub unsafe fn project_polygon() -> Result<(), Refused> {
         // The scene's points are only needed for a scene's point: the menus have none,
         // and their objects' points (negative) only need the records.
         let scene_point = entries.iter().any(|&entry| dword(entry) as i32 >= 0);
-        if game_read::<u32>(RECORDS_RVA) == 0 || (scene_point && game_read::<u32>(POINTS_RVA) == 0)
-        {
+        if game_read::<u32>(RECORDS_RVA) == 0 || (scene_point && COURSE.scene_points.bits() == 0) {
             return Err(BadInput("no points or no records for them").into());
         }
         for &entry in &entries {
             record_offset(dword(entry))?;
         }
-        let far = f32::from_bits(game_read(FAR_RVA));
+        let far = f32::from_bits(DRAW.farthest.bits());
         let mut outside = 0u32;
         for &entry in &entries {
             let point = project_point(dword(entry))?;
@@ -58,7 +56,7 @@ pub unsafe fn project_polygon() -> Result<(), Refused> {
                 outside += 1;
             }
         }
-        game_write(OUTSIDE_RVA, outside);
+        DRAW.polygon_outside_count.set_bits(outside);
         Ok(())
     }
 }

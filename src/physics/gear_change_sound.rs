@@ -10,7 +10,8 @@
 //! would be written (the original writes near address 0).
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, rva};
+use crate::physics::car_store::CAR;
+use crate::race::work_store::RACE_WORK;
 use rc2k_core::physics::gearbox::{GearChange, gear_change};
 
 unsafe fn at(a: u32) -> u32 {
@@ -39,12 +40,11 @@ pub unsafe fn gear_change_sound_at(current: u32, table: u32, word: u32) -> Resul
 
 /// The Rust version.
 pub unsafe fn gear_change_sound() -> Result<(), Refused> {
-    let g = |a: usize| game_addr(rva(a)) as u32;
     unsafe {
         gear_change_sound_at(
-            g(0x71B3F8),
+            RACE_WORK.current_car.addr() as u32,
             crate::sound::store::RACE_SOUNDS.table.as_ptr() as usize as u32,
-            g(0x71A210),
+            CAR.gear_changed.addr() as u32,
         )
     }
 }

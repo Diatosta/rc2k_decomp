@@ -6,15 +6,22 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::physics::car_store::CAR;
+use crate::physics::tables_store::PHYSICS;
+use crate::race::course_store::COURSE;
+use crate::race::frame_store::FRAME_WORK;
+use crate::race::numbers_store::NUMBERS;
+use crate::race::vars_store::RACE_VARS;
+use crate::race::view_store::RACE_VIEW;
+use crate::race::work_store::RACE_WORK;
+use crate::scene::draw_store::DRAW;
 
 // unk_641AA4: the points, 0x20 bytes each
 pub const COUNT_RVA: usize = rva(0x64192C); // dword_64192C
 pub const HULL_COUNT_RVA: usize = rva(0x643ACC); // dword_643ACC
 pub const FARTHEST_RVA: usize = rva(0x643ABC); // dword_643ABC: the farthest point's record
 pub const FIRST_ANGLE_RVA: usize = rva(0x643AC0); // flt_643AC0
-pub const GROUND_RVA: usize = rva(0x641AA0); // dword_641AA0: the ground's height
 pub const PRODUCT_RVA: usize = rva(0x620460); // qword_620460
-const SCRATCH_RVA: usize = rva(0x62400C); // dword_62400C
 
 fn g(a: u32) -> u32 {
     game_addr(rva(a as usize)) as u32
@@ -55,7 +62,7 @@ fn two_pi_plus(v: u32) -> u32 {
 pub unsafe fn shadow_angles() -> Result<(), Refused> {
     use crate::math::x87::{mul_to_int, sub};
     unsafe {
-        let count: u32 = game_read(COUNT_RVA);
+        let count: u32 = FRAME_WORK.shadow_point_count.bits();
         if count == 0 || count > 0x40 {
             return Err(BadInput("no shadow points or more than 0x40").into());
         }
@@ -68,15 +75,15 @@ pub unsafe fn shadow_angles() -> Result<(), Refused> {
         }
         let first = get(records + 0xC);
         game_write(FIRST_ANGLE_RVA, first);
-        let zero: u32 = game_read(rva(0x5C5D90));
-        let unit: u32 = game_read(rva(0x5C5D98));
+        let zero: u32 = NUMBERS.zero.bits();
+        let unit: u32 = NUMBERS.k65536.bits();
         for k in 0..count {
             let record = records + 0x20 * k;
             let mut v = sub(get(record + 0xC), first);
             if crate::math::x87_load::below_or_unordered(v, zero) {
                 v = two_pi_plus(v);
             }
-            game_write(SCRATCH_RVA, v);
+            DRAW.scratch.set_bits(v);
             put(record + 0xC, mul_to_int(v, unit) as u32);
             put(record + 0x14, 0);
         }
@@ -103,7 +110,7 @@ pub unsafe fn shadow_hull() -> Result<(), Refused> {
     // Converted: `rc2k_core::race::shadow::hull`.
     use rc2k_core::race::shadow::{Record, hull, hull_records};
     unsafe {
-        let count: u32 = game_read(COUNT_RVA);
+        let count: u32 = FRAME_WORK.shadow_point_count.bits();
         if !(2..=0x40).contains(&count) {
             return Err(BadInput("fewer than two shadow points or more than 0x40").into());
         }
@@ -153,10 +160,10 @@ pub unsafe fn shadow_polygon() -> Result<(), Refused> {
         if n == 0 || n > 0x40 {
             return Err(BadInput("a shadow hull of no points or more than 0x40").into());
         }
-        let scene: u32 = game_read(rva(0x5CCD20));
+        let scene: u32 = COURSE.scene_point_count.get();
         let points = scene
             .wrapping_mul(12)
-            .wrapping_add(game_read(rva(0x5CCCC0)))
+            .wrapping_add(COURSE.scene_points.bits())
             + 0xC0;
         let records = g(0x641AA4);
         let entries = g(0x975510);
@@ -164,13 +171,19 @@ pub unsafe fn shadow_polygon() -> Result<(), Refused> {
             let (record, point) = (records + 0x20 * k, points.wrapping_add(0xC * k));
             put(point, get(record));
             put(point + 8, get(record + 8));
-            put(point + 4, game_read(GROUND_RVA));
+            put(point + 4, FRAME_WORK.shadow_ground.bits());
             let e = entries + 0x44 * k;
             put(e, scene.wrapping_add(0x10).wrapping_add(k));
             put(e + 0x18, 0x00FF_FFFF);
             ((e + 0x21) as *mut u8).write((game_read::<u32>(rva(0x609328)) >> 1) as u8);
-            game_write(SCRATCH_RVA, k);
-            circle_place(e, k, n, game_read(rva(0x641994)), game_read(rva(0x641998)));
+            DRAW.scratch.set_bits(k);
+            circle_place(
+                e,
+                k,
+                n,
+                FRAME_WORK.shadow_circle[0].bits(),
+                FRAME_WORK.shadow_circle[1].bits(),
+            );
         }
         Ok(())
     }
@@ -178,7 +191,7 @@ pub unsafe fn shadow_polygon() -> Result<(), Refused> {
 
 /// A scene point's address (`g_scenePoints` + 12 x n).
 unsafe fn scene_point(n: u32) -> u32 {
-    unsafe { n.wrapping_mul(12).wrapping_add(game_read(rva(0x5CCCC0))) }
+    n.wrapping_mul(12).wrapping_add(COURSE.scene_points.bits())
 }
 
 /// A polygon work entry's address (`dword_975510` + 0x44 x n).
@@ -224,11 +237,11 @@ unsafe fn crossing_block(pa: u32, pb: u32, ea: u32, eb: u32) {
         let whole = |a: u32, b: u32| {
             to_int(int(get(a) as i32) + (int(get(b) as i32) - int(get(a) as i32)) * share)
         };
-        game_write(rva(0x623F88), whole(pa, pb) as u32);
-        game_write(rva(0x623F90), whole(pa + 8, pb + 8) as u32);
+        DRAW.clip_work[2].set_bits(whole(pa, pb) as u32);
+        DRAW.clip_work[4].set_bits(whole(pa + 8, pb + 8) as u32);
         let float = |a: u32, b: u32| st(ld(get(a)) + (ld(get(b)) - ld(get(a))) * share);
-        game_write(rva(0x623FA8), float(ea + 0x10, eb + 0x10));
-        game_write(rva(0x623FAC), float(ea + 0x14, eb + 0x14));
+        DRAW.clip_work[10].set_bits(float(ea + 0x10, eb + 0x10));
+        DRAW.clip_work[11].set_bits(float(ea + 0x14, eb + 0x14));
         let byte = |a: u32, b: u32| {
             let (a, b) = (
                 int(((a) as *const u8).read().into()),
@@ -236,9 +249,9 @@ unsafe fn crossing_block(pa: u32, pb: u32, ea: u32, eb: u32) {
             );
             to_int(a + (b - a) * share) as u32
         };
-        game_write(rva(0x62419C), byte(ea + 0x21, eb + 0x21));
-        game_write(rva(0x6241AC), byte(ea + 0x20, eb + 0x20));
-        game_write(rva(0x62400C), st(share));
+        DRAW.vertex_byte_21.set(byte(ea + 0x21, eb + 0x21));
+        DRAW.clip_work_2[0].set(byte(ea + 0x20, eb + 0x20));
+        DRAW.scratch.set(st(share));
     }
 }
 
@@ -251,22 +264,22 @@ unsafe fn edge_crossing(ea: u32, eb: u32, ed: u32) {
     unsafe {
         let pa = scene_point(get(ea));
         let pb = scene_point(get(eb));
-        let w = |a: u32, v: u32| game_write(rva(a as usize), v);
+        let _w = |a: u32, v: u32| game_write(rva(a as usize), v);
         let rd = |a: u32| game_read::<u32>(rva(a as usize));
-        w(0x64195C, get(pb));
-        w(0x64196C, get(pb + 8));
-        w(0x641958, get(pa));
-        w(0x641968, get(pa + 8));
-        w(0x641960, rd(0x641948));
-        w(0x641964, rd(0x641950));
-        w(0x641970, rd(0x64194C));
-        w(0x641974, rd(0x641954));
-        w(0x641978, rd(0x641964).wrapping_sub(rd(0x641960)));
-        w(0x64197C, rd(0x641974).wrapping_sub(rd(0x641970)));
-        w(0x641980, rd(0x641958).wrapping_sub(rd(0x641960)));
-        w(0x641984, rd(0x641968).wrapping_sub(rd(0x641970)));
-        w(0x641988, rd(0x64195C).wrapping_sub(rd(0x641960)));
-        w(0x64198C, rd(0x64196C).wrapping_sub(rd(0x641970)));
+        FRAME_WORK.shadow_work[1].set(get(pb));
+        FRAME_WORK.shadow_work[5].set(get(pb + 8));
+        FRAME_WORK.shadow_work[0].set(get(pa));
+        FRAME_WORK.shadow_work[4].set(get(pa + 8));
+        FRAME_WORK.shadow_work[2].set(rd(0x641948));
+        FRAME_WORK.shadow_work[3].set(rd(0x641950));
+        FRAME_WORK.shadow_work[6].set(rd(0x64194C));
+        FRAME_WORK.shadow_work[7].set(rd(0x641954));
+        FRAME_WORK.shadow_work[8].set(rd(0x641964).wrapping_sub(rd(0x641960)));
+        FRAME_WORK.shadow_work[9].set(rd(0x641974).wrapping_sub(rd(0x641970)));
+        FRAME_WORK.shadow_work[10].set(rd(0x641958).wrapping_sub(rd(0x641960)));
+        FRAME_WORK.shadow_work[11].set(rd(0x641968).wrapping_sub(rd(0x641970)));
+        FRAME_WORK.shadow_work[12].set(rd(0x64195C).wrapping_sub(rd(0x641960)));
+        FRAME_WORK.shadow_work[13].set(rd(0x64196C).wrapping_sub(rd(0x641970)));
         crossing_block(pa, pb, ea, eb);
         let n = rd(0x641990);
         let p = scene_point(n);
@@ -274,7 +287,7 @@ unsafe fn edge_crossing(ea: u32, eb: u32, ed: u32) {
         put(p + 4, 0);
         put(p + 8, rd(0x623F90));
         put(ed, n);
-        w(0x641990, n.wrapping_add(1));
+        FRAME_WORK.shadow_scene.set(n.wrapping_add(1));
         put(ed + 0x10, rd(0x623FA8));
         put(ed + 0x14, rd(0x623FAC));
         ((ed + 0x21) as *mut u8).write(rd(0x62419C) as u8);
@@ -284,23 +297,21 @@ unsafe fn edge_crossing(ea: u32, eb: u32, ed: u32) {
 
 const LIST_RVA: usize = rva(0x977710); // g_polygonList
 const OLD_LIST_RVA: usize = rva(0x977810); // g_polygonOldList
-const VERTEX_COUNT_RVA: usize = rva(0x6240F8); // g_polygonVertexCount
-const NEXT_ENTRY_RVA: usize = rva(0x624114); // g_polygonNextEntry
 
 /// `sub_457A85`: the polygon cut by the edge from scene point `from` (eax) to scene point
 /// `to` (ebx) (kept: those on the inner side, and the crossings), with three vertices or
 /// more. The registers it leaves are read by no one.
 unsafe fn clip_to_edge(from: u32, to: u32) {
     unsafe {
-        let count: u32 = game_read(VERTEX_COUNT_RVA);
+        let count: u32 = DRAW.polygon_vertex_count.bits();
         if count < 3 {
             return;
         }
         let (a, b) = (scene_point(from), scene_point(to));
-        game_write(rva(0x641950), get(b));
-        game_write(rva(0x641954), get(b + 8));
-        game_write(rva(0x641948), get(a));
-        game_write(rva(0x64194C), get(a + 8));
+        FRAME_WORK.shadow_corners[2].set(get(b));
+        FRAME_WORK.shadow_corners[3].set(get(b + 8));
+        FRAME_WORK.shadow_corners[0].set(get(a));
+        FRAME_WORK.shadow_corners[1].set(get(a + 8));
         let (list, old) = (game_addr(LIST_RVA) as u32, game_addr(OLD_LIST_RVA) as u32);
         std::ptr::copy(list as *const u8, old as *mut u8, 4 * count as usize);
         put(old + 4 * count, get(list));
@@ -311,9 +322,9 @@ unsafe fn clip_to_edge(from: u32, to: u32) {
             |k| get(old + 4 * k),
             |e| inside_edge(get(work_entry(e))),
             |a, b| {
-                let next: u32 = game_read(NEXT_ENTRY_RVA);
+                let next: u32 = DRAW.polygon_next_entry.bits();
                 edge_crossing(work_entry(a), work_entry(b), work_entry(next));
-                game_write(NEXT_ENTRY_RVA, next.wrapping_add(1));
+                DRAW.polygon_next_entry.set_bits(next.wrapping_add(1));
                 next
             },
             |e| {
@@ -321,7 +332,7 @@ unsafe fn clip_to_edge(from: u32, to: u32) {
                 added += 1;
             },
         );
-        game_write(VERTEX_COUNT_RVA, added);
+        DRAW.polygon_vertex_count.set_bits(added);
     }
 }
 
@@ -334,22 +345,24 @@ unsafe fn clip_to_edge(from: u32, to: u32) {
 pub unsafe fn clip_shadow_to_face() {
     unsafe {
         let corners = [
-            game_read::<u32>(rva(0x641938)),
-            game_read(rva(0x64193C)),
-            game_read(rva(0x641940)),
+            FRAME_WORK.shadow_light[0].get(),
+            FRAME_WORK.shadow_light[1].bits(),
+            FRAME_WORK.shadow_light[2].bits(),
         ];
         // Converted: `rc2k_core::race::shadow::face_near`.
-        let car = g(0x719FD8);
-        let found = rc2k_core::race::shadow::face_near((get(car + 0x134), get(car + 0x13C)), |n| {
-            let p = scene_point(corners[n]);
-            (get(p), get(p + 8))
-        });
+        let found = rc2k_core::race::shadow::face_near(
+            (CAR.position[0].bits(), CAR.position[2].bits()),
+            |n| {
+                let p = scene_point(corners[n]);
+                (get(p), get(p + 8))
+            },
+        );
         if !found.near {
-            game_write(VERTEX_COUNT_RVA, 0u32);
+            DRAW.polygon_vertex_count.set_bits(0u32);
             return;
         }
         for (a, b) in [(0usize, 1usize), (1, 2), (2, 0)] {
-            if game_read::<u32>(VERTEX_COUNT_RVA) < 3 {
+            if DRAW.polygon_vertex_count.bits() < 3 {
                 return;
             }
             clip_to_edge(corners[a], corners[b]);
@@ -377,7 +390,7 @@ unsafe fn raise_onto_face(index: u32) {
         crate::physics::plane_height::plane_height();
         put(
             p + 4,
-            game_read::<u32>(rva(0x639828)).wrapping_add(game_read(rva(0x641928))),
+            game_read::<u32>(rva(0x639828)).wrapping_add(FRAME_WORK.shadow_strength.bits()),
         );
     }
 }
@@ -394,24 +407,24 @@ unsafe fn raise_onto_face(index: u32) {
 /// list past 0x40.
 pub unsafe fn shadow_on_face() -> Result<(), Refused> {
     unsafe {
-        let count: u32 = game_read(rva(0x641A9C));
+        let count: u32 = FRAME_WORK.shadow_list_count.get();
         if count > 0x40 {
             return Err(BadInput("a shadow list past 0x40").into());
         }
-        game_write(rva(0x624134), 0u32);
+        DRAW.polygon_drawn.set(0u32);
         let list = game_addr(LIST_RVA) as u32;
         std::ptr::copy(
-            g(0x64199C) as *const u8,
+            (FRAME_WORK.shadow_list[0].addr() as u32) as *const u8,
             list as *mut u8,
             4 * count as usize,
         );
-        game_write(VERTEX_COUNT_RVA, count);
-        put(list + 4 * count, game_read(rva(0x64199C)));
-        game_write(NEXT_ENTRY_RVA, 0x20u32);
-        let scene: u32 = game_read(rva(0x5CCD20));
-        game_write(rva(0x641990), scene.wrapping_add(0x30));
-        game_write(rva(0x6240E0), 0u32);
-        game_write(rva(0x6240E4), 1u32);
+        DRAW.polygon_vertex_count.set_bits(count);
+        put(list + 4 * count, FRAME_WORK.shadow_list[0].get());
+        DRAW.polygon_next_entry.set_bits(0x20u32);
+        let scene: u32 = COURSE.scene_point_count.get();
+        FRAME_WORK.shadow_scene.set(scene.wrapping_add(0x30));
+        DRAW.polygon_sides[0].set(0u32);
+        DRAW.polygon_sides[1].set(1u32);
         let records: u32 = game_read(rva(0x5C6FB8));
         let mut at = (scene & 0xFFF) * 0x20;
         for _ in 0..0x40 {
@@ -419,37 +432,37 @@ pub unsafe fn shadow_on_face() -> Result<(), Refused> {
             at = (at + 0x20) & 0x1FFE0;
         }
         clip_shadow_to_face();
-        if game_read::<u32>(VERTEX_COUNT_RVA) < 3 {
+        if DRAW.polygon_vertex_count.bits() < 3 {
             return Ok(());
         }
-        let n: u32 = game_read(VERTEX_COUNT_RVA);
+        let n: u32 = DRAW.polygon_vertex_count.bits();
         for k in 0..n {
             raise_onto_face(get(list + 4 * k));
         }
         crate::scene::project_polygon::project_polygon()?;
         crate::scene::fog_polygon::fog_polygon()?;
-        game_write(rva(0x6240A4), g(0x977F10));
-        let outside: u32 = game_read(rva(0x6240F4));
+        DRAW.polygon_next_record.set(g(0x977F10));
+        let outside: u32 = DRAW.polygon_outside_count.get();
         if outside != 0 {
-            if outside == game_read::<u32>(VERTEX_COUNT_RVA) {
+            if outside == DRAW.polygon_vertex_count.bits() {
                 return Ok(());
             }
             crate::scene::clip_polygon_by_depth::clip_polygon_by_depth()?;
-            if game_read::<u32>(VERTEX_COUNT_RVA) < 3 {
+            if DRAW.polygon_vertex_count.bits() < 3 {
                 return Ok(());
             }
         }
         crate::scene::clip_polygon_to_screen::clip_polygon_to_screen()?;
-        if game_read::<u32>(VERTEX_COUNT_RVA) < 3 {
+        if DRAW.polygon_vertex_count.bits() < 3 {
             return Ok(());
         }
-        game_write(rva(0x6240BC), u32::MAX);
-        game_write(rva(0x6240C0), game_read::<u32>(rva(0x641930)));
-        game_write(rva(0x6240E0), 0u32);
-        game_write(rva(0x6240E4), 1u32);
-        game_write(rva(0x63DAB4), 5u32);
+        DRAW.polygon_textures[0].set(u32::MAX);
+        DRAW.polygon_textures[1].set(FRAME_WORK.shadow_texture.get());
+        DRAW.polygon_sides[0].set(0u32);
+        DRAW.polygon_sides[1].set(1u32);
+        RACE_VIEW.polygon_mode.set(5u32);
         crate::scene::draw_polygon::draw_polygon_in_game()?;
-        game_write(rva(0x624134), 1u32);
+        DRAW.polygon_drawn.set(1u32);
         Ok(())
     }
 }
@@ -468,8 +481,8 @@ unsafe fn shadow_on_record(record: u32) -> Result<(), Refused> {
             return Ok(());
         };
         for face in first..=last {
-            game_write(rva(0x5CCCD0), face);
-            let at = (face << 6).wrapping_add(game_read(rva(0x5CCCBC)));
+            COURSE.current_course_face.set(face);
+            let at = (face << 6).wrapping_add(COURSE.course_faces.bits());
             let kind = (at as *const u8).read();
             if takes_shadow(kind, || ((at + 2) as *const u16).read_unaligned()) {
                 for corners in SHADOW_TRIANGLES {
@@ -490,23 +503,22 @@ unsafe fn shadow_on_record(record: u32) -> Result<(), Refused> {
 /// which its one caller does not read.
 pub unsafe fn shadow_faces() -> Result<(), Refused> {
     unsafe {
-        let count: u32 = game_read(rva(0x5CCD18));
-        let records: u32 = game_read(rva(0x5CCCB8));
+        let count: u32 = COURSE.course_record_count.get();
+        let records: u32 = COURSE.course_records.get();
         shadow_on_record((count.wrapping_sub(1) << 5).wrapping_add(records))?;
         if count == 0 {
             return Ok(());
         }
         // Converted: `rc2k_core::race::shadow::{record_cell, cell_near_car}`.
         use rc2k_core::race::shadow::{cell_near_car, record_cell};
-        let car = g(0x719FD8);
         for n in 0..count {
             let at = (n << 5).wrapping_add(records);
             let Some((x, z)) = record_cell(get(at)) else {
                 continue;
             };
-            game_write(rva(0x5CCBF0), x);
-            game_write(rva(0x5CCBF4), z);
-            if cell_near_car((get(car + 0x134), get(car + 0x13C)), (x, z)) {
+            COURSE.record_place[0].set(x);
+            COURSE.record_place[1].set(z);
+            if cell_near_car((CAR.position[0].bits(), CAR.position[2].bits()), (x, z)) {
                 shadow_on_record(at)?;
             }
         }
@@ -531,7 +543,7 @@ unsafe fn sun_slant(sun: u32, turn: u32) {
         let (sin, cos) = (int(turn as i32) / int(0x80)).times_pi().sin_cos();
         game_write(rva(0x643AC4), st(cos * cot));
         game_write(rva(0x643AC8), st(cot * sin));
-        game_write(rva(0x62400C), 0x80u32);
+        DRAW.scratch.set(0x80u32);
     }
 }
 
@@ -553,16 +565,16 @@ pub unsafe fn shadow_points() -> Result<(), Refused> {
     use crate::math::x87::mul_to_int;
     use crate::math::x87_load::{below_or_unordered, to_tbyte};
     unsafe {
-        let count: u32 = game_read(COUNT_RVA);
+        let count: u32 = FRAME_WORK.shadow_point_count.bits();
         if count == 0 || count > 0x40 {
             return Err(BadInput("no shadow corners or more than 0x40").into());
         }
-        let car = g(0x719FD8);
+        let car = crate::physics::car_store::car_addr() as u32;
         let inputs = [rva(0x639824), rva(0x63982C), rva(0x5CCC78)];
         let was: Vec<u32> = inputs.iter().map(|&a| game_read::<u32>(a)).collect();
-        game_write(inputs[0], get(car + 0x134));
-        game_write(inputs[1], get(car + 0x13C));
-        game_write(inputs[2], get(car + 0xE00));
+        game_write(inputs[0], CAR.position[0].bits());
+        game_write(inputs[1], CAR.position[2].bits());
+        game_write(inputs[2], CAR.probe_point_face[4].bits());
         if let Err(e) = crate::physics::find_ground::find_ground() {
             // Its inputs put back: a refusal has written nothing.
             for (&a, &v) in inputs.iter().zip(&was) {
@@ -571,7 +583,9 @@ pub unsafe fn shadow_points() -> Result<(), Refused> {
             return Err(e);
         }
         game_write(rva(0x643AB8), (-1.0f32).to_bits());
-        game_write(GROUND_RVA, game_read::<u32>(rva(0x639828)));
+        FRAME_WORK
+            .shadow_ground
+            .set_bits(game_read::<u32>(rva(0x639828)));
         let sun = game_read::<u32>(rva(0x60933C)).max(0x10);
         let turn = game_read::<u32>(rva(0x609338))
             .wrapping_neg()
@@ -581,8 +595,8 @@ pub unsafe fn shadow_points() -> Result<(), Refused> {
             game_read::<u32>(rva(0x643AC4)),
             game_read::<u32>(rva(0x643AC8)),
         );
-        let lift: u32 = game_read(rva(0x613FC0));
-        let unit: u32 = game_read(rva(0x5C5D98));
+        let lift: u32 = PHYSICS.camera_drop.bits();
+        let unit: u32 = NUMBERS.k65536.bits();
         let matrix = car + 0x840;
         let mut at = g(0x641AA4);
         for k in 0..count {
@@ -608,13 +622,13 @@ pub unsafe fn shadow_points() -> Result<(), Refused> {
             }
             put(
                 at,
-                (mul_to_int(x, unit) as u32).wrapping_add(get(car + 0x134)),
+                (mul_to_int(x, unit) as u32).wrapping_add(CAR.position[0].bits()),
             );
             put(
                 at + 8,
-                (mul_to_int(z, unit) as u32).wrapping_add(get(car + 0x13C)),
+                (mul_to_int(z, unit) as u32).wrapping_add(CAR.position[2].bits()),
             );
-            put(at + 4, game_read(GROUND_RVA));
+            put(at + 4, FRAME_WORK.shadow_ground.bits());
             at += 0x20;
         }
         Ok(())
@@ -639,7 +653,7 @@ pub unsafe fn cast_car_shadow() -> Result<(), Refused> {
     // SHADOW_TEXTURE}`.
     use rc2k_core::race::shadow::{SHADOW_TEXTURE, casts, hull_drawn, hull_list};
     unsafe {
-        if !casts(game_read(COUNT_RVA)) {
+        if !casts(FRAME_WORK.shadow_point_count.bits()) {
             return Ok(());
         }
         shadow_points()?;
@@ -650,11 +664,11 @@ pub unsafe fn cast_car_shadow() -> Result<(), Refused> {
         }
         shadow_polygon()?;
         let n: u32 = game_read(HULL_COUNT_RVA);
-        game_write(rva(0x641A9C), n);
+        FRAME_WORK.shadow_list_count.set(n);
         for k in hull_list(n) {
-            put(g(0x64199C) + 4 * k, k);
+            put((FRAME_WORK.shadow_list[0].addr() as u32) + 4 * k, k);
         }
-        game_write(rva(0x641930), SHADOW_TEXTURE);
+        FRAME_WORK.shadow_texture.set(SHADOW_TEXTURE);
         shadow_faces()
     }
 }
@@ -671,20 +685,23 @@ pub unsafe fn cast_car_shadows() -> Result<(), Refused> {
         SHADOW_STRENGTH, SUN_PASS, casts_shadow, check_shadow_cars, first_pass,
     };
     unsafe {
-        let cars: u32 = game_read(rva(0x63DB90));
-        let block = |n: u32| game_read::<u32>(rva(0x71B3B8 + 4 * n as usize));
+        let cars: u32 = RACE_VIEW.race_cars.get();
+        let block = |n: u32| RACE_WORK.car_block(n as usize);
         check_shadow_cars(cars, block)?;
         crate::scene::depth_test_off::depth_test_off();
-        game_write(rva(0x641928), SHADOW_STRENGTH);
+        FRAME_WORK.shadow_strength.set(SHADOW_STRENGTH);
         for n in 0..cars {
             let b = block(n);
             if !casts_shadow(get(b + 0x6FC)) {
                 continue;
             }
-            game_write(rva(0x71B3F8), n);
+            RACE_WORK.current_car.set(n);
             crate::drive::load_car::load_car()?;
-            game_write(COUNT_RVA, get(g(0x719FD8) + 0x260));
-            if first_pass(game_read(rva(0x6238B0))) {
+            game_write(
+                COUNT_RVA,
+                get((crate::physics::car_store::car_addr() as u32) + 0x260),
+            );
+            if first_pass(RACE_VARS.settings_words[2].bits()) {
                 cast_car_shadow()?;
             }
             let sun: u32 = game_read(rva(0x60933C));
@@ -1050,7 +1067,7 @@ mod asm_reference {
                     *q = r.int() as u32;
                 }
                 unsafe {
-                    game_write(rva(0x5CCCC0), points.as_ptr() as u32);
+                    COURSE.scene_points.set(points.as_ptr() as u32);
                     for a in &places[2..6] {
                         game_write(rva(*a), r.int() as u32);
                     }
@@ -1132,7 +1149,7 @@ mod asm_reference {
                 for a in &places[7..] {
                     unsafe { game_write(rva(*a), 0xAAAA_AAAAu32) };
                 }
-                unsafe { game_write(rva(0x62400C), 0xAAAA_AAAAu32) };
+                DRAW.scratch.set_bits(0xAAAA_AAAAu32);
                 unsafe { crossing_block(args.0, args.1, args.2, args.3) };
                 let got = read();
                 for k in 0..places.len() {

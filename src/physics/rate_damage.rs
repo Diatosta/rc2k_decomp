@@ -27,154 +27,284 @@
 
 use crate::math::x87;
 use crate::math::x87_run::{compare_full, ext_times, mul3, one_less_products, ramp, square};
-use crate::physics::mirror::Mirror;
+use crate::physics::car_store::CAR;
 use crate::physics::store::DAMAGE;
 use crate::scene::matrix3::rounded;
-use crate::session::Float;
+use crate::session::{Dword, Float};
 
 /// The ramps in order: (destination, figure, table).
-const RAMPS_A: [(u32, u32, &[Float; 4]); 2] = [
-    (0x71A3D8, 0x71A27C, &DAMAGE.lerp_tables[4]),
-    (0x71A3DC, 0x71A280, &DAMAGE.lerp_tables[4]),
-];
+fn ramps_a() -> [(&'static Float, &'static Float, &'static [Float; 4]); 2] {
+    [
+        (
+            &CAR.drive_efficiency[0],
+            &CAR.damper_wear[0],
+            &DAMAGE.lerp_tables[4],
+        ),
+        (
+            &CAR.drive_efficiency[1],
+            &CAR.damper_wear[1],
+            &DAMAGE.lerp_tables[4],
+        ),
+    ]
+}
 /// More ramps: (destination in the model, the car's figure, table).
-const RAMPS_C: [(&Float, u32, &[Float; 4]); 18] = [
-    (&DAMAGE.flt_75b490, 0x71A2A0, &DAMAGE.lerp_tables[7]),
-    (&DAMAGE.flt_75b494, 0x71A2CC, &DAMAGE.lerp_tables[8]),
-    (&DAMAGE.flt_75b498, 0x71A2CC, &DAMAGE.lerp_tables[9]),
-    (&DAMAGE.flt_75b49c, 0x71A328, &DAMAGE.lerp_tables[10]),
-    (&DAMAGE.flt_75b404, 0x71A2E8, &DAMAGE.lerp_tables[11]),
-    (&DAMAGE.flt_75b408, 0x71A2EC, &DAMAGE.lerp_tables[11]),
-    (&DAMAGE.flt_75b40c, 0x71A2F0, &DAMAGE.lerp_tables[11]),
-    (&DAMAGE.flt_75b410, 0x71A2F4, &DAMAGE.lerp_tables[11]),
-    (&DAMAGE.flt_75b414, 0x71A2F8, &DAMAGE.lerp_tables[11]),
-    (&DAMAGE.flt_75b418, 0x71A2FC, &DAMAGE.lerp_tables[11]),
-    (&DAMAGE.flt_75b41c, 0x71A300, &DAMAGE.lerp_tables[11]),
-    (&DAMAGE.flt_75b420, 0x71A2E8, &DAMAGE.lerp_tables[11]),
-    (&DAMAGE.flt_75b424, 0x71A2EC, &DAMAGE.lerp_tables[12]),
-    (&DAMAGE.flt_75b428, 0x71A2F0, &DAMAGE.lerp_tables[12]),
-    (&DAMAGE.flt_75b42c, 0x71A2F4, &DAMAGE.lerp_tables[12]),
-    (&DAMAGE.flt_75b430, 0x71A2F8, &DAMAGE.lerp_tables[12]),
-    (&DAMAGE.flt_75b434, 0x71A2FC, &DAMAGE.lerp_tables[12]),
-    (&DAMAGE.flt_75b438, 0x71A300, &DAMAGE.lerp_tables[12]),
-];
+fn ramps_c() -> [(&'static Float, &'static Float, &'static [Float; 4]); 18] {
+    [
+        (
+            &DAMAGE.flt_75b490,
+            &CAR.clutch_damage,
+            &DAMAGE.lerp_tables[7],
+        ),
+        (
+            &DAMAGE.flt_75b494,
+            &CAR.gearbox_damage,
+            &DAMAGE.lerp_tables[8],
+        ),
+        (
+            &DAMAGE.flt_75b498,
+            &CAR.gearbox_damage,
+            &DAMAGE.lerp_tables[9],
+        ),
+        (
+            &DAMAGE.flt_75b49c,
+            &CAR.brake_damage,
+            &DAMAGE.lerp_tables[10],
+        ),
+        (
+            &DAMAGE.flt_75b404,
+            &CAR.electrics_damage,
+            &DAMAGE.lerp_tables[11],
+        ),
+        (
+            &DAMAGE.flt_75b408,
+            &CAR.light_damage[0],
+            &DAMAGE.lerp_tables[11],
+        ),
+        (
+            &DAMAGE.flt_75b40c,
+            &CAR.light_damage[1],
+            &DAMAGE.lerp_tables[11],
+        ),
+        (
+            &DAMAGE.flt_75b410,
+            &CAR.light_damage[2],
+            &DAMAGE.lerp_tables[11],
+        ),
+        (
+            &DAMAGE.flt_75b414,
+            &CAR.light_damage[3],
+            &DAMAGE.lerp_tables[11],
+        ),
+        (
+            &DAMAGE.flt_75b418,
+            &CAR.light_damage[4],
+            &DAMAGE.lerp_tables[11],
+        ),
+        (
+            &DAMAGE.flt_75b41c,
+            &CAR.light_damage[5],
+            &DAMAGE.lerp_tables[11],
+        ),
+        (
+            &DAMAGE.flt_75b420,
+            &CAR.electrics_damage,
+            &DAMAGE.lerp_tables[11],
+        ),
+        (
+            &DAMAGE.flt_75b424,
+            &CAR.light_damage[0],
+            &DAMAGE.lerp_tables[12],
+        ),
+        (
+            &DAMAGE.flt_75b428,
+            &CAR.light_damage[1],
+            &DAMAGE.lerp_tables[12],
+        ),
+        (
+            &DAMAGE.flt_75b42c,
+            &CAR.light_damage[2],
+            &DAMAGE.lerp_tables[12],
+        ),
+        (
+            &DAMAGE.flt_75b430,
+            &CAR.light_damage[3],
+            &DAMAGE.lerp_tables[12],
+        ),
+        (
+            &DAMAGE.flt_75b434,
+            &CAR.light_damage[4],
+            &DAMAGE.lerp_tables[12],
+        ),
+        (
+            &DAMAGE.flt_75b438,
+            &CAR.light_damage[5],
+            &DAMAGE.lerp_tables[12],
+        ),
+    ]
+}
 /// The failures that come and go: (flag, figure while set, figure while clear, turn).
-const FAILURES: [(u32, &Float, &Float, u32); 7] = [
-    (0x71A3E4, &DAMAGE.flt_75b420, &DAMAGE.flt_75b404, 0x4),
-    (0x71A3E8, &DAMAGE.flt_75b424, &DAMAGE.flt_75b408, 0x5),
-    (0x71A3EC, &DAMAGE.flt_75b428, &DAMAGE.flt_75b40c, 0x6),
-    (0x71A3F0, &DAMAGE.flt_75b42c, &DAMAGE.flt_75b410, 0x7),
-    (0x71A3F4, &DAMAGE.flt_75b430, &DAMAGE.flt_75b414, 0x8),
-    (0x71A3F8, &DAMAGE.flt_75b434, &DAMAGE.flt_75b418, 0x9),
-    (0x71A3FC, &DAMAGE.flt_75b438, &DAMAGE.flt_75b41c, 0xA),
-];
+fn failures() -> [(&'static Dword, &'static Float, &'static Float, u32); 7] {
+    [
+        (
+            &CAR.electrical_failures[0],
+            &DAMAGE.flt_75b420,
+            &DAMAGE.flt_75b404,
+            0x4,
+        ),
+        (
+            &CAR.electrical_failures[1],
+            &DAMAGE.flt_75b424,
+            &DAMAGE.flt_75b408,
+            0x5,
+        ),
+        (
+            &CAR.electrical_failures[2],
+            &DAMAGE.flt_75b428,
+            &DAMAGE.flt_75b40c,
+            0x6,
+        ),
+        (
+            &CAR.electrical_failures[3],
+            &DAMAGE.flt_75b42c,
+            &DAMAGE.flt_75b410,
+            0x7,
+        ),
+        (
+            &CAR.electrical_failures[4],
+            &DAMAGE.flt_75b430,
+            &DAMAGE.flt_75b414,
+            0x8,
+        ),
+        (
+            &CAR.electrical_failures[5],
+            &DAMAGE.flt_75b434,
+            &DAMAGE.flt_75b418,
+            0x9,
+        ),
+        (
+            &CAR.electrical_failures[6],
+            &DAMAGE.flt_75b438,
+            &DAMAGE.flt_75b41c,
+            0xA,
+        ),
+    ]
+}
 
-/// The Rust core on the variables `m` reaches (the
-/// exact one, for `physics::grade_or_reset` and `physics::rate_current_car`).
-pub unsafe fn rate_damage_at(m: &Mirror) {
-    unsafe {
-        let d = &DAMAGE;
-        let g = |v: u32| m.get(v);
-        let less = |a: u32, b: u32| compare_full(a, b) & 0x100 != 0;
-        let hold = |v: u32| {
-            if less(g(v), d.gauge_low.bits()) {
-                m.put(v, x87::loaded(d.gauge_low.bits()));
-            }
-            if !less(g(v), d.grade_high.bits()) {
-                m.put(v, x87::loaded(d.grade_high.bits()));
-            }
-        };
-        let k = d.grade_k.bits();
-        let mut e = one_less_products(&[
-            [g(0x71A290), k, d.figures[7].bits()],
-            [g(0x71A294), k, d.figures[8].bits()],
+/// The Rust version (the exact one, for `physics::grade_or_reset` and
+/// `physics::rate_current_car`).
+pub fn rate_damage() {
+    let d = &DAMAGE;
+    let c = &CAR;
+    let less = |a: u32, b: u32| compare_full(a, b) & 0x100 != 0;
+    let hold = |v: &Float| {
+        if less(v.bits(), d.gauge_low.bits()) {
+            v.set_bits(x87::loaded(d.gauge_low.bits()));
+        }
+        if !less(v.bits(), d.grade_high.bits()) {
+            v.set_bits(x87::loaded(d.grade_high.bits()));
+        }
+    };
+    let k = d.grade_k.bits();
+    let mut e = one_less_products(&[
+        [c.engine_damage.bits(), k, d.figures[7].bits()],
+        [c.exhaust_damage.bits(), k, d.figures[8].bits()],
+    ]);
+    if d.flt_75b3e4.bits() != 0 && !less(c.turbo_damage.bits(), d.gauge_top.bits()) {
+        e = ext_times(e, d.wear_rates[10].bits());
+    }
+    c.engine_power_factor.set_bits(rounded(e));
+    hold(&c.engine_power_factor);
+    for (out, a, b) in [
+        (&c.brake_efficiency[0], &c.brake_heat[0], &c.brake_wear_a),
+        (&c.brake_efficiency[1], &c.brake_heat[1], &c.brake_wear_b),
+    ] {
+        let e = one_less_products(&[
+            [a.bits(), k, d.figures[10].bits()],
+            [b.bits(), k, d.figures[9].bits()],
+            [c.brake_fade.bits(), k, d.figures[11].bits()],
+            [d.dword_75b3f0.bits(), k, d.figures[12].bits()],
         ]);
-        if d.flt_75b3e4.bits() != 0 && !less(g(0x71A298), d.gauge_top.bits()) {
-            e = ext_times(e, d.wear_rates[10].bits());
-        }
-        m.put(0x71A3CC, rounded(e));
-        hold(0x71A3CC);
-        for (out, a, b) in [
-            (0x71A3D0, 0x71A284, 0x71A320),
-            (0x71A3D4, 0x71A288, 0x71A324),
-        ] {
-            let e = one_less_products(&[
-                [g(a), k, d.figures[10].bits()],
-                [g(b), k, d.figures[9].bits()],
-                [g(0x71A278), k, d.figures[11].bits()],
-                [d.dword_75b3f0.bits(), k, d.figures[12].bits()],
-            ]);
-            m.put(out, rounded(e));
-            hold(out);
-        }
-        let table_of = |t: &[Float; 4]| [t[0].bits(), t[1].bits(), t[2].bits(), t[3].bits()];
-        for (out, x, t) in RAMPS_A {
-            m.put(out, ramp(g(x), table_of(t), d.gauge_low.bits()));
-        }
-        for (out, x) in [(0x71A3D8, &d.flt_75b440), (0x71A3DC, &d.flt_75b444)] {
-            d.flt_75b43c.set_bits(ramp(
-                x.bits(),
-                table_of(&d.lerp_tables[5]),
-                d.gauge_low.bits(),
-            ));
-            m.put(out, mul3(d.flt_75b43c.bits(), k, k, g(out)));
-        }
-        m.put(
-            0x71A3E0,
-            ramp(g(0x71A308), table_of(&d.lerp_tables[6]), d.gauge_low.bits()),
-        );
-        m.put(0x71A3E0, square(g(0x71A3E0)));
-        for (out, x, t) in RAMPS_C {
-            out.set_bits(ramp(g(x), table_of(t), d.gauge_low.bits()));
-        }
-        // Chance: the figure times `flt_75B340` against the random's low word turned.
-        let chance = |figure: &Float, turn: u32| {
-            let t = x87::mul_to_int(figure.bits(), d.chance_scale.bits()) as u32;
-            d.scratch.set_bits(t);
-            let r = d.clock.get().rotate_right(turn) & 0xFFFF;
-            (r.wrapping_sub(t) as i32) < 0
-        };
-        if g(0x71A400) == 0 && chance(&d.flt_75b49c, 0xD) {
-            m.put(0x71A400, 1);
-        }
-        for (flag, set, clear, turn) in FAILURES {
-            if g(flag) != 0 {
-                if chance(set, turn) {
-                    m.put(flag, 0);
-                }
-            } else if chance(clear, turn) {
-                m.put(flag, 1);
+        out.set_bits(rounded(e));
+        hold(out);
+    }
+    let table_of = |t: &[Float; 4]| [t[0].bits(), t[1].bits(), t[2].bits(), t[3].bits()];
+    for (out, x, t) in ramps_a() {
+        out.set_bits(ramp(x.bits(), table_of(t), d.gauge_low.bits()));
+    }
+    for (out, x) in [
+        (&c.drive_efficiency[0], &d.flt_75b440),
+        (&c.drive_efficiency[1], &d.flt_75b444),
+    ] {
+        d.flt_75b43c.set_bits(ramp(
+            x.bits(),
+            table_of(&d.lerp_tables[5]),
+            d.gauge_low.bits(),
+        ));
+        out.set_bits(mul3(d.flt_75b43c.bits(), k, k, out.bits()));
+    }
+    c.steering_efficiency.set_bits(ramp(
+        c.steering_damage.bits(),
+        table_of(&d.lerp_tables[6]),
+        d.gauge_low.bits(),
+    ));
+    c.steering_efficiency
+        .set_bits(square(c.steering_efficiency.bits()));
+    for (out, x, t) in ramps_c() {
+        out.set_bits(ramp(x.bits(), table_of(t), d.gauge_low.bits()));
+    }
+    // Chance: the figure times `flt_75B340` against the random's low word turned.
+    let chance = |figure: &Float, turn: u32| {
+        let t = x87::mul_to_int(figure.bits(), d.chance_scale.bits()) as u32;
+        d.scratch.set_bits(t);
+        let r = d.clock.get().rotate_right(turn) & 0xFFFF;
+        (r.wrapping_sub(t) as i32) < 0
+    };
+    if c.handbrake_failed.get() == 0 && chance(&d.flt_75b49c, 0xD) {
+        c.handbrake_failed.set(1);
+    }
+    for (flag, set, clear, turn) in failures() {
+        if flag.get() != 0 {
+            if chance(set, turn) {
+                flag.set(0);
             }
+        } else if chance(clear, turn) {
+            flag.set(1);
         }
-        m.put(0x71A404, 0);
-        if chance(&d.flt_75b490, 0xB) {
-            m.put(0x71A404, 1);
+    }
+    c.gear_change_blocked.set(0);
+    if chance(&d.flt_75b490, 0xB) {
+        c.gear_change_blocked.set(1);
+    }
+    if chance(&d.flt_75b494, 0x19) {
+        c.gear_change_blocked.set(1);
+    }
+    c.forced_neutral.set(0);
+    if chance(&d.flt_75b498, 0x12) {
+        c.forced_neutral.set(1);
+    }
+    c.gear_wear[1].set_bits(0);
+    let mut bits = 0u32;
+    for (n, wear) in c.gear_wear.iter().enumerate() {
+        if compare_full(wear.bits(), d.gauge_top.bits()) & 0x4000 != 0 {
+            bits |= 1 << n;
         }
-        if chance(&d.flt_75b494, 0x19) {
-            m.put(0x71A404, 1);
-        }
-        m.put(0x71A408, 0);
-        if chance(&d.flt_75b498, 0x12) {
-            m.put(0x71A408, 1);
-        }
-        m.put(0x71A2AC, 0);
-        let mut bits = 0u32;
-        for n in 0..9 {
-            if compare_full(g(0x71A2A8 + 4 * n), d.gauge_top.bits()) & 0x4000 != 0 {
-                bits |= 1 << n;
-            }
-        }
-        m.put(0x71A40C, bits);
-        let all_below = [0x71A290, 0x71A2A0, 0x71A2A4, 0x71A2CC, 0x71A2E8]
-            .iter()
-            .all(|&v| less(g(v), d.gauge_top.bits()));
-        if all_below {
-            m.put(0x71A274, 0);
-        } else {
-            m.put(0x71A274, 1);
-            if !less(g(0x71A2E8), d.gauge_top.bits()) {
-                m.put(0x71A3CC, 0);
-            }
+    }
+    c.lost_gear_bits.set(bits);
+    let all_below = [
+        &c.engine_damage,
+        &c.clutch_damage,
+        &c.differential_damage,
+        &c.gearbox_damage,
+        &c.electrics_damage,
+    ]
+    .iter()
+    .all(|v| less(v.bits(), d.gauge_top.bits()));
+    if all_below {
+        c.damage_failed.set(0);
+    } else {
+        c.damage_failed.set(1);
+        if !less(c.electrics_damage.bits(), d.gauge_top.bits()) {
+            c.engine_power_factor.set_bits(0);
         }
     }
 }

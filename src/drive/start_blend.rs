@@ -9,17 +9,15 @@
 //!
 //! Caller: `sub_43A35A` (0x43A486).
 
-use crate::framework::{game_addr, game_read, rva};
+use crate::framework::{game_read, rva};
 use crate::math::x87;
 use crate::math::x87_run::{add3, compare_full};
+use crate::physics::car_store::CAR;
+use crate::race::blocks_store::CAR_BLOCKS;
+use crate::race::numbers_store::NUMBERS;
+use crate::scene::draw_store::DRAW;
 
-/// The car's, the lead's, the scratch, the share, the base, the offset, the result.
-const VARIABLES: [usize; 7] = [
-    0x71A070, 0x70F484, 0x62400C, 0x71A654, 0x71A650, 0x71A64C, 0x71A658,
-];
 const STEP_RVA: usize = rva(0x604EC0); // flt_604EC0
-const LOW_RVA: usize = rva(0x5C5D90); // flt_5C5D90, 0
-const HIGH_RVA: usize = rva(0x5C5D38); // flt_5C5D38, 1
 
 unsafe fn get(v: &[u32], k: usize) -> u32 {
     unsafe { (v[k] as *const u32).read_unaligned() }
@@ -42,7 +40,7 @@ pub unsafe fn blend_at(v: &[u32]) -> u32 {
         put(v, 2, n);
         put(v, 3, x87::int_times(n as i32, game_read(STEP_RVA)));
         put(v, 6, add3(get(v, 4), get(v, 3), get(v, 5)));
-        let (low, high) = (game_read(LOW_RVA), game_read(HIGH_RVA));
+        let (low, high) = (NUMBERS.zero.bits(), NUMBERS.one.bits());
         if compare_full(get(v, 6), low) & 0x100 != 0 {
             put(v, 6, x87::loaded(low));
         }
@@ -54,10 +52,15 @@ pub unsafe fn blend_at(v: &[u32]) -> u32 {
 }
 
 fn game() -> Vec<u32> {
-    VARIABLES
-        .iter()
-        .map(|&x| game_addr(rva(x)) as u32)
-        .collect()
+    vec![
+        CAR.checkpoint.addr() as u32,
+        CAR_BLOCKS.cars[0].checkpoint.addr() as u32,
+        DRAW.scratch.addr() as u32,
+        CAR.start_blend_share.addr() as u32,
+        CAR.start_share.addr() as u32,
+        CAR.pace_push.addr() as u32,
+        CAR.start_blend.addr() as u32,
+    ]
 }
 
 /// The Rust version (the exact one, for `drive::read_car_controls`).

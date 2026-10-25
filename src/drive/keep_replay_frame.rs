@@ -12,11 +12,12 @@
 //! Caller: `drive::replay_step`.
 
 use crate::physics::flow::{a, g, p};
+use crate::race::blocks_store::CAR_BLOCKS;
+use crate::race::numbers_store::NUMBERS;
 use rc2k_core::drive::replay_frames::{
     PLAYING, RECORDING, SLOT_SIZE, frame_and_tenth, slot_offset,
 };
 
-const B: usize = 0x70F3EC; // g_carBlockStore
 const SLOTS: usize = 0x6EF7E8; // unk_6EF7E8: eight of 0x3F80
 const SIZE: usize = SLOT_SIZE as usize;
 
@@ -25,16 +26,22 @@ const SIZE: usize = SLOT_SIZE as usize;
 pub unsafe fn keep_replay_frame() {
     p(0x6EF7D8, 0);
     p(0x6EF7DC, 0);
-    if g(0x5C5CE0) != PLAYING {
-        let (frame, tenth) = frame_and_tenth(g(B + 8));
+    if NUMBERS.replay_mode.get() != PLAYING {
+        let (frame, tenth) = frame_and_tenth(CAR_BLOCKS.cars[0].step_clock.bits());
         p(0x6EF7D8, frame);
         p(0x6EF7DC, tenth);
     }
     if g(0x6EF7DC) == 0 {
         let offset = slot_offset(g(0x6EF7D8));
         let to = a(SLOTS) + offset;
-        unsafe { std::ptr::copy(a(B) as *const u8, to as *mut u8, SIZE) };
-        if g(0x5C5CE0) == RECORDING {
+        unsafe {
+            std::ptr::copy(
+                crate::race::blocks_store::block_addr(0) as *const u8,
+                to as *mut u8,
+                SIZE,
+            )
+        };
+        if NUMBERS.replay_mode.get() == RECORDING {
             crate::drive::save_replay_cars::save_replay_cars();
         }
     }

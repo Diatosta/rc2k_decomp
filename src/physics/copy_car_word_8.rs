@@ -7,10 +7,8 @@
 //!
 //! Caller: `sub_43C8AC`.
 
-use crate::framework::{game_addr, rva};
-
-/// The word, its copy, the cleared one (IDA addresses).
-const VARIABLES: [usize; 3] = [0x719FE0, 0x6140F0, 0x6140EC];
+use crate::physics::car_store::CAR;
+use crate::physics::tables_store::PHYSICS;
 
 unsafe fn core(v: &[u32]) {
     unsafe {
@@ -21,10 +19,11 @@ unsafe fn core(v: &[u32]) {
 }
 
 fn game() -> Vec<u32> {
-    VARIABLES
-        .iter()
-        .map(|&x| game_addr(rva(x)) as u32)
-        .collect()
+    vec![
+        CAR.step_clock.addr() as u32,
+        PHYSICS.time_marks[1].addr() as u32,
+        PHYSICS.time_marks[0].addr() as u32,
+    ]
 }
 
 /// The Rust version.

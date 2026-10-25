@@ -38,12 +38,12 @@ use crate::menu::cars_store::CAR_TABLE;
 use crate::menu::lists_store::MENU_LISTS;
 use crate::menu::state_store::MENU_STATE;
 use crate::scene::carousel_set_ups::PLAIN;
+use crate::scene::object_store::OBJECT_WORK;
 use crate::session::{Dword, write_all, write_prefix};
 
 // ---- game data ----
 const MENUS: u32 = 0x15;
 const CAR_KINDS_IDA: usize = 0x75A1FE; // dword_75A1FE: `MENU_LISTS.car_kinds`
-const SIZE_RVA: usize = rva(0x635038); // dword_635038
 use rc2k_core::scene::carousel;
 
 /// One step of a carousel's set-up.
@@ -165,7 +165,7 @@ unsafe fn cars(out: &mut Left, list: u32, size: u32) {
         let last = (n as u32).wrapping_sub(1);
         out.ecx = Some(last);
         CAR_TABLE.last_car.set(last);
-        game_write(SIZE_RVA, size);
+        OBJECT_WORK.size.set_bits(size);
         for op in CARS_TAIL {
             run_op(op);
         }
@@ -193,7 +193,7 @@ pub unsafe fn set_up_carousel(list: u32) -> Result<Left, Refused> {
                 let fixed = MENU_LISTS.cars_a8[0].addr() as u32;
                 out.esi = Some(fixed);
                 MENU_STATE.carousel.entries.set(fixed);
-                game_write(SIZE_RVA, 0xCu32);
+                OBJECT_WORK.size.set_bits(0xCu32);
                 write_prefix(&MENU_STATE.carousel.kinds, &FIXED_KINDS);
                 MENU_STATE.carousel.count.set(6u32);
                 CAR_TABLE.last_car.set(5u32);

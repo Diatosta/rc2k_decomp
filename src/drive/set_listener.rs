@@ -27,7 +27,10 @@ use crate::errors::Refused;
 use crate::math::x87;
 use crate::math::x87_run::{ext_to_int, int_80, int_over_int_plus};
 use crate::physics::mirror::Mirror;
+use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::mud::car_file_number;
+use crate::race::view_store::RACE_VIEW;
+use crate::scene::draw_store::DRAW;
 use crate::scene::matrix::multiply_matrices;
 use crate::scene::rotate_point::rotate_point;
 use rc2k_core::drive::listener;
@@ -42,9 +45,9 @@ const LIGHT_FIGURES: u32 = 0x5C90AC; // g_lightRecords + 0x40
 /// The car file's six figures times 65536 over 1000, or the refusal (before anything).
 unsafe fn figures(m: &Mirror) -> Result<[i32; 6], Refused> {
     unsafe {
-        let viewed = m.get(0x63DB9C);
+        let viewed = RACE_VIEW.drawn_view.get();
         listener::check_viewed(viewed, || m.get(0x71B3B8 + 4 * viewed) != 0)?;
-        let n = car_file_number(m.get(0x70F410));
+        let n = car_file_number(CAR_BLOCKS.cars[0].car_kind.get());
         rc2k_core::drive::sharing::check_light_record(n)?;
         let mut out = [0i32; 6];
         for (k, o) in out.iter_mut().enumerate() {
@@ -61,7 +64,7 @@ pub unsafe fn set_listener_at(m: &Mirror) -> Result<(), Refused> {
     unsafe {
         let f = figures(m)?;
         let g = |v: u32| m.get(v);
-        let s = m.get(0x71B3B8 + 4 * m.get(0x63DB9C));
+        let s = m.get(0x71B3B8 + 4 * RACE_VIEW.drawn_view.get());
         let at = |o: u32| (s.wrapping_add(o) as *const u32).read_unaligned();
         m.put(0x5C5638, x87::from_int(at(0x13C) as i32));
         m.put(0x5C5634, x87::from_int(at(0x138) as i32));
@@ -88,7 +91,7 @@ pub unsafe fn set_listener_at(m: &Mirror) -> Result<(), Refused> {
         }
         multiply_matrices(
             m.a(TURNED) as usize,
-            m.a(0x70FC6C) as usize,
+            (CAR_BLOCKS.cars[0].unknown_734[83].addr() as u32) as usize,
             m.a(LIT) as usize,
         );
         multiply_matrices(m.a(LIT) as usize, m.a(VIEW) as usize, m.a(MADE) as usize);
@@ -125,9 +128,9 @@ pub unsafe fn set_listener_at(m: &Mirror) -> Result<(), Refused> {
         if old != 0 {
             m.put(0x5C5680, old);
         }
-        m.put(0x70F628, 0);
+        CAR_BLOCKS.cars[0].gear_changed_2.set(0);
         m.put(0x5C5684, u32::from(g(0x70FA2C) != 0));
-        m.put(0x62400C, 0x2000_0000);
+        DRAW.scratch.set(0x2000_0000);
         m.put(
             0x5C5660,
             int_over_int_plus(g(0x70FA3C) as i32, 0x2000_0000, g(0x637644)),

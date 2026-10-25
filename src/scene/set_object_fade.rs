@@ -21,8 +21,10 @@
 use crate::errors::BadInput;
 use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::math::x87;
+use crate::race::course_store::COURSE;
+use crate::scene::object_store::OBJECT_WORK;
 use crate::scene::polygon::dword;
-use crate::scene::project_point::{POINTS_RVA, RECORDS_RVA, make_scene_record};
+use crate::scene::project_point::{RECORDS_RVA, make_scene_record};
 use crate::scene::set_object_material::{MATERIAL_LEN, MATERIALS_RVA};
 
 // ---- game data ----
@@ -31,9 +33,6 @@ const OBJECT_RVA: usize = rva(0x6214FC); // g_objectNumber
 const OBJECTS: u32 = 0x100;
 const KINDS_RVA: usize = rva(0x5CD27C); // g_objectKinds
 const WORDS_RVA: usize = rva(0x6214E0); // qword_6214E0
-const PLACE_RVA: usize = rva(0x634FFC); // dword_634FFC
-const PLACE_X_RVA: usize = rva(0x635004); // dword_635004
-const PLACE_DEPTH_RVA: usize = rva(0x63500C); // dword_63500C
 const FADING_RVA: usize = rva(0x63996C); // dword_63996C
 const FADE_RVA: usize = rva(0x639974); // dword_639974, dword_639978
 
@@ -41,7 +40,8 @@ const FADE_RVA: usize = rva(0x639974); // dword_639974, dword_639978
 
 unsafe fn record_at() -> Option<u32> {
     unsafe {
-        let (place, records): (u32, u32) = (game_read(PLACE_RVA), game_read(RECORDS_RVA));
+        let (place, records): (u32, u32) =
+            (OBJECT_WORK.object_place.bits(), game_read(RECORDS_RVA));
         (records != 0).then(|| records.wrapping_add((place & 0xFFF) << 5))
     }
 }
@@ -59,7 +59,7 @@ unsafe fn words() -> Option<(u32, u32, bool)> {
             game_addr(MATERIALS_RVA).wrapping_add((kind as usize).wrapping_mul(MATERIAL_LEN));
         let word = |at: usize| ((material + at) as *const u16).read_unaligned() as u32;
         let (other_kind, distance) = (word(0x1D), word(0x22));
-        let looked_at = (other_kind | distance) != 0 && game_read::<u32>(PLACE_RVA) != u32::MAX;
+        let looked_at = (other_kind | distance) != 0 && OBJECT_WORK.object_place.bits() != u32::MAX;
         Some((other_kind, distance, looked_at))
     }
 }
@@ -69,21 +69,21 @@ pub unsafe fn set_object_fade() -> Result<(), BadInput> {
         let Some((other_kind, distance, needs_record)) = words() else {
             return Err(BadInput("an object's number past the tables"));
         };
-        let place: u32 = game_read(PLACE_RVA);
+        let place: u32 = OBJECT_WORK.object_place.bits();
         // What can refuse is asked before anything is written.
         let record = match (needs_record, record_at()) {
             (false, _) => 0,
             (true, None) => return Err(BadInput("no records for the points")),
             (true, Some(record)) => {
-                if dword(record as usize) != place && game_read::<u32>(POINTS_RVA) == 0 {
+                if dword(record as usize) != place && COURSE.scene_points.bits() == 0 {
                     return Err(BadInput("no points"));
                 }
                 record
             }
         };
         game_write(WORDS_RVA, [other_kind, distance]);
-        game_write(PLACE_X_RVA, 0u32);
-        game_write(PLACE_DEPTH_RVA, 0u32);
+        OBJECT_WORK.object_position[0].set_bits(0u32);
+        OBJECT_WORK.object_position[2].set_bits(0u32);
         game_write(FADING_RVA, 0u32);
         game_write(FADE_RVA, 0x100u32);
         if !needs_record {
@@ -92,9 +92,9 @@ pub unsafe fn set_object_fade() -> Result<(), BadInput> {
         if dword(record as usize) != place {
             make_scene_record(place, record)?;
         }
-        game_write(PLACE_X_RVA, x87::to_int(dword(record as usize + 0x10)));
+        OBJECT_WORK.object_position[0].set_bits(x87::to_int(dword(record as usize + 0x10)) as u32);
         let depth = x87::to_int(dword(record as usize + 0x18));
-        game_write(PLACE_DEPTH_RVA, depth);
+        OBJECT_WORK.object_position[2].set_bits(depth as u32);
         let near = ((distance << 16) as i32).wrapping_sub(depth);
         if near >= 0 {
             return Ok(());

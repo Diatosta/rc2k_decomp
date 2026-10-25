@@ -16,10 +16,9 @@
 //! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{game_addr, rva};
-use crate::physics::gear_bit::{GEAR_BITS_RVA, bits_at};
-
-pub const GEAR_COUNT_RVA: usize = rva(0x614C10); // g_gearCount: forward gears
+use crate::physics::car_store::CAR;
+use crate::physics::gear_bit::bits_at;
+use crate::physics::tables_store::PHYSICS;
 
 /// The Rust version on the bits at `bits` and the count `count`.
 // Converted: `rc2k_core::physics::gearbox::GearBits::higher_free`.
@@ -36,8 +35,8 @@ pub unsafe fn higher_free_gear_at(
 pub unsafe fn higher_free_gear(gear: u32) -> Result<Option<u32>, Refused> {
     unsafe {
         higher_free_gear_at(
-            game_addr(GEAR_BITS_RVA) as u32,
-            crate::framework::game_read(GEAR_COUNT_RVA),
+            CAR.lost_gear_bits.addr() as u32,
+            PHYSICS.gear_count.bits(),
             gear,
         )
     }

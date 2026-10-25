@@ -14,9 +14,10 @@
 //! -1 ..= 7 where the gearing reads its ratio, and what `gear_bit` refuses.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, rva};
+use crate::physics::car_store::CAR;
 use crate::physics::gear_bit::gear_bit_at;
 use crate::physics::gearing::{GearPlaces, revs_from_wheels_at, wheels_from_revs_at};
+use crate::physics::tables_store::PHYSICS;
 use rc2k_core::physics::gear_shifts::Change;
 
 /// The other places: the asked gear, the gear bits, the two words set.
@@ -30,12 +31,11 @@ pub struct ChangePlaces {
 
 impl ChangePlaces {
     pub fn game() -> Self {
-        let g = |a: usize| game_addr(rva(a)) as u32;
         Self {
-            wanted: g(0x614C40),
-            bits: g(0x71A40C),
-            changed: g(0x71A210),
-            changed_2: g(0x71A214),
+            wanted: (PHYSICS.gear_asked.addr() as u32),
+            bits: (CAR.lost_gear_bits.addr() as u32),
+            changed: (CAR.gear_changed.addr() as u32),
+            changed_2: (CAR.gear_changed_2.addr() as u32),
         }
     }
 }

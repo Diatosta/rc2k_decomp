@@ -12,12 +12,9 @@
 //! address (`routes.rs`), which sets the registers it leaves (`LEFT`).
 
 use crate::errors::Refused;
-use crate::physics::flow::{g, p};
+use crate::physics::car_store::CAR;
+use crate::physics::flow::g;
 use crate::physics::test_drive_run;
-
-/// The figures kept round the run: the drive speeds, the car's speed, the gear, the
-/// engine, `unk_71A010`.
-const KEPT: [usize; 6] = [0x71A190, 0x71A194, 0x71A184, 0x71A1AC, 0x71A1B0, 0x71A010];
 
 /// What the original leaves in eax, ebx, ecx and edx (`test_drive_run`'s last step:
 /// 4999 / 20, the step count, 20, 4999 % 20). Its caller by address (`scene::set_up_engine`)
@@ -30,11 +27,24 @@ pub unsafe fn test_drive() -> Result<(), Refused> {
         crate::physics::load_car_specs::load_car_specs()?;
         crate::physics::make_gear_ratios::make_gear_ratios()?;
     }
-    let kept = KEPT.map(g);
-    p(0x71A3CC, g(0x5CC190));
+    // The figures kept round the run: the drive speeds, the car's speed, the gear, the
+    // engine, the gearbox kind.
+    let kept = [
+        CAR.drive_speed_a.bits(),
+        CAR.drive_speed_b.bits(),
+        CAR.local_velocity[2].bits(),
+        CAR.gear.bits(),
+        CAR.engine_speed.bits(),
+        CAR.gearbox_kind.bits(),
+    ];
+    CAR.engine_power_factor.set_bits(g(0x5CC190));
     test_drive_run::test_drive_run()?;
-    for (x, v) in KEPT.iter().zip(kept) {
-        p(*x, v);
-    }
+    let [a, b, speed, gear, engine, kind] = kept;
+    CAR.drive_speed_a.set_bits(a);
+    CAR.drive_speed_b.set_bits(b);
+    CAR.local_velocity[2].set_bits(speed);
+    CAR.gear.set_bits(gear);
+    CAR.engine_speed.set_bits(engine);
+    CAR.gearbox_kind.set_bits(kind);
     Ok(())
 }

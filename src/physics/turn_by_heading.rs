@@ -7,16 +7,14 @@
 //!
 //! Caller: `sub_45E800` (0x45E8A9).
 
-use crate::framework::{game_read, rva};
 use crate::math::turn_float_point_xz::turn_float_point_xz;
-
-const HEADING_RVA: usize = rva(0x71A998); // g_car + 0x9C0
+use crate::physics::car_store::CAR;
 
 /// The Rust version.
 pub unsafe fn turn_by_heading(point: u32, ebx: u32) {
     unsafe {
         let p = point as *mut u32;
-        let angle = game_read::<u32>(HEADING_RVA).wrapping_neg();
+        let angle = CAR.car_heading.get().wrapping_neg();
         let [x, _, z, _] =
             turn_float_point_xz(p.read_unaligned(), ebx, p.add(2).read_unaligned(), angle);
         p.write_unaligned(x);

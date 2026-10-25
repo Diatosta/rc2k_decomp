@@ -50,7 +50,7 @@ pub fn hold_high(v: impl crate::store::At, lim: impl crate::store::At) {
 }
 
 /// `fld v; fchs; fstp v`.
-pub fn negate(v: usize) {
+pub fn negate(v: impl crate::store::At) {
     p(
         v,
         crate::math::x87_run::neg_rounded(crate::scene::matrix3::extended(g(v))),
@@ -59,7 +59,7 @@ pub fn negate(v: usize) {
 
 /// The value at `v` brought toward 0 by the step at `step`, never past it; 0 (either
 /// sign) or unordered left alone (`fldz; fld v; fcompp`, C3 then C0, as the originals).
-pub fn ease_zero(v: usize, step: usize) {
+pub fn ease_zero(v: impl crate::store::At, step: impl crate::store::At) {
     let x = g(v);
     if c3(x, 0) {
         return;

@@ -14,6 +14,10 @@
 use crate::framework::{game_read, game_write, rva};
 use crate::math::x87;
 use crate::math::x87_run::{div_then_mul, lerp_table, trunc_mul_to_int};
+use crate::physics::car_store::CAR;
+use crate::physics::tables_store::PHYSICS;
+use crate::race::numbers_store::NUMBERS;
+use crate::scene::draw_store::DRAW;
 use std::cmp::Ordering;
 
 pub fn g(x: usize) -> u32 {
@@ -35,11 +39,11 @@ pub fn below(a: u32, b: u32) -> bool {
 /// The Rust version (the exact one, for `physics::engine_torque_or_cut`, `drive_force`,
 /// `free_rev*`, `test_drive_run`).
 pub unsafe fn engine_torque() {
-    let s = x87::div(g(0x71A1B0), g(0x71A1B4));
-    p(0x62400C, s);
-    if below(s, g(0x5C5D38)) && !below(s, g(0x5C5D90)) {
-        let i = trunc_mul_to_int(s, g(0x5C5D50)) as u32;
-        p(0x623FB8, i);
+    let s = x87::div(CAR.engine_speed.bits(), CAR.engine_speed_limit.bits());
+    DRAW.scratch.set(s);
+    if below(s, NUMBERS.one.bits()) && !below(s, NUMBERS.zero.bits()) {
+        let i = trunc_mul_to_int(s, NUMBERS.eight.bits()) as u32;
+        DRAW.work_dword.set(i);
         let k = 4 * i as usize;
         p(
             0x614748,
@@ -52,11 +56,20 @@ pub unsafe fn engine_torque() {
             ),
         );
     } else {
-        p(0x614748, x87::loaded(g(0x614B7C)));
+        PHYSICS.engine_force.set_bits(x87::loaded(
+            crate::physics::tables_store::PHYSICS.spec_torque[0].get(),
+        ));
     }
     p(
         0x614744,
-        div_then_mul(g(0x71A1B0), g(0x71A1B4), g(0x613F94)),
+        div_then_mul(
+            CAR.engine_speed.bits(),
+            CAR.engine_speed_limit.bits(),
+            PHYSICS.torque_ease.bits(),
+        ),
     );
-    p(0x614748, x87::mul(g(0x614748), g(0x71A3CC)));
+    p(
+        0x614748,
+        x87::mul(PHYSICS.engine_force.bits(), CAR.engine_power_factor.bits()),
+    );
 }

@@ -23,13 +23,15 @@
 //! above are the original's, for reference.
 
 use crate::errors::Refused;
+use crate::physics::car_store::CAR;
 use crate::physics::contact_force::{RECORD, contact_force};
 use crate::physics::crash_contact::{point_number, sign, take_contact};
 use crate::physics::feel_ground::feel_ground;
-use crate::physics::flow::{a, copy3, g, p};
+use crate::physics::flow::{copy3, g, p};
 use crate::physics::lowest_body_point::lowest_body_point;
 use crate::physics::place_sound_e1::place_sound_e1;
 use crate::physics::restore_saved_car::restore_saved_car;
+use crate::physics::tables_store::PHYSICS;
 
 /// Contact record 2 (`g_contactRecords` + 0x40).
 const FORCE: usize = 0x614A90;
@@ -40,24 +42,24 @@ fn steps() -> Result<(), Refused> {
     unsafe { lowest_body_point() }?;
     let depth = g(0x6D3068);
     let limit = rc2k_core::physics::contacts::GROUND_LIMIT;
-    if !rc2k_core::physics::contacts::touches(depth, limit, g(0x71A22C) != 0) {
+    if !rc2k_core::physics::contacts::touches(depth, limit, CAR.all_wheels_off.get() != 0) {
         return Ok(());
     }
     let n = point_number()?;
     p(0x6D3028, 1);
-    p(0x71A1FC, g(0x71AAC8 + 4 * n));
-    p(0x71A200, g(0x71ABC8 + 4 * n));
-    p(0x71A204, g(0x71ACC8 + 4 * n));
+    CAR.contact_point[0].set_bits(CAR.probe_point_x[n].bits());
+    CAR.contact_point[1].set_bits(CAR.probe_point_y[n].bits());
+    CAR.contact_point[2].set_bits(CAR.probe_point_z[n].bits());
     take_contact(n);
     p(0x6D3100, 0);
-    p(RECORD, a(FORCE));
+    p(RECORD, PHYSICS.contacts[2].force[0].addr() as u32);
     unsafe { contact_force() };
     unsafe { place_sound_e1() }?;
     if let Some(hit) = rc2k_core::physics::walls::raised_hit(
         f32::from_bits(g(0x6D3108)),
-        f32::from_bits(g(0x71A208)),
+        f32::from_bits(CAR.contact_depth.bits()),
     ) {
-        p(0x71A208, hit.to_bits());
+        CAR.contact_depth.set_bits(hit.to_bits());
     }
     copy3(0x6D3018, FORCE);
     if sign(g(0x6D3068)) {

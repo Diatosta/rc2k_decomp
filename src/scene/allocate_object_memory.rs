@@ -14,11 +14,10 @@
 use crate::errors::Refused;
 use crate::framework::{game_addr, game_ptr, game_read, game_write, rva};
 use crate::memory::allocate::allocate;
+use crate::race::numbers_store::NUMBERS;
 use crate::scene::objects::{FACE_MEMORY_RVA, FACE_ROOM_RVA, POINTS_ROOM_RVA, POINTS_RVA};
 
 // ---- game data ----
-
-const IN_RACE_RVA: usize = rva(0x5C5CEC); // g_inRace
 const LIST_RVA: usize = rva(0x5C6DD0); // stru_5C6DD0
 pub const TAKEN_RVA: usize = rva(0x5C6F90); // dword_5C6F90
 
@@ -32,7 +31,7 @@ pub unsafe fn allocate_object_memory(
     take: &mut dyn FnMut(u32, u32) -> Result<u32, Refused>,
 ) -> Result<(), Refused> {
     unsafe {
-        let (points, faces) = rooms(game_read::<u32>(IN_RACE_RVA) != 0);
+        let (points, faces) = rooms(NUMBERS.in_race.bits() != 0);
         let list = game_addr(LIST_RVA) as u32;
         game_write(
             TAKEN_RVA,

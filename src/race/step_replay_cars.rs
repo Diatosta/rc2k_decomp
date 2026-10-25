@@ -14,15 +14,11 @@
 //! of 0 or past 8 (0 goes round 2^32 times).
 
 use crate::errors::Refused;
-use crate::physics::flow::{g, p};
+use crate::physics::car_store::CAR;
+use crate::physics::flow::g;
+use crate::race::work_store::RACE_WORK;
 
-pub const CURRENT: usize = 0x71B3F8; // g_currentCar
 pub const CARS: usize = 0x63DB90; // g_raceCars
-const BLOCKS_OF_CARS: usize = 0x71B3B8; // g_carBlocks
-const WORK_BLOCK: usize = 0x71B404; // dword_71B404
-pub const RUNNING: usize = 0x71A234; // unk_71A234: the work car runs
-const CLOCKS: [usize; 2] = [0x719FE0, 0x719FEC];
-
 /// The Rust version (the original leaves registers nothing reads).
 pub fn step_replay_cars() -> Result<(), Refused> {
     use crate::drive::*;
@@ -34,16 +30,15 @@ pub fn step_replay_cars() -> Result<(), Refused> {
     check_replay_cars(g(CARS))?;
     unsafe {
         choose_shown_cars::choose_shown_cars()?;
-        p(CURRENT, 0);
+        RACE_WORK.current_car.set(0);
         loop {
             car_input_words::car_input_words()?;
             play_inputs::play_inputs();
-            p(
-                WORK_BLOCK,
-                g(BLOCKS_OF_CARS + 4 * car_block(g(CURRENT)) as usize),
-            );
+            RACE_WORK
+                .work_block
+                .set(RACE_WORK.car_block(car_block(RACE_WORK.current_car.get()) as usize));
             load_car::load_car()?;
-            if car_runs(g(RUNNING)) {
+            if car_runs(CAR.driver_kind.get()) {
                 for step in RUN_STEPS {
                     match step {
                         RunStep::Controls => read_car_controls::read_car_controls()?,
@@ -54,13 +49,13 @@ pub fn step_replay_cars() -> Result<(), Refused> {
                         RunStep::Physics => crate::physics::car_physics_step::car_physics_step()?,
                     }
                 }
-                for at in CLOCKS {
-                    p(at, g(at).wrapping_add(1));
+                for clock in [&CAR.step_clock, &CAR.run_ticks] {
+                    clock.set(clock.get().wrapping_add(1));
                 }
             }
             store_car::store_car()?;
-            let (next, done) = next_car(g(CURRENT), g(CARS));
-            p(CURRENT, next);
+            let (next, done) = next_car(RACE_WORK.current_car.get(), g(CARS));
+            RACE_WORK.current_car.set(next);
             if done {
                 break;
             }

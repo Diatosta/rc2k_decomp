@@ -16,23 +16,22 @@
 //! between the two runs: a mismatch there would show in those queues only.
 
 use crate::errors::Refused;
-use crate::physics::flow::{g, p};
+use crate::physics::car_store::CAR;
+use crate::physics::tables_store::PHYSICS;
+use crate::race::view_store::RACE_VIEW;
+use crate::race::work_store::RACE_WORK;
 use rc2k_core::drive::race_steps;
-
-const CURRENT: usize = 0x71B3F8; // g_currentCar
-const CARS: usize = 0x63DB90; // g_raceCars
-const BLOCKS: usize = 0x71B3B8; // g_carBlocks
 
 /// One car's step (0x4608CA .., inside `pusha` / `popa`).
 fn car_step() -> Result<(), Refused> {
-    for x in [0x6138C4, 0x6138C8, 0x6138CC, 0x6138D0] {
-        p(x, 0);
+    for word in &PHYSICS.input_words {
+        word.set(0);
     }
-    let slot = race_steps::block_slot(g(CURRENT));
-    p(0x71B404, g(BLOCKS + 4 * slot));
+    let slot = race_steps::block_slot(RACE_WORK.current_car.get());
+    RACE_WORK.work_block.set(RACE_WORK.car_block(slot));
     unsafe {
         crate::drive::load_car::load_car()?;
-        if g(0x71A234) != 0 {
+        if CAR.driver_kind.get() != 0 {
             crate::drive::read_car_controls::read_car_controls()?;
             crate::physics::gear_input_rules::gear_input_rules();
             crate::physics::car_physics_step::car_physics_step()?;
@@ -46,10 +45,15 @@ fn car_step() -> Result<(), Refused> {
 /// is live after `drive::race_init`'s call).
 // Converted: `rc2k_core::drive::race_steps::{check_cars, each_car, block_slot}`.
 pub unsafe fn race_cars_step() -> Result<(), Refused> {
-    race_steps::check_cars(g(CARS))?;
+    race_steps::check_cars(RACE_VIEW.race_cars.get())?;
     unsafe {
         crate::drive::choose_shown_cars::choose_shown_cars()?;
-        race_steps::each_car(|| g(CURRENT), || g(CARS), |n| p(CURRENT, n), car_step)?;
+        race_steps::each_car(
+            || RACE_WORK.current_car.get(),
+            || RACE_VIEW.race_cars.get(),
+            |n| RACE_WORK.current_car.set(n),
+            car_step,
+        )?;
         crate::drive::animate_stage::animate_stage()?;
         crate::drive::race_mode_cars::race_mode_cars()?;
     }

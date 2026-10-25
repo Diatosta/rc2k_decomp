@@ -31,12 +31,18 @@
 use crate::errors::Refused;
 use crate::math::x87::int_hypot;
 use crate::math::x87_run::compare_80;
+use crate::physics::car_store::CAR;
 use crate::physics::contact_force::{RECORD, contact_force};
 use crate::physics::flow::{a, copy3, fill3, g, negate, p};
 use crate::physics::point_hits_car::KIND;
+use crate::physics::tables_store::PHYSICS;
 use crate::physics::touch_face::{FACES, touch_face};
 use crate::physics::vector_length::vector_length;
 use crate::race::norms::normalise_work_vector;
+use crate::race::numbers_store::NUMBERS;
+use crate::race::work_store::RACE_WORK;
+use crate::scene::draw_store::DRAW;
+use crate::scene::object_store::OBJECT_WORK;
 use crate::scene::x87_mem::{fild, fistp, fld, fstp};
 use rc2k_core::physics::face_contacts::{self as contacts, FaceObject, Inside};
 
@@ -77,13 +83,13 @@ pub fn steps(number: u32) -> Result<(), Refused> {
     let kind = g(0x5CD27C + 4 * object as usize);
     contacts::check_material(kind)?;
     p(KIND, byte(a(0x97DF30) + 0x80 * kind + 0x1C));
-    if contacts::object_tried(byte(face + 0x25), g(0x71B400), object).is_err() {
+    if contacts::object_tried(byte(face + 0x25), RACE_WORK.stage_direction.get(), object).is_err() {
         return Ok(());
     }
     for (k, o) in [8u32, 0xC, 0x10].iter().enumerate() {
         p(0x63503C + 4 * k, contacts::turn_word(byte(face + o)));
     }
-    p(0x635038, byte(face + 0x18));
+    OBJECT_WORK.size.set(byte(face + 0x18));
     // esi and ebp both the face here.
     let (inside, _, point) =
         unsafe { crate::physics::scene_point_hits_car::scene_point_hits_car(face, face) };
@@ -93,13 +99,14 @@ pub fn steps(number: u32) -> Result<(), Refused> {
         }
         let dx = rd(point)
             .wrapping_add(rd(face + 0x30))
-            .wrapping_sub(g(0x71A10C));
+            .wrapping_sub(CAR.position[0].get());
         let dz = rd(point + 8)
             .wrapping_add(rd(face + 0x38))
-            .wrapping_sub(g(0x71A114));
+            .wrapping_sub(CAR.position[2].get());
         let distance = int_hypot(dx as i32, dz as i32) as u32;
-        p(0x62400C, distance);
-        let (reach, _) = contacts::reach(g(0x634BA0 + 4 * g(OBJECT) as usize), g(0x635038));
+        DRAW.scratch.set(distance);
+        let (reach, _) =
+            contacts::reach(g(0x634BA0 + 4 * g(OBJECT) as usize), OBJECT_WORK.size.get());
         if contacts::out_of_reach(reach, distance) {
             return Ok(());
         }
@@ -125,7 +132,7 @@ pub fn steps(number: u32) -> Result<(), Refused> {
     negate(WORK);
     negate(WORK + 4);
     negate(WORK + 8);
-    if compare_80(unsafe { vector_length(a(WORK)) }, g(0x5C5D90)) & 0x4000 != 0 {
+    if compare_80(unsafe { vector_length(a(WORK)) }, NUMBERS.zero.bits()) & 0x4000 != 0 {
         fill3(WORK, 0);
     }
     p(WORK + 4, 0);
@@ -136,7 +143,7 @@ pub fn steps(number: u32) -> Result<(), Refused> {
     copy3(0x6D3090, 0x6D3B78);
     p(0x6D3094, 0);
     p(0x6D3100, 0);
-    p(RECORD, a(0x614A50));
+    p(RECORD, (PHYSICS.contacts.as_ptr() as usize) as u32);
     unsafe { contact_force() };
     Ok(())
 }

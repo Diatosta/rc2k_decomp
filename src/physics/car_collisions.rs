@@ -19,13 +19,14 @@
 //! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
+use crate::physics::car_store::CAR;
+use crate::physics::car_store::Car;
 use crate::physics::corner_hits_car::corner_hits_car;
 use crate::physics::flow::{a, g, p};
+use crate::race::vars_store::RACE_VARS;
+use crate::race::view_store::RACE_VIEW;
+use crate::race::work_store::RACE_WORK;
 use crate::scene::matrix::{multiply_matrices, set_place};
-
-const BLOCKS: usize = 0x71B3B8; // g_carBlocks (eight)
-const CARS: usize = 0x63DB90; // g_raceCars
-const CURRENT: usize = 0x71B3F8; // g_currentCar
 
 fn rd(x: u32) -> u32 {
     unsafe { (x as *const u32).read_unaligned() }
@@ -33,32 +34,33 @@ fn rd(x: u32) -> u32 {
 
 /// The cars looked at: `g_raceCars`, at least one (the loop runs once).
 fn cars() -> u32 {
-    g(CARS).max(1)
+    RACE_VIEW.race_cars.get().max(1)
 }
 
 /// The Rust version. The registers it leaves (ebx the cars looked at) are read by none
 /// of its callers.
 pub unsafe fn car_collisions() -> Result<(), Refused> {
-    if !matches!(g(0x62389C), 0 | 2) {
+    if !matches!(RACE_VARS.run_kind.get(), 0 | 2) {
         return Ok(());
     }
     let n = cars();
     if n > 8 {
         return Err(BadInput("more than eight cars (g_carBlocks' room)").into());
     }
-    if (0..n).any(|k| k != g(CURRENT) && g(BLOCKS + 4 * k as usize) == 0) {
+    if (0..n).any(|k| k != RACE_WORK.current_car.get() && RACE_WORK.car_block(k as usize) == 0) {
         return Err(BadInput("a null car block").into());
     }
     {
         p(0x6D3BB4, 0);
         for car in 0..n {
-            if car == g(CURRENT) {
+            if car == RACE_WORK.current_car.get() {
                 continue;
             }
             p(0x6D3CD4, car);
-            let block = g(BLOCKS + 4 * car as usize);
+            let block = RACE_WORK.car_block(car as usize);
             p(0x6D3BB8, block);
-            if rd(block + 0x25C) == 0 {
+            // SAFETY: a `g_carBlocks` entry of the eight, not null (both checked above).
+            if unsafe { Car::at(block) }.driver_kind.bits() == 0 {
                 continue;
             }
             unsafe {
@@ -66,7 +68,7 @@ pub unsafe fn car_collisions() -> Result<(), Refused> {
                     [0, 4, 8].map(|o| g(0x71A10C + o).wrapping_sub(rd(block + 0x134 + o as u32))),
                 );
                 multiply_matrices(
-                    a(0x71A08C) as usize,
+                    CAR.crash_matrix[0].addr() as u32 as usize,
                     a(0x5EA04C) as usize,
                     a(0x5EA10C) as usize,
                 );

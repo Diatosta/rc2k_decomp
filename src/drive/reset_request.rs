@@ -14,45 +14,55 @@
 //! `physics::reset_car` refuses.
 
 use crate::errors::Refused;
-use crate::physics::flow::{c0, g, p};
+use crate::physics::car_store::CAR;
+use crate::physics::flow::{c0, p};
+use crate::physics::tables_store::PHYSICS;
+use crate::race::vars_store::RACE_VARS;
 use rc2k_core::drive::controls::{
     RESET_NOTICE, reset_counts, reset_held, reset_penalty, reset_step,
 };
 
-const COUNT: usize = 0x71A23C;
-
 fn clear_notice() {
-    for x in [0x71A6FC, 0x71A6F4, 0x71A704, 0x71A700] {
-        p(x, 0);
+    for cell in [
+        &CAR.notice_last,
+        &CAR.notice_id,
+        &CAR.notice_time,
+        &CAR.notice_shown,
+    ] {
+        cell.set(0);
     }
 }
 
 /// The Rust version, then `physics::reset_car`.
 // Converted: `rc2k_core::drive::controls::{reset_counts, reset_held, reset_step, reset_penalty}`.
 pub unsafe fn reset_request() -> Result<(), Refused> {
-    if !reset_counts(g(0x719FEC)) {
+    if !reset_counts(CAR.run_ticks.get()) {
         return Ok(());
     }
-    if !reset_held(g(0x71A440), g(0x62389C), || c0(g(0x71A19C), g(0x613828))) {
-        if g(COUNT) != 0 {
+    if !reset_held(CAR.input_keys.get(), RACE_VARS.run_kind.get(), || {
+        c0(CAR.speed.bits(), PHYSICS.reset_speed_limit.bits())
+    }) {
+        if CAR.reset_key_count.get() != 0 {
             clear_notice();
-            p(COUNT, 0);
+            CAR.reset_key_count.set(0);
         }
         return Ok(());
     }
-    let (first, count, reset) = reset_step(g(COUNT));
+    let (first, count, reset) = reset_step(CAR.reset_key_count.get());
     if first {
-        p(0x71A6F4, RESET_NOTICE);
-        p(0x71A708, 0x19);
-        p(0x71A704, 0x12C);
+        CAR.notice_id.set(RESET_NOTICE);
+        CAR.notice_time_b.set(0x19);
+        CAR.notice_time.set(0x12C);
     }
-    p(COUNT, count);
+    CAR.reset_key_count.set(count);
     if !reset {
         return Ok(());
     }
     p(
         0x71A060,
-        g(0x71A060).wrapping_add(reset_penalty(g(0x71A1C0))),
+        CAR.stage_time
+            .get()
+            .wrapping_add(reset_penalty(CAR.stuck_count.get())),
     );
     clear_notice();
     unsafe { crate::physics::reset_car::reset_car() }?;

@@ -24,19 +24,19 @@ use crate::errors::Refused;
 use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::physics::flow::c0;
 use crate::race::muddy_texel::texture_and_mud;
+use crate::race::numbers_store::NUMBERS;
 use crate::race::splash_mud::{LAST_SPLASHED, SPLASHED_RVA, splash_mud};
 use crate::race::throw_mud_texel::{LAST_THROWN, THROWN_RVA, throw_mud_texel};
+use crate::race::vars_store::RACE_VARS;
 use crate::scene::x87_mem::{fild, fistp, fld, fstp};
 
 const FIRST_SLOT_RVA: usize = rva(0x5D1EE8); // g_kindFirstSlots[0x100]
 const FIRST_TEXTURE_RVA: usize = rva(0x5D0EE8); // g_kindFirstTextures[0x100]
 const CHANGES_RVA: usize = rva(0x6D1508); // dword_6D1508
-const LOCKED_RVA: usize = rva(0x623D54); // dword_623D54: the texture locked
 const THROWS_IN_RVA: usize = rva(0x623D60); // dword_623D60: each texture's thrown mud (float)
 const SPLASHES_IN_RVA: usize = rva(0x623D70); // dword_623D70: each texture's splashes (float)
 const THROWS_RVA: usize = rva(0x623920); // dword_623920
 const SPLASHES_RVA: usize = rva(0x623924); // dword_623924
-const ZERO_RVA: usize = rva(0x5C5D90); // flt_5C5D90: 0.0
 
 /// `fld dword [f]; fistp dword [t]`.
 fn round_units(f: usize, t: usize) {
@@ -58,7 +58,7 @@ fn subtract_units(a: usize, u: usize) {
 /// fstp [to]`: the units of a float count, negatives 0 (as the original, by bits).
 fn whole_units(from: usize, to: usize) -> i32 {
     round_units(game_addr(from), game_addr(to));
-    let zero: u32 = unsafe { game_read(ZERO_RVA) };
+    let zero: u32 = NUMBERS.zero.bits();
     if c0(unsafe { game_read(to) }, zero) {
         unsafe { game_write(to, zero) };
     }
@@ -83,7 +83,7 @@ pub unsafe fn update_mud_texture() -> Result<(), Refused> {
             game_read::<u32>(CHANGES_RVA).wrapping_add(0x1_0000),
         );
         let texture = game_read::<u32>(FIRST_TEXTURE_RVA).wrapping_add(n);
-        game_write(LOCKED_RVA, texture);
+        RACE_VARS.mud_locked.set_bits(texture);
         if texture == 0 {
             return Ok(());
         }
@@ -97,16 +97,18 @@ pub unsafe fn update_mud_texture() -> Result<(), Refused> {
             let over = (count & 0xFFFF).wrapping_add(throws as u32);
             if (over.wrapping_sub(0x100_0000) as i32) >= 0 {
                 let over = over.wrapping_sub(0x100_0000);
-                game_write(THROWS_RVA, (throws as u32).wrapping_sub(over));
+                RACE_VARS
+                    .mud_throws
+                    .set_bits((throws as u32).wrapping_sub(over));
             }
             take_units(THROWS_IN_RVA + k, THROWS_RVA);
-            let throws: i32 = game_read(THROWS_RVA);
+            let throws = RACE_VARS.mud_throws.bits() as i32;
             if throws > 0 {
                 let mut done = 0u32;
                 loop {
                     throw_mud_texel()?;
                     done = done.wrapping_add(1);
-                    if done == game_read::<u32>(THROWS_RVA) {
+                    if done == RACE_VARS.mud_throws.bits() {
                         break;
                     }
                 }
@@ -116,7 +118,7 @@ pub unsafe fn update_mud_texture() -> Result<(), Refused> {
         whole_units(SPLASHES_IN_RVA + k, SPLASHES_RVA);
         if game_read::<u32>(SPLASHED_RVA + k) < LAST_SPLASHED {
             take_units(SPLASHES_IN_RVA + k, SPLASHES_RVA);
-            let splashes: i32 = game_read(SPLASHES_RVA);
+            let splashes = RACE_VARS.mud_splashes.bits() as i32;
             if splashes > 0 {
                 let mut done = 0u32;
                 loop {
@@ -125,13 +127,13 @@ pub unsafe fn update_mud_texture() -> Result<(), Refused> {
                     }
                     splash_mud()?;
                     done = done.wrapping_add(1);
-                    if done == game_read::<u32>(SPLASHES_RVA) {
+                    if done == RACE_VARS.mud_splashes.bits() {
                         break;
                     }
                 }
             }
         }
-        crate::d3d::unlock_texture::unlock_texture(game_read(LOCKED_RVA))?;
+        crate::d3d::unlock_texture::unlock_texture(RACE_VARS.mud_locked.bits())?;
         Ok(())
     }
 }

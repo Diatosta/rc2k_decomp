@@ -23,6 +23,7 @@
 
 use crate::errors::{FatalError, Refused};
 use crate::physics::flow::{g, p};
+use crate::race::vars_store::RACE_VARS;
 use rc2k_core::drive::race_steps;
 
 /// `g_logIndent` changed by `by` (wrapping, as the original's `add`).
@@ -54,7 +55,7 @@ pub unsafe fn race_init() -> Result<(), Refused> {
     log(c"RACEINIT : setbestline");
     indent_by(race_steps::LOG_INDENT);
     unsafe { crate::race::best_line::build_best_line() }?;
-    if race_steps::no_best_line(g(0x623640)) {
+    if race_steps::no_best_line(RACE_VARS.checkpoint_count.get()) {
         if g(0x621514) != 0 {
             return Ok(());
         }

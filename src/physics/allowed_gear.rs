@@ -11,8 +11,9 @@
 //! Caller: `sub_43C1E3` (0x43C1FD). Refuses what `gear_bit` refuses (a bit past 31).
 
 use crate::errors::Refused;
-use crate::framework::{game_addr, game_read, rva};
+use crate::physics::car_store::CAR;
 use crate::physics::gear_bit::bits_at;
+use crate::race::numbers_store::NUMBERS;
 
 unsafe fn at(a: u32) -> u32 {
     unsafe { (a as *const u32).read_unaligned() }
@@ -22,7 +23,7 @@ unsafe fn at(a: u32) -> u32 {
 // Converted: `rc2k_core::physics::gearbox::allowed_gear`.
 pub unsafe fn allowed_gear_at(locked: u32, open: u32, bits: u32, eax: u32) -> Result<u32, Refused> {
     unsafe {
-        let locked = at(locked) == game_read::<u32>(rva(0x5C5D14));
+        let locked = at(locked) == NUMBERS.hundred.bits();
         Ok(rc2k_core::physics::gearbox::allowed_gear(
             locked,
             eax,
@@ -34,6 +35,12 @@ pub unsafe fn allowed_gear_at(locked: u32, open: u32, bits: u32, eax: u32) -> Re
 
 /// The Rust version.
 pub unsafe fn allowed_gear(eax: u32) -> Result<u32, Refused> {
-    let g = |a: usize| game_addr(rva(a)) as u32;
-    unsafe { allowed_gear_at(g(0x71A290), g(0x71A3CC), g(0x71A40C), eax) }
+    unsafe {
+        allowed_gear_at(
+            CAR.engine_damage.addr() as u32,
+            CAR.engine_power_factor.addr() as u32,
+            CAR.lost_gear_bits.addr() as u32,
+            eax,
+        )
+    }
 }

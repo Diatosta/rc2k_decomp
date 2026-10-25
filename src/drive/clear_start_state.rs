@@ -7,9 +7,7 @@
 //!
 //! Caller: `sub_43703E` (0x4371BC, 0x43729B).
 
-use crate::framework::{game_addr, rva};
-
-const VARIABLES: [usize; 6] = [0x71A234, 0x71A070, 0x71AA88, 0x71A650, 0x71A658, 0x71A01C];
+use crate::physics::car_store::CAR;
 
 unsafe fn core(v: &[u32]) {
     for &a in v {
@@ -18,10 +16,14 @@ unsafe fn core(v: &[u32]) {
 }
 
 fn game() -> Vec<u32> {
-    VARIABLES
-        .iter()
-        .map(|&x| game_addr(rva(x)) as u32)
-        .collect()
+    vec![
+        CAR.driver_kind.addr() as u32,
+        CAR.checkpoint.addr() as u32,
+        CAR.engine_sound_speed_int.addr() as u32,
+        CAR.start_share.addr() as u32,
+        CAR.start_blend.addr() as u32,
+        CAR.unknown_44.addr() as u32,
+    ]
 }
 
 /// The Rust version.

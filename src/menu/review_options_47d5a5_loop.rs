@@ -12,7 +12,7 @@
 //! Callers: `sub_4A0E60`, `sub_4AA4D7`.
 
 use crate::errors::Refused;
-use crate::framework::{game_write, rva};
+use crate::framework::rva;
 use crate::menu::captions_store::CAPTIONS;
 use crate::menu::draw_lists_store::DRAW_LISTS;
 use crate::menu::draw_work_store::DRAW_WORK;
@@ -23,6 +23,7 @@ use crate::menu::menus_store::MENUS;
 use crate::menu::screen_items_store::{SCREEN_ITEMS, slot};
 use crate::menu::screen_loop::{Callee, Carried, List, Screen, Step, carousel, prepare_scene};
 use crate::menu::state_store::MENU_STATE;
+use crate::scene::draw_store::DRAW;
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
@@ -38,9 +39,9 @@ unsafe fn set_up_first(c: &mut Carried) -> Result<(), Refused> {
         c.arg = c.arg.wrapping_sub(1);
         MENU_STATE.carousel.front.set(c.arg);
         SCREEN_FLOW.turning.set(0x0u32);
-        game_write(rva(0x623FB0), 0xFFFFFF64u32);
-        game_write(rva(0x623FB4), 0x27u32);
-        game_write(rva(0x624080), 0x140u32);
+        DRAW.view_offset[0].set(0xFFFFFF64u32);
+        DRAW.view_offset[1].set(0x27u32);
+        DRAW.view_zoom.set(0x140u32);
         prepare_scene(c);
     }
     Ok(())

@@ -8,17 +8,13 @@
 //! the gearbox.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, game_read, rva};
+use crate::framework::{game_addr, rva};
 use crate::math::x87;
+use crate::physics::car_store::CAR;
+use crate::race::numbers_store::NUMBERS;
 
-pub const GEAR_RVA: usize = rva(0x71A1AC); // g_carGear: -1 reverse, 0 neutral, 1 ..
-pub const ENGINE_SPEED_RVA: usize = rva(0x71A1B0); // g_carEngineSpeed
-pub const DRIVE_SPEED_RVA: usize = rva(0x71A190); // g_carDriveSpeed
-pub const DRIVE_SPEED_2_RVA: usize = rva(0x71A194); // g_carDriveSpeed2: the second axle's
-pub const DRIVE_KIND_RVA: usize = rva(0x71A018); // g_carDriveKind: 1 both axles
 pub const GEAR_RATIOS_RVA: usize = rva(0x6140C0); // g_gearRatios, indexed by the gear
 pub const SPEED_RVA: usize = rva(0x71A184); // g_carSpeed (a reading: times sines in sub_43CD79)
-const HALF_RVA: usize = rva(0x5C5E40); // flt_5C5E40, 0.5
 
 /// The variables' addresses: the game's, or a test's (`ratios` is gear 0's entry).
 #[derive(Clone, Copy)]
@@ -35,11 +31,11 @@ pub struct GearPlaces {
 impl GearPlaces {
     pub fn game() -> Self {
         Self {
-            gear: game_addr(GEAR_RVA) as u32,
-            engine_speed: game_addr(ENGINE_SPEED_RVA) as u32,
-            drive_speed: game_addr(DRIVE_SPEED_RVA) as u32,
-            drive_speed_2: game_addr(DRIVE_SPEED_2_RVA) as u32,
-            drive_kind: game_addr(DRIVE_KIND_RVA) as u32,
+            gear: CAR.gear.addr() as u32,
+            engine_speed: CAR.engine_speed.addr() as u32,
+            drive_speed: CAR.drive_speed_a.addr() as u32,
+            drive_speed_2: CAR.drive_speed_b.addr() as u32,
+            drive_kind: CAR.drive_kind.addr() as u32,
             ratios: game_addr(GEAR_RATIOS_RVA) as u32,
             speed: game_addr(SPEED_RVA) as u32,
         }
@@ -82,7 +78,7 @@ pub unsafe fn revs_from_wheels_at(p: &GearPlaces) -> Result<(), Refused> {
             crate::math::x87_run::sum_times_over(
                 at(p.drive_speed),
                 at(p.drive_speed_2),
-                game_read(HALF_RVA),
+                NUMBERS.half.bits(),
                 ratio,
             )
         } else {

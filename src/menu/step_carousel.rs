@@ -14,12 +14,10 @@
 //! its `entry` (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::BadInput;
-use crate::framework::{game_read, rva};
 use crate::menu::state_store::MENU_STATE;
+use crate::physics::tables_store::PHYSICS;
 
 // ---- game data ----
-
-const CLOCK_RVA: usize = rva(0x613830); // dword_613830
 
 // ---- Rust version ----
 
@@ -27,25 +25,23 @@ pub unsafe fn step_carousel() -> Result<(), BadInput> {
     // Converted: `rc2k_core::menu::navigation` (`passed`, `spin`), worked out before
     // anything is written.
     use rc2k_core::menu::navigation::{Turn, passed, spin};
-    unsafe {
-        let clock: u32 = game_read(CLOCK_RVA);
-        let passed = passed(clock, MENU_STATE.carousel.last_clock.get());
-        let t = Turn {
-            count: MENU_STATE.carousel.count.get() as i32,
-            value: MENU_STATE.carousel.front.get() as i32,
-            way: MENU_STATE.carousel.direction.get(),
-            step: MENU_STATE.carousel.angle.get(),
-        };
-        let turned = spin(t, passed)?;
-        MENU_STATE.carousel.last_clock.set(clock);
-        MENU_STATE.carousel.passed.set(passed);
-        if t.way != 0 {
-            MENU_STATE.carousel.angle.set(turned.step);
-            MENU_STATE.carousel.direction.set(turned.way);
-            if turned.value != t.value {
-                MENU_STATE.carousel.front.set(turned.value as u32);
-            }
+    let clock: u32 = PHYSICS.scene_clock.bits();
+    let passed = passed(clock, MENU_STATE.carousel.last_clock.get());
+    let t = Turn {
+        count: MENU_STATE.carousel.count.get() as i32,
+        value: MENU_STATE.carousel.front.get() as i32,
+        way: MENU_STATE.carousel.direction.get(),
+        step: MENU_STATE.carousel.angle.get(),
+    };
+    let turned = spin(t, passed)?;
+    MENU_STATE.carousel.last_clock.set(clock);
+    MENU_STATE.carousel.passed.set(passed);
+    if t.way != 0 {
+        MENU_STATE.carousel.angle.set(turned.step);
+        MENU_STATE.carousel.direction.set(turned.way);
+        if turned.value != t.value {
+            MENU_STATE.carousel.front.set(turned.value as u32);
         }
-        Ok(())
     }
+    Ok(())
 }

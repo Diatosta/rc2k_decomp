@@ -13,7 +13,11 @@
 use crate::drive::race_parts::log_line;
 use crate::errors::Refused;
 use crate::physics::flow::{g, p};
+use crate::race::blocks_store::CAR_BLOCKS;
+use crate::race::settings_copy::Place::{self, Addr};
+use crate::race::settings_copy::var;
 use crate::race::state_store::RACE_STATE;
+use crate::race::vars_store::RACE_VARS;
 use rc2k_core::drive::finish_routine::{self, Set, Var};
 
 const B: usize = 0x70F3EC;
@@ -26,30 +30,30 @@ fn log_number(v: u32) {
     crate::logfile::log_int::log_int(v as i32, true, 1);
 }
 
-/// A variable's IDA address.
-fn var(v: Var) -> usize {
+/// A variable's place.
+fn var(v: Var) -> Place {
     match v {
-        Var::D60101C => 0x60101C,
-        Var::D621514 => 0x621514,
-        Var::D623854 => 0x623854,
-        Var::D6235FC => 0x6235FC,
-        Var::RaceMode => 0x62389C,
-        Var::D6238A4 => 0x6238A4,
-        Var::RaceCars => 0x63DB94,
-        Var::D63DB90 => 0x63DB90,
-        Var::D6238A8 => 0x6238A8,
-        Var::D6238AC => 0x6238AC,
-        Var::D6238B0 => 0x6238B0,
-        Var::D6238B4 => 0x6238B4,
-        Var::D6238B8 => 0x6238B8,
-        Var::D621890 => 0x621890,
-        Var::D6238CC => 0x6238CC,
-        Var::D6238D0 => 0x6238D0,
-        Var::D64BB18 => 0x64BB18,
-        Var::D5C2F88 => 0x5C2F88,
-        Var::D606744 => 0x606744,
-        Var::D606748 => 0x606748,
-        Var::D63DB84 => 0x63DB84,
+        Var::D60101C => Addr(0x60101C),
+        Var::D621514 => Addr(0x621514),
+        Var::D623854 => var!(RACE_VARS.direction),
+        Var::D6235FC => var!(RACE_VARS.car_tyres[0]),
+        Var::RaceMode => var!(RACE_VARS.run_kind),
+        Var::D6238A4 => var!(RACE_VARS.split),
+        Var::RaceCars => Addr(0x63DB94),
+        Var::D63DB90 => Addr(0x63DB90),
+        Var::D6238A8 => var!(RACE_VARS.settings_words[0]),
+        Var::D6238AC => var!(RACE_VARS.settings_words[1]),
+        Var::D6238B0 => var!(RACE_VARS.settings_words[2]),
+        Var::D6238B4 => var!(RACE_VARS.settings_words[3]),
+        Var::D6238B8 => var!(RACE_VARS.settings_words[4]),
+        Var::D621890 => Addr(0x621890),
+        Var::D6238CC => var!(RACE_VARS.race_level),
+        Var::D6238D0 => var!(RACE_VARS.race_stage),
+        Var::D64BB18 => Addr(0x64BB18),
+        Var::D5C2F88 => Addr(0x5C2F88),
+        Var::D606744 => Addr(0x606744),
+        Var::D606748 => Addr(0x606748),
+        Var::D63DB84 => Addr(0x63DB84),
     }
 }
 
@@ -57,7 +61,7 @@ fn var(v: Var) -> usize {
 fn set_up() {
     for (at, v) in finish_routine::set_up() {
         match at {
-            Set::Var(x) => p(var(x), v),
+            Set::Var(x) => var(x).set(v),
             Set::Lead(o) => p(B + o as usize, v),
         }
     }
@@ -72,32 +76,35 @@ fn set_up() {
 /// registers this leaves are read by no caller (liveness: esi after the menus' calls has
 /// no read point).
 pub unsafe fn finish_race() -> Result<(), Refused> {
-    p(
-        0x623850,
-        g(0x64BB1C + 4 * RACE_STATE.results.stage_index.get() as usize),
-    );
-    p(0x623858, RACE_STATE.results.finish_kind.get());
-    p(B + 0x24, g(0x623858));
-    p(B + 0xAA8, RACE_STATE.results.finish_player.get());
+    RACE_VARS.stage.set(g(
+        0x64BB1C + 4 * RACE_STATE.results.stage_index.get() as usize
+    ));
+    RACE_VARS.car_kinds[0].set(RACE_STATE.results.finish_kind.get());
+    CAR_BLOCKS.cars[0]
+        .car_kind
+        .set_bits(RACE_VARS.car_kinds[0].get());
+    CAR_BLOCKS.cars[0]
+        .start_slot_value
+        .set_bits(RACE_STATE.results.finish_player.get());
     log_line(c"----------------------");
     log_line(c"CALLING FINISH ROUTINE");
     log_text(c"[shauntracknum]");
-    log_number(g(0x623850));
+    log_number(RACE_VARS.stage.get());
     log_text(c"[shauncarnum1]");
-    log_number(g(0x623858));
+    log_number(RACE_VARS.car_kinds[0].get());
     log_text(c"[car1.ctd_carnum]");
-    log_number(g(B + 0xAA8));
+    log_number(CAR_BLOCKS.cars[0].start_slot_value.bits());
     set_up();
     unsafe {
         crate::race::stage_loading::load_stage()?;
-        p(var(finish_routine::BEFORE_RUN), 0);
+        var(finish_routine::BEFORE_RUN).set(0);
         crate::drive::finish_run::finish_run()?;
         // `race::tidy_everything`'s esi "read" is of `finish_run`'s leftover, which has
         // no read point (liveness at 0x459313): a scratch.
         crate::race::race_end::tidy_everything(&crate::race::loadlevel::LoadVars::game())?;
     }
     for x in finish_routine::AFTER {
-        p(var(x), 0);
+        var(x).set(0);
     }
     log_line(c"EXITING FINISH ROUTINE");
     log_line(c"----------------------");

@@ -9,11 +9,9 @@
 //! (two in the engine's tables, three unread).
 
 use crate::bridge::Global;
-use crate::framework::rva;
 
 // ---- game data ----
 
-pub const STATE_RVA: usize = rva(0x614C54); // dword_614C54
 const STATE: Global<u32> = Global::at(0x614C54);
 
 // ---- Rust version ----

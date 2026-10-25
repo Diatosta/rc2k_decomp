@@ -1,0 +1,73 @@
+# ida	name	kind	count	reading   (kind: D dword, F float, L race slot)
+0x71B3B8	car_blocks	D	8	`g_carBlocks`: the eight cars' blocks (`CarBlock`, addresses).
+0x71B3D8	car_records	D	8	`g_carRecords`: a word for each car's view marks (`race::frame_views`).
+0x71B3F8	current_car	D	1	`g_currentCar`: the car being stepped.
+0x71B400	stage_direction	D	1	`g_stageDirection`: the stage run forwards or backwards ("dir").
+0x71B404	work_block	D	1	the current car's block (`drive::race_cars_step`, the replay).
+0x71B408	number_texture_names	D	384	32 names of 0x30 bytes by car kind: the cars' number textures (`race::car_draw`).
+0x71BA08	car_nearness	F	1	the drawn car's nearness (`race::car_draw`).
+0x71BA0C	car_draw_word	D	1	(`race::car_draw`).
+0x71BA10	number_tens_textures	D	7	the number's tens' textures (`race::car_draw`).
+0x71BA2C	part_break_limits	D	7	the parts' break limits (`physics::drop_broken_parts`).
+0x71BA48	part_matrix_still	D	16	the matrix a part at rest takes (`physics::move_slot`).
+0x71BA88	part_matrix_flat	D	16	the matrix a part lying flat takes (`physics::move_slot`).
+0x71BAC8	race_slots	L	8	`g_raceSlots`: the loose parts flying off the cars (`physics::fill_race_slot`).
+0x71BE88	slot_count	D	1	(`physics::move_slots`).
+0x71BE8C	part_fling	F	1	the parts' throw (`physics::fill_race_slot`).
+0x71BE90	slot_place	D	3	the place kept (`physics::move_slot`).
+0x71BE9C	bend_speeds	F	32	the computer driver's speed by bend (`drive::drive_computer_car`).
+0x71BF1C	wanted_speeds	D	21	three tables of seven: a wanted speed by the bend's turn.
+0x71BF70	driver_tilt_limit	F	1	(`drive::drive_computer_car`, `drive::read_car_controls`).
+0x71BF74	driver_vector	F	4	(`drive::drive_computer_car`).
+0x71BF84	replay_extra	D	1	the replay's extra start piece (`drive::save_replay_cars`).
+0x71BF88	driver_steer	D	1	the computer driver's steering.
+0x71BF8C	driver_throttle	D	1	its throttle (0x100 full).
+0x71BF90	driver_brake	D	1	its brake.
+0x71BF94	driver_flags	D	4	its other controls (1 on).
+0x71BFA4	driver_start_blend	F	1	(`drive::read_car_controls`).
+0x71BFA8	driver_steps	D	10	steps by car (`drive::drive_computer_car`).
+0x71BFD0	driver_reverse_left	D	10	reversing steps left by car.
+0x71BFF8	driver_moved	D	1	the distance moved.
+0x71BFFC	driver_turn	D	1	the bend's turn.
+0x71C000	driver_bend_index	D	1	the bend's index.
+0x71C008	driver_wanted_speed	D	1	the speed wanted.
+0x71C00C	driver_speed	D	1	the speed.
+0x71C010	driver_bend_to	D	10	a bend noted by car: where it ends.
+0x71C038	driver_bend_noted	D	10	a bend noted by car.
+0x71C060	driver_reverse_tries	D	10	reversing tries by car.
+0x71C088	driver_bend_turn	D	10	the noted bend's turn by car.
+0x71C0BC	driver_flag_bc	D	1	(`drive::drive_computer_car`).
+0x71C0C0	driver_step_x	D	1	the step along x.
+0x71C0C4	driver_step_z	D	1	the step along z.
+0x71C0C8	driver_speed_scale	F	1	from `bend_speeds`.
+0x71C0CC	driver_slot	D	1	the car driven (`g_currentCar` copied).
+0x71C0D0	driver_lookahead	D	1	1 when looking ahead.
+0x71C0D4	driver_bend_a	D	1	(`drive::drive_computer_car`).
+0x71C0D8	driver_bend_b	D	1	(`drive::drive_computer_car`).
+0x71C0DC	driver_point_now	D	1	its point in `driver_points_now`.
+0x71C0E0	driver_point_then	D	1	its point in `driver_points_then`.
+0x71C0E4	driver_aim	D	1	1: aim ahead.
+0x71C0E8	driver_points_now	D	40	ten cars' points of 16 bytes.
+0x71C188	driver_points_then	D	40	ten cars' points of 16 bytes, the step before.
+0x71C228	driver_from	D	4	(x, 0, z).
+0x71C238	driver_to	D	4	(x, 0, z).
+0x71C258	driver_way	F	4	the way from here to `driver_to` on the flat.
+0x71C268	driver_way_unit	F	4	it normalised.
+0x71C278	driver_ahead	F	4	the way ahead normalised.
+0x71C298	driver_flat	F	4	`driver_from` to `driver_to` on the flat.
+0x71C2A8	driver_flat_unit	F	4	it normalised.
+0x71C2B8	driver_side	F	4	the car's side.
+0x71C2C8	driver_work	D	47	(`drive::drive_computer_car`).
+0x71C384	segment_work_unused	D	21	`math::nearest_on_segment`'s work block until 2026-10-24 (its own since): nothing reads it.
+0x71C3D8	stage_time_scales	F	2	kept by `menu::scale_stage_times`.
+0x71C3E0	in_credits	D	1	`g_inCredits`: the credits' race on.
+0x71C3E4	credit_stages	D	36	`g_creditStages`: the credits' stages.
+0x71C474	credit_car_kinds	D	23	`g_creditCarKinds`: the credits' car kinds.
+0x71C4D0	net_message	D	128	the network's message built (`net::send_inputs`).
+0x71C6D0	patch_switch	D	1	`g_patchSwitch`: `fizpatch`.
+0x71C6D4	patch_settings	D	12	`patchmaxdrawdistance`, `patchstickygrass`, `patchgravity`, `patchdamages`, `patchbrakegrip`, `patchaccelgrip`, `patchslidegrip`, `patchgripgrass`, `patchgriptarmac`, `patchgripsnow`, `patchgripmud`, `patchgripgravel`.
+0x71C704	patch_factors	F	10	the last ten settings / 100 (`physics::apply_patches`).
+0x71C72C	patches_applied	D	1	`g_patchesApplied`.
+0x71C730	checkpoint_counts	D	36	`g_checkpointCounts`: by stage (`saves::default_times`).
+0x71C7C0	guessed_checkpoints	D	16	`g_guessedCheckpoints`.
+0x71C800	no_precipitation	D	1	the `noprecipitation` setting.

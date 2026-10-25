@@ -7,15 +7,12 @@
 //!
 //! Caller: `drive::share_all_cars` (0x456484), first.
 
-use crate::drive::lead_car_values::{PAIRS, move_pairs};
-use crate::framework::{game_addr, rva};
-
-fn game() -> Vec<(u32, u32)> {
-    let a = |x: usize| game_addr(rva(x)) as u32;
-    PAIRS.iter().map(|&(f, t)| (a(f), a(t))).collect()
-}
+use crate::drive::lead_car_values::pairs;
+use crate::framework::{game_write, rva};
 
 /// The Rust version.
-pub unsafe fn keep_lead_car_values() {
-    unsafe { move_pairs(&game()) }
+pub fn keep_lead_car_values() {
+    for (field, place) in pairs() {
+        unsafe { game_write(rva(place), field.get()) };
+    }
 }

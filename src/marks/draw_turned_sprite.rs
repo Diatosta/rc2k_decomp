@@ -20,17 +20,16 @@ use crate::framework::rva;
 use crate::marks::clip_quad::{clip_quad, draw_fan};
 use crate::marks::store::{Slot, game_addr, game_read, game_write};
 use crate::math::x87;
+use crate::scene::draw_store::DRAW;
 use crate::scene::matrix3::rounded;
 
 const PLACE_RVA: Slot = Slot::at(0x8EB8D5); // flt_8EB8D5 .. flt_8EB8DD
 const NEAR_RVA: Slot = Slot::at(0x8EB961); // dword_8EB961
 const UV_RVA: Slot = Slot::at(0x93A21A); // flt_93A21A .. flt_93A236
 const HALF_RVA: Slot = Slot::at(0x8EB8BD); // dword_8EB8BD .. dword_8EB8C9
-const FOCAL_RVA: usize = rva(0x624088); // flt_624088
 const CENTRE_RVA: [usize; 2] = [rva(0x62409C), rva(0x6240A0)];
 const Z_K_RVA: Slot = Slot::at(0x8EB96D); // flt_8EB96D
 const VERTICES_RVA: usize = rva(0x9605A0); // g_polygonVertices: TLVertex[4]
-const COUNT_RVA: usize = rva(0x6240F8); // g_polygonVertexCount
 const SINES_RVA: usize = rva(0xA23AE4); // g_sines
 const COSINES_RVA: usize = rva(0xA24AE4); // g_cosines: 0x1000 entries
 const ANGLES: u32 = 0x1000;
@@ -62,7 +61,7 @@ pub unsafe fn draw_turned_sprite(
         }
         let colour = colour | 0xFF_FFFF;
         let k = [
-            game_read(FOCAL_RVA),
+            DRAW.view_scale.bits(),
             game_read(CENTRE_RVA[0]),
             game_read(CENTRE_RVA[1]),
             game_read(Z_K_RVA),
@@ -86,7 +85,7 @@ pub unsafe fn draw_turned_sprite(
             return Ok(());
         }
         draw_fan();
-        game_write(COUNT_RVA, 4u32);
+        DRAW.polygon_vertex_count.set_bits(4u32);
     }
     Ok(())
 }

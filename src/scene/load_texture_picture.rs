@@ -30,6 +30,7 @@ use crate::framework::{game_addr, game_ptr, game_read, game_write, rva};
 use crate::gfx::load_picture_to_texture::load_picture_to_texture_in_game;
 use crate::logfile::log_int::log_int;
 use crate::logfile::log_write::log_write;
+use crate::race::view_store::RACE_VIEW;
 use crate::scene::textures::KIND_TEXTURE_RVA;
 
 // ---- game data ----
@@ -48,7 +49,6 @@ const FOLDERS: [(usize, usize, usize); 6] = [
 ];
 use rc2k_core::scene::pictures::{GRAVEL, folder, names, picture_car, takes_gravel};
 const FIRST_CAR_TEXTURE_RVA: usize = KIND_TEXTURE_RVA + 0x100 * 4; // dword_5D0EE8
-const CARS_RVA: usize = rva(0x63DB90); // dword_63DB90
 const CAR_GRAVEL_RVA: usize = rva(0x6235FC); // dword_6235FC
 // gfx::load_picture_to_texture
 
@@ -86,7 +86,7 @@ pub unsafe fn load_texture_picture(number: u32, texture: u32, call: &mut dyn FnM
             number,
             texture,
             || game_read(FIRST_CAR_TEXTURE_RVA),
-            || game_read(CARS_RVA),
+            || RACE_VIEW.race_cars.bits(),
         );
         if let Some(car) = car {
             call(Call::Text(c"carnum".as_ptr().cast()));

@@ -13,7 +13,11 @@
 //! Caller: `drive::race_tick`. Refuses what its calls refuse.
 
 use crate::errors::Refused;
+use crate::physics::car_store::CAR;
 use crate::physics::flow::{g, p};
+use crate::physics::tables_store::PHYSICS;
+use crate::race::blocks_store::CAR_BLOCKS;
+use crate::race::course_store::COURSE;
 use rc2k_core::drive::roaming::{roam_distance, roam_turn};
 
 const B: usize = 0x70F3EC; // g_carBlockStore
@@ -30,33 +34,41 @@ pub unsafe fn simple_car_step() -> Result<(), Refused> {
     }
     // The keys `drive::pedal_inputs` leaves in ebx (`reset_request` loads the same again
     // before `physics::reset_car`): the turn's y.
-    let keys = g(0x71A440);
+    let keys = CAR.input_keys.get();
     unsafe { crate::drive::reset_request::reset_request() }?;
     let distance = roam_distance(
-        g(B + 0x638),
-        g(B + 0x63C),
+        CAR_BLOCKS.cars[0].throttle.bits(),
+        CAR_BLOCKS.cars[0].brake.bits(),
         crate::input::store::DEVICES.keys_now.get(0x1D) != 0, // byte_4F6B79
     );
     let [x, _, z, _] = unsafe {
-        crate::math::turn_point_xz::turn_point_xz(0, keys as i32, distance as i32, g(B + 0x9C0))
+        crate::math::turn_point_xz::turn_point_xz(
+            0,
+            keys as i32,
+            distance as i32,
+            CAR_BLOCKS.cars[0].car_heading.bits(),
+        )
     };
-    p(B + 0x134, g(B + 0x134).wrapping_add(x));
-    p(B + 0x13C, g(B + 0x13C).wrapping_add(z));
+    CAR_BLOCKS.cars[0].position[0].set_bits(CAR_BLOCKS.cars[0].position[0].bits().wrapping_add(x));
+    CAR_BLOCKS.cars[0].position[2].set_bits(CAR_BLOCKS.cars[0].position[2].bits().wrapping_add(z));
     p(
         B + 0x9C0,
-        g(B + 0x9C0).wrapping_add(roam_turn(g(B + 0x644))),
+        CAR_BLOCKS.cars[0]
+            .car_heading
+            .bits()
+            .wrapping_add(roam_turn(CAR_BLOCKS.cars[0].steering.bits())),
     );
     unsafe { crate::physics::wheel_surfaces::wheel_surfaces() }?;
-    p(0x639824, g(0x5CCDA0));
-    p(0x63982C, g(0x5CCDE0));
+    p(0x639824, COURSE.place_x.get());
+    p(0x63982C, COURSE.place_z.get());
     unsafe { crate::physics::find_ground::find_ground() }?;
-    if g(0x5CCC74) != u32::MAX {
-        let y = g(0x639828).wrapping_add(g(0x613FC4));
-        p(0x5CCDC0, y);
-        p(B + 0x138, y);
+    if COURSE.ground_slot.get() != u32::MAX {
+        let y = g(0x639828).wrapping_add(PHYSICS.ground_drop.get());
+        COURSE.place_y.set(y);
+        CAR_BLOCKS.cars[0].position[1].set_bits(y);
     }
-    p(B + 0x9C4, 0);
-    p(B + 0x9C8, 0);
+    CAR_BLOCKS.cars[0].car_pitch.set_bits(0);
+    CAR_BLOCKS.cars[0].car_roll.set_bits(0);
     // `race::get_mat_crash` reads no register at entry (liveness): a scratch.
     unsafe { crate::race::stage_prefs::get_mat_crash() };
     Ok(())

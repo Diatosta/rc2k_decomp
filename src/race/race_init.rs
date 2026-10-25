@@ -5,16 +5,17 @@
 
 use crate::errors::Refused;
 use crate::framework::{game_addr, game_read, game_write, rva};
-use crate::race::best_line::{CHECK_COUNT_RVA, CHECK_FACES_RVA, FACES_RVA};
-use crate::race::objects::CAR_BLOCKS_RVA;
-use crate::race::sounds::REPLAY_RVA;
+use crate::physics::car_store::Car;
+use crate::race::best_line::CHECK_FACES_RVA;
+use crate::race::course_store::COURSE;
+use crate::race::vars_store::RACE_VARS;
+use crate::race::work_store::RACE_WORK;
 
 pub const SLOTS_RVA: usize = rva(0x71BAC8); // g_raceSlots: 8 records of 0x78, +0 in use
 pub const SLOT_SIZE: u32 = 0x78;
 pub const SLOTS: u32 = 8;
 /// The car blocks `g_carBlocks` lists (all eight, whatever the race's count).
 pub const BLOCKS: u32 = 8;
-pub const LAST_CHECK_RVA: usize = rva(0x623644); // g_lastCheckpoint
 /// dword_6D1838, a64, dword_6D1844, a32: four dwords of spaces.
 pub const BLANK_TEXT_RVAS: [usize; 4] =
     [rva(0x6D1838), rva(0x6D183C), rva(0x6D1844), rva(0x6D1848)];
@@ -24,7 +25,7 @@ pub const UNSET_TEXT_RVAS: [usize; 4] =
 
 /// Car block n (`g_carBlocks`[n]).
 pub fn block(n: u32) -> u32 {
-    unsafe { game_read(CAR_BLOCKS_RVA + 4 * n as usize) }
+    crate::race::work_store::RACE_WORK.car_block(n as usize)
 }
 
 unsafe fn put(at: u32, value: u32) {
@@ -43,14 +44,14 @@ pub unsafe fn clear_race_slots() {
 /// `dword_71C3E0` is set), +0x18 and +0x1C 0.
 pub unsafe fn reset_car_starts() {
     // Converted: `rc2k_core::race::cars::start_value`.
-    let value = rc2k_core::race::cars::start_value(unsafe { game_read::<u32>(REPLAY_RVA) } != 0);
+    let value = rc2k_core::race::cars::start_value(RACE_WORK.in_credits.bits() != 0);
     for n in 0..BLOCKS {
         let b = block(n);
         unsafe {
-            put(b + 0x14, value);
+            Car::at(b).run_ticks.set_bits(value);
             put(b + 8, value);
-            put(b + 0x18, 0);
-            put(b + 0x1C, 0);
+            Car::at(b).start_in_gear.set_bits(0);
+            Car::at(b).false_start_count.set_bits(0);
         }
     }
 }
@@ -66,8 +67,8 @@ pub unsafe fn seed_car_randoms() {
     for (n, &seed) in seeds.iter().enumerate() {
         let b = block(n as u32);
         unsafe {
-            put(b + 0x10, seed);
-            put(b + 0xC, seed);
+            Car::at(b).car_flags.set_bits(seed);
+            Car::at(b).noise_word.set_bits(seed);
         }
     }
 }
@@ -100,11 +101,11 @@ pub unsafe fn reset_car_race_state() {
 /// original runs on until it finds one: `g_lastCheckpoint` 0 or 1).
 pub unsafe fn first_check_checkpoint() -> Result<u32, Refused> {
     // Converted: `rc2k_core::race::checkpoints::first_check_checkpoint`.
-    let count: u32 = unsafe { game_read(CHECK_COUNT_RVA) };
-    let last = || unsafe { game_read(LAST_CHECK_RVA) };
+    let count: u32 = RACE_VARS.checkpoint_count.bits();
+    let last = || RACE_VARS.last_checkpoint.bits();
     let look = rc2k_core::race::checkpoints::first_check_checkpoint(count, last, |n| {
         let face: u32 = unsafe { game_read(CHECK_FACES_RVA + 4 * n as usize) };
-        let address = (face << 6).wrapping_add(unsafe { game_read(FACES_RVA) });
+        let address = (face << 6).wrapping_add(COURSE.course_faces.bits());
         unsafe { *((address + 0x26) as *const u8) }
     })?;
     Ok(look.and_then(|l| l.found).unwrap_or(0))

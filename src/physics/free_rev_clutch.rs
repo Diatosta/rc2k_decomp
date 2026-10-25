@@ -11,14 +11,14 @@
 //! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::physics::engine_torque::g;
+use crate::physics::car_store::CAR;
 use crate::physics::free_rev::free_rev;
 use crate::physics::gearing::{GearPlaces, wheels_from_revs_at};
 
 /// The Rust version (the exact one, for `physics::car_physics_step`).
 pub unsafe fn free_rev_clutch() -> Result<(), Refused> {
-    let gear = g(0x71A1AC);
-    if gear == 0 || g(0x71A228) == 0 {
+    let gear = CAR.gear.get();
+    if gear == 0 || CAR.driven_wheels_off.get() == 0 {
         return Ok(());
     }
     if !(-1..=7).contains(&(gear as i32)) {

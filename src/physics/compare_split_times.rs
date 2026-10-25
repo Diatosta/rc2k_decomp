@@ -17,21 +17,23 @@
 //! above are the original's, for reference.
 use crate::errors::{BadInput, Refused};
 use crate::framework::rva;
+use crate::physics::car_store::CAR;
 use crate::physics::cells::get_list;
-use crate::physics::splits::{FIGURE, SPLIT, TIME, g, p};
+use crate::physics::splits::{g, p};
 use crate::race::state_store::RACE_STATE;
+use crate::race::work_store::RACE_WORK;
 use rc2k_core::physics::splits::{LAST_COMPARED_SPLIT, compare_split};
 
 /// The Rust version. The registers the original leaves are read by none of its callers.
 // Converted: `rc2k_core::physics::splits::compare_split`.
 pub fn compare_split_times() -> Result<(), Refused> {
-    if g(SPLIT) > LAST_COMPARED_SPLIT {
+    if CAR.splits_recorded.get() > LAST_COMPARED_SPLIT {
         return Err(BadInput("a split past 27").into());
     }
-    let time = g(TIME);
+    let time = CAR.stage_time.get();
     p(0x6043F8, time);
     let list = (crate::framework::game_addr(rva(0x604134)) as u32)
-        .wrapping_add(g(SPLIT).wrapping_mul(0x28));
+        .wrapping_add(CAR.splits_recorded.get().wrapping_mul(0x28));
     let kept: [u32; 10] = unsafe { get_list(list) };
     let c = compare_split(time, &kept, |c| g(0x60410C + 4 * c));
     let f = c.figures;
@@ -45,15 +47,14 @@ pub fn compare_split_times() -> Result<(), Refused> {
     .into_iter()
     .enumerate()
     {
-        p(FIGURE + 4 * k, v);
+        CAR.split_gaps[k].set(v);
     }
-    let _a = |x: usize| crate::framework::game_addr(rva(x)) as u32;
-    let car = g(0x71B3F8);
+    let car = RACE_WORK.current_car.get();
     let times = match car {
         0 => RACE_STATE.results.results[0].data.addr() as u32,
         1 => RACE_STATE.results.results[1].data.addr() as u32,
         _ => return Ok(()),
     };
-    unsafe { ((times + 4 * g(SPLIT)) as *mut u32).write_unaligned(time) };
+    unsafe { ((times + 4 * CAR.splits_recorded.get()) as *mut u32).write_unaligned(time) };
     Ok(())
 }

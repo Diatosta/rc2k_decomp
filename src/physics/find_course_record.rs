@@ -19,6 +19,7 @@
 
 use crate::errors::Refused;
 use crate::framework::game_addr;
+use crate::race::course_store::COURSE;
 use rc2k_core::physics::course_records::{Search, find_record, kind_of};
 
 /// The tables' addresses and the records' count: the game's, or a test's.
@@ -34,13 +35,13 @@ pub struct RecordPlaces {
 
 impl RecordPlaces {
     pub fn game() -> Self {
-        use crate::race::course_data::{KIND_TABLES_RVA, RECORD_COUNT_RVA, RECORDS_RVA};
+        use crate::race::course_data::KIND_TABLES_RVA;
         let first = game_addr(KIND_TABLES_RVA) as u32;
         Self {
             firsts: first,
             lasts: first + 0x400,
-            records: game_addr(RECORDS_RVA) as u32,
-            count: unsafe { crate::framework::game_read(RECORD_COUNT_RVA) },
+            records: COURSE.course_records.addr() as u32,
+            count: COURSE.course_record_count.bits(),
         }
     }
 }

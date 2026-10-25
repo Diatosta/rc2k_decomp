@@ -10,10 +10,10 @@
 //! Callers: `sub_43A35A` (0x43A454), `sub_43A649` (0x43A66C).
 
 use crate::drive::set_camera_view::set_view_at;
-use crate::framework::{game_addr, game_read, rva};
+use crate::framework::{game_read, rva};
+use crate::physics::car_store::CAR;
+use crate::race::view_store::RACE_VIEW;
 use rc2k_core::drive::camera_views::next_view;
-
-const PLAYERS_RVA: usize = rva(0x63DB94); // dword_63DB94
 const HAS_VIEWS_RVA: usize = rva(0x5C5AC0); // dword_5C5AC0, by car (0x22)
 
 unsafe fn at(a: u32) -> u32 {
@@ -44,8 +44,8 @@ pub unsafe fn next_camera_view(s: u32) {
     unsafe {
         next_view_at(
             s,
-            game_addr(PLAYERS_RVA) as u32,
-            game_addr(crate::drive::set_camera_view::STEP_RVA) as u32,
+            RACE_VIEW.players.addr() as u32,
+            CAR.step_clock.addr() as u32,
         )
     }
 }

@@ -7,7 +7,9 @@
 //! `view_test_floats` (`rc2k_core::physics::camera_view`). What the variables are (the
 //! camera's mode, place, turns, a view's figures) is a reading.
 
-use crate::physics::flow::{g, p};
+use crate::physics::car_store::CAR;
+use crate::physics::flow::g;
+use crate::scene::draw_store::DRAW;
 use crate::scene::x87_mem::{fild, fstp};
 
 /// `off_606320`: the camera modes' records (0x34).
@@ -15,7 +17,7 @@ pub const MODES: usize = 0x606320;
 
 /// esi as the original leaves it: the mode's record.
 pub fn record() -> u32 {
-    let mode = (g(0x71A65C) as i32).clamp(0, 0x33);
+    let mode = (CAR.camera_view.get() as i32).clamp(0, 0x33);
     g(MODES + 4 * mode as usize)
 }
 
@@ -25,14 +27,17 @@ pub fn rd(x: u32) -> u32 {
 
 /// The share done (0x438498 .. 0x4384BD): eax as left (the time held).
 pub fn share_done(record: u32) -> u32 {
-    let mut eax = g(0x719FE0).wrapping_sub(g(0x71A668));
+    let mut eax = CAR
+        .step_clock
+        .get()
+        .wrapping_sub(CAR.camera_switch_clock.get());
     if (eax as i32) < 0 {
         eax = 0;
     }
     if eax >= rd(record + 0x3C) {
         eax = rd(record + 0x3C);
     }
-    p(0x62400C, eax);
+    DRAW.scratch.set(eax);
     x87_1(crate::race::store::asm_base() as usize, record as usize);
     eax
 }

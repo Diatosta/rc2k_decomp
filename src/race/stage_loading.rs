@@ -5,6 +5,8 @@
 
 use crate::errors::Refused;
 use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::physics::tables_store::PHYSICS;
+use crate::race::blocks_store::CAR_BLOCKS;
 
 /// "------", "SHAUNINITEVERYTHING - START", ": loading screen / ..", ": loadlevel_init",
 /// ": doingamemusic", ": createcontrols", ": race init", "- FINIS", "------".
@@ -22,7 +24,6 @@ const WORDS: [&std::ffi::CStr; 9] = [
 const REPLAY_RVA: usize = crate::race::sounds::REPLAY_RVA; // dword_71C3E0
 const CAR_MINUS_4_RVA: usize = rva(0x70F3E8); // dword_70F3E8
 const NO_PLACE_RVA: usize = rva(0x64BB18); // dword_64BB18
-const CLOCK_RVA: usize = rva(0x613830); // g_sceneClock
 /// The starting values: (address, value; `None` the clock).
 const STARTS: [(usize, Option<u32>); 7] = [
     (0x5CC3BC, None),
@@ -33,9 +34,6 @@ const STARTS: [(usize, Option<u32>); 7] = [
     (0x6D1482, Some(u32::MAX)),
     (0x6D1492, Some(u32::MAX)),
 ];
-/// Each car block's +0xFB4 (3) and +0xFB0 (8), from 0x7103A0 / 0x71039C, 0xFE0 apart.
-const BLOCK_FB4: usize = 0x7103A0;
-const BLOCK_FB0: usize = 0x71039C;
 const LAST_STARTS: [(usize, u32); 5] = [
     (0x621480, 1),
     (0x621890, 1),
@@ -104,15 +102,15 @@ pub unsafe fn load_stage() -> Result<(), Refused> {
         indent(3);
         crate::drive::race_init::race_init()?;
         crate::scene::restart_clock::restart_clock(crate::system::tick_count::tick_count());
-        let clock: u32 = game_read(CLOCK_RVA);
+        let clock: u32 = PHYSICS.scene_clock.bits();
         for (at, value) in STARTS {
             put(at, value.unwrap_or(clock));
         }
-        for n in 0..8 {
-            put(BLOCK_FB4 + n * 0xFE0, 3);
+        for car in &CAR_BLOCKS.cars[..8] {
+            car.light_hold_steps.set(3);
         }
-        for n in 0..8 {
-            put(BLOCK_FB0 + n * 0xFE0, 8);
+        for car in &CAR_BLOCKS.cars[..8] {
+            car.value_jump_steps.set(8);
         }
         for (at, value) in LAST_STARTS {
             put(at, value);

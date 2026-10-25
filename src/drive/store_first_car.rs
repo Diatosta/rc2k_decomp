@@ -7,13 +7,13 @@
 //! Callers: `drive::finish_run`, `sub_4293CB` (twice). Refuses what `store_car` refuses.
 
 use crate::errors::Refused;
-use crate::physics::flow::p;
+use crate::race::work_store::RACE_WORK;
 
 /// The Rust version.
 /// The Rust version. The registers and ZF it leaves are read by no caller (liveness: ZF
 /// after `sub_4293CB`'s call has no read point).
 pub unsafe fn store_first_car() -> Result<(), Refused> {
-    p(0x71B3F8, 0);
+    RACE_WORK.current_car.set(0);
     unsafe { crate::drive::store_car::store_car() }?;
     Ok(())
 }

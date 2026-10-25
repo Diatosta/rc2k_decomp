@@ -23,6 +23,10 @@
 use crate::errors::Refused;
 use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::math::x87;
+use crate::physics::car_store::CAR;
+use crate::physics::tables_store::PHYSICS;
+use crate::race::numbers_store::NUMBERS;
+use crate::scene::draw_store::DRAW;
 use crate::scene::x87_mem::{fild, fistp, fld, fstp};
 use rc2k_core::physics::car_specs::{
     OWN_FIGURES_FROM, RECORD_LEN, check_drive, gear_count, record_of,
@@ -52,7 +56,7 @@ fn below(a: u32, b: u32) -> bool {
 
 /// The record of the work car's kind.
 fn record() -> u32 {
-    game_addr(rva(RECORDS)) as u32 + RECORD_LEN * record_of(g(0x719FFC))
+    game_addr(rva(RECORDS)) as u32 + RECORD_LEN * record_of(CAR.car_kind.get())
 }
 
 /// The whole-number steps both versions share, after the floats: the torque curve, the
@@ -62,9 +66,9 @@ unsafe fn words(s: u32) {
         for k in 0..9u32 {
             p(0x614B7C + 4 * k as usize, at(s + 0x7C + 4 * k));
         }
-        p(0x614C18, at(s + 0xA0));
+        PHYSICS.spec_a0.set(at(s + 0xA0));
         let count = at(s + 0x1C);
-        p(0x614C10, gear_count(count));
+        PHYSICS.gear_count.set(gear_count(count));
         for (to, from) in [
             (0x614C14usize, 0x20u32),
             (0x614BB4, 0x2C),
@@ -81,19 +85,20 @@ unsafe fn words(s: u32) {
 /// The Rust version (the exact one, for `physics::car_physics_step` and
 /// `physics::test_drive`).
 pub unsafe fn load_car_specs() -> Result<(), Refused> {
-    let kind = g(0x719FFC);
+    let kind = CAR.car_kind.get();
     let s = record();
     let drive = check_drive(unsafe { at(s + 0x18) })?;
-    p(0x71A018, drive);
+    CAR.drive_kind.set(drive);
     // 0x4214A7 .. 0x421543
     x87_1(s as usize, crate::race::store::asm_base() as usize);
-    if below(g(0x71A1B4), g(0x5C5D18)) {
-        p(0x71A1B4, x87::loaded(g(0x5C5D18)));
+    if below(CAR.engine_speed_limit.bits(), NUMBERS.thousand.bits()) {
+        CAR.engine_speed_limit
+            .set_bits(x87::loaded(NUMBERS.thousand.bits()));
     }
     for k in 0..4usize {
         let at_k = 0x5CB96C + 4 * k;
-        if below(g(at_k), g(0x5C5D50)) {
-            p(at_k, x87::loaded(g(0x5C5D50)));
+        if below(g(at_k), NUMBERS.eight.bits()) {
+            p(at_k, x87::loaded(NUMBERS.eight.bits()));
         }
     }
     unsafe {
@@ -104,13 +109,19 @@ pub unsafe fn load_car_specs() -> Result<(), Refused> {
             // 0x42170D .. 0x421755
             x87_3(crate::race::store::asm_base() as usize);
         }
-        p(0x614BA0, g(0x613EFC));
-        p(0x614BA4, g(0x613F00));
-        p(0x614BA8, g(0x613F14));
+        PHYSICS
+            .spec_grip
+            .set_bits(crate::physics::tables_store::PHYSICS.spec_default_ba0.get());
+        PHYSICS
+            .spec_grip_b
+            .set_bits(crate::physics::tables_store::PHYSICS.spec_default_ba4.get());
+        PHYSICS
+            .spec_wheel
+            .set_bits(crate::physics::tables_store::PHYSICS.spec_default_ba8.get());
         // 0x421794 .. 0x4217B2
         x87_4(s as usize, crate::race::store::asm_base() as usize);
-        p(0x62400C, at(s + 0x5C));
-        p(0x61476C, at(s + 0x60));
+        DRAW.scratch.set(at(s + 0x5C));
+        PHYSICS.downforce_spec.set(at(s + 0x60));
         // 0x4217CA .. 0x4217E3
         x87_5(crate::race::store::asm_base() as usize, drive as usize);
         Ok(())

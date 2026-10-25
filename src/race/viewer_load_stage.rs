@@ -23,6 +23,7 @@
 
 use crate::errors::Refused;
 use crate::gfx::fonts_store::FONTS;
+use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::state_store::RACE_STATE;
 use crate::race::viewer::{OPEN, gb, get, put};
 use crate::session::Dword;
@@ -67,7 +68,7 @@ pub fn viewer_load_stage() -> Result<(), Refused> {
             .set(crate::sound::store::RACE_SOUNDS.one_player.get());
         let door = gb(DOOR) as u32;
         RACE_STATE.settings.cars[0].race_number.set(door);
-        put(0x70FE94, door); // g_carBlockStore.gap_a28 + 0x80
+        CAR_BLOCKS.cars[0].start_slot_value.set(door);
         unsafe {
             crate::logfile::log_write::log_write(DOOR_TEXT.as_ptr().cast(), false, 1);
             crate::logfile::log_int::log_int(door as i32, true, 1);

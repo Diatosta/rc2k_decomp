@@ -8,9 +8,10 @@
 //!
 //! Caller: `sub_43DFB1` (0x43E523).
 
-use crate::framework::{game_addr, game_read, rva};
 use crate::math::x87;
 use crate::math::x87_run::{abs_compare, abs_div_add_mul};
+use crate::physics::car_store::CAR;
+use crate::physics::tables_store::PHYSICS;
 
 unsafe fn at(a: u32) -> u32 {
     unsafe { (a as *const u32).read_unaligned() }
@@ -20,21 +21,22 @@ unsafe fn put(a: u32, v: u32) {
     unsafe { (a as *mut u32).write_unaligned(v) }
 }
 
-fn k(a: usize) -> u32 {
-    unsafe { game_read(rva(a)) }
-}
-
 /// The core: the factor, the speed and the two forces at these places.
 pub unsafe fn ease_low_speed_forces_at(factor: u32, speed: u32, forces: [u32; 2]) {
     unsafe {
         put(factor, 0x3F80_0000);
-        let limit = k(0x613E64);
+        let limit = PHYSICS.low_speed_limit.bits();
         if abs_compare(at(speed), limit) & 0x100 == 0 {
             return;
         }
         put(
             factor,
-            abs_div_add_mul(at(speed), limit, k(0x613E68), k(0x613E6C)),
+            abs_div_add_mul(
+                at(speed),
+                limit,
+                PHYSICS.low_speed_add.bits(),
+                PHYSICS.low_speed_scale.bits(),
+            ),
         );
         for f in forces {
             put(f, x87::mul(at(f), at(factor)));
@@ -43,8 +45,14 @@ pub unsafe fn ease_low_speed_forces_at(factor: u32, speed: u32, forces: [u32; 2]
 }
 
 fn game() -> (u32, u32, [u32; 2]) {
-    let g = |a: usize| game_addr(rva(a)) as u32;
-    (g(0x61475C), g(0x71A184), [g(0x614248), g(0x61424C)])
+    (
+        (PHYSICS.low_speed_share.addr() as u32),
+        (CAR.local_velocity[2].addr() as u32),
+        [
+            (PHYSICS.drive_forces[0].addr() as u32),
+            (PHYSICS.drive_forces[1].addr() as u32),
+        ],
+    )
 }
 
 /// The Rust version (the exact one, for `physics::drive_wheels_step`).

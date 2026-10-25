@@ -10,12 +10,11 @@
 //! See `net/mod.rs`. One caller, `net::race_step`. Calls nothing.
 
 use crate::net::store::NET;
-use crate::net::{CAR, a};
 use rc2k_core::net::race;
 
 /// The Rust version.
 pub fn follow_remote() {
-    let car = a(CAR);
+    let car = crate::physics::car_store::car_addr() as u32;
     let rd = |at: u32| unsafe { (at as *const u32).read_volatile() };
     let wr = |at: u32, v: u32| unsafe { (at as *mut u32).write_volatile(v) };
     // Converted: `rc2k_core::net::race::glide` (the block read only with the race on).

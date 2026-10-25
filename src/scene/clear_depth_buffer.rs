@@ -9,13 +9,13 @@
 //! and height, and `d3d::clear_viewport` (0x44E9D9: the viewport's Clear with that one
 //! rectangle and flag 2, the depth buffer; Direct3D, not ported). Three callers.
 
-use crate::framework::{game_read, game_write, rva};
+use crate::framework::{game_read, rva};
+use crate::scene::draw_store::DRAW;
 use crate::session::SCREEN;
 
 // ---- game data ----
 
 const HAS_3D_RVA: usize = rva(0x5CDA8C); // dword_5CDA8C
-const RECTANGLE_RVA: usize = rva(0x624138); // dword_624138 .. dword_624144
 
 // ---- Rust version ----
 
@@ -28,7 +28,7 @@ pub fn clear_depth_buffer() {
             return;
         }
         let (width, height): (u32, u32) = (SCREEN.width.get(), SCREEN.height.get());
-        game_write(RECTANGLE_RVA, [0, 0, width, height]);
+        crate::session::write_bits(&DRAW.cleared_rectangle, [0, 0, width, height]);
         crate::platform_3d::clear_viewport();
     }
 }

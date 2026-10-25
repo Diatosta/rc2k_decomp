@@ -17,7 +17,10 @@
 
 use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::math::x87_run::{ext_div2, int_80};
+use crate::physics::car_store::CAR;
 use crate::race::frame_draw::sample_noise;
+use crate::race::numbers_store::NUMBERS;
+use crate::scene::draw_store::DRAW;
 use rc2k_core::physics::ground::{noise_level, rough_floor};
 
 fn g(x: usize) -> u32 {
@@ -44,20 +47,24 @@ unsafe fn sample(x: usize) -> u32 {
 pub unsafe fn surface_noise() {
     unsafe {
         let first = scaled(sample(0xA2AB34), g(0x609344), g(0x609348));
-        p(0x71A8D8, first);
-        p(0x71A8DC, first);
+        CAR.surface_noise_a.set(first);
+        CAR.surface_noise_b.set(first);
         let second = scaled(sample(0xA2AB04), g(0x60AD18), g(0x60AD1C));
-        p(0x71A8E0, second);
+        CAR.surface_noise_second.set(second);
         let floor = rough_floor(second, g(0x60AD10));
-        p(0x62400C, floor);
+        DRAW.scratch.set(floor);
         p(
             0x71A258,
-            ext_div2(int_80(floor as i32, false), g(0x5C5E2C), 0x3F80_0000),
+            ext_div2(
+                int_80(floor as i32, false),
+                NUMBERS.k256.bits(),
+                0x3F80_0000,
+            ),
         );
         if g(0x60934C) != 0 {
-            p(0x71A8D8, 0);
+            CAR.surface_noise_a.set(0);
         } else {
-            p(0x71A8DC, 0);
+            CAR.surface_noise_b.set(0);
         }
     }
 }

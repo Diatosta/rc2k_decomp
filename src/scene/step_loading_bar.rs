@@ -10,14 +10,12 @@
 //! Refuses no function to call.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, rva};
+use crate::race::vars_store::RACE_VARS;
 
 // ---- game data ----
 
 /// `dword_623634` the low end, `dword_623638` the high end.
-const ENDS_RVA: usize = rva(0x623634);
-const PROGRESS_RVA: usize = rva(0x623700); // dword_623700
-const SHOW_RVA: usize = rva(0x623704); // dword_623704
 const BAR_RVA: usize = rva(0x4467C7); // race::loading_bar_frame
 const NOTHING_RVA: usize = rva(0x4467C6); // nullsub_8
 const SYSTEM_TEXTURES_RVA: usize = rva(0x5DC974); // dword_5DC974
@@ -25,7 +23,7 @@ const SYSTEM_TEXTURES_RVA: usize = rva(0x5DC974); // dword_5DC974
 // ---- Rust version ----
 
 fn ends() -> rc2k_core::scene::loading::BarEnds {
-    let [low, high]: [u32; 2] = unsafe { game_read(ENDS_RVA) };
+    let [low, high] = crate::session::read_bits(&RACE_VARS.bar_span);
     rc2k_core::scene::loading::BarEnds { low, high }
 }
 
@@ -42,12 +40,12 @@ unsafe fn progress(done: u32) -> Option<u32> {
 /// the original's (ebp the span, eax / edx / ebx the progress, esi the function) is passed.
 pub unsafe fn step_loading_bar(done: u32) -> Result<(), Refused> {
     unsafe {
-        let show: u32 = game_read(SHOW_RVA);
+        let show: u32 = RACE_VARS.bar_function.bits();
         if show == 0 {
             return Err(BadInput("no function to show the loading with").into());
         }
         if let Some(progress) = progress(done) {
-            game_write(PROGRESS_RVA, progress);
+            RACE_VARS.bar_share.set_bits(progress);
         }
         if show == game_addr(BAR_RVA) as u32 {
             crate::race::loading_bar_frame::loading_bar_frame()

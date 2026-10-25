@@ -6,14 +6,12 @@
 //! Caller: `sub_43B635` (0x43B883), every physics step.
 
 use crate::errors::Refused;
-use crate::framework::{game_addr, rva};
 use crate::physics::apply_forces::apply_forces;
-
-const RECORDS_RVA: usize = rva(0x614A50);
+use crate::physics::tables_store::PHYSICS;
 const COUNT: u32 = 7;
 
 /// The Rust version.
 pub unsafe fn apply_contact_forces() -> Result<(), Refused> {
-    let first = game_addr(RECORDS_RVA) as u32;
+    let first = (PHYSICS.contacts.as_ptr() as usize) as u32;
     unsafe { apply_forces(first, COUNT) }
 }

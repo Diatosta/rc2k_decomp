@@ -7,6 +7,7 @@ use crate::framework::rva;
 use crate::marks::snow::{SNOW, SNOW_CURVE, SNOW_LIGHT, SNOW_TABLES, SNOW_VARS};
 use crate::marks::store::{Slot, game_addr, game_read, game_write};
 use crate::math::x87;
+use crate::physics::tables_store::PHYSICS;
 use crate::session::{Bytes, Dword, Float};
 
 /// The marks' clock (`marks::tick_clock`) (IDA 0x764FC8 .. 0x764FFC, the image's layout; phase 7, typed state).
@@ -66,7 +67,6 @@ pub const SEED_RVA: usize = rva(0x71C8CC); // g_marksSeed
 const WAVE_DONE_TARGET_RVA: usize = rva(0x4C4EA0); // nullsub_23
 pub const WAVE_LEVELS: u32 = 0x11;
 pub const SINES: u32 = 0x140;
-pub const CLOCK_RVA: usize = rva(0x613830); // g_sceneClock
 const FIRST_RECIPROCAL_RVA: Slot = Slot::at(0x93CC10); // flt_93CC10
 const RECIPROCAL_SCALE_RVA: Slot = Slot::at(0x7651BC); // flt_7651BC
 const TICKS_SCALE_RVA: Slot = Slot::at(0x93CC14); // flt_93CC14
@@ -144,7 +144,7 @@ pub fn clear_slots() {
 pub unsafe fn tick_clock() {
     let c = &CLOCK;
     unsafe {
-        let clock: u32 = game_read(CLOCK_RVA);
+        let clock: u32 = PHYSICS.scene_clock.bits();
         if c.started.get() == 0 {
             c.started.set(1);
             for r in [&c.last, &c.now, &c.before] {

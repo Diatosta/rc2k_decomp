@@ -12,10 +12,8 @@
 //! A `jmp` is its first instruction: `.private_copy` with `.manual_patch`.
 //! Callers: `drive::next_camera_view`, `sub_43A649` (0x43A94F), and code at 0x43B62E.
 
-use crate::framework::rva;
 use rc2k_core::drive::camera_views::CameraView;
 
-pub const STEP_RVA: usize = rva(0x719FE0); // dword_719FE0
 unsafe fn put(a: u32, v: u32) {
     unsafe { (a as *mut u32).write_unaligned(v) }
 }

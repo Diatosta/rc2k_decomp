@@ -4,12 +4,8 @@
 //! named in IDA by their addresses (`g_carGear` 0x71A1AC, ...; `physics/gearing.rs`).
 
 use crate::errors::Refused;
-use crate::framework::{game_addr, rva};
 
-pub const CAR_RVA: usize = rva(0x719FD8); // g_car: the current car's work copy
 pub const CAR_LEN: usize = 0xFE0;
-pub const CURRENT_CAR_RVA: usize = rva(0x71B3F8); // g_currentCar: its number (& 7)
-pub use crate::race::objects::CAR_BLOCKS_RVA; // g_carBlocks: eight block pointers
 
 /// Where a copy of the car functions finds its variables: the game's, or a test's.
 #[derive(Clone, Copy)]
@@ -22,9 +18,9 @@ pub struct CarPlaces {
 impl CarPlaces {
     pub fn game() -> Self {
         Self {
-            current: game_addr(CURRENT_CAR_RVA) as u32,
-            blocks: game_addr(CAR_BLOCKS_RVA) as u32,
-            work: game_addr(CAR_RVA) as u32,
+            current: crate::race::work_store::RACE_WORK.current_car.addr() as u32,
+            blocks: crate::race::work_store::RACE_WORK.car_blocks.as_ptr() as u32,
+            work: crate::physics::car_store::car_addr() as u32,
         }
     }
 

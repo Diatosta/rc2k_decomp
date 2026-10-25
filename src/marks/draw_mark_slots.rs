@@ -28,6 +28,8 @@ use crate::marks::mark_slots::{SLOTS, TUNING};
 use crate::marks::setup::CLOCK;
 use crate::marks::store::{Slot, game_addr, game_read, game_write};
 use crate::math::x87;
+use crate::race::numbers_store::NUMBERS;
+use crate::scene::draw_store::DRAW;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
 
@@ -37,8 +39,6 @@ const POINTS_RVA: Slot = Slot::at(0x769312); // flt_769312: 12 bytes each
 const VIEW_RVA: usize = rva(0x5EA2CC); // g_viewMatrix
 const CORNERS_RVA: Slot = Slot::at(0x8EB971); // g_marksCorners
 const UV_K_RVA: Slot = Slot::at(0x8EB969); // flt_8EB969
-const NEAR_RVA: usize = rva(0x5C5E18); // flt_5C5E18
-const FOCAL_RVA: usize = rva(0x624088); // flt_624088
 const CENTRE_RVA: [usize; 2] = [rva(0x62409C), rva(0x6240A0)];
 const Z_K_RVA: Slot = Slot::at(0x8EB96D); // flt_8EB96D
 const VERTICES_RVA: usize = rva(0x9605A0); // g_polygonVertices: TLVertex[4]
@@ -114,11 +114,11 @@ pub unsafe fn draw_mark_slots() -> Result<(), Refused> {
             for n in 0..4 {
                 game_write(VERTICES_RVA + 0x20 * n + 0x10, 0xFFFF_FFFFu32);
             }
-            if (x as i32) <= game_read::<i32>(NEAR_RVA) {
+            if (x as i32) <= (NUMBERS.k4096_a.bits() as i32) {
                 continue;
             }
             let [px, py, half] = x87::slot_project(
-                game_read(FOCAL_RVA),
+                DRAW.view_scale.bits(),
                 x,
                 z,
                 game_read(CENTRE_RVA[0]),

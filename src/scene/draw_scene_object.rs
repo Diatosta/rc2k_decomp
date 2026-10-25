@@ -19,6 +19,8 @@
 
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::framework::{game_read, game_write, rva};
+use crate::race::numbers_store::NUMBERS;
+use crate::race::work_store::RACE_WORK;
 use crate::scene::draw_object::draw_object_in_game;
 use crate::scene::draw_shown_object::draw_shown_object;
 
@@ -26,9 +28,7 @@ use crate::scene::draw_shown_object::draw_shown_object;
 
 const OBJECT_RVA: usize = rva(0x6214FC); // g_objectNumber
 const TEXTURE_SET_RVA: usize = rva(0x639954); // dword_639954
-const IN_RACE_RVA: usize = rva(0x5C5CEC); // g_inRace
 const KINDS_RVA: usize = rva(0x5CD27C); // g_objectKinds
-const BLOCKS_RVA: usize = rva(0x71B3B8); // g_carBlocks
 const FACE_COUNTS_RVA: usize = rva(0x632F70); // dword_632F70
 const MODE_RVA: usize = rva(0x6365C4); // dword_6365C4
 // scene::draw_described_object
@@ -51,11 +51,11 @@ unsafe fn texture_set() -> Result<(u32, u32), Refused> {
         let object: u32 = game_read(OBJECT_RVA);
         let t = rc2k_core::scene::shown::texture_set(
             object,
-            game_read::<u32>(IN_RACE_RVA) != 0,
+            NUMBERS.in_race.bits() != 0,
             0,
             |object| game_read(KINDS_RVA + object as usize * 4),
             |car| {
-                let block: u32 = game_read(BLOCKS_RVA + car as usize * 4);
+                let block: u32 = RACE_WORK.car_block(car as usize);
                 (block != 0).then(|| ((block + 0x24) as *const u32).read_unaligned())
             },
         )

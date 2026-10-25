@@ -14,25 +14,26 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{game_read, game_write, rva};
+use crate::framework::rva;
 use crate::menu::draw_lists_store::DRAW_LISTS;
 use crate::menu::flow_store::SCREEN_FLOW;
 use crate::menu::menus_store::MENUS;
 use crate::menu::screen_items_store::{SCREEN_ITEMS, slot};
 use crate::menu::screen_loop::{Carried, List, Screen, Step, prepare_scene, screen_entry};
+use crate::scene::draw_store::DRAW;
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
 unsafe fn prepare(c: &mut Carried) -> Result<(), Refused> {
     unsafe {
-        game_write(rva(0x623FB0), 0x0u32);
-        game_write(rva(0x623FB4), 0x0u32);
-        game_write(rva(0x624080), 0x100u32);
+        DRAW.view_offset[0].set(0x0u32);
+        DRAW.view_offset[1].set(0x0u32);
+        DRAW.view_zoom.set(0x100u32);
         prepare_scene(c);
-        game_write(rva(0x6241DC), 0x0u32);
-        game_write(rva(0x6241E0), 0x320u32);
-        game_write(rva(0x6241EC), game_read::<i32>(rva(0x6241DC)) as f32);
-        game_write(rva(0x6241F0), game_read::<i32>(rva(0x6241E0)) as f32);
+        DRAW.clip_edges[2].set(0x0u32);
+        DRAW.clip_edges[3].set(0x320u32);
+        DRAW.clip_screen[2].set(DRAW.clip_edges[2].bits() as i32 as f32);
+        DRAW.clip_screen[3].set(DRAW.clip_edges[3].bits() as i32 as f32);
     }
     Ok(())
 }

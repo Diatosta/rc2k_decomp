@@ -29,13 +29,13 @@
 //! instructions are `asm_reference` in the tests (2026-10-24).
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, game_ptr, game_read, game_write, rva};
+use crate::framework::{game_ptr, game_read, rva};
+use crate::race::course_store::COURSE;
+use crate::race::vars_store::RACE_VARS;
 use crate::scene::draw_polygon::CHECKED_RVA;
+use crate::scene::draw_store::DRAW;
 use crate::scene::polygon::{dword, put};
-use crate::scene::project_point::{
-    CENTRE_X_RVA, CENTRE_Y_RVA, FLAT_DEPTH_RVA, FLAT_RVA, NEAR, RECORDS_RVA, SCALE_RVA, rotate,
-    to_screen,
-};
+use crate::scene::project_point::{CENTRE_Y_RVA, FLAT_RVA, NEAR, RECORDS_RVA, rotate, to_screen};
 use crate::scene::x87_mem::{fild, fistp, fld, fstp};
 
 // ---- game data ----
@@ -47,9 +47,6 @@ const POINT_COUNT_RVA: usize = rva(0x632370); // dword_632370
 const NORMAL_COUNT_RVA: usize = rva(0x632770); // dword_632770
 const TABLE_RVA: usize = rva(0x5C6FA4); // dword_5C6FA4
 const MATRIX_RVA: usize = rva(0x5EA40C); // off_5EA40C
-const MOVE_BY_RVA: usize = rva(0x623DD0); // dword_623DD0
-const MOVE_FRACTION_RVA: usize = rva(0x623DD4); // flt_623DD4
-const MOVED_RVA: usize = rva(0x5CCE18); // unk_5CCE18
 
 // ---- Rust version ----
 
@@ -62,7 +59,7 @@ unsafe fn moved(from: usize, by: u32) {
         let (a, b) = (read(from), read(other));
         // The fraction, the two points, the result, the fraction as it is stored.
         let mut w = [
-            game_read::<u32>(MOVE_FRACTION_RVA),
+            RACE_VARS.move_fraction.bits(),
             a[0],
             a[1],
             a[2],
@@ -75,8 +72,12 @@ unsafe fn moved(from: usize, by: u32) {
             0,
         ];
         moved_at(w.as_mut_ptr().cast());
-        game_write(MOVED_RVA, [w[7], w[8], w[9]]);
-        game_write(CHECKED_RVA, w[10]);
+        // The original stores the three from `point_moved`, y and z on over the first two
+        // group masks (`notes/bugs.md`).
+        COURSE.point_moved.set(w[7]);
+        COURSE.group_masks[0].set(w[8]);
+        COURSE.group_masks[1].set(w[9]);
+        DRAW.scratch.set_bits(w[10]);
     }
 }
 
@@ -196,7 +197,7 @@ pub unsafe fn place_object_points() -> Result<(), Refused> {
             return Ok(());
         }
         let matrix = object.matrix as *const u32;
-        let move_by: u32 = game_read(MOVE_BY_RVA);
+        let move_by: u32 = RACE_VARS.move_by.bits();
         let mut number = object.first;
         let mut from = object.table.wrapping_add(object.first.wrapping_mul(12));
         for _ in 0..object.points {
@@ -204,7 +205,8 @@ pub unsafe fn place_object_points() -> Result<(), Refused> {
             put(record, number);
             let point = if move_by != 0 {
                 moved(from as usize, move_by);
-                game_addr(MOVED_RVA)
+                // x, y, z read on into `group_masks[0]`, `[1]`, as stored.
+                COURSE.point_moved.addr()
             } else {
                 from as usize
             };
@@ -213,10 +215,10 @@ pub unsafe fn place_object_points() -> Result<(), Refused> {
             put(record + 0x1C, 0);
             if f32::from_bits(dword(record + 0x18)) >= NEAR {
                 let v = [
-                    game_read(SCALE_RVA),
-                    game_read(CENTRE_X_RVA),
+                    DRAW.view_scale.bits(),
+                    DRAW.view_centre[0].bits(),
                     game_read(CENTRE_Y_RVA),
-                    game_read(FLAT_DEPTH_RVA),
+                    COURSE.flat_depth.bits(),
                 ];
                 let flat = game_read::<u32>(FLAT_RVA) != 0;
                 to_screen(record as *mut u32, &v, flat, game_ptr(CHECKED_RVA));

@@ -12,8 +12,8 @@
 //! Plain Rust since 2026-10-24 (the x87's arithmetic in `X`, `math/x87_float.rs`); the
 //! original's instructions are `asm_reference` in the tests.
 
-use crate::framework::{game_read, game_write, rva};
-use crate::scene::draw_polygon::CHECKED_RVA;
+use crate::framework::{game_read, rva};
+use crate::scene::draw_store::DRAW;
 use crate::scene::x87_mem::{fistp, fld};
 
 // ---- game data ----
@@ -29,7 +29,7 @@ pub unsafe fn light_dot() -> i32 {
         let v: [u32; 7] = game_read(INPUTS_RVA);
         let mut out = 0i32;
         dot(v.as_ptr().cast(), (&raw mut out).cast());
-        game_write(CHECKED_RVA, out);
+        DRAW.scratch.set_bits(out as u32);
         out
     }
 }

@@ -10,12 +10,12 @@
 //!
 //! Caller: `menu::calc_cpu_times`. Logs through the `logfile::` Rust versions (level 1).
 use crate::errors::Refused;
-use crate::framework::{game_read, game_write, rva};
+use crate::framework::{game_read, rva};
 use crate::menu::standings::*;
 use crate::menu::state_store::MENU_STATE;
+use crate::race::work_store::RACE_WORK;
 use crate::session::{read_all, write_all};
 
-const KEPT_RVA: [usize; 2] = [rva(0x71C3D8), rva(0x71C3DC)]; // flt_71C3D8, flt_71C3DC
 const FACTORS_RVA: [usize; 2] = [rva(0x60463C), rva(0x604654)]; // flt_60463C, flt_604654: 6
 const TEXTS_RVA: [&std::ffi::CStr; 4] = [c"stage times info", c"a7x", c"a8x", c"times a8-a5"];
 /// The section held to 0 .. 5.
@@ -40,8 +40,8 @@ pub unsafe fn scale_stage_times(record: u32) -> Result<(), Refused> {
     unsafe {
         let times: [u32; 4] = read_all(&MENU_STATE.menus.class_times);
         let (times, f) = scaled(times, section);
-        game_write(KEPT_RVA[0], f[0]);
-        game_write(KEPT_RVA[1], f[1]);
+        RACE_WORK.stage_time_scales[0].set_bits(f[0]);
+        RACE_WORK.stage_time_scales[1].set_bits(f[1]);
         write_all(&MENU_STATE.menus.class_times, times);
         let text = |n: usize| TEXTS_RVA[n].as_ptr() as usize as *const u8;
         log_write(text(0), false, 1);

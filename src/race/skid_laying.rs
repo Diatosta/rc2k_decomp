@@ -5,6 +5,12 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::physics::car_store::Car;
+use crate::race::frame_store::FRAME_WORK;
+use crate::race::vars_store::RACE_VARS;
+use crate::race::view_store::RACE_VIEW;
+use crate::race::work_store::RACE_WORK;
+use crate::scene::draw_store::DRAW;
 
 fn k(a: u32) -> u32 {
     unsafe { game_read(rva(a as usize)) }
@@ -97,11 +103,11 @@ pub unsafe fn add_skid_point(slot: u32) -> Result<(), Refused> {
 /// What `lay_skidmarks` reads: the cars' blocks.
 unsafe fn cars_refuse() -> Result<(), Refused> {
     for n in 0..k(0x63DB90).min(8) {
-        if k(0x71B3B8 + 4 * n) == 0 {
+        if RACE_WORK.car_block(n as usize) == 0 {
             return Err(BadInput("a race car without its block").into());
         }
     }
-    if k(0x63DB90) > 8 {
+    if RACE_VIEW.race_cars.get() > 8 {
         return Err(BadInput("more than eight race cars").into());
     }
     Ok(())
@@ -118,7 +124,7 @@ pub unsafe fn lay_skidmarks() -> Result<(), Refused> {
     use crate::race::skidmarks::int_80;
     unsafe {
         cars_refuse()?;
-        let count = k(0x63DB90);
+        let count = RACE_VIEW.race_cars.get();
         if count == 0 {
             return Ok(());
         }
@@ -126,7 +132,7 @@ pub unsafe fn lay_skidmarks() -> Result<(), Refused> {
         let zero = int_80(0);
         for c in 0..count {
             w(0x645B14, 1 << (c & 31));
-            let car = k(0x71B3B8 + 4 * c);
+            let car = RACE_WORK.car_block(c as usize);
             for wheel in 0..4u32 {
                 let slot = car + 0xF48 + 4 * wheel;
                 let on = get(car + 0x600 + 4 * wheel) != 0
@@ -134,7 +140,7 @@ pub unsafe fn lay_skidmarks() -> Result<(), Refused> {
                         get(car + 0xF40 + 4 * (wheel / 2)),
                         grip,
                     )
-                    && get(car + 0x298) & (1 << (5 + wheel)) != 0;
+                    && Car::at(car).parts_present.bits() & (1 << (5 + wheel)) != 0;
                 if !on {
                     put(slot, u32::MAX);
                     continue;
@@ -147,14 +153,14 @@ pub unsafe fn lay_skidmarks() -> Result<(), Refused> {
                 } else {
                     0xFFFF_EAAB
                 };
-                w(0x62400C, side);
+                DRAW.scratch.set(side);
                 let t = crate::scene::rotate_point::rotate_point(
                     car + 0xB4,
                     [int_80(side), zero, zero],
                 );
                 for (i, v) in t.into_iter().enumerate() {
                     let n = crate::math::x87_load::tbyte_to_int(v);
-                    w(0x62400C, n);
+                    DRAW.scratch.set(n);
                     w(
                         PLACE + 4 * i as u32,
                         k(PLACE + 4 * i as u32).wrapping_add(n),
@@ -171,7 +177,7 @@ pub unsafe fn lay_skidmarks() -> Result<(), Refused> {
 /// `dword_6416BC` is set. Its one caller, `race::draw_race_scene`, reads no register it
 /// leaves.
 pub unsafe fn lay_skidmarks_if_on() -> Result<(), Refused> {
-    if k(0x6235E8) != 0 || k(0x6416BC) != 0 {
+    if RACE_VARS.scene_switch.get() != 0 || FRAME_WORK.still_2.get() != 0 {
         return Ok(());
     }
     unsafe { lay_skidmarks() }

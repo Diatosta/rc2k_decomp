@@ -12,7 +12,7 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{game_write, rva};
+use crate::framework::rva;
 use crate::menu::cheats_store::CHEAT_VARS;
 use crate::menu::draw_lists_store::DRAW_LISTS;
 use crate::menu::event_store::EVENT_STATE;
@@ -24,6 +24,7 @@ use crate::menu::screen_loop::{
     Callee, Carried, List, Screen, Step, carousel, prepare_scene, screen_entry,
 };
 use crate::menu::state_store::MENU_STATE;
+use crate::scene::draw_store::DRAW;
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
@@ -37,9 +38,9 @@ unsafe fn before(c: &mut Carried) -> Result<(), Refused> {
 
 unsafe fn set_up_first(c: &mut Carried) -> Result<(), Refused> {
     unsafe {
-        game_write(rva(0x623FB0), 0xFFFFFF60u32);
-        game_write(rva(0x623FB4), 0xFFFFFF9Cu32);
-        game_write(rva(0x624080), 0x100u32);
+        DRAW.view_offset[0].set(0xFFFFFF60u32);
+        DRAW.view_offset[1].set(0xFFFFFF9Cu32);
+        DRAW.view_zoom.set(0x100u32);
         prepare_scene(c);
         SCREEN_FLOW.turning.set(0x1u32);
         MENU_STATE.carousel.menu.set(0xBu32);

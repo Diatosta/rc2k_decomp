@@ -9,12 +9,10 @@
 //!
 //! Caller: `physics::update_car_angles`.
 
-use crate::framework::{game_addr, game_read, rva};
 use crate::math::x87_run::mul3_to_int;
+use crate::physics::car_store::CAR;
 use crate::physics::matrix_angles::{AnglePlaces, matrix_angles_at};
-use crate::race::stage_prefs::CRASH_MATRIX_RVA;
-
-const INTS_RVA: usize = rva(0x71A998); // dword_71A998 (from D8), 99C (from D4), 9A0 (from DC)
+use crate::race::numbers_store::NUMBERS;
 
 /// The Rust core: the matrix at `m`, `matrix_angles`' variables at `p`, the three ints at
 /// `ints` (+4 from the first angle, +0 from the second, +8 from the third).
@@ -24,9 +22,9 @@ pub unsafe fn car_angles_at(m: u32, p: &AnglePlaces, ints: u32) {
         let scale = |a: u32| {
             mul3_to_int(
                 a,
-                game_read::<u32>(rva(0x5C5D98)),
-                game_read::<u32>(rva(0x5C5E28)),
-                game_read::<u32>(rva(0x5C5DD4)),
+                NUMBERS.k65536.bits(),
+                NUMBERS.k4096.bits(),
+                NUMBERS.one_over_two_pi.bits(),
             )
             .wrapping_shl(4)
         };
@@ -40,6 +38,6 @@ pub unsafe fn car_angles_at(m: u32, p: &AnglePlaces, ints: u32) {
 
 /// The Rust version.
 pub unsafe fn car_angles() {
-    let m = game_addr(CRASH_MATRIX_RVA) as u32;
-    unsafe { car_angles_at(m, &AnglePlaces::game(), game_addr(INTS_RVA) as u32) };
+    let m = CAR.crash_matrix[0].addr() as u32;
+    unsafe { car_angles_at(m, &AnglePlaces::game(), CAR.car_heading.addr() as u32) };
 }

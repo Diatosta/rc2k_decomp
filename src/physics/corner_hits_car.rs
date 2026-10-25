@@ -18,13 +18,14 @@
 use crate::errors::Refused;
 use crate::math::x87_run::{abs_compare, ext_times};
 use crate::physics::flow::{a, g, p};
+use crate::race::numbers_store::NUMBERS;
 use crate::scene::matrix3::extended;
 use crate::scene::rotate_point::rotate_point;
 use crate::scene::x87_mem::{fld, fld80, fstp};
 
 /// Whether the corner is inside (`flt_6D3BC8` .. written either way).
 pub fn corner_inside() -> bool {
-    let k = g(0x5C5D98);
+    let k = NUMBERS.k65536.bits();
     let corner = [0x6D3BD4, 0x6D3BD8, 0x6D3BDC].map(|x| ext_times(extended(g(x)), k));
     let turned = unsafe { rotate_point(a(0x6D3C40), corner) };
     for (n, e) in turned.iter().enumerate() {

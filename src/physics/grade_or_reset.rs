@@ -7,19 +7,21 @@
 //!
 //! Caller: `physics::set_handling` (0x43EB5D), first.
 
-use crate::physics::mirror::Mirror;
-use crate::physics::rate_damage::rate_damage_at;
+use crate::physics::car_store::{CAR, car_addr};
+use crate::physics::rate_damage::rate_damage;
 use crate::physics::reset_car_grades::reset_grades_at;
 
-pub const MODE: u32 = 0x71A234; // dword_71A234: 2 resets the grades
-/// The Rust core on the variables `m` reaches.
-pub unsafe fn grade_or_reset_at(m: &Mirror) {
-    unsafe {
-        if m.get(MODE) == 2 {
-            let car = m.a(0x719FD8);
-            reset_grades_at(car, m.a(0x71A00C), m.a(0x71A008));
-        } else {
-            rate_damage_at(m);
-        }
+/// The Rust version: `CAR.driver_kind` 2 resets the grades.
+pub fn grade_or_reset() {
+    if CAR.driver_kind.get() == 2 {
+        unsafe {
+            reset_grades_at(
+                car_addr() as u32,
+                CAR.suspension_stiffness.addr() as u32,
+                CAR.ride_height.addr() as u32,
+            )
+        };
+    } else {
+        rate_damage();
     }
 }

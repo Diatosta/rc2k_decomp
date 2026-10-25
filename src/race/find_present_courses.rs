@@ -18,9 +18,9 @@ use crate::files::state::BYTES_READ;
 use crate::framework::{game_addr, game_write, rva};
 use crate::race::course_data::set_cdat_number;
 use crate::race::level_init::set_course_number;
+use crate::scene::draw_store::DRAW;
 
 const FLAGS_RVA: usize = rva(0x621518); // dword_621518, 100 flags
-const BUFFER_RVA: usize = rva(0x623FB8); // dword_623FB8
 /// `srclvls\level01\cdat00c`, `files\levels\level01\cdat00c.sq`.
 const PATHS_RVA: [usize; 2] = [rva(0x60B02B), rva(0x60B07A)];
 use rc2k_core::race::stage_objects::COURSES;
@@ -36,7 +36,7 @@ pub fn find_present_courses() -> Result<(), Refused> {
             game_write(FLAGS_RVA + 4 * n as usize, 0u32);
             let present = course_present(PATHS_RVA.len() as u32, |file| {
                 BYTES_READ.store(0, std::sync::atomic::Ordering::Relaxed);
-                let buffer = game_addr(BUFFER_RVA) as u32;
+                let buffer = DRAW.work_dword.addr() as u32;
                 let path = game_addr(PATHS_RVA[file as usize]) as *const u8;
                 read_whole_file(path, buffer as *mut u8, PROBE_BYTES)?;
                 Ok::<u32, Refused>(BYTES_READ.load(std::sync::atomic::Ordering::Relaxed))

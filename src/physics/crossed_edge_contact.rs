@@ -24,10 +24,12 @@
 use crate::errors::Refused;
 use crate::math::x87::mul;
 use crate::physics::contact_force::{RECORD, contact_force};
-use crate::physics::flow::{a, copy3, g, p};
+use crate::physics::flow::{copy3, g, p};
 use crate::physics::scene_point_hits_car::SCENE_POINTS;
+use crate::physics::tables_store::PHYSICS;
 use crate::physics::touch_face::FACES;
 use crate::physics::wall_edge_contact::edge_normal;
+use crate::race::numbers_store::NUMBERS;
 use rc2k_core::physics::walls;
 
 /// `dword_6D3B84`: the probe point that crossed an edge (-1 for none).
@@ -81,18 +83,18 @@ pub fn steps() -> Result<(), Refused> {
         side(x, z)
     });
     let (from, to) = (rd(face + first), rd(face + second));
-    p(0x6141BC, from);
-    p(0x6141C0, to);
+    PHYSICS.crossed_edge[0].set(from);
+    PHYSICS.crossed_edge[1].set(to);
     edge_normal(from, to);
-    p(0x6D31B4, g(0x6141C8));
+    p(0x6D31B4, PHYSICS.wall_heading.get());
     copy3(0x6D30A8, 0x71A170);
     copy3(0x6D30B4, 0x71A15C);
     p(0x6D3090, g(0x6D2214 + 4 * k));
     p(0x6D3094, g(0x6D2314 + 4 * k));
     p(0x6D3098, g(0x6D2414 + 4 * k));
-    p(0x6D3094, mul(g(0x6D3094), g(0x5C5DD0)));
+    p(0x6D3094, mul(g(0x6D3094), NUMBERS.tenth.bits()));
     p(0x6D3100, 0);
-    p(RECORD, a(0x614A70));
+    p(RECORD, PHYSICS.contacts[1].force[0].addr() as u32);
     unsafe { contact_force() };
     unsafe { crate::physics::place_sound_e1::place_sound_e1() }?;
     Ok(())

@@ -4,13 +4,12 @@
 use crate::framework::rva;
 use crate::gfx::screen_state::SCREEN_MODE;
 use crate::input::store::DEVICES;
+use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::state_store::RACE_STATE;
+use crate::race::vars_store::RACE_VARS;
+use crate::race::view_store::RACE_VIEW;
 use crate::store::{game_addr, game_read, game_write};
 
-/// Each car block's +0xB0 (dword_70F49C ..): the player absent.
-pub const ABSENCES: [usize; 8] = [
-    0x70F49C, 0x71047C, 0x71145C, 0x71243C, 0x71341C, 0x7143FC, 0x7153DC, 0x7163BC,
-];
 pub const KIND_ORDER_RVA: usize = rva(0x6051E0); // dword_6051E0: 0x22 kinds
 pub const KIND_ORDER_LEN: u32 = rc2k_core::race::cars::KIND_ORDER_LEN;
 
@@ -22,8 +21,9 @@ pub unsafe fn release_controls() {
 /// `race::clear_player_absences` (0x449D44): the eight blocks' +0xB0 0. Every register
 /// kept.
 pub unsafe fn clear_player_absences() {
-    for a in ABSENCES {
-        unsafe { game_write(rva(a), 0u32) };
+    // Each car block's +0xB0: the player absent.
+    for car in &CAR_BLOCKS.cars[..8] {
+        car.stop_state.set(0);
     }
 }
 
@@ -60,9 +60,6 @@ use crate::errors::{BadInput, Refused};
 pub fn release_stage_textures() {
     crate::platform_3d::release_textures();
 }
-
-const ABSENT_0_RVA: usize = rva(0x70F49C); // the first block's +0xB0
-const TIME_0_RVA: usize = rva(0x70F474); // the first block's +0x88
 pub const SEAL_RVA: usize = rva(0x5BECCC); // the dword after "RCIB"
 
 /// `race::seal_stage_time` (0x41F29D): the first block's time (+0x88, held to
@@ -73,8 +70,8 @@ pub unsafe fn seal_stage_time() {
     unsafe {
         let key = crate::race::replay::SEAL_KEY.get();
         let sealed = rc2k_core::race::seal::seal_time(
-            game_read(ABSENT_0_RVA),
-            || game_read(TIME_0_RVA),
+            CAR_BLOCKS.cars[0].stop_state.bits(),
+            || CAR_BLOCKS.cars[0].stage_time.bits(),
             key,
         );
         (game_addr(SEAL_RVA) as *mut u32).write_unaligned(sealed);
@@ -101,16 +98,10 @@ pub unsafe fn copy_league_table() {
     }
 }
 
-const CAR_KINDS_RVA: usize = rva(0x623858); // g_raceCarKinds
-const SECOND_KIND_RVA: usize = rva(0x62385C); // dword_62385C
 const CAR_RECORDS_LIMIT_RVA: usize = rva(0x5C7980); // dword_5C7980: per kind (0xB0 apart)
 const CAR_RECORDS_VALUE_RVA: usize = rva(0x5C7924); // a00RenaultMaxiM+0x18
 pub const START_VALUES_RVA: [usize; 2] = [rva(0x6D14CA), rva(0x6D14CE)]; // unaligned
-pub const GEAR_CHOICE_RVA: usize = rva(0x6238A4); // dword_6238A4
 const KIND_FLAGS_RVA: usize = rva(0x5C5AC0); // dword_5C5AC0: 0x22
-const PLAYERS_RVA: usize = rva(0x63DB94); // dword_63DB94
-const STATE_0_RVA: usize = rva(0x70FA70); // the first block's +0x684
-const STATE_1_RVA: usize = rva(0x710A50); // the second's
 
 /// A kind's value for `set_start_states`: the record of the kind (held to 0x21) its
 /// +0x18 when its limit (`dword_5C7980`) is 0x1B58 or less, else 0.
@@ -158,29 +149,29 @@ pub unsafe fn set_start_states() -> Result<(), Refused> {
             return Err(BadInput("a chosen car past the eight").into());
         }
         let first_kind: u32 = if one {
-            game_read(CAR_KINDS_RVA + 4 * chosen as usize)
+            RACE_VARS.car_kinds[chosen as usize].get()
         } else {
-            game_read(CAR_KINDS_RVA)
+            RACE_VARS.car_kinds[0].bits()
         };
         let v = start_value(first_kind);
         (game_addr(START_VALUES_RVA[0]) as *mut u32).write_unaligned(v);
-        let v = start_value(game_read(SECOND_KIND_RVA));
+        let v = start_value(RACE_VARS.car_kinds[1].bits());
         (game_addr(START_VALUES_RVA[1]) as *mut u32).write_unaligned(v);
         if one {
-            let block: u32 = game_read(crate::race::objects::CAR_BLOCKS_RVA + 4 * chosen as usize);
-            game_write(GEAR_CHOICE_RVA, 0u32);
+            let block: u32 = crate::race::work_store::RACE_WORK.car_block(chosen as usize);
+            RACE_VARS.split.set_bits(0u32);
             if !flagged(*((block + 0x24) as *const u32)) {
                 settle_state(block + 0x684);
             }
             return Ok(());
         }
-        let two = game_read::<u32>(PLAYERS_RVA) == 2;
-        let held = rc2k_core::race::cars::held_split(two, game_read(GEAR_CHOICE_RVA));
-        game_write(GEAR_CHOICE_RVA, held);
-        let kind_0: u32 = game_read(rva(0x70F410));
-        if !flagged(kind_0) || game_read::<u32>(PLAYERS_RVA) >= 2 {
-            settle_state(game_addr(STATE_0_RVA) as u32);
-            settle_state(game_addr(STATE_1_RVA) as u32);
+        let two = RACE_VIEW.players.bits() == 2;
+        let held = rc2k_core::race::cars::held_split(two, RACE_VARS.split.bits() as i32);
+        RACE_VARS.split.set_bits(held as u32);
+        let kind_0: u32 = CAR_BLOCKS.cars[0].car_kind.bits();
+        if !flagged(kind_0) || RACE_VIEW.players.bits() >= 2 {
+            settle_state(CAR_BLOCKS.cars[0].camera_view.addr() as u32);
+            settle_state(CAR_BLOCKS.cars[1].camera_view.addr() as u32);
         }
     }
     Ok(())
@@ -199,26 +190,39 @@ pub unsafe fn store_results_by_mode() {
     let get = |a: usize| -> u32 { unsafe { game_read(rva(a)) } };
     match get(0x62389C) {
         2 => {
-            RACE_STATE.results.figure_ffc.set(get(0x70F478));
-            let v = get(0x70FA40);
+            RACE_STATE
+                .results
+                .figure_ffc
+                .set(CAR_BLOCKS.cars[0].time_left.get());
+            let v = CAR_BLOCKS.cars[0].mode2_place.get();
             RACE_STATE.results.figure_000.set(v);
             put(0x6051BC, v);
-            RACE_STATE.results.results[0].time.set(get(0x70F474));
+            RACE_STATE.results.results[0]
+                .time
+                .set(CAR_BLOCKS.cars[0].stage_time.get());
         }
         0 => {
-            RACE_STATE.results.results[0].time.set(get(0x70F474));
-            RACE_STATE.results.results[1].time.set(get(0x710454));
+            RACE_STATE.results.results[0]
+                .time
+                .set(CAR_BLOCKS.cars[0].stage_time.get());
+            RACE_STATE.results.results[1]
+                .time
+                .set(CAR_BLOCKS.cars[1].stage_time.get());
             let total = get(0x601C4C);
             RACE_STATE.results.results[0]
                 .word
-                .set(margin(total, get(0x70F474)));
+                .set(margin(total, CAR_BLOCKS.cars[0].stage_time.get()));
             RACE_STATE.results.results[1]
                 .word
-                .set(margin(total, get(0x710454)));
+                .set(margin(total, CAR_BLOCKS.cars[1].stage_time.get()));
         }
         1 | 3 => {
-            RACE_STATE.results.results[0].time.set(get(0x70F474));
-            RACE_STATE.results.results[1].time.set(get(0x710454));
+            RACE_STATE.results.results[0]
+                .time
+                .set(CAR_BLOCKS.cars[0].stage_time.get());
+            RACE_STATE.results.results[1]
+                .time
+                .set(CAR_BLOCKS.cars[1].stage_time.get());
         }
         _ => {}
     }

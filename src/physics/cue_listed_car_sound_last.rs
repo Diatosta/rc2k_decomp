@@ -13,6 +13,7 @@
 
 use crate::errors::Refused;
 use crate::framework::{game_read, rva};
+use crate::race::work_store::RACE_WORK;
 use rc2k_core::physics::listed_cars::listed_entry;
 
 fn g(x: usize) -> u32 {
@@ -22,7 +23,9 @@ fn g(x: usize) -> u32 {
 /// `cue` for the listed car, if it is listed: its entry returned (the original's eax).
 // Converted: `rc2k_core::physics::listed_cars::listed_entry`.
 pub fn cue_listed_car_sound_last(cue: u32) -> Result<u32, Refused> {
-    let (entry, listed) = listed_entry(g(0x71B3F8), |car| g(0x641680 + 4 * car as usize))?;
+    let (entry, listed) = listed_entry(RACE_WORK.current_car.get(), |car| {
+        g(0x641680 + 4 * car as usize)
+    })?;
     if listed {
         crate::physics::cue_car_sound_last::cue_car_sound_last(entry, cue)?;
     }

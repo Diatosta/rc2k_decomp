@@ -27,10 +27,12 @@
 //! are kept as `asm_reference` in the tests (2026-10-24).
 
 use crate::errors::{BadInput, FatalError, Refused};
-use crate::framework::{game_ptr, game_read, game_write, rva};
+use crate::framework::{game_ptr, game_read, rva};
 use crate::math::x87;
 use crate::math::x87_float::ONE;
+use crate::race::course_store::COURSE;
 use crate::scene::draw_polygon::CHECKED_RVA;
+use crate::scene::draw_store::DRAW;
 use crate::scene::polygon::{dword, put};
 use crate::scene::x87_mem::{fild, fld, fstp};
 
@@ -38,14 +40,9 @@ use crate::scene::x87_mem::{fild, fld, fstp};
 
 pub const RECORDS_RVA: usize = rva(0x5C6FB8); // dword_5C6FB8
 pub const RECORD_LEN: usize = 0x20;
-pub const POINTS_RVA: usize = rva(0x5CCCC0); // dword_5CCCC0
-pub const POINT_COUNT_RVA: usize = rva(0x5CCD20); // dword_5CCD20
 pub const OBJECT_POINTS_RVA: usize = rva(0x5CD680); // dword_5CD680
 pub const MATRIX_RVA: usize = rva(0x5EA2CC); // flt_5EA2CC
 pub const FLAT_RVA: usize = rva(0x60932C); // dword_60932C
-pub const FLAT_DEPTH_RVA: usize = rva(0x5CCD80); // dword_5CCD80
-pub const SCALE_RVA: usize = rva(0x624088); // flt_624088
-pub const CENTRE_X_RVA: usize = rva(0x62409C); // flt_62409C
 pub const CENTRE_Y_RVA: usize = rva(0x6240A0); // flt_6240A0
 pub const LOWERED_RVA: usize = rva(0x6365C4); // dword_6365C4
 /// `flt_5C5E18`: a point nearer than this is not put on the screen.
@@ -177,7 +174,7 @@ pub unsafe fn record_offset(point: u32) -> Result<u32, FatalError> {
         rc2k_core::scene::projection::record_offset(
             point,
             game_read(OBJECT_POINTS_RVA),
-            game_read(POINT_COUNT_RVA),
+            COURSE.scene_point_count.bits(),
         )
         .map_err(|e| match e {
             TooHigh::Object => TOO_HIGH_OBJECT,
@@ -202,7 +199,7 @@ pub struct Projected {
 pub(crate) unsafe fn make_scene_record(point: u32, record: u32) -> Result<u32, BadInput> {
     unsafe {
         let at = record as usize;
-        let points: u32 = game_read(POINTS_RVA);
+        let points: u32 = COURSE.scene_points.bits();
         if points == 0 {
             return Err(BadInput("no points"));
         }
@@ -213,17 +210,17 @@ pub(crate) unsafe fn make_scene_record(point: u32, record: u32) -> Result<u32, B
         put(at + 0x1C, 0);
         if f32::from_bits(dword(at + 0x18)) >= NEAR {
             let v = [
-                game_read(SCALE_RVA),
-                game_read(CENTRE_X_RVA),
+                DRAW.view_scale.bits(),
+                DRAW.view_centre[0].bits(),
                 game_read(CENTRE_Y_RVA),
-                game_read(FLAT_DEPTH_RVA),
+                COURSE.flat_depth.bits(),
             ];
             let flat = game_read::<u32>(FLAT_RVA) != 0;
             to_screen(record as *mut u32, &v, flat, game_ptr(CHECKED_RVA));
         }
         if game_read::<u32>(LOWERED_RVA) == 1 {
             put(at + 0x18, x87::sub(dword(at + 0x18), LOWERED_BY.to_bits()));
-            game_write(CHECKED_RVA, LOWERED_BY.to_bits());
+            DRAW.scratch.set_bits(LOWERED_BY.to_bits());
         }
         Ok(from)
     }
@@ -249,7 +246,7 @@ pub unsafe fn project_point(point: u32) -> Result<Projected, Refused> {
             return Ok(Projected {
                 record,
                 eax: point,
-                ecx: Some(game_read::<u32>(POINT_COUNT_RVA).wrapping_add(0x40)),
+                ecx: Some(COURSE.scene_point_count.bits().wrapping_add(0x40)),
             });
         }
         let from = make_scene_record(point, record)?;

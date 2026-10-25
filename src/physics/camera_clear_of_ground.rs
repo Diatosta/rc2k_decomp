@@ -14,6 +14,7 @@
 
 use crate::errors::Refused;
 use crate::physics::camera_ground::probe_at;
+use crate::physics::car_store::CAR;
 use crate::physics::flow::g;
 use rc2k_core::physics::camera_ground::{is_clear, over};
 
@@ -21,9 +22,13 @@ use rc2k_core::physics::camera_ground::{is_clear, over};
 /// leaves are read by none of its callers.
 // Converted: `rc2k_core::physics::camera_ground::{over, is_clear}`.
 pub fn camera_clear_of_ground() -> Result<bool, Refused> {
-    let mut clear = probe_at(g(0x71A67C), g(0x71A684), 0x71AEC8)?;
+    let mut clear = probe_at(
+        CAR.camera_position[0].get(),
+        CAR.camera_position[2].get(),
+        &CAR.camera_ground_faces[0],
+    )?;
     if clear {
-        clear = is_clear(over(g(0x71A680), g(0x639828)));
+        clear = is_clear(over(CAR.camera_position[1].get(), g(0x639828)));
     }
     Ok(clear)
 }

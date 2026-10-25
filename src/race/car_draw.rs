@@ -6,7 +6,15 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::physics::car_store::Car;
+use crate::race::course_store::COURSE;
+use crate::race::frame_store::FRAME_WORK;
+use crate::race::numbers_store::NUMBERS;
+use crate::race::vars_store::RACE_VARS;
+use crate::race::work_store::RACE_WORK;
+use crate::scene::draw_store::DRAW;
 use crate::scene::matrix::multiply_matrices;
+use crate::scene::object_store::OBJECT_WORK;
 
 fn ga(a: u32) -> usize {
     game_addr(rva(a as usize))
@@ -79,30 +87,31 @@ pub unsafe fn car_number_textures(car: u32) {
     };
     let float = |a: u32| f32::from_bits(unsafe { get(a) });
     unsafe {
-        let limit = f32::from_bits(game_read(rva(0x641740)));
+        let limit = f32::from_bits(FRAME_WORK.decal_limit.bits());
         let side = lamp_side(float(car + 0x1B8), limit);
         game_write(rva(0x5CD68C), side);
         game_write(rva(0x5CD698), side);
         let side = lamp_side(float(car + 0x1BC), limit);
         game_write(rva(0x5CD690), side);
         game_write(rva(0x5CD694), side);
-        let name = (ga(0x71B408) as u32).wrapping_add(get(car + 0x24).wrapping_mul(0x30));
-        let n = crate::math::x87::to_int(get(car + 0x718));
-        game_write(rva(0x62400C), n);
+        let name = (RACE_WORK.number_texture_names[0].addr() as u32)
+            .wrapping_add(Car::at(car).car_kind.bits().wrapping_mul(0x30));
+        let n = crate::math::x87::to_int(Car::at(car).unknown_6f4[9].bits());
+        DRAW.scratch.set(n as u32);
         let (place, _) = letter_place(n);
         let letter = letter_number(((name + place) as *const u8).read()) as u32;
         game_write(rva(0x5CD69C), letter);
         game_write(rva(0x5CDA88), letter);
-        let d = number_digits(get(car + 0xAA8));
+        let d = number_digits(Car::at(car).start_slot_value.bits());
         game_write(rva(0x5CD6A0), d.tens);
         game_write(rva(0x5CD6A4), d.units);
         game_write(rva(0x5CD6AC), d.alone);
-        let (tens, _) = stage_plate(game_read(rva(0x623850)));
+        let (tens, _) = stage_plate(RACE_VARS.stage.bits());
         game_write(
             rva(0x5CD6A8),
             game_read::<u32>(rva(0x71BA10) + 4 * tens as usize),
         );
-        if decals_shown(float(car + 0x310), f32::from_bits(game_read(rva(0x5C5D14)))) {
+        if decals_shown(float(car + 0x310), f32::from_bits(NUMBERS.hundred.bits())) {
             for k in 0..0x11u32 {
                 let byte = ((car + 0xAC0 + k) as *const u8).read() as u32;
                 let to: u32 = game_read(rva(0x6416F8) + 4 * k as usize);
@@ -147,10 +156,7 @@ fn with_bit(value: u32, bit: u32) -> u32 {
 pub unsafe fn draw_car(car: u32) -> Result<(), Refused> {
     unsafe {
         let n: u32 = game_read(rva(0x60627C));
-        if game_read::<u32>(rva(0x5C5CEC)) != 0
-            && n < 8
-            && game_read::<u32>(rva(0x71B3B8) + 4 * n as usize) == 0
-        {
+        if NUMBERS.in_race.bits() != 0 && n < 8 && RACE_WORK.car_block(n as usize) == 0 {
             return Err(BadInput("the drawn car without its block").into());
         }
         car_number_textures(car);
@@ -173,8 +179,8 @@ pub unsafe fn draw_car(car: u32) -> Result<(), Refused> {
         }
         let w = |a: u32, v: u32| game_write(rva(a as usize), v);
         let k = |a: u32| game_read::<u32>(rva(a as usize));
-        w(0x6D18D4, get(car + 0xAB8));
-        let model = get(car + 0x24);
+        w(0x6D18D4, Car::at(car).unknown_ab4[1].bits());
+        let model = Car::at(car).car_kind.bits();
         w(0x5E9EC8, model);
         let rec = model.wrapping_mul(0x134);
         for (to, offset) in [
@@ -195,7 +201,7 @@ pub unsafe fn draw_car(car: u32) -> Result<(), Refused> {
                 lamps |= 0x300_0000;
             }
         }
-        w(0x5CCE40, lamps);
+        COURSE.group_masks[9].set(lamps);
         for (to, offset) in [
             (0x5CCE44u32, 0x38u32),
             (0x5CCE38, 0x2C),
@@ -205,7 +211,7 @@ pub unsafe fn draw_car(car: u32) -> Result<(), Refused> {
         ] {
             w(to, model_bit(rec, offset));
         }
-        let switches = get(car + 0x298);
+        let switches = Car::at(car).parts_present.bits();
         let mut shown = u32::MAX;
         for (bit, var) in [
             (9u32, 0x5CCE34u32),
@@ -241,7 +247,7 @@ pub unsafe fn draw_car(car: u32) -> Result<(), Refused> {
         ] {
             w(to, field(offset));
         }
-        let state = get(car + 0x6FC);
+        let state = Car::at(car).unknown_6f4[2].bits();
         let bit = k(0x5CCE60);
         w(0x606280, u32::MAX);
         if state & 2 != 0 {
@@ -250,7 +256,7 @@ pub unsafe fn draw_car(car: u32) -> Result<(), Refused> {
         if state & 4 != 0 {
             w(0x606280, with_bit(field(0x44), bit));
         }
-        w(0x71BA08, k(0x5C5D90));
+        RACE_WORK.car_nearness.set_bits(k(0x5C5D90));
         let mut stage = k(0x606270);
         if (stage as i32) < 0 {
             stage = 0;
@@ -260,7 +266,7 @@ pub unsafe fn draw_car(car: u32) -> Result<(), Refused> {
         }
         let record = k(0x606320 + 4 * stage);
         if get(record + 0x50) != 0 {
-            w(0x6415A4, 0x5_0000);
+            FRAME_WORK.car_depth.set(0x5_0000);
         }
         let and = |mask: u32| w(0x606280, k(0x606280) & mask);
         if state & 0x10 == 0 {
@@ -285,7 +291,7 @@ pub unsafe fn draw_car(car: u32) -> Result<(), Refused> {
             }
         }
         let mut ecx = 0x60u32.wrapping_add(near_size());
-        w(0x71BA0C, ecx);
+        RACE_WORK.car_draw_word.set(ecx);
         if state & 0x100 != 0 {
             if state & 6 == 0 {
                 and(with_bit(field(0x40), bit));
@@ -297,26 +303,26 @@ pub unsafe fn draw_car(car: u32) -> Result<(), Refused> {
         if k(0x63DBA8 + 4 * k(0x63DB9C)) == k(0x60627C) && k(0x60626C) != 0 {
             w(0x606280, u32::MAX);
         }
-        w(0x635084, 0);
-        w(0x635088, 0xFF);
-        w(0x63508C, k(0x6092E4));
-        w(0x635090, k(0x60935C));
-        w(0x635094, k(0x609338).wrapping_neg());
-        w(0x635098, k(0x60933C));
+        OBJECT_WORK.light_lowest.set(0);
+        OBJECT_WORK.light_highest.set(0xFF);
+        OBJECT_WORK.light_level.set(k(0x6092E4));
+        OBJECT_WORK.light_strength.set(k(0x60935C));
+        OBJECT_WORK.light_turns[0].set(k(0x609338).wrapping_neg());
+        OBJECT_WORK.light_turns[1].set(k(0x60933C));
         w(0x6365C8, 1);
         w(0x62DAF4, 3);
-        let place = |w: &dyn Fn(u32, u32)| {
-            w(0x63501C, get(car + 0x134));
-            w(0x635020, get(car + 0x138));
-            w(0x635024, get(car + 0x13C));
+        let place = |_w: &dyn Fn(u32, u32)| {
+            OBJECT_WORK.place[0].set(Car::at(car).position[0].bits());
+            OBJECT_WORK.place[1].set(Car::at(car).position[1].bits());
+            OBJECT_WORK.place[2].set(Car::at(car).position[2].bits());
         };
         place(&w);
-        w(0x635038, 0x10);
+        OBJECT_WORK.size.set(0x10);
         crate::scene::matrix::set_light_direction();
         place(&w);
-        w(0x635028, switches);
+        OBJECT_WORK.car_switches.set(switches);
         w(0x608CB0, 1);
-        w(0x635054, 0);
+        OBJECT_WORK.other_light.set(0);
         w(0x62DAF4, 3);
         w(0x62DAF8, 0);
         w(0x6214FC, k(0x60627C).wrapping_mul(0x14).wrapping_add(0x50));
@@ -347,25 +353,26 @@ pub unsafe fn draw_car(car: u32) -> Result<(), Refused> {
 unsafe fn nearness() {
     use crate::math::x87_float::{ONE, int, ld, st, to_int};
     use crate::math::x87_load::below_or_unordered;
-    unsafe {
-        game_write(rva(0x62400C), 0xA_0000u32);
-        let depth = int(game_read::<u32>(rva(0x6415A4)) as i32);
-        game_write(rva(0x62400C), 0x14_0000u32);
-        game_write(rva(0x71BA08), st((depth - int(0xA_0000)) / int(0x14_0000)));
-        let near: u32 = game_read(rva(0x71BA08));
+    {
+        DRAW.scratch.set(0xA_0000u32);
+        let depth = int(FRAME_WORK.car_depth.get() as i32);
+        DRAW.scratch.set(0x14_0000u32);
+        RACE_WORK
+            .car_nearness
+            .set_bits(st((depth - int(0xA_0000)) / int(0x14_0000)));
+        let near: u32 = RACE_WORK.car_nearness.bits();
         // `fld zero; fld near; fcompp`: near below 0 (or no number) -> 0.
-        if below_or_unordered(near, game_read(rva(0x5C5D90))) {
-            game_write(rva(0x71BA08), game_read::<u32>(rva(0x5C5D90)));
+        if below_or_unordered(near, NUMBERS.zero.bits()) {
+            RACE_WORK.car_nearness.set_bits(NUMBERS.zero.bits());
         }
-        let near: u32 = game_read(rva(0x71BA08));
-        if !below_or_unordered(near, game_read(rva(0x5C5D38))) {
-            game_write(rva(0x71BA08), game_read::<u32>(rva(0x5C5D38)));
+        let near: u32 = RACE_WORK.car_nearness.bits();
+        if !below_or_unordered(near, NUMBERS.one.bits()) {
+            RACE_WORK.car_nearness.set_bits(NUMBERS.one.bits());
         }
-        let shine =
-            (ONE - ld(game_read(rva(0x71BA08)))) * int(game_read::<u32>(rva(0x5CCE74)) as i32);
+        let shine = (ONE - ld(RACE_WORK.car_nearness.bits())) * int(COURSE.shine.get() as i32);
         let whole = to_int(shine);
-        game_write(rva(0x5CCE78), whole);
-        game_write(rva(0x5CCE74), whole);
+        COURSE.shine_whole.set(whole as u32);
+        COURSE.shine.set(whole as u32);
     }
 }
 
@@ -373,9 +380,9 @@ unsafe fn nearness() {
 /// `dword_62400C`).
 unsafe fn near_size() -> u32 {
     use crate::math::x87_float::{int, ld, to_int};
-    unsafe {
-        let size = to_int(int(0x90) * ld(game_read(rva(0x71BA08))));
-        game_write(rva(0x62400C), size);
+    {
+        let size = to_int(int(0x90) * ld(RACE_WORK.car_nearness.bits()));
+        DRAW.scratch.set(size as u32);
         size as u32
     }
 }
@@ -386,8 +393,8 @@ unsafe fn near_size() -> u32 {
 /// read (by `draw_car`).
 pub unsafe fn draw_car_shined(car: u32) -> Result<(), Refused> {
     unsafe {
-        let shine: u32 = game_read(rva(0x5CCE74));
-        let mut eax = 0x3_FCE0u32.wrapping_sub(game_read(rva(0x623D80)));
+        let shine: u32 = COURSE.shine.get();
+        let mut eax = 0x3_FCE0u32.wrapping_sub(RACE_VARS.mud_thrown_counts[0].bits());
         if (eax as i32) < 0 {
             eax = 0;
         }
@@ -395,9 +402,9 @@ pub unsafe fn draw_car_shined(car: u32) -> Result<(), Refused> {
             eax = 0x4_0000;
         }
         let product = eax as u64 * game_read::<u32>(rva(0x60AD0C)) as u64;
-        game_write(rva(0x5CCE74), (product as u32) >> 18);
+        COURSE.shine.set((product as u32) >> 18);
         let done = draw_car(car);
-        game_write(rva(0x5CCE74), shine);
+        COURSE.shine.set(shine);
         done
     }
 }
@@ -412,18 +419,18 @@ pub unsafe fn draw_car_entry(entry: u32) -> Result<(), Refused> {
     use crate::race::skidmarks::int_80;
     unsafe {
         let n = entry & 7;
-        let car: u32 = game_read(rva(0x71B3B8) + 4 * n as usize);
+        let car: u32 = RACE_WORK.car_block(n as usize);
         if car == 0 {
             return Err(BadInput("a car without its block").into());
         }
         game_write(rva(0x60627C), n);
-        game_write(rva(0x62DAD4), get(car + 0x240));
+        game_write(rva(0x62DAD4), Car::at(car).light_colour.bits());
         let t = crate::scene::rotate_point::rotate_point(
             ga(VIEW_MATRIX) as u32,
             [
-                int_80(get(car + 0x134)),
-                int_80(get(car + 0x138)),
-                int_80(get(car + 0x13C)),
+                int_80(Car::at(car).position[0].bits()),
+                int_80(Car::at(car).position[1].bits()),
+                int_80(Car::at(car).position[2].bits()),
             ],
         );
         let place = t.map(tbyte_to_int);
@@ -433,10 +440,7 @@ pub unsafe fn draw_car_entry(entry: u32) -> Result<(), Refused> {
         let depth = place[2];
         let mut x = place[0];
         if below(depth, 0xFFFC_0000) {
-            game_write(
-                rva(0x641598),
-                game_read::<u32>(rva(0x641598)).wrapping_add(1),
-            );
+            game_write(rva(0x641598), FRAME_WORK.cars_culled.get().wrapping_add(1));
             return Ok(());
         }
         if (x as i32) < 0 {
@@ -444,16 +448,10 @@ pub unsafe fn draw_car_entry(entry: u32) -> Result<(), Refused> {
         }
         x = x.wrapping_sub(0x8_0000);
         if !below(x, depth) {
-            game_write(
-                rva(0x641598),
-                game_read::<u32>(rva(0x641598)).wrapping_add(1),
-            );
+            game_write(rva(0x641598), FRAME_WORK.cars_culled.get().wrapping_add(1));
             return Ok(());
         }
-        game_write(
-            rva(0x641594),
-            game_read::<u32>(rva(0x641594)).wrapping_add(1),
-        );
+        game_write(rva(0x641594), FRAME_WORK.cars_drawn.get().wrapping_add(1));
         draw_car_shined(car)
     }
 }
@@ -467,7 +465,7 @@ mod asm_reference {
     pub(super) unsafe fn nearness_asm() {
         use crate::math::x87_load::below_or_unordered;
         unsafe {
-            game_write(rva(0x62400C), 0xA_0000u32);
+            DRAW.scratch.set(0xA_0000u32);
             core::arch::asm!(
                 "fild dword ptr [{rc} + 0x2415A4]",
                 "fisub dword ptr [{rc} + 0x22400C]",
@@ -479,14 +477,14 @@ mod asm_reference {
                 out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
                 options(nostack),
             );
-            let near: u32 = game_read(rva(0x71BA08));
+            let near: u32 = RACE_WORK.car_nearness.bits();
             // `fld zero; fld near; fcompp`: near below 0 (or no number) -> 0.
-            if below_or_unordered(near, game_read(rva(0x5C5D90))) {
-                game_write(rva(0x71BA08), game_read::<u32>(rva(0x5C5D90)));
+            if below_or_unordered(near, NUMBERS.zero.bits()) {
+                RACE_WORK.car_nearness.set_bits(NUMBERS.zero.bits());
             }
-            let near: u32 = game_read(rva(0x71BA08));
-            if !below_or_unordered(near, game_read(rva(0x5C5D38))) {
-                game_write(rva(0x71BA08), game_read::<u32>(rva(0x5C5D38)));
+            let near: u32 = RACE_WORK.car_nearness.bits();
+            if !below_or_unordered(near, NUMBERS.one.bits()) {
+                RACE_WORK.car_nearness.set_bits(NUMBERS.one.bits());
             }
             core::arch::asm!(
                 ".byte 0xD9, 0xE8",
@@ -506,7 +504,7 @@ mod asm_reference {
     /// `dword_62400C`).
     pub(super) unsafe fn near_size_asm() -> u32 {
         unsafe {
-            game_write(rva(0x62400C), 0x90u32);
+            DRAW.scratch.set(0x90u32);
             core::arch::asm!(
                 "fild dword ptr [{rc} + 0x22400C]",
                 "fmul dword ptr [{rc} + 0x31BA08]",
@@ -516,7 +514,7 @@ mod asm_reference {
                 out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
                 options(nostack),
             );
-            game_read(rva(0x62400C))
+            DRAW.scratch.bits()
         }
     }
 
@@ -533,13 +531,15 @@ mod asm_reference {
 
     fn fill(r: &mut Rng) {
         unsafe {
-            game_write(rva(0x62400C), 0xAAAA_AAAAu32);
+            DRAW.scratch.set(0xAAAA_AAAAu32);
             // the depth is a whole number around the view's reach
-            game_write(rva(0x6415A4), (r.int() as u32) & 0x3F_FFFF);
-            game_write(rva(0x71BA08), r.float());
-            game_write(rva(0x5CCE78), 0xAAAA_AAAAu32);
-            game_write(rva(0x5CCE74), r.int() as u32);
-            game_write(rva(0x5C5D90), if r.below(4) == 0 { r.float() } else { 0 });
+            FRAME_WORK.car_depth.set((r.int() as u32) & 0x3F_FFFF);
+            RACE_WORK.car_nearness.set_bits(r.float());
+            COURSE.shine_whole.set(0xAAAA_AAAAu32);
+            COURSE.shine.set(r.int() as u32);
+            NUMBERS
+                .zero
+                .set_bits(if r.below(4) == 0 { r.float() } else { 0 });
             game_write(
                 rva(0x5C5D38),
                 if r.below(4) == 0 {

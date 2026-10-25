@@ -10,7 +10,7 @@
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
-use crate::framework::{game_addr, rva};
+use crate::physics::car_store::CAR;
 use crate::physics::cells::{get, put_changed};
 use rc2k_core::physics::notices::Notice;
 
@@ -31,7 +31,10 @@ pub unsafe fn count_down_at(v: [u32; 2]) {
 }
 
 fn game() -> [u32; 2] {
-    [0x71A700usize, 0x71A704].map(|x| game_addr(rva(x)) as u32)
+    [
+        CAR.notice_shown.addr() as u32,
+        CAR.notice_time.addr() as u32,
+    ]
 }
 
 /// The Rust version.

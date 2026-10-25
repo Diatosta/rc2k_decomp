@@ -10,8 +10,7 @@
 use crate::errors::Refused;
 use crate::framework::rva;
 use crate::marks::store::game_read;
-
-const NUMBER_RVA: usize = rva(0x64165C); // dword_64165C
+use crate::race::frame_store::FRAME_WORK;
 const RECORDS_RVA: usize = rva(0x606320); // off_606320: 0x34 pointers
 
 /// The Rust version (see the header): the record's pointer (the original's esi; read by
@@ -19,7 +18,7 @@ const RECORDS_RVA: usize = rva(0x606320); // off_606320: 0x34 pointers
 // Converted: `rc2k_core::marks::race::stage_record`
 pub unsafe fn stage_record() -> Result<u32, Refused> {
     unsafe {
-        let n = rc2k_core::marks::race::stage_record(game_read(NUMBER_RVA))?;
+        let n = rc2k_core::marks::race::stage_record(FRAME_WORK.lead_kept[0].bits())?;
         Ok(game_read(RECORDS_RVA + 4 * n))
     }
 }

@@ -14,8 +14,9 @@
 //! textures, and a list that would leave the records.
 
 use crate::errors::BadInput;
-use crate::framework::{game_addr, game_read, game_write, rva};
-use crate::scene::objects::{FILE_ROOM, FILE_RVA, SLOT_RVA};
+use crate::framework::{game_addr, game_write, rva};
+use crate::scene::object_store::OBJECT_WORK;
+use crate::scene::objects::{FILE_ROOM, FILE_RVA};
 
 // ---- game data ----
 
@@ -37,7 +38,7 @@ pub unsafe fn list_object_textures() -> Result<(), BadInput> {
     unsafe {
         let textures =
             texture_list(|offset| file_dword(offset).map_err(|e| rc2k_core::Invalid(e.0)))?;
-        let slot: u32 = game_read(SLOT_RVA);
+        let slot: u32 = OBJECT_WORK.loading_slot.bits();
         let record = texture_record(slot, textures.len())?;
         game_write(COUNT_RVA, textures.len() as u32);
         for (n, &texture) in textures.iter().enumerate() {

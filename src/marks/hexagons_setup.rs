@@ -16,13 +16,11 @@
 use crate::framework::rva;
 use crate::marks::store::{Slot, game_read, game_write};
 use crate::math::x87;
+use crate::scene::draw_store::DRAW;
 
 const TEXTURE_RVA: usize = rva(0x5D5A24); // dword_5D5A24
 const VERTICES_RVA: usize = rva(0x9605A0); // g_polygonVertices
-const COUNT_RVA: usize = rva(0x6240F8); // g_polygonVertexCount
-const SCRATCH_RVA: usize = rva(0x62400C); // dword_62400C
 const SIDE_RVA: Slot = Slot::at(0x82E2A2); // dword_82E2A2
-const DEPTH_OF_RVA: usize = rva(0x6241C8); // flt_6241C8
 const INVERSE_RVA: Slot = Slot::at(0x814C02); // flt_814C02
 const STATES: [(u32, u32); 8] = [
     (1, 0x11),
@@ -51,7 +49,7 @@ pub unsafe fn hexagons_setup() {
             set_render_state(value, state);
         }
         for n in 0..6 {
-            game_write(SCRATCH_RVA, 0x100u32);
+            DRAW.scratch.set_bits(0x100u32);
             game_write(VERTICES_RVA + 0x20 * n + 0xC, x87::int_to_float(0x100));
         }
         for n in 0..6 {
@@ -66,8 +64,8 @@ pub unsafe fn hexagons_setup() {
             game_write(VERTICES_RVA + 0x20 * n + 0x18, u);
             game_write(VERTICES_RVA + 0x20 * n + 0x1C, v);
         }
-        game_write(COUNT_RVA, 6u32);
-        game_write(INVERSE_RVA, x87::reciprocal(game_read(DEPTH_OF_RVA)));
+        DRAW.polygon_vertex_count.set_bits(6u32);
+        game_write(INVERSE_RVA, x87::reciprocal(DRAW.farthest.bits()));
     }
 }
 

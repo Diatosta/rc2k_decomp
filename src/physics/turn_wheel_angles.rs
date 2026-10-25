@@ -12,23 +12,20 @@
 //!
 //! Caller: `sub_43B635` (0x43B91E), every physics step.
 
-use crate::framework::{game_read, game_write, rva};
+use crate::framework::{game_read, rva};
 use crate::math::x87;
+use crate::physics::car_store::CAR;
+use crate::race::numbers_store::NUMBERS;
+use crate::race::vars_store::RACE_VARS;
+use crate::scene::draw_store::DRAW;
+use crate::session::Float;
 use std::cmp::Ordering;
 
 fn g(x: usize) -> u32 {
     unsafe { game_read(rva(x)) }
 }
 
-fn p(x: usize, v: u32) {
-    unsafe { game_write(rva(x), v) }
-}
-
-const KIND: usize = 0x719FFC; // g_car + 0x24
 const KINDS: usize = 0x5C5B48; // dword_5C5B48, 0x22 entries
-const STILL: usize = 0x71A22C; // dword_71A22C
-const SCRATCH: usize = 0x62400C;
-const ZERO: usize = 0x5C5D90;
 
 /// `fld zero; fld s; fcompp`, C0: s below zero or unordered.
 fn below(s: u32, zero: u32) -> bool {
@@ -39,29 +36,41 @@ fn below(s: u32, zero: u32) -> bool {
 }
 
 /// One half: `speed` (None with the switch set) held, scaled, added to the four at `to`.
-fn add_turn(speed: Option<u32>, f1: usize, f2: usize, to: usize) {
-    p(SCRATCH, 0);
+fn add_turn(speed: Option<u32>, f1: &Float, f2: &Float, to: &[Float; 4]) {
+    DRAW.scratch.set(0);
     if let Some(s) = speed {
-        p(SCRATCH, s);
-        if below(g(SCRATCH), g(ZERO)) {
-            p(SCRATCH, x87::loaded(g(ZERO)));
+        DRAW.scratch.set(s);
+        if below(DRAW.scratch.get(), NUMBERS.zero.bits()) {
+            DRAW.scratch.set(x87::loaded(NUMBERS.zero.bits()));
         }
     }
-    p(SCRATCH, x87::mul2(g(SCRATCH), g(f1), g(f2)));
-    for k in 0..4 {
-        p(to + 4 * k, x87::add(g(to + 4 * k), g(SCRATCH)));
+    DRAW.scratch
+        .set(x87::mul2(DRAW.scratch.get(), f1.bits(), f2.bits()));
+    for cell in to {
+        cell.set_bits(x87::add(cell.bits(), DRAW.scratch.get()));
     }
 }
 
 /// The Rust version (the exact one, for `physics::car_physics_step`).
 pub unsafe fn turn_wheel_angles() {
-    let kind = g(KIND);
+    let kind = CAR.car_kind.get();
     if kind >= 0x22 || g(KINDS + 4 * kind as usize) == 0 {
         return;
     }
-    let still = g(STILL) != 0;
-    let drive = || x87::loaded(g(0x71A190));
-    add_turn((!still).then(drive), 0x623DA8, 0x623DB0, 0x623D60);
-    let slip = || x87::sub(g(0x71A190), g(0x71A184));
-    add_turn((!still).then(slip), 0x623DAC, 0x623DB4, 0x623D70);
+    let still = CAR.all_wheels_off.get() != 0;
+    let drive = || x87::loaded(CAR.drive_speed_a.bits());
+    let v = &RACE_VARS;
+    add_turn(
+        (!still).then(drive),
+        &v.wheel_turn_a[0],
+        &v.wheel_turn_b[0],
+        &v.mud_thrown_in,
+    );
+    let slip = || x87::sub(CAR.drive_speed_a.bits(), CAR.local_velocity[2].bits());
+    add_turn(
+        (!still).then(slip),
+        &v.wheel_turn_a[1],
+        &v.wheel_turn_b[1],
+        &v.mud_splashes_in,
+    );
 }

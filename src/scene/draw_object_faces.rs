@@ -17,6 +17,9 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::race::vars_store::RACE_VARS;
+use crate::scene::draw_store::DRAW;
+use crate::scene::object_store::OBJECT_WORK;
 use crate::scene::polygon::dword;
 
 // ---- game data ----
@@ -24,8 +27,6 @@ use crate::scene::polygon::dword;
 pub const LISTED_RVA: usize = rva(0x62DB58); // dword_62DB58
 pub const LIST_RVA: usize = rva(0x62DB5C); // dword_62DB5C
 const LIST_ENTRY_LEN: usize = 0x10;
-const FACE_NUMBER_RVA: usize = rva(0x623620); // dword_623620
-const FIRST_FACE_RVA: usize = rva(0x6350BC); // dword_6350BC
 const FACES_RVA: usize = rva(0x9A3730); // dword_9A3730
 const FACES: u32 = 0xC000;
 const SEE_THROUGH_RVA: usize = rva(0x639970); // g_objectSeeThrough
@@ -34,7 +35,6 @@ const FIRST_TEXTURE_RVA: usize = rva(0x639954); // dword_639954
 const FACE_KIND_RVA: usize = rva(0x6D18CC); // g_faceKind
 const FACE_UNLIT_RVA: usize = rva(0x6D18D0); // dword_6D18D0
 const COLOUR_RVA: usize = rva(0x6240CC); // g_polygonColour
-const DONE_RVA: usize = rva(0x624204); // dword_624204
 
 // ---- Rust version ----
 
@@ -46,7 +46,7 @@ pub unsafe fn draw_object_faces(
         if listed == 0 {
             return Ok(());
         }
-        let first: u32 = game_read(FIRST_FACE_RVA);
+        let first: u32 = OBJECT_WORK.object_first_face.bits();
         // Every face is looked up before anything is written.
         let mut faces = Vec::with_capacity(listed as usize);
         for n in 0..listed as usize {
@@ -63,7 +63,7 @@ pub unsafe fn draw_object_faces(
         }
         for &(entry, _, face) in &faces {
             game_write(SEE_THROUGH_RVA, dword(entry + 0xC));
-            game_write(FACE_NUMBER_RVA, dword(entry));
+            RACE_VARS.face_number.set_bits(dword(entry));
             let texture = ((face + 4) as *const u16).read_unaligned() as u32;
             game_write(
                 TEXTURE_A_RVA,
@@ -81,9 +81,9 @@ pub unsafe fn draw_object_faces(
                 },
             );
             draw(face)?;
-            game_write(COLOUR_RVA, 0x00FF_FFFFu32);
+            DRAW.polygon_colour.set_bits(0x00FF_FFFFu32);
         }
-        game_write(DONE_RVA, 0u32);
+        DRAW.faces_done.set_bits(0u32);
         Ok(())
     }
 }

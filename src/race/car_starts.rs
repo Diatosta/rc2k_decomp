@@ -8,20 +8,14 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_read, game_write, rva};
+use crate::physics::car_store::CAR;
+use crate::physics::tables_store::PHYSICS;
 use crate::race::best_line::{CHECKS_RVA, MOST_CHECKS};
+use crate::race::vars_store::RACE_VARS;
+use crate::race::view_store::RACE_VIEW;
+use crate::session::Dword;
 
-const fn car(offset: usize) -> usize {
-    rva(0x719FD8 + offset)
-}
-
-pub const CURRENT_CAR_RVA: usize = crate::drive::car::CURRENT_CAR_RVA; // g_currentCar
 pub const RACE_CARS_RVA: usize = crate::race::objects::CARS_RVA; // g_raceCars
-const CAR_Y_RVA: usize = car(0x138); // dword_71A110
-const PITCH_RVA: usize = car(0x9C4); // dword_71A99C
-const ROLL_RVA: usize = car(0x9C8); // dword_71A9A0
-const HEADING_RVA: usize = car(0x9C0); // dword_71A998
-const PITCH_STEP_RVA: usize = rva(0x61426C); // dword_61426C
-const ROLL_STEP_RVA: usize = rva(0x614270); // dword_614270
 const SETTLE_MARK_RVA: usize = rva(0x620470); // dword_620470
 /// dword_6D2514 .. dword_6D2520: the four wheels' heights (made by `sub_45D305`).
 pub const WHEELS_RVA: usize = rva(0x6D2514);
@@ -29,25 +23,20 @@ pub const WHEELS_RVA: usize = rva(0x6D2514);
 pub const WHEELS_2_RVA: usize = rva(0x6D1F14);
 /// dword_608B50, dword_608B54, dword_608B58: the start's heading, roll and pitch.
 const START_ANGLES_RVA: usize = rva(0x608B50);
-const MODE_RVA: usize = rva(0x62389C); // dword_62389C
 const NO_PLACE_RVA: usize = rva(0x64BB18); // dword_64BB18
-const CARS_2_RVA: usize = rva(0x63DB94); // dword_63DB94
 const PLACE_HEADING_RVA: usize = crate::race::start_place::PLACE_HEADING_RVA; // dword_5CCD60
 const LINE_PLACE_RVA: usize = crate::race::start_place::LINE_PLACE_RVA; // dword_6365E4
 const LINE_FRACTION_RVA: usize = crate::race::start_place::LINE_FRACTION_RVA; // dword_6365EC
-const CAR_X_RVA: usize = crate::race::start_place::CAR_X_RVA; // dword_71A10C
-const CAR_Z_RVA: usize = crate::race::start_place::CAR_Z_RVA; // dword_71A114
-const PENDING_RVA: usize = car(0x68C); // dword_71A664
 /// The most cars `g_carBlocks` has.
 pub const MOST_CARS: u32 = 8;
 
-unsafe fn add(at: usize, by: u32) {
-    unsafe { game_write(at, game_read::<u32>(at).wrapping_add(by)) };
+fn add(cell: &Dword, by: u32) {
+    cell.set(cell.get().wrapping_add(by));
 }
 
-unsafe fn zero(at: usize, dwords: usize) {
-    for k in 0..dwords {
-        unsafe { game_write(at + 4 * k, 0u32) };
+fn zero(cells: &[&Dword]) {
+    for cell in cells {
+        cell.set(0);
     }
 }
 
@@ -57,16 +46,14 @@ unsafe fn wheels() -> [u32; 4] {
 
 /// One bisection step of `settle_car`: `angle` moved by `step` towards the higher pair
 /// (down when `low` - `high` is negative), the step halved (`shr`).
-unsafe fn settle_step(low: u32, high: u32, angle: usize, step: usize) {
-    unsafe {
-        let s: u32 = game_read(step);
-        if (low.wrapping_sub(high) as i32) < 0 {
-            game_write(angle, game_read::<u32>(angle).wrapping_sub(s));
-        } else {
-            add(angle, s);
-        }
-        game_write(step, s >> 1);
+fn settle_step(low: u32, high: u32, angle: &Dword, step: &Dword) {
+    let s = step.get();
+    if (low.wrapping_sub(high) as i32) < 0 {
+        angle.set(angle.get().wrapping_sub(s));
+    } else {
+        add(angle, s);
     }
+    step.set(s >> 1);
 }
 
 /// The matrix (`get_mat_crash`) and the wheels (`physics::probe_ground`).
@@ -88,24 +75,24 @@ unsafe fn matrix_and_wheels() -> Result<[u32; 4], Refused> {
 pub unsafe fn settle_car() -> Result<(), Refused> {
     unsafe {
         crate::physics::set_handling::set_handling()?;
-        game_write(PITCH_RVA, 0u32);
-        game_write(ROLL_RVA, 0u32);
-        game_write(PITCH_STEP_RVA, 0x2000_0000u32);
-        game_write(ROLL_STEP_RVA, 0x2000_0000u32);
+        CAR.car_pitch.set(0);
+        CAR.car_roll.set(0);
+        PHYSICS.settle_steps[0].set(0x2000_0000u32);
+        PHYSICS.settle_steps[1].set(0x2000_0000u32);
         game_write(SETTLE_MARK_RVA, 0x80u32);
         for _ in 0..8 {
             let w = matrix_and_wheels()?;
             settle_step(
                 w[0].wrapping_add(w[2]),
                 w[1].wrapping_add(w[3]),
-                ROLL_RVA,
-                ROLL_STEP_RVA,
+                &CAR.car_roll,
+                &PHYSICS.settle_steps[1],
             );
             settle_step(
                 w[0].wrapping_add(w[1]),
                 w[2].wrapping_add(w[3]),
-                PITCH_RVA,
-                PITCH_STEP_RVA,
+                &CAR.car_pitch,
+                &PHYSICS.settle_steps[0],
             );
         }
         let w = matrix_and_wheels()?;
@@ -115,7 +102,7 @@ pub unsafe fn settle_car() -> Result<(), Refused> {
                 lowest = h;
             }
         }
-        game_write(CAR_Y_RVA, game_read::<u32>(CAR_Y_RVA).wrapping_sub(lowest));
+        CAR.position[1].set(CAR.position[1].get().wrapping_sub(lowest));
         for (k, h) in w.iter().enumerate() {
             game_write(WHEELS_RVA + 4 * k, h.wrapping_sub(lowest));
         }
@@ -136,28 +123,37 @@ pub unsafe fn reset_car_motion() -> Result<(), Refused> {
     unsafe {
         settle_car()?;
         crate::race::start_place::invert_car_matrix();
-        zero(car(0x198), 3);
-        game_write(car(0x1A4), 0x3F80_0000u32);
-        game_write(car(0x1A8), 0u32);
-        game_write(car(0x1AC), 0u32);
-        zero(car(0x184), 3);
-        let heading: u32 = game_read(HEADING_RVA);
-        game_write(START_ANGLES_RVA, heading);
-        game_write(car(0x6B0), heading);
-        let pitch: u32 = game_read(PITCH_RVA);
-        game_write(START_ANGLES_RVA + 8, pitch);
-        game_write(car(0x6B8), pitch);
-        let roll: u32 = game_read(ROLL_RVA);
-        game_write(START_ANGLES_RVA + 4, roll);
-        game_write(car(0x6B4), roll);
-        for offset in [0x1E8, 0x1B8, 0x1BC, 0x1D4, 0x200, 0x204, 0x1C4, 0x1F4] {
-            game_write(car(offset), 0u32);
+        for v in &CAR.velocity {
+            v.set_bits(0);
         }
-        let pending: u32 = game_read(PENDING_RVA);
+        CAR.local_velocity[0].set_bits(0x3F80_0000);
+        CAR.local_velocity[1].set_bits(0);
+        CAR.local_velocity[2].set_bits(0);
+        for v in &CAR.spin {
+            v.set_bits(0);
+        }
+        let heading = CAR.car_heading.get();
+        game_write(START_ANGLES_RVA, heading);
+        CAR.camera_heading.set(heading);
+        let pitch = CAR.car_pitch.get();
+        game_write(START_ANGLES_RVA + 8, pitch);
+        CAR.camera_pitch.set(pitch);
+        let roll = CAR.car_roll.get();
+        game_write(START_ANGLES_RVA + 4, roll);
+        CAR.camera_roll_turn.set(roll);
+        CAR.stuck_count.set(0);
+        CAR.drive_speed_a.set_bits(0);
+        CAR.drive_speed_b.set_bits(0);
+        CAR.gear.set(0);
+        CAR.eased_yaw_spin.set_bits(0);
+        CAR.grip_force_sum.set_bits(0);
+        CAR.speed.set_bits(0);
+        CAR.wall_hit_timer.set(0);
+        let pending = CAR.camera_view_return.get();
         if pending != 0 {
-            game_write(car(0x688), pending - 1);
-            game_write(car(0x684), pending - 1);
-            game_write(PENDING_RVA, 0u32);
+            CAR.camera_blend_view.set(pending - 1);
+            CAR.camera_view.set(pending - 1);
+            CAR.camera_view_return.set(0);
         }
     }
     Ok(())
@@ -174,8 +170,8 @@ unsafe fn move_turned(x: u32, z: u32) {
             z as i32,
             game_read(PLACE_HEADING_RVA),
         );
-        add(CAR_X_RVA, x);
-        add(CAR_Z_RVA, z);
+        add(&CAR.position[0], x);
+        add(&CAR.position[2], z);
     }
 }
 
@@ -191,22 +187,31 @@ unsafe fn move_turned(x: u32, z: u32) {
 /// leaves are read by no caller. Refuses a nearest checkpoint past the lists (when met).
 pub unsafe fn start_car() -> Result<(), Refused> {
     unsafe {
-        game_write(car(0x478), 0u32);
-        game_write(car(0x694), 0u32);
-        game_write(car(0xAD4), 0x8000_0000u32);
-        game_write(car(0xAD8), 0x8000_0000u32);
-        game_write(car(0x1E4), 0u32);
-        game_write(car(0x1D8), 0u32);
-        game_write(car(0x1D4), 0u32);
-        zero(car(0x644), 4);
-        zero(car(0x638), 3);
-        if game_read::<u32>(MODE_RVA) != 4 {
+        CAR.notice_count.set(0);
+        CAR.camera_switch_active.set(0);
+        CAR.map_corner[0].set(0x8000_0000);
+        CAR.map_corner[1].set(0x8000_0000);
+        CAR.engine_sound_revs.set(0);
+        CAR.engine_speed.set_bits(0);
+        CAR.gear.set(0);
+        zero(&[
+            &CAR.steering,
+            &CAR.steering_raw,
+            &CAR.steer_angle,
+            &CAR.steer_angle_visual,
+        ]);
+        zero(&[&CAR.throttle, &CAR.brake, &CAR.handbrake]);
+        if RACE_VARS.run_kind.bits() != 4 {
             // Converted: `rc2k_core::race::start::{start_checkpoint, starts_aside,
             // side_offset, start_checks}`.
             use rc2k_core::race::start::{side_offset, start_checkpoint, starts_aside};
             let first = crate::race::race_init::first_check_checkpoint()?;
-            let mode: u32 = game_read(MODE_RVA);
-            let place = start_checkpoint(first, mode, game_read(CURRENT_CAR_RVA));
+            let mode: u32 = RACE_VARS.run_kind.bits();
+            let place = start_checkpoint(
+                first,
+                mode,
+                crate::race::work_store::RACE_WORK.current_car.get(),
+            );
             game_write(LINE_PLACE_RVA, place);
             game_write(LINE_FRACTION_RVA, 0u32);
             if game_read::<u32>(NO_PLACE_RVA) != 0 {
@@ -218,27 +223,34 @@ pub unsafe fn start_car() -> Result<(), Refused> {
                 move_turned(0, 0xFFFE_0000);
                 let side = starts_aside(
                     crate::net::store::NET.session.get(),
-                    || game_read(MODE_RVA),
-                    || game_read(CARS_2_RVA),
+                    || RACE_VARS.run_kind.bits(),
+                    || RACE_VIEW.players.bits(),
                 );
                 if side {
-                    move_turned(side_offset(game_read(CURRENT_CAR_RVA)), 0);
+                    move_turned(
+                        side_offset(crate::race::work_store::RACE_WORK.current_car.get()),
+                        0,
+                    );
                 }
             }
         }
         let nearest = crate::race::start_place::nearest_checkpoint()?;
-        game_write(car(0x98), nearest);
-        game_write(car(0x94), nearest);
-        game_write(car(0x9C), nearest);
+        CAR.checkpoint.set(nearest);
+        CAR.reset_checkpoint.set(nearest);
+        CAR.last_pace_call.set(nearest);
         if nearest >= MOST_CHECKS {
             return Err(BadInput("a nearest checkpoint past the lists").into());
         }
         let checks =
             rc2k_core::race::start::start_checks(game_read(CHECKS_RVA + 4 * nearest as usize));
-        game_write(car(0x90), checks);
-        game_write(car(0xAC), checks);
+        CAR.splits_passed.set(checks);
+        CAR.splits_recorded.set(checks);
         reset_car_motion()?;
-        zero(car(0x264), 3);
+        zero(&[
+            &CAR.reset_key_count,
+            &CAR.stopped_steps,
+            &CAR.tyre_change_state,
+        ]);
     }
     Ok(())
 }
@@ -254,11 +266,13 @@ pub unsafe fn start_cars() -> Result<(), Refused> {
     }
     for n in 0..cars {
         unsafe {
-            game_write(CURRENT_CAR_RVA, n);
+            crate::race::work_store::RACE_WORK.current_car.set(n);
             crate::drive::load_car::load_car()?;
             start_car()?;
-            zero(car(0xA3C), 8);
-            zero(car(0xA5C), 0x11);
+            // +0xA3C (8 dwords) and +0xA5C (0x11) 0.
+            for cell in CAR.part_damage_limits.iter().chain(&CAR.unknown_a58[..18]) {
+                cell.set(0);
+            }
             crate::drive::store_car::store_car()?;
         }
     }

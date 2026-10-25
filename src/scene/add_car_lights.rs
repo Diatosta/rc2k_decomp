@@ -17,17 +17,13 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_read, rva};
+use crate::race::vars_store::RACE_VARS;
+use crate::race::view_store::RACE_VIEW;
+use crate::race::work_store::RACE_WORK;
 
 // ---- game data ----
-
-const CARS_RVA: usize = rva(0x63DB90); // dword_63DB90
-const BLOCKS_RVA: usize = rva(0x71B3B8); // g_carBlocks
 const BLOCKS: u32 = 8;
-const ALL_CARS_RVA: usize = rva(0x6238B8); // dword_6238B8
-const NEAR_CARS_RVA: usize = rva(0x63DB94); // dword_63DB94
 pub const DRAWN_CAR_RVA: usize = rva(0x639968); // dword_639968
-const VIEW_RVA: usize = rva(0x62389C); // dword_62389C
-const VIEW_CAR_RVA: usize = rva(0x63DB9C); // dword_63DB9C
 const VIEW_CARS_RVA: usize = rva(0x63DBA8); // dword_63DBA8
 
 // ---- Rust version ----
@@ -43,20 +39,20 @@ impl rc2k_core::scene::lamps::CarLights for GameCars {
         crate::net::store::NET.player.get()
     }
     fn all_cars(&self) -> bool {
-        unsafe { game_read::<u32>(ALL_CARS_RVA) == 1 }
+        RACE_VARS.settings_words[4].bits() == 1
     }
     fn near(&self) -> u32 {
-        unsafe { game_read(NEAR_CARS_RVA) }
+        RACE_VIEW.players.bits()
     }
     fn view(&self) -> u32 {
-        unsafe { game_read(VIEW_RVA) }
+        RACE_VARS.run_kind.bits()
     }
     fn drawn(&self) -> u32 {
         unsafe { game_read(DRAWN_CAR_RVA) }
     }
     fn viewed(&self) -> u32 {
         unsafe {
-            game_read(VIEW_CARS_RVA.wrapping_add((game_read::<u32>(VIEW_CAR_RVA) as usize) << 2))
+            game_read(VIEW_CARS_RVA.wrapping_add((RACE_VIEW.drawn_view.bits() as usize) << 2))
         }
     }
 }
@@ -65,13 +61,13 @@ impl rc2k_core::scene::lamps::CarLights for GameCars {
 pub unsafe fn add_car_lights(
     add: &mut dyn FnMut(usize) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
-    unsafe {
-        let cars: u32 = game_read(CARS_RVA);
+    {
+        let cars: u32 = RACE_VIEW.race_cars.bits();
         if cars == 0 || cars > BLOCKS {
             return Err(BadInput("no cars, or more than their blocks").into());
         }
         for car in 0..cars {
-            let block = game_read::<u32>(BLOCKS_RVA + car as usize * 4);
+            let block = RACE_WORK.car_block(car as usize);
             if rc2k_core::scene::lamps::car_lights(&GameCars, car) {
                 add(block as usize)?;
             }

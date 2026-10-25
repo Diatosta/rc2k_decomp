@@ -10,17 +10,17 @@
 //! program the rasteriser draws it (`platform_3d::draw_fan`) and the result is 0.
 
 use crate::d3d::{VERTEX_LEN, Vertex};
-use crate::framework::{game_addr, game_read, rva};
+use crate::framework::{game_addr, rva};
+use crate::scene::draw_store::DRAW;
 
 pub const VERTICES_RVA: usize = rva(0x9605A0); // g_polygonVertices
-pub const COUNT_RVA: usize = rva(0x6240F8); // g_polygonVertexCount
 /// More than the buffer can hold is not noted: 0x6240F8 lies well past 0x9605A0 only by
 /// address, and a count gone wrong must not be read through.
 const MOST: u32 = 0x100;
 
 /// The polygon as it stands in the buffer.
 pub fn polygon() -> Vec<Vertex> {
-    let count = unsafe { game_read::<u32>(COUNT_RVA) }.min(MOST) as usize;
+    let count = DRAW.polygon_vertex_count.bits().min(MOST) as usize;
     let at = game_addr(VERTICES_RVA);
     (0..count)
         .map(|n| unsafe { ((at + n * VERTEX_LEN) as *const Vertex).read_unaligned() })

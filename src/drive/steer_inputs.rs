@@ -16,7 +16,11 @@
 //!
 //! Callers: `drive::car_controls`, `sub_460835`, `sub_460B2F`.
 
+use crate::physics::car_store::CAR;
 use crate::physics::flow::{c0, g, p};
+use crate::physics::tables_store::PHYSICS;
+use crate::race::numbers_store::NUMBERS;
+use crate::scene::draw_store::DRAW;
 use crate::scene::x87_mem::{fild, fistp, fld};
 
 /// `fild dword [rc + from]; fmul dword [rc + by]; fistp dword [rc + to]` over the race
@@ -29,8 +33,6 @@ fn scale(rc: usize, from: usize, by: usize, to: usize) {
 fn base() -> usize {
     crate::race::store::asm_base() as usize
 }
-
-const WORD: usize = 0x613890;
 const LEFT: u32 = 0xE000_0000;
 const RIGHT: u32 = 0x2000_0000;
 
@@ -40,14 +42,14 @@ fn sign(v: u32) -> bool {
 
 /// The key step: 0xA00000 x `flt_614C0C`, through `dword_62400C`.
 fn key_step() -> u32 {
-    p(0x62400C, 0xA0_0000);
+    DRAW.scratch.set(0xA0_0000);
     scale(base(), 0x22400C, 0x214C0C, 0x22400C);
-    g(0x62400C)
+    DRAW.scratch.get()
 }
 
 /// One steering value moved by the key step (0x439DFA .. / 0x439E95 ..).
 fn steer(value: usize, step: u32) {
-    let word = g(WORD);
+    let word = PHYSICS.input_steer.get();
     let v = g(value);
     if word != 0 {
         if sign(word) {
@@ -82,39 +84,54 @@ fn steer(value: usize, step: u32) {
 /// The Rust version (the exact one, for `drive::simple_car_step`, `drive::replay_step`
 /// and `race::step_replay_cars`).
 pub unsafe fn steer_inputs() {
-    let mut keys = g(WORD) == 0;
-    if !keys && g(0x71A234) != 2 {
-        keys = g(0x71A440) & 0x1000 != 0;
+    let mut keys = PHYSICS.input_steer.get() == 0;
+    if !keys && CAR.driver_kind.get() != 2 {
+        keys = CAR.input_keys.get() & 0x1000 != 0;
     }
     if keys {
         steer(0x71A620, key_step());
         steer(0x71A61C, key_step());
     } else {
-        p(0x71A61C, 0);
-        let product = i64::from(g(WORD) as i32) * i64::from(RIGHT as i32);
-        p(0x62400C, (product >> 8) as u32);
+        CAR.steering.set(0);
+        let product = i64::from(PHYSICS.input_steer.get() as i32) * i64::from(RIGHT as i32);
+        DRAW.scratch.set((product >> 8) as u32);
         scale(base(), 0x22400C, 0x214C08, 0x22400C);
-        if sign(g(0x62400C).wrapping_sub(LEFT)) {
-            p(0x62400C, LEFT);
+        if sign(DRAW.scratch.get().wrapping_sub(LEFT)) {
+            DRAW.scratch.set(LEFT);
         }
-        if !sign(g(0x62400C).wrapping_sub(RIGHT)) {
-            p(0x62400C, RIGHT);
+        if !sign(DRAW.scratch.get().wrapping_sub(RIGHT)) {
+            DRAW.scratch.set(RIGHT);
         }
-        p(0x71A620, g(0x62400C));
-        p(0x71A61C, g(0x62400C));
+        CAR.steering_raw.set(DRAW.scratch.get());
+        CAR.steering.set(DRAW.scratch.get());
     }
     // 0x439F7D: the trim.
-    p(0x62400C, RIGHT);
+    DRAW.scratch.set(RIGHT);
     scale(base(), 0x22400C, 0x31A3E0, 0x31A1E0);
-    if g(0x719FE8) & 0x10 != 0 {
-        p(0x71A1E0, g(0x71A1E0).wrapping_neg());
+    if CAR.car_flags.get() & 0x10 != 0 {
+        CAR.steer_trim.set(
+            crate::physics::car_store::CAR
+                .steer_trim
+                .get()
+                .wrapping_neg(),
+        );
     }
-    let trim = g(0x71A1E0);
-    p(0x71A624, g(0x71A61C).wrapping_add(trim));
-    p(0x71A628, g(0x71A620).wrapping_add(trim.wrapping_mul(4)));
-    if !c0(g(0x71A308), g(0x5C5D14)) {
-        p(0x71A624, 0);
-        p(0x71A628, 0);
+    let trim = CAR.steer_trim.get();
+    CAR.steer_angle.set(
+        crate::physics::car_store::CAR
+            .steering
+            .get()
+            .wrapping_add(trim),
+    );
+    CAR.steer_angle_visual.set(
+        crate::physics::car_store::CAR
+            .steering_raw
+            .get()
+            .wrapping_add(trim.wrapping_mul(4)),
+    );
+    if !c0(CAR.steering_damage.bits(), NUMBERS.hundred.bits()) {
+        CAR.steer_angle.set(0);
+        CAR.steer_angle_visual.set(0);
     }
 }
 

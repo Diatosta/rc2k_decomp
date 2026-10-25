@@ -10,11 +10,12 @@
 
 use crate::errors::Refused;
 use crate::physics::flow::{g, p};
+use crate::race::numbers_store::NUMBERS;
 
 /// The Rust version.
 // Converted: `rc2k_core::drive::race_steps::play_frame`.
 pub unsafe fn play_replay_frame() -> Result<(), Refused> {
-    let Some(whole) = rc2k_core::drive::race_steps::play_frame(g(0x5C5CE0), || {
+    let Some(whole) = rc2k_core::drive::race_steps::play_frame(NUMBERS.replay_mode.get(), || {
         p(0x6EF7E0, g(0x5C2530));
         p(0x6EF7E4, g(0x5C2534));
         g(0x6EF7E4)

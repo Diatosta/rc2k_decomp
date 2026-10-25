@@ -14,25 +14,18 @@
 //! no faces or points.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, game_write, rva};
+use crate::framework::{game_read, rva};
 use crate::math::turn_point_xz::turn_point_xz;
+use crate::physics::car_store::CAR;
+use crate::race::course_store::COURSE;
+use crate::race::vars_store::RACE_VARS;
 use rc2k_core::physics::progress::checkpoint_ahead;
 
 fn g(x: usize) -> u32 {
     unsafe { game_read(rva(x)) }
 }
-
-fn p(x: usize, v: u32) {
-    unsafe { game_write(rva(x), v) }
-}
-
-const CHECKPOINT: usize = 0x71A070; // g_car + 0x98
-const COUNT: usize = 0x623640; // g_checkpointCount
 const ANGLES: usize = 0x9ED808; // dword_9ED808
 const CHECK_FACES: usize = 0x9E3738; // g_checkpointFaces
-const FACES: usize = 0x5CCCBC; // g_courseFaces
-const POINTS: usize = 0x5CCCC0; // g_scenePoints
-const OFFSET: usize = 0x71A5F8; // g_car + 0x620
 
 unsafe fn at(a: u32) -> u32 {
     unsafe { (a as *const u32).read_unaligned() }
@@ -42,26 +35,28 @@ unsafe fn at(a: u32) -> u32 {
 // Converted: `rc2k_core::physics::progress::checkpoint_ahead` (the turn stays
 // `math::turn_point_xz`'s).
 pub unsafe fn checkpoint_offset() -> Result<(), Refused> {
-    let c = g(CHECKPOINT);
-    if checkpoint_ahead(c, g(COUNT))?.is_none() {
-        p(OFFSET, 0);
-        p(OFFSET + 4, 0);
+    let c = CAR.checkpoint.get();
+    if checkpoint_ahead(c, RACE_VARS.checkpoint_count.get())?.is_none() {
+        CAR.checkpoint_offset[0].set(0);
+        CAR.checkpoint_offset[1].set(0);
         return Ok(());
     }
-    if g(FACES) == 0 || g(POINTS) == 0 {
+    if COURSE.course_faces.get() == 0 || COURSE.scene_points.get() == 0 {
         return Err(BadInput("no course faces or points").into());
     }
     unsafe {
         let angle = g(ANGLES + 4 * c as usize);
         let face = g(CHECK_FACES + 4 * c as usize);
-        let f = (face << 6).wrapping_add(g(FACES));
+        let f = (face << 6).wrapping_add(COURSE.course_faces.get());
         let point = at(f + 4);
-        let pt = point.wrapping_mul(12).wrapping_add(g(POINTS));
-        let x = g(0x71A10C).wrapping_sub(at(pt));
-        let z = g(0x71A114).wrapping_sub(at(pt + 8));
+        let pt = point
+            .wrapping_mul(12)
+            .wrapping_add(COURSE.scene_points.get());
+        let x = CAR.position[0].get().wrapping_sub(at(pt));
+        let z = CAR.position[2].get().wrapping_sub(at(pt + 8));
         let [x2, _, z2, _] = turn_point_xz(x as i32, point as i32, z as i32, angle.wrapping_neg());
-        p(OFFSET, x2);
-        p(OFFSET + 4, z2);
+        CAR.checkpoint_offset[0].set(x2);
+        CAR.checkpoint_offset[1].set(z2);
         Ok(())
     }
 }

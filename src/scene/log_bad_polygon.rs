@@ -16,7 +16,8 @@
 //! vertices (the original's loop would run through memory).
 
 use crate::errors::BadInput;
-use crate::framework::{game_read, game_write, rva};
+use crate::framework::{game_read, rva};
+use crate::scene::draw_store::DRAW;
 
 const WRITE: u32 = 0;
 const HEX8: u32 = 1;
@@ -24,8 +25,6 @@ const FLOAT: u32 = 2;
 const INT: u32 = 3;
 const INT_NL: u32 = 4;
 const NEWLINE: u32 = 5;
-const MASK_RVA: usize = rva(0x624118); // g_polygonClipMask
-const COUNT_RVA: usize = rva(0x6240F8); // g_polygonVertexCount
 const OBJECT_RVA: usize = rva(0x62DA44); // g_drawingObject
 const MOST: u32 = 64;
 /// Stand-ins in the value column for the session's screen size (not addresses).
@@ -69,7 +68,7 @@ const PT: &std::ffi::CStr = c"pt"; // "pt"
 
 /// The Rust version: the dump of the `g_polygonVertexCount` vertices at `vertices`.
 pub unsafe fn log_bad_polygon(vertices: u32) -> Result<(), BadInput> {
-    let count: u32 = unsafe { game_read(COUNT_RVA) };
+    let count: u32 = DRAW.polygon_vertex_count.bits();
     if count > MOST {
         return Err(BadInput("more than 64 vertices"));
     }
@@ -83,7 +82,7 @@ pub unsafe fn log_bad_polygon(vertices: u32) -> Result<(), BadInput> {
         log(WRITE, text(label));
         log(kind, value(at));
     }
-    unsafe { game_write(MASK_RVA, 0u32) };
+    DRAW.polygon_clip_mask.set_bits(0u32);
     let object = unsafe { game_read::<u32>(OBJECT_RVA) } == 1;
     let tail: &[(&std::ffi::CStr, u32, usize)] = if object { &OBJECT } else { &COURSE };
     for &(label, kind, at) in AFTER.iter().chain(tail) {

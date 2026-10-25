@@ -37,13 +37,17 @@ use crate::errors::{BadInput, Refused};
 use crate::framework::rva;
 use crate::math::x87;
 use crate::math::x87_run::{int_times_times_over_to_int, less_plus_less_product_80};
+use crate::physics::car_store::CAR;
 use crate::physics::ground::*;
+use crate::physics::tables_store::PHYSICS;
+use crate::race::course_store::COURSE;
+use crate::race::numbers_store::NUMBERS;
+use crate::scene::draw_store::DRAW;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
 use rc2k_core::physics::ground;
 
 pub const MOST_POINTS: u32 = 0x40;
-const COUNT: u32 = 0x71A238; // dword_71A238
 const NOISE: u32 = 0xA2AAE4; // g_noiseBytes, 0x1000
 
 /// The Rust core. The registers the original leaves (ebx the count, eax, ecx, edx, esi
@@ -52,7 +56,7 @@ const NOISE: u32 = 0xA2AAE4; // g_noiseBytes, 0x1000
 // turns and the bump's scaling stay x87).
 pub unsafe fn probe_ground_at(g: &Ground) -> Result<(), Refused> {
     unsafe {
-        let n = g.get(COUNT);
+        let n = CAR.probe_count.get();
         if n < 1 {
             return Ok(());
         }
@@ -66,28 +70,28 @@ pub unsafe fn probe_ground_at(g: &Ground) -> Result<(), Refused> {
 
 unsafe fn probe_points(g: &Ground, n: u32) -> Result<(), Refused> {
     unsafe {
-        let k65536 = g.get(0x5C5D98);
+        let k65536 = NUMBERS.k65536.bits();
         g.put(0x6D3B84, u32::MAX);
         for b in 0..n {
             let at = |base: u32| base + 4 * b;
-            let z = g.get(at(0x71ACC8));
-            let y = g.get(at(0x71ABC8));
+            let z = CAR.probe_point_z[b as usize].bits();
+            let y = CAR.probe_point_y[b as usize].bits();
             let y = if b < 4 {
-                g.put(0x62400C, x87::loaded(y));
+                DRAW.scratch.set(x87::loaded(y));
                 let add;
-                (add, _) = ground::wheel_lifted(g.get(0x71A270), b);
+                (add, _) = ground::wheel_lifted(CAR.parts_present.get(), b);
                 less_plus_less_product_80(
-                    g.get(0x71ABE0),
-                    g.get(0x614BF4),
-                    add.then(|| g.get(0x613E8C)),
-                    g.get(0x613F8C),
-                    g.get(0x614BF8),
+                    CAR.probe_point_y[6].bits(),
+                    PHYSICS.handling[2].bits(),
+                    add.then(|| PHYSICS.probe_lift.bits()),
+                    PHYSICS.probe_share.bits(),
+                    PHYSICS.handling[3].bits(),
                 )
             } else {
                 extended(y)
             };
-            let x = extended(g.get(at(0x71AAC8)));
-            let out = rotate_point(g.a(0x71A08C), [x, y, extended(z)]);
+            let x = extended(CAR.probe_point_x[b as usize].bits());
+            let out = rotate_point(CAR.crash_matrix[0].addr() as u32, [x, y, extended(z)]);
             let (ox, oy, oz) = (rounded(out[0]), rounded(out[1]), rounded(out[2]));
             g.put(0x6D3628, ox);
             g.put(at(0x6D2214), ox);
@@ -95,16 +99,18 @@ unsafe fn probe_points(g: &Ground, n: u32) -> Result<(), Refused> {
             g.put(0x6D3630, oz);
             g.put(at(0x6D2414), oz);
             for (v, place, list) in [
-                (ox, 0x71A10C, 0x6D1E14),
-                (oy, 0x71A110, 0x6D1F14),
-                (oz, 0x71A114, 0x6D2014),
+                (ox, &CAR.position[0], 0x6D1E14),
+                (oy, &CAR.position[1], 0x6D1F14),
+                (oz, &CAR.position[2], 0x6D2014),
             ] {
-                let w = (x87::mul_to_int(v, k65536) as u32).wrapping_add(g.get(place));
+                let w = (x87::mul_to_int(v, k65536) as u32).wrapping_add(place.get());
                 g.put(at(list), w);
             }
             g.put(0x639824, g.get(at(0x6D1E14)));
             g.put(0x63982C, g.get(at(0x6D2014)));
-            g.put(0x5CCC78, g.get(at(0x71ADC8)));
+            COURSE
+                .ground_face_last
+                .set(CAR.probe_point_face[b as usize].get());
             g.put(0x620470, 0x80);
             ground_search_at(g)?;
             g.put(at(0x6D2114), 0);
@@ -132,37 +138,38 @@ unsafe fn probe_points(g: &Ground, n: u32) -> Result<(), Refused> {
             g.put(0x6D3058, n58);
             g.put(0x6D3054, n54);
             g.put(0x6D305C, n5c);
-            g.put(0x62400C, n5c);
+            DRAW.scratch.set(n5c);
             let bump = int_times_times_over_to_int(
                 n5c as i32,
-                g.get(0x71A038),
-                g.get(0x5C5E2C),
-                g.get(0x5C5D14),
+                CAR.ground_bump_scale.bits(),
+                NUMBERS.k256.bits(),
+                NUMBERS.hundred.bits(),
             );
-            g.put(0x62400C, bump as u32);
+            DRAW.scratch.set(bump as u32);
             g.put(at(0x6D2114), g.get(at(0x6D2114)).wrapping_add(bump as u32));
-            g.put(at(0x6D2914), g.get(0x5CCC6C));
+            g.put(at(0x6D2914), COURSE.ground_half.get());
             g.put(at(0x6D2A14), g.get(0x639810));
             g.put(at(0x6D2B14), g.get(0x639814));
             let d = g.get(at(0x6D1F14)).wrapping_sub(g.get(at(0x6D2114)));
             g.put(at(0x6D2514), d);
             if b < 4 {
-                g.put(0x62400C, x87::loaded(g.get(0x71A0A0)));
-                if x87::compare_status(g.get(0x62400C), g.get(0x5C5D90)) & 0x100 != 0 {
-                    g.put(0x62400C, x87::loaded(g.get(0x5C5D90)));
+                DRAW.scratch.set(x87::loaded(CAR.crash_matrix[5].bits()));
+                if x87::compare_status(DRAW.scratch.get(), NUMBERS.zero.bits()) & 0x100 != 0 {
+                    DRAW.scratch.set(x87::loaded(NUMBERS.zero.bits()));
                 }
                 g.put(at(0x6D2614), d);
                 g.put(
                     at(0x6D2514),
-                    x87::int_times_to_int(d as i32, g.get(0x62400C)) as u32,
+                    x87::int_times_to_int(d as i32, DRAW.scratch.get()) as u32,
                 );
             }
-            g.put(at(0x71ADC8), g.get(0x5CCC74));
+            CAR.probe_point_face[b as usize].set(COURSE.ground_slot.get());
         }
         for k in 0..4u32 {
-            g.put(0x71AEE8 + 4 * k, g.get(0x6D1E14 + 4 * k));
-            g.put(0x71AEF8 + 4 * k, g.get(0x6D2114 + 4 * k));
-            g.put(0x71AF08 + 4 * k, g.get(0x6D2014 + 4 * k));
+            let i = k as usize;
+            CAR.wheel_ground_x[i].set(g.get(0x6D1E14 + 4 * k));
+            CAR.wheel_ground_height[i].set(g.get(0x6D2114 + 4 * k));
+            CAR.wheel_ground_z[i].set(g.get(0x6D2014 + 4 * k));
         }
         Ok(())
     }

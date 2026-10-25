@@ -33,17 +33,17 @@
 //! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, rva};
+use crate::physics::car_store::CAR;
 use crate::physics::flip_cell_index::flip_cell_index;
+use crate::physics::tables_store::PHYSICS;
+use crate::race::course_store::COURSE;
+use crate::scene::draw_store::DRAW;
 use crate::scene::x87_mem::{fild, fistp, fld, fstp};
 use std::cmp::Ordering;
 
 fn g(x: usize) -> u32 {
     unsafe { game_read(rva(x)) }
-}
-
-fn p(x: usize, v: u32) {
-    unsafe { game_write(rva(x), v) }
 }
 
 unsafe fn byte(a: u32) -> u32 {
@@ -59,16 +59,16 @@ unsafe fn share_bit(v: u32, c: u32) -> u32 {
         c as usize,
         crate::race::store::asm_base() as usize,
     );
-    g(0x62400C)
+    DRAW.scratch.get()
 }
 
 /// Everything the function reads that the checks need, refused as said.
 fn check() -> Result<(), Refused> {
-    let faces = g(0x5CCCBC);
+    let faces = COURSE.course_faces.get();
     if faces == 0 {
         return Err(BadInput("no course faces").into());
     }
-    if g(0x71A004) > 5 {
+    if CAR.tyre_kind.get() > 5 {
         return Err(BadInput("a surface table index past 5").into());
     }
     Ok(())
@@ -79,10 +79,10 @@ fn check() -> Result<(), Refused> {
 unsafe fn steps() -> Result<(), Refused> {
     check()?;
     let infos = game_addr(rva(0x979F30)) as u32;
-    let surfaces = game_addr(rva(0x613978)) as u32;
+    let surfaces = PHYSICS.surfaces.as_ptr() as u32;
     for c in 0..5u32 {
         let cc = c as usize;
-        let f = (g(0x71ADC8 + 4 * cc) << 6).wrapping_add(g(0x5CCCBC));
+        let f = (CAR.probe_point_face[cc].get() << 6).wrapping_add(COURSE.course_faces.get());
         let t1 = infos + (unsafe { byte(f + 1) } << 6);
         let mut edx = unsafe { share_bit(0x2D2B14, c) };
         let mut ebx = unsafe { share_bit(0x2D2A14, c) };
@@ -93,42 +93,42 @@ unsafe fn steps() -> Result<(), Refused> {
             ebx ^= 1;
         }
         let (_, _, d1) = flip_cell_index(unsafe { byte(f) }, ebx, edx);
-        p(0x614710 + 4 * cc, d1);
+        PHYSICS.surface_firsts[cc].set(d1);
         let (_, _, d2) = flip_cell_index(unsafe { byte(f + 0x20) }, ebx, edx);
-        p(0x614724 + 4 * cc, d2);
+        PHYSICS.surface_seconds[cc].set(d2);
         unsafe {
-            let e = g(0x614710 + 4 * cc);
-            p(0x71A8F8 + 4 * cc, byte(e + t1 + 0x10));
-            p(0x71A934 + 4 * cc, byte(e + t1 + 0x18));
-            p(0x71A95C + 4 * cc, byte(e + t1 + 0x14));
+            let e = PHYSICS.surface_firsts[cc].get();
+            CAR.wheel_surface_a[cc].set(byte(e + t1 + 0x10));
+            CAR.wheel_cell_a_byte18[cc].set(byte(e + t1 + 0x18));
+            CAR.wheel_cell_a_byte14[cc].set(byte(e + t1 + 0x14));
             let t2 = infos + (byte(f + 0x21) << 6);
-            let e2 = g(0x614724 + 4 * cc);
-            p(0x71A90C + 4 * cc, byte(e2 + t2 + 0x10));
-            p(0x71A948 + 4 * cc, byte(e2 + t2 + 0x18));
-            p(0x71A970 + 4 * cc, byte(e2 + t2 + 0x14));
-            p(0x71A984 + 4 * cc, 0);
+            let e2 = PHYSICS.surface_seconds[cc].get();
+            CAR.wheel_surface_b[cc].set(byte(e2 + t2 + 0x10));
+            CAR.wheel_cell_b_byte18[cc].set(byte(e2 + t2 + 0x18));
+            CAR.wheel_cell_b_byte14[cc].set(byte(e2 + t2 + 0x14));
+            CAR.wheel_surface_blend[cc].set_bits(0);
             let kind_index = byte(t2 + 0x2C);
             let kind = g(0x63D9D0 + 4 * kind_index as usize);
-            if kind != 5 && kind != 4 && g(0x71A90C + 4 * cc) != 0 && byte(f + 0x21) != 0 {
+            if kind != 5 && kind != 4 && CAR.wheel_surface_b[cc].get() != 0 && byte(f + 0x21) != 0 {
                 let (x, y, z) = if g(0x6D2914 + 4 * cc) == 1 {
                     (byte(f + 0x25), byte(f + 0x24), byte(f + 0x23))
                 } else {
                     (byte(f + 0x22), byte(f + 0x23), byte(f + 0x24))
                 };
-                p(0x624040, x);
-                p(0x624044, y.wrapping_sub(x));
-                p(0x624048, z.wrapping_sub(x));
+                DRAW.surface_point[0].set(x);
+                DRAW.surface_point[1].set(y.wrapping_sub(x));
+                DRAW.surface_point[2].set(z.wrapping_sub(x));
                 x87_2(crate::race::store::asm_base() as usize, c as usize);
             }
             if ((f + 2) as *const u16).read_unaligned() & 0x1000 != 0 {
-                p(0x71A8F8 + 4 * cc, 5);
-                p(0x71A90C + 4 * cc, 5);
-                p(0x71A934 + 4 * cc, 0x3C);
-                p(0x71A948 + 4 * cc, 0x3C);
-                p(0x71A95C + 4 * cc, 0);
-                p(0x71A970 + 4 * cc, 0);
+                CAR.wheel_surface_a[cc].set(5);
+                CAR.wheel_surface_b[cc].set(5);
+                CAR.wheel_cell_a_byte18[cc].set(0x3C);
+                CAR.wheel_cell_b_byte18[cc].set(0x3C);
+                CAR.wheel_cell_a_byte14[cc].set(0);
+                CAR.wheel_cell_b_byte14[cc].set(0);
             }
-            let (s1, s2) = (g(0x71A8F8 + 4 * cc), g(0x71A90C + 4 * cc));
+            let (s1, s2) = (CAR.wheel_surface_a[cc].get(), CAR.wheel_surface_b[cc].get());
             if s1 > 15 || s2 > 15 {
                 return Err(BadInput("a surface past 15").into());
             }
@@ -141,7 +141,7 @@ unsafe fn steps() -> Result<(), Refused> {
                 c as usize,
             );
             let (ps, pd) = (*(esi as *const u32), *(edi as *const u32));
-            let k = g(0x71A004);
+            let k = CAR.tyre_kind.get();
             x87_4(
                 ps as usize,
                 crate::race::store::asm_base() as usize,
@@ -159,33 +159,36 @@ unsafe fn steps() -> Result<(), Refused> {
     x87_6(crate::race::store::asm_base() as usize);
     for c in 0..5usize {
         let hard = |s: u32| matches!(s, 1 | 2 | 3 | 0xC);
-        let on = hard(g(0x71A8F8 + 4 * c)) || hard(g(0x71A90C + 4 * c));
-        p(0x614150 + 4 * c, on as u32);
+        let on = hard(CAR.wheel_surface_a[c].get()) || hard(CAR.wheel_surface_b[c].get());
+        PHYSICS.hard_ground[c].set(on as u32);
     }
-    let hard = g(0x614150)
-        .wrapping_add(g(0x614154))
-        .wrapping_add(g(0x614158))
-        .wrapping_add(g(0x61415C));
-    p(0x71A230, hard);
+    let hard = PHYSICS.hard_ground[0]
+        .get()
+        .wrapping_add(PHYSICS.hard_ground[1].get())
+        .wrapping_add(PHYSICS.hard_ground[2].get())
+        .wrapping_add(PHYSICS.hard_ground[3].get());
+    CAR.hard_ground_count.set(hard);
     let below = |a: u32, b: u32| {
         !matches!(
             f32::from_bits(a).partial_cmp(&f32::from_bits(b)),
             Some(Ordering::Greater | Ordering::Equal)
         )
     };
-    let mut least = if below(g(0x6142C0), g(0x6142C4)) {
-        g(0x6142C0)
+    let mut least = if below(PHYSICS.point_grips[0].bits(), PHYSICS.point_grips[1].bits()) {
+        PHYSICS.point_grips[0].bits()
     } else {
-        g(0x6142C4)
+        PHYSICS.point_grips[1].bits()
     };
-    p(0x71A038, crate::math::x87::loaded(least));
-    for k in [0x6142C8usize, 0x6142CC, 0x6142D0] {
-        least = if below(g(0x71A038), g(k)) {
-            g(0x71A038)
+    CAR.ground_bump_scale
+        .set_bits(crate::math::x87::loaded(least));
+    for k in &PHYSICS.point_grips[2..5] {
+        least = if below(CAR.ground_bump_scale.bits(), k.bits()) {
+            CAR.ground_bump_scale.bits()
         } else {
-            g(k)
+            k.bits()
         };
-        p(0x71A038, crate::math::x87::loaded(least));
+        CAR.ground_bump_scale
+            .set_bits(crate::math::x87::loaded(least));
     }
     x87_7(crate::race::store::asm_base() as usize);
     Ok(())

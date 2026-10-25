@@ -12,9 +12,10 @@
 
 use crate::errors::BadInput;
 use crate::framework::{game_addr, game_read, game_write};
+use crate::scene::object_store::OBJECT_WORK;
 use crate::scene::objects::{
-    FACE_COUNT_RVA, FACE_CURSOR_RVA, FIRST_POINT_RVA, OBJECT_KINDS_RVA, POINT_COUNT_RVA,
-    POINTS_ROOM_RVA, POINTS_RVA, SLOTS,
+    FACE_COUNT_RVA, FIRST_POINT_RVA, OBJECT_KINDS_RVA, POINT_COUNT_RVA, POINTS_ROOM_RVA,
+    POINTS_RVA, SLOTS,
 };
 
 /// The five tables of 0x100 dwords from `g_objectFirstPoint` on.
@@ -32,7 +33,7 @@ pub unsafe fn reset_objects() -> Result<(), BadInput> {
         std::ptr::write_bytes(game_addr(FIRST_POINT_RVA) as *mut u8, 0, TABLES_LEN);
         game_write(POINT_COUNT_RVA, 1u32);
         game_write(FACE_COUNT_RVA, 0u32);
-        game_write(FACE_CURSOR_RVA, 0u32);
+        OBJECT_WORK.face_cursor.set_bits(0u32);
         game_write(OBJECT_KINDS_RVA, [u32::MAX; SLOTS as usize]);
         Ok(())
     }

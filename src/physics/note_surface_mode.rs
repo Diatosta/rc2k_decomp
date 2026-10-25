@@ -9,11 +9,9 @@
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
-use crate::framework::{game_addr, rva};
+use crate::physics::car_store::CAR;
 use crate::physics::cells::{get, put};
 use rc2k_core::physics::ground::surface_flag;
-
-const VARIABLES: [usize; 2] = [0x71A65C, 0x71A6C8];
 
 /// The Rust version on the variables at `v`.
 // Converted: `rc2k_core::physics::ground::surface_flag`.
@@ -22,10 +20,10 @@ pub unsafe fn note_at(v: &[u32]) {
 }
 
 fn game() -> Vec<u32> {
-    VARIABLES
-        .iter()
-        .map(|&x| game_addr(rva(x)) as u32)
-        .collect()
+    vec![
+        CAR.camera_view.addr() as u32,
+        CAR.camera_mode_is_2_or_3.addr() as u32,
+    ]
 }
 
 /// The Rust version.

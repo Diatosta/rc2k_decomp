@@ -5,6 +5,13 @@
 use crate::errors::{BadInput, Refused};
 use crate::framework::rva;
 use crate::gfx::screen_state::DRAW_SURFACE;
+use crate::race::frame_store::FRAME_WORK;
+use crate::race::numbers_store::NUMBERS;
+use crate::race::vars_store::RACE_VARS;
+use crate::race::view_store::RACE_VIEW;
+use crate::race::work_store::RACE_WORK;
+use crate::scene::draw_store::DRAW;
+use crate::scene::object_store::OBJECT_WORK;
 use crate::session::SCREEN;
 use crate::store::{game_addr, game_read, game_write};
 
@@ -23,11 +30,11 @@ fn w(a: u32, v: u32) {
 /// `race::draw_mirror_view`) read no register it leaves.
 pub unsafe fn full_view_window(first: bool) {
     unsafe {
-        w(0x62408C, SCREEN.width.get());
-        w(0x624090, SCREEN.height.get());
-        w(0x623FB0, 0);
-        w(0x623FB4, 0);
-        w(0x624080, 0x100);
+        DRAW.view_size[0].set(SCREEN.width.get());
+        DRAW.view_size[1].set(SCREEN.height.get());
+        DRAW.view_offset[0].set(0);
+        DRAW.view_offset[1].set(0);
+        DRAW.view_zoom.set(0x100);
         crate::scene::set_view_window::set_view_window();
         if first {
             w(0x6365C4, 0);
@@ -47,8 +54,8 @@ pub unsafe fn mirror_view_window() -> Result<(), Refused> {
     use rc2k_core::race::view::{Window, mirror_entry, mirror_window};
     unsafe {
         let n = mirror_entry(
-            k(0x6238A4),
-            k(0x63DB9C),
+            RACE_VARS.split.get(),
+            RACE_VIEW.drawn_view.get(),
             ((crate::store::game_addr(rva(0x6D1502))) as *const u32).read_unaligned() == 0,
         );
         let at = |base: u32| k(base.wrapping_add(n.wrapping_mul(8)));
@@ -64,15 +71,15 @@ pub unsafe fn mirror_view_window() -> Result<(), Refused> {
         else {
             return Err(BadInput("a mirror place whose scaling overflows").into());
         };
-        w(0x623FB0, x);
-        w(0x623FB4, y);
-        w(0x62408C, sx);
-        w(0x624090, sy);
-        w(0x624138, x);
-        w(0x62413C, y);
-        w(0x624140, x.wrapping_add(sx));
-        w(0x624144, y.wrapping_add(sy));
-        w(0x624080, 0x100);
+        DRAW.view_offset[0].set(x);
+        DRAW.view_offset[1].set(y);
+        DRAW.view_size[0].set(sx);
+        DRAW.view_size[1].set(sy);
+        DRAW.cleared_rectangle[0].set(x);
+        DRAW.cleared_rectangle[1].set(y);
+        DRAW.cleared_rectangle[2].set(x.wrapping_add(sx));
+        DRAW.cleared_rectangle[3].set(y.wrapping_add(sy));
+        DRAW.view_zoom.set(0x100);
         crate::scene::set_view_window::set_view_window();
         crate::race::frame_draw::set_up_fog()?;
         w(0x6365C4, 0);
@@ -99,7 +106,7 @@ pub unsafe fn draw_flat_triangle() {
     for a in ZEROS {
         w(a, 0);
     }
-    w(0x6240F8, 3);
+    DRAW.polygon_vertex_count.set(3);
     crate::scene::draw_fan::draw_fan();
 }
 
@@ -139,10 +146,10 @@ pub unsafe fn draw_marks_overlays() -> Result<(), Refused> {
 /// (before anything) car 0 without its block.
 pub unsafe fn load_first_car() -> Result<(), Refused> {
     unsafe {
-        if k(0x71B3B8) == 0 {
+        if RACE_WORK.car_blocks[0].get() == 0 {
             return Err(BadInput("car 0 without its block").into());
         }
-        w(0x71B3F8, 0);
+        RACE_WORK.current_car.set(0);
         crate::drive::load_car::load_car()?;
         Ok(())
     }
@@ -162,16 +169,16 @@ pub unsafe fn copy_mirror_picture() -> Result<(), Refused> {
     use crate::gfx::pixel_format::PixelFormat;
     use rc2k_core::race::view_steps::{PictureCopy, copy_picture};
     unsafe {
-        let (from, to) = (k(0x624234), k(0x5D0E08));
+        let (from, to) = (DRAW.mirror_picture.get(), k(0x5D0E08));
         if lock_texture(from)?.carry {
             return Ok(());
         }
         let esi = DRAW_SURFACE.pixels.get();
-        w(0x6415EC, esi);
+        FRAME_WORK.view_kept[0].set(esi);
         let ebp = DRAW_SURFACE.pitch.get();
         if !lock_texture(to)?.carry {
             let edi = DRAW_SURFACE.pixels.get();
-            w(0x6415F0, edi);
+            FRAME_WORK.view_kept[1].set(edi);
             let format = DRAW_SURFACE.format.get();
             if format == 0 {
                 return Err(BadInput("a surface without its format").into());
@@ -244,7 +251,10 @@ pub unsafe fn forget_view_textures() -> Result<(), Refused> {
         FORGET_COST, FORGET_ORDER, Forget, MIRROR_BIT, MIRROR_COST, check_slots, forgets, mirror_on,
     };
     unsafe {
-        let blocks = [k(0x63DBB0), k(0x63DBB4)];
+        let blocks = [
+            RACE_VIEW.view_blocks[0].get(),
+            RACE_VIEW.view_blocks[1].get(),
+        ];
         if blocks.contains(&0) {
             return Err(BadInput("a view without its car block").into());
         }
@@ -255,7 +265,10 @@ pub unsafe fn forget_view_textures() -> Result<(), Refused> {
             Forget::Counted(v) => (field(blocks[v], 0x720), [0x5D1DF8, 0x5D1DFC][v]),
             Forget::Extra(n) => (k([0x6D1830u32, 0x6D1834][n]), [0x5D1E58, 0x5D1E5C][n]),
         };
-        let mirror = mirror_on(k(0x6415E0), k(0x6415E8));
+        let mirror = mirror_on(
+            FRAME_WORK.mirror_wanted.get(),
+            FRAME_WORK.mirror_switch.get(),
+        );
         let uploaded = crate::input::store::DEVICES.keys_now.get(0x18) != 0; // byte_4F6B74
         let mut slots: Vec<u32> = FORGET_ORDER
             .iter()
@@ -267,7 +280,7 @@ pub unsafe fn forget_view_textures() -> Result<(), Refused> {
             slots.push(k(0x5D0E08));
         }
         check_slots(&slots)?;
-        w(0x6415F4, 0);
+        FRAME_WORK.view_textures_forgotten.set(0);
         for (f, bit) in FORGET_ORDER {
             let (switch, slot) = source(f);
             if !forgets(switch) {
@@ -275,7 +288,7 @@ pub unsafe fn forget_view_textures() -> Result<(), Refused> {
             }
             forget_slot_texture(k(slot))?;
             w(0x6D1508, k(0x6D1508).wrapping_add(FORGET_COST));
-            w(0x6415F4, k(0x6415F4) | bit);
+            FRAME_WORK.view_textures_forgotten.set(k(0x6415F4) | bit);
             if let Forget::Counted(v) = f {
                 let at = (blocks[v] + 0x720) as *mut u32;
                 at.write_unaligned(at.read_unaligned().wrapping_sub(1));
@@ -284,7 +297,9 @@ pub unsafe fn forget_view_textures() -> Result<(), Refused> {
         if !mirror {
             return Ok(());
         }
-        w(0x6415F4, k(0x6415F4) | MIRROR_BIT);
+        FRAME_WORK
+            .view_textures_forgotten
+            .set(k(0x6415F4) | MIRROR_BIT);
         if !uploaded {
             copy_mirror_picture()?;
             forget_slot_texture(k(0x5D0E08))?;
@@ -300,10 +315,10 @@ pub unsafe fn forget_view_textures() -> Result<(), Refused> {
 
 /// The quad's corners the view window's size from (0, 0).
 fn window_corners() {
-    w(0x623E10, 0);
-    w(0x623E20, 0);
-    w(0x623E14, k(0x62408C));
-    w(0x623E24, k(0x624090));
+    RACE_VARS.quad_corners[0].set(0);
+    RACE_VARS.quad_corners[4].set(0);
+    RACE_VARS.quad_corners[1].set(DRAW.view_size[0].get());
+    RACE_VARS.quad_corners[5].set(DRAW.view_size[1].get());
 }
 
 /// `race::draw_screen_tint` (0x455A11): a tinted quad over the view window
@@ -314,15 +329,15 @@ pub unsafe fn draw_screen_tint() -> Result<(), Refused> {
     // Converted: `rc2k_core::race::view_steps::{NIGHT_ALPHA, NIGHT_COLOUR, glare_alpha,
     // glare_colour}`.
     use rc2k_core::race::view_steps::{NIGHT_ALPHA, NIGHT_COLOUR, glare_alpha, glare_colour};
-    if k(0x71C3E0) != 0 {
-        w(0x623DEC, NIGHT_ALPHA);
+    if RACE_WORK.in_credits.get() != 0 {
+        RACE_VARS.quad_colour[1].set(NIGHT_ALPHA);
         window_corners();
-        w(0x623DE8, NIGHT_COLOUR);
+        RACE_VARS.quad_colour[0].set(NIGHT_COLOUR);
         return unsafe { crate::scene::draw_tinted_quad::draw_tinted_quad() };
     }
-    let sun = k(0x6415C4);
+    let sun = FRAME_WORK.sun_on_screen.get();
     let a = glare_alpha(k(0x6365F4));
-    w(0x623DEC, a);
+    RACE_VARS.quad_colour[1].set(a);
     let mut done = Ok(());
     if a != 0 {
         window_corners();
@@ -333,7 +348,7 @@ pub unsafe fn draw_screen_tint() -> Result<(), Refused> {
         );
         done = unsafe { crate::scene::draw_tinted_quad::draw_tinted_quad() };
     }
-    w(0x6415C4, sun);
+    FRAME_WORK.sun_on_screen.set(sun);
     done
 }
 
@@ -344,10 +359,10 @@ pub unsafe fn clear_view_depth() {
     if k(0x5CDA8C) == 0 {
         return;
     }
-    w(0x624138, 0);
-    w(0x62413C, 0);
-    w(0x624140, SCREEN.width.get());
-    w(0x624144, SCREEN.height.get());
+    DRAW.cleared_rectangle[0].set(0);
+    DRAW.cleared_rectangle[1].set(0);
+    DRAW.cleared_rectangle[2].set(SCREEN.width.get());
+    DRAW.cleared_rectangle[3].set(SCREEN.height.get());
     clear_viewport_unless_held();
 }
 
@@ -365,8 +380,8 @@ pub unsafe fn draw_own_car() -> Result<(), Refused> {
         if k(0x621480) == 0 {
             return Ok(());
         }
-        let number = k(0x63DBA8 + 4 * k(0x63DB9C));
-        let car = k(0x71B3B8 + 4 * car_number(number));
+        let number = k(0x63DBA8 + 4 * RACE_VIEW.drawn_view.get());
+        let car = RACE_WORK.car_block(car_number(number) as usize);
         if car == 0 {
             return Err(BadInput("the drawn car without its block").into());
         }
@@ -376,7 +391,11 @@ pub unsafe fn draw_own_car() -> Result<(), Refused> {
             return Ok(());
         }
         w(0x62DAD4, field(0x240));
-        if clears_depth(field(0x900), || field(0x904), || k(0x635014)) {
+        if clears_depth(
+            field(0x900),
+            || field(0x904),
+            || OBJECT_WORK.view_cleared[0].get(),
+        ) {
             clear_view_depth();
             crate::scene::depth_buffer_on::depth_buffer(true);
         }
@@ -385,7 +404,7 @@ pub unsafe fn draw_own_car() -> Result<(), Refused> {
         w(0x606280, u32::MAX);
         crate::scene::set_texture::set_texture(k(0x5D1E10));
         crate::scene::set_render_state::set_render_state(2, 0x14);
-        w(0x6240F8, 4);
+        DRAW.polygon_vertex_count.set(4);
         draw_marks_overlays()
     }
 }
@@ -415,17 +434,17 @@ pub unsafe fn run_view_marks() -> Result<(), Refused> {
         if k(0x621890) == 0 {
             return Ok(());
         }
-        let view = k(0x63DB9C);
+        let view = RACE_VIEW.drawn_view.get();
         let block = k(0x63DBB0 + 4 * view);
         check_view_marks(
             block,
-            |b| k(0x71B3D8 + 4 * b),
+            |b| RACE_WORK.car_record(b as usize),
             || crate::marks::setup::SETTINGS.pointer.get(),
         )?;
-        let (other, own) = marks_shown(view, k(0x6235E8), k(0x601024));
+        let (other, own) = marks_shown(view, RACE_VARS.scene_switch.get(), k(0x601024));
         w(0x5C2F94, other);
         w(0x5C2F90, own);
-        let layout_at = layout_index(view, k(0x6238A4));
+        let layout_at = layout_index(view, RACE_VARS.split.get());
         let layout = k(0x6416A0 + 4 * layout_at);
         w(0x5C2F8C, layout);
         std::ptr::copy(
@@ -434,31 +453,35 @@ pub unsafe fn run_view_marks() -> Result<(), Refused> {
             0x40,
         );
         crate::drive::share_all_cars::share_all_cars()?;
-        let first = first_word(k(0x62389C));
+        let first = first_word(RACE_VARS.run_kind.get());
         for b in 0..CAR_RECORDS {
-            ((k(0x71B3D8 + 4 * b)) as *mut u32).write_unaligned(first);
+            (RACE_WORK.car_record(b as usize) as *mut u32).write_unaligned(first);
         }
-        ((k(0x71B3D8 + 4 * view)) as *mut u32).write_unaligned(1);
-        let centre = (k(0x62409C), k(0x6240A0));
+        (RACE_WORK.car_record(view as usize) as *mut u32).write_unaligned(1);
+        let centre = (DRAW.view_centre[0].bits(), DRAW.view_centre[1].bits());
         let n = k(0x6416A0 + 4 * layout_at);
         w(
             0x62409C,
-            int_over_times(SCREEN.width.get(), k(0x5C5D6C), k(0x6416C0 + 4 * n)),
+            int_over_times(SCREEN.width.get(), NUMBERS.k800.bits(), k(0x6416C0 + 4 * n)),
         );
         w(
             0x6240A0,
-            int_over_times(SCREEN.height.get(), k(0x5C5D70), k(0x6416D4 + 4 * n)),
+            int_over_times(
+                SCREEN.height.get(),
+                NUMBERS.k600.bits(),
+                k(0x6416D4 + 4 * n),
+            ),
         );
         // Neither reads a register nor leaves one read after it (0x456464, 0x456472).
         let done = crate::marks::frame_marks::frame_marks().and_then(|_| {
-            if k(0x6416B8) == 0 {
+            if FRAME_WORK.drawing.get() == 0 {
                 crate::marks::run_frame::run_frame()
             } else {
                 Ok(())
             }
         });
-        w(0x6240A0, centre.1);
-        w(0x62409C, centre.0);
+        DRAW.view_centre[1].set_bits(centre.1);
+        DRAW.view_centre[0].set_bits(centre.0);
         done
     }
 }
@@ -467,7 +490,7 @@ pub unsafe fn run_view_marks() -> Result<(), Refused> {
 /// game's was called before): `d3d::clear_viewport` (0x44E9D9, the same `Clear` of
 /// `dword_624138` with flag 2) unless `dword_624238` is not 0.
 pub fn clear_viewport_unless_held() {
-    if unsafe { crate::store::game_read::<u32>(rva(0x624238)) } == 0 {
+    if crate::scene::draw_store::DRAW.v3_driver_fix.get() == 0 {
         crate::platform_3d::clear_viewport();
     }
 }

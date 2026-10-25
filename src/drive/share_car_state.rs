@@ -22,15 +22,15 @@
 //! `popa`. Refuses (before anything) a car file number above 0x21 (past `g_lightRecords`).
 
 use crate::errors::Refused;
-use crate::framework::{game_addr, game_read, rva};
+use crate::framework::{game_addr, rva};
 use crate::math::x87;
 use crate::math::x87_run::{compare_full, sub_div_to_int};
 use crate::race::mud::car_file_number;
+use crate::race::numbers_store::NUMBERS;
+use crate::race::view_store::RACE_VIEW;
 use rc2k_core::drive::sharing;
 
 const SCRATCH: usize = 0x62400C; // dword_62400C
-const LEVEL_FROM_RVA: usize = rva(0x63DB5C); // flt_63DB5C
-const LEVEL_STEP_RVA: usize = rva(0x5C5D44); // flt_5C5D44
 
 unsafe fn at(a: u32) -> u32 {
     unsafe { (a as *const u32).read_unaligned() }
@@ -58,8 +58,8 @@ pub unsafe fn share_car_state_at(s: u32, o: u32, p: u32, scratch: u32) -> Result
         }
         put(o + 0x2C, at(p + 0xF0));
         put(p + 0xF0, 0);
-        let from = game_read(LEVEL_FROM_RVA);
-        let step = game_read(LEVEL_STEP_RVA);
+        let from = RACE_VIEW.level_from.bits();
+        let step = NUMBERS.four.bits();
         for (out, field) in [(0x4C0, 0x2B4), (0x4C4, 0x2B8)] {
             put(o + out, 0);
             if compare_full(at(s + field), from) & 0x100 == 0 {

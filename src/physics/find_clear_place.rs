@@ -22,7 +22,10 @@
 //! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::physics::flow::{a, g, p};
+use crate::physics::car_store::CAR;
+use crate::physics::flow::g;
+use crate::physics::tables_store::PHYSICS;
+use crate::scene::draw_store::DRAW;
 use crate::scene::matrix3::{extended, rounded};
 use rc2k_core::physics::clear_place;
 
@@ -43,38 +46,46 @@ fn try_place() -> Result<(), Refused> {
 /// The steps, not guarded.
 // Converted: `rc2k_core::physics::clear_place`.
 pub fn steps() -> Result<(), Refused> {
-    p(0x614C28, clear_place::TRY_MARK);
-    let factor = extended(g(0x613FDC));
-    unsafe { crate::physics::scale_vector::scale_vector(a(0x71A170), factor) };
-    p(0x62400C, rounded(factor));
+    PHYSICS.clear_place_mark.set(clear_place::TRY_MARK);
+    let factor = extended(PHYSICS.clear_place_share.bits());
+    unsafe { crate::physics::scale_vector::scale_vector(CAR.velocity[0].addr() as u32, factor) };
+    DRAW.scratch.set(rounded(factor));
     unsafe { crate::physics::restore_saved_car::restore_saved_car() }?;
     unsafe { crate::physics::lowest_body_point::lowest_body_point() }?;
-    p(0x614118, g(0x6D3068));
-    let found = clear_place::tries(clear_place::first_try(g(0x719FE0)), |n| {
-        p(0x614738, 0);
+    PHYSICS.clear_place_face.set(g(0x6D3068));
+    let found = clear_place::tries(clear_place::first_try(CAR.step_clock.get()), |n| {
+        PHYSICS.clear_place_count.set(0);
         let m = clear_place::try_move(n);
-        for (table, place) in [(0x614014, 0x71A10C), (0x614054, 0x71A114)] {
-            let (part, _) = clear_place::move_part(m.step, g(table + 4 * m.entry as usize));
-            p(place, g(place).wrapping_add(part));
+        for (table, place) in [
+            (&PHYSICS.clear_place_steps_a, &CAR.position[0]),
+            (&PHYSICS.clear_place_steps_b, &CAR.position[2]),
+        ] {
+            let (part, _) = clear_place::move_part(m.step, table[m.entry as usize].get());
+            place.set(place.get().wrapping_add(part));
         }
         try_place()?;
-        Ok::<_, Refused>(g(0x614738) == 0)
+        Ok::<_, Refused>(PHYSICS.clear_place_count.get() == 0)
     })?;
     let Some(n) = found else {
         return unsafe { crate::physics::reset_car::reset_car() };
     };
     unsafe { crate::physics::lowest_body_point::lowest_body_point() }?;
     let depth = g(0x6D3068);
-    if let Some(height) = clear_place::lifted(g(0x71A110), depth) {
-        p(0x71A110, height);
+    if let Some(height) = clear_place::lifted(CAR.position[1].get(), depth) {
+        CAR.position[1].set(height);
     }
     unsafe {
         crate::logfile::log_write::log_write(PORKY.as_ptr().cast(), false, 1);
         crate::logfile::log_int::log_int(n as i32, false, 1);
-        crate::logfile::log_hex8::log_hex8(g(0x614118), false, 1);
+        crate::logfile::log_hex8::log_hex8(PHYSICS.clear_place_face.get(), false, 1);
         crate::logfile::log_hex8::log_hex8(g(0x6D3068), true, 1);
     }
-    p(0x61473C, g(0x61473C).wrapping_add(1));
+    PHYSICS.clear_place_tries.set(
+        crate::physics::tables_store::PHYSICS
+            .clear_place_tries
+            .get()
+            .wrapping_add(1),
+    );
     unsafe { crate::physics::limit_motion::limit_motion() };
     Ok(())
 }

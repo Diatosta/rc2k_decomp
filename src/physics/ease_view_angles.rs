@@ -13,7 +13,8 @@
 //! above are the original's, for reference.
 
 use crate::physics::camera_view::{rd, record, share_done};
-use crate::physics::flow::{g, p};
+use crate::physics::car_store::CAR;
+use crate::scene::draw_store::DRAW;
 use crate::scene::x87_mem::{fistp, fld};
 
 /// The Rust version (the exact one, for `physics::update_camera`).
@@ -23,12 +24,12 @@ pub unsafe fn ease_view_angles() {
         return;
     }
     share_done(esi);
-    for (k, to) in [0x71A694usize, 0x71A698, 0x71A69C].iter().enumerate() {
+    for (k, to) in CAR.camera_offset_turns.iter().enumerate() {
         x87_1(
             (esi + 0x40 + 4 * k as u32) as usize,
             crate::race::store::asm_base() as usize,
         );
-        p(*to, g(*to).wrapping_add(g(0x62400C) << 16));
+        to.set(to.get().wrapping_add(DRAW.scratch.get() << 16));
     }
 }
 

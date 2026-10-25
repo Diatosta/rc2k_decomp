@@ -15,12 +15,12 @@
 use crate::framework::rva;
 use crate::marks::store::{Slot, game_addr, game_read, game_write};
 use crate::math::x87;
+use crate::scene::draw_store::DRAW;
 
 const VIEW_RVA: usize = rva(0x5EA2CC); // g_viewMatrix
 const TURNED_RVA: Slot = Slot::at(0x8EB8D5); // flt_8EB8D5 .. flt_8EB8DD
 const NEAR_RVA: Slot = Slot::at(0x8EB961); // dword_8EB961
 const HALF_RVA: Slot = Slot::at(0x8EB8B5); // dword_8EB8B5, dword_8EB8B9
-const FOCAL_RVA: usize = rva(0x624088); // flt_624088
 const CENTRE_RVA: [usize; 2] = [rva(0x62409C), rva(0x6240A0)];
 const Z_K_RVA: Slot = Slot::at(0x8EB96D); // flt_8EB96D
 const VERTICES_RVA: usize = rva(0x9605A0); // g_polygonVertices: TLVertex[4]
@@ -37,7 +37,7 @@ pub unsafe fn draw_particle(place: [[u8; 10]; 3], colour: u32, size: u32) {
             return;
         }
         let k = [
-            game_read(FOCAL_RVA),
+            DRAW.view_scale.bits(),
             game_read(CENTRE_RVA[0]),
             game_read(CENTRE_RVA[1]),
             game_read(Z_K_RVA),

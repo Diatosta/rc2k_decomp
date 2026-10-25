@@ -14,7 +14,8 @@
 //! above are the original's, for reference.
 
 use crate::physics::camera_view::rd;
-use crate::physics::flow::{g, p};
+use crate::physics::car_store::CAR;
+use crate::physics::flow::p;
 use crate::scene::x87_mem::{fld, fstp};
 
 /// The Rust version (the exact one, for `physics::update_camera`): `s` the view's record
@@ -24,9 +25,9 @@ pub unsafe fn take_view_b(s: u32) {
     for (k, x) in COPIES.iter().enumerate() {
         p(*x, rd(s + 0x10 + 4 * k as u32));
     }
-    p(0x608B68, g(0x71A998));
-    let (mut eax, mut ebx) = (g(0x71A99C), g(0x71A9A0));
-    if !matches!(g(0x71A660), 1..=3) {
+    p(0x608B68, CAR.car_heading.get());
+    let (mut eax, mut ebx) = (CAR.car_pitch.get(), CAR.car_roll.get());
+    if !matches!(CAR.camera_blend_view.get(), 1..=3) {
         eax = ((eax as i32) >> 1) as u32;
         ebx = ((ebx as i32) >> 1) as u32;
     }

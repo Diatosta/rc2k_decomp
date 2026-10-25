@@ -20,9 +20,12 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::race::course_store::COURSE;
+use crate::race::numbers_store::NUMBERS;
+use crate::race::work_store::RACE_WORK;
+use crate::scene::object_store::OBJECT_WORK;
 
 const OBJECT_RVA: usize = rva(0x6214FC); // g_objectNumber
-const PLACE_RVA: usize = rva(0x634FFC); // g_objectPlace
 
 fn get(a: u32) -> u32 {
     unsafe { (a as *const u32).read_unaligned() }
@@ -30,17 +33,13 @@ fn get(a: u32) -> u32 {
 
 /// What `scene::draw_scene_object` would refuse for `object`: in a race (`g_inRace`) a car
 /// (0x50 ..) without its block.
-unsafe fn check_object(object: u32) -> Result<(), Refused> {
-    unsafe {
-        let car = object.wrapping_sub(0x50);
-        if game_read::<u32>(rva(0x5C5CEC)) != 0
-            && car < 0xA0
-            && game_read::<u32>(rva(0x71B3B8) + 4 * (car / 0x14) as usize) == 0
-        {
-            return Err(BadInput("a car without its block").into());
-        }
-        Ok(())
+fn check_object(object: u32) -> Result<(), Refused> {
+    let car = object.wrapping_sub(0x50);
+    if NUMBERS.in_race.bits() != 0 && car < 0xA0 && RACE_WORK.car_block((car / 0x14) as usize) == 0
+    {
+        return Err(BadInput("a car without its block").into());
     }
+    Ok(())
 }
 
 /// The Rust version for the description at `d` (esi at the original's entry). Its calls:
@@ -54,84 +53,86 @@ pub unsafe fn draw_described_object(d: u32) -> Result<(), Refused> {
         let object = byte(1);
         let place = get(d + 4);
         let shown = object <= 0x64
-            && place < game_read::<u32>(rva(0x5CCD20))
+            && place < COURSE.scene_point_count.get()
             && !(game_read::<u32>(rva(0x621480)) != 0 && object == 0x3F);
         if shown {
             check_object(object)?;
         }
         game_write(OBJECT_RVA, object);
         let end = || {
-            game_write(rva(0x635058), 0u32);
-            game_write(PLACE_RVA, u32::MAX);
+            OBJECT_WORK.only_object.set(0u32);
+            OBJECT_WORK.object_place.set_bits(u32::MAX);
         };
         if object > 0x64 {
             end();
             return Ok(());
         }
-        if place >= game_read::<u32>(rva(0x5CCD20)) {
+        if place >= COURSE.scene_point_count.get() {
             end();
             return Ok(());
         }
-        game_write(PLACE_RVA, place);
+        OBJECT_WORK.object_place.set_bits(place);
         if !shown {
             end();
             return Ok(());
         }
         let p = place
             .wrapping_mul(12)
-            .wrapping_add(game_read(rva(0x5CCCC0)));
-        game_write(rva(0x63501C), get(p).wrapping_add(get(d + 0x30)));
-        game_write(rva(0x635020), get(p + 4).wrapping_add(get(d + 0x34)));
-        game_write(rva(0x635024), get(p + 8).wrapping_add(get(d + 0x38)));
-        game_write(rva(0x63503C), (byte(8) << 8) & 0xFFFF);
-        game_write(rva(0x635040), byte(0xC) << 8);
-        game_write(rva(0x635044), byte(0x10) << 8);
-        game_write(rva(0x635060), 0u32);
-        game_write(rva(0x63505C), 0u32);
-        game_write(rva(0x635064), 0u32);
+            .wrapping_add(COURSE.scene_points.bits());
+        OBJECT_WORK.place[0].set(get(p).wrapping_add(get(d + 0x30)));
+        OBJECT_WORK.place[1].set(get(p + 4).wrapping_add(get(d + 0x34)));
+        OBJECT_WORK.place[2].set(get(p + 8).wrapping_add(get(d + 0x38)));
+        OBJECT_WORK.angles[0].set((byte(8) << 8) & 0xFFFF);
+        OBJECT_WORK.angles[1].set(byte(0xC) << 8);
+        OBJECT_WORK.angles[2].set(byte(0x10) << 8);
+        OBJECT_WORK.described_cleared[1].set(0u32);
+        OBJECT_WORK.described_cleared[0].set(0u32);
+        OBJECT_WORK.described_cleared[2].set(0u32);
         if byte(0x11) != 0 {
-            game_write(rva(0x635064), byte(9) << 8);
-            game_write(rva(0x63505C), byte(0x12) << 8);
-            game_write(rva(0x635060), byte(0x13) << 8);
+            OBJECT_WORK.described_cleared[2].set(byte(9) << 8);
+            OBJECT_WORK.described_cleared[0].set(byte(0x12) << 8);
+            OBJECT_WORK.described_cleared[1].set(byte(0x13) << 8);
         }
-        game_write(rva(0x635054), get(d + 0x2C));
-        game_write(rva(0x635058), (byte(0x25) >> 1) & 3);
+        OBJECT_WORK.other_light.set(get(d + 0x2C));
+        OBJECT_WORK.only_object.set((byte(0x25) >> 1) & 3);
         let light = |lowest: u32, highest: u32, level: u32, strength: u32| {
-            game_write(rva(0x635084), lowest);
-            game_write(rva(0x635088), highest);
-            game_write(rva(0x63508C), level);
-            game_write(rva(0x635090), strength);
+            OBJECT_WORK.light_lowest.set(lowest);
+            OBJECT_WORK.light_highest.set(highest);
+            OBJECT_WORK.light_level.set(level);
+            OBJECT_WORK.light_strength.set(strength);
         };
         if object == 0x38 || (0x3A..0x40).contains(&object) {
-            game_write(rva(0x63503C), 0x2000u32);
-            game_write(rva(0x635040), 0u32);
-            game_write(rva(0x635044), 0u32);
-            game_write(rva(0x635038), byte(0x18));
+            OBJECT_WORK.angles[0].set(0x2000u32);
+            OBJECT_WORK.angles[1].set(0u32);
+            OBJECT_WORK.angles[2].set(0u32);
+            OBJECT_WORK.size.set(byte(0x18));
             light(0xFF, 0xFF, 0xFF, 0);
-            game_write(rva(0x635094), 0u32);
-            game_write(rva(0x635098), 0u32);
+            OBJECT_WORK.light_turns[0].set(0u32);
+            OBJECT_WORK.light_turns[1].set(0u32);
             if (object == 0x3E || object == 0x3D)
                 && [0x28u32, 0x29, 0x2A, 0x2B, 0x19, 0x1A, 0x1B, 0x20]
                     .iter()
                     .any(|&o| byte(o) != 0)
             {
-                game_write(rva(0x635088), 0x80u32);
+                OBJECT_WORK.light_highest.set(0x80u32);
             }
         } else {
-            game_write(rva(0x635038), byte(0x18));
+            OBJECT_WORK.size.set(byte(0x18));
             light(byte(0x14), byte(0x15), byte(0x16), byte(0x17));
-            game_write(rva(0x635094), byte(0x22));
-            game_write(rva(0x635098), byte(0x23));
+            OBJECT_WORK.light_turns[0].set(byte(0x22));
+            OBJECT_WORK.light_turns[1].set(byte(0x23));
             if byte(0x24) != 0 {
                 game_write(
                     rva(0x635094),
                     game_read::<u32>(rva(0x609338)).wrapping_neg(),
                 );
-                game_write(rva(0x635098), game_read::<u32>(rva(0x60933C)));
-                game_write(rva(0x63508C), game_read::<u32>(rva(0x6092E4)));
-                game_write(rva(0x635090), game_read::<u32>(rva(0x6092E8)));
-                game_write(rva(0x635084), 0u32);
-                game_write(rva(0x635088), 0xFFu32);
+                OBJECT_WORK.light_turns[1].set(game_read::<u32>(rva(0x60933C)));
+                OBJECT_WORK.light_level.set(game_read::<u32>(rva(0x6092E4)));
+                OBJECT_WORK
+                    .light_strength
+                    .set(game_read::<u32>(rva(0x6092E8)));
+                OBJECT_WORK.light_lowest.set(0u32);
+                OBJECT_WORK.light_highest.set(0xFFu32);
             }
         }
         game_write(rva(0x6365C8), 2u32);

@@ -22,12 +22,10 @@
 //! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, game_write, rva};
+use crate::framework::{game_write, rva};
+use crate::physics::car_store::CAR;
+use crate::race::course_store::COURSE;
 use rc2k_core::physics::walls::WheelsOff;
-
-fn g(x: u32) -> u32 {
-    unsafe { game_read(rva(x as usize)) }
-}
 
 fn p(x: u32, v: u32) {
     unsafe { game_write(rva(x as usize), v) }
@@ -38,22 +36,27 @@ fn p(x: u32, v: u32) {
 // Converted: `rc2k_core::physics::walls::WheelsOff`.
 pub unsafe fn feel_ground() -> Result<(), Refused> {
     unsafe {
-        if g(0x71A238) > rc2k_core::physics::walls::PROBE_ROOM {
+        if CAR.probe_count.get() > rc2k_core::physics::walls::PROBE_ROOM {
             return Err(BadInput("more than 0x40 probe points").into());
         }
         crate::physics::note_surface_mode::note_surface_mode();
         crate::physics::probe_ground::probe_ground()?;
         crate::physics::lowest_body_point::lowest_body_point()?;
-        let off = WheelsOff::of([g(0x71A5D8), g(0x71A5DC), g(0x71A5E0), g(0x71A5E4)]);
-        p(0x71A220, u32::from(off.front));
-        p(0x71A224, u32::from(off.back));
-        p(0x71A22C, u32::from(off.all));
-        let driven = u32::from(off.driven(g(0x71A018)));
-        p(0x71A228, driven);
+        let off = WheelsOff::of([
+            CAR.wheel_squeeze[0].bits(),
+            CAR.wheel_squeeze[1].bits(),
+            CAR.wheel_squeeze[2].bits(),
+            CAR.wheel_squeeze[3].bits(),
+        ]);
+        CAR.front_wheels_off.set(u32::from(off.front));
+        CAR.rear_wheels_off.set(u32::from(off.back));
+        CAR.all_wheels_off.set(u32::from(off.all));
+        let driven = u32::from(off.driven(CAR.drive_kind.get()));
+        CAR.driven_wheels_off.set(driven);
         if driven == 0 {
-            p(0x71A1C0, 0);
+            CAR.stuck_count.set(0);
         }
-        let face = (g(0x71ADD8) << 6).wrapping_add(g(0x5CCCBC));
+        let face = (CAR.probe_point_face[4].get() << 6).wrapping_add(COURSE.course_faces.get());
         p(
             0x6141DC,
             u32::from(((face + 0x26) as *const u16).read_unaligned()),

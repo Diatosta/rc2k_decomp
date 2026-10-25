@@ -12,14 +12,14 @@
 //! `????` of both (the thousands digit as one byte: anything above 9999 gives another
 //! character). One caller, `scene::load_object`.
 
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_write, rva};
+use crate::scene::object_store::OBJECT_WORK;
 
 // ---- game data ----
 
 /// `dword_60AD24` the `.ro3` name's number, `dword_60AD28` the `.ro3` path,
 /// `dword_60AD2C` the `.lwo` path, `dword_60AD30` the `.lwo` name's number.
 pub const NAMES_RVA: usize = rva(0x60AD24);
-pub const KIND_RVA: usize = rva(0x634FE8); // dword_634FE8
 /// For each folder (`rc2k_core::scene::objects::folder`): the `.ro3` path, the `.lwo`
 /// path, and how far in the number is.
 const FOLDERS: [(usize, usize, usize); 4] = [
@@ -46,7 +46,7 @@ pub unsafe fn set_object_file_names(folder_kind: u32) {
                 lwo_number as u32,
             ],
         );
-        let digits = number_digits(game_read(KIND_RVA));
+        let digits = number_digits(OBJECT_WORK.loading_kind.bits());
         (ro3_number as *mut [u8; 4]).write(digits);
         (lwo_number as *mut [u8; 4]).write(digits);
     }

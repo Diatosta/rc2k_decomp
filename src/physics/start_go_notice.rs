@@ -11,13 +11,10 @@
 
 use crate::errors::Refused;
 use crate::framework::{game_addr, rva};
-use crate::physics::listed_car_flags::{CURRENT_CAR, TABLE, set_flag_at};
+use crate::physics::car_store::CAR;
+use crate::physics::listed_car_flags::{TABLE, set_flag_at};
+use crate::race::work_store::RACE_WORK;
 use rc2k_core::physics::progress::{GO_NOTICE, GoFacts};
-
-/// The variables (IDA addresses) in the order the core takes them.
-const VARIABLES: [usize; 8] = [
-    0x71A234, 0x71A064, 0x71A07C, 0x71A080, 0x75870C, 0x71A6F4, 0x71A708, 0x71A704,
-];
 
 unsafe fn at(a: u32) -> u32 {
     unsafe { (a as *const u32).read_unaligned() }
@@ -52,10 +49,21 @@ pub unsafe fn start_go_notice_at(v: &[u32], twin: [u32; 3]) -> Result<(), Refuse
 
 fn game() -> (Vec<u32>, [u32; 3]) {
     let g = |a: usize| game_addr(rva(a)) as u32;
+    let c = &CAR;
     (
-        VARIABLES.iter().map(|&x| g(x)).collect(),
+        // In the order the core takes them.
+        vec![
+            c.driver_kind.addr() as u32,
+            c.time_left.addr() as u32,
+            c.go_stand_timer.addr() as u32,
+            c.finish_flag.addr() as u32,
+            g(0x75870C),
+            c.notice_id.addr() as u32,
+            c.notice_time_b.addr() as u32,
+            c.notice_time.addr() as u32,
+        ],
         [
-            g(CURRENT_CAR),
+            RACE_WORK.current_car.addr() as u32,
             g(TABLE),
             crate::sound::store::STAGE_SOUNDS.once[2].addr() as u32,
         ],

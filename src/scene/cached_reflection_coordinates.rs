@@ -16,13 +16,12 @@
 
 use crate::errors::Refused;
 use crate::framework::{game_read, game_write, rva};
+use crate::race::view_store::RACE_VIEW;
 use crate::scene::reflection_coordinates::{
     COORDINATES_RVA, NORMAL_NUMBER_RVA, POINT_NUMBER_RVA, reflection_coordinates,
 };
 
 // ---- game data ----
-
-const IN_USE_RVA: usize = rva(0x63D9B8); // dword_63D9B8
 /// The four tables, 0x1000 bytes apart: the normal's number, the point's, the two
 /// coordinates.
 const TABLES_RVA: usize = rva(0x6399B8); // dword_6399B8, dword_63A9B8, dword_63B9B8, dword_63C9B8
@@ -34,7 +33,7 @@ const TABLE_BYTES: usize = 0x1000;
 pub unsafe fn cached_reflection_coordinates() -> Result<(), Refused> {
     use rc2k_core::scene::reflection::{cache_place, cached};
     unsafe {
-        if game_read::<u32>(IN_USE_RVA) == 0 {
+        if RACE_VIEW.reflections_kept.bits() == 0 {
             return Ok(reflection_coordinates()?);
         }
         let asked: [u32; 2] = [game_read(NORMAL_NUMBER_RVA), game_read(POINT_NUMBER_RVA)];

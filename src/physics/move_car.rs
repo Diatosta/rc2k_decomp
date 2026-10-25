@@ -7,13 +7,11 @@
 //!
 //! Callers: `sub_43B635` (0x43B827, 0x43B8A0), every physics step.
 
-use crate::framework::{game_addr, game_read, rva};
 use crate::math::x87_run::mul2_to_int;
-
-/// The motion's three, the place's three, the scratch.
-const VARIABLES: [usize; 7] = [
-    0x71A170, 0x71A174, 0x71A178, 0x71A10C, 0x71A110, 0x71A114, 0x62400C,
-];
+use crate::physics::car_store::CAR;
+use crate::physics::tables_store::PHYSICS;
+use crate::race::numbers_store::NUMBERS;
+use crate::scene::draw_store::DRAW;
 
 unsafe fn get(v: &[u32], k: usize) -> u32 {
     unsafe { (v[k] as *const u32).read_unaligned() }
@@ -26,8 +24,8 @@ unsafe fn put(v: &[u32], k: usize, x: u32) {
 /// The Rust core on the variables at `v`: the last move.
 pub unsafe fn move_at(v: &[u32]) -> u32 {
     unsafe {
-        let k65536: u32 = game_read(rva(0x5C5D98));
-        let dt: u32 = game_read(rva(0x61388C));
+        let k65536: u32 = NUMBERS.k65536.bits();
+        let dt: u32 = PHYSICS.step_time.bits();
         let mut last = 0;
         for (motion, place) in [(0, 3), (2, 5), (1, 4)] {
             last = mul2_to_int(get(v, motion), k65536, dt) as u32;
@@ -39,10 +37,15 @@ pub unsafe fn move_at(v: &[u32]) -> u32 {
 }
 
 fn game() -> Vec<u32> {
-    VARIABLES
-        .iter()
-        .map(|&x| game_addr(rva(x)) as u32)
-        .collect()
+    vec![
+        CAR.velocity[0].addr() as u32,
+        CAR.velocity[1].addr() as u32,
+        CAR.velocity[2].addr() as u32,
+        CAR.position[0].addr() as u32,
+        CAR.position[1].addr() as u32,
+        CAR.position[2].addr() as u32,
+        DRAW.scratch.addr() as u32,
+    ]
 }
 
 /// The Rust version (the exact one, for `physics::car_physics_step` and

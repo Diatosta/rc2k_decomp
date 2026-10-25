@@ -15,18 +15,16 @@
 //! (before anything) a gear count above 7 (past `g_gearRatios`).
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, game_read, rva};
+use crate::framework::{game_addr, rva};
 use crate::math::x87;
 use crate::math::x87_run::{ext_add, gear_step_80, lerp_int_over2};
+use crate::physics::car_store::CAR;
+use crate::physics::tables_store::PHYSICS;
+use crate::race::numbers_store::NUMBERS;
+use crate::scene::draw_store::DRAW;
 use crate::scene::matrix3::{extended, rounded};
 
-/// The count, the four setup ends, the setup's gearing, the divisor, then the ratios from
-/// reverse (0x6140BC) to gear 7 (0x6140DC), the scratch, neutral's.
-const VARIABLES: [usize; 18] = [
-    0x614C10, 0x5CB978, 0x5CB970, 0x5CB974, 0x5CB96C, 0x71A000, 0x71A1B4, 0x6140BC, 0x6140C0,
-    0x6140C4, 0x6140C8, 0x6140CC, 0x6140D0, 0x6140D4, 0x6140D8, 0x6140DC, 0x62400C, 0x613FE8,
-];
-const RATIO: usize = 8; // index of gear 0 in `VARIABLES`
+const RATIO: usize = 8; // index of gear 0 in `game()`'s list
 
 /// The Rust core on the variables at `v`: the gear count.
 pub unsafe fn ratios_at(v: &[u32]) -> Result<u32, Refused> {
@@ -37,11 +35,8 @@ pub unsafe fn ratios_at(v: &[u32]) -> Result<u32, Refused> {
         if n > 7 {
             return Err(BadInput("a gear count above 7 (past g_gearRatios)").into());
         }
-        let (k, d) = (
-            game_read::<u32>(rva(0x5C5DA4)),
-            game_read::<u32>(rva(0x5C5D00)),
-        );
-        let one: u32 = game_read(rva(0x5C5D38));
+        let (k, d) = (NUMBERS.quarter.bits(), NUMBERS.two_and_a_quarter.bits());
+        let one: u32 = NUMBERS.one.bits();
         let i = get(5) as i32;
         put(
             RATIO + n as usize,
@@ -70,10 +65,26 @@ pub unsafe fn ratios_at(v: &[u32]) -> Result<u32, Refused> {
 }
 
 fn game() -> Vec<u32> {
-    VARIABLES
-        .iter()
-        .map(|&x| game_addr(rva(x)) as u32)
-        .collect()
+    vec![
+        PHYSICS.gear_count.addr() as u32,
+        game_addr(rva(0x5CB978)) as u32,
+        game_addr(rva(0x5CB970)) as u32,
+        game_addr(rva(0x5CB974)) as u32,
+        game_addr(rva(0x5CB96C)) as u32,
+        CAR.gear_ratio_setting.addr() as u32,
+        CAR.engine_speed_limit.addr() as u32,
+        PHYSICS.gear_ratios[0].addr() as u32,
+        PHYSICS.gear_ratios[1].addr() as u32,
+        PHYSICS.gear_ratios[2].addr() as u32,
+        PHYSICS.gear_ratios[3].addr() as u32,
+        PHYSICS.gear_ratios[4].addr() as u32,
+        PHYSICS.gear_ratios[5].addr() as u32,
+        PHYSICS.gear_ratios[6].addr() as u32,
+        PHYSICS.gear_ratios[7].addr() as u32,
+        PHYSICS.gear_ratios[8].addr() as u32,
+        DRAW.scratch.addr() as u32,
+        PHYSICS.gear_ratio_step.addr() as u32,
+    ]
 }
 
 /// The Rust version (the exact one, for `physics::car_physics_step` and

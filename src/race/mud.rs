@@ -7,21 +7,18 @@
 use crate::errors::Refused;
 use crate::framework::rva;
 use crate::gfx::screen_state::DRAW_SURFACE;
+use crate::race::vars_store::RACE_VARS;
 use crate::store::{game_addr, game_read, game_write};
 
 pub const MUD_LIST_RVA: usize = rva(0x5C6F50); // stru_5C6F50
 pub const MUD_RVA: crate::race::store::vars::Slot = crate::race::store::vars::Slot::at(0x623D50); // dword_623D50
 pub const MUD_LEN: u32 = 0x1_0000;
 pub const LIST_TOTAL_RVA: usize = rva(0x5C6F90); // dword_5C6F90
-pub const CAR_RVA: usize = rva(0x70F410); // dword_70F410: the car
 const FILE_NUMBERS_RVA: usize = rva(0x5C5928); // dword_5C5928: 0x22 cars' file numbers
 pub const MUD_PATH_RVA: usize = rva(0x6238F4); // "files\b\mudfile.0xx"
 pub const MUD_PATH_DIGITS_RVA: usize = rva(0x623905);
-pub const STATE_RVA: usize = rva(0x623D58); // dword_623D58 .. dword_623D9C
-pub const STATE_DWORDS: usize = 18;
 pub const STATE_MORE: [usize; 2] = [rva(0x62390C), rva(0x623918)];
 pub const PICTURE_RVA: usize = rva(0x5D0DEC); // dword_5D0DEC: the surface sampled
-pub const COLOURS_RVA: usize = rva(0x623930); // 256 dwords
 
 /// `race::car_file_number` (0x41F4FD): eax held to 0 .. 0x21 (signed), its entry of
 /// `dword_5C5928`.
@@ -79,7 +76,9 @@ pub unsafe fn mud_pixel(x: u32, y: u32) -> u32 {
 pub unsafe fn load_mud() -> Result<(), Refused> {
     unsafe {
         // Converted: `rc2k_core::race::mud::file_digits`.
-        let (tens, units) = rc2k_core::race::mud::file_digits(car_file_number(game_read(CAR_RVA)));
+        let (tens, units) = rc2k_core::race::mud::file_digits(car_file_number(
+            crate::race::blocks_store::CAR_BLOCKS.cars[0].car_kind.get(),
+        ));
         let digits = game_addr(MUD_PATH_DIGITS_RVA) as *mut u8;
         *digits = tens as u8;
         *digits.add(1) = units as u8;
@@ -96,7 +95,16 @@ pub unsafe fn load_mud() -> Result<(), Refused> {
 /// `race::clear_mud_state` (0x449E01): the 18 dwords at 0x623D58 and the two more 0.
 pub unsafe fn clear_mud_state() {
     unsafe {
-        game_write(STATE_RVA, [0u32; STATE_DWORDS]);
+        // The 18 dwords from `mud_frames` to the end of `mud_splash_counts`.
+        let v = &RACE_VARS;
+        v.mud_frames.set(0);
+        v.mud_texture.set(0);
+        for k in 0..4 {
+            v.mud_thrown_in[k].set_bits(0);
+            v.mud_splashes_in[k].set_bits(0);
+            v.mud_thrown_counts[k].set(0);
+            v.mud_splash_counts[k].set(0);
+        }
         for at in STATE_MORE {
             game_write(at, 0u32);
         }
@@ -109,7 +117,7 @@ pub unsafe fn clear_mud_state() {
 pub unsafe fn sample_mud_colours() -> Result<(), Refused> {
     unsafe {
         crate::d3d::lock_texture::lock_texture(game_read(PICTURE_RVA))?;
-        let colours = game_addr(COLOURS_RVA) as *mut u32;
+        let colours = RACE_VARS.mud_colours[0].addr() as *mut u32;
         // Converted: `rc2k_core::race::mud::sample_place`.
         for n in 0..rc2k_core::race::mud::SAMPLES {
             let (x, y) = rc2k_core::race::mud::sample_place(n);

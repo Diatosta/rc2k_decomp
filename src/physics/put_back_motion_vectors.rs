@@ -8,9 +8,9 @@
 //!
 //! Caller: `sub_43B635` (0x43B8F1, before `sub_43F7AC`).
 
-use crate::framework::{game_addr, rva};
 use crate::physics::car_frame_motion::car_frame_motion_at;
-use crate::physics::turn_by_inverse::INVERSE_RVA;
+use crate::physics::car_store::CAR;
+use crate::physics::tables_store::PHYSICS;
 
 /// Where the vectors are: the game's or a test's.
 #[derive(Clone, Copy)]
@@ -25,14 +25,13 @@ pub struct MotionPlaces {
 
 impl MotionPlaces {
     pub fn game() -> Self {
-        let g = |a: usize| game_addr(rva(a)) as u32;
         Self {
-            kept_motion: g(0x614BCC),
-            kept_spin: g(0x614BDC),
-            motion: g(0x71A170),
-            spin: g(0x71A15C),
-            local: g(0x71A17C),
-            inverse: game_addr(INVERSE_RVA) as u32,
+            kept_motion: (PHYSICS.kept_vectors[0].addr() as u32),
+            kept_spin: (PHYSICS.kept_vectors[4].addr() as u32),
+            motion: (CAR.velocity[0].addr() as u32),
+            spin: (CAR.spin[0].addr() as u32),
+            local: (CAR.local_velocity[0].addr() as u32),
+            inverse: CAR.car_inverse_matrix[0].addr() as u32,
         }
     }
 }

@@ -10,13 +10,17 @@
 use crate::framework::{game_read, game_write, rva};
 
 pub const MODE: usize = 0x62389C; // dword_62389C
-pub const TIME: usize = 0x71A060; // g_car + 0x88
-pub const CHECKS: usize = 0x71A068; // g_car + 0x90
-pub const SPLIT: usize = 0x71A084; // g_car + 0xAC: splits taken
-pub const DONE: usize = 0x71A080; // g_car + 0xA8
-pub const FIGURE: usize = 0x71A9E4; // g_car + 0xA0C: the split's figure, then six more
-pub const SPLITS: usize = 0x71A118; // g_car + 0x140: a figure per split
 pub const COUNT: usize = 0x601830; // g_splitColourCount
+
+/// `g_car + 0x140 + 4 split`: the splits run to 0x3F, past the sixteen figures of
+/// `split_times` (into the car's next fields), as the original writes them.
+pub fn put_split_time(split: usize, v: u32) {
+    unsafe {
+        (crate::physics::car_store::CAR.split_times.as_ptr() as *mut u32)
+            .add(split)
+            .write_unaligned(v)
+    }
+}
 
 pub fn g(x: usize) -> u32 {
     unsafe { game_read(rva(x)) }

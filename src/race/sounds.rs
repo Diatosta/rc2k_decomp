@@ -3,9 +3,9 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::rva;
-use crate::store::game_read;
+use crate::race::view_store::RACE_VIEW;
+use crate::race::work_store::RACE_WORK;
 
-pub const CARS_RVA: usize = rva(0x63DB90); // dword_63DB90: the cars in the race
 pub const REPLAY_RVA: usize = rva(0x71C3E0); // dword_71C3E0
 const OBJECTS: u32 = 8;
 const MOST_CARS: u32 = 0x1_0000;
@@ -54,10 +54,10 @@ pub fn start_race_sounds() -> Result<(), Refused> {
 /// more (the original counts on to them), an object missing.
 pub fn wake_car_sounds() -> Result<Option<(u32, u32)>, Refused> {
     unsafe {
-        if game_read::<u32>(REPLAY_RVA) != 0 {
+        if RACE_WORK.in_credits.bits() != 0 {
             return Ok(None);
         }
-        let cars: u32 = game_read(CARS_RVA);
+        let cars: u32 = RACE_VIEW.race_cars.bits();
         if cars >= MOST_CARS {
             return Err(BadInput("0x10000 cars or more").into());
         }

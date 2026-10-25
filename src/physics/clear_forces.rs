@@ -7,13 +7,11 @@
 //! Caller: `sub_43B635` (0x43B71E), every physics step.
 
 use crate::errors::Refused;
-use crate::framework::{game_addr, rva};
 use crate::physics::clear_records::clear_records;
-
-const RECORDS_RVA: usize = rva(0x614770);
+use crate::physics::tables_store::PHYSICS;
 const COUNT: u32 = 0x17;
 
 /// The Rust version.
 pub unsafe fn clear_forces() -> Result<(), Refused> {
-    unsafe { clear_records(game_addr(RECORDS_RVA) as u32, COUNT) }
+    unsafe { clear_records((PHYSICS.forces.as_ptr() as usize) as u32, COUNT) }
 }

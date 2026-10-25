@@ -12,8 +12,9 @@
 //! past the queue).
 
 use crate::errors::Refused;
-use crate::framework::{game_addr, rva};
+use crate::physics::car_store::CAR;
 use crate::physics::cells::{get, get_list, put_changed, put_list_changed};
+use crate::physics::tables_store::PHYSICS;
 use rc2k_core::physics::car_events::CarEvents;
 
 /// Where the variables are: the clock, the times, the events, the count, +0xF9C, +0xFA0.
@@ -29,14 +30,13 @@ pub struct QueuePlaces {
 
 impl QueuePlaces {
     pub fn game() -> Self {
-        let g = |a: usize| game_addr(rva(a)) as u32;
         Self {
-            clock: g(0x613830),
-            times: g(0x71AF30),
-            events: g(0x71AF50),
-            count: g(0x71AF70),
-            f9c: g(0x71AF74),
-            fa0: g(0x71AF78),
+            clock: (PHYSICS.scene_clock.addr() as u32),
+            times: (CAR.car_event_times[0].addr() as u32),
+            events: (CAR.car_event_codes[0].addr() as u32),
+            count: (CAR.car_event_count.addr() as u32),
+            f9c: (CAR.car_event_limit.addr() as u32),
+            fa0: (CAR.car_event_position.addr() as u32),
         }
     }
 }

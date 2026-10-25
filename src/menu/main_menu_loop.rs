@@ -23,7 +23,7 @@
 //! original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{game_write, log, rva};
+use crate::framework::{log, rva};
 use crate::menu::champ_store::CHAMP_VIEW;
 use crate::menu::cheats_store::CHEAT_VARS;
 use crate::menu::draw_lists_store::DRAW_LISTS;
@@ -40,6 +40,7 @@ use crate::menu::screen_loop::{
 };
 use crate::menu::state_store::MENU_STATE;
 use crate::menu::update_blink::update_blink;
+use crate::scene::draw_store::DRAW;
 use crate::session::CLOCKS;
 
 // ---- game data ----
@@ -53,9 +54,9 @@ unsafe fn set_up_first(c: &mut Carried) -> Result<(), Refused> {
             .main_menu_picture
             .addr() as u32;
         Callee::LoadBackground.run(c)?; // menu::load_background (its carry not looked at)
-        game_write(rva(0x623FB0), 7u32);
-        game_write(rva(0x623FB4), 0xAu32);
-        game_write(rva(0x624080), 0x100u32);
+        DRAW.view_offset[0].set(7u32);
+        DRAW.view_offset[1].set(0xAu32);
+        DRAW.view_zoom.set(0x100u32);
         prepare_scene(c); // scene::prepare_menu_scene
         LOOP_FLAGS.ended_a.set(0u32);
         Callee::TakeKey.run(c)?; // input::take_key

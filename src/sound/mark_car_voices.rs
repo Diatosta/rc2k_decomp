@@ -14,15 +14,9 @@
 //! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
+use crate::race::work_store::RACE_WORK;
 use crate::sound::store::RACE_SOUNDS;
 use crate::sound::turn_parts::object;
-
-/// g_carBlocks: the cars' blocks.
-const CARS: usize = 0x71B3B8;
-
-fn g(x: impl crate::store::Ida) -> u32 {
-    unsafe { crate::store::ida_read(x) }
-}
 
 // ---- Rust version ----
 
@@ -33,7 +27,7 @@ fn pairs() -> Result<Vec<(u32, u32)>, BadInput> {
         return Err(BadInput("a sound object count of 0 or over 8"));
     }
     let pairs: Vec<(u32, u32)> = (0..count as usize)
-        .map(|n| (object(n as u32), g(CARS + 4 * n)))
+        .map(|n| (object(n as u32), RACE_WORK.car_block(n)))
         .collect();
     if pairs.iter().any(|&(o, c)| o == 0 || c == 0) {
         return Err(BadInput("a null sound object or car"));

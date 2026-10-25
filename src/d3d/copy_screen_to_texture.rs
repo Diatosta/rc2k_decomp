@@ -11,14 +11,12 @@
 //! standalone program the screen is copied into the texture's memory of ours
 //! (`platform_3d::copy_screen_to_system_texture`).
 
-use crate::framework::{game_read, rva};
-
-const WANTED_RVA: usize = rva(0x6415E0); // dword_6415E0
-const PICTURE_RVA: usize = rva(0x624234); // dword_624234: the mirror picture's texture
+use crate::race::frame_store::FRAME_WORK;
+use crate::scene::draw_store::DRAW;
 
 /// The Rust version (see the header).
 pub fn copy_screen_to_texture() {
-    if unsafe { game_read::<u32>(WANTED_RVA) } != 0 {
-        crate::platform_3d::copy_screen_to_system_texture(unsafe { game_read(PICTURE_RVA) });
+    if FRAME_WORK.mirror_wanted.bits() != 0 {
+        crate::platform_3d::copy_screen_to_system_texture(DRAW.mirror_picture.bits());
     }
 }

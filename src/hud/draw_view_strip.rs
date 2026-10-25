@@ -18,15 +18,13 @@
 use crate::errors::{BadInput, Refused};
 use crate::framework::rva;
 use crate::gfx::strips::STRIPS;
+use crate::scene::draw_store::DRAW;
 use crate::session::SCREEN;
 use crate::store::{game_read, game_write};
 use rc2k_core::hud::strips;
 
 const FLAT_RVA: usize = rva(0x6D1502); // dword_6D1502
 pub const QUAD_IN_RVA: usize = rva(0x623DE8); // dword_623DE8 .. dword_623E24
-const ALPHA_RVA: usize = rva(0x6240D0); // g_polygonAlpha
-pub const TEXTURE_RVA: usize = rva(0x6240BC); // dword_6240BC
-const SIDES_RVA: [usize; 2] = [rva(0x6240E0), rva(0x6240E4)];
 const SHOWN_RVA: usize = rva(0x6D14F6); // dword_6D14F6
 
 fn set(r: impl crate::store::Where, v: u32) {
@@ -49,12 +47,12 @@ fn quad(left: u32, width: u32, rows: u32, texture: Option<u32>) -> Result<(), Re
         set(QUAD_IN_RVA + o, v);
     }
     if let Some(t) = texture {
-        set(TEXTURE_RVA, t);
+        DRAW.polygon_textures[0].set_bits(t);
     }
-    set(ALPHA_RVA, 0xFF);
+    DRAW.polygon_alpha.set_bits(0xFF);
     set(QUAD_IN_RVA, 0xFFFF_FFFF);
-    set(SIDES_RVA[0], 1);
-    set(SIDES_RVA[1], 0);
+    DRAW.polygon_sides[0].set_bits(1);
+    DRAW.polygon_sides[1].set_bits(0);
     unsafe { crate::scene::draw_flat_quad::draw_flat_quad() }
 }
 

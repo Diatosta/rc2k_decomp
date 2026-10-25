@@ -13,17 +13,15 @@
 
 use crate::errors::Refused;
 use crate::net::store::NET;
-use crate::net::{apply_received, follow_remote, g, send_turn};
-
-/// g_currentCar.
-const CURRENT: usize = 0x71B3F8;
+use crate::net::{apply_received, follow_remote, send_turn};
+use crate::race::work_store::RACE_WORK;
 
 /// The Rust version.
 pub fn race_step() -> Result<(), Refused> {
     if NET.session.get() == 0 {
         return Ok(());
     }
-    if g(CURRENT) == NET.player.get() {
+    if RACE_WORK.current_car.get() == NET.player.get() {
         send_turn::send_turn()?;
         apply_received::apply_received()
     } else {

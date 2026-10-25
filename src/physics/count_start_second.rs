@@ -8,19 +8,19 @@
 //!
 //! Caller: `sub_436790` (four calls).
 
-use crate::framework::{game_addr, rva};
+use crate::physics::car_store::CAR;
 use crate::physics::cells::{get, put_changed};
 use rc2k_core::physics::start::CarStart;
 
 fn game() -> Vec<u32> {
-    VARIABLES
-        .iter()
-        .map(|&x| game_addr(rva(x)) as u32)
-        .collect()
+    vec![
+        CAR.tyre_change_state.addr() as u32,
+        CAR.false_start_count.addr() as u32,
+        CAR.run_ticks.addr() as u32,
+        CAR.finish_flag.addr() as u32,
+        CAR.stage_time.addr() as u32,
+    ]
 }
-
-/// The variables (IDA addresses).
-const VARIABLES: [usize; 5] = [0x71A244, 0x719FF4, 0x719FEC, 0x71A080, 0x71A060];
 
 /// The Rust version on the variables' addresses.
 // Converted: `rc2k_core::physics::start::CarStart::count_start_second`.

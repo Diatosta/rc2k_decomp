@@ -32,6 +32,7 @@ use crate::errors::BadInput;
 use crate::framework::{game_read, game_write, rva};
 use crate::math::x87;
 use crate::scene::light_dot::{INPUTS_RVA, light_dot};
+use crate::scene::object_store::OBJECT_WORK;
 use crate::scene::project_point::RECORDS_RVA;
 use crate::session::MACHINE;
 
@@ -41,13 +42,8 @@ const KIND_RVA: usize = rva(0x62DAF4); // dword_62DAF4
 const LIT_A_RVA: usize = rva(0x621480); // dword_621480
 const LIT_B_RVA: usize = rva(0x60931C); // dword_60931C
 const COLOUR_RVA: usize = rva(0x62DAC4); // dword_62DAC4
-const ADDED_RVA: usize = rva(0x635068); // dword_635068
 const BASE_RVA: usize = rva(0x62DAD4); // dword_62DAD4
-const STRENGTH_RVA: usize = rva(0x635090); // dword_635090
 const DIRECTION_RVA: usize = rva(0x6240A8); // dword_6240A8, dword_6240AC, dword_6240B0
-const LEVEL_RVA: usize = rva(0x63508C); // dword_63508C
-const LOWEST_RVA: usize = rva(0x635084); // dword_635084
-const HIGHEST_RVA: usize = rva(0x635088); // dword_635088
 const TABLE_RVA: usize = rva(0x635118); // dword_635118
 const TABLE_LEN: u32 = 0x100;
 const TOWARDS_DARK_RVA: usize = rva(0x6092B4); // dword_6092B4, dword_6092B8, dword_6092BC
@@ -93,7 +89,7 @@ unsafe fn set_normal(number: u32) -> Result<(), BadInput> {
 /// The start of `sub_4511F1` and of `sub_451296`: the light on the normal as a number.
 unsafe fn light() -> i32 {
     unsafe {
-        let strength: i32 = game_read(STRENGTH_RVA);
+        let strength = OBJECT_WORK.light_strength.bits() as i32;
         if strength == 0 {
             return 0;
         }
@@ -107,9 +103,9 @@ unsafe fn light() -> i32 {
 unsafe fn table_place() -> Result<usize, BadInput> {
     unsafe {
         let place = held(
-            light().wrapping_add(game_read(LEVEL_RVA)),
-            game_read(LOWEST_RVA),
-            game_read(HIGHEST_RVA),
+            light().wrapping_add(OBJECT_WORK.light_level.bits() as i32),
+            OBJECT_WORK.light_lowest.bits() as i32,
+            OBJECT_WORK.light_highest.bits() as i32,
         );
         if !(0..TABLE_LEN as i32).contains(&place) {
             return Err(BadInput("a place outside the light table"));
@@ -164,11 +160,11 @@ pub unsafe fn vertex_light(number: u32) -> Result<u32, BadInput> {
         if !lit_at_all || kind == 0 {
             return Ok(0x00FF_FFFF);
         }
-        let added: u32 = game_read(ADDED_RVA);
+        let added: u32 = OBJECT_WORK.light_added.bits();
         match kind {
             2 | 5 => Ok(plus(plus(0, lit(number, mmx)?, mmx), added, mmx)),
             1 => {
-                let level: u32 = game_read(LEVEL_RVA);
+                let level: u32 = OBJECT_WORK.light_level.bits();
                 if level >= TABLE_LEN {
                     return Err(BadInput("a place outside the light table"));
                 }

@@ -14,6 +14,7 @@
 use crate::math::x87::loaded;
 use crate::physics::flow::{c0, g, p};
 use crate::race::state_store::RACE_STATE;
+use crate::scene::draw_store::DRAW;
 use crate::scene::x87_mem::{fild, fld, fstp};
 
 const T: usize = 0x64BB64;
@@ -59,7 +60,7 @@ fn share(rc: usize) {
 pub fn timing_from(now: u32) {
     let rc = crate::race::store::asm_base() as usize;
     let since = now.wrapping_sub(g(0x64BB60));
-    p(0x62400C, since);
+    DRAW.scratch.set(since);
     time(rc);
     if c0(g(T), g(0x64BB44)) {
         p(0x64BB68, loaded(g(T)));

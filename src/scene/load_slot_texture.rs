@@ -11,8 +11,9 @@
 //! table.
 
 use crate::errors::BadInput;
-use crate::framework::{game_read, game_write};
-use crate::scene::textures::{LOADED_RVA, LOADS_RVA, WANTED_RVA, entry as slot_entry};
+use crate::framework::game_write;
+use crate::race::frame_store::FRAME_WORK;
+use crate::scene::textures::{LOADED_RVA, WANTED_RVA, entry as slot_entry};
 
 // ---- Rust version ----
 
@@ -29,7 +30,9 @@ pub unsafe fn load_slot_texture(slot: u32, load: &mut dyn FnMut(u32, u32)) -> Re
             return Ok(());
         };
         load(wanted, slot);
-        game_write(LOADS_RVA, game_read::<u32>(LOADS_RVA).wrapping_add(1));
+        FRAME_WORK
+            .kind_textures_done
+            .set_bits(FRAME_WORK.kind_textures_done.bits().wrapping_add(1));
         game_write(LOADED_RVA + slot as usize * 4, wanted);
         Ok(())
     }

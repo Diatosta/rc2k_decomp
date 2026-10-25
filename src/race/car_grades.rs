@@ -2,9 +2,7 @@
 //! 0 .. 100 by their use) graded against thresholds into whole numbers: `race::grade_car_values`
 //! for one block, `race::grade_all_cars` for the eight.
 
-use crate::framework::{game_read, game_write};
-use crate::race::best_line::SCRATCH_RVA;
-use crate::race::objects::CAR_BLOCKS_RVA;
+use crate::scene::draw_store::DRAW;
 
 pub use rc2k_core::race::cars::GRADES;
 
@@ -19,7 +17,7 @@ pub unsafe fn grade_car_values(block: u32) {
         for &(from, to, thresholds) in &GRADES {
             let x = f32::from_bits(((block.wrapping_add(from)) as *const u32).read_unaligned());
             let (grade, tried) = rc2k_core::race::cars::grade(x, thresholds);
-            game_write(SCRATCH_RVA, tried);
+            DRAW.scratch.set_bits(tried);
             ((block.wrapping_add(to)) as *mut u32).write_unaligned(grade);
         }
     }
@@ -30,6 +28,6 @@ pub unsafe fn grade_car_values(block: u32) {
 /// grade) are read by no caller (race init's one call).
 pub unsafe fn grade_all_cars() {
     for n in 0..8usize {
-        unsafe { grade_car_values(game_read(CAR_BLOCKS_RVA + 4 * n)) };
+        unsafe { grade_car_values(crate::race::work_store::RACE_WORK.car_block(n)) };
     }
 }

@@ -11,13 +11,13 @@
 
 use crate::errors::Refused;
 use crate::race::viewer::{get, move_dwords, put};
+use crate::race::work_store::RACE_WORK;
 
 const IN_HEADER: usize = 0x719C54; // dword_719C54
 const IN_FORCE: usize = 0x5C2C94; // dword_5C2C94
 const SWITCHES: usize = 0x71C6D0; // g_patchSwitch, 13 dwords
 const KEPT: usize = 0x5C2C98; // unk_5C2C98
 const REPLAYS: usize = 0x719C58; // unk_719C58
-const APPLIED: usize = 0x71C72C; // g_patchesApplied
 
 /// `apply_replay_patches`.
 pub fn apply_replay_patches() -> Result<(), Refused> {
@@ -27,8 +27,8 @@ pub fn apply_replay_patches() -> Result<(), Refused> {
         put(IN_FORCE, 1);
         move_dwords(KEPT, SWITCHES, PATCH_DWORDS);
         move_dwords(SWITCHES, REPLAYS, PATCH_DWORDS);
-        put(APPLIED, 0);
-        unsafe { crate::physics::apply_patches::apply_patches() };
+        RACE_WORK.patches_applied.set(0);
+        crate::physics::apply_patches::apply_patches();
     }
     Ok(())
 }
@@ -40,8 +40,8 @@ pub fn restore_replay_patches() -> Result<(), Refused> {
     if patches_change(get(IN_HEADER), get(IN_FORCE), true) {
         put(IN_FORCE, 0);
         move_dwords(SWITCHES, KEPT, PATCH_DWORDS);
-        put(APPLIED, 0);
-        unsafe { crate::physics::apply_patches::apply_patches() };
+        RACE_WORK.patches_applied.set(0);
+        crate::physics::apply_patches::apply_patches();
     }
     Ok(())
 }

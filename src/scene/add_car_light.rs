@@ -24,6 +24,7 @@
 
 use crate::errors::BadInput;
 use crate::framework::{game_read, game_write, rva};
+use crate::race::numbers_store::NUMBERS;
 use crate::scene::add_point_lights::{LIGHT_COLOUR_RVA, LIT_PLACE_RVA};
 use crate::scene::draw_polygon::CHECKED_RVA;
 use crate::scene::polygon::dword;
@@ -34,7 +35,6 @@ use crate::session::MACHINE;
 // ---- game data ----
 
 const SEEN_RVA: usize = rva(0x6365B8); // dword_6365B8, dword_6365BC, dword_6365C0
-const FACTOR_RVA: usize = rva(0x5C5DA0); // flt_5C5DA0
 const TABLE_RVA: usize = rva(0x635D18); // dword_635D18
 /// In a car's block.
 const LAMPS_ON: usize = 0x84;
@@ -159,7 +159,7 @@ pub unsafe fn add_car_light(car: usize) -> Result<(), BadInput> {
         let seen = turned(from, (car + MATRIX) as *const u32);
         game_write(SEEN_RVA, seen);
         let [x, y, z] = seen;
-        let factor: u32 = game_read(FACTOR_RVA);
+        let factor: u32 = NUMBERS.one_over_65536.bits();
         let ahead = squares(z.wrapping_sub(0x20_0000), x.wrapping_add(x), factor, true);
         let cone = held(0x100i32.wrapping_sub((ahead >> 2) as i32));
         // Worked out and not used; its rounding is what `dword_62400C` is left with.

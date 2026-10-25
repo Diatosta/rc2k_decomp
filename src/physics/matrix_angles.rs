@@ -13,13 +13,13 @@
 use crate::framework::{game_addr, rva};
 use crate::math::x87_run::{neg_rounded, over_cos_80, patan};
 use crate::physics::clamped_asin::clamped_asin_at;
+use crate::race::numbers_store::NUMBERS;
+use crate::scene::draw_store::DRAW;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
 
 const TURNED_RVA: usize = rva(0x5C70E0); // flt_5C70E0, E4, E8
 const ANGLES_RVA: usize = rva(0x5C70D4); // flt_5C70D4 (pitch), D8 (heading), DC (roll)
-const SCRATCH_RVA: usize = rva(0x62400C); // dword_62400C (clamped_asin's)
-const LIMIT_RVA: usize = rva(0x5C5D38); // flt_5C5D38 (clamped_asin's)
 
 /// Where the function's variables are: the game's or a test's.
 #[derive(Clone, Copy)]
@@ -37,8 +37,8 @@ impl AnglePlaces {
         Self {
             turned: game_addr(TURNED_RVA) as u32,
             angles: game_addr(ANGLES_RVA) as u32,
-            scratch: game_addr(SCRATCH_RVA) as u32,
-            limit: game_addr(LIMIT_RVA) as u32,
+            scratch: DRAW.scratch.addr() as u32,
+            limit: NUMBERS.one.addr() as u32,
         }
     }
 }

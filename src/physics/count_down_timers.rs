@@ -13,13 +13,9 @@
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
-use crate::framework::{game_addr, rva};
+use crate::physics::car_store::CAR;
+use crate::race::vars_store::RACE_VARS;
 use rc2k_core::physics::motion::{StepCounters, StepFacts, count_down};
-
-const VARIABLES: [usize; 16] = [
-    0x71AF8C, 0x71AF88, 0x719FEC, 0x71A080, 0x71A07C, 0x71A078, 0x62389C, 0x71A270, 0x71A1AC,
-    0x71A240, 0x71A244, 0x71A1CC, 0x71A1A8, 0x71AEE0, 0x71A5D4, 0x71A438,
-];
 
 /// The converted version (`rc2k_core::physics::motion`) on the variables at `v`; `r` as
 /// the original leaves (eax) are read by none of its callers.
@@ -62,10 +58,24 @@ pub unsafe fn count_at(v: &[u32]) {
 }
 
 fn game() -> Vec<u32> {
-    VARIABLES
-        .iter()
-        .map(|&x| game_addr(rva(x)) as u32)
-        .collect()
+    vec![
+        CAR.light_hold_steps.addr() as u32,
+        CAR.value_jump_steps.addr() as u32,
+        CAR.run_ticks.addr() as u32,
+        CAR.finish_flag.addr() as u32,
+        CAR.go_stand_timer.addr() as u32,
+        CAR.started_stand_timer.addr() as u32,
+        RACE_VARS.run_kind.addr() as u32,
+        CAR.parts_present.addr() as u32,
+        CAR.gear.addr() as u32,
+        CAR.stopped_steps.addr() as u32,
+        CAR.tyre_change_state.addr() as u32,
+        CAR.wall_hit_timer.addr() as u32,
+        CAR.drive_cut_steps.addr() as u32,
+        CAR.engine_speed_scaled.addr() as u32,
+        CAR.top_speed.addr() as u32,
+        CAR.hit_cooldown.addr() as u32,
+    ]
 }
 
 /// The Rust version (one compare and copy of floats: the same at any precision); `r` as

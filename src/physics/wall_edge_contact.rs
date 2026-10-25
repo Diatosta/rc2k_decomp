@@ -26,8 +26,11 @@ use crate::math::x87::mul;
 use crate::physics::contact_force::{RECORD, contact_force};
 use crate::physics::flow::{a, copy3, g, p};
 use crate::physics::scene_point_hits_car::SCENE_POINTS;
+use crate::physics::tables_store::PHYSICS;
 use crate::physics::touch_face::FACES;
 use crate::physics::wall_contacts::WALL_RECORD;
+use crate::race::numbers_store::NUMBERS;
+use crate::scene::draw_store::DRAW;
 use crate::scene::x87_mem::{fild, fistp, fld};
 use rc2k_core::physics::walls;
 
@@ -43,18 +46,29 @@ fn rd(x: u32) -> u32 {
 /// `qword_6D3078` ... Returns what that leaves in eax, ebx, ecx, edx.
 pub fn edge_normal(first: u32, second: u32) -> [u32; 4] {
     let point = |k: u32| k.wrapping_mul(12).wrapping_add(g(SCENE_POINTS));
-    p(0x6141AC, rd(point(first)));
-    p(0x6141B0, rd(point(first) + 8));
-    p(0x6141B4, rd(point(second)));
-    p(0x6141B8, rd(point(second) + 8));
-    let dx = g(0x6141B4).wrapping_sub(g(0x6141AC));
-    let dz = g(0x6141B8).wrapping_sub(g(0x6141B0));
+    PHYSICS.edge_points[0].set(rd(point(first)));
+    PHYSICS.edge_points[1].set(rd(point(first) + 8));
+    PHYSICS.edge_points[2].set(rd(point(second)));
+    PHYSICS.edge_points[3].set(rd(point(second) + 8));
+    let dx = PHYSICS.edge_points[2]
+        .get()
+        .wrapping_sub(PHYSICS.edge_points[0].get());
+    let dz = PHYSICS.edge_points[3]
+        .get()
+        .wrapping_sub(PHYSICS.edge_points[1].get());
     let d = [dx, dz];
     x87_1(d.as_ptr() as usize, crate::race::store::asm_base() as usize);
-    p(0x62400C, g(0x62400C) & 0xFFFF);
-    let heading = (g(0x62400C) << 16).wrapping_add(0x4000_0000);
-    p(0x6141C8, heading);
-    let out = unsafe { turn_float_point_xz(g(0x5C5D90), g(0x5C5D90), g(0x5C5D38), heading) };
+    DRAW.scratch.set(g(0x62400C) & 0xFFFF);
+    let heading = (DRAW.scratch.get() << 16).wrapping_add(0x4000_0000);
+    PHYSICS.wall_heading.set(heading);
+    let out = unsafe {
+        turn_float_point_xz(
+            NUMBERS.zero.bits(),
+            NUMBERS.zero.bits(),
+            NUMBERS.one.bits(),
+            heading,
+        )
+    };
     p(0x6D3078, out[0]);
     p(0x6D307C, out[1]);
     p(0x6D3080, out[2]);
@@ -84,7 +98,7 @@ pub fn steps() -> Result<(), Refused> {
     p(0x6D3090, g(0x6D2214 + 4 * n));
     p(0x6D3094, g(0x6D2314 + 4 * n));
     p(0x6D3098, g(0x6D2414 + 4 * n));
-    p(0x6D3094, mul(g(0x6D3094), g(0x5C5DD0)));
+    p(0x6D3094, mul(g(0x6D3094), NUMBERS.tenth.bits()));
     p(0x6D3100, 0);
     p(RECORD, a(WALL_RECORD));
     unsafe { contact_force() };

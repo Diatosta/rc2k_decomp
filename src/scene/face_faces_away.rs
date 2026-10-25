@@ -16,11 +16,11 @@
 //! One caller, `sub_45071B`, which turns the answer into the carry flag.
 //! Refuses when there is no face or no records.
 
-use crate::d3d::draw_fan_unclipped::COUNT_RVA;
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::framework::{game_read, game_write, rva};
 use crate::math::normalise_vector::VECTOR_RVA;
 use crate::math::x87_float::{X, compare};
+use crate::scene::draw_store::DRAW;
 use crate::scene::polygon::dword;
 use crate::scene::project_point::RECORDS_RVA;
 use crate::scene::x87_mem::{fld, fnstsw, fstp};
@@ -119,7 +119,7 @@ pub unsafe fn face_faces_away(face: usize) -> Result<bool, Refused> {
         }
         let count = dword(face);
         let point = |n: u32| dword(face + 0x10 + n as usize * 0x10);
-        game_write(COUNT_RVA, count);
+        DRAW.polygon_vertex_count.set_bits(count);
         if count < 3 {
             return Ok(true);
         }

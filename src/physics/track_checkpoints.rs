@@ -16,6 +16,7 @@
 
 use crate::errors::Refused;
 use crate::framework::{game_read, game_write, rva};
+use crate::physics::car_store::CAR;
 use rc2k_core::physics::splits::{at_split_end, check_tracked, split_ahead};
 
 fn g(x: usize) -> u32 {
@@ -30,24 +31,30 @@ fn p(x: usize, v: u32) {
 // Converted: `rc2k_core::physics::splits::{check_tracked, at_split_end, split_ahead}`.
 pub fn track_checkpoints() -> Result<(), Refused> {
     let checkpoint = unsafe { crate::physics::find_car_checkpoint::find_car_checkpoint() }?;
-    check_tracked(checkpoint, g(0x71A068))?;
-    p(0x71A070, checkpoint);
+    check_tracked(checkpoint, CAR.splits_passed.get())?;
+    CAR.checkpoint.set(checkpoint);
     p(0x6365E4, checkpoint);
     unsafe { crate::physics::checkpoint_offset::checkpoint_offset() }?;
     crate::physics::off_line_warnings::off_line_warnings()?;
-    let next = g(0x9E87A0 + 4 * g(0x71A070) as usize).wrapping_sub(1);
-    if at_split_end(next.wrapping_add(1), g(0x71A068)) {
-        p(0x71A06C, g(0x71A070));
+    let next = g(0x9E87A0 + 4 * CAR.checkpoint.get() as usize).wrapping_sub(1);
+    if at_split_end(next.wrapping_add(1), CAR.splits_passed.get()) {
+        CAR.reset_checkpoint
+            .set(crate::physics::car_store::CAR.checkpoint.get());
     }
-    if !split_ahead(g(0x71A068), g(0x601830)) {
+    if !split_ahead(CAR.splits_passed.get(), g(0x601830)) {
         return Ok(());
     }
     if !unsafe { crate::physics::passed_split_point::passed_split_point() }? {
         return Ok(());
     }
-    let split = g(0x601030 + 4 * g(0x71A068) as usize);
-    p(0x71A06C, split);
-    p(0x71A070, split);
-    p(0x71A068, g(0x71A068).wrapping_add(1));
+    let split = g(0x601030 + 4 * CAR.splits_passed.get() as usize);
+    CAR.reset_checkpoint.set(split);
+    CAR.checkpoint.set(split);
+    CAR.splits_passed.set(
+        crate::physics::car_store::CAR
+            .splits_passed
+            .get()
+            .wrapping_add(1),
+    );
     Ok(())
 }

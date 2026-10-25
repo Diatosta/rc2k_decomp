@@ -6,18 +6,14 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::race::course_store::COURSE;
 
 /// `files\levels\levelxx\cdat00c`'s two digits, in `srclvls\..` (0x60B02B) and
 /// `\levels\..` (0x60B07F): tens, units.
 pub const CDAT_DIGITS: [usize; 2] = [rva(0x60B03F), rva(0x60B093)];
 pub const COURSE_MEMORY_RVA: usize = rva(0x5C6F94); // g_courseMemory
-pub const HEADER_RVA: usize = rva(0x5CCD14); // g_courseHeader
 pub const HEADER_LEN: usize = 0x100;
 pub const LIT_COUNT_RVA: usize = rva(0x6D3620); // g_litFaceCount
-pub const FACES_RVA: usize = rva(0x5CCCBC); // g_courseFaces
-pub const FACE_COUNT_RVA: usize = rva(0x5CCD1C); // g_courseFaceCount
-pub const RECORDS_RVA: usize = rva(0x5CCCB8); // g_courseRecords
-pub const RECORD_COUNT_RVA: usize = rva(0x5CCD18); // g_courseRecordCount
 /// `g_kindFirstRecords` (0x100 dwords), followed by `g_kindLastRecords` (0x5CC7E4).
 pub const KIND_TABLES_RVA: usize = rva(0x5CC3E4);
 const KINDS: u32 = 0x100;
@@ -45,7 +41,7 @@ pub unsafe fn copy_course_header() {
         let from: u32 = game_read(COURSE_MEMORY_RVA);
         std::ptr::copy(
             from as *const u8,
-            game_addr(HEADER_RVA) as *mut u8,
+            COURSE.course_header.addr() as *mut u8,
             HEADER_LEN,
         );
     }
@@ -61,11 +57,11 @@ pub unsafe fn clear_lit_faces() {
 /// (the original counts round) or 0x100000 or more.
 pub unsafe fn reset_face_lights() -> Result<(), Refused> {
     unsafe {
-        let count: u32 = game_read(FACE_COUNT_RVA);
+        let count: u32 = COURSE.course_face_count.bits();
         rc2k_core::race::faces::check_face_count(count)?;
         // Converted: `rc2k_core::race::faces::reset_lights` (each record inside the
         // faces the original walks; written back only when changed).
-        let faces: u32 = game_read(FACES_RVA);
+        let faces: u32 = COURSE.course_faces.bits();
         for n in 0..count {
             let at = faces.wrapping_add(n << 6) as *mut [u8; rc2k_core::race::faces::FACE_BYTES];
             let mut face = at.read_unaligned();
@@ -89,11 +85,11 @@ pub unsafe fn group_records_by_kind() -> Result<(), Refused> {
     // Converted: `rc2k_core::race::stage::group_by_kind`; the records read whole (every
     // one is swapped into place, so the original reads them all).
     unsafe {
-        let count: u32 = game_read(RECORD_COUNT_RVA);
+        let count: u32 = COURSE.course_record_count.bits();
         if count > MOST_RECORDS {
             return Err(BadInput("more records than the course memory holds").into());
         }
-        let records: u32 = game_read(RECORDS_RVA);
+        let records: u32 = COURSE.course_records.bits();
         let at = records as *mut [u32; 8];
         let mut list: Vec<[u32; 8]> = (0..count as usize)
             .map(|n| at.add(n).read_unaligned())

@@ -17,6 +17,8 @@
 use crate::errors::Refused;
 use crate::framework::{game_read, game_write, rva};
 use crate::logfile::{log_int::log_int, log_write::log_write};
+use crate::race::view_store::RACE_VIEW;
+use crate::race::work_store::RACE_WORK;
 
 const FIRST: [(usize, u32); 5] = [
     (0x5C5CE0, 0),
@@ -25,8 +27,6 @@ const FIRST: [(usize, u32); 5] = [
     (0x60101C, 2),
     (0x621514, 0),
 ];
-const IN_CREDITS: usize = 0x71C3E0; // dword_71C3E0
-const AFTER_CREDITS: usize = 0x63DB84; // dword_63DB84
 const STAGE: usize = 0x623850; // g_stageNumber
 const CAR_KINDS: usize = 0x623858; // g_raceCarKinds
 const WORDS: [&std::ffi::CStr; 2] = [c"INIT CREDITS - track", c"car"]; // "INIT CREDITS - track", "car"
@@ -47,7 +47,7 @@ pub fn credits_race() -> Result<(), Refused> {
         crate::race::race_cars::set_up_arcade_cars()?;
         crate::race::race_shell::set_start_states()?;
     }
-    p(IN_CREDITS, 1);
+    RACE_WORK.in_credits.set(1);
     let g = |x: usize| unsafe { game_read::<u32>(rva(x)) };
     let word = |n: usize| WORDS[n].as_ptr() as usize as *const u8;
     unsafe {
@@ -62,10 +62,10 @@ pub fn credits_race() -> Result<(), Refused> {
             &mut crate::race::frame_text::credits_tune,
         )?;
     }
-    p(AFTER_CREDITS, 0);
+    RACE_VIEW.after_credits.set(0);
     unsafe {
         crate::drive::play_race::play_race()?;
-        p(IN_CREDITS, 0);
+        RACE_WORK.in_credits.set(0);
         crate::race::race_end::tidy_everything(&crate::race::loadlevel::LoadVars::game())
     }
 }

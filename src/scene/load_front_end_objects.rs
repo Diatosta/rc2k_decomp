@@ -13,7 +13,8 @@
 use crate::errors::Refused;
 use crate::framework::{game_read, game_write, rva};
 use crate::scene::load_object::load_object;
-use crate::scene::objects::{FACE_CURSOR_RVA, KIND_RVA, POINT_COUNT_RVA, SLOT_RVA, SLOTS};
+use crate::scene::object_store::OBJECT_WORK;
+use crate::scene::objects::{POINT_COUNT_RVA, SLOTS};
 use crate::scene::reset_objects::reset_objects;
 
 // ---- game data ----
@@ -36,11 +37,11 @@ pub unsafe fn load_front_end_objects() -> Result<(), Refused> {
         game_write(NO_NORMALS_RVA, 0u32);
         for slot in 0..SLOTS {
             let kind: u32 = game_read(SLOT_KINDS_RVA + slot as usize * 4);
-            game_write(KIND_RVA, kind);
-            game_write(SLOT_RVA, slot);
+            OBJECT_WORK.loading_kind.set_bits(kind);
+            OBJECT_WORK.loading_slot.set_bits(slot);
             load_object()?;
         }
-        let cursor: u32 = game_read(FACE_CURSOR_RVA);
+        let cursor: u32 = OBJECT_WORK.face_cursor.bits();
         game_write(
             USED_RVA,
             [game_read::<u32>(POINT_COUNT_RVA).wrapping_mul(12), cursor],

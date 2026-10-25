@@ -10,12 +10,10 @@
 //!
 //! Caller: `sub_43B635` (0x43B9AE), its last call, every physics step.
 
-use crate::framework::{game_addr, rva};
+use crate::physics::car_store::CAR;
 use crate::physics::cells::{get, put_changed};
 use rc2k_core::physics::notices::Notice;
 
-/// The figure, shown, last, id, time (IDA addresses).
-const VARIABLES: [usize; 5] = [0x71A24C, 0x71A700, 0x71A6FC, 0x71A6F4, 0x71A704];
 // Converted: `rc2k_core::physics::notices::Notice::value_notice`.
 unsafe fn core(v: &[u32]) {
     unsafe {
@@ -36,10 +34,13 @@ unsafe fn core(v: &[u32]) {
 }
 
 fn game() -> Vec<u32> {
-    VARIABLES
-        .iter()
-        .map(|&x| game_addr(rva(x)) as u32)
-        .collect()
+    vec![
+        CAR.turned_steps.addr() as u32,
+        CAR.notice_shown.addr() as u32,
+        CAR.notice_last.addr() as u32,
+        CAR.notice_id.addr() as u32,
+        CAR.notice_time.addr() as u32,
+    ]
 }
 
 /// The Rust version.

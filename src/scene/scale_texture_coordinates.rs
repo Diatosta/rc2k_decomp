@@ -12,10 +12,10 @@
 //! last value and its float.
 //! Eight callers.
 
-use crate::d3d::draw_fan_unclipped::COUNT_RVA;
 use crate::errors::Refused;
 use crate::framework::game_read;
-use crate::scene::draw_polygon::{SWITCH_A_RVA, SWITCH_B_RVA};
+use crate::scene::draw_polygon::SWITCH_B_RVA;
+use crate::scene::draw_store::DRAW;
 use crate::scene::polygon::{dword, listed, put};
 use crate::session::MACHINE;
 
@@ -27,11 +27,11 @@ use crate::session::MACHINE;
 pub unsafe fn scale_texture_coordinates() -> Result<(), Refused> {
     use rc2k_core::scene::texture_coordinates as coordinates;
     unsafe {
-        if game_read::<i32>(COUNT_RVA) <= 0 {
+        if (DRAW.polygon_vertex_count.bits() as i32) <= 0 {
             return Ok(());
         }
         let entries = listed()?;
-        let switches: [u32; 2] = [game_read(SWITCH_A_RVA), game_read(SWITCH_B_RVA)];
+        let switches: [u32; 2] = [DRAW.polygon_sides[0].bits(), game_read(SWITCH_B_RVA)];
         for &entry in &entries {
             for (pair, switch) in switches.into_iter().enumerate() {
                 if switch == 0 {

@@ -22,21 +22,20 @@ use crate::errors::{BadInput, Refused};
 use crate::framework::rva;
 use crate::marks::store::{Slot, Where, game_addr, game_read, game_write};
 use crate::math::x87;
+use crate::race::frame_store::FRAME_WORK;
+use crate::race::numbers_store::NUMBERS;
 use crate::scene::cross_product3::cross_product3;
 use crate::scene::vector3::normalise_vector3;
 
 const AXES: [Slot; 3] = [Slot::at(0x89CF1A), Slot::at(0x89CF26), Slot::at(0x89CF32)];
 const PLACE_RVA: Slot = Slot::at(0x8161A2); // flt_8161A2
 const FACING_RVA: Slot = Slot::at(0x814718); // flt_814718
-const SWITCH_RVA: usize = rva(0x641678); // dword_641678
 const TEXTURE_RVA: usize = rva(0x5D1E10); // dword_5D1E10
 const CORNER_RVA: Slot = Slot::at(0x934C64); // dword_934C64
 const MARK_CORNERS_RVA: Slot = Slot::at(0x8EB971); // g_marksCorners
 const UV_K_RVA: Slot = Slot::at(0x8EB969); // flt_8EB969
 const PLACES_RVA: Slot = Slot::at(0x934F3C); // flt_934F3C .. flt_934F58
-const LIGHT_RVA: usize = rva(0x6415E4); // g_viewLight
 const CORNERS_RVA: Slot = Slot::at(0x934C98); // flt_934C98 .. flt_934CC4: four of 12
-const NEAR_RVA: usize = rva(0x5C5E18); // flt_5C5E18
 const KIND_RVA: Slot = Slot::at(0x76529C); // g_marksKindFloat
 const LIFTS_RVA: Slot = Slot::at(0x934F5C); // flt_934F5C ..
 const RHW_K_RVA: Slot = Slot::at(0x934F6C); // flt_934F6C ..
@@ -108,7 +107,7 @@ pub unsafe fn draw_plane() -> Result<(), Refused> {
         if game_read::<u32>(FACING_RVA) & 0x8000_0000 == 0 {
             return Ok(());
         }
-        if game_read::<u32>(SWITCH_RVA) == 0 {
+        if FRAME_WORK.lead_kept[7].bits() == 0 {
             return Ok(());
         }
         if corner >= 0x100 {
@@ -136,12 +135,12 @@ pub unsafe fn draw_plane() -> Result<(), Refused> {
                 x87::loaded(game_read(PLACES_RVA + 8 * n + 4)),
             );
         }
-        let light: u32 = game_read(LIGHT_RVA);
+        let light: u32 = FRAME_WORK.view_light.bits();
         for n in 0..4 {
             game_write(VERTICES_RVA + 0x20 * n + 0x10, light);
         }
         for n in 0..4 {
-            if game_read::<i32>(CORNERS_RVA + 12 * n + 8) <= game_read::<i32>(NEAR_RVA) {
+            if game_read::<i32>(CORNERS_RVA + 12 * n + 8) <= (NUMBERS.k4096_a.bits() as i32) {
                 return Ok(());
             }
         }

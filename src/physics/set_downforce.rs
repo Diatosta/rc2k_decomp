@@ -8,14 +8,9 @@
 //!
 //! Caller: `sub_43B635` (0x43B728), every physics step.
 
-use crate::framework::{game_addr, game_read, rva};
 use crate::math::x87_run::{minus_one, square_times_plus_times};
-
-/// The variables (IDA addresses): the switch, the speed, the offset, and the three
-/// written.
-const VARIABLES: [usize; 6] = [0x71A224, 0x71A184, 0x61476C, 0x614174, 0x6147F4, 0x614804];
-const FACTOR_RVA: usize = rva(0x613FB4); // flt_613FB4
-const GRAVITY_RVA: usize = rva(0x613FC8); // flt_613FC8
+use crate::physics::car_store::CAR;
+use crate::physics::tables_store::PHYSICS;
 
 unsafe fn at(a: u32) -> u32 {
     unsafe { (a as *const u32).read_unaligned() }
@@ -33,9 +28,9 @@ pub unsafe fn set_downforce_at(v: &[u32; 6]) {
         }
         let (load, negative) = square_times_plus_times(
             at(v[1]),
-            game_read(FACTOR_RVA),
+            PHYSICS.downforce_factor.bits(),
             at(v[2]),
-            game_read(GRAVITY_RVA),
+            PHYSICS.gravity.bits(),
         );
         put(v[3], load);
         put(v[4], negative);
@@ -44,7 +39,14 @@ pub unsafe fn set_downforce_at(v: &[u32; 6]) {
 }
 
 fn game() -> [u32; 6] {
-    VARIABLES.map(|x| game_addr(rva(x)) as u32)
+    [
+        CAR.rear_wheels_off.addr() as u32,
+        CAR.local_velocity[2].addr() as u32,
+        PHYSICS.downforce_spec.addr() as u32,
+        PHYSICS.downforce.addr() as u32,
+        PHYSICS.forces[4].force[1].addr() as u32,
+        PHYSICS.forces[4].point[2].addr() as u32,
+    ]
 }
 
 /// The Rust version (the exact one, for `physics::car_physics_step`).

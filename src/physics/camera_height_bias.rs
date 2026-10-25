@@ -14,7 +14,10 @@
 
 use crate::math::x87_float::X;
 use crate::physics::camera_view::{rd, record};
-use crate::physics::flow::{g, hold_high, hold_low, p};
+use crate::physics::car_store::CAR;
+use crate::physics::flow::{hold_high, hold_low, p};
+use crate::race::numbers_store::NUMBERS;
+use crate::scene::draw_store::DRAW;
 use crate::scene::x87_mem::{fistp, fld, fstp};
 
 /// The Rust version (the exact one, for `physics::update_camera`).
@@ -24,15 +27,19 @@ pub unsafe fn camera_height_bias() {
         return;
     }
     x87_1(crate::race::store::asm_base() as usize);
-    hold_low(0x62400C, 0x5C5D90);
-    hold_high(0x62400C, 0x5C5D38);
+    hold_low(&DRAW.scratch, &NUMBERS.zero);
+    hold_high(&DRAW.scratch, &NUMBERS.one);
     if (rd(esi + 0x54) as i32) < 0 {
         x87_2(crate::race::store::asm_base() as usize);
     }
     x87_3(crate::race::store::asm_base() as usize);
-    let eax = g(0x62400C);
+    let eax = DRAW.scratch.get();
     p(0x606288, eax);
-    p(0x71A680, g(0x71A680).wrapping_add(eax));
+    CAR.camera_position[1].set(
+        crate::physics::car_store::CAR.camera_position[1]
+            .get()
+            .wrapping_add(eax),
+    );
 }
 
 // ---- the arithmetic that was x87 assembly ----

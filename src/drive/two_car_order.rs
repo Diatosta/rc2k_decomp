@@ -9,7 +9,10 @@
 //!
 //! Caller: `drive::replay_step`.
 
-use crate::physics::flow::{g, p};
+use crate::physics::flow::g;
+use crate::race::blocks_store::CAR_BLOCKS;
+use crate::race::vars_store::RACE_VARS;
+use crate::race::view_store::RACE_VIEW;
 use rc2k_core::drive::places;
 
 const B: usize = 0x70F3EC; // g_carBlockStore
@@ -20,9 +23,9 @@ const NEXT: usize = 0xFE0;
 pub fn two_car_order() {
     let figure = |car: usize, o: u32| g(B + car * NEXT + o as usize);
     // The last argument is only handed back as `last` (ebx), which no caller reads.
-    let order = places::two_car_order(g(0x62389C), g(0x63DB94), figure, 0);
+    let order = places::two_car_order(RACE_VARS.run_kind.get(), RACE_VIEW.players.get(), figure, 0);
     if let Some([x, y]) = order.places {
-        p(B + 0xFA4, x);
-        p(B + NEXT + 0xFA4, y);
+        CAR_BLOCKS.cars[0].unknown_fa4.set_bits(x);
+        CAR_BLOCKS.cars[1].unknown_fa4.set_bits(y);
     }
 }

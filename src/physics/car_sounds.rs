@@ -12,6 +12,9 @@
 use crate::errors::{BadInput, Refused};
 use crate::framework::rva;
 use crate::math::x87_run::ext_times;
+use crate::physics::car_store::CAR;
+use crate::race::numbers_store::NUMBERS;
+use crate::race::work_store::RACE_WORK;
 use crate::scene::matrix3::rounded;
 use crate::scene::rotate_point::rotate_point;
 use crate::scene::vector3::{read_floats, write_floats};
@@ -19,7 +22,6 @@ use crate::scene::x87_mem::{fild, fstp80};
 use crate::store::game_addr;
 use rc2k_core::physics::sound_places::{PLAY, PLAYING, Slot};
 
-pub const CURRENT: usize = 0x71B3F8; // g_currentCar
 pub const LISTED: usize = 0x641680; // dword_641680
 pub const VIEW_TURN: usize = 0x5EA24C; // g_viewTurnMatrix
 
@@ -41,7 +43,8 @@ pub fn listed(car: u32) -> Result<bool, Refused> {
 
 /// The current car's sound object; refused when null.
 pub fn object() -> Result<u32, Refused> {
-    let o = crate::sound::store::RACE_SOUNDS.table[(g(CURRENT) & 7) as usize].get();
+    let o =
+        crate::sound::store::RACE_SOUNDS.table[(RACE_WORK.current_car.get() & 7) as usize].get();
     if o == 0 {
         return Err(BadInput("a null sound object").into());
     }
@@ -55,8 +58,8 @@ pub unsafe fn place(o: u32, at: u32, offset: Option<[u32; 3]>) {
     // listener's; without an offset `fild` the car's, `fisub`): each rounds to the
     // control word's precision, so a big difference keeps fewer bits at 24.
     let part = |k: usize| {
-        let car = g(0x71A10C + 4 * k);
-        let listener = g(0x71A67C + 4 * k);
+        let car = CAR.position[k].get();
+        let listener = CAR.camera_position[k].get();
         match offset {
             Some(o) => offset_part(o[k], car, listener),
             None => car_part(car, listener),
@@ -67,7 +70,7 @@ pub unsafe fn place(o: u32, at: u32, offset: Option<[u32; 3]>) {
             game_addr(rva(VIEW_TURN)) as u32,
             [part(0), part(1), part(2)],
         );
-        let k = g(0x5C5DA0);
+        let k = NUMBERS.one_over_65536.bits();
         for (n, e) in out.iter().enumerate() {
             put(o + at + 4 * n as u32, rounded(ext_times(*e, k)));
         }
@@ -84,7 +87,7 @@ pub unsafe fn place_plain(o: u32, at: u32, offset: Option<[u32; 3]>) {
             whole(0x71A67C),
             offset.map(|o| o.map(|v| v as i32)),
             &read_floats(game_addr(rva(VIEW_TURN)) as u32),
-            f32::from_bits(g(0x5C5DA0)),
+            f32::from_bits(NUMBERS.one_over_65536.bits()),
         );
         write_floats(o + at, &p);
     }

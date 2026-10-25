@@ -21,6 +21,10 @@
 //! and what `place_sound_e1_other` refuses (what was written put back).
 
 use crate::errors::{BadInput, Refused};
+use crate::physics::car_store::CAR;
+use crate::race::numbers_store::NUMBERS;
+use crate::race::work_store::RACE_WORK;
+use crate::scene::draw_store::DRAW;
 use crate::scene::x87_mem::{fild, fld, fstp};
 
 use crate::math::x87::loaded;
@@ -31,7 +35,6 @@ use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
 
 /// `g_car`: the work car's block.
-pub const CAR: usize = 0x719FD8;
 /// `dword_6D3BB8`: the other car's block.
 pub const OTHER: usize = 0x6D3BB8;
 
@@ -48,9 +51,9 @@ fn steps(edi: u32) -> Result<(), Refused> {
     for k in 0..3 {
         p(0x6D3090 + 4 * k, loaded(g(0x6D3BC8 + 4 * k)));
     }
-    let zero = g(0x5C5D90);
+    let zero = NUMBERS.zero.bits();
     let note = [
-        g(0x71B3F8),
+        RACE_WORK.current_car.get(),
         g(0x6D3CD4),
         g(0x6D3BD4),
         zero,
@@ -63,7 +66,7 @@ fn steps(edi: u32) -> Result<(), Refused> {
         p(0x6D3CA0 + 4 * k, *v);
     }
     fill3(0x614B10, 0);
-    p(0x71A20C, 1);
+    CAR.contact_flag.set(1);
     unsafe { ((edi + 0x234) as *mut u32).write_unaligned(1) };
     x87_1(crate::race::store::asm_base() as usize, edi as usize);
     p(0x6D3CD0, rounded(unsafe { vector_length(a(0x6D3CD8)) }));
@@ -72,12 +75,12 @@ fn steps(edi: u32) -> Result<(), Refused> {
     // 0x45F98C: pushed apart by the places' difference.
     let other = g(OTHER);
     x87_3(crate::race::store::asm_base() as usize, other as usize);
-    let factor = extended(g(0x5C5D40));
+    let factor = extended(NUMBERS.three.bits());
     unsafe { scale_vector(a(0x6D3B9C), factor) };
-    p(0x62400C, rounded(factor));
+    DRAW.scratch.set(rounded(factor));
     x87_4(crate::race::store::asm_base() as usize, other as usize);
     turn_speed(esi);
-    turn_speed(a(CAR));
+    turn_speed(crate::physics::car_store::car_addr() as u32);
     unsafe { crate::physics::place_sound_e1_other::place_sound_e1_other() }?;
     Ok(())
 }

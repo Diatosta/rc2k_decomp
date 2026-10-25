@@ -2118,7 +2118,10 @@ mod tests {
 
     #[test]
     fn menu_texts_start_as_the_games() {
-        assert_eq!(size_of::<MenuTexts>(), (END - START + 2).next_multiple_of(4));
+        assert_eq!(
+            size_of::<MenuTexts>(),
+            (END - START + 2).next_multiple_of(4)
+        );
         assert_eq!(offset_of!(MenuTexts, keys_menu), 0x731BBB - START + 2);
         assert_eq!(offset_of!(MenuTexts, car_speech), 0x734866 - START + 2);
         assert_eq!(offset_of!(MenuTexts, stage_speech), 0x734986 - START + 2);

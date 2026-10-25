@@ -14,9 +14,8 @@
 
 use crate::errors::BadInput;
 use crate::framework::{game_read, game_write, rva};
-use crate::scene::objects::{
-    FIRST_POINT_RVA, POINT_COUNTS_RVA, POINTS_RVA, SLOT_RVA, SLOTS, of_slot,
-};
+use crate::scene::object_store::OBJECT_WORK;
+use crate::scene::objects::{FIRST_POINT_RVA, POINT_COUNTS_RVA, POINTS_RVA, SLOTS, of_slot};
 
 // ---- game data ----
 
@@ -47,7 +46,7 @@ unsafe fn points_of(slot: u32) -> Result<(usize, u32), BadInput> {
 pub unsafe fn measure_object() -> Result<(), BadInput> {
     use rc2k_core::scene::objects::{HIGHEST_START, LOWEST_START, measure};
     unsafe {
-        let slot: u32 = game_read(SLOT_RVA);
+        let slot: u32 = OBJECT_WORK.loading_slot.bits();
         let (at, count) = points_of(slot)?;
         let points: &mut [[u32; 3]] = if count == 0 {
             &mut []

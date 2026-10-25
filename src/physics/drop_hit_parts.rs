@@ -15,21 +15,19 @@
 //! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{game_read, game_write, rva};
+use crate::framework::{game_read, rva};
 use crate::math::x87;
+use crate::physics::car_store::CAR;
 use crate::physics::fill_slot_on_bit::fill_slot_on_bit;
+use crate::race::numbers_store::NUMBERS;
 use rc2k_core::physics::parts::{self, DROP_TESTS, Hit, HitTest};
 
 pub fn g(x: usize) -> u32 {
     unsafe { game_read(rva(x)) }
 }
 
-pub fn p(x: usize, v: u32) {
-    unsafe { game_write(rva(x), v) }
-}
-
-/// The four tests' timers (IDA addresses).
-pub type Timers = [usize; 4];
+/// The four tests' timers.
+pub type Timers = [crate::session::Float; 4];
 
 /// The shared steps (`rc2k_core::physics::parts::hit_tests`): `act` the bit's step (with
 /// the bit, the original's ecx). The registers left are read by none of the callers.
@@ -38,28 +36,26 @@ pub fn hit_tests(
     timers: &Timers,
     act: &mut dyn FnMut(u32) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
-    let word = g(0x719FE4);
+    let word = CAR.noise_word.get();
     let (_, hit) = parts::hit_tests(
         tests,
         word,
-        |k| f32::from_bits(g(timers[k])),
-        || f32::from_bits(g(0x5C5D14)),
-        || g(0x71A270),
+        |k| timers[k].get(),
+        || f32::from_bits(NUMBERS.hundred.bits()),
+        || CAR.parts_present.get(),
     );
     if let Hit::Act(k) = hit {
         act(tests[k].1)?;
-        p(timers[k], x87::loaded(g(0x5C5E2C)));
+        timers[k].set_bits(x87::loaded(NUMBERS.k256.bits()));
     }
     Ok(())
 }
 
-const TIMERS: Timers = [0x71A2D0, 0x71A2D4, 0x71A2D8, 0x71A2DC];
-
 /// The Rust version.
 // Converted: `rc2k_core::physics::parts::{hit_tests, DROP_TESTS}`.
 pub fn drop_hit_parts() -> Result<(), Refused> {
-    if g(0x719FFC) >= 0x17 {
+    if CAR.car_kind.get() >= 0x17 {
         return Ok(());
     }
-    hit_tests(&DROP_TESTS, &TIMERS, &mut fill_slot_on_bit)
+    hit_tests(&DROP_TESTS, &CAR.wheel_hit_damage, &mut fill_slot_on_bit)
 }

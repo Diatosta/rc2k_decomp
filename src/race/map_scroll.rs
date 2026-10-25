@@ -6,22 +6,16 @@
 //! the picture.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, game_write, rva};
+use crate::framework::{game_read, rva};
+use crate::physics::car_store::CAR;
+use crate::race::course_store::COURSE;
+use crate::race::vars_store::RACE_VARS;
+use crate::race::view_store::RACE_VIEW;
+use crate::race::work_store::RACE_WORK;
 
 fn k(a: u32) -> u32 {
     unsafe { game_read(rva(a as usize)) }
 }
-
-fn w(a: u32, v: u32) {
-    unsafe { game_write(rva(a as usize), v) }
-}
-
-const CAR: u32 = 0x719FD8; // g_car
-const CORNER_X: u32 = CAR + 0xAD4;
-const CORNER_Y: u32 = CAR + 0xAD8;
-const REDRAWN: u32 = CAR + 0xADC;
-const MAP_X: u32 = CAR + 0xAE0;
-const MAP_Y: u32 = CAR + 0xAE4;
 
 /// `race::map_tiles` (0x45B663): the map picture's slot `dword_5D0E00` (+ `g_currentCar`
 /// unless `dword_52A910`) drawn from tile (corner x >> 4, corner y >> 4)
@@ -34,20 +28,26 @@ pub unsafe fn map_tiles() -> Result<(), Refused> {
     let slot = picture_slot(
         k(0x5D0E00),
         one_view,
-        if one_view { 0 } else { k(0x71B3F8) },
+        if one_view {
+            0
+        } else {
+            RACE_WORK.current_car.get()
+        },
     );
     unsafe {
         crate::race::blit_map_tiles::blit_map_tiles(
             slot,
-            first_tile(k(CORNER_X)),
-            first_tile(k(CORNER_Y)),
+            first_tile(CAR.map_corner[0].get()),
+            first_tile(CAR.map_corner[1].get()),
         )
     }
 }
 
 /// What `scroll_map` reads through the course: refused before anything.
 unsafe fn scroll_refuses() -> Result<(), Refused> {
-    if k(0x623640) >= 2 && (k(0x5CCCBC) == 0 || k(0x5CCCC0) == 0) {
+    if RACE_VARS.checkpoint_count.get() >= 2
+        && (COURSE.course_faces.get() == 0 || COURSE.scene_points.get() == 0)
+    {
         return Err(BadInput("no course faces or points").into());
     }
     Ok(())
@@ -65,36 +65,47 @@ pub unsafe fn scroll_map() -> Result<(), Refused> {
     use rc2k_core::race::map::{centred_corner, on_map, picture_place, pixel, well_inside};
     unsafe {
         scroll_refuses()?;
-        w(REDRAWN, 0);
-        if k(0x623640) < 2 {
+        CAR.map_redrawn.set(0);
+        if RACE_VARS.checkpoint_count.get() < 2 {
             return Ok(());
         }
-        let n = k(CAR + 0x98);
-        w(MAP_X, k(0x9FC940 + 4 * n));
-        w(MAP_Y, k(0xA019A8 + 4 * n));
-        let face = k(0x5CCCBC).wrapping_add(k(0x9E3738 + 4 * n) << 6);
+        let [corner_x, corner_y] = &CAR.map_corner;
+        let [map_x, map_y] = &CAR.map_place;
+        let n = CAR.checkpoint.get();
+        map_x.set(k(0x9FC940 + 4 * n));
+        map_y.set(k(0xA019A8 + 4 * n));
+        let face = COURSE
+            .course_faces
+            .get()
+            .wrapping_add(k(0x9E3738 + 4 * n) << 6);
         let point = ((face + 4) as *const u32).read_unaligned();
-        let p = point.wrapping_mul(12).wrapping_add(k(0x5CCCC0));
+        let p = point
+            .wrapping_mul(12)
+            .wrapping_add(COURSE.scene_points.get());
         let px = (p as *const u32).read_unaligned();
         let pz = ((p + 8) as *const u32).read_unaligned();
-        w(
-            MAP_X,
-            k(MAP_X).wrapping_add(on_map(k(CAR + 0x134).wrapping_sub(px)).0),
+        map_x.set(
+            map_x
+                .get()
+                .wrapping_add(on_map(CAR.position[0].get().wrapping_sub(px)).0),
         );
-        let dz = k(CAR + 0x13C).wrapping_sub(pz).wrapping_neg();
+        let dz = CAR.position[2].get().wrapping_sub(pz).wrapping_neg();
         let (y_off, _) = on_map(dz);
-        w(MAP_Y, k(MAP_Y).wrapping_add(y_off));
-        let x = pixel(k(MAP_X));
-        let y = pixel(k(MAP_Y));
-        let (dx, dy) = (x.wrapping_sub(k(CORNER_X)), y.wrapping_sub(k(CORNER_Y)));
+        map_y.set(map_y.get().wrapping_add(y_off));
+        let x = pixel(map_x.get());
+        let y = pixel(map_y.get());
+        let (dx, dy) = (
+            x.wrapping_sub(corner_x.get()),
+            y.wrapping_sub(corner_y.get()),
+        );
         if !(well_inside(dx) && well_inside(dy)) {
-            w(CORNER_X, centred_corner(x));
-            w(CORNER_Y, centred_corner(y));
+            corner_x.set(centred_corner(x));
+            corner_y.set(centred_corner(y));
             map_tiles()?;
-            w(REDRAWN, 1);
+            CAR.map_redrawn.set(1);
         }
-        w(CAR + 0xAE8, picture_place(k(CORNER_X), k(MAP_X)));
-        w(CAR + 0xAEC, picture_place(k(CORNER_Y), k(MAP_Y)));
+        CAR.map_picture_place[0].set(picture_place(corner_x.get(), map_x.get()));
+        CAR.map_picture_place[1].set(picture_place(corner_y.get(), map_y.get()));
         Ok(())
     }
 }
@@ -111,11 +122,11 @@ pub unsafe fn scroll_maps() -> Result<(), Refused> {
         // The player count is read only without the third view.
         let views = rc2k_core::race::map::scrolled_views(
             third_only,
-            if third_only { 0 } else { k(0x63DB98) },
+            if third_only { 0 } else { RACE_VIEW.views.get() },
         );
         for &v in views {
             let car = game_read::<u32>(VIEW_CARS[v]) & 7;
-            if k(0x71B3B8 + 4 * car) == 0 {
+            if RACE_WORK.car_block(car as usize) == 0 {
                 return Err(BadInput("a view car without its block").into());
             }
         }

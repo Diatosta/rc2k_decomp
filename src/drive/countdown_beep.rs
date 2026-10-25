@@ -11,7 +11,8 @@
 //! Caller: `drive::countdown_beeps`. Refuses what `countdown_cue` refuses.
 
 use crate::errors::Refused;
-use crate::physics::flow::{g, p};
+use crate::physics::flow::g;
+use crate::physics::tables_store::PHYSICS;
 use rc2k_core::drive::countdown::{self, Beep};
 
 /// The Rust version: the block at `block`, the second into `to`.
@@ -27,7 +28,7 @@ pub unsafe fn countdown_beep(block: u32, to: u32) -> Result<(), Refused> {
     unsafe { (to as *mut u32).write_unaligned(second) };
     if cue {
         let sound = g(0x6D1818 + 4 * second as usize);
-        p(0x614114, sound);
+        PHYSICS.countdown_sound.set(sound);
         crate::drive::countdown_cue::countdown_cue(sound)?;
     }
     Ok(())

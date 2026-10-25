@@ -26,6 +26,7 @@ use crate::math::x87_float::{X, compare};
 use crate::math::x87_float::{int, ld, st, to_int};
 #[allow(unused_imports)]
 use crate::math::x87_run::{abs_compare, compare_full};
+use crate::physics::car_store::CAR;
 use crate::physics::damage_model::ONE;
 #[allow(unused_imports)]
 use crate::physics::flow::{a, g, hold_high, hold_low, p, table_lerp};
@@ -54,10 +55,10 @@ pub fn steps() {
         &DAMAGE.flt_75b474,
         0x31A420,
     );
-    hold_low(0x71A420, &DAMAGE.gauge_low);
-    hold_high(0x71A420, &DAMAGE.gauge_top);
+    hold_low(&CAR.wheel_stiffness[0], &DAMAGE.gauge_low);
+    hold_high(&CAR.wheel_stiffness[0], &DAMAGE.gauge_top);
     x87_3(&DAMAGE, crate::race::store::asm_base() as usize, 0x31A410);
-    if compare_full(g(0x71A30C), DAMAGE.gauge_top.bits()) & 0x4000 != 0 {
+    if compare_full(CAR.suspension_damage[0].bits(), DAMAGE.gauge_top.bits()) & 0x4000 != 0 {
         x87_4(
             &DAMAGE,
             crate::race::store::asm_base() as usize,
@@ -77,10 +78,10 @@ pub fn steps() {
         &DAMAGE.flt_75b478,
         0x31A424,
     );
-    hold_low(0x71A424, &DAMAGE.gauge_low);
-    hold_high(0x71A424, &DAMAGE.gauge_top);
+    hold_low(&CAR.wheel_stiffness[1], &DAMAGE.gauge_low);
+    hold_high(&CAR.wheel_stiffness[1], &DAMAGE.gauge_top);
     x87_3(&DAMAGE, crate::race::store::asm_base() as usize, 0x31A414);
-    if compare_full(g(0x71A310), DAMAGE.gauge_top.bits()) & 0x4000 != 0 {
+    if compare_full(CAR.suspension_damage[1].bits(), DAMAGE.gauge_top.bits()) & 0x4000 != 0 {
         x87_4(
             &DAMAGE,
             crate::race::store::asm_base() as usize,
@@ -100,10 +101,10 @@ pub fn steps() {
         &DAMAGE.flt_75b47c,
         0x31A428,
     );
-    hold_low(0x71A428, &DAMAGE.gauge_low);
-    hold_high(0x71A428, &DAMAGE.gauge_top);
+    hold_low(&CAR.wheel_stiffness[2], &DAMAGE.gauge_low);
+    hold_high(&CAR.wheel_stiffness[2], &DAMAGE.gauge_top);
     x87_3(&DAMAGE, crate::race::store::asm_base() as usize, 0x31A418);
-    if compare_full(g(0x71A314), DAMAGE.gauge_top.bits()) & 0x4000 != 0 {
+    if compare_full(CAR.suspension_damage[2].bits(), DAMAGE.gauge_top.bits()) & 0x4000 != 0 {
         x87_4(
             &DAMAGE,
             crate::race::store::asm_base() as usize,
@@ -123,10 +124,10 @@ pub fn steps() {
         &DAMAGE.flt_75b480,
         0x31A42C,
     );
-    hold_low(0x71A42C, &DAMAGE.gauge_low);
-    hold_high(0x71A42C, &DAMAGE.gauge_top);
+    hold_low(&CAR.wheel_stiffness[3], &DAMAGE.gauge_low);
+    hold_high(&CAR.wheel_stiffness[3], &DAMAGE.gauge_top);
     x87_3(&DAMAGE, crate::race::store::asm_base() as usize, 0x31A41C);
-    if compare_full(g(0x71A318), DAMAGE.gauge_top.bits()) & 0x4000 != 0 {
+    if compare_full(CAR.suspension_damage[3].bits(), DAMAGE.gauge_top.bits()) & 0x4000 != 0 {
         x87_4(
             &DAMAGE,
             crate::race::store::asm_base() as usize,
@@ -135,7 +136,7 @@ pub fn steps() {
         );
     }
     x87_5(crate::race::store::asm_base() as usize, &DAMAGE);
-    hold_high(&DAMAGE.scratch, 0x71A1B4);
+    hold_high(&DAMAGE.scratch, &CAR.engine_speed_limit);
     x87_6(&DAMAGE, crate::race::store::asm_base() as usize);
     hold_high(&DAMAGE.scratch, &DAMAGE.flt_75b378);
     x87_7(&DAMAGE, crate::race::store::asm_base() as usize);
@@ -159,12 +160,12 @@ pub fn steps() {
     );
     hold_high(&DAMAGE.scratch, &DAMAGE.flt_75b378);
     x87_10(&DAMAGE);
-    if g(0x71A22C) == 0x0 {
+    if CAR.all_wheels_off.get() == 0x0 {
         x87_11(&DAMAGE);
     }
     x87_12(&DAMAGE.flt_75b3b0);
-    if abs_compare(g(0x71A184), DAMAGE.grade_high.bits()) & 0x100 == 0
-        && (g(0x71A614).wrapping_sub(0x10) as i32) >= 0
+    if abs_compare(CAR.local_velocity[2].bits(), DAMAGE.grade_high.bits()) & 0x100 == 0
+        && (CAR.brake.get().wrapping_sub(0x10) as i32) >= 0
     {
         x87_13(crate::race::store::asm_base() as usize, &DAMAGE);
     }
@@ -179,23 +180,23 @@ pub fn steps() {
     if status & 0x100 != 0 {
         DAMAGE.flt_75b3c0.set_bits(ONE);
     }
-    DAMAGE.dword_75b3b8.set_bits(g(0x71A210));
-    DAMAGE.dword_75b3bc.set_bits(g(0x71A1AC));
-    DAMAGE.dword_75b3e8.set_bits(g(0x71A004));
-    let mode = g(0x71A908);
+    DAMAGE.dword_75b3b8.set_bits(CAR.gear_changed.get());
+    DAMAGE.dword_75b3bc.set_bits(CAR.gear.get());
+    DAMAGE.dword_75b3e8.set_bits(CAR.tyre_kind.get());
+    let mode = CAR.wheel_surface_a[4].get();
     DAMAGE.dword_75b3ec.set_bits(mode);
     x87_12(&DAMAGE.flt_75b3b4);
     if mode == 5 {
         DAMAGE.flt_75b3b4.set_bits(ONE);
     }
-    DAMAGE.dword_75b3f0.set_bits(g(0x71A258));
-    let mut hit = g(0x71A208);
+    DAMAGE.dword_75b3f0.set_bits(CAR.surface_blend.bits());
+    let mut hit = CAR.contact_depth.bits();
     if hit != 0 {
         hit = 1;
-        if compare_full(g(0x71A1FC), DAMAGE.gauge_low.bits()) & 0x100 == 0 {
+        if compare_full(CAR.contact_point[0].bits(), DAMAGE.gauge_low.bits()) & 0x100 == 0 {
             hit += 1;
         }
-        if compare_full(g(0x71A204), DAMAGE.gauge_low.bits()) & 0x100 != 0 {
+        if compare_full(CAR.contact_point[2].bits(), DAMAGE.gauge_low.bits()) & 0x100 != 0 {
             hit += 2;
         }
     }
@@ -206,14 +207,14 @@ pub fn steps() {
     x87_16(&DAMAGE);
     for k in 0..4usize {
         DAMAGE.wheel_loads[k].set_bits(0);
-        if g(0x71A5E8 + 4 * k) == 0 && g(0x71A5D8 + 4 * k) != 0 {
-            DAMAGE.wheel_loads[k].set_bits(mul(g(0x71A5D8 + 4 * k), DAMAGE.scratch.bits()));
+        if CAR.wheel_squeeze_last[k].bits() == 0 && CAR.wheel_squeeze[k].bits() != 0 {
+            DAMAGE.wheel_loads[k].set_bits(mul(CAR.wheel_squeeze[k].bits(), DAMAGE.scratch.bits()));
         }
     }
     x87_17(&DAMAGE);
-    if DAMAGE.flt_75b3c8.bits() != 0x0 && g(0x71A438) != 0x0 {
+    if DAMAGE.flt_75b3c8.bits() != 0x0 && CAR.hit_cooldown.get() != 0x0 {
         DAMAGE.flt_75b3c8.set_bits(0x0);
-        p(0x71A438, 0x64);
+        CAR.hit_cooldown.set(0x64);
     }
     // retn
 }

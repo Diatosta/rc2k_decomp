@@ -28,90 +28,81 @@
 //! (`rc2k_core::physics::patches`): each figure is one correctly rounded quotient or
 //! product at the game's double and extended precision.
 
-use crate::framework::{game_read, game_write, rva};
+use crate::physics::tables_store::{PHYSICS, Surface};
+use crate::race::numbers_store::NUMBERS;
+use crate::race::work_store::RACE_WORK;
+use crate::session::Float;
 use rc2k_core::physics::patches::{Patches, apply_patches as apply_patches_core};
 
-// ---- game data ----
+/// The twelve ground records patched: `PHYSICS.surfaces[1 ..= 12]`.
+fn records() -> &'static [Surface] {
+    &PHYSICS.surfaces[1..13]
+}
 
-/// dword_71C6D0: the settings' switch, then twelve settings (0x71C6D4 .. 0x71C700), ten
-/// floats (0x71C704 .. 0x71C728) and `g_patchesApplied` (0x71C72C).
-const SETTINGS_RVA: usize = rva(0x71C6D0);
-const FACTORS_RVA: usize = rva(0x71C704);
-const APPLIED_RVA: usize = rva(0x71C72C);
-const HUNDRED_RVA: usize = rva(0x5C5D14); // flt_5C5D14, 100.0
-const GRAVITY_RVA: usize = rva(0x613FC8); // flt_613FC8
-const RECORDS_RVA: usize = rva(0x6139AC);
-const RECORD_LEN: usize = 0x30;
-const RECORDS: usize = 12;
-const TENS_RVA: [usize; 2] = [rva(0x613AE8), rva(0x613B18)];
+/// A record's three grips: slide, acceleration, brake.
+fn grips(r: &'static Surface) -> [&'static Float; 3] {
+    [&r.slide_grip, &r.accel_grip, &r.brake_grip]
+}
 
-// ---- Rust version ----
-
-fn record_float(record: usize, n: usize) -> usize {
-    RECORDS_RVA + record * RECORD_LEN + n * 4
+/// The two drags (10.0) the sticky grass setting keeps: grass, records 7 and 8.
+fn tens() -> [&'static Float; 2] {
+    [&PHYSICS.surfaces[7].drag, &PHYSICS.surfaces[8].drag]
 }
 
 /// The game's patch state.
-unsafe fn load() -> Patches {
-    unsafe {
-        let d = |a: usize| game_read::<u32>(a);
-        Patches {
-            switch: d(SETTINGS_RVA),
-            settings: std::array::from_fn(|n| d(SETTINGS_RVA + 4 + n * 4)),
-            factors: std::array::from_fn(|n| d(FACTORS_RVA + n * 4)),
-            applied: d(APPLIED_RVA),
-            gravity: d(GRAVITY_RVA),
-            records: std::array::from_fn(|r| std::array::from_fn(|n| d(record_float(r, n)))),
-            tens: TENS_RVA.map(d),
-        }
+fn load() -> Patches {
+    let w = &RACE_WORK;
+    Patches {
+        switch: w.patch_switch.get(),
+        settings: std::array::from_fn(|n| w.patch_settings[n].get()),
+        factors: std::array::from_fn(|n| w.patch_factors[n].bits()),
+        applied: w.patches_applied.get(),
+        gravity: PHYSICS.gravity.bits(),
+        records: std::array::from_fn(|r| grips(&records()[r]).map(Float::bits)),
+        tens: tens().map(Float::bits),
     }
 }
 
 /// The places that changed written back (the original writes only these, or the same
 /// value again).
-unsafe fn store(before: &Patches, after: &Patches) {
-    let put = |a: usize, old: u32, new: u32| {
+fn store(before: &Patches, after: &Patches) {
+    let w = &RACE_WORK;
+    if before.applied != after.applied {
+        w.patches_applied.set(after.applied);
+    }
+    for n in 0..12 {
+        if before.settings[n] != after.settings[n] {
+            w.patch_settings[n].set(after.settings[n]);
+        }
+    }
+    let put = |f: &Float, old: u32, new: u32| {
         if old != new {
-            unsafe { game_write(a, new) };
+            f.set_bits(new);
         }
     };
-    put(APPLIED_RVA, before.applied, after.applied);
-    for n in 0..12 {
-        put(
-            SETTINGS_RVA + 4 + n * 4,
-            before.settings[n],
-            after.settings[n],
-        );
-    }
-    put(GRAVITY_RVA, before.gravity, after.gravity);
-    for r in 0..RECORDS {
-        for n in 0..3 {
-            put(
-                record_float(r, n),
-                before.records[r][n],
-                after.records[r][n],
-            );
+    put(&PHYSICS.gravity, before.gravity, after.gravity);
+    for (r, record) in records().iter().enumerate() {
+        for (n, f) in grips(record).into_iter().enumerate() {
+            put(f, before.records[r][n], after.records[r][n]);
         }
     }
-    for (k, a) in TENS_RVA.into_iter().enumerate() {
-        put(a, before.tens[k], after.tens[k]);
+    for (k, f) in tens().into_iter().enumerate() {
+        put(f, before.tens[k], after.tens[k]);
     }
     for n in 0..10 {
-        put(FACTORS_RVA + n * 4, before.factors[n], after.factors[n]);
+        put(&w.patch_factors[n], before.factors[n], after.factors[n]);
     }
 }
 
 /// The Rust version (the original's to the bit at the game's double and extended
 /// precision: each figure one quotient, or a product whose first step is exact).
 // Converted: `rc2k_core::physics::patches::apply_patches`.
-pub unsafe fn apply_patches() {
-    unsafe {
-        let before = load();
-        if before.applied != 0 {
-            return;
-        }
-        let mut after = before;
-        apply_patches_core(&mut after, game_read(HUNDRED_RVA));
-        store(&before, &after);
+pub fn apply_patches() {
+    let before = load();
+    if before.applied != 0 {
+        return;
     }
+    let mut after = before;
+    apply_patches_core(&mut after, NUMBERS.hundred.get());
+    store(&before, &after);
 }

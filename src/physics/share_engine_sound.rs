@@ -11,51 +11,33 @@
 //! sound object.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, rva};
+use crate::physics::car_store::CAR;
+use crate::race::work_store::RACE_WORK;
 use rc2k_core::physics::engine::shares_figures;
 
-/// The current car, the objects' table, the work car's 0x71A1FC .. 0x71A208, 0x71A1E0.
-const VARIABLES: [usize; 7] = [
-    0x71B3F8, 0, 0x71A1FC, 0x71A200, 0x71A204, 0x71A208, 0x71A1E0,
-];
-
-unsafe fn get(a: u32) -> u32 {
-    unsafe { (a as *const u32).read_unaligned() }
-}
-
-/// The Rust core on the variables at `v` (`VARIABLES`' order; a compare of floats only:
-/// the same at any precision).
+/// The Rust version (a compare of floats only: the same at any precision).
 // Converted: `rc2k_core::physics::engine::shares_figures`.
-pub unsafe fn share_at(v: &[u32]) -> Result<(), Refused> {
-    unsafe {
-        let o = get(v[1] + 4 * (get(v[0]) & 7));
-        if o == 0 {
-            return Err(BadInput("a null sound object").into());
-        }
-        let f = |a: u32| f32::from_bits(get(a));
-        let so = crate::sound::store::SoundObject::at(o);
-        if shares_figures(f(v[5]), f32::from_bits(so.knock_in[3].get())) {
-            for k in 0..4 {
-                so.knock_in[k].set(get(v[2 + k]));
-            }
-        }
-        so.knock_d4.set(get(v[6]));
-        so.new_revs.set(1);
-        Ok(())
+pub fn share_engine_sound() -> Result<(), Refused> {
+    let table = &crate::sound::store::RACE_SOUNDS.table;
+    let o = table[(RACE_WORK.current_car.get() & 7) as usize].get();
+    if o == 0 {
+        return Err(BadInput("a null sound object").into());
     }
-}
-
-fn game() -> Vec<u32> {
-    let mut v: Vec<u32> = VARIABLES
-        .iter()
-        .map(|&x| game_addr(rva(x)) as u32)
-        .collect();
-    // The objects' table (`g_raceSoundObjects`) is the sound module's.
-    v[1] = crate::sound::store::RACE_SOUNDS.table.as_ptr() as usize as u32;
-    v
-}
-
-/// The Rust version.
-pub unsafe fn share_engine_sound() -> Result<(), Refused> {
-    unsafe { share_at(&game()) }
+    let so = unsafe { crate::sound::store::SoundObject::at(o) };
+    if shares_figures(
+        CAR.contact_depth.get(),
+        f32::from_bits(so.knock_in[3].get()),
+    ) {
+        for (k, figure) in CAR
+            .contact_point
+            .iter()
+            .chain([&CAR.contact_depth])
+            .enumerate()
+        {
+            so.knock_in[k].set(figure.bits());
+        }
+    }
+    so.knock_d4.set(CAR.steer_trim.get());
+    so.new_revs.set(1);
+    Ok(())
 }

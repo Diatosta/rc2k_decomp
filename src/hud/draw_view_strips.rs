@@ -12,9 +12,10 @@
 
 use crate::errors::Refused;
 use crate::framework::rva;
-use crate::hud::draw_view_strip::TEXTURE_RVA;
 use crate::hud::overlay_pass::shown_layout;
-use crate::store::{game_read, game_write};
+use crate::race::view_store::RACE_VIEW;
+use crate::scene::draw_store::DRAW;
+use crate::store::game_read;
 
 const OFF_RVA: usize = rva(0x5BEC94); // dword_5BEC94
 const BLOCKS_RVA: usize = rva(0x63DBB0); // g_viewBlocks
@@ -33,12 +34,12 @@ pub unsafe fn draw_view_strips() -> Result<(), Refused> {
     use rc2k_core::hud::strips::{SECOND_VIEW, TEXTURES};
     unsafe {
         if game_read::<u32>(OFF_RVA) == 0 {
-            if flashing(game_read(BLOCKS_RVA)) {
-                game_write(TEXTURE_RVA, TEXTURES[0]);
+            if flashing(RACE_VIEW.view_blocks[0].bits()) {
+                DRAW.polygon_textures[0].set_bits(TEXTURES[0]);
                 draw_view_strip(shown_layout())?;
             }
             if shown_layout() != 0 && flashing(game_read(BLOCKS_RVA + 4)) {
-                game_write(TEXTURE_RVA, TEXTURES[1]);
+                DRAW.polygon_textures[0].set_bits(TEXTURES[1]);
                 draw_view_strip(shown_layout().wrapping_add(SECOND_VIEW))?;
             }
         }

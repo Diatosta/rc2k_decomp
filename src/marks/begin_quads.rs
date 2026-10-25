@@ -13,14 +13,13 @@
 
 use crate::framework::rva;
 use crate::marks::store::{Slot, game_read, game_write};
+use crate::scene::draw_store::DRAW;
 
 const TEXTURE_RVA: usize = rva(0x5D1E10); // dword_5D1E10
 const VERTICES_RVA: usize = rva(0x9605A0); // g_polygonVertices: 0x20 bytes each
-const COUNT_RVA: usize = rva(0x6240F8); // g_polygonVertexCount
 const COLOUR_RVA: Slot = Slot::at(0x91FFA6); // dword_91FFA6
 const PLACES_RVA: Slot = Slot::at(0x91FFAA); // dword_91FFAA .. dword_91FFB6
 const SCALE_RVA: Slot = Slot::at(0x8EB96D); // flt_8EB96D
-const OF_RVA: usize = rva(0x6241C8); // flt_6241C8
 const CLEARED_RVA: Slot = Slot::at(0x91FFBA); // dword_91FFBA
 /// The render states set (value, state).
 const STATES: [(u32, u32); 5] = [(4, 0x15), (5, 0x13), (6, 0x14), (0, 0x1C), (1, 0x1B)];
@@ -46,8 +45,11 @@ pub unsafe fn begin_quads() {
             game_write(at + 0x18, u);
             game_write(at + 0x1C, v);
         }
-        game_write(COUNT_RVA, 4u32);
-        game_write(SCALE_RVA, crate::math::x87::reciprocal(game_read(OF_RVA)));
+        DRAW.polygon_vertex_count.set_bits(4u32);
+        game_write(
+            SCALE_RVA,
+            crate::math::x87::reciprocal(DRAW.farthest.bits()),
+        );
         game_write(CLEARED_RVA, 0u32);
     }
 }

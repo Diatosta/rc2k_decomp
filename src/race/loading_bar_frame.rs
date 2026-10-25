@@ -19,9 +19,8 @@
 
 use crate::errors::Refused;
 use crate::framework::{game_read, game_write, rva};
+use crate::race::work_store::RACE_WORK;
 use crate::session::FLAGS;
-
-const ON_RVA: usize = rva(0x71C3E0); // dword_71C3E0
 const MARK_RVA: usize = rva(0x6365CC); // dword_6365CC
 const FRAMED_RVA: usize = rva(0x621514); // dword_621514
 const RESTORE: usize = 0x405B10; // sub_405B10: the surfaces restored (the platform's)
@@ -32,7 +31,7 @@ pub unsafe fn loading_bar_frame() -> Result<(), Refused> {
     use crate::scene::*;
     use rc2k_core::race::loading::{FRAME_MARK, frame_tried};
     unsafe {
-        if game_read::<u32>(ON_RVA) == 0 {
+        if RACE_WORK.in_credits.get() == 0 {
             return Ok(());
         }
         game_write(MARK_RVA, FRAME_MARK);

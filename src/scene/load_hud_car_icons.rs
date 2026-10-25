@@ -23,15 +23,14 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_addr, game_read, rva};
+use crate::race::blocks_store::CAR_BLOCKS;
+use crate::race::work_store::RACE_WORK;
 use crate::scene::car_icon_number::car_icon_number;
 use crate::scene::upload_car_icon::{CarIcon, upload_car_icon};
 
 // ---- game data ----
 
 const TEXTURE_RVA: usize = rva(0x5D0DEC); // dword_5D0DEC: kind 0xC1's first texture
-const PLAYER_CAR_RVA: usize = rva(0x70F410); // dword_70F410
-const OTHER_CAR_RVA: usize = rva(0x7103F0); // dword_7103F0
-const BLOCKS_RVA: usize = rva(0x71B3B8); // g_carBlocks
 const FIRSTS_RVA: usize = rva(0x5DCD9C); // dword_5DCD9C
 const SECONDS_RVA: usize = rva(0x5DCE2C); // dword_5DCE2C
 // scene::upload_car_icon
@@ -53,17 +52,17 @@ pub unsafe fn load_hud_car_icons() -> Result<(), Refused> {
         }
         let player = if crate::net::store::NET.session.get() != 0 {
             let car = car_icons::one_car(crate::net::store::NET.player.get())?;
-            let block: u32 = game_read(BLOCKS_RVA + car * 4);
+            let block: u32 = RACE_WORK.car_block(car);
             if block == 0 {
                 return Err(BadInput("a car without its block").into());
             }
             ((block + 0x24) as *const u32).read_unaligned()
         } else {
-            game_read(PLAYER_CAR_RVA)
+            CAR_BLOCKS.cars[0].car_kind.bits()
         };
         let numbers = [
             car_icon_number(player),
-            car_icon_number(game_read(OTHER_CAR_RVA)),
+            car_icon_number(CAR_BLOCKS.cars[1].car_kind.bits()),
         ];
         car_icons::check_numbers(numbers)?;
         for (number, target_y) in numbers.into_iter().zip(car_icons::ROWS) {

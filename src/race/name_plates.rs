@@ -8,6 +8,7 @@ use crate::errors::Refused;
 use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::gfx::fonts_store::FONTS;
 use crate::gfx::screen_state::DRAW_SURFACE;
+use crate::race::view_store::RACE_VIEW;
 use crate::strings::text_buffer::TEXT_BUFFER;
 
 fn k(a: u32) -> u32 {
@@ -115,7 +116,10 @@ pub unsafe fn draw_time_plate(slot: u32) -> Result<(), Refused> {
 /// register it leaves. Refuses (before anything) a null view block.
 pub unsafe fn update_name_plates() -> Result<(), Refused> {
     unsafe {
-        let blocks = [k(0x63DBB0), k(0x63DBB4)];
+        let blocks = [
+            RACE_VIEW.view_blocks[0].get(),
+            RACE_VIEW.view_blocks[1].get(),
+        ];
         if blocks.contains(&0) {
             return Err(crate::errors::BadInput("a view without its car block").into());
         }

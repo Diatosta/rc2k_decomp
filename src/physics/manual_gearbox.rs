@@ -33,23 +33,26 @@
 use crate::errors::Refused;
 use crate::math::x87;
 use crate::math::x87_run::mul_div_status;
+use crate::physics::car_store::CAR;
 use crate::physics::gearbox::*;
 use crate::physics::higher_free_gear::higher_free_gear;
 use crate::physics::lower_free_gear::lower_free_gear;
 use crate::physics::pick_start_gear::pick_start_gear;
+use crate::physics::tables_store::PHYSICS;
+use crate::race::numbers_store::NUMBERS;
 use rc2k_core::physics::gear_shifts::{self as shifts, Shift};
 
 /// Up (0x43C340).
 fn up() -> Result<Shift, Refused> {
-    let gear = g(GEAR);
-    if let Some(shift) = shifts::manual_up(gear, || g(GEAR_COUNT)) {
+    let gear = CAR.gear.get();
+    if let Some(shift) = shifts::manual_up(gear, || PHYSICS.gear_count.get()) {
         return Ok(shift);
     }
     wheels()?;
     let Some(to) = unsafe { higher_free_gear(gear) }? else {
         return Ok(Shift::Done);
     };
-    p(GEAR, to);
+    CAR.gear.set(to);
     revs()?;
     settle();
     Ok(Shift::Done)
@@ -57,7 +60,7 @@ fn up() -> Result<Shift, Refused> {
 
 /// Down (0x43C379).
 fn down() -> Result<Shift, Refused> {
-    let gear = g(GEAR);
+    let gear = CAR.gear.get();
     if let Some(shift) = shifts::manual_down(gear) {
         return Ok(shift);
     }
@@ -65,14 +68,14 @@ fn down() -> Result<Shift, Refused> {
     let Some(to) = unsafe { lower_free_gear(gear) }? else {
         return Ok(Shift::Neutral);
     };
-    p(GEAR, to);
+    CAR.gear.set(to);
     revs()?;
-    if !below(g(ENGINE), g(0x614104)) {
-        p(GEAR, g(GEAR).wrapping_add(1));
+    if !below(CAR.engine_speed.bits(), PHYSICS.rev_limit.bits()) {
+        CAR.gear.set(CAR.gear.get().wrapping_add(1));
         revs()?;
-        p(HOLD, shifts::HOLD);
-        p(CHANGED, u32::MAX);
-        p(CHANGED_2, 1);
+        CAR.gear_change_hold.set(shifts::HOLD);
+        CAR.gear_changed.set(u32::MAX);
+        CAR.gear_changed_2.set(1);
         return Ok(Shift::Done);
     }
     settle();
@@ -85,9 +88,10 @@ pub fn reverse(quarter: bool) -> Result<(), Refused> {
     if bit(u32::MAX)? {
         return Ok(());
     }
-    p(GEAR, u32::MAX);
+    CAR.gear.set(u32::MAX);
     if quarter {
-        p(ENGINE, x87::mul(g(ENGINE), g(0x5C5DA4)));
+        CAR.engine_speed
+            .set_bits(x87::mul(CAR.engine_speed.bits(), NUMBERS.quarter.bits()));
     }
     wheels()?;
     settle();
@@ -96,18 +100,20 @@ pub fn reverse(quarter: bool) -> Result<(), Refused> {
 
 /// The start-line rules (0x43C48F).
 fn start_line() -> Result<Shift, Refused> {
-    let gear = g(GEAR);
-    if let Some(shift) = shifts::start_line_keys(gear, g(0x6138A4) != 0, || g(0x6138A0) != 0) {
+    let gear = CAR.gear.get();
+    if let Some(shift) = shifts::start_line_keys(gear, PHYSICS.input_gear_down.get() != 0, || {
+        PHYSICS.input_gear_up.get() != 0
+    }) {
         return Ok(shift);
     }
-    if g(0x71A22C) != 0 {
+    if CAR.all_wheels_off.get() != 0 {
         return Ok(Shift::Done);
     }
     if shifts::forward(gear) {
-        let kept = g(ENGINE);
+        let kept = CAR.engine_speed.bits();
         revs_speed()?;
         p(SCRATCH, over_top());
-        p(ENGINE, kept);
+        CAR.engine_speed.set_bits(kept);
         if !below(g(SCRATCH), g(0x5CB958)) {
             return Ok(Shift::Up);
         }
@@ -123,7 +129,7 @@ fn start_line() -> Result<Shift, Refused> {
     if mul_div_status(g(SCRATCH), rb, rc, g(0x5CB964)) & 0x100 == 0 {
         return Ok(Shift::Done);
     }
-    let point = if shifts::down_point_clutch(g(0x71A614)) {
+    let point = if shifts::down_point_clutch(CAR.brake.get()) {
         0x5CB960
     } else {
         0x5CB95C
@@ -137,26 +143,29 @@ fn start_line() -> Result<Shift, Refused> {
 /// The steps on `r`.
 // Converted: `rc2k_core::physics::gear_shifts` (the engine's sums and compares stay x87).
 pub fn manual_gearbox() -> Result<(), Refused> {
-    p(CHANGED, 0);
+    CAR.gear_changed.set(0);
     let mut to = 'first: {
-        if g(0x71A234) == 2 {
+        if CAR.driver_kind.get() == 2 {
             break 'first start_line()?;
         }
-        let gear = g(GEAR);
-        if bit(gear)? || g(0x71A408) != 0 {
+        let gear = CAR.gear.get();
+        if bit(gear)? || CAR.forced_neutral.get() != 0 {
             break 'first Shift::Neutral;
         }
-        if g(HOLD) != 0 {
-            p(HOLD, g(HOLD).wrapping_sub(1));
+        if CAR.gear_change_hold.get() != 0 {
+            CAR.gear_change_hold
+                .set(CAR.gear_change_hold.get().wrapping_sub(1));
             return Ok(());
         }
-        if g(0x71A404) != 0 {
+        if CAR.gear_change_blocked.get() != 0 {
             return Ok(());
         }
-        if g(0x71A010) != 0 {
+        if CAR.gearbox_kind.get() != 0 {
             break 'first start_line()?;
         }
-        shifts::manual_keys(g(0x6138A0) != 0, || g(0x6138A4) != 0)
+        shifts::manual_keys(PHYSICS.input_gear_up.get() != 0, || {
+            PHYSICS.input_gear_down.get() != 0
+        })
     };
     loop {
         to = match to {

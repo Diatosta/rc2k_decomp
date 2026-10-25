@@ -22,9 +22,14 @@
 //!
 //! Caller: `sub_43B635` (0x43B813), every physics step.
 
-use crate::framework::{game_read, game_write, rva};
+use crate::framework::{game_read, rva};
 use crate::math::x87;
 use crate::math::x87_run::{ext_div2, int_80, neg_mul2, neg_rounded, sub_mul, wheel_int};
+use crate::physics::car_store::CAR;
+use crate::physics::tables_store::PHYSICS;
+use crate::race::blocks_store::CAR_BLOCKS;
+use crate::race::numbers_store::NUMBERS;
+use crate::scene::draw_store::DRAW;
 use crate::scene::matrix3::extended;
 use std::cmp::Ordering;
 
@@ -32,17 +37,7 @@ fn g(x: usize) -> u32 {
     unsafe { game_read(rva(x)) }
 }
 
-fn p(x: usize, v: u32) {
-    unsafe { game_write(rva(x), v) }
-}
-
-const SQUEEZE: usize = 0x71A5D8; // g_car + 0x600, four floats
-const LAST: usize = 0x71A5E8; // + 0x610
 const HEIGHTS: usize = 0x6D2514; // the wheels' heights (ints)
-const FORCE: usize = 0x614178;
-const DAMPING: usize = 0x614124;
-const ZERO: usize = 0x5C5D90;
-const ONE: usize = 0x5C5D38;
 
 /// `fld b; fld x; fcompp` (or `fld x; fcomp b`), C0: x below b, or unordered.
 fn below(x: u32, b: u32) -> bool {
@@ -54,83 +49,86 @@ fn below(x: u32, b: u32) -> bool {
 
 /// The Rust version (the exact one, for `physics::car_physics_step`).
 pub unsafe fn wheel_springs() {
+    let (c, ph) = (&CAR, &PHYSICS);
     for k in 0..4 {
-        let q = SQUEEZE + 4 * k;
-        let old = x87::loaded(g(q));
-        p(0x623FB8, old);
-        p(LAST + 4 * k, old);
+        let q = &c.wheel_squeeze[k];
+        let (force, damping) = (&ph.spring_forces[k], &ph.spring_damping[k]);
+        let old = x87::loaded(q.bits());
+        DRAW.work_dword.set(old);
+        c.wheel_squeeze_last[k].set_bits(old);
         let eax = g(HEIGHTS + 4 * k).wrapping_neg();
-        p(0x62400C, eax);
-        p(
-            q,
-            ext_div2(int_80(eax as i32, false), g(0x5C5D98), g(0x614BF8)),
-        );
-        if below(g(q), g(ZERO)) {
-            p(q, x87::loaded(g(ZERO)));
+        DRAW.scratch.set(eax);
+        q.set_bits(ext_div2(
+            int_80(eax as i32, false),
+            NUMBERS.k65536.bits(),
+            ph.handling[3].bits(),
+        ));
+        if below(q.bits(), NUMBERS.zero.bits()) {
+            q.set_bits(x87::loaded(NUMBERS.zero.bits()));
         }
-        if !below(g(q), g(ONE)) {
-            p(q, x87::loaded(g(ONE)));
+        if !below(q.bits(), NUMBERS.one.bits()) {
+            q.set_bits(x87::loaded(NUMBERS.one.bits()));
         }
-        p(FORCE + 4 * k, neg_mul2(g(q), g(0x613F90), g(0x614774)));
-        p(DAMPING + 4 * k, sub_mul(g(q), g(0x623FB8), g(0x614C00)));
-        if below(g(DAMPING + 4 * k), g(ZERO)) {
-            p(DAMPING + 4 * k, x87::mul(g(DAMPING + 4 * k), g(0x614BEC)));
+        force.set_bits(neg_mul2(
+            q.bits(),
+            ph.spring_force_scale.bits(),
+            ph.forces[0].force[1].bits(),
+        ));
+        damping.set_bits(sub_mul(
+            q.bits(),
+            DRAW.work_dword.get(),
+            ph.handling[5].bits(),
+        ));
+        if below(damping.bits(), NUMBERS.zero.bits()) {
+            damping.set_bits(x87::mul(damping.bits(), ph.handling[0].bits()));
         }
-        let zero_or_none = f32::from_bits(g(q))
-            .partial_cmp(&f32::from_bits(g(ZERO)))
+        let zero_or_none = f32::from_bits(q.bits())
+            .partial_cmp(&f32::from_bits(NUMBERS.zero.bits()))
             .is_none_or(|o| o == Ordering::Equal);
         if !zero_or_none {
-            p(
-                FORCE + 4 * k,
-                x87::add(g(DAMPING + 4 * k), g(FORCE + 4 * k)),
-            );
+            force.set_bits(x87::add(damping.bits(), force.bits()));
         }
     }
     for k in 0..4 {
         let v = wheel_int([
-            g(0x70FFF4),
-            g(0x614BF4),
-            g(0x613EC0),
-            g(SQUEEZE + 4 * k),
-            g(0x613F8C),
-            g(0x614BF8),
-            g(0x5C5D98),
+            CAR_BLOCKS.cars[0].probe_point_y[6].bits(),
+            ph.handling[2].bits(),
+            ph.spring_share.bits(),
+            c.wheel_squeeze[k].bits(),
+            ph.probe_share.bits(),
+            ph.handling[3].bits(),
+            NUMBERS.k65536.bits(),
         ]);
-        p(0x71A8E8 + 4 * k, v as u32);
+        c.wheel_spring_force[k].set(v as u32);
     }
+    // The springs' records (6 .. 9): the force up, the wheels' places.
     for k in 0..4 {
-        p(0x614834 + 0x20 * k, x87::loaded(g(FORCE + 4 * k)));
+        ph.forces[6 + k].force[1].set_bits(x87::loaded(ph.spring_forces[k].bits()));
     }
-    for (row, from) in [0x71AAC8usize, 0x71ABC8, 0x71ACC8].into_iter().enumerate() {
-        for k in 0..4 {
-            p(0x61483C + 4 * row + 0x20 * k, x87::loaded(g(from + 4 * k)));
+    for (row, from) in [&c.probe_point_x, &c.probe_point_y, &c.probe_point_z]
+        .into_iter()
+        .enumerate()
+    {
+        for (record, place) in ph.forces[6..10].iter().zip(from) {
+            record.point[row].set_bits(x87::loaded(place.bits()));
         }
     }
-    for (from, to) in RECORD_COPIES {
-        let v = x87::loaded(g(from));
-        for t in to {
-            p(t, v);
+    // Their x and z copied on into the records 11 .. 14 and 15 .. 18, in the original's
+    // order.
+    for k in 0..4 {
+        for row in [0, 2] {
+            let v = x87::loaded(ph.forces[6 + k].point[row].bits());
+            ph.forces[11 + k].point[row].set_bits(v);
+            ph.forces[15 + k].point[row].set_bits(v);
         }
     }
-    p(0x6148C0, 0);
-    let n = neg_rounded(extended(g(0x6141D4)));
-    for t in [0x6148E0, 0x614900, 0x614920, 0x614940] {
-        p(t, n);
+    ph.forces[10].point[1].set_bits(0);
+    let n = neg_rounded(extended(ph.wheel_spin_push[0].bits()));
+    for k in 0..4 {
+        ph.forces[11 + k].point[1].set_bits(n);
     }
-    let n = neg_rounded(extended(g(0x6141D8)));
-    for t in [0x614960, 0x614980, 0x6149A0, 0x6149C0] {
-        p(t, n);
+    let n = neg_rounded(extended(ph.wheel_spin_push[1].bits()));
+    for k in 0..4 {
+        ph.forces[15 + k].point[1].set_bits(n);
     }
 }
-
-/// The records' places copied on into the records at 0x6148DC .. and 0x61495C ...
-const RECORD_COPIES: [(usize, [usize; 2]); 8] = [
-    (0x61483C, [0x6148DC, 0x61495C]),
-    (0x614844, [0x6148E4, 0x614964]),
-    (0x61485C, [0x6148FC, 0x61497C]),
-    (0x614864, [0x614904, 0x614984]),
-    (0x61487C, [0x61491C, 0x61499C]),
-    (0x614884, [0x614924, 0x6149A4]),
-    (0x61489C, [0x61493C, 0x6149BC]),
-    (0x6148A4, [0x614944, 0x6149C4]),
-];

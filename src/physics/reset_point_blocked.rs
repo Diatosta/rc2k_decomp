@@ -15,11 +15,9 @@
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
-use crate::framework::{game_addr, rva};
+use crate::physics::tables_store::PHYSICS;
+use crate::race::vars_store::RACE_VARS;
 use rc2k_core::physics::line_places;
-
-const CANDIDATE_RVA: usize = rva(0x614C50); // dword_614C50: the checkpoint tried
-const CHECKPOINT_COUNT_RVA: usize = rva(0x623640); // g_checkpointCount
 
 unsafe fn at(a: u32) -> u32 {
     unsafe { (a as *const u32).read_unaligned() }
@@ -45,8 +43,8 @@ pub unsafe fn reset_point_blocked_at(candidate: u32, count: u32, block: u32) -> 
 pub unsafe fn reset_point_blocked(block: u32) -> bool {
     unsafe {
         reset_point_blocked_at(
-            game_addr(CANDIDATE_RVA) as u32,
-            game_addr(CHECKPOINT_COUNT_RVA) as u32,
+            PHYSICS.reset_candidate.addr() as u32,
+            RACE_VARS.checkpoint_count.addr() as u32,
             block,
         )
     }

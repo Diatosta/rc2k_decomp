@@ -19,8 +19,9 @@
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 use crate::errors::{BadInput, Refused};
+use crate::physics::car_store::CAR;
 use crate::physics::fill_rival_table::fill_rival_table;
-use crate::physics::splits::{COUNT, FIGURE, SPLIT, TIME, g, p};
+use crate::physics::splits::{COUNT, g, p};
 use crate::strings::append_string_by_id::append_string_by_id;
 use rc2k_core::physics::splits::{RIVALS, gap, rank, scaled_time, split_scale};
 
@@ -50,13 +51,13 @@ fn name(id: u32, to: usize) {
 /// The Rust version. The registers the original leaves are read by none of its callers.
 // Converted: `rc2k_core::physics::splits::{split_scale, scaled_time, rank, gap}`.
 pub fn rank_split_time() -> Result<(), Refused> {
-    let (split, count) = (g(SPLIT), g(COUNT));
+    let (split, count) = (CAR.splits_recorded.get(), g(COUNT));
     if split > 0x40 || count > 0x40 {
         return Err(BadInput("a split or a split count past 0x40").into());
     }
     fill_rival_table()?;
     for k in 0..5 {
-        p(FIGURE + 4 * k, u32::MAX);
+        CAR.split_gaps[k].set(u32::MAX);
     }
     for at in [0x6D1838, 0x6D183C, 0x6D1844, 0x6D1848] {
         p(at, 0x2020_2020);
@@ -69,25 +70,25 @@ pub fn rank_split_time() -> Result<(), Refused> {
         p(0x6021A0 + 4 * c, q);
     }
     // (A loop whose work was cut out: it left only registers, read by no one.)
-    let time = g(TIME);
+    let time = CAR.stage_time.get();
     let (c, _) = rank(time, |c| g(0x6021A0 + 4 * c));
-    p(FIGURE, c);
+    CAR.split_gaps[0].set(c);
     p(0x602308, time);
     let c = c as usize;
     if c != 1 {
         // The one ahead: rival c - 2 (its scaled time, car and name).
-        p(FIGURE + 4, gap(g(0x6021A0 + 4 * (c - 2)), time));
-        p(FIGURE + 0xC, g(0x602038 + 4 * (c - 2)));
+        CAR.split_gaps[1].set(gap(g(0x6021A0 + 4 * (c - 2)), time));
+        CAR.split_gaps[3].set(g(0x602038 + 4 * (c - 2)));
         let id = g(0x601D68 + 4 * (c - 2));
-        p(FIGURE + 0x14, id);
+        CAR.split_gaps[5].set(id);
         name(id, 0x6D1844);
     }
     if c != RIVALS {
         // The one behind: rival c - 1.
-        p(FIGURE + 8, gap(time, g(0x6021A0 + 4 * (c - 1))));
-        p(FIGURE + 0x10, g(0x602038 + 4 * (c - 1)));
+        CAR.split_gaps[2].set(gap(time, g(0x6021A0 + 4 * (c - 1))));
+        CAR.split_gaps[4].set(g(0x602038 + 4 * (c - 1)));
         let id = g(0x601D68 + 4 * (c - 1));
-        p(FIGURE + 0x18, id);
+        CAR.split_gaps[6].set(id);
         name(id, 0x6D1838);
     }
     Ok(())

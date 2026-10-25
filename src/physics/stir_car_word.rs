@@ -9,10 +9,8 @@
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
-use crate::framework::{game_addr, rva};
+use crate::physics::car_store::CAR;
 use crate::scene::next_noise::noise_step;
-
-const WORD_RVA: usize = rva(0x719FE4); // dword_719FE4
 
 /// The Rust core on the word at `at`: the new word.
 pub unsafe fn stir_word_at(at: u32) -> u32 {
@@ -26,5 +24,5 @@ pub unsafe fn stir_word_at(at: u32) -> u32 {
 
 /// The Rust version.
 pub unsafe fn stir_car_word() -> u32 {
-    unsafe { stir_word_at(game_addr(WORD_RVA) as u32) }
+    unsafe { stir_word_at(CAR.noise_word.addr() as u32) }
 }

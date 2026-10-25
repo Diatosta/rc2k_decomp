@@ -10,7 +10,7 @@
 //!
 //! Caller: `sub_43B635` (0x43B961), every physics step, right after `sub_4B0241`.
 
-use crate::framework::{game_addr, rva};
+use crate::physics::car_store::CAR;
 use crate::physics::cells::{get, put_changed};
 use crate::physics::queue_notice::Contacts;
 use rc2k_core::physics::notices::Notice;
@@ -26,12 +26,11 @@ pub struct Shown {
 
 impl Shown {
     pub fn game() -> Self {
-        let p = |x: usize| game_addr(rva(x)) as u32;
         Self {
-            busy: p(0x71A700),
-            id: p(0x71A6F4),
-            time_a: p(0x71A708),
-            time_b: p(0x71A704),
+            busy: (CAR.notice_shown.addr() as u32),
+            id: (CAR.notice_id.addr() as u32),
+            time_a: (CAR.notice_time_b.addr() as u32),
+            time_b: (CAR.notice_time.addr() as u32),
         }
     }
 }

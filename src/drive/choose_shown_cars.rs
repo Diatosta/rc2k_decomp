@@ -26,7 +26,6 @@ const VARIABLES: [usize; 19] = [
     0x63DBB0, 0x63DBB4, 0x641680, 0x641684, 0x641688, 0x64168C, 0x641690, 0x641694, 0x641698,
     0x64169C,
 ];
-const FIRST_BLOCK: usize = 0x70F3EC; // byte_70F3EC: car block 0's start (an address)
 
 unsafe fn get(v: &[u32], k: usize) -> u32 {
     unsafe { (v[k] as *const u32).read_unaligned() }
@@ -53,7 +52,7 @@ pub unsafe fn choose_at(v: &[u32]) -> Result<(), Refused> {
             split,
             ..ShownCars::default()
         };
-        shown.choose(&setup, game_addr(rva(FIRST_BLOCK)) as u32)?;
+        shown.choose(&setup, crate::race::blocks_store::block_addr(0) as u32)?;
         put(v, 0, shown.cars[0]);
         put(v, 1, shown.cars[1]);
         put(v, 3, shown.views);

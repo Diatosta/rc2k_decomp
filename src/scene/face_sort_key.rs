@@ -12,16 +12,15 @@
 //! `scene::list_object_face`. Refuses a count of 0 (the original goes through 2^32), a vertex
 //! count past the table, no face and no records.
 
-use crate::d3d::draw_fan_unclipped::COUNT_RVA;
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, game_write, rva};
+use crate::framework::{game_read, rva};
 use crate::math::x87;
+use crate::scene::draw_store::DRAW;
 use crate::scene::polygon::dword;
 use crate::scene::project_point::RECORDS_RVA;
 
 // ---- game data ----
 
-pub const KEY_RVA: usize = rva(0x62407C); // dword_62407C
 const FACTORS_RVA: usize = rva(0x5C6950); // flt_5C6950
 const FACTORS: u32 = 0x100;
 
@@ -30,7 +29,7 @@ const FACTORS: u32 = 0x100;
 pub unsafe fn face_sort_key(face: usize, count: u32) -> Result<(), Refused> {
     unsafe {
         let records: u32 = game_read(RECORDS_RVA);
-        let vertices: u32 = game_read(COUNT_RVA);
+        let vertices: u32 = DRAW.polygon_vertex_count.bits();
         if face == 0 || records == 0 || count == 0 || count > 0x1000 || vertices >= FACTORS {
             return Err(
                 BadInput("no face, no records, or a count the key cannot be made for").into(),
@@ -43,7 +42,8 @@ pub unsafe fn face_sort_key(face: usize, count: u32) -> Result<(), Refused> {
             sum = x87::add(dword(record as usize + 0x18), sum);
         }
         let factor: u32 = game_read(FACTORS_RVA + vertices as usize * 4);
-        game_write(KEY_RVA, x87::mul_to_int(sum, factor));
+        DRAW.face_sort_key
+            .set_bits(x87::mul_to_int(sum, factor) as u32);
         Ok(())
     }
 }

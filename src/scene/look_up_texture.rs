@@ -8,25 +8,23 @@
 //!
 //! Callers: 0x44CCB8, `race::flush_texture_batch`.
 
-use crate::framework::{game_read, game_write, rva};
-
-const WORD_RVA: usize = rva(0x6240C4); // dword_6240C4
+use crate::framework::{game_read, rva};
+use crate::scene::draw_store::DRAW;
 const PLACES_RVA: usize = rva(0x5D3AE8); // dword_5D3AE8
 const FIRST_SLOTS_RVA: usize = rva(0x5D1AE8); // g_kindFirstSlots
 const SLOT_COUNT_RVA: usize = rva(0x5DC970); // g_textureSlotCount
-const TEXTURE_RVA: usize = rva(0x6240D4); // g_polygonTexture
 
 /// The Rust version: what it leaves in eax.
 pub unsafe fn look_up_texture() -> u32 {
     // Converted: `rc2k_core::scene::textures::look_up`.
     unsafe {
         let found = rc2k_core::scene::textures::look_up(
-            game_read(WORD_RVA),
+            DRAW.texture_page.bits(),
             |p| game_read(PLACES_RVA + 4 * p),
             |k| game_read(FIRST_SLOTS_RVA + 4 * k),
             || game_read(SLOT_COUNT_RVA),
         );
-        game_write(TEXTURE_RVA, found.texture);
+        DRAW.polygon_texture.set_bits(found.texture);
         found.eax
     }
 }

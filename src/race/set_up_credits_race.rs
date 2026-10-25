@@ -12,90 +12,92 @@
 //! Caller: `race::credits_race`, which calls the Rust version directly. Refuses nothing.
 
 use crate::errors::Refused;
-use crate::framework::{game_read, game_write, rva};
+use crate::framework::{game_write, rva};
 use crate::math::next_random::next_random;
+use crate::race::settings_copy::Place::{self, Addr};
+use crate::race::settings_copy::{car, car_bits, var};
+use crate::race::vars_store::RACE_VARS;
+use crate::race::work_store::RACE_WORK;
 
-const STAGES: usize = 0x71C3E4; // dword_71C3E4, `RACE_STAGES` stages
-const KINDS: usize = 0x71C474; // dword_71C474, `RACE_KINDS` car kinds
 const STAGE: usize = 0x623850; // g_stageNumber
 const CAR_KINDS: usize = 0x623858; // g_raceCarKinds
 
-/// The stores after the two draws, in order (address as IDA shows it, value).
-pub const WRITES: [(usize, u32); 74] = [
-    (0x623854, 0),
-    (0x62389C, 3),
-    (0x70FE94, 1),
-    (0x70FA70, 8),
-    (0x70F414, 2),
-    (0x70F420, 0x80),
-    (0x70F41C, 0x80),
-    (0x70F40C, 0x80),
-    (0x70F428, 0x80),
-    (0x6235FC, 3),
-    (0x623878, 1),
-    (0x623898, 0),
-    (0x63DB90, 1),
-    (0x63DB94, 1),
-    (0x6238A8, 1),
-    (0x6238AC, 1),
-    (0x6238B0, 1),
-    (0x6238B4, 0),
-    (0x6238B8, 1),
-    (0x621890, 1),
-    (0x6238CC, 0),
-    (0x6238D0, 0),
-    (0x70F6A4, 0),
-    (0x70F6A8, 0),
-    (0x70F6FC, 0),
-    (0x70F6AC, 0),
-    (0x70F6B0, 0),
-    (0x70F71C, 0),
-    (0x70F6B4, 0),
-    (0x70F6B8, 0),
-    (0x70F730, 0),
-    (0x70F750, 0),
-    (0x70F73C, 0),
-    (0x70F718, 0),
-    (0x70F6E0, 0),
-    (0x70F6F8, 0),
-    (0x70F6BC, 0),
-    (0x70F6C4, 0),
-    (0x70F6C8, 0),
-    (0x70F6CC, 0),
-    (0x70F6D0, 0),
-    (0x70F6D4, 0),
-    (0x70F6D8, 0),
-    (0x70F6DC, 0),
-    (0x70F6E4, 0),
-    (0x70F6E8, 0),
-    (0x70F6EC, 0),
-    (0x70F6F0, 0),
-    (0x70F6F4, 0),
-    (0x70F700, 0),
-    (0x70F704, 0),
-    (0x70F708, 0),
-    (0x70F70C, 0),
-    (0x70F710, 0),
-    (0x70F714, 0),
-    (0x70F720, 0),
-    (0x70F724, 0),
-    (0x70F728, 0),
-    (0x70F72C, 0),
-    (0x70F734, 0),
-    (0x70F738, 0),
-    (0x70F740, 0),
-    (0x70F744, 0),
-    (0x70F748, 0),
-    (0x70F74C, 0),
-    (0x70F450, 0),
-    (0x70F454, 0),
-    (0x70F458, 0),
-    (0x70F45C, 0),
-    (0x70F460, 0),
-    (0x70F464, 0),
-    (0x70F468, 0),
-    (0x70F46C, 0),
-    (0x70F684, 0xFFFF_FFFF),
+/// The stores after the two draws, in order (the place, the value).
+pub const WRITES: [(Place, u32); 74] = [
+    (var!(RACE_VARS.direction), 0),
+    (var!(RACE_VARS.run_kind), 3),
+    (car!(0, start_slot_value), 1),
+    (car!(0, camera_view), 8),
+    (car!(0, gear_ratio_setting), 2),
+    (car!(0, suspension_stiffness), 0x80),
+    (car!(0, ride_height), 0x80),
+    (car!(0, brake_balance), 0x80),
+    (car!(0, steering_sensitivity), 0x80),
+    (var!(RACE_VARS.car_tyres[0]), 3),
+    (var!(RACE_VARS.car_colours[0]), 1),
+    (var!(RACE_VARS.mip_setting), 0),
+    (Addr(0x63DB90), 1),
+    (Addr(0x63DB94), 1),
+    (var!(RACE_VARS.settings_words[0]), 1),
+    (var!(RACE_VARS.settings_words[1]), 1),
+    (var!(RACE_VARS.settings_words[2]), 1),
+    (var!(RACE_VARS.settings_words[3]), 0),
+    (var!(RACE_VARS.settings_words[4]), 1),
+    (Addr(0x621890), 1),
+    (var!(RACE_VARS.race_level), 0),
+    (var!(RACE_VARS.race_stage), 0),
+    (car_bits!(0, engine_damage), 0),
+    (car_bits!(0, exhaust_damage), 0),
+    (car_bits!(0, electrics_damage), 0),
+    (car_bits!(0, turbo_damage), 0),
+    (car_bits!(0, cooling_damage), 0),
+    (car_bits!(0, steering_damage), 0),
+    (car_bits!(0, clutch_damage), 0),
+    (car_bits!(0, differential_damage), 0),
+    (car_bits!(0, overall_suspension_damage), 0),
+    (car_bits!(0, tyre_wear), 0),
+    (car_bits!(0, brake_damage), 0),
+    (car_bits!(0, lights_damage), 0),
+    (car_bits!(0, gearbox_damage), 0),
+    (car_bits!(0, body_damage), 0),
+    (car_bits!(0, gear_wear[0]), 0),
+    (car_bits!(0, gear_wear[2]), 0),
+    (car_bits!(0, gear_wear[3]), 0),
+    (car_bits!(0, gear_wear[4]), 0),
+    (car_bits!(0, gear_wear[5]), 0),
+    (car_bits!(0, gear_wear[6]), 0),
+    (car_bits!(0, gear_wear[7]), 0),
+    (car_bits!(0, gear_wear[8]), 0),
+    (car_bits!(0, wheel_hit_damage[0]), 0),
+    (car_bits!(0, wheel_hit_damage[1]), 0),
+    (car_bits!(0, wheel_hit_damage[2]), 0),
+    (car_bits!(0, wheel_hit_damage[3]), 0),
+    (car_bits!(0, body_hit_damage), 0),
+    (car_bits!(0, light_damage[0]), 0),
+    (car_bits!(0, light_damage[1]), 0),
+    (car_bits!(0, light_damage[2]), 0),
+    (car_bits!(0, light_damage[3]), 0),
+    (car_bits!(0, light_damage[4]), 0),
+    (car_bits!(0, light_damage[5]), 0),
+    (car_bits!(0, suspension_damage[0]), 0),
+    (car_bits!(0, suspension_damage[1]), 0),
+    (car_bits!(0, suspension_damage[2]), 0),
+    (car_bits!(0, suspension_damage[3]), 0),
+    (car_bits!(0, brake_wear_a), 0),
+    (car_bits!(0, brake_wear_b), 0),
+    (car_bits!(0, part_hit_damage[0]), 0),
+    (car_bits!(0, part_hit_damage[1]), 0),
+    (car_bits!(0, part_hit_damage[2]), 0),
+    (car_bits!(0, part_hit_damage[3]), 0),
+    (car_bits!(0, impact_octant_marks[0]), 0),
+    (car_bits!(0, impact_octant_marks[1]), 0),
+    (car_bits!(0, impact_octant_marks[2]), 0),
+    (car_bits!(0, impact_octant_marks[3]), 0),
+    (car_bits!(0, impact_octant_marks[4]), 0),
+    (car_bits!(0, impact_octant_marks[5]), 0),
+    (car_bits!(0, impact_octant_marks[6]), 0),
+    (car_bits!(0, impact_octant_marks[7]), 0),
+    (car!(0, parts_present), 0xFFFF_FFFF),
 ];
 
 /// A draw (`math::next_random`) as a place among n.
@@ -110,17 +112,14 @@ pub fn set_up_credits_race() -> Result<(), Refused> {
     use rc2k_core::race::credits::{RACE_KINDS, RACE_STAGES};
     unsafe {
         let stage = drawn_index(RACE_STAGES);
-        game_write(
-            rva(STAGE),
-            game_read::<u32>(rva(STAGES) + 4 * stage as usize),
-        );
+        game_write(rva(STAGE), RACE_WORK.credit_stages[stage as usize].get());
         let kind = drawn_index(RACE_KINDS);
         game_write(
             rva(CAR_KINDS),
-            game_read::<u32>(rva(KINDS) + 4 * kind as usize),
+            RACE_WORK.credit_car_kinds[kind as usize].get(),
         );
         for (at, v) in WRITES {
-            game_write(rva(at), v);
+            at.set(v);
         }
         Ok(())
     }

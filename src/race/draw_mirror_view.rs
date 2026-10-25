@@ -11,6 +11,7 @@
 
 use crate::errors::Refused;
 use crate::framework::{game_read, game_write, rva};
+use crate::race::view_store::RACE_VIEW;
 
 const SWITCHES: [usize; 3] = [rva(0x64BB18), rva(0x71C3E0), rva(0x621480)];
 const VIEW_VALUE_RVA: usize = rva(0x63DC58); // dword_63DC58
@@ -32,7 +33,7 @@ pub unsafe fn draw_mirror_view() -> Result<(), Refused> {
         game_write(GRID_REACH_RVA, 2u32);
         let drawn = (|| {
             crate::race::frame_views::mirror_view_window()?;
-            game_write(VIEW_VALUE_RVA, g(VIEW_VALUE_KEPT_RVA));
+            RACE_VIEW.view_depth[1].set_bits(g(VIEW_VALUE_KEPT_RVA));
             crate::race::frame_flush::draw_view_backdrop();
             crate::race::draw_view_scene::draw_view_scene()
         })();

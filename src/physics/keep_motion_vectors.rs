@@ -8,13 +8,8 @@
 //!
 //! Caller: `sub_43B635` (0x43B89B), every physics step.
 
-use crate::framework::{game_addr, rva};
-
-/// The switch, six from, six to (IDA addresses).
-const VARIABLES: [usize; 13] = [
-    0x614148, 0x71A170, 0x71A174, 0x71A178, 0x71A15C, 0x71A160, 0x71A164, 0x614BCC, 0x614BD0,
-    0x614BD4, 0x614BDC, 0x614BE0, 0x614BE4,
-];
+use crate::physics::car_store::CAR;
+use crate::physics::tables_store::PHYSICS;
 
 unsafe fn core(v: &[u32]) {
     unsafe {
@@ -28,10 +23,21 @@ unsafe fn core(v: &[u32]) {
 }
 
 fn game() -> Vec<u32> {
-    VARIABLES
-        .iter()
-        .map(|&x| game_addr(rva(x)) as u32)
-        .collect()
+    vec![
+        PHYSICS.contact_step.addr() as u32,
+        CAR.velocity[0].addr() as u32,
+        CAR.velocity[1].addr() as u32,
+        CAR.velocity[2].addr() as u32,
+        CAR.spin[0].addr() as u32,
+        CAR.spin[1].addr() as u32,
+        CAR.spin[2].addr() as u32,
+        PHYSICS.kept_vectors[0].addr() as u32,
+        PHYSICS.kept_vectors[1].addr() as u32,
+        PHYSICS.kept_vectors[2].addr() as u32,
+        PHYSICS.kept_vectors[4].addr() as u32,
+        PHYSICS.kept_vectors[5].addr() as u32,
+        PHYSICS.kept_vectors[6].addr() as u32,
+    ]
 }
 
 /// The Rust version.

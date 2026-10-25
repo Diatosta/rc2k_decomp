@@ -16,16 +16,16 @@
 //! `SUMMARY_EVERY` frames compared a count.
 
 use crate::physics::flow::{a, g};
+use crate::race::blocks_store::CAR_BLOCKS;
+use crate::race::numbers_store::NUMBERS;
 use rc2k_core::drive::replay_frames::{CAR_DWORDS, PLAYING, RECORDING};
 use rc2k_core::drive::replay_frames::{StartPiece, start_layout};
 use std::sync::atomic::{AtomicU32, Ordering::Relaxed};
 
 const BLOCKS: usize = 0x70F3EC; // g_carBlockStore: four blocks of 0xFE0
 const BLOCK: usize = 0xFE0;
-const MODE: usize = 0x5C5CE0; // dword_5C5CE0: 1 recording, 2 playing
 const CARS: usize = 0x63DB90; // the cars' count
 const EVERY: u32 = 1000;
-const SAVED: usize = 0x7172EC; // unk_7172EC: the frame's recorded state, just read
 const DETAILS: u32 = 40;
 const SUMMARY_EVERY: u32 = 20;
 /// A car's fields the viewer sets itself while playing, left out: +0x9C the last pace
@@ -52,12 +52,12 @@ fn hash(words: impl Iterator<Item = u32>) -> u32 {
 
 /// After the cars' step of a tick.
 pub fn note() {
-    let mode = match g(MODE) {
+    let mode = match NUMBERS.replay_mode.get() {
         RECORDING => "recording",
         PLAYING => "playing",
         _ => return,
     };
-    let clock = g(BLOCKS + 8);
+    let clock = CAR_BLOCKS.cars[0].step_clock.bits();
     if !clock.is_multiple_of(EVERY) && clock != 1 {
         return;
     }
@@ -86,9 +86,9 @@ fn piece_name(piece: StartPiece) -> String {
 
 /// At a whole frame of a replay played, before its recorded state is loaded.
 pub fn compare_frame() {
-    let saved = a(SAVED) as usize;
+    let saved = crate::race::blocks_store::block_addr(8);
     let read = |at: usize| unsafe { (at as *const u32).read_unaligned() };
-    let clock = g(BLOCKS + 8);
+    let clock = CAR_BLOCKS.cars[0].step_clock.bits();
     if read(saved + 8) != clock {
         SKIPPED.fetch_add(1, Relaxed);
         return;

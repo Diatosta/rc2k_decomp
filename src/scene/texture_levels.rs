@@ -7,12 +7,11 @@
 
 use crate::errors::Refused;
 use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::race::view_store::RACE_VIEW;
 use crate::scene::texture_needs::{SYSTEM_LEVELS_RVA, TAGS_RVA, VIDEO_LEVELS_RVA};
 
 pub const OTHER_LEVELS_RVA: usize = rva(0x5CDADC); // dword_5CDADC
 pub const KIND_SLOTS_RVA: usize = rva(0x5DC978); // g_kindSlotBytes: + 4 (or 1) a kind's slot
-pub const CARS_RVA: usize = rva(0x63DB90); // g_raceCars
-const SECOND_CAR_RVA: usize = rva(0x63DB94); // dword_63DB94
 const EXTRA_RVA: usize = rva(0x621514); // dword_621514
 pub const SLOTS: u32 = 0x400;
 
@@ -71,8 +70,8 @@ pub unsafe fn init_texture_levels() -> Result<(), Refused> {
     use crate::scene::textures::slice;
     use rc2k_core::scene::texture_levels::{KindSlots, held_cars, set_levels};
     unsafe {
-        let cars = held_cars(game_read(CARS_RVA));
-        game_write(CARS_RVA, cars);
+        let cars = held_cars(RACE_VIEW.race_cars.bits());
+        RACE_VIEW.race_cars.set_bits(cars);
         crate::scene::reset_texture_tables::reset_texture_tables();
         log_write(COUNT_TEXT_RVA.as_ptr() as usize as *const u8, false, 1);
         log_int(cars as i32, true, 1);
@@ -104,7 +103,7 @@ pub unsafe fn init_texture_levels() -> Result<(), Refused> {
                 video: slice(VIDEO_LEVELS_RVA, SLOTS),
             },
             cars,
-            game_read::<u32>(SECOND_CAR_RVA) == 1,
+            RACE_VIEW.players.bits() == 1,
             &kinds,
             game_read::<u32>(EXTRA_RVA) != 0,
             other(),

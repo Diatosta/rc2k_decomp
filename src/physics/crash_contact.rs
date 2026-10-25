@@ -25,13 +25,16 @@
 use crate::errors::Refused;
 use crate::math::x87::{loaded, mul};
 use crate::math::x87_run::neg_rounded;
+use crate::physics::car_store::CAR;
 use crate::physics::contact_force::{RECORD, contact_force};
 use crate::physics::dot_product::dot_product;
 use crate::physics::flow::{a, copy3, fill3, g, hold_high, p};
 use crate::physics::lowest_body_point::lowest_body_point;
 use crate::physics::place_sound_e5::place_sound_e5;
 use crate::physics::sound_cue_e5::sound_cue_e5;
+use crate::physics::tables_store::PHYSICS;
 use crate::physics::touch_face::FACES;
+use crate::race::numbers_store::NUMBERS;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
 use crate::scene::x87_mem::{fld, fstp};
@@ -53,7 +56,7 @@ pub fn sign(v: u32) -> bool {
 /// `dword_6D3090` ...
 pub fn take_contact(n: usize) {
     copy3(0x6D30A8, 0x71A170);
-    let face = (g(0x71ADC8 + 4 * n) << 6).wrapping_add(g(FACES));
+    let face = (CAR.probe_point_face[n].get() << 6).wrapping_add(g(FACES));
     let parts = contacts::normal_offsets(g(0x6D2914 + 4 * n));
     for (k, o) in parts.iter().enumerate() {
         let v = unsafe { ((face + o) as *const u32).read_unaligned() };
@@ -75,22 +78,26 @@ pub fn point_number() -> Result<usize, Refused> {
 // Converted: `rc2k_core::physics::contacts::{touches, normal_offsets, check_body_point}`
 // (the x87 steps stay).
 fn steps() -> Result<(), Refused> {
-    p(0x71AA0C, 0);
+    CAR.contact_found.set(0);
     unsafe { lowest_body_point() }?;
     let depth = g(0x6D3068);
-    if !contacts::touches(depth, g(0x613EF8), g(0x71A22C) != 0) {
+    if !contacts::touches(
+        depth,
+        PHYSICS.crash_depth.get(),
+        CAR.all_wheels_off.get() != 0,
+    ) {
         unsafe { sound_cue_e5() }?;
         return Ok(());
     }
     let n = point_number()?;
-    p(0x71AA00, g(0x6D1E14 + 4 * n));
-    p(0x71AA04, g(0x6D2114 + 4 * n));
-    p(0x71AA08, g(0x6D2014 + 4 * n));
-    p(0x71AA0C, 1);
+    CAR.contact_point_x.set(g(0x6D1E14 + 4 * n));
+    CAR.contact_point_ground.set(g(0x6D2114 + 4 * n));
+    CAR.contact_point_z.set(g(0x6D2014 + 4 * n));
+    CAR.contact_found.set(1);
     take_contact(n);
     let up = unsafe {
         rotate_point(
-            a(0x71A08C),
+            CAR.crash_matrix[0].addr() as u32,
             [extended(0), extended(0x3F80_0000), extended(0)],
         )
     };
@@ -102,15 +109,18 @@ fn steps() -> Result<(), Refused> {
         neg_rounded(unsafe { dot_product(a(0x6D31C4), a(0x6D3078)) }),
     );
     x87_1(crate::race::store::asm_base() as usize);
-    p(RECORD, a(FORCE));
+    p(RECORD, PHYSICS.forces[21].force[0].addr() as u32);
     unsafe { contact_force() };
     unsafe { place_sound_e5() }?;
     copy3(0x6D3018, FORCE);
     fill3(FORCE + 0xC, 0);
     x87_2(crate::race::store::asm_base() as usize);
-    hold_high(0x6D3014, 0x5C5D38);
-    p(0x71A160, mul(g(0x6D3014), g(0x71A160)));
-    p(0x71AA10, g(0x6D310C));
+    hold_high(0x6D3014, &NUMBERS.one);
+    CAR.spin[1].set_bits(mul(
+        g(0x6D3014),
+        crate::physics::car_store::CAR.spin[1].bits(),
+    ));
+    CAR.contact_value.set(g(0x6D310C));
     Ok(())
 }
 

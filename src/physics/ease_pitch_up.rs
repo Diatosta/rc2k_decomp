@@ -8,18 +8,17 @@
 //! Caller: `sub_43907F` (0x4392CD).
 
 use crate::framework::{game_addr, rva};
+use crate::physics::car_store::CAR;
 use crate::physics::cells::{get, put};
 use rc2k_core::physics::easing::ease_up;
 
 fn game() -> Vec<u32> {
-    VARIABLES
-        .iter()
-        .map(|&x| game_addr(rva(x)) as u32)
-        .collect()
+    vec![
+        game_addr(rva(0x608C20)) as u32,
+        CAR.camera_pitch.addr() as u32,
+        game_addr(rva(0x608C24)) as u32,
+    ]
 }
-
-/// The variables (IDA addresses).
-const VARIABLES: [usize; 3] = [0x608C20, 0x71A690, 0x608C24];
 
 /// The Rust version on the variables' addresses.
 // Converted: `rc2k_core::physics::easing::ease_up`.

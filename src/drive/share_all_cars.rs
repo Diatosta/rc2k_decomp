@@ -20,21 +20,19 @@ use crate::drive::set_listener::set_listener;
 use crate::drive::share_car_state::share_car_state;
 use crate::errors::{BadInput, Refused};
 use crate::framework::rva;
+use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::mud::car_file_number;
-use crate::store::{game_read, game_write};
+use crate::race::work_store::RACE_WORK;
+use crate::store::game_write;
 use rc2k_core::drive::sharing;
 
-const BLOCKS_RVA: usize = rva(0x71B3B8); // g_carBlocks
-const RECORDS_RVA: usize = rva(0x71B3D8); // g_carRecords (was off_71B3D8)
-const CURRENT_RVA: usize = rva(0x71B3F8); // g_currentCar
 const SHOWN_RVA: usize = rva(0x5C5688); // dword_5C5688
-const LEAD_FILE_RVA: usize = rva(0x70F410); // dword_70F410
 
 fn cars() -> [(u32, u32, u32); 8] {
-    std::array::from_fn(|n| unsafe {
+    std::array::from_fn(|n| {
         (
-            game_read(BLOCKS_RVA + 4 * n),
-            game_read(RECORDS_RVA + 4 * n),
+            RACE_WORK.car_block(n),
+            RACE_WORK.car_record(n),
             crate::sound::store::RACE_SOUNDS.table[n].get(),
         )
     })
@@ -67,12 +65,12 @@ pub unsafe fn share_all_cars() -> Result<(), Refused> {
         set_listener()?;
         keep_lead_car_values();
         for (n, (block, record, sound)) in cars().into_iter().enumerate() {
-            game_write(CURRENT_RVA, n as u32);
+            RACE_WORK.current_car.set(n as u32);
             share_car_state(block, record, sound)?;
         }
-        let first_record: u32 = game_read(RECORDS_RVA);
+        let first_record: u32 = RACE_WORK.car_records[0].bits();
         game_write(SHOWN_RVA, 0u32);
-        let (shown, _) = sharing::cars_shown(game_read::<u32>(LEAD_FILE_RVA), || {
+        let (shown, _) = sharing::cars_shown(CAR_BLOCKS.cars[0].car_kind.bits(), || {
             ((first_record + 0x258) as *const u32).read_unaligned()
         });
         if shown {

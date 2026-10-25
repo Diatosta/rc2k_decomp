@@ -11,10 +11,12 @@
 //!
 //! Caller: `physics::apply_forces` (in a loop over records).
 
-use crate::framework::{game_addr, game_read, rva};
 use crate::math::x87;
+use crate::physics::car_store::Car;
 use crate::physics::scale_vector::scale_vector;
+use crate::physics::tables_store::PHYSICS;
 use crate::physics::turn_by_car_matrix::turn_by_car_matrix;
+use crate::scene::draw_store::DRAW;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
 
@@ -33,7 +35,7 @@ pub unsafe fn apply_at(rec: u32, car: u32, work: u32, scratch: u32) {
         for k in 0..3 {
             put(work + 4 * k, at(rec + 4 * k));
         }
-        let dt = extended(game_read(rva(0x61388C)));
+        let dt = extended(PHYSICS.step_time.bits());
         scale_vector(work, dt);
         put(scratch, rounded(dt));
         turn_by_car_matrix(work);
@@ -42,9 +44,9 @@ pub unsafe fn apply_at(rec: u32, car: u32, work: u32, scratch: u32) {
             put(o, x87::add(at(work + 4 * k), at(o)));
         }
         let p = [
-            extended(at(car + 0x198)),
-            extended(at(car + 0x19C)),
-            extended(at(car + 0x1A0)),
+            extended(Car::at(car).velocity[0].bits()),
+            extended(Car::at(car).velocity[1].bits()),
+            extended(Car::at(car).velocity[2].bits()),
         ];
         let out = rotate_point(car + 0x9CC, p);
         for (k, e) in out.iter().enumerate() {
@@ -59,8 +61,8 @@ pub unsafe fn apply_force(rec: u32, car: u32) {
         apply_at(
             rec,
             car,
-            game_addr(rva(0x614B30)) as u32,
-            game_addr(rva(0x62400C)) as u32,
+            PHYSICS.push_record[0].addr() as u32,
+            DRAW.scratch.addr() as u32,
         )
     }
 }

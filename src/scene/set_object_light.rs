@@ -28,6 +28,7 @@ use crate::input::store::DEVICES;
 use crate::scene::add_car_light::add_car_light;
 use crate::scene::add_car_lights::{DRAWN_CAR_RVA, add_car_lights};
 use crate::scene::add_point_lights::{LIGHT_COLOUR_RVA, LIT_PLACE_RVA, add_point_lights};
+use crate::scene::object_store::OBJECT_WORK;
 use crate::scene::vertex_light::plus;
 use crate::session::MACHINE;
 use crate::store::{game_read, game_write};
@@ -36,9 +37,7 @@ use crate::store::{game_read, game_write};
 
 const ADDED_RVA: usize = rva(0x635068); // dword_635068
 const KIND_RVA: usize = rva(0x62DAF4); // g_lightKind
-const STRENGTH_RVA: usize = rva(0x635090); // g_lightStrength
 const PLACE_RVA: usize = rva(0x63501C); // dword_63501C, dword_635020, dword_635024
-const BASE_RVA: usize = rva(0x635054); // dword_635054
 const THIS_CAR_RVA: usize = rva(0x60627C); // dword_60627C
 
 // ---- Rust version ----
@@ -50,12 +49,12 @@ pub unsafe fn set_object_light(
 ) -> Result<(), Refused> {
     unsafe {
         use rc2k_core::scene::lamps::{ObjectLight, WHITE, object_light};
-        game_write(ADDED_RVA, 0u32);
+        OBJECT_WORK.light_added.set_bits(0u32);
         let (clear_strength, own_car) = match object_light(game_read(KIND_RVA), || {
             DEVICES.keys_now.get(0x18) != 0 // byte_4F6B74
         }) {
             ObjectLight::White => {
-                game_write(ADDED_RVA, WHITE);
+                OBJECT_WORK.light_added.set_bits(WHITE);
                 return Ok(());
             }
             ObjectLight::Gathered {
@@ -65,7 +64,7 @@ pub unsafe fn set_object_light(
             ObjectLight::Nothing => return Ok(()),
         };
         if clear_strength {
-            game_write(STRENGTH_RVA, 0u32);
+            OBJECT_WORK.light_strength.set_bits(0u32);
         }
         game_write(LIT_PLACE_RVA, game_read::<[u32; 3]>(PLACE_RVA));
         if own_car {
@@ -79,7 +78,11 @@ pub unsafe fn set_object_light(
         let mmx = MACHINE.has_mmx.get() != 0;
         game_write(
             ADDED_RVA,
-            plus(game_read(LIGHT_COLOUR_RVA), game_read(BASE_RVA), mmx),
+            plus(
+                game_read(LIGHT_COLOUR_RVA),
+                OBJECT_WORK.other_light.bits(),
+                mmx,
+            ),
         );
         Ok(())
     }

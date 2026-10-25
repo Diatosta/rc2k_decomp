@@ -21,6 +21,7 @@ use crate::errors::{BadInput, Refused};
 use crate::framework::rva;
 use crate::marks::clip_quad::{clip_quad, draw_fan};
 use crate::marks::store::{Slot, game_addr, game_read, game_write};
+use crate::scene::draw_store::DRAW;
 use crate::scene::fog_at::fog_at;
 
 const DEPTH_RVA: Slot = Slot::at(0x8EB8DD); // flt_8EB8DD
@@ -28,7 +29,6 @@ const WHOLE_RVA: Slot = Slot::at(0x9356C0); // dword_9356C0
 const NEAR_RVA: Slot = Slot::at(0x8EB961); // dword_8EB961
 const HALF_RVA: Slot = Slot::at(0x8EB8B5); // dword_8EB8B5
 const VERTICES_RVA: usize = rva(0x9605A0); // g_polygonVertices
-const VERTEX_COUNT_RVA: usize = rva(0x6240F8); // g_polygonVertexCount
 const SUBCELLS_RVA: Slot = Slot::at(0x935B66); // g_marksSubcellPlaces: 0x410 of 16 bytes
 const SUBCELLS: u32 = 0x410;
 
@@ -100,7 +100,7 @@ pub unsafe fn draw_subcell_sprite(
             return Ok(());
         }
         draw_fan();
-        game_write(VERTEX_COUNT_RVA, 4u32);
+        DRAW.polygon_vertex_count.set_bits(4u32);
     }
     Ok(())
 }

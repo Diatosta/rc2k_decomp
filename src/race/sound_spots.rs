@@ -6,14 +6,14 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::race::course_store::COURSE;
+use crate::race::numbers_store::NUMBERS;
+use crate::scene::object_store::OBJECT_WORK;
 
 const GRID: usize = rva(0x63E17C); // g_courseGrid
 const REACH: usize = rva(0x60A87C); // g_gridReach
 const SPOTS: usize = rva(0x6D1AF4); // g_soundSpots
 const COUNT: usize = rva(0x6D1DC4); // g_soundSpotCount
-const RECORDS: usize = rva(0x5CCCB8); // g_courseRecords
-const FACES: usize = rva(0x5CCCBC); // g_courseFaces
-const POINTS: usize = rva(0x5CCCC0); // g_scenePoints
 /// The grid and what lies past it that the original may read (as `race::course_grid`).
 const GRID_DWORDS: u32 = 0x1084 / 4;
 
@@ -39,9 +39,9 @@ unsafe fn check() -> Result<(), Refused> {
             if record >= 0x0FFF_FFFF {
                 continue;
             }
-            if game_read::<u32>(RECORDS) == 0
-                || game_read::<u32>(FACES) == 0
-                || game_read::<u32>(POINTS) == 0
+            if COURSE.course_records.bits() == 0
+                || COURSE.course_faces.bits() == 0
+                || COURSE.scene_points.bits() == 0
             {
                 return Err(BadInput("no course records, faces or points").into());
             }
@@ -63,7 +63,7 @@ fn scaled(t: [u8; 10], k: u32) -> u32 {
 pub unsafe fn face_sound_spot(face_number: u32) {
     use crate::race::skidmarks::int_80;
     unsafe {
-        let face = game_read::<u32>(FACES).wrapping_add(face_number << 6);
+        let face = COURSE.course_faces.bits().wrapping_add(face_number << 6);
         // Converted: `rc2k_core::race::view::{sound_object, takes_spot, spot_place}`
         // (the turn and scale stay the x87's: the callers compare exactly).
         use rc2k_core::race::view::{MOST_SPOTS, sound_object, spot_place, takes_spot};
@@ -85,17 +85,19 @@ pub unsafe fn face_sound_spot(face_number: u32) {
         put(0x10, sound);
         let point = get(face + 4);
         put(0, point);
-        let p = point.wrapping_mul(12).wrapping_add(game_read(POINTS));
+        let p = point
+            .wrapping_mul(12)
+            .wrapping_add(COURSE.scene_points.bits());
         let place = spot_place(
             [get(p), get(p + 4), get(p + 8)],
             [get(face + 0x30), get(face + 0x34), get(face + 0x38)],
         );
-        game_write(rva(0x63501C), place);
+        crate::session::write_bits(&OBJECT_WORK.place, place);
         let t = crate::scene::rotate_point::rotate_point(
             game_addr(rva(0x5EA2CC)) as u32,
             place.map(int_80),
         );
-        let k: u32 = game_read(rva(0x5C5DA0));
+        let k: u32 = NUMBERS.one_over_65536.bits();
         for (i, v) in t.into_iter().enumerate() {
             put(4 + 4 * i as u32, scaled(v, k));
         }
@@ -113,7 +115,7 @@ pub unsafe fn cell_sound_spots(cell: u32) {
         if record >= rc2k_core::race::view::NO_RECORD {
             return;
         }
-        let at = game_read::<u32>(RECORDS).wrapping_add(record << 5);
+        let at = COURSE.course_records.bits().wrapping_add(record << 5);
         let mut face = get(at + 8);
         if rc2k_core::race::view::record_faces(face, get(at + 0xC)).is_none() {
             return;

@@ -9,12 +9,9 @@
 //! Callers (2): `sub_43B635` (0x43B644, 0x43B94D), the car's physics step under
 //! `sub_4454D2`.
 
-use crate::framework::{game_addr, rva};
+use crate::physics::car_store::CAR;
 use crate::physics::vector_length::vector_length;
 use crate::scene::matrix3::rounded;
-
-const MOTION_RVA: usize = rva(0x71A170); // dword_71A170: three floats
-const LENGTH_RVA: usize = rva(0x71A19C); // dword_71A19C
 
 /// The Rust core on the vector at `v` and the length at `out`.
 pub unsafe fn store_length(v: u32, out: u32) {
@@ -24,5 +21,5 @@ pub unsafe fn store_length(v: u32, out: u32) {
 /// The Rust version (the exact one, for `physics::car_physics_step` and
 /// `physics::keep_motion_vectors`).
 pub unsafe fn store_motion_length() {
-    unsafe { store_length(game_addr(MOTION_RVA) as u32, game_addr(LENGTH_RVA) as u32) }
+    unsafe { store_length(CAR.velocity[0].addr() as u32, CAR.speed.addr() as u32) }
 }

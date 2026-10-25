@@ -11,15 +11,13 @@
 //!
 //! Callers: `sub_421848`, `sub_43CAAB`, `sub_43CB14`.
 
-use crate::framework::{game_addr, game_read, rva};
 use crate::math::x87;
 use crate::math::x87_run::{abs_fidiv, int_fidiv, one_less_times_plus};
+use crate::physics::car_store::CAR;
+use crate::physics::tables_store::PHYSICS;
+use crate::race::numbers_store::NUMBERS;
+use crate::scene::draw_store::DRAW;
 use std::cmp::Ordering;
-
-/// The variables (IDA addresses), in the order the core takes them.
-pub const VARIABLES: [usize; 8] = [
-    0x62400C, 0x71A018, 0x71A184, 0x62401C, 0x624020, 0x71A000, 0x614758, 0x614750,
-];
 
 unsafe fn at(a: u32) -> u32 {
     unsafe { (a as *const u32).read_unaligned() }
@@ -29,22 +27,21 @@ unsafe fn put(a: u32, v: u32) {
     unsafe { (a as *mut u32).write_unaligned(v) }
 }
 
-fn k(a: usize) -> u32 {
-    unsafe { game_read(rva(a)) }
-}
-
 /// The core on the variables' addresses: eax as the original leaves it (n less the
 /// word, its `sub eax, unk_71A000`).
 pub unsafe fn drive_torque_share_at(v: &[u32]) -> u32 {
     unsafe {
         let n = if at(v[1]) == 1 {
-            k(0x613EEC)
+            PHYSICS.torque_share_a.get()
         } else {
-            k(0x613EF0)
+            PHYSICS.torque_share_b.get()
         };
         put(v[0], n);
-        put(v[3], abs_fidiv(at(v[2]), k(0x613EF4) as i32));
-        let one = k(0x5C5D38);
+        put(
+            v[3],
+            abs_fidiv(at(v[2]), PHYSICS.torque_share_c.get() as i32),
+        );
+        let one = NUMBERS.one.bits();
         let below = !matches!(
             f32::from_bits(at(v[3])).partial_cmp(&f32::from_bits(one)),
             Some(Ordering::Greater | Ordering::Equal)
@@ -62,10 +59,16 @@ pub unsafe fn drive_torque_share_at(v: &[u32]) -> u32 {
 }
 
 fn game() -> Vec<u32> {
-    VARIABLES
-        .iter()
-        .map(|&x| game_addr(rva(x)) as u32)
-        .collect()
+    vec![
+        DRAW.scratch.addr() as u32,
+        CAR.drive_kind.addr() as u32,
+        CAR.local_velocity[2].addr() as u32,
+        DRAW.work_float_a.addr() as u32,
+        DRAW.work_float_b.addr() as u32,
+        CAR.gear_ratio_setting.addr() as u32,
+        PHYSICS.torque_share.addr() as u32,
+        PHYSICS.drive_torque.addr() as u32,
+    ]
 }
 
 /// The Rust version (the exact one, for `physics::drive_force` and

@@ -14,6 +14,12 @@ const DWORDS: usize = 0xA04;
 
 /// The Rust version.
 pub unsafe fn flush_replay() -> Result<(), Refused> {
-    unsafe { std::ptr::copy(a(0x7172EC) as *const u32, a(0x9613A4) as *mut u32, DWORDS) };
+    unsafe {
+        std::ptr::copy(
+            crate::race::blocks_store::block_addr(8) as *const u32,
+            a(0x9613A4) as *mut u32,
+            DWORDS,
+        )
+    };
     unsafe { crate::drive::write_replay_frames::write_replay_frames() }
 }

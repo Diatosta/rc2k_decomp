@@ -30,15 +30,16 @@
 
 use crate::framework::{game_read, game_write, rva};
 use crate::math::x87;
+use crate::physics::tables_store::PHYSICS;
+use crate::race::numbers_store::NUMBERS;
 use crate::scene::angle_between::angle_of;
-use crate::scene::draw_polygon::CHECKED_RVA;
-use crate::scene::next_noise::{STATE_RVA, next_noise};
+use crate::scene::draw_store::DRAW;
+use crate::scene::next_noise::next_noise;
 
 // ---- game data ----
 
 const ROOTS_RVA: usize = rva(0x5C70F8); // g_rootTable
 const EXPONENT_ROOTS_RVA: usize = rva(0x5C74F8); // g_exponentRootTable
-const ROOT_DIVISOR_RVA: usize = rva(0x5C5E2C); // flt_5C5E2C, 256.0
 const SHUFFLED_RVA: usize = rva(0xA6BB54); // word_A6BB54, 0x10000 words
 const NOISE_RVA: usize = rva(0xA2AAE4); // byte_A2AAE4, 0x1070 bytes
 const NOISE_LEN: usize = 0x1070;
@@ -56,7 +57,7 @@ const SEED: u32 = 0x0012_D687;
 unsafe fn tangent(angle: u32) -> u32 {
     unsafe {
         let place = SINES_RVA + (angle >> 4) as usize * 4;
-        game_write(CHECKED_RVA, 0x8000u32);
+        DRAW.scratch.set_bits(0x8000u32);
         let tangent = (x87::ratio_scaled_to_int(
             game_read(place),
             game_read(place + 0x1000),
@@ -77,14 +78,14 @@ pub unsafe fn fill_engine_tables() {
     unsafe {
         // sub_42142B
         for n in 0..0x100usize {
-            let root = x87::int_over_root(n as i32 + 0x100, game_read(ROOT_DIVISOR_RVA));
+            let root = x87::int_over_root(n as i32 + 0x100, NUMBERS.k256.bits());
             game_write(ROOTS_RVA + n * 4, root);
         }
         for n in 0..0x100usize {
             game_write(EXPONENT_ROOTS_RVA + n * 4, x87::sqrt((n as u32) << 23));
         }
         // sub_41F661
-        game_write(STATE_RVA, SEED);
+        PHYSICS.noise_state.set_bits(SEED);
         let word = |n: usize| SHUFFLED_RVA + n * 2;
         for n in 0..0x1_0000usize {
             game_write(word(n), n as u16);
@@ -96,7 +97,7 @@ pub unsafe fn fill_engine_tables() {
             game_write(word(other), here);
         }
         // sub_41F635
-        game_write(STATE_RVA, SEED);
+        PHYSICS.noise_state.set_bits(SEED);
         for n in 0..NOISE_LEN {
             game_write(NOISE_RVA + n, (next_noise() >> 12) as u8);
         }

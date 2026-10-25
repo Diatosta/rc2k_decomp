@@ -24,11 +24,8 @@ use crate::errors::Refused;
 use crate::input::devices::at;
 use crate::input::effects::HAS_EFFECTS;
 use crate::input::store::DEVICES;
-use crate::physics::flow::a;
+use crate::race::view_store::RACE_VIEW;
 use crate::sound::store::RACE_SOUNDS;
-
-/// g_viewBlocks: the two views' blocks.
-const VIEWS: usize = 0x63DBB0;
 
 /// Where the variables are (the game's or a test's).
 #[derive(Clone, Copy)]
@@ -46,7 +43,7 @@ impl Vars {
             // g_playerCarA, g_playerCarB, g_onePlayer, g_raceSoundObjectCount (four dwords).
             cars: RACE_SOUNDS.player_cars.as_ptr() as usize as u32,
             devices: DEVICES.input_devices[0].addr() as u32,
-            views: a(VIEWS),
+            views: (RACE_VIEW.view_blocks[0].addr() as u32),
             objects: RACE_SOUNDS.table.as_ptr() as usize as u32,
             two_devices: DEVICES.two_devices_one_player.addr() as u32,
         }

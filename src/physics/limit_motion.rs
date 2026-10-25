@@ -17,23 +17,17 @@
 //!
 //! Callers: `sub_43B635` (twice), `sub_43BDD1`.
 
-use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::logfile::log_float::log_float;
 use crate::logfile::log_write::log_write;
 use crate::math::x87_float::compare;
+use crate::physics::car_store::CAR;
 use crate::physics::scale_vector::scale_vector;
+use crate::physics::tables_store::PHYSICS;
 use crate::physics::vector_length::vector_length;
+use crate::scene::draw_store::DRAW;
 use crate::scene::matrix3::rounded;
 use crate::scene::x87_mem::{fld, fstp};
 use std::cmp::Ordering;
-
-fn g(x: usize) -> u32 {
-    unsafe { game_read(rva(x)) }
-}
-
-fn p(x: usize, v: u32) {
-    unsafe { game_write(rva(x), v) }
-}
 
 /// The value at `v` held to ±(the limit at `l`), as the original: `fld l; fld v;
 /// fcompp`, the limit negated in place for the second compare and put back.
@@ -63,10 +57,9 @@ fn hold_at(v: usize, l: usize) {
 /// The Rust version (the exact one, for `physics::car_physics_step` and
 /// `physics::find_clear_place`).
 pub unsafe fn limit_motion() {
-    let a = |x: usize| game_addr(rva(x)) as u32;
     let mut bad = false;
     for k in 0..3usize {
-        let ecx = g(0x71A170 + 4 * k) & 0x7F80_0000;
+        let ecx = CAR.velocity[k].bits() & 0x7F80_0000;
         if ecx == 0x7F80_0000 {
             bad = true;
             break;
@@ -77,25 +70,28 @@ pub unsafe fn limit_motion() {
             log_write(c"*** INFINITY".as_ptr() as usize as *const u8, false, 1);
             log_write(c"[car0.newxspd] =".as_ptr() as usize as *const u8, false, 1);
             for k in 0..3usize {
-                log_float(f32::from_bits(g(0x71A170 + 4 * k)), 5, k == 2, 1);
+                log_float(f32::from_bits(CAR.velocity[k].bits()), 5, k == 2, 1);
             }
         }
         for k in 0..3usize {
-            p(0x71A170 + 4 * k, 0);
-            p(0x71A17C + 4 * k, 0);
-            p(0x71A15C + 4 * k, 0);
+            CAR.velocity[k].set_bits(0);
+            CAR.local_velocity[k].set_bits(0);
+            CAR.spin[k].set_bits(0);
         }
     }
     unsafe {
         for k in 0..3usize {
-            hold(a(0x71A15C + 4 * k), a(0x613E70));
+            hold(CAR.spin[k].addr() as u32, PHYSICS.spin_limit.addr() as u32);
         }
         for k in [0usize, 2, 1] {
-            hold(a(0x71A170 + 4 * k), a(0x613E74));
+            hold(
+                CAR.velocity[k].addr() as u32,
+                PHYSICS.velocity_limit.addr() as u32,
+            );
         }
-        let length = rounded(vector_length(a(0x71A170)));
-        p(0x623FBC, length);
-        let top = g(0x614100);
+        let length = rounded(vector_length(CAR.velocity[0].addr() as u32));
+        DRAW.motion_length.set_bits(length);
+        let top = PHYSICS.top_speed.bits();
         let past = matches!(
             f32::from_bits(top).partial_cmp(&f32::from_bits(length)),
             Some(Ordering::Less)
@@ -103,9 +99,9 @@ pub unsafe fn limit_motion() {
             || f32::from_bits(length).is_nan();
         if past {
             let factor = crate::math::x87_run::div_80(top, length);
-            scale_vector(a(0x71A170), factor);
-            scale_vector(a(0x71A17C), factor);
-            p(0x62400C, rounded(factor));
+            scale_vector(CAR.velocity[0].addr() as u32, factor);
+            scale_vector(CAR.local_velocity[0].addr() as u32, factor);
+            DRAW.scratch.set(rounded(factor));
         }
     }
 }

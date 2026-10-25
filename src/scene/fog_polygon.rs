@@ -16,9 +16,9 @@
 //! makes every place the byte before the table (the original's `length - 1`): kept.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, rva};
 use crate::math::x87;
-use crate::scene::draw_polygon::CHECKED_RVA;
+use crate::scene::draw_store::DRAW;
 use crate::scene::polygon::{dword, listed};
 
 // ---- game data ----
@@ -48,7 +48,7 @@ pub unsafe fn fog_polygon() -> Result<(), Refused> {
         for &entry in &entries {
             let record = dword(entry + 4);
             let depth = x87::to_int(dword(record as usize + 0x18));
-            game_write(CHECKED_RVA, depth);
+            DRAW.scratch.set_bits(depth as u32);
             // A place past the length is the last one; with no length (the menus)
             // that is the byte before the table, as in the original.
             let place = depth.max(0) as u32 >> 13;

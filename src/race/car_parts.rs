@@ -5,7 +5,13 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::physics::tables_store::PHYSICS;
+use crate::race::frame_store::FRAME_WORK;
+use crate::race::numbers_store::NUMBERS;
+use crate::race::view_store::RACE_VIEW;
+use crate::race::work_store::RACE_WORK;
 use crate::scene::matrix::{multiply_matrices, set_place, set_turn_x, set_turn_y};
+use crate::scene::object_store::OBJECT_WORK;
 
 fn k(a: u32) -> u32 {
     unsafe { game_read(rva(a as usize)) }
@@ -29,7 +35,7 @@ const LIT: u32 = 0x5EA14C; // g_litMatrix
 /// (`dword_5C9098` .. of its 0x134-byte record) and the lift.
 fn axles(model: u32) -> Option<[u32; 5]> {
     let record = [0u32, 4, 8, 0xC, 0x10].map(|o| k(0x5C9098 + model.wrapping_mul(0x134) + o));
-    rc2k_core::race::car_parts::axles(record, k(0x613FC4))
+    rc2k_core::race::car_parts::axles(record, PHYSICS.ground_drop.get())
 }
 
 /// `race::car_part_matrices` (0x460E7C): car esi's marks' switches and its parts' matrices
@@ -57,8 +63,8 @@ pub unsafe fn car_part_matrices(car: u32) -> Result<(), Refused> {
             return Err(BadInput("a car model whose axle scaling would fault").into());
         };
         set(0x718, loaded(f(0x1D8)));
-        if below_or_unordered(f(0x718), k(0x6140F8)) {
-            set(0x718, loaded(k(0x6140F8)));
+        if below_or_unordered(f(0x718), PHYSICS.idle_engine_speed.bits()) {
+            set(0x718, loaded(PHYSICS.idle_engine_speed.bits()));
         }
         let on = f(0x84);
         let s = mark_switches(&PartState {
@@ -78,7 +84,7 @@ pub unsafe fn car_part_matrices(car: u32) -> Result<(), Refused> {
             (car + FIRST_SWITCH) as *mut u8,
             s.bytes.len(),
         );
-        let slow = below_or_unordered(f(0x310), k(0x5C5D14));
+        let slow = below_or_unordered(f(0x310), NUMBERS.hundred.bits());
         set(0xABC, marks_bytes(s.count, slow, on));
         set(0xAAC, steering(f(0x650)));
         let [front, rear_lift, height, front_z, _] = ax;
@@ -88,10 +94,10 @@ pub unsafe fn car_part_matrices(car: u32) -> Result<(), Refused> {
         w(0x608C58, height);
         w(0x608C5C, front_z);
         w(0x608C48, ax[4]);
-        w(0x635038, 0x10);
-        w(0x635050, f(0xAAC));
-        w(0x635048, f(0x1F8));
-        w(0x63504C, f(0x1FC));
+        OBJECT_WORK.size.set(0x10);
+        OBJECT_WORK.part_values[2].set(f(0xAAC));
+        OBJECT_WORK.part_values[0].set(f(0x1F8));
+        OBJECT_WORK.part_values[1].set(f(0x1FC));
         for (i, o) in [0x134u32, 0x138, 0x13C].into_iter().enumerate() {
             w(0x63501C + 4 * i as u32, f(o));
         }
@@ -99,8 +105,16 @@ pub unsafe fn car_part_matrices(car: u32) -> Result<(), Refused> {
         for i in 0..4 {
             w(0x635074 + 4 * i, f(0x910 + 4 * i));
         }
-        set_place([k(0x63501C), k(0x635020), k(0x635024)]);
-        std::ptr::copy(ga(PLACED) as *const u8, ga(0x641760) as *mut u8, 0x40);
+        set_place([
+            OBJECT_WORK.place[0].get(),
+            OBJECT_WORK.place[1].get(),
+            OBJECT_WORK.place[2].get(),
+        ]);
+        std::ptr::copy(
+            ga(PLACED) as *const u8,
+            FRAME_WORK.placed_matrices[0].addr() as *mut u8,
+            0x40,
+        );
         // (x, z, the x turn, the height, the matrix): the four wheels.
         for (n, (x, z, spin, lift, out)) in [
             (
@@ -118,7 +132,7 @@ pub unsafe fn car_part_matrices(car: u32) -> Result<(), Refused> {
         .enumerate()
         {
             if n == 2 {
-                w(0x635050, 0);
+                OBJECT_WORK.part_values[2].set(0);
             }
             set_place([
                 k(x).wrapping_neg(),
@@ -127,7 +141,7 @@ pub unsafe fn car_part_matrices(car: u32) -> Result<(), Refused> {
             ]);
             set_turn_x(k(spin));
             multiply_matrices(ga(PLACED), ga(TURN_X), ga(TURNED));
-            set_turn_y(k(0x635050));
+            set_turn_y(OBJECT_WORK.part_values[2].get());
             multiply_matrices(ga(TURNED), ga(TURN_Y), ga(LIT));
             set_place([k(x), k(lift), k(z)]);
             multiply_matrices(ga(LIT), ga(PLACED), ga(out));
@@ -148,12 +162,12 @@ pub unsafe fn ready_car_parts() -> Result<(), Refused> {
         use rc2k_core::race::car_parts::{
             BODY_AT, KEPT_AT, KEPT_MATRICES, check_part_cars, parts_shown,
         };
-        let count = k(0x63DB90);
-        check_part_cars(count, |n| k(0x71B3B8 + 4 * n))?;
+        let count = RACE_VIEW.race_cars.get();
+        check_part_cars(count, |n| RACE_WORK.car_block(n as usize))?;
         // The loop's test is at its end: no cars still looks at car 0.
         let mut c = 0u32;
         loop {
-            let car = k(0x71B3B8 + 4 * c);
+            let car = RACE_WORK.car_block(c as usize);
             if parts_shown(((car + 0x25C) as *const u32).read_unaligned()) {
                 car_part_matrices(car)?;
                 for (i, from) in [
@@ -174,7 +188,11 @@ pub unsafe fn ready_car_parts() -> Result<(), Refused> {
                         0x40,
                     );
                 }
-                multiply_matrices(ga(0x5EA08C), ga(0x641760), ga(0x5EA3CC));
+                multiply_matrices(
+                    ga(0x5EA08C),
+                    FRAME_WORK.placed_matrices[0].addr(),
+                    ga(0x5EA3CC),
+                );
                 std::ptr::copy(ga(0x5EA3CC) as *const u8, (car + BODY_AT) as *mut u8, 0x40);
             }
             c += 1;

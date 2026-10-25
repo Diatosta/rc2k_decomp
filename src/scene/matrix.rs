@@ -7,7 +7,8 @@
 
 use crate::framework::{game_addr, game_ptr, game_read, game_write, rva};
 use crate::math::x87;
-use crate::scene::draw_polygon::CHECKED_RVA;
+use crate::scene::draw_store::DRAW;
+use crate::scene::object_store::OBJECT_WORK;
 use crate::scene::project_point::rotate;
 
 pub const TURN_X_RVA: usize = rva(0x5E9F8C); // flt_5E9F8C
@@ -21,12 +22,7 @@ pub const SINES_RVA: usize = rva(0xA23AE4); // flt_A23AE4, 0x1000 floats
 pub const COSINES_RVA: usize = rva(0xA24AE4); // dword_A24AE4
 pub const TURN_X_WORK_RVA: usize = rva(0x624148); // dword_624148, dword_62414C
 pub const TURN_Y_WORK_RVA: usize = rva(0x624150); // dword_624150, dword_624154
-pub const LIGHT_DIRECTION_RVA: usize = rva(0x6240A8); // g_lightDirection, three floats
-pub const LIGHT_TURN_Y_RVA: usize = rva(0x635094); // dword_635094
 pub const LIGHT_TURN_X_RVA: usize = rva(0x635098); // dword_635098
-pub const PLACE_RVA: usize = rva(0x63501C); // dword_63501C, dword_635020, dword_635024
-pub const SIZE_RVA: usize = rva(0x635038); // dword_635038
-pub const ANGLE_X_RVA: usize = rva(0x63503C); // dword_63503C
 pub const ANGLE_Y_RVA: usize = rva(0x635040); // dword_635040
 
 /// An angle's sine and cosine from the game's tables: sixteen bits a turn, the low
@@ -45,7 +41,7 @@ unsafe fn sine_cosine(angle: u32) -> (u32, u32) {
 pub unsafe fn set_turn_x(angle: u32) {
     unsafe {
         let (sine, cosine) = sine_cosine(angle);
-        game_write(TURN_X_WORK_RVA, [sine, cosine]);
+        crate::session::write_bits(&DRAW.turn_x_work, [sine, cosine]);
         game_write(TURN_X_RVA + 0x14, [cosine, sine]);
         game_write(TURN_X_RVA + 0x24, [sine ^ 0x8000_0000, cosine]);
     }
@@ -55,7 +51,7 @@ pub unsafe fn set_turn_x(angle: u32) {
 pub unsafe fn set_turn_y(angle: u32) {
     unsafe {
         let (sine, cosine) = sine_cosine(angle);
-        game_write(TURN_Y_WORK_RVA, [sine, cosine]);
+        crate::session::write_bits(&DRAW.turn_y_work, [sine, cosine]);
         game_write(TURN_Y_RVA, cosine);
         game_write(TURN_Y_RVA + 8, sine ^ 0x8000_0000);
         game_write(TURN_Y_RVA + 0x20, sine);
@@ -66,10 +62,10 @@ pub unsafe fn set_turn_y(angle: u32) {
 /// `scene::set_turn_z_16` (0x427072): as `set_turn_x`, about the z axis (the matrix and
 /// the work of `scene::set_turn_z`, whose angle is 32 bits a turn).
 pub unsafe fn set_turn_z_16(angle: u32) {
-    use crate::scene::view_matrix::{TURN_Z_RVA, TURN_Z_WORK_RVA};
+    use crate::scene::view_matrix::TURN_Z_RVA;
     unsafe {
         let (sine, cosine) = sine_cosine(angle);
-        game_write(TURN_Z_WORK_RVA, [sine, cosine]);
+        crate::session::write_bits(&DRAW.turn_z_work, [sine, cosine]);
         game_write(TURN_Z_RVA, [cosine, sine]);
         game_write(TURN_Z_RVA + 0x10, [sine ^ 0x8000_0000, cosine]);
     }
@@ -82,7 +78,7 @@ pub unsafe fn set_place(place: [u32; 3]) {
             PLACED_RVA + 0x30,
             place.map(|part| x87::from_int(part as i32)),
         );
-        game_write(CHECKED_RVA, place[2]);
+        DRAW.scratch.set_bits(place[2]);
     }
 }
 
@@ -129,7 +125,7 @@ pub unsafe fn copy_matrix_with_place(from: usize, other: usize, out: usize) {
 pub unsafe fn set_light_direction() {
     unsafe {
         set_turn_x((game_read::<u32>(LIGHT_TURN_X_RVA) << 8).wrapping_neg());
-        set_turn_y((game_read::<u32>(LIGHT_TURN_Y_RVA) << 8).wrapping_neg());
+        set_turn_y((OBJECT_WORK.light_turns[0].bits() << 8).wrapping_neg());
         multiply_matrices(
             game_addr(TURN_X_RVA),
             game_addr(TURN_Y_RVA),
@@ -145,7 +141,7 @@ pub unsafe fn set_light_direction() {
         rotate(
             ahead.as_ptr(),
             game_ptr(LIT_RVA),
-            (game_addr(LIGHT_DIRECTION_RVA) - 0x10) as *mut u32,
+            (DRAW.light_direction[0].addr() - 0x10) as *mut u32,
         );
     }
 }
@@ -155,17 +151,17 @@ pub unsafe fn make_object_matrix() {
     unsafe {
         set_light_direction();
         set_turn_y(game_read::<u32>(ANGLE_Y_RVA).wrapping_neg());
-        set_turn_x(game_read::<u32>(ANGLE_X_RVA).wrapping_neg());
-        let place: [u32; 3] = game_read(PLACE_RVA);
+        set_turn_x(OBJECT_WORK.angles[0].bits().wrapping_neg());
+        let place: [u32; 3] = crate::session::read_bits(&OBJECT_WORK.place);
         set_place(place);
         multiply_matrices(
             game_addr(TURN_Y_RVA),
             game_addr(TURN_X_RVA),
             game_addr(TURNED_RVA),
         );
-        let size: u32 = game_read(SIZE_RVA);
+        let size: u32 = OBJECT_WORK.size.bits();
         let factor = x87::int_over_16(size as i32);
-        game_write(CHECKED_RVA, factor);
+        DRAW.scratch.set_bits(factor);
         for n in 0..0x10 {
             let at = TURNED_RVA + n * 4;
             game_write(at, x87::mul(game_read(at), factor));

@@ -13,7 +13,7 @@
 //! One caller, `sub_45198C` (the reflection's texture coordinates).
 
 use crate::framework::{game_ptr, game_read, game_write, rva};
-use crate::scene::draw_polygon::CHECKED_RVA;
+use crate::scene::draw_store::DRAW;
 use crate::scene::x87_mem::{fld, fstp};
 
 // ---- game data ----
@@ -31,7 +31,7 @@ pub unsafe fn reflect_vector() {
         let mut w = [v[0], v[1], v[2], n[0], n[1], n[2], 0];
         reflect(w.as_mut_ptr().cast(), game_ptr::<u32>(MATRIX_RVA).cast());
         game_write(VECTOR_RVA, [w[0], w[1], w[2]]);
-        game_write(CHECKED_RVA, w[6]);
+        DRAW.scratch.set_bits(w[6]);
     }
 }
 

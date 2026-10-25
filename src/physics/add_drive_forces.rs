@@ -9,15 +9,11 @@
 //!
 //! Caller: `sub_43DFB1` (0x43E51E).
 
-use crate::framework::{game_addr, game_read, rva};
 use crate::math::x87;
 use crate::math::x87_run::mul2_plus;
-
-/// The variables (IDA addresses), in the order the core takes them.
-pub const VARIABLES: [usize; 11] = [
-    0x62400C, 0x71A018, 0x614284, 0x614288, 0x61428C, 0x614290, 0x6140F4, 0x614234, 0x614238,
-    0x614248, 0x61424C,
-];
+use crate::physics::car_store::CAR;
+use crate::physics::tables_store::PHYSICS;
+use crate::scene::draw_store::DRAW;
 
 unsafe fn at(a: u32) -> u32 {
     unsafe { (a as *const u32).read_unaligned() }
@@ -27,33 +23,38 @@ unsafe fn put(a: u32, v: u32) {
     unsafe { (a as *mut u32).write_unaligned(v) }
 }
 
-fn k(a: usize) -> u32 {
-    unsafe { game_read(rva(a)) }
-}
-
 /// The core on the variables' addresses.
 pub unsafe fn add_drive_forces_at(v: &[u32]) {
     unsafe {
-        let mut factor = k(0x613EE4);
+        let mut factor = PHYSICS.drive_force_factor[0].bits();
         if at(v[1]) != 0 {
             put(v[0], x87::loaded(factor));
-            factor = k(0x613EE8);
+            factor = PHYSICS.drive_force_factor[1].bits();
         }
         put(
             v[6],
             x87::sum4_times(at(v[2]), at(v[3]), at(v[4]), at(v[5]), factor),
         );
-        let scale = k(0x6140B8);
+        let scale = PHYSICS.drive_shares[2].bits();
         put(v[9], mul2_plus(at(v[7]), at(v[6]), scale, at(v[9])));
         put(v[10], mul2_plus(at(v[8]), at(v[6]), scale, at(v[10])));
     }
 }
 
 fn game() -> Vec<u32> {
-    VARIABLES
-        .iter()
-        .map(|&x| game_addr(rva(x)) as u32)
-        .collect()
+    vec![
+        DRAW.scratch.addr() as u32,
+        CAR.drive_kind.addr() as u32,
+        PHYSICS.wheel_loads[0].addr() as u32,
+        PHYSICS.wheel_loads[1].addr() as u32,
+        PHYSICS.wheel_loads[2].addr() as u32,
+        PHYSICS.wheel_loads[3].addr() as u32,
+        PHYSICS.drive_force_scale.addr() as u32,
+        PHYSICS.wheel_slips[0].addr() as u32,
+        PHYSICS.wheel_slips[1].addr() as u32,
+        PHYSICS.drive_forces[0].addr() as u32,
+        PHYSICS.drive_forces[1].addr() as u32,
+    ]
 }
 
 /// The Rust version (the exact one, for `physics::drive_wheels_step`).

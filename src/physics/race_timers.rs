@@ -16,12 +16,14 @@
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 use crate::errors::Refused;
+use crate::physics::car_store::CAR;
 use crate::physics::count_down_start::count_down_start;
 use crate::physics::count_start_second::count_start_second;
 use crate::physics::count_stop_timers::count_stop_timers;
 use crate::physics::mark_car_started::mark_car_started;
-use crate::physics::splits::{DONE, MODE, g, p};
+use crate::physics::splits::{MODE, g, p};
 use crate::physics::start_go_notice::start_go_notice;
+use crate::physics::tables_store::PHYSICS;
 use crate::physics::take_split::take_split;
 use crate::physics::take_split_counted::take_split_counted;
 
@@ -29,8 +31,8 @@ use crate::physics::take_split_counted::take_split_counted;
 // Converted: `rc2k_core::physics::splits::{timer_rate, timer_run}`.
 pub fn race_timers() -> Result<(), Refused> {
     use rc2k_core::physics::splits::{TimerRun, timer_rate, timer_run};
-    p(0x614170, 1.0f32.to_bits());
-    let finished = g(DONE) != 0;
+    PHYSICS.weight.set_bits(1.0f32.to_bits());
+    let finished = CAR.finish_flag.get() != 0;
     let factor = if finished { g(0x601028) } else { 0 };
     p(
         0x614170,

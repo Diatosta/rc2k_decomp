@@ -11,12 +11,10 @@
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
-use crate::framework::{game_addr, rva};
+use crate::physics::car_store::CAR;
 use crate::physics::turn_by_car_matrix::turn_point_by;
-
-pub const INVERSE_RVA: usize = rva(0x71A9A4); // g_carInverseMatrix
 
 /// The Rust version.
 pub unsafe fn turn_by_inverse(v: u32) {
-    unsafe { turn_point_by(game_addr(INVERSE_RVA) as u32, v) }
+    unsafe { turn_point_by(CAR.car_inverse_matrix[0].addr() as u32, v) }
 }

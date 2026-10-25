@@ -6,12 +6,12 @@
 //!
 //! Caller: `drive::replay_step`.
 
-use crate::physics::flow::g;
+use crate::race::numbers_store::NUMBERS;
 
 /// The Rust version.
 // Converted: `rc2k_core::drive::replay_frames::plays_inputs`.
 pub unsafe fn play_inputs_if() {
-    if rc2k_core::drive::replay_frames::plays_inputs(g(0x5C5CE0)) {
+    if rc2k_core::drive::replay_frames::plays_inputs(NUMBERS.replay_mode.get()) {
         unsafe { crate::drive::play_inputs::play_inputs() };
     }
 }

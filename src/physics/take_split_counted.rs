@@ -15,10 +15,12 @@
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 use crate::errors::Refused;
+use crate::physics::car_store::CAR;
 use crate::physics::keep_split_time::keep_split_time;
 use crate::physics::set_flag_51659c::set_flag_51659c;
 use crate::physics::split_by_mode::split_by_mode;
-use crate::physics::splits::{CHECKS, COUNT, DONE, FIGURE, SPLIT, SPLITS, g, p};
+use crate::physics::splits::{COUNT, g, put_split_time};
+use crate::race::work_store::RACE_WORK;
 use rc2k_core::physics::progress::{
     FINISH_NOTICE, SPLIT_NOTICE, finished_at, split_bonus, split_due,
 };
@@ -26,30 +28,35 @@ use rc2k_core::physics::progress::{
 /// The Rust version. The registers the original leaves are read by none of its callers.
 // Converted: `rc2k_core::physics::progress::{split_due, finished_at}`.
 pub fn take_split_counted() -> Result<(), Refused> {
-    if g(0x71B3F8) != 0 {
+    if RACE_WORK.current_car.get() != 0 {
         return Ok(());
     }
-    if !split_due(g(SPLIT), g(CHECKS))? {
+    if !split_due(CAR.splits_recorded.get(), CAR.splits_passed.get())? {
         return Ok(());
     }
     unsafe { keep_split_time() }?;
     unsafe { set_flag_51659c() }?;
     split_by_mode()?;
-    p(SPLITS + 4 * g(SPLIT) as usize, g(FIGURE));
-    if g(CHECKS) < g(COUNT) {
-        p(0x71A6F4, SPLIT_NOTICE);
-        p(0x71A708, 0x32);
-        p(0x71A704, 300);
-        let bonus = split_bonus(g(0x601434 + 4 * g(SPLIT) as usize));
-        p(0x71A064, g(0x71A064).wrapping_add(bonus));
+    put_split_time(CAR.splits_recorded.get() as usize, CAR.split_gaps[0].get());
+    if CAR.splits_passed.get() < g(COUNT) {
+        CAR.notice_id.set(SPLIT_NOTICE);
+        CAR.notice_time_b.set(0x32);
+        CAR.notice_time.set(300);
+        let bonus = split_bonus(g(0x601434 + 4 * CAR.splits_recorded.get() as usize));
+        CAR.time_left.set(
+            crate::physics::car_store::CAR
+                .time_left
+                .get()
+                .wrapping_add(bonus),
+        );
     }
-    p(0x71A07C, 0);
-    p(SPLIT, g(CHECKS));
-    if finished_at(g(SPLIT), g(COUNT)) {
-        p(DONE, 1);
-        p(0x71A6F4, FINISH_NOTICE);
-        p(0x71A704, u32::MAX);
-        p(0x71A708, 0);
+    CAR.go_stand_timer.set(0);
+    CAR.splits_recorded.set(CAR.splits_passed.get());
+    if finished_at(CAR.splits_recorded.get(), g(COUNT)) {
+        CAR.finish_flag.set(1);
+        CAR.notice_id.set(FINISH_NOTICE);
+        CAR.notice_time.set(u32::MAX);
+        CAR.notice_time_b.set(0);
     }
     Ok(())
 }

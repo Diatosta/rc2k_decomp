@@ -11,12 +11,10 @@
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
-use crate::framework::{game_addr, rva};
+use crate::physics::car_store::CAR;
 use crate::physics::cells::{get, put_changed};
+use crate::race::vars_store::RACE_VARS;
 use rc2k_core::physics::easing::ease_value;
-
-/// The variables (IDA addresses): the block, the jump switch, the target, the value.
-const VARIABLES: [usize; 4] = [0x6235E8, 0x71AF88, 0x71AF90, 0x71AF94];
 
 /// The Rust version on the variables at `v`. The registers the original leaves are read by none of its callers (eax).
 // Converted: `rc2k_core::physics::easing::ease_value`.
@@ -30,7 +28,12 @@ pub unsafe fn ease_at(v: &[u32; 4]) {
 }
 
 fn game() -> [u32; 4] {
-    VARIABLES.map(|x| game_addr(rva(x)) as u32)
+    [
+        RACE_VARS.scene_switch.addr() as u32,
+        CAR.value_jump_steps.addr() as u32,
+        CAR.eased_target.addr() as u32,
+        CAR.eased_value.addr() as u32,
+    ]
 }
 
 /// The Rust version.

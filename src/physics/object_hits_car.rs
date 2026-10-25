@@ -22,6 +22,7 @@ use crate::math::x87_run::{ext_to_int, int_80};
 use crate::physics::flow::{a, g, p};
 use crate::physics::object_turn_matrix::object_turn_matrix;
 use crate::physics::point_hits_car::point_hits_car;
+use crate::physics::tables_store::PHYSICS;
 use crate::scene::rotate_point::rotate_point;
 use rc2k_core::physics::contacts;
 
@@ -41,7 +42,12 @@ pub unsafe fn object_hits_car(point: u32, object: u32) -> Result<bool, Refused> 
     let number = g(OBJECT);
     contacts::check_object(number)?;
     unsafe { object_turn_matrix() }?;
-    p(0x61410C, g(0x61410C).wrapping_add(1));
+    PHYSICS.object_hits.set(
+        crate::physics::tables_store::PHYSICS
+            .object_hits
+            .get()
+            .wrapping_add(1),
+    );
     let count = g(COUNT + 4 * number as usize);
     // With no points the original skips to `clc` before it sets edx (0x45E779); the
     // points' table is read only when there are some.

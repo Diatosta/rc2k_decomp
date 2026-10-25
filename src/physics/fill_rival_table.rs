@@ -12,7 +12,8 @@
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 use crate::errors::Refused;
-use crate::physics::splits::{g, p};
+use crate::physics::splits::p;
+use crate::race::vars_store::RACE_VARS;
 use rc2k_core::physics::splits::{RIVALS, default_rival};
 
 /// The Rust version. The registers the original leaves are read by none of its callers.
@@ -24,7 +25,7 @@ pub fn fill_rival_table() -> Result<(), Refused> {
         p(0x602038 + 4 * c as usize, car);
         p(0x601D68 + 4 * c as usize, name);
     }
-    let mut rival = g(0x6238BC);
+    let mut rival = RACE_VARS.rivals.get();
     if rival == 0 {
         return Ok(());
     }

@@ -8,10 +8,7 @@
 //! See `race/mud.rs`. Refuses what `mud_texture_turn` refuses.
 
 use crate::errors::Refused;
-use crate::framework::{game_read, game_write, rva};
-use crate::race::muddy_texel::TEXTURE_RVA;
-
-const FRAMES_RVA: usize = rva(0x623D58); // dword_623D58
+use crate::race::vars_store::RACE_VARS;
 
 /// The Rust version (see the header).
 pub unsafe fn mud_frame() -> Result<(), Refused> {
@@ -19,14 +16,18 @@ pub unsafe fn mud_frame() -> Result<(), Refused> {
     use crate::race::mud_texture_turn::mud_texture_turn;
     use rc2k_core::race::mud::{count_frame, next_texture, texture_turn};
     unsafe {
-        let (frames, due) = count_frame(game_read(FRAMES_RVA));
-        game_write(FRAMES_RVA, frames);
+        let (frames, due) = count_frame(RACE_VARS.mud_frames.bits());
+        RACE_VARS.mud_frames.set_bits(frames);
         if !due {
             return Ok(());
         }
-        game_write(TEXTURE_RVA, texture_turn(game_read(TEXTURE_RVA)));
+        RACE_VARS
+            .mud_texture
+            .set_bits(texture_turn(RACE_VARS.mud_texture.bits()));
         mud_texture_turn()?;
-        game_write(TEXTURE_RVA, next_texture(game_read(TEXTURE_RVA)));
+        RACE_VARS
+            .mud_texture
+            .set_bits(next_texture(RACE_VARS.mud_texture.bits()));
         Ok(())
     }
 }

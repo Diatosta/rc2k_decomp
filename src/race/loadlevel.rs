@@ -7,14 +7,13 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::game_map::MAP;
+use crate::race::numbers_store::NUMBERS;
+use crate::race::vars_store::RACE_VARS;
+use crate::race::work_store::RACE_WORK;
 
 const EDITOR_RVA: usize = rva(0x621514); // dword_621514
-const DIRECTION_IN_RVA: usize = rva(0x623854); // dword_623854
-const DIRECTION_RVA: usize = rva(0x71B400); // g_stageDirection
-const STAGE_RVA: usize = rva(0x623850); // g_stageNumber
-pub const BAR_MARK_RVA: usize = rva(0x623700); // dword_623700
-pub const BAR_CALLBACK_RVA: usize = rva(0x623704); // dword_623704
 const BAR_RVA: usize = rva(0x4467C7); // sub_4467C7: the loading bar's 3D frame
 const BAR_DONE_RVA: usize = rva(0x4467C6); // nullsub_8
 const OBJECT_SPAN_RVA: [usize; 2] = [rva(0x623634), rva(0x623638)]; // dword_623634 / 38
@@ -24,10 +23,6 @@ const REFRESH_FLAGS_RVA: usize = rva(0x609354); // dword_609354
 const REFRESH_FLAGS_2_RVA: usize = rva(0x609350); // dword_609350
 const REFRESH_A_RVA: usize = rva(0x62DAD0); // dword_62DAD0
 const REFRESH_B_RVA: usize = rva(0x62DACC); // dword_62DACC
-/// Each car block's +0x84 (dword_70F470 ..).
-const BLOCK_84: [usize; 8] = [
-    0x70F470, 0x710450, 0x711430, 0x712410, 0x7133F0, 0x7143D0, 0x7153B0, 0x716390,
-];
 const NO_PLACE_RVA: usize = rva(0x64BB18); // dword_64BB18
 const MARKER_OBJECT_RVA: usize = rva(0x621508); // dword_621508
 const CLEARED_RVA: [usize; 2] = [rva(0x719FD0), rva(0x719FD4)]; // dword_719FD0 / D4
@@ -79,7 +74,7 @@ impl LoadVars {
         Self {
             indent: crate::logfile::write_line::indent_place(), // g_logIndent
             log_enabled: crate::logfile::write_line::enabled_place(), // g_logEnabled
-            in_race: game_addr(rva(0x5C5CEC)) as u32,           // g_inRace
+            in_race: NUMBERS.in_race.addr() as u32,             // g_inRace
             bar: game_addr(BAR_RVA) as u32,
         }
     }
@@ -122,8 +117,8 @@ impl Steps {
     /// the last).
     fn progress(&mut self, mark: u32) -> Result<(), Refused> {
         unsafe {
-            game_write(BAR_MARK_RVA, mark);
-            if game_read::<u32>(BAR_CALLBACK_RVA) != self.v.bar {
+            RACE_VARS.bar_share.set_bits(mark);
+            if RACE_VARS.bar_function.bits() != self.v.bar {
                 return Err(BadInput("the loading bar's callback is not the loading bar").into());
             }
             crate::race::loading_bar_frame::loading_bar_frame()
@@ -171,13 +166,13 @@ pub unsafe fn loadlevel_init() -> Result<(), Refused> {
         s.indent(3);
         MAP.use_packed.set(1u32);
         MAP.packed_2.set((game_read::<u32>(EDITOR_RVA) == 0) as u32);
-        let mut direction: u32 = game_read(DIRECTION_IN_RVA);
-        if [0x1F, 0x22, 0x51].contains(&game_read::<u32>(STAGE_RVA)) {
+        let mut direction: u32 = RACE_VARS.direction.bits();
+        if [0x1F, 0x22, 0x51].contains(&RACE_VARS.stage.bits()) {
             direction ^= 1;
         }
-        game_write(DIRECTION_RVA, direction);
+        RACE_WORK.stage_direction.set(direction);
         put(v.in_race, 1);
-        game_write(BAR_CALLBACK_RVA, v.bar);
+        RACE_VARS.bar_function.set_bits(v.bar);
         s.progress(0)?;
         s.indent(-3);
         s.step(
@@ -199,7 +194,7 @@ pub unsafe fn loadlevel_init() -> Result<(), Refused> {
         s.log();
         s.indent(3);
         level::load_texture_info(&Vars::game())?;
-        level::set_course_number(game_read(STAGE_RVA));
+        level::set_course_number(RACE_VARS.stage.bits());
         s.progress(6)?;
         s.indent(-3);
         s.step(&mut || stage_prefs::load_prefs(), Some(7))?;
@@ -264,8 +259,8 @@ pub unsafe fn loadlevel_init() -> Result<(), Refused> {
         level::reset_refresh(&Vars::game());
         let flags: u32 = game_read(REFRESH_FLAGS_RVA);
         game_write(REFRESH_A_RVA, (flags & 2) >> 1);
-        for b in BLOCK_84 {
-            game_write(rva(b), flags & 1);
+        for car in &CAR_BLOCKS.cars[..8] {
+            car.lights_on.set(flags & 1);
         }
         game_write(REFRESH_B_RVA, game_read::<u32>(REFRESH_FLAGS_2_RVA) & 1);
         s.indent(-3);
@@ -298,7 +293,9 @@ pub unsafe fn loadlevel_init() -> Result<(), Refused> {
         crate::race::mud::init_mud()?;
         s.progress(0x64)?;
         s.progress(0x64)?;
-        game_write(BAR_CALLBACK_RVA, game_addr(BAR_DONE_RVA) as u32);
+        RACE_VARS
+            .bar_function
+            .set_bits(game_addr(BAR_DONE_RVA) as u32);
         s.indent(-3);
         s.step(
             &mut || {

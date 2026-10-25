@@ -6,10 +6,8 @@
 //!
 //! Caller: `sub_43B635` (0x43B87E), every physics step.
 
-use crate::framework::{game_addr, rva};
-
-/// From, to, three times (IDA addresses).
-const VARIABLES: [usize; 6] = [0x71A17C, 0x71A180, 0x71A184, 0x61409C, 0x6140A0, 0x6140A4];
+use crate::physics::car_store::CAR;
+use crate::physics::tables_store::PHYSICS;
 
 unsafe fn core(v: &[u32]) {
     for k in 0..3 {
@@ -18,10 +16,14 @@ unsafe fn core(v: &[u32]) {
 }
 
 fn game() -> Vec<u32> {
-    VARIABLES
-        .iter()
-        .map(|&x| game_addr(rva(x)) as u32)
-        .collect()
+    vec![
+        CAR.local_velocity[0].addr() as u32,
+        CAR.local_velocity[1].addr() as u32,
+        CAR.local_velocity[2].addr() as u32,
+        PHYSICS.kept_motion[0].addr() as u32,
+        PHYSICS.kept_motion[1].addr() as u32,
+        PHYSICS.kept_motion[2].addr() as u32,
+    ]
 }
 
 /// The Rust version.

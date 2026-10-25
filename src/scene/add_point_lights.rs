@@ -18,13 +18,12 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_read, game_write, rva};
+use crate::race::course_store::COURSE;
+use crate::race::view_store::RACE_VIEW;
 use crate::scene::draw_polygon::CHECKED_RVA;
-use crate::scene::project_point::POINTS_RVA;
 use crate::session::MACHINE;
 
 // ---- game data ----
-
-const LAMPS_RVA: usize = rva(0x63DC48); // dword_63DC48
 const LAMP_LIST_RVA: usize = rva(0x63E05C); // dword_63E05C
 const MOST: u32 = 0x100;
 const STRENGTH_RVA: usize = rva(0x639958); // dword_639958
@@ -38,11 +37,11 @@ pub const LIGHT_COLOUR_RVA: usize = rva(0x62DAC4); // g_lightColour
 pub unsafe fn add_point_lights() -> Result<(), Refused> {
     use rc2k_core::scene::lamps::{self, Lamp};
     unsafe {
-        let lamps: u32 = game_read(LAMPS_RVA);
+        let lamps: u32 = RACE_VIEW.lamp_count.bits();
         if lamps == 0 {
             return Ok(());
         }
-        let points: u32 = game_read(POINTS_RVA);
+        let points: u32 = COURSE.scene_points.bits();
         if lamps > MOST || points == 0 {
             return Err(BadInput("more lamps than the list holds, or no points").into());
         }

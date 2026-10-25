@@ -12,11 +12,9 @@
 //! along the copy).
 
 use crate::errors::Refused;
-use crate::framework::{game_addr, rva};
+use crate::physics::car_store::CAR;
 use crate::physics::flag_result::FlagResult;
 use rc2k_core::physics::gearbox::GearBits;
-
-pub const GEAR_BITS_RVA: usize = rva(0x71A40C); // g_carGearBits
 
 /// The gear bits in the dword at `bits`.
 pub unsafe fn bits_at(bits: u32) -> GearBits {
@@ -38,5 +36,5 @@ pub unsafe fn gear_bit_at(bits: u32, gear: u32) -> Result<FlagResult, Refused> {
 
 /// The Rust version.
 pub unsafe fn gear_bit(gear: u32) -> Result<FlagResult, Refused> {
-    unsafe { gear_bit_at(game_addr(GEAR_BITS_RVA) as u32, gear) }
+    unsafe { gear_bit_at(CAR.lost_gear_bits.addr() as u32, gear) }
 }

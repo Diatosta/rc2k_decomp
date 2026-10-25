@@ -8,10 +8,7 @@
 //! (before anything) ebx 0 (the original would loop 2^32 times) or above 0x100.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, rva};
 use crate::physics::apply_torque::apply_torque;
-
-const CAR_RVA: usize = rva(0x719FD8); // g_car
 
 /// Refused before anything?
 // Converted: `rc2k_core::physics::pushes::record_count`.
@@ -26,7 +23,7 @@ pub unsafe fn apply_torques(first: u32, count: u32) -> Result<(), Refused> {
     if let Some(why) = refusal(count) {
         return Err(BadInput(why).into());
     }
-    let car = game_addr(CAR_RVA) as u32;
+    let car = crate::physics::car_store::car_addr() as u32;
     for k in 0..count {
         unsafe { apply_torque(first + 0x20 * k, car) };
     }

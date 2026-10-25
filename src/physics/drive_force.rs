@@ -12,32 +12,40 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::math::x87_run::{mul_div2, sum_times_int_over_minus};
+use crate::physics::car_store::CAR;
 use crate::physics::drive_torque_share::drive_torque_share;
 use crate::physics::engine_torque::{g, p};
 use crate::physics::engine_torque_or_cut::engine_torque_or_cut;
+use crate::physics::tables_store::PHYSICS;
+use crate::race::numbers_store::NUMBERS;
 
 /// The Rust version (the exact one, for the Rust callers' exact comparisons).
 pub unsafe fn drive_force() -> Result<(), Refused> {
-    let gear = g(0x71A1AC);
+    let gear = CAR.gear.get();
     if !(-1..=7).contains(&(gear as i32)) {
         return Err(BadInput("a gear outside g_gearRatios (-1 ..= 7)").into());
     }
     unsafe { engine_torque_or_cut() };
     p(
         0x614740,
-        sum_times_int_over_minus(g(0x614748), g(0x614744), g(0x71A610) as i32, g(0x5C5E2C)),
+        sum_times_int_over_minus(
+            PHYSICS.engine_force.bits(),
+            PHYSICS.engine_torque.bits(),
+            CAR.throttle.get() as i32,
+            NUMBERS.k256.bits(),
+        ),
     );
     p(
         0x614750,
         mul_div2(
-            g(0x614740),
+            PHYSICS.drive_ratio.bits(),
             g(0x5CB968),
             g(0x6140C0 + 4 * gear as usize),
-            g(0x5C5E34),
+            NUMBERS.k10000.bits(),
         ),
     );
-    if g(0x71A1A8) != 0 {
-        p(0x614750, 0);
+    if CAR.drive_cut_steps.get() != 0 {
+        PHYSICS.drive_torque.set_bits(0);
     }
     unsafe { drive_torque_share() };
     Ok(())

@@ -66,6 +66,18 @@ pub fn write_all<const N: usize>(cells: &[Dword; N], values: [u32; N]) {
     }
 }
 
+/// The bits of a run of dwords or floats (`Cell32`), as the image's bytes read whole.
+pub fn read_bits<C: Cell32, const N: usize>(cells: &[C; N]) -> [u32; N] {
+    std::array::from_fn(|k| cells[k].bits())
+}
+
+/// Stores a run of dwords or floats by their bits.
+pub fn write_bits<C: Cell32, const N: usize>(cells: &[C; N], values: [u32; N]) {
+    for (cell, value) in cells.iter().zip(values) {
+        cell.set_bits(value);
+    }
+}
+
 /// Stores `values` into the first cells of a run of dwords (the rest keep their values).
 pub fn write_prefix(cells: &[Dword], values: &[u32]) {
     assert!(values.len() <= cells.len());

@@ -26,18 +26,20 @@ use crate::math::x87;
 use crate::math::x87_float::X;
 use crate::math::x87_float::compare;
 use crate::math::x87_run::{abs_compare, abs_of, neg_rounded};
-use crate::physics::flow::{a, c0, ease_zero, g, hold_high, hold_low, p};
+use crate::physics::car_store::CAR;
+use crate::physics::flow::{c0, ease_zero, hold_high, hold_low};
 use crate::physics::gearing::{GearPlaces, revs_from_wheels_at};
+use crate::physics::tables_store::PHYSICS;
+use crate::race::numbers_store::NUMBERS;
+use crate::race::vars_store::RACE_VARS;
+use crate::scene::draw_store::DRAW;
 use crate::scene::matrix3::extended;
 use crate::scene::x87_mem::{fild, fld, fnstsw, fstp};
+use crate::session::Float;
 
 /// `fld v; fabs; fsub one; fchs; fstp to` (0x43DFB1, 0x43E00B): 1 less |v|.
-fn one_less_abs(v: usize, to: usize) {
-    x87_1(
-        a(v) as usize,
-        crate::race::store::asm_base() as usize,
-        a(to) as usize,
-    );
+fn one_less_abs(v: &Float, to: &Float) {
+    x87_1(v.addr(), crate::race::store::asm_base() as usize, to.addr());
 }
 
 /// `fld b; fabs; fld a; fabs; fcompp; fnstsw`: C0, |a| below |b| or unordered.
@@ -48,81 +50,88 @@ fn abs_below(x: u32, y: u32) -> bool {
 }
 
 /// `fld from; fstp to`.
-fn store_loaded(to: usize, from: usize) {
-    p(to, x87::loaded(g(from)));
+fn store_loaded(to: &Float, from: &Float) {
+    to.set_bits(x87::loaded(from.bits()));
 }
 
 /// 0x43E5CF .. 0x43E643 (and the second wheel's at 0x43E68D): the slip `s` (at `slip`)
 /// signed by the slip ratio's sign, the drive speed (`drive`) less it x (`dword_614BA8`
 /// - 1), and the two force records' parts at `f1`, `f2`.
-fn settle_slip(drive: usize, slip: usize, ratio: usize, f1: usize, f2: usize) {
+fn settle_slip(drive: &Float, slip: &Float, ratio: &Float, f1: &Float, f2: &Float) {
     x87_3(
-        a(drive) as usize,
+        drive.addr(),
         crate::race::store::asm_base() as usize,
-        a(ratio) as usize,
+        ratio.addr(),
     );
-    let s = abs_of(g(slip));
-    let signed = if c0(g(ratio), g(0x5C5D90)) {
+    let s = abs_of(slip.bits());
+    let signed = if c0(ratio.bits(), NUMBERS.zero.bits()) {
         neg_rounded(extended(s))
     } else {
         s
     };
-    p(slip, signed);
+    slip.set_bits(signed);
     x87_4(
-        a(drive) as usize,
+        drive.addr(),
         crate::race::store::asm_base() as usize,
-        a(slip) as usize,
-        a(f1) as usize,
-        a(f2) as usize,
+        slip.addr(),
+        f1.addr(),
+        f2.addr(),
     );
 }
 
 /// The slip's first limit (0x43E58B / 0x43E649): |drive - speed| / `dword_614BA8` into
 /// `ratio`, and `slip` the lesser of it and `force` (by `fcompp`).
-fn slip_limit(drive: usize, ratio: usize, force: usize, slip: usize) {
+fn slip_limit(drive: &Float, ratio: &Float, force: &Float, slip: &Float) {
     x87_5(
-        a(drive) as usize,
+        drive.addr(),
         crate::race::store::asm_base() as usize,
-        a(ratio) as usize,
+        ratio.addr(),
     );
-    let pick = if c0(g(ratio), g(force)) { ratio } else { force };
+    let pick = if c0(ratio.bits(), force.bits()) {
+        ratio
+    } else {
+        force
+    };
     store_loaded(slip, pick);
 }
 
 /// The steps.
 fn steps() -> Result<(), Refused> {
-    let gear = g(0x71A1AC);
-    one_less_abs(0x71A090, 0x6140B0);
-    hold_low(0x6140B0, 0x5C5DD0);
-    hold_high(0x6140B0, 0x5C5D38);
-    one_less_abs(0x71A0B0, 0x6140B4);
-    hold_low(0x6140B4, 0x5C5DD0);
-    hold_high(0x6140B4, 0x5C5D38);
+    let gear = CAR.gear.get();
+    one_less_abs(&CAR.crash_matrix[1], &PHYSICS.drive_shares[0]);
+    hold_low(&PHYSICS.drive_shares[0], &NUMBERS.tenth);
+    hold_high(&PHYSICS.drive_shares[0], &NUMBERS.one);
+    one_less_abs(&CAR.crash_matrix[9], &PHYSICS.drive_shares[1]);
+    hold_low(&PHYSICS.drive_shares[1], &NUMBERS.tenth);
+    hold_high(&PHYSICS.drive_shares[1], &NUMBERS.one);
     x87_6(crate::race::store::asm_base() as usize);
-    hold_low(0x6140B8, 0x5C5D90);
-    hold_high(0x6140B8, 0x5C5D38);
-    if g(0x71A228) == 0 {
+    hold_low(&PHYSICS.drive_shares[2], &NUMBERS.zero);
+    hold_high(&PHYSICS.drive_shares[2], &NUMBERS.one);
+    if CAR.driven_wheels_off.get() == 0 {
         if gear == 0 {
-            p(0x614750, 0);
+            PHYSICS.drive_torque.set_bits(0);
         }
         unsafe { crate::physics::cap_drive_speed::cap_drive_speed() };
-        p(0x614134, 0);
+        PHYSICS.wheels_driven.set(0);
         let mut offset = 0;
-        if g(0x71A614) != 0 {
+        if CAR.brake.get() != 0 {
             offset = 0x14;
-            p(0x614134, 1);
+            PHYSICS.wheels_driven.set(1);
         }
         x87_7(crate::race::store::asm_base() as usize, offset as usize);
-        p(0x62400C, g(0x71A610).wrapping_add(0x100));
+        DRAW.scratch.set(CAR.throttle.get().wrapping_add(0x100));
         x87_8(crate::race::store::asm_base() as usize);
-        hold_high(0x614240, 0x62400C);
-        let pick = if abs_below(g(0x614240), g(0x61423C)) {
-            0x61423C
+        hold_high(&PHYSICS.drive_limits[1], &DRAW.scratch);
+        let pick = if abs_below(
+            PHYSICS.drive_limits[1].bits(),
+            PHYSICS.drive_limits[0].bits(),
+        ) {
+            &PHYSICS.drive_limits[0]
         } else {
-            0x614240
+            &PHYSICS.drive_limits[1]
         };
-        store_loaded(0x614244, pick);
-        let kind = g(0x71A018);
+        store_loaded(&PHYSICS.drive_limits[2], pick);
+        let kind = CAR.drive_kind.get();
         if gear != 0 && kind == 1 {
             x87_9(crate::race::store::asm_base() as usize);
         }
@@ -132,17 +141,33 @@ fn steps() -> Result<(), Refused> {
         revs()?;
         // 0x43E2C2: the wheels' drag on each drive speed.
         x87_11(crate::race::store::asm_base() as usize);
-        ease_zero(0x71A190, 0x61422C);
+        ease_zero(
+            &crate::physics::car_store::CAR.drive_speed_a,
+            &PHYSICS.wheel_speed_step,
+        );
         x87_12(crate::race::store::asm_base() as usize);
-        ease_zero(0x71A194, 0x61422C);
+        ease_zero(
+            &crate::physics::car_store::CAR.drive_speed_b,
+            &PHYSICS.wheel_speed_step,
+        );
         x87_13(crate::race::store::asm_base() as usize);
-        ease_zero(0x71A194, 0x61422C);
-        if g(0x71A618) != 0 {
-            let (v, mut status) = ([g(0x71A190), g(0x71A194), g(0x5C5D38)], 0u16);
+        ease_zero(
+            &crate::physics::car_store::CAR.drive_speed_b,
+            &PHYSICS.wheel_speed_step,
+        );
+        if CAR.handbrake.get() != 0 {
+            let (v, mut status) = (
+                [
+                    CAR.drive_speed_a.bits(),
+                    CAR.drive_speed_b.bits(),
+                    NUMBERS.one.bits(),
+                ],
+                0u16,
+            );
             x87_14(v.as_ptr() as usize, (&raw mut status) as usize);
             if status & 0x100 != 0 {
-                p(0x71A190, 0);
-                p(0x71A194, 0);
+                CAR.drive_speed_a.set_bits(0);
+                CAR.drive_speed_b.set_bits(0);
             }
         }
         revs()?;
@@ -153,27 +178,55 @@ fn steps() -> Result<(), Refused> {
             crate::physics::ease_low_speed_forces::ease_low_speed_forces();
         }
         x87_16(crate::race::store::asm_base() as usize);
-        if g(0x71A25C) != 0 {
-            p(0x614248, x87::mul(g(0x614248), g(0x5C5E40)));
-            p(0x61424C, x87::mul(g(0x61424C), g(0x5C5E40)));
+        if CAR.parts_state.get() != 0 {
+            PHYSICS.drive_forces[0].set_bits(x87::mul(
+                crate::physics::tables_store::PHYSICS.drive_forces[0].bits(),
+                NUMBERS.half.bits(),
+            ));
+            PHYSICS.drive_forces[1].set_bits(x87::mul(
+                crate::physics::tables_store::PHYSICS.drive_forces[1].bits(),
+                NUMBERS.half.bits(),
+            ));
         }
-        slip_limit(0x71A190, 0x614C1C, 0x614248, 0x614258);
-        settle_slip(0x71A190, 0x614258, 0x614C1C, 0x614958, 0x614978);
-        slip_limit(0x71A194, 0x614C20, 0x61424C, 0x61425C);
-        settle_slip(0x71A194, 0x61425C, 0x614C20, 0x614998, 0x6149B8);
+        slip_limit(
+            &CAR.drive_speed_a,
+            &PHYSICS.axle_slip_limits[0],
+            &PHYSICS.drive_forces[0],
+            &PHYSICS.axle_slips[0],
+        );
+        settle_slip(
+            &CAR.drive_speed_a,
+            &PHYSICS.axle_slips[0],
+            &PHYSICS.axle_slip_limits[0],
+            &PHYSICS.forces[15].force[2],
+            &PHYSICS.forces[16].force[2],
+        );
+        slip_limit(
+            &CAR.drive_speed_b,
+            &PHYSICS.axle_slip_limits[1],
+            &PHYSICS.drive_forces[1],
+            &PHYSICS.axle_slips[1],
+        );
+        settle_slip(
+            &CAR.drive_speed_b,
+            &PHYSICS.axle_slips[1],
+            &PHYSICS.axle_slip_limits[1],
+            &PHYSICS.forces[17].force[2],
+            &PHYSICS.forces[18].force[2],
+        );
         // 0x43E707: the car-frame side speed eased by the side grip.
-        p(0x62400C, g(0x71A17C));
-        ease_zero(0x62400C, 0x614244);
+        DRAW.scratch.set(CAR.local_velocity[0].bits());
+        ease_zero(&DRAW.scratch, &PHYSICS.drive_limits[2]);
         x87_17(crate::race::store::asm_base() as usize);
-        store_loaded(0x614264, 0x61423C);
-        store_loaded(0x6141D4, 0x614BFC);
-        let status = abs_compare(g(0x614250), g(0x614264));
+        store_loaded(&PHYSICS.slip_limit, &PHYSICS.drive_limits[0]);
+        store_loaded(&PHYSICS.wheel_spin_push[0], &PHYSICS.handling[4]);
+        let status = abs_compare(PHYSICS.drive_slip[0].bits(), PHYSICS.slip_limit.bits());
         if status & 0x4100 == 0 {
             x87_18(crate::race::store::asm_base() as usize);
         }
         x87_19(crate::race::store::asm_base() as usize);
-        p(0x6148B0, 0);
-        p(0x6148B8, 0);
+        PHYSICS.forces[10].force[0].set_bits(0);
+        PHYSICS.forces[10].force[2].set_bits(0);
         // 0x43E855: the rolling drag against the motion.
         let mut status = 0u16;
         x87_20(
@@ -183,19 +236,19 @@ fn steps() -> Result<(), Refused> {
         if status & 0x4100 == 0 {
             x87_21(crate::race::store::asm_base() as usize);
         }
-        if g(0x62389C) != 1 && (g(0x719FEC).wrapping_sub(0x320) as i32) < 0 {
-            p(0x71A190, 0);
-            p(0x71A194, 0);
+        if RACE_VARS.run_kind.get() != 1 && (CAR.run_ticks.get().wrapping_sub(0x320) as i32) < 0 {
+            CAR.drive_speed_a.set_bits(0);
+            CAR.drive_speed_b.set_bits(0);
         }
         x87_22(crate::race::store::asm_base() as usize);
-        p(0x6149D0, 0);
-        p(0x6149F0, 0);
+        PHYSICS.forces[19].force[0].set_bits(0);
+        PHYSICS.forces[20].force[0].set_bits(0);
     }
     // 0x43E957: the wheels' slip figures.
     x87_23(crate::race::store::asm_base() as usize);
-    hold_low(0x62401C, 0x5C5D90);
+    hold_low(&DRAW.work_float_a, &NUMBERS.zero);
     x87_24(crate::race::store::asm_base() as usize);
-    hold_low(0x624020, 0x5C5D90);
+    hold_low(&DRAW.work_float_b, &NUMBERS.zero);
     x87_25(crate::race::store::asm_base() as usize);
     Ok(())
 }
@@ -208,7 +261,7 @@ fn revs() -> Result<(), Refused> {
 
 /// The Rust version. The eax and ebx it leaves are read by none of its callers.
 pub unsafe fn drive_wheels_step() -> Result<(), Refused> {
-    let gear = g(0x71A1AC);
+    let gear = CAR.gear.get();
     if gear != 0 && !(-1..=7).contains(&(gear as i32)) {
         return Err(BadInput("a gear outside g_gearRatios (-1 ..= 7)").into());
     }

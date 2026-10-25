@@ -15,22 +15,9 @@ use crate::framework::{game_addr, rva};
 use crate::physics::edge_side::{EdgePlaces, edge_side_at};
 use crate::physics::find_course_record::{RecordPlaces, find_course_record_at};
 use crate::physics::plane_height::{Plane, plane_height_at};
+use crate::race::course_store::COURSE;
+use crate::race::numbers_store::NUMBERS;
 use rc2k_core::physics::ground_search::{self, FaceTest};
-
-/// The game's ranges the search uses (IDA addresses, end exclusive): the course tables
-/// and pointers (`g_kindFirstRecords` .. `g_courseFaceCount`), the edge test's product
-/// and the face mask, the SSE switch, the ground's work variables; for
-/// `physics::probe_ground` also the car's ground points (0x6D1E14 ..), the work copy
-/// `g_car` and the scratch `dword_62400C`.
-pub const RANGES: [(u32, u32); 7] = [
-    (0x5CC3E4, 0x5CCD20),
-    (0x620460, 0x620474),
-    (0x621A58, 0x621A5C),
-    (0x6396FC, 0x63989C),
-    (0x6D1E14, 0x6D3B88),
-    (0x719FD8, 0x71AFB8),
-    (0x62400C, 0x624010),
-];
 
 const POINTS: u32 = 0x5CCCC0; // g_scenePoints (x, y, z whole numbers, 12 bytes each)
 const FACES: u32 = 0x5CCCBC; // g_courseFaces
@@ -39,26 +26,17 @@ const RECORDS: u32 = 0x5CCCB8; // g_courseRecords
 const RECORD_COUNT: u32 = 0x5CCD18; // g_courseRecordCount
 const LAST_FACE: u32 = 0x5CCC78; // dword_5CCC78: the face found last time
 
-/// Where the ground variables are: the game's, or a test's copies of `RANGES`.
+/// The ground variables, by IDA address (the tests' copies went with the hooks).
 #[derive(Clone, Copy)]
-pub struct Ground {
-    test: Option<[u32; 7]>,
-}
+pub struct Ground;
 
 impl Ground {
     pub fn game() -> Self {
-        Self { test: None }
+        Self
     }
 
     /// The address of the variable IDA shows at `ida`.
     pub fn a(&self, ida: u32) -> u32 {
-        if let Some(bases) = self.test {
-            for (k, &(lo, hi)) in RANGES.iter().enumerate() {
-                if (lo..hi).contains(&ida) {
-                    return bases[k] + (ida - lo);
-                }
-            }
-        }
         game_addr(rva(ida as usize)) as u32
     }
 
@@ -146,7 +124,7 @@ pub unsafe fn face_shares_at(g: &Ground) {
             d[3].1,
             d[4].1,
             d[5].1,
-            g.get(0x5C5D98),
+            NUMBERS.k65536.bits(),
         ];
         let mut o = [0u32; 8];
         crate::math::x87_run::face_shares(&i, &mut o, sse);
@@ -183,7 +161,7 @@ pub unsafe fn face_under_point_at(g: &Ground, number: u32) -> Result<bool, Refus
         if let Some(why) = face_refusal(g, number) {
             return Err(BadInput(why).into());
         }
-        g.put(0x5CCC70, number);
+        COURSE.ground_number.set(number);
         let face = (number << 6).wrapping_add(g.get(FACES));
         let kind = (face as *const u8).read();
         // One edge.
@@ -202,10 +180,10 @@ pub unsafe fn face_under_point_at(g: &Ground, number: u32) -> Result<bool, Refus
             FaceTest::Kind | FaceTest::Flags(_) | FaceTest::Edge => return Ok(false),
             FaceTest::Inside { half, corners } => (half, corners),
         };
-        let number = g.get(0x5CCC70);
-        g.put(0x5CCC74, number);
+        let number = COURSE.ground_number.get();
+        COURSE.ground_slot.set(number);
         let face = (number << 6).wrapping_add(g.get(FACES));
-        g.put(0x5CCC6C, half);
+        COURSE.ground_half.set(half);
         for (k, &o) in corners.iter().enumerate() {
             let corner = at(face + o);
             g.put(0x639890 + 4 * k as u32, corner);
@@ -291,7 +269,7 @@ pub unsafe fn ground_search_at(g: &Ground) -> Result<bool, Refused> {
         }
         let found = ground_search::ground_search(
             || try_last_face_at(g),
-            || g.put(0x5CCC74, ground_search::NO_FACE),
+            || COURSE.ground_slot.set(ground_search::NO_FACE),
             || (g.get(0x639824), g.get(0x63982C)),
             |x, z| search_cell_at(g, x, z),
         )?;

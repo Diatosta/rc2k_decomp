@@ -15,9 +15,10 @@
 //! stays the x87's).
 
 use crate::marks::rain::{RAIN, RAIN_RULES};
-use crate::marks::setup::{CLOCK_RVA, SEED_RVA};
+use crate::marks::setup::SEED_RVA;
 use crate::marks::store::{game_read, game_write};
 use crate::math::x87;
+use crate::physics::tables_store::PHYSICS;
 
 /// The marks' random: times 0x9D plus 0x47.
 unsafe fn next_seed() -> u32 {
@@ -34,7 +35,7 @@ unsafe fn next_seed() -> u32 {
 pub unsafe fn drift_offsets() {
     let (r, k) = (&RAIN, &RAIN_RULES);
     unsafe {
-        let since = game_read::<u32>(CLOCK_RVA).wrapping_sub(r.drift_since.get());
+        let since = PHYSICS.scene_clock.bits().wrapping_sub(r.drift_since.get());
         if since >= r.drift_wait.get() {
             let s = next_seed();
             let x = (s & 0xFFF).wrapping_sub(0x7FF);
@@ -42,7 +43,7 @@ pub unsafe fn drift_offsets() {
             let y = ((s >> 12) & 0xFFF).wrapping_sub(0x7FF);
             r.drift_target[2].set_bits(x87::int_times(y as i32, k.target_scale[1].bits()));
             r.drift_wait.set(((s >> 24) + 0x40) * 5);
-            r.drift_since.set(game_read::<u32>(CLOCK_RVA));
+            r.drift_since.set(PHYSICS.scene_clock.bits());
             let s = next_seed();
             r.drift_halves[0].set((s & 0xFFFF) << 8);
             r.drift_halves[2].set((s >> 16) << 8);

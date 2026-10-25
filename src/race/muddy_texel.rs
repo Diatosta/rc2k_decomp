@@ -20,10 +20,10 @@ use crate::race::mud::MUD_RVA;
 use crate::race::mud_texel::mud_texel;
 use crate::race::put_mud_texel::put_mud_texel;
 use crate::race::tint_to_mud_colour::tint_to_mud_colour;
-use crate::store::{game_read, game_write};
+use crate::race::vars_store::RACE_VARS;
+use crate::scene::draw_store::DRAW;
+use crate::store::game_read;
 
-pub const TEXTURE_RVA: usize = rva(0x623D5C); // dword_623D5C: the mud texture worked on
-pub const STRENGTH_RVA: usize = rva(0x62400C); // dword_62400C, a scratch
 pub const SHUFFLED_RVA: usize = rva(0xA6BB54); // g_shuffledWords, 0x10000 words
 // g_surface.format
 
@@ -35,7 +35,7 @@ pub fn shuffled_place(n: u32) -> (u32, u32) {
 
 /// The texture worked on and the mud, or the refusal.
 pub fn texture_and_mud() -> Result<(u32, u32), Refused> {
-    let n: u32 = unsafe { game_read(TEXTURE_RVA) };
+    let n: u32 = RACE_VARS.mud_texture.bits();
     if n > rc2k_core::race::mud::MOST_TEXTURE {
         return Err(BadInput("a mud texture past 3 (the map would be read past its end)").into());
     }
@@ -60,15 +60,15 @@ pub unsafe fn muddy_texel(number: u32) -> Result<(), Refused> {
     let (n, mud) = texture_and_mud()?;
     let (x, y) = shuffled_place(number);
     let strength = u32::from(unsafe { *(strength_at(mud, n, x, y) as *const u8) });
-    let kept: u32 = unsafe { game_read(STRENGTH_RVA) };
-    unsafe { game_write(STRENGTH_RVA, strength) };
+    let kept: u32 = DRAW.scratch.bits();
+    DRAW.scratch.set_bits(strength);
     let texel = unsafe { mud_texel(strength_row(y), x, y) };
     if !muddy(texel) {
         return Ok(());
     }
     let tinted = tint_to_mud_colour(texel, tint_amount(strength));
     if let Err(e) = unsafe { put_mud_texel(tinted | MUD_TOP, x, y) } {
-        unsafe { game_write(STRENGTH_RVA, kept) };
+        DRAW.scratch.set_bits(kept);
         return Err(e);
     }
     Ok(())

@@ -17,10 +17,10 @@
 use crate::drive::race_parts::{input_update, race_frame, restart_clock};
 use crate::errors::{BadInput, Refused};
 use crate::physics::flow::{c0, g, p};
+use crate::physics::tables_store::PHYSICS;
+use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::state_store::RACE_STATE;
 use crate::scene::x87_mem::{fild, fistp, fld};
-
-const B: usize = 0x70F3EC;
 
 /// The car's lift: `dword_70F524` += `flt_64BB38` x `flt_5C5D98` (`fiadd`, `fistp`), over the
 /// race block at `rc`.
@@ -40,14 +40,14 @@ fn lift_car(rc: usize) {
 pub unsafe fn finish_run() -> Result<(), Refused> {
     lift_car(crate::race::store::asm_base() as usize);
     restart_clock();
-    p(0x5CC3B4, g(0x613830));
-    p(0x5CC3B0, g(0x613830));
+    p(0x5CC3B4, PHYSICS.scene_clock.get());
+    p(0x5CC3B0, PHYSICS.scene_clock.get());
     for k in 0..0x20 {
         p(0x5CC1B0 + 4 * k, u32::MAX);
     }
     p(0x5C2538, u32::MAX);
     restart_clock();
-    p(0x64BB60, g(0x613830));
+    p(0x64BB60, PHYSICS.scene_clock.get());
     loop {
         crate::sound::store::RACE_SOUNDS.objects[0].revs.set(0);
         input_update();
@@ -63,7 +63,7 @@ pub unsafe fn finish_run() -> Result<(), Refused> {
         if pressed(1) || pressed(0x1C) {
             break;
         }
-        p(B + 0x684, 6);
+        CAR_BLOCKS.cars[0].camera_view.set_bits(6);
         unsafe {
             crate::race::frame_views::load_first_car()?;
             crate::drive::finish_camera::finish_camera();

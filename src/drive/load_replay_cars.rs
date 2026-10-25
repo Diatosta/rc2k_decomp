@@ -11,13 +11,14 @@ use crate::drive::save_replay_cars::piece_at;
 use crate::physics::flow::a;
 use rc2k_core::drive::replay_frames::start_layout;
 
-const SAVED: usize = 0x7172EC; // unk_7172EC
-
 /// The Rust version.
 // Converted: `rc2k_core::drive::replay_frames::start_layout`.
 pub fn load_replay_cars() {
     for (piece, offset, n) in start_layout() {
-        let (state, place) = (a(SAVED) + 4 * offset as u32, a(piece_at(piece)));
+        let (state, place) = (
+            crate::race::blocks_store::block_addr(8) as u32 + 4 * offset as u32,
+            a(piece_at(piece)),
+        );
         unsafe { std::ptr::copy(state as *const u32, place as *mut u32, n) };
     }
 }

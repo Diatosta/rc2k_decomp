@@ -19,15 +19,12 @@
 use crate::errors::Refused;
 use crate::framework::rva;
 use crate::marks::store::{game_addr, game_read, game_write};
-
-const RACE_CARS_RVA: usize = rva(0x63DB90); // g_raceCars
+use crate::race::blocks_store::CAR_BLOCKS;
+use crate::race::view_store::RACE_VIEW;
+use crate::race::work_store::RACE_WORK;
 const CARS_COPY_RVA: usize = rva(0x5C2FE0); // dword_5C2FE0
 const SET_RVA: [usize; 2] = [rva(0x5C5640), rva(0x5C563C)];
-const KIND_RVA: usize = rva(0x70F410); // g_carBlockStore.kind
 const FILE_RVA: usize = rva(0x5C562C); // dword_5C562C
-const COUNT_RVA: usize = rva(0x63DB94); // dword_63DB94
-const BLOCKS_RVA: usize = rva(0x71B3B8); // g_carBlocks
-const RECORDS_RVA: usize = rva(0x71B3D8); // g_carRecords
 const ROWS_RVA: usize = rva(0x5C90D8); // dword_5C90D8 ..: rows of 0x134
 const SETTINGS_RVA: usize = rva(0x5C2F84); // asc_5C2F84
 /// The Rust version (see the header).
@@ -35,14 +32,14 @@ const SETTINGS_RVA: usize = rva(0x5C2F84); // asc_5C2F84
 pub unsafe fn init_mark_step() -> Result<(), Refused> {
     use rc2k_core::marks::race;
     unsafe {
-        let count: u32 = game_read(COUNT_RVA);
-        let block = |n: u32| game_read::<u32>(BLOCKS_RVA + 4 * n as usize);
-        let record = |n: u32| game_read::<u32>(RECORDS_RVA + 4 * n as usize);
+        let count: u32 = RACE_VIEW.players.bits();
+        let block = |n: u32| RACE_WORK.car_block(n as usize);
+        let record = |n: u32| RACE_WORK.car_record(n as usize);
         race::check_cars(count, |n| block(n) != 0 && record(n) != 0)?;
-        game_write(CARS_COPY_RVA, game_read::<u32>(RACE_CARS_RVA));
+        game_write(CARS_COPY_RVA, RACE_VIEW.race_cars.bits());
         game_write(SET_RVA[0], 0x50u32);
         game_write(SET_RVA[1], 1u32);
-        let file = crate::race::mud::car_file_number(game_read(KIND_RVA));
+        let file = crate::race::mud::car_file_number(CAR_BLOCKS.cars[0].car_kind.bits());
         game_write(FILE_RVA, file);
         for n in 0..count {
             let kind = ((block(n) + 0x24) as *const i32).read_unaligned();

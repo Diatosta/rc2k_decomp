@@ -9,14 +9,15 @@
 //! Caller: `drive::replay_step`. Refuses what `countdown_beep` refuses.
 
 use crate::errors::Refused;
-use crate::physics::flow::{a, p};
+use crate::physics::flow::a;
+use crate::race::work_store::RACE_WORK;
 
 const B: usize = 0x70F3EC;
 
 /// The Rust version.
 pub unsafe fn countdown_beeps() -> Result<(), Refused> {
     for (car, block, to) in [(0u32, B, 0x6D1482usize), (1, B + 0xFE0, 0x6D1492)] {
-        p(0x71B3F8, car);
+        RACE_WORK.current_car.set(car);
         unsafe { crate::drive::countdown_beep::countdown_beep(a(block), a(to)) }?;
     }
     Ok(())

@@ -25,19 +25,18 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_read, game_write, rva};
+use crate::race::numbers_store::NUMBERS;
+use crate::race::vars_store::RACE_VARS;
+use crate::race::work_store::RACE_WORK;
+use crate::scene::object_store::OBJECT_WORK;
 
 // ---- game data ----
 
 const DRAWING_RVA: usize = rva(0x62DA44); // dword_62DA44
-const IN_RACE_RVA: usize = rva(0x5C5CEC); // g_inRace
 const OBJECT_RVA: usize = rva(0x6214FC); // g_objectNumber
-const KIND_SWITCH_RVA: usize = rva(0x71C3E0); // dword_71C3E0
-const KIND_MODE_RVA: usize = rva(0x62389C); // dword_62389C
 const KINDS_RVA: usize = rva(0x5CD27C); // g_objectKinds
 const OTHER_WAY_RVA: usize = rva(0x621480); // dword_621480
 const SHOWN_RVA: usize = rva(0x609330); // dword_609330
-const WHICH_RVA: usize = rva(0x71B400); // dword_71B400
-const ONLY_RVA: usize = rva(0x635058); // dword_635058
 const FACE_COUNTS_RVA: usize = rva(0x632F70); // dword_632F70
 const KIND_BYTES_RVA: usize = rva(0x5CD688); // dword_5CD688
 use rc2k_core::scene::shown::OBJECTS;
@@ -52,10 +51,10 @@ impl rc2k_core::scene::shown::RaceObject for Game {
         unsafe { game_read(OBJECT_RVA) }
     }
     fn kind_switch(&self) -> u32 {
-        unsafe { game_read(KIND_SWITCH_RVA) }
+        RACE_WORK.in_credits.bits()
     }
     fn kind_mode(&self) -> u32 {
-        unsafe { game_read(KIND_MODE_RVA) }
+        RACE_VARS.run_kind.bits()
     }
     fn kind(&self, object: u32) -> u32 {
         unsafe { game_read(KINDS_RVA + object as usize * 4) }
@@ -67,10 +66,10 @@ impl rc2k_core::scene::shown::RaceObject for Game {
         unsafe { game_read(SHOWN_RVA) }
     }
     fn which(&self) -> u32 {
-        unsafe { game_read(WHICH_RVA) }
+        RACE_WORK.stage_direction.bits()
     }
     fn only(&self) -> u32 {
-        unsafe { game_read(ONLY_RVA) }
+        OBJECT_WORK.only_object.bits()
     }
     fn faces(&self, object: u32) -> u32 {
         unsafe { game_read(FACE_COUNTS_RVA + object as usize * 4) }
@@ -84,7 +83,7 @@ pub unsafe fn draw_shown_object(
     draw: &mut dyn FnMut() -> Result<(), Refused>,
 ) -> Result<bool, Refused> {
     unsafe {
-        let race = game_read::<u32>(IN_RACE_RVA) != 0;
+        let race = NUMBERS.in_race.bits() != 0;
         if race && game_read::<u32>(OBJECT_RVA) >= OBJECTS {
             return Err(BadInput("an object's number past the tables").into());
         }

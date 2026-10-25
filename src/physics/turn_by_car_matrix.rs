@@ -12,11 +12,11 @@
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
-use crate::framework::game_addr;
+use crate::physics::car_store::CAR;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
 
-pub use crate::race::stage_prefs::CRASH_MATRIX_RVA; // g_crashMatrix
+// g_crashMatrix
 
 /// The point at `v` turned by the matrix at `m`, as the two functions do it: `fld z; fld
 /// y; fld x`, `rotate_point`, `fstp x; fstp y; fstp z`.
@@ -37,5 +37,5 @@ pub unsafe fn turn_point_by(m: u32, v: u32) {
 
 /// The Rust version.
 pub unsafe fn turn_by_car_matrix(v: u32) {
-    unsafe { turn_point_by(game_addr(CRASH_MATRIX_RVA) as u32, v) }
+    unsafe { turn_point_by(CAR.crash_matrix[0].addr() as u32, v) }
 }

@@ -12,13 +12,9 @@
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
-use crate::framework::{game_addr, rva};
+use crate::physics::car_store::CAR;
+use crate::physics::tables_store::PHYSICS;
 use rc2k_core::physics::motion::hold_spin;
-
-/// The four wheels, the limit, x, z, the flag.
-const VARIABLES: [usize; 8] = [
-    0x71A5D8, 0x71A5DC, 0x71A5E0, 0x71A5E4, 0x613EA0, 0x71A15C, 0x71A164, 0x614C24,
-];
 
 /// The converted version (`rc2k_core::physics::motion`) on the variables at `v`. The
 /// registers it leaves (ecx the wheels on the ground, ebx 4) are read by none of its
@@ -42,10 +38,16 @@ pub unsafe fn hold_at(v: &[u32]) {
 }
 
 fn game() -> Vec<u32> {
-    VARIABLES
-        .iter()
-        .map(|&x| game_addr(rva(x)) as u32)
-        .collect()
+    vec![
+        CAR.wheel_squeeze[0].addr() as u32,
+        CAR.wheel_squeeze[1].addr() as u32,
+        CAR.wheel_squeeze[2].addr() as u32,
+        CAR.wheel_squeeze[3].addr() as u32,
+        PHYSICS.ground_spin_limit.addr() as u32,
+        CAR.spin[0].addr() as u32,
+        CAR.spin[2].addr() as u32,
+        PHYSICS.ground_spin.addr() as u32,
+    ]
 }
 
 /// The Rust version (compares and copies of floats only: the same at any precision); `r`

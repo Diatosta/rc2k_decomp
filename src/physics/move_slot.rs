@@ -33,6 +33,11 @@ use crate::math::x87;
 use crate::math::x87_run::{abs_compare, abs_of, mul2_to_int, neg_mul, neg_product_plus};
 use crate::physics::axis_turn_matrix::axis_turn_matrix;
 use crate::physics::ground::Ground;
+use crate::physics::tables_store::PHYSICS;
+use crate::race::course_store::COURSE;
+use crate::race::numbers_store::NUMBERS;
+use crate::race::work_store::RACE_WORK;
+use crate::scene::draw_store::DRAW;
 use crate::scene::matrix::multiply_matrices;
 use crate::scene::matrix3::rounded;
 use crate::scene::view_matrix::{square_matrix, unit_vector};
@@ -60,8 +65,8 @@ unsafe fn copy(from: u32, to: u32, n: u32) {
 /// writing: the point is put back).
 pub unsafe fn slot_refusal(s: u32) -> Option<&'static str> {
     unsafe {
-        let dt = game_read::<u32>(rva(0x61388C));
-        let k65536 = game_read::<u32>(rva(0x5C5D98));
+        let dt = PHYSICS.step_time.bits();
+        let k65536 = NUMBERS.k65536.bits();
         let moved =
             |c: u32, v: u32| at(s + c).wrapping_add(mul2_to_int(at(s + v), dt, k65536) as u32);
         let (x, z) = (moved(4, 0x50), moved(0xC, 0x58));
@@ -83,11 +88,11 @@ pub unsafe fn move_slot_at(s: u32) -> Result<(), Refused> {
         if let Some(why) = slot_refusal(s) {
             return Err(crate::errors::BadInput(why).into());
         }
-        let dt = game_read::<u32>(rva(0x61388C));
-        let k65536 = game_read::<u32>(rva(0x5C5D98));
-        game_write(rva(0x71BE90), at(s + 4));
-        game_write(rva(0x71BE94), at(s + 8));
-        game_write(rva(0x71BE98), at(s + 0xC));
+        let dt = PHYSICS.step_time.bits();
+        let k65536 = NUMBERS.k65536.bits();
+        RACE_WORK.slot_place[0].set(at(s + 4));
+        RACE_WORK.slot_place[1].set(at(s + 8));
+        RACE_WORK.slot_place[2].set(at(s + 0xC));
         put(
             s + 0x74,
             rounded(crate::physics::vector_length::vector_length(s + 0x68)),
@@ -106,21 +111,21 @@ pub unsafe fn move_slot_at(s: u32) -> Result<(), Refused> {
         }
         for (v, c) in [(0x54, 8), (0x50, 4), (0x58, 0xC)] {
             let d = mul2_to_int(at(s + v), dt, k65536) as u32;
-            game_write(rva(0x62400C), d);
+            DRAW.scratch.set(d);
             put(s + c, at(s + c).wrapping_add(d));
         }
         put(
             s + 0x54,
-            neg_product_plus(game_read(rva(0x613FC8)), dt, at(s + 0x54)),
+            neg_product_plus(PHYSICS.gravity.bits(), dt, at(s + 0x54)),
         );
         game_write(rva(0x639824), at(s + 4));
         game_write(rva(0x63982C), at(s + 0xC));
-        game_write(rva(0x5CCC78), at(s + 0x60));
+        COURSE.ground_face_last.set(at(s + 0x60));
         game_write(rva(0x620470), 0x80u32);
         crate::physics::find_ground::find_ground()?;
-        let face: u32 = game_read(rva(0x5CCC74));
+        let face: u32 = COURSE.ground_slot.get();
         if face == u32::MAX {
-            copy(a(0x71BE90), s + 4, 3);
+            copy(RACE_WORK.slot_place[0].addr() as u32, s + 4, 3);
             for o in [0x50, 0x54, 0x58, 0x68, 0x6C, 0x70] {
                 put(s + o, 0);
             }
@@ -132,22 +137,22 @@ pub unsafe fn move_slot_at(s: u32) -> Result<(), Refused> {
             return Ok(());
         }
         put(s + 8, height);
-        let half = game_read::<u32>(rva(0x5C5E40));
+        let half = NUMBERS.half.bits();
         put(s + 0x50, x87::mul(at(s + 0x50), half));
         put(s + 0x54, neg_mul(at(s + 0x54), half));
         put(s + 0x58, x87::mul(at(s + 0x58), half));
         for o in [0x68, 0x6C, 0x70] {
             put(s + o, neg_mul(at(s + o), half));
         }
-        if abs_compare(at(s + 0x54), game_read(rva(0x5C5D38))) & 0x100 != 0 {
-            copy(a(0x71BA88), s + 0x10, 12);
+        if abs_compare(at(s + 0x54), NUMBERS.one.bits()) & 0x100 != 0 {
+            copy(RACE_WORK.part_matrix_flat[0].addr() as u32, s + 0x10, 12);
             let n = at(s) % 20;
             if (n.wrapping_sub(5) as i32) >= 0 && (n.wrapping_sub(9) as i32) < 0 {
-                copy(a(0x71BA48), s + 0x10, 12);
+                copy(RACE_WORK.part_matrix_still[0].addr() as u32, s + 0x10, 12);
                 return Ok(());
             }
         }
-        game_write(rva(0x62400C), abs_of(at(s + 0x54)));
+        DRAW.scratch.set(abs_of(at(s + 0x54)));
         Ok(())
     }
 }

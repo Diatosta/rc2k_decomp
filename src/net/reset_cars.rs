@@ -9,16 +9,16 @@
 //! Caller: `net::set_up_race`.
 
 use crate::net::clear_car_state::clear_car_state;
-use crate::net::lobby::{g, p};
+use crate::net::lobby::p;
+use crate::race::work_store::RACE_WORK;
 use rc2k_core::net::cars;
 
-pub const CAR_BLOCKS: usize = 0x71B3B8; // g_carBlocks: eight pointers
 const AFTER: [usize; 2] = [0x6238CC, 0x6238D0]; // dword_6238CC, dword_6238D0
 
 /// The Rust version.
 pub fn reset_cars() {
     for car in 0..cars::CARS {
-        let block = g(CAR_BLOCKS + 4 * car as usize);
+        let block = RACE_WORK.car_block(car as usize);
         // Converted: `rc2k_core::net::cars::reset_fields`.
         for (offset, v) in cars::reset_fields(car) {
             unsafe { ((block + offset) as *mut u32).write_unaligned(v) };

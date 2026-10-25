@@ -11,7 +11,6 @@ use crate::physics::flow::a;
 use rc2k_core::drive::replay_frames::{StartPiece, start_layout};
 
 const B: usize = 0x70F3EC; // g_carBlockStore (four blocks of 0xFE0)
-const SAVED: usize = 0x7172EC; // unk_7172EC
 
 /// Where a piece of the starting state is.
 pub fn piece_at(piece: StartPiece) -> usize {
@@ -26,7 +25,10 @@ pub fn piece_at(piece: StartPiece) -> usize {
 // Converted: `rc2k_core::drive::replay_frames::start_layout`.
 pub fn save_replay_cars() {
     for (piece, offset, n) in start_layout() {
-        let (state, place) = (a(SAVED) + 4 * offset as u32, a(piece_at(piece)));
+        let (state, place) = (
+            crate::race::blocks_store::block_addr(8) as u32 + 4 * offset as u32,
+            a(piece_at(piece)),
+        );
         unsafe { std::ptr::copy(place as *const u32, state as *mut u32, n) };
     }
 }

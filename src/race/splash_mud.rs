@@ -15,18 +15,16 @@
 //! counters and the random state put back).
 
 use crate::errors::Refused;
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 use crate::gfx::fade_colour::fade_colour;
 use crate::math::next_random::next_random;
-use crate::race::mud::COLOURS_RVA;
 use crate::race::mud_texel::mud_texel;
 use crate::race::muddy_texel::{strength_at, texture_and_mud};
 use crate::race::put_mud_texel::put_mud_texel;
+use crate::race::vars_store::RACE_VARS;
 
 pub const SPLASHED_RVA: usize = rva(0x623D90); // dword_623D90: each texture's count
 pub const LAST_SPLASHED: u32 = 0x1000;
-const COLUMN_RVA: usize = rva(0x623D38); // dword_623D38
-const ROW_RVA: usize = rva(0x623D3C); // dword_623D3C
 
 /// The Rust version (see the header).
 pub unsafe fn splash_mud() -> Result<(), Refused> {
@@ -46,10 +44,10 @@ pub unsafe fn splash_mud() -> Result<(), Refused> {
         // eax carries from texel to texel: `mud_texel` and `put_mud_texel` hand it back
         // when they skip a place.
         let mut eax = splash_pattern(next_random());
-        let mut colours = (game_addr(COLOURS_RVA) as u32).wrapping_add(eax);
-        game_write(ROW_RVA, 0u32);
+        let mut colours = (RACE_VARS.mud_colours[0].addr() as u32).wrapping_add(eax);
+        RACE_VARS.mud_row.set_bits(0u32);
         for row in 0..SPLASH_SIDE {
-            game_write(COLUMN_RVA, 0u32);
+            RACE_VARS.mud_column.set_bits(0u32);
             for column in 0..SPLASH_SIDE {
                 eax = mud_texel(eax, x, y);
                 if muddy(eax) {
@@ -59,11 +57,11 @@ pub unsafe fn splash_mud() -> Result<(), Refused> {
                 }
                 colours = colours.wrapping_add(4);
                 x = x.wrapping_add(1);
-                game_write(COLUMN_RVA, column + 1);
+                RACE_VARS.mud_column.set_bits(column + 1);
             }
             x = x.wrapping_sub(4);
             y = y.wrapping_add(1);
-            game_write(ROW_RVA, row + 1);
+            RACE_VARS.mud_row.set_bits(row + 1);
         }
         Ok(())
     }

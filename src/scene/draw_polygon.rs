@@ -37,11 +37,16 @@
 //! work table and an entry without its vertex.
 
 use crate::d3d::cards_store::CARDS_3D;
-use crate::d3d::draw_fan_unclipped::{COUNT_RVA, VERTICES_RVA};
+use crate::d3d::draw_fan_unclipped::VERTICES_RVA;
 use crate::d3d::{NO_TEXTURE, VERTEX_LEN};
 use crate::errors::BadInput;
 use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::math::x87;
+use crate::race::frame_store::FRAME_WORK;
+use crate::race::numbers_store::NUMBERS;
+use crate::race::vars_store::RACE_VARS;
+use crate::race::view_store::RACE_VIEW;
+use crate::scene::draw_store::DRAW;
 use crate::scene::submit_polygon::{self, submit_polygon};
 
 // ---- game data ----
@@ -51,43 +56,25 @@ pub const ENTRY_LEN: usize = 0x44;
 pub const ENTRIES: u32 = 0x80;
 pub const LIST_RVA: usize = rva(0x977710); // dword_977710
 pub const MOST: u32 = 0x100;
-
-const MODE_RVA: usize = rva(0x63DAB4); // dword_63DAB4
-pub const SWITCH_A_RVA: usize = rva(0x6240E0); // dword_6240E0
 pub const SWITCH_B_RVA: usize = rva(0x6240E4); // dword_6240E4
-const KEPT_RVA: usize = rva(0x6240E8); // dword_6240E8, dword_6240EC, dword_6240F0
-const COLOUR_RVA: usize = rva(0x6240CC); // dword_6240CC
-const ALPHA_RVA: usize = rva(0x6240D0); // dword_6240D0
 const TEXTURE_A_RVA: usize = rva(0x6240BC); // dword_6240BC
 const TEXTURE_B_RVA: usize = rva(0x6240C0); // dword_6240C0
-const TEXTURE_RVA: usize = rva(0x6240C4); // dword_6240C4
 const SMOOTH_A_RVA: usize = rva(0x63E168); // dword_63E168
 const SMOOTH_B_RVA: usize = rva(0x63E16C); // dword_63E16C
 const SMOOTH_RVA: usize = rva(0x63E164); // dword_63E164
-const POLYGON_TEXTURE_RVA: usize = rva(0x6240D4); // g_polygonTexture
 const TEXTURE_OF_RVA: usize = rva(0x5D1AE8); // dword_5D1AE8
 const OTHER_TEXTURE_OF_RVA: usize = rva(0x5D3AE8); // dword_5D3AE8
 const TEXTURES_LOADED_RVA: usize = rva(0x5DC970); // dword_5DC970
 
 const MIRRORED_RVA: usize = rva(0x63993C); // dword_63993C
-const MIRROR_AT_RVA: usize = rva(0x62409C); // flt_62409C
-const X_OFFSET_RVA: usize = rva(0x6241F4); // flt_6241F4
-const Y_OFFSET_RVA: usize = rva(0x6241F8); // flt_6241F8
-const DEPTH_FACTOR_RVA: usize = rva(0x6241CC); // flt_6241CC
 const W_FACTOR_RVA: usize = rva(0x6D180C); // flt_6D180C
 const SSE_RVA: usize = rva(0x621A58); // dword_621A58
-const SSE_W_FACTOR_RVA: usize = rva(0x5C5D98); // flt_5C5D98
 
 const FADED_RVA: usize = rva(0x63660C); // dword_63660C
 const FADE_ALPHA_RVA: usize = rva(0x606284); // dword_606284
-const FADE_UV_RVA: usize = rva(0x623DBC); // dword_623DBC, dword_623DC0
 const FADE_TEXTURE: u32 = 0xC0;
-
-const HIT_TEST_RVA: usize = rva(0x6415C4); // dword_6415C4
-const HIT_POINT_RVA: usize = rva(0x6415C8); // dword_6415C8, dword_6415CC
 const HIT_WORK_RVA: usize = rva(0x637648); // dword_637648 .. dword_63765C
 const CLEARS_SWITCH_RVA: usize = rva(0x621904); // dword_621904
-const MATERIAL_RVA: usize = rva(0x63DA38); // dword_63DA38
 const MATERIALS_RVA: usize = rva(0x979F30); // unk_979F30
 pub const CHECKED_RVA: usize = rva(0x62400C); // dword_62400C
 
@@ -246,10 +233,10 @@ unsafe fn entries(count: u32) -> Result<Vec<usize>, BadInput> {
 /// `sub_450147` with `sub_4501B6`: the hit test.
 unsafe fn hit_test(entries: &[usize]) {
     unsafe {
-        if game_read::<u32>(HIT_TEST_RVA) == 0 {
+        if FRAME_WORK.sun_on_screen.bits() == 0 {
             return;
         }
-        let point: [i32; 2] = game_read(HIT_POINT_RVA);
+        let point = crate::session::read_bits(&FRAME_WORK.sun_hit).map(|v| v as i32);
         game_write(HIT_WORK_RVA, point);
         if entries.len() < 3 {
             return;
@@ -271,17 +258,20 @@ unsafe fn hit_test(entries: &[usize]) {
                 return;
             }
         }
-        game_write(HIT_TEST_RVA, 0u32);
+        FRAME_WORK.sun_on_screen.set_bits(0u32);
     }
 }
 
 /// `sub_44C9A9`, and `sub_44E6F4` for a mirrored view: the positions.
 unsafe fn place(entries: &[usize], mirrored: bool) {
     unsafe {
-        let (x_offset, y_offset): (u32, u32) = (game_read(X_OFFSET_RVA), game_read(Y_OFFSET_RVA));
-        let depth_factor: u32 = game_read(DEPTH_FACTOR_RVA);
+        let (x_offset, y_offset): (u32, u32) = (
+            DRAW.view_offset_float[0].bits(),
+            DRAW.view_offset_float[1].bits(),
+        );
+        let depth_factor: u32 = DRAW.one_over_farthest.bits();
         let sse = game_read::<u32>(SSE_RVA) != 0;
-        let mirror_at: u32 = game_read(MIRROR_AT_RVA);
+        let mirror_at: u32 = DRAW.view_centre[0].bits();
         for (n, &entry) in entries.iter().enumerate() {
             let vertex = dword(entry + 4) as usize;
             let out = game_addr(VERTICES_RVA) + n * VERTEX_LEN;
@@ -292,7 +282,7 @@ unsafe fn place(entries: &[usize], mirrored: bool) {
             put(
                 out + 0x0C,
                 if sse {
-                    x87::rcpss_times(dword(vertex + 0x18), game_read(SSE_W_FACTOR_RVA))
+                    x87::rcpss_times(dword(vertex + 0x18), NUMBERS.k65536.bits())
                 } else {
                     x87::reciprocal_times(depth, game_read(W_FACTOR_RVA))
                 },
@@ -328,7 +318,7 @@ unsafe fn choose_texture(outside: &mut dyn Outside) {
     unsafe {
         let smooth = game_read::<u32>(SMOOTH_RVA) == 1;
         outside.state(3, if smooth { 3 } else { 1 });
-        let number: u32 = game_read(TEXTURE_RVA);
+        let number: u32 = DRAW.texture_page.bits();
         let loaded: u32 = game_read(TEXTURES_LOADED_RVA);
         let texture = match number {
             u32::MAX => None,
@@ -339,14 +329,14 @@ unsafe fn choose_texture(outside: &mut dyn Outside) {
             _ => (number < 0x400).then(|| game_read(TEXTURE_OF_RVA + number as usize * 4)),
         };
         let texture = texture.filter(|&texture: &u32| texture < loaded);
-        game_write(POLYGON_TEXTURE_RVA, texture.unwrap_or(NO_TEXTURE));
+        DRAW.polygon_texture.set_bits(texture.unwrap_or(NO_TEXTURE));
     }
 }
 
 /// `sub_44B94F`: clears a switch by what the entries' bytes +0x21 hold.
 unsafe fn clear_a_switch(entries: &[usize]) {
     unsafe {
-        if game_read::<u32>(SWITCH_A_RVA) == 0 || game_read::<u32>(SWITCH_B_RVA) == 0 {
+        if DRAW.polygon_sides[0].bits() == 0 || game_read::<u32>(SWITCH_B_RVA) == 0 {
             return;
         }
         let bytes = entries
@@ -354,20 +344,19 @@ unsafe fn clear_a_switch(entries: &[usize]) {
             .map(|&entry| ((entry + 0x21) as *const u8).read());
         let (all, any) = bytes.fold((0xFFu8, 0u8), |(all, any), b| (all & b, any | b));
         if all == 0xFF {
-            let material =
-                game_addr(MATERIALS_RVA) + game_read::<u32>(MATERIAL_RVA) as usize * 0x40;
+            let material = game_addr(MATERIALS_RVA) + RACE_VIEW.texture_b.bits() as usize * 0x40;
             if ((material + 0x2E) as *const u8).read() == 0 {
-                game_write(SWITCH_A_RVA, 0u32);
+                DRAW.polygon_sides[0].set_bits(0u32);
             }
         } else if any == 0 {
-            game_write(SWITCH_B_RVA, 0u32);
+            DRAW.polygon_sides[1].set_bits(0u32);
         }
     }
 }
 
 unsafe fn shade(entries: &[usize], how: Shade) {
     unsafe {
-        let colour: u32 = game_read(COLOUR_RVA);
+        let colour: u32 = DRAW.polygon_colour.bits();
         for &entry in entries {
             let (fog, other) = (
                 ((entry + 0x20) as *const u8).read() as u32,
@@ -380,7 +369,7 @@ unsafe fn shade(entries: &[usize], how: Shade) {
                     continue;
                 }
                 Shade::WithAlpha => {
-                    put(entry + 0x24, game_read::<u32>(ALPHA_RVA) << 24 | colour);
+                    put(entry + 0x24, DRAW.polygon_alpha.bits() << 24 | colour);
                     put(entry + 0x28, 0);
                     continue;
                 }
@@ -406,7 +395,7 @@ unsafe fn shade(entries: &[usize], how: Shade) {
 
 pub unsafe fn draw_polygon(outside: &mut dyn Outside) -> Result<(), BadInput> {
     unsafe {
-        let count: u32 = game_read(COUNT_RVA);
+        let count: u32 = DRAW.polygon_vertex_count.bits();
         if count == 0 || count > MOST {
             return Err(BadInput("a polygon of no vertices, or of too many"));
         }
@@ -414,11 +403,11 @@ pub unsafe fn draw_polygon(outside: &mut dyn Outside) -> Result<(), BadInput> {
         // Nothing has been written up to here.
         hit_test(&entries);
         let kept: [u32; 3] = [
-            game_read(SWITCH_A_RVA),
+            DRAW.polygon_sides[0].bits(),
             game_read(SWITCH_B_RVA),
-            game_read(MODE_RVA),
+            RACE_VIEW.polygon_mode.bits(),
         ];
-        game_write(KEPT_RVA, kept);
+        crate::session::write_bits(&DRAW.polygon_kept, kept);
         let mirrored = game_read::<u32>(MIRRORED_RVA) != 0;
         if mirrored && count > 2 {
             // `sub_44E6B9`: the list's entries after the first, turned round.
@@ -431,10 +420,11 @@ pub unsafe fn draw_polygon(outside: &mut dyn Outside) -> Result<(), BadInput> {
         place(&entries, mirrored);
 
         if game_read::<u32>(FADED_RVA) != 0 {
-            let (mode, texture): (u32, u32) = (game_read(MODE_RVA), game_read(TEXTURE_RVA));
+            let (mode, texture): (u32, u32) =
+                (RACE_VIEW.polygon_mode.bits(), DRAW.texture_page.bits());
             // `sub_44CAD5`.
             let (from, alpha): (u32, u32) = (CARDS_3D.fade_from.get(), game_read(FADE_ALPHA_RVA));
-            let uv: [u32; 2] = game_read(FADE_UV_RVA);
+            let uv = crate::session::read_bits(&RACE_VARS.fade_uv);
             for (n, &entry) in entries.iter().enumerate() {
                 let out = game_addr(VERTICES_RVA) + n * VERTEX_LEN;
                 let by = ((entry + 0x20) as *const u8).read() as u32;
@@ -443,33 +433,33 @@ pub unsafe fn draw_polygon(outside: &mut dyn Outside) -> Result<(), BadInput> {
                 put(out + 0x18, uv[0]);
                 put(out + 0x1C, uv[1]);
             }
-            game_write(TEXTURE_RVA, FADE_TEXTURE);
-            game_write(MODE_RVA, 7u32);
+            DRAW.texture_page.set_bits(FADE_TEXTURE);
+            RACE_VIEW.polygon_mode.set_bits(7u32);
             choose_texture(outside);
             for (state, value) in [(0x15, 4), (0x13, 5), (0x14, 6), (0x1B, 1), (0x1C, 0)] {
                 outside.state(state, value);
             }
             submit_polygon(outside);
-            game_write(TEXTURE_RVA, texture);
-            game_write(MODE_RVA, mode);
+            DRAW.texture_page.set_bits(texture);
+            RACE_VIEW.polygon_mode.set_bits(mode);
         }
 
         // The mode, with its fallbacks.
-        let mut mode: u32 = game_read(MODE_RVA);
+        let mut mode: u32 = RACE_VIEW.polygon_mode.bits();
         if mode == 3 && game_read::<u32>(CLEARS_SWITCH_RVA) != 0 {
             clear_a_switch(&entries);
         }
         if matches!(mode, 3..=5) {
             let fallback = if game_read::<u32>(SWITCH_B_RVA) == 0 {
                 Some(2)
-            } else if game_read::<u32>(SWITCH_A_RVA) == 0 {
+            } else if DRAW.polygon_sides[0].bits() == 0 {
                 Some([8, 9, 0xA][mode as usize - 3])
             } else {
                 None
             };
             if let Some(fallback) = fallback {
                 mode = fallback;
-                game_write(MODE_RVA, mode);
+                RACE_VIEW.polygon_mode.set_bits(mode);
             }
         }
         if let Some((how, passes)) = passes(mode) {
@@ -479,11 +469,11 @@ pub unsafe fn draw_polygon(outside: &mut dyn Outside) -> Result<(), BadInput> {
                     Set::A => (TEXTURE_A_RVA, SMOOTH_A_RVA),
                     Set::B => (TEXTURE_B_RVA, SMOOTH_B_RVA),
                 };
-                game_write(TEXTURE_RVA, game_read::<u32>(texture));
+                DRAW.texture_page.set_bits(game_read::<u32>(texture));
                 game_write(SMOOTH_RVA, game_read::<u32>(smooth));
                 copy_set(&entries, pass.set);
                 if let Some(as_mode) = pass.as_mode {
-                    game_write(MODE_RVA, as_mode);
+                    RACE_VIEW.polygon_mode.set_bits(as_mode);
                 }
                 if pass.no_depth {
                     outside.state(0x0E, 0);
@@ -494,7 +484,7 @@ pub unsafe fn draw_polygon(outside: &mut dyn Outside) -> Result<(), BadInput> {
                 }
                 submit_polygon(outside);
                 if pass.as_mode.is_some() {
-                    game_write(MODE_RVA, mode);
+                    RACE_VIEW.polygon_mode.set_bits(mode);
                 }
                 if pass.no_depth {
                     outside.state(0x0E, 1);
@@ -505,9 +495,9 @@ pub unsafe fn draw_polygon(outside: &mut dyn Outside) -> Result<(), BadInput> {
             }
         }
         // `sub_44B9DD`.
-        game_write(SWITCH_A_RVA, kept[0]);
-        game_write(SWITCH_B_RVA, kept[1]);
-        game_write(MODE_RVA, kept[2]);
+        DRAW.polygon_sides[0].set_bits(kept[0]);
+        DRAW.polygon_sides[1].set_bits(kept[1]);
+        RACE_VIEW.polygon_mode.set_bits(kept[2]);
         Ok(())
     }
 }

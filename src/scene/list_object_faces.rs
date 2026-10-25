@@ -13,14 +13,11 @@
 
 use crate::errors::Refused;
 use crate::framework::{game_read, game_write, rva};
+use crate::race::vars_store::RACE_VARS;
 use crate::scene::draw_object_faces::LISTED_RVA;
+use crate::scene::object_store::OBJECT_WORK;
 
 // ---- game data ----
-
-const MARK_RVA: usize = rva(0x62361C); // dword_62361C
-const FACE_NUMBER_RVA: usize = rva(0x623620); // dword_623620
-const FIRST_FACE_RVA: usize = rva(0x6350BC); // dword_6350BC
-const FACE_COUNT_RVA: usize = rva(0x6350C0); // dword_6350C0
 const FACES_RVA: usize = rva(0x9A3730); // g_faces
 
 // ---- Rust version ----
@@ -30,15 +27,18 @@ pub unsafe fn list_object_faces(
     list: &mut dyn FnMut(usize) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
     unsafe {
-        let (first, count): (u32, u32) = (game_read(FIRST_FACE_RVA), game_read(FACE_COUNT_RVA));
+        let (first, count): (u32, u32) = (
+            OBJECT_WORK.object_first_face.bits(),
+            OBJECT_WORK.object_face_count.bits(),
+        );
         // Every face is looked up before anything is written.
         let faces = rc2k_core::scene::objects::object_faces(first, count, |number| {
             game_read(FACES_RVA + number as usize * 4)
         })?;
         game_write(LISTED_RVA, 0u32);
-        game_write(MARK_RVA, u32::MAX);
+        RACE_VARS.face_mark.set_bits(u32::MAX);
         for (n, &face) in faces.iter().enumerate() {
-            game_write(FACE_NUMBER_RVA, n as u32);
+            RACE_VARS.face_number.set_bits(n as u32);
             list(face as usize)?;
         }
         Ok(())

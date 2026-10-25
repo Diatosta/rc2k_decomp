@@ -6,18 +6,15 @@
 //! See `drive/note_gaps.rs`. Caller: `sub_43703E` (0x437364, 0x437390).
 
 use crate::drive::note_gaps::note_gap_at;
-use crate::framework::{game_addr, rva};
-
-const BEST_RVA: usize = rva(0x70FA18);
-const LEAD_RVA: usize = rva(0x70F484); // dword_70F484: car block 0's +0x98
+use crate::race::blocks_store::CAR_BLOCKS;
 
 /// The Rust version.
 pub unsafe fn note_gap_behind(car: u32) -> u32 {
     unsafe {
         note_gap_at(
             car,
-            game_addr(LEAD_RVA) as u32,
-            game_addr(BEST_RVA) as u32,
+            CAR_BLOCKS.cars[0].checkpoint.addr() as u32,
+            CAR_BLOCKS.cars[0].pace_gaps[1].addr() as u32,
             true,
         )
     }

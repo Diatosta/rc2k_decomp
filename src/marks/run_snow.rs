@@ -25,15 +25,13 @@ use crate::framework::rva;
 use crate::marks::snow::{SNOW, SNOW_LIGHT, SnowLight};
 use crate::marks::store::{game_read, game_write};
 use crate::math::x87;
+use crate::physics::tables_store::PHYSICS;
+use crate::race::frame_store::FRAME_WORK;
+use crate::scene::draw_store::DRAW;
 
 const MOST: i32 = 0x800;
 const TEXTURE_RVA: usize = rva(0x5D1E10); // dword_5D1E10
 const VERTICES_RVA: usize = rva(0x9605A0); // g_polygonVertices
-const VERTEX_COUNT_RVA: usize = rva(0x6240F8); // g_polygonVertexCount
-const LIGHT_RVA: usize = rva(0x6415E4); // g_viewLight
-const DEPTH_OF_RVA: usize = rva(0x6241C8); // flt_6241C8
-const CLOCK_RVA: usize = rva(0x613830); // g_sceneClock
-const FOCAL_RVA: usize = rva(0x624088); // flt_624088
 /// The render states set (value, state).
 const STATES: [(u32, u32); 5] = [(4, 0x15), (5, 0x13), (6, 0x14), (0, 0x1C), (1, 0x1B)];
 
@@ -83,7 +81,7 @@ pub unsafe fn run_snow() -> Result<(), Refused> {
             set_render_state(value, state);
         }
         let rhw = l.rhw.get();
-        let light = game_read::<u32>(LIGHT_RVA) | 0xFF00_0000;
+        let light = FRAME_WORK.view_light.bits() | 0xFF00_0000;
         let [u0, v0, u1, v1] = l.uv.each_ref().map(|d| d.get());
         let uv = [(u0, v0), (u1, v0), (u1, v1), (u0, v1)];
         for (n, (u, v)) in uv.into_iter().enumerate() {
@@ -94,27 +92,27 @@ pub unsafe fn run_snow() -> Result<(), Refused> {
             game_write(at + 0x18, u);
             game_write(at + 0x1C, v);
         }
-        game_write(VERTEX_COUNT_RVA, 4u32);
-        let inverse = x87::reciprocal(game_read(DEPTH_OF_RVA));
+        DRAW.polygon_vertex_count.set_bits(4u32);
+        let inverse = x87::reciprocal(DRAW.farthest.bits());
         for r in &s.inverses {
             r.set_bits(inverse);
         }
         s.inverse.set_bits(inverse);
         let settings: u32 = crate::marks::setup::SETTINGS.pointer.get();
         if get(settings + 0x10) != 0 {
-            let ticks = game_read::<u32>(CLOCK_RVA).wrapping_sub(s.last_clock.get());
+            let ticks = PHYSICS.scene_clock.get().wrapping_sub(s.last_clock.get());
             let fall =
                 x87::int_times_plus_int_to_int(ticks as i32, l.fall_k.bits(), s.fall.get() as i32);
             s.fall.set(fall as u32);
         }
         s.fall.set(s.fall.get() & 0x0FFF_FFFF);
-        s.last_clock.set(game_read::<u32>(CLOCK_RVA));
+        s.last_clock.set(PHYSICS.scene_clock.get());
         for (n, v) in s.matrix_copy.iter().enumerate() {
             for m in 0..4 {
                 s.wide_turn[n][m].set_bits(v.bits());
             }
         }
-        let focal: u32 = game_read(FOCAL_RVA);
+        let focal: u32 = DRAW.view_scale.bits();
         for m in 0..4 {
             s.wide_focal[m].set_bits(focal);
         }

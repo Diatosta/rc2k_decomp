@@ -8,13 +8,15 @@
 //! Caller: `sub_45429B` (the race's frame, stream A's).
 
 use crate::errors::Refused;
-use crate::physics::flow::g;
+use crate::race::blocks_store::CAR_BLOCKS;
+use crate::race::vars_store::RACE_VARS;
 
 /// The Rust version; every register kept.
 // Converted: `rc2k_core::drive::race_ticks::tyre_change_shown`.
 pub unsafe fn tyre_change_screen() -> Result<(), Refused> {
-    if !rc2k_core::drive::race_ticks::tyre_change_shown(g(0x70F3EC + 0x26C)) {
+    if !rc2k_core::drive::race_ticks::tyre_change_shown(CAR_BLOCKS.cars[0].tyre_change_state.get())
+    {
         return Ok(());
     }
-    unsafe { crate::drive::tyre_screen::tyre_screen(g(0x6238A4), 0) }
+    unsafe { crate::drive::tyre_screen::tyre_screen(RACE_VARS.split.get(), 0) }
 }

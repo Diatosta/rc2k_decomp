@@ -11,6 +11,7 @@
 
 use crate::errors::Refused;
 use crate::framework::{game_write, rva};
+use crate::physics::car_store::CAR;
 
 /// The Rust version: the nearest checkpoint (`race::nearest_checkpoint`), the car placed
 /// there (`race::place_car_on_line`) and its motion reset (`race::reset_car_motion`).
@@ -19,14 +20,17 @@ use crate::framework::{game_write, rva};
 pub unsafe fn reset_car_on_line() -> Result<(), Refused> {
     unsafe {
         let nearest = crate::race::start_place::nearest_checkpoint()?;
-        for v in [0x71A070usize, 0x71A06C, 0x71A074, 0x6365E4, 0x6365EC] {
+        for cell in [&CAR.checkpoint, &CAR.reset_checkpoint, &CAR.last_pace_call] {
+            cell.set(nearest);
+        }
+        for v in [0x6365E4usize, 0x6365EC] {
             game_write(rva(v), nearest);
         }
         crate::race::start_place::place_car_on_line()?;
         crate::race::car_starts::reset_car_motion()?;
-        game_write(rva(0x71AF88), 8u32);
-        game_write(rva(0x71AF8C), 8u32);
-        game_write(rva(0x71AF84), 10u32);
+        CAR.value_jump_steps.set(8u32);
+        CAR.light_hold_steps.set(8u32);
+        CAR.reset_marker.set(10u32);
     }
     Ok(())
 }

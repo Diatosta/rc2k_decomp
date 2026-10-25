@@ -13,6 +13,8 @@
 use crate::errors::{BadInput, Refused};
 use crate::framework::rva;
 use crate::math::x87_run::{ext_times, ints_diff_80};
+use crate::race::numbers_store::NUMBERS;
+use crate::race::work_store::RACE_WORK;
 use crate::scene::matrix3::rounded;
 use crate::scene::rotate_point::rotate_point;
 use crate::store::game_addr;
@@ -24,7 +26,7 @@ fn g(x: impl crate::store::At) -> u32 {
 const VIEW_TURN: usize = 0x5EA24C; // g_viewTurnMatrix
 
 fn object() -> u32 {
-    crate::sound::store::RACE_SOUNDS.table[(g(0x71B3F8) & 7) as usize].get()
+    crate::sound::store::RACE_SOUNDS.table[(RACE_WORK.current_car.get() & 7) as usize].get()
 }
 
 /// The exact x87 version (for `physics::sound_on_bit`).
@@ -43,7 +45,7 @@ pub unsafe fn place_car_sound() -> Result<(), Refused> {
             d(0x71A114, 0x71A684),
         ];
         let out = rotate_point(game_addr(rva(VIEW_TURN)) as u32, p);
-        let k = g(0x5C5DA0);
+        let k = NUMBERS.one_over_65536.bits();
         for (n, e) in out.iter().enumerate() {
             so.place_b[n].set_bits(rounded(ext_times(*e, k)));
         }

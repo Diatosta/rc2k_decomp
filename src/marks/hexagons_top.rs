@@ -24,6 +24,7 @@ use crate::marks::setup::{CLOCK, MarksClock};
 use crate::marks::store::{Slot, Where, game_addr, game_read, game_write};
 use crate::math::x87;
 use crate::scene::cross_product3::cross_product3;
+use crate::scene::draw_store::DRAW;
 use crate::scene::vector3::normalise_vector3;
 
 const BUFFER_RVA: Slot = Slot::at(0x816232); // dword_816232
@@ -38,7 +39,6 @@ const RATE_RVA: Slot = Slot::at(0x814728); // flt_814728
 const PER_VERTEX_RVA: Slot = Slot::at(0x82E27A); // dword_82E27A
 const DRIFTING_RVA: Slot = Slot::at(0x7652A0); // dword_7652A0
 const TEXTURE_RVA: usize = rva(0x5D1E10); // dword_5D1E10
-const COUNT_RVA: usize = rva(0x6240F8); // g_polygonVertexCount
 
 fn addr(r: impl Where) -> u32 {
     game_addr(r) as u32
@@ -123,7 +123,7 @@ pub unsafe fn hexagons_top() -> Result<(), Refused> {
             }
         }
         crate::scene::set_texture::set_texture(game_read(TEXTURE_RVA));
-        game_write(COUNT_RVA, 4u32);
+        DRAW.polygon_vertex_count.set_bits(4u32);
     }
     Ok(())
 }

@@ -8,17 +8,24 @@
 //!
 //! Caller: `physics::drive_force`.
 
-use crate::physics::engine_torque::{below, engine_torque, g, p};
+use crate::physics::car_store::CAR;
+use crate::physics::engine_torque::{below, engine_torque};
+use crate::physics::tables_store::PHYSICS;
 
 /// The Rust version (the exact one, for `physics::drive_force`).
 pub unsafe fn engine_torque_or_cut() {
-    if !below(g(0x71A1B0), g(0x71A1B4)) {
-        p(0x71A1C8, 5);
-    } else if g(0x71A1C8) != 0 {
-        p(0x71A1C8, g(0x71A1C8).wrapping_sub(1));
+    if !below(CAR.engine_speed.bits(), CAR.engine_speed_limit.bits()) {
+        CAR.rev_cut_count.set(5);
+    } else if CAR.rev_cut_count.get() != 0 {
+        CAR.rev_cut_count.set(
+            crate::physics::car_store::CAR
+                .rev_cut_count
+                .get()
+                .wrapping_sub(1),
+        );
     } else {
         unsafe { engine_torque() };
         return;
     }
-    p(0x614748, 0);
+    PHYSICS.engine_force.set_bits(0);
 }

@@ -15,15 +15,13 @@
 //! (all it may write is put back).
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::rva;
 use crate::marks::emitters::next_c5;
 use crate::marks::pick_shapes::pick_shapes;
 use crate::marks::setup::CLOCK;
 use crate::marks::shape_points::turn_all_shapes;
 use crate::marks::store::{Slot, game_read, game_write};
 use crate::math::x87;
-
-const CLOCK_RVA: usize = rva(0x613830); // g_sceneClock
+use crate::physics::tables_store::PHYSICS;
 const NEXT_RVA: Slot = Slot::at(0x844E30); // dword_844E30
 const TIME_RANDOM_RVA: Slot = Slot::at(0x89C994); // dword_89C994
 const MOVE_RANDOM_RVA: Slot = Slot::at(0x89C998); // dword_89C998
@@ -44,10 +42,13 @@ pub unsafe fn run_shapes() -> Result<(), Refused> {
     unsafe {
         pick_shapes()?;
         turn_all_shapes()?;
-        let clock: u32 = game_read(CLOCK_RVA);
+        let clock: u32 = PHYSICS.scene_clock.bits();
         if clock as i32 >= game_read::<i32>(NEXT_RVA) {
             let r = next_c5(TIME_RANDOM_RVA);
-            game_write(NEXT_RVA, (r & 0xFF).wrapping_add(game_read(CLOCK_RVA)));
+            game_write(
+                NEXT_RVA,
+                (r & 0xFF).wrapping_add(PHYSICS.scene_clock.bits()),
+            );
             let mask = get(0x2748);
             if mask >= MASKS {
                 return Err(BadInput("a mask number past dword_844E34's 9").into());

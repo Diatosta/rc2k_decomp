@@ -7,12 +7,11 @@
 //! that went down this frame, or auto-repeat (`g_keyRepeat`, 0x4F6D5C: a key held 0x41
 //! frames is pressed again each frame).
 
-use crate::framework::{Regs, rva};
+use crate::framework::Regs;
 use crate::input::store::{DEVICES, KEYS as KEYS_LEN, MOUSE};
-use crate::store::game_write;
+use crate::physics::tables_store::PHYSICS;
 
 const SCREENSHOT_KEY: u32 = rc2k_core::input::frame::SCREENSHOT_KEY as u32; // byte_4F6BAE
-pub const FRAME_CLEARED_RVA: [usize; 2] = [rva(0x6138F4), rva(0x6138F8)];
 
 // Converted: `rc2k_core::input::frame`. Here the tables are loaded from the game and only those
 // a function writes are stored back (`g_keysDown` never: the window's messages write it).
@@ -112,11 +111,9 @@ pub unsafe fn screenshot_if_key(shot: Screenshot) {
 /// then `dword_6138F4` and `dword_6138F8` 0. Every register preserved.
 pub unsafe fn end_frame(check: Screenshot) {
     // Converted: `rc2k_core::input::frame::end_frame`.
-    unsafe {
-        let left = rc2k_core::input::frame::end_frame(crate::gfx::shots::on(), check);
-        for (at, value) in FRAME_CLEARED_RVA.into_iter().zip(left) {
-            game_write(at, value);
-        }
+    let left = rc2k_core::input::frame::end_frame(crate::gfx::shots::on(), check);
+    for (cell, value) in PHYSICS.frame_cleared.iter().zip(left) {
+        cell.set(value);
     }
 }
 

@@ -9,7 +9,7 @@
 //! Callers: `drive::race_loop`, `sub_4607A5`. Refuses what its calls refuse.
 
 use crate::errors::Refused;
-use crate::physics::flow::g;
+use crate::physics::tables_store::PHYSICS;
 
 /// The Rust version. The registers it leaves are read by no caller (liveness: edi, edx
 /// and esi after `drive::race_loop`'s call have no read point but the false ones of
@@ -17,8 +17,8 @@ use crate::physics::flow::g;
 // Converted: `rc2k_core::drive::race_ticks::run_ticks`.
 pub unsafe fn race_step() -> Result<(), Refused> {
     unsafe { crate::drive::race_clock_tick::race_clock_tick() };
-    if g(0x6138F8) == 0 {
-        rc2k_core::drive::race_ticks::run_ticks(g(0x613844), |ecx| {
+    if PHYSICS.frame_cleared[1].get() == 0 {
+        rc2k_core::drive::race_ticks::run_ticks(PHYSICS.race_tenths.get(), |ecx| {
             unsafe { crate::drive::race_tick::race_tick() }?;
             let out = unsafe { crate::race::frame::players_all_out() }?;
             Ok::<_, Refused>((out, ecx))

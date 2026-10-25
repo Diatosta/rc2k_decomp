@@ -10,6 +10,8 @@
 
 use crate::errors::Refused;
 use crate::framework::{game_addr, rva};
+use crate::race::frame_store::FRAME_WORK;
+use crate::race::work_store::RACE_WORK;
 use rc2k_core::physics::listed_cars::{CUE_E5, cue_e5_object};
 
 unsafe fn at(a: u32) -> u32 {
@@ -40,11 +42,11 @@ pub unsafe fn sound_cue_e5_at(current: u32, listed: u32, objects: u32) -> Result
 
 /// The Rust version.
 pub unsafe fn sound_cue_e5() -> Result<(), Refused> {
-    let g = |a: usize| game_addr(rva(a)) as u32;
+    let _g = |a: usize| game_addr(rva(a)) as u32;
     unsafe {
         sound_cue_e5_at(
-            g(0x71B3F8),
-            g(0x641680),
+            RACE_WORK.current_car.addr() as u32,
+            FRAME_WORK.listed_car_sounds[0].addr() as u32,
             crate::sound::store::RACE_SOUNDS.table.as_ptr() as usize as u32,
         )
     }

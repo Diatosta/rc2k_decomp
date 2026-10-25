@@ -23,6 +23,7 @@ use crate::errors::{BadInput, Refused};
 use crate::framework::rva;
 use crate::marks::store::{Slot, Where, game_addr, game_read, game_write};
 use crate::math::{x87, x87_run};
+use crate::race::numbers_store::NUMBERS;
 use crate::scene::cross_product3::cross_product3;
 use crate::scene::matrix3::{Axis, extended, rounded, turn_matrix3, turnable};
 use crate::scene::rotate_point::rotate_point;
@@ -32,7 +33,6 @@ const VIEW_RVA: usize = rva(0x5EA0CC); // unk_5EA0CC
 const MARK_CORNERS_RVA: Slot = Slot::at(0x8EB971); // g_marksCorners
 const UV_K_RVA: Slot = Slot::at(0x8EB969); // flt_8EB969
 const TINT_RVA: Slot = Slot::at(0x939BA6); // dword_939BA6
-const NEAR_RVA: usize = rva(0x5C5E18); // flt_5C5E18
 const Z_K_RVA: Slot = Slot::at(0x8EB96D); // flt_8EB96D
 const VERTICES_RVA: usize = rva(0x9605A0); // g_polygonVertices
 
@@ -281,7 +281,7 @@ pub unsafe fn draw_shadow_with(sh: &Shadow, depth: bool) -> Result<(), Refused> 
             game_write(VERTICES_RVA + 0x20 * n + 0x10, c);
         }
         for n in 0..4 {
-            if game_read::<i32>(sh.corners + 12 * n + 8) <= game_read::<i32>(NEAR_RVA) {
+            if game_read::<i32>(sh.corners + 12 * n + 8) <= (NUMBERS.k4096_a.bits() as i32) {
                 return Ok(());
             }
         }

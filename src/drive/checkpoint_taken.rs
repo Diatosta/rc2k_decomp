@@ -11,12 +11,8 @@
 //! Caller: `sub_43703E` (0x4371A1, 0x437284).
 
 use crate::drive::car_near_checkpoint::near_at;
-use crate::framework::{game_addr, game_read, rva};
+use crate::race::vars_store::RACE_VARS;
 use rc2k_core::physics::line_places;
-
-/// The four cars' blocks (IDA addresses).
-const CARS: [usize; 4] = [0x70F3EC, 0x7103CC, 0x7113AC, 0x71238C];
-const COUNT_RVA: usize = rva(0x623640); // g_checkpointCount
 
 /// The Rust core: the four cars at `cars`, the count `count`, the checkpoint
 /// `checkpoint` (eax): whether it is taken (the CF).
@@ -29,6 +25,6 @@ pub unsafe fn taken_at(cars: [u32; 4], count: u32, checkpoint: u32) -> bool {
 
 /// The Rust version: whether `checkpoint` is taken (the CF; every register kept).
 pub unsafe fn checkpoint_taken(checkpoint: u32) -> bool {
-    let cars = CARS.map(|a| game_addr(rva(a)) as u32);
-    unsafe { taken_at(cars, game_read(COUNT_RVA), checkpoint) }
+    let cars = [0, 1, 2, 3].map(|n| crate::race::blocks_store::block_addr(n) as u32);
+    unsafe { taken_at(cars, RACE_VARS.checkpoint_count.bits(), checkpoint) }
 }

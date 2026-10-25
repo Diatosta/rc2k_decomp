@@ -12,22 +12,22 @@
 //! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::physics::fill_race_slot::{fill_race_slot, g, p};
+use crate::physics::car_store::CAR;
+use crate::physics::fill_race_slot::fill_race_slot;
+use crate::race::work_store::RACE_WORK;
 use rc2k_core::physics::parts::{part_number, take_bit};
-
-const BITS: usize = 0x71A270; // g_car + 0x298
 
 /// The Rust version: bit `bit` (cl) of the car's parts taken and its part put in a race
 /// slot. The registers the original leaves are read by none of its callers.
 // Converted: `rc2k_core::physics::parts::{take_bit, part_number}`.
 pub fn fill_slot_on_bit(bit: u32) -> Result<(), Refused> {
-    let (_, cleared) = take_bit(g(BITS), bit);
+    let (_, cleared) = take_bit(CAR.parts_present.get(), bit);
     let Some(cleared) = cleared else {
         return Ok(());
     };
-    let Some(part) = part_number(g(0x71B3F8), bit) else {
+    let Some(part) = part_number(RACE_WORK.current_car.get(), bit) else {
         return Err(BadInput("a part past 0xFF").into());
     };
-    p(BITS, cleared);
+    CAR.parts_present.set(cleared);
     fill_race_slot(part)
 }

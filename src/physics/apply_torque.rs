@@ -13,16 +13,14 @@
 //!
 //! Caller: `physics::apply_torques` (in a loop over records).
 
-use crate::framework::{game_addr, game_read, rva};
+use crate::framework::{game_addr, rva};
 use crate::math::x87_run::neg_product2_plus;
+use crate::physics::tables_store::PHYSICS;
 use crate::physics::turn_by_inverse_at::turn_by_inverse_at;
 use crate::physics::turn_by_matrix_at::turn_by_matrix_at;
 use crate::scene::view_matrix::cross_product;
 
 const WORK_RVA: usize = rva(0x6D30B4); // dword_6D30B4
-const CROSS_RVA: usize = rva(0x614274); // flt_614274
-const STEP_RVA: usize = rva(0x61388C); // flt_61388C
-const INERTIA_RVA: usize = rva(0x613FA8); // flt_613FA8
 /// Where a car block's spin is.
 pub const SPIN_OFFSET: u32 = 0x184;
 
@@ -43,9 +41,9 @@ pub unsafe fn apply_torque_at(rec: u32, car: u32, work: u32, cross: u32) {
         }
         turn_by_inverse_at(work, car);
         cross_product(rec as usize, rec as usize + 0xC, cross as usize);
-        let step = game_read::<u32>(STEP_RVA);
+        let step = PHYSICS.step_time.bits();
         for k in 0..3 {
-            let inertia = game_read::<u32>(INERTIA_RVA + 4 * k as usize);
+            let inertia = PHYSICS.inertia[k as usize].bits();
             let w = work + 4 * k;
             put(
                 w,
@@ -66,7 +64,7 @@ pub unsafe fn apply_torque(rec: u32, car: u32) {
             rec,
             car,
             game_addr(WORK_RVA) as u32,
-            game_addr(CROSS_RVA) as u32,
+            PHYSICS.torque_cross[0].addr() as u32,
         )
     }
 }

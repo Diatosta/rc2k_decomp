@@ -30,6 +30,7 @@ use crate::errors::BadInput;
 use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::logfile::log_int::log_int;
 use crate::logfile::log_write::log_write;
+use crate::race::vars_store::RACE_VARS;
 use crate::scene::texture_needs::{LEVEL_SIZES_RVA, SYSTEM_LEVELS_RVA, TEXTURES, VIDEO_LEVELS_RVA};
 use crate::scene::textures::{KIND_SLOT_RVA, KIND_TEXTURE_RVA};
 
@@ -37,7 +38,6 @@ use crate::scene::textures::{KIND_SLOT_RVA, KIND_TEXTURE_RVA};
 
 /// `dword_5D0AE0` video, `dword_5D0AE4` system: the memory asked for.
 const ASKED_RVA: usize = rva(0x5D0AE0);
-const MIPS_RVA: usize = rva(0x623898); // dword_623898
 /// Mip levels a level has: the sizes' table from its fifth entry.
 const LEVEL_MIPS_RVA: usize = rva(0x5CDABC); // dword_5CDABC
 const TEXTURE_OF_RVA: usize = rva(0x5D2AE8); // dword_5D2AE8
@@ -61,7 +61,7 @@ impl rc2k_core::scene::textures::TextureMemory for GameMemory {
         unsafe { game_read(LEVEL_SIZES_RVA + level as usize * 4) }
     }
     fn mips(&self) -> u32 {
-        unsafe { game_read(MIPS_RVA) }
+        RACE_VARS.mip_setting.bits()
     }
     fn level_mips(&self, level: u32) -> u32 {
         unsafe { game_read(LEVEL_MIPS_RVA + level as usize * 4) }

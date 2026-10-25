@@ -33,9 +33,12 @@ use crate::physics::dot_product::dot_product;
 use crate::physics::flow::{a, copy3, fill3, g, hold_low, negate, p};
 use crate::physics::multiply_parts::multiply_parts;
 use crate::physics::scale_vector::scale_vector;
+use crate::physics::tables_store::PHYSICS;
 use crate::physics::turn_by_car_matrix::turn_by_car_matrix;
 use crate::physics::turn_by_inverse::turn_by_inverse;
 use crate::physics::vector_length::vector_length;
+use crate::race::numbers_store::NUMBERS;
+use crate::scene::draw_store::DRAW;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::view_matrix::cross_product;
 use crate::scene::x87_mem::{fild, fld, fnstsw, fstp, fstp80};
@@ -62,11 +65,11 @@ pub unsafe fn contact_force() {
         neg_rounded(unsafe { dot_product(a(0x6D30CC), a(0x6D3078)) }),
     );
     x87_2(crate::race::store::asm_base() as usize);
-    hold_low(0x6D31DC, 0x62400C);
+    hold_low(0x6D31DC, &DRAW.scratch);
     // 0x45F222: the push the turn would give.
     cross(0x6D3090, 0x6D3078, 0x6D31E4);
     unsafe { turn_by_inverse(a(0x6D31E4)) };
-    unsafe { multiply_parts(a(0x6D31E4), a(0x613FA8), a(0x6D31F4)) };
+    unsafe { multiply_parts(a(0x6D31E4), PHYSICS.inertia[0].addr() as u32, a(0x6D31F4)) };
     unsafe { turn_by_car_matrix(a(0x6D31F4)) };
     cross(0x6D3090, 0x6D31F4, 0x6D31E4);
     p(
@@ -78,17 +81,17 @@ pub unsafe fn contact_force() {
     copy3(0x6D3130, 0x6D3078);
     let factor = extended(g(0x6D3204));
     unsafe { scale_vector(a(0x6D3130), factor) };
-    p(0x62400C, rounded(factor));
+    DRAW.scratch.set(rounded(factor));
     let along = unsafe { dot_product(a(0x6D30CC), a(0x6D3078)) };
     copy3(0x6D30E4, 0x6D3078);
     unsafe { scale_vector(a(0x6D30E4), along) };
-    p(0x62400C, rounded(along));
+    DRAW.scratch.set(rounded(along));
     copy3(0x6D30F0, 0x6D30CC);
     x87_4(crate::race::store::asm_base() as usize);
     p(0x6D3108, rounded(unsafe { vector_length(a(0x6D30E4)) }));
     p(0x6D310C, rounded(unsafe { vector_length(a(0x6D30F0)) }));
     fill3(0x6D3160, 0);
-    if g(0x614148) != 0 {
+    if PHYSICS.contact_step.get() != 0 {
         fill3(0x6D3130, 0);
         copy3(0x6D3160, 0x6D3078);
         let mut part = [0u8; 10];
@@ -97,7 +100,7 @@ pub unsafe fn contact_force() {
             part.as_mut_ptr() as usize,
         );
         unsafe { scale_vector(a(0x6D3160), part) };
-        p(0x62400C, rounded(part));
+        DRAW.scratch.set(rounded(part));
     }
     x87_1(
         crate::race::store::asm_base() as usize,
@@ -112,7 +115,7 @@ pub unsafe fn contact_force() {
     negate(0x6D3140);
     negate(0x6D3144);
     negate(0x6D3148);
-    if compare_80(unsafe { vector_length(a(0x6D3140)) }, g(0x5C5D90)) & 0x4000 != 0 {
+    if compare_80(unsafe { vector_length(a(0x6D3140)) }, NUMBERS.zero.bits()) & 0x4000 != 0 {
         fill3(0x6D3140, 0);
     }
     let mut status = 0u16;

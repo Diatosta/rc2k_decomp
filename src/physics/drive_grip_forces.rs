@@ -29,12 +29,16 @@
 use crate::math::x87;
 use crate::math::x87_float::X;
 use crate::math::x87_run::{abs_compare, mul_status};
-use crate::physics::flow::{a, c3, ease_zero, g, hold_high, hold_low, negate, p};
+use crate::physics::car_store::CAR;
+use crate::physics::flow::{a, c3, ease_zero, g, hold_high, hold_low, negate};
+use crate::physics::tables_store::PHYSICS;
+use crate::race::numbers_store::NUMBERS;
+use crate::scene::draw_store::DRAW;
 use crate::scene::x87_mem::{fild, fistp, fld, fstp};
 
 /// `edx` = the steer angle's table index (+0x64C >> 20).
 fn steer_index() -> u32 {
-    g(0x71A624) >> 20
+    CAR.steer_angle.get() >> 20
 }
 
 /// 0x43CDFF / 0x43CE21: +0x210 = sine x speed / `dword_614BA0`.
@@ -49,52 +53,55 @@ fn steer_force(e: u32) {
 /// The Rust version. The eax, ebx and edx it leaves are read by none of its callers.
 pub unsafe fn drive_grip_forces() {
     let mut edx;
-    let kind = g(0x71A018);
+    let kind = CAR.drive_kind.get();
     // 0x43CD79: the share of +0x1F4 out of 50, from 1, held 0 ..= 1.
-    p(0x62400C, 0x32);
+    DRAW.scratch.set(0x32);
     x87_2(crate::race::store::asm_base() as usize);
-    hold_low(0x614768, 0x5C5D90);
-    hold_high(0x614768, 0x5C5D38);
-    p(0x71A1E8, 0);
-    if g(0x71A220) == 0 {
+    hold_low(&PHYSICS.lever_share, &NUMBERS.zero);
+    hold_high(&PHYSICS.lever_share, &NUMBERS.one);
+    CAR.grip_forces[0].set_bits(0);
+    if CAR.front_wheels_off.get() == 0 {
         steer_force(steer_index());
     }
     edx = steer_index();
     steer_force(edx);
-    if !c3(g(0x71A184), g(0x5C5D90)) {
+    if !c3(CAR.local_velocity[2].bits(), NUMBERS.zero.bits()) {
         // 0x43CE53: the slip limit, by the drive kind's factor.
         let factor = if kind == 1 { 0x613EB0 } else { 0x613EAC };
         x87_3(crate::race::store::asm_base() as usize, a(factor) as usize);
-        p(0x62400C, g(0x71A1E8));
+        DRAW.scratch.set(CAR.grip_forces[0].bits());
         // +0x210 held to ±the limit (the value negated in place between).
-        hold_high(0x71A1E8, 0x614260);
-        negate(0x71A1E8);
-        hold_high(0x71A1E8, 0x614260);
-        negate(0x71A1E8);
-        let slow = |v: usize| abs_compare(g(v), g(0x613E84)) & 0x100 != 0;
+        hold_high(&CAR.grip_forces[0], &PHYSICS.grip_limit);
+        negate(&crate::physics::car_store::CAR.grip_forces[0]);
+        hold_high(&CAR.grip_forces[0], &PHYSICS.grip_limit);
+        negate(&crate::physics::car_store::CAR.grip_forces[0]);
+        let slow = |v: usize| abs_compare(g(v), PHYSICS.grip_slow_speed.bits()) & 0x100 != 0;
         if !slow(0x71A184) && slow(0x71A190) {
-            p(0x71A1E8, 0);
+            CAR.grip_forces[0].set_bits(0);
         }
-        if g(0x71A440) & 0x1000 != 0 {
-            if g(0x62400C) == 0 {
-                p(0x71A61C, 0);
+        if CAR.input_keys.get() & 0x1000 != 0 {
+            if DRAW.scratch.get() == 0 {
+                CAR.steering.set(0);
             } else {
                 x87_4(crate::race::store::asm_base() as usize, 0x31A1E8, 0x22400C);
-                hold_high(0x62400C, 0x5C5D38);
-                hold_low(0x62400C, 0x5C5D90);
+                hold_high(&DRAW.scratch, &NUMBERS.one);
+                hold_low(&DRAW.scratch, &NUMBERS.zero);
                 x87_5(crate::race::store::asm_base() as usize);
             }
         }
     }
     // 0x43CFB7
-    if g(0x71A25C) == 1 {
+    if CAR.parts_state.get() == 1 {
         let k = if kind == 1 { 0x613E5C } else { 0x613E60 };
-        p(0x71A1E8, x87::mul(g(0x71A1E8), g(k)));
+        CAR.grip_forces[0].set_bits(x87::mul(
+            crate::physics::car_store::CAR.grip_forces[0].bits(),
+            g(k),
+        ));
     }
-    p(0x71A1F4, 0);
+    CAR.grip_forces[3].set_bits(0);
     if kind == 0 {
         x87_6(crate::race::store::asm_base() as usize);
-        hold_high(0x62400C, 0x613F34);
+        hold_high(&DRAW.scratch, &PHYSICS.grip_ramp);
         edx = steer_index();
         x87_7(
             crate::race::store::asm_base() as usize,
@@ -105,37 +112,49 @@ pub unsafe fn drive_grip_forces() {
     // 0x43D08E: the engine braking.
     let eax = if kind != 0 {
         x87_8(crate::race::store::asm_base() as usize);
-        ((g(0x71A614).wrapping_sub(g(0x71A610)) as i32 >> 1) as u32)
+        ((CAR.brake.get().wrapping_sub(CAR.throttle.get()) as i32 >> 1) as u32)
             .wrapping_add(0x80)
-            .wrapping_add(g(0x62400C))
-            .wrapping_add(g(0x71A618))
+            .wrapping_add(DRAW.scratch.get())
+            .wrapping_add(CAR.handbrake.get())
     } else {
         x87_9(crate::race::store::asm_base() as usize);
         0x100u32
-            .wrapping_sub(g(0x71A610))
-            .wrapping_add(g(0x62400C))
-            .wrapping_add(g(0x71A618))
+            .wrapping_sub(CAR.throttle.get())
+            .wrapping_add(DRAW.scratch.get())
+            .wrapping_add(CAR.handbrake.get())
     };
-    p(0x614164, eax);
+    PHYSICS.grip_drive_word.set(eax);
     x87_10(crate::race::store::asm_base() as usize);
-    if mul_status(g(0x71A1EC), g(0x71A1E8), g(0x5C5D90)) & 0x100 != 0 {
-        p(0x71A1EC, x87::mul(g(0x71A1EC), g(0x613EB4)));
+    if mul_status(
+        CAR.grip_forces[1].bits(),
+        CAR.grip_forces[0].bits(),
+        NUMBERS.zero.bits(),
+    ) & 0x100
+        != 0
+    {
+        CAR.grip_forces[1].set_bits(x87::mul(
+            crate::physics::car_store::CAR.grip_forces[1].bits(),
+            PHYSICS.side_grip_share.bits(),
+        ));
     }
-    if g(0x71A25C) == u32::MAX {
+    if CAR.parts_state.get() == u32::MAX {
         let k = if kind == 1 { 0x613E54 } else { 0x613E58 };
-        p(0x71A1EC, x87::mul(g(0x71A1EC), g(k)));
+        CAR.grip_forces[1].set_bits(x87::mul(
+            crate::physics::car_store::CAR.grip_forces[1].bits(),
+            g(k),
+        ));
     }
-    p(0x71A1F0, 0);
+    CAR.grip_forces[2].set_bits(0);
     if kind == 1 {
         x87_11(crate::race::store::asm_base() as usize);
-        hold_high(0x62401C, 0x613E7C);
+        hold_high(&DRAW.work_float_a, &PHYSICS.grip_slip_limit);
         x87_12(crate::race::store::asm_base() as usize);
-        p(0x62400C, x87::loaded(g(0x71A158)));
+        DRAW.scratch.set(x87::loaded(CAR.drive_slip_speed.bits()));
         // Held to ±`flt_613E80`, the limit negated in place between and put back.
-        hold_high(0x62400C, 0x613E80);
-        negate(0x613E80);
-        hold_low(0x62400C, 0x613E80);
-        negate(0x613E80);
+        hold_high(&DRAW.scratch, &PHYSICS.grip_force_limit);
+        negate(&PHYSICS.grip_force_limit);
+        hold_low(&DRAW.scratch, &PHYSICS.grip_force_limit);
+        negate(&PHYSICS.grip_force_limit);
         x87_4(crate::race::store::asm_base() as usize, 0x22400C, 0x213E80);
         edx = steer_index();
         x87_13(
@@ -146,15 +165,18 @@ pub unsafe fn drive_grip_forces() {
     }
     // 0x43D2C9: the sum, and the yaw twist on the rear wheels.
     x87_14(crate::race::store::asm_base() as usize);
-    p(0x6149D0, 0);
-    p(0x6149F0, 0);
-    if g(0x71A22C) != 0 {
+    PHYSICS.forces[19].force[0].set_bits(0);
+    PHYSICS.forces[20].force[0].set_bits(0);
+    if CAR.all_wheels_off.get() != 0 {
         return;
     }
-    p(0x71A1D8, x87::loaded(g(0x71A160)));
-    let old = g(0x71A1D8);
-    p(0x5C5E48, x87::sub(old, g(0x71A1DC)));
-    ease_zero(0x5C5E48, 0x613EA4);
+    CAR.eased_yaw_spin
+        .set_bits(x87::loaded(crate::physics::car_store::CAR.spin[1].bits()));
+    let old = CAR.eased_yaw_spin.bits();
+    NUMBERS
+        .grip_change
+        .set_bits(x87::sub(old, CAR.grip_force_sum.bits()));
+    ease_zero(&NUMBERS.grip_change, &PHYSICS.grip_ease_step);
     let held = [old];
     x87_15(
         crate::race::store::asm_base() as usize,

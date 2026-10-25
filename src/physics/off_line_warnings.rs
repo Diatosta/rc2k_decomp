@@ -16,7 +16,9 @@
 //! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, game_write, rva};
+use crate::framework::{game_read, rva};
+use crate::physics::car_store::CAR;
+use crate::physics::tables_store::PHYSICS;
 use rc2k_core::physics::progress::{
     LAST_CHECKPOINT, OFF_LINE_CUE, TURNED_CUE, Warnings, cue_due, off_line, spread,
 };
@@ -26,15 +28,18 @@ fn g(x: usize) -> u32 {
     unsafe { game_read(rva(x)) }
 }
 
-fn p(x: usize, v: u32) {
-    unsafe { game_write(rva(x), v) }
+/// The counters: off, turned, their times.
+fn counters() -> [&'static crate::session::Dword; 4] {
+    [
+        &CAR.off_line_steps,
+        &CAR.turned_steps,
+        &CAR.off_line_cue_time,
+        &CAR.turned_cue_time,
+    ]
 }
 
-/// The counters (IDA addresses: off, turned, their times).
-const COUNTERS: [usize; 4] = [0x71A248, 0x71A24C, 0x71A250, 0x71A254];
-
 fn load() -> Warnings {
-    let [off, turned, off_time, turned_time] = COUNTERS.map(g);
+    let [off, turned, off_time, turned_time] = counters().map(|c| c.get());
     Warnings {
         off,
         turned,
@@ -44,44 +49,44 @@ fn load() -> Warnings {
 }
 
 fn store(w: &Warnings) {
-    for (x, v) in COUNTERS
-        .iter()
+    for (c, v) in counters()
+        .into_iter()
         .zip([w.off, w.turned, w.off_time, w.turned_time])
     {
-        p(*x, v);
+        c.set(v);
     }
 }
 
 /// The steps. The registers the original leaves are read by none of its callers.
 // Converted: `rc2k_core::physics::progress::{Warnings, off_line, cue_due}`.
 pub fn off_line_warnings() -> Result<(), Refused> {
-    if g(0x71A080) != 0 || g(0x71A07C) != 0 {
+    if CAR.finish_flag.get() != 0 || CAR.go_stand_timer.get() != 0 {
         return Ok(());
     }
-    let cp = g(0x71A070);
+    let cp = CAR.checkpoint.get();
     if cp > LAST_CHECKPOINT {
         return Err(BadInput("a checkpoint past 0x1418").into());
     }
     let near = x87_below(
-        f32::from_bits(g(0x614C68)) as f64,
-        f32::from_bits(g(0x614C6C)) as f64,
+        f32::from_bits(PHYSICS.nearest_checkpoint_distance.bits()) as f64,
+        f32::from_bits(PHYSICS.off_line_distance.bits()) as f64,
     );
     let mut w = load();
-    w.count_off(off_line(near, || spread(cp, g(0x71A06C))));
+    w.count_off(off_line(near, || spread(cp, CAR.reset_checkpoint.get())));
     w.count_turned(
-        spread(g(0x71A998), g(0x9ED808 + 4 * cp as usize)),
-        g(0x614C74),
+        spread(CAR.car_heading.get(), g(0x9ED808 + 4 * cp as usize)),
+        PHYSICS.off_line_word.get(),
     );
     store(&w);
     if g(0x5BEC94) != 0 {
         return Ok(());
     }
     for (count, time, cue) in [
-        (0x71A24C, 0x71A254, TURNED_CUE),
-        (0x71A248, 0x71A250, OFF_LINE_CUE),
+        (&CAR.turned_steps, &CAR.turned_cue_time, TURNED_CUE),
+        (&CAR.off_line_steps, &CAR.off_line_cue_time, OFF_LINE_CUE),
     ] {
-        if let Some(next) = cue_due(g(count), g(time)) {
-            p(time, next);
+        if let Some(next) = cue_due(count.get(), time.get()) {
+            time.set(next);
             crate::physics::cue_listed_car_sound::cue_listed_car_sound(cue)?;
         }
     }

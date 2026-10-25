@@ -27,35 +27,18 @@
 
 use crate::framework::{game_read, game_write, rva};
 use crate::math::x87;
-use crate::scene::draw_polygon::CHECKED_RVA;
+use crate::race::numbers_store::NUMBERS;
+use crate::race::vars_store::RACE_VARS;
+use crate::race::view_store::RACE_VIEW;
+use crate::scene::draw_store::DRAW;
 use crate::session::SCREEN;
 
 // ---- game data ----
 
 const REACH_RVA: usize = rva(0x60A87C); // dword_60A87C
-const DEPTH_RVA: usize = rva(0x63DC54); // dword_63DC54, dword_63DC58
-pub const SIZE_RVA: usize = rva(0x62408C); // dword_62408C, dword_624090
-const MIDDLE_RVA: usize = rva(0x624094); // dword_624094, dword_624098
-const MIDDLE_FLOATS_RVA: usize = rva(0x62409C); // flt_62409C, flt_6240A0
-const IN_RACE_RVA: usize = rva(0x5C5CEC); // g_inRace
-const OFFSETS_RVA: usize = rva(0x623FB0); // dword_623FB0, dword_623FB4
-const EDGES_RVA: usize = rva(0x6241D4); // dword_6241D4 top, D8 bottom, DC left, E0 right
-const EDGE_FLOATS_RVA: usize = rva(0x6241E4); // g_clipScreenTop, Bottom, Left, Right
-const OFFSET_FLOATS_RVA: usize = rva(0x6241F4); // flt_6241F4, flt_6241F8
 const SCALE_A_RVA: usize = rva(0x606294); // dword_606294, a float
-const SCALE_B_RVA: usize = rva(0x624080); // dword_624080
 const SCALE_C_RVA: usize = rva(0x623DCC); // flt_623DCC
-const SCALE_RVA: usize = rva(0x624088); // flt_624088
 const NEARER_RVA: usize = rva(0x60AC80); // dword_60AC80
-const NEARER_FACTOR_RVA: usize = rva(0x5C5CFC); // flt_5C5CFC
-const DIVISOR_RVA: usize = rva(0x624224); // flt_624224
-const FARTHEST_RVA: usize = rva(0x6241C8); // flt_6241C8, flt_6241CC, dword_6241D0
-const FADE_A_RVA: usize = rva(0x624228); // flt_624228
-const FADE_B_RVA: usize = rva(0x624220); // flt_624220
-const CLIP_FACTOR_RVA: usize = rva(0x62422C); // flt_62422C
-const CLIP_FARTHEST_RVA: usize = rva(0x624230); // g_clipFarthest
-const TURN_RVA: usize = rva(0x5C5D98); // flt_5C5D98, 65536.0
-const ONE_RVA: usize = rva(0x5C5D38); // flt_5C5D38
 const LESS_ONE_RVA: usize = rva(0x6D18E8); // flt_6D18E8, flt_6D18EC
 
 // ---- Rust version ----
@@ -63,13 +46,13 @@ const LESS_ONE_RVA: usize = rva(0x6D18E8); // flt_6D18E8, flt_6D18EC
 pub unsafe fn set_view_window() {
     unsafe {
         let depth = game_read::<u32>(REACH_RVA).wrapping_mul(0x20);
-        game_write(DEPTH_RVA, [depth, depth]);
-        let [width, height]: [u32; 2] = game_read(SIZE_RVA);
+        crate::session::write_bits(&RACE_VIEW.view_depth, [depth, depth]);
+        let [width, height]: [u32; 2] = crate::session::read_bits(&DRAW.view_size);
         let middle = [width >> 1, height >> 1];
-        game_write(MIDDLE_RVA, middle);
-        let offsets: [u32; 2] = game_read(OFFSETS_RVA);
+        crate::session::write_bits(&DRAW.view_middle, middle);
+        let offsets: [u32; 2] = crate::session::read_bits(&DRAW.view_offset);
         // top, bottom, left, right
-        let edges = if game_read::<u32>(IN_RACE_RVA) == 1 {
+        let edges = if NUMBERS.in_race.bits() == 1 {
             [0, height, 0, width]
         } else {
             [
@@ -79,16 +62,13 @@ pub unsafe fn set_view_window() {
                 width.wrapping_sub(offsets[0]),
             ]
         };
-        game_write(EDGES_RVA, edges);
-        game_write(
-            SCALE_RVA,
-            x87::int_float_int_float(
-                SCREEN.width.get() as i32,
-                game_read(SCALE_A_RVA),
-                game_read(SCALE_B_RVA),
-                game_read(SCALE_C_RVA),
-            ),
-        );
+        crate::session::write_bits(&DRAW.clip_edges, edges);
+        DRAW.view_scale.set_bits(x87::int_float_int_float(
+            SCREEN.width.get() as i32,
+            game_read(SCALE_A_RVA),
+            DRAW.view_zoom.bits() as i32,
+            RACE_VARS.scale_factor.bits(),
+        ));
         // `cmp; jns` and `cmp; js`: by the differences' signs.
         let mut nearer = 100u32.wrapping_sub(game_read(NEARER_RVA));
         if (nearer.wrapping_sub(0x5A) as i32) < 0 {
@@ -97,34 +77,27 @@ pub unsafe fn set_view_window() {
         if (nearer.wrapping_sub(0x64) as i32) >= 0 {
             nearer = 0x64;
         }
-        let divisor = x87::int_times(nearer as i32, game_read(NEARER_FACTOR_RVA));
-        game_write(DIVISOR_RVA, divisor);
+        let divisor = x87::int_times(nearer as i32, NUMBERS.hundredth_a.bits());
+        DRAW.depth_divisor.set_bits(divisor);
         let product = depth as u64 * 0x1_0000;
         let low = product as u32;
-        game_write(CHECKED_RVA, low);
+        DRAW.scratch.set_bits(low);
         let farthest = x87::int_over(low as i32, divisor);
-        game_write(
-            FARTHEST_RVA,
-            [
-                farthest,
-                x87::reciprocal(farthest),
-                x87::mul_div_div_to_int(
-                    farthest,
-                    game_read(FADE_A_RVA),
-                    game_read(FADE_B_RVA),
-                    game_read(TURN_RVA),
-                ) as u32,
-            ],
-        );
-        game_write(
-            CLIP_FARTHEST_RVA,
-            x87::mul_to_int(farthest, game_read(CLIP_FACTOR_RVA)),
-        );
+        DRAW.farthest.set_bits(farthest);
+        DRAW.one_over_farthest.set_bits(x87::reciprocal(farthest));
+        DRAW.farthest_scaled.set(x87::mul_div_div_to_int(
+            farthest,
+            DRAW.fade_a.bits(),
+            DRAW.fade_b.bits(),
+            NUMBERS.k65536.bits(),
+        ) as u32);
+        DRAW.clip_farthest
+            .set(x87::mul_to_int(farthest, DRAW.clip_factor.bits()) as u32);
         let float = |value: u32| x87::from_int(value as i32);
-        game_write(OFFSET_FLOATS_RVA, offsets.map(float));
-        game_write(EDGE_FLOATS_RVA, edges.map(float));
-        game_write(MIDDLE_FLOATS_RVA, middle.map(float));
-        let one: u32 = game_read(ONE_RVA);
+        crate::session::write_bits(&DRAW.view_offset_float, offsets.map(float));
+        crate::session::write_bits(&DRAW.clip_screen, edges.map(float));
+        crate::session::write_bits(&DRAW.view_centre, middle.map(float));
+        let one: u32 = NUMBERS.one.bits();
         game_write(
             LESS_ONE_RVA,
             [width, height].map(|size| x87::int_less(size as i32, one)),
@@ -142,44 +115,44 @@ pub unsafe fn set_view_window_plain() {
         let f = |r: usize| f32::from_bits(game_read(r));
         let i = WindowInputs {
             reach: game_read(REACH_RVA),
-            size: game_read(SIZE_RVA),
-            offsets: game_read(OFFSETS_RVA),
-            in_race: game_read::<u32>(IN_RACE_RVA) == 1,
+            size: crate::session::read_bits(&DRAW.view_size),
+            offsets: crate::session::read_bits(&DRAW.view_offset),
+            in_race: NUMBERS.in_race.bits() == 1,
             screen_width: SCREEN.width.get(),
-            scale: (f(SCALE_A_RVA), game_read(SCALE_B_RVA), f(SCALE_C_RVA)),
+            scale: (f(SCALE_A_RVA), DRAW.view_zoom.bits(), f(SCALE_C_RVA)),
             nearer: game_read(NEARER_RVA),
-            nearer_factor: f(NEARER_FACTOR_RVA),
-            fade: [f(FADE_A_RVA), f(FADE_B_RVA)],
-            turn: f(TURN_RVA),
-            clip_factor: f(CLIP_FACTOR_RVA),
-            one: f(ONE_RVA),
+            nearer_factor: NUMBERS.hundredth_a.get(),
+            fade: [DRAW.fade_a.get(), DRAW.fade_b.get()],
+            turn: NUMBERS.k65536.get(),
+            clip_factor: DRAW.clip_factor.get(),
+            one: NUMBERS.one.get(),
         };
         let w = window_settings(&i);
         let bits = |v: &[f32]| v.iter().map(|x| x.to_bits()).collect::<Vec<u32>>();
-        game_write(DEPTH_RVA, [w.depth, w.depth]);
-        game_write(MIDDLE_RVA, w.middle);
-        game_write(EDGES_RVA, w.edges);
-        game_write(SCALE_RVA, w.scale.to_bits());
-        game_write(DIVISOR_RVA, w.divisor.to_bits());
+        crate::session::write_bits(&RACE_VIEW.view_depth, [w.depth, w.depth]);
+        crate::session::write_bits(&DRAW.view_middle, w.middle);
+        crate::session::write_bits(&DRAW.clip_edges, w.edges);
+        DRAW.view_scale.set_bits(w.scale.to_bits());
+        DRAW.depth_divisor.set_bits(w.divisor.to_bits());
         let low = w.product as u32;
-        game_write(CHECKED_RVA, low);
-        game_write(
-            FARTHEST_RVA,
-            [
-                w.farthest.to_bits(),
-                w.reciprocal.to_bits(),
-                w.fade_depth as u32,
-            ],
-        );
-        game_write(CLIP_FARTHEST_RVA, w.clip_farthest);
+        DRAW.scratch.set_bits(low);
+        DRAW.farthest.set(w.farthest);
+        DRAW.one_over_farthest.set(w.reciprocal);
+        DRAW.farthest_scaled.set(w.fade_depth as u32);
+        DRAW.clip_farthest.set_bits(w.clip_farthest as u32);
         let put = |rva: usize, v: &[f32]| {
             for (n, x) in bits(v).into_iter().enumerate() {
                 game_write(rva + 4 * n, x);
             }
         };
-        put(OFFSET_FLOATS_RVA, &w.offset_floats);
-        put(EDGE_FLOATS_RVA, &w.edge_floats);
-        put(MIDDLE_FLOATS_RVA, &w.middle_floats);
+        let set = |cells: &[crate::session::Float], v: &[f32]| {
+            for (cell, &x) in cells.iter().zip(v) {
+                cell.set(x);
+            }
+        };
+        set(&DRAW.view_offset_float, &w.offset_floats);
+        set(&DRAW.clip_screen, &w.edge_floats);
+        set(&DRAW.view_centre, &w.middle_floats);
         put(LESS_ONE_RVA, &w.less_one);
     }
 }

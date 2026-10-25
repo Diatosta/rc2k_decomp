@@ -6,6 +6,11 @@
 
 use crate::errors::Refused;
 use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::race::blocks_store::CAR_BLOCKS;
+use crate::race::course_store::COURSE;
+use crate::race::numbers_store::NUMBERS;
+use crate::race::view_store::RACE_VIEW;
+use crate::scene::draw_store::DRAW;
 
 fn g(a: u32) -> u32 {
     game_addr(rva(a as usize)) as u32
@@ -18,16 +23,16 @@ unsafe fn get(a: u32) -> u32 {
 /// `race::face_depth_test_off` (0x452358): with no texture animation (`dword_63DA2C` 0)
 /// and `g_polygonMode` 4, the depth test off and `dword_63D9E0` 1.
 pub unsafe fn face_depth_test_off() {
-    unsafe {
+    {
         // Converted: `rc2k_core::race::faces::depth_test_off`.
         if !rc2k_core::race::faces::depth_test_off(
-            game_read(rva(0x63DA2C)),
-            game_read(rva(0x63DAB4)),
+            RACE_VIEW.texture_a.bits(),
+            RACE_VIEW.polygon_mode.bits(),
         ) {
             return;
         }
         crate::scene::depth_test_off::depth_test_off();
-        game_write(rva(0x63D9E0), 1u32);
+        RACE_VIEW.depth_test.set(1u32);
     }
 }
 
@@ -35,12 +40,12 @@ pub unsafe fn face_depth_test_off() {
 /// then `dword_63D9E0` 0. (It turns the test on when it was not turned off: the test looks
 /// the wrong way round, `notes/bugs.md`.)
 pub unsafe fn face_depth_test_on() {
-    unsafe {
+    {
         // Converted: `rc2k_core::race::faces::depth_test_on`.
-        if rc2k_core::race::faces::depth_test_on(game_read(rva(0x63D9E0))) {
+        if rc2k_core::race::faces::depth_test_on(RACE_VIEW.depth_test.bits()) {
             crate::scene::depth_test_on::depth_test_on();
         }
-        game_write(rva(0x63D9E0), 0u32);
+        RACE_VIEW.depth_test.set(0u32);
     }
 }
 
@@ -51,7 +56,7 @@ pub unsafe fn face_corners(face: u32) -> u32 {
     unsafe {
         let points = [4, 8, 0xC, 0x10].map(|o| get(face + o));
         let corners = rc2k_core::race::faces::corners(points);
-        game_write(rva(0x63D9EC), corners);
+        crate::session::write_bits(&RACE_VIEW.corners, corners);
         corners[3]
     }
 }
@@ -68,7 +73,7 @@ unsafe fn face_turned_to_view(face: u32, half: u32) -> u32 {
         let e = face + half;
         let p = get(e + 8)
             .wrapping_mul(12)
-            .wrapping_add(game_read(rva(0x5CCCC0)));
+            .wrapping_add(COURSE.scene_points.bits());
         let view = |a: usize| ld(game_read::<u32>(rva(a)));
         let along = |at: u32, view_at: usize, normal: u32| {
             (int(get(at) as i32) - view(view_at)) * ld(get(normal))
@@ -89,10 +94,10 @@ unsafe fn face_turned_to_view(face: u32, half: u32) -> u32 {
 /// caller's parts take only esi, the face.
 pub unsafe fn face_sides(face: u32) {
     unsafe {
-        game_write(rva(0x63D9E4), face_turned_to_view(face, 0));
-        game_write(rva(0x63D9E8), 1u32);
-        if game_read::<u32>(rva(0x63D9F8)) != u32::MAX {
-            game_write(rva(0x63D9E8), face_turned_to_view(face, 4));
+        RACE_VIEW.face_turned[0].set(face_turned_to_view(face, 0));
+        RACE_VIEW.face_turned[1].set(1u32);
+        if RACE_VIEW.corners[3].get() != u32::MAX {
+            RACE_VIEW.face_turned[1].set(face_turned_to_view(face, 4));
         }
     }
 }
@@ -113,35 +118,32 @@ fn frame_of(t: u32, f: u32, a: u32, b: u32) -> u32 {
 pub unsafe fn face_materials(face: u32) {
     unsafe {
         let byte = |a: u32| (a as *const u8).read() as u32;
-        let clock: u32 = game_read(rva(0x70F3F4));
-        let (k1, k2) = (
-            game_read::<u32>(rva(0x5C5D54)),
-            game_read::<u32>(rva(0x5C5DA4)),
-        );
+        let clock: u32 = CAR_BLOCKS.cars[0].step_clock.bits();
+        let (k1, k2) = (NUMBERS.ten.bits(), NUMBERS.quarter.bits());
         let texture = |object: u32, first: bool| -> u32 {
             let speed = byte(g(0x609C4C) + object);
             if speed == 0 {
                 return object;
             }
             let n = frame_of(clock, get(g(0x5C6950) + 4 * speed), k1, k2);
-            game_write(rva(0x62400C), n);
+            DRAW.scratch.set(n);
             let (frame, place) = rc2k_core::race::faces::frame_place(object, n);
             if first {
-                game_write(rva(0x63DA08), frame);
+                RACE_VIEW.face_frame.set(frame);
             }
             byte(g(0x609384) + place)
         };
         // Converted: `rc2k_core::race::faces::{frame_place, material_bits}` (the frame's
         // rounding the x87's).
         use rc2k_core::race::faces::material_bits;
-        game_write(rva(0x63DA2C), texture(byte(face + 1), true));
+        RACE_VIEW.texture_a.set(texture(byte(face + 1), true));
         let (order, back) = material_bits(byte(face) as u8);
-        game_write(rva(0x63DA30), order);
-        game_write(rva(0x63DA34), back);
-        game_write(rva(0x63DA38), texture(byte(face + 0x21), false));
+        RACE_VIEW.order_a.set(order);
+        RACE_VIEW.back_a.set(back);
+        RACE_VIEW.texture_b.set(texture(byte(face + 0x21), false));
         let (order, back) = material_bits(byte(face + 0x20) as u8);
-        game_write(rva(0x63DA3C), order);
-        game_write(rva(0x63DA40), back);
+        RACE_VIEW.order_b.set(order);
+        RACE_VIEW.back_b.set(back);
     }
 }
 
@@ -154,7 +156,7 @@ pub unsafe fn draw_marked_face() -> Result<(), Refused> {
         crate::scene::draw_marked_polygon::draw_marked_polygon(&mut || {
             crate::scene::draw_polygon::draw_polygon_in_game()
         })?;
-        game_write(rva(0x624134), 1u32);
+        DRAW.polygon_drawn.set(1u32);
         Ok(())
     }
 }
@@ -163,11 +165,13 @@ pub unsafe fn draw_marked_face() -> Result<(), Refused> {
 /// first / second texture is animated (`dword_63DA2C` / `dword_63DA38` not 0), else 0.
 pub unsafe fn face_switches() {
     // Converted: `rc2k_core::race::faces::switches`.
-    unsafe {
-        let [first, second] =
-            rc2k_core::race::faces::switches([game_read(rva(0x63DA2C)), game_read(rva(0x63DA38))]);
-        game_write(rva(0x6240E0), first);
-        game_write(rva(0x6240E4), second);
+    {
+        let [first, second] = rc2k_core::race::faces::switches([
+            RACE_VIEW.texture_a.bits(),
+            RACE_VIEW.texture_b.bits(),
+        ]);
+        DRAW.polygon_sides[0].set(first);
+        DRAW.polygon_sides[1].set(second);
     }
 }
 
@@ -178,13 +182,13 @@ unsafe fn point_light(n: u32) -> Result<u32, Refused> {
         if n == u32::MAX {
             return Ok(0);
         }
-        let p = n.wrapping_mul(12).wrapping_add(game_read(rva(0x5CCCC0)));
+        let p = n.wrapping_mul(12).wrapping_add(COURSE.scene_points.bits());
         game_write(rva(0x636588), get(p));
         game_write(rva(0x63658C), get(p + 4));
         game_write(rva(0x636590), get(p + 8));
         crate::race::frame_draw::light_colour_at()?;
         let light: u32 = game_read(rva(0x62DAC4));
-        game_write(rva(0x62400C), light);
+        DRAW.scratch.set(light);
         Ok(light)
     }
 }
@@ -196,26 +200,26 @@ unsafe fn point_light(n: u32) -> Result<u32, Refused> {
 pub unsafe fn face_lights() -> Result<(), Refused> {
     unsafe {
         // Converted: `rc2k_core::race::faces::corners_lit`.
-        let wanted: u32 = game_read(rva(0x63DB58));
+        let wanted: u32 = RACE_VIEW.lamps_wanted.get();
         let lit = wanted != 0
             && rc2k_core::race::faces::corners_lit(
                 wanted,
-                game_read(rva(0x63DA2C)),
-                game_read(rva(0x63DAB4)),
+                RACE_VIEW.texture_a.bits(),
+                RACE_VIEW.polygon_mode.bits(),
             );
         if lit {
             crate::race::frame_draw::check_light_colour()?;
         }
         for k in 0..4 {
-            game_write(rva(0x63DA54 + 4 * k), 0u32);
+            RACE_VIEW.corner_lights[k].set(0u32);
         }
         if !lit {
             return Ok(());
         }
         for k in 0..4 {
-            let n: u32 = game_read(rva(0x63D9EC + 4 * k));
+            let n: u32 = RACE_VIEW.corners[k].get();
             let light = point_light(n)?;
-            game_write(rva(0x63DA54 + 4 * k), light);
+            RACE_VIEW.corner_lights[k].set(light);
         }
         Ok(())
     }
@@ -228,18 +232,18 @@ pub unsafe fn clip_and_draw_face() -> Result<(), Refused> {
     // Converted: `rc2k_core::race::face_drawing::draws_polygon`.
     use rc2k_core::race::face_drawing::draws_polygon;
     unsafe {
-        if game_read::<u32>(rva(0x6240F4)) != 0 {
+        if DRAW.polygon_outside_count.get() != 0 {
             crate::scene::clip_polygon_by_depth::clip_polygon_by_depth()?;
-            if !draws_polygon(game_read(rva(0x6240F8))) {
+            if !draws_polygon(DRAW.polygon_vertex_count.bits()) {
                 return Ok(());
             }
         }
         crate::scene::clip_polygon_to_screen::clip_polygon_to_screen()?;
-        if !draws_polygon(game_read(rva(0x6240F8))) {
+        if !draws_polygon(DRAW.polygon_vertex_count.bits()) {
             return Ok(());
         }
         crate::scene::draw_polygon::draw_polygon_in_game()?;
-        game_write(rva(0x624134), 1u32);
+        DRAW.polygon_drawn.set(1u32);
         Ok(())
     }
 }
@@ -256,10 +260,10 @@ pub unsafe fn face_out_of_view() -> Result<bool, Refused> {
     use rc2k_core::race::face_drawing::{InSight, corner_in_sight};
     unsafe {
         crate::race::frame_draw::points_there()?;
-        let near: u32 = game_read(rva(0x63DA00));
-        let slope: u32 = game_read(rva(0x63D9FC));
+        let near: u32 = RACE_VIEW.near.bits();
+        let slope: u32 = RACE_VIEW.slope.bits();
         for k in 0..4 {
-            let n: u32 = game_read(rva(0x63D9EC + 4 * k));
+            let n: u32 = RACE_VIEW.corners[k].get();
             if k == 3 && n == u32::MAX {
                 break;
             }
@@ -271,7 +275,7 @@ pub unsafe fn face_out_of_view() -> Result<bool, Refused> {
             let x = get(record + 0x10);
             match corner_in_sight(depth, x, near, slope) {
                 Some(InSight::Near) => {
-                    game_write(rva(0x62400C), x & 0x7FFF_FFFF);
+                    DRAW.scratch.set(x & 0x7FFF_FFFF);
                     return Ok(false);
                 }
                 Some(InSight::Slope) => return Ok(false),
@@ -348,7 +352,7 @@ pub unsafe fn face_texture_coordinates(set: &TextureSet) {
             )
         });
         let c = texture_coordinates(texture_info, pairs, |k| {
-            let points: u32 = game_read(rva(0x5CCCC0));
+            let points: u32 = COURSE.scene_points.get();
             let n: u32 = game_read(rva(0x63D9EC) + 4 * k);
             let p = n.wrapping_mul(12).wrapping_add(points);
             (get(p), get(p + 8))
@@ -368,14 +372,14 @@ pub unsafe fn face_corners_to_new_points() -> Result<(), Refused> {
     // Converted: `rc2k_core::race::faces::new_points`.
     unsafe {
         crate::race::frame_draw::points_there()?;
-        let count: u32 = game_read(rva(0x5CCD20));
+        let count: u32 = COURSE.scene_point_count.get();
         let records: u32 = game_read(rva(0x5C6FB8));
-        let corners: [u32; 4] = game_read(rva(0x63D9EC));
+        let corners: [u32; 4] = crate::session::read_bits(&RACE_VIEW.corners);
         let (marked, copies) = rc2k_core::race::faces::new_points(count, corners);
         for n in marked {
             ((records + (n << 5)) as *mut u32).write_unaligned(u32::MAX);
         }
-        let points: u32 = game_read(rva(0x5CCCC0));
+        let points: u32 = COURSE.scene_points.get();
         for (k, (from, to)) in copies.into_iter().enumerate() {
             let to_at = to.wrapping_mul(12).wrapping_add(points);
             let from_at = from.wrapping_mul(12).wrapping_add(points);
@@ -423,12 +427,12 @@ unsafe fn lamp_byte(slot: u32) -> u8 {
 /// `g_polygonNextEntry` `next`.
 unsafe fn plain_list(count: u32, next: u32) {
     unsafe {
-        game_write(rva(0x6240F8), count);
+        DRAW.polygon_vertex_count.set(count);
         for k in 0..count {
             game_write(rva(0x977710) + 4 * k as usize, k);
         }
         game_write(rva(0x977710) + 4 * count as usize, 0u32);
-        game_write(rva(0x624114), next);
+        DRAW.polygon_next_entry.set(next);
     }
 }
 
@@ -452,18 +456,18 @@ pub unsafe fn draw_whole_quad() -> Result<bool, Refused> {
         }
         plain_list(4, 4);
         crate::scene::project_polygon::project_polygon()?;
-        if let Some(triangles) = quad_by_outside(game_read(rva(0x6240F4))) {
+        if let Some(triangles) = quad_by_outside(DRAW.polygon_outside_count.bits()) {
             return Ok(triangles);
         }
         let [left, right, top, bottom] = screen_inside(
-            game_read(rva(0x6241DC)),
-            game_read(rva(0x6241E0)),
-            game_read(rva(0x6241D4)),
-            game_read(rva(0x6241D8)),
+            DRAW.clip_edges[2].bits(),
+            DRAW.clip_edges[3].bits(),
+            DRAW.clip_edges[0].bits(),
+            DRAW.clip_edges[1].bits(),
         );
         let inside = |v: u32, low: u32, high: u32| {
             let n = crate::math::x87::to_int(v) as u32;
-            game_write(rva(0x62400C), n);
+            DRAW.scratch.set(n);
             rc2k_core::race::face_drawing::inside(n, low, high)
         };
         for slot in 0..4 {
@@ -472,7 +476,7 @@ pub unsafe fn draw_whole_quad() -> Result<bool, Refused> {
                 return Ok(true);
             }
         }
-        game_write(rva(0x6240F8), 4u32);
+        DRAW.polygon_vertex_count.set(4u32);
         draw_marked_face()?;
         Ok(false)
     }
@@ -488,19 +492,19 @@ pub unsafe fn draw_face_triangles() -> Result<(), Refused> {
         FIRST_TRIANGLE, SECOND_TRIANGLE, draws_first, draws_second,
     };
     unsafe {
-        if draws_first(game_read(rva(0x63D9E4))) {
+        if draws_first(RACE_VIEW.face_turned[0].bits()) {
             for (slot, corner) in FIRST_TRIANGLE {
                 fill_entry(slot, corner);
             }
-            game_write(rva(0x6240F8), 3u32);
+            DRAW.polygon_vertex_count.set(3u32);
             draw_lit_triangle()?;
         }
-        let fourth: u32 = game_read(rva(0x63D9F8));
-        if fourth != u32::MAX && draws_second(fourth, game_read(rva(0x63D9E8))) {
+        let fourth: u32 = RACE_VIEW.corners[3].get();
+        if fourth != u32::MAX && draws_second(fourth, RACE_VIEW.face_turned[1].bits()) {
             for (slot, corner) in SECOND_TRIANGLE {
                 fill_entry(slot, corner);
             }
-            game_write(rva(0x6240F8), 3u32);
+            DRAW.polygon_vertex_count.set(3u32);
             draw_lit_triangle()?;
         }
         Ok(())
@@ -517,8 +521,8 @@ pub unsafe fn draw_face_polygons() -> Result<(), Refused> {
         if in_race != 0
             && rc2k_core::race::face_drawing::tries_quad(
                 in_race,
-                game_read(rva(0x63D9E4)),
-                game_read(rva(0x63D9E8)),
+                RACE_VIEW.face_turned[0].bits(),
+                RACE_VIEW.face_turned[1].bits(),
             )
             && !draw_whole_quad()?
         {
@@ -540,26 +544,26 @@ pub unsafe fn draw_face() -> Result<(), Refused> {
     // test `rc2k_core::race::faces::corners_lit`.
     use rc2k_core::race::face_drawing::{PLAIN_MODE, face_mode};
     unsafe {
-        let second: u32 = game_read(rva(0x63DA38));
+        let second: u32 = RACE_VIEW.texture_b.get();
         let picked = || {
             let record = g(0x979F30).wrapping_add(second << 6);
             let pick = ((record + 0x2C) as *const u8).read() as usize;
             game_read::<u32>(rva(0x63D9D0) + 4 * pick)
         };
         let mode = face_mode(second, picked);
-        let wanted: u32 = game_read(rva(0x63DB58));
+        let wanted: u32 = RACE_VIEW.lamps_wanted.get();
         if wanted != 0
-            && rc2k_core::race::faces::corners_lit(wanted, game_read(rva(0x63DA2C)), mode)
+            && rc2k_core::race::faces::corners_lit(wanted, RACE_VIEW.texture_a.bits(), mode)
         {
             crate::race::frame_draw::check_light_colour()?;
         }
         face_switches();
-        if game_read::<u32>(rva(0x63DA2C)) != 0 {
+        if RACE_VIEW.texture_a.get() != 0 {
             face_texture_coordinates(&FIRST_SET);
         }
-        game_write(rva(0x63DAB4), PLAIN_MODE);
+        RACE_VIEW.polygon_mode.set(PLAIN_MODE);
         if second != 0 {
-            game_write(rva(0x63DAB4), face_mode(second, picked));
+            RACE_VIEW.polygon_mode.set(face_mode(second, picked));
             face_texture_coordinates(&SECOND_SET);
         }
         face_lights()?;
@@ -579,14 +583,14 @@ unsafe fn halfway_vertex(a: u32, b: u32, v: u32) {
     use crate::math::x87_float::{ld, st};
     use crate::math::x87_load::below_or_unordered;
     unsafe {
-        let half = ld(game_read::<u32>(rva(0x5C5E40)));
+        let half = ld(NUMBERS.half.bits());
         for o in [0x10, 0x14, 0x18] {
             let (from, to) = (ld(get(a + o)), ld(get(b + o)));
             ((v + o) as *mut u32).write_unaligned(st((to - from) * half + from));
         }
         ((v + 0xC) as *mut u32).write_unaligned(0);
         ((v + 0x1C) as *mut u32).write_unaligned(0);
-        if below_or_unordered(get(v + 0x18), game_read(rva(0x5C5E18))) {
+        if below_or_unordered(get(v + 0x18), NUMBERS.k4096_a.bits()) {
             return;
         }
         crate::race::skidmarks::project_vertex(v);
@@ -599,7 +603,7 @@ unsafe fn halfway_vertex(a: u32, b: u32, v: u32) {
 unsafe fn halfway_entry(first: u32, second: u32, to: u32) {
     use crate::math::x87_float::{ld, st};
     unsafe {
-        let half = ld(game_read::<u32>(rva(0x5C5E40)));
+        let half = ld(NUMBERS.half.bits());
         for o in [8, 0xC, 0x10, 0x14] {
             let sum = ld(get(second + o)) + ld(get(first + o));
             ((to + o) as *mut u32).write_unaligned(st(sum * half));
@@ -630,11 +634,11 @@ pub unsafe fn draw_lit_triangle() -> Result<(), Refused> {
         }
         crate::race::frame_draw::points_there()?;
         crate::race::frame_draw::check_light_colour()?;
-        game_write(rva(0x624134), 0u32);
-        game_write(rva(0x6240A4), g(0x977F10));
-        plain_list(game_read(rva(0x6240F8)), 6);
+        DRAW.polygon_drawn.set(0u32);
+        DRAW.polygon_next_record.set(g(0x977F10));
+        plain_list(DRAW.polygon_vertex_count.bits(), 6);
         crate::scene::project_polygon::project_polygon()?;
-        if game_read::<u32>(rva(0x6240F4)) == game_read::<u32>(rva(0x6240F8)) {
+        if DRAW.polygon_outside_count.get() == DRAW.polygon_vertex_count.get() {
             return Ok(());
         }
         crate::scene::scale_texture_coordinates::scale_texture_coordinates()?;
@@ -644,7 +648,7 @@ pub unsafe fn draw_lit_triangle() -> Result<(), Refused> {
         }
         for (k, (first, second)) in [(0u32, 1u32), (1, 2), (2, 0)].into_iter().enumerate() {
             let v = g(0x623E40 + 0x20 * k as u32);
-            let points: u32 = game_read(rva(0x5CCCC0));
+            let points: u32 = COURSE.scene_points.get();
             let pa = get(entry(first)).wrapping_mul(12).wrapping_add(points);
             let pb = get(entry(second)).wrapping_mul(12).wrapping_add(points);
             for (n, lit) in [0x636588u32, 0x63658C, 0x636590].into_iter().enumerate() {
@@ -660,10 +664,10 @@ pub unsafe fn draw_lit_triangle() -> Result<(), Refused> {
             halfway_entry(entry(first), entry(second), to);
             crate::race::frame_draw::light_colour_at()?;
             let light: u32 = game_read(rva(0x62DAC4));
-            game_write(rva(0x62400C), light);
+            DRAW.scratch.set(light);
             ((to + 0x1C) as *mut u32).write_unaligned(light);
         }
-        let mode5 = game_read::<u32>(rva(0x63DAB4)) == 5;
+        let mode5 = RACE_VIEW.polygon_mode.get() == 5;
         for slot in 0..6 {
             let e = entry(slot);
             if mode5 {
@@ -677,8 +681,8 @@ pub unsafe fn draw_lit_triangle() -> Result<(), Refused> {
                 game_write(rva(0x977710) + 4 * k, *n);
             }
             game_write(rva(0x977710) + 12, list[0]);
-            game_write(rva(0x6240F8), 3u32);
-            game_write(rva(0x624114), 6u32);
+            DRAW.polygon_vertex_count.set(3u32);
+            DRAW.polygon_next_entry.set(6u32);
             clip_and_draw_face()?;
         }
         Ok(())
@@ -729,12 +733,14 @@ unsafe fn turn_over() {
         // Converted: `rc2k_core::race::face_drawing::{turns_last_pair, turned_order}`.
         use rc2k_core::race::face_drawing::{turned_order, turns_last_pair};
         swap(0x63D9EC, 0x63D9F0);
-        if turns_last_pair(game_read(rva(0x63D9F8))) {
+        if turns_last_pair(RACE_VIEW.corners[3].bits()) {
             swap(0x63D9F4, 0x63D9F8);
         }
-        let order: u32 = game_read(rva(0x63DA30));
-        let turned = turned_order(order, |n| ((g(0x63DA7C) + n) as *const u8).read());
-        game_write(rva(0x63DA30), turned);
+        let order: u32 = RACE_VIEW.order_a.get();
+        let turned = turned_order(order, |n| {
+            (((RACE_VIEW.turned_corner_order[0].addr() as u32) + n) as *const u8).read()
+        });
+        RACE_VIEW.order_a.set(turned);
     }
 }
 
@@ -746,7 +752,7 @@ pub unsafe fn draw_back_face(face: u32) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::face_drawing::{has_back, turns_last_pair,
     // turned_order}`.
     unsafe {
-        if !rc2k_core::race::face_drawing::has_back(game_read(rva(0x63DA34))) {
+        if !rc2k_core::race::face_drawing::has_back(RACE_VIEW.back_a.bits()) {
             return Ok(());
         }
         let byte = |o: u32| ((face + o) as *const u8).read() as u32;
@@ -779,14 +785,19 @@ pub unsafe fn draw_face_sides(face: u32) -> Result<(), Refused> {
         let byte = |o: u32| ((face + o) as *const u8).read() as u32;
         if game_read::<u32>(rva(0x621480)) == 0 {
             face_materials(face);
-            game_write(rva(0x63D9E4), 0u32);
-            game_write(rva(0x63D9E8), 0u32);
+            RACE_VIEW.face_turned[0].set(0u32);
+            RACE_VIEW.face_turned[1].set(0u32);
             face_colours(face)?;
-            game_write(rva(0x63D9E4), 0u32);
-            game_write(rva(0x63D9E8), 0u32);
+            RACE_VIEW.face_turned[0].set(0u32);
+            RACE_VIEW.face_turned[1].set(0u32);
             return draw_back_face(face);
         }
-        let facings = || -> bool { side_drawn(game_read(rva(0x63D9E4)), game_read(rva(0x63D9E8))) };
+        let facings = || -> bool {
+            side_drawn(
+                RACE_VIEW.face_turned[0].bits(),
+                RACE_VIEW.face_turned[1].bits(),
+            )
+        };
         if !has_objects(byte(1) as u8, byte(0x21) as u8) {
             return Ok(());
         }
@@ -801,8 +812,8 @@ pub unsafe fn draw_face_sides(face: u32) -> Result<(), Refused> {
         if facings() {
             face_colours(face)?;
         }
-        game_write(rva(0x63D9E4), flipped(game_read(rva(0x63D9E4))));
-        game_write(rva(0x63D9E8), flipped(game_read(rva(0x63D9E8))));
+        RACE_VIEW.face_turned[0].set(flipped(RACE_VIEW.face_turned[0].bits()));
+        RACE_VIEW.face_turned[1].set(flipped(RACE_VIEW.face_turned[1].bits()));
         if facings() {
             draw_back_face(face)?;
         }
@@ -843,7 +854,7 @@ pub unsafe fn draw_tinted_face(face: u32) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::face_drawing::{tints, tinted}`.
     use rc2k_core::race::face_drawing::{tinted, tints};
     unsafe {
-        let colour: u32 = game_read(rva(0x6240CC));
+        let colour: u32 = DRAW.polygon_colour.get();
         let object = ((face + 1) as *const u8).read() as u32;
         let tint = get(g(0x60A880) + 4 * object);
         if tints(tint) {
@@ -853,7 +864,7 @@ pub unsafe fn draw_tinted_face(face: u32) -> Result<(), Refused> {
             );
         }
         let done = draw_course_face(face);
-        game_write(rva(0x6240CC), colour);
+        DRAW.polygon_colour.set(colour);
         done
     }
 }
@@ -872,7 +883,7 @@ mod asm_reference {
             let e = face + half;
             let p = get(e + 8)
                 .wrapping_mul(12)
-                .wrapping_add(game_read(rva(0x5CCCC0)));
+                .wrapping_add(COURSE.scene_points.bits());
             let status: u16;
             core::arch::asm!(
                 "fild dword ptr [{p}]",
@@ -952,7 +963,7 @@ mod asm_reference {
             );
             ((v + 0xC) as *mut u32).write_unaligned(0);
             ((v + 0x1C) as *mut u32).write_unaligned(0);
-            if below_or_unordered(get(v + 0x18), game_read(rva(0x5C5E18))) {
+            if below_or_unordered(get(v + 0x18), NUMBERS.k4096_a.bits()) {
                 return;
             }
             if game_read::<u32>(rva(0x60932C)) != 0 {
@@ -1060,7 +1071,7 @@ mod asm_reference {
             for _ in 0..20000 {
                 unsafe {
                     game_write(rva(0x621480), r.below(8));
-                    game_write(rva(0x5CCCC0), points.as_ptr() as u32);
+                    COURSE.scene_points.set(points.as_ptr() as u32);
                     for a in [0x6062A4, 0x6062A8, 0x6062AC] {
                         game_write(rva(a), r.float());
                     }
@@ -1119,12 +1130,12 @@ mod asm_reference {
         at_each_control_word(|| {
             for n in 0..20000 {
                 unsafe {
-                    game_write(rva(0x62400C), 0xAAAA_AAAAu32);
+                    DRAW.scratch.set(0xAAAA_AAAAu32);
                     game_write(rva(0x60932C), (n % 2) as u32);
-                    game_write(rva(0x5CCD80), r.int() as u32);
-                    game_write(rva(0x624088), r.float());
-                    game_write(rva(0x6240A0), r.float());
-                    game_write(rva(0x62409C), r.float());
+                    COURSE.flat_depth.set(r.int() as u32);
+                    DRAW.view_scale.set_bits(r.float());
+                    DRAW.view_centre[1].set_bits(r.float());
+                    DRAW.view_centre[0].set_bits(r.float());
                     game_write(
                         rva(0x5C5E40),
                         if r.below(2) == 0 {
@@ -1149,16 +1160,13 @@ mod asm_reference {
                 unsafe {
                     halfway_vertex_asm(a.as_ptr() as u32, b.as_ptr() as u32, v1.as_mut_ptr() as u32)
                 };
-                let kept = unsafe { game_read::<u32>(rva(0x62400C)) };
-                unsafe { game_write(rva(0x62400C), 0xAAAA_AAAAu32) };
+                let kept = DRAW.scratch.get();
+                DRAW.scratch.set_bits(0xAAAA_AAAAu32);
                 unsafe {
                     halfway_vertex(a.as_ptr() as u32, b.as_ptr() as u32, v2.as_mut_ptr() as u32)
                 };
                 same_all(&v1, &v2, "vertex");
-                assert!(
-                    same(kept, unsafe { game_read::<u32>(rva(0x62400C)) }),
-                    "depth kept"
-                );
+                assert!(same(kept, DRAW.scratch.get()), "depth kept");
             }
         });
     }

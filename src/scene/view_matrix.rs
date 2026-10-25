@@ -6,7 +6,8 @@
 
 use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::math::x87;
-use crate::scene::draw_polygon::CHECKED_RVA;
+use crate::race::numbers_store::NUMBERS;
+use crate::scene::draw_store::DRAW;
 use crate::scene::matrix::{
     self, LIT_RVA, PLACED_RVA, TURN_X_RVA, TURN_X_WORK_RVA, TURN_Y_RVA, TURN_Y_WORK_RVA,
     VIEW_TURN_RVA,
@@ -21,9 +22,6 @@ pub const VIEW_RVA: usize = rva(0x5EA2CC); // g_viewMatrix
 pub const VIEW_PLACE_RVA: usize = rva(0x606298); // dword_606298, dword_60629C, dword_6062A0
 pub const VIEW_ANGLES_RVA: usize = rva(0x6062B8); // dword_6062B8 (y), dword_6062BC (x), dword_6062C0 (z)
 
-pub const HALF_TURNS_RVA: usize = rva(0x5C5D98); // flt_5C5D98, 65536.0
-pub const TURN_RVA: usize = rva(0x5C5DD4); // flt_5C5DD4, 1 / (2 pi)
-pub const NOTHING_RVA: usize = rva(0x5C5D90); // flt_5C5D90, 0.0
 /// The squaring's work: three rows of four floats, `unk_5C6FD0`, `unk_5C6FE0`,
 /// `unk_5C6FF0`; the copy back takes the four dwords after them along.
 pub const SQUARED_RVA: usize = rva(0x5C6FD0);
@@ -69,9 +67,12 @@ impl Axis {
 /// `scene::set_turn_z` (0x42715D).
 pub unsafe fn set_fine_turn(axis: Axis, angle: u32) {
     unsafe {
-        game_write(CHECKED_RVA, angle);
-        let (sine, cosine) =
-            x87::sine_cosine(angle as i32, game_read(HALF_TURNS_RVA), game_read(TURN_RVA));
+        DRAW.scratch.set_bits(angle);
+        let (sine, cosine) = x87::sine_cosine(
+            angle as i32,
+            NUMBERS.k65536.bits(),
+            NUMBERS.one_over_two_pi.bits(),
+        );
         game_write(axis.work(), [sine, cosine]);
         let negated = sine ^ 0x8000_0000;
         for (place, value) in axis
@@ -98,8 +99,8 @@ unsafe fn put(at: usize, value: u32) {
 pub unsafe fn unit_vector(from: usize, out: usize) {
     unsafe {
         let length = x87::length(from as *const u32);
-        game_write(CHECKED_RVA, length);
-        if x87::equal_or_unordered(length, game_read(NOTHING_RVA)) {
+        DRAW.scratch.set_bits(length);
+        if x87::equal_or_unordered(length, NUMBERS.zero.bits()) {
             for n in 0..3 {
                 put(out + n * 4, 0);
             }

@@ -19,19 +19,19 @@
 //! null view block when it is read.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, game_write, rva};
+use crate::framework::{game_addr, rva};
 use crate::math::x87_float::{X, st};
 use crate::math::x87_run::{ext_times, ints_diff_80};
+use crate::physics::car_store::CAR;
+use crate::race::numbers_store::NUMBERS;
+use crate::race::view_store::RACE_VIEW;
+use crate::race::work_store::RACE_WORK;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
 use crate::scene::x87_mem::{fld, fstp};
 
 fn g(x: impl crate::store::At) -> u32 {
     unsafe { crate::store::at_read(x) }
-}
-
-fn p(x: usize, v: u32) {
-    unsafe { game_write(rva(x), v) }
 }
 
 unsafe fn get(a: u32) -> u32 {
@@ -41,23 +41,23 @@ unsafe fn get(a: u32) -> u32 {
 /// 0x45CB02 .. 0x45CB88 (the shares into the voices), the integer steps between in Rust.
 unsafe fn shares(so: &crate::sound::store::SoundObject) {
     x87_1(crate::race::store::asm_base() as usize);
-    if g(0x71A22C) != 0 {
-        p(0x71A264, 0);
-        p(0x71A268, 0);
-        p(0x71A26C, 0);
+    if CAR.all_wheels_off.get() != 0 {
+        CAR.sound_slip_share.set_bits(0);
+        CAR.sound_level.set_bits(0);
+        CAR.sound_speed.set_bits(0);
     }
     x87_2(crate::race::store::asm_base() as usize, so);
 }
 
 fn object() -> u32 {
-    crate::sound::store::RACE_SOUNDS.table[(g(0x71B3F8) & 7) as usize].get()
+    crate::sound::store::RACE_SOUNDS.table[(RACE_WORK.current_car.get() & 7) as usize].get()
 }
 
 fn listener() -> u32 {
-    if g(0x63DB94) == 1 {
-        g(0x63DBB0)
+    if RACE_VIEW.players.get() == 1 {
+        RACE_VIEW.view_blocks[0].get()
     } else {
-        game_addr(rva(0x719FD8)) as u32
+        crate::physics::car_store::car_addr() as u32
     }
 }
 
@@ -74,32 +74,33 @@ pub unsafe fn car_sound_state() -> Result<(), Refused> {
     let so = unsafe { crate::sound::store::SoundObject::at(o) };
     unsafe {
         so.new_revs.set(1);
-        so.revs.set(g(0x71A1BC));
-        let w = g(0x71A908);
+        so.revs.set(CAR.engine_sound_revs.get());
+        let w = CAR.wheel_surface_a[4].get();
         for voice in &so.voices {
             voice.surface.set(w);
         }
         shares(so);
-        let n = g(0x71A610) as i32;
+        let n = CAR.throttle.get() as i32;
         so.throttle.set(n.clamp(0, 0x100) as u32);
-        so.gear.set(g(0x71A1AC));
-        so.speed.set_bits(g(0x71A198));
-        so.flag_ac.set(g(0x71A220) & g(0x71A224));
-        so.view_flag.set(g(0x71A6C8) ^ 1);
+        so.gear.set(CAR.gear.get());
+        so.speed.set_bits(CAR.mean_drive_speed.bits());
+        so.flag_ac
+            .set(CAR.front_wheels_off.get() & CAR.rear_wheels_off.get());
+        so.view_flag.set(CAR.camera_mode_is_2_or_3.get() ^ 1);
         let d = |c: usize, k: u32| ints_diff_80(g(c) as i32, get(l + k) as i32);
         let place = [d(0x71A10C, 0x6A4), d(0x71A110, 0x6A8), d(0x71A114, 0x6AC)];
         let m = game_addr(rva(0x5EA24C)) as u32;
         let out = rotate_point(m, place);
-        let k = g(0x5C5DA0);
+        let k = NUMBERS.one_over_65536.bits();
         for (i, e) in out.iter().enumerate() {
             so.place[i].set_bits(rounded(ext_times(*e, k)));
         }
         let out = rotate_point(
             m,
             [
-                extended(g(0x71A0AC)),
-                extended(g(0x71A0B0)),
-                extended(g(0x71A0B4)),
+                extended(CAR.crash_matrix[8].bits()),
+                extended(CAR.crash_matrix[9].bits()),
+                extended(CAR.crash_matrix[10].bits()),
             ],
         );
         for (i, e) in out.iter().enumerate() {

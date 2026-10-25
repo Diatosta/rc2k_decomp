@@ -141,6 +141,26 @@ impl<B: Block> At for Slot<B> {
     }
 }
 
+/// A typed cell (phase 7) is its own place: the helpers that take a variable by `Where`,
+/// `Ida` or `At` (`session.rs`) take the typed field as well, so a module's call sites move to fields one
+/// by one.
+macro_rules! typed_places {
+    ($($t:ty),*) => {$(
+        impl Where for &'static $t {
+            fn address(self) -> usize {
+                self.addr()
+            }
+        }
+        impl Ida for &'static $t {
+            fn here(self) -> usize {
+                self.addr()
+            }
+        }
+    )*};
+}
+
+typed_places!(crate::session::Dword, crate::session::Float);
+
 /// Reads the variable named by `at` (an IDA address of the image, or a `Slot`).
 pub unsafe fn at_read<T: Copy>(at: impl At) -> T {
     let p = at.here() as *const T;

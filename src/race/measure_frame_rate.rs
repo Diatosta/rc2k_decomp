@@ -11,13 +11,12 @@
 //! `race::draw_frame_rate`. The rate is worked out in plain floats.
 
 use crate::framework::{game_read, game_write, rva};
+use crate::physics::tables_store::PHYSICS;
+use crate::scene::draw_store::DRAW;
 use crate::session::MACHINE;
-
-const COUNT_RVA: usize = rva(0x613838); // dword_613838
 const NOW_RVA: usize = rva(0x6214E8); // dword_6214E8
 const LAST_RVA: usize = rva(0x6214EC); // dword_6214EC
 const RATE_RVA: usize = rva(0x6214F0); // flt_6214F0
-const CYCLES_RVA: usize = rva(0x62400C); // dword_62400C, a scratch
 
 /// The rate worked out in plain floats.
 // Converted: `rc2k_core::race::frame_rate::frame_rate`.
@@ -28,7 +27,7 @@ fn frame_rate_plain() {
             MACHINE.cpu_mhz.get() as i32,
             f(0x5C5D18),
             f(0x5C5D08),
-            game_read(CYCLES_RVA),
+            DRAW.scratch.bits() as i32,
         );
         game_write(RATE_RVA, rate.to_bits());
     }
@@ -41,8 +40,8 @@ pub unsafe fn measure_frame_rate() -> Option<u32> {
     // Converted: `rc2k_core::race::frame_rate::{count_frame, cycles_since}`.
     use rc2k_core::race::frame_rate::{count_frame, cycles_since};
     unsafe {
-        let (count, due) = count_frame(game_read(COUNT_RVA));
-        game_write(COUNT_RVA, count);
+        let (count, due) = count_frame(PHYSICS.frame_rate_count.bits());
+        PHYSICS.frame_rate_count.set(count);
         if !due {
             return None;
         }
@@ -50,7 +49,7 @@ pub unsafe fn measure_frame_rate() -> Option<u32> {
         game_write(NOW_RVA, now);
         let last: u32 = game_read(LAST_RVA);
         if let Some(cycles) = cycles_since(now, last) {
-            game_write(CYCLES_RVA, cycles);
+            DRAW.scratch.set_bits(cycles);
             frame_rate_plain();
         }
         let now: u32 = game_read(NOW_RVA);

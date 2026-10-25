@@ -20,8 +20,11 @@
 use crate::errors::Refused;
 use crate::math::x87;
 use crate::math::x87_run::sub_mul_add;
+use crate::physics::car_store::CAR;
 use crate::physics::copy_car_word_8::copy_car_word_8;
 use crate::physics::gearbox::*;
+use crate::physics::tables_store::PHYSICS;
+use crate::race::numbers_store::NUMBERS;
 use rc2k_core::physics::gear_shifts as shifts;
 
 /// The steps on `r`.
@@ -29,28 +32,30 @@ use rc2k_core::physics::gear_shifts as shifts;
 // stay x87).
 pub fn pick_start_gear() -> Result<(), Refused> {
     unsafe { copy_car_word_8() };
-    p(0x614144, g(ENGINE));
+    PHYSICS.start_gear_figures[2].set(CAR.engine_speed.bits());
     revs_speed()?;
-    p(0x614140, 0);
-    p(0x61413C, x87::loaded(g(0x5C5D14)));
+    PHYSICS.start_gear_figures[1].set(0);
+    PHYSICS.start_gear_figures[0].set(x87::loaded(NUMBERS.hundred.bits()));
     let taken = shifts::pick_start(|gear| {
         if bit(gear)? {
             return Ok::<_, Refused>(false);
         }
-        p(GEAR, gear);
+        CAR.gear.set(gear);
         revs_speed()?;
-        p(ENGINE, over_top());
-        Ok(below(g(ENGINE), g(0x5CB958)))
+        CAR.engine_speed.set_bits(over_top());
+        Ok(below(CAR.engine_speed.bits(), g(0x5CB958)))
     })?;
     let Some(gear) = taken else {
         return Ok(());
     };
-    p(GEAR, gear);
+    CAR.gear.set(gear);
     revs_speed()?;
-    p(
-        ENGINE,
-        sub_mul_add(g(0x614144), g(ENGINE), g(0x613FE0), g(ENGINE)),
-    );
+    CAR.engine_speed.set_bits(sub_mul_add(
+        PHYSICS.start_gear_figures[2].get(),
+        CAR.engine_speed.bits(),
+        PHYSICS.start_gear_share.bits(),
+        CAR.engine_speed.bits(),
+    ));
     wheels()?;
     settle();
     Ok(())

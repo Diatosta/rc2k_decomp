@@ -6,6 +6,8 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_addr, rva};
+use crate::race::course_store::COURSE;
+use crate::race::vars_store::RACE_VARS;
 
 /// Where the steps' variables are (the game's, or a test's).
 #[derive(Clone, Copy)]
@@ -35,10 +37,10 @@ impl Vars {
             list_total: a(0x5C6F90),
             texture_kinds: a(0x608DB4),
             texture_infos: a(0x979F30),
-            checkpoint_kinds: a(0x623640),
-            checkpoint_count: a(0x623644),
+            checkpoint_kinds: (RACE_VARS.checkpoint_count.addr() as u32),
+            checkpoint_count: (RACE_VARS.last_checkpoint.addr() as u32),
             checkpoint_table: a(0x9E3738),
-            checkpoint_records: a(0x5CCCBC),
+            checkpoint_records: (COURSE.course_faces.addr() as u32),
             checkpoints: a(0x60102C),
             checkpoints_found: a(0x601830),
             refresh: [a(0x63E174), a(0x63E178)],

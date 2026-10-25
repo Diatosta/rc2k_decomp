@@ -12,19 +12,16 @@
 //! `dword_624230` and a pass that keeps what is not deeper (`sub_44DEAA`).
 //! Seven callers. Refuses as `scene::clip_polygon_to_screen`.
 
-use crate::d3d::draw_fan_unclipped::COUNT_RVA;
 use crate::errors::BadInput;
-use crate::framework::{game_read, game_write, rva};
-use crate::scene::clip::{
-    DEPTH_CLIPPED_RVA, Edge, PLANE_RVA, clip_pass, listed_with_records, or_undone,
-};
+use crate::framework::{game_read, rva};
+use crate::scene::clip::{Edge, clip_pass, listed_with_records, or_undone};
+use crate::scene::draw_store::DRAW;
 
 // ---- game data ----
 
 const NEAREST: i32 = 0x1000;
 const NO_FAR_RVA: usize = rva(0x621510); // dword_621510
 const FAR_ON_RVA: usize = rva(0x621900); // dword_621900
-const FARTHEST_RVA: usize = rva(0x624230); // dword_624230
 
 // ---- Rust version ----
 
@@ -32,13 +29,13 @@ pub unsafe fn clip_polygon_by_depth() -> Result<(), BadInput> {
     unsafe {
         listed_with_records()?;
         or_undone(|| {
-            game_write(DEPTH_CLIPPED_RVA, 1u32);
-            game_write(PLANE_RVA, NEAREST);
+            DRAW.depth_clipped.set_bits(1u32);
+            DRAW.clip_plane.set_bits(NEAREST as u32);
             clip_pass(Edge::Depth(NEAREST), true, 0)?;
             let far = game_read::<u32>(NO_FAR_RVA) == 0 && game_read::<u32>(FAR_ON_RVA) != 0;
-            if far && game_read::<i32>(COUNT_RVA).wrapping_sub(3) >= 0 {
-                let farthest: i32 = game_read(FARTHEST_RVA);
-                game_write(PLANE_RVA, farthest);
+            if far && (DRAW.polygon_vertex_count.bits() as i32).wrapping_sub(3) >= 0 {
+                let farthest = DRAW.clip_farthest.bits() as i32;
+                DRAW.clip_plane.set_bits(farthest as u32);
                 clip_pass(Edge::Depth(farthest), false, 0)?;
             }
             Ok(())

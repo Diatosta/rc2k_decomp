@@ -11,6 +11,7 @@
 
 use crate::errors::Refused;
 use crate::framework::{game_addr, rva};
+use crate::physics::car_store::CAR;
 use rc2k_core::physics::splits::kept_split_slot;
 
 /// Where the variables are: the time, the checks, the count, the table.
@@ -26,8 +27,8 @@ impl SplitPlaces {
     pub fn game() -> Self {
         let g = |a: usize| game_addr(rva(a)) as u32;
         Self {
-            time: g(0x71A060),
-            checks: g(0x71A068),
+            time: (CAR.stage_time.addr() as u32),
+            checks: (CAR.splits_passed.addr() as u32),
             count: g(0x601830),
             table: g(0x601C68),
         }

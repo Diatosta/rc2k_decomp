@@ -12,17 +12,16 @@
 
 use crate::errors::Refused;
 use crate::framework::{game_read, rva};
-
-const SWITCH_RVA: usize = rva(0x71C3E0); // dword_71C3E0
-const MODE_RVA: usize = rva(0x62389C); // dword_62389C
+use crate::race::vars_store::RACE_VARS;
+use crate::race::work_store::RACE_WORK;
 const KINDS_RVA: usize = rva(0x5CD27C); // g_objectKinds (0x100 dwords)
 
 /// The Rust version: the object's (hidden, eax left).
 pub unsafe fn kind_is_hidden(object: u32) -> Result<(bool, u32), Refused> {
     // Converted: `rc2k_core::scene::kinds::kind_is_hidden`.
     let settings = rc2k_core::scene::kinds::HideSettings {
-        switch: unsafe { game_read(SWITCH_RVA) },
-        mode: unsafe { game_read(MODE_RVA) },
+        switch: RACE_WORK.in_credits.bits(),
+        mode: RACE_VARS.run_kind.bits(),
     };
     Ok(rc2k_core::scene::kinds::kind_is_hidden(
         settings,

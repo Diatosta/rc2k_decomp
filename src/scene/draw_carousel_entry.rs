@@ -29,20 +29,19 @@ use crate::errors::{BadInput, Refused};
 use crate::framework::{game_read, game_write, rva};
 use crate::menu::lists_store::MENU_LISTS;
 use crate::menu::state_store::MENU_STATE;
+use crate::physics::tables_store::PHYSICS;
+use crate::scene::draw_store::DRAW;
+use crate::scene::object_store::OBJECT_WORK;
 
 // ---- game data ----
 
 pub(crate) const PLACE_RVA: usize = rva(0x63501C); // dword_63501C, dword_635020, dword_635024
-pub(crate) const SIZE_RVA: usize = rva(0x635038); // dword_635038
-pub(crate) const ANGLE_X_RVA: usize = rva(0x63503C); // dword_63503C
 pub(crate) const ANGLE_Y_RVA: usize = rva(0x635040); // dword_635040
-const CLEARED_RVA: usize = rva(0x623FB0); // dword_623FB0, dword_623FB4
 pub(crate) const ENTRIES: u32 = 0x100;
 /// The kinds' own places the original allows (`MENU_LISTS.own_places` holds 73: past them it
 /// reads the lists that follow in the image, as the original does).
 pub(crate) const OWN: u32 = 0x88;
 const OWN_PLACES_IDA: usize = 0x75950E; // unk_75950E: `MENU_LISTS.own_places`, 12 bytes each
-pub(crate) const CLOCK_RVA: usize = rva(0x613830); // g_sceneClock
 pub(crate) const OBJECT_RVA: usize = rva(0x6214FC); // g_objectNumber
 // g_objectKinds
 
@@ -95,7 +94,7 @@ unsafe fn settings(entry: u32, row: u32) -> Result<Settings, BadInput> {
             1 => z.wrapping_sub(high(turn, forward)),
             _ => z,
         };
-        let clock: u32 = game_read(CLOCK_RVA);
+        let clock: u32 = PHYSICS.scene_clock.bits();
         let mut set = Settings {
             place: [x, y, z],
             size: None,
@@ -128,13 +127,13 @@ pub unsafe fn draw_carousel_entry(
 ) -> Result<(), Refused> {
     unsafe {
         let set = settings(entry, row)?;
-        game_write(PLACE_RVA, set.place);
+        crate::session::write_bits(&OBJECT_WORK.place, set.place);
         if let Some(size) = set.size {
-            game_write(SIZE_RVA, size);
+            OBJECT_WORK.size.set_bits(size);
         }
-        game_write(ANGLE_X_RVA, set.angle_x);
+        OBJECT_WORK.angles[0].set_bits(set.angle_x);
         game_write(ANGLE_Y_RVA, set.angle_y);
-        game_write(CLEARED_RVA, [0u32; 2]);
+        crate::session::write_bits(&DRAW.view_offset, [0u32; 2]);
         MENU_STATE.carousel.kind.set(set.kind);
         game_write(OBJECT_RVA, set.object);
         draw()

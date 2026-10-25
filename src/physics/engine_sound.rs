@@ -17,11 +17,15 @@
 //! two calls refuse.
 
 use crate::errors::Refused;
-use crate::framework::{game_write, rva};
 use crate::math::x87;
 use crate::math::x87_run::ext_to_int;
 use crate::physics::car_sound_state::car_sound_state;
+use crate::physics::car_store::CAR;
 use crate::physics::gear_change_sound::gear_change_sound;
+use crate::physics::tables_store::PHYSICS;
+use crate::race::view_store::RACE_VIEW;
+use crate::race::work_store::RACE_WORK;
+use crate::scene::draw_store::DRAW;
 use crate::scene::matrix3::extended;
 use crate::scene::x87_mem::{fistp, fld, fstp};
 use rc2k_core::physics::engine::ease_revs;
@@ -29,10 +33,6 @@ use rc2k_core::physics::x87::hold_low;
 
 fn g(x: impl crate::store::At) -> u32 {
     unsafe { crate::store::at_read(x) }
-}
-
-fn p(x: usize, v: u32) {
-    unsafe { game_write(rva(x), v) }
 }
 
 /// 0x43DC72 .. 0x43DCC6: the speed figures (the original's `test` / `jz` is the `if`).
@@ -65,21 +65,22 @@ fn run_at(rc: usize) {
 // Converted: `rc2k_core::physics::engine::ease_revs` and `x87::hold_low` (the speed figures
 // and the rounding stay x87).
 pub unsafe fn engine_sound() -> Result<(), Refused> {
-    let o = crate::sound::store::RACE_SOUNDS.table[(g(0x71B3F8) & 7) as usize].get();
+    let o =
+        crate::sound::store::RACE_SOUNDS.table[(RACE_WORK.current_car.get() & 7) as usize].get();
     if o == 0 {
         return Err(crate::errors::BadInput("a null sound object").into());
     }
-    if g(0x63DB94) == 1 && g(0x63DBB0) == 0 {
+    if RACE_VIEW.players.get() == 1 && RACE_VIEW.view_blocks[0].get() == 0 {
         return Err(crate::errors::BadInput("a null view block").into());
     }
     unsafe { run() };
-    p(0x62400C, x87::loaded(g(0x71A1B0)));
-    let floor = g(0x6140F8);
-    let held = hold_low(f32::from_bits(g(0x62400C)), f32::from_bits(floor));
-    p(0x62400C, held.to_bits());
-    p(0x62400C, ext_to_int(extended(g(0x62400C))) as u32);
-    let (revs, _) = ease_revs(g(0x71A1BC), g(0x62400C));
-    p(0x71A1BC, revs);
+    DRAW.scratch.set(x87::loaded(CAR.engine_speed.bits()));
+    let floor = PHYSICS.idle_engine_speed.bits();
+    let held = hold_low(f32::from_bits(DRAW.scratch.get()), f32::from_bits(floor));
+    DRAW.scratch.set(held.to_bits());
+    DRAW.scratch.set(ext_to_int(extended(g(0x62400C))) as u32);
+    let (revs, _) = ease_revs(CAR.engine_sound_revs.get(), DRAW.scratch.get());
+    CAR.engine_sound_revs.set(revs);
     unsafe { car_sound_state() }?;
     unsafe { gear_change_sound() }
 }

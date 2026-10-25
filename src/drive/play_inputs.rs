@@ -8,17 +8,17 @@
 //!
 //! Callers: `drive::play_inputs_if`, `sub_460835`.
 
-use crate::physics::flow::{a, g, p};
+use crate::physics::flow::{a, g};
+use crate::physics::tables_store::PHYSICS;
+use crate::race::work_store::RACE_WORK;
 use rc2k_core::drive::replay_frames::{on_tape, tape_offset};
 
-const WORDS: usize = 0x6138C4; // dword_6138C4 .. 6138D0: the input words
 const TAPE: usize = 0x7194BC; // dword_7194BC / 7194C0: the replay's inputs, 16 bytes a frame
-const CURRENT: usize = 0x71B3F8; // g_currentCar
 
 /// The Rust version.
 // Converted: `rc2k_core::drive::replay_frames::{on_tape, tape_offset}`.
 pub unsafe fn play_inputs() {
-    let car = g(CURRENT);
+    let car = RACE_WORK.current_car.get();
     if !on_tape(car) {
         return;
     }
@@ -29,6 +29,6 @@ pub unsafe fn play_inputs() {
         (at(4) as *const u32).read_unaligned()
     });
     for (k, v) in [eax, ebx, ecx, edx].iter().enumerate() {
-        p(WORDS + 4 * k, *v);
+        PHYSICS.input_words[k].set(*v);
     }
 }

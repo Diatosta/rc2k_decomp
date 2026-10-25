@@ -9,13 +9,11 @@
 //! `start_cars_behind` refuses.
 
 use crate::errors::Refused;
-use crate::framework::{game_read, rva};
-
-const MODE_RVA: usize = rva(0x62389C); // dword_62389C
+use crate::race::vars_store::RACE_VARS;
 
 /// The Rust version: `drive::start_cars_behind` in mode 2.
 pub unsafe fn race_mode_cars() -> Result<(), Refused> {
-    if unsafe { game_read::<u32>(MODE_RVA) } == 2 {
+    if RACE_VARS.run_kind.bits() == 2 {
         unsafe { crate::drive::start_cars_behind::start_cars_behind() }?;
     }
     Ok(())

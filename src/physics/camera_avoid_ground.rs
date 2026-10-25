@@ -26,13 +26,13 @@ use crate::errors::Refused;
 use crate::physics::camera_clear_of_ground::camera_clear_of_ground;
 use crate::physics::camera_over_ground::camera_over_ground;
 use crate::physics::camera_view::{rd, record};
+use crate::physics::car_store::CAR;
 use crate::physics::flow::{g, p};
 use crate::physics::touch_face::FACES;
+use crate::scene::draw_store::DRAW;
 use rc2k_core::physics::camera_ground;
 
-const HEADING: usize = 0x71A688;
 const STEP: usize = 0x605264;
-const KEPT: usize = 0x623FD8;
 
 fn place() {
     unsafe { crate::physics::place_camera::place_camera() };
@@ -40,17 +40,17 @@ fn place() {
 
 /// Turned to face from checkpoint `back` before the car's; false when there is none.
 fn face_checkpoint(back: u32) -> bool {
-    let Some(checkpoint) = camera_ground::back_checkpoint(g(0x71A070), back) else {
+    let Some(checkpoint) = camera_ground::back_checkpoint(CAR.checkpoint.get(), back) else {
         return false;
     };
     let face = (g(0x9E3738 + 4 * checkpoint as usize) << 6).wrapping_add(g(FACES));
     let point = rd(face + 4)
         .wrapping_mul(12)
         .wrapping_add(g(crate::physics::scene_point_hits_car::SCENE_POINTS));
-    let first = g(0x71A10C).wrapping_sub(rd(point));
-    let second = g(0x71A114).wrapping_sub(rd(point + 8));
+    let first = CAR.position[0].get().wrapping_sub(rd(point));
+    let second = CAR.position[2].get().wrapping_sub(rd(point + 8));
     let angle = unsafe { crate::scene::angle_between::angle_of(first, second) };
-    p(HEADING, angle << 16);
+    CAR.camera_heading.set(angle << 16);
     true
 }
 
@@ -58,13 +58,18 @@ fn face_checkpoint(back: u32) -> bool {
 fn turn_back() -> Result<(), Refused> {
     p(STEP, camera_ground::FIRST_TURN_STEP);
     loop {
-        p(0x623FD4, g(HEADING));
+        DRAW.camera_heading_saved.set(CAR.camera_heading.get());
         for k in 0..5 {
-            p(0x623FDC + 4 * k, g(0x71AEC8 + 4 * k));
+            DRAW.camera_saved[k].set(g(0x71AEC8 + 4 * k));
         }
         let mut stepped_back = false;
-        if let Some(step) = camera_ground::turn_step(g(KEPT), g(HEADING), g(STEP)) {
-            p(HEADING, g(HEADING).wrapping_add(step));
+        if let Some(step) = camera_ground::turn_step(
+            DRAW.camera_heading_kept.get(),
+            CAR.camera_heading.get(),
+            g(STEP),
+        ) {
+            CAR.camera_heading
+                .set(CAR.camera_heading.get().wrapping_add(step));
             place();
             if camera_over_ground()? {
                 continue;
@@ -72,9 +77,9 @@ fn turn_back() -> Result<(), Refused> {
             stepped_back = true;
         }
         if stepped_back {
-            p(HEADING, g(0x623FD4));
+            CAR.camera_heading.set(DRAW.camera_heading_saved.get());
             for k in 0..5 {
-                p(0x71AEC8 + 4 * k, g(0x623FDC + 4 * k));
+                p(0x71AEC8 + 4 * k, DRAW.camera_saved[k].get());
             }
         }
         let (next, last) = camera_ground::next_turn_step(g(STEP));
@@ -92,7 +97,7 @@ pub fn steps() -> Result<(), Refused> {
     unsafe { crate::physics::ease_view_turn::ease_view_turn() };
     p(0x605268, 0);
     p(STEP, u32::MAX);
-    p(KEPT, g(HEADING));
+    DRAW.camera_heading_kept.set(CAR.camera_heading.get());
     place();
     if rd(record() + 0x4C) == 0 {
         return Ok(());
@@ -112,7 +117,7 @@ pub fn steps() -> Result<(), Refused> {
         if found {
             turn_back()?;
         } else {
-            p(HEADING, g(KEPT));
+            CAR.camera_heading.set(DRAW.camera_heading_kept.get());
         }
     }
     // 0x4392A3: clear of the ground by the pitch.
@@ -125,10 +130,10 @@ pub fn steps() -> Result<(), Refused> {
     let mut up = true;
     loop {
         if up {
-            p(0x608C1C, g(0x71A690));
+            p(0x608C1C, CAR.camera_pitch.get());
             unsafe { crate::physics::ease_pitch_up::ease_pitch_up() };
         } else {
-            p(0x608C20, g(0x71A690));
+            p(0x608C20, CAR.camera_pitch.get());
             unsafe { crate::physics::ease_pitch_down::ease_pitch_down() };
         }
         if g(0x608C24) == 0 {

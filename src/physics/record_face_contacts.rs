@@ -15,10 +15,8 @@
 
 use crate::errors::Refused;
 use crate::physics::face_contact;
-use crate::physics::flow::g;
+use crate::race::course_store::COURSE;
 use rc2k_core::physics::ground_search;
-
-const RECORDS: usize = 0x5CCCB8; // g_courseRecords (a pointer)
 
 fn rd(x: u32) -> u32 {
     unsafe { (x as *const u32).read_unaligned() }
@@ -26,7 +24,7 @@ fn rd(x: u32) -> u32 {
 
 /// The record's (first, last) faces.
 pub fn record_faces(n: u32) -> (u32, u32) {
-    let at = (n << 5).wrapping_add(g(RECORDS));
+    let at = (n << 5).wrapping_add(COURSE.course_records.get());
     (rd(at + 8), rd(at + 0xC))
 }
 
@@ -35,6 +33,11 @@ pub fn record_faces(n: u32) -> (u32, u32) {
 // Converted: `rc2k_core::physics::ground_search::each_face`.
 pub fn steps(record: u32) -> Result<(), Refused> {
     let (first, last) = record_faces(record);
-    ground_search::each_face(first, last, g(0x5CCD1C), face_contact::steps)?;
+    ground_search::each_face(
+        first,
+        last,
+        COURSE.course_face_count.get(),
+        face_contact::steps,
+    )?;
     Ok(())
 }

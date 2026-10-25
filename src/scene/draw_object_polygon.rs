@@ -18,10 +18,10 @@
 //! Converted 2026-10-21: the test, the list, the choice and the fan through
 //! `rc2k_core::scene::polygons` (compares of stored floats: exact).
 
-use crate::d3d::draw_fan_unclipped::COUNT_RVA;
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_addr, game_read, game_write, rva};
-use crate::scene::clip::{NEXT_ENTRY_RVA, NEXT_RECORD_RVA, POOL_RVA};
+use crate::scene::clip::POOL_RVA;
+use crate::scene::draw_store::DRAW;
 use crate::scene::polygon::{ENTRIES_RVA, ENTRY_LEN, LIST_RVA, dword};
 
 // ---- game data ----
@@ -75,15 +75,16 @@ pub unsafe fn draw_object_polygon(
 ) -> Result<(), Refused> {
     use rc2k_core::scene::polygons::{drawn_whole, fan, first_list, fits};
     unsafe {
-        let count: u32 = game_read(COUNT_RVA);
+        let count: u32 = DRAW.polygon_vertex_count.bits();
         if !fits(count) {
             return Err(BadInput("a polygon of no vertices, or of more than 64").into());
         }
-        game_write(NEXT_RECORD_RVA, game_addr(POOL_RVA) as u32);
+        DRAW.polygon_next_record
+            .set_bits(game_addr(POOL_RVA) as u32);
         for (n, number) in first_list(count).into_iter().enumerate() {
             game_write(LIST_RVA + n * 4, number);
         }
-        game_write(NEXT_ENTRY_RVA, count);
+        DRAW.polygon_next_entry.set_bits(count);
         step(Step::Project)?;
         if drawn_whole(count, needs_clipping(count)?) {
             game_write(
@@ -103,9 +104,9 @@ pub unsafe fn draw_object_polygon(
             kept as *mut u8,
             count as usize * ENTRY_LEN,
         );
-        game_write(COUNT_RVA, 3u32);
+        DRAW.polygon_vertex_count.set_bits(3u32);
         step(Step::Draw)?;
-        game_write(COUNT_RVA, count);
+        DRAW.polygon_vertex_count.set_bits(count);
         for triangle in fan(count) {
             for (to, from) in triangle.into_iter().enumerate() {
                 std::ptr::copy(
@@ -114,7 +115,7 @@ pub unsafe fn draw_object_polygon(
                     ENTRY_LEN,
                 );
             }
-            game_write(COUNT_RVA, 3u32);
+            DRAW.polygon_vertex_count.set_bits(3u32);
             step(Step::Draw)?;
         }
         Ok(())

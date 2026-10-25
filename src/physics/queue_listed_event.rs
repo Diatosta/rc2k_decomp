@@ -9,11 +9,9 @@
 //! Caller: `sub_4418B3`. Refuses what `queue_car_event` refuses.
 
 use crate::errors::Refused;
-use crate::framework::{game_addr, rva};
 use crate::physics::queue_car_event::{QueuePlaces, queue_car_event_at};
+use crate::physics::tables_store::PHYSICS;
 use rc2k_core::physics::car_events::listed_event;
-
-const TABLE_RVA: usize = rva(0x614C7C); // dword_614C7C, 0x20 entries
 
 /// The core: the table at `table`, the queue at `q`.
 // Converted: `rc2k_core::physics::car_events::listed_event`.
@@ -30,5 +28,11 @@ pub unsafe fn queue_listed_event_at(table: u32, q: &QueuePlaces, ebx: u32) -> Re
 
 /// The Rust version.
 pub unsafe fn queue_listed_event(ebx: u32) -> Result<(), Refused> {
-    unsafe { queue_listed_event_at(game_addr(TABLE_RVA) as u32, &QueuePlaces::game(), ebx) }
+    unsafe {
+        queue_listed_event_at(
+            PHYSICS.listed_events[0].addr() as u32,
+            &QueuePlaces::game(),
+            ebx,
+        )
+    }
 }

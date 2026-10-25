@@ -15,6 +15,7 @@
 
 use crate::errors::Refused;
 use crate::framework::{game_read, game_write, rva};
+use crate::race::course_store::COURSE;
 use rc2k_core::physics::walls::ProbeCounts;
 
 fn g(x: usize) -> u32 {
@@ -39,7 +40,11 @@ pub unsafe fn count_ground_probe() -> Result<(), Refused> {
     p(0x608C3C, counts.tries);
     unsafe { crate::physics::find_ground::find_ground() }?;
     if g(0x639830) != 0 {
-        counts.searched(true, g(0x5CCC78), g(0x5CCC74));
+        counts.searched(
+            true,
+            COURSE.ground_face_last.get(),
+            COURSE.ground_slot.get(),
+        );
         p(0x608C40, counts.found);
         p(0x608C44, counts.same);
     }

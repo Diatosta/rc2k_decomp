@@ -17,12 +17,9 @@
 //! Eight callers, each `jb` after it. Refuses null settings or quad.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::rva;
 use crate::marks::clip::{CLIP, GLOW};
-use crate::marks::store::game_write;
 use crate::math::x87;
-
-const COUNT_RVA: usize = rva(0x6240F8); // g_polygonVertexCount
+use crate::scene::draw_store::DRAW;
 /// Per mode 1 .. 4: the line's variable, its coordinate's offset, whether inside is at or
 /// below it.
 const EDGES: [(usize, u32, bool); 4] = [
@@ -125,7 +122,7 @@ pub unsafe fn clip_quad(q: u32) -> Result<bool, Refused> {
         }
         std::ptr::copy(work as *const u8, q as *mut u8, ebx as usize);
         let count = ebx >> 5;
-        game_write(COUNT_RVA, count);
+        DRAW.polygon_vertex_count.set_bits(count);
         GLOW.clip_count.set(count);
     }
     Ok(false)

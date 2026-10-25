@@ -16,12 +16,12 @@
 
 use crate::errors::Refused;
 use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::race::view_store::RACE_VIEW;
 
 const PICTURES_RVA: usize = rva(0x5D7968); // g_kindPictures
 /// The prefs' picture lists (`PREF_PIECES`' kinds) start here, 0x32C14 bytes above the
 /// pictures.
 const PREF_LISTS: usize = 0x60A57C;
-const CARS_RVA: usize = rva(0x63DB90); // g_raceCars
 const CAR_KINDS_RVA: usize = rva(0x623858); // g_raceCarKinds
 /// `race::set_all_plates` (see the header).
 pub unsafe fn set_all_plates() -> Result<(), Refused> {
@@ -31,7 +31,7 @@ pub unsafe fn set_all_plates() -> Result<(), Refused> {
         CAR_PICTURE_KINDS, FIXED_PICTURES, PREF_PIECES, car_pictures, check_picture_cars,
     };
     unsafe {
-        let cars: u32 = game_read(CARS_RVA);
+        let cars: u32 = RACE_VIEW.race_cars.bits();
         check_picture_cars(cars)?;
         let pictures = game_addr(PICTURES_RVA);
         for (kind, dwords) in PREF_PIECES {

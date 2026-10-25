@@ -12,12 +12,12 @@
 //! (before anything) a gear outside -1 ..= 7 (`revs_from_wheels`' table).
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, game_read, rva};
+use crate::framework::{game_addr, rva};
 use crate::math::x87;
+use crate::physics::car_store::CAR;
 use crate::physics::gearing::{GearPlaces, revs_from_wheels_at};
-
-const FAST_STEP_RVA: usize = rva(0x613F3C); // flt_613F3C, 1.0
-const SLOW_STEP_RVA: usize = rva(0x613F40); // flt_613F40, 0.01
+use crate::physics::tables_store::PHYSICS;
+use crate::scene::draw_store::DRAW;
 
 /// The switches and the scratch: the game's or a test's.
 #[derive(Clone, Copy)]
@@ -34,12 +34,12 @@ pub struct SettlePlaces {
 
 impl SettlePlaces {
     pub fn game() -> Self {
-        let g = |a: usize| game_addr(rva(a)) as u32;
+        let _g = |a: usize| game_addr(rva(a)) as u32;
         Self {
-            first: g(0x71A220),
-            second: g(0x71A224),
-            fast: g(0x71A614),
-            scratch: g(0x62400C),
+            first: (CAR.front_wheels_off.addr() as u32),
+            second: (CAR.rear_wheels_off.addr() as u32),
+            fast: (CAR.brake.addr() as u32),
+            scratch: (DRAW.scratch.addr() as u32),
         }
     }
 }
@@ -84,11 +84,11 @@ pub unsafe fn settle_drive_speeds_at(g: &GearPlaces, s: &SettlePlaces) -> Result
             return Err(BadInput("a gear outside g_gearRatios (-1 ..= 7)").into());
         }
         let step = || {
-            game_read::<u32>(if at(s.fast) != 0 {
-                FAST_STEP_RVA
+            if at(s.fast) != 0 {
+                PHYSICS.settle_fast_step.bits()
             } else {
-                SLOW_STEP_RVA
-            })
+                PHYSICS.settle_slow_step.bits()
+            }
         };
         if at(s.first) != 0 && gear == 0 {
             put(s.scratch, step());

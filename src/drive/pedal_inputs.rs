@@ -10,12 +10,14 @@
 //!
 //! Callers: `drive::car_controls`, `sub_460835`, `sub_460B2F`.
 
+use crate::physics::car_store::CAR;
 use crate::physics::flow::{g, p};
+use crate::physics::tables_store::PHYSICS;
 use rc2k_core::drive::controls::{BRAKE_KEY, THROTTLE_KEY, handbrake, pedal};
 
 /// One pedal: by the keys' `bit`, stepped from `input`, or set to it.
 fn step_pedal(bit: u32, input: usize, at: usize) {
-    p(at, pedal(g(0x71A440) & bit != 0, g(input), g(at)));
+    p(at, pedal(CAR.input_keys.get() & bit != 0, g(input), g(at)));
 }
 
 /// The Rust version.
@@ -23,6 +25,8 @@ fn step_pedal(bit: u32, input: usize, at: usize) {
 pub unsafe fn pedal_inputs() {
     step_pedal(THROTTLE_KEY, 0x613894, 0x71A610);
     step_pedal(BRAKE_KEY, 0x613898, 0x71A614);
-    let hand = g(0x61389C);
-    p(0x71A618, handbrake(hand, || g(0x71A400)));
+    let hand = PHYSICS.input_handbrake.get();
+    CAR.handbrake.set(handbrake(hand, || {
+        crate::physics::car_store::CAR.handbrake_failed.get()
+    }));
 }

@@ -15,8 +15,8 @@
 //! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::game_addr;
-use crate::physics::gear_bit::{GEAR_BITS_RVA, bits_at};
+use crate::physics::car_store::CAR;
+use crate::physics::gear_bit::bits_at;
 
 /// The Rust version on the bits at `bits`: the free lower gear (None when neutral is
 /// reached first: CF). The eax it leaves is read by no caller, so none goes in.
@@ -28,5 +28,5 @@ pub unsafe fn lower_free_gear_at(bits: u32, gear: u32) -> Result<Option<u32>, Re
 
 /// The Rust version.
 pub unsafe fn lower_free_gear(gear: u32) -> Result<Option<u32>, Refused> {
-    unsafe { lower_free_gear_at(game_addr(GEAR_BITS_RVA) as u32, gear) }
+    unsafe { lower_free_gear_at(CAR.lost_gear_bits.addr() as u32, gear) }
 }

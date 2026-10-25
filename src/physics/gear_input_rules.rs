@@ -17,14 +17,11 @@
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
-use crate::framework::{game_addr, rva};
+use crate::physics::car_store::CAR;
+use crate::physics::tables_store::PHYSICS;
+use crate::race::vars_store::RACE_VARS;
 use rc2k_core::physics::gearbox::{GearCar, GearInputs};
 
-/// The variables (IDA addresses), in the order the core uses them.
-const VARIABLES: [usize; 15] = [
-    0x71A244, 0x6138A4, 0x6138A0, 0x613894, 0x613898, 0x61389C, 0x71A1AC, 0x71A010, 0x6138A8,
-    0x719FEC, 0x62389C, 0x613890, 0x71A07C, 0x71A078, 0x71A080,
-];
 unsafe fn get(v: &[u32], k: usize) -> u32 {
     unsafe { (v[k] as *const u32).read_unaligned() }
 }
@@ -75,10 +72,23 @@ pub unsafe fn rules_at(v: &[u32]) {
 }
 
 fn game() -> Vec<u32> {
-    VARIABLES
-        .iter()
-        .map(|&x| game_addr(rva(x)) as u32)
-        .collect()
+    vec![
+        CAR.tyre_change_state.addr() as u32,
+        PHYSICS.input_gear_down.addr() as u32,
+        PHYSICS.input_gear_up.addr() as u32,
+        PHYSICS.input_throttle.addr() as u32,
+        PHYSICS.input_brake.addr() as u32,
+        PHYSICS.input_handbrake.addr() as u32,
+        CAR.gear.addr() as u32,
+        CAR.gearbox_kind.addr() as u32,
+        PHYSICS.input_gear_wanted.addr() as u32,
+        CAR.run_ticks.addr() as u32,
+        RACE_VARS.run_kind.addr() as u32,
+        PHYSICS.input_steer.addr() as u32,
+        CAR.go_stand_timer.addr() as u32,
+        CAR.started_stand_timer.addr() as u32,
+        CAR.finish_flag.addr() as u32,
+    ]
 }
 
 /// The Rust version.

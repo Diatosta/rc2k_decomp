@@ -10,8 +10,9 @@
 //! Callers: `hud::icons_0`, `hud::icons_1`, `hud::icons_2`.
 
 use crate::errors::Refused;
-use crate::hud::batch::{POLYGON_COUNT_RVA, POLYGON_RVA};
+use crate::hud::batch::POLYGON_RVA;
 use crate::hud::store::HUD;
+use crate::scene::draw_store::DRAW;
 use crate::store::game_write;
 use rc2k_core::hud::icons;
 
@@ -39,7 +40,7 @@ pub unsafe fn draw_icon(record: u32, bottom: u32, entry: u32) -> Result<(), Refu
             // `fild` through `dword_75C060`: it keeps the last.
             HUD.scratch.set(y);
         }
-        game_write(POLYGON_COUNT_RVA, 4u32);
+        DRAW.polygon_vertex_count.set_bits(4u32);
         crate::hud::add_polygon::add_polygon()
     }
 }

@@ -12,14 +12,9 @@
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
-use crate::framework::{game_addr, rva};
+use crate::physics::car_store::CAR;
 use crate::physics::cells::{get, put_changed};
 use rc2k_core::physics::ground::SkidStart;
-
-const VARIABLES: [usize; 11] = [
-    0x71A5D8, 0x71A5DC, 0x71A5E0, 0x71A5E4, 0x71A664, 0x71A660, 0x71A66C, 0x71A674, 0x71A670,
-    0x719FE0, 0x71A668,
-];
 
 /// The Rust version on the variables at `v`. The registers the original leaves are read by none of its callers (eax).
 // Converted: `rc2k_core::physics::ground::SkidStart::start`.
@@ -50,10 +45,19 @@ pub unsafe fn start_at(v: &[u32]) {
 }
 
 fn game() -> Vec<u32> {
-    VARIABLES
-        .iter()
-        .map(|&x| game_addr(rva(x)) as u32)
-        .collect()
+    vec![
+        CAR.wheel_squeeze[0].addr() as u32,
+        CAR.wheel_squeeze[1].addr() as u32,
+        CAR.wheel_squeeze[2].addr() as u32,
+        CAR.wheel_squeeze[3].addr() as u32,
+        CAR.camera_view_return.addr() as u32,
+        CAR.camera_blend_view.addr() as u32,
+        CAR.camera_switch_active.addr() as u32,
+        CAR.camera_switch_share.addr() as u32,
+        CAR.camera_switch_length.addr() as u32,
+        CAR.step_clock.addr() as u32,
+        CAR.camera_switch_clock.addr() as u32,
+    ]
 }
 
 /// The Rust version.

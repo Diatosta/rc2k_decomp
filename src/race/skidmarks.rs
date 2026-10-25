@@ -5,6 +5,12 @@
 
 use crate::errors::Refused;
 use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::race::course_store::COURSE;
+use crate::race::frame_store::FRAME_WORK;
+use crate::race::numbers_store::NUMBERS;
+use crate::race::vars_store::RACE_VARS;
+use crate::race::view_store::RACE_VIEW;
+use crate::scene::draw_store::DRAW;
 
 fn g(a: u32) -> u32 {
     game_addr(rva(a as usize)) as u32
@@ -46,8 +52,8 @@ pub(crate) unsafe fn project_vertex(v: u32) {
         let centre = |a: usize| ld(game_read::<u32>(rva(a)));
         let reach = centre(0x624088);
         let scale = if game_read::<u32>(rva(0x60932C)) != 0 {
-            game_write(rva(0x62400C), st(z));
-            reach / (int(game_read::<u32>(rva(0x5CCD80)) as i32) + ONE)
+            DRAW.scratch.set(st(z));
+            reach / (int(COURSE.flat_depth.get() as i32) + ONE)
         } else {
             reach / z
         };
@@ -74,7 +80,7 @@ unsafe fn skid_vertex(n: u32, v: u32) {
         put(v + 0x18, float_of_80(t[2]));
         put(v + 0xC, 0);
         put(v + 0x1C, 0);
-        if !crate::math::x87_load::below_or_unordered(get(v + 0x18), game_read(rva(0x5C5E18))) {
+        if !crate::math::x87_load::below_or_unordered(get(v + 0x18), NUMBERS.k4096_a.bits()) {
             project_vertex(v);
         }
     }
@@ -90,23 +96,20 @@ unsafe fn skid_vertex(n: u32, v: u32) {
 pub unsafe fn draw_skidmarks() -> Result<(), Refused> {
     unsafe {
         let mut views = u32::MAX;
-        let mode: u32 = game_read(rva(0x62389C));
+        let mode: u32 = RACE_VARS.run_kind.get();
         if mode != 0 && mode != 2 {
-            views = 1u32.wrapping_shl(game_read::<u32>(rva(0x63DB9C)) & 0x1F);
+            views = 1u32.wrapping_shl(RACE_VIEW.drawn_view.get() & 0x1F);
         }
         game_write(rva(0x643AE4), views);
         let entries = g(0x975510);
-        let vertices = g(0x623E40);
+        let vertices = RACE_VARS.quad_vertices[0].addr() as u32;
         for k in 0..4u32 {
             let e = entries + 0x44 * k;
             put(e + 4, vertices + 0x20 * k);
             put(e + 0x18, 0);
             put(e + 0x1C, 0);
         }
-        let (u, w) = (
-            game_read::<u32>(rva(0x623DBC)),
-            game_read::<u32>(rva(0x623DC0)),
-        );
+        let (u, w) = (RACE_VARS.fade_uv[0].get(), RACE_VARS.fade_uv[1].get());
         for k in 0..4u32 {
             let e = entries + 0x44 * k;
             put(e + 8, u);
@@ -117,8 +120,8 @@ pub unsafe fn draw_skidmarks() -> Result<(), Refused> {
             ((e + 0x21) as *mut u8).write(0x60);
             ((e + 0x20) as *mut u8).write(0);
         }
-        game_write(rva(0x6240BC), 0xC0u32);
-        game_write(rva(0x6240C0), 0xC0u32);
+        DRAW.polygon_textures[0].set(0xC0u32);
+        DRAW.polygon_textures[1].set(0xC0u32);
         let links = g(0x643AE8);
         for n in 0..0x400u32 {
             let before = ((links + 8 * n) as *const i16).read_unaligned() as i32 as u32;
@@ -134,34 +137,34 @@ pub unsafe fn draw_skidmarks() -> Result<(), Refused> {
             skid_vertex(2 * n + 1, vertices + 0x40);
             skid_vertex(before.wrapping_mul(2), vertices);
             skid_vertex(before.wrapping_mul(2).wrapping_add(1), vertices + 0x20);
-            game_write(rva(0x6240F8), 4u32);
-            game_write(rva(0x6240A4), g(0x977F10));
+            DRAW.polygon_vertex_count.set(4u32);
+            DRAW.polygon_next_record.set(g(0x977F10));
             let list = g(0x977710);
             for k in 0..4u32 {
                 put(list + 4 * k, k);
             }
             put(list + 16, 0);
-            game_write(rva(0x624114), 4u32);
+            DRAW.polygon_next_entry.set(4u32);
             crate::scene::fog_polygon::fog_polygon()?;
             crate::scene::clip_polygon_by_depth::clip_polygon_by_depth()?;
             // Each quad inside the original's `pusha` .. `popa`; the depth test's switches
             // and the polygon's drawing read no register.
-            if game_read::<u32>(rva(0x6240F8)) < 3 {
+            if DRAW.polygon_vertex_count.get() < 3 {
                 continue;
             }
             crate::scene::clip_polygon_to_screen::clip_polygon_to_screen()?;
-            if game_read::<u32>(rva(0x6240F8)) >= 3 {
-                game_write(rva(0x6240CC), 0u32);
+            if DRAW.polygon_vertex_count.get() >= 3 {
+                DRAW.polygon_colour.set(0u32);
                 crate::scene::depth_test_off::depth_test_off();
-                game_write(rva(0x63DAB4), 3u32);
-                game_write(rva(0x6240E0), 0u32);
-                game_write(rva(0x6240E4), 1u32);
+                RACE_VIEW.polygon_mode.set(3u32);
+                DRAW.polygon_sides[0].set(0u32);
+                DRAW.polygon_sides[1].set(1u32);
                 crate::scene::draw_polygon::draw_polygon_in_game()?;
-                game_write(rva(0x63DAB4), 0u32);
-                game_write(rva(0x624134), 1u32);
+                RACE_VIEW.polygon_mode.set(0u32);
+                DRAW.polygon_drawn.set(1u32);
                 crate::scene::depth_test_on::depth_test_on();
             }
-            game_write(rva(0x6240CC), 0x00FF_FFFFu32);
+            DRAW.polygon_colour.set(0x00FF_FFFFu32);
         }
         Ok(())
     }
@@ -171,7 +174,7 @@ pub unsafe fn draw_skidmarks() -> Result<(), Refused> {
 /// Its one caller, `race::draw_view_scene`, reads no register it leaves.
 pub unsafe fn draw_skidmarks_if_on() -> Result<(), Refused> {
     unsafe {
-        if game_read::<u32>(rva(0x6416B8)) != 0 {
+        if FRAME_WORK.drawing.get() != 0 {
             return Ok(());
         }
         draw_skidmarks()
@@ -307,11 +310,11 @@ mod asm_reference {
                 let flat = n % 2 == 0;
                 unsafe {
                     game_write(rva(0x60932C), flat as u32);
-                    game_write(rva(0x5CCD80), r.int() as u32);
-                    game_write(rva(0x624088), r.float());
-                    game_write(rva(0x6240A0), r.float());
-                    game_write(rva(0x62409C), r.float());
-                    game_write(rva(0x62400C), 0xAAAA_AAAAu32);
+                    COURSE.flat_depth.set(r.int() as u32);
+                    DRAW.view_scale.set_bits(r.float());
+                    DRAW.view_centre[1].set_bits(r.float());
+                    DRAW.view_centre[0].set_bits(r.float());
+                    DRAW.scratch.set(0xAAAA_AAAAu32);
                 }
                 let mut a = [0xAAAA_AAAAu32; 8];
                 for q in a.iter_mut().skip(4).take(3) {
@@ -319,10 +322,10 @@ mod asm_reference {
                 }
                 let mut b = a;
                 unsafe { project_vertex_asm(a.as_mut_ptr() as u32, flat) };
-                let kept = unsafe { game_read::<u32>(rva(0x62400C)) };
-                unsafe { game_write(rva(0x62400C), 0xAAAA_AAAAu32) };
+                let kept = DRAW.scratch.get();
+                DRAW.scratch.set_bits(0xAAAA_AAAAu32);
                 unsafe { project_vertex(b.as_mut_ptr() as u32) };
-                let now = unsafe { game_read::<u32>(rva(0x62400C)) };
+                let now = DRAW.scratch.get();
                 for k in 0..8 {
                     assert!(
                         same_bits(a[k], b[k]),

@@ -13,11 +13,8 @@
 //! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{game_addr, rva};
 use crate::physics::move_slot::{SLOT_LEN, move_slot_at, slot_refusal};
-
-const SLOTS_RVA: usize = rva(0x71BAC8); // g_raceSlots
-const COUNT_RVA: usize = rva(0x71BE88); // dword_71BE88
+use crate::race::work_store::RACE_WORK;
 
 /// The Rust core: the slots at `slots`, the count at `count`.
 pub unsafe fn move_slots_at(slots: u32, count: u32) -> Result<(), Refused> {
@@ -46,5 +43,10 @@ pub unsafe fn move_slots_at(slots: u32, count: u32) -> Result<(), Refused> {
 
 /// The Rust version.
 pub unsafe fn move_slots() -> Result<(), Refused> {
-    unsafe { move_slots_at(game_addr(SLOTS_RVA) as u32, game_addr(COUNT_RVA) as u32) }
+    unsafe {
+        move_slots_at(
+            (RACE_WORK.race_slots.as_ptr() as usize) as u32,
+            RACE_WORK.slot_count.addr() as u32,
+        )
+    }
 }

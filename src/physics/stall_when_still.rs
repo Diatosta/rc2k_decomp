@@ -15,17 +15,14 @@
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
-use crate::framework::{game_addr, game_read, rva};
 use crate::math::x87_run::{abs_compare, compare_full, ext_div2};
+use crate::physics::car_store::CAR;
 use crate::physics::dot_product::dot_product;
+use crate::physics::tables_store::PHYSICS;
 use crate::physics::vector_length::vector_length;
+use crate::race::numbers_store::NUMBERS;
+use crate::scene::draw_store::DRAW;
 use crate::scene::matrix3::rounded;
-
-/// The kept motion (3), the scratch, the motion (3), the dot, the block, gear, speeds (2).
-const VARIABLES: [usize; 12] = [
-    0x61409C, 0x6140A0, 0x6140A4, 0x62400C, 0x71A17C, 0x71A180, 0x71A184, 0x6140AC, 0x61416C,
-    0x71A1AC, 0x71A190, 0x71A194,
-];
 
 /// The Rust core on the variables at `v`. The registers the original leaves are read by none of its callers (esi, edi).
 pub unsafe fn stall_at(v: &[u32]) {
@@ -33,14 +30,14 @@ pub unsafe fn stall_at(v: &[u32]) {
         let get = |k: usize| (v[k] as *const u32).read_unaligned();
         let put = |k: usize, x: u32| (v[k] as *mut u32).write_unaligned(x);
         put(3, rounded(vector_length(v[0])));
-        let zero: u32 = game_read(rva(0x5C5D90));
+        let zero: u32 = NUMBERS.zero.bits();
         if compare_full(get(3), zero) & 0x4000 == 0 {
             put(7, ext_div2(dot_product(v[4], v[0]), get(3), get(3)));
         }
-        if abs_compare(get(3), game_read(rva(0x613E40))) & 0x100 != 0 {
+        if abs_compare(get(3), PHYSICS.stall_speed.bits()) & 0x100 != 0 {
             return;
         }
-        if compare_full(get(7), game_read(rva(0x613E44))) & 0x100 == 0 {
+        if compare_full(get(7), PHYSICS.stall_share.bits()) & 0x100 == 0 {
             return;
         }
         if get(8) != 0 {
@@ -53,10 +50,20 @@ pub unsafe fn stall_at(v: &[u32]) {
 }
 
 fn game() -> Vec<u32> {
-    VARIABLES
-        .iter()
-        .map(|&x| game_addr(rva(x)) as u32)
-        .collect()
+    vec![
+        PHYSICS.kept_motion[0].addr() as u32,
+        PHYSICS.kept_motion[1].addr() as u32,
+        PHYSICS.kept_motion[2].addr() as u32,
+        DRAW.scratch.addr() as u32,
+        CAR.local_velocity[0].addr() as u32,
+        CAR.local_velocity[1].addr() as u32,
+        CAR.local_velocity[2].addr() as u32,
+        PHYSICS.stall_figure.addr() as u32,
+        PHYSICS.no_auto_neutral.addr() as u32,
+        CAR.gear.addr() as u32,
+        CAR.drive_speed_a.addr() as u32,
+        CAR.drive_speed_b.addr() as u32,
+    ]
 }
 
 /// The Rust version.

@@ -8,15 +8,13 @@
 //!
 //! Callers: `scene::full_view_window`, code at 0x446810. `set_view_window` is its Rust version.
 
-use crate::framework::{game_read, game_write, rva};
+use crate::framework::{game_read, rva};
+use crate::scene::draw_store::DRAW;
 use crate::session::SCREEN;
 
 const FRAMED_RVA: usize = rva(0x621514); // dword_621514
 const WIDE_RVA: usize = rva(0x621480); // dword_621480
 pub const MODE_RVA: usize = rva(0x636526); // word_636526
-const WINDOW_RVA: [usize; 2] = [rva(0x62408C), rva(0x624090)];
-const OFFSET_RVA: [usize; 2] = [rva(0x623FB0), rva(0x623FB4)];
-const SCALE_RVA: usize = rva(0x624080); // dword_624080
 
 /// The window chosen, then `set_view_window`.
 pub unsafe fn choose_view_window() {
@@ -29,11 +27,11 @@ pub unsafe fn choose_view_window() {
             mode: game_read(MODE_RVA),
         };
         let window = choose(settings, || [SCREEN.width.get(), SCREEN.height.get()]);
-        game_write(WINDOW_RVA[0], window.size[0]);
-        game_write(WINDOW_RVA[1], window.size[1]);
-        game_write(OFFSET_RVA[0], window.offset[0]);
-        game_write(OFFSET_RVA[1], window.offset[1]);
-        game_write(SCALE_RVA, window.scale);
+        DRAW.view_size[0].set_bits(window.size[0]);
+        DRAW.view_size[1].set_bits(window.size[1]);
+        DRAW.view_offset[0].set_bits(window.offset[0]);
+        DRAW.view_offset[1].set_bits(window.offset[1]);
+        DRAW.view_zoom.set_bits(window.scale);
         crate::scene::set_view_window::set_view_window();
     }
 }

@@ -4,6 +4,10 @@
 
 use crate::errors::Refused;
 use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::physics::car_store::CAR;
+use crate::race::vars_store::RACE_VARS;
+use crate::race::work_store::RACE_WORK;
+use crate::scene::object_store::OBJECT_WORK;
 
 pub const STAGE_RVA: usize = rva(0x623850); // dword_623850: the stage's number
 pub const PREFS_RVA: usize = rva(0x608CB4); // the stage's localdat
@@ -13,9 +17,7 @@ const PREFS_PATHS: [usize; 2] = [rva(0x60B05C), rva(0x60B043)];
 const KINDS_RVA: usize = rva(0x608DB4); // g_textureKinds
 const SWAPPED_RVA: usize = rva(0x60A67C); // dword_60A67C: 0x40 kinds (>> 4) swapped in
 const TWEAKED_RVA: usize = rva(0x60A564); // dword_60A564 .. dword_60A56C
-const FLAG_RVA: usize = rva(0x71C800); // dword_71C800
 const CLEARED_RVA: usize = rva(0x609344); // qword_609344
-const SKID_OBJECTS: [usize; 2] = [0x70F3EC, 0x7103CC]; // byte_70F3EC, unk_7103CC
 const SKID_MARKS_RVA: usize = rva(0x643AE8); // word_643AE8: 0x400 of 8 bytes
 const SKID_COUNT_RVA: usize = rva(0x645B10); // dword_645B10
 pub const LIGHTS_RVA: usize = rva(0x6077E8); // the lights' data, 0x1320 bytes
@@ -23,8 +25,6 @@ const LIGHTS_PATH_RVA: usize = rva(0x608B08); // "files\s\data\ldata"
 pub const LIGHTS_LEN: u32 = 0x1320;
 pub const LIGHT_RECORDS_RVA: usize = rva(0x5C906C); // 0x22 records of 0x134
 pub const LIGHT_RECORDS: u32 = rc2k_core::race::stage_objects::LIGHT_RECORDS as u32;
-const CRASH_ANGLES_RVA: usize = rva(0x71A998); // three dwords, angles << 16 (y, x, z)
-pub const CRASH_TURNS_RVA: usize = rva(0x63503C); // dword_63503C .. dword_635044
 pub const CRASH_MATRIX_RVA: usize = rva(0x71A08C); // dword_71A08C
 
 unsafe fn kind(n: u32) -> u32 {
@@ -44,7 +44,7 @@ pub unsafe fn swap_stage_texture() {
     // Converted: `rc2k_core::race::stage::swap_texture`.
     use rc2k_core::race::stage::{Swap, swap_texture};
     unsafe {
-        let stage: u32 = game_read(STAGE_RVA);
+        let stage: u32 = RACE_VARS.stage.bits();
         let ((_, new), swap) = swap_texture(stage, |n| kind(n), |n| swapped(n));
         let swapped_kind = match swap {
             Swap::NotThisStage | Swap::NotFound => return,
@@ -63,7 +63,7 @@ pub unsafe fn swap_stage_texture() {
 pub unsafe fn tweak_stage() {
     unsafe {
         // Converted: `rc2k_core::race::stage::stage_tweaked`.
-        if rc2k_core::race::stage::stage_tweaked(game_read(STAGE_RVA)) {
+        if rc2k_core::race::stage::stage_tweaked(RACE_VARS.stage.bits()) {
             game_write(TWEAKED_RVA, [0xFFu32; 3]);
         }
     }
@@ -72,7 +72,7 @@ pub unsafe fn tweak_stage() {
 /// `race::clear_prefs_qword` (0x465381): with `dword_71C800` set, `qword_609344` 0.
 pub unsafe fn clear_prefs_qword() {
     unsafe {
-        if game_read::<u32>(FLAG_RVA) != 0 {
+        if RACE_WORK.no_precipitation.get() != 0 {
             game_write(CLEARED_RVA, [0u32; 2]);
         }
     }
@@ -109,8 +109,9 @@ pub unsafe fn reset_skid_slots(object: u32) {
 /// two words -1, `dword_645B10` 0.
 pub unsafe fn init_skidmarks() {
     unsafe {
-        for object in SKID_OBJECTS {
-            reset_skid_slots(game_addr(rva(object)) as u32);
+        // The skid objects are car blocks 0 and 1.
+        for n in 0..2 {
+            reset_skid_slots(crate::race::blocks_store::block_addr(n) as u32);
         }
         let marks = game_addr(SKID_MARKS_RVA) as *mut [u32; 2];
         for n in 0..0x400 {
@@ -156,8 +157,12 @@ pub unsafe fn get_mat_crash() {
     unsafe {
         // Converted: `rc2k_core::race::stage_objects::crash_turns` (the matrices the
         // scene's).
-        let turns = rc2k_core::race::stage_objects::crash_turns(game_read(CRASH_ANGLES_RVA));
-        game_write(CRASH_TURNS_RVA, turns);
+        let turns = rc2k_core::race::stage_objects::crash_turns([
+            CAR.car_heading.get(),
+            CAR.car_pitch.get(),
+            CAR.car_roll.get(),
+        ]);
+        crate::session::write_bits(&OBJECT_WORK.angles, turns);
         matrix::set_turn_x(turns[0]);
         matrix::set_turn_y(turns[1]);
         matrix::set_turn_z_16(turns[2]);

@@ -23,7 +23,7 @@
 //! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{game_addr, rva};
+use crate::physics::car_store::CAR;
 use crate::physics::cells::{get, get_list, put_changed, put_list_changed};
 use rc2k_core::physics::notices::NoticeQueue;
 
@@ -39,13 +39,12 @@ pub struct Contacts {
 
 impl Contacts {
     pub fn game() -> Self {
-        let a = |x: usize| game_addr(rva(x)) as u32;
         Self {
-            flags: a(0x71A1F8),
-            count: a(0x71A450),
-            esis: a(0x71A454),
-            eaxs: a(0x71A4D4),
-            ebxs: a(0x71A554),
+            flags: (CAR.option_bits.addr() as u32),
+            count: (CAR.notice_count.addr() as u32),
+            esis: (CAR.notice_ids[0].addr() as u32),
+            eaxs: (CAR.notice_values[0].addr() as u32),
+            ebxs: (CAR.notice_ranks[0].addr() as u32),
         }
     }
 

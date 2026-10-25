@@ -17,6 +17,8 @@
 
 use crate::errors::Refused;
 use crate::physics::flow::{a, g, p};
+use crate::race::blocks_store::CAR_BLOCKS;
+use crate::race::view_store::RACE_VIEW;
 use rc2k_core::drive::replay_views::{WishStep, wish_step};
 
 const B: usize = 0x70F3EC; // g_carBlockStore
@@ -28,8 +30,8 @@ fn byte(x: usize) -> u32 {
 
 // Converted: `rc2k_core::drive::replay_views::wish_step`.
 fn steps() -> Result<(), Refused> {
-    p(0x6EF7D0, g(B));
-    p(0x6EF7D4, g(B + 4));
+    p(0x6EF7D0, CAR_BLOCKS.cars[0].unknown_0[0].bits());
+    p(0x6EF7D4, CAR_BLOCKS.cars[0].unknown_0[1].bits());
     for c in 0..2usize {
         let block = B + NEXT * c;
         let wish = g(0x719F14 + 4 * byte(B + c) as usize);
@@ -55,8 +57,12 @@ fn steps() -> Result<(), Refused> {
             }
         }
     }
-    p(B + 0x220, g(0x63DB7C));
-    p(B + NEXT + 0x220, g(0x63DB80));
+    CAR_BLOCKS.cars[0]
+        .option_bits
+        .set_bits(RACE_VIEW.player_options[0].get());
+    CAR_BLOCKS.cars[1]
+        .option_bits
+        .set_bits(RACE_VIEW.player_options[1].get());
     for (k, to) in [0x63DB74usize, 0x63DB78, 0x63DB84, 0x63DB88]
         .iter()
         .enumerate()

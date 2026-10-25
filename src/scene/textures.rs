@@ -17,7 +17,6 @@ pub const TEXTURE_PLACE_RVA: usize = rva(0x5D8968); // dword_5D8968
 pub const PLACE_SLOT_RVA: usize = rva(0x5D3AE8); // dword_5D3AE8
 pub const PLACES: u32 = 0xFA0;
 pub const SLOT_COUNT_RVA: usize = rva(0x5DC970); // dword_5DC970
-pub const LOADS_RVA: usize = rva(0x6415F8); // dword_6415F8
 
 /// One of the game's tables of dwords as a slice, for the core.
 ///

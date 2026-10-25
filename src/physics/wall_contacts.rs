@@ -22,6 +22,7 @@
 //! above are the original's, for reference.
 
 use crate::errors::Refused;
+use crate::physics::car_store::CAR;
 use crate::physics::flow::{g, p};
 use crate::physics::touch_face::FACES;
 use rc2k_core::physics::walls;
@@ -37,8 +38,8 @@ fn word(face: u32) -> u32 {
 }
 
 fn after() -> Result<(), Refused> {
-    p(0x71A20C, 1);
-    p(0x71A1CC, 0x32);
+    CAR.contact_flag.set(1);
+    CAR.wall_hit_timer.set(0x32);
     unsafe { crate::physics::restore_saved_car::restore_saved_car() }?;
     unsafe { crate::physics::feel_ground::feel_ground() }
 }
@@ -47,9 +48,9 @@ fn after() -> Result<(), Refused> {
 /// none of its callers.
 // Converted: `rc2k_core::physics::walls::walk`.
 pub fn steps() -> Result<(), Refused> {
-    let walked = walls::walk(g(0x71A238), |k| {
+    let walked = walls::walk(CAR.probe_count.get(), |k| {
         let k = k as usize;
-        let now = g(0x71ADC8 + 4 * k);
+        let now = CAR.probe_point_face[k].get();
         p(0x6D3174, now);
         let now_word = word(now);
         let before = g(0x6D2814 + 4 * k);
@@ -67,15 +68,15 @@ pub fn steps() -> Result<(), Refused> {
             // 0x45D83E: a wall met.
             let k = probe as usize;
             p(0x6D3214, probe);
-            p(0x71A1FC, g(0x71AAC8 + 4 * k));
-            p(0x71A200, g(0x71ABC8 + 4 * k));
-            p(0x71A204, g(0x71ACC8 + 4 * k));
+            CAR.contact_point[0].set_bits(CAR.probe_point_x[k].bits());
+            CAR.contact_point[1].set_bits(CAR.probe_point_y[k].bits());
+            CAR.contact_point[2].set_bits(CAR.probe_point_z[k].bits());
             crate::physics::wall_edge_contact::steps()?;
             if let Some(hit) = rc2k_core::physics::walls::raised_hit(
                 f32::from_bits(g(0x6D3108)),
-                f32::from_bits(g(0x71A208)),
+                f32::from_bits(CAR.contact_depth.bits()),
             ) {
-                p(0x71A208, hit.to_bits());
+                CAR.contact_depth.set_bits(hit.to_bits());
             }
             after()
         }
@@ -85,9 +86,9 @@ pub fn steps() -> Result<(), Refused> {
             if bits != walls::WALL_BITS {
                 return Ok(());
             }
-            p(0x71A1FC, g(0x71A17C));
-            p(0x71A200, g(0x71A180));
-            p(0x71A204, g(0x71A184));
+            CAR.contact_point[0].set_bits(crate::physics::car_store::CAR.local_velocity[0].bits());
+            CAR.contact_point[1].set_bits(crate::physics::car_store::CAR.local_velocity[1].bits());
+            CAR.contact_point[2].set_bits(crate::physics::car_store::CAR.local_velocity[2].bits());
             crate::physics::wall_push_back::steps()?;
             after()
         }
@@ -96,7 +97,7 @@ pub fn steps() -> Result<(), Refused> {
 
 /// The probe count checked: 0 or past 0x40 refused.
 pub fn check() -> Result<(), Refused> {
-    Ok(walls::check_probe_count(g(0x71A238))?)
+    Ok(walls::check_probe_count(CAR.probe_count.get())?)
 }
 
 /// The Rust version.

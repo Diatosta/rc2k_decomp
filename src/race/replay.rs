@@ -12,6 +12,7 @@ use crate::framework::rva;
 use crate::menu::names_store::NAME_BUFFERS;
 use crate::race::seal_store::SEAL_WORK;
 use crate::race::state_store::RACE_STATE;
+use crate::race::work_store::RACE_WORK;
 use crate::session::Bytes;
 use crate::store::{game_addr, game_write};
 
@@ -359,7 +360,7 @@ pub unsafe fn open_replay() -> Result<(), Refused> {
         );
         set(rva(0x719C54), 6);
         std::ptr::copy(
-            game_addr(rva(0x71C6D0)) as *const u8,
+            RACE_WORK.patch_switch.addr() as *const u8,
             game_addr(rva(0x719C58)) as *mut u8,
             0xD * 4,
         );

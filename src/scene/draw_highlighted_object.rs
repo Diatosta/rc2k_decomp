@@ -24,19 +24,20 @@
 //! `run` (`menu::table_routes`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, game_write, rva};
+use crate::framework::{game_write, rva};
 use crate::menu::loop_store::LOOP_FLAGS;
 use crate::menu::state_store::MENU_STATE;
+use crate::physics::tables_store::PHYSICS;
 use crate::scene::assign_kind_textures::assign_kind_textures;
 use crate::scene::assign_menu_textures::assign_menu_textures;
 use crate::scene::clear_depth_buffer::clear_depth_buffer;
 use crate::scene::draw_carousel_entry::{
-    ANGLE_X_RVA, ANGLE_Y_RVA, CLOCK_RVA, ENTRIES, OBJECT_RVA, OWN, PLACE_RVA, SIZE_RVA,
-    find_object_of_kind, own_place,
+    ANGLE_Y_RVA, ENTRIES, OBJECT_RVA, OWN, PLACE_RVA, find_object_of_kind, own_place,
 };
 use crate::scene::draw_menu_object::draw_menu_object_in_game;
 use crate::scene::load_slot_textures::load_slot_textures_in_game;
 use crate::scene::map_texture_places::map_texture_places;
+use crate::scene::object_store::OBJECT_WORK;
 
 // ---- game data ----
 
@@ -58,18 +59,18 @@ pub unsafe fn draw_highlighted(
         if own.is_some_and(|own| own >= OWN) {
             return Err(BadInput("a kind past the records of the kinds' own places").into());
         }
-        let clock: u32 = game_read(CLOCK_RVA);
+        let clock: u32 = PHYSICS.scene_clock.bits();
         game_write(ANGLE_Y_RVA, (clock << 3) & 0xFFFF);
         game_write(PLACE_RVA + 8, MENU_STATE.carousel.z.get());
-        game_write(PLACE_RVA, 0u32);
+        OBJECT_WORK.place[0].set_bits(0u32);
         if let Some(own) = own {
             let [size, y, angle] = own_place(own);
-            game_write(SIZE_RVA, size);
+            OBJECT_WORK.size.set_bits(size);
             if y != u32::MAX {
                 game_write(PLACE_RVA + 4, y);
             }
             if angle != u32::MAX {
-                game_write(ANGLE_X_RVA, angle);
+                OBJECT_WORK.angles[0].set_bits(angle);
             }
         }
         MENU_STATE.carousel.kind.set(kind);

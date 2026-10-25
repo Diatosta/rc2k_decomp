@@ -8,7 +8,6 @@
 //! anything) ecx 0 (the original would loop 2^32 times) or above 0x100.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, rva};
 use crate::physics::apply_force::apply_force;
 
 /// Refused before anything?
@@ -24,7 +23,7 @@ pub unsafe fn apply_forces(first: u32, count: u32) -> Result<(), Refused> {
     if let Some(why) = refusal(count) {
         return Err(BadInput(why).into());
     }
-    let car = game_addr(rva(0x719FD8)) as u32;
+    let car = crate::physics::car_store::car_addr() as u32;
     for k in 0..count {
         unsafe { apply_force(first + 0x20 * k, car) };
     }

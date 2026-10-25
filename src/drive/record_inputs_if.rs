@@ -7,13 +7,18 @@
 //!
 //! Caller: `drive::replay_step` (`sub_460B2F`).
 
-use crate::physics::flow::g;
+use crate::race::numbers_store::NUMBERS;
+use crate::race::view_store::RACE_VIEW;
+use crate::race::work_store::RACE_WORK;
 
 /// The Rust version.
 // Converted: `rc2k_core::drive::replay_frames::records_inputs`.
 pub unsafe fn record_inputs_if() {
-    let records =
-        rc2k_core::drive::replay_frames::records_inputs(g(0x5C5CE0), g(0x71B3F8), || g(0x63DB94));
+    let records = rc2k_core::drive::replay_frames::records_inputs(
+        NUMBERS.replay_mode.get(),
+        RACE_WORK.current_car.get(),
+        || RACE_VIEW.players.get(),
+    );
     if records == Some(true) {
         unsafe { crate::drive::record_inputs::record_inputs() };
     }

@@ -10,11 +10,8 @@
 //! step.
 
 use crate::errors::Refused;
-use crate::framework::{game_addr, game_read, rva};
 use crate::physics::apply_torques::apply_torques;
-
-const SWITCH_RVA: usize = rva(0x614148); // dword_614148
-const RECORDS_RVA: usize = rva(0x614A50);
+use crate::physics::tables_store::PHYSICS;
 const COUNT: u32 = 7;
 
 /// The Rust core, the switch given, `run` doing the records (`apply_torques`).
@@ -32,8 +29,8 @@ pub fn apply_contact_torques_with(
 /// The Rust version.
 pub unsafe fn apply_contact_torques() -> Result<(), Refused> {
     apply_contact_torques_with(
-        unsafe { game_read::<u32>(SWITCH_RVA) },
-        game_addr(RECORDS_RVA) as u32,
+        PHYSICS.contact_step.get(),
+        (PHYSICS.contacts.as_ptr() as usize) as u32,
         |first, count| unsafe { apply_torques(first, count) },
     )
 }

@@ -13,11 +13,10 @@
 //! Out: nothing its callers (`race::draw_race_scene`, `race::draw_mirror_view`) read
 
 use crate::errors::Refused;
-use crate::framework::{game_read, game_write, rva};
-
-const COVERED_RVA: usize = rva(0x71AF80); // unk_71AF80
+use crate::framework::{game_write, rva};
+use crate::physics::car_store::CAR;
+use crate::race::view_store::RACE_VIEW;
 const CLEARED: [usize; 2] = [rva(0x635014), rva(0x635018)]; // dword_635014, dword_635018
-const LAMPS_RVA: usize = rva(0x63DB6C); // dword_63DB6C
 const SORT_ENTRIES: u32 = 0x9DB730; // g_sortEntries
 const DEPTH_ENTRIES: u32 = 0x9D3730; // g_depthEntries
 
@@ -26,7 +25,7 @@ pub unsafe fn draw_view_scene() -> Result<(), Refused> {
     use crate::race::frame_draw::*;
     use crate::sound::race_sound_tick::race_sound_tick;
     unsafe {
-        if game_read::<u32>(COVERED_RVA) != 0 {
+        if CAR.view_covered.get() != 0 {
             return draw_view_tint();
         }
         for at in CLEARED {
@@ -42,7 +41,7 @@ pub unsafe fn draw_view_scene() -> Result<(), Refused> {
         view_light()?;
         race_sound_tick()?; // 0x15
         reset_lamps();
-        game_write(LAMPS_RVA, 0u32);
+        RACE_VIEW.view_lamps.set_bits(0u32);
         prepare_course_view()?;
         gather_visible_faces()?;
         eax_environment();

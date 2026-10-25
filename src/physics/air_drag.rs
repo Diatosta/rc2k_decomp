@@ -8,11 +8,11 @@
 //!
 //! Caller: `sub_43B635` (0x43B80E), every physics step.
 
-use crate::framework::{game_addr, game_read, rva};
 use crate::math::x87;
 use crate::math::x87_run::{abs_of, compare_full, square_times_over};
-
-const VARIABLES: [usize; 6] = [0x71A17C, 0x71A180, 0x71A184, 0x614810, 0x614814, 0x614818];
+use crate::physics::car_store::CAR;
+use crate::physics::tables_store::PHYSICS;
+use crate::race::numbers_store::NUMBERS;
 
 /// The Rust core on the variables at `v`.
 pub unsafe fn drag_at(v: &[u32]) {
@@ -20,9 +20,9 @@ pub unsafe fn drag_at(v: &[u32]) {
         let get = |k: usize| (v[k] as *const u32).read_unaligned();
         let put = |k: usize, x: u32| (v[k] as *mut u32).write_unaligned(x);
         let (k, d, zero) = (
-            game_read::<u32>(rva(0x613FCC)),
-            game_read::<u32>(rva(0x5C5E34)),
-            game_read::<u32>(rva(0x5C5D90)),
+            PHYSICS.air_drag.bits(),
+            NUMBERS.k10000.bits(),
+            NUMBERS.zero.bits(),
         );
         for i in 0..3 {
             put(3 + i, square_times_over(get(i), k, d));
@@ -34,10 +34,14 @@ pub unsafe fn drag_at(v: &[u32]) {
 }
 
 fn game() -> Vec<u32> {
-    VARIABLES
-        .iter()
-        .map(|&x| game_addr(rva(x)) as u32)
-        .collect()
+    vec![
+        CAR.local_velocity[0].addr() as u32,
+        CAR.local_velocity[1].addr() as u32,
+        CAR.local_velocity[2].addr() as u32,
+        PHYSICS.forces[5].force[0].addr() as u32,
+        PHYSICS.forces[5].force[1].addr() as u32,
+        PHYSICS.forces[5].force[2].addr() as u32,
+    ]
 }
 
 /// The Rust version (the exact one, for `physics::car_physics_step`).

@@ -15,24 +15,20 @@
 //! original goes through 2^32) or of more than 256, and what its parts refuse. A refusal after
 //! the texture coordinates were scaled hands the original a polygon it scales once more.
 
-use crate::d3d::draw_fan_unclipped::COUNT_RVA;
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, game_read, game_write, rva};
-use crate::scene::clip::{
-    DEPTH_CLIPPED_RVA, NEXT_ENTRY_RVA, NEXT_RECORD_RVA, POOL_RVA, SCREEN_CLIPPED_RVA,
-};
+use crate::framework::{game_addr, game_write};
+use crate::scene::clip::POOL_RVA;
 use crate::scene::clip_polygon_by_depth::clip_polygon_by_depth;
 use crate::scene::clip_polygon_to_screen::clip_polygon_to_screen;
 use crate::scene::draw_marked_polygon::draw_marked_polygon;
 use crate::scene::draw_polygon::{Game, draw_polygon};
+use crate::scene::draw_store::DRAW;
 use crate::scene::fog_polygon::fog_polygon;
 use crate::scene::polygon::{LIST_RVA, MOST};
-use crate::scene::project_polygon::{OUTSIDE_RVA, project_polygon};
+use crate::scene::project_polygon::project_polygon;
 use crate::scene::scale_texture_coordinates::scale_texture_coordinates;
 
 // ---- game data ----
-
-const DRAWN_RVA: usize = rva(0x624134); // dword_624134
 
 // ---- Rust version ----
 
@@ -51,38 +47,39 @@ pub unsafe fn draw_clipped_polygon(
     step: &mut dyn FnMut(Step) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
     unsafe {
-        let count: u32 = game_read(COUNT_RVA);
+        let count: u32 = DRAW.polygon_vertex_count.bits();
         if count == 0 || count > MOST {
             return Err(BadInput("a polygon of no vertices, or of more than 256").into());
         }
-        game_write(SCREEN_CLIPPED_RVA, 0u32);
-        game_write(DEPTH_CLIPPED_RVA, 0u32);
-        game_write(DRAWN_RVA, 0u32);
-        game_write(NEXT_RECORD_RVA, game_addr(POOL_RVA) as u32);
+        DRAW.screen_clipped.set_bits(0u32);
+        DRAW.depth_clipped.set_bits(0u32);
+        DRAW.polygon_drawn.set_bits(0u32);
+        DRAW.polygon_next_record
+            .set_bits(game_addr(POOL_RVA) as u32);
         for n in 0..count {
             game_write(LIST_RVA + n as usize * 4, n);
         }
         game_write(LIST_RVA + count as usize * 4, 0u32);
-        game_write(NEXT_ENTRY_RVA, count);
+        DRAW.polygon_next_entry.set_bits(count);
         step(Step::Project)?;
-        let outside: u32 = game_read(OUTSIDE_RVA);
-        if outside == game_read::<u32>(COUNT_RVA) {
+        let outside: u32 = DRAW.polygon_outside_count.bits();
+        if outside == DRAW.polygon_vertex_count.bits() {
             return Ok(());
         }
         step(Step::ScaleTextureCoordinates)?;
         step(Step::Fog)?;
-        if game_read::<u32>(OUTSIDE_RVA) != 0 {
+        if DRAW.polygon_outside_count.bits() != 0 {
             step(Step::ClipByDepth)?;
-            if game_read::<u32>(COUNT_RVA) < 3 {
+            if DRAW.polygon_vertex_count.bits() < 3 {
                 return Ok(());
             }
         }
         step(Step::ClipToScreen)?;
-        if game_read::<u32>(COUNT_RVA) < 3 {
+        if DRAW.polygon_vertex_count.bits() < 3 {
             return Ok(());
         }
         step(Step::Draw)?;
-        game_write(DRAWN_RVA, 1u32);
+        DRAW.polygon_drawn.set_bits(1u32);
         Ok(())
     }
 }

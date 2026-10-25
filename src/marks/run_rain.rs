@@ -26,15 +26,14 @@ use crate::framework::rva;
 use crate::marks::rain::{RAIN, RAIN_RULES, RainRules, RainState};
 use crate::marks::store::{Slot, game_read, game_write};
 use crate::math::{x87, x87_run};
+use crate::physics::tables_store::PHYSICS;
+use crate::scene::draw_store::DRAW;
 use crate::scene::vector3::STATUS_RVA;
 
 const MOST_DROPS: i32 = 0x100;
-const SCRATCH_RVA: usize = rva(0x62400C); // dword_62400C
 const VERTICES_RVA: usize = rva(0x9605A0); // g_polygonVertices
-const COUNT_RVA: usize = rva(0x6240F8); // g_polygonVertexCount
 const DRIFTING_RVA: Slot = Slot::at(0x7652A0); // dword_7652A0
 const ENTRIES: u32 = 5;
-const CLOCK_RVA: usize = rva(0x613830); // g_sceneClock
 /// The render states set (value, state).
 const STATES: [(u32, u32); 5] = [(4, 0x15), (5, 0x13), (6, 0x14), (0, 0x1C), (1, 0x1B)];
 const COLOURS: [u32; 4] = [0xFF_FFFF, 0, 0x2800_0000, 0x28FF_FFFF];
@@ -101,14 +100,14 @@ pub unsafe fn run_rain() -> Result<(), Refused> {
         let rhw = RAIN_RULES.rhw.get();
         for (n, colour) in COLOURS.into_iter().enumerate() {
             let v = VERTICES_RVA + 0x20 * n;
-            game_write(SCRATCH_RVA, rhw);
+            DRAW.scratch.set_bits(rhw);
             game_write(v + 0xC, x87::int_to_float(rhw as i32));
             game_write(v + 0x10, colour);
             for o in [0x14, 0x18, 0x1C] {
                 game_write(v + o, 0u32);
             }
         }
-        game_write(COUNT_RVA, 4u32);
+        DRAW.polygon_vertex_count.set_bits(4u32);
         if game_read::<u32>(DRIFTING_RVA) != 0 {
             crate::marks::drift_offsets::drift_offsets();
         }
@@ -130,7 +129,7 @@ pub unsafe fn run_rain() -> Result<(), Refused> {
         keep_y(e);
         r.last_views[e][2].set(r.view[2].get());
         if game_read::<u32>(DRIFTING_RVA) != 0 {
-            let clock = game_read::<u32>(CLOCK_RVA) & 0xF_FFFF;
+            let clock = PHYSICS.scene_clock.get() & 0xF_FFFF;
             r.drift
                 .set(x87::int_times_to_int(clock as i32, RAIN_RULES.drift_k.bits()) as u32);
         }

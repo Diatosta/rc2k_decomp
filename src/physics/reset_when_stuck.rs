@@ -12,24 +12,21 @@
 //! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{game_read, game_write, rva};
+use crate::physics::car_store::CAR;
 use rc2k_core::physics::start::stuck_tick;
-
-const MODE: usize = rva(0x71A234); // g_car + 0x25C
-const STUCK: usize = rva(0x71A1C0); // g_car + 0x1E8
 
 /// The Rust version. The registers it leaves are read by none of its callers.
 // Converted: `rc2k_core::physics::start::stuck_tick`.
 pub unsafe fn reset_when_stuck() -> Result<(), Refused> {
     unsafe {
-        let mode: u32 = game_read(MODE);
+        let mode: u32 = CAR.driver_kind.bits();
         let mut stuck = if mode == 2 || mode == 0 {
             0
         } else {
-            game_read::<u32>(STUCK)
+            CAR.stuck_count.get()
         };
         let reset = stuck_tick(mode, &mut stuck);
-        game_write(STUCK, stuck);
+        CAR.stuck_count.set(stuck);
         if reset {
             crate::physics::reset_car::reset_car()?;
         }

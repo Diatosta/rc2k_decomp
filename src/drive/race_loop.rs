@@ -22,10 +22,12 @@ use crate::drive::race_parts::{
 };
 use crate::errors::Refused;
 use crate::physics::flow::{g, p};
+use crate::physics::tables_store::PHYSICS;
+use crate::race::blocks_store::CAR_BLOCKS;
+use crate::race::vars_store::RACE_VARS;
+use crate::race::view_store::RACE_VIEW;
+use crate::race::work_store::RACE_WORK;
 use crate::session::FLAGS;
-
-const B: usize = 0x70F3EC;
-const NEXT: usize = 0xFE0;
 
 fn view_bit(view: usize) -> bool {
     let bits = unsafe { ((g(view) + 0x468) as *const u32).read_unaligned() };
@@ -35,20 +37,20 @@ fn view_bit(view: usize) -> bool {
 /// The quit answer `answer` put into the cars (0x444EB5 ..).
 fn put_answer(answer: u32) {
     if crate::net::store::NET.session.get() != 0 {
-        let block = g(0x71B3B8 + 4 * crate::net::store::NET.player.get() as usize);
+        let block = RACE_WORK.car_block(crate::net::store::NET.player.get() as usize);
         unsafe { ((block + 0xB0) as *mut u32).write_unaligned(answer) };
         return;
     }
-    p(B + 0xB0, answer);
-    p(B + NEXT + 0xB0, answer);
-    if g(0x63DB94) != 2 {
+    CAR_BLOCKS.cars[0].stop_state.set_bits(answer);
+    CAR_BLOCKS.cars[1].stop_state.set_bits(answer);
+    if RACE_VIEW.players.get() != 2 {
         return;
     }
-    if g(B + 0xA8) != 0 {
-        p(B + 0xB0, 2);
+    if CAR_BLOCKS.cars[0].finish_flag.bits() != 0 {
+        CAR_BLOCKS.cars[0].stop_state.set_bits(2);
     }
-    if g(B + NEXT + 0xA8) != 0 {
-        p(B + NEXT + 0xB0, 2);
+    if CAR_BLOCKS.cars[1].finish_flag.bits() != 0 {
+        CAR_BLOCKS.cars[1].stop_state.set_bits(2);
     }
 }
 
@@ -56,20 +58,22 @@ fn put_answer(answer: u32) {
 /// edx and esi after `drive::play_race`'s call have no read point).
 pub unsafe fn race_loop() -> Result<(), Refused> {
     for c in 0..8 {
-        p(B + NEXT * c + 0xFAC, 10);
+        CAR_BLOCKS.cars[c as usize].reset_marker.set_bits(10);
     }
     FLAGS.paused.set(0);
-    p(0x6235E8, 0);
+    RACE_VARS.scene_switch.set(0);
     restart_clock();
-    p(0x5CC3B4, g(0x613830));
-    p(0x5CC3B0, g(0x613830));
+    p(0x5CC3B4, PHYSICS.scene_clock.get());
+    p(0x5CC3B0, PHYSICS.scene_clock.get());
     for k in 0..0x20 {
         p(0x5CC1B0 + 4 * k, u32::MAX);
     }
     p(0x5C2538, u32::MAX);
     loop {
         restart_clock();
-        p(0x613840, g(0x613830));
+        PHYSICS
+            .race_clock_base
+            .set(crate::physics::tables_store::PHYSICS.scene_clock.get());
         // 0x444DE9: a frame.
         let paused = loop {
             if FLAGS.window_active.get() == 0 {
@@ -79,7 +83,7 @@ pub unsafe fn race_loop() -> Result<(), Refused> {
                 break true;
             }
             input_update();
-            if g(0x71C3E0) != 0 {
+            if RACE_WORK.in_credits.get() != 0 {
                 if crate::race::frame_text::CREDITS.done.get() != 0 {
                     crate::framework::log("drive::race_loop: the credits race ends: rolled off");
                     return Ok(());
@@ -101,7 +105,7 @@ pub unsafe fn race_loop() -> Result<(), Refused> {
                          frame {}",
                         keys(&crate::input::store::DEVICES.keys_pressed),
                         keys(&crate::input::store::DEVICES.keys_down),
-                        g(0x613830)
+                        PHYSICS.scene_clock.get()
                     ));
                     return Ok(());
                 }
@@ -111,20 +115,20 @@ pub unsafe fn race_loop() -> Result<(), Refused> {
                 if answer == 0 {
                     break false;
                 }
-                if g(0x71C3E0) != 0 {
+                if RACE_WORK.in_credits.get() != 0 {
                     crate::framework::log(&format!(
                         "drive::race_loop: the credits race ends: the quit question (Escape latched), answer {answer:#x}, frame {}",
-                        g(0x613830)
+                        PHYSICS.scene_clock.get()
                     ));
                 }
                 put_answer(answer);
                 return Ok(());
             }
-            if g(0x6235EC) == 0 {
+            if RACE_VARS.hold_count.get() == 0 {
                 if view_bit(0x63DBB0) {
                     break true;
                 }
-                if g(0x63DB98) != 1 && view_bit(0x63DBB4) {
+                if RACE_VIEW.views.get() != 1 && view_bit(0x63DBB4) {
                     break true;
                 }
             }
@@ -135,10 +139,10 @@ pub unsafe fn race_loop() -> Result<(), Refused> {
             unsafe { crate::drive::race_step::race_step() }?;
             tyre_change()?;
             if players_all_out()? {
-                if g(0x71C3E0) != 0 {
+                if RACE_WORK.in_credits.get() != 0 {
                     crate::framework::log(&format!(
                         "drive::race_loop: the credits race ends: every player out, frame {}",
-                        g(0x613830)
+                        PHYSICS.scene_clock.get()
                     ));
                 }
                 return Ok(());
@@ -150,7 +154,7 @@ pub unsafe fn race_loop() -> Result<(), Refused> {
         }
         // 0x444F0F: paused.
         if crate::net::store::NET.session.get() != 0 {
-            let block = g(0x71B3B8 + 4 * crate::net::store::NET.player.get() as usize);
+            let block = RACE_WORK.car_block(crate::net::store::NET.player.get() as usize);
             unsafe { ((block + 0x468) as *mut u32).write_unaligned(0) };
         } else {
             unsafe { crate::drive::pause_until_key::pause_until_key() }?;

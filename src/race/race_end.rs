@@ -4,7 +4,10 @@
 
 use crate::errors::Refused;
 use crate::framework::rva;
+use crate::race::numbers_store::NUMBERS;
 use crate::race::state_store::RACE_STATE;
+use crate::race::vars_store::RACE_VARS;
+use crate::race::view_store::RACE_VIEW;
 use crate::sound::sets_store::SPOT_VOICES;
 use crate::store::{game_read, game_write};
 
@@ -275,7 +278,7 @@ pub unsafe fn tidy_stage(v: &LoadVars) -> Result<(), Refused> {
         s.indent(3);
         free(&OBJECT_POINTS)?;
         (v.in_race as *mut u32).write_unaligned(0);
-        game_write(rva(0x606294), game_read::<u32>(rva(0x6235F4)));
+        game_write(rva(0x606294), RACE_VARS.kept_scale.get());
         s.indent(-3);
         s.log(STAGE_WORDS[9]);
     }
@@ -304,8 +307,8 @@ pub unsafe fn tidy_everything(v: &LoadVars) -> Result<(), Refused> {
         s.log(EVERYTHING_WORDS[5]);
         s.indent(3);
         reset_race_sounds(&SoundVars::game())?;
-        game_write(rva(0x63DB74), 1u32);
-        game_write(rva(0x63DB78), 1u32);
+        RACE_VIEW.view_on[0].set(1u32);
+        RACE_VIEW.view_on[1].set(1u32);
         s.indent(-3);
         s.log(EVERYTHING_WORDS[6]);
         s.log(EVERYTHING_WORDS[7]);
@@ -331,15 +334,15 @@ pub unsafe fn run_race(indent: u32) -> Result<(), Refused> {
             game_write(rva(0x60519C), crate::math::next_random::next_random());
         }
         game_write(rva(0x621514), 0u32);
-        game_write(rva(0x5C5CE0), 1u32);
+        NUMBERS.replay_mode.set_bits(1u32);
         crate::race::settings_copy::copy_settings_in()?;
         crate::race::race_cars::set_up_arcade_cars()?;
-        game_write(rva(0x6238AC), 1u32);
+        RACE_VARS.settings_words[1].set(1u32);
         crate::race::race_shell::set_start_states()?;
         crate::race::stage_loading::load_stage()?;
         record_replay_header();
         crate::race::replay::open_replay()?;
-        game_write(rva(0x63DB84), 0u32);
+        RACE_VIEW.after_credits.set(0u32);
         crate::drive::play_race::play_race()?;
         crate::race::replay::close_replay()?;
         tidy_everything(&LoadVars::game())?;

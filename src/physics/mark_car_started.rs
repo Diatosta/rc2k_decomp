@@ -6,19 +6,16 @@
 //!
 //! Caller: `sub_436790` (four calls).
 
-use crate::framework::{game_addr, rva};
+use crate::physics::car_store::CAR;
 use crate::physics::cells::{get, put_changed};
 use rc2k_core::physics::start::CarStart;
 
 fn game() -> Vec<u32> {
-    VARIABLES
-        .iter()
-        .map(|&x| game_addr(rva(x)) as u32)
-        .collect()
+    vec![
+        CAR.started_stand_timer.addr() as u32,
+        CAR.damage_failed.addr() as u32,
+    ]
 }
-
-/// The variables (IDA addresses).
-const VARIABLES: [usize; 2] = [0x71A078, 0x71A274];
 
 /// The Rust version on the variables' addresses.
 // Converted: `rc2k_core::physics::start::CarStart::mark_started`.

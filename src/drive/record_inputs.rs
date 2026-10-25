@@ -9,21 +9,26 @@
 //!
 //! Caller: `drive::record_inputs_if`.
 
-use crate::physics::flow::{a, g, p};
+use crate::physics::flow::{a, g};
+use crate::physics::tables_store::PHYSICS;
+use crate::race::work_store::RACE_WORK;
 use rc2k_core::drive::replay_frames::{on_tape, tape_offset};
 
-const WORDS: usize = 0x6138C4; // dword_6138C4 .. 6138D0: the input words
 const TAPE: usize = 0x7194BC; // dword_7194BC / 7194C0: the replay's inputs, 16 bytes a frame
-const CURRENT: usize = 0x71B3F8; // g_currentCar
 
 /// The Rust version.
 // Converted: `rc2k_core::drive::replay_frames::{on_tape, tape_offset}`.
 pub unsafe fn record_inputs() {
-    let car = g(CURRENT);
+    let car = RACE_WORK.current_car.get();
     if !on_tape(car) {
         return;
     }
-    let (eax, ebx, ecx, edx) = (g(WORDS), g(WORDS + 4), g(WORDS + 8), g(WORDS + 12));
+    let (eax, ebx, ecx, edx) = (
+        PHYSICS.input_words[0].get(),
+        PHYSICS.input_words[1].get(),
+        PHYSICS.input_words[2].get(),
+        PHYSICS.input_words[3].get(),
+    );
     let packed = crate::drive::pack_inputs::pack_inputs(eax, ecx, edx);
     let esi = tape_offset(g(0x6EF7DC), car);
     let at = |o: u32| a(TAPE).wrapping_add(esi).wrapping_add(o) as *mut u32;
@@ -33,6 +38,6 @@ pub unsafe fn record_inputs() {
     }
     let [eax, ecx, edx] = crate::drive::unpack_inputs::unpack_inputs(packed);
     for (k, v) in [eax, ebx, ecx, edx].iter().enumerate() {
-        p(WORDS + 4 * k, *v);
+        PHYSICS.input_words[k].set(*v);
     }
 }

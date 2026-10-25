@@ -11,12 +11,10 @@
 //! `sub_44CD90`.
 
 use crate::errors::BadInput;
-use crate::framework::{game_read, game_write, rva};
+use crate::race::course_store::COURSE;
+use crate::race::vars_store::RACE_VARS;
 
 // ---- game data ----
-
-const MARK_RVA: usize = rva(0x623DB8); // dword_623DB8
-const FLAGS_RVA: usize = rva(0x5CCCD4); // dword_5CCCD4
 const MARK: u32 = 0xFFFF_00FF;
 
 // ---- Rust version ----
@@ -24,11 +22,13 @@ const MARK: u32 = 0xFFFF_00FF;
 pub unsafe fn draw_marked_polygon(
     draw: &mut dyn FnMut() -> Result<(), BadInput>,
 ) -> Result<(), BadInput> {
-    unsafe {
-        let marked = game_read::<u32>(FLAGS_RVA) & 0x8000_0000 != 0;
-        game_write(MARK_RVA, if marked { MARK } else { 0 });
+    {
+        let marked = COURSE.polygon_flags.bits() & 0x8000_0000 != 0;
+        RACE_VARS
+            .polygon_mark
+            .set_bits(if marked { MARK } else { 0 });
         let done = draw();
-        game_write(MARK_RVA, 0u32);
+        RACE_VARS.polygon_mark.set_bits(0u32);
         done
     }
 }

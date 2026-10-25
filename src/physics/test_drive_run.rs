@@ -21,28 +21,30 @@
 //! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::physics::flow::{a, c0, g, p};
+use crate::physics::car_store::CAR;
+use crate::physics::flow::{c0, g, p};
+use crate::physics::tables_store::PHYSICS;
+use crate::race::numbers_store::NUMBERS;
 use crate::scene::x87_mem::{fild, fld, fstp};
 
 const DRIVE: usize = 0x71A190; // g_carDriveSpeed
-const GEAR: usize = 0x71A1AC; // g_carGear
 pub const STEPS: u32 = 0x1388;
 
 /// One step (0x42189D .., in `pusha` / `popa`).
 fn step() -> Result<(), Refused> {
-    p(0x71A184, crate::math::x87::loaded(g(DRIVE)));
+    CAR.local_velocity[2].set_bits(crate::math::x87::loaded(CAR.drive_speed_a.bits()));
     unsafe {
         crate::physics::count_down_timers::count_down_timers();
         crate::physics::gearbox_step::gearbox_step()?;
         crate::physics::engine_torque::engine_torque();
     }
-    let gear = g(GEAR);
+    let gear = CAR.gear.get();
     if !(-1..=7).contains(&(gear as i32)) {
         return Err(BadInput("a gear outside g_gearRatios (-1 ..= 7)").into());
     }
     x87_1(
         crate::race::store::asm_base() as usize,
-        (a(0x6140C0).wrapping_add(gear.wrapping_mul(4))) as usize,
+        ((PHYSICS.gear_ratios[1].addr() as u32).wrapping_add(gear.wrapping_mul(4))) as usize,
     );
     unsafe { crate::physics::drive_torque_share::drive_torque_share() };
     x87_2(crate::race::store::asm_base() as usize);
@@ -54,23 +56,23 @@ fn steps() -> Result<(), Refused> {
     for x in [0x5CB97C, 0x5CB980, 0x5CB984, DRIVE, 0x71A194, 0x71A1B0] {
         p(x, 0);
     }
-    p(GEAR, 1);
-    p(0x71A010, 1);
+    CAR.gear.set(1);
+    CAR.gearbox_kind.set(1);
     for n in 0..STEPS {
         step()?;
-        if g(0x5CB97C) == 0 && !c0(g(DRIVE), g(0x5CB988)) {
+        if g(0x5CB97C) == 0 && !c0(CAR.drive_speed_a.bits(), g(0x5CB988)) {
             p(0x5CB97C, n);
         }
-        if g(0x5CB980) == 0 && !c0(g(DRIVE), g(0x5CB98C)) {
+        if g(0x5CB980) == 0 && !c0(CAR.drive_speed_a.bits(), g(0x5CB98C)) {
             p(0x5CB980, n);
         }
         if n % 20 == 0 {
             let slot = 4 * (n / 20) as usize;
             p(
                 0x5CB990 + slot,
-                crate::math::x87::mul(g(DRIVE), g(0x5C5D00)),
+                crate::math::x87::mul(CAR.drive_speed_a.bits(), NUMBERS.two_and_a_quarter.bits()),
             );
-            p(0x5CBD90 + slot, g(GEAR));
+            p(0x5CBD90 + slot, CAR.gear.get());
         }
     }
     x87_3(crate::race::store::asm_base() as usize);

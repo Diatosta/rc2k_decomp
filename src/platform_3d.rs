@@ -38,12 +38,12 @@ use crate::gfx::screen_state::DRAW_SURFACE;
 use crate::gfx::texture_upload::TEXTURE_TABLES;
 use crate::gfx::texture_upload::{TextureFormat, TextureRecord};
 use crate::logfile::log_write::log_write;
+use crate::scene::draw_store::DRAW;
 use crate::session::SCREEN;
-use crate::store::{game_ptr, game_read};
+use crate::store::game_ptr;
 use crate::system::find_entry::find_entry;
 use std::sync::{Mutex, OnceLock};
 
-const CLEARED_RVA: usize = rva(0x624138); // dword_624138: the rectangle to clear
 const RELEASE_TEXT_RVA: usize = rva(0x5C2DDF); // "SVM: Release all textures"
 
 // ---- game data ----
@@ -1096,10 +1096,11 @@ pub fn with_depth<R>(f: impl FnOnce(&mut Depth) -> R) -> R {
 }
 
 /// `d3d::clear_viewport` for Rust callers: the depth buffer cleared over the rectangle
-/// `CLEARED_RVA` holds (the original leaves eax 0).
+/// `DRAW.cleared_rectangle` holds (the original leaves eax 0).
 pub fn clear_viewport() {
     CLEAR.count_call();
-    let [left, top, right, bottom]: [i32; 4] = unsafe { game_read(CLEARED_RVA) };
+    let [left, top, right, bottom] =
+        crate::session::read_bits(&DRAW.cleared_rectangle).map(|v| v as i32);
     let c = |v: i32| v.max(0) as usize;
     note(Noted::Clear([c(left), c(top), c(right), c(bottom)]));
 }

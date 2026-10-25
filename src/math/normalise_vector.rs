@@ -26,6 +26,7 @@
 use crate::errors::BadInput;
 use crate::framework::{game_read, game_write, rva};
 use crate::math::x87_float::{ONE, compare, ld, st};
+use crate::scene::draw_store::DRAW;
 
 // ---- game data ----
 
@@ -35,7 +36,6 @@ pub const VECTOR_RVA: usize = rva(0x5C5F60); // xmmword_5C5F60
 const SSE_RVA: usize = rva(0x621A58); // dword_621A58
 const ROOTS_RVA: usize = rva(0x5C70F8); // flt_5C70F8
 const EXPONENT_ROOTS_RVA: usize = rva(0x5C74F8); // flt_5C74F8
-const CHECKED_RVA: usize = rva(0x62400C); // dword_62400C
 // The squares (`xmmword_5C5F70`) and the length (`g_workVectorLength`, 0x6D18C8) are no
 // longer stored (2026-10-24, phase 5): no function the game reaches reads them (IDA: the
 // length's one reader, 0x4517F3, is unreached).
@@ -111,7 +111,7 @@ pub unsafe fn normalise(sse: bool) -> Result<Option<u32>, BadInput> {
         let (scaled, inverse) = scaled_by_inverse([v[0], v[1], v[2]], root, exponent_root);
         let unsigned_zero = |bits: u32| if bits == 0x8000_0000 { 0 } else { bits };
         game_write(VECTOR_RVA, scaled.map(unsigned_zero));
-        game_write(CHECKED_RVA, inverse);
+        DRAW.scratch.set_bits(inverse);
         Ok(Some(sum))
     }
 }

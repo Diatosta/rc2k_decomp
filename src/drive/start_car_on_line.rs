@@ -16,8 +16,10 @@
 //! refuse.
 
 use crate::errors::Refused;
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 use crate::math::x87;
+use crate::physics::car_store::CAR;
+use crate::race::blocks_store::CAR_BLOCKS;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
 use rc2k_core::drive::start_places;
@@ -38,10 +40,14 @@ pub unsafe fn start_car_on_line(distance: u32) -> Result<(), Refused> {
     unsafe {
         let start = g(0x6051A0);
         start_places::check_start(start)?;
-        p(0x71AA80, g(0x605034 + 4 * start));
-        p(0x71A234, start_places::STARTED_MODE);
-        let checkpoint = start_places::start_checkpoint(g(0x70F484), distance);
-        for v in [0x71A070, 0x71A06C, 0x71A074, 0x6365E4, 0x6365EC] {
+        CAR.start_slot_value.set(g(0x605034 + 4 * start));
+        CAR.driver_kind.set(start_places::STARTED_MODE);
+        let checkpoint =
+            start_places::start_checkpoint(CAR_BLOCKS.cars[0].checkpoint.get(), distance);
+        for cell in [&CAR.checkpoint, &CAR.reset_checkpoint, &CAR.last_pace_call] {
+            cell.set(checkpoint);
+        }
+        for v in [0x6365E4, 0x6365EC] {
             p(v, checkpoint);
         }
         let f = |x: u32| f32::from_bits(g(x));
@@ -54,24 +60,24 @@ pub unsafe fn start_car_on_line(distance: u32) -> Result<(), Refused> {
         )
         .to_bits();
         p(0x6051AC, share);
-        p(0x71A650, share);
+        CAR.start_share.set_bits(share);
         crate::race::start_place::place_car_on_line()?;
         crate::race::car_starts::reset_car_motion()?;
-        p(0x71A17C, 0);
-        p(0x71A180, 0);
-        p(0x71A184, x87::loaded(g(0x6051B0)));
-        let m = game_addr(rva(0x71A08C)) as u32;
+        CAR.local_velocity[0].set_bits(0);
+        CAR.local_velocity[1].set_bits(0);
+        CAR.local_velocity[2].set_bits(x87::loaded(g(0x6051B0)));
+        let m = CAR.crash_matrix[0].addr() as u32;
         let out = rotate_point(
             m,
             [
-                extended(g(0x71A17C)),
-                extended(g(0x71A180)),
-                extended(g(0x71A184)),
+                extended(CAR.local_velocity[0].bits()),
+                extended(CAR.local_velocity[1].bits()),
+                extended(CAR.local_velocity[2].bits()),
             ],
         );
-        p(0x71A170, rounded(out[0]));
-        p(0x71A174, rounded(out[1]));
-        p(0x71A178, rounded(out[2]));
+        CAR.velocity[0].set_bits(rounded(out[0]));
+        CAR.velocity[1].set_bits(rounded(out[1]));
+        CAR.velocity[2].set_bits(rounded(out[2]));
         Ok(())
     }
 }

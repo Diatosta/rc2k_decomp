@@ -8,12 +8,10 @@
 //!
 //! One caller, `sub_4C25F6`.
 
-use crate::framework::rva;
 use crate::marks::snow::SNOW_LIGHT;
 use crate::marks::store::{Slot, game_read};
 use crate::math::x87;
-
-const COLOUR_RVA: usize = rva(0x6415E4); // dword_6415E4
+use crate::race::frame_store::FRAME_WORK;
 const FADES: usize = 0x11;
 const GROWTH_RVA: Slot = Slot::at(0x7651C4); // flt_7651C4
 
@@ -21,7 +19,7 @@ const GROWTH_RVA: Slot = Slot::at(0x7651C4); // flt_7651C4
 pub unsafe fn make_fade_colours() {
     let l = &SNOW_LIGHT;
     unsafe {
-        let colour: u32 = game_read(COLOUR_RVA);
+        let colour: u32 = FRAME_WORK.view_light.bits();
         let inverses = [
             ((colour >> 16) & 0xFF) ^ 0xFF,
             ((colour >> 8) & 0xFF) ^ 0xFF,
@@ -39,7 +37,8 @@ pub unsafe fn make_fade_colours() {
                 cell.set(v as u32);
             }
             let [r, gr, b] = scaled.map(|v| v as u32 & 0xFF);
-            let fade = (0xFF00_0000 | r << 16 | gr << 8 | b).wrapping_add(game_read(COLOUR_RVA));
+            let fade =
+                (0xFF00_0000 | r << 16 | gr << 8 | b).wrapping_add(FRAME_WORK.view_light.bits());
             l.fade_colours[n].set(fade);
             l.fade_step.set_bits(x87::add(step, game_read(GROWTH_RVA)));
         }

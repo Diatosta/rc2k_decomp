@@ -17,7 +17,12 @@
 //! above are the original's, for reference.
 
 use crate::physics::camera_view::rd;
+use crate::physics::car_store::CAR;
 use crate::physics::flow::{a, g, p};
+use crate::race::frame_store::FRAME_WORK;
+use crate::race::numbers_store::NUMBERS;
+use crate::race::vars_store::RACE_VARS;
+use crate::scene::draw_store::DRAW;
 use crate::scene::x87_mem::{fild, fld, fstp80};
 use rc2k_core::physics::camera_place::{SECOND_RECORD_MODE, add_offset};
 
@@ -30,7 +35,7 @@ type Turns = (
 
 /// The steps both versions share; `second` the second offset turned with the car.
 unsafe fn place_with(turns: Turns, second: &dyn Fn() -> [i32; 3]) {
-    let esi = if g(0x6238A4) == SECOND_RECORD_MODE {
+    let esi = if RACE_VARS.split.get() == SECOND_RECORD_MODE {
         a(0x6077CC)
     } else {
         a(0x6077B0)
@@ -54,32 +59,48 @@ unsafe fn place_with(turns: Turns, second: &dyn Fn() -> [i32; 3]) {
     }
     let (mut eax, mut ebx, mut ecx) = (g(0x608B30), g(0x608B34), g(0x608B38));
     for (ebx_turn, ecx_turn, eax_turn) in [
-        (0x71A69C, 0x71A694, 0x71A698),
-        (0x71A68C, 0x71A690, 0x71A688),
+        (
+            &CAR.camera_offset_turns[2],
+            &CAR.camera_offset_turns[0],
+            &CAR.camera_offset_turns[1],
+        ),
+        (
+            &CAR.camera_roll_turn,
+            &CAR.camera_pitch,
+            &CAR.camera_heading,
+        ),
     ] {
         let i = |v: u32| v as i32;
-        let [x, z, _] = unsafe { turns.0(i(ebx), i(ecx), i(eax), g(ebx_turn)) };
+        let [x, z, _] = unsafe { turns.0(i(ebx), i(ecx), i(eax), ebx_turn.get()) };
         ebx = x;
         eax = z;
-        let [x, z, _] = unsafe { turns.1(i(ecx), i(eax), i(ebx), g(ecx_turn)) };
+        let [x, z, _] = unsafe { turns.1(i(ecx), i(eax), i(ebx), ecx_turn.get()) };
         ecx = x;
         ebx = z;
-        let [x, _, z, _] = unsafe { turns.2(i(eax), i(ebx), i(ecx), g(eax_turn)) };
+        let [x, _, z, _] = unsafe { turns.2(i(eax), i(ebx), i(ecx), eax_turn.get()) };
         eax = x;
         ecx = z;
     }
-    p(0x71A67C, eax);
-    p(0x71A680, ebx);
-    p(0x71A684, ecx);
+    CAR.camera_position[0].set(eax);
+    CAR.camera_position[1].set(ebx);
+    CAR.camera_position[2].set(ecx);
     // 0x438F14: the second offset, turned with the car.
     let whole = second();
-    p(0x62400C, whole[2] as u32);
-    let car = [g(0x6416E8), g(0x6416EC), g(0x6416F0)];
-    let place = [g(0x71A67C), g(0x71A680), g(0x71A684)];
+    DRAW.scratch.set(whole[2] as u32);
+    let car = [
+        FRAME_WORK.camera_car[0].get(),
+        FRAME_WORK.camera_car[1].get(),
+        FRAME_WORK.camera_car[2].get(),
+    ];
+    let place = [
+        CAR.camera_position[0].get(),
+        CAR.camera_position[1].get(),
+        CAR.camera_position[2].get(),
+    ];
     let (_, place) = add_offset(place, whole, car);
-    p(0x71A67C, place[0]);
-    p(0x71A680, place[1]);
-    p(0x71A684, place[2]);
+    CAR.camera_position[0].set(place[0]);
+    CAR.camera_position[1].set(place[1]);
+    CAR.camera_position[2].set(place[2]);
 }
 
 /// The Rust version (the exact one, for `physics::camera_avoid_ground`). The registers it
@@ -95,8 +116,10 @@ pub unsafe fn place_camera() {
                 (parts[k].as_mut_ptr()) as usize,
             );
         }
-        let turned = unsafe { crate::scene::rotate_point::rotate_point(a(0x71A08C), parts) };
-        let k = g(0x5C5D98);
+        let turned = unsafe {
+            crate::scene::rotate_point::rotate_point(CAR.crash_matrix[0].addr() as u32, parts)
+        };
+        let k = NUMBERS.k65536.bits();
         turned.map(|e| crate::math::x87_run::ext_to_int(crate::math::x87_run::ext_times(e, k)))
     };
     unsafe {

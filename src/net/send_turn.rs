@@ -9,12 +9,12 @@
 //! See `net/mod.rs`. One caller, `net::race_step`.
 
 use crate::errors::Refused;
-use crate::net::{CAR, a, send_extra, send_inputs, send_position};
+use crate::net::{send_extra, send_inputs, send_position};
 use rc2k_core::net::race::SENT;
 
 /// The Rust version.
 pub fn send_turn() -> Result<(), Refused> {
-    let steps = a(CAR) + 8;
+    let steps = crate::physics::car_store::car_addr() as u32 + 8;
     let count = || unsafe { (steps as *const u32).read_volatile() };
     let sends: [fn() -> Result<(), Refused>; 3] = [
         send_inputs::send_inputs,

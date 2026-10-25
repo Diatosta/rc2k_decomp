@@ -13,7 +13,9 @@
 //! Callers: `physics::free_rev_in_neutral`, `physics::free_rev_clutch`.
 
 use crate::math::x87;
-use crate::physics::engine_torque::{below, engine_torque, g, p};
+use crate::physics::car_store::CAR;
+use crate::physics::engine_torque::{below, engine_torque};
+use crate::scene::draw_store::DRAW;
 use crate::scene::x87_mem::{fild, fld, fstp};
 
 /// 0x43EA85 .. 0x43EAE7, as the original.
@@ -26,22 +28,22 @@ unsafe fn run() {
 pub unsafe fn free_rev() {
     unsafe { engine_torque() };
     unsafe { run() };
-    let (e, drag) = (g(0x71A1B0), g(0x62400C));
+    let (e, drag) = (CAR.engine_speed.bits(), DRAW.scratch.get());
     let x = f32::from_bits(e);
     if x == 0.0 || x.is_nan() {
         return;
     }
     if x < 0.0 {
         let y = x87::add(e, drag);
-        p(0x71A1B0, y);
+        CAR.engine_speed.set_bits(y);
         if !below(y, 0) {
-            p(0x71A1B0, 0);
+            CAR.engine_speed.set_bits(0);
         }
     } else {
         let y = x87::sub(e, drag);
-        p(0x71A1B0, y);
+        CAR.engine_speed.set_bits(y);
         if below(y, 0) {
-            p(0x71A1B0, 0);
+            CAR.engine_speed.set_bits(0);
         }
     }
 }

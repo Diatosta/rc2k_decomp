@@ -11,8 +11,8 @@
 //! file has their shared body). One caller, `net::send_turn` (every fourth step).
 
 use crate::errors::Refused;
+use crate::net::log_send;
 use crate::net::send_message::send_message;
-use crate::net::{CAR, MESSAGE, a, log_send};
 use rc2k_core::net::race::Kind;
 
 /// What one of the three sends: its log text  and its kind (the
@@ -27,9 +27,12 @@ pub const INPUTS: Message = Message {
     kind: Kind::Inputs,
 };
 
-/// The shared body: the car block `net::CAR`, the message built at `net::MESSAGE`.
+/// The shared body: the car block `g_car`, the message built at `RaceWork::net_message`.
 pub fn send_fields(m: &Message) -> Result<(), Refused> {
-    let (car, message) = (a(CAR), a(MESSAGE));
+    let (car, message) = (
+        crate::physics::car_store::car_addr() as u32,
+        crate::race::work_store::RACE_WORK.net_message.as_ptr() as u32,
+    );
     log_send(m.text);
     // Converted: `rc2k_core::net::race::Kind::pack`.
     let dwords = m

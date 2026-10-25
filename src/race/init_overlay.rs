@@ -17,8 +17,12 @@
 //! 0x40 parts (the original writes past its three lists).
 
 use crate::errors::Refused;
-use crate::framework::{game_addr, game_read, rva};
+use crate::framework::{game_addr, rva};
 use crate::math::x87;
+use crate::race::numbers_store::NUMBERS;
+use crate::race::vars_store::RACE_VARS;
+use crate::race::work_store::RACE_WORK;
+use crate::scene::draw_store::DRAW;
 
 /// The overlay's variables: 0x6D1460 .. 0x6D180C (unaligned, packed).
 const BLOCK: usize = 0x6D1460;
@@ -30,8 +34,6 @@ const PART_B: usize = 0x6D170C; // dword_6D170C
 const CLEARED: [usize; 2] = [0x6D146A, 0x6D146E]; // flt_6D146A, flt_6D146E
 /// The sizes (`rc2k_core::race::panel::OVERLAY_SIZES`): dword_6D1486 .. dword_6D149E.
 const SIZES: [usize; 6] = [0x6D1486, 0x6D148A, 0x6D148E, 0x6D1496, 0x6D149A, 0x6D149E];
-const SCALE_RVA: usize = rva(0x5C5D98); // flt_5C5D98, 65536.0
-const MILE_RVA: usize = rva(0x5C5CF0); // g_metresInMile, 1609.344
 const CARS: u32 = 8;
 const ONE: u32 = 0x3F80_0000;
 
@@ -50,13 +52,13 @@ impl OverlayVars {
     pub fn game() -> Self {
         let a = |v: usize| game_addr(rva(v)) as u32;
         Self {
-            kinds: a(0x623640),
+            kinds: (RACE_VARS.checkpoint_count.addr() as u32),
             found: a(0x601830),
             list: a(0x60102C),
             distances: a(0x9F78D8),
-            scratch: a(0x62400C),
+            scratch: (DRAW.scratch.addr() as u32),
             block: a(BLOCK),
-            car_blocks: a(0x71B3B8),
+            car_blocks: (RACE_WORK.car_blocks[0].addr() as u32),
         }
     }
 
@@ -86,7 +88,8 @@ pub unsafe fn init_overlay(v: &OverlayVars) -> Result<(), Refused> {
         match parts {
             Some(count) => {
                 put(v.of(MILES), 0);
-                let (scale, mile): (u32, u32) = (game_read(SCALE_RVA), game_read(MILE_RVA));
+                let (scale, mile): (u32, u32) =
+                    (NUMBERS.k65536.bits(), NUMBERS.metres_in_mile.bits());
                 let distance = |k: u32| get(v.distances.wrapping_add(k.wrapping_mul(4)));
                 for n in 0..count {
                     let end = distance(get(v.list + 4 * n + 4));

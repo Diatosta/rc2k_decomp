@@ -13,14 +13,14 @@
 //! written; `GameSource` and `apply` here).
 
 use crate::errors::BadInput;
-use crate::framework::{game_read, game_write, rva};
+use crate::framework::{game_read, rva};
 use crate::math::random_below::random_below;
 use crate::menu::draw_work_store::DRAW_WORK;
+use crate::race::work_store::RACE_WORK;
 use crate::saves::drivers::Driver;
 use rc2k_core::Invalid;
 use rc2k_core::saves::defaults::{Filled, Record};
 
-const CHECKPOINTS_RVA: usize = rva(0x71C7C0); // dword_71C7C0[16]
 const CHECKPOINT_COUNTS_RVA: usize = rva(0x71C730); // dword_71C730[stage]
 /// Ten entries.
 pub const STAGE_LEN: u32 = 0x618;
@@ -125,7 +125,9 @@ pub unsafe fn apply(filled: &Filled, tables: &[(u32, usize)]) {
             DRAW_WORK.work_b0.set(sum);
         }
         if let Some(c) = filled.checkpoints {
-            game_write(CHECKPOINTS_RVA, c);
+            for (cell, v) in RACE_WORK.guessed_checkpoints.iter().zip(c) {
+                cell.set(v);
+            }
         }
     }
 }

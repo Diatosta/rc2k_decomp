@@ -22,6 +22,7 @@ use crate::math::x87_float::X;
 use crate::math::x87_float::{int, ld, st, to_int};
 #[allow(unused_imports)]
 use crate::math::x87_run::{abs_compare, compare_full};
+use crate::physics::car_store::CAR;
 #[allow(unused_imports)]
 use crate::physics::flow::{a, c0, g, hold_high, hold_low, p, table_lerp};
 use crate::physics::store::{DAMAGE, DamageModel};
@@ -30,7 +31,7 @@ use crate::session::Cell32;
 
 /// `unk_71A2AC[gear]` (the gear -1 .. 7 as the original indexes it).
 fn gear_gauge(gear: u32) -> u32 {
-    a(0x71A2AC).wrapping_add(gear.wrapping_mul(4))
+    (CAR.gear_wear[1].addr() as u32).wrapping_add(gear.wrapping_mul(4))
 }
 
 /// The gauge at `at` held 0 ..= `flt_75B34C` (the two `fcompp` holds).
@@ -54,8 +55,8 @@ pub fn steps() {
         0x31A290,
         0x31A290,
     );
-    hold_low(0x71A290, &DAMAGE.gauge_low);
-    hold_high(0x71A290, &DAMAGE.gauge_top);
+    hold_low(&CAR.engine_damage, &DAMAGE.gauge_low);
+    hold_high(&CAR.engine_damage, &DAMAGE.gauge_top);
     x87_1(
         crate::race::store::asm_base() as usize,
         &DAMAGE.gauge_rates[1],
@@ -63,8 +64,8 @@ pub fn steps() {
         0x31A294,
         0x31A294,
     );
-    hold_low(0x71A294, &DAMAGE.gauge_low);
-    hold_high(0x71A294, &DAMAGE.gauge_top);
+    hold_low(&CAR.exhaust_damage, &DAMAGE.gauge_low);
+    hold_high(&CAR.exhaust_damage, &DAMAGE.gauge_top);
     x87_1(
         crate::race::store::asm_base() as usize,
         &DAMAGE.gauge_rates[2],
@@ -72,8 +73,8 @@ pub fn steps() {
         0x31A29C,
         0x31A29C,
     );
-    hold_low(0x71A29C, &DAMAGE.gauge_low);
-    hold_high(0x71A29C, &DAMAGE.gauge_top);
+    hold_low(&CAR.cooling_damage, &DAMAGE.gauge_low);
+    hold_high(&CAR.cooling_damage, &DAMAGE.gauge_top);
     x87_1(
         crate::race::store::asm_base() as usize,
         &DAMAGE.gauge_rates[3],
@@ -81,8 +82,8 @@ pub fn steps() {
         0x31A2A0,
         0x31A2A0,
     );
-    hold_low(0x71A2A0, &DAMAGE.gauge_low);
-    hold_high(0x71A2A0, &DAMAGE.gauge_top);
+    hold_low(&CAR.clutch_damage, &DAMAGE.gauge_low);
+    hold_high(&CAR.clutch_damage, &DAMAGE.gauge_top);
     x87_1(
         crate::race::store::asm_base() as usize,
         &DAMAGE.gauge_rates[4],
@@ -90,8 +91,8 @@ pub fn steps() {
         0x31A2A4,
         0x31A2A4,
     );
-    hold_low(0x71A2A4, &DAMAGE.gauge_low);
-    hold_high(0x71A2A4, &DAMAGE.gauge_top);
+    hold_low(&CAR.differential_damage, &DAMAGE.gauge_low);
+    hold_high(&CAR.differential_damage, &DAMAGE.gauge_top);
     x87_1(
         crate::race::store::asm_base() as usize,
         &DAMAGE.gauge_rates[5],
@@ -99,8 +100,8 @@ pub fn steps() {
         0x31A2E8,
         0x31A2E8,
     );
-    hold_low(0x71A2E8, &DAMAGE.gauge_low);
-    hold_high(0x71A2E8, &DAMAGE.gauge_top);
+    hold_low(&CAR.electrics_damage, &DAMAGE.gauge_low);
+    hold_high(&CAR.electrics_damage, &DAMAGE.gauge_top);
     x87_1(
         crate::race::store::asm_base() as usize,
         &DAMAGE.gauge_rates[6],
@@ -108,8 +109,8 @@ pub fn steps() {
         0x31A2EC,
         0x31A2EC,
     );
-    hold_low(0x71A2EC, &DAMAGE.gauge_low);
-    hold_high(0x71A2EC, &DAMAGE.gauge_top);
+    hold_low(&CAR.light_damage[0], &DAMAGE.gauge_low);
+    hold_high(&CAR.light_damage[0], &DAMAGE.gauge_top);
     x87_1(
         crate::race::store::asm_base() as usize,
         &DAMAGE.gauge_rates[6],
@@ -117,8 +118,8 @@ pub fn steps() {
         0x31A2F0,
         0x31A2F0,
     );
-    hold_low(0x71A2F0, &DAMAGE.gauge_low);
-    hold_high(0x71A2F0, &DAMAGE.gauge_top);
+    hold_low(&CAR.light_damage[1], &DAMAGE.gauge_low);
+    hold_high(&CAR.light_damage[1], &DAMAGE.gauge_top);
     x87_1(
         crate::race::store::asm_base() as usize,
         &DAMAGE.gauge_rates[6],
@@ -126,8 +127,8 @@ pub fn steps() {
         0x31A2F4,
         0x31A2F4,
     );
-    hold_low(0x71A2F4, &DAMAGE.gauge_low);
-    hold_high(0x71A2F4, &DAMAGE.gauge_top);
+    hold_low(&CAR.light_damage[2], &DAMAGE.gauge_low);
+    hold_high(&CAR.light_damage[2], &DAMAGE.gauge_top);
     x87_1(
         crate::race::store::asm_base() as usize,
         &DAMAGE.gauge_rates[6],
@@ -135,8 +136,8 @@ pub fn steps() {
         0x31A2F8,
         0x31A2F8,
     );
-    hold_low(0x71A2F8, &DAMAGE.gauge_low);
-    hold_high(0x71A2F8, &DAMAGE.gauge_top);
+    hold_low(&CAR.light_damage[3], &DAMAGE.gauge_low);
+    hold_high(&CAR.light_damage[3], &DAMAGE.gauge_top);
     x87_1(
         crate::race::store::asm_base() as usize,
         &DAMAGE.gauge_rates[6],
@@ -144,8 +145,8 @@ pub fn steps() {
         0x31A2FC,
         0x31A2FC,
     );
-    hold_low(0x71A2FC, &DAMAGE.gauge_low);
-    hold_high(0x71A2FC, &DAMAGE.gauge_top);
+    hold_low(&CAR.light_damage[4], &DAMAGE.gauge_low);
+    hold_high(&CAR.light_damage[4], &DAMAGE.gauge_top);
     x87_1(
         crate::race::store::asm_base() as usize,
         &DAMAGE.gauge_rates[6],
@@ -153,8 +154,8 @@ pub fn steps() {
         0x31A300,
         0x31A300,
     );
-    hold_low(0x71A300, &DAMAGE.gauge_low);
-    hold_high(0x71A300, &DAMAGE.gauge_top);
+    hold_low(&CAR.light_damage[5], &DAMAGE.gauge_low);
+    hold_high(&CAR.light_damage[5], &DAMAGE.gauge_top);
     x87_1(
         crate::race::store::asm_base() as usize,
         &DAMAGE.gauge_rates[7],
@@ -162,8 +163,8 @@ pub fn steps() {
         0x31A308,
         0x31A308,
     );
-    hold_low(0x71A308, &DAMAGE.gauge_low);
-    hold_high(0x71A308, &DAMAGE.gauge_top);
+    hold_low(&CAR.steering_damage, &DAMAGE.gauge_low);
+    hold_high(&CAR.steering_damage, &DAMAGE.gauge_top);
     x87_1(
         crate::race::store::asm_base() as usize,
         &DAMAGE.gauge_rates[8],
@@ -171,8 +172,8 @@ pub fn steps() {
         0x31A30C,
         0x31A30C,
     );
-    hold_low(0x71A30C, &DAMAGE.gauge_low);
-    hold_high(0x71A30C, &DAMAGE.gauge_top);
+    hold_low(&CAR.suspension_damage[0], &DAMAGE.gauge_low);
+    hold_high(&CAR.suspension_damage[0], &DAMAGE.gauge_top);
     x87_1(
         crate::race::store::asm_base() as usize,
         &DAMAGE.gauge_rates[8],
@@ -180,8 +181,8 @@ pub fn steps() {
         0x31A310,
         0x31A310,
     );
-    hold_low(0x71A310, &DAMAGE.gauge_low);
-    hold_high(0x71A310, &DAMAGE.gauge_top);
+    hold_low(&CAR.suspension_damage[1], &DAMAGE.gauge_low);
+    hold_high(&CAR.suspension_damage[1], &DAMAGE.gauge_top);
     x87_1(
         crate::race::store::asm_base() as usize,
         &DAMAGE.gauge_rates[8],
@@ -189,8 +190,8 @@ pub fn steps() {
         0x31A314,
         0x31A314,
     );
-    hold_low(0x71A314, &DAMAGE.gauge_low);
-    hold_high(0x71A314, &DAMAGE.gauge_top);
+    hold_low(&CAR.suspension_damage[2], &DAMAGE.gauge_low);
+    hold_high(&CAR.suspension_damage[2], &DAMAGE.gauge_top);
     x87_1(
         crate::race::store::asm_base() as usize,
         &DAMAGE.gauge_rates[8],
@@ -198,8 +199,8 @@ pub fn steps() {
         0x31A318,
         0x31A318,
     );
-    hold_low(0x71A318, &DAMAGE.gauge_low);
-    hold_high(0x71A318, &DAMAGE.gauge_top);
+    hold_low(&CAR.suspension_damage[3], &DAMAGE.gauge_low);
+    hold_high(&CAR.suspension_damage[3], &DAMAGE.gauge_top);
     x87_2(
         &DAMAGE,
         crate::race::store::asm_base() as usize,
@@ -209,8 +210,8 @@ pub fn steps() {
         0x31A298,
         0x31A298,
     );
-    hold_low(0x71A298, &DAMAGE.gauge_low);
-    hold_high(0x71A298, &DAMAGE.gauge_top);
+    hold_low(&CAR.turbo_damage, &DAMAGE.gauge_low);
+    hold_high(&CAR.turbo_damage, &DAMAGE.gauge_top);
     let gear = DAMAGE.dword_75b3bc.bits();
     let gauge = gear_gauge(gear);
     x87_3(
@@ -220,8 +221,8 @@ pub fn steps() {
     );
     hold_at(gauge);
     x87_4(&DAMAGE, crate::race::store::asm_base() as usize);
-    hold_low(0x71A320, &DAMAGE.gauge_low);
-    hold_high(0x71A320, &DAMAGE.gauge_top);
+    hold_low(&CAR.brake_wear_a, &DAMAGE.gauge_low);
+    hold_high(&CAR.brake_wear_a, &DAMAGE.gauge_top);
     x87_2(
         &DAMAGE,
         crate::race::store::asm_base() as usize,
@@ -231,8 +232,8 @@ pub fn steps() {
         0x31A324,
         0x31A324,
     );
-    hold_low(0x71A324, &DAMAGE.gauge_low);
-    hold_high(0x71A324, &DAMAGE.gauge_top);
+    hold_low(&CAR.brake_wear_b, &DAMAGE.gauge_low);
+    hold_high(&CAR.brake_wear_b, &DAMAGE.gauge_top);
     x87_5(
         crate::race::store::asm_base() as usize,
         &DAMAGE.gauge_rates[10],
@@ -241,8 +242,8 @@ pub fn steps() {
         0x31A2E8,
         0x31A2E8,
     );
-    hold_low(0x71A2E8, &DAMAGE.gauge_low);
-    hold_high(0x71A2E8, &DAMAGE.gauge_top);
+    hold_low(&CAR.electrics_damage, &DAMAGE.gauge_low);
+    hold_high(&CAR.electrics_damage, &DAMAGE.gauge_top);
     x87_5(
         crate::race::store::asm_base() as usize,
         &DAMAGE.gauge_rates[11],
@@ -251,8 +252,8 @@ pub fn steps() {
         0x31A2EC,
         0x31A2EC,
     );
-    hold_low(0x71A2EC, &DAMAGE.gauge_low);
-    hold_high(0x71A2EC, &DAMAGE.gauge_top);
+    hold_low(&CAR.light_damage[0], &DAMAGE.gauge_low);
+    hold_high(&CAR.light_damage[0], &DAMAGE.gauge_top);
     x87_5(
         crate::race::store::asm_base() as usize,
         &DAMAGE.gauge_rates[11],
@@ -261,8 +262,8 @@ pub fn steps() {
         0x31A2F0,
         0x31A2F0,
     );
-    hold_low(0x71A2F0, &DAMAGE.gauge_low);
-    hold_high(0x71A2F0, &DAMAGE.gauge_top);
+    hold_low(&CAR.light_damage[1], &DAMAGE.gauge_low);
+    hold_high(&CAR.light_damage[1], &DAMAGE.gauge_top);
     x87_5(
         crate::race::store::asm_base() as usize,
         &DAMAGE.gauge_rates[11],
@@ -271,8 +272,8 @@ pub fn steps() {
         0x31A2F4,
         0x31A2F4,
     );
-    hold_low(0x71A2F4, &DAMAGE.gauge_low);
-    hold_high(0x71A2F4, &DAMAGE.gauge_top);
+    hold_low(&CAR.light_damage[2], &DAMAGE.gauge_low);
+    hold_high(&CAR.light_damage[2], &DAMAGE.gauge_top);
     x87_5(
         crate::race::store::asm_base() as usize,
         &DAMAGE.gauge_rates[11],
@@ -281,8 +282,8 @@ pub fn steps() {
         0x31A2F8,
         0x31A2F8,
     );
-    hold_low(0x71A2F8, &DAMAGE.gauge_low);
-    hold_high(0x71A2F8, &DAMAGE.gauge_top);
+    hold_low(&CAR.light_damage[3], &DAMAGE.gauge_low);
+    hold_high(&CAR.light_damage[3], &DAMAGE.gauge_top);
     x87_5(
         crate::race::store::asm_base() as usize,
         &DAMAGE.gauge_rates[11],
@@ -291,8 +292,8 @@ pub fn steps() {
         0x31A2FC,
         0x31A2FC,
     );
-    hold_low(0x71A2FC, &DAMAGE.gauge_low);
-    hold_high(0x71A2FC, &DAMAGE.gauge_top);
+    hold_low(&CAR.light_damage[4], &DAMAGE.gauge_low);
+    hold_high(&CAR.light_damage[4], &DAMAGE.gauge_top);
     x87_5(
         crate::race::store::asm_base() as usize,
         &DAMAGE.gauge_rates[11],
@@ -301,8 +302,8 @@ pub fn steps() {
         0x31A300,
         0x31A300,
     );
-    hold_low(0x71A300, &DAMAGE.gauge_low);
-    hold_high(0x71A300, &DAMAGE.gauge_top);
+    hold_low(&CAR.light_damage[5], &DAMAGE.gauge_low);
+    hold_high(&CAR.light_damage[5], &DAMAGE.gauge_top);
     x87_6(&DAMAGE);
     let part = DAMAGE.flt_75b3e4.bits();
     x87_7(
@@ -318,8 +319,8 @@ pub fn steps() {
         0x31A32C,
         0x31A32C,
     );
-    hold_low(0x71A32C, &DAMAGE.gauge_low);
-    hold_high(0x71A32C, &DAMAGE.gauge_top);
+    hold_low(&CAR.part_hit_damage[0], &DAMAGE.gauge_low);
+    hold_high(&CAR.part_hit_damage[0], &DAMAGE.gauge_top);
     x87_5(
         crate::race::store::asm_base() as usize,
         &DAMAGE.flt_75b46c,
@@ -328,8 +329,8 @@ pub fn steps() {
         0x31A330,
         0x31A330,
     );
-    hold_low(0x71A330, &DAMAGE.gauge_low);
-    hold_high(0x71A330, &DAMAGE.gauge_top);
+    hold_low(&CAR.part_hit_damage[1], &DAMAGE.gauge_low);
+    hold_high(&CAR.part_hit_damage[1], &DAMAGE.gauge_top);
     x87_5(
         crate::race::store::asm_base() as usize,
         &DAMAGE.flt_75b470,
@@ -338,8 +339,8 @@ pub fn steps() {
         0x31A334,
         0x31A334,
     );
-    hold_low(0x71A334, &DAMAGE.gauge_low);
-    hold_high(0x71A334, &DAMAGE.gauge_top);
+    hold_low(&CAR.part_hit_damage[2], &DAMAGE.gauge_low);
+    hold_high(&CAR.part_hit_damage[2], &DAMAGE.gauge_top);
     x87_5(
         crate::race::store::asm_base() as usize,
         &DAMAGE.flt_75b470,
@@ -348,8 +349,8 @@ pub fn steps() {
         0x31A338,
         0x31A338,
     );
-    hold_low(0x71A338, &DAMAGE.gauge_low);
-    hold_high(0x71A338, &DAMAGE.gauge_top);
+    hold_low(&CAR.part_hit_damage[3], &DAMAGE.gauge_low);
+    hold_high(&CAR.part_hit_damage[3], &DAMAGE.gauge_top);
     x87_5(
         crate::race::store::asm_base() as usize,
         &DAMAGE.flt_75b45c,
@@ -358,8 +359,8 @@ pub fn steps() {
         0x31A290,
         0x31A290,
     );
-    hold_low(0x71A290, &DAMAGE.gauge_low);
-    hold_high(0x71A290, &DAMAGE.gauge_top);
+    hold_low(&CAR.engine_damage, &DAMAGE.gauge_low);
+    hold_high(&CAR.engine_damage, &DAMAGE.gauge_top);
     x87_5(
         crate::race::store::asm_base() as usize,
         &DAMAGE.flt_75b45c,
@@ -368,12 +369,12 @@ pub fn steps() {
         0x31A29C,
         0x31A29C,
     );
-    hold_low(0x71A29C, &DAMAGE.gauge_low);
-    hold_high(0x71A29C, &DAMAGE.gauge_top);
+    hold_low(&CAR.cooling_damage, &DAMAGE.gauge_low);
+    hold_high(&CAR.cooling_damage, &DAMAGE.gauge_top);
     if compare_full(DAMAGE.flt_75b464.bits(), DAMAGE.gauge_low.bits()) & 0x100 == 0 {
         x87_8(crate::race::store::asm_base() as usize, &DAMAGE);
-        hold_low(0x71A290, &DAMAGE.gauge_low);
-        hold_high(0x71A290, &DAMAGE.gauge_top);
+        hold_low(&CAR.engine_damage, &DAMAGE.gauge_low);
+        hold_high(&CAR.engine_damage, &DAMAGE.gauge_top);
         x87_5(
             crate::race::store::asm_base() as usize,
             &DAMAGE.flt_75b464,
@@ -382,8 +383,8 @@ pub fn steps() {
             0x31A29C,
             0x31A29C,
         );
-        hold_low(0x71A29C, &DAMAGE.gauge_low);
-        hold_high(0x71A29C, &DAMAGE.gauge_top);
+        hold_low(&CAR.cooling_damage, &DAMAGE.gauge_low);
+        hold_high(&CAR.cooling_damage, &DAMAGE.gauge_top);
     }
     if DAMAGE.dword_75b3b8.bits() == 0x1 {
         x87_9(
@@ -415,8 +416,8 @@ pub fn steps() {
         0x31A2D0,
         0x31A2D0,
     );
-    hold_low(0x71A2D0, &DAMAGE.gauge_low);
-    hold_high(0x71A2D0, &DAMAGE.gauge_top);
+    hold_low(&CAR.wheel_hit_damage[0], &DAMAGE.gauge_low);
+    hold_high(&CAR.wheel_hit_damage[0], &DAMAGE.gauge_top);
     x87_5(
         crate::race::store::asm_base() as usize,
         &DAMAGE.flt_75b450,
@@ -425,8 +426,8 @@ pub fn steps() {
         0x31A2D4,
         0x31A2D4,
     );
-    hold_low(0x71A2D4, &DAMAGE.gauge_low);
-    hold_high(0x71A2D4, &DAMAGE.gauge_top);
+    hold_low(&CAR.wheel_hit_damage[1], &DAMAGE.gauge_low);
+    hold_high(&CAR.wheel_hit_damage[1], &DAMAGE.gauge_top);
     x87_5(
         crate::race::store::asm_base() as usize,
         &DAMAGE.flt_75b450,
@@ -435,8 +436,8 @@ pub fn steps() {
         0x31A2D8,
         0x31A2D8,
     );
-    hold_low(0x71A2D8, &DAMAGE.gauge_low);
-    hold_high(0x71A2D8, &DAMAGE.gauge_top);
+    hold_low(&CAR.wheel_hit_damage[2], &DAMAGE.gauge_low);
+    hold_high(&CAR.wheel_hit_damage[2], &DAMAGE.gauge_top);
     x87_5(
         crate::race::store::asm_base() as usize,
         &DAMAGE.flt_75b450,
@@ -445,8 +446,8 @@ pub fn steps() {
         0x31A2DC,
         0x31A2DC,
     );
-    hold_low(0x71A2DC, &DAMAGE.gauge_low);
-    hold_high(0x71A2DC, &DAMAGE.gauge_top);
+    hold_low(&CAR.wheel_hit_damage[3], &DAMAGE.gauge_low);
+    hold_high(&CAR.wheel_hit_damage[3], &DAMAGE.gauge_top);
     x87_5(
         crate::race::store::asm_base() as usize,
         &DAMAGE.flt_75b458,
@@ -455,8 +456,8 @@ pub fn steps() {
         0x31A30C,
         0x31A30C,
     );
-    hold_low(0x71A30C, &DAMAGE.gauge_low);
-    hold_high(0x71A30C, &DAMAGE.gauge_top);
+    hold_low(&CAR.suspension_damage[0], &DAMAGE.gauge_low);
+    hold_high(&CAR.suspension_damage[0], &DAMAGE.gauge_top);
     x87_5(
         crate::race::store::asm_base() as usize,
         &DAMAGE.flt_75b458,
@@ -465,8 +466,8 @@ pub fn steps() {
         0x31A310,
         0x31A310,
     );
-    hold_low(0x71A310, &DAMAGE.gauge_low);
-    hold_high(0x71A310, &DAMAGE.gauge_top);
+    hold_low(&CAR.suspension_damage[1], &DAMAGE.gauge_low);
+    hold_high(&CAR.suspension_damage[1], &DAMAGE.gauge_top);
     x87_5(
         crate::race::store::asm_base() as usize,
         &DAMAGE.flt_75b458,
@@ -475,8 +476,8 @@ pub fn steps() {
         0x31A314,
         0x31A314,
     );
-    hold_low(0x71A314, &DAMAGE.gauge_low);
-    hold_high(0x71A314, &DAMAGE.gauge_top);
+    hold_low(&CAR.suspension_damage[2], &DAMAGE.gauge_low);
+    hold_high(&CAR.suspension_damage[2], &DAMAGE.gauge_top);
     x87_5(
         crate::race::store::asm_base() as usize,
         &DAMAGE.flt_75b458,
@@ -485,8 +486,8 @@ pub fn steps() {
         0x31A318,
         0x31A318,
     );
-    hold_low(0x71A318, &DAMAGE.gauge_low);
-    hold_high(0x71A318, &DAMAGE.gauge_top);
+    hold_low(&CAR.suspension_damage[3], &DAMAGE.gauge_low);
+    hold_high(&CAR.suspension_damage[3], &DAMAGE.gauge_top);
     x87_5(
         crate::race::store::asm_base() as usize,
         &DAMAGE.flt_75b454,
@@ -495,8 +496,8 @@ pub fn steps() {
         0x31A2E0,
         0x31A2E0,
     );
-    hold_low(0x71A2E0, &DAMAGE.gauge_low);
-    hold_high(0x71A2E0, &DAMAGE.gauge_top);
+    hold_low(&CAR.body_hit_damage, &DAMAGE.gauge_low);
+    hold_high(&CAR.body_hit_damage, &DAMAGE.gauge_top);
     x87_5(
         crate::race::store::asm_base() as usize,
         &DAMAGE.flt_75b454,
@@ -505,8 +506,8 @@ pub fn steps() {
         0x31A308,
         0x31A308,
     );
-    hold_low(0x71A308, &DAMAGE.gauge_low);
-    hold_high(0x71A308, &DAMAGE.gauge_top);
+    hold_low(&CAR.steering_damage, &DAMAGE.gauge_low);
+    hold_high(&CAR.steering_damage, &DAMAGE.gauge_top);
     x87_5(
         crate::race::store::asm_base() as usize,
         &DAMAGE.flt_75b454,
@@ -515,8 +516,8 @@ pub fn steps() {
         0x31A290,
         0x31A290,
     );
-    hold_low(0x71A290, &DAMAGE.gauge_low);
-    hold_high(0x71A290, &DAMAGE.gauge_top);
+    hold_low(&CAR.engine_damage, &DAMAGE.gauge_low);
+    hold_high(&CAR.engine_damage, &DAMAGE.gauge_top);
     x87_5(
         crate::race::store::asm_base() as usize,
         &DAMAGE.flt_75b454,
@@ -525,8 +526,8 @@ pub fn steps() {
         0x31A294,
         0x31A294,
     );
-    hold_low(0x71A294, &DAMAGE.gauge_low);
-    hold_high(0x71A294, &DAMAGE.gauge_top);
+    hold_low(&CAR.exhaust_damage, &DAMAGE.gauge_low);
+    hold_high(&CAR.exhaust_damage, &DAMAGE.gauge_top);
     x87_5(
         crate::race::store::asm_base() as usize,
         &DAMAGE.flt_75b454,
@@ -535,8 +536,8 @@ pub fn steps() {
         0x31A2A8,
         0x31A2A8,
     );
-    hold_low(0x71A2A8, &DAMAGE.gauge_low);
-    hold_high(0x71A2A8, &DAMAGE.gauge_top);
+    hold_low(&CAR.gear_wear[0], &DAMAGE.gauge_low);
+    hold_high(&CAR.gear_wear[0], &DAMAGE.gauge_top);
     x87_5(
         crate::race::store::asm_base() as usize,
         &DAMAGE.flt_75b454,
@@ -545,8 +546,8 @@ pub fn steps() {
         0x31A2B0,
         0x31A2B0,
     );
-    hold_low(0x71A2B0, &DAMAGE.gauge_low);
-    hold_high(0x71A2B0, &DAMAGE.gauge_top);
+    hold_low(&CAR.gear_wear[2], &DAMAGE.gauge_low);
+    hold_high(&CAR.gear_wear[2], &DAMAGE.gauge_top);
     x87_5(
         crate::race::store::asm_base() as usize,
         &DAMAGE.flt_75b454,
@@ -555,8 +556,8 @@ pub fn steps() {
         0x31A2B4,
         0x31A2B4,
     );
-    hold_low(0x71A2B4, &DAMAGE.gauge_low);
-    hold_high(0x71A2B4, &DAMAGE.gauge_top);
+    hold_low(&CAR.gear_wear[3], &DAMAGE.gauge_low);
+    hold_high(&CAR.gear_wear[3], &DAMAGE.gauge_top);
     x87_5(
         crate::race::store::asm_base() as usize,
         &DAMAGE.flt_75b454,
@@ -565,8 +566,8 @@ pub fn steps() {
         0x31A2B8,
         0x31A2B8,
     );
-    hold_low(0x71A2B8, &DAMAGE.gauge_low);
-    hold_high(0x71A2B8, &DAMAGE.gauge_top);
+    hold_low(&CAR.gear_wear[4], &DAMAGE.gauge_low);
+    hold_high(&CAR.gear_wear[4], &DAMAGE.gauge_top);
     x87_5(
         crate::race::store::asm_base() as usize,
         &DAMAGE.flt_75b454,
@@ -575,8 +576,8 @@ pub fn steps() {
         0x31A2BC,
         0x31A2BC,
     );
-    hold_low(0x71A2BC, &DAMAGE.gauge_low);
-    hold_high(0x71A2BC, &DAMAGE.gauge_top);
+    hold_low(&CAR.gear_wear[5], &DAMAGE.gauge_low);
+    hold_high(&CAR.gear_wear[5], &DAMAGE.gauge_top);
     x87_5(
         crate::race::store::asm_base() as usize,
         &DAMAGE.flt_75b454,
@@ -585,8 +586,8 @@ pub fn steps() {
         0x31A2C0,
         0x31A2C0,
     );
-    hold_low(0x71A2C0, &DAMAGE.gauge_low);
-    hold_high(0x71A2C0, &DAMAGE.gauge_top);
+    hold_low(&CAR.gear_wear[6], &DAMAGE.gauge_low);
+    hold_high(&CAR.gear_wear[6], &DAMAGE.gauge_top);
     x87_5(
         crate::race::store::asm_base() as usize,
         &DAMAGE.flt_75b454,
@@ -595,8 +596,8 @@ pub fn steps() {
         0x31A2C4,
         0x31A2C4,
     );
-    hold_low(0x71A2C4, &DAMAGE.gauge_low);
-    hold_high(0x71A2C4, &DAMAGE.gauge_top);
+    hold_low(&CAR.gear_wear[7], &DAMAGE.gauge_low);
+    hold_high(&CAR.gear_wear[7], &DAMAGE.gauge_top);
     x87_5(
         crate::race::store::asm_base() as usize,
         &DAMAGE.flt_75b454,
@@ -605,8 +606,8 @@ pub fn steps() {
         0x31A2C8,
         0x31A2C8,
     );
-    hold_low(0x71A2C8, &DAMAGE.gauge_low);
-    hold_high(0x71A2C8, &DAMAGE.gauge_top);
+    hold_low(&CAR.gear_wear[8], &DAMAGE.gauge_low);
+    hold_high(&CAR.gear_wear[8], &DAMAGE.gauge_top);
     x87_5(
         crate::race::store::asm_base() as usize,
         &DAMAGE.flt_75b454,
@@ -615,8 +616,8 @@ pub fn steps() {
         0x31A2A4,
         0x31A2A4,
     );
-    hold_low(0x71A2A4, &DAMAGE.gauge_low);
-    hold_high(0x71A2A4, &DAMAGE.gauge_top);
+    hold_low(&CAR.differential_damage, &DAMAGE.gauge_low);
+    hold_high(&CAR.differential_damage, &DAMAGE.gauge_top);
     if compare_full(DAMAGE.flt_75b3c8.bits(), DAMAGE.gauge_rates[23].bits()) & 0x100 == 0 {
         x87_1(
             crate::race::store::asm_base() as usize,
@@ -625,8 +626,8 @@ pub fn steps() {
             0x31A2E0,
             0x31A2E0,
         );
-        hold_low(0x71A2E0, &DAMAGE.gauge_low);
-        hold_high(0x71A2E0, &DAMAGE.gauge_top);
+        hold_low(&CAR.body_hit_damage, &DAMAGE.gauge_low);
+        hold_high(&CAR.body_hit_damage, &DAMAGE.gauge_top);
     }
     if compare_full(DAMAGE.flt_75b3c8.bits(), DAMAGE.gauge_rates[22].bits()) & 0x100 == 0 {
         x87_11(&DAMAGE, crate::race::store::asm_base() as usize);
@@ -638,8 +639,8 @@ pub fn steps() {
                 0x31A2EC,
                 0x31A2EC,
             );
-            hold_low(0x71A2EC, &DAMAGE.gauge_low);
-            hold_high(0x71A2EC, &DAMAGE.gauge_top);
+            hold_low(&CAR.light_damage[0], &DAMAGE.gauge_low);
+            hold_high(&CAR.light_damage[0], &DAMAGE.gauge_top);
         }
         if DAMAGE.dword_75b3c4.bits() == 0x2 {
             x87_1(
@@ -649,8 +650,8 @@ pub fn steps() {
                 0x31A2F0,
                 0x31A2F0,
             );
-            hold_low(0x71A2F0, &DAMAGE.gauge_low);
-            hold_high(0x71A2F0, &DAMAGE.gauge_top);
+            hold_low(&CAR.light_damage[1], &DAMAGE.gauge_low);
+            hold_high(&CAR.light_damage[1], &DAMAGE.gauge_top);
         }
         if DAMAGE.dword_75b3c4.bits() == 0x3 {
             x87_1(
@@ -660,8 +661,8 @@ pub fn steps() {
                 0x31A2F4,
                 0x31A2F4,
             );
-            hold_low(0x71A2F4, &DAMAGE.gauge_low);
-            hold_high(0x71A2F4, &DAMAGE.gauge_top);
+            hold_low(&CAR.light_damage[2], &DAMAGE.gauge_low);
+            hold_high(&CAR.light_damage[2], &DAMAGE.gauge_top);
         }
         if DAMAGE.dword_75b3c4.bits() == 0x4 {
             x87_1(
@@ -671,8 +672,8 @@ pub fn steps() {
                 0x31A2F8,
                 0x31A2F8,
             );
-            hold_low(0x71A2F8, &DAMAGE.gauge_low);
-            hold_high(0x71A2F8, &DAMAGE.gauge_top);
+            hold_low(&CAR.light_damage[3], &DAMAGE.gauge_low);
+            hold_high(&CAR.light_damage[3], &DAMAGE.gauge_top);
         }
         if DAMAGE.dword_75b3c4.bits() == 0x1 {
             x87_1(
@@ -682,8 +683,8 @@ pub fn steps() {
                 0x31A2FC,
                 0x31A2FC,
             );
-            hold_low(0x71A2FC, &DAMAGE.gauge_low);
-            hold_high(0x71A2FC, &DAMAGE.gauge_top);
+            hold_low(&CAR.light_damage[4], &DAMAGE.gauge_low);
+            hold_high(&CAR.light_damage[4], &DAMAGE.gauge_top);
         }
         if DAMAGE.dword_75b3c4.bits() == 0x2 {
             x87_1(
@@ -693,8 +694,8 @@ pub fn steps() {
                 0x31A2FC,
                 0x31A2FC,
             );
-            hold_low(0x71A2FC, &DAMAGE.gauge_low);
-            hold_high(0x71A2FC, &DAMAGE.gauge_top);
+            hold_low(&CAR.light_damage[4], &DAMAGE.gauge_low);
+            hold_high(&CAR.light_damage[4], &DAMAGE.gauge_top);
         }
         if DAMAGE.dword_75b3c4.bits() == 0x3 {
             x87_1(
@@ -704,8 +705,8 @@ pub fn steps() {
                 0x31A300,
                 0x31A300,
             );
-            hold_low(0x71A300, &DAMAGE.gauge_low);
-            hold_high(0x71A300, &DAMAGE.gauge_top);
+            hold_low(&CAR.light_damage[5], &DAMAGE.gauge_low);
+            hold_high(&CAR.light_damage[5], &DAMAGE.gauge_top);
         }
         if DAMAGE.dword_75b3c4.bits() == 0x4 {
             x87_1(
@@ -715,8 +716,8 @@ pub fn steps() {
                 0x31A300,
                 0x31A300,
             );
-            hold_low(0x71A300, &DAMAGE.gauge_low);
-            hold_high(0x71A300, &DAMAGE.gauge_top);
+            hold_low(&CAR.light_damage[5], &DAMAGE.gauge_low);
+            hold_high(&CAR.light_damage[5], &DAMAGE.gauge_top);
         }
         x87_1(
             crate::race::store::asm_base() as usize,
@@ -725,8 +726,8 @@ pub fn steps() {
             0x31A308,
             0x31A308,
         );
-        hold_low(0x71A308, &DAMAGE.gauge_low);
-        hold_high(0x71A308, &DAMAGE.gauge_top);
+        hold_low(&CAR.steering_damage, &DAMAGE.gauge_low);
+        hold_high(&CAR.steering_damage, &DAMAGE.gauge_top);
         x87_1(
             crate::race::store::asm_base() as usize,
             &DAMAGE.flt_75b3c8,
@@ -734,8 +735,8 @@ pub fn steps() {
             0x31A2E8,
             0x31A2E8,
         );
-        hold_low(0x71A2E8, &DAMAGE.gauge_low);
-        hold_high(0x71A2E8, &DAMAGE.gauge_top);
+        hold_low(&CAR.electrics_damage, &DAMAGE.gauge_low);
+        hold_high(&CAR.electrics_damage, &DAMAGE.gauge_top);
         x87_1(
             crate::race::store::asm_base() as usize,
             &DAMAGE.flt_75b3c8,
@@ -743,8 +744,8 @@ pub fn steps() {
             0x31A298,
             0x31A298,
         );
-        hold_low(0x71A298, &DAMAGE.gauge_low);
-        hold_high(0x71A298, &DAMAGE.gauge_top);
+        hold_low(&CAR.turbo_damage, &DAMAGE.gauge_low);
+        hold_high(&CAR.turbo_damage, &DAMAGE.gauge_top);
         x87_1(
             crate::race::store::asm_base() as usize,
             &DAMAGE.flt_75b3c8,
@@ -752,8 +753,8 @@ pub fn steps() {
             0x31A2A0,
             0x31A2A0,
         );
-        hold_low(0x71A2A0, &DAMAGE.gauge_low);
-        hold_high(0x71A2A0, &DAMAGE.gauge_top);
+        hold_low(&CAR.clutch_damage, &DAMAGE.gauge_low);
+        hold_high(&CAR.clutch_damage, &DAMAGE.gauge_top);
         x87_1(
             crate::race::store::asm_base() as usize,
             &DAMAGE.flt_75b3c8,
@@ -761,8 +762,8 @@ pub fn steps() {
             0x31A2A4,
             0x31A2A4,
         );
-        hold_low(0x71A2A4, &DAMAGE.gauge_low);
-        hold_high(0x71A2A4, &DAMAGE.gauge_top);
+        hold_low(&CAR.differential_damage, &DAMAGE.gauge_low);
+        hold_high(&CAR.differential_damage, &DAMAGE.gauge_top);
         x87_1(
             crate::race::store::asm_base() as usize,
             &DAMAGE.flt_75b3c8,
@@ -770,8 +771,8 @@ pub fn steps() {
             0x31A2A8,
             0x31A2A8,
         );
-        hold_low(0x71A2A8, &DAMAGE.gauge_low);
-        hold_high(0x71A2A8, &DAMAGE.gauge_top);
+        hold_low(&CAR.gear_wear[0], &DAMAGE.gauge_low);
+        hold_high(&CAR.gear_wear[0], &DAMAGE.gauge_top);
         x87_1(
             crate::race::store::asm_base() as usize,
             &DAMAGE.flt_75b3c8,
@@ -779,8 +780,8 @@ pub fn steps() {
             0x31A2AC,
             0x31A2AC,
         );
-        hold_low(0x71A2AC, &DAMAGE.gauge_low);
-        hold_high(0x71A2AC, &DAMAGE.gauge_top);
+        hold_low(&CAR.gear_wear[1], &DAMAGE.gauge_low);
+        hold_high(&CAR.gear_wear[1], &DAMAGE.gauge_top);
         x87_1(
             crate::race::store::asm_base() as usize,
             &DAMAGE.flt_75b3c8,
@@ -788,8 +789,8 @@ pub fn steps() {
             0x31A2B0,
             0x31A2B0,
         );
-        hold_low(0x71A2B0, &DAMAGE.gauge_low);
-        hold_high(0x71A2B0, &DAMAGE.gauge_top);
+        hold_low(&CAR.gear_wear[2], &DAMAGE.gauge_low);
+        hold_high(&CAR.gear_wear[2], &DAMAGE.gauge_top);
         x87_1(
             crate::race::store::asm_base() as usize,
             &DAMAGE.flt_75b3c8,
@@ -797,8 +798,8 @@ pub fn steps() {
             0x31A2B4,
             0x31A2B4,
         );
-        hold_low(0x71A2B4, &DAMAGE.gauge_low);
-        hold_high(0x71A2B4, &DAMAGE.gauge_top);
+        hold_low(&CAR.gear_wear[3], &DAMAGE.gauge_low);
+        hold_high(&CAR.gear_wear[3], &DAMAGE.gauge_top);
         x87_1(
             crate::race::store::asm_base() as usize,
             &DAMAGE.flt_75b3c8,
@@ -806,8 +807,8 @@ pub fn steps() {
             0x31A2B8,
             0x31A2B8,
         );
-        hold_low(0x71A2B8, &DAMAGE.gauge_low);
-        hold_high(0x71A2B8, &DAMAGE.gauge_top);
+        hold_low(&CAR.gear_wear[4], &DAMAGE.gauge_low);
+        hold_high(&CAR.gear_wear[4], &DAMAGE.gauge_top);
         x87_1(
             crate::race::store::asm_base() as usize,
             &DAMAGE.flt_75b3c8,
@@ -815,8 +816,8 @@ pub fn steps() {
             0x31A2BC,
             0x31A2BC,
         );
-        hold_low(0x71A2BC, &DAMAGE.gauge_low);
-        hold_high(0x71A2BC, &DAMAGE.gauge_top);
+        hold_low(&CAR.gear_wear[5], &DAMAGE.gauge_low);
+        hold_high(&CAR.gear_wear[5], &DAMAGE.gauge_top);
         x87_1(
             crate::race::store::asm_base() as usize,
             &DAMAGE.flt_75b3c8,
@@ -824,8 +825,8 @@ pub fn steps() {
             0x31A2C0,
             0x31A2C0,
         );
-        hold_low(0x71A2C0, &DAMAGE.gauge_low);
-        hold_high(0x71A2C0, &DAMAGE.gauge_top);
+        hold_low(&CAR.gear_wear[6], &DAMAGE.gauge_low);
+        hold_high(&CAR.gear_wear[6], &DAMAGE.gauge_top);
         x87_1(
             crate::race::store::asm_base() as usize,
             &DAMAGE.flt_75b3c8,
@@ -833,8 +834,8 @@ pub fn steps() {
             0x31A2C4,
             0x31A2C4,
         );
-        hold_low(0x71A2C4, &DAMAGE.gauge_low);
-        hold_high(0x71A2C4, &DAMAGE.gauge_top);
+        hold_low(&CAR.gear_wear[7], &DAMAGE.gauge_low);
+        hold_high(&CAR.gear_wear[7], &DAMAGE.gauge_top);
         x87_1(
             crate::race::store::asm_base() as usize,
             &DAMAGE.flt_75b3c8,
@@ -842,8 +843,8 @@ pub fn steps() {
             0x31A2C8,
             0x31A2C8,
         );
-        hold_low(0x71A2C8, &DAMAGE.gauge_low);
-        hold_high(0x71A2C8, &DAMAGE.gauge_top);
+        hold_low(&CAR.gear_wear[8], &DAMAGE.gauge_low);
+        hold_high(&CAR.gear_wear[8], &DAMAGE.gauge_top);
         let gear = DAMAGE.dword_75b3bc.bits();
         let gauge = gear_gauge(gear);
         x87_12(&DAMAGE, gauge as usize);
@@ -856,8 +857,8 @@ pub fn steps() {
                 0x31A2D0,
                 0x31A2D0,
             );
-            hold_low(0x71A2D0, &DAMAGE.gauge_low);
-            hold_high(0x71A2D0, &DAMAGE.gauge_top);
+            hold_low(&CAR.wheel_hit_damage[0], &DAMAGE.gauge_low);
+            hold_high(&CAR.wheel_hit_damage[0], &DAMAGE.gauge_top);
         }
         if DAMAGE.dword_75b3c4.bits() == 0x2 {
             x87_1(
@@ -867,8 +868,8 @@ pub fn steps() {
                 0x31A2D4,
                 0x31A2D4,
             );
-            hold_low(0x71A2D4, &DAMAGE.gauge_low);
-            hold_high(0x71A2D4, &DAMAGE.gauge_top);
+            hold_low(&CAR.wheel_hit_damage[1], &DAMAGE.gauge_low);
+            hold_high(&CAR.wheel_hit_damage[1], &DAMAGE.gauge_top);
         }
         if DAMAGE.dword_75b3c4.bits() == 0x3 {
             x87_1(
@@ -878,8 +879,8 @@ pub fn steps() {
                 0x31A2D8,
                 0x31A2D8,
             );
-            hold_low(0x71A2D8, &DAMAGE.gauge_low);
-            hold_high(0x71A2D8, &DAMAGE.gauge_top);
+            hold_low(&CAR.wheel_hit_damage[2], &DAMAGE.gauge_low);
+            hold_high(&CAR.wheel_hit_damage[2], &DAMAGE.gauge_top);
         }
         if DAMAGE.dword_75b3c4.bits() == 0x4 {
             x87_1(
@@ -889,8 +890,8 @@ pub fn steps() {
                 0x31A2DC,
                 0x31A2DC,
             );
-            hold_low(0x71A2DC, &DAMAGE.gauge_low);
-            hold_high(0x71A2DC, &DAMAGE.gauge_top);
+            hold_low(&CAR.wheel_hit_damage[3], &DAMAGE.gauge_low);
+            hold_high(&CAR.wheel_hit_damage[3], &DAMAGE.gauge_top);
         }
         if DAMAGE.dword_75b3c4.bits() == 0x1 {
             x87_1(
@@ -900,8 +901,8 @@ pub fn steps() {
                 0x31A30C,
                 0x31A30C,
             );
-            hold_low(0x71A30C, &DAMAGE.gauge_low);
-            hold_high(0x71A30C, &DAMAGE.gauge_top);
+            hold_low(&CAR.suspension_damage[0], &DAMAGE.gauge_low);
+            hold_high(&CAR.suspension_damage[0], &DAMAGE.gauge_top);
         }
         if DAMAGE.dword_75b3c4.bits() == 0x2 {
             x87_1(
@@ -911,8 +912,8 @@ pub fn steps() {
                 0x31A310,
                 0x31A310,
             );
-            hold_low(0x71A310, &DAMAGE.gauge_low);
-            hold_high(0x71A310, &DAMAGE.gauge_top);
+            hold_low(&CAR.suspension_damage[1], &DAMAGE.gauge_low);
+            hold_high(&CAR.suspension_damage[1], &DAMAGE.gauge_top);
         }
         if DAMAGE.dword_75b3c4.bits() == 0x3 {
             x87_1(
@@ -922,8 +923,8 @@ pub fn steps() {
                 0x31A314,
                 0x31A314,
             );
-            hold_low(0x71A314, &DAMAGE.gauge_low);
-            hold_high(0x71A314, &DAMAGE.gauge_top);
+            hold_low(&CAR.suspension_damage[2], &DAMAGE.gauge_low);
+            hold_high(&CAR.suspension_damage[2], &DAMAGE.gauge_top);
         }
         if DAMAGE.dword_75b3c4.bits() == 0x4 {
             x87_1(
@@ -933,8 +934,8 @@ pub fn steps() {
                 0x31A318,
                 0x31A318,
             );
-            hold_low(0x71A318, &DAMAGE.gauge_low);
-            hold_high(0x71A318, &DAMAGE.gauge_top);
+            hold_low(&CAR.suspension_damage[3], &DAMAGE.gauge_low);
+            hold_high(&CAR.suspension_damage[3], &DAMAGE.gauge_top);
         }
         if DAMAGE.dword_75b3c4.bits() == 0x1 {
             x87_1(
@@ -944,8 +945,8 @@ pub fn steps() {
                 0x31A29C,
                 0x31A29C,
             );
-            hold_low(0x71A29C, &DAMAGE.gauge_low);
-            hold_high(0x71A29C, &DAMAGE.gauge_top);
+            hold_low(&CAR.cooling_damage, &DAMAGE.gauge_low);
+            hold_high(&CAR.cooling_damage, &DAMAGE.gauge_top);
         }
         if DAMAGE.dword_75b3c4.bits() == 0x2 {
             x87_1(
@@ -955,8 +956,8 @@ pub fn steps() {
                 0x31A29C,
                 0x31A29C,
             );
-            hold_low(0x71A29C, &DAMAGE.gauge_low);
-            hold_high(0x71A29C, &DAMAGE.gauge_top);
+            hold_low(&CAR.cooling_damage, &DAMAGE.gauge_low);
+            hold_high(&CAR.cooling_damage, &DAMAGE.gauge_top);
         }
         if DAMAGE.dword_75b3c4.bits() == 0x1 {
             x87_1(
@@ -966,8 +967,8 @@ pub fn steps() {
                 0x31A290,
                 0x31A290,
             );
-            hold_low(0x71A290, &DAMAGE.gauge_low);
-            hold_high(0x71A290, &DAMAGE.gauge_top);
+            hold_low(&CAR.engine_damage, &DAMAGE.gauge_low);
+            hold_high(&CAR.engine_damage, &DAMAGE.gauge_top);
         }
         if DAMAGE.dword_75b3c4.bits() == 0x2 {
             x87_1(
@@ -977,8 +978,8 @@ pub fn steps() {
                 0x31A290,
                 0x31A290,
             );
-            hold_low(0x71A290, &DAMAGE.gauge_low);
-            hold_high(0x71A290, &DAMAGE.gauge_top);
+            hold_low(&CAR.engine_damage, &DAMAGE.gauge_low);
+            hold_high(&CAR.engine_damage, &DAMAGE.gauge_top);
         }
         if DAMAGE.dword_75b3c4.bits() == 0x1 {
             x87_1(
@@ -988,8 +989,8 @@ pub fn steps() {
                 0x31A320,
                 0x31A320,
             );
-            hold_low(0x71A320, &DAMAGE.gauge_low);
-            hold_high(0x71A320, &DAMAGE.gauge_top);
+            hold_low(&CAR.brake_wear_a, &DAMAGE.gauge_low);
+            hold_high(&CAR.brake_wear_a, &DAMAGE.gauge_top);
         }
         if DAMAGE.dword_75b3c4.bits() == 0x2 {
             x87_1(
@@ -999,8 +1000,8 @@ pub fn steps() {
                 0x31A320,
                 0x31A320,
             );
-            hold_low(0x71A320, &DAMAGE.gauge_low);
-            hold_high(0x71A320, &DAMAGE.gauge_top);
+            hold_low(&CAR.brake_wear_a, &DAMAGE.gauge_low);
+            hold_high(&CAR.brake_wear_a, &DAMAGE.gauge_top);
         }
         if DAMAGE.dword_75b3c4.bits() == 0x3 {
             x87_1(
@@ -1010,8 +1011,8 @@ pub fn steps() {
                 0x31A324,
                 0x31A324,
             );
-            hold_low(0x71A324, &DAMAGE.gauge_low);
-            hold_high(0x71A324, &DAMAGE.gauge_top);
+            hold_low(&CAR.brake_wear_b, &DAMAGE.gauge_low);
+            hold_high(&CAR.brake_wear_b, &DAMAGE.gauge_top);
         }
         if DAMAGE.dword_75b3c4.bits() == 0x4 {
             x87_1(
@@ -1021,8 +1022,8 @@ pub fn steps() {
                 0x31A324,
                 0x31A324,
             );
-            hold_low(0x71A324, &DAMAGE.gauge_low);
-            hold_high(0x71A324, &DAMAGE.gauge_top);
+            hold_low(&CAR.brake_wear_b, &DAMAGE.gauge_low);
+            hold_high(&CAR.brake_wear_b, &DAMAGE.gauge_top);
         }
     }
     x87_5(
@@ -1033,8 +1034,8 @@ pub fn steps() {
         0x31A30C,
         0x31A30C,
     );
-    hold_low(0x71A30C, &DAMAGE.gauge_low);
-    hold_high(0x71A30C, &DAMAGE.gauge_top);
+    hold_low(&CAR.suspension_damage[0], &DAMAGE.gauge_low);
+    hold_high(&CAR.suspension_damage[0], &DAMAGE.gauge_top);
     x87_5(
         crate::race::store::asm_base() as usize,
         &DAMAGE.wheel_loads[1],
@@ -1043,8 +1044,8 @@ pub fn steps() {
         0x31A310,
         0x31A310,
     );
-    hold_low(0x71A310, &DAMAGE.gauge_low);
-    hold_high(0x71A310, &DAMAGE.gauge_top);
+    hold_low(&CAR.suspension_damage[1], &DAMAGE.gauge_low);
+    hold_high(&CAR.suspension_damage[1], &DAMAGE.gauge_top);
     x87_5(
         crate::race::store::asm_base() as usize,
         &DAMAGE.wheel_loads[2],
@@ -1053,8 +1054,8 @@ pub fn steps() {
         0x31A314,
         0x31A314,
     );
-    hold_low(0x71A314, &DAMAGE.gauge_low);
-    hold_high(0x71A314, &DAMAGE.gauge_top);
+    hold_low(&CAR.suspension_damage[2], &DAMAGE.gauge_low);
+    hold_high(&CAR.suspension_damage[2], &DAMAGE.gauge_top);
     x87_5(
         crate::race::store::asm_base() as usize,
         &DAMAGE.wheel_loads[3],
@@ -1063,8 +1064,8 @@ pub fn steps() {
         0x31A318,
         0x31A318,
     );
-    hold_low(0x71A318, &DAMAGE.gauge_low);
-    hold_high(0x71A318, &DAMAGE.gauge_top);
+    hold_low(&CAR.suspension_damage[3], &DAMAGE.gauge_low);
+    hold_high(&CAR.suspension_damage[3], &DAMAGE.gauge_top);
     x87_5(
         crate::race::store::asm_base() as usize,
         &DAMAGE.flt_75b3dc,
@@ -1073,8 +1074,8 @@ pub fn steps() {
         0x31A294,
         0x31A294,
     );
-    hold_low(0x71A294, &DAMAGE.gauge_low);
-    hold_high(0x71A294, &DAMAGE.gauge_top);
+    hold_low(&CAR.exhaust_damage, &DAMAGE.gauge_low);
+    hold_high(&CAR.exhaust_damage, &DAMAGE.gauge_top);
     x87_5(
         crate::race::store::asm_base() as usize,
         &DAMAGE.flt_75b3dc,
@@ -1083,11 +1084,11 @@ pub fn steps() {
         0x31A308,
         0x31A308,
     );
-    hold_low(0x71A308, &DAMAGE.gauge_low);
-    hold_high(0x71A308, &DAMAGE.gauge_top);
+    hold_low(&CAR.steering_damage, &DAMAGE.gauge_low);
+    hold_high(&CAR.steering_damage, &DAMAGE.gauge_top);
     x87_13(crate::race::store::asm_base() as usize, &DAMAGE);
     if DAMAGE.flt_75b3e4.bits() == 0x0 {
-        p(0x71A298, 0x0);
+        CAR.turbo_damage.set_bits(0x0);
     }
     // retn
 }

@@ -15,8 +15,9 @@
 //! above are the original's, for reference.
 
 use crate::errors::Refused;
+use crate::physics::car_store::CAR;
 use crate::physics::crossed_edge_contact::{CROSSED, check_probe};
-use crate::physics::flow::{g, p};
+use crate::physics::flow::g;
 
 /// The steps, not guarded (the probe checked before).
 // Converted: `rc2k_core::physics::walls::{NONE_CROSSED, raised_hit}`.
@@ -26,19 +27,19 @@ pub fn steps() -> Result<(), Refused> {
         return Ok(());
     }
     let k = n as usize;
-    p(0x71A1FC, g(0x71AAC8 + 4 * k));
-    p(0x71A200, g(0x71ABC8 + 4 * k));
-    p(0x71A204, g(0x71ACC8 + 4 * k));
+    CAR.contact_point[0].set_bits(CAR.probe_point_x[k].bits());
+    CAR.contact_point[1].set_bits(CAR.probe_point_y[k].bits());
+    CAR.contact_point[2].set_bits(CAR.probe_point_z[k].bits());
     unsafe { crate::physics::restore_saved_car::restore_saved_car() }?;
     crate::physics::crossed_edge_contact::steps()?;
     if let Some(hit) = rc2k_core::physics::walls::raised_hit(
         f32::from_bits(g(0x6D3108)),
-        f32::from_bits(g(0x71A208)),
+        f32::from_bits(CAR.contact_depth.bits()),
     ) {
-        p(0x71A208, hit.to_bits());
+        CAR.contact_depth.set_bits(hit.to_bits());
     }
-    p(0x71A20C, 1);
-    p(0x71A1CC, 0x32);
+    CAR.contact_flag.set(1);
+    CAR.wall_hit_timer.set(0x32);
     unsafe { crate::physics::feel_ground::feel_ground() }
 }
 

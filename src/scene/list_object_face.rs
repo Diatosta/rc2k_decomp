@@ -33,42 +33,40 @@
 //! object's number or a list's length past their tables, no block for kind 0x1C, and what its
 //! parts refuse.
 
-use crate::d3d::draw_fan_unclipped::COUNT_RVA;
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_read, game_write, rva};
+use crate::physics::car_store::CAR;
+use crate::race::course_store::COURSE;
+use crate::race::numbers_store::NUMBERS;
+use crate::race::vars_store::RACE_VARS;
+use crate::race::work_store::RACE_WORK;
 use crate::scene::draw_object_faces::{LIST_RVA, LISTED_RVA};
+use crate::scene::draw_store::DRAW;
 use crate::scene::face_faces_away::face_faces_away;
-use crate::scene::face_sort_key::{KEY_RVA, face_sort_key};
+use crate::scene::face_sort_key::face_sort_key;
 use crate::scene::polygon::dword;
 use rc2k_core::scene::face_tests::{Face, FaceWorld, dropped, listed_key};
 
 // ---- game data ----
 
 pub const SEE_THROUGH_RVA: usize = rva(0x639970); // g_objectSeeThrough
-const IN_RACE_RVA: usize = rva(0x5C5CEC); // dword_5C5CEC
 const OBJECT_RVA: usize = rva(0x6214FC); // g_objectNumber
 const OBJECT_KINDS_RVA: usize = rva(0x5CD27C); // dword_5CD27C
 const KNOWN_KINDS_RVA: usize = rva(0x5C5790); // dword_5C5790
 const KIND_GROUPS_RVA: usize = rva(0x5C90DC); // dword_5C90DC, dword_5C90E0
 const KIND_LEN: usize = 0x134;
 pub const HIDDEN_GROUPS_RVA: usize = rva(0x5CCE50); // dword_5CCE50, dword_5CCE54
-const OTHER_GROUPS_RVA: usize = rva(0x5CCE58); // dword_5CCE58, dword_5CCE5C
-const LONE_GROUP_RVA: usize = rva(0x5CCE60); // dword_5CCE60
 const LONE_GROUP_ON_RVA: usize = rva(0x62DAD0); // dword_62DAD0
 const GROUPS_WHICH_RVA: usize = rva(0x6D18D4); // dword_6D18D4
 const GROUP_MASK_RVA: usize = rva(0x62150C); // dword_62150C
 const GROUP_MASK_2_RVA: usize = rva(0x606280); // dword_606280
 const MASK_KIND_RVA: usize = rva(0x621870); // dword_621870
 const GROUP_TABLE_RVA: usize = rva(0x621934); // dword_621934
-const NO_MASK_2_RVA: usize = rva(0x71A66C); // dword_71A66C
 const SEE_THROUGH_ON_RVA: usize = rva(0x63996C); // dword_63996C
 const SEE_THROUGH_VALUE_RVA: usize = rva(0x639974); // dword_639974
-const BLOCKS_RVA: usize = rva(0x71B3B8); // off_71B3B8
 const BLOCKS: u32 = 8;
 const BLOCK_RVA: usize = rva(0x60627C); // dword_60627C
 const KIND_BYTES_RVA: usize = rva(0x5CD688); // dword_5CD688
-const FACE_NUMBER_RVA: usize = rva(0x623620); // dword_623620
-const ENTRY_THIRD_RVA: usize = rva(0x624130); // dword_624130
 const LIST_ROOM: u32 = 0x1000;
 
 // ---- Rust version ----
@@ -82,7 +80,7 @@ struct GameFace;
 
 impl FaceWorld for GameFace {
     fn in_race(&self) -> bool {
-        unsafe { game_read::<u32>(IN_RACE_RVA) != 0 }
+        NUMBERS.in_race.bits() != 0
     }
     fn object(&self) -> u32 {
         unsafe { game_read(OBJECT_RVA) }
@@ -103,7 +101,7 @@ impl FaceWorld for GameFace {
         unsafe { game_write(HIDDEN_GROUPS_RVA, groups) }
     }
     fn other_groups(&self) -> [u32; 2] {
-        unsafe { game_read(OTHER_GROUPS_RVA) }
+        [15, 16].map(|k| COURSE.group_masks[k].get())
     }
     fn group_mask(&self) -> u32 {
         unsafe { game_read(GROUP_MASK_RVA) }
@@ -115,13 +113,13 @@ impl FaceWorld for GameFace {
         unsafe { game_read(GROUP_TABLE_RVA + group as usize * 4) }
     }
     fn no_second_mask(&self) -> u32 {
-        unsafe { game_read(NO_MASK_2_RVA) }
+        CAR.camera_switch_active.bits()
     }
     fn second_mask(&self) -> u32 {
         unsafe { game_read(GROUP_MASK_2_RVA) }
     }
     fn lone_group(&self) -> u32 {
-        unsafe { game_read(LONE_GROUP_RVA) }
+        COURSE.group_masks[17].bits()
     }
     fn lone_group_on(&self) -> u32 {
         unsafe { game_read(LONE_GROUP_ON_RVA) }
@@ -142,7 +140,7 @@ impl FaceWorld for GameFace {
         unsafe {
             let which: u32 = game_read(BLOCK_RVA);
             let block: u32 = if which < BLOCKS {
-                game_read(BLOCKS_RVA + which as usize * 4)
+                RACE_WORK.car_block(which as usize)
             } else {
                 0
             };
@@ -193,17 +191,17 @@ pub unsafe fn list_object_face(face: usize) -> Result<(), Refused> {
         if count as i32 <= 0 {
             return Ok(());
         }
-        game_write(COUNT_RVA, count);
-        game_write(KEY_RVA, 0u32);
+        DRAW.polygon_vertex_count.set_bits(count);
+        DRAW.face_sort_key.set_bits(0u32);
         face_sort_key(face, count)?;
         let entry = LIST_RVA + listed as usize * 0x10;
-        let key = listed_key(bytes, game_read(KEY_RVA));
+        let key = listed_key(bytes, DRAW.face_sort_key.bits());
         game_write(
             entry,
             [
-                game_read::<u32>(FACE_NUMBER_RVA),
+                RACE_VARS.face_number.bits(),
                 key,
-                game_read(ENTRY_THIRD_RVA),
+                DRAW.entry_third.bits(),
                 game_read(SEE_THROUGH_RVA),
             ],
         );

@@ -14,10 +14,9 @@
 use crate::drive::race_parts::{stop_race_sounds, wake_car_sounds};
 use crate::errors::Refused;
 use crate::physics::flow::{g, p};
+use crate::race::blocks_store::CAR_BLOCKS;
+use crate::race::vars_store::RACE_VARS;
 use rc2k_core::drive::race_ticks;
-
-const B: usize = 0x70F3EC;
-const NEXT: usize = 0xFE0;
 
 /// The Rust version.
 // Converted: `rc2k_core::drive::race_ticks::{best_frame, keeps_frame, quit_notice,
@@ -26,39 +25,44 @@ const NEXT: usize = 0xFE0;
 /// (liveness: `race_loop` reads eax only).
 pub unsafe fn quit_question() -> Result<u32, Refused> {
     stop_race_sounds()?;
-    p(0x6235E8, 1);
+    RACE_VARS.scene_switch.set(1);
     // eax: the best frame, then each key's answer, then what the frame leaves; it goes
     // into `input::yes_no_key` (the key given, when one is).
-    let (mut eax, _) = race_ticks::best_frame(g(B + 8));
+    let (mut eax, _) = race_ticks::best_frame(CAR_BLOCKS.cars[0].step_clock.bits());
     if race_ticks::keeps_frame(eax, g(0x70F3E8)) {
         p(0x70F3E8, eax);
     }
-    let kind = race_ticks::quit_notice(g(0x6238C0) != 0);
+    let kind = race_ticks::quit_notice(RACE_VARS.no_replay.get() != 0);
     for c in 0..8 {
-        p(B + NEXT * c + 0x71C, kind);
+        CAR_BLOCKS.cars[c as usize].notice_id.set_bits(kind);
     }
     for c in 0..8 {
-        p(B + NEXT * c + 0x730, 0);
+        CAR_BLOCKS.cars[c as usize].notice_time_b.set_bits(0);
     }
     for c in 0..8 {
-        p(B + NEXT * c + 0x72C, u32::MAX);
+        CAR_BLOCKS.cars[c as usize].notice_time.set_bits(u32::MAX);
     }
     let answer = loop {
         eax = unsafe { crate::input::yes_no_key::yes_no_key(eax) }?;
-        match race_ticks::quit_answer(eax, g(0x62389C), g(0x6238C0) != 0) {
+        match race_ticks::quit_answer(
+            eax,
+            RACE_VARS.run_kind.get(),
+            RACE_VARS.no_replay.get() != 0,
+        ) {
             Some(answer) => break answer,
             None => eax = crate::drive::race_frame::race_frame(eax)?,
         }
     };
-    for field in [0x728, 0x71C, 0x724] {
-        for c in 0..8 {
-            p(B + NEXT * c + field, 0);
+    for c in 0..8 {
+        let car = &CAR_BLOCKS.cars[c];
+        for cell in [&car.notice_shown, &car.notice_id, &car.notice_last] {
+            cell.set(0);
         }
     }
-    p(0x6235E8, 0);
+    RACE_VARS.scene_switch.set(0);
     wake_car_sounds()?;
     for c in 0..8 {
-        p(B + NEXT * c + 0x468, 0);
+        CAR_BLOCKS.cars[c as usize].input_keys.set_bits(0);
     }
     Ok(answer)
 }

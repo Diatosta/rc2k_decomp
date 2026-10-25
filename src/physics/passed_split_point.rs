@@ -25,6 +25,10 @@
 
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::framework::{game_read, game_write, rva};
+use crate::physics::car_store::CAR;
+use crate::physics::tables_store::PHYSICS;
+use crate::race::course_store::COURSE;
+use crate::scene::draw_store::DRAW;
 use crate::scene::x87_mem::{fild, fistp, fld, fstp, mov};
 use rc2k_core::physics::progress;
 use std::cmp::Ordering;
@@ -92,22 +96,28 @@ fn angle_at(rc: usize, s: usize) {
 /// The split's checkpoint, its face and the face's first point (esi), refused or fatal
 /// as said.
 fn point() -> Result<(u32, u32, u32), Refused> {
-    let split = g(0x71A068);
+    let split = CAR.splits_passed.get();
     let cp = progress::check_split_point(split, || g(0x601030 + 4 * split as usize))?;
     let face = g(0x9E3738 + 4 * cp as usize);
-    if !progress::face_known(face, g(0x5CCD1C)) {
+    if !progress::face_known(face, COURSE.course_face_count.get()) {
         return Err(FatalError {
             code: progress::SEGMENT_FATAL,
             message: "\u{1}",
         }
         .into());
     }
-    if g(0x5CCCBC) == 0 || g(0x5CCCC0) == 0 {
+    if COURSE.course_faces.get() == 0 || COURSE.scene_points.get() == 0 {
         return Err(BadInput("no course faces or points").into());
     }
-    let f = (face << 6).wrapping_add(g(0x5CCCBC));
+    let f = (face << 6).wrapping_add(COURSE.course_faces.get());
     let index = unsafe { ((f + 4) as *const u32).read_unaligned() };
-    Ok((cp, index, index.wrapping_mul(12).wrapping_add(g(0x5CCCC0))))
+    Ok((
+        cp,
+        index,
+        index
+            .wrapping_mul(12)
+            .wrapping_add(COURSE.scene_points.get()),
+    ))
 }
 
 /// The Rust version: whether the car has passed the split's point (CF). The registers it
@@ -119,21 +129,22 @@ pub unsafe fn passed_split_point() -> Result<bool, Refused> {
         return Ok(false);
     }
     let (cp, _, pt) = point()?;
-    p(0x639824, g(0x71A10C));
-    p(0x63982C, g(0x71A114));
+    p(0x639824, CAR.position[0].get());
+    p(0x63982C, CAR.position[2].get());
     unsafe { distance(pt) };
     let within = !matches!(
-        f32::from_bits(g(0x614D04)).partial_cmp(&f32::from_bits(g(0x614C70))),
+        f32::from_bits(PHYSICS.split_point_distance.bits())
+            .partial_cmp(&f32::from_bits(PHYSICS.split_distance.bits())),
         Some(Ordering::Greater | Ordering::Equal)
     );
     if !within {
         return Ok(false);
     }
     unsafe { angle(pt) };
-    let eax = g(0x62400C) << 16;
-    p(0x614CFC, eax);
+    let eax = DRAW.scratch.get() << 16;
+    PHYSICS.split_word.set(eax);
     let heading = g(0x9ED808 + 4 * cp as usize);
-    p(0x614D00, heading);
+    PHYSICS.split_heading.set(heading);
     let (carry, _) = progress::passed_point(eax, heading);
     Ok(carry)
 }

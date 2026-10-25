@@ -54,7 +54,7 @@
 //! carry after a `Step::CallOrFatal` is the fatal error, raised by the caller too.
 
 use crate::errors::{BadInput, FatalError, Refused};
-use crate::framework::{game_addr, game_write, log, rva};
+use crate::framework::{game_addr, log, rva};
 use crate::input::take_key::take_key;
 use crate::menu::captions_store::CAPTIONS;
 use crate::menu::draw_work_store::DRAW_WORK;
@@ -66,6 +66,7 @@ use crate::menu::pages_store::MENU_PAGES;
 use crate::menu::run_item_action::run_item_action;
 use crate::menu::run_list::run_list;
 use crate::menu::update_blink::update_blink;
+use crate::physics::tables_store::PHYSICS;
 use crate::session::CLOCKS;
 use crate::session::Dword;
 use crate::session::FLAGS;
@@ -76,8 +77,6 @@ pub const FRAME_CALLBACK: usize = rva(0x474D4B); // menu::frame_callback
 const INSPECTION_FRAME: usize = rva(0x46D019); // menu::inspection_frame
 
 // ---- game data ----
-
-const ELAPSED_RVA: usize = rva(0x613830); // dword_613830
 
 const NO_SOUND: u32 = 0x6F;
 const ENTER_SOUND: u32 = 0x14D;
@@ -617,7 +616,7 @@ pub unsafe fn screen_loop(screen: &Screen, entry: &Carried) -> Result<String, Re
                     update_blink();
                     c.arg = CLOCKS.frame.get();
                     CLOCKS.setup_time.set(c.arg);
-                    game_write(ELAPSED_RVA, 0u32);
+                    PHYSICS.scene_clock.set(0u32);
                     run(screen.before_first_frame, &mut c)?;
                     c.arg = game_addr(callback) as u32;
                     set_lists(
@@ -666,7 +665,7 @@ pub unsafe fn screen_loop(screen: &Screen, entry: &Carried) -> Result<String, Re
                         set_lists(screen, screen.lists, &mut c);
                         run_frame(later_callback, menu, &c)?;
                         c.arg = CLOCKS.frame.get().wrapping_sub(CLOCKS.setup_time.get());
-                        game_write(ELAPSED_RVA, c.arg);
+                        PHYSICS.scene_clock.set(c.arg);
                         match run(screen.each_frame, &mut c)? {
                             Flow::On => Next::ActionCheck,
                             Flow::NextFrame => Next::Frame,

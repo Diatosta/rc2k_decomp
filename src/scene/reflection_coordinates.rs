@@ -22,6 +22,7 @@ use crate::errors::BadInput;
 use crate::framework::{game_read, game_write, rva};
 use crate::math::normalise_vector::{VECTOR_RVA, normalise_vector};
 use crate::math::x87;
+use crate::race::numbers_store::NUMBERS;
 use crate::scene::project_point::RECORDS_RVA;
 use crate::scene::reflect_vector::{NORMAL_RVA, VECTOR_RVA as MIRRORED_RVA, reflect_vector};
 use crate::scene::x87_mem::{fistp, fld, fstp};
@@ -31,10 +32,6 @@ use crate::scene::x87_mem::{fistp, fld, fstp};
 pub const NORMAL_NUMBER_RVA: usize = rva(0x6399A8); // dword_6399A8
 pub const POINT_NUMBER_RVA: usize = rva(0x6399AC); // dword_6399AC
 pub const COORDINATES_RVA: usize = rva(0x6399B0); // dword_6399B0, dword_6399B4
-const LIFT_RVA: usize = rva(0x5C5D38); // flt_5C5D38
-const HALF_RVA: usize = rva(0x5C5E40); // flt_5C5E40
-const SCALE_A_RVA: usize = rva(0x5C5D98); // flt_5C5D98
-const SCALE_B_RVA: usize = rva(0x5C5E2C); // flt_5C5E2C
 
 // ---- Rust version ----
 
@@ -96,14 +93,14 @@ pub unsafe fn reflection_coordinates() -> Result<(), BadInput> {
             VECTOR_RVA,
             [
                 x87::loaded(mirrored[0]),
-                x87::add(mirrored[1], game_read(LIFT_RVA)),
+                x87::add(mirrored[1], NUMBERS.one.bits()),
                 x87::loaded(mirrored[2]),
             ],
         );
         normalise_vector()?;
         let looks: [u32; 3] = game_read(VECTOR_RVA);
-        let half: u32 = game_read(HALF_RVA);
-        let scales = [game_read(SCALE_A_RVA), game_read(SCALE_B_RVA)];
+        let half: u32 = NUMBERS.half.bits();
+        let scales = [NUMBERS.k65536.bits(), NUMBERS.k256.bits()];
         game_write(
             COORDINATES_RVA,
             [

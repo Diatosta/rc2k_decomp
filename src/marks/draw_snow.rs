@@ -27,6 +27,7 @@ use crate::marks::snow::{
     SNOW, SNOW_CURVE, SNOW_LIGHT, SNOW_TABLES, SNOW_VARS, SnowLight, SnowState, SnowTables,
 };
 use crate::marks::store::{Slot, game_addr, game_read, game_write};
+use crate::scene::draw_store::DRAW;
 use crate::service::harness::{Region, capture, restore};
 
 const MOST: i32 = 0x800;
@@ -34,7 +35,6 @@ const CURVE: u32 = 4095;
 const FADING_RVA: Slot = Slot::at(0x76523C); // dword_76523C
 const FADES: u32 = 17;
 const VERTICES_RVA: usize = rva(0x9605A0); // g_polygonVertices
-const VERTEX_COUNT_RVA: usize = rva(0x6240F8); // g_polygonVertexCount
 /// What the x87 blocks write: flt_8D22D4 .. flt_8D22DC, dword_8D21F4, flt_8DB448 ..
 /// dword_8DB460, flt_8DB4C8.
 fn scratch() -> Vec<Region> {
@@ -168,7 +168,7 @@ pub unsafe fn draw_snow() -> Result<(), Refused> {
                 if !clip_quad(game_addr(VERTICES_RVA) as u32)? {
                     draw_fan();
                     SNOW.drawn.set(SNOW.drawn.get().wrapping_add(1));
-                    game_write(VERTEX_COUNT_RVA, 4u32);
+                    DRAW.polygon_vertex_count.set_bits(4u32);
                 }
             }
         }

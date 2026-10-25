@@ -35,6 +35,7 @@
 
 use crate::errors::Refused;
 use crate::framework::{game_addr, game_write, rva};
+use crate::race::vars_store::RACE_VARS;
 use crate::scene::allocate_point_records::allocate_point_records_in_game;
 use crate::scene::clear_fog::clear_fog;
 use crate::scene::clear_slot_kinds::clear_slot_kinds;
@@ -50,14 +51,10 @@ use crate::scene::texture_needs::{SYSTEM_LEVELS_RVA, TAGS_RVA, VIDEO_LEVELS_RVA}
 use crate::scene::view_matrix::set_view_matrices;
 
 // ---- game data ----
-
-const BAR_FROM_RVA: usize = rva(0x623634); // dword_623634, dword_623638
-const BAR_FUNCTION_RVA: usize = rva(0x623704); // dword_623704
 const SHOW_BAR_RVA: usize = rva(0x4467C7); // sub_4467C7
 const LIT_COLOUR_RVA: usize = rva(0x6092C0); // dword_6092C0, three dwords
 const DARK_COLOUR_RVA: usize = rva(0x6092B4); // dword_6092B4, three dwords
 const OTHER_WAY_RVA: usize = rva(0x621480); // dword_621480
-const SET_UP_RVA: usize = rva(0x6238AC); // dword_6238AC
 const SLOT_KINDS_RVA: usize = rva(0x5CCE7C); // g_slotKinds
 const KIND_PICTURES_RVA: usize = rva(0x5D7968); // g_kindPictures
 /// The textures needed: how many, the first, the levels' table, the tag.
@@ -110,7 +107,7 @@ unsafe fn colours(dark_third: u32) {
 /// `sub_443478`), none of the Rust versions it calls.
 pub unsafe fn set_up_front_end_scene() -> Result<(), Refused> {
     unsafe {
-        game_write(BAR_FROM_RVA, [0u32, 100]);
+        crate::session::write_bits(&RACE_VARS.bar_span, [0u32, 100]);
         crate::menu::show_loading_picture::show_loading_picture()?;
         reset_texture_tables();
         for (count, first, levels, tag) in NEEDS {
@@ -158,7 +155,9 @@ pub unsafe fn set_up_front_end_scene() -> Result<(), Refused> {
                 picture = picture.wrapping_add(1);
             }
         }
-        game_write(BAR_FUNCTION_RVA, game_addr(SHOW_BAR_RVA) as u32);
+        RACE_VARS
+            .bar_function
+            .set_bits(game_addr(SHOW_BAR_RVA) as u32);
         crate::scene::reload_system_textures::reload_system_textures()?;
         allocate_point_records_in_game()?;
         colours(0);
@@ -168,7 +167,7 @@ pub unsafe fn set_up_front_end_scene() -> Result<(), Refused> {
         colours(0x7F);
         game_write(OTHER_WAY_RVA, 1u32);
         fill_light_tables();
-        game_write(SET_UP_RVA, 1u32);
+        RACE_VARS.settings_words[1].set_bits(1u32);
         Ok(())
     }
 }

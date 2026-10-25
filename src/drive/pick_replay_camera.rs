@@ -14,10 +14,11 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::physics::flow::g;
+use crate::race::blocks_store::CAR_BLOCKS;
+use crate::race::view_store::RACE_VIEW;
 use rc2k_core::drive::replay_views::{MODES as MODE_COUNT, draw, fits, kept_mode, wish_kind};
 
 const MODES: usize = 0x606320; // off_606320
-const B: usize = 0x70F3EC; // g_carBlockStore
 
 fn kind_of(mode: u32) -> u32 {
     unsafe { (g(MODES + 4 * mode as usize) as *const u32).read_unaligned() }
@@ -44,9 +45,9 @@ pub unsafe fn pick_replay_camera(wish: u32) -> Result<Option<u32>, Refused> {
     };
     let edx = kept_mode(
         edx,
-        || g(B + 0x24),
-        || g(0x63DB94) != 1,
-        || g(B + 0xFE0 + 0x24),
+        || CAR_BLOCKS.cars[0].car_kind.bits(),
+        || RACE_VIEW.players.get() != 1,
+        || CAR_BLOCKS.cars[1].car_kind.bits(),
     );
     Ok(Some(edx))
 }

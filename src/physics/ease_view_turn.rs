@@ -11,7 +11,9 @@
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
+use crate::physics::car_store::CAR;
 use crate::physics::flow::{g, p};
+use crate::scene::draw_store::DRAW;
 use crate::scene::x87_mem::{fild, fistp, fld};
 
 /// The Rust version (the exact one, for `physics::camera_avoid_ground`).
@@ -22,16 +24,16 @@ pub unsafe fn ease_view_turn() {
         }
     }
     for (target, turn, share) in [
-        (0x608B50, 0x71A688, 0x608BE8),
-        (0x608B58, 0x71A690, 0x608BE4),
-        (0x608B54, 0x71A68C, 0x608BEC),
+        (0x608B50, &CAR.camera_heading, 0x608BE8),
+        (0x608B58, &CAR.camera_pitch, 0x608BE4),
+        (0x608B54, &CAR.camera_roll_turn, 0x608BEC),
     ] {
-        p(0x62400C, g(target).wrapping_sub(g(turn)));
+        DRAW.scratch.set(g(target).wrapping_sub(turn.get()));
         x87_1(
             crate::race::store::asm_base() as usize,
             crate::physics::flow::a(share) as usize,
         );
-        p(turn, g(turn).wrapping_add(g(0x62400C)));
+        turn.set(turn.get().wrapping_add(DRAW.scratch.get()));
     }
 }
 

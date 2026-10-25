@@ -15,13 +15,12 @@
 
 use crate::errors::Refused;
 use crate::framework::rva;
+use crate::race::blocks_store::CAR_BLOCKS;
+use crate::race::vars_store::RACE_VARS;
+use crate::race::view_store::RACE_VIEW;
 use crate::store::{game_read, game_write};
-
-const PLAYERS_RVA: usize = rva(0x6238A4); // dword_6238A4
 const PLAYERS_COPY_RVA: usize = rva(0x6D14F2); // dword_6D14F2
 const FLAGS_RVA: [usize; 2] = [rva(0x6D14F6), rva(0x6D14FA)]; // the HUD flags
-const MODE_RVA: usize = rva(0x63DB98); // dword_63DB98
-const BLOCK_RVA: [usize; 2] = [rva(0x710394), rva(0x711374)]; // the car blocks' +0xFA8
 const CLEARED_RVA: [usize; 2] = [rva(0x6D1486), rva(0x6D1496)];
 const ON_RVA: [usize; 2] = [rva(0x63E168), rva(0x63E16C)];
 
@@ -30,11 +29,11 @@ const ON_RVA: [usize; 2] = [rva(0x63E168), rva(0x63E16C)];
 /// leaves at 1 / 2 while its one view fills the screen: the divider, the second
 /// player's bars and strip stayed drawn (section 16, fixed 2026-10-23).
 pub fn shown_layout() -> u32 {
-    unsafe {
-        if game_read::<u32>(MODE_RVA) == 1 {
+    {
+        if RACE_VIEW.views.bits() == 1 {
             0
         } else {
-            game_read(PLAYERS_RVA)
+            RACE_VARS.split.bits()
         }
     }
 }
@@ -48,9 +47,9 @@ pub unsafe fn overlay_pass() -> Result<(), Refused> {
         depth_buffer(false);
         crate::hud::overlay_states::overlay_states();
         let kept: [u32; 2] = FLAGS_RVA.map(|r| game_read(r));
-        if game_read::<u32>(MODE_RVA) == 2 {
+        if RACE_VIEW.views.bits() == 2 {
             for n in 0..2 {
-                if game_read::<u32>(BLOCK_RVA[n]) != 0 {
+                if CAR_BLOCKS.cars[n].view_covered.get() != 0 {
                     game_write(FLAGS_RVA[n], game_read::<u32>(FLAGS_RVA[n]) & 0x40);
                     game_write(CLEARED_RVA[n], 0u32);
                 }

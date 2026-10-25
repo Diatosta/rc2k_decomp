@@ -11,7 +11,7 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{game_read, game_write, rva};
+use crate::framework::rva;
 use crate::menu::draw_lists_store::DRAW_LISTS;
 use crate::menu::event_store::EVENT_STATE;
 use crate::menu::flow_store::SCREEN_FLOW;
@@ -22,6 +22,7 @@ use crate::menu::screen_loop::{
     Callee, Carried, List, Screen, Step, carousel, log_line, prepare_scene, screen_entry,
 };
 use crate::menu::state_store::MENU_STATE;
+use crate::scene::draw_store::DRAW;
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
@@ -29,14 +30,14 @@ unsafe fn set_up_first(c: &mut Carried) -> Result<(), Refused> {
     unsafe {
         // Between `pusha` and `popa`: no register changes.
         log_line(c"InfoScr: Start");
-        game_write(rva(0x623FB0), 0xFFFFFF64u32);
-        game_write(rva(0x623FB4), 0x27u32);
-        game_write(rva(0x624080), 0x140u32);
+        DRAW.view_offset[0].set(0xFFFFFF64u32);
+        DRAW.view_offset[1].set(0x27u32);
+        DRAW.view_zoom.set(0x140u32);
         prepare_scene(c);
-        game_write(rva(0x6241DC), 0xFFFFFFD8u32);
-        game_write(rva(0x6241E0), 0x2F8u32);
-        game_write(rva(0x6241EC), game_read::<i32>(rva(0x6241DC)) as f32);
-        game_write(rva(0x6241F0), game_read::<i32>(rva(0x6241E0)) as f32);
+        DRAW.clip_edges[2].set(0xFFFFFFD8u32);
+        DRAW.clip_edges[3].set(0x2F8u32);
+        DRAW.clip_screen[2].set(DRAW.clip_edges[2].bits() as i32 as f32);
+        DRAW.clip_screen[3].set(DRAW.clip_edges[3].bits() as i32 as f32);
         SCREEN_FLOW.turning.set(0x1u32);
         MENU_STATE.carousel.menu.set(0x9u32);
         carousel(c)?;

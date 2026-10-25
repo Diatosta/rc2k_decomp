@@ -15,8 +15,9 @@
 //! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, game_read, rva};
+use crate::framework::{game_addr, rva};
 use crate::math::x87;
+use crate::race::numbers_store::NUMBERS;
 
 /// The count, the lowest, its number, the share, then the 0x40 depths.
 fn variables() -> Vec<usize> {
@@ -46,7 +47,7 @@ pub unsafe fn lowest_at(v: &[u32]) -> Result<(), Refused> {
                 }
             }
         }
-        put(3, x87::int_div(get(1) as i32, game_read(rva(0x5C5D98))));
+        put(3, x87::int_div(get(1) as i32, NUMBERS.k65536.bits()));
         Ok(())
     }
 }

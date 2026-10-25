@@ -4,6 +4,9 @@
 
 use crate::errors::Refused;
 use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::race::numbers_store::NUMBERS;
+use crate::race::vars_store::RACE_VARS;
+use crate::scene::draw_store::DRAW;
 
 fn k(a: u32) -> u32 {
     unsafe { game_read(rva(a as usize)) }
@@ -77,7 +80,7 @@ pub unsafe fn flush_batch(b: &Batch, textured: bool) -> Result<(), Refused> {
             if textured {
                 // Inside `pusha`: the look-up, then its texture set.
                 crate::scene::look_up_texture::look_up_texture();
-                set_texture(k(0x6240D4));
+                set_texture(DRAW.polygon_texture.get());
             }
             let result =
                 crate::platform_3d::draw_indexed(ga(b.vertices), k(b.word), ga(b.indices), count);
@@ -95,7 +98,7 @@ pub unsafe fn flush_batch(b: &Batch, textured: bool) -> Result<(), Refused> {
 /// `fild i; fadd/fsub one; fstp`.
 fn int_and_one(i: u32, add: bool) -> u32 {
     use crate::math::x87_float::{int, ld, st};
-    let one = ld(unsafe { game_read::<u32>(rva(0x5C5D38)) });
+    let one = ld(NUMBERS.one.bits());
     let i = int(i as i32);
     st(if add { i + one } else { i - one })
 }
@@ -114,38 +117,44 @@ fn int_over_two(i: u32, a: u32, b: u32) -> u32 {
 /// the device's unclipped fan (`d3d::draw_fan_unclipped`), then the depth buffer on. Its one
 /// caller, `race::draw_mirror_view`, reads no register it leaves.
 pub unsafe fn draw_view_backdrop() {
-    w(0x623DF0, 0xF8_0000);
-    w(0x623E00, 0x8_0000);
-    let left = k(0x623FB0);
-    w(0x623E10, left);
-    w(0x623E14, left.wrapping_add(k(0x62408C)));
-    let top = k(0x623FB4);
-    w(0x623E20, top);
-    w(0x623E24, top.wrapping_add(k(0x624090)));
+    RACE_VARS.quad_uv[0].set(0xF8_0000);
+    RACE_VARS.quad_uv[4].set(0x8_0000);
+    let left = DRAW.view_offset[0].get();
+    RACE_VARS.quad_corners[0].set(left);
+    RACE_VARS.quad_corners[1].set(left.wrapping_add(DRAW.view_size[0].get()));
+    let top = DRAW.view_offset[1].get();
+    RACE_VARS.quad_corners[4].set(top);
+    RACE_VARS.quad_corners[5].set(top.wrapping_add(DRAW.view_size[1].get()));
     let v = |o: u32| 0x9605A0 + o;
-    let x0 = int_and_one(k(0x623E10), false);
+    let x0 = int_and_one(RACE_VARS.quad_corners[0].get(), false);
     w(v(0), x0);
     w(v(0x60), x0);
-    let x1 = int_and_one(k(0x623E14), true);
+    let x1 = int_and_one(RACE_VARS.quad_corners[1].get(), true);
     w(v(0x20), x1);
     w(v(0x40), x1);
-    let y0 = int_and_one(k(0x623E20), false);
+    let y0 = int_and_one(RACE_VARS.quad_corners[4].get(), false);
     w(v(4), y0);
     w(v(0x24), y0);
-    let y1 = int_and_one(k(0x623E24), true);
+    let y1 = int_and_one(RACE_VARS.quad_corners[5].get(), true);
     w(v(0x44), y1);
     w(v(0x64), y1);
-    let (a, b) = (k(0x5C5E2C), k(0x5C5D98));
+    let (a, b) = (NUMBERS.k256.bits(), NUMBERS.k65536.bits());
     for n in 0..4 {
-        w(v(0x18 + 0x20 * n), int_over_two(k(0x623DF0), a, b));
+        w(
+            v(0x18 + 0x20 * n),
+            int_over_two(RACE_VARS.quad_uv[0].get(), a, b),
+        );
     }
     for n in 0..4 {
-        w(v(0x1C + 0x20 * n), int_over_two(k(0x623E00), a, b));
+        w(
+            v(0x1C + 0x20 * n),
+            int_over_two(RACE_VARS.quad_uv[4].get(), a, b),
+        );
     }
     for n in 0..4 {
         w(v(0x10 + 0x20 * n), 0xFF00_0000);
     }
-    w(0x6240F8, 4);
+    DRAW.polygon_vertex_count.set(4);
     crate::scene::glow_render_states::glow_render_states();
     crate::scene::set_texture::set_texture(k(0x5D1DE8));
     crate::d3d::draw_fan_unclipped::draw_fan_unclipped();
@@ -160,7 +169,7 @@ mod asm_reference {
     // The original blocks, verbatim.
     pub(super) fn int_and_one_asm(i: u32, add: bool) -> u32 {
         let mut out = 0u32;
-        let v = [i, unsafe { game_read::<u32>(rva(0x5C5D38)) }];
+        let v = [i, NUMBERS.one.bits()];
         unsafe {
             if add {
                 core::arch::asm!(
@@ -205,7 +214,7 @@ mod asm_reference {
         let mut r = Rng(5);
         at_each_control_word(|| {
             for _ in 0..20000 {
-                unsafe { game_write(rva(0x5C5D38), r.float()) };
+                NUMBERS.one.set_bits(r.float());
                 let (i, a, b) = (r.int() as u32, r.float(), r.float());
                 for add in [false, true] {
                     let (want, got) = (int_and_one_asm(i, add), int_and_one(i, add));

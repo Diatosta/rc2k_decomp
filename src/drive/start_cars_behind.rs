@@ -30,6 +30,10 @@
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_read, game_write, rva};
 use crate::math::x87;
+use crate::race::blocks_store::CAR_BLOCKS;
+use crate::race::numbers_store::NUMBERS;
+use crate::race::work_store::RACE_WORK;
+use crate::session::Dword;
 use rc2k_core::drive::pace_cars::{
     ahead_of_lead, ease_jump, ease_step, first_starts, gap_start, gaps, passed, push_apart,
     wanted_gap,
@@ -49,15 +53,14 @@ unsafe fn at(a: u32) -> u32 {
 
 const COUNT: u32 = 0x6051B4; // the starts
 const CARS_BY_START: u32 = 0x604ECC; // dword_604ECC
-const LEAD: u32 = 0x70F484; // car block 0's checkpoint
-const CURRENT: u32 = 0x71B3F8; // g_currentCar
 
 fn block(car: u32) -> u32 {
-    g(0x71B3B8 + 4 * car)
+    RACE_WORK.car_block(car as usize)
 }
 
 /// The refusals worked out before anything.
 fn refusal() -> Option<&'static str> {
+    let lead = &CAR_BLOCKS.cars[0];
     let count = g(COUNT);
     if count > 0x58 {
         return Some("a start count above 0x58 (the start tables' room)");
@@ -67,7 +70,7 @@ fn refusal() -> Option<&'static str> {
             return Some("a start table car past the eight blocks");
         }
     }
-    if g(0x70FA48) > 7 || g(0x70FA4C) > 7 {
+    if lead.pace_cars[0].get() > 7 || lead.pace_cars[1].get() > 7 {
         return Some("a kept car past the eight blocks");
     }
     None
@@ -77,16 +80,16 @@ fn refusal() -> Option<&'static str> {
 /// start `start` with `dist` checkpoints on.
 unsafe fn put_car(
     start: u32,
-    slot: u32,
-    number: u32,
+    slot: &Dword,
+    number: &Dword,
     dist: u32,
     speed: u32,
 ) -> Result<(), Refused> {
-    p(number, start);
+    number.set(start);
     p(0x6051A0, start);
     let car = g(CARS_BY_START + 4 * start);
-    p(CURRENT, car);
-    p(slot, car);
+    RACE_WORK.current_car.set(car);
+    slot.set(car);
     unsafe {
         crate::drive::load_car::load_car()?;
         p(0x6051B0, speed);
@@ -98,7 +101,7 @@ unsafe fn put_car(
 
 /// A car taken off the line: made the work car, its start values cleared, stored back.
 unsafe fn clear_car(car: u32) -> Result<(), Refused> {
-    p(CURRENT, car);
+    RACE_WORK.current_car.set(car);
     unsafe {
         crate::drive::load_car::load_car()?;
         crate::drive::clear_start_state::clear_start_state();
@@ -114,119 +117,132 @@ pub unsafe fn start_cars_behind() -> Result<(), Refused> {
     if let Some(why) = refusal() {
         return Err(BadInput(why).into());
     }
+    // Block 0, the lead car: mode 2's pace-car state is kept in its fields.
+    let lead = &CAR_BLOCKS.cars[0];
     unsafe {
-        if g(0x70FA58) == 0 {
+        if lead.pace_placed.get() == 0 {
             let [(a, a_dist), (b, b_dist)] = first_starts(g(0x6051BC));
             p(0x6051C4, a);
             p(0x6051C8, b);
             p(0x6051CC, a_dist);
             p(0x6051D0, b_dist);
             for (start, slot, dist) in [
-                (0x6051C4, 0x70FA48, 0x6051CC),
-                (0x6051C8, 0x70FA4C, 0x6051D0),
+                (0x6051C4, &lead.pace_cars[0], 0x6051CC),
+                (0x6051C8, &lead.pace_cars[1], 0x6051D0),
             ] {
-                put_car(g(start), slot, 0x70FA50, g(dist), 0)?;
+                put_car(g(start), slot, &lead.pace_starts[0], g(dist), 0)?;
             }
-            p(0x70FA58, 1);
+            lead.pace_placed.set(1);
         }
         let count = g(COUNT);
-        let start = gap_start(g(0x70FA40), count);
+        let start = gap_start(lead.mode2_place.get(), count);
         let word = g(0x605034 + 4 * start);
         let (pass, back, sum) = gaps(word);
         p(0x6051D4, pass);
         p(0x6051D8, back);
         p(0x6051DC, sum);
         'moves: {
-            if g(0x70FA44) != 0 {
-                let car = g(0x70FA48);
-                let gone = at(block(car) + 0x98).wrapping_sub(g(LEAD));
+            if lead.mode2_behind.get() != 0 {
+                let car = lead.pace_cars[0].get();
+                let gone = at(block(car) + 0x98).wrapping_sub(lead.checkpoint.get());
                 if passed(gone, g(0x6051D4)) {
-                    let to = g(LEAD).wrapping_sub(g(0x6051D8));
+                    let to = lead.checkpoint.get().wrapping_sub(g(0x6051D8));
                     if crate::drive::checkpoint_taken::checkpoint_taken(to) {
                         break 'moves;
                     }
                     clear_car(car)?;
-                    p(0x70FA48, g(0x70FA4C));
-                    p(0x70FA50, g(0x70FA54));
-                    let start = g(COUNT).wrapping_sub(g(0x70FA44));
+                    lead.pace_cars[0].set(lead.pace_cars[1].get());
+                    lead.pace_starts[0].set(lead.pace_starts[1].get());
+                    let start = g(COUNT).wrapping_sub(lead.mode2_behind.get());
                     put_car(
                         start,
-                        0x70FA4C,
-                        0x70FA54,
+                        &lead.pace_cars[1],
+                        &lead.pace_starts[1],
                         g(0x6051D8).wrapping_neg(),
-                        g(0x5C5D0C),
+                        NUMBERS.twenty.bits(),
                     )?;
-                    p(0x70FA44, g(0x70FA44).wrapping_sub(1));
+                    lead.mode2_behind
+                        .set(lead.mode2_behind.get().wrapping_sub(1));
                 }
             }
-            if g(0x70FA44) == g(COUNT).wrapping_sub(3) {
+            if lead.mode2_behind.get() == g(COUNT).wrapping_sub(3) {
                 break 'moves;
             }
-            if g(0x70FA44) >= g(COUNT).wrapping_sub(2).wrapping_sub(g(0x6051C0)) {
+            if lead.mode2_behind.get() >= g(COUNT).wrapping_sub(2).wrapping_sub(g(0x6051C0)) {
                 break 'moves;
             }
-            let car = g(0x70FA4C);
-            let ahead = g(LEAD).wrapping_sub(at(block(car) + 0x98));
+            let car = lead.pace_cars[1].get();
+            let ahead = lead.checkpoint.get().wrapping_sub(at(block(car) + 0x98));
             if !passed(ahead, g(0x6051D4)) {
                 break 'moves;
             }
-            let to = g(LEAD).wrapping_add(g(0x6051D8));
+            let to = lead.checkpoint.get().wrapping_add(g(0x6051D8));
             if crate::drive::checkpoint_taken::checkpoint_taken(to) {
                 break 'moves;
             }
             clear_car(car)?;
-            p(0x70FA54, g(0x70FA50));
-            p(0x70FA4C, g(0x70FA48));
-            let start = g(COUNT).wrapping_sub(3).wrapping_sub(g(0x70FA44));
-            put_car(start, 0x70FA48, 0x70FA50, g(0x6051D8), g(0x5C5D0C))?;
-            p(0x70FA44, g(0x70FA44).wrapping_add(1));
+            lead.pace_starts[1].set(lead.pace_starts[0].get());
+            lead.pace_cars[1].set(lead.pace_cars[0].get());
+            let start = g(COUNT)
+                .wrapping_sub(3)
+                .wrapping_sub(lead.mode2_behind.get());
+            put_car(
+                start,
+                &lead.pace_cars[0],
+                &lead.pace_starts[0],
+                g(0x6051D8),
+                NUMBERS.twenty.bits(),
+            )?;
+            lead.mode2_behind
+                .set(lead.mode2_behind.get().wrapping_add(1));
         }
-        if g(0x70F494) == 0 {
-            p(0x70FA14, u32::MAX);
-            p(0x70FA18, u32::MAX);
-            let mut behind = g(COUNT).wrapping_sub(g(0x70FA44));
-            let lead = g(LEAD);
+        if lead.finish_flag.get() == 0 {
+            lead.pace_gaps[0].set(u32::MAX);
+            lead.pace_gaps[1].set(u32::MAX);
+            let mut behind = g(COUNT).wrapping_sub(lead.mode2_behind.get());
+            let lead_checkpoint = lead.checkpoint.get();
             // edx: `dword_70FA10` for the first car, then the gap the first car's note
             // left (the original's register, read again for the second car).
-            let mut edx = g(0x70FA10);
-            for slot in [0x70FA4C, 0x70FA48] {
-                let b = block(g(slot));
-                edx = if ahead_of_lead(lead, at(b + 0x98), edx, || at(b + 0x624)) {
+            let mut edx = lead.checkpoint_offset[1].get();
+            for slot in [&lead.pace_cars[1], &lead.pace_cars[0]] {
+                let b = block(slot.get());
+                edx = if ahead_of_lead(lead_checkpoint, at(b + 0x98), edx, || at(b + 0x624)) {
                     crate::drive::note_gap_ahead::note_gap_ahead(b)
                 } else {
                     behind = behind.wrapping_sub(1);
                     crate::drive::note_gap_behind::note_gap_behind(b)
                 };
             }
-            p(0x70FA40, behind);
-            let gap = |other: u32| wanted_gap(g(0x6051DC), g(other), g(0x6051D8));
+            lead.mode2_place.set(behind);
+            let gap = |other: &Dword| wanted_gap(g(0x6051DC), other.get(), g(0x6051D8));
             let mut to_ease = true;
-            if g(0x70FA18) == u32::MAX {
-                if g(0x70FA44) == 0 {
+            if lead.pace_gaps[1].get() == u32::MAX {
+                if lead.mode2_behind.get() == 0 {
                     to_ease = false;
                 } else {
-                    p(0x70FA18, gap(0x70FA14));
+                    lead.pace_gaps[1].set(gap(&lead.pace_gaps[0]));
                 }
             }
-            if to_ease && g(0x70FA14) == u32::MAX && g(0x70FA40) != 1 {
-                p(0x70FA14, gap(0x70FA18));
+            if to_ease && lead.pace_gaps[0].get() == u32::MAX && lead.mode2_place.get() != 1 {
+                lead.pace_gaps[0].set(gap(&lead.pace_gaps[1]));
             }
-            for (wanted, eased) in [(0x70FA18, 0x70FA20), (0x70FA14, 0x70FA1C)] {
-                if let (_, Some(v)) = ease_jump(g(wanted), g(eased)) {
-                    p(eased, v);
+            let pairs = || [1, 0].map(|k| (&lead.pace_gaps[k], &lead.pace_gaps_eased[k]));
+            for (wanted, eased) in pairs() {
+                if let (_, Some(v)) = ease_jump(wanted.get(), eased.get()) {
+                    eased.set(v);
                 }
             }
-            for (wanted, eased) in [(0x70FA18, 0x70FA20), (0x70FA14, 0x70FA1C)] {
-                p(eased, ease_step(g(wanted), g(eased)).1);
+            for (wanted, eased) in pairs() {
+                eased.set(ease_step(wanted.get(), eased.get()).1);
             }
         }
-        for v in [0x70FA60, 0x710A40, 0x711A20, 0x712A00] {
-            p(v, 0);
+        for car in &CAR_BLOCKS.cars[..4] {
+            car.pace_push.set_bits(0);
         }
-        let first = block(g(0x70FA48));
-        let second = block(g(0x70FA4C));
+        let first = block(lead.pace_cars[0].get());
+        let second = block(lead.pace_cars[1].get());
         let apart = at(first + 0x98).wrapping_sub(at(second + 0x98));
-        p(0x70FA5C, apart);
+        lead.pace_apart.set(apart);
         let Some(push) = push_apart(apart) else {
             return Ok(());
         };

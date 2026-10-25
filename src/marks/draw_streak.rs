@@ -21,10 +21,10 @@ use crate::errors::{BadInput, Refused};
 use crate::framework::rva;
 use crate::marks::clip_quad::{clip_quad, draw_fan};
 use crate::marks::rain::{RAIN, RAIN_RULES, RainRules, RainState};
-use crate::marks::store::{game_addr, game_write};
+use crate::marks::store::game_addr;
+use crate::scene::draw_store::DRAW;
 
 const VERTICES_RVA: usize = rva(0x9605A0); // g_polygonVertices
-const COUNT_RVA: usize = rva(0x6240F8); // g_polygonVertexCount
 
 /// The original's 0x4C1DCD .. 0x4C1F11: the point scaled and turned, and the last place.
 unsafe fn turn(p: &[[u8; 10]; 3]) {
@@ -61,7 +61,7 @@ pub unsafe fn draw_streak(place: [[u8; 10]; 3]) -> Result<(), Refused> {
             return Ok(());
         }
         draw_fan();
-        game_write(COUNT_RVA, 4u32);
+        DRAW.polygon_vertex_count.set_bits(4u32);
     }
     Ok(())
 }

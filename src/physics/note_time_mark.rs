@@ -12,18 +12,18 @@
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
-use crate::framework::{game_addr, game_read, rva};
+use crate::physics::car_store::CAR;
+use crate::physics::tables_store::PHYSICS;
+use crate::race::numbers_store::NUMBERS;
 use rc2k_core::physics::motion::time_mark;
 
-/// The figure, the mark, the count, the start (IDA addresses).
-const VARIABLES: [usize; 4] = [0x71AEE0, 0x6140EC, 0x719FE0, 0x6140F0];
-const LIMIT_RVA: usize = rva(0x5C5D5C); // flt_5C5D5C, 60.0
-
 fn game() -> Vec<u32> {
-    VARIABLES
-        .iter()
-        .map(|&x| game_addr(rva(x)) as u32)
-        .collect()
+    vec![
+        CAR.engine_speed_scaled.addr() as u32,
+        PHYSICS.time_marks[0].addr() as u32,
+        CAR.step_clock.addr() as u32,
+        PHYSICS.time_marks[1].addr() as u32,
+    ]
 }
 
 /// The converted version (`rc2k_core::physics::motion`) on the variables at `v`. The eax
@@ -32,7 +32,7 @@ fn game() -> Vec<u32> {
 unsafe fn core(v: &[u32]) {
     unsafe {
         let get = |k: usize| (v[k] as *const u32).read_unaligned();
-        let limit = f32::from_bits(game_read(LIMIT_RVA));
+        let limit = f32::from_bits(NUMBERS.sixty.bits());
         // The mark, count and start read only where the original reads them.
         if let Some(mark) = time_mark(
             f32::from_bits(get(0)),

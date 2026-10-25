@@ -18,12 +18,12 @@ use crate::errors::{BadInput, Refused};
 use crate::framework::rva;
 use crate::marks::clip_quad::{clip_quad, draw_fan};
 use crate::marks::store::{Slot, game_addr, game_read, game_write};
+use crate::scene::draw_store::DRAW;
 
 const HALF_RVA: Slot = Slot::at(0x8EB8B5); // dword_8EB8B5
 const DEPTHS_RVA: [Slot; 2] = [Slot::at(0x8EB8DD), Slot::at(0x8EB8E9)];
 const NEAR_RVA: Slot = Slot::at(0x8EB961); // dword_8EB961
 const VERTICES_RVA: usize = rva(0x9605A0); // g_polygonVertices
-const VERTEX_COUNT_RVA: usize = rva(0x6240F8); // g_polygonVertexCount
 const CELLS_RVA: Slot = Slot::at(0x935766); // g_marksCellPlaces: 0x41 of 16 bytes
 const CELLS: u32 = 0x41;
 
@@ -73,7 +73,7 @@ pub unsafe fn draw_ribbon(cell: u32, alpha: u32, width: u32, colour: u32) -> Res
             return Ok(());
         }
         draw_fan();
-        game_write(VERTEX_COUNT_RVA, 4u32);
+        DRAW.polygon_vertex_count.set_bits(4u32);
     }
     Ok(())
 }

@@ -14,52 +14,50 @@
 //!
 //! Caller: `physics::lever_pushes` (twice).
 
-use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::math::x87_run::mul2_to_int;
+use crate::physics::car_store::CAR;
 use crate::physics::scale_vector::scale_vector;
+use crate::physics::tables_store::PHYSICS;
 use crate::physics::turn_by_car_matrix::turn_by_car_matrix;
 use crate::physics::turn_by_inverse::turn_by_inverse;
+use crate::race::numbers_store::NUMBERS;
+use crate::scene::draw_store::DRAW;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::view_matrix::cross_product;
-
-fn a(x: usize) -> u32 {
-    game_addr(rva(x)) as u32
-}
-
-fn g(x: usize) -> u32 {
-    unsafe { game_read(rva(x)) }
-}
-
-fn p(x: usize, v: u32) {
-    unsafe { game_write(rva(x), v) }
-}
 
 /// The Rust version.
 pub unsafe fn lever_push() {
     unsafe {
         for k in 0..3 {
-            p(0x614B64 + 4 * k, g(0x71A15C + 4 * k));
+            PHYSICS.lever_push_place[k].set(CAR.spin[k].bits());
         }
-        turn_by_inverse(a(0x614B64));
+        turn_by_inverse(PHYSICS.lever_push_place[0].addr() as u32);
         cross_product(
-            a(0x614B44) as usize,
-            a(0x614B64) as usize,
-            a(0x614B54) as usize,
+            (PHYSICS.lever_push_vector[0].addr() as u32) as usize,
+            (PHYSICS.lever_push_place[0].addr() as u32) as usize,
+            (PHYSICS.lever_push_turned[0].addr() as u32) as usize,
         );
-        turn_by_car_matrix(a(0x614B54));
-        for factor in [0x614C48, 0x614768] {
-            let f = extended(g(factor));
-            scale_vector(a(0x614B54), f);
-            p(0x62400C, rounded(f));
+        turn_by_car_matrix(PHYSICS.lever_push_turned[0].addr() as u32);
+        for factor in [&PHYSICS.lever_share_left, &PHYSICS.lever_share] {
+            let f = extended(factor.bits());
+            scale_vector(PHYSICS.lever_push_turned[0].addr() as u32, f);
+            DRAW.scratch.set(rounded(f));
         }
         for (from, int, place) in [
-            (0x614B54, 0x6140E4, 0x71A10C),
-            (0x614B5C, 0x6140E8, 0x71A114),
+            (
+                &PHYSICS.lever_push_turned[0],
+                &PHYSICS.lever_pushes[0],
+                &CAR.position[0],
+            ),
+            (
+                &PHYSICS.lever_push_turned[2],
+                &PHYSICS.lever_pushes[1],
+                &CAR.position[2],
+            ),
         ] {
-            let v = mul2_to_int(g(from), g(0x5C5D98), g(0x61388C)) as u32;
-            p(int, v);
-            let eax = g(int);
-            p(place, g(place).wrapping_add(eax));
+            let v = mul2_to_int(from.get(), NUMBERS.k65536.bits(), PHYSICS.step_time.bits()) as u32;
+            int.set(v);
+            place.set(place.get().wrapping_add(int.get()));
         }
     }
 }

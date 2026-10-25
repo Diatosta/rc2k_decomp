@@ -8,10 +8,8 @@
 //! Caller: `race::play_replay_range`.
 
 use crate::errors::Refused;
-use crate::race::viewer::{get, put};
+use crate::physics::tables_store::PHYSICS;
 
-const SCENE_CLOCK: usize = 0x613830; // g_sceneClock
-const CLOCK_BASE: usize = 0x613840; // dword_613840
 const IN_TEXT: &std::ffi::CStr = c"shaunplayrendermovie - in"; // "shaunplayrendermovie - in"
 const OUT_TEXT: &std::ffi::CStr = c"shaunplayrendermovie - out"; // "shaunplayrendermovie - out"
 
@@ -20,7 +18,7 @@ const OUT_TEXT: &std::ffi::CStr = c"shaunplayrendermovie - out"; // "shaunplayre
 pub fn play_movie() -> Result<(), Refused> {
     unsafe { crate::logfile::log_write::log_write(IN_TEXT.as_ptr().cast(), false, 1) };
     crate::drive::race_parts::restart_clock();
-    put(CLOCK_BASE, get(SCENE_CLOCK));
+    PHYSICS.race_clock_base.set(PHYSICS.scene_clock.get());
     crate::race::play_movie_loop::play_movie_loop()?;
     unsafe { crate::logfile::log_write::log_write(OUT_TEXT.as_ptr().cast(), true, 1) };
     Ok(())

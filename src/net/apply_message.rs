@@ -21,11 +21,11 @@
 use crate::framework::{game_read, rva};
 use crate::logfile::{log_int::log_int, log_write::log_write};
 use crate::net::store::NET;
-use crate::net::{STEP, a, g};
+use crate::net::{STEP, g};
+use crate::race::work_store::RACE_WORK;
 use rc2k_core::net::race::{self, Arrival, Kind};
 
 /// g_carBlocks: the eight cars' blocks.
-pub const BLOCKS: usize = 0x71B3B8;
 const TEXT: &std::ffi::CStr = c"rcvd fm plyr"; // "rcvd fm plyr"
 const NEAR: usize = 0x5C5D54; // flt_5C5D54: 10.0
 
@@ -42,7 +42,7 @@ pub fn apply_message(player: u32, message: *const u8) {
     if player >= 8 {
         return;
     }
-    let block = rd(a(BLOCKS) + 4 * player);
+    let block = RACE_WORK.car_block(player as usize);
     // Converted: `rc2k_core::net::race` (`Kind`, `arrival`; the distance's test in `f64`,
     // exact for the decision).
     let Some(kind) = Kind::of(rd(message)) else {

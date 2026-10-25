@@ -17,7 +17,9 @@
 //! Callers: `physics::object_hits_car`, `physics::scene_point_hits_car` (both `jb`).
 
 use crate::math::x87_float::X;
+use crate::physics::car_store::CAR;
 use crate::physics::flow::{a, g, p};
+use crate::physics::tables_store::PHYSICS;
 use crate::physics::turn_by_heading::turn_by_heading;
 use crate::physics::vector_length::vector_length;
 use crate::scene::matrix3::rounded;
@@ -32,14 +34,19 @@ pub const KIND: usize = 0x6D3624;
 // steps stay).
 pub unsafe fn point_hits_car(point: u32, object: u32) -> bool {
     let rd = |x: u32| unsafe { (x as *const u32).read_unaligned() };
-    p(0x614110, g(0x614110).wrapping_add(1));
+    PHYSICS.point_hits.set(
+        crate::physics::tables_store::PHYSICS
+            .point_hits
+            .get()
+            .wrapping_add(1),
+    );
     let mut y = 0;
     for k in 0..3u32 {
         let v = contacts::point_part(
             rd(point + 4 * k),
             rd(object + 0x30 + 4 * k),
             g(0x6D3B40 + 4 * k as usize),
-            g(0x71A10C + 4 * k as usize),
+            CAR.position[k as usize].get(),
         );
         p(0x6D3B4C + 4 * k as usize, v);
         if k == 1 {
@@ -53,20 +60,29 @@ pub unsafe fn point_hits_car(point: u32, object: u32) -> bool {
     unsafe { turn_by_heading(a(0x6D3B58), y) };
     x87_2(crate::race::store::asm_base() as usize);
     let (x, z) = (g(0x6D3090), g(0x6D3098));
-    if !contacts::inside_box(x, z, g(0x614BC8), g(0x614BC0), g(0x614BC4)) {
+    if !contacts::inside_box(
+        x,
+        z,
+        PHYSICS.spec_ints[2].get(),
+        PHYSICS.spec_ints[0].get(),
+        PHYSICS.spec_ints[1].get(),
+    ) {
         return false;
     }
     if contacts::kind_hits(g(KIND)) {
         x87_3(crate::race::store::asm_base() as usize);
-        p(0x6D3108, rounded(unsafe { vector_length(a(0x71A170)) }));
+        p(
+            0x6D3108,
+            rounded(unsafe { vector_length(CAR.velocity[0].addr() as u32) }),
+        );
         if let Some(hit) = rc2k_core::physics::walls::raised_hit(
             f32::from_bits(g(0x6D3108)),
-            f32::from_bits(g(0x71A208)),
+            f32::from_bits(CAR.contact_depth.bits()),
         ) {
-            p(0x71A208, hit.to_bits());
+            CAR.contact_depth.set_bits(hit.to_bits());
         }
-        p(0x71A20C, 1);
-        p(0x71A1CC, 0x32);
+        CAR.contact_flag.set(1);
+        CAR.wall_hit_timer.set(0x32);
     }
     true
 }

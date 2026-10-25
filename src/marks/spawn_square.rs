@@ -13,14 +13,13 @@
 //! compared exactly as before (the earlier version stays for the Rust callers in
 //! unconverted code).
 
-use crate::framework::rva;
 use crate::marks::expire_squares::{ITEM_LEN, ITEMS, ITEMS_RVA};
 use crate::marks::store::{Slot, game_addr, game_read, game_write};
 use crate::math::x87;
+use crate::physics::tables_store::PHYSICS;
 
 pub const CURSOR_RVA: Slot = Slot::at(0x89D166); // dword_89D166: an offset into the items
 const SIZE_K: [Slot; 3] = [Slot::at(0x8BC23A), Slot::at(0x8BC23E), Slot::at(0x8BC242)];
-const CLOCK_RVA: usize = rva(0x613830); // g_sceneClock
 const WINDOW: u32 = 32;
 
 /// The Rust version (see the header): ecx as it leaves it.
@@ -51,7 +50,7 @@ pub unsafe fn spawn_square(x: u32, z: u32, kind: u32) -> u32 {
                 for o in [0x28, 0x2C, 0x38, 0x14, 0x18, 0x1C, 0x30, 0x34] {
                     put(o, 0);
                 }
-                put(4, game_read(CLOCK_RVA));
+                put(4, PHYSICS.scene_clock.bits());
                 put(8, 0);
                 step(&mut at);
                 game_write(CURSOR_RVA, at);

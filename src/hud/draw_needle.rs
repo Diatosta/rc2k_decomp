@@ -21,7 +21,6 @@
 
 use crate::errors::Refused;
 use crate::framework::rva;
-use crate::hud::batch::POLYGON_COUNT_RVA;
 use crate::hud::store::HUD;
 use crate::math::x87;
 use crate::scene::matrix3::extended;
@@ -69,7 +68,9 @@ pub unsafe fn draw_needle() -> Result<(), Refused> {
             let point = [extended(y), extended(x)].map(to_f64);
             crate::hud::turned_vertex::turned_vertex(vertex, angle, point);
         }
-        crate::store::game_write(POLYGON_COUNT_RVA, 4u32);
+        crate::scene::draw_store::DRAW
+            .polygon_vertex_count
+            .set_bits(4u32);
         crate::hud::add_polygon::add_polygon()
     }
 }

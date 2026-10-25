@@ -19,32 +19,21 @@
 //! variables `flt_623F80` .. `flt_623FAC` and `dword_6241AC` .. `dword_6241BC`, from
 //! where they are copied.
 
-use crate::d3d::draw_fan_unclipped::COUNT_RVA;
 use crate::errors::BadInput;
 use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::race::course_store::COURSE;
 use crate::scene::clip_asm::{
     BYTES_A, BYTES_B, CHECKED, ENTRY_A, ENTRY_B, OUT_1, OUT_2, PLANE, RECORD_A, RECORD_B, Work,
     cut_at_depth, cut_at_x, cut_at_y,
 };
-use crate::scene::draw_polygon::CHECKED_RVA;
+use crate::scene::draw_store::DRAW;
 use crate::scene::polygon::{ENTRIES, ENTRIES_RVA, ENTRY_LEN, LIST_RVA, dword, listed, put};
-use crate::scene::project_point::{
-    CENTRE_X_RVA, CENTRE_Y_RVA, FLAT_DEPTH_RVA, FLAT_RVA, RECORD_LEN, SCALE_RVA, to_screen,
-};
+use crate::scene::project_point::{CENTRE_Y_RVA, FLAT_RVA, RECORD_LEN, to_screen};
 
 // ---- game data ----
 
 pub const OLD_LIST_RVA: usize = rva(0x977810); // dword_977810
-pub const NEXT_ENTRY_RVA: usize = rva(0x624114); // dword_624114
-pub const NEXT_RECORD_RVA: usize = rva(0x6240A4); // dword_6240A4
 pub const POOL_RVA: usize = rva(0x977F10); // unk_977F10
-pub const WORK_1_RVA: usize = rva(0x623F80); // flt_623F80 .. flt_623FAC
-pub const WORK_2_RVA: usize = rva(0x6241AC); // dword_6241AC .. dword_6241BC
-pub const KEPT_MASK_RVA: usize = rva(0x624008); // dword_624008
-pub const PLANE_RVA: usize = rva(0x62411C); // dword_62411C
-pub const MASK_RVA: usize = rva(0x624118); // dword_624118
-pub const SCREEN_CLIPPED_RVA: usize = rva(0x624120); // dword_624120
-pub const DEPTH_CLIPPED_RVA: usize = rva(0x624124); // dword_624124
 /// Where an entry's five interpolated bytes are.
 const BYTES: [usize; 5] = [0x18, 0x19, 0x1A, 0x20, 0x21];
 
@@ -84,11 +73,11 @@ pub fn below(a: f64, b: f64) -> bool {
 /// caller lists it and counts `dword_624114` on.
 unsafe fn cut(edge: Edge, a: usize, b: usize, mask: u32) -> Result<u32, BadInput> {
     unsafe {
-        let number: u32 = game_read(NEXT_ENTRY_RVA);
+        let number: u32 = DRAW.polygon_next_entry.bits();
         if number >= ENTRIES {
             return Err(BadInput("no entry left for a new vertex"));
         }
-        let record: u32 = game_read(NEXT_RECORD_RVA);
+        let record: u32 = DRAW.polygon_next_record.bits();
         if record == 0 {
             return Err(BadInput("no pool of records"));
         }
@@ -106,20 +95,20 @@ unsafe fn cut(edge: Edge, a: usize, b: usize, mask: u32) -> Result<u32, BadInput
                 w[bytes_at / 4 + k] = ((entry + at) as *const u8).read() as u32;
             }
         }
-        let out_1: [u32; 12] = game_read(WORK_1_RVA);
-        let out_2: [u32; 5] = game_read(WORK_2_RVA);
+        let out_1 = crate::session::read_bits(&DRAW.clip_work);
+        let out_2 = crate::session::read_bits(&DRAW.clip_work_2);
         w[OUT_1 / 4..OUT_1 / 4 + 12].copy_from_slice(&out_1);
         w[OUT_2 / 4..OUT_2 / 4 + 5].copy_from_slice(&out_2);
-        w[CHECKED / 4] = game_read(CHECKED_RVA);
-        w[PLANE / 4] = game_read(PLANE_RVA);
+        w[CHECKED / 4] = DRAW.scratch.bits();
+        w[PLANE / 4] = DRAW.clip_plane.bits();
         match edge {
             Edge::X(at) => {
-                game_write(KEPT_MASK_RVA, mask);
+                DRAW.clip_kept_mask.set_bits(mask);
                 w[OUT_1 / 4] = at;
                 cut_at_x(&mut w);
             }
             Edge::Y(at) => {
-                game_write(KEPT_MASK_RVA, mask);
+                DRAW.clip_kept_mask.set_bits(mask);
                 w[OUT_1 / 4 + 1] = at;
                 cut_at_y(&mut w);
             }
@@ -129,10 +118,10 @@ unsafe fn cut(edge: Edge, a: usize, b: usize, mask: u32) -> Result<u32, BadInput
                 let mut point = [0u32; 8];
                 point[4..7].copy_from_slice(&w[OUT_1 / 4 + 2..OUT_1 / 4 + 5]);
                 let v = [
-                    game_read(SCALE_RVA),
-                    game_read(CENTRE_X_RVA),
+                    DRAW.view_scale.bits(),
+                    DRAW.view_centre[0].bits(),
                     game_read(CENTRE_Y_RVA),
-                    game_read(FLAT_DEPTH_RVA),
+                    COURSE.flat_depth.bits(),
                 ];
                 let flat = game_read::<u32>(FLAT_RVA) != 0;
                 to_screen(point.as_mut_ptr(), &v, flat, &raw mut w[CHECKED / 4]);
@@ -141,11 +130,12 @@ unsafe fn cut(edge: Edge, a: usize, b: usize, mask: u32) -> Result<u32, BadInput
         }
         let out_1: [u32; 12] = w[OUT_1 / 4..OUT_1 / 4 + 12].try_into().expect("12 dwords");
         let out_2: [u32; 5] = w[OUT_2 / 4..OUT_2 / 4 + 5].try_into().expect("5 dwords");
-        game_write(WORK_1_RVA, out_1);
-        game_write(WORK_2_RVA, out_2);
-        game_write(CHECKED_RVA, w[CHECKED / 4]);
+        crate::session::write_bits(&DRAW.clip_work, out_1);
+        crate::session::write_bits(&DRAW.clip_work_2, out_2);
+        DRAW.scratch.set_bits(w[CHECKED / 4]);
 
-        game_write(NEXT_RECORD_RVA, record.wrapping_add(RECORD_LEN as u32));
+        DRAW.polygon_next_record
+            .set_bits(record.wrapping_add(RECORD_LEN as u32));
         put(new + 4, record);
         let record = record as usize;
         if !matches!(edge, Edge::Depth(_)) {
@@ -201,11 +191,11 @@ pub unsafe fn clip_pass(edge: Edge, inside_past: bool, mask: u32) -> Result<(), 
             if a_inside != b_inside {
                 let number = cut(edge, a, b, mask)?;
                 game_write(LIST_RVA + out * 4, number);
-                game_write(NEXT_ENTRY_RVA, number + 1);
+                DRAW.polygon_next_entry.set_bits(number + 1);
                 out += 1;
             }
         }
-        game_write(COUNT_RVA, out as u32);
+        DRAW.polygon_vertex_count.set_bits(out as u32);
         Ok(())
     }
 }

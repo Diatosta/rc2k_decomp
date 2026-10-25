@@ -8,9 +8,13 @@
 //!
 //! Caller: `sub_43DFB1` (0x43E0DD).
 
-use crate::framework::{game_addr, game_read, rva};
+use crate::framework::{game_addr, rva};
 use crate::math::x87;
 use crate::math::x87_run::over_abs_plus_minus;
+use crate::physics::car_store::CAR;
+use crate::physics::tables_store::PHYSICS;
+use crate::race::numbers_store::NUMBERS;
+use crate::scene::draw_store::DRAW;
 use std::cmp::Ordering;
 
 /// C0 of comparing `a` with `b`: below, or unordered.
@@ -29,20 +33,21 @@ unsafe fn put(a: u32, v: u32) {
     unsafe { (a as *mut u32).write_unaligned(v) }
 }
 
-fn k(a: usize) -> u32 {
-    unsafe { game_read(rva(a)) }
-}
-
 /// The places: the allowance, the speed, the scratch, the drive speed.
 pub type CapPlaces = [u32; 4];
 
 /// The core.
 pub unsafe fn cap_drive_speed_at(v: CapPlaces) {
     unsafe {
-        let zero = k(0x5C5D90);
+        let zero = NUMBERS.zero.bits();
         put(
             v[0],
-            over_abs_plus_minus(k(0x613E48), at(v[1]), k(0x613E4C), k(0x613E50)),
+            over_abs_plus_minus(
+                PHYSICS.drive_speed_cap.bits(),
+                at(v[1]),
+                PHYSICS.drive_speed_cap_a.bits(),
+                PHYSICS.drive_speed_cap_b.bits(),
+            ),
         );
         if below(at(v[0]), zero) {
             put(v[0], x87::loaded(zero));
@@ -55,8 +60,13 @@ pub unsafe fn cap_drive_speed_at(v: CapPlaces) {
 }
 
 fn game() -> CapPlaces {
-    let g = |a: usize| game_addr(rva(a)) as u32;
-    [g(0x614168), g(0x71A184), g(0x62400C), g(0x71A190)]
+    let _g = |a: usize| game_addr(rva(a)) as u32;
+    [
+        (PHYSICS.drive_speed_figure.addr() as u32),
+        (CAR.local_velocity[2].addr() as u32),
+        (DRAW.scratch.addr() as u32),
+        (CAR.drive_speed_a.addr() as u32),
+    ]
 }
 
 /// The Rust version (the exact one, for `physics::drive_wheels_step`).

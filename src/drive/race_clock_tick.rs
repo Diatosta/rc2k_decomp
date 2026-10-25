@@ -9,20 +9,20 @@
 //!
 //! Caller: `drive::race_step` (`sub_4454D2`).
 
-use crate::physics::flow::{g, p};
+use crate::physics::tables_store::PHYSICS;
 use rc2k_core::drive::clocks::RaceClock;
 
 /// The Rust version after the clock's reading `now` (already in `g_sceneClock`).
 // Converted: `rc2k_core::drive::clocks::RaceClock::tick`.
 pub fn tick_from(now: u32) {
     let mut c = RaceClock {
-        counted: g(0x613840),
+        counted: PHYSICS.race_clock_base.get(),
         ..RaceClock::default()
     };
     c.tick(now);
-    p(0x61383C, c.now);
-    p(0x613844, c.tenths);
-    p(0x613840, c.counted);
+    PHYSICS.race_clock_now.set(c.now);
+    PHYSICS.race_tenths.set(c.tenths);
+    PHYSICS.race_clock_base.set(c.counted);
 }
 
 /// The Rust version.

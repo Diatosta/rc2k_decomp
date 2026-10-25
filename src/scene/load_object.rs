@@ -36,9 +36,10 @@ use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::scene::add_object_shape::{MASK_RVA, add_object_shape};
 use crate::scene::list_object_textures::list_object_textures;
 use crate::scene::measure_object::{MEASURES_RVA, measure_object};
+use crate::scene::object_store::OBJECT_WORK;
 use crate::scene::objects::{
-    FACE_COUNT_RVA, FACE_CURSOR_RVA, FACE_ROOM_RVA, FACES, FILE_ROOM, FILE_RVA, KIND_RVA,
-    OBJECT_KINDS_RVA, POINT_COUNT_RVA, POINTS_ROOM_RVA, SLOT_RVA, SLOTS,
+    FACE_COUNT_RVA, FACE_ROOM_RVA, FACES, FILE_ROOM, FILE_RVA, OBJECT_KINDS_RVA, POINT_COUNT_RVA,
+    POINTS_ROOM_RVA, SLOTS,
 };
 use crate::scene::set_object_file_names::{NAMES_RVA, set_object_file_names};
 
@@ -55,7 +56,6 @@ const GROUPS_LEN: usize = 0x134;
 const MASKS_RVA: usize = rva(0x5CCE1C);
 const REST: usize = 0x10; // dword_5CCE2C
 /// `dword_634FF0` the car, `dword_634FF4` the part, `dword_634FF8` the first slot.
-const CAR_RVA: usize = rva(0x634FF0);
 /// Six tables of a dword a slot: the middles' x, y, z and the half extents' x, y, z.
 const MIDDLES_RVA: usize = rva(0x633370);
 /// A part's mask: where it is kept (from `dword_5CCE1C`) and where its group's number
@@ -163,11 +163,11 @@ unsafe fn mask(at: usize) -> u32 {
 /// by no caller (liveness; its one caller is `load_front_end_objects`).
 pub unsafe fn load_object() -> Result<(), Refused> {
     unsafe {
-        let kind: u32 = game_read(KIND_RVA);
+        let kind: u32 = OBJECT_WORK.loading_kind.bits();
         if kind == 0 {
             return Ok(());
         }
-        let slot: u32 = game_read(SLOT_RVA);
+        let slot: u32 = OBJECT_WORK.loading_slot.bits();
         if slot >= SLOTS {
             return Err(crate::errors::BadInput("an object's slot past the tables").into());
         }
@@ -218,17 +218,17 @@ pub unsafe fn load_object() -> Result<(), Refused> {
         game_write(MASKS_RVA + REST, rest);
         let (car, part) = ((slot - 0x50) / 0x14, (slot - 0x50) % 0x14);
         let first = car * 0x14 + 0x50;
-        game_write(CAR_RVA, [car, part, first]);
+        crate::session::write_all(&OBJECT_WORK.loading_car, [car, part, first]);
         match part {
             0 => {
                 for (n, &at) in FIRST_FIVE.iter().enumerate() {
-                    game_write(SLOT_RVA, first + n as u32);
+                    OBJECT_WORK.loading_slot.set_bits(first + n as u32);
                     shape(mask(at))?;
                 }
-                game_write(SLOT_RVA, first + 5);
+                OBJECT_WORK.loading_slot.set_bits(first + 5);
                 for &(offset, at) in &MEASURED {
                     let slot = first + offset;
-                    game_write(SLOT_RVA, slot);
+                    OBJECT_WORK.loading_slot.set_bits(slot);
                     shape(mask(at))?;
                     measure_object()?;
                     let measures: [u32; 6] = game_read(MEASURES_RVA);
@@ -257,7 +257,7 @@ unsafe fn shape(mask: u32) -> Result<(), Refused> {
 /// The three fatal errors at the end, in the original's order.
 unsafe fn check() -> Result<(), Refused> {
     unsafe {
-        if game_read::<u32>(FACE_CURSOR_RVA) > game_read::<u32>(FACE_ROOM_RVA) {
+        if OBJECT_WORK.face_cursor.bits() > game_read::<u32>(FACE_ROOM_RVA) {
             return Err(NO_FACE_MEMORY.into());
         }
         if game_read::<u32>(POINT_COUNT_RVA).wrapping_mul(12) > game_read::<u32>(POINTS_ROOM_RVA) {

@@ -41,7 +41,10 @@
 use crate::errors::{BadInput, Refused};
 use crate::math::x87::loaded;
 use crate::physics as ph;
-use crate::physics::flow::{a, g, hold_high, hold_low, negate, p};
+use crate::physics::car_store::CAR;
+use crate::physics::flow::{g, hold_high, hold_low, negate, p};
+use crate::physics::tables_store::PHYSICS;
+use crate::race::work_store::RACE_WORK;
 use crate::scene::matrix3::rounded;
 use crate::scene::x87_mem::{fld, fstp};
 
@@ -72,11 +75,20 @@ pub fn steps() -> Result<(), Refused> {
     ] {
         p(x, 0);
     }
-    p(0x614138, loaded(g(0x71A174)));
-    for x in [
-        0x614C28, 0x71A1FC, 0x71A200, 0x71A204, 0x71A208, 0x71A20C, 0x614108, 0x61410C, 0x614110,
+    PHYSICS
+        .vertical_speed
+        .set_bits(loaded(CAR.velocity[1].bits()));
+    for cell in [
+        &PHYSICS.clear_place_mark,
+        &CAR.contact_flag,
+        &PHYSICS.scene_point_hits,
+        &PHYSICS.object_hits,
+        &PHYSICS.point_hits,
     ] {
-        p(x, 0);
+        cell.set(0);
+    }
+    for figure in CAR.contact_point.iter().chain([&CAR.contact_depth]) {
+        figure.set_bits(0);
     }
     unsafe {
         crate::race::start_place::invert_car_matrix();
@@ -95,11 +107,11 @@ pub fn steps() -> Result<(), Refused> {
     ph::gearbox_step::gearbox_step()?;
     unsafe { ph::drive_force::drive_force() }?;
     // 0x43B737: the side speed held within the limit.
-    p(0x71A1A0, g(0x71A17C));
-    hold_high(0x71A1A0, 0x613EC8);
-    negate(0x613EC8);
-    hold_low(0x71A1A0, 0x613EC8);
-    negate(0x613EC8);
+    CAR.side_speed_held.set_bits(CAR.local_velocity[0].bits());
+    hold_high(&CAR.side_speed_held, &PHYSICS.side_speed_limit);
+    negate(&PHYSICS.side_speed_limit);
+    hold_low(&CAR.side_speed_held, &PHYSICS.side_speed_limit);
+    negate(&PHYSICS.side_speed_limit);
     unsafe {
         ph::drive_grip_forces::drive_grip_forces();
         ph::drive_wheels_step::drive_wheels_step()?;
@@ -108,10 +120,10 @@ pub fn steps() -> Result<(), Refused> {
         ph::free_rev_clutch::free_rev_clutch()?;
     }
     // 0x43B7BC: the engine's speed held.
-    if g(0x71A614) == 0 {
-        hold_low(0x71A1B0, 0x6140F8);
+    if CAR.brake.get() == 0 {
+        hold_low(&CAR.engine_speed, &PHYSICS.idle_engine_speed);
     }
-    hold_high(0x71A1B0, 0x614104);
+    hold_high(&CAR.engine_speed, &PHYSICS.rev_limit);
     unsafe {
         ph::wheels_from_revs::wheels_from_revs()?;
         ph::air_drag::air_drag();
@@ -123,12 +135,11 @@ pub fn steps() -> Result<(), Refused> {
         ph::apply_wheel_torques::apply_wheel_torques()?;
     }
     motion();
-    p(
-        0x614100,
-        rounded(unsafe { ph::vector_length::vector_length(a(0x71A170)) }),
-    );
+    PHYSICS.top_speed.set_bits(rounded(unsafe {
+        ph::vector_length::vector_length(CAR.velocity[0].addr() as u32)
+    }));
     // 0x43B851: the contacts' rounds.
-    p(0x614148, 0);
+    PHYSICS.contact_step.set(0);
     loop {
         unsafe {
             ph::clear_contacts::clear_contacts()?;
@@ -144,7 +155,7 @@ pub fn steps() -> Result<(), Refused> {
             ph::apply_contact_forces::apply_contact_forces()?;
             ph::apply_contact_torques::apply_contact_torques()?;
         }
-        if g(0x614738) == 0 {
+        if PHYSICS.clear_place_count.get() == 0 {
             break;
         }
         unsafe {
@@ -152,18 +163,28 @@ pub fn steps() -> Result<(), Refused> {
             ph::keep_motion_vectors::keep_motion_vectors();
         }
         motion();
-        p(0x614738, 0);
-        p(0x614148, g(0x614148).wrapping_add(1));
-        if g(0x614148) >= g(0x61414C) {
+        PHYSICS.clear_place_count.set(0);
+        PHYSICS.contact_step.set(
+            crate::physics::tables_store::PHYSICS
+                .contact_step
+                .get()
+                .wrapping_add(1),
+        );
+        if PHYSICS.contact_step.get() >= PHYSICS.contact_steps.get() {
             unsafe {
                 ph::limit_motion::limit_motion();
                 ph::find_clear_place::find_clear_place()?;
             }
-            p(0x6141D0, g(0x6141D0).wrapping_add(1));
+            PHYSICS.step_count.set(
+                crate::physics::tables_store::PHYSICS
+                    .step_count
+                    .get()
+                    .wrapping_add(1),
+            );
             break;
         }
     }
-    if g(0x614148) != 0 {
+    if PHYSICS.contact_step.get() != 0 {
         unsafe {
             ph::put_back_motion_vectors::put_back_motion_vectors();
             ph::limit_motion::limit_motion();
@@ -191,7 +212,7 @@ pub fn steps() -> Result<(), Refused> {
         ph::drop_to_neutral::drop_to_neutral();
     }
     // 0x43B96B: `physics::test_car_word_234` set only flags nobody reads: left out.
-    if g(0x641680 + 4 * g(0x71B3F8) as usize) != u32::MAX {
+    if g(0x641680 + 4 * RACE_WORK.current_car.get() as usize) != u32::MAX {
         ph::camera_frame::camera_frame()?;
     }
     unsafe { ph::hold_spin_on_ground::hold_spin_on_ground() };
@@ -210,7 +231,7 @@ pub fn steps() -> Result<(), Refused> {
 
 /// The Rust version.
 pub unsafe fn car_physics_step() -> Result<(), Refused> {
-    if g(0x71B3F8) > 7 {
+    if RACE_WORK.current_car.get() > 7 {
         return Err(BadInput("a current car past 7 (dword_641680's room)").into());
     }
     steps()

@@ -17,10 +17,12 @@
 use crate::errors::Refused;
 use crate::math::x87_run::compare_80;
 use crate::physics::contact_force::{RECORD, contact_force};
-use crate::physics::flow::{a, copy3, fill3, g, negate, p};
+use crate::physics::flow::{a, copy3, fill3, negate, p};
+use crate::physics::tables_store::PHYSICS;
 use crate::physics::vector_length::vector_length;
 use crate::physics::wall_contacts::{WALL_RECORD, WORK};
 use crate::race::norms::normalise_work_vector;
+use crate::race::numbers_store::NUMBERS;
 
 /// The steps, not guarded. The registers the original leaves are read by none of its
 /// callers.
@@ -29,7 +31,7 @@ pub fn steps() -> Result<(), Refused> {
     negate(WORK);
     negate(WORK + 4);
     negate(WORK + 8);
-    if compare_80(unsafe { vector_length(a(WORK)) }, g(0x5C5D90)) & 0x4000 != 0 {
+    if compare_80(unsafe { vector_length(a(WORK)) }, NUMBERS.zero.bits()) & 0x4000 != 0 {
         fill3(WORK, 0);
     }
     unsafe { normalise_work_vector() };
@@ -41,6 +43,6 @@ pub fn steps() -> Result<(), Refused> {
     p(RECORD, a(WALL_RECORD));
     unsafe { contact_force() };
     unsafe { crate::physics::place_sound_e1::place_sound_e1() }?;
-    p(0x6141C8, u32::MAX);
+    PHYSICS.wall_heading.set(u32::MAX);
     Ok(())
 }

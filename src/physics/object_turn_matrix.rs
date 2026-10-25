@@ -19,7 +19,9 @@ use crate::errors::{BadInput, Refused};
 use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::math::x87;
 use crate::math::x87_run::{ext_div2, int_80};
+use crate::scene::draw_store::DRAW;
 use crate::scene::matrix::{multiply_matrices, set_turn_x, set_turn_y};
+use crate::scene::object_store::OBJECT_WORK;
 
 fn g(x: usize) -> u32 {
     unsafe { game_read(rva(x)) }
@@ -46,23 +48,23 @@ pub unsafe fn object_turn_matrix() -> Result<(), Refused> {
         return Err(BadInput("an object past 0xFF").into());
     }
     unsafe {
-        set_turn_y(g(0x63503C).wrapping_neg());
+        set_turn_y(OBJECT_WORK.angles[0].get().wrapping_neg());
         for k in 0..16 {
             p(OUT + 4 * k, g(TURN_Y + 4 * k));
         }
-        if g(0x635040) != 0 {
-            set_turn_y(g(0x635044).wrapping_neg());
+        if OBJECT_WORK.angles[1].get() != 0 {
+            set_turn_y(OBJECT_WORK.angles[2].get().wrapping_neg());
             multiply_matrices(a(OUT) as usize, a(TURN_Y) as usize, a(LIT) as usize);
-            set_turn_x(g(0x635040).wrapping_neg());
+            set_turn_x(OBJECT_WORK.angles[1].get().wrapping_neg());
             multiply_matrices(a(LIT) as usize, a(TURN_X) as usize, a(TURNED) as usize);
-            set_turn_y(g(0x635044));
+            set_turn_y(OBJECT_WORK.angles[2].get());
             multiply_matrices(a(TURNED) as usize, a(TURN_Y) as usize, a(OUT) as usize);
         }
-        let figure = g(0x635038);
-        p(0x62400C, figure);
+        let figure = OBJECT_WORK.size.get();
+        DRAW.scratch.set(figure);
         let sixteen = 16.0f32.to_bits();
         let share = ext_div2(int_80(figure as i32, false), sixteen, 0x3F80_0000);
-        p(0x62400C, share);
+        DRAW.scratch.set(share);
         for k in 0..16 {
             p(OUT + 4 * k, x87::mul(g(OUT + 4 * k), share));
         }

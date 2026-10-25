@@ -10,8 +10,9 @@
 //! 0x4B720F, 0x4B7266).
 
 use crate::errors::Refused;
-use crate::hud::batch::{POLYGON_COUNT_RVA, POLYGON_RVA};
+use crate::hud::batch::POLYGON_RVA;
 use crate::hud::store::HUD;
+use crate::scene::draw_store::DRAW;
 use crate::store::game_write;
 use rc2k_core::hud::quads;
 
@@ -29,7 +30,7 @@ pub unsafe fn add_quad() -> Result<(), Refused> {
             game_write(at + 0x10, v.colour);
             game_write(at + 0x18, [v.u.to_bits(), v.v.to_bits()]);
         }
-        game_write(POLYGON_COUNT_RVA, 4u32);
+        DRAW.polygon_vertex_count.set_bits(4u32);
         crate::hud::add_polygon::add_polygon()
     }
 }

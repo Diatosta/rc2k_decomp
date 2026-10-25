@@ -18,11 +18,11 @@ use crate::drive::race_parts::{
 };
 use crate::errors::Refused;
 use crate::input::store::DEVICES;
-use crate::physics::flow::{g, p};
+use crate::physics::flow::g;
+use crate::race::blocks_store::CAR_BLOCKS;
+use crate::race::vars_store::RACE_VARS;
 use crate::session::FLAGS;
 use rc2k_core::drive::race_ticks;
-
-const B: usize = 0x70F3EC;
 
 /// Whether a key ends the pause: any of 1 .. 0x7F but 0x1D, 0x38, 0x0F, 0x3B .. 0x44, 0x57.
 fn any_ending_key() -> u32 {
@@ -36,25 +36,25 @@ fn any_ending_key() -> u32 {
 /// The Rust version. The registers it leaves are read by no caller (liveness: nothing
 /// live after `race_loop`'s call).
 pub unsafe fn pause_until_key() -> Result<(), Refused> {
-    p(0x6235EC, 0x19);
+    RACE_VARS.hold_count.set(0x19);
     for _ in 0..5 {
         take_key();
     }
     stop_race_sounds()?;
-    p(0x6235E8, 1);
+    RACE_VARS.scene_switch.set(1);
     for c in 0..2 {
-        p(B + 0xFE0 * c + 0x71C, 0xCB);
-        p(B + 0xFE0 * c + 0x730, 0);
-        p(B + 0xFE0 * c + 0x72C, u32::MAX);
+        CAR_BLOCKS.cars[c as usize].notice_id.set_bits(0xCB);
+        CAR_BLOCKS.cars[c as usize].notice_time_b.set_bits(0);
+        CAR_BLOCKS.cars[c as usize].notice_time.set_bits(u32::MAX);
     }
-    p(0x6235F0, 0x1E);
+    RACE_VARS.pause_wait.set(0x1E);
     // From 0x4453EE (the wait held) or 0x445401 (a turn).
     let mut hold = true;
     loop {
         if hold {
-            let wait = g(0x6235F0);
+            let wait = RACE_VARS.pause_wait.get();
             if race_ticks::held_wait(wait) != wait {
-                p(0x6235F0, race_ticks::held_wait(wait));
+                RACE_VARS.pause_wait.set(race_ticks::held_wait(wait));
             }
         }
         take_key();
@@ -65,8 +65,8 @@ pub unsafe fn pause_until_key() -> Result<(), Refused> {
         }
         hold = false;
         input_update();
-        if g(0x6235F0) != 0 {
-            p(0x6235F0, g(0x6235F0) - 1);
+        if RACE_VARS.pause_wait.get() != 0 {
+            RACE_VARS.pause_wait.set(g(0x6235F0) - 1);
             continue;
         }
         race_keys()?;
@@ -75,13 +75,13 @@ pub unsafe fn pause_until_key() -> Result<(), Refused> {
         }
     }
     for c in 0..2 {
-        p(B + 0xFE0 * c + 0x728, 0);
-        p(B + 0xFE0 * c + 0x71C, 0);
-        p(B + 0xFE0 * c + 0x724, 0);
+        CAR_BLOCKS.cars[c as usize].notice_shown.set_bits(0);
+        CAR_BLOCKS.cars[c as usize].notice_id.set_bits(0);
+        CAR_BLOCKS.cars[c as usize].notice_last.set_bits(0);
     }
-    p(0x6235E8, 0);
+    RACE_VARS.scene_switch.set(0);
     wake_car_sounds()?;
     take_key();
-    p(B + 0x468, 0);
+    CAR_BLOCKS.cars[0].input_keys.set_bits(0);
     Ok(())
 }

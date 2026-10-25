@@ -17,23 +17,17 @@
 use crate::errors::Refused;
 use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::math::x87;
+use crate::race::numbers_store::NUMBERS;
+use crate::race::vars_store::RACE_VARS;
+use crate::scene::draw_store::DRAW;
 
-const DRAWN_RVA: usize = rva(0x624134); // g_polygonDrawn
 const VERTEX_RVA: usize = rva(0x623E40); // dword_623E40: four of 0x20
 const RECORDS_RVA: usize = rva(0x975510); // g_polygonEntries: records of 0x44
 const CORNERS_RVA: usize = rva(0x623E10); // left, right; dword_623E20 top, bottom
-const SCRATCH_RVA: usize = rva(0x62400C); // dword_62400C
-const DEPTH_RVA: usize = rva(0x5C5E20); // dword_5C5E20
 const COLOUR_IN_RVA: usize = rva(0x623DE8); // dword_623DE8, dword_623DEC
-const COLOUR_RVA: usize = rva(0x6240CC); // g_polygonColour
-const COUNT_RVA: usize = rva(0x6240F8); // g_polygonVertexCount
 const POOL_RVA: usize = rva(0x977F10); // g_polygonRecordPool
-const NEXT_RECORD_RVA: usize = rva(0x6240A4); // g_polygonNextRecord
 const LIST_RVA: usize = rva(0x977710); // g_polygonList
-const NEXT_ENTRY_RVA: usize = rva(0x624114); // g_polygonNextEntry
 const MODE_RVA: usize = rva(0x63DAB4); // g_polygonMode
-const TEXTURES_RVA: [usize; 2] = [rva(0x6240BC), rva(0x6240C0)];
-const SIDES_RVA: [usize; 2] = [rva(0x6240E0), rva(0x6240E4)];
 const RECORD: usize = 0x44;
 
 fn set(r: usize, v: u32) {
@@ -44,7 +38,7 @@ fn set(r: usize, v: u32) {
 /// none of its 856 call sites (register liveness, 2026-10-23).
 pub unsafe fn draw_tinted_quad() -> Result<(), Refused> {
     unsafe {
-        set(DRAWN_RVA, 0);
+        DRAW.polygon_drawn.set_bits(0);
         for n in 0..4 {
             let rec = RECORDS_RVA + RECORD * n;
             set(rec + 4, game_addr(VERTEX_RVA + 0x20 * n) as u32);
@@ -53,7 +47,7 @@ pub unsafe fn draw_tinted_quad() -> Result<(), Refused> {
         }
         let float = |r: usize| {
             let v = x87::from_int(game_read(r));
-            set(SCRATCH_RVA, v);
+            DRAW.scratch.set_bits(v);
             v
         };
         let [left, right, top, bottom] = [
@@ -73,12 +67,13 @@ pub unsafe fn draw_tinted_quad() -> Result<(), Refused> {
             v(n, 0xC, x);
             v(n, 0x1C, y);
         }
-        let depth: u32 = game_read(DEPTH_RVA);
+        let depth: u32 = NUMBERS.k4096_b.bits();
         for n in 0..4 {
             v(n, 0x18, depth);
         }
         let see: u8 = game_read(COLOUR_IN_RVA + 4);
-        set(COLOUR_RVA, game_read(COLOUR_IN_RVA));
+        DRAW.polygon_colour
+            .set_bits(RACE_VARS.quad_colour[0].bits());
         for n in 0..4 {
             let rec = RECORDS_RVA + RECORD * n;
             set(rec, 0xFFFF_FFFF);
@@ -87,27 +82,28 @@ pub unsafe fn draw_tinted_quad() -> Result<(), Refused> {
             set(rec + 0x1C, 0);
             game_write(rec + 0x20, 0xFFu8);
         }
-        set(COUNT_RVA, 4);
-        set(NEXT_RECORD_RVA, game_addr(POOL_RVA) as u32);
+        DRAW.polygon_vertex_count.set_bits(4);
+        DRAW.polygon_next_record
+            .set_bits(game_addr(POOL_RVA) as u32);
         for n in 0..4u32 {
             set(LIST_RVA + 4 * n as usize, n);
         }
         set(LIST_RVA + 16, 0);
-        set(NEXT_ENTRY_RVA, 4);
+        DRAW.polygon_next_entry.set_bits(4);
         crate::scene::clip_polygon_to_screen::clip_polygon_to_screen()?;
-        if game_read::<u32>(COUNT_RVA) >= 3 {
+        if DRAW.polygon_vertex_count.bits() >= 3 {
             crate::scene::depth_buffer_on::depth_buffer(false);
             set(MODE_RVA, 3);
-            set(TEXTURES_RVA[0], 0xFFFF_FFFF);
-            set(TEXTURES_RVA[1], 0xFFFF_FFFF);
-            set(SIDES_RVA[0], 0);
-            set(SIDES_RVA[1], 1);
+            DRAW.polygon_textures[0].set_bits(0xFFFF_FFFF);
+            DRAW.polygon_textures[1].set_bits(0xFFFF_FFFF);
+            DRAW.polygon_sides[0].set_bits(0);
+            DRAW.polygon_sides[1].set_bits(1);
             crate::scene::draw_polygon::draw_polygon_in_game()?;
             set(MODE_RVA, 0);
-            set(DRAWN_RVA, 1);
+            DRAW.polygon_drawn.set_bits(1);
             crate::scene::depth_buffer_on::depth_buffer(true);
         }
-        set(COLOUR_RVA, 0xFF_FFFF);
+        DRAW.polygon_colour.set_bits(0xFF_FFFF);
     }
     Ok(())
 }

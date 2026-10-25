@@ -5,20 +5,15 @@
 use crate::errors::Refused;
 use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::math::x87;
+use crate::race::course_store::COURSE;
+use crate::race::numbers_store::NUMBERS;
+use crate::scene::draw_store::DRAW;
 
 pub const WORK_VECTOR_RVA: usize = rva(0x5C5F60); // g_workVector: three floats
-pub const LENGTH_RVA: usize = rva(0x62400C); // dword_62400C
-const ZERO_RVA: usize = rva(0x5C5D90); // flt_5C5D90, 0.0
-pub const POINTS_RVA: usize = rva(0x5CCCC0); // g_scenePoints
-pub const POINT_COUNT_RVA: usize = rva(0x5CCD20); // g_scenePointCount
-pub const FACES_RVA: usize = rva(0x5CCCBC); // dword_5CCCBC: the faces
-pub const FACE_COUNT_RVA: usize = rva(0x5CCD1C); // dword_5CCD1C
 pub const QUAD_RVA: usize = rva(0x63D9F8); // dword_63D9F8: -1 for faces of three points
 /// `face_normal`'s work: the three points (9 dwords) and the six differences.
 pub const NORMAL_WORK_RVA: usize = rva(0x6396A0);
 const COURSE_MEMORY_RVA: usize = rva(0x5C6F94); // g_courseMemory
-const LAYOUT_RVA: usize = rva(0x5CCCB8); // dword_5CCCB8 .. : the layout's five
-const FIRST_COUNT_RVA: usize = rva(0x5CCD18); // dword_5CCD18: 0x20-byte records first
 
 /// `race::normalise_work_vector` (0x41FC4D): `g_workVector` made one long by its 80-bit
 /// length (`math::x87::normalise_in_place`); a length equal to 0 makes it 0; -0.0 parts
@@ -26,8 +21,8 @@ const FIRST_COUNT_RVA: usize = rva(0x5CCD18); // dword_5CCD18: 0x20-byte records
 pub unsafe fn normalise_work_vector() {
     unsafe {
         let v = game_addr(WORK_VECTOR_RVA) as *mut u32;
-        let (length, zero) = x87::normalise_in_place(v, game_read(ZERO_RVA));
-        game_write(LENGTH_RVA, length);
+        let (length, zero) = x87::normalise_in_place(v, NUMBERS.zero.bits());
+        DRAW.scratch.set_bits(length);
         for n in 0..3 {
             let part = v.add(n);
             if zero || part.read_unaligned() == 0x8000_0000 {
@@ -43,7 +38,7 @@ pub unsafe fn normalise_work_vector() {
 /// normalised. Its caller (`store_face_normal`) keeps every register round it.
 pub unsafe fn face_normal(a: u32, b: u32, c: u32) {
     unsafe {
-        let points: u32 = game_read(POINTS_RVA);
+        let points: u32 = COURSE.scene_points.bits();
         let point = |n: u32| -> [i32; 3] {
             ((points.wrapping_add(n.wrapping_mul(12))) as *const [i32; 3]).read_unaligned()
         };
@@ -86,7 +81,7 @@ pub unsafe fn store_face_normal(face_number: u32, normal: &mut dyn FnMut(u32, u3
         use rc2k_core::race::faces::{
             NORMAL_TRIANGLES, normal_made, repeated_points, takes_normals, with_repeated,
         };
-        let faces: u32 = game_read(FACES_RVA);
+        let faces: u32 = COURSE.course_faces.bits();
         let face = faces.wrapping_add(face_number << 6);
         let dword = |o: u32| ((face + o) as *const u32).read_unaligned();
         if !takes_normals(*(face as *const u8)) {
@@ -96,7 +91,7 @@ pub unsafe fn store_face_normal(face_number: u32, normal: &mut dyn FnMut(u32, u3
         let repeated = repeated_points(corners, || game_read::<u32>(QUAD_RVA) != u32::MAX);
         let flags = (face + 2) as *mut u16;
         flags.write_unaligned(with_repeated(flags.read_unaligned(), repeated));
-        let count: u32 = game_read(POINT_COUNT_RVA);
+        let count: u32 = COURSE.scene_point_count.bits();
         for (points, places) in NORMAL_TRIANGLES {
             let [a, b, c] = points.map(|k| corners[k]);
             if normal_made([a, b, c], count) {
@@ -119,11 +114,17 @@ pub unsafe fn lay_out_course() {
         // Converted: `rc2k_core::race::faces::CourseLayout`.
         let layout = rc2k_core::race::faces::CourseLayout::of(
             game_read(COURSE_MEMORY_RVA),
-            game_read(FIRST_COUNT_RVA),
-            game_read(FACE_COUNT_RVA),
-            game_read(POINT_COUNT_RVA),
+            COURSE.course_record_count.bits(),
+            COURSE.course_face_count.bits(),
+            COURSE.scene_point_count.bits(),
         );
-        game_write(LAYOUT_RVA, layout.dwords());
+        let [records, faces, points, after, after_offset] = layout.dwords();
+        let c = &COURSE;
+        c.course_records.set(records);
+        c.course_faces.set(faces);
+        c.scene_points.set(points);
+        c.course_tail[0].set(after);
+        c.course_tail[1].set(after_offset);
     }
 }
 
@@ -132,7 +133,7 @@ pub unsafe fn lay_out_course() {
 pub unsafe fn store_norms(normal: &mut dyn FnMut(u32, u32, u32)) -> Result<(), Refused> {
     unsafe {
         // Converted: `rc2k_core::race::faces::check_face_count`.
-        let count: u32 = game_read(FACE_COUNT_RVA);
+        let count: u32 = COURSE.course_face_count.bits();
         rc2k_core::race::faces::check_face_count(count)?;
         lay_out_course();
         for face in 0..count {

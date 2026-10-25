@@ -12,8 +12,7 @@
 
 use crate::errors::Refused;
 use crate::framework::{game_read, game_write, rva};
-
-const COVERED_RVA: usize = rva(0x71AF80); // unk_71AF80
+use crate::physics::car_store::CAR;
 const OWN_CAR_SWITCH_RVA: usize = rva(0x621900); // dword_621900
 
 /// The Rust version (see the header).
@@ -22,7 +21,7 @@ pub unsafe fn draw_view_overlays() -> Result<(), Refused> {
     use crate::race::frame_views::{draw_flat_triangle, draw_own_car, draw_screen_tint};
     use crate::scene::set_filters::set_filters;
     unsafe {
-        if game_read::<u32>(COVERED_RVA) != 0 {
+        if CAR.view_covered.get() != 0 {
             return Ok(());
         }
         overlay_states();

@@ -25,17 +25,17 @@
 
 use crate::errors::Refused;
 use crate::framework::{game_addr, game_read, rva};
+use crate::physics::tables_store::PHYSICS;
+use crate::race::course_store::COURSE;
+use crate::race::vars_store::RACE_VARS;
 pub use rc2k_core::race::pace_notes::IMAGE_START;
 use rc2k_core::race::pace_notes::{IMAGE_LEN, Notes, Registers, Stage};
 
-pub const SLOT_RVA: usize = rva(0x614D34); // dword_614D34: the slot 0 .. 7
 const SLOT_OFFSETS_RVA: usize = rva(0x614D14); // dword_614D14: each slot's byte in the face
 const WORDS_RVA: usize = rva(0x614D38); // byte_614D38: the distance's word by tens (41)
-pub const CHECKPOINT_COUNT_RVA: usize = rva(0x623640); // g_checkpointCount
 pub const CHECKPOINT_FACES_RVA: usize = rva(0x9E3738); // g_checkpointFaces
 pub const DISTANCES_RVA: usize = rva(0x9F78D8); // g_checkpointDistances
 pub const ANGLES_RVA: usize = rva(0x9ED808); // dword_9ED808: the checkpoints' angles
-pub const COURSE_FACES_RVA: usize = rva(0x5CCCBC); // g_courseFaces
 const COURSE_MEMORY_RVA: usize = rva(0x5C6F94); // g_courseMemory
 const COURSE_MEMORY_LEN: u32 = 0x130_0000;
 
@@ -51,7 +51,7 @@ static TEST_WINDOW: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64:
 pub fn game_course() -> Course {
     unsafe {
         let memory: u32 = game_read(COURSE_MEMORY_RVA);
-        let faces: u32 = game_read(COURSE_FACES_RVA);
+        let faces: u32 = COURSE.course_faces.bits();
         let test = TEST_WINDOW.load(std::sync::atomic::Ordering::SeqCst);
         let (lo, hi) = (test as u32, (test >> 32) as u32);
         Course {
@@ -63,7 +63,7 @@ pub fn game_course() -> Course {
             } else {
                 (memory, memory.wrapping_add(COURSE_MEMORY_LEN))
             },
-            count: game_read(CHECKPOINT_COUNT_RVA),
+            count: RACE_VARS.checkpoint_count.bits(),
         }
     }
 }
@@ -114,7 +114,7 @@ impl Machine {
         let at = game_addr(rva(IMAGE_START as usize)) as *const u8;
         Self(Notes::new(
             Registers::default(),
-            unsafe { game_read(SLOT_RVA) },
+            PHYSICS.pace_slot.bits(),
             unsafe { std::slice::from_raw_parts(at, IMAGE_LEN) }.to_vec(),
             course,
             &GameStage,
@@ -124,7 +124,7 @@ impl Machine {
     /// The slot and the tables written back.
     pub fn commit(&self) {
         unsafe {
-            crate::framework::game_write(SLOT_RVA, self.slot);
+            PHYSICS.pace_slot.set_bits(self.slot);
             let at = game_addr(rva(IMAGE_START as usize)) as *mut u8;
             std::slice::from_raw_parts_mut(at, self.image.len()).copy_from_slice(&self.image);
         }

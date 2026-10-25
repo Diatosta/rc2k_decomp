@@ -11,11 +11,10 @@
 
 use crate::errors::Refused;
 use crate::framework::{game_write, rva};
+use crate::race::course_store::COURSE;
 use crate::scene::matrix::make_object_matrix;
 
 // ---- game data ----
-
-const SHINE_RVA: usize = rva(0x5CCE74); // g_shine
 const VIEW_KIND_RVA: usize = rva(0x6365C8); // dword_6365C8
 const LIGHT_KIND_RVA: usize = rva(0x62DAF4); // g_lightKind
 
@@ -34,12 +33,12 @@ pub unsafe fn draw_menu_object(
     step: &mut dyn FnMut(Step) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
     unsafe {
-        game_write(SHINE_RVA, 0x200u32);
+        COURSE.shine.set_bits(0x200u32);
         step(Step::Matrix)?;
         game_write(VIEW_KIND_RVA, 5u32);
         game_write(LIGHT_KIND_RVA, 4u32);
         step(Step::Draw)?;
-        game_write(SHINE_RVA, 0x100u32);
+        COURSE.shine.set_bits(0x100u32);
         Ok(())
     }
 }

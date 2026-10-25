@@ -135,11 +135,6 @@ pub mod unlock_received;
 
 /// dword_63DBA0: logged with each message (a step count, it seems).
 pub const STEP: usize = 0x63DBA0;
-/// unk_71C4D0: the message being built.
-pub const MESSAGE: usize = 0x71C4D0;
-/// The current car's block (`g_carBlocks` 0x71B3B8 point at each car's; the step works
-/// on this copy): +8 its steps.
-pub const CAR: usize = 0x719FD8;
 
 pub fn g(x: usize) -> u32 {
     unsafe { crate::framework::game_read(rva(x)) }

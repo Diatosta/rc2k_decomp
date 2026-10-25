@@ -18,21 +18,24 @@
 use crate::errors::Refused;
 use crate::math::x87;
 use crate::physics::auto_gearbox::auto_gearbox;
+use crate::physics::car_store::CAR;
 use crate::physics::gearbox::*;
 use crate::physics::manual_gearbox::manual_gearbox;
+use crate::physics::tables_store::PHYSICS;
 use crate::physics::take_asked_gear::take_asked_gear;
+use crate::race::vars_store::RACE_VARS;
 
 /// The steps on `r`.
 // Converted: `rc2k_core::physics::gearbox::gearbox_turn`.
 pub fn gearbox_step() -> Result<(), Refused> {
     use rc2k_core::physics::gearbox::{GearboxTurn, gearbox_turn};
     let turn = gearbox_turn(
-        g(0x71A080),
-        || g(0x62389C),
-        || g(0x719FEC),
-        || g(0x71A234),
-        || g(0x71A440),
-        || g(0x71A010),
+        CAR.finish_flag.get(),
+        || RACE_VARS.run_kind.get(),
+        || CAR.run_ticks.get(),
+        || CAR.driver_kind.get(),
+        || CAR.input_keys.get(),
+        || CAR.gearbox_kind.get(),
     );
     match turn {
         GearboxTurn::Idle => {}
@@ -43,8 +46,11 @@ pub fn gearbox_step() -> Result<(), Refused> {
         }
         GearboxTurn::Auto => auto_gearbox()?,
     }
-    if g(CHANGED) == 1 {
-        p(ENGINE, x87::mul(g(ENGINE), g(0x613E9C)));
+    if CAR.gear_changed.get() == 1 {
+        CAR.engine_speed.set_bits(x87::mul(
+            CAR.engine_speed.bits(),
+            PHYSICS.engine_ease.bits(),
+        ));
     }
     wheels()
 }

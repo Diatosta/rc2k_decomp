@@ -31,6 +31,9 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_read, game_write, rva};
+use crate::race::blocks_store::CAR_BLOCKS;
+use crate::race::course_store::COURSE;
+use crate::scene::draw_store::DRAW;
 use rc2k_core::drive::lit_faces::{
     COUNTDOWN_OBJECT, FaceBytes, RISE_TOP, align, blink, count_down, fall_turn, pace, rise,
 };
@@ -38,14 +41,9 @@ use rc2k_core::drive::lit_faces::{
 const LIST_RVA: usize = rva(0x6D3220); // g_litFaces
 const COUNT_RVA: usize = rva(0x6D3620); // g_litFaceCount
 const MOST: u32 = 0x100;
-const FACES_RVA: usize = rva(0x5CCCBC); // g_courseFaces
-const FACE_COUNT_RVA: usize = rva(0x5CCD1C); // g_courseFaceCount
-const POINTS_RVA: usize = rva(0x5CCCC0); // g_scenePoints
 const OBJECT_KINDS_RVA: usize = rva(0x5CD27C); // g_objectKinds
 const KIND_TABLE_RVA: usize = rva(0x97DF4C); // byte_97DF4C, by kind * 0x80
 const BLINK_RVA: usize = rva(0x6D1DFC); // byte_6D1DFC
-const LEAD_X_RVA: usize = rva(0x70F520); // car block 0 +0x134
-const LEAD_Z_RVA: usize = rva(0x70F528); // car block 0 +0x13C
 
 unsafe fn at(p: u32) -> u32 {
     unsafe { (p as *const u32).read_unaligned() }
@@ -95,7 +93,7 @@ unsafe fn refusal() -> Option<&'static str> {
         if count > MOST {
             return Some("more than 0x100 lit faces (past g_litFaces)");
         }
-        let faces: u32 = game_read(FACE_COUNT_RVA);
+        let faces: u32 = COURSE.course_face_count.bits();
         for k in 0..count {
             if game_read::<u32>(list(k)) >= faces {
                 return Some("a lit face past g_courseFaceCount");
@@ -122,8 +120,8 @@ pub unsafe fn animate_at() -> Result<(), Refused> {
 // Converted: `rc2k_core::drive::lit_faces` (all but kind 4's turn and ground).
 unsafe fn animate_faces() -> Result<(), Refused> {
     unsafe {
-        let faces: u32 = game_read(FACES_RVA);
-        let points: u32 = game_read(POINTS_RVA);
+        let faces: u32 = COURSE.course_faces.bits();
+        let points: u32 = COURSE.scene_points.bits();
         let point = |n: u32| points.wrapping_add(n.wrapping_mul(12));
         let mut k = 0;
         loop {
@@ -136,10 +134,10 @@ unsafe fn animate_faces() -> Result<(), Refused> {
                 }
                 let point_number = at(f + 4);
                 let p = point(point_number);
-                let dx = at(p).wrapping_sub(game_read(LEAD_X_RVA));
-                game_write(rva(0x62400C), dx);
-                let dz = at(p + 8).wrapping_sub(game_read(LEAD_Z_RVA));
-                game_write(rva(0x62400C), dz);
+                let dx = at(p).wrapping_sub(CAR_BLOCKS.cars[0].position[0].bits());
+                DRAW.scratch.set(dx);
+                let dz = at(p + 8).wrapping_sub(CAR_BLOCKS.cars[0].position[2].bits());
+                DRAW.scratch.set(dz);
                 let d = crate::math::x87::int_hypot(dx as i32, dz as i32) as u32;
                 game_write(rva(0x6D303C), d);
                 let step = pace(d);
@@ -169,13 +167,15 @@ unsafe fn animate_faces() -> Result<(), Refused> {
                         let p = point(at(f + 4));
                         game_write(rva(0x639824), at(p).wrapping_add(at(f + 0x30)));
                         game_write(rva(0x63982C), at(p + 8).wrapping_add(at(f + 0x38)));
-                        game_write(rva(0x5CCC78), game_read::<u32>(rva(0x7101EC)));
+                        COURSE
+                            .ground_face_last
+                            .set(CAR_BLOCKS.cars[0].probe_point_face[4].bits());
                         crate::physics::find_ground::find_ground()?;
                         put(
                             f + 0x34,
                             game_read::<u32>(rva(0x639828)).wrapping_sub(at(p + 4)),
                         );
-                        if game_read::<u32>(rva(0x5CCC74)) == u32::MAX {
+                        if COURSE.ground_slot.get() == u32::MAX {
                             put(f + 0x30, game_read(rva(0x6D302C)));
                             put(f + 0x38, game_read(rva(0x6D3030)));
                         }

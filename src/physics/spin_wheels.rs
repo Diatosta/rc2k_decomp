@@ -8,11 +8,12 @@
 //!
 //! Caller: `sub_43B635` (0x43B90A), every physics step.
 
-use crate::framework::{game_addr, game_read, rva};
+use crate::framework::{game_read, rva};
 use crate::math::x87_run::div_mul3_to_int;
-
-/// Speed 1, speed 2, turn 1, turn 2, scratch.
-const VARIABLES: [usize; 5] = [0x71A190, 0x71A194, 0x71A1D0, 0x71A1D4, 0x62400C];
+use crate::physics::car_store::CAR;
+use crate::physics::tables_store::PHYSICS;
+use crate::race::numbers_store::NUMBERS;
+use crate::scene::draw_store::DRAW;
 
 unsafe fn get(v: &[u32], k: usize) -> u32 {
     unsafe { (v[k] as *const u32).read_unaligned() }
@@ -25,8 +26,13 @@ unsafe fn put(v: &[u32], k: usize, x: u32) {
 /// The Rust core on the variables at `v`: the last turn added.
 pub unsafe fn spin_at(v: &[u32]) -> u32 {
     unsafe {
-        let k = |x: usize| game_read::<u32>(rva(x));
-        let (wheel, dt, k65536, scale) = (k(0x613EBC), k(0x61388C), k(0x5C5D98), k(0x5C5DC8));
+        let _k = |x: usize| game_read::<u32>(rva(x));
+        let (wheel, dt, k65536, scale) = (
+            PHYSICS.wheel_spin_share.bits(),
+            PHYSICS.step_time.bits(),
+            NUMBERS.k65536.bits(),
+            NUMBERS.one_over_pi.bits(),
+        );
         let mut last = 0;
         for (speed, turn) in [(0, 2), (1, 3)] {
             last = div_mul3_to_int(get(v, speed), wheel, dt, k65536, scale) as u32;
@@ -38,10 +44,13 @@ pub unsafe fn spin_at(v: &[u32]) -> u32 {
 }
 
 fn game() -> Vec<u32> {
-    VARIABLES
-        .iter()
-        .map(|&x| game_addr(rva(x)) as u32)
-        .collect()
+    vec![
+        CAR.drive_speed_a.addr() as u32,
+        CAR.drive_speed_b.addr() as u32,
+        CAR.driven_wheel_turns[0].addr() as u32,
+        CAR.driven_wheel_turns[1].addr() as u32,
+        DRAW.scratch.addr() as u32,
+    ]
 }
 
 /// The Rust version (the exact one, for `physics::car_physics_step`).

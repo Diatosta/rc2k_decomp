@@ -9,20 +9,21 @@
 //! back.
 
 use crate::errors::Refused;
-use crate::framework::{game_read, game_write, rva};
 use crate::physics::allowed_gear::allowed_gear;
+use crate::physics::car_store::CAR;
 use crate::physics::change_gear::change_gear;
+use crate::physics::tables_store::PHYSICS;
 
 /// The Rust version.
 // Converted: `rc2k_core::physics::gearbox::asked_gear`.
 pub unsafe fn take_asked_gear() -> Result<(), Refused> {
     let run = || -> Result<(), Refused> {
         unsafe {
-            game_write(rva(0x71A210), 0u32);
-            let word: u32 = game_read(rva(0x71A440));
+            CAR.gear_changed.set(0u32);
+            let word: u32 = CAR.input_keys.get();
             let asked = rc2k_core::physics::gearbox::asked_gear(word);
             let gear = allowed_gear(asked)?;
-            game_write(rva(0x614C40), gear);
+            PHYSICS.gear_asked.set(gear);
             change_gear()
         }
     };

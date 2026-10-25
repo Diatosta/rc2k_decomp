@@ -7,14 +7,14 @@ use crate::errors::Refused;
 use crate::framework::rva;
 use crate::input::store::DEVICES;
 use crate::menu::option_work_store::OPTION_WORK;
+use crate::physics::tables_store::PHYSICS;
+use crate::race::vars_store::RACE_VARS;
+use crate::race::view_store::RACE_VIEW;
 
-use crate::race::objects::CAR_BLOCKS_RVA;
-use crate::store::{game_addr, game_read, game_write};
-
-pub const PLAYERS_RVA: usize = rva(0x63DB94); // dword_63DB94
+use crate::store::{game_addr, game_read};
 
 fn block(n: u32) -> u32 {
-    unsafe { game_read(CAR_BLOCKS_RVA + 4 * n as usize) }
+    crate::race::work_store::RACE_WORK.car_block(n as usize)
 }
 
 /// `race::players_all_out` (0x445506): carry when every player is out (+0xB0 not 0): the
@@ -29,7 +29,7 @@ pub unsafe fn players_all_out() -> Result<bool, Refused> {
         let players = if crate::net::store::NET.session.get() == 1 {
             Players::Chosen(crate::net::store::NET.player.get())
         } else {
-            Players::First(game_read(PLAYERS_RVA))
+            Players::First(RACE_VIEW.players.bits())
         };
         Ok(players_all_out(players, out)?)
     }
@@ -51,8 +51,8 @@ pub unsafe fn set_car_counter(at: u32, value: u32) {
 /// their fixed addresses), each with eax.
 pub unsafe fn set_both_counters(value: u32) {
     // Converted: through `set_car_counter` (`rc2k_core::race::cars::Message`).
-    for b in [0x70F3EC, 0x7103CC] {
-        unsafe { set_car_counter(game_addr(rva(b)) as u32, value) };
+    for n in 0..2 {
+        unsafe { set_car_counter(crate::race::blocks_store::block_addr(n) as u32, value) };
     }
 }
 
@@ -73,12 +73,12 @@ unsafe fn with_view_car(
     then: impl FnOnce() -> Result<(), Refused>,
 ) -> Result<(), Refused> {
     unsafe {
-        let current = crate::drive::car::CURRENT_CAR_RVA;
-        let was: u32 = game_read(current);
-        game_write(current, game_read::<u32>(VIEW_CARS[n]));
+        let current = &crate::race::work_store::RACE_WORK.current_car;
+        let was = current.get();
+        current.set(game_read::<u32>(VIEW_CARS[n]));
         let result = then();
         if result.is_err() {
-            game_write(current, was);
+            current.set(was);
         }
         result
     }
@@ -99,9 +99,7 @@ const SPLIT_KEY: usize = 0x3C; // byte_4F6D18
 const DOWN_KEY: usize = 0x3D; // byte_4F6D19
 const UP_KEY: usize = 0x3E; // byte_4F6D1A
 const SHARED_KEY: usize = 0x3F; // byte_4F6D1B
-pub const SPLIT_RVA: usize = rva(0x6238A4); // dword_6238A4
 pub const VIEW_BLOCKS: [usize; 2] = [rva(0x63DBB0), rva(0x63DBB4)]; // off_63DBB0, off_63DBB4
-const VIEW_COUNTERS_RVA: usize = rva(0x6138D4); // dword_6138D4[7]: by camera view
 /// The keys that flip a bit of the view block's +0x220 (`rc2k_core::race::keys::BIT_KEYS`
 /// by place): their key bytes, in the order tested.
 pub const BIT_KEYS: [usize; 7] = [0x58, 0x42, 0x41, 0x44, 0x43, 0x40, 0x57]; // 4F6D34, 4F6D1E, 4F6D1D, 4F6D20, 4F6D1F, 4F6D1C, 4F6D33
@@ -145,15 +143,15 @@ pub unsafe fn race_keys() -> Result<(), Refused> {
                 crate::drive::next_camera_view::next_camera_view(view);
                 let camera = ((view + 0x688) as *const u32).read_unaligned();
                 if camera < COUNTED_VIEWS {
-                    set_car_counter(view, game_read(VIEW_COUNTERS_RVA + 4 * camera as usize));
+                    set_car_counter(view, PHYSICS.view_counters[camera as usize].get());
                 }
             }
             Some(Key::Split) => {
-                if game_read::<u32>(PLAYERS_RVA) == 1 {
+                if RACE_VIEW.players.bits() == 1 {
                     return Ok(());
                 }
-                let (split, counter) = split_flip(game_read(SPLIT_RVA));
-                game_write(SPLIT_RVA, split);
+                let (split, counter) = split_flip(RACE_VARS.split.bits());
+                RACE_VARS.split.set_bits(split);
                 set_both_counters(counter);
             }
             Some(k @ (Key::VolumeDown | Key::VolumeUp)) => {

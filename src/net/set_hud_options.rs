@@ -11,10 +11,10 @@
 //!      reads no register: `lq 0x444CEE`, live_in empty)
 //! Caller: `net::lets_race`.
 
-use crate::net::lobby::{g, p};
-use crate::net::reset_cars::CAR_BLOCKS;
 use crate::net::store::NET;
 use crate::race::state_store::RACE_STATE;
+use crate::race::vars_store::RACE_VARS;
+use crate::race::work_store::RACE_WORK;
 use crate::session::Dword;
 use rc2k_core::net::cars;
 
@@ -30,20 +30,18 @@ const SWITCHES: [&Dword; 9] = [
     &RACE_STATE.settings.cars[0].car_info,
     &RACE_STATE.settings.cars[0].pace_notes,
 ];
-/// The settings copied: (to, from).
-const COPIED: [(usize, usize); 1] = [(0x623898, 0x4F50D0)];
-/// The settings words copied after them to the race's variables: (to, from).
-const COPIED_WORDS: [(usize, &Dword); 5] = [
-    (0x6238A8, &RACE_STATE.settings.setting_0),
-    (0x6238AC, &RACE_STATE.settings.setting_1),
-    (0x6238B0, &RACE_STATE.settings.setting_2),
-    (0x6238B4, &RACE_STATE.settings.setting_3),
-    (0x6238B8, &RACE_STATE.settings.setting_4),
+/// The settings words copied to the race's variables (`RACE_VARS.settings_words`).
+const COPIED_WORDS: [&Dword; 5] = [
+    &RACE_STATE.settings.setting_0,
+    &RACE_STATE.settings.setting_1,
+    &RACE_STATE.settings.setting_2,
+    &RACE_STATE.settings.setting_3,
+    &RACE_STATE.settings.setting_4,
 ];
 
 /// This machine's car's block.
 pub fn own_block() -> u32 {
-    g(CAR_BLOCKS + 4 * NET.player.get() as usize)
+    RACE_WORK.car_block(NET.player.get() as usize)
 }
 
 /// The Rust version.
@@ -58,10 +56,10 @@ pub fn set_hud_options() {
         ((block + 0x220) as *mut u32).write_unaligned(bits);
         ((block + 0x684) as *mut u32).write_unaligned(RACE_STATE.settings.cars[0].view.get());
     }
-    for (to, from) in COPIED {
-        p(to, g(from));
-    }
-    for (to, from) in COPIED_WORDS {
-        p(to, from.get());
+    RACE_VARS
+        .mip_setting
+        .set(crate::gfx::choices_store::SCREEN_CHOICES.switch_copy.get());
+    for (to, from) in RACE_VARS.settings_words.iter().zip(COPIED_WORDS) {
+        to.set(from.get());
     }
 }
