@@ -29,7 +29,8 @@ pub struct RaceTables {
     pub start_blend_step: Float,
     /// +0x888 (0x604EC4): `flt_604EC4`: scale of the push apart of the pace cars (`drive::start_cars_behind`).
     pub pace_push_scale: Float,
-    /// +0x88c (0x604EC8): not named.
+    /// +0x88c (0x604EC8): not named: read as a number by `drive::drive_computer_car`; also the first
+    /// of the cars by place (`dword_604EC8[]`, continued by `arcade_car_kinds`; `race::panel_neighbours`).
     pub unknown_88c: Dword,
     /// +0x890 (0x604ECC): `dword_604ECC`: each car's type 1 .. 3, 89 rooms; also the cars by start (`race::set_up_mode_2_cars`, `drive::start_cars_behind`, `race::panel_neighbours`).
     pub arcade_car_kinds: [Dword; 89],

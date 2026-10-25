@@ -9,10 +9,10 @@
 //! Caller: `net::close_if_host`.
 
 use crate::net::dplay::{SET_SESSION_DESC, call};
-use crate::net::lobby::{a, log, log_hex};
+use crate::net::lobby::{log, log_hex};
 use crate::net::store::NET;
+use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
 
-const TEXT: usize = 0x5C2F26; // "NET: Disable new players"
 const CLOSED: u32 = 0x21; // DPSESSION_NEWPLAYERSDISABLED | DPSESSION_JOINDISABLED
 
 /// The Rust version.
@@ -20,7 +20,11 @@ pub fn disable_new_players() {
     if NET.own.state() & 0x10 == 0 {
         return;
     }
-    log(a(TEXT), false, 2);
+    log(
+        VIEWER_PANEL.text_addr(texts::NET_DISABLE_NEW_PLAYERS),
+        false,
+        2,
+    );
     if NET.dplay.get() == 0 {
         return;
     }

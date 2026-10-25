@@ -10,18 +10,17 @@
 //! Caller: `race::viewer_action` (actions 0x25 .. 0x28: eax 0, 0xA0, 0x50, 0x28).
 
 use crate::errors::Refused;
-use crate::race::viewer::{PICTURE_RATE, PICTURE_TIME, get, put};
 use crate::race::viewer_screen_store::VIEWER_PANEL;
 
 /// The Rust version. `eax` the ms a picture, or 0 for the rate's.
 pub fn start_frame_pictures(eax: u32) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::viewer::{picture_rate, picture_time}`.
     use rc2k_core::race::viewer::{picture_rate, picture_time};
-    let rate = picture_rate(get(PICTURE_RATE));
-    if get(PICTURE_RATE) != rate {
-        put(PICTURE_RATE, rate);
+    let rate = picture_rate(VIEWER_PANEL.picture_rate());
+    if VIEWER_PANEL.picture_rate() != rate {
+        VIEWER_PANEL.set_picture_rate(rate);
     }
-    put(PICTURE_TIME, picture_time(eax, rate));
+    VIEWER_PANEL.set_picture_time(picture_time(eax, rate));
     // The folder made.
     unsafe {
         windows_sys::Win32::Storage::FileSystem::CreateDirectoryA(

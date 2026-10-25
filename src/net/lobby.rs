@@ -27,8 +27,6 @@ use crate::net::store::NET;
 use crate::session::Dword;
 use crate::strings::text_buffer::TEXT_BUFFER;
 
-pub use crate::net::a;
-
 // ---- game data (IDA addresses) ----
 
 pub const SPRITES: &Dword = &LOOP_FLAGS.sprite_table; // g_spriteTable

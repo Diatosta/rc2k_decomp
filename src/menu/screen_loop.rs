@@ -91,12 +91,6 @@ pub type Cell = fn() -> &'static Dword;
 /// The address of something of the game that a screen's description names.
 pub type Place = fn() -> usize;
 
-/// A game variable that is still named by its address in the image (the memory the screens'
-/// highlights are kept in), through `moved::MOVED`.
-pub fn raw(rva: usize) -> &'static Dword {
-    unsafe { &*(game_addr(rva) as *const Dword) }
-}
-
 /// Something a screen does at one of the loop's fixed places.
 #[derive(Clone, Copy, Debug)]
 pub enum Step {

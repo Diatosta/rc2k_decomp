@@ -21,7 +21,6 @@
 //! past 3 (`flt_613FB8`'s size not worked out).
 
 use crate::errors::Refused;
-use crate::framework::{game_write, rva};
 use crate::math::x87;
 use crate::physics::car_store::CAR;
 use crate::physics::gear_store::GEAR;
@@ -33,10 +32,6 @@ use crate::scene::x87_mem::{fild, fistp, fld, fstp};
 use crate::session::{Cell32, Dword};
 use rc2k_core::physics::car_specs::{OWN_FIGURES_FROM, check_drive, gear_count, record_of};
 use std::cmp::Ordering;
-
-fn p(x: usize, v: u32) {
-    unsafe { game_write(rva(x), v) }
-}
 
 fn below(a: u32, b: u32) -> bool {
     !matches!(
@@ -58,7 +53,7 @@ fn words(spec: &CarSpec) {
     }
     PHYSICS.spec_a0.set(spec.spec_a0.get());
     PHYSICS.gear_count.set(gear_count(spec.gear_count.get()));
-    p(0x614C14, spec.copy_20.get());
+    PHYSICS.spec_20.set(spec.copy_20.get());
     let places: [(&dyn Cell32, &Dword); 5] = [
         (&PHYSICS.spec_surface[0], &spec.surface[0]),
         (&PHYSICS.spec_surface[1], &spec.surface[1]),

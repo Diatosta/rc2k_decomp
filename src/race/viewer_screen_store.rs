@@ -116,6 +116,105 @@ impl core::ops::Deref for InRaceBlock {
 
 pub static VIEWER_PANEL: InRaceBlock = InRaceBlock;
 
+/// IDA 0x5C2CE8, the first byte of `unknown_3cc`: the untyped tail with the viewer's texts and
+/// its unaligned values.
+const TAIL: usize = 0x5C2CE8;
+
+/// The texts in `unknown_3cc`, by IDA's address (for `ViewerPanelBlock::text_addr`).
+pub mod texts {
+    /// "SVM: Release all textures"
+    pub const SVM_RELEASE_TEXTURES: usize = 0x5C2DDF;
+    /// "NET: Starting link"
+    pub const NET_STARTING_LINK: usize = 0x5C2E04;
+    /// "NET: Stopping link"
+    pub const NET_STOPPING_LINK: usize = 0x5C2E17;
+    /// "NET: Lets rally"
+    pub const NET_LETS_RALLY: usize = 0x5C2E2A;
+    /// "NET: Create dplay"
+    pub const NET_CREATE_DPLAY: usize = 0x5C2E3A;
+    /// "NET: Destroy dplay"
+    pub const NET_DESTROY_DPLAY: usize = 0x5C2E4C;
+    /// "NET: Find connections"
+    pub const NET_FIND_CONNECTIONS: usize = 0x5C2E5F;
+    /// "NET: Found"
+    pub const NET_FOUND: usize = 0x5C2E75;
+    /// "NET: Init connection index"
+    pub const NET_INIT_CONNECTION_INDEX: usize = 0x5C2E80;
+    /// "NET: Init"
+    pub const NET_INIT: usize = 0x5C2E9B;
+    /// "NET: Destroy connection"
+    pub const NET_DESTROY_CONNECTION: usize = 0x5C2EA5;
+    /// "NET: DPCA"
+    pub const NET_DPCA: usize = 0x5C2EBD;
+    /// "NET: Find sessions"
+    pub const NET_FIND_SESSIONS: usize = 0x5C2EC7;
+    /// "NET: Host"
+    pub const NET_HOST: usize = 0x5C2EDA;
+    /// "NET: Open"
+    pub const NET_OPEN: usize = 0x5C2EE4;
+    /// "NET: Host complete"
+    pub const NET_HOST_COMPLETE: usize = 0x5C2EEE;
+    /// "NET: Join session"
+    pub const NET_JOIN_SESSION: usize = 0x5C2F01;
+    /// "NET: Join complete"
+    pub const NET_JOIN_COMPLETE: usize = 0x5C2F13;
+    /// "NET: Disable new players"
+    pub const NET_DISABLE_NEW_PLAYERS: usize = 0x5C2F26;
+    /// "NET: Create dplobby"
+    pub const NET_CREATE_DLOBBY: usize = 0x5C2F5A;
+    /// "NET: Create player"
+    pub const NET_CREATE_PLAYER: usize = 0x5C2F6E;
+}
+
+impl ViewerPanelBlock {
+    /// Where the byte at IDA `ida` is, inside the untyped tail `unknown_3cc` (the texts of
+    /// `texts`, the unaligned values below).
+    pub fn text_addr(&self, ida: usize) -> u32 {
+        assert!((TAIL..TAIL + 4 * 167).contains(&ida));
+        (self.unknown_3cc[0].addr() + (ida - TAIL)) as u32
+    }
+
+    /// `dword_5C2CEB` (unaligned, in the tail): 1 when the developer's keys work in the viewer.
+    pub fn developer_keys(&self) -> u32 {
+        self.tail_read(0x5C2CEB)
+    }
+
+    /// `dword_5C2CEF` (unaligned): pictures a second, 1 .. 100.
+    pub fn picture_rate(&self) -> u32 {
+        self.tail_read(0x5C2CEF)
+    }
+
+    pub fn set_picture_rate(&self, value: u32) {
+        self.tail_write(0x5C2CEF, value)
+    }
+
+    /// `dword_5C2CF3` (unaligned): ms a picture.
+    pub fn picture_time(&self) -> u32 {
+        self.tail_read(0x5C2CF3)
+    }
+
+    pub fn set_picture_time(&self, value: u32) {
+        self.tail_write(0x5C2CF3, value)
+    }
+
+    /// `word_5C291C` ..: the text id of camera `camera` (47 of them; the original does not
+    /// check the number).
+    pub fn camera_name(&self, camera: usize) -> u16 {
+        // SAFETY: the table is in `unknown_0`; the read is unaligned and plain.
+        unsafe { ((self.unknown_0[0].addr() + 2 * camera) as *const u16).read_unaligned() }
+    }
+
+    fn tail_read(&self, ida: usize) -> u32 {
+        // SAFETY: inside the tail (`text_addr` checks); unaligned.
+        unsafe { (self.text_addr(ida) as usize as *const u32).read_unaligned() }
+    }
+
+    fn tail_write(&self, ida: usize, value: u32) {
+        // SAFETY: as `tail_read`; every other field is a cell, so the bytes are shared.
+        unsafe { (self.text_addr(ida) as usize as *mut u32).write_unaligned(value) }
+    }
+}
+
 /// IDA 0x5C291C, the first byte of the piece.
 pub const START: usize = 0x5C291C;
 /// IDA 0x5C2FE4, the end of the piece.

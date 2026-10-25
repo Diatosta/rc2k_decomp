@@ -14,12 +14,10 @@
 use crate::errors::Refused;
 use crate::field;
 use crate::net::host_session::{OPEN_JOIN, finish, open};
-use crate::net::lobby::{a, log, log_int_nl, movsb, session, zero};
+use crate::net::lobby::{log, log_int_nl, movsb, session, zero};
 use crate::net::store::NET;
 use crate::net::types::NetSession;
-
-const JOIN: usize = 0x5C2F01; // "NET: Join session"
-const COMPLETE: usize = 0x5C2F13; // "NET: Join complete"
+use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
 
 /// The code at 0x418D77 as the receiving thread calls it when it is posted.
 pub extern "C" fn posted_open_join() -> u32 {
@@ -32,7 +30,7 @@ fn join_group() -> Result<bool, Refused> {
 
 /// The Rust version.
 pub fn join_session(number: u32) -> Result<bool, Refused> {
-    log(a(JOIN), false, 2);
+    log(VIEWER_PANEL.text_addr(texts::NET_JOIN_SESSION), false, 2);
     log_int_nl(number, 1);
     if NET.dplay.get() == 0 {
         return Ok(false);
@@ -58,5 +56,9 @@ pub fn join_session(number: u32) -> Result<bool, Refused> {
         NET.joined.addr() as u32,
         0x10,
     );
-    finish(posted_open_join, join_group, COMPLETE)
+    finish(
+        posted_open_join,
+        join_group,
+        VIEWER_PANEL.text_addr(texts::NET_JOIN_COMPLETE),
+    )
 }

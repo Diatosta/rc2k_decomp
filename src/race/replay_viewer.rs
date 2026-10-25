@@ -40,7 +40,8 @@ use crate::install::vars::INSTALLER_PAGES;
 use crate::menu::event_flow::Flow;
 use crate::menu::screen_loop::Carried;
 use crate::race::replay_file_store::REPLAY_FILE;
-use crate::race::viewer::{DEVELOPER_KEYS, LAST_RACE, get};
+use crate::race::viewer::LAST_RACE;
+use crate::race::viewer_screen_store::VIEWER_PANEL;
 use crate::race::viewer_state_store::REPLAY_VIEW;
 use crate::session::CLOCKS;
 use crate::session::FLAGS;
@@ -281,7 +282,7 @@ fn stopped_key(r: &mut Flow, key: u8) -> Result<Next, Refused> {
     if key == 0x3C {
         return Ok(Next::Action(0x22));
     }
-    if get(DEVELOPER_KEYS) == 1
+    if VIEWER_PANEL.developer_keys() == 1
         && let Some(&(_, action)) = DEVELOPER.iter().find(|&&(k, _)| k == key)
     {
         return Ok(Next::Action(action));

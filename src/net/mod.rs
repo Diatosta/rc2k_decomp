@@ -22,7 +22,6 @@
 //! screens' loops and frames of the lobby too (conversion phase 3, 2026-10-24: no registers,
 //! no calls by place). DirectPlay's methods from Rust (`net::dplay`).
 
-use crate::framework::{game_addr, rva};
 use crate::net::store::NET;
 
 pub mod add_address_element;
@@ -132,11 +131,6 @@ pub mod take_messages;
 pub mod take_player_settings;
 pub mod types;
 pub mod unlock_received;
-
-/// The address of a game variable.
-pub fn a(x: usize) -> u32 {
-    game_addr(rva(x)) as u32
-}
 
 /// Logs as the send functions do: "send x", the player, the step (`log_int_l1_nl`).
 pub fn log_send(text: &std::ffi::CStr) {

@@ -22,9 +22,9 @@ use crate::text::draw_text::Canvas;
 type Name = (fn() -> u32, u32, i32);
 
 const NAMES: [Name; 8] = [
-    (|| SCREEN_CHOICES.switch_modes.get(), 0x38F, 0),
-    (|| SCREEN_CHOICES.switch_hud.get(), 0x391, 2),
-    (|| SCREEN_CHOICES.switch_copy.get(), 0x56D, 3),
+    (|| SCREEN_CHOICES.card.get(), 0x38F, 0),
+    (|| SCREEN_CHOICES.buffering.get(), 0x391, 2),
+    (|| SCREEN_CHOICES.mipmapping.get(), 0x56D, 3),
     (|| OPTION_WORK.setting_0.get(), 0x56D, 4),
     (|| OPTION_WORK.setting_1.get(), 0x56D, 5),
     (|| OPTION_WORK.setting_2.get(), 0x396, 6),
@@ -38,14 +38,14 @@ pub unsafe fn draw_graphics_settings(canvas: &mut dyn Canvas) -> Result<(), Refu
     use crate::screens::game_screen::SettingsScreen;
     unsafe {
         if rc2k_core::screens::settings_pages::graphics_item(
-            SCREEN_CHOICES.page_a.get(),
-            SCREEN_CHOICES.page_b.get(),
+            SCREEN_CHOICES.has_primary.get(),
+            SCREEN_CHOICES.has_secondary.get(),
         ) {
             enable_item(2)?;
         } else {
             disable_item(2)?;
         }
-        let mode = SCREEN_CHOICES.list.addr() as u32 + 0x10 * SCREEN_CHOICES.mode.get();
+        let mode = SCREEN_CHOICES.list.addr() as u32 + 0x10 * SCREEN_CHOICES.resolution.get();
         let v = |i: u32| ((mode + 4 * i) as *const u32).read_unaligned();
         let ids = NAMES.map(|(setting, first, _)| setting().wrapping_add(first));
         rc2k_core::screens::settings_pages::graphics(

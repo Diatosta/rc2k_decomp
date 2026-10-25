@@ -26,11 +26,11 @@ use crate::net::dplay::{
     CONNECT, GET_CONNECTION_SETTINGS, QUERY_INTERFACE, RELEASE, SET_CONNECTION_SETTINGS, call,
     method,
 };
-use crate::net::lobby::{a, co_create, copy_printable, log, net_allocate};
+use crate::net::lobby::{co_create, copy_printable, log, net_allocate};
 use crate::net::store::{NET, PlayerRecord};
 use crate::net::{create_group, create_player, fill_own_player, join_group, list_players};
+use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
 
-const TEXT: usize = 0x5C2F5A; // "NET: Create dplobby"
 const BUFFER_TOO_SMALL: u32 = 0x8877_001E; // DPERR_BUFFERTOOSMALL
 
 fn get(at: u32) -> u32 {
@@ -39,7 +39,7 @@ fn get(at: u32) -> u32 {
 
 /// The Rust version.
 pub fn open_lobby() -> Result<bool, Refused> {
-    log(a(TEXT), true, 2);
+    log(VIEWER_PANEL.text_addr(texts::NET_CREATE_DLOBBY), true, 2);
     if co_create(
         NET.clsid_lobby.addr() as u32,
         NET.iid_lobby2a.addr() as u32,

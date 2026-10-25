@@ -31,7 +31,11 @@
 
 use crate::errors::Refused;
 use crate::gfx::choices_store::SCREEN_CHOICES;
-use crate::race::settings_copy::{Place, Place::Addr, var};
+use crate::menu::captions_store::CAPTIONS;
+use crate::menu::champ_store::CHAMP_VIEW;
+use crate::menu::option_work_store::OPTION_WORK;
+use crate::race::settings_copy::{Place, var};
+use crate::race::state_store::RACE_STATE;
 use crate::sound::store::SOUND_OPTIONS;
 
 /// After a volume step.
@@ -170,7 +174,7 @@ macro_rules! switch {
             $module,
             $name,
             Item {
-                var: Addr($var as usize),
+                var: $var,
                 kind: $kind,
             }
         );
@@ -183,7 +187,7 @@ macro_rules! step {
             $module,
             $name,
             Item {
-                var: Addr($var as usize),
+                var: $var,
                 kind: $kind,
             }
         );
@@ -206,7 +210,7 @@ step!(
     "menu::master_volume_down",
     0x467F00,
     0x24,
-    0x755684,
+    var!(OPTION_WORK.master_volume_shown),
     false,
     Kind::Volume {
         up: false,
@@ -218,7 +222,7 @@ step!(
     "menu::master_volume_up",
     0x467F24,
     0x24,
-    0x755684,
+    var!(OPTION_WORK.master_volume_shown),
     true,
     Kind::Volume {
         up: true,
@@ -230,7 +234,7 @@ option_item!(
     race_music_volume_down,
     "menu::race_music_volume_down",
     Item {
-        var: Addr(0x75568C),
+        var: var!(OPTION_WORK.other_volume),
         kind: Kind::Volume {
             up: false,
             then: Then::Store(var!(SOUND_OPTIONS.race_music_volume))
@@ -242,7 +246,7 @@ option_item!(
     race_music_volume_up,
     "menu::race_music_volume_up",
     Item {
-        var: Addr(0x75568C),
+        var: var!(OPTION_WORK.other_volume),
         kind: Kind::Volume {
             up: true,
             then: Then::Store(var!(SOUND_OPTIONS.race_music_volume))
@@ -254,7 +258,7 @@ step!(
     "menu::race_sounds_volume_down",
     0x467FE2,
     0x24,
-    0x755694,
+    var!(OPTION_WORK.menu_sounds_a),
     false,
     Kind::Volume {
         up: false,
@@ -266,7 +270,7 @@ step!(
     "menu::race_sounds_volume_up",
     0x468006,
     0x24,
-    0x755694,
+    var!(OPTION_WORK.menu_sounds_a),
     true,
     Kind::Volume {
         up: true,
@@ -278,7 +282,7 @@ step!(
     "menu::menu_sounds_volume_down",
     0x468138,
     0x24,
-    0x755690,
+    var!(OPTION_WORK.menu_sounds_c),
     false,
     Kind::Volume {
         up: false,
@@ -290,7 +294,7 @@ step!(
     "menu::menu_sounds_volume_up",
     0x46815C,
     0x24,
-    0x755690,
+    var!(OPTION_WORK.menu_sounds_c),
     true,
     Kind::Volume {
         up: true,
@@ -305,7 +309,7 @@ switch!(
     "menu::toggle_7556f8",
     0x468211,
     8,
-    0x7556F8,
+    var!(CHAMP_VIEW.switch_f8),
     Kind::Switch
 );
 switch!(
@@ -313,7 +317,7 @@ switch!(
     "menu::toggle_7556fc",
     0x468219,
     8,
-    0x7556FC,
+    var!(CHAMP_VIEW.switch_fc),
     Kind::Switch
 );
 step!(
@@ -321,7 +325,7 @@ step!(
     "menu::previous_75880e",
     0x468221,
     0x1A,
-    0x75880E,
+    var!(CAPTIONS.shown_group),
     false,
     Kind::Counter {
         up: false,
@@ -334,7 +338,7 @@ step!(
     "menu::next_75880e",
     0x46823B,
     0x1A,
-    0x75880E,
+    var!(CAPTIONS.shown_group),
     true,
     Kind::Counter {
         up: true,
@@ -347,7 +351,7 @@ step!(
     "menu::previous_758812",
     0x468255,
     0x1A,
-    0x758812,
+    var!(CAPTIONS.shown_stage),
     false,
     Kind::Counter {
         up: false,
@@ -360,7 +364,7 @@ step!(
     "menu::next_758812",
     0x46826F,
     0x1A,
-    0x758812,
+    var!(CAPTIONS.shown_stage),
     true,
     Kind::Counter {
         up: true,
@@ -376,9 +380,9 @@ switch!(
     "menu::toggle_755640",
     0x46FFB3,
     0x14,
-    0x755640,
+    var!(OPTION_WORK.switch_0),
     Kind::SwitchCopy {
-        other: var!(SCREEN_CHOICES.switch_copy),
+        other: var!(SCREEN_CHOICES.mipmapping),
         flip: true
     }
 );
@@ -387,9 +391,9 @@ switch!(
     "menu::toggle_755644",
     0x46FFC7,
     0x14,
-    0x755644,
+    var!(OPTION_WORK.switch_1),
     Kind::SwitchCopy {
-        other: var!(SCREEN_CHOICES.switch_hud),
+        other: var!(SCREEN_CHOICES.buffering),
         flip: true
     }
 );
@@ -397,9 +401,9 @@ option_item!(
     previous_screen_mode,
     "menu::previous_screen_mode",
     Item {
-        var: var!(SCREEN_CHOICES.mode),
+        var: var!(SCREEN_CHOICES.resolution),
         kind: Kind::PreviousMode {
-            other: var!(SCREEN_CHOICES.modes)
+            other: var!(SCREEN_CHOICES.resolutions)
         },
     }
 );
@@ -408,9 +412,9 @@ switch!(
     "menu::toggle_75564c",
     0x470017,
     0x1E,
-    0x75564C,
+    var!(OPTION_WORK.modes_switch),
     Kind::SwitchModes {
-        other: var!(SCREEN_CHOICES.switch_modes)
+        other: var!(SCREEN_CHOICES.card)
     }
 );
 switch!(
@@ -418,9 +422,9 @@ switch!(
     "menu::toggle_755650",
     0x470035,
     0x12,
-    0x755650,
+    var!(OPTION_WORK.setting_0),
     Kind::SwitchCopy {
-        other: Addr(0x75AD00),
+        other: var!(RACE_STATE.settings.setting_0),
         flip: false
     }
 );
@@ -429,9 +433,9 @@ switch!(
     "menu::toggle_75565c",
     0x470107,
     0x12,
-    0x75565C,
+    var!(OPTION_WORK.setting_1),
     Kind::SwitchCopy {
-        other: Addr(0x75AD0C),
+        other: var!(RACE_STATE.settings.setting_1),
         flip: false
     }
 );
@@ -440,9 +444,9 @@ switch!(
     "menu::toggle_755660",
     0x470119,
     0x12,
-    0x755660,
+    var!(OPTION_WORK.setting_2),
     Kind::SwitchCopy {
-        other: Addr(0x75AD10),
+        other: var!(RACE_STATE.settings.setting_2),
         flip: false
     }
 );
@@ -451,9 +455,9 @@ switch!(
     "menu::toggle_755668",
     0x47018B,
     0x12,
-    0x755668,
+    var!(OPTION_WORK.setting_4),
     Kind::SwitchCopy {
-        other: Addr(0x75AD18),
+        other: var!(RACE_STATE.settings.setting_4),
         flip: false
     }
 );
@@ -464,7 +468,7 @@ option_item!(
     next_audio_quality,
     "menu::next_audio_quality",
     Item {
-        var: Addr(0x75566C),
+        var: var!(OPTION_WORK.audio_quality),
         kind: Kind::Quality { up: true },
     }
 );
@@ -472,7 +476,7 @@ option_item!(
     previous_audio_quality,
     "menu::previous_audio_quality",
     Item {
-        var: Addr(0x75566C),
+        var: var!(OPTION_WORK.audio_quality),
         kind: Kind::Quality { up: false },
     }
 );
@@ -481,7 +485,7 @@ switch!(
     "menu::toggle_ds3d",
     0x4701E9,
     0xD,
-    0x755670,
+    var!(OPTION_WORK.ds3d),
     Kind::SwitchAudio
 );
 switch!(
@@ -489,7 +493,7 @@ switch!(
     "menu::toggle_eax",
     0x4701F6,
     0xD,
-    0x755674,
+    var!(OPTION_WORK.eax),
     Kind::SwitchAudio
 );
 switch!(
@@ -497,7 +501,7 @@ switch!(
     "menu::toggle_a3d",
     0x470203,
     0xD,
-    0x755678,
+    var!(OPTION_WORK.a3d),
     Kind::SwitchAudio
 );
 switch!(
@@ -505,7 +509,7 @@ switch!(
     "menu::toggle_dolby",
     0x470210,
     0xD,
-    0x75567C,
+    var!(OPTION_WORK.dolby),
     Kind::SwitchAudio
 );
 switch!(
@@ -513,6 +517,6 @@ switch!(
     "menu::toggle_channels",
     0x47021D,
     0xD,
-    0x755680,
+    var!(OPTION_WORK.channels),
     Kind::SwitchAudio
 );

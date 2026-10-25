@@ -82,9 +82,11 @@ pub fn volume_step(v: Volume) {
 /// `menu::next_screen_mode`: the next screen mode chosen, the changed flag flipped.
 pub fn next_screen_mode() {
     // Converted: `rc2k_core::menu::steps::next_mode`.
-    let mode =
-        rc2k_core::menu::steps::next_mode(SCREEN_CHOICES.mode.get(), SCREEN_CHOICES.modes.get());
-    SCREEN_CHOICES.mode.set(mode);
+    let mode = rc2k_core::menu::steps::next_mode(
+        SCREEN_CHOICES.resolution.get(),
+        SCREEN_CHOICES.resolutions.get(),
+    );
+    SCREEN_CHOICES.resolution.set(mode);
     let changed = OPTION_WORK.mode_changed.get() ^ 1;
     OPTION_WORK.mode_changed.set(changed);
 }

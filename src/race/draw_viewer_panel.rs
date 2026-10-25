@@ -17,9 +17,7 @@
 
 use crate::errors::Refused;
 use crate::gfx::screen_state::DRAW_SURFACE;
-use crate::physics::flow::a;
 use crate::race::replay_file_store::REPLAY_FILE;
-use crate::race::viewer::CAMERA_NAMES;
 use crate::race::viewer_screen_store::VIEWER_PANEL;
 use crate::race::viewer_state_store::REPLAY_VIEW;
 use crate::session::Dword;
@@ -113,7 +111,7 @@ pub fn draw_viewer_panel() -> Result<(), Refused> {
             let camera = camera_name(crate::race::viewer::camera_byte_at(
                 byte.wrapping_add(8 * REPLAY_VIEW.replay_block.get() as usize),
             ));
-            let id = (a(CAMERA_NAMES + 2 * camera as usize) as *const u16).read_unaligned();
+            let id = crate::race::viewer_screen_store::VIEWER_PANEL.camera_name(camera as usize);
             let mut out = TEXT_BUFFER.text.addr() as u32 as *mut u8;
             crate::strings::append_string_by_id::append_string_by_id(
                 u32::from(id),

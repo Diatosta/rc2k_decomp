@@ -10,15 +10,9 @@
 //! the flags, memory written); the Rust side calls `test_part`, which does the same. Then
 //! `run_both` compares the registers, the flags the callers read, the calls and memory.
 
-use crate::physics::flow::{a, g, p};
-
 // ---- the replay being viewed ----
 
 pub const LAST_RACE: u32 = 0xDE; // the slot of `var\tmprpl` as it is
-pub const DEVELOPER_KEYS: usize = 0x5C2CEB; // dword_5C2CEB
-pub const PICTURE_RATE: usize = 0x5C2CEF; // dword_5C2CEF: pictures a second, 1 .. 100
-pub const PICTURE_TIME: usize = 0x5C2CF3; // dword_5C2CF3: ms a picture
-pub const CAMERA_NAMES: usize = 0x5C291C; // word_5C291C: the cameras' text ids, 0x2F
 pub const TABLE_LEN: usize = 0x3840; // 0x708 blocks of 8 bytes
 /// The byte `offset` on from the first block's cameras (8 bytes a block; the original does not
 /// check the offset).
@@ -31,10 +25,6 @@ pub fn camera_byte_at(offset: usize) -> u8 {
 }
 
 // ---- the list menu (`menu::list_*`) ----
-
-pub fn gb(x: impl crate::store::At) -> u8 {
-    unsafe { (a(x) as *const u8).read() }
-}
 
 /// `rep movsd` of `dwords` from `from` to `to` (absolute addresses), forwards.
 pub fn move_dwords(to: usize, from: usize, dwords: usize) {
@@ -58,12 +48,3 @@ pub unsafe fn table(at: usize, dwords: usize) -> &'static mut [u32] {
 }
 
 // ---- for `net::sort_players` ----
-
-/// `g` and `p` for other modules.
-pub fn get(x: impl crate::store::At) -> u32 {
-    g(x)
-}
-
-pub fn put(x: impl crate::store::At, v: u32) {
-    p(x, v)
-}

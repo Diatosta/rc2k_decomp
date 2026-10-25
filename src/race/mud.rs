@@ -5,17 +5,13 @@
 //! unlocked through DirectDraw: the game's, `sub_41AA4B` / `sub_41AB02`).
 
 use crate::errors::Refused;
-use crate::framework::rva;
 use crate::gfx::screen_state::DRAW_SURFACE;
 use crate::race::course_lists_store::COURSE_LISTS;
 use crate::race::kind_store::KIND_TABLES;
 use crate::race::vars_store::RACE_VARS;
 use crate::scene::kind_texture_store::KIND_TEXTURES;
-use crate::store::game_addr;
 
 pub const MUD_LEN: u32 = 0x1_0000;
-pub const MUD_PATH_RVA: usize = rva(0x6238F4); // "files\b\mudfile.0xx"
-pub const MUD_PATH_DIGITS_RVA: usize = rva(0x623905);
 
 /// `race::car_file_number` (0x41F4FD): eax held to 0 .. 0x21 (signed), its entry of
 /// `dword_5C5928`.
@@ -76,12 +72,12 @@ pub unsafe fn load_mud() -> Result<(), Refused> {
         let (tens, units) = rc2k_core::race::mud::file_digits(car_file_number(
             crate::race::blocks_store::CAR_BLOCKS.cars[0].car_kind.get(),
         ));
-        let digits = game_addr(MUD_PATH_DIGITS_RVA) as *mut u8;
+        let digits = RACE_VARS.mud_path.as_ptr().add(0x11);
         *digits = tens as u8;
         *digits.add(1) = units as u8;
         let mud: u32 = RACE_VARS.mud.get();
         crate::files::read_whole_file::read_whole_file(
-            game_addr(MUD_PATH_RVA) as *const u8,
+            RACE_VARS.mud_path.as_ptr(),
             mud as *mut u8,
             MUD_LEN,
         )?;

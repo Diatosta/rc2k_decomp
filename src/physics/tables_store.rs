@@ -458,8 +458,8 @@ pub struct PhysicsTables {
     pub handling: [Float; 9],
     /// +0x13e8 (0x614C10): `g_gearCount`: forward gears.
     pub gear_count: Dword,
-    /// +0x13ec (0x614C14): not named.
-    pub unknown_13ec: Dword,
+    /// +0x13ec (0x614C14): the spec's +0x20 (`physics::load_car_specs`).
+    pub spec_20: Dword,
     /// +0x13f0 (0x614C18): the spec's +0xA0.
     pub spec_a0: Dword,
     /// +0x13f4 (0x614C1C): (`physics::drive_wheels_step`).

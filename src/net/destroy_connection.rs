@@ -14,15 +14,20 @@
 use crate::errors::Refused;
 use crate::logfile::log_write::log_write;
 use crate::net::store::NET;
-use crate::net::{a, close_session, destroy_player, free_messages, release_dplay, release_lobby};
-
-const TEXT: usize = 0x5C2EA5; // "NET: Destroy connection"
+use crate::net::{close_session, destroy_player, free_messages, release_dplay, release_lobby};
+use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
 
 /// The Rust version.
 pub fn destroy_connection() -> Result<(), Refused> {
     if NET.dplay.get() != 0 {
         NET.session.set(0);
-        unsafe { log_write(a(TEXT) as *const u8, true, 2) };
+        unsafe {
+            log_write(
+                VIEWER_PANEL.text_addr(texts::NET_DESTROY_CONNECTION) as *const u8,
+                true,
+                2,
+            )
+        };
         destroy_player::destroy_player();
         close_session::close_session();
         release_dplay::release_dplay();

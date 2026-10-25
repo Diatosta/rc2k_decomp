@@ -15,7 +15,6 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::files::handle::{close, open_by_mode, read};
-use crate::framework::{game_addr, rva};
 use crate::saves::allocate_best_times::{allocate_best_times, pair};
 use crate::saves::best_times_store::BEST_TIMES;
 
@@ -32,7 +31,6 @@ pub fn path_home() -> usize {
     PATH.addr()
 }
 
-const RECORD_TABLE_RVA: usize = rva(0x735576); // g_recordTable
 // "R5HS"
 const HEAD_LEN: u32 = 0x10;
 /// The tables of `allocate_best_times` the file holds, in the file's order.
@@ -116,7 +114,7 @@ pub unsafe fn load_game_best_times() -> Result<bool, Refused> {
                 allocate_best_times(
                     BEST_TIMES.vars(),
                     BEST_TIMES.list(),
-                    game_addr(RECORD_TABLE_RVA) as *const u8,
+                    crate::records::stages_store::STAGE_TABLES.championship() as *const u8, // g_recordTable
                 )
             },
             open: &mut |path| open_by_mode(path, 0),

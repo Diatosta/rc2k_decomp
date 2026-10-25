@@ -12,6 +12,7 @@ use crate::race::course_store::COURSE;
 use crate::race::level_grid_store::LEVEL_GRID;
 use crate::race::prefs_store::STAGE_PREFS;
 use crate::race::vars_store::RACE_VARS;
+use crate::scene::file_numbers_store::{FILE_NUMBERS, texts};
 
 /// Where the steps' variables are (the game's, or a test's).
 #[derive(Clone, Copy)]
@@ -58,10 +59,6 @@ impl Vars {
 
 const FIRST_PART: u32 = 0xF0_0000;
 const INFO_PART: u32 = 0x40_0000;
-const TEXTURE_INFO_A_RVA: usize = rva(0x60AE36); // "files\a\textinfo"
-const MARK_INFO_RVA: usize = rva(0x60AE47); // "files\m\markinfo"
-const TEXTURE_INFO_B_RVA: usize = rva(0x60AE58); // "files\b\textinfo"
-const ERROR_LIST_PATH_RVA: usize = rva(0x60AE02);
 /// The path strings the course's number is written into: the tens' and the units' places.
 pub fn number_places() -> [usize; 9] {
     let p = &crate::race::level_paths_store::LEVEL_PATHS;
@@ -72,9 +69,9 @@ pub fn number_places() -> [usize; 9] {
         p.cdat_src_2.addr() + 0xD,
         p.localdat_src.addr() + 0xD,
         p.localdat_files.addr() + 0x12,
-        game_addr(rva(0x60AE0F)),
-        game_addr(rva(0x60AE1D)),
-        game_addr(rva(0x60AE2F)),
+        FILE_NUMBERS.text_addr(texts::NUMBER_PLACE_A),
+        FILE_NUMBERS.text_addr(texts::NUMBER_PLACE_B),
+        FILE_NUMBERS.text_addr(texts::NUMBER_PLACE_C),
     ]
 }
 const TEXTURES: u32 = 0x100;
@@ -138,10 +135,18 @@ pub unsafe fn load_texture_info(v: &Vars) -> Result<(), Refused> {
         if info == 0 {
             return Err(BadInput("no course memory: the original reads into 0").into());
         }
-        read(game_addr(TEXTURE_INFO_A_RVA) as u32, info, 0x1F_4000)?;
-        read(game_addr(MARK_INFO_RVA) as u32, info + 0x1C_2000, 0x8000)?;
         read(
-            game_addr(TEXTURE_INFO_B_RVA) as u32,
+            FILE_NUMBERS.text_addr(texts::TEXTURE_INFO_A) as u32,
+            info,
+            0x1F_4000,
+        )?;
+        read(
+            FILE_NUMBERS.text_addr(texts::MARK_INFO) as u32,
+            info + 0x1C_2000,
+            0x8000,
+        )?;
+        read(
+            FILE_NUMBERS.text_addr(texts::TEXTURE_INFO_B) as u32,
             info + 0x1F_4000,
             0x1F_4000,
         )?;
@@ -170,7 +175,7 @@ pub unsafe fn set_course_number(eax: u32) {
 pub unsafe fn load_error_list() -> Result<(), Refused> {
     unsafe {
         read(
-            game_addr(ERROR_LIST_PATH_RVA) as u32,
+            FILE_NUMBERS.text_addr(texts::ERROR_LIST_PATH) as u32,
             crate::race::error_list_store::ERROR_LIST.list.addr() as u32,
             0x2000,
         )

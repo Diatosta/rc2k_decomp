@@ -14,13 +14,12 @@
 
 use crate::errors::Refused;
 use crate::field;
-use crate::net::lobby::{a, connection, copy_printable, log, movsb, net_allocate};
+use crate::net::lobby::{connection, copy_printable, log, movsb, net_allocate};
 use crate::net::store::NET;
 use crate::net::types::NetConnection;
+use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
 use crate::system::same_guid::same_guid;
 use rc2k_core::net::lists;
-
-const FOUND: usize = 0x5C2E75; // "NET: Found"
 
 fn get(at: u32) -> u32 {
     unsafe { (at as *const u32).read_unaligned() }
@@ -29,7 +28,7 @@ fn get(at: u32) -> u32 {
 /// The Rust version: eax.
 pub fn connection_found(args: &[u32]) -> Result<u32, Refused> {
     let (guid, data, size, name) = (args[0], args[1], args[2], args[3]);
-    log(a(FOUND), false, 2);
+    log(VIEWER_PANEL.text_addr(texts::NET_FOUND), false, 2);
     let short = get(name + 8);
     log(short, true, 2);
     // Converted: `rc2k_core::net::lists` (`LEAVES_OUT_PROVIDERS`, `connection_listed`).

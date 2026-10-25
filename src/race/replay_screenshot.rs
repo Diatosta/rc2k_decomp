@@ -13,11 +13,8 @@
 //! Caller: `drive::race_frame` (each frame drawn).
 
 use crate::errors::Refused;
-use crate::framework::rva;
 use crate::gfx::picture_store::PICTURE;
 use crate::race::viewer_screen_store::VIEWER_PANEL;
-use crate::store::game_read;
-const FRAME_TIME_RVA: usize = rva(0x5C2CF3); // dword_5C2CF3 (unaligned)
 
 /// The Rust version (see the header). (The original keeps every register.)
 pub unsafe fn replay_screenshot() -> Result<(), Refused> {
@@ -53,7 +50,7 @@ pub unsafe fn replay_screenshot() -> Result<(), Refused> {
             VIEWER_PANEL
                 .picture_clock
                 .bits()
-                .wrapping_add(game_read(FRAME_TIME_RVA)),
+                .wrapping_add(VIEWER_PANEL.picture_time()),
         );
     }
     Ok(())

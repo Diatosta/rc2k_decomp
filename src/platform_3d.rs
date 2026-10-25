@@ -38,13 +38,11 @@ use crate::gfx::screen_state::DRAW_SURFACE;
 use crate::gfx::texture_upload::TEXTURE_TABLES;
 use crate::gfx::texture_upload::{TextureFormat, TextureRecord};
 use crate::logfile::log_write::log_write;
+use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
 use crate::scene::draw_store::DRAW;
 use crate::session::SCREEN;
-use crate::store::game_ptr;
 use crate::system::find_entry::find_entry;
 use std::sync::{Mutex, OnceLock};
-
-const RELEASE_TEXT_RVA: usize = rva(0x5C2DDF); // "SVM: Release all textures"
 
 // ---- game data ----
 
@@ -961,7 +959,11 @@ pub fn release_textures() {
 pub fn release_all_textures() {
     flush();
     unsafe {
-        log_write(game_ptr(RELEASE_TEXT_RVA), true, 2);
+        log_write(
+            VIEWER_PANEL.text_addr(texts::SVM_RELEASE_TEXTURES) as usize as *const u8,
+            true,
+            2,
+        );
         release_pool(1);
         release_pool(0);
     }

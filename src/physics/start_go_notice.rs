@@ -10,7 +10,7 @@
 //! Caller: `sub_436790` (0x4367E3). Refuses what `set_flag_5165a4` refuses.
 
 use crate::errors::Refused;
-use crate::framework::{game_addr, rva};
+use crate::menu::cheats_store::CHEAT_VARS;
 use crate::physics::car_store::CAR;
 use crate::physics::listed_car_flags::set_flag_at;
 use crate::race::frame_store::FRAME_WORK;
@@ -49,7 +49,6 @@ pub unsafe fn start_go_notice_at(v: &[u32], twin: [u32; 3]) -> Result<(), Refuse
 }
 
 fn game() -> (Vec<u32>, [u32; 3]) {
-    let g = |a: usize| game_addr(rva(a)) as u32;
     let c = &CAR;
     (
         // In the order the core takes them.
@@ -58,7 +57,7 @@ fn game() -> (Vec<u32>, [u32; 3]) {
             c.time_left.addr() as u32,
             c.go_stand_timer.addr() as u32,
             c.finish_flag.addr() as u32,
-            g(0x75870C),
+            CHEAT_VARS.cheats.addr() as u32,
             c.notice_id.addr() as u32,
             c.notice_time_b.addr() as u32,
             c.notice_time.addr() as u32,

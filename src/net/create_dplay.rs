@@ -7,14 +7,13 @@
 //!      register kept), false for the carry
 //! Caller: `net::find_connections`.
 
-use crate::net::lobby::{a, co_create, log};
+use crate::net::lobby::{co_create, log};
 use crate::net::store::NET;
-
-const TEXT: usize = 0x5C2E3A; // "NET: Create dplay"
+use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
 
 /// The Rust version.
 pub fn create_dplay() -> bool {
-    log(a(TEXT), true, 2);
+    log(VIEWER_PANEL.text_addr(texts::NET_CREATE_DPLAY), true, 2);
     co_create(
         NET.clsid_dplay.addr() as u32,
         NET.iid_dplay4a.addr() as u32,

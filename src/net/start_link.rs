@@ -25,9 +25,8 @@ use crate::errors::Refused;
 use crate::menu::names_store::NAME_BUFFERS;
 use crate::net::lobby::log;
 use crate::net::store::PlayerRecord;
+use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
 
-const STARTING: usize = 0x5C2E04; // "NET: Starting link"
-const STOPPING: usize = 0x5C2E17; // "NET: Stopping link"
 const NO_CONNECTION: u32 = 0x154;
 const NO_SESSION: u32 = 0x155;
 
@@ -92,7 +91,7 @@ fn link() -> Result<Way, Refused> {
 /// The Rust version: a network game in `mode` (1 host, 2 join, 3 launched by a lobby).
 pub fn start_link(mode: u32) -> Result<(), Refused> {
     use crate::net::*;
-    log(a(STARTING), true, 2);
+    log(VIEWER_PANEL.text_addr(texts::NET_STARTING_LINK), true, 2);
     NET.mode.set(mode);
     take_player_settings::take_player_settings()?;
     fill_own_player::fill_own_player(NAME_BUFFERS.player_names.addr() as u32)?;
@@ -122,7 +121,7 @@ pub fn start_link(mode: u32) -> Result<(), Refused> {
             }
         }
     }
-    log(a(STOPPING), true, 2);
+    log(VIEWER_PANEL.text_addr(texts::NET_STOPPING_LINK), true, 2);
     stopping::stopping()?;
     crate::sound::play_tune_3::play_tune_3();
     Ok(())

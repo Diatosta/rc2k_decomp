@@ -12,8 +12,7 @@
 //! `????` of both (the thousands digit as one byte: anything above 9999 gives another
 //! character). One caller, `scene::load_object`.
 
-use crate::framework::{game_addr, rva};
-use crate::scene::file_numbers_store::FILE_NUMBERS;
+use crate::scene::file_numbers_store::{FILE_NUMBERS, texts};
 use crate::scene::object_store::OBJECT_WORK;
 
 // ---- game data ----
@@ -21,10 +20,10 @@ use crate::scene::object_store::OBJECT_WORK;
 /// For each folder (`rc2k_core::scene::objects::folder`): the `.ro3` path, the `.lwo`
 /// path, and how far in the number is.
 const FOLDERS: [(usize, usize, usize); 4] = [
-    (rva(0x60AD4E), rva(0x60AD62), 0x0B),
-    (rva(0x60AD76), rva(0x60AD8A), 0x0B),
-    (rva(0x60AD9E), rva(0x60ADB7), 0x10),
-    (rva(0x60ADD0), rva(0x60ADE9), 0x10),
+    (texts::FOLDER_0_RO3, texts::FOLDER_0_LWO, 0x0B),
+    (texts::FOLDER_1_RO3, texts::FOLDER_1_LWO, 0x0B),
+    (texts::FOLDER_2_RO3, texts::FOLDER_2_LWO, 0x10),
+    (texts::FOLDER_3_RO3, texts::FOLDER_3_LWO, 0x10),
 ];
 
 // ---- Rust version ----
@@ -34,10 +33,17 @@ pub unsafe fn set_object_file_names(folder_kind: u32) {
     use rc2k_core::scene::objects::{folder, number_digits};
     unsafe {
         let (ro3, lwo, number) = FOLDERS[folder(folder_kind)];
-        let (ro3_number, lwo_number) = (game_addr(ro3 + number), game_addr(lwo + number));
+        let (ro3_number, lwo_number) = (
+            FILE_NUMBERS.text_addr(ro3 + number),
+            FILE_NUMBERS.text_addr(lwo + number),
+        );
         FILE_NUMBERS.object_ro3_number.set_bits(ro3_number as u32);
-        FILE_NUMBERS.object_ro3_path.set_bits(game_addr(ro3) as u32);
-        FILE_NUMBERS.object_lwo_path.set_bits(game_addr(lwo) as u32);
+        FILE_NUMBERS
+            .object_ro3_path
+            .set_bits(FILE_NUMBERS.text_addr(ro3) as u32);
+        FILE_NUMBERS
+            .object_lwo_path
+            .set_bits(FILE_NUMBERS.text_addr(lwo) as u32);
         FILE_NUMBERS.object_lwo_number.set_bits(lwo_number as u32);
         let digits = number_digits(OBJECT_WORK.loading_kind.bits());
         (ro3_number as *mut [u8; 4]).write(digits);

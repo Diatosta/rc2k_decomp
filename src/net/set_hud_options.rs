@@ -58,7 +58,7 @@ pub fn set_hud_options() {
     }
     RACE_VARS
         .mip_setting
-        .set(crate::gfx::choices_store::SCREEN_CHOICES.switch_copy.get());
+        .set(crate::gfx::choices_store::SCREEN_CHOICES.mipmapping.get());
     for (to, from) in RACE_VARS.settings_words.iter().zip(COPIED_WORDS) {
         to.set(from.get());
     }

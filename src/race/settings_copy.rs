@@ -261,10 +261,7 @@ pub const GRAHAM_TO_SHAUN: [Step<Place>; 446] = [
         var!(RACE_VARS.car_tyres[1]),
         Cell(&RACE_STATE.settings.cars[1].tyre),
     ),
-    Copy(
-        var!(RACE_VARS.mip_setting),
-        var!(SCREEN_CHOICES.switch_copy),
-    ),
+    Copy(var!(RACE_VARS.mip_setting), var!(SCREEN_CHOICES.mipmapping)),
     Copy(
         var!(RACE_VARS.settings_words[0]),
         Cell(&RACE_STATE.settings.setting_0),

@@ -14,10 +14,10 @@
 
 use crate::errors::Refused;
 use crate::net::dplay::{ENUM_SESSIONS, call};
-use crate::net::lobby::{a, log, movsb, zero};
+use crate::net::lobby::{log, movsb, zero};
 use crate::net::store::NET;
+use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
 
-const TEXT: usize = 0x5C2EC7; // "NET: Find sessions"
 const ENUM_FLAGS: u32 = 0x91;
 const CONNECTING: u32 = 0x8877_015E; // DPERR_CONNECTING
 
@@ -62,7 +62,7 @@ pub fn posted_or_called(code: extern "C" fn() -> u32) -> u32 {
 
 /// The Rust version.
 pub fn find_sessions() -> Result<bool, Refused> {
-    log(a(TEXT), true, 2);
+    log(VIEWER_PANEL.text_addr(texts::NET_FIND_SESSIONS), true, 2);
     if NET.dplay.get() == 0 {
         return Ok(false);
     }

@@ -12,7 +12,7 @@
 
 use crate::errors::Refused;
 use crate::files::read_whole_file::read_whole_file;
-use crate::framework::{game_ptr, rva};
+use crate::scene::file_numbers_store::{FILE_NUMBERS, texts};
 use crate::scene::set_object_material::MATERIAL_LEN;
 use crate::service::harness::Region;
 
@@ -28,22 +28,22 @@ struct KindFile {
 /// In the order they are read.
 const FILES: [KindFile; 4] = [
     KindFile {
-        path: rva(0x60AE69), // "files\a\objsinfo"
+        path: texts::OBJECTS_INFO, // an IDA address in `unknown_14`
         first_kind: 0,
         kinds: 0x190,
     },
     KindFile {
-        path: rva(0x60AEA1), // "files\g\frnt\frntinfo"
+        path: texts::FRONT_INFO, // an IDA address in `unknown_14`
         first_kind: 0x258,
         kinds: 0xC8,
     },
     KindFile {
-        path: rva(0x60AE7A), // "files\b\carsinfo"
+        path: texts::CARS_INFO, // an IDA address in `unknown_14`
         first_kind: 0x190,
         kinds: 0xC8,
     },
     KindFile {
-        path: rva(0x60AE8B), // "files\s\extr\extrinfo"
+        path: texts::EXTRAS_INFO, // an IDA address in `unknown_14`
         first_kind: 0x320,
         kinds: 0x190,
     },
@@ -61,7 +61,13 @@ fn records(file: &KindFile) -> Region {
 pub unsafe fn read_kind_records() -> Result<(), Refused> {
     for file in &FILES {
         let (to, room) = records(file);
-        unsafe { read_whole_file(game_ptr(file.path), to as *mut u8, room as u32) }?;
+        unsafe {
+            read_whole_file(
+                FILE_NUMBERS.text_addr(file.path) as *mut u8,
+                to as *mut u8,
+                room as u32,
+            )
+        }?;
     }
     Ok(())
 }

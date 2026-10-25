@@ -3,7 +3,6 @@
 //! overlays, the first car loaded.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::rva;
 use crate::gfx::screen_state::DRAW_SURFACE;
 use crate::physics::ground_store::GROUND_WORK;
 use crate::race::frame_store::FRAME_WORK;
@@ -25,7 +24,6 @@ use crate::scene::light_work_store::LIGHT_WORK;
 use crate::scene::object_store::OBJECT_WORK;
 use crate::scene::object_tables_store::OBJECT_TABLES;
 use crate::session::SCREEN;
-use crate::store::game_addr;
 
 /// `race::full_view_window` (0x455ECB) / `race::full_view_window_2` (0x456004): the view
 /// window the whole screen (`dword_62408C` / `dword_624090` its size, `dword_623FB0` /
@@ -361,11 +359,12 @@ pub unsafe fn draw_screen_tint() -> Result<(), Refused> {
     let mut done = Ok(());
     if a != 0 {
         window_corners();
-        let byte = |x: u32| unsafe { (game_addr(rva(x as usize)) as *const u8).read() };
+        // The two glare bytes (byte_60A574, byte_60A578): the low bytes of two dwords.
+        let byte = |k: usize| STAGE_PREFS.unknown_18c0[k].get() as u8;
         RACE_VARS.quad_colour[0].set(glare_colour(
             STAGE_PREFS.lamp_table_c.get(),
-            byte(0x60A574),
-            byte(0x60A578),
+            byte(0),
+            byte(1),
         ));
         done = unsafe { crate::scene::draw_tinted_quad::draw_tinted_quad() };
     }

@@ -42,6 +42,43 @@ impl core::ops::Deref for InRaceBlock {
 
 pub static FILE_NUMBERS: InRaceBlock = InRaceBlock;
 
+/// The path texts in `unknown_14`, by IDA's address (for `ObjectFileNumbers::text_addr`).
+pub mod texts {
+    pub const FOLDER_0_RO3: usize = 0x60AD4E;
+    pub const FOLDER_0_LWO: usize = 0x60AD62;
+    pub const FOLDER_1_RO3: usize = 0x60AD76;
+    pub const FOLDER_1_LWO: usize = 0x60AD8A;
+    pub const FOLDER_2_RO3: usize = 0x60AD9E;
+    pub const FOLDER_2_LWO: usize = 0x60ADB7;
+    pub const FOLDER_3_RO3: usize = 0x60ADD0;
+    pub const FOLDER_3_LWO: usize = 0x60ADE9;
+    pub const ERROR_LIST_PATH: usize = 0x60AE02;
+    pub const MAP_PATH: usize = 0x60AE12;
+    pub const NUMBER_PLACE_A: usize = 0x60AE0F;
+    pub const NUMBER_PLACE_B: usize = 0x60AE1D;
+    pub const NUMBER_PLACE_C: usize = 0x60AE2F;
+    pub const MAP_KEY: usize = 0x60AE24;
+    pub const TEXTURE_INFO_A: usize = 0x60AE36;
+    pub const MARK_INFO: usize = 0x60AE47;
+    pub const TEXTURE_INFO_B: usize = 0x60AE58;
+    pub const OBJECTS_INFO: usize = 0x60AE69;
+    pub const CARS_INFO: usize = 0x60AE7A;
+    pub const EXTRAS_INFO: usize = 0x60AE8B;
+    pub const FRONT_INFO: usize = 0x60AEA1;
+    pub const CAR_ICON_0: usize = 0x60AEB7;
+    pub const CAR_ICON_1: usize = 0x60AECA;
+    pub const CAR_ICON_2: usize = 0x60AEDD;
+    pub const CAR_ICON_3: usize = 0x60AEF0;
+}
+
+impl ObjectFileNumbers {
+    /// Where the byte at IDA `ida` is, inside the untyped bytes `unknown_14` (the path texts of `texts`).
+    pub fn text_addr(&self, ida: usize) -> usize {
+        assert!((0x60AD34..0x60AF04).contains(&ida));
+        self.unknown_14[0].addr() + (ida - 0x60AD34)
+    }
+}
+
 /// IDA 0x60AD20, the first byte of the piece.
 pub const START: usize = 0x60AD20;
 /// IDA 0x60AF0C, the end of the piece.

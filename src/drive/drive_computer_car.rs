@@ -30,7 +30,6 @@
 //! when the tables are to be read.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, rva};
 use crate::math::x87;
 use crate::math::x87_run::{
     compare_full, float_hypot_to_int, int_toward_to_int, mul2_to_int, times_fist_compare,
@@ -44,10 +43,6 @@ use crate::race::vars_store::RACE_VARS;
 use crate::race::work_store::RACE_WORK;
 use crate::scene::view_matrix::cross_product;
 use rc2k_core::drive::computer_driver as driver;
-
-fn g(x: u32) -> u32 {
-    unsafe { game_read(rva(x as usize)) }
-}
 
 unsafe fn at(addr: u32) -> u32 {
     unsafe { (addr as *const u32).read_unaligned() }
@@ -220,7 +215,7 @@ pub unsafe fn drive_computer_car() -> Result<(), Refused> {
         if driver::eased(want) {
             RACE_WORK.driver_wanted_speed.set(int_toward_to_int(
                 want as i32,
-                g(0x604EC8),
+                crate::race::tables_store::RACE_TABLES.unknown_88c.get(),
                 RACE_WORK.driver_start_blend.bits(),
             ) as u32);
         }

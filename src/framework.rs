@@ -99,7 +99,8 @@ pub unsafe fn game_read<T: Copy>(rva: usize) -> T {
     }
 }
 
-/// Writes a game global.
+/// Writes a game global (the tests' setups).
+#[cfg(test)]
 pub unsafe fn game_write<T: Copy>(rva: usize, value: T) {
     let p = game_ptr::<T>(rva);
     unsafe {

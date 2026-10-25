@@ -22,10 +22,10 @@
 //! room) and a car without its block.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, rva};
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::work_store::RACE_WORK;
 use crate::scene::car_icon_number::car_icon_number;
+use crate::scene::file_numbers_store::{FILE_NUMBERS, texts};
 use crate::scene::kind_texture_store::KIND_TEXTURES;
 use crate::scene::texture_places_store::TEXTURE_PLACES;
 use crate::scene::upload_car_icon::{CarIcon, upload_car_icon};
@@ -33,7 +33,12 @@ use crate::scene::upload_car_icon::{CarIcon, upload_car_icon};
 // ---- game data ----
 // scene::upload_car_icon
 /// `files\b\tx1822.pcx` .. `tx1825.pcx`.
-const NAMES: [usize; 4] = [rva(0x60AEB7), rva(0x60AECA), rva(0x60AEDD), rva(0x60AEF0)];
+const NAMES: [usize; 4] = [
+    texts::CAR_ICON_0,
+    texts::CAR_ICON_1,
+    texts::CAR_ICON_2,
+    texts::CAR_ICON_3,
+];
 
 // ---- Rust version ----
 
@@ -66,8 +71,8 @@ pub unsafe fn load_hud_car_icons() -> Result<(), Refused> {
         for (number, target_y) in numbers.into_iter().zip(car_icons::ROWS) {
             let names = car_icons::pictures(number);
             upload_car_icon(&CarIcon {
-                sheet: game_addr(NAMES[names]) as u32,
-                alpha_sheet: game_addr(NAMES[names + 1]) as u32,
+                sheet: FILE_NUMBERS.text_addr(NAMES[names]) as u32,
+                alpha_sheet: FILE_NUMBERS.text_addr(NAMES[names + 1]) as u32,
                 texture,
                 sheet_x: TEXTURE_PLACES.car_icon_sheet_x[number as usize].get(),
                 sheet_y: TEXTURE_PLACES.car_icon_sheet_y[number as usize].get(),

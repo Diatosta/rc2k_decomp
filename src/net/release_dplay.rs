@@ -10,15 +10,19 @@
 
 use crate::logfile::log_write::log_write;
 use crate::net::dplay::{RELEASE, method};
-use crate::net::lobby::a;
 use crate::net::store::NET;
-
-const TEXT: usize = 0x5C2E4C; // "NET: Destroy dplay"
+use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
 
 /// The Rust version.
 pub fn release_dplay() {
     if NET.dplay.get() != 0 {
-        unsafe { log_write(a(TEXT) as *const u8, true, 2) };
+        unsafe {
+            log_write(
+                VIEWER_PANEL.text_addr(texts::NET_DESTROY_DPLAY) as *const u8,
+                true,
+                2,
+            )
+        };
         unsafe { method(NET.dplay.get(), RELEASE, &[]) };
         NET.dplay.set(0);
     }

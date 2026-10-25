@@ -25,8 +25,8 @@ pub struct ContactWork {
     pub contact_share_numerator: Float,
     /// +0x20 (0x6D1DF8): `flt_6D1DF8`, the factor on the normal part `physics::contact_force` adds (a reading).
     pub contact_normal_factor: Float,
-    /// +0x24 (0x6D1DFC): not named.
-    pub unknown_24: [Dword; 6],
+    /// +0x24 (0x6D1DFC): `byte_6D1DFC`: 24 bytes, the lit faces' blink levels by step (`drive::animate_lit_faces`).
+    pub blink_levels: [Dword; 6],
     /// +0x3c (0x6D1E14): The probe points' x as whole numbers x 65536 plus the car's place (`physics::probe_ground`); `crash_contact`, `crossed_edge_contact`; copied to `saved_probe_x` (`probe_and_keep`, one 0xC0-dword run with y and z lists).
     pub probe_x: [Dword; 64],
     /// +0x13c (0x6D1F14): The probe points' y as whole numbers (`physics::probe_ground`); the first four are the wheels, lowered by `race::car_starts`.

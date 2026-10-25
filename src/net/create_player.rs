@@ -11,10 +11,9 @@
 
 use crate::errors::Refused;
 use crate::net::dplay::{CREATE_PLAYER, call};
-use crate::net::lobby::{a, log, zero};
+use crate::net::lobby::{log, zero};
 use crate::net::store::NET;
-
-const TEXT: usize = 0x5C2F6E; // "NET: Create player"
+use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
 
 /// A DPNAME at `dword_5AB29C` made: zeroed, its size, the short name.
 pub fn dp_name(short_name: u32) -> Result<(), Refused> {
@@ -26,7 +25,7 @@ pub fn dp_name(short_name: u32) -> Result<(), Refused> {
 
 /// The Rust version.
 pub fn create_player() -> Result<bool, Refused> {
-    log(a(TEXT), false, 2);
+    log(VIEWER_PANEL.text_addr(texts::NET_CREATE_PLAYER), false, 2);
     log(NET.player_name.addr() as u32, true, 2);
     dp_name(NET.player_name.addr() as u32)?;
     let result = unsafe {

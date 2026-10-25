@@ -15,16 +15,16 @@
 
 use crate::errors::Refused;
 use crate::net::dplay::{ENUM_CONNECTIONS, call};
-use crate::net::lobby::{a, log};
+use crate::net::lobby::log;
 use crate::net::store::NET;
 use crate::net::{allocate_lists, create_dplay, open_lobby};
+use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
 
-const TEXT: usize = 0x5C2E5F; // "NET: Find connections"
 const DIRECTPLAY_CONNECTIONS: u32 = 1; // DPCONNECTION_DIRECTPLAY
 
 /// The Rust version.
 pub fn find_connections() -> Result<bool, Refused> {
-    log(a(TEXT), true, 2);
+    log(VIEWER_PANEL.text_addr(texts::NET_FIND_CONNECTIONS), true, 2);
     if NET.receive_done.get() == 1 || !open_lobby::open_lobby()? {
         return Ok(false);
     }

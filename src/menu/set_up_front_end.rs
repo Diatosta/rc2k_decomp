@@ -20,18 +20,29 @@
 //! original's, for reference.
 
 use crate::errors::Refused;
+use crate::menu::champ_store::CHAMP_VIEW;
 use crate::menu::draw_work_store::DRAW_WORK;
 use crate::menu::loop_store::LOOP_FLAGS;
+use crate::menu::option_work_store::OPTION_WORK;
 use crate::saves::best_times_store::BEST_TIMES;
 use crate::saves::default_times::to_the_log;
+use crate::session::Dword;
 use crate::sound::store::SOUND_OPTIONS;
 
 // ---- game data ----
 
 /// Where each of the nine tables of `saves::allocate_best_times` (`BEST_TIMES.tables`:
-/// `dword_747618`, `dword_747620` .. `dword_747658`, in order) is copied to, by IDA's address.
-const COPIES: [usize; 9] = [
-    0x7556F4, 0x7556D4, 0x7556D8, 0x7556DC, 0x7556E0, 0x7556EC, 0x7556F0, 0x7556E4, 0x7556E8,
+/// `dword_747618`, `dword_747620` .. `dword_747658`, in order) is copied to.
+const COPIES: [fn() -> &'static Dword; 9] = [
+    || &CHAMP_VIEW.summary,
+    || &CHAMP_VIEW.best_scores,
+    || &CHAMP_VIEW.stage_best_times,
+    || &CHAMP_VIEW.level_best_scores,
+    || &CHAMP_VIEW.course_best_times,
+    || &CHAMP_VIEW.ranked_times,
+    || &CHAMP_VIEW.champ_history,
+    || &CHAMP_VIEW.stage_best_times_alt,
+    || &CHAMP_VIEW.time_trial_best_times,
 ];
 
 /// The record tables that get made-up records: the championship's and the twelve events'
@@ -72,19 +83,17 @@ pub unsafe fn set_up_front_end(stage: u32, x: u32) -> Result<(), Refused> {
         // The two dwords: the music volumes, then the tables' copies.
         SOUND_OPTIONS
             .music_volume
-            .set(crate::store::ida_read::<u32>(0x755688));
+            .set(OPTION_WORK.music_level.get());
         SOUND_OPTIONS
             .race_music_volume
-            .set(crate::store::ida_read::<u32>(0x75568C));
+            .set(OPTION_WORK.other_volume.get());
         allocate_best_times::allocate_best_times(
             BEST_TIMES.vars(),
             BEST_TIMES.list(),
             crate::records::stages_store::STAGE_TABLES.championship() as *const u8,
         )?;
         for (table, to) in BEST_TIMES.tables.iter().zip(COPIES) {
-            // The destinations are named by IDA's address (`moved::place`).
-            let value = table.address.get();
-            crate::store::ida_write(to, value);
+            to().set(table.address.get());
         }
         if BEST_TIMES.loaded.get() != 1 {
             DRAW_WORK.work_0c.set(0u32);

@@ -12,12 +12,11 @@
 
 use crate::errors::Refused;
 use crate::field;
-use crate::net::lobby::{a, copy_printable, log, log_hex, movsb, session};
+use crate::net::lobby::{copy_printable, log, log_hex, movsb, session};
 use crate::net::store::NET;
 use crate::net::types::{DpSessionDesc, NetSession};
+use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
 use rc2k_core::net::lists::{self, Found};
-
-const FOUND: usize = 0x5C2E75; // "NET: Found"
 
 fn get(at: u32) -> u32 {
     unsafe { (at as *const u32).read_unaligned() }
@@ -26,7 +25,7 @@ fn get(at: u32) -> u32 {
 /// The Rust version: eax.
 pub fn session_found(args: &[u32]) -> Result<u32, Refused> {
     let (desc, flags) = (args[0], args[2]);
-    log(a(FOUND), false, 2);
+    log(VIEWER_PANEL.text_addr(texts::NET_FOUND), false, 2);
     log_hex(flags, false);
     if desc != 0 {
         log(get(desc + 0x30), false, 2);

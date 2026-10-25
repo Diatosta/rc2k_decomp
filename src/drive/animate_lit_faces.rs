@@ -30,7 +30,6 @@
 //! refusals mid-way (what it wrote is put back first).
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, rva};
 use crate::physics::contact_store::CONTACT_WORK;
 use crate::physics::ground_store::GROUND_WORK;
 use crate::race::blocks_store::CAR_BLOCKS;
@@ -42,7 +41,6 @@ use rc2k_core::drive::lit_faces::{
 };
 
 const MOST: u32 = 0x100;
-const BLINK_RVA: usize = rva(0x6D1DFC); // byte_6D1DFC
 
 unsafe fn at(p: u32) -> u32 {
     unsafe { (p as *const u32).read_unaligned() }
@@ -148,7 +146,11 @@ unsafe fn animate_faces() -> Result<(), Refused> {
                     .read();
                 match kind {
                     1 | 9 => {
-                        blink(&mut bytes, |n| game_read::<u8>(BLINK_RVA + n as usize)).is_none()
+                        blink(&mut bytes, |n| {
+                            // byte_6D1DFC: the step is below 0x18 (`BLINK_STEPS`).
+                            (CONTACT_WORK.blink_levels[n as usize / 4].get() >> (8 * (n % 4))) as u8
+                        })
+                        .is_none()
                     }
                     2 => rise(&mut bytes, step, RISE_TOP).0,
                     3 | 8 => align(&mut bytes, step).0,

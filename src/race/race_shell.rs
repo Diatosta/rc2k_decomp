@@ -1,7 +1,6 @@
 //! The race's shell (`sub_4843EC`, `single_rally`'s race, and `sub_443F0B`, IDA
 //! 2026-10-17): what runs round a stage's loading and its run. Here its small leaves.
 
-use crate::framework::rva;
 use crate::gfx::screen_state::SCREEN_MODE;
 use crate::input::store::DEVICES;
 use crate::race::blocks_store::CAR_BLOCKS;
@@ -12,9 +11,7 @@ use crate::race::state_store::RACE_STATE;
 use crate::race::tables_store::RACE_TABLES;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
-use crate::store::game_read;
 
-pub const KIND_ORDER_RVA: usize = rva(0x6051E0); // dword_6051E0: 0x22 kinds
 pub const KIND_ORDER_LEN: u32 = rc2k_core::race::cars::KIND_ORDER_LEN;
 
 /// `race::release_controls` (0x409425): `dword_4F7DE4` 2. Every register kept.
@@ -43,8 +40,10 @@ pub fn kind_unusable(eax: u32) -> (bool, bool) {
 /// first of equals), 0 for none.
 pub unsafe fn index_of_kind(kind: u32) -> u32 {
     // Converted: `rc2k_core::race::cars::index_of_kind`; the table read entry by entry.
-    let order =
-        (0..KIND_ORDER_LEN).map(|n| unsafe { game_read::<u32>(KIND_ORDER_RVA + 4 * n as usize) });
+    // dword_6051E0: 0x22 kinds, but `unknown_ba4` holds 32: the last two are the two dwords
+    // after it (`view_share`, `camera_turn_step`), read as the original does.
+    let first = crate::race::tables_store::RACE_TABLES.unknown_ba4[0].addr() as *const u32;
+    let order = (0..KIND_ORDER_LEN).map(|n| unsafe { first.add(n as usize).read() });
     rc2k_core::race::cars::index_of_kind(kind, order).unwrap_or(0)
 }
 

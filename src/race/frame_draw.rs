@@ -394,10 +394,11 @@ pub unsafe fn wake_part_sounds() -> Result<(), Refused> {
     }
 }
 
-fn g(a: u32) -> u32 {
-    crate::framework::game_addr(rva(a as usize)) as u32
+/// `dword_604EC8[]`: the car at each place (from place 0); the table runs on from
+/// `unknown_88c` into `arcade_car_kinds`, and the place indexes it unchecked.
+fn car_by_place() -> u32 {
+    crate::race::tables_store::RACE_TABLES.unknown_88c.addr() as u32
 }
-const CAR_BY_PLACE: u32 = 0x604EC8; // dword_604EC8[]: the car at each place (from place 0)
 
 /// `race::panel_neighbours` (0x45AD36): in mode 2 (`dword_62389C`), the first view's place
 /// (+0x654) and its neighbours into the panel: `dword_6D141A` the place, `dword_6D141E`
@@ -413,7 +414,7 @@ pub unsafe fn panel_neighbours() -> Result<(), Refused> {
         }
         let a: u32 = RACE_VIEW.view_blocks[0].get();
         let place = get(a + 0x654);
-        let table = |base: u32| get(g(base).wrapping_add(place.wrapping_mul(4)));
+        let table = |base: u32| get(base.wrapping_add(place.wrapping_mul(4)));
         // The place indexes unchecked, as the original does (`number_before_first` is
         // the entry at place -1).
         let numbers = |first: usize| get((first as u32).wrapping_add(place.wrapping_mul(4)));
@@ -427,8 +428,8 @@ pub unsafe fn panel_neighbours() -> Result<(), Refused> {
             }
             Ok(b)
         };
-        let behind = block_of(table(CAR_BY_PLACE + 4))?;
-        let ahead = block_of(table(CAR_BY_PLACE))?;
+        let behind = block_of(table(car_by_place() + 4))?;
+        let ahead = block_of(table(car_by_place()))?;
         PANEL.view_a.place.set(place);
         PANEL.view_a.time.set(get(a + 0x8C).wrapping_mul(10));
         // Converted: `rc2k_core::race::frame::neighbour_number` (and the labels'
@@ -608,8 +609,8 @@ unsafe fn check_panel_neighbours() -> Result<(), Refused> {
             return Ok(());
         }
         let place = get(RACE_VIEW.view_blocks[0].get() + 0x654);
-        for base in [CAR_BY_PLACE, CAR_BY_PLACE + 4] {
-            let car = get(g(base).wrapping_add(place.wrapping_mul(4)));
+        for base in [car_by_place(), car_by_place() + 4] {
+            let car = get(base.wrapping_add(place.wrapping_mul(4)));
             if car > 7 || crate::race::work_store::RACE_WORK.car_block(car as usize) == 0 {
                 return Err(BadInput("a neighbour's car past the eight or null").into());
             }

@@ -115,18 +115,6 @@ pub unsafe fn ida_read<T: Copy>(at: impl Ida) -> T {
     }
 }
 
-/// Writes the variable named by `at` (an IDA address, or a typed cell).
-pub unsafe fn ida_write<T: Copy>(at: impl Ida, value: T) {
-    let p = at.here() as *mut T;
-    unsafe {
-        if p.is_aligned() {
-            p.write_volatile(value)
-        } else {
-            p.write_unaligned(value)
-        }
-    }
-}
-
 /// The address of `place`.
 pub fn game_addr(place: impl Where) -> usize {
     place.address()

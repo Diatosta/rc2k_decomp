@@ -11,10 +11,8 @@
 //!   (`race::spread_camera`, dh the old value).
 
 use crate::errors::Refused;
-use crate::physics::flow::a;
 use crate::race::replay_file_store::REPLAY_FILE;
 use crate::race::replay_work_store::REPLAY_WORK;
-use crate::race::viewer::CAMERA_NAMES;
 use crate::race::viewer_state_store::REPLAY_VIEW;
 
 /// `edit_camera_1` / `_2` (eax the block shown is left; its caller, `viewer_action`,
@@ -33,7 +31,7 @@ pub fn edit_camera(camera: u32) {
 }
 
 fn name_of(camera: u8) -> u16 {
-    unsafe { (a(CAMERA_NAMES + 2 * camera as usize) as *const u16).read_unaligned() }
+    crate::race::viewer_screen_store::VIEWER_PANEL.camera_name(camera as usize)
 }
 
 /// `next_camera` (`step` 1) and `previous_camera` (-1). What they leave their caller,

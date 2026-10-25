@@ -15,11 +15,10 @@ use crate::race::replay_work_store::REPLAY_WORK;
 use crate::race::switches_store::FRAME_SWITCHES;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::work_store::RACE_WORK;
+use crate::scene::file_numbers_store::{FILE_NUMBERS, texts};
 use crate::scene::light_work_store::LIGHT_WORK;
 const BAR_RVA: usize = rva(0x4467C7); // sub_4467C7: the loading bar's 3D frame
 const BAR_DONE_RVA: usize = rva(0x4467C6); // nullsub_8
-const MAP_PATH_RVA: usize = rva(0x60AE12); // "srcmaps\map"
-const MAP_KEY_RVA: usize = rva(0x60AE24); // unk_60AE24
 
 /// The step words ("LOADLEVEL_INIT : start" .. "finis"), in order.
 const WORDS: [&std::ffi::CStr; 28] = [
@@ -233,8 +232,8 @@ pub unsafe fn loadlevel_init() -> Result<(), Refused> {
         s.log();
         s.indent(3);
         crate::race::game_map::load_game_map(
-            game_addr(MAP_PATH_RVA) as u32,
-            game_addr(MAP_KEY_RVA) as u32,
+            FILE_NUMBERS.text_addr(texts::MAP_PATH) as u32,
+            FILE_NUMBERS.text_addr(texts::MAP_KEY) as u32,
         )?;
         s.progress(0x5A)?;
         s.indent(-3);

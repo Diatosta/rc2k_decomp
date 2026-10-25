@@ -15,12 +15,10 @@
 use crate::errors::Refused;
 use crate::net::dplay::{OPEN, call};
 use crate::net::find_sessions::{posted_or_called, zeroed_description};
-use crate::net::lobby::{a, log, log_hex, movsb, zero};
+use crate::net::lobby::{log, log_hex, movsb, zero};
 use crate::net::store::NET;
+use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
 
-const HOST: usize = 0x5C2EDA; // "NET: Host"
-pub const OPENED: usize = 0x5C2EE4; // "NET: Open"
-const COMPLETE: usize = 0x5C2EEE; // "NET: Host complete"
 const OPEN_CREATE: u32 = 2; // DPOPEN_CREATE
 pub const OPEN_JOIN: u32 = 1; // DPOPEN_JOIN
 
@@ -36,7 +34,7 @@ pub extern "C" fn posted_open_host() -> u32 {
 
 /// The Rust version.
 pub fn host_session() -> Result<bool, Refused> {
-    log(a(HOST), false, 2);
+    log(VIEWER_PANEL.text_addr(texts::NET_HOST), false, 2);
     log(NET.machine_name.addr() as u32, true, 2);
     if NET.dplay.get() == 0 {
         return Ok(false);
@@ -70,7 +68,7 @@ pub fn host_session() -> Result<bool, Refused> {
     finish(
         posted_open_host,
         crate::net::create_group::create_group,
-        COMPLETE,
+        VIEWER_PANEL.text_addr(texts::NET_HOST_COMPLETE),
     )
 }
 
@@ -80,10 +78,10 @@ pub fn host_session() -> Result<bool, Refused> {
 pub fn finish(
     posted: extern "C" fn() -> u32,
     then: fn() -> Result<bool, Refused>,
-    done: usize,
+    done: u32,
 ) -> Result<bool, Refused> {
     let result = posted_or_called(posted);
-    log(a(OPENED), false, 2);
+    log(VIEWER_PANEL.text_addr(texts::NET_OPEN), false, 2);
     log_hex(result, true);
     crate::system::restore_window::restore_window();
     if result != 0 {
@@ -93,6 +91,6 @@ pub fn finish(
     if !crate::net::create_player::create_player()? || !then()? {
         return Ok(false);
     }
-    log(a(done), true, 2);
+    log(done, true, 2);
     Ok(true)
 }

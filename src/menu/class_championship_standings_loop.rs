@@ -15,8 +15,8 @@ use crate::menu::draw_lists_store::DRAW_LISTS;
 use crate::menu::flow_store::SCREEN_FLOW;
 use crate::menu::menus_store::MENUS;
 use crate::menu::screen_items_store::{SCREEN_ITEMS, slot};
-use crate::menu::screen_loop::raw;
 use crate::menu::screen_loop::{Callee, List, Screen, Step};
+use crate::menu::state_store::MENU_STATE;
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
@@ -64,7 +64,7 @@ pub const SCREEN: Screen = Screen {
     escape_leaves: false,
     each_frame: &[],
     short_action_check: false,
-    leave_at_once: Some(|| raw(rva(0x75AB34))),
+    leave_at_once: Some(|| &MENU_STATE.menus.standings_shown),
     next_frame_repeats_first: false,
     action_saved_item: None,
     action_menu: None,

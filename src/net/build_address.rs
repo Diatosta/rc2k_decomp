@@ -17,16 +17,15 @@
 use crate::errors::Refused;
 use crate::net::add_address_element::add_address_element;
 use crate::net::dplay::{CREATE_COMPOUND_ADDRESS, call};
-use crate::net::lobby::{a, connection, log, net_allocate};
+use crate::net::lobby::{connection, log, net_allocate};
 use crate::net::store::NET;
+use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
 use crate::system::same_guid::same_guid;
 use rc2k_core::net::address::{self, Provider};
 
-const TEXT: usize = 0x5C2EBD; // "NET: DPCA"
-
 /// The Rust version.
 pub fn build_address(connection_number: u32) -> Result<bool, Refused> {
-    log(a(TEXT), true, 2);
+    log(VIEWER_PANEL.text_addr(texts::NET_DPCA), true, 2);
     if NET.lobby.get() == 0 {
         return Ok(false);
     }

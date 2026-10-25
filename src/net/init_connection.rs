@@ -11,21 +11,23 @@
 use crate::errors::Refused;
 use crate::net::build_address::build_address;
 use crate::net::dplay::{INITIALIZE_CONNECTION, call};
-use crate::net::lobby::{a, log, log_hex, log_int_nl};
+use crate::net::lobby::{log, log_hex, log_int_nl};
 use crate::net::store::NET;
-
-const TEXT: usize = 0x5C2E80; // "NET: Init connection index"
-const INIT: usize = 0x5C2E9B; // "NET: Init"
+use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
 
 /// The Rust version.
 pub fn init_connection(connection: u32) -> Result<bool, Refused> {
-    log(a(TEXT), false, 2);
+    log(
+        VIEWER_PANEL.text_addr(texts::NET_INIT_CONNECTION_INDEX),
+        false,
+        2,
+    );
     log_int_nl(connection, 2);
     if NET.dplay.get() == 0 || !build_address(connection)? {
         return Ok(false);
     }
     let result = unsafe { call(&NET.dplay, INITIALIZE_CONNECTION, &[NET.address.get(), 0]) };
-    log(a(INIT), false, 2);
+    log(VIEWER_PANEL.text_addr(texts::NET_INIT), false, 2);
     log_hex(result, true);
     Ok(result == 0)
 }

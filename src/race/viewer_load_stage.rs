@@ -27,10 +27,8 @@ use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::replay_file_store::REPLAY_FILE;
 use crate::race::replay_work_store::REPLAY_WORK;
 use crate::race::state_store::RACE_STATE;
-use crate::race::viewer::gb;
 use crate::session::Dword;
 
-const DOOR: usize = 0x719C8C; // byte_719C8C
 const DOOR_TEXT: &std::ffi::CStr = c"doornr="; // "doornr="
 /// (to, from): the header's settings.
 fn settings() -> [(&'static Dword, &'static Dword); 5] {
@@ -80,7 +78,8 @@ pub fn viewer_load_stage() -> Result<(), Refused> {
             .settings
             .race_mode
             .set(crate::sound::store::RACE_SOUNDS.one_player.get());
-        let door = gb(DOOR) as u32;
+        // byte_719C8C: the low byte of the first dword of `unknown_7d0`.
+        let door = REPLAY_WORK.unknown_7d0[0].get() & 0xFF;
         RACE_STATE.settings.cars[0].race_number.set(door);
         CAR_BLOCKS.cars[0].start_slot_value.set(door);
         unsafe {

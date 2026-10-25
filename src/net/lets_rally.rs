@@ -19,19 +19,18 @@
 //! Caller: `net::start_link`.
 
 use crate::errors::Refused;
-use crate::net::lobby::{a, log, run_frame};
+use crate::net::lobby::{log, run_frame};
 use crate::net::store::NET;
 use crate::race::state_store::RACE_STATE;
+use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
 use rc2k_core::net::record;
-
-const TEXT: usize = 0x5C2E2A; // "NET: Lets rally"
 
 /// The Rust version: true when the original ends with the carry set (no player but the
 /// host, Escape, or the car not finished: the link ends).
 pub fn lets_rally() -> Result<bool, Refused> {
     use crate::race::sound_tables;
     unsafe {
-        log(a(TEXT), true, 2);
+        log(VIEWER_PANEL.text_addr(texts::NET_LETS_RALLY), true, 2);
         NET.racing.set(1);
         let own = &NET.player_block(NET.player.get()).record;
         RACE_STATE.settings.race_mode.set(1);
