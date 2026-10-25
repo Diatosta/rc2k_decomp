@@ -18,13 +18,15 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::event_flow::*;
+use crate::menu::event_store::EVENT_STATE;
 use crate::menu::screen_loop::run_screen_carried;
 use crate::menu::state_store::MENU_STATE;
+use crate::session::Dword;
 
-const SERVICE_TIME: usize = 0x75593C; // dword_75593C
-const GOES_ON: usize = 0x75592C; // dword_75592C
-const OUT: usize = 0x755978; // dword_755978
-const DUE: usize = 0x755938; // dword_755938
+const SERVICE_TIME: &Dword = &EVENT_STATE.service_minutes; // dword_75593C
+const GOES_ON: &Dword = &EVENT_STATE.event_goes_on; // dword_75592C
+const OUT: &Dword = &EVENT_STATE.event_out; // dword_755978
+const DUE: &Dword = &EVENT_STATE.service_due; // dword_755938
 
 /// The Rust version. `f` the registers the caller carries; the original keeps every
 /// register of it (`pusha` .. `popa`).

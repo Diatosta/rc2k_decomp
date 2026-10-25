@@ -12,53 +12,55 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{game_read, game_write, rva};
+use crate::framework::rva;
+use crate::menu::draw_lists_store::DRAW_LISTS;
+use crate::menu::flow_store::SCREEN_FLOW;
+use crate::menu::menus_store::MENUS;
+use crate::menu::screen_items_store::{SCREEN_ITEMS, slot};
 use crate::menu::screen_loop::{Callee, Carried, List, Screen, Step, screen_entry};
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
 unsafe fn before(c: &mut Carried) -> Result<(), Refused> {
-    unsafe {
-        c.measure_x = game_read(rva(0x7478B4));
-        game_write(rva(0x747718), c.measure_x);
-    }
+    c.measure_x = SCREEN_ITEMS.first[slot::VISUAL_PREFERENCES].get();
+    SCREEN_ITEMS.current[slot::VISUAL_PREFERENCES].set(c.measure_x);
     Ok(())
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: rva(0x748280),
-    saved_item: rva(0x747718),
+    menu: || MENUS.visual_preferences.addr(),
+    saved_item: || &SCREEN_ITEMS.current[slot::VISUAL_PREFERENCES],
     lists: &[
         List {
-            pointer: rva(0x7554F4), // g_unreadList
-            table: rva(0x758B72),
+            pointer: || &SCREEN_FLOW.unread_list, // g_unreadList
+            table: || DRAW_LISTS.unread_758b72.addr(),
             run: false,
         },
         List {
-            pointer: rva(0x7554F8), // g_drawList
-            table: rva(0x758CAA),
+            pointer: || &SCREEN_FLOW.draw_list, // g_drawList
+            table: || DRAW_LISTS.draw_758caa.addr(),
             run: false,
         },
         List {
-            pointer: rva(0x7554FC), // g_overlayList
-            table: rva(0x7591E2),
+            pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
+            table: || DRAW_LISTS.overlay_7591e2.addr(),
             run: false,
         },
     ],
     first_frame_lists: Some(&[
         List {
-            pointer: rva(0x755504), // g_sceneList
-            table: rva(0x759006),
+            pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
+            table: || DRAW_LISTS.visual_preferences_scene.addr(),
             run: false,
         },
         List {
-            pointer: rva(0x7554F8), // g_drawList
-            table: rva(0x758CAA),
+            pointer: || &SCREEN_FLOW.draw_list, // g_drawList
+            table: || DRAW_LISTS.draw_758caa.addr(),
             run: false,
         },
         List {
-            pointer: rva(0x7554FC), // g_overlayList
-            table: rva(0x7591E2),
+            pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
+            table: || DRAW_LISTS.overlay_7591e2.addr(),
             run: false,
         },
     ]),
@@ -69,7 +71,11 @@ pub const SCREEN: Screen = Screen {
     prepare: &[],
     after_lists: &[],
     background: &[
-        Step::ArgAddr(rva(0x731DF9)),
+        Step::ArgAddr(|| {
+            crate::menu::texts_store::MENU_TEXTS
+                .visual_preferences_picture
+                .addr()
+        }),
         Step::CallOrFatal(Callee::LoadBackground, 0x80712345),
     ],
     after_first_frame: &[],

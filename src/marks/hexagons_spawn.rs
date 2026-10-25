@@ -28,6 +28,7 @@ unsafe fn rate() {
         rate_x87(
             crate::race::store::asm_base() as usize,
             crate::marks::store::base() as usize,
+            &KEPT,
         )
     }
 }
@@ -60,12 +61,13 @@ pub unsafe fn hexagons_spawn() {
 }
 
 use crate::marks::plain::{ld, st, st16};
+use crate::marks::view_vectors::{KEPT, KeptView};
 use crate::math::x87_float as bh;
 
 /// `rate`'s x87 block as plain Rust on the x87 model (18 instructions), same order and memory places.
-unsafe fn rate_x87(rc: usize, mk: usize) {
+unsafe fn rate_x87(rc: usize, mk: usize, kv: &KeptView) {
     unsafe {
-        let t0 = ld(mk, 0x42FE);
+        let t0 = bh::ld(kv.first_angle.bits());
         let t1 = t0 + ld(mk, 0xACC83);
         let t2 = t1.sin();
         let t3 = t2 * ld(mk, 0xAF7E8);
@@ -73,7 +75,7 @@ unsafe fn rate_x87(rc: usize, mk: usize) {
         let t4 = ld(mk, 0xAF7E8);
         let t5 = t4 * ld(mk, 0xACCA7);
         let t6 = -t5;
-        let t7 = ld(mk, 0x42FE);
+        let t7 = bh::ld(kv.first_angle.bits());
         let t8 = t7 + ld(mk, 0xACC83);
         let t9 = t8.cos();
         let t10 = t6 * t9;
@@ -124,7 +126,9 @@ mod asm_reference {
 mod asm_differential {
     use super::asm_reference as reference;
     use crate::marks::asm_test::Kind::*;
+    use crate::marks::asm_test::with_copy;
     use crate::marks::asm_test::{Op, Spec, differential};
+    use crate::marks::view_vectors::KeptView;
 
     #[test]
     fn rate_x87_matches() {
@@ -137,7 +141,7 @@ mod asm_differential {
                     writes: &[(0x31C814, Status)],
                 },
                 Op::Base {
-                    lo: 0x42FE,
+                    lo: 0x42F6,
                     hi: 0xC9372,
                     reads: &[
                         (0x42FE, F32),
@@ -156,7 +160,11 @@ mod asm_differential {
         differential(
             &SPEC,
             |b| unsafe { reference::rate_x87(b[0], b[1]) },
-            |b| unsafe { super::rate_x87(b[0], b[1]) },
+            |b| {
+                with_copy(b[1], KeptView::START, |kv| unsafe {
+                    super::rate_x87(b[0], b[1], kv)
+                })
+            },
         );
     }
 }

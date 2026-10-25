@@ -11,7 +11,6 @@ use crate::store::game_addr;
 pub const CAPS_LEN: usize = std::mem::size_of::<crate::input::types::DiDevCaps>();
 pub const CONTROLLER_LEN: u32 = std::mem::size_of::<crate::input::types::Controller>() as u32;
 pub const CONTROLLERS: u32 = rc2k_core::input::joystick::CONTROLLERS;
-pub const IID_DEVICE2_RVA: usize = rva(0x4F7E18); // IID_IDirectInputDevice2A
 pub const JOYSTICK_FORMAT_RVA: usize = rva(0x4D7220); // c_dfDIJoystick
 /// A record's six effects: where they start, and each one's size.
 pub const EFFECTS_AT: u32 = crate::field!(crate::input::types::InputDevice, effects);

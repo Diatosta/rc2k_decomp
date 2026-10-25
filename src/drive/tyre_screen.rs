@@ -1,8 +1,8 @@
 //! `drive::tyre_screen` (0x41C5FA): the tyre-change screen for the mode eax (0: one table;
 //! 2: two, for car esi, the wheel's place 0xAA further left; else two more) and car esi:
-//! its layout's 0x20 bytes (`unk_5BEB30` .. `unk_5BEBB0`) into `dword_5BEAD0` (16) and
-//! `dword_5BEBD0` (16), the wheel's place (`dword_5BEAE0`, `5BEAE4`: the panel's middle
-//! less the wheel's half), the car into `dword_5BEBEC`; the texture (`dword_5BEBE4`,
+//! its layout's 0x20 bytes (`TyreChange::layouts`) into `panel` (16) and
+//! `parts` (16), the wheel's place (`wheel`: the panel's middle
+//! less the wheel's half), the car into `player`; the texture (`device_texture`,
 //! place 0) and eleven render states (place 1); the panel and wheel quads (place 2), the
 //! wheel turned by the car's input device (place 3), the fixed parts (place 4). All in
 //! `pusha` / `popa`.
@@ -15,7 +15,8 @@
 
 use crate::drive::tyre_parts::*;
 use crate::errors::Refused;
-use crate::physics::flow::{a, g, p};
+use crate::race::tyre_store::TYRE_CHANGE as TYRE;
+use crate::session::address_of;
 use rc2k_core::drive::tyre_screen::{layout, wheel_place};
 
 const STATES: [(u32, u32); 11] = [
@@ -39,27 +40,37 @@ pub unsafe fn tyre_screen(mode: u32, car: u32) -> Result<(), Refused> {
         return Err(crate::errors::BadInput("a car past 7 (g_inputDevices)").into());
     }
     let (number, shift) = layout(mode, car);
-    let table = 0x5BEB30 + 0x20 * number as usize;
-    unsafe {
-        std::ptr::copy(a(table) as *const u8, a(0x5BEAD0) as *mut u8, 16);
-        std::ptr::copy((a(table) + 16) as *const u8, a(0x5BEBD0) as *mut u8, 16);
+    let table = 8 * number as usize;
+    for k in 0..4 {
+        TYRE.panel[k].set(TYRE.layouts[table + k].get());
     }
-    let panel = std::array::from_fn(|k| g(0x5BEAD0 + 4 * k));
-    let [x, y] = wheel_place(panel, [g(0x5BEAE8), g(0x5BEAEC)], shift);
-    p(0x5BEAE0, x);
-    p(0x5BEAE4, y);
-    p(0x5BEBEC, car);
+    for k in 0..4 {
+        TYRE.parts[k].set(TYRE.layouts[table + 4 + k].get());
+    }
+    let panel = std::array::from_fn(|k| TYRE.panel[k].get());
+    let [x, y] = wheel_place(panel, [TYRE.wheel[2].get(), TYRE.wheel[3].get()], shift);
+    TYRE.wheel[0].set(x);
+    TYRE.wheel[1].set(y);
+    TYRE.player.set(car);
     let device = crate::input::store::DEVICES.input_device(car as usize);
-    set_texture(g(0x5BEBE4));
+    set_texture(TYRE.device_texture.get());
     for (value, state) in STATES {
         set_render_state(value, state);
     }
     unsafe {
-        crate::drive::tyre_quad::tyre_quad(a(0x5BEB00), a(0x5BEAD0), 0xFF_FFFF)?;
-        crate::drive::tyre_quad::tyre_quad(a(0x5BEB10), a(0x5BEAE0), 0xFF_FFFF)?;
+        crate::drive::tyre_quad::tyre_quad(
+            address_of(&TYRE.panel_texture) as u32,
+            address_of(&TYRE.panel) as u32,
+            0xFF_FFFF,
+        )?;
+        crate::drive::tyre_quad::tyre_quad(
+            address_of(&TYRE.wheel_texture) as u32,
+            address_of(&TYRE.wheel) as u32,
+            0xFF_FFFF,
+        )?;
         crate::drive::tyre_turned_quad::tyre_turned_quad(
-            a(0x5BEB20),
-            a(0x5BEAF0),
+            address_of(&TYRE.turning_texture) as u32,
+            address_of(&TYRE.turning_rect) as u32,
             0xFF_FFFF,
             device,
         )?;

@@ -16,7 +16,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::marks::blend_corner::blend_corner;
-use crate::marks::lines::{SETTINGS_RVA, measure_lines};
+use crate::marks::lines::measure_lines;
 use crate::marks::store::{Slot, game_read, game_write};
 use crate::scene::objects::{
     FIRST_POINT_RVA, POINT_COUNTS_RVA, POINTS_ROOM_RVA, POINTS_RVA, SLOTS,
@@ -102,7 +102,7 @@ unsafe fn refusal(settings: u32) -> Option<&'static str> {
 
 /// The Rust version (see the header).
 pub unsafe fn morph_object_points() -> Result<(), Refused> {
-    let settings: u32 = unsafe { game_read(SETTINGS_RVA) };
+    let settings: u32 = crate::marks::setup::SETTINGS.pointer.get();
     if let Some(why) = unsafe { refusal(settings) } {
         return Err(BadInput(why).into());
     }

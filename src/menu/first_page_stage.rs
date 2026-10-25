@@ -7,22 +7,20 @@
 //! Out: unchanged up to ten; else eax the first stage, edx n % 10, ebp 10
 //!
 //! Callers: the event pages' code.
-use crate::framework::{game_read, game_write, rva};
+use crate::menu::champ_store::CHAMP_VIEW;
 use rc2k_core::menu::event::LastPage;
 
-const COUNT_RVA: usize = rva(0x7556B4); // dword_7556B4
-const FIRST_RVA: usize = rva(0x7556B8); // dword_7556B8
 /// The first stage of the last page (stored in `dword_7556B8`, 1 for a single page), and
 /// what the original leaves in the registers: for more than one page, eax that first
 /// stage, edx the stages on the last page (count % 10), ebp 10.
 pub unsafe fn first_page_stage() -> Option<LastPage> {
-    let n: u32 = unsafe { game_read(COUNT_RVA) };
+    let n: u32 = { CHAMP_VIEW.count.get() };
     // Converted: `rc2k_core::menu::event::last_page` (its division cannot meet 0).
     let Some(last) = rc2k_core::menu::event::last_page(n) else {
-        unsafe { game_write(FIRST_RVA, 1u32) };
+        CHAMP_VIEW.first_row.set(1u32);
         return None;
     };
-    unsafe { game_write(FIRST_RVA, last.first) };
+    CHAMP_VIEW.first_row.set(last.first);
     Some(last)
 }
 

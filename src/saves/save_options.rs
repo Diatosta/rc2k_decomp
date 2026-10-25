@@ -9,9 +9,7 @@
 
 use crate::errors::Refused;
 use crate::files::write_file::write_file;
-use crate::framework::game_addr;
 use crate::saves::load_options::OPTIONS;
-use crate::settings::TEXT_RVA;
 use crate::system::packed_local_time::packed_local_time;
 
 // ---- game data ----
@@ -28,7 +26,7 @@ pub fn file_len() -> usize {
 /// True if the file was written.
 pub unsafe fn save_options(path: *const u8) -> Result<bool, Refused> {
     unsafe {
-        let file = game_addr(TEXT_RVA) as *mut u8;
+        let file = crate::files::scratch::SCRATCH.buffer.addr() as *mut u8;
         // Converted: `rc2k_core::saves::kept::options_file`, put together in the scratch
         // block as the original does.
         let pieces: Vec<&[u8]> = OPTIONS

@@ -22,18 +22,18 @@
 
 use crate::errors::{FatalError, Refused};
 use crate::framework::rva;
-use crate::gfx::block::{game_addr, game_read, game_write};
-use crate::gfx::build_glyphs::{BUILDER_FLAGS_RVA, TABLE_RVA, build_glyphs};
+use crate::gfx::build_glyphs::SHEET;
+use crate::gfx::build_glyphs::build_glyphs;
+use crate::gfx::decoder::DECODER;
 use crate::gfx::glyph_builder::RUN_LENGTHS;
 use crate::gfx::glyph_tables::{
-    TABLES_LIST_RVA, TABLES_UNITS_RVA, begin_glyph_table, begin_glyph_tables, end_glyph_tables,
-    palette_to_pixels,
+    TABLES, begin_glyph_table, begin_glyph_tables, end_glyph_tables, palette_to_pixels,
 };
-use crate::gfx::pcx::PALETTE_RVA;
-use crate::memory::MemoryList;
+use crate::gfx::typefaces::FONTS;
 use crate::memory::allocate::allocate;
 use crate::memory::take_from_list::{rewind_list, take_from_list};
 use crate::session::SCREEN;
+use crate::store::{game_addr, game_read, game_write};
 
 // ---- game data ----
 
@@ -61,134 +61,143 @@ const F13: usize = FONT13_RVA;
 const F21: usize = FONT21_RVA;
 const F23: usize = FONT23_RVA;
 const F27: usize = FONT27_RVA;
-/// The stores, in the original's order: (where, the variable stored, plus this much).
+/// Which field of a font object a store sets.
+#[derive(Clone, Copy)]
+enum Field {
+    Palette,
+    GlyphTable,
+}
+use Field::{GlyphTable, Palette};
+
+/// The stores, in the original's order: (the font object's number, its field, the variable
+/// stored, plus this much).
 #[rustfmt::skip]
-const HUNG: [(u32, usize, u32); 125] = [
-    (0x51E3B8, P, 0x0),
-    (0x51E3BC, F13, 0x0),
-    (0x51E3F8, P, 0x300),
-    (0x51E3FC, F13, 0x0),
-    (0x51E3D8, P, 0x300),
-    (0x51E3DC, F13, 0x0),
-    (0x51E418, P, 0x300),
-    (0x51E41C, F13, 0x0),
-    (0x51E438, P, 0x0),
-    (0x51E43C, F21, 0x0),
-    (0x51E478, P, 0x180),
-    (0x51E47C, F21, 0x0),
-    (0x51E498, P, 0x180),
-    (0x51E49C, F21, 0x0),
-    (0x51E458, P, 0x180),
-    (0x51E45C, F21, 0x0),
-    (0x51E4D8, P, 0x200),
-    (0x51E4DC, F21, 0x0),
-    (0x51E4F8, P, 0x200),
-    (0x51E4FC, F21, 0x0),
-    (0x51E4B8, P, 0x200),
-    (0x51E4BC, F21, 0x0),
-    (0x51E538, P, 0x80),
-    (0x51E53C, F21, 0x0),
-    (0x51E558, P, 0x80),
-    (0x51E55C, F21, 0x0),
-    (0x51E518, P, 0x80),
-    (0x51E51C, F21, 0x0),
-    (0x51E598, P, 0x0),
-    (0x51E59C, F21, 0x0),
-    (0x51E578, P, 0x0),
-    (0x51E57C, F21, 0x0),
-    (0x51E5B8, P, 0x0),
-    (0x51E5BC, F21, 0x0),
-    (0x51E5F8, P, 0x380),
-    (0x51E5FC, F21, 0x0),
-    (0x51E5D8, P, 0x380),
-    (0x51E5DC, F21, 0x0),
-    (0x51E618, P, 0x380),
-    (0x51E61C, F21, 0x0),
-    (0x51E638, P, 0x0),
-    (0x51E63C, F23, 0x0),
-    (0x51E678, P, 0x80),
-    (0x51E67C, F23, 0x0),
-    (0x51E658, P, 0x80),
-    (0x51E65C, F23, 0x0),
-    (0x51E698, P, 0x80),
-    (0x51E69C, F23, 0x0),
-    (0x51E6D8, P, 0x0),
-    (0x51E6DC, F23, 0x0),
-    (0x51E6B8, P, 0x0),
-    (0x51E6BC, F23, 0x0),
-    (0x51E6F8, P, 0x0),
-    (0x51E6FC, F23, 0x0),
-    (0x51E738, P, 0x380),
-    (0x51E73C, F23, 0x0),
-    (0x51E718, P, 0x380),
-    (0x51E71C, F23, 0x0),
-    (0x51E758, P, 0x380),
-    (0x51E75C, F23, 0x0),
-    (0x51E798, P, 0x340),
-    (0x51E79C, F23, 0x0),
-    (0x51E778, P, 0x340),
-    (0x51E77C, F23, 0x0),
-    (0x51E7B8, P, 0x340),
-    (0x51E7BC, F23, 0x0),
-    (0x51E7F8, P, 0x180),
-    (0x51E7FC, F23, 0x0),
-    (0x51E7D8, P, 0x180),
-    (0x51E7DC, F23, 0x0),
-    (0x51E818, P, 0x180),
-    (0x51E81C, F23, 0x0),
-    (0x51E838, P, 0x0),
-    (0x51E83C, F27, 0x0),
-    (0x51E878, P, 0x80),
-    (0x51E87C, F27, 0x0),
-    (0x51E858, P, 0x80),
-    (0x51E85C, F27, 0x0),
-    (0x51E898, P, 0x80),
-    (0x51E89C, F27, 0x0),
-    (0x51E8D8, P, 0x0),
-    (0x51E8DC, F27, 0x0),
-    (0x51E8B8, P, 0x0),
-    (0x51E8BC, F27, 0x0),
-    (0x51E8F8, P, 0x0),
-    (0x51E8FC, F27, 0x0),
-    (0x51E938, P, 0x100),
-    (0x51E93C, F27, 0x0),
-    (0x51E918, P, 0x100),
-    (0x51E91C, F27, 0x0),
-    (0x51E958, P, 0x100),
-    (0x51E95C, F27, 0x0),
-    (0x51E998, P, 0x380),
-    (0x51E99C, F27, 0x0),
-    (0x51E978, P, 0x380),
-    (0x51E97C, F27, 0x0),
-    (0x51E9B8, P, 0x380),
-    (0x51E9BC, F27, 0x0),
-    (0x51EA58, P, 0x340),
-    (0x51EA5C, F27, 0x0),
-    (0x51EA38, P, 0x340),
-    (0x51EA3C, F27, 0x0),
-    (0x51EA78, P, 0x340),
-    (0x51EA7C, F27, 0x0),
-    (0x51E9F8, P, 0x180),
-    (0x51E9FC, F27, 0x0),
-    (0x51E9D8, P, 0x180),
-    (0x51E9DC, F27, 0x0),
-    (0x51EA18, P, 0x180),
-    (0x51EA1C, F27, 0x0),
-    (0x51EA98, P, 0xC0),
-    (0x51EA9C, F27, 0x0),
-    (0x51EABC, F27, 0x0),
-    (0x51EAF8, P, 0x300),
-    (0x51EAFC, F13, 0x0),
-    (0x51EAD8, P, 0x300),
-    (0x51EADC, F13, 0x0),
-    (0x51EB18, P, 0x300),
-    (0x51EB1C, F13, 0x0),
-    (0x51EB58, P, 0x0),
-    (0x51EB5C, F21, 0x0),
-    (0x51EB38, P, 0x0),
-    (0x51EB3C, F21, 0x0),
-    (0x51EB78, P, 0x0),
-    (0x51EB7C, F21, 0x0),
+const HUNG: [(usize, Field, usize, u32); 125] = [
+    (0, Palette, P, 0x0),
+    (0, GlyphTable, F13, 0x0),
+    (2, Palette, P, 0x300),
+    (2, GlyphTable, F13, 0x0),
+    (1, Palette, P, 0x300),
+    (1, GlyphTable, F13, 0x0),
+    (3, Palette, P, 0x300),
+    (3, GlyphTable, F13, 0x0),
+    (4, Palette, P, 0x0),
+    (4, GlyphTable, F21, 0x0),
+    (6, Palette, P, 0x180),
+    (6, GlyphTable, F21, 0x0),
+    (7, Palette, P, 0x180),
+    (7, GlyphTable, F21, 0x0),
+    (5, Palette, P, 0x180),
+    (5, GlyphTable, F21, 0x0),
+    (9, Palette, P, 0x200),
+    (9, GlyphTable, F21, 0x0),
+    (10, Palette, P, 0x200),
+    (10, GlyphTable, F21, 0x0),
+    (8, Palette, P, 0x200),
+    (8, GlyphTable, F21, 0x0),
+    (12, Palette, P, 0x80),
+    (12, GlyphTable, F21, 0x0),
+    (13, Palette, P, 0x80),
+    (13, GlyphTable, F21, 0x0),
+    (11, Palette, P, 0x80),
+    (11, GlyphTable, F21, 0x0),
+    (15, Palette, P, 0x0),
+    (15, GlyphTable, F21, 0x0),
+    (14, Palette, P, 0x0),
+    (14, GlyphTable, F21, 0x0),
+    (16, Palette, P, 0x0),
+    (16, GlyphTable, F21, 0x0),
+    (18, Palette, P, 0x380),
+    (18, GlyphTable, F21, 0x0),
+    (17, Palette, P, 0x380),
+    (17, GlyphTable, F21, 0x0),
+    (19, Palette, P, 0x380),
+    (19, GlyphTable, F21, 0x0),
+    (20, Palette, P, 0x0),
+    (20, GlyphTable, F23, 0x0),
+    (22, Palette, P, 0x80),
+    (22, GlyphTable, F23, 0x0),
+    (21, Palette, P, 0x80),
+    (21, GlyphTable, F23, 0x0),
+    (23, Palette, P, 0x80),
+    (23, GlyphTable, F23, 0x0),
+    (25, Palette, P, 0x0),
+    (25, GlyphTable, F23, 0x0),
+    (24, Palette, P, 0x0),
+    (24, GlyphTable, F23, 0x0),
+    (26, Palette, P, 0x0),
+    (26, GlyphTable, F23, 0x0),
+    (28, Palette, P, 0x380),
+    (28, GlyphTable, F23, 0x0),
+    (27, Palette, P, 0x380),
+    (27, GlyphTable, F23, 0x0),
+    (29, Palette, P, 0x380),
+    (29, GlyphTable, F23, 0x0),
+    (31, Palette, P, 0x340),
+    (31, GlyphTable, F23, 0x0),
+    (30, Palette, P, 0x340),
+    (30, GlyphTable, F23, 0x0),
+    (32, Palette, P, 0x340),
+    (32, GlyphTable, F23, 0x0),
+    (34, Palette, P, 0x180),
+    (34, GlyphTable, F23, 0x0),
+    (33, Palette, P, 0x180),
+    (33, GlyphTable, F23, 0x0),
+    (35, Palette, P, 0x180),
+    (35, GlyphTable, F23, 0x0),
+    (36, Palette, P, 0x0),
+    (36, GlyphTable, F27, 0x0),
+    (38, Palette, P, 0x80),
+    (38, GlyphTable, F27, 0x0),
+    (37, Palette, P, 0x80),
+    (37, GlyphTable, F27, 0x0),
+    (39, Palette, P, 0x80),
+    (39, GlyphTable, F27, 0x0),
+    (41, Palette, P, 0x0),
+    (41, GlyphTable, F27, 0x0),
+    (40, Palette, P, 0x0),
+    (40, GlyphTable, F27, 0x0),
+    (42, Palette, P, 0x0),
+    (42, GlyphTable, F27, 0x0),
+    (44, Palette, P, 0x100),
+    (44, GlyphTable, F27, 0x0),
+    (43, Palette, P, 0x100),
+    (43, GlyphTable, F27, 0x0),
+    (45, Palette, P, 0x100),
+    (45, GlyphTable, F27, 0x0),
+    (47, Palette, P, 0x380),
+    (47, GlyphTable, F27, 0x0),
+    (46, Palette, P, 0x380),
+    (46, GlyphTable, F27, 0x0),
+    (48, Palette, P, 0x380),
+    (48, GlyphTable, F27, 0x0),
+    (53, Palette, P, 0x340),
+    (53, GlyphTable, F27, 0x0),
+    (52, Palette, P, 0x340),
+    (52, GlyphTable, F27, 0x0),
+    (54, Palette, P, 0x340),
+    (54, GlyphTable, F27, 0x0),
+    (50, Palette, P, 0x180),
+    (50, GlyphTable, F27, 0x0),
+    (49, Palette, P, 0x180),
+    (49, GlyphTable, F27, 0x0),
+    (51, Palette, P, 0x180),
+    (51, GlyphTable, F27, 0x0),
+    (55, Palette, P, 0xC0),
+    (55, GlyphTable, F27, 0x0),
+    (56, GlyphTable, F27, 0x0),
+    (58, Palette, P, 0x300),
+    (58, GlyphTable, F13, 0x0),
+    (57, Palette, P, 0x300),
+    (57, GlyphTable, F13, 0x0),
+    (59, Palette, P, 0x300),
+    (59, GlyphTable, F13, 0x0),
+    (61, Palette, P, 0x0),
+    (61, GlyphTable, F21, 0x0),
+    (60, Palette, P, 0x0),
+    (60, GlyphTable, F21, 0x0),
+    (62, Palette, P, 0x0),
+    (62, GlyphTable, F21, 0x0),
 ];
 
 // ---- Rust version ----
@@ -198,31 +207,33 @@ const HUNG: [(u32, usize, u32); 125] = [
 /// reports its own.)
 unsafe fn tables(palettes: *mut u32) -> Result<(), Refused> {
     unsafe {
-        let list = game_addr(TABLES_LIST_RVA) as *mut MemoryList;
-        let bytes = game_read::<u32>(TABLES_UNITS_RVA)
+        let list = TABLES.memory.as_ptr();
+        let bytes = TABLES
+            .units
+            .get()
             .wrapping_mul(0x400)
             .wrapping_mul(SCREEN.bytes.get());
         allocate(list, bytes)?;
         rewind_list(list);
         begin_glyph_tables()?;
-        game_write(BUILDER_FLAGS_RVA, RUN_LENGTHS);
+        DECODER.builder_flags.set(RUN_LENGTHS);
         palettes.write_unaligned(take_from_list(list, 0x400)?.unwrap_or(0));
         begin_glyph_table(list)?;
         build_glyphs(
             crate::gfx::texts::address(&crate::gfx::texts::PAL_00) as *const u8,
             list,
         )?;
-        game_write(FONT27_RVA, game_read::<u32>(TABLE_RVA));
+        game_write(FONT27_RVA, SHEET.table.get());
         palette_to_pixels(palettes.read_unaligned() as *mut u32)?;
         std::ptr::copy(
-            game_addr(PALETTE_RVA) as *const u8,
+            DECODER.palette_ptr() as *const u8,
             game_addr(PALETTE_COPY_RVA) as *mut u8,
             PALETTE_BYTES,
         );
         for (sheet, kept) in font_sheets() {
             begin_glyph_table(list)?;
             build_glyphs(sheet as *const u8, list)?;
-            game_write(kept, game_read::<u32>(TABLE_RVA));
+            game_write(kept, SHEET.table.get());
         }
         end_glyph_tables()?;
         Ok(())
@@ -244,8 +255,13 @@ pub unsafe fn build_fonts() -> Result<(), Refused> {
             .into());
         }
         tables(game_addr(PALETTES_RVA) as *mut u32)?;
-        for (place, variable, plus) in HUNG {
-            game_write(rva(place as usize), hung_value(variable, plus));
+        for (font, field, variable, plus) in HUNG {
+            let object = &FONTS.objects[font];
+            let value = hung_value(variable, plus);
+            match field {
+                Palette => object.palette.set(value),
+                GlyphTable => object.glyph_table.set(value),
+            }
         }
         Ok(())
     }

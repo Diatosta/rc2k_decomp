@@ -10,13 +10,11 @@
 //! Platform: the original always runs, here it is only noted. In the standalone
 //! program, and for a recording that swallows, the number is kept and nothing more.
 
-use crate::framework::{game_write, rva};
-
-pub const CURRENT_RVA: usize = rva(0x5AB93C); // g_currentTexture
+use crate::d3d::cards_store::CARDS_3D;
 
 /// The texture polygons are drawn with from now on (the standalone keeps its number).
 /// Its leftover ecx (0) is read by none of the original's callers (register liveness,
 /// 2026-10-23).
 pub fn set_texture(texture: u32) {
-    unsafe { game_write(CURRENT_RVA, texture) };
+    CARDS_3D.current_texture.set(texture);
 }

@@ -15,8 +15,8 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{game_read, game_write, rva};
-use crate::menu::name_lists::SAVEGAME_PAGE_RVA;
+use crate::menu::pages_store::MENU_PAGES;
+use crate::saves::preview_store::SAVEGAME_PREVIEW;
 use crate::saves::read_savegame_slot::read_savegame_slot;
 use crate::screens::draw_empty_savegame::draw_empty_savegame;
 use crate::screens::draw_savegame_details::draw_savegame_details;
@@ -24,9 +24,6 @@ use crate::service::state::menu_item;
 use crate::text::draw_text::Canvas;
 
 // ---- game data ----
-
-const SHOWN_SLOT_RVA: usize = rva(0x755148); // dword_755148
-const NOTHING_TO_SHOW_RVA: usize = rva(0x75514C); // dword_75514C
 
 // ---- Rust version ----
 
@@ -36,22 +33,22 @@ pub unsafe fn draw_savegame_preview(canvas: &mut dyn Canvas) -> Result<bool, Ref
     // are converted in their own functions.
     use rc2k_core::screens::savegame_preview::{NO_SLOT, Preview, preview};
     unsafe {
-        let page = game_read::<u32>(SAVEGAME_PAGE_RVA);
-        match preview(menu_item(), page, game_read(SHOWN_SLOT_RVA)) {
+        let page = MENU_PAGES.save_page.get();
+        match preview(menu_item(), page, SAVEGAME_PREVIEW.shown_slot.get()) {
             Preview::NoSlot => {
-                game_write(NOTHING_TO_SHOW_RVA, 1u32);
-                game_write(SHOWN_SLOT_RVA, NO_SLOT);
+                SAVEGAME_PREVIEW.nothing_to_show.set(1u32);
+                SAVEGAME_PREVIEW.shown_slot.set(NO_SLOT);
                 return draw_empty_savegame(canvas);
             }
             Preview::Slot { slot, read: true } => {
                 // Refused before anything is written: a slot past the list.
                 let found = read_savegame_slot(slot)?;
-                game_write(SHOWN_SLOT_RVA, slot);
-                game_write(NOTHING_TO_SHOW_RVA, !found as u32);
+                SAVEGAME_PREVIEW.shown_slot.set(slot);
+                SAVEGAME_PREVIEW.nothing_to_show.set(!found as u32);
             }
             Preview::Slot { .. } => {}
         }
-        if game_read::<u32>(NOTHING_TO_SHOW_RVA) == 1 {
+        if SAVEGAME_PREVIEW.nothing_to_show.get() == 1 {
             draw_empty_savegame(canvas)
         } else {
             draw_savegame_details(canvas)

@@ -16,15 +16,12 @@
 //! The place 8 has no item on the pages (it is not drawn either).
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::input::take_key::take_key;
+use crate::menu::keys_store::KEY_TABLES;
+use crate::menu::option_work_store::OPTION_WORK;
 use crate::menu::player::Player;
 
 pub use rc2k_core::menu::player::{KEYS, Redefined};
-pub const KEYS_RVA: usize = rva(0x755595); // g_redefinedKeys
-pub const REDEFINING_RVA: usize = rva(0x7556AC); // g_redefiningKey
-pub const PLACE_RVA: usize = rva(0x7556B0); // g_redefinedKeyPlace
-pub const RESERVED_RVA: usize = rva(0x755621); // g_reservedKeys
 pub const NO_PLACE: u32 = 999;
 /// The reserved list's length is not known; the game's has 18 keys.
 const RESERVED_ROOM: usize = 0x100;
@@ -33,8 +30,9 @@ const KEYS_OFFSET: u32 = std::mem::offset_of!(Player, keys) as u32;
 
 /// The reserved keys, up to their NUL; `None` if there is none in `RESERVED_ROOM`.
 fn reserved() -> Option<Vec<u8>> {
-    let list =
-        unsafe { std::slice::from_raw_parts(game_addr(RESERVED_RVA) as *const u8, RESERVED_ROOM) };
+    let list = unsafe {
+        std::slice::from_raw_parts(KEY_TABLES.reserved_keys.addr() as *const u8, RESERVED_ROOM)
+    };
     list.iter()
         .position(|&b| b == 0)
         .map(|end| list[..end].to_vec())
@@ -43,14 +41,14 @@ fn reserved() -> Option<Vec<u8>> {
 /// One frame of redefining a key of `player` (0: refused).
 pub unsafe fn redefine_key(player: u32) -> Result<(), Refused> {
     unsafe {
-        if game_read::<u32>(REDEFINING_RVA) == 0 {
+        if OPTION_WORK.redefining_key.get() == 0 {
             return Ok(());
         }
         // Everything that could be refused, before the key is taken.
         if player == 0 {
             return Err(BadInput("no player").into());
         }
-        let place: u32 = game_read(PLACE_RVA);
+        let place: u32 = OPTION_WORK.redefined_key_place.get();
         if place as usize >= KEYS {
             return Err(BadInput("a key's place of 12 or more").into());
         }
@@ -58,7 +56,7 @@ pub unsafe fn redefine_key(player: u32) -> Result<(), Refused> {
             return Err(BadInput("a reserved list without its end").into());
         };
         // Converted: `rc2k_core::menu::player::redefine`.
-        let work = game_addr(KEYS_RVA) as *mut [u8; KEYS];
+        let work = KEY_TABLES.redefined_keys.addr() as *mut [u8; KEYS];
         let Redefined::Done { keys, placed } =
             rc2k_core::menu::player::redefine(work.read(), place as usize, take_key(), &reserved)
         else {
@@ -66,10 +64,10 @@ pub unsafe fn redefine_key(player: u32) -> Result<(), Refused> {
         };
         work.write(keys);
         if placed {
-            game_write(PLACE_RVA, NO_PLACE);
+            OPTION_WORK.redefined_key_place.set(NO_PLACE);
         }
         ((player + KEYS_OFFSET) as *mut [u8; KEYS]).write_unaligned(keys);
-        game_write(REDEFINING_RVA, 0u32);
+        OPTION_WORK.redefining_key.set(0u32);
     }
     Ok(())
 }

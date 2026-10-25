@@ -9,13 +9,13 @@
 //! the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, rva};
+use crate::framework::rva;
+use crate::menu::event_store::EVENT_STATE;
 use crate::menu::lists_store::MENU_LISTS;
 use crate::screens::car_caption::put_string;
 
 // ---- game data ----
 
-const PAGE_RVA: usize = rva(0x755998); // dword_755998
 const TITLE_RVA: usize = rva(0xA8BF54); // byte_A8BF54
 const TITLE_LEN: usize = 0x100;
 const PAGES: u32 = 4;
@@ -24,7 +24,7 @@ const PAGES: u32 = 4;
 
 pub unsafe fn car_page_title() -> Result<(), Refused> {
     unsafe {
-        let page: u32 = game_read(PAGE_RVA);
+        let page: u32 = EVENT_STATE.car_page.get();
         if page >= PAGES {
             return Err(BadInput("a page past the four").into());
         }

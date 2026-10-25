@@ -15,29 +15,31 @@
 //! the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::framework::{game_write, rva};
+use crate::menu::cheats_store::CHEAT_VARS;
+use crate::menu::flow_store::SCREEN_FLOW;
 use crate::menu::table_calls::call_listed;
 use crate::platform::{lock_surface, show_frame_now, unlock_surface};
+use crate::session::Dword;
 use crate::text::draw_text::GameCanvas;
 use rc2k_core::menu::notice;
 
 // ---- game data ----
 
-const DRAW_LIST_RVA: usize = rva(0x7554F8); // g_drawList
-const SCENE_LIST_RVA: usize = rva(0x755504); // g_sceneList
-const OVERLAY_LIST_RVA: usize = rva(0x7554FC); // g_overlayList
+const DRAW_LIST: &Dword = &SCREEN_FLOW.draw_list; // g_drawList
+const SCENE_LIST: &Dword = &SCREEN_FLOW.scene_list; // g_sceneList
+const OVERLAY_LIST: &Dword = &SCREEN_FLOW.overlay_list; // g_overlayList
 const SCENE_STATE_RVA: usize = rva(0x6365CC); // dword_6365CC
-const NOTICE_DUE_RVA: usize = rva(0x7585D8); // dword_7585D8: set to 1 by the main menu before a frame
-const NOTICE_FONT_RVA: usize = rva(0x51E404); // stru_51E404
+const NOTICE_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::NOTICE;
 const END: u32 = u32::MAX;
 
 // ---- Rust version ----
 
 /// Runs the functions of the list `list` points at (the original keeps the registers
 /// around each of the scene list's; its functions take none either way).
-pub unsafe fn run_listed(list: usize) -> Result<(), Refused> {
+pub unsafe fn run_listed(list: &Dword) -> Result<(), Refused> {
     unsafe {
-        let mut at: u32 = game_read(list);
+        let mut at: u32 = list.get();
         while (at as *const u32).read_unaligned() != END {
             call_listed((at as *const u32).read_unaligned())?;
             at = at.wrapping_add(4);
@@ -75,24 +77,24 @@ pub unsafe fn frame_callback(menu: u32, palette: u32, measure_x: u32) -> Result<
         }
         copy_picture()?;
         draw_menu(menu, palette, measure_x)?;
-        run_listed(DRAW_LIST_RVA)?;
+        run_listed(DRAW_LIST)?;
         unlock_surface();
         game_write(SCENE_STATE_RVA, 4u32);
         crate::scene::begin_scene::begin_scene();
-        run_listed(SCENE_LIST_RVA)?;
+        run_listed(SCENE_LIST)?;
         crate::scene::end_scene::end_scene();
         if lock_failed() {
             return Ok(false);
         }
-        run_listed(OVERLAY_LIST_RVA)?;
+        run_listed(OVERLAY_LIST)?;
         // Converted: `rc2k_core::menu::notice::drawn_now`.
         if notice::drawn_now(crate::strings::load_language::notice_kind(), || {
-            game_read(NOTICE_DUE_RVA)
+            CHEAT_VARS.notice_due.get()
         }) {
-            game_write(NOTICE_DUE_RVA, 0u32);
+            CHEAT_VARS.notice_due.set(0u32);
             crate::text::draw_string_by_id::draw_string_by_id_at(
                 notice::STRING,
-                game_addr(NOTICE_FONT_RVA) as *mut crate::text::font::Font,
+                NOTICE_FONT.as_ptr(),
                 notice::AT.0 as i32,
                 notice::AT.1 as i32,
                 &mut GameCanvas,

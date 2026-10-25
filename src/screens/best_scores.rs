@@ -8,23 +8,24 @@
 //! `rc2k_core::screens::best_scores` draws through `game_screen::GameScreen`.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, game_read, rva};
+use crate::framework::{game_addr, rva};
+use crate::menu::arcade_store::ARCADE_GAME;
+use crate::menu::champ_store::CHAMP_VIEW;
+use crate::menu::event_store::EVENT_STATE;
 use crate::menu::lists_store::MENU_LISTS;
+use crate::menu::pages_store::MENU_PAGES;
 use crate::screens::game_screen::GameScreen;
+use crate::session::Dword;
 use crate::text::draw_text::Canvas;
 use rc2k_core::screens::best_scores::{Row, Rows};
 
-fn k(a: u32) -> u32 {
-    unsafe { game_read(rva(a as usize)) }
-}
-
-const PAGE: u32 = 0x755240; // dword_755240
+const PAGE: &Dword = &MENU_PAGES.scores_page; // dword_755240
 pub const CAPTION_RVA: usize = rva(0xA8BE54); // g_captionText
 
 /// A table's layout: where it is, its group and entry sizes, and the entry's name, value
 /// and car offsets (the nationality is +8).
 pub struct Table {
-    pub at: u32,
+    pub at: &'static Dword,
     pub group: u32,
     pub entry: u32,
     pub name: u32,
@@ -34,7 +35,7 @@ pub struct Table {
     /// The best scores keep the last row's y in `dword_7559B0`.
     pub keeps_y: bool,
     /// Where the group's number is: a dword, or (None) `dword_75A2D6[page]`.
-    pub group_at: Option<u32>,
+    pub group_at: Option<&'static Dword>,
     /// A fixed group instead.
     pub group_fixed: Option<u32>,
     /// An entry with this field 1 is drawn in the highlight fonts (0x51E524 / 0x51E544).
@@ -44,7 +45,7 @@ pub struct Table {
 }
 
 pub const BEST_SCORES: Table = Table {
-    at: 0x7556D4,
+    at: &CHAMP_VIEW.best_scores,
     group: 0x258,
     entry: 0x3C,
     name: 0x18,
@@ -57,7 +58,7 @@ pub const BEST_SCORES: Table = Table {
     sprite_dy: 0,
 };
 pub const CLASS_TIMES: Table = Table {
-    at: 0x7556DC,
+    at: &CHAMP_VIEW.level_best_scores,
     group: 0x320,
     entry: 0x50,
     name: 0x20,
@@ -72,14 +73,14 @@ pub const CLASS_TIMES: Table = Table {
 /// `screens::draw_class_times_marked`'s (0x48AB87): the class `dword_7587EC`, the player's
 /// own times (+0x40 1) in the highlight fonts, the sprites 4 lower.
 pub const MARKED_CLASS_TIMES: Table = Table {
-    at: 0x7556DC,
+    at: &CHAMP_VIEW.level_best_scores,
     group: 0x320,
     entry: 0x50,
     name: 0x20,
     value: 0x14,
     car: 0x10,
     keeps_y: true,
-    group_at: Some(0x7587EC),
+    group_at: Some(&ARCADE_GAME.level),
     group_fixed: None,
     highlight: Some(0x40),
     sprite_dy: 4,
@@ -126,14 +127,14 @@ fn ends_of(first: u32, size: u32) -> impl Fn(u32) -> bool {
 pub unsafe fn draw_scores(t: &Table, canvas: &mut dyn Canvas) -> Result<(), Refused> {
     // Converted: `rc2k_core::screens::best_scores::scores`.
     unsafe {
-        let base = k(t.at);
+        let base = t.at.get();
         if base == 0 {
             return Err(BadInput("no best scores table").into());
         }
         let group = match (t.group_fixed, t.group_at) {
             (Some(g), _) => g,
-            (None, Some(a)) => k(a),
-            (None, None) => ((MENU_LISTS.page_titles_b[0].addr() as u32 + 4 * k(PAGE))
+            (None, Some(a)) => a.get(),
+            (None, None) => ((MENU_LISTS.page_titles_b[0].addr() as u32 + 4 * PAGE.get())
                 as *const u32)
                 .read_unaligned(),
         };
@@ -153,7 +154,7 @@ pub unsafe fn draw_scores(t: &Table, canvas: &mut dyn Canvas) -> Result<(), Refu
 /// the class times.
 pub unsafe fn draw_best_scores_page(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     unsafe {
-        if (k(PAGE) as i32) <= 4 {
+        if (PAGE.get() as i32) <= 4 {
             draw_scores(&BEST_SCORES, canvas)
         } else {
             draw_scores(&CLASS_TIMES, canvas)
@@ -167,7 +168,7 @@ pub unsafe fn best_scores_caption() -> Result<(), Refused> {
     // Converted: `rc2k_core::screens::captions::fit` (through `car_caption::put_string`); refused
     // where the original writes past the caption's 0x100 bytes.
     unsafe {
-        let id = ((MENU_LISTS.page_titles_a[0].addr() as u32 + 4 * k(PAGE)) as *const u32)
+        let id = ((MENU_LISTS.page_titles_a[0].addr() as u32 + 4 * PAGE.get()) as *const u32)
             .read_unaligned();
         crate::screens::car_caption::put_string(id, CAPTION_RVA, 0x100)
     }
@@ -177,7 +178,7 @@ pub unsafe fn best_scores_caption() -> Result<(), Refused> {
 /// m = n + 19 (`strings::append_u32`, `append_minus`). Every register kept.
 pub unsafe fn replay_range_caption() {
     // Converted: `rc2k_core::screens::best_scores::range_caption`.
-    let mut bytes = rc2k_core::screens::best_scores::range_caption(k(0x755248));
+    let mut bytes = rc2k_core::screens::best_scores::range_caption(MENU_PAGES.replay_page.get());
     bytes.push(0);
     unsafe {
         std::ptr::copy_nonoverlapping(
@@ -193,7 +194,7 @@ pub struct StageTimes {
     /// The stage record's table (the records 0xA4 bytes; +0x38 the stage's name string, +0x3C
     /// its times' number) and the record's number.
     pub records: fn() -> u32,
-    pub record: u32,
+    pub record: &'static Dword,
     /// The times' table (groups of 0x618 bytes; entries 0x9C bytes: +8 the nationality, +0x10
     /// the car, +0x14 the time, +0x20 the name, +0x40 the player's own).
     pub table: fn() -> u32,
@@ -205,41 +206,41 @@ pub struct StageTimes {
 fn champ_records() -> u32 {
     unsafe {
         let table =
-            ((game_addr(rva(0x735512)) as u32 + 4 * k(0x7558C8)) as *const u32).read_unaligned();
+            crate::records::stages_store::STAGE_TABLES.group_list(EVENT_STATE.stage_group.get());
         if table == 0 {
             return 0;
         }
-        ((table + 4 * k(0x7558D0)) as *const u32).read_unaligned()
+        ((table + 4 * EVENT_STATE.stage_sub.get()) as *const u32).read_unaligned()
     }
 }
 
 fn champ_table() -> u32 {
-    if k(0x7558C8) == 1 {
-        k(0x7556E4)
+    if EVENT_STATE.stage_group.get() == 1 {
+        CHAMP_VIEW.stage_best_times_alt.get()
     } else {
-        k(0x7556E8)
+        CHAMP_VIEW.time_trial_best_times.get()
     }
 }
 
 fn rally_records() -> u32 {
-    unsafe { ((game_addr(rva(0x73555A)) as u32 + 4 * k(0x7587EC)) as *const u32).read_unaligned() }
+    crate::records::stages_store::STAGE_TABLES.level_table(ARCADE_GAME.level.get())
 }
 
 fn rally_table() -> u32 {
-    k(0x7556E0)
+    CHAMP_VIEW.course_best_times.get()
 }
 
 /// `screens::draw_stage_times`' (0x48D0F2).
 pub const STAGE_TIMES: StageTimes = StageTimes {
     records: champ_records,
-    record: 0x7558CC,
+    record: &EVENT_STATE.stage_number,
     table: champ_table,
     rally: false,
 };
 /// `screens::draw_rally_stage_times`' (0x48A948).
 pub const RALLY_STAGE_TIMES: StageTimes = StageTimes {
     records: rally_records,
-    record: 0x7587F0,
+    record: &ARCADE_GAME.stage,
     table: rally_table,
     rally: true,
 };
@@ -256,7 +257,7 @@ pub unsafe fn draw_times_heading(p: &StageTimes, canvas: &mut dyn Canvas) -> Res
             return Err(BadInput("no stage records").into());
         }
         let id = ((base + 0x38) as *const u32).read_unaligned();
-        let record = base.wrapping_add(k(p.record).wrapping_mul(0xA4));
+        let record = base.wrapping_add(p.record.get().wrapping_mul(0xA4));
         let line = || -> Result<Vec<u8>, Refused> { stage_line_without_nul(0x482, record) };
         rc2k_core::screens::best_scores::heading(&mut ScoresScreen::new(canvas), id, Some(&line))
     }
@@ -286,7 +287,7 @@ pub unsafe fn draw_stage_times(p: &StageTimes, canvas: &mut dyn Canvas) -> Resul
             return Err(BadInput("no stage records or times table").into());
         }
         draw_times_heading(p, canvas)?;
-        let record = base.wrapping_add(k(p.record).wrapping_mul(0xA4));
+        let record = base.wrapping_add(p.record.get().wrapping_mul(0xA4));
         let group = ((record + 0x3C) as *const u32).read_unaligned();
         let entry = (p.table)().wrapping_add(group.wrapping_mul(0x618));
         let keep = if p.rally { Keep::Below4 } else { Keep::Nothing };
@@ -320,24 +321,23 @@ pub unsafe fn draw_time_rows(
     )
 }
 
-const RECORDS: u32 = 0x735576; // g_recordTable
-const SECTION: u32 = 0x75595C; // section
-const INDEX: u32 = 0x755958; // index
+const SECTION: &Dword = &EVENT_STATE.section; // section
+const INDEX: &Dword = &EVENT_STATE.index; // index
 
 /// `records::find_record` of the record table: the section's record `index`.
 pub fn record_at(index: u32) -> u32 {
     crate::records::find_record::find_record_in(
-        game_addr(rva(RECORDS as usize)) as u32,
+        crate::records::stages_store::STAGE_TABLES.championship(),
         index as i32,
-        k(SECTION),
+        SECTION.get(),
     )
 }
 
 /// Whether the record table has the section (the look-up has no end): for the refusals.
 pub fn section_there() -> bool {
     crate::records::find_record::has_section(
-        game_addr(rva(RECORDS as usize)) as u32,
-        k(SECTION),
+        crate::records::stages_store::STAGE_TABLES.championship(),
+        SECTION.get(),
         0x400,
     )
 }
@@ -354,13 +354,13 @@ pub unsafe fn draw_record_heading(canvas: &mut dyn Canvas) -> Result<(), Refused
             return Err(BadInput("a section past the record table").into());
         }
         let first = record_at(0);
-        let id = if k(0x7556D0) == 0x13 {
-            ((MENU_LISTS.section_titles[0].addr() as u32 + 4 * k(SECTION)) as *const u32)
+        let id = if CHAMP_VIEW.event_mode.get() == 0x13 {
+            ((MENU_LISTS.section_titles[0].addr() as u32 + 4 * SECTION.get()) as *const u32)
                 .read_unaligned()
         } else {
             ((first + 0x38) as *const u32).read_unaligned()
         };
-        let record = record_at(k(INDEX));
+        let record = record_at(INDEX.get());
         let line = || -> Result<Vec<u8>, Refused> { stage_line_without_nul(0x481, record) };
         rc2k_core::screens::best_scores::heading(&mut ScoresScreen::new(canvas), id, Some(&line))
     }
@@ -374,10 +374,10 @@ pub unsafe fn draw_record_heading(canvas: &mut dyn Canvas) -> Result<(), Refused
 /// the table has not, no times table, and what `strings::append_speed` refuses.
 pub unsafe fn draw_record_times(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     unsafe {
-        if !section_there() || k(0x7556D8) == 0 {
+        if !section_there() || CHAMP_VIEW.stage_best_times.get() == 0 {
             return Err(BadInput("a section past the record table, or no times table").into());
         }
-        let record = record_at(k(INDEX));
+        let record = record_at(INDEX.get());
         let f = |o: u32| ((record + o) as *const u32).read_unaligned();
         let speed = crate::strings::append_speed::append_speed(
             f(0x30),
@@ -385,7 +385,10 @@ pub unsafe fn draw_record_times(canvas: &mut dyn Canvas) -> Result<(), Refused> 
             crate::strings::units::units(),
         )?;
         draw_record_heading(canvas)?;
-        let entry = k(0x7556D8).wrapping_add(f(0x3C).wrapping_mul(0x618));
+        let entry = CHAMP_VIEW
+            .stage_best_times
+            .get()
+            .wrapping_add(f(0x3C).wrapping_mul(0x618));
         if !draw_time_rows(entry, Keep::Y, canvas)? {
             return Ok(());
         }
@@ -402,7 +405,7 @@ pub unsafe fn draw_record_times(canvas: &mut dyn Canvas) -> Result<(), Refused> 
 /// `screens::draw_event_best_scores`' (0x4A8DBF): group `dword_7558F4`, the player's own
 /// (+0x14 1) in the highlight fonts.
 pub const EVENT_BEST_SCORES: Table = Table {
-    group_at: Some(0x7558F4),
+    group_at: Some(&EVENT_STATE.class),
     highlight: Some(0x14),
     ..BEST_SCORES
 };
@@ -426,19 +429,20 @@ pub unsafe fn draw_scores_with_heading(
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
     unsafe {
-        if k(t.at) == 0 {
+        if t.at.get() == 0 {
             return Err(BadInput("no best scores table").into());
         }
         // Converted: `rc2k_core::screens::best_scores::scores_heading`, `heading`.
-        let section = (k(0x7556D0) == 0x13).then(|| {
-            ((MENU_LISTS.section_titles[0].addr() as u32 + 4 * k(0x75595C)) as *const u32)
+        let section = (CHAMP_VIEW.event_mode.get() == 0x13).then(|| {
+            ((MENU_LISTS.section_titles[0].addr() as u32 + 4 * EVENT_STATE.section.get())
+                as *const u32)
                 .read_unaligned()
         });
         let mut screen = ScoresScreen::new(canvas);
         let id = rc2k_core::screens::best_scores::scores_heading(
             &mut screen,
             section,
-            event.then(|| k(0x7558F4)),
+            event.then(|| EVENT_STATE.class.get()),
         );
         rc2k_core::screens::best_scores::heading(&mut screen, id, None)?;
         draw_scores(t, screen.canvas)

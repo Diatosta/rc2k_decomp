@@ -8,14 +8,13 @@
 //! Callers: the event pages' code. Refuses a table without its end entry or a player past 4 or
 //! missing, before anything.
 use crate::errors::{BadInput, Refused};
-use crate::framework::game_read;
 use crate::menu::standings::*;
 
 /// The Rust version (see the header); what it leaves in the registers as `Numbered`.
 pub unsafe fn number_standings_a(class: u32) -> Result<Numbered, Refused> {
     let mut last_number = 0;
     let mut last_player = None;
-    let first: u32 = unsafe { game_read(TABLE_A_RVA) };
+    let first: u32 = { TABLE_A_RVA.get() };
     let all = entries(first, A_ENTRY)?;
     // Converted: `rc2k_core::menu::standings::{Numbering, number}`.
     use rc2k_core::menu::standings::{Numbering, number};

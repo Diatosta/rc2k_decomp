@@ -13,13 +13,12 @@
 
 use crate::errors::Refused;
 use crate::gfx::clear_picture::clear_picture;
-use crate::gfx::pcx::DECODED_WIDTH_RVA;
+use crate::gfx::decoder::DECODER;
 use crate::gfx::picture::picture;
 use crate::gfx::picture::set_size;
 use crate::gfx::read_picture_file::read_picture_file;
 use crate::gfx::rescale_picture::rescale_picture;
 use crate::session::SCREEN;
-use crate::store::game_read;
 use rc2k_core::gfx::picture_size as sizes;
 
 // ---- game data ----
@@ -42,7 +41,7 @@ pub unsafe fn load_picture(path: *mut u8) -> Result<bool, Refused> {
         if !read? {
             return Ok(false);
         }
-        if sizes::rescaled(game_read::<u32>(DECODED_WIDTH_RVA), screen_width) {
+        if sizes::rescaled(DECODER.width.get(), screen_width) {
             rescale_picture()?;
         }
         Ok(true)

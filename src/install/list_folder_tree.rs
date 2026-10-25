@@ -16,13 +16,10 @@
 
 use crate::errors::Refused;
 use crate::install::installer::{
-    DIR_COUNT, DIR_CURSOR, DIR_SCAN, DIRS, FILE_COUNT, FILE_CURSOR, FILES, a, append_byte,
-    close_search, fatal, find_first, find_next, g, p, rb, resolve_path, str_append,
+    append_byte, close_search, fatal, find_first, find_next, rb, resolve_path, str_append,
 };
+use crate::install::vars::INSTALLER_RUN;
 
-const DOT: usize = 0x5295B7; // "."
-const DOTDOT: usize = 0x5295B9; // ".."
-const STAR: usize = 0x5295BC; // "*.*"
 /// FindFileData.cFileName (the search record: `files::state`).
 fn find_name() -> u32 {
     unsafe { (&raw const (*crate::files::state::find_data()).cFileName) as u32 }
@@ -49,10 +46,12 @@ fn found_path(search: u32, cursor: u32) -> Result<u32, Refused> {
 fn walk(folder: u32) -> Result<(), Refused> {
     let mut folder = resolve_path(folder)?;
     if rb(folder) != 0 {
-        let cursor = append_byte(str_append(folder, g(DIR_CURSOR)), 0);
-        p(DIR_CURSOR, cursor);
-        p(DIR_SCAN, cursor);
-        p(DIR_COUNT, g(DIR_COUNT).wrapping_add(1));
+        let cursor = append_byte(str_append(folder, INSTALLER_RUN.dir_cursor.get()), 0);
+        INSTALLER_RUN.dir_cursor.set(cursor);
+        INSTALLER_RUN.dir_scan.set(cursor);
+        INSTALLER_RUN
+            .dir_count
+            .set(INSTALLER_RUN.dir_count.get().wrapping_add(1));
     }
     loop {
         // list the folder
@@ -61,28 +60,43 @@ fn walk(folder: u32) -> Result<(), Refused> {
         if rb(cursor.wrapping_sub(1)) != b'\\' {
             cursor = append_byte(cursor, b'\\');
         }
-        append_byte(str_append(a(STAR), cursor), 0);
+        append_byte(
+            str_append(
+                crate::install::installer::INSTALL_TEXTS.star.addr() as u32,
+                cursor,
+            ),
+            0,
+        );
         if find_first(base) {
             loop {
                 if find_attributes() & 0x10 != 0 {
                     // "." and ".." passed over
-                    let real =
-                        !same_name(a(DOT), find_name()) && !same_name(a(DOTDOT), find_name());
+                    let real = !same_name(
+                        crate::install::installer::INSTALL_TEXTS.dot.addr() as u32,
+                        find_name(),
+                    ) && !same_name(
+                        crate::install::installer::INSTALL_TEXTS.dotdot.addr() as u32,
+                        find_name(),
+                    );
                     if real {
-                        let cursor = found_path(base, g(DIR_CURSOR))?;
-                        p(DIR_CURSOR, cursor);
-                        p(DIR_COUNT, g(DIR_COUNT).wrapping_add(1));
+                        let cursor = found_path(base, INSTALLER_RUN.dir_cursor.get())?;
+                        INSTALLER_RUN.dir_cursor.set(cursor);
+                        INSTALLER_RUN
+                            .dir_count
+                            .set(INSTALLER_RUN.dir_count.get().wrapping_add(1));
                         // `sub ebx, g_dirNames`
-                        if cursor.wrapping_sub(g(DIRS)) >= DIRS_ROOM {
+                        if cursor.wrapping_sub(INSTALLER_RUN.dirs.get()) >= DIRS_ROOM {
                             return Err(fatal(0x80AF_2201));
                         }
                     }
                 } else {
-                    let cursor = found_path(base, g(FILE_CURSOR))?;
-                    p(FILE_CURSOR, cursor);
-                    p(FILE_COUNT, g(FILE_COUNT).wrapping_add(1));
+                    let cursor = found_path(base, INSTALLER_RUN.file_cursor.get())?;
+                    INSTALLER_RUN.file_cursor.set(cursor);
+                    INSTALLER_RUN
+                        .file_count
+                        .set(INSTALLER_RUN.file_count.get().wrapping_add(1));
                     // `sub ebx, g_fileNames`
-                    if cursor.wrapping_sub(g(FILES)) >= FILES_ROOM {
+                    if cursor.wrapping_sub(INSTALLER_RUN.files.get()) >= FILES_ROOM {
                         return Err(fatal(0x80AF_2202));
                     }
                 }
@@ -93,15 +107,17 @@ fn walk(folder: u32) -> Result<(), Refused> {
         }
         close_search();
         // the next folder from the scan pointer
-        folder = g(DIR_SCAN);
-        if folder >= g(DIR_CURSOR) {
+        folder = INSTALLER_RUN.dir_scan.get();
+        if folder >= INSTALLER_RUN.dir_cursor.get() {
             break;
         }
         let length = unsafe { crate::strings::text_length::text_length(folder as *const u8) }?;
         if length == 0 {
             break;
         }
-        p(DIR_SCAN, folder.wrapping_add(length).wrapping_add(1));
+        INSTALLER_RUN
+            .dir_scan
+            .set(folder.wrapping_add(length).wrapping_add(1));
     }
     Ok(())
 }

@@ -11,7 +11,8 @@
 //! are the original's.
 
 use crate::errors::Refused;
-use crate::install::installer::{LIST_ANSWER, LIST_LEAVE, item_action_at, pb, rb, rd};
+use crate::install::installer::{item_action_at, rb, rd};
+use crate::install::vars::INSTALLER_PAGES;
 use rc2k_core::install::items::{self, LinkWay};
 
 /// Enter on a link; the original's zero after it (the action's, else that of `test bl, bl`
@@ -26,8 +27,8 @@ pub fn item_link(item: u32) -> Result<bool, Refused> {
     }) {
         LinkWay::Action => item_action_at(action),
         LinkWay::Leave(next) => {
-            pb(LIST_ANSWER, next);
-            pb(LIST_LEAVE, 1);
+            INSTALLER_PAGES.list_answer.set(next);
+            INSTALLER_PAGES.list_leave.set(1);
             Ok(next == 0)
         }
         LinkWay::Stay => Ok(next == 0),

@@ -6,15 +6,13 @@
 //!
 //! Callers: the time trial's events, before each car choice.
 
-use crate::framework::{game_read, rva};
+use crate::menu::cheats_store::CHEAT_VARS;
 use crate::menu::lists_store::MENU_LISTS;
-
-const CHEATS_RVA: usize = rva(0x75870C); // g_cheats
 
 /// The Rust version: the cheat cars' list (`off_75A412`) when the cheat is on.
 pub fn cheat_car_list() -> Option<u32> {
     // Converted: `rc2k_core::menu::car_lists::cheat_cars`.
-    let on = rc2k_core::menu::car_lists::cheat_cars(unsafe { game_read(CHEATS_RVA) });
+    let on = rc2k_core::menu::car_lists::cheat_cars(CHEAT_VARS.cheats.get());
     on.then(|| MENU_LISTS.cheat_cars[0].addr() as u32)
 }
 

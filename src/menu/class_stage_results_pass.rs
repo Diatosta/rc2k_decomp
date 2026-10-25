@@ -12,16 +12,14 @@
 //! anything; what the steps refuse.
 
 use crate::errors::Refused;
-use crate::framework::{game_read, game_write, rva};
+use crate::menu::event_store::EVENT_STATE;
+use crate::menu::loop_store::LOOP_FLAGS;
+use crate::menu::pages_store::MENU_PAGES;
 use crate::menu::screen_loop::Carried;
 use crate::menu::standings::*;
 use crate::menu::state_store::MENU_STATE;
 use rc2k_core::menu::class_pages;
 
-const FLAG_RVA: usize = rva(0x755565); // dword_755565
-const COUNT_RVA: usize = rva(0x75597C); // dword_75597C
-const CLASSES_RVA: usize = rva(0x7558F8); // dword_7558F8
-const ANSWER_RVA: usize = rva(0x75524C); // g_yesNoAnswer
 // g_eventMode
 
 /// The first class (see the header).
@@ -35,11 +33,11 @@ pub unsafe fn class_stage_results_pass(c: &Carried) -> Result<(), Refused> {
         crate::menu::sort_standings_by_time::sort_standings_by_time()?;
         let first = first_class();
         // Converted: `rc2k_core::menu::class_pages` (`classes`, `has_player`).
-        let classes = class_pages::classes(first, game_read(CLASSES_RVA))?;
-        let table: u32 = game_read(TABLE_A_RVA);
+        let classes = class_pages::classes(first, EVENT_STATE.classes.get())?;
+        let table: u32 = TABLE_A_RVA.get();
         let all = entries(table, A_ENTRY)?;
         for class in classes {
-            game_write(FLAG_RVA, 0u32);
+            LOOP_FLAGS.ended_b.set(0u32);
             if !class_pages::has_player(
                 all.len(),
                 |n| get(all[n] + 0x1C),
@@ -48,16 +46,16 @@ pub unsafe fn class_stage_results_pass(c: &Carried) -> Result<(), Refused> {
             ) {
                 continue;
             }
-            game_write(FLAG_RVA, 1u32);
+            LOOP_FLAGS.ended_b.set(1u32);
             let numbered = crate::menu::number_standings_a::number_standings_a(class)?;
             let mut g = Carried {
                 palette: class,
                 ..*c
             };
             numbered.carry_on(&mut g);
-            game_write(COUNT_RVA, numbered.last_number);
+            EVENT_STATE.count_a.set(numbered.last_number);
             crate::menu::show_class_stage_results::show_class_stage_results(class, &g)?;
-            if game_read::<u32>(ANSWER_RVA) == 1 {
+            if MENU_PAGES.yes_no_answer.get() == 1 {
                 break;
             }
         }

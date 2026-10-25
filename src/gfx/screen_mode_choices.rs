@@ -32,8 +32,8 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{Flags, game_addr, rva};
-use crate::gfx::cards::Slot as CardSlot;
-use crate::gfx::modes::Slot as ModeSlot;
+use crate::gfx::cards::CARDS;
+use crate::gfx::modes::MODES;
 use crate::race::viewer::{get, put};
 use crate::system::find_entry_with_bits::find_entry_with_bits;
 use crate::system::next_entry::next_entry;
@@ -43,20 +43,8 @@ use rc2k_core::gfx::mode_choices as mc;
 
 const RECORD: usize = 0x4F50C0; // unk_4F50C0: the choices
 const LIST: usize = RECORD + 0x28;
-const KIND_BITS: ModeSlot = ModeSlot::at(0x4F4E30); // dword_4F4E30: two pixel kinds' bits
-const THIRD_BITS: ModeSlot = ModeSlot::at(0x4F4E38); // dword_4F4E38: two
-const THIRD_TABLE: ModeSlot = ModeSlot::at(0x4F4E90); // dword_4F4E90: three entries
-const SIZES: ModeSlot = ModeSlot::at(0x4F4E50); // g_screenSizes: eight entries
-const PIXEL_KINDS: ModeSlot = ModeSlot::at(0x4F4E40); // g_pixelKinds: two entries
 const TEXTURE_FIGURE: usize = 0x5AB9A4; // dword_5AB9A4
-const PRIMARY_CARD: CardSlot = CardSlot::at(0x5AB4AC); // g_primary3dCard
-const SECONDARY_CARD: CardSlot = CardSlot::at(0x5AB4B0); // g_secondary3dCard
 use crate::gfx::keep_race_screen_mode::RACE_MODE;
-use crate::gfx::try_screen_mode::{MODE_COUNT, MODE_TABLE};
-
-fn mode_var(at: ModeSlot) -> u32 {
-    unsafe { crate::gfx::block::game_read(at) }
-}
 
 fn field(offset: usize) -> u32 {
     get(RECORD + offset)
@@ -68,8 +56,8 @@ fn set(offset: usize, v: u32) {
 
 /// `system::find_entry` as the original uses it: the entry whose first dword is `key`, or
 /// the place past the table's `count` entries.
-fn entry_or_past(key: u32, table: ModeSlot, count: u32) -> u32 {
-    let at = table.address() as u32;
+fn entry_or_past(key: u32, table: usize, count: u32) -> u32 {
+    let at = table as u32;
     (0..count)
         .map(|n| at + 8 * n)
         .find(|&e| unsafe { (e as *const u32).read_unaligned() } == key)
@@ -90,9 +78,9 @@ fn modes_of(kind: u32) -> Option<Vec<u32>> {
     if kind > 1 {
         return None;
     }
-    let bits = mode_var(KIND_BITS + 4 * kind as usize);
+    let bits = MODES.kind_bits[kind as usize].get();
     let (mut found, mut at, mut left) =
-        find_entry_with_bits(bits, MODE_TABLE.address() as u32, mode_var(MODE_COUNT));
+        find_entry_with_bits(bits, MODES.table_addr() as u32, MODES.count.get());
     if !found {
         return None;
     }
@@ -123,7 +111,7 @@ pub fn screen_mode_choices(try_choice: bool) -> Result<Flags, Refused> {
     let kind = if made {
         field(4)
     } else {
-        mc::kind_of_race(get(RACE_MODE), mode_var(KIND_BITS))
+        mc::kind_of_race(get(RACE_MODE), MODES.kind_bits[0].get())
     };
     let rebuilding = !made || !try_choice;
     let modes = if rebuilding { modes_of(kind) } else { None };
@@ -145,9 +133,9 @@ pub fn screen_mode_choices(try_choice: bool) -> Result<Flags, Refused> {
                 return failed();
             }
             let mode = mc::tried_mode(
-                mode_var(KIND_BITS + 4 * kind as usize),
+                MODES.kind_bits[kind as usize].get(),
                 read(game_addr(rva(LIST)) as u32 + 16 * place + 0xC),
-                mode_var(THIRD_BITS + 4 * third as usize),
+                MODES.third_bits[third as usize].get(),
             );
             let tried = crate::gfx::try_screen_mode::try_screen_mode(mode)?;
             let worked = !tried.carry && mc::kept(field(0x10), get(TEXTURE_FIGURE));
@@ -167,10 +155,8 @@ pub fn screen_mode_choices(try_choice: bool) -> Result<Flags, Refused> {
         return rebuild(current, modes);
     }
     set(4, kind);
-    set(0x14, unsafe { crate::gfx::block::game_read(PRIMARY_CARD) });
-    set(0x18, unsafe {
-        crate::gfx::block::game_read(SECONDARY_CARD)
-    });
+    set(0x14, CARDS.primary.get());
+    set(0x18, CARDS.secondary.get());
     rebuild(get(RACE_MODE), modes)
 }
 
@@ -188,8 +174,8 @@ fn rebuild(current: u32, modes: Option<Vec<u32>>) -> Result<Flags, Refused> {
     for (n, &at) in modes.iter().enumerate() {
         let mode = read(at);
         let (size_key, kind_key) = mc::keys(mode);
-        let size = entry_or_past(size_key, SIZES, 8);
-        let kind = entry_or_past(kind_key, PIXEL_KINDS, 2);
+        let size = entry_or_past(size_key, MODES.sizes_addr(), 8);
+        let kind = entry_or_past(kind_key, MODES.pixel_kinds_addr(), 2);
         let l = mc::Listed {
             width: read_word(size + 4),
             height: read_word(size + 6),
@@ -209,7 +195,7 @@ fn rebuild(current: u32, modes: Option<Vec<u32>>) -> Result<Flags, Refused> {
     set(8, mc::in_use_place(&listed, current));
     let race = get(RACE_MODE);
     let (place, third) = mc::race_place(&listed, race, || {
-        read(entry_or_past(mc::third_key(race), THIRD_TABLE, 3) + 4)
+        read(entry_or_past(mc::third_key(race), MODES.kinds_addr(), 3) + 4)
     });
     set(8, place);
     set(0xC, third);

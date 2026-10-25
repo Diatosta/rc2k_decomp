@@ -9,18 +9,11 @@
 //! in the listing, gives the memory back at the game's end.
 
 use crate::errors::Refused;
-use crate::gfx::picture_store::Slot as PicSlot;
-use crate::memory::MemoryList;
+use crate::gfx::picture_store::PICTURE;
 use crate::memory::allocate::allocate;
 
 // ---- game data ----
 
-/// dword_4F49E0, stru_4F49E4, g_pictureBuffer.
-const PLACES: [PicSlot; 3] = [
-    PicSlot::at(0x4F49E0),
-    PicSlot::at(0x4F49E4),
-    PicSlot::at(0x4F49DC),
-];
 const BUFFER_LEN: u32 = 0x1D_4C00;
 const SPARE: u32 = 0xC80;
 
@@ -28,11 +21,8 @@ const SPARE: u32 = 0xC80;
 
 /// The Rust version (see the header).
 pub fn allocate_picture_buffer() -> Result<(), Refused> {
-    let [size, list, buffer] = PLACES.map(|at| at.address());
-    unsafe {
-        (size as *mut u32).write_unaligned(BUFFER_LEN);
-        let memory = allocate(list as *mut MemoryList, BUFFER_LEN + SPARE)?;
-        (buffer as *mut u32).write_unaligned(memory as u32);
-    }
+    PICTURE.size.set(BUFFER_LEN);
+    let memory = unsafe { allocate(PICTURE.list.as_ptr(), BUFFER_LEN + SPARE) }?;
+    PICTURE.buffer.set(memory as u32);
     Ok(())
 }

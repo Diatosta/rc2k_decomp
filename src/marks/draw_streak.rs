@@ -20,18 +20,15 @@
 use crate::errors::{BadInput, Refused};
 use crate::framework::rva;
 use crate::marks::clip_quad::{clip_quad, draw_fan};
-use crate::marks::store::{Slot, game_addr, game_read, game_write};
+use crate::marks::rain::{RAIN, RAIN_RULES, RainRules, RainState};
+use crate::marks::store::{game_addr, game_write};
 
-// flt_8BDD29 .. flt_8BDE51
-const DEPTH_RVA: Slot = Slot::at(0x8BDD5D); // flt_8BDD5D
-const FAR_RVA: Slot = Slot::at(0x8BDE51); // flt_8BDE51
-const SWITCH_RVA: Slot = Slot::at(0x8BC405); // dword_8BC405
 const VERTICES_RVA: usize = rva(0x9605A0); // g_polygonVertices
 const COUNT_RVA: usize = rva(0x6240F8); // g_polygonVertexCount
 
 /// The original's 0x4C1DCD .. 0x4C1F11: the point scaled and turned, and the last place.
 unsafe fn turn(p: &[[u8; 10]; 3]) {
-    unsafe { turn_x87(crate::marks::store::base() as usize, p.as_ptr() as usize) }
+    unsafe { turn_x87(p.as_ptr() as usize, &RAIN) }
 }
 
 /// The original's 0x4C1F4A .. 0x4C20B3: both projected and the quad's x, y and depth.
@@ -40,7 +37,8 @@ unsafe fn project() {
         project_x87(
             crate::race::store::asm_base() as usize,
             crate::race::store::buffers_asm_base() as usize,
-            crate::marks::store::base() as usize,
+            &RAIN,
+            &RAIN_RULES,
         )
     }
 }
@@ -48,13 +46,13 @@ unsafe fn project() {
 /// The Rust version (see the header).
 pub unsafe fn draw_streak(place: [[u8; 10]; 3]) -> Result<(), Refused> {
     unsafe {
-        if game_read::<u32>(crate::marks::setup::SETTINGS_RVA) == 0 {
+        if crate::marks::setup::SETTINGS.pointer.get() == 0 {
             return Err(BadInput("no marks settings").into());
         }
         turn(&place);
-        if game_read::<i32>(DEPTH_RVA) <= 0x2_0000
-            || game_read::<u32>(SWITCH_RVA) == 0
-            || game_read::<i32>(FAR_RVA) <= 0x4800_0000
+        if RAIN.depth.bits() as i32 <= 0x2_0000
+            || RAIN.drawn.get() == 0
+            || RAIN.second[2].bits() as i32 <= 0x4800_0000
         {
             return Ok(());
         }
@@ -68,148 +66,148 @@ pub unsafe fn draw_streak(place: [[u8; 10]; 3]) -> Result<(), Refused> {
     Ok(())
 }
 
-use crate::marks::plain::{ld, ld80, ldi, st};
+use crate::marks::plain::{ld, ld80, st};
 use crate::math::x87_float as bh;
 
 /// `turn`'s x87 block as plain Rust on the x87 model (79 instructions), same order and memory places.
-unsafe fn turn_x87(mk: usize, p: usize) {
+unsafe fn turn_x87(p: usize, r: &RainState) {
     unsafe {
         let t0 = bh::from_f80(ld80(p, 0x14));
         let t1 = bh::from_f80(ld80(p, 0xA));
         let t2 = bh::from_f80(ld80(p, 0));
-        let t3 = t0 * ld(mk, 0x158E25);
-        st(mk, 0x158F09, t3);
-        let t4 = t1 * ld(mk, 0x158E29);
-        st(mk, 0x158F0D, t4);
-        let t5 = t2 * ld(mk, 0x158E2D);
-        st(mk, 0x158F11, t5);
-        let t6 = t3 * ld(mk, 0x158E49);
-        let t7 = t4 * ld(mk, 0x158E55);
-        let t8 = t5 * ld(mk, 0x158E61);
+        let t3 = t0 * bh::ld(r.point_scale[0].bits());
+        r.second[0].set_bits(bh::st(t3));
+        let t4 = t1 * bh::ld(r.point_scale[1].bits());
+        r.second[1].set_bits(bh::st(t4));
+        let t5 = t2 * bh::ld(r.point_scale[2].bits());
+        r.second[2].set_bits(bh::st(t5));
+        let t6 = t3 * bh::ld(r.matrix_copy[0].bits());
+        let t7 = t4 * bh::ld(r.matrix_copy[3].bits());
+        let t8 = t5 * bh::ld(r.matrix_copy[6].bits());
         let t9 = t7 + t8;
         let t10 = t6 + t9;
-        let t11 = t10 + ldi(mk, 0x158E31);
-        st(mk, 0x158EFD, t11);
-        let t12 = t3 * ld(mk, 0x158E4D);
-        let t13 = t4 * ld(mk, 0x158E59);
-        let t14 = t5 * ld(mk, 0x158E65);
+        let t11 = t10 + bh::int(r.point[0].get() as i32);
+        r.turned[0].set_bits(bh::st(t11));
+        let t12 = t3 * bh::ld(r.matrix_copy[1].bits());
+        let t13 = t4 * bh::ld(r.matrix_copy[4].bits());
+        let t14 = t5 * bh::ld(r.matrix_copy[7].bits());
         let t15 = t13 + t14;
         let t16 = t12 + t15;
-        let t17 = t16 + ldi(mk, 0x158E35);
-        st(mk, 0x158F01, t17);
-        let t18 = t3 * ld(mk, 0x158E51);
-        let t19 = t4 * ld(mk, 0x158E5D);
-        let t20 = t5 * ld(mk, 0x158E69);
+        let t17 = t16 + bh::int(r.point[1].get() as i32);
+        r.turned[1].set_bits(bh::st(t17));
+        let t18 = t3 * bh::ld(r.matrix_copy[2].bits());
+        let t19 = t4 * bh::ld(r.matrix_copy[5].bits());
+        let t20 = t5 * bh::ld(r.matrix_copy[8].bits());
         let t21 = t19 + t20;
         let t22 = t18 + t21;
-        let t23 = t22 + ldi(mk, 0x158E39);
-        st(mk, 0x158E1D, t23);
-        st(mk, 0x158F05, t23);
-        let t24 = ld(mk, 0x158F0D);
-        let t25 = t24 - ld(mk, 0x157541);
-        let t26 = ld(mk, 0x158F09);
-        let t27 = t26 - ld(mk, 0x15753D);
-        let t28 = ld(mk, 0x158F11);
-        let t29 = t28 - ld(mk, 0x157545);
-        let t30 = t27 * ld(mk, 0x158E49);
-        let t31 = t25 * ld(mk, 0x158E55);
-        let t32 = t29 * ld(mk, 0x158E61);
+        let t23 = t22 + bh::int(r.point[2].get() as i32);
+        r.depth.set_bits(bh::st(t23));
+        r.turned[2].set_bits(bh::st(t23));
+        let t24 = bh::ld(r.second[1].bits());
+        let t25 = t24 - bh::ld(r.motion[1].bits());
+        let t26 = bh::ld(r.second[0].bits());
+        let t27 = t26 - bh::ld(r.motion[0].bits());
+        let t28 = bh::ld(r.second[2].bits());
+        let t29 = t28 - bh::ld(r.motion[2].bits());
+        let t30 = t27 * bh::ld(r.matrix_copy[0].bits());
+        let t31 = t25 * bh::ld(r.matrix_copy[3].bits());
+        let t32 = t29 * bh::ld(r.matrix_copy[6].bits());
         let t33 = t31 + t32;
         let t34 = t30 + t33;
-        let t35 = t34 + ldi(mk, 0x158E31);
-        st(mk, 0x158F09, t35);
-        let t36 = t27 * ld(mk, 0x158E4D);
-        let t37 = t25 * ld(mk, 0x158E59);
-        let t38 = t29 * ld(mk, 0x158E65);
+        let t35 = t34 + bh::int(r.point[0].get() as i32);
+        r.second[0].set_bits(bh::st(t35));
+        let t36 = t27 * bh::ld(r.matrix_copy[1].bits());
+        let t37 = t25 * bh::ld(r.matrix_copy[4].bits());
+        let t38 = t29 * bh::ld(r.matrix_copy[7].bits());
         let t39 = t37 + t38;
         let t40 = t36 + t39;
-        let t41 = t40 + ldi(mk, 0x158E35);
-        st(mk, 0x158F0D, t41);
-        let t42 = t27 * ld(mk, 0x158E51);
-        let t43 = t25 * ld(mk, 0x158E5D);
-        let t44 = t29 * ld(mk, 0x158E69);
+        let t41 = t40 + bh::int(r.point[1].get() as i32);
+        r.second[1].set_bits(bh::st(t41));
+        let t42 = t27 * bh::ld(r.matrix_copy[2].bits());
+        let t43 = t25 * bh::ld(r.matrix_copy[5].bits());
+        let t44 = t29 * bh::ld(r.matrix_copy[8].bits());
         let t45 = t43 + t44;
         let t46 = t42 + t45;
-        let t47 = t46 + ldi(mk, 0x158E39);
-        st(mk, 0x158F11, t47);
+        let t47 = t46 + bh::int(r.point[2].get() as i32);
+        r.second[2].set_bits(bh::st(t47));
     }
 }
 
 /// `project`'s x87 block as plain Rust on the x87 model (85 instructions), same order and memory places.
-unsafe fn project_x87(rc: usize, bf: usize, mk: usize) {
+unsafe fn project_x87(rc: usize, bf: usize, r: &RainState, k: &RainRules) {
     unsafe {
-        let t0 = ld(mk, 0x158F11);
+        let t0 = bh::ld(r.second[2].bits());
         let t1 = ld(rc, 0x224088) / t0;
-        let t2 = ld(mk, 0x158F05);
+        let t2 = bh::ld(r.turned[2].bits());
         let t3 = ld(rc, 0x224088) / t2;
-        let t4 = ld(mk, 0x158F09);
-        let t5 = ld(mk, 0x158F0D);
-        let t6 = ld(mk, 0x158EFD);
-        let t7 = ld(mk, 0x158F01);
+        let t4 = bh::ld(r.second[0].bits());
+        let t5 = bh::ld(r.second[1].bits());
+        let t6 = bh::ld(r.turned[0].bits());
+        let t7 = bh::ld(r.turned[1].bits());
         let t8 = t4 * t1;
         let t9 = t5 * t1;
         let t10 = t6 * t3;
         let t11 = t7 * t3;
-        let t12 = t1 * ld(mk, 0x1610A5);
-        let t13 = t3 * ld(mk, 0x1610A9);
+        let t12 = t1 * bh::ld(k.view_scale[0].bits());
+        let t13 = t3 * bh::ld(k.view_scale[1].bits());
         let t14 = t8 + ld(rc, 0x22409C);
-        st(mk, 0x158E01, t14);
+        r.ends[0][0].set_bits(bh::st(t14));
         let t15 = -t9;
         let t16 = t15 + ld(rc, 0x2240A0);
-        st(mk, 0x158E05, t16);
+        r.ends[0][1].set_bits(bh::st(t16));
         let t17 = t10 + ld(rc, 0x22409C);
-        st(mk, 0x158E0D, t17);
+        r.ends[1][0].set_bits(bh::st(t17));
         let t18 = -t11;
         let t19 = t18 + ld(rc, 0x2240A0);
-        st(mk, 0x158E11, t19);
-        st(mk, 0x158E09, t12);
-        st(mk, 0x158E15, t13);
+        r.ends[1][1].set_bits(bh::st(t19));
+        r.ends[0][2].set_bits(bh::st(t12));
+        r.ends[1][2].set_bits(bh::st(t13));
         let t20 = bh::ONE;
         let t21 = t20 / ld(rc, 0x2241C8);
-        let t22 = ld(mk, 0x158E0D);
-        let t23 = t22 - ld(mk, 0x158E01);
-        st(mk, 0x158DED, t23);
+        let t22 = bh::ld(r.ends[1][0].bits());
+        let t23 = t22 - bh::ld(r.ends[0][0].bits());
+        r.edge_a[1].set_bits(bh::st(t23));
         let t24 = t23 * t23;
-        let t25 = ld(mk, 0x158E11);
-        let t26 = t25 - ld(mk, 0x158E05);
+        let t25 = bh::ld(r.ends[1][1].bits());
+        let t26 = t25 - bh::ld(r.ends[0][1].bits());
         let t27 = -t26;
-        st(mk, 0x158DE9, t27);
+        r.edge_a[0].set_bits(bh::st(t27));
         let t28 = t27 * t27;
         let t29 = t24 + t28;
         let t30 = t29.sqrt();
-        let t31 = ld(mk, 0x1610AD) / t30;
-        let t32 = t31 * ld(mk, 0x158DE9);
-        let t33 = t32 * ld(mk, 0x158E09);
-        st(mk, 0x158DE9, t33);
-        let t34 = t32 * ld(mk, 0x158E15);
-        st(mk, 0x158DF5, t34);
-        let t35 = t31 * ld(mk, 0x158DED);
-        let t36 = t35 * ld(mk, 0x158E09);
-        st(mk, 0x158DED, t36);
-        let t37 = t35 * ld(mk, 0x158E15);
-        st(mk, 0x158DF9, t37);
-        st(mk, 0x158E21, t21);
-        let t38 = ld(mk, 0x158F11);
-        let t39 = t38 * ld(mk, 0x158E21);
+        let t31 = bh::ld(k.half_width.bits()) / t30;
+        let t32 = t31 * bh::ld(r.edge_a[0].bits());
+        let t33 = t32 * bh::ld(r.ends[0][2].bits());
+        r.edge_a[0].set_bits(bh::st(t33));
+        let t34 = t32 * bh::ld(r.ends[1][2].bits());
+        r.edge_b[0].set_bits(bh::st(t34));
+        let t35 = t31 * bh::ld(r.edge_a[1].bits());
+        let t36 = t35 * bh::ld(r.ends[0][2].bits());
+        r.edge_a[1].set_bits(bh::st(t36));
+        let t37 = t35 * bh::ld(r.ends[1][2].bits());
+        r.edge_b[1].set_bits(bh::st(t37));
+        r.depth_scale.set_bits(bh::st(t21));
+        let t38 = bh::ld(r.second[2].bits());
+        let t39 = t38 * bh::ld(r.depth_scale.bits());
         st(bf, 0x5605A8, t39);
         st(bf, 0x5605C8, t39);
         st(bf, 0x5605E8, t39);
         st(bf, 0x560608, t39);
-        let t40 = ld(mk, 0x158E01);
+        let t40 = bh::ld(r.ends[0][0].bits());
         st(bf, 0x5605A0, t40);
-        let t41 = t40 - ld(mk, 0x158DE9);
+        let t41 = t40 - bh::ld(r.edge_a[0].bits());
         st(bf, 0x5605C0, t41);
-        let t42 = ld(mk, 0x158E0D);
+        let t42 = bh::ld(r.ends[1][0].bits());
         st(bf, 0x560600, t42);
-        let t43 = t42 - ld(mk, 0x158DF5);
+        let t43 = t42 - bh::ld(r.edge_b[0].bits());
         st(bf, 0x5605E0, t43);
-        let t44 = ld(mk, 0x158E05);
+        let t44 = bh::ld(r.ends[0][1].bits());
         st(bf, 0x5605A4, t44);
-        let t45 = t44 - ld(mk, 0x158DED);
+        let t45 = t44 - bh::ld(r.edge_a[1].bits());
         st(bf, 0x5605C4, t45);
-        let t46 = ld(mk, 0x158E11);
+        let t46 = bh::ld(r.ends[1][1].bits());
         st(bf, 0x560604, t46);
-        let t47 = t46 - ld(mk, 0x158DF9);
+        let t47 = t46 - bh::ld(r.edge_b[1].bits());
         st(bf, 0x5605E4, t47);
     }
 }
@@ -413,13 +411,14 @@ mod asm_differential {
     use super::asm_reference as reference;
     use crate::marks::asm_test::Kind::*;
     use crate::marks::asm_test::{Op, Spec, differential};
+    use crate::marks::rain::tests::with_state_at;
 
     #[test]
     fn turn_x87_matches() {
         const SPEC: Spec = Spec {
             operands: &[
                 Op::Base {
-                    lo: 0x15753D,
+                    lo: 0x1574C5,
                     hi: 0x158F15,
                     reads: &[
                         (0x15753D, F32),
@@ -466,7 +465,7 @@ mod asm_differential {
         differential(
             &SPEC,
             |b| unsafe { reference::turn_x87(b[0], b[1]) },
-            |b| unsafe { super::turn_x87(b[0], b[1]) },
+            |b| with_state_at(b[0], |r, _| unsafe { super::turn_x87(b[1], r) }),
         );
     }
 
@@ -505,8 +504,8 @@ mod asm_differential {
                     ],
                 },
                 Op::Base {
-                    lo: 0x158DE9,
-                    hi: 0x1610B1,
+                    lo: 0x1574C5,
+                    hi: 0x1610BD,
                     reads: &[
                         (0x158DE9, F32),
                         (0x158DED, F32),
@@ -549,7 +548,7 @@ mod asm_differential {
         differential(
             &SPEC,
             |b| unsafe { reference::project_x87(b[0], b[1], b[2]) },
-            |b| unsafe { super::project_x87(b[0], b[1], b[2]) },
+            |b| with_state_at(b[2], |r, k| unsafe { super::project_x87(b[0], b[1], r, k) }),
         );
     }
 }

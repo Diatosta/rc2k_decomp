@@ -15,9 +15,9 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::game_read;
+use crate::menu::event_store::EVENT_STATE;
 use crate::menu::state_store::MENU_STATE;
-use crate::service::state::{TIME_BUDGET_RVA, flagged_item};
+use crate::service::state::flagged_item;
 use crate::service::state::{flags, marks, store_flags, store_marks, time_of};
 
 /// The Rust version (see the header).
@@ -26,7 +26,7 @@ pub unsafe fn toggle_repair_choice() -> Result<(), Refused> {
     // refuses).
     let item = flagged_item()?;
     let (mut f, mut m) = (flags(), marks());
-    let budget = unsafe { game_read::<i32>(TIME_BUDGET_RVA) };
+    let budget = { EVENT_STATE.service_minutes.get() as i32 };
     let (total, status) =
         rc2k_core::service::repairs::toggle_choice(&mut f, &mut m, item as usize, budget, time_of)
             .map_err(|e| BadInput(e.0))?;

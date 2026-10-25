@@ -9,14 +9,13 @@
 //! item is found: nothing happens. The first item is looked at without being checked for the end
 //! mark. Refuses a menu without an end in its first 256 items.
 
-use crate::framework::{game_read, game_write, rva};
+use crate::menu::draw_work_store::DRAW_WORK;
 use crate::menu::item_at::{ITEM_LEN, MENU_HEAD_LEN};
+use crate::menu::loop_store::LOOP_FLAGS;
 use crate::menu::screen_loop::Carried;
-use crate::service::state::MENU_ITEM_RVA;
 
 // ---- game data ----
 
-const ACTION_VALUE_RVA: usize = rva(0x755A38); // dword_755A38
 const TYPE_OFFSET: u32 = rc2k_core::menu::items::ITEM_TYPE;
 const ACTION_OFFSET: u32 = 0x44;
 const VALUE_OFFSET: u32 = 0x54;
@@ -35,7 +34,7 @@ pub unsafe fn run_item_action(menu: u32, carried: &Carried) -> Result<(), crate:
     let first = menu.wrapping_add(MENU_HEAD_LEN);
     let item_at = |n: u32| first.wrapping_add(n.wrapping_mul(ITEM_LEN));
     unsafe {
-        let highlighted: u32 = game_read(MENU_ITEM_RVA);
+        let highlighted: u32 = LOOP_FLAGS.item.get();
         // Converted: `rc2k_core::menu::items::highlighted_item`.
         let found = rc2k_core::menu::items::highlighted_item(
             highlighted,
@@ -45,7 +44,7 @@ pub unsafe fn run_item_action(menu: u32, carried: &Carried) -> Result<(), crate:
         if let Some(n) = found {
             let item = item_at(n);
             let value = dword(item + VALUE_OFFSET);
-            game_write(ACTION_VALUE_RVA, value);
+            DRAW_WORK.action_value.set(value);
             crate::menu::table_calls::call_action(
                 dword(item + ACTION_OFFSET),
                 value,
@@ -53,7 +52,7 @@ pub unsafe fn run_item_action(menu: u32, carried: &Carried) -> Result<(), crate:
                 menu,
                 carried,
             );
-            game_write(MENU_ITEM_RVA, dword(item + TYPE_OFFSET));
+            LOOP_FLAGS.item.set(dword(item + TYPE_OFFSET));
         }
     }
     Ok(())

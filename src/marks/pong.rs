@@ -6,21 +6,229 @@
 //! digits' 4 x 5 patterns `unk_768704` (0x14 each).
 
 use crate::framework::rva;
-use crate::marks::store::{Slot, game_read, game_write};
+use crate::marks::store::{Slot, game_read};
+use crate::session::{Bytes, Dword, Float};
 
-pub const BALL: [Slot; 2] = [Slot::at(0x768688), Slot::at(0x76868C)];
-pub const BALL_WAY: [Slot; 2] = [Slot::at(0x768694), Slot::at(0x768698)];
-pub const BALL_SIZE: [Slot; 2] = [Slot::at(0x7686A0), Slot::at(0x7686A4)];
-pub const SAVED_BAT: [Slot; 2] = [Slot::at(0x7686AC), Slot::at(0x7686B0)];
-pub const BAT: [Slot; 2] = [Slot::at(0x7686B8), Slot::at(0x7686BC)];
-pub const BAT_SIZE: [Slot; 2] = [Slot::at(0x7686D0), Slot::at(0x7686D4)];
-pub const STEPS_RVA: Slot = Slot::at(0x768700); // g_pongSteps
-pub const BEST_RVA: Slot = Slot::at(0x7687CC); // dword_7687CC
-pub const HITS_RVA: Slot = Slot::at(0x7687D0); // dword_7687D0
-pub const DIGIT_AT: [Slot; 2] = [Slot::at(0x7687D4), Slot::at(0x7687D8)];
-pub const PATTERNS_RVA: Slot = Slot::at(0x768704); // unk_768704: 10 of 0x14
-pub const CHEATS_RVA: usize = rva(0x75870C); // g_cheats
+/// The pong game over the race: the box scratch, the ball, the bat, the score (IDA 0x768658 .. 0x7687DC, the image's layout; phase 7, typed state).
+#[repr(C)]
+pub struct PongState {
+    /// 0x768658: `flt_768658` .. `flt_768684`: the box drawn last (`marks::draw_pong_box`): the offsets of its corners from the place, twice (a reading: six, then the same plus the second shift).
+    pub box_sides: [Float; 12],
+    /// 0x768688: `g_pongBall`, `flt_76868C`: the ball's place (x, y).
+    pub ball: [Float; 2],
+    /// 0x768690: Not named: 4 bytes (a gap, or unreferenced data).
+    pub _gap_768690: Bytes<4>,
+    /// 0x768694: `flt_768694`, `flt_768698`: the ball's way, added to its place at each step (starts 1, 1).
+    pub ball_way: [Float; 2],
+    /// 0x76869C: Not named: 4 bytes (a gap, or unreferenced data).
+    pub _gap_76869c: Bytes<4>,
+    /// 0x7686A0: `flt_7686A0`, `flt_7686A4`: the ball's size (width, height).
+    pub ball_size: [Float; 2],
+    /// 0x7686A8: Not named: 4 bytes (a gap, or unreferenced data).
+    pub _gap_7686a8: Bytes<4>,
+    /// 0x7686AC: `dword_7686AC`, `dword_7686B0`: the bat's place before the move (kept as bits; put back when the bat overlaps the ball).
+    pub saved_bat: [Dword; 2],
+    /// 0x7686B4: Not named: 4 bytes (a gap, or unreferenced data).
+    pub _gap_7686b4: Bytes<4>,
+    /// 0x7686B8: `g_pongBat`, `flt_7686BC`: the bat's place (x, y).
+    pub bat: [Float; 2],
+    /// 0x7686C0: Not named: 16 bytes (a gap, or unreferenced data).
+    pub _gap_7686c0: Bytes<16>,
+    /// 0x7686D0: `flt_7686D0`, `flt_7686D4`: the bat's size.
+    pub bat_size: [Float; 2],
+    /// 0x7686D8: Not named: 4 bytes (a gap, or unreferenced data).
+    pub _gap_7686d8: Bytes<4>,
+    /// 0x7686DC: `flt_7686DC`, `flt_7686E0`: the ball's centre (a reading), worked out by the court's steps.
+    pub ball_centre: [Float; 2],
+    /// 0x7686E4: Not named: 4 bytes (a gap, or unreferenced data).
+    pub _gap_7686e4: Bytes<4>,
+    /// 0x7686E8: `flt_7686E8`, `flt_7686EC`: the bat's centre (a reading).
+    pub bat_centre: [Float; 2],
+    /// 0x7686F0: Not named: 4 bytes (a gap, or unreferenced data).
+    pub _gap_7686f0: Bytes<4>,
+    /// 0x7686F4: `flt_7686F4`, `flt_7686F8`: the ball's centre less the bat's (a reading); the way after a hit.
+    pub difference: [Float; 2],
+    /// 0x7686FC: Not named: 4 bytes (a gap, or unreferenced data).
+    pub _gap_7686fc: Bytes<4>,
+    /// 0x768700: `g_pongSteps`: the ball's steps a frame (5 at the start, 4 more with each hit).
+    pub steps: Dword,
+    /// 0x768704: `g_pongDigitPatterns`: the digits' 4 x 5 patterns, 10 of 0x14 bytes (a byte a cell, 0 for empty).
+    pub digit_patterns: Bytes<200>,
+    /// 0x7687CC: `g_pongBest`: the best score (hits).
+    pub best: Dword,
+    /// 0x7687D0: `g_pongHits`: the hits of this game.
+    pub hits: Dword,
+    /// 0x7687D4: `dword_7687D4`, `dword_7687D8`: where the next score digit is drawn (x, y).
+    pub digit_at: [Dword; 2],
+}
+
+pub static PONG: PongState = PongState {
+    box_sides: [const { Float::from_bits(0x0) }; 12],
+    ball: [Float::from_bits(0x0), Float::from_bits(0x0)],
+    _gap_768690: Bytes::new([0; 4]),
+    ball_way: [Float::from_bits(0x3F800000), Float::from_bits(0x3F800000)],
+    _gap_76869c: Bytes::new([0; 4]),
+    ball_size: [Float::from_bits(0x0), Float::from_bits(0x0)],
+    _gap_7686a8: Bytes::new([0; 4]),
+    saved_bat: [Dword::new(0x0), Dword::new(0x0)],
+    _gap_7686b4: Bytes::new([0; 4]),
+    bat: [Float::from_bits(0x0), Float::from_bits(0x0)],
+    _gap_7686c0: Bytes::new([0; 16]),
+    bat_size: [Float::from_bits(0x0), Float::from_bits(0x0)],
+    _gap_7686d8: Bytes::new([0; 4]),
+    ball_centre: [Float::from_bits(0x0), Float::from_bits(0x0)],
+    _gap_7686e4: Bytes::new([0; 4]),
+    bat_centre: [Float::from_bits(0x0), Float::from_bits(0x0)],
+    _gap_7686f0: Bytes::new([0; 4]),
+    difference: [Float::from_bits(0x0), Float::from_bits(0x0)],
+    _gap_7686fc: Bytes::new([0; 4]),
+    steps: Dword::new(0x0),
+    digit_patterns: Bytes::new([
+        0x00, 0x01, 0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x01, 0x00, 0x01, 0x00, 0x01, 0x00, 0x01,
+        0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x01, 0x01, 0x00, 0x00, 0x00, 0x01,
+        0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x01, 0x01, 0x01, 0x00, 0x01, 0x01, 0x00, 0x00, 0x00,
+        0x00, 0x01, 0x00, 0x00, 0x01, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x01, 0x01, 0x00,
+        0x01, 0x01, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x01,
+        0x00, 0x01, 0x01, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x01, 0x00, 0x00, 0x01, 0x01,
+        0x01, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x01, 0x01, 0x01, 0x00, 0x01,
+        0x00, 0x00, 0x00, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x01, 0x01, 0x00, 0x00,
+        0x00, 0x01, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x01, 0x00, 0x00, 0x01, 0x00, 0x01,
+        0x00, 0x00, 0x01, 0x00, 0x00, 0x01, 0x01, 0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x01,
+        0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x01,
+        0x00, 0x01, 0x00, 0x00, 0x01, 0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x01, 0x00, 0x00,
+        0x00, 0x01, 0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x01, 0x01, 0x00, 0x00, 0x00, 0x01,
+        0x00, 0x01, 0x01, 0x00, 0x00,
+    ]),
+    best: Dword::new(0x0),
+    hits: Dword::new(0x0),
+    digit_at: [Dword::new(0x0), Dword::new(0x0)],
+};
+
+impl PongState {
+    pub const START: usize = 0x768658;
+    pub const LEN: usize = 0x184;
+    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
+    pub fn home() -> usize {
+        &PONG as *const PongState as usize
+    }
+}
+
+/// The pong game's constants (IDA 0x769182 .. 0x769232, the image's layout; phase 7, typed state).
+#[repr(C)]
+pub struct PongRules {
+    /// 0x769182: `flt_769182` .. `flt_76919E`: the court at the start of a game (`Court::reset`), as bits: four (x, y) pairs, the ball, its size, the bat, its size.
+    pub start: [Float; 8],
+    /// 0x7691A2: Not named: 4 bytes (a gap, or unreferenced data).
+    pub _gap_7691a2: Bytes<4>,
+    /// 0x7691A6: `flt_7691A6` .. `flt_7691C2`: the court's walls the ball turns at and the places it is put back at (a reading, `marks::move_pong_ball`).
+    pub walls: [Float; 8],
+    /// 0x7691C6: `flt_7691C6` .. `flt_7691D2`: a half, four times: a place plus its size times it is the centre (`Court` centres).
+    pub centre: [Float; 4],
+    /// 0x7691D6: `flt_7691D6`: 1, what a hit changes the way by.
+    pub nudge: Float,
+    /// 0x7691DA: `flt_7691DA`, `flt_7691DE`: 4, 4: the way after a hit is the difference over them (`marks::pong_ball_hits`).
+    pub way_scale: [Float; 2],
+    /// 0x7691E2: Not named: 24 bytes (a gap, or unreferenced data).
+    pub _gap_7691e2: Bytes<24>,
+    /// 0x7691FA: `flt_7691FA`, `flt_7691FE`: 16 and -16: a score cell's step across and down (`marks::pong_cell`).
+    pub cell_step: [Float; 2],
+    /// 0x769202: `flt_769202`, `flt_769206`: 16, 16: a score cell's size.
+    pub cell_size: [Float; 2],
+    /// 0x76920A: `dword_76920A` .. `dword_769216`: the texture places of a pong box (`marks::draw_pong_box`; 0.99 four times, as bits).
+    pub box_places: [Float; 4],
+    /// 0x76921A: `flt_76921A`: 16384: a box whose third corner value is under it is not drawn (a reading).
+    pub near: Float,
+    /// 0x76921E: Not named: 4 bytes (a gap, or unreferenced data).
+    pub _gap_76921e: Bytes<4>,
+    /// 0x769222: `dword_769222` .. `dword_76922E`: the texture places the pong frame's set-up uses (`marks::pong_setup`).
+    pub setup_places: [Float; 4],
+}
+
+pub static PONG_RULES: PongRules = PongRules {
+    start: [
+        Float::from_bits(0x44800000),
+        Float::from_bits(0x44000000),
+        Float::from_bits(0x42800000),
+        Float::from_bits(0x42800000),
+        Float::from_bits(0x44E00000),
+        Float::from_bits(0x43800000),
+        Float::from_bits(0x42800000),
+        Float::from_bits(0x43800000),
+    ],
+    _gap_7691a2: Bytes::new([0; 4]),
+    walls: [
+        Float::from_bits(0x43000000),
+        Float::from_bits(0x43000000),
+        Float::from_bits(0x45000000),
+        Float::from_bits(0x43000000),
+        Float::from_bits(0x43000000),
+        Float::from_bits(0x43000000),
+        Float::from_bits(0x44800000),
+        Float::from_bits(0x44800000),
+    ],
+    centre: [
+        Float::from_bits(0x3F000000),
+        Float::from_bits(0x3F000000),
+        Float::from_bits(0x3F000000),
+        Float::from_bits(0x3F000000),
+    ],
+    nudge: Float::from_bits(0x3F800000),
+    way_scale: [Float::from_bits(0x40800000), Float::from_bits(0x40800000)],
+    _gap_7691e2: Bytes::new([
+        0x00, 0x00, 0x00, 0x42, 0x00, 0x00, 0x00, 0x43, 0x00, 0x00, 0x00, 0x43, 0x00, 0x00, 0x00,
+        0x42, 0x00, 0x00, 0x80, 0x44, 0x00, 0x00, 0x80, 0x44,
+    ]),
+    cell_step: [Float::from_bits(0x41800000), Float::from_bits(0xC1800000)],
+    cell_size: [Float::from_bits(0x41800000), Float::from_bits(0x41800000)],
+    box_places: [
+        Float::from_bits(0x3F7D70A4),
+        Float::from_bits(0x3F7D70A4),
+        Float::from_bits(0x3F7D70A4),
+        Float::from_bits(0x3F7D70A4),
+    ],
+    near: Float::from_bits(0x46800000),
+    _gap_76921e: Bytes::new([0x00, 0x00, 0x80, 0x43]),
+    setup_places: [
+        Float::from_bits(0x3DE80000),
+        Float::from_bits(0x3D000000),
+        Float::from_bits(0x3E7C0000),
+        Float::from_bits(0x3E280000),
+    ],
+};
+
+impl PongRules {
+    pub const START: usize = 0x769182;
+    pub const LEN: usize = 0xB0;
+    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
+    pub fn home() -> usize {
+        &PONG_RULES as *const PongRules as usize
+    }
+}
+
+/// A test buffer standing for the marks' block at `mk` (IDA 0x764F40): the court's state
+/// in it, as the x87 blocks' differential tests give it to the typed versions.
+#[cfg(test)]
+pub fn state_at(mk: usize) -> &'static PongState {
+    unsafe {
+        &*(mk
+            .wrapping_add(PongState::START)
+            .wrapping_sub(crate::marks::store::START) as *const PongState)
+    }
+}
+
+/// The court's constants in the same buffer, copied out (they sit 2 bytes off a four in the
+/// image's addresses, so the buffer's copy of them is not aligned for the cells).
+#[cfg(test)]
+pub fn rules_at(mk: usize) -> PongRules {
+    unsafe {
+        (mk.wrapping_add(PongRules::START)
+            .wrapping_sub(crate::marks::store::START) as *const PongRules)
+            .read_unaligned()
+    }
+}
+
 pub const SHOWN_RVA: usize = rva(0x641678); // dword_641678
+const LENGTH_RVA: Slot = Slot::at(0x76516C); // flt_76516C
 
 /// `fld a; fadd b; fcomp c; fstsw ax; and eax, 700h`.
 pub fn sum_compare(a: u32, b: u32, c: u32) -> u32 {
@@ -42,82 +250,68 @@ pub fn less_compare(x: u32, k: u32, w: u32, m: Option<u32>) -> u32 {
     u32::from(s) & 0x700
 }
 
-fn get(r: Slot) -> u32 {
-    unsafe { game_read(r) }
+fn pair(r: &[Float; 2]) -> [f32; 2] {
+    r.each_ref().map(Float::get)
 }
 
-const CENTRE_RVA: Slot = Slot::at(0x7691C6); // flt_7691C6 .. flt_7691D2
-const NUDGE_RVA: Slot = Slot::at(0x7691D6); // flt_7691D6
-const WAY_SCALE_RVA: Slot = Slot::at(0x7691DA); // flt_7691DA, flt_7691DE
-const LENGTH_RVA: Slot = Slot::at(0x76516C); // flt_76516C
-pub const WALLS_RVA: Slot = Slot::at(0x7691A6); // flt_7691A6 .. flt_7691C2
-pub const START_RVA: Slot = Slot::at(0x769182); // flt_769182 .. flt_76919E
-const BALL_CENTRE: [Slot; 2] = [Slot::at(0x7686DC), Slot::at(0x7686E0)];
-const BAT_CENTRE: [Slot; 2] = [Slot::at(0x7686E8), Slot::at(0x7686EC)];
-const DIFFERENCE: [Slot; 2] = [Slot::at(0x7686F4), Slot::at(0x7686F8)];
-
-fn pair(r: [Slot; 2]) -> [f32; 2] {
-    r.map(|r| f32::from_bits(get(r)))
-}
-
-unsafe fn put_pair(r: [Slot; 2], v: [f32; 2]) {
-    for (r, v) in r.into_iter().zip(v) {
-        unsafe { game_write(r, v.to_bits()) };
+fn put_pair(r: &[Float; 2], v: [f32; 2]) {
+    for (r, v) in r.iter().zip(v) {
+        r.set(v);
     }
 }
 
 /// The court (`rc2k_core::marks::pong::Court`) from the game's variables.
 pub fn court() -> rc2k_core::marks::pong::Court {
+    let p = &PONG;
     rc2k_core::marks::pong::Court {
-        ball: pair(BALL),
-        way: pair(BALL_WAY),
-        ball_size: pair(BALL_SIZE),
-        saved_bat: SAVED_BAT.map(get),
-        bat: pair(BAT),
-        bat_size: pair(BAT_SIZE),
-        ball_centre: pair(BALL_CENTRE),
-        bat_centre: pair(BAT_CENTRE),
-        difference: pair(DIFFERENCE),
-        steps: get(STEPS_RVA),
-        hits: get(HITS_RVA),
+        ball: pair(&p.ball),
+        way: pair(&p.ball_way),
+        ball_size: pair(&p.ball_size),
+        saved_bat: p.saved_bat.each_ref().map(Dword::get),
+        bat: pair(&p.bat),
+        bat_size: pair(&p.bat_size),
+        ball_centre: pair(&p.ball_centre),
+        bat_centre: pair(&p.bat_centre),
+        difference: pair(&p.difference),
+        steps: p.steps.get(),
+        hits: p.hits.get(),
     }
 }
 
 /// The court back into the game's variables: what differs from `before` (the rest is left
 /// as it is, its bits untouched).
-pub unsafe fn put_court(c: &rc2k_core::marks::pong::Court, before: &rc2k_core::marks::pong::Court) {
-    unsafe {
-        for (r, v, b) in [
-            (BALL, c.ball, before.ball),
-            (BALL_WAY, c.way, before.way),
-            (BALL_SIZE, c.ball_size, before.ball_size),
-            (BAT, c.bat, before.bat),
-            (BAT_SIZE, c.bat_size, before.bat_size),
-            (BALL_CENTRE, c.ball_centre, before.ball_centre),
-            (BAT_CENTRE, c.bat_centre, before.bat_centre),
-            (DIFFERENCE, c.difference, before.difference),
-        ] {
-            if v.map(f32::to_bits) != b.map(f32::to_bits) {
-                put_pair(r, v);
-            }
+pub fn put_court(c: &rc2k_core::marks::pong::Court, before: &rc2k_core::marks::pong::Court) {
+    let p = &PONG;
+    for (r, v, b) in [
+        (&p.ball, c.ball, before.ball),
+        (&p.ball_way, c.way, before.way),
+        (&p.ball_size, c.ball_size, before.ball_size),
+        (&p.bat, c.bat, before.bat),
+        (&p.bat_size, c.bat_size, before.bat_size),
+        (&p.ball_centre, c.ball_centre, before.ball_centre),
+        (&p.bat_centre, c.bat_centre, before.bat_centre),
+        (&p.difference, c.difference, before.difference),
+    ] {
+        if v.map(f32::to_bits) != b.map(f32::to_bits) {
+            put_pair(r, v);
         }
-        game_write(SAVED_BAT[0], c.saved_bat[0]);
-        game_write(SAVED_BAT[1], c.saved_bat[1]);
-        game_write(STEPS_RVA, c.steps);
-        game_write(HITS_RVA, c.hits);
     }
+    p.saved_bat[0].set(c.saved_bat[0]);
+    p.saved_bat[1].set(c.saved_bat[1]);
+    p.steps.set(c.steps);
+    p.hits.set(c.hits);
 }
 
 /// The court's constants from the game.
 pub fn rules() -> rc2k_core::marks::pong::Rules {
-    let f = |r: Slot| f32::from_bits(get(r));
+    let r = &PONG_RULES;
     rc2k_core::marks::pong::Rules {
-        centre: std::array::from_fn(|n| f(CENTRE_RVA + 4 * n)),
-        nudge: f(NUDGE_RVA),
-        way_scale: [f(WAY_SCALE_RVA), f(WAY_SCALE_RVA + 4)],
-        length: f(LENGTH_RVA),
-        walls: std::array::from_fn(|n| f(WALLS_RVA + 4 * n)),
-        start: std::array::from_fn(|n| get(START_RVA + 4 * n)),
+        centre: r.centre.each_ref().map(Float::get),
+        nudge: r.nudge.get(),
+        way_scale: pair(&r.way_scale),
+        length: f32::from_bits(unsafe { game_read(LENGTH_RVA) }),
+        walls: r.walls.each_ref().map(Float::get),
+        start: r.start.each_ref().map(Float::bits),
     }
 }
 
@@ -126,7 +320,7 @@ pub fn with_court<T>(step: impl FnOnce(&mut rc2k_core::marks::pong::Court) -> T)
     let before = court();
     let mut c = before;
     let out = step(&mut c);
-    unsafe { put_court(&c, &before) };
+    put_court(&c, &before);
     out
 }
 
@@ -134,15 +328,16 @@ pub fn with_court<T>(step: impl FnOnce(&mut rc2k_core::marks::pong::Court) -> T)
 /// `marks::pong_bat_back`): whether they overlap (no compare gave C0 alone) and the
 /// last status.
 pub fn overlap() -> (bool, u32) {
+    let p = &PONG;
     let tests = [
-        (BALL[0], BALL_SIZE[0], BAT[0]),
-        (BAT[0], BAT_SIZE[0], BALL[0]),
-        (BALL[1], BALL_SIZE[1], BAT[1]),
-        (BAT[1], BAT_SIZE[1], BALL[1]),
+        (&p.ball[0], &p.ball_size[0], &p.bat[0]),
+        (&p.bat[0], &p.bat_size[0], &p.ball[0]),
+        (&p.ball[1], &p.ball_size[1], &p.bat[1]),
+        (&p.bat[1], &p.bat_size[1], &p.ball[1]),
     ];
     let mut s = 0;
     for (a, b, c) in tests {
-        s = sum_compare(get(a), get(b), get(c));
+        s = sum_compare(a.bits(), b.bits(), c.bits());
         if s == 0x100 {
             return (false, s);
         }
@@ -320,6 +515,55 @@ mod asm_differential {
             &SPEC,
             |b| unsafe { reference::less_compare_x87_2(b[0], b[1]) },
             |b| unsafe { super::less_compare_x87_2(b[0], b[1]) },
+        );
+    }
+}
+
+#[cfg(test)]
+mod state_tests {
+    use super::*;
+
+    fn bytes<T>(v: &'static T) -> Vec<u8> {
+        let p = v as *const T as *const u8;
+        (0..core::mem::size_of::<T>())
+            .map(|i| unsafe { p.add(i).read() })
+            .collect()
+    }
+
+    #[test]
+    fn the_state_and_the_rules_start_as_the_games() {
+        assert_eq!(size_of::<PongState>(), PongState::LEN);
+        assert_eq!(size_of::<PongRules>(), PongRules::LEN);
+        let (s, r) = (PongState::START, PongRules::START);
+        assert!(
+            bytes(&PONG) == crate::moved::image_bytes(s, PongState::LEN),
+            "PONG starts differently from the image"
+        );
+        assert!(
+            bytes(&PONG_RULES) == crate::moved::image_bytes(r, PongRules::LEN),
+            "PONG_RULES starts differently from the image"
+        );
+        use core::mem::offset_of;
+        assert_eq!(offset_of!(PongState, ball), 0x768688 - s);
+        assert_eq!(offset_of!(PongState, bat), 0x7686B8 - s);
+        assert_eq!(offset_of!(PongState, difference), 0x7686F4 - s);
+        assert_eq!(offset_of!(PongState, steps), 0x768700 - s);
+        assert_eq!(offset_of!(PongState, digit_patterns), 0x768704 - s);
+        assert_eq!(offset_of!(PongState, best), 0x7687CC - s);
+        assert_eq!(offset_of!(PongState, digit_at), 0x7687D4 - s);
+        assert_eq!(offset_of!(PongRules, walls), 0x7691A6 - r);
+        assert_eq!(offset_of!(PongRules, cell_step), 0x7691FA - r);
+        assert_eq!(offset_of!(PongRules, near), 0x76921A - r);
+        assert_eq!(offset_of!(PongRules, setup_places), 0x769222 - r);
+    }
+
+    #[test]
+    fn moved_sends_the_addresses_to_the_statics() {
+        assert_eq!(crate::moved::place(0x768688), PONG.ball[0].addr());
+        assert_eq!(crate::moved::place(0x76921A), PONG_RULES.near.addr());
+        assert_eq!(
+            crate::moved::place(0x7687DC),
+            crate::marks::store::STORE.addr() + (0x7687DC - crate::marks::store::START)
         );
     }
 }

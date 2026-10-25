@@ -16,19 +16,18 @@
 
 use crate::errors::Refused;
 use crate::install::installer::{
-    DIR_COUNT, DIRS, FILE_COUNT, FILES, GAME_DIR, INSTALLED, INSTALLING, PATH_A, PATH_B, a,
-    append_byte, copy_picture, draw_string, g, lock, normalise, p, set_cd, show, sleep, str_append,
+    append_byte, copy_picture, draw_string, lock, normalise, set_cd, show, sleep, str_append,
     str_append_indexed, take_key, unlock,
 };
+use crate::install::vars::INSTALLER_PATHS;
+use crate::install::vars::INSTALLER_RUN;
 
-const UPDATING: usize = 0x51B9CC; // dword_51B9CC
-const FROM_COMMAND: usize = 0x51B9D0; // dword_51B9D0
-const FONT_BE: usize = 0x51E904; // stru_51E904
+const FONT_BE: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::BOX_TEXT;
 
 /// `to` = `base` + name `index` of `table`, NUL-ended.
-fn append_both(base: usize, to: usize, table: usize, index: u32) {
-    let cursor = str_append(a(base), a(to));
-    let cursor = str_append_indexed(g(table), index, cursor);
+fn append_both(base: u32, to: u32, table: u32, index: u32) {
+    let cursor = str_append(base, to);
+    let cursor = str_append_indexed(table, index, cursor);
     append_byte(cursor, 0);
 }
 
@@ -41,38 +40,61 @@ enum Stop {
 
 fn work() -> Result<Stop, Refused> {
     use crate::install as i;
-    if !normalise(a(PATH_A), a(GAME_DIR))?
-        || !normalise(a(PATH_B), a(INSTALLED))?
-        || !set_cd(a(GAME_DIR))
+    if !normalise(
+        INSTALLER_PATHS.path_a.addr() as u32,
+        INSTALLER_PATHS.game_dir.addr() as u32,
+    )? || !normalise(
+        INSTALLER_PATHS.path_b.addr() as u32,
+        INSTALLER_PATHS.installed.addr() as u32,
+    )? || !set_cd(INSTALLER_PATHS.game_dir.addr() as u32)
     {
         return Ok(Stop::Straight);
     }
     i::run_script::run_script(crate::install::store::INSTALL.clio_script.addr() as u32)?;
-    if g(DIR_COUNT) != 0 {
+    if INSTALLER_RUN.dir_count.get() != 0 {
         let mut n = 0;
         loop {
-            append_both(INSTALLED, PATH_B, DIRS, n);
-            if !i::make_folders::make_folders(a(PATH_B))? {
+            append_both(
+                INSTALLER_PATHS.installed.addr() as u32,
+                INSTALLER_PATHS.path_b.addr() as u32,
+                INSTALLER_RUN.dirs.get(),
+                n,
+            );
+            if !i::make_folders::make_folders(INSTALLER_PATHS.path_b.addr() as u32)? {
                 return Ok(Stop::SetBack);
             }
             n = n.wrapping_add(1);
-            if n == g(DIR_COUNT) {
+            if n == INSTALLER_RUN.dir_count.get() {
                 break;
             }
         }
-        set_cd(a(GAME_DIR));
+        set_cd(INSTALLER_PATHS.game_dir.addr() as u32);
     }
-    if g(FILE_COUNT) != 0 {
+    if INSTALLER_RUN.file_count.get() != 0 {
         let mut n = 0;
         loop {
-            append_both(GAME_DIR, PATH_A, FILES, n);
-            append_both(INSTALLED, PATH_B, FILES, n);
+            append_both(
+                INSTALLER_PATHS.game_dir.addr() as u32,
+                INSTALLER_PATHS.path_a.addr() as u32,
+                INSTALLER_RUN.files.get(),
+                n,
+            );
+            append_both(
+                INSTALLER_PATHS.installed.addr() as u32,
+                INSTALLER_PATHS.path_b.addr() as u32,
+                INSTALLER_RUN.files.get(),
+                n,
+            );
             // 0x416886: a failed copy stops the install as Escape does.
-            if !i::copy_counted::copy_counted(a(PATH_A), a(PATH_B))? || take_key() == 1 {
+            if !i::copy_counted::copy_counted(
+                INSTALLER_PATHS.path_a.addr() as u32,
+                INSTALLER_PATHS.path_b.addr() as u32,
+            )? || take_key() == 1
+            {
                 return Ok(Stop::SetBack);
             }
             n = n.wrapping_add(1);
-            if n == g(FILE_COUNT) {
+            if n == INSTALLER_RUN.file_count.get() {
                 break;
             }
         }
@@ -83,17 +105,17 @@ fn work() -> Result<Stop, Refused> {
 pub fn install_clio() -> Result<(), Refused> {
     if lock() {
         copy_picture()?;
-        draw_string(0xBE, a(FONT_BE), 0x1A9, 0x113)?;
+        draw_string(0xBE, FONT_BE.addr() as u32, 0x1A9, 0x113)?;
         unlock();
         show();
         sleep(1000);
     }
     if let Stop::SetBack = work()? {
-        set_cd(a(INSTALLED));
+        set_cd(INSTALLER_PATHS.installed.addr() as u32);
     }
-    p(INSTALLING, 0);
-    p(UPDATING, 0);
-    p(FROM_COMMAND, 0);
+    INSTALLER_RUN.installing.set(0);
+    INSTALLER_RUN.updating.set(0);
+    INSTALLER_RUN.from_command.set(0);
     sleep(1000);
     Ok(())
 }

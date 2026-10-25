@@ -13,23 +13,20 @@
 
 use crate::audio::store::AUDIO;
 use crate::errors::Refused;
-use crate::framework::{game_read, rva};
 use crate::menu::disable_item::disable_item;
 use crate::menu::enable_item::enable_item;
+use crate::menu::option_work_store::OPTION_WORK;
+use crate::session::Dword;
 use crate::text::draw_text::Canvas;
 
-fn k(a: u32) -> u32 {
-    unsafe { game_read(rva(a as usize)) }
-}
-
 /// (the setting, its first string).
-const NAMES: [(u32, u32); 6] = [
-    (0x75566C, 0x54B),
-    (0x755680, 0x554),
-    (0x755670, 0x56D),
-    (0x755674, 0x56D),
-    (0x755678, 0x56D),
-    (0x75567C, 0x56D),
+const NAMES: [(&Dword, u32); 6] = [
+    (&OPTION_WORK.audio_quality, 0x54B),
+    (&OPTION_WORK.channels, 0x554),
+    (&OPTION_WORK.ds3d, 0x56D),
+    (&OPTION_WORK.eax, 0x56D),
+    (&OPTION_WORK.a3d, 0x56D),
+    (&OPTION_WORK.dolby, 0x56D),
 ];
 
 /// The Rust version (the registers the last name leaves: the menus read none of them).
@@ -46,7 +43,7 @@ pub unsafe fn draw_sound_settings(canvas: &mut dyn Canvas) -> Result<(), Refused
             disable_item(item)?;
         }
     }
-    let ids = NAMES.map(|(setting, first)| k(setting).wrapping_add(first));
+    let ids = NAMES.map(|(setting, first)| setting.get().wrapping_add(first));
     rc2k_core::screens::settings_pages::sound(&mut SettingsScreen::new(canvas), ids)?;
     Ok(())
 }

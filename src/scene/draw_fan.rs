@@ -1,7 +1,7 @@
-use crate::framework::{game_ptr, game_read, rva};
+use crate::framework::{game_read, rva};
 
 const SWITCH_RVA: usize = rva(0x5CDA8C); // dword_5CDA8C
-const DRAWTRI_RVA: usize = rva(0x4DD9AD); // aDrawtri_0
+const DRAWTRI_RVA: &std::ffi::CStr = c"drawtri"; // aDrawtri_0
 
 /// The Rust version (see the header). What it leaves in the registers (eax the device's
 /// result, the zero and carry flags) is read by none of its callers (register liveness,
@@ -13,7 +13,7 @@ pub fn draw_fan() {
     }
     let result = crate::d3d::draw_fan::draw_fan();
     if result != 0 {
-        unsafe { crate::logfile::log_write::log_write(game_ptr(DRAWTRI_RVA), false, 1) };
+        unsafe { crate::logfile::log_write::log_write(DRAWTRI_RVA.as_ptr().cast(), false, 1) };
         crate::logfile::log_hex8::log_hex8(result, false, 1);
     }
 }

@@ -14,6 +14,7 @@
 //! the x87 version stays for the Rust callers in unconverted code).
 
 use crate::framework::rva;
+use crate::marks::setup::CLOCK;
 use crate::marks::store::{Slot, game_addr, game_read, game_write};
 use crate::math::x87;
 use crate::scene::matrix3::{extended, rounded};
@@ -24,7 +25,6 @@ const VIEW_RVA: usize = rva(0x5EA3CC); // flt_5EA3CC: the view matrix
 const LAST_RVA: Slot = Slot::at(0x91FFBE); // flt_91FFBE .. flt_91FFC6
 const STEP_RVA: Slot = Slot::at(0x8EB951); // flt_8EB951 .. flt_8EB959
 const FACING_RVA: Slot = Slot::at(0x8F397D); // flt_8F397D
-const TICKS_RVA: Slot = Slot::at(0x764FD0); // g_marksFrameTicks
 
 /// The Rust version (see the header).
 pub unsafe fn view_motion() {
@@ -49,7 +49,7 @@ pub unsafe fn view_motion() {
         for (k, p) in place.iter().enumerate() {
             game_write(LAST_RVA + 4 * k, rounded(*p));
         }
-        let ticks: i32 = game_read(TICKS_RVA);
+        let ticks: i32 = CLOCK.frame_ticks.get() as i32;
         for k in 0..3 {
             let a = STEP_RVA + 4 * k;
             game_write(a, x87::over_int(game_read(a), ticks));

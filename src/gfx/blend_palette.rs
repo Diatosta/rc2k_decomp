@@ -13,8 +13,8 @@
 //! Refuses a count of 0 (the original goes through all 32 bits) and null pointers.
 
 use crate::errors::BadInput;
-use crate::gfx::block::game_write;
-use crate::gfx::pixel_format::{PixelFormat, SCRATCH_RVA};
+use crate::gfx::formats::FORMATS;
+use crate::gfx::pixel_format::PixelFormat;
 
 // ---- Rust version ----
 
@@ -47,7 +47,7 @@ pub unsafe fn blend_palette(
                 towards_second,
             );
             if let Some(scratch) = scratch {
-                game_write(SCRATCH_RVA, scratch);
+                FORMATS.scratch.write(&scratch);
             }
             entry.write_unaligned(pixel);
         }

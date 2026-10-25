@@ -4,12 +4,10 @@
 
 use crate::audio::store::AUDIO;
 use crate::errors::Refused;
-use crate::framework::rva;
-use crate::store::game_addr;
+use crate::menu::option_work_store::OPTION_WORK;
 
-pub const MASTER_SHOWN_RVA: usize = rva(0x755684); // g_masterVolumeShown
-const OPEN_TEXT: usize = rva(0x4DA715); // "AUD: open ds3d"
-const FAILED_TEXT: usize = rva(0x4DA724); // "AUD: open ds3d failed rc="
+const OPEN_TEXT: &std::ffi::CStr = c"AUD: open ds3d"; // "AUD: open ds3d"
+const FAILED_TEXT: &std::ffi::CStr = c"AUD: open ds3d failed rc="; // "AUD: open ds3d failed rc="
 pub const SET_FORMAT: u32 = 0x38;
 pub const GET_VOLUME: u32 = 0x18;
 const MODE_3D: u32 = crate::audio::voices::MODE_3D;
@@ -42,7 +40,7 @@ pub unsafe fn set_primary_format(mode: u32, rate: u32) -> Result<bool, Refused> 
 /// for the carry.
 pub unsafe fn open_listener(has_fpu: u32) -> Result<bool, Refused> {
     unsafe {
-        crate::audio::sound_device::log_text(game_addr(OPEN_TEXT) as u32, true);
+        crate::audio::sound_device::log_text(OPEN_TEXT.as_ptr() as usize as u32, true);
         // Converted: `rc2k_core::audio::device::listener_refused`.
         let code =
             match rc2k_core::audio::device::listener_refused(has_fpu, || AUDIO.no_listener.get()) {
@@ -62,7 +60,7 @@ pub unsafe fn open_listener(has_fpu: u32) -> Result<bool, Refused> {
                     r as u32
                 }
             };
-        crate::audio::sound_device::log_text(game_addr(FAILED_TEXT) as u32, false);
+        crate::audio::sound_device::log_text(FAILED_TEXT.as_ptr() as usize as u32, false);
         crate::audio::sound_device::log_hex(code, true);
         crate::audio::sound_device::release_listener();
         Ok(false)
@@ -117,7 +115,7 @@ pub fn make_primary() -> Result<bool, Refused> {
         if stored {
             AUDIO.master_volume.set(volume);
         }
-        crate::store::game_write(MASTER_SHOWN_RVA, volume);
+        OPTION_WORK.master_volume_shown.set(volume);
         crate::audio::set_master_volume::set_master_volume_in_game(volume);
         if AUDIO.sound_mode.get() & MODE_3D != 0 && !crate::audio::sound_device::open_listener()? {
             AUDIO.sound_mode.set(without_3d(AUDIO.sound_mode.get()));

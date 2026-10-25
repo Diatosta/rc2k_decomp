@@ -3,14 +3,12 @@
 //! its key's place (`menu/redefine_keys.rs`): `g_redefiningKey` = 1 and
 //! `g_redefinedKeyPlace` = the place. `choose_key_8` is in no menu.
 
-use crate::framework::game_write;
-use crate::menu::redefine_keys::{PLACE_RVA, REDEFINING_RVA};
+use crate::menu::option_work_store::OPTION_WORK;
 
 pub fn choose_key(place: u32) {
     // Converted: `rc2k_core::menu::player::Redefining`.
     let r = rc2k_core::menu::player::Redefining::start(place);
-    unsafe {
-        game_write(REDEFINING_RVA, r.on);
-        game_write(PLACE_RVA, r.place);
-    }
+
+    OPTION_WORK.redefining_key.set(r.on);
+    OPTION_WORK.redefined_key_place.set(r.place);
 }

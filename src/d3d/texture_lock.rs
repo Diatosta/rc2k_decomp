@@ -8,17 +8,15 @@
 //! (`platform_3d`'s objects).
 
 use crate::errors::FatalError;
-use crate::framework::rva;
-use crate::gfx::block::game_addr;
-use crate::gfx::upload::Slot as UpSlot;
 
-pub const RECORDS_RVA: usize = rva(0x5B521C); // unk_5B521C
 pub const RECORD: u32 = 0x78;
-pub const DESCRIPTION_RVA: UpSlot = UpSlot::at(0x5ABA18); // dword_5ABA18: a DDSURFACEDESC
-pub const SURFACE_RVA: usize = rva(0x4F4998); // g_surface (0x48)
 
 pub fn record(slot: u32) -> u32 {
-    (game_addr(RECORDS_RVA) as u32).wrapping_add(slot.wrapping_mul(RECORD))
+    (crate::gfx::texture_upload::TEXTURE_TABLES
+        .system
+        .records
+        .as_ptr() as u32)
+        .wrapping_add(slot.wrapping_mul(RECORD))
 }
 
 pub fn get(a: u32) -> u32 {

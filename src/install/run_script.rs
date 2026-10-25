@@ -20,16 +20,15 @@
 
 use crate::bridge::Raw;
 use crate::errors::{BadInput, Refused};
-use crate::install::installer::{MEDIA_MODE, a, fatal, gb, rb, wb};
+use crate::install::installer::{MEDIA_MODE, fatal, gb, rb, wb};
+use crate::install::vars::INSTALLER_PATHS;
 use rc2k_core::install::script::{self, Op};
-
-const NAME_BUF: usize = 0x95EAF8; // byte_95EAF8
 
 /// The script at `script` (ebx) run.
 pub fn run_script(script: u32) -> Result<(), Refused> {
     use crate::install as i;
     let mut cursor = script;
-    let mut end = a(NAME_BUF);
+    let mut end = INSTALLER_PATHS.script_path.addr() as u32;
     wb(end, 0);
     let mut stack: Vec<u32> = Vec::new();
     let media = gb(MEDIA_MODE);
@@ -46,7 +45,7 @@ pub fn run_script(script: u32) -> Result<(), Refused> {
             Op::Folder => {
                 stack.push(end);
                 (cursor, end) = i::script_name::script_name(cursor, end)?;
-                i::list_folder::list_folder(a(NAME_BUF))?;
+                i::list_folder::list_folder(INSTALLER_PATHS.script_path.addr() as u32)?;
                 wb(end, b'\\');
                 wb(end + 1, 0);
                 end += 1;
@@ -65,11 +64,15 @@ pub fn run_script(script: u32) -> Result<(), Refused> {
                 stack.push(end);
                 (cursor, _) = i::script_name::script_name(cursor, end)?;
                 if op == 3 {
-                    i::list_files::list_files(a(NAME_BUF))?;
+                    i::list_files::list_files(INSTALLER_PATHS.script_path.addr() as u32)?;
                 } else {
-                    i::list_folder_tree::list_folder_tree(a(NAME_BUF))?;
+                    i::list_folder_tree::list_folder_tree(
+                        INSTALLER_PATHS.script_path.addr() as u32
+                    )?;
                 }
-                end = stack.pop().unwrap_or(a(NAME_BUF)); // pushed just above
+                end = stack
+                    .pop()
+                    .unwrap_or(INSTALLER_PATHS.script_path.addr() as u32); // pushed just above
                 wb(end, 0);
             }
             Op::Media => {

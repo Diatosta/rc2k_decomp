@@ -5,7 +5,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::rva;
-use crate::gfx::hexagon_batch::Slot as HexSlot;
+use crate::gfx::hexagon_batch::HEXAGON_BATCH;
 use crate::marks::store::{Slot, game_addr, game_read, game_write};
 use crate::math::x87;
 
@@ -74,9 +74,7 @@ const SCALED: [(Slot, &[Slot]); 4] = [
         &[Slot::at(0x82E252), Slot::at(0x82E256)],
     ),
 ];
-const FANS_RVA: HexSlot = HexSlot::at(0x624240); // g_marksHexagonFans: 0x40 of 4 triangles (words)
 const FANS: u32 = 0x40;
-const FAN_RECORDS_RVA: HexSlot = HexSlot::at(0x625A44); // 0x40 of 0xC0
 const FAN_VALUE_RVA: Slot = Slot::at(0x7651A0); // dword_7651A0
 const CLEARED_RVA: Slot = Slot::at(0x8161AE); // dword_8161AE .. dword_8161BA
 
@@ -177,7 +175,7 @@ unsafe fn hexagons_with(resume: u32, plain: bool) -> Result<(), Refused> {
         } else {
             HEXAGONS.make();
         }
-        let mut at = game_addr(FANS_RVA) as u32;
+        let mut at = HEXAGON_BATCH.fans.addr() as u32;
         for n in 0..FANS {
             for triangle in rc2k_core::marks::shapes::fan(n) {
                 for (k, v) in triangle.into_iter().enumerate() {
@@ -186,7 +184,7 @@ unsafe fn hexagons_with(resume: u32, plain: bool) -> Result<(), Refused> {
                 at += 6;
             }
         }
-        let mut at = game_addr(FAN_RECORDS_RVA) as u32;
+        let mut at = HEXAGON_BATCH.records.addr() as u32;
         let value: u32 = game_read(FAN_VALUE_RVA);
         for _ in 0..FANS {
             for part in 0..6 {

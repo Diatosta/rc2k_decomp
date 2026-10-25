@@ -18,8 +18,6 @@
 
 use crate::errors::{FatalError, Refused};
 use crate::files::read_first_match::read_first_match;
-use crate::gfx::block::{game_addr, game_read};
-use crate::gfx::decoder::Slot as DecSlot;
 use crate::logfile::log_hex8::log_hex8;
 use crate::logfile::log_int::log_int;
 use crate::logfile::log_write::log_write;
@@ -28,6 +26,7 @@ use crate::memory::MemoryList;
 use crate::memory::allocate::allocate;
 use crate::memory::free_list::free_list;
 use crate::moved::Place;
+use crate::session::{Dword, Shared};
 use crate::strings::string_table::{lexicon, use_lexicon};
 use rc2k_core::strings::lexicon::{Compiled, compile};
 
@@ -55,8 +54,39 @@ const INDEX_SIZE: usize = 0xC3C;
 const TOTAL_SIZE: usize = 0xC40;
 const WORK_FLAGS: u32 = 0x1100_0000;
 
-const MEMORY_LIST_RVA: DecSlot = DecSlot::at(0x519558); // stru_519558
-const MEMORY_KILOBYTES_RVA: DecSlot = DecSlot::at(0x519554); // dword_519554
+/// IDA's address of the lexicon's memory variables.
+pub const MEMORY_START: usize = 0x519554;
+/// Their length.
+pub const MEMORY_LEN: usize = 0x519598 - MEMORY_START;
+
+/// The lexicon compiler's memory (the glyph builder takes the same work memory).
+#[repr(C)]
+pub struct LexiconMemory {
+    /// `dword_519554`: the memory's kilobytes (`imageheapsize`, a `var\ral.cfg` setting;
+    /// the glyph tables' work memory is sized by it too).
+    pub kilobytes: Dword,
+    /// `g_lexiconMemory` (`stru_519558`): the list the memory is taken from (16 bytes).
+    pub memory: Shared<MemoryList>,
+    /// `0x519568` .. `0x519598`: nothing reads or writes them (a gap).
+    pub _gap_14: [Dword; 12],
+}
+
+/// The lexicon's memory; the first values are the image's.
+pub static LEXICON: LexiconMemory = LexiconMemory {
+    kilobytes: Dword::new(0x400),
+    memory: Shared::new(MemoryList {
+        head: 0,
+        total: 0,
+        cursor: 0,
+        remaining: 0,
+    }),
+    _gap_14: [const { Dword::new(0) }; 12],
+};
+
+/// Where the block is (`moved::MOVED`'s home for IDA 0x519554).
+pub fn memory_home() -> usize {
+    &LEXICON as *const LexiconMemory as usize
+}
 /// The record all empty messages share (`unk_4F3034` in the image until 2026-10-24): +4 how
 /// often it was used (never reset), +0xC its index entry. Written here only.
 pub const EMPTY_MESSAGE_LEN: usize = 0x10;
@@ -102,7 +132,7 @@ unsafe fn report(why: &str) {
 /// reports as 0x80E1801x / 2x, are 0x80E18051 here.
 pub unsafe fn compiled() -> Result<Compiled, FatalError> {
     unsafe {
-        let memory = game_read::<u32>(MEMORY_KILOBYTES_RVA).wrapping_mul(0x400);
+        let memory = LEXICON.kilobytes.get().wrapping_mul(0x400);
         if memory < FILE_ROOM {
             report("the lexicon's memory is smaller than the file may be");
             return Err(NOT_CREATED);
@@ -156,11 +186,8 @@ pub unsafe fn compile_lexicon() -> Result<(), Refused> {
         let work = &mut *WORK.ptr();
         work.fill(0);
         // The original's memory, for the game's memory figures: taken and given back.
-        let list = game_addr(MEMORY_LIST_RVA) as *mut MemoryList;
-        let memory = allocate(
-            list,
-            game_read::<u32>(MEMORY_KILOBYTES_RVA).wrapping_mul(0x400),
-        )?;
+        let list = LEXICON.memory.as_ptr();
+        let memory = allocate(list, LEXICON.kilobytes.get().wrapping_mul(0x400))?;
         (*list).cursor = memory as u32;
         (*list).remaining = (*list).total;
 
@@ -207,6 +234,16 @@ pub unsafe fn compile_lexicon() -> Result<(), Refused> {
 #[cfg(test)]
 mod tests {
     use crate::moved::image_bytes;
+
+    #[test]
+    fn lexicon_memory_first_values_are_the_games() {
+        crate::gfx::first_values_are_the_games(
+            &super::LEXICON,
+            super::MEMORY_START,
+            super::MEMORY_START + super::MEMORY_LEN,
+        );
+        assert_eq!(crate::moved::place(0x519558), super::LEXICON.memory.addr());
+    }
 
     #[test]
     fn pattern_and_first_values_are_the_games() {

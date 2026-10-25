@@ -2,7 +2,12 @@
 //! 0x764F40 .. 0x93CCC8, the whole of it the marks' (the weather and surface effects: their
 //! settings, floats, work areas, the spline, shape, square, hexagon, ring and particle
 //! tables). Nothing outside `marks` reads or writes it but the one setting `race::frame_views`
-//! asks (`marks::setup::SETTINGS_RVA`), through the functions below.
+//! asks (`marks::setup::SETTINGS`, typed).
+//!
+//! Phase 7 (typed state) takes the block apart: each piece that has its typed struct and
+//! static (`CARVED`: pong, clock, rain, waves, clip, glow, mark slots, view vectors, snow, the
+//! settings pointer) leaves it, with its own `moved::MOVED` entry; what is left is `SEGS`.
+//! The block's bytes under a carved range are dead (a `Slot` there does not compile).
 //!
 //! One block with the image's layout (gaps and unreferenced bytes kept, so a slip that
 //! reads past a table reads what the original read, and 16-byte alignment holds for the
@@ -47,6 +52,84 @@ const fn initial() -> Store {
 /// The block (its first values are the image's bytes, `RUNS`).
 pub static STORE: Place<Store> = Place::new(initial());
 
+/// The ranges that left the block, each its own typed static in the module that owns it
+/// (phase 7; each with its own `moved::MOVED` entry). The block's bytes there are dead: a
+/// `Slot` in one does not compile or stops the program, and `SEGS` (the rest of the block,
+/// each with its own `MOVED` entry) leaves them out.
+pub const CARVED: &[(usize, usize)] = &[
+    (0x764F90, 0x764FC8), // `marks::view_vectors::ViewSources`
+    (0x764FC8, 0x764FFC), // `marks::setup::MarksClock`
+    (0x767A28, 0x767A2C), // `marks::setup::MarksSettings`
+    (0x768658, 0x7687DC), // `marks::pong::PongState`
+    (0x7687E4, 0x7688B4), // `marks::clip::ClipScreen`
+    (0x769182, 0x769232), // `marks::pong::PongRules`
+    (0x769236, 0x769312), // `marks::view_vectors::KeptView`
+    (0x8BC405, 0x8BDE55), // `marks::rain::RainState`
+    (0x8C5F91, 0x8C5FFD), // `marks::rain::RainRules`
+    (0x8C6000, 0x8D2000), // `marks::snow::SnowTables`
+    (0x8D2000, 0x8D2310), // `marks::snow::SnowState`
+    (0x8D2310, 0x8DA310), // `marks::snow::SnowCurve`
+    (0x8DA410, 0x8DB430), // `marks::snow::SnowCurveVars`
+    (0x8DB430, 0x8DB558), // `marks::snow::SnowLight`
+    (0x92001E, 0x92051E), // `marks::waves::MarksSines`
+    (0x9205F6, 0x92063A), // `marks::waves::WaveLevels`
+    (0x9206C2, 0x9206D2), // `marks::waves::WaveState`
+    (0x934F7C, 0x935300), // `marks::mark_slots::MarkSlots`
+    (0x9353A6, 0x935412), // `marks::mark_slots::SlotTuning`
+    (0x93CC70, 0x93CCB0), // `marks::clip::GlowState`
+];
+
+/// What is left of the block after `CARVED`: (first address, address past the last), in
+/// order. `MOVED` has an entry for each (`home_of`).
+pub const SEGS: &[(usize, usize)] = &[
+    (START, 0x764F90),
+    (0x764FFC, 0x767A28),
+    (0x767A2C, 0x768658),
+    (0x7687DC, 0x7687E4),
+    (0x7688B4, 0x769182),
+    (0x769232, 0x769236),
+    (0x769312, 0x8BC405),
+    (0x8BDE55, 0x8C5F91),
+    (0x8C5FFD, 0x8C6000),
+    (0x8DA310, 0x8DA410),
+    (0x8DB558, 0x92001E),
+    (0x92051E, 0x9205F6),
+    (0x92063A, 0x9206C2),
+    (0x9206D2, 0x934F7C),
+    (0x935300, 0x9353A6),
+    (0x935412, 0x93CC70),
+    (0x93CCB0, END),
+];
+
+/// `moved::MOVED`'s home for the segment of `SEGS` that starts at IDA address `FIRST`.
+pub fn home_of<const FIRST: usize>() -> usize {
+    STORE.addr() + (FIRST - START)
+}
+
+/// The start of the segment that holds IDA address `ida` (the profile ramps' lists, whose
+/// pointers `moved::RAW_KEPT` keeps as IDA addresses).
+pub const fn segment_start(ida: usize) -> usize {
+    let mut n = 0;
+    while n < SEGS.len() {
+        if SEGS[n].0 <= ida && ida < SEGS[n].1 {
+            return SEGS[n].0;
+        }
+        n += 1;
+    }
+    panic!("not in a segment of the marks' block")
+}
+
+const fn carved(ida: usize) -> bool {
+    let mut n = 0;
+    while n < CARVED.len() {
+        if CARVED[n].0 <= ida && ida < CARVED[n].1 {
+            return true;
+        }
+        n += 1;
+    }
+    false
+}
+
 /// A place in the block: the offset from its start.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Slot(usize);
@@ -59,6 +142,7 @@ impl Slot {
             START <= ida && ida < END,
             "not a variable of the marks' block"
         );
+        assert!(!carved(ida), "a variable that left the marks' block");
         Slot(ida - START)
     }
 
@@ -103,14 +187,6 @@ impl Where for usize {
 impl Where for Slot {
     fn address(self) -> usize {
         Slot::address(self)
-    }
-}
-
-/// A place in another moved block (the picture buffer's, `gfx::picture_store`) that the marks
-/// read and write.
-impl<R: crate::gfx::block::Region> Where for crate::gfx::block::Slot<R> {
-    fn address(self) -> usize {
-        crate::gfx::block::Slot::address(self)
     }
 }
 
@@ -179,6 +255,21 @@ mod tests {
             first == &image[..],
             "the block's bytes differ from the image's"
         );
+    }
+
+    #[test]
+    fn segments_and_carved_ranges_partition_the_block() {
+        let mut all: Vec<(usize, usize)> = SEGS.iter().chain(CARVED).copied().collect();
+        all.sort();
+        assert_eq!(all[0].0, START);
+        assert_eq!(all.last().unwrap().1, END);
+        for w in all.windows(2) {
+            assert_eq!(
+                w[0].1, w[1].0,
+                "{:#x} .. {:#x} and the next",
+                w[0].0, w[0].1
+            );
+        }
     }
 
     #[test]

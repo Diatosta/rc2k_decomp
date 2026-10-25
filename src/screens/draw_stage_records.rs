@@ -16,7 +16,7 @@
 //! index. That only works because those sprites do not use a palette; it is reproduced as is.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, rva};
+use crate::menu::event_store::EVENT_STATE;
 use crate::screens::stage_panel::PanelScreen;
 use crate::strings::append_time::show_hours;
 use crate::strings::units::units;
@@ -24,10 +24,6 @@ use crate::text::draw_text::Canvas;
 
 // ---- game data ----
 
-const RECORD_TABLES_RVA: usize = rva(0x735512); // off_735512: pointers to tables of tables
-const SELECTED_GROUP_RVA: usize = rva(0x7558C8); // dword_7558C8
-const SELECTED_INDEX_RVA: usize = rva(0x7558CC); // dword_7558CC
-const SELECTED_SUB_RVA: usize = rva(0x7558D0); // dword_7558D0
 const RECORD_SIZE: u32 = 0xA4;
 
 const ROW_1_Y: i32 = 0x1FC;
@@ -53,10 +49,10 @@ pub struct Selection {
 /// None while the tables are not there; the original then reads through a null pointer.
 pub unsafe fn selection() -> Option<Selection> {
     unsafe {
-        let group: u32 = game_read(SELECTED_GROUP_RVA);
-        let index: u32 = game_read(SELECTED_INDEX_RVA);
-        let sub: u32 = game_read(SELECTED_SUB_RVA);
-        let tables: u32 = game_read(RECORD_TABLES_RVA + group as usize * 4);
+        let group: u32 = EVENT_STATE.stage_group.get();
+        let index: u32 = EVENT_STATE.stage_number.get();
+        let sub: u32 = EVENT_STATE.stage_sub.get();
+        let tables = crate::records::stages_store::STAGE_TABLES.group_list(group);
         if tables == 0 {
             return None;
         }

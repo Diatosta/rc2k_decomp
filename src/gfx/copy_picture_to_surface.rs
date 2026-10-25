@@ -19,14 +19,13 @@
 
 use crate::errors::BadInput;
 use crate::framework::rva;
-use crate::gfx::block::game_read;
-use crate::gfx::locked::Slot as LockSlot;
+use crate::gfx::locked::LOCKED;
 use crate::gfx::picture::picture;
 use crate::gfx::surface::BASE_RVA;
+use crate::store::game_read;
 
 // ---- game data ----
 
-const LOCKED_RVA: LockSlot = LockSlot::at(0x4F3870); // dword_4F3870: 1 while the surface is locked
 const ROWS_RVA: usize = rva(0x4F49A4); // dword_4F49A4
 const ROW_DWORDS_RVA: usize = rva(0x4F49B4); // dword_4F49B4
 const ROW_GAP_RVA: usize = rva(0x4F49C4); // dword_4F49C4: surface bytes after a row's pixels
@@ -52,7 +51,7 @@ pub struct GameSurface;
 
 impl PictureSurface for GameSurface {
     fn locked(&self) -> bool {
-        unsafe { game_read::<u32>(LOCKED_RVA) != 0 }
+        LOCKED.surface.get() != 0
     }
     fn lock(&mut self) -> bool {
         // `cmp g_surfaceLocked, 1`'s carry clear: locked.

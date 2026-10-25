@@ -34,6 +34,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_write, rva};
+use crate::menu::cars_store::CAR_TABLE;
 use crate::menu::lists_store::MENU_LISTS;
 use crate::menu::state_store::MENU_STATE;
 use crate::scene::carousel_set_ups::PLAIN;
@@ -42,7 +43,6 @@ use crate::session::{Dword, write_all, write_prefix};
 // ---- game data ----
 const MENUS: u32 = 0x15;
 const CAR_KINDS_IDA: usize = 0x75A1FE; // dword_75A1FE: `MENU_LISTS.car_kinds`
-const LAST_RVA: usize = rva(0x75649C); // dword_75649C
 const SIZE_RVA: usize = rva(0x635038); // dword_635038
 use rc2k_core::scene::carousel;
 
@@ -164,7 +164,7 @@ unsafe fn cars(out: &mut Left, list: u32, size: u32) {
         MENU_STATE.carousel.count.set(n as u32);
         let last = (n as u32).wrapping_sub(1);
         out.ecx = Some(last);
-        game_write(LAST_RVA, last);
+        CAR_TABLE.last_car.set(last);
         game_write(SIZE_RVA, size);
         for op in CARS_TAIL {
             run_op(op);
@@ -196,7 +196,7 @@ pub unsafe fn set_up_carousel(list: u32) -> Result<Left, Refused> {
                 game_write(SIZE_RVA, 0xCu32);
                 write_prefix(&MENU_STATE.carousel.kinds, &FIXED_KINDS);
                 MENU_STATE.carousel.count.set(6u32);
-                game_write(LAST_RVA, 5u32);
+                CAR_TABLE.last_car.set(5u32);
                 for op in CARS_TAIL {
                     run_op(op);
                 }

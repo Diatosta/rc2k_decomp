@@ -8,15 +8,13 @@
 //! Callers: `race::set_up_fog` and ten more. The layer's call is made here (the two lines of
 //! `d3d_set_fog_colour`).
 
-use crate::framework::{game_write, rva};
-
-const KEPT_RVA: usize = rva(0x5AB964); // dword_5AB964
+use crate::d3d::cards_store::CARDS_3D;
 
 /// The Rust version (see the header).
 // Converted: `rc2k_core::scene::render_states::fog_colour`
 pub unsafe fn set_fog_colour(colour: u32) {
-    unsafe {
-        game_write(KEPT_RVA, colour);
+    {
+        CARDS_3D.fade_from.set(colour);
         let s = rc2k_core::scene::render_states::fog_colour(colour);
         crate::d3d::set_render_state::set_render_state(s.value, s.state);
     }

@@ -14,10 +14,9 @@
 //! entry, a section past 5, a player past 4 or missing, before anything; a driver not found is the
 //! search's fatal error, before anything.
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, game_write, rva};
+use crate::menu::draw_work_store::DRAW_WORK;
 use crate::menu::standings::*;
 
-const POINTS_RVA: usize = rva(0x7559AC); // seconds
 /// An entry's driver (with its number) or player (with its index).
 unsafe fn owner(e: u32) -> Result<(u32, u32, bool), Refused> {
     match get(e + 4) {
@@ -57,8 +56,8 @@ impl Awarded {
 pub unsafe fn award_overall_points() -> Result<Awarded, Refused> {
     let mut last = None;
     unsafe {
-        let section: u32 = game_read(SECTION_RVA);
-        let table: u32 = game_read(TABLE_B_RVA);
+        let section: u32 = SECTION_RVA.get();
+        let table: u32 = TABLE_B_RVA.get();
         if table == 0 || section > 5 {
             return Err(BadInput("no table, or a section past 5").into());
         }
@@ -71,13 +70,13 @@ pub unsafe fn award_overall_points() -> Result<Awarded, Refused> {
         use rc2k_core::menu::points::{Points, total};
         let at = 4 * section;
         let mut points = Points::default();
-        game_write(POINTS_RVA, points.0);
+        DRAW_WORK.seconds.set(points.0);
         for (&e, &(o, _, cpu)) in all.iter().zip(&owners) {
             if get(e + 0x10) == 0 {
                 continue;
             }
             let given = points.take();
-            game_write(POINTS_RVA, points.0);
+            DRAW_WORK.seconds.set(points.0);
             put(e + 0x38 + at, given);
             put(o + if cpu { 0x5C } else { 0xB4 } + at, given);
         }

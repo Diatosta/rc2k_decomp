@@ -11,24 +11,23 @@
 //! Caller: `menu::record_entries_pass`. The steps are their Rust versions. Refuses a record past
 //! the table, no events table, a current player past 3 or missing, or no name, before anything.
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, game_write, rva};
+use crate::menu::cheats_store::CHEAT_VARS;
+use crate::menu::draw_work_store::DRAW_WORK;
+use crate::menu::event_store::EVENT_STATE;
 use crate::menu::standings::*;
 
-const CURRENT_RVA: usize = rva(0x75598C); // dword_75598C
-const SLOT_RVA: usize = rva(0x7559EC); // dword_7559EC
 // hhmm
-const CHEATS_RVA: usize = rva(0x75870C); // g_cheats
 /// The Rust version (see the header).
 pub unsafe fn enter_record_entry() -> Result<(), Refused> {
     let event = current_event()?;
-    let n: u32 = unsafe { game_read(CURRENT_RVA) };
+    let n: u32 = { EVENT_STATE.current_player.get() };
     if n >= 4 || player(n) == 0 || get(player(n) + 0x18) == 0 {
         return Err(BadInput("a current player past 3, missing or without a name").into());
     }
     let p = player(n);
-    let slot = (event - unsafe { game_read::<u32>(EVENTS_RVA) }) / 0x618;
-    unsafe { game_write(SLOT_RVA, slot) };
-    let cheats = unsafe { game_read(CHEATS_RVA) };
+    let slot = (event - { EVENTS_RVA.get() }) / 0x618;
+    DRAW_WORK.figure.set(slot);
+    let cheats = { CHEAT_VARS.cheats.get() };
     let sealed = unsafe { crate::menu::sealed_player_time::sealed_player_time(slot) }?;
     // Converted: `rc2k_core::menu::bests::enter_tenth`, then `rank_entries`.
     use rc2k_core::menu::bests;

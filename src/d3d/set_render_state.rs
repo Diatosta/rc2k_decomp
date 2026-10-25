@@ -10,15 +10,12 @@
 //! the standalone program the value is kept and nothing more, until a renderer is
 //! there.
 
-use crate::framework::{game_write, rva};
-
-const KEPT_RVA: usize = rva(0x5AB6BC); // dword_5AB6BC
 /// The states the game uses are all below this.
 const STATES: u32 = 0x40;
 
 /// Render state `state` set to `value` (the standalone keeps the value).
 pub fn set_render_state(value: u32, state: u32) {
     if state < STATES {
-        unsafe { game_write(KEPT_RVA + state as usize * 4, value) };
+        crate::d3d::cards_store::CARDS_3D.kept_states[state as usize].set(value);
     }
 }

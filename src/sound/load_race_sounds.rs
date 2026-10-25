@@ -20,21 +20,13 @@
 //! object, a kind of 0x20 or more and a list of names that does not hold 95 of at most 0x100
 //! bytes.
 
+use crate::audio::names_store::SAMPLE_NAMES;
 use crate::errors::BadInput;
-use crate::framework::rva;
 use crate::race::state_store::RACE_STATE;
 use crate::sound::queue::START_3;
-use crate::store::game_addr;
+use crate::sound::sets_store::RACE_SOUND_SETS;
 
 // ---- game data ----
-
-const MALE_RVA: usize = rva(0x507C1A); // aFilesSpeechMCo
-const FEMALE_RVA: usize = rva(0x508914); // aFilesSpeechFCo
-const KINDS_RVA: usize = rva(0x512360); // off_512360: two sets a kind of car
-const REPLAY_SET_RVA: usize = rva(0x512340); // unk_512340
-const FIRST_SETS: [usize; 3] = [0x511CA8, 0x512268, 0x511D04];
-const SECOND_SETS: [usize; 2] = [0x512014, 0x512070];
-const LAST_SET_RVA: usize = rva(0x5121EC); // unk_5121EC
 
 const FIRST_SAMPLE: usize = 0xED;
 const NAMES: usize = 95;
@@ -139,8 +131,8 @@ pub unsafe fn load_race_sounds(places: &Places, send: &mut dyn FnMut(u32)) -> Re
         // Converted: `rc2k_core::sound::race::voices` and `sets`.
         use rc2k_core::sound::race::{Set, Voice, sets, voices};
         let list = |v: Voice| match v {
-            Voice::Male => game_addr(MALE_RVA),
-            Voice::Female => game_addr(FEMALE_RVA),
+            Voice::Male => SAMPLE_NAMES.male_speech.addr(),
+            Voice::Female => SAMPLE_NAMES.female_speech.addr(),
         };
         let (a, b) = voices(
             crate::sound::store::SoundObject::at(first as u32)
@@ -171,12 +163,23 @@ pub unsafe fn load_race_sounds(places: &Places, send: &mut dyn FnMut(u32)) -> Re
             other_count,
         ) {
             send(match set {
-                Set::Replay => game_addr(REPLAY_SET_RVA) as u32,
-                Set::FirstKind(k) => dword(game_addr(KINDS_RVA) + k as usize * 8),
-                Set::First(n) => game_addr(rva(FIRST_SETS[n])) as u32,
-                Set::SecondKind(k) => dword(game_addr(KINDS_RVA) + 4 + k as usize * 8),
-                Set::Second(n) => game_addr(rva(SECOND_SETS[n])) as u32,
-                Set::Last => game_addr(LAST_SET_RVA) as u32,
+                Set::Replay => crate::session::address_of(&RACE_SOUND_SETS.replay_set) as u32,
+                Set::FirstKind(k) => {
+                    dword(crate::session::address_of(&RACE_SOUND_SETS.kinds) + k as usize * 8)
+                }
+                Set::First(n) => [
+                    crate::session::address_of(&RACE_SOUND_SETS.first_set_a),
+                    crate::session::address_of(&RACE_SOUND_SETS.first_set_b),
+                    crate::session::address_of(&RACE_SOUND_SETS.first_set_c),
+                ][n] as u32,
+                Set::SecondKind(k) => {
+                    dword(crate::session::address_of(&RACE_SOUND_SETS.kinds) + 4 + k as usize * 8)
+                }
+                Set::Second(n) => [
+                    crate::session::address_of(&RACE_SOUND_SETS.second_set_a),
+                    crate::session::address_of(&RACE_SOUND_SETS.second_set_b),
+                ][n] as u32,
+                Set::Last => crate::session::address_of(&RACE_SOUND_SETS.last_set) as u32,
             });
         }
         Ok(())

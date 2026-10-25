@@ -19,11 +19,11 @@
 
 use crate::errors::{FatalError, Refused};
 use crate::framework::rva;
-use crate::gfx::block::{game_addr, game_read, game_write};
-use crate::gfx::modes::Slot as ModeSlot;
-use crate::gfx::picture::{FLAGS_RVA, PICTURE_RVA};
+use crate::gfx::modes::MODES;
+use crate::gfx::picture_store::PICTURE;
 use crate::gfx::pixel_format::surface_format_addr;
 use crate::gfx::set_clip::set_clip;
+use crate::store::{game_addr, game_write};
 use crate::system::find_entry::entries;
 
 // ---- game data ----
@@ -33,9 +33,7 @@ use crate::system::find_entry::entries;
 /// pixels, the gap after a row.
 pub const SURFACE_RVA: usize = rva(0x4F4998);
 pub const SURFACE_DWORDS: usize = 12;
-const SIZES_RVA: ModeSlot = ModeSlot::at(0x4F4E50); // dword_4F4E50: key, width and height as words
 const SIZE_COUNT: u32 = 8;
-const PIXEL_KINDS_RVA: ModeSlot = ModeSlot::at(0x4F4E40); // dword_4F4E40: key, bits
 const PIXEL_KIND_COUNT: u32 = 2;
 
 // ---- Rust version ----
@@ -47,8 +45,8 @@ pub unsafe fn surface_of(flags: u32, pixels: u32) -> Result<[u32; SURFACE_DWORDS
     unsafe {
         rc2k_core::gfx::screen_modes::picture_surface(
             flags,
-            entries(game_addr(SIZES_RVA) as u32, SIZE_COUNT),
-            entries(game_addr(PIXEL_KINDS_RVA) as u32, PIXEL_KIND_COUNT),
+            entries(MODES.sizes_addr() as u32, SIZE_COUNT),
+            entries(MODES.pixel_kinds_addr() as u32, PIXEL_KIND_COUNT),
             surface_format_addr() as u32,
             pixels,
         )
@@ -64,7 +62,7 @@ pub unsafe fn surface_of(flags: u32, pixels: u32) -> Result<[u32; SURFACE_DWORDS
 
 pub unsafe fn picture_as_surface() -> Result<(), Refused> {
     unsafe {
-        let block = surface_of(game_read(FLAGS_RVA), game_read(PICTURE_RVA))?;
+        let block = surface_of(PICTURE.flags.get(), PICTURE.buffer.get())?;
         game_write(SURFACE_RVA + 8, block);
         set_clip(game_addr(SURFACE_RVA) as *const [u32; 4])?;
         Ok(())

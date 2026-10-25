@@ -14,13 +14,12 @@
 //! lock held).
 
 use crate::errors::{BadInput, Refused};
-use crate::net::lobby::a;
 use crate::net::store::NET;
 use crate::strings::str_append::str_append;
 use crate::text::draw_text::GameCanvas;
 use crate::text::measure_text::measure_text_at;
 
-const CHAT_FONT: usize = 0x51E424; // dword_51E424
+const CHAT_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::CHAT_LINE;
 const LINE_WIDTH: u32 = 0x30C;
 const CHAT_LEN: u32 = 0x300;
 
@@ -64,7 +63,7 @@ pub fn add_chat_line(player: u32, message: *const u8) -> Result<(), Refused> {
             set_byte(end, 0);
             let width = unsafe {
                 measure_text_at(
-                    a(CHAT_FONT) as *mut _,
+                    CHAT_FONT.as_ptr(),
                     (NET.chat_line.addr() as u32) as *const u8,
                     0,
                     &mut GameCanvas,

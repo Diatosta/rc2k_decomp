@@ -6,6 +6,7 @@
 
 use crate::errors::Refused;
 use crate::framework::rva;
+use crate::gfx::screen_state::DRAW_SURFACE;
 use crate::store::{game_addr, game_read, game_write};
 
 pub const MUD_LIST_RVA: usize = rva(0x5C6F50); // stru_5C6F50
@@ -21,12 +22,6 @@ pub const STATE_DWORDS: usize = 18;
 pub const STATE_MORE: [usize; 2] = [rva(0x62390C), rva(0x623918)];
 pub const PICTURE_RVA: usize = rva(0x5D0DEC); // dword_5D0DEC: the surface sampled
 pub const COLOURS_RVA: usize = rva(0x623930); // 256 dwords
-const WIDTH_RVA: usize = rva(0x4F49A0); // g_surface.width
-const HEIGHT_RVA: usize = rva(0x4F49A4); // g_surface.height
-const FORMAT_RVA: usize = rva(0x4F49B8); // g_surface.format
-const PITCH_RVA: usize = rva(0x4F49BC); // g_surface.pitch
-const PIXELS_RVA: usize = rva(0x4F49C0); // g_surface.pixels
-const BITS_RVA: usize = rva(0x4F49A8); // g_surface.bits_per_pixel
 
 /// `race::car_file_number` (0x41F4FD): eax held to 0 .. 0x21 (signed), its entry of
 /// `dword_5C5928`.
@@ -42,7 +37,7 @@ pub fn car_file_number(car: u32) -> u32 {
 pub unsafe fn read_pixel(x: u32, y: u32) -> u32 {
     unsafe {
         let (_, pixel) = raw_pixel(x, y);
-        let format = game_read::<u32>(FORMAT_RVA) as *const crate::gfx::pixel_format::PixelFormat;
+        let format = DRAW_SURFACE.format.get() as *const crate::gfx::pixel_format::PixelFormat;
         crate::gfx::pixel_to_components::pixel_to_components(&format.read_unaligned(), pixel)
     }
 }
@@ -51,8 +46,11 @@ pub unsafe fn read_pixel(x: u32, y: u32) -> u32 {
 /// both: a second copy of this compiled without the row's upper half, 2026-10-16).
 pub unsafe fn raw_pixel(x: u32, y: u32) -> (u32, u32) {
     unsafe {
-        let row = game_read::<u32>(PIXELS_RVA).wrapping_add(y.wrapping_mul(game_read(PITCH_RVA)));
-        let pixel = if game_read::<u32>(BITS_RVA) == 0x10 {
+        let row = DRAW_SURFACE
+            .pixels
+            .get()
+            .wrapping_add(y.wrapping_mul(DRAW_SURFACE.pitch.get()));
+        let pixel = if DRAW_SURFACE.bits_per_pixel.get() == 0x10 {
             // As the original: eax the row's address, then `mov ax` of the pixel: the
             // upper half of the result is the row's address's.
             let word = (row.wrapping_add(x.wrapping_mul(2)) as *const u16).read_unaligned();
@@ -68,7 +66,8 @@ pub unsafe fn raw_pixel(x: u32, y: u32) -> (u32, u32) {
 pub unsafe fn mud_pixel(x: u32, y: u32) -> u32 {
     unsafe {
         // Converted: `rc2k_core::race::mud::inside`.
-        if !rc2k_core::race::mud::inside(x, y, game_read(WIDTH_RVA), game_read(HEIGHT_RVA)) {
+        if !rc2k_core::race::mud::inside(x, y, DRAW_SURFACE.width.get(), DRAW_SURFACE.height.get())
+        {
             return 0;
         }
         read_pixel(x, y)

@@ -10,11 +10,16 @@
 use crate::errors::Refused;
 use crate::net::lobby::{copy_picture, draw_string, lock_surface};
 
-const FONT_B: usize = 0x51E844; // font_b
+const FONT_B: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::CAPTION_B;
 
 /// A frame with one string: locked, the background, the string, unlocked, shown; nothing if
 /// the lock fails.
-pub fn string_frame(id: u32, font: usize, x: u32, y: u32) -> Result<(), Refused> {
+pub fn string_frame(
+    id: u32,
+    font: crate::gfx::typefaces::FontId,
+    x: u32,
+    y: u32,
+) -> Result<(), Refused> {
     if !lock_surface() {
         return Ok(());
     }
@@ -22,7 +27,12 @@ pub fn string_frame(id: u32, font: usize, x: u32, y: u32) -> Result<(), Refused>
 }
 
 /// `string_frame` after the lock.
-pub fn string_frame_locked(id: u32, font: usize, x: u32, y: u32) -> Result<(), Refused> {
+pub fn string_frame_locked(
+    id: u32,
+    font: crate::gfx::typefaces::FontId,
+    x: u32,
+    y: u32,
+) -> Result<(), Refused> {
     copy_picture()?;
     draw_string(id, font, x, y)?;
     crate::platform::unlock_surface();

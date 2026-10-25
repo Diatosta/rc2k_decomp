@@ -8,31 +8,26 @@
 //! before anything.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, game_write, rva};
+use crate::menu::event_store::EVENT_STATE;
+use crate::menu::pages_store::MENU_PAGES;
 use crate::menu::screen_loop::{Carried, run_screen};
 use crate::menu::standings::*;
-
-const CURRENT_RVA: usize = rva(0x75598C); // dword_75598C
-const ENTERED_RVA: usize = rva(0x755920); // dword_755920
-const CLASS_RVA: usize = rva(0x7558F4); // dword_7558F4
-const CLASSES_RVA: usize = rva(0x7558F8); // dword_7558F8
-const ANSWER_RVA: usize = rva(0x75524C); // g_yesNoAnswer
 
 /// The Rust version (see the header): the registers it leaves.
 pub unsafe fn best_class_scores(c: &Carried) -> Result<(), Refused> {
     unsafe {
         let players = counted_players()?;
-        let classes: u32 = game_read(CLASSES_RVA);
-        let table: u32 = game_read(BEST_SCORES_RVA);
+        let classes: u32 = EVENT_STATE.classes.get();
+        let table: u32 = BEST_SCORES_RVA.get();
         if classes == 0 || classes > 5 || table == 0 {
             return Err(BadInput("no classes, more than five, or no best-score table").into());
         }
         let mut g = *c;
         for class in 0..classes {
             g.clock = class;
-            game_write(ENTERED_RVA, 0u32);
+            EVENT_STATE.any_time_qualified.set(0u32);
             for (n, &p) in players.iter().enumerate() {
-                game_write(CURRENT_RVA, n as u32);
+                EVENT_STATE.current_player.set(n as u32);
                 g.arg = get(p + 0xB0);
                 g.palette = get(p + 0x90);
                 if g.palette == class {
@@ -41,15 +36,15 @@ pub unsafe fn best_class_scores(c: &Carried) -> Result<(), Refused> {
                     // Converted: `rc2k_core::menu::bests::makes_score`.
                     if rc2k_core::menu::bests::makes_score(g.arg, get(g.cars + 0x38)) {
                         enter_best(None, 0xB0)?;
-                        game_write(ENTERED_RVA, 1u32);
+                        EVENT_STATE.any_time_qualified.set(1u32);
                     }
                 }
             }
             g.measure_x = players.len() as u32;
-            if game_read::<u32>(ENTERED_RVA) == 1 {
-                game_write(CLASS_RVA, class);
+            if EVENT_STATE.any_time_qualified.get() == 1 {
+                EVENT_STATE.class.set(class);
                 run_screen(&crate::menu::best_class_scores_loop::SCREEN, &g)?;
-                if game_read::<u32>(ANSWER_RVA) == 1 {
+                if MENU_PAGES.yes_no_answer.get() == 1 {
                     break;
                 }
             }

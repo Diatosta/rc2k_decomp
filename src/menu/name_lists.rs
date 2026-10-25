@@ -4,37 +4,49 @@
 //! the code that reads `savedata\savegame\svgameNN` and `savedata\replay\replayNN` into them.
 
 use crate::errors::BadInput;
-use crate::framework::{game_ptr, game_read, rva};
+use crate::menu::pages_store::MENU_PAGES;
 use crate::service::state::menu_item;
+use crate::session::{Bytes, Dword};
 
 pub const NAME_LEN: usize = 0x20;
 const NAMES: u32 = 100;
 
-pub const SAVEGAME_NAMES_RVA: usize = rva(0x526BB4); // byte_526BB4
-pub const SAVEGAME_PAGE_RVA: usize = rva(0x75523C); // dword_75523C
+pub const SAVEGAME_PAGE_RVA: &Dword = &MENU_PAGES.save_page; // dword_75523C
 const SAVEGAMES_PER_PAGE: u32 = 10;
 
-pub const REPLAY_NAMES_RVA: usize = rva(0x528934); // byte_528934
-pub const REPLAY_PAGE_RVA: usize = rva(0x755248); // dword_755248
+pub const REPLAY_PAGE_RVA: &Dword = &MENU_PAGES.replay_page; // dword_755248
 const REPLAYS_PER_PAGE: u32 = 20;
 
-fn highlighted(names_rva: usize, page_rva: usize, per_page: u32) -> Result<*mut u8, BadInput> {
-    let index = unsafe { game_read::<u32>(page_rva) }
+fn highlighted<const N: usize>(
+    names: &Bytes<N>,
+    page: &Dword,
+    per_page: u32,
+) -> Result<*mut u8, BadInput> {
+    let index = page
+        .get()
         .wrapping_mul(per_page)
         .wrapping_add(menu_item())
         .wrapping_sub(1);
     if index >= NAMES {
         return Err(BadInput("highlighted name past the list"));
     }
-    Ok(game_ptr::<u8>(names_rva).wrapping_add(index as usize * NAME_LEN))
+    Ok(names.as_ptr().wrapping_add(index as usize * NAME_LEN))
 }
 
 /// The name of the highlighted saved game.
 pub fn savegame_name() -> Result<*mut u8, BadInput> {
-    highlighted(SAVEGAME_NAMES_RVA, SAVEGAME_PAGE_RVA, SAVEGAMES_PER_PAGE)
+    highlighted(
+        &crate::saves::write_savegame_slot::SAVE_GAMES.names,
+        SAVEGAME_PAGE_RVA,
+        SAVEGAMES_PER_PAGE,
+    )
 }
 
 /// The name of the highlighted replay.
 pub fn replay_name() -> Result<*mut u8, BadInput> {
-    highlighted(REPLAY_NAMES_RVA, REPLAY_PAGE_RVA, REPLAYS_PER_PAGE)
+    highlighted(
+        &crate::race::replay::REPLAYS.names,
+        REPLAY_PAGE_RVA,
+        REPLAYS_PER_PAGE,
+    )
 }

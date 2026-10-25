@@ -18,13 +18,11 @@
 //! reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, rva};
+use crate::menu::event_store::EVENT_STATE;
 use crate::strings::append_time::show_hours;
 use crate::text::draw_text::Canvas;
 
-const TABLES_RVA: usize = rva(0x742C98); // off_742C98: six tables
 const SECTIONS: u32 = 6;
-const SECTION_RVA: usize = rva(0x75595C); // section
 // seconds
 const ENTRY_LEN: u32 = 0x9C;
 fn get(a: u32) -> u32 {
@@ -33,32 +31,30 @@ fn get(a: u32) -> u32 {
 
 /// The Rust version.
 pub unsafe fn draw_section_best_times(canvas: &mut dyn Canvas) -> Result<(), Refused> {
-    unsafe {
-        let section: u32 = game_read(SECTION_RVA);
-        if section >= SECTIONS {
-            return Err(BadInput("a section past the six best-times tables").into());
-        }
-        let e: u32 = game_read(TABLES_RVA + 4 * section as usize);
-        if e == 0 {
-            return Err(BadInput("a section with no best-times table").into());
-        }
-        // Converted: `rc2k_core::screens::best_scores::section_best_times`.
-        use rc2k_core::screens::best_scores::SectionRow;
-        let rows: [SectionRow<u32>; 10] = std::array::from_fn(|n| {
-            let e = e + n as u32 * ENTRY_LEN;
-            SectionRow {
-                name: e + 0x20,
-                time: get(e + 0x18),
-                nation: get(e + 8),
-                car: get(e + 0x10),
-                player: get(e + 0x40) == 1,
-            }
-        });
-        rc2k_core::screens::best_scores::section_best_times(
-            &mut crate::screens::best_scores::ScoresScreen::new(canvas),
-            &rows,
-            show_hours(),
-        )?;
+    let section: u32 = EVENT_STATE.section.get();
+    if section >= SECTIONS {
+        return Err(BadInput("a section past the six best-times tables").into());
     }
+    let e = crate::saves::best_times_store::RALLY_TIMES.tables[section as usize].get();
+    if e == 0 {
+        return Err(BadInput("a section with no best-times table").into());
+    }
+    // Converted: `rc2k_core::screens::best_scores::section_best_times`.
+    use rc2k_core::screens::best_scores::SectionRow;
+    let rows: [SectionRow<u32>; 10] = std::array::from_fn(|n| {
+        let e = e + n as u32 * ENTRY_LEN;
+        SectionRow {
+            name: e + 0x20,
+            time: get(e + 0x18),
+            nation: get(e + 8),
+            car: get(e + 0x10),
+            player: get(e + 0x40) == 1,
+        }
+    });
+    rc2k_core::screens::best_scores::section_best_times(
+        &mut crate::screens::best_scores::ScoresScreen::new(canvas),
+        &rows,
+        show_hours(),
+    )?;
     Ok(())
 }

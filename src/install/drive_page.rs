@@ -13,26 +13,31 @@
 //! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
 //! are the original's.
 
-use crate::install::installer::{CHOICE, PATH_PROBLEM, TYPED, g, gb, p, pb, rb};
+use crate::install::installer::rb;
+use crate::install::vars::INSTALLER_PAGES;
+use crate::install::vars::INSTALLER_PATHS;
+use crate::install::vars::INSTALLER_RUN;
 use rc2k_core::install::pages;
 
 /// `state` the list action's (ebx), `list` the page's.
 pub fn drive_page(state: u32, list: u32) {
     let letters = crate::install::store::DRIVE_ROWS.drive_rows.addr() as u32;
     if state == 0 {
-        let letter = crate::strings::same_text::lower(gb(TYPED)); // g_lowerCase
+        let letter = crate::strings::same_text::lower(INSTALLER_PATHS.typed.get(0)); // g_lowerCase
         // Converted: `rc2k_core::install::pages` (`drive_highlight`, `chosen_drive`).
         let at = |n: u32| letters + pages::DRIVE_TEXT * n;
         let (_, highlight) = pages::drive_highlight(letter, |n| rb(at(n)), rb(list + 1));
         if let Some(highlight) = highlight {
-            p(CHOICE, highlight);
+            INSTALLER_PAGES.choice.set(highlight);
         }
     }
     if (state as i32) < 0
-        && let Some(offset) = pages::chosen_drive(g(CHOICE))
+        && let Some(offset) = pages::chosen_drive(INSTALLER_PAGES.choice.get())
     {
-        pb(TYPED, rb(offset.wrapping_add(letters)));
-        pb(0x95EBF9, b':');
-        p(PATH_PROBLEM, 0);
+        INSTALLER_PATHS
+            .typed
+            .set(0, rb(offset.wrapping_add(letters)));
+        INSTALLER_PATHS.typed.set(1, b':');
+        INSTALLER_RUN.path_problem.set(0);
     }
 }

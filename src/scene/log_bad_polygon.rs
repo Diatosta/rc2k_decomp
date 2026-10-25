@@ -16,7 +16,7 @@
 //! vertices (the original's loop would run through memory).
 
 use crate::errors::BadInput;
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 
 const WRITE: u32 = 0;
 const HEX8: u32 = 1;
@@ -33,39 +33,39 @@ const SCREEN_WIDTH: usize = 1;
 const SCREEN_HEIGHT: usize = 2;
 
 /// (label, kind, value): the head's lines before the mask's clearing, and after.
-const HEAD: [(usize, u32, usize); 10] = [
-    (0x4DBCB6, HEX8, SCREEN_WIDTH),  // "videox" g_screenWidth
-    (0x4DBCBD, HEX8, SCREEN_HEIGHT), // "videoy" g_screenHeight
-    (0x4DBCC4, HEX8, SCREEN_HEIGHT), // "videoy" g_screenHeight
-    (0x4DBCCB, FLOAT, 0x6241F0),     // "r" g_clipScreenRight
-    (0x4DBCCD, FLOAT, 0x6241EC),     // "l" g_clipScreenLeft
-    (0x4DBCCF, FLOAT, 0x6241E8),     // "b" g_clipScreenBottom
-    (0x4DBCD1, FLOAT, 0x6241E4),     // "t" g_clipScreenTop
-    (0x4DBCD3, INT, 0x624124),       // "donezcut"
-    (0x4DBCDC, INT, 0x624120),       // "donesuth"
-    (0x4DBCE5, INT_NL, 0x624118),    // "cuttest" g_polygonClipMask
+const HEAD: [(&std::ffi::CStr, u32, usize); 10] = [
+    (c"videox", HEX8, SCREEN_WIDTH),  // "videox" g_screenWidth
+    (c"videoy", HEX8, SCREEN_HEIGHT), // "videoy" g_screenHeight
+    (c"videoy", HEX8, SCREEN_HEIGHT), // "videoy" g_screenHeight
+    (c"r", FLOAT, 0x6241F0),          // "r" g_clipScreenRight
+    (c"l", FLOAT, 0x6241EC),          // "l" g_clipScreenLeft
+    (c"b", FLOAT, 0x6241E8),          // "b" g_clipScreenBottom
+    (c"t", FLOAT, 0x6241E4),          // "t" g_clipScreenTop
+    (c"donezcut", INT, 0x624124),     // "donezcut"
+    (c"donesuth", INT, 0x624120),     // "donesuth"
+    (c"cuttest", INT_NL, 0x624118),   // "cuttest" g_polygonClipMask
 ];
-const AFTER: [(usize, u32, usize); 2] = [
-    (0x4DBCED, HEX8, 0x6240C4), // "tpage"
-    (0x4DBCF3, INT, 0x6240F8),  // "points" g_polygonVertexCount
+const AFTER: [(&std::ffi::CStr, u32, usize); 2] = [
+    (c"tpage", HEX8, 0x6240C4), // "tpage"
+    (c"points", INT, 0x6240F8), // "points" g_polygonVertexCount
 ];
-const COURSE: [(usize, u32, usize); 1] = [(0x4DBCFA, INT, 0x5CCCD0)]; // "polynum"
-const OBJECT: [(usize, u32, usize); 2] = [
-    (0x4DBD02, INT, 0x6214FC), // "objdraw" g_objectNumber
-    (0x4DBD0A, INT, 0x623620), // "objfaced" g_faceNumber
+const COURSE: [(&std::ffi::CStr, u32, usize); 1] = [(c"polynum", INT, 0x5CCCD0)]; // "polynum"
+const OBJECT: [(&std::ffi::CStr, u32, usize); 2] = [
+    (c"objdraw", INT, 0x6214FC),  // "objdraw" g_objectNumber
+    (c"objfaced", INT, 0x623620), // "objfaced" g_faceNumber
 ];
 /// A vertex's: (label, kind, offset).
-const VERTEX: [(usize, u32, u32); 8] = [
-    (0x4DBD16, FLOAT, 0),    // "x"
-    (0x4DBD18, FLOAT, 4),    // "yzuwv"
-    (0x4DBD1A, FLOAT, 8),    // "zuwv"
-    (0x4DBD1C, FLOAT, 0x18), // "uwv"
-    (0x4DBD1E, FLOAT, 0xC),  // "wv"
-    (0x4DBD20, FLOAT, 0x1C), // "v"
-    (0x4DBD22, HEX8, 0x10),  // "co"
-    (0x4DBD25, HEX8, 0x14),  // "sp"
+const VERTEX: [(&std::ffi::CStr, u32, u32); 8] = [
+    (c"x", FLOAT, 0),    // "x"
+    (c"y", FLOAT, 4),    // "yzuwv"
+    (c"z", FLOAT, 8),    // "zuwv"
+    (c"u", FLOAT, 0x18), // "uwv"
+    (c"w", FLOAT, 0xC),  // "wv"
+    (c"v", FLOAT, 0x1C), // "v"
+    (c"co", HEX8, 0x10), // "co"
+    (c"sp", HEX8, 0x14), // "sp"
 ];
-const PT: usize = 0x4DBD13; // "pt"
+const PT: &std::ffi::CStr = c"pt"; // "pt"
 
 /// The Rust version: the dump of the `g_polygonVertexCount` vertices at `vertices`.
 pub unsafe fn log_bad_polygon(vertices: u32) -> Result<(), BadInput> {
@@ -73,7 +73,7 @@ pub unsafe fn log_bad_polygon(vertices: u32) -> Result<(), BadInput> {
     if count > MOST {
         return Err(BadInput("more than 64 vertices"));
     }
-    let text = |a: usize| game_addr(rva(a)) as u32;
+    let text = |s: &std::ffi::CStr| s.as_ptr() as u32;
     let value = |a: usize| match a {
         SCREEN_WIDTH => crate::session::SCREEN.width.get(),
         SCREEN_HEIGHT => crate::session::SCREEN.height.get(),
@@ -85,7 +85,7 @@ pub unsafe fn log_bad_polygon(vertices: u32) -> Result<(), BadInput> {
     }
     unsafe { game_write(MASK_RVA, 0u32) };
     let object = unsafe { game_read::<u32>(OBJECT_RVA) } == 1;
-    let tail: &[(usize, u32, usize)] = if object { &OBJECT } else { &COURSE };
+    let tail: &[(&std::ffi::CStr, u32, usize)] = if object { &OBJECT } else { &COURSE };
     for &(label, kind, at) in AFTER.iter().chain(tail) {
         log(WRITE, text(label));
         log(kind, value(at));
@@ -121,7 +121,7 @@ fn log(kind: u32, value: u32) {
             FLOAT => log_float(f32::from_bits(value), 2, false, 1),
             INT => log_int(value as i32, false, 1),
             INT_NL => log_int(value as i32, true, 1),
-            _ => log_write(game_addr(rva(0x4E00B7)) as *const u8, true, 1),
+            _ => log_write(c"".as_ptr().cast(), true, 1),
         }
     }
 }

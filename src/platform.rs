@@ -25,39 +25,23 @@
 
 use crate::framework::{GameHook, RawHook, log, rva};
 use crate::gfx::describe_format::describe_format;
-use crate::gfx::front::Slot as FrontSlot;
-use crate::gfx::locked::Slot as LockSlot;
-use crate::gfx::modes::Slot as ModeSlot;
+use crate::gfx::front::SURFACES;
+use crate::gfx::locked::LOCKED;
+use crate::gfx::modes::MODES;
+use crate::gfx::screen_state::DRAW_SURFACE;
+use crate::gfx::screen_state::SCREEN_MODE;
 use crate::gfx::set_clip::set_clip;
 use crate::input::store::DEVICES;
 use crate::session::FLAGS;
 use crate::session::SCREEN as GAME_SCREEN;
-use crate::store::{game_addr, game_ptr, game_read, game_write};
 use crate::system::find_entry::find_entry;
 use sdl3_sys::everything::*;
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
 
-// ---- game data ----
-
-const MENU_MODE_RVA: usize = rva(0x4F4944); // dword_4F4944
-const RACE_MODE_RVA: usize = rva(0x4F4948); // dword_4F4948
-const MODE_FLAGS_RVA: usize = rva(0x4F4934); // g_screenModeFlags
-const MODE_SET_RVA: usize = rva(0x4F4938); // dword_4F4938
-const PITCH_RVA: usize = rva(0x4F4984); // dword_4F4984
-const PIXELS_RVA: usize = rva(0x4F4988); // dword_4F4988
-const GAP_RVA: usize = rva(0x4F498C); // dword_4F498C
-const FLIPPED_RVA: usize = rva(0x4F4990); // dword_4F4990
-const FRAMES_RVA: usize = rva(0x4F4994); // dword_4F4994
-const SURFACE_RVA: usize = rva(0x4F4998); // g_surface
-const LOCKED_RVA: LockSlot = LockSlot::at(0x4F3870); // g_surfaceLocked
-const FRONT_RVA: FrontSlot = FrontSlot::at(0x4F32B4); // dword_4F32B4: the DirectDraw surfaces
-const BACK_RVA: FrontSlot = FrontSlot::at(0x4F32B8); // dword_4F32B8
-const SIZES_RVA: ModeSlot = ModeSlot::at(0x4F4E50); // g_screenSizes
-const PIXEL_KINDS_RVA: ModeSlot = ModeSlot::at(0x4F4E40); // g_pixelKinds
-const KINDS_RVA: ModeSlot = ModeSlot::at(0x4F4E90); // dword_4F4E90
-const FORMAT_SET_RVA: usize = rva(0x5ABBD4); // dword_5ABBD4, dword_5ABBD8, unk_5ABBDC
 const DEFAULT_MODE: u32 = 0x32_2802;
+
+// ---- game data ----
 
 // ---- the screen ----
 
@@ -190,16 +174,16 @@ static CHOOSE: RawHook = RawHook::new("gfx::choose_screen_modes", rva(0x404481))
 /// kept) and the graphics options' choices. It cannot fail here (the original's carry).
 pub fn choose_screen_modes() {
     CHOOSE.count_call();
-    unsafe {
-        for mode in [MENU_MODE_RVA, RACE_MODE_RVA] {
-            if game_read::<u32>(mode) == 0 {
-                game_write(mode, DEFAULT_MODE);
+    {
+        for mode in [&SCREEN_MODE.menu_mode, &SCREEN_MODE.race_mode] {
+            if mode.get() == 0 {
+                mode.set(DEFAULT_MODE);
             }
         }
         log(&format!(
             "platform: screen modes {:#x} for the menus, {:#x} for a race",
-            game_read::<u32>(MENU_MODE_RVA),
-            game_read::<u32>(RACE_MODE_RVA)
+            SCREEN_MODE.menu_mode.get(),
+            SCREEN_MODE.race_mode.get()
         ));
     }
     // The graphics options' choices made, as the original ends (`loc_4045CA`): the list
@@ -218,21 +202,23 @@ pub fn choose_screen_modes() {
 static SET_MODE: RawHook = RawHook::new("gfx::set_screen_mode", rva(0x404B63));
 
 /// The value of a table's entry for a key.
-unsafe fn looked_up(key: u32, table: impl crate::gfx::block::Where, entries: u32) -> Option<u32> {
+unsafe fn looked_up(key: u32, table: usize, entries: u32) -> Option<u32> {
     unsafe {
-        let entry = find_entry(key, game_addr(table) as u32, entries).ok()??;
+        let entry = find_entry(key, table as u32, entries).ok()??;
         Some(((entry + 4) as *const u32).read_unaligned())
     }
 }
 
 unsafe fn set_screen_mode(mode: u32) -> Result<(), String> {
     unsafe {
-        game_write(MODE_FLAGS_RVA, mode);
-        let size = looked_up(mode & 0xFF, SIZES_RVA, 8).ok_or("a screen size that is not known")?;
+        SCREEN_MODE.mode_flags.set(mode);
+        let size = looked_up(mode & 0xFF, MODES.sizes_addr(), 8)
+            .ok_or("a screen size that is not known")?;
         let (width, height) = (size & 0xFFFF, size >> 16);
-        let bits = looked_up(mode & 0xF00, PIXEL_KINDS_RVA, 2)
+        let bits = looked_up(mode & 0xF00, MODES.pixel_kinds_addr(), 2)
             .ok_or("a kind of pixel that is not known")?;
-        let kind = looked_up(mode & 0xF_0000, KINDS_RVA, 3).ok_or("a kind that is not known")?;
+        let kind =
+            looked_up(mode & 0xF_0000, MODES.kinds_addr(), 3).ok_or("a kind that is not known")?;
         let bytes = bits >> 3;
         // As the original (0x404C55): every texture given back before the screen changes;
         // the game loads again what it needs (a trial's 0x40 more found the pool full).
@@ -260,12 +246,17 @@ unsafe fn set_screen_mode(mode: u32) -> Result<(), String> {
         }
         format.add(4).write_unaligned(0);
         describe_format(format).map_err(|e| e.0)?;
-        game_write(FORMAT_SET_RVA, 1u32);
-        game_write(FORMAT_SET_RVA + 4, bytes);
-        game_write(
-            FORMAT_SET_RVA + 8,
-            (format as *const [u32; 6]).read_unaligned(),
-        );
+        // The screen's own texture description (`TEXTURE_TABLES.descriptions[4]`).
+        crate::gfx::texture_upload::TEXTURE_TABLES.descriptions[4].update(|d| {
+            d.found = 1;
+            d.bytes_per_pixel = bytes;
+            let six = (format as *const [u32; 6]).read_unaligned();
+            d.format = rc2k_core::gfx::pixels::PixelFormat {
+                layout: six[0],
+                masks: [six[1], six[2], six[3], six[4]],
+            };
+            d.number = six[5];
+        });
 
         let mut screen = SCREEN.lock().map_err(|_| "the screen's lock")?;
         let window = match screen.as_ref() {
@@ -295,12 +286,12 @@ unsafe fn set_screen_mode(mode: u32) -> Result<(), String> {
             SDL_UpdateWindowSurface(window);
         }
         let pixels = vec![0u8; (bytes * width * height) as usize];
-        game_write(PIXELS_RVA, pixels.as_ptr() as u32);
-        game_write(PITCH_RVA, bytes * width);
-        game_write(GAP_RVA, 0u32);
+        DRAW_SURFACE.present_pixels.set(pixels.as_ptr() as u32);
+        DRAW_SURFACE.present_pitch.set(bytes * width);
+        DRAW_SURFACE.present_gap.set(0u32);
         // "There are surfaces": what the game's own code asks.
-        game_write(FRONT_RVA, 1u32);
-        game_write(BACK_RVA, 1u32);
+        SURFACES.front.set(1);
+        SURFACES.back.set(1);
         *screen = Some(Screen {
             window: window as usize,
             width: width as usize,
@@ -308,7 +299,7 @@ unsafe fn set_screen_mode(mode: u32) -> Result<(), String> {
             bits,
             pixels,
         });
-        game_write(MODE_SET_RVA, mode);
+        SCREEN_MODE.mode_set.set(mode);
         crate::platform_3d::describe_texture_formats(bits);
         log(&format!(
             "platform: screen mode {mode:#x}: {width} x {height}, {bits} bits"
@@ -339,7 +330,7 @@ pub fn set_menu_mode_now() -> bool {
     // The 3D drawing noted so far, before the screen is shown, written or changed.
     crate::platform_3d::flush();
     MENU_MODE.count_call();
-    let mode = unsafe { game_read(MENU_MODE_RVA) };
+    let mode = { SCREEN_MODE.menu_mode.get() };
     let done = unsafe { set_screen_mode(mode) };
     if let Err(why) = &done {
         log(&format!("platform: screen mode {mode:#x}: {why}"));
@@ -360,11 +351,13 @@ pub fn lock_surface() -> u32 {
     unsafe {
         let have = SCREEN.lock().is_ok_and(|screen| screen.is_some());
         if !quitting() && have {
-            game_write(LOCKED_RVA, 1u32);
+            LOCKED.surface.set(1);
             // `sub_405726`: the surface the blitters draw on, and the clip rectangle.
-            let surface = game_ptr::<u32>(SURFACE_RVA);
-            let (row_bytes, pitch): (u32, u32) =
-                (GAME_SCREEN.row_bytes.get(), game_read(PITCH_RVA));
+            let surface: *mut u32 = DRAW_SURFACE.x.as_ptr();
+            let (row_bytes, pitch): (u32, u32) = (
+                GAME_SCREEN.row_bytes.get(),
+                DRAW_SURFACE.present_pitch.get(),
+            );
             let fields = [
                 (2, GAME_SCREEN.width.get()),
                 (3, GAME_SCREEN.height.get()),
@@ -374,7 +367,7 @@ pub fn lock_surface() -> u32 {
                 (7, GAME_SCREEN.row_dwords.get()),
                 (8, GAME_SCREEN.format_addr() as u32),
                 (9, pitch),
-                (10, game_read(PIXELS_RVA)),
+                (10, DRAW_SURFACE.present_pixels.get()),
                 (11, pitch.wrapping_sub(row_bytes)),
             ];
             for (n, value) in fields {
@@ -382,7 +375,7 @@ pub fn lock_surface() -> u32 {
             }
             let _ = set_clip(surface as *const [u32; 4]);
         }
-        game_read(LOCKED_RVA)
+        LOCKED.surface.get()
     }
 }
 
@@ -392,13 +385,11 @@ static UNLOCK: RawHook = RawHook::new("gfx::unlock_surface", rva(0x405949));
 /// it (1: it was).
 pub fn unlock_surface() -> u32 {
     UNLOCK.count_call();
-    unsafe {
-        let locked: u32 = game_read(LOCKED_RVA);
-        if locked == 1 {
-            game_write(LOCKED_RVA, 0u32);
-        }
-        locked
+    let locked: u32 = LOCKED.surface.get();
+    if locked == 1 {
+        LOCKED.surface.set(0);
     }
+    locked
 }
 
 // ---- gfx::show_frame (0x4057D1) ----
@@ -677,8 +668,10 @@ pub fn show_frame_now() -> bool {
             if let Err(why) = shown_ok {
                 log(&format!("platform: no frame shown: {why}"));
             }
-            game_write(FLIPPED_RVA, game_read::<u32>(FLIPPED_RVA) ^ 1);
-            game_write(FRAMES_RVA, game_read::<u32>(FRAMES_RVA).wrapping_add(1));
+            DRAW_SURFACE.flipped.set(DRAW_SURFACE.flipped.get() ^ 1);
+            DRAW_SURFACE
+                .frames
+                .set(DRAW_SURFACE.frames.get().wrapping_add(1));
             let shown = SHOWN.fetch_add(1, Ordering::SeqCst) + 1;
             let wanted = FRAMES_TO_SHOW.load(Ordering::SeqCst);
             if wanted != 0 && shown == wanted {

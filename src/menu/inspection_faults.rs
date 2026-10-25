@@ -8,15 +8,14 @@
 //! Callers: `sub_48E093`, `sub_4A15E3`, `sub_4A8556`. Refuses a current player past 3 or missing,
 //! before anything.
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, rva};
+use crate::menu::event_store::EVENT_STATE;
 use crate::menu::lists_store::MENU_LISTS;
 use crate::menu::standings::*;
 use crate::session::write_prefix;
 
-const CURRENT_RVA: usize = rva(0x75598C); // dword_75598C
 /// The Rust version (see the header): the registers it leaves.
 pub unsafe fn inspection_faults() -> Result<(), Refused> {
-    let n: u32 = unsafe { game_read(CURRENT_RVA) };
+    let n: u32 = { EVENT_STATE.current_player.get() };
     if n >= 4 || player(n) == 0 {
         return Err(BadInput("a current player past 3 or missing").into());
     }

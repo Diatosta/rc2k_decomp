@@ -6,6 +6,9 @@
 
 use crate::errors::Refused;
 use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::gfx::fonts_store::FONTS;
+use crate::gfx::screen_state::DRAW_SURFACE;
+use crate::strings::text_buffer::TEXT_BUFFER;
 
 fn k(a: u32) -> u32 {
     unsafe { game_read(rva(a as usize)) }
@@ -19,25 +22,18 @@ fn ga(a: u32) -> u32 {
     game_addr(rva(a as usize)) as u32
 }
 
-const LINE: u32 = 0x51E2CC; // dword_51E2CC: a line's height
-const PIXELS: u32 = 0x4F49C0; // g_surface.pixels
-const PITCH: u32 = 0x4F49BC; // g_surface.pitch
-const ROW_DWORDS: u32 = 0x4F49B4; // g_surface.row_dwords
-const ROW_GAP: u32 = 0x4F49C4; // g_surface.row_gap
-const NAME_FONT: u32 = 0x51E304; // stru_51E304
-const TIME_FONT: u32 = 0x51E324; // stru_51E324
-const TEXT: u32 = 0x93E430; // text: the string buffer
-
 /// `rows` rows of the locked surface from `edi` cleared (`rep stosd` of the row's dwords, then
 /// the row's gap). Gives edi after them.
 unsafe fn clear_rows(mut edi: u32, rows: u32) -> u32 {
     unsafe {
         for _ in 0..rows {
-            let n = k(ROW_DWORDS);
+            let n = DRAW_SURFACE.row_dwords.get();
             for d in 0..n {
                 ((edi + 4 * d) as *mut u32).write_unaligned(0);
             }
-            edi = edi.wrapping_add(4 * n).wrapping_add(k(ROW_GAP));
+            edi = edi
+                .wrapping_add(4 * n)
+                .wrapping_add(DRAW_SURFACE.row_gap.get());
         }
         edi
     }
@@ -55,11 +51,11 @@ pub unsafe fn draw_name_plate(slot: u32, text: u32) -> Result<(), Refused> {
         }
         // Converted: `rc2k_core::race::plates::{name_rows, NAME_BOX, name_places}`.
         use rc2k_core::race::plates::{NAME_BOX, name_places, name_rows};
-        let line = k(LINE);
-        clear_rows(k(PIXELS), name_rows(line));
-        w(NAME_FONT + 0x1C, NAME_BOX);
+        let line = FONTS.game_fonts[0].get().line_height as u32; // a line's height
+        clear_rows(DRAW_SURFACE.pixels.get(), name_rows(line));
+        FONTS.game_fonts[2].update(|f| f.box_width = NAME_BOX);
         for (x, y) in name_places(line) {
-            draw_text_in_game(ga(NAME_FONT), text, x, y)?;
+            draw_text_in_game(FONTS.game_fonts[2].addr() as u32, text, x, y)?;
         }
         unlock_texture(slot)?;
         Ok(())
@@ -71,13 +67,13 @@ pub unsafe fn draw_name_plate(slot: u32, text: u32) -> Result<(), Refused> {
 /// kept.
 pub unsafe fn draw_plate_by_id(slot: u32, id: u32) -> Result<(), Refused> {
     unsafe {
-        let mut cursor = ga(TEXT) as *mut u8;
+        let mut cursor = TEXT_BUFFER.text.addr() as u32 as *mut u8;
         crate::strings::append_string_by_id::append_string_by_id(id, &mut |p, n| {
             std::ptr::copy_nonoverlapping(p, cursor, n);
             cursor = cursor.add(n);
         });
         cursor.write(0);
-        draw_name_plate(slot, ga(TEXT))
+        draw_name_plate(slot, TEXT_BUFFER.text.addr() as u32)
     }
 }
 
@@ -94,12 +90,15 @@ pub unsafe fn draw_time_plate(slot: u32) -> Result<(), Refused> {
         // Converted: `rc2k_core::race::plates::{time_start, time_rows, TIME_BOX,
         // time_places}`.
         use rc2k_core::race::plates::{TIME_BOX, time_places, time_rows, time_start};
-        let line = k(LINE);
-        let start = time_start(line, k(PITCH));
-        clear_rows(start.wrapping_add(k(PIXELS)), time_rows(line));
+        let line = FONTS.game_fonts[0].get().line_height as u32;
+        let start = time_start(line, DRAW_SURFACE.pitch.get());
+        clear_rows(
+            start.wrapping_add(DRAW_SURFACE.pixels.get()),
+            time_rows(line),
+        );
         for (text, (x, y)) in [0x6D1838u32, 0x6D1844].into_iter().zip(time_places(line)) {
-            w(TIME_FONT + 0x1C, TIME_BOX);
-            draw_text_in_game(ga(TIME_FONT), ga(text), x, y)?;
+            FONTS.game_fonts[3].update(|f| f.box_width = TIME_BOX);
+            draw_text_in_game(FONTS.game_fonts[3].addr() as u32, ga(text), x, y)?;
         }
         unlock_texture(slot)?;
         Ok(())

@@ -13,9 +13,10 @@
 //! are the original's.
 
 use crate::errors::Refused;
-use crate::install::installer::{
-    LANGUAGE_COUNT, LIST_ANSWER, SAME_VERSION, g, gb, load_language, rb, wb,
-};
+use crate::install::installer::{load_language, rb, wb};
+use crate::install::vars::INSTALLER_NAMES;
+use crate::install::vars::INSTALLER_PAGES;
+use crate::install::vars::INSTALLER_RUN;
 use rc2k_core::install::pages;
 
 /// `state` the list action's (ebx), `list` the page's.
@@ -25,19 +26,22 @@ pub fn language_page(state: u32, list: u32) -> Result<(), Refused> {
         // (`or byte ptr [edi], 40h`). Else on to the hide loop (`loc_4141B4`).
         // Converted: `rc2k_core::install::pages` (`language_page_skipped`,
         // `hidden_languages`).
-        if pages::language_page_skipped(g(SAME_VERSION) == 1, g(LANGUAGE_COUNT)) {
+        if pages::language_page_skipped(
+            INSTALLER_RUN.same_version.get() == 1,
+            INSTALLER_NAMES.language_count.get(),
+        ) {
             wb(list, rb(list) | pages::HIDDEN);
             return Ok(());
         }
     } else if (state as i32) < 0 {
-        let answer = gb(LIST_ANSWER) as u32;
+        let answer = INSTALLER_PAGES.list_answer.get() as u32;
         if answer != 0 {
             unsafe { crate::install::choose_language::choose_language(answer) }?;
             load_language()?;
         }
     }
     // hide the items past the languages
-    let (first, hidden) = pages::hidden_languages(g(LANGUAGE_COUNT));
+    let (first, hidden) = pages::hidden_languages(INSTALLER_NAMES.language_count.get());
     let mut item = first.wrapping_add(list).wrapping_add(0x18);
     for _ in 0..hidden {
         wb(item, rb(item) | pages::HIDDEN);

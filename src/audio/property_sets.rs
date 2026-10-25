@@ -5,12 +5,10 @@
 use crate::audio::com::method;
 use crate::audio::store::AUDIO;
 use crate::errors::{BadInput, Refused};
-use crate::framework::rva;
 use crate::session::{Bytes, Dword};
-use crate::store::game_addr;
 
-const USING_DSV_TEXT: usize = rva(0x4DA73E); // "AUD: Using DSV"
-const USING_EAX_TEXT: usize = rva(0x4DA7AA); // "AUD: Using EAX"
+const USING_DSV_TEXT: &std::ffi::CStr = c"AUD: Using DSV"; // "AUD: Using DSV"
+const USING_EAX_TEXT: &std::ffi::CStr = c"AUD: Using EAX"; // "AUD: Using EAX"
 /// `IKsPropertySet`'s `Set` and `QuerySupport`.
 const SET: u32 = 0x10;
 const QUERY_SUPPORT: u32 = 0x14;
@@ -37,7 +35,7 @@ pub struct Opening {
     pub found: &'static Dword,
     /// Which set (its id); the text logged.
     pub set: &'static Bytes<16>,
-    pub text: usize,
+    pub text: &'static std::ffi::CStr,
     /// The voice manager's mode is set; EAX's nothing.
     pub mode: bool,
 }
@@ -110,7 +108,7 @@ pub unsafe fn open_property_set(o: &Opening, holder: u32, log: Log) -> Result<bo
                 return Ok(false);
             }
         }
-        log(game_addr(o.text) as u32);
+        log(o.text.as_ptr() as u32);
         o.found.set(1);
         Ok(true)
     }

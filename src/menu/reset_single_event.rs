@@ -8,7 +8,8 @@
 //! Caller: `sub_4AA4D7` (twice). Refuses a missing player or a drivers' table without its end
 //! entry, before anything.
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_write, rva};
+use crate::menu::event_store::EVENT_STATE;
+use crate::menu::pages_store::MENU_PAGES;
 use crate::menu::standings::*;
 
 /// The Rust version (see the header): the registers it leaves.
@@ -17,17 +18,17 @@ pub unsafe fn reset_single_event() -> Result<(), Refused> {
         return Err(BadInput("a missing player").into());
     }
     let mut drivers = driver_table()?;
-    unsafe {
-        game_write(rva(0x755254), 0u32);
-        game_write(rva(0x755950), 0u32);
-    }
+
+    MENU_PAGES.services.set(0u32);
+    EVENT_STATE.stages_done.set(0u32);
+
     // Converted: `rc2k_core::menu::event::{DRIVER_BEGIN, PLAYER_BEGIN}`.
     use rc2k_core::menu::event::{DRIVER_BEGIN, PLAYER_BEGIN};
     drivers.store_all(&DRIVER_BEGIN);
-    unsafe {
-        game_write(rva(0x75592C), 1u32);
-        game_write(rva(0x755978), 0u32);
-    }
+
+    EVENT_STATE.event_goes_on.set(1u32);
+    EVENT_STATE.event_out.set(0u32);
+
     for n in (0..4).rev() {
         put_all(player(n), &PLAYER_BEGIN);
     }

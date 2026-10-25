@@ -21,13 +21,12 @@
 use crate::errors::Refused;
 use crate::files::handle;
 use crate::physics::flow::a;
-use crate::race::replay_path::{LAST_RACE_PATH, replay_path};
+use crate::race::replay_path::{LAST_RACE, replay_path};
 use crate::race::viewer::{
-    BLOCK_DATA, BLOCKS, CAMERAS, HEADER, INDEX, PLACES, TABLE_LEN, UNDO_BLOCKS, UNDO_PLACES, get,
+    BLOCK_DATA, BLOCKS, CAMERAS, INDEX, PLACES, TABLE_LEN, UNDO_BLOCKS, UNDO_PLACES, get,
     move_dwords, put,
 };
 
-const NAMES: usize = 0x528934; // byte_528934: 32 bytes a slot
 const FROM: usize = 0x975508; // dword_975508
 const TO: usize = 0x97550C; // dword_97550C
 const OFFSET: usize = 0x5C2528; // dword_5C2528: the new file's length so far
@@ -53,17 +52,18 @@ fn save(slot: u32) -> Result<bool, Refused> {
         return Ok(false);
     }
     unsafe {
+        let header = &crate::race::replay::REPLAYS.header;
         for (k, word) in SAVED_HEADER.into_iter().enumerate() {
-            put(HEADER + 4 * k, word);
+            header.set_u32(4 * k, word);
         }
-        put(
-            HEADER + 0xC,
-            crate::system::packed_local_time::packed_local_time(),
-        );
-        let name = NAMES.wrapping_add(name_offset(slot) as usize);
-        std::ptr::copy(a(name) as *const u8, a(HEADER + 0x10) as *mut u8, NAME_LEN);
+        header.set_u32(0xC, crate::system::packed_local_time::packed_local_time());
+        let name = crate::race::replay::REPLAYS
+            .names
+            .as_ptr()
+            .wrapping_add(name_offset(slot) as usize);
+        std::ptr::copy(name as *const u8, header.as_ptr().add(0x10), NAME_LEN);
         // The last race's file opened to read from, the slot's to write to.
-        let Some(from) = handle::open_by_mode(a(LAST_RACE_PATH) as *const u8, 0)? else {
+        let Some(from) = handle::open_by_mode(LAST_RACE.addr() as *const u8, 0)? else {
             return Ok(false);
         };
         put(FROM, from);
@@ -82,7 +82,10 @@ fn save(slot: u32) -> Result<bool, Refused> {
         };
         let write = |buffer: u32, len: u32| handle::write(get(TO), buffer as *const u8, len).1;
         put(OFFSET, HEADER_LEN);
-        if !write(a(HEADER), HEADER_LEN) {
+        if !write(
+            crate::race::replay::REPLAYS.header.addr() as u32,
+            HEADER_LEN,
+        ) {
             close();
             return Ok(false);
         }

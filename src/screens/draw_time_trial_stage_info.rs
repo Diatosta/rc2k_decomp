@@ -18,19 +18,20 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_ptr, rva};
+use crate::framework::game_ptr;
+use crate::menu::results_store::RESULT_FIGURES;
 use crate::race::state_store::RACE_STATE;
 use crate::screens::draw_stage_records::selection;
-use crate::screens::font_at;
 use crate::screens::stage_panel::{
     SECOND_HEADING_RVA, TITLE_FONT, build_second_heading, draw_records_for_group, draw_stage_body,
-    dword, label, table_dword,
+    dword, label, table_dword_at,
 };
+use crate::session::Dword;
 use crate::text::draw_text::{Canvas, draw_text_at};
 
 // ---- game data ----
 
-pub const GROUP_TITLES_RVA: usize = rva(0x758718); // dword_758718[group]: title string ids
+pub const GROUP_TITLES_RVA: &Dword = &RESULT_FIGURES.group_titles[0]; // dword_758718[group]: title string ids
 
 const TITLE_X: i32 = 0x2EB;
 const GROUP_TITLE_Y: i32 = 0x77;
@@ -49,7 +50,7 @@ pub unsafe fn draw_time_trial_stage_info(canvas: &mut dyn Canvas) -> Result<bool
         };
         label(
             canvas,
-            table_dword(GROUP_TITLES_RVA, sel.group),
+            table_dword_at(GROUP_TITLES_RVA.addr(), sel.group),
             TITLE_FONT,
             TITLE_X,
             GROUP_TITLE_Y,
@@ -65,7 +66,7 @@ pub unsafe fn draw_time_trial_stage_info(canvas: &mut dyn Canvas) -> Result<bool
 
         build_second_heading(sel.record)?;
         let heading = draw_text_at(
-            font_at(TITLE_FONT),
+            TITLE_FONT.as_ptr(),
             game_ptr::<u8>(SECOND_HEADING_RVA),
             TITLE_X,
             HEADING_Y,

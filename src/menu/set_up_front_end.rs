@@ -20,13 +20,13 @@
 //! original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{game_addr, game_read, game_write, rva};
-use crate::saves::default_times::{WITH_CHECKPOINTS_RVA, to_the_log};
+use crate::menu::draw_work_store::DRAW_WORK;
+use crate::menu::loop_store::LOOP_FLAGS;
+use crate::saves::best_times_store::BEST_TIMES;
+use crate::saves::default_times::to_the_log;
 
 // ---- game data ----
 
-const BEST_TIMES_LOADED_RVA: usize = rva(0x747614); // g_bestTimesLoaded
-const OPTIONS_LOADED_RVA: usize = rva(0x75557D); // g_optionsLoaded
 /// (from, to): two dwords, then the nine tables of `saves::allocate_best_times`.
 const COPIES: [(usize, usize); 11] = [
     (0x755688, 0x5180FC),
@@ -41,11 +41,20 @@ const COPIES: [(usize, usize); 11] = [
     (0x747650, 0x7556E4),
     (0x747658, 0x7556E8),
 ];
-/// The record tables that get made-up records: the championship's and twelve more.
-const RECORD_TABLES: [usize; 13] = [
-    0x735576, 0x739642, 0x7391C2, 0x738D42, 0x7388C2, 0x738442, 0x737FC2, 0x739AC2, 0x739F42,
-    0x73A3C2, 0x73A842, 0x73ACC2, 0x73B142,
-];
+/// The record tables that get made-up records: the championship's and the twelve events'
+/// (IDA 0x739642, 0x7391C2, 0x738D42, 0x7388C2, 0x738442, 0x737FC2, then 0x739AC2 ..
+/// 0x73B142), in the original's order.
+fn record_tables() -> [u32; 13] {
+    let t = &crate::records::stages_store::STAGE_TABLES;
+    let mut all = [t.championship(); 13];
+    for (n, k) in [5, 4, 3, 2, 1, 0, 6, 7, 8, 9, 10, 11]
+        .into_iter()
+        .enumerate()
+    {
+        all[n + 1] = t.event_table(k);
+    }
+    all
+}
 
 // ---- Rust version ----
 
@@ -70,34 +79,32 @@ pub unsafe fn set_up_front_end(stage: u32, x: u32) -> Result<(), Refused> {
         for (n, (from, to)) in COPIES.into_iter().enumerate() {
             if n == 2 {
                 allocate_best_times::allocate_best_times(
-                    game_addr(allocate_best_times::VARS_RVA) as *mut u32,
-                    game_addr(rva(0x7475D0)) as *mut crate::memory::MemoryList,
-                    game_addr(rva(0x735576)) as *const u8,
+                    BEST_TIMES.vars(),
+                    BEST_TIMES.list(),
+                    crate::records::stages_store::STAGE_TABLES.championship() as *const u8,
                 )?;
             }
             // The pairs name their variables by IDA's address (`moved::place`).
             crate::store::ida_write(to, crate::store::ida_read::<u32>(from));
         }
-        if game_read::<u32>(BEST_TIMES_LOADED_RVA) != 1 {
-            game_write(WITH_CHECKPOINTS_RVA, 0u32);
+        if BEST_TIMES.loaded.get() != 1 {
+            DRAW_WORK.work_0c.set(0u32);
             default_best_scores::default_best_scores()?;
-            game_write(WITH_CHECKPOINTS_RVA, 0u32);
+            DRAW_WORK.work_0c.set(0u32);
             default_championship_times::default_championship_times(stage, &mut to_the_log)?;
-            game_write(WITH_CHECKPOINTS_RVA, 1u32);
+            DRAW_WORK.work_0c.set(1u32);
             default_checkpoint_times::default_checkpoint_times(stage, &mut to_the_log)?;
-            game_write(WITH_CHECKPOINTS_RVA, 0u32);
+            DRAW_WORK.work_0c.set(0u32);
             default_class_times::default_class_times()?;
-            game_write(WITH_CHECKPOINTS_RVA, 0u32);
+            DRAW_WORK.work_0c.set(0u32);
             default_stage_times::default_stage_times(stage, &mut to_the_log)?;
-            game_write(WITH_CHECKPOINTS_RVA, 0u32);
+            DRAW_WORK.work_0c.set(0u32);
             default_stage_times_alt::default_stage_times_alt(stage, &mut to_the_log)?;
-            game_write(BEST_TIMES_LOADED_RVA, 1u32);
+            BEST_TIMES.loaded.set(1);
         }
-        if game_read::<u32>(OPTIONS_LOADED_RVA) != 1 {
-            for table in RECORD_TABLES {
-                crate::records::default_stage_records::default_stage_records(
-                    game_addr(rva(table)) as u32,
-                )?;
+        if LOOP_FLAGS.options_loaded.get() != 1 {
+            for table in record_tables() {
+                crate::records::default_stage_records::default_stage_records(table)?;
             }
         }
         Ok(())

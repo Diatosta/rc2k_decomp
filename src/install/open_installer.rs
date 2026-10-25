@@ -15,32 +15,30 @@
 //! are the original's.
 
 use crate::errors::Refused;
-use crate::install::installer::{
-    BUFFERS, DIR_COUNT, DIR_CURSOR, DIR_SCAN, DIRS, FILE_COUNT, FILE_CURSOR, FILES, a,
-    components_to_pixels, copy_picture, draw_string, fatal, p, show,
-};
+use crate::gfx::picture_store::PICTURE;
+use crate::gfx::screen_state::SCREEN_MODE;
+use crate::install::installer::{components_to_pixels, copy_picture, draw_string, fatal, show};
+use crate::install::vars::INSTALLER_NAMES;
+use crate::install::vars::INSTALLER_PALETTE;
+use crate::install::vars::INSTALLER_RUN;
 
-const BAR_GLYPHS: usize = 0x51BB3C; // dword_51BB3C
-const INSTALL_BUN: usize = 0x51BEA1; // "files\d\gfx\install.bun"
-const INSTALL_PAL: usize = 0x51BEB9; // "files\d\gfx\install.pal"
-const INSTALL_PAL_BUF: usize = 0x4F3874; // unk_4F3874
-const BACKDROP: usize = 0x51BED1; // "files\d\gfx\backdrop.pcx"
-const MODE_FLAGS: usize = 0x4F4934; // g_screenModeFlags
-const FONT_94: usize = 0x51E944; // stru_51E944
-const FONT_1000: usize = 0x51E404; // stru_51E404
-const FONT_1002: usize = 0x51E3E4; // stru_51E3E4
+const FONT_94: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::HEAD;
+const FONT_1000: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::NOTICE;
+const FONT_1002: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::LABEL;
 
 /// `memory::allocate` (0x4028A7) on the installer's list (it never fails with the
 /// original's carry: the fatal error `_code` is the original's for that).
 fn alloc(bytes: u32, _code: u32) -> Result<u32, Refused> {
-    Ok(unsafe { crate::memory::allocate::allocate(a(BUFFERS) as *mut _, bytes) }? as u32)
+    Ok(unsafe {
+        crate::memory::allocate::allocate(INSTALLER_RUN.buffers.addr() as u32 as *mut _, bytes)
+    }? as u32)
 }
 
 /// `files::read_file` (0x402BB6): `count` bytes of `path` into `buffer`; failing is fatal
 /// error `code`.
 fn read(path: usize, buffer: u32, count: u32, code: u32) -> Result<(), Refused> {
     let read = unsafe {
-        crate::files::read_file::read_file(a(path) as *const u8, buffer as *mut u8, count, 0)
+        crate::files::read_file::read_file(path as *const u8, buffer as *mut u8, count, 0)
     }?;
     if !read.ok {
         return Err(fatal(code));
@@ -50,21 +48,31 @@ fn read(path: usize, buffer: u32, count: u32, code: u32) -> Result<(), Refused> 
 
 pub fn open_installer() -> Result<(), Refused> {
     let dirs = alloc(0x10100, 0x80AF_7121)?;
-    p(DIRS, dirs);
-    p(DIR_SCAN, dirs);
-    p(DIR_CURSOR, dirs);
+    INSTALLER_RUN.dirs.set(dirs);
+    INSTALLER_RUN.dir_scan.set(dirs);
+    INSTALLER_RUN.dir_cursor.set(dirs);
     let files = alloc(0x40100, 0x80AF_7122)?;
-    p(FILES, files);
-    p(FILE_CURSOR, files);
-    p(DIR_COUNT, 0);
-    p(FILE_COUNT, 0);
+    INSTALLER_RUN.files.set(files);
+    INSTALLER_RUN.file_cursor.set(files);
+    INSTALLER_RUN.dir_count.set(0);
+    INSTALLER_RUN.file_count.set(0);
     let glyphs = alloc(0x3000, 0x80AF_7022)?;
-    p(BAR_GLYPHS, glyphs);
-    read(INSTALL_BUN, glyphs, 0x3000, 0x80AF_7444)?;
-    read(INSTALL_PAL, a(INSTALL_PAL_BUF), 0x300, 0x80AF_7445)?;
+    INSTALLER_RUN.bar_glyphs.set(glyphs);
+    read(
+        INSTALLER_NAMES.installer_data.addr(),
+        glyphs,
+        0x3000,
+        0x80AF_7444,
+    )?;
+    read(
+        INSTALLER_NAMES.install_pal.addr(),
+        INSTALLER_PALETTE.palette.addr() as u32,
+        0x300,
+        0x80AF_7445,
+    )?;
     unsafe {
         crate::gfx::palette_to_dwords::palette_to_dwords(
-            a(INSTALL_PAL_BUF) as *const u8,
+            INSTALLER_PALETTE.palette.addr() as u32 as *const u8,
             crate::text::blend_font::BLENDED_PALETTE.addr() as *mut u32,
         )?;
         let blended = crate::text::blend_font::BLENDED_PALETTE.addr() as u32;
@@ -74,19 +82,14 @@ pub fn open_installer() -> Result<(), Refused> {
             crate::session::SCREEN.format_addr() as u32,
         );
         // gfx::load_picture: its carry is not read.
-        crate::gfx::load_picture::load_picture(a(BACKDROP) as *mut u8)?;
+        crate::gfx::load_picture::load_picture(INSTALLER_NAMES.backdrop.addr() as u32 as *mut u8)?;
         crate::gfx::convert_picture::convert_picture_now()?;
     }
-    unsafe {
-        crate::gfx::block::game_write(
-            crate::gfx::picture::FLAGS_RVA,
-            crate::install::installer::g(MODE_FLAGS) & 0xFFF,
-        )
-    };
+    PICTURE.flags.set(SCREEN_MODE.mode_flags.get() & 0xFFF);
     unsafe { crate::gfx::picture_as_surface::picture_as_surface() }?;
-    draw_string(0x94, a(FONT_94), 0x316, 0x2F)?;
-    draw_string(0x1000, a(FONT_1000), 0x320, 0x24B)?;
-    draw_string(0x1002, a(FONT_1002), 0, 0x24B)?;
+    draw_string(0x94, FONT_94.addr() as u32, 0x316, 0x2F)?;
+    draw_string(0x1000, FONT_1000.addr() as u32, 0x320, 0x24B)?;
+    draw_string(0x1002, FONT_1002.addr() as u32, 0, 0x24B)?;
     copy_picture()?;
     show();
     Ok(())

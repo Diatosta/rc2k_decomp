@@ -9,6 +9,7 @@ pub mod car_caption;
 pub mod car_page_title;
 pub mod championship_table;
 pub mod controller;
+pub mod controls_store;
 pub mod draw_arcade_stage_title;
 pub mod draw_background_band;
 pub mod draw_bottom_panel;

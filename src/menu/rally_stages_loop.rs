@@ -11,46 +11,50 @@
 //! error 0x80712345; leaving is asked about, and a "no" sets the screen up again.
 //! Callers: the event loops `sub_4A0E60` and `sub_4AA4D7`.
 
-use crate::framework::rva;
-use crate::menu::run_draw_list::DRAW_LIST_RVA;
+use crate::menu::draw_lists_store::DRAW_LISTS;
+use crate::menu::draw_work_store::DRAW_WORK;
+use crate::menu::flow_store::SCREEN_FLOW;
+use crate::menu::menus_store::MENUS;
+use crate::menu::screen_items_store::{SCREEN_ITEMS, slot};
 use crate::menu::screen_loop::{Callee, FRAME_CALLBACK, List, Screen, Step};
 
 // ---- game data ----
 
-const MENU_RVA: usize = rva(0x74DB04); // off_74DB04
-const BACKGROUND_RVA: usize = rva(0x73245F); // "files\g\graphics\screens\ukmap.png"
-
 // ---- Rust version: `menu::screen_loop` with this ----
 
 pub const SCREEN: Screen = Screen {
-    menu: MENU_RVA,
-    saved_item: rva(0x747770), // dword_747770
+    menu: || MENUS.rally_stages.addr(),
+    saved_item: || &SCREEN_ITEMS.current[slot::RALLY_STAGES], // dword_747770
     lists: &[
         List {
-            pointer: rva(0x755504),
-            table: rva(0x75905E),
+            pointer: || &SCREEN_FLOW.scene_list,
+            table: || DRAW_LISTS.rally_stages_scene.addr(),
             run: false,
         },
         List {
-            pointer: DRAW_LIST_RVA,
-            table: rva(0x758D56),
+            pointer: || &SCREEN_FLOW.draw_list,
+            table: || DRAW_LISTS.list_758d56.addr(),
             run: false,
         },
         List {
-            pointer: rva(0x7554FC),
-            table: rva(0x759236),
+            pointer: || &SCREEN_FLOW.overlay_list,
+            table: || DRAW_LISTS.rally_stages_overlay.addr(),
             run: false,
         },
     ],
     first_frame_lists: None,
     frame_callback: FRAME_CALLBACK,
     later_frame_callback: None,
-    before: &[Step::Write(rva(0x755A3C), 0)],
+    before: &[Step::Write(|| &DRAW_WORK.escaped, 0)],
     set_up_first: &[],
     prepare: &[],
     after_lists: &[],
     background: &[
-        Step::ArgAddr(BACKGROUND_RVA),
+        Step::ArgAddr(|| {
+            crate::menu::texts_store::MENU_TEXTS
+                .rally_stages_picture
+                .addr()
+        }),
         Step::CallOrFatal(Callee::LoadBackground, 0x8071_2345),
     ],
     after_first_frame: &[],

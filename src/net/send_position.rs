@@ -13,7 +13,7 @@ use crate::errors::Refused;
 use crate::net::send_inputs::{Message, send_fields};
 
 pub const POSITION: Message = Message {
-    text: 0x4DE0E0, // "send p"
+    text: c"send p", // "send p"
     kind: rc2k_core::net::race::Kind::Position,
 };
 

@@ -12,11 +12,8 @@
 //! are 0 now.
 
 use crate::errors::Refused;
-use crate::framework::rva;
-use crate::store::game_addr;
+use crate::sound::sets_store::RACE_SOUND_SETS;
 
-/// unk_5124BC: the request the turn's sounds go with.
-pub const REQUEST: usize = 0x5124BC;
 /// Object `n`'s address (`g_raceSoundObjects[n]`); `n` is under 8 (every caller checks).
 pub fn object(n: u32) -> u32 {
     crate::sound::store::RACE_SOUNDS.table[n as usize].get()
@@ -24,7 +21,7 @@ pub fn object(n: u32) -> u32 {
 
 /// The request's address.
 pub fn request() -> u32 {
-    game_addr(rva(REQUEST)) as u32
+    RACE_SOUND_SETS.request.addr() as u32
 }
 
 pub use crate::sound::play_sound::play_sound as play;

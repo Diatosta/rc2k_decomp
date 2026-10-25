@@ -17,17 +17,14 @@
 //! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
 //! are the original's.
 
-use crate::install::installer::{DRIVE_COUNT, DRIVES, FIRST_DRIVE, a, g, game_api, p, wb, wd};
+use crate::install::installer::{game_api, wb, wd};
+use crate::install::vars::INSTALLER_PAGES;
+use crate::install::vars::INSTALLER_RUN;
 use rc2k_core::install::drives::{self, DriveMenu};
 
-const MENU_8: usize = 0x51D7F8; // off_51D7F8
-const MENU_16: usize = 0x51D8B0; // off_51D8B0
-const MENU_MORE: usize = 0x51D9E8; // off_51D9E8
-const CHOSEN_MENU: usize = 0x51D5F8; // off_51D5F8
-
 pub fn list_drives() {
-    let drives = a(DRIVES);
-    let mut letter = g(FIRST_DRIVE);
+    let drives = crate::session::address_of(&INSTALLER_RUN.drives) as u32;
+    let mut letter = INSTALLER_RUN.first_drive.get();
     loop {
         // Converted: `rc2k_core::install::drives` (`offered`, `LISTED`, `free`, `text`,
         // `menu`, `items`).
@@ -45,7 +42,7 @@ pub fn list_drives() {
             break;
         }
     }
-    p(DRIVE_COUNT, 0);
+    INSTALLER_RUN.drive_count.set(0);
     let mut ebx = crate::install::store::DRIVE_ROWS.drive_rows.addr() as u32;
     // 'a' .. 'y': the loop's `cmp ecx, 7Ah; jb` leaves 'z' out (the game's slip, section 16)
     for letter in drives::LISTED {
@@ -53,7 +50,9 @@ pub fn list_drives() {
         if g_at(slot) == 0 {
             continue;
         }
-        p(DRIVE_COUNT, g(DRIVE_COUNT) + 1);
+        INSTALLER_RUN
+            .drive_count
+            .set(INSTALLER_RUN.drive_count.get() + 1);
         let row = ebx;
         wb(row, letter);
         let free = drives::free(g_at(slot + 4));
@@ -69,14 +68,14 @@ pub fn list_drives() {
         }
         ebx = row + 0x10;
     }
-    let count = g(DRIVE_COUNT);
+    let count = INSTALLER_RUN.drive_count.get();
     let menu = match drives::menu(count) {
-        DriveMenu::Eight => MENU_8,
-        DriveMenu::Sixteen => MENU_16,
-        DriveMenu::More => MENU_MORE,
-    };
-    p(CHOSEN_MENU, a(menu));
-    wb(a(menu) + 1, drives::items(count));
+        DriveMenu::Eight => INSTALLER_PAGES.menu_8.addr(),
+        DriveMenu::Sixteen => INSTALLER_PAGES.menu_16.addr(),
+        DriveMenu::More => INSTALLER_PAGES.menu_more.addr(),
+    } as u32;
+    INSTALLER_PAGES.chosen_menu.set_u32(0, menu);
+    wb(menu + 1, drives::items(count));
 }
 
 fn g_at(at: u32) -> u32 {

@@ -11,21 +11,18 @@
 
 use crate::bridge::Raw;
 use crate::errors::Refused;
-use crate::framework::{game_addr, game_read, game_write, rva};
-
-const SECTION_RVA: usize = rva(0x75595C); // section
-const INDEX_RVA: usize = rva(0x755958); // index
-const RECORDS_RVA: usize = rva(0x735576); // g_recordTable
-const KIND_RVA: usize = rva(0x7559EC); // dword_7559EC
+use crate::menu::draw_work_store::DRAW_WORK;
+use crate::menu::event_store::EVENT_STATE;
 
 /// The Rust version (see the header): the kind (eax in the original), also kept in
 /// `dword_7559EC`.
 pub unsafe fn next_record_kind() -> Result<u32, Refused> {
-    let section: u32 = unsafe { game_read(SECTION_RVA) };
-    let index: u32 = unsafe { game_read(INDEX_RVA) };
-    let table = unsafe { Raw::new(game_addr(RECORDS_RVA) as *const u8) };
+    let section: u32 = { EVENT_STATE.section.get() };
+    let index: u32 = { EVENT_STATE.index.get() };
+    let table =
+        unsafe { Raw::new(crate::records::stages_store::STAGE_TABLES.championship() as *const u8) };
     // Converted: `rc2k_core::menu::record_kinds::next_record_kind`.
     let kind = rc2k_core::menu::record_kinds::next_record_kind(&table, section, index)?;
-    unsafe { game_write(KIND_RVA, kind) };
+    DRAW_WORK.figure.set(kind);
     Ok(kind)
 }

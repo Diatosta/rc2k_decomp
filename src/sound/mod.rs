@@ -47,6 +47,7 @@ pub mod send_end_of_turn;
 pub mod senders;
 pub mod set_music_volume;
 pub mod set_up_race_sounds;
+pub mod sets_store;
 pub mod speed_sound;
 pub mod spot_sounds;
 pub mod spot_voice_distances;

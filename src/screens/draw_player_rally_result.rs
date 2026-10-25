@@ -13,13 +13,9 @@
 //! `entry` (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{game_read, rva};
+use crate::menu::results_store::RESULT_FIGURES;
 use crate::screens::best_scores::{RALLY_STAGE_TIMES, draw_times_heading};
 use crate::text::draw_text::Canvas;
-
-fn k(a: usize) -> u32 {
-    unsafe { game_read(rva(a)) }
-}
 
 /// (id, x, y, font) of the labels.
 /// The Rust version.
@@ -46,9 +42,16 @@ pub unsafe fn draw_player_rally_result(canvas: &mut dyn Canvas) -> Result<(), Re
             speed,
         };
         let figures = rc2k_core::screens::player_result::RallyFigures {
-            position: k(0x758768),
-            best: k(0x758758),
-            column: [0x758778, 0x758758, 0x758788, 0x758798, 0x7587A8, 0x7587B8].map(k),
+            position: RESULT_FIGURES.positions[0].get(),
+            best: RESULT_FIGURES.time_bonus[0].get(),
+            column: [
+                RESULT_FIGURES.points[0].get(),
+                RESULT_FIGURES.time_bonus[0].get(),
+                RESULT_FIGURES.extra[0].get(),
+                RESULT_FIGURES.sums[0].get(),
+                RESULT_FIGURES.before[0].get(),
+                RESULT_FIGURES.totals[0].get(),
+            ],
         };
         rc2k_core::screens::player_result::rally_result(
             &mut PlayerResultScreen::new(canvas),

@@ -18,9 +18,8 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::rva;
-use crate::gfx::hexagon_batch::Slot as HexSlot;
+use crate::gfx::hexagon_batch::HEXAGON_BATCH;
 use crate::marks::expire_hexagons::{ITEM_LEN, ITEMS, ITEMS_RVA};
-use crate::marks::setup::SETTINGS_RVA;
 use crate::marks::store::{Slot, game_addr, game_read, game_write};
 use crate::math::x87;
 
@@ -31,13 +30,8 @@ const WHOLE_RVA: [Slot; 2] = [Slot::at(0x815182), Slot::at(0x815186)]; // dword_
 const EDGE_RVA: Slot = Slot::at(0x809BC3); // g_marksEdgeMask
 const DEPTH_RVA: Slot = Slot::at(0x814CB2); // flt_814CB2
 const BUFFER_RVA: Slot = Slot::at(0x816232); // dword_816232: where the next sprite goes
-const BUFFER_START: HexSlot = HexSlot::at(0x625A44); // unk_625A44
 /// `unk_628A44`, past the 0x40 records of 0xC0 bytes.
 const BUFFER_BYTES: usize = 0x3000;
-const BATCH: [(HexSlot, u32); 2] = [
-    (HexSlot::at(0x62423C), 0x300),
-    (HexSlot::at(0x625A40), 0x180),
-];
 const KINDS: u32 = 8;
 
 unsafe fn get(a: u32) -> u32 {
@@ -89,7 +83,7 @@ unsafe fn sprite_project(e: u32, inverse_depth: bh::X) {
 /// Why it refuses, if it does.
 unsafe fn refusal() -> Option<&'static str> {
     unsafe {
-        if game_read::<u32>(SETTINGS_RVA) == 0 {
+        if crate::marks::setup::SETTINGS.pointer.get() == 0 {
             return Some("no marks settings");
         }
         let base = game_addr(ITEMS_RVA) as u32;
@@ -153,15 +147,14 @@ pub unsafe fn hexagons_frame() -> Result<(), Refused> {
             sprite_project(game_read(BUFFER_RVA), inverse_depth);
             let next = game_read::<u32>(BUFFER_RVA).wrapping_add(0xC0);
             game_write(BUFFER_RVA, next);
-            if next as usize == game_addr(BUFFER_START) + BUFFER_BYTES {
-                game_write(BUFFER_RVA, game_addr(BUFFER_START) as u32);
-                for (r, v) in BATCH {
-                    game_write(r, v);
-                }
+            if next as usize == HEXAGON_BATCH.records.addr() + BUFFER_BYTES {
+                game_write(BUFFER_RVA, HEXAGON_BATCH.records.addr() as u32);
+                HEXAGON_BATCH.index_count.set(0x300);
+                HEXAGON_BATCH.vertex_count.set(0x180);
                 draw_batch()?;
             }
         }
-        let settings: u32 = game_read(SETTINGS_RVA);
+        let settings: u32 = crate::marks::setup::SETTINGS.pointer.get();
         let live: u32 = game_read(LIVE_RVA);
         if (live as i32) < get(settings + 0x273C) as i32 && game_read::<u32>(DRIFTING_RVA) != 0 {
             crate::marks::hexagons_spawn::hexagons_spawn();

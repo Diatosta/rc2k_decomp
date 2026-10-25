@@ -83,7 +83,7 @@ pub unsafe fn draw_cell_sprite(
     unsafe {
         // The fog's and the clip's refusals, before anything.
         fog_at(0)?;
-        if game_read::<u32>(crate::marks::setup::SETTINGS_RVA) == 0 {
+        if crate::marks::setup::SETTINGS.pointer.get() == 0 {
             return Err(BadInput("no marks settings").into());
         }
         turn(&place);

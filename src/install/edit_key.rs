@@ -23,16 +23,16 @@
 use crate::bridge::{Raw, read_through};
 use crate::errors::Refused;
 use crate::input::store::KEYBOARD_FILE;
-use crate::install::installer::{
-    COLOURS, FONTS, SCRIPT_PATH, a, append_string_by_id, measure_text, rb, rd, rw, wb,
-};
+use crate::install::installer::{append_string_by_id, measure_text, rb, rd, rw, wb};
+use crate::install::vars::INSTALLER_PAGES;
+use crate::install::vars::INSTALLER_PATHS;
 use rc2k_core::install::edits::{self, EDITING, EditKey};
 
 /// The font of an edit record's kind.
 pub fn edit_font(record: u32) -> u32 {
     let kind = rb(record + 4) as u32;
-    let font = rb(a(COLOURS) + 5 + 8 * kind) as u32;
-    rd(a(FONTS) + 4 * font)
+    let font = rb(INSTALLER_PAGES.kind_fonts.addr() as u32 + 5 + 8 * kind) as u32;
+    rd(crate::session::address_of(&INSTALLER_PAGES.fonts) as u32 + 4 * font)
 }
 
 fn past_nul(mut at: u32) -> u32 {
@@ -70,7 +70,7 @@ pub fn edit_key(key: u32, item: u32) -> Result<(u32, bool), Refused> {
         match EditKey::of(key as u8) {
             EditKey::Escape => {
                 wb(record, rb(record) & !EDITING);
-                let backup = a(SCRIPT_PATH);
+                let backup = INSTALLER_PATHS.script_path.addr() as u32;
                 for n in 0..most + 2 {
                     wb(text + n, rb(backup + n));
                 }

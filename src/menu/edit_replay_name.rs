@@ -24,27 +24,26 @@
 //! keyboard layout.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, game_write, rva};
 use crate::input::key_to_char::{has_layout, key_to_char};
 use crate::input::take_key::take_key;
 use crate::menu::add_text_length::add_text_length;
 use crate::menu::backspace_savegame_name::backspace_savegame_name;
+use crate::menu::captions_store::CAPTIONS;
 use crate::menu::clear_text::clear_text;
+use crate::menu::draw_work_store::DRAW_WORK;
+use crate::menu::loop_store::LOOP_FLAGS;
 use crate::menu::name_lists::{NAME_LEN, replay_name, savegame_name};
+use crate::menu::option_work_store::OPTION_WORK;
 use crate::menu::restore_text::restore_text;
-use crate::menu::text_entry::{ENTERING_RVA, MAX_LENGTH_RVA, length, set_length};
-use crate::screens::font_at;
+use crate::menu::text_entry::{length, set_length};
 use crate::strings::append_string_by_id::push_string;
 use crate::text::draw_text::Canvas;
 use crate::text::measure_text::measure_text_at;
 
 // ---- game data ----
 
-const CANCELLED_RVA: usize = rva(0x758806); // dword_758806
-const CURSOR_ON_RVA: usize = rva(0x7559A8); // dword_7559A8: 1 in the visible half of the cursor's blink
-
 const CURSOR_STRING: u32 = 4;
-const MEASURING_FONT: usize = 0x51E824; // dword_51E824
+const MEASURING_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::MEASURE;
 
 // ---- Rust version ----
 
@@ -72,8 +71,8 @@ pub unsafe fn edit_replay_name(canvas: &mut dyn Canvas) -> Result<bool, Refused>
             Key::None => {}
             Key::Escape => {
                 restore_text(name);
-                game_write(ENTERING_RVA, 0u32);
-                game_write(CANCELLED_RVA, 1u32);
+                OPTION_WORK.typing.set(0u32);
+                CAPTIONS.screen_left.set(1u32);
                 return Ok(true);
             }
             Key::Enter => {
@@ -81,7 +80,7 @@ pub unsafe fn edit_replay_name(canvas: &mut dyn Canvas) -> Result<bool, Refused>
                     restore_text(name);
                     add_text_length(name)?;
                 }
-                game_write(ENTERING_RVA, 0u32);
+                OPTION_WORK.typing.set(0u32);
                 end_name(name);
                 return Ok(false);
             }
@@ -91,17 +90,17 @@ pub unsafe fn edit_replay_name(canvas: &mut dyn Canvas) -> Result<bool, Refused>
             Key::Other(key) => {
                 let c = key_to_char(key as u32)? as u8;
                 let len = length();
-                if entry::appends(c, len, game_read(MAX_LENGTH_RVA)) {
+                if entry::appends(c, len, LOOP_FLAGS.text_max.get() as i32) {
                     name.offset(len as isize).write(c);
                     set_length(len.wrapping_add(1));
-                    let measured = measure_text_at(font_at(MEASURING_FONT), name, len, canvas)?;
+                    let measured = measure_text_at(MEASURING_FONT.as_ptr(), name, len, canvas)?;
                     if entry::too_wide(measured.width as i32) {
                         backspace_savegame_name()?;
                     }
                 }
             }
         }
-        let cursor_on: u32 = game_read(CURSOR_ON_RVA);
+        let cursor_on: u32 = DRAW_WORK.cursor_on.get();
         let mut tail = Vec::new();
         if cursor_on == 1 {
             push_string(&mut tail, CURSOR_STRING);

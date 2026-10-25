@@ -10,13 +10,18 @@
 //! are the original's.
 
 use crate::errors::Refused;
-use crate::install::installer::{INSTALLED, INSTALLING, a, normalise, p, set_cd};
-
-const SOURCE_PATH: usize = 0x51BB8D; // g_installSource
+use crate::install::installer::{normalise, set_cd};
+use crate::install::vars::INSTALLER_NAMES;
+use crate::install::vars::INSTALLER_PATHS;
+use crate::install::vars::INSTALLER_RUN;
 
 pub fn open_installed() -> Result<(), Refused> {
-    if normalise(a(SOURCE_PATH), a(INSTALLED))? && set_cd(a(INSTALLED)) {
-        p(INSTALLING, 1);
+    if normalise(
+        INSTALLER_NAMES.source.addr() as u32,
+        INSTALLER_PATHS.installed.addr() as u32,
+    )? && set_cd(INSTALLER_PATHS.installed.addr() as u32)
+    {
+        INSTALLER_RUN.installing.set(1);
     }
     Ok(())
 }

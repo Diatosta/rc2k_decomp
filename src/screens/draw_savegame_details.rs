@@ -32,29 +32,16 @@
 //! of a pair is (position and points, say) has not been worked out.
 
 use crate::errors::Refused;
-use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::menu::lists_store::MENU_LISTS;
 use crate::records::find_record::find_record_in;
 use crate::saves::gather_savegame::CAR_LEN;
-use crate::saves::write_savegame_slot::FILE_RVA;
-use crate::screens::draw_stage_info::RECORD_TABLE_RVA;
+use crate::saves::preview_store::SAVEGAME_PREVIEW;
+use crate::saves::write_savegame_slot::SAVE_GAMES;
 use crate::screens::stage_panel::{dword, table_dword_at};
 use crate::text::draw_text::Canvas;
 
 // ---- game data ----
 
-/// Where the seven dwords of the previewed saved game are kept, in the order they are saved:
-/// `dword_755150` .. `dword_755168`.
-const PREVIEW_RVAS: [usize; 7] = [
-    rva(0x755150), // the number of players, by its use here
-    rva(0x755154),
-    rva(0x755158), // the stage's index in its section
-    rva(0x75515C), // the section
-    rva(0x755160),
-    rva(0x755164), // the mode: 0x13 takes the title from the table
-    rva(0x755168),
-];
-const SAVED_CARS_PTR_RVA: usize = rva(0x75516C); // dword_75516C
 const PAYLOAD_OFFSET: usize = 0x30; // 0x51EBE4
 
 // ---- Rust version ----
@@ -65,17 +52,17 @@ pub unsafe fn draw_savegame_details(canvas: &mut dyn Canvas) -> Result<bool, Ref
     // into the preview's variables first (the original after the frame, which reads none).
     use rc2k_core::screens::savegame_preview::{Car, Title, details};
     unsafe {
-        let payload = (game_addr(FILE_RVA) + PAYLOAD_OFFSET) as u32;
-        for (n, at) in PREVIEW_RVAS.into_iter().enumerate() {
-            game_write(at, dword(payload + 4 * n as u32));
+        let payload = (SAVE_GAMES.file.addr() + PAYLOAD_OFFSET) as u32;
+        for (n, cell) in SAVEGAME_PREVIEW.saved.iter().enumerate() {
+            cell.set(dword(payload + 4 * n as u32));
         }
-        let cars = payload + 4 * PREVIEW_RVAS.len() as u32;
-        game_write(SAVED_CARS_PTR_RVA, cars);
-        let players: i32 = game_read(PREVIEW_RVAS[0]);
-        let index: i32 = game_read(PREVIEW_RVAS[2]);
-        let section: u32 = game_read(PREVIEW_RVAS[3]);
-        let mode_13 = game_read::<u32>(PREVIEW_RVAS[5]) == 0x13;
-        let table = game_addr(RECORD_TABLE_RVA) as u32;
+        let cars = payload + 4 * SAVEGAME_PREVIEW.saved.len() as u32;
+        SAVEGAME_PREVIEW.saved_cars.set(cars);
+        let players = SAVEGAME_PREVIEW.saved[0].get() as i32;
+        let index = SAVEGAME_PREVIEW.saved[2].get() as i32;
+        let section = SAVEGAME_PREVIEW.saved[3].get();
+        let mode_13 = SAVEGAME_PREVIEW.saved[5].get() == 0x13;
+        let table = crate::records::stages_store::STAGE_TABLES.championship();
         let title = Title {
             mode_13,
             section: if mode_13 {

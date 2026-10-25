@@ -2,11 +2,8 @@
 //! (`race::copy_rally_times`).
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, rva};
-
-fn at(a: usize) -> u32 {
-    game_addr(rva(a)) as u32
-}
+use crate::menu::champ_store::CHAMP_VIEW;
+use crate::menu::event_store::EVENT_STATE;
 
 unsafe fn get(a: u32) -> u32 {
     unsafe { (a as *const u32).read_unaligned() }
@@ -24,9 +21,21 @@ pub const INT_NL: u32 = 4;
 
 /// " ", "-----", "Count:", "GB_Timed: t:- ", "CTs:-", "-----", "%%%%%", "-----",
 /// "GB_Shaun: ", "CTs:", "-----", "%%%%%", "%%%%%", "%%%%%".
-const WORDS: [usize; 14] = [
-    0x4DE93A, 0x4DE93C, 0x4DE969, 0x4DE970, 0x4DE97F, 0x4DE985, 0x4DE9B2, 0x4DE9DF, 0x4DEA0C,
-    0x4DEA17, 0x4DEA1C, 0x4DEA49, 0x4DEA76, 0x4DEAA3,
+const WORDS: [&std::ffi::CStr; 14] = [
+    c" ",
+    c"--------------------------------------------",
+    c"Count:",
+    c"GB_Timed: t:- ",
+    c"CTs:-",
+    c"--------------------------------------------",
+    c"%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%",
+    c"--------------------------------------------",
+    c"GB_Shaun: ",
+    c"CTs:",
+    c"--------------------------------------------",
+    c"%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%",
+    c"%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%",
+    c"%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%",
 ];
 
 /// Where `copy_rally_times` takes its ten records from: the rally's times (by
@@ -35,19 +44,24 @@ const WORDS: [usize; 14] = [
 /// unless `dword_7558C8` is 1), and puts them (`dword_7556F4`). None for a null pointer.
 pub unsafe fn rally_times_places() -> Option<(u32, u32)> {
     unsafe {
-        let kind = get(at(0x7558C8));
-        let rallies = get(at(0x735512).wrapping_add(4 * kind));
+        let kind = EVENT_STATE.stage_group.get();
+        let rallies = crate::records::stages_store::STAGE_TABLES.group_list(kind);
         if rallies == 0 {
             return None;
         }
-        let stages = get(rallies.wrapping_add(4 * get(at(0x7558D0))));
+        let stages = get(rallies.wrapping_add(4 * EVENT_STATE.stage_sub.get()));
         if stages == 0 {
             return None;
         }
-        let stage = stages.wrapping_add(get(at(0x7558CC)).wrapping_mul(0xA4));
+        let stage = stages.wrapping_add(EVENT_STATE.stage_number.get().wrapping_mul(0xA4));
         let offset = get(stage + 0x3C).wrapping_mul(0x618);
-        let base = get(at(if kind == 1 { 0x7556E4 } else { 0x7556E8 }));
-        let to = get(at(0x7556F4));
+        let base = (if kind == 1 {
+            &CHAMP_VIEW.stage_best_times_alt
+        } else {
+            &CHAMP_VIEW.time_trial_best_times
+        })
+        .get();
+        let to = CHAMP_VIEW.summary.get();
         if base == 0 || to == 0 {
             return None;
         }
@@ -74,7 +88,7 @@ pub unsafe fn copy_rally_times() -> Result<(), Refused> {
                 put(edi + 4 * k as u32, v);
             }
             let log = |place: u32, value: u32| -> Result<(), Refused> { log_part(place, value) };
-            let word = |n: usize| at(WORDS[n]);
+            let word = |n: usize| WORDS[n].as_ptr() as u32;
             log(WRITE_NL, word(0))?;
             log(WRITE_NL, word(1))?;
             log(WRITE, word(2))?;

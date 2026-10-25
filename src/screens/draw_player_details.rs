@@ -30,20 +30,21 @@
 //! registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::rva;
+use crate::menu::captions_store::CAPTIONS;
+use crate::menu::draw_work_store::DRAW_WORK;
+use crate::menu::event_store::EVENT_STATE;
+use crate::menu::option_work_store::OPTION_WORK;
 use crate::menu::player::{Player, player_at};
-use crate::store::game_read;
+use crate::session::Dword;
 use crate::text::draw_text::Canvas;
 
 // ---- game data ----
 
-const PLAYER_RVA: usize = rva(0x75598C); // dword_75598C
-const TYPING_RVA: usize = rva(0x7556A8); // dword_7556A8
 // seconds
 // dword_7559EC
-const NATIONALITIES_RVA: usize = rva(0x758816); // dword_758816
-const VIEWS_RVA: usize = rva(0x7589BA); // dword_7589BA
-const SECOND_VIEWS_RVA: usize = rva(0x7589DA); // dword_7589DA
+const NATIONALITIES_RVA: &[Dword] = &CAPTIONS.nationalities; // dword_758816
+const VIEWS_RVA: &[Dword] = &CAPTIONS.views; // dword_7589BA
+const SECOND_VIEWS_RVA: &[Dword] = &CAPTIONS.second_views; // dword_7589DA
 /// What differs between the players' pages: players 1 and 2 (`sub_46F894`,
 /// `sub_4677B5`) have the controller's item at 9 and the second view's line; players 3
 /// and 4 (`sub_467975`) have it at 8 and no second view, the lines below moving up one.
@@ -68,16 +69,16 @@ const VIEWS: u32 = 7;
 const SECOND_VIEWS: u32 = 6;
 // ---- Rust version ----
 
-fn string(table: usize, index: u32, count: u32) -> Result<u32, Refused> {
+fn string(table: &[Dword], index: u32, count: u32) -> Result<u32, Refused> {
     if index >= count {
         return Err(BadInput("an index past its string table").into());
     }
-    Ok(unsafe { game_read(table + index as usize * 4) })
+    Ok(table[index as usize].get())
 }
 
 pub unsafe fn draw_player_page(layout: Layout, canvas: &mut dyn Canvas) -> Result<(), Refused> {
     unsafe {
-        let at = player_at(game_read(PLAYER_RVA));
+        let at = player_at(EVENT_STATE.current_player.get());
         if at == 0 {
             return Err(BadInput("a player past the four").into());
         }
@@ -109,8 +110,8 @@ pub unsafe fn draw_player_page(layout: Layout, canvas: &mut dyn Canvas) -> Resul
             controller_item: layout.controller_item,
             controllers: crate::input::store::DEVICES.controller_count.get() != 0,
             name: player.name,
-            typing: game_read::<u32>(TYPING_RVA) != 0,
-            blink: game_read(crate::screens::draw_name_cursor::BLINK_RVA),
+            typing: OPTION_WORK.typing.get() != 0,
+            blink: DRAW_WORK.cursor_on.get(),
             nationality: player.nationality,
             nationality_id,
             view_id,

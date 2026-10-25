@@ -11,7 +11,7 @@
 //! Refuses a list of pointers without its -1 within the numbers' room, and a null entry.
 
 use crate::errors::BadInput;
-use crate::framework::{game_write, rva};
+use crate::menu::car_numbers_store::CAR_NUMBERS;
 use crate::menu::lists_store::MENU_LISTS;
 use crate::session::Dword;
 
@@ -20,9 +20,9 @@ use crate::session::Dword;
 /// How many dwords of each list of numbers are filled.
 const FILLED: usize = 0x28;
 /// (the numbers, the pointers)
-const LISTS: [(usize, &[Dword]); 2] = [
-    (rva(0x755258), &MENU_LISTS.cars_second), // unk_755258, off_75A042
-    (rva(0x7552F8), &MENU_LISTS.shown_cars),  // unk_7552F8, off_75A12E
+const LISTS: [(&[Dword], &[Dword]); 2] = [
+    (&CAR_NUMBERS.first_numbers, &MENU_LISTS.cars_second), // unk_755258, off_75A042
+    (&CAR_NUMBERS.second_numbers, &MENU_LISTS.shown_cars), // unk_7552F8, off_75A12E
 ];
 
 // ---- Rust version ----
@@ -40,7 +40,7 @@ pub unsafe fn list_car_numbers() -> Result<(), BadInput> {
         }
         for ((numbers, _), list) in LISTS.into_iter().zip(found) {
             for (n, v) in list.into_iter().enumerate() {
-                game_write(numbers + n * 4, v);
+                numbers[n].set(v);
             }
         }
         Ok(())

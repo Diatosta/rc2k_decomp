@@ -16,25 +16,21 @@
 //! Caller: `race::viewer_frame`.
 
 use crate::errors::Refused;
+use crate::gfx::screen_state::DRAW_SURFACE;
 use crate::physics::flow::{a, g, p};
 use crate::race::viewer::{BLOCK, BLOCKS, CAMERA_NAMES, CAMERAS, FRAME, gb};
+use crate::strings::text_buffer::TEXT_BUFFER;
 use crate::text::draw_text::GameCanvas;
-use crate::text::font::Font;
 
 const TEXTURE: usize = 0x5BECB8; // dword_5BECB8: the panel's texture
 const DEVICE_TEXTURE: usize = 0x5BECBC; // dword_5BECBC
-const TEXT: usize = 0x93E430; // text: the game's text buffer
-const FONT_A: usize = 0x51EAE4; // stru_51EAE4
-const FONT_B: usize = 0x51EB44; // stru_51EB44
-const FONT_C: usize = 0x51EB04; // unk_51EB04
-const FONT_D: usize = 0x51EB64; // stru_51EB64
-const FONT_E: usize = 0x51EAC4; // unk_51EAC4
+const FONT_A: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::PANEL_A;
+const FONT_B: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::PANEL_B;
+const FONT_C: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::PANEL_C;
+const FONT_D: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::PANEL_D;
+const FONT_E: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::PANEL_E;
 const UV: usize = 0x5C2A1C; // dword_5C2A1C: the texture's rectangle
 const RECT: usize = 0x5C2A0C; // dword_5C2A0C: the screen's
-const PIXELS: usize = 0x4F49C0; // g_surface.pixels
-const HEIGHT: usize = 0x4F49A4; // g_surface.height
-const ROW_DWORDS: usize = 0x4F49B4; // g_surface.row_dwords
-const ROW_GAP: usize = 0x4F49C4; // g_surface.row_gap
 
 /// The Rust version (the original keeps every register of its caller).
 pub fn draw_viewer_panel() -> Result<(), Refused> {
@@ -47,35 +43,38 @@ pub fn draw_viewer_panel() -> Result<(), Refused> {
         }
         // The surface cleared (as `rep stosd` row by row; a height of 0 goes round 2^32
         // times in the original as here: the texture has rows).
-        let mut at = g(PIXELS);
-        let mut rows = g(HEIGHT);
+        let mut at = DRAW_SURFACE.pixels.get();
+        let mut rows = DRAW_SURFACE.height.get();
         loop {
-            let dwords = g(ROW_DWORDS);
+            let dwords = DRAW_SURFACE.row_dwords.get();
             std::ptr::write_bytes(at as *mut u32, 0, dwords as usize);
-            at = at.wrapping_add(4 * dwords).wrapping_add(g(ROW_GAP));
+            at = at
+                .wrapping_add(4 * dwords)
+                .wrapping_add(DRAW_SURFACE.row_gap.get());
             rows = rows.wrapping_sub(1);
             if rows == 0 {
                 break;
             }
         }
         // A string of the game's texts drawn with a font at (x, y).
-        let string = |id: u32, font: usize, x: i32, y: i32| -> Result<(), Refused> {
-            crate::text::draw_string_by_id::draw_string_by_id_at(
-                id,
-                a(font) as *mut Font,
-                x,
-                y,
-                &mut GameCanvas,
-            )?;
-            Ok(())
-        };
+        let string =
+            |id: u32, font: crate::gfx::typefaces::FontId, x: i32, y: i32| -> Result<(), Refused> {
+                crate::text::draw_string_by_id::draw_string_by_id_at(
+                    id,
+                    font.as_ptr(),
+                    x,
+                    y,
+                    &mut GameCanvas,
+                )?;
+                Ok(())
+            };
         // The text buffer drawn with a font at (x, y).
-        let text = |font: usize, x: i32, y: i32| -> Result<(), Refused> {
-            let font = a(font) as *mut Font;
+        let text = |font: crate::gfx::typefaces::FontId, x: i32, y: i32| -> Result<(), Refused> {
+            let font = font.as_ptr();
             let mut copy = font.read_unaligned();
             crate::text::draw_text_keep_regs::draw_text_keep_regs(
                 &mut copy,
-                a(TEXT) as *const u8,
+                TEXT_BUFFER.text.addr() as u32 as *const u8,
                 x,
                 y,
                 &mut GameCanvas,
@@ -93,8 +92,12 @@ pub fn draw_viewer_panel() -> Result<(), Refused> {
                 hundredths,
                 crate::strings::append_time::show_hours(),
             );
-            std::ptr::copy_nonoverlapping(time.as_ptr(), a(TEXT) as *mut u8, time.len());
-            nul((a(TEXT) as *mut u8).add(time.len()));
+            std::ptr::copy_nonoverlapping(
+                time.as_ptr(),
+                TEXT_BUFFER.text.addr() as u32 as *mut u8,
+                time.len(),
+            );
+            nul((TEXT_BUFFER.text.addr() as u32 as *mut u8).add(time.len()));
         };
         string(0x1A4, FONT_A, 4, 0)?;
         append_time(shown_time(g(BLOCK), g(FRAME)));
@@ -107,7 +110,7 @@ pub fn draw_viewer_panel() -> Result<(), Refused> {
         for byte in 0..2usize {
             let camera = camera_name(gb((CAMERAS + byte).wrapping_add(8 * g(BLOCK) as usize)));
             let id = (a(CAMERA_NAMES + 2 * camera as usize) as *const u16).read_unaligned();
-            let mut out = a(TEXT) as *mut u8;
+            let mut out = TEXT_BUFFER.text.addr() as u32 as *mut u8;
             crate::strings::append_string_by_id::append_string_by_id(
                 u32::from(id),
                 &mut |from, n| {

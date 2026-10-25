@@ -10,16 +10,13 @@
 //!
 //! the x87 version stays for the Rust callers in unconverted code).
 
-use crate::marks::pong;
-use crate::marks::store::{game_read, game_write};
+use crate::marks::pong::{self, PONG};
 
 /// The Rust version (see the header).
-pub unsafe fn pong_bat_back() {
+pub fn pong_bat_back() {
     let (over, _) = pong::overlap();
     if over {
-        unsafe {
-            game_write(pong::BAT[0], game_read::<u32>(pong::SAVED_BAT[0]));
-            game_write(pong::BAT[1], game_read::<u32>(pong::SAVED_BAT[1]));
-        }
+        PONG.bat[0].set_bits(PONG.saved_bat[0].get());
+        PONG.bat[1].set_bits(PONG.saved_bat[1].get());
     }
 }

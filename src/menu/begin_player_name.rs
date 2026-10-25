@@ -11,17 +11,15 @@
 //! reference.
 
 use crate::errors::Refused;
-use crate::framework::{game_read, rva};
+use crate::menu::flow_store::SCREEN_FLOW;
 use crate::menu::player_name::{kept, name};
 use crate::menu::text_entry::{Text, field, put_field, with_entry};
-
-const ENTER_WITH_4_RVA: usize = rva(0x7554D4); // dword_7554D4
 
 // ---- Rust version ----
 
 pub unsafe fn begin_player_name() -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::text_entry::Entry::begin_player_name`.
-    let with_4 = unsafe { game_read::<u32>(ENTER_WITH_4_RVA) } == 1;
+    let with_4 = { SCREEN_FLOW.enter_with_4.get() } == 1;
     let at = if with_4 { None } else { Some(name()?) };
     unsafe {
         // The copy is written, not read.

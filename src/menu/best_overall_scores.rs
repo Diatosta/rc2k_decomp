@@ -7,12 +7,10 @@
 //! 4, a missing player, no table, and what an entry refuses, before anything.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, game_write, rva};
+use crate::menu::event_store::EVENT_STATE;
 use crate::menu::screen_loop::{Carried, run_screen};
 use crate::menu::standings::*;
 
-const CURRENT_RVA: usize = rva(0x75598C); // dword_75598C
-const ENTERED_RVA: usize = rva(0x755920); // dword_755920
 // dword_7558F4
 // dword_7558F8
 // g_yesNoAnswer
@@ -21,25 +19,25 @@ const ENTERED_RVA: usize = rva(0x755920); // dword_755920
 pub unsafe fn best_overall_scores(c: &Carried) -> Result<(), Refused> {
     unsafe {
         let players = counted_players()?;
-        let table: u32 = game_read(BEST_SCORES_RVA);
+        let table: u32 = BEST_SCORES_RVA.get();
         if table == 0 {
             return Err(BadInput("no best-score table").into());
         }
         let mut g = *c;
-        game_write(ENTERED_RVA, 0u32);
+        EVENT_STATE.any_time_qualified.set(0u32);
         for (n, &p) in players.iter().enumerate() {
-            game_write(CURRENT_RVA, n as u32);
+            EVENT_STATE.current_player.set(n as u32);
             g.arg = get(p + 0xCC);
             g.palette = 4 * 0x258 + 0x21C;
             g.cars = table + g.palette;
             // Converted: `rc2k_core::menu::bests::makes_score`.
             if rc2k_core::menu::bests::makes_score(g.arg, get(g.cars + 0x38)) {
                 enter_best(Some(4), 0xCC)?;
-                game_write(ENTERED_RVA, 1u32);
+                EVENT_STATE.any_time_qualified.set(1u32);
             }
         }
         g.measure_x = players.len() as u32;
-        if game_read::<u32>(ENTERED_RVA) == 1 {
+        if EVENT_STATE.any_time_qualified.get() == 1 {
             run_screen(&crate::menu::best_overall_scores_loop::SCREEN, &g)?;
         }
     }

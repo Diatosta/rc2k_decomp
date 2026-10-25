@@ -12,13 +12,11 @@ use crate::files::open_stream::open_stream;
 use crate::files::read_file::read_file;
 use crate::files::read_stream_block::read_stream_block;
 use crate::files::read_stream_byte::read_stream_byte;
-use crate::gfx::block::{game_addr, game_read, game_write};
+use crate::gfx::decoder::DECODER;
 use crate::gfx::lay_out_pcx::lay_out_pcx;
-use crate::gfx::pcx::{
-    DECODED_HEIGHT_RVA, DECODED_WIDTH_RVA, FILE_PALETTE_LEN, FILE_PALETTE_RVA, HEADER_LEN,
-    HEADER_PLANES, HEADER_RVA, LINE_BYTES_RVA, PIXELS_RVA, ROW_GAP_RVA, stream,
-};
-use crate::gfx::picture::FLAGS_RVA;
+use crate::gfx::pcx::PCX;
+use crate::gfx::pcx::{FILE_PALETTE_LEN, HEADER_LEN, HEADER_PLANES, stream};
+use crate::gfx::picture_store::PICTURE;
 use crate::gfx::read_pcx_24bit::read_pcx_24bit;
 use crate::system::zero_memory::zero_memory;
 
@@ -32,7 +30,7 @@ unsafe fn read_rows() -> Result<bool, BadInput> {
         }
         if !read(
             file,
-            game_addr(FILE_PALETTE_RVA) as *mut u8,
+            PCX.file_palette.addr() as *mut u8,
             FILE_PALETTE_LEN as u32,
         )
         .1
@@ -42,22 +40,22 @@ unsafe fn read_rows() -> Result<bool, BadInput> {
         if seek(file, 0, 0).is_none() {
             return Ok(false);
         }
-        if read_stream_block(stream, game_addr(HEADER_RVA) as *mut u8, HEADER_LEN as u32)?.1 {
+        if read_stream_block(stream, PCX.header.addr() as *mut u8, HEADER_LEN as u32)?.1 {
             return Ok(false);
         }
-        game_write(FLAGS_RVA, 0x100u32);
+        PICTURE.flags.set(0x100u32);
         lay_out_pcx();
 
         let (width, height, line_bytes): (u32, u32, u32) = (
-            game_read(DECODED_WIDTH_RVA),
-            game_read(DECODED_HEIGHT_RVA),
-            game_read(LINE_BYTES_RVA),
+            DECODER.width.get(),
+            DECODER.height.get(),
+            PCX.line_bytes.get(),
         );
         if height == 0 {
             return Err(BadInput("a PCX picture without rows"));
         }
-        let gap: u32 = game_read(ROW_GAP_RVA);
-        let mut to: u32 = game_read(PIXELS_RVA);
+        let gap: u32 = DECODER.row_gap.get();
+        let mut to: u32 = DECODER.pixels.get();
         // eax as the original keeps it (al is the byte a run repeats), and what is left of
         // the run.
         let (mut eax, mut run) = (0u32, 0u32);
@@ -103,12 +101,12 @@ pub unsafe fn read_pcx_indexed(path: *const u8) -> Result<bool, BadInput> {
 /// Returns whether the picture was read.
 pub unsafe fn read_sheet(path: *const u8) -> Result<bool, BadInput> {
     unsafe {
-        let header = game_addr(HEADER_RVA) as *mut u8;
+        let header = PCX.header.addr() as *mut u8;
         zero_memory(header, HEADER_LEN as u32)?;
         if !read_file(path, header, HEADER_LEN as u32, 0)?.ok {
             return Ok(false);
         }
-        match game_read::<u8>(HEADER_RVA + HEADER_PLANES) {
+        match PCX.header.get(HEADER_PLANES) {
             1 => read_pcx_indexed(path),
             3 => read_pcx_24bit(path),
             _ => Ok(false),

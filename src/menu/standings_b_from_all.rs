@@ -13,10 +13,8 @@
 //! entries, a name past the entry, a player count of 0 or past 4, a player missing or without a
 //! name, before anything.
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, game_read, rva};
 use crate::menu::standings::*;
 
-const NAMES_RVA: usize = rva(0x741E88); // g_driverNames
 /// Each group's (0 .. 3) players, in order, into the table's entries from the group's slot
 /// down (`player_to_standing_b`, ebx the player's index).
 unsafe fn players_by_group(first: u32, size: u32, firsts: [usize; 4]) -> Result<(), Refused> {
@@ -37,8 +35,8 @@ unsafe fn players_by_group(first: u32, size: u32, firsts: [usize; 4]) -> Result<
 
 /// The Rust version (see the header): the registers it leaves.
 pub unsafe fn standings_b_from_all() -> Result<(), Refused> {
-    let first: u32 = unsafe { game_read(TABLE_B_RVA) };
-    let drivers = entries(game_addr(DRIVERS_RVA) as u32, DRIVER)?;
+    let first: u32 = { TABLE_B_RVA.get() };
+    let drivers = entries(crate::menu::drivers_store::DRIVERS.first(), DRIVER)?;
     if first == 0 || drivers.len() > 200 {
         return Err(BadInput("no standings table, or more drivers than it holds").into());
     }
@@ -48,7 +46,7 @@ pub unsafe fn standings_b_from_all() -> Result<(), Refused> {
     }
     let mut texts = Vec::new();
     for &d in &drivers {
-        let id: u32 = unsafe { game_read(NAMES_RVA + 0x14 * get(d) as usize) };
+        let id: u32 = crate::menu::drivers_store::name_string(get(d));
         let mut text = Vec::new();
         unsafe { crate::strings::append_string_by_id::push_string(&mut text, id) };
         text.push(0);

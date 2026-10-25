@@ -12,7 +12,7 @@ use crate::errors::Refused;
 use crate::net::send_inputs::{Message, send_fields};
 
 pub const EXTRA: Message = Message {
-    text: 0x4DE0E7, // "send x"
+    text: c"send x", // "send x"
     kind: rc2k_core::net::race::Kind::Extra,
 };
 

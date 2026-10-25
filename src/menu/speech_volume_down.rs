@@ -8,7 +8,7 @@
 use crate::menu::option_steps::{SPEECH_LEVEL_RVA, Then, Volume, volume_step};
 
 const STEP: Volume = Volume {
-    value_rva: SPEECH_LEVEL_RVA,
+    value: SPEECH_LEVEL_RVA,
     up: false,
     then: Then::Speech,
 };

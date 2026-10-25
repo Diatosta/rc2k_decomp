@@ -12,53 +12,65 @@
 //! Callers: `net::start_link`, `net::open_lobby`.
 
 use crate::errors::Refused;
-use crate::net::lobby::{copy_printable, g};
+use crate::menu::option_work_store::OPTION_WORK;
+use crate::menu::player::Player;
+use crate::menu::players_store::PLAYER_TABLE;
+use crate::net::lobby::copy_printable;
 use crate::net::store::NET;
 use crate::race::state_store::RACE_STATE;
 use crate::session::Dword;
 use rc2k_core::net::record;
 
-const CAR: usize = 0x755A54; // g_player1.car_number
-const COLOURS: usize = 0x755A7C; // g_player1.field_30
-const RACE_NUMBER: usize = 0x755A74; // g_player1.race_number
-const NATIONALITY: usize = 0x755A50; // g_player1.nationality
+/// A setting copied: (to, from player 1's record).
+type Setting = (&'static Dword, fn(&Player) -> u32);
 
-/// The settings copied: (to, from).
-const SETTINGS: [(&Dword, usize); 13] = [
-    (&RACE_STATE.settings.cars[0].codriver_sex, 0x755BA0),
-    (&RACE_STATE.settings.cars[0].race_number, 0x755A74),
-    (&RACE_STATE.settings.cars[0].view, 0x755A58),
-    (&RACE_STATE.settings.cars[0].map_area, 0x755BA4),
-    (&RACE_STATE.settings.cars[0].rear_mirror, 0x755BA8),
-    (&RACE_STATE.settings.cars[0].rev_counter, 0x755BAC),
-    (&RACE_STATE.settings.cars[0].message_display, 0x755BB4),
-    (&RACE_STATE.settings.cars[0].car_info, 0x755BB0),
-    (&RACE_STATE.settings.cars[0].driver_info, 0x755BBC),
-    (&RACE_STATE.settings.cars[0].progress_bar, 0x755BB8),
-    (&RACE_STATE.settings.cars[0].pace_notes, 0x755BC0),
-    (&RACE_STATE.settings.cars[0].metric_units, 0x755BC4),
-    (&RACE_STATE.settings.cars[0].steering_sensitivity, 0x755B68),
+/// The settings copied.
+const SETTINGS: [Setting; 13] = [
+    (&RACE_STATE.settings.cars[0].codriver_sex, |p| {
+        p.codriver_sex
+    }),
+    (&RACE_STATE.settings.cars[0].race_number, |p| p.race_number),
+    (&RACE_STATE.settings.cars[0].view, |p| p.view),
+    (&RACE_STATE.settings.cars[0].map_area, |p| p.map_area),
+    (&RACE_STATE.settings.cars[0].rear_mirror, |p| p.rear_mirror),
+    (&RACE_STATE.settings.cars[0].rev_counter, |p| p.rev_counter),
+    (&RACE_STATE.settings.cars[0].message_display, |p| {
+        p.message_display
+    }),
+    (&RACE_STATE.settings.cars[0].car_info, |p| p.car_info),
+    (&RACE_STATE.settings.cars[0].driver_info, |p| p.driver_info),
+    (&RACE_STATE.settings.cars[0].progress_bar, |p| {
+        p.progress_bar
+    }),
+    (&RACE_STATE.settings.cars[0].pace_notes, |p| p.pace_notes),
+    (&RACE_STATE.settings.cars[0].metric_units, |p| {
+        p.metric_units
+    }),
+    (&RACE_STATE.settings.cars[0].steering_sensitivity, |p| {
+        p.steering_sensitivity
+    }),
 ];
 /// Copied after the HUD's bits: (to, from).
-const MORE: [(&Dword, usize); 5] = [
-    (&RACE_STATE.settings.setting_0, 0x755650),
-    (&RACE_STATE.settings.setting_1, 0x75565C),
-    (&RACE_STATE.settings.setting_2, 0x755660),
-    (&RACE_STATE.settings.setting_3, 0x755664),
-    (&RACE_STATE.settings.setting_4, 0x755668),
+const MORE: [(&Dword, &Dword); 5] = [
+    (&RACE_STATE.settings.setting_0, &OPTION_WORK.setting_0),
+    (&RACE_STATE.settings.setting_1, &OPTION_WORK.setting_1),
+    (&RACE_STATE.settings.setting_2, &OPTION_WORK.setting_2),
+    (&RACE_STATE.settings.setting_3, &OPTION_WORK.setting_3),
+    (&RACE_STATE.settings.setting_4, &OPTION_WORK.setting_4),
 ];
 
 /// The Rust version.
 pub fn fill_own_player(name: u32) -> Result<(), Refused> {
     copy_printable(name, NET.player_name.addr() as u32, 0x1F)?;
     // Converted: `rc2k_core::net::record::own_record`.
+    let player = PLAYER_TABLE.players[0].get();
     let own = record::own_record(
-        g(CAR) as u8,
-        g(COLOURS) as u8,
-        g(NATIONALITY) as u8,
+        player.car_number as u8,
+        player.gearing as u8,
+        player.nationality as u8,
         RACE_STATE.settings.stage.get() as u8,
         RACE_STATE.settings.direction.get() as u8,
-        g(RACE_NUMBER) as u8,
+        player.race_number as u8,
     );
     for (n, b) in own.into_iter().enumerate() {
         NET.own.head.set(n, b);
@@ -70,11 +82,11 @@ pub fn fill_own_player(name: u32) -> Result<(), Refused> {
     NET.own.race_time.set(0);
     NET.own.total.set(0);
     for (to, from) in SETTINGS {
-        to.set(g(from));
+        to.set(from(&player));
     }
     RACE_STATE.results.hud_bits_current.set(u32::MAX);
     for (to, from) in MORE {
-        to.set(g(from));
+        to.set(from.get());
     }
     RACE_STATE.results.finished.set(0);
     Ok(())

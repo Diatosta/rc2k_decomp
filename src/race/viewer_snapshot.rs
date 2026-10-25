@@ -11,25 +11,24 @@
 //! lock and unlock (the platform's) and the writer are called directly (2026-10-23).
 
 use crate::errors::Refused;
-use crate::gfx::write_screen_pcx::PICTURE_NAME;
-use crate::physics::flow::a;
-use crate::race::find_snapshot_number::{SNAPSHOT_DIGITS, SNAPSHOT_PATH};
+use crate::gfx::picture_store::PICTURE;
+use crate::race::find_snapshot_number::{SNAPSHOT, digits_place};
 
 /// The Rust version (see the header).
 pub fn viewer_snapshot() -> Result<(), Refused> {
-    let kept: u32 = unsafe { crate::gfx::block::game_read(PICTURE_NAME) };
-    let digits = a(SNAPSHOT_DIGITS) as *mut u8;
+    let kept: u32 = PICTURE.name.get();
+    let digits = digits_place();
     // Converted: `rc2k_core::race::viewer::next_snapshot`.
     unsafe {
         let (next, _, _) = rc2k_core::race::viewer::next_snapshot(digits.cast::<[u8; 3]>().read());
         digits.cast::<[u8; 3]>().write(next);
     }
-    unsafe { crate::gfx::block::game_write(PICTURE_NAME, a(SNAPSHOT_PATH)) };
+    PICTURE.name.set(SNAPSHOT.addr() as u32);
     // `cmp g_surfaceLocked, 1`'s carry: not locked.
     if crate::platform::lock_surface() >= 1 {
         unsafe { crate::gfx::write_screen_pcx::write_screen_pcx() }?;
         crate::platform::unlock_surface();
     }
-    unsafe { crate::gfx::block::game_write(PICTURE_NAME, kept) };
+    PICTURE.name.set(kept);
     Ok(())
 }

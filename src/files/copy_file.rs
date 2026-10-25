@@ -20,10 +20,8 @@
 //! registers above are the original's, for reference.
 
 use crate::errors::BadInput;
-use crate::framework::{game_addr, rva};
+use crate::files::scratch::SCRATCH;
 
-/// g_pngInfo: the 64 KB the copy goes through.
-const BUFFER: usize = 0x93E8B0;
 const CHUNK: u32 = 0x1_0000;
 
 /// The Rust version: whether it was all done.
@@ -31,7 +29,7 @@ pub unsafe fn copy_file(from: *const u8, to: *const u8) -> Result<bool, BadInput
     // Converted: `rc2k_core::files::io::copy_file`, through the game's 64 KB block.
     unsafe {
         let buffer =
-            std::slice::from_raw_parts_mut(game_addr(rva(BUFFER)) as *mut u8, CHUNK as usize);
+            std::slice::from_raw_parts_mut(SCRATCH.buffer.addr() as *mut u8, CHUNK as usize);
         Ok(rc2k_core::files::io::copy_file(
             &mut crate::files::handle::GameFiles::new(),
             from,

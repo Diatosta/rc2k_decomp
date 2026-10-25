@@ -5,15 +5,12 @@
 //! services in `dword_755A0C`.
 
 use crate::errors::{FatalError, Refused};
-use crate::framework::{game_read, rva};
+use crate::menu::champ_store::CHAMP_VIEW;
+use crate::menu::event_store::EVENT_STATE;
 use crate::menu::lists_store::MENU_LISTS;
 use crate::screens::best_scores::{record_at, section_there};
 use crate::screens::game_screen::GameScreen;
 use crate::text::draw_text::Canvas;
-
-fn k(a: usize) -> u32 {
-    unsafe { game_read(rva(a)) }
-}
 
 const INVALID_STAGE: FatalError = FatalError {
     code: 0x8070_D91A,
@@ -37,8 +34,9 @@ pub unsafe fn draw_itinerary(canvas: &mut dyn Canvas) -> Result<(), Refused> {
             return Err(crate::errors::BadInput("a section past the record table").into());
         }
         let first = record_at(0);
-        let heading = if k(0x7556D0) == 0x13 {
-            ((MENU_LISTS.section_titles[0].addr() as u32 + 4 * k(0x75595C)) as *const u32)
+        let heading = if CHAMP_VIEW.event_mode.get() == 0x13 {
+            ((MENU_LISTS.section_titles[0].addr() as u32 + 4 * EVENT_STATE.section.get())
+                as *const u32)
                 .read_unaligned()
         } else {
             ((first + 0x38) as *const u32).read_unaligned()
@@ -73,7 +71,7 @@ pub unsafe fn draw_itinerary(canvas: &mut dyn Canvas) -> Result<(), Refused> {
             heading,
             &row,
             &ends_at,
-            k(0x755958),
+            EVENT_STATE.index.get(),
             crate::strings::units::units(),
         )
     }

@@ -5,20 +5,15 @@
 //! `g_blitVisibleWidth`, `g_blitTopSkip`, `g_blitRowsLeft`.
 
 use crate::errors::Refused;
-use crate::gfx::blit::Slot as BlitSlot;
-use crate::gfx::block::game_write;
+use crate::gfx::blit::BLIT;
 use crate::gfx::surface::{clip, surface};
-
-const LEFT_SKIP: BlitSlot = BlitSlot::at(0x4F504C); // g_blitLeftSkip
-const WIDTH: BlitSlot = BlitSlot::at(0x4F5050); // g_blitVisibleWidth
-const TOP_SKIP: BlitSlot = BlitSlot::at(0x4F5054); // g_blitTopSkip
-const ROWS: BlitSlot = BlitSlot::at(0x4F5058); // g_blitRowsLeft
+use crate::session::Dword;
 
 // Converted: `rc2k_core::gfx::raster`; here the clip and surface are read from the game, and
 // the work variables and pixels the plan holds written back.
 
-fn set(a: BlitSlot, v: i32) {
-    unsafe { game_write(a, v as u32) }
+fn set(a: &Dword, v: i32) {
+    a.set(v as u32)
 }
 
 fn core_clip() -> rc2k_core::gfx::raster::Clip {
@@ -44,10 +39,10 @@ fn core_surface() -> rc2k_core::gfx::raster::Surface {
 unsafe fn carry_out(plan: &rc2k_core::gfx::raster::Plan, colour: u32, palette: u32) {
     let w = plan.work;
     for (at, value) in [
-        (LEFT_SKIP, w.left_skip),
-        (WIDTH, w.width),
-        (TOP_SKIP, w.top_skip),
-        (ROWS, w.rows),
+        (&BLIT.left_skip, w.left_skip),
+        (&BLIT.visible_width, w.width),
+        (&BLIT.top_skip, w.top_skip),
+        (&BLIT.rows_left, w.rows),
     ] {
         if let Some(v) = value {
             set(at, v);

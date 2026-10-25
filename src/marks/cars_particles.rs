@@ -25,7 +25,6 @@
 use crate::errors::{BadInput, Refused};
 use crate::marks::emit_car_particles::emit_car_particles;
 use crate::marks::emitters::*;
-use crate::marks::lines::SETTINGS_RVA;
 use crate::marks::store::{Slot, game_read, game_write};
 use crate::marks::{emit_particle_13, emit_particle_19, emit_particle_22};
 use crate::math::x87;
@@ -87,7 +86,7 @@ unsafe fn refusal(settings: u32) -> Option<&'static str> {
 
 /// The Rust version (see the header).
 pub unsafe fn cars_particles() -> Result<(), Refused> {
-    let settings: u32 = unsafe { game_read(SETTINGS_RVA) };
+    let settings: u32 = crate::marks::setup::SETTINGS.pointer.get();
     if let Some(why) = unsafe { refusal(settings) } {
         return Err(BadInput(why).into());
     }

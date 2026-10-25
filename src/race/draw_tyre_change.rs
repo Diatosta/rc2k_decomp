@@ -25,35 +25,21 @@
 //! a text longer than the text buffer, and what its calls refuse.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, game_read, game_write, rva};
-use crate::gfx::blit::Slot as BlitSlot;
+use crate::framework::{game_addr, game_write, rva};
+use crate::gfx::blit::BLIT;
+use crate::gfx::fonts_store::FONTS;
+use crate::race::tyre_store::TYRE_CHANGE as TYRE;
+use crate::session::Dword;
+use crate::strings::text_buffer::TEXT_BUFFER;
 
-const TEXTURE: usize = 0x5BEBE0; // dword_5BEBE0
-const DEVICE_TEXTURE: usize = 0x5BEBE4; // dword_5BEBE4
-const DRAWN: usize = 0x5BEBE8; // dword_5BEBE8
-const PLAYER: usize = 0x5BEBEC; // dword_5BEBEC
-const RECORD: usize = 0x5BEC28; // g_tyreChangeRecord
-const RECORD_NAME: usize = 0x5BEC08; // g_tyreChangeRecordName
-const FONT: usize = 0x51E304; // stru_51E304
-const FONT_B: usize = 0x51E2E4; // unk_51E2E4
-const FONT_C: usize = 0x51E2C4; // unk_51E2C4
-const LINE: usize = 0x51E2CC; // dword_51E2CC
 const RECT: usize = 0x5C2A1C; // dword_5C2A1C
-const PALETTE: usize = 0x5BEC2C; // unk_5BEC2C
-const TEXT_BUFFER: usize = 0x93E430; // text
-const CLIP_LEFT: BlitSlot = BlitSlot::at(0x4F503C); // g_clipLeft
-const CLIP_RIGHT: BlitSlot = BlitSlot::at(0x4F5040); // g_clipRight
 
-fn clip(edge: BlitSlot) -> u32 {
-    unsafe { crate::gfx::block::game_read(edge) }
+fn clip(edge: &Dword) -> u32 {
+    edge.get()
 }
 
-fn set_clip(edge: BlitSlot, v: u32) {
-    unsafe { crate::gfx::block::game_write(edge, v) }
-}
-
-fn g(x: usize) -> u32 {
-    unsafe { game_read(rva(x)) }
+fn set_clip(edge: &Dword, v: u32) {
+    edge.set(v)
 }
 
 fn p(x: usize, v: u32) {
@@ -62,6 +48,16 @@ fn p(x: usize, v: u32) {
 
 fn a(x: usize) -> u32 {
     game_addr(rva(x)) as u32
+}
+
+/// The font the tyre change's texts are drawn in (`FONTS.game_fonts[2]`).
+fn font() -> u32 {
+    FONTS.game_fonts[2].addr() as u32
+}
+
+/// A line's height (`FONTS.game_fonts[0]`'s).
+fn line() -> u32 {
+    FONTS.game_fonts[0].get().line_height as u32
 }
 
 /// The text buffer: string `id`, then (with `time`) a time, then a NUL.
@@ -76,7 +72,13 @@ unsafe fn build_text(id: u32, time: Option<u32>) -> Result<(), Refused> {
     if t.len() > crate::strings::text_from_ids::TEXT_LEN {
         return Err(BadInput("a tyre change text longer than the text buffer").into());
     }
-    unsafe { std::ptr::copy_nonoverlapping(t.as_ptr(), a(TEXT_BUFFER) as *mut u8, t.len()) };
+    unsafe {
+        std::ptr::copy_nonoverlapping(
+            t.as_ptr(),
+            TEXT_BUFFER.text.addr() as u32 as *mut u8,
+            t.len(),
+        )
+    };
     Ok(())
 }
 
@@ -86,7 +88,7 @@ fn fill(x: u32, y: u32, width: u32, height: u32) -> Result<(), Refused> {
     for (k, v) in [x, y, width, height].into_iter().enumerate() {
         p(RECT + 4 * k, v);
     }
-    unsafe { crate::gfx::rect::fill_rect(a(RECT), 0, a(PALETTE)) }
+    unsafe { crate::gfx::rect::fill_rect(a(RECT), 0, TYRE.palette.addr() as u32) }
 }
 
 /// A text (`text::draw_text_keep_regs` on the game's surface) in `font` at (`x`, `y`).
@@ -97,13 +99,13 @@ fn text(font: u32, text: u32, x: u32, y: u32) -> Result<(), Refused> {
 
 /// The text buffer drawn three times, each 0x78 to the left and a line down.
 fn three_times(x: u32, y: u32) -> Result<(), Refused> {
-    p(FONT + 0x1C, 0x168);
+    FONTS.game_fonts[2].update(|f| f.box_width = 0x168);
     let (mut x, mut y) = (x, y);
-    text(a(FONT), a(TEXT_BUFFER), x, y)?;
+    text(font(), TEXT_BUFFER.text.addr() as u32, x, y)?;
     for _ in 0..2 {
         x = x.wrapping_sub(0x78);
-        y = y.wrapping_add(g(LINE));
-        text(a(FONT), a(TEXT_BUFFER), x, y)?;
+        y = y.wrapping_add(line());
+        text(font(), TEXT_BUFFER.text.addr() as u32, x, y)?;
     }
     Ok(())
 }
@@ -111,54 +113,54 @@ fn three_times(x: u32, y: u32) -> Result<(), Refused> {
 /// The Rust version, for the device `device` (esi). The registers it leaves (ebp = esi,
 /// the copy's flags) are read by no caller.
 pub unsafe fn draw_tyre_change(device: u32) -> Result<(), Refused> {
-    let clips = (clip(CLIP_LEFT), clip(CLIP_RIGHT));
+    let clips = (clip(&BLIT.clip.left), clip(&BLIT.clip.right));
     let done = (|| -> Result<(), Refused> {
-        let failed = unsafe { crate::d3d::lock_texture::lock_texture(g(TEXTURE)) }?.carry;
-        if !failed && g(DRAWN) != 1 {
+        let failed = unsafe { crate::d3d::lock_texture::lock_texture(TYRE.texture.get()) }?.carry;
+        if !failed && TYRE.drawn.get() != 1 {
             let mut y = 0u32;
             for (n, (id, font, x)) in [
-                (0x129u32, FONT, 4u32),
-                (0x12A, FONT_B, 0xFC),
-                (0x12B, FONT_C, 0x84),
+                (0x129u32, FONTS.game_fonts[2].addr() as u32, 4u32),
+                (0x12A, FONTS.game_fonts[1].addr() as u32, 0xFC),
+                (0x12B, FONTS.game_fonts[0].addr() as u32, 0x84),
             ]
             .into_iter()
             .enumerate()
             {
                 match n {
                     0 => {
-                        p(FONT + 0x1C, 0xF8);
+                        FONTS.game_fonts[2].update(|f| f.box_width = 0xF8);
                         y = 0x80;
                     }
                     1 => y = 0,
-                    _ => y = y.wrapping_add(g(LINE)),
+                    _ => y = y.wrapping_add(line()),
                 }
                 unsafe {
                     crate::text::draw_string_by_id::draw_string_by_id_at(
                         id,
-                        a(font) as *mut crate::text::font::Font,
+                        font as *mut crate::text::font::Font,
                         x as i32,
                         y as i32,
                         &mut crate::text::draw_text::GameCanvas,
                     )
                 }?;
                 if n == 0 {
-                    set_clip(CLIP_LEFT, 0x80);
+                    set_clip(&BLIT.clip.left, 0x80);
                 }
             }
         }
-        set_clip(CLIP_LEFT, 0x80);
+        set_clip(&BLIT.clip.left, 0x80);
         fill(0x80, 0x32, 0x80, 0x4B)?;
-        unsafe { build_text(0x12E, Some(g(RECORD))) }?;
+        unsafe { build_text(0x12E, Some(TYRE.record.get())) }?;
         three_times(0x84, 0x32)?;
-        set_clip(CLIP_LEFT, 0);
+        set_clip(&BLIT.clip.left, 0);
         fill(0, 0x99, 0x100, 0x19)?;
-        p(FONT + 0x1C, 0xF8);
-        text(a(FONT), a(RECORD_NAME), 4, 0x99)?;
-        let x = if g(PLAYER) == 0 {
-            set_clip(CLIP_RIGHT, 0x7F);
+        FONTS.game_fonts[2].update(|f| f.box_width = 0xF8);
+        text(font(), TYRE.record_name.addr() as u32, 4, 0x99)?;
+        let x = if TYRE.player.get() == 0 {
+            set_clip(&BLIT.clip.right, 0x7F);
             0
         } else {
-            set_clip(CLIP_LEFT, 0x80);
+            set_clip(&BLIT.clip.left, 0x80);
             0x80
         };
         fill(x, 0xB2, 0x80, 0x4B)?;
@@ -170,13 +172,16 @@ pub unsafe fn draw_tyre_change(device: u32) -> Result<(), Refused> {
             unsafe { build_text(0x12C, None) }?;
         }
         three_times(x.wrapping_add(4), 0xB2)?;
-        unsafe { crate::d3d::unlock_texture::unlock_texture(g(TEXTURE)) }?;
+        unsafe { crate::d3d::unlock_texture::unlock_texture(TYRE.texture.get()) }?;
         // The platform's (Direct3D).
-        crate::d3d::copy_to_device_texture::copy_to_device_texture(g(TEXTURE), g(DEVICE_TEXTURE));
-        p(DRAWN, 1);
+        crate::d3d::copy_to_device_texture::copy_to_device_texture(
+            TYRE.texture.get(),
+            TYRE.device_texture.get(),
+        );
+        TYRE.drawn.set(1);
         Ok(())
     })();
-    set_clip(CLIP_LEFT, clips.0);
-    set_clip(CLIP_RIGHT, clips.1);
+    set_clip(&BLIT.clip.left, clips.0);
+    set_clip(&BLIT.clip.right, clips.1);
     done
 }

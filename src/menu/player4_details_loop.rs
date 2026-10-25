@@ -13,16 +13,22 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{game_read, rva};
+use crate::framework::rva;
+use crate::menu::draw_lists_store::DRAW_LISTS;
+use crate::menu::event_store::EVENT_STATE;
+use crate::menu::flow_store::SCREEN_FLOW;
+use crate::menu::menus_store::MENUS;
+use crate::menu::option_work_store::OPTION_WORK;
+use crate::menu::screen_items_store::{SCREEN_ITEMS, slot};
 use crate::menu::screen_loop::{Callee, Carried, Flow, List, Screen, Step, screen_entry};
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
 unsafe fn each_frame(c: &mut Carried) -> Result<Flow, Refused> {
     unsafe {
-        if game_read::<u32>(rva(0x7556A8)) == 0x1 {
+        if OPTION_WORK.typing.get() == 0x1 {
             Callee::EditPlayerName.run(c)?;
-            if game_read::<u32>(rva(0x7556A8)) != 0x0 {
+            if OPTION_WORK.typing.get() != 0x0 {
                 return Ok(Flow::NextFrame);
             }
             Callee::CheckCheatName.run(c)?;
@@ -32,39 +38,39 @@ unsafe fn each_frame(c: &mut Carried) -> Result<Flow, Refused> {
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: rva(0x74F56C),
-    saved_item: rva(0x7476B8),
+    menu: || MENUS.player4_details.addr(),
+    saved_item: || &SCREEN_ITEMS.current[slot::PLAYER4_DETAILS],
     lists: &[
         List {
-            pointer: rva(0x7554F4), // g_unreadList
-            table: rva(0x758B72),
+            pointer: || &SCREEN_FLOW.unread_list, // g_unreadList
+            table: || DRAW_LISTS.unread_758b72.addr(),
             run: false,
         },
         List {
-            pointer: rva(0x7554F8), // g_drawList
-            table: rva(0x758CD2),
+            pointer: || &SCREEN_FLOW.draw_list, // g_drawList
+            table: || DRAW_LISTS.draw_758cd2.addr(),
             run: false,
         },
         List {
-            pointer: rva(0x7554FC), // g_overlayList
-            table: rva(0x7591F6),
+            pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
+            table: || DRAW_LISTS.overlay_7591f6.addr(),
             run: false,
         },
     ],
     first_frame_lists: Some(&[
         List {
-            pointer: rva(0x755504), // g_sceneList
-            table: rva(0x759026),
+            pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
+            table: || DRAW_LISTS.player4_details_scene.addr(),
             run: false,
         },
         List {
-            pointer: rva(0x7554F8), // g_drawList
-            table: rva(0x758CD2),
+            pointer: || &SCREEN_FLOW.draw_list, // g_drawList
+            table: || DRAW_LISTS.draw_758cd2.addr(),
             run: false,
         },
         List {
-            pointer: rva(0x7554FC), // g_overlayList
-            table: rva(0x7591F6),
+            pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
+            table: || DRAW_LISTS.overlay_7591f6.addr(),
             run: false,
         },
     ]),
@@ -75,10 +81,14 @@ pub const SCREEN: Screen = Screen {
     prepare: &[],
     after_lists: &[],
     background: &[
-        Step::ArgAddr(rva(0x731D4C)),
+        Step::ArgAddr(|| {
+            crate::menu::texts_store::MENU_TEXTS
+                .player4_details_picture
+                .addr()
+        }),
         Step::CallOrFatal(Callee::LoadBackground, 0x80712345),
     ],
-    after_first_frame: &[Step::Write(rva(0x75598C), 0x3)],
+    after_first_frame: &[Step::Write(|| &EVENT_STATE.current_player, 0x3)],
     confirm: None,
     ask_also_if: None,
     confirmed: &[],

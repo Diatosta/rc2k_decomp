@@ -24,34 +24,31 @@
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::framework::rva;
 use crate::install::outside::Outside;
-use crate::install::read_registry::{SOURCE_RVA, STATUS_RVA};
 use crate::install::runs_from_source::scratch_path;
-use crate::store::{game_addr, game_read, game_write};
+use crate::install::vars::INSTALLER_NAMES;
+use crate::install::vars::INSTALLER_PAGES;
+use crate::install::vars::INSTALLER_RUN;
+use crate::store::game_addr;
+use crate::system::start_texts::START_TEXTS;
+
+const PATCH_TEXT_RVA: usize = rva(0xA8C054); // byte_A8C054
+const PATH_ROOM: usize = 0x100;
 
 // ---- game data ----
 
-pub const INSTALLING_RVA: usize = rva(0x51B9E0); // g_installing
-pub const RECORD_RVA: usize = rva(0x5295C0); // "var\ral.zog"
-const PROGRAM_RVA: usize = rva(0x51BE40); // "ral.exe" (in ".\ral.exe")
-const VERSION_RVA: usize = rva(0x4E0000); // "$VER: Rally 5.30 (4.8.2000)"
-const PATCH_TEXT_RVA: usize = rva(0xA8C054); // byte_A8C054
-/// off_51D728: the entry of the installer's script that the checks set up. +0x18 and
-/// +0x19 two bytes, +0x1A a string's id, +0x2A (`word_51D752`) 0xBD = the installer runs.
-pub const SCRIPT_ENTRY_RVA: usize = rva(0x51D728);
-const PATH_ROOM: usize = 0x100;
-
 /// What both checks write into the script's entry, but for the string's id.
-pub unsafe fn set_script_entry(text_id: u16) {
-    unsafe {
-        game_write(SCRIPT_ENTRY_RVA + 0x18, 5u8);
-        game_write(SCRIPT_ENTRY_RVA + 0x19, 0x0Cu8);
-        game_write(SCRIPT_ENTRY_RVA + 0x1A, text_id);
-        game_write(SCRIPT_ENTRY_RVA + 0x2A, 0xBDu16);
-    }
+pub fn set_script_entry(text_id: u16) {
+    // The entry of the installer's script (off_51D728): two bytes, a string's id, and
+    // 0xBD (`word_51D752`) = the installer runs.
+    INSTALLER_PAGES.entry_kind.set(5);
+    INSTALLER_PAGES.entry_marks.set(0x0C);
+    INSTALLER_PAGES.entry_text.set(text_id);
+    INSTALLER_PAGES.script_set_up.set(0xBD);
 }
 
-unsafe fn c_text<'a>(at: usize) -> &'a [u8] {
-    unsafe { std::ffi::CStr::from_ptr(game_addr(at) as *const _) }.to_bytes()
+/// "ral.exe" (in ".\ral.exe").
+unsafe fn program<'a>() -> &'a [u8] {
+    unsafe { std::ffi::CStr::from_ptr(INSTALLER_NAMES.program.addr() as *const _) }.to_bytes()
 }
 
 // ---- Rust version ----
@@ -59,8 +56,8 @@ unsafe fn c_text<'a>(at: usize) -> &'a [u8] {
 /// `no_audio` is where the sound's switch is.
 pub unsafe fn check_at_start(outside: &mut dyn Outside, no_audio: *mut u32) -> Result<(), Refused> {
     unsafe {
-        let record = game_addr(RECORD_RVA) as *const u8;
-        if game_read::<u32>(INSTALLING_RVA) == 1 || outside.file_exists(record)? {
+        let record = crate::install::installer::INSTALL_TEXTS.record_path.addr() as *const u8;
+        if INSTALLER_RUN.installing.get() == 1 || outside.file_exists(record)? {
             return Ok(());
         }
         no_audio.write_unaligned(1);
@@ -74,10 +71,10 @@ pub unsafe fn check_at_start(outside: &mut dyn Outside, no_audio: *mut u32) -> R
         };
 
         outside.read_registry();
-        if game_read::<u8>(STATUS_RVA) == 1 && game_read::<u8>(SOURCE_RVA) != 0 {
+        if INSTALLER_NAMES.status.get() == 1 && INSTALLER_NAMES.source.get(0) != 0 {
             // Whether the source could be put there is not asked: the program's name
             // goes after whatever text the place holds.
-            outside.normalise_path(game_addr(SOURCE_RVA) as *const u8, path)?;
+            outside.normalise_path(INSTALLER_NAMES.source.addr() as *const u8, path)?;
             let held = std::slice::from_raw_parts(path, PATH_ROOM);
             let Some(len) = held
                 .iter()
@@ -86,10 +83,11 @@ pub unsafe fn check_at_start(outside: &mut dyn Outside, no_audio: *mut u32) -> R
             else {
                 return Err(BadInput("the scratch path holds no text to go on from").into());
             };
-            put(len, c_text(PROGRAM_RVA));
+            put(len, program());
             if outside.file_exists(path)? {
                 // "patch6: ", then the version from the blank before its `(`.
-                let version = c_text(VERSION_RVA);
+                let version =
+                    std::ffi::CStr::from_ptr(START_TEXTS.version.addr() as *const _).to_bytes();
                 let from = (1..version.len())
                     .find(|&n| version[n] == b'(')
                     .ok_or(BadInput("a version text without a ("))?
@@ -109,7 +107,7 @@ pub unsafe fn check_at_start(outside: &mut dyn Outside, no_audio: *mut u32) -> R
                 continue;
             }
             put(0, &[letter, b':', b'\\']);
-            put(3, c_text(PROGRAM_RVA));
+            put(3, program());
             if !outside.file_exists(path)? {
                 continue;
             }

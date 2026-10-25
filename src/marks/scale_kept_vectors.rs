@@ -11,16 +11,9 @@
 //! the x87 version stays for the Rust callers in unconverted code).
 
 use crate::marks::scale_vectors_by::scale_triples;
-use crate::marks::store::Slot;
-
-/// (the factor, the vector, the result).
-const PAIRS: [(Slot, Slot, Slot); 3] = [
-    (Slot::at(0x76926A), Slot::at(0x76926E), Slot::at(0x76927A)),
-    (Slot::at(0x7692BE), Slot::at(0x7692C2), Slot::at(0x7692CE)),
-    (Slot::at(0x7692A2), Slot::at(0x7692A6), Slot::at(0x7692B2)),
-];
+use crate::marks::view_vectors::KEPT;
 
 /// The Rust version (see the header).
-pub unsafe fn scale_kept_vectors() {
-    unsafe { scale_triples(&PAIRS) }
+pub fn scale_kept_vectors() {
+    scale_triples(&[&KEPT.kept_a, &KEPT.kept_c, &KEPT.kept_b])
 }

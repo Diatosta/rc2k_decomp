@@ -20,10 +20,8 @@
 
 use crate::audio::store::AUDIO;
 use crate::errors::Refused;
-use crate::framework::rva;
-use crate::store::game_addr;
 
-const USING_MODES_TEXT: usize = rva(0x4DA6AD); // "AUD: Using modes"
+const USING_MODES_TEXT: &std::ffi::CStr = c"AUD: Using modes"; // "AUD: Using modes"
 
 /// False for the carry (no race mode).
 pub fn start() -> Result<bool, Refused> {
@@ -91,7 +89,7 @@ pub fn start() -> Result<bool, Refused> {
         }
         crate::audio::choose_modes::in_game(&mut crate::audio::choose_modes::real_log)?;
     }
-    sd::log_text(game_addr(USING_MODES_TEXT) as u32, false);
+    sd::log_text(USING_MODES_TEXT.as_ptr() as usize as u32, false);
     sd::log_hex(AUDIO.menu_sound_mode.get(), false);
     sd::log_hex(AUDIO.race_sound_mode.get(), true);
     sd::close_sound()?;

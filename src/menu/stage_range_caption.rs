@@ -8,14 +8,14 @@
 //! minus and the NUL written in place. The menus and draw lists run its `entry`
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
-use crate::framework::{game_addr, game_read, rva};
+use crate::framework::{game_addr, rva};
+use crate::menu::champ_store::CHAMP_VIEW;
 
-const FIRST_RVA: usize = rva(0x7556B8); // dword_7556B8
 const CAPTION_RVA: usize = rva(0xA8BE54); // g_captionText
 
 /// The Rust version (see the header): the registers it leaves.
 pub unsafe fn stage_range_caption() {
-    let first: u32 = unsafe { game_read(FIRST_RVA) };
+    let first: u32 = { CHAMP_VIEW.first_row.get() };
     // Converted: `rc2k_core::menu::event::stage_range`.
     let mut text = rc2k_core::menu::event::stage_range(first);
     text.push(0);

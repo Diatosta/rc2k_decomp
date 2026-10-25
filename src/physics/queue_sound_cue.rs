@@ -17,7 +17,6 @@
 //! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{game_read, rva};
 use rc2k_core::physics::sound_queue::{ENTRY_DWORDS, Place, check_cue, place, sounds};
 
 unsafe fn at(a: u32) -> u32 {
@@ -57,7 +56,7 @@ pub fn queue_sound_cue(first: bool, cue: u32, object: u32, queue: u32) -> Result
         }
         put(q + 0xC, at(q + 0xC).wrapping_add(1));
         put(entry, cue);
-        let list: u32 = game_read(rva(0x512508 + 4 * cue as usize));
+        let list: u32 = crate::sound::sets_store::CUE_LISTS.table[cue as usize].get();
         let (written, n) = sounds(|k| at(list + 4 * k), at(object));
         for (k, &v) in written.iter().enumerate() {
             put(entry + 4 * k as u32 + 8, v);

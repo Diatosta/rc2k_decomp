@@ -39,13 +39,14 @@
 
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::files::read_first_match::read_first_match;
-use crate::framework::rva;
-use crate::gfx::decoder::Slot as DecSlot;
+use crate::gfx::glyph_tables::TABLES;
 use crate::input::store::{KEYBOARD, KEYBOARD_FILE};
+use crate::install::vars::INSTALLER_RUN;
+use crate::menu::players_store::PLAYER_TABLE;
 use crate::moved::Place;
 use crate::session::MACHINE;
-use crate::store::{game_addr, game_write};
 use crate::strings::append_string_by_id::push_string;
+use crate::strings::keyboard_tables::KEYBOARD_TABLES;
 use crate::strings::same_text::set_case_table;
 use crate::strings::string_table::{LEXICON_ROOM, lexicon, use_lexicon};
 use crate::strings::text_from_ids::text;
@@ -99,13 +100,6 @@ pub static PLAIN_LETTERS: Place<[u8; 256]> = Place::new([
 /// and +0xA two modes, +0xB the layout's number, +0xC the layout chosen (written here),
 /// +0x30 the layouts.
 const KEYBOARD_LEN: usize = 0x400;
-/// Each car's copy of the units, at its +0x178.
-const CAR_UNITS: [usize; 4] = [rva(0x755BC4), rva(0x755E50), rva(0x7560DC), rva(0x756368)];
-const NEC_KEYBOARD_RVA: usize = rva(0x4F0DE0); // aKeyb: a built-in file head, and
-const NEC_LAYOUT_RVA: usize = rva(0x4F0E10); // unk_4F0E10: its layout
-const NEC_MARK_RVA: usize = rva(0x51BAE4); // dword_51BAE4
-const TABLES_UNITS_RVA: DecSlot = DecSlot::at(0x51B980); // dword_51B980 (`bundleheapsize`)
-const REGISTRATION_RVA: usize = rva(0x51B9E4); // dword_51B9E4
 
 // ---- Rust version ----
 
@@ -171,8 +165,9 @@ pub unsafe fn load_language(
         };
         let units = file.units as u32;
         crate::strings::units::set_units(units);
-        for car in CAR_UNITS {
-            game_write(car, units);
+        // Each car's copy of the units, at its +0x178.
+        for player in &PLAYER_TABLE.players {
+            player.update(|p| p.metric_units = units);
         }
 
         let keyboard = KEYBOARD_FILE.magic.as_ptr();
@@ -213,9 +208,11 @@ pub unsafe fn load_language(
 
         // `sub_403462`
         if MACHINE.keyboard_type.get() == 2 {
-            std::ptr::copy(game_addr(NEC_KEYBOARD_RVA) as *const u8, keyboard, 0x30);
-            KEYBOARD_FILE.layout.set(game_addr(NEC_LAYOUT_RVA) as u32);
-            game_write(NEC_MARK_RVA, 0x61u32);
+            std::ptr::copy(KEYBOARD_TABLES.nec_head.addr() as *const u8, keyboard, 0x30);
+            KEYBOARD_FILE
+                .layout
+                .set(KEYBOARD_TABLES.nec_layout.addr() as u32);
+            INSTALLER_RUN.first_drive.set(0x61u32);
         }
 
         // `sub_403495`
@@ -227,12 +224,12 @@ pub unsafe fn load_language(
             ));
         }
         if kind == 7 {
-            game_write(TABLES_UNITS_RVA, 0x2EEu32);
+            TABLES.units.set(0x2EEu32);
         }
 
         correct_lexicon()?;
 
-        game_write(REGISTRATION_RVA, 0u32);
+        INSTALLER_RUN.offer_registration.set(0u32);
         // The standalone offers no registration (owner, 2026-10-19).
         Ok(())
     }

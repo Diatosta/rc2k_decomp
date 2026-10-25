@@ -14,7 +14,7 @@
 //! one before left. Refuses (before anything) a missing player 0.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, rva};
+use crate::menu::arcade_store::ARCADE_GAME;
 use crate::menu::player::player_at;
 use crate::race::state_store::RACE_STATE;
 
@@ -29,7 +29,7 @@ pub unsafe fn arcade_finale() -> Result<(), Refused> {
     RACE_STATE.results.finish_kind.set(f(8));
     RACE_STATE.settings.car_kind_current.set(f(8));
     RACE_STATE.settings.kept.set(0);
-    let level = unsafe { game_read(rva(0x7587EC)) };
+    let level = { ARCADE_GAME.level.get() };
     // Converted: `rc2k_core::menu::arcade::levels_left`.
     RACE_STATE
         .results

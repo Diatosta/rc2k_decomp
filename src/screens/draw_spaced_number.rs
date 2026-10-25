@@ -12,13 +12,13 @@
 //! drawing loop) and one whose copies pass the 0x100 bytes of `byte_A8BC54`.
 
 use crate::errors::Refused;
-use crate::framework::{game_addr, game_write, rva};
+use crate::framework::{game_addr, rva};
+use crate::menu::draw_work_store::DRAW_WORK;
 use crate::text::draw_text::{Canvas, draw_text_at};
 use crate::text::font::Font;
 
 const CELLS_RVA: usize = rva(0xA8BC54); // byte_A8BC54
 const CELLS_LEN: usize = 0x100;
-const LENGTH_RVA: usize = rva(0x7559B8); // dword_7559B8
 
 /// The Rust version: `text` .. `end`, the column of the last character at `x` + 0x32.
 pub unsafe fn draw_spaced_number(
@@ -33,7 +33,7 @@ pub unsafe fn draw_spaced_number(
         // Converted: `rc2k_core::screens::captions::spaced_places`.
         let n = (end as u32).wrapping_sub(text as u32);
         let places = rc2k_core::screens::captions::spaced_places(n, x, CELLS_LEN)?;
-        game_write(LENGTH_RVA, n);
+        DRAW_WORK.work_b8.set(n);
         let cells = game_addr(CELLS_RVA) as *mut u8;
         for i in 0..n as usize {
             *cells.add(2 * i) = *text.add(i);

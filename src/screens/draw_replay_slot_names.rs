@@ -12,8 +12,7 @@
 //! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::game_read;
-use crate::menu::name_lists::{NAME_LEN, REPLAY_NAMES_RVA, REPLAY_PAGE_RVA};
+use crate::menu::name_lists::{NAME_LEN, REPLAY_PAGE_RVA};
 use crate::text::draw_text::Canvas;
 
 // ---- game data ----
@@ -22,18 +21,20 @@ use crate::text::draw_text::Canvas;
 // g_markerY
 // dword_7559EC: a work variable, here the row counter
 
-const SLOT_PAGE_RVA: usize = REPLAY_PAGE_RVA;
 // stru_51E8C4
 /// The name of replay slot `slot`.
 fn slot_name(slot: u32) -> *const u8 {
-    crate::framework::game_ptr::<u8>(REPLAY_NAMES_RVA).wrapping_add(slot as usize * NAME_LEN)
+    crate::race::replay::REPLAYS
+        .names
+        .as_ptr()
+        .wrapping_add(slot as usize * NAME_LEN)
 }
 
 // ---- Rust version ----
 
 pub unsafe fn draw_replay_slot_names(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     // Converted: `rc2k_core::screens::slot_lists::names`.
-    let page: u32 = unsafe { game_read(SLOT_PAGE_RVA) };
+    let page = REPLAY_PAGE_RVA.get();
     rc2k_core::screens::slot_lists::names(
         &mut crate::screens::game_screen::SlotScreen::new(canvas),
         &rc2k_core::screens::slot_lists::REPLAYS,

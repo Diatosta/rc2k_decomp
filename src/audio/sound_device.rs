@@ -6,14 +6,12 @@
 use crate::audio::a3d::{open_a3d, open_a3d2};
 use crate::audio::store::AUDIO;
 use crate::errors::{BadInput, Refused};
-use crate::framework::rva;
 use crate::session::MACHINE;
-use crate::store::game_addr;
 
-const CAPS_TEXT: usize = rva(0x4DA645); // "AUD: sound caps: flgs/pri/min/max:\t"
-const MAX_HW_TEXT: usize = rva(0x4DA669); // " maxhw: all/static/stream (free)\t"
-const MAX_3D_TEXT: usize = rva(0x4DA68B); // " max3d: all/static/stream (free)\t"
-const CLOSE_TEXT: usize = rva(0x4DA634); // "AUD: close sound"
+const CAPS_TEXT: &std::ffi::CStr = c"AUD: sound caps: flgs/pri/min/max:\t"; // "AUD: sound caps: flgs/pri/min/max:\t"
+const MAX_HW_TEXT: &std::ffi::CStr = c" maxhw: all/static/stream (free)\t"; // " maxhw: all/static/stream (free)\t"
+const MAX_3D_TEXT: &std::ffi::CStr = c" max3d: all/static/stream (free)\t"; // " max3d: all/static/stream (free)\t"
+const CLOSE_TEXT: &std::ffi::CStr = c"AUD: close sound"; // "AUD: close sound"
 pub const GET_CAPS: u32 = 0x10;
 pub const SET_COOPERATIVE_LEVEL: u32 = 0x18;
 
@@ -125,7 +123,7 @@ pub fn read_caps() -> Result<bool, Refused> {
                         CapsText::MaxHardware => MAX_HW_TEXT,
                         CapsText::Max3d => MAX_3D_TEXT,
                     };
-                    log_text(game_addr(at) as u32, false)
+                    log_text(at.as_ptr() as u32, false)
                 }
                 CapsLog::Hex(n) => log_hex(field(n), false),
                 CapsLog::Int(n) => log_number(field(n), false),
@@ -155,7 +153,7 @@ pub fn close_sound() -> Result<(), Refused> {
     unsafe {
         let ds = AUDIO.direct_sound.get();
         if ds != 0 {
-            log_text(game_addr(CLOSE_TEXT) as u32, true);
+            log_text(CLOSE_TEXT.as_ptr() as usize as u32, true);
             let level: unsafe extern "system" fn(u32, u32, u32) -> i32 =
                 std::mem::transmute(crate::audio::com::method(ds, SET_COOPERATIVE_LEVEL));
             level(ds, MACHINE.window.get(), 1);
@@ -167,8 +165,8 @@ pub fn close_sound() -> Result<(), Refused> {
     Ok(())
 }
 
-const OPEN_TEXT: usize = rva(0x4DA60F); // "AUD: open sound"
-const OPEN_FAILED_TEXT: usize = rva(0x4DA61F); // "AUD: open failed rc="
+const OPEN_TEXT: &std::ffi::CStr = c"AUD: open sound"; // "AUD: open sound"
+const OPEN_FAILED_TEXT: &std::ffi::CStr = c"AUD: open failed rc="; // "AUD: open failed rc="
 
 /// `DirectSoundCreate` (the device's GUID, where the object goes) -> its result.
 pub type CreateSound<'a> = &'a mut dyn FnMut(u32, u32) -> i32;
@@ -194,12 +192,12 @@ impl rc2k_core::audio::device::Opening for Open<'_> {
         AUDIO.sound_mode.set(mode);
     }
     fn log_open(&mut self, guid: u32) -> Result<(), Refused> {
-        log_text(game_addr(OPEN_TEXT) as u32, false);
+        log_text(OPEN_TEXT.as_ptr() as usize as u32, false);
         log_hex(guid, true);
         Ok(())
     }
     fn log_failed(&mut self, code: u32) -> Result<(), Refused> {
-        log_text(game_addr(OPEN_FAILED_TEXT) as u32, false);
+        log_text(OPEN_FAILED_TEXT.as_ptr() as usize as u32, false);
         log_hex(code, true);
         Ok(())
     }

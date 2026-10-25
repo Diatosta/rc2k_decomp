@@ -10,44 +10,27 @@
 //!
 //! the x87 version stays for the Rust callers in unconverted code).
 
-use crate::marks::store::{Slot, game_read, game_write};
+use crate::marks::view_vectors::KEPT;
 use crate::math::x87;
 
-/// Per axis: (negated, less, plus, plus).
-const TERMS: [[Slot; 4]; 3] = [
-    [
-        Slot::at(0x7692B2),
-        Slot::at(0x76927A),
-        Slot::at(0x7692CE),
-        Slot::at(0x7692EA),
-    ],
-    [
-        Slot::at(0x7692B6),
-        Slot::at(0x76927E),
-        Slot::at(0x7692D2),
-        Slot::at(0x7692EE),
-    ],
-    [
-        Slot::at(0x7692BA),
-        Slot::at(0x769282),
-        Slot::at(0x7692D6),
-        Slot::at(0x7692F2),
-    ],
-];
-const VECTOR_RVA: Slot = Slot::at(0x769306); // dword_769306 .. dword_76930E
-const UNIT_RVA: Slot = Slot::at(0x7692FA); // unk_7692FA
-const LENGTH_RVA: Slot = Slot::at(0x7692F6); // dword_7692F6
-
 /// The Rust version (see the header).
-pub unsafe fn aim_vector() {
-    unsafe {
-        let v: [u32; 3] = std::array::from_fn(|k| {
-            let t = TERMS[k].map(|a| game_read::<u32>(a));
-            x87::negated_less_plus_plus(t[0], t[1], t[2], t[3])
-        });
-        game_write(VECTOR_RVA, v);
-        let (unit, length) = x87::unit_and_length(v);
-        game_write(LENGTH_RVA, length);
-        game_write(UNIT_RVA, unit);
+pub fn aim_vector() {
+    let k = &KEPT;
+    let v: [u32; 3] = std::array::from_fn(|n| {
+        // Per axis: (negated, less, plus, plus).
+        x87::negated_less_plus_plus(
+            k.kept_b.scaled[n].bits(),
+            k.kept_a.scaled[n].bits(),
+            k.kept_c.scaled[n].bits(),
+            k.step[n].bits(),
+        )
+    });
+    for (to, v) in k.vector.iter().zip(v) {
+        to.set_bits(v);
+    }
+    let (unit, length) = x87::unit_and_length(v);
+    k.length.set(length);
+    for (to, u) in k.unit.iter().zip(unit) {
+        to.set_bits(u);
     }
 }

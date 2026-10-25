@@ -15,22 +15,29 @@
 //! are the original's.
 
 use crate::errors::Refused;
-use crate::install::installer::{
-    BASE_B, GAME_DIR, GIVEN_LANGUAGE, GIVEN_MODE, INSTALLED, MEDIA_MODE, TYPED, a, g,
-    load_language, logged, normalise, p, set_cd,
-};
+use crate::install::installer::{MEDIA_MODE, load_language, logged, normalise, p, set_cd};
+use crate::install::vars::INSTALLER_PATHS;
+use crate::install::vars::INSTALLER_RUN;
 
 pub fn install_from_command() -> Result<(), Refused> {
-    if !set_cd(a(GAME_DIR)) || !normalise(a(BASE_B), a(GAME_DIR))? {
+    if !set_cd(INSTALLER_PATHS.game_dir.addr() as u32)
+        || !normalise(
+            crate::install::installer::INSTALL_TEXTS.base_b.addr() as u32,
+            INSTALLER_PATHS.game_dir.addr() as u32,
+        )?
+    {
         return Ok(());
     }
-    normalise(a(INSTALLED), a(TYPED))?;
+    normalise(
+        INSTALLER_PATHS.installed.addr() as u32,
+        INSTALLER_PATHS.typed.addr() as u32,
+    )?;
     // A given media mode (above 0) is taken, held to 3, and only then a given language
     // (above 0): a mode of 0 or less goes straight to the install.
-    let mode = g(GIVEN_MODE);
+    let mode = INSTALLER_RUN.given_mode.get();
     if (mode as i32) > 0 {
         p(MEDIA_MODE, (mode as i32).min(3) as u32);
-        let language = g(GIVEN_LANGUAGE);
+        let language = INSTALLER_RUN.given_language.get();
         if (language as i32) > 0 {
             unsafe { crate::install::choose_language::choose_language(language) }?;
             load_language()?;

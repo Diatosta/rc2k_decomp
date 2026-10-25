@@ -9,15 +9,13 @@
 //! (all it may write is put back first).
 
 use crate::errors::{BadInput, Refused};
-use crate::marks::lines::SETTINGS_RVA;
-use crate::marks::store::game_read;
 use crate::marks::{
     aim_vector, keep_vectors, run_splines, scale_kept_vectors, shapes_frame, view_step,
 };
 
 /// The Rust version (see the header).
 pub unsafe fn view_frame() -> Result<(), Refused> {
-    if unsafe { game_read::<u32>(SETTINGS_RVA) } == 0 {
+    if crate::marks::setup::SETTINGS.pointer.get() == 0 {
         return Err(BadInput("no marks settings").into());
     }
     unsafe {

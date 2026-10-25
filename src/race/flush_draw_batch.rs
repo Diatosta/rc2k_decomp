@@ -15,7 +15,7 @@ const INDEX_COUNT_RVA: usize = rva(0x6D3CEC); // dword_6D3CEC
 const VERTEX_COUNT_RVA: usize = rva(0x6D3CF0); // dword_6D3CF0
 const VERTICES_RVA: usize = rva(0x6D3CF4); // unk_6D3CF4
 const INDICES_RVA: usize = rva(0x6D7CF4); // unk_6D7CF4
-const DRAWTRI_RVA: usize = rva(0x4DDCA4); // "drawtri"
+const DRAWTRI_RVA: &std::ffi::CStr = c"drawtri"; // "drawtri"
 
 /// The Rust version (see the header).
 pub unsafe fn flush_draw_batch() -> Result<(), Refused> {
@@ -29,7 +29,11 @@ pub unsafe fn flush_draw_batch() -> Result<(), Refused> {
                 indices,
             );
             if result != 0 {
-                crate::logfile::log_write::log_write(game_addr(DRAWTRI_RVA) as *const u8, false, 1);
+                crate::logfile::log_write::log_write(
+                    DRAWTRI_RVA.as_ptr() as usize as *const u8,
+                    false,
+                    1,
+                );
                 crate::logfile::log_hex8::log_hex8(result, false, 1);
             }
         }

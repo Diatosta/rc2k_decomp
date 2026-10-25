@@ -18,16 +18,18 @@
 //! its `entry` (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, game_read, rva};
+use crate::framework::{game_addr, rva};
+use crate::menu::champ_store::CHAMP_VIEW;
+use crate::menu::loop_store::LOOP_FLAGS;
 use crate::menu::state_store::MENU_STATE;
-use crate::menu::update_blink::LAST_KEY_TIME_RVA;
-use crate::service::state::MENU_ITEM_RVA;
 use crate::session::CLOCKS;
 use crate::text::draw_string_by_id::string_text;
 use crate::text::draw_text::Canvas;
 
 // ---- game data ----
-/// The lists of string numbers, by menu.
+/// The lists of string numbers, by menu (in `CAPTIONS.caption_lists`). The item is not
+/// checked against a list's length, as in the original: the address is resolved by
+/// `MOVED`, wherever it lands.
 const LISTS: [usize; 7] = [
     0x758A12, 0x758A2A, 0x758A86, 0x758AA2, 0x758AB2, 0x758AC2, 0x758AE2,
 ];
@@ -46,11 +48,13 @@ pub unsafe fn draw_highlighted_caption(
         let Some(&list) = LISTS.get(menu as usize) else {
             return Ok(None);
         };
-        let item: u32 = game_read(MENU_ITEM_RVA);
+        let item: u32 = LOOP_FLAGS.item.get();
         if !(1..=ITEMS).contains(&item) {
             return Err(BadInput("a highlighted item outside the lists of captions").into());
         }
-        let id: u32 = game_read(rva(list) + (item as usize - 1) * 4);
+        let id: u32 = crate::store::game_read(rva(
+            list.wrapping_add((item as usize).wrapping_sub(1).wrapping_mul(4))
+        ));
         let caption = string_text(id)?;
         if caption.len() > CAPTION_LEN {
             return Err(BadInput("a caption longer than its place").into());
@@ -64,7 +68,7 @@ pub unsafe fn draw_highlighted_caption(
         let since_key = CLOCKS
             .frame
             .get()
-            .wrapping_sub(game_read(LAST_KEY_TIME_RVA));
+            .wrapping_sub(CHAMP_VIEW.last_key_time.get());
         let too_wide = rc2k_core::screens::highlighted_caption::highlighted_caption(
             &mut crate::screens::game_screen::GameScreen::<
                 rc2k_core::screens::highlighted_caption::Font,

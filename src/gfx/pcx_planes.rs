@@ -1,21 +1,21 @@
-//! The screenshot writer's plane buffer (3 * width bytes, up to 1920 wide) (phase 5, `notes/conversion.md`): IDA 0x94F6F8 .. 0x9526F8 out of RAL.EXE's image, one block
-//! with the image's layout (`gfx::block`): an address `X` of IDA is at `base() + (X - START)`;
-//! a `Slot` is such an address, checked against the block.
+//! The screenshot writer's plane buffer, out of RAL.EXE's image (phase 5; typed in phase 7,
+//! `notes/conversion.md`): IDA 0x94F6F8 .. 0x9526F8. `byte_94F6F8`: the three planes of the
+//! row being written (3 * width bytes, up to 1920 wide).
 
-crate::region!(
-    Planes,
-    STORE,
-    0x94F6F8,
-    0x9526F8,
-    crate::gfx::pcx_planes_data::RUNS
-);
+use crate::session::Bytes;
 
+/// IDA's address of the block's first byte.
 pub const START: usize = 0x94F6F8;
+/// The block's length.
+pub const LEN: usize = 0x9526F8 - START;
 
-/// `byte_94F6F8`: the three planes of the row being written (3 * width bytes).
-pub const PLANES: Slot = Slot::at(0x94F6F8);
+/// The planes of the row being written (a buffer, zero at the start).
+pub static PLANES: Bytes<LEN> = Bytes::new([0; LEN]);
 
-pub type Slot = crate::gfx::block::Slot<Planes>;
+/// Where the block is (`moved::MOVED`'s home for IDA 0x94F6F8).
+pub fn home() -> usize {
+    PLANES.addr()
+}
 
 #[cfg(test)]
 mod tests {
@@ -23,12 +23,15 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::block::first_values_are_the_games::<Planes>(&STORE);
+        crate::gfx::first_values_are_the_games(&PLANES, START, START + LEN);
     }
 
     #[test]
     fn moved_knows_the_block() {
-        assert_eq!(crate::moved::place(START), STORE.addr());
-        assert_eq!(crate::moved::place(START + LEN - 1), STORE.addr() + LEN - 1);
+        assert_eq!(crate::moved::place(START), PLANES.addr());
+        assert_eq!(
+            crate::moved::place(START + LEN - 1),
+            PLANES.addr() + LEN - 1
+        );
     }
 }

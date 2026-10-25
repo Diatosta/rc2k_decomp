@@ -4,11 +4,7 @@
 //! damage, setup, wear). What is known of it; the rest are gaps. The service area's and
 //! the saves' code still read it by offsets.
 
-use crate::menu::store::players::Slot;
-use crate::store::game_read;
-
-/// `g_players` (`off_75647C`): the four players' addresses.
-pub const PLAYERS_SLOT: Slot = Slot::at(0x75647C);
+use crate::menu::players_store::PLAYER_TABLE;
 
 pub use rc2k_core::menu::player::{PLAYERS, Player};
 
@@ -17,5 +13,5 @@ pub fn player_at(index: u32) -> u32 {
     if index >= PLAYERS {
         return 0;
     }
-    unsafe { game_read(PLAYERS_SLOT + index as usize * 4) }
+    PLAYER_TABLE.pointers[index as usize].get()
 }

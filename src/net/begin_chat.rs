@@ -7,10 +7,10 @@
 //!      `pusha`
 //! Caller: `net::lobby_loop`.
 
-use crate::net::lobby::{CHOICE, a, g};
+use crate::install::vars::INSTALLER_PAGES;
 use crate::net::store::NET;
 
-const CHAT_FONT: usize = 0x51E424; // dword_51E424
+const CHAT_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::CHAT_LINE;
 
 /// The Rust version. The registers the original leaves (eax the item, ebx the input, ecx
 /// 0x30C, edx the font) are read by no caller (`lobby_loop` only; liveness: ebp, edi, edx,
@@ -18,9 +18,9 @@ const CHAT_FONT: usize = 0x51E424; // dword_51E424
 pub fn begin_chat() {
     NET.chat_input.set(0, 0);
     crate::net::begin_edit::begin_edit(
-        g(CHOICE),
+        INSTALLER_PAGES.choice.get(),
         NET.chat_input.addr() as u32,
         0x30C,
-        a(CHAT_FONT),
+        CHAT_FONT.addr() as u32,
     );
 }

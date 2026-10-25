@@ -7,19 +7,17 @@
 //! results screens and the savegame read them; their meaning is not read). Callers: the event loops
 //! (`sub_482382` and four more).
 
-use crate::framework::{game_addr, rva};
-use crate::service::harness::{Region, at};
+use crate::menu::event_store::EVENT_STATE;
+use crate::menu::results_store::RESULT_FIGURES;
+use crate::service::harness::Region;
 
-const FIRST_RVA: usize = rva(0x755950); // dword_755950
-const SECOND_RVA: usize = rva(0x758714); // dword_758714
-const RUN_RVA: usize = rva(0x758758); // dword_758758 .. dword_7587C4
 const RUN_DWORDS: usize = 28;
 
 fn regions() -> [Region; 3] {
     [
-        at(FIRST_RVA),
-        at(SECOND_RVA),
-        (game_addr(RUN_RVA) as u32, RUN_DWORDS * 4),
+        (EVENT_STATE.stages_done.addr() as u32, 4),
+        (RESULT_FIGURES.round.addr() as u32, 4),
+        (RESULT_FIGURES.time_bonus[0].addr() as u32, RUN_DWORDS * 4),
     ]
 }
 

@@ -16,7 +16,6 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::rva;
-use crate::marks::setup::SETTINGS_RVA;
 use crate::marks::store::{Slot, game_read, game_write};
 
 const SEEN_RVA: Slot = Slot::at(0x934D6E); // dword_934D6E
@@ -34,7 +33,7 @@ pub unsafe fn swap_mask() -> Result<(), Refused> {
     use crate::marks::load_mask_pictures::{lock, put_pixel};
     use rc2k_core::marks::masks;
     unsafe {
-        let s: u32 = game_read(SETTINGS_RVA);
+        let s: u32 = crate::marks::setup::SETTINGS.pointer.get();
         if s == 0 {
             return Err(BadInput("no marks settings").into());
         }

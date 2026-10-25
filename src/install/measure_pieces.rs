@@ -16,18 +16,19 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::install::installer::{
-    COLOURS, FONTS, LAYOUT, TEXT, a, append_byte, append_string_by_id, g, measure_string,
-    measure_text, rb, rd, rw, text_action, wb, wd,
+    append_byte, append_string_by_id, measure_string, measure_text, rb, rd, rw, text_action, wb, wd,
 };
 use crate::install::lay_out_pieces::PIECE;
+use crate::install::vars::INSTALLER_PAGES;
+use crate::strings::text_buffer::TEXT_BUFFER;
 use rc2k_core::install::pieces::{self, Way};
 
 fn font_of(index: u32) -> u32 {
-    rd(a(FONTS) + 4 * index)
+    rd(crate::session::address_of(&INSTALLER_PAGES.fonts) as u32 + 4 * index)
 }
 
 pub fn measure_pieces() -> Result<(), Refused> {
-    let count = g(LAYOUT);
+    let count = INSTALLER_PAGES.layout.get_u32(0);
     if count == 0 {
         return Err(BadInput("a page of no pieces").into());
     }
@@ -36,7 +37,7 @@ pub fn measure_pieces() -> Result<(), Refused> {
     let mut height = None;
     for k in 0..count {
         let left = count - k;
-        let piece = a(LAYOUT) + 4 + PIECE * k;
+        let piece = INSTALLER_PAGES.layout.addr() as u32 + 4 + PIECE * k;
         // Converted: `rc2k_core::install::pieces` (`measured_kind`, `Way`,
         // `measure_colour_at`).
         let marks = rb(piece);
@@ -45,25 +46,32 @@ pub fn measure_pieces() -> Result<(), Refused> {
         }
         let (width, high) = match Way::of(marks, rb(piece + 1)) {
             Way::String { font_kind } => {
-                let font = rb(a(COLOURS) + pieces::measure_colour_at(font_kind)) as u32;
+                let font =
+                    rb(INSTALLER_PAGES.kind_fonts.addr() as u32
+                        + pieces::measure_colour_at(font_kind)) as u32;
                 measure_string(rw(piece + 2) as u32, font_of(font), left)?
             }
             Way::Edit => {
                 let record = rd(rd(piece + 4) + 0xC);
-                let font_height = rb(a(COLOURS) + 7 + 8 * rb(record + 4) as u32) as u32;
+                let font_height = rb(INSTALLER_PAGES.kind_fonts.addr() as u32
+                    + 7
+                    + 8 * rb(record + 4) as u32) as u32;
                 (rw(record + 6) as u32, font_height)
             }
             Way::Text => {
                 let item = rd(piece + 4);
-                let mut cursor = append_string_by_id(rw(piece + 2) as u32, a(TEXT));
+                let mut cursor =
+                    append_string_by_id(rw(piece + 2) as u32, TEXT_BUFFER.text.addr() as u32);
                 let action = rd(item + 0xC);
                 if action != 0 {
                     cursor = text_action(action, cursor)?;
                 }
                 append_byte(cursor, 0);
                 let kind = rb(item + 1) as u32;
-                let font = rb(a(COLOURS) + pieces::measure_colour_at(kind)) as u32;
-                measure_text(font_of(font), a(TEXT), left)?
+                let font =
+                    rb(INSTALLER_PAGES.kind_fonts.addr() as u32 + pieces::measure_colour_at(kind))
+                        as u32;
+                measure_text(font_of(font), TEXT_BUFFER.text.addr() as u32, left)?
             }
             Way::Action => {
                 let the_box = rd(rd(piece + 4) + 4);

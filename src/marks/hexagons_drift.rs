@@ -18,7 +18,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::framework::rva;
 use crate::marks::adjugate3::adjugate3;
-use crate::marks::setup::SETTINGS_RVA;
+use crate::marks::setup::{CLOCK, MarksClock};
 use crate::marks::store::{Slot, game_addr, game_read, game_write};
 use crate::scene::matrix3::{Axis, extended, turn_matrix3};
 
@@ -37,7 +37,7 @@ unsafe fn get(a: u32) -> u32 {
 
 /// The original's 0x4BCC3D .. 0x4BCD03: the view's move (the settings' +0x26AC .. less the kept `flt_8161D6` .., times `flt_764FE0`) into `flt_8161EE` .., less the last move into `flt_8161FA` .., plus the last move times `flt_82E326` ...
 unsafe fn view_moved(s: u32) {
-    unsafe { view_moved_x87(crate::marks::store::base() as usize, s as usize) }
+    unsafe { view_moved_x87(crate::marks::store::base() as usize, s as usize, &CLOCK) }
 }
 
 /// The original's 0x4BCD69 .. 0x4BCDCD: that move turned by the adjugate at m (`[esp]` temporaries at t), the three kept 80 bits at l.
@@ -66,13 +66,13 @@ unsafe fn drift_back(m: u32, t: u32, l: u32) {
 
 /// The original's 0x4BCE6A .. 0x4BCEB2: the view's move kept in `flt_8161E2` ...
 unsafe fn move_kept(s: u32) {
-    unsafe { move_kept_x87(crate::marks::store::base() as usize, s as usize) }
+    unsafe { move_kept_x87(crate::marks::store::base() as usize, s as usize, &CLOCK) }
 }
 
 /// The Rust version (see the header).
 pub unsafe fn hexagons_drift() -> Result<(), Refused> {
     unsafe {
-        let s: u32 = game_read(SETTINGS_RVA);
+        let s: u32 = crate::marks::setup::SETTINGS.pointer.get();
         if s == 0 {
             return Err(BadInput("no marks settings").into());
         }
@@ -123,17 +123,17 @@ use crate::marks::plain::{ld, ld80, st, st80};
 use crate::math::x87_float as bh;
 
 /// `view_moved`'s x87 block as plain Rust on the x87 model (33 instructions), same order and memory places.
-unsafe fn view_moved_x87(mk: usize, s: usize) {
+unsafe fn view_moved_x87(mk: usize, s: usize, c: &MarksClock) {
     unsafe {
         let t0 = ld(s, 0x26AC);
         let t1 = t0 - ld(mk, 0xB1296);
-        let t2 = t1 * ld(mk, 0xA0);
+        let t2 = t1 * crate::math::x87_float::ld(c.reciprocal.bits());
         let t3 = ld(s, 0x26B0);
         let t4 = t3 - ld(mk, 0xB129A);
-        let t5 = t4 * ld(mk, 0xA0);
+        let t5 = t4 * crate::math::x87_float::ld(c.reciprocal.bits());
         let t6 = ld(s, 0x26B4);
         let t7 = t6 - ld(mk, 0xB129E);
-        let t8 = t7 * ld(mk, 0xA0);
+        let t8 = t7 * crate::math::x87_float::ld(c.reciprocal.bits());
         st(mk, 0xB12B6, t8);
         st(mk, 0xB12B2, t5);
         st(mk, 0xB12AE, t2);
@@ -231,17 +231,17 @@ unsafe fn drift_back_x87(mk: usize, m: usize, t: usize, l: usize) {
 }
 
 /// `move_kept`'s x87 block as plain Rust on the x87 model (12 instructions), same order and memory places.
-unsafe fn move_kept_x87(mk: usize, s: usize) {
+unsafe fn move_kept_x87(mk: usize, s: usize, c: &MarksClock) {
     unsafe {
         let t0 = ld(s, 0x26AC);
         let t1 = t0 - ld(mk, 0xB1296);
-        let t2 = t1 * ld(mk, 0xA0);
+        let t2 = t1 * crate::math::x87_float::ld(c.reciprocal.bits());
         let t3 = ld(s, 0x26B0);
         let t4 = t3 - ld(mk, 0xB129A);
-        let t5 = t4 * ld(mk, 0xA0);
+        let t5 = t4 * crate::math::x87_float::ld(c.reciprocal.bits());
         let t6 = ld(s, 0x26B4);
         let t7 = t6 - ld(mk, 0xB129E);
-        let t8 = t7 * ld(mk, 0xA0);
+        let t8 = t7 * crate::math::x87_float::ld(c.reciprocal.bits());
         st(mk, 0xB12AA, t8);
         st(mk, 0xB12A6, t5);
         st(mk, 0xB12A2, t2);
@@ -475,7 +475,7 @@ mod asm_differential {
         differential(
             &SPEC,
             |b| unsafe { reference::view_moved_x87(b[0], b[1]) },
-            |b| unsafe { super::view_moved_x87(b[0], b[1]) },
+            |b| unsafe { super::view_moved_x87(b[0], b[1], crate::marks::setup::clock_at(b[0])) },
         );
     }
 
@@ -604,7 +604,7 @@ mod asm_differential {
         differential(
             &SPEC,
             |b| unsafe { reference::move_kept_x87(b[0], b[1]) },
-            |b| unsafe { super::move_kept_x87(b[0], b[1]) },
+            |b| unsafe { super::move_kept_x87(b[0], b[1], crate::marks::setup::clock_at(b[0])) },
         );
     }
 }

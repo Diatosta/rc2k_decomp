@@ -9,20 +9,17 @@
 //! One caller, `sub_4C25F6`.
 
 use crate::framework::rva;
-use crate::marks::store::{Slot, game_read, game_write};
+use crate::marks::snow::SNOW_LIGHT;
+use crate::marks::store::{Slot, game_read};
 use crate::math::x87;
 
 const COLOUR_RVA: usize = rva(0x6415E4); // dword_6415E4
-const FADES_RVA: Slot = Slot::at(0x8DB464); // g_marksFadeColours: 0x11 dwords
-const FADES: u32 = 0x11;
-const STEP_RVA: Slot = Slot::at(0x8DB4A8); // dword_8DB4A8 (a float)
-const INVERSES_RVA: Slot = Slot::at(0x8DB4AC); // three dwords
-const SCALED_RVA: Slot = Slot::at(0x8DB4B8); // three dwords
-// the entries to the scaled three
+const FADES: usize = 0x11;
 const GROWTH_RVA: Slot = Slot::at(0x7651C4); // flt_7651C4
 
 /// The Rust version (see the header).
 pub unsafe fn make_fade_colours() {
+    let l = &SNOW_LIGHT;
     unsafe {
         let colour: u32 = game_read(COLOUR_RVA);
         let inverses = [
@@ -30,17 +27,21 @@ pub unsafe fn make_fade_colours() {
             ((colour >> 8) & 0xFF) ^ 0xFF,
             (colour & 0xFF) ^ 0xFF,
         ];
-        game_write(INVERSES_RVA, inverses);
-        game_write(STEP_RVA, 0u32);
-        for n in 0..FADES as usize {
-            let step: u32 = game_read(STEP_RVA);
-            let inverses: [i32; 3] = game_read(INVERSES_RVA);
+        for (cell, v) in l.fade_inverses.iter().zip(inverses) {
+            cell.set(v);
+        }
+        l.fade_step.set_bits(0);
+        for n in 0..FADES {
+            let step = l.fade_step.bits();
+            let inverses = l.fade_inverses.each_ref().map(|d| d.get() as i32);
             let scaled = inverses.map(|v| x87::int_times_to_int(v, step));
-            game_write(SCALED_RVA, scaled);
+            for (cell, v) in l.fade_scaled.iter().zip(scaled) {
+                cell.set(v as u32);
+            }
             let [r, gr, b] = scaled.map(|v| v as u32 & 0xFF);
             let fade = (0xFF00_0000 | r << 16 | gr << 8 | b).wrapping_add(game_read(COLOUR_RVA));
-            game_write(FADES_RVA + 4 * n, fade);
-            game_write(STEP_RVA, x87::add(step, game_read(GROWTH_RVA)));
+            l.fade_colours[n].set(fade);
+            l.fade_step.set_bits(x87::add(step, game_read(GROWTH_RVA)));
         }
     }
 }

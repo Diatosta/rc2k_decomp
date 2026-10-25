@@ -8,13 +8,11 @@
 //! 36 callers (the menus after their races).
 
 use crate::errors::Refused;
-use crate::framework::{game_read, rva};
-
-const SWITCH_RVA: usize = rva(0x7587E8); // dword_7587E8
+use crate::menu::arcade_store::ARCADE_GAME;
 
 /// The Rust version (see the header).
 pub unsafe fn reload_front_end() -> Result<(), Refused> {
-    if unsafe { game_read::<u32>(SWITCH_RVA) } == 1 {
+    if { ARCADE_GAME.scene_let_go.get() } == 1 {
         unsafe {
             crate::scene::set_up_engine::set_up_engine()?;
             crate::scene::set_up_front_end_scene::set_up_front_end_scene()?;

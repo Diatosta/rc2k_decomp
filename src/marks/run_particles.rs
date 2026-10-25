@@ -30,13 +30,13 @@
 use crate::errors::{BadInput, Refused};
 use crate::framework::rva;
 use crate::marks::blocks::{RING_FREE_RVA, RING_USED_RVA};
-use crate::marks::setup::{SEED_RVA, SETTINGS_RVA};
+use crate::marks::setup::CLOCK;
+use crate::marks::setup::SEED_RVA;
 use crate::marks::store::{Slot, game_addr, game_read, game_write};
 use crate::math::x87;
 use crate::scene::matrix3::extended;
 use crate::scene::vector3::STATUS_RVA;
 
-const TICKS_RVA: Slot = Slot::at(0x764FD0); // g_marksFrameTicks
 const STEPS_RVA: Slot = Slot::at(0x76513C); // dword_76513C
 const VIEW_RVA: usize = rva(0x5EA3CC); // flt_5EA3CC: the view's place at +0x30
 const INDEX_RVA: Slot = Slot::at(0x93A5E8); // dword_93A5E8
@@ -99,14 +99,14 @@ unsafe fn colour_index(e: u32, life: u32) -> (i32, bool) {
 /// Why it refuses, if it does: the walk as the original makes it, nothing written.
 unsafe fn refusal() -> Option<&'static str> {
     unsafe {
-        let settings: u32 = game_read(SETTINGS_RVA);
+        let settings: u32 = crate::marks::setup::SETTINGS.pointer.get();
         if settings == 0 {
             return Some("no marks settings");
         }
         if get(settings + 4) == 0 {
             return None;
         }
-        let ticks: u32 = game_read(TICKS_RVA);
+        let ticks: u32 = CLOCK.frame_ticks.get();
         let mut e: u32 = game_read(RING_FREE_RVA);
         let used = game_read::<u32>(RING_USED_RVA) as i32;
         if used > 0 && (e == 0 || get(e) == 0) {
@@ -136,7 +136,7 @@ unsafe fn refusal() -> Option<&'static str> {
 unsafe fn step(e: u32) -> Result<bool, Refused> {
     use crate::marks::{burst_particles, draw_particle, trail_particles};
     unsafe {
-        let t: i32 = game_read(TICKS_RVA);
+        let t: i32 = CLOCK.frame_ticks.get() as i32;
         let move_place = |with_up: bool| {
             put(e + 0xC, x87::plus_times_int(get(e + 0xC), get(e + 0x28), t));
             let y = if with_up {
@@ -252,7 +252,7 @@ pub unsafe fn run_particles() -> Result<(), Refused> {
         return Err(BadInput(why).into());
     }
     unsafe {
-        let settings: u32 = game_read(SETTINGS_RVA);
+        let settings: u32 = crate::marks::setup::SETTINGS.pointer.get();
         if get(settings + 4) == 0 {
             return Ok(());
         }
@@ -265,7 +265,7 @@ pub unsafe fn run_particles() -> Result<(), Refused> {
                 break;
             }
             let next = get(e + 4);
-            let t: u32 = game_read(TICKS_RVA);
+            let t: u32 = CLOCK.frame_ticks.get();
             let life = get(e + 0x44);
             put(e + 0x44, life.wrapping_sub(t));
             let mut dies = life < t;

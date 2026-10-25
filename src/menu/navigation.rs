@@ -12,15 +12,12 @@
 //! went with the screen loops' registers).
 
 use crate::errors::Refused;
-use crate::framework::{game_read, game_write, rva};
+use crate::menu::flow_store::SCREEN_FLOW;
 use crate::menu::item_at::item_at;
+use crate::menu::loop_store::LOOP_FLAGS;
 use crate::menu::state_store::MENU_STATE;
-use crate::service::state::MENU_ITEM_RVA;
 
 // ---- game data ----
-
-const TURNING_RVA: usize = rva(0x7554EC); // dword_7554EC: 1 = left and right turn the counter
-const QUIET_RVA: usize = rva(0x7554D0); // dword_7554D0: 1 = left and right do not click
 
 unsafe fn dword(at: u32) -> u32 {
     unsafe { (at as *const u32).read_unaligned() }
@@ -60,9 +57,9 @@ pub unsafe fn move_highlight(direction: Direction) -> Result<(), Refused> {
     let (link_at, callback) = direction.offsets();
     let sideways = matches!(direction, Direction::Left | Direction::Right);
     unsafe {
-        let highlighted: u32 = game_read(MENU_ITEM_RVA);
+        let highlighted: u32 = LOOP_FLAGS.item.get();
         let item = item_at(highlighted)?;
-        let turned = (sideways && game_read::<u32>(TURNING_RVA) == 1).then(|| {
+        let turned = (sideways && SCREEN_FLOW.turning.get() == 1).then(|| {
             let t = Turn {
                 count: MENU_STATE.carousel.count.get() as i32,
                 value: MENU_STATE.carousel.front.get() as i32,
@@ -88,11 +85,11 @@ pub unsafe fn move_highlight(direction: Direction) -> Result<(), Refused> {
         if link(next) == Link::None {
             return Ok(());
         }
-        if !sideways || game_read::<u32>(QUIET_RVA) != 1 {
+        if !sideways || SCREEN_FLOW.quiet.get() != 1 {
             crate::sound::play_menu_sound::play_menu_sound_in_game(1);
         }
         match to {
-            Some(n) => game_write(MENU_ITEM_RVA, n),
+            Some(n) => LOOP_FLAGS.item.set(n),
             None => crate::menu::table_calls::call_key(dword(item + callback), item)?,
         }
     }

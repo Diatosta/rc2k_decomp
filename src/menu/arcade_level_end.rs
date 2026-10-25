@@ -11,14 +11,10 @@
 //! anything) a level past 5.
 
 use crate::errors::Refused;
-use crate::framework::{game_read, game_write, rva};
+use crate::menu::arcade_store::ARCADE_GAME;
 use crate::menu::lists_store::MENU_LISTS;
+use crate::menu::results_store::RESULT_FIGURES;
 use crate::menu::screen_loop::{Carried, run_screen_carried};
-
-const WON_RVA: usize = rva(0x758768); // dword_758768: the place
-const LEVEL_RVA: usize = rva(0x7587EC); // dword_7587EC
-const RETRY_RVA: usize = rva(0x7587F4); // dword_7587F4
-const DONE_RVA: usize = rva(0x758800); // byte_758800: a level won before
 
 /// The Rust version. `c` the carried values the level end is entered with; the original
 /// keeps every register of the caller (`pusha` .. `popa`).
@@ -27,18 +23,18 @@ pub unsafe fn arcade_level_end(c: &Carried) -> Result<(), Refused> {
         let mut r = *c;
         // Converted: `rc2k_core::menu::arcade` (`won`, `won_level`, `first_win`).
         use rc2k_core::menu::arcade::{first_win, won, won_level};
-        if !won(game_read(WON_RVA)) {
+        if !won(RESULT_FIGURES.positions[0].get()) {
             crate::sound::play_tune_7::play_tune_7();
             run_screen_carried(&crate::menu::screen_488f4c_loop::SCREEN, &mut r)?;
-            game_write(RETRY_RVA, 1u32);
+            ARCADE_GAME.retry.set(1u32);
             return Ok(());
         }
-        let level = won_level(game_read(LEVEL_RVA))?;
+        let level = won_level(ARCADE_GAME.level.get())?;
         crate::sound::play_tune_6::play_tune_6();
         crate::menu::arcade_finale::arcade_finale()?;
         r.arg = level;
-        if first_win(game_read(DONE_RVA + level as usize)) {
-            game_write(DONE_RVA + level as usize, 1u8);
+        if first_win(ARCADE_GAME.levels_won.get(level as usize)) {
+            ARCADE_GAME.levels_won.set(level as usize, 1);
             r.cars = MENU_LISTS.shown_cars[0].addr() as u32;
             run_screen_carried(&crate::menu::car_specs_47af4c_loop::SCREEN, &mut r)?;
             crate::menu::arcade_steps::add_shown_car()?;

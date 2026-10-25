@@ -9,21 +9,17 @@
 //! before anything.
 
 use crate::errors::Refused;
-use crate::marks::pong;
-use crate::marks::store::{game_addr, game_read, game_write};
+use crate::marks::pong::PONG;
 
 /// The Rust version (see the header): `digit` (eax).
 // Converted: `rc2k_core::marks::pong::{pattern, cells}`
-pub unsafe fn pong_digit(digit: u32) -> Result<(), Refused> {
+pub fn pong_digit(digit: u32) -> Result<(), Refused> {
     use rc2k_core::marks::pong as core;
-    let mut pattern = game_addr(pong::PATTERNS_RVA) as u32 + core::pattern(digit)?;
+    let mut pattern = PONG.digit_patterns.addr() as u32 + core::pattern(digit)?;
     for (col, row) in core::cells() {
         unsafe { crate::marks::pong_cell::pong_cell(pattern, col, row)? };
         pattern = pattern.wrapping_add(1);
     }
-    unsafe {
-        let at: u32 = game_read(pong::DIGIT_AT[0]);
-        game_write(pong::DIGIT_AT[0], at.wrapping_add(core::DIGIT_STEP));
-    }
+    PONG.digit_at[0].set(PONG.digit_at[0].get().wrapping_add(core::DIGIT_STEP));
     Ok(())
 }

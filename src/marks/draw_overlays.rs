@@ -13,7 +13,6 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::marks::draw_shadow::{SECOND, draw_shadow_with};
-use crate::marks::setup::SETTINGS_RVA;
 use crate::marks::store::game_read;
 
 const STATES: [(u32, u32); 5] = [(4, 0x15), (5, 0x13), (6, 0x14), (1, 0x1C), (1, 0x1B)];
@@ -27,7 +26,7 @@ fn shadow_refuses() -> Option<Refused> {
     if corner >= 0x100 {
         return Some(BadInput("a shadow corner past g_marksCorners").into());
     }
-    if unsafe { game_read::<u32>(SETTINGS_RVA) } == 0 {
+    if crate::marks::setup::SETTINGS.pointer.get() == 0 {
         return Some(BadInput("no marks settings").into());
     }
     SECOND.angle_refuses()

@@ -12,15 +12,13 @@
 //! Called by `screens::run_frame` for `net::choose_connection`.
 
 use crate::errors::Refused;
+use crate::install::vars::INSTALLER_PAGES;
 use crate::net::connecting::STATUS_FONT;
-use crate::net::lobby::{
-    CHOICE, CHOICE_BEFORE, FONT, FRAME_CLOCK, MOVE_CLOCK, a, connection, copy_picture, draw_string,
-    draw_text, g, lock_surface,
-};
+use crate::net::lobby::{FONT, connection, copy_picture, draw_string, draw_text, lock_surface};
 use crate::net::store::NET;
 use rc2k_core::net::screens;
 
-const LIT: usize = 0x51E644; // unk_51E644
+const LIT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::BUTTON_LIT;
 
 /// A list screen's frame: the title, then up to sixteen names from the list's top, each the
 /// record (`record`) of an item below the count, the highlighted one blinking. Shared with
@@ -38,18 +36,23 @@ pub fn list_frame(
     let mut y: u32 = 0x6F + 0x2C;
     // Converted: `rc2k_core::net::screens` (`LIST_ROWS`, `listed`, `blink_lit`).
     for row in 0..screens::LIST_ROWS {
-        let Some(item) = screens::listed(row, g(CHOICE_BEFORE), count.get()) else {
+        let Some(item) = screens::listed(row, INSTALLER_PAGES.choice_before.get(), count.get())
+        else {
             continue;
         };
-        let font = if item == g(CHOICE) && screens::blink_lit(g(FRAME_CLOCK), g(MOVE_CLOCK)) {
-            a(LIT)
+        let font = if item == INSTALLER_PAGES.choice.get()
+            && screens::blink_lit(
+                INSTALLER_PAGES.frame_clock.get(),
+                INSTALLER_PAGES.move_clock.get(),
+            ) {
+            LIT
         } else {
-            a(FONT)
+            FONT
         };
         let name = record(item)?;
         let at = y;
-        y = y.wrapping_add(unsafe { ((font + 8) as *const u32).read_unaligned() });
-        draw_text(font, name, 0x190, at)?;
+        y = y.wrapping_add(font.object().line_height.get());
+        draw_text(font.addr() as u32, name, 0x190, at)?;
     }
     crate::platform::unlock_surface();
     crate::platform::show_frame_now();

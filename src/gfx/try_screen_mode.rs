@@ -16,34 +16,29 @@
 
 use crate::errors::Refused;
 use crate::framework::Flags;
-use crate::gfx::block::{game_read, game_write};
-use crate::gfx::modes::Slot as ModeSlot;
-use crate::gfx::reports::Slot as RepSlot;
-use crate::gfx::upload::Slot as UpSlot;
+use crate::gfx::modes::MODES;
+use crate::gfx::reports::REPORTS;
+use crate::gfx::upload::UPLOAD;
 use crate::race::viewer::get;
 
 // ---- game data (IDA addresses) ----
 
-pub const MODE_TABLE: ModeSlot = ModeSlot::at(0x4F4F3C); // g_screenModeTable: the modes, 8 bytes each, here
-pub const MODE_COUNT: ModeSlot = ModeSlot::at(0x4F4F38); // g_screenModeCount
 const MODE_FLAGS: usize = 0x4F4934; // g_screenModeFlags
-const TRYING: UpSlot = UpSlot::at(0x5ABA88); // dword_5ABA88: 1 while a mode is tried
-const REPORTS: RepSlot = RepSlot::at(0x4F52AC); // dword_4F52AC: the reports on
 
 // ---- Rust version ----
 
 /// The Rust version on `mode`: the flags it leaves (carry: it does not work).
 pub fn try_screen_mode(mode: u32) -> Result<Flags, Refused> {
-    let reports: u32 = unsafe { game_read(REPORTS) };
-    unsafe { game_write(REPORTS, 0u32) };
-    unsafe { game_write(TRYING, 1u32) };
+    let reports: u32 = REPORTS.on.get();
+    REPORTS.on.set(0);
+    UPLOAD.trying.set(1);
     // Err(zero): it does not work, with the zero flag the failing step left (`stc` keeps
     // it); Ok(eax): it works, with the eax it leaves.
     let tried = (|| -> Result<Result<u32, bool>, Refused> {
         // Converted: `rc2k_core::gfx::screen_modes::look_up`.
         use rc2k_core::gfx::screen_modes::{Lookup, look_up};
-        let count: u32 = unsafe { game_read(MODE_COUNT) };
-        let table = MODE_TABLE.address() as u32;
+        let count: u32 = MODES.count.get();
+        let table = MODES.table_addr() as u32;
         match look_up(
             unsafe { crate::system::find_entry::entries(table, count) },
             mode,
@@ -65,8 +60,8 @@ pub fn try_screen_mode(mode: u32) -> Result<Flags, Refused> {
         crate::platform_3d::release_all_textures();
         Ok(Ok(video))
     })()?;
-    unsafe { game_write(TRYING, 0u32) };
-    unsafe { game_write(REPORTS, reports) };
+    UPLOAD.trying.set(0);
+    REPORTS.on.set(reports);
     Ok(match tried {
         Ok(eax) => Flags {
             carry: false,

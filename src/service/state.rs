@@ -1,25 +1,23 @@
 //! Game variables the service area's functions share.
 
 use crate::errors::BadInput;
-use crate::framework::{game_addr, game_read, rva};
+use crate::menu::draw_work_store::DRAW_WORK;
+use crate::menu::event_store::EVENT_STATE;
 use crate::menu::lists_store::MENU_LISTS;
+use crate::menu::loop_store::LOOP_FLAGS;
+use crate::menu::players_store::PLAYER_TABLE;
 use crate::menu::state_store::MENU_STATE;
 use crate::session::{read_all, write_all};
-
-pub const MENU_ITEM_RVA: usize = rva(0x755525); // dword_755525: the highlighted menu item
-pub const BLINK_RVA: usize = rva(0x7559A4); // dword_7559A4: 1 in the visible half of a blink
-pub const TIME_BUDGET_RVA: usize = rva(0x75593C); // dword_75593C
-pub const PLAYER_INDEX_RVA: usize = rva(0x75598C); // dword_75598C: the current player
-pub const PLAYERS_RVA: usize = rva(0x75647C); // g_players[player index]
 
 /// The current player (`Player`), or None if the index or the pointer is not usable.
 pub fn current_player() -> Option<u32> {
     unsafe {
-        let index: u32 = game_read(PLAYER_INDEX_RVA);
+        let index: u32 = EVENT_STATE.current_player.get();
         if index >= 64 {
             return None;
         }
-        let player = ((game_addr(PLAYERS_RVA) as *const u32).add(index as usize)).read_unaligned();
+        let player =
+            ((PLAYER_TABLE.pointers[0].addr() as *const u32).add(index as usize)).read_unaligned();
         (player != 0).then_some(player)
     }
 }
@@ -38,11 +36,11 @@ pub fn edit_mode() -> bool {
 }
 
 pub fn menu_item() -> u32 {
-    unsafe { game_read(MENU_ITEM_RVA) }
+    LOOP_FLAGS.item.get()
 }
 
 pub fn blink_on() -> bool {
-    unsafe { game_read::<u32>(BLINK_RVA) == 1 }
+    DRAW_WORK.blink.get() == 1
 }
 
 /// Menu items of the service area that have a flag: 0 .. 19. Entry 20 of both flag tables is

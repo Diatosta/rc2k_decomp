@@ -15,35 +15,49 @@
 //! are the original's.
 
 use crate::errors::Refused;
-use crate::install::installer::{
-    Api, REG_CLOSE_KEY, REG_CREATE_KEY, REG_KEY, REG_SET_VALUE, SOURCE, SOURCE_SIZE, STATUS, a,
-    fatal, g, gb, rd,
-};
+use crate::install::installer::{Api, REG_CLOSE_KEY, REG_CREATE_KEY, REG_SET_VALUE, fatal, rd};
+use crate::install::vars::INSTALLER_NAMES;
+use crate::install::vars::INSTALLER_RUN;
 
-const KEY_NAME: usize = 0x51BB60; // "SOFTWARE\Magnetic Fields\RC99"
-const STATUS_NAME: usize = 0x51BB7E; // "status"
-const SOURCE_NAME: usize = 0x51BB85; // "source"
 const HKLM: u32 = 0x8000_0002;
 const REG_SZ: u32 = 1;
 const REG_BINARY: u32 = 3;
 
 pub fn write_registry(api: Api) -> Result<(), Refused> {
-    let key_at = a(REG_KEY);
-    if api(REG_CREATE_KEY, &[HKLM, a(KEY_NAME), key_at]) != 0 {
+    let key_at = INSTALLER_RUN.reg_key.addr() as u32;
+    if api(
+        REG_CREATE_KEY,
+        &[HKLM, INSTALLER_NAMES.key_name.addr() as u32, key_at],
+    ) != 0
+    {
         return Err(fatal(0x8010_8420));
     }
     let key = rd(key_at);
     if api(
         REG_SET_VALUE,
-        &[key, a(STATUS_NAME), 0, REG_BINARY, a(STATUS), 1],
+        &[
+            key,
+            INSTALLER_NAMES.status_name.addr() as u32,
+            0,
+            REG_BINARY,
+            INSTALLER_NAMES.status.addr() as u32,
+            1,
+        ],
     ) != 0
     {
         return Err(fatal(0x8010_8421));
     }
-    if gb(SOURCE) != 0
+    if INSTALLER_NAMES.source.get(0) != 0
         && api(
             REG_SET_VALUE,
-            &[key, a(SOURCE_NAME), 0, REG_SZ, a(SOURCE), g(SOURCE_SIZE)],
+            &[
+                key,
+                INSTALLER_NAMES.source_name.addr() as u32,
+                0,
+                REG_SZ,
+                INSTALLER_NAMES.source.addr() as u32,
+                INSTALLER_NAMES.source_size.get(),
+            ],
         ) != 0
     {
         return Err(fatal(0x8010_8425));

@@ -12,7 +12,13 @@
 //! Callers: `sub_47037E`.
 
 use crate::errors::Refused;
-use crate::framework::{game_read, game_write, rva};
+use crate::framework::rva;
+use crate::menu::champ_store::CHAMP_VIEW;
+use crate::menu::draw_lists_store::DRAW_LISTS;
+use crate::menu::event_store::EVENT_STATE;
+use crate::menu::flow_store::SCREEN_FLOW;
+use crate::menu::menus_store::MENUS;
+use crate::menu::screen_items_store::{SCREEN_ITEMS, slot};
 use crate::menu::screen_loop::{Callee, Carried, List, Screen, Step};
 
 // ---- Rust version: `menu::screen_loop` with this ----
@@ -29,14 +35,13 @@ fn take_kept() -> u32 {
 }
 
 unsafe fn before(c: &mut Carried) -> Result<(), Refused> {
-    unsafe {
-        KEPT.with_borrow_mut(|stack| stack.push(game_read(rva(0x75595C))));
-        KEPT.with_borrow_mut(|stack| stack.push(game_read(rva(0x755958))));
-        c.arg = game_read(rva(0x75595C));
-        game_write(rva(0x755964), c.arg);
-        c.arg = game_read(rva(0x755958));
-        game_write(rva(0x755960), c.arg);
-    }
+    KEPT.with_borrow_mut(|stack| stack.push(EVENT_STATE.section.get()));
+    KEPT.with_borrow_mut(|stack| stack.push(EVENT_STATE.index.get()));
+    c.arg = EVENT_STATE.section.get();
+    EVENT_STATE.dword_755964.set(c.arg);
+    c.arg = EVENT_STATE.index.get();
+    EVENT_STATE.first_page_stage.set(c.arg);
+
     Ok(())
 }
 
@@ -44,40 +49,40 @@ unsafe fn after_lists(c: &mut Carried) -> Result<(), Refused> {
     unsafe {
         Callee::CountStagePages.run(c)?;
         Callee::StyleChosenStageItem.run(c)?;
-        if game_read::<u32>(rva(0x755968)) == 0x0 {
+        if EVENT_STATE.stage_pages.get() == 0x0 {
             Callee::StyleStageItem.run(c)?;
         }
-        game_write(rva(0x755700), 0x3u32);
+        CHAMP_VIEW.stage_mode.set(0x3u32);
     }
     Ok(())
 }
 
 unsafe fn after(c: &mut Carried) -> Result<(), Refused> {
     unsafe {
-        game_write(rva(0x755958), take_kept());
-        game_write(rva(0x75595C), take_kept());
+        EVENT_STATE.index.set(take_kept());
+        EVENT_STATE.section.set(take_kept());
         Callee::StopStream.run(c)?;
     }
     Ok(())
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: rva(0x74DAA0),
-    saved_item: rva(0x74776C),
+    menu: || MENUS.view_stage.addr(),
+    saved_item: || &SCREEN_ITEMS.current[slot::VIEW_STAGE],
     lists: &[
         List {
-            pointer: rva(0x755504), // g_sceneList
-            table: rva(0x759096),
+            pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
+            table: || DRAW_LISTS.view_stage_scene.addr(),
             run: false,
         },
         List {
-            pointer: rva(0x7554F8), // g_drawList
-            table: rva(0x758D86),
+            pointer: || &SCREEN_FLOW.draw_list, // g_drawList
+            table: || DRAW_LISTS.view_stage_draw.addr(),
             run: false,
         },
         List {
-            pointer: rva(0x7554FC), // g_overlayList
-            table: rva(0x75925A),
+            pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
+            table: || DRAW_LISTS.view_stage_overlay.addr(),
             run: false,
         },
     ],

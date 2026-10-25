@@ -11,19 +11,18 @@
 //! Callers: `sub_473126` and one of the game's. The random numbers are `math::random_below`'s.
 //! Refuses a count of 0 (the original's `div` traps, its loop runs on), before anything.
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, game_write, rva};
-use crate::menu::standings::*;
+use crate::menu::car_numbers_store::CAR_NUMBERS;
+use crate::menu::draw_work_store::DRAW_WORK;
 use crate::menu::state_store::MENU_STATE;
 use crate::session::Dword;
 
+/// The four classes' first drivers (`g_drivers` + 90, + 140, + 170, + 0) and counts.
 const TABLES: [(usize, &Dword); 4] = [
-    (rva(0x73EA7C), &MENU_STATE.menus.class_counts[1]),
-    (rva(0x740764), &MENU_STATE.menus.class_counts[2]),
-    (rva(0x7418BC), &MENU_STATE.menus.class_counts[3]),
-    (DRIVERS_RVA, &MENU_STATE.menus.class_counts[0]),
+    (90, &MENU_STATE.menus.class_counts[1]),
+    (140, &MENU_STATE.menus.class_counts[2]),
+    (170, &MENU_STATE.menus.class_counts[3]),
+    (0, &MENU_STATE.menus.class_counts[0]),
 ];
-const TEMP_RVA: [usize; 2] = [rva(0x755398), rva(0x75542C)]; // unk_755398, unk_75542C
-const PICKS_RVA: [usize; 2] = [rva(0x7559EC), rva(0x7559F0)]; // dword_7559EC, hhmm
 /// The Rust version (see the header): the registers it leaves.
 pub unsafe fn shuffle_drivers() -> Result<(), Refused> {
     use crate::math::random_below::random_below;
@@ -31,13 +30,16 @@ pub unsafe fn shuffle_drivers() -> Result<(), Refused> {
         if TABLES.iter().any(|&(_, c)| c.get() == 0) {
             return Err(BadInput("a driver table count of 0").into());
         }
-        let [t1, t2] = TEMP_RVA.map(|r| game_addr(r) as *mut u8);
+        let [t1, t2] = [
+            CAR_NUMBERS.shuffle_a.as_ptr(),
+            CAR_NUMBERS.shuffle_b.as_ptr(),
+        ];
         for &(table, count) in &TABLES {
-            let first = game_addr(table) as *mut u8;
+            let first = &crate::menu::drivers_store::DRIVERS.drivers[table] as *const _ as *mut u8;
             let n = count.get();
             for _ in 0..n {
-                game_write(PICKS_RVA[0], random_below(n)?);
-                game_write(PICKS_RVA[1], random_below(n)?);
+                DRAW_WORK.figure.set(random_below(n)?);
+                DRAW_WORK.hhmm.set(random_below(n)?);
                 std::ptr::copy(first, t1, 0x94);
                 std::ptr::copy(first, t2, 0x94);
                 std::ptr::copy(t1, first, 0x94);

@@ -13,10 +13,8 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{game_write, rva};
-
-const ITEM_RVA: usize = rva(0x755525); // dword_755525
-const AFTER_RVA: usize = rva(0x74771C); // dword_74771C
+use crate::menu::loop_store::LOOP_FLAGS;
+use crate::menu::screen_items_store::{SCREEN_ITEMS, slot};
 
 /// The Rust version. (The original keeps every register of its caller.)
 pub unsafe fn apply_screen_mode() -> Result<(), Refused> {
@@ -41,8 +39,8 @@ pub unsafe fn apply_screen_mode() -> Result<(), Refused> {
         crate::scene::set_up_front_end_scene::set_up_front_end_scene()?;
         crate::sound::play_tune_4::play_tune_4();
         let applied = applied_mode(taken);
-        game_write(ITEM_RVA, applied.item);
-        game_write(AFTER_RVA, applied.item);
+        LOOP_FLAGS.item.set(applied.item);
+        SCREEN_ITEMS.current[slot::VISUAL_OPTIONS].set(applied.item);
         crate::sound::play_menu_sound::play_menu_sound_in_game(applied.sound);
     }
     Ok(())

@@ -7,7 +7,6 @@
 //! `entry` (`routes.rs`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{game_addr, rva};
 
 // ---- Rust version ----
 
@@ -28,7 +27,7 @@ pub fn save_in_game() -> Result<bool, Refused> {
         save_game_data(
             &mut || {
                 crate::saves::save_options::save_options(
-                    game_addr(rva(0x5295D8)) as *const u8, // "var\ral.dat"
+                    crate::saves::load_options::PATH.addr() as *const u8
                 )
             },
             &mut || crate::saves::save_best_times::in_game(),

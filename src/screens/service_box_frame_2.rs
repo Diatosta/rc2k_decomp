@@ -7,9 +7,11 @@
 //! `service_boxes`' translator.
 
 use crate::errors::Refused;
+use crate::menu::draw_work_store::DRAW_WORK;
 use crate::menu::lists_store::MENU_LISTS;
+use crate::menu::loop_store::LOOP_FLAGS;
 use crate::menu::state_store::MENU_STATE;
-use crate::screens::service_boxes::{at_esi, quad, rd};
+use crate::screens::service_boxes::{at_esi, quad};
 
 /// The Rust version (see the header): the registers it leaves.
 #[allow(unused_assignments, clippy::needless_late_init)] // the translator's flags, one per `cmp`
@@ -27,11 +29,11 @@ pub unsafe fn service_box_frame_2() -> Result<(), Refused> {
                     break 'l4919ad;
                 }
                 value = 0xE;
-                c = (rd(0x755525), value);
+                c = (LOOP_FLAGS.item.get(), value);
                 if c.0 != c.1 {
                     break 'l4919ad;
                 }
-                c = (rd(0x7559A4), 0x1);
+                c = (DRAW_WORK.blink.get(), 0x1);
                 if c.0 != c.1 {
                     break 'l492528;
                 }

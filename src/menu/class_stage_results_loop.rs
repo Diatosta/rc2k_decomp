@@ -13,48 +13,45 @@
 //! leaving is asked about, and a "no" sets the screen up again. One caller, `sub_4A1F7A`.
 
 use crate::errors::Refused;
-use crate::framework::{game_write, rva};
-use crate::menu::run_draw_list::DRAW_LIST_RVA;
+use crate::menu::draw_lists_store::DRAW_LISTS;
+use crate::menu::flow_store::SCREEN_FLOW;
+use crate::menu::menus_store::MENUS;
+use crate::menu::screen_items_store::{SCREEN_ITEMS, slot};
 use crate::menu::screen_loop::{Callee, Carried, FRAME_CALLBACK, List, Screen, Step};
 use crate::menu::state_store::MENU_STATE;
 
 // ---- game data ----
 
-const MENU_RVA: usize = rva(0x74FAE0); // off_74FAE0
-const FIRST_ITEM_STRING_RVA: usize = MENU_RVA + 4 + 0x14;
-const BACKGROUND_RVA: usize = rva(0x7324EE); // "files\g\graphics\screens\results1.png"
-
 // ---- Rust version: `menu::screen_loop` with this ----
 
 unsafe fn set_first_item(c: &mut Carried) -> Result<(), Refused> {
-    unsafe {
-        c.arg = if MENU_STATE.menus.which_title.get() == 1 {
-            0x138
-        } else {
-            0x139
-        };
-        game_write(FIRST_ITEM_STRING_RVA, c.arg);
-    }
+    c.arg = if MENU_STATE.menus.which_title.get() == 1 {
+        0x138
+    } else {
+        0x139
+    };
+    MENUS.class_stage_results.items[0].string.set(c.arg);
+
     Ok(())
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: MENU_RVA,
-    saved_item: rva(0x747780), // dword_747780
+    menu: || MENUS.class_stage_results.addr(),
+    saved_item: || &SCREEN_ITEMS.current[slot::CLASS_STAGE_RESULTS], // dword_747780
     lists: &[
         List {
-            pointer: rva(0x755504), // dword_755504
-            table: rva(0x7590D2),   // unk_7590D2
+            pointer: || &SCREEN_FLOW.scene_list, // dword_755504
+            table: || DRAW_LISTS.class_stage_results_scene.addr(), // unk_7590D2
             run: false,
         },
         List {
-            pointer: DRAW_LIST_RVA,
-            table: rva(0x758E12), // off_758E12
+            pointer: || &SCREEN_FLOW.draw_list,
+            table: || DRAW_LISTS.list_758e12.addr(), // off_758E12
             run: false,
         },
         List {
-            pointer: rva(0x7554FC), // dword_7554FC
-            table: rva(0x759296),   // dword_759296
+            pointer: || &SCREEN_FLOW.overlay_list, // dword_7554FC
+            table: || DRAW_LISTS.class_stage_results_overlay.addr(), // dword_759296
             run: false,
         },
     ],
@@ -66,7 +63,11 @@ pub const SCREEN: Screen = Screen {
     prepare: &[],
     after_lists: &[],
     background: &[
-        Step::ArgAddr(BACKGROUND_RVA),
+        Step::ArgAddr(|| {
+            crate::menu::texts_store::MENU_TEXTS
+                .class_stage_results_picture
+                .addr()
+        }),
         Step::CallOrFatal(Callee::LoadBackground, 0x8071_2345),
     ],
     after_first_frame: &[],

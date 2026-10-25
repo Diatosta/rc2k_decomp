@@ -9,27 +9,31 @@
 //! Callers: `sub_48E093`, `sub_4A15E3`, `4A1EC7`, `sub_4A8556`.
 
 use crate::framework::rva;
+use crate::menu::draw_lists_store::DRAW_LISTS;
+use crate::menu::flow_store::SCREEN_FLOW;
+use crate::menu::menus_store::MENUS;
+use crate::menu::screen_items_store::{SCREEN_ITEMS, slot};
 use crate::menu::screen_loop::{Callee, List, Screen, Step};
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
 pub const SCREEN: Screen = Screen {
-    menu: rva(0x75065C),
-    saved_item: rva(0x7477AC),
+    menu: || MENUS.inspection_area.addr(),
+    saved_item: || &SCREEN_ITEMS.current[slot::INSPECTION_AREA],
     lists: &[
         List {
-            pointer: rva(0x755504), // g_sceneList
-            table: rva(0x7590BA),
+            pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
+            table: || DRAW_LISTS.inspection_area_scene.addr(),
             run: false,
         },
         List {
-            pointer: rva(0x7554F8), // g_drawList
-            table: rva(0x758DDE),
+            pointer: || &SCREEN_FLOW.draw_list, // g_drawList
+            table: || DRAW_LISTS.inspection_area_draw.addr(),
             run: false,
         },
         List {
-            pointer: rva(0x7554FC), // g_overlayList
-            table: rva(0x75927E),
+            pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
+            table: || DRAW_LISTS.inspection_area_overlay.addr(),
             run: false,
         },
     ],
@@ -41,7 +45,11 @@ pub const SCREEN: Screen = Screen {
     prepare: &[],
     after_lists: &[],
     background: &[
-        Step::ArgAddr(rva(0x7325F8)),
+        Step::ArgAddr(|| {
+            crate::menu::texts_store::MENU_TEXTS
+                .inspection_area_picture
+                .addr()
+        }),
         Step::Call(Callee::LoadPicture),
         Step::CallOrFatal(Callee::ConvertPicture, 0x80712345),
     ],

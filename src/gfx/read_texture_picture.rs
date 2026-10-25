@@ -14,9 +14,9 @@
 //! `read_picture_file` refuses.
 
 use crate::errors::{BadInput, Refused};
-use crate::gfx::block::game_read;
-use crate::gfx::pcx::{DECODED_HEIGHT_RVA, DECODED_WIDTH_RVA, PIXELS_RVA};
-use crate::gfx::picture::{HEIGHT_RVA, WIDTH_RVA, picture};
+use crate::gfx::decoder::DECODER;
+use crate::gfx::picture::picture;
+use crate::gfx::picture_store::PICTURE;
 use crate::gfx::read_picture_file::read_picture_file;
 use rc2k_core::gfx::picture_size as sizes;
 
@@ -37,9 +37,9 @@ pub unsafe fn read_texture_picture(path: *mut u8) -> Result<(u32, u32, u32, bool
             false
         } else if read_picture_file(path)? {
             return Ok((
-                game_read(PIXELS_RVA),
-                game_read(DECODED_WIDTH_RVA),
-                game_read(DECODED_HEIGHT_RVA),
+                DECODER.pixels.get(),
+                DECODER.width.get(),
+                DECODER.height.get(),
                 false,
             ));
         } else {
@@ -47,8 +47,8 @@ pub unsafe fn read_texture_picture(path: *mut u8) -> Result<(u32, u32, u32, bool
         };
         Ok((
             buffer as u32,
-            game_read(WIDTH_RVA),
-            game_read(HEIGHT_RVA),
+            PICTURE.width.get(),
+            PICTURE.height.get(),
             failed,
         ))
     }

@@ -1,19 +1,19 @@
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, game_write, rva};
+use crate::menu::arcade_store::ARCADE_GAME;
+use crate::menu::captions_store::CAPTIONS;
+use crate::menu::cheats_store::CHEAT_VARS;
 use crate::menu::event_flow::Flow;
+use crate::menu::event_store::EVENT_STATE;
 use crate::menu::lists_store::MENU_LISTS;
+use crate::menu::loop_store::LOOP_FLAGS;
+use crate::menu::pages_store::MENU_PAGES;
 use crate::menu::player::player_at;
+use crate::menu::results_store::RESULT_FIGURES;
 use crate::menu::screen_loop::{Carried, run_screen_carried};
 use crate::race::state_store::RACE_STATE;
 use crate::session::Dword;
 use rc2k_core::menu::arcade_event::{self as arcade, Hand, Step, Var};
 
-fn g(a: usize) -> u32 {
-    unsafe { game_read(rva(a)) }
-}
-fn p(a: usize, v: u32) {
-    unsafe { game_write(rva(a), v) }
-}
 fn put(a: u32, v: u32) {
     unsafe { (a as *mut u32).write_unaligned(v) }
 }
@@ -39,27 +39,27 @@ fn cell(v: Var) -> Option<&'static Dword> {
     })
 }
 
-fn address(v: Var) -> usize {
+fn address(v: Var) -> &'static Dword {
     match v {
-        Var::Failed => 0x7587F4,
-        Var::TotalA8 => 0x7587A8,
-        Var::Total798 => 0x758798,
-        Var::TotalB8 => 0x7587B8,
-        Var::Figure768 => 0x758768,
-        Var::Figure758 => 0x758758,
-        Var::PlayerCount => 0x755984,
-        Var::EventMode => 0x755988,
-        Var::Leave => 0x75555D,
-        Var::Ended565 => 0x755565,
-        Var::Ended569 => 0x755569,
-        Var::Stage => 0x7587F0,
-        Var::Level => 0x7587EC,
-        Var::Current => 0x75598C,
-        Var::CarLeft => 0x758806,
-        Var::Answer => 0x75524C,
-        Var::Cheats => 0x75870C,
-        Var::Qualifies => 0x755918,
-        Var::Done => 0x755980,
+        Var::Failed => &ARCADE_GAME.retry,
+        Var::TotalA8 => &RESULT_FIGURES.before[0],
+        Var::Total798 => &RESULT_FIGURES.sums[0],
+        Var::TotalB8 => &RESULT_FIGURES.totals[0],
+        Var::Figure768 => &RESULT_FIGURES.positions[0],
+        Var::Figure758 => &RESULT_FIGURES.time_bonus[0],
+        Var::PlayerCount => &EVENT_STATE.player_count,
+        Var::EventMode => &EVENT_STATE.event_kind,
+        Var::Leave => &LOOP_FLAGS.went_back,
+        Var::Ended565 => &LOOP_FLAGS.ended_b,
+        Var::Ended569 => &LOOP_FLAGS.ended_a,
+        Var::Stage => &ARCADE_GAME.stage,
+        Var::Level => &ARCADE_GAME.level,
+        Var::Current => &EVENT_STATE.current_player,
+        Var::CarLeft => &CAPTIONS.screen_left,
+        Var::Answer => &MENU_PAGES.yes_no_answer,
+        Var::Cheats => &CHEAT_VARS.cheats,
+        Var::Qualifies => &EVENT_STATE.time_qualifies,
+        Var::Done => &EVENT_STATE.event_done,
         Var::Player0Entry => unreachable!("player 0's field is not at an address"),
         Var::RaceStage
         | Var::RaceLevel
@@ -76,7 +76,7 @@ impl arcade::Arcade for Game {
     fn get(&mut self, v: Var) -> u32 {
         match cell(v) {
             Some(cell) => cell.get(),
-            None => g(address(v)),
+            None => address(v).get(),
         }
     }
 
@@ -88,7 +88,7 @@ impl arcade::Arcade for Game {
             }
             _ => match cell(v) {
                 Some(cell) => cell.set(value),
-                None => p(address(v), value),
+                None => address(v).set(value),
             },
         }
     }
@@ -146,9 +146,9 @@ impl arcade::Arcade for Game {
         match h {
             Hand::Kept(v) => f.c.arg = v,
             Hand::StageRecord => {
-                f.c.palette = g(0x7587EC);
-                f.record = g(0x73555A + 4 * f.c.palette as usize);
-                f.c.arg = g(0x7587F0).wrapping_mul(0xA4);
+                f.c.palette = ARCADE_GAME.level.get();
+                f.record = crate::records::stages_store::STAGE_TABLES.level_table(f.c.palette);
+                f.c.arg = ARCADE_GAME.stage.get().wrapping_mul(0xA4);
                 f.record = f.record.wrapping_add(f.c.arg);
             }
         }

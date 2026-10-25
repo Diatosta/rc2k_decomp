@@ -29,19 +29,14 @@
 //! anything) a player past 7 or a null device.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::rva;
 use crate::input::store::DEVICES;
+use crate::menu::names_store::NAME_BUFFERS;
+use crate::race::tyre_store::TYRE_CHANGE as TYRE;
 use crate::session::MACHINE;
-use crate::store::{game_addr, game_write};
 use rc2k_core::race::tyre_change::{Gauge, Io, turn};
 
-const PLAYER: usize = 0x5BEBEC; // dword_5BEBEC
-const RECORD: usize = 0x5BEC28; // g_tyreChangeRecord
-const RECORD_NAME: usize = 0x5BEC08; // g_tyreChangeRecordName (30 bytes)
-const NAMES: [usize; 2] = [0x755784, 0x7557A4]; // g_playerNames, byte_7557A4
-const DEVELOPER: usize = 0x529D94; // g_developerMachine
-/// flt_5BEAC0, flt_5BEAC4, flt_5BEAC8, flt_5BEACC, flt_5C2C60.
-const FLOATS: [usize; 5] = [0x5BEAC0, 0x5BEAC4, 0x5BEAC8, 0x5BEACC, 0x5C2C60];
+/// flt_5C2C60: added to the square root in the press time's logarithm.
+const SQRT_OFFSET: usize = 0x5C2C60;
 const GAUGE: u32 = 0x4EC;
 const STAGE: u32 = 0x4F0;
 const CLOCK: u32 = 0x4F4;
@@ -50,8 +45,9 @@ fn g(x: impl crate::store::Ida) -> u32 {
     unsafe { crate::store::ida_read(x) }
 }
 
+#[cfg(test)]
 fn p(x: usize, v: u32) {
-    unsafe { game_write(rva(x), v) }
+    unsafe { crate::store::game_write(crate::framework::rva(x), v) }
 }
 
 unsafe fn get(a: u32) -> u32 {
@@ -62,10 +58,22 @@ unsafe fn put(a: u32, v: u32) {
     unsafe { (a as *mut u32).write_unaligned(v) }
 }
 
+/// The press time's constants: `TyreChange::{time_base, time_scale, gauge_unit,
+/// log_two_ten}` and flt_5C2C60.
+fn constants() -> [u32; 5] {
+    [
+        TYRE.time_base.bits(),
+        TYRE.time_scale.bits(),
+        TYRE.gauge_unit.bits(),
+        TYRE.log_two_ten.bits(),
+        g(SQRT_OFFSET),
+    ]
+}
+
 /// 0x41C2C7 .. 0x41C320: the time of a press, from s = 0x10000 less the gauge.
 pub fn press_time(s: i32) -> i32 {
     use crate::math::x87_float::{X, int, ld, to_int};
-    let f = FLOATS.map(|a| ld(g(a)));
+    let f = constants().map(ld);
     // `fyl2x` (libm's log2): the product and the sum are the x87's
     let log = (int(s) * f[2]).sqrt() + f[4];
     let r = f[1] * f[3] * X(log.0.log2());
@@ -106,21 +114,16 @@ impl Io for GameIo {
         press_time(s as i32) as u32
     }
     fn developer(&mut self) -> bool {
-        g(DEVELOPER) == 1
+        crate::system::check_developer_machine::DEVELOPER.get() == 1
     }
     fn record(&mut self) -> u32 {
-        g(RECORD)
+        TYRE.record.get()
     }
     fn beaten(&mut self, time: u32) {
-        p(RECORD, time);
-        let from = NAMES[(g(PLAYER) != 0) as usize];
-        unsafe {
-            std::ptr::copy(
-                game_addr(rva(from)) as *const u8,
-                game_addr(rva(RECORD_NAME)) as *mut u8,
-                30,
-            )
-        };
+        TYRE.record.set(time);
+        // g_playerNames, or the second name, byte_7557A4.
+        let from = NAME_BUFFERS.player_names.addr() + 0x20 * (TYRE.player.get() != 0) as usize;
+        unsafe { std::ptr::copy(from as *const u8, TYRE.record_name.as_ptr(), 30) };
     }
 }
 
@@ -135,7 +138,7 @@ pub fn tyre_change_gauge(start: bool, player: u32) -> Result<u32, Refused> {
     if d == 0 {
         return Err(BadInput("a tyre change player without a device").into());
     }
-    p(PLAYER, player);
+    TYRE.player.set(player);
     let mut io = GameIo { device: d };
     let mut gauge = unsafe {
         Gauge {
@@ -159,9 +162,21 @@ mod asm_reference {
     use crate::math::x87::x87;
     use crate::race::asm_test::{Rng, Saved, at_each_control_word, lock};
 
+    /// The four constants as they were, put back when dropped.
+    struct Kept([u32; 4]);
+
+    impl Drop for Kept {
+        fn drop(&mut self) {
+            TYRE.time_base.set_bits(self.0[0]);
+            TYRE.time_scale.set_bits(self.0[1]);
+            TYRE.gauge_unit.set_bits(self.0[2]);
+            TYRE.log_two_ten.set_bits(self.0[3]);
+        }
+    }
+
     // The original block, verbatim.
     pub(super) fn press_time_asm(s: i32) -> i32 {
-        let f = FLOATS.map(g);
+        let f = constants();
         let v = [
             f[1],
             f[3],
@@ -197,16 +212,24 @@ mod asm_reference {
     #[test]
     fn press_time_matches() {
         let _l = lock();
-        let _saved = Saved::new(&FLOATS);
+        let _saved = Saved::new(&[SQRT_OFFSET]);
+        let _kept = Kept([
+            TYRE.time_base.bits(),
+            TYRE.time_scale.bits(),
+            TYRE.gauge_unit.bits(),
+            TYRE.log_two_ten.bits(),
+        ]);
         let mut r = Rng(31);
         let mut off = 0;
         let mut total = 0;
         at_each_control_word(|| {
             for n in 0..60000u32 {
                 if n >= 20000 {
-                    for a in FLOATS {
-                        p(a, r.float());
-                    }
+                    TYRE.time_base.set_bits(r.float());
+                    TYRE.time_scale.set_bits(r.float());
+                    TYRE.gauge_unit.set_bits(r.float());
+                    TYRE.log_two_ten.set_bits(r.float());
+                    p(SQRT_OFFSET, r.float());
                 }
                 let s = if n < 20000 {
                     (n % 0x10000) as i32

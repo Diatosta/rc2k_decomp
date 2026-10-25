@@ -10,8 +10,8 @@
 
 use crate::errors::BadInput;
 use crate::files::read_file::read_file;
-use crate::gfx::block::{game_addr, game_read};
-use crate::gfx::pcx::{HEADER_LEN, HEADER_RVA};
+use crate::gfx::pcx::HEADER_LEN;
+use crate::gfx::pcx::PCX;
 use crate::gfx::read_pcx_8bit::read_pcx_8bit;
 use crate::gfx::read_pcx_24bit::read_pcx_24bit;
 use crate::system::zero_memory::zero_memory;
@@ -21,14 +21,14 @@ use crate::system::zero_memory::zero_memory;
 /// Returns whether the picture was decoded.
 pub unsafe fn read_pcx(path: *const u8) -> Result<bool, BadInput> {
     unsafe {
-        let header = game_addr(HEADER_RVA) as *mut u8;
+        let header = PCX.header.addr() as *mut u8;
         zero_memory(header, HEADER_LEN as u32)?;
         if !read_file(path, header, HEADER_LEN as u32, 0)?.ok {
             return Ok(false);
         }
         // Converted: `rc2k_core::gfx::pcx::kind`.
         use rc2k_core::gfx::pcx::{Kind, kind};
-        match kind(&game_read(HEADER_RVA)) {
+        match kind(&PCX.header.read()) {
             Some(Kind::Palette) => read_pcx_8bit(path),
             Some(Kind::Planes) => read_pcx_24bit(path),
             None => Ok(false),

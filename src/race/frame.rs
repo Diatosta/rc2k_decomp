@@ -6,6 +6,7 @@ use crate::audio::store::AUDIO;
 use crate::errors::Refused;
 use crate::framework::rva;
 use crate::input::store::DEVICES;
+use crate::menu::option_work_store::OPTION_WORK;
 
 use crate::race::objects::CAR_BLOCKS_RVA;
 use crate::store::{game_addr, game_read, game_write};
@@ -99,7 +100,6 @@ const DOWN_KEY: usize = 0x3D; // byte_4F6D19
 const UP_KEY: usize = 0x3E; // byte_4F6D1A
 const SHARED_KEY: usize = 0x3F; // byte_4F6D1B
 pub const SPLIT_RVA: usize = rva(0x6238A4); // dword_6238A4
-const OTHER_VOLUME_RVA: usize = rva(0x75568C); // dword_75568C (read by the music "up" step)
 pub const VIEW_BLOCKS: [usize; 2] = [rva(0x63DBB0), rva(0x63DBB4)]; // off_63DBB0, off_63DBB4
 const VIEW_COUNTERS_RVA: usize = rva(0x6138D4); // dword_6138D4[7]: by camera view
 /// The keys that flip a bit of the view block's +0x220 (`rc2k_core::race::keys::BIT_KEYS`
@@ -163,7 +163,7 @@ pub unsafe fn race_keys() -> Result<(), Refused> {
                 if second {
                     // The "up" step reads `dword_75568C`, not the music's volume (see bugs).
                     let from: u32 = if up {
-                        game_read(OTHER_VOLUME_RVA)
+                        OPTION_WORK.other_volume.get()
                     } else {
                         crate::sound::store::SOUND_OPTIONS.race_music_volume.get()
                     };
@@ -193,16 +193,16 @@ pub unsafe fn race_keys() -> Result<(), Refused> {
     }
 }
 
-/// `race::tyre_change`'s variables (IDA addresses): the copies `dword_5BEBE0` /
-/// `dword_5BEBE4` and their sources `dword_5D1444` / `dword_5D2444`; car 0's (block at
+/// `race::tyre_change`'s variables (IDA addresses) after the copies `TyreChange::texture` /
+/// `device_texture`: their sources `dword_5D1444` / `dword_5D2444`; car 0's (block at
 /// 0x70F3EC) +0x268 "c1 tyrec" count `dword_70F654`, +0x26C the change's state
 /// `dword_70F658`, +0x298 the tyre bits `dword_70F684`, +0x88 the time `dword_70F474`, and
 /// +0x354 .. +0x360 `dword_70F740` .. `dword_70F74C` (one per bit 1 .. 4).
-pub const TYRE_VARIABLES: [usize; 9] = [
-    0x5BEBE0, 0x5BEBE4, 0x5D1444, 0x5D2444, 0x70F654, 0x70F658, 0x70F684, 0x70F474, 0x70F740,
+pub const TYRE_VARIABLES: [usize; 7] = [
+    0x5D1444, 0x5D2444, 0x70F654, 0x70F658, 0x70F684, 0x70F474, 0x70F740,
 ];
 
-/// `race::tyre_change` (0x444F7A), on the variables at `v` (`TYRE_VARIABLES`' order; the
+/// `race::tyre_change` (0x444F7A), on the variables at `v` (`tyre_variables`' order; the
 /// last is the first of four dwords): `race::tyre_change_gauge` for player 0 started, then
 /// run, its time when done added. It reads no register at entry; the eax and esi it leaves
 /// are read by no caller (`drive::race_loop`).
@@ -236,8 +236,12 @@ pub unsafe fn tyre_change_at(v: &[u32]) -> Result<(), Refused> {
 }
 
 pub fn tyre_variables() -> Vec<u32> {
-    TYRE_VARIABLES
-        .iter()
-        .map(|&a| game_addr(rva(a)) as u32)
-        .collect()
+    use crate::race::tyre_store::TYRE_CHANGE as TYRE;
+    [
+        TYRE.texture.addr() as u32,
+        TYRE.device_texture.addr() as u32,
+    ]
+    .into_iter()
+    .chain(TYRE_VARIABLES.iter().map(|&a| game_addr(rva(a)) as u32))
+    .collect()
 }

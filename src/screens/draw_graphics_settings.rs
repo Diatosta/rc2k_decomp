@@ -12,9 +12,11 @@
 //! registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{game_addr, game_read, rva};
+use crate::framework::{game_read, rva};
+use crate::gfx::choices_store::SCREEN_CHOICES;
 use crate::menu::disable_item::disable_item;
 use crate::menu::enable_item::enable_item;
+use crate::menu::option_work_store::OPTION_WORK;
 use crate::text::draw_text::Canvas;
 
 fn k(a: u32) -> u32 {
@@ -22,15 +24,17 @@ fn k(a: u32) -> u32 {
 }
 
 /// (the setting, its first string, its row) for the names; row 1 is the screen mode.
-const NAMES: [(u32, u32, i32); 8] = [
-    (0x4F50C4, 0x38F, 0),
-    (0x4F50CC, 0x391, 2),
-    (0x4F50D0, 0x56D, 3),
-    (0x755650, 0x56D, 4),
-    (0x75565C, 0x56D, 5),
-    (0x755660, 0x396, 6),
-    (0x755664, 0x393, 7),
-    (0x755668, 0x394, 8),
+type Name = (fn() -> u32, u32, i32);
+
+const NAMES: [Name; 8] = [
+    (|| k(0x4F50C4), 0x38F, 0),
+    (|| k(0x4F50CC), 0x391, 2),
+    (|| k(0x4F50D0), 0x56D, 3),
+    (|| OPTION_WORK.setting_0.get(), 0x56D, 4),
+    (|| OPTION_WORK.setting_1.get(), 0x56D, 5),
+    (|| OPTION_WORK.setting_2.get(), 0x396, 6),
+    (|| OPTION_WORK.setting_3.get(), 0x393, 7),
+    (|| OPTION_WORK.setting_4.get(), 0x394, 8),
 ];
 
 /// The Rust version (the registers the last name leaves: the menus read none of them).
@@ -38,14 +42,17 @@ pub unsafe fn draw_graphics_settings(canvas: &mut dyn Canvas) -> Result<(), Refu
     // Converted: `rc2k_core::screens::settings_pages::{graphics_item, graphics}`.
     use crate::screens::game_screen::SettingsScreen;
     unsafe {
-        if rc2k_core::screens::settings_pages::graphics_item(k(0x4F50D4), k(0x4F50D8)) {
+        if rc2k_core::screens::settings_pages::graphics_item(
+            SCREEN_CHOICES.page_a.get(),
+            SCREEN_CHOICES.page_b.get(),
+        ) {
             enable_item(2)?;
         } else {
             disable_item(2)?;
         }
-        let mode = game_addr(rva(0x4F50E8)) as u32 + 0x10 * k(0x4F50C8);
+        let mode = SCREEN_CHOICES.list.addr() as u32 + 0x10 * SCREEN_CHOICES.mode.get();
         let v = |i: u32| ((mode + 4 * i) as *const u32).read_unaligned();
-        let ids = NAMES.map(|(setting, first, _)| k(setting).wrapping_add(first));
+        let ids = NAMES.map(|(setting, first, _)| setting().wrapping_add(first));
         rc2k_core::screens::settings_pages::graphics(
             &mut SettingsScreen::new(canvas),
             ids,

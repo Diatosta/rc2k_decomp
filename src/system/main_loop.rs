@@ -30,7 +30,7 @@
 //! `routes.rs`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{game_addr, log, rva};
+use crate::framework::log;
 
 // ---- game data ----
 
@@ -42,15 +42,15 @@ const VARS: [usize; 12] = [
     0,        // dword_518998: counted up by the key thread (`session`)
     0,        // dword_51838C (`session`)
     0,        // dword_518080 (`sound::store`)
-    0x51D752, // word_51D752: 0xBD when the installer's script is set up
-    0x51B9E0, // g_installing
-    0x51B9CC, // dword_51B9CC
-    0x51B9D0, // dword_51B9D0
+    0,        // word_51D752: 0xBD when the installer's script is set up (`install::vars`)
+    0,        // g_installing (`install::vars`)
+    0,        // dword_51B9CC (`install::vars`)
+    0,        // dword_51B9D0 (`install::vars`)
     0x5189A8, // g_baseDirectory
     0,        // dword_5AB290: `g_lobbyLaunched` (`net::store`)
 ];
-const ENTERING_RVA: usize = rva(0x4DAA80); // "Entering main loop..."
-const LEAVING_RVA: usize = rva(0x4DAA96); // "Leaving main loop..."
+const ENTERING_RVA: &std::ffi::CStr = c"Entering main loop..."; // "Entering main loop..."
+const LEAVING_RVA: &std::ffi::CStr = c"Leaving main loop..."; // "Leaving main loop..."
 const INSTALLER_MARK: u16 = 0xBD;
 
 /// Where the loop's variables are: the game's own, or a test's.
@@ -73,6 +73,10 @@ impl Vars {
         vars[3] = CLOCKS.key_ticks.as_ptr();
         vars[4] = FLAGS.f38c.as_ptr();
         vars[5] = crate::sound::store::SETTINGS_APPLIED.done.as_ptr();
+        vars[6] = crate::install::vars::INSTALLER_PAGES.script_set_up.addr() as *mut u32;
+        vars[7] = crate::install::vars::INSTALLER_RUN.installing.as_ptr();
+        vars[8] = crate::install::vars::INSTALLER_RUN.updating.as_ptr();
+        vars[9] = crate::install::vars::INSTALLER_RUN.from_command.as_ptr();
         vars[11] = crate::net::store::NET.lobby_launched.as_ptr();
         Self(vars)
     }
@@ -116,17 +120,17 @@ pub type Outside<'a> = &'a mut dyn FnMut(Call) -> Result<(), Refused>;
 /// `stack` is the stack pointer at the loop's entry.
 pub unsafe fn main_loop(vars: &Vars, stack: u32, outside: Outside) -> Result<(), Refused> {
     unsafe {
-        let leaving = |outside: Outside| outside(Call::Log(game_addr(LEAVING_RVA) as u32));
+        let leaving = |outside: Outside| outside(Call::Log(LEAVING_RVA.as_ptr() as usize as u32));
         let quit_and_leave = |outside: Outside| {
             outside(Call::RequestQuit)?;
-            outside(Call::Log(game_addr(LEAVING_RVA) as u32))
+            outside(Call::Log(LEAVING_RVA.as_ptr() as usize as u32))
         };
         if vars.get(0) != 0 {
             return quit_and_leave(outside);
         }
         vars.set(0, stack);
         outside(Call::Log(0))?;
-        outside(Call::Log(game_addr(ENTERING_RVA) as u32))?;
+        outside(Call::Log(ENTERING_RVA.as_ptr() as usize as u32))?;
         loop {
             outside(Call::Sleep(1000))?;
             if vars.get(1) == 1 {

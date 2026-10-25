@@ -13,7 +13,7 @@
 //! its steps' refusals (all it may write is put back first).
 
 use crate::errors::{BadInput, Refused};
-use crate::marks::lines::SETTINGS_RVA;
+use crate::marks::setup::CLOCK;
 use crate::marks::store::{Slot, game_read, game_write};
 use crate::marks::{morph_object_points, scale_vectors_by, view_frame};
 use crate::math::x87;
@@ -23,11 +23,10 @@ const FRAME_CYCLES_RVA: Slot = Slot::at(0x765114); // dword_765114
 const SHARE_RVA: Slot = Slot::at(0x765128); // flt_765128
 const SHARE_K_RVA: Slot = Slot::at(0x93C8C0); // flt_93C8C0
 /// (the settings' field, the copy).
-const COPIES: [(u32, Slot); 4] = [
+const COPIES: [(u32, Slot); 3] = [
     (0x50, Slot::at(0x76523C)),
     (0x4C, Slot::at(0x765238)),
     (0x10, Slot::at(0x7652A0)),
-    (0x18, Slot::at(0x764FF0)),
 ];
 const STEPS_RVA: Slot = Slot::at(0x76513C); // dword_76513C
 
@@ -38,7 +37,7 @@ fn rdtsc() -> (u32, u32) {
 
 /// The Rust version (see the header).
 pub unsafe fn frame_marks() -> Result<(), Refused> {
-    let settings: u32 = unsafe { game_read(SETTINGS_RVA) };
+    let settings: u32 = crate::marks::setup::SETTINGS.pointer.get();
     if settings == 0 {
         return Err(BadInput("no marks settings").into());
     }
@@ -51,6 +50,7 @@ pub unsafe fn frame_marks() -> Result<(), Refused> {
         for (from, to) in COPIES {
             game_write(to, ((settings + from) as *const u32).read_unaligned());
         }
+        CLOCK.settings_copies[0].set(((settings + 0x18) as *const u32).read_unaligned());
         scale_vectors_by::scale_vectors_by();
         morph_object_points::morph_object_points()?;
         view_frame::view_frame()?;

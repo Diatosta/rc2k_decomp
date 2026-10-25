@@ -32,19 +32,16 @@
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::files::file_exists::file_exists;
 use crate::files::numbered_path::numbered_path_in_game;
-use crate::gfx::block::{game_addr, game_read, game_write};
 use crate::gfx::components_to_pixel::components_to_pixel;
-use crate::gfx::decoder::Slot as DecSlot;
+use crate::gfx::decoder::DECODER;
 use crate::gfx::fill_row_table::fill_row_table;
 use crate::gfx::glyph_builder::{
     DIRECT_COLOUR, Glyph, ONE_FILE, RUN_LENGTHS, RowTable, Sheet, WIDE_HEAD, WITH_ALPHA, append,
     backdrop_of, direct_pixel_size, table_of, transparent_of,
 };
-use crate::gfx::pcx::{
-    DECODED_HEIGHT_RVA, DECODED_WIDTH_RVA, FILE_HEIGHT_RVA, FILE_WIDTH_RVA, PALETTE_RVA,
-    PIXEL_BITS_RVA, PIXELS_RVA, PLANES_RVA, STRIDE_RVA,
-};
-use crate::gfx::picture::{FLAGS_RVA, picture};
+use crate::gfx::pcx::PCX;
+use crate::gfx::picture::picture;
+use crate::gfx::picture_store::PICTURE;
 use crate::gfx::pixel_format::PixelFormat;
 use crate::gfx::read_sheet::read_sheet;
 use crate::logfile::log_hex8::log_hex8;
@@ -54,30 +51,65 @@ use crate::logfile::log_write::log_write;
 use crate::logfile::write_line::level;
 use crate::memory::MemoryList;
 use crate::memory::take_from_list::{rewind_list, take_from_list};
+use crate::session::Dword;
+use crate::strings::compile_lexicon::LEXICON;
 
 // ---- game data ----
 
-pub const BUILDER_FLAGS_RVA: DecSlot = DecSlot::at(0x519118); // dword_519118
-const TEMPLATE_RVA: DecSlot = DecSlot::at(0x51911C); // template_
-const NUMBER_RVA: DecSlot = DecSlot::at(0x519120); // number
-/// dword_519148: the pixel layout a sheet of components is coded in.
-pub const FORMAT_RVA: DecSlot = DecSlot::at(0x519148);
-const BACKDROP_RVA: DecSlot = DecSlot::at(0x51914C); // dword_51914C
-const TRANSPARENT_RVA: DecSlot = DecSlot::at(0x519150); // dword_519150
-const SHEET_TABLE_RVA: DecSlot = DecSlot::at(0x519598); // dword_519598: the sheet's table, and
-const SHEET_TABLE_SIZE_RVA: DecSlot = DecSlot::at(0x51959C); // dword_51959C: its size
-const TABLE_LIST_RVA: DecSlot = DecSlot::at(0x5195A0); // dword_5195A0: the list given in ebx
-/// dword_5195A4, dword_5195A8: the table being built and its size so far.
-pub const TABLE_RVA: DecSlot = DecSlot::at(0x5195A4);
-pub const TABLE_SIZE_RVA: DecSlot = DecSlot::at(0x5195A8);
-const GLYPH_COUNT_RVA: DecSlot = DecSlot::at(0x5195B0); // dword_5195B0: the sheet's glyphs, and
-const GLYPH_BYTES_RVA: DecSlot = DecSlot::at(0x5195B4); // dword_5195B4: their records' bytes
-const PIXEL_SIZE_RVA: DecSlot = DecSlot::at(0x5195CC); // dword_5195CC
-/// g_lexiconMemory (stru_519558): the builder's work memory, which its callers take.
-pub const WORK_MEMORY_RVA: DecSlot = DecSlot::at(0x519558);
+/// IDA's address of the sheet builder's variables.
+pub const START: usize = 0x519598;
+/// Their length.
+pub const LEN: usize = 0x5195D4 - START;
+
+/// The sheet and table being built.
+#[repr(C)]
+pub struct SheetVars {
+    /// `dword_519598`: the sheet's table, and
+    pub sheet_table: Dword,
+    /// `dword_51959C`: its size.
+    pub sheet_table_size: Dword,
+    /// `dword_5195A0`: the list given in ebx.
+    pub table_list: Dword,
+    /// `g_builtTable` (`dword_5195A4`): the table being built.
+    pub table: Dword,
+    /// `g_builtTableSize` (`dword_5195A8`): its size so far.
+    pub table_size: Dword,
+    /// `0x5195AC`: nothing reads or writes it (a gap).
+    pub _gap_14: Dword,
+    /// `g_sheetGlyphCount` (`dword_5195B0`): the sheet's glyphs, and
+    pub glyph_count: Dword,
+    /// `g_sheetGlyphBytes` (`dword_5195B4`): their records' bytes.
+    pub glyph_bytes: Dword,
+    /// `dword_5195B8` .. `dword_5195C8`: nothing reads or writes them (a gap).
+    pub _gap_20: [Dword; 5],
+    /// `g_glyphPixelSize` (`dword_5195CC`).
+    pub pixel_size: Dword,
+    /// `g_alphaSheetLoaded` (`dword_5195D0`): 1 = the sheet read last was an alpha sheet,
+    /// kept for the next one.
+    pub alpha_loaded: Dword,
+}
+
+/// The sheet builder's variables; the first values are the image's (all zero).
+pub static SHEET: SheetVars = SheetVars {
+    sheet_table: Dword::new(0),
+    sheet_table_size: Dword::new(0),
+    table_list: Dword::new(0),
+    table: Dword::new(0),
+    table_size: Dword::new(0),
+    _gap_14: Dword::new(0),
+    glyph_count: Dword::new(0),
+    glyph_bytes: Dword::new(0),
+    _gap_20: [const { Dword::new(0) }; 5],
+    pixel_size: Dword::new(0),
+    alpha_loaded: Dword::new(0),
+};
+
+/// Where the block is (`moved::MOVED`'s home for IDA 0x519598).
+pub fn home() -> usize {
+    &SHEET as *const SheetVars as usize
+}
+
 const RECORD_HEAD: u32 = 0x1C;
-/// dword_5195D0: 1 = the sheet read last was an alpha sheet, kept for the next one.
-const ALPHA_LOADED_RVA: DecSlot = DecSlot::at(0x5195D0);
 /// Half the picture buffer: where a sheet lies, and what an alpha sheet is kept behind.
 const HALF_PICTURE_DWORDS: usize = 0x3A980;
 
@@ -97,14 +129,14 @@ unsafe fn log_sheet(path: *const u8, image: bool, backdrop: u32, transparent: u3
     unsafe {
         text(b"Extracting: PCX\0", false);
         log_write(path, false, 1);
-        log_int(game_read(FILE_WIDTH_RVA), false, 1);
-        log_int(game_read(FILE_HEIGHT_RVA), false, 1);
-        log_int(game_read::<i32>(PLANES_RVA).wrapping_mul(8), true, 1);
+        log_int(PCX.file_width.get() as i32, false, 1);
+        log_int(PCX.file_height.get() as i32, false, 1);
+        log_int((PCX.planes.get() as i32).wrapping_mul(8), true, 1);
         text(b"Extracting:\0", false);
         text(if image { b"IMAGE\0" } else { b"ALPHA\0" }, false);
-        log_int(game_read(DECODED_WIDTH_RVA), false, 1);
-        log_int(game_read(DECODED_HEIGHT_RVA), false, 1);
-        log_int(game_read(PIXEL_BITS_RVA), false, 1);
+        log_int(DECODER.width.get() as i32, false, 1);
+        log_int(DECODER.height.get() as i32, false, 1);
+        log_int(DECODER.pixel_bits.get() as i32, false, 1);
         text(b"backdrop=\0", false);
         log_hex8(backdrop, false, 1);
         text(b"transparent=\0", false);
@@ -167,7 +199,7 @@ unsafe fn log_glyph(glyph: &Glyph, number: u32, flags: u32, pixel_size: u32) {
 /// becomes part of it.
 unsafe fn append_to_table(sheet: u32, size: u32) -> Result<(), Refused> {
     unsafe {
-        let (table, held): (u32, u32) = (game_read(TABLE_RVA), game_read(TABLE_SIZE_RVA));
+        let (table, held): (u32, u32) = (SHEET.table.get(), SHEET.table_size.get());
         if level() as i32 >= 3 {
             text(b"Appending:\0", false);
             log_hex8(table, false, 1);
@@ -186,7 +218,7 @@ unsafe fn append_to_table(sheet: u32, size: u32) -> Result<(), Refused> {
         let mut joined = std::slice::from_raw_parts(table as *const u8, held as usize).to_vec();
         append(&mut joined, more)?;
         std::ptr::copy(joined.as_ptr(), table as *mut u8, joined.len());
-        game_write(TABLE_SIZE_RVA, joined.len() as u32);
+        SHEET.table_size.set(joined.len() as u32);
         Ok(())
     }
 }
@@ -196,34 +228,34 @@ unsafe fn append_to_table(sheet: u32, size: u32) -> Result<(), Refused> {
 /// either way.
 unsafe fn read_alpha_sheet(template: *const u8) -> Result<(), Refused> {
     unsafe {
-        game_write(ALPHA_LOADED_RVA, 0u32);
-        let flags: u32 = game_read(BUILDER_FLAGS_RVA);
+        SHEET.alpha_loaded.set(0u32);
+        let flags: u32 = DECODER.builder_flags.get();
         if flags & ONE_FILE != 0 {
             return Err(fatal(0x80E4_F411, ""));
         }
-        let number: u32 = game_read(NUMBER_RVA);
+        let number: u32 = DECODER.number.get();
         let path = numbered_path_in_game(template, number)?;
         if file_exists(path)? && read_sheet(path)? {
-            if game_read::<u32>(FLAGS_RVA) & 0x100 == 0 {
+            if PICTURE.flags.get() & 0x100 == 0 {
                 return Err(fatal(
                     0x80E4_F412,
                     "Component colour/alpha files must be 8bit",
                 ));
             }
             let flags = flags & !(DIRECT_COLOUR | WIDE_HEAD);
-            game_write(PIXEL_SIZE_RVA, 1u32);
-            game_write(BUILDER_FLAGS_RVA, flags);
+            SHEET.pixel_size.set(1u32);
+            DECODER.builder_flags.set(flags);
             fill_row_table(
-                game_read(PIXELS_RVA),
-                game_read(STRIDE_RVA),
-                game_read(DECODED_HEIGHT_RVA),
+                DECODER.pixels.get(),
+                DECODER.stride.get(),
+                DECODER.height.get(),
             )?;
             let mut convert = |components: u32| components;
             let sheet = Sheet {
                 flags,
                 pixel_size: 1,
-                width: game_read(DECODED_WIDTH_RVA),
-                height: game_read(DECODED_HEIGHT_RVA),
+                width: DECODER.width.get(),
+                height: DECODER.height.get(),
                 backdrop: 0,
                 transparent: 0,
                 convert: &mut convert,
@@ -234,21 +266,21 @@ unsafe fn read_alpha_sheet(template: *const u8) -> Result<(), Refused> {
                 return Err(BadInput("a sheet without columns").into());
             }
             let backdrop = backdrop_of(&sheet);
-            game_write(BACKDROP_RVA, backdrop);
-            let transparent = transparent_of(flags, backdrop, PALETTE_RVA);
-            game_write(TRANSPARENT_RVA, transparent);
+            DECODER.backdrop.set(backdrop);
+            let transparent = transparent_of(flags, backdrop, &DECODER.palette);
+            DECODER.transparent.set(transparent);
             if level() as i32 >= 3 {
                 let path = numbered_path_in_game(template, number)?;
                 log_sheet(path, false, backdrop, transparent);
             }
-            game_write(ALPHA_LOADED_RVA, 1u32);
+            SHEET.alpha_loaded.set(1u32);
             let pixels = picture() as *mut u32;
             if pixels.is_null() {
                 return Err(BadInput("no picture buffer").into());
             }
             std::ptr::copy(pixels, pixels.add(HALF_PICTURE_DWORDS), HALF_PICTURE_DWORDS);
         }
-        game_write(NUMBER_RVA, number.wrapping_add(1));
+        DECODER.number.set(number.wrapping_add(1));
         Ok(())
     }
 }
@@ -258,19 +290,19 @@ pub unsafe fn build_glyphs(template: *const u8, list: *mut MemoryList) -> Result
         if template.is_null() {
             return Err(BadInput("no path for the sheets").into());
         }
-        let work = game_addr(WORK_MEMORY_RVA) as *mut MemoryList;
-        game_write(TEMPLATE_RVA, template as u32);
-        game_write(TABLE_LIST_RVA, list as u32);
-        game_write(NUMBER_RVA, 0u32);
+        let work = LEXICON.memory.as_ptr();
+        DECODER.template.set(template as u32);
+        SHEET.table_list.set(list as u32);
+        DECODER.number.set(0u32);
         loop {
-            if game_read::<u32>(BUILDER_FLAGS_RVA) & WITH_ALPHA != 0 {
+            if DECODER.builder_flags.get() & WITH_ALPHA != 0 {
                 read_alpha_sheet(template)?;
             }
-            let mut flags: u32 = game_read(BUILDER_FLAGS_RVA);
+            let mut flags: u32 = DECODER.builder_flags.get();
             let path = if flags & ONE_FILE != 0 {
                 template
             } else {
-                let path = numbered_path_in_game(template, game_read(NUMBER_RVA))?;
+                let path = numbered_path_in_game(template, DECODER.number.get())?;
                 if !file_exists(path)? {
                     return Ok(());
                 }
@@ -283,9 +315,9 @@ pub unsafe fn build_glyphs(template: *const u8, list: *mut MemoryList) -> Result
             let mut pixel_size = 1;
             flags &= !(DIRECT_COLOUR | WIDE_HEAD);
             let mut format = None;
-            if game_read::<u32>(FLAGS_RVA) & 0x100 == 0 {
+            if PICTURE.flags.get() & 0x100 == 0 {
                 flags |= DIRECT_COLOUR | WIDE_HEAD;
-                let layout = game_read::<u32>(FORMAT_RVA) as *const PixelFormat;
+                let layout = DECODER.format.get() as *const PixelFormat;
                 if layout.is_null() {
                     return Err(BadInput("no pixel layout for a sheet of components").into());
                 }
@@ -293,12 +325,12 @@ pub unsafe fn build_glyphs(template: *const u8, list: *mut MemoryList) -> Result
                 pixel_size = direct_pixel_size(&layout);
                 format = Some(layout);
             }
-            game_write(BUILDER_FLAGS_RVA, flags);
-            game_write(PIXEL_SIZE_RVA, pixel_size);
+            DECODER.builder_flags.set(flags);
+            SHEET.pixel_size.set(pixel_size);
             fill_row_table(
-                game_read(PIXELS_RVA),
-                game_read(STRIDE_RVA),
-                game_read(DECODED_HEIGHT_RVA),
+                DECODER.pixels.get(),
+                DECODER.stride.get(),
+                DECODER.height.get(),
             )?;
 
             let mut convert = |components: u32| match &format {
@@ -308,31 +340,31 @@ pub unsafe fn build_glyphs(template: *const u8, list: *mut MemoryList) -> Result
             let mut sheet = Sheet {
                 flags,
                 pixel_size,
-                width: game_read(DECODED_WIDTH_RVA),
-                height: game_read(DECODED_HEIGHT_RVA),
+                width: DECODER.width.get(),
+                height: DECODER.height.get(),
                 backdrop: 0,
                 transparent: 0,
                 convert: &mut convert,
                 pixels: &mut RowTable,
-                soften: flags & WITH_ALPHA != 0 && game_read::<u32>(ALPHA_LOADED_RVA) != 1,
+                soften: flags & WITH_ALPHA != 0 && SHEET.alpha_loaded.get() != 1,
             };
             if sheet.width == 0 {
                 return Err(BadInput("a sheet without columns").into());
             }
             sheet.backdrop = backdrop_of(&sheet);
-            game_write(BACKDROP_RVA, sheet.backdrop);
-            sheet.transparent = transparent_of(flags, sheet.backdrop, PALETTE_RVA);
-            game_write(TRANSPARENT_RVA, sheet.transparent);
+            DECODER.backdrop.set(sheet.backdrop);
+            sheet.transparent = transparent_of(flags, sheet.backdrop, &DECODER.palette);
+            DECODER.transparent.set(sheet.transparent);
             let logging = level() as i32 >= 3;
             if logging {
                 // The original makes the path anew for the line.
                 let path = match flags & ONE_FILE {
-                    0 => numbered_path_in_game(template, game_read(NUMBER_RVA))?,
+                    0 => numbered_path_in_game(template, DECODER.number.get())?,
                     _ => template,
                 };
                 log_sheet(path, true, sheet.backdrop, sheet.transparent);
             }
-            if flags & WITH_ALPHA != 0 && game_read::<u32>(ALPHA_LOADED_RVA) == 1 {
+            if flags & WITH_ALPHA != 0 && SHEET.alpha_loaded.get() == 1 {
                 // `sub_4124E9`: the kept sheet's low four bits become the top four here.
                 if flags & DIRECT_COLOUR != 0 {
                     return Err(fatal(
@@ -364,16 +396,16 @@ pub unsafe fn build_glyphs(template: *const u8, list: *mut MemoryList) -> Result
                     log_glyph(glyph, number as u32 + 1, flags, pixel_size);
                 }
             }
-            game_write(GLYPH_COUNT_RVA, glyphs.len() as u32);
-            game_write(GLYPH_BYTES_RVA, bytes);
+            SHEET.glyph_count.set(glyphs.len() as u32);
+            SHEET.glyph_bytes.set(bytes);
 
             let table = table_of(&glyphs);
             let size = table.len() as u32;
             let Some(place) = take_from_list(work, size)? else {
                 return Err(fatal(0x80E4_8011, ""));
             };
-            game_write(SHEET_TABLE_SIZE_RVA, size);
-            game_write(SHEET_TABLE_RVA, place);
+            SHEET.sheet_table_size.set(size);
+            SHEET.sheet_table.set(place);
             std::ptr::copy(table.as_ptr(), place as *mut u8, table.len());
             if take_from_list(list, size)?.is_none() {
                 return Err(fatal(0x80E4_8012, ""));
@@ -383,7 +415,27 @@ pub unsafe fn build_glyphs(template: *const u8, list: *mut MemoryList) -> Result
             if flags & ONE_FILE != 0 {
                 return Ok(());
             }
-            game_write(NUMBER_RVA, game_read::<u32>(NUMBER_RVA).wrapping_add(1));
+            DECODER.number.set(DECODER.number.get().wrapping_add(1));
         }
+    }
+}
+
+#[cfg(test)]
+mod block_tests {
+    use super::*;
+    use core::mem::offset_of;
+
+    #[test]
+    fn first_values_are_the_games() {
+        crate::gfx::first_values_are_the_games(&SHEET, START, START + LEN);
+    }
+
+    #[test]
+    fn moved_knows_the_block() {
+        assert_eq!(offset_of!(SheetVars, table), 0x5195A4 - START);
+        assert_eq!(offset_of!(SheetVars, glyph_count), 0x5195B0 - START);
+        assert_eq!(offset_of!(SheetVars, pixel_size), 0x5195CC - START);
+        assert_eq!(crate::moved::place(START), SHEET.sheet_table.addr());
+        assert_eq!(crate::moved::place(0x5195D0), SHEET.alpha_loaded.addr());
     }
 }

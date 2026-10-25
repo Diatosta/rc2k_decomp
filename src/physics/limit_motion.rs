@@ -74,8 +74,8 @@ pub unsafe fn limit_motion() {
     }
     if bad {
         unsafe {
-            log_write(game_addr(rva(0x4DBB2C)) as *const u8, false, 1);
-            log_write(game_addr(rva(0x4DBB39)) as *const u8, false, 1);
+            log_write(c"*** INFINITY".as_ptr() as usize as *const u8, false, 1);
+            log_write(c"[car0.newxspd] =".as_ptr() as usize as *const u8, false, 1);
             for k in 0..3usize {
                 log_float(f32::from_bits(g(0x71A170 + 4 * k)), 5, k == 2, 1);
             }

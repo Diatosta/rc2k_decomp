@@ -20,6 +20,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::marks::emitters::*;
 use crate::marks::jitter_point::jitter_point;
+use crate::marks::setup::CLOCK;
 use crate::marks::store::{Slot, game_read, game_write};
 use crate::math::x87;
 use crate::scene::matrix3::{extended, rounded};
@@ -27,7 +28,6 @@ use crate::scene::matrix3::{extended, rounded};
 const LEVEL_RVA: Slot = Slot::at(0x93A1CE); // dword_93A1CE
 const MOTION_RVA: Slot = Slot::at(0x93A1C2); // dword_93A1C2 .. dword_93A1CA
 const POINT_RVA: Slot = Slot::at(0x93A1B6); // flt_93A1B6 .. flt_93A1BE
-const STEP_RVA: Slot = Slot::at(0x764FE0); // flt_764FE0
 const SIZE_RVA: Slot = Slot::at(0x9356C0); // dword_9356C0
 const LIVES_RVA: Slot = Slot::at(0x939B86); // dword_939B86: by the level
 const LEVELS: u32 = 9;
@@ -134,7 +134,7 @@ pub unsafe fn emit_twin(set: &TwinSet, object: u32) -> Result<(), Refused> {
             .map(|(a, k)| x87::mul_80(a, game_read(k)))
             .collect::<Vec<_>>();
         let (moved, _) = jitter_point([extended(game_read(set.spread)), row[2], row[1], row[0]]);
-        let step: u32 = game_read(STEP_RVA);
+        let step: u32 = CLOCK.reciprocal.bits();
         for n in 0..3 {
             put(
                 0x2C + 4 * n as u32,

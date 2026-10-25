@@ -2,13 +2,12 @@
 //! carousel's entries, and the carousel turned to the next or the previous car.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, game_write, rva};
+use crate::menu::cars_store::CAR_TABLE;
+use crate::menu::event_store::EVENT_STATE;
+use crate::menu::loop_store::LOOP_FLAGS;
 use crate::menu::player::{PLAYERS, player_at};
 use crate::menu::state_store::MENU_STATE;
-use crate::menu::take_shown_car::{CURRENT_PLAYER_RVA, SHOWN_CAR_RVA};
 
-pub const LAST_ENTRY_RVA: usize = rva(0x75649C); // dword_75649C: the entries' last index
-pub const CHOSEN_RVA: usize = rva(0x755561); // dword_755561: set to 0 by the turns
 const MOST_ENTRIES: u32 = 0x100;
 
 /// `menu::find_player_car`: the front of the carousel and the shown car the index of the
@@ -17,7 +16,7 @@ const MOST_ENTRIES: u32 = 0x100;
 /// entries, or entries without their end within 0x100.
 pub unsafe fn find_player_car() -> Result<(), Refused> {
     unsafe {
-        let current: u32 = game_read(CURRENT_PLAYER_RVA);
+        let current: u32 = EVENT_STATE.current_player.get();
         let p = player_at(current);
         if current >= PLAYERS || p == 0 {
             return Err(BadInput("a current player past the four").into());
@@ -43,7 +42,7 @@ pub unsafe fn find_player_car() -> Result<(), Refused> {
         }
         let found = rc2k_core::menu::cars::find_car(&cars, car);
         MENU_STATE.carousel.front.set(found);
-        game_write(SHOWN_CAR_RVA, found);
+        EVENT_STATE.shown_car.set(found);
     }
     Ok(())
 }
@@ -57,26 +56,25 @@ pub unsafe fn find_player_car() -> Result<(), Refused> {
 unsafe fn turn(on: bool) {
     use rc2k_core::menu::cars::{Carousel, turn_carousel};
     use rc2k_core::menu::navigation::Turn;
-    unsafe {
-        let c = turn_carousel(
-            Carousel {
-                turn: Turn {
-                    count: MENU_STATE.carousel.count.get() as i32,
-                    value: MENU_STATE.carousel.front.get() as i32,
-                    way: MENU_STATE.carousel.direction.get(),
-                    step: MENU_STATE.carousel.angle.get(),
-                },
-                shown: game_read(SHOWN_CAR_RVA),
-                last: game_read(LAST_ENTRY_RVA),
+
+    let c = turn_carousel(
+        Carousel {
+            turn: Turn {
+                count: MENU_STATE.carousel.count.get() as i32,
+                value: MENU_STATE.carousel.front.get() as i32,
+                way: MENU_STATE.carousel.direction.get(),
+                step: MENU_STATE.carousel.angle.get(),
             },
-            on,
-        );
-        MENU_STATE.carousel.front.set(c.turn.value as u32);
-        MENU_STATE.carousel.direction.set(c.turn.way);
-        MENU_STATE.carousel.angle.set(c.turn.step);
-        game_write(SHOWN_CAR_RVA, c.shown);
-        game_write(CHOSEN_RVA, 0u32);
-    }
+            shown: EVENT_STATE.shown_car.get(),
+            last: CAR_TABLE.last_car.get(),
+        },
+        on,
+    );
+    MENU_STATE.carousel.front.set(c.turn.value as u32);
+    MENU_STATE.carousel.direction.set(c.turn.way);
+    MENU_STATE.carousel.angle.set(c.turn.step);
+    EVENT_STATE.shown_car.set(c.shown);
+    LOOP_FLAGS.back.set(0u32);
 }
 
 pub unsafe fn next_choice_car() {

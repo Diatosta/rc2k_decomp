@@ -1,18 +1,42 @@
-//! The PNG decoder's file (pointer, length, memory list) (phase 5, `notes/conversion.md`): IDA 0x5BEC30 .. 0x5BEC48 out of RAL.EXE's image, one block
-//! with the image's layout (`gfx::block`): an address `X` of IDA is at `base() + (X - START)`;
-//! a `Slot` is such an address, checked against the block.
+//! The PNG decoder's file, out of RAL.EXE's image (phase 5; typed in phase 7,
+//! `notes/conversion.md`): IDA 0x5BEC30 .. 0x5BEC48. `read_png` reads the file into memory
+//! it takes from the list kept here, and gives the list back on every way out.
 
-crate::region!(
-    Png,
-    STORE,
-    0x5BEC30,
-    0x5BEC48,
-    crate::gfx::png_file_data::RUNS
-);
+use crate::memory::MemoryList;
+use crate::session::{Dword, Shared};
 
+/// IDA's address of the block's first byte.
 pub const START: usize = 0x5BEC30;
+/// The block's length.
+pub const LEN: usize = 0x5BEC48 - START;
 
-pub type Slot = crate::gfx::block::Slot<Png>;
+/// The file being decoded.
+#[repr(C)]
+pub struct PngFile {
+    /// `dword_5BEC30`: the file's memory.
+    pub file: Dword,
+    /// `dword_5BEC34`: the file's length.
+    pub length: Dword,
+    /// `dword_5BEC38`: the list the file's memory is on (16 bytes).
+    pub memory: Shared<MemoryList>,
+}
+
+/// The file; the first values are the image's.
+pub static PNG_FILE: PngFile = PngFile {
+    file: Dword::new(0),
+    length: Dword::new(0),
+    memory: Shared::new(MemoryList {
+        head: 0,
+        total: 0,
+        cursor: 0,
+        remaining: 0,
+    }),
+};
+
+/// Where the block is (`moved::MOVED`'s home for IDA 0x5BEC30).
+pub fn home() -> usize {
+    &PNG_FILE as *const PngFile as usize
+}
 
 #[cfg(test)]
 mod tests {
@@ -20,12 +44,12 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::block::first_values_are_the_games::<Png>(&STORE);
+        crate::gfx::first_values_are_the_games(&PNG_FILE, START, START + LEN);
     }
 
     #[test]
     fn moved_knows_the_block() {
-        assert_eq!(crate::moved::place(START), STORE.addr());
-        assert_eq!(crate::moved::place(START + LEN - 1), STORE.addr() + LEN - 1);
+        assert_eq!(crate::moved::place(START), PNG_FILE.file.addr());
+        assert_eq!(crate::moved::place(0x5BEC38), PNG_FILE.memory.addr());
     }
 }

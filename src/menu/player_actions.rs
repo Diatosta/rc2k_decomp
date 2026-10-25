@@ -22,27 +22,20 @@
 //! Refuses (before anything) no current player (or one past the four).
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, rva};
+use crate::menu::event_store::EVENT_STATE;
+use crate::menu::keys_store::KEY_TABLES;
+use crate::menu::pages_store::MENU_PAGES;
 use crate::menu::screen_loop::Carried;
 use crate::menu::state_store::MENU_STATE;
 use rc2k_core::menu::player::Player;
 use rc2k_core::menu::steps;
 
-const CURRENT_PLAYER_RVA: usize = rva(0x75598C); // g_currentPlayer
-const KEYS_RVA: usize = rva(0x7555B1); // unk_7555B1: 0x2C bytes
-const SCORES_PAGE_RVA: usize = rva(0x755240); // dword_755240
-const REPLAY_RANGE_RVA: usize = rva(0x755248); // dword_755248
 const CAPTION_RVA: usize = rva(0xA8BE54); // g_captionText
 
-fn g(a: usize) -> u32 {
-    unsafe { game_read(a) }
-}
-fn p(a: usize, v: u32) {
-    unsafe { game_write(a, v) }
-}
 /// The current player's record.
 fn player() -> Result<u32, Refused> {
-    match crate::menu::player::player_at(g(CURRENT_PLAYER_RVA)) {
+    match crate::menu::player::player_at(EVENT_STATE.current_player.get()) {
         0 => Err(BadInput("no current player (or one past the four)").into()),
         p => Ok(p),
     }
@@ -65,7 +58,7 @@ fn with_player<R>(f: impl FnOnce(&mut Player) -> R) -> Result<(u32, R), Refused>
 }
 
 pub fn keep_player_keys() -> Result<(), Refused> {
-    let controls = unsafe { game_read(KEYS_RVA) };
+    let controls = KEY_TABLES.controls.read();
     with_player(|p| p.controls_50 = controls)?;
     Ok(())
 }
@@ -96,32 +89,28 @@ pub fn toggle_player_3c() -> Result<(), Refused> {
 }
 
 pub fn next_scores_page() {
-    p(
-        SCORES_PAGE_RVA,
-        steps::scores_page(g(SCORES_PAGE_RVA), true),
-    );
+    MENU_PAGES
+        .scores_page
+        .set(steps::scores_page(MENU_PAGES.scores_page.get(), true));
 }
 
 pub fn previous_scores_page() {
-    p(
-        SCORES_PAGE_RVA,
-        steps::scores_page(g(SCORES_PAGE_RVA), false),
-    );
+    MENU_PAGES
+        .scores_page
+        .set(steps::scores_page(MENU_PAGES.scores_page.get(), false));
 }
 
 pub fn previous_replay_range() {
-    p(
-        REPLAY_RANGE_RVA,
-        steps::replay_range(g(REPLAY_RANGE_RVA), false),
-    );
+    MENU_PAGES
+        .replay_page
+        .set(steps::replay_range(MENU_PAGES.replay_page.get(), false));
     unsafe { crate::screens::best_scores::replay_range_caption() };
 }
 
 pub fn next_replay_range() {
-    p(
-        REPLAY_RANGE_RVA,
-        steps::replay_range(g(REPLAY_RANGE_RVA), true),
-    );
+    MENU_PAGES
+        .replay_page
+        .set(steps::replay_range(MENU_PAGES.replay_page.get(), true));
     unsafe { crate::screens::best_scores::replay_range_caption() };
 }
 
@@ -149,10 +138,10 @@ pub fn leave_with_carry() {
 /// `menu::player_N_car_specs`: the car specifications screen with player `n` the current
 /// one. `c` the carried values the item gets.
 pub unsafe fn player_car_specs(n: u32, c: &Carried) -> Result<(), Refused> {
-    let kept = g(CURRENT_PLAYER_RVA);
-    p(CURRENT_PLAYER_RVA, n);
+    let kept = EVENT_STATE.current_player.get();
+    EVENT_STATE.current_player.set(n);
     let done = unsafe { crate::menu::show_car_specs::show_car_specs(c) };
-    p(CURRENT_PLAYER_RVA, kept);
+    EVENT_STATE.current_player.set(kept);
     done
 }
 

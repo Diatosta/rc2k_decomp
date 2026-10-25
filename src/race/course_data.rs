@@ -115,14 +115,7 @@ pub unsafe fn group_records_by_kind() -> Result<(), Refused> {
 const COURSE_PATH_RVA: usize = rva(0x60B02B); // "srclvls\level01\cdat00c"
 const FIRST_PART_RVA: usize = rva(0x5C6FC8); // dword_5C6FC8: the course memory's first part
 /// "loadlevel", "done", "next", "this", "then", "ok".
-const LOAD_LOG: [usize; 6] = [
-    rva(0x4DC487),
-    rva(0x4DC491),
-    rva(0x4DC496),
-    rva(0x4DC49B),
-    rva(0x4DC4A0),
-    rva(0x4DC4A5),
-];
+const LOAD_LOG: [&std::ffi::CStr; 6] = [c"loadlevel", c"done", c"next", c"this", c"then", c"ok"];
 const NOT_READ: crate::errors::FatalError = crate::errors::FatalError {
     code: 0x8065_0210,
     message: "",
@@ -130,7 +123,7 @@ const NOT_READ: crate::errors::FatalError = crate::errors::FatalError {
 
 /// A log line ("loadlevel" .. "ok").
 fn load_log(n: usize) {
-    unsafe { crate::logfile::log_write::log_write(game_addr(LOAD_LOG[n]) as *const u8, false, 1) };
+    unsafe { crate::logfile::log_write::log_write(LOAD_LOG[n].as_ptr().cast(), false, 1) };
 }
 
 /// `race::load_level` (0x4455FC): the course data (cdat 0) read into the course memory's

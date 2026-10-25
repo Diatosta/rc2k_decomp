@@ -14,55 +14,44 @@
 //!
 //! the x87 version stays for the Rust callers in unconverted code).
 
-use crate::marks::pong;
+use crate::marks::pong::{self, PONG, PONG_RULES};
 use crate::marks::pong_ball_hits::pong_ball_hits;
-use crate::marks::store::{Slot, game_read, game_write};
 use crate::math::x87;
+use crate::session::Float;
 
-const LIMITS_RVA: Slot = Slot::at(0x7691A6); // flt_7691A6 .. flt_7691C2
-
+/// The court's limits `flt_7691A6` .. (`PongRules::walls`), as bits.
 fn limit(n: usize) -> u32 {
-    unsafe { game_read(LIMITS_RVA + 4 * n) }
+    PONG_RULES.walls[n].bits()
 }
 
 /// The Rust version (see the header).
-pub unsafe fn move_pong_ball() {
-    unsafe {
-        for n in 0..2 {
-            let v = x87::add(game_read(pong::BALL[n]), game_read(pong::BALL_WAY[n]));
-            game_write(pong::BALL[n], v);
-        }
-        pong_ball_hits();
-        let flip = |r: Slot| game_write(r, game_read::<u32>(r) ^ 0x8000_0000);
-        if x87::compare_status(game_read(pong::BALL[0]), limit(0)) != 0 {
-            game_write(pong::BALL[0], x87::loaded(limit(1)));
-            flip(pong::BALL_WAY[0]);
-        }
-        let hit = pong::less_compare(
-            game_read(pong::BALL[0]),
-            limit(2),
-            game_read(pong::BALL_SIZE[0]),
-            Some(limit(3)),
-        );
-        if hit != 0 {
-            crate::marks::splines::reset_pong();
-        }
-        if x87::compare_status(game_read(pong::BALL[1]), limit(4)) != 0 {
-            game_write(pong::BALL[1], x87::loaded(limit(5)));
-            flip(pong::BALL_WAY[1]);
-        }
-        let hit = pong::less_compare(
-            game_read(pong::BALL[1]),
-            limit(6),
-            game_read(pong::BALL_SIZE[1]),
-            None,
-        );
-        if hit != 0 {
-            game_write(
-                pong::BALL[1],
-                x87::sub(limit(7), game_read(pong::BALL_SIZE[1])),
-            );
-            flip(pong::BALL_WAY[1]);
-        }
+pub fn move_pong_ball() {
+    let p = &PONG;
+    for n in 0..2 {
+        p.ball[n].set_bits(x87::add(p.ball[n].bits(), p.ball_way[n].bits()));
+    }
+    pong_ball_hits();
+    let flip = |r: &Float| r.set_bits(r.bits() ^ 0x8000_0000);
+    if x87::compare_status(p.ball[0].bits(), limit(0)) != 0 {
+        p.ball[0].set_bits(x87::loaded(limit(1)));
+        flip(&p.ball_way[0]);
+    }
+    let hit = pong::less_compare(
+        p.ball[0].bits(),
+        limit(2),
+        p.ball_size[0].bits(),
+        Some(limit(3)),
+    );
+    if hit != 0 {
+        crate::marks::splines::reset_pong();
+    }
+    if x87::compare_status(p.ball[1].bits(), limit(4)) != 0 {
+        p.ball[1].set_bits(x87::loaded(limit(5)));
+        flip(&p.ball_way[1]);
+    }
+    let hit = pong::less_compare(p.ball[1].bits(), limit(6), p.ball_size[1].bits(), None);
+    if hit != 0 {
+        p.ball[1].set_bits(x87::sub(limit(7), p.ball_size[1].bits()));
+        flip(&p.ball_way[1]);
     }
 }

@@ -19,8 +19,9 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, game_write, rva};
 use crate::menu::go_back;
+use crate::menu::loop_store::LOOP_FLAGS;
+use crate::menu::pages_store::MENU_PAGES;
 use crate::service::clear_repair_flags::clear_repair_flags;
 use crate::service::clear_repair_marks::clear_repair_marks;
 use crate::service::edit_gear_ratio::edit_gear_ratio;
@@ -31,14 +32,10 @@ use crate::service::pages::{
     BRAKE_BALANCE, ChangePage, GEAR_RATIO, RIDE_HEIGHT, STEERING_SENSITIVITY, SUSPENSION_STIFFNESS,
     TYRE,
 };
-use crate::service::read_setup_slot::{SETUP_FILE_RVA, SLOT_COUNT, read_setup_slot};
-use crate::service::state::{
-    ITEM_COUNT, MENU_ITEM_RVA, current_player, marks_ended, menu_item, repair_flag,
-};
+use crate::service::read_setup_slot::{SET_UPS, SLOT_COUNT, read_setup_slot};
+use crate::service::state::{ITEM_COUNT, current_player, marks_ended, menu_item, repair_flag};
 
 // ---- game data ----
-
-pub const SLOT_PAGE_RVA: usize = rva(0x755244); // dword_755244
 
 /// The slot the highlighted menu item stands for.
 /// A change page's editor (`confirm` its argument).
@@ -46,10 +43,7 @@ type Editor = unsafe fn(bool) -> Result<(), Refused>;
 
 pub fn highlighted_slot() -> u32 {
     // Converted: `rc2k_core::service::setups::highlighted_slot`.
-    rc2k_core::service::setups::highlighted_slot(
-        unsafe { game_read::<u32>(SLOT_PAGE_RVA) },
-        menu_item(),
-    )
+    rc2k_core::service::setups::highlighted_slot(MENU_PAGES.setup_slot_page.get(), menu_item())
 }
 
 // ---- Rust version ----
@@ -74,7 +68,7 @@ pub unsafe fn load_setup_slot() -> Result<(), Refused> {
 
         // Converted: `rc2k_core::service::setups` (`SetupValues`, `CONFIRM_ORDER`).
         use rc2k_core::service::setups::{CONFIRM_ORDER, EditPage, SetupValues};
-        let v = SetupValues::from_file(&game_read(SETUP_FILE_RVA));
+        let v = SetupValues::from_file(&SET_UPS.file.read());
         let in_car = |offset: u32| (player.wrapping_add(offset)) as *mut u32;
         TYRE.change.chosen.set(v.tyre);
         in_car(BRAKE_BALANCE.car_offset).write_unaligned(v.brake_balance);
@@ -100,11 +94,11 @@ pub unsafe fn load_setup_slot() -> Result<(), Refused> {
                 _ => (SUSPENSION_STIFFNESS, edit_suspension_stiffness),
             };
             if change.change.chosen.get() != change.change.installed.get() {
-                game_write(MENU_ITEM_RVA, change.item);
+                LOOP_FLAGS.item.set(change.item);
                 edit(true)?;
             }
         }
-        game_write(MENU_ITEM_RVA, highlighted);
+        LOOP_FLAGS.item.set(highlighted);
         go_back::go_back();
     }
     Ok(())

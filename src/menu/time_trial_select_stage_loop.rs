@@ -10,49 +10,56 @@
 //! Callers: `sub_48AE39`, `sub_48AFD0`, `sub_48B23D`, `sub_48B54B`, `sub_48B90F`.
 
 use crate::framework::rva;
+use crate::menu::champ_store::CHAMP_VIEW;
+use crate::menu::draw_lists_store::DRAW_LISTS;
+use crate::menu::flow_store::SCREEN_FLOW;
+use crate::menu::menus_store::MENUS;
+use crate::menu::option_work_store::OPTION_WORK;
+use crate::menu::pages_store::MENU_PAGES;
+use crate::menu::screen_items_store::{SCREEN_ITEMS, slot};
 use crate::menu::screen_loop::{Callee, List, Screen, Step};
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
 pub const SCREEN: Screen = Screen {
-    menu: rva(0x74873C),
-    saved_item: rva(0x747664),
+    menu: || MENUS.time_trial_select_stage.addr(),
+    saved_item: || &SCREEN_ITEMS.current[slot::TIME_TRIAL_SELECT_STAGE],
     lists: &[
         List {
-            pointer: rva(0x755504), // g_sceneList
-            table: rva(0x758FBE),
+            pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
+            table: || DRAW_LISTS.time_trial_select_stage_scene.addr(),
             run: false,
         },
         List {
-            pointer: rva(0x7554F8), // g_drawList
-            table: rva(0x758EA6),
+            pointer: || &SCREEN_FLOW.draw_list, // g_drawList
+            table: || DRAW_LISTS.time_trial_select_stage_draw.addr(),
             run: false,
         },
         List {
-            pointer: rva(0x755500), // dword_755500
-            table: rva(0x759326),
+            pointer: || &SCREEN_FLOW.setup_list, // dword_755500
+            table: || DRAW_LISTS.time_trial_select_stage_setup.addr(),
             run: true,
         },
         List {
-            pointer: rva(0x7554FC), // g_overlayList
-            table: rva(0x7592DA),
+            pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
+            table: || DRAW_LISTS.time_trial_select_stage_overlay.addr(),
             run: false,
         },
     ],
     first_frame_lists: None,
     frame_callback: rva(0x474D4B),
     later_frame_callback: None,
-    before: &[Step::Write(rva(0x75524C), 0x0)],
+    before: &[Step::Write(|| &MENU_PAGES.yes_no_answer, 0x0)],
     set_up_first: &[],
     prepare: &[],
-    after_lists: &[Step::Write(rva(0x755700), 0x1)],
+    after_lists: &[Step::Write(|| &CHAMP_VIEW.stage_mode, 0x1)],
     background: &[Step::Call(Callee::DrawStageMap)],
     after_first_frame: &[],
     confirm: Some(&[]),
     ask_also_if: None,
     confirmed: &[],
     unasked_skips_save: true,
-    after: &[Step::Write(rva(0x7556A4), 0x6F)],
+    after: &[Step::Write(|| &OPTION_WORK.menu_sound, 0x6F)],
     escape_leaves: false,
     each_frame: &[],
     short_action_check: false,

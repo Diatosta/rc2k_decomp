@@ -26,8 +26,8 @@
 use crate::errors::Refused;
 use crate::session::MACHINE;
 use crate::sound::sample_settings::OWN;
+use crate::sound::sets_store::RACE_SOUND_SETS;
 use crate::sound::store::STAGE_SOUNDS;
-use crate::sound::turn_parts::REQUEST;
 
 /// The one-off sounds: the flag's index in `once` and the sound.
 const ONE_OFFS: [(usize, u32); 3] = [(0, 0x1AB), (1, 0x1AC), (2, 0x1AD)];
@@ -37,10 +37,6 @@ const RANDOMS: [(usize, u32); 2] = [(0, 0x1AE), (1, 0x1AF)];
 const ONE: u32 = 0x3F80_0000;
 const MINUS_ONE: u32 = 0xBF80_0000;
 
-fn p(x: usize, v: u32) {
-    unsafe { crate::store::ida_write(x, v) }
-}
-
 // ---- Rust version ----
 
 /// The stage's own sounds for the turn.
@@ -48,8 +44,8 @@ pub fn stage_sounds() -> Result<(), Refused> {
     use crate::sound::turn_parts::play;
     let request = crate::sound::turn_parts::request();
     let stage = &STAGE_SOUNDS;
-    p(REQUEST + 0x20, ONE);
-    p(REQUEST + 0x24, ONE);
+    RACE_SOUND_SETS.request.set_u32(0x20, ONE);
+    RACE_SOUND_SETS.request.set_u32(0x24, ONE);
     for (n, sound) in ONE_OFFS {
         if stage.once[n].get() == 1 {
             stage.once[n].set(0);
@@ -74,7 +70,9 @@ pub fn stage_sounds() -> Result<(), Refused> {
     }
     if slot {
         for k in 0..3 {
-            p(REQUEST + 0xC + 4 * k, stage.timed_place[k].bits());
+            RACE_SOUND_SETS
+                .request
+                .set_u32(0xC + 4 * k, stage.timed_place[k].bits());
         }
         let timed = &stage.timed_slot as *const _ as usize as u32;
         crate::sound::play_timed_slot::play_timed_slot(timed, request)?;

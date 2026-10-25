@@ -26,36 +26,21 @@
 //! are the original's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::rva;
-use crate::gfx::blit::Slot as BlitSlot;
-use crate::gfx::block::{game_addr, game_read, game_write};
+use crate::gfx::blit::BLIT;
 use crate::install::installer::{copy_picture, draw_text, lock, show, unlock};
+use crate::install::vars::INSTALLER_PAGES;
+use crate::install::vars::INSTALLER_RUN;
+use crate::strings::text_buffer::TEXT_BUFFER;
 
-const BAR_RVA: usize = rva(0x51D4A3); // dword_51D4A3: the bar's x, y, width, height
-const BAR_GLYPHS_LIST_RVA: usize = rva(0x51D483); // unk_51D483
-const BAR_GLYPHS_RVA: usize = rva(0x51BB3C); // g_installBarGlyphs
-const COPIED_RVA: usize = rva(0x51BAE8); // g_filesCopied
-const TO_COPY_RVA: usize = rva(0x51BAEC); // g_filesToCopy
-const CLIP_RIGHT_RVA: BlitSlot = BlitSlot::at(0x4F5040); // g_clipRight
-const TEXT_RVA: usize = rva(0x93E430); // text
-const FONT_RVA: usize = rva(0x51E6A4); // font
-const TEXTS_RVA: usize = rva(0x51D433); // unk_51D433: the copying page's two texts
-const FRAME_RVA: usize = rva(0x51D4B3); // unk_51D4B3: its frame
-
-fn a(x: usize) -> u32 {
-    game_addr(x) as u32
-}
-fn g(x: usize) -> u32 {
-    unsafe { game_read(x) }
-}
+const FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::HEADING_23;
 
 /// The bar's width, or the refusal of a count the original's `div` faults on.
 fn bar_width() -> Result<u32, Refused> {
-    let to_copy = g(TO_COPY_RVA);
+    let to_copy = INSTALLER_RUN.files_to_copy.get();
     if to_copy == 0 {
         return Err(BadInput("no files to copy: the original divides by 0").into());
     }
-    let width = g(COPIED_RVA) as u64 * 0x190 / to_copy as u64;
+    let width = INSTALLER_RUN.files_copied.get() as u64 * 0x190 / to_copy as u64;
     u32::try_from(width)
         .map_err(|_| BadInput("a bar width past 32 bits: the original's div faults").into())
 }
@@ -72,30 +57,36 @@ pub fn progress_frame() -> Result<bool, Refused> {
         // gfx::fill_rect: colour 0
         unsafe {
             crate::gfx::rect::fill_rect(
-                a(BAR_RVA),
+                INSTALLER_PAGES.bar.addr() as u32,
                 0,
                 crate::text::blend_font::BLENDED_PALETTE.addr() as u32,
             )
         }?;
-        let x = g(BAR_RVA);
-        let kept_clip: u32 = unsafe { game_read(CLIP_RIGHT_RVA) };
-        unsafe { game_write(CLIP_RIGHT_RVA, width.wrapping_add(x).wrapping_add(1)) };
+        let x = INSTALLER_PAGES.bar.get_u32(0);
+        let kept_clip: u32 = BLIT.clip.right.get();
+        BLIT.clip.right.set(width.wrapping_add(x).wrapping_add(1));
         crate::install::blit_glyph_list::blit_glyph_list(
             2,
-            a(BAR_GLYPHS_LIST_RVA),
+            INSTALLER_PAGES.bar_glyphs_list.addr() as u32,
             0,
             0,
-            g(BAR_GLYPHS_RVA),
+            INSTALLER_RUN.bar_glyphs.get(),
         )?;
-        unsafe { game_write(CLIP_RIGHT_RVA, kept_clip) };
+        BLIT.clip.right.set(kept_clip);
         let mut text = crate::strings::append_percent::append_percent(width >> 2);
         text.push(0);
-        unsafe { std::ptr::copy_nonoverlapping(text.as_ptr(), a(TEXT_RVA) as *mut u8, text.len()) };
+        unsafe {
+            std::ptr::copy_nonoverlapping(
+                text.as_ptr(),
+                TEXT_BUFFER.text.addr() as u32 as *mut u8,
+                text.len(),
+            )
+        };
         draw_text(
-            a(FONT_RVA),
-            a(TEXT_RVA),
+            FONT.addr() as u32,
+            TEXT_BUFFER.text.addr() as u32,
             x.wrapping_add(0xC8),
-            g(BAR_RVA + 4).wrapping_add(2),
+            INSTALLER_PAGES.bar.get_u32(4).wrapping_add(2),
         )?;
         unlock();
         carry = !show();
@@ -112,11 +103,16 @@ pub fn copying_frame() -> Result<bool, Refused> {
             continue;
         }
         copy_picture()?;
-        crate::install::draw_string_list::draw_string_list(2, a(TEXTS_RVA), 0, 0)?;
+        crate::install::draw_string_list::draw_string_list(
+            2,
+            INSTALLER_PAGES.texts.addr() as u32,
+            0,
+            0,
+        )?;
         // gfx::frame_rect: colour 0x2A
         unsafe {
             crate::gfx::rect::frame_rect(
-                a(FRAME_RVA),
+                INSTALLER_PAGES.frame.addr() as u32,
                 0,
                 0,
                 0x2A,

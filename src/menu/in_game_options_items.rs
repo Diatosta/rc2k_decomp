@@ -2,16 +2,14 @@
 //! hidden and shown by `menu::hide_in_game_options` and `menu::show_in_game_options`
 //! (IDA, 2026-10-15).
 
-use crate::framework::{game_addr, rva};
 use crate::menu::item_at::{ITEM_LEN, MENU_HEAD_LEN};
+use crate::menu::menus_store::MENUS;
 use rc2k_core::menu::items::{
     HIDDEN, IN_GAME_OPTIONS, Look, hidden_in_game_options, shown_in_game_option,
 };
 
-pub const MENU_RVA: usize = rva(0x750724); // off_750724
-
 pub fn item(n: u32) -> u32 {
-    game_addr(MENU_RVA) as u32 + MENU_HEAD_LEN + n * ITEM_LEN
+    MENUS.in_game_options.addr() as u32 + MENU_HEAD_LEN + n * ITEM_LEN
 }
 
 /// Item `n` given its look: +0x14, +0x48, +0x1C, in the original's order.

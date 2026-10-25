@@ -16,10 +16,10 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::rva;
-use crate::gfx::block::game_read;
 use crate::gfx::pixel_format::PixelFormat;
 use crate::gfx::surface::{BASE_RVA, BYTES_PER_PIXEL_RVA, PITCH_RVA};
 use crate::service::harness::Region;
+use crate::store::game_read;
 
 // ---- game data ----
 
@@ -110,7 +110,7 @@ pub unsafe fn blit_components(p: &Piece, to: &Target) -> Result<(), Refused> {
             let scratch =
                 rc2k_core::gfx::pixels::pack_row(row, out, width as usize, &format, words)?;
             if let Some(scratch) = scratch {
-                crate::gfx::block::game_write(crate::gfx::pixel_format::SCRATCH_RVA, scratch);
+                crate::gfx::formats::FORMATS.scratch.write(&scratch);
             }
             target = target.wrapping_add(to.pitch);
             source = source.wrapping_add(p.row_bytes);

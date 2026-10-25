@@ -7,9 +7,8 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::race::game_map::MAP;
 
-const PACKED_RVA: usize = rva(0x5BE9B5); // g_usePackedMaps
-const PACKED_2_RVA: usize = rva(0x5BE9B9); // dword_5BE9B9
 const EDITOR_RVA: usize = rva(0x621514); // dword_621514
 const DIRECTION_IN_RVA: usize = rva(0x623854); // dword_623854
 const DIRECTION_RVA: usize = rva(0x71B400); // g_stageDirection
@@ -34,11 +33,35 @@ const MARKER_OBJECT_RVA: usize = rva(0x621508); // dword_621508
 const CLEARED_RVA: [usize; 2] = [rva(0x719FD0), rva(0x719FD4)]; // dword_719FD0 / D4
 
 /// The step words ("LOADLEVEL_INIT : start" .. "finis"), in order.
-const WORDS: [usize; 28] = [
-    0x4DBE6E, 0x4DBE85, 0x4DBEA3, 0x4DBEC4, 0x4DBEE7, 0x4DBF03, 0x4DBF23, 0x4DBF45, 0x4DBF64,
-    0x4DBF87, 0x4DBFA7, 0x4DBFC7, 0x4DBFE6, 0x4DC004, 0x4DC021, 0x4DC040, 0x4DC05B, 0x4DC079,
-    0x4DC099, 0x4DC0B8, 0x4DC0DD, 0x4DC106, 0x4DC128, 0x4DC145, 0x4DC167, 0x4DC188, 0x4DC1A3,
-    0x4DC1C0,
+const WORDS: [&std::ffi::CStr; 28] = [
+    c"LOADLEVEL_INIT : start",
+    c"LOADLEVEL_INIT : objects_init",
+    c"LOADLEVEL_INIT : alloc coursemem",
+    c"LOADLEVEL_INIT : load texture info",
+    c"LOADLEVEL_INIT : load prefs",
+    c"LOADLEVEL_INIT : load errorlist",
+    c"LOADLEVEL_INIT : init ed textures",
+    c"LOADLEVEL_INIT : texturesalloc",
+    c"LOADLEVEL_INIT : initgametexinfbuf",
+    c"LOADLEVEL_INIT : locacurrcourse",
+    c"LOADLEVEL_INIT : clearsysplates",
+    c"LOADLEVEL_INIT : reloadobjects",
+    c"LOADLEVEL_INIT : setplatesall",
+    c"LOADLEVEL_INIT : loadgamemap",
+    c"LOADLEVEL_INIT : loadgamefonts",
+    c"LOADLEVEL_INIT : init mark",
+    c"LOADLEVEL_INIT : refresh init",
+    c"LOADLEVEL_INIT : skidmarks init",
+    c"LOADLEVEL_INIT : render3d init",
+    c"LOADLEVEL_INIT : render3d setcolours",
+    c"LOADLEVEL_INIT : render3d loadlightsdata",
+    c"LOADLEVEL_INIT : render3d initmud",
+    c"LOADLEVEL_INIT : getmatcrash",
+    c"SHAUNINITEVERYTHING : store norms",
+    c"LOADLEVEL_INIT : initcheckpoints",
+    c"loadlevel : init pacenotes",
+    c"LOADLEVEL_INIT : initoverlay",
+    c"LOADLEVEL_INIT : finis",
 ];
 
 /// Where the variables kept apart are: the log's indent and switch,
@@ -81,7 +104,7 @@ impl Steps {
     fn log(&mut self) {
         unsafe {
             crate::logfile::log_write::log_write(
-                game_addr(rva(WORDS[self.word])) as *const u8,
+                WORDS[self.word].as_ptr() as usize as *const u8,
                 true,
                 1,
             )
@@ -146,8 +169,8 @@ pub unsafe fn loadlevel_init() -> Result<(), Refused> {
     unsafe {
         s.log();
         s.indent(3);
-        game_write(PACKED_RVA, 1u32);
-        game_write(PACKED_2_RVA, (game_read::<u32>(EDITOR_RVA) == 0) as u32);
+        MAP.use_packed.set(1u32);
+        MAP.packed_2.set((game_read::<u32>(EDITOR_RVA) == 0) as u32);
         let mut direction: u32 = game_read(DIRECTION_IN_RVA);
         if [0x1F, 0x22, 0x51].contains(&game_read::<u32>(STAGE_RVA)) {
             direction ^= 1;

@@ -15,33 +15,36 @@
 //! Refuses, before anything is written: a missing player or a car without that pointer.
 
 use crate::errors::BadInput;
-use crate::framework::{game_addr, game_read, rva};
+use crate::menu::champ_store::CHAMP_VIEW;
+use crate::menu::event_store::EVENT_STATE;
+use crate::menu::flow_store::SCREEN_FLOW;
+use crate::menu::players_store::PLAYER_TABLE;
+use crate::menu::state_store::MENU_STATE;
+use crate::session::Dword;
 use std::ptr::copy_nonoverlapping;
 
 // ---- game data ----
 
 /// The seven variables at the start, in the order they are saved.
-pub const HEAD_RVAS: [usize; 7] = [
-    rva(0x755984), // dword_755984
-    rva(0x755950), // dword_755950
-    rva(0x755958), // index: the event's stage in its section
-    rva(0x75595C), // section
-    rva(0x755988), // dword_755988
-    rva(0x7556D0), // dword_7556D0
-    rva(0x75AB40), // dword_75AB40
-];
-const PLAYERS_RVA: usize = rva(0x75647C); // g_players[4]
+pub fn head() -> [&'static Dword; 7] {
+    [
+        &EVENT_STATE.player_count,
+        &EVENT_STATE.stages_done,
+        &EVENT_STATE.index, // the event's stage in its section
+        &EVENT_STATE.section,
+        &EVENT_STATE.event_kind,
+        &CHAMP_VIEW.event_mode,
+        &MENU_STATE.menus.class_mode,
+    ]
+}
 pub use rc2k_core::saves::savegame::{CAR_LEN, CARS, NAME_LEN, RECORDS_LEN};
-pub const CAR0_A_RVA: usize = rva(0x7554C0); // dword_7554C0 -> car 0 +0x14
-pub const CAR0_B_RVA: usize = rva(0x7554C4); // dword_7554C4 -> car 0 +0x274
 pub use rc2k_core::saves::savegame::{NAME_AT as NAME_OFFSET, NAME_POINTER as NAME_PTR_OFFSET};
-pub const RECORDS_RVA: usize = rva(0x73B674); // unk_73B674
 
 /// The four players, if every one is there and has its pointer at +0x18.
 pub fn cars() -> Result<[u32; CARS], BadInput> {
     let mut cars = [0u32; CARS];
     for (n, car) in cars.iter_mut().enumerate() {
-        *car = unsafe { ((game_addr(PLAYERS_RVA) as *const u32).add(n)).read_unaligned() };
+        *car = unsafe { ((PLAYER_TABLE.pointers[0].addr() as *const u32).add(n)).read_unaligned() };
         if *car == 0 {
             return Err(BadInput(
                 "a player is missing: the original reads through null",
@@ -63,18 +66,18 @@ pub unsafe fn gather_savegame(buffer: *mut u8) -> Result<(), BadInput> {
     // Converted: `rc2k_core::saves::savegame` (the state's layout).
     let cars = cars()?;
     unsafe {
-        for (n, at) in HEAD_RVAS.into_iter().enumerate() {
-            (buffer.add(4 * n) as *mut u32).write_unaligned(game_read(at));
+        for (n, at) in head().into_iter().enumerate() {
+            (buffer.add(4 * n) as *mut u32).write_unaligned(at.get());
         }
-        ((cars[0] + CAR0_A) as *mut u32).write_unaligned(game_read(CAR0_A_RVA));
-        ((cars[0] + CAR0_B) as *mut u32).write_unaligned(game_read(CAR0_B_RVA));
+        ((cars[0] + CAR0_A) as *mut u32).write_unaligned(SCREEN_FLOW.start_section.get());
+        ((cars[0] + CAR0_B) as *mut u32).write_unaligned(SCREEN_FLOW.start_section_a8.get());
         for (n, car) in cars.into_iter().enumerate() {
             let name = ((car + NAME_PTR_OFFSET) as *const u32).read_unaligned();
             std::ptr::copy(name as *const u8, (car + NAME_OFFSET) as *mut u8, NAME_LEN);
             copy_nonoverlapping(car as *const u8, buffer.add(car_at(n)), CAR_LEN);
         }
         copy_nonoverlapping(
-            game_addr(RECORDS_RVA) as *const u8,
+            crate::menu::drivers_store::drivers_addr() as *const u8,
             buffer.add(RECORDS_AT),
             RECORDS_LEN,
         );

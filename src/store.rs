@@ -104,12 +104,6 @@ impl<B: Block> Where for Slot<B> {
     }
 }
 
-impl<R: crate::gfx::block::Region> Where for crate::gfx::block::Slot<R> {
-    fn address(self) -> usize {
-        crate::gfx::block::Slot::address(self)
-    }
-}
-
 /// A variable named by IDA's address (a plain `usize`: where it lives now, `moved::place`) or
 /// by a place of a block (checked): what the helpers of modules whose variables are named
 /// by IDA's addresses (`g(0x5165F0)`) take, so that a converted one is a `Slot`.

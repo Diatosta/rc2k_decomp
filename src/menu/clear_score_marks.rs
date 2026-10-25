@@ -7,15 +7,14 @@
 //! Callers: the event drivers. Refuses a null table, before anything.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, rva};
+use crate::menu::champ_store::CHAMP_VIEW;
 use crate::menu::standings::*;
 
-const TABLE_RVA: usize = rva(0x7556D4); // dword_7556D4
 const ENTRIES: u32 = 50;
 
 /// The Rust version (see the header): the registers it leaves.
 pub unsafe fn clear_score_marks() -> Result<(), Refused> {
-    let first: u32 = unsafe { game_read(TABLE_RVA) };
+    let first: u32 = { CHAMP_VIEW.best_scores.get() };
     if first == 0 {
         return Err(BadInput("no best-score table").into());
     }

@@ -184,6 +184,10 @@ impl Byte {
     pub fn set(&self, value: u8) {
         self.0.store(value, Relaxed)
     }
+
+    pub fn addr(&self) -> usize {
+        self.0.as_ptr() as usize
+    }
 }
 
 /// A buffer of the game's bytes (a table, a record handed on by address): plain volatile
@@ -488,6 +492,11 @@ pub static CLOCKS: Clocks = Clocks {
 
 pub const CLOCKS_IDA: usize = 0x518998;
 pub const CLOCKS_LEN: usize = core::mem::size_of::<Clocks>();
+
+/// The address of a field or an array of cells, for code that is handed an address.
+pub fn address_of<T: ?Sized>(field: &T) -> usize {
+    field as *const T as *const u8 as usize
+}
 
 /// `N` bytes holding `runs` ((offset, bytes)) and zeros elsewhere.
 pub const fn with_runs<const N: usize>(runs: &[(usize, &[u8])]) -> [u8; N] {

@@ -33,16 +33,23 @@
 //! and says so in the log.
 
 use crate::framework::{log, rva};
-use crate::gfx::block::{game_addr, game_read, game_write};
-use crate::gfx::reports::Slot as RepSlot;
+use crate::gfx::reports::REPORTS;
+use crate::gfx::screen_state::DRAW_SURFACE;
 use std::ffi::{CStr, c_char, c_void};
 
 pub static HOOK: crate::framework::RawHook =
     crate::framework::RawHook::new("gfx::play_film", rva(0x41AE39));
 
-const NO_FMV_RVA: usize = rva(0x5BE870); // g_noFmv
-const REPORTS_RVA: RepSlot = RepSlot::at(0x4F52AC); // dword_4F52AC
-const SURFACE_RVA: usize = rva(0x4F4998); // g_surface
+/// IDA's address of the `nofmv` switch.
+pub const NO_FMV_START: usize = 0x5BE870;
+
+/// `g_noFmv` (`dword_5BE870`, `nofmv`, a `var\ral.cfg` setting): 1 = no films.
+pub static NO_FMV: crate::session::Dword = crate::session::Dword::new(0);
+
+/// Where the switch is (`moved::MOVED`'s home for IDA 0x5BE870).
+pub fn no_fmv_home() -> usize {
+    NO_FMV.addr()
+}
 
 // ---- FFmpeg (cdecl; only functions, and the frame's first fields, which are stable) ----
 
@@ -517,7 +524,7 @@ fn pack(value: u32, mask: u32) -> u32 {
 unsafe fn blit(p: &Picture) {
     let (rgb, w, h) = (&p.rgb, p.width, p.height);
     unsafe {
-        let surface = game_addr(SURFACE_RVA) as *const u32;
+        let surface = DRAW_SURFACE.x.addr() as *const u32;
         let at = |n: usize| surface.add(n).read_unaligned();
         let (sw, sh) = (at(2) as usize, at(3) as usize);
         let bytes = at(5) as usize;
@@ -637,8 +644,8 @@ fn open(path: &str) -> Result<Film, String> {
 /// (true: the film's end, false for a key or a film that does not play).
 pub unsafe fn play_film(path: u32) -> bool {
     unsafe {
-        let reports: u32 = game_read(REPORTS_RVA);
-        game_write(REPORTS_RVA, 0u32);
+        let reports: u32 = REPORTS.on.get();
+        REPORTS.on.set(0);
         // A key pending before the film is dropped (`input::take_key`).
         crate::input::take_key::take_key();
         // the open: the path resolved (`files::resolve_path`), there (`files::file_exists`)
@@ -671,7 +678,7 @@ pub unsafe fn play_film(path: u32) -> bool {
                 }
             }
         }
-        game_write(REPORTS_RVA, reports);
+        REPORTS.on.set(reports);
         eax == 0
     }
 }
@@ -787,7 +794,7 @@ unsafe fn run(film: &mut Film) -> u8 {
 /// (the zero flag clear); else the film at `path`, true at its end.
 pub fn play_film_now(path: u32) -> bool {
     HOOK.count_call();
-    if unsafe { game_read::<u32>(NO_FMV_RVA) } != 0 {
+    if NO_FMV.get() != 0 {
         return false;
     }
     unsafe { play_film(path) }

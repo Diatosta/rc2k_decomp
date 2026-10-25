@@ -17,20 +17,19 @@
 //! One caller, `start`, which calls it directly (2026-10-23).
 
 use crate::errors::{BadInput, FatalError, Refused};
-use crate::framework::{game_addr, game_read, game_write, rva};
-use crate::install::check_at_start::{INSTALLING_RVA, RECORD_RVA, set_script_entry};
+use crate::framework::{game_addr, rva};
+use crate::install::check_at_start::set_script_entry;
 use crate::install::outside::Outside;
-use crate::install::read_registry::{SOURCE_RVA, STATUS_RVA};
 use crate::install::runs_from_source::runs_from_source;
+use crate::install::vars::INSTALLER_NAMES;
+use crate::install::vars::INSTALLER_PAGES;
+use crate::install::vars::INSTALLER_PATHS;
+use crate::install::vars::INSTALLER_RUN;
+
+const CAR_NAME_LEN: usize = 0x1B;
 
 // ---- game data ----
 
-const INSTALLER_DATA_RVA: usize = rva(0x51BEA1); // "files\d\gfx\install.bun"
-const BASE_B_RVA: usize = rva(0x5295B4); // unk_5295B4
-const B_BEFORE_RVA: usize = rva(0x95E8F8); // byte_95E8F8
-const B_AFTER_RVA: usize = rva(0x95E9F8); // byte_95E9F8
-const CAR_NAME_LEN: usize = 0x1B;
-const STEP_RVA: usize = rva(0x51DD48); // off_51DD48
 const CLIO_STEP_RVA: usize = rva(0x41675B); // sub_41675B
 
 // ---- Rust version ----
@@ -41,21 +40,23 @@ pub unsafe fn check_clio_disc(outside: &mut dyn Outside) -> Result<(), Refused> 
             return Ok(());
         }
         crate::install::store::INSTALL.has_clio.set(1);
-        if game_read::<u32>(INSTALLING_RVA) == 1
-            || outside.file_exists(game_addr(RECORD_RVA) as *const u8)?
+        if INSTALLER_RUN.installing.get() == 1
+            || outside.file_exists(
+                crate::install::installer::INSTALL_TEXTS.record_path.addr() as *const u8
+            )?
             || runs_from_source(outside)?
-            || game_read::<u8>(STATUS_RVA) != 1
-            || game_read::<u8>(SOURCE_RVA) == 0
-            || outside.file_exists(game_addr(INSTALLER_DATA_RVA) as *const u8)?
+            || INSTALLER_NAMES.status.get() != 1
+            || INSTALLER_NAMES.source.get(0) == 0
+            || outside.file_exists(INSTALLER_NAMES.installer_data.addr() as *const u8)?
         {
             return Ok(());
         }
-        let base_b = game_addr(BASE_B_RVA) as *const u8;
-        if !outside.normalise_path(base_b, game_addr(B_BEFORE_RVA) as *mut u8)? {
+        let base_b = crate::install::installer::INSTALL_TEXTS.base_b.addr() as *const u8;
+        if !outside.normalise_path(base_b, INSTALLER_PATHS.path_a.addr() as *mut u8)? {
             return Ok(());
         }
-        outside.set_directory(game_addr(SOURCE_RVA) as *const u8);
-        if !outside.normalise_path(base_b, game_addr(B_AFTER_RVA) as *mut u8)? {
+        outside.set_directory(INSTALLER_NAMES.source.addr() as *const u8);
+        if !outside.normalise_path(base_b, INSTALLER_PATHS.path_b.addr() as *mut u8)? {
             return Ok(());
         }
         outside.read_record()?;
@@ -86,7 +87,9 @@ pub unsafe fn check_clio_disc(outside: &mut dyn Outside) -> Result<(), Refused> 
         name[..end].make_ascii_uppercase();
         name[end] = b'\n';
         name[end + 1] = 0;
-        game_write(STEP_RVA, game_addr(CLIO_STEP_RVA) as u32);
+        INSTALLER_PAGES
+            .step
+            .set_u32(0, game_addr(CLIO_STEP_RVA) as u32);
         Ok(())
     }
 }

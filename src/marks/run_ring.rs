@@ -25,13 +25,11 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::marks::emitters::{RING_COUNT_RVA, RING_CURSOR_RVA};
-use crate::marks::setup::SETTINGS_RVA;
+use crate::marks::setup::{CLOCK, MarksClock};
 use crate::marks::store::{Slot, game_read, game_write};
 use crate::math::x87;
 use crate::scene::matrix3::extended;
 
-const TICKS_RVA: Slot = Slot::at(0x764FD0); // g_marksFrameTicks
-const SPIN_K_RVA: Slot = Slot::at(0x764FD4); // flt_764FD4
 const WHOLE_RVA: Slot = Slot::at(0x9356C0); // dword_9356C0
 const BOX_RVA: [Slot; 2] = [Slot::at(0x935680), Slot::at(0x935684)]; // dword_935680, dword_935684
 const FACING_RVA: Slot = Slot::at(0x9356B4); // flt_9356B4
@@ -89,7 +87,14 @@ unsafe fn pull_facing(o: u32, l: u32) {
 
 /// The original's 0x4CF08B .. 0x4CF0D8: the entry's +0x64 pulled toward `flt_7651DC` (`fist` into `dword_9356C0`).
 unsafe fn pull_strength(e: u32, o: u32) {
-    unsafe { pull_strength_x87(crate::marks::store::base() as usize, e as usize, o as usize) }
+    unsafe {
+        pull_strength_x87(
+            crate::marks::store::base() as usize,
+            e as usize,
+            o as usize,
+            &CLOCK,
+        )
+    }
 }
 
 /// The original's 0x4CF65C .. 0x4CF6B7 (and 0x4CF7C4 ..): the place turned by the object's matrix (`m`), |x| and |z| into `dword_935680` / `dword_935684`.
@@ -153,7 +158,7 @@ const K16: Kind = Kind {
 /// Why it refuses, if it does: the walk's pointers checked, nothing written.
 unsafe fn refusal() -> Option<&'static str> {
     unsafe {
-        let s: u32 = game_read(SETTINGS_RVA);
+        let s: u32 = crate::marks::setup::SETTINGS.pointer.get();
         if s == 0 {
             return Some("no marks settings");
         }
@@ -198,7 +203,7 @@ unsafe fn refusal() -> Option<&'static str> {
 /// The life and the ground: whether the entry dies.
 unsafe fn aged(e: u32, ground: bool) -> bool {
     unsafe {
-        let t: u32 = game_read(TICKS_RVA);
+        let t: u32 = CLOCK.frame_ticks.get();
         let life = get(e + 0x84);
         put(e + 0x84, life.wrapping_sub(t));
         if life < t {
@@ -233,7 +238,7 @@ unsafe fn at_place(e: u32) -> [[u8; 10]; 3] {
 /// The settings' flag for the entry.
 unsafe fn shown(e: u32) -> bool {
     unsafe {
-        let settings: u32 = game_read(SETTINGS_RVA);
+        let settings: u32 = crate::marks::setup::SETTINGS.pointer.get();
         get(get(e + 8).wrapping_add(settings).wrapping_add(0x60)) != 0
     }
 }
@@ -258,9 +263,10 @@ unsafe fn whole(v: i32) -> u32 {
 /// The angle on and the place moved.
 unsafe fn spin_and_move(e: u32, spin: bool) {
     unsafe {
-        let t: i32 = game_read(TICKS_RVA);
+        let t: i32 = CLOCK.frame_ticks.get() as i32;
         if spin {
-            let turn = x87::int_times_to_int(get(e + 0x54) as i32, game_read(SPIN_K_RVA)) as u32;
+            let turn =
+                x87::int_times_to_int(get(e + 0x54) as i32, CLOCK.ticks_scaled.bits()) as u32;
             put(e + 0x50, get(e + 0x50).wrapping_add(turn) & 0xFFF);
         }
         for o in [0x10u32, 0x14, 0x18] {
@@ -271,7 +277,7 @@ unsafe fn spin_and_move(e: u32, spin: bool) {
 
 unsafe fn gain_y(e: u32, k_addr: Slot) {
     unsafe {
-        let t: i32 = game_read(TICKS_RVA);
+        let t: i32 = CLOCK.frame_ticks.get() as i32;
         put(e + 0x30, x87::plus_times_int(get(e + 0x30), k(k_addr), t));
     }
 }
@@ -279,7 +285,7 @@ unsafe fn gain_y(e: u32, k_addr: Slot) {
 /// The three dampings (a part that changes sign stops at 0).
 unsafe fn damp3(e: u32, ks: [Slot; 3]) {
     unsafe {
-        let t: i32 = game_read(TICKS_RVA);
+        let t: i32 = CLOCK.frame_ticks.get() as i32;
         for (o, kk) in [0x2Cu32, 0x30, 0x34].into_iter().zip(ks) {
             let old = get(e + o);
             game_write(WHOLE_RVA, old);
@@ -295,7 +301,7 @@ unsafe fn damp3(e: u32, ks: [Slot; 3]) {
 /// The size pulled toward +0x70.
 unsafe fn pull_size(e: u32, k_addr: Slot) {
     unsafe {
-        let t: i32 = game_read(TICKS_RVA);
+        let t: i32 = CLOCK.frame_ticks.get() as i32;
         let (w, f) = x87::approach(get(e + 0x70) as i32, get(e + 0x60), k(k_addr), t);
         game_write(WHOLE_RVA, w);
         put(e + 0x60, f);
@@ -307,7 +313,7 @@ unsafe fn pull_size(e: u32, k_addr: Slot) {
 
 unsafe fn fade(e: u32) {
     unsafe {
-        let t: i32 = game_read(TICKS_RVA);
+        let t: i32 = CLOCK.frame_ticks.get() as i32;
         put(
             e + 0x74,
             x87::less_times_int(get(e + 0x74), get(e + 0x78), t),
@@ -364,7 +370,7 @@ unsafe fn drift_kind(e: u32, place: u32, ks: [Slot; 3]) -> Result<bool, Refused>
         }
         spin_and_move(e, true);
         gain_y(e, ks[0]);
-        let t: i32 = game_read(TICKS_RVA);
+        let t: i32 = CLOCK.frame_ticks.get() as i32;
         put(
             e + 0x60,
             x87::times_int_plus_int_to_int(k(ks[1]), t, get(e + 0x60) as i32) as u32,
@@ -425,7 +431,7 @@ unsafe fn fading_kind(e: u32, kind: u32, c: &Kind) -> Result<bool, Refused> {
             }
             _ => {
                 fade(e);
-                let t: i32 = game_read(TICKS_RVA);
+                let t: i32 = CLOCK.frame_ticks.get() as i32;
                 put(
                     e + 0x60,
                     x87::plus_times_int(get(e + 0x60), k(c.gain()?), t),
@@ -698,7 +704,7 @@ unsafe fn pull_facing_x87(mk: usize, o: usize, l: usize) {
 }
 
 /// `pull_strength`'s x87 block as plain Rust on the x87 model (15 instructions), same order and memory places.
-unsafe fn pull_strength_x87(mk: usize, e: usize, o: usize) {
+unsafe fn pull_strength_x87(mk: usize, e: usize, o: usize, c: &MarksClock) {
     unsafe {
         let t0 = ldi(o, 0x88);
         let t1 = t0 * ld(mk, 0x1D55EA);
@@ -711,7 +717,7 @@ unsafe fn pull_strength_x87(mk: usize, e: usize, o: usize) {
         let t7 = ld(mk, 0x1D55EE);
         let t8 = t7 * ld(mk, 0x1D0780);
         let t9 = t6 * t8;
-        let t10 = t9 * ldi(mk, 0x90);
+        let t10 = t9 * crate::math::x87_float::int(c.frame_ticks.get() as i32);
         let t11 = t10 + ld(e, 0x64);
         sti(mk, 0x1D0780, t11);
         st(e, 0x64, t11);
@@ -1244,7 +1250,9 @@ mod asm_differential {
         differential(
             &SPEC,
             |b| unsafe { reference::pull_strength_x87(b[0], b[1], b[2]) },
-            |b| unsafe { super::pull_strength_x87(b[0], b[1], b[2]) },
+            |b| unsafe {
+                super::pull_strength_x87(b[0], b[1], b[2], crate::marks::setup::clock_at(b[0]))
+            },
         );
     }
 

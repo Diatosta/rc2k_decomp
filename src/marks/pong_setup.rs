@@ -7,13 +7,10 @@
 //!
 //! Caller: `marks::run_pong`.
 
+use crate::marks::pong::PONG_RULES;
 use crate::marks::squares_setup::setup_with;
-use crate::marks::store::Slot;
-
-const PLACES_RVA: Slot = Slot::at(0x769222); // dword_769222 .. dword_76922E
-// g_polygonVertices
 
 /// The Rust version (see the header).
 pub unsafe fn pong_setup() {
-    unsafe { setup_with(PLACES_RVA) }
+    unsafe { setup_with(PONG_RULES.setup_places.each_ref().map(|f| f.bits())) }
 }

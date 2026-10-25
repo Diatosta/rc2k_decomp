@@ -15,6 +15,10 @@
 
 use crate::errors::Refused;
 use crate::framework::{game_read, game_write, rva};
+use crate::menu::draw_lists_store::DRAW_LISTS;
+use crate::menu::flow_store::SCREEN_FLOW;
+use crate::menu::menus_store::MENUS;
+use crate::menu::screen_items_store::{SCREEN_ITEMS, slot};
 use crate::menu::screen_loop::{Carried, List, Screen, Step, prepare_scene, screen_entry};
 
 // ---- Rust version: `menu::screen_loop` with this ----
@@ -34,22 +38,22 @@ unsafe fn prepare(c: &mut Carried) -> Result<(), Refused> {
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: rva(0x751DE4),
-    saved_item: rva(0x74767C),
+    menu: || MENUS.load_championship_46e899.addr(),
+    saved_item: || &SCREEN_ITEMS.current[slot::LOAD_CHAMPIONSHIP_46E899],
     lists: &[
         List {
-            pointer: rva(0x755504), // g_sceneList
-            table: rva(0x758F1A),
+            pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
+            table: || DRAW_LISTS.load_championship_46e899_scene.addr(),
             run: false,
         },
         List {
-            pointer: rva(0x7554F8), // g_drawList
-            table: rva(0x758BBA),
+            pointer: || &SCREEN_FLOW.draw_list, // g_drawList
+            table: || DRAW_LISTS.load_championship_46e899_draw.addr(),
             run: false,
         },
         List {
-            pointer: rva(0x7554FC), // g_overlayList
-            table: rva(0x75915E),
+            pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
+            table: || DRAW_LISTS.load_championship_46e899_overlay.addr(),
             run: false,
         },
     ],
@@ -57,7 +61,7 @@ pub const SCREEN: Screen = Screen {
     frame_callback: rva(0x474D4B),
     later_frame_callback: None,
     before: &[],
-    set_up_first: &[Step::Write(rva(0x7554E4), 0x0)],
+    set_up_first: &[Step::Write(|| &SCREEN_FLOW.left_service, 0x0)],
     prepare: &[Step::Do(prepare)],
     after_lists: &[],
     background: &[],
@@ -66,7 +70,7 @@ pub const SCREEN: Screen = Screen {
     ask_also_if: None,
     confirmed: &[],
     unasked_skips_save: false,
-    after: &[Step::Write(rva(0x7554E4), 0x1)],
+    after: &[Step::Write(|| &SCREEN_FLOW.left_service, 0x1)],
     escape_leaves: false,
     each_frame: &[],
     short_action_check: false,
@@ -78,7 +82,7 @@ pub const SCREEN: Screen = Screen {
     before_asking: &[],
     ask_unless: None,
     leaving: &[],
-    leave_saved_item: Some(rva(0x747678)),
+    leave_saved_item: Some(|| &SCREEN_ITEMS.current[slot::SAVE_SETUP]),
     keys_menu: None,
     after_restored: &[],
     result: None,

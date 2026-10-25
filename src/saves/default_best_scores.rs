@@ -16,21 +16,19 @@
 //! Converted: `rc2k_core::saves::defaults::best_scores`.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, rva};
+use crate::menu::champ_store::CHAMP_VIEW;
 use crate::menu::state_store::MENU_STATE;
 use crate::saves::default_times::{GameSource, to_nowhere};
 use rc2k_core::saves::defaults::{SCORE_TABLE_LEN, best_scores, write_best_scores};
 
 // ---- game data ----
 
-const TABLE_RVA: usize = rva(0x7556D4); // dword_7556D4
-
 // ---- Rust version ----
 
 pub unsafe fn default_best_scores() -> Result<(), Refused> {
     // Converted: `rc2k_core::saves::defaults::best_scores`.
     unsafe {
-        let table: u32 = game_read(TABLE_RVA);
+        let table: u32 = CHAMP_VIEW.best_scores.get();
         if table == 0 {
             return Err(BadInput("no table of best scores").into());
         }

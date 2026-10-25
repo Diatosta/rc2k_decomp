@@ -29,7 +29,7 @@ pub struct Batch {
     pub indices: u32,
     pub kept: u32,
     pub blend: u32,
-    pub text: u32,
+    pub text: &'static std::ffi::CStr,
 }
 
 /// `race::flush_triangle_batch`'s (0x45FDCF).
@@ -40,7 +40,7 @@ pub const PLAIN: Batch = Batch {
     indices: 0x6E14F4,
     kept: 0x6EF7C4,
     blend: 2,
-    text: 0x4DDCAC,
+    text: c"drawtri",
 };
 
 /// `race::flush_texture_batch`'s (0x45FEFE).
@@ -51,7 +51,7 @@ pub const TEXTURED: Batch = Batch {
     indices: 0x6EC6FC,
     kept: 0x6EF7C8,
     blend: 6,
-    text: 0x4DDCB4,
+    text: c"drawtri",
 };
 
 /// `race::flush_triangle_batch` (0x45FDCF) / `race::flush_texture_batch` (0x45FEFE): the
@@ -82,7 +82,7 @@ pub unsafe fn flush_batch(b: &Batch, textured: bool) -> Result<(), Refused> {
             let result =
                 crate::platform_3d::draw_indexed(ga(b.vertices), k(b.word), ga(b.indices), count);
             if result != 0 {
-                crate::logfile::log_write::log_write(ga(b.text) as *const u8, false, 1);
+                crate::logfile::log_write::log_write(b.text.as_ptr().cast(), false, 1);
                 crate::logfile::log_hex8::log_hex8(result, false, 1);
             }
         }

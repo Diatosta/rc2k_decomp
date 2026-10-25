@@ -20,10 +20,11 @@ use crate::files::close_stream::close_stream;
 use crate::files::open_stream::open_stream;
 use crate::files::read_stream_block::read_stream_block;
 use crate::files::read_stream_byte::read_stream_byte;
-use crate::gfx::block::{game_addr, game_read, game_write};
+use crate::gfx::decoder::DECODER;
 use crate::gfx::lay_out_pcx::lay_out_pcx;
-use crate::gfx::pcx::{HEADER_LEN, HEADER_RVA, PIXELS_RVA, stream};
-use crate::gfx::picture::FLAGS_RVA;
+use crate::gfx::pcx::PCX;
+use crate::gfx::pcx::{HEADER_LEN, stream};
+use crate::gfx::picture_store::PICTURE;
 
 // ---- Rust version ----
 
@@ -31,14 +32,14 @@ use crate::gfx::picture::FLAGS_RVA;
 unsafe fn read_rows() -> Result<bool, BadInput> {
     unsafe {
         let stream = stream();
-        let header = game_addr(HEADER_RVA) as *mut u8;
+        let header = PCX.header.addr() as *mut u8;
         if read_stream_block(stream, header, HEADER_LEN as u32)?.1 {
             return Ok(false);
         }
-        game_write(FLAGS_RVA, 0x800u32);
+        PICTURE.flags.set(0x800u32);
         let layout = lay_out_pcx();
         // Converted: `rc2k_core::gfx::pcx::decode_planes`.
-        let pixels: u32 = game_read(PIXELS_RVA);
+        let pixels: u32 = DECODER.pixels.get();
         rc2k_core::gfx::pcx::decode_planes(
             &layout,
             |eax| read_stream_byte(stream, eax).map(|r| r.eax),

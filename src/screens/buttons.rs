@@ -12,11 +12,12 @@
 //! button's x as its palette (leftover ebx): these sprites do not use one.
 
 use crate::errors::{BadInput, FatalError, Refused};
-use crate::framework::{game_read, game_write, rva};
 use crate::gfx::blit_bar::BAR_HAS_NO_LENGTH;
 use crate::gfx::blit_glyph::BlitCall;
 use crate::gfx::blit_marker_pair::sprite_table;
-use crate::service::state::MENU_ITEM_RVA;
+use crate::menu::draw_work_store::DRAW_WORK;
+use crate::menu::loop_store::LOOP_FLAGS;
+use crate::session::Dword;
 use crate::text::draw_text::Canvas;
 use crate::text::font::Font;
 use crate::text::measure_string_by_id::measure_string_by_id_at;
@@ -26,11 +27,11 @@ pub struct Kind {
     /// Where in the item's five sprite numbers the two ends are.
     left_at: u32,
     right_at: u32,
-    width_rva: usize,
-    x_rva: usize,
-    y_rva: usize,
-    left_rva: usize,
-    right_rva: usize,
+    width: &'static Dword,
+    x: &'static Dword,
+    y: &'static Dword,
+    left: &'static Dword,
+    right: &'static Dword,
     /// `draw_button` only. Right-aligned, it goes wrong in two places: from the second whole
     /// middle piece on it continues in the centred branch's loop, which draws rightwards and
     /// ends with a second right end; and when the width is a multiple of 32 it falls through
@@ -44,18 +45,17 @@ pub struct Kind {
     bad_align: FatalError,
 }
 
-const MIDDLE_RVA: usize = rva(0x7559D8); // dword_7559D8
 const BAD_ALIGN: &str = "Invalid Active Vbutt Align Tag";
 
 /// `screens::draw_button` (0x4688A1).
 pub const PLAIN: Kind = Kind {
     left_at: 0,
     right_at: 4,
-    width_rva: rva(0x7559AC), // seconds
-    x_rva: rva(0x7559B0),     // dword_7559B0
-    y_rva: rva(0x7559B4),     // dword_7559B4
-    left_rva: rva(0x7559C0),  // glyph
-    right_rva: rva(0x7559C4), // dword_7559C4
+    width: &DRAW_WORK.seconds,
+    x: &DRAW_WORK.work_b0,
+    y: &DRAW_WORK.work_b4,
+    left: &DRAW_WORK.glyph,
+    right: &DRAW_WORK.work_c4,
     slips: true,
     borrows: false,
     bad_align: FatalError {
@@ -80,11 +80,11 @@ pub const HIGHLIGHTED: Kind = Kind {
 pub const ALT: Kind = Kind {
     left_at: 0,
     right_at: 4,
-    width_rva: rva(0x7559EC), // dword_7559EC
-    x_rva: rva(0x7559F0),     // hhmm
-    y_rva: rva(0x7559F4),     // dword_7559F4
-    left_rva: rva(0x755A00),  // dword_755A00
-    right_rva: rva(0x755A04), // dword_755A04
+    width: &DRAW_WORK.figure,
+    x: &DRAW_WORK.hhmm,
+    y: &DRAW_WORK.work_f4,
+    left: &DRAW_WORK.work_00,
+    right: &DRAW_WORK.work_04,
     slips: false,
     borrows: true,
     bad_align: FatalError {
@@ -132,18 +132,18 @@ pub unsafe fn draw_button(
             dword(set + kind.right_at),
             dword(set + 0x10),
         ];
-        game_write(kind.width_rva, width);
-        game_write(kind.x_rva, x);
-        game_write(kind.y_rva, y);
-        game_write(kind.left_rva, sprites[0]);
-        game_write(kind.right_rva, sprites[1]);
-        game_write(MIDDLE_RVA, sprites[2]);
+        kind.width.set(width);
+        kind.x.set(x as u32);
+        kind.y.set(y as u32);
+        kind.left.set(sprites[0]);
+        kind.right.set(sprites[1]);
+        DRAW_WORK.middle.set(sprites[2]);
         // Converted: `rc2k_core::screens::buttons::draw`; the pieces blitted from the sprite table.
         use rc2k_core::screens::buttons::{Borrowed, Error};
         let table = sprite_table();
         let borrowed = Borrowed {
-            y: game_read(PLAIN.y_rva),
-            x: game_read(PLAIN.x_rva),
+            y: PLAIN.y.get() as i32,
+            x: PLAIN.x.get() as i32,
         };
         let core = rc2k_core::screens::buttons::Kind {
             slips: kind.slips,
@@ -161,7 +161,7 @@ pub unsafe fn draw_button(
                 canvas.blit_glyph(BlitCall::new(glyph, x, y, palette, table))
             },
         );
-        game_write(kind.x_rva, end);
+        kind.x.set(end as u32);
         match drawn {
             Ok(()) => Ok(()),
             Err(Error::NoLength) => Err(BAR_HAS_NO_LENGTH.into()),
@@ -180,7 +180,7 @@ pub unsafe fn draw_item_button(item: u32, canvas: &mut dyn Canvas) -> Result<(),
         return Err(BadInput("no menu item").into());
     }
     unsafe {
-        let highlighted = game_read::<u32>(MENU_ITEM_RVA) == dword(item + ITEM_TYPE);
+        let highlighted = LOOP_FLAGS.item.get() == dword(item + ITEM_TYPE);
         draw_button(
             if highlighted { &HIGHLIGHTED } else { &PLAIN },
             dword(item + ITEM_WIDTH),

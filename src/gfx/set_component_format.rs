@@ -7,13 +7,11 @@
 //! is described by `gfx::describe_format`. One caller, `start`, which calls it directly (2026-10-23).
 
 use crate::errors::Refused;
-use crate::gfx::block::game_ptr;
 use crate::gfx::describe_format::describe_format;
-use crate::gfx::formats::Slot as FmtSlot;
+use crate::gfx::formats::FORMATS;
 
 // ---- game data ----
 
-const FORMAT_RVA: FmtSlot = FmtSlot::at(0x4F3FAC); // unk_4F3FAC
 /// Converted: `rc2k_core::gfx::pixels::COMPONENT_MASKS`.
 const MASKS: [u32; 4] = rc2k_core::gfx::pixels::COMPONENT_MASKS;
 
@@ -21,7 +19,7 @@ const MASKS: [u32; 4] = rc2k_core::gfx::pixels::COMPONENT_MASKS;
 
 pub unsafe fn set_component_format() -> Result<(), Refused> {
     unsafe {
-        let format = game_ptr::<u32>(FORMAT_RVA);
+        let format = FORMATS.component_format.as_ptr() as *mut u32;
         for (n, mask) in MASKS.into_iter().enumerate() {
             format.add(1 + n).write_unaligned(mask);
         }

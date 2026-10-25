@@ -51,58 +51,39 @@
 //! in 0x28 (0x30 for `off_75A12E`) entries, a shown car past the list.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::menu::arcade_store::ARCADE_GAME;
+use crate::menu::champ_store::CHAMP_VIEW;
+use crate::menu::cheats_store::CHEAT_VARS;
+use crate::menu::draw_work_store::DRAW_WORK;
+use crate::menu::event_store::EVENT_STATE;
 use crate::menu::lists_store::MENU_LISTS;
+use crate::menu::names_store::NAME_BUFFERS;
 use crate::menu::player::player_at;
+use crate::menu::results_store::RESULT_FIGURES;
 use crate::menu::standings::{bytes, table};
 use crate::race::state_store::RACE_STATE;
 use crate::session::{Dword, read_all, write_all};
 use rc2k_core::menu::{bests, standings};
 
-pub const LEVEL_RVA: usize = rva(0x7587EC); // dword_7587EC
-pub const STAGE_RVA: usize = rva(0x7587F0); // dword_7587F0
-const STAGE_TABLES_RVA: usize = rva(0x73555A); // off_73555A
-const TIMES_BASE_RVA: usize = rva(0x7556E0); // dword_7556E0
-const SCORES_BASE_RVA: usize = rva(0x7556DC); // dword_7556DC
-const CURRENT_RVA: usize = rva(0x75598C); // dword_75598C
-const FLAG_RVA: usize = rva(0x755918); // dword_755918
-const TIME_SEEN_RVA: usize = rva(0x755914); // dword_755914
-const SCORE_RVA: usize = rva(0x7587B8); // dword_7587B8
-const SCORE_1_RVA: usize = rva(0x7587BC); // dword_7587BC
-const BEFORE_RVA: usize = rva(0x7587A8); // dword_7587A8
-const EXTRA_RVA: usize = rva(0x758788); // dword_758788
-const PLACES_RVA: usize = rva(0x7587F8); // dword_7587F8
-const POSITION_RVA: usize = rva(0x758768); // dword_758768
-const POINTS_RVA: usize = rva(0x758778); // dword_758778
-const BONUS_RVA: usize = rva(0x758758); // dword_758758
-const SUM_RVA: usize = rva(0x758798); // dword_758798
-const CHEATS_RVA: usize = rva(0x75870C); // g_cheats
-const KEPT_NAME_RVA: usize = rva(0x755884); // g_keptPlayerName
-const SLOT_RVA: usize = rva(0x7559EC); // dword_7559EC
+const SCORE: &Dword = &RESULT_FIGURES.totals[0]; // dword_7587B8
+const SCORE_1: &Dword = &RESULT_FIGURES.totals[1]; // dword_7587BC
 // hhmm
-const SHOWN_RVA: usize = rva(0x755990); // dword_755990
 const CARS_LEN: u32 = 0x28;
 const SHOWN_LIST_LEN: u32 = 0x30;
 const TIME_LEN: u32 = 0x9C;
 const SCORE_LEN: u32 = 0x50;
 const STAGE_RECORD_LEN: u32 = 0xA4;
 
-fn g(a: usize) -> u32 {
-    unsafe { game_read(a) }
-}
-fn p(a: usize, v: u32) {
-    unsafe { game_write(a, v) }
-}
 fn get(a: u32) -> u32 {
     unsafe { (a as *const u32).read_unaligned() }
 }
 /// The stage's record (`off_73555A[level]` + stage x 0xA4).
 fn stage_record() -> Result<u32, Refused> {
-    let (level, stage) = (g(LEVEL_RVA), g(STAGE_RVA));
+    let (level, stage) = (ARCADE_GAME.level.get(), ARCADE_GAME.stage.get());
     if level > 5 || stage > 6 {
         return Err(BadInput("an arcade level past 5 or stage past 6").into());
     }
-    match g(STAGE_TABLES_RVA + 4 * level as usize) {
+    match crate::records::stages_store::STAGE_TABLES.level_table(level) {
         0 => Err(BadInput("no arcade stage records").into()),
         t => Ok(t + stage * 0xA4),
     }
@@ -114,7 +95,7 @@ fn course_times() -> Result<u32, Refused> {
     if course > 0x40 {
         return Err(BadInput("a course past the best times").into());
     }
-    match g(TIMES_BASE_RVA) {
+    match CHAMP_VIEW.course_best_times.get() {
         0 => Err(BadInput("no best times").into()),
         b => Ok(b.wrapping_add(course * 0x618)),
     }
@@ -122,18 +103,18 @@ fn course_times() -> Result<u32, Refused> {
 
 /// The level's ten best scores (the first).
 fn level_scores() -> Result<u32, Refused> {
-    let level = g(LEVEL_RVA);
+    let level = ARCADE_GAME.level.get();
     if level > 5 {
         return Err(BadInput("an arcade level past 5").into());
     }
-    match g(SCORES_BASE_RVA) {
+    match CHAMP_VIEW.level_best_scores.get() {
         0 => Err(BadInput("no best scores").into()),
         b => Ok(b + level * 0x320),
     }
 }
 
 fn current() -> Result<(u32, u32), Refused> {
-    let n = g(CURRENT_RVA);
+    let n = EVENT_STATE.current_player.get();
     match player_at(n) {
         0 => Err(BadInput("a current player past 3 or missing").into()),
         r => Ok((n, r)),
@@ -168,8 +149,8 @@ pub fn keep_arcade_stage_best(record: u32) -> Result<(), Refused> {
 pub fn check_arcade_level_score() -> Result<(), Refused> {
     let tenth = level_scores()? + 0x2D0;
     // Converted: `rc2k_core::menu::bests::makes_score`.
-    if bests::makes_score(g(SCORE_RVA), get(tenth + 0x14)) {
-        p(FLAG_RVA, 1);
+    if bests::makes_score(RESULT_FIGURES.totals[0].get(), get(tenth + 0x14)) {
+        EVENT_STATE.time_qualifies.set(1);
     }
     Ok(())
 }
@@ -178,10 +159,10 @@ pub fn check_arcade_stage_time() -> Result<(), Refused> {
     let tenth = course_times()? + 0x57C;
     let (_, player) = current()?;
     let time = get(player + 0x88);
-    p(TIME_SEEN_RVA, time);
+    EVENT_STATE.player_time.set(time);
     // Converted: `rc2k_core::menu::bests::makes_time`.
     if bests::makes_time(time, get(tenth + 0x14)) {
-        p(FLAG_RVA, 1);
+        EVENT_STATE.time_qualifies.set(1);
     }
     Ok(())
 }
@@ -199,7 +180,7 @@ unsafe fn ten_entries<'a>(first: u32, len: u32) -> standings::Entries<'a> {
 
 /// `g_keptPlayerName`, the sorts' swap buffer.
 unsafe fn kept_name<'a>() -> &'a mut [u8; standings::NAME_LEN] {
-    unsafe { &mut *(game_addr(KEPT_NAME_RVA) as *mut [u8; standings::NAME_LEN]) }
+    unsafe { &mut *(NAME_BUFFERS.kept_name.addr() as *mut [u8; standings::NAME_LEN]) }
 }
 
 /// The player's new entry (player 1): +0x1C, +8, +0xC, +0x10 and the name from its
@@ -233,8 +214,8 @@ pub fn enter_arcade_stage_time() -> Result<(), Refused> {
         return Err(BadInput("a null name").into());
     }
     let course = get(record + 0x3C);
-    p(SLOT_RVA, course);
-    let cheats = g(CHEATS_RVA);
+    DRAW_WORK.figure.set(course);
+    let cheats = CHEAT_VARS.cheats.get();
     let sealed = unsafe { crate::menu::sealed_player_time::sealed_player_time(course) }?;
     // Converted: `rc2k_core::menu::bests::enter_tenth`, then
     // `rc2k_core::menu::standings::sort_arcade_times`.
@@ -259,7 +240,7 @@ pub fn enter_arcade_level_score() -> Result<(), Refused> {
     }
     // Converted: `rc2k_core::menu::bests::enter_tenth`, then
     // `rc2k_core::menu::standings::sort_arcade_scores`.
-    let score = g(if n == 1 { SCORE_1_RVA } else { SCORE_RVA });
+    let score = (if n == 1 { SCORE_1 } else { SCORE }).get();
     let best = new_best(player, score, None, None);
     let mut ten = unsafe { ten_entries(first, SCORE_LEN) };
     bests::enter_tenth(&mut ten, &best);
@@ -272,14 +253,17 @@ pub fn score_arcade_stage() -> Result<(), Refused> {
         0 => return Err(BadInput("no player 0").into()),
         r => r,
     };
-    p(BEFORE_RVA, g(SCORE_RVA));
-    p(EXTRA_RVA, get(first + 0x94));
+    RESULT_FIGURES.before[0].set(RESULT_FIGURES.totals[0].get());
+    RESULT_FIGURES.extra[0].set(get(first + 0x94));
     // Converted: `rc2k_core::menu::standings::arcade_points`.
-    let points = standings::arcade_points(g(PLACES_RVA), g(POSITION_RVA));
-    p(POINTS_RVA, points);
-    let sum = points.wrapping_add(g(BONUS_RVA)).wrapping_add(g(EXTRA_RVA));
-    p(SUM_RVA, sum);
-    p(SCORE_RVA, g(BEFORE_RVA).wrapping_add(sum));
+    let points =
+        standings::arcade_points(ARCADE_GAME.places.get(), RESULT_FIGURES.positions[0].get());
+    RESULT_FIGURES.points[0].set(points);
+    let sum = points
+        .wrapping_add(RESULT_FIGURES.time_bonus[0].get())
+        .wrapping_add(RESULT_FIGURES.extra[0].get());
+    RESULT_FIGURES.sums[0].set(sum);
+    RESULT_FIGURES.totals[0].set(RESULT_FIGURES.before[0].get().wrapping_add(sum));
     Ok(())
 }
 
@@ -316,7 +300,7 @@ pub fn add_shown_car() -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::car_lists` (`entries`, `shown_car`).
     use rc2k_core::menu::car_lists::{entries, shown_car};
     let list = |cells: &[Dword], len: u32| entries(len as usize, |k| cells[k].get());
-    let shown = g(SHOWN_RVA);
+    let shown = EVENT_STATE.shown_car.get();
     let car = shown_car(&list(&MENU_LISTS.shown_cars, SHOWN_LIST_LEN)?, shown)?;
     let end = list(&MENU_LISTS.cars_second, CARS_LEN)?.len();
     MENU_LISTS.cars_second[end].set(car);
@@ -326,7 +310,7 @@ pub fn add_shown_car() -> Result<(), Refused> {
 /// `menu::remove_shown_car`: the moving down; `then` the list's numbers
 /// (`saves::list_car_numbers`).
 pub fn remove_shown_car(then: &mut dyn FnMut() -> Result<(), Refused>) -> Result<(), Refused> {
-    let shown = g(SHOWN_RVA);
+    let shown = EVENT_STATE.shown_car.get();
     let end = end_of(&MENU_LISTS.shown_cars, SHOWN_LIST_LEN)?;
     if shown >= end {
         return Err(BadInput("a shown car past the list").into());

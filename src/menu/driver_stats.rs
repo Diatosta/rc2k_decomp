@@ -23,51 +23,38 @@
 //! (level 1). Refuses a current player past 3 or missing, a car past 0xFF or without its table,
 //! before anything.
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::menu::cars_store::CAR_TABLE;
+use crate::menu::draw_work_store::DRAW_WORK;
+use crate::menu::event_store::EVENT_STATE;
 use crate::menu::standings::*;
 use crate::menu::state_store::MENU_STATE;
 use crate::session::write_all;
 
-const CURRENT_RVA: usize = rva(0x75598C); // dword_75598C
-const CARS_RVA: usize = rva(0x7564A0); // off_7564A0
-const FIGURE_RVA: usize = rva(0x7559EC); // dword_7559EC
-const SPAN_RVA: usize = rva(0x7559F0); // hhmm
 /// The parts' names in the log, by inspected part.
-const NAMES_RVA: [usize; 13] = [
-    rva(0x4DED08),
-    rva(0x4DED20),
-    rva(0x4DED3A),
-    rva(0x4DED53),
-    rva(0x4DED6E),
-    rva(0x4DED86),
-    rva(0x4DED9F),
-    rva(0x4DEDB9),
-    rva(0x4DEDD1),
-    rva(0x4DEDED),
-    rva(0x4DEE0B),
-    rva(0x4DEE23),
-    rva(0x4DEE3C),
+const NAMES_RVA: [&std::ffi::CStr; 13] = [
+    c"DriverStats.Engine",
+    c"DriverStats.Bodywork",
+    c"DriverStats.Exhaust",
+    c"DriverStats.Electrics",
+    c"DriverStats.Lights",
+    c"DriverStats.Cooling",
+    c"DriverStats.Steering",
+    c"DriverStats.Clutch",
+    c"DriverStats.Suspension",
+    c"DriverStats.Differential",
+    c"DriverStats.Brakes",
+    c"DriverStats.Gearbox",
+    c"DriverStats.TyresWear",
 ];
 /// The "eax=" after each (the game has one copy per part; all the same text).
-const EQUALS_RVA: [usize; 13] = [
-    rva(0x4DED1B),
-    rva(0x4DED35),
-    rva(0x4DED4E),
-    rva(0x4DED69),
-    rva(0x4DED81),
-    rva(0x4DED9A),
-    rva(0x4DEDB4),
-    rva(0x4DEDCC),
-    rva(0x4DEDE8),
-    rva(0x4DEE06),
-    rva(0x4DEE1E),
-    rva(0x4DEE37),
-    rva(0x4DEE52),
+const EQUALS_RVA: [&std::ffi::CStr; 13] = [
+    c"eax=", c"eax=", c"eax=", c"eax=", c"eax=", c"eax=", c"eax=", c"eax=", c"eax=", c"eax=",
+    c"eax=", c"eax=", c"eax=",
 ];
 const PARTS: u32 = 14;
 /// The current player and its car's table.
 pub fn player_and_table() -> Result<(u32, u32), BadInput> {
-    let n: u32 = unsafe { game_read(CURRENT_RVA) };
+    let n: u32 = { EVENT_STATE.current_player.get() };
     if n >= 4 || player(n) == 0 {
         return Err(BadInput("a current player past 3 or missing"));
     }
@@ -82,7 +69,7 @@ pub fn car_table(p: u32) -> Result<u32, BadInput> {
         c => c,
     };
     let entry = if car < 0x100 {
-        unsafe { game_read::<u32>(CARS_RVA + 4 * car as usize) }
+        CAR_TABLE.cars[car as usize].get()
     } else {
         0
     };
@@ -136,14 +123,14 @@ pub unsafe fn driver_stats() -> Result<(), Refused> {
                 MENU_STATE.driver_stats.penalties[k].set(v);
             }
         }
-        game_write(FIGURE_RVA, f.figure);
+        DRAW_WORK.figure.set(f.figure);
         if let Some(span) = f.span {
-            game_write(SPAN_RVA, span);
+            DRAW_WORK.hhmm.set(span);
         }
         for (slot, line) in f.logged.iter().enumerate() {
-            log_write(game_addr(NAMES_RVA[slot]) as *const u8, false, 1);
+            log_write(NAMES_RVA[slot].as_ptr() as usize as *const u8, false, 1);
             log_int(line.wear as i32, false, 1);
-            log_write(game_addr(EQUALS_RVA[slot]) as *const u8, false, 1);
+            log_write(EQUALS_RVA[slot].as_ptr() as usize as *const u8, false, 1);
             log_int(line.limit as i32, true, 1);
         }
     }

@@ -12,8 +12,8 @@
 //! 30 call sites, among them the per-pixel loops that scale and convert pictures. Refuses a
 //! null format.
 
-use crate::gfx::block::game_write;
-use crate::gfx::pixel_format::{PixelFormat, SCRATCH_RVA};
+use crate::gfx::formats::FORMATS;
+use crate::gfx::pixel_format::PixelFormat;
 
 // ---- Rust version ----
 
@@ -24,7 +24,7 @@ pub use rc2k_core::gfx::pixels::pack as packed;
 pub unsafe fn components_to_pixel(format: &PixelFormat, components: u32) -> u32 {
     let (pixel, scratch) = packed(format, components);
     if let Some(scratch) = scratch {
-        unsafe { game_write(SCRATCH_RVA, scratch) };
+        FORMATS.scratch.write(&scratch);
     }
     pixel
 }

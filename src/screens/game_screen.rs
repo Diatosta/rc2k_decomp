@@ -5,8 +5,12 @@
 use crate::errors::{BadInput, Refused};
 use crate::framework::rva;
 use crate::gfx::blit_glyph::BlitCall;
-use crate::gfx::block::{game_read, game_write};
+use crate::menu::champ_store::CHAMP_VIEW;
+use crate::menu::draw_work_store::DRAW_WORK;
+use crate::menu::loop_store::LOOP_FLAGS;
+use crate::menu::results_store::RESULT_FIGURES;
 use crate::screens::{font_at, line_buffer};
+use crate::session::Dword;
 use crate::text::draw_text::{Canvas, draw_text_at};
 use crate::text::font::Font;
 use rc2k_core::screens::screen::{Buffer, Drawn, Screen};
@@ -14,11 +18,8 @@ use std::marker::PhantomData;
 
 /// A family's font: the address of its record (as IDA shows it).
 pub trait GameFont: Copy {
-    fn address(self) -> usize;
     /// The font record in the game.
-    fn pointer(self) -> *mut Font {
-        font_at(self.address())
-    }
+    fn pointer(self) -> *mut Font;
 }
 
 /// A font the game hands over as a pointer (the menu tables' fonts).
@@ -26,17 +27,14 @@ pub trait GameFont: Copy {
 pub struct FontAt(pub u32);
 
 impl GameFont for FontAt {
-    fn address(self) -> usize {
-        self.0 as usize
-    }
     fn pointer(self) -> *mut Font {
         self.0 as *mut Font
     }
 }
 
-/// A family's work variable: its address (as IDA shows it).
+/// A family's work variable.
 pub trait GameWork: Copy {
-    fn address(self) -> usize;
+    fn cell(self) -> &'static Dword;
 }
 
 pub struct GameScreen<'a, F, W> {
@@ -63,14 +61,14 @@ fn font_of(f: impl GameFont) -> *mut Font {
 }
 
 /// Where a clip edge is kept.
-fn clip_rva(edge: rc2k_core::screens::screen::Edge) -> crate::gfx::blit::Slot {
-    use crate::gfx::surface::{CLIP_BOTTOM_RVA, CLIP_LEFT_RVA, CLIP_RIGHT_RVA, CLIP_TOP_RVA};
+fn clip_edge_cell(edge: rc2k_core::screens::screen::Edge) -> &'static crate::session::Dword {
+    use crate::gfx::blit::BLIT;
     use rc2k_core::screens::screen::Edge;
     match edge {
-        Edge::Left => CLIP_LEFT_RVA,
-        Edge::Right => CLIP_RIGHT_RVA,
-        Edge::Top => CLIP_TOP_RVA,
-        Edge::Bottom => CLIP_BOTTOM_RVA,
+        Edge::Left => &BLIT.clip.left,
+        Edge::Right => &BLIT.clip.right,
+        Edge::Top => &BLIT.clip.top,
+        Edge::Bottom => &BLIT.clip.bottom,
     }
 }
 
@@ -187,7 +185,7 @@ impl<F: GameFont, W: GameWork> Screen for GameScreen<'_, F, W> {
     }
 
     fn clip_edge(&mut self, edge: rc2k_core::screens::screen::Edge) -> Result<u32, Refused> {
-        Ok(unsafe { game_read(clip_rva(edge)) })
+        Ok(clip_edge_cell(edge).get())
     }
 
     fn set_clip_edge(
@@ -195,7 +193,7 @@ impl<F: GameFont, W: GameWork> Screen for GameScreen<'_, F, W> {
         edge: rc2k_core::screens::screen::Edge,
         value: u32,
     ) -> Result<(), Refused> {
-        unsafe { game_write(clip_rva(edge), value) };
+        clip_edge_cell(edge).set(value);
         Ok(())
     }
 
@@ -253,112 +251,112 @@ impl<F: GameFont, W: GameWork> Screen for GameScreen<'_, F, W> {
     }
 
     fn keep(&mut self, work: W, value: u32) {
-        unsafe { game_write(rva(work.address()), value) };
+        work.cell().set(value);
     }
 }
 
 impl GameFont for rc2k_core::screens::best_scores::Font {
-    fn address(self) -> usize {
+    fn pointer(self) -> *mut Font {
         use rc2k_core::screens::best_scores::Font as F;
         match self {
-            F::Name => 0x51E584,
-            F::Rank => 0x51E5A4,
-            F::Time => 0x51E564,
-            F::MarkedName => 0x51E524,
-            F::MarkedRank => 0x51E544,
-            F::MarkedTime => 0x51E504,
-            F::Heading => 0x51E9A4,
-            F::Fastest => 0x51E6E4,
+            F::Name => crate::gfx::typefaces::fonts::NAME.as_ptr(),
+            F::Rank => crate::gfx::typefaces::fonts::RANK.as_ptr(),
+            F::Time => crate::gfx::typefaces::fonts::TIME.as_ptr(),
+            F::MarkedName => crate::gfx::typefaces::fonts::MARKED_NAME.as_ptr(),
+            F::MarkedRank => crate::gfx::typefaces::fonts::MARKED_RANK.as_ptr(),
+            F::MarkedTime => crate::gfx::typefaces::fonts::MARKED_TIME.as_ptr(),
+            F::Heading => crate::gfx::typefaces::fonts::STAGE_TITLE.as_ptr(),
+            F::Fastest => crate::gfx::typefaces::fonts::LABELS.as_ptr(),
         }
     }
 }
 
 impl GameWork for rc2k_core::screens::best_scores::Work {
-    fn address(self) -> usize {
+    fn cell(self) -> &'static Dword {
         use rc2k_core::screens::best_scores::Work as W;
         match self {
-            W::Rank => 0x7559AC,
-            W::RowY => 0x7559B0,
-            W::CarGlyph => 0x7559B4,
-            W::Heading => 0x7559EC,
+            W::Rank => &DRAW_WORK.seconds,
+            W::RowY => &DRAW_WORK.work_b0,
+            W::CarGlyph => &DRAW_WORK.work_b4,
+            W::Heading => &DRAW_WORK.figure,
         }
     }
 }
 
 impl GameFont for rc2k_core::screens::stage_panel::Font {
-    fn address(self) -> usize {
+    fn pointer(self) -> *mut Font {
         use rc2k_core::screens::stage_panel::Font as F;
         match self {
-            F::Label => 0x51E5A4,
-            F::Value => 0x51E584,
-            F::Heading => 0x51E5C4,
-            F::RallyHeading => 0x51E564,
-            F::Description => 0x51E3E4,
-            F::Number => 0x51E3C4,
-            F::Title => 0x51E9A4,
-            F::Time => 0x51E564,
+            F::Label => crate::gfx::typefaces::fonts::RANK.as_ptr(),
+            F::Value => crate::gfx::typefaces::fonts::NAME.as_ptr(),
+            F::Heading => crate::gfx::typefaces::fonts::HEADING.as_ptr(),
+            F::RallyHeading => crate::gfx::typefaces::fonts::TIME.as_ptr(),
+            F::Description => crate::gfx::typefaces::fonts::LABEL.as_ptr(),
+            F::Number => crate::gfx::typefaces::fonts::SMALL.as_ptr(),
+            F::Title => crate::gfx::typefaces::fonts::STAGE_TITLE.as_ptr(),
+            F::Time => crate::gfx::typefaces::fonts::TIME.as_ptr(),
         }
     }
 }
 
 impl GameWork for rc2k_core::screens::stage_panel::Work {
-    fn address(self) -> usize {
+    fn cell(self) -> &'static Dword {
         use rc2k_core::screens::stage_panel::Work as W;
         match self {
-            W::Scratch => 0x7559EC,
-            W::Finish => 0x7559F0,
-            W::Entry34 => 0x75ACD4,
+            W::Scratch => &DRAW_WORK.figure,
+            W::Finish => &DRAW_WORK.hhmm,
+            W::Entry34 => &crate::race::state_store::RACE_STATE.settings.stage,
         }
     }
 }
 
 impl GameFont for rc2k_core::screens::itinerary::Font {
-    fn address(self) -> usize {
+    fn pointer(self) -> *mut Font {
         use rc2k_core::screens::itinerary::Font as F;
         match self {
-            F::Heading => 0x51E9A4,
-            F::Plain => 0x51E584,
-            F::Marked => 0x51E524,
-            F::Clock => 0x51E564,
-            F::MarkedClock => 0x51E504,
+            F::Heading => crate::gfx::typefaces::fonts::STAGE_TITLE.as_ptr(),
+            F::Plain => crate::gfx::typefaces::fonts::NAME.as_ptr(),
+            F::Marked => crate::gfx::typefaces::fonts::MARKED_NAME.as_ptr(),
+            F::Clock => crate::gfx::typefaces::fonts::TIME.as_ptr(),
+            F::MarkedClock => crate::gfx::typefaces::fonts::MARKED_TIME.as_ptr(),
         }
     }
 }
 
 impl GameWork for rc2k_core::screens::itinerary::Work {
-    fn address(self) -> usize {
+    fn cell(self) -> &'static Dword {
         use rc2k_core::screens::itinerary::Work as W;
         match self {
-            W::Y => 0x7559AC,
-            W::Row => 0x7559B0,
-            W::Stage => 0x7559B4,
-            W::Service => 0x755A0C,
-            W::ServiceString => 0x755A08,
+            W::Y => &DRAW_WORK.seconds,
+            W::Row => &DRAW_WORK.work_b0,
+            W::Stage => &DRAW_WORK.work_b4,
+            W::Service => &DRAW_WORK.work_0c,
+            W::ServiceString => &DRAW_WORK.work_08,
         }
     }
 }
 
 impl GameFont for rc2k_core::screens::settings_pages::Font {
-    fn address(self) -> usize {
+    fn pointer(self) -> *mut Font {
         use rc2k_core::screens::settings_pages::Font as F;
         match self {
-            F::Value => 0x51E8C4,
-            F::Small => 0x51E3C4,
-            F::Title => 0x51E904,
-            F::Head => 0x51E944,
-            F::Line => 0x51E8E4,
+            F::Value => crate::gfx::typefaces::fonts::LIST.as_ptr(),
+            F::Small => crate::gfx::typefaces::fonts::SMALL.as_ptr(),
+            F::Title => crate::gfx::typefaces::fonts::BOX_TEXT.as_ptr(),
+            F::Head => crate::gfx::typefaces::fonts::HEAD.as_ptr(),
+            F::Line => crate::gfx::typefaces::fonts::ITEM_PLAIN.as_ptr(),
         }
     }
 }
 
 impl GameWork for rc2k_core::screens::settings_pages::Work {
-    fn address(self) -> usize {
+    fn cell(self) -> &'static Dword {
         use rc2k_core::screens::settings_pages::Work as W;
         match self {
-            W::Scratch => 0x7559EC,
-            W::Seconds => 0x7559AC,
-            W::Glyph => 0x7559F0,
-            W::CheckX => 0x755A18,
+            W::Scratch => &DRAW_WORK.figure,
+            W::Seconds => &DRAW_WORK.seconds,
+            W::Glyph => &DRAW_WORK.hhmm,
+            W::CheckX => &DRAW_WORK.marker_x,
         }
     }
 }
@@ -371,37 +369,45 @@ pub type SettingsScreen<'a> = GameScreen<
 >;
 
 impl GameFont for rc2k_core::screens::car_pages::Font {
-    fn address(self) -> usize {
+    fn pointer(self) -> *mut Font {
         match self {
-            rc2k_core::screens::car_pages::Font::Labels => 0x51E5A4,
-            rc2k_core::screens::car_pages::Font::Figures => 0x51E584,
+            rc2k_core::screens::car_pages::Font::Labels => {
+                crate::gfx::typefaces::fonts::RANK.as_ptr()
+            }
+            rc2k_core::screens::car_pages::Font::Figures => {
+                crate::gfx::typefaces::fonts::NAME.as_ptr()
+            }
         }
     }
 }
 
 impl GameWork for rc2k_core::screens::car_pages::Work {
-    fn address(self) -> usize {
+    fn cell(self) -> &'static Dword {
         match self {
-            rc2k_core::screens::car_pages::Work::TextKept => 0x7559EC,
+            rc2k_core::screens::car_pages::Work::TextKept => &DRAW_WORK.figure,
         }
     }
 }
 
 impl GameFont for rc2k_core::screens::slot_lists::Font {
-    fn address(self) -> usize {
+    fn pointer(self) -> *mut Font {
         match self {
-            rc2k_core::screens::slot_lists::Font::Names => 0x51E8C4,
-            rc2k_core::screens::slot_lists::Font::Setups => 0x51E8A4,
+            rc2k_core::screens::slot_lists::Font::Names => {
+                crate::gfx::typefaces::fonts::LIST.as_ptr()
+            }
+            rc2k_core::screens::slot_lists::Font::Setups => {
+                crate::gfx::typefaces::fonts::TITLE.as_ptr()
+            }
         }
     }
 }
 
 impl GameWork for rc2k_core::screens::slot_lists::Work {
-    fn address(self) -> usize {
+    fn cell(self) -> &'static Dword {
         match self {
-            rc2k_core::screens::slot_lists::Work::X => 0x755A18,
-            rc2k_core::screens::slot_lists::Work::Y => 0x755A1C,
-            rc2k_core::screens::slot_lists::Work::Row => 0x7559EC,
+            rc2k_core::screens::slot_lists::Work::X => &DRAW_WORK.marker_x,
+            rc2k_core::screens::slot_lists::Work::Y => &DRAW_WORK.marker_y,
+            rc2k_core::screens::slot_lists::Work::Row => &DRAW_WORK.figure,
         }
     }
 }
@@ -411,18 +417,18 @@ pub type SlotScreen<'a> =
     GameScreen<'a, rc2k_core::screens::slot_lists::Font, rc2k_core::screens::slot_lists::Work>;
 
 impl GameFont for rc2k_core::screens::savegame_preview::Font {
-    fn address(self) -> usize {
+    fn pointer(self) -> *mut Font {
         use rc2k_core::screens::savegame_preview::Font as F;
         match self {
-            F::Rows => 0x51E584,
-            F::Title => 0x51E5E4,
-            F::RowNumber => 0x51E5A4,
+            F::Rows => crate::gfx::typefaces::fonts::NAME.as_ptr(),
+            F::Title => crate::gfx::typefaces::fonts::RANKING_TITLE.as_ptr(),
+            F::RowNumber => crate::gfx::typefaces::fonts::RANK.as_ptr(),
         }
     }
 }
 
 impl GameWork for rc2k_core::screens::savegame_preview::Work {
-    fn address(self) -> usize {
+    fn cell(self) -> &'static Dword {
         match self {}
     }
 }
@@ -435,105 +441,105 @@ pub type PreviewScreen<'a> = GameScreen<
 >;
 
 impl GameFont for rc2k_core::screens::players_results::Font {
-    fn address(self) -> usize {
+    fn pointer(self) -> *mut Font {
         use rc2k_core::screens::players_results::Font as F;
         match self {
-            F::Rows => 0x51E584,
-            F::Small => 0x51E564,
-            F::Stage => 0x51E9A4,
+            F::Rows => crate::gfx::typefaces::fonts::NAME.as_ptr(),
+            F::Small => crate::gfx::typefaces::fonts::TIME.as_ptr(),
+            F::Stage => crate::gfx::typefaces::fonts::STAGE_TITLE.as_ptr(),
         }
     }
 }
 
 impl GameWork for rc2k_core::screens::players_results::Work {
-    fn address(self) -> usize {
+    fn cell(self) -> &'static Dword {
         match self {
-            rc2k_core::screens::players_results::Work::Gap => 0x7559B8,
-            rc2k_core::screens::players_results::Work::FirstTime => 0x7559BC,
+            rc2k_core::screens::players_results::Work::Gap => &DRAW_WORK.work_b8,
+            rc2k_core::screens::players_results::Work::FirstTime => &DRAW_WORK.first_player_time,
         }
     }
 }
 
 impl GameFont for rc2k_core::screens::stage_results::Font {
-    fn address(self) -> usize {
+    fn pointer(self) -> *mut Font {
         use rc2k_core::screens::stage_results::Font as F;
         match self {
-            F::Rows => 0x51E584,
-            F::Small => 0x51E564,
-            F::Rank => 0x51E5A4,
-            F::Fastest => 0x51E6E4,
+            F::Rows => crate::gfx::typefaces::fonts::NAME.as_ptr(),
+            F::Small => crate::gfx::typefaces::fonts::TIME.as_ptr(),
+            F::Rank => crate::gfx::typefaces::fonts::RANK.as_ptr(),
+            F::Fastest => crate::gfx::typefaces::fonts::LABELS.as_ptr(),
         }
     }
 }
 
 impl GameWork for rc2k_core::screens::stage_results::Work {
-    fn address(self) -> usize {
+    fn cell(self) -> &'static Dword {
         use rc2k_core::screens::stage_results::Work as W;
         match self {
-            W::Rank => 0x7559AC,
-            W::Scratch => 0x7559EC,
-            W::FirstTime => 0x75AB24,
-            W::Gap => 0x7559F0,
-            W::RowY => 0x7559B0,
+            W::Rank => &DRAW_WORK.seconds,
+            W::Scratch => &DRAW_WORK.figure,
+            W::FirstTime => &crate::menu::state_store::MENU_STATE.menus.first_row_time,
+            W::Gap => &DRAW_WORK.hhmm,
+            W::RowY => &DRAW_WORK.work_b0,
         }
     }
 }
 
 impl GameFont for rc2k_core::screens::results_pages::Font {
-    fn address(self) -> usize {
+    fn pointer(self) -> *mut Font {
         use rc2k_core::screens::results_pages::Font as F;
         match self {
-            F::Title => 0x51E944,
-            F::StageName => 0x51E9A4,
-            F::Place => 0x51E5A4,
-            F::Name => 0x51E584,
-            F::Time => 0x51E564,
-            F::PlayerPlace => 0x51E544,
-            F::PlayerName => 0x51E524,
-            F::PlayerTime => 0x51E504,
+            F::Title => crate::gfx::typefaces::fonts::HEAD.as_ptr(),
+            F::StageName => crate::gfx::typefaces::fonts::STAGE_TITLE.as_ptr(),
+            F::Place => crate::gfx::typefaces::fonts::RANK.as_ptr(),
+            F::Name => crate::gfx::typefaces::fonts::NAME.as_ptr(),
+            F::Time => crate::gfx::typefaces::fonts::TIME.as_ptr(),
+            F::PlayerPlace => crate::gfx::typefaces::fonts::MARKED_RANK.as_ptr(),
+            F::PlayerName => crate::gfx::typefaces::fonts::MARKED_NAME.as_ptr(),
+            F::PlayerTime => crate::gfx::typefaces::fonts::MARKED_TIME.as_ptr(),
         }
     }
 }
 
 impl GameWork for rc2k_core::screens::results_pages::Work {
-    fn address(self) -> usize {
+    fn cell(self) -> &'static Dword {
         use rc2k_core::screens::results_pages::Work as W;
         match self {
-            W::FirstTime => 0x7559BC,
-            W::OverallFirst => 0x7559D4,
-            W::Gap => 0x7559C0,
-            W::Row => 0x755579,
-            W::RowEnd => 0x7556BC,
+            W::FirstTime => &DRAW_WORK.first_player_time,
+            W::OverallFirst => &DRAW_WORK.overall_first_time,
+            W::Gap => &DRAW_WORK.glyph,
+            W::Row => &LOOP_FLAGS.champ_row,
+            W::RowEnd => &CHAMP_VIEW.row_end,
         }
     }
 }
 
 impl GameWork for rc2k_core::screens::results_pages::RankingWork {
-    fn address(self) -> usize {
+    fn cell(self) -> &'static Dword {
         use rc2k_core::screens::results_pages::RankingWork as W;
         match self {
-            W::FirstTime => 0x7559BC,
-            W::Place => 0x7559AC,
-            W::Gap => 0x7559C0,
-            W::SpriteY => 0x7559B0,
+            W::FirstTime => &DRAW_WORK.first_player_time,
+            W::Place => &DRAW_WORK.seconds,
+            W::Gap => &DRAW_WORK.glyph,
+            W::SpriteY => &DRAW_WORK.work_b0,
         }
     }
 }
 
 impl GameFont for rc2k_core::screens::player_result::Font {
-    fn address(self) -> usize {
+    fn pointer(self) -> *mut Font {
         use rc2k_core::screens::player_result::Font as F;
         match self {
-            F::Labels => 0x51E6E4,
-            F::Values => 0x51E6C4,
-            F::Measure => 0x51E624,
-            F::Name => 0x51E584,
+            F::Labels => crate::gfx::typefaces::fonts::LABELS.as_ptr(),
+            F::Values => crate::gfx::typefaces::fonts::VALUES.as_ptr(),
+            F::Measure => crate::gfx::typefaces::fonts::MEASURE_23.as_ptr(),
+            F::Name => crate::gfx::typefaces::fonts::NAME.as_ptr(),
         }
     }
 }
 
 impl GameWork for rc2k_core::screens::player_result::Work {
-    fn address(self) -> usize {
+    fn cell(self) -> &'static Dword {
         match self {}
     }
 }
@@ -546,37 +552,39 @@ pub type PlayerResultScreen<'a> = GameScreen<
 >;
 
 impl GameFont for rc2k_core::screens::duel_result::Font {
-    fn address(self) -> usize {
+    fn pointer(self) -> *mut Font {
         use rc2k_core::screens::duel_result::Font as F;
         match self {
-            F::Big => 0x51E584,
-            F::Small => 0x51E5A4,
-            F::Stage => 0x51E9A4,
-            F::Time => 0x51E564,
+            F::Big => crate::gfx::typefaces::fonts::NAME.as_ptr(),
+            F::Small => crate::gfx::typefaces::fonts::RANK.as_ptr(),
+            F::Stage => crate::gfx::typefaces::fonts::STAGE_TITLE.as_ptr(),
+            F::Time => crate::gfx::typefaces::fonts::TIME.as_ptr(),
         }
     }
 }
 
 impl GameWork for rc2k_core::screens::duel_result::Work {
-    fn address(self) -> usize {
+    fn cell(self) -> &'static Dword {
         match self {
-            rc2k_core::screens::duel_result::Work::First => 0x758720,
-            rc2k_core::screens::duel_result::Work::Second => 0x758724,
+            rc2k_core::screens::duel_result::Work::First => &RESULT_FIGURES.order[0],
+            rc2k_core::screens::duel_result::Work::Second => &RESULT_FIGURES.order[1],
         }
     }
 }
 
 impl GameFont for rc2k_core::screens::notes::Font {
-    fn address(self) -> usize {
+    fn pointer(self) -> *mut Font {
         match self {
-            rc2k_core::screens::notes::Font::Question => 0x51E8A4,
-            rc2k_core::screens::notes::Font::Value => 0x51E8C4,
+            rc2k_core::screens::notes::Font::Question => {
+                crate::gfx::typefaces::fonts::TITLE.as_ptr()
+            }
+            rc2k_core::screens::notes::Font::Value => crate::gfx::typefaces::fonts::LIST.as_ptr(),
         }
     }
 }
 
 impl GameWork for rc2k_core::screens::notes::Work {
-    fn address(self) -> usize {
+    fn cell(self) -> &'static Dword {
         match self {}
     }
 }
@@ -595,19 +603,23 @@ pub fn draw_note(
 }
 
 impl GameFont for rc2k_core::screens::player_details::Font {
-    fn address(self) -> usize {
+    fn pointer(self) -> *mut Font {
         match self {
-            rc2k_core::screens::player_details::Font::Value => 0x51E8C4,
-            rc2k_core::screens::player_details::Font::Measure => 0x51E824,
+            rc2k_core::screens::player_details::Font::Value => {
+                crate::gfx::typefaces::fonts::LIST.as_ptr()
+            }
+            rc2k_core::screens::player_details::Font::Measure => {
+                crate::gfx::typefaces::fonts::MEASURE.as_ptr()
+            }
         }
     }
 }
 
 impl GameWork for rc2k_core::screens::player_details::Work {
-    fn address(self) -> usize {
+    fn cell(self) -> &'static Dword {
         match self {
-            rc2k_core::screens::player_details::Work::Seconds => 0x7559AC,
-            rc2k_core::screens::player_details::Work::Kept => 0x7559EC,
+            rc2k_core::screens::player_details::Work::Seconds => &DRAW_WORK.seconds,
+            rc2k_core::screens::player_details::Work::Kept => &DRAW_WORK.figure,
         }
     }
 }
@@ -620,13 +632,13 @@ pub type DetailsScreen<'a> = GameScreen<
 >;
 
 impl GameWork for rc2k_core::screens::menus::Work {
-    fn address(self) -> usize {
+    fn cell(self) -> &'static Dword {
         use rc2k_core::screens::menus::Work;
         match self {
-            Work::SpacedFont => 0x7559EC,
-            Work::MarkerX => 0x755A18,
-            Work::MarkerY => 0x755A1C,
-            Work::Highlighted => 0x7559D0,
+            Work::SpacedFont => &DRAW_WORK.figure,
+            Work::MarkerX => &DRAW_WORK.marker_x,
+            Work::MarkerY => &DRAW_WORK.marker_y,
+            Work::Highlighted => &DRAW_WORK.drawing_highlighted_item,
         }
     }
 }
@@ -681,25 +693,25 @@ impl MenuScreen<'_> {
 pub type MenuScreen<'a> = GameScreen<'a, FontAt, rc2k_core::screens::menus::Work>;
 
 impl GameFont for rc2k_core::screens::service::Font {
-    fn address(self) -> usize {
+    fn pointer(self) -> *mut Font {
         use rc2k_core::screens::service::Font;
         match self {
-            Font::Times => 0x51E3E4,
-            Font::Available => 0x51E584,
-            Font::Remaining => 0x51E5A4,
-            Font::Overrun => 0x51E524,
-            Font::Penalty => 0x51E544,
+            Font::Times => crate::gfx::typefaces::fonts::LABEL.as_ptr(),
+            Font::Available => crate::gfx::typefaces::fonts::NAME.as_ptr(),
+            Font::Remaining => crate::gfx::typefaces::fonts::RANK.as_ptr(),
+            Font::Overrun => crate::gfx::typefaces::fonts::MARKED_NAME.as_ptr(),
+            Font::Penalty => crate::gfx::typefaces::fonts::MARKED_RANK.as_ptr(),
         }
     }
 }
 
 impl GameWork for rc2k_core::screens::service::Work {
-    fn address(self) -> usize {
+    fn cell(self) -> &'static Dword {
         use rc2k_core::screens::service::Work;
         match self {
-            Work::Penalty => 0x75ACC0,
-            Work::A => 0x7559AC,
-            Work::B => 0x7559EC,
+            Work::Penalty => &crate::menu::state_store::MENU_STATE.driver_stats.money,
+            Work::A => &DRAW_WORK.seconds,
+            Work::B => &DRAW_WORK.figure,
         }
     }
 }
@@ -709,60 +721,62 @@ pub type ServiceScreen<'a> =
     GameScreen<'a, rc2k_core::screens::service::Font, rc2k_core::screens::service::Work>;
 
 impl GameFont for rc2k_core::screens::highlighted_caption::Font {
-    fn address(self) -> usize {
+    fn pointer(self) -> *mut Font {
         use rc2k_core::screens::highlighted_caption::Font;
         match self {
-            Font::Measure => 0x51E824,
-            Font::A => 0x51E964,
-            Font::B => 0x51E844,
+            Font::Measure => crate::gfx::typefaces::fonts::MEASURE.as_ptr(),
+            Font::A => crate::gfx::typefaces::fonts::CAPTION_A.as_ptr(),
+            Font::B => crate::gfx::typefaces::fonts::CAPTION_B.as_ptr(),
             // g_blendedFont, moved (`font_at` asks `crate::moved::place`).
-            Font::Blended => 0x51E384,
+            Font::Blended => font_at(0x51E384),
         }
     }
 }
 
 impl GameWork for rc2k_core::screens::highlighted_caption::Work {
-    fn address(self) -> usize {
+    fn cell(self) -> &'static Dword {
         use rc2k_core::screens::highlighted_caption::Work;
         match self {
-            Work::MarkerX => 0x755A18,
-            Work::MarkerY => 0x755A1C,
-            Work::Width => 0x7559AC,
-            Work::X => 0x7559B0,
-            Work::Y => 0x7559B4,
-            Work::Left => 0x7559C0,
-            Work::Right => 0x7559C4,
-            Work::LeftX => 0x755A20,
-            Work::LeftY => 0x755A24,
-            Work::RightX => 0x755A28,
-            Work::RightY => 0x755A2C,
+            Work::MarkerX => &DRAW_WORK.marker_x,
+            Work::MarkerY => &DRAW_WORK.marker_y,
+            Work::Width => &DRAW_WORK.seconds,
+            Work::X => &DRAW_WORK.work_b0,
+            Work::Y => &DRAW_WORK.work_b4,
+            Work::Left => &DRAW_WORK.glyph,
+            Work::Right => &DRAW_WORK.work_c4,
+            Work::LeftX => &DRAW_WORK.marker_end_a,
+            Work::LeftY => &DRAW_WORK.marker_end_b,
+            Work::RightX => &DRAW_WORK.marker_end_c,
+            Work::RightY => &DRAW_WORK.marker_end_d,
         }
     }
 }
 
 impl GameFont for rc2k_core::screens::inspection::Font {
-    fn address(self) -> usize {
-        0x51E3C4
+    fn pointer(self) -> *mut Font {
+        crate::gfx::typefaces::fonts::SMALL.as_ptr()
     }
 }
 
 impl GameWork for rc2k_core::screens::inspection::Work {
-    fn address(self) -> usize {
+    fn cell(self) -> &'static Dword {
         match self {
-            rc2k_core::screens::inspection::Work::Lost => 0x7559EC,
-            rc2k_core::screens::inspection::Work::Status => 0x75AC80,
+            rc2k_core::screens::inspection::Work::Lost => &DRAW_WORK.figure,
+            rc2k_core::screens::inspection::Work::Status => {
+                &crate::menu::state_store::MENU_STATE.driver_stats.score
+            }
         }
     }
 }
 
 impl GameFont for rc2k_core::screens::controls::Font {
-    fn address(self) -> usize {
-        0x51E8C4
+    fn pointer(self) -> *mut Font {
+        crate::gfx::typefaces::fonts::LIST.as_ptr()
     }
 }
 
 impl GameWork for rc2k_core::screens::controls::Work {
-    fn address(self) -> usize {
+    fn cell(self) -> &'static Dword {
         match self {}
     }
 }
@@ -772,44 +786,44 @@ pub type ControlsScreen<'a> =
     GameScreen<'a, rc2k_core::screens::controls::Font, rc2k_core::screens::controls::Work>;
 
 impl GameFont for rc2k_core::screens::championship_table::Font {
-    fn address(self) -> usize {
+    fn pointer(self) -> *mut Font {
         use rc2k_core::screens::championship_table::Font;
         match self {
-            Font::Position => 0x51E5A4,
-            Font::Text => 0x51E584,
-            Font::MarkedPosition => 0x51E544,
-            Font::MarkedText => 0x51E524,
+            Font::Position => crate::gfx::typefaces::fonts::RANK.as_ptr(),
+            Font::Text => crate::gfx::typefaces::fonts::NAME.as_ptr(),
+            Font::MarkedPosition => crate::gfx::typefaces::fonts::MARKED_RANK.as_ptr(),
+            Font::MarkedText => crate::gfx::typefaces::fonts::MARKED_NAME.as_ptr(),
         }
     }
 }
 
 impl GameWork for rc2k_core::screens::championship_table::Work {
-    fn address(self) -> usize {
+    fn cell(self) -> &'static Dword {
         match self {
-            rc2k_core::screens::championship_table::Work::Position => 0x755579,
-            rc2k_core::screens::championship_table::Work::End => 0x7556BC,
+            rc2k_core::screens::championship_table::Work::Position => &LOOP_FLAGS.champ_row,
+            rc2k_core::screens::championship_table::Work::End => &CHAMP_VIEW.row_end,
         }
     }
 }
 
 impl GameFont for rc2k_core::screens::controller_page::Font {
-    fn address(self) -> usize {
-        0x51E8C4
+    fn pointer(self) -> *mut Font {
+        crate::gfx::typefaces::fonts::LIST.as_ptr()
     }
 }
 
 impl GameWork for rc2k_core::screens::controller_page::Work {
-    fn address(self) -> usize {
+    fn cell(self) -> &'static Dword {
         use rc2k_core::screens::controller_page::Work;
         match self {
-            Work::Seconds => 0x7559AC,
-            Work::Record => 0x755A0C,
-            Work::FirstLeft => 0x7559DC,
-            Work::FirstRight => 0x7559E0,
-            Work::SecondLeft => 0x7559E4,
-            Work::SecondRight => 0x7559E8,
-            Work::Place => 0x7559EC,
-            Work::Buttons => 0x7559F0,
+            Work::Seconds => &DRAW_WORK.seconds,
+            Work::Record => &DRAW_WORK.work_0c,
+            Work::FirstLeft => &DRAW_WORK.slider_a_start,
+            Work::FirstRight => &DRAW_WORK.slider_a_end,
+            Work::SecondLeft => &DRAW_WORK.slider_b_start,
+            Work::SecondRight => &DRAW_WORK.slider_b_end,
+            Work::Place => &DRAW_WORK.figure,
+            Work::Buttons => &DRAW_WORK.hhmm,
         }
     }
 }

@@ -13,16 +13,15 @@
 use crate::errors::{BadInput, Refused};
 use crate::session::SCREEN;
 
-use crate::gfx::front::Slot as FrontSlot;
+use crate::gfx::front::SURFACES;
 use crate::physics::flow::g;
 
-const FRONT: FrontSlot = FrontSlot::at(0x4F32B4); // g_frontSurface
 const PIXELS: usize = 0x4F4988; // dword_4F4988
 const GAP: usize = 0x4F498C; // dword_4F498C
 
 /// The Rust version (see the header).
 pub fn clear_back_surface() -> Result<(), Refused> {
-    if unsafe { crate::gfx::block::game_read::<u32>(FRONT) } == 0 {
+    if SURFACES.front.get() == 0 {
         return Ok(());
     }
     if SCREEN.height.get() == 0 {

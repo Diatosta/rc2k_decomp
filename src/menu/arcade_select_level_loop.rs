@@ -12,7 +12,15 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{game_read, game_write, rva};
+use crate::framework::{game_write, rva};
+use crate::menu::captions_store::CAPTIONS;
+use crate::menu::draw_lists_store::DRAW_LISTS;
+use crate::menu::event_store::EVENT_STATE;
+use crate::menu::flow_store::SCREEN_FLOW;
+use crate::menu::loop_store::LOOP_FLAGS;
+use crate::menu::menus_store::MENUS;
+use crate::menu::option_work_store::OPTION_WORK;
+use crate::menu::screen_items_store::{SCREEN_ITEMS, slot};
 use crate::menu::screen_loop::{
     Callee, Carried, Flow, List, Screen, Step, carousel, prepare_scene, screen_entry,
 };
@@ -26,11 +34,11 @@ unsafe fn set_up_first(c: &mut Carried) -> Result<(), Refused> {
         game_write(rva(0x623FB4), 0xAu32);
         game_write(rva(0x624080), 0x100u32);
         prepare_scene(c);
-        game_write(rva(0x7554EC), 0x1u32);
+        SCREEN_FLOW.turning.set(0x1u32);
         MENU_STATE.carousel.menu.set(0x5u32);
         carousel(c)?;
-        c.arg = game_read(rva(0x747694));
-        game_write(rva(0x755525), c.arg);
+        c.arg = SCREEN_ITEMS.current[slot::ARCADE_SELECT_LEVEL].get();
+        LOOP_FLAGS.item.set(c.arg);
         c.arg = c.arg.wrapping_sub(1);
         MENU_STATE.carousel.front.set(c.arg);
     }
@@ -38,32 +46,30 @@ unsafe fn set_up_first(c: &mut Carried) -> Result<(), Refused> {
 }
 
 unsafe fn after_first_frame(_c: &mut Carried) -> Result<Flow, Refused> {
-    unsafe {
-        if game_read::<u32>(rva(0x758806)) == 0x1 {
-            game_write(rva(0x758806), 0x0u32);
-            return Ok(Flow::SetUp);
-        }
-        Ok(Flow::On)
+    if CAPTIONS.screen_left.get() == 0x1 {
+        CAPTIONS.screen_left.set(0x0u32);
+        return Ok(Flow::SetUp);
     }
+    Ok(Flow::On)
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: rva(0x748E8C),
-    saved_item: rva(0x747694),
+    menu: || MENUS.arcade_select_level.addr(),
+    saved_item: || &SCREEN_ITEMS.current[slot::ARCADE_SELECT_LEVEL],
     lists: &[
         List {
-            pointer: rva(0x755504), // g_sceneList
-            table: rva(0x758EFE),
+            pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
+            table: || DRAW_LISTS.arcade_select_level_scene.addr(),
             run: false,
         },
         List {
-            pointer: rva(0x7554F8), // g_drawList
-            table: rva(0x758BEA),
+            pointer: || &SCREEN_FLOW.draw_list, // g_drawList
+            table: || DRAW_LISTS.arcade_select_level_draw.addr(),
             run: false,
         },
         List {
-            pointer: rva(0x7554FC), // g_overlayList
-            table: rva(0x75916E),
+            pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
+            table: || DRAW_LISTS.arcade_select_level_overlay.addr(),
             run: false,
         },
     ],
@@ -71,14 +77,18 @@ pub const SCREEN: Screen = Screen {
     frame_callback: rva(0x474D4B),
     later_frame_callback: None,
     before: &[
-        Step::Write(rva(0x758806), 0x0),
-        Step::Write(rva(0x755980), 0x0),
+        Step::Write(|| &CAPTIONS.screen_left, 0x0),
+        Step::Write(|| &EVENT_STATE.event_done, 0x0),
     ],
     set_up_first: &[Step::Do(set_up_first)],
     prepare: &[],
     after_lists: &[],
     background: &[
-        Step::ArgAddr(rva(0x732BDB)),
+        Step::ArgAddr(|| {
+            crate::menu::texts_store::MENU_TEXTS
+                .arcade_select_level_picture
+                .addr()
+        }),
         Step::CallOrFatal(Callee::LoadBackground, 0x80712345),
     ],
     after_first_frame: &[Step::DoFlow(after_first_frame)],
@@ -86,7 +96,7 @@ pub const SCREEN: Screen = Screen {
     ask_also_if: None,
     confirmed: &[],
     unasked_skips_save: false,
-    after: &[Step::Write(rva(0x7556A4), 0x6F)],
+    after: &[Step::Write(|| &OPTION_WORK.menu_sound, 0x6F)],
     escape_leaves: false,
     each_frame: &[],
     short_action_check: false,

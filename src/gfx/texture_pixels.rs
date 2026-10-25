@@ -19,13 +19,40 @@
 //!   place, so many times: each pixel the average of four, counting only those of an
 //!   alpha above 0 for the colour.
 
-use crate::gfx::picture_store::Slot as PicSlot;
+use crate::session::{Bytes, Dword};
 
-// g_thirds
-pub const READING_RVA: PicSlot = PicSlot::at(0x4F4A24); // dword_4F4A24
-pub const SCALE_RVA: PicSlot = PicSlot::at(0x4F4A28); // dword_4F4A28
-pub const SATURATION_RVA: PicSlot = PicSlot::at(0x4F4A2C); // dword_4F4A2C
-pub const GRADES_RVA: PicSlot = PicSlot::at(0x4F4A30); // byte_4F4A30
+/// IDA's address of the grading variables.
+pub const START: usize = 0x4F4A24;
+/// Their length.
+pub const LEN: usize = 0x4F4B30 - START;
+
+/// The texture pictures' grading (`gfx::texture_upload` grades a texture's colours when the
+/// settings ask for it).
+#[repr(C)]
+pub struct Grading {
+    /// `dword_4F4A24`: 1 while the textures are being read (`reload_system_textures`).
+    pub reading: Dword,
+    /// `dword_4F4A28`: the scale pictures are read at (0x100: none).
+    pub scale: Dword,
+    /// `dword_4F4A2C`: the saturation pictures are read at (0x100: none).
+    pub saturation: Dword,
+    /// `byte_4F4A30`: the grades table the last graded texture used.
+    pub grades: Bytes<0x100>,
+}
+
+/// The grading variables; the first values are the image's.
+pub static GRADING: Grading = Grading {
+    reading: Dword::new(1),
+    scale: Dword::new(0x100),
+    saturation: Dword::new(0x100),
+    grades: Bytes::new([0; 0x100]),
+};
+
+/// Where the block is (`moved::MOVED`'s home for IDA 0x4F4A24).
+pub fn home() -> usize {
+    &GRADING as *const Grading as usize
+}
+
 /// The second picture's place, in bytes from the first's start.
 pub const KEPT: usize = rc2k_core::gfx::pixels::KEPT;
 
@@ -62,4 +89,20 @@ pub unsafe fn halve_texture(pixels: *mut u32, width: u32, height: u32, times: u3
     let pixels =
         unsafe { std::slice::from_raw_parts_mut(pixels, width as usize * height as usize) };
     rc2k_core::gfx::pixels::halve(pixels, width, height, times).expect("the slice is the picture")
+}
+
+#[cfg(test)]
+mod block_tests {
+    use super::*;
+
+    #[test]
+    fn first_values_are_the_games() {
+        crate::gfx::first_values_are_the_games(&GRADING, START, START + LEN);
+    }
+
+    #[test]
+    fn moved_knows_the_block() {
+        assert_eq!(crate::moved::place(START), GRADING.reading.addr());
+        assert_eq!(crate::moved::place(0x4F4A30), GRADING.grades.addr());
+    }
 }

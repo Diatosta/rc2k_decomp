@@ -21,12 +21,10 @@
 
 use crate::audio::store::AUDIO;
 use crate::errors::Refused;
-use crate::framework::rva;
 use crate::session::FLAGS;
-use crate::store::game_addr;
 
-const START_TEXT: usize = rva(0x4DA5F2); // "AUDIOTDB:START"
-const QUIT_TEXT: usize = rva(0x4DA601); // "AUDIOTDB:QUIT"
+const START_TEXT: &std::ffi::CStr = c"AUDIOTDB:START"; // "AUDIOTDB:START"
+const QUIT_TEXT: &std::ffi::CStr = c"AUDIOTDB:QUIT"; // "AUDIOTDB:QUIT"
 
 /// Runs to the `ExitThread`, which does not come back. `slot` is the thread's slot
 /// (`threading::thread_slot`), whose +0xC says it runs.
@@ -40,7 +38,7 @@ pub unsafe fn audio_thread(slot: u32) -> Result<(), Refused> {
         let started = running.read() != 1
             && {
                 running.write(1);
-                sound_device::log_text(game_addr(START_TEXT) as u32, true);
+                sound_device::log_text(START_TEXT.as_ptr() as usize as u32, true);
                 CoInitialize(std::ptr::null());
                 AUDIO.no_audio.get() == 0
             }
@@ -78,7 +76,7 @@ pub unsafe fn audio_thread(slot: u32) -> Result<(), Refused> {
         thread_parts::free_sample_buffer()?;
         a3d::splash()?;
         CoUninitialize();
-        sound_device::log_text(game_addr(QUIT_TEXT) as u32, true);
+        sound_device::log_text(QUIT_TEXT.as_ptr() as usize as u32, true);
         set_priority(0);
         running.write(0);
         windows_sys::Win32::System::Threading::ExitThread(0)

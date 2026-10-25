@@ -12,12 +12,12 @@
 use crate::errors::Refused;
 use crate::framework::{game_read, rva};
 use crate::menu::load_car_background::shown_car;
+use crate::menu::option_work_store::OPTION_WORK;
 
 // ---- game data ----
 
 // dword_755990
 const STREAMS_IDA: usize = 0x75A31E; // off_75A31E: `MENU_LISTS.car_streams`
-const VOLUME_RVA: usize = rva(0x755698); // dword_755698
 
 // ---- Rust version ----
 
@@ -31,7 +31,7 @@ pub unsafe fn play_car_stream(start: &mut dyn FnMut(u32, u32)) -> Result<(), Ref
             // car's, past them what the image has after (`MOVED` resolves the address).
             game_read(rva(STREAMS_IDA + car as usize * 4)),
             |list| (list as *const u32).read_unaligned(),
-            game_read(VOLUME_RVA),
+            OPTION_WORK.speech_level.get(),
         );
         crate::sound::store::CAR_STREAM.on.set(s.on);
         crate::sound::store::CAR_STREAM.stream.set(s.list);

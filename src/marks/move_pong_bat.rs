@@ -11,15 +11,12 @@
 //!
 //! the x87 version stays for the Rust callers in unconverted code).
 
-use crate::marks::pong;
+use crate::marks::pong::PONG;
 use crate::marks::pong_bat_back::pong_bat_back;
-use crate::marks::store::{game_read, game_write};
 
 /// The Rust version (see the header).
-pub unsafe fn move_pong_bat() {
-    unsafe {
-        game_write(pong::SAVED_BAT[0], game_read::<u32>(pong::BAT[0]));
-        game_write(pong::SAVED_BAT[1], game_read::<u32>(pong::BAT[1]));
-        pong_bat_back()
-    }
+pub fn move_pong_bat() {
+    PONG.saved_bat[0].set(PONG.bat[0].bits());
+    PONG.saved_bat[1].set(PONG.bat[1].bits());
+    pong_bat_back()
 }

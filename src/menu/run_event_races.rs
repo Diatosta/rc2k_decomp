@@ -30,20 +30,21 @@
 //! for the mode, and what the steps refuse, before anything.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::menu::champ_store::CHAMP_VIEW;
+use crate::menu::cheats_store::CHEAT_VARS;
 use crate::menu::event_flow::Flow;
+use crate::menu::event_store::EVENT_STATE;
+use crate::menu::flow_store::SCREEN_FLOW;
+use crate::menu::pages_store::MENU_PAGES;
 use crate::menu::standings::*;
 use crate::race::state_store::RACE_STATE;
 use crate::session::Dword;
 use rc2k_core::menu::event_races::{self as races, PICKED, Step, Var};
 
-const GOES_ON_RVA: usize = rva(0x75592C); // dword_75592C
-const CHEATS_RVA: usize = rva(0x75870C); // g_cheats
-const KEPT_RVA: usize = rva(0x7554C8); // dword_7554C8
-const RESET_ONLY_RVA: usize = rva(0x755250); // dword_755250
-const SUMMARY_RVA: usize = rva(0x7556F4); // dword_7556F4
-const MODE_RVA: usize = rva(0x755988); // dword_755988
-const CURRENT_RVA: usize = rva(0x75598C); // dword_75598C
+const GOES_ON: &Dword = &EVENT_STATE.event_goes_on; // dword_75592C
+const CHEATS: &Dword = &CHEAT_VARS.cheats; // g_cheats
+const KEPT: &Dword = &SCREEN_FLOW.kept; // dword_7554C8
+const CURRENT: &Dword = &EVENT_STATE.current_player; // dword_75598C
 
 /// The game for `rc2k_core::menu::event_races`: the variables at their addresses, the
 /// steps' Rust versions on the registers carried through (`g`), the race and the front end.
@@ -55,25 +56,16 @@ struct Game<'a> {
 }
 
 /// The variables that are in the physics block.
-fn cell(v: Var) -> Option<&'static Dword> {
-    Some(match v {
+fn cell(v: Var) -> &'static Dword {
+    match v {
         Var::CheatSwitch => &RACE_STATE.settings.direction,
         Var::RaceKept => &RACE_STATE.settings.kept,
         Var::Result => &RACE_STATE.results.results[0].result,
         Var::Result2 => &RACE_STATE.results.results[1].result,
-        _ => return None,
-    })
-}
-
-fn address(v: Var) -> usize {
-    match v {
-        Var::GoesOn => GOES_ON_RVA,
-        Var::Cheats => CHEATS_RVA,
-        Var::Kept => KEPT_RVA,
-        Var::Current => CURRENT_RVA,
-        Var::CheatSwitch | Var::RaceKept | Var::Result | Var::Result2 => {
-            unreachable!("a variable of the physics block, `cell`")
-        }
+        Var::GoesOn => GOES_ON,
+        Var::Cheats => CHEATS,
+        Var::Kept => KEPT,
+        Var::Current => CURRENT,
     }
 }
 
@@ -81,17 +73,11 @@ impl races::EventRaces for Game<'_> {
     type Error = Refused;
 
     fn get(&mut self, v: Var) -> u32 {
-        match cell(v) {
-            Some(cell) => cell.get(),
-            None => unsafe { game_read(address(v)) },
-        }
+        cell(v).get()
     }
 
     fn set(&mut self, v: Var, value: u32) {
-        match cell(v) {
-            Some(cell) => cell.set(value),
-            None => unsafe { game_write(address(v), value) },
-        }
+        cell(v).set(value)
     }
 
     fn step(&mut self, s: Step) -> Result<(), Refused> {
@@ -116,10 +102,10 @@ impl races::EventRaces for Game<'_> {
                 }
                 Step::RaceInfo => {
                     let (rec, pack) = (self.rec, self.pack);
-                    g.c.arg = game_read(SUMMARY_RVA);
+                    g.c.arg = CHAMP_VIEW.summary.get();
                     RACE_STATE.settings.rivals.set(g.c.arg);
-                    g.c.arg = game_read(INDEX_RVA);
-                    g.c.palette = game_read(SECTION_RVA);
+                    g.c.arg = INDEX_RVA.get();
+                    g.c.palette = SECTION_RVA.get();
                     g.record = pack;
                     g.c.cars = pack;
                     g.c.palette = get(rec + 4).wrapping_mul(0x40);
@@ -193,7 +179,7 @@ impl races::EventRaces for Game<'_> {
 /// The Rust version (see the header). `f` the registers carried in and out (what it
 /// leaves is the last step's).
 pub unsafe fn run_event_races(f: &mut Flow) -> Result<(), Refused> {
-    let drivers = entries(game_addr(DRIVERS_RVA) as u32, DRIVER)?;
+    let drivers = entries(crate::menu::drivers_store::DRIVERS.first(), DRIVER)?;
     if drivers.len() < PICKED as usize
         || drivers[..PICKED as usize]
             .iter()
@@ -203,13 +189,13 @@ pub unsafe fn run_event_races(f: &mut Flow) -> Result<(), Refused> {
     {
         return Err(BadInput("fewer than 0xB2 drivers, or fewer than four still running").into());
     }
-    let mode: u32 = unsafe { game_read(MODE_RVA) };
+    let mode: u32 = { EVENT_STATE.event_kind.get() };
     if let Some((n, _)) = races::players_of(mode)
         && (0..n).any(|i| player(i) == 0)
     {
         return Err(BadInput("a player of the event's mode missing").into());
     }
-    let reset_only = unsafe { game_read::<u32>(RESET_ONLY_RVA) } == 1;
+    let reset_only = { MENU_PAGES.reset_times.get() } == 1;
     let rec = crate::menu::calc_cpu_times::record()?;
     crate::menu::calc_cpu_times::check(rec)?;
     let pack = unsafe { crate::records::trakpak_entry::record_entry(rec as *const u8) }?;

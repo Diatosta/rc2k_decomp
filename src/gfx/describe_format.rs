@@ -16,12 +16,10 @@
 //! Refuses a null format.
 
 use crate::errors::BadInput;
-use crate::gfx::block::game_read;
-use crate::gfx::formats::Slot as FmtSlot;
+use crate::gfx::formats::FORMATS;
 
 // ---- game data ----
 
-const NUMBERS_RVA: FmtSlot = FmtSlot::at(0x4F3F78); // dword_4F3F78: six of (number, layout)
 const NUMBERS: usize = 6;
 // ---- Rust version ----
 
@@ -34,7 +32,12 @@ pub unsafe fn describe_format(format: *mut u32) -> Result<(), BadInput> {
         return Err(BadInput("no format"));
     }
     unsafe {
-        let numbers: [(u32, u32); NUMBERS] = game_read(NUMBERS_RVA);
+        let numbers: [(u32, u32); NUMBERS] = std::array::from_fn(|n| {
+            (
+                FORMATS.numbers[n].number.get(),
+                FORMATS.numbers[n].layout.get(),
+            )
+        });
         let masks = std::array::from_fn(|n| format.add(1 + n).read_unaligned());
         let (layout, number) = describe(masks, &numbers);
         format.write_unaligned(layout);

@@ -1,7 +1,7 @@
 //! `drive::tyre_turned_quad` (0x41C969): the tyre-change screen's turning quad (the
-//! steering wheel): the device's turn (esi +0x4EC, x `flt_5BEAC8` x 2 pi, `fsincos` into
-//! `flt_5BEBF4` cos, `flt_5BEBF0` sin) turning the half-sizes of the rectangle at ebx
-//! (floats: x, y, w, h) round its place plus `dword_5BEAE0` / `5BEAE4`, the colour ecx, the
+//! steering wheel): the device's turn (esi +0x4EC, x `TyreChange::gauge_unit` x 2 pi, `fsincos` into
+//! `turn_cos`, `turn_sin`) turning the half-sizes of the rectangle at ebx
+//! (floats: x, y, w, h) round its place plus `TyreChange::wheel`'s place, the colour ecx, the
 //! texture rectangle at eax (`quad_tail`), drawn (place 5). All in `pusha` / `popa`.
 //!
 //! In:  eax the texture rectangle, ebx the rectangle, ecx the colour, esi the input device
@@ -11,42 +11,43 @@
 
 use crate::drive::tyre_parts::*;
 use crate::errors::Refused;
+use crate::math::x87_float::{int, ld, st};
 use crate::physics::flow::a;
+use crate::race::tyre_store::{TYRE_CHANGE, TyreChange};
 use crate::scene::x87_mem::{fild, fld, fstp};
 use crate::session::MACHINE;
 
-/// The turn's arithmetic over the memory at the operands' addresses: `ty` the tyre-change
-/// block (the constants and results at their RVA offsets), `e` the device, `d` the
-/// rectangle, `v` the vertices, `t` the scratch float holding 2 pi.
-fn turn(ty: usize, e: usize, d: usize, v: usize, t: usize) {
-    let (ty, e, d, v, t) = (
-        ty as *mut u8,
-        e as *mut u8,
-        d as *mut u8,
-        v as *mut u8,
-        t as *mut u8,
-    );
+/// The turn's arithmetic: `ty` the tyre change's variables (the constants and results), `e`
+/// the device's address, `d` the rectangle, `v` the vertices, `t` the scratch float holding
+/// 2 pi.
+fn turn(ty: &TyreChange, e: usize, d: usize, v: usize, t: usize) {
+    let (e, d, v, t) = (e as *mut u8, d as *mut u8, v as *mut u8, t as *mut u8);
     unsafe {
-        let angle = fild(e, 0x4EC) * fld(ty, 0x1BEAC8) * fld(t, 0);
+        let angle = fild(e, 0x4EC) * ld(ty.gauge_unit.bits()) * fld(t, 0);
         let (sin, cos) = angle.sin_cos();
-        fstp(ty, 0x1BEBF4, cos);
-        fstp(ty, 0x1BEBF0, sin);
-        fstp(ty, 0x1BEBF8, fld(d, 0xC) * fld(ty, 0x1BEBF0));
-        fstp(ty, 0x1BEBFC, -(fld(d, 0xC) * fld(ty, 0x1BEBF4)));
-        fstp(ty, 0x1BEC00, fld(d, 0x8) * fld(ty, 0x1BEBF4));
-        fstp(ty, 0x1BEC04, fld(d, 0x8) * fld(ty, 0x1BEBF0));
-        let x = -fld(ty, 0x1BEC00) + fld(d, 0) + fild(ty, 0x1BEAE0);
+        ty.turn_cos.set_bits(st(cos));
+        ty.turn_sin.set_bits(st(sin));
+        ty.half_h_sin
+            .set_bits(st(fld(d, 0xC) * ld(ty.turn_sin.bits())));
+        ty.neg_half_h_cos
+            .set_bits(st(-(fld(d, 0xC) * ld(ty.turn_cos.bits()))));
+        ty.half_w_cos
+            .set_bits(st(fld(d, 0x8) * ld(ty.turn_cos.bits())));
+        ty.half_w_sin
+            .set_bits(st(fld(d, 0x8) * ld(ty.turn_sin.bits())));
+        let (wheel_x, wheel_y) = (int(ty.wheel[0].get() as i32), int(ty.wheel[1].get() as i32));
+        let x = -ld(ty.half_w_cos.bits()) + fld(d, 0) + wheel_x;
         fstp(v, 0x40, x);
-        fstp(v, 0, x + fld(ty, 0x1BEBF8));
-        let x = fld(ty, 0x1BEC00) + fld(d, 0) + fild(ty, 0x1BEAE0);
+        fstp(v, 0, x + ld(ty.half_h_sin.bits()));
+        let x = ld(ty.half_w_cos.bits()) + fld(d, 0) + wheel_x;
         fstp(v, 0x60, x);
-        fstp(v, 0x20, x + fld(ty, 0x1BEBF8));
-        let y = -fld(ty, 0x1BEC04) + fld(d, 0x4) + fild(ty, 0x1BEAE4);
+        fstp(v, 0x20, x + ld(ty.half_h_sin.bits()));
+        let y = -ld(ty.half_w_sin.bits()) + fld(d, 0x4) + wheel_y;
         fstp(v, 0x44, y);
-        fstp(v, 0x4, y + fld(ty, 0x1BEBFC));
-        let y = fld(ty, 0x1BEC04) + fld(d, 0x4) + fild(ty, 0x1BEAE4);
+        fstp(v, 0x4, y + ld(ty.neg_half_h_cos.bits()));
+        let y = ld(ty.half_w_sin.bits()) + fld(d, 0x4) + wheel_y;
         fstp(v, 0x64, y);
-        fstp(v, 0x24, y + fld(ty, 0x1BEBFC));
+        fstp(v, 0x24, y + ld(ty.neg_half_h_cos.bits()));
     }
 }
 
@@ -61,7 +62,7 @@ pub unsafe fn tyre_turned_quad(
 ) -> Result<(), Refused> {
     MACHINE.scratch.set(0x40C9_0FDB);
     turn(
-        crate::rest::low::tyres_asm_base() as usize,
+        &TYRE_CHANGE,
         device as usize,
         rect as usize,
         a(VERTS) as usize,
@@ -135,8 +136,13 @@ mod asm_reference {
         }
     }
 
-    const WINDOW: usize = 0x1BEAC0;
-    const WINDOW_END: usize = 0x1BEC08;
+    /// The struct's offsets of the window the turn writes and reads (IDA 0x5BEAC0 ..
+    /// 0x5BEC08 less the struct's start).
+    const WINDOW: usize = 0;
+    const WINDOW_END: usize = 0x148;
+    /// What the reference's `[ty + 0x1BEAC8]` operands add to: the struct's address less the
+    /// block's first RVA, so that RVA offsets name the struct's bytes.
+    const RVA_OFFSET: usize = 0x1BEAC0;
 
     fn put(buf: &mut [u8], off: usize, v: u32) {
         buf[off..off + 4].copy_from_slice(&v.to_le_bytes());
@@ -144,6 +150,19 @@ mod asm_reference {
 
     fn get(buf: &[u8], off: usize) -> u32 {
         u32::from_le_bytes(buf[off..off + 4].try_into().unwrap())
+    }
+
+    fn zeroed() -> Box<TyreChange> {
+        // SAFETY: atomic cells and byte arrays only: all-zero is valid.
+        Box::new(unsafe { std::mem::zeroed() })
+    }
+
+    fn bytes(ty: &TyreChange) -> &[u8] {
+        unsafe { std::slice::from_raw_parts(ty as *const TyreChange as *const u8, WINDOW_END) }
+    }
+
+    fn put_ty(ty: &TyreChange, off: usize, v: u32) {
+        unsafe { ((ty as *const TyreChange as *const u8).add(off) as *mut u32).write(v) }
     }
 
     /// The device's turn is a small whole number and the factor small, so the angle is
@@ -154,8 +173,7 @@ mod asm_reference {
         let _g = lock();
         let saved = control_word();
         let mut rng = Rng::new(206);
-        let mut ty_a = vec![0u8; WINDOW_END + 16];
-        let mut ty_b = ty_a.clone();
+        let (ty_a, ty_b) = (zeroed(), zeroed());
         let (mut e_a, mut e_b) = (vec![0u8; 0x4F0 + 16], vec![0u8; 0x4F0 + 16]);
         let (mut d_a, mut d_b) = (vec![0u8; 32], vec![0u8; 32]);
         let (mut v_a, mut v_b) = (vec![0u8; 0x90], vec![0u8; 0x90]);
@@ -164,7 +182,9 @@ mod asm_reference {
         for &cw in &crate::scene::asm_test::CONTROL_WORDS {
             set_control_word(cw);
             for n in 0..4000 {
-                ty_a[WINDOW..WINDOW_END].fill(0xAA);
+                for off in (WINDOW..WINDOW_END).step_by(4) {
+                    put_ty(&ty_a, off, 0xAAAA_AAAA);
+                }
                 v_a.fill(0xAA);
                 put(&mut e_a, 0x4EC, rng.small() as u32);
                 let factor = match rng.below(3) {
@@ -172,21 +192,23 @@ mod asm_reference {
                     1 => rng.unit() * 1e-4,
                     _ => (rng.small() as f32) * 1e-6,
                 };
-                put(&mut ty_a, 0x1BEAC8, factor.to_bits());
+                put_ty(&ty_a, 0x8, factor.to_bits());
                 put(&mut t_a, 0, 0x40C9_0FDB);
                 for off in [0, 4, 8, 0xC] {
                     put(&mut d_a, off, rng.moderate());
                 }
-                put(&mut ty_a, 0x1BEAE0, rng.small() as u32);
-                put(&mut ty_a, 0x1BEAE4, rng.small() as u32);
-                ty_b[WINDOW..WINDOW_END].copy_from_slice(&ty_a[WINDOW..WINDOW_END]);
+                put_ty(&ty_a, 0x20, rng.small() as u32);
+                put_ty(&ty_a, 0x24, rng.small() as u32);
+                for off in (WINDOW..WINDOW_END).step_by(4) {
+                    put_ty(&ty_b, off, get(bytes(&ty_a), off));
+                }
                 v_b.copy_from_slice(&v_a);
                 e_b.copy_from_slice(&e_a);
                 d_b.copy_from_slice(&d_a);
                 t_b.copy_from_slice(&t_a);
                 unsafe {
                     ref_turn(
-                        ty_a.as_mut_ptr() as usize,
+                        (&*ty_a as *const TyreChange as usize).wrapping_sub(RVA_OFFSET),
                         e_a.as_mut_ptr() as usize,
                         d_a.as_mut_ptr() as usize,
                         v_a.as_mut_ptr() as usize,
@@ -194,7 +216,7 @@ mod asm_reference {
                     );
                 }
                 turn(
-                    ty_b.as_mut_ptr() as usize,
+                    &ty_b,
                     e_b.as_mut_ptr() as usize,
                     d_b.as_mut_ptr() as usize,
                     v_b.as_mut_ptr() as usize,
@@ -202,7 +224,7 @@ mod asm_reference {
                 );
                 let mut places: Vec<(&str, usize, &[u8], &[u8])> = Vec::new();
                 for off in (WINDOW..WINDOW_END).step_by(4) {
-                    places.push(("ty", off, &ty_a, &ty_b));
+                    places.push(("ty", off, bytes(&ty_a), bytes(&ty_b)));
                 }
                 for off in (0..0x80).step_by(4) {
                     places.push(("v", off, &v_a, &v_b));

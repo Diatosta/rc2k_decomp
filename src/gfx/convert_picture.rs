@@ -22,13 +22,15 @@
 //! `routes.rs`.
 
 use crate::errors::BadInput;
-use crate::gfx::block::{game_addr, game_read, game_write};
 use crate::gfx::components_to_4444_rows::{COMPONENTS_TO_4444_ROWS, components_to_4444_rows};
+use crate::gfx::converters::CONVERTERS;
 use crate::gfx::copy_pixel_rows::{COPY_PIXEL_ROWS, copy_pixel_rows};
-use crate::gfx::install_converters::CONVERTERS_RVA;
-use crate::gfx::picture::{FLAGS_RVA, HEIGHT_RVA, ROW_BYTES_RVA, WIDTH_RVA, picture};
-use crate::gfx::pixel_format::{PixelFormat, SCRATCH_RVA, surface_format_addr};
+use crate::gfx::formats::FORMATS;
+use crate::gfx::picture::picture;
+use crate::gfx::picture_store::PICTURE;
+use crate::gfx::pixel_format::{PixelFormat, surface_format_addr};
 use crate::session::SCREEN;
+use crate::store::game_addr;
 
 // ---- game data ----
 
@@ -41,7 +43,7 @@ fn format_number() -> u32 {
 
 /// The converter the game has for the surface's format, or 0.
 fn converter() -> u32 {
-    unsafe { game_read(CONVERTERS_RVA + format_number() as usize * 4) }
+    CONVERTERS.table[format_number() as usize].get()
 }
 
 // ---- Rust version ----
@@ -53,7 +55,7 @@ pub type CarryLeft = bool;
 pub unsafe fn convert_picture(screen_bits: u32, converter: u32) -> Result<CarryLeft, BadInput> {
     unsafe {
         let buffer = picture();
-        let (width, height): (u32, u32) = (game_read(WIDTH_RVA), game_read(HEIGHT_RVA));
+        let (width, height): (u32, u32) = (PICTURE.width.get(), PICTURE.height.get());
         if buffer.is_null() {
             return Err(BadInput("no picture buffer"));
         }
@@ -132,15 +134,15 @@ pub unsafe fn convert_picture(screen_bits: u32, converter: u32) -> Result<CarryL
                 screen_bits == 16,
             )?;
             if let Some(scratch) = scratch {
-                game_write(SCRATCH_RVA, scratch);
+                FORMATS.scratch.write(&scratch);
             }
             if screen_bits != 16 {
                 return Ok(carry);
             }
         }
-        game_write(FLAGS_RVA, game_read::<u32>(FLAGS_RVA) & 0xFFFF_F0FF | 0x200);
-        let row_bytes = game_read::<u32>(ROW_BYTES_RVA);
-        game_write(ROW_BYTES_RVA, row_bytes >> 1);
+        PICTURE.flags.set(PICTURE.flags.get() & 0xFFFF_F0FF | 0x200);
+        let row_bytes = PICTURE.row_bytes.get();
+        PICTURE.row_bytes.set(row_bytes >> 1);
         // `shr`: the bit shifted out.
         Ok(row_bytes & 1 != 0)
     }

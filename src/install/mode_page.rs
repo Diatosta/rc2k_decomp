@@ -9,19 +9,20 @@
 //! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
 //! are the original's.
 
-use crate::install::installer::{CHOICE, LIST_ANSWER, MEDIA_MODE, PATH_PROBLEM, g, gb, p};
+use crate::install::installer::{MEDIA_MODE, g, p};
+use crate::install::vars::INSTALLER_PAGES;
+use crate::install::vars::INSTALLER_RUN;
 
 /// `state` the list action's (ebx).
 pub fn mode_page(state: u32) {
     if state == 0 {
         // Converted: `rc2k_core::install::pages::mode_highlight`.
-        p(
-            CHOICE,
-            rc2k_core::install::pages::mode_highlight(g(MEDIA_MODE)),
-        );
-        p(PATH_PROBLEM, 0);
+        INSTALLER_PAGES
+            .choice
+            .set(rc2k_core::install::pages::mode_highlight(g(MEDIA_MODE)));
+        INSTALLER_RUN.path_problem.set(0);
     }
     if (state as i32) < 0 {
-        p(MEDIA_MODE, gb(LIST_ANSWER) as u32);
+        p(MEDIA_MODE, INSTALLER_PAGES.list_answer.get() as u32);
     }
 }

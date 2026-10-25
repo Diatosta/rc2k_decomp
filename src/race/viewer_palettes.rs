@@ -10,14 +10,12 @@
 //!
 //! Caller: `race::viewer_load_stage`.
 
+use crate::gfx::fonts_store::FONTS;
 use crate::gfx::pixel_format::PixelFormat;
 use crate::physics::flow::a;
 use crate::race::viewer::{get, put};
 
-const FONT_PALETTES: usize = 0x51DEB0; // g_fontPalettes
 const COLOURS: usize = 0x960FA0; // unk_960FA0: 256 dwords
-const TEXTURE_KINDS: crate::gfx::records::tables::Slot =
-    crate::gfx::records::tables::Slot::at(0x5ABACC); // off_5ABAC0 + 0xC
 /// (to, from): the textures and slots kept.
 const KEPT: [(usize, usize); 4] = [
     (0x5BECB0, 0x5D0E38), // g_kindFirstTextures + 0x350
@@ -25,24 +23,31 @@ const KEPT: [(usize, usize); 4] = [
     (0x5BECB8, 0x5D0E0C), // g_kindFirstTextures + 0x324
     (0x5BECBC, 0x5D1E0C), // g_kindFirstSlots + 0x324
 ];
-/// The palette fields pointed at the colours, in the original's order.
-const PALETTES: [usize; 6] = [0x51EAF8, 0x51EB58, 0x51EB18, 0x51EB78, 0x51EAD8, 0x51EB38];
+/// The replay viewer's panel fonts, whose palettes are pointed at the colours, in the
+/// original's order.
+const PALETTES: [crate::gfx::typefaces::FontId; 6] = {
+    use crate::gfx::typefaces::fonts::*;
+    [PANEL_A, PANEL_B, PANEL_C, PANEL_D, PANEL_E, PANEL_F]
+};
 
 /// The Rust version.
 pub unsafe fn viewer_palettes() {
     for (to, from) in KEPT {
         put(to, get(from));
     }
-    for at in PALETTES {
-        put(at, a(COLOURS));
+    for font in PALETTES {
+        font.object().palette.set(a(COLOURS));
     }
     unsafe {
         let screen = (crate::session::SCREEN.format_addr() as *const PixelFormat).read_unaligned();
-        let texture = (get(TEXTURE_KINDS).wrapping_add(8) as *const PixelFormat).read_unaligned();
+        let texture = (crate::gfx::texture_upload::TEXTURE_TABLES.kinds[3]
+            .get()
+            .wrapping_add(8) as *const PixelFormat)
+            .read_unaligned();
         // Converted: `rc2k_core::race::viewer_flow::{font_colour, FONT_COLOURS}` (colour
         // by colour, as the original).
         use rc2k_core::race::viewer_flow::{FONT_COLOURS, font_colour};
-        let from = get(FONT_PALETTES) as *const u32;
+        let from = FONTS.palettes.get() as *const u32;
         let to = a(COLOURS) as *mut u32;
         for n in 0..FONT_COLOURS {
             let colour = font_colour(

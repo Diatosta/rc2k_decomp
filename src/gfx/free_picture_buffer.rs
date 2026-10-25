@@ -10,22 +10,17 @@
 //! registers above are the original's, for reference.
 
 use crate::errors::BadInput;
-use crate::gfx::block::{game_ptr, game_read, game_write};
-use crate::gfx::picture_store::Slot as PicSlot;
+use crate::gfx::picture_store::PICTURE;
 use crate::memory::own_heap;
-
-const FLAGS_RVA: PicSlot = PicSlot::at(0x4F49CC); // g_pictureFlags
-const BUFFER_RVA: PicSlot = PicSlot::at(0x4F49DC); // g_pictureBuffer
-const LIST_RVA: PicSlot = PicSlot::at(0x4F49E4); // stru_4F49E4
 
 /// The Rust version (see the header).
 pub fn free_picture_buffer() -> Result<(), BadInput> {
     unsafe {
-        if game_read::<u32>(LIST_RVA) != 0 && own_heap() == 1 {
+        if PICTURE.list.get().head != 0 && own_heap() == 1 {
             return Err(BadInput("the game's own heap is in use (altmemenable)"));
         }
-        game_write(FLAGS_RVA, 0u32);
-        game_write(BUFFER_RVA, 0u32);
-        crate::memory::free_list::free_list(game_ptr(LIST_RVA))
+        PICTURE.flags.set(0u32);
+        PICTURE.buffer.set(0u32);
+        crate::memory::free_list::free_list(PICTURE.list.as_ptr())
     }
 }

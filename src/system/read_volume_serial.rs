@@ -13,19 +13,18 @@
 //! `start` calls it directly (2026-10-23); the registers above are the original's, for
 //! reference.
 
-use crate::framework::{game_addr, rva};
+use crate::files::scratch::SCRATCH;
 use windows_sys::Win32::Storage::FileSystem::GetVolumeInformationA;
 
 // ---- game data ----
 
-const VOLUME_RVA: usize = rva(0x93E8B0); // g_pngInfo: its first 16 bytes
 // ---- Rust version ----
 
 /// The serial and name written (see the header). Its one caller, `start`, reads eax
 /// after it (register liveness, 2026-10-23: eax only), which is `start`'s own esi at
 /// entry, not anything of this function's: so it returns nothing.
 pub unsafe fn read_volume_serial() {
-    let at = game_addr(VOLUME_RVA) as *mut u8;
+    let at = SCRATCH.buffer.addr() as *mut u8;
     unsafe {
         let worked = GetVolumeInformationA(
             std::ptr::null(),

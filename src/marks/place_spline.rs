@@ -14,7 +14,6 @@
 //! anything), and its steps' refusals (all it may write is put back first).
 
 use crate::errors::{BadInput, Refused};
-use crate::marks::lines::SETTINGS_RVA;
 use crate::marks::place_graded_points::place_graded_points;
 use crate::marks::splines::{OFFSET_RVA, SPLINE_LEN, TABLES, place_shape_points as place_shape};
 use crate::marks::store::{Slot, game_addr, game_read, game_write};
@@ -57,7 +56,7 @@ fn sizes(a: u32, k: u32, k2: u32) -> (u32, u32) {
 
 /// The Rust version (see the header).
 pub unsafe fn place_spline(n: u32) -> Result<(), Refused> {
-    let settings: u32 = unsafe { game_read(SETTINGS_RVA) };
+    let settings: u32 = crate::marks::setup::SETTINGS.pointer.get();
     if settings == 0 {
         return Err(BadInput("no marks settings").into());
     }

@@ -25,6 +25,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_read, game_write, rva};
+use crate::menu::loop_store::LOOP_FLAGS;
 use crate::menu::state_store::MENU_STATE;
 use crate::scene::assign_kind_textures::assign_kind_textures;
 use crate::scene::assign_menu_textures::assign_menu_textures;
@@ -40,7 +41,6 @@ use crate::scene::map_texture_places::map_texture_places;
 // ---- game data ----
 
 const MODE_RVA: usize = rva(0x6365C4); // dword_6365C4
-const HIGHLIGHTED_RVA: usize = rva(0x755525); // dword_755525
 
 // ---- Rust version ----
 
@@ -49,7 +49,7 @@ pub unsafe fn draw_highlighted(
     draw: &mut dyn FnMut() -> Result<(), Refused>,
 ) -> Result<(), Refused> {
     unsafe {
-        let item = game_read::<u32>(HIGHLIGHTED_RVA).wrapping_sub(1);
+        let item = LOOP_FLAGS.item.get().wrapping_sub(1);
         if item >= ENTRIES {
             return Err(BadInput("a highlighted item of 0 or past the carousel's kinds").into());
         }

@@ -17,17 +17,13 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, rva};
+use crate::menu::event_store::EVENT_STATE;
 use crate::menu::player::player_at;
+use crate::screens::controls_store::CONTROLS_SCREEN;
 use crate::screens::game_screen::ControlsScreen;
-use crate::service::state::PLAYER_INDEX_RVA;
 use crate::text::draw_text::Canvas;
 
 // byte_A8BC54
-const LEARNING_RVA: usize = rva(0x7551F4); // dword_7551F4
-const ROW_RVA: usize = rva(0x7551FC); // dword_7551FC
-const PAD_NAMES_RVA: usize = rva(0x755200); // word_755200
-const STICK_NAMES_RVA: usize = rva(0x755212); // word_755212
 
 unsafe fn get(a: u32) -> u32 {
     unsafe { (a as *const u32).read_unaligned() }
@@ -35,11 +31,9 @@ unsafe fn get(a: u32) -> u32 {
 
 /// The directions' names (`word_755200`, `word_755212`).
 unsafe fn direction_names() -> rc2k_core::screens::controls::DirectionNames {
-    unsafe {
-        rc2k_core::screens::controls::DirectionNames {
-            pad: game_read(PAD_NAMES_RVA),
-            stick: game_read(STICK_NAMES_RVA),
-        }
+    rc2k_core::screens::controls::DirectionNames {
+        pad: CONTROLS_SCREEN.pad(),
+        stick: CONTROLS_SCREEN.stick(),
     }
 }
 
@@ -69,12 +63,12 @@ pub unsafe fn binding_text(player: u32, n: u32) -> Result<Vec<u8>, Refused> {
 /// Returns the carry.
 pub unsafe fn draw_control_bindings(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
     unsafe {
-        let player = player_at(game_read(PLAYER_INDEX_RVA));
+        let player = player_at(EVENT_STATE.current_player.get());
         if player == 0 {
             return Err(BadInput("no current player").into());
         }
-        let learning: u32 = game_read(LEARNING_RVA);
-        let row: u32 = game_read(ROW_RVA);
+        let learning: u32 = CONTROLS_SCREEN.learning.get();
+        let row: u32 = CONTROLS_SCREEN.learned.get();
         let mut texts: [Vec<u8>; 10] = Default::default();
         for (n, text) in texts.iter_mut().enumerate() {
             *text = binding_text(player, n as u32)?;

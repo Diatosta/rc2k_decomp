@@ -83,5 +83,6 @@ pub mod unregister_lobby;
 pub mod value_by_number;
 pub mod value_down;
 pub mod value_up;
+pub mod vars;
 pub mod write_record;
 pub mod write_registry;

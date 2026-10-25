@@ -173,7 +173,7 @@ pub unsafe fn add_face_points(s: u32, face: u32) -> Result<(), Refused> {
 /// pairs from `flt_768688`, `dword_768700` 5, `dword_7687D0` 0. Every register kept.
 /// Converted: `rc2k_core::marks::pong::Court::reset` (exact at every precision: `fld;
 /// fstp` of a float only makes a signalling NaN quiet).
-pub unsafe fn reset_pong() {
+pub fn reset_pong() {
     let rules = crate::marks::pong::rules();
     crate::marks::pong::with_court(|c| c.reset(&rules));
 }
@@ -537,7 +537,7 @@ pub unsafe fn load_splines(resume: u32) -> Result<(), Refused> {
         if kind >= KINDS {
             return Err(BadInput("a marks' kind of 0x22 or more").into());
         }
-        let settings: u32 = game_read(crate::marks::lines::SETTINGS_RVA);
+        let settings: u32 = crate::marks::setup::SETTINGS.pointer.get();
         let count = get(settings + OBJECTS_AT) as i32;
         if count > MOST_OBJECTS as i32 {
             return Err(BadInput("more than 19 spline objects").into());

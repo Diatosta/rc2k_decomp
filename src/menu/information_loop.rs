@@ -12,6 +12,12 @@
 
 use crate::errors::Refused;
 use crate::framework::{game_read, game_write, rva};
+use crate::menu::draw_lists_store::DRAW_LISTS;
+use crate::menu::event_store::EVENT_STATE;
+use crate::menu::flow_store::SCREEN_FLOW;
+use crate::menu::loop_store::LOOP_FLAGS;
+use crate::menu::menus_store::MENUS;
+use crate::menu::screen_items_store::{SCREEN_ITEMS, slot};
 use crate::menu::screen_loop::{
     Callee, Carried, List, Screen, Step, carousel, log_line, prepare_scene, screen_entry,
 };
@@ -22,7 +28,7 @@ use crate::menu::state_store::MENU_STATE;
 unsafe fn set_up_first(c: &mut Carried) -> Result<(), Refused> {
     unsafe {
         // Between `pusha` and `popa`: no register changes.
-        log_line(rva(0x4DEAD0));
+        log_line(c"InfoScr: Start");
         game_write(rva(0x623FB0), 0xFFFFFF64u32);
         game_write(rva(0x623FB4), 0x27u32);
         game_write(rva(0x624080), 0x140u32);
@@ -31,11 +37,11 @@ unsafe fn set_up_first(c: &mut Carried) -> Result<(), Refused> {
         game_write(rva(0x6241E0), 0x2F8u32);
         game_write(rva(0x6241EC), game_read::<i32>(rva(0x6241DC)) as f32);
         game_write(rva(0x6241F0), game_read::<i32>(rva(0x6241E0)) as f32);
-        game_write(rva(0x7554EC), 0x1u32);
+        SCREEN_FLOW.turning.set(0x1u32);
         MENU_STATE.carousel.menu.set(0x9u32);
         carousel(c)?;
-        c.arg = game_read(rva(0x7476BC));
-        game_write(rva(0x755525), c.arg);
+        c.arg = SCREEN_ITEMS.current[slot::INFORMATION].get();
+        LOOP_FLAGS.item.set(c.arg);
         c.arg = c.arg.wrapping_sub(1);
         MENU_STATE.carousel.front.set(c.arg);
     }
@@ -45,28 +51,28 @@ unsafe fn set_up_first(c: &mut Carried) -> Result<(), Refused> {
 unsafe fn after(_c: &mut Carried) -> Result<(), Refused> {
     // Between `pusha` and `popa`: no register changes.
     unsafe {
-        log_line(rva(0x4DEADF));
+        log_line(c"InfoScr: End");
     }
     Ok(())
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: rva(0x74F90C),
-    saved_item: rva(0x7476BC),
+    menu: || MENUS.information.addr(),
+    saved_item: || &SCREEN_ITEMS.current[slot::INFORMATION],
     lists: &[
         List {
-            pointer: rva(0x755504), // g_sceneList
-            table: rva(0x758FEE),
+            pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
+            table: || DRAW_LISTS.information_scene.addr(),
             run: false,
         },
         List {
-            pointer: rva(0x7554F8), // g_drawList
-            table: rva(0x758C82),
+            pointer: || &SCREEN_FLOW.draw_list, // g_drawList
+            table: || DRAW_LISTS.information_draw.addr(),
             run: false,
         },
         List {
-            pointer: rva(0x7554FC), // g_overlayList
-            table: rva(0x7591CA),
+            pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
+            table: || DRAW_LISTS.information_overlay.addr(),
             run: false,
         },
     ],
@@ -78,8 +84,12 @@ pub const SCREEN: Screen = Screen {
     prepare: &[],
     after_lists: &[],
     background: &[
-        Step::Write(rva(0x7558D8), 0x1),
-        Step::ArgAddr(rva(0x731DB4)),
+        Step::Write(|| &EVENT_STATE.clears_escape_flag, 0x1),
+        Step::ArgAddr(|| {
+            crate::menu::texts_store::MENU_TEXTS
+                .information_picture
+                .addr()
+        }),
         Step::CallOrFatal(Callee::LoadBackground, 0x80712345),
     ],
     after_first_frame: &[],

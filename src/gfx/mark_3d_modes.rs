@@ -22,14 +22,12 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::rva;
-use crate::gfx::modes::Slot as ModeSlot;
+use crate::gfx::modes::MODES;
 use crate::session::MACHINE;
 use crate::store::{game_read, game_write};
 
 pub use rc2k_core::gfx::screen_modes::MODES_ROOM;
 
-const TABLE_RVA: ModeSlot = ModeSlot::at(0x4F4F3C); // dword_4F4F3C: the table
-const COUNT_RVA: ModeSlot = ModeSlot::at(0x4F4F38); // dword_4F4F38: its entries
 const DEPTH_RVA: usize = rva(0x4F492C); // dword_4F492C: the depth formats' bits
 const EXTRA_RVA: usize = rva(0x4F4930); // dword_4F4930: the extra flags
 
@@ -39,7 +37,7 @@ pub fn mark_3d_modes(kind: u32) -> Result<(), Refused> {
         if MACHINE.has_fpu.get() != 1 {
             return Ok(());
         }
-        let count: u32 = game_read(COUNT_RVA);
+        let count: u32 = MODES.count.get();
         if count > MODES_ROOM {
             return Err(BadInput("more screen modes than the table has room for").into());
         }
@@ -50,7 +48,7 @@ pub fn mark_3d_modes(kind: u32) -> Result<(), Refused> {
             game_write(rva(at), 1u32);
         }
         // Converted: `rc2k_core::gfx::screen_modes::mark_3d`.
-        let table = crate::gfx::block::game_addr(TABLE_RVA) as u32;
+        let table = MODES.table_addr() as u32;
         let before: Vec<_> = crate::system::find_entry::entries(table, count).collect();
         let mut marked = before.clone();
         rc2k_core::gfx::screen_modes::mark_3d(

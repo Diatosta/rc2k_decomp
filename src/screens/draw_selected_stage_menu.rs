@@ -23,7 +23,8 @@ use crate::race::state_store::RACE_STATE;
 use crate::screens::draw_stage_records::selection;
 use crate::screens::draw_time_trial_stage_info::GROUP_TITLES_RVA;
 use crate::screens::stage_panel::{
-    build_second_heading, draw_records_for_group, draw_stage_body, dword, menu_item_id, table_dword,
+    build_second_heading, draw_records_for_group, draw_stage_body, dword, menu_item_id,
+    table_dword_at,
 };
 use crate::text::draw_text::Canvas;
 
@@ -37,7 +38,7 @@ pub unsafe fn menu_titles() -> Option<(u32, u32)> {
     unsafe {
         let sel = selection()?;
         Some((
-            table_dword(GROUP_TITLES_RVA, sel.group),
+            table_dword_at(GROUP_TITLES_RVA.addr(), sel.group),
             dword(sel.table.wrapping_add(0x38)),
         ))
     }

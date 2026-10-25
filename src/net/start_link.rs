@@ -22,12 +22,12 @@
 //! does (section 16). Callers: 0x4AAAE1, 0x4AAAEC, `net::lobby_launched_game`.
 
 use crate::errors::Refused;
+use crate::menu::names_store::NAME_BUFFERS;
 use crate::net::lobby::log;
 use crate::net::store::PlayerRecord;
 
 const STARTING: usize = 0x5C2E04; // "NET: Starting link"
 const STOPPING: usize = 0x5C2E17; // "NET: Stopping link"
-const PLAYER_NAMES: usize = 0x755784; // g_playerNames
 const NO_CONNECTION: u32 = 0x154;
 const NO_SESSION: u32 = 0x155;
 
@@ -95,7 +95,7 @@ pub fn start_link(mode: u32) -> Result<(), Refused> {
     log(a(STARTING), true, 2);
     NET.mode.set(mode);
     take_player_settings::take_player_settings()?;
-    fill_own_player::fill_own_player(a(PLAYER_NAMES))?;
+    fill_own_player::fill_own_player(NAME_BUFFERS.player_names.addr() as u32)?;
     show_background::show_background()?;
     match link()? {
         Way::Message(n) => show_message::show_message(n)?,

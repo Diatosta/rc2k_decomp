@@ -12,7 +12,14 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{game_read, game_write, rva};
+use crate::framework::{game_write, rva};
+use crate::menu::cheats_store::CHEAT_VARS;
+use crate::menu::draw_lists_store::DRAW_LISTS;
+use crate::menu::event_store::EVENT_STATE;
+use crate::menu::flow_store::SCREEN_FLOW;
+use crate::menu::loop_store::LOOP_FLAGS;
+use crate::menu::menus_store::MENUS;
+use crate::menu::screen_items_store::{SCREEN_ITEMS, slot};
 use crate::menu::screen_loop::{
     Callee, Carried, List, Screen, Step, carousel, prepare_scene, screen_entry,
 };
@@ -21,11 +28,10 @@ use crate::menu::state_store::MENU_STATE;
 // ---- Rust version: `menu::screen_loop` with this ----
 
 unsafe fn before(c: &mut Carried) -> Result<(), Refused> {
-    unsafe {
-        c.arg = game_read(rva(0x7585DC));
-        game_write(rva(0x755990), c.arg);
-        game_write(rva(0x755998), 0x0u32);
-    }
+    c.arg = CHEAT_VARS.kept_car.get();
+    EVENT_STATE.shown_car.set(c.arg);
+    EVENT_STATE.car_page.set(0x0u32);
+
     Ok(())
 }
 
@@ -35,50 +41,49 @@ unsafe fn set_up_first(c: &mut Carried) -> Result<(), Refused> {
         game_write(rva(0x623FB4), 0xFFFFFF9Cu32);
         game_write(rva(0x624080), 0x100u32);
         prepare_scene(c);
-        game_write(rva(0x7554EC), 0x1u32);
+        SCREEN_FLOW.turning.set(0x1u32);
         MENU_STATE.carousel.menu.set(0xBu32);
         carousel(c)?;
-        c.arg = game_read(rva(0x7476D4));
-        game_write(rva(0x755525), c.arg);
+        c.arg = SCREEN_ITEMS.current[slot::CAR_SPECIFICATION].get();
+        LOOP_FLAGS.item.set(c.arg);
         c.arg = c.arg.wrapping_sub(1);
         MENU_STATE.carousel.front.set(c.arg);
-        game_write(rva(0x7554EC), 0x0u32);
-        c.arg = game_read(rva(0x755990));
+        SCREEN_FLOW.turning.set(0x0u32);
+        c.arg = EVENT_STATE.shown_car.get();
         MENU_STATE.carousel.front.set(c.arg);
     }
     Ok(())
 }
 
 unsafe fn after(c: &mut Carried) -> Result<(), Refused> {
-    unsafe {
-        c.arg = game_read(rva(0x755990));
-        game_write(rva(0x7585DC), c.arg);
-    }
+    c.arg = EVENT_STATE.shown_car.get();
+    CHEAT_VARS.kept_car.set(c.arg);
+
     Ok(())
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: rva(0x74B628),
-    saved_item: rva(0x7476D4),
+    menu: || MENUS.car_specification.addr(),
+    saved_item: || &SCREEN_ITEMS.current[slot::CAR_SPECIFICATION],
     lists: &[
         List {
-            pointer: rva(0x755504), // g_sceneList
-            table: rva(0x758F76),
+            pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
+            table: || DRAW_LISTS.car_specification_scene.addr(),
             run: false,
         },
         List {
-            pointer: rva(0x7554F8), // g_drawList
-            table: rva(0x758CDA),
+            pointer: || &SCREEN_FLOW.draw_list, // g_drawList
+            table: || DRAW_LISTS.car_specification_draw.addr(),
             run: false,
         },
         List {
-            pointer: rva(0x755500), // dword_755500
-            table: rva(0x7593C6),
+            pointer: || &SCREEN_FLOW.setup_list, // dword_755500
+            table: || DRAW_LISTS.car_specification_setup.addr(),
             run: true,
         },
         List {
-            pointer: rva(0x7554FC), // g_overlayList
-            table: rva(0x7591FA),
+            pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
+            table: || DRAW_LISTS.car_specification_overlay.addr(),
             run: false,
         },
     ],

@@ -5,12 +5,9 @@
 //! rounds' points, below 0 none, +0x6C the total, +0x70 the position).
 
 use crate::errors::{FatalError, Refused};
-use crate::framework::{game_read, rva};
+use crate::menu::champ_store::CHAMP_VIEW;
+use crate::menu::event_store::EVENT_STATE;
 use crate::text::draw_text::Canvas;
-
-fn k(a: usize) -> u32 {
-    unsafe { game_read(rva(a)) }
-}
 
 unsafe fn get(a: u32) -> u32 {
     unsafe { (a as *const u32).read_unaligned() }
@@ -48,14 +45,14 @@ pub unsafe fn find_history_entry(entry: u32, class: u32, position: u32) -> Resul
 /// the original's fatal error.
 pub unsafe fn draw_championship_table(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     unsafe {
-        let table = k(0x7556F0);
+        let table = CHAMP_VIEW.champ_history.get();
         if table == 0 {
             return Err(crate::errors::BadInput("no championship history").into());
         }
         // Converted: `rc2k_core::screens::championship_table`; the ten entries looked up
         // first (a position not in the history is the original's fatal error, raised
         // before the rows rather than after those before it).
-        let (class, first) = (k(0x7558F4), k(0x7556B8));
+        let (class, first) = (EVENT_STATE.class.get(), CHAMP_VIEW.first_row.get());
         let mut rows = Vec::with_capacity(10);
         for n in 0..10u32 {
             let e = find_history_entry(table, class, first.wrapping_add(n))?;
@@ -76,7 +73,7 @@ pub unsafe fn draw_championship_table(canvas: &mut dyn Canvas) -> Result<(), Ref
                 rc2k_core::screens::championship_table::Work,
             >::new(canvas),
             first,
-            k(0x7556D0) == 0x13,
+            CHAMP_VIEW.event_mode.get() == 0x13,
             &rows,
         )
     }

@@ -50,7 +50,7 @@ pub unsafe fn draw_turned_sprite(
         let [a, b, c] = place.map(rounded);
         // clip_quad's refusal (no settings) before anything is written.
         if (c as i32) > game_read::<i32>(NEAR_RVA)
-            && game_read::<u32>(crate::marks::setup::SETTINGS_RVA) == 0
+            && crate::marks::setup::SETTINGS.pointer.get() == 0
         {
             return Err(BadInput("no marks settings").into());
         }

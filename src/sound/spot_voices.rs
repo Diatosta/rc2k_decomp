@@ -10,12 +10,9 @@
 //! +0x3C the volume (floats), +0x40 the distance, +0x44 its change, +0x48 and +0x4C the
 //! pitch and volume factors.
 
-use crate::framework::rva;
 use crate::session::MACHINE;
-use crate::store::{game_addr, game_read, game_write};
+use crate::sound::sets_store::SPOT_VOICES;
 
-/// unk_5168C0.
-pub const VOICES: usize = 0x5168C0;
 pub const VOICE_LEN: u32 = 0x50;
 pub const VOICE_COUNT: u32 = 0x48;
 pub const MOST_SPOTS: u32 = 36;
@@ -23,7 +20,7 @@ pub const MOST_KIND: u32 = 0x15;
 
 /// The address of voice `n`.
 pub fn voice(n: u32) -> u32 {
-    game_addr(rva(VOICES)) as u32 + n * VOICE_LEN
+    crate::session::address_of(&SPOT_VOICES.voices) as u32 + n * VOICE_LEN
 }
 
 /// The dword at `at` of the voice at `v`.
@@ -37,14 +34,19 @@ pub fn set(v: u32, at: u32, value: u32) {
 
 /// The voices as the core's (`rc2k_core::sound::spot_voices`).
 pub fn load_voices() -> [rc2k_core::sound::spot_voices::Voice; VOICE_COUNT as usize] {
-    let words: [[u32; 20]; VOICE_COUNT as usize] = unsafe { game_read(rva(VOICES)) };
+    let words: [[u32; 20]; VOICE_COUNT as usize] =
+        std::array::from_fn(|n| std::array::from_fn(|k| SPOT_VOICES.voices[n][k].get()));
     words.map(rc2k_core::sound::spot_voices::Voice::from_words)
 }
 
 /// The voices stored back.
 pub fn store_voices(voices: &[rc2k_core::sound::spot_voices::Voice; VOICE_COUNT as usize]) {
     let words = voices.map(|v| v.to_words());
-    unsafe { game_write(rva(VOICES), words) };
+    for (voice, words) in SPOT_VOICES.voices.iter().zip(words) {
+        for (cell, word) in voice.iter().zip(words) {
+            cell.set(word);
+        }
+    }
 }
 
 /// A voice's address, or 0 for none (the pickers' work holds addresses).

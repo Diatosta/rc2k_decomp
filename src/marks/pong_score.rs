@@ -9,40 +9,34 @@
 //! Caller: `marks::run_pong`.
 
 use crate::errors::Refused;
-use crate::marks::pong;
-use crate::marks::store::{Slot, game_read, game_write};
+use crate::marks::pong::PONG;
+use crate::session::Dword;
 
 /// A number of the score as three digits.
-unsafe fn number(at: Slot) -> Result<(), Refused> {
+fn number(at: &Dword) -> Result<(), Refused> {
     use crate::marks::pong_digit::pong_digit;
-    unsafe {
-        let (n, [hundreds, tens, ones]) = rc2k_core::marks::pong::score_digits(game_read(at));
-        game_write(at, n);
-        pong_digit(hundreds)?;
-        pong_digit(tens)?;
-        pong_digit(ones)?;
-    }
+    let (n, [hundreds, tens, ones]) = rc2k_core::marks::pong::score_digits(at.get());
+    at.set(n);
+    pong_digit(hundreds)?;
+    pong_digit(tens)?;
+    pong_digit(ones)?;
     Ok(())
 }
 
 /// The Rust version (see the header).
 // Converted: `rc2k_core::marks::pong::{best, score_digits}`
-pub unsafe fn pong_score() -> Result<(), Refused> {
+pub fn pong_score() -> Result<(), Refused> {
     use rc2k_core::marks::pong::{SCORE_AT, SCORE_GAP, best};
-    unsafe {
-        let hits: u32 = game_read(pong::HITS_RVA);
-        let was: u32 = game_read(pong::BEST_RVA);
-        if best(hits, was) != was {
-            game_write(pong::BEST_RVA, hits);
-        }
-        game_write(pong::DIGIT_AT[0], SCORE_AT[0]);
-        game_write(pong::DIGIT_AT[1], SCORE_AT[1]);
-        number(pong::HITS_RVA)?;
-        game_write(
-            pong::DIGIT_AT[0],
-            game_read::<u32>(pong::DIGIT_AT[0]).wrapping_add(SCORE_GAP),
-        );
-        number(pong::BEST_RVA)?;
+    let p = &PONG;
+    let hits = p.hits.get();
+    let was = p.best.get();
+    if best(hits, was) != was {
+        p.best.set(hits);
     }
+    p.digit_at[0].set(SCORE_AT[0]);
+    p.digit_at[1].set(SCORE_AT[1]);
+    number(&p.hits)?;
+    p.digit_at[0].set(p.digit_at[0].get().wrapping_add(SCORE_GAP));
+    number(&p.best)?;
     Ok(())
 }

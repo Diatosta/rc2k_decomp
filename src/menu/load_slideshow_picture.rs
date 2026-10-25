@@ -19,18 +19,15 @@
 use crate::errors::Refused;
 use crate::files::file_exists::file_exists;
 use crate::files::numbered_path::numbered_path_in_game;
-use crate::framework::{game_ptr, game_read, game_write, rva};
 use crate::gfx::convert_picture::convert_picture_now;
 use crate::gfx::load_picture::load_picture;
 use crate::gfx::load_picture_with_overlay::load_picture_with_overlay;
-use crate::menu::car_buttons::PICTURE_RVA;
+use crate::menu::event_store::EVENT_STATE;
 use crate::menu::lists_store::MENU_LISTS;
 use crate::menu::load_car_background::shown_car;
 use crate::strings::text_length::text_length;
 
 // ---- game data ----
-
-const TITLE_BAR_RVA: usize = rva(0x731C54); // "files\g\graphics\screens\titlebar.png"
 
 /// What it asks for.
 pub enum Step {
@@ -52,7 +49,7 @@ pub unsafe fn load_slideshow_picture(
         use rc2k_core::menu::slides;
         let car = slides::slideshow_car(shown_car()?)?;
         let template = MENU_LISTS.slideshow_templates[car as usize].get();
-        let start: u32 = game_read(PICTURE_RVA);
+        let start: u32 = EVENT_STATE.picture.get();
         let mut path = std::ptr::null_mut();
         slides::search(
             start,
@@ -66,9 +63,9 @@ pub unsafe fn load_slideshow_picture(
                 slides::pcx(std::slice::from_raw_parts_mut(path, length))?;
                 Ok(file_exists(path)?)
             },
-            |next| game_write(PICTURE_RVA, next),
+            |next| EVENT_STATE.picture.set(next),
         )?;
-        let title_bar: *mut u8 = game_ptr(TITLE_BAR_RVA);
+        let title_bar = crate::menu::texts_store::MENU_TEXTS.titlebar_png.addr() as *mut u8;
         if step(Step::Overlay(path, title_bar))? {
             step(Step::Load(title_bar))?;
         }

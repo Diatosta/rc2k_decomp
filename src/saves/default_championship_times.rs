@@ -17,26 +17,22 @@
 //! (a refusal now leaves nothing written).
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, game_read, rva};
+use crate::menu::champ_store::CHAMP_VIEW;
 use crate::saves::allocate_best_times::count_stages;
 use crate::saves::default_times::*;
 use rc2k_core::saves::defaults::{Championship, RALLIES, RALLY_TABLE_LEN, championship_times};
 
 // ---- game data ----
 
-const RECORD_TABLE_RVA: usize = rva(0x735576); // g_recordTable
-const TABLE_RVA: usize = rva(0x7556D8); // dword_7556D8
-const RALLY_TABLES_RVA: usize = rva(0x742C98); // off_742C98
-
 // ---- Rust version ----
 
 pub unsafe fn default_championship_times(ebp: u32, log: Log) -> Result<(), Refused> {
     // Converted: `rc2k_core::saves::defaults::championship_times`.
     unsafe {
-        let records_at = game_addr(RECORD_TABLE_RVA) as u32;
+        let records_at = crate::records::stages_store::STAGE_TABLES.championship();
         let stages = count_stages(records_at as *const u8)?;
         let count = records(records_at)?;
-        let table: u32 = game_read(TABLE_RVA);
+        let table: u32 = CHAMP_VIEW.stage_best_times.get();
         if stages == 0 || table == 0 {
             return Err(BadInput("no stages, or no table for their times").into());
         }
@@ -46,7 +42,7 @@ pub unsafe fn default_championship_times(ebp: u32, log: Log) -> Result<(), Refus
         let mut tables = vec![(table, (stages * STAGE_LEN) as usize)];
         let mut present = [false; RALLIES];
         for (rally, there) in present.iter_mut().enumerate() {
-            let entries: u32 = game_read(RALLY_TABLES_RVA + rally * 4);
+            let entries = crate::saves::best_times_store::RALLY_TIMES.tables[rally].get();
             *there = entries != 0;
             tables.push((entries, RALLY_TABLE_LEN));
         }

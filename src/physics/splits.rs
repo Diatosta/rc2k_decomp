@@ -17,7 +17,6 @@ pub const DONE: usize = 0x71A080; // g_car + 0xA8
 pub const FIGURE: usize = 0x71A9E4; // g_car + 0xA0C: the split's figure, then six more
 pub const SPLITS: usize = 0x71A118; // g_car + 0x140: a figure per split
 pub const COUNT: usize = 0x601830; // g_splitColourCount
-pub const TEXT: usize = 0x93E430; // text
 
 pub fn g(x: usize) -> u32 {
     unsafe { game_read(rva(x)) }

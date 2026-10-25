@@ -14,6 +14,7 @@
 
 use crate::framework::rva;
 use crate::marks::expire_squares::{ITEM_LEN, ITEMS, ITEMS_RVA};
+use crate::marks::setup::CLOCK;
 use crate::marks::squares_spawn::squares_spawn;
 use crate::marks::store::{Slot, game_addr, game_read, game_write};
 use crate::math::x87;
@@ -22,7 +23,6 @@ use crate::scene::matrix3::extended;
 const VERTICES_RVA: usize = rva(0x9605A0); // g_polygonVertices
 const PLACES_RVA: Slot = Slot::at(0x8BC222); // dword_8BC222 .. dword_8BC22E
 const RUNNING_RVA: Slot = Slot::at(0x7652A0); // dword_7652A0
-const TICKS_RVA: Slot = Slot::at(0x764FD0); // g_marksFrameTicks
 const EDGE_RVA: Slot = Slot::at(0x809BC3); // g_marksEdgeMask
 const FADE_RVA: Slot = Slot::at(0x8BC232); // dword_8BC232
 const LIGHT_RVA: usize = rva(0x6415E4); // g_viewLight
@@ -62,7 +62,7 @@ unsafe fn run() {
                 continue;
             }
             if game_read::<u32>(RUNNING_RVA) != 0 {
-                let age = get(8).wrapping_add(game_read(TICKS_RVA));
+                let age = get(8).wrapping_add(CLOCK.frame_ticks.get());
                 ((e + 8) as *mut u32).write_unaligned(age);
                 if age as i32 >= LIFE {
                     (e as *mut u32).write_unaligned(0);

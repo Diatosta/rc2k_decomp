@@ -8,11 +8,11 @@
 //! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
 //! are the original's.
 
-use crate::install::installer::{IGNORE_ROOM, p};
+use crate::install::vars::INSTALLER_RUN;
 
 /// `state` the list action's (ebx).
 pub fn room_page(state: u32) {
     if state == 0 {
-        p(IGNORE_ROOM, 0);
+        INSTALLER_RUN.ignore_room.set(0);
     }
 }

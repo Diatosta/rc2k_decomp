@@ -7,12 +7,12 @@
 //! Caller: `net::lobby_frame`.
 
 use crate::errors::Refused;
-use crate::net::lobby::{Cursor, TEXT, a};
+use crate::net::lobby::Cursor;
 use crate::net::store::NET;
+use crate::strings::text_buffer::TEXT_BUFFER;
 use crate::text::draw_text::GameCanvas;
-use crate::text::font::Font;
 
-pub const CHAT_FONT: usize = 0x51E584; // stru_51E584
+pub const CHAT_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::NAME;
 
 /// The Rust version: the chat's input `text` for item `item` at `y` (x 0xA), with the caret
 /// while it is the item being edited; returns the next y (y + 0x1E, the original's ebp).
@@ -22,13 +22,13 @@ pub fn chat_input_line(text: u32, item: u32, y: u32) -> Result<u32, Refused> {
         cursor.string(text);
         cursor.string_id(4);
         cursor.nul();
-        a(TEXT)
+        TEXT_BUFFER.text.addr() as u32
     } else {
         text
     };
     unsafe {
         crate::text::draw_text::draw_text_at(
-            a(CHAT_FONT) as *mut Font,
+            CHAT_FONT.as_ptr(),
             shown as *const u8,
             0xA,
             y as i32,

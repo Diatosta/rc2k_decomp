@@ -18,72 +18,79 @@
 
 use crate::errors::Refused;
 use crate::install::installer::{
-    DIR_COUNT, DIRS, FILE_COUNT, FILES, INSTALLED, INSTALLING, SOURCE, STATUS, a, append_byte,
-    copy_picture, delete_file, g, game_api, gb, lock, normalise, p, pb, remove_dir, run_frame,
+    append_byte, copy_picture, delete_file, game_api, lock, normalise, remove_dir, run_frame,
     set_cd, show, sleep, str_append, str_append_indexed, unlock, wb,
 };
-
-const REMOVE_ITEMS: usize = 0x51B9D8; // g_removeStartItems
-const PATH_B: usize = 0x95E9F8; // byte_95E9F8
-const SOURCE_VAR: usize = 0x51BB8D; // g_installSource
-const SCRIPT: usize = 0x51BE10; // byte_51BE10
-const REMOVE_STRINGS: usize = 0x51D473; // unk_51D473
-const DOTDOT: usize = 0x5295B9; // ".."
+use crate::install::vars::INSTALLER_NAMES;
+use crate::install::vars::INSTALLER_PAGES;
+use crate::install::vars::INSTALLER_PATHS;
+use crate::install::vars::INSTALLER_RUN;
 
 /// byte_95E9F8 = byte_95E7F8 + name #index of `table`, NUL-ended.
-fn build_path(table: usize, index: u32) -> u32 {
-    let cursor = str_append(a(INSTALLED), a(PATH_B));
-    let cursor = str_append_indexed(g(table), index, cursor);
+fn build_path(table: u32, index: u32) -> u32 {
+    let cursor = str_append(
+        INSTALLER_PATHS.installed.addr() as u32,
+        INSTALLER_PATHS.path_b.addr() as u32,
+    );
+    let cursor = str_append_indexed(table, index, cursor);
     append_byte(cursor, 0);
-    a(PATH_B)
+    INSTALLER_PATHS.path_b.addr() as u32
 }
 
 pub fn uninstall() -> Result<(), Refused> {
     use crate::install as i;
-    if gb(STATUS) == 0 || gb(SOURCE_VAR) == 0 {
+    if INSTALLER_NAMES.status.get() == 0 || INSTALLER_NAMES.source.get(0) == 0 {
         return Ok(());
     }
-    pb(STATUS, 0x80);
+    INSTALLER_NAMES.status.set(0x80);
     i::write_registry::write_registry(&mut game_api)?;
     // the "removing" frame
     run_frame(None)?;
     if lock() {
         copy_picture()?;
-        i::draw_string_list::draw_string_list(1, a(REMOVE_STRINGS), 0, 0)?;
+        i::draw_string_list::draw_string_list(
+            1,
+            INSTALLER_PAGES.remove_strings.addr() as u32,
+            0,
+            0,
+        )?;
         unlock();
         show();
     }
-    normalise(a(SOURCE), a(INSTALLED))?;
-    set_cd(a(INSTALLED));
-    i::run_script::run_script(a(SCRIPT))?;
-    if g(FILE_COUNT) != 0 {
+    normalise(
+        INSTALLER_NAMES.source.addr() as u32,
+        INSTALLER_PATHS.installed.addr() as u32,
+    )?;
+    set_cd(INSTALLER_PATHS.installed.addr() as u32);
+    i::run_script::run_script(INSTALLER_NAMES.script.addr() as u32)?;
+    if INSTALLER_RUN.file_count.get() != 0 {
         let mut n = 0;
         loop {
-            delete_file(build_path(FILES, n));
+            delete_file(build_path(INSTALLER_RUN.files.get(), n));
             n = n.wrapping_add(1);
-            if n == g(FILE_COUNT) {
+            if n == INSTALLER_RUN.file_count.get() {
                 break;
             }
         }
     }
-    if g(DIR_COUNT) != 0 {
-        let mut n = g(DIR_COUNT).wrapping_sub(1);
+    if INSTALLER_RUN.dir_count.get() != 0 {
+        let mut n = INSTALLER_RUN.dir_count.get().wrapping_sub(1);
         loop {
-            remove_dir(build_path(DIRS, n));
+            remove_dir(build_path(INSTALLER_RUN.dirs.get(), n));
             n = n.wrapping_sub(1);
             if (n as i32) < 0 {
                 break;
             }
         }
     }
-    set_cd(a(DOTDOT));
-    remove_dir(a(INSTALLED));
+    set_cd(crate::install::installer::INSTALL_TEXTS.dotdot.addr() as u32);
+    remove_dir(INSTALLER_PATHS.installed.addr() as u32);
     sleep(1000);
-    pb(STATUS, 0);
-    wb(a(SOURCE_VAR), 0);
+    INSTALLER_NAMES.status.set(0);
+    wb(INSTALLER_NAMES.source.addr() as u32, 0);
     i::write_registry::write_registry(&mut game_api)?;
     i::unregister_lobby::unregister_lobby(&mut game_api);
-    p(REMOVE_ITEMS, 1);
-    p(INSTALLING, 0);
+    INSTALLER_RUN.remove_items.set(1);
+    INSTALLER_RUN.installing.set(0);
     Ok(())
 }

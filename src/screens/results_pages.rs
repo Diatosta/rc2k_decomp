@@ -39,7 +39,8 @@
 //! line buffer, and what the look-ups refuse.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, rva};
+use crate::menu::champ_store::CHAMP_VIEW;
+use crate::menu::event_store::EVENT_STATE;
 use crate::menu::lists_store::MENU_LISTS;
 use crate::menu::ranked_lookups::{find_ranked_entry, find_ranked_position, first_overall_time};
 use crate::menu::state_store::MENU_STATE;
@@ -47,19 +48,11 @@ use crate::screens::best_scores::{record_at, section_there};
 use crate::strings::append_time::show_hours;
 use crate::text::draw_text::Canvas;
 
-const LIST_RVA: usize = rva(0x7556EC); // g_rankedTimes
-const CLASS_RVA: usize = rva(0x7558F4); // dword_7558F4
-const FIRST_ROW_RVA: usize = rva(0x7556B8); // g_champFirstRow
 // g_champRow
 // g_champRowEnd
 // g_firstPlayerTime
 // hundredths
 // dword_7559D4
-const EVENT_MODE_RVA: usize = rva(0x7556D0); // g_eventMode
-const SECTION_RVA: usize = rva(0x75595C); // section
-fn g(a: usize) -> u32 {
-    unsafe { game_read(a) }
-}
 fn get(a: u32) -> u32 {
     unsafe { (a as *const u32).read_unaligned() }
 }
@@ -118,7 +111,7 @@ pub const OVERALL_STAGE: Page = Page {
 
 /// The Rust version of one page.
 pub unsafe fn draw_results_page(page: &Page, canvas: &mut dyn Canvas) -> Result<(), Refused> {
-    let (list, class) = (g(LIST_RVA), g(CLASS_RVA));
+    let (list, class) = (CHAMP_VIEW.ranked_times.get(), EVENT_STATE.class.get());
     if list == 0 {
         return Err(BadInput("no ranked list").into());
     }
@@ -131,7 +124,7 @@ pub unsafe fn draw_results_page(page: &Page, canvas: &mut dyn Canvas) -> Result<
     } else {
         first_overall_time(list, 2, rally)?
     };
-    let first_row = g(FIRST_ROW_RVA);
+    let first_row = CHAMP_VIEW.first_row.get();
     let end = first_row.wrapping_add(10);
     // every row found before anything is drawn
     let mut rows = Vec::new();
@@ -160,10 +153,10 @@ pub unsafe fn draw_results_page(page: &Page, canvas: &mut dyn Canvas) -> Result<
                 } else {
                     normal
                 },
-                name: if g(EVENT_MODE_RVA) == 0x13 {
+                name: if CHAMP_VIEW.event_mode.get() == 0x13 {
                     crate::screens::stage_panel::table_dword_at(
                         MENU_LISTS.section_titles[0].addr(),
-                        g(SECTION_RVA),
+                        EVENT_STATE.section.get(),
                     )
                 } else {
                     get(record_at(0) + 0x38)

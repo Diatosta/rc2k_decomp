@@ -10,13 +10,9 @@
 //! event (its Rust version with its own parts).
 
 use crate::errors::Refused;
-use crate::framework::{game_read, game_write, rva};
+use crate::menu::arcade_store::ARCADE_GAME;
+use crate::menu::cheats_store::CHEAT_VARS;
 use crate::menu::screen_loop::Carried;
-
-const CHEATS_RVA: usize = rva(0x75870C); // g_cheats
-const OPEN_RVA: usize = rva(0x758800); // byte_758800
-const LEVEL_RVA: usize = rva(0x7587EC); // dword_7587EC
-const STAGE_RVA: usize = rva(0x7587F0); // dword_7587F0
 
 /// The Rust version for `level` (1 .. 5). `c` the carried values the item gets. (The
 /// original leaves eax -1 for a closed level; nothing reads it.)
@@ -25,18 +21,18 @@ pub unsafe fn arcade_level(c: &Carried, level: u32) -> Result<(), Refused> {
     unsafe {
         // Converted: `rc2k_core::menu::arcade::level_open`.
         use rc2k_core::menu::arcade::{CLOSED_SOUND, level_open};
-        let open = level_open(game_read(CHEATS_RVA), || {
+        let open = level_open(CHEAT_VARS.cheats.get(), || {
             // `mov eax, level - 1` for the look-up, kept on the open path.
             r.arg = level - 1;
-            game_read::<u8>(OPEN_RVA + level as usize - 1)
+            ARCADE_GAME.levels_won.get(level as usize - 1)
         });
         if !open {
             r.arg = CLOSED_SOUND;
             crate::sound::play_menu_sound::play_menu_sound_in_game(r.arg);
             return Ok(());
         }
-        game_write(LEVEL_RVA, level);
-        game_write(STAGE_RVA, 0u32);
+        ARCADE_GAME.level.set(level);
+        ARCADE_GAME.stage.set(0u32);
         crate::menu::take_player1_units::take_player1_units()?;
         crate::menu::arcade_event::arcade_event(&r)
     }

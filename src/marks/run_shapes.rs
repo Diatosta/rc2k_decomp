@@ -17,8 +17,8 @@
 use crate::errors::{BadInput, Refused};
 use crate::framework::rva;
 use crate::marks::emitters::next_c5;
-use crate::marks::lines::SETTINGS_RVA;
 use crate::marks::pick_shapes::pick_shapes;
+use crate::marks::setup::CLOCK;
 use crate::marks::shape_points::turn_all_shapes;
 use crate::marks::store::{Slot, game_read, game_write};
 use crate::math::x87;
@@ -32,12 +32,11 @@ const MASKS: u32 = 9;
 const MOVING_RVA: Slot = Slot::at(0x844E2C); // dword_844E2C
 const INDEX_RVA: Slot = Slot::at(0x84460C); // dword_84460C
 const COUNT_RVA: Slot = Slot::at(0x82E38A); // dword_82E38A
-const TICKS_RVA: Slot = Slot::at(0x764FD0); // g_marksFrameTicks
 const RATE_RVA: [Slot; 2] = [Slot::at(0x89C99C), Slot::at(0x89C9A0)];
 
 /// The Rust version (see the header).
 pub unsafe fn run_shapes() -> Result<(), Refused> {
-    let settings: u32 = unsafe { game_read(SETTINGS_RVA) };
+    let settings: u32 = crate::marks::setup::SETTINGS.pointer.get();
     if settings == 0 {
         return Err(BadInput("no marks settings").into());
     }
@@ -73,7 +72,7 @@ pub unsafe fn run_shapes() -> Result<(), Refused> {
         };
         if let Some(rate) = rate {
             let count = x87::int_times_plus_int_to_int(
-                game_read(TICKS_RVA),
+                CLOCK.frame_ticks.get() as i32,
                 game_read(rate),
                 game_read(COUNT_RVA),
             );

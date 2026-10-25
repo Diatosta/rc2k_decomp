@@ -1,37 +1,46 @@
-//! The screenshot switch, its lock and the file name's template (phase 5, `notes/conversion.md`): IDA 0x4F52B4 .. 0x4F52C4 out of RAL.EXE's image, one block
-//! with the image's layout (`gfx::block`): an address `X` of IDA is at `base() + (X - START)`;
-//! a `Slot` is such an address, checked against the block.
+//! The screenshot switch, its lock and the file name's template, out of RAL.EXE's image
+//! (phase 5; typed in phase 7, `notes/conversion.md`): IDA 0x4F52B4 .. 0x4F52C4.
 
-use crate::gfx::block::game_read;
+use crate::session::{Bytes, Dword};
 
-crate::region!(
-    Shots,
-    STORE,
-    0x4F52B4,
-    0x4F52C4,
-    crate::gfx::shots_data::RUNS
-);
+/// IDA's address of the block's first byte.
+pub const START: usize = 0x4F52B4;
+/// The block's length.
+pub const LEN: usize = 0x4F52C4 - START;
 
-/// `g_screenshotsOn` (a `var\\ral.cfg` setting, `screensnapshot`).
-pub const ON: Slot = Slot::at(0x4F52B4);
-/// `dword_4F52B8`: the lock a screenshot holds.
-pub const LOCKED_HERE: Slot = Slot::at(0x4F52B8);
-/// The screenshot file's name, "000.pcx".
-pub const NAME: Slot = Slot::at(0x4F52BC);
+/// The screenshots' variables.
+#[repr(C)]
+pub struct Shots {
+    /// `g_screenshotsOn` (`dword_4F52B4`, a `var\ral.cfg` setting, `screensnapshot`).
+    pub on: Dword,
+    /// `dword_4F52B8`: the lock a screenshot holds.
+    pub locked_here: Dword,
+    /// `0x4F52BC`: the screenshot file's name, "000.pcx" and its NUL (the number's three
+    /// digits are counted up for each file).
+    pub name: Bytes<8>,
+}
+
+/// The screenshots' variables; the first values are the image's.
+pub static SHOTS: Shots = Shots {
+    on: Dword::new(0),
+    locked_here: Dword::new(0),
+    name: Bytes::new(*b"000.pcx\0"),
+};
+
+/// Where the block is (`moved::MOVED`'s home for IDA 0x4F52B4).
+pub fn home() -> usize {
+    &SHOTS as *const Shots as usize
+}
 
 /// Whether screenshots are on.
 pub fn on() -> u32 {
-    unsafe { game_read(ON) }
+    SHOTS.on.get()
 }
 
 /// The switch's first byte.
 pub fn on_byte() -> u8 {
-    unsafe { game_read(ON) }
+    SHOTS.on.get() as u8
 }
-
-pub const START: usize = 0x4F52B4;
-
-pub type Slot = crate::gfx::block::Slot<Shots>;
 
 #[cfg(test)]
 mod tests {
@@ -39,12 +48,13 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::block::first_values_are_the_games::<Shots>(&STORE);
+        crate::gfx::first_values_are_the_games(&SHOTS, START, START + LEN);
     }
 
     #[test]
     fn moved_knows_the_block() {
-        assert_eq!(crate::moved::place(START), STORE.addr());
-        assert_eq!(crate::moved::place(START + LEN - 1), STORE.addr() + LEN - 1);
+        assert_eq!(crate::moved::place(START), SHOTS.on.addr());
+        assert_eq!(crate::moved::place(0x4F52B8), SHOTS.locked_here.addr());
+        assert_eq!(crate::moved::place(0x4F52BC), SHOTS.name.addr());
     }
 }

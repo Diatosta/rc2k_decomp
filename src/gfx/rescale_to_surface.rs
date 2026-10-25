@@ -18,22 +18,14 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::rva;
-use crate::gfx::block::{game_read, game_write};
 use crate::gfx::components_to_pixel::components_to_pixel;
-use crate::gfx::decoder::Slot as DecSlot;
+use crate::gfx::decoder::DECODER;
 use crate::gfx::fill_row_table::{ROW_TABLE_ROOM, fill_row_table, row_address};
 use crate::gfx::pixel_format::PixelFormat;
-use crate::gfx::rescale_picture::STEP_X_RVA;
+use crate::gfx::rescale_picture::RESCALE;
 
 // ---- game data ----
 
-const DECODED_WIDTH_RVA: DecSlot = DecSlot::at(0x519124); // g_decodedWidth
-const DECODED_HEIGHT_RVA: DecSlot = DecSlot::at(0x519128); // g_decodedHeight
-const DECODED_STRIDE_RVA: DecSlot = DecSlot::at(0x51913C); // g_decodedStride
-const DECODED_PIXELS_RVA: DecSlot = DecSlot::at(0x519140); // g_decodedPixels
-const COLUMNS_LEFT: usize = 0x18;
-const ROWS_LEFT: usize = 0x1C;
-const COMPONENTS: usize = 0x20;
 /// `g_surface` (0x4F4998), twelve dwords, and the fields used here.
 pub const SURFACE_RVA: usize = rva(0x4F4998);
 const WIDTH: usize = 0x08;
@@ -49,10 +41,9 @@ const ROW_GAP: usize = 0x2C;
 pub unsafe fn rescale_to_surface(surface: *const u32) -> Result<(), Refused> {
     unsafe {
         let field = |offset: usize| surface.byte_add(offset).read_unaligned();
-        let (from_width, from_height): (u32, u32) =
-            (game_read(DECODED_WIDTH_RVA), game_read(DECODED_HEIGHT_RVA));
+        let (from_width, from_height): (u32, u32) = (DECODER.width.get(), DECODER.height.get());
         let (width, height) = (field(WIDTH), field(HEIGHT));
-        let from: u32 = game_read(DECODED_PIXELS_RVA);
+        let from: u32 = DECODER.pixels.get();
         if from_width == 0 || from_height == 0 || width == 0 || height == 0 {
             return Err(BadInput("a picture or a surface without width or height").into());
         }
@@ -60,7 +51,7 @@ pub unsafe fn rescale_to_surface(surface: *const u32) -> Result<(), Refused> {
             return Err(BadInput("a decoded picture or a surface the rescaler cannot take").into());
         }
         // The count was checked above.
-        let _ = fill_row_table(from, game_read(DECODED_STRIDE_RVA), from_height);
+        let _ = fill_row_table(from, DECODER.stride.get(), from_height);
         // Converted: `rc2k_core::gfx::picture::rescale`; each pixel's parts through the
         // components variable, the last left there with its fourth byte as it was.
         let format = (field(FORMAT) as *const PixelFormat).read_unaligned();
@@ -78,9 +69,9 @@ pub unsafe fn rescale_to_surface(surface: *const u32) -> Result<(), Refused> {
             &|row, byte| (row_address(row).wrapping_add(byte) as *const u8).read(),
             &mut |parts| {
                 for (part, &byte) in parts.iter().enumerate() {
-                    game_write(STEP_X_RVA + COMPONENTS + part, byte);
+                    RESCALE.components.set(part, byte);
                 }
-                let pixel = components_to_pixel(&format, game_read(STEP_X_RVA + COMPONENTS));
+                let pixel = components_to_pixel(&format, RESCALE.components.get_u32(0));
                 if words {
                     (out as *mut u16).write_unaligned(pixel as u16);
                     out = out.add(2);
@@ -96,19 +87,14 @@ pub unsafe fn rescale_to_surface(surface: *const u32) -> Result<(), Refused> {
             },
         )
         .expect("the sizes were checked");
-        game_write(
-            STEP_X_RVA,
-            [
-                work.step_x,
-                work.step_x_fraction,
-                work.step_y,
-                work.step_y_fraction,
-                work.weight_x,
-                work.weight_y,
-            ],
-        );
-        game_write(STEP_X_RVA + COLUMNS_LEFT, 0u32);
-        game_write(STEP_X_RVA + ROWS_LEFT, 0u32);
+        RESCALE.step_x.set(work.step_x);
+        RESCALE.step_x_fraction.set(work.step_x_fraction);
+        RESCALE.step_y.set(work.step_y);
+        RESCALE.step_y_fraction.set(work.step_y_fraction);
+        RESCALE.weight_x.set(work.weight_x);
+        RESCALE.weight_y.set(work.weight_y);
+        RESCALE.columns_left.set(0);
+        RESCALE.rows_left.set(0);
         Ok(())
     }
 }

@@ -3,7 +3,6 @@
 use crate::errors::BadInput;
 use crate::files::drive_type::drive_type;
 use crate::files::file_exists::file_exists;
-use crate::framework::{game_addr, rva};
 use crate::install::normalise_path::{current_directory, normalise_path};
 use crate::install::read_record::read_record;
 use crate::logfile::log_write::log_write;
@@ -44,8 +43,6 @@ pub trait Outside {
     }
 }
 
-const RECORD_PATH_RVA: usize = rva(0x5295C0); // "var\ral.zog"
-
 pub struct Game;
 
 impl Outside for Game {
@@ -59,7 +56,9 @@ impl Outside for Game {
         unsafe { SetCurrentDirectoryA(path) != 0 }
     }
     unsafe fn read_record(&mut self) -> Result<(), BadInput> {
-        unsafe { read_record(game_addr(RECORD_PATH_RVA) as *const u8) }
+        unsafe {
+            read_record(crate::install::installer::INSTALL_TEXTS.record_path.addr() as *const u8)
+        }
     }
     unsafe fn log(&mut self, text: *const u8) {
         unsafe { log_write(text, true, 1) };

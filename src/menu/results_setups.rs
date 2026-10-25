@@ -24,31 +24,13 @@
 //! (the pointer table likewise), a null place pointer.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, game_write, rva};
+use crate::menu::captions_store::CAPTIONS;
+use crate::menu::draw_work_store::DRAW_WORK;
+use crate::menu::event_store::EVENT_STATE;
 use crate::menu::player::player_at;
+use crate::menu::results_store::RESULT_FIGURES;
 
-const PAIRS_RVA: usize = rva(0x7587C8); // dword_7587C8: four (offset, value) pairs
-const OUTER_RVA: usize = rva(0x7559B4); // dword_7559B4
-const INNER_RVA: usize = rva(0x7559B8); // dword_7559B8
-const ORDER_RVA: usize = rva(0x758720); // g_duelFirst, g_duelSecond, dword_758728, dword_75872C
-const PLACE_POINTERS_RVA: usize = rva(0x758982); // off_758982, by byte offset
-const POSITIONS_RVA: usize = rva(0x758768); // dword_758768 ..
-const TOTALS_RVA: usize = rva(0x7587B8); // dword_7587B8 ..
-const BEFORE_RVA: usize = rva(0x7587A8); // dword_7587A8 ..
-const POINTS_RVA: usize = rva(0x758778); // dword_758778 ..
-const BONUS_RVA: usize = rva(0x758758); // dword_758758 ..
-const EXTRA_RVA: usize = rva(0x758788); // dword_758788 ..
-const SUM_RVA: usize = rva(0x758798); // dword_758798 ..
-const POINTS_TABLE_RVA: usize = rva(0x75892A); // dword_75892A
 const POSITION_LIMIT: u32 = 16;
-
-fn g(a: usize) -> u32 {
-    unsafe { game_read(a) }
-}
-
-fn p(a: usize, v: u32) {
-    unsafe { game_write(a, v) }
-}
 
 fn get(a: u32) -> u32 {
     unsafe { (a as *const u32).read_unaligned() }
@@ -67,7 +49,7 @@ fn place_pointer(offset: u32) -> Result<u32, Refused> {
     if offset > 12 || !offset.is_multiple_of(4) {
         return Err(BadInput("an offset past the place pointers").into());
     }
-    match g(PLACE_POINTERS_RVA + offset as usize) {
+    match CAPTIONS.place_pointers[offset as usize / 4].get() {
         0 => Err(BadInput("a null place pointer").into()),
         to => Ok(to),
     }
@@ -76,7 +58,7 @@ fn place_pointer(offset: u32) -> Result<u32, Refused> {
 /// The ranking of `rank_stage_times` (`by_totals` false) or `rank_totals`.
 pub fn rank(by_totals: bool) -> Result<(), Refused> {
     let values: Vec<u32> = if by_totals {
-        (0..4).map(|k| g(TOTALS_RVA + 4 * k)).collect()
+        (0..4).map(|k| RESULT_FIGURES.totals[k].get()).collect()
     } else {
         players(4)?.iter().map(|&r| get(r + 0x88)).collect()
     };
@@ -88,12 +70,12 @@ pub fn rank(by_totals: bool) -> Result<(), Refused> {
         .map(|&(o, _)| place_pointer(o))
         .collect::<Result<_, _>>()?;
     for (k, &(o, v)) in pairs.iter().enumerate() {
-        p(PAIRS_RVA + 8 * k, o);
-        p(PAIRS_RVA + 8 * k + 4, v);
-        p(ORDER_RVA + 4 * k, o);
+        RESULT_FIGURES.pairs[2 * k].set(o);
+        RESULT_FIGURES.pairs[2 * k + 1].set(v);
+        RESULT_FIGURES.order[k].set(o);
     }
-    p(OUTER_RVA, 3);
-    p(INNER_RVA, 4);
+    DRAW_WORK.work_b4.set(3);
+    DRAW_WORK.work_b8.set(4);
     for (k, &to) in targets.iter().enumerate() {
         unsafe { (to as *mut u32).write_unaligned(k as u32 + 1) };
     }
@@ -102,24 +84,25 @@ pub fn rank(by_totals: bool) -> Result<(), Refused> {
 
 /// The stage record's +0x34, the time the bonus is counted from.
 fn stage_time() -> Result<u32, Refused> {
-    let table = g(rva(0x735512) + 4 * g(rva(0x7558C8)) as usize);
+    let table =
+        crate::records::stages_store::STAGE_TABLES.group_list(EVENT_STATE.stage_group.get());
     if table == 0 {
         return Err(BadInput("no stage records").into());
     }
-    let records = get(table.wrapping_add(4 * g(rva(0x7558D0))));
+    let records = get(table.wrapping_add(4 * EVENT_STATE.stage_sub.get()));
     if records == 0 {
         return Err(BadInput("no stage records").into());
     }
-    Ok(get(records
-        .wrapping_add(g(rva(0x7558CC)).wrapping_mul(0xA4))
-        + 0x34))
+    Ok(get(records.wrapping_add(
+        EVENT_STATE.stage_number.get().wrapping_mul(0xA4),
+    ) + 0x34))
 }
 
 fn points(position: u32) -> Result<u32, Refused> {
     if position >= POSITION_LIMIT {
         return Err(BadInput("a position past the points table").into());
     }
-    Ok(g(POINTS_TABLE_RVA + 4 * position as usize))
+    Ok(CAPTIONS.place_points[position as usize].get())
 }
 
 /// `menu::score_four_players` (`n` 4) or `score_two_players` (`n` 2).
@@ -130,34 +113,34 @@ pub fn score(n: usize) -> Result<(), Refused> {
     let positions: Vec<u32> = if n == 2 {
         rc2k_core::menu::results::two_places([times[0], times[1]]).to_vec()
     } else {
-        (0..n).map(|k| g(POSITIONS_RVA + 4 * k)).collect()
+        (0..n).map(|k| RESULT_FIGURES.positions[k].get()).collect()
     };
     let earned: Vec<u32> = positions
         .iter()
         .map(|&q| points(q))
         .collect::<Result<_, _>>()?;
     for k in 0..n {
-        p(BEFORE_RVA + 4 * k, g(TOTALS_RVA + 4 * k));
+        RESULT_FIGURES.before[k].set(RESULT_FIGURES.totals[k].get());
     }
     if n == 2 {
-        p(INNER_RVA, times[0]);
-        p(POSITIONS_RVA, positions[0]);
-        p(POSITIONS_RVA + 4, positions[1]);
+        DRAW_WORK.work_b8.set(times[0]);
+        RESULT_FIGURES.positions[0].set(positions[0]);
+        RESULT_FIGURES.positions[1].set(positions[1]);
     }
     // Converted: `rc2k_core::menu::results::score`.
     for k in 0..n {
         let sc = rc2k_core::menu::results::score(
-            g(BEFORE_RVA + 4 * k),
+            RESULT_FIGURES.before[k].get(),
             earned[k],
             times[k],
             target,
             get(records[k] + 0x94),
         );
-        p(POINTS_RVA + 4 * k, sc.points);
-        p(BONUS_RVA + 4 * k, sc.bonus);
-        p(EXTRA_RVA + 4 * k, sc.extra);
-        p(SUM_RVA + 4 * k, sc.sum);
-        p(TOTALS_RVA + 4 * k, sc.total);
+        RESULT_FIGURES.points[k].set(sc.points);
+        RESULT_FIGURES.time_bonus[k].set(sc.bonus);
+        RESULT_FIGURES.extra[k].set(sc.extra);
+        RESULT_FIGURES.sums[k].set(sc.sum);
+        RESULT_FIGURES.totals[k].set(sc.total);
     }
     Ok(())
 }

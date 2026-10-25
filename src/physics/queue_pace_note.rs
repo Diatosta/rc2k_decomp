@@ -23,7 +23,7 @@
 //! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{game_addr, game_read, rva};
+use crate::framework::{game_read, rva};
 use rc2k_core::physics::pace_calls::{Code, code, find_group, text_place};
 
 const GROUPS: usize = 0x615E14; // dword_615E14
@@ -31,7 +31,7 @@ const GROUP_CHECKPOINTS: usize = 0x619E18; // dword_619E18
 const GROUP_TEXTS: usize = 0x61AE18; // dword_61AE18
 const TEXT: usize = 0x61BE18; // byte_61BE18
 /// "!!! invalid pace data", "data", "ecx", "pointer".
-const WORDS: [usize; 4] = [0x4DBB70, 0x4DBB86, 0x4DBB8B, 0x4DBB8F];
+const WORDS: [&std::ffi::CStr; 4] = [c"!!! invalid pace data", c"data", c"ecx", c"pointer"];
 
 fn g(x: usize) -> u32 {
     unsafe { game_read(rva(x)) }
@@ -61,7 +61,7 @@ pub fn queue_pace_note(checkpoint: u32) -> Result<(), Refused> {
         match code(byte as u8) {
             Code::End => return Ok(()),
             Code::Bad => {
-                let word = |n: usize| game_addr(rva(WORDS[n])) as *const u8;
+                let word = |n: usize| WORDS[n].as_ptr() as usize as *const u8;
                 unsafe {
                     log_write(word(0), false, 1);
                     log_write(word(1), false, 1);

@@ -18,15 +18,13 @@
 use crate::errors::BadInput;
 use crate::files::read_file::{ReadResult, read_file};
 use crate::files::resolve_path::resolve_path_in_game;
+use crate::files::scratch::SCRATCH;
 use crate::files::state::{FIND_HANDLE, LAST_FILE_PATH, SKIPPED_ATTRIBUTES, find_data};
-use crate::framework::{game_addr, rva};
 use std::sync::atomic::Ordering::Relaxed;
 use windows_sys::Win32::Storage::FileSystem::{FindClose, FindFirstFileA, FindNextFileA};
 
 // ---- game data ----
 
-/// Where the found file's path is put together (the block the PNG reader also uses).
-const PATH_SCRATCH_RVA: usize = rva(0x93E8B0);
 const NO_SEARCH: u32 = u32::MAX;
 
 // ---- Rust version ----
@@ -66,7 +64,7 @@ pub unsafe fn first_match_read(
             let pattern = std::ffi::CStr::from_ptr(pattern.cast()).to_bytes();
             let name = std::ffi::CStr::from_ptr((&raw const (*record).cFileName).cast()).to_bytes();
             let joined = rc2k_core::files::io::match_path(pattern, name);
-            let path = game_addr(PATH_SCRATCH_RVA) as *mut u8;
+            let path = SCRATCH.buffer.addr() as *mut u8;
             std::ptr::copy(joined.as_ptr(), path, joined.len());
             Some(read_file(path, buffer, count, offset))
         } else {

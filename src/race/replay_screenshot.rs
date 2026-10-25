@@ -14,15 +14,14 @@
 
 use crate::errors::Refused;
 use crate::framework::rva;
-use crate::gfx::block::{game_addr, game_read, game_write};
-use crate::gfx::picture_store::Slot as PicSlot;
+use crate::gfx::picture_store::PICTURE;
+use crate::store::{game_addr, game_read, game_write};
 
 const RECORDING_RVA: usize = rva(0x5C2CCC); // dword_5C2CCC
 const CLOCK_RVA: usize = rva(0x5C2CD0); // dword_5C2CD0
 const STARTED_RVA: usize = rva(0x5C2CD4); // dword_5C2CD4
 const NAME_RVA: usize = rva(0x5C2CDC); // "rpl\000000.pcx"
 const FRAME_TIME_RVA: usize = rva(0x5C2CF3); // dword_5C2CF3 (unaligned)
-const PICTURE_NAME_RVA: PicSlot = PicSlot::at(0x4F49C8); // dword_4F49C8: the name the writer uses
 
 /// The Rust version (see the header). (The original keeps every register.)
 pub unsafe fn replay_screenshot() -> Result<(), Refused> {
@@ -37,13 +36,13 @@ pub unsafe fn replay_screenshot() -> Result<(), Refused> {
                 windows_sys::Win32::System::SystemInformation::GetTickCount(),
             );
         }
-        let kept: u32 = game_read(PICTURE_NAME_RVA);
+        let kept: u32 = PICTURE.name.get();
         let name = game_addr(NAME_RVA) as u32;
         // Converted: `rc2k_core::race::viewer::count_up` (the name's six digits from +4).
         let digits = (name + 4) as *mut [u8; 6];
         let (counted, _, _) = rc2k_core::race::viewer::count_up(digits.read());
         digits.write(counted);
-        game_write(PICTURE_NAME_RVA, name);
+        PICTURE.name.set(name);
         let saved = (|| {
             // The surface locked (the carry says it was not), the picture written, the
             // surface unlocked.
@@ -53,7 +52,7 @@ pub unsafe fn replay_screenshot() -> Result<(), Refused> {
             }
             Ok::<(), Refused>(())
         })();
-        game_write(PICTURE_NAME_RVA, kept);
+        PICTURE.name.set(kept);
         saved?;
         game_write(
             CLOCK_RVA,

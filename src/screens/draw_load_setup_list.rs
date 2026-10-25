@@ -10,7 +10,7 @@
 //! for reference.
 
 use crate::errors::Refused;
-use crate::service::load_setup_slot::SLOT_PAGE_RVA;
+use crate::menu::pages_store::MENU_PAGES;
 use crate::text::draw_text::Canvas;
 
 // ---- game data ----
@@ -19,7 +19,7 @@ use crate::text::draw_text::Canvas;
 
 pub unsafe fn draw_load_setup_list(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     // Converted: `rc2k_core::screens::slot_lists::setup_page`.
-    let page: u32 = unsafe { crate::framework::game_read(SLOT_PAGE_RVA) };
+    let page: u32 = { MENU_PAGES.setup_slot_page.get() };
     rc2k_core::screens::slot_lists::setup_page(
         &mut crate::screens::game_screen::SlotScreen::new(canvas),
         rc2k_core::screens::slot_lists::LOAD_SETUP_TITLE,

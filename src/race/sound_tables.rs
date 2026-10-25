@@ -3,9 +3,9 @@
 //! sine table) and the race's sounds restarted or silenced. Here the steps.
 
 use crate::errors::Refused;
-use crate::framework::rva;
 use crate::race::state_store::RACE_STATE;
-use crate::store::game_addr;
+use crate::race::tyre_store::TYRE_CHANGE;
+use crate::sound::sets_store::SOUND_KINDS;
 
 unsafe fn get(at: u32) -> u32 {
     unsafe { (at as *const u32).read_unaligned() }
@@ -76,8 +76,8 @@ impl TableVars {
     pub fn game() -> Self {
         Self {
             done: crate::sound::store::SURFACE_SOUNDS.tables_done.addr() as u32,
-            records: game_addr(rva(0x514F90)) as u32,
-            sines: game_addr(rva(0x516258)) as u32,
+            records: crate::session::address_of(&SOUND_KINDS.kinds) as u32,
+            sines: crate::session::address_of(&SOUND_KINDS.sines) as u32,
             scratch: crate::session::MACHINE.scratch.addr() as u32,
         }
     }
@@ -198,10 +198,6 @@ fn set_up_object(o: &crate::sound::store::SoundObject) {
     o.state.set(0);
 }
 
-fn wr(a: impl crate::store::At, v: u32) {
-    unsafe { crate::store::at_write(a, v) };
-}
-
 /// `race::set_up_race_sound_objects` (0x415C93): `prepare_sound_tables`; the players'
 /// count (`dword_514F78`: 1, 2 with `dword_75ACE0` not 1), the objects' count
 /// (`dword_514F7C`: that, 4 in mode 2 with `dword_514F8C` 1), the players' objects
@@ -261,7 +257,7 @@ pub fn set_up_race_sound_objects(v: &ObjectVars) -> Result<(), Refused> {
         for &o in &objects {
             set_up_object(SoundObject::at(o));
         }
-        wr(0x5BEBE8, 0);
+        TYRE_CHANGE.drawn.set(0);
         restart_race_sounds()?;
     }
     Ok(())

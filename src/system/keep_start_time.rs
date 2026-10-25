@@ -10,14 +10,12 @@
 //! `start` calls it directly (2026-10-23); the registers above are the original's, for
 //! reference.
 
-use crate::framework::{game_ptr, rva};
 use crate::moved::Place;
 use windows_sys::Win32::Foundation::SYSTEMTIME;
 use windows_sys::Win32::System::SystemInformation::GetLocalTime;
 
 // ---- game data ----
 
-const SYSTEM_TIME_RVA: usize = rva(0x518988); // SystemTime
 /// The nine bytes kept: out of the image since 2026-10-24 (phase 5; they were `byte_51839F`,
 /// `dword_5183A0`, `dword_5183A4`). Written once, by `start`'s first call.
 pub const KEPT_LEN: usize = 9;
@@ -49,8 +47,9 @@ pub fn kept(t: &SYSTEMTIME) -> [u8; KEPT_LEN] {
 
 pub unsafe fn keep_start_time() {
     unsafe {
-        let time = game_ptr::<SYSTEMTIME>(SYSTEM_TIME_RVA);
-        GetLocalTime(time);
-        KEPT.ptr().write(kept(&time.read_unaligned()));
+        // The game's `SystemTime` (0x518988), a local here: nothing else read it.
+        let mut time: SYSTEMTIME = std::mem::zeroed();
+        GetLocalTime(&mut time);
+        KEPT.ptr().write(kept(&time));
     }
 }

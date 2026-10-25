@@ -9,22 +9,13 @@
 //! Also leaves the fill's end x in `seconds` (0x7559AC), a work variable.
 
 use crate::errors::FatalError;
-use crate::framework::rva;
-use crate::gfx::bar_store::Slot as BarSlot;
+use crate::gfx::bar_store::BAR;
 use crate::gfx::blit_glyph::BlitCall;
 use crate::gfx::blit_marker_pair::sprite_table;
-use crate::gfx::block::{game_read, game_write};
-use crate::gfx::surface::{CLIP_RIGHT_RVA, clip};
+use crate::gfx::surface::clip;
+use crate::menu::draw_work_store::DRAW_WORK;
 
 // ---- game data ----
-
-const BAR_X_RVA: BarSlot = BarSlot::at(0x755224); // dword_755224
-const BAR_Y_RVA: BarSlot = BarSlot::at(0x755228); // dword_755228
-const BAR_WIDTH_RVA: BarSlot = BarSlot::at(0x75522C); // dword_75522C
-const BAR_FILL_GLYPH_RVA: BarSlot = BarSlot::at(0x755230); // dword_755230
-const BAR_END_GLYPH_RVA: BarSlot = BarSlot::at(0x755234); // dword_755234
-const BAR_PERCENT_RVA: BarSlot = BarSlot::at(0x755238); // dword_755238
-const FILL_END_RVA: usize = rva(0x7559AC); // seconds: a work variable, here the fill's end x
 
 /// The six globals a caller fills in before drawing a bar or its marker.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -41,27 +32,23 @@ pub struct Bar {
 
 impl Bar {
     pub fn read() -> Self {
-        unsafe {
-            Self {
-                x: game_read(BAR_X_RVA),
-                y: game_read(BAR_Y_RVA),
-                width: game_read(BAR_WIDTH_RVA),
-                fill_glyph: game_read(BAR_FILL_GLYPH_RVA),
-                end_glyph: game_read(BAR_END_GLYPH_RVA),
-                percent: game_read(BAR_PERCENT_RVA),
-            }
+        Self {
+            x: BAR.x.get() as i32,
+            y: BAR.y.get() as i32,
+            width: BAR.width.get() as i32,
+            fill_glyph: BAR.fill_glyph.get(),
+            end_glyph: BAR.end_glyph.get(),
+            percent: BAR.percent.get() as i32,
         }
     }
 
     pub fn write(&self) {
-        unsafe {
-            game_write(BAR_X_RVA, self.x);
-            game_write(BAR_Y_RVA, self.y);
-            game_write(BAR_WIDTH_RVA, self.width);
-            game_write(BAR_FILL_GLYPH_RVA, self.fill_glyph);
-            game_write(BAR_END_GLYPH_RVA, self.end_glyph);
-            game_write(BAR_PERCENT_RVA, self.percent);
-        }
+        BAR.x.set(self.x as u32);
+        BAR.y.set(self.y as u32);
+        BAR.width.set(self.width as u32);
+        BAR.fill_glyph.set(self.fill_glyph);
+        BAR.end_glyph.set(self.end_glyph);
+        BAR.percent.set(self.percent as u32);
     }
 }
 
@@ -72,7 +59,7 @@ pub const BAR_HAS_NO_LENGTH: FatalError = FatalError {
 };
 
 pub fn set_bar_x(x: i32) {
-    unsafe { game_write(BAR_X_RVA, x) };
+    BAR.x.set(x as u32);
 }
 
 // ---- Rust version ----
@@ -92,10 +79,10 @@ impl rc2k_core::gfx::bars::BarCanvas for GameBar<'_> {
         clip().right
     }
     fn set_clip_right(&mut self, x: i32) {
-        unsafe { game_write(CLIP_RIGHT_RVA, x) };
+        crate::gfx::blit::BLIT.clip.right.set(x as u32);
     }
     fn keep_fill_end(&mut self, x: i32) {
-        unsafe { game_write(FILL_END_RVA, x) };
+        DRAW_WORK.seconds.set(x as u32);
     }
     fn set_bar_x(&mut self, x: i32) {
         set_bar_x(x);

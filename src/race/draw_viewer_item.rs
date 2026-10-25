@@ -14,8 +14,9 @@
 //! Caller: `race::viewer_frame` (each item).
 
 use crate::errors::Refused;
+use crate::install::vars::INSTALLER_PAGES;
 use crate::physics::flow::{a, g, p};
-use crate::race::viewer::{BLOCK, CAMERA_EDIT, CAMERAS, CHOICE, FRAME_CLOCK, MOVE_CLOCK, gb};
+use crate::race::viewer::{BLOCK, CAMERA_EDIT, CAMERAS, gb};
 
 const SWITCH_A: usize = 0x5C2C70; // off_5C2C70: by camera byte 2 or 3
 const SWITCH_B: usize = 0x5C2C78; // off_5C2C78: by byte 5
@@ -55,9 +56,14 @@ pub fn draw_viewer_item(item: u32, index: u32) -> Result<(), Refused> {
     p(PLACE + 0xC, word(place + 0xC));
     let colour = item_colour(
         byte(0),
-        index == g(CHOICE),
+        index == INSTALLER_PAGES.choice.get(),
         || g(CAMERA_EDIT) != 0,
-        || g(FRAME_CLOCK).wrapping_sub(g(MOVE_CLOCK)),
+        || {
+            INSTALLER_PAGES
+                .frame_clock
+                .get()
+                .wrapping_sub(INSTALLER_PAGES.move_clock.get())
+        },
     );
     unsafe { crate::drive::tyre_quad::tyre_quad(picture, a(PLACE), colour) }
 }

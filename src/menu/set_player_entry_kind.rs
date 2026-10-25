@@ -8,14 +8,13 @@
 //! anything.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, rva};
+use crate::menu::event_store::EVENT_STATE;
 use crate::menu::standings::*;
 use crate::menu::state_store::MENU_STATE;
 
-const CURRENT_RVA: usize = rva(0x75598C); // dword_75598C
 /// The Rust version (see the header): the registers it leaves.
 pub unsafe fn set_player_entry_kind() -> Result<(), Refused> {
-    let n: u32 = unsafe { game_read(CURRENT_RVA) };
+    let n: u32 = { EVENT_STATE.current_player.get() };
     if n >= 4 || player(n) == 0 {
         return Err(BadInput("a current player past 3 or missing").into());
     }

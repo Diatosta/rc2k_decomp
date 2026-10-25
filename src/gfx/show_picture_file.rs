@@ -23,23 +23,30 @@
 
 use crate::errors::Refused;
 use crate::framework::rva;
-use crate::gfx::block::{game_addr, game_ptr, game_read, game_write};
 use crate::gfx::copy_picture_to_surface::{GameSurface, copy_picture_to_surface};
-use crate::gfx::decoder::Slot as DecSlot;
-use crate::gfx::picture_store::Slot as PicSlot;
+use crate::gfx::decoder::DECODER;
+use crate::gfx::picture_store::PICTURE;
 use crate::platform::{lock_surface, pump_messages_now, show_frame_now, unlock_surface};
+use crate::session::Dword;
 use crate::session::SCREEN;
+use crate::store::{game_addr, game_read};
 use rc2k_core::gfx::picture_size as sizes;
 
 // ---- game data ----
 
-const SHOWING_RVA: DecSlot = DecSlot::at(0x51B9C4); // dword_51B9C4
-const PICTURE_FLAGS_RVA: PicSlot = PicSlot::at(0x4F49CC); // g_pictureFlags
-const PICTURE_WIDTH_RVA: PicSlot = PicSlot::at(0x4F49D0); // g_pictureWidth, height, row bytes
+/// IDA's address of the showing switch.
+pub const SHOWING_START: usize = 0x51B9C4;
+
+/// `g_showingPicture` (`dword_51B9C4`): 1 while a picture is being shown.
+pub static SHOWING: Dword = Dword::new(0);
+
+/// Where the switch is (`moved::MOVED`'s home for IDA 0x51B9C4).
+pub fn showing_home() -> usize {
+    SHOWING.addr()
+}
 const SCREEN_MODE_FLAGS_RVA: usize = rva(0x4F4934); // g_screenModeFlags
-const DECODED_WIDTH_RVA: DecSlot = DecSlot::at(0x519124); // g_decodedWidth
 const FONT_PALETTES_RVA: usize = rva(0x51DEB0); // g_fontPalettes
-const LOADING_FONT_RVA: usize = rva(0x51EAA4); // stru_51EAA4
+const LOADING_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::LOADING;
 
 // ---- Rust version ----
 
@@ -47,10 +54,10 @@ const LOADING_FONT_RVA: usize = rva(0x51EAA4); // stru_51EAA4
 pub unsafe fn show_picture_file(path: *mut u8) -> Result<u32, Refused> {
     unsafe {
         pump_messages_now();
-        game_write(SHOWING_RVA, 1u32);
+        SHOWING.set(1);
         // Converted: `rc2k_core::gfx::picture_size` (`READ`, `screen`, `pages`,
         // `rescaled`).
-        game_write(PICTURE_WIDTH_RVA, sizes::READ.dwords());
+        crate::gfx::picture::set_size(sizes::READ);
         // A refused picture is not read, as `read_picture_file`'s callers by address see it.
         let read = match crate::gfx::read_picture_file::read_picture_file(path) {
             Ok(read) => read,
@@ -58,26 +65,26 @@ pub unsafe fn show_picture_file(path: *mut u8) -> Result<u32, Refused> {
             Err(e) => return Err(e),
         };
         let (width, height): (u32, u32) = (SCREEN.width.get(), SCREEN.height.get());
-        game_write(PICTURE_WIDTH_RVA, sizes::screen(width, height).dwords());
+        crate::gfx::picture::set_size(sizes::screen(width, height));
         let pages = sizes::pages(game_read::<u32>(SCREEN_MODE_FLAGS_RVA));
         let mut eax = path as u32;
         if !read {
             crate::gfx::clear_picture::clear_picture()?;
         } else {
-            eax = game_read(SHOWING_RVA);
-            game_write(SHOWING_RVA, 0u32);
+            eax = SHOWING.get();
+            SHOWING.set(0);
             if eax != 0 && game_read::<u32>(FONT_PALETTES_RVA) != 0 {
-                game_write(PICTURE_FLAGS_RVA, 0x802u32);
+                PICTURE.flags.set(0x802u32);
                 crate::gfx::picture_as_surface::picture_as_surface()?;
                 crate::text::draw_string_by_id::draw_string_by_id_at(
                     0xC0,
-                    game_ptr(LOADING_FONT_RVA),
+                    LOADING_FONT.as_ptr(),
                     0x316,
                     0x2F,
                     &mut crate::text::draw_text::GameCanvas,
                 )?;
             }
-            if sizes::rescaled(game_read::<u32>(DECODED_WIDTH_RVA), width) {
+            if sizes::rescaled(DECODER.width.get(), width) {
                 for _ in 0..pages {
                     // `cmp g_surfaceLocked, 1`'s carry: not locked.
                     if lock_surface() < 1 {
@@ -99,5 +106,16 @@ pub unsafe fn show_picture_file(path: *mut u8) -> Result<u32, Refused> {
             show_frame_now();
         }
         Ok(eax)
+    }
+}
+
+#[cfg(test)]
+mod block_tests {
+    use super::*;
+
+    #[test]
+    fn first_value_is_the_games() {
+        crate::gfx::first_values_are_the_games(&SHOWING, SHOWING_START, SHOWING_START + 4);
+        assert_eq!(crate::moved::place(SHOWING_START), SHOWING.addr());
     }
 }

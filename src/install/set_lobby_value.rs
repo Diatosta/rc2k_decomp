@@ -11,7 +11,8 @@
 //! are the original's.
 
 use crate::errors::Refused;
-use crate::install::installer::{Api, REG_KEY, REG_SET_VALUE, a, rd};
+use crate::install::installer::{Api, REG_SET_VALUE, rd};
+use crate::install::vars::INSTALLER_RUN;
 
 const REG_SZ: u32 = 1;
 
@@ -19,7 +20,7 @@ const REG_SZ: u32 = 1;
 /// caller reads it).
 pub fn set_lobby_value(name: u32, data: u32, api: Api) -> Result<u32, Refused> {
     let len = unsafe { crate::strings::text_length::text_length(data as *const u8) }?;
-    let key = rd(a(REG_KEY));
+    let key = rd(INSTALLER_RUN.reg_key.addr() as u32);
     Ok(api(
         REG_SET_VALUE,
         &[key, name, 0, REG_SZ, data, len.wrapping_add(1)],

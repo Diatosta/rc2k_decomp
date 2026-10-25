@@ -11,11 +11,65 @@
 //! `numbered_path` refuses.
 
 use crate::errors::Refused;
-use crate::physics::flow::a;
+use crate::session::{Bytes, with_runs};
 
-pub const LAST_RACE_PATH: usize = 0x5295F0; // "var\tmprpl"
-const SAVED_TEMPLATE: usize = 0x52974B; // "savedata\replay\replay00"
-const OWN_TEMPLATE: usize = 0x529764; // "files\replay\replay00"
+/// IDA's address of the last race's replay file's name.
+pub const LAST_RACE_START: usize = 0x5295F0;
+/// Its room.
+pub const LAST_RACE_LEN: usize = 0x5296FB - LAST_RACE_START;
+
+/// `aVarTmprpl` (room for 0x10B bytes): the last race's replay file's name.
+pub static LAST_RACE: Bytes<LAST_RACE_LEN> = Bytes::new(with_runs(&[(0, b"var\\tmprpl\0")]));
+
+/// Where the name is (`moved::MOVED`'s home for IDA 0x5295F0).
+pub fn last_race_home() -> usize {
+    LAST_RACE.addr()
+}
+
+/// IDA's address of the replay files' names' templates.
+pub const TEMPLATES_START: usize = 0x52974B;
+/// Their length.
+pub const TEMPLATES_LEN: usize = 0x52977A - TEMPLATES_START;
+
+/// The replay files' names, the number's two digits last.
+#[repr(C)]
+pub struct Templates {
+    /// `aSavedataReplay`: "savedata\replay\replay00".
+    pub saved: Bytes<25>,
+    /// `aFilesReplayRep`: "files\replay\replay00".
+    pub own: Bytes<22>,
+}
+
+pub static TEMPLATES: Templates = Templates {
+    saved: Bytes::new(*b"savedata\\replay\\replay00\0"),
+    own: Bytes::new(*b"files\\replay\\replay00\0"),
+};
+
+/// Where the templates are (`moved::MOVED`'s home for IDA 0x52974B).
+pub fn templates_home() -> usize {
+    &TEMPLATES as *const Templates as usize
+}
+
+#[cfg(test)]
+mod block_tests {
+    use super::*;
+
+    #[test]
+    fn first_values_are_the_games() {
+        crate::gfx::first_values_are_the_games(
+            &LAST_RACE,
+            LAST_RACE_START,
+            LAST_RACE_START + LAST_RACE_LEN,
+        );
+        crate::gfx::first_values_are_the_games(
+            &TEMPLATES,
+            TEMPLATES_START,
+            TEMPLATES_START + TEMPLATES_LEN,
+        );
+        assert_eq!(crate::moved::place(LAST_RACE_START), LAST_RACE.addr());
+        assert_eq!(crate::moved::place(0x529764), TEMPLATES.own.addr());
+    }
+}
 // `numbered_path`'s buffer
 
 /// What the original leaves in its registers: eax the path (0 for none), ebx the number
@@ -36,19 +90,19 @@ pub fn replay_path(slot: u32) -> Result<ReplayPath, Refused> {
     let template = match ReplayFile::of(slot) {
         ReplayFile::LastRace => {
             return Ok(ReplayPath {
-                path: a(LAST_RACE_PATH),
+                path: LAST_RACE.addr() as u32,
                 number,
                 last_race: true,
             });
         }
-        ReplayFile::Saved(_) => SAVED_TEMPLATE,
+        ReplayFile::Saved(_) => TEMPLATES.saved.addr(),
         ReplayFile::Own(n) => {
             number = n;
-            OWN_TEMPLATE
+            TEMPLATES.own.addr()
         }
     };
     let path = unsafe {
-        crate::files::numbered_path::numbered_path_in_game(a(template) as *const u8, number)
+        crate::files::numbered_path::numbered_path_in_game(template as *const u8, number)
     }?;
     Ok(ReplayPath {
         path: path as u32,

@@ -12,16 +12,12 @@
 
 use crate::errors::Refused;
 use crate::framework::rva;
-use crate::marks::store::{Slot, game_read};
+use crate::marks::clip::GLOW;
+use crate::marks::store::game_read;
 use crate::math::x87;
 use crate::scene::matrix3::extended;
 
-const OFF_RVA: Slot = Slot::at(0x93CC70); // dword_93CC70: 1 = none
 const TEXTURE_RVA: usize = rva(0x5D1E34); // dword_5D1E34
-/// flt_93CC74 .. flt_93CC7C, flt_93CCA8, flt_93CCAC, dword_93CCA4.
-const PLACE: [Slot; 3] = [Slot::at(0x93CC74), Slot::at(0x93CC78), Slot::at(0x93CC7C)];
-const OFFSET: [Slot; 2] = [Slot::at(0x93CCA8), Slot::at(0x93CCAC)];
-const ANGLE_RVA: Slot = Slot::at(0x93CCA4);
 /// The render states set (value, state).
 const STATES: [(u32, u32); 5] = [(4, 0x15), (5, 0x13), (6, 0x14), (0, 0x1C), (1, 0x1B)];
 
@@ -29,7 +25,7 @@ const STATES: [(u32, u32); 5] = [(4, 0x15), (5, 0x13), (6, 0x14), (0, 0x1C), (1,
 /// texture (`scene::set_texture`), `draw_turned_sprite`.
 pub unsafe fn draw_glow() -> Result<(), Refused> {
     unsafe {
-        if game_read::<u32>(OFF_RVA) == 1 {
+        if GLOW.off.get() == 1 {
             return Ok(());
         }
         for (value, state) in STATES {
@@ -37,12 +33,12 @@ pub unsafe fn draw_glow() -> Result<(), Refused> {
         }
         crate::scene::set_texture::set_texture(game_read(TEXTURE_RVA));
         let place = [
-            x87::add_80(game_read(PLACE[2]), game_read(OFFSET[0])),
-            x87::add_80(game_read(PLACE[1]), game_read(OFFSET[1])),
-            extended(game_read(PLACE[0])),
+            x87::add_80(GLOW.place[2].bits(), GLOW.offset[0].bits()),
+            x87::add_80(GLOW.place[1].bits(), GLOW.offset[1].bits()),
+            extended(GLOW.place[0].bits()),
         ];
         crate::marks::draw_turned_sprite::draw_turned_sprite(
-            game_read(ANGLE_RVA),
+            GLOW.angle.get(),
             0xFFFF_FFFF,
             0x1_0000,
             place,

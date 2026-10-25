@@ -18,6 +18,7 @@ pub mod effect_objects;
 pub mod effects;
 pub mod end_effects;
 pub mod end_force;
+pub mod guids;
 pub mod input_thread;
 pub mod input_tick;
 pub mod joystick_found;

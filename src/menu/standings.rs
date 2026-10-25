@@ -6,17 +6,20 @@
 //! (`g_players`, four pointers).
 
 use crate::errors::{BadInput, FatalError, Refused};
-use crate::framework::{game_addr, game_read, rva};
+use crate::menu::champ_store::CHAMP_VIEW;
+use crate::menu::draw_work_store::DRAW_WORK;
+use crate::menu::event_store::EVENT_STATE;
+use crate::menu::names_store::NAME_BUFFERS;
+use crate::menu::players_store::PLAYER_TABLE;
 use crate::menu::state_store::MENU_STATE;
+use crate::session::Dword;
 use rc2k_core::menu::standings::{self, Entries, NAME_LEN};
 
-pub const TABLE_A_RVA: usize = rva(0x7556EC); // dword_7556EC
-pub const TABLE_B_RVA: usize = rva(0x7556F0); // dword_7556F0
+pub const TABLE_A_RVA: &Dword = &CHAMP_VIEW.ranked_times; // dword_7556EC
+pub const TABLE_B_RVA: &Dword = &CHAMP_VIEW.champ_history; // dword_7556F0
 pub const A_ENTRY: u32 = 0x9C;
 pub const B_ENTRY: u32 = 0x78;
-pub const DRIVERS_RVA: usize = rva(0x73B674); // g_drivers
 pub const DRIVER: u32 = 0x94;
-pub const PLAYERS_RVA: usize = rva(0x75647C); // g_players
 /// No table of the game's is longer; a walk past it (no end entry) is refused.
 pub const MOST_ENTRIES: u32 = 0x400;
 /// "Any group" for the first-player searches.
@@ -32,7 +35,7 @@ pub fn put(p: u32, v: u32) {
 
 /// Player `n`'s record.
 pub fn player(n: u32) -> u32 {
-    unsafe { game_read(PLAYERS_RVA + 4 * n as usize) }
+    PLAYER_TABLE.pointers[n as usize].get()
 }
 
 /// The entries from `first` on, `size` apart, as the original's `do .. while` walks them
@@ -124,7 +127,7 @@ pub unsafe fn table<'a>(first: u32, size: u32, count: u32) -> Entries<'a> {
 
 /// The drivers (`g_drivers`) as the core's table, as far as `entries` walks them.
 pub fn driver_table<'a>() -> Result<Entries<'a>, BadInput> {
-    let first = game_addr(DRIVERS_RVA) as u32;
+    let first = crate::menu::drivers_store::DRIVERS.first();
     let all = entries(first, DRIVER)?;
     Ok(unsafe { table(first, DRIVER, all.len() as u32) })
 }
@@ -143,19 +146,18 @@ pub fn bytes<const N: usize>(p: u32) -> [u8; N] {
 
 /// `g_keptPlayerName`, the sorts' swap buffer.
 pub fn kept_name<'a>() -> &'a mut [u8; NAME_LEN] {
-    unsafe { &mut *(game_addr(KEPT_NAME_RVA) as *mut [u8; NAME_LEN]) }
+    unsafe { &mut *(NAME_BUFFERS.kept_name.addr() as *mut [u8; NAME_LEN]) }
 }
 
-pub const PLAYER_COUNT_RVA: usize = rva(0x755984); // dword_755984
-pub const SECTION_RVA: usize = rva(0x75595C); // section
-pub const INDEX_RVA: usize = rva(0x755958); // index
-pub const RECORDS_RVA: usize = rva(0x735576); // g_recordTable
-pub const EVENTS_RVA: usize = rva(0x7556D8); // dword_7556D8: 0x618 an event
+pub const PLAYER_COUNT_RVA: &Dword = &EVENT_STATE.player_count; // dword_755984
+pub const SECTION_RVA: &Dword = &EVENT_STATE.section; // section
+pub const INDEX_RVA: &Dword = &EVENT_STATE.index; // index
+pub const EVENTS_RVA: &Dword = &CHAMP_VIEW.stage_best_times; // dword_7556D8: 0x618 an event
 
 /// The players `0 .. dword_755984` (the original's `do .. while`): refused at 0, past 4 or
 /// with one missing.
 pub fn counted_players() -> Result<Vec<u32>, BadInput> {
-    let n: u32 = unsafe { game_read(PLAYER_COUNT_RVA) };
+    let n: u32 = { EVENT_STATE.player_count.get() };
     if n == 0 || n > 4 || (0..n).any(|k| player(k) == 0) {
         return Err(BadInput(
             "a player count of 0 or past 4, or a player missing",
@@ -167,9 +169,9 @@ pub fn counted_players() -> Result<Vec<u32>, BadInput> {
 /// The current record's event (`g_recordTable`, `section`, `index`; its +0x3C) in
 /// `dword_7556D8`'s table, refused past the table's sections.
 pub fn current_event() -> Result<u32, BadInput> {
-    let table = game_addr(RECORDS_RVA) as u32;
-    let section: u32 = unsafe { game_read(SECTION_RVA) };
-    let index: u32 = unsafe { game_read(INDEX_RVA) };
+    let table = crate::records::stages_store::STAGE_TABLES.championship();
+    let section: u32 = { EVENT_STATE.section.get() };
+    let index: u32 = { EVENT_STATE.index.get() };
     if section >= 64
         || index >= 64
         || !crate::records::find_record::has_section(table, section, 600)
@@ -177,24 +179,21 @@ pub fn current_event() -> Result<u32, BadInput> {
         return Err(BadInput("a record past the table"));
     }
     let record = crate::records::find_record::find_record_in(table, index as i32, section);
-    let events: u32 = unsafe { game_read(EVENTS_RVA) };
+    let events: u32 = { CHAMP_VIEW.stage_best_times.get() };
     if events == 0 {
         return Err(BadInput("no events table"));
     }
     Ok(events.wrapping_add(get(record + 0x3C).wrapping_mul(0x618)))
 }
 
-pub const KEPT_NAME_RVA: usize = rva(0x755884); // g_keptPlayerName: 0x1F bytes
-pub const BEST_SCORES_RVA: usize = rva(0x7556D4); // dword_7556D4: five groups of ten, 0x3C each
-const SORT_I_RVA: usize = rva(0x7559B4); // dword_7559B4
-const SORT_J_RVA: usize = rva(0x7559B8); // dword_7559B8
+pub const BEST_SCORES_RVA: &Dword = &CHAMP_VIEW.best_scores; // dword_7556D4: five groups of ten, 0x3C each
 const SORTED: u32 = standings::SORTED as u32;
 
 /// Standings table A's first 0xB4 entries sorted by the signed dword at `key` (the
 /// original's exchange sort: an entry later or equal moves up; `dword_7559B4` /
 /// `dword_7559B8` its counters). Refused without a table.
 pub fn sort_table_a(key: u32) -> Result<(), BadInput> {
-    let first: u32 = unsafe { game_read(TABLE_A_RVA) };
+    let first: u32 = { CHAMP_VIEW.ranked_times.get() };
     if first == 0 {
         return Err(BadInput("no standings table"));
     }
@@ -211,10 +210,10 @@ pub fn sort_table_a(key: u32) -> Result<(), BadInput> {
         standings::A_NAME,
         kept_name(),
     );
-    unsafe {
-        crate::framework::game_write(SORT_I_RVA, SORTED - 1);
-        crate::framework::game_write(SORT_J_RVA, SORTED);
-    }
+
+    DRAW_WORK.work_b4.set(SORTED - 1);
+    DRAW_WORK.work_b8.set(SORTED);
+
     Ok(())
 }
 
@@ -224,13 +223,13 @@ pub fn sort_table_a(key: u32) -> Result<(), BadInput> {
 /// +0x18 the name's 0x1F bytes; then moved up its group. Refused for a current player past
 /// 3 or missing, no name, no table or a group past 4.
 pub fn enter_best(group: Option<u32>, score_at: u32) -> Result<(), BadInput> {
-    let n: u32 = unsafe { game_read(rva(0x75598C)) };
+    let n: u32 = { EVENT_STATE.current_player.get() };
     if n >= 4 || player(n) == 0 {
         return Err(BadInput("a current player past 3 or missing"));
     }
     let p = player(n);
     let group = group.unwrap_or(get(p + 0x90));
-    let table: u32 = unsafe { game_read(BEST_SCORES_RVA) };
+    let table: u32 = { CHAMP_VIEW.best_scores.get() };
     if table == 0 || group >= 5 || get(p + 0x18) == 0 {
         return Err(BadInput("no best-score table, a group past 4 or no name"));
     }
@@ -257,7 +256,7 @@ pub fn enter_best(group: Option<u32>, score_at: u32) -> Result<(), BadInput> {
 /// `sort_table_a`: going up (a later entry not above an earlier one moves up) or, with
 /// `down`, going down (a later entry not below one moves up). Refused without a table.
 pub fn sort_table_b(key: u32, down: bool) -> Result<(), BadInput> {
-    let first: u32 = unsafe { game_read(TABLE_B_RVA) };
+    let first: u32 = { CHAMP_VIEW.champ_history.get() };
     if first == 0 {
         return Err(BadInput("no standings table"));
     }
@@ -274,10 +273,10 @@ pub fn sort_table_b(key: u32, down: bool) -> Result<(), BadInput> {
         standings::B_NAME,
         kept_name(),
     );
-    unsafe {
-        crate::framework::game_write(SORT_I_RVA, SORTED - 1);
-        crate::framework::game_write(SORT_J_RVA, SORTED);
-    }
+
+    DRAW_WORK.work_b4.set(SORTED - 1);
+    DRAW_WORK.work_b8.set(SORTED);
+
     Ok(())
 }
 

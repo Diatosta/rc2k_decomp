@@ -80,7 +80,7 @@ pub unsafe fn race_loop() -> Result<(), Refused> {
             }
             input_update();
             if g(0x71C3E0) != 0 {
-                if g(0x529854) != 0 {
+                if crate::race::frame_text::CREDITS.done.get() != 0 {
                     crate::framework::log("drive::race_loop: the credits race ends: rolled off");
                     return Ok(());
                 }

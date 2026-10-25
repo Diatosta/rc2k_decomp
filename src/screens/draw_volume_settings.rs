@@ -14,24 +14,30 @@
 //! the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::rva;
-use crate::store::game_read;
+use crate::menu::option_work_store::OPTION_WORK;
 use crate::text::draw_text::Canvas;
-
-const VOLUMES_RVA: usize = rva(0x755684); // g_masterVolumeShown, then dword_755688 .. dword_7556A0
 
 pub unsafe fn draw_volume_settings(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     // Converted: `rc2k_core::screens::settings_pages::volume`.
-    unsafe {
-        let id = crate::sound::store::SOUND_OPTIONS
-            .name_switch
-            .get()
-            .wrapping_add(0x56D);
-        let volumes: [u32; 8] = std::array::from_fn(|n| game_read(VOLUMES_RVA + 4 * n));
-        rc2k_core::screens::settings_pages::volume(
-            &mut crate::screens::game_screen::SettingsScreen::new(canvas),
-            id,
-            volumes,
-        )
-    }
+
+    let id = crate::sound::store::SOUND_OPTIONS
+        .name_switch
+        .get()
+        .wrapping_add(0x56D);
+    // g_masterVolumeShown, then dword_755688 .. dword_7556A0.
+    let volumes: [u32; 8] = [
+        OPTION_WORK.master_volume_shown.get(),
+        OPTION_WORK.music_level.get(),
+        OPTION_WORK.other_volume.get(),
+        OPTION_WORK.menu_sounds_c.get(),
+        OPTION_WORK.menu_sounds_a.get(),
+        OPTION_WORK.speech_level.get(),
+        OPTION_WORK.sounds_a.get(),
+        OPTION_WORK.sounds_b.get(),
+    ];
+    rc2k_core::screens::settings_pages::volume(
+        &mut crate::screens::game_screen::SettingsScreen::new(canvas),
+        id,
+        volumes,
+    )
 }

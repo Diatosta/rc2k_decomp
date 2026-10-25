@@ -20,8 +20,9 @@
 use crate::field;
 use crate::input::devices::{at, put};
 use crate::input::di_harness::{
-    CAPS_LEN, CONTROLLER_LEN, CONTROLLERS, IID_DEVICE2_RVA, JOYSTICK_FORMAT_RVA, a, method, slot,
+    CAPS_LEN, CONTROLLER_LEN, CONTROLLERS, JOYSTICK_FORMAT_RVA, a, method, slot,
 };
+use crate::input::guids::INPUT_GUIDS;
 use crate::input::store::DEVICES;
 use crate::input::types::{Controller, DiDevCaps, DiDeviceInstance};
 use crate::session::MACHINE;
@@ -45,7 +46,10 @@ fn look_over(instance: u32, entry: u32) -> bool {
     if !ok(method(
         device,
         slot::QUERY,
-        &[a(IID_DEVICE2_RVA), DEVICES.new_joystick2.addr() as u32],
+        &[
+            INPUT_GUIDS.device2.addr() as u32,
+            DEVICES.new_joystick2.addr() as u32,
+        ],
     )) {
         return false;
     }

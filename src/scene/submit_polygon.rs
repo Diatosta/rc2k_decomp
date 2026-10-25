@@ -18,10 +18,10 @@
 //! is logged, the buffer shown by `sub_443AEC` and nothing drawn. Then, with 3D, the
 //! fan; a result other than 0 is logged as "drawtri" and the number.
 
+use crate::d3d::cards_store::CARDS_3D;
 use crate::d3d::draw_fan_unclipped::polygon;
-use crate::d3d::set_texture::CURRENT_RVA;
 use crate::d3d::{NO_TEXTURE, Vertex};
-use crate::framework::{game_ptr, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 use crate::logfile::log_hex8::log_hex8;
 use crate::logfile::log_write::log_write;
 use crate::session::SCREEN;
@@ -34,8 +34,8 @@ const CHECKED_RVA: usize = rva(0x62400C); // dword_62400C
 const TEXTURES: u32 = 0x400;
 
 const SHOW_VERTICES: usize = 0x443AEC; // sub_443AEC
-const ERROR_TEXT: usize = 0x4DD9A7; // "Error"
-const DRAWTRI_TEXT: usize = 0x4DD99F; // "drawtri"
+const ERROR_TEXT: &std::ffi::CStr = c"Error"; // "Error"
+const DRAWTRI_TEXT: &std::ffi::CStr = c"drawtri"; // "drawtri"
 
 // ---- Rust version ----
 
@@ -73,7 +73,7 @@ pub unsafe fn submit_polygon(outside: &mut dyn Outside) {
             }
         } else {
             let texture = if texture >= TEXTURES { 0 } else { texture };
-            if texture != game_read::<u32>(CURRENT_RVA) && has_3d {
+            if texture != CARDS_3D.current_texture.get() && has_3d {
                 outside.set_texture(texture);
             }
         }
@@ -108,7 +108,7 @@ impl Outside for Game {
         0
     }
     fn bad_vertex(&mut self) {
-        unsafe { log_write(game_ptr(rva(ERROR_TEXT)), true, 1) };
+        unsafe { log_write(ERROR_TEXT.as_ptr().cast(), true, 1) };
         if let Err(e) = crate::scene::show_bad_polygon::show_bad_polygon() {
             crate::standalone::finish(
                 &format!(
@@ -120,7 +120,7 @@ impl Outside for Game {
         }
     }
     fn not_drawn(&mut self, result: u32) {
-        unsafe { log_write(game_ptr(rva(DRAWTRI_TEXT)), false, 1) };
+        unsafe { log_write(DRAWTRI_TEXT.as_ptr().cast(), false, 1) };
         log_hex8(result, false, 1);
     }
 }

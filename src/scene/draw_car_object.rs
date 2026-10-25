@@ -23,6 +23,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_read, game_write, rva};
+use crate::menu::event_store::EVENT_STATE;
 use crate::menu::state_store::MENU_STATE;
 use crate::scene::assign_kind_textures::assign_kind_textures;
 use crate::scene::carousel_pictures::update;
@@ -37,8 +38,6 @@ use crate::session::write_all;
 
 // ---- game data ----
 
-const PAGE_RVA: usize = rva(0x755998); // dword_755998
-const CAR_RVA: usize = rva(0x755990); // dword_755990: the entry shown
 const MODE_RVA: usize = rva(0x6365C4); // dword_6365C4
 
 // ---- Rust version ----
@@ -63,7 +62,7 @@ pub unsafe fn pick_pictures() -> Result<(), Refused> {
         if MENU_STATE.carousel.menu.get() != 0xB {
             return Ok(());
         }
-        let entries = picked(game_read(CAR_RVA), MENU_STATE.carousel.count.get());
+        let entries = picked(EVENT_STATE.shown_car.get(), MENU_STATE.carousel.count.get());
         write_all(&MENU_STATE.carousel_pictures.wanted, entries);
         update(entries)?;
         Ok(())
@@ -73,7 +72,7 @@ pub unsafe fn pick_pictures() -> Result<(), Refused> {
 /// `sub_49040D`: the car shown's object set up and drawn by `draw`.
 pub unsafe fn draw_shown_car(draw: &mut dyn FnMut() -> Result<(), Refused>) -> Result<(), Refused> {
     unsafe {
-        let car: u32 = game_read(CAR_RVA);
+        let car: u32 = EVENT_STATE.shown_car.get();
         if car >= ENTRIES {
             return Err(BadInput("a car shown past the carousel's kinds").into());
         }
@@ -94,7 +93,7 @@ pub unsafe fn draw_shown_car(draw: &mut dyn FnMut() -> Result<(), Refused>) -> R
 /// ebx `sub_49040D` gives it included).
 pub fn run() -> Result<(), crate::errors::Refused> {
     unsafe {
-        if game_read::<u32>(PAGE_RVA) != 0 {
+        if EVENT_STATE.car_page.get() != 0 {
             return Ok(());
         }
         clear_depth_buffer();

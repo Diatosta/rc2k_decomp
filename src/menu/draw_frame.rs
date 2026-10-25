@@ -9,16 +9,15 @@
 //! (`routes.rs`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::game_write;
 use crate::menu::frame_callback::{copy_picture, draw_menu, lock_failed};
-use crate::menu::item_at::CURRENT_MENU_RVA;
+use crate::menu::loop_store::LOOP_FLAGS;
 
 // ---- Rust version ----
 
 /// `menu`, `palette` and `measure_x` are edi, ebx and ecx at entry.
 pub unsafe fn draw_frame(menu: u32, palette: u32, measure_x: u32) -> Result<(), Refused> {
     unsafe {
-        game_write(CURRENT_MENU_RVA, menu);
+        LOOP_FLAGS.menu.set(menu);
         if crate::menu::screen_loop::quitting() {
             return Ok(());
         }

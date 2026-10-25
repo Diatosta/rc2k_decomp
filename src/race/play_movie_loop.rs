@@ -15,16 +15,20 @@
 
 use crate::errors::Refused;
 use crate::input::store::DEVICES;
-use crate::physics::flow::a;
 use crate::race::viewer::{BLOCK, PLAY_END, get, put};
 
 const STATE: usize = 0x5C5CE0; // dword_5C5CE0
 const SCENE_CLOCK: usize = 0x613830; // g_sceneClock
 const CLOCK_BASE: usize = 0x613840; // dword_613840
-const TEXTS: [usize; 4] = [0x4DDF45, 0x4DDF50, 0x4DDF61, 0x4DDF72]; // "dpg replay" ..
+const TEXTS: [&std::ffi::CStr; 4] = [
+    c"dpg replay",
+    c"[replaycurchunk]",
+    c"[replayplaystop]",
+    c"dpg replay exit",
+]; // "dpg replay" ..
 
-fn log_text(text: usize, newline: bool) {
-    unsafe { crate::logfile::log_write::log_write(a(text) as *const u8, newline, 1) }
+fn log_text(text: &std::ffi::CStr, newline: bool) {
+    unsafe { crate::logfile::log_write::log_write(text.as_ptr().cast(), newline, 1) }
 }
 
 fn log_number(n: u32) {

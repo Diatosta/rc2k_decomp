@@ -11,7 +11,7 @@
 //! Callers: `race::replay_viewer`, `sub_4144CF`, `sub_4168CF`, `sub_4174C5`, `sub_417726`,
 //! `sub_417A0D`.
 
-use crate::race::viewer::{FRAME_CLOCK, LAST_KEY, MOVE_CLOCK, REPEATS, gb, get, pb, put};
+use crate::install::vars::INSTALLER_PAGES;
 
 /// What `list_take_key` gives: the key (eax, 0 for none) and, for the last key again, the
 /// two clocks it compared (ebx `dword_51D41F`, ecx `dword_51D423 + 6`).
@@ -44,17 +44,24 @@ pub fn list_take_key() -> Taken {
         crate::system::sleep::sleep(1);
     } else {
         // Converted: `rc2k_core::menu::list_menu::repeats`.
-        let repeated = key == gb(LAST_KEY);
+        let repeated = key == INSTALLER_PAGES.last_key.get();
         let (mut frame, mut moved) = (0, 0);
         if repeated {
-            (frame, moved) = (get(FRAME_CLOCK), get(MOVE_CLOCK));
+            (frame, moved) = (
+                INSTALLER_PAGES.frame_clock.get(),
+                INSTALLER_PAGES.move_clock.get(),
+            );
             again = Some((frame, moved.wrapping_add(6)));
         }
-        put(
-            REPEATS,
-            rc2k_core::menu::list_menu::repeats(get(REPEATS), repeated, frame, moved),
-        );
-        pb(LAST_KEY, key);
+        INSTALLER_PAGES
+            .repeats
+            .set(rc2k_core::menu::list_menu::repeats(
+                INSTALLER_PAGES.repeats.get(),
+                repeated,
+                frame,
+                moved,
+            ));
+        INSTALLER_PAGES.last_key.set(key);
     }
     Taken { key, again }
 }

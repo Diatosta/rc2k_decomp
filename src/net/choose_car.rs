@@ -9,33 +9,40 @@
 //! Caller: `net::lobby_loop`.
 
 use crate::errors::Refused;
+use crate::menu::draw_work_store::DRAW_WORK;
+use crate::menu::event_store::EVENT_STATE;
+use crate::menu::players_store::PLAYER_TABLE;
 use crate::menu::screen_loop::{Carried, run_screen};
-use crate::net::lobby::{g, p};
 use crate::net::store::{NET, PlayerRecord};
+use crate::session::Dword;
 
-const CLEARED: usize = 0x75598C; // dword_75598C
-pub const ESCAPED: usize = 0x755A3C; // dword_755A3C: the screen was left with Escape
-const CAR: usize = 0x755A54; // g_player1.car_number
-const COLOURS: usize = 0x755A7C; // g_player1.field_30
+const CLEARED: &Dword = &EVENT_STATE.current_player; // dword_75598C
+pub const ESCAPED: &Dword = &DRAW_WORK.escaped; // dword_755A3C: the screen was left with Escape
 
 /// The Rust version. The car screen starts from the car (eax) and the list of cars (esi);
 /// the other registers it is handed are the lobby loop's leftovers (ebx the clock's tick,
 /// ecx and edx scratch), which the screen overwrites or reads only as the x its first item
 /// is measured from: 0 here, as the loop leaves ecx.
 pub fn choose_car() -> Result<(), Refused> {
-    p(CLEARED, 0);
+    CLEARED.set(0);
     let cars = crate::net::car_list::car_list()?;
-    p(ESCAPED, 0);
+    ESCAPED.set(0);
     let entry = Carried {
-        arg: g(CAR),
+        arg: PLAYER_TABLE.players[0].get().car_number,
         cars,
         ..Carried::default()
     };
     unsafe { run_screen(&crate::menu::select_car_loop::SCREEN, &entry) }?;
-    if g(ESCAPED) != 1 {
+    if ESCAPED.get() != 1 {
         unsafe { crate::menu::take_shown_car::take_shown_car(cars) }?;
-        NET.own.head.set(PlayerRecord::CAR, g(CAR) as u8);
-        NET.own.head.set(PlayerRecord::COLOURS, g(COLOURS) as u8);
+        NET.own.head.set(
+            PlayerRecord::CAR,
+            PLAYER_TABLE.players[0].get().car_number as u8,
+        );
+        NET.own.head.set(
+            PlayerRecord::COLOURS,
+            PLAYER_TABLE.players[0].get().gearing as u8,
+        );
     }
     crate::net::show_background::show_background()?;
     Ok(())

@@ -10,7 +10,8 @@
 //! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
 //! are the original's.
 
-use crate::install::installer::{LIST_ANSWER, LIST_LEAVE, pb, rb};
+use crate::install::installer::rb;
+use crate::install::vars::INSTALLER_PAGES;
 use rc2k_core::install::items::FolderKey;
 
 /// `key` as eax (al the key, ah its bits); whether it was taken (the original's zero).
@@ -19,8 +20,8 @@ pub fn folder_key(key: u32, list: u32) -> bool {
     let way = FolderKey::of(key);
     let answer = way.answer(|| rb(list));
     if let Some(answer) = answer {
-        pb(LIST_ANSWER, answer);
-        pb(LIST_LEAVE, 1);
+        INSTALLER_PAGES.list_answer.set(answer);
+        INSTALLER_PAGES.list_leave.set(1);
     }
     match way {
         // test eax, eax

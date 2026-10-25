@@ -26,21 +26,15 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, rva};
+use crate::menu::champ_store::CHAMP_VIEW;
+use crate::menu::event_store::EVENT_STATE;
 use crate::menu::find_class_time::{ENTRY_LEN, find_class_time};
 use crate::text::draw_text::Canvas;
 
-const LIST_RVA: usize = rva(0x7556EC); // dword_7556EC
-const CLASS_RVA: usize = rva(0x7558F4); // dword_7558F4
-const FIRST_PLACE_RVA: usize = rva(0x7556B4); // dword_7556B4
-const PLAYER_RVA: usize = rva(0x7556C0); // dword_7556C0
 // g_firstPlayerTime
 // seconds
 // glyph
 // dword_7559B0
-fn g(a: usize) -> u32 {
-    unsafe { game_read(a) }
-}
 fn get(a: u32) -> u32 {
     unsafe { (a as *const u32).read_unaligned() }
 }
@@ -51,13 +45,13 @@ type Rows = (Vec<(u32, u32)>, Option<u32>);
 /// The rows to draw, worked out before anything is drawn.
 fn rows() -> Result<Rows, Refused> {
     // Converted: `rc2k_core::screens::results_pages::class_rows`.
-    let list = g(LIST_RVA);
+    let list = CHAMP_VIEW.ranked_times.get();
     let at = |n: u32| list.wrapping_add(n.wrapping_mul(ENTRY_LEN));
     let (rows, after) = rc2k_core::screens::results_pages::class_rows(
         |n| get(at(n) + 0x1C),
         |n| get(at(n)) == u32::MAX,
-        g(CLASS_RVA),
-        g(FIRST_PLACE_RVA),
+        EVENT_STATE.class.get(),
+        CHAMP_VIEW.count.get(),
     )
     .map_err(BadInput::from)?;
     Ok((
@@ -69,10 +63,10 @@ fn rows() -> Result<Rows, Refused> {
 /// The Rust version.
 pub unsafe fn draw_class_ranking(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     let (rows, last_place) = rows()?;
-    let first_time = find_class_time(g(LIST_RVA), g(CLASS_RVA), true)?;
+    let first_time = find_class_time(CHAMP_VIEW.ranked_times.get(), EVENT_STATE.class.get(), true)?;
     // Converted: `rc2k_core::screens::results_pages::class_ranking` (the rows found here).
     use rc2k_core::screens::results_pages::{Name, RankedRow, class_ranking};
-    let player = g(PLAYER_RVA);
+    let player = CHAMP_VIEW.ranked_player.get();
     let rows: Vec<RankedRow<u32>> = rows
         .iter()
         .map(|&(e, place)| {

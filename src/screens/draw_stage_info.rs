@@ -17,22 +17,17 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{game_addr, game_read, rva};
+use crate::menu::champ_store::CHAMP_VIEW;
+use crate::menu::event_store::EVENT_STATE;
 use crate::menu::lists_store::MENU_LISTS;
 use crate::records::find_record::find_record_in;
 use crate::screens::draw_stage_heading::draw_stage_heading;
 use crate::screens::stage_panel::{
-    BEST_TIMES_PTR_RVA, TITLE_FONT, draw_records_from, draw_stage_body, dword, label,
-    table_dword_at,
+    TITLE_FONT, draw_records_from, draw_stage_body, dword, label, table_dword_at,
 };
 use crate::text::draw_text::Canvas;
 
 // ---- game data ----
-
-pub const RECORD_TABLE_RVA: usize = rva(0x735576); // g_recordTable
-pub const INDEX_RVA: usize = rva(0x755958); // index: the stage in its section
-pub const SECTION_RVA: usize = rva(0x75595C); // section
-pub const MODE_RVA: usize = rva(0x7556D0); // dword_7556D0: 0x13 takes the title from the table
 
 pub const TITLE_X: i32 = 0x2EB;
 pub const TITLE_Y: i32 = 0x77;
@@ -41,22 +36,20 @@ pub const TITLE_Y: i32 = 0x77;
 
 /// The record of the event's stage, and its section.
 pub unsafe fn event_stage() -> (u32, u32) {
-    unsafe {
-        let table = game_addr(RECORD_TABLE_RVA) as u32;
-        let section: u32 = game_read(SECTION_RVA);
-        let index: u32 = game_read(INDEX_RVA);
-        (find_record_in(table, index as i32, section), section)
-    }
+    let table = crate::records::stages_store::STAGE_TABLES.championship();
+    let section: u32 = EVENT_STATE.section.get();
+    let index: u32 = EVENT_STATE.index.get();
+    (find_record_in(table, index as i32, section), section)
 }
 
 /// The title string of the event's section: from a table in mode 0x13, otherwise from the
 /// section's first record.
 pub unsafe fn event_title() -> u32 {
     unsafe {
-        let table = game_addr(RECORD_TABLE_RVA) as u32;
-        let section: u32 = game_read(SECTION_RVA);
+        let table = crate::records::stages_store::STAGE_TABLES.championship();
+        let section: u32 = EVENT_STATE.section.get();
         let first = find_record_in(table, 0, section);
-        if game_read::<u32>(MODE_RVA) == 0x13 {
+        if CHAMP_VIEW.event_mode.get() == 0x13 {
             table_dword_at(MENU_LISTS.section_titles[0].addr(), section)
         } else {
             dword(first.wrapping_add(0x38))
@@ -73,7 +66,7 @@ pub unsafe fn draw_stage_info(canvas: &mut dyn Canvas) -> Result<bool, Refused> 
         draw_stage_heading(record as *const u8, canvas)?;
         // ebx, the markers' palette, still holds the section here.
         draw_stage_body(record, section, false, canvas)?;
-        draw_records_from(game_read(BEST_TIMES_PTR_RVA), record, canvas)
+        draw_records_from(CHAMP_VIEW.stage_best_times.get(), record, canvas)
     }
 }
 

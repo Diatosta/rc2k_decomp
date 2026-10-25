@@ -10,7 +10,14 @@
 //! Callers: `sub_487E2C`.
 
 use crate::errors::Refused;
-use crate::framework::{game_read, game_write, rva};
+use crate::framework::{game_write, rva};
+use crate::menu::draw_lists_store::DRAW_LISTS;
+use crate::menu::event_store::EVENT_STATE;
+use crate::menu::flow_store::SCREEN_FLOW;
+use crate::menu::loop_store::LOOP_FLAGS;
+use crate::menu::menus_store::MENUS;
+use crate::menu::option_work_store::OPTION_WORK;
+use crate::menu::screen_items_store::{SCREEN_ITEMS, slot};
 use crate::menu::screen_loop::{Callee, Carried, List, Screen, Step, carousel, prepare_scene};
 use crate::menu::state_store::MENU_STATE;
 
@@ -18,40 +25,40 @@ use crate::menu::state_store::MENU_STATE;
 
 unsafe fn set_up_first(c: &mut Carried) -> Result<(), Refused> {
     unsafe {
-        game_write(rva(0x755569), 0x0u32);
+        LOOP_FLAGS.ended_a.set(0x0u32);
         game_write(rva(0x623FB0), 0xFFFFFF64u32);
         game_write(rva(0x623FB4), 0x27u32);
         game_write(rva(0x624080), 0x140u32);
         prepare_scene(c);
-        game_write(rva(0x7554EC), 0x1u32);
+        SCREEN_FLOW.turning.set(0x1u32);
         MENU_STATE.carousel.menu.set(0xFu32);
         carousel(c)?;
-        c.arg = game_read(rva(0x74779C));
-        game_write(rva(0x755525), c.arg);
+        c.arg = SCREEN_ITEMS.current[slot::REVIEW_OPTIONS_47D5A5].get();
+        LOOP_FLAGS.item.set(c.arg);
         c.arg = c.arg.wrapping_sub(1);
         MENU_STATE.carousel.front.set(c.arg);
-        game_write(rva(0x7554EC), 0x0u32);
+        SCREEN_FLOW.turning.set(0x0u32);
     }
     Ok(())
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: rva(0x750EF8),
-    saved_item: rva(0x7477C4),
+    menu: || MENUS.arcade_review_options.addr(),
+    saved_item: || &SCREEN_ITEMS.current[slot::ARCADE_REVIEW_OPTIONS],
     lists: &[
         List {
-            pointer: rva(0x755504), // g_sceneList
-            table: rva(0x758FA6),
+            pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
+            table: || DRAW_LISTS.arcade_review_options_scene.addr(),
             run: false,
         },
         List {
-            pointer: rva(0x7554F8), // g_drawList
-            table: rva(0x758EC6),
+            pointer: || &SCREEN_FLOW.draw_list, // g_drawList
+            table: || DRAW_LISTS.arcade_review_options_draw.addr(),
             run: false,
         },
         List {
-            pointer: rva(0x7554FC), // g_overlayList
-            table: rva(0x7592F6),
+            pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
+            table: || DRAW_LISTS.arcade_review_options_overlay.addr(),
             run: false,
         },
     ],
@@ -59,22 +66,26 @@ pub const SCREEN: Screen = Screen {
     frame_callback: rva(0x474D4B),
     later_frame_callback: None,
     before: &[
-        Step::Write(rva(0x75555D), 0x0),
-        Step::Write(rva(0x755980), 0x0),
+        Step::Write(|| &LOOP_FLAGS.went_back, 0x0),
+        Step::Write(|| &EVENT_STATE.event_done, 0x0),
     ],
     set_up_first: &[Step::Do(set_up_first)],
     prepare: &[],
     after_lists: &[],
     background: &[
-        Step::ArgAddr(rva(0x732957)),
+        Step::ArgAddr(|| {
+            crate::menu::texts_store::MENU_TEXTS
+                .arcade_review_options_picture
+                .addr()
+        }),
         Step::CallOrFatal(Callee::LoadBackground, 0x80712345),
     ],
     after_first_frame: &[],
     confirm: Some(&[]),
-    ask_also_if: Some(rva(0x755569)),
+    ask_also_if: Some(|| &LOOP_FLAGS.ended_a),
     confirmed: &[],
     unasked_skips_save: false,
-    after: &[Step::Write(rva(0x7556A4), 0x6F)],
+    after: &[Step::Write(|| &OPTION_WORK.menu_sound, 0x6F)],
     escape_leaves: false,
     each_frame: &[],
     short_action_check: false,

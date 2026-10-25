@@ -22,12 +22,11 @@
 use crate::errors::{BadInput, Refused};
 use crate::framework::rva;
 use crate::marks::emitters::{RING_COUNT_RVA, RING_CURSOR_RVA};
-use crate::marks::setup::SETTINGS_RVA;
+use crate::marks::setup::{CLOCK, MarksClock};
 use crate::marks::store::{Slot, game_read, game_write};
 use crate::math::x87;
 use crate::scene::fog_at::fog_at;
 
-const TICKS_RVA: Slot = Slot::at(0x764FD0); // g_marksFrameTicks
 const STREAK: u32 = 0x12;
 const LAST_RVA: Slot = Slot::at(0x8EB8E1); // dword_8EB8E1 .. dword_8EB8E9
 const PLACE_RVA: Slot = Slot::at(0x8EB8D5); // flt_8EB8D5 .. flt_8EB8DD
@@ -51,13 +50,14 @@ unsafe fn first_frame(e: u32) {
             crate::race::store::asm_base() as usize,
             crate::marks::store::base() as usize,
             e as usize,
+            &CLOCK,
         )
     }
 }
 
 /// The original's 0x4CF94D .. 0x4CF98C: the place moved by the motion, the motion's y by `flt_93A572`.
 unsafe fn move_(e: u32) {
-    unsafe { move_x87(crate::marks::store::base() as usize, e as usize) }
+    unsafe { move_x87(crate::marks::store::base() as usize, e as usize, &CLOCK) }
 }
 
 /// The original's 0x4CF9A6 .. 0x4CFA2D: the place turned by the view into `flt_8EB8D5` ...
@@ -79,11 +79,11 @@ unsafe fn colours() -> (Slot, i32) {
 /// Why it refuses, if it does: the walk as the original makes it, nothing written.
 unsafe fn refusal() -> Option<&'static str> {
     unsafe {
-        let s: u32 = game_read(SETTINGS_RVA);
+        let s: u32 = crate::marks::setup::SETTINGS.pointer.get();
         if s == 0 {
             return Some("no marks settings");
         }
-        let ticks: u32 = game_read(TICKS_RVA);
+        let ticks: u32 = CLOCK.frame_ticks.get();
         let mut e: u32 = game_read(RING_CURSOR_RVA);
         let count = game_read::<u32>(RING_COUNT_RVA) as i32;
         if count > 0 && (e == 0 || get(e) == 0) {
@@ -114,7 +114,7 @@ unsafe fn refusal() -> Option<&'static str> {
 /// The streak step at e (see the header): whether the entry dies.
 unsafe fn streak(e: u32) -> Result<bool, Refused> {
     unsafe {
-        let t: u32 = game_read(TICKS_RVA);
+        let t: u32 = CLOCK.frame_ticks.get();
         let life = get(e + 0x84);
         put(e + 0x84, life.wrapping_sub(t));
         if life < t {
@@ -131,7 +131,7 @@ unsafe fn streak(e: u32) -> Result<bool, Refused> {
         game_write(LAST_RVA + 4, get(e + 0x20));
         game_write(LAST_RVA + 8, get(e + 0x24));
         turn_place(e);
-        let s: u32 = game_read(SETTINGS_RVA);
+        let s: u32 = crate::marks::setup::SETTINGS.pointer.get();
         if get(s + 0xC) != 0 || get(s + 0x10) == 1 {
             put(e + 0x1C, game_read(PLACE_RVA));
             put(e + 0x20, game_read(PLACE_RVA + 4));
@@ -164,7 +164,7 @@ pub unsafe fn run_ribbons() -> Result<(), Refused> {
                 break;
             }
             let next = get(e + 4);
-            let settings: u32 = game_read(SETTINGS_RVA);
+            let settings: u32 = crate::marks::setup::SETTINGS.pointer.get();
             if get(settings + 0x60) != 0 && get(e + 0xC) == STREAK && streak(e)? {
                 game_write(
                     RING_COUNT_RVA,
@@ -190,10 +190,10 @@ pub unsafe fn run_ribbons() -> Result<(), Refused> {
     Ok(())
 }
 
-use crate::marks::plain::{ld, ldi, st};
+use crate::marks::plain::{ld, st};
 
 /// `first_frame`'s x87 block as plain Rust on the x87 model (52 instructions), same order and memory places.
-unsafe fn first_frame_x87(rc: usize, mk: usize, e: usize) {
+unsafe fn first_frame_x87(rc: usize, mk: usize, e: usize, c: &MarksClock) {
     unsafe {
         let t0 = ld(e, 0x18);
         let t1 = ld(e, 0x14);
@@ -229,41 +229,41 @@ unsafe fn first_frame_x87(rc: usize, mk: usize, e: usize) {
         st(e, 0x20, t20);
         st(e, 0x24, t29);
         let t30 = ld(e, 0x2C);
-        let t31 = t30 * ldi(mk, 0x90);
+        let t31 = t30 * crate::math::x87_float::int(c.frame_ticks.get() as i32);
         let t32 = t31 + ld(e, 0x10);
         st(e, 0x10, t32);
         let t33 = ld(e, 0x30);
-        let t34 = t33 * ldi(mk, 0x90);
+        let t34 = t33 * crate::math::x87_float::int(c.frame_ticks.get() as i32);
         let t35 = t34 + ld(e, 0x14);
         st(e, 0x14, t35);
         let t36 = ld(e, 0x34);
-        let t37 = t36 * ldi(mk, 0x90);
+        let t37 = t36 * crate::math::x87_float::int(c.frame_ticks.get() as i32);
         let t38 = t37 + ld(e, 0x18);
         st(e, 0x18, t38);
         let t39 = ld(mk, 0x1D562E);
-        let t40 = t39 * ldi(mk, 0x90);
+        let t40 = t39 * crate::math::x87_float::int(c.frame_ticks.get() as i32);
         let t41 = t40 + ld(e, 0x30);
         st(e, 0x30, t41);
     }
 }
 
 /// `move_`'s x87 block as plain Rust on the x87 model (16 instructions), same order and memory places.
-unsafe fn move_x87(mk: usize, e: usize) {
+unsafe fn move_x87(mk: usize, e: usize, c: &MarksClock) {
     unsafe {
         let t0 = ld(e, 0x2C);
-        let t1 = t0 * ldi(mk, 0x90);
+        let t1 = t0 * crate::math::x87_float::int(c.frame_ticks.get() as i32);
         let t2 = t1 + ld(e, 0x10);
         st(e, 0x10, t2);
         let t3 = ld(e, 0x30);
-        let t4 = t3 * ldi(mk, 0x90);
+        let t4 = t3 * crate::math::x87_float::int(c.frame_ticks.get() as i32);
         let t5 = t4 + ld(e, 0x14);
         st(e, 0x14, t5);
         let t6 = ld(e, 0x34);
-        let t7 = t6 * ldi(mk, 0x90);
+        let t7 = t6 * crate::math::x87_float::int(c.frame_ticks.get() as i32);
         let t8 = t7 + ld(e, 0x18);
         st(e, 0x18, t8);
         let t9 = ld(mk, 0x1D5632);
-        let t10 = t9 * ldi(mk, 0x90);
+        let t10 = t9 * crate::math::x87_float::int(c.frame_ticks.get() as i32);
         let t11 = t10 + ld(e, 0x30);
         st(e, 0x30, t11);
     }
@@ -517,7 +517,9 @@ mod asm_differential {
         differential(
             &SPEC,
             |b| unsafe { reference::first_frame_x87(b[0], b[1], b[2]) },
-            |b| unsafe { super::first_frame_x87(b[0], b[1], b[2]) },
+            |b| unsafe {
+                super::first_frame_x87(b[0], b[1], b[2], crate::marks::setup::clock_at(b[1]))
+            },
         );
     }
 
@@ -550,7 +552,7 @@ mod asm_differential {
         differential(
             &SPEC,
             |b| unsafe { reference::move_x87(b[0], b[1]) },
-            |b| unsafe { super::move_x87(b[0], b[1]) },
+            |b| unsafe { super::move_x87(b[0], b[1], crate::marks::setup::clock_at(b[0])) },
         );
     }
 

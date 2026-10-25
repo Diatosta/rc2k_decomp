@@ -10,18 +10,23 @@
 //! are the original's.
 
 use crate::errors::Refused;
-use crate::install::installer::{LAYOUT, a, g, rd};
+use crate::install::installer::rd;
 use crate::install::lay_out_pieces::PIECE;
-
-const TITLE_BOX: usize = 0x51DD98; // unk_51DD98
+use crate::install::vars::INSTALLER_PAGES;
 
 pub fn place_pieces() -> Result<(), Refused> {
-    let base = a(LAYOUT) + 4;
+    let base = INSTALLER_PAGES.layout.addr() as u32 + 4;
     let at = |k: u32| base.wrapping_add(PIECE * k);
     // Converted: `rc2k_core::install::layout::rows` (each piece's box read through its item).
-    let rows = rc2k_core::install::layout::rows(g(LAYOUT), |k| rd(rd(at(k) + 4) + 4))?;
+    let rows = rc2k_core::install::layout::rows(INSTALLER_PAGES.layout.get_u32(0), |k| {
+        rd(rd(at(k) + 4) + 4)
+    })?;
     for (first, n, the_box) in rows {
-        let place = if the_box == 0 { a(TITLE_BOX) } else { the_box };
+        let place = if the_box == 0 {
+            INSTALLER_PAGES.title_box.addr() as u32
+        } else {
+            the_box
+        };
         crate::install::place_row::place_row(at(first), n, place, the_box)?;
     }
     Ok(())

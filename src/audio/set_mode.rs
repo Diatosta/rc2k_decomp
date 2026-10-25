@@ -16,19 +16,17 @@
 
 use crate::audio::store::AUDIO;
 use crate::errors::Refused;
-use crate::framework::rva;
-use crate::store::game_addr;
 
-const SAM_TEXT: usize = rva(0x4DA6CD); // "SAM:"
-const OK_TEXT: usize = rva(0x4DA6D2); // "SAM: OK"
-const FAIL_TEXT: usize = rva(0x4DA6DA); // "SAM: FAIL"
+const SAM_TEXT: &std::ffi::CStr = c"SAM:"; // "SAM:"
+const OK_TEXT: &std::ffi::CStr = c"SAM: OK"; // "SAM: OK"
+const FAIL_TEXT: &std::ffi::CStr = c"SAM: FAIL"; // "SAM: FAIL"
 
 /// True for no carry.
 pub fn set_mode(mode: u32) -> Result<bool, Refused> {
     use crate::audio::mixer_set_up::{close_way, open_way};
     use crate::audio::sound_device as sd;
     let caps = &AUDIO.sound_caps;
-    sd::log_text(game_addr(SAM_TEXT) as u32, false);
+    sd::log_text(SAM_TEXT.as_ptr() as usize as u32, false);
     sd::log_hex(mode, true);
     // Fixed (section 16, 2026-10-20): the streams stopped with action 0; the original
     // hands on whatever edx holds (normally the thread's 1, a feed), so the music
@@ -52,10 +50,10 @@ pub fn set_mode(mode: u32) -> Result<bool, Refused> {
         crate::system::sleep::sleep(1000);
         crate::audio::thread_parts::play_primary();
         AUDIO.opened_sound_mode.set(AUDIO.sound_mode.get());
-        sd::log_text(game_addr(OK_TEXT) as u32, true);
+        sd::log_text(OK_TEXT.as_ptr() as usize as u32, true);
     } else {
         AUDIO.opened_sound_mode.set(0);
-        sd::log_text(game_addr(FAIL_TEXT) as u32, true);
+        sd::log_text(FAIL_TEXT.as_ptr() as usize as u32, true);
     }
     crate::system::restore_window::restore_window();
     Ok(ok)

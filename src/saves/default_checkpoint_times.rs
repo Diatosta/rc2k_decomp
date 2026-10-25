@@ -14,15 +14,12 @@
 //! `rc2k_core::saves::defaults::championship_times` (a refusal now leaves nothing written).
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, game_read, rva};
+use crate::menu::champ_store::CHAMP_VIEW;
 use crate::saves::allocate_best_times::count_stages;
 use crate::saves::default_times::*;
 use rc2k_core::saves::defaults::{Championship, RALLIES, championship_times};
 
 // ---- game data ----
-
-const RECORD_TABLE_RVA: usize = rva(0x735576); // g_recordTable
-const TABLE_RVA: usize = rva(0x7556E8); // dword_7556E8
 
 // ---- Rust version ----
 
@@ -30,10 +27,10 @@ const TABLE_RVA: usize = rva(0x7556E8); // dword_7556E8
 pub unsafe fn default_checkpoint_times(_ebp: u32, log: Log) -> Result<(), Refused> {
     // Converted: `rc2k_core::saves::defaults::championship_times`.
     unsafe {
-        let records_at = game_addr(RECORD_TABLE_RVA) as u32;
+        let records_at = crate::records::stages_store::STAGE_TABLES.championship();
         let stages = count_stages(records_at as *const u8)?;
         let count = records(records_at)?;
-        let table: u32 = game_read(TABLE_RVA);
+        let table: u32 = CHAMP_VIEW.time_trial_best_times.get();
         if stages == 0 || table == 0 {
             return Err(BadInput("no stages, or no table for their times").into());
         }

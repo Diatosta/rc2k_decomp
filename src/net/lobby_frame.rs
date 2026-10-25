@@ -17,22 +17,18 @@
 //! `screens::run_frame` for `net::lobby_loop`.
 
 use crate::errors::{BadInput, Refused};
-use crate::net::lobby::{Cursor, FONT, TEXT, a, blit, copy_picture, g, lock_surface};
+use crate::gfx::fonts_store::FONTS;
+use crate::net::lobby::{Cursor, FONT, blit, copy_picture, lock_surface};
 use crate::net::store::NET;
+use crate::strings::text_buffer::TEXT_BUFFER;
 use crate::text::draw_text::GameCanvas;
-use crate::text::font::Font;
 use rc2k_core::net::players::{self, READY};
 use rc2k_core::net::screens;
 
-const HEADING_FONT: usize = 0x51E564; // stru_51E564
-const NAME_FONT: usize = 0x51E6C4; // stru_51E6C4
-const READY_FONT: usize = 0x51E784; // stru_51E784
-const CHAT_FONT: usize = 0x51E584; // stru_51E584
-const FONT_PALETTES: usize = 0x51DEB0; // g_fontPalettes
-
-fn get(at: u32) -> u32 {
-    unsafe { (at as *const u32).read_unaligned() }
-}
+const HEADING_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::TIME;
+const NAME_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::VALUES;
+const READY_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::READY;
+const CHAT_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::NAME;
 
 /// A time, or its gap to `first` with a '+' over its first character, written at the
 /// cursor.
@@ -69,7 +65,7 @@ pub fn lobby_frame() -> Result<(), Refused> {
         let out = unsafe {
             crate::text::draw_string_by_id::draw_string_by_id_at(
                 id,
-                a(HEADING_FONT) as *mut Font,
+                HEADING_FONT.as_ptr(),
                 x,
                 y as i32,
                 &mut canvas,
@@ -99,14 +95,14 @@ pub fn lobby_frame() -> Result<(), Refused> {
             cursor.string(block.name.addr() as u32);
             cursor.nul();
             let font = if block.record.state() & READY != 0 {
-                a(READY_FONT)
+                READY_FONT
             } else {
-                a(NAME_FONT)
+                NAME_FONT
             };
             let name = unsafe {
                 crate::text::draw_text::draw_text_at(
-                    font as *mut Font,
-                    a(TEXT) as *const u8,
+                    font.as_ptr(),
+                    TEXT_BUFFER.text.addr() as *const u8,
                     x as i32,
                     y as i32,
                     &mut canvas,
@@ -133,8 +129,8 @@ pub fn lobby_frame() -> Result<(), Refused> {
                 cursor.nul();
                 let out = unsafe {
                     crate::text::draw_text::draw_text_at(
-                        a(NAME_FONT) as *mut Font,
-                        a(TEXT) as *const u8,
+                        NAME_FONT.as_ptr(),
+                        TEXT_BUFFER.text.addr() as *const u8,
                         x as i32,
                         y as i32,
                         &mut canvas,
@@ -145,7 +141,12 @@ pub fn lobby_frame() -> Result<(), Refused> {
                 time_text(&mut cursor, time, gaps, first_time);
                 cursor.nul();
                 unsafe {
-                    crate::text::draw_time_text::draw_time_text(a(FONT) as *mut Font, a(TEXT), x, y)
+                    crate::text::draw_time_text::draw_time_text(
+                        FONT.as_ptr(),
+                        TEXT_BUFFER.text.addr() as u32,
+                        x,
+                        y,
+                    )
                 }?;
             }
             x += 0xA5;
@@ -160,23 +161,23 @@ pub fn lobby_frame() -> Result<(), Refused> {
             cursor.nul();
             unsafe {
                 crate::text::draw_time_text::draw_time_text(
-                    a(FONT) as *mut Font,
-                    a(TEXT),
+                    FONT.as_ptr(),
+                    TEXT_BUFFER.text.addr() as u32,
                     x,
                     total_y,
                 )
             }?;
             SHOW_HOURS.store(kept_hours, Relaxed);
             // The next row's blit gets the text buffer's address.
-            palette = a(TEXT);
-            y = y.wrapping_add(get(a(NAME_FONT) + 8));
+            palette = TEXT_BUFFER.text.addr() as u32;
+            y = y.wrapping_add(NAME_FONT.object().line_height.get());
         }
     }
     y = 0x158;
     crate::net::lock_received::lock_received();
     unsafe {
         crate::text::draw_text::draw_text_at(
-            a(CHAT_FONT) as *mut Font,
+            CHAT_FONT.as_ptr(),
             (NET.chat.addr() as u32) as *const u8,
             0xA,
             y as i32,
@@ -184,7 +185,7 @@ pub fn lobby_frame() -> Result<(), Refused> {
         )
     }?;
     crate::net::unlock_received::unlock_received();
-    y = y.wrapping_add(get(a(CHAT_FONT) + 8).wrapping_mul(8));
+    y = y.wrapping_add(CHAT_FONT.object().line_height.get().wrapping_mul(8));
     crate::net::chat_input_line::chat_input_line(NET.chat_input.addr() as u32, 3, y)?;
     let mut x = 0x310;
     let mut item = 0;
@@ -200,7 +201,7 @@ pub fn lobby_frame() -> Result<(), Refused> {
         }
     }
     for line_y in [0x156, 0x217] {
-        unsafe { crate::gfx::rect::draw_hline(0, line_y, 0x320, 7, g(FONT_PALETTES)) };
+        unsafe { crate::gfx::rect::draw_hline(0, line_y, 0x320, 7, FONTS.palettes.get()) };
     }
     crate::platform::unlock_surface();
     crate::platform::show_frame_now();

@@ -23,8 +23,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::rva;
-use crate::gfx::block::{game_ptr, game_read, game_write};
-use crate::gfx::picture_store::Slot as PicSlot;
+use crate::gfx::texture_pixels::GRADING;
 use crate::logfile::log_write::log_write;
 use crate::scene::load_changed_texture_picture::{
     TEXTURES, WANTED_PICTURES_RVA, load_changed_texture_picture_in_game,
@@ -32,19 +31,22 @@ use crate::scene::load_changed_texture_picture::{
 use crate::scene::load_hud_car_icons::load_hud_car_icons;
 use crate::scene::step_loading_bar::step_loading_bar;
 use crate::scene::textures::{KIND_TEXTURE_RVA, KINDS};
+use crate::store::{game_read, game_write};
 use rc2k_core::scene::pictures::{kind_picture, read_size};
 
 // ---- game data ----
 
 const KIND_PICTURES_RVA: usize = rva(0x5D7968); // dword_5D7968
 const SYSTEM_TEXTURES_RVA: usize = rva(0x5DC974); // dword_5DC974
-const READING_RVA: PicSlot = PicSlot::at(0x4F4A24); // dword_4F4A24
-/// `dword_4F4A28`, `dword_4F4A2C`: the size pictures are read at.
-const READ_SIZE_RVA: PicSlot = PicSlot::at(0x4F4A28);
 /// `dword_609300`, `dword_609304`: the scene's size for them.
 const SCENE_SIZE_RVA: usize = rva(0x609300);
 // scene::load_hud_car_icons
-const TEXTS: [usize; 4] = [rva(0x4DB7E2), rva(0x4DB800), rva(0x4DB81D), rva(0x4DB83A)];
+const TEXTS: [&std::ffi::CStr; 4] = [
+    c"-----------------------------",
+    c"Reload system plates - start",
+    c"Reload system plates - finis",
+    c"-----------------------------",
+];
 
 // ---- Rust version ----
 
@@ -64,8 +66,8 @@ pub unsafe fn reload_system_textures() -> Result<(), Refused> {
         if (0..KINDS).any(|kind| first(kind) != u32::MAX && first(kind) >= TEXTURES) {
             return Err(BadInput("a kind's first texture past the pictures' table").into());
         }
-        log_write(game_ptr(TEXTS[0]), true, 1);
-        log_write(game_ptr(TEXTS[1]), true, 1);
+        log_write(TEXTS[0].as_ptr().cast(), true, 1);
+        log_write(TEXTS[1].as_ptr().cast(), true, 1);
         for kind in 0..KINDS {
             let texture = first(kind);
             if texture == u32::MAX {
@@ -76,17 +78,20 @@ pub unsafe fn reload_system_textures() -> Result<(), Refused> {
         }
         let scene: [u32; 2] = game_read(SCENE_SIZE_RVA);
         for texture in 0..textures {
-            game_write(READING_RVA, 1u32);
+            GRADING.reading.set(1u32);
             let wanted = game_read(WANTED_PICTURES_RVA + texture as usize * 4);
-            game_write(READ_SIZE_RVA, read_size(wanted, scene));
+            let [scale, saturation] = read_size(wanted, scene);
+            GRADING.scale.set(scale);
+            GRADING.saturation.set(saturation);
             load_changed_texture_picture_in_game(texture)?;
             step_loading_bar(texture)?;
         }
-        game_write(READING_RVA, 0u32);
-        game_write(READ_SIZE_RVA, [0x100u32, 0x100]);
+        GRADING.reading.set(0u32);
+        GRADING.scale.set(0x100);
+        GRADING.saturation.set(0x100);
         load_hud_car_icons()?;
-        log_write(game_ptr(TEXTS[2]), true, 1);
-        log_write(game_ptr(TEXTS[3]), true, 1);
+        log_write(TEXTS[2].as_ptr().cast(), true, 1);
+        log_write(TEXTS[3].as_ptr().cast(), true, 1);
         Ok(())
     }
 }

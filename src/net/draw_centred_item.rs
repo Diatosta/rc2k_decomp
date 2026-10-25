@@ -11,10 +11,9 @@
 use crate::errors::Refused;
 use crate::net::draw_button::item_font;
 use crate::text::draw_text::GameCanvas;
-use crate::text::font::Font;
 
-const PLAIN: usize = 0x51E744; // unk_51E744
-const LIT: usize = 0x51E684; // stru_51E684
+const PLAIN: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::CENTRED_PLAIN;
+const LIT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::CENTRED_LIT;
 
 /// The Rust version: the string `string` for item `item` at (`x`, `y`) in the item's font;
 /// returns the next y (y plus the font's line height; the original's ebp). The registers it
@@ -23,11 +22,11 @@ const LIT: usize = 0x51E684; // stru_51E684
 pub fn draw_centred_item(string: u32, item: u32, x: u32, y: u32) -> Result<u32, Refused> {
     // Converted: `rc2k_core::net::screens::item_lit` (in `item_font`).
     let font = item_font(item, PLAIN, LIT);
-    let next = y.wrapping_add(unsafe { ((font + 8) as *const u32).read_unaligned() });
+    let next = y.wrapping_add(font.object().line_height.get());
     unsafe {
         crate::text::draw_string_by_id::draw_string_by_id_at(
             string,
-            font as *mut Font,
+            font.as_ptr(),
             x as i32,
             y as i32,
             &mut GameCanvas,

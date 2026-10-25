@@ -2,6 +2,7 @@
 //! 2026-10-17): what runs round a stage's loading and its run. Here its small leaves.
 
 use crate::framework::rva;
+use crate::gfx::screen_state::SCREEN_MODE;
 use crate::input::store::DEVICES;
 use crate::race::state_store::RACE_STATE;
 use crate::store::{game_addr, game_read, game_write};
@@ -12,7 +13,6 @@ pub const ABSENCES: [usize; 8] = [
 ];
 pub const KIND_ORDER_RVA: usize = rva(0x6051E0); // dword_6051E0: 0x22 kinds
 pub const KIND_ORDER_LEN: u32 = rc2k_core::race::cars::KIND_ORDER_LEN;
-pub const SCREEN_MODE_RVA: usize = rva(0x4F4948); // g_raceScreenMode
 
 /// `race::release_controls` (0x409425): `dword_4F7DE4` 2. Every register kept.
 pub unsafe fn release_controls() {
@@ -48,7 +48,7 @@ pub unsafe fn index_of_kind(kind: u32) -> u32 {
 /// `g_raceScreenMode`; every register and flag kept (`pusha` / `popa`; its carry is read
 /// by nobody).
 pub unsafe fn set_race_screen_mode() {
-    crate::platform::set_mode_now(unsafe { game_read(SCREEN_MODE_RVA) });
+    crate::platform::set_mode_now(SCREEN_MODE.race_mode.get());
 }
 
 // ---- batch 12 ----

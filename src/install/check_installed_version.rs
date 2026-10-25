@@ -16,34 +16,36 @@
 
 use crate::bridge::{Raw, read_through};
 use crate::errors::Refused;
-use crate::install::installer::{INSTALLED, STATUS, a, gb, p, rb, set_cd, wb};
+use crate::files::scratch::SCRATCH;
+use crate::install::installer::{rb, set_cd, wb};
+use crate::install::vars::INSTALLER_NAMES;
+use crate::install::vars::INSTALLER_PATHS;
+use crate::install::vars::INSTALLER_RUN;
+use crate::system::start_texts::START_TEXTS;
 use rc2k_core::install::version::{self, Scan};
 
-const SAME_VERSION: usize = 0x51B9C8; // dword_51B9C8
-const SOURCE: usize = 0x51BB8D; // g_installSource
-const BASE_A: usize = 0x95E6F8; // byte_95E6F8: the folder to go back to
-const BUF: usize = 0x93E8B0; // g_pngInfo
-const READ_TARGET: usize = BUF + 0x100;
-const TAIL: usize = BUF + 0xFF00;
+const READ_TARGET: usize = 0x100; // into the scratch
+const TAIL: usize = 0xFF00;
 const SCAN_LEN: u32 = version::CHUNK;
-const COPYRIGHT: usize = 0x4E001C; // byte_4E001C
 
 pub fn check_installed_version() -> Result<(), Refused> {
-    p(SAME_VERSION, 0);
-    if gb(STATUS) != 1 || gb(SOURCE) == 0 {
+    INSTALLER_RUN.same_version.set(0);
+    if INSTALLER_NAMES.status.get() != 1 || INSTALLER_NAMES.source.get(0) == 0 {
         return Ok(());
     }
     // normalise the source into byte_95E7F8, cd there
     let written = unsafe {
         crate::install::normalise_path::normalise_path(
-            a(SOURCE) as *const u8,
-            a(INSTALLED) as *mut u8,
+            INSTALLER_NAMES.source.addr() as u32 as *const u8,
+            INSTALLER_PATHS.installed.addr() as u32 as *mut u8,
         )
     }?;
-    if !written || !set_cd(a(INSTALLED)) {
+    if !written || !set_cd(INSTALLER_PATHS.installed.addr() as u32) {
         return Ok(());
     }
-    unsafe { crate::system::zero_memory::zero_memory(a(BUF) as *mut u8, 0x10000) }?;
+    unsafe {
+        crate::system::zero_memory::zero_memory(SCRATCH.buffer.addr() as u32 as *mut u8, 0x10000)
+    }?;
     // The standalone checks its own program (the same version text is in its built-in
     // image). files::open_by_mode, mode 0.
     let program = crate::install::run_after_exit::RC2K.as_ptr();
@@ -51,25 +53,33 @@ pub fn check_installed_version() -> Result<(), Refused> {
         loop {
             // the previous tail carried to the front (`rep movsd`, 0x40 dwords)
             for n in 0..0x100u32 {
-                wb(a(BUF) + n, rb(a(TAIL) + n));
+                wb(
+                    SCRATCH.buffer.addr() as u32 + n,
+                    rb(SCRATCH.buffer.addr() as u32 + TAIL as u32 + n),
+                );
             }
-            let (read, ok) =
-                unsafe { crate::files::handle::read(file, a(READ_TARGET) as *mut u8, SCAN_LEN) };
+            let (read, ok) = unsafe {
+                crate::files::handle::read(
+                    file,
+                    (SCRATCH.buffer.addr() + READ_TARGET) as *mut u8,
+                    SCAN_LEN,
+                )
+            };
             if !ok || read == 0 {
                 break;
             }
             // Converted: `rc2k_core::install::version::scan`.
-            let buffer = unsafe { Raw::new(a(BUF) as *const u8) };
-            let copyright = unsafe { Raw::new(a(COPYRIGHT) as *const u8) };
+            let buffer = unsafe { Raw::new(SCRATCH.buffer.addr() as u32 as *const u8) };
+            let copyright = unsafe { Raw::new(START_TEXTS.copyright.addr() as u32 as *const u8) };
             if let Scan::Stopped { same, .. } = read_through(version::scan(&buffer, &copyright)) {
                 if same {
-                    p(SAME_VERSION, 1);
+                    INSTALLER_RUN.same_version.set(1);
                 }
                 break;
             }
         }
         unsafe { crate::files::handle::close(file) };
     }
-    set_cd(a(BASE_A));
+    set_cd(INSTALLER_PATHS.game_dir.addr() as u32);
     Ok(())
 }

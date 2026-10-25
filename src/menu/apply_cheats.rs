@@ -20,35 +20,36 @@
 //! without its end, or without room for a car more.
 
 use crate::errors::BadInput;
-use crate::framework::{game_addr, game_read, game_write, rva};
-use crate::menu::remove_secret_cars::{CHEATS_RVA, FIRST, List, SECOND, read_list, write_list};
+use crate::menu::cars_store::CAR_TABLE;
+use crate::menu::cheats_store::CHEAT_VARS;
+use crate::menu::remove_secret_cars::{FIRST, List, SECOND, read_list, write_list};
 use crate::race::state_store::RACE_STATE;
 use rc2k_core::menu::car_lists;
 
 // ---- game data ----
 
 /// By bit (what each does: `rc2k_core::menu::car_lists::CHEATS`): the log line's text and
-/// the cheat's car, if any.
-const CHEATS: [(usize, usize); 19] = [
-    (0x4DE7A9, 0),        // "Cheat 1 (Unlock Arcade)"
-    (0x4DE7C1, 0),        // "Cheat 2 (Unlock Cars)"
-    (0x4DE7D7, 0x757210), // "Cheat 3 (Spud)"
-    (0x4DE7E6, 0x757300), // "Cheat 4 (Sheep)"
-    (0x4DE7F6, 0x757288), // "Cheat 5 (Cow)"
-    (0x4DE804, 0x757030), // "Cheat 6 (MF Sports)"
-    (0x4DE818, 0x756838), // "Cheat 7 (Max Power)"
-    (0x4DE82C, 0x757468), // "Cheat 8 (Local Shop)"
-    (0x4DE841, 0x757120), // "Cheat 9 (Bolt's Pug)"
-    (0x4DE856, 0x757198), // "Cheat 10 (Skip)"
-    (0x4DE866, 0),        // "Cheat 11"
-    (0x4DE86F, 0x7570A8), // "Cheat 12 (MF Hatchback)"
-    (0x4DE887, 0x7573F0), // "Cheat 13 (Sheep Wagon)"
-    (0x4DE89E, 0),        // "Cheat 14 (No Damage)"
-    (0x4DE8B3, 0),        // "Cheat 15 (Damage Timer)"
-    (0x4DE8CB, 0),        // "Cheat 16"
-    (0x4DE8D4, 0),        // "Cheat 17 (Arcade Timer)"
-    (0x4DE8EC, 0),        // "Cheat 18 (Enable A8 Game)"
-    (0x4DE906, 0),        // "Cheat 19 (Reverse Sim Tracks)"
+/// the cheat's car (an index into `CAR_TABLE.descriptions`), if any.
+const CHEATS: [(&std::ffi::CStr, Option<usize>); 19] = [
+    (c"Cheat 1 (Unlock Arcade)", None),
+    (c"Cheat 2 (Unlock Cars)", None),
+    (c"Cheat 3 (Spud)", Some(27)),
+    (c"Cheat 4 (Sheep)", Some(29)),
+    (c"Cheat 5 (Cow)", Some(28)),
+    (c"Cheat 6 (MF Sports)", Some(23)),
+    (c"Cheat 7 (Max Power)", Some(6)),
+    (c"Cheat 8 (Local Shop)", Some(32)),
+    (c"Cheat 9 (Bolt's Pug)", Some(25)),
+    (c"Cheat 10 (Skip)", Some(26)),
+    (c"Cheat 11", None),
+    (c"Cheat 12 (MF Hatchback)", Some(24)),
+    (c"Cheat 13 (Sheep Wagon)", Some(31)),
+    (c"Cheat 14 (No Damage)", None),
+    (c"Cheat 15 (Damage Timer)", None),
+    (c"Cheat 16", None),
+    (c"Cheat 17 (Arcade Timer)", None),
+    (c"Cheat 18 (Enable A8 Game)", None),
+    (c"Cheat 19 (Reverse Sim Tracks)", None),
 ];
 
 // ---- Rust version ----
@@ -57,7 +58,7 @@ const CHEATS: [(usize, usize); 19] = [
 pub unsafe fn apply_cheats(log: &mut dyn FnMut(*const u8)) -> Result<(), BadInput> {
     // Converted: `rc2k_core::menu::car_lists::apply_cheats`.
     unsafe {
-        let cheats: u32 = game_read(CHEATS_RVA);
+        let cheats: u32 = CHEAT_VARS.cheats.get();
         let list = |l: List| -> Result<car_lists::List, BadInput> {
             Ok(car_lists::List {
                 cars: read_list(l)?,
@@ -67,10 +68,12 @@ pub unsafe fn apply_cheats(log: &mut dyn FnMut(*const u8)) -> Result<(), BadInpu
         };
         let (mut first, mut second) = (list(FIRST)?, list(SECOND)?);
         let a = car_lists::apply_cheats(cheats, &mut first, &mut second, |bit| {
-            game_addr(rva(CHEATS[bit].1)) as u32
+            CHEATS[bit]
+                .1
+                .map_or(0, |car| CAR_TABLE.descriptions[car].addr() as u32)
         })?;
         // Nothing has been written or logged up to here.
-        game_write(CHEATS_RVA, a.cheats);
+        CHEAT_VARS.cheats.set(a.cheats);
         if first.changed {
             write_list(FIRST, &first.cars);
         }
@@ -81,7 +84,7 @@ pub unsafe fn apply_cheats(log: &mut dyn FnMut(*const u8)) -> Result<(), BadInpu
             RACE_STATE.settings.a8_game.set(1u32);
         }
         for bit in a.logged {
-            log(game_addr(rva(CHEATS[bit].0)) as *const u8);
+            log(CHEATS[bit].0.as_ptr().cast());
         }
         Ok(())
     }

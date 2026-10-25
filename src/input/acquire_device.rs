@@ -29,17 +29,14 @@
 
 use crate::errors::{FatalError, Refused};
 use crate::field;
-use crate::framework::rva;
 use crate::input::devices::{at, put};
-use crate::input::di_harness::{
-    IID_DEVICE2_RVA, JOYSTICK_FORMAT_RVA, a, entry_of, fatal, method, slot,
-};
+use crate::input::di_harness::{JOYSTICK_FORMAT_RVA, a, entry_of, fatal, method, slot};
+use crate::input::guids::INPUT_GUIDS;
 use crate::input::store::DEVICES;
 use crate::input::types::{
     Controller as C, DiPropDword as W, DiPropHeader, DiPropRange as R, InputDevice as D,
 };
 use crate::session::MACHINE;
-use crate::store::game_addr;
 use rc2k_core::input::acquire::{
     Acquire, HAS_DEVICE, acquire, axis_offset, dead_zone_value, saturation, two_axes,
 };
@@ -47,11 +44,11 @@ use std::mem::size_of;
 
 // dword_4F68DC .. dword_4F68F8
 
-const JOY_RVA: usize = rva(0x4DA580); // aJoy "JOY:"
-const AXMODE_RVA: usize = rva(0x4DA585); // aAxmode "axmode="
-const AXCODE_RVA: usize = rva(0x4DA58D); // aAxcode "axcode="
-const DZ_RVA: usize = rva(0x4DA595); // aDz "dz="
-const FF_RVA: usize = rva(0x4DA599); // aFf "ff="
+const JOY_RVA: &std::ffi::CStr = c"JOY:"; // aJoy "JOY:"
+const AXMODE_RVA: &std::ffi::CStr = c"axmode="; // aAxmode "axmode="
+const AXCODE_RVA: &std::ffi::CStr = c"axcode="; // aAxcode "axcode="
+const DZ_RVA: &std::ffi::CStr = c"dz="; // aDz "dz="
+const FF_RVA: &std::ffi::CStr = c"ff="; // aFf "ff="
 
 const DIPROP_RANGE: u32 = 4;
 const DIPROP_DEADZONE: u32 = 5;
@@ -62,8 +59,8 @@ const NO_OBJECT: FatalError = FatalError {
     message: "Cannot create joystick object - check directx installation",
 };
 
-fn log_text(rva: usize) {
-    unsafe { crate::logfile::log_write::log_write(game_addr(rva) as *const u8, false, 2) };
+fn log_text(rva: &std::ffi::CStr) {
+    unsafe { crate::logfile::log_write::log_write(rva.as_ptr().cast(), false, 2) };
 }
 
 fn log_int(v: u32, newline: bool) {
@@ -232,7 +229,10 @@ pub fn acquire_device(record: u32) -> Result<(), Refused> {
     if method(
         device,
         slot::QUERY,
-        &[a(IID_DEVICE2_RVA), DEVICES.new_joystick2.addr() as u32],
+        &[
+            INPUT_GUIDS.device2.addr() as u32,
+            DEVICES.new_joystick2.addr() as u32,
+        ],
     ) != 0
     {
         return Err(fatal(0x8023_8318).into());

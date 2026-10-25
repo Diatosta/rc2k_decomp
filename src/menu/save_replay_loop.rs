@@ -14,30 +14,39 @@
 //! Callers: `sub_46F786`.
 
 use crate::errors::Refused;
-use crate::framework::{game_read, game_write, rva};
+use crate::framework::rva;
+use crate::menu::captions_store::CAPTIONS;
+use crate::menu::draw_lists_store::DRAW_LISTS;
+use crate::menu::draw_work_store::DRAW_WORK;
+use crate::menu::flow_store::SCREEN_FLOW;
+use crate::menu::loop_store::LOOP_FLAGS;
+use crate::menu::menus_store::MENUS;
+use crate::menu::option_work_store::OPTION_WORK;
+use crate::menu::pages_store::MENU_PAGES;
+use crate::menu::screen_items_store::{SCREEN_ITEMS, slot};
 use crate::menu::screen_loop::{Callee, Carried, Flow, List, Screen, Step};
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
 unsafe fn each_frame(c: &mut Carried) -> Result<Flow, Refused> {
     unsafe {
-        if game_read::<u32>(rva(0x7556A8)) == 0x1 {
+        if OPTION_WORK.typing.get() == 0x1 {
             Callee::EditReplayName.run(c)?;
             if !c.carry {
-                if game_read::<u32>(rva(0x7556A8)) != 0x0 {
+                if OPTION_WORK.typing.get() != 0x0 {
                     return Ok(Flow::NextFrame);
                 }
-                if game_read::<u32>(rva(0x758806)) == 0x1 {
-                    game_write(rva(0x758806), 0x0u32);
+                if CAPTIONS.screen_left.get() == 0x1 {
+                    CAPTIONS.screen_left.set(0x0u32);
                     c.arg = 0xFFFFFFFF;
-                    game_write(rva(0x755A0C), 0xFFFFFFFFu32);
+                    DRAW_WORK.work_0c.set(0xFFFFFFFFu32);
                     return Ok(Flow::Leave);
                 }
-                c.arg = game_read(rva(0x755248));
+                c.arg = MENU_PAGES.replay_page.get();
                 c.arg = c.arg.wrapping_mul(0x14);
-                c.arg = c.arg.wrapping_add(game_read(rva(0x755525)));
+                c.arg = c.arg.wrapping_add(LOOP_FLAGS.item.get());
                 c.arg = c.arg.wrapping_sub(1);
-                game_write(rva(0x755A0C), c.arg);
+                DRAW_WORK.work_0c.set(c.arg);
                 return Ok(Flow::Leave);
             }
         }
@@ -48,59 +57,63 @@ unsafe fn each_frame(c: &mut Carried) -> Result<Flow, Refused> {
 /// What the loop returns in eax, written by hand from the end of the listing (after the
 /// `popa`): `dword_755A0C`, which the step above leaves at -1 or at the replay's number.
 unsafe fn result() -> u32 {
-    unsafe { game_read(rva(0x755A0C)) }
+    DRAW_WORK.work_0c.get()
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: rva(0x7534F4),
-    saved_item: rva(0x74768C),
+    menu: || MENUS.save_replay.addr(),
+    saved_item: || &SCREEN_ITEMS.current[slot::SAVE_REPLAY],
     lists: &[
         List {
-            pointer: rva(0x7554F4), // g_unreadList
-            table: rva(0x758B72),
+            pointer: || &SCREEN_FLOW.unread_list, // g_unreadList
+            table: || DRAW_LISTS.unread_758b72.addr(),
             run: false,
         },
         List {
-            pointer: rva(0x7554F8), // g_drawList
-            table: rva(0x758BCE),
+            pointer: || &SCREEN_FLOW.draw_list, // g_drawList
+            table: || DRAW_LISTS.draw_758bce.addr(),
             run: false,
         },
         List {
-            pointer: rva(0x755500), // dword_755500
-            table: rva(0x75945A),
+            pointer: || &SCREEN_FLOW.setup_list, // dword_755500
+            table: || DRAW_LISTS.save_replay_setup.addr(),
             run: true,
         },
         List {
-            pointer: rva(0x7554FC), // g_overlayList
-            table: rva(0x75914E),
+            pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
+            table: || DRAW_LISTS.overlay_75914e.addr(),
             run: false,
         },
     ],
     first_frame_lists: Some(&[
         List {
-            pointer: rva(0x755504), // g_sceneList
-            table: rva(0x758F26),
+            pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
+            table: || DRAW_LISTS.save_replay_scene.addr(),
             run: false,
         },
         List {
-            pointer: rva(0x7554F8), // g_drawList
-            table: rva(0x758BCE),
+            pointer: || &SCREEN_FLOW.draw_list, // g_drawList
+            table: || DRAW_LISTS.draw_758bce.addr(),
             run: false,
         },
         List {
-            pointer: rva(0x7554FC), // g_overlayList
-            table: rva(0x75914E),
+            pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
+            table: || DRAW_LISTS.overlay_75914e.addr(),
             run: false,
         },
     ]),
     frame_callback: rva(0x474D4B),
     later_frame_callback: None,
-    before: &[Step::Write(rva(0x755A3C), 0x0)],
+    before: &[Step::Write(|| &DRAW_WORK.escaped, 0x0)],
     set_up_first: &[],
     prepare: &[],
     after_lists: &[],
     background: &[
-        Step::ArgAddr(rva(0x731ED1)),
+        Step::ArgAddr(|| {
+            crate::menu::texts_store::MENU_TEXTS
+                .save_replay_picture
+                .addr()
+        }),
         Step::CallOrFatal(Callee::LoadBackground, 0x80712345),
     ],
     after_first_frame: &[],

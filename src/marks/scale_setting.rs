@@ -9,7 +9,6 @@
 //! the x87 version stays for the Rust callers in unconverted code).
 
 use crate::errors::{BadInput, Refused};
-use crate::marks::lines::SETTINGS_RVA;
 use crate::marks::store::{Slot, game_read, game_write};
 use crate::math::x87;
 
@@ -20,7 +19,7 @@ const RESULT_RVA: Slot = Slot::at(0x8BC25E); // flt_8BC25E
 /// The Rust version (see the header).
 pub unsafe fn scale_setting() -> Result<(), Refused> {
     unsafe {
-        let settings: u32 = game_read(SETTINGS_RVA);
+        let settings: u32 = crate::marks::setup::SETTINGS.pointer.get();
         if settings == 0 {
             return Err(BadInput("no marks settings").into());
         }

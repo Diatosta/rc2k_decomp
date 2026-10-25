@@ -5,9 +5,7 @@
 
 use crate::audio::voices::*;
 use crate::errors::Refused;
-use crate::framework::rva;
 
-pub const MIX_BUFFER_RVA: usize = rva(0x952AF8); // g_mixBuffer
 pub const MIX_BUFFER_LEN: u32 = 0x3C00;
 
 /// `audio::mix_channels` (`sub_40BECC`): `bytes` of the primary buffer's worth, `>> shift`

@@ -22,12 +22,11 @@ use crate::files::handle::{read, seek};
 use crate::files::open_stream::open_stream;
 use crate::files::read_stream_block::read_stream_block;
 use crate::files::read_stream_byte::read_stream_byte;
-use crate::gfx::block::{game_addr, game_read, game_write};
+use crate::gfx::decoder::DECODER;
 use crate::gfx::lay_out_pcx::lay_out_pcx;
-use crate::gfx::pcx::{
-    FILE_PALETTE_LEN, FILE_PALETTE_RVA, HEADER_LEN, HEADER_RVA, PALETTE_RVA, PIXELS_RVA, stream,
-};
-use crate::gfx::picture::FLAGS_RVA;
+use crate::gfx::pcx::PCX;
+use crate::gfx::pcx::{FILE_PALETTE_LEN, HEADER_LEN, stream};
+use crate::gfx::picture_store::PICTURE;
 
 // ---- Rust version ----
 
@@ -39,22 +38,22 @@ unsafe fn read_rows() -> Result<bool, BadInput> {
         if seek(file, -(FILE_PALETTE_LEN as i32), 2).is_none() {
             return Ok(false);
         }
-        let palette_bytes = game_addr(FILE_PALETTE_RVA) as *mut u8;
+        let palette_bytes = PCX.file_palette.addr() as *mut u8;
         if !read(file, palette_bytes, FILE_PALETTE_LEN as u32).1 {
             return Ok(false);
         }
         if seek(file, 0, 0).is_none() {
             return Ok(false);
         }
-        let header = game_addr(HEADER_RVA) as *mut u8;
+        let header = PCX.header.addr() as *mut u8;
         if read_stream_block(stream, header, HEADER_LEN as u32)?.1 {
             return Ok(false);
         }
-        game_write(FLAGS_RVA, 0x800u32);
+        PICTURE.flags.set(0x800u32);
         let layout = lay_out_pcx();
         // Converted: `rc2k_core::gfx::pcx::decode_8bit`.
-        let palette: [u32; 256] = game_read(PALETTE_RVA);
-        let pixels: u32 = game_read(PIXELS_RVA);
+        let palette: [u32; 256] = DECODER.palette();
+        let pixels: u32 = DECODER.pixels.get();
         rc2k_core::gfx::pcx::decode_8bit(
             &layout,
             &palette,

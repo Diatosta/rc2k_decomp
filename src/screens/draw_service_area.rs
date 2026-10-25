@@ -28,10 +28,12 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, game_write, rva};
+use crate::framework::{game_write, rva};
 use crate::gfx::blit_bar::{Bar, blit_bar};
 use crate::gfx::blit_glyph::BlitCall;
 use crate::gfx::blit_marker_pair::sprite_table;
+use crate::menu::draw_work_store::DRAW_WORK;
+use crate::menu::event_store::EVENT_STATE;
 use crate::menu::state_store::MENU_STATE;
 use crate::screens::draw_inspection_status::draw_inspection_status;
 use crate::screens::draw_repair_times::draw_repair_times;
@@ -40,9 +42,9 @@ use crate::screens::setup_markers::draw_marker;
 use crate::screens::{
     draw_brake_balance_marker, draw_ride_height_installed_marker, draw_ride_height_marker,
     draw_steering_sensitivity_marker, draw_suspension_stiffness_installed_marker,
-    draw_suspension_stiffness_marker, font_at,
+    draw_suspension_stiffness_marker,
 };
-use crate::service::state::{PLAYER_INDEX_RVA, current_player};
+use crate::service::state::current_player;
 use crate::strings::append_string_by_id::push_string;
 use crate::strings::text_from_ids::{TEXT_LEN, text};
 use crate::text::draw_string_by_id::draw_string_by_id_at;
@@ -54,18 +56,18 @@ use rc2k_core::screens::service::{
 // ---- game data ----
 
 const CLEARED_RVA: usize = rva(0x6218AC); // dword_6218AC: set to 0 here, read nowhere known
-const WORK_RVA: usize = rva(0x7559EC); // dword_7559EC: a work variable
 const SETTING_FIRST_STRING: u32 = rc2k_core::screens::service::TYRE_FIRST_STRING;
 
 /// The fonts' places.
-fn font_of(font: AreaFont) -> usize {
+fn font_of(font: AreaFont) -> crate::gfx::typefaces::FontId {
+    use crate::gfx::typefaces::fonts;
     match font {
-        AreaFont::Title => 0x51E8A4,
-        AreaFont::Heading => 0x51E6A4,
-        AreaFont::Label => 0x51E3E4,
-        AreaFont::Small => 0x51E3C4,
-        AreaFont::Wide => 0x51E404,
-        AreaFont::Total => 0x51E6E4,
+        AreaFont::Title => fonts::TITLE,
+        AreaFont::Heading => fonts::HEADING_23,
+        AreaFont::Label => fonts::LABEL,
+        AreaFont::Small => fonts::SMALL,
+        AreaFont::Wide => fonts::NOTICE,
+        AreaFont::Total => fonts::LABELS,
     }
 }
 
@@ -85,7 +87,7 @@ pub unsafe fn draw_service_area(canvas: &mut dyn Canvas) -> Result<bool, Refused
         };
         let title = area_title(
             &string(AREA_TITLE.0),
-            game_read::<u32>(PLAYER_INDEX_RVA),
+            EVENT_STATE.current_player.get(),
             &string(AREA_TITLE.1),
         );
         if title.len() > TEXT_LEN {
@@ -93,7 +95,7 @@ pub unsafe fn draw_service_area(canvas: &mut dyn Canvas) -> Result<bool, Refused
         }
         std::ptr::copy_nonoverlapping(title.as_ptr(), text(), title.len());
         let (x, y) = AREA_TITLE_AT;
-        draw_text_at(font_at(font_of(AreaFont::Title)), text(), x, y, canvas)?;
+        draw_text_at(font_of(AreaFont::Title).as_ptr(), text(), x, y, canvas)?;
 
         draw_service_time(canvas)?;
 
@@ -110,11 +112,11 @@ pub unsafe fn draw_service_area(canvas: &mut dyn Canvas) -> Result<bool, Refused
             match step {
                 AreaStep::Label(id, font, x, y) => {
                     ebx =
-                        draw_string_by_id_at(id, font_at(font_of(font)), x, y, canvas)?.text as u32;
+                        draw_string_by_id_at(id, font_of(font).as_ptr(), x, y, canvas)?.text as u32;
                 }
                 AreaStep::LabelIf(car_offset, id, font, x, y) => {
                     if field(car_offset) != 0 {
-                        ebx = draw_string_by_id_at(id, font_at(font_of(font)), x, y, canvas)?.text
+                        ebx = draw_string_by_id_at(id, font_of(font).as_ptr(), x, y, canvas)?.text
                             as u32;
                     }
                 }
@@ -140,9 +142,9 @@ pub unsafe fn draw_service_area(canvas: &mut dyn Canvas) -> Result<bool, Refused
             .chosen
             .get()
             .wrapping_add(SETTING_FIRST_STRING);
-        game_write(WORK_RVA, setting);
+        DRAW_WORK.figure.set(setting);
         let (x, y) = TYRE_AT;
-        draw_string_by_id_at(setting, font_at(font_of(AreaFont::Small)), x, y, canvas)?;
+        draw_string_by_id_at(setting, font_of(AreaFont::Small).as_ptr(), x, y, canvas)?;
 
         // The markers get the car in edi and, as their palette, the ebx the repair times leave.
         let times = draw_repair_times(canvas)?;

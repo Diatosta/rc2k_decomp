@@ -58,7 +58,7 @@ pub unsafe fn draw_flare_part(
         return Err(BadInput("a flare corner past g_marksCorners").into());
     }
     unsafe {
-        if game_read::<u32>(crate::marks::setup::SETTINGS_RVA) == 0 {
+        if crate::marks::setup::SETTINGS.pointer.get() == 0 {
             return Err(BadInput("no marks settings").into());
         }
         for n in 0..2 {

@@ -13,36 +13,39 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{game_read, game_write, rva};
+use crate::framework::rva;
+use crate::menu::champ_store::CHAMP_VIEW;
+use crate::menu::draw_lists_store::DRAW_LISTS;
+use crate::menu::flow_store::SCREEN_FLOW;
+use crate::menu::menus_store::MENUS;
+use crate::menu::screen_items_store::{SCREEN_ITEMS, slot};
 use crate::menu::screen_loop::{Callee, Carried, List, Screen, Step, screen_entry};
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
 unsafe fn before(c: &mut Carried) -> Result<(), Refused> {
-    unsafe {
-        c.measure_x = game_read(rva(0x747904));
-        game_write(rva(0x747768), c.measure_x);
-    }
+    c.measure_x = SCREEN_ITEMS.first[slot::NEXT_STAGE].get();
+    SCREEN_ITEMS.current[slot::NEXT_STAGE].set(c.measure_x);
     Ok(())
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: rva(0x74DA3C),
-    saved_item: rva(0x747768),
+    menu: || MENUS.next_stage.addr(),
+    saved_item: || &SCREEN_ITEMS.current[slot::NEXT_STAGE],
     lists: &[
         List {
-            pointer: rva(0x755504), // g_sceneList
-            table: rva(0x759092),
+            pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
+            table: || DRAW_LISTS.next_stage_scene.addr(),
             run: false,
         },
         List {
-            pointer: rva(0x7554F8), // g_drawList
-            table: rva(0x758D7E),
+            pointer: || &SCREEN_FLOW.draw_list, // g_drawList
+            table: || DRAW_LISTS.next_stage_draw.addr(),
             run: false,
         },
         List {
-            pointer: rva(0x7554FC), // g_overlayList
-            table: rva(0x759256),
+            pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
+            table: || DRAW_LISTS.next_stage_overlay.addr(),
             run: false,
         },
     ],
@@ -52,7 +55,7 @@ pub const SCREEN: Screen = Screen {
     before: &[Step::Do(before)],
     set_up_first: &[],
     prepare: &[],
-    after_lists: &[Step::Write(rva(0x755700), 0x3)],
+    after_lists: &[Step::Write(|| &CHAMP_VIEW.stage_mode, 0x3)],
     background: &[Step::Call(Callee::DrawStageMap)],
     after_first_frame: &[Step::Call(Callee::PlayStageSpeech)],
     confirm: Some(&[]),

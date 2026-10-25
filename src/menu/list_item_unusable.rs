@@ -7,11 +7,13 @@
 //!
 //! Callers: `race::replay_viewer` (three), `sub_4144CF` (three), reading carry.
 
-use crate::race::viewer::{CHOICE, get};
+use crate::install::vars::INSTALLER_PAGES;
 
 /// The Rust version: carry.
 pub unsafe fn list_item_unusable(list: u32) -> bool {
-    let at = get(CHOICE)
+    let at = INSTALLER_PAGES
+        .choice
+        .get()
         .wrapping_mul(0x10)
         .wrapping_add(list)
         .wrapping_add(0x18);

@@ -14,14 +14,11 @@
 
 use crate::bridge::Raw;
 use crate::errors::BadInput;
-use crate::framework::rva;
 use crate::settings::read_text::read_text;
 use crate::strings::same_text::case_table;
 use rc2k_core::install::config;
 
 // ---- game data ----
-
-pub const PATH_RVA: usize = rva(0x5295C0); // "var\ral.zog"
 
 // ---- Rust version ----
 

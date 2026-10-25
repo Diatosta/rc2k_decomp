@@ -25,7 +25,7 @@ const OFFSET: usize = rva(0x614C4C); // dword_614C4C
 const CANDIDATE: usize = rva(0x614C50); // dword_614C50
 const STUCK: usize = rva(0x71A1C0); // g_car + 0x1E8
 const BLOCKS: [usize; 3] = [0x7103CC, 0x7113AC, 0x71238C];
-const NOWHERE_TEXT: usize = rva(0x4DBB01); // "cant reset car anywhere - waiting a sec"
+const NOWHERE_TEXT: &std::ffi::CStr = c"cant reset car anywhere - waiting a second"; // "cant reset car anywhere - waiting a sec"
 
 fn g(a: usize) -> u32 {
     unsafe { game_read(a) }
@@ -61,7 +61,11 @@ pub unsafe fn reset_car() -> Result<(), Refused> {
             p(OFFSET, RESET_TRIES);
             // `log_write_l1_nl`.
             unsafe {
-                crate::logfile::log_write::log_write(game_addr(NOWHERE_TEXT) as *const u8, true, 1)
+                crate::logfile::log_write::log_write(
+                    NOWHERE_TEXT.as_ptr() as usize as *const u8,
+                    true,
+                    1,
+                )
             };
             p(STUCK, g(STUCK).wrapping_sub(100));
             return Ok(());

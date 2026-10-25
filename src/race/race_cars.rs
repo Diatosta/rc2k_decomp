@@ -106,20 +106,19 @@ pub const SET_UPS_RVA: usize = rva(0x6043FC);
 const BRAKE_SCALE_RVA: usize = rva(0x5C5E00); // flt_5C5E00, 2.56
 pub const PLAYERS_2_RVA: usize = rva(0x63DB98); // dword_63DB98
 /// "autosetup", "t", "off", "h", "(0-255)", "s", "(0-255)", "g", "(0-4)", "g", "(0-5)".
-const SET_UP_WORDS: [usize; 11] = [
-    rva(0x4DBA62),
-    rva(0x4DBA6C),
-    rva(0x4DBA6E),
-    rva(0x4DBA72),
-    rva(0x4DBA74),
-    rva(0x4DBA7C),
-    rva(0x4DBA7E),
-    rva(0x4DBA86),
-    rva(0x4DBA88),
-    rva(0x4DBA8E),
-    rva(0x4DBA90),
+const SET_UP_WORDS: [&std::ffi::CStr; 11] = [
+    c"autosetup",
+    c"t",
+    c"off",
+    c"h",
+    c"(0-255)",
+    c"s",
+    c"(0-255)",
+    c"g",
+    c"(0-4)",
+    c"g",
+    c"(0-5)",
 ];
-const EMPTY_TEXT_RVA: usize = rva(0x4E00B7); // what `log_newline_l1` writes
 
 /// The log's calls (`log_write_l1`, `log_write_l1_nl`, `log_int_l1`, `log_int_l1_nl`,
 /// `log_newline_l1`), each inside `pusha`.
@@ -132,11 +131,11 @@ fn number(value: u32, newline: bool) {
 }
 
 fn newline() {
-    text(game_addr(EMPTY_TEXT_RVA) as u32, true);
+    text(c"".as_ptr() as u32, true); // what `log_newline_l1` writes
 }
 
 fn word(n: usize) -> u32 {
-    game_addr(SET_UP_WORDS[n]) as u32
+    SET_UP_WORDS[n].as_ptr() as usize as u32
 }
 
 /// `race::read_stage_car_numbers` (0x437971): `g_stageCarTotal` 0, `g_readBytes` 0x708;
@@ -310,15 +309,15 @@ const HUNDRED_RVA: usize = rva(0x5C5D14); // flt_5C5D14, 100.0
 const SCRATCH_RVA: usize = crate::race::best_line::SCRATCH_RVA; // dword_62400C
 /// "numcheckposits =", "difficultyindex=", "time percentage=", "total time =", "extra
 /// time =", "chkp", "orig time", "car time".
-const TIME_WORDS: [usize; 8] = [
-    rva(0x4DBA96),
-    rva(0x4DBAA7),
-    rva(0x4DBAB8),
-    rva(0x4DBAC9),
-    rva(0x4DBAD6),
-    rva(0x4DBAE3),
-    rva(0x4DBAE8),
-    rva(0x4DBAF2),
+const TIME_WORDS: [&std::ffi::CStr; 8] = [
+    c"numcheckposits =",
+    c"difficultyindex=",
+    c"time percentage=",
+    c"total time =",
+    c"extra time =",
+    c"chkp",
+    c"orig time",
+    c"car time",
 ];
 
 /// `race::set_car_times` (0x4377D0): `flt_601C64` the factor of the first car's kind
@@ -331,7 +330,7 @@ const TIME_WORDS: [usize; 8] = [
 /// stage, a count of 0 or more than 0x100 (the original's `jnz` runs on / past the
 /// numbers), before anything.
 pub unsafe fn set_car_times() -> Result<(), Refused> {
-    let w = |n: usize| game_addr(TIME_WORDS[n]) as u32;
+    let w = |n: usize| TIME_WORDS[n].as_ptr() as usize as u32;
     unsafe {
         let stage: u32 = game_read(STAGE_RVA);
         let count: u32 = game_read(CHECK_POSITS_RVA);
@@ -411,15 +410,15 @@ const ARCADE_ORDER_RVA: usize = rva(0x605034); // dword_605034: each car's numbe
 pub const MOST_ARCADE_CARS: u32 = 89;
 /// "ARCADE GAME MODE INIT", "rallynum", "stagenum", "NUM arcadecars", "bestpos", "arc
 /// start pos (1-n)", "numcarsbehind", " - cartypes ".
-const ARCADE_WORDS: [usize; 8] = [
-    rva(0x4DB9F4),
-    rva(0x4DBA0A),
-    rva(0x4DBA13),
-    rva(0x4DBA1C),
-    rva(0x4DBA2B),
-    rva(0x4DBA33),
-    rva(0x4DBA47),
-    rva(0x4DBA55),
+const ARCADE_WORDS: [&std::ffi::CStr; 8] = [
+    c"ARCADE GAME MODE INIT",
+    c"rallynum",
+    c"stagenum",
+    c"NUM arcadecars",
+    c"bestpos",
+    c"arc start pos (1-n)",
+    c"numcarsbehind",
+    c" - cartypes ",
 ];
 
 /// `race::set_up_mode_2_cars` (0x43613A): the arcade race. Logged, from the rally's tables
@@ -433,7 +432,7 @@ const ARCADE_WORDS: [usize; 8] = [
 /// Refuses a count of 0 or more than 89 (the `jnz` runs on / past the tables), before
 /// anything.
 pub unsafe fn set_up_mode_2_cars() -> Result<(), Refused> {
-    let w = |n: usize| game_addr(ARCADE_WORDS[n]) as u32;
+    let w = |n: usize| ARCADE_WORDS[n].as_ptr() as usize as u32;
     unsafe {
         let rally: u32 = game_read(RALLY_RVA);
         let cars: u32 = game_read(rva(0x60466C) + 4 * rally as usize);
@@ -542,7 +541,7 @@ pub unsafe fn set_up_mode_2_cars() -> Result<(), Refused> {
 /// by no caller (conversion phase 3, 2026-10-24).
 pub unsafe fn set_up_cars() -> Result<(), Refused> {
     unsafe {
-        text(game_addr(rva(0x4DB9EB)) as u32, false);
+        text(c"gamemode".as_ptr() as usize as u32, false);
         number(game_read(MODE_RVA), true);
         // Converted: `rc2k_core::race::cars::{PLAYER_RESETS, cars_steps}`.
         use rc2k_core::race::cars::{CarsStep, PLAYER_RESETS, cars_steps};
@@ -573,19 +572,12 @@ pub unsafe fn set_up_cars() -> Result<(), Refused> {
 
 // ---- the arcade's opponents ----
 
-const SEED_WORD_RVA: usize = rva(0x4DD90E); // "seed"
+const SEED_WORD_RVA: &std::ffi::CStr = c"seed"; // "seed"
 /// "p1", "power", "p2", "power", "p3", "power", "p4", "power".
-const OPPONENT_WORDS: [usize; 8] = [
-    rva(0x4DD913),
-    rva(0x4DD916),
-    rva(0x4DD91C),
-    rva(0x4DD91F),
-    rva(0x4DD925),
-    rva(0x4DD928),
-    rva(0x4DD92E),
-    rva(0x4DD931),
+const OPPONENT_WORDS: [&std::ffi::CStr; 8] = [
+    c"p1", c"power", c"p2", c"power", c"p3", c"power", c"p4", c"power",
 ];
-const SETUP_ARCADE_WORD_RVA: usize = rva(0x4DC68A); // "SETUPARCADECARS"
+const SETUP_ARCADE_WORD_RVA: &std::ffi::CStr = c"SETUPARCADECARS"; // "SETUPARCADECARS"
 
 /// The kinds a draw (0 .. 0x21) can give that `choose_arcade_opponents` takes: usable
 /// (`kind_unusable` clear) and within 5 places (`index_of_kind`) of the first car's.
@@ -620,11 +612,11 @@ pub unsafe fn choose_arcade_opponents() -> Result<(), Refused> {
             return Err(BadInput("fewer than three opponents can be drawn").into());
         }
         let first_place = index_of_kind(first);
-        text(game_addr(SEED_WORD_RVA) as u32, false);
+        text(SEED_WORD_RVA.as_ptr() as usize as u32, false);
         number(game_read(NOISE_SEED_RVA), true);
-        text(game_addr(OPPONENT_WORDS[0]) as u32, false);
+        text(OPPONENT_WORDS[0].as_ptr() as usize as u32, false);
         number(first, false);
-        text(game_addr(OPPONENT_WORDS[1]) as u32, false);
+        text(OPPONENT_WORDS[1].as_ptr() as usize as u32, false);
         number(first_place, true);
         game_write(NOISE_STATE_RVA, game_read::<u32>(NOISE_SEED_RVA));
         let mut taken = vec![first];
@@ -652,9 +644,9 @@ pub unsafe fn choose_arcade_opponents() -> Result<(), Refused> {
             };
             taken.push(kind);
             game_write(at, kind);
-            text(game_addr(OPPONENT_WORDS[2 * n + 2]) as u32, false);
+            text(OPPONENT_WORDS[2 * n + 2].as_ptr() as usize as u32, false);
             number(kind, false);
-            text(game_addr(OPPONENT_WORDS[2 * n + 3]) as u32, false);
+            text(OPPONENT_WORDS[2 * n + 3].as_ptr() as usize as u32, false);
             number(place, true);
         }
     }
@@ -668,7 +660,7 @@ pub unsafe fn choose_arcade_opponents() -> Result<(), Refused> {
 pub unsafe fn set_up_arcade_cars() -> Result<(), Refused> {
     unsafe {
         if game_read::<u32>(MODE_RVA) == 2 {
-            text(game_addr(SETUP_ARCADE_WORD_RVA) as u32, true);
+            text(SETUP_ARCADE_WORD_RVA.as_ptr() as usize as u32, true);
             let at = crate::logfile::write_line::indent_place() as *mut u32; // g_logIndent
             at.write_unaligned(at.read_unaligned().wrapping_add(3));
             choose_arcade_opponents()?;

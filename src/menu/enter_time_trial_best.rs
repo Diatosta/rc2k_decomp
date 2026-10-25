@@ -15,9 +15,11 @@
 //! past the four or missing, a stage the tables do not give, or a name pointer of 0.
 
 use crate::errors::{BadInput, Refused};
+use crate::menu::draw_work_store::DRAW_WORK;
 use crate::menu::event_flow::*;
+use crate::session::Dword;
 
-const STAGE_SLOT: usize = 0x7559EC; // dword_7559EC
+const STAGE_SLOT: &Dword = &DRAW_WORK.figure; // dword_7559EC
 // hhmm
 
 /// The Rust version (see the header).

@@ -28,21 +28,14 @@
 //! changed picture.
 
 use crate::errors::{BadInput, Refused};
-use crate::gfx::block::{game_addr, game_read};
 use crate::gfx::components_to_pixel::components_to_pixel;
-use crate::gfx::reports::Slot as RepSlot;
+use crate::gfx::reports::REPORTS;
 use crate::gfx::texture_pixels::{halvable, halve_texture};
 use crate::gfx::texture_upload::{Record, fatal, halvings_apart, ready_picture};
-use crate::gfx::upload::Slot as UpSlot;
+use crate::gfx::upload::UPLOAD;
 use rc2k_core::gfx::uploads::{self};
 
 // ---- game data ----
-
-/// `dword_5ABA18`: the surface description `Lock` fills (0x6C bytes).
-const DESCRIPTION_RVA: UpSlot = UpSlot::at(0x5ABA18);
-const PITCH_RVA: UpSlot = UpSlot::at(0x5ABA28); // dword_5ABA28: its pitch
-const PIXELS_RVA: UpSlot = UpSlot::at(0x5ABA3C); // dword_5ABA3C: its pixels
-const REPORTS_RVA: RepSlot = RepSlot::at(0x4F52AC); // dword_4F52AC: Direct3D's errors are fatal
 
 // ---- Rust version ----
 
@@ -69,8 +62,11 @@ impl Surfaces for GameSurfaces {
     fn lock(&mut self, surface: u32) -> Result<(u32, u32), i32> {
         unsafe {
             let lock: Lock = std::mem::transmute(method(surface, 0x64));
-            match lock(surface, 0, game_addr(DESCRIPTION_RVA) as u32, 1, 0) {
-                0 => Ok((game_read(PIXELS_RVA), game_read(PITCH_RVA))),
+            match lock(surface, 0, UPLOAD.description.addr() as u32, 1, 0) {
+                0 => Ok((
+                    UPLOAD.description.pixels.get(),
+                    UPLOAD.description.pitch.get(),
+                )),
                 e => Err(e),
             }
         }
@@ -88,7 +84,7 @@ impl Surfaces for GameSurfaces {
 }
 
 fn direct_draw_failed(code: u32) -> Refused {
-    if unsafe { game_read::<u32>(REPORTS_RVA) } == 1 {
+    if REPORTS.on.get() == 1 {
         fatal(code)
     } else {
         BadInput("DirectDraw failed and the original's stack goes astray").into()

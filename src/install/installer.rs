@@ -24,67 +24,53 @@ pub type Api<'a> = &'a mut dyn FnMut(u32, &[u32]) -> u32;
 
 // ---- the variables (IDA addresses) ----
 
-pub const GAME_DIR: usize = 0x95E6F8; // byte_95E6F8: the folder installed into, 0x100
-pub const INSTALLED: usize = 0x95E7F8; // byte_95E7F8: the folder installed from, 0x100
-pub const PATH_A: usize = 0x95E8F8; // byte_95E8F8: a path being built, 0x100
-pub const PATH_B: usize = 0x95E9F8; // byte_95E9F8: another, 0x100
-pub const SCRIPT_PATH: usize = 0x95EAF8; // byte_95EAF8: the script's path; an edit's backup
-pub const TYPED: usize = 0x95EBF8; // byte_95EBF8: the folder typed on the page, 0x100
-pub const BASE_B: usize = 0x5295B4; // unk_5295B4: base directory B
+/// IDA's address of the installer's texts.
+pub const TEXTS_START: usize = 0x5295B4;
+/// Their length.
+pub const TEXTS_LEN: usize = 0x18;
+
+/// The texts the installer (and `files::resolve_path`) use.
+#[repr(C)]
+pub struct InstallTexts {
+    /// `unk_5295B4`: base directory B, an empty text.
+    pub base_b: crate::session::Bytes<1>,
+    /// `unk_5295B5`: the other directory, "\".
+    pub other_dir: crate::session::Bytes<2>,
+    /// `byte_5295B7`: ".".
+    pub dot: crate::session::Bytes<2>,
+    /// `asc_5295B9`: "..".
+    pub dotdot: crate::session::Bytes<3>,
+    /// `asc_5295BC`: "*.*".
+    pub star: crate::session::Bytes<4>,
+    /// `aVarRalZog` (`0x5295C0`): the installation's record.
+    pub record_path: crate::session::Bytes<12>,
+}
+
+/// The installer's texts; the first values are the image's.
+pub static INSTALL_TEXTS: InstallTexts = InstallTexts {
+    base_b: crate::session::Bytes::new(*b"\0"),
+    other_dir: crate::session::Bytes::new(*b"\\\0"),
+    dot: crate::session::Bytes::new(*b".\0"),
+    dotdot: crate::session::Bytes::new(*b"..\0"),
+    star: crate::session::Bytes::new(*b"*.*\0"),
+    record_path: crate::session::Bytes::new(*b"var\\ral.zog\0"),
+};
+
+/// Where the texts are (`moved::MOVED`'s home for IDA 0x5295B4).
+pub fn texts_home() -> usize {
+    &INSTALL_TEXTS as *const InstallTexts as usize
+}
+
 // g_baseDirectory
 pub const LOCALE: usize = 0x518AA8; // g_localeDirectory
 pub const MEDIA_MODE: usize = 0x5189A4; // g_mediaMode
-pub const STATUS: usize = 0x51BB8C; // g_installStatus
-pub const SOURCE: usize = 0x51BB8D; // g_installSource, 0xFF bytes
-pub const SOURCE_SIZE: usize = 0x51BC90; // dword_51BC90
-pub const REG_KEY: usize = 0x51BB5C; // phkResult
-pub const SAME_VERSION: usize = 0x51B9C8; // dword_51B9C8: the installation is this version
 // dword_51B9CC (-u)
-pub const FROM_COMMAND: usize = 0x51B9D0; // dword_51B9D0 (-i: the paths given)
-pub const ADD_ITEMS: usize = 0x51B9D4; // g_addStartItems
 // g_removeStartItems
-pub const RUN_DXSETUP: usize = 0x51B9DC; // g_runDxSetup
-pub const INSTALLING: usize = 0x51B9E0; // g_installing (-p)
-pub const OFFER_REGISTRATION: usize = 0x51B9E4; // dword_51B9E4
-pub const RUN_REGISTRATION: usize = 0x51B9E8; // g_runRegistration
-pub const PATH_PROBLEM: usize = 0x51BA00; // dword_51BA00: 1 a bad folder, 2 no room
-pub const IGNORE_ROOM: usize = 0x51BA04; // dword_51BA04
-pub const GIVEN_MODE: usize = 0x51BA08; // dword_51BA08 (-i's first digit)
-pub const GIVEN_LANGUAGE: usize = 0x51BA0C; // dword_51BA0C (-i's second digit)
-pub const DRIVES: usize = 0x51BA10; // dword_51BA10: 26 of (found, free KB)
-pub const DRIVE_COUNT: usize = 0x51BAE0; // dword_51BAE0
-pub const FIRST_DRIVE: usize = 0x51BAE4; // dword_51BAE4: the first letter looked at
-pub const FILES_COPIED: usize = 0x51BAE8; // dword_51BAE8
-pub const FILES_TO_COPY: usize = 0x51BAEC; // dword_51BAEC
 // dword_51BAF0
-pub const ROOM_NEEDED: usize = 0x51BAF8; // dword_51BAF8: KB
-pub const BUFFERS: usize = 0x51BAFC; // stru_51BAFC: the installer's memory list
 // dword_51BB3C: install.bun
-pub const DIRS: usize = 0x51BB40; // dword_51BB40: the folders' names, 0x10000
-pub const FILES: usize = 0x51BB44; // dword_51BB44: the files' names, 0x40000
-pub const DIR_COUNT: usize = 0x51BB48; // dword_51BB48
-pub const FILE_COUNT: usize = 0x51BB4C; // dword_51BB4C
-pub const DIR_SCAN: usize = 0x51BB50; // dword_51BB50: the next folder to search
-pub const DIR_CURSOR: usize = 0x51BB54; // dword_51BB54
-pub const FILE_CURSOR: usize = 0x51BB58; // dword_51BB58
 // dword_51C3F7: KB by installation
-pub const LAYOUT: usize = 0x51C407; // dword_51C407: the page's pieces, 0x30 bytes each after
 // up to unk_51D407's list variables
-pub const LIST_ANSWER: usize = 0x51D415; // byte_51D415
-pub const KEY_TAKEN: usize = 0x51D414; // byte_51D414
-pub const LIST_LEAVE: usize = 0x51D416; // g_listLeave
-pub const CHOICE: usize = 0x51D407; // g_listChoice
-pub const CHOICE_BEFORE: usize = 0x51D40B; // g_listChoiceBefore
-pub const REPEATS: usize = 0x51D40F; // g_listRepeats
-pub const KEY_CLOCK: usize = 0x51D41B; // dword_51D41B
-pub const FRAME_CLOCK: usize = 0x51D41F; // dword_51D41F
-pub const MOVE_CLOCK: usize = 0x51D423; // dword_51D423
-pub const FONTS: usize = 0x51D4C4; // dword_51D4C4: the page's fonts
-pub const COLOURS: usize = 0x51D528; // byte_51D528: font by mark, 8 bytes a kind
-pub const TEXT: usize = 0x93E430; // text: the shared text buffer
-pub const SCRATCH: usize = 0x93E8B0; // g_pngInfo: 0x10000 bytes used as scratch
 // off_51DD48: the third page's action
-pub const LANGUAGE_COUNT: usize = 0x51BEEA; // g_languageCount
 // FindFileData
 // FindFileData+13Eh: attributes passed over
 
@@ -502,5 +488,27 @@ pub fn game_api(place: u32, x: &[u32]) -> u32 {
             ) as u32,
             _ => 0,
         }
+    }
+}
+
+#[cfg(test)]
+mod text_tests {
+    use super::*;
+
+    #[test]
+    fn first_values_are_the_games() {
+        crate::gfx::first_values_are_the_games(
+            &INSTALL_TEXTS,
+            TEXTS_START,
+            TEXTS_START + TEXTS_LEN,
+        );
+        assert_eq!(
+            crate::moved::place(TEXTS_START),
+            INSTALL_TEXTS.base_b.addr()
+        );
+        assert_eq!(
+            crate::moved::place(0x5295C0),
+            INSTALL_TEXTS.record_path.addr()
+        );
     }
 }

@@ -36,6 +36,7 @@
 //! vertices (the original then goes through 2^32) or of more than 256, a list entry past the
 //! work table and an entry without its vertex.
 
+use crate::d3d::cards_store::CARDS_3D;
 use crate::d3d::draw_fan_unclipped::{COUNT_RVA, VERTICES_RVA};
 use crate::d3d::{NO_TEXTURE, VERTEX_LEN};
 use crate::errors::BadInput;
@@ -78,7 +79,6 @@ const SSE_RVA: usize = rva(0x621A58); // dword_621A58
 const SSE_W_FACTOR_RVA: usize = rva(0x5C5D98); // flt_5C5D98
 
 const FADED_RVA: usize = rva(0x63660C); // dword_63660C
-const FADE_FROM_RVA: usize = rva(0x5AB964); // dword_5AB964
 const FADE_ALPHA_RVA: usize = rva(0x606284); // dword_606284
 const FADE_UV_RVA: usize = rva(0x623DBC); // dword_623DBC, dword_623DC0
 const FADE_TEXTURE: u32 = 0xC0;
@@ -433,7 +433,7 @@ pub unsafe fn draw_polygon(outside: &mut dyn Outside) -> Result<(), BadInput> {
         if game_read::<u32>(FADED_RVA) != 0 {
             let (mode, texture): (u32, u32) = (game_read(MODE_RVA), game_read(TEXTURE_RVA));
             // `sub_44CAD5`.
-            let (from, alpha): (u32, u32) = (game_read(FADE_FROM_RVA), game_read(FADE_ALPHA_RVA));
+            let (from, alpha): (u32, u32) = (CARDS_3D.fade_from.get(), game_read(FADE_ALPHA_RVA));
             let uv: [u32; 2] = game_read(FADE_UV_RVA);
             for (n, &entry) in entries.iter().enumerate() {
                 let out = game_addr(VERTICES_RVA) + n * VERTEX_LEN;

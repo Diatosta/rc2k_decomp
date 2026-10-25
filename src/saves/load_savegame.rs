@@ -28,31 +28,24 @@
 //! reference.
 
 use crate::errors::{BadInput, FatalError, Refused};
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::menu::champ_store::CHAMP_VIEW;
+use crate::menu::event_store::EVENT_STATE;
+use crate::menu::flow_store::SCREEN_FLOW;
 use crate::menu::go_back;
-use crate::menu::name_lists::SAVEGAME_PAGE_RVA;
+use crate::menu::pages_store::MENU_PAGES;
 use crate::menu::screen_loop::Carried;
 use crate::saves::gather_savegame::{
-    CAR_LEN, CAR0_A_RVA, CAR0_B_RVA, HEAD_RVAS, NAME_LEN, NAME_OFFSET, NAME_PTR_OFFSET,
-    RECORDS_LEN, RECORDS_RVA, cars,
+    CAR_LEN, NAME_LEN, NAME_OFFSET, NAME_PTR_OFFSET, RECORDS_LEN, cars, head,
 };
+use crate::saves::preview_store::SAVEGAME_PREVIEW;
 use crate::saves::read_savegame_slot::read_savegame_slot;
-use crate::saves::write_savegame_slot::{FILE_RVA, SLOTS};
+use crate::saves::write_savegame_slot::{SAVE_GAMES, SLOTS};
 use crate::service::state::menu_item;
 use rc2k_core::saves::savegame::{A8_MODE, CORRUPT, Resume, resume};
 use std::ptr::copy_nonoverlapping;
 
 // ---- game data ----
 
-const LOADING_RVA: usize = rva(0x75592C); // dword_75592C: set to 1
-const CLEARED_A_RVA: usize = rva(0x755250); // dword_755250: set to 0
-const CLEARED_B_RVA: usize = rva(0x755978); // dword_755978: set to 0
-const SAVED_CARS_PTR_RVA: usize = rva(0x75516C); // dword_75516C: the saved cars in the buffer
-const SKIP_COPY_RVA: usize = rva(0x755144); // dword_755144: 0 = `maybeCopySomeData` is called
-const CONTINUING_RVA: usize = rva(0x755970); // dword_755970: set to 1 before the event runs
-const INDEX_RVA: usize = rva(0x755958); // index: the event's stage in its section
-const SECTION_RVA: usize = rva(0x75595C); // section
-const MODE_RVA: usize = rva(0x7556D0); // dword_7556D0: 0x13 picks the other event loop
 const PAYLOAD_OFFSET: usize = 0x30; // 0x51EBE4: what `gather_savegame` wrote
 
 /// The unported functions it calls.
@@ -94,7 +87,7 @@ fn in_game(callee: Callee, regs: &mut Carried) -> Result<(), Refused> {
 /// The slot the highlighted menu item stands for.
 fn highlighted_slot() -> u32 {
     // Converted: `rc2k_core::saves::savegame::slot`.
-    rc2k_core::saves::savegame::slot(unsafe { game_read::<u32>(SAVEGAME_PAGE_RVA) }, menu_item())
+    rc2k_core::saves::savegame::slot(MENU_PAGES.save_page.get(), menu_item())
 }
 
 // ---- Rust version ----
@@ -112,9 +105,9 @@ pub unsafe fn load_savegame(entry: &Carried, game: Game) -> Result<(), Refused> 
 
     unsafe {
         game(Callee::Prepare, &mut g)?;
-        game_write(LOADING_RVA, 1u32);
-        game_write(CLEARED_A_RVA, 0u32);
-        game_write(CLEARED_B_RVA, 0u32);
+        EVENT_STATE.event_goes_on.set(1u32);
+        MENU_PAGES.reset_times.set(0u32);
+        EVENT_STATE.event_out.set(0u32);
         g.palette = slot;
         g.arg = 0;
         if !read_savegame_slot(slot)? {
@@ -124,16 +117,16 @@ pub unsafe fn load_savegame(entry: &Carried, game: Game) -> Result<(), Refused> 
             return Ok(());
         }
 
-        let payload = game_addr(FILE_RVA) + PAYLOAD_OFFSET;
+        let payload = SAVE_GAMES.file.addr() + PAYLOAD_OFFSET;
         let mut cursor = payload as *const u8;
-        for at in HEAD_RVAS {
+        for at in head() {
             g.arg = (cursor as *const u32).read_unaligned();
-            game_write(at, g.arg);
+            at.set(g.arg);
             cursor = cursor.add(4);
         }
-        game_write(SAVED_CARS_PTR_RVA, cursor as u32);
+        SAVEGAME_PREVIEW.saved_cars.set(cursor as u32);
         g.cars = cursor as u32;
-        if game_read::<u32>(SKIP_COPY_RVA) == 0 {
+        if SAVEGAME_PREVIEW.use_savegame_keys.get() == 0 {
             game(Callee::CopySomeData, &mut g)?;
         }
         game(Callee::AfterHead, &mut g)?;
@@ -146,24 +139,31 @@ pub unsafe fn load_savegame(entry: &Carried, game: Game) -> Result<(), Refused> 
             cursor = cursor.add(CAR_LEN);
             g.palette = car + NAME_OFFSET; // ebx (edi the car, ebp the name: unread)
         }
-        copy_nonoverlapping(cursor, game_addr(RECORDS_RVA) as *mut u8, RECORDS_LEN);
+        copy_nonoverlapping(
+            cursor,
+            crate::menu::drivers_store::drivers_addr() as *mut u8,
+            RECORDS_LEN,
+        );
         g.cars = cursor.add(RECORDS_LEN) as u32;
         g.clock = 0xB4;
-        game_write(
-            CAR0_A_RVA,
-            ((cars[0] + 0x14) as *const u32).read_unaligned(),
-        );
+        SCREEN_FLOW
+            .start_section
+            .set(((cars[0] + 0x14) as *const u32).read_unaligned());
         g.arg = ((cars[0] + 0x274) as *const u32).read_unaligned();
-        game_write(CAR0_B_RVA, g.arg);
+        SCREEN_FLOW.start_section_a8.set(g.arg);
 
         // Converted: `rc2k_core::saves::savegame` (`resume`, `A8_MODE`).
         game(Callee::EventState, &mut g)?;
         match resume(g.arg) {
             Resume::NextSection => {
-                game_write(SECTION_RVA, game_read::<u32>(SECTION_RVA).wrapping_add(1));
-                game_write(INDEX_RVA, 0u32);
+                EVENT_STATE
+                    .section
+                    .set(EVENT_STATE.section.get().wrapping_add(1));
+                EVENT_STATE.index.set(0u32);
             }
-            Resume::NextStage => game_write(INDEX_RVA, game_read::<u32>(INDEX_RVA).wrapping_add(1)),
+            Resume::NextStage => EVENT_STATE
+                .index
+                .set(EVENT_STATE.index.get().wrapping_add(1)),
             Resume::Over => {
                 go_back::go_back();
                 return Ok(());
@@ -176,9 +176,9 @@ pub unsafe fn load_savegame(entry: &Carried, game: Game) -> Result<(), Refused> 
                 .into());
             }
         }
-        game_write(CONTINUING_RVA, 1u32);
+        EVENT_STATE.continuing_save.set(1u32);
         game(Callee::BeforeEvent, &mut g)?;
-        if game_read::<u32>(MODE_RVA) == A8_MODE {
+        if CHAMP_VIEW.event_mode.get() == A8_MODE {
             game(Callee::RunEventMode13, &mut g)?;
         } else {
             game(Callee::RunEvent, &mut g)?;

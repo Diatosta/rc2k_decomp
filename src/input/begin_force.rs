@@ -17,16 +17,14 @@
 
 use crate::errors::Refused;
 use crate::field;
-use crate::framework::rva;
 use crate::input::devices::{at, put};
 use crate::input::di_harness::{EFFECT_LEN, EFFECTS_AT, entry_of, fatal, method, slot};
 use crate::input::store::DEVICES;
 use crate::input::types::{Controller, DiPropDword, DiPropHeader, InputDevice};
-use crate::store::game_addr;
 use rc2k_core::input::acquire::gain;
 use std::mem::size_of;
 
-const USING_TEXT_RVA: usize = rva(0x4DA5D8); // aInpUsingForceF
+const USING_TEXT_RVA: &std::ffi::CStr = c"INP: using force feedback"; // aInpUsingForceF
 const DIPROP_FFGAIN: u32 = 7;
 const DIPROP_AUTOCENTER: u32 = 9;
 
@@ -56,7 +54,7 @@ pub fn begin_force(record: u32) -> Result<(), Refused> {
         return Ok(());
     }
     unsafe {
-        crate::logfile::log_write::log_write(game_addr(USING_TEXT_RVA) as *const u8, true, 2)
+        crate::logfile::log_write::log_write(USING_TEXT_RVA.as_ptr() as usize as *const u8, true, 2)
     };
     let device = at(record, field!(InputDevice, device));
     // Converted: `rc2k_core::input::acquire::gain`.

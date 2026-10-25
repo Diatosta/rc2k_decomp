@@ -8,7 +8,9 @@
 //!      for other items ebx = `dword_52ABD0`; no `pusha`
 //! Caller: `net::settings_loop`.
 
-use crate::net::lobby::{CHOICE, Cursor, NUMBER_TEXT, PALETTE, a, g};
+use crate::install::vars::INSTALLER_PAGES;
+use crate::install::vars::INSTALLER_PATHS;
+use crate::net::lobby::{Cursor, PALETTE};
 use crate::net::store::NET;
 use rc2k_core::net::editing::{self, Setting};
 
@@ -16,20 +18,20 @@ use rc2k_core::net::editing::{self, Setting};
 /// ebx the text, ecx the width, edx the font) are read by no caller (`settings_loop`).
 pub fn begin_setting_edit() {
     // Converted: `rc2k_core::net::editing` (`Setting`, `WIDTH`).
-    let item = g(CHOICE);
+    let item = INSTALLER_PAGES.choice.get();
     let text = match Setting::of(item) {
         Setting::Name => NET.machine_name.addr() as u32,
         Setting::HostAddress => NET.host_address.addr() as u32,
         Setting::MostPlayers => {
-            let mut cursor = Cursor(a(NUMBER_TEXT));
+            let mut cursor = Cursor(INSTALLER_PATHS.path_a.addr() as u32);
             cursor.bytes(&crate::strings::format_u32::format_u32(
                 NET.most_players.get(),
                 0,
             ));
             cursor.nul();
-            a(NUMBER_TEXT)
+            INSTALLER_PATHS.path_a.addr() as u32
         }
         Setting::None => return,
     };
-    crate::net::begin_edit::begin_edit(item, text, editing::WIDTH, a(PALETTE));
+    crate::net::begin_edit::begin_edit(item, text, editing::WIDTH, PALETTE.addr() as u32);
 }

@@ -5,6 +5,7 @@
 //! (`Vertex`, the `D3DTLVERTEX` of DirectX 5). In the standalone program a renderer of
 //! ours will stand where the originals are; until then nothing is drawn there.
 
+pub mod cards_store;
 pub mod copy_screen_to_texture;
 pub mod copy_to_device_texture;
 pub mod draw_fan;

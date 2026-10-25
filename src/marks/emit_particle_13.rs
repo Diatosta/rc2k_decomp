@@ -19,6 +19,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::marks::emitters::*;
+use crate::marks::setup::CLOCK;
 use crate::marks::store::{Slot, game_read, game_write};
 use crate::math::x87;
 
@@ -33,7 +34,6 @@ const STRENGTH_K_RVA: Slot = Slot::at(0x93A466);
 const MOTION_K: [Slot; 3] = [Slot::at(0x93A46A), Slot::at(0x93A46E), Slot::at(0x93A472)];
 const DRIFT_RANDOM_RVA: Slot = Slot::at(0x93A476);
 const DRIFT_K_RVA: Slot = Slot::at(0x765214); // flt_765214
-const TICKS_RVA: Slot = Slot::at(0x764FD0); // g_marksFrameTicks
 const SPIN_RANDOM_RVA: Slot = Slot::at(0x93A47A);
 const LIFE_SCALE_RVA: Slot = Slot::at(0x7651A4); // flt_7651A4
 const FADE_K_RVA: Slot = Slot::at(0x7651A0); // dword_7651A0
@@ -101,7 +101,7 @@ pub unsafe fn emit_particle_13(object: u32) -> Result<(), Refused> {
             r,
             game_read(DRIFT_K_RVA),
             motion,
-            game_read(TICKS_RVA),
+            CLOCK.frame_ticks.get() as i32,
             [x, y, z],
         );
         put(0x10, moved[0]);

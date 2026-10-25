@@ -2,16 +2,10 @@
 //! default best times use them, and the table their names come from.
 
 use crate::errors::BadInput;
-use crate::framework::{game_read, rva};
 use crate::strings::append_string_by_id::push_string;
 
-const DRIVERS_RVA: usize = rva(0x73B674); // unk_73B674
 const DRIVER_LEN: usize = 0x94;
 pub const DRIVERS: u32 = 180;
-/// dword_741E88: entries of 0x14 bytes, the first dword a string's id; a driver's first
-/// dword says which entry is his.
-const NAMES_RVA: usize = rva(0x741E88);
-const NAME_ENTRY_LEN: usize = 0x14;
 /// More entries than the names' table can have.
 const MOST_NAME_ENTRIES: u32 = 0x400;
 /// The room a name has where these functions put it.
@@ -25,12 +19,14 @@ impl Driver {
         if number >= DRIVERS {
             return Err(BadInput("a driver past the 180"));
         }
-        Ok(Self(DRIVERS_RVA + number as usize * DRIVER_LEN))
+        Ok(Self(
+            crate::menu::drivers_store::DRIVERS.first() as usize + number as usize * DRIVER_LEN,
+        ))
     }
 
     /// The dword at `offset` of the record.
     pub unsafe fn dword(&self, offset: usize) -> u32 {
-        unsafe { game_read(self.0 + offset) }
+        unsafe { (self.0 as *const u32).byte_add(offset).read() }
     }
 
     /// The id of the string that is the driver's name.
@@ -39,7 +35,7 @@ impl Driver {
         if entry >= MOST_NAME_ENTRIES {
             return Err(BadInput("a driver whose name entry is far past the table"));
         }
-        Ok(unsafe { game_read(NAMES_RVA + entry as usize * NAME_ENTRY_LEN) })
+        Ok(crate::menu::drivers_store::name_string(entry))
     }
 
     /// The name's bytes, without a NUL, as `strings::append_string_by_id` writes them.

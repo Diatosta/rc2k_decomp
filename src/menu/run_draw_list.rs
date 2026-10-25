@@ -8,15 +8,13 @@
 //! reference.
 
 use crate::errors::Refused;
-use crate::framework::{game_read, rva};
+use crate::menu::flow_store::SCREEN_FLOW;
 use crate::menu::run_list::run_list;
 
 // ---- game data ----
 
-pub const DRAW_LIST_RVA: usize = rva(0x7554F8); // dword_7554F8
-
 // ---- Rust version ----
 
 pub unsafe fn run_draw_list() -> Result<(), Refused> {
-    unsafe { run_list(game_read(DRAW_LIST_RVA)) }
+    unsafe { run_list(SCREEN_FLOW.draw_list.get()) }
 }

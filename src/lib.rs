@@ -35,7 +35,6 @@ mod rasteriser;
 mod records;
 mod registry;
 mod relocations;
-mod rest;
 mod saves;
 mod scene;
 mod screens;

@@ -54,7 +54,7 @@ fn other() -> bool {
     unsafe { game_read::<u32>(OTHER_LEVELS_RVA) != 0 }
 }
 
-const COUNT_TEXT_RVA: usize = rva(0x4DB7B9); // "NUM DIFFERENT CARS/OBJECTS/TEXTURE SETS "
+const COUNT_TEXT_RVA: &std::ffi::CStr = c"NUM DIFFERENT CARS/OBJECTS/TEXTURE SETS "; // "NUM DIFFERENT CARS/OBJECTS/TEXTURE SETS "
 
 /// `scene::init_texture_levels` (0x424001), see the header: `g_raceCars` held to 1 .. 8
 /// (by the signs of the differences, as the original); the tables reset, the count in the
@@ -74,7 +74,7 @@ pub unsafe fn init_texture_levels() -> Result<(), Refused> {
         let cars = held_cars(game_read(CARS_RVA));
         game_write(CARS_RVA, cars);
         crate::scene::reset_texture_tables::reset_texture_tables();
-        log_write(game_addr(COUNT_TEXT_RVA) as *const u8, false, 1);
+        log_write(COUNT_TEXT_RVA.as_ptr() as usize as *const u8, false, 1);
         log_int(cars as i32, true, 1);
         game_write(OTHER_LEVELS_RVA, 0u32);
         crate::input::keys::update_input(&mut crate::input::keys::game_screenshot);

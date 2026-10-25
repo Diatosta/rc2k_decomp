@@ -2,15 +2,10 @@
 //! mode cannot simply run such a function twice, so it runs the Rust version, notes what it
 //! left, puts the variables back, runs the original and compares.
 
-use crate::framework::game_addr;
 use std::slice::{from_raw_parts, from_raw_parts_mut};
 
 /// A piece of game memory a function may change: (address, bytes).
 pub type Region = (u32, usize);
-
-pub fn at(rva: usize) -> Region {
-    (game_addr(rva) as u32, 4)
-}
 
 pub fn capture(regions: &[Region]) -> Vec<u8> {
     let mut bytes = Vec::new();

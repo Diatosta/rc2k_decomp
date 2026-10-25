@@ -8,8 +8,6 @@
 //! plates - finis" and a rule). Two callers (the front end's 3D set-up and a race's).
 
 use crate::errors::BadInput;
-use crate::framework::game_ptr;
-use crate::framework::rva;
 use crate::logfile::log_write::log_write;
 use crate::scene::clear_slot_textures::clear_slot_textures;
 use crate::scene::load_wanted_textures::load_wanted_textures;
@@ -21,12 +19,34 @@ use crate::scene::load_wanted_textures::load_wanted_textures;
 /// 2026-10-23: `race::set_all_plates` and `scene::set_up_front_end_scene`).
 pub unsafe fn reload_slot_textures() -> Result<(), BadInput> {
     unsafe {
-        log_write(game_ptr(rva(0x4DB858)), true, 1);
-        log_write(game_ptr(rva(0x4DB87D)), true, 1);
+        log_write(
+            c"------------------------------------"
+                .as_ptr()
+                .cast_mut()
+                .cast(),
+            true,
+            1,
+        );
+        log_write(
+            c"reload video plates - start".as_ptr().cast_mut().cast(),
+            true,
+            1,
+        );
         clear_slot_textures();
         load_wanted_textures()?;
-        log_write(game_ptr(rva(0x4DB899)), true, 1);
-        log_write(game_ptr(rva(0x4DB8B5)), true, 1);
+        log_write(
+            c"reload video plates - finis".as_ptr().cast_mut().cast(),
+            true,
+            1,
+        );
+        log_write(
+            c"------------------------------------"
+                .as_ptr()
+                .cast_mut()
+                .cast(),
+            true,
+            1,
+        );
         Ok(())
     }
 }

@@ -8,9 +8,6 @@
 //! (`dword_7559A8`) at 1, string 4 ("_") at x = 0x1BB + the name's width, y = 0xD4, in the font at
 //! 0x51E8C4. Three callers (the player details screens). Refuses no player or no name.
 
-use crate::framework::rva;
-
 // ---- game data ----
 
-pub const BLINK_RVA: usize = rva(0x7559A8); // dword_7559A8
 // ---- Rust version ----

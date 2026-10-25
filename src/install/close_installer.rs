@@ -10,11 +10,11 @@
 //! are the original's.
 
 use crate::errors::Refused;
-use crate::install::installer::{BUFFERS, DIRS, FILES, a, p};
+use crate::install::vars::INSTALLER_RUN;
 
 pub fn close_installer() -> Result<(), Refused> {
-    unsafe { crate::memory::free_list::free_list(a(BUFFERS) as *mut _) }?;
-    p(DIRS, 0);
-    p(FILES, 0);
+    unsafe { crate::memory::free_list::free_list(INSTALLER_RUN.buffers.addr() as u32 as *mut _) }?;
+    INSTALLER_RUN.dirs.set(0);
+    INSTALLER_RUN.files.set(0);
     Ok(())
 }

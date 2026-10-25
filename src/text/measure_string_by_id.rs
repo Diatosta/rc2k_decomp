@@ -55,4 +55,4 @@ pub unsafe fn measure_string_by_id_at(
     }
 }
 
-pub const MEASURING_FONT: usize = 0x51E824; // dword_51E824: the font the name editors measure with
+pub const MEASURING_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::MEASURE;

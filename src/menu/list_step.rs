@@ -11,7 +11,7 @@
 //!
 //! Callers: `race::replay_viewer` (two), `sub_4144CF` (one), reading ZF.
 
-use crate::race::viewer::{CHOICE, get, put};
+use crate::install::vars::INSTALLER_PAGES;
 use rc2k_core::menu::list_menu::{MOVES, Step, step};
 
 /// What `list_step` gives: the highlight (ecx, with its low byte the new choice) where a
@@ -54,7 +54,7 @@ pub unsafe fn list_step(key: u8, table: u32, list: u32) -> Stepped {
             zero,
         };
     }
-    let ecx = get(CHOICE);
+    let ecx = INSTALLER_PAGES.choice.get();
     let entry_of = |k: usize| unsafe {
         (table
             .wrapping_add(ecx.wrapping_mul(4))
@@ -64,7 +64,7 @@ pub unsafe fn list_step(key: u8, table: u32, list: u32) -> Stepped {
     let with_cl = |cl: u8| ecx & !0xFF | cl as u32;
     let (choice, carry, zero) = match step(key, ecx as u8, count, table != 0, entry_of) {
         Step::Moved(cl) => {
-            put(CHOICE, with_cl(cl));
+            INSTALLER_PAGES.choice.set(with_cl(cl));
             (with_cl(cl), false, true)
         }
         Step::Blocked(cl) => (with_cl(cl), false, false),

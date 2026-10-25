@@ -17,7 +17,6 @@
 use crate::errors::{BadInput, Refused};
 use crate::framework::rva;
 use crate::marks::draw_flare_part::draw_flare_part;
-use crate::marks::setup::{SETTINGS_RVA, WAVE_LEVELS_RVA};
 use crate::marks::store::{Slot, game_addr, game_read, game_write};
 use crate::math::x87;
 
@@ -38,7 +37,7 @@ unsafe fn get(a: u32) -> u32 {
 /// The Rust version (see the header).
 pub unsafe fn draw_lens_flare() -> Result<(), Refused> {
     unsafe {
-        let settings: u32 = game_read(SETTINGS_RVA);
+        let settings: u32 = crate::marks::setup::SETTINGS.pointer.get();
         if settings == 0 {
             return Err(BadInput("no marks settings").into());
         }
@@ -61,7 +60,7 @@ pub unsafe fn draw_lens_flare() -> Result<(), Refused> {
         let alpha = (product as u32) >> 8;
         let size_k: u32 = game_read(SIZE_K_RVA);
         for k in (0..PARTS as usize).rev() {
-            let level: u32 = game_read(WAVE_LEVELS_RVA + 4 * k);
+            let level: u32 = crate::marks::waves::WAVE_LEVELS.levels[k].get();
             let y = x87::times_plus_80(dy, level, cy, false);
             let x = x87::times_plus_80(dx, level, cx, true);
             draw_flare_part(

@@ -10,7 +10,8 @@
 //! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
 //! are the original's.
 
-use crate::install::installer::{CHOICE, g, p, rb};
+use crate::install::installer::rb;
+use crate::install::vars::INSTALLER_PAGES;
 
 /// `state` the list action's (ebx): only the start (0) does anything.
 pub fn next_edit(state: u32, list: u32) {
@@ -21,11 +22,12 @@ pub fn next_edit(state: u32, list: u32) {
     let item = |n: u32| list + 0x18 + 0x10 * n;
     // Converted: `rc2k_core::install::items::next_edit` (the highlight stored once, where
     // it ends).
-    let (n, found) = rc2k_core::install::items::next_edit(g(CHOICE), count, |n| rb(item(n)));
+    let (n, found) =
+        rc2k_core::install::items::next_edit(INSTALLER_PAGES.choice.get(), count, |n| rb(item(n)));
     if found {
-        p(CHOICE, n);
+        INSTALLER_PAGES.choice.set(n);
         crate::install::start_edit::start_edit(item(n));
     } else {
-        p(CHOICE, 0);
+        INSTALLER_PAGES.choice.set(0);
     }
 }

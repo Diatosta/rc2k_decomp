@@ -17,7 +17,6 @@
 //! registers above are the original's, for reference.
 
 use crate::errors::BadInput;
-use crate::framework::{game_write, rva};
 use crate::moved::Place;
 use crate::settings::read_text::read_text;
 use crate::strings::format_u32::format_u32;
@@ -35,9 +34,6 @@ const DRIVERS: usize = 180;
 const NAMES_LEN: usize = DRIVERS * 4;
 const POOL_ROOM: usize = 0x960000 - 0x95EFC8;
 pub static NAMES: Place<[u8; NAMES_LEN + POOL_ROOM]> = Place::new([0; NAMES_LEN + POOL_ROOM]);
-const RECORD_LEN: usize = 0x94;
-const FIRST_NUMBER_RVA: usize = rva(0x73B688); // dword_73B688
-const SECOND_NUMBER_RVA: usize = rva(0x73B68C); // dword_73B68C
 
 /// The path of `var\name.cfg`.
 pub fn path() -> *const u8 {
@@ -82,10 +78,14 @@ pub unsafe fn read_driver_names(path: *const u8) -> Result<(), BadInput> {
                 pool = pool.add(name.len() + 1);
             }
             if let Some(n) = entry.first {
-                game_write(FIRST_NUMBER_RVA + driver * RECORD_LEN, n);
+                crate::menu::drivers_store::DRIVERS.drivers[driver]
+                    .nation
+                    .set(n);
             }
             if let Some(n) = entry.second {
-                game_write(SECOND_NUMBER_RVA + driver * RECORD_LEN, n);
+                crate::menu::drivers_store::DRIVERS.drivers[driver]
+                    .car
+                    .set(n);
             }
         }
         Ok(())

@@ -12,8 +12,7 @@
 //! original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{game_addr, game_read};
-use crate::menu::name_lists::{SAVEGAME_NAMES_RVA, SAVEGAME_PAGE_RVA};
+use crate::menu::pages_store::MENU_PAGES;
 use crate::text::draw_text::Canvas;
 
 const NAME_LEN: usize = 0x20;
@@ -21,8 +20,8 @@ const NAME_LEN: usize = 0x20;
 
 pub unsafe fn draw_savegame_names(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
     // Converted: `rc2k_core::screens::slot_lists::names`.
-    let page: u32 = unsafe { game_read(SAVEGAME_PAGE_RVA) };
-    let names = game_addr(SAVEGAME_NAMES_RVA) as u32;
+    let page: u32 = MENU_PAGES.save_page.get();
+    let names = crate::saves::write_savegame_slot::SAVE_GAMES.names.addr() as u32;
     rc2k_core::screens::slot_lists::names(
         &mut crate::screens::game_screen::SlotScreen::new(canvas),
         &rc2k_core::screens::slot_lists::SAVED_GAMES,

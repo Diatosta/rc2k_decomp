@@ -13,9 +13,7 @@ use crate::menu::item_at::item_at;
 
 use rc2k_core::menu::items::{Font, choosable};
 
-type FontSlot = crate::gfx::typefaces::tables::Slot;
-const GREY_FONT: FontSlot = FontSlot::at(0x51EA04);
-const PLAIN_FONT: FontSlot = FontSlot::at(0x51E8E4);
+use crate::gfx::typefaces::fonts::{ITEM_GREY as GREY_FONT, ITEM_PLAIN as PLAIN_FONT};
 
 // ---- Rust version ----
 
@@ -31,7 +29,7 @@ pub fn set_item(number: u32, on: bool) -> Result<(), Refused> {
     };
     unsafe {
         ((item + 0x48) as *mut u32).write_unaligned(state);
-        ((item + 0x18) as *mut u32).write_unaligned(font.address() as u32);
+        ((item + 0x18) as *mut u32).write_unaligned(font.addr() as u32);
     }
     Ok(())
 }

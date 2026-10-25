@@ -12,15 +12,14 @@
 
 use crate::drive::race_parts::log_line;
 use crate::errors::Refused;
-use crate::framework::{game_addr, rva};
 use crate::physics::flow::{g, p};
 use crate::race::state_store::RACE_STATE;
 use rc2k_core::drive::finish_routine::{self, Set, Var};
 
 const B: usize = 0x70F3EC;
 
-fn log_text(text: usize) {
-    unsafe { crate::logfile::log_write::log_write(game_addr(rva(text)) as *const u8, false, 1) };
+fn log_text(text: &std::ffi::CStr) {
+    unsafe { crate::logfile::log_write::log_write(text.as_ptr().cast(), false, 1) };
 }
 
 fn log_number(v: u32) {
@@ -80,13 +79,13 @@ pub unsafe fn finish_race() -> Result<(), Refused> {
     p(0x623858, RACE_STATE.results.finish_kind.get());
     p(B + 0x24, g(0x623858));
     p(B + 0xAA8, RACE_STATE.results.finish_player.get());
-    log_line(0x4DDA52);
-    log_line(0x4DDA69);
-    log_text(0x4DDA80);
+    log_line(c"----------------------");
+    log_line(c"CALLING FINISH ROUTINE");
+    log_text(c"[shauntracknum]");
     log_number(g(0x623850));
-    log_text(0x4DDA90);
+    log_text(c"[shauncarnum1]");
     log_number(g(0x623858));
-    log_text(0x4DDA9F);
+    log_text(c"[car1.ctd_carnum]");
     log_number(g(B + 0xAA8));
     set_up();
     unsafe {
@@ -100,7 +99,7 @@ pub unsafe fn finish_race() -> Result<(), Refused> {
     for x in finish_routine::AFTER {
         p(var(x), 0);
     }
-    log_line(0x4DDAB1);
-    log_line(0x4DDAC8);
+    log_line(c"EXITING FINISH ROUTINE");
+    log_line(c"----------------------");
     Ok(())
 }

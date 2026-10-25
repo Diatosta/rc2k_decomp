@@ -11,12 +11,12 @@
 //! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{game_addr, game_read, rva};
+use crate::framework::{game_addr, rva};
+use crate::menu::pages_store::MENU_PAGES;
 use crate::strings::append_string_by_id::append_string_by_id;
 
 // ---- game data ----
 
-const ANSWER_RVA: usize = rva(0x75524C); // g_yesNoAnswer
 const CAPTION_RVA: usize = rva(0xA8BE54); // g_captionText
 const CAPTION_LEN: usize = 0x100;
 const FIRST: u32 = 0x56B;
@@ -26,7 +26,7 @@ const FIRST: u32 = 0x56B;
 /// Returns eax and ebx as the original leaves them.
 pub unsafe fn yes_no_caption() -> Result<(u32, u32), Refused> {
     unsafe {
-        let id = game_read::<u32>(ANSWER_RVA).wrapping_add(FIRST);
+        let id = MENU_PAGES.yes_no_answer.get().wrapping_add(FIRST);
         let mut text = Vec::new();
         let eax = append_string_by_id(id, &mut |p, n| {
             text.extend_from_slice(std::slice::from_raw_parts(p, n))

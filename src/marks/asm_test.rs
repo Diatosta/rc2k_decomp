@@ -37,6 +37,52 @@ pub struct Spec {
     pub sincos: bool,
 }
 
+/// A test buffer of bytes whose first byte is 16-aligned (a typed struct is laid over a
+/// block's bytes at an aligned offset).
+#[derive(Clone)]
+struct Buf(Vec<u128>, usize);
+
+impl Buf {
+    fn new(len: usize) -> Buf {
+        Buf(vec![0; len.div_ceil(16)], len)
+    }
+}
+
+impl std::ops::Deref for Buf {
+    type Target = [u8];
+    fn deref(&self) -> &[u8] {
+        unsafe { std::slice::from_raw_parts(self.0.as_ptr() as *const u8, self.1) }
+    }
+}
+
+impl std::ops::DerefMut for Buf {
+    fn deref_mut(&mut self) -> &mut [u8] {
+        unsafe { std::slice::from_raw_parts_mut(self.0.as_mut_ptr() as *mut u8, self.1) }
+    }
+}
+
+impl PartialEq for Buf {
+    fn eq(&self, other: &Buf) -> bool {
+        **self == **other
+    }
+}
+
+/// Runs `f` on a typed variable block that lives at IDA address `start` in a test buffer
+/// standing for the marks' block at `mk` (IDA 0x764F40): the block is copied out (its image
+/// address need not be aligned for its cells) and put back afterwards. The buffer must
+/// hold the whole block.
+pub fn with_copy<T, R>(mk: usize, start: usize, f: impl FnOnce(&T) -> R) -> R {
+    let p = mk
+        .wrapping_add(start)
+        .wrapping_sub(crate::marks::store::START) as *mut T;
+    unsafe {
+        let local = p.read_unaligned();
+        let out = f(&local);
+        p.write_unaligned(local);
+        out
+    }
+}
+
 struct Rng(u64);
 impl Rng {
     fn next(&mut self) -> u64 {
@@ -164,22 +210,22 @@ pub fn differential<R: PartialEq + std::fmt::Debug>(
     for cw in [0x027F, 0x0E7F] {
         x87::set_control_word(cw);
         for case in 0..3000 {
-            let mut refs: Vec<Vec<u8>> = Vec::new();
+            let mut refs: Vec<Buf> = Vec::new();
             let mut values = Vec::new();
             for op in spec.operands {
                 match op {
                     Op::Base { lo, hi, reads, .. } => {
-                        let mut buf = vec![0u8; hi - lo];
+                        let mut buf = Buf::new(hi - lo);
                         fill(&mut buf, *lo, reads, &mut rng, spec.sincos);
                         refs.push(buf);
                         values.push(0);
                     }
                     Op::Index(v) => {
-                        refs.push(Vec::new());
+                        refs.push(Buf::new(0));
                         values.push(v[rng.below(v.len() as u64) as usize]);
                     }
                     Op::Float => {
-                        refs.push(Vec::new());
+                        refs.push(Buf::new(0));
                         values.push(random_float(&mut rng, spec.sincos).to_bits() as usize);
                     }
                 }

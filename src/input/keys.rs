@@ -8,12 +8,10 @@
 //! frames is pressed again each frame).
 
 use crate::framework::{Regs, rva};
-use crate::gfx::shots::Slot as ShotSlot;
 use crate::input::store::{DEVICES, KEYS as KEYS_LEN, MOUSE};
-use crate::store::{game_read, game_write};
+use crate::store::game_write;
 
 const SCREENSHOT_KEY: u32 = rc2k_core::input::frame::SCREENSHOT_KEY as u32; // byte_4F6BAE
-pub const SCREENSHOTS_RVA: ShotSlot = ShotSlot::at(0x4F52B4); // g_screenshotsOn
 pub const FRAME_CLEARED_RVA: [usize; 2] = [rva(0x6138F4), rva(0x6138F8)];
 
 // Converted: `rc2k_core::input::frame`. Here the tables are loaded from the game and only those
@@ -115,7 +113,7 @@ pub unsafe fn screenshot_if_key(shot: Screenshot) {
 pub unsafe fn end_frame(check: Screenshot) {
     // Converted: `rc2k_core::input::frame::end_frame`.
     unsafe {
-        let left = rc2k_core::input::frame::end_frame(game_read(SCREENSHOTS_RVA), check);
+        let left = rc2k_core::input::frame::end_frame(crate::gfx::shots::on(), check);
         for (at, value) in FRAME_CLEARED_RVA.into_iter().zip(left) {
             game_write(at, value);
         }

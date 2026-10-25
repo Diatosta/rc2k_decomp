@@ -15,7 +15,7 @@
 //! `roll_credits`, 8 `play_race`, 9 `tidy_everything`.
 
 use crate::errors::Refused;
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 use crate::logfile::{log_int::log_int, log_write::log_write};
 
 const FIRST: [(usize, u32); 5] = [
@@ -29,7 +29,7 @@ const IN_CREDITS: usize = 0x71C3E0; // dword_71C3E0
 const AFTER_CREDITS: usize = 0x63DB84; // dword_63DB84
 const STAGE: usize = 0x623850; // g_stageNumber
 const CAR_KINDS: usize = 0x623858; // g_raceCarKinds
-const WORDS: [usize; 2] = [0x4DDFB8, 0x4DDFCD]; // "INIT CREDITS - track", "car"
+const WORDS: [&std::ffi::CStr; 2] = [c"INIT CREDITS - track", c"car"]; // "INIT CREDITS - track", "car"
 
 fn p(x: usize, v: u32) {
     unsafe { game_write(rva(x), v) }
@@ -49,7 +49,7 @@ pub fn credits_race() -> Result<(), Refused> {
     }
     p(IN_CREDITS, 1);
     let g = |x: usize| unsafe { game_read::<u32>(rva(x)) };
-    let word = |n: usize| game_addr(rva(WORDS[n])) as *const u8;
+    let word = |n: usize| WORDS[n].as_ptr() as usize as *const u8;
     unsafe {
         log_write(word(0), false, 1);
         log_int(g(STAGE) as i32, false, 1);

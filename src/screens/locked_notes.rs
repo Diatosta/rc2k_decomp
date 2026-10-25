@@ -2,12 +2,10 @@
 //! open (stream A, part F1, 2026-10-18).
 
 use crate::errors::Refused;
-use crate::framework::{game_addr, game_read, rva};
+use crate::menu::arcade_store::ARCADE_GAME;
+use crate::menu::cheats_store::CHEAT_VARS;
+use crate::menu::loop_store::LOOP_FLAGS;
 use crate::race::state_store::RACE_STATE;
-
-fn k(a: usize) -> u32 {
-    unsafe { game_read(rva(a)) }
-}
 
 /// A note's box put up (converted: `rc2k_core::screens::locked`). The original's x for the
 /// box is the caller's ecx, which only the measuring of the text gets, in a font in measure
@@ -29,8 +27,8 @@ fn show(note: rc2k_core::screens::locked::Note) -> Result<(), Refused> {
 /// (`dword_755525`) and `dword_75ACCC` not 1, the message box.
 pub fn note_locked_item_3() -> Result<(), Refused> {
     show(rc2k_core::screens::locked::item_3(
-        k(0x75870C),
-        k(0x755525),
+        CHEAT_VARS.cheats.get(),
+        LOOP_FLAGS.item.get(),
         RACE_STATE.settings.a8_game.get(),
     ))
 }
@@ -39,10 +37,10 @@ pub fn note_locked_item_3() -> Result<(), Refused> {
 /// than 1 and 7 whose stage (`byte_758800[item - 2]`) is not open (1), the message box.
 pub fn note_locked_stage() -> Result<(), Refused> {
     show(rc2k_core::screens::locked::stage(
-        k(0x75870C),
-        k(0x755525),
+        CHEAT_VARS.cheats.get(),
+        LOOP_FLAGS.item.get(),
         |index| unsafe {
-            ((game_addr(rva(0x758800)) as u32).wrapping_add(index) as *const u8).read()
+            ((ARCADE_GAME.levels_won.addr() as u32).wrapping_add(index) as *const u8).read()
         },
     ))
 }

@@ -19,6 +19,7 @@ pub mod read_stream_block;
 pub mod read_stream_byte;
 pub mod read_whole_file;
 pub mod resolve_path;
+pub mod scratch;
 pub mod stream;
 pub mod swap_missing_extension;
 pub mod write_file;

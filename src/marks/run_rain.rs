@@ -23,33 +23,18 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::rva;
-use crate::marks::setup::SETTINGS_RVA;
+use crate::marks::rain::{RAIN, RAIN_RULES, RainRules, RainState};
 use crate::marks::store::{Slot, game_read, game_write};
 use crate::math::{x87, x87_run};
 use crate::scene::vector3::STATUS_RVA;
 
-const DROPS_RVA: Slot = Slot::at(0x8BC50D); // dword_8BC50D
-const DRAWN_RVA: Slot = Slot::at(0x8BC405); // dword_8BC405
 const MOST_DROPS: i32 = 0x100;
-const COPIES_A: Slot = Slot::at(0x8BC441); // dword_8BC441 .. : the settings' +0x28 ..
-const COPIES_B: Slot = Slot::at(0x8BC435); // dword_8BC435 .. : the settings' +0x1C ..
-const RHW_RVA: Slot = Slot::at(0x8C5F91); // dword_8C5F91
 const SCRATCH_RVA: usize = rva(0x62400C); // dword_62400C
 const VERTICES_RVA: usize = rva(0x9605A0); // g_polygonVertices
 const COUNT_RVA: usize = rva(0x6240F8); // g_polygonVertexCount
 const DRIFTING_RVA: Slot = Slot::at(0x7652A0); // dword_7652A0
 const ENTRIES: u32 = 5;
-const ENTRY_RVA: Slot = Slot::at(0x8BC489); // flt_8BC489: 5 of 12 bytes
-const LAST_RVA: Slot = Slot::at(0x8BC4C5); // dword_8BC4C5: 5 of 12 bytes
-const MOVE_RVA: Slot = Slot::at(0x8BC47D); // dword_8BC47D .. dword_8BC485
-const VIEW_RVA: Slot = Slot::at(0x8BDD7D); // dword_8BDD7D .. dword_8BDD85
-const DRIFT_RVA: Slot = Slot::at(0x8BC505); // dword_8BC505
-const DRIFT_K_RVA: Slot = Slot::at(0x8C5FB5); // flt_8C5FB5
 const CLOCK_RVA: usize = rva(0x613830); // g_sceneClock
-const NOISE_RVA: [Slot; 3] = [Slot::at(0x8BC511), Slot::at(0x8BC911), Slot::at(0x8BCD11)];
-const SPREAD_RVA: Slot = Slot::at(0x8BC429); // dword_8BC429
-const TURNED_RVA: Slot = Slot::at(0x8BDE3D); // flt_8BDE3D .. flt_8BDE45
-const KEPT_RVA: [Slot; 3] = [Slot::at(0x8BD111), Slot::at(0x8BD511), Slot::at(0x8BD911)];
 /// The render states set (value, state).
 const STATES: [(u32, u32); 5] = [(4, 0x15), (5, 0x13), (6, 0x14), (0, 0x1C), (1, 0x1B)];
 const COLOURS: [u32; 4] = [0xFF_FFFF, 0, 0x2800_0000, 0x28FF_FFFF];
@@ -59,35 +44,31 @@ unsafe fn get(a: u32) -> u32 {
 }
 
 /// The original's 0x4C18E7 .. 0x4C1935: the view's move since last frame, scaled, into its entry.
-unsafe fn box_moved(e: u32) {
-    unsafe { box_moved_x87(crate::marks::store::base() as usize, e as usize) }
+fn box_moved(i: usize) {
+    box_moved_x87(i, &RAIN, &RAIN_RULES)
 }
 
 /// The original's 0x4C1965 .. 0x4C1996: the move's length into `flt_8BDD5D`, compared with `flt_8C5FA1` (`fstsw` into `g_fpuStatus`).
 unsafe fn move_length() {
-    unsafe {
-        move_length_x87(
-            crate::race::store::asm_base() as usize,
-            crate::marks::store::base() as usize,
-        )
-    }
+    unsafe { move_length_x87(crate::race::store::asm_base() as usize, &RAIN, &RAIN_RULES) }
 }
 
 /// The original's 0x4C19AC .. 0x4C19F2: the move scaled to `flt_8C5FA5` over its length, times its three factors.
-unsafe fn move_held() {
-    unsafe { move_held_x87(crate::marks::store::base() as usize) }
+fn move_held() {
+    move_held_x87(&RAIN, &RAIN_RULES)
 }
 
 /// The original's 0x4C1A0A .. 0x4C1A1C: the view's y plus the drift (`fistp`) kept in its entry.
-unsafe fn keep_y(e: u32) {
-    unsafe { keep_y_x87(crate::marks::store::base() as usize, e as usize) }
+fn keep_y(i: usize) {
+    keep_y_x87(i, &RAIN)
 }
 
 /// The Rust version (see the header).
 pub unsafe fn run_rain() -> Result<(), Refused> {
     use crate::scene::set_render_state::set_render_state;
+    let r = &RAIN;
     unsafe {
-        let s: u32 = game_read(SETTINGS_RVA);
+        let s: u32 = crate::marks::setup::SETTINGS.pointer.get();
         if s == 0 {
             return Err(BadInput("no marks settings").into());
         }
@@ -95,20 +76,20 @@ pub unsafe fn run_rain() -> Result<(), Refused> {
             return Err(BadInput("a rain view entry past the five").into());
         }
         let mut drops = get(s + 0x2764) as i32;
-        game_write(DROPS_RVA, drops);
+        r.drops.set(drops as u32);
         if drops == 0 {
-            game_write(DRAWN_RVA, 0u32);
+            r.drawn.set(0);
             return Ok(());
         }
         if drops > MOST_DROPS {
             drops = MOST_DROPS;
-            game_write(DROPS_RVA, drops);
+            r.drops.set(drops as u32);
         }
         for n in 0..9 {
-            game_write(COPIES_A + 4 * n, get(s + 0x28 + 4 * n as u32));
+            r.view_matrix[n].set_bits(get(s + 0x28 + 4 * n as u32));
         }
         for n in 0..3 {
-            game_write(COPIES_B + 4 * n, get(s + 0x1C + 4 * n as u32));
+            r.view_place[n].set(get(s + 0x1C + 4 * n as u32));
         }
         crate::marks::place_view::place_view()?;
         crate::scene::depth_buffer_on::depth_buffer(false);
@@ -117,7 +98,7 @@ pub unsafe fn run_rain() -> Result<(), Refused> {
         }
         // `clear_texture`: what it returns went only to eax, which nothing here reads.
         crate::scene::clear_texture::clear_texture();
-        let rhw: u32 = game_read(RHW_RVA);
+        let rhw = RAIN_RULES.rhw.get();
         for (n, colour) in COLOURS.into_iter().enumerate() {
             let v = VERTICES_RVA + 0x20 * n;
             game_write(SCRATCH_RVA, rhw);
@@ -131,16 +112,13 @@ pub unsafe fn run_rain() -> Result<(), Refused> {
         if game_read::<u32>(DRIFTING_RVA) != 0 {
             crate::marks::drift_offsets::drift_offsets();
         }
-        let s: u32 = game_read(SETTINGS_RVA);
-        let e = get(s + 8) * 12;
+        let s: u32 = crate::marks::setup::SETTINGS.pointer.get();
+        let e = get(s + 8) as usize;
         if get(s + 0xC) != 0 || game_read::<u32>(DRIFTING_RVA) != 0 {
             box_moved(e);
         }
         for n in 0..3 {
-            game_write(
-                MOVE_RVA + 4 * n,
-                game_read::<u32>(ENTRY_RVA + e as usize + 4 * n),
-            );
+            r.motion[n].set_bits(r.moves[e][n].bits());
         }
         move_length();
         let status = game_read::<u32>(STATUS_RVA) & 0x700;
@@ -148,21 +126,19 @@ pub unsafe fn run_rain() -> Result<(), Refused> {
         if status != 0x100 {
             move_held();
         }
-        game_write(LAST_RVA + e as usize, game_read::<u32>(VIEW_RVA));
+        r.last_views[e][0].set(r.view[0].get());
         keep_y(e);
-        game_write(LAST_RVA + e as usize + 8, game_read::<u32>(VIEW_RVA + 8));
+        r.last_views[e][2].set(r.view[2].get());
         if game_read::<u32>(DRIFTING_RVA) != 0 {
             let clock = game_read::<u32>(CLOCK_RVA) & 0xF_FFFF;
-            game_write(
-                DRIFT_RVA,
-                x87::int_times_to_int(clock as i32, game_read(DRIFT_K_RVA)),
-            );
+            r.drift
+                .set(x87::int_times_to_int(clock as i32, RAIN_RULES.drift_k.bits()) as u32);
         }
         for k in (0..drops.max(0) as usize).rev() {
-            let drift: u32 = game_read(DRIFT_RVA);
-            let spread: u32 = game_read(SPREAD_RVA);
-            let view = |n: usize| game_read::<u32>(VIEW_RVA + 4 * n);
-            let noise = |n: usize| game_read::<u32>(NOISE_RVA[n] + 4 * k);
+            let drift = r.drift.get();
+            let spread = r.drift_halves[0].get();
+            let view = |n: usize| r.view[n].get();
+            let noise = |n: usize| r.noise[n][k].get();
             let x = noise(0).wrapping_add(view(0)).wrapping_add(spread);
             let y = noise(1).wrapping_add(drift).wrapping_add(view(1));
             let z = noise(2).wrapping_add(view(2)).wrapping_add(spread);
@@ -173,81 +149,80 @@ pub unsafe fn run_rain() -> Result<(), Refused> {
                 x87_run::int_80(x as i32, false),
             ];
             crate::marks::draw_streak::draw_streak(place)?;
-            let s: u32 = game_read(SETTINGS_RVA);
+            let s: u32 = crate::marks::setup::SETTINGS.pointer.get();
             if get(s + 0x10) != 0 {
-                for (n, kept) in KEPT_RVA.into_iter().enumerate() {
-                    let v: u32 = game_read(TURNED_RVA + 4 * n);
-                    game_write(kept + 4 * k, x87::to_int(v));
+                for (n, kept) in r.kept.iter().enumerate() {
+                    kept[k].set(x87::to_int(r.turned[n].bits()) as u32);
                 }
             }
         }
-        game_write(DRAWN_RVA, 1u32);
+        r.drawn.set(1);
     }
     Ok(())
 }
 
-use crate::marks::plain::{ld, ldi, st, st16, sti};
+use crate::marks::plain::st16;
 use crate::math::x87_float as bh;
 
 /// `box_moved`'s x87 block as plain Rust on the x87 model (13 instructions), same order and memory places.
-unsafe fn box_moved_x87(mk: usize, e: usize) {
-    unsafe {
-        let t0 = ldi(mk, 0x158E3D);
-        let t1 = t0 - ldi(mk, e.wrapping_add(0x157585));
-        let t2 = t1 * ld(mk, 0x161055);
-        st(mk, e.wrapping_add(0x157549), t2);
-        let t3 = ldi(mk, 0x158E41);
-        let t4 = t3 + ldi(mk, 0x1575C5);
-        let t5 = t4 - ldi(mk, e.wrapping_add(0x157589));
-        let t6 = t5 * ld(mk, 0x161059);
-        st(mk, e.wrapping_add(0x15754D), t6);
-        let t7 = ldi(mk, 0x158E45);
-        let t8 = t7 - ldi(mk, e.wrapping_add(0x15758D));
-        let t9 = t8 * ld(mk, 0x16105D);
-        st(mk, e.wrapping_add(0x157551), t9);
+fn box_moved_x87(i: usize, r: &RainState, k: &RainRules) {
+    {
+        let t0 = bh::int(r.view[0].get() as i32);
+        let t1 = t0 - bh::int(r.last_views[i][0].get() as i32);
+        let t2 = t1 * bh::ld(k.move_scale[0].bits());
+        r.moves[i][0].set_bits(bh::st(t2));
+        let t3 = bh::int(r.view[1].get() as i32);
+        let t4 = t3 + bh::int(r.drift.get() as i32);
+        let t5 = t4 - bh::int(r.last_views[i][1].get() as i32);
+        let t6 = t5 * bh::ld(k.move_scale[1].bits());
+        r.moves[i][1].set_bits(bh::st(t6));
+        let t7 = bh::int(r.view[2].get() as i32);
+        let t8 = t7 - bh::int(r.last_views[i][2].get() as i32);
+        let t9 = t8 * bh::ld(k.move_scale[2].bits());
+        r.moves[i][2].set_bits(bh::st(t9));
     }
 }
 
 /// `move_length`'s x87 block as plain Rust on the x87 model (12 instructions), same order and memory places.
-unsafe fn move_length_x87(rc: usize, mk: usize) {
+unsafe fn move_length_x87(rc: usize, r: &RainState, k: &RainRules) {
     unsafe {
-        let t0 = ld(mk, 0x15753D);
+        let t0 = bh::ld(r.motion[0].bits());
         let t1 = t0 * t0;
-        let t2 = ld(mk, 0x157541);
+        let t2 = bh::ld(r.motion[1].bits());
         let t3 = t2 * t2;
-        let t4 = ld(mk, 0x157545);
+        let t4 = bh::ld(r.motion[2].bits());
         let t5 = t4 * t4;
         let t6 = t3 + t5;
         let t7 = t1 + t6;
         let t8 = t7.sqrt();
-        st(mk, 0x158E1D, t8);
-        st16(rc, 0x31C814, bh::compare(t8, ld(mk, 0x161061)));
+        r.depth.set_bits(bh::st(t8));
+        st16(rc, 0x31C814, bh::compare(t8, bh::ld(k.move_limit.bits())));
     }
 }
 
 /// `move_held`'s x87 block as plain Rust on the x87 model (13 instructions), same order and memory places.
-unsafe fn move_held_x87(mk: usize) {
-    unsafe {
-        let t0 = ld(mk, 0x158E1D);
-        let t1 = ld(mk, 0x161065) / t0;
-        let t2 = t1 * ld(mk, 0x15753D);
-        let t3 = t2 * ld(mk, 0x161069);
-        st(mk, 0x15753D, t3);
-        let t4 = t1 * ld(mk, 0x157541);
-        let t5 = t4 * ld(mk, 0x16106D);
-        st(mk, 0x157541, t5);
-        let t6 = t1 * ld(mk, 0x157545);
-        let t7 = t6 * ld(mk, 0x161071);
-        st(mk, 0x157545, t7);
+fn move_held_x87(r: &RainState, k: &RainRules) {
+    {
+        let t0 = bh::ld(r.depth.bits());
+        let t1 = bh::ld(k.move_held.bits()) / t0;
+        let t2 = t1 * bh::ld(r.motion[0].bits());
+        let t3 = t2 * bh::ld(k.move_factors[0].bits());
+        r.motion[0].set_bits(bh::st(t3));
+        let t4 = t1 * bh::ld(r.motion[1].bits());
+        let t5 = t4 * bh::ld(k.move_factors[1].bits());
+        r.motion[1].set_bits(bh::st(t5));
+        let t6 = t1 * bh::ld(r.motion[2].bits());
+        let t7 = t6 * bh::ld(k.move_factors[2].bits());
+        r.motion[2].set_bits(bh::st(t7));
     }
 }
 
 /// `keep_y`'s x87 block as plain Rust on the x87 model (3 instructions), same order and memory places.
-unsafe fn keep_y_x87(mk: usize, e: usize) {
-    unsafe {
-        let t0 = ldi(mk, 0x158E41);
-        let t1 = t0 + ldi(mk, 0x1575C5);
-        sti(mk, e.wrapping_add(0x157589), t1);
+fn keep_y_x87(i: usize, r: &RainState) {
+    {
+        let t0 = bh::int(r.view[1].get() as i32);
+        let t1 = t0 + bh::int(r.drift.get() as i32);
+        r.last_views[i][1].set(bh::to_int(t1) as u32);
     }
 }
 
@@ -349,14 +324,15 @@ mod asm_differential {
     use super::asm_reference as reference;
     use crate::marks::asm_test::Kind::*;
     use crate::marks::asm_test::{Op, Spec, differential};
+    use crate::marks::rain::tests::with_state_at;
 
     #[test]
     fn box_moved_x87_matches() {
         const SPEC: Spec = Spec {
             operands: &[
                 Op::Base {
-                    lo: 0x157549,
-                    hi: 0x161061,
+                    lo: 0x1574C5,
+                    hi: 0x1610BD,
                     reads: &[
                         (0x157585, I32),
                         (0x157589, I32),
@@ -398,14 +374,14 @@ mod asm_differential {
                         (0x1575C9, F32),
                     ],
                 },
-                Op::Index(&[0, 12, 24, 60, 120]),
+                Op::Index(&[0, 12, 24, 36, 48]),
             ],
             sincos: false,
         };
         differential(
             &SPEC,
             |b| unsafe { reference::box_moved_x87(b[0], b[1]) },
-            |b| unsafe { super::box_moved_x87(b[0], b[1]) },
+            |b| with_state_at(b[0], |r, k| super::box_moved_x87(b[1] / 12, r, k)),
         );
     }
 
@@ -420,8 +396,8 @@ mod asm_differential {
                     writes: &[(0x31C814, Status)],
                 },
                 Op::Base {
-                    lo: 0x15753D,
-                    hi: 0x161065,
+                    lo: 0x1574C5,
+                    hi: 0x1610BD,
                     reads: &[
                         (0x15753D, F32),
                         (0x157541, F32),
@@ -436,7 +412,7 @@ mod asm_differential {
         differential(
             &SPEC,
             |b| unsafe { reference::move_length_x87(b[0], b[1]) },
-            |b| unsafe { super::move_length_x87(b[0], b[1]) },
+            |b| with_state_at(b[1], |r, k| unsafe { super::move_length_x87(b[0], r, k) }),
         );
     }
 
@@ -444,8 +420,8 @@ mod asm_differential {
     fn move_held_x87_matches() {
         const SPEC: Spec = Spec {
             operands: &[Op::Base {
-                lo: 0x15753D,
-                hi: 0x161075,
+                lo: 0x1574C5,
+                hi: 0x1610BD,
                 reads: &[
                     (0x15753D, F32),
                     (0x157541, F32),
@@ -463,7 +439,7 @@ mod asm_differential {
         differential(
             &SPEC,
             |b| unsafe { reference::move_held_x87(b[0]) },
-            |b| unsafe { super::move_held_x87(b[0]) },
+            |b| with_state_at(b[0], super::move_held_x87),
         );
     }
 
@@ -472,8 +448,8 @@ mod asm_differential {
         const SPEC: Spec = Spec {
             operands: &[
                 Op::Base {
-                    lo: 0x157589,
-                    hi: 0x158E45,
+                    lo: 0x1574C5,
+                    hi: 0x1610BD,
                     reads: &[(0x1575C5, I32), (0x158E41, I32)],
                     writes: &[
                         (0x157589, I32),
@@ -483,14 +459,14 @@ mod asm_differential {
                         (0x157601, I32),
                     ],
                 },
-                Op::Index(&[0, 12, 24, 60, 120]),
+                Op::Index(&[0, 12, 24, 36, 48]),
             ],
             sincos: false,
         };
         differential(
             &SPEC,
             |b| unsafe { reference::keep_y_x87(b[0], b[1]) },
-            |b| unsafe { super::keep_y_x87(b[0], b[1]) },
+            |b| with_state_at(b[0], |r, _| super::keep_y_x87(b[1] / 12, r)),
         );
     }
 }

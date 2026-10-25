@@ -14,15 +14,13 @@
 //! registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, rva};
+use crate::menu::event_store::EVENT_STATE;
 use crate::menu::lists_store::MENU_LISTS;
-
-const CURRENT_PLAYER_RVA: usize = rva(0x75598C); // dword_75598C
 
 /// The Rust version (see the header). The conversion's carry (fatal error 0x80712435) is
 /// never set by `gfx::convert_picture`'s Rust version, which refuses instead.
 pub unsafe fn load_background() -> Result<(), Refused> {
-    let player = crate::menu::player::player_at(unsafe { game_read(CURRENT_PLAYER_RVA) });
+    let player = crate::menu::player::player_at(EVENT_STATE.current_player.get());
     if player == 0 {
         return Err(BadInput("no current player (or one past the four)").into());
     }

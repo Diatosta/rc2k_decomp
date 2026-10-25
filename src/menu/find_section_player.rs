@@ -8,10 +8,9 @@
 //! Callers: `sub_4A14CB`, `sub_4A9439`. Refuses a missing player, before anything.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, rva};
+use crate::menu::event_store::EVENT_STATE;
 use crate::menu::standings::*;
 
-const SECTION_RVA: usize = rva(0x75595C); // section
 /// What `find_section_player` finds, as the original leaves it in the registers: eax the
 /// section, ecx the player's index (`u32::MAX` for none), edi its record (player 4's for
 /// none).
@@ -28,7 +27,7 @@ pub unsafe fn find_section_player() -> Result<SectionPlayer, Refused> {
         return Err(BadInput("a missing player").into());
     }
     // Converted: `rc2k_core::menu::points::section_player`.
-    let section: u32 = unsafe { game_read(SECTION_RVA) };
+    let section: u32 = { EVENT_STATE.section.get() };
     let done: [u32; 4] = std::array::from_fn(|n| {
         get(player(n as u32)
             .wrapping_add(section.wrapping_mul(4))

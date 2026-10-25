@@ -24,28 +24,17 @@
 //! reference.
 
 use crate::audio::store::AUDIO;
+use crate::d3d::cards_store::CARDS_3D;
 use crate::errors::BadInput;
-use crate::framework::rva;
-use crate::store::{game_addr, game_write};
+use crate::install::vars::INSTALLER_PATHS;
+use crate::install::vars::INSTALLER_RUN;
+use crate::session::Dword;
+use crate::system::start_texts::START_TEXTS;
 use windows_sys::Win32::System::Environment::GetCommandLineA;
 use windows_sys::Win32::UI::WindowsAndMessaging::MessageBoxA;
 
 // ---- game data ----
 
-const PROGRAM_RVA: usize = rva(0x518BA8); // dword_518BA8
-const PROGRAM_LEN_RVA: usize = rva(0x518BAC); // dword_518BAC
-const SWITCH_U_RVA: usize = rva(0x51B9CC); // dword_51B9CC
-const INSTALLING_RVA: usize = rva(0x51B9E0); // g_installing
-const SWITCH_I_RVA: usize = rva(0x51B9D0); // dword_51B9D0
-const SWITCH_I_TOO_RVA: usize = rva(0x51BA04); // dword_51BA04
-const I_FIRST_RVA: usize = rva(0x95E6F8); // byte_95E6F8
-const I_SECOND_RVA: usize = rva(0x95E7F8); // byte_95E7F8
-const I_THIRD_RVA: usize = rva(0x51BA08); // dword_51BA08
-const I_FOURTH_RVA: usize = rva(0x51BA0C); // dword_51BA0C
-const IGNORE_SECONDARY_RVA: usize = rva(0x5AB954); // dword_5AB954
-const IGNORE_PRIMARY_RVA: usize = rva(0x5AB950); // dword_5AB950
-const VERSION_RVA: usize = rva(0x4E0000); // "$VER: Rally 5.30 (4.8.2000)"
-const SECOND_TEXT_RVA: usize = rva(0x4E0077); // byte_4E0077
 const EXIT_PATH: usize = 0x401116;
 
 // ---- Rust version ----
@@ -66,10 +55,10 @@ pub unsafe fn show_version_and_leave() -> ! {
             .cast::<u8>()
             .add(5)
             .write(0); // byte_4F6702: its `:`
-        let c_text = |at: usize| std::ffi::CStr::from_ptr(game_addr(at) as *const _).to_bytes();
-        let mut text = c_text(VERSION_RVA + 6).to_vec();
+        let c_text = |at: usize| std::ffi::CStr::from_ptr(at as *const _).to_bytes();
+        let mut text = c_text(START_TEXTS.version.addr() + 6).to_vec();
         text.extend(*b"\t\r\n");
-        text.extend(c_text(SECOND_TEXT_RVA));
+        text.extend(c_text(START_TEXTS.second_text.addr()));
         text.push(0);
         let place = crate::fatal::state::TEXT.ptr().cast::<u8>(); // Text
         std::ptr::copy(text.as_ptr(), place, text.len());
@@ -89,11 +78,13 @@ pub unsafe fn read_command_line(line: *const u8) -> Result<Asked, BadInput> {
     // anything is written (a refused `-i` word now leaves nothing written).
     unsafe {
         let sw = rc2k_core::system::command_line::read(&crate::bridge::Raw::new(line))?;
-        game_write(PROGRAM_RVA, line.wrapping_add(sw.program.0) as u32);
-        game_write(PROGRAM_LEN_RVA, sw.program.1 as u32);
+        COMMAND_LINE
+            .program
+            .set(line.wrapping_add(sw.program.0) as u32);
+        COMMAND_LINE.program_len.set(sw.program.1 as u32);
         for (on, place) in [
-            (sw.u, game_addr(SWITCH_U_RVA)),
-            (sw.installing, game_addr(INSTALLING_RVA)),
+            (sw.u, INSTALLER_RUN.updating.addr()),
+            (sw.installing, INSTALLER_RUN.installing.addr()),
             (sw.no_audio, AUDIO.no_audio.addr()),
         ] {
             if on {
@@ -101,19 +92,25 @@ pub unsafe fn read_command_line(line: *const u8) -> Result<Asked, BadInput> {
             }
         }
         for i in &sw.install {
-            game_write(SWITCH_I_RVA, 1u32);
-            game_write(SWITCH_I_TOO_RVA, 1u32);
-            for (place, (start, len)) in [I_FIRST_RVA, I_SECOND_RVA].into_iter().zip(i.words) {
-                std::ptr::copy(line.wrapping_add(start), game_addr(place) as *mut u8, len);
+            INSTALLER_RUN.from_command.set(1u32);
+            INSTALLER_RUN.ignore_room.set(1u32);
+            for (place, (start, len)) in [
+                INSTALLER_PATHS.game_dir.addr(),
+                INSTALLER_PATHS.installed.addr(),
+            ]
+            .into_iter()
+            .zip(i.words)
+            {
+                std::ptr::copy(line.wrapping_add(start), place as *mut u8, len);
             }
-            game_write(I_THIRD_RVA, i.digits[0]);
-            game_write(I_FOURTH_RVA, i.digits[1]);
+            INSTALLER_RUN.given_mode.set(i.digits[0]);
+            INSTALLER_RUN.given_language.set(i.digits[1]);
         }
         if sw.ignore_secondary {
-            game_write(IGNORE_SECONDARY_RVA, 1u32);
+            CARDS_3D.ignore_secondary.set(1u32);
         }
         if sw.ignore_primary {
-            game_write(IGNORE_PRIMARY_RVA, 1u32);
+            CARDS_3D.not_primary.set(1u32);
         }
         Ok(if sw.version {
             Asked::Version
@@ -132,4 +129,43 @@ pub unsafe fn read_own_command_line() -> Result<(), BadInput> {
         }
     }
     Ok(())
+}
+
+/// The program's name on the command line (IDA 0x518BA8 .. 0x518BB0, the image's layout).
+#[repr(C)]
+pub struct CommandLine {
+    /// 0x518BA8: `dword_518BA8`: the program's name (a pointer into the command line; `system::read_command_line`).
+    pub program: Dword,
+    /// 0x518BAC: `dword_518BAC`: its length.
+    pub program_len: Dword,
+}
+
+pub static COMMAND_LINE: CommandLine = CommandLine {
+    program: Dword::new(0x0),
+    program_len: Dword::new(0x0),
+};
+
+impl CommandLine {
+    pub const START: usize = 0x518BA8;
+    pub const LEN: usize = 0x8;
+    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
+    pub fn home() -> usize {
+        &COMMAND_LINE as *const CommandLine as usize
+    }
+}
+
+#[cfg(test)]
+mod command_line_tests {
+    use super::*;
+
+    #[test]
+    fn commandline_starts_as_the_games() {
+        let size = size_of::<CommandLine>();
+        assert!(CommandLine::LEN <= size && size <= (CommandLine::LEN).next_multiple_of(4));
+        let image = crate::moved::image_bytes(CommandLine::START, CommandLine::LEN);
+        let mine = unsafe {
+            std::slice::from_raw_parts(CommandLine::home() as *const u8, CommandLine::LEN)
+        };
+        assert_eq!(mine, &image[..]);
+    }
 }

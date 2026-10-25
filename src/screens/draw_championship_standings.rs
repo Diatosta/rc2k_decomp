@@ -25,33 +25,27 @@
 //! original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, rva};
+use crate::menu::champ_store::CHAMP_VIEW;
 use crate::menu::ranked_lookups::find_champ_position;
 use crate::screens::best_scores::section_there;
 use crate::text::draw_text::Canvas;
 
-const HISTORY_RVA: usize = rva(0x7556F0); // g_champHistory
-const FIRST_ROW_RVA: usize = rva(0x7556B8); // g_champFirstRow
 // g_champRow
 // g_champRowEnd
-const EVENT_MODE_RVA: usize = rva(0x7556D0); // g_eventMode
-fn g(a: usize) -> u32 {
-    unsafe { game_read(a) }
-}
 fn get(a: u32) -> u32 {
     unsafe { (a as *const u32).read_unaligned() }
 }
 
 /// The Rust version.
 pub unsafe fn draw_championship_standings(canvas: &mut dyn Canvas) -> Result<(), Refused> {
-    let history = g(HISTORY_RVA);
+    let history = CHAMP_VIEW.champ_history.get();
     if history == 0 {
         return Err(BadInput("no championship history").into());
     }
     if !section_there() {
         return Err(BadInput("a section past the record table").into());
     }
-    let first_row = g(FIRST_ROW_RVA);
+    let first_row = CHAMP_VIEW.first_row.get();
     let end = first_row.wrapping_add(10);
     let mut rows = Vec::new();
     let mut row = first_row;
@@ -78,7 +72,7 @@ pub unsafe fn draw_championship_standings(canvas: &mut dyn Canvas) -> Result<(),
     championship_standings(
         &mut crate::screens::game_screen::GameScreen::new(canvas),
         first_row,
-        g(EVENT_MODE_RVA) == 0x13,
+        CHAMP_VIEW.event_mode.get() == 0x13,
         &rows,
     )?;
     Ok(())

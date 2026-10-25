@@ -161,7 +161,7 @@ const ALL_STEPS: [(Slot, Slot, Slot, Slot); 2] = [
 pub unsafe fn turn_all_shapes() -> Result<(), Refused> {
     use crate::marks::turns::{smooth_pair, smooth_steps};
     unsafe {
-        let settings: u32 = game_read(crate::marks::lines::SETTINGS_RVA);
+        let settings: u32 = crate::marks::setup::SETTINGS.pointer.get();
         let count = get(settings + 0x26B8) as i32;
         let pick = |n: usize, (first, second): (u32, u32)| -> u32 {
             if game_read::<u32>(ALL_STEPS[n].3) == 0 {
@@ -375,7 +375,7 @@ pub unsafe fn make_shape_sets() -> Result<(), Refused> {
         if kind >= SETS {
             return Err(BadInput("a marks' kind of 0x22 or more").into());
         }
-        let settings: u32 = game_read(crate::marks::lines::SETTINGS_RVA);
+        let settings: u32 = crate::marks::setup::SETTINGS.pointer.get();
         let count = get(settings + 0x26B8) as i32;
         if count > 19 {
             return Err(BadInput("more than 19 shape objects").into());

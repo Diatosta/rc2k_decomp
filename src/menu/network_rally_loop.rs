@@ -12,7 +12,16 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{game_read, game_write, rva};
+use crate::framework::rva;
+use crate::menu::captions_store::CAPTIONS;
+use crate::menu::draw_lists_store::DRAW_LISTS;
+use crate::menu::draw_work_store::DRAW_WORK;
+use crate::menu::flow_store::SCREEN_FLOW;
+use crate::menu::loop_store::LOOP_FLAGS;
+use crate::menu::menus_store::MENUS;
+use crate::menu::option_work_store::OPTION_WORK;
+use crate::menu::screen_items_store::{SCREEN_ITEMS, slot};
+use crate::menu::screen_loop::raw;
 use crate::menu::screen_loop::{Callee, Carried, List, Screen, Step, carousel, screen_entry};
 use crate::menu::state_store::MENU_STATE;
 
@@ -20,11 +29,11 @@ use crate::menu::state_store::MENU_STATE;
 
 unsafe fn set_up_first(c: &mut Carried) -> Result<(), Refused> {
     unsafe {
-        game_write(rva(0x7554EC), 0x1u32);
+        SCREEN_FLOW.turning.set(0x1u32);
         MENU_STATE.carousel.menu.set(0x6u32);
         carousel(c)?;
-        c.arg = game_read(rva(0x7476A0));
-        game_write(rva(0x755525), c.arg);
+        c.arg = SCREEN_ITEMS.current[slot::NETWORK_RALLY].get();
+        LOOP_FLAGS.item.set(c.arg);
         c.arg = c.arg.wrapping_sub(1);
         MENU_STATE.carousel.front.set(c.arg);
     }
@@ -32,22 +41,22 @@ unsafe fn set_up_first(c: &mut Carried) -> Result<(), Refused> {
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: rva(0x749118),
-    saved_item: rva(0x7476A0),
+    menu: || MENUS.network_rally.addr(),
+    saved_item: || &SCREEN_ITEMS.current[slot::NETWORK_RALLY],
     lists: &[
         List {
-            pointer: rva(0x755504), // g_sceneList
-            table: rva(0x758F56),
+            pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
+            table: || DRAW_LISTS.network_rally_scene.addr(),
             run: false,
         },
         List {
-            pointer: rva(0x7554F8), // g_drawList
-            table: rva(0x758C26),
+            pointer: || &SCREEN_FLOW.draw_list, // g_drawList
+            table: || DRAW_LISTS.network_rally_draw.addr(),
             run: false,
         },
         List {
-            pointer: rva(0x7554FC), // g_overlayList
-            table: rva(0x75919A),
+            pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
+            table: || DRAW_LISTS.network_rally_overlay.addr(),
             run: false,
         },
     ],
@@ -59,13 +68,17 @@ pub const SCREEN: Screen = Screen {
     prepare: &[],
     after_lists: &[],
     background: &[
-        Step::ArgAddr(rva(0x731CC1)),
+        Step::ArgAddr(|| {
+            crate::menu::texts_store::MENU_TEXTS
+                .network_rally_picture
+                .addr()
+        }),
         Step::CallOrFatal(Callee::LoadBackground, 0x80712345),
     ],
     after_first_frame: &[
-        Step::Write(rva(0x623FB0), 0x7),
-        Step::Write(rva(0x623FB4), 0xA),
-        Step::Write(rva(0x624080), 0x100),
+        Step::Write(|| raw(rva(0x623FB0)), 0x7),
+        Step::Write(|| raw(rva(0x623FB4)), 0xA),
+        Step::Write(|| raw(rva(0x624080)), 0x100),
         Step::Call(Callee::PrepareScene),
     ],
     confirm: None,
@@ -73,11 +86,11 @@ pub const SCREEN: Screen = Screen {
     confirmed: &[],
     unasked_skips_save: false,
     after: &[
-        Step::Write(rva(0x758806), 0x0),
-        Step::Write(rva(0x755569), 0x0),
-        Step::Write(rva(0x755A3C), 0x0),
-        Step::Write(rva(0x7556A4), 0x6F),
-        Step::Write(rva(0x755561), 0x0),
+        Step::Write(|| &CAPTIONS.screen_left, 0x0),
+        Step::Write(|| &LOOP_FLAGS.ended_a, 0x0),
+        Step::Write(|| &DRAW_WORK.escaped, 0x0),
+        Step::Write(|| &OPTION_WORK.menu_sound, 0x6F),
+        Step::Write(|| &LOOP_FLAGS.back, 0x0),
     ],
     escape_leaves: false,
     each_frame: &[],

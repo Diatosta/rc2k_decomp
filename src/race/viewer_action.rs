@@ -34,12 +34,13 @@
 //! the original moves memory by a negative count).
 
 use crate::errors::Refused;
+use crate::install::vars::INSTALLER_PAGES;
 use crate::menu::screen_loop::Carried;
 use crate::physics::flow::a;
 use crate::race::viewer::{
     BLOCK, BLOCKS, CAMERA_EDIT, CAMERAS, CLIP_BLOCKS, CLIP_CAMERAS, CLIP_PLACES, FRAME,
-    KEY_AFTER_PLAY, LAST_RACE_VIEWED, LIST_LEAVE, MARK_IN, MARK_OUT, ONE_PLAYER, OPEN, PLACES,
-    PLAY_FROM_HERE, SLOT, SNAPSHOT, get, move_dwords, pb, put,
+    KEY_AFTER_PLAY, LAST_RACE_VIEWED, MARK_IN, MARK_OUT, ONE_PLAYER, OPEN, PLACES, PLAY_FROM_HERE,
+    SLOT, SNAPSHOT, get, move_dwords, put,
 };
 
 /// The Rust version: whether the action is one (the zero flag the original leaves; it
@@ -256,7 +257,7 @@ fn another_replay(r: &mut Carried) -> Result<(), Refused> {
             if get(OPEN) == 1 {
                 return crate::race::viewer_load_stage::viewer_load_stage();
             }
-            pb(LIST_LEAVE, 1);
+            INSTALLER_PAGES.list_leave.set(1);
             return Ok(());
         }
         put(SLOT, r.arg);

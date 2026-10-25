@@ -22,16 +22,42 @@
 //! (`routes.rs`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{game_addr, game_read, log, rva};
+use crate::framework::log;
 use crate::session::SCREEN;
 use rc2k_core::menu::films::{self, Film, Flags, Step};
 
 // ---- game data ----
 
-const NO_FMV_RVA: usize = rva(0x5BE870); // g_noFmv
-const AL_LOGO_RVA: usize = rva(0x529822); // ";3files\fmv\allogo.avi"
-const MF_LOGO_RVA: usize = rva(0x52980B); // ";3files\fmv\mflogo.mpg"
-const INTRO_RVA: usize = rva(0x5297F5); // ";3files\fmv\intro.mpg"
+/// IDA's address of the films' names.
+pub const FILMS_START: usize = 0x5297F5;
+/// Their length.
+pub const FILMS_LEN: usize = 0x52983C - FILMS_START;
+
+/// The films' file names.
+#[repr(C)]
+pub struct Films {
+    /// `a3filesFmvIntro` (`0x5297F5`).
+    pub intro: crate::session::Bytes<22>,
+    /// `a3filesFmvMflog` (`0x52980B`).
+    pub mflogo: crate::session::Bytes<23>,
+    /// `a3filesFmvAllog` (`0x529822`).
+    pub allogo: crate::session::Bytes<23>,
+    /// `0x529839` .. `0x52983C`: nothing reads or writes them (a gap).
+    pub _gap_44: crate::session::Bytes<3>,
+}
+
+/// The films' names (the leading `;3` is the game's own marker for the file functions).
+pub static FILMS: Films = Films {
+    intro: crate::session::Bytes::new(*b";3files\\fmv\\intro.mpg\0"),
+    mflogo: crate::session::Bytes::new(*b";3files\\fmv\\mflogo.mpg\0"),
+    allogo: crate::session::Bytes::new(*b";3files\\fmv\\allogo.avi\0"),
+    _gap_44: crate::session::Bytes::new([0; 3]),
+};
+
+/// Where the names are (`moved::MOVED`'s home for IDA 0x5297F5).
+pub fn films_home() -> usize {
+    &FILMS as *const Films as usize
+}
 
 // ---- Rust version ----
 
@@ -43,10 +69,10 @@ struct Game {
 }
 
 fn film(f: Film) -> u32 {
-    game_addr(match f {
-        Film::AlLogo => AL_LOGO_RVA,
-        Film::MfLogo => MF_LOGO_RVA,
-        Film::Intro => INTRO_RVA,
+    (match f {
+        Film::AlLogo => FILMS.allogo.addr(),
+        Film::MfLogo => FILMS.mflogo.addr(),
+        Film::Intro => FILMS.intro.addr(),
     }) as u32
 }
 
@@ -107,7 +133,7 @@ impl Game {
 
 impl films::Films for Game {
     fn no_fmv(&mut self) -> bool {
-        unsafe { game_read::<u32>(NO_FMV_RVA) != 0 }
+        crate::film::NO_FMV.get() != 0
     }
 
     fn screen_bits(&mut self) -> u32 {
@@ -149,5 +175,17 @@ pub fn play_films(idle: bool) -> Result<(), Refused> {
     match game.failed {
         Some(e) => Err(e),
         None => Ok(()),
+    }
+}
+
+#[cfg(test)]
+mod films_tests {
+    use super::*;
+
+    #[test]
+    fn first_values_are_the_games() {
+        crate::gfx::first_values_are_the_games(&FILMS, FILMS_START, FILMS_START + FILMS_LEN);
+        assert_eq!(crate::moved::place(0x52980B), FILMS.mflogo.addr());
+        assert_eq!(crate::moved::place(0x529822), FILMS.allogo.addr());
     }
 }

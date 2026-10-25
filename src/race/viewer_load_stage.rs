@@ -22,16 +22,15 @@
 //! read none.
 
 use crate::errors::Refused;
-use crate::physics::flow::a;
+use crate::gfx::fonts_store::FONTS;
 use crate::race::state_store::RACE_STATE;
 use crate::race::viewer::{OPEN, gb, get, put};
 use crate::session::Dword;
 
 const LOADED: usize = 0x5BECC0; // dword_5BECC0: the viewer's stage is loaded
 pub const FONTS_BUILT: usize = 0x5BECC4; // dword_5BECC4: the viewer built the fonts
-const FONT_PALETTES: usize = 0x51DEB0; // g_fontPalettes
 const DOOR: usize = 0x719C8C; // byte_719C8C
-const DOOR_TEXT: usize = 0x4DB12C; // "doornr="
+const DOOR_TEXT: &std::ffi::CStr = c"doornr="; // "doornr="
 /// (to, from): the header's settings.
 const SETTINGS: [(&Dword, usize); 5] = [
     (&RACE_STATE.settings.run_kind, 0x719B18),
@@ -70,12 +69,12 @@ pub fn viewer_load_stage() -> Result<(), Refused> {
         RACE_STATE.settings.cars[0].race_number.set(door);
         put(0x70FE94, door); // g_carBlockStore.gap_a28 + 0x80
         unsafe {
-            crate::logfile::log_write::log_write(a(DOOR_TEXT) as *const u8, false, 1);
+            crate::logfile::log_write::log_write(DOOR_TEXT.as_ptr().cast(), false, 1);
             crate::logfile::log_int::log_int(door as i32, true, 1);
         }
         sound_tables::set_up_race_sound_objects(&sound_tables::ObjectVars::game())?;
         crate::sound::set_up_race_sounds::set_up_race_sounds()?;
-        if get(FONT_PALETTES) == 0 {
+        if FONTS.palettes.get() == 0 {
             unsafe { crate::gfx::build_fonts::build_fonts() }?;
             put(FONTS_BUILT, 1);
         }

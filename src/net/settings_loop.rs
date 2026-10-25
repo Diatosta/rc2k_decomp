@@ -15,9 +15,8 @@
 //! Out: nothing (the original keeps every register: `pusha` .. `popa`)
 
 use crate::errors::Refused;
-use crate::net::lobby::{
-    CHOICE, FRAME_CLOCK, KEY_CLOCK, MOVE_CLOCK, g, list_key, other_key, p, run_frame,
-};
+use crate::install::vars::INSTALLER_PAGES;
+use crate::net::lobby::{list_key, other_key, run_frame};
 use crate::net::store::NET;
 use crate::session::CLOCKS;
 use crate::session::FLAGS;
@@ -28,13 +27,13 @@ pub fn settings_loop() -> Result<(), Refused> {
     crate::net::show_background::show_background()?;
     crate::net::settings_done::settings_done()?;
     let now = CLOCKS.key_ticks.get();
-    p(MOVE_CLOCK, now);
-    p(KEY_CLOCK, now);
+    INSTALLER_PAGES.move_clock.set(now);
+    INSTALLER_PAGES.key_clock.set(now);
     NET.edited.set(u32::MAX);
-    p(CHOICE, 0);
+    INSTALLER_PAGES.choice.set(0);
     loop {
         run_frame(crate::net::settings_frame::settings_frame)?;
-        p(FRAME_CLOCK, CLOCKS.key_ticks.get());
+        INSTALLER_PAGES.frame_clock.set(CLOCKS.key_ticks.get());
         let key = list_key()?;
         let mut moved = false;
         if NET.edited.get() != u32::MAX {
@@ -42,22 +41,26 @@ pub fn settings_loop() -> Result<(), Refused> {
         } else {
             match key {
                 0x66 => {
-                    let c = g(CHOICE).wrapping_sub(1);
-                    p(CHOICE, if (c as i32) < 0 { 0 } else { c });
+                    let c = INSTALLER_PAGES.choice.get().wrapping_sub(1);
+                    INSTALLER_PAGES
+                        .choice
+                        .set(if (c as i32) < 0 { 0 } else { c });
                     moved = true;
                 }
                 0x6B => {
-                    let c = g(CHOICE).wrapping_add(1);
-                    p(CHOICE, if (c as i32) > 4 { 4 } else { c });
+                    let c = INSTALLER_PAGES.choice.get().wrapping_add(1);
+                    INSTALLER_PAGES
+                        .choice
+                        .set(if (c as i32) > 4 { 4 } else { c });
                     moved = true;
                 }
                 0x1C => {
-                    if g(CHOICE) == 4 {
+                    if INSTALLER_PAGES.choice.get() == 4 {
                         break;
                     }
-                    if g(CHOICE) == 0 {
+                    if INSTALLER_PAGES.choice.get() == 0 {
                         crate::net::settings_link::settings_link()?;
-                        p(CHOICE, 0);
+                        INSTALLER_PAGES.choice.set(0);
                     } else {
                         crate::net::begin_setting_edit::begin_setting_edit();
                     }
@@ -68,12 +71,14 @@ pub fn settings_loop() -> Result<(), Refused> {
             }
         }
         if moved {
-            p(MOVE_CLOCK, g(FRAME_CLOCK));
+            INSTALLER_PAGES
+                .move_clock
+                .set(INSTALLER_PAGES.frame_clock.get());
         }
         if FLAGS.quitting.get() == 1 {
             break;
         }
     }
-    p(CHOICE, u32::MAX);
+    INSTALLER_PAGES.choice.set(u32::MAX);
     Ok(())
 }

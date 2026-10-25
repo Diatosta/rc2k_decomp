@@ -10,12 +10,12 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, game_write, rva};
+use crate::framework::rva;
+use crate::menu::event_store::EVENT_STATE;
+use crate::menu::flow_store::SCREEN_FLOW;
 use crate::menu::player::{Player, player_at};
-use crate::menu::take_shown_car::CURRENT_PLAYER_RVA;
 use crate::screens::car_caption::put_string;
 
-pub const KEPT_RVA: usize = rva(0x7554F0); // dword_7554F0
 pub const TEXT_RVA: usize = rva(0xA8BF54); // byte_A8BF54
 pub const TEXT_LEN: usize = 0x100;
 const FIRST_STRING: u32 = 0x21F;
@@ -23,7 +23,7 @@ const FIRST_STRING: u32 = 0x21F;
 const _: () = assert!(std::mem::offset_of!(Player, gearing) == 0x30);
 
 pub fn current() -> Result<u32, Refused> {
-    let n: u32 = unsafe { game_read(CURRENT_PLAYER_RVA) };
+    let n: u32 = { EVENT_STATE.current_player.get() };
     let p = player_at(n);
     if n >= 4 || p == 0 {
         return Err(BadInput("a current player past the four").into());
@@ -35,7 +35,7 @@ pub unsafe fn gearing_text() -> Result<(), Refused> {
     let value = unsafe { (*(current()? as *const Player)).gearing };
     unsafe {
         put_string(FIRST_STRING.wrapping_add(value), TEXT_RVA, TEXT_LEN)?;
-        game_write(KEPT_RVA, value);
+        SCREEN_FLOW.shown_gearing.set(value);
     }
     Ok(())
 }
@@ -45,11 +45,11 @@ pub unsafe fn gearing_text() -> Result<(), Refused> {
 pub unsafe fn step_gearing(on: bool) -> Result<(), Refused> {
     let p = current()?;
     unsafe {
-        let kept: i32 = game_read(KEPT_RVA);
+        let kept = SCREEN_FLOW.shown_gearing.get() as i32;
         // Converted: `rc2k_core::screens::captions::step_gearing`.
         let value = rc2k_core::screens::captions::step_gearing(kept, on);
         put_string(FIRST_STRING.wrapping_add(value), TEXT_RVA, TEXT_LEN)?;
-        game_write(KEPT_RVA, value);
+        SCREEN_FLOW.shown_gearing.set(value);
         (*(p as *mut Player)).gearing = value;
     }
     Ok(())

@@ -27,7 +27,7 @@
 //! reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, rva};
+use crate::files::scratch::SCRATCH;
 use crate::session::MACHINE;
 use core::arch::x86::{__cpuid, _rdtsc};
 use rc2k_core::system::processor::{Var, test};
@@ -35,7 +35,6 @@ use windows_sys::Win32::System::SystemInformation::GetTickCount;
 
 // ---- game data ----
 
-const FPU_WORD_RVA: usize = rva(0x93E8B0); // g_pngInfo's first word
 // ---- Rust version ----
 
 /// Whether toggling `bit` in the flags changes them (`pushf` .. `popf` .. `pushf`); the
@@ -125,7 +124,7 @@ fn place(v: Var) -> usize {
         Var::HasSse => m.found_sse.addr(),
         Var::Has3dNow => m.found_3dnow.addr(),
         Var::Resume => m.exception_resume.addr(),
-        Var::FpuWord => game_addr(FPU_WORD_RVA),
+        Var::FpuWord => SCRATCH.buffer.addr(),
     }
 }
 

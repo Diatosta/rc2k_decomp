@@ -19,6 +19,7 @@ pub mod same_guid;
 pub mod set_error_mode;
 pub mod set_priority_class;
 pub mod sleep;
+pub mod start_texts;
 pub mod test_processor;
 pub mod tick_count;
 pub mod wait_or_key;

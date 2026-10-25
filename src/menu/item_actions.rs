@@ -20,23 +20,12 @@
 //! registers their last call leaves
 
 use crate::errors::Refused;
-use crate::framework::{game_read, game_write, rva};
+use crate::menu::arcade_store::ARCADE_GAME;
+use crate::menu::event_store::EVENT_STATE;
+use crate::menu::pages_store::MENU_PAGES;
 use crate::menu::screen_loop::{Carried, run_screen};
 use crate::menu::state_store::MENU_STATE;
 use crate::race::state_store::RACE_STATE;
-
-const SAVE_PAGE_RVA: usize = rva(0x75523C); // dword_75523C: the save list's page
-const EVENT_TYPE_RVA: usize = rva(0x755954); // g_eventType
-const ARCADE_LEVEL_RVA: usize = rva(0x7587EC); // g_arcadeLevel
-const ARCADE_STAGE_RVA: usize = rva(0x7587F0); // g_arcadeStage
-
-fn g(at: usize) -> u32 {
-    unsafe { game_read(at) }
-}
-
-fn p(at: usize, v: u32) {
-    unsafe { game_write(at, v) }
-}
 
 // ---- the Rust versions ----
 
@@ -49,10 +38,12 @@ pub fn show_intro() -> Result<(), Refused> {
 
 pub fn previous_save_page() {
     // Converted: `rc2k_core::menu::steps::savegame_page`.
-    p(
-        SAVE_PAGE_RVA,
-        rc2k_core::menu::steps::savegame_page(g(SAVE_PAGE_RVA), false),
-    );
+    MENU_PAGES
+        .save_page
+        .set(rc2k_core::menu::steps::savegame_page(
+            MENU_PAGES.save_page.get(),
+            false,
+        ));
 }
 
 /// The steering (page 3) or brake (page 4) box.
@@ -68,7 +59,8 @@ pub fn open_service_box(page: u32) {
 /// item gets.
 pub unsafe fn view_stage_details(c: &Carried) -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::stage_screens::time_trial_details`.
-    let time_trial = rc2k_core::menu::stage_screens::time_trial_details(g(EVENT_TYPE_RVA));
+    let time_trial =
+        rc2k_core::menu::stage_screens::time_trial_details(EVENT_STATE.event_type.get());
     unsafe {
         if time_trial {
             run_screen(&crate::menu::time_trial_stage_details_loop::SCREEN, c)?;
@@ -97,8 +89,8 @@ pub fn new_simulation_if_unlocked() -> Result<(), Refused> {
 /// `menu::start_arcade`: the arcade's level and stage 0, the first player's units taken
 /// and the arcade event run. `c` the carried values the item gets.
 pub unsafe fn start_arcade(c: &Carried) -> Result<(), Refused> {
-    p(ARCADE_LEVEL_RVA, 0);
-    p(ARCADE_STAGE_RVA, 0);
+    ARCADE_GAME.level.set(0);
+    ARCADE_GAME.stage.set(0);
     crate::menu::take_player1_units::take_player1_units()?;
     unsafe { crate::menu::arcade_event::arcade_event(c) }
 }

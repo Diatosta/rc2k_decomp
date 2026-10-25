@@ -12,7 +12,6 @@ use crate::scene::objects::{
 };
 use rc2k_core::marks::lines as core;
 
-pub const SETTINGS_RVA: Slot = Slot::at(0x767A28); // g_marksSettings
 /// The last line's x, y, z differences (`dword_93C870` .. `dword_93C878`).
 pub const DIFFERENCE_RVA: Slot = Slot::at(0x93C870);
 pub const CURRENT_RVA: Slot = Slot::at(0x93C8A8); // dword_93C8A8: the block being measured
@@ -143,7 +142,7 @@ unsafe fn measured(settings: u32, every: bool) -> Result<Vec<(u32, u32, u32, u32
 // stay x87: its `finit` between)
 pub unsafe fn measure_lines() -> Result<(), Refused> {
     unsafe {
-        let settings: u32 = game_read(SETTINGS_RVA);
+        let settings: u32 = crate::marks::setup::SETTINGS.pointer.get();
         let every = game_read::<u32>(EVERY_RVA) == 1;
         let blocks = measured(settings, every)?;
         game_write(ANY_RVA, 0u32);
@@ -219,12 +218,12 @@ fn block_at(settings: u32, k: u32) -> u32 {
 // Converted: `rc2k_core::marks::lines::{measured, block_at}`
 pub unsafe fn measure_starting_sums() -> Result<(), Refused> {
     unsafe {
-        let settings: u32 = game_read(SETTINGS_RVA);
+        let settings: u32 = crate::marks::setup::SETTINGS.pointer.get();
         measured(settings, true)?;
         game_write(EVERY_RVA, 1u32);
         game_write(SHARES_RVA, 0u32);
         measure_lines()?;
-        let settings: u32 = game_read(SETTINGS_RVA);
+        let settings: u32 = crate::marks::setup::SETTINGS.pointer.get();
         let count = get(settings + 0x5C) as i32;
         for k in (0..count.max(0) as u32).rev() {
             let block = block_at(settings, k);
@@ -278,9 +277,9 @@ pub unsafe fn copy_block_points(block: u32) -> Result<(), Refused> {
 // Converted: `rc2k_core::marks::lines::{measured, block_at}`
 pub unsafe fn set_up_blocks() -> Result<(), Refused> {
     unsafe {
-        measured(game_read(SETTINGS_RVA), true)?;
+        measured(crate::marks::setup::SETTINGS.pointer.get(), true)?;
         measure_starting_sums()?;
-        let settings: u32 = game_read(SETTINGS_RVA);
+        let settings: u32 = crate::marks::setup::SETTINGS.pointer.get();
         let count = get(settings + 0x5C) as i32;
         for k in (0..count.max(0) as u32).rev() {
             let block = block_at(settings, k);

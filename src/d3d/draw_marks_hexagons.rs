@@ -11,22 +11,16 @@
 //! each triangle (`platform_3d::draw_indexed_list`) and the result is 0 (before 2026-10-19
 //! the standalone skipped it).
 
-use crate::gfx::block::{game_addr, game_read};
-use crate::gfx::hexagon_batch::Slot as HexSlot;
-
-const VERTICES_RVA: HexSlot = HexSlot::at(0x625A44); // unk_625A44
-const VERTEX_COUNT_RVA: HexSlot = HexSlot::at(0x625A40); // dword_625A40
-const INDICES_RVA: HexSlot = HexSlot::at(0x624240); // g_marksHexagonFans
-const INDEX_COUNT_RVA: HexSlot = HexSlot::at(0x62423C); // dword_62423C
+use crate::gfx::hexagon_batch::HEXAGON_BATCH;
 
 /// The hexagons drawn: Direct3D's result, always 0 here.
 pub fn draw_marks_hexagons() -> u32 {
     unsafe {
         crate::platform_3d::draw_indexed_list(
-            game_addr(VERTICES_RVA) as u32,
-            game_read(VERTEX_COUNT_RVA),
-            game_addr(INDICES_RVA) as u32,
-            game_read(INDEX_COUNT_RVA),
+            HEXAGON_BATCH.records.addr() as u32,
+            HEXAGON_BATCH.vertex_count.get(),
+            HEXAGON_BATCH.fans.addr() as u32,
+            HEXAGON_BATCH.index_count.get(),
         )
     };
     0

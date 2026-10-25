@@ -15,7 +15,8 @@
 
 use crate::bridge::{Raw, read_through};
 use crate::errors::Refused;
-use crate::net::lobby::{EDIT_SAVED, a, movsb};
+use crate::install::vars::INSTALLER_PATHS;
+use crate::net::lobby::movsb;
 use crate::net::store::NET;
 use crate::text::draw_text::GameCanvas;
 use crate::text::measure_text::measure_text_at;
@@ -34,7 +35,11 @@ pub fn edit_key(key: u8) -> Result<bool, Refused> {
         let words = unsafe { Raw::new(text as *const u8) };
         match EditKey::of(key) {
             EditKey::Escape => {
-                movsb(text, a(EDIT_SAVED), editing::TEXT_LEN as u32);
+                movsb(
+                    text,
+                    INSTALLER_PATHS.script_path.addr() as u32,
+                    editing::TEXT_LEN as u32,
+                );
                 NET.edited.set(editing::NOT_EDITING);
             }
             EditKey::Enter => NET.edited.set(editing::NOT_EDITING),

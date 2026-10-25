@@ -1,25 +1,76 @@
-//! The blitter's and rescaler's variables (the clip rectangle, the skips of the visible part, the rescale steps and weights) (phase 5, `notes/conversion.md`): IDA 0x4F503C .. 0x4F50C0 out of RAL.EXE's image, one block
-//! with the image's layout (`gfx::block`): an address `X` of IDA is at `base() + (X - START)`;
-//! a `Slot` is such an address, checked against the block.
+//! The blitters' variables (the clip rectangle and the skips of the visible part), out of
+//! RAL.EXE's image (phase 5; typed in phase 7, `notes/conversion.md`): IDA 0x4F503C ..
+//! 0x4F505C. The rescaler's own variables follow (`gfx::rescale_picture::RESCALE`).
 
-crate::region!(Blit, STORE, 0x4F503C, 0x4F50C0, crate::gfx::blit_data::RUNS);
+use crate::session::Dword;
 
+/// IDA's address of the block's first byte.
 pub const START: usize = 0x4F503C;
+/// The block's length.
+pub const LEN: usize = 0x4F505C - START;
 
-pub type Slot = crate::gfx::block::Slot<Blit>;
+/// The clip rectangle (all four edges inclusive).
+#[repr(C)]
+pub struct ClipRect {
+    /// `g_clipLeft` (`dword_4F503C`).
+    pub left: Dword,
+    /// `g_clipRight` (`dword_4F5040`).
+    pub right: Dword,
+    /// `g_clipTop` (`dword_4F5044`).
+    pub top: Dword,
+    /// `g_clipBottom` (`dword_4F5048`).
+    pub bottom: Dword,
+}
+
+/// The blitters' variables.
+#[repr(C)]
+pub struct Blitter {
+    /// The clip rectangle.
+    pub clip: ClipRect,
+    /// `g_blitLeftSkip`: pixels clipped off on the left.
+    pub left_skip: Dword,
+    /// `g_blitVisibleWidth`: pixels of each row inside the clip.
+    pub visible_width: Dword,
+    /// `g_blitTopSkip`: rows clipped off at the top.
+    pub top_skip: Dword,
+    /// `g_blitRowsLeft`: visible rows (counted down while drawing).
+    pub rows_left: Dword,
+}
+
+/// The blitters' variables; the first values are the image's (a screen of 800 x 600).
+pub static BLIT: Blitter = Blitter {
+    clip: ClipRect {
+        left: Dword::new(0),
+        right: Dword::new(0x31F),
+        top: Dword::new(0),
+        bottom: Dword::new(0x257),
+    },
+    left_skip: Dword::new(0),
+    visible_width: Dword::new(0),
+    top_skip: Dword::new(0),
+    rows_left: Dword::new(0),
+};
+
+/// Where the block is (`moved::MOVED`'s home for IDA 0x4F503C).
+pub fn home() -> usize {
+    &BLIT as *const Blitter as usize
+}
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use core::mem::offset_of;
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::block::first_values_are_the_games::<Blit>(&STORE);
+        crate::gfx::first_values_are_the_games(&BLIT, START, START + LEN);
     }
 
     #[test]
     fn moved_knows_the_block() {
-        assert_eq!(crate::moved::place(START), STORE.addr());
-        assert_eq!(crate::moved::place(START + LEN - 1), STORE.addr() + LEN - 1);
+        assert_eq!(offset_of!(Blitter, left_skip), 0x4F504C - START);
+        assert_eq!(offset_of!(Blitter, rows_left), 0x4F5058 - START);
+        assert_eq!(crate::moved::place(START), BLIT.clip.left.addr());
+        assert_eq!(crate::moved::place(0x4F5058), BLIT.rows_left.addr());
     }
 }

@@ -33,11 +33,11 @@ const STATES: [(u32, u32); 7] = [
 
 /// The Rust version (see the header).
 pub unsafe fn squares_setup() {
-    unsafe { setup_with(PLACES_RVA) }
+    unsafe { setup_with(game_read(PLACES_RVA)) }
 }
 
-/// The set-up with the texture places at `places` (`marks::pong_setup` has its own).
-pub unsafe fn setup_with(places: Slot) {
+/// The set-up with the texture places `places` (`marks::pong_setup` has its own).
+pub unsafe fn setup_with(places: [u32; 4]) {
     use crate::scene::set_render_state::set_render_state;
     unsafe {
         crate::scene::depth_buffer_on::depth_buffer(true);
@@ -53,7 +53,7 @@ pub unsafe fn setup_with(places: Slot) {
             game_write(VERTICES_RVA + 0x20 * n + 0x10, 0xFFFF_FFFFu32);
             game_write(VERTICES_RVA + 0x20 * n + 0x14, 0xFF00_0000u32);
         }
-        let [a, b, c, d]: [u32; 4] = game_read(places);
+        let [a, b, c, d] = places;
         for (n, (u, v)) in [(a, b), (c, b), (c, d), (a, d)].into_iter().enumerate() {
             game_write(VERTICES_RVA + 0x20 * n + 0x18, u);
             game_write(VERTICES_RVA + 0x20 * n + 0x1C, v);

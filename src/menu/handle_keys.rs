@@ -17,26 +17,23 @@
 //! key is taken).
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, game_write, rva};
 use crate::input::key_to_char::has_layout;
 use crate::input::take_key::take_key;
-use crate::menu::handle_yes_no::{ASKING_RVA, LEAVING_RVA, handle_yes_no};
+use crate::menu::captions_store::CAPTIONS;
+use crate::menu::champ_store::CHAMP_VIEW;
+use crate::menu::cheats_store::CHEAT_VARS;
+use crate::menu::draw_work_store::DRAW_WORK;
+use crate::menu::event_store::EVENT_STATE;
+use crate::menu::flow_store::SCREEN_FLOW;
+use crate::menu::handle_yes_no::handle_yes_no;
+use crate::menu::loop_store::LOOP_FLAGS;
 use crate::menu::navigation::{Direction, move_highlight};
+use crate::menu::option_work_store::OPTION_WORK;
 use crate::menu::state_store::MENU_STATE;
-use crate::menu::update_blink::LAST_KEY_TIME_RVA;
-use crate::service::state::TIME_BUDGET_RVA;
+use crate::screens::controls_store::CONTROLS_SCREEN;
 use crate::session::CLOCKS;
 
 // ---- game data ----
-
-const KEYS_OFF_RVA: usize = rva(0x7551F4); // dword_7551F4: 1 = keys are not looked at
-const SOUND_RVA: usize = rva(0x7556A4); // dword_7556A4: 0x6F, or 0x14D after Enter
-const BACK_RVA: usize = rva(0x755561); // dword_755561
-const ESCAPED_RVA: usize = rva(0x755A3C); // dword_755A3C
-const ENTER_WITH_4_RVA: usize = rva(0x7554D4); // dword_7554D4
-const TOGGLE_RVA: usize = rva(0x755575); // dword_755575: flipped by key 0x20
-const SWITCHES_RVA: usize = rva(0x75870C); // dword_75870C: bit 14 lets key 0x14 add time
-const MENU_RVA: usize = rva(0x731BBB); // dword_731BBB
 
 // ---- Rust version ----
 
@@ -63,28 +60,28 @@ pub unsafe fn handle_keys(eax: u32) -> Result<Keys, Refused> {
     };
     unsafe {
         if keys::keys_off(MENU_STATE.service_ui.box_shown.get(), || {
-            game_read(KEYS_OFF_RVA)
+            CONTROLS_SCREEN.learning.get()
         }) {
             return Ok(nothing);
         }
-        if game_read::<u32>(ASKING_RVA) == 1 && !has_layout() {
+        if SCREEN_FLOW.asking.get() == 1 && !has_layout() {
             return Err(BadInput("no keyboard layout").into());
         }
-        game_write(SOUND_RVA, keys::NO_SOUND);
-        game_write(BACK_RVA, 0u32);
+        OPTION_WORK.menu_sound.set(keys::NO_SOUND);
+        LOOP_FLAGS.back.set(0u32);
         let key = take_key();
         if key == 0 {
             return Ok(nothing);
         }
         let eax = eax & !0xFF | key as u32;
         handle_yes_no(eax)?;
-        let action = keys::action(key, || game_read(SWITCHES_RVA));
+        let action = keys::action(key, || CHEAT_VARS.cheats.get());
         match action {
             Action::Ignored => return Ok(nothing),
             Action::Escape => {
-                game_write(BACK_RVA, 1u32);
-                game_write(ESCAPED_RVA, 1u32);
-                game_write(LEAVING_RVA, 1u32);
+                LOOP_FLAGS.back.set(1u32);
+                DRAW_WORK.escaped.set(1u32);
+                CAPTIONS.screen_left.set(1);
                 return Ok(Keys {
                     result: keys::ESCAPED,
                     ..nothing
@@ -94,9 +91,9 @@ pub unsafe fn handle_keys(eax: u32) -> Result<Keys, Refused> {
         }
         let clock: u32 = CLOCKS.frame.get();
         if action == Action::Enter {
-            game_write(SOUND_RVA, keys::ENTER_SOUND);
-            game_write(LAST_KEY_TIME_RVA, clock);
-            game_write(ENTER_WITH_4_RVA, keys::entered_with_4(eax));
+            OPTION_WORK.menu_sound.set(keys::ENTER_SOUND);
+            CHAMP_VIEW.last_key_time.set(clock);
+            SCREEN_FLOW.enter_with_4.set(keys::entered_with_4(eax));
             crate::sound::play_menu_sound::play_menu_sound_in_game(keys::ENTER_CLICK);
             return Ok(Keys {
                 result: keys::ENTERED,
@@ -104,7 +101,7 @@ pub unsafe fn handle_keys(eax: u32) -> Result<Keys, Refused> {
                 menu: None,
             });
         }
-        game_write(LAST_KEY_TIME_RVA, clock);
+        CHAMP_VIEW.last_key_time.set(clock);
         let nothing = Keys {
             clock: Some(clock),
             ..nothing
@@ -119,19 +116,21 @@ pub unsafe fn handle_keys(eax: u32) -> Result<Keys, Refused> {
                 return Ok(nothing);
             }
             Action::Toggle => {
-                game_write(TOGGLE_RVA, game_read::<u32>(TOGGLE_RVA) ^ 1);
+                LOOP_FLAGS.toggle.set(LOOP_FLAGS.toggle.get() ^ 1);
                 return Ok(nothing);
             }
             Action::AddTime => {
-                game_write(
-                    TIME_BUDGET_RVA,
-                    game_read::<u32>(TIME_BUDGET_RVA).wrapping_add(keys::ADDED_TIME),
+                EVENT_STATE.service_minutes.set(
+                    EVENT_STATE
+                        .service_minutes
+                        .get()
+                        .wrapping_add(keys::ADDED_TIME),
                 );
                 return Ok(nothing);
             }
             _ => return Ok(nothing),
         };
-        let menu: u32 = game_read(MENU_RVA);
+        let menu: u32 = crate::menu::texts_store::MENU_TEXTS.keys_menu.get();
         move_highlight(direction)?;
         Ok(Keys {
             menu: Some(menu),

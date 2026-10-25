@@ -1,10 +1,10 @@
 use crate::errors::{BadInput, Refused};
+use crate::menu::event_store::EVENT_STATE;
 use crate::menu::player::{Player, player_at};
-use crate::service::state::PLAYER_INDEX_RVA;
 
 /// The current player, or a refusal.
 pub fn current() -> Result<*mut Player, Refused> {
-    let index: u32 = unsafe { crate::framework::game_read(PLAYER_INDEX_RVA) };
+    let index: u32 = { EVENT_STATE.current_player.get() };
     match player_at(index) {
         0 => Err(BadInput("no current player").into()),
         player => Ok(player as *mut Player),

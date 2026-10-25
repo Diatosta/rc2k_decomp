@@ -9,12 +9,10 @@
 //! run its `entry` (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{game_read, rva};
+use crate::menu::flow_store::SCREEN_FLOW;
 use crate::text::draw_text::Canvas;
 
 // ---- game data ----
-
-const SWITCH_RVA: usize = rva(0x7554E4); // dword_7554E4
 
 // ---- Rust version ----
 
@@ -23,7 +21,7 @@ pub unsafe fn draw_background_band(palette: u32, canvas: &mut dyn Canvas) -> Res
     use rc2k_core::screens::controller_page::{Font, Work, background_band};
     background_band(
         &mut crate::screens::game_screen::GameScreen::<Font, Work>::new(canvas),
-        unsafe { game_read::<u32>(SWITCH_RVA) } == 1,
+        { SCREEN_FLOW.left_service.get() } == 1,
         palette,
     )
 }

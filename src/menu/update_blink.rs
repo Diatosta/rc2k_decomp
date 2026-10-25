@@ -14,18 +14,14 @@
 //!
 //! 179 callers.
 
-use crate::framework::{game_read, game_write, rva};
+use crate::menu::champ_store::CHAMP_VIEW;
+use crate::menu::draw_work_store::DRAW_WORK;
+use crate::menu::loop_store::LOOP_FLAGS;
+use crate::menu::option_work_store::OPTION_WORK;
 use crate::menu::update_frame_clock::update_frame_clock;
 use crate::session::CLOCKS;
 
 // ---- game data ----
-
-pub const LAST_KEY_TIME_RVA: usize = rva(0x7556C4); // dword_7556C4: the clock at the last key
-const CURSOR_TIME_RVA: usize = rva(0x7556C8); // dword_7556C8: what the cursor's blink counts from
-pub const BLINK_OFF_RVA: usize = rva(0x7556AC); // dword_7556AC: 1 = the highlight does not blink
-const BLINK_RVA: usize = rva(0x7559A4); // dword_7559A4
-const CURSOR_ON_RVA: usize = rva(0x7559A8); // dword_7559A8
-const IDLE_RVA: usize = rva(0x755551); // dword_755551
 
 // ---- Rust version ----
 
@@ -34,22 +30,20 @@ pub use rc2k_core::menu::blink::blink_states;
 
 /// What the three variables should be for the clock the game holds now.
 unsafe fn states_now() -> (u32, u32, u32) {
-    unsafe {
-        blink_states(
-            CLOCKS.frame.get(),
-            game_read(LAST_KEY_TIME_RVA),
-            game_read(CURSOR_TIME_RVA),
-            game_read(BLINK_OFF_RVA),
-        )
-    }
+    blink_states(
+        CLOCKS.frame.get(),
+        CHAMP_VIEW.last_key_time.get(),
+        CHAMP_VIEW.cursor_time.get(),
+        OPTION_WORK.redefining_key.get(),
+    )
 }
 
 pub fn update_blink() {
     update_frame_clock();
     unsafe {
         let (blink, cursor_on, idle) = states_now();
-        game_write(BLINK_RVA, blink);
-        game_write(CURSOR_ON_RVA, cursor_on);
-        game_write(IDLE_RVA, idle);
+        DRAW_WORK.blink.set(blink);
+        DRAW_WORK.cursor_on.set(cursor_on);
+        LOOP_FLAGS.idle.set(idle);
     }
 }

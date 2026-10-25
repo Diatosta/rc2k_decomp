@@ -12,14 +12,14 @@
 //! registers above are the original's, for reference.
 
 use crate::errors::FatalError;
-use crate::framework::{game_addr, game_read, rva};
 
 // ---- game data ----
 
-const HEADER_RVA: usize = rva(0x734BC6); // g_trakPakHeader: +0 link, +4 pack id, +0x34 entries
-
 pub fn loaded_pack_id() -> u32 {
-    unsafe { game_read(HEADER_RVA + 4) }
+    crate::records::stages_store::STAGE_TABLES
+        .trak_pak
+        .pack_id
+        .get()
 }
 
 // ---- Rust version ----
@@ -54,7 +54,7 @@ pub unsafe fn record_entry(record: *const u8) -> Result<u32, FatalError> {
         )
     };
     trakpak_entry(
-        game_addr(HEADER_RVA) as u32,
+        crate::records::stages_store::STAGE_TABLES.trak_pak(),
         index,
         pack_id,
         loaded_pack_id(),

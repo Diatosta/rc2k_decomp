@@ -10,13 +10,12 @@
 //! anything; raises the search's fatal error as the original.
 
 use crate::errors::Refused;
-use crate::framework::{game_read, game_write, rva};
+use crate::menu::champ_store::CHAMP_VIEW;
 use crate::menu::screen_loop::{Carried, run_screen};
 use crate::menu::standings::*;
 use rc2k_core::menu::results_pages::{Page, held_figure};
 
 // dword_7558F4
-const COUNT_RVA: usize = rva(0x7556B4); // dword_7556B4
 // g_eventMode
 
 /// The Rust version (see the header). `c` the carried values (the registers the page's
@@ -27,11 +26,11 @@ pub unsafe fn show_overall_stage_results(c: &Carried) -> Result<(), Refused> {
             palette: ANY_GROUP,
             ..*c
         };
-        let found = crate::menu::first_player_a::first_player_a(game_read(TABLE_A_RVA), ANY_GROUP)?;
+        let found = crate::menu::first_player_a::first_player_a(TABLE_A_RVA.get(), ANY_GROUP)?;
         found.carry_on(&mut c);
         // Converted: `rc2k_core::menu::results_pages::held_figure`.
         let count = held_figure(Page::OverallStage, found.figure);
-        game_write(COUNT_RVA, count);
+        CHAMP_VIEW.count.set(count);
         crate::menu::first_page_stage::carry_on(
             crate::menu::first_page_stage::first_page_stage(),
             &mut c,

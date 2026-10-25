@@ -22,7 +22,7 @@
 //! as the original.
 
 use crate::errors::{FatalError, Refused};
-use crate::physics::flow::{a, g, p};
+use crate::physics::flow::{g, p};
 use rc2k_core::drive::race_steps;
 
 /// `g_logIndent` changed by `by` (wrapping, as the original's `add`).
@@ -32,8 +32,8 @@ fn indent_by(by: u32) {
 }
 
 /// A "RACEINIT : ..." line (level 1, a line break; in `pusha` / `popa`).
-fn log(text: usize) {
-    unsafe { crate::logfile::log_write::log_write(a(text) as *const u8, true, 1) };
+fn log(text: &std::ffi::CStr) {
+    unsafe { crate::logfile::log_write::log_write(text.as_ptr().cast(), true, 1) };
 }
 
 /// The log indented round a part (`pushf`; +- 3; `popf`).
@@ -51,7 +51,7 @@ fn indented(part: &mut dyn FnMut() -> Result<(), Refused>) -> Result<(), Refused
 // Converted: `rc2k_core::drive::race_steps::{no_best_line, NO_BEST_LINE, SETTLING_STEPS,
 // LOG_INDENT}`.
 pub unsafe fn race_init() -> Result<(), Refused> {
-    log(0x4DC558);
+    log(c"RACEINIT : setbestline");
     indent_by(race_steps::LOG_INDENT);
     unsafe { crate::race::best_line::build_best_line() }?;
     if race_steps::no_best_line(g(0x623640)) {
@@ -65,23 +65,23 @@ pub unsafe fn race_init() -> Result<(), Refused> {
         .into());
     }
     indent_by(race_steps::LOG_INDENT.wrapping_neg());
-    log(0x4DC56F);
+    log(c"RACEINIT : initcarpositions");
     indented(&mut || unsafe { crate::race::car_starts::start_cars() })?;
-    log(0x4DC58B);
+    log(c"RACEINIT : initobjectsoncourse");
     indented(&mut || unsafe { crate::race::course_data::reset_face_lights() })?;
-    log(0x4DC5AA);
+    log(c"RACEINIT : gamemodestuff_init");
     indented(&mut || unsafe { crate::race::race_cars::set_up_cars() }.map(drop))?;
-    log(0x4DC5C8);
+    log(c"RACEINIT : messagesystem_init");
     indented(&mut || {
         unsafe { crate::race::race_init::reset_car_race_state() };
         Ok(())
     })?;
-    log(0x4DC5E6);
+    log(c"RACEINIT : carparts_init");
     indented(&mut || {
         unsafe { crate::race::race_init::clear_race_slots() };
         Ok(())
     })?;
-    log(0x4DC5FF);
+    log(c"RACEINIT : resettimers");
     indented(&mut || {
         unsafe {
             crate::race::race_init::reset_car_starts();
@@ -89,7 +89,7 @@ pub unsafe fn race_init() -> Result<(), Refused> {
         }
         Ok(())
     })?;
-    log(0x4DC616);
+    log(c"RACEINIT : singlecarinit");
     indent_by(race_steps::LOG_INDENT);
     for _ in 0..race_steps::SETTLING_STEPS {
         unsafe { crate::drive::race_cars_step::race_cars_step() }?;
@@ -101,11 +101,11 @@ pub unsafe fn race_init() -> Result<(), Refused> {
     }
     unsafe { crate::race::race_init::clear_race_slots() };
     indent_by(race_steps::LOG_INDENT.wrapping_neg());
-    log(0x4DC62F);
+    log(c"RACEINIT : resetalldamagemessages");
     indented(&mut || {
         unsafe { crate::race::car_grades::grade_all_cars() };
         Ok(())
     })?;
-    log(0x4DC651);
+    log(c"RACEINIT : end");
     Ok(())
 }

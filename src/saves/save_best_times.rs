@@ -12,14 +12,12 @@
 
 use crate::errors::Refused;
 use crate::files::handle::{close, open_by_mode, write};
-use crate::framework::{game_addr, game_read, game_write, rva};
-use crate::saves::allocate_best_times::{VARS_RVA, pair};
-use crate::settings::TEXT_RVA;
+use crate::saves::allocate_best_times::pair;
+use crate::saves::best_times_store::BEST_TIMES;
 use crate::system::packed_local_time::packed_local_time;
 
 // ---- game data ----
 
-const PATH_RVA: usize = rva(0x5295E4); // "var\hst.dat"
 const HEAD_LEN: u32 = 0x10;
 /// The tables of `allocate_best_times` the file holds, in the file's order.
 const WRITTEN: [usize; 6] = [1, 2, 3, 4, 7, 8];
@@ -44,11 +42,17 @@ pub unsafe fn save_best_times(places: &Places) -> Result<bool, Refused> {
         // Converted: `rc2k_core::saves::kept::head`.
         let head =
             rc2k_core::saves::kept::head(rc2k_core::saves::kept::BEST_TIMES, packed_local_time());
-        game_write(TEXT_RVA, head);
+        for (n, &byte) in head.iter().enumerate() {
+            crate::files::scratch::SCRATCH.buffer.set(n, byte);
+        }
         let Some(file) = open_by_mode(places.path, 1)? else {
             return Ok(false);
         };
-        write(file, game_addr(TEXT_RVA) as *const u8, HEAD_LEN);
+        write(
+            file,
+            crate::files::scratch::SCRATCH.buffer.addr() as *const u8,
+            HEAD_LEN,
+        );
         for n in 0..WRITTEN.len() {
             let (from, count) = (places.table)(n);
             write(file, from as *const u8, count);
@@ -60,7 +64,7 @@ pub unsafe fn save_best_times(places: &Places) -> Result<bool, Refused> {
 
 fn game_table(n: usize) -> (u32, u32) {
     unsafe {
-        let pair = pair(game_addr(VARS_RVA) as *mut u32, WRITTEN[n]);
+        let pair = pair(BEST_TIMES.vars(), WRITTEN[n]);
         (pair.read_unaligned(), pair.add(1).read_unaligned())
     }
 }
@@ -69,8 +73,8 @@ fn game_table(n: usize) -> (u32, u32) {
 pub fn in_game() -> Result<bool, Refused> {
     unsafe {
         save_best_times(&Places {
-            path: game_addr(PATH_RVA) as *const u8,
-            switches: [game_read(VARS_RVA), game_read(VARS_RVA + 4)],
+            path: crate::saves::load_best_times::PATH.addr() as *const u8,
+            switches: [BEST_TIMES.allocated.get(), BEST_TIMES.loaded.get()],
             table: &game_table,
         })
     }

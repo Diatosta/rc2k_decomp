@@ -11,20 +11,55 @@
 //! original and the Rust version from the same mode, both variables compared; the mode and
 //! the variables put back.
 
-use crate::framework::rva;
+use crate::session::Dword;
 use windows_sys::Win32::System::Diagnostics::Debug::{SEM_FAILCRITICALERRORS, SetErrorMode};
 
 // ---- game data ----
-
-const KEPT_MODE_RVA: usize = rva(0x4E05A0); // uMode
-const MODE_SET_RVA: usize = rva(0x4E059C); // dword_4E059C
 
 // ---- Rust version ----
 
 pub unsafe fn set_error_mode() {
     unsafe {
         let was = SetErrorMode(SEM_FAILCRITICALERRORS);
-        crate::framework::game_write(KEPT_MODE_RVA, was);
-        crate::framework::game_write(MODE_SET_RVA, 1u32);
+        ERROR_MODE.mode.set(was);
+        ERROR_MODE.changed.set(1);
+    }
+}
+
+/// The error mode kept and whether it was set (IDA 0x4E059C .. 0x4E05A4, the image's layout).
+#[repr(C)]
+pub struct ErrorMode {
+    /// 0x4E059C: `g_errorModeSet`: 1 after `set_error_mode` set the mode.
+    pub changed: Dword,
+    /// 0x4E05A0: `uMode`: the mode before.
+    pub mode: Dword,
+}
+
+pub static ERROR_MODE: ErrorMode = ErrorMode {
+    changed: Dword::new(0x0),
+    mode: Dword::new(0x0),
+};
+
+impl ErrorMode {
+    pub const START: usize = 0x4E059C;
+    pub const LEN: usize = 0x8;
+    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
+    pub fn home() -> usize {
+        &ERROR_MODE as *const ErrorMode as usize
+    }
+}
+
+#[cfg(test)]
+mod error_mode_tests {
+    use super::*;
+
+    #[test]
+    fn errormode_starts_as_the_games() {
+        let size = size_of::<ErrorMode>();
+        assert!(ErrorMode::LEN <= size && size <= (ErrorMode::LEN).next_multiple_of(4));
+        let image = crate::moved::image_bytes(ErrorMode::START, ErrorMode::LEN);
+        let mine =
+            unsafe { std::slice::from_raw_parts(ErrorMode::home() as *const u8, ErrorMode::LEN) };
+        assert_eq!(mine, &image[..]);
     }
 }

@@ -11,14 +11,13 @@
 //! Refuses a list without its end within its room.
 
 use crate::errors::BadInput;
-use crate::framework::{game_addr, rva};
+use crate::menu::cars_store::CAR_TABLE;
 use crate::menu::lists_store::MENU_LISTS;
 use crate::menu::remove_secret_cars::{FIRST, List, read_list};
 use rc2k_core::menu::car_lists::place_if_missing;
 
 // ---- game data ----
 
-const CLIO_RVA: usize = rva(0x7574E0); // unk_7574E0
 /// The three lists, in the original's order, with the room each has before the next
 /// variable.
 const LISTS: [List; 3] = [
@@ -31,7 +30,7 @@ const LISTS: [List; 3] = [
 
 pub unsafe fn add_clio_car() -> Result<(), BadInput> {
     unsafe {
-        let clio = game_addr(CLIO_RVA) as u32;
+        let clio = CAR_TABLE.descriptions[33].addr() as u32;
         let mut ends = Vec::new();
         // Converted: `rc2k_core::menu::car_lists::place_if_missing`.
         for list in LISTS {

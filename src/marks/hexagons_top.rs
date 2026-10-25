@@ -19,15 +19,14 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::rva;
-use crate::gfx::hexagon_batch::Slot as HexSlot;
-use crate::marks::setup::SETTINGS_RVA;
+use crate::gfx::hexagon_batch::HEXAGON_BATCH;
+use crate::marks::setup::{CLOCK, MarksClock};
 use crate::marks::store::{Slot, Where, game_addr, game_read, game_write};
 use crate::math::x87;
 use crate::scene::cross_product3::cross_product3;
 use crate::scene::vector3::normalise_vector3;
 
 const BUFFER_RVA: Slot = Slot::at(0x816232); // dword_816232
-const BUFFER_START: HexSlot = HexSlot::at(0x625A44); // unk_625A44
 const AXES: [Slot; 3] = [Slot::at(0x814C1A), Slot::at(0x814C26), Slot::at(0x814C32)];
 const PLACE_RVA: Slot = Slot::at(0x8161A2); // flt_8161A2
 const FACING_RVA: Slot = Slot::at(0x814718); // flt_814718
@@ -37,7 +36,6 @@ const POINTS: u32 = 0x30;
 const SHARES: [Slot; 2] = [Slot::at(0x814C06), Slot::at(0x814C0A)];
 const RATE_RVA: Slot = Slot::at(0x814728); // flt_814728
 const PER_VERTEX_RVA: Slot = Slot::at(0x82E27A); // dword_82E27A
-const BATCH: [HexSlot; 2] = [HexSlot::at(0x62423C), HexSlot::at(0x625A40)];
 const DRIFTING_RVA: Slot = Slot::at(0x7652A0); // dword_7652A0
 const TEXTURE_RVA: usize = rva(0x5D1E10); // dword_5D1E10
 const COUNT_RVA: usize = rva(0x6240F8); // g_polygonVertexCount
@@ -48,7 +46,7 @@ fn addr(r: impl Where) -> u32 {
 
 /// The original's 0x4BAC91 .. 0x4BAD3F: `flt_81622A` (the ease by the ticks), `flt_814728` (the rate), the place (`flt_814C0E` ..) and the first axis (`flt_814C1A` ..) from the settings, its length over `flt_82E272` into `flt_814C06`.
 unsafe fn frame_axes(s: u32) {
-    unsafe { frame_axes_x87(crate::marks::store::base() as usize, s as usize) }
+    unsafe { frame_axes_x87(crate::marks::store::base() as usize, s as usize, &CLOCK) }
 }
 
 /// The original's 0x4BAD4C .. 0x4BADAC: the second axis (`flt_814C26` ..) from the settings, its length over `flt_82E276` into `flt_814C0A`.
@@ -74,11 +72,11 @@ unsafe fn point_turned(p: u32) {
 /// The Rust version (see the header).
 pub unsafe fn hexagons_top() -> Result<(), Refused> {
     unsafe {
-        let s: u32 = game_read(SETTINGS_RVA);
+        let s: u32 = crate::marks::setup::SETTINGS.pointer.get();
         if s == 0 {
             return Err(BadInput("no marks settings").into());
         }
-        game_write(BUFFER_RVA, addr(BUFFER_START));
+        game_write(BUFFER_RVA, HEXAGON_BATCH.records.addr() as u32);
         frame_axes(s);
         let [a0, a1, a2] = AXES.map(addr);
         normalise_vector3(a0);
@@ -107,17 +105,17 @@ pub unsafe fn hexagons_top() -> Result<(), Refused> {
         if game_read::<u32>(RATE_RVA) != 0 {
             crate::marks::hexagons_frame::hexagons_frame()?;
             let at_now: u32 = game_read(BUFFER_RVA);
-            if at_now != addr(BUFFER_START) {
+            if at_now != HEXAGON_BATCH.records.addr() as u32 {
                 let quads = x87::int_over_int_to_int(
-                    at_now.wrapping_sub(addr(BUFFER_START)) as i32,
+                    at_now.wrapping_sub(HEXAGON_BATCH.records.addr() as u32) as i32,
                     game_read(PER_VERTEX_RVA),
                 ) as u32;
-                game_write(BUFFER_RVA, addr(BUFFER_START));
-                game_write(BATCH[0], quads.wrapping_mul(12));
-                game_write(BATCH[1], quads.wrapping_mul(6));
+                game_write(BUFFER_RVA, HEXAGON_BATCH.records.addr() as u32);
+                HEXAGON_BATCH.index_count.set(quads.wrapping_mul(12));
+                HEXAGON_BATCH.vertex_count.set(quads.wrapping_mul(6));
                 crate::marks::hexagons_frame::draw_batch()?;
             }
-            let settings: u32 = game_read(SETTINGS_RVA);
+            let settings: u32 = crate::marks::setup::SETTINGS.pointer.get();
             if ((settings + 0x2744) as *const u32).read_unaligned() != 0
                 && game_read::<u32>(DRIFTING_RVA) != 0
             {
@@ -133,10 +131,10 @@ pub unsafe fn hexagons_top() -> Result<(), Refused> {
 use crate::marks::plain::{ld, ldi, st};
 
 /// `frame_axes`'s x87 block as plain Rust on the x87 model (32 instructions), same order and memory places.
-unsafe fn frame_axes_x87(mk: usize, s: usize) {
+unsafe fn frame_axes_x87(mk: usize, s: usize, c: &MarksClock) {
     unsafe {
         let t0 = ld(mk, 0xC932A);
-        let t1 = t0 * ldi(mk, 0x90);
+        let t1 = t0 * crate::math::x87_float::int(c.frame_ticks.get() as i32);
         st(mk, 0xB12EA, t1);
         let t2 = ldi(s, 0x2738);
         let t3 = t2 * ld(mk, 0xC932E);
@@ -447,7 +445,7 @@ mod asm_differential {
         differential(
             &SPEC,
             |b| unsafe { reference::frame_axes_x87(b[0], b[1]) },
-            |b| unsafe { super::frame_axes_x87(b[0], b[1]) },
+            |b| unsafe { super::frame_axes_x87(b[0], b[1], crate::marks::setup::clock_at(b[0])) },
         );
     }
 

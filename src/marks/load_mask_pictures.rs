@@ -14,6 +14,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::rva;
+use crate::gfx::picture_store::PICTURE;
 use crate::marks::store::{Slot, game_addr, game_read, game_write};
 
 const GROUND_RVA: Slot = Slot::at(0x934CC8); // g_marksGround: which of the names
@@ -46,20 +47,19 @@ const ROWS: u32 = 0x7E;
 /// when not read (the original then counts 0x1FFFFFFF down and leaves with its stack one
 /// off).
 unsafe fn read(path: u32) -> Result<(), Refused> {
-    use crate::gfx::picture::{HEIGHT_RVA, ROW_BYTES_RVA, WIDTH_RVA};
     unsafe {
         let sizes: [u32; 3] = [
-            game_read(WIDTH_RVA),
-            game_read(HEIGHT_RVA),
-            game_read(ROW_BYTES_RVA),
+            PICTURE.width.get(),
+            PICTURE.height.get(),
+            PICTURE.row_bytes.get(),
         ];
-        game_write(WIDTH_RVA, 0x100u32);
-        game_write(HEIGHT_RVA, 0x80u32);
-        game_write(ROW_BYTES_RVA, 0xFFFF_FFFEu32);
+        PICTURE.width.set(0x100u32);
+        PICTURE.height.set(0x80u32);
+        PICTURE.row_bytes.set(0xFFFF_FFFEu32);
         let read = crate::gfx::read_picture_file::read_picture_file(path as *mut u8);
-        game_write(WIDTH_RVA, sizes[0]);
-        game_write(HEIGHT_RVA, sizes[1]);
-        game_write(ROW_BYTES_RVA, sizes[2]);
+        PICTURE.width.set(sizes[0]);
+        PICTURE.height.set(sizes[1]);
+        PICTURE.row_bytes.set(sizes[2]);
         if !read? {
             return Err(BadInput("a mask picture was not read").into());
         }
@@ -89,11 +89,10 @@ pub unsafe fn lock(slot: u32, lock: bool) -> Result<(), Refused> {
 /// A mask read, copied to the 0x80000 block, the ground read, and the block `to` made
 /// and drawn at rows 0x80 .. 0xFD.
 unsafe fn mask(path: Slot, to: Slot, width: u32) -> Result<(), Refused> {
-    use crate::gfx::picture::PICTURE_RVA;
     unsafe {
         read(game_addr(path) as u32)?;
         std::ptr::copy(
-            game_read::<u32>(PICTURE_RVA) as *const u8,
+            PICTURE.buffer.get() as *const u8,
             game_read::<u32>(COPY_RVA) as *mut u8,
             4 * COPIED as usize,
         );

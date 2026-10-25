@@ -15,17 +15,13 @@
 
 use crate::bridge::Raw;
 use crate::errors::BadInput;
-use crate::framework::{game_addr, game_write, rva};
-use crate::install::choose_language::{
-    LANGUAGE_COUNT_RVA, LANGUAGE_SLOT, LANGUAGE_SLOTS, LANGUAGES_RVA, choose_language,
-};
+use crate::install::choose_language::{LANGUAGE_SLOT, LANGUAGE_SLOTS, choose_language};
+use crate::install::vars::INSTALLER_NAMES;
 use crate::settings::read_text::read_text;
 use crate::strings::same_text::case_table;
 use rc2k_core::install::config;
 
 // ---- game data ----
-
-pub const PATH_RVA: usize = rva(0x51C36E); // "lang.cfg"
 
 // ---- Rust version ----
 
@@ -38,7 +34,7 @@ pub unsafe fn read_languages(path: *const u8) -> Result<(), BadInput> {
         // `keep_languages`). Found first, stored after (`sub_4139AB`).
         let found = config::find_languages(&Raw::new(text), &case_table())?;
         let slots = std::slice::from_raw_parts_mut(
-            game_addr(LANGUAGES_RVA) as *mut u8,
+            INSTALLER_NAMES.languages.addr() as *mut u8,
             LANGUAGE_SLOT * LANGUAGE_SLOTS,
         );
         for (slot, value) in found {
@@ -47,7 +43,7 @@ pub unsafe fn read_languages(path: *const u8) -> Result<(), BadInput> {
             slots[at + value.len()] = 0;
         }
         let kept = config::keep_languages(slots);
-        game_write(LANGUAGE_COUNT_RVA, kept);
+        INSTALLER_NAMES.language_count.set(kept);
         choose_language(1)
     }
 }

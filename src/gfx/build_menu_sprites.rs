@@ -11,33 +11,28 @@
 //! `routes.rs`.
 
 use crate::errors::Refused;
-use crate::framework::rva;
-use crate::gfx::block::{game_addr, game_read, game_write};
-use crate::gfx::build_glyphs::{BUILDER_FLAGS_RVA, TABLE_RVA, build_glyphs};
+use crate::gfx::build_glyphs::{SHEET, build_glyphs};
+use crate::gfx::decoder::DECODER;
 use crate::gfx::glyph_builder::RUN_LENGTHS;
-use crate::gfx::glyph_tables::{
-    TABLES_LIST_RVA, begin_glyph_table, begin_glyph_tables, end_glyph_tables,
-};
-use crate::memory::MemoryList;
+use crate::gfx::glyph_tables::{TABLES, begin_glyph_table, begin_glyph_tables, end_glyph_tables};
+use crate::menu::loop_store::LOOP_FLAGS;
 
 // ---- game data ----
-
-const SPRITE_TABLE_RVA: usize = rva(0x755581); // g_spriteTable
 
 // ---- Rust version ----
 
 /// The table's address goes to `sprite_table`.
 pub unsafe fn build_menu_sprites(sprite_table: *mut u32) -> Result<(), Refused> {
     unsafe {
-        let list = game_addr(TABLES_LIST_RVA) as *mut MemoryList;
+        let list = TABLES.memory.as_ptr();
         begin_glyph_tables()?;
-        game_write(BUILDER_FLAGS_RVA, RUN_LENGTHS);
+        DECODER.builder_flags.set(RUN_LENGTHS);
         begin_glyph_table(list)?;
         build_glyphs(
             crate::gfx::texts::address(&crate::gfx::texts::MBUTS) as *const u8,
             list,
         )?;
-        sprite_table.write_unaligned(game_read(TABLE_RVA));
+        sprite_table.write_unaligned(SHEET.table.get());
         end_glyph_tables()?;
         Ok(())
     }
@@ -45,5 +40,5 @@ pub unsafe fn build_menu_sprites(sprite_table: *mut u32) -> Result<(), Refused> 
 
 /// With the game's `g_spriteTable`.
 pub unsafe fn build_menu_sprites_in_game() -> Result<(), Refused> {
-    unsafe { build_menu_sprites(game_addr(SPRITE_TABLE_RVA) as *mut u32) }
+    unsafe { build_menu_sprites(LOOP_FLAGS.sprite_table.addr() as *mut u32) }
 }

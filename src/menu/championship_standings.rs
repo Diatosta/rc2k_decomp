@@ -13,10 +13,9 @@
 //! original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{game_read, rva};
+use crate::menu::champ_store::CHAMP_VIEW;
 use crate::menu::screen_loop::Carried;
 use crate::menu::state_store::MENU_STATE;
-const EVENT_MODE_RVA: usize = rva(0x7556D0); // g_eventMode
 
 /// The Rust version (see the header). `c` the carried values (the registers the pages'
 /// screens are run with).
@@ -27,7 +26,7 @@ pub unsafe fn championship_standings(c: &Carried) -> Result<(), Refused> {
         // Converted: `rc2k_core::menu::results_pages` (`class_pages_only`, `standings_sorts`).
         use rc2k_core::menu::results_pages::{Sort, class_pages_only, standings_sorts};
         crate::menu::standings_b_from_all::standings_b_from_all()?;
-        let a8 = class_pages_only(game_read(EVENT_MODE_RVA));
+        let a8 = class_pages_only(CHAMP_VIEW.event_mode.get());
         for sort in standings_sorts(a8) {
             match sort {
                 Sort::ByFigure => fig::sort_standings_b_by_figure()?,

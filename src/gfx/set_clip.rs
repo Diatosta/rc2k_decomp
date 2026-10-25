@@ -8,8 +8,7 @@
 //! Refuses a null rectangle. The name is a reading.
 
 use crate::errors::BadInput;
-use crate::gfx::block::game_write;
-use crate::gfx::surface::{CLIP_BOTTOM_RVA, CLIP_LEFT_RVA, CLIP_RIGHT_RVA, CLIP_TOP_RVA};
+use crate::gfx::blit::BLIT;
 
 // ---- Rust version ----
 
@@ -23,10 +22,10 @@ pub unsafe fn set_clip(rectangle: *const [u32; 4]) -> Result<(), BadInput> {
     }
     unsafe {
         let [left, top, right, bottom] = clip_of(rectangle.read_unaligned());
-        game_write(CLIP_LEFT_RVA, left);
-        game_write(CLIP_TOP_RVA, top);
-        game_write(CLIP_RIGHT_RVA, right);
-        game_write(CLIP_BOTTOM_RVA, bottom);
+        BLIT.clip.left.set(left);
+        BLIT.clip.top.set(top);
+        BLIT.clip.right.set(right);
+        BLIT.clip.bottom.set(bottom);
     }
     Ok(())
 }

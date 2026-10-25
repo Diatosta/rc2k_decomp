@@ -1,18 +1,29 @@
-//! The surface-locked switch (phase 5, `notes/conversion.md`): IDA 0x4F3870 .. 0x4F3874 out of RAL.EXE's image, one block
-//! with the image's layout (`gfx::block`): an address `X` of IDA is at `base() + (X - START)`;
-//! a `Slot` is such an address, checked against the block.
+//! The surface-locked switch, out of RAL.EXE's image (phase 5; typed in phase 7,
+//! `notes/conversion.md`): IDA 0x4F3870 .. 0x4F3874.
 
-crate::region!(
-    Locked,
-    STORE,
-    0x4F3870,
-    0x4F3874,
-    crate::gfx::locked_data::RUNS
-);
+use crate::session::Dword;
 
+/// IDA's address of the block's first byte.
 pub const START: usize = 0x4F3870;
+/// The block's length.
+pub const LEN: usize = 4;
 
-pub type Slot = crate::gfx::block::Slot<Locked>;
+/// The surface-locked switch.
+#[repr(C)]
+pub struct Locked {
+    /// `g_surfaceLocked` (`dword_4F3870`): 1 while the screen's surface is locked for drawing.
+    pub surface: Dword,
+}
+
+/// The switch; the first value is the image's.
+pub static LOCKED: Locked = Locked {
+    surface: Dword::new(0),
+};
+
+/// Where the block is (`moved::MOVED`'s home for IDA 0x4F3870).
+pub fn home() -> usize {
+    &LOCKED as *const Locked as usize
+}
 
 #[cfg(test)]
 mod tests {
@@ -20,12 +31,11 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::block::first_values_are_the_games::<Locked>(&STORE);
+        crate::gfx::first_values_are_the_games(&LOCKED, START, START + LEN);
     }
 
     #[test]
     fn moved_knows_the_block() {
-        assert_eq!(crate::moved::place(START), STORE.addr());
-        assert_eq!(crate::moved::place(START + LEN - 1), STORE.addr() + LEN - 1);
+        assert_eq!(crate::moved::place(START), LOCKED.surface.addr());
     }
 }

@@ -7,25 +7,25 @@
 //! row's time at 0x1B2.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, game_read, rva};
+use crate::menu::captions_store::CAPTIONS;
+use crate::menu::draw_work_store::DRAW_WORK;
+use crate::menu::event_store::EVENT_STATE;
+use crate::menu::players_store::PLAYER_TABLE;
+use crate::menu::results_store::RESULT_FIGURES;
 use crate::text::draw_text::Canvas;
 
 pub use rc2k_core::screens::players_results::{Layout, WITH_POINTS, WITHOUT_POINTS};
-
-fn k(a: usize) -> u32 {
-    unsafe { game_read(rva(a)) }
-}
 
 unsafe fn get(a: u32) -> u32 {
     unsafe { (a as *const u32).read_unaligned() }
 }
 
 fn rows(layout: &Layout) -> usize {
-    rc2k_core::screens::players_results::rows(layout, k(0x755984))
+    rc2k_core::screens::players_results::rows(layout, EVENT_STATE.player_count.get())
 }
 
 fn offset(row: usize) -> u32 {
-    k(0x758720 + 4 * row)
+    RESULT_FIGURES.order[row].get()
 }
 
 /// The row's player record, refused for an offset past the four or a missing record or name.
@@ -34,7 +34,7 @@ fn player(row: usize) -> Result<u32, Refused> {
     if o >= 16 || !o.is_multiple_of(4) {
         return Err(BadInput("a row's offset past g_players' four").into());
     }
-    let p = unsafe { get(game_addr(rva(0x75647C)) as u32 + o) };
+    let p = unsafe { get(PLAYER_TABLE.pointers[0].addr() as u32 + o) };
     if p == 0 || unsafe { get(p + 0x18) } == 0 {
         return Err(BadInput("a row's player without its record or name").into());
     }
@@ -43,7 +43,7 @@ fn player(row: usize) -> Result<u32, Refused> {
 
 /// The row's points' place (`off_758992[offset]`).
 fn points_at(row: usize) -> Result<u32, Refused> {
-    let p = unsafe { get(game_addr(rva(0x758992)) as u32 + offset(row)) };
+    let p = unsafe { get(CAPTIONS.sum_pointers[0].addr() as u32 + offset(row)) };
     if p == 0 || p == u32::MAX {
         return Err(BadInput("a row without its points").into());
     }
@@ -54,12 +54,16 @@ fn points_at(row: usize) -> Result<u32, Refused> {
 /// 0xA4 x `dword_7558CC`); none: 0.
 fn records() -> (u32, u32) {
     unsafe {
-        let table = get(game_addr(rva(0x735512)) as u32 + 4 * k(0x7558C8));
+        let table =
+            crate::records::stages_store::STAGE_TABLES.group_list(EVENT_STATE.stage_group.get());
         if table == 0 {
             return (0, 0);
         }
-        let base = get(table + 4 * k(0x7558D0));
-        (base, base.wrapping_add(k(0x7558CC).wrapping_mul(0xA4)))
+        let base = get(table + 4 * EVENT_STATE.stage_sub.get());
+        (
+            base,
+            base.wrapping_add(EVENT_STATE.stage_number.get().wrapping_mul(0xA4)),
+        )
     }
 }
 
@@ -142,7 +146,7 @@ pub unsafe fn draw_players_results(
             stage,
             units_set: crate::strings::units::units() != 0,
             show_hours: crate::strings::append_time::show_hours(),
-            extra_glyph: k(0x7559B4),
+            extra_glyph: DRAW_WORK.work_b4.get(),
         };
         players_results(
             &mut crate::screens::game_screen::GameScreen::new(canvas),

@@ -9,7 +9,8 @@
 //! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
 //! are the original's.
 
-use crate::install::installer::{SCRIPT_PATH, a, rb, rd, wb};
+use crate::install::installer::{rb, rd, wb};
+use crate::install::vars::INSTALLER_PATHS;
 
 pub fn start_edit(item: u32) {
     let record = rd(item + 0xC);
@@ -19,7 +20,7 @@ pub fn start_edit(item: u32) {
     let words = unsafe { std::slice::from_raw_parts_mut(text as *mut u8, most as usize + 2) };
     let flags = rc2k_core::install::edits::start_edit(rb(record), most, words);
     wb(record, flags);
-    let backup = a(SCRIPT_PATH);
+    let backup = INSTALLER_PATHS.script_path.addr() as u32;
     for (n, &b) in words.iter().enumerate() {
         wb(backup + n as u32, b);
     }

@@ -8,14 +8,11 @@
 //! (`routes.rs`); the registers above are the original's, for reference.
 
 use crate::errors::BadInput;
-use crate::framework::{game_addr, rva};
 use crate::memory::MemoryList;
 use crate::memory::free_list::free_list;
-use crate::saves::allocate_best_times::VARS_RVA as ALLOCATED_RVA;
+use crate::saves::best_times_store::BEST_TIMES;
 
 // ---- game data ----
-
-const TABLES_LIST_RVA: usize = rva(0x7475D0); // g_bestTimesMemory
 
 // ---- Rust version ----
 
@@ -29,7 +26,7 @@ pub unsafe fn free_best_times(list: *mut MemoryList, allocated: *mut u32) -> Res
 
 /// The game's best-time tables freed.
 pub fn free_in_game() -> Result<(), BadInput> {
-    let list = game_addr(TABLES_LIST_RVA) as *mut MemoryList;
-    let allocated = game_addr(ALLOCATED_RVA) as *mut u32;
+    let list = BEST_TIMES.list();
+    let allocated = BEST_TIMES.allocated.addr() as *mut u32;
     unsafe { free_best_times(list, allocated) }
 }

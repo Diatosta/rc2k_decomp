@@ -21,20 +21,18 @@
 //! steps refuse.
 
 use crate::errors::Refused;
-use crate::framework::rva;
 use crate::input::devices::record_addrs;
 use crate::input::store::DEVICES;
 use crate::session::CLOCKS;
 use crate::session::FLAGS;
-use crate::store::game_addr;
 
-const START_TEXT_RVA: usize = rva(0x4DA4B2); // "INPUTTDB:START"
-const QUIT_TEXT_RVA: usize = rva(0x4DA4C1); // "INPUTTDB:QUIT"
+const START_TEXT_RVA: &std::ffi::CStr = c"INPUTTDB:START"; // "INPUTTDB:START"
+const QUIT_TEXT_RVA: &std::ffi::CStr = c"INPUTTDB:QUIT"; // "INPUTTDB:QUIT"
 const TICK_MS: u32 = 20;
 
 /// "INPUTTDB:.." to the game's log (level 2, a line).
-fn log(text: usize) {
-    unsafe { crate::logfile::log_write::log_write(game_addr(text) as *const u8, true, 2) };
+fn log(text: &std::ffi::CStr) {
+    unsafe { crate::logfile::log_write::log_write(text.as_ptr().cast(), true, 2) };
 }
 
 /// The thread's work up to its `ExitThread` (see the header).

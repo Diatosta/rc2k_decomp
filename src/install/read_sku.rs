@@ -10,19 +10,12 @@
 
 use crate::bridge::Raw;
 use crate::errors::BadInput;
-use crate::framework::{game_write, rva};
+use crate::session::{Byte, Bytes, Dword, with_runs};
 use crate::settings::read_text::read_text;
 use crate::strings::same_text::case_table;
 use rc2k_core::install::config;
 
 // ---- game data ----
-
-pub const PATH_RVA: usize = rva(0x519102); // "files\d\gfx\sku"
-const NUMBER_RVA: usize = rva(0x5190F4); // dword_5190F4
-const OEM_RVA: usize = rva(0x5190F8); // dword_5190F8
-const DVD_RVA: usize = rva(0x5190FC); // dword_5190FC
-const THIRD_RVA: usize = rva(0x519100); // byte_519100
-const SECOND_RVA: usize = rva(0x519101); // byte_519101
 
 // ---- Rust version ----
 
@@ -36,18 +29,70 @@ pub unsafe fn read_sku(path: *const u8) -> Result<(), BadInput> {
             return Ok(());
         };
         if sku.oem {
-            game_write(OEM_RVA, 1u32);
+            SKU.oem.set(1u32);
         }
         if sku.dvd {
-            game_write(DVD_RVA, 1u32);
+            SKU.dvd.set(1u32);
         }
-        game_write(NUMBER_RVA, sku.number);
+        SKU.number.set(sku.number);
         if let Some(second) = sku.second {
-            game_write(SECOND_RVA, second);
+            SKU.second.set(second);
         }
         if let Some(third) = sku.third {
-            game_write(THIRD_RVA, third);
+            SKU.third.set(third);
         }
         Ok(())
+    }
+}
+
+/// The edition's markers (`install::read_sku`) (IDA 0x5190F4 .. 0x519118, the image's layout).
+#[repr(C)]
+pub struct Sku {
+    /// 0x5190F4: `dword_5190F4`: the edition's number.
+    pub number: Dword,
+    /// 0x5190F8: `dword_5190F8`: 1 for an OEM edition.
+    pub oem: Dword,
+    /// 0x5190FC: `dword_5190FC`: 1 for a DVD edition.
+    pub dvd: Dword,
+    /// 0x519100: `byte_519100`: the sku file's third byte.
+    pub third: Byte,
+    /// 0x519101: `byte_519101`: its second byte.
+    pub second: Byte,
+    /// 0x519102: `aFilesDGfxSku`: "files\d\gfx\sku", the file read.
+    pub path: Bytes<16>,
+    /// 0x519112: Not named: 6 bytes (a gap, or data nothing reads here).
+    pub _gap_519112: Bytes<6>,
+}
+
+pub static SKU: Sku = Sku {
+    number: Dword::new(0xffffffff),
+    oem: Dword::new(0x0),
+    dvd: Dword::new(0x0),
+    third: Byte::new(0x0),
+    second: Byte::new(0x0),
+    path: Bytes::new(with_runs::<16>(&[(0, b"files\\d\\gfx\\sku")])),
+    _gap_519112: Bytes::new(with_runs::<6>(&[(0, b"sku")])),
+};
+
+impl Sku {
+    pub const START: usize = 0x5190F4;
+    pub const LEN: usize = 0x24;
+    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
+    pub fn home() -> usize {
+        &SKU as *const Sku as usize
+    }
+}
+
+#[cfg(test)]
+mod sku_tests {
+    use super::*;
+
+    #[test]
+    fn sku_starts_as_the_games() {
+        let size = size_of::<Sku>();
+        assert!(Sku::LEN <= size && size <= (Sku::LEN).next_multiple_of(4));
+        let image = crate::moved::image_bytes(Sku::START, Sku::LEN);
+        let mine = unsafe { std::slice::from_raw_parts(Sku::home() as *const u8, Sku::LEN) };
+        assert_eq!(mine, &image[..]);
     }
 }

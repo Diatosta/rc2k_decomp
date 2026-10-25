@@ -13,7 +13,7 @@
 //! car at all: the original copies one entry back and then counts through all 32 bits.
 
 use crate::errors::BadInput;
-use crate::framework::{game_write, rva};
+use crate::menu::cheats_store::CHEAT_VARS;
 use crate::menu::lists_store::MENU_LISTS;
 use crate::session::Dword;
 use rc2k_core::menu::car_lists;
@@ -30,8 +30,6 @@ pub const SECOND: List = (&MENU_LISTS.cars_a8, 0x2D);
 const SECRET: List = (&MENU_LISTS.secret_cars, 0x0C);
 /// unk_759F7A: where a list is copied to and back from.
 const SCRATCH: List = (&MENU_LISTS.cars_scratch, 0x32);
-pub const CHEATS_RVA: usize = rva(0x75870C); // g_cheats
-
 /// The list's entries before its -1.
 pub unsafe fn read_list(list: List) -> Result<Vec<u32>, BadInput> {
     Ok(car_lists::entries(list.1, |n| list.0[n].get())?)
@@ -68,7 +66,7 @@ pub unsafe fn remove_secret_cars() -> Result<(), BadInput> {
                 SCRATCH.0[n].set(car);
             }
             write_list(list, cars);
-            game_write(CHEATS_RVA, 0u32);
+            CHEAT_VARS.cheats.set(0u32);
         }
         Ok(())
     }

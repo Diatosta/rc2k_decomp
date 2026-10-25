@@ -6,7 +6,7 @@
 //! `sound::play_car_stream`) and the carousels.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::game_read;
+use crate::menu::event_store::EVENT_STATE;
 use crate::menu::state_store::MENU_STATE;
 
 pub use rc2k_core::screens::car_pages::CarDescription;
@@ -15,13 +15,12 @@ const _: () = assert!(std::mem::size_of::<CarDescription>() == 0x78);
 
 /// The carousels' entries: a table of 0x100 description pointers.
 const ENTRIES: u32 = 0x100;
-const SHOWN_RVA: usize = crate::framework::rva(0x755990); // dword_755990
 
 /// The description of the entry shown (`dword_755990` through `dword_75A65C`).
 pub fn shown_description() -> Result<*mut CarDescription, Refused> {
     unsafe {
         let table: u32 = MENU_STATE.carousel.entries.get();
-        let entry: u32 = game_read(SHOWN_RVA);
+        let entry: u32 = EVENT_STATE.shown_car.get();
         if table == 0 || entry >= ENTRIES {
             return Err(BadInput("no carousel records, or an entry past them").into());
         }

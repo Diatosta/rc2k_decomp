@@ -12,28 +12,33 @@
 
 use crate::errors::Refused;
 use crate::marks::place_view::{ViewPlace, place_view_with};
-use crate::marks::store::{Slot, game_read, game_write};
+use crate::marks::snow::{SNOW, SNOW_LIGHT};
 use crate::math::x87;
 
-const SECOND: ViewPlace = ViewPlace {
-    point: Slot::at(0x8D2208), // dword_8D2208
-    start_z: 0x8_0000,
-    place: Slot::at(0x8D2160),       // dword_8D2160
-    matrix: Slot::at(0x8D216C),      // dword_8D216C
-    out: Slot::at(0x8D2214),         // dword_8D2214
-    height: Slot::at(0x8DB53C),      // flt_8DB53C
-    matrix_copy: Slot::at(0x8D2220), // dword_8D2220
-};
-const CLEARED_RVA: Slot = Slot::at(0x8D20C0); // dword_8D20C0 .. dword_8D20DC
-const FILLED_RVA: Slot = Slot::at(0x8D20E0); // xmmword_8D20E0: four floats
+/// The snow's view variables.
+fn second() -> ViewPlace {
+    let (s, l) = (&SNOW, &SNOW_LIGHT);
+    ViewPlace {
+        point: s.point[0].addr(),
+        start_z: 0x8_0000,
+        place: s.view_place[0].addr(),
+        matrix: s.view_matrix[0].addr(),
+        out: s.view[0].addr(),
+        height: l.height.addr(),
+        matrix_copy: s.matrix_copy[0].addr(),
+    }
+}
 
 /// The Rust version (see the header).
 pub unsafe fn place_view_2() -> Result<(), Refused> {
-    unsafe {
-        place_view_with(&SECOND)?;
-        game_write(CLEARED_RVA, [0u32; 8]);
-        let z = x87::from_int(game_read(SECOND.point + 8));
-        game_write(FILLED_RVA, [z; 4]);
-        Ok(())
+    let second = second();
+    unsafe { place_view_with(&second)? };
+    for cell in &SNOW.cleared {
+        cell.set(0);
     }
+    let z = x87::from_int(SNOW.point[2].get() as i32);
+    for cell in &SNOW.filled {
+        cell.set_bits(z);
+    }
+    Ok(())
 }

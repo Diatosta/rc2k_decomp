@@ -14,12 +14,11 @@
 use crate::errors::{BadInput, Refused};
 use crate::files::numbered_path::numbered_path_in_game;
 use crate::files::write_file::write_file;
-use crate::framework::game_ptr;
 use crate::service::pages::{
     BRAKE_BALANCE, GEAR_RATIO, RIDE_HEIGHT, STEERING_SENSITIVITY, SUSPENSION_STIFFNESS, TYRE,
 };
 use crate::service::read_setup_slot::{
-    NAME_LEN, SETUP_FILE_LEN, SETUP_FILE_RVA, SLOT_COUNT, TEMPLATE_RVA, slot_name,
+    NAME_LEN, SET_UPS, SETUP_FILE_LEN, SLOT_COUNT, TEMPLATE, slot_name,
 };
 use crate::service::state::current_player;
 use crate::system::packed_local_time::packed_local_time;
@@ -36,7 +35,7 @@ pub unsafe fn write_setup_slot(slot: u32) -> Result<bool, Refused> {
         return Err(BadInput("no current player object: the original reads through null").into());
     };
     unsafe {
-        let file: *mut u8 = game_ptr(SETUP_FILE_RVA);
+        let file: *mut u8 = SET_UPS.file.as_ptr();
         // Converted: `rc2k_core::saves::kept::setup_file`.
         let in_car = |offset: u32| (player.wrapping_add(offset) as *const u32).read_unaligned();
         let bytes = rc2k_core::saves::kept::setup_file(
@@ -52,7 +51,7 @@ pub unsafe fn write_setup_slot(slot: u32) -> Result<bool, Refused> {
             ],
         );
         copy_nonoverlapping(bytes.as_ptr(), file, bytes.len());
-        let path = numbered_path_in_game(game_ptr(TEMPLATE_RVA), slot)?;
+        let path = numbered_path_in_game(TEMPLATE.as_ptr(), slot)?;
         Ok(write_file(path, file, SETUP_FILE_LEN as u32)?.ok)
     }
 }

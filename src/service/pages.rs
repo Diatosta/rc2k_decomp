@@ -17,13 +17,14 @@
 //! Whatever happened, the four end with `update_repair_total`.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, game_write, rva};
 use crate::input::take_key::take_key;
+use crate::menu::champ_store::CHAMP_VIEW;
+use crate::menu::event_store::EVENT_STATE;
 use crate::menu::state_store::MENU_STATE;
 use crate::service::setup_values::{Change, Stepper, step};
 use crate::service::state::{
-    TIME_BUDGET_RVA, chosen_repairs_time, current_player, flagged_item, has_repair_time,
-    leave_edit_mode, marks_ended,
+    chosen_repairs_time, current_player, flagged_item, has_repair_time, leave_edit_mode,
+    marks_ended,
 };
 use crate::service::update_repair_total::update_repair_total;
 use crate::service::{
@@ -36,8 +37,6 @@ use crate::service::{
 use crate::session::{CLOCKS, Dword};
 
 pub const KEY_CONFIRM: u8 = 0x1C;
-
-const LAST_KEY_TIME_RVA: usize = rva(0x7556C4); // dword_7556C4: the clock at the last key
 
 /// A page whose value is changed in the car itself.
 #[derive(Clone, Copy)]
@@ -121,7 +120,7 @@ unsafe fn key_and_step(down: Stepper, up: Stepper) -> Result<u8, Refused> {
         return Ok(0);
     }
     unsafe {
-        game_write(LAST_KEY_TIME_RVA, CLOCKS.frame.get());
+        CHAMP_VIEW.last_key_time.set(CLOCKS.frame.get());
         match action {
             PageKey::Down => {
                 step(down)?;
@@ -180,7 +179,7 @@ pub unsafe fn change_page(page: ChangePage, confirm: bool) -> Result<(), Refused
             &mut f,
             &mut m,
             item as usize,
-            game_read(TIME_BUDGET_RVA),
+            EVENT_STATE.service_minutes.get() as i32,
             v,
             time_of,
         )

@@ -9,7 +9,6 @@
 //!
 //! Callers: `race::viewer_load_stage`, 0x44401B (the replay run of `sub_443FxF`).
 
-use crate::physics::flow::a;
 use crate::race::race_end::{HEADER, setting_place};
 use crate::race::viewer::{get, put};
 use rc2k_core::race::replay::{HEADER_SETTINGS, Setting, read_logged};
@@ -24,11 +23,21 @@ fn targets(s: Setting) -> Vec<usize> {
 }
 
 /// "[replayheader.arcstartpos]" .. "[replayheader.gameoverflag2]", by `read_logged`.
-const NAMES: [usize; 12] = [
-    0x4DDDFB, 0x4DDE16, 0x4DDE30, 0x4DDE45, 0x4DDE5A, 0x4DDE6F, 0x4DDE86, 0x4DDE9A, 0x4DDEAE,
-    0x4DDEC2, 0x4DDED6, 0x4DDEF3,
+const NAMES: [&std::ffi::CStr; 12] = [
+    c"[replayheader.arcstartpos]",
+    c"[replayheader.numarccars]",
+    c"[replayheader.track]",
+    c"[replayheader.gmode]",
+    c"[replayheader.numpl]",
+    c"[replayheader.numcars]",
+    c"[replayheader.car1]",
+    c"[replayheader.car2]",
+    c"[replayheader.car3]",
+    c"[replayheader.car4]",
+    c"[replayheader.gameoverflag1]",
+    c"[replayheader.gameoverflag2]",
 ];
-const TITLE: usize = 0x4DDDEA; // "READREPLAYHEADER"
+const TITLE: &std::ffi::CStr = c"READREPLAYHEADER"; // "READREPLAYHEADER"
 
 /// `log_write_l1` (with a line break for the title) of a text.
 fn log_text(text: u32, newline: bool) {
@@ -39,7 +48,7 @@ fn log_text(text: u32, newline: bool) {
 /// caller, `race::viewer_load_stage`, calls it plainly.
 pub fn read_replay_header() {
     // Converted: `rc2k_core::race::replay::{HEADER_SETTINGS, read_logged}`.
-    log_text(a(TITLE), true);
+    log_text(TITLE.as_ptr() as u32, true);
     let from = |s: Setting| HEADER + s.offset() as usize;
     for s in HEADER_SETTINGS {
         for to in targets(s) {
@@ -47,7 +56,7 @@ pub fn read_replay_header() {
         }
     }
     for (&text, &s) in NAMES.iter().zip(read_logged()) {
-        log_text(a(text), false);
+        log_text(text.as_ptr() as u32, false);
         crate::logfile::log_int::log_int(get(from(s)) as i32, true, 1);
     }
 }

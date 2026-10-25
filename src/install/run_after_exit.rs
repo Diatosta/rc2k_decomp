@@ -24,20 +24,14 @@
 //! are the original's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, rva};
-
-// The variables.
-const SWITCHES: usize = 0x51B9D4; // dword_51B9D4, D8, DC, g_installing (E0), E8
-const GAME_DIR: usize = 0x95E6F8; // byte_95E6F8: the game's folder, 0x100 bytes
-const INSTALLED: usize = 0x95E7F8; // byte_95E7F8: the installed folder, 0x100 bytes
-const OTHER_DIR: usize = 0x5295B5; // unk_5295B5
-const SOURCE: usize = 0x51BB8D; // g_installSource
-const COMMAND: usize = 0x518BA8; // dword_518BA8 the program's name, dword_518BAC its length
-// Texts.
-const DXSETUP: usize = 0x51BE54; // "redist\directx\dxsetup.exe"
-const EREG: usize = 0x51B9EE; // "ereg\eregip.exe"
+use crate::install::vars::INSTALLER_NAMES;
+use crate::install::vars::INSTALLER_PATHS;
+use crate::install::vars::INSTALLER_RUN;
+use crate::system::read_command_line::COMMAND_LINE;
 
 const ROOM: u32 = 0x100;
+
+// The variables.
 
 /// The standalone's program in place of `.\ral.exe` (`install/shortcuts.rs`).
 pub static RC2K: [u8; 11] = *b".\\rc2k.exe\0";
@@ -58,17 +52,16 @@ pub struct Vars {
 
 impl Vars {
     pub fn game() -> Self {
-        let a = |x: usize| game_addr(rva(x)) as u32;
         Self {
             reported: crate::fatal::state::REPORTED.as_ptr() as u32, // g_fatalReported (a byte)
-            switches: a(SWITCHES),
-            game_dir: a(GAME_DIR),
-            installed: a(INSTALLED),
-            other_dir: a(OTHER_DIR),
+            switches: INSTALLER_RUN.add_items.addr() as u32,
+            game_dir: INSTALLER_PATHS.game_dir.addr() as u32,
+            installed: INSTALLER_PATHS.installed.addr() as u32,
+            other_dir: crate::install::installer::INSTALL_TEXTS.other_dir.addr() as u32,
             program: crate::files::numbered_path::buffer() as u32, // byte_94E8B0: a program's name (0x100 bytes taken)
-            source: a(SOURCE),
+            source: INSTALLER_NAMES.source.addr() as u32,
             from_cd: crate::install::store::INSTALL.running_from_cd.addr() as u32,
-            command: a(COMMAND),
+            command: COMMAND_LINE.program.addr() as u32,
         }
     }
 }
@@ -94,7 +87,6 @@ fn run(command: u32) {
 pub fn run_after_exit_with(v: &Vars) -> Result<(), Refused> {
     use crate::files::append_directory::append_directory;
     use crate::files::append_file_name::append_file_name;
-    let text = |x: usize| game_addr(rva(x)) as u32;
     let switch = |n: u32| rd(v.switches + 4 * n);
     if unsafe { (v.reported as *const u8).read_volatile() } == 1 {
         return Ok(());
@@ -119,7 +111,7 @@ pub fn run_after_exit_with(v: &Vars) -> Result<(), Refused> {
     // original): the standalone's shell shortcuts.
     if switch(0) == 1 {
         use crate::install::shortcuts::{add_start_menu_items, c_path};
-        unsafe { add_start_menu_items(&c_path(game_addr(rva(INSTALLED)) as *const u8)) };
+        unsafe { add_start_menu_items(&c_path(INSTALLER_PATHS.installed.addr() as *const u8)) };
     }
     if switch(1) == 1 {
         crate::install::shortcuts::remove_start_menu_items();
@@ -130,12 +122,13 @@ pub fn run_after_exit_with(v: &Vars) -> Result<(), Refused> {
                 return Ok(());
             }
         }
-        run(text(DXSETUP));
+        run(INSTALLER_NAMES.dxsetup.addr() as u32);
         return Ok(());
     }
     if switch(5) == 1 {
         unsafe {
-            let ereg = text(EREG) as *const u8;
+            // "ereg\eregip.exe" (the script's text after its count).
+            let ereg = (INSTALLER_RUN.ereg.addr() + 2) as *const u8;
             let (cursor, _) = append_directory(ereg, (v.game_dir + game_dir_len) as *mut u8)?;
             cursor.write(0);
             let cursor = append_file_name(ereg, v.program as *mut u8)?;

@@ -8,15 +8,21 @@ use crate::framework::{game_addr, game_read, game_write, rva};
 
 /// "------", "SHAUNINITEVERYTHING - START", ": loading screen / ..", ": loadlevel_init",
 /// ": doingamemusic", ": createcontrols", ": race init", "- FINIS", "------".
-const WORDS: [usize; 9] = [
-    0x4DBD40, 0x4DBD5D, 0x4DBD79, 0x4DBDA7, 0x4DBDCC, 0x4DBDF0, 0x4DBE15, 0x4DBE35, 0x4DBE51,
+const WORDS: [&std::ffi::CStr; 9] = [
+    c"----------------------------",
+    c"SHAUNINITEVERYTHING - START",
+    c"SHAUNINITEVERYTHING : loading screen / sounds",
+    c"SHAUNINITEVERYTHING : loadlevel_init",
+    c"SHAUNINITEVERYTHING : doingamemusic",
+    c"SHAUNINITEVERYTHING : createcontrols",
+    c"SHAUNINITEVERYTHING : race init",
+    c"SHAUNINITEVERYTHING - FINIS",
+    c"----------------------------",
 ];
 const REPLAY_RVA: usize = crate::race::sounds::REPLAY_RVA; // dword_71C3E0
 const CAR_MINUS_4_RVA: usize = rva(0x70F3E8); // dword_70F3E8
 const NO_PLACE_RVA: usize = rva(0x64BB18); // dword_64BB18
 const CLOCK_RVA: usize = rva(0x613830); // g_sceneClock
-const EMPTY_TEXT_RVA: usize = rva(0x4E00B7); // what `log_newline_l1` writes
-const LOADING_PICTURE_RVA: usize = rva(0x731BBF); // "files\g\graphics\screens\loading.pcx"
 /// The starting values: (address, value; `None` the clock).
 const STARTS: [(usize, Option<u32>); 7] = [
     (0x5CC3BC, None),
@@ -59,10 +65,10 @@ pub unsafe fn load_stage() -> Result<(), Refused> {
     };
     let mut word = 0;
     let mut log = || {
-        unsafe { log_write(game_addr(rva(WORDS[word])) as *const u8, true, 1) };
+        unsafe { log_write(WORDS[word].as_ptr() as usize as *const u8, true, 1) };
         word += 1;
     };
-    let newline = || unsafe { log_write(game_addr(EMPTY_TEXT_RVA) as *const u8, true, 1) };
+    let newline = || unsafe { log_write(c"".as_ptr().cast(), true, 1) };
     unsafe {
         newline();
         log();
@@ -72,7 +78,7 @@ pub unsafe fn load_stage() -> Result<(), Refused> {
         if game_read::<u32>(REPLAY_RVA) == 0 {
             // As `menu::show_loading_picture`.
             crate::gfx::show_picture_file::show_picture_file(
-                game_addr(LOADING_PICTURE_RVA) as *mut u8
+                crate::menu::texts_store::MENU_TEXTS.loading_pcx.addr() as *mut u8,
             )?;
         }
         game_write(CAR_MINUS_4_RVA, u32::MAX);

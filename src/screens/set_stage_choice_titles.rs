@@ -14,16 +14,15 @@
 //! its `entry` (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, rva};
 use crate::menu::item_at::{ITEM_LEN, MENU_HEAD_LEN};
+use crate::menu::menus_store::MENUS;
 use crate::screens::draw_stage_records::selection;
 use crate::screens::draw_time_trial_stage_info::GROUP_TITLES_RVA;
-use crate::screens::stage_panel::{build_second_heading, dword, table_dword};
+use crate::screens::stage_panel::{build_second_heading, dword, table_dword_at};
 
-const MENU_RVA: usize = rva(0x748620); // off_748620: the stage choice's menu
 /// Where item 0's string goes, and where the original puts "item 1"'s.
 unsafe fn places() -> (u32, u32) {
-    let menu = game_addr(MENU_RVA) as u32;
+    let menu = MENUS.select_stage.addr() as u32;
     unsafe {
         (
             menu + MENU_HEAD_LEN + 0x14,
@@ -42,7 +41,7 @@ pub unsafe fn set_stage_choice_titles() -> Result<(), Refused> {
             return Err(BadInput("the menu's first dword is no pointer").into());
         }
         build_second_heading(s.record)?;
-        (item_0 as *mut u32).write_unaligned(table_dword(GROUP_TITLES_RVA, s.group));
+        (item_0 as *mut u32).write_unaligned(table_dword_at(GROUP_TITLES_RVA.addr(), s.group));
         (item_1 as *mut u32).write_unaligned(dword(s.table.wrapping_add(0x38)));
     }
     Ok(())

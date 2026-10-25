@@ -9,11 +9,11 @@
 //! Refuses what `free_list` refuses.
 
 use crate::errors::BadInput;
-use crate::gfx::block::game_addr;
 use crate::gfx::build_fonts::PALETTES_RVA;
-use crate::gfx::glyph_tables::TABLES_LIST_RVA;
+use crate::gfx::glyph_tables::TABLES;
 use crate::memory::MemoryList;
 use crate::memory::free_list::free_list;
+use crate::store::game_addr;
 
 // ---- Rust version ----
 
@@ -27,7 +27,7 @@ pub unsafe fn free_fonts(list: *mut MemoryList, palettes: *mut u32) -> Result<()
 
 /// With the game's list and palettes' place.
 pub fn free_fonts_in_game() -> Result<(), BadInput> {
-    let list = game_addr(TABLES_LIST_RVA) as *mut MemoryList;
+    let list = TABLES.memory.as_ptr();
     let palettes = game_addr(PALETTES_RVA) as *mut u32;
     unsafe { free_fonts(list, palettes) }
 }

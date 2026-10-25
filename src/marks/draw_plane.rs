@@ -20,7 +20,6 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::rva;
-use crate::marks::setup::SETTINGS_RVA;
 use crate::marks::store::{Slot, Where, game_addr, game_read, game_write};
 use crate::math::x87;
 use crate::scene::cross_product3::cross_product3;
@@ -89,7 +88,7 @@ unsafe fn plane_projected() {
 pub unsafe fn draw_plane() -> Result<(), Refused> {
     use crate::scene::set_render_state::set_render_state;
     unsafe {
-        let s: u32 = game_read(SETTINGS_RVA);
+        let s: u32 = crate::marks::setup::SETTINGS.pointer.get();
         if s == 0 {
             return Err(BadInput("no marks settings").into());
         }

@@ -12,20 +12,12 @@
 //! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
 //! are the original's.
 
-use crate::framework::{game_addr, rva};
+use crate::install::vars::INSTALLER_NAMES;
+use crate::install::vars::INSTALLER_RUN;
 
 // ---- game data ----
 
-const KEY_RVA: usize = rva(0x51BB5C); // phkResult
-const KEY_NAME_RVA: usize = rva(0x51BB60); // "SOFTWARE\Magnetic Fields\RC99"
-const STATUS_NAME_RVA: usize = rva(0x51BB7E); // "status"
-const SOURCE_NAME_RVA: usize = rva(0x51BB85); // "source"
-/// byte_51BB8C: 1 = the game is installed, and byte_51BB8D: where from (0xFF bytes).
-pub const STATUS_RVA: usize = rva(0x51BB8C);
-pub const SOURCE_RVA: usize = rva(0x51BB8D);
 const SOURCE_ROOM: u32 = 0xFF;
-const SIZE_RVA: usize = rva(0x51BC90); // dword_51BC90
-const TYPE_RVA: usize = rva(0x51BC94); // Type
 const REG_SZ: u32 = 1;
 const REG_BINARY: u32 = 3;
 
@@ -47,22 +39,22 @@ pub trait Registry {
 
 pub unsafe fn read_registry(registry: &mut dyn Registry) {
     unsafe {
-        let key = game_addr(KEY_RVA) as *mut u32;
-        if registry.open(game_addr(KEY_NAME_RVA) as *const u8, key) != 0 {
+        let key = INSTALLER_RUN.reg_key.addr() as *mut u32;
+        if registry.open(INSTALLER_NAMES.key_name.addr() as *const u8, key) != 0 {
             return;
         }
         let (kind, size) = (
-            game_addr(TYPE_RVA) as *mut u32,
-            game_addr(SIZE_RVA) as *mut u32,
+            INSTALLER_NAMES.reg_type.addr() as *mut u32,
+            INSTALLER_NAMES.source_size.addr() as *mut u32,
         );
         let (status, source) = (
-            game_addr(STATUS_RVA) as *mut u8,
-            game_addr(SOURCE_RVA) as *mut u8,
+            INSTALLER_NAMES.status.addr() as *mut u8,
+            INSTALLER_NAMES.source.addr() as *mut u8,
         );
         let key = key.read_unaligned();
         'values: {
             size.write_unaligned(1);
-            let name = game_addr(STATUS_NAME_RVA) as *const u8;
+            let name = INSTALLER_NAMES.status_name.addr() as *const u8;
             if registry.query(key, name, kind, status, size) != 0 {
                 break 'values;
             }
@@ -70,7 +62,7 @@ pub unsafe fn read_registry(registry: &mut dyn Registry) {
                 status.write(0);
             }
             size.write_unaligned(SOURCE_ROOM);
-            let name = game_addr(SOURCE_NAME_RVA) as *const u8;
+            let name = INSTALLER_NAMES.source_name.addr() as *const u8;
             if registry.query(key, name, kind, source, size) != 0 {
                 break 'values;
             }

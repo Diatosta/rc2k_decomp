@@ -7,7 +7,8 @@
 //! Out: nothing (every register kept, `pusha` .. `popa`)
 //! Callers: `net::begin_setting_edit`, `net::begin_chat`.
 
-use crate::net::lobby::{EDIT_SAVED, a, movsb};
+use crate::install::vars::INSTALLER_PATHS;
+use crate::net::lobby::movsb;
 use crate::net::store::NET;
 
 /// The Rust version.
@@ -16,5 +17,5 @@ pub fn begin_edit(item: u32, text: u32, width: u32, font: u32) {
     NET.edit_text.set(text);
     NET.edit_width.set(width);
     NET.edit_font.set(font);
-    movsb(a(EDIT_SAVED), text, 0x40);
+    movsb(INSTALLER_PATHS.script_path.addr() as u32, text, 0x40);
 }

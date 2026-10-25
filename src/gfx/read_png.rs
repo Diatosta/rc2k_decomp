@@ -20,22 +20,21 @@
 use crate::errors::Refused;
 use crate::files::file_size::file_size;
 use crate::files::read_file::read_file;
-use crate::gfx::block::{game_addr, game_ptr, game_read, game_write};
-use crate::gfx::decode_png::{FILE_LEN_RVA, FILE_RVA, decode_png};
+use crate::gfx::decode_png::decode_png;
+use crate::gfx::decoder::DECODER;
 use crate::gfx::lay_out_png::lay_out_png;
 use crate::gfx::palette_pixels_to_dwords::palette_pixels_to_dwords;
-use crate::gfx::pcx::{DECODED_HEIGHT_RVA, DECODED_WIDTH_RVA, STRIDE_RVA};
-use crate::gfx::picture::{FLAGS_RVA, HEIGHT_RVA, ROW_BYTES_RVA, WIDTH_RVA, picture};
+use crate::gfx::picture::picture;
+use crate::gfx::picture_store::PICTURE;
 use crate::gfx::png::INFO_RVA;
-use crate::gfx::png_file::Slot as PngSlot;
+use crate::gfx::png_file::PNG_FILE;
 use crate::gfx::rgb_pixels_to_dwords::rgb_pixels_to_dwords;
-use crate::memory::MemoryList;
 use crate::memory::allocate::allocate;
 use crate::memory::free_list::free_list;
+use crate::store::{game_addr, game_ptr, game_read};
 
 // ---- game data ----
 
-const FILE_MEMORY_RVA: PngSlot = PngSlot::at(0x5BEC38); // dword_5BEC38: the list the file's memory is on
 const HEAD_LEN: u32 = 0x80;
 
 // ---- Rust version ----
@@ -59,8 +58,8 @@ unsafe fn head_is_taken(path: *const u8) -> Result<bool, Refused> {
 /// The part with the file's memory held: whether it worked.
 unsafe fn read_held(path: *const u8, size: u32) -> Result<bool, Refused> {
     unsafe {
-        let file = allocate(game_addr(FILE_MEMORY_RVA) as *mut MemoryList, size)?;
-        game_write(FILE_RVA, file as u32);
+        let file = allocate(PNG_FILE.memory.as_ptr(), size)?;
+        PNG_FILE.file.set(file as u32);
         let read = read_file(path, file, size, 0)?;
         if !read.ok || read.bytes_read != Some(size) {
             return Ok(false);
@@ -70,11 +69,11 @@ unsafe fn read_held(path: *const u8, size: u32) -> Result<bool, Refused> {
             picture(),
             game_ptr(INFO_RVA),
         )?;
-        game_write(FLAGS_RVA, 0x802u32);
+        PICTURE.flags.set(0x802u32);
         lay_out_png();
-        game_write(WIDTH_RVA, game_read::<u32>(DECODED_WIDTH_RVA));
-        game_write(HEIGHT_RVA, game_read::<u32>(DECODED_HEIGHT_RVA));
-        game_write(ROW_BYTES_RVA, game_read::<u32>(STRIDE_RVA));
+        PICTURE.width.set(DECODER.width.get());
+        PICTURE.height.set(DECODER.height.get());
+        PICTURE.row_bytes.set(DECODER.stride.get());
         if game_read::<u8>(INFO_RVA) == 1 {
             palette_pixels_to_dwords()?;
         } else {
@@ -89,7 +88,7 @@ pub unsafe fn read_png(path: *const u8) -> Result<bool, Refused> {
     unsafe {
         let free = || {
             // Refused only with the game's own heap, which `allocate` refuses first.
-            let _ = free_list(game_addr(FILE_MEMORY_RVA) as *mut MemoryList);
+            let _ = free_list(PNG_FILE.memory.as_ptr());
         };
         // The original gives the list back on every way out, also with nothing on it.
         let taken = head_is_taken(path).inspect_err(|_| free())?;
@@ -102,7 +101,7 @@ pub unsafe fn read_png(path: *const u8) -> Result<bool, Refused> {
             free();
             return Ok(false);
         }
-        game_write(FILE_LEN_RVA, size);
+        PNG_FILE.length.set(size);
         let worked = read_held(path, size);
         free();
         worked

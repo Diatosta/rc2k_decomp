@@ -13,10 +13,6 @@ use crate::input::yes_no_for_key::yes_no_for_key;
 use crate::input::yes_no_key::{NO, YES};
 use crate::menu::leaving::{question, with_question};
 
-// ---- game data ----
-
-pub use crate::menu::leaving::{ANSWERED_RVA as LEAVING_RVA, ASKING_RVA};
-
 // ---- Rust version ----
 
 pub unsafe fn handle_yes_no(eax: u32) -> Result<(), BadInput> {

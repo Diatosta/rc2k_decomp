@@ -17,7 +17,7 @@
 //! that holds blocks (`free_list`'s refusal).
 
 use crate::errors::{BadInput, Refused};
-use crate::marks::lines::{SETTINGS_RVA, TAKEN_RVA};
+use crate::marks::lines::TAKEN_RVA;
 use crate::marks::store::{Slot, game_addr, game_read};
 use crate::memory::free_list::free_list;
 use crate::memory::{MemoryList, own_heap};
@@ -56,7 +56,7 @@ unsafe fn all_lists(settings: u32) -> Vec<u32> {
 /// The Rust version (see the header).
 pub unsafe fn tidy_marks() -> Result<(), Refused> {
     unsafe {
-        let settings: u32 = game_read(SETTINGS_RVA);
+        let settings: u32 = crate::marks::setup::SETTINGS.pointer.get();
         if settings == 0 {
             return Err(BadInput("no marks settings").into());
         }

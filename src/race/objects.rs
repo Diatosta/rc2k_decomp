@@ -74,8 +74,8 @@ pub unsafe fn sort_points(s: Sort, first: u32, last: u32) -> Result<(), Refused>
 }
 
 /// A text to the log.
-fn log(text: usize, newline: bool) {
-    unsafe { crate::logfile::log_write::log_write(game_addr(text) as *const u8, newline, 1) };
+fn log(text: &std::ffi::CStr, newline: bool) {
+    unsafe { crate::logfile::log_write::log_write(text.as_ptr().cast(), newline, 1) };
 }
 
 /// A number to the log.
@@ -173,9 +173,9 @@ pub unsafe fn set_up_car_points(slot: u32, block: u32, v: &CarPointVars) -> Resu
             }
             put(v.car_points, count + 2);
         }
-        log(rva(0x4DB9D9), false);
+        log(c"carnum", false);
         log_number(get(block + 0x24), false);
-        log(rva(0x4DB9E0), false);
+        log(c"numcollpts", false);
         log_number(get(v.car_points), true);
         put(block + 0x260, get(v.car_points));
     }
@@ -238,17 +238,17 @@ pub unsafe fn set_object_kinds() -> Result<(), Refused> {
 /// numbers, "LOAD OBJECTS - FINIS" and the dashes.
 pub unsafe fn reload_objects() -> Result<(), Refused> {
     unsafe {
-        log(rva(0x4DB8E6), true);
-        log(rva(0x4DB90C), true);
+        log(c"-------------------------------------", true);
+        log(c"LOAD OBJECTS - START", true);
         set_object_kinds()?;
-        log(rva(0x4DB921), false);
+        log(c"total points", false);
         log_number(game_read(rva(0x5CD680)), false);
-        log(rva(0x4DB92E), false);
+        log(c"total polys", false);
         log_number(game_read(rva(0x5CD67C)), false);
-        log(rva(0x4DB93A), false);
+        log(c"facemem used", false);
         log_number(game_read(rva(0x634FA0)), true);
-        log(rva(0x4DB947), true);
-        log(rva(0x4DB95C), true);
+        log(c"LOAD OBJECTS - FINIS", true);
+        log(c"-------------------------------------", true);
     }
     Ok(())
 }

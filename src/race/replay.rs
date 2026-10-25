@@ -7,8 +7,12 @@
 //! `files::handle`'s.
 
 use crate::errors::{BadInput, Refused};
+use crate::files::scratch::SCRATCH;
 use crate::framework::rva;
+use crate::menu::names_store::NAME_BUFFERS;
+use crate::race::seal_store::SEAL_WORK;
 use crate::race::state_store::RACE_STATE;
+use crate::session::Bytes;
 use crate::store::{game_addr, game_write};
 
 /// `dword_4F66F9`: the race record's seal key (the replay header's checksum,
@@ -20,7 +24,6 @@ pub const PLAIN_RVA: usize = rva(0x5BEC80); // dword_5BEC80: 1 = chunks written 
 pub const OPEN_RVA: usize = rva(0x5BEC88); // dword_5BEC88: the file is open
 pub const DONE_RVA: usize = rva(0x5BEC84); // dword_5BEC84: a replay was closed
 pub const HANDLE_RVA: usize = rva(0x5BEC8C); // h
-pub const PACKED_RVA: usize = rva(0x93E8B0); // g_pngInfo: the packing's buffer
 pub const INDEX_RVA: usize = rva(0x5BECC8); // "RCIB": the index, 0x3850 bytes
 pub const INDEX_LEN: u32 = 0x3850;
 pub const BLOCKS_RVA: usize = rva(0x5BECD0); // its block count
@@ -34,11 +37,57 @@ pub const PAD_FRAME_RVA: usize = rva(0x5C2518); // unk_5C2518: the frame padding
 pub const CURSOR_RVA: usize = rva(0x9613A0); // dword_9613A0: where the next frame goes
 pub const BLOCK_RVA: usize = rva(0x9613A4); // dword_9613A4: the block, 0x2810 bytes
 pub const BLOCK_LEN: u32 = 0x2810;
-pub const HEADER_RVA: usize = rva(0x528504); // dword_528504: the file's header, 0x430
 pub const HEADER_LEN: u32 = 0x430;
+
+/// IDA's address of the replays' buffers.
+pub const START: usize = 0x528504;
+/// Their length.
+pub const LEN: usize = 0x5295B4 - START;
+/// A replay's name: 0x20 bytes.
+pub const NAME_BYTES: usize = 0x20;
+/// The replays that can be saved.
+pub const SLOTS: usize = 100;
+
+/// The replays' buffers.
+#[repr(C)]
+pub struct Replays {
+    /// `dword_528504`: the file's header (a dword array, `HEADER_LEN` bytes).
+    pub header: Bytes<{ HEADER_LEN as usize }>,
+    /// `byte_528934`: the saved replays' names, 100 of 0x20 bytes (twenty to a page).
+    pub names: Bytes<{ SLOTS * NAME_BYTES }>,
+}
+
+/// The replays' buffers; the first values are the image's (all zero).
+pub static REPLAYS: Replays = Replays {
+    header: Bytes::new([0; HEADER_LEN as usize]),
+    names: Bytes::new([0; SLOTS * NAME_BYTES]),
+};
+
+/// Where the block is (`moved::MOVED`'s home for IDA 0x528504).
+pub fn home() -> usize {
+    &REPLAYS as *const Replays as usize
+}
+
+#[cfg(test)]
+mod block_tests {
+    use super::*;
+    use core::mem::offset_of;
+
+    #[test]
+    fn first_values_are_the_games() {
+        crate::gfx::first_values_are_the_games(&REPLAYS, START, START + LEN);
+    }
+
+    #[test]
+    fn moved_knows_the_block() {
+        assert_eq!(offset_of!(Replays, names), 0x528934 - START);
+        assert_eq!(crate::moved::place(START), REPLAYS.header.addr());
+        assert_eq!(crate::moved::place(0x528934), REPLAYS.names.addr());
+        assert_eq!(crate::moved::place(0x528510), REPLAYS.header.addr() + 0xC);
+    }
+}
 pub const CAR_HEADER_RVA: usize = rva(0x719B14); // dword_719B14: 0x400 bytes
 pub const SEALED_RVA: usize = rva(0x719B54); // dword_719B54: the sealed part, 0x100
-const PATH_RVA: usize = rva(0x5295F0); // "var\tmprpl"
 
 unsafe fn get(a: usize) -> u32 {
     unsafe { (game_addr(a) as *const u32).read_unaligned() }
@@ -60,7 +109,7 @@ pub unsafe fn seal_replay_header() -> Result<(), Refused> {
     unsafe {
         game_write::<u8>(rva(0x719B58), SEAL_VERSION);
         crate::strings::copy_printable::copy_printable(
-            game_addr(rva(0x755784)) as *const u8, // g_playerNames
+            NAME_BUFFERS.player_names.addr() as *const u8, // g_playerNames
             game_addr(rva(0x719B61)) as *mut u8,
             0x20,
         )?;
@@ -73,24 +122,25 @@ pub unsafe fn seal_replay_header() -> Result<(), Refused> {
         let sum = seal_checksum(&dwords);
         set(SEALED_RVA, sum);
         crate::race::replay::SEAL_KEY.set(sum);
-        let key = [get(rva(0x4E052C)), get(rva(0x4E0530))];
-        set(rva(0x4E052C), SEAL_KEY[0]);
-        set(rva(0x4E0530), SEAL_KEY[1]);
+        let w = &SEAL_WORK;
+        let key = [w.key[0].get(), w.key[1].get()];
+        w.key[0].set(SEAL_KEY[0]);
+        w.key[1].set(SEAL_KEY[1]);
         let (mut a, mut b) = (0u32, 0u32);
         for n in 0..0x20u32 {
             let at = SEALED_RVA + 8 * n as usize;
             let [x, y] = chained([get(at), get(at + 4)], [a, b]);
-            set(rva(0x4E0534), x);
-            set(rva(0x4E0538), y);
+            w.block[0].set(x);
+            w.block[1].set(y);
             // `seal_block` works on the dwords at 0x4E052C .. (no register read).
             crate::race::save_seal::seal_block();
-            a = get(rva(0x4E053C));
+            a = w.sealed[0].get();
             set(at, a);
-            b = get(rva(0x4E0540));
+            b = w.sealed[1].get();
             set(at + 4, b);
         }
-        set(rva(0x4E0530), key[1]);
-        set(rva(0x4E052C), key[0]);
+        w.key[1].set(key[1]);
+        w.key[0].set(key[0]);
     }
     Ok(())
 }
@@ -150,7 +200,7 @@ pub unsafe fn write_replay_chunk(
         if get(PLAIN_RVA) == 1 {
             return Ok(write(handle, from, count));
         }
-        let packed_at = game_addr(PACKED_RVA) as u32;
+        let packed_at = SCRATCH.buffer.addr() as u32;
         let packed = crate::race::save_seal::pack_runs(from, count, packed_at);
         // Converted: `rc2k_core::race::replay::packed_size`.
         Ok(match rc2k_core::race::replay::packed_size(packed, count) {
@@ -285,17 +335,15 @@ pub unsafe fn open_replay() -> Result<(), Refused> {
         if !room_for_replay(crate::logfile::start_log::free_space_kb()) {
             return Ok(());
         }
+        let header = &REPLAYS.header;
         for k in 0..0x10C {
-            set(HEADER_RVA + 4 * k, 0);
+            header.set_u32(4 * k, 0);
         }
-        set(HEADER_RVA, HEADER_MAGIC);
-        set(HEADER_RVA + 8, HEADER_VERSION);
-        set(
-            HEADER_RVA + 0xC,
-            crate::system::packed_local_time::packed_local_time(),
-        );
+        header.set_u32(0, HEADER_MAGIC);
+        header.set_u32(8, HEADER_VERSION);
+        header.set_u32(0xC, crate::system::packed_local_time::packed_local_time());
         for (k, &w) in HEADER_NAME.iter().enumerate() {
-            set(HEADER_RVA + 0x10 + 4 * k, w);
+            header.set_u32(0x10 + 4 * k, w);
         }
         set(
             rva(0x719B34),
@@ -318,7 +366,7 @@ pub unsafe fn open_replay() -> Result<(), Refused> {
         seal_replay_header()?;
         std::ptr::copy(
             game_addr(CAR_HEADER_RVA) as *const u8,
-            game_addr(HEADER_RVA + 0x30) as *mut u8,
+            REPLAYS.header.as_ptr().add(0x30),
             0x400,
         );
         std::ptr::write_bytes(game_addr(INDEX_RVA) as *mut u8, 0, INDEX_LEN as usize);
@@ -326,14 +374,17 @@ pub unsafe fn open_replay() -> Result<(), Refused> {
         set(CURSOR_RVA, game_addr(BLOCK_RVA) as u32);
         set(IN_BLOCK_RVA, 0);
         set(OFFSET_RVA, 0);
-        let opened = crate::files::handle::open_by_mode(game_addr(PATH_RVA) as *const u8, 1)?;
+        let opened = crate::files::handle::open_by_mode(
+            crate::race::replay_path::LAST_RACE.addr() as *const u8,
+            1,
+        )?;
         let failed = match opened {
             None => true,
             Some(handle) => {
                 set(HANDLE_RVA, handle);
                 set(OPEN_RVA, 1);
                 set(OFFSET_RVA, get(OFFSET_RVA).wrapping_add(HEADER_LEN));
-                write(get(HANDLE_RVA), game_addr(HEADER_RVA) as u32, HEADER_LEN).1
+                write(get(HANDLE_RVA), REPLAYS.header.addr() as u32, HEADER_LEN).1
             }
         };
         if failed {

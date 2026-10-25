@@ -11,14 +11,13 @@
 use crate::audio::mixer::*;
 use crate::audio::store::AUDIO;
 use crate::errors::Refused;
-use crate::store::game_addr;
 
 pub fn write_mix_in_game() -> Result<(), Refused> {
     let parts = AUDIO.locked_parts.each_ref().map(|d| d.get());
     unsafe {
         write_mix(
             AUDIO.sound_mode.get(),
-            game_addr(MIX_BUFFER_RVA) as u32,
+            crate::audio::mix_buffer::MIX_BUFFER.samples.addr() as u32,
             parts,
         )
     }

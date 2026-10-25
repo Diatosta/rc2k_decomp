@@ -14,9 +14,8 @@
 //! The overrun pair of labels has not been seen.
 
 use crate::errors::Refused;
-use crate::framework::game_read;
+use crate::menu::event_store::EVENT_STATE;
 use crate::menu::state_store::MENU_STATE;
-use crate::service::state::TIME_BUDGET_RVA;
 use crate::text::draw_text::Canvas;
 
 // ---- game data ----
@@ -31,11 +30,10 @@ use crate::text::draw_text::Canvas;
 /// Returns the carry flag of the last `draw_text`.
 pub unsafe fn draw_service_time(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
     // Converted: `rc2k_core::screens::service::service_time`.
-    unsafe {
-        rc2k_core::screens::service::service_time(
-            &mut crate::screens::game_screen::ServiceScreen::new(canvas),
-            game_read(TIME_BUDGET_RVA),
-            MENU_STATE.driver_stats.repair_time.get() as i32,
-        )
-    }
+
+    rc2k_core::screens::service::service_time(
+        &mut crate::screens::game_screen::ServiceScreen::new(canvas),
+        EVENT_STATE.service_minutes.get() as i32,
+        MENU_STATE.driver_stats.repair_time.get() as i32,
+    )
 }

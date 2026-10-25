@@ -12,7 +12,6 @@
 //! Refuses a name that would be cut to before its start, and what the measuring refuses.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_ptr, rva};
 use crate::menu::player_names::{PLAYERS, name};
 use crate::text::draw_text::GameCanvas;
 use crate::text::font::Font;
@@ -34,7 +33,7 @@ pub unsafe fn fit_name(text: *mut u8, x: u32) -> Result<u32, Refused> {
             return Err(BadInput("a name without its end").into());
         };
         // Converted: `rc2k_core::menu::text_entry::fit_name`.
-        let font: *mut Font = game_ptr(rva(MEASURING_FONT));
+        let font: *mut Font = MEASURING_FONT.as_ptr();
         text_entry::fit_name(len, x, |len, x| -> Result<u32, Refused> {
             text.add(len).write(0);
             Ok(measure_text_at(font, text, x as i32, &mut GameCanvas)?.width)

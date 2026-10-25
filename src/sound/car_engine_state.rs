@@ -48,8 +48,6 @@ use crate::scene::x87_mem::{fild, fld, mov};
 use crate::session::MACHINE;
 use rc2k_core::sound::engine::{Left, Words, extrapolation, over_256, readings, state};
 
-/// off_514F90: the sound kinds, 36 pointers.
-pub const KINDS: usize = 0x514F90;
 pub const KIND_COUNT: u32 = 36;
 /// dword_5BEC94: 1 holds the revs as they are.
 const HOLD: usize = 0x5BEC94;
@@ -64,7 +62,7 @@ pub fn kind_of(o: u32) -> Result<u32, BadInput> {
     if n >= KIND_COUNT {
         return Err(BadInput("a sound kind past the 36 of the table"));
     }
-    Ok(g(KINDS + 4 * n as usize))
+    Ok(crate::sound::sets_store::SOUND_KINDS.kinds[n as usize].get())
 }
 
 // ---- Rust version ----

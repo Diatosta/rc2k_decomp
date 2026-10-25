@@ -4,6 +4,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::rva;
+use crate::gfx::screen_state::DRAW_SURFACE;
 use crate::session::SCREEN;
 use crate::store::{game_addr, game_read, game_write};
 
@@ -112,7 +113,7 @@ fn shadow_refuses(sh: &crate::marks::draw_shadow::Shadow) -> Result<(), Refused>
     if corner >= 0x100 {
         return Err(BadInput("a shadow corner past g_marksCorners").into());
     }
-    if unsafe { crate::marks::store::game_read::<u32>(crate::marks::setup::SETTINGS_RVA) } == 0 {
+    if crate::marks::setup::SETTINGS.pointer.get() == 0 {
         return Err(BadInput("no marks settings").into());
     }
     match sh.angle_refuses() {
@@ -147,13 +148,6 @@ pub unsafe fn load_first_car() -> Result<(), Refused> {
     }
 }
 
-const SURFACE_PIXELS: u32 = 0x4F49C0; // g_surface.pixels
-const SURFACE_PITCH: u32 = 0x4F49BC; // g_surface.pitch
-const SURFACE_WIDTH: u32 = 0x4F49A0; // g_surface.width
-const SURFACE_HEIGHT: u32 = 0x4F49A4; // g_surface.height
-const SURFACE_BITS: u32 = 0x4F49A8; // g_surface.bits_per_pixel
-const SURFACE_FORMAT: u32 = 0x4F49B8; // g_surface.format (a pointer)
-
 /// `race::copy_mirror_picture` (0x455DAD): the mirror's surface (slot `dword_624234`) copied
 /// onto slot `dword_5D0E08`'s, each pixel through `gfx::pixel_to_components` (the screen's
 /// format, 16 or 32 bits by `g_screenBits`) and back by `gfx::components_to_pixel` (the
@@ -172,25 +166,25 @@ pub unsafe fn copy_mirror_picture() -> Result<(), Refused> {
         if lock_texture(from)?.carry {
             return Ok(());
         }
-        let esi = k(SURFACE_PIXELS);
+        let esi = DRAW_SURFACE.pixels.get();
         w(0x6415EC, esi);
-        let ebp = k(SURFACE_PITCH);
+        let ebp = DRAW_SURFACE.pitch.get();
         if !lock_texture(to)?.carry {
-            let edi = k(SURFACE_PIXELS);
+            let edi = DRAW_SURFACE.pixels.get();
             w(0x6415F0, edi);
-            let format = k(SURFACE_FORMAT);
+            let format = DRAW_SURFACE.format.get();
             if format == 0 {
                 return Err(BadInput("a surface without its format").into());
             }
             let format = &*(format as *const PixelFormat);
             let screen = crate::gfx::pixel_format::surface_format();
             let copy = PictureCopy {
-                width: k(SURFACE_WIDTH),
-                height: k(SURFACE_HEIGHT),
+                width: DRAW_SURFACE.width.get(),
+                height: DRAW_SURFACE.height.get(),
                 from_pitch: ebp,
-                to_pitch: k(SURFACE_PITCH),
+                to_pitch: DRAW_SURFACE.pitch.get(),
                 from_16: SCREEN.bits.get() == 0x10,
-                to_16: k(SURFACE_BITS) == 0x10,
+                to_16: DRAW_SURFACE.bits_per_pixel.get() == 0x10,
             };
             let mut surfaces = GameSurfaces {
                 screen: &screen,
@@ -426,7 +420,7 @@ pub unsafe fn run_view_marks() -> Result<(), Refused> {
         check_view_marks(
             block,
             |b| k(0x71B3D8 + 4 * b),
-            || crate::marks::store::game_read(crate::marks::setup::SETTINGS_RVA),
+            || crate::marks::setup::SETTINGS.pointer.get(),
         )?;
         let (other, own) = marks_shown(view, k(0x6235E8), k(0x601024));
         w(0x5C2F94, other);

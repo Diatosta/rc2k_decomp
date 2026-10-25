@@ -14,7 +14,8 @@
 //! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; the
 //! registers above are the original's, for reference.
 
-use crate::install::installer::{Api, GET_DISK_FREE, SCRATCH, a, rd};
+use crate::files::scratch::SCRATCH;
+use crate::install::installer::{Api, GET_DISK_FREE, rd};
 
 /// The free KB of drive `letter` (its low byte), or None when `GetDiskFreeSpaceA` failed
 /// (the original's carry; eax -1 then). The bytes a sector the original leaves in ebx are
@@ -22,7 +23,7 @@ use crate::install::installer::{Api, GET_DISK_FREE, SCRATCH, a, rd};
 pub fn drive_free_space_kb(letter: u32, api: Api) -> Option<u32> {
     let root = unsafe { crate::files::drive_type::drive_root(letter as u8) };
     let root_ptr = root.as_ref().map_or(0, |b| b.as_ptr() as u32);
-    let s = a(SCRATCH);
+    let s = SCRATCH.buffer.addr() as u32;
     let answer = api(GET_DISK_FREE, &[root_ptr, s + 0xC, s + 8, s + 4, s]);
     if answer < 1 {
         return None;

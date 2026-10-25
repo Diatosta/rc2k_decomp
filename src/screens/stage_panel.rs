@@ -4,13 +4,13 @@
 //! and which best-time table the record rows use.
 
 use crate::errors::{FatalError, Refused};
-use crate::framework::{game_addr, game_ptr, game_read, rva};
+use crate::framework::{game_ptr, rva};
 use crate::gfx::blit_marker_pair::{marker_calls, set_marker_position, sprite_table};
-use crate::menu::lists_store::MENU_LISTS;
+use crate::menu::champ_store::CHAMP_VIEW;
+use crate::menu::loop_store::LOOP_FLAGS;
 use crate::records::trakpak_entry::record_entry;
 use crate::screens::draw_stage_heading::heading_text;
 use crate::screens::draw_stage_records::draw_stage_records;
-use crate::screens::font_at;
 use crate::screens::game_screen::GameScreen;
 use crate::strings::units::units;
 use crate::text::draw_string_by_id::draw_string_by_id_at;
@@ -19,26 +19,18 @@ use std::ptr::copy_nonoverlapping;
 
 // ---- game data ----
 
-pub const BEST_TIMES_PTR_RVA: usize = rva(0x7556D8); // dword_7556D8: 0x618-byte entries
-pub const GROUP_1_BEST_TIMES_PTR_RVA: usize = rva(0x7556E0); // dword_7556E0: same, for group 1
 // dword_7559EC: a work variable used all over the game
 // mmss: receives the finish time
 // dword_75ACD0[1]: copy of entry +0x34
 pub const SECOND_HEADING_RVA: usize = rva(0xA8BD54); // byte_A8BD54: the 0x482 heading text
-pub const MENU_PTR_RVA: usize = rva(0x75558D); // dword_75558D: the current menu
 
 pub const BEST_TIME_ENTRY_SIZE: u32 = 0x618;
 const SECOND_HEADING_STRING: u32 = 0x482;
 
-pub const TITLE_FONT: usize = 0x51E9A4;
-const HEADING_FONT: usize = 0x51E5C4;
+pub const TITLE_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::STAGE_TITLE;
+const HEADING_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::HEADING;
 pub unsafe fn dword(at: u32) -> u32 {
     unsafe { (at as *const u32).read_unaligned() }
-}
-
-/// Element `index` of a dword table in game memory.
-pub unsafe fn table_dword(table_rva: usize, index: u32) -> u32 {
-    unsafe { table_dword_at(game_addr(table_rva), index) }
 }
 
 /// The dword `index` of the table at `table` (an address; no bounds, as the original).
@@ -52,11 +44,11 @@ pub unsafe fn table_dword_at(table: usize, index: u32) -> u32 {
 pub unsafe fn label(
     canvas: &mut dyn Canvas,
     id: u32,
-    font: usize,
+    font: crate::gfx::typefaces::FontId,
     x: i32,
     y: i32,
 ) -> Result<(), Refused> {
-    unsafe { draw_string_by_id_at(id, font_at(font), x, y, canvas) }.map(|_| ())
+    unsafe { draw_string_by_id_at(id, font.as_ptr(), x, y, canvas) }.map(|_| ())
 }
 
 /// Builds the second heading ("<string 0x482> n/6: name") in its own buffer. Three of the
@@ -99,7 +91,7 @@ pub unsafe fn draw_stage_body_in(
     record: u32,
     marker_palette: u32,
     keep_entry_34: bool,
-    heading_font: usize,
+    heading_font: crate::gfx::typefaces::FontId,
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
     // Converted: `rc2k_core::screens::stage_panel::body`.
@@ -173,12 +165,12 @@ pub unsafe fn draw_records_for_group(
     canvas: &mut dyn Canvas,
 ) -> Result<bool, Refused> {
     unsafe {
-        let mut table: u32 = game_read(GROUP_1_BEST_TIMES_PTR_RVA);
+        let mut table: u32 = CHAMP_VIEW.course_best_times.get();
         if table == 0 {
             return Ok(false);
         }
         if group != 1 {
-            table = game_read(BEST_TIMES_PTR_RVA);
+            table = CHAMP_VIEW.stage_best_times.get();
         }
         if table == 0 {
             return Ok(false);
@@ -191,6 +183,6 @@ pub unsafe fn draw_records_for_group(
 
 /// Address of the string id of item `n` of the current menu, or None without a menu.
 pub unsafe fn menu_item_id(n: u32) -> Option<u32> {
-    let menu: u32 = unsafe { game_read(MENU_PTR_RVA) };
+    let menu: u32 = { LOOP_FLAGS.menu.get() };
     (menu != 0).then(|| menu.wrapping_add(4 + n * 0x5C + 0x14))
 }

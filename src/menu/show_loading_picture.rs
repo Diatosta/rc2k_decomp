@@ -5,14 +5,11 @@
 //! file could not be read) `gfx::show_picture_file` on `files\g\graphics\screens\loading.pcx`.
 //! Fifteen callers, `menu::set_up_front_end` among them.
 
-use crate::framework::{game_addr, rva};
 use crate::gfx::show_picture_file::show_picture_file;
 
 // ---- game data ----
 
-const PATH_RVA: usize = rva(0x731BBF); // "files\g\graphics\screens\loading.pcx"
-
 /// The picture shown; what `gfx::show_picture_file` returns (eax: 1, or the path).
 pub fn show_loading_picture() -> Result<u32, crate::errors::Refused> {
-    unsafe { show_picture_file(game_addr(PATH_RVA) as *mut u8) }
+    unsafe { show_picture_file(crate::menu::texts_store::MENU_TEXTS.loading_pcx.addr() as *mut u8) }
 }

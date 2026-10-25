@@ -12,7 +12,7 @@ use crate::menu::standings::*;
 
 /// The Rust version (see the header): the registers it leaves.
 pub unsafe fn clear_standings_b() -> Result<(), Refused> {
-    let first: u32 = unsafe { crate::framework::game_read(TABLE_B_RVA) };
+    let first: u32 = { TABLE_B_RVA.get() };
     let all = entries(first, B_ENTRY)?;
     // Converted: `rc2k_core::menu::standings::B_FIGURE`, stored in each entry.
     use rc2k_core::menu::standings::B_FIGURE;

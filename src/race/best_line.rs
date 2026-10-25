@@ -506,26 +506,29 @@ pub unsafe fn map_checkpoints() -> Result<(), Refused> {
     }
 }
 
-const RULE_RVA: [usize; 2] = [rva(0x4DC4A8), rva(0x4DC536)]; // "-----..."
+const RULE_RVA: [&std::ffi::CStr; 2] = [
+    c"---------------------------------",
+    c"---------------------------------",
+]; // "-----..."
 /// "angles", "checks", "speeds", "dists", "map", "replaycam1", "replaycam2", with the
 /// step each comes before.
-const STEP_WORDS: [(usize, u32); 7] = [
-    (rva(0x4DC4CA), 1),
-    (rva(0x4DC4D1), 2),
-    (rva(0x4DC4D8), 3),
-    (rva(0x4DC4DF), 4),
-    (rva(0x4DC4E5), 5),
-    (rva(0x4DC4E9), 6),
-    (rva(0x4DC4F4), 7),
+const STEP_WORDS: [(&std::ffi::CStr, u32); 7] = [
+    (c"angles", 1),
+    (c"checks", 2),
+    (c"speeds", 3),
+    (c"dists", 4),
+    (c"map", 5),
+    (c"replaycam1", 6),
+    (c"replaycam2", 7),
 ];
-const COMPLETED_RVA: usize = rva(0x4DC4FF); // "best line completed"
+const COMPLETED_RVA: &std::ffi::CStr = c"best line completed"; // "best line completed"
 /// "dir" `g_stageDirection`, ": numblo" `g_lineFaceTotal`, "numsorted"
 /// `g_checkpointCount`, "numsortedm1" `g_lastCheckpoint` (the last with the line's end).
-const SUMMARY: [(usize, usize); 4] = [
-    (rva(0x4DC513), DIRECTION_RVA),
-    (rva(0x4DC517), FOUND_RVA),
-    (rva(0x4DC520), CHECK_COUNT_RVA),
-    (rva(0x4DC52A), LAST_CHECK_RVA),
+const SUMMARY: [(&std::ffi::CStr, usize); 4] = [
+    (c"dir", DIRECTION_RVA),
+    (c": numblo", FOUND_RVA),
+    (c"numsorted", CHECK_COUNT_RVA),
+    (c"numsortedm1", LAST_CHECK_RVA),
 ];
 const CLEARED_RVA: [usize; 2] = [rva(0x6365E4), rva(0x6365EC)]; // dword_6365E4, dword_6365EC
 
@@ -538,7 +541,7 @@ const CLEARED_RVA: [usize; 2] = [rva(0x6365E4), rva(0x6365EC)]; // dword_6365E4,
 pub unsafe fn build_best_line() -> Result<(), Refused> {
     use crate::logfile::{log_int::log_int, log_write::log_write};
     let text =
-        |at: usize, newline: bool| unsafe { log_write(game_addr(at) as *const u8, newline, 1) };
+        |at: &std::ffi::CStr, newline: bool| unsafe { log_write(at.as_ptr().cast(), newline, 1) };
     unsafe {
         text(RULE_RVA[0], true);
         sort_checkpoints()?;

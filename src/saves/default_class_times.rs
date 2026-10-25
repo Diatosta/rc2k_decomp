@@ -14,20 +14,18 @@
 //! Converted: `rc2k_core::saves::defaults::class_times`.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, rva};
+use crate::menu::champ_store::CHAMP_VIEW;
 use crate::saves::default_times::{GameSource, to_nowhere};
 use rc2k_core::saves::defaults::{CLASS_TABLE_LEN, class_times, write_class_times};
 
 // ---- game data ----
-
-const TABLE_RVA: usize = rva(0x7556DC); // dword_7556DC
 
 // ---- Rust version ----
 
 pub unsafe fn default_class_times() -> Result<(), Refused> {
     // Converted: `rc2k_core::saves::defaults::class_times`.
     unsafe {
-        let table: u32 = game_read(TABLE_RVA);
+        let table: u32 = CHAMP_VIEW.level_best_scores.get();
         if table == 0 {
             return Err(BadInput("no table").into());
         }

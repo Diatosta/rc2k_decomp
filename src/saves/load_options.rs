@@ -14,9 +14,9 @@
 
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::files::read_file::read_file;
-use crate::framework::{game_addr, rva};
+use crate::menu::loop_store::LOOP_FLAGS;
 use crate::saves::rebuild_car_lists::rebuild_car_lists;
-use crate::settings::{TEXT_ROOM, TEXT_RVA};
+use crate::settings::TEXT_ROOM;
 
 /// `unk_4F66DD`, `unk_4F66E1`, `unk_4F66E5` (-1 at start), `unk_4F66E9`: four dwords the
 /// options file keeps (here and in `saves::save_options`, by address); nothing else of the
@@ -32,8 +32,28 @@ pub static KEPT: [crate::session::Dword; 5] = [
 
 // ---- game data ----
 
-const PATH_RVA: usize = rva(0x5295D8); // "var\ral.dat"
-pub const LOADED_RVA: usize = rva(0x75557D); // g_optionsLoaded
+/// IDA's address of the options file's name.
+pub const PATH_START: usize = 0x5295D8;
+
+/// `aVarRalDat`: the options file's name.
+pub static PATH: crate::session::Bytes<12> = crate::session::Bytes::new(*b"var\\ral.dat\0");
+
+/// Where the name is (`moved::MOVED`'s home for IDA 0x5295D8).
+pub fn path_home() -> usize {
+    PATH.addr()
+}
+
+#[cfg(test)]
+mod path_tests {
+    use super::*;
+
+    #[test]
+    fn first_values_are_the_games() {
+        crate::gfx::first_values_are_the_games(&PATH, PATH_START, PATH_START + 12);
+        assert_eq!(crate::moved::place(PATH_START), PATH.addr());
+    }
+}
+
 /// The file's pieces after its head, in order: (where each goes, its length).
 #[rustfmt::skip]
 pub const OPTIONS: [(u32, usize); 69] = [
@@ -132,7 +152,7 @@ pub struct Places<'a> {
 pub unsafe fn load_options(path: *const u8, places: &mut Places) -> Result<bool, Refused> {
     unsafe {
         places.loaded.write_unaligned(0);
-        let file = game_addr(TEXT_RVA) as *mut u8;
+        let file = crate::files::scratch::SCRATCH.buffer.addr() as *mut u8;
         let read = read_file(path, file, TEXT_ROOM + 1, 0)?;
         // Converted: `rc2k_core::saves::kept` (`head_ok`, `pieces`), over the scratch block
         // the file was read into (what it held past the file decides, as in the original).
@@ -163,9 +183,9 @@ pub unsafe fn load_options(path: *const u8, places: &mut Places) -> Result<bool,
 pub unsafe fn load_game_options() -> Result<bool, Refused> {
     unsafe {
         load_options(
-            game_addr(PATH_RVA) as *const u8,
+            PATH.addr() as *const u8,
             &mut Places {
-                loaded: game_addr(LOADED_RVA) as *mut u32,
+                loaded: LOOP_FLAGS.options_loaded.addr() as *mut u32,
                 piece: &|n| crate::moved::place(OPTIONS[n].0 as usize) as *mut u8,
                 rebuild_car_lists: &mut || rebuild_car_lists(),
             },

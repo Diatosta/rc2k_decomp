@@ -19,13 +19,14 @@
 //! table, a class count of 0 or past 0x100, a class's driver count of 0 (the original's `div`
 //! traps), a drivers table without its end, before anything.
 use crate::errors::{BadInput, FatalError, Refused};
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::menu::draw_work_store::DRAW_WORK;
+use crate::menu::event_store::EVENT_STATE;
 use crate::menu::standings::*;
 use crate::menu::state_store::MENU_STATE;
 
 use crate::menu::scale_stage_times::{held_section, scaled};
 
-const TEXTS_RVA: [usize; 2] = [rva(0x4DE232), rva(0x4DE247)]; // aCalccputimesSt, aCalccputimesFi
+const TEXTS_RVA: [&std::ffi::CStr; 2] = [c"CALCCPUTIMES:STARTED", c"CALCCPUTIMES:FINISHED"]; // aCalccputimesSt, aCalccputimesFi
 
 /// The class time `c` as the original reads it, `dword_75AAE8`[c]: with no bound, so that a
 /// class past the four reads on into the variables that follow.
@@ -41,11 +42,6 @@ unsafe fn class_count_at(c: u32) -> u32 {
         ((MENU_STATE.menus.class_counts[0].addr() + 4 * c as usize) as *const u32).read_unaligned()
     }
 }
-const CLASSES_RVA: usize = rva(0x7558F8); // dword_7558F8
-const GAP_RVA: usize = rva(0x7559F0); // hhmm
-const SPREAD_RVA: usize = rva(0x7559EC); // dword_7559EC
-const FIRST_RVA: usize = rva(0x755944); // dword_755944
-const STEP_RVA: usize = rva(0x755948); // dword_755948
 const DIVIDE_BY_ZERO: FatalError = FatalError {
     code: 0x80701010,
     message: "",
@@ -53,8 +49,8 @@ const DIVIDE_BY_ZERO: FatalError = FatalError {
 /// The current record (see `standings::current_event`'s checks).
 pub fn record() -> Result<u32, BadInput> {
     current_event()?;
-    let table = game_addr(RECORDS_RVA) as u32;
-    let (section, index): (u32, u32) = unsafe { (game_read(SECTION_RVA), game_read(INDEX_RVA)) };
+    let table = crate::records::stages_store::STAGE_TABLES.championship();
+    let (section, index): (u32, u32) = { (SECTION_RVA.get(), INDEX_RVA.get()) };
     Ok(crate::records::find_record::find_record_in(
         table,
         index as i32,
@@ -65,11 +61,11 @@ pub fn record() -> Result<u32, BadInput> {
 /// What the Rust version refuses for the record `rec` (or its fatal error), before
 /// anything: the class count, the drivers and the pack entry's length.
 pub fn check(rec: u32) -> Result<(u32, Vec<u32>, u32), Refused> {
-    let classes: u32 = unsafe { game_read(CLASSES_RVA) };
+    let classes: u32 = { EVENT_STATE.classes.get() };
     if classes == 0 || classes > 0x100 {
         return Err(BadInput("a class count of 0 or past 0x100").into());
     }
-    let drivers = entries(game_addr(DRIVERS_RVA) as u32, DRIVER)?;
+    let drivers = entries(crate::menu::drivers_store::DRIVERS.first(), DRIVER)?;
     let times = [
         get(rec + 0x18),
         get(rec + 0x1C),
@@ -112,7 +108,7 @@ pub unsafe fn calc_cpu_times() -> Result<(), Refused> {
     let rec = record()?;
     let (classes, drivers, length) = check(rec)?;
     unsafe {
-        log_write(game_addr(TEXTS_RVA[0]) as *const u8, true, 1);
+        log_write(TEXTS_RVA[0].as_ptr() as usize as *const u8, true, 1);
         for (k, t) in [0x18, 0x1C, 0x20, 0x24].into_iter().enumerate() {
             MENU_STATE.menus.class_times[k].set(get(rec + t));
         }
@@ -130,15 +126,15 @@ pub unsafe fn calc_cpu_times() -> Result<(), Refused> {
                 let time = class_time_at(c);
                 let count = class_count_at(c);
                 let gap = cpu_gap(time, count);
-                game_write(GAP_RVA, gap);
+                DRAW_WORK.hhmm.set(gap);
                 let mut spread = Spread {
-                    first: game_read(FIRST_RVA),
-                    step: game_read(STEP_RVA),
+                    first: EVENT_STATE.service_944.get(),
+                    step: EVENT_STATE.dword_755948.get(),
                 };
                 let own = spread.next(|limit| crate::math::random_below::random_below(limit))?;
-                game_write(SPREAD_RVA, own);
-                game_write(FIRST_RVA, spread.first);
-                game_write(STEP_RVA, spread.step);
+                DRAW_WORK.figure.set(own);
+                EVENT_STATE.service_944.set(spread.first);
+                EVENT_STATE.dword_755948.set(spread.step);
                 if get(d + 0x24) == 1 {
                     let own = cpu_time(own, gaps, time);
                     put(d + 0xC, own);
@@ -147,7 +143,7 @@ pub unsafe fn calc_cpu_times() -> Result<(), Refused> {
                 gaps = gaps.wrapping_add(gap);
             }
         }
-        log_write(game_addr(TEXTS_RVA[1]) as *const u8, true, 1);
+        log_write(TEXTS_RVA[1].as_ptr() as usize as *const u8, true, 1);
     }
     Ok(())
 }

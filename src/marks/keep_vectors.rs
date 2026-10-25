@@ -8,27 +8,26 @@
 //!
 //! Caller: `sub_4C1270`.
 
-use crate::marks::store::{Slot, game_read, game_write};
-
-/// (from, to), in the original's order.
-const MOVES: [(Slot, Slot); 12] = [
-    (Slot::at(0x769252), Slot::at(0x76926E)),
-    (Slot::at(0x769256), Slot::at(0x769272)),
-    (Slot::at(0x76925A), Slot::at(0x769276)),
-    (Slot::at(0x76924E), Slot::at(0x76926A)),
-    (Slot::at(0x764FB0), Slot::at(0x7692C2)),
-    (Slot::at(0x764FB4), Slot::at(0x7692C6)),
-    (Slot::at(0x764FB8), Slot::at(0x7692CA)),
-    (Slot::at(0x764FAC), Slot::at(0x7692BE)),
-    (Slot::at(0x764F94), Slot::at(0x7692A6)),
-    (Slot::at(0x764F98), Slot::at(0x7692AA)),
-    (Slot::at(0x764F9C), Slot::at(0x7692AE)),
-    (Slot::at(0x764F90), Slot::at(0x7692A2)),
-];
+use crate::marks::view_vectors::{KEPT, SOURCES};
 
 /// The Rust version (see the header).
-pub unsafe fn keep_vectors() {
-    for (from, to) in MOVES {
-        unsafe { game_write(to, game_read::<u32>(from)) };
+pub fn keep_vectors() {
+    let (k, s) = (&KEPT, &SOURCES.sources);
+    for (from, to) in [
+        // (from, to), in the original's order
+        (&k.pushed[1], &k.kept_a.vector[0]),
+        (&k.pushed[2], &k.kept_a.vector[1]),
+        (&k.pushed[3], &k.kept_a.vector[2]),
+        (&k.pushed[0], &k.kept_a.factor),
+        (&s[1].vector[0], &k.kept_c.vector[0]),
+        (&s[1].vector[1], &k.kept_c.vector[1]),
+        (&s[1].vector[2], &k.kept_c.vector[2]),
+        (&s[1].factor, &k.kept_c.factor),
+        (&s[0].vector[0], &k.kept_b.vector[0]),
+        (&s[0].vector[1], &k.kept_b.vector[1]),
+        (&s[0].vector[2], &k.kept_b.vector[2]),
+        (&s[0].factor, &k.kept_b.factor),
+    ] {
+        to.set(from.get());
     }
 }

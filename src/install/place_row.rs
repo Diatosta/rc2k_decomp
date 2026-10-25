@@ -16,11 +16,10 @@
 //! are the original's.
 
 use crate::errors::Refused;
-use crate::install::installer::{a, rb, rd, wd};
+use crate::install::installer::{rb, rd, wd};
 use crate::install::lay_out_pieces::PIECE;
+use crate::install::vars::INSTALLER_PAGES;
 use rc2k_core::install::layout::{self, Area, Piece};
-
-const TITLE_BOX: usize = 0x51DD98; // unk_51DD98
 
 /// `first` the first piece, `count` the pieces, `the_box` the box, `eax` as it comes (the
 /// wrap reads it before setting it).
@@ -44,7 +43,7 @@ pub fn place_row(first: u32, count: u32, the_box: u32, eax: u32) -> Result<(), R
         width: rd(the_box + 8),
         height: rd(the_box + 0xC),
     };
-    let title = the_box == a(TITLE_BOX);
+    let title = the_box == INSTALLER_PAGES.title_box.addr() as u32;
     layout::place_row(&mut pieces, area, title, eax)?;
     for (k, p) in (0..).zip(&pieces) {
         wd(at(k) + 8, p.x);

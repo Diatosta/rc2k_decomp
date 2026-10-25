@@ -14,7 +14,7 @@
 //! would run past them: refused. Caller: `net::lets_rally`.
 
 use crate::errors::Refused;
-use crate::net::lobby::{a, g, log, log_int_nl, p};
+use crate::net::lobby::{g, log, log_int_nl, p};
 use crate::net::store::NET;
 use rc2k_core::net::record;
 
@@ -47,23 +47,23 @@ const STORED: [(usize, usize); 16] = [
     (0x715DD4, 0x6238EC),
     (0x716DB4, 0x6238F0),
 ];
-const RULE: usize = 0x4DDFD1; // "------------------------"
-const START: usize = 0x4DDFEA; // "LOADING NETWORK START   "
-const COMPLETE: usize = 0x4DE0A7; // "LOADING NETWORK COMPLETE"
-const RULE_2: usize = 0x4DE0C0;
+const RULE: &std::ffi::CStr = c"------------------------"; // "------------------------"
+const START: &std::ffi::CStr = c"LOADING NETWORK START   "; // "LOADING NETWORK START   "
+const COMPLETE: &std::ffi::CStr = c"LOADING NETWORK COMPLETE"; // "LOADING NETWORK COMPLETE"
+const RULE_2: &std::ffi::CStr = c"------------------------";
 /// The counts logged: (the label, the value's variable).
-const COUNTS: [(usize, Option<usize>); 11] = [
-    (0x4DE003, Some(RACE_CARS)), // "[shaunnumcars]"
-    (0x4DE012, Some(ONE)),       // "[shaunnumplayers]"
-    (0x4DE024, None),            // "[localnpn]"
-    (0x4DE02F, Some(0x623858)),  // "[shauncarnum1]" ..
-    (0x4DE03E, Some(0x62385C)),
-    (0x4DE04D, Some(0x623860)),
-    (0x4DE05C, Some(0x623864)),
-    (0x4DE06B, Some(0x623868)),
-    (0x4DE07A, Some(0x62386C)),
-    (0x4DE089, Some(0x623870)),
-    (0x4DE098, Some(0x623874)),
+const COUNTS: [(&std::ffi::CStr, Option<usize>); 11] = [
+    (c"[shaunnumcars]", Some(RACE_CARS)), // "[shaunnumcars]"
+    (c"[shaunnumplayers]", Some(ONE)),    // "[shaunnumplayers]"
+    (c"[localnpn]", None),                // "[localnpn]"
+    (c"[shauncarnum1]", Some(0x623858)),  // "[shauncarnum1]" ..
+    (c"[shauncarnum2]", Some(0x62385C)),
+    (c"[shauncarnum3]", Some(0x623860)),
+    (c"[shauncarnum4]", Some(0x623864)),
+    (c"[shauncarnum5]", Some(0x623868)),
+    (c"[shauncarnum6]", Some(0x62386C)),
+    (c"[shauncarnum7]", Some(0x623870)),
+    (c"[shauncarnum8]", Some(0x623874)),
 ];
 
 /// The Rust version.
@@ -95,15 +95,15 @@ pub fn set_up_race() -> Result<(), Refused> {
     for (to, from) in STORED {
         p(to, g(from));
     }
-    log(a(RULE), true, 1);
-    log(a(START), true, 1);
+    log(RULE.as_ptr() as u32, true, 1);
+    log(START.as_ptr() as u32, true, 1);
     for (label, value) in COUNTS {
-        log(a(label), false, 1);
+        log(label.as_ptr() as u32, false, 1);
         // `None`: this machine's player (`NET.player`), not in the image's old range.
         log_int_nl(value.map_or_else(|| NET.player.get(), g), 1);
     }
     unsafe { crate::race::stage_loading::load_stage() }?;
-    log(a(COMPLETE), true, 1);
-    log(a(RULE_2), true, 1);
+    log(COMPLETE.as_ptr() as u32, true, 1);
+    log(RULE_2.as_ptr() as u32, true, 1);
     Ok(())
 }

@@ -36,13 +36,13 @@
 
 use crate::errors::Refused;
 use crate::input::store::DEVICES;
+use crate::install::vars::INSTALLER_PAGES;
 use crate::menu::event_flow::Flow;
 use crate::menu::screen_loop::Carried;
 use crate::physics::flow::a;
 use crate::race::viewer::{
-    CAMERA_EDIT, CHOICE, CHOICE_BEFORE, DEVELOPER_KEYS, EDITING, ESCAPES, FRAME_CLOCK, HOLD_REVS,
-    KEY_CLOCK, KEYS_IGNORED, LAST_RACE, LAST_RACE_VIEWED, LIST_LEAVE, LIST_SHOWN, MENU, MODE,
-    MOVE_CLOCK, ONLY_SHOWN, SLOT, SOUND, STOPPED, WAIT_RELEASE, gb, get, pb, put,
+    CAMERA_EDIT, DEVELOPER_KEYS, EDITING, ESCAPES, HOLD_REVS, KEYS_IGNORED, LAST_RACE,
+    LAST_RACE_VIEWED, MENU, MODE, ONLY_SHOWN, SLOT, SOUND, STOPPED, WAIT_RELEASE, get, put,
 };
 use crate::session::CLOCKS;
 use crate::session::FLAGS;
@@ -153,12 +153,12 @@ fn view(r: &mut Flow) -> Result<(), Refused> {
     step(5, r)?;
     r.record = a(MENU);
     put(SOUND, 0);
-    pb(LIST_SHOWN, 1);
-    pb(LIST_LEAVE, 0);
+    INSTALLER_PAGES.list_answer.set(1);
+    INSTALLER_PAGES.list_leave.set(0);
     r.c.arg = CLOCKS.key_ticks.get();
-    put(MOVE_CLOCK, r.c.arg);
-    put(KEY_CLOCK, r.c.arg);
-    put(CHOICE, 6);
+    INSTALLER_PAGES.move_clock.set(r.c.arg);
+    INSTALLER_PAGES.key_clock.set(r.c.arg);
+    INSTALLER_PAGES.choice.set(6);
     step(6, r)?;
     step(7, r)?;
     if get(ONLY_SHOWN) == 1 {
@@ -169,9 +169,9 @@ fn view(r: &mut Flow) -> Result<(), Refused> {
     loop {
         step(9, r)?;
         r.c.arg = CLOCKS.key_ticks.get();
-        put(FRAME_CLOCK, r.c.arg);
-        r.c.arg = get(CHOICE);
-        put(CHOICE_BEFORE, r.c.arg);
+        INSTALLER_PAGES.frame_clock.set(r.c.arg);
+        r.c.arg = INSTALLER_PAGES.choice.get();
+        INSTALLER_PAGES.choice_before.set(r.c.arg);
         step(10, r)?;
         if FLAGS.quitting.get() == 1 {
             return Ok(());
@@ -229,7 +229,7 @@ fn view(r: &mut Flow) -> Result<(), Refused> {
         r.c.arg = get(SOUND);
         put(SOUND, 0);
         step(15, r)?;
-        if gb(LIST_LEAVE) == 1 {
+        if INSTALLER_PAGES.list_leave.get() == 1 {
             return Ok(());
         }
     }
@@ -249,7 +249,9 @@ fn stopped_key(r: &mut Flow, key: u8) -> Result<Next, Refused> {
             _ => Next::Sound,
         });
     }
-    r.c.cars = get(CHOICE)
+    r.c.cars = INSTALLER_PAGES
+        .choice
+        .get()
         .wrapping_mul(0x10)
         .wrapping_add(r.record)
         .wrapping_add(0x18);
@@ -310,21 +312,21 @@ fn mark(r: &mut Flow, key: u8) -> Result<(), Refused> {
                     break 'tail;
                 }
             }
-            r.c.palette = get(CHOICE_BEFORE);
-            put(CHOICE, r.c.palette);
+            r.c.palette = INSTALLER_PAGES.choice_before.get();
+            INSTALLER_PAGES.choice.set(r.c.palette);
             step(14, r)?;
             if !r.c.carry {
                 return Ok(());
             }
         }
-        put(CHOICE, 6);
+        INSTALLER_PAGES.choice.set(6);
         if unsafe { ((r.record + 0x78) as *const u8).read() } & 0xC0 != 0 {
-            put(CHOICE, 0x13);
+            INSTALLER_PAGES.choice.set(0x13);
         }
     }
     if (key as i8) > 0 {
-        r.c.palette = get(FRAME_CLOCK);
-        put(MOVE_CLOCK, r.c.palette);
+        r.c.palette = INSTALLER_PAGES.frame_clock.get();
+        INSTALLER_PAGES.move_clock.set(r.c.palette);
     }
     Ok(())
 }

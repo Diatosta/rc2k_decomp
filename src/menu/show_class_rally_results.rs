@@ -10,14 +10,12 @@
 //! anything; raises the search's fatal error as the original.
 
 use crate::errors::Refused;
-use crate::framework::{game_read, game_write, rva};
+use crate::menu::champ_store::CHAMP_VIEW;
+use crate::menu::draw_work_store::DRAW_WORK;
+use crate::menu::event_store::EVENT_STATE;
 use crate::menu::screen_loop::{Carried, run_screen};
 use crate::menu::standings::*;
 use rc2k_core::menu::results_pages::{Page, held_figure};
-
-const CLASS_RVA: usize = rva(0x7558F4); // dword_7558F4
-const COUNT_RVA: usize = rva(0x7556B4); // dword_7556B4
-const EVENT_MODE_RVA: usize = rva(0x7556D0); // g_eventMode
 
 /// The Rust version (see the header). `c` the carried values (the registers the page's
 /// screen is run with).
@@ -27,14 +25,14 @@ pub unsafe fn show_class_rally_results(class: u32, c: &Carried) -> Result<(), Re
             palette: class,
             ..*c
         };
-        c.arg = game_read(rva(0x7559AC)); // seconds
-        game_write(CLASS_RVA, class);
-        let found = crate::menu::first_player_a::first_player_a(game_read(TABLE_A_RVA), class)?;
+        c.arg = DRAW_WORK.seconds.get(); // seconds
+        EVENT_STATE.class.set(class);
+        let found = crate::menu::first_player_a::first_player_a(TABLE_A_RVA.get(), class)?;
         found.carry_on(&mut c);
         // Converted: `rc2k_core::menu::results_pages::held_figure`.
-        let a8 = game_read::<u32>(EVENT_MODE_RVA) == rc2k_core::menu::results_pages::A8;
+        let a8 = CHAMP_VIEW.event_mode.get() == rc2k_core::menu::results_pages::A8;
         let count = held_figure(Page::ClassRally { a8 }, found.figure);
-        game_write(COUNT_RVA, count);
+        CHAMP_VIEW.count.set(count);
         crate::menu::first_page_stage::carry_on(
             crate::menu::first_page_stage::first_page_stage(),
             &mut c,

@@ -5,18 +5,41 @@
 //! 0x300 bytes at `byte_4F4B30`: the mean of three components by their sum. One caller,
 //! `start`, which calls it directly (2026-10-23). Who reads the table has not been looked up.
 
-use crate::gfx::block::game_write;
-use crate::gfx::modes::Slot as ModeSlot;
+use crate::session::Bytes;
 
 // ---- game data ----
 
-const TABLE_RVA: ModeSlot = ModeSlot::at(0x4F4B30); // byte_4F4B30
+/// IDA's address of the table.
+pub const START: usize = 0x4F4B30;
 const TABLE_LEN: usize = 0x300;
+
+/// `byte_4F4B30`: n / 3 for the sums of three components (zero until filled).
+pub static THIRDS: Bytes<TABLE_LEN> = Bytes::new([0; TABLE_LEN]);
+
+/// Where the table is (`moved::MOVED`'s home for IDA 0x4F4B30).
+pub fn home() -> usize {
+    THIRDS.addr()
+}
 
 // ---- Rust version ----
 
 pub unsafe fn fill_thirds_table() {
     // Converted: `rc2k_core::gfx::pixels::thirds_table`.
     let table: [u8; TABLE_LEN] = rc2k_core::gfx::pixels::thirds_table();
-    unsafe { game_write(TABLE_RVA, table) };
+    THIRDS.write(&table);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn first_values_are_the_games() {
+        crate::gfx::first_values_are_the_games(&THIRDS, START, START + TABLE_LEN);
+    }
+
+    #[test]
+    fn moved_knows_the_block() {
+        assert_eq!(crate::moved::place(START), THIRDS.addr());
+    }
 }

@@ -18,50 +18,51 @@
 //! caller, `sub_4A5A47`.
 
 use crate::framework::rva;
-use crate::menu::run_draw_list::DRAW_LIST_RVA;
+use crate::menu::draw_lists_store::DRAW_LISTS;
+use crate::menu::flow_store::SCREEN_FLOW;
+use crate::menu::menus_store::MENUS;
+use crate::menu::screen_items_store::{SCREEN_ITEMS, slot};
+use crate::menu::screen_loop::raw;
 use crate::menu::screen_loop::{Callee, FRAME_CALLBACK, List, Screen, Step};
 
 // ---- game data ----
 
-const MENU_RVA: usize = rva(0x74FFCC); // off_74FFCC
-const BACKGROUND_RVA: usize = rva(0x7328E7); // "files\g\graphics\screens\champoc.png"
-
 // ---- Rust version: `menu::screen_loop` with this ----
 
 pub const SCREEN: Screen = Screen {
-    menu: MENU_RVA,
-    saved_item: rva(0x7477BC), // dword_7477BC
+    menu: || MENUS.championship_standings.addr(),
+    saved_item: || &SCREEN_ITEMS.current[slot::CHAMPIONSHIP_STANDINGS], // dword_7477BC
     lists: &[
         List {
-            pointer: rva(0x7554F4), // dword_7554F4
-            table: rva(0x758B72),
+            pointer: || &SCREEN_FLOW.unread_list, // dword_7554F4
+            table: || DRAW_LISTS.unread_758b72.addr(),
             run: false,
         },
         List {
-            pointer: DRAW_LIST_RVA,
-            table: rva(0x758E5E),
+            pointer: || &SCREEN_FLOW.draw_list,
+            table: || DRAW_LISTS.list_758e5e.addr(),
             run: false,
         },
         List {
-            pointer: rva(0x7554FC),
-            table: rva(0x7592B6),
+            pointer: || &SCREEN_FLOW.overlay_list,
+            table: || DRAW_LISTS.overlay_7592b6.addr(),
             run: false,
         },
     ],
     first_frame_lists: Some(&[
         List {
-            pointer: rva(0x755504), // g_sceneList
-            table: rva(0x7590F6),   // unk_7590F6: empty
+            pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
+            table: || DRAW_LISTS.championship_standings_scene.addr(), // unk_7590F6: empty
             run: false,
         },
         List {
-            pointer: DRAW_LIST_RVA,
-            table: rva(0x758E5E),
+            pointer: || &SCREEN_FLOW.draw_list,
+            table: || DRAW_LISTS.list_758e5e.addr(),
             run: false,
         },
         List {
-            pointer: rva(0x7554FC),
-            table: rva(0x7592B6),
+            pointer: || &SCREEN_FLOW.overlay_list,
+            table: || DRAW_LISTS.overlay_7592b6.addr(),
             run: false,
         },
     ]),
@@ -72,7 +73,11 @@ pub const SCREEN: Screen = Screen {
     prepare: &[],
     after_lists: &[],
     background: &[
-        Step::ArgAddr(BACKGROUND_RVA),
+        Step::ArgAddr(|| {
+            crate::menu::texts_store::MENU_TEXTS
+                .championship_standings_picture
+                .addr()
+        }),
         Step::CallOrFatal(Callee::LoadBackground, 0x8071_2345),
     ],
     after_first_frame: &[],
@@ -84,7 +89,7 @@ pub const SCREEN: Screen = Screen {
     escape_leaves: false,
     each_frame: &[],
     short_action_check: false,
-    leave_at_once: Some(rva(0x75AB34)), // dword_75AB34
+    leave_at_once: Some(|| raw(rva(0x75AB34))), // dword_75AB34
     next_frame_repeats_first: false,
     action_saved_item: None,
     action_menu: None,

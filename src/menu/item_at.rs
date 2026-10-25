@@ -8,18 +8,17 @@
 //! Refuses item number 0, for which the original counts through all 32 bits.
 
 use crate::errors::BadInput;
-use crate::framework::{game_read, rva};
+use crate::menu::loop_store::LOOP_FLAGS;
 
 // ---- game data ----
 
-pub const CURRENT_MENU_RVA: usize = rva(0x75558D); // dword_75558D
 pub use rc2k_core::menu::items::{ITEM_LEN, MENU_HEAD_LEN};
 
 // ---- Rust version ----
 
 pub fn item_at(number: u32) -> Result<u32, BadInput> {
     // Converted: `rc2k_core::menu::items::item_at`.
-    Ok(rc2k_core::menu::items::item_at(number, || unsafe {
-        game_read(CURRENT_MENU_RVA)
+    Ok(rc2k_core::menu::items::item_at(number, || {
+        LOOP_FLAGS.menu.get()
     })?)
 }

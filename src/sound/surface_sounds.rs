@@ -28,13 +28,6 @@ use crate::scene::x87_mem::{fld, mov};
 use crate::sound::store::{STAGE_SOUNDS, SURFACE_SOUNDS, SoundObject, WHEEL_SURFACES};
 use rc2k_core::sound::surfaces;
 
-/// off_51639C: the sets (pairs of pointers, seven).
-const SETS: usize = 0x51639C;
-
-fn g(x: impl crate::store::Ida) -> u32 {
-    unsafe { crate::store::ida_read(x) }
-}
-
 // ---- Rust version ----
 
 /// The surface of the wheel picked (of object `o`), its set and `sound::surface_sound`
@@ -62,7 +55,7 @@ fn one(o: &SoundObject, request: u32, second: usize) -> Result<(), Refused> {
     }
     let pair = surfaces::set_pair(surface, |n| STAGE_SOUNDS.surface_sets[n as usize].get())
         .map_err(BadInput::from)?;
-    let set = g(SETS + 4 * second + 8 * pair as usize);
+    let set = crate::sound::sets_store::SURFACE_SETS.sets[second + 2 * pair as usize].get();
     crate::sound::surface_sound::surface_sound(o.addr(), set, request)
 }
 

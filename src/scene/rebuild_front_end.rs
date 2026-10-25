@@ -12,32 +12,25 @@
 //! `set_up_front_end_scene`. Refuses what its calls refuse.
 
 use crate::errors::Refused;
-use crate::framework::{game_addr, game_read, rva};
-use crate::gfx::picture_store::Slot as PicSlot;
+use crate::gfx::fonts_store::FONTS;
+use crate::gfx::texture_pixels::GRADING;
+use crate::menu::loop_store::LOOP_FLAGS;
+use crate::session::Dword;
 
-const FONT_PALETTES: usize = 0x51DEB0; // g_fontPalettes
-const SPRITE_TABLE: usize = 0x755581; // g_spriteTable
-/// `dword_4F4A24`, `dword_4F4A28`, `dword_4F4A2C` and their values.
-const SETTINGS: [(PicSlot, u32); 3] = [
-    (PicSlot::at(0x4F4A24), 0),
-    (PicSlot::at(0x4F4A28), 0x100),
-    (PicSlot::at(0x4F4A2C), 0x100),
-];
+const SPRITE_TABLE: &Dword = &LOOP_FLAGS.sprite_table; // g_spriteTable
 
 /// The Rust version (the original keeps every register: `pusha` / `popa`).
 pub fn rebuild_front_end() -> Result<(), Refused> {
     unsafe {
-        if game_read::<u32>(rva(FONT_PALETTES)) == 0 {
+        if FONTS.palettes.get() == 0 {
             crate::gfx::build_fonts::build_fonts()?;
-            crate::gfx::build_menu_sprites::build_menu_sprites(
-                game_addr(rva(SPRITE_TABLE)) as *mut u32
-            )?;
+            crate::gfx::build_menu_sprites::build_menu_sprites(SPRITE_TABLE.addr() as *mut u32)?;
         }
         crate::scene::set_up_lit_engine::set_up_lit_engine()?;
         crate::scene::set_up_engine::set_up_engine()?;
-        for (at, v) in SETTINGS {
-            crate::gfx::block::game_write(at, v);
-        }
+        GRADING.reading.set(0);
+        GRADING.scale.set(0x100);
+        GRADING.saturation.set(0x100);
         crate::scene::set_up_front_end_scene::set_up_front_end_scene()?;
         crate::scene::set_up_engine::set_up_engine()
     }

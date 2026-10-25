@@ -29,42 +29,85 @@
 //! The drawing is noted and drawn in tiles over the processor's threads when something is to
 //! see it (see `flush`).
 
+use crate::d3d::cards_store::CARDS_3D;
 use crate::errors::FatalError;
 use crate::framework::{GameHook, RawHook, Regs, log, rva};
-use crate::gfx::block::{game_addr, game_ptr, game_read, game_write};
 use crate::gfx::describe_format::describe_format;
-use crate::gfx::reports::Slot as RepSlot;
+use crate::gfx::reports::REPORTS;
+use crate::gfx::screen_state::DRAW_SURFACE;
+use crate::gfx::texture_upload::TEXTURE_TABLES;
 use crate::gfx::texture_upload::{TextureFormat, TextureRecord};
 use crate::logfile::log_write::log_write;
 use crate::session::SCREEN;
+use crate::store::{game_ptr, game_read};
 use crate::system::find_entry::find_entry;
 use std::sync::{Mutex, OnceLock};
 
-// ---- game data ----
-
-/// The four descriptions of 0x40 bytes: 555, 1555, 4444, 8888.
-const DESCRIPTIONS_RVA: [usize; 4] = [rva(0x5ABAD4), rva(0x5ABB14), rva(0x5ABB54), rva(0x5ABB94)];
-const KINDS_RVA: usize = rva(0x5ABAC0); // dword_5ABAC0: a description a pixel kind
-const VIDEO_RECORDS_RVA: usize = rva(0x5ABC18); // unk_5ABC18
-const SYSTEM_RECORDS_RVA: usize = rva(0x5B521C); // unk_5B521C
-const VIDEO_COUNT_RVA: usize = rva(0x5ABC14); // dword_5ABC14
-const SYSTEM_COUNT_RVA: usize = rva(0x5B5218); // dword_5B5218
-const MOST: u32 = 0x140;
-const LEVELS: u32 = 9;
-const SIZES_RVA: usize = rva(0x5ABA98); // dword_5ABA98
-const ALPHA_KIND_RVA: usize = rva(0x5ABA8C); // dword_5ABA8C
-const FIRST_VIDEO_RVA: usize = rva(0x5ABA90); // dword_5ABA90
-const FIRST_SYSTEM_RVA: usize = rva(0x5ABA94); // dword_5ABA94
-const MIPS_RVA: usize = rva(0x5AB9A4); // dword_5AB9A4
-const REPORTS_RVA: RepSlot = RepSlot::at(0x4F52AC); // dword_4F52AC
-const IN_SCENE_RVA: usize = rva(0x5AB960); // dword_5AB960
-const FOG_STATE_RVA: usize = rva(0x5AB9A0); // dword_5AB9A0: render state 0x1A's value
-const CURRENT_TEXTURE_RVA: usize = rva(0x5AB93C); // g_currentTexture
 const CLEARED_RVA: usize = rva(0x624138); // dword_624138: the rectangle to clear
 const RELEASE_TEXT_RVA: usize = rva(0x5C2DDF); // "SVM: Release all textures"
+
+// ---- game data ----
+
+const MOST: u32 = 0x140;
+const LEVELS: u32 = 9;
 const NO_TEXTURE: u32 = 0xFFFF_FC43;
 /// A `DDERR`, for a surface that is not there.
 const NOT_THERE: i32 = 0x8876_0000u32 as i32 | 0x1C2;
+
+// ---- DirectX interface ids (nothing reads them) ----
+
+/// IDA's address of the first interface ids (four of 16 bytes and five zero dwords).
+pub const GUIDS_A_START: usize = 0x5BE81C;
+/// Their length.
+pub const GUIDS_A_LEN: usize = 0x5BE870 - GUIDS_A_START;
+/// IDA's address of the last two interface ids.
+pub const GUIDS_B_START: usize = 0x5BE874;
+/// Their length.
+pub const GUIDS_B_LEN: usize = 0x20;
+
+/// The ids the original passed to `QueryInterface` (DirectDraw and Direct3D); the
+/// standalone's platform does not use them.
+pub static GUIDS_A: [crate::session::Dword; 21] = crate::gfx::dwords([
+    0xb3a6f3e0, 0x11cf2b43, 0xaa00dea2, 0x5633b900, 0x57805885, 0x11cf6eec, 0x23a84194, 0x270ec103,
+    0x6aae1ec1, 0x11d0662a, 0xaa009d88, 0x6ab7bb00, 0x93281502, 0x11d08cf8, 0xa000ab89, 0x294105c9,
+    0, 0, 0, 0, 0,
+]);
+
+/// The last two.
+pub static GUIDS_B: [crate::session::Dword; 8] = crate::gfx::dwords([
+    0xa35ff56a, 0x11d09fda, 0xc000df8f, 0x9d18d94f, 0xa35ff56b, 0x11d09fda, 0xc000df8f, 0x9d18d94f,
+]);
+
+/// Where the first ids are (`moved::MOVED`'s home for IDA 0x5BE81C).
+pub fn guids_a_home() -> usize {
+    GUIDS_A.as_ptr() as usize
+}
+
+/// Where the last two are (`moved::MOVED`'s home for IDA 0x5BE874).
+pub fn guids_b_home() -> usize {
+    GUIDS_B.as_ptr() as usize
+}
+
+#[cfg(test)]
+mod block_tests {
+    use super::*;
+
+    #[test]
+    fn the_interface_ids_are_the_games() {
+        crate::gfx::first_values_are_the_games(
+            &GUIDS_A,
+            GUIDS_A_START,
+            GUIDS_A_START + GUIDS_A_LEN,
+        );
+        crate::gfx::first_values_are_the_games(
+            &GUIDS_B,
+            GUIDS_B_START,
+            GUIDS_B_START + GUIDS_B_LEN,
+        );
+        assert_eq!(crate::moved::place(GUIDS_A_START), guids_a_home());
+        assert_eq!(crate::moved::place(GUIDS_B_START), guids_b_home());
+    }
+}
 
 // ---- the texture formats ----
 
@@ -78,8 +121,8 @@ pub unsafe fn describe_texture_formats(bits: u32) {
         (32, [0xFF, 0xFF00, 0xFF_0000, 0xFF00_0000]),
     ];
     unsafe {
-        for (rva, (format_bits, masks)) in DESCRIPTIONS_RVA.iter().zip(formats) {
-            let description = game_ptr::<u32>(*rva);
+        for (cell, (format_bits, masks)) in TEXTURE_TABLES.descriptions.iter().zip(formats) {
+            let description = cell.as_ptr().cast::<u32>();
             for n in 0..0x10 {
                 description.add(n).write_unaligned(0);
             }
@@ -101,14 +144,14 @@ pub unsafe fn describe_texture_formats(bits: u32) {
             description.add(15).write_unaligned(masks[3]);
             let _ = describe_format(description.add(2));
         }
-        let at = |n: usize| game_addr(DESCRIPTIONS_RVA[n]) as u32;
+        let at = |n: usize| TEXTURE_TABLES.descriptions[n].addr() as u32;
         let kinds = if bits == 32 {
             [at(3); 3]
         } else {
             [at(0), at(1), at(2)]
         };
         for (n, kind) in kinds.into_iter().enumerate() {
-            game_write(KINDS_RVA + 4 + n * 4, kind);
+            TEXTURE_TABLES.kinds[1 + n].set(kind);
         }
     }
 }
@@ -117,12 +160,7 @@ pub unsafe fn describe_texture_formats(bits: u32) {
 
 /// A record of a pool (0 system, 1 video).
 fn record_at(pool: usize, number: u32) -> *mut TextureRecord {
-    let base = if pool == 0 {
-        SYSTEM_RECORDS_RVA
-    } else {
-        VIDEO_RECORDS_RVA
-    };
-    unsafe { (game_addr(base) as *mut TextureRecord).add(number as usize) }
+    TEXTURE_TABLES.pool(pool).records[number as usize].as_ptr()
 }
 
 struct Level {
@@ -186,10 +224,7 @@ unsafe extern "system" fn unlock(_: u32, _: u32) -> i32 {
 
 // ---- drawing ----
 
-const KEPT_STATES_RVA: usize = rva(0x5AB6BC); // dword_5AB6BC: each state's last value
 const STATES: usize = 0x40;
-const TARGET_PIXELS_RVA: usize = rva(0x4F4988); // the screen's pixels (platform.rs)
-const TARGET_PITCH_RVA: usize = rva(0x4F4984);
 
 /// For the standalone's timing line (`platform::show`): fans drawn and the microseconds
 /// spent drawing them (at the flushes).
@@ -277,11 +312,11 @@ const TILE: usize = 64;
 
 /// The screen as the game has it now.
 fn screen() -> Option<Into> {
-    unsafe {
-        let pixels: u32 = game_read(TARGET_PIXELS_RVA);
+    {
+        let pixels: u32 = DRAW_SURFACE.present_pixels.get();
         (pixels != 0).then(|| Into {
             pixels: pixels as usize,
-            pitch: game_read::<u32>(TARGET_PITCH_RVA) as usize,
+            pitch: DRAW_SURFACE.present_pitch.get() as usize,
             width: SCREEN.width.get() as usize,
             height: SCREEN.height.get() as usize,
             bits: SCREEN.bits.get(),
@@ -571,8 +606,8 @@ fn note_fan(vertices: &[crate::rasteriser::Vertex]) {
         return;
     }
     unsafe {
-        let states: [u32; STATES] = game_read(KEPT_STATES_RVA);
-        let current: u32 = game_read(CURRENT_TEXTURE_RVA);
+        let states: [u32; STATES] = std::array::from_fn(|n| CARDS_3D.kept_states[n].get());
+        let current: u32 = CARDS_3D.current_texture.get();
         let memory = LEVELS_MEMORY.lock().unwrap();
         let texture = (current < MOST)
             .then(|| {
@@ -730,7 +765,7 @@ fn fatal(code: u32) -> FatalError {
 /// A size by its number in `dword_5ABA98`.
 unsafe fn size_of(code: u32) -> Option<u32> {
     unsafe {
-        let entry = find_entry(code, game_addr(SIZES_RVA) as u32, 5).ok()??;
+        let entry = find_entry(code, TEXTURE_TABLES.sizes_addr() as u32, 5).ok()??;
         Some(((entry + 4) as *const u32).read_unaligned())
     }
 }
@@ -743,19 +778,15 @@ unsafe fn make_texture(
     height: u32,
     levels: u32,
 ) -> Result<u32, FatalError> {
-    let (count_rva, records_rva, full) = if pool == 0 {
-        (SYSTEM_COUNT_RVA, SYSTEM_RECORDS_RVA, 0x80D1_8501)
-    } else {
-        (VIDEO_COUNT_RVA, VIDEO_RECORDS_RVA, 0x80D1_8601)
-    };
+    let full = if pool == 0 { 0x80D1_8501 } else { 0x80D1_8601 };
+    let pool_vars = TEXTURE_TABLES.pool(pool);
     unsafe {
-        let number: u32 = game_read(count_rva);
+        let number: u32 = pool_vars.count.get();
         if number >= MOST {
             return Err(fatal(full));
         }
-        game_write(count_rva, number + 1);
-        let at = game_addr(records_rva) as *mut TextureRecord;
-        let at = at.add(number as usize);
+        pool_vars.count.set(number + 1);
+        let at = pool_vars.records[number as usize].as_ptr();
         let mut record = at.read_unaligned();
         record.kind = if pool == 0 { 1 } else { 2 };
         record.width = width;
@@ -807,23 +838,22 @@ unsafe fn allocate_textures(
         } else {
             width
         };
-        let description: u32 = game_read(KINDS_RVA + (kind as usize & 0xFF) * 4);
-        game_write(ALPHA_KIND_RVA, (kind == 3) as u32);
-        let levels = if game_read::<u32>(MIPS_RVA) == 1 {
-            mips
-        } else {
-            0
-        }
-        .wrapping_add(1);
+        let description: u32 = TEXTURE_TABLES.kind_entry(kind as usize & 0xFF);
+        TEXTURE_TABLES.alpha_kind.set((kind == 3) as u32);
+        let levels = if CARDS_3D.mips.get() == 1 { mips } else { 0 }.wrapping_add(1);
         if levels > LEVELS {
             return Err(fatal(0x80A1_8643));
         }
-        game_write(FIRST_VIDEO_RVA, game_read::<u32>(VIDEO_COUNT_RVA));
-        game_write(FIRST_SYSTEM_RVA, game_read::<u32>(SYSTEM_COUNT_RVA));
+        TEXTURE_TABLES
+            .first_video
+            .set(TEXTURE_TABLES.video.count.get());
+        TEXTURE_TABLES
+            .first_system
+            .set(TEXTURE_TABLES.system.count.get());
         for _ in 0..video {
             make_texture(1, description, width, height, levels)?;
         }
-        let alpha: u32 = game_read(ALPHA_KIND_RVA);
+        let alpha: u32 = TEXTURE_TABLES.alpha_kind.get();
         for _ in 0..system {
             let number = make_texture(0, description, width, height, levels)?;
             let at = record_at(0, number);
@@ -877,12 +907,15 @@ pub fn allocate_textures_now(
     ALLOCATE.count_call();
     flush();
     unsafe {
-        let reports: u32 = game_read(REPORTS_RVA);
-        game_write(REPORTS_RVA, 0u32);
+        let reports: u32 = REPORTS.on.get();
+        REPORTS.on.set(0);
         let done = allocate_textures(video, system, sizes, kind, mips);
-        game_write(REPORTS_RVA, reports);
+        REPORTS.on.set(reports);
         done?;
-        Ok((game_read(FIRST_VIDEO_RVA), game_read(FIRST_SYSTEM_RVA)))
+        Ok((
+            TEXTURE_TABLES.first_video.get(),
+            TEXTURE_TABLES.first_system.get(),
+        ))
     }
 }
 
@@ -892,16 +925,12 @@ static RELEASE: RawHook = RawHook::new("gfx::release_all_textures", rva(0x4051D3
 
 /// `sub_41A3B2` for every texture of a pool, and the count 0.
 unsafe fn release_pool(pool: usize) {
-    let (count_rva, records_rva) = if pool == 0 {
-        (SYSTEM_COUNT_RVA, SYSTEM_RECORDS_RVA)
-    } else {
-        (VIDEO_COUNT_RVA, VIDEO_RECORDS_RVA)
-    };
+    let pool_vars = TEXTURE_TABLES.pool(pool);
     unsafe {
-        let count: u32 = game_read(count_rva);
+        let count: u32 = pool_vars.count.get();
         let mut memory = LEVELS_MEMORY.lock().unwrap();
         for number in 0..count.min(MOST) {
-            let at = (game_addr(records_rva) as *mut TextureRecord).add(number as usize);
+            let at = pool_vars.records[number as usize].as_ptr();
             let mut record = at.read_unaligned();
             for level in 0..LEVELS {
                 if let Some(slot) = memory.get_mut(surface_number(pool, number, level)) {
@@ -917,7 +946,7 @@ unsafe fn release_pool(pool: usize) {
             record.holds = u32::MAX;
             at.write_unaligned(record);
         }
-        game_write(count_rva, 0u32);
+        pool_vars.count.set(0);
     }
 }
 
@@ -1006,16 +1035,16 @@ const BEGIN_STATES: [(u32, u32); 12] = [
 /// texture set. It cannot fail (the original leaves eax 0, the carry clear, zero set).
 pub fn begin_layer() {
     BEGIN.count_call();
-    unsafe {
-        game_write(IN_SCENE_RVA, 1u32);
+    {
+        CARDS_3D.in_scene.set(1u32);
         for (value, state) in BEGIN_STATES
             .into_iter()
-            .chain([(game_read(FOG_STATE_RVA), 0x1A)])
+            .chain([(CARDS_3D.fog_state.get(), 0x1A)])
         {
             crate::d3d::set_render_state::set_render_state(value, state);
         }
         // `sub_41ACDE`: no texture is the current one, then none is set.
-        game_write(CURRENT_TEXTURE_RVA, 0xFFFF_FC44u32);
+        CARDS_3D.current_texture.set(0xFFFF_FC44u32);
         crate::d3d::set_texture::set_texture(NO_TEXTURE);
     }
 }
@@ -1027,9 +1056,9 @@ static END: RawHook = RawHook::new("d3d::end_scene", rva(0x41AB8A));
 pub fn end_layer() -> bool {
     END.count_call();
     flush();
-    unsafe {
-        if game_read::<u32>(IN_SCENE_RVA) == 1 {
-            game_write(IN_SCENE_RVA, 0u32);
+    {
+        if CARDS_3D.in_scene.get() == 1 {
+            CARDS_3D.in_scene.set(0u32);
             return true;
         }
     }

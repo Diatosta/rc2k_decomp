@@ -26,7 +26,7 @@ use rc2k_core::net::race::{self, Arrival, Kind};
 
 /// g_carBlocks: the eight cars' blocks.
 pub const BLOCKS: usize = 0x71B3B8;
-const TEXT: usize = 0x4DE0EE; // "rcvd fm plyr"
+const TEXT: &std::ffi::CStr = c"rcvd fm plyr"; // "rcvd fm plyr"
 const NEAR: usize = 0x5C5D54; // flt_5C5D54: 10.0
 
 /// The Rust version.
@@ -37,7 +37,7 @@ pub fn apply_message(player: u32, message: *const u8) {
     log_int(NET.player.get() as i32, false, 1);
     log_int(g(STEP) as i32, false, 1);
     log_int(unsafe { (message as *const u8).read() } as i32, false, 1);
-    unsafe { log_write(a(TEXT) as *const u8, false, 1) };
+    unsafe { log_write(TEXT.as_ptr().cast(), false, 1) };
     log_int(player as i32, true, 1);
     if player >= 8 {
         return;

@@ -9,14 +9,13 @@
 //! Caller: `sub_473126`. Refuses null tables and a table A that runs out (the original walks on
 //! past its end), before anything.
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, rva};
+use crate::menu::champ_store::CHAMP_VIEW;
 use crate::menu::standings::*;
 use crate::menu::state_store::MENU_STATE;
 
-const SUMMARY_RVA: usize = rva(0x7556F4); // dword_7556F4
 /// The Rust version (see the header): the registers it leaves.
 pub unsafe fn copy_standings_summary() -> Result<(), Refused> {
-    let (summary, first): (u32, u32) = unsafe { (game_read(SUMMARY_RVA), game_read(TABLE_A_RVA)) };
+    let (summary, first): (u32, u32) = { (CHAMP_VIEW.summary.get(), TABLE_A_RVA.get()) };
     if summary == 0 || first == 0 {
         return Err(BadInput("no standings tables").into());
     }

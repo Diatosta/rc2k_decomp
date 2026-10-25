@@ -26,21 +26,11 @@
 //! inflate cleanly; a picture too big for the picture buffer. The name is a reading.
 
 use crate::errors::BadInput;
-use crate::gfx::block::{game_read, game_write};
 use crate::gfx::picture::PICTURE_DWORDS;
 use crate::gfx::png::PngInfo;
-use crate::gfx::png_file::Slot as PngSlot;
-use crate::gfx::png_header::Slot as PngHdrSlot;
+use crate::gfx::png_header::HEADER;
 
 // ---- game data ----
-
-const WIDTH_RVA: PngHdrSlot = PngHdrSlot::at(0xA8C190); // dword_A8C190
-const HEIGHT_RVA: PngHdrSlot = PngHdrSlot::at(0xA8C194); // dword_A8C194
-const COMPRESSION_RVA: PngHdrSlot = PngHdrSlot::at(0xA8C19A); // byte_A8C19A: the header's byte after the colour type
-const COLOUR_TYPE_RVA: PngHdrSlot = PngHdrSlot::at(0xA8C1A0); // dword_A8C1A0
-/// dword_5BEC30, dword_5BEC34: the file `read_png` holds in memory, and its length.
-pub const FILE_RVA: PngSlot = PngSlot::at(0x5BEC30);
-pub const FILE_LEN_RVA: PngSlot = PngSlot::at(0x5BEC34);
 
 // ---- Rust version ----
 // Converted: `rc2k_core::gfx::png`. Here the game's variables for the header, the pixel area
@@ -64,13 +54,11 @@ pub unsafe fn decode_png(
         return Ok(2);
     };
     // Without a header in the file the variables keep what the last file left in them.
-    let header = found.header.unwrap_or_else(|| unsafe {
-        png::Header {
-            width: game_read(WIDTH_RVA),
-            height: game_read(HEIGHT_RVA),
-            colour_type: game_read(COLOUR_TYPE_RVA),
-            compression: 0,
-        }
+    let header = found.header.unwrap_or_else(|| png::Header {
+        width: HEADER.width.get(),
+        height: HEADER.height.get(),
+        colour_type: HEADER.colour_type.get(),
+        compression: 0,
     });
     let pixel_bytes = png::PIXEL_BYTES[header.colour_type as usize & 7];
     let area = match found.data {
@@ -79,10 +67,10 @@ pub unsafe fn decode_png(
     };
     unsafe {
         if let Some(h) = found.header {
-            game_write(WIDTH_RVA, h.width);
-            game_write(HEIGHT_RVA, h.height);
-            game_write(COMPRESSION_RVA, h.compression);
-            game_write(COLOUR_TYPE_RVA, h.colour_type);
+            HEADER.width.set(h.width);
+            HEADER.height.set(h.height);
+            HEADER.compression.set(h.compression);
+            HEADER.colour_type.set(h.colour_type);
         }
         if let Some((start, length)) = found.data {
             let (row_bytes, step) = png::row_layout(&header);

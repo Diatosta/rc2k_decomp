@@ -14,13 +14,11 @@
 //! are the original's.
 
 use crate::errors::BadInput;
-use crate::framework::{game_addr, game_read, rva};
+use crate::install::vars::INSTALLER_NAMES;
 use rc2k_core::install::config;
 
 // ---- game data ----
 
-pub const LANGUAGE_COUNT_RVA: usize = rva(0x51BEEA); // dword_51BEEA
-pub const LANGUAGES_RVA: usize = rva(0x51BEEE); // unk_51BEEE
 pub const LANGUAGE_SLOT: usize = config::SLOT;
 pub const LANGUAGE_SLOTS: usize = config::SLOTS;
 
@@ -29,12 +27,12 @@ pub const LANGUAGE_SLOTS: usize = config::SLOTS;
 pub unsafe fn choose_language(number: u32) -> Result<(), BadInput> {
     unsafe {
         // Converted: `rc2k_core::install::config` (`language_slot`, `language_directory`).
-        let Some(slot) = config::language_slot(number, game_read::<u32>(LANGUAGE_COUNT_RVA))?
+        let Some(slot) = config::language_slot(number, INSTALLER_NAMES.language_count.get())?
         else {
             return Ok(());
         };
         let slot = std::slice::from_raw_parts(
-            game_addr(LANGUAGES_RVA + slot * LANGUAGE_SLOT) as *const u8,
+            (INSTALLER_NAMES.languages.addr() + slot * LANGUAGE_SLOT) as *const u8,
             LANGUAGE_SLOT,
         );
         let directory = config::language_directory(slot)?;

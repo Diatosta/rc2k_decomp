@@ -12,11 +12,12 @@
 //! `net::choose_car`, `net::choose_stage`.
 
 use crate::errors::Refused;
-use crate::net::lobby::{copy_picture, draw_string, g};
+use crate::gfx::picture_store::PICTURE;
+use crate::gfx::screen_state::SCREEN_MODE;
+use crate::net::lobby::{copy_picture, draw_string};
 use crate::net::store::NET;
 
-const SCREEN_MODE_FLAGS: usize = 0x4F4934; // g_screenModeFlags
-pub const TITLE_FONT: usize = 0x51E944; // stru_51E944
+pub const TITLE_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::HEAD;
 
 /// The Rust version.
 pub fn show_background() -> Result<(), Refused> {
@@ -25,7 +26,7 @@ pub fn show_background() -> Result<(), Refused> {
             &crate::gfx::texts::CHATZONE,
         ) as *mut u8)?;
         crate::gfx::convert_picture::convert_picture_now()?;
-        crate::gfx::block::game_write(crate::gfx::picture::FLAGS_RVA, g(SCREEN_MODE_FLAGS) & 0xFFF);
+        PICTURE.flags.set(SCREEN_MODE.mode_flags.get() & 0xFFF);
         crate::gfx::picture_as_surface::picture_as_surface()?;
     }
     let title = if NET.session.get() == 1 {

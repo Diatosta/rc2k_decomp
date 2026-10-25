@@ -9,11 +9,20 @@
 //! (`race::tyre_change_gauge` reads it.) One caller, `start`, which calls it directly
 //! (2026-10-23); the registers above are the original's, for reference.
 
-use crate::framework::{game_write, rva};
 use crate::strings::text_from_ids::text;
 use windows_sys::Win32::System::WindowsProgramming::GetComputerNameA;
 
-const DEVELOPER_RVA: usize = rva(0x529D94); // dword_529D94
+/// IDA's address of the switch.
+pub const DEVELOPER_START: usize = 0x529D94;
+
+/// `g_developerMachine` (`dword_529D94`): 1 on a computer called "andrew".
+pub static DEVELOPER: crate::session::Dword = crate::session::Dword::new(0);
+
+/// Where the switch is (`moved::MOVED`'s home for IDA 0x529D94).
+pub fn developer_home() -> usize {
+    DEVELOPER.addr()
+}
+
 const NAME_ROOM: u32 = 0x40;
 
 // ---- Rust version ----
@@ -27,13 +36,24 @@ pub unsafe fn computer_name(to: *mut u8) -> bool {
 /// The Rust version (see the header).
 pub fn check_developer_machine() {
     unsafe {
-        game_write(DEVELOPER_RVA, 0u32);
+        DEVELOPER.set(0);
         computer_name(text());
         // Converted: `rc2k_core::system::machine::developer`.
         let (yes, _) =
             rc2k_core::system::machine::developer((text() as *const [u8; 6]).read_unaligned());
         if yes {
-            game_write(DEVELOPER_RVA, 1u32);
+            DEVELOPER.set(1);
         }
+    }
+}
+
+#[cfg(test)]
+mod developer_tests {
+    use super::*;
+
+    #[test]
+    fn first_value_is_the_games() {
+        crate::gfx::first_values_are_the_games(&DEVELOPER, DEVELOPER_START, DEVELOPER_START + 4);
+        assert_eq!(crate::moved::place(DEVELOPER_START), DEVELOPER.addr());
     }
 }

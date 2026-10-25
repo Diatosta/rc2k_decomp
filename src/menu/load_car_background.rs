@@ -11,15 +11,14 @@
 //! past the four, and what the record's lookup refuses.
 
 use crate::errors::{FatalError, Refused};
-use crate::framework::{game_read, rva};
 use crate::menu::car_description::{read, shown_description};
+use crate::menu::event_store::EVENT_STATE;
 use crate::menu::lists_store::MENU_LISTS;
 use crate::menu::load_background::load_background;
 use crate::text::draw_text::GameCanvas;
 
 // ---- game data ----
 
-const PAGE_RVA: usize = rva(0x755998); // dword_755998
 // dword_755990
 // menu::load_background
 
@@ -38,7 +37,7 @@ pub unsafe fn load_car_background(
 ) -> Result<(), Refused> {
     unsafe {
         // Converted: `rc2k_core::menu::slides::background_page`.
-        let page = rc2k_core::menu::slides::background_page(game_read(PAGE_RVA))?;
+        let page = rc2k_core::menu::slides::background_page(EVENT_STATE.car_page.get())?;
         let car = shown_car()?;
         let table = MENU_LISTS.page_picture_lists[page as usize].get();
         let path = ((table + car * 4) as *const u32).read_unaligned();

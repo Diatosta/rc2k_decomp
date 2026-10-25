@@ -6,12 +6,11 @@
 //!
 //! Callers: `sub_4A2B75` and two of the game's. Refuses a null table, before anything.
 use crate::errors::{BadInput, Refused};
-use crate::framework::game_read;
 use crate::menu::standings::*;
 
 /// The Rust version (see the header): the registers it leaves.
 pub unsafe fn init_standings_a() -> Result<(), Refused> {
-    let first: u32 = unsafe { game_read(TABLE_A_RVA) };
+    let first: u32 = { TABLE_A_RVA.get() };
     if first == 0 {
         return Err(BadInput("no standings table").into());
     }

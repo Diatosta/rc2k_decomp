@@ -27,7 +27,7 @@ use crate::scene::matrix3::{extended, rounded};
 use rc2k_core::physics::clear_place;
 
 // g_logEnabled
-const PORKY: usize = 0x4DBAFB; // aPorky
+const PORKY: &std::ffi::CStr = c"porky"; // aPorky
 
 /// One try's calls (0x43BE4D .. 0x43BE61).
 fn try_place() -> Result<(), Refused> {
@@ -69,7 +69,7 @@ pub fn steps() -> Result<(), Refused> {
         p(0x71A110, height);
     }
     unsafe {
-        crate::logfile::log_write::log_write(a(PORKY) as *const u8, false, 1);
+        crate::logfile::log_write::log_write(PORKY.as_ptr().cast(), false, 1);
         crate::logfile::log_int::log_int(n as i32, false, 1);
         crate::logfile::log_hex8::log_hex8(g(0x614118), false, 1);
         crate::logfile::log_hex8::log_hex8(g(0x6D3068), true, 1);

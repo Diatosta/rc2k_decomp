@@ -15,11 +15,9 @@
 
 use crate::errors::Refused;
 use crate::field;
+use crate::install::vars::INSTALLER_PAGES;
 use crate::net::choose_connection::list_move;
-use crate::net::lobby::{
-    CHOICE, CHOICE_BEFORE, FRAME_CLOCK, KEY_CLOCK, MOVE_CLOCK, g, list_key, movsb, other_key, p,
-    run_frame, session,
-};
+use crate::net::lobby::{list_key, movsb, other_key, run_frame, session};
 use crate::net::store::NET;
 use crate::net::types::NetSession;
 use crate::session::CLOCKS;
@@ -34,7 +32,7 @@ fn refresh() -> Result<bool, Refused> {
     if listed != 0 {
         movsb(
             NET.joined.addr() as u32,
-            session(g(CHOICE))? + field!(NetSession, instance),
+            session(INSTALLER_PAGES.choice.get())? + field!(NetSession, instance),
             0x10,
         );
     }
@@ -53,7 +51,11 @@ fn refresh() -> Result<bool, Refused> {
                 // Converted: `rc2k_core::net::screens` (`keeps_top`, `moved_top`).
                 choice = n;
                 top = if screens::keeps_top(NET.sessions.get()) {
-                    screens::moved_top(n, g(CHOICE_BEFORE), g(CHOICE))
+                    screens::moved_top(
+                        n,
+                        INSTALLER_PAGES.choice_before.get(),
+                        INSTALLER_PAGES.choice.get(),
+                    )
                 } else {
                     0
                 };
@@ -65,18 +67,18 @@ fn refresh() -> Result<bool, Refused> {
             }
         }
     }
-    p(CHOICE, choice);
-    p(CHOICE_BEFORE, top);
+    INSTALLER_PAGES.choice.set(choice);
+    INSTALLER_PAGES.choice_before.set(top);
     Ok(true)
 }
 
 /// The Rust version.
 pub fn choose_session() -> Result<u32, Refused> {
     let now = CLOCKS.key_ticks.get();
-    p(MOVE_CLOCK, now);
-    p(KEY_CLOCK, now);
-    p(CHOICE, 0);
-    p(CHOICE_BEFORE, 0);
+    INSTALLER_PAGES.move_clock.set(now);
+    INSTALLER_PAGES.key_clock.set(now);
+    INSTALLER_PAGES.choice.set(0);
+    INSTALLER_PAGES.choice_before.set(0);
     NET.clock_a.set(crate::system::tick_count::tick_count());
     loop {
         run_frame(crate::net::sessions_frame::sessions_frame)?;
@@ -84,17 +86,19 @@ pub fn choose_session() -> Result<u32, Refused> {
         if (tick.wrapping_sub(NET.clock_a.get()).wrapping_sub(1000) as i32) >= 0 {
             NET.clock_a.set(tick);
             if !refresh()? {
-                p(CHOICE, 0xFFFF_FFFE);
-                return Ok(g(CHOICE));
+                INSTALLER_PAGES.choice.set(0xFFFF_FFFE);
+                return Ok(INSTALLER_PAGES.choice.get());
             }
         }
-        p(FRAME_CLOCK, CLOCKS.key_ticks.get());
+        INSTALLER_PAGES.frame_clock.set(CLOCKS.key_ticks.get());
         let key = list_key()?;
         let any = NET.sessions.get() != 0;
         if any && list_move(key, NET.sessions.get()) {
-            p(MOVE_CLOCK, g(FRAME_CLOCK));
+            INSTALLER_PAGES
+                .move_clock
+                .set(INSTALLER_PAGES.frame_clock.get());
         } else if any && ListKey::of(key) == ListKey::Enter {
-            return Ok(g(CHOICE));
+            return Ok(INSTALLER_PAGES.choice.get());
         } else if ListKey::of(key) == ListKey::Escape {
             break;
         } else {
@@ -104,6 +108,6 @@ pub fn choose_session() -> Result<u32, Refused> {
             break;
         }
     }
-    p(CHOICE, u32::MAX);
-    Ok(g(CHOICE))
+    INSTALLER_PAGES.choice.set(u32::MAX);
+    Ok(INSTALLER_PAGES.choice.get())
 }

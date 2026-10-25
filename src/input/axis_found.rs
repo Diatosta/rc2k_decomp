@@ -10,11 +10,9 @@
 //! Caller: DirectInput, from `input::joystick_found`.
 
 use crate::field;
-use crate::framework::{game_addr, rva};
 use crate::input::devices::{at, put};
+use crate::input::guids::INPUT_GUIDS;
 use crate::input::types::{Controller, DiDeviceObjectInstance};
-
-const AXES_RVA: usize = rva(0x4F7E38); // unk_4F7E38: the six axes' GUIDs, 16 bytes each
 
 /// The Rust version: eax.
 /// `axis_found` as DirectInput calls it: what Rust callers hand `EnumObjects`.
@@ -26,7 +24,7 @@ pub fn axis_found(object: u32, entry: u32) -> u32 {
     // Converted: `rc2k_core::input::joystick::axis_bits`.
     let guid = |at: u32| unsafe { (at as *const [u8; 16]).read_unaligned() };
     let object_type = guid(object.wrapping_add(field!(DiDeviceObjectInstance, guid_type)));
-    let axes = std::array::from_fn(|n| guid(game_addr(AXES_RVA) as u32 + 16 * n as u32));
+    let axes = std::array::from_fn(|n| guid(INPUT_GUIDS.axes.addr() as u32 + 16 * n as u32));
     let bits = rc2k_core::input::joystick::axis_bits(
         at(entry, field!(Controller, axis_bits)),
         &object_type,

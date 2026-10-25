@@ -11,16 +11,18 @@
 //! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
 //! are the original's.
 
-use crate::install::installer::{OFFER_REGISTRATION, SAME_VERSION, STATUS, g, gb, rb, rw, wb};
+use crate::install::installer::{rb, rw, wb};
+use crate::install::vars::INSTALLER_NAMES;
+use crate::install::vars::INSTALLER_RUN;
 use rc2k_core::install::pages;
 
 pub fn mark_main_page(list: u32) {
     let title = rw(list + 0x2A);
     // Converted: `rc2k_core::install::pages::main_page_marks`.
     let marks = pages::main_page_marks(
-        g(SAME_VERSION) == 1,
-        gb(STATUS) != 0,
-        g(OFFER_REGISTRATION) == 1,
+        INSTALLER_RUN.same_version.get() == 1,
+        INSTALLER_NAMES.status.get() != 0,
+        INSTALLER_RUN.offer_registration.get() == 1,
         title,
     );
     for (offset, or, and) in marks {

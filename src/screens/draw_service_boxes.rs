@@ -8,9 +8,11 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
+use crate::menu::draw_work_store::DRAW_WORK;
 use crate::menu::lists_store::MENU_LISTS;
+use crate::menu::loop_store::LOOP_FLAGS;
 use crate::menu::state_store::MENU_STATE;
-use crate::screens::service_boxes::{at_esi, quad, rd};
+use crate::screens::service_boxes::{at_esi, quad};
 
 /// The Rust version (see the header): the registers it leaves.
 #[allow(unused_assignments, clippy::needless_late_init)] // the translator's flags, one per `cmp`
@@ -272,7 +274,7 @@ pub unsafe fn draw_service_boxes() -> Result<(), Refused> {
     quad(0x42, 0x44, 0x1, 0x1A, 0x0, 0xFF)?;
     quad(0x2DE, 0x44, 0x1, 0x1B, 0x0, 0xFF)?;
     quad(0x42, 0x5E, 0x29C, 0x1, 0x0, 0xFF)?;
-    c = (rd(0x755525), 0x63);
+    c = (LOOP_FLAGS.item.get(), 0x63);
     'l494d19: {
         if c.0 != c.1 {
             break 'l494d19;
@@ -281,7 +283,7 @@ pub unsafe fn draw_service_boxes() -> Result<(), Refused> {
         if c.0 == c.1 {
             break 'l494d19;
         }
-        c = (rd(0x7559A4), 0x1);
+        c = (DRAW_WORK.blink.get(), 0x1);
         if c.0 != c.1 {
             break 'l494d19;
         }
@@ -362,7 +364,7 @@ pub unsafe fn draw_service_boxes() -> Result<(), Refused> {
     quad(0xEB, 0x63, 0x1, 0x15, 0x0, 0xFF)?;
     quad(0x18C, 0x63, 0x1, 0x16, 0x0, 0xFF)?;
     quad(0xEB, 0x78, 0xA1, 0x1, 0x0, 0xFF)?;
-    c = (rd(0x755525), 0x2);
+    c = (LOOP_FLAGS.item.get(), 0x2);
     'l495482: {
         if c.0 != c.1 {
             break 'l495482;
@@ -371,7 +373,7 @@ pub unsafe fn draw_service_boxes() -> Result<(), Refused> {
         if c.0 == c.1 {
             break 'l495482;
         }
-        c = (rd(0x7559A4), 0x1);
+        c = (DRAW_WORK.blink.get(), 0x1);
         if c.0 != c.1 {
             break 'l495482;
         }
@@ -452,7 +454,7 @@ pub unsafe fn draw_service_boxes() -> Result<(), Refused> {
     quad(0x23A, 0x63, 0x1, 0x15, 0x0, 0xFF)?;
     quad(0x2DB, 0x63, 0x1, 0x16, 0x0, 0xFF)?;
     quad(0x23A, 0x78, 0xA1, 0x1, 0x0, 0xFF)?;
-    c = (rd(0x755525), 0x3);
+    c = (LOOP_FLAGS.item.get(), 0x3);
     'l495beb: {
         if c.0 != c.1 {
             break 'l495beb;
@@ -461,7 +463,7 @@ pub unsafe fn draw_service_boxes() -> Result<(), Refused> {
         if c.0 == c.1 {
             break 'l495beb;
         }
-        c = (rd(0x7559A4), 0x1);
+        c = (DRAW_WORK.blink.get(), 0x1);
         if c.0 != c.1 {
             break 'l495beb;
         }
@@ -542,7 +544,7 @@ pub unsafe fn draw_service_boxes() -> Result<(), Refused> {
     quad(0xEB, 0x80, 0x1, 0x15, 0x0, 0xFF)?;
     quad(0x18C, 0x80, 0x1, 0x16, 0x0, 0xFF)?;
     quad(0xEB, 0x95, 0xA1, 0x1, 0x0, 0xFF)?;
-    c = (rd(0x755525), 0x4);
+    c = (LOOP_FLAGS.item.get(), 0x4);
     'l496354: {
         if c.0 != c.1 {
             break 'l496354;
@@ -551,7 +553,7 @@ pub unsafe fn draw_service_boxes() -> Result<(), Refused> {
         if c.0 == c.1 {
             break 'l496354;
         }
-        c = (rd(0x7559A4), 0x1);
+        c = (DRAW_WORK.blink.get(), 0x1);
         if c.0 != c.1 {
             break 'l496354;
         }
@@ -632,7 +634,7 @@ pub unsafe fn draw_service_boxes() -> Result<(), Refused> {
     quad(0x23A, 0x80, 0x1, 0x15, 0x0, 0xFF)?;
     quad(0x2DB, 0x80, 0x1, 0x16, 0x0, 0xFF)?;
     quad(0x23A, 0x95, 0xA1, 0x1, 0x0, 0xFF)?;
-    c = (rd(0x755525), 0x5);
+    c = (LOOP_FLAGS.item.get(), 0x5);
     'l496abd: {
         if c.0 != c.1 {
             break 'l496abd;
@@ -641,7 +643,7 @@ pub unsafe fn draw_service_boxes() -> Result<(), Refused> {
         if c.0 == c.1 {
             break 'l496abd;
         }
-        c = (rd(0x7559A4), 0x1);
+        c = (DRAW_WORK.blink.get(), 0x1);
         if c.0 != c.1 {
             break 'l496abd;
         }
@@ -722,7 +724,7 @@ pub unsafe fn draw_service_boxes() -> Result<(), Refused> {
     quad(0xEB, 0x9D, 0x1, 0x15, 0x0, 0xFF)?;
     quad(0x18C, 0x9D, 0x1, 0x16, 0x0, 0xFF)?;
     quad(0xEB, 0xB2, 0xA1, 0x1, 0x0, 0xFF)?;
-    c = (rd(0x755525), 0x6);
+    c = (LOOP_FLAGS.item.get(), 0x6);
     'l497226: {
         if c.0 != c.1 {
             break 'l497226;
@@ -731,7 +733,7 @@ pub unsafe fn draw_service_boxes() -> Result<(), Refused> {
         if c.0 == c.1 {
             break 'l497226;
         }
-        c = (rd(0x7559A4), 0x1);
+        c = (DRAW_WORK.blink.get(), 0x1);
         if c.0 != c.1 {
             break 'l497226;
         }
@@ -812,7 +814,7 @@ pub unsafe fn draw_service_boxes() -> Result<(), Refused> {
     quad(0x23A, 0x9D, 0x1, 0x15, 0x0, 0xFF)?;
     quad(0x2DB, 0x9D, 0x1, 0x16, 0x0, 0xFF)?;
     quad(0x23A, 0xB2, 0xA1, 0x1, 0x0, 0xFF)?;
-    c = (rd(0x755525), 0x7);
+    c = (LOOP_FLAGS.item.get(), 0x7);
     'l49798f: {
         if c.0 != c.1 {
             break 'l49798f;
@@ -821,7 +823,7 @@ pub unsafe fn draw_service_boxes() -> Result<(), Refused> {
         if c.0 == c.1 {
             break 'l49798f;
         }
-        c = (rd(0x7559A4), 0x1);
+        c = (DRAW_WORK.blink.get(), 0x1);
         if c.0 != c.1 {
             break 'l49798f;
         }
@@ -902,7 +904,7 @@ pub unsafe fn draw_service_boxes() -> Result<(), Refused> {
     quad(0xEB, 0xBA, 0x1, 0x15, 0x0, 0xFF)?;
     quad(0x18C, 0xBA, 0x1, 0x16, 0x0, 0xFF)?;
     quad(0xEB, 0xCF, 0xA1, 0x1, 0x0, 0xFF)?;
-    c = (rd(0x755525), 0x8);
+    c = (LOOP_FLAGS.item.get(), 0x8);
     'l4980f8: {
         if c.0 != c.1 {
             break 'l4980f8;
@@ -911,7 +913,7 @@ pub unsafe fn draw_service_boxes() -> Result<(), Refused> {
         if c.0 == c.1 {
             break 'l4980f8;
         }
-        c = (rd(0x7559A4), 0x1);
+        c = (DRAW_WORK.blink.get(), 0x1);
         if c.0 != c.1 {
             break 'l4980f8;
         }
@@ -992,7 +994,7 @@ pub unsafe fn draw_service_boxes() -> Result<(), Refused> {
     quad(0x23A, 0xBA, 0x1, 0x15, 0x0, 0xFF)?;
     quad(0x2DB, 0xBA, 0x1, 0x16, 0x0, 0xFF)?;
     quad(0x23A, 0xCF, 0xA1, 0x1, 0x0, 0xFF)?;
-    c = (rd(0x755525), 0x9);
+    c = (LOOP_FLAGS.item.get(), 0x9);
     'l498861: {
         if c.0 != c.1 {
             break 'l498861;
@@ -1001,7 +1003,7 @@ pub unsafe fn draw_service_boxes() -> Result<(), Refused> {
         if c.0 == c.1 {
             break 'l498861;
         }
-        c = (rd(0x7559A4), 0x1);
+        c = (DRAW_WORK.blink.get(), 0x1);
         if c.0 != c.1 {
             break 'l498861;
         }
@@ -1082,7 +1084,7 @@ pub unsafe fn draw_service_boxes() -> Result<(), Refused> {
     quad(0xEB, 0xD7, 0x1, 0x15, 0x0, 0xFF)?;
     quad(0x18C, 0xD7, 0x1, 0x16, 0x0, 0xFF)?;
     quad(0xEB, 0xEC, 0xA1, 0x1, 0x0, 0xFF)?;
-    c = (rd(0x755525), 0xA);
+    c = (LOOP_FLAGS.item.get(), 0xA);
     'l498fca: {
         if c.0 != c.1 {
             break 'l498fca;
@@ -1091,7 +1093,7 @@ pub unsafe fn draw_service_boxes() -> Result<(), Refused> {
         if c.0 == c.1 {
             break 'l498fca;
         }
-        c = (rd(0x7559A4), 0x1);
+        c = (DRAW_WORK.blink.get(), 0x1);
         if c.0 != c.1 {
             break 'l498fca;
         }
@@ -1172,7 +1174,7 @@ pub unsafe fn draw_service_boxes() -> Result<(), Refused> {
     quad(0x23A, 0xD7, 0x1, 0x15, 0x0, 0xFF)?;
     quad(0x2DB, 0xD7, 0x1, 0x16, 0x0, 0xFF)?;
     quad(0x23A, 0xEC, 0xA1, 0x1, 0x0, 0xFF)?;
-    c = (rd(0x755525), 0xB);
+    c = (LOOP_FLAGS.item.get(), 0xB);
     'l499733: {
         if c.0 != c.1 {
             break 'l499733;
@@ -1181,7 +1183,7 @@ pub unsafe fn draw_service_boxes() -> Result<(), Refused> {
         if c.0 == c.1 {
             break 'l499733;
         }
-        c = (rd(0x7559A4), 0x1);
+        c = (DRAW_WORK.blink.get(), 0x1);
         if c.0 != c.1 {
             break 'l499733;
         }
@@ -1262,7 +1264,7 @@ pub unsafe fn draw_service_boxes() -> Result<(), Refused> {
     quad(0xEB, 0xF4, 0x1, 0x15, 0x0, 0xFF)?;
     quad(0x18C, 0xF4, 0x1, 0x16, 0x0, 0xFF)?;
     quad(0xEB, 0x109, 0xA1, 0x1, 0x0, 0xFF)?;
-    c = (rd(0x755525), 0xC);
+    c = (LOOP_FLAGS.item.get(), 0xC);
     'l499e9c: {
         if c.0 != c.1 {
             break 'l499e9c;
@@ -1271,7 +1273,7 @@ pub unsafe fn draw_service_boxes() -> Result<(), Refused> {
         if c.0 == c.1 {
             break 'l499e9c;
         }
-        c = (rd(0x7559A4), 0x1);
+        c = (DRAW_WORK.blink.get(), 0x1);
         if c.0 != c.1 {
             break 'l499e9c;
         }
@@ -1352,7 +1354,7 @@ pub unsafe fn draw_service_boxes() -> Result<(), Refused> {
     quad(0x23A, 0xF4, 0x1, 0x15, 0x0, 0xFF)?;
     quad(0x2DB, 0xF4, 0x1, 0x16, 0x0, 0xFF)?;
     quad(0x23A, 0x109, 0xA1, 0x1, 0x0, 0xFF)?;
-    c = (rd(0x755525), 0xD);
+    c = (LOOP_FLAGS.item.get(), 0xD);
     'l49a605: {
         if c.0 != c.1 {
             break 'l49a605;
@@ -1361,7 +1363,7 @@ pub unsafe fn draw_service_boxes() -> Result<(), Refused> {
         if c.0 == c.1 {
             break 'l49a605;
         }
-        c = (rd(0x7559A4), 0x1);
+        c = (DRAW_WORK.blink.get(), 0x1);
         if c.0 != c.1 {
             break 'l49a605;
         }
@@ -1550,7 +1552,7 @@ pub unsafe fn draw_service_boxes() -> Result<(), Refused> {
     quad(0x14D, 0x12C, 0x1, 0x25, 0x0, 0xFF)?;
     quad(0x18C, 0x12C, 0x1, 0x26, 0x0, 0xFF)?;
     quad(0x14D, 0x151, 0x3F, 0x1, 0x0, 0xFF)?;
-    c = (rd(0x755525), 0xE);
+    c = (LOOP_FLAGS.item.get(), 0xE);
     'l49b612: {
         if c.0 != c.1 {
             break 'l49b612;
@@ -1564,7 +1566,7 @@ pub unsafe fn draw_service_boxes() -> Result<(), Refused> {
             if c.0 == c.1 {
                 break 'l49b612;
             }
-            c = (rd(0x7559A4), 0x1);
+            c = (DRAW_WORK.blink.get(), 0x1);
             if c.0 != c.1 {
                 break 'l49b612;
             }
@@ -1774,7 +1776,7 @@ pub unsafe fn draw_service_boxes() -> Result<(), Refused> {
     quad(0x2A7, 0x12C, 0x1, 0x25, 0x0, 0xFF)?;
     quad(0x2DB, 0x12C, 0x1, 0x26, 0x0, 0xFF)?;
     quad(0x2A7, 0x151, 0x34, 0x1, 0x0, 0xFF)?;
-    c = (rd(0x755525), 0xF);
+    c = (LOOP_FLAGS.item.get(), 0xF);
     'l49c7c9: {
         if c.0 != c.1 {
             break 'l49c7c9;
@@ -1788,7 +1790,7 @@ pub unsafe fn draw_service_boxes() -> Result<(), Refused> {
             if c.0 == c.1 {
                 break 'l49c7c9;
             }
-            c = (rd(0x7559A4), 0x1);
+            c = (DRAW_WORK.blink.get(), 0x1);
             if c.0 != c.1 {
                 break 'l49c7c9;
             }
@@ -1814,7 +1816,7 @@ pub unsafe fn draw_service_boxes() -> Result<(), Refused> {
     quad(0x42, 0x161, 0x1, 0x1A, 0x0, 0xFF)?;
     quad(0x2DE, 0x161, 0x1, 0x1B, 0x0, 0xFF)?;
     quad(0x42, 0x17B, 0x29C, 0x1, 0x0, 0xFF)?;
-    c = (rd(0x755525), 0x63);
+    c = (LOOP_FLAGS.item.get(), 0x63);
     'l49cb99: {
         if c.0 != c.1 {
             break 'l49cb99;
@@ -1823,7 +1825,7 @@ pub unsafe fn draw_service_boxes() -> Result<(), Refused> {
         if c.0 == c.1 {
             break 'l49cb99;
         }
-        c = (rd(0x7559A4), 0x1);
+        c = (DRAW_WORK.blink.get(), 0x1);
         if c.0 != c.1 {
             break 'l49cb99;
         }
@@ -1904,7 +1906,7 @@ pub unsafe fn draw_service_boxes() -> Result<(), Refused> {
     quad(0x45, 0x19B, 0x1, 0x14, 0x0, 0xFF)?;
     quad(0x18C, 0x19B, 0x1, 0x15, 0x0, 0xFF)?;
     quad(0x45, 0x1AF, 0x147, 0x1, 0x0, 0xFF)?;
-    c = (rd(0x755525), 0x10);
+    c = (LOOP_FLAGS.item.get(), 0x10);
     'l49d309: {
         if c.0 != c.1 {
             break 'l49d309;
@@ -1918,7 +1920,7 @@ pub unsafe fn draw_service_boxes() -> Result<(), Refused> {
             if c.0 == c.1 {
                 break 'l49d309;
             }
-            c = (rd(0x7559A4), 0x1);
+            c = (DRAW_WORK.blink.get(), 0x1);
             if c.0 != c.1 {
                 break 'l49d309;
             }
@@ -2000,7 +2002,7 @@ pub unsafe fn draw_service_boxes() -> Result<(), Refused> {
     quad(0x194, 0x19B, 0x1, 0x14, 0x0, 0xFF)?;
     quad(0x2DB, 0x19B, 0x1, 0x15, 0x0, 0xFF)?;
     quad(0x194, 0x1AF, 0x147, 0x1, 0x0, 0xFF)?;
-    c = (rd(0x755525), 0x11);
+    c = (LOOP_FLAGS.item.get(), 0x11);
     'l49da79: {
         if c.0 != c.1 {
             break 'l49da79;
@@ -2014,7 +2016,7 @@ pub unsafe fn draw_service_boxes() -> Result<(), Refused> {
             if c.0 == c.1 {
                 break 'l49da79;
             }
-            c = (rd(0x7559A4), 0x1);
+            c = (DRAW_WORK.blink.get(), 0x1);
             if c.0 != c.1 {
                 break 'l49da79;
             }
@@ -2096,7 +2098,7 @@ pub unsafe fn draw_service_boxes() -> Result<(), Refused> {
     quad(0x45, 0x1D3, 0x1, 0x14, 0x0, 0xFF)?;
     quad(0x18C, 0x1D3, 0x1, 0x15, 0x0, 0xFF)?;
     quad(0x45, 0x1E7, 0x147, 0x1, 0x0, 0xFF)?;
-    c = (rd(0x755525), 0x12);
+    c = (LOOP_FLAGS.item.get(), 0x12);
     'l49e1e9: {
         if c.0 != c.1 {
             break 'l49e1e9;
@@ -2110,7 +2112,7 @@ pub unsafe fn draw_service_boxes() -> Result<(), Refused> {
             if c.0 == c.1 {
                 break 'l49e1e9;
             }
-            c = (rd(0x7559A4), 0x1);
+            c = (DRAW_WORK.blink.get(), 0x1);
             if c.0 != c.1 {
                 break 'l49e1e9;
             }
@@ -2192,7 +2194,7 @@ pub unsafe fn draw_service_boxes() -> Result<(), Refused> {
     quad(0x194, 0x1D3, 0x1, 0x14, 0x0, 0xFF)?;
     quad(0x2DB, 0x1D3, 0x1, 0x15, 0x0, 0xFF)?;
     quad(0x194, 0x1E7, 0x147, 0x1, 0x0, 0xFF)?;
-    c = (rd(0x755525), 0x13);
+    c = (LOOP_FLAGS.item.get(), 0x13);
     'l49e959: {
         if c.0 != c.1 {
             break 'l49e959;
@@ -2206,7 +2208,7 @@ pub unsafe fn draw_service_boxes() -> Result<(), Refused> {
             if c.0 == c.1 {
                 break 'l49e959;
             }
-            c = (rd(0x7559A4), 0x1);
+            c = (DRAW_WORK.blink.get(), 0x1);
             if c.0 != c.1 {
                 break 'l49e959;
             }
@@ -2232,7 +2234,7 @@ pub unsafe fn draw_service_boxes() -> Result<(), Refused> {
     quad(0x42, 0x1ED, 0x1, 0x1A, 0x0, 0xFF)?;
     quad(0x18F, 0x1ED, 0x1, 0x1B, 0x0, 0xFF)?;
     quad(0x42, 0x207, 0x14D, 0x1, 0x0, 0xFF)?;
-    c = (rd(0x755525), 0x14);
+    c = (LOOP_FLAGS.item.get(), 0x14);
     'l49ed29: {
         if c.0 != c.1 {
             break 'l49ed29;
@@ -2241,7 +2243,7 @@ pub unsafe fn draw_service_boxes() -> Result<(), Refused> {
         if c.0 == c.1 {
             break 'l49ed29;
         }
-        c = (rd(0x7559A4), 0x1);
+        c = (DRAW_WORK.blink.get(), 0x1);
         if c.0 != c.1 {
             break 'l49ed29;
         }
@@ -2266,7 +2268,7 @@ pub unsafe fn draw_service_boxes() -> Result<(), Refused> {
     quad(0x191, 0x1ED, 0x1, 0x1A, 0x0, 0xFF)?;
     quad(0x2DE, 0x1ED, 0x1, 0x1B, 0x0, 0xFF)?;
     quad(0x191, 0x207, 0x14D, 0x1, 0x0, 0xFF)?;
-    c = (rd(0x755525), 0x15);
+    c = (LOOP_FLAGS.item.get(), 0x15);
     'l49f0f9: {
         if c.0 != c.1 {
             break 'l49f0f9;
@@ -2275,7 +2277,7 @@ pub unsafe fn draw_service_boxes() -> Result<(), Refused> {
         if c.0 == c.1 {
             break 'l49f0f9;
         }
-        c = (rd(0x7559A4), 0x1);
+        c = (DRAW_WORK.blink.get(), 0x1);
         if c.0 != c.1 {
             break 'l49f0f9;
         }
@@ -2300,7 +2302,7 @@ pub unsafe fn draw_service_boxes() -> Result<(), Refused> {
     quad(0x42, 0x209, 0x1, 0x1A, 0x0, 0xFF)?;
     quad(0x18F, 0x209, 0x1, 0x1B, 0x0, 0xFF)?;
     quad(0x42, 0x223, 0x14D, 0x1, 0x0, 0xFF)?;
-    c = (rd(0x755525), 0x16);
+    c = (LOOP_FLAGS.item.get(), 0x16);
     'l49f4c9: {
         if c.0 != c.1 {
             break 'l49f4c9;
@@ -2309,7 +2311,7 @@ pub unsafe fn draw_service_boxes() -> Result<(), Refused> {
         if c.0 == c.1 {
             break 'l49f4c9;
         }
-        c = (rd(0x7559A4), 0x1);
+        c = (DRAW_WORK.blink.get(), 0x1);
         if c.0 != c.1 {
             break 'l49f4c9;
         }
@@ -2334,7 +2336,7 @@ pub unsafe fn draw_service_boxes() -> Result<(), Refused> {
     quad(0x191, 0x209, 0x1, 0x1A, 0x0, 0xFF)?;
     quad(0x2DE, 0x209, 0x1, 0x1B, 0x0, 0xFF)?;
     quad(0x191, 0x223, 0x14D, 0x1, 0x0, 0xFF)?;
-    c = (rd(0x755525), 0x1);
+    c = (LOOP_FLAGS.item.get(), 0x1);
     'l49f899: {
         if c.0 != c.1 {
             break 'l49f899;
@@ -2343,7 +2345,7 @@ pub unsafe fn draw_service_boxes() -> Result<(), Refused> {
         if c.0 == c.1 {
             break 'l49f899;
         }
-        c = (rd(0x7559A4), 0x1);
+        c = (DRAW_WORK.blink.get(), 0x1);
         if c.0 != c.1 {
             break 'l49f899;
         }
@@ -2368,7 +2370,7 @@ pub unsafe fn draw_service_boxes() -> Result<(), Refused> {
     quad(0x161, 0x228, 0x1, 0x14, 0x0, 0xFF)?;
     quad(0x2A8, 0x228, 0x1, 0x15, 0x0, 0xFF)?;
     quad(0x161, 0x23C, 0x147, 0x1, 0x0, 0xFF)?;
-    c = (rd(0x755525), 0x63);
+    c = (LOOP_FLAGS.item.get(), 0x63);
     'l49fc69: {
         if c.0 != c.1 {
             break 'l49fc69;
@@ -2377,7 +2379,7 @@ pub unsafe fn draw_service_boxes() -> Result<(), Refused> {
         if c.0 == c.1 {
             break 'l49fc69;
         }
-        c = (rd(0x7559A4), 0x1);
+        c = (DRAW_WORK.blink.get(), 0x1);
         if c.0 != c.1 {
             break 'l49fc69;
         }

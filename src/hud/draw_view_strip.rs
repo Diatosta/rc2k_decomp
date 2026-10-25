@@ -17,14 +17,11 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::rva;
-use crate::gfx::strips::Slot as StripSlot;
+use crate::gfx::strips::STRIPS;
 use crate::session::SCREEN;
 use crate::store::{game_read, game_write};
 use rc2k_core::hud::strips;
 
-const TOPS_RVA: StripSlot = StripSlot::at(0x6D1880); // dword_6D1880: 12
-const LEFTS_RVA: StripSlot = StripSlot::at(0x6D18B0); // dword_6D18B0: 6
-const SIZES_RVA: StripSlot = StripSlot::at(0x6D1870); // dword_6D1870 .. dword_6D187C: top, height, left, width
 const FLAT_RVA: usize = rva(0x6D1502); // dword_6D1502
 pub const QUAD_IN_RVA: usize = rva(0x623DE8); // dword_623DE8 .. dword_623E24
 const ALPHA_RVA: usize = rva(0x6240D0); // g_polygonAlpha
@@ -32,7 +29,7 @@ pub const TEXTURE_RVA: usize = rva(0x6240BC); // dword_6240BC
 const SIDES_RVA: [usize; 2] = [rva(0x6240E0), rva(0x6240E4)];
 const SHOWN_RVA: usize = rva(0x6D14F6); // dword_6D14F6
 
-fn set(r: impl crate::gfx::block::Where, v: u32) {
+fn set(r: impl crate::store::Where, v: u32) {
     unsafe { game_write(r, v) };
 }
 
@@ -40,14 +37,14 @@ fn set(r: impl crate::gfx::block::Where, v: u32) {
 fn sizes(v: [u32; 4]) {
     let (sizes, _) = strips::sizes(v, SCREEN.width.get(), SCREEN.height.get());
     for (n, x) in sizes.into_iter().enumerate() {
-        set(SIZES_RVA + 4 * n, x);
+        STRIPS.sizes[n].set(x);
     }
 }
 
 /// One flat quad: its inputs from `left`, `width`, `rows` (the texture's rows) and the
 /// sizes (`strips::quad_inputs`), the texture when given, then the device's settings.
 fn quad(left: u32, width: u32, rows: u32, texture: Option<u32>) -> Result<(), Refused> {
-    let sizes: [u32; 4] = unsafe { game_read(SIZES_RVA) };
+    let sizes: [u32; 4] = std::array::from_fn(|n| STRIPS.sizes[n].get());
     for (o, v) in strips::quad_inputs(left, width, &sizes, rows) {
         set(QUAD_IN_RVA + o, v);
     }
@@ -75,7 +72,7 @@ pub unsafe fn overlay_tail() -> Result<(), Refused> {
     }
     for (v, rows) in strips::TAIL {
         sizes(v);
-        let get = |n: usize| unsafe { game_read::<u32>(SIZES_RVA + 4 * n) };
+        let get = |n: usize| STRIPS.sizes[n].get();
         quad(get(2), get(3), rows, Some(strips::TAIL_TEXTURE))?;
     }
     Ok(())
@@ -89,10 +86,10 @@ pub unsafe fn draw_view_strip(view: u32) -> Result<(), Refused> {
     }
     unsafe {
         let top = strips::top_entry(view, game_read(FLAT_RVA));
-        let top: u32 = game_read(TOPS_RVA + 4 * top);
-        let left: u32 = game_read(LEFTS_RVA + 4 * view as usize);
+        let top: u32 = STRIPS.tops[top as usize].get();
+        let left: u32 = STRIPS.lefts[view as usize].get();
         sizes([top, strips::HEIGHT, left, strips::WIDTH]);
-        let get = |n: usize| game_read::<u32>(SIZES_RVA + 4 * n);
+        let get = |n: usize| STRIPS.sizes[n].get();
         let (mut left, width, mut rows) = (get(2), get(3), 0);
         for _ in 0..3 {
             quad(left, width, rows, None)?;

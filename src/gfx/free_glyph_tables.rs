@@ -9,13 +9,10 @@
 //! Called directly (2026-10-23).
 
 use crate::errors::Refused;
-use crate::gfx::block::game_ptr;
-use crate::gfx::decoder::Slot as DecSlot;
-
-const LIST_RVA: DecSlot = DecSlot::at(0x51B984); // g_glyphTablesMemory
+use crate::gfx::glyph_tables::TABLES;
 
 /// The Rust version (see the header).
 pub fn free_glyph_tables() -> Result<(), Refused> {
-    unsafe { crate::memory::free_list::free_list(game_ptr(LIST_RVA)) }?;
+    unsafe { crate::memory::free_list::free_list(TABLES.memory.as_ptr()) }?;
     Ok(())
 }

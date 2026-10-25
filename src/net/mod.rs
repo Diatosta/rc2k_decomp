@@ -155,9 +155,9 @@ pub fn a(x: usize) -> u32 {
 }
 
 /// Logs as the send functions do: "send x", the player, the step (`log_int_l1_nl`).
-pub fn log_send(text: usize) {
+pub fn log_send(text: &std::ffi::CStr) {
     use crate::logfile::{log_int::log_int, log_write::log_write};
-    unsafe { log_write(a(text) as *const u8, false, 1) };
+    unsafe { log_write(text.as_ptr().cast(), false, 1) };
     log_int(NET.player.get() as i32, false, 1);
     log_int(g(STEP) as i32, true, 1);
 }

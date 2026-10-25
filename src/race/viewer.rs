@@ -69,22 +69,8 @@ pub const FIRST_CAR: usize = 0x719B24; // dword_719B24 (the header's)
 
 // ---- the list menu (`menu::list_*`) ----
 
-pub const CHOICE: usize = 0x51D407; // dword_51D407: the item highlighted
-pub const CHOICE_BEFORE: usize = 0x51D40B; // dword_51D40B
-pub const REPEATS: usize = 0x51D40F; // dword_51D40F
-pub const LAST_KEY: usize = 0x51D413; // byte_51D413
-pub const LIST_SHOWN: usize = 0x51D415; // byte_51D415
-pub const LIST_LEAVE: usize = 0x51D416; // byte_51D416: 1 leaves
-pub const KEY_CLOCK: usize = 0x51D41B; // dword_51D41B
-pub const FRAME_CLOCK: usize = 0x51D41F; // dword_51D41F
-pub const MOVE_CLOCK: usize = 0x51D423; // dword_51D423
-
 pub fn gb(x: impl crate::store::At) -> u8 {
     unsafe { (a(x) as *const u8).read() }
-}
-
-pub fn pb(x: impl crate::store::At, v: u8) {
-    unsafe { (a(x) as *mut u8).write(v) }
 }
 
 /// `rep movsd` of `dwords` from `from` to `to` (IDA addresses), forwards.

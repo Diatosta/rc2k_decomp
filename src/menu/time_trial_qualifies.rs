@@ -12,10 +12,12 @@
 
 use crate::errors::Refused;
 use crate::menu::event_flow::*;
+use crate::menu::event_store::EVENT_STATE;
+use crate::session::Dword;
 
-pub const QUALIFIES: usize = 0x755918; // dword_755918
-pub const TIME: usize = 0x755914; // dword_755914
-pub const ANY_QUALIFIED: usize = 0x755920; // dword_755920
+pub const QUALIFIES: &Dword = &EVENT_STATE.time_qualifies; // dword_755918
+pub const TIME: &Dword = &EVENT_STATE.player_time; // dword_755914
+pub const ANY_QUALIFIED: &Dword = &EVENT_STATE.any_time_qualified; // dword_755920
 /// The tenth entry of the best times.
 pub const TENTH: u32 = 9 * TIME_ENTRY;
 

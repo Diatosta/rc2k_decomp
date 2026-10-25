@@ -10,11 +10,7 @@
 //! Callers: the actions of the four controller pages' items (0x749C70 ..).
 //! The controller pages' items run `learn_binding(n)` (`menu::table_routes`).
 
-use crate::framework::{game_write, rva};
-
-const LEARNING_RVA: usize = rva(0x7551F4); // dword_7551F4: 1 while a control learns
-const STARTED_RVA: usize = rva(0x7551F8); // dword_7551F8: when it began
-const CONTROL_RVA: usize = rva(0x7551FC); // dword_7551FC: the control learning
+use crate::screens::controls_store::CONTROLS_SCREEN;
 
 /// The Rust version: control `control` learns from now.
 pub fn learn_binding(control: u32) {
@@ -23,9 +19,7 @@ pub fn learn_binding(control: u32) {
         control,
         crate::system::tick_count::tick_count(),
     );
-    unsafe {
-        game_write(LEARNING_RVA, l.on);
-        game_write(STARTED_RVA, l.started);
-        game_write(CONTROL_RVA, l.control);
-    }
+    CONTROLS_SCREEN.learning.set(l.on);
+    CONTROLS_SCREEN.learn_start.set(l.started);
+    CONTROLS_SCREEN.learned.set(l.control);
 }

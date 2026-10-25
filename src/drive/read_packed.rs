@@ -13,10 +13,7 @@
 
 use crate::errors::Refused;
 use crate::files::handle::read;
-use crate::physics::flow::a;
-
-/// `g_pngInfo`: the packed bytes' buffer.
-pub const PACKED: usize = 0x93E8B0;
+use crate::files::scratch::SCRATCH;
 
 /// The Rust version: (eax, CF, ZF when it unpacked).
 // Converted: `rc2k_core::drive::race_steps::packed_bytes` (the unpacking:
@@ -30,10 +27,11 @@ pub unsafe fn read_packed(
         let (n, ok) = unsafe { read(file, buffer as *mut u8, count) };
         return Ok((n, !ok, None));
     };
-    let (n, ok) = unsafe { read(file, a(PACKED) as *mut u8, packed) };
+    let (n, ok) = unsafe { read(file, SCRATCH.buffer.addr() as u32 as *mut u8, packed) };
     if !ok {
         return Ok((n, true, None));
     }
-    let out = unsafe { crate::drive::unpack_rle::unpack_rle(a(PACKED), buffer) }?;
+    let out =
+        unsafe { crate::drive::unpack_rle::unpack_rle(SCRATCH.buffer.addr() as u32, buffer) }?;
     Ok((out, false, Some(out == 0)))
 }

@@ -19,16 +19,14 @@
 //! registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, game_read, rva};
+use crate::menu::captions_store::CAPTIONS;
+use crate::menu::event_store::EVENT_STATE;
 use crate::menu::player::player_at;
+use crate::menu::results_store::RESULT_FIGURES;
 use crate::text::draw_text::Canvas;
 
 // dword_758720: byte offset in g_players
 // dword_758724
-fn k(a: usize) -> u32 {
-    unsafe { game_read(rva(a)) }
-}
-
 unsafe fn get(a: u32) -> u32 {
     unsafe { (a as *const u32).read_unaligned() }
 }
@@ -37,12 +35,16 @@ unsafe fn get(a: u32) -> u32 {
 /// [dword_7558D0]`, + 0xA4 x `dword_7558CC`); none: 0.
 fn records() -> (u32, u32) {
     unsafe {
-        let table = get(game_addr(rva(0x735512)) as u32 + 4 * k(0x7558C8));
+        let table =
+            crate::records::stages_store::STAGE_TABLES.group_list(EVENT_STATE.stage_group.get());
         if table == 0 {
             return (0, 0);
         }
-        let base = get(table + 4 * k(0x7558D0));
-        (base, base.wrapping_add(k(0x7558CC).wrapping_mul(0xA4)))
+        let base = get(table + 4 * EVENT_STATE.stage_sub.get());
+        (
+            base,
+            base.wrapping_add(EVENT_STATE.stage_number.get().wrapping_mul(0xA4)),
+        )
     }
 }
 
@@ -51,7 +53,7 @@ fn label(v: u32) -> Result<u32, Refused> {
     if !(1..=21).contains(&v) {
         return Err(BadInput("a string index past dword_7588D2's 21").into());
     }
-    Ok(k(0x7588D2 + 4 * (v as usize - 1)))
+    Ok(CAPTIONS.duel_labels[v as usize - 1].get())
 }
 
 pub unsafe fn draw_duel_result(canvas: &mut dyn Canvas) -> Result<(), Refused> {
@@ -68,7 +70,10 @@ pub unsafe fn draw_duel_result(canvas: &mut dyn Canvas) -> Result<(), Refused> {
         if stage.len() > 0x100 {
             return Err(BadInput("a stage line past the line buffer").into());
         }
-        let (label1, label2) = (label(k(0x758768))?, label(k(0x75876C))?);
+        let (label1, label2) = (
+            label(RESULT_FIGURES.positions[0].get())?,
+            label(RESULT_FIGURES.positions[1].get())?,
+        );
         // Converted: `rc2k_core::screens::duel_result`.
         use rc2k_core::screens::player_result::Player;
         let units = crate::strings::units::units();
@@ -84,11 +89,20 @@ pub unsafe fn draw_duel_result(canvas: &mut dyn Canvas) -> Result<(), Refused> {
         let players = [player(p1)?, player(p2)?];
         let figures = rc2k_core::screens::duel_result::Figures {
             labels: [label1, label2],
-            best: [k(0x758758), k(0x75875C)],
-            columns: [
-                [0x758778, 0x758758, 0x758788, 0x758798, 0x7587A8, 0x7587B8].map(k),
-                [0x75877C, 0x75875C, 0x75878C, 0x75879C, 0x7587AC, 0x7587BC].map(k),
+            best: [
+                RESULT_FIGURES.time_bonus[0].get(),
+                RESULT_FIGURES.time_bonus[1].get(),
             ],
+            columns: [0, 1].map(|p| {
+                [
+                    RESULT_FIGURES.points[p].get(),
+                    RESULT_FIGURES.time_bonus[p].get(),
+                    RESULT_FIGURES.extra[p].get(),
+                    RESULT_FIGURES.sums[p].get(),
+                    RESULT_FIGURES.before[p].get(),
+                    RESULT_FIGURES.totals[p].get(),
+                ]
+            }),
         };
         rc2k_core::screens::duel_result::duel_result(
             &mut crate::screens::game_screen::GameScreen::new(canvas),

@@ -27,7 +27,6 @@ const CORNER_SCALE_RVA: Slot = Slot::at(0x8EB969); // flt_8EB969, 1 / 65536
 pub const CORNER_WORK_RVA: usize = rva(0x9605B8);
 pub const CORNER_SIDES_RVA: Slot = Slot::at(0x8EB8B5); // dword_8EB8B5, dword_8EB8B9
 pub const SLOPES_RVA: Slot = Slot::at(0x920734); // g_marksCornerSlopes: 0x100 of 0x24
-pub const SETTINGS_RVA: Slot = Slot::at(0x767A28); // g_marksSettings
 pub const SETTINGS_BLOCKS: u32 = 8;
 pub const SETTINGS_BLOCK: u32 = 0x4C8;
 const SETTINGS_START_RVA: Slot = Slot::at(0x9354C6); // flt_9354C6 .. flt_9354DA
@@ -126,7 +125,7 @@ pub unsafe fn scale_corners() {
 /// `flt_9354C6`, the last three again at +0x64, +0x70, +0x7C, +0x30 8.
 pub unsafe fn reset_settings_blocks() {
     unsafe {
-        let settings: u32 = game_read(SETTINGS_RVA);
+        let settings: u32 = crate::marks::setup::SETTINGS.pointer.get();
         for n in (0..SETTINGS_BLOCKS).rev() {
             let block = settings.wrapping_add(0x60 + n * SETTINGS_BLOCK);
             let at = |o: u32| (block + o) as *mut u32;

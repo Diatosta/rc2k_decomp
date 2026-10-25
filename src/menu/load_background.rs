@@ -12,19 +12,18 @@
 //! (`routes.rs`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::rva;
 use crate::gfx::blit_glyph::BlitCall;
 use crate::gfx::blit_marker_pair::sprite_table;
-use crate::gfx::block::{game_read, game_write};
+use crate::gfx::screen_state::SCREEN_MODE;
+
 use crate::gfx::convert_picture::convert_picture_now;
 use crate::gfx::load_picture::load_picture;
-use crate::gfx::picture::FLAGS_RVA;
 use crate::gfx::picture_as_surface::picture_as_surface;
+use crate::gfx::picture_store::PICTURE;
 use crate::text::draw_text::Canvas;
 
 // ---- game data ----
 
-const MODE_FLAGS_RVA: usize = rva(0x4F4934); // dword_4F4934: the screen mode's flags
 const FRAME_SPRITE: u32 = 0xA0;
 
 // ---- Rust version ----
@@ -39,7 +38,7 @@ pub unsafe fn load_background(
         // Whether the file was read is not looked at.
         load_picture(path)?;
         convert_picture_now()?;
-        game_write(FLAGS_RVA, game_read::<u32>(MODE_FLAGS_RVA) & 0xFFF);
+        PICTURE.flags.set(SCREEN_MODE.mode_flags.get() & 0xFFF);
         picture_as_surface()?;
         canvas.blit_glyph(BlitCall::new(FRAME_SPRITE, 0, 0, palette, sprite_table()))?;
         Ok(())

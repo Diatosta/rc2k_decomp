@@ -9,29 +9,29 @@
 //! One caller, `sub_4C969A` (the marks' frame). The float first gets `flt_935406`, then the
 //! random at once: only the second is kept.
 
-use crate::marks::setup::{SLOT_LEN, SLOTS, SLOTS_RVA};
-use crate::marks::store::{Slot, game_read, game_write};
+use crate::marks::mark_slots::{SLOTS, TUNING};
 use crate::math::x87;
 
-const RANDOM_RVA: Slot = Slot::at(0x93540A); // g_marksSlotRandom
-const BASE_RVA: Slot = Slot::at(0x93540E); // flt_93540E
 const TIME: u32 = 0x3C;
 
 /// The Rust version (see the header).
-pub unsafe fn add_mark_slot(what: u32, at_esi: u32) {
-    unsafe {
-        for n in (0..SLOTS as usize).rev() {
-            let slot = SLOTS_RVA + SLOT_LEN as usize * n;
-            if game_read::<i32>(slot) > 0 {
-                continue;
-            }
-            let random = game_read::<u32>(RANDOM_RVA)
-                .wrapping_mul(0xC5)
-                .wrapping_add(0x5D);
-            game_write(RANDOM_RVA, random);
-            let float = x87::int_plus((random & 0xFFFF) as i32, game_read(BASE_RVA));
-            game_write(slot, [TIME, what, at_esi, 0, float]);
-            return;
+pub fn add_mark_slot(what: u32, at_esi: u32) {
+    for slot in SLOTS.slots.iter().rev() {
+        if slot.life.get() as i32 > 0 {
+            continue;
         }
+        let random = TUNING
+            .slot_random
+            .get()
+            .wrapping_mul(0xC5)
+            .wrapping_add(0x5D);
+        TUNING.slot_random.set(random);
+        let float = x87::int_plus((random & 0xFFFF) as i32, TUNING.base.bits());
+        slot.life.set(TIME);
+        slot.point.set(what);
+        slot.matrix.set(at_esi);
+        slot.spare.set(0);
+        slot.size.set_bits(float);
+        return;
     }
 }

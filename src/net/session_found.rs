@@ -18,7 +18,6 @@ use crate::net::types::{DpSessionDesc, NetSession};
 use rc2k_core::net::lists::{self, Found};
 
 const FOUND: usize = 0x5C2E75; // "NET: Found"
-const NEWLINE: u32 = 0x4E00B7; // the text `logfile::log_newline_l2` writes
 
 fn get(at: u32) -> u32 {
     unsafe { (at as *const u32).read_unaligned() }
@@ -32,7 +31,7 @@ pub fn session_found(args: &[u32]) -> Result<u32, Refused> {
     if desc != 0 {
         log(get(desc + 0x30), false, 2);
     }
-    log(crate::net::lobby::game(NEWLINE), true, 2);
+    log(c"".as_ptr() as u32, true, 2);
     // Converted: `rc2k_core::net::lists::session_found`.
     let count =
         match lists::session_found(flags, desc != 0, || get(desc + 0x44), || NET.sessions.get()) {

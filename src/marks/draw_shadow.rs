@@ -21,7 +21,6 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::rva;
-use crate::marks::setup::SETTINGS_RVA;
 use crate::marks::store::{Slot, Where, game_addr, game_read, game_write};
 use crate::math::{x87, x87_run};
 use crate::scene::cross_product3::cross_product3;
@@ -174,7 +173,7 @@ unsafe fn projected_2() {
 /// The z turn's angle (see the header), 80 bits.
 unsafe fn angle(sh: &Shadow) -> [u8; 10] {
     unsafe {
-        let settings: u32 = game_read(SETTINGS_RVA);
+        let settings: u32 = crate::marks::setup::SETTINGS.pointer.get();
         let split: u32 = game_read(sh.split);
         let v = ((settings + sh.field) as *const u32).read_unaligned();
         if (split as i32) <= v as i32 {
@@ -215,7 +214,7 @@ pub unsafe fn draw_shadow_with(sh: &Shadow, depth: bool) -> Result<(), Refused> 
         if corner >= 0x100 {
             return Err(BadInput("a shadow corner past g_marksCorners").into());
         }
-        if game_read::<u32>(SETTINGS_RVA) == 0 {
+        if crate::marks::setup::SETTINGS.pointer.get() == 0 {
             return Err(BadInput("no marks settings").into());
         }
         turnable(&angle(sh))?;

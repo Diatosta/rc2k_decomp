@@ -1,18 +1,45 @@
-//! The progress bar's variables (position, width, glyphs, percent) (phase 5, `notes/conversion.md`): IDA 0x755224 .. 0x75523C out of RAL.EXE's image, one block
-//! with the image's layout (`gfx::block`): an address `X` of IDA is at `base() + (X - START)`;
-//! a `Slot` is such an address, checked against the block.
+//! The progress bar's variables, out of RAL.EXE's image (phase 5; typed in phase 7,
+//! `notes/conversion.md`): IDA 0x755224 .. 0x75523C. Set by the callers of
+//! `gfx::blit_bar` / `gfx::blit_bar_marker` (`blit_bar::Bar` reads and writes the six).
 
-crate::region!(
-    Bar,
-    STORE,
-    0x755224,
-    0x75523C,
-    crate::gfx::bar_store_data::RUNS
-);
+use crate::session::Dword;
 
+/// IDA's address of the block's first byte.
 pub const START: usize = 0x755224;
+/// The block's length.
+pub const LEN: usize = 0x75523C - START;
 
-pub type Slot = crate::gfx::block::Slot<Bar>;
+/// The bar being drawn.
+#[repr(C)]
+pub struct BarVars {
+    /// `dword_755224`: the bar's x (`blit_bar_marker` moves it to the marker).
+    pub x: Dword,
+    /// `dword_755228`: the bar's y.
+    pub y: Dword,
+    /// `dword_75522C`: the bar's length at 100 percent, in pixels.
+    pub width: Dword,
+    /// `dword_755230`: the fill's sprite (the marker's for `blit_bar_marker`).
+    pub fill_glyph: Dword,
+    /// `dword_755234`: the end piece's sprite.
+    pub end_glyph: Dword,
+    /// `dword_755238`: the percentage.
+    pub percent: Dword,
+}
+
+/// The bar; the first values are the image's.
+pub static BAR: BarVars = BarVars {
+    x: Dword::new(0),
+    y: Dword::new(0),
+    width: Dword::new(0),
+    fill_glyph: Dword::new(0),
+    end_glyph: Dword::new(0),
+    percent: Dword::new(0),
+};
+
+/// Where the block is (`moved::MOVED`'s home for IDA 0x755224).
+pub fn home() -> usize {
+    &BAR as *const BarVars as usize
+}
 
 #[cfg(test)]
 mod tests {
@@ -20,12 +47,12 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::block::first_values_are_the_games::<Bar>(&STORE);
+        crate::gfx::first_values_are_the_games(&BAR, START, START + LEN);
     }
 
     #[test]
     fn moved_knows_the_block() {
-        assert_eq!(crate::moved::place(START), STORE.addr());
-        assert_eq!(crate::moved::place(START + LEN - 1), STORE.addr() + LEN - 1);
+        assert_eq!(crate::moved::place(START), BAR.x.addr());
+        assert_eq!(crate::moved::place(0x755238), BAR.percent.addr());
     }
 }

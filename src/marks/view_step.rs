@@ -9,25 +9,20 @@
 //!
 //! the x87 version stays for the Rust callers in unconverted code).
 
-use crate::marks::store::{Slot, game_read, game_write};
+use crate::marks::view_vectors::KEPT;
 use crate::math::x87;
 
-const NOW_RVA: Slot = Slot::at(0x76927A); // flt_76927A .. flt_769282
-const LAST_RVA: Slot = Slot::at(0x769296); // flt_769296 .. flt_76929E
-const STEP_RVA: Slot = Slot::at(0x7692EA); // flt_7692EA .. flt_7692F2
-
 /// The Rust version (see the header).
-pub unsafe fn view_step() {
-    unsafe {
-        for k in 0..3 {
-            let (now, last) = (
-                game_read::<u32>(NOW_RVA + 4 * k),
-                game_read::<u32>(LAST_RVA + 4 * k),
-            );
-            game_write(STEP_RVA + 4 * k, x87::negated_sub(now, last));
-        }
-        for k in 0..3 {
-            game_write(LAST_RVA + 4 * k, game_read::<u32>(NOW_RVA + 4 * k));
-        }
+pub fn view_step() {
+    let k = &KEPT;
+    // now: `kept_a`'s scaled vector (`flt_76927A` ..)
+    for n in 0..3 {
+        k.step[n].set_bits(x87::negated_sub(
+            k.kept_a.scaled[n].bits(),
+            k.last[n].bits(),
+        ));
+    }
+    for n in 0..3 {
+        k.last[n].set_bits(k.kept_a.scaled[n].bits());
     }
 }

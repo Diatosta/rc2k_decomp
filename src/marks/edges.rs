@@ -4,6 +4,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::rva;
+use crate::gfx::picture_store::PICTURE;
 use crate::marks::store::{Slot, game_addr, game_read, game_write};
 use crate::math::x87;
 
@@ -38,7 +39,6 @@ fn clamped(kind: u32) -> u32 {
 /// `resume`, before writing; a picture that is not read (the original then counts
 /// 0x1FFFFFFF down and leaves with its stack one off), after the path is written.
 pub unsafe fn load_edges(resume: u32) -> Result<(), Refused> {
-    use crate::gfx::picture::{HEIGHT_RVA, PICTURE_RVA, ROW_BYTES_RVA, WIDTH_RVA};
     unsafe {
         let done: u32 = game_read(DONE_RVA);
         if done != 0 && done != resume {
@@ -55,28 +55,28 @@ pub unsafe fn load_edges(resume: u32) -> Result<(), Refused> {
             }
             game_write(DONE_RVA, resume);
         }
-        let settings: u32 = game_read(crate::marks::lines::SETTINGS_RVA);
+        let settings: u32 = crate::marks::setup::SETTINGS.pointer.get();
         ((settings + SETTING) as *mut u32).write_unaligned(SETTING_VALUE);
         let kind = clamped(game_read(crate::marks::kind_values::KIND_RVA));
         let path = game_addr(PATH_RVA) as u32;
         *((path + DIGITS) as *mut u8) = (kind / 10) as u8 + b'0';
         *((path + DIGITS + 1) as *mut u8) = (kind % 10) as u8 + b'0';
         let sizes: [u32; 3] = [
-            game_read(WIDTH_RVA),
-            game_read(HEIGHT_RVA),
-            game_read(ROW_BYTES_RVA),
+            PICTURE.width.get(),
+            PICTURE.height.get(),
+            PICTURE.row_bytes.get(),
         ];
-        game_write(WIDTH_RVA, 0x100u32);
-        game_write(HEIGHT_RVA, 0x80u32);
-        game_write(ROW_BYTES_RVA, 0xFFFF_FFFEu32);
+        PICTURE.width.set(0x100u32);
+        PICTURE.height.set(0x80u32);
+        PICTURE.row_bytes.set(0xFFFF_FFFEu32);
         let read = crate::gfx::read_picture_file::read_picture_file(path as *mut u8);
-        game_write(WIDTH_RVA, sizes[0]);
-        game_write(HEIGHT_RVA, sizes[1]);
-        game_write(ROW_BYTES_RVA, sizes[2]);
+        PICTURE.width.set(sizes[0]);
+        PICTURE.height.set(sizes[1]);
+        PICTURE.row_bytes.set(sizes[2]);
         if !read? {
             return Err(BadInput("the edge picture was not read").into());
         }
-        let picture: u32 = game_read(PICTURE_RVA);
+        let picture: u32 = PICTURE.buffer.get();
         let edge = game_addr(EDGE_RVA) as u32;
         for k in 0..EDGE_LEN {
             let p = std::slice::from_raw_parts((picture + 4 * k) as *const u8, 4);
@@ -102,7 +102,7 @@ const KIND_AT: u32 = 0x26A8; // the settings' kind
 /// its steps do.
 pub unsafe fn load_kind_data() -> Result<(), Refused> {
     unsafe {
-        let settings: u32 = game_read(crate::marks::lines::SETTINGS_RVA);
+        let settings: u32 = crate::marks::setup::SETTINGS.pointer.get();
         let kind = ((settings + KIND_AT) as *const u32).read_unaligned();
         game_write(crate::marks::kind_values::KIND_RVA, kind);
         load_edges(game_addr(RESUME_RVA) as u32)?;

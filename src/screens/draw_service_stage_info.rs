@@ -15,17 +15,16 @@
 //! run its `entry` (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{game_read, rva};
+use crate::menu::champ_store::CHAMP_VIEW;
+use crate::menu::event_store::EVENT_STATE;
 use crate::screens::draw_stage_heading::draw_stage_heading;
-use crate::screens::draw_stage_info::{MODE_RVA, TITLE_X, TITLE_Y, event_stage, event_title};
+use crate::screens::draw_stage_info::{TITLE_X, TITLE_Y, event_stage, event_title};
 use crate::screens::stage_panel::{
-    BEST_TIMES_PTR_RVA, TITLE_FONT, build_second_heading, draw_records_from, draw_stage_body, label,
+    TITLE_FONT, build_second_heading, draw_records_from, draw_stage_body, label,
 };
 use crate::text::draw_text::Canvas;
 
 // ---- game data ----
-
-const HEADING_SWITCH_RVA: usize = rva(0x755968); // dword_755968: 0 lets mode 2 draw the heading
 
 // ---- Rust version ----
 
@@ -34,12 +33,12 @@ pub unsafe fn draw_service_stage_info(canvas: &mut dyn Canvas) -> Result<bool, R
     unsafe {
         label(canvas, event_title(), TITLE_FONT, TITLE_X, TITLE_Y)?;
         let (record, section) = event_stage();
-        if game_read::<u32>(MODE_RVA) == 2 && game_read::<u32>(HEADING_SWITCH_RVA) == 0 {
+        if CHAMP_VIEW.event_mode.get() == 2 && EVENT_STATE.stage_pages.get() == 0 {
             draw_stage_heading(record as *const u8, canvas)?;
         }
         build_second_heading(record)?;
         // ebx, the markers' palette, still holds the section here.
         draw_stage_body(record, section, false, canvas)?;
-        draw_records_from(game_read(BEST_TIMES_PTR_RVA), record, canvas)
+        draw_records_from(CHAMP_VIEW.stage_best_times.get(), record, canvas)
     }
 }

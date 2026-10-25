@@ -3,16 +3,15 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::rva;
+use crate::menu::captions_store::CAPTIONS;
+use crate::menu::champ_store::CHAMP_VIEW;
+use crate::menu::event_store::EVENT_STATE;
+use crate::menu::keys_store::KEY_TABLES;
+use crate::menu::menus_store::MENUS;
+use crate::menu::option_work_store::OPTION_WORK;
+use crate::menu::results_store::RESULT_FIGURES;
 use crate::menu::state_store::MENU_STATE;
-use crate::store::{game_addr, game_read, game_write};
-
-fn k(a: u32) -> u32 {
-    unsafe { game_read(rva(a as usize)) }
-}
-
-fn w(a: u32, v: u32) {
-    unsafe { game_write(rva(a as usize), v) }
-}
+use crate::store::game_addr;
 
 /// `screens::pick_player_1` .. `_4` (0x46AEC5, 0x46AF21, 0x46AF58, 0x46AF8F): player `n`
 /// the current one (`dword_75598C`), its +0x2C into `dword_7558C4` and its 0x2C bytes at
@@ -28,9 +27,9 @@ pub unsafe fn pick_player(n: u32) -> Result<(), Refused> {
         let (value, copy) = (p as *const rc2k_core::menu::player::Player)
             .read_unaligned()
             .picked();
-        w(0x75598C, n);
-        w(0x7558C4, value);
-        game_write(rva(0x7555B1), copy);
+        EVENT_STATE.current_player.set(n);
+        EVENT_STATE.dword_7558c4.set(value);
+        KEY_TABLES.controls.write(&copy);
         Ok(())
     }
 }
@@ -43,12 +42,7 @@ pub unsafe fn load_audio_settings() {
     // Converted: `rc2k_core::screens::page_values::audio_page`.
     let options: rc2k_core::audio::modes::AudioOptions =
         crate::audio::store::AUDIO.audio_options.get();
-    unsafe {
-        game_write(
-            rva(0x75566C),
-            rc2k_core::screens::page_values::audio_page(&options),
-        )
-    };
+    OPTION_WORK.set_audio_page(rc2k_core::screens::page_values::audio_page(&options));
 }
 
 /// `strings::append_string_by_id` into `out`.
@@ -88,7 +82,7 @@ fn set_item(items: u32, n: u32, v: u32) {
 /// 0xA4 the line is about.
 unsafe fn stage_record(a: u32, b: u32, c: u32) -> (u32, u32) {
     unsafe {
-        let table = ((game_addr(rva(0x735512)) as u32 + 4 * a) as *const u32).read_unaligned();
+        let table = crate::records::stages_store::STAGE_TABLES.group_list(a);
         let base = ((table + 4 * b) as *const u32).read_unaligned();
         (base, base.wrapping_add(c.wrapping_mul(0xA4)))
     }
@@ -97,7 +91,7 @@ unsafe fn stage_record(a: u32, b: u32, c: u32) -> (u32, u32) {
 /// What both stage pages read through: refused before anything.
 unsafe fn stage_refuses(a: u32, b: u32) -> Result<(), Refused> {
     unsafe {
-        let table = ((game_addr(rva(0x735512)) as u32 + 4 * a) as *const u32).read_unaligned();
+        let table = crate::records::stages_store::STAGE_TABLES.group_list(a);
         if table == 0 || ((table + 4 * b) as *const u32).read_unaligned() == 0 {
             return Err(BadInput("no stage records").into());
         }
@@ -112,15 +106,15 @@ unsafe fn stage_refuses(a: u32, b: u32) -> Result<(), Refused> {
 /// stage records; a record of another track pack is the original's fatal error.
 pub unsafe fn stage_options_texts() -> Result<(), Refused> {
     unsafe {
-        let (a, b) = (k(0x7556F8), k(0x75880E));
+        let (a, b) = (CHAMP_VIEW.switch_f8.get(), CAPTIONS.shown_group.get());
         stage_refuses(a, b)?;
         // Converted: `rc2k_core::screens::page_values` (the items and the caption).
         use rc2k_core::screens::page_values::{stage_options_caption, stage_options_items};
-        let items = game_addr(rva(0x74DCE0)) as u32;
-        let (first, second) = stage_options_items(a, k(0x7556FC));
+        let items = MENUS.view_best_times.addr() as u32;
+        let (first, second) = stage_options_items(a, CHAMP_VIEW.switch_fc.get());
         set_item(items, 1, first);
         set_item(items, 2, second);
-        let (base, record) = stage_record(a, b, k(0x758812));
+        let (base, record) = stage_record(a, b, CAPTIONS.shown_stage.get());
         set_item(items, 3, ((base + 0x38) as *const u32).read_unaligned());
         stage_line(0x481, record)?;
         let mut caption = Vec::new();
@@ -146,19 +140,19 @@ pub unsafe fn stage_options_texts() -> Result<(), Refused> {
 /// item table; another track pack is the original's fatal error.
 pub unsafe fn stage_choice_texts() -> Result<(), Refused> {
     unsafe {
-        let (a, b) = (k(0x7558C8), k(0x7558D0));
+        let (a, b) = (EVENT_STATE.stage_group.get(), EVENT_STATE.stage_sub.get());
         stage_refuses(a, b)?;
-        let pointed = k(0x74DB68);
+        let pointed = MENUS.view_courses.head.get();
         if pointed == 0 {
             return Err(BadInput("no item table").into());
         }
-        let items = game_addr(rva(0x74DB68)) as u32;
+        let items = MENUS.view_courses.addr() as u32;
         set_item(
             items,
             0,
-            ((game_addr(rva(0x758718)) as u32 + 4 * a) as *const u32).read_unaligned(),
+            ((RESULT_FIGURES.group_titles[0].addr() as u32 + 4 * a) as *const u32).read_unaligned(),
         );
-        let (base, record) = stage_record(a, b, k(0x7558CC));
+        let (base, record) = stage_record(a, b, EVENT_STATE.stage_number.get());
         set_item(pointed, 1, ((base + 0x38) as *const u32).read_unaligned());
         stage_line(0x482, record)
     }

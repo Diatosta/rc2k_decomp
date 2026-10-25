@@ -19,13 +19,12 @@
 
 use crate::errors::Refused;
 use crate::logfile::log_write::log_write;
-use crate::net::lobby::a;
 use crate::net::store::NET;
 use crate::session::FLAGS;
 use std::sync::atomic::Ordering;
 
-const START_TEXT: usize = 0x4DACD2; // "NETRXTDB:START"
-const QUIT_TEXT: usize = 0x4DACE1; // "NETRXTDB:QUIT"
+const START_TEXT: &std::ffi::CStr = c"NETRXTDB:START"; // "NETRXTDB:START"
+const QUIT_TEXT: &std::ffi::CStr = c"NETRXTDB:QUIT"; // "NETRXTDB:QUIT"
 /// The wait for the event, in milliseconds.
 const WAIT: u32 = 1000;
 
@@ -36,7 +35,7 @@ pub fn receive_thread() -> Result<(), Refused> {
     unsafe {
         if running.read_volatile() != 1 {
             running.write_volatile(1);
-            log_write(a(START_TEXT) as *const u8, true, 2);
+            log_write(START_TEXT.as_ptr().cast(), true, 2);
             if NET.receive_done.get() == 0 {
                 loop {
                     let (_, zero) =
@@ -67,7 +66,7 @@ pub fn receive_thread() -> Result<(), Refused> {
             }
         }
         NET.receive_done.set(1);
-        log_write(a(QUIT_TEXT) as *const u8, true, 2);
+        log_write(QUIT_TEXT.as_ptr().cast(), true, 2);
         running.write_volatile(0);
         windows_sys::Win32::System::Threading::ExitThread(0)
     }

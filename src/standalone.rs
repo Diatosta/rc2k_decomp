@@ -20,8 +20,9 @@
 //! piece of the platform: see `stand_in`.
 
 use crate::errors::Refused;
-use crate::framework::{GameHook, LOG_PATH, Regs, game_addr, log};
+use crate::framework::{GameHook, LOG_PATH, Regs, log};
 use crate::install::outside::Game as Outside;
+use crate::install::vars::INSTALLER_NAMES;
 use crate::registry::ALL;
 use crate::session::MACHINE;
 use std::path::Path;
@@ -378,10 +379,9 @@ unsafe fn start() {
         // `g_surface.format` (0x4F49B8): the image points it at the format record's old
         // place; the record is in `session::SCREEN` now (the platform sets it again at
         // every lock).
-        crate::framework::game_write(
-            crate::framework::rva(0x4F49B8),
-            crate::session::SCREEN.format_addr() as u32,
-        );
+        crate::gfx::screen_state::DRAW_SURFACE
+            .format
+            .set(crate::session::SCREEN.format_addr() as u32);
         rust("system::keep_start_time");
         crate::system::keep_start_time::keep_start_time();
         rust("math::seed_random");
@@ -464,17 +464,17 @@ unsafe fn start() {
         rust("system::check_developer_machine");
         crate::system::check_developer_machine::check_developer_machine();
         rust("install::read_languages");
-        if let Err(e) = crate::install::read_languages::read_languages(game_addr(
-            crate::install::read_languages::PATH_RVA,
-        ) as *const u8)
+        if let Err(e) = crate::install::read_languages::read_languages(
+            INSTALLER_NAMES.lang_cfg.addr() as *const u8,
+        )
         .map_err(Refused::from)
         {
             refused("install::read_languages", e, &r);
         }
         rust("install::read_record");
-        if let Err(e) = crate::install::read_record::read_record(game_addr(
-            crate::install::read_record::PATH_RVA,
-        ) as *const u8)
+        if let Err(e) = crate::install::read_record::read_record(
+            crate::install::installer::INSTALL_TEXTS.record_path.addr() as *const u8,
+        )
         .map_err(Refused::from)
         {
             refused("install::read_record", e, &r);
@@ -626,20 +626,21 @@ mod menu_watch {
     use super::log;
     use std::sync::OnceLock;
 
-    use crate::menu::store::{lists, menus};
+    use crate::menu::{draw_lists_store, menus_store};
 
     /// RAL.EXE's menus (0x7482B8 ..) and its screens' draw lists (0x758B72 ..), in their
-    /// homes (`menu::store::{menus, lists}`): each range's first place and its end.
+    /// homes (`menu::menus_store`, `menu::draw_lists_store`): each range's first place and
+    /// its end.
     fn ranges() -> [(usize, usize, usize); 2] {
         [
             (
                 0x7482B8,
-                menus::Slot::at(0x7482B8).address(),
+                menus_store::menus_addr() + (0x7482B8 - menus_store::START),
                 0x755130 - 0x7482B8,
             ),
             (
                 0x758B72,
-                lists::Slot::at(0x758B72).address(),
+                draw_lists_store::draw_lists_addr(),
                 0x7594AA - 0x758B72,
             ),
         ]
@@ -648,7 +649,7 @@ mod menu_watch {
     static START: OnceLock<Vec<Vec<u8>>> = OnceLock::new();
 
     fn bytes((_, at, len): (usize, usize, usize)) -> Vec<u8> {
-        // Each range lies whole in one block (`menu::store`), ours, read-write.
+        // Each range lies whole in one of our statics, read-write.
         unsafe { std::slice::from_raw_parts(at as *const u8, len) }.to_vec()
     }
 

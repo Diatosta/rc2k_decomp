@@ -31,13 +31,12 @@
 //! its `entry` (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, rva};
 use crate::menu::car_description::{CarDescription, read, shown_description};
+use crate::menu::event_store::EVENT_STATE;
 use crate::text::draw_text::Canvas;
 
 // ---- game data ----
 
-const PAGE_RVA: usize = rva(0x755998); // dword_755998
 // dword_755990
 // dword_7559EC
 const PAGES: u32 = 4;
@@ -46,7 +45,7 @@ const PAGES: u32 = 4;
 
 /// Returns the carry of the last text drawn.
 pub unsafe fn draw_car_figures(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
-    let page: u32 = unsafe { game_read(PAGE_RVA) };
+    let page: u32 = { EVENT_STATE.car_page.get() };
     if page >= PAGES {
         return Err(BadInput("a page past the four").into());
     }

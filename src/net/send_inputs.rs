@@ -15,15 +15,15 @@ use crate::net::send_message::send_message;
 use crate::net::{CAR, MESSAGE, a, log_send};
 use rc2k_core::net::race::Kind;
 
-/// What one of the three sends: its log text (an RVA as IDA shows it) and its kind (the
+/// What one of the three sends: its log text  and its kind (the
 /// tag and the car block's dwords: `rc2k_core::net::race::Kind`).
 pub struct Message {
-    pub text: usize,
+    pub text: &'static std::ffi::CStr,
     pub kind: Kind,
 }
 
 pub const INPUTS: Message = Message {
-    text: 0x4DE0D9, // "send j"
+    text: c"send j", // "send j"
     kind: Kind::Inputs,
 };
 

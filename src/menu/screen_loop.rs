@@ -54,16 +54,20 @@
 //! carry after a `Step::CallOrFatal` is the fatal error, raised by the caller too.
 
 use crate::errors::{BadInput, FatalError, Refused};
-use crate::framework::{game_addr, game_read, game_write, log, rva};
+use crate::framework::{game_addr, game_write, log, rva};
 use crate::input::take_key::take_key;
+use crate::menu::captions_store::CAPTIONS;
+use crate::menu::draw_work_store::DRAW_WORK;
+use crate::menu::event_store::EVENT_STATE;
 use crate::menu::handle_keys::handle_keys;
-use crate::menu::handle_yes_no::LEAVING_RVA;
-use crate::menu::item_at::CURRENT_MENU_RVA;
+use crate::menu::loop_store::LOOP_FLAGS;
+use crate::menu::option_work_store::OPTION_WORK;
+use crate::menu::pages_store::MENU_PAGES;
 use crate::menu::run_item_action::run_item_action;
 use crate::menu::run_list::run_list;
 use crate::menu::update_blink::update_blink;
-use crate::service::state::MENU_ITEM_RVA;
 use crate::session::CLOCKS;
+use crate::session::Dword;
 use crate::session::FLAGS;
 
 // ---- game code the loop calls itself ----
@@ -73,15 +77,6 @@ const INSPECTION_FRAME: usize = rva(0x46D019); // menu::inspection_frame
 
 // ---- game data ----
 
-const ESCAPED_RVA: usize = rva(0x755A3C); // dword_755A3C
-const BACK_RVA: usize = rva(0x755561); // dword_755561
-const WENT_BACK_RVA: usize = rva(0x75555D); // dword_75555D
-const SOUND_RVA: usize = rva(0x7556A4); // dword_7556A4: 0x14D = Enter was pressed
-const DONE_A_RVA: usize = rva(0x755569); // dword_755569
-const DONE_B_RVA: usize = rva(0x755980); // dword_755980
-const ACTION_VALUE_RVA: usize = rva(0x755A38); // dword_755A38: 2 = stay on the screen as it is
-const ANSWER_RVA: usize = rva(0x75524C); // g_yesNoAnswer
-const KEYS_MENU_RVA: usize = rva(0x731BBB); // dword_731BBB
 const ELAPSED_RVA: usize = rva(0x613830); // dword_613830
 
 const NO_SOUND: u32 = 0x6F;
@@ -89,18 +84,31 @@ const ENTER_SOUND: u32 = 0x14D;
 
 // ---- what differs from screen to screen ----
 
+/// A variable of the game that a screen's description names, found when asked (a description
+/// is a constant, and a constant cannot hold a reference to a static).
+pub type Cell = fn() -> &'static Dword;
+
+/// The address of something of the game that a screen's description names.
+pub type Place = fn() -> usize;
+
+/// A game variable that is still named by its address in the image (the memory the screens'
+/// highlights are kept in), through `moved::MOVED`.
+pub fn raw(rva: usize) -> &'static Dword {
+    unsafe { &*(game_addr(rva) as *const Dword) }
+}
+
 /// Something a screen does at one of the loop's fixed places.
 #[derive(Clone, Copy, Debug)]
 pub enum Step {
     /// Calls the game function at this RVA (one of `call`'s).
     Call(Callee),
     /// Writes a game variable.
-    Write(usize, u32),
-    WriteF32(usize, f32),
+    Write(Cell, u32),
+    WriteF32(Cell, f32),
     /// Sets what the next call is handed (the original's eax).
     Arg(u32),
     /// The same with the address of something in the game (a path, say).
-    ArgAddr(usize),
+    ArgAddr(Place),
     /// Calls the game function at this RVA, and if it comes back with the carry flag set,
     /// that is the fatal error with this code (and no message).
     CallOrFatal(Callee, u32),
@@ -125,8 +133,8 @@ pub enum Flow {
 /// One of the screen's function lists: the table, and the variable that points at it.
 #[derive(Clone, Copy, Debug)]
 pub struct List {
-    pub pointer: usize,
-    pub table: usize,
+    pub pointer: Cell,
+    pub table: Place,
     /// Run with `menu::run_list` at set-up, before its pointer is stored. Such a list is not
     /// put in place again before each frame; the others are.
     pub run: bool,
@@ -134,9 +142,9 @@ pub struct List {
 
 pub struct Screen {
     /// off_...: the screen's menu.
-    pub menu: usize,
+    pub menu: Place,
     /// The variable the highlight is kept in between visits.
-    pub saved_item: usize,
+    pub saved_item: Cell,
     pub lists: &'static [List],
     /// The lists put in place before the first frame after set-up, where they are not the
     /// same as before every other frame: 35 loops put their 3D list in `g_unreadList` at
@@ -158,7 +166,7 @@ pub struct Screen {
     pub confirm: Option<&'static [Step]>,
     /// A variable that, when it is 1, has the question put as well (`dword_755569` in the
     /// menus after the results screens).
-    pub ask_also_if: Option<usize>,
+    pub ask_also_if: Option<Cell>,
     /// What runs after a "yes".
     pub confirmed: &'static [Step],
     /// When the question is not put, the highlight is not saved and the Escape flag is left
@@ -175,17 +183,17 @@ pub struct Screen {
     pub short_action_check: bool,
     /// A variable that, when it is 1 at the moment of leaving, makes the loop return at once:
     /// no question, the highlight not saved, no `after` steps.
-    pub leave_at_once: Option<usize>,
+    pub leave_at_once: Option<Cell>,
     /// "Next frame" (after `handle_keys` returns 1, and after an action that leaves 2 in
     /// `dword_755A38`) goes to the `after_first_frame` steps, not past them. A `Flow` those
     /// steps return is honoured on every screen.
     pub next_frame_repeats_first: bool,
     /// The variable the highlight is kept in around an item's action, where it is not
     /// `saved_item`.
-    pub action_saved_item: Option<usize>,
+    pub action_saved_item: Option<Cell>,
     /// The menu whose item's action is run, where it is not `menu`: three loops name a
     /// neighbouring screen's menu there (the original's slip, reproduced).
-    pub action_menu: Option<usize>,
+    pub action_menu: Option<Place>,
     /// The quit switch is not looked at; `dword_7556A4` = 0x6F is stored once a frame in
     /// that place.
     pub no_quit_check: bool,
@@ -198,9 +206,9 @@ pub struct Screen {
     /// saved (the mode menu calls `menu::go_back` there when `dword_758806` is 1).
     pub leaving: &'static [Step],
     /// The variable the highlight is saved in on leaving, where it is not `saved_item`.
-    pub leave_saved_item: Option<usize>,
+    pub leave_saved_item: Option<Cell>,
     /// The menu stored in `dword_731BBB` before `menu::handle_keys`, where it is not `menu`.
-    pub keys_menu: Option<usize>,
+    pub keys_menu: Option<Place>,
     /// What runs last of all, with the carried values back as they were at entry.
     pub after_restored: &'static [Step],
     /// What the loop returns (in eax), where it returns something: read from the game's
@@ -289,8 +297,8 @@ pub unsafe fn read_at(address: u32) -> u32 {
 
 /// A line for the game's log at level 1 with its line break (`logfile::log_write_l1_nl`,
 /// called between `pusha` and `popa`: no register changes).
-pub unsafe fn log_line(text: usize) {
-    unsafe { crate::logfile::log_write::log_write(game_addr(text) as *const u8, true, 1) };
+pub unsafe fn log_line(text: &std::ffi::CStr) {
+    unsafe { crate::logfile::log_write::log_write(text.as_ptr().cast(), true, 1) };
 }
 
 /// A game function a screen step runs (by its Rust version), with what it reads and
@@ -487,11 +495,9 @@ enum Next {
 /// 2026-10-24). Fixed: cleared as once any of those screens has been seen
 /// (`wiki/Fixed-bugs.md`).
 unsafe fn clear_escape() {
-    unsafe {
-        if game_read::<u32>(ESCAPED_RVA) == 1 {
-            game_write(ESCAPED_RVA, 0u32);
-            game_write(BACK_RVA, 0u32);
-        }
+    if DRAW_WORK.escaped.get() == 1 {
+        DRAW_WORK.escaped.set(0u32);
+        LOOP_FLAGS.back.set(0u32);
     }
 }
 
@@ -518,10 +524,10 @@ unsafe fn run(steps: &[Step], c: &mut Carried) -> Result<Flow, Refused> {
                     elsewhere => return Ok(elsewhere),
                 },
                 Step::Call(function) => function.run(c)?,
-                Step::Write(variable, value) => game_write(variable, value),
-                Step::WriteF32(variable, value) => game_write(variable, value),
+                Step::Write(variable, value) => variable().set(value),
+                Step::WriteF32(variable, value) => variable().set(value.to_bits()),
                 Step::Arg(value) => c.arg = value,
-                Step::ArgAddr(what) => c.arg = game_addr(what) as u32,
+                Step::ArgAddr(what) => c.arg = what() as u32,
                 Step::CallOrFatal(function, code) => call_or_fatal(function, code, c)?,
                 Step::Do(what) => what(c)?,
             }
@@ -533,12 +539,10 @@ unsafe fn run(steps: &[Step], c: &mut Carried) -> Result<Flow, Refused> {
 /// Puts the menu and the lists in place, as the original does before a frame (esi left
 /// at the last list's table).
 unsafe fn set_lists(screen: &Screen, lists: &[List], c: &mut Carried) {
-    unsafe {
-        game_write(CURRENT_MENU_RVA, game_addr(screen.menu) as u32);
-        for list in lists.iter().filter(|list| !list.run) {
-            c.cars = game_addr(list.table) as u32;
-            game_write(list.pointer, c.cars);
-        }
+    LOOP_FLAGS.menu.set((screen.menu)() as u32);
+    for list in lists.iter().filter(|list| !list.run) {
+        c.cars = (list.table)() as u32;
+        (list.pointer)().set(c.cars);
     }
 }
 
@@ -567,20 +571,16 @@ unsafe fn run_frame(callback: usize, menu: u32, c: &Carried) -> Result<(), Refus
 /// `entry` are the carried values at entry.
 /// Returns why the screen was left, for the log.
 pub unsafe fn screen_loop(screen: &Screen, entry: &Carried) -> Result<String, Refused> {
-    let menu = game_addr(screen.menu) as u32;
+    let menu = (screen.menu)() as u32;
     let callback = screen.frame_callback;
     let later_callback = screen.later_frame_callback.unwrap_or(screen.frame_callback);
-    let keys_menu = screen
-        .keys_menu
-        .map_or(menu, |other| game_addr(other) as u32);
+    let keys_menu = screen.keys_menu.map_or(menu, |other| other() as u32);
     let mut c = *entry;
     let (mut frames, mut actions, mut why) = (0u32, 0u32, String::new());
     unsafe {
         run(screen.before, &mut c)?;
 
-        let action_menu = screen
-            .action_menu
-            .map_or(menu, |other| game_addr(other) as u32);
+        let action_menu = screen.action_menu.map_or(menu, |other| other() as u32);
         let next_frame = if screen.next_frame_repeats_first {
             Next::FrameTop
         } else {
@@ -592,25 +592,25 @@ pub unsafe fn screen_loop(screen: &Screen, entry: &Carried) -> Result<String, Re
                 Next::SetUp => {
                     run(screen.set_up_first, &mut c)?;
                     if !screen.late_highlight {
-                        game_write(LEAVING_RVA, 0u32);
-                        c.palette = game_read(screen.saved_item);
-                        game_write(MENU_ITEM_RVA, c.palette);
+                        CAPTIONS.screen_left.set(0);
+                        c.palette = (screen.saved_item)().get();
+                        LOOP_FLAGS.item.set(c.palette);
                         clear_escape();
                     }
                     run(screen.prepare, &mut c)?;
 
-                    game_write(CURRENT_MENU_RVA, menu);
+                    LOOP_FLAGS.menu.set(menu);
                     for list in screen.lists {
-                        c.cars = game_addr(list.table) as u32;
+                        c.cars = (list.table)() as u32;
                         if list.run {
                             run_list(c.cars)?;
                         }
-                        game_write(list.pointer, c.cars);
+                        (list.pointer)().set(c.cars);
                     }
                     run(screen.after_lists, &mut c)?;
                     if !screen.late_highlight {
-                        game_write(SOUND_RVA, NO_SOUND);
-                        game_write(BACK_RVA, 0u32);
+                        OPTION_WORK.menu_sound.set(NO_SOUND);
+                        LOOP_FLAGS.back.set(0u32);
                     }
                     run(screen.background, &mut c)?;
                     crate::menu::draw_frame::draw_frame(menu, c.palette, c.measure_x)?;
@@ -627,9 +627,9 @@ pub unsafe fn screen_loop(screen: &Screen, entry: &Carried) -> Result<String, Re
                     );
                     run_frame(callback, menu, &c)?;
                     if screen.late_highlight {
-                        game_write(LEAVING_RVA, 0u32);
-                        c.palette = game_read(screen.saved_item);
-                        game_write(MENU_ITEM_RVA, c.palette);
+                        CAPTIONS.screen_left.set(0);
+                        c.palette = (screen.saved_item)().get();
+                        LOOP_FLAGS.item.set(c.palette);
                         clear_escape();
                     }
                     Next::FrameTop
@@ -651,7 +651,7 @@ pub unsafe fn screen_loop(screen: &Screen, entry: &Carried) -> Result<String, Re
                     } else if flow == Flow::Leave {
                         why = "a step of the screen's own".into();
                         Next::Leave
-                    } else if screen.escape_leaves && game_read::<u32>(ESCAPED_RVA) == 1 {
+                    } else if screen.escape_leaves && DRAW_WORK.escaped.get() == 1 {
                         why = "the Escape flag was set".into();
                         Next::Leave
                     } else if !screen.no_quit_check && quitting() {
@@ -659,7 +659,7 @@ pub unsafe fn screen_loop(screen: &Screen, entry: &Carried) -> Result<String, Re
                         Next::Leave
                     } else {
                         if screen.no_quit_check {
-                            game_write(SOUND_RVA, NO_SOUND);
+                            OPTION_WORK.menu_sound.set(NO_SOUND);
                         }
                         run(screen.before_frame, &mut c)?;
                         c.arg = game_addr(later_callback) as u32;
@@ -678,8 +678,10 @@ pub unsafe fn screen_loop(screen: &Screen, entry: &Carried) -> Result<String, Re
                         }
                     }
                 }
-                Next::ActionCheck if game_read::<u32>(SOUND_RVA) != ENTER_SOUND => {
-                    game_write(KEYS_MENU_RVA, keys_menu);
+                Next::ActionCheck if OPTION_WORK.menu_sound.get() != ENTER_SOUND => {
+                    crate::menu::texts_store::MENU_TEXTS
+                        .keys_menu
+                        .set(keys_menu);
                     let keys = handle_keys(c.arg)?;
                     c.arg = keys.result;
                     if let Some(clock) = keys.clock {
@@ -697,53 +699,53 @@ pub unsafe fn screen_loop(screen: &Screen, entry: &Carried) -> Result<String, Re
                 Next::ActionCheck => {
                     let elapsed = c.arg;
                     actions += 1;
-                    c.measure_x = game_read(MENU_ITEM_RVA);
+                    c.measure_x = LOOP_FLAGS.item.get();
                     let item = c.measure_x;
                     let kept = screen.action_saved_item.unwrap_or(screen.saved_item);
-                    game_write(kept, c.measure_x);
+                    kept().set(c.measure_x);
                     clear_escape();
                     run_item_action(action_menu, &c)?;
-                    game_write(LEAVING_RVA, 0u32);
-                    c.palette = game_read(kept);
-                    game_write(MENU_ITEM_RVA, c.palette);
+                    CAPTIONS.screen_left.set(0);
+                    c.palette = kept().get();
+                    LOOP_FLAGS.item.set(c.palette);
                     clear_escape();
                     c.arg = elapsed;
                     if screen.restart_action_check {
-                        if game_read::<u32>(DONE_A_RVA) == 1 {
+                        if LOOP_FLAGS.ended_a.get() == 1 {
                             why = format!("after the action of item {item}: dword_755569 was 1");
                             Next::Leave
-                        } else if game_read::<u32>(DONE_B_RVA) == 1 {
-                            game_write(ANSWER_RVA, 0u32);
+                        } else if EVENT_STATE.event_done.get() == 1 {
+                            MENU_PAGES.yes_no_answer.set(0u32);
                             Callee::TakeKey.run(&mut c)?;
                             Next::SetUp
-                        } else if game_read::<u32>(BACK_RVA) == 1 {
+                        } else if LOOP_FLAGS.back.get() == 1 {
                             why = format!("after the action of item {item}: dword_755561 is 1");
                             Next::Leave
                         } else {
-                            game_write(SOUND_RVA, NO_SOUND);
+                            OPTION_WORK.menu_sound.set(NO_SOUND);
                             Next::SetUp
                         }
-                    } else if game_read::<u32>(DONE_A_RVA) == 1
-                        || (!screen.short_action_check && game_read::<u32>(DONE_B_RVA) == 1)
+                    } else if LOOP_FLAGS.ended_a.get() == 1
+                        || (!screen.short_action_check && EVENT_STATE.event_done.get() == 1)
                     {
                         why = format!(
                             "after the action of item {item}: dword_755569={} dword_755980={}",
-                            game_read::<u32>(DONE_A_RVA),
-                            game_read::<u32>(DONE_B_RVA)
+                            LOOP_FLAGS.ended_a.get(),
+                            EVENT_STATE.event_done.get()
                         );
                         Next::Leave
-                    } else if game_read::<u32>(BACK_RVA) == 1 {
-                        game_write(BACK_RVA, 0u32);
+                    } else if LOOP_FLAGS.back.get() == 1 {
+                        LOOP_FLAGS.back.set(0u32);
                         why = format!("after the action of item {item}: dword_755561 was 1");
                         Next::Leave
                     } else if screen.short_action_check {
                         Next::SetUp
                     } else {
-                        game_write(SOUND_RVA, NO_SOUND);
-                        if game_read::<u32>(ACTION_VALUE_RVA) == 2 {
+                        OPTION_WORK.menu_sound.set(NO_SOUND);
+                        if DRAW_WORK.action_value.get() == 2 {
                             next_frame
-                        } else if game_read::<u32>(WENT_BACK_RVA) == 1 {
-                            game_write(BACK_RVA, 0u32);
+                        } else if LOOP_FLAGS.went_back.get() == 1 {
+                            LOOP_FLAGS.back.set(0u32);
                             why = format!("after the action of item {item}: dword_75555D is 1");
                             Next::Leave
                         } else {
@@ -753,24 +755,19 @@ pub unsafe fn screen_loop(screen: &Screen, entry: &Carried) -> Result<String, Re
                 }
                 Next::Leave => {
                     let done = || format!("{why}; {frames} frames, {actions} actions");
-                    if screen
-                        .leave_at_once
-                        .is_some_and(|flag| game_read::<u32>(flag) == 1)
-                    {
+                    if screen.leave_at_once.is_some_and(|flag| flag().get() == 1) {
                         return Ok(done());
                     }
                     if let Some(on_refusal) = screen.confirm {
                         let asked = screen.always_asks
-                            || (game_read::<u32>(LEAVING_RVA) == 1
+                            || (CAPTIONS.screen_left.get() == 1
                                 && !screen.ask_unless.is_some_and(|flag| flag() == 1))
-                            || screen
-                                .ask_also_if
-                                .is_some_and(|flag| game_read::<u32>(flag) == 1);
+                            || screen.ask_also_if.is_some_and(|flag| flag().get() == 1);
                         if asked {
                             run(screen.before_asking, &mut c)?;
                             // The flags of `cmp g_yesNoAnswer, 1`.
                             c.carry = confirm_leaving(&c)? < 1;
-                            if game_read::<u32>(ANSWER_RVA) != 1 {
+                            if MENU_PAGES.yes_no_answer.get() != 1 {
                                 run(on_refusal, &mut c)?;
                                 next = Next::SetUp;
                                 continue;
@@ -788,11 +785,8 @@ pub unsafe fn screen_loop(screen: &Screen, entry: &Carried) -> Result<String, Re
                     } else {
                         run(screen.leaving, &mut c)?;
                     }
-                    c.measure_x = game_read(MENU_ITEM_RVA);
-                    game_write(
-                        screen.leave_saved_item.unwrap_or(screen.saved_item),
-                        c.measure_x,
-                    );
+                    c.measure_x = LOOP_FLAGS.item.get();
+                    screen.leave_saved_item.unwrap_or(screen.saved_item)().set(c.measure_x);
                     clear_escape();
                     run(screen.after, &mut c)?;
                     c = *entry;

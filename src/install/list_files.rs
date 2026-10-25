@@ -14,9 +14,9 @@
 
 use crate::errors::Refused;
 use crate::install::installer::{
-    FILE_COUNT, FILE_CURSOR, FILES, append_byte, close_search, fatal, find_first, find_next, g, p,
-    resolve_path, str_append,
+    append_byte, close_search, fatal, find_first, find_next, resolve_path, str_append,
 };
+use crate::install::vars::INSTALLER_RUN;
 use rc2k_core::install::script;
 
 /// FindFileData.cFileName (the search record: `files::state`).
@@ -33,15 +33,17 @@ pub fn list_files(pattern: u32) -> Result<(), Refused> {
             let (cursor, _) = unsafe {
                 crate::files::append_directory::append_directory(
                     pattern as *const u8,
-                    g(FILE_CURSOR) as *mut u8,
+                    INSTALLER_RUN.file_cursor.get() as *mut u8,
                 )
             }?;
             let cursor = append_byte(str_append(find_name(), cursor as u32), 0);
-            p(FILE_CURSOR, cursor);
-            p(FILE_COUNT, g(FILE_COUNT).wrapping_add(1));
+            INSTALLER_RUN.file_cursor.set(cursor);
+            INSTALLER_RUN
+                .file_count
+                .set(INSTALLER_RUN.file_count.get().wrapping_add(1));
             // Converted: `rc2k_core::install::script::room_left` (`sub ebx, [table]`).
             script::room_left(
-                cursor.wrapping_sub(g(FILES)),
+                cursor.wrapping_sub(INSTALLER_RUN.files.get()),
                 script::FILES_ROOM,
                 script::FILES_FULL,
             )

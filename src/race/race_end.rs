@@ -5,7 +5,8 @@
 use crate::errors::Refused;
 use crate::framework::rva;
 use crate::race::state_store::RACE_STATE;
-use crate::store::{game_addr, game_read, game_write};
+use crate::sound::sets_store::SPOT_VOICES;
+use crate::store::{game_read, game_write};
 
 /// The replay's car header (`dword_719B14` ..).
 pub const HEADER: usize = 0x719B14;
@@ -28,9 +29,20 @@ pub fn setting_place(s: rc2k_core::race::replay::Setting) -> usize {
 
 /// "[replayheader.arcrandom]" .. "[replayheader.gameoverflag2]", logged in the order of
 /// `HEADER_SETTINGS`.
-const REPLAY_WORDS: [usize; 13] = [
-    0x4DDCBC, 0x4DDCD5, 0x4DDCF0, 0x4DDD0A, 0x4DDD1F, 0x4DDD34, 0x4DDD49, 0x4DDD60, 0x4DDD74,
-    0x4DDD88, 0x4DDD9C, 0x4DDDB0, 0x4DDDCD,
+const REPLAY_WORDS: [&std::ffi::CStr; 13] = [
+    c"[replayheader.arcrandom]",
+    c"[replayheader.arcstartpos]",
+    c"[replayheader.numarccars]",
+    c"[replayheader.track]",
+    c"[replayheader.gmode]",
+    c"[replayheader.numpl]",
+    c"[replayheader.numcars]",
+    c"[replayheader.car1]",
+    c"[replayheader.car2]",
+    c"[replayheader.car3]",
+    c"[replayheader.car4]",
+    c"[replayheader.gameoverflag1]",
+    c"[replayheader.gameoverflag2]",
 ];
 /// `race::record_replay_header` (0x460246): the race's settings (the arcade's seed, start
 /// place and count, the stage, the mode, the players, the cars, the first four kinds, the
@@ -47,7 +59,7 @@ pub unsafe fn record_replay_header() {
         }
         for (n, &s) in HEADER_SETTINGS.iter().enumerate() {
             crate::logfile::log_write::log_write(
-                game_addr(rva(REPLAY_WORDS[n])) as *const u8,
+                REPLAY_WORDS[n].as_ptr() as usize as *const u8,
                 false,
                 1,
             );
@@ -95,7 +107,6 @@ fn clear_stage_flags() {
         flag.set(0);
     }
 }
-const VOICES_RVA: usize = rva(0x5168C0); // unk_5168C0: 0x48 records of 0x50
 
 /// A sound command whose only register the audio thread reads is eax (the others go
 /// as 0).
@@ -162,7 +173,7 @@ impl SoundVars {
     pub fn game() -> Self {
         Self {
             objects: crate::sound::store::RACE_SOUNDS.table.as_ptr() as usize as u32,
-            voices: game_addr(VOICES_RVA) as u32,
+            voices: crate::session::address_of(&SPOT_VOICES.voices) as u32,
         }
     }
 }
@@ -172,13 +183,28 @@ impl SoundVars {
 use crate::race::loadlevel::LoadVars;
 
 /// "LOADLEVEL_TIDY : tidymud" .. "finis".
-const STAGE_WORDS: [usize; 10] = [
-    0x4DC1D7, 0x4DC1F0, 0x4DC20F, 0x4DC22D, 0x4DC250, 0x4DC271, 0x4DC291, 0x4DC2B3, 0x4DC2D3,
-    0x4DC2F1,
+const STAGE_WORDS: [&std::ffi::CStr; 10] = [
+    c"LOADLEVEL_TIDY : tidymud",
+    c"LOADLEVEL_TIDY : render3d_tidy",
+    c"LOADLEVEL_TIDY : world3d_tidy",
+    c"LOADLEVEL_TIDY : unload game fonts",
+    c"LOADLEVEL_TIDY : unload game map",
+    c"LOADLEVEL_TIDY : close textures",
+    c"LOADLEVEL_TIDY : dealloc course 2",
+    c"LOADLEVEL_TIDY : dealloc course",
+    c"LOADLEVEL_TIDY : objects tidy",
+    c"LOADLEVEL_TIDY : finis",
 ];
 /// "-----", "SHAUNTIDYEVERYTHING : START" .. "finis", "-----".
-const EVERYTHING_WORDS: [usize; 8] = [
-    0x4DC308, 0x4DC32A, 0x4DC346, 0x4DC36D, 0x4DC396, 0x4DC3BB, 0x4DC3DD, 0x4DC3F9,
+const EVERYTHING_WORDS: [&std::ffi::CStr; 8] = [
+    c"---------------------------------",
+    c"SHAUNTIDYEVERYTHING : START",
+    c"SHAUNTIDYEVERYTHING : destroy controls",
+    c"SHAUNTIDYEVERYTHING : gamemodestuff tidy",
+    c"SHAUNTIDYEVERYTHING : loadlevel tidy",
+    c"SHAUNTIDYEVERYTHING : stop sounds",
+    c"SHAUNTIDYEVERYTHING : finis",
+    c"---------------------------------",
 ];
 
 struct Tidy<'a> {
@@ -187,13 +213,13 @@ struct Tidy<'a> {
 
 impl Tidy<'_> {
     /// `log_write_l1_nl` of a word.
-    fn log(&self, word: usize) {
-        unsafe { crate::logfile::log_write::log_write(game_addr(rva(word)) as *const u8, true, 1) }
+    fn log(&self, word: &std::ffi::CStr) {
+        unsafe { crate::logfile::log_write::log_write(word.as_ptr().cast(), true, 1) }
     }
 
     /// `log_write_l1_nl` of the empty text (0x4E00B7).
     fn newline(&self) {
-        self.log(0x4E00B7);
+        self.log(c"");
     }
 
     fn indent(&self, by: i32) {
@@ -204,7 +230,11 @@ impl Tidy<'_> {
     }
 
     /// The word, the indent in, the call, the indent out.
-    fn step(&self, word: usize, call: impl FnOnce() -> Result<(), Refused>) -> Result<(), Refused> {
+    fn step(
+        &self,
+        word: &std::ffi::CStr,
+        call: impl FnOnce() -> Result<(), Refused>,
+    ) -> Result<(), Refused> {
         self.log(word);
         self.indent(3);
         call()?;

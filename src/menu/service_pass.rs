@@ -20,16 +20,11 @@
 //! taking-part player's car without its table, before anything.
 
 use crate::errors::Refused;
-use crate::framework::{game_read, game_write, rva};
+use crate::menu::event_store::EVENT_STATE;
+use crate::menu::pages_store::MENU_PAGES;
 use crate::menu::screen_loop::{Carried, run_screen_carried};
 use crate::menu::standings::*;
 use crate::menu::state_store::MENU_STATE;
-const TIME_RVA: usize = rva(0x75593C); // dword_75593C
-const GOES_ON_RVA: usize = rva(0x75592C); // dword_75592C
-const CURRENT_RVA: usize = rva(0x75598C); // dword_75598C
-const DUE_RVA: usize = rva(0x755938); // dword_755938
-const OUT_RVA: usize = rva(0x755978); // dword_755978
-const ANSWER_RVA: usize = rva(0x75524C); // g_yesNoAnswer
 // service::service_area_loop
 
 /// The Rust version (see the header): the registers it leaves.
@@ -38,7 +33,7 @@ pub unsafe fn service_pass(c: &Carried) -> Result<(), Refused> {
     // pauses, `goes_on`).
     use rc2k_core::menu::passes;
     let players = counted_players()?;
-    let due = unsafe { game_read::<u32>(DUE_RVA) } == 1;
+    let due = { EVENT_STATE.service_due.get() } == 1;
     for &p in &players {
         if due && passes::takes_part(get(p + 0xD0)) {
             crate::menu::driver_stats::car_table(p)?;
@@ -47,16 +42,18 @@ pub unsafe fn service_pass(c: &Carried) -> Result<(), Refused> {
     let mut g = *c;
     unsafe {
         MENU_STATE.driver_stats.money.set(0u32);
-        game_write(TIME_RVA, passes::more_minutes(game_read(TIME_RVA)));
-        game_write(GOES_ON_RVA, 1u32);
+        EVENT_STATE
+            .service_minutes
+            .set(passes::more_minutes(EVENT_STATE.service_minutes.get()));
+        EVENT_STATE.event_goes_on.set(1u32);
         g.palette = 0;
         'all: {
             for (n, &p) in players.iter().enumerate() {
                 g.measure_x = n as u32;
-                game_write(CURRENT_RVA, g.measure_x);
+                EVENT_STATE.current_player.set(g.measure_x);
                 g.arg = get(p + 0xD0);
                 g.palette = g.palette.wrapping_add(g.arg);
-                if !passes::serviced(g.arg, || game_read(DUE_RVA)) {
+                if !passes::serviced(g.arg, || EVENT_STATE.service_due.get()) {
                     continue;
                 }
                 crate::menu::inspection_screen::inspection_screen()?;
@@ -76,7 +73,7 @@ pub unsafe fn service_pass(c: &Carried) -> Result<(), Refused> {
                     g.arg = (g.arg & !0xFF) | u32::from(key);
                 }
                 run_screen_carried(&crate::service::service_area_loop::SCREEN, &mut g)?;
-                if game_read::<u32>(ANSWER_RVA) == 1 {
+                if MENU_PAGES.yes_no_answer.get() == 1 {
                     break 'all;
                 }
                 crate::service::apply_repairs::apply_repairs_in_game()?;
@@ -84,19 +81,21 @@ pub unsafe fn service_pass(c: &Carried) -> Result<(), Refused> {
                 if passes::is_out(get(p + 0xD0)) {
                     crate::menu::inspection_faults::inspection_faults()?;
                     run_screen_carried(&crate::menu::inspection_area_loop::SCREEN, &mut g)?;
-                    if game_read::<u32>(ANSWER_RVA) == 1 {
+                    if MENU_PAGES.yes_no_answer.get() == 1 {
                         break 'all;
                     }
-                    game_write(OUT_RVA, game_read::<u32>(OUT_RVA).wrapping_add(1));
+                    EVENT_STATE
+                        .event_out
+                        .set(EVENT_STATE.event_out.get().wrapping_add(1));
                 }
                 g.arg = passes::spent(MENU_STATE.driver_stats.money.get());
                 put(p + 0x288, g.arg);
             }
-            if !passes::goes_on(game_read(OUT_RVA), game_read(PLAYER_COUNT_RVA)) {
-                game_write(GOES_ON_RVA, 0u32);
+            if !passes::goes_on(EVENT_STATE.event_out.get(), PLAYER_COUNT_RVA.get()) {
+                EVENT_STATE.event_goes_on.set(0u32);
             }
         }
-        game_write(DUE_RVA, 0u32);
+        EVENT_STATE.service_due.set(0u32);
     }
     Ok(())
 }

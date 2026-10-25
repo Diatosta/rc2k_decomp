@@ -6,20 +6,17 @@
 //! Each point is also stored in the globals `g_markerX`/`g_markerY`, which are left holding
 //! the second one. What the object and the two glyphs are is not known yet.
 
-use crate::framework::{game_read, game_write, rva};
 use crate::gfx::blit_glyph::BlitCall;
+use crate::menu::draw_work_store::DRAW_WORK;
+use crate::menu::loop_store::LOOP_FLAGS;
 
 // ---- game data ----
-
-pub const MARKER_X_RVA: usize = rva(0x755A18); // g_markerX
-pub const MARKER_Y_RVA: usize = rva(0x755A1C); // g_markerY
-const SPRITE_TABLE_PTR_RVA: usize = rva(0x755581); // g_spriteTable: pointer to a glyph table
 
 const FIRST_GLYPH: u32 = 0x9C;
 const SECOND_GLYPH: u32 = 0x9D;
 
 pub fn sprite_table() -> u32 {
-    unsafe { game_read(SPRITE_TABLE_PTR_RVA) }
+    LOOP_FLAGS.sprite_table.get()
 }
 
 // ---- Rust version ----
@@ -35,8 +32,6 @@ pub unsafe fn marker_calls(object: *const u8, palette: u32, table: u32) -> [Blit
 
 /// Stores a marker's position in the two globals, as the original does before each blit.
 pub unsafe fn set_marker_position(call: &BlitCall) {
-    unsafe {
-        game_write(MARKER_X_RVA, call.x);
-        game_write(MARKER_Y_RVA, call.y);
-    }
+    DRAW_WORK.marker_x.set(call.x as u32);
+    DRAW_WORK.marker_y.set(call.y as u32);
 }

@@ -9,30 +9,29 @@
 //!
 //! Caller: `sub_4A8556`. Refuses a current player past 3 or missing, before anything.
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, game_write, rva};
+use crate::menu::draw_work_store::DRAW_WORK;
+use crate::menu::event_store::EVENT_STATE;
 use crate::menu::lists_store::MENU_LISTS;
 use crate::menu::standings::*;
 use crate::menu::state_store::MENU_STATE;
 
-const CURRENT_RVA: usize = rva(0x75598C); // dword_75598C
-const SUM_RVA: usize = rva(0x7559EC); // dword_7559EC
 /// The Rust version (see the header): the registers it leaves.
 pub unsafe fn inspection_verdict() -> Result<(), Refused> {
-    let n: u32 = unsafe { game_read(CURRENT_RVA) };
+    let n: u32 = { EVENT_STATE.current_player.get() };
     if n >= 4 || player(n) == 0 {
         return Err(BadInput("a current player past 3 or missing").into());
     }
     // Converted: `rc2k_core::menu::inspection::verdict`.
     let p = player(n);
-    unsafe {
-        let v = rc2k_core::menu::inspection::verdict(
-            |k| past_limit(p, k as u32),
-            |k| MENU_LISTS.inspection_flags_a[k + 2].get() != 0,
-            |k| MENU_STATE.driver_stats.penalties[k].get(),
-        );
-        game_write(SUM_RVA, v.penalties);
-        MENU_STATE.driver_stats.score.set(v.score);
-        put(p + 0xD0, v.kind);
-    }
+
+    let v = rc2k_core::menu::inspection::verdict(
+        |k| past_limit(p, k as u32),
+        |k| MENU_LISTS.inspection_flags_a[k + 2].get() != 0,
+        |k| MENU_STATE.driver_stats.penalties[k].get(),
+    );
+    DRAW_WORK.figure.set(v.penalties);
+    MENU_STATE.driver_stats.score.set(v.score);
+    put(p + 0xD0, v.kind);
+
     Ok(())
 }

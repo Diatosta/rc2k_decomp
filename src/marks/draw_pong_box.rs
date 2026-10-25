@@ -13,24 +13,34 @@
 //! (`math::x87_float`), in the original's order, over the game's variables.
 
 use crate::framework::rva;
+use crate::marks::pong::{PONG, PONG_RULES, PongState};
 use crate::marks::store::{Slot, game_addr, game_read, game_write};
 use crate::math::x87;
 
 const VERTICES_RVA: usize = rva(0x9605A0); // g_polygonVertices
-const PLACES_RVA: Slot = Slot::at(0x76920A); // dword_76920A .. dword_769216
-// flt_768658 .. flt_768684
 const CORNERS_RVA: Slot = Slot::at(0x89CF92); // flt_89CF92 .. flt_89CFBE
-const NEAR_RVA: Slot = Slot::at(0x76921A); // flt_76921A
 
 /// The original's 0x4B8599 .. 0x4B8659 on the four values: the sides; the place's two
 /// values (left untouched) popped after.
 unsafe fn sides(v: &[[u8; 10]; 4]) {
-    unsafe { sides_x87(crate::marks::store::base() as usize, v.as_ptr() as usize) }
+    unsafe {
+        sides_x87(
+            crate::marks::store::base() as usize,
+            v.as_ptr() as usize,
+            &PONG,
+        )
+    }
 }
 
 /// The original's 0x4B868E .. 0x4B8786 on the place: the corners.
 unsafe fn corners(v: &[[u8; 10]; 4]) {
-    unsafe { corners_x87(crate::marks::store::base() as usize, v.as_ptr() as usize) }
+    unsafe {
+        corners_x87(
+            crate::marks::store::base() as usize,
+            v.as_ptr() as usize,
+            &PONG,
+        )
+    }
 }
 
 /// The original's 0x4B87A5 .. 0x4B88A9: the corners projected, their depth.
@@ -48,7 +58,7 @@ unsafe fn projected(p: u32) {
 pub unsafe fn draw_pong_box(v: [[u8; 10]; 4]) {
     unsafe {
         sides(&v);
-        let [pa, pb, pc, pd]: [u32; 4] = game_read(PLACES_RVA);
+        let [pa, pb, pc, pd] = PONG_RULES.box_places.each_ref().map(|f| f.bits());
         for (n, (u, w)) in [(pa, pb), (pc, pb), (pc, pd), (pa, pd)]
             .into_iter()
             .enumerate()
@@ -57,7 +67,7 @@ pub unsafe fn draw_pong_box(v: [[u8; 10]; 4]) {
             game_write(VERTICES_RVA + 0x20 * n + 0x1C, w);
         }
         corners(&v);
-        if x87::compare_status(game_read(CORNERS_RVA + 8), game_read(NEAR_RVA)) == 0x100 {
+        if x87::compare_status(game_read(CORNERS_RVA + 8), PONG_RULES.near.bits()) == 0x100 {
             return;
         }
         projected(game_addr(VERTICES_RVA) as u32);
@@ -72,7 +82,7 @@ use crate::marks::plain::{ld, ld80, st};
 use crate::math::x87_float as bh;
 
 /// `sides`'s x87 block as plain Rust on the x87 model (42 instructions), same order and memory places.
-unsafe fn sides_x87(mk: usize, v: usize) {
+unsafe fn sides_x87(mk: usize, v: usize, p: &PongState) {
     unsafe {
         let _t0 = bh::from_f80(ld80(v, 0x1E));
         let _t1 = bh::from_f80(ld80(v, 0x14));
@@ -81,44 +91,44 @@ unsafe fn sides_x87(mk: usize, v: usize) {
         let t4 = ld(mk, 0x137FE6);
         let t5 = t4 * t3;
         let t6 = t5 * ld(mk, 0x137FB2);
-        st(mk, 0x3724, t6);
+        p.box_sides[3].set_bits(bh::st(t6));
         let t7 = t6 * ld(mk, 0x218);
-        st(mk, 0x373C, t7);
+        p.box_sides[9].set_bits(bh::st(t7));
         let t8 = ld(mk, 0x137FEA);
         let t9 = t8 * t3;
         let t10 = t9 * ld(mk, 0x137FB2);
-        st(mk, 0x3728, t10);
+        p.box_sides[4].set_bits(bh::st(t10));
         let t11 = t10 * ld(mk, 0x218);
-        st(mk, 0x3740, t11);
+        p.box_sides[10].set_bits(bh::st(t11));
         let t12 = ld(mk, 0x137FEE);
         let t13 = t3 * t12;
         let t14 = t13 * ld(mk, 0x137FB2);
-        st(mk, 0x372C, t14);
+        p.box_sides[5].set_bits(bh::st(t14));
         let t15 = t14 * ld(mk, 0x218);
-        st(mk, 0x3744, t15);
+        p.box_sides[11].set_bits(bh::st(t15));
         let t16 = ld(mk, 0x137FDA);
         let t17 = t16 * t2;
         let t18 = t17 * ld(mk, 0x137FAE);
-        st(mk, 0x3718, t18);
+        p.box_sides[0].set_bits(bh::st(t18));
         let t19 = t18 * ld(mk, 0x218);
-        st(mk, 0x3730, t19);
+        p.box_sides[6].set_bits(bh::st(t19));
         let t20 = ld(mk, 0x137FDE);
         let t21 = t20 * t2;
         let t22 = t21 * ld(mk, 0x137FAE);
-        st(mk, 0x371C, t22);
+        p.box_sides[1].set_bits(bh::st(t22));
         let t23 = t22 * ld(mk, 0x218);
-        st(mk, 0x3734, t23);
+        p.box_sides[7].set_bits(bh::st(t23));
         let t24 = ld(mk, 0x137FE2);
         let t25 = t2 * t24;
         let t26 = t25 * ld(mk, 0x137FAE);
-        st(mk, 0x3720, t26);
+        p.box_sides[2].set_bits(bh::st(t26));
         let t27 = t26 * ld(mk, 0x218);
-        st(mk, 0x3738, t27);
+        p.box_sides[8].set_bits(bh::st(t27));
     }
 }
 
 /// `corners`'s x87 block as plain Rust on the x87 model (50 instructions), same order and memory places.
-unsafe fn corners_x87(mk: usize, v: usize) {
+unsafe fn corners_x87(mk: usize, v: usize, p: &PongState) {
     unsafe {
         let t0 = bh::from_f80(ld80(v, 0x1E));
         let t1 = bh::from_f80(ld80(v, 0x14));
@@ -141,27 +151,27 @@ unsafe fn corners_x87(mk: usize, v: usize) {
         st(mk, 0x13805A, t15);
         let t16 = ld(mk, 0x138052);
         st(mk, 0x138052, t16);
-        let t17 = t16 + ld(mk, 0x3724);
+        let t17 = t16 + bh::ld(p.box_sides[3].bits());
         st(mk, 0x13805E, t17);
-        let t18 = t17 + ld(mk, 0x3718);
+        let t18 = t17 + bh::ld(p.box_sides[0].bits());
         st(mk, 0x13806A, t18);
-        let t19 = t18 - ld(mk, 0x3724);
+        let t19 = t18 - bh::ld(p.box_sides[3].bits());
         st(mk, 0x138076, t19);
         let t20 = ld(mk, 0x138056);
         st(mk, 0x138056, t20);
-        let t21 = t20 + ld(mk, 0x3728);
+        let t21 = t20 + bh::ld(p.box_sides[4].bits());
         st(mk, 0x138062, t21);
-        let t22 = t21 + ld(mk, 0x371C);
+        let t22 = t21 + bh::ld(p.box_sides[1].bits());
         st(mk, 0x13806E, t22);
-        let t23 = t22 - ld(mk, 0x3728);
+        let t23 = t22 - bh::ld(p.box_sides[4].bits());
         st(mk, 0x13807A, t23);
         let t24 = ld(mk, 0x13805A);
         st(mk, 0x13805A, t24);
-        let t25 = t24 + ld(mk, 0x372C);
+        let t25 = t24 + bh::ld(p.box_sides[5].bits());
         st(mk, 0x138066, t25);
-        let t26 = t25 + ld(mk, 0x3720);
+        let t26 = t25 + bh::ld(p.box_sides[2].bits());
         st(mk, 0x138072, t26);
-        let t27 = t26 - ld(mk, 0x372C);
+        let t27 = t26 - bh::ld(p.box_sides[5].bits());
         st(mk, 0x13807E, t27);
     }
 }
@@ -469,7 +479,7 @@ mod asm_differential {
         differential(
             &SPEC,
             |b| unsafe { reference::sides_x87(b[0], b[1]) },
-            |b| unsafe { super::sides_x87(b[0], b[1]) },
+            |b| unsafe { super::sides_x87(b[0], b[1], crate::marks::pong::state_at(b[0])) },
         );
     }
 
@@ -529,7 +539,7 @@ mod asm_differential {
         differential(
             &SPEC,
             |b| unsafe { reference::corners_x87(b[0], b[1]) },
-            |b| unsafe { super::corners_x87(b[0], b[1]) },
+            |b| unsafe { super::corners_x87(b[0], b[1], crate::marks::pong::state_at(b[0])) },
         );
     }
 

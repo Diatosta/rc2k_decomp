@@ -1,12 +1,13 @@
 //! The race core's variables, out of RAL.EXE's image (phase 5, `notes/conversion.md`): IDA
-//! 0x5BEC48 .. 0x747AD8, from the PNG reader's memory list to the menus' tables. The
+//! 0x5BEC48 .. 0x747AD8, from the PNG reader's memory list to the menus' tables (its tail
+//! from 0x7475D0, the best times' memory and the screens' items, typed since: phase 7). The
 //! replay's file state and index, the course, the cars' state, physics and sounds, the
 //! camera and views, the scene's work, the stage's and the records' tables, the timing.
 //!
 //! One block with the image's layout (`crate::store`), first values the image's
 //! (`store_data.rs`, generated). Six ranges inside it had moved before into blocks of
 //! their own (the mouse, `g_raceSoundsOn`, the hexagons' batch, ...): their bytes here are
-//! not used, and `crate::moved::MOVED` lists this block as the seven ranges around them.
+//! not used, and `crate::moved::MOVED` lists this block as the ranges around them.
 //! The code names the variables by IDA's address (`framework::game_addr` takes such an
 //! address here); the inline asm reads them as `[{m} + RVA]` with `m = asm_base()`.
 //!
@@ -34,7 +35,8 @@ pub fn buffers_asm_base() -> u32 {
     (buffers::base() as u32).wrapping_sub(crate::framework::rva(buffers::START) as u32)
 }
 
-/// The ranges of the block that are its own (IDA start, end): all but the holes.
+/// The ranges of the block that are its own (IDA start, end): all but the holes and the
+/// pieces typed since (phase 7).
 pub const OWN: [(usize, usize); 7] = [
     (0x5BEC48, 0x5C6924),
     (0x5C6948, 0x60B2CC),
@@ -42,7 +44,7 @@ pub const OWN: [(usize, usize); 7] = [
     (0x6218F4, 0x62423C),
     (0x628A44, 0x6D1870),
     (0x6D18C8, 0x6D1DD4),
-    (0x6D1DD8, 0x747AD8),
+    (0x6D1DD8, 0x731B82),
 ];
 
 /// Where IDA's address `ida` of the block is.

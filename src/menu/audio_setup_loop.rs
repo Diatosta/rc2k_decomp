@@ -12,64 +12,70 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{game_read, game_write, rva};
+use crate::framework::rva;
+use crate::menu::draw_lists_store::DRAW_LISTS;
+use crate::menu::flow_store::SCREEN_FLOW;
+use crate::menu::menus_store::MENUS;
+use crate::menu::screen_items_store::{SCREEN_ITEMS, slot};
 use crate::menu::screen_loop::{Callee, Carried, List, Screen, Step, screen_entry};
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
 unsafe fn before(c: &mut Carried) -> Result<(), Refused> {
-    unsafe {
-        c.measure_x = game_read(rva(0x747864));
-        game_write(rva(0x7476C8), c.measure_x);
-    }
+    c.measure_x = SCREEN_ITEMS.first[slot::AUDIO_SETUP].get();
+    SCREEN_ITEMS.current[slot::AUDIO_SETUP].set(c.measure_x);
     Ok(())
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: rva(0x74CCC0),
-    saved_item: rva(0x7476C8),
+    menu: || MENUS.audio_setup.addr(),
+    saved_item: || &SCREEN_ITEMS.current[slot::AUDIO_SETUP],
     lists: &[
         List {
-            pointer: rva(0x7554F4), // g_unreadList
-            table: rva(0x758B72),
+            pointer: || &SCREEN_FLOW.unread_list, // g_unreadList
+            table: || DRAW_LISTS.unread_758b72.addr(),
             run: false,
         },
         List {
-            pointer: rva(0x7554F8), // g_drawList
-            table: rva(0x758C8E),
+            pointer: || &SCREEN_FLOW.draw_list, // g_drawList
+            table: || DRAW_LISTS.draw_758c8e.addr(),
             run: false,
         },
         List {
-            pointer: rva(0x7554FC), // g_overlayList
-            table: rva(0x7591D6),
+            pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
+            table: || DRAW_LISTS.overlay_7591d6.addr(),
             run: false,
         },
     ],
     first_frame_lists: Some(&[
         List {
-            pointer: rva(0x755504), // g_sceneList
-            table: rva(0x758FFA),
+            pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
+            table: || DRAW_LISTS.audio_setup_scene.addr(),
             run: false,
         },
         List {
-            pointer: rva(0x7554F8), // g_drawList
-            table: rva(0x758C8E),
+            pointer: || &SCREEN_FLOW.draw_list, // g_drawList
+            table: || DRAW_LISTS.draw_758c8e.addr(),
             run: false,
         },
         List {
-            pointer: rva(0x7554FC), // g_overlayList
-            table: rva(0x7591D6),
+            pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
+            table: || DRAW_LISTS.overlay_7591d6.addr(),
             run: false,
         },
     ]),
     frame_callback: rva(0x474D4B),
     later_frame_callback: None,
     before: &[Step::Do(before)],
-    set_up_first: &[Step::Write(rva(0x7554D0), 0x1)],
+    set_up_first: &[Step::Write(|| &SCREEN_FLOW.quiet, 0x1)],
     prepare: &[],
     after_lists: &[],
     background: &[
-        Step::ArgAddr(rva(0x7320AD)),
+        Step::ArgAddr(|| {
+            crate::menu::texts_store::MENU_TEXTS
+                .audio_setup_picture
+                .addr()
+        }),
         Step::CallOrFatal(Callee::LoadBackground, 0x80712345),
     ],
     after_first_frame: &[],
@@ -77,7 +83,7 @@ pub const SCREEN: Screen = Screen {
     ask_also_if: None,
     confirmed: &[],
     unasked_skips_save: false,
-    after: &[Step::Write(rva(0x7554D0), 0x0)],
+    after: &[Step::Write(|| &SCREEN_FLOW.quiet, 0x0)],
     escape_leaves: false,
     each_frame: &[],
     short_action_check: false,

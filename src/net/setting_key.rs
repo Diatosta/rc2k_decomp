@@ -11,7 +11,9 @@
 //! Caller: `net::settings_loop`.
 
 use crate::errors::Refused;
-use crate::net::lobby::{CHOICE, EDIT_SAVED, NUMBER_TEXT, a, g, movsb};
+use crate::install::vars::INSTALLER_PAGES;
+use crate::install::vars::INSTALLER_PATHS;
+use crate::net::lobby::movsb;
 use crate::net::store::NET;
 use rc2k_core::net::chat;
 
@@ -23,15 +25,22 @@ pub fn setting_key(key: u8) -> Result<(), Refused> {
         return Ok(());
     }
     // Converted: `rc2k_core::net::chat` (`NAME`, `MOST_PLAYERS`, `most_players`).
-    match g(CHOICE) {
+    match INSTALLER_PAGES.choice.get() {
         chat::NAME => {
             if NET.machine_name.get(0) == 0 {
-                movsb(NET.machine_name.addr() as u32, a(EDIT_SAVED), 0x40);
+                movsb(
+                    NET.machine_name.addr() as u32,
+                    INSTALLER_PATHS.script_path.addr() as u32,
+                    0x40,
+                );
             }
         }
         chat::MOST_PLAYERS => {
-            let number =
-                unsafe { crate::settings::parse_number::parse_number(a(NUMBER_TEXT) as *const u8) };
+            let number = unsafe {
+                crate::settings::parse_number::parse_number(
+                    INSTALLER_PATHS.path_a.addr() as u32 as *const u8
+                )
+            };
             NET.most_players.set(chat::most_players(
                 number,
                 crate::strings::load_language::notice_kind(),

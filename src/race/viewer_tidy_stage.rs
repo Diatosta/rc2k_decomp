@@ -16,7 +16,8 @@
 //! `set_menu_screen_mode` (attrib), whose Rust versions read none.
 
 use crate::errors::Refused;
-use crate::gfx::block::game_addr;
+use crate::gfx::fonts_store::FONTS;
+
 use crate::race::viewer::{get, put};
 use crate::race::viewer_load_stage::FONTS_BUILT;
 
@@ -58,8 +59,8 @@ fn run(step: rc2k_core::race::viewer_flow::TidyStep) -> Result<(), Refused> {
             TidyStep::ClearRaceSounds => sound_tables::clear_race_sound_objects()?,
             TidyStep::SoundSettings => crate::sound::apply_settings::apply_settings()?,
             TidyStep::FreeFonts => crate::gfx::free_fonts::free_fonts(
-                game_addr(crate::gfx::glyph_tables::TABLES_LIST_RVA) as *mut _,
-                game_addr(crate::gfx::build_fonts::PALETTES_RVA) as *mut u32,
+                crate::gfx::glyph_tables::TABLES.memory.as_ptr(),
+                FONTS.palettes.addr() as *mut u32,
             )?,
             TidyStep::SetUpEngine => crate::scene::set_up_engine::set_up_engine()?,
             TidyStep::SetUpFrontEnd => {

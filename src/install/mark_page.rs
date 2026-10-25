@@ -16,7 +16,8 @@
 //! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
 //! are the original's.
 
-use crate::install::installer::{CHOICE, FRAME_CLOCK, MOVE_CLOCK, g, rb, rd, wb};
+use crate::install::installer::{rb, rd, wb};
+use crate::install::vars::INSTALLER_PAGES;
 use rc2k_core::install::items::{self, MARKS};
 use rc2k_core::install::pages::UNUSABLE;
 
@@ -42,7 +43,7 @@ pub fn mark_page(list: u32) {
             }
         }
         let byte = rb(esi);
-        if byte & MARKS == 0 && cl as u32 == g(CHOICE) {
+        if byte & MARKS == 0 && cl as u32 == INSTALLER_PAGES.choice.get() {
             let mut editing = None;
             if byte & 0xF == 4 {
                 let record = rd(esi + 0xC);
@@ -51,7 +52,12 @@ pub fn mark_page(list: u32) {
                 }
                 editing = Some(rb(record) & 1 != 0);
             }
-            let clock = || g(FRAME_CLOCK).wrapping_sub(g(MOVE_CLOCK));
+            let clock = || {
+                INSTALLER_PAGES
+                    .frame_clock
+                    .get()
+                    .wrapping_sub(INSTALLER_PAGES.move_clock.get())
+            };
             if editing == Some(true) || items::lit(editing, clock()) {
                 wb(esi, rb(esi) | MARKS);
             }

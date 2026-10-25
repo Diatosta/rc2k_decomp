@@ -13,17 +13,15 @@
 //! written; `GameSource` and `apply` here).
 
 use crate::errors::BadInput;
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 use crate::math::random_below::random_below;
+use crate::menu::draw_work_store::DRAW_WORK;
 use crate::saves::drivers::Driver;
 use rc2k_core::Invalid;
 use rc2k_core::saves::defaults::{Filled, Record};
 
-pub const WITH_CHECKPOINTS_RVA: usize = rva(0x755A0C); // dword_755A0C
 const CHECKPOINTS_RVA: usize = rva(0x71C7C0); // dword_71C7C0[16]
 const CHECKPOINT_COUNTS_RVA: usize = rva(0x71C730); // dword_71C730[stage]
-pub const WORK_A_RVA: usize = rva(0x7559AC); // seconds
-pub const WORK_B_RVA: usize = rva(0x7559B0); // dword_7559B0
 /// Ten entries.
 pub const STAGE_LEN: u32 = 0x618;
 pub const RECORD_LEN: u32 = 0xA4;
@@ -85,15 +83,15 @@ impl rc2k_core::saves::defaults::Source for GameSource<'_> {
         use rc2k_core::saves::defaults::{Piece as P, Text};
         let text = |t| {
             let at = match t {
-                Text::Dashes => 0x4DE6C5,
-                Text::Start => 0x4DE6FB,
-                Text::Passing => 0x4DE716,
-                Text::Stage => 0x4DE729,
-                Text::CheckData => 0x4DE735,
-                Text::Done => 0x4DE743,
-                Text::DashesAfter => 0x4DE75D,
+                Text::Dashes => c"-----------------------------------------------------",
+                Text::Start => c"guesscheckpointtimes:start",
+                Text::Passing => c"passing:(time:ebx)",
+                Text::Stage => c"(stage:eax)",
+                Text::CheckData => c"testcheckdata",
+                Text::Done => c"guesscheckpointtimes:done",
+                Text::DashesAfter => c"-----------------------------------------------------",
             };
-            game_addr(rva(at)) as u32
+            at.as_ptr() as u32
         };
         (self.log)(match piece {
             P::Text(t, newline) => Piece::Text(text(t), newline),
@@ -122,9 +120,9 @@ pub unsafe fn apply(filled: &Filled, tables: &[(u32, usize)]) {
             let (at, len) = tables[block.table];
             block.write(std::slice::from_raw_parts_mut(at as *mut u8, len));
         }
-        game_write(WORK_A_RVA, filled.seconds);
+        DRAW_WORK.seconds.set(filled.seconds);
         if let Some(sum) = filled.sum {
-            game_write(WORK_B_RVA, sum);
+            DRAW_WORK.work_b0.set(sum);
         }
         if let Some(c) = filled.checkpoints {
             game_write(CHECKPOINTS_RVA, c);
@@ -134,7 +132,7 @@ pub unsafe fn apply(filled: &Filled, tables: &[(u32, usize)]) {
 
 /// Whether the game's switch for the checkpoint times is on.
 pub fn with_checkpoints() -> bool {
-    unsafe { game_read::<u32>(WITH_CHECKPOINTS_RVA) == 1 }
+    DRAW_WORK.work_0c.get() == 1
 }
 
 /// How many records a table has before its -1 (the first is not looked at for the end).

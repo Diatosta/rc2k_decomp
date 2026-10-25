@@ -11,17 +11,16 @@
 //! register use above is the original's, for reference.
 
 use crate::errors::BadInput;
-use crate::store::game_ptr;
 use crate::strings::append_string_by_id::append_string_by_id;
 use std::slice::from_raw_parts;
 
 // ---- game data ----
 
-const TEXT_RVA: crate::rest::scratch::Slot = crate::rest::scratch::Slot::at(0x93E430); // text: shared text buffer, up to the kerning table
-pub const TEXT_LEN: usize = 0x93E830 - 0x93E430;
+/// The shared text buffer's length (`strings::text_buffer`).
+pub const TEXT_LEN: usize = 0x400;
 
 pub fn text() -> *mut u8 {
-    game_ptr(TEXT_RVA)
+    crate::strings::text_buffer::TEXT_BUFFER.text.as_ptr()
 }
 
 // ---- Rust version ----

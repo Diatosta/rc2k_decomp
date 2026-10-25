@@ -4,17 +4,13 @@
 //! leaving switch. Each button is `pusha` .. `popa`.
 
 use crate::errors::Refused;
-use crate::framework::{game_read, game_write, rva};
+use crate::menu::cars_store::CAR_TABLE;
+use crate::menu::event_store::EVENT_STATE;
 use crate::menu::load_car_background::load_car_background;
 use crate::menu::load_slideshow_picture::load_slideshow_picture_in_game;
+use crate::menu::loop_store::LOOP_FLAGS;
 use crate::sound::play_car_stream::play_car_stream;
 use crate::text::draw_text::GameCanvas;
-
-pub const CAR_RVA: usize = rva(0x755990); // dword_755990
-pub const PICTURE_RVA: usize = rva(0x755994); // dword_755994
-pub const PAGE_RVA: usize = rva(0x755998); // dword_755998
-pub const LEAVE_RVA: usize = rva(0x755561); // dword_755561
-pub const LAST_CAR_RVA: usize = rva(0x75649C); // dword_75649C
 
 pub use rc2k_core::menu::cars::{Button as Which, Call};
 
@@ -25,23 +21,23 @@ pub unsafe fn press(
     call: &mut dyn FnMut(Call) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
     use rc2k_core::menu::cars::Shown;
-    unsafe {
-        let mut s = Shown {
-            car: game_read(CAR_RVA),
-            last_car: game_read(LAST_CAR_RVA),
-            picture: game_read(PICTURE_RVA),
-            page: game_read(PAGE_RVA),
-            leave: game_read(LEAVE_RVA),
-        };
-        let calls = rc2k_core::menu::cars::press(b, &mut s);
-        game_write(CAR_RVA, s.car);
-        game_write(PICTURE_RVA, s.picture);
-        game_write(PAGE_RVA, s.page);
-        game_write(LEAVE_RVA, s.leave);
-        for &c in calls {
-            call(c)?;
-        }
+
+    let mut s = Shown {
+        car: EVENT_STATE.shown_car.get(),
+        last_car: CAR_TABLE.last_car.get(),
+        picture: EVENT_STATE.picture.get(),
+        page: EVENT_STATE.car_page.get(),
+        leave: LOOP_FLAGS.back.get(),
+    };
+    let calls = rc2k_core::menu::cars::press(b, &mut s);
+    EVENT_STATE.shown_car.set(s.car);
+    EVENT_STATE.picture.set(s.picture);
+    EVENT_STATE.car_page.set(s.page);
+    LOOP_FLAGS.back.set(s.leave);
+    for &c in calls {
+        call(c)?;
     }
+
     Ok(())
 }
 

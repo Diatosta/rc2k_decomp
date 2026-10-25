@@ -1,10 +1,8 @@
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, game_write, rva};
+use crate::menu::champ_store::CHAMP_VIEW;
 use crate::race::state_store::RACE_STATE;
 use crate::session::Dword;
 use rc2k_core::menu::finish::{self, Racer, Step, Var};
-
-const EVENT_MODE_RVA: usize = rva(0x7556D0); // g_eventMode
 
 /// The game for `rc2k_core::menu::finish`: the variables at their addresses, the finders'
 /// Rust versions, the steps their Rust versions. `racer` is the record (the original's
@@ -14,7 +12,7 @@ pub struct Game {
     pub racer: u32,
 }
 
-/// The variables that are in the physics block.
+/// The variables that are in static cells.
 fn cell(v: Var) -> Option<&'static Dword> {
     Some(match v {
         Var::On => &RACE_STATE.results.finished,
@@ -24,18 +22,10 @@ fn cell(v: Var) -> Option<&'static Dword> {
         Var::SetUpDriver => &RACE_STATE.results.finish_kind,
         Var::SetUpDriver2 => &RACE_STATE.settings.car_kind_current,
         Var::SetUpSection => &RACE_STATE.results.stage_index,
+        Var::EventMode => &CHAMP_VIEW.event_mode,
+        Var::Section => &crate::menu::event_store::EVENT_STATE.section,
         _ => return None,
     })
-}
-
-fn at(v: Var) -> usize {
-    use crate::menu::standings::SECTION_RVA;
-    match v {
-        Var::EventMode => EVENT_MODE_RVA,
-        Var::Section => SECTION_RVA,
-        Var::Racer(_) => unreachable!("the racer's fields are not at an address"),
-        _ => unreachable!("a variable of the physics block, `cell`"),
-    }
 }
 
 impl finish::Finish for Game {
@@ -46,7 +36,7 @@ impl finish::Finish for Game {
             Var::Racer(offset) => crate::menu::standings::get(self.racer + offset),
             _ => match cell(v) {
                 Some(cell) => cell.get(),
-                None => unsafe { game_read(at(v)) },
+                None => unreachable!("the racer's fields are not at an address"),
             },
         }
     }
@@ -56,14 +46,13 @@ impl finish::Finish for Game {
             Var::Racer(offset) => crate::menu::standings::put(self.racer + offset, value),
             _ => match cell(v) {
                 Some(cell) => cell.set(value),
-                None => unsafe { game_write(at(v), value) },
+                None => unreachable!("the racer's fields are not at an address"),
             },
         }
     }
 
     fn find_leader(&mut self, group_b: bool) -> Result<Option<u32>, Refused> {
-        use crate::menu::standings::TABLE_B_RVA;
-        let table = unsafe { game_read(TABLE_B_RVA) };
+        let table = { CHAMP_VIEW.champ_history.get() };
         let found = if group_b {
             unsafe { crate::menu::first_player_b::first_player_b(table, 0)? }
         } else {

@@ -14,7 +14,6 @@
 use crate::d3d::texture_lock::*;
 use crate::errors::{BadInput, Refused};
 use crate::framework::Flags;
-use crate::gfx::block::game_addr;
 
 /// The Rust version (see the header): texture `texture` locked; the flags it leaves
 /// (every register is kept).
@@ -27,7 +26,7 @@ pub unsafe fn lock_texture(texture: u32) -> Result<Flags, Refused> {
         Lock::Nothing => {}
         Lock::Twice => return Err(fatal(LOCKED_TWICE).into()),
         Lock::Lock => {
-            let d = game_addr(DESCRIPTION_RVA) as u32;
+            let d = crate::gfx::upload::UPLOAD.description.addr() as u32;
             if unsafe { method(surface, 0x64, &[0, d, 1, 0]) } != 0 {
                 return Err(fatal(LOCK_FAILED).into());
             }

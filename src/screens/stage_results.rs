@@ -1,13 +1,12 @@
 //! The time trial stage results page (`sub_48E740`; stream A, part F1, 2026-10-18).
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_write, rva};
+use crate::menu::captions_store::CAPTIONS;
+use crate::menu::champ_store::CHAMP_VIEW;
+use crate::menu::loop_store::LOOP_FLAGS;
 use crate::menu::state_store::MENU_STATE;
 use crate::text::draw_text::Canvas;
-
-fn k(a: usize) -> u32 {
-    unsafe { game_read(rva(a)) }
-}
 
 fn w(a: usize, v: u32) {
     unsafe { game_write(rva(a), v) }
@@ -22,12 +21,15 @@ unsafe fn get(a: u32) -> u32 {
 fn records() -> (u32, u32) {
     unsafe {
         let table =
-            ((game_addr(rva(0x735512)) as u32 + 4 * k(0x7556F8)) as *const u32).read_unaligned();
+            crate::records::stages_store::STAGE_TABLES.group_list(CHAMP_VIEW.switch_f8.get());
         if table == 0 {
             return (0, 0);
         }
-        let base = get(table + 4 * k(0x75880E));
-        (base, base.wrapping_add(k(0x758812).wrapping_mul(0xA4)))
+        let base = get(table + 4 * CAPTIONS.shown_group.get());
+        (
+            base,
+            base.wrapping_add(CAPTIONS.shown_stage.get().wrapping_mul(0xA4)),
+        )
     }
 }
 
@@ -35,8 +37,9 @@ fn records() -> (u32, u32) {
 /// pointer to it.
 fn times_table() -> u32 {
     unsafe {
-        let mut at = game_addr(rva(0x7354FE)) as u32 + 4 * k(0x7556F8);
-        if k(0x7556FC) == 1 {
+        let mut at = crate::records::stages_store::STAGE_TABLES.result_tables_addr()
+            + 4 * CHAMP_VIEW.switch_f8.get();
+        if CHAMP_VIEW.switch_fc.get() == 1 {
             at += 8;
         }
         let p = get(at);
@@ -60,22 +63,22 @@ fn times_table() -> u32 {
 /// slot), and what the strings refuse.
 pub unsafe fn draw_stage_results(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     unsafe {
-        let menu = k(0x75558D);
+        let menu = LOOP_FLAGS.menu.get();
         let (base, record) = records();
         if menu == 0 || base == 0 || times_table() == 0 {
             return Err(BadInput("no current menu, stage records or times table").into());
         }
-        let both_off = (k(0x7556F8) ^ 1) & (k(0x7556FC) ^ 1);
+        let both_off = (CHAMP_VIEW.switch_f8.get() ^ 1) & (CHAMP_VIEW.switch_fc.get() ^ 1);
         let fastest = if both_off == 1 {
             crate::records::find_stage_record::find_stage_record(
-                game_addr(rva(0x735576)) as u32,
-                k(0x75880E),
-                k(0x758812),
+                crate::records::stages_store::STAGE_TABLES.championship(),
+                CAPTIONS.shown_group.get(),
+                CAPTIONS.shown_stage.get(),
             )?
         } else {
             record
         };
-        let second = both_off != 1 && k(0x7556FC) == 1;
+        let second = both_off != 1 && CHAMP_VIEW.switch_fc.get() == 1;
         let speed_at = if second { 0x2C } else { 0x30 };
         let mut speed = crate::strings::append_speed::append_speed(
             get(fastest + speed_at),
@@ -96,8 +99,22 @@ pub unsafe fn draw_stage_results(canvas: &mut dyn Canvas) -> Result<(), Refused>
         }
         let set_item =
             |n: u32, v: u32| ((menu + 4 + 0x5C * n + 0x14) as *mut u32).write_unaligned(v);
-        set_item(1, if k(0x7556F8) == 1 { 0x19C } else { 0x19B });
-        set_item(2, if k(0x7556FC) == 1 { 0x19E } else { 0x19D });
+        set_item(
+            1,
+            if CHAMP_VIEW.switch_f8.get() == 1 {
+                0x19C
+            } else {
+                0x19B
+            },
+        );
+        set_item(
+            2,
+            if CHAMP_VIEW.switch_fc.get() == 1 {
+                0x19E
+            } else {
+                0x19D
+            },
+        );
         set_item(3, get(base + 0x38));
         w(0xA8C154, get(record + 4));
         std::ptr::copy_nonoverlapping(
@@ -128,7 +145,11 @@ pub unsafe fn draw_stage_results(canvas: &mut dyn Canvas) -> Result<(), Refused>
             nation: get(fastest + nation),
             name: fastest + name,
             car: get(fastest + car),
-            palette: if both_off == 1 { k(0x75880E) } else { both_off },
+            palette: if both_off == 1 {
+                CAPTIONS.shown_group.get()
+            } else {
+                both_off
+            },
             speed,
         };
         let mut seal_code = |a: u32, b: u32| {

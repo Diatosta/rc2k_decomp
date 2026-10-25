@@ -14,19 +14,9 @@
 //! 0x80.
 
 use crate::errors::Refused;
-use crate::framework::{game_read, game_write, rva};
+use crate::gfx::screen_state::DRAW_SURFACE;
+use crate::race::game_map::MAP;
 use rc2k_core::race::map::TILE;
-
-const BYTES_RVA: usize = rva(0x4F49AC); // g_surface.bytes_per_pixel
-const PITCH_RVA: usize = rva(0x4F49BC); // g_surface.pitch
-const PIXELS_RVA: usize = rva(0x4F49C0); // g_surface.pixels
-const TILES_RVA: usize = rva(0x5BE991); // g_mapTiles
-const BLACK_RVA: usize = rva(0x5BE9B1); // g_mapBlack
-const GAP_RVA: usize = rva(0x5BE9AD); // dword_5BE9AD
-
-fn g(a: usize) -> u32 {
-    unsafe { game_read(a) }
-}
 
 /// The Rust version (see the header).
 pub unsafe fn blit_map_tiles(texture: u32, first_x: u32, first_y: u32) -> Result<(), Refused> {
@@ -39,15 +29,19 @@ pub unsafe fn blit_map_tiles(texture: u32, first_x: u32, first_y: u32) -> Result
     if unsafe { lock_texture(texture) }?.carry {
         return Ok(());
     }
-    let (bytes, pitch, pixels) = (g(BYTES_RVA), g(PITCH_RVA), g(PIXELS_RVA));
-    let tiles = g(TILES_RVA);
+    let (bytes, pitch, pixels) = (
+        DRAW_SURFACE.bytes_per_pixel.get(),
+        DRAW_SURFACE.pitch.get(),
+        DRAW_SURFACE.pixels.get(),
+    );
+    let tiles = MAP.tiles.get();
     if let Err(e) = check_tiles(pixels, tiles, any_inside(first_x, first_y)) {
         unsafe { unlock_texture(texture) }?;
         return Err(e.into());
     }
     let gap = row_gap(pitch, bytes);
-    unsafe { game_write(GAP_RVA, gap) };
-    let black = g(BLACK_RVA);
+    MAP.row_gap.set(gap);
+    let black = MAP.black.get();
     for row in 0..BLITTED {
         for col in 0..BLITTED {
             let (x, y) = (first_x.wrapping_add(col), first_y.wrapping_add(row));

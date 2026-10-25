@@ -21,10 +21,8 @@
 
 use crate::audio::store::AUDIO;
 use crate::errors::Refused;
-use crate::framework::rva;
-use crate::store::game_addr;
 
-const NEW_MODES_TEXT: usize = rva(0x4DA6BE); // "AUD: New modes"
+const NEW_MODES_TEXT: &std::ffi::CStr = c"AUD: New modes"; // "AUD: New modes"
 
 pub use rc2k_core::audio::modes::{AudioOptions, Facts};
 
@@ -60,7 +58,7 @@ pub fn choose_modes(
         menu,
         f,
         |l| match l {
-            Logged::NewModes => log(0, game_addr(NEW_MODES_TEXT) as u32),
+            Logged::NewModes => log(0, NEW_MODES_TEXT.as_ptr() as usize as u32),
             Logged::Menu(m) => log(2, m),
             Logged::Race(m) => log(3, m),
         },

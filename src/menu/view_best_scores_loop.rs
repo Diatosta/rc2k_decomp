@@ -13,23 +13,25 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{game_read, game_write, rva};
+use crate::framework::rva;
+use crate::menu::draw_lists_store::DRAW_LISTS;
+use crate::menu::flow_store::SCREEN_FLOW;
+use crate::menu::menus_store::MENUS;
+use crate::menu::screen_items_store::{SCREEN_ITEMS, slot};
 use crate::menu::screen_loop::{Callee, Carried, List, Screen, Step, log_line, screen_entry};
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
 unsafe fn before(c: &mut Carried) -> Result<(), Refused> {
-    unsafe {
-        c.measure_x = game_read(rva(0x747894));
-        game_write(rva(0x7476F8), c.measure_x);
-    }
+    c.measure_x = SCREEN_ITEMS.first[slot::VIEW_BEST_SCORES].get();
+    SCREEN_ITEMS.current[slot::VIEW_BEST_SCORES].set(c.measure_x);
     Ok(())
 }
 
 unsafe fn set_up_first(_c: &mut Carried) -> Result<(), Refused> {
     // Between `pusha` and `popa`: no register changes.
     unsafe {
-        log_line(rva(0x4DEB10));
+        log_line(c"BScoresScr: Start");
     }
     Ok(())
 }
@@ -37,33 +39,33 @@ unsafe fn set_up_first(_c: &mut Carried) -> Result<(), Refused> {
 unsafe fn after(_c: &mut Carried) -> Result<(), Refused> {
     // Between `pusha` and `popa`: no register changes.
     unsafe {
-        log_line(rva(0x4DEB22));
+        log_line(c"BScoresScr: End");
     }
     Ok(())
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: rva(0x751474),
-    saved_item: rva(0x7476F8),
+    menu: || MENUS.view_best_scores.addr(),
+    saved_item: || &SCREEN_ITEMS.current[slot::VIEW_BEST_SCORES],
     lists: &[
         List {
-            pointer: rva(0x755504), // g_sceneList
-            table: rva(0x758FCE),
+            pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
+            table: || DRAW_LISTS.view_best_scores_scene.addr(),
             run: false,
         },
         List {
-            pointer: rva(0x7554F8), // g_drawList
-            table: rva(0x758D0E),
+            pointer: || &SCREEN_FLOW.draw_list, // g_drawList
+            table: || DRAW_LISTS.view_best_scores_draw.addr(),
             run: false,
         },
         List {
-            pointer: rva(0x755500), // dword_755500
-            table: rva(0x759312),
+            pointer: || &SCREEN_FLOW.setup_list, // dword_755500
+            table: || DRAW_LISTS.view_best_scores_setup.addr(),
             run: true,
         },
         List {
-            pointer: rva(0x7554FC), // g_overlayList
-            table: rva(0x759212),
+            pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
+            table: || DRAW_LISTS.view_best_scores_overlay.addr(),
             run: false,
         },
     ],
@@ -75,7 +77,11 @@ pub const SCREEN: Screen = Screen {
     prepare: &[],
     after_lists: &[],
     background: &[
-        Step::ArgAddr(rva(0x731FA9)),
+        Step::ArgAddr(|| {
+            crate::menu::texts_store::MENU_TEXTS
+                .view_best_scores_picture
+                .addr()
+        }),
         Step::CallOrFatal(Callee::LoadBackground, 0x80712345),
     ],
     after_first_frame: &[],

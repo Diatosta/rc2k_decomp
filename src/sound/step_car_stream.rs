@@ -11,13 +11,11 @@
 //! frame on four screens (the car specification, the slideshow, two stage screens).
 
 use crate::audio::store::AUDIO;
-use crate::framework::rva;
-use crate::store::game_read;
+use crate::menu::champ_store::CHAMP_VIEW;
+use crate::menu::option_work_store::OPTION_WORK;
 
 // ---- game data ----
 
-const KIND_RVA: usize = rva(0x7556D0); // dword_7556D0
-const VOLUME_RVA: usize = rva(0x755698); // dword_755698
 // sub_40C4D5
 
 // ---- Rust version ----
@@ -30,7 +28,7 @@ pub unsafe fn step_car_stream(playing: &mut dyn FnMut() -> bool, start: &mut dyn
         use rc2k_core::sound::race::{StreamStep, stream_step};
         let list: u32 = crate::sound::store::CAR_STREAM.stream.get();
         let (place, part) = match stream_step(
-            game_read(KIND_RVA),
+            CHAMP_VIEW.event_mode.get(),
             crate::sound::store::CAR_STREAM.on.get(),
             playing,
             crate::sound::store::CAR_STREAM.place.get(),
@@ -45,7 +43,7 @@ pub unsafe fn step_car_stream(playing: &mut dyn FnMut() -> bool, start: &mut dyn
             StreamStep::Start { place, part } => (place, part),
         };
         crate::sound::store::CAR_STREAM.place.set(place);
-        start(part, game_read(VOLUME_RVA));
+        start(part, OPTION_WORK.speech_level.get());
     }
 }
 

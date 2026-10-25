@@ -14,15 +14,13 @@
 //! 32 bits), and what its parts refuse.
 
 use crate::errors::{BadInput, Refused};
-use crate::gfx::block::{game_addr, game_read, game_write};
-use crate::gfx::build_glyphs::WORK_MEMORY_RVA;
+use crate::gfx::decoder::DECODER;
 use crate::gfx::load_picture::load_picture;
-use crate::gfx::pcx::{DECODED_HEIGHT_RVA, DECODED_WIDTH_RVA, STRIDE_RVA};
-use crate::gfx::picture::{HEIGHT_RVA, PICTURE_RVA, ROW_BYTES_RVA, WIDTH_RVA};
+use crate::gfx::picture_store::PICTURE;
 use crate::gfx::read_picture_file::read_picture_file;
-use crate::memory::MemoryList;
 use crate::memory::allocate::allocate;
 use crate::memory::free_list::free_list;
+use crate::strings::compile_lexicon::LEXICON;
 
 const MEMORY: u32 = 0x1D4C00 + 0xC80;
 
@@ -34,20 +32,20 @@ pub unsafe fn load_picture_with_overlay(path: *mut u8, overlay: *mut u8) -> Resu
         if !load_picture(path)? {
             return Ok(true);
         }
-        let list = game_addr(WORK_MEMORY_RVA) as *mut MemoryList;
+        let list = LEXICON.memory.as_ptr();
         let memory = allocate(list, MEMORY)?;
         let kept: [u32; 4] = [
-            game_read(WIDTH_RVA),
-            game_read(HEIGHT_RVA),
-            game_read(ROW_BYTES_RVA),
-            game_read(PICTURE_RVA),
+            PICTURE.width.get(),
+            PICTURE.height.get(),
+            PICTURE.row_bytes.get(),
+            PICTURE.buffer.get(),
         ];
-        game_write(PICTURE_RVA, memory as u32);
+        PICTURE.buffer.set(memory as u32);
         let read = read_picture_file(overlay);
-        game_write(WIDTH_RVA, kept[0]);
-        game_write(HEIGHT_RVA, kept[1]);
-        game_write(ROW_BYTES_RVA, kept[2]);
-        game_write(PICTURE_RVA, kept[3]);
+        PICTURE.width.set(kept[0]);
+        PICTURE.height.set(kept[1]);
+        PICTURE.row_bytes.set(kept[2]);
+        PICTURE.buffer.set(kept[3]);
         let read = match read {
             Ok(read) => read,
             Err(e) => {
@@ -58,9 +56,8 @@ pub unsafe fn load_picture_with_overlay(path: *mut u8, overlay: *mut u8) -> Resu
         if read {
             // Converted: `rc2k_core::gfx::loading::lay_over`; both buffers 0x1D4C00 + 0xC80
             // bytes (the picture buffer's room, `gfx::allocate_picture_buffer`).
-            let (width, height): (u32, u32) =
-                (game_read(DECODED_WIDTH_RVA), game_read(DECODED_HEIGHT_RVA));
-            let (stride, row): (u32, u32) = (game_read(STRIDE_RVA), game_read(ROW_BYTES_RVA));
+            let (width, height): (u32, u32) = (DECODER.width.get(), DECODER.height.get());
+            let (stride, row): (u32, u32) = (DECODER.stride.get(), PICTURE.row_bytes.get());
             let from = std::slice::from_raw_parts(memory as *const u8, MEMORY as usize);
             let to = std::slice::from_raw_parts_mut(kept[3] as *mut u8, MEMORY as usize);
             let laid = rc2k_core::gfx::loading::lay_over(

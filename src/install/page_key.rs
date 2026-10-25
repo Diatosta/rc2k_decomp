@@ -14,7 +14,8 @@
 //! are the original's.
 
 use crate::errors::Refused;
-use crate::install::installer::{KEY_TAKEN, LIST_ANSWER, LIST_LEAVE, pb, rb, rd};
+use crate::install::installer::{rb, rd};
+use crate::install::vars::INSTALLER_PAGES;
 use rc2k_core::install::items::{self, ItemKey, PageKey};
 
 /// `key` as eax (al the key, ah its bits) on `item` of `list`. Returns eax as the callees
@@ -49,8 +50,8 @@ pub fn page_key(key: u32, item: u32, list: u32) -> Result<(u32, bool), Refused> 
             // test byte ptr [edi], 10h: the page left unless the list stays
             let stays = rb(list) & items::STAYS != 0;
             if !stays {
-                pb(LIST_ANSWER, 0);
-                pb(LIST_LEAVE, 1);
+                INSTALLER_PAGES.list_answer.set(0);
+                INSTALLER_PAGES.list_leave.set(1);
             }
             return Ok((key, !stays));
         }
@@ -66,7 +67,7 @@ pub fn page_key(key: u32, item: u32, list: u32) -> Result<(u32, bool), Refused> 
 /// `jnz` out, else the key marked as taken (zero set).
 fn took(zero: bool) -> bool {
     if zero {
-        pb(KEY_TAKEN, 1);
+        INSTALLER_PAGES.key_taken.set(1);
     }
     zero
 }

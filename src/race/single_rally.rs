@@ -20,32 +20,38 @@
 
 use crate::errors::{FatalError, Refused};
 use crate::framework::{game_addr, rva};
+use crate::menu::arcade_store::ARCADE_GAME;
+use crate::menu::champ_store::CHAMP_VIEW;
+use crate::menu::event_store::EVENT_STATE;
+use crate::menu::flow_store::SCREEN_FLOW;
+use crate::menu::option_work_store::OPTION_WORK;
+use crate::menu::players_store::PLAYER_TABLE;
 use crate::race::state_store::RACE_STATE;
 use crate::session::{Bytes, Dword, Float};
 
 /// A player's or a track's record: a game address.
 type Record = u32;
 
-/// g_trakPakHeader (0x734BC6): +0x34 the entries, 0x40 apart. An entry (at `edi`) holds its
-/// track number at +0x34; the list ends at a dword -1 where the next entry would start.
-const TRAK_PAK_HEADER: usize = 0x734BC6;
+// g_trakPakHeader (0x734BC6, `records::stages_store`): +0x34 the entries, 0x40 apart. An
+// entry (at `edi`) holds its track number at +0x34; the list ends at a dword -1 where the
+// next entry would start.
 /// g_players (0x75647C): the players' records, 4 bytes each.
-const PLAYERS: usize = 0x75647C;
+const PLAYERS: &Dword = &PLAYER_TABLE.pointers[0];
 /// dword_7556F4: the standings summary, copied to `RACE_INFO`.
-const SUMMARY: usize = 0x7556F4;
+const SUMMARY: &Dword = &CHAMP_VIEW.summary;
 /// dword_7558DC, copied to dword_5C2FD0 after the loading picture.
-const AFTER_LOADING: usize = 0x7558DC;
+const AFTER_LOADING: &Dword = &EVENT_STATE.sparks_mode;
 const AFTER_LOADING_COPY: usize = 0x5C2FD0;
 /// dword_7554C8: kept over the race (`RACE_KEPT`).
-const KEPT: usize = 0x7554C8;
+const KEPT: &Dword = &SCREEN_FLOW.kept;
 /// dword_755984: the number of players.
-const PLAYER_COUNT: usize = 0x755984;
+const PLAYER_COUNT: &Dword = &EVENT_STATE.player_count;
 /// dword_755988: the event mode (5, 4, 0xF, 0xA: the events' one-car races).
-const EVENT_MODE: usize = 0x755988;
+const EVENT_MODE: &Dword = &EVENT_STATE.event_kind;
 /// dword_75598C: the current player's number.
-const CURRENT: usize = 0x75598C;
+const CURRENT: &Dword = &EVENT_STATE.current_player;
 /// dword_7587E8: the run's start argument (1: no loading picture after).
-const SWITCH: usize = 0x7587E8;
+const SWITCH: &Dword = &ARCADE_GAME.scene_let_go;
 /// dword_75ACD0: a copy of `SUMMARY`.
 const RACE_INFO: &Dword = &RACE_STATE.settings.rivals;
 /// dword_75ACD4: the stage chosen.
@@ -125,12 +131,12 @@ const TRACK_TO_RACE: [(u32, &Dword); 2] = [
 ];
 
 /// Five settings words copied to the race variables (from, to).
-const SETTINGS_TO_RACE: [(usize, &Dword); 5] = [
-    (0x755650, &RACE_STATE.settings.setting_0),
-    (0x75565C, &RACE_STATE.settings.setting_1),
-    (0x755660, &RACE_STATE.settings.setting_2),
-    (0x755664, &RACE_STATE.settings.setting_3),
-    (0x755668, &RACE_STATE.settings.setting_4),
+const SETTINGS_TO_RACE: [(&Dword, &Dword); 5] = [
+    (&OPTION_WORK.setting_0, &RACE_STATE.settings.setting_0),
+    (&OPTION_WORK.setting_1, &RACE_STATE.settings.setting_1),
+    (&OPTION_WORK.setting_2, &RACE_STATE.settings.setting_2),
+    (&OPTION_WORK.setting_3, &RACE_STATE.settings.setting_3),
+    (&OPTION_WORK.setting_4, &RACE_STATE.settings.setting_4),
 ];
 
 /// Player 1's record, words (offset, variable), into the race's common variables.
@@ -474,12 +480,39 @@ fn mem(a: usize) -> *mut u32 {
     game_addr(rva(a)) as *mut u32
 }
 
-unsafe fn var(a: usize) -> u32 {
-    unsafe { mem(a).read_unaligned() }
+/// A variable of the game that the run's steps read and write: a cell, or an address of the
+/// image's.
+trait Var {
+    unsafe fn load(self) -> u32;
+    unsafe fn store(self, v: u32);
 }
 
-unsafe fn set_var(a: usize, v: u32) {
-    unsafe { mem(a).write_unaligned(v) }
+impl Var for usize {
+    unsafe fn load(self) -> u32 {
+        unsafe { mem(self).read_unaligned() }
+    }
+
+    unsafe fn store(self, v: u32) {
+        unsafe { mem(self).write_unaligned(v) }
+    }
+}
+
+impl Var for &Dword {
+    unsafe fn load(self) -> u32 {
+        self.get()
+    }
+
+    unsafe fn store(self, v: u32) {
+        self.set(v)
+    }
+}
+
+unsafe fn var(a: impl Var) -> u32 {
+    unsafe { a.load() }
+}
+
+unsafe fn set_var(a: impl Var, v: u32) {
+    unsafe { a.store(v) }
 }
 
 unsafe fn field(rec: Record, off: u32) -> u32 {
@@ -493,8 +526,7 @@ unsafe fn set_field(rec: Record, off: u32, v: u32) {
 /// `g_players`[n].
 pub unsafe fn player(n: u32) -> u32 {
     unsafe {
-        ((game_addr(rva(PLAYERS)) as u32).wrapping_add(n.wrapping_mul(4)) as *const u32)
-            .read_unaligned()
+        ((PLAYERS.addr() as u32).wrapping_add(n.wrapping_mul(4)) as *const u32).read_unaligned()
     }
 }
 
@@ -616,7 +648,9 @@ unsafe fn single_rally(
 
         // The stage's entry in the track list.
         let stage = STAGE.get();
-        let mut entry = (game_addr(rva(TRAK_PAK_HEADER)) as u32).wrapping_add(0x34);
+        let mut entry = crate::records::stages_store::STAGE_TABLES
+            .trak_pak()
+            .wrapping_add(0x34);
         while field(entry, 0x34) != stage {
             entry = entry.wrapping_add(0x40);
             if field(entry, 0) == u32::MAX {
@@ -1964,7 +1998,7 @@ mod tests {
             (BLOCK_CURRENT.addr(), 0x20),
             (OUTCOME_FIRST.data.addr(), 0x40),
             (OUTCOME_CURRENT.data.addr(), 0x40),
-            (game_addr(rva(PLAYERS)), 16),
+            (PLAYERS.addr(), 16),
         ] {
             ranges.push((a, len));
         }
@@ -2118,7 +2152,7 @@ mod tests {
             }
             for (k, r) in w.records.iter().enumerate() {
                 set_var(
-                    PLAYERS + 4 * k,
+                    &PLAYER_TABLE.pointers[k],
                     if c.missing[k] { 0 } else { r.as_ptr() as u32 },
                 );
                 set_field(r.as_ptr() as u32, 0xD0, c.d0[k]);
@@ -2128,8 +2162,9 @@ mod tests {
             set_var(CURRENT, c.current);
             // The track list: entries 0x40 apart from +0x34; the stage's number at +0x34 of
             // the entry; a dword -1 at the start of the entry the list ends at.
-            let entry =
-                |k: usize| (game_addr(rva(TRAK_PAK_HEADER)) as u32) + 0x34 + 0x40 * k as u32;
+            let entry = |k: usize| {
+                crate::records::stages_store::STAGE_TABLES.trak_pak() + 0x34 + 0x40 * k as u32
+            };
             for k in 0..6 {
                 let mut id = rng.next();
                 if id == c.stage {

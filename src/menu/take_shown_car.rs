@@ -10,21 +10,20 @@
 //! past the four (the original reads past `g_players`).
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, rva};
+use crate::menu::event_store::EVENT_STATE;
 use crate::menu::player::{PLAYERS, Player, player_at};
+use crate::session::Dword;
 
-pub const CURRENT_PLAYER_RVA: usize = rva(0x75598C); // dword_75598C
-pub const SHOWN_CAR_RVA: usize = rva(0x755990); // dword_755990
-
+pub const CURRENT_PLAYER_RVA: &Dword = &EVENT_STATE.current_player; // dword_75598C
 const _: () = assert!(std::mem::offset_of!(Player, car_number) == 8);
 const _: () = assert!(std::mem::offset_of!(Player, no_turbo) == 0x90);
 
 pub unsafe fn take_shown_car(list: u32) -> Result<(), Refused> {
-    let current: u32 = unsafe { game_read(CURRENT_PLAYER_RVA) };
+    let current: u32 = { EVENT_STATE.current_player.get() };
     if current >= PLAYERS {
         return Err(BadInput("a current player past the four").into());
     }
-    let shown: u32 = unsafe { game_read(SHOWN_CAR_RVA) };
+    let shown: u32 = { EVENT_STATE.shown_car.get() };
     // Converted: `rc2k_core::menu::player::Player::take_car`.
     unsafe {
         let entry = ((list.wrapping_add(shown.wrapping_mul(4))) as *const u32).read_unaligned();

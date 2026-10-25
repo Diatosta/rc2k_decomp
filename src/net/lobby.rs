@@ -21,24 +21,21 @@
 //! COM objects whose methods note their arguments.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_addr};
+use crate::framework::Regs;
+use crate::menu::loop_store::LOOP_FLAGS;
 use crate::net::store::NET;
 use crate::session::Dword;
+use crate::strings::text_buffer::TEXT_BUFFER;
 
 pub use crate::net::{a, g, p};
 
 // ---- game data (IDA addresses) ----
 
-pub const EDIT_SAVED: usize = 0x95EAF8; // byte_95EAF8: the text before editing, 64 bytes
-pub const NUMBER_TEXT: usize = 0x95E8F8; // byte_95E8F8: a number edited as text
-pub const TEXT: usize = 0x93E430; // text: the game's text buffer
-pub const SPRITES: usize = 0x755581; // g_spriteTable
-pub const PALETTE: usize = 0x51E624; // palette: the measuring font
-pub const FONT: usize = 0x51E6A4; // font
+pub const SPRITES: &Dword = &LOOP_FLAGS.sprite_table; // g_spriteTable
+pub const PALETTE: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::MEASURE_23;
+pub const FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::HEADING_23;
 
 // ---- the list screens' variables (`menu::list_*`) ----
-
-pub use crate::race::viewer::{CHOICE, CHOICE_BEFORE, FRAME_CLOCK, KEY_CLOCK, MOVE_CLOCK};
 
 // ---- small pieces ----
 
@@ -47,11 +44,6 @@ pub fn movsb(to: u32, from: u32, n: u32) {
     for k in 0..n {
         unsafe { ((to + k) as *mut u8).write(((from + k) as *const u8).read()) };
     }
-}
-
-/// The address of a function or label of the game.
-pub fn game(x: u32) -> u32 {
-    game_addr(crate::framework::rva(x as usize)) as u32
 }
 
 /// A cursor into a text buffer: what the original's `ebx` is while it builds a line with
@@ -63,7 +55,7 @@ pub struct Cursor(pub u32);
 impl Cursor {
     /// The start of the game's text buffer.
     pub fn text() -> Self {
-        Self(a(TEXT))
+        Self(TEXT_BUFFER.text.addr() as u32)
     }
 
     /// `strings::str_append`: the NUL-ended text at `from`, its end the new cursor.
@@ -105,7 +97,7 @@ pub fn blit(glyph: u32, x: u32, y: u32, palette: u32) -> Result<u32, Refused> {
     let exit = unsafe {
         crate::gfx::blit_glyph::blit_glyph_on_surface(
             glyph,
-            g(SPRITES) as *const u8,
+            SPRITES.get() as *const u8,
             x as i32,
             y as i32,
             palette as *const u32,
@@ -194,11 +186,16 @@ pub fn copy_picture() -> Result<(), Refused> {
 }
 
 /// `text::draw_string_by_id` with the font at the IDA address `font`.
-pub fn draw_string(id: u32, font: usize, x: u32, y: u32) -> Result<(), Refused> {
+pub fn draw_string(
+    id: u32,
+    font: crate::gfx::typefaces::FontId,
+    x: u32,
+    y: u32,
+) -> Result<(), Refused> {
     unsafe {
         crate::text::draw_string_by_id::draw_string_by_id_at(
             id,
-            a(font) as *mut _,
+            font.as_ptr(),
             x as i32,
             y as i32,
             &mut crate::text::draw_text::GameCanvas,

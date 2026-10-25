@@ -6,10 +6,9 @@
 //!
 //! Caller: `sub_473126` (three times). Refuses a missing player, before anything.
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_write, rva};
+use crate::menu::event_store::EVENT_STATE;
 use crate::menu::standings::*;
 
-const FLAG_RVA: usize = rva(0x75592C); // dword_75592C
 /// The Rust version (see the header): the registers it leaves.
 pub unsafe fn reset_player_times() -> Result<(), Refused> {
     if (0..4).any(|n| player(n) == 0) {
@@ -19,6 +18,6 @@ pub unsafe fn reset_player_times() -> Result<(), Refused> {
     for n in 0..4 {
         put_all(player(n), &rc2k_core::menu::event::PLAYER_TIMES);
     }
-    unsafe { game_write(FLAG_RVA, 0u32) };
+    EVENT_STATE.event_goes_on.set(0u32);
     Ok(())
 }

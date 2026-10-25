@@ -8,12 +8,15 @@
 //! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
 //! are the original's.
 
-use crate::install::installer::{LIST_ANSWER, RUN_DXSETUP, gb, p};
+use crate::install::vars::INSTALLER_PAGES;
+use crate::install::vars::INSTALLER_RUN;
 
 /// `state` the list action's (ebx).
 pub fn dxsetup_page(state: u32) {
     // Converted: `rc2k_core::install::pages::runs_dxsetup`.
-    if (state as i32) < 0 && rc2k_core::install::pages::runs_dxsetup(gb(LIST_ANSWER)) {
-        p(RUN_DXSETUP, 1);
+    if (state as i32) < 0
+        && rc2k_core::install::pages::runs_dxsetup(INSTALLER_PAGES.list_answer.get())
+    {
+        INSTALLER_RUN.run_dxsetup.set(1);
     }
 }

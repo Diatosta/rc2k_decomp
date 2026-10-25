@@ -18,20 +18,18 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::rva;
-use crate::marks::lines::SETTINGS_RVA;
-use crate::marks::store::{Slot, game_addr, game_read, game_write};
+use crate::marks::clip::{CLIP, GLOW};
+use crate::marks::store::game_write;
 use crate::math::x87;
 
-const WORK_RVA: Slot = Slot::at(0x7687F4); // g_marksClipVertices: TLVertex[6]
 const COUNT_RVA: usize = rva(0x6240F8); // g_polygonVertexCount
-const COUNT2_RVA: Slot = Slot::at(0x93CC94); // dword_93CC94
 /// Per mode 1 .. 4: the line's variable, its coordinate's offset, whether inside is at or
 /// below it.
-const EDGES: [(Slot, u32, bool); 4] = [
-    (Slot::at(0x7687F0), 4, true),  // 1: g_marksScreenMiddleYLess
-    (Slot::at(0x7687EC), 4, false), // 2: g_marksScreenMiddleY
-    (Slot::at(0x7687E8), 0, true),  // 3: g_marksScreenMiddleXLess
-    (Slot::at(0x7687E4), 0, false), // 4: g_marksScreenMiddleX
+const EDGES: [(usize, u32, bool); 4] = [
+    (3, 4, true),  // 1: g_marksScreenMiddleYLess
+    (2, 4, false), // 2: g_marksScreenMiddleY
+    (1, 0, true),  // 3: g_marksScreenMiddleXLess
+    (0, 0, false), // 4: g_marksScreenMiddleX
 ];
 
 unsafe fn get(a: u32) -> u32 {
@@ -41,7 +39,7 @@ unsafe fn get(a: u32) -> u32 {
 /// The Rust version (see the header): whether all the quad is outside (the original's CF).
 pub unsafe fn clip_quad(q: u32) -> Result<bool, Refused> {
     unsafe {
-        let settings: u32 = game_read(SETTINGS_RVA);
+        let settings: u32 = crate::marks::setup::SETTINGS.pointer.get();
         if settings == 0 || q == 0 {
             return Err(BadInput("null marks settings or quad").into());
         }
@@ -49,8 +47,8 @@ pub unsafe fn clip_quad(q: u32) -> Result<bool, Refused> {
         if !(1..=4).contains(&mode) {
             return Ok(false);
         }
-        let (line_rva, coord, below) = EDGES[mode as usize - 1];
-        let line: u32 = game_read(line_rva);
+        let (edge, coord, below) = EDGES[mode as usize - 1];
+        let line: u32 = CLIP.edges[edge].bits();
         // The test of vertex k: inside.
         let t = |k: u32| {
             let v = get(q + 0x20 * k + coord) as i32;
@@ -92,7 +90,7 @@ pub unsafe fn clip_quad(q: u32) -> Result<bool, Refused> {
         } else {
             return Ok(false);
         }
-        let work = game_addr(WORK_RVA) as u32;
+        let work = CLIP.vertices.as_ptr() as u32;
         let mut ebx = 0u32;
         let mut k = edi;
         loop {
@@ -128,7 +126,7 @@ pub unsafe fn clip_quad(q: u32) -> Result<bool, Refused> {
         std::ptr::copy(work as *const u8, q as *mut u8, ebx as usize);
         let count = ebx >> 5;
         game_write(COUNT_RVA, count);
-        game_write(COUNT2_RVA, count);
+        GLOW.clip_count.set(count);
     }
     Ok(false)
 }

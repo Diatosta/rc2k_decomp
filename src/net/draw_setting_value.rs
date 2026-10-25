@@ -9,10 +9,10 @@
 //! Callers: `net::settings_frame`, `net::draw_number_value` (which goes on into it).
 
 use crate::errors::Refused;
-use crate::net::lobby::{Cursor, FONT, TEXT, a};
+use crate::net::lobby::{Cursor, FONT};
 use crate::net::store::NET;
+use crate::strings::text_buffer::TEXT_BUFFER;
 use crate::text::draw_text::GameCanvas;
-use crate::text::font::Font;
 use rc2k_core::net::screens::{self, Value};
 
 /// The Rust version: the text at `text` for item `item` at `y` (x 0x190), edited (with the
@@ -29,19 +29,19 @@ pub fn draw_setting_value(text: u32, item: u32, y: u32) -> Result<u32, Refused> 
             cursor.string(text);
             cursor.string_id(screens::CARET);
             cursor.nul();
-            a(TEXT)
+            TEXT_BUFFER.text.addr() as u32
         }
         Value::Nothing => {
             let mut cursor = Cursor::text();
             cursor.string_id(screens::NOTHING);
             cursor.nul();
-            a(TEXT)
+            TEXT_BUFFER.text.addr() as u32
         }
         Value::AsIs => text,
     };
     unsafe {
         crate::text::draw_text::draw_text_at(
-            a(FONT) as *mut Font,
+            FONT.as_ptr(),
             shown as *const u8,
             0x190,
             y as i32,

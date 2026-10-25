@@ -13,12 +13,9 @@
 
 use crate::errors::Refused;
 use crate::marks::pong;
-use crate::marks::store::{Slot, game_read};
+use crate::marks::pong::PONG_RULES;
 use crate::scene::matrix3::extended;
 use rc2k_core::math::extended::from_f64;
-
-const STEP_RVA: [Slot; 2] = [Slot::at(0x7691FA), Slot::at(0x7691FE)]; // flt_7691FA, flt_7691FE
-const SIZE_RVA: [Slot; 2] = [Slot::at(0x769202), Slot::at(0x769206)]; // flt_769202, flt_769206
 
 /// The Rust version (see the header): `pattern` the pattern byte's address (eax),
 /// `column` (ebx), `row` (ecx).
@@ -26,12 +23,12 @@ const SIZE_RVA: [Slot; 2] = [Slot::at(0x769202), Slot::at(0x769206)]; // flt_769
 pub unsafe fn pong_cell(pattern: u32, column: u32, row: u32) -> Result<(), Refused> {
     unsafe {
         if (pattern as *const u8).read() != 0 {
-            let step = STEP_RVA.map(|r| f32::from_bits(game_read(r)));
-            let at = pong::DIGIT_AT.map(|r| game_read::<i32>(r));
+            let step = PONG_RULES.cell_step.each_ref().map(|f| f.get());
+            let at = pong::PONG.digit_at.each_ref().map(|d| d.get() as i32);
             let [x, y] = rc2k_core::marks::pong::cell_place(column as i32, row as i32, step, at);
             let values = [
-                extended(game_read(SIZE_RVA[1])),
-                extended(game_read(SIZE_RVA[0])),
+                extended(PONG_RULES.cell_size[1].bits()),
+                extended(PONG_RULES.cell_size[0].bits()),
                 from_f64(y),
                 from_f64(x),
             ];

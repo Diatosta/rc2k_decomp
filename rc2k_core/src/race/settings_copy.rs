@@ -17,7 +17,7 @@ pub enum Kind {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Step<A = usize> {
     /// The text logged (`log_write_l1`, `_nl` with true).
-    Text(A, bool),
+    Text(&'static core::ffi::CStr, bool),
     /// The dword logged (`log_int_l1_nl` / `log_hex8_l1_nl`).
     Value(A, Kind),
     /// The float logged (`log_float_l1_nl`, two decimals).
@@ -74,7 +74,7 @@ pub trait Machine<A> {
     /// A brake value 0 .. 99 x 2.56, rounded (`fild` / `fmul` / `fistp`).
     fn scaled_brake(&mut self, value: i32) -> u32;
     /// The logs (inside `pusha` / `popa`: the registers kept).
-    fn text(&mut self, text: A, newline: bool) -> Result<(), Self::Error>;
+    fn text(&mut self, text: &'static core::ffi::CStr, newline: bool) -> Result<(), Self::Error>;
     fn value(&mut self, value: u32, kind: Kind) -> Result<(), Self::Error>;
     fn float(&mut self, bits: u32) -> Result<(), Self::Error>;
     fn call(&mut self, at: A) -> Result<(), Self::Error>;
@@ -216,8 +216,9 @@ mod tests {
         fn scaled_brake(&mut self, value: i32) -> u32 {
             (value as f32 * 2.56).round() as u32
         }
-        fn text(&mut self, text: u32, newline: bool) -> Result<(), ()> {
-            self.log.push(format!("text {text} {newline}"));
+        fn text(&mut self, text: &'static core::ffi::CStr, newline: bool) -> Result<(), ()> {
+            self.log
+                .push(format!("text {} {newline}", text.to_str().unwrap()));
             Ok(())
         }
         fn value(&mut self, value: u32, kind: Kind) -> Result<(), ()> {
@@ -242,7 +243,7 @@ mod tests {
     fn steps() {
         use Step::*;
         let table: [Step<u32>; 16] = [
-            Text(1, true),
+            Text(c"one", true),
             Copy(10, 11),
             Dec(10),
             Value(10, Kind::Int),
@@ -270,7 +271,7 @@ mod tests {
         assert_eq!(m.ebx, 0);
         // eax 4: no jump, the put done.
         assert_eq!(m.vars[&21], 1);
-        assert_eq!(m.log, ["text 1 true", "Int 4", "float 4"]);
+        assert_eq!(m.log, ["text one true", "Int 4", "float 4"]);
         let calls = [
             Load(1),
             SubEax(2),

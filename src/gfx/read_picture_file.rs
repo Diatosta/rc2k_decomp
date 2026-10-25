@@ -16,15 +16,24 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::files::swap_missing_extension::swap_missing_extension;
-use crate::gfx::block::game_read;
-use crate::gfx::decoder::Slot as DecSlot;
 use crate::gfx::read_pcx::read_pcx;
 use crate::gfx::read_png::read_png;
+use crate::session::Dword;
 use crate::strings::text_length::text_length;
 
 // ---- game data ----
 
-const PNG_SETTING_RVA: DecSlot = DecSlot::at(0x51B97C); // dword_51B97C: a setting; 0 = PNG files are read
+/// IDA's address of the PNG setting.
+pub const PNG_SETTING_START: usize = 0x51B97C;
+
+/// `g_pngSetting` (`dword_51B97C`, `nopngdecode`, a `var\ral.cfg` setting): 0 = PNG files
+/// are read.
+pub static PNG_SETTING: Dword = Dword::new(0);
+
+/// Where the setting is (`moved::MOVED`'s home for IDA 0x51B97C).
+pub fn png_setting_home() -> usize {
+    PNG_SETTING.addr()
+}
 
 // ---- Rust version ----
 
@@ -44,7 +53,7 @@ pub unsafe fn read_picture_file(path: *mut u8) -> Result<bool, Refused> {
             return Ok(read_pcx(path)?);
         }
         swap_missing_extension(path)?;
-        match reader(ending(path)?, game_read::<u32>(PNG_SETTING_RVA)) {
+        match reader(ending(path)?, PNG_SETTING.get()) {
             Reader::PngThenPcx => Ok(read_png(path)? || read_pcx(path)?),
             Reader::Pcx => Ok(read_pcx(path)?),
             Reader::Nothing => Ok(true),
@@ -52,5 +61,20 @@ pub unsafe fn read_picture_file(path: *mut u8) -> Result<bool, Refused> {
                 crate::gfx::texts::address(&crate::gfx::texts::CHATZONE) as *const u8,
             )?),
         }
+    }
+}
+
+#[cfg(test)]
+mod block_tests {
+    use super::*;
+
+    #[test]
+    fn first_value_is_the_games() {
+        crate::gfx::first_values_are_the_games(
+            &PNG_SETTING,
+            PNG_SETTING_START,
+            PNG_SETTING_START + 4,
+        );
+        assert_eq!(crate::moved::place(PNG_SETTING_START), PNG_SETTING.addr());
     }
 }

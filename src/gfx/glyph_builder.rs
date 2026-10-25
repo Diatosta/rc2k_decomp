@@ -2,7 +2,6 @@
 //! `rc2k_core::gfx::glyphs` (finding, coding and tabling a sheet's glyphs, in the original's
 //! order). Here the game's side: the sheet's pixels through the row table (`g_rowTable`).
 
-use crate::gfx::block::game_read;
 use crate::gfx::fill_row_table::row_address;
 
 pub use rc2k_core::gfx::glyphs::{
@@ -34,7 +33,11 @@ impl SheetPixels for RowTable {
 pub unsafe fn transparent_of(
     flags: u32,
     backdrop: u32,
-    palette: impl crate::gfx::block::Where,
+    palette: &[crate::session::Dword; 256],
 ) -> u32 {
-    rc2k_core::gfx::glyphs::transparent_of(flags, backdrop, &unsafe { game_read(palette) })
+    rc2k_core::gfx::glyphs::transparent_of(
+        flags,
+        backdrop,
+        &std::array::from_fn(|i| palette[i].get()),
+    )
 }

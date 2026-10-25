@@ -9,14 +9,11 @@
 //! registers above are the original's, for reference.
 
 use crate::errors::BadInput;
-use crate::framework::{game_ptr, rva};
 use crate::threading::find_thread_slot::find_thread_slot;
 use std::ffi::{CStr, c_char};
 use std::ptr::copy_nonoverlapping;
 
 // ---- game data ----
-
-const BASE_B_RVA: usize = rva(0x5295B4); // base directory B (string)
 
 const BUF_LEN: usize = 0x100; // ThreadSlot + 0x10 .. + 0x110
 
@@ -35,7 +32,7 @@ unsafe fn globals<'a>() -> Globals<'a> {
         Globals {
             mode: crate::files::state::MEDIA_MODE.load(std::sync::atomic::Ordering::Relaxed),
             a: cstr(crate::files::state::base_directory()), // g_baseDirectory
-            b: cstr(game_ptr(BASE_B_RVA)),
+            b: cstr(crate::install::installer::INSTALL_TEXTS.base_b.as_ptr()),
             pct: cstr(crate::files::state::locale_directory()), // g_localeDirectory: replaces each '%'
         }
     }

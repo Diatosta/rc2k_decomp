@@ -13,6 +13,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::rva;
+use crate::gfx::picture_store::PICTURE;
 use crate::marks::blocks::take;
 use crate::marks::load_mask_pictures::{lock, put_pixel};
 use crate::marks::store::{Slot, game_addr, game_read, game_write};
@@ -47,20 +48,19 @@ const STEP_RVA: Slot = Slot::at(0x7651D0);
 /// `gfx::read_picture_file` at 256 x 256 (the picture's sizes kept round it): whether it
 /// was read.
 unsafe fn read(path: Slot) -> Result<bool, Refused> {
-    use crate::gfx::picture::{HEIGHT_RVA, ROW_BYTES_RVA, WIDTH_RVA};
     unsafe {
         let sizes: [u32; 3] = [
-            game_read(WIDTH_RVA),
-            game_read(HEIGHT_RVA),
-            game_read(ROW_BYTES_RVA),
+            PICTURE.width.get(),
+            PICTURE.height.get(),
+            PICTURE.row_bytes.get(),
         ];
-        game_write(WIDTH_RVA, SIDE);
-        game_write(HEIGHT_RVA, SIDE);
-        game_write(ROW_BYTES_RVA, 0xFFFF_FFFEu32);
+        PICTURE.width.set(SIDE);
+        PICTURE.height.set(SIDE);
+        PICTURE.row_bytes.set(0xFFFF_FFFEu32);
         let read = crate::gfx::read_picture_file::read_picture_file(game_addr(path) as *mut u8);
-        game_write(WIDTH_RVA, sizes[0]);
-        game_write(HEIGHT_RVA, sizes[1]);
-        game_write(ROW_BYTES_RVA, sizes[2]);
+        PICTURE.width.set(sizes[0]);
+        PICTURE.height.set(sizes[1]);
+        PICTURE.row_bytes.set(sizes[2]);
         read
     }
 }
@@ -75,7 +75,6 @@ unsafe fn unlock_refusing(why: &'static str) -> Result<(), Refused> {
 /// `unlock_texture`, `gfx::read_picture_file`, `gfx::put_surface_pixel`,
 /// `scene::forget_slot_texture`, `memory::free_list`, `nullsub_33` (nothing).
 pub unsafe fn set_up_surface() -> Result<(), Refused> {
-    use crate::gfx::picture::PICTURE_RVA;
     unsafe {
         let block = take(MASK_LIST_RVA, MASK_BYTES)?;
         lock(game_read(SLOT_RVA), true)?;
@@ -87,14 +86,14 @@ pub unsafe fn set_up_surface() -> Result<(), Refused> {
             return unlock_refusing("surfmask.pcx was not read");
         }
         std::ptr::copy(
-            game_read::<u32>(PICTURE_RVA) as *const u8,
+            PICTURE.buffer.get() as *const u8,
             block as *mut u8,
             4 * PIXELS as usize,
         );
         if !read(SURFDATA_RVA)? {
             return unlock_refusing("surfdata.pcx was not read");
         }
-        let picture: u32 = game_read(PICTURE_RVA);
+        let picture: u32 = PICTURE.buffer.get();
         for n in 0..PIXELS {
             let data = ((picture + 4 * n) as *const u32).read_unaligned();
             let mask = ((block + 4 * n) as *const u32).read_unaligned();

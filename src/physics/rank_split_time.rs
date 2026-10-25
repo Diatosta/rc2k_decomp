@@ -19,17 +19,20 @@
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 use crate::errors::{BadInput, Refused};
-use crate::framework::rva;
 use crate::physics::fill_rival_table::fill_rival_table;
-use crate::physics::splits::{COUNT, FIGURE, SPLIT, TEXT, TIME, g, p};
+use crate::physics::splits::{COUNT, FIGURE, SPLIT, TIME, g, p};
 use crate::strings::append_string_by_id::append_string_by_id;
 use rc2k_core::physics::splits::{RIVALS, gap, rank, scaled_time, split_scale};
 
 /// A name into `text` (eight blanks first), its first eight bytes into `to`.
 fn name(id: u32, to: usize) {
-    let text = crate::framework::game_addr(rva(TEXT)) as u32;
-    p(TEXT, 0x2020_2020);
-    p(TEXT + 4, 0x2020_2020);
+    let text = crate::strings::text_buffer::TEXT_BUFFER.text.addr() as u32;
+    crate::strings::text_buffer::TEXT_BUFFER
+        .text
+        .set_u32(0, 0x2020_2020);
+    crate::strings::text_buffer::TEXT_BUFFER
+        .text
+        .set_u32(4, 0x2020_2020);
     let mut cursor = text;
     unsafe {
         append_string_by_id(id, &mut |s, n| {
@@ -37,8 +40,11 @@ fn name(id: u32, to: usize) {
             cursor += n as u32;
         })
     };
-    p(to, g(TEXT));
-    p(to + 4, g(TEXT + 4));
+    p(to, crate::strings::text_buffer::TEXT_BUFFER.text.get_u32(0));
+    p(
+        to + 4,
+        crate::strings::text_buffer::TEXT_BUFFER.text.get_u32(4),
+    );
 }
 
 /// The Rust version. The registers the original leaves are read by none of its callers.

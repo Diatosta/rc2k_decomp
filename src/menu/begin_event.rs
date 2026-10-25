@@ -14,24 +14,20 @@
 //! missing player.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::menu::champ_store::CHAMP_VIEW;
+use crate::menu::event_store::EVENT_STATE;
+use crate::menu::pages_store::MENU_PAGES;
 use crate::menu::player::{PLAYERS, player_at};
 use crate::menu::standings::put_all;
+use crate::session::Dword;
 use rc2k_core::menu::event::KEEPS_SETUP;
 
-pub const DRIVERS_RVA: usize = rva(0x73B674); // g_drivers
 pub const DRIVER_LEN: u32 = 0x94;
 const MOST_DRIVERS: u32 = 0x400;
-const CLEARED_A_RVA: usize = rva(0x755254); // dword_755254
-const STATE_RVA: usize = rva(0x755950); // dword_755950
-const NEW_EVENT_RVA: usize = rva(0x75592C); // dword_75592C
-const CLEARED_B_RVA: usize = rva(0x755978); // dword_755978
-const CURRENT_PLAYER_RVA: usize = crate::menu::take_shown_car::CURRENT_PLAYER_RVA;
-pub const MODE_RVA: usize = rva(0x7556D0); // dword_7556D0: the event's mode
-
+const CURRENT_PLAYER: &Dword = crate::menu::take_shown_car::CURRENT_PLAYER_RVA;
 /// The drivers' count (with the first), or `None` without their end.
 pub fn drivers() -> Option<u32> {
-    let first = game_addr(DRIVERS_RVA) as u32;
+    let first = crate::menu::drivers_store::DRIVERS.first();
     (1..MOST_DRIVERS)
         .find(|&n| unsafe { ((first + n * DRIVER_LEN) as *const u32).read() } == u32::MAX)
 }
@@ -42,21 +38,21 @@ pub unsafe fn begin_event() -> Result<(), Refused> {
         return Err(BadInput("a player missing from g_players").into());
     }
     unsafe {
-        game_write(CLEARED_A_RVA, 0u32);
-        game_write(STATE_RVA, 0u32);
+        MENU_PAGES.services.set(0u32);
+        EVENT_STATE.stages_done.set(0u32);
         // Converted: `rc2k_core::menu::event` (`DRIVER_BEGIN`, `PLAYER_BEGIN`,
         // `KEEPS_SETUP`, `setup_defaults`).
         use rc2k_core::menu::event::{DRIVER_BEGIN, PLAYER_BEGIN, setup_defaults};
-        let first = game_addr(DRIVERS_RVA) as u32;
+        let first = crate::menu::drivers_store::DRIVERS.first();
         crate::menu::standings::table(first, DRIVER_LEN, count).store_all(&DRIVER_BEGIN);
-        game_write(NEW_EVENT_RVA, 1u32);
-        game_write(CLEARED_B_RVA, 0u32);
+        EVENT_STATE.event_goes_on.set(1u32);
+        EVENT_STATE.event_out.set(0u32);
         for n in 0..PLAYERS {
-            game_write(CURRENT_PLAYER_RVA, n);
+            CURRENT_PLAYER.set(n);
             let p = player_at(n);
             put_all(p, &PLAYER_BEGIN);
             crate::service::repair_parts::repair_car()?;
-            if game_read::<u32>(MODE_RVA) != KEEPS_SETUP {
+            if CHAMP_VIEW.event_mode.get() != KEEPS_SETUP {
                 let sensitivity = ((p + 0x280) as *const u32).read_unaligned();
                 put_all(p, &setup_defaults(sensitivity));
             }

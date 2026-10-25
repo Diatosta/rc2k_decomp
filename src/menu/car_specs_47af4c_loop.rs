@@ -11,7 +11,13 @@
 //! Callers: `sub_46FD31`, `sub_46FD31`, `sub_46FD31`, `sub_46FD31`, `sub_46FD31`, `sub_48AD73`.
 
 use crate::errors::Refused;
-use crate::framework::{game_read, game_write, rva};
+use crate::framework::{game_write, rva};
+use crate::menu::draw_lists_store::DRAW_LISTS;
+use crate::menu::event_store::EVENT_STATE;
+use crate::menu::flow_store::SCREEN_FLOW;
+use crate::menu::loop_store::LOOP_FLAGS;
+use crate::menu::menus_store::MENUS;
+use crate::menu::screen_items_store::{SCREEN_ITEMS, slot};
 use crate::menu::screen_loop::{
     Callee, Carried, Flow, List, Screen, Step, carousel, prepare_scene, quitting,
 };
@@ -21,16 +27,16 @@ use crate::menu::state_store::MENU_STATE;
 
 unsafe fn set_up_first(c: &mut Carried) -> Result<(), Refused> {
     unsafe {
-        game_write(rva(0x7554EC), 0x1u32);
+        SCREEN_FLOW.turning.set(0x1u32);
         MENU_STATE.carousel.menu.set(0xEu32);
         carousel(c)?;
-        c.arg = game_read(rva(0x7476E0));
-        game_write(rva(0x755525), c.arg);
+        c.arg = SCREEN_ITEMS.current[slot::CAR_SPECS_47AF4C].get();
+        LOOP_FLAGS.item.set(c.arg);
         c.arg = c.arg.wrapping_sub(1);
         MENU_STATE.carousel.front.set(c.arg);
-        game_write(rva(0x7554EC), 0x0u32);
+        SCREEN_FLOW.turning.set(0x0u32);
         MENU_STATE.carousel.front.set(0x0u32);
-        game_write(rva(0x755990), 0x0u32);
+        EVENT_STATE.shown_car.set(0x0u32);
         crate::menu::car_choice::find_player_car()?;
         game_write(rva(0x623FB0), 0x7u32);
         game_write(rva(0x623FB4), 0xFFFFFFCEu32);
@@ -48,27 +54,27 @@ unsafe fn after_first_frame(_c: &mut Carried) -> Result<Flow, Refused> {
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: rva(0x74B9D8),
-    saved_item: rva(0x7476E0),
+    menu: || MENUS.car_specs_47af4c.addr(),
+    saved_item: || &SCREEN_ITEMS.current[slot::CAR_SPECS_47AF4C],
     lists: &[
         List {
-            pointer: rva(0x755504), // g_sceneList
-            table: rva(0x758F66),
+            pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
+            table: || DRAW_LISTS.car_specs_47af4c_scene.addr(),
             run: false,
         },
         List {
-            pointer: rva(0x7554F8), // g_drawList
-            table: rva(0x758C42),
+            pointer: || &SCREEN_FLOW.draw_list, // g_drawList
+            table: || DRAW_LISTS.car_specs_47af4c_draw.addr(),
             run: false,
         },
         List {
-            pointer: rva(0x755500), // dword_755500
-            table: rva(0x75940E),
+            pointer: || &SCREEN_FLOW.setup_list, // dword_755500
+            table: || DRAW_LISTS.car_specs_47af4c_setup.addr(),
             run: true,
         },
         List {
-            pointer: rva(0x7554FC), // g_overlayList
-            table: rva(0x7591AA),
+            pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
+            table: || DRAW_LISTS.car_specs_47af4c_overlay.addr(),
             run: false,
         },
     ],
@@ -80,7 +86,11 @@ pub const SCREEN: Screen = Screen {
     prepare: &[],
     after_lists: &[],
     background: &[
-        Step::ArgAddr(rva(0x731F3D)),
+        Step::ArgAddr(|| {
+            crate::menu::texts_store::MENU_TEXTS
+                .car_specs_47af4c_picture
+                .addr()
+        }),
         Step::CallOrFatal(Callee::LoadBackground, 0x80712345),
     ],
     after_first_frame: &[Step::DoFlow(after_first_frame)],

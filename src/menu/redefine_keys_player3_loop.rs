@@ -14,7 +14,15 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::framework::rva;
+use crate::menu::draw_lists_store::DRAW_LISTS;
+use crate::menu::event_store::EVENT_STATE;
+use crate::menu::flow_store::SCREEN_FLOW;
+use crate::menu::keys_store::KEY_TABLES;
+use crate::menu::menus_store::MENUS;
+use crate::menu::option_work_store::OPTION_WORK;
+use crate::menu::players_store::PLAYER_TABLE;
+use crate::menu::screen_items_store::{SCREEN_ITEMS, slot};
 use crate::menu::screen_loop::{
     Callee, Carried, Flow, List, Screen, Step, quitting, read_at, screen_entry,
 };
@@ -26,13 +34,13 @@ unsafe fn before(_c: &mut Carried) -> Result<(), Refused> {
     // `pusha` and `popa`; eax pushed and popped around the player's address: no carried
     // value changes).
     unsafe {
-        let player = read_at((game_addr(rva(0x75647C)) as u32).wrapping_add(8));
+        let player = read_at((PLAYER_TABLE.pointers[0].addr() as u32).wrapping_add(8));
         std::ptr::copy(
             player.wrapping_add(0x1C) as *const u8,
-            game_addr(rva(0x755595)) as *mut u8,
+            KEY_TABLES.redefined_keys.addr() as *mut u8,
             0xC,
         );
-        game_write(rva(0x75598C), 0x2u32);
+        EVENT_STATE.current_player.set(0x2u32);
     }
     Ok(())
 }
@@ -45,48 +53,46 @@ unsafe fn after_first_frame(_c: &mut Carried) -> Result<Flow, Refused> {
 }
 
 unsafe fn each_frame(_c: &mut Carried) -> Result<Flow, Refused> {
-    unsafe {
-        if game_read::<u32>(rva(0x7556AC)) == 0x1 && game_read::<u32>(rva(0x7556AC)) != 0x0 {
-            return Ok(Flow::NextFrame);
-        }
-        Ok(Flow::On)
+    if OPTION_WORK.redefining_key.get() == 0x1 && OPTION_WORK.redefining_key.get() != 0x0 {
+        return Ok(Flow::NextFrame);
     }
+    Ok(Flow::On)
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: rva(0x74C410),
-    saved_item: rva(0x747750),
+    menu: || MENUS.redefine_keys_player3.addr(),
+    saved_item: || &SCREEN_ITEMS.current[slot::REDEFINE_KEYS_PLAYER3],
     lists: &[
         List {
-            pointer: rva(0x7554F4), // g_unreadList
-            table: rva(0x758B72),
+            pointer: || &SCREEN_FLOW.unread_list, // g_unreadList
+            table: || DRAW_LISTS.unread_758b72.addr(),
             run: false,
         },
         List {
-            pointer: rva(0x7554F8), // g_drawList
-            table: rva(0x758DFA),
+            pointer: || &SCREEN_FLOW.draw_list, // g_drawList
+            table: || DRAW_LISTS.draw_758dfa.addr(),
             run: false,
         },
         List {
-            pointer: rva(0x7554FC), // g_overlayList
-            table: rva(0x75928E),
+            pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
+            table: || DRAW_LISTS.overlay_75928e.addr(),
             run: false,
         },
     ],
     first_frame_lists: Some(&[
         List {
-            pointer: rva(0x755504), // g_sceneList
-            table: rva(0x7590CA),
+            pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
+            table: || DRAW_LISTS.redefine_keys_player3_scene.addr(),
             run: false,
         },
         List {
-            pointer: rva(0x7554F8), // g_drawList
-            table: rva(0x758DFA),
+            pointer: || &SCREEN_FLOW.draw_list, // g_drawList
+            table: || DRAW_LISTS.draw_758dfa.addr(),
             run: false,
         },
         List {
-            pointer: rva(0x7554FC), // g_overlayList
-            table: rva(0x75928E),
+            pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
+            table: || DRAW_LISTS.overlay_75928e.addr(),
             run: false,
         },
     ]),
@@ -97,7 +103,11 @@ pub const SCREEN: Screen = Screen {
     prepare: &[],
     after_lists: &[],
     background: &[
-        Step::ArgAddr(rva(0x732345)),
+        Step::ArgAddr(|| {
+            crate::menu::texts_store::MENU_TEXTS
+                .redefine_keys_player3_picture
+                .addr()
+        }),
         Step::CallOrFatal(Callee::LoadBackground, 0x80712345),
     ],
     after_first_frame: &[Step::DoFlow(after_first_frame)],

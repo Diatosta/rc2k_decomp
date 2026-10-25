@@ -15,11 +15,10 @@ use crate::errors::Refused;
 use crate::net::draw_centred_item::draw_centred_item;
 use crate::net::draw_number_value::draw_number_value;
 use crate::net::draw_setting_value::draw_setting_value;
-use crate::net::lobby::{PALETTE, a, blit, copy_picture, lock_surface};
+use crate::net::lobby::{PALETTE, blit, copy_picture, lock_surface};
 use crate::net::setting_label::setting_label;
 use crate::net::store::NET;
 use crate::text::draw_text::GameCanvas;
-use crate::text::font::Font;
 use rc2k_core::net::screens;
 
 /// The Rust version (the original keeps every register). Called through
@@ -52,7 +51,7 @@ pub fn settings_frame() -> Result<(), Refused> {
     let measured = unsafe {
         crate::text::measure_string_by_id::measure_string_by_id_at(
             0x16F,
-            a(PALETTE) as *mut Font,
+            PALETTE.as_ptr(),
             0x190,
             &mut GameCanvas,
         )

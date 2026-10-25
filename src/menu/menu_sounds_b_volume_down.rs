@@ -8,7 +8,7 @@
 use crate::menu::option_steps::{SOUNDS_B_RVA, Then, Volume, volume_step};
 
 const STEP: Volume = Volume {
-    value_rva: SOUNDS_B_RVA,
+    value: SOUNDS_B_RVA,
     up: false,
     then: Then::Sound(0x40),
 };

@@ -19,14 +19,13 @@
 use crate::errors::Refused;
 use crate::files::handle;
 use crate::physics::flow::a;
-use crate::race::replay_path::{LAST_RACE_PATH, replay_path};
+use crate::race::replay_path::replay_path;
 use crate::race::viewer::{
     BLOCK, BLOCK_CURSOR, BLOCK_DATA, BLOCKS, CAMERAS, CAR_HEADER, FRAME, HANDLE, HEADER, INDEX,
     MARK_IN, MARK_OUT, OPEN, get, put,
 };
 
 const RECORDED: usize = 0x5BEC84; // dword_5BEC84: a replay was recorded
-const CARS_FROM: usize = 0x528534; // unk_528534
 use rc2k_core::race::viewer_flow::{HEADER_LEN, INDEX_LEN};
 
 /// The Rust version: whether it failed (the carry the original leaves; it keeps the
@@ -51,12 +50,15 @@ pub fn open_viewed_replay(slot: u32) -> Result<bool, Refused> {
     if copied_first(found.number) {
         // A saved replay is copied over the last race's first.
         let copied = unsafe {
-            crate::files::copy_file::copy_file(path as _, a(LAST_RACE_PATH) as *const u8)?
+            crate::files::copy_file::copy_file(
+                path as _,
+                crate::race::replay_path::LAST_RACE.addr() as *const u8,
+            )?
         };
         if !copied {
             return failed();
         }
-        path = a(LAST_RACE_PATH);
+        path = crate::race::replay_path::LAST_RACE.addr() as u32;
     }
     let Some(file) = (unsafe { handle::open_by_mode(path as _, 0)? }) else {
         return failed();
@@ -103,7 +105,10 @@ pub fn open_viewed_replay(slot: u32) -> Result<bool, Refused> {
     }
     unsafe {
         std::ptr::copy_nonoverlapping(
-            a(CARS_FROM) as *const u8,
+            crate::race::replay::REPLAYS
+                .header
+                .as_ptr()
+                .wrapping_add(0x30) as *const u8, // unk_528534
             a(CAR_HEADER) as *mut u8,
             CAR_HEADER_LEN,
         )

@@ -16,13 +16,11 @@
 //! 0x100, a section past 5, a player past 4 or missing, before anything; a driver not found is the
 //! search's fatal error, before anything.
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::menu::draw_work_store::DRAW_WORK;
+use crate::menu::event_store::EVENT_STATE;
 use crate::menu::standings::*;
 
-const POINTS_RVA: usize = rva(0x7559AC); // seconds
-const CLASS_RVA: usize = rva(0x7558F4); // dword_7558F4
-const CLASSES_RVA: usize = rva(0x7558F8); // dword_7558F8
-const STATUS_TEXT_RVA: usize = rva(0x4DEC56); // aStatusOfDriver
+const STATUS_TEXT_RVA: &std::ffi::CStr = c"Status of driver"; // aStatusOfDriver
 /// The driver (computer, by `find_cpu_team`) or player of an entry, and the field its
 /// stage points go to, and whether it keeps them.
 enum Owner {
@@ -44,9 +42,9 @@ unsafe fn owner(e: u32) -> Result<Owner, Refused> {
 /// The Rust version (see the header): the registers it leaves.
 pub unsafe fn award_stage_points() -> Result<(), Refused> {
     unsafe {
-        let classes: u32 = game_read(CLASSES_RVA);
-        let section: u32 = game_read(SECTION_RVA);
-        let table: u32 = game_read(TABLE_B_RVA);
+        let classes: u32 = EVENT_STATE.classes.get();
+        let section: u32 = SECTION_RVA.get();
+        let table: u32 = TABLE_B_RVA.get();
         if table == 0 || classes == 0 || classes > 0x100 || section > 5 {
             return Err(BadInput(
                 "no table, a class count of 0 or past 0x100, or a section past 5",
@@ -63,20 +61,20 @@ pub unsafe fn award_stage_points() -> Result<(), Refused> {
         let at = 4 * section;
         for class in 0..classes {
             let mut points = Points::default();
-            game_write(POINTS_RVA, points.0);
+            DRAW_WORK.seconds.set(points.0);
             for (&e, o) in all.iter().zip(&owners) {
-                game_write(CLASS_RVA, class);
+                EVENT_STATE.class.set(class);
                 if get(e + 0x10) != class {
                     continue;
                 }
                 crate::logfile::log_write::log_write(
-                    game_addr(STATUS_TEXT_RVA) as *const u8,
+                    STATUS_TEXT_RVA.as_ptr() as usize as *const u8,
                     false,
                     1,
                 );
                 crate::logfile::log_int::log_int(get(e + 0x74) as i32, true, 1);
                 let given = points.take();
-                game_write(POINTS_RVA, points.0);
+                DRAW_WORK.seconds.set(points.0);
                 let (keeps, field) = match *o {
                     Owner::Driver(d) => (get(d + 0x24) == 1, d + 0x78 + at),
                     Owner::Player(p) => (get(p + 0xD0) == 1, p + 0x98 + at),

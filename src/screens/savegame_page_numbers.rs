@@ -12,8 +12,8 @@
 //! the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{game_addr, game_read, rva};
-use crate::menu::name_lists::SAVEGAME_PAGE_RVA;
+use crate::framework::{game_addr, rva};
+use crate::menu::pages_store::MENU_PAGES;
 
 // ---- game data ----
 
@@ -25,7 +25,7 @@ const NUMBERS_RVA: usize = rva(0xA8C158); // byte_A8C158: ten texts of four byte
 /// A number with a 0 before it under 10.
 pub fn savegame_page_numbers() -> Result<(), Refused> {
     // Converted: `rc2k_core::screens::captions::savegame_numbers`.
-    let page = unsafe { game_read::<u32>(SAVEGAME_PAGE_RVA) };
+    let page = { MENU_PAGES.save_page.get() };
     let (caption, numbers) = rc2k_core::screens::captions::savegame_numbers(page)?;
     unsafe {
         std::ptr::copy_nonoverlapping(

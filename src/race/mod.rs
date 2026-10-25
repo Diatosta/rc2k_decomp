@@ -56,6 +56,8 @@ pub mod replay_mode;
 pub mod replay_mode_2;
 pub mod replay_screenshot;
 pub mod save_seal;
+pub mod seal_store;
+pub mod seal_tables;
 pub mod set_all_plates;
 pub mod set_up_credits_race;
 pub mod settings_copy;
@@ -79,6 +81,7 @@ pub mod store_data;
 pub mod throw_mud_texel;
 pub mod tint_to_mud_colour;
 pub mod tyre_change_gauge;
+pub mod tyre_store;
 pub mod update_mud_texture;
 
 pub mod viewer;

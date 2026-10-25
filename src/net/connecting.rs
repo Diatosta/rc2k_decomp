@@ -11,7 +11,7 @@
 use crate::errors::Refused;
 use crate::net::lobby::{lock_surface, run_frame};
 
-pub const STATUS_FONT: usize = 0x51E9A4; // stru_51E9A4
+pub const STATUS_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::STAGE_TITLE;
 
 /// An empty frame, then string `id` shown on the background and a second's sleep (not
 /// when the lock fails). Shared with `net::hosting`, `net::joining`, `net::stopping`.

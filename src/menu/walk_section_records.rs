@@ -12,17 +12,14 @@
 //! Callers: `sub_4A0E60`, `sub_4AA4D7`. The steps are their Rust versions. Refuses what they refuse
 //! for any record of the walk, and a walk past 64 records, before anything.
 use crate::errors::Refused;
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::menu::event_store::EVENT_STATE;
 use crate::menu::standings::*;
 use rc2k_core::menu::section_walk::Step;
 
-const FIRST_RVA: usize = rva(0x755944); // dword_755944
-const COUNTER_RVA: usize = rva(0x755950); // dword_755950
-const ENDED_RVA: usize = rva(0x755928); // dword_755928
 /// The record at `index` of the current section.
 fn record_at(index: u32) -> u32 {
-    let table = game_addr(RECORDS_RVA) as u32;
-    let section: u32 = unsafe { game_read(SECTION_RVA) };
+    let table = crate::records::stages_store::STAGE_TABLES.championship();
+    let section: u32 = { SECTION_RVA.get() };
     crate::records::find_record::find_record_in(table, index as i32, section)
 }
 
@@ -30,8 +27,8 @@ fn record_at(index: u32) -> u32 {
 fn walk() -> Result<Vec<(u32, Step)>, Refused> {
     current_event()?;
     counted_players()?;
-    entries(game_addr(DRIVERS_RVA) as u32, DRIVER)?;
-    let index: u32 = unsafe { game_read(INDEX_RVA) };
+    entries(crate::menu::drivers_store::DRIVERS.first(), DRIVER)?;
+    let index: u32 = { INDEX_RVA.get() };
     // Converted: `rc2k_core::menu::section_walk::walk`.
     rc2k_core::menu::section_walk::walk(
         index,
@@ -48,7 +45,7 @@ pub unsafe fn walk_section_records() -> Result<(), Refused> {
         for (_, step) in records {
             if !step.goes_on() {
                 if step == Step::Ended {
-                    game_write(ENDED_RVA, 1u32);
+                    EVENT_STATE.championship_end.set(1u32);
                 }
                 break;
             }
@@ -62,10 +59,12 @@ pub unsafe fn walk_section_records() -> Result<(), Refused> {
                 _ => {}
             }
             if let Some(first) = step.first() {
-                game_write(FIRST_RVA, first);
+                EVENT_STATE.service_944.set(first);
             }
-            game_write(INDEX_RVA, game_read::<u32>(INDEX_RVA).wrapping_add(1));
-            game_write(COUNTER_RVA, game_read::<u32>(COUNTER_RVA).wrapping_add(1));
+            INDEX_RVA.set(INDEX_RVA.get().wrapping_add(1));
+            EVENT_STATE
+                .stages_done
+                .set(EVENT_STATE.stages_done.get().wrapping_add(1));
             rpt::reset_player_totals()?;
         }
         rdc::reset_driver_condition()?;

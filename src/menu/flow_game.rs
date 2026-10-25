@@ -7,6 +7,8 @@ use crate::errors::{BadInput, FatalError, Refused};
 use crate::framework::{game_addr, rva};
 use crate::menu::event_flow::*;
 use crate::menu::lists_store::MENU_LISTS;
+use crate::menu::option_work_store::OPTION_WORK;
+use crate::menu::results_store::RESULT_FIGURES;
 use crate::menu::run_championship as champ;
 use crate::menu::screen_loop::Carried;
 use crate::menu::screen_loop::run_screen_carried;
@@ -16,12 +18,7 @@ use crate::session::Dword;
 use rc2k_core::menu::flow::{self, CarList, Hand, Picture, Reply, Var};
 
 pub const PICTURE_FRAME: usize = 0x46F3FA; // menu::picture_frame, handed to the frame
-pub const SPEECH: usize = 0x50960E; // ";3files\%speech\rally\rally0.wav"
-pub const SPEECH_CHANNEL: usize = 0x755698; // dword_755698
-pub const CHAMPIONSHIP_PICTURE: usize = 0x731C09; // "files\g\graphics\screens\mob_welc.png"
-pub const A8_PICTURE: usize = 0x731C2F; // "files\g\graphics\screens\a8_welc.png"
-pub const TITLE_BAR: usize = 0x731C54; // "files\g\graphics\screens\titlebar.png"
-const CLEARED: usize = 0x7587A8; // dword_7587A8 .. dword_7587C4
+pub const SPEECH_CHANNEL: &Dword = &OPTION_WORK.speech_level; // dword_755698
 const PLAYER_TIME: u32 = 0x88;
 const PLAYER_ENTRY: u32 = 0xD0;
 
@@ -47,8 +44,7 @@ pub fn addr(a: usize) -> u32 {
 
 /// Where a variable is.
 enum Place {
-    At(usize),
-    /// A variable of the physics block's.
+    /// A variable of the front end's or the physics block's.
     Cell(&'static Dword),
     /// Player n's field (edi the player).
     Player(u32, u32),
@@ -59,53 +55,53 @@ enum Place {
 }
 
 fn place(v: Var) -> Place {
-    use Place::{At, Cell};
+    use Place::Cell;
     match v {
-        Var::Answer => At(ANSWER),
-        Var::PlayerCount => At(PLAYER_COUNT),
-        Var::EventMode => At(EVENT_MODE),
-        Var::EventType => At(EVENT_TYPE),
-        Var::Mode => At(MODE),
-        Var::Current => At(CURRENT),
-        Var::CarLeft => At(CAR_LEFT),
-        Var::Leave => At(LEAVE),
-        Var::Leave561 => At(LEAVE_561),
-        Var::Ended565 => At(ENDED_565),
-        Var::Ended569 => At(ENDED_569),
-        Var::LeftA3C => At(LEFT_A3C),
-        Var::Done => At(DONE),
-        Var::Round => At(ROUND),
-        Var::Qualifies => At(crate::menu::time_trial_qualifies::QUALIFIES),
-        Var::Entered => At(crate::menu::time_trial_qualifies::ANY_QUALIFIED),
-        Var::ServiceDue => At(champ::SERVICE_DUE),
+        Var::Answer => Cell(ANSWER),
+        Var::PlayerCount => Cell(PLAYER_COUNT),
+        Var::EventMode => Cell(EVENT_MODE),
+        Var::EventType => Cell(EVENT_TYPE),
+        Var::Mode => Cell(MODE),
+        Var::Current => Cell(CURRENT),
+        Var::CarLeft => Cell(CAR_LEFT),
+        Var::Leave => Cell(LEAVE),
+        Var::Leave561 => Cell(LEAVE_561),
+        Var::Ended565 => Cell(ENDED_565),
+        Var::Ended569 => Cell(ENDED_569),
+        Var::LeftA3C => Cell(LEFT_A3C),
+        Var::Done => Cell(DONE),
+        Var::Round => Cell(ROUND),
+        Var::Qualifies => Cell(crate::menu::time_trial_qualifies::QUALIFIES),
+        Var::Entered => Cell(crate::menu::time_trial_qualifies::ANY_QUALIFIED),
+        Var::ServiceDue => Cell(champ::SERVICE_DUE),
         Var::RaceResult => Cell(&RACE_STATE.results.results[0].result),
         Var::RaceResult2 => Cell(&RACE_STATE.results.results[1].result),
-        Var::CarListKind => At(CAR_LIST_KIND),
-        Var::Cheats => At(CHEATS),
-        Var::Cleared(k) => At(CLEARED + 4 * k as usize),
+        Var::CarListKind => Cell(CAR_LIST_KIND),
+        Var::Cheats => Cell(CHEATS),
+        Var::Cleared(k) => Cell(&RESULT_FIGURES.before[k as usize]),
         Var::PlayerTime(n) => Place::Player(n, PLAYER_TIME),
         Var::PlayerEntry(n) => Place::Player(n, PLAYER_ENTRY),
-        Var::Continuing => At(CONTINUING),
-        Var::StagesDone => At(champ::STAGES_DONE),
-        Var::ResetTimes => At(champ::RESET_TIMES),
-        Var::Services => At(champ::SERVICES),
+        Var::Continuing => Cell(CONTINUING),
+        Var::StagesDone => Cell(champ::STAGES_DONE),
+        Var::ResetTimes => Cell(champ::RESET_TIMES),
+        Var::Services => Cell(champ::SERVICES),
         Var::ModeAB40 => Cell(&MENU_STATE.menus.class_mode),
-        Var::StartSection { a8: false } => At(champ::START_SECTION),
-        Var::StartSection { a8: true } => At(champ::START_SECTION_A8),
-        Var::ServiceTime => At(champ::SERVICE_TIME),
-        Var::Service940 => At(champ::SERVICE_940),
-        Var::Service944 => At(champ::SERVICE_944),
-        Var::ServiceNext => At(champ::SERVICE_NEXT),
-        Var::TheEnd => At(champ::THE_END),
-        Var::GoesOn => At(champ::GOES_ON),
-        Var::Section => At(SECTION),
-        Var::Index => At(INDEX),
+        Var::StartSection { a8: false } => Cell(champ::START_SECTION),
+        Var::StartSection { a8: true } => Cell(champ::START_SECTION_A8),
+        Var::ServiceTime => Cell(champ::SERVICE_TIME),
+        Var::Service940 => Cell(champ::SERVICE_940),
+        Var::Service944 => Cell(champ::SERVICE_944),
+        Var::ServiceNext => Cell(champ::SERVICE_NEXT),
+        Var::TheEnd => Cell(champ::THE_END),
+        Var::GoesOn => Cell(champ::GOES_ON),
+        Var::Section => Cell(SECTION),
+        Var::Index => Cell(INDEX),
         Var::RallyDone => Cell(&MENU_STATE.menus.rally_done),
-        Var::WelcomeFigure => At(champ::WELCOME_FIGURE),
-        Var::Welcomed => At(champ::WELCOMED),
+        Var::WelcomeFigure => Cell(champ::WELCOME_FIGURE),
+        Var::Welcomed => Cell(champ::WELCOMED),
         Var::ReviewKind => Cell(&MENU_STATE.menus.review_kind),
         Var::Record(offset) => Place::Record(offset),
-        Var::SpeechChannel => At(SPEECH_CHANNEL),
+        Var::SpeechChannel => Cell(SPEECH_CHANNEL),
         Var::Quitting => Place::Quitting,
     }
 }
@@ -136,7 +132,6 @@ impl flow::Game for Game {
 
     fn get(&mut self, v: Var) -> u32 {
         match place(v) {
-            Place::At(a) => get(a),
             Place::Cell(cell) => cell.get(),
             Place::Player(n, offset) => dword(player(n) + offset),
             Place::Record(offset) => dword(self.f.record + offset),
@@ -146,7 +141,6 @@ impl flow::Game for Game {
 
     fn set(&mut self, v: Var, value: u32) {
         match place(v) {
-            Place::At(a) => set(a, value),
             Place::Cell(cell) => cell.set(value),
             Place::Player(n, offset) => {
                 self.f.record = player(n);
@@ -177,7 +171,7 @@ impl flow::Game for Game {
                 C::A8Welcome => m::a8_welcome::a8_welcome(&self.f)?,
                 C::FindRecord { section, index } => {
                     use crate::records::find_record::{find_record_in, has_section};
-                    self.f.record = addr(RECORD_TABLE);
+                    self.f.record = crate::records::stages_store::STAGE_TABLES.championship();
                     self.f.c.palette = section;
                     self.f.c.arg = index;
                     // The original has no end-of-table check: a section past the table's
@@ -294,18 +288,22 @@ impl flow::Game for Game {
                 C::TimeTrialBestTimesLoop => self.screen(&m::time_trial_best_times_loop::SCREEN)?,
                 C::Review485F5E => self.screen(&m::review_options_485f5e_loop::SCREEN)?,
                 C::StartStream { channel } => {
-                    self.f.c.arg = addr(SPEECH);
+                    self.f.c.arg =
+                        crate::audio::names_store::SAMPLE_NAMES.rally_speech.addr() as u32; // ";3files\%speech\rally\rally0.wav"
                     self.f.c.measure_x = channel;
                     crate::sound::start_stream::start_stream(self.f.c.arg, channel);
                 }
                 C::WaitForCommands => crate::sound::wait_for_commands::wait_in_game(),
                 C::StopStream => crate::sound::stop_stream::stop_stream(),
                 C::LoadPicture(p) => {
-                    self.f.c.arg = addr(match p {
-                        Picture::Championship => CHAMPIONSHIP_PICTURE,
-                        Picture::A8 => A8_PICTURE,
-                    });
-                    self.f.c.palette = addr(TITLE_BAR);
+                    self.f.c.arg = match p {
+                        Picture::Championship => {
+                            crate::menu::texts_store::MENU_TEXTS.mob_welc_png.addr()
+                        }
+                        Picture::A8 => crate::menu::texts_store::MENU_TEXTS.a8_welc_png.addr(),
+                    } as u32;
+                    self.f.c.palette =
+                        crate::menu::texts_store::MENU_TEXTS.titlebar_png.addr() as u32;
                     self.f.c.carry =
                         crate::gfx::load_picture_with_overlay::load_picture_with_overlay(
                             self.f.c.arg as *mut u8,

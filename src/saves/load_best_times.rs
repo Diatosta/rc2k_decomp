@@ -16,15 +16,22 @@
 use crate::errors::{BadInput, Refused};
 use crate::files::handle::{close, open_by_mode, read};
 use crate::framework::{game_addr, rva};
-use crate::memory::MemoryList;
-use crate::saves::allocate_best_times::{VARS_RVA, allocate_best_times, pair};
-use crate::settings::TEXT_RVA;
+use crate::saves::allocate_best_times::{allocate_best_times, pair};
+use crate::saves::best_times_store::BEST_TIMES;
 
 // ---- game data ----
 
-const PATH_RVA: usize = rva(0x5295E4); // "var\hst.dat"
-const LOADED_RVA: usize = rva(0x747614); // dword_747614
-const LIST_RVA: usize = rva(0x7475D0); // stru_7475D0
+/// IDA's address of the best times file's name.
+pub const PATH_START: usize = 0x5295E4;
+
+/// `aVarHstDat`: the best times file's name.
+pub static PATH: crate::session::Bytes<12> = crate::session::Bytes::new(*b"var\\hst.dat\0");
+
+/// Where the name is (`moved::MOVED`'s home for IDA 0x5295E4).
+pub fn path_home() -> usize {
+    PATH.addr()
+}
+
 const RECORD_TABLE_RVA: usize = rva(0x735576); // g_recordTable
 // "R5HS"
 const HEAD_LEN: u32 = 0x10;
@@ -65,11 +72,18 @@ pub unsafe fn load_best_times(places: &mut Places) -> Result<bool, Refused> {
         let Some(file) = (places.open)(places.path)? else {
             return Ok(false);
         };
-        if !read_or_close(file, game_addr(TEXT_RVA) as *mut u8, HEAD_LEN) {
+        if !read_or_close(
+            file,
+            crate::files::scratch::SCRATCH.buffer.addr() as *mut u8,
+            HEAD_LEN,
+        ) {
             return Ok(false);
         }
         // Converted: `rc2k_core::saves::kept::head_ok`.
-        let head = std::slice::from_raw_parts(game_addr(TEXT_RVA) as *const u8, HEAD_LEN as usize);
+        let head = std::slice::from_raw_parts(
+            crate::files::scratch::SCRATCH.buffer.addr() as *const u8,
+            HEAD_LEN as usize,
+        );
         if !rc2k_core::saves::kept::head_ok(head, rc2k_core::saves::kept::BEST_TIMES) {
             // The file stays open, as in the original.
             return Ok(false);
@@ -88,7 +102,7 @@ pub unsafe fn load_best_times(places: &mut Places) -> Result<bool, Refused> {
 
 fn game_table(n: usize) -> (u32, u32) {
     unsafe {
-        let pair = pair(game_addr(VARS_RVA) as *mut u32, READ[n]);
+        let pair = pair(BEST_TIMES.vars(), READ[n]);
         (pair.read_unaligned(), pair.add(1).read_unaligned())
     }
 }
@@ -97,17 +111,28 @@ fn game_table(n: usize) -> (u32, u32) {
 pub unsafe fn load_game_best_times() -> Result<bool, Refused> {
     unsafe {
         load_best_times(&mut Places {
-            path: game_addr(PATH_RVA) as *const u8,
+            path: PATH.addr() as *const u8,
             allocate: &mut || {
                 allocate_best_times(
-                    game_addr(VARS_RVA) as *mut u32,
-                    game_addr(LIST_RVA) as *mut MemoryList,
+                    BEST_TIMES.vars(),
+                    BEST_TIMES.list(),
                     game_addr(RECORD_TABLE_RVA) as *const u8,
                 )
             },
             open: &mut |path| open_by_mode(path, 0),
             table: &game_table,
-            loaded: game_addr(LOADED_RVA) as *mut u32,
+            loaded: BEST_TIMES.loaded.addr() as *mut u32,
         })
+    }
+}
+
+#[cfg(test)]
+mod path_tests {
+    use super::*;
+
+    #[test]
+    fn first_values_are_the_games() {
+        crate::gfx::first_values_are_the_games(&PATH, PATH_START, PATH_START + 12);
+        assert_eq!(crate::moved::place(PATH_START), PATH.addr());
     }
 }

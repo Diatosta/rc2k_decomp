@@ -26,11 +26,9 @@ use crate::audio::describe_wave_format::describe_wave_format;
 use crate::audio::store::AUDIO;
 use crate::audio::voices::*;
 use crate::errors::{BadInput, Refused};
-use crate::framework::rva;
-use crate::store::game_addr;
 
-const CREATE_FAILED_RVA: usize = rva(0x4DA6E4); // "AUD: 1-DSBCreate failed"
-const QUERY_FAILED_RVA: usize = rva(0x4DA6FC); // "AUD: 1-DSBQuery3D failed"
+const CREATE_FAILED_RVA: &std::ffi::CStr = c"AUD: 1-DSBCreate failed"; // "AUD: 1-DSBCreate failed"
+const QUERY_FAILED_RVA: &std::ffi::CStr = c"AUD: 1-DSBQuery3D failed"; // "AUD: 1-DSBQuery3D failed"
 pub const MODE_OWN_BUFFERS: u32 = 0x1_0000;
 use rc2k_core::audio::voices::MODE_HARDWARE_3D;
 const MODE_EAX: u32 = 0x100_0000;
@@ -133,9 +131,9 @@ pub unsafe fn make_buffer(at: u32, ebx: u32) -> Result<bool, Refused> {
 }
 
 /// The failure's text and result to the game's log; false (the carry).
-fn log_failure(text: usize, result: i32) -> bool {
+fn log_failure(text: &std::ffi::CStr, result: i32) -> bool {
     unsafe {
-        crate::logfile::log_write::log_write(game_addr(text) as *const u8, false, 1);
+        crate::logfile::log_write::log_write(text.as_ptr().cast(), false, 1);
         crate::logfile::log_hex8::log_hex8(result as u32, true, 1);
     }
     false

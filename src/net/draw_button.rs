@@ -15,24 +15,38 @@
 //! `net::lobby_button`.
 
 use crate::errors::Refused;
-use crate::net::lobby::{CHOICE, FRAME_CLOCK, MOVE_CLOCK, PALETTE, a, g};
+use crate::install::vars::INSTALLER_PAGES;
+use crate::net::lobby::PALETTE;
 use crate::net::store::NET;
-use crate::text::font::Font;
 use rc2k_core::net::screens::{self, ButtonFont};
 
-pub const FONT_PLAIN: usize = 0x51E704; // unk_51E704
-pub const FONT_LIT: usize = 0x51E644; // unk_51E644
-const FONT_DIM: usize = 0x51E7C4; // stru_51E7C4
+pub const FONT_PLAIN: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::BUTTON;
+pub const FONT_LIT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::BUTTON_LIT;
+const FONT_DIM: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::BUTTON_DIM;
 
 /// The font of item `item`'s text: lit when it is the highlighted item and being edited
 /// or in the blink's lit half.
-pub fn item_font(item: u32, plain: usize, lit: usize) -> u32 {
+pub fn item_font(
+    item: u32,
+    plain: crate::gfx::typefaces::FontId,
+    lit: crate::gfx::typefaces::FontId,
+) -> crate::gfx::typefaces::FontId {
     // Converted: `rc2k_core::net::screens::{item_lit, blink_lit}`.
-    let blink = || screens::blink_lit(g(FRAME_CLOCK), g(MOVE_CLOCK));
-    if screens::item_lit(item, g(CHOICE), || NET.edited.get(), blink) {
-        a(lit)
+    let blink = || {
+        screens::blink_lit(
+            INSTALLER_PAGES.frame_clock.get(),
+            INSTALLER_PAGES.move_clock.get(),
+        )
+    };
+    if screens::item_lit(
+        item,
+        INSTALLER_PAGES.choice.get(),
+        || NET.edited.get(),
+        blink,
+    ) {
+        lit
     } else {
-        a(plain)
+        plain
     }
 }
 
@@ -47,7 +61,7 @@ pub fn draw_button(string: u32, flags: u32, x: u32, y: u32, item: u32) -> Result
         crate::net::store::BUTTON.item.set(item);
         let measured = crate::text::measure_string_by_id::measure_string_by_id_at(
             string,
-            a(PALETTE) as *mut Font,
+            PALETTE.as_ptr(),
             x as i32,
             &mut GameCanvas,
         )?;
@@ -89,18 +103,23 @@ pub fn draw_button(string: u32, flags: u32, x: u32, y: u32, item: u32) -> Result
         )?;
         let lit = screens::item_lit(
             item,
-            g(CHOICE),
+            INSTALLER_PAGES.choice.get(),
             || NET.edited.get(),
-            || screens::blink_lit(g(FRAME_CLOCK), g(MOVE_CLOCK)),
+            || {
+                screens::blink_lit(
+                    INSTALLER_PAGES.frame_clock.get(),
+                    INSTALLER_PAGES.move_clock.get(),
+                )
+            },
         );
-        let font = a(match screens::button_font(flags, lit) {
+        let font = match screens::button_font(flags, lit) {
             ButtonFont::Plain => FONT_PLAIN,
             ButtonFont::Lit => FONT_LIT,
             ButtonFont::Dim => FONT_DIM,
-        });
+        };
         crate::text::draw_string_by_id::draw_string_by_id_at(
             crate::net::store::BUTTON.text.get(),
-            font as *mut Font,
+            font.as_ptr(),
             crate::net::store::BUTTON.x.get() as i32,
             crate::net::store::BUTTON.y.get() as i32,
             &mut GameCanvas,

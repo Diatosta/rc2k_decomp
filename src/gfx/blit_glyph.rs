@@ -16,17 +16,11 @@
 //! the pixels are copied as they are, whatever the surface depth.
 
 use crate::errors::FatalError;
-use crate::gfx::blit::Slot as BlitSlot;
-use crate::gfx::block::{game_read, game_write};
+use crate::gfx::blit::BLIT;
 use crate::gfx::surface::{Clip, Surface, clip, surface};
 use std::ptr::copy_nonoverlapping;
 
 // ---- game data ----
-
-const LEFT_SKIP_RVA: BlitSlot = BlitSlot::at(0x4F504C); // g_blitLeftSkip
-const VISIBLE_W_RVA: BlitSlot = BlitSlot::at(0x4F5050); // g_blitVisibleWidth
-const TOP_SKIP_RVA: BlitSlot = BlitSlot::at(0x4F5054); // g_blitTopSkip
-const ROWS_LEFT_RVA: BlitSlot = BlitSlot::at(0x4F5058); // g_blitRowsLeft
 
 /// The four work globals the blitter leaves behind. Each is only written once the clipping
 /// has got that far, so a glyph that is clipped away leaves the later ones as they were.
@@ -43,23 +37,19 @@ pub struct Scratch {
 }
 
 fn read_scratch() -> Scratch {
-    unsafe {
-        Scratch {
-            left_skip: game_read(LEFT_SKIP_RVA),
-            visible_w: game_read(VISIBLE_W_RVA),
-            top_skip: game_read(TOP_SKIP_RVA),
-            rows_left: game_read(ROWS_LEFT_RVA),
-        }
+    Scratch {
+        left_skip: BLIT.left_skip.get() as i32,
+        visible_w: BLIT.visible_width.get() as i32,
+        top_skip: BLIT.top_skip.get() as i32,
+        rows_left: BLIT.rows_left.get() as i32,
     }
 }
 
 fn write_scratch(s: &Scratch) {
-    unsafe {
-        game_write(LEFT_SKIP_RVA, s.left_skip);
-        game_write(VISIBLE_W_RVA, s.visible_w);
-        game_write(TOP_SKIP_RVA, s.top_skip);
-        game_write(ROWS_LEFT_RVA, s.rows_left);
-    }
+    BLIT.left_skip.set(s.left_skip as u32);
+    BLIT.visible_width.set(s.visible_w as u32);
+    BLIT.top_skip.set(s.top_skip as u32);
+    BLIT.rows_left.set(s.rows_left as u32);
 }
 
 /// The three conditions the original reports as fatal errors, each with a null message.

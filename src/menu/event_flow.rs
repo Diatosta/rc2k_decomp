@@ -6,19 +6,29 @@
 //! registers the originals hand from call to call in a `Flow`.
 
 use crate::errors::BadInput;
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::menu::captions_store::CAPTIONS;
+use crate::menu::champ_store::CHAMP_VIEW;
+use crate::menu::cheats_store::CHEAT_VARS;
+use crate::menu::draw_work_store::DRAW_WORK;
+use crate::menu::event_store::EVENT_STATE;
+use crate::menu::flow_store::SCREEN_FLOW;
+use crate::menu::loop_store::LOOP_FLAGS;
+use crate::menu::pages_store::MENU_PAGES;
+use crate::menu::players_store::PLAYER_TABLE;
+use crate::menu::results_store::RESULT_FIGURES;
 use crate::menu::screen_loop::Carried;
+use crate::session::Dword;
 
-/// A game variable (its address as IDA shows it).
-pub fn get(v: usize) -> u32 {
-    unsafe { game_read(rva(v)) }
+/// A game variable.
+pub fn get(v: &Dword) -> u32 {
+    v.get()
 }
 
-pub fn set(v: usize, x: u32) {
-    unsafe { game_write(rva(v), x) };
+pub fn set(v: &Dword, x: u32) {
+    v.set(x);
 }
 
-pub fn inc(v: usize) {
+pub fn inc(v: &Dword) {
     set(v, get(v).wrapping_add(1));
 }
 
@@ -32,34 +42,32 @@ pub fn put(p: u32, v: u32) {
 
 // ---- the variables ----
 
-pub const ANSWER: usize = 0x75524C; // g_yesNoAnswer
-pub const PLAYERS: usize = 0x75647C; // g_players
-pub const CURRENT: usize = 0x75598C; // dword_75598C: the current player
-pub const PLAYER_COUNT: usize = 0x755984; // dword_755984
-pub const EVENT_MODE: usize = 0x755988; // dword_755988 (9 .. 0x18, `menu::run_event_races`)
-pub const EVENT_TYPE: usize = 0x755954; // dword_755954: 3 time trial, 4, 5 the championships
-pub const MODE: usize = 0x7556D0; // g_eventMode: 2, 3, 0x13
-pub const CAR_LEFT: usize = 0x758806; // dword_758806: the car choice was left
-pub const LEAVE: usize = 0x75555D; // dword_75555D
-pub const LEAVE_561: usize = 0x755561; // dword_755561
-pub const ENDED_565: usize = 0x755565; // dword_755565
-pub const ENDED_569: usize = 0x755569; // dword_755569
-pub const DONE: usize = 0x755980; // dword_755980: 1 when an event is over
-pub const LEFT_A3C: usize = 0x755A3C; // dword_755A3C
-pub const CONTINUING: usize = 0x755970; // dword_755970: 1 when a saved game goes on
-pub const INDEX: usize = 0x755958; // index
-pub const SECTION: usize = 0x75595C; // section
-pub const RECORD_TABLE: usize = 0x735576; // g_recordTable
-pub const CHEATS: usize = 0x75870C; // g_cheats
-pub const ROUND: usize = 0x758714; // dword_758714: the rounds of a multi-player event
+pub const ANSWER: &Dword = &MENU_PAGES.yes_no_answer; // g_yesNoAnswer
+pub const CURRENT: &Dword = &EVENT_STATE.current_player; // dword_75598C: the current player
+pub const PLAYER_COUNT: &Dword = &EVENT_STATE.player_count; // dword_755984
+pub const EVENT_MODE: &Dword = &EVENT_STATE.event_kind; // dword_755988 (9 .. 0x18, `menu::run_event_races`)
+pub const EVENT_TYPE: &Dword = &EVENT_STATE.event_type; // dword_755954: 3 time trial, 4, 5 the championships
+pub const MODE: &Dword = &CHAMP_VIEW.event_mode; // g_eventMode: 2, 3, 0x13
+pub const CAR_LEFT: &Dword = &CAPTIONS.screen_left; // dword_758806: the car choice was left
+pub const LEAVE: &Dword = &LOOP_FLAGS.went_back; // dword_75555D
+pub const LEAVE_561: &Dword = &LOOP_FLAGS.back; // dword_755561
+pub const ENDED_565: &Dword = &LOOP_FLAGS.ended_b; // dword_755565
+pub const ENDED_569: &Dword = &LOOP_FLAGS.ended_a; // dword_755569
+pub const DONE: &Dword = &EVENT_STATE.event_done; // dword_755980: 1 when an event is over
+pub const LEFT_A3C: &Dword = &DRAW_WORK.escaped; // dword_755A3C
+pub const CONTINUING: &Dword = &EVENT_STATE.continuing_save; // dword_755970: 1 when a saved game goes on
+pub const INDEX: &Dword = &EVENT_STATE.index; // index
+pub const SECTION: &Dword = &EVENT_STATE.section; // section
+pub const CHEATS: &Dword = &CHEAT_VARS.cheats; // g_cheats
+pub const ROUND: &Dword = &RESULT_FIGURES.round; // dword_758714: the rounds of a multi-player event
 
 /// The car lists: `off_759CAE` (the championship's), `off_759D16` (the A8 championship's),
 /// `off_759DCA` / `off_75A042` (by `dword_7554D8`), `off_75A412` (with cheat bit 1).
-pub const CAR_LIST_KIND: usize = 0x7554D8; // dword_7554D8: 1 picks the first list
+pub const CAR_LIST_KIND: &Dword = &SCREEN_FLOW.car_list_kind; // dword_7554D8: 1 picks the first list
 
 /// Player `n`'s record (`g_players`).
 pub fn player(n: u32) -> u32 {
-    get(PLAYERS + 4 * n as usize)
+    PLAYER_TABLE.pointers[n as usize].get()
 }
 
 /// Refuses a missing one of the first `n` players (the originals read through them).
@@ -84,16 +92,15 @@ pub fn current_player() -> Result<u32, BadInput> {
 }
 
 /// The stage chosen: `off_735512[dword_7558C8][dword_7558D0]` + `dword_7558CC` x 0xA4.
-pub const STAGE_KIND: usize = 0x7558C8; // dword_7558C8
-pub const STAGE_SUB: usize = 0x7558D0; // dword_7558D0
-pub const STAGE_NUMBER: usize = 0x7558CC; // dword_7558CC
-const STAGE_TABLES: usize = 0x735512; // off_735512: four pointers
+pub const STAGE_KIND: &Dword = &EVENT_STATE.stage_group; // dword_7558C8
+pub const STAGE_SUB: &Dword = &EVENT_STATE.stage_sub; // dword_7558D0
+pub const STAGE_NUMBER: &Dword = &EVENT_STATE.stage_number; // dword_7558CC
 const KINDS: u32 = 4;
 pub const STAGE_RECORD: u32 = 0xA4;
 /// The stages' best times: `dword_7556E4` (kind 1) or `dword_7556E8`, 0x618 a stage (its
 /// +0x3C), ten entries of 0x9C each.
-pub const TIMES_ONE: usize = 0x7556E4; // dword_7556E4
-pub const TIMES_OTHER: usize = 0x7556E8; // dword_7556E8
+pub const TIMES_ONE: &Dword = &CHAMP_VIEW.stage_best_times_alt; // dword_7556E4
+pub const TIMES_OTHER: &Dword = &CHAMP_VIEW.time_trial_best_times; // dword_7556E8
 pub const TIMES_LEN: u32 = 0x618;
 pub const TIME_ENTRY: u32 = 0x9C;
 
@@ -104,7 +111,7 @@ pub fn stage_record() -> Result<u32, BadInput> {
     if kind >= KINDS {
         return Err(BadInput("a stage kind past off_735512's four"));
     }
-    let rallies = dword(game_addr(rva(STAGE_TABLES)) as u32 + 4 * kind);
+    let rallies = crate::records::stages_store::STAGE_TABLES.group_list(kind);
     let stages = if rallies == 0 {
         0
     } else {

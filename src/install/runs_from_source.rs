@@ -9,9 +9,8 @@
 //! Callers: the main loop `sub_415383` on every start, and `install::check_clio_disc`.
 
 use crate::errors::BadInput;
-use crate::framework::{game_addr, game_read};
 use crate::install::outside::Outside;
-use crate::install::read_registry::{SOURCE_RVA, STATUS_RVA};
+use crate::install::vars::INSTALLER_NAMES;
 use crate::strings::same_text::compare_texts;
 use std::cmp::Ordering;
 
@@ -29,7 +28,7 @@ pub unsafe fn source_against_directory(
 ) -> Result<Option<Ordering>, BadInput> {
     unsafe {
         outside.read_registry();
-        if game_read::<u8>(STATUS_RVA) != 1 || game_read::<u8>(SOURCE_RVA) == 0 {
+        if INSTALLER_NAMES.status.get() != 1 || INSTALLER_NAMES.source.get(0) == 0 {
             return Ok(None);
         }
         let directory = scratch_path();
@@ -37,7 +36,7 @@ pub unsafe fn source_against_directory(
             return Ok(None);
         }
         Ok(Some(compare_texts(
-            game_addr(SOURCE_RVA) as *const u8,
+            INSTALLER_NAMES.source.addr() as *const u8,
             directory,
         )))
     }

@@ -12,109 +12,93 @@
 //!
 //! the x87 version stays for the Rust callers in unconverted code).
 
-use crate::marks::pong;
-use crate::marks::store::{Slot, game_read, game_write};
+use crate::marks::pong::{self, PONG, PONG_RULES, PongRules, PongState};
+use crate::marks::store::{Slot, game_read};
 use crate::math::x87;
 
 /// The original's 0x4B8105 .. 0x4B8189: the centres and their difference.
-unsafe fn centres() {
-    unsafe { centres_x87(crate::marks::store::base() as usize) }
+fn centres() {
+    centres_x87(&PONG, &PONG_RULES)
 }
 
 /// The original's 0x4B81A4 .. 0x4B81FE: the difference made one long, scaled.
-unsafe fn new_way() {
-    unsafe { new_way_x87(crate::marks::store::base() as usize) }
+fn new_way() {
+    new_way_x87(&PONG, &PONG_RULES, unsafe { game_read(LENGTH_RVA) })
 }
 
-const ACROSS_RVA: Slot = Slot::at(0x7686F4); // flt_7686F4
-const ALONG_RVA: Slot = Slot::at(0x7686F8); // flt_7686F8
-const NUDGE_RVA: Slot = Slot::at(0x7691D6); // flt_7691D6
+const LENGTH_RVA: Slot = Slot::at(0x76516C); // flt_76516C
 
 /// The Rust version (see the header).
-pub unsafe fn pong_ball_hits() {
+pub fn pong_ball_hits() {
     let (over, _) = pong::overlap();
     if !over {
         return;
     }
-    unsafe {
-        game_write(
-            pong::HITS_RVA,
-            game_read::<u32>(pong::HITS_RVA).wrapping_add(1),
-        );
-        game_write(
-            pong::STEPS_RVA,
-            game_read::<u32>(pong::STEPS_RVA).wrapping_add(4),
-        );
-        for n in 0..2 {
-            let v = x87::sub(game_read(pong::BALL[n]), game_read(pong::BALL_WAY[n]));
-            game_write(pong::BALL[n], v);
-        }
-        centres();
-        if game_read::<u32>(ACROSS_RVA) == 0 {
-            game_write(
-                ACROSS_RVA,
-                x87::sub(game_read(ACROSS_RVA), game_read(NUDGE_RVA)),
-            );
-        }
-        new_way();
-        game_write(pong::BALL_WAY[0], game_read::<u32>(ACROSS_RVA));
-        game_write(pong::BALL_WAY[1], game_read::<u32>(ALONG_RVA));
+    let p = &PONG;
+    p.hits.set(p.hits.get().wrapping_add(1));
+    p.steps.set(p.steps.get().wrapping_add(4));
+    for n in 0..2 {
+        p.ball[n].set_bits(x87::sub(p.ball[n].bits(), p.ball_way[n].bits()));
     }
+    centres();
+    if p.difference[0].bits() == 0 {
+        p.difference[0].set_bits(x87::sub(p.difference[0].bits(), PONG_RULES.nudge.bits()));
+    }
+    new_way();
+    p.ball_way[0].set_bits(p.difference[0].bits());
+    p.ball_way[1].set_bits(p.difference[1].bits());
 }
 
-use crate::marks::plain::{ld, st};
+use crate::math::x87_float::{ld, st};
 
 /// `centres`'s x87 block as plain Rust on the x87 model (22 instructions), same order and memory places.
-unsafe fn centres_x87(mk: usize) {
-    unsafe {
-        let t0 = ld(mk, 0x3760);
-        let t1 = t0 * ld(mk, 0x4286);
-        let t2 = t1 + ld(mk, 0x3748);
-        st(mk, 0x379C, t2);
-        let t3 = ld(mk, 0x3764);
-        let t4 = t3 * ld(mk, 0x428A);
-        let t5 = t4 + ld(mk, 0x374C);
-        st(mk, 0x37A0, t5);
-        let t6 = ld(mk, 0x3790);
-        let t7 = t6 * ld(mk, 0x428E);
-        let t8 = t7 + ld(mk, 0x3778);
-        st(mk, 0x37A8, t8);
-        let t9 = ld(mk, 0x3794);
-        let t10 = t9 * ld(mk, 0x4292);
-        let t11 = t10 + ld(mk, 0x377C);
-        st(mk, 0x37AC, t11);
-        let t12 = ld(mk, 0x379C);
-        let t13 = t12 - ld(mk, 0x37A8);
-        st(mk, 0x37B4, t13);
-        let t14 = ld(mk, 0x37A0);
-        let t15 = t14 - ld(mk, 0x37AC);
-        st(mk, 0x37B8, t15);
-    }
+fn centres_x87(p: &PongState, r: &PongRules) {
+    let t0 = ld(p.ball_size[0].bits());
+    let t1 = t0 * ld(r.centre[0].bits());
+    let t2 = t1 + ld(p.ball[0].bits());
+    p.ball_centre[0].set_bits(st(t2));
+    let t3 = ld(p.ball_size[1].bits());
+    let t4 = t3 * ld(r.centre[1].bits());
+    let t5 = t4 + ld(p.ball[1].bits());
+    p.ball_centre[1].set_bits(st(t5));
+    let t6 = ld(p.bat_size[0].bits());
+    let t7 = t6 * ld(r.centre[2].bits());
+    let t8 = t7 + ld(p.bat[0].bits());
+    p.bat_centre[0].set_bits(st(t8));
+    let t9 = ld(p.bat_size[1].bits());
+    let t10 = t9 * ld(r.centre[3].bits());
+    let t11 = t10 + ld(p.bat[1].bits());
+    p.bat_centre[1].set_bits(st(t11));
+    let t12 = ld(p.ball_centre[0].bits());
+    let t13 = t12 - ld(p.bat_centre[0].bits());
+    p.difference[0].set_bits(st(t13));
+    let t14 = ld(p.ball_centre[1].bits());
+    let t15 = t14 - ld(p.bat_centre[1].bits());
+    p.difference[1].set_bits(st(t15));
 }
 
-/// `new_way`'s x87 block as plain Rust on the x87 model (19 instructions), same order and memory places.
-unsafe fn new_way_x87(mk: usize) {
-    unsafe {
-        let t0 = ld(mk, 0x37B4);
-        let t1 = t0 * t0;
-        let t2 = ld(mk, 0x37B8);
-        let t3 = t2 * t2;
-        let t4 = t1 + t3;
-        let t5 = t4.sqrt();
-        let t6 = ld(mk, 0x22C) / t5;
-        let t7 = ld(mk, 0x37B4);
-        let t8 = t7 * t6;
-        st(mk, 0x37B4, t8);
-        let t9 = ld(mk, 0x37B8);
-        let t10 = t6 * t9;
-        st(mk, 0x37B8, t10);
-        let t11 = ld(mk, 0x37B4);
-        let t12 = t11 * ld(mk, 0x429A);
-        st(mk, 0x37B4, t12);
-        let t13 = ld(mk, 0x37B8);
-        let t14 = t13 * ld(mk, 0x429E);
-        st(mk, 0x37B8, t14);
-    }
+/// `new_way`'s x87 block as plain Rust on the x87 model (19 instructions), same order and
+/// memory places; `length` the bits of `flt_76516C`.
+fn new_way_x87(p: &PongState, r: &PongRules, length: u32) {
+    let t0 = ld(p.difference[0].bits());
+    let t1 = t0 * t0;
+    let t2 = ld(p.difference[1].bits());
+    let t3 = t2 * t2;
+    let t4 = t1 + t3;
+    let t5 = t4.sqrt();
+    let t6 = ld(length) / t5;
+    let t7 = ld(p.difference[0].bits());
+    let t8 = t7 * t6;
+    p.difference[0].set_bits(st(t8));
+    let t9 = ld(p.difference[1].bits());
+    let t10 = t6 * t9;
+    p.difference[1].set_bits(st(t10));
+    let t11 = ld(p.difference[0].bits());
+    let t12 = t11 * ld(r.way_scale[0].bits());
+    p.difference[0].set_bits(st(t12));
+    let t13 = ld(p.difference[1].bits());
+    let t14 = t13 * ld(r.way_scale[1].bits());
+    p.difference[1].set_bits(st(t14));
 }
 
 #[cfg(test)]
@@ -190,13 +174,14 @@ mod asm_differential {
     use super::asm_reference as reference;
     use crate::marks::asm_test::Kind::*;
     use crate::marks::asm_test::{Op, Spec, differential};
+    use crate::marks::pong::{rules_at, state_at};
 
     #[test]
     fn centres_x87_matches() {
         const SPEC: Spec = Spec {
             operands: &[Op::Base {
-                lo: 0x3748,
-                hi: 0x4296,
+                lo: 0x3718,
+                hi: 0x42F2,
                 reads: &[
                     (0x3748, F32),
                     (0x374C, F32),
@@ -229,7 +214,7 @@ mod asm_differential {
         differential(
             &SPEC,
             |b| unsafe { reference::centres_x87(b[0]) },
-            |b| unsafe { super::centres_x87(b[0]) },
+            |b| super::centres_x87(state_at(b[0]), &rules_at(b[0])),
         );
     }
 
@@ -238,7 +223,7 @@ mod asm_differential {
         const SPEC: Spec = Spec {
             operands: &[Op::Base {
                 lo: 0x22C,
-                hi: 0x42A2,
+                hi: 0x42F2,
                 reads: &[
                     (0x22C, F32),
                     (0x37B4, F32),
@@ -253,7 +238,10 @@ mod asm_differential {
         differential(
             &SPEC,
             |b| unsafe { reference::new_way_x87(b[0]) },
-            |b| unsafe { super::new_way_x87(b[0]) },
+            |b| {
+                let length = unsafe { ((b[0] + 0x22C) as *const u32).read_unaligned() };
+                super::new_way_x87(state_at(b[0]), &rules_at(b[0]), length)
+            },
         );
     }
 }

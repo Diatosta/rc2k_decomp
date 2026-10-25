@@ -21,11 +21,16 @@
 //!
 //! The names of the texture and colour steps are readings of their variables.
 
+use crate::audio::names_store::SAMPLE_NAMES;
 use crate::audio::store::AUDIO;
 use crate::errors::Refused;
 use crate::framework::rva;
+use crate::gfx::choices_store::SCREEN_CHOICES;
+use crate::menu::captions_store::CAPTIONS;
+use crate::menu::flow_store::SCREEN_FLOW;
+use crate::menu::option_work_store::OPTION_WORK;
 use crate::race::state_store::RACE_STATE;
-use crate::store::{game_addr, game_read, game_write};
+use crate::session::Dword;
 
 // ---- the volume steps ----
 
@@ -39,125 +44,118 @@ pub enum Then {
 
 #[derive(Clone, Copy)]
 pub struct Volume {
-    pub value_rva: usize,
+    pub value: &'static Dword,
     pub up: bool,
     pub then: Then,
 }
 
-const SOUNDS_VOLUME_RVA: usize = rva(0x7554E8); // dword_7554E8
-const SPEECH_PATH_RVA: usize = rva(0x50962F); // ";3files\%speech\rally\st1.wav"
-pub const MUSIC_LEVEL_RVA: usize = rva(0x755688); // dword_755688
-pub const SPEECH_LEVEL_RVA: usize = rva(0x755698); // dword_755698
-pub const SOUNDS_A_RVA: usize = rva(0x75569C); // dword_75569C
-pub const SOUNDS_B_RVA: usize = rva(0x7556A0); // dword_7556A0
+pub const MUSIC_LEVEL_RVA: &Dword = &OPTION_WORK.music_level; // dword_755688
+pub const SPEECH_LEVEL_RVA: &Dword = &OPTION_WORK.speech_level; // dword_755698
+pub const SOUNDS_A_RVA: &Dword = &OPTION_WORK.sounds_a; // dword_75569C
+pub const SOUNDS_B_RVA: &Dword = &OPTION_WORK.sounds_b; // dword_7556A0
 /// The Rust version of a volume step. What it leaves in registers is read by none of its
 /// callers (the item call sites have nothing live after the call).
 pub fn volume_step(v: Volume) {
-    unsafe {
-        // Converted: `rc2k_core::menu::steps::volume`.
-        let value = rc2k_core::menu::steps::volume(game_read::<i32>(v.value_rva), v.up);
-        game_write(v.value_rva, value);
-        match v.then {
-            Then::Music => {
-                crate::sound::store::SOUND_OPTIONS
-                    .music_volume
-                    .set(value as u32);
-                crate::sound::set_music_volume::set_music_volume(value as u32);
-            }
-            Then::Speech => crate::sound::start_stream::start_stream(
-                game_addr(SPEECH_PATH_RVA) as u32,
-                value as u32,
-            ),
-            Then::Sound(sound) => {
-                game_write(SOUNDS_VOLUME_RVA, value);
-                crate::sound::play_menu_sound::play_menu_sound_in_game(sound);
-            }
+    // Converted: `rc2k_core::menu::steps::volume`.
+    let value = rc2k_core::menu::steps::volume(v.value.get() as i32, v.up);
+    v.value.set(value as u32);
+    match v.then {
+        Then::Music => {
+            crate::sound::store::SOUND_OPTIONS
+                .music_volume
+                .set(value as u32);
+            crate::sound::set_music_volume::set_music_volume(value as u32);
+        }
+        Then::Speech => crate::sound::start_stream::start_stream(
+            SAMPLE_NAMES.menu_speech_st1.addr() as u32,
+            value as u32,
+        ),
+        Then::Sound(sound) => {
+            SCREEN_FLOW.menu_sounds_volume.set(value as u32);
+            crate::sound::play_menu_sound::play_menu_sound_in_game(sound);
         }
     }
 }
 
 // ---- the plain steps (no calls) ----
 
-const MODE_RVA: usize = rva(0x4F50C8); // dword_4F50C8: the screen mode chosen
-const MODES_RVA: usize = rva(0x4F50E4); // dword_4F50E4: how many
-const MODE_CHANGED_RVA: usize = rva(0x755648); // dword_755648
-const TEXTURE_RVA: usize = rva(0x755664); // dword_755664
-
 /// `menu::next_screen_mode`: the next screen mode chosen, the changed flag flipped.
 pub fn next_screen_mode() {
-    unsafe {
-        // Converted: `rc2k_core::menu::steps::next_mode`.
-        let mode = rc2k_core::menu::steps::next_mode(game_read(MODE_RVA), game_read(MODES_RVA));
-        game_write(MODE_RVA, mode);
-        let changed = game_read::<u32>(MODE_CHANGED_RVA) ^ 1;
-        game_write(MODE_CHANGED_RVA, changed);
-    }
+    // Converted: `rc2k_core::menu::steps::next_mode`.
+    let mode =
+        rc2k_core::menu::steps::next_mode(SCREEN_CHOICES.mode.get(), SCREEN_CHOICES.modes.get());
+    SCREEN_CHOICES.mode.set(mode);
+    let changed = OPTION_WORK.mode_changed.get() ^ 1;
+    OPTION_WORK.mode_changed.set(changed);
 }
 
 /// `menu::previous_texture_setting` / `next_texture_setting`: the texture setting one
 /// step down or up.
 pub fn step_texture_setting(up: bool) {
-    unsafe {
-        // Converted: `rc2k_core::menu::steps::texture`.
-        let v = rc2k_core::menu::steps::texture(game_read(TEXTURE_RVA), up);
-        game_write(TEXTURE_RVA, v);
-        RACE_STATE.settings.setting_3.set(v);
-    }
+    // Converted: `rc2k_core::menu::steps::texture`.
+    let v = rc2k_core::menu::steps::texture(OPTION_WORK.setting_3.get(), up);
+    OPTION_WORK.setting_3.set(v);
+    RACE_STATE.settings.setting_3.set(v);
 }
 
 /// One of the colour choices: (its number, the table, where the pick goes).
 #[derive(Clone, Copy)]
 pub struct Colour {
-    pub number_rva: usize,
-    pub table_rva: usize,
-    pub pick_rva: usize,
+    pub number: &'static Dword,
+    /// The table of the pictures' string ids, in `CAPTIONS.caption_lists`, from `table_at`.
+    pub table_at: usize,
+    pub pick: &'static Dword,
 }
 
 pub const COLOUR_A: Colour = Colour {
-    number_rva: rva(0x7554C0),
-    table_rva: rva(0x758A66),
-    pick_rva: rva(0x758A2E),
+    number: &SCREEN_FLOW.start_section,
+    table_at: 21,                     // dword_758A66
+    pick: &CAPTIONS.caption_lists[7], // dword_758A2E
 };
 pub const COLOUR_B: Colour = Colour {
-    number_rva: rva(0x7554C4),
-    table_rva: rva(0x758A46),
-    pick_rva: rva(0x758A32),
+    number: &SCREEN_FLOW.start_section_a8,
+    table_at: 13,                     // dword_758A46
+    pick: &CAPTIONS.caption_lists[8], // dword_758A32
 };
 
 /// `menu::next_colour_a` and the three others.
 pub fn step_colour(c: Colour, up: bool) {
-    unsafe {
-        // Converted: `rc2k_core::menu::steps::colour`.
-        let n = rc2k_core::menu::steps::colour(game_read(c.number_rva), up);
-        game_write(c.number_rva, n);
-        let pick = game_read::<u32>(c.table_rva + 4 * n as usize);
-        game_write(c.pick_rva, pick);
-    }
+    // Converted: `rc2k_core::menu::steps::colour`.
+    let n = rc2k_core::menu::steps::colour(c.number.get() as i32, up);
+    c.number.set(n as u32);
+    // `CAPTIONS.caption_lists` from `table_at`: the original does not check `n` (a kept
+    // number past 6 steps on from it); the address is resolved by `MOVED`.
+    let pick: u32 = unsafe {
+        crate::store::game_read(rva(0x758A12_usize
+            .wrapping_add(4 * c.table_at)
+            .wrapping_add((n as usize).wrapping_mul(4))))
+    };
+    c.pick.set(pick);
 }
 
 // ---- the advanced audio page's choices ----
 
 /// (the work value, its place among `g_audioOptions`' six choices and six applied).
-const CHOICES: [(usize, usize); 6] = [
-    (0x75566C, 0), // quality
-    (0x755680, 1), // channels
-    (0x75567C, 5), // Dolby
-    (0x755678, 4), // A3D
-    (0x755674, 3), // EAX
-    (0x755670, 2), // DS3D
+const CHOICES: [(&Dword, usize); 6] = [
+    (&OPTION_WORK.audio_quality, 0), // quality
+    (&OPTION_WORK.channels, 1),      // channels
+    (&OPTION_WORK.dolby, 5),         // Dolby
+    (&OPTION_WORK.a3d, 4),           // A3D
+    (&OPTION_WORK.eax, 3),           // EAX
+    (&OPTION_WORK.ds3d, 2),          // DS3D
 ];
 /// `menu::apply_audio_choices`: the registers it leaves (`popa`'s).
 pub unsafe fn apply_audio_choices() -> Result<(), Refused> {
-    unsafe {
+    {
         for (work, n) in CHOICES {
-            let value = game_read::<u32>(rva(work));
+            let value = work.get();
             AUDIO.audio_options.update(|o| o.choice[n] = value);
         }
         // `audio::choose_modes` with the game's log (the original's eax there, the last
         // value copied, is read by none of it).
         crate::audio::choose_modes::in_game(&mut crate::audio::choose_modes::real_log)?;
         for (work, n) in CHOICES {
-            game_write(rva(work), AUDIO.audio_options.get().applied[n]);
+            work.set(AUDIO.audio_options.get().applied[n]);
         }
     }
     Ok(())

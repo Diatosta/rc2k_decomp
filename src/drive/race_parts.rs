@@ -1,5 +1,4 @@
 use crate::errors::Refused;
-use crate::framework::{game_addr, rva};
 
 // What these calls leave in the registers is read by none of their callers (liveness at
 // each call site in `race_loop`, `quit_question`, `pause_until_key`, `finish_run` and
@@ -56,6 +55,6 @@ pub fn wake_car_sounds() -> Result<(), Refused> {
 }
 
 /// `logfile::log_newline_l1` and the `pusha`'d `log_write_l1_nl` of a text.
-pub fn log_line(text: usize) {
-    unsafe { crate::logfile::log_write::log_write(game_addr(rva(text)) as *const u8, true, 1) };
+pub fn log_line(text: &std::ffi::CStr) {
+    unsafe { crate::logfile::log_write::log_write(text.as_ptr().cast(), true, 1) };
 }

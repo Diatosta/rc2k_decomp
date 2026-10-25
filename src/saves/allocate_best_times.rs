@@ -16,17 +16,12 @@
 //! what the allocator refuses.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::rva;
 use crate::memory::MemoryList;
 use crate::memory::allocate::allocate;
 use rc2k_core::saves::tables::{MARKED, TABLES};
 
 // ---- game data ----
 
-/// `dword_747610`: 1 once the memory is taken; `dword_747614` (the file is loaded); then
-/// nine pairs (address, size) from `dword_747618` on.
-pub const VARS_RVA: usize = rva(0x747610);
-// stru_7475D0
 // g_recordTable
 const RECORD_LEN: usize = 0xA4;
 

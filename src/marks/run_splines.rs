@@ -13,14 +13,13 @@
 //! and `place_spline`'s refusals (all it may write is put back first).
 
 use crate::errors::{BadInput, Refused};
-use crate::marks::lines::SETTINGS_RVA;
 use crate::marks::place_spline::place_spline;
+use crate::marks::setup::CLOCK;
 use crate::marks::setup::SEED_RVA;
 use crate::marks::splines::{MADE_RVA, PLACE_RVA};
 use crate::marks::store::{Slot, game_read, game_write};
 use crate::math::x87;
 
-const TICKS_RVA: Slot = Slot::at(0x764FD0); // g_marksFrameTicks
 const ANGLE_RVA: Slot = Slot::at(0x7695B6); // flt_7695B6
 const WAVE_RVA: Slot = Slot::at(0x7695BA); // flt_7695BA
 /// flt_788F0D, flt_788F11, flt_788F15.
@@ -78,7 +77,7 @@ unsafe fn step_made(settings: u32, half: u32) {
 
 /// The Rust version (see the header).
 pub unsafe fn run_splines() -> Result<(), Refused> {
-    let settings: u32 = unsafe { game_read(SETTINGS_RVA) };
+    let settings: u32 = crate::marks::setup::SETTINGS.pointer.get();
     if settings == 0 {
         return Err(BadInput("no marks settings").into());
     }
@@ -87,7 +86,7 @@ pub unsafe fn run_splines() -> Result<(), Refused> {
         return Err(BadInput("more than 8 splines").into());
     }
     unsafe {
-        step_made(settings, game_read::<u32>(TICKS_RVA) >> 1);
+        step_made(settings, CLOCK.frame_ticks.get() >> 1);
         let s = game_read::<u32>(SEED_RVA)
             .wrapping_mul(0x9D)
             .wrapping_add(0x47);

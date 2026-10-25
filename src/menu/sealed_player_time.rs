@@ -8,17 +8,15 @@
 //! Callers: `sub_489F76`, `sub_48C8B6`, `menu::enter_record_entry`. The seal is its Rust version.
 //! Refuses a current player past 3 or missing, before anything.
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, game_write, rva};
+use crate::menu::draw_work_store::DRAW_WORK;
+use crate::menu::event_store::EVENT_STATE;
 use crate::menu::standings::*;
 use crate::race::state_store::RACE_STATE;
 
-const CURRENT_RVA: usize = rva(0x75598C); // dword_75598C
-const SLOT_RVA: usize = rva(0x7559EC); // dword_7559EC
-const HHMM_RVA: usize = rva(0x7559F0); // hhmm
 /// The Rust version (see the header): `byte` the original's eax (its low byte sealed);
 /// the sealed block's two dwords (its eax, ebx) out.
 pub unsafe fn sealed_player_time(byte: u32) -> Result<[u32; 2], Refused> {
-    let n: u32 = unsafe { game_read(CURRENT_RVA) };
+    let n: u32 = { EVENT_STATE.current_player.get() };
     if n >= 4 || player(n) == 0 {
         return Err(BadInput("a current player past 3 or missing").into());
     }
@@ -33,9 +31,9 @@ pub unsafe fn sealed_player_time(byte: u32) -> Result<[u32; 2], Refused> {
             ],
         )
     };
-    unsafe {
-        game_write(SLOT_RVA, sealed[0]);
-        game_write(HHMM_RVA, sealed[1]);
-    }
+
+    DRAW_WORK.figure.set(sealed[0]);
+    DRAW_WORK.hhmm.set(sealed[1]);
+
     Ok(sealed)
 }

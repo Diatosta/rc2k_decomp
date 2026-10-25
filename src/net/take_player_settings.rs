@@ -10,14 +10,14 @@
 //! `net::start_link`.
 
 use crate::errors::{BadInput, Refused};
-use crate::net::lobby::{g, movsb};
+use crate::menu::players_store::PLAYER_TABLE;
+use crate::net::lobby::movsb;
 use crate::race::state_store::RACE_STATE;
 use rc2k_core::net::settings::{self, Copy};
 
-const PLAYERS: usize = 0x75647C; // g_players
 /// The Rust version: the registers it leaves (the entry's).
 pub fn take_player_settings() -> Result<(), Refused> {
-    let record = g(PLAYERS);
+    let record = PLAYER_TABLE.pointers[0].get();
     if record == 0 {
         return Err(BadInput("no record for player 1").into());
     }

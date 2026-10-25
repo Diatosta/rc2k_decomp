@@ -14,7 +14,6 @@
 //! versions. Refuses null settings and `squares_step`'s refusals.
 
 use crate::errors::{BadInput, Refused};
-use crate::marks::setup::SETTINGS_RVA;
 use crate::marks::squares_step::squares_step;
 use crate::marks::store::{Slot, Where, game_addr, game_read};
 use crate::math::x87;
@@ -55,7 +54,7 @@ unsafe fn frame_facing() {
 /// The Rust version (see the header).
 pub unsafe fn squares_frame() -> Result<(), Refused> {
     unsafe {
-        let s: u32 = game_read(SETTINGS_RVA);
+        let s: u32 = crate::marks::setup::SETTINGS.pointer.get();
         if s == 0 {
             return Err(BadInput("no marks settings").into());
         }
@@ -79,7 +78,7 @@ pub unsafe fn squares_frame() -> Result<(), Refused> {
             return Ok(());
         }
         crate::marks::run_squares::run_squares();
-        let s: u32 = game_read(SETTINGS_RVA);
+        let s: u32 = crate::marks::setup::SETTINGS.pointer.get();
         if ((s + 0x2744) as *const u32).read_unaligned() == 0 {
             return Ok(());
         }

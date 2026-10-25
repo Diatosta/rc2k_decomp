@@ -13,6 +13,12 @@
 
 use crate::errors::Refused;
 use crate::framework::{game_read, game_write, rva};
+use crate::menu::draw_lists_store::DRAW_LISTS;
+use crate::menu::draw_work_store::DRAW_WORK;
+use crate::menu::flow_store::SCREEN_FLOW;
+use crate::menu::menus_store::MENUS;
+use crate::menu::option_work_store::OPTION_WORK;
+use crate::menu::screen_items_store::{SCREEN_ITEMS, slot};
 use crate::menu::screen_loop::{
     Callee, Carried, Flow, List, Screen, Step, prepare_scene, screen_entry,
 };
@@ -35,12 +41,12 @@ unsafe fn prepare(c: &mut Carried) -> Result<(), Refused> {
 
 unsafe fn each_frame(c: &mut Carried) -> Result<Flow, Refused> {
     unsafe {
-        if game_read::<u32>(rva(0x7556A8)) == 0x1 {
+        if OPTION_WORK.typing.get() == 0x1 {
             Callee::EditSetupName.run(c)?;
-            if game_read::<u32>(rva(0x7556A8)) != 0x0 {
+            if OPTION_WORK.typing.get() != 0x0 {
                 return Ok(Flow::NextFrame);
             }
-            game_write(rva(0x755A38), 0x2u32);
+            DRAW_WORK.action_value.set(0x2u32);
             return Ok(Flow::Leave);
         }
         Ok(Flow::On)
@@ -48,22 +54,22 @@ unsafe fn each_frame(c: &mut Carried) -> Result<Flow, Refused> {
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: rva(0x75296C),
-    saved_item: rva(0x747678),
+    menu: || MENUS.save_setup.addr(),
+    saved_item: || &SCREEN_ITEMS.current[slot::SAVE_SETUP],
     lists: &[
         List {
-            pointer: rva(0x755504), // g_sceneList
-            table: rva(0x758F12),
+            pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
+            table: || DRAW_LISTS.save_setup_scene.addr(),
             run: false,
         },
         List {
-            pointer: rva(0x7554F8), // g_drawList
-            table: rva(0x758BB6),
+            pointer: || &SCREEN_FLOW.draw_list, // g_drawList
+            table: || DRAW_LISTS.save_setup_draw.addr(),
             run: false,
         },
         List {
-            pointer: rva(0x7554FC), // g_overlayList
-            table: rva(0x759156),
+            pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
+            table: || DRAW_LISTS.save_setup_overlay.addr(),
             run: false,
         },
     ],
@@ -71,7 +77,7 @@ pub const SCREEN: Screen = Screen {
     frame_callback: rva(0x474D4B),
     later_frame_callback: None,
     before: &[],
-    set_up_first: &[Step::Write(rva(0x7554E4), 0x0)],
+    set_up_first: &[Step::Write(|| &SCREEN_FLOW.left_service, 0x0)],
     prepare: &[Step::Do(prepare)],
     after_lists: &[],
     background: &[],
@@ -80,7 +86,7 @@ pub const SCREEN: Screen = Screen {
     ask_also_if: None,
     confirmed: &[],
     unasked_skips_save: false,
-    after: &[Step::Write(rva(0x7554E4), 0x1)],
+    after: &[Step::Write(|| &SCREEN_FLOW.left_service, 0x1)],
     escape_leaves: false,
     each_frame: &[Step::DoFlow(each_frame)],
     short_action_check: false,

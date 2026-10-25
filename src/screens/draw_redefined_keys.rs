@@ -14,11 +14,10 @@
 //! original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::game_read;
 use crate::input::append_key_name::append_key_name;
+use crate::menu::draw_work_store::DRAW_WORK;
+use crate::menu::option_work_store::OPTION_WORK;
 use crate::menu::player_settings::current;
-use crate::menu::redefine_keys::PLACE_RVA;
-use crate::screens::draw_name_cursor::BLINK_RVA;
 use crate::text::draw_text::Canvas;
 
 // ---- game data ----
@@ -33,7 +32,7 @@ pub unsafe fn draw_redefined_keys(canvas: &mut dyn Canvas) -> Result<bool, Refus
     let player = current()?;
     unsafe {
         let keys = player.read_unaligned().keys;
-        let redefined: u32 = game_read(PLACE_RVA);
+        let redefined: u32 = OPTION_WORK.redefined_key_place.get();
         // Converted: `rc2k_core::screens::controls::redefined_keys`; the names made first
         // (none at the place being redefined, as the original).
         use rc2k_core::screens::controls::KEY_PLACES;
@@ -48,7 +47,7 @@ pub unsafe fn draw_redefined_keys(canvas: &mut dyn Canvas) -> Result<bool, Refus
             &mut crate::screens::game_screen::ControlsScreen::new(canvas),
             &names,
             row,
-            game_read(BLINK_RVA),
+            DRAW_WORK.cursor_on.get(),
         )
     }
 }

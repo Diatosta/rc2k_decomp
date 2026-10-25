@@ -18,13 +18,12 @@
 //! are the original's.
 
 use crate::errors::{BadInput, Refused};
-use crate::install::installer::{LAYOUT, a, fatal, rb, rw, wb, wd, ww};
+use crate::install::installer::{fatal, rb, rw, wb, wd, ww};
+use crate::install::vars::INSTALLER_PAGES;
 use rc2k_core::install::layout;
 use rc2k_core::install::pieces::{self, LayoutError, ListMemory};
 
 pub const PIECE: u32 = layout::PIECE;
-const TITLE: usize = 0x51DD78; // unk_51DD78: the title's item
-const TEXT_FONTS: usize = 0x51D52C; // byte_51D52C
 
 /// The game's lists, read where the original reads them.
 struct GameList;
@@ -40,20 +39,20 @@ impl ListMemory for GameList {
         crate::install::installer::rd(at)
     }
     fn text_font(&self, font: u8) -> u8 {
-        rb(a(TEXT_FONTS) + 8 * font as u32)
+        INSTALLER_PAGES.kind_fonts.get(4 + 8 * font as usize)
     }
 }
 
 pub fn lay_out_pieces(list: u32) -> Result<(), Refused> {
     // Converted: `rc2k_core::install::pieces::lay_out`; the pieces written here.
-    let made = match pieces::lay_out(list, a(TITLE), &GameList) {
+    let made = match pieces::lay_out(list, INSTALLER_PAGES.title.addr() as u32, &GameList) {
         Ok(made) => made,
         Err(LayoutError::UnknownKind) => return Err(fatal(pieces::UNKNOWN_KIND)),
         Err(LayoutError::TooMany) => {
             return Err(BadInput("more pieces than the page's table holds").into());
         }
     };
-    let base = a(LAYOUT);
+    let base = INSTALLER_PAGES.layout.addr() as u32;
     for (n, piece) in made.iter().enumerate() {
         let at = base + 4 + PIECE * n as u32;
         if let Some(text) = piece.text {

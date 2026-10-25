@@ -22,38 +22,18 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::rva;
-use crate::marks::setup::SETTINGS_RVA;
-use crate::marks::store::{Slot, game_read, game_write};
+use crate::marks::snow::{SNOW, SNOW_LIGHT, SnowLight};
+use crate::marks::store::{game_read, game_write};
 use crate::math::x87;
 
-const KEPT_RVA: Slot = Slot::at(0x8DB4C4); // dword_8DB4C4
-const FLAKES_RVA: Slot = Slot::at(0x8D21A4); // dword_8D21A4
-const NONE_RVA: Slot = Slot::at(0x8D215C); // dword_8D215C
 const MOST: i32 = 0x800;
-const COPIES_A: Slot = Slot::at(0x8D216C); // dword_8D216C .. : the settings' +0x28 ..
-const COPIES_B: Slot = Slot::at(0x8D2160); // dword_8D2160 .. : the settings' +0x1C ..
 const TEXTURE_RVA: usize = rva(0x5D1E10); // dword_5D1E10
 const VERTICES_RVA: usize = rva(0x9605A0); // g_polygonVertices
 const VERTEX_COUNT_RVA: usize = rva(0x6240F8); // g_polygonVertexCount
-const RHW_RVA: Slot = Slot::at(0x8DB524); // dword_8DB524
 const LIGHT_RVA: usize = rva(0x6415E4); // g_viewLight
-const UV_RVA: Slot = Slot::at(0x8DB528); // dword_8DB528 .. dword_8DB534
 const DEPTH_OF_RVA: usize = rva(0x6241C8); // flt_6241C8
-const INVERSES: [Slot; 5] = [
-    Slot::at(0x8D2110),
-    Slot::at(0x8D2114),
-    Slot::at(0x8D2118),
-    Slot::at(0x8D211C),
-    Slot::at(0x8D21F8),
-];
 const CLOCK_RVA: usize = rva(0x613830); // g_sceneClock
-const LAST_CLOCK_RVA: Slot = Slot::at(0x8D2150); // dword_8D2150
-const FALL_RVA: Slot = Slot::at(0x8D2194); // dword_8D2194
-const FALL_K_RVA: Slot = Slot::at(0x8DB538); // flt_8DB538
-const TURN_RVA: Slot = Slot::at(0x8D2220); // dword_8D2220 .. dword_8D2240
-const WIDE_RVA: Slot = Slot::at(0x8D2030); // xmmword_8D2030 .. xmmword_8D20B0
 const FOCAL_RVA: usize = rva(0x624088); // flt_624088
-const WIDE_FOCAL_RVA: Slot = Slot::at(0x8D20F0); // xmmword_8D20F0
 /// The render states set (value, state).
 const STATES: [(u32, u32); 5] = [(4, 0x15), (5, 0x13), (6, 0x14), (0, 0x1C), (1, 0x1B)];
 
@@ -63,41 +43,37 @@ unsafe fn get(a: u32) -> u32 {
 
 /// The original's 0x4C2605 .. 0x4C276E: the light's place and way turned.
 unsafe fn turn_light() {
-    unsafe {
-        turn_light_x87(
-            crate::race::store::asm_base() as usize,
-            crate::marks::store::base() as usize,
-        )
-    }
+    unsafe { turn_light_x87(crate::race::store::asm_base() as usize, &SNOW_LIGHT) }
 }
 
 /// The Rust version (see the header).
 pub unsafe fn run_snow() -> Result<(), Refused> {
     use crate::scene::set_render_state::set_render_state;
+    let (s, l) = (&SNOW, &SNOW_LIGHT);
     unsafe {
-        let s: u32 = game_read(SETTINGS_RVA);
-        if s == 0 {
+        let settings: u32 = crate::marks::setup::SETTINGS.pointer.get();
+        if settings == 0 {
             return Err(BadInput("no marks settings").into());
         }
-        game_write(KEPT_RVA, get(s + 0x58));
+        l.kept.set(get(settings + 0x58));
         turn_light();
         crate::marks::make_fade_colours::make_fade_colours();
-        let s: u32 = game_read(SETTINGS_RVA);
-        let mut flakes = get(s + 0x2760) as i32;
-        game_write(FLAKES_RVA, flakes);
+        let settings: u32 = crate::marks::setup::SETTINGS.pointer.get();
+        let mut flakes = get(settings + 0x2760) as i32;
+        s.flakes.set(flakes as u32);
         if flakes == 0 {
-            game_write(NONE_RVA, 0u32);
+            s.flag.set(0);
             return Ok(());
         }
         if flakes > MOST {
             flakes = MOST;
-            game_write(FLAKES_RVA, flakes);
+            s.flakes.set(flakes as u32);
         }
         for n in 0..9 {
-            game_write(COPIES_A + 4 * n, get(s + 0x28 + 4 * n as u32));
+            s.view_matrix[n].set_bits(get(settings + 0x28 + 4 * n as u32));
         }
         for n in 0..3 {
-            game_write(COPIES_B + 4 * n, get(s + 0x1C + 4 * n as u32));
+            s.view_place[n].set(get(settings + 0x1C + 4 * n as u32));
         }
         crate::marks::place_view_2::place_view_2()?;
         crate::scene::set_texture::set_texture(game_read(TEXTURE_RVA));
@@ -106,9 +82,9 @@ pub unsafe fn run_snow() -> Result<(), Refused> {
         for (value, state) in STATES {
             set_render_state(value, state);
         }
-        let rhw: u32 = game_read(RHW_RVA);
+        let rhw = l.rhw.get();
         let light = game_read::<u32>(LIGHT_RVA) | 0xFF00_0000;
-        let [u0, v0, u1, v1]: [u32; 4] = game_read(UV_RVA);
+        let [u0, v0, u1, v1] = l.uv.each_ref().map(|d| d.get());
         let uv = [(u0, v0), (u1, v0), (u1, v1), (u0, v1)];
         for (n, (u, v)) in uv.into_iter().enumerate() {
             let at = VERTICES_RVA + 0x20 * n;
@@ -120,30 +96,27 @@ pub unsafe fn run_snow() -> Result<(), Refused> {
         }
         game_write(VERTEX_COUNT_RVA, 4u32);
         let inverse = x87::reciprocal(game_read(DEPTH_OF_RVA));
-        for r in INVERSES {
-            game_write(r, inverse);
+        for r in &s.inverses {
+            r.set_bits(inverse);
         }
-        let s: u32 = game_read(SETTINGS_RVA);
-        if get(s + 0x10) != 0 {
-            let ticks = game_read::<u32>(CLOCK_RVA).wrapping_sub(game_read(LAST_CLOCK_RVA));
-            let fall = x87::int_times_plus_int_to_int(
-                ticks as i32,
-                game_read(FALL_K_RVA),
-                game_read(FALL_RVA),
-            );
-            game_write(FALL_RVA, fall);
+        s.inverse.set_bits(inverse);
+        let settings: u32 = crate::marks::setup::SETTINGS.pointer.get();
+        if get(settings + 0x10) != 0 {
+            let ticks = game_read::<u32>(CLOCK_RVA).wrapping_sub(s.last_clock.get());
+            let fall =
+                x87::int_times_plus_int_to_int(ticks as i32, l.fall_k.bits(), s.fall.get() as i32);
+            s.fall.set(fall as u32);
         }
-        game_write(FALL_RVA, game_read::<u32>(FALL_RVA) & 0x0FFF_FFFF);
-        game_write(LAST_CLOCK_RVA, game_read::<u32>(CLOCK_RVA));
-        let turn: [u32; 9] = game_read(TURN_RVA);
-        for (n, v) in turn.into_iter().enumerate() {
+        s.fall.set(s.fall.get() & 0x0FFF_FFFF);
+        s.last_clock.set(game_read::<u32>(CLOCK_RVA));
+        for (n, v) in s.matrix_copy.iter().enumerate() {
             for m in 0..4 {
-                game_write(WIDE_RVA + 0x10 * n + 4 * m, v);
+                s.wide_turn[n][m].set_bits(v.bits());
             }
         }
         let focal: u32 = game_read(FOCAL_RVA);
         for m in 0..4 {
-            game_write(WIDE_FOCAL_RVA + 4 * m, focal);
+            s.wide_focal[m].set_bits(focal);
         }
         crate::marks::draw_snow::draw_snow()?;
         crate::scene::depth_test_on::depth_test_on();
@@ -151,14 +124,15 @@ pub unsafe fn run_snow() -> Result<(), Refused> {
     Ok(())
 }
 
-use crate::marks::plain::{ld, st};
+use crate::marks::plain::ld;
+use crate::math::x87_float as bh;
 
 /// `turn_light`'s x87 block as plain Rust on the x87 model (126 instructions), same order and memory places.
-unsafe fn turn_light_x87(rc: usize, mk: usize) {
+unsafe fn turn_light_x87(rc: usize, l: &SnowLight) {
     unsafe {
-        let t0 = ld(mk, 0x1765CC);
-        let t1 = ld(mk, 0x1765D0);
-        let t2 = ld(mk, 0x1765D4);
+        let t0 = bh::ld(l.light_source[0].bits());
+        let t1 = bh::ld(l.light_source[1].bits());
+        let t2 = bh::ld(l.light_source[2].bits());
         let t3 = ld(rc, 0x1EA3CC);
         let t4 = t3 * t2;
         let t5 = ld(rc, 0x1EA3DC);
@@ -213,12 +187,12 @@ unsafe fn turn_light_x87(rc: usize, mk: usize) {
         let t54 = t53 + t51;
         let t55 = t49 + t54;
         let t56 = t55 + ld(rc, 0x1EA304);
-        st(mk, 0x1764F0, t38);
-        st(mk, 0x1764F4, t47);
-        st(mk, 0x1764F8, t56);
-        let t57 = ld(mk, 0x1765D8);
-        let t58 = ld(mk, 0x1765DC);
-        let t59 = ld(mk, 0x1765E0);
+        l.light_place[0].set_bits(bh::st(t38));
+        l.light_place[1].set_bits(bh::st(t47));
+        l.light_place[2].set_bits(bh::st(t56));
+        let t57 = bh::ld(l.light_source_way[0].bits());
+        let t58 = bh::ld(l.light_source_way[1].bits());
+        let t59 = bh::ld(l.light_source_way[2].bits());
         let t60 = ld(rc, 0x1EA3CC);
         let t61 = t60 * t59;
         let t62 = ld(rc, 0x1EA3DC);
@@ -267,9 +241,9 @@ unsafe fn turn_light_x87(rc: usize, mk: usize) {
         let t105 = t83 * t104;
         let t106 = t105 + t103;
         let t107 = t101 + t106;
-        st(mk, 0x1764FC, t91);
-        st(mk, 0x176500, t99);
-        st(mk, 0x176504, t107);
+        l.light_way[0].set_bits(bh::st(t91));
+        l.light_way[1].set_bits(bh::st(t99));
+        l.light_way[2].set_bits(bh::st(t107));
     }
 }
 
@@ -420,7 +394,9 @@ mod asm_reference {
 mod asm_differential {
     use super::asm_reference as reference;
     use crate::marks::asm_test::Kind::*;
+    use crate::marks::asm_test::with_copy;
     use crate::marks::asm_test::{Op, Spec, differential};
+    use crate::marks::snow::SnowLight;
 
     #[test]
     fn turn_light_x87_matches() {
@@ -459,7 +435,7 @@ mod asm_differential {
                 },
                 Op::Base {
                     lo: 0x1764F0,
-                    hi: 0x1765E4,
+                    hi: 0x176618,
                     reads: &[
                         (0x1765CC, F32),
                         (0x1765D0, F32),
@@ -483,7 +459,11 @@ mod asm_differential {
         differential(
             &SPEC,
             |b| unsafe { reference::turn_light_x87(b[0], b[1]) },
-            |b| unsafe { super::turn_light_x87(b[0], b[1]) },
+            |b| {
+                with_copy(b[1], SnowLight::START, |l| unsafe {
+                    super::turn_light_x87(b[0], l)
+                })
+            },
         );
     }
 }

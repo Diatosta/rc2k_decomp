@@ -8,11 +8,16 @@
 //! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
 //! are the original's.
 
-use crate::install::installer::{REPEATS, g, rb, rd, wb};
+use crate::install::installer::{rb, rd, wb};
+use crate::install::vars::INSTALLER_PAGES;
 
 pub fn value_down(item: u32) {
     let value_at = rd(item + 8);
     // Converted: `rc2k_core::install::items::value_down`.
-    let value = rc2k_core::install::items::value_down(rb(value_at), g(REPEATS), rb(item + 0xC));
+    let value = rc2k_core::install::items::value_down(
+        rb(value_at),
+        INSTALLER_PAGES.repeats.get(),
+        rb(item + 0xC),
+    );
     wb(value_at, value as u8);
 }

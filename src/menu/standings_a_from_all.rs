@@ -10,7 +10,6 @@
 //! count of 0 or past 4, a player missing or without a name, and what the drivers' fill refuses,
 //! before anything.
 use crate::errors::{BadInput, Refused};
-use crate::framework::game_read;
 use crate::menu::standings::*;
 
 /// Each group's (0 .. 3) players, in order, into the table's entries from the group's slot
@@ -38,7 +37,7 @@ pub unsafe fn standings_a_from_all() -> Result<(), Refused> {
         return Err(BadInput("a player without a name").into());
     }
     unsafe { crate::menu::standings_from_drivers::standings_from_drivers() }?;
-    let first: u32 = unsafe { game_read(TABLE_A_RVA) };
+    let first: u32 = { TABLE_A_RVA.get() };
     use rc2k_core::menu::standings::A_GROUP_FIRSTS;
     unsafe { players_by_group(first, A_ENTRY, A_GROUP_FIRSTS) }?;
     Ok(())

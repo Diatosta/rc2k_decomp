@@ -13,14 +13,10 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{game_read, rva};
+use crate::menu::event_store::EVENT_STATE;
 use crate::menu::lists_store::MENU_LISTS;
 use crate::menu::state_store::MENU_STATE;
 use crate::text::draw_text::Canvas;
-
-fn k(a: usize) -> u32 {
-    unsafe { game_read(rva(a)) }
-}
 
 /// (id, x, y, font) of the page's lines.
 /// The Rust version.
@@ -35,7 +31,7 @@ pub unsafe fn draw_options_checklist(canvas: &mut dyn Canvas) -> Result<(), Refu
         }
         rc2k_core::screens::settings_pages::options_checklist(
             &mut crate::screens::game_screen::SettingsScreen::new(canvas),
-            k(0x75598C),
+            EVENT_STATE.current_player.get(),
             MENU_STATE.driver_stats.score.get() as i32,
             &ticks,
         )

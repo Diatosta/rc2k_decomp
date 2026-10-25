@@ -8,17 +8,13 @@
 //! table at 0x7544D8). The menus and draw lists run its `entry` (`menu::table_calls`); the
 //! registers above are the original's, for reference.
 
-use crate::framework::{game_read, game_write, rva};
-
-const ANSWER_RVA: usize = rva(0x75524C); // g_yesNoAnswer
+use crate::menu::pages_store::MENU_PAGES;
 
 // ---- Rust version ----
 
 pub fn flip_yes_no() -> u32 {
-    unsafe {
-        // Converted: `rc2k_core::menu::steps::flip`.
-        let answer = rc2k_core::menu::steps::flip(game_read::<u32>(ANSWER_RVA));
-        game_write(ANSWER_RVA, answer);
-        answer
-    }
+    // Converted: `rc2k_core::menu::steps::flip`.
+    let answer = rc2k_core::menu::steps::flip(MENU_PAGES.yes_no_answer.get());
+    MENU_PAGES.yes_no_answer.set(answer);
+    answer
 }
