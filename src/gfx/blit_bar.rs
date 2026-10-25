@@ -8,7 +8,7 @@
 //! which only works because these sprites do not use one; it is reproduced as is.
 //! Also leaves the fill's end x in `seconds` (0x7559AC), a work variable.
 
-use crate::errors::FatalError;
+use crate::errors::{FatalError, Refused};
 use crate::gfx::bar_store::BAR;
 use crate::gfx::blit_glyph::BlitCall;
 use crate::gfx::blit_marker_pair::sprite_table;
@@ -65,14 +65,14 @@ pub fn set_bar_x(x: i32) {
 // ---- Rust version ----
 
 /// Where a blitter call goes: the game's surface, or a list.
-pub type Blit<'a> = &'a mut dyn FnMut(BlitCall) -> Result<(), FatalError>;
+pub type Blit<'a> = &'a mut dyn FnMut(BlitCall) -> Result<(), Refused>;
 
 /// The game's side of a bar: the blits through `blit`, the clip and the bar's globals.
 pub struct GameBar<'a>(pub Blit<'a>);
 
 impl rc2k_core::gfx::bars::BarCanvas for GameBar<'_> {
-    type Error = FatalError;
-    fn sprite(&mut self, glyph: u32, x: i32, y: i32, palette: u32) -> Result<(), FatalError> {
+    type Error = Refused;
+    fn sprite(&mut self, glyph: u32, x: i32, y: i32, palette: u32) -> Result<(), Refused> {
         (self.0)(BlitCall::new(glyph, x, y, palette, sprite_table()))
     }
     fn clip_right(&mut self) -> i32 {
@@ -87,8 +87,8 @@ impl rc2k_core::gfx::bars::BarCanvas for GameBar<'_> {
     fn set_bar_x(&mut self, x: i32) {
         set_bar_x(x);
     }
-    fn no_length(&mut self) -> FatalError {
-        BAR_HAS_NO_LENGTH
+    fn no_length(&mut self) -> Refused {
+        BAR_HAS_NO_LENGTH.into()
     }
 }
 
@@ -107,6 +107,6 @@ impl Bar {
 }
 
 /// The bar described by the bar globals. Converted: `rc2k_core::gfx::bars::bar`.
-pub unsafe fn blit_bar(blit: Blit) -> Result<(), FatalError> {
+pub unsafe fn blit_bar(blit: Blit) -> Result<(), Refused> {
     rc2k_core::gfx::bars::bar(&mut GameBar(blit), &Bar::read().core())
 }

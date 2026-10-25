@@ -25,11 +25,11 @@ pub fn blit_glyph_list(count: u32, table: u32, x: u32, y: u32, glyphs: u32) -> R
         unsafe {
             crate::gfx::blit_glyph::blit_glyph_on_surface(
                 rd(record + 8),
-                glyphs as *const u8,
+                crate::pointers::GamePtr::new(glyphs),
                 x as i32,
                 y as i32,
                 // (The bar's records name the blended palette's home: `moved::point_into_homes`.)
-                rd(record + 0xC) as *const u32,
+                crate::pointers::GamePtr::new(rd(record + 0xC)),
             )
         }?;
     }

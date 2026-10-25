@@ -5,7 +5,7 @@
 //! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; the
 //! registers above are the original's, for reference.
 
-use crate::errors::FatalError;
+use crate::errors::Refused;
 use crate::text::draw_text::{Canvas, draw_text};
 use crate::text::font::Font;
 
@@ -16,6 +16,6 @@ pub unsafe fn draw_text_keep_regs(
     x: i32,
     y: i32,
     canvas: &mut dyn Canvas,
-) -> Result<bool, FatalError> {
+) -> Result<bool, Refused> {
     Ok(unsafe { draw_text(font, text, x, y, canvas) }?.too_wide)
 }

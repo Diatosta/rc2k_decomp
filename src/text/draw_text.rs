@@ -18,9 +18,10 @@
 //! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; the
 //! registers above are the original's, for reference.
 
-use crate::bridge::{Raw, read_through};
-use crate::errors::FatalError;
+use crate::bridge::Raw;
+use crate::errors::Refused;
 use crate::gfx::blit_glyph::{BlitCall, blit_glyph_on_surface};
+use crate::pointers::{GameBytes, GamePtr};
 use crate::text::font::Font;
 use crate::text::glyph_kerning::{State, state_ptr};
 
@@ -32,7 +33,7 @@ pub trait Canvas {
     fn keeps_font_changes(&self) -> bool;
     /// The kerning row table the canvas keeps.
     fn kerning(&mut self) -> &mut State;
-    unsafe fn blit_glyph(&mut self, call: BlitCall) -> Result<(), FatalError>;
+    unsafe fn blit_glyph(&mut self, call: BlitCall) -> Result<(), Refused>;
 }
 
 /// The game's own kerning table and surface.
@@ -45,14 +46,14 @@ impl Canvas for GameCanvas {
     fn kerning(&mut self) -> &mut State {
         unsafe { &mut *state_ptr() }
     }
-    unsafe fn blit_glyph(&mut self, c: BlitCall) -> Result<(), FatalError> {
+    unsafe fn blit_glyph(&mut self, c: BlitCall) -> Result<(), Refused> {
         unsafe {
             blit_glyph_on_surface(
                 c.glyph,
-                c.table as *const u8,
+                GamePtr::new(c.table),
                 c.x,
                 c.y,
-                c.palette as *const u32,
+                GamePtr::new(c.palette),
             )
         }
         .map(|_| ())
@@ -76,13 +77,14 @@ pub struct Outcome {
 pub struct Adapt<'a>(&'a mut dyn Canvas);
 
 pub enum AdaptError {
-    Fatal(FatalError),
-    Invalid(rc2k_core::Invalid),
+    Refused(Refused),
+    /// A read past the text or the glyph table.
+    Invalid,
 }
 
 impl From<rc2k_core::Invalid> for AdaptError {
-    fn from(e: rc2k_core::Invalid) -> Self {
-        AdaptError::Invalid(e)
+    fn from(_: rc2k_core::Invalid) -> Self {
+        AdaptError::Invalid
     }
 }
 
@@ -93,23 +95,27 @@ impl rc2k_core::text::Canvas for Adapt<'_> {
     }
     fn blit(&mut self, font: &Font, glyph: u32, x: i32, y: i32) -> Result<(), AdaptError> {
         let call = BlitCall::new(glyph, x, y, font.palette, font.glyph_table);
-        unsafe { self.0.blit_glyph(call) }.map_err(AdaptError::Fatal)
+        unsafe { self.0.blit_glyph(call) }.map_err(AdaptError::Refused)
     }
 }
 
 /// A core text function run on a text and a font's glyph table in game memory, with a
-/// canvas of this crate.
+/// canvas of this crate. The glyph table is the font's pointer, read inside its allocation
+/// (`pointers`): a read past it is refused.
 pub unsafe fn run_core<T>(
     font: &Font,
     text: *const u8,
     canvas: &mut dyn Canvas,
-    f: impl FnOnce(&Raw, &Raw, &mut Adapt) -> Result<T, AdaptError>,
-) -> Result<T, FatalError> {
-    let (words, glyphs) = unsafe { (Raw::new(text), Raw::new(font.glyph_table as *const u8)) };
+    f: impl FnOnce(&Raw, &GameBytes, &mut Adapt) -> Result<T, AdaptError>,
+) -> Result<T, Refused> {
+    let glyphs = GamePtr::new(font.glyph_table).bytes("a font's glyph table")?;
+    let words = unsafe { Raw::new(text) };
     match f(&words, &glyphs, &mut Adapt(canvas)) {
         Ok(value) => Ok(value),
-        Err(AdaptError::Fatal(e)) => Err(e),
-        Err(AdaptError::Invalid(e)) => Ok(read_through(Err(e))),
+        Err(AdaptError::Refused(e)) => Err(e),
+        Err(AdaptError::Invalid) => {
+            Err(crate::errors::BadInput("a read past a font's glyph table").into())
+        }
     }
 }
 
@@ -131,7 +137,7 @@ pub unsafe fn draw_text(
     x: i32,
     y: i32,
     canvas: &mut dyn Canvas,
-) -> Result<Outcome, FatalError> {
+) -> Result<Outcome, Refused> {
     let copy = *font;
     let out = unsafe {
         run_core(&copy, text, canvas, |words, glyphs, c| {
@@ -149,7 +155,7 @@ pub unsafe fn draw_text_at(
     x: i32,
     y: i32,
     canvas: &mut dyn Canvas,
-) -> Result<Outcome, FatalError> {
+) -> Result<Outcome, Refused> {
     unsafe {
         let before = font.read_unaligned();
         let mut copy = before;

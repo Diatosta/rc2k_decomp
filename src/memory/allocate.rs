@@ -46,6 +46,7 @@ pub unsafe fn allocate(list: *mut MemoryList, bytes: u32) -> Result<*mut u8, Ref
             }
             .into());
         }
+        crate::pointers::register(block as u32, whole);
         let header = (*list).add(block as u32, bytes);
         block.write(header[0]);
         block.add(1).write(header[1]);

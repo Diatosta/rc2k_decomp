@@ -7,14 +7,14 @@
 //! Above 0 percent, a width * percent of 0 is fatal error 0x80701010 in the original, and the
 //! palette given to the blitter is the marker's x. These sprites do not use a palette.
 
-use crate::errors::FatalError;
+use crate::errors::Refused;
 use crate::gfx::blit_bar::Blit;
 
 // ---- Rust version ----
 
 /// `palette_at_start` is what the caller has in ebx; it only reaches the blitter at 0 percent
 /// or less, where the marker stays at the bar's x.
-pub unsafe fn blit_bar_marker(palette_at_start: u32, blit: Blit) -> Result<(), FatalError> {
+pub unsafe fn blit_bar_marker(palette_at_start: u32, blit: Blit) -> Result<(), Refused> {
     // Converted: `rc2k_core::gfx::bars::marker`.
     use crate::gfx::blit_bar::{Bar, GameBar};
     rc2k_core::gfx::bars::marker(&mut GameBar(blit), &Bar::read().core(), palette_at_start)

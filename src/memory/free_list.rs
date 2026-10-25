@@ -39,6 +39,7 @@ pub unsafe fn free_list(list: *mut MemoryList) -> Result<(), BadInput> {
         block = (*list).emptied();
         while block != 0 {
             let before = (block as *const u32).read();
+            crate::pointers::unregister(block);
             VirtualFree(block as _, 0, MEM_RELEASE);
             block = before;
         }

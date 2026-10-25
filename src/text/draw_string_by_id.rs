@@ -44,7 +44,7 @@ pub unsafe fn draw_string_by_id(
     unsafe {
         let bytes = string_text(id)?;
         copy_nonoverlapping(bytes.as_ptr(), buffer, bytes.len());
-        Ok(draw_text(font, buffer, x, y, canvas)?)
+        draw_text(font, buffer, x, y, canvas)
     }
 }
 

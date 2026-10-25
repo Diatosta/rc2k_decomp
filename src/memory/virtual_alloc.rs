@@ -40,5 +40,6 @@ pub unsafe fn virtual_alloc(bytes: u32) -> Result<u32, Refused> {
     if at == 0 {
         return Err(NO_MEMORY.into());
     }
+    crate::pointers::register(at, bytes);
     Ok(at)
 }

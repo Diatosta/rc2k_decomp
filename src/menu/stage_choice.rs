@@ -77,10 +77,10 @@ pub unsafe fn draw_stage_map() -> Result<(), Refused> {
         // The overlay's pointer is the blit's palette too (ebx all the way).
         blit_glyph_on_surface(
             MAP_SPRITE,
-            LOOP_FLAGS.sprite_table.get() as *const u8,
+            crate::pointers::GamePtr::new(LOOP_FLAGS.sprite_table.get()),
             0,
             0,
-            overlay as *const u32,
+            crate::pointers::GamePtr::new(overlay),
         )?;
     }
     Ok(())

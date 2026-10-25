@@ -30,6 +30,7 @@ mod platform;
 mod platform_3d;
 mod platform_input;
 mod platform_sound;
+mod pointers;
 mod race;
 mod rasteriser;
 mod records;

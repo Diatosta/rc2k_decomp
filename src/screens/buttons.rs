@@ -166,7 +166,7 @@ pub unsafe fn draw_button(
             Ok(()) => Ok(()),
             Err(Error::NoLength) => Err(BAR_HAS_NO_LENGTH.into()),
             Err(Error::BadAlign) => Err(kind.bad_align.into()),
-            Err(Error::Draw(e)) => Err(e.into()),
+            Err(Error::Draw(e)) => Err(e),
         }
     }
 }

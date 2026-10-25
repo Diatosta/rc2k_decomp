@@ -11,7 +11,7 @@
 //! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; the
 //! registers above are the original's, for reference.
 
-use crate::errors::FatalError;
+use crate::errors::Refused;
 use crate::text::draw_text::{Canvas, Outcome, outcome, run_core};
 use crate::text::font::Font;
 
@@ -33,7 +33,7 @@ pub unsafe fn measure_text(
     text: *const u8,
     x: i32,
     canvas: &mut dyn Canvas,
-) -> Result<Measured, FatalError> {
+) -> Result<Measured, Refused> {
     let copy = *font;
     let m = unsafe {
         run_core(&copy, text, canvas, |words, glyphs, c| {
@@ -54,7 +54,7 @@ pub unsafe fn measure_text_at(
     text: *const u8,
     x: i32,
     canvas: &mut dyn Canvas,
-) -> Result<Measured, FatalError> {
+) -> Result<Measured, Refused> {
     unsafe {
         let mut copy = font.read_unaligned();
         let measured = measure_text(&mut copy, text, x, canvas)?;

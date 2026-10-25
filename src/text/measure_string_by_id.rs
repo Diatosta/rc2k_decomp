@@ -30,7 +30,7 @@ pub unsafe fn measure_string_by_id(
     unsafe {
         let bytes = string_text(id)?;
         copy_nonoverlapping(bytes.as_ptr(), buffer, bytes.len());
-        Ok(measure_text(font, buffer, x, canvas)?)
+        measure_text(font, buffer, x, canvas)
     }
 }
 

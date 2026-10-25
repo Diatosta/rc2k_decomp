@@ -1887,6 +1887,23 @@ fn sorted() -> &'static [(usize, usize, usize)] {
     })
 }
 
+/// The moved range whose new home holds `addr`: its home's first byte and the byte past its
+/// end (`pointers::region_of`).
+pub fn home_range(addr: usize) -> Option<(usize, usize)> {
+    static BY_HOME: std::sync::OnceLock<Vec<(usize, usize)>> = std::sync::OnceLock::new();
+    let homes = BY_HOME.get_or_init(|| {
+        let mut v: Vec<_> = sorted()
+            .iter()
+            .map(|&(start, end, home)| (home, home + (end - start)))
+            .collect();
+        v.sort_unstable();
+        v
+    });
+    let i = homes.partition_point(|&(home, _)| home <= addr);
+    let &(home, end) = homes.get(i.checked_sub(1)?)?;
+    (addr < end).then_some((home, end))
+}
+
 /// Every moved range's bytes, for a test that writes the game's variables and has to put
 /// them back (`restore`); hold `store::test_lock` around both.
 #[cfg(test)]

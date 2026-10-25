@@ -158,7 +158,7 @@ impl<F: GameFont, W: GameWork> Screen for GameScreen<'_, F, W> {
 
     fn sprite(&mut self, glyph: u32, x: i32, y: i32, palette: u32) -> Result<(), Refused> {
         let call = BlitCall::new(glyph, x, y, palette, self.sprites);
-        Ok(unsafe { self.canvas.blit_glyph(call) }?)
+        unsafe { self.canvas.blit_glyph(call) }
     }
 
     fn bar(&mut self, bar: rc2k_core::screens::screen::Bar) -> Result<(), Refused> {
@@ -173,7 +173,7 @@ impl<F: GameFont, W: GameWork> Screen for GameScreen<'_, F, W> {
         }
         .write();
         let canvas = &mut *self.canvas;
-        Ok(unsafe { blit_bar(&mut |call| canvas.blit_glyph(call)) }?)
+        unsafe { blit_bar(&mut |call| canvas.blit_glyph(call)) }
     }
 
     fn buffer_address(&mut self, buffer: Buffer) -> u32 {

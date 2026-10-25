@@ -9,7 +9,7 @@
 //! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; the
 //! registers above are the original's, for reference.
 
-use crate::errors::FatalError;
+use crate::errors::Refused;
 use crate::text::draw_text::Canvas;
 use crate::text::draw_text_keep_regs::draw_text_keep_regs;
 use crate::text::font::Font;
@@ -27,7 +27,7 @@ pub unsafe fn draw_time_fixed_pitch(
     x: i32,
     y: i32,
     canvas: &mut dyn Canvas,
-) -> Result<bool, FatalError> {
+) -> Result<bool, Refused> {
     let mut too_wide = false;
     unsafe {
         let cell = text.add(CELL_OFFSET);
@@ -48,7 +48,7 @@ pub unsafe fn draw_time_fixed_pitch_at(
     x: i32,
     y: i32,
     canvas: &mut dyn Canvas,
-) -> Result<bool, FatalError> {
+) -> Result<bool, Refused> {
     unsafe {
         let before = font.read_unaligned();
         let mut copy = before;
