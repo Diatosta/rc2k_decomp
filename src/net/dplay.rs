@@ -12,8 +12,6 @@
 //! (IDirectPlayLobby2A) 8 Release, 0xC Connect, 0x20 GetConnectionSettings,
 //! 0x30 SetConnectionSettings, 0x38 CreateCompoundAddress.
 
-use crate::net::lobby::g;
-
 pub const QUERY_INTERFACE: u32 = 0x00;
 pub const RELEASE: u32 = 0x08;
 pub const ADD_PLAYER_TO_GROUP: u32 = 0x0C;
@@ -64,9 +62,9 @@ pub unsafe fn method(object: u32, offset: u32, args: &[u32]) -> u32 {
     }
 }
 
-/// A method of the object in the variable at IDA address `var`.
-pub unsafe fn call(var: usize, offset: u32, args: &[u32]) -> u32 {
-    unsafe { method(g(var), offset, args) }
+/// A method of the object in the variable `var`.
+pub unsafe fn call(var: &crate::session::Dword, offset: u32, args: &[u32]) -> u32 {
+    unsafe { method(var.get(), offset, args) }
 }
 
 /// `CoCreateInstance(class, 0, CLSCTX_INPROC_SERVER, interface, out)`; in the standalone

@@ -2,16 +2,14 @@
 //! players' states, the cars' counters, the view cars loaded into the work copy. Here
 //! its leaves.
 
-use crate::audio::store::Slot;
+use crate::audio::store::AUDIO;
 use crate::errors::Refused;
 use crate::framework::rva;
 use crate::input::store::DEVICES;
-use crate::net::store::vars::Slot as NetSlot;
+
 use crate::race::objects::CAR_BLOCKS_RVA;
 use crate::store::{game_addr, game_read, game_write};
 
-const ONE_CHOSEN_RVA: NetSlot = NetSlot::at(0x52A910); // dword_52A910
-const CHOSEN_CAR_RVA: NetSlot = NetSlot::at(0x52A920); // dword_52A920
 pub const PLAYERS_RVA: usize = rva(0x63DB94); // dword_63DB94
 
 fn block(n: u32) -> u32 {
@@ -27,8 +25,8 @@ pub unsafe fn players_all_out() -> Result<bool, Refused> {
     use rc2k_core::race::cars::{Players, players_all_out};
     unsafe {
         let out = |n: u32| ((block(n) + 0xB0) as *const u32).read_unaligned() != 0;
-        let players = if game_read::<u32>(ONE_CHOSEN_RVA) == 1 {
-            Players::Chosen(game_read(CHOSEN_CAR_RVA))
+        let players = if crate::net::store::NET.session.get() == 1 {
+            Players::Chosen(crate::net::store::NET.player.get())
         } else {
             Players::First(game_read(PLAYERS_RVA))
         };
@@ -101,7 +99,6 @@ const DOWN_KEY: usize = 0x3D; // byte_4F6D19
 const UP_KEY: usize = 0x3E; // byte_4F6D1A
 const SHARED_KEY: usize = 0x3F; // byte_4F6D1B
 pub const SPLIT_RVA: usize = rva(0x6238A4); // dword_6238A4
-pub const MASTER_VOLUME_RVA: Slot = Slot::at(0x4F82D8); // g_masterVolume
 const OTHER_VOLUME_RVA: usize = rva(0x75568C); // dword_75568C (read by the music "up" step)
 pub const VIEW_BLOCKS: [usize; 2] = [rva(0x63DBB0), rva(0x63DBB4)]; // off_63DBB0, off_63DBB4
 const VIEW_COUNTERS_RVA: usize = rva(0x6138D4); // dword_6138D4[7]: by camera view
@@ -168,16 +165,16 @@ pub unsafe fn race_keys() -> Result<(), Refused> {
                     let from: u32 = if up {
                         game_read(OTHER_VOLUME_RVA)
                     } else {
-                        crate::sound::store::SOUND_EFFECTS.race_music_volume.get()
+                        crate::sound::store::SOUND_OPTIONS.race_music_volume.get()
                     };
                     let volume = volume_step(from, step);
-                    crate::sound::store::SOUND_EFFECTS
+                    crate::sound::store::SOUND_OPTIONS
                         .race_music_volume
                         .set(volume);
                     crate::sound::set_music_volume::set_music_volume(volume);
                 } else {
-                    let volume = volume_step(game_read(MASTER_VOLUME_RVA), step);
-                    game_write(MASTER_VOLUME_RVA, volume);
+                    let volume = volume_step(AUDIO.master_volume.get(), step);
+                    AUDIO.master_volume.set(volume);
                     // `pusha`, `push 8`, `send_command`, `pop eax`, `popa`.
                     crate::sound::send_command_8::send_command_8(volume);
                 }

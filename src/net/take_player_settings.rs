@@ -10,11 +10,11 @@
 //! `net::start_link`.
 
 use crate::errors::{BadInput, Refused};
-use crate::net::lobby::{a, g, movsb};
+use crate::net::lobby::{g, movsb};
+use crate::race::state_store::RACE_STATE;
 use rc2k_core::net::settings::{self, Copy};
 
 const PLAYERS: usize = 0x75647C; // g_players
-const SETTINGS: usize = 0x75ACE8; // dword_75ACE8
 /// The Rust version: the registers it leaves (the entry's).
 pub fn take_player_settings() -> Result<(), Refused> {
     let record = g(PLAYERS);
@@ -23,7 +23,7 @@ pub fn take_player_settings() -> Result<(), Refused> {
     }
     // Converted: `rc2k_core::net::settings` (`copies`, `TAKEN_MARK`).
     unsafe { ((record + settings::TAKEN_MARK) as *mut u32).write_unaligned(1) };
-    let to = a(SETTINGS);
+    let to = RACE_STATE.settings.car_kind_current.addr() as u32;
     for copy in settings::copies() {
         match copy {
             Copy::Dword { to: at, from } => {

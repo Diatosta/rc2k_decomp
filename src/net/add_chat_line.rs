@@ -14,7 +14,8 @@
 //! lock held).
 
 use crate::errors::{BadInput, Refused};
-use crate::net::lobby::{CHAT, CHAT_LINE, CHAT_TEXT, a, block};
+use crate::net::lobby::a;
+use crate::net::store::NET;
 use crate::strings::str_append::str_append;
 use crate::text::draw_text::GameCanvas;
 use crate::text::measure_text::measure_text_at;
@@ -37,16 +38,21 @@ pub fn add_chat_line(player: u32, message: *const u8) -> Result<(), Refused> {
         return Ok(());
     }
     // "name> text"
-    let mut cursor = unsafe { str_append(block(player) as *const u8, a(CHAT_TEXT) as *mut u8) };
+    let mut cursor = unsafe {
+        str_append(
+            NET.player_block(player).name.addr() as *const u8,
+            (NET.chat_text.addr() as u32) as *mut u8,
+        )
+    };
     unsafe {
         (cursor as *mut u16).write_unaligned(0x203E);
         cursor = str_append(message, cursor.add(2));
         cursor.write(0);
     }
-    let mut text = a(CHAT_TEXT);
+    let mut text = NET.chat_text.addr() as u32;
     loop {
         // The next line: one character more at a time while it fits.
-        let mut end = a(CHAT_LINE);
+        let mut end = NET.chat_line.addr() as u32;
         loop {
             let c = byte(text);
             set_byte(end, c);
@@ -59,7 +65,7 @@ pub fn add_chat_line(player: u32, message: *const u8) -> Result<(), Refused> {
             let width = unsafe {
                 measure_text_at(
                     a(CHAT_FONT) as *mut _,
-                    a(CHAT_LINE) as *const u8,
+                    (NET.chat_line.addr() as u32) as *const u8,
                     0,
                     &mut GameCanvas,
                 )
@@ -71,16 +77,16 @@ pub fn add_chat_line(player: u32, message: *const u8) -> Result<(), Refused> {
                 break;
             }
         }
-        if byte(a(CHAT_LINE)) == 0 && byte(text) != 0 {
+        if byte(NET.chat_line.addr() as u32) == 0 && byte(text) != 0 {
             return Err(
                 BadInput("a character wider than a chat line: the original never ends").into(),
             );
         }
         // The top line dropped, the rest moved up.
-        let mut from = a(CHAT);
+        let mut from = NET.chat.addr() as u32;
         let mut to = from;
         loop {
-            if from >= a(CHAT) + CHAT_LEN {
+            if from >= (NET.chat.addr() as u32) + CHAT_LEN {
                 return Err(BadInput("a chat with no line end").into());
             }
             let c = byte(from);
@@ -99,7 +105,7 @@ pub fn add_chat_line(player: u32, message: *const u8) -> Result<(), Refused> {
             }
         }
         // The new line at the bottom.
-        from = a(CHAT_LINE);
+        from = NET.chat_line.addr() as u32;
         set_byte(to - 1, 0x0A);
         loop {
             let c = byte(from);

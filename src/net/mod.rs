@@ -23,6 +23,7 @@
 //! no calls by place). DirectPlay's methods from Rust (`net::dplay`).
 
 use crate::framework::{game_addr, rva};
+use crate::net::store::NET;
 
 pub mod add_address_element;
 pub mod add_chat_line;
@@ -125,7 +126,6 @@ pub mod start_link;
 pub mod stop;
 pub mod stopping;
 pub mod store;
-pub mod store_data;
 pub mod store_received;
 pub mod system_message;
 pub mod take_messages;
@@ -133,19 +133,6 @@ pub mod take_player_settings;
 pub mod types;
 pub mod unlock_received;
 
-/// dword_52A910: 1 while a network race runs.
-pub const ON: usize = 0x52A910;
-/// dword_52A920: this machine's player.
-pub const PLAYER: usize = 0x52A920;
-/// dword_52AD98: the players.
-pub const PLAYERS: usize = 0x52AD98;
-/// byte_52AD9C: each player's received messages, 0x804C bytes a player.
-pub const RECEIVED: usize = 0x52AD9C;
-pub const RECEIVED_LEN: u32 = std::mem::size_of::<types::NetPlayerBlock>() as u32;
-/// dword_52AB6C: the mutex of the received messages; dword_52AB68: the receiving
-/// thread's event.
-pub const MUTEX: usize = 0x52AB6C;
-pub const EVENT: usize = 0x52AB68;
 /// dword_63DBA0: logged with each message (a step count, it seems).
 pub const STEP: usize = 0x63DBA0;
 /// unk_71C4D0: the message being built.
@@ -171,6 +158,6 @@ pub fn a(x: usize) -> u32 {
 pub fn log_send(text: usize) {
     use crate::logfile::{log_int::log_int, log_write::log_write};
     unsafe { log_write(a(text) as *const u8, false, 1) };
-    log_int(g(PLAYER) as i32, false, 1);
+    log_int(NET.player.get() as i32, false, 1);
     log_int(g(STEP) as i32, true, 1);
 }

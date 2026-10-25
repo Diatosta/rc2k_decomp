@@ -8,7 +8,13 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::rva;
+use crate::race::state_store::RACE_STATE;
 use crate::store::{game_addr, game_write};
+
+/// `dword_4F66F9`: the race record's seal key (the replay header's checksum,
+/// `race::seal_replay_header`; `race::seal_stage_time` turns the first car's time by it).
+/// Split 2026-10-25 from sound's dwords around it; `moved::MOVED` names IDA 0x4F66F9 here.
+pub static SEAL_KEY: crate::session::Dword = crate::session::Dword::new(0);
 
 pub const PLAIN_RVA: usize = rva(0x5BEC80); // dword_5BEC80: 1 = chunks written unpacked
 pub const OPEN_RVA: usize = rva(0x5BEC88); // dword_5BEC88: the file is open
@@ -66,7 +72,7 @@ pub unsafe fn seal_replay_header() -> Result<(), Refused> {
         let dwords: Vec<u32> = (1..0x40).map(|n| get(SEALED_RVA + 4 * n)).collect();
         let sum = seal_checksum(&dwords);
         set(SEALED_RVA, sum);
-        crate::sound::store::WHEELS.seal_key.set(sum);
+        crate::race::replay::SEAL_KEY.set(sum);
         let key = [get(rva(0x4E052C)), get(rva(0x4E0530))];
         set(rva(0x4E052C), SEAL_KEY[0]);
         set(rva(0x4E0530), SEAL_KEY[1]);
@@ -271,8 +277,8 @@ pub unsafe fn open_replay() -> Result<(), Refused> {
         if !replays_on(
             get(rva(0x5BEC78)),
             get(rva(0x5BEC7C)),
-            get(rva(0x52A910)),
-            get(rva(0x75ACDC)),
+            crate::net::store::NET.session.get(),
+            RACE_STATE.settings.no_replay.get(),
         ) {
             return Ok(());
         }
@@ -295,8 +301,14 @@ pub unsafe fn open_replay() -> Result<(), Refused> {
             rva(0x719B34),
             crate::sound::store::RACE_SOUNDS.one_player.get(),
         );
-        set(rva(0x719B38), get(rva(0x75AE20)));
-        set(rva(0x719B3C), get(rva(0x75AF8C)));
+        set(
+            rva(0x719B38),
+            RACE_STATE.settings.cars[0].codriver_sex.get(),
+        );
+        set(
+            rva(0x719B3C),
+            RACE_STATE.settings.cars[1].codriver_sex.get(),
+        );
         set(rva(0x719C54), 6);
         std::ptr::copy(
             game_addr(rva(0x71C6D0)) as *const u8,
@@ -329,4 +341,13 @@ pub unsafe fn open_replay() -> Result<(), Refused> {
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod seal_key_tests {
+    #[test]
+    fn seal_key_starts_as_the_games() {
+        assert_eq!(crate::moved::image_bytes(0x4F66F9, 4), [0; 4]);
+        assert_eq!(super::SEAL_KEY.get(), 0);
+    }
 }

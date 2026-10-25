@@ -16,27 +16,28 @@
 
 use crate::errors::Refused;
 use crate::net::lobby::{
-    CHOICE, EDITED, FRAME_CLOCK, KEY_CLOCK, MODE, MOVE_CLOCK, g, list_key, other_key, p, run_frame,
+    CHOICE, FRAME_CLOCK, KEY_CLOCK, MOVE_CLOCK, g, list_key, other_key, p, run_frame,
 };
+use crate::net::store::NET;
 use crate::session::CLOCKS;
 use crate::session::FLAGS;
 
 /// The Rust version.
 pub fn settings_loop() -> Result<(), Refused> {
-    p(MODE, 0);
+    NET.mode.set(0);
     crate::net::show_background::show_background()?;
     crate::net::settings_done::settings_done()?;
     let now = CLOCKS.key_ticks.get();
     p(MOVE_CLOCK, now);
     p(KEY_CLOCK, now);
-    p(EDITED, u32::MAX);
+    NET.edited.set(u32::MAX);
     p(CHOICE, 0);
     loop {
         run_frame(crate::net::settings_frame::settings_frame)?;
         p(FRAME_CLOCK, CLOCKS.key_ticks.get());
         let key = list_key()?;
         let mut moved = false;
-        if g(EDITED) != u32::MAX {
+        if NET.edited.get() != u32::MAX {
             crate::net::setting_key::setting_key(key)?;
         } else {
             match key {

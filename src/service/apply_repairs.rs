@@ -30,19 +30,16 @@
 //! registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_read, game_write, rva};
+use crate::framework::Regs;
+use crate::menu::state_store::MENU_STATE;
 use crate::service::pages::{GEAR_RATIO, RIDE_HEIGHT, SUSPENSION_STIFFNESS, TYRE};
 use crate::service::reset_tyre_wear::reset_tyre_wear;
 use crate::service::state::{current_player, repair_flag, set_repair_flag};
+use crate::session::Dword;
 use crate::system::sleep::sleep;
 use crate::system::tick_count::tick_count;
 
 // ---- game data ----
-
-const WORKING_RVA: usize = rva(0x75AB38); // dword_75AB38: set to 1 here
-const START_RVA: usize = rva(0x75AB48); // dword_75AB48: the clock when a phase started
-const ELAPSED_RVA: usize = rva(0x75AB4C); // dword_75AB4C
-const LAST_STEP_RVA: usize = rva(0x75AB54); // dword_75AB54: `elapsed` at the last step
 
 // Converted: `rc2k_core::service::workshop` (the car's offsets, the items, the order).
 use rc2k_core::service::workshop::{Setting, Timer, Workshop};
@@ -102,13 +99,13 @@ impl Workshop for Game<'_> {
         unsafe { field(self.player, offset).write_unaligned(value as i32) };
     }
     fn set_working(&mut self) {
-        unsafe { game_write(WORKING_RVA, 1u32) };
+        MENU_STATE.menus.service_flag.set(1u32);
     }
     fn timer(&mut self, t: Timer) -> u32 {
-        unsafe { game_read(timer_rva(t)) }
+        timer(t).get()
     }
     fn set_timer(&mut self, t: Timer, value: u32) {
-        unsafe { game_write(timer_rva(t), value) };
+        timer(t).set(value);
     }
     fn reset_tyre_wear(&mut self) -> Result<(), Refused> {
         Ok(unsafe { reset_tyre_wear() }?)
@@ -120,11 +117,9 @@ impl Workshop for Game<'_> {
             Setting::RideHeight => RIDE_HEIGHT,
             Setting::Stiffness => SUSPENSION_STIFFNESS,
         };
-        unsafe {
-            let value: u32 = game_read(page.change.chosen_rva);
-            game_write(page.change.installed_rva, value);
-            value
-        }
+        let value = page.change.chosen.get();
+        page.change.installed.set(value);
+        value
     }
     fn clock(&mut self) -> u32 {
         self.driver.clock()
@@ -137,11 +132,11 @@ impl Workshop for Game<'_> {
     }
 }
 
-fn timer_rva(t: Timer) -> usize {
+fn timer(t: Timer) -> &'static Dword {
     match t {
-        Timer::Start => START_RVA,
-        Timer::Elapsed => ELAPSED_RVA,
-        Timer::LastStep => LAST_STEP_RVA,
+        Timer::Start => &MENU_STATE.menus.fade_start,
+        Timer::Elapsed => &MENU_STATE.menus.fade_gone,
+        Timer::LastStep => &MENU_STATE.menus.repair_last_step,
     }
 }
 

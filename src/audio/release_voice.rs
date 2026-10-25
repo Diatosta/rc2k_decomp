@@ -12,8 +12,8 @@
 //! `audio::free_voices`.
 
 use crate::audio::com::{self, RELEASE};
+use crate::audio::store::AUDIO;
 use crate::audio::voices::*;
-use crate::store::game_read;
 
 const STOP: u32 = 0x48;
 const A3D_STOP: u32 = 0x38;
@@ -49,5 +49,5 @@ pub unsafe fn release_voice(at: u32, a3d: bool) {
 
 /// With the game's A3D switch.
 pub unsafe fn release_voice_in_game(at: u32) {
-    unsafe { release_voice(at, game_read::<u32>(A3D_RVA) == 1) }
+    unsafe { release_voice(at, AUDIO.use_a3d.get() == 1) }
 }

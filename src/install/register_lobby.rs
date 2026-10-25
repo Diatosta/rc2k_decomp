@@ -16,38 +16,62 @@
 
 use crate::errors::Refused;
 use crate::install::installer::{
-    Api, INSTALLED, REG_CLOSE_KEY, REG_CREATE_KEY, REG_KEY, TEXT, a, append_byte, rb, rd, wb,
+    Api, INSTALLED, REG_CLOSE_KEY, REG_CREATE_KEY, REG_KEY, TEXT, a, append_byte, rd, wb,
 };
+use crate::net::store::NET;
 
-const KEY_NAME: usize = 0x5AB419; // "SOFTWARE\Microsoft\DirectPlay\Applications\RC"
-const GUID: usize = 0x5AB300; // dword_5AB300
-const NAME_GUID: usize = 0x5AB463; // "Guid"
-const NAME_FILE: usize = 0x5AB468; // "File"
 const RAL_EXE: usize = 0x51BE48; // "ral.exe"
-const NAME_CMDLINE: usize = 0x5AB46D; // "CommandLine"
-const NAME_PATH: usize = 0x5AB479; // "Path"
-const NAME_CURDIR: usize = 0x5AB47E; // "CurrentDirectory"
 const HKLM: u32 = 0x8000_0002;
 
 pub fn register_lobby(api: Api) -> Result<(), Refused> {
     use crate::install::set_lobby_value::set_lobby_value;
-    if api(REG_CREATE_KEY, &[HKLM, a(KEY_NAME), a(REG_KEY)]) != 0 {
+    if api(
+        REG_CREATE_KEY,
+        &[
+            HKLM,
+            crate::install::store::LOBBY_KEYS.registry_key.addr() as u32,
+            a(REG_KEY),
+        ],
+    ) != 0
+    {
         return Ok(());
     }
     let text = a(TEXT);
     // Converted: `rc2k_core::install::lobby::guid_text`.
-    let guid: [u8; 16] = std::array::from_fn(|n| rb(a(GUID) + n as u32));
+    let guid: [u8; 16] = std::array::from_fn(|n| NET.app_guid.get(n));
     let guid = rc2k_core::install::lobby::guid_text(&guid);
     for (n, &b) in guid.iter().enumerate() {
         wb(text + n as u32, b);
     }
     append_byte(text + guid.len() as u32, 0);
-    set_lobby_value(a(NAME_GUID), text, api)?;
-    set_lobby_value(a(NAME_FILE), a(RAL_EXE), api)?;
+    set_lobby_value(
+        crate::install::store::LOBBY_KEYS.name_guid.addr() as u32,
+        text,
+        api,
+    )?;
+    set_lobby_value(
+        crate::install::store::LOBBY_KEYS.name_file.addr() as u32,
+        a(RAL_EXE),
+        api,
+    )?;
     wb(text, 0);
-    set_lobby_value(a(NAME_CMDLINE), text, api)?;
-    set_lobby_value(a(NAME_PATH), a(INSTALLED), api)?;
-    set_lobby_value(a(NAME_CURDIR), a(INSTALLED), api)?;
+    set_lobby_value(
+        crate::install::store::LOBBY_KEYS.name_command_line.addr() as u32,
+        text,
+        api,
+    )?;
+    set_lobby_value(
+        crate::install::store::LOBBY_KEYS.name_path.addr() as u32,
+        a(INSTALLED),
+        api,
+    )?;
+    set_lobby_value(
+        crate::install::store::LOBBY_KEYS
+            .name_current_directory
+            .addr() as u32,
+        a(INSTALLED),
+        api,
+    )?;
     api(REG_CLOSE_KEY, &[rd(a(REG_KEY))]);
     Ok(())
 }

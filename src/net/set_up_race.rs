@@ -14,9 +14,8 @@
 //! would run past them: refused. Caller: `net::lets_rally`.
 
 use crate::errors::Refused;
-use crate::field;
-use crate::net::lobby::{PLAYER, PLAYERS, a, block, g, log, log_int_nl, p};
-use crate::net::types::NetPlayerBlock;
+use crate::net::lobby::{a, g, log, log_int_nl, p};
+use crate::net::store::NET;
 use rc2k_core::net::record;
 
 const LOCAL: usize = 0x63DBA0; // dword_63DBA0
@@ -53,28 +52,28 @@ const START: usize = 0x4DDFEA; // "LOADING NETWORK START   "
 const COMPLETE: usize = 0x4DE0A7; // "LOADING NETWORK COMPLETE"
 const RULE_2: usize = 0x4DE0C0;
 /// The counts logged: (the label, the value's variable).
-const COUNTS: [(usize, usize); 11] = [
-    (0x4DE003, RACE_CARS), // "[shaunnumcars]"
-    (0x4DE012, ONE),       // "[shaunnumplayers]"
-    (0x4DE024, PLAYER),    // "[localnpn]"
-    (0x4DE02F, 0x623858),  // "[shauncarnum1]" ..
-    (0x4DE03E, 0x62385C),
-    (0x4DE04D, 0x623860),
-    (0x4DE05C, 0x623864),
-    (0x4DE06B, 0x623868),
-    (0x4DE07A, 0x62386C),
-    (0x4DE089, 0x623870),
-    (0x4DE098, 0x623874),
+const COUNTS: [(usize, Option<usize>); 11] = [
+    (0x4DE003, Some(RACE_CARS)), // "[shaunnumcars]"
+    (0x4DE012, Some(ONE)),       // "[shaunnumplayers]"
+    (0x4DE024, None),            // "[localnpn]"
+    (0x4DE02F, Some(0x623858)),  // "[shauncarnum1]" ..
+    (0x4DE03E, Some(0x62385C)),
+    (0x4DE04D, Some(0x623860)),
+    (0x4DE05C, Some(0x623864)),
+    (0x4DE06B, Some(0x623868)),
+    (0x4DE07A, Some(0x62386C)),
+    (0x4DE089, Some(0x623870)),
+    (0x4DE098, Some(0x623874)),
 ];
 
 /// The Rust version.
 pub fn set_up_race() -> Result<(), Refused> {
     // Converted: `rc2k_core::net::record` (`race_players`, `seat`).
-    let players = record::race_players(g(PLAYERS))?;
-    p(LOCAL, g(PLAYER));
+    let players = record::race_players(NET.players.get())?;
+    p(LOCAL, NET.player.get());
     for n in 0..players {
-        let at = block(n) + field!(NetPlayerBlock, record);
-        let seat = record::seat(|n| unsafe { ((at + n as u32) as *const u8).read() });
+        let record = &NET.player_block(n).record;
+        let seat = record::seat(|n| record.head.get(n));
         let slot = 4 * n as usize;
         p(KINDS + slot, seat.car);
         p(COLOURS + slot, seat.colours);
@@ -100,7 +99,8 @@ pub fn set_up_race() -> Result<(), Refused> {
     log(a(START), true, 1);
     for (label, value) in COUNTS {
         log(a(label), false, 1);
-        log_int_nl(g(value), 1);
+        // `None`: this machine's player (`NET.player`), not in the image's old range.
+        log_int_nl(value.map_or_else(|| NET.player.get(), g), 1);
     }
     unsafe { crate::race::stage_loading::load_stage() }?;
     log(a(COMPLETE), true, 1);

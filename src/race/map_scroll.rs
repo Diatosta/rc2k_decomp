@@ -29,7 +29,7 @@ const MAP_Y: u32 = CAR + 0xAE4;
 pub unsafe fn map_tiles() -> Result<(), Refused> {
     // Converted: `rc2k_core::race::map::{first_tile, picture_slot}`.
     use rc2k_core::race::map::{first_tile, picture_slot};
-    let one_view = k(0x52A910) != 0;
+    let one_view = crate::net::store::NET.session.get() != 0;
     // The car is read only for both views.
     let slot = picture_slot(
         k(0x5D0E00),
@@ -107,7 +107,7 @@ pub unsafe fn scroll_maps() -> Result<(), Refused> {
     // Converted: `rc2k_core::race::map::scrolled_views`.
     use crate::race::frame::{VIEW_CARS, load_view_car, store_view_car};
     unsafe {
-        let third_only = k(0x52A910) != 0;
+        let third_only = crate::net::store::NET.session.get() != 0;
         // The player count is read only without the third view.
         let views = rc2k_core::race::map::scrolled_views(
             third_only,

@@ -13,37 +13,37 @@
 //! car at all: the original copies one entry back and then counts through all 32 bits.
 
 use crate::errors::BadInput;
-use crate::framework::{game_read, game_write, rva};
+use crate::framework::{game_write, rva};
+use crate::menu::lists_store::MENU_LISTS;
+use crate::session::Dword;
 use rc2k_core::menu::car_lists;
 
 // ---- game data ----
 
-/// A list of dwords ended by -1: where it is and how many dwords it has room for.
-pub type List = (usize, usize);
+/// A list of dwords ended by -1: its cells and how many dwords it has room for.
+pub type List = (&'static [Dword], usize);
 /// off_75A042: the cars of one kind of event (0x28 entries are kept in `var\ral.dat`).
-pub const FIRST: List = (rva(0x75A042), 0x28);
+pub const FIRST: List = (&MENU_LISTS.cars_second, 0x28);
 /// off_759D16: the next variable is 0xB4 bytes on.
-pub const SECOND: List = (rva(0x759D16), 0x2D);
+pub const SECOND: List = (&MENU_LISTS.cars_a8, 0x2D);
 /// off_759F4A: the secret cars.
-const SECRET: List = (rva(0x759F4A), 0x0C);
+const SECRET: List = (&MENU_LISTS.secret_cars, 0x0C);
 /// unk_759F7A: where a list is copied to and back from.
-const SCRATCH: List = (rva(0x759F7A), 0x32);
+const SCRATCH: List = (&MENU_LISTS.cars_scratch, 0x32);
 pub const CHEATS_RVA: usize = rva(0x75870C); // g_cheats
 
 /// The list's entries before its -1.
 pub unsafe fn read_list(list: List) -> Result<Vec<u32>, BadInput> {
-    Ok(car_lists::entries(list.1, |n| unsafe {
-        game_read::<u32>(list.0 + n * 4)
-    })?)
+    Ok(car_lists::entries(list.1, |n| list.0[n].get())?)
 }
 
 /// The entries and a -1 after them. The caller has made sure of the room.
 pub unsafe fn write_list(list: List, entries: &[u32]) {
-    unsafe {
+    {
         for (n, &entry) in entries.iter().enumerate() {
-            game_write(list.0 + n * 4, entry);
+            list.0[n].set(entry);
         }
-        game_write(list.0 + entries.len() * 4, car_lists::END);
+        list.0[entries.len()].set(car_lists::END);
     }
 }
 
@@ -65,7 +65,7 @@ pub unsafe fn remove_secret_cars() -> Result<(), BadInput> {
         for (list, cars) in [FIRST, SECOND].into_iter().zip(&kept) {
             // The scratch list gets no end mark.
             for (n, &car) in cars.iter().enumerate() {
-                game_write(SCRATCH.0 + n * 4, car);
+                SCRATCH.0[n].set(car);
             }
             write_list(list, cars);
             game_write(CHEATS_RVA, 0u32);

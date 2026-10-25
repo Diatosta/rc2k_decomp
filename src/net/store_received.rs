@@ -15,7 +15,7 @@
 //! (the move's `rep movsd`): a message stored between others keeps no length or bytes
 //! (the game's slip, section 16).
 //!
-//! In:  `sequence` (al), `block` (edi: the player's block), `time` (edx), `bytes` (ebx) and
+//! In:  `sequence` (al), `block` (edi: the player's block, a `PlayerBlock`), `time` (edx), `bytes` (ebx) and
 //!      `length` (ecx)
 //! Out: nothing (every register kept, `pusha` .. `popa`; the flags not read: the one
 //!      caller calls `net::unlock_received` next)
@@ -24,17 +24,18 @@
 //! caller sends neither).
 
 use crate::errors::Refused;
+use crate::net::store::PlayerBlock;
 use rc2k_core::net::inbox;
 
 /// The Rust version.
 pub fn store_received(
     sequence: u8,
-    block: u32,
+    block: &PlayerBlock,
     time: u32,
     bytes: *const u8,
     length: u32,
 ) -> Result<(), Refused> {
-    let base = block.wrapping_add(0x34);
+    let base = block.inbox_addr();
     // Converted: `rc2k_core::net::inbox::store`, on the block's inbox and the message.
     let inbox = unsafe { std::slice::from_raw_parts_mut(base as *mut u8, inbox::INBOX) };
     let message = unsafe { std::slice::from_raw_parts(bytes, length as usize) };

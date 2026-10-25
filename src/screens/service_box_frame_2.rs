@@ -7,7 +7,9 @@
 //! `service_boxes`' translator.
 
 use crate::errors::Refused;
-use crate::screens::service_boxes::{addr, at_esi, quad, rd};
+use crate::menu::lists_store::MENU_LISTS;
+use crate::menu::state_store::MENU_STATE;
+use crate::screens::service_boxes::{at_esi, quad, rd};
 
 /// The Rust version (see the header): the registers it leaves.
 #[allow(unused_assignments, clippy::needless_late_init)] // the translator's flags, one per `cmp`
@@ -17,7 +19,7 @@ pub unsafe fn service_box_frame_2() -> Result<(), Refused> {
     let mut value = 0u32;
     let mut flag = 0u32;
     let mut c: (u32, u32);
-    c = (rd(0x75AA9C), 0x1);
+    c = (MENU_STATE.service_ui.box_shown.get(), 0x1);
     'l492528: {
         'l4919cf: {
             'l4919ad: {
@@ -35,19 +37,20 @@ pub unsafe fn service_box_frame_2() -> Result<(), Refused> {
                 }
                 break 'l4919cf;
             }
-            value = rd(0x75AC90);
-            c = (rd(0x75AC94), value);
+            value = MENU_STATE.driver_stats.setups[0].chosen.get();
+            c = (MENU_STATE.driver_stats.setups[0].installed.get(), value);
             if c.0 != c.1 {
                 break 'l4919cf;
             }
             value = 0xE;
-            flag = addr(0x759B6E).wrapping_add(value.wrapping_mul(4));
+            flag = (MENU_LISTS.inspection_flags_a[0].addr() as u32)
+                .wrapping_add(value.wrapping_mul(4));
             c = (at_esi(flag), 0x1);
             if c.0 != c.1 {
                 break 'l492528;
             }
         }
-        c = (rd(0x75AC90), 0x0);
+        c = (MENU_STATE.driver_stats.setups[0].chosen.get(), 0x0);
         'l491c14: {
             if c.0 != c.1 {
                 break 'l491c14;
@@ -61,7 +64,7 @@ pub unsafe fn service_box_frame_2() -> Result<(), Refused> {
             quad(0x84, 0x12C, 0x1, 0x26, 0xFFFF00, 0xFF)?;
             quad(0x45, 0x151, 0x3F, 0x1, 0xFFFF00, 0xFF)?;
         }
-        c = (rd(0x75AC90), 0x1);
+        c = (MENU_STATE.driver_stats.setups[0].chosen.get(), 0x1);
         'l491e59: {
             if c.0 != c.1 {
                 break 'l491e59;
@@ -75,7 +78,7 @@ pub unsafe fn service_box_frame_2() -> Result<(), Refused> {
             quad(0xC6, 0x12C, 0x1, 0x26, 0xFFFF00, 0xFF)?;
             quad(0x87, 0x151, 0x3F, 0x1, 0xFFFF00, 0xFF)?;
         }
-        c = (rd(0x75AC90), 0x2);
+        c = (MENU_STATE.driver_stats.setups[0].chosen.get(), 0x2);
         'l49209e: {
             if c.0 != c.1 {
                 break 'l49209e;
@@ -89,7 +92,7 @@ pub unsafe fn service_box_frame_2() -> Result<(), Refused> {
             quad(0x108, 0x12C, 0x1, 0x26, 0xFFFF00, 0xFF)?;
             quad(0xC9, 0x151, 0x3F, 0x1, 0xFFFF00, 0xFF)?;
         }
-        c = (rd(0x75AC90), 0x3);
+        c = (MENU_STATE.driver_stats.setups[0].chosen.get(), 0x3);
         'l4922e3: {
             if c.0 != c.1 {
                 break 'l4922e3;
@@ -103,7 +106,7 @@ pub unsafe fn service_box_frame_2() -> Result<(), Refused> {
             quad(0x14A, 0x12C, 0x1, 0x26, 0xFFFF00, 0xFF)?;
             quad(0x10B, 0x151, 0x3F, 0x1, 0xFFFF00, 0xFF)?;
         }
-        c = (rd(0x75AC90), 0x4);
+        c = (MENU_STATE.driver_stats.setups[0].chosen.get(), 0x4);
         if c.0 != c.1 {
             break 'l492528;
         }

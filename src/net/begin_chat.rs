@@ -7,7 +7,8 @@
 //!      `pusha`
 //! Caller: `net::lobby_loop`.
 
-use crate::net::lobby::{CHAT_INPUT, CHOICE, a, g, pb};
+use crate::net::lobby::{CHOICE, a, g};
+use crate::net::store::NET;
 
 const CHAT_FONT: usize = 0x51E424; // dword_51E424
 
@@ -15,6 +16,11 @@ const CHAT_FONT: usize = 0x51E424; // dword_51E424
 /// 0x30C, edx the font) are read by no caller (`lobby_loop` only; liveness: ebp, edi, edx,
 /// esi live after, edx the caller's own).
 pub fn begin_chat() {
-    pb(CHAT_INPUT, 0);
-    crate::net::begin_edit::begin_edit(g(CHOICE), a(CHAT_INPUT), 0x30C, a(CHAT_FONT));
+    NET.chat_input.set(0, 0);
+    crate::net::begin_edit::begin_edit(
+        g(CHOICE),
+        NET.chat_input.addr() as u32,
+        0x30C,
+        a(CHAT_FONT),
+    );
 }

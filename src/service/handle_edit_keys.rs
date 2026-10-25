@@ -11,14 +11,14 @@
 
 use crate::errors::FatalError;
 use crate::errors::Refused;
-use crate::framework::game_read;
+use crate::menu::state_store::MENU_STATE;
 use crate::service::edit_brake_balance::edit_brake_balance;
 use crate::service::edit_gear_ratio::edit_gear_ratio;
 use crate::service::edit_ride_height::edit_ride_height;
 use crate::service::edit_steering_sensitivity::edit_steering_sensitivity;
 use crate::service::edit_suspension_stiffness::edit_suspension_stiffness;
 use crate::service::edit_tyre::edit_tyre;
-use crate::service::state::{EDIT_PAGE_RVA, edit_mode};
+use crate::service::state::edit_mode;
 
 // ---- Rust version ----
 
@@ -29,7 +29,7 @@ pub unsafe fn handle_edit_keys() -> Result<(), Refused> {
     unsafe {
         // Converted: `rc2k_core::service::setups::EditPage`.
         use rc2k_core::service::setups::EditPage;
-        match EditPage::from_number(game_read::<u32>(EDIT_PAGE_RVA)) {
+        match EditPage::from_number(MENU_STATE.service_ui.box_page.get()) {
             Some(EditPage::GearRatio) => edit_gear_ratio(false),
             Some(EditPage::Tyre) => edit_tyre(false),
             Some(EditPage::SteeringSensitivity) => edit_steering_sensitivity(),

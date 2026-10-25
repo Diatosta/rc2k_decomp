@@ -77,7 +77,7 @@ pub const SCREEN: Screen = Screen {
     action_menu: None,
     no_quit_check: false,
     before_asking: &[],
-    ask_unless: Some(rva(0x52A910)),
+    ask_unless: Some(|| crate::net::store::NET.session.get()),
     leaving: &[],
     leave_saved_item: None,
     keys_menu: None,

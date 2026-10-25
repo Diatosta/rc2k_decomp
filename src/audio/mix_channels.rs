@@ -7,19 +7,18 @@
 //! See `audio/mixer.rs`.
 
 use crate::audio::mixer::*;
-use crate::audio::voices::*;
+use crate::audio::store::AUDIO;
 use crate::errors::Refused;
-use crate::store::{game_addr, game_read};
+use crate::store::game_addr;
 
-pub unsafe fn mix_channels_in_game(bytes: u32) -> Result<(), Refused> {
-    let w = World::game();
+pub fn mix_channels_in_game(bytes: u32) -> Result<(), Refused> {
     unsafe {
         mix_channels(
             bytes,
-            game_read(MIX_SHIFT_RVA),
+            AUDIO.mix_shift.get(),
             game_addr(MIX_BUFFER_RVA) as u32,
-            w.channels,
-            read(w.channel_count),
+            AUDIO.channels[0].addr() as u32,
+            AUDIO.channel_count.get(),
         )
     }
 }

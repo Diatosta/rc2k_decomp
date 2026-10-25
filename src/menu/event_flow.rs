@@ -51,17 +51,10 @@ pub const INDEX: usize = 0x755958; // index
 pub const SECTION: usize = 0x75595C; // section
 pub const RECORD_TABLE: usize = 0x735576; // g_recordTable
 pub const CHEATS: usize = 0x75870C; // g_cheats
-pub const RACE_RESULT: usize = 0x75B028; // dword_75B028: -1 no result, -2 left
-pub const RACE_RESULT_2: usize = 0x75B098; // dword_75B098: the second car's
 pub const ROUND: usize = 0x758714; // dword_758714: the rounds of a multi-player event
 
 /// The car lists: `off_759CAE` (the championship's), `off_759D16` (the A8 championship's),
 /// `off_759DCA` / `off_75A042` (by `dword_7554D8`), `off_75A412` (with cheat bit 1).
-pub const CARS_CHAMPIONSHIP: usize = 0x759CAE;
-pub const CARS_A8: usize = 0x759D16;
-pub const CARS_FIRST: usize = 0x759DCA;
-pub const CARS_SECOND: usize = 0x75A042;
-pub const CARS_CHEAT: usize = 0x75A412;
 pub const CAR_LIST_KIND: usize = 0x7554D8; // dword_7554D8: 1 picks the first list
 
 /// Player `n`'s record (`g_players`).

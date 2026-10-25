@@ -14,12 +14,9 @@
 //! one before left. Refuses (before anything) a missing player 0.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, game_write, rva};
+use crate::framework::{game_read, rva};
 use crate::menu::player::player_at;
-
-fn p(a: usize, v: u32) {
-    unsafe { game_write(rva(a), v) }
-}
+use crate::race::state_store::RACE_STATE;
 
 /// The Rust version. The original keeps every register of its caller.
 pub unsafe fn arcade_finale() -> Result<(), Refused> {
@@ -28,14 +25,17 @@ pub unsafe fn arcade_finale() -> Result<(), Refused> {
         return Err(BadInput("no player 0").into());
     }
     let f = |o: u32| unsafe { ((player0 + o) as *const u32).read_unaligned() };
-    p(0x75B100, f(0x28));
-    p(0x75B104, f(8));
-    p(0x75ACE8, f(8));
-    p(0x75ACE4, 0);
+    RACE_STATE.results.finish_player.set(f(0x28));
+    RACE_STATE.results.finish_kind.set(f(8));
+    RACE_STATE.settings.car_kind_current.set(f(8));
+    RACE_STATE.settings.kept.set(0);
     let level = unsafe { game_read(rva(0x7587EC)) };
     // Converted: `rc2k_core::menu::arcade::levels_left`.
-    p(0x75B0FC, rc2k_core::menu::arcade::levels_left(level));
-    p(0x75B108, 0);
+    RACE_STATE
+        .results
+        .stage_index
+        .set(rc2k_core::menu::arcade::levels_left(level));
+    RACE_STATE.results.finished.set(0);
     unsafe {
         crate::race::sound_tables::set_up_race_sound_objects(
             &crate::race::sound_tables::ObjectVars::game(),

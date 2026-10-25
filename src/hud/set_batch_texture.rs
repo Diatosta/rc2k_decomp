@@ -10,7 +10,7 @@
 use crate::errors::Refused;
 use crate::framework::rva;
 use crate::hud::batch::SHOWN_TEXTURE_RVA;
-use crate::hud::store::game_read;
+use crate::store::game_read;
 
 const SLOTS_RVA: usize = rva(0x5D1AE8); // g_kindFirstSlots
 

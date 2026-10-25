@@ -11,17 +11,18 @@
 
 use crate::errors::Refused;
 use crate::net::draw_button::draw_button;
-use crate::net::lobby::{BACK_FROM_RACE, OWN, g, gb};
+use crate::net::store::NET;
 use rc2k_core::net::screens;
-
-const WIDTH: usize = 0x5AB4A0; // dword_5AB4A0
 
 /// The Rust version: the button `string` for item `item` at (`x`, `y`); returns the next
 /// button's x (the original's edi; its ebx, ecx and edx are read by no caller:
 /// `net::lobby_frame`).
 pub fn lobby_button(string: u32, item: u32, x: u32, y: u32) -> Result<u32, Refused> {
     // Converted: `rc2k_core::net::screens` (`lobby_button_flags`, `next_button_x`).
-    let flags = screens::lobby_button_flags(gb(OWN), item, g(BACK_FROM_RACE));
+    let flags = screens::lobby_button_flags(NET.own.state(), item, NET.after_race.get());
     draw_button(string, flags, x, y, item)?;
-    Ok(screens::next_button_x(x, g(WIDTH)))
+    Ok(screens::next_button_x(
+        x,
+        crate::net::store::BUTTON.width.get(),
+    ))
 }

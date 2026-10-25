@@ -22,11 +22,10 @@
 use crate::errors::BadInput;
 use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::menu::remove_secret_cars::{CHEATS_RVA, FIRST, List, SECOND, read_list, write_list};
+use crate::race::state_store::RACE_STATE;
 use rc2k_core::menu::car_lists;
 
 // ---- game data ----
-
-const A8_RVA: usize = rva(0x75ACCC); // dword_75ACCC
 
 /// By bit (what each does: `rc2k_core::menu::car_lists::CHEATS`): the log line's text and
 /// the cheat's car, if any.
@@ -79,7 +78,7 @@ pub unsafe fn apply_cheats(log: &mut dyn FnMut(*const u8)) -> Result<(), BadInpu
             write_list(SECOND, &second.cars);
         }
         if a.stores {
-            game_write(A8_RVA, 1u32);
+            RACE_STATE.settings.a8_game.set(1u32);
         }
         for bit in a.logged {
             log(game_addr(rva(CHEATS[bit].0)) as *const u8);

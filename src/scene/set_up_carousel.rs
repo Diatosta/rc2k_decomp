@@ -33,44 +33,41 @@
 //! through `routes.rs`.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::framework::{game_write, rva};
+use crate::menu::lists_store::MENU_LISTS;
+use crate::menu::state_store::MENU_STATE;
 use crate::scene::carousel_set_ups::PLAIN;
+use crate::session::{Dword, write_all, write_prefix};
 
 // ---- game data ----
-
-const MENU_RVA: usize = rva(0x75AA74); // g_carouselMenu
 const MENUS: u32 = 0x15;
-const TEXTURES_RVA: usize = rva(0x75A622); // dword_75A622, eight numbers
-const LIST_RVA: usize = rva(0x75A65C); // dword_75A65C
-const KINDS_RVA: usize = rva(0x75A674); // dword_75A674, the entries' kinds
-const CAR_KINDS_RVA: usize = rva(0x75A1FE); // dword_75A1FE, a kind by car number
-const COUNT_RVA: usize = rva(0x75AA78); // g_carouselCount
+const CAR_KINDS_IDA: usize = 0x75A1FE; // dword_75A1FE: `MENU_LISTS.car_kinds`
 const LAST_RVA: usize = rva(0x75649C); // dword_75649C
 const SIZE_RVA: usize = rva(0x635038); // dword_635038
-const CARS_RVA: usize = rva(0x759DCA); // off_759DCA
-const FIXED_CARS_RVA: usize = rva(0x759D16); // off_759D16
 use rc2k_core::scene::carousel;
 
 /// One step of a carousel's set-up.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy)]
 pub enum Op {
     /// A dword to the address (as IDA shows it).
     Store(usize, u32),
+    /// A dword to one of the physics block's variables.
+    Set(&'static Dword, u32),
     /// The eight numbers at `dword_75A622` = -1.
     Fill,
 }
 
 /// The cars' carousels' stores after their entries, `dword_635038` apart.
-const CARS_TAIL: [(usize, u32); 9] = [
-    (0x75AA7C, 0),
-    (0x75AA80, 0),
-    (0x75A660, 0),
-    (0x75A664, 0x36BC0),
-    (0x75A668, 0xFFFF_4000),
-    (0x75A66C, 0x5F000),
-    (0x75A670, 0x20000),
-    (0x63503C, 0x10FF),
-    (0x635020, 0xFFFE_6000),
+const CARS_TAIL: [Op; 9] = [
+    Op::Set(&MENU_STATE.carousel.front, 0),
+    Op::Set(&MENU_STATE.carousel.angle, 0),
+    Op::Set(&MENU_STATE.carousel.direction, 0),
+    Op::Set(&MENU_STATE.carousel.spacing, 0x36BC0),
+    Op::Set(&MENU_STATE.carousel.y, 0xFFFF_4000),
+    Op::Set(&MENU_STATE.carousel.z, 0x5F000),
+    Op::Set(&MENU_STATE.carousel.forward, 0x20000),
+    Op::Store(0x63503C, 0x10FF),
+    Op::Store(0x635020, 0xFFFE_6000),
 ];
 
 /// `sub_48FF83`'s six kinds.
@@ -80,6 +77,15 @@ const FIXED_KINDS: [u32; 6] = [0x195, 0x199, 0x19F, 0x1A5, 0x1AD, 0x1BD];
 
 unsafe fn store(address: usize, value: u32) {
     unsafe { game_write(rva(address), value) }
+}
+
+/// A store of the tables (never a `Fill`).
+unsafe fn run_op(op: Op) {
+    match op {
+        Op::Store(address, value) => unsafe { store(address, value) },
+        Op::Set(cell, value) => cell.set(value),
+        Op::Fill => unreachable!("the cars' tail has no fill"),
+    }
 }
 
 unsafe fn list_entry(list: u32, n: usize) -> u32 {
@@ -133,8 +139,8 @@ impl Left {
 /// The cars' carousels, from the list; `size` the object's size.
 unsafe fn cars(out: &mut Left, list: u32, size: u32) {
     unsafe {
-        store(0x75AA8C, 1);
-        game_write(LIST_RVA, list);
+        MENU_STATE.carousel.set_up.set(1);
+        MENU_STATE.carousel.entries.set(list);
         let mut n = 0;
         let mut esi = list;
         loop {
@@ -145,20 +151,23 @@ unsafe fn cars(out: &mut Left, list: u32, size: u32) {
             out.edi = Some(car);
             let first = (car as *const u32).read_unaligned();
             out.eax = Some(first);
-            let kind = game_read(CAR_KINDS_RVA + first as usize * 4);
+            // `car_kinds` has 35 entries; the original allows numbers up to 0x400 and reads
+            // on past the table, into what the image has after it (other statics now:
+            // `MOVED` resolves each address to its home).
+            let kind = crate::store::game_read::<u32>(rva(CAR_KINDS_IDA + 4 * first as usize));
             out.ebx = Some(kind);
-            game_write(KINDS_RVA + n * 4, kind);
+            MENU_STATE.carousel.kinds[n].set(kind);
             n += 1;
             esi = esi.wrapping_add(4);
         }
         out.esi = Some(esi);
-        game_write(COUNT_RVA, n as u32);
+        MENU_STATE.carousel.count.set(n as u32);
         let last = (n as u32).wrapping_sub(1);
         out.ecx = Some(last);
         game_write(LAST_RVA, last);
         game_write(SIZE_RVA, size);
-        for (address, value) in CARS_TAIL {
-            store(address, value);
+        for op in CARS_TAIL {
+            run_op(op);
         }
     }
 }
@@ -169,27 +178,27 @@ unsafe fn cars(out: &mut Left, list: u32, size: u32) {
 pub unsafe fn set_up_carousel(list: u32) -> Result<Left, Refused> {
     let mut out = Left::default();
     unsafe {
-        let menu: u32 = game_read(MENU_RVA);
+        let menu: u32 = MENU_STATE.carousel.menu.get();
         if menu >= MENUS {
             return Ok(out);
         }
         match menu {
             0xB => {
-                let cars_list = game_addr(CARS_RVA) as u32;
+                let cars_list = MENU_LISTS.cars_first[0].addr() as u32;
                 check_cars(cars_list, false)?;
                 cars(&mut out, cars_list, 0xF);
             }
             0xC => {
-                store(0x75AA8C, 1);
-                let fixed = game_addr(FIXED_CARS_RVA) as u32;
+                MENU_STATE.carousel.set_up.set(1);
+                let fixed = MENU_LISTS.cars_a8[0].addr() as u32;
                 out.esi = Some(fixed);
-                game_write(LIST_RVA, fixed);
+                MENU_STATE.carousel.entries.set(fixed);
                 game_write(SIZE_RVA, 0xCu32);
-                game_write(KINDS_RVA, FIXED_KINDS);
-                game_write(COUNT_RVA, 6u32);
+                write_prefix(&MENU_STATE.carousel.kinds, &FIXED_KINDS);
+                MENU_STATE.carousel.count.set(6u32);
                 game_write(LAST_RVA, 5u32);
-                for (address, value) in CARS_TAIL {
-                    store(address, value);
+                for op in CARS_TAIL {
+                    run_op(op);
                 }
             }
             0xD => {
@@ -198,7 +207,7 @@ pub unsafe fn set_up_carousel(list: u32) -> Result<Left, Refused> {
             }
             0xE => {
                 check_cars(list, true)?;
-                store(0x75AA8C, 1);
+                MENU_STATE.carousel.set_up.set(1);
                 let count = carousel::list_end(|n| list_entry(list, n), 1).unwrap_or(0);
                 if count == 1 {
                     let first = list_entry(list, 0);
@@ -212,12 +221,13 @@ pub unsafe fn set_up_carousel(list: u32) -> Result<Left, Refused> {
                 for op in ops {
                     match *op {
                         Op::Store(address, value) => store(address, value),
-                        Op::Fill => game_write(TEXTURES_RVA, [u32::MAX; 8]),
+                        Op::Set(cell, value) => cell.set(value),
+                        Op::Fill => write_all(&MENU_LISTS.carousel_textures, [u32::MAX; 8]),
                     }
                 }
                 out.eax = Some(u32::MAX);
                 out.ecx = Some(0);
-                out.edi = Some((game_addr(TEXTURES_RVA) + 0x20) as u32);
+                out.edi = Some((MENU_LISTS.carousel_textures[0].addr() + 0x20) as u32);
             }
         }
         Ok(out)

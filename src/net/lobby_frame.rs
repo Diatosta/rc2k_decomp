@@ -17,12 +17,8 @@
 //! `screens::run_frame` for `net::lobby_loop`.
 
 use crate::errors::{BadInput, Refused};
-use crate::field;
-use crate::net::lobby::{
-    BLOCK, CAR_ITEM, CHAT, CHAT_INPUT, Cursor, FONT, PLAYERS, SHOW_GAPS, SORTED, STAGE_ITEM, TEXT,
-    a, blit, copy_picture, g, lock_surface,
-};
-use crate::net::types::NetPlayerBlock;
+use crate::net::lobby::{Cursor, FONT, TEXT, a, blit, copy_picture, g, lock_surface};
+use crate::net::store::NET;
 use crate::text::draw_text::GameCanvas;
 use crate::text::font::Font;
 use rc2k_core::net::players::{self, READY};
@@ -36,10 +32,6 @@ const FONT_PALETTES: usize = 0x51DEB0; // g_fontPalettes
 
 fn get(at: u32) -> u32 {
     unsafe { (at as *const u32).read_unaligned() }
-}
-
-fn byte(at: u32) -> u32 {
-    unsafe { (at as *const u8).read() as u32 }
 }
 
 /// A time, or its gap to `first` with a '+' over its first character, written at the
@@ -64,7 +56,7 @@ pub fn lobby_frame() -> Result<(), Refused> {
     if !lock_surface() {
         return Ok(());
     }
-    if g(PLAYERS) > 8 {
+    if NET.players.get() > 8 {
         return Err(BadInput("more than eight players").into());
     }
     copy_picture()?;
@@ -86,24 +78,27 @@ pub fn lobby_frame() -> Result<(), Refused> {
         palette = out.text as u32;
     }
     y += 0x1D;
-    if g(PLAYERS) != 0 {
+    if NET.players.get() != 0 {
         crate::net::sort_players::sort_players()?;
-        let gaps = g(SHOW_GAPS) == 1;
-        let (first_time, first_total) = (get(a(SORTED) + 0x2C), get(a(SORTED) + 0x30));
-        for n in 0..g(PLAYERS) {
-            let block = a(SORTED).wrapping_add(n.wrapping_mul(BLOCK));
+        let gaps = NET.show_gaps.get() == 1;
+        let (first_time, first_total) = (
+            NET.sorted[0].record.race_time.get(),
+            NET.sorted[0].record.total.get(),
+        );
+        for n in 0..NET.players.get() {
+            let block = &NET.sorted[n as usize];
             let mut x = 0x18;
             blit(
-                screens::flag_sprite(byte(block + 0x27) as u8),
+                screens::flag_sprite(block.record.head.get(3)),
                 x,
                 y,
                 palette,
             )?;
             x += 0x28;
             let mut cursor = Cursor::text();
-            cursor.string(block);
+            cursor.string(block.name.addr() as u32);
             cursor.nul();
-            let font = if byte(block + field!(NetPlayerBlock, record.state)) as u8 & READY != 0 {
+            let font = if block.record.state() & READY != 0 {
                 a(READY_FONT)
             } else {
                 a(NAME_FONT)
@@ -119,7 +114,7 @@ pub fn lobby_frame() -> Result<(), Refused> {
             }?;
             x += 0x14A;
             blit(
-                screens::car_sprite(byte(block + 0x25) as u8),
+                screens::car_sprite(block.record.head.get(1)),
                 x,
                 y + 1,
                 name.text as u32,
@@ -128,7 +123,7 @@ pub fn lobby_frame() -> Result<(), Refused> {
             use crate::strings::append_time::SHOW_HOURS; // g_timeShowHours
             use std::sync::atomic::Ordering::Relaxed;
             let kept_hours = SHOW_HOURS.swap(1, Relaxed);
-            let time = get(block + 0x2C);
+            let time = block.record.race_time.get();
             let mut cursor = Cursor::text();
             // The total is drawn at the y the drawing before it leaves in edx: the text's,
             // font offset included, when there is no time (the original's slip).
@@ -156,7 +151,12 @@ pub fn lobby_frame() -> Result<(), Refused> {
             x += 0xA5;
             let timed = time != players::NO_TIME;
             let mut cursor = Cursor::text();
-            time_text(&mut cursor, get(block + 0x30), gaps && timed, first_total);
+            time_text(
+                &mut cursor,
+                block.record.total.get(),
+                gaps && timed,
+                first_total,
+            );
             cursor.nul();
             unsafe {
                 crate::text::draw_time_text::draw_time_text(
@@ -177,7 +177,7 @@ pub fn lobby_frame() -> Result<(), Refused> {
     unsafe {
         crate::text::draw_text::draw_text_at(
             a(CHAT_FONT) as *mut Font,
-            a(CHAT) as *const u8,
+            (NET.chat.addr() as u32) as *const u8,
             0xA,
             y as i32,
             &mut canvas,
@@ -185,10 +185,10 @@ pub fn lobby_frame() -> Result<(), Refused> {
     }?;
     crate::net::unlock_received::unlock_received();
     y = y.wrapping_add(get(a(CHAT_FONT) + 8).wrapping_mul(8));
-    crate::net::chat_input_line::chat_input_line(a(CHAT_INPUT), 3, y)?;
+    crate::net::chat_input_line::chat_input_line(NET.chat_input.addr() as u32, 3, y)?;
     let mut x = 0x310;
     let mut item = 0;
-    for (n, (id, shown)) in screens::lobby_buttons(g(CAR_ITEM), g(STAGE_ITEM))
+    for (n, (id, shown)) in screens::lobby_buttons(NET.car_item.get(), NET.stage_item.get())
         .into_iter()
         .enumerate()
     {

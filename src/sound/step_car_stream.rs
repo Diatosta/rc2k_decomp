@@ -10,7 +10,7 @@
 //! (`dword_A8C188` = 0), else `sound::start_stream` with it and `dword_755698`. Once a
 //! frame on four screens (the car specification, the slideshow, two stage screens).
 
-use crate::audio::store::Slot;
+use crate::audio::store::AUDIO;
 use crate::framework::rva;
 use crate::store::game_read;
 
@@ -18,7 +18,6 @@ use crate::store::game_read;
 
 const KIND_RVA: usize = rva(0x7556D0); // dword_7556D0
 const VOLUME_RVA: usize = rva(0x755698); // dword_755698
-const PLAYING_RVA: Slot = Slot::at(0x506960); // dword_506960
 // sub_40C4D5
 
 // ---- Rust version ----
@@ -54,7 +53,7 @@ pub unsafe fn step_car_stream(playing: &mut dyn FnMut() -> bool, start: &mut dyn
 pub fn step_car_stream_in_game() {
     unsafe {
         step_car_stream(
-            &mut || game_read::<u32>(PLAYING_RVA) == 1,
+            &mut || AUDIO.sound_stream.get().playing == 1,
             &mut crate::sound::start_stream::start_stream,
         )
     };

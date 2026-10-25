@@ -18,21 +18,15 @@
 //! `draw_car_condition` before the screenshot.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, rva};
+use crate::menu::state_store::MENU_STATE;
 use crate::service::state::{current_player, repair_flag};
 use crate::text::draw_text::Canvas;
 
 // ---- game data ----
 
-const THRESHOLDS_RVA: usize = rva(0x75ABD0); // dword_75ABD0[item] (items 2 .. 15 are used)
-const WEIGHTS_RVA: usize = rva(0x75AC40); // dword_75AC40[item]
 // dword_75AC80
 // dword_7559EC: a work variable, here the weights' sum
 const CAR_DAMAGE_OFFSET: u32 = 0xCC; // car +0xCC + 4 * item
-
-unsafe fn table(table_rva: usize, item: u32) -> i32 {
-    unsafe { ((game_addr(table_rva) as *const i32).add(item as usize)).read_unaligned() }
-}
 
 // ---- Rust version ----
 
@@ -46,8 +40,8 @@ pub unsafe fn inspection_status(player: u32) -> (i32, Option<u32>) {
             Part {
                 damage: (player.wrapping_add(CAR_DAMAGE_OFFSET + 4 * item) as *const i32)
                     .read_unaligned(),
-                threshold: table(THRESHOLDS_RVA, item),
-                weight: table(WEIGHTS_RVA, item),
+                threshold: MENU_STATE.driver_stats.limits[item as usize - 2].get() as i32,
+                weight: MENU_STATE.driver_stats.penalties[item as usize - 2].get() as i32,
                 repairing: repair_flag(item) != 0,
             }
         }

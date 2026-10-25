@@ -6,15 +6,11 @@
 //! Each channel's `used`, `voice` and the five dwords from +0x44 on are 0. Five callers
 //! (the mode's set-up, `audio::free_voices`, the mixer's start).
 
-use crate::audio::voices::*;
+use crate::audio::voices::GamePool;
 
 // ---- Rust version ----
 
-pub unsafe fn clear_channels(channels: u32) {
+pub fn clear_channels() {
     // Converted: `rc2k_core::audio::voices::clear_channels`.
-    let w = World {
-        channels,
-        ..World::game()
-    };
-    rc2k_core::audio::voices::clear_channels(&mut unsafe { GamePool::new(&w) });
+    rc2k_core::audio::voices::clear_channels(&mut GamePool);
 }

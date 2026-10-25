@@ -2,6 +2,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::menu::state_store::MENU_STATE;
 use crate::text::draw_text::Canvas;
 
 fn k(a: usize) -> u32 {
@@ -139,7 +140,7 @@ pub unsafe fn draw_stage_results(canvas: &mut dyn Canvas) -> Result<(), Refused>
         };
         stage_results(
             &mut crate::screens::game_screen::GameScreen::new(canvas),
-            k(0x75AB30) == 1,
+            MENU_STATE.menus.caption_choice.get() == 1,
             crate::strings::append_time::show_hours(),
             &rows,
             &mut seal_code,

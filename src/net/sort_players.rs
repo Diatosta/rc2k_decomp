@@ -10,49 +10,60 @@
 //! `net::lobby_frame`.
 
 use crate::errors::{BadInput, Refused};
-use crate::net::lobby::{BLOCK, PLAYERS, RECEIVED, SORTED, a, g, movsb};
+use crate::net::lobby::movsb;
+use crate::net::store::{NET, PlayerBlock};
 use rc2k_core::net::players::{self, Standing};
 
+const BLOCK: u32 = std::mem::size_of::<PlayerBlock>() as u32;
 const ALL: u32 = 8 * BLOCK;
 
-fn get(at: u32) -> u32 {
-    unsafe { (at as *const u32).read_unaligned() }
-}
-
-/// The block at `x` as the lobby's table sorts it.
-fn standing(x: u32) -> Standing {
+/// The block as the lobby's table sorts it.
+fn standing(block: &PlayerBlock) -> Standing {
     Standing {
-        total: get(x + 0x30),
-        time: get(x + 0x2C),
-        id: get(x + 0x20),
+        total: block.record.total.get(),
+        time: block.record.race_time.get(),
+        id: block.id.get(),
     }
 }
 
-/// The blocks at `x` and the next swapped, a dword at a time.
-pub fn swap_blocks(x: u32) {
-    for n in 0..BLOCK / 4 {
-        let (one, two) = (x + 4 * n, x + BLOCK + 4 * n);
-        let v = get(one);
+/// The two blocks swapped, a dword at a time.
+pub fn swap_blocks(one: &PlayerBlock, two: &PlayerBlock) {
+    let (one, two) = (
+        one as *const PlayerBlock as *mut u32,
+        two as *const PlayerBlock as *mut u32,
+    );
+    for n in 0..BLOCK as usize / 4 {
         unsafe {
-            (one as *mut u32).write_unaligned(get(two));
-            (two as *mut u32).write_unaligned(v);
+            let v = one.add(n).read_volatile();
+            one.add(n).write_volatile(two.add(n).read_volatile());
+            two.add(n).write_volatile(v);
         }
     }
 }
 
 /// The Rust version (the original keeps every register).
 pub fn sort_players() -> Result<(), Refused> {
-    let players = g(PLAYERS);
+    let players = NET.players.get();
     if players > players::MOST {
         return Err(BadInput("more than eight players").into());
     }
-    movsb(a(SORTED), a(RECEIVED), ALL);
+    movsb(
+        NET.sorted.as_ptr() as u32,
+        NET.received.as_ptr() as u32,
+        ALL,
+    );
     // Converted: `rc2k_core::net::players` (`bubble`, `goes_after`).
-    let x = |k: u32| a(SORTED) + k * BLOCK;
+    // `k + 1` is at most 7: `players` is at most eight.
+    let sorted = &NET.sorted;
     players::bubble(
         players,
-        |k| players::goes_after(standing(x(k)), standing(x(k) + BLOCK)),
-        |k| swap_blocks(x(k)),
+        |k| {
+            players::goes_after(
+                standing(&sorted[k as usize]),
+                standing(&sorted[k as usize + 1]),
+            )
+        },
+        |k| swap_blocks(&sorted[k as usize], &sorted[k as usize + 1]),
     );
     Ok(())
 }

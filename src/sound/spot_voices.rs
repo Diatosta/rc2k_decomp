@@ -58,7 +58,7 @@ pub fn store_picks(
     picks: &rc2k_core::sound::spot_voices::Picks,
     trail: &rc2k_core::sound::spot_voices::Trail,
 ) {
-    let work = &crate::sound::store::SOUND_EFFECTS;
+    let work = &crate::sound::store::SPOT_PICKS;
     work.pick_playing.set(voice_or_0(picks.playing));
     work.pick_nearest_distance.set(picks.nearest_distance);
     work.pick_nearest.set(voice_or_0(picks.nearest));

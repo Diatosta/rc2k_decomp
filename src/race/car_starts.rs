@@ -31,7 +31,6 @@ pub const WHEELS_2_RVA: usize = rva(0x6D1F14);
 const START_ANGLES_RVA: usize = rva(0x608B50);
 const MODE_RVA: usize = rva(0x62389C); // dword_62389C
 const NO_PLACE_RVA: usize = rva(0x64BB18); // dword_64BB18
-const SIDE_RVA: usize = rva(0x52A910); // dword_52A910
 const CARS_2_RVA: usize = rva(0x63DB94); // dword_63DB94
 const PLACE_HEADING_RVA: usize = crate::race::start_place::PLACE_HEADING_RVA; // dword_5CCD60
 const LINE_PLACE_RVA: usize = crate::race::start_place::LINE_PLACE_RVA; // dword_6365E4
@@ -218,7 +217,7 @@ pub unsafe fn start_car() -> Result<(), Refused> {
             if game_read::<u32>(NO_PLACE_RVA) == 0 {
                 move_turned(0, 0xFFFE_0000);
                 let side = starts_aside(
-                    game_read(SIDE_RVA),
+                    crate::net::store::NET.session.get(),
                     || game_read(MODE_RVA),
                     || game_read(CARS_2_RVA),
                 );

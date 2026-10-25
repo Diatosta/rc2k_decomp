@@ -23,13 +23,11 @@ use crate::errors::Refused;
 use crate::framework::{game_read, game_write, rva};
 use crate::menu::screen_loop::{Carried, run_screen_carried};
 use crate::menu::standings::*;
-
-const MONEY_RVA: usize = rva(0x75ACC0); // dword_75ACC0
+use crate::menu::state_store::MENU_STATE;
 const TIME_RVA: usize = rva(0x75593C); // dword_75593C
 const GOES_ON_RVA: usize = rva(0x75592C); // dword_75592C
 const CURRENT_RVA: usize = rva(0x75598C); // dword_75598C
 const DUE_RVA: usize = rva(0x755938); // dword_755938
-const CLEARED_RVA: [usize; 2] = [rva(0x75AC8C), rva(0x75AB38)]; // dword_75AC8C, dword_75AB38
 const OUT_RVA: usize = rva(0x755978); // dword_755978
 const ANSWER_RVA: usize = rva(0x75524C); // g_yesNoAnswer
 // service::service_area_loop
@@ -48,7 +46,7 @@ pub unsafe fn service_pass(c: &Carried) -> Result<(), Refused> {
     }
     let mut g = *c;
     unsafe {
-        game_write(MONEY_RVA, 0u32);
+        MENU_STATE.driver_stats.money.set(0u32);
         game_write(TIME_RVA, passes::more_minutes(game_read(TIME_RVA)));
         game_write(GOES_ON_RVA, 1u32);
         g.palette = 0;
@@ -67,9 +65,9 @@ pub unsafe fn service_pass(c: &Carried) -> Result<(), Refused> {
                 crate::menu::fade_in::fade_in()?;
                 g.arg = passes::FADE_PAUSE;
                 crate::system::sleep::sleep(g.arg);
-                game_write(CLEARED_RVA[0], 0u32);
+                MENU_STATE.driver_stats.repair_time.set(0);
                 crate::menu::driver_stats::driver_stats()?;
-                game_write(CLEARED_RVA[1], 0u32);
+                MENU_STATE.menus.service_flag.set(0);
                 crate::menu::reset_driver_condition::reset_driver_condition()?;
                 crate::service::clear_repair_flags::clear_repair_flags()?;
                 for _ in 0..passes::DROPPED_KEYS {
@@ -91,7 +89,7 @@ pub unsafe fn service_pass(c: &Carried) -> Result<(), Refused> {
                     }
                     game_write(OUT_RVA, game_read::<u32>(OUT_RVA).wrapping_add(1));
                 }
-                g.arg = passes::spent(game_read(MONEY_RVA));
+                g.arg = passes::spent(MENU_STATE.driver_stats.money.get());
                 put(p + 0x288, g.arg);
             }
             if !passes::goes_on(game_read(OUT_RVA), game_read(PLAYER_COUNT_RVA)) {

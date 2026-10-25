@@ -77,7 +77,7 @@ pub unsafe fn read_car_controls() -> Result<(), Refused> {
         p(0x61389C, keys.hand);
         p(0x6138A0, keys.up);
         p(0x6138A4, keys.down);
-        let replay = g(0x52A910) != 0;
+        let replay = crate::net::store::NET.session.get() != 0;
         if replay || g(CURRENT) < g(0x63DB94) {
             if pressed & FLIP_BIT != 0 {
                 p(0x71A05C, flipped(g(0x71A05C)));

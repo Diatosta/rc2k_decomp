@@ -25,19 +25,13 @@
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::menu::standings::*;
+use crate::menu::state_store::MENU_STATE;
+use crate::session::write_all;
 
 const CURRENT_RVA: usize = rva(0x75598C); // dword_75598C
 const CARS_RVA: usize = rva(0x7564A0); // off_7564A0
-const VALUES_RVA: usize = rva(0x75AB60); // dword_75AB60: 14
-const HIGHS_RVA: usize = rva(0x75ABA0); // dword_75ABA0: 14
-const WEIGHTS_RVA: usize = rva(0x75AC10); // dword_75AC10: 14
-const TOTAL_RVA: usize = rva(0x75AC84); // dword_75AC84
-const STEPS_RVA: usize = rva(0x75AB58); // flt_75AB58
-const SCALE_RVA: usize = rva(0x75AB5C); // flt_75AB5C
 const FIGURE_RVA: usize = rva(0x7559EC); // dword_7559EC
 const SPAN_RVA: usize = rva(0x7559F0); // hhmm
-const KEPT_RVA: [usize; 4] = [rva(0x75ACA8), rva(0x75ACAC), rva(0x75ACB4), rva(0x75ACB8)];
-const SWITCH_RVA: [usize; 2] = [rva(0x75ACC4), rva(0x75ACC8)]; // dword_75ACC4, dword_75ACC8
 /// The parts' names in the log, by inspected part.
 const NAMES_RVA: [usize; 13] = [
     rva(0x4DED08),
@@ -112,25 +106,34 @@ pub unsafe fn driver_stats() -> Result<(), Refused> {
             setup: [get(p + 0x114), get(p + 0x118)],
         };
         let c = Constants {
-            steps: f32::from_bits(game_read(STEPS_RVA)),
-            scale: f32::from_bits(game_read(SCALE_RVA)),
-            keep_part_1: game_read(SWITCH_RVA[0]),
-            short_part_5: game_read(SWITCH_RVA[1]),
+            steps: MENU_STATE.driver_stats.steps.get(),
+            scale: MENU_STATE.driver_stats.scale.get(),
+            keep_part_1: MENU_STATE.driver_stats.switch_a.get(),
+            short_part_5: MENU_STATE.driver_stats.switch_b.get(),
         };
         let f = figures(&table, &car, &c);
-        game_write(VALUES_RVA, f.values);
-        game_write(HIGHS_RVA, f.highs);
-        game_write(LIMITS_RVA, f.limits);
-        game_write(TOTAL_RVA, f.total);
-        for (n, &at) in KEPT_RVA.iter().enumerate() {
-            game_write(at, f.kept[n]);
+        write_all(&MENU_STATE.driver_stats.repair_times, f.values);
+        write_all(&MENU_STATE.driver_stats.highs, f.highs);
+        write_all(&MENU_STATE.driver_stats.limits, f.limits);
+        MENU_STATE.driver_stats.total.set(f.total);
+        let ds = &MENU_STATE.driver_stats;
+        for (cell, value) in [
+            &ds.setups[2].chosen,
+            &ds.setups[2].installed,
+            &ds.setups[3].chosen,
+            &ds.setups[3].installed,
+        ]
+        .into_iter()
+        .zip(f.kept)
+        {
+            cell.set(value);
         }
         for k in 0..PARTS as usize {
             if let Some(w) = f.weights[k] {
-                game_write(WEIGHTS_RVA + 4 * k, w);
+                MENU_STATE.driver_stats.weights[k].set(w);
             }
             if let Some(v) = f.penalties[k] {
-                game_write(PENALTIES_RVA + 4 * k, v);
+                MENU_STATE.driver_stats.penalties[k].set(v);
             }
         }
         game_write(FIGURE_RVA, f.figure);

@@ -9,7 +9,7 @@
 //! Fourteen callers.
 
 use crate::session::FLAGS;
-use crate::sound::queue::{END_OF_TURN, Queue, pending, send_command};
+use crate::sound::queue::{END_OF_TURN, pending, send_command};
 
 // ---- game data ----
 
@@ -24,11 +24,11 @@ pub struct Game(pub [u32; 7]);
 
 impl Parts for Game {
     fn end_turn(&mut self) {
-        unsafe { send_command(&Queue::game(), END_OF_TURN, self.0) };
+        send_command(END_OF_TURN, self.0);
     }
 
     fn pending(&mut self) -> bool {
-        unsafe { pending(&Queue::game()) }
+        pending()
     }
 
     fn sleep_a_millisecond(&mut self) {

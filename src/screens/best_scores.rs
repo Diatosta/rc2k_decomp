@@ -9,6 +9,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_addr, game_read, rva};
+use crate::menu::lists_store::MENU_LISTS;
 use crate::screens::game_screen::GameScreen;
 use crate::text::draw_text::Canvas;
 use rc2k_core::screens::best_scores::{Row, Rows};
@@ -132,9 +133,9 @@ pub unsafe fn draw_scores(t: &Table, canvas: &mut dyn Canvas) -> Result<(), Refu
         let group = match (t.group_fixed, t.group_at) {
             (Some(g), _) => g,
             (None, Some(a)) => k(a),
-            (None, None) => {
-                ((game_addr(rva(0x75A2D6)) as u32 + 4 * k(PAGE)) as *const u32).read_unaligned()
-            }
+            (None, None) => ((MENU_LISTS.page_titles_b[0].addr() as u32 + 4 * k(PAGE))
+                as *const u32)
+                .read_unaligned(),
         };
         let first = base.wrapping_add(group.wrapping_mul(t.group));
         let row = rows_of(first, t.entry, (t.name, t.value, 8, t.car, t.highlight));
@@ -166,7 +167,8 @@ pub unsafe fn best_scores_caption() -> Result<(), Refused> {
     // Converted: `rc2k_core::screens::captions::fit` (through `car_caption::put_string`); refused
     // where the original writes past the caption's 0x100 bytes.
     unsafe {
-        let id = ((game_addr(rva(0x75A2A6)) as u32 + 4 * k(PAGE)) as *const u32).read_unaligned();
+        let id = ((MENU_LISTS.page_titles_a[0].addr() as u32 + 4 * k(PAGE)) as *const u32)
+            .read_unaligned();
         crate::screens::car_caption::put_string(id, CAPTION_RVA, 0x100)
     }
 }
@@ -353,7 +355,8 @@ pub unsafe fn draw_record_heading(canvas: &mut dyn Canvas) -> Result<(), Refused
         }
         let first = record_at(0);
         let id = if k(0x7556D0) == 0x13 {
-            ((game_addr(rva(0x75A28A)) as u32 + 4 * k(SECTION)) as *const u32).read_unaligned()
+            ((MENU_LISTS.section_titles[0].addr() as u32 + 4 * k(SECTION)) as *const u32)
+                .read_unaligned()
         } else {
             ((first + 0x38) as *const u32).read_unaligned()
         };
@@ -428,7 +431,8 @@ pub unsafe fn draw_scores_with_heading(
         }
         // Converted: `rc2k_core::screens::best_scores::scores_heading`, `heading`.
         let section = (k(0x7556D0) == 0x13).then(|| {
-            ((game_addr(rva(0x75A28A)) as u32 + 4 * k(0x75595C)) as *const u32).read_unaligned()
+            ((MENU_LISTS.section_titles[0].addr() as u32 + 4 * k(0x75595C)) as *const u32)
+                .read_unaligned()
         });
         let mut screen = ScoresScreen::new(canvas);
         let id = rc2k_core::screens::best_scores::scores_heading(

@@ -11,14 +11,11 @@
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
-use crate::audio::store::Slot;
-use crate::sound::queue::{Queue, send_command};
-use crate::store::game_read;
+use crate::audio::store::AUDIO;
+use crate::sound::queue::send_command;
 
 // ---- game data ----
 
-const HELD_BACK_RVA: Slot = Slot::at(0x506C84); // dword_506C84
-const MODE_RVA: Slot = Slot::at(0x4F82BC); // dword_4F82BC
 const PLAY_1: u32 = 1;
 
 // ---- Rust version ----
@@ -26,12 +23,12 @@ const PLAY_1: u32 = 1;
 /// `sound` at `volume` and `rate`; `place` its ecx, edi and ebp (the pan, or in the 3D
 /// modes the place). The audio thread reads every register of command 1.
 pub fn play_sound(sound: u32, volume: u32, rate: u32, place: [u32; 3]) {
-    let (held_back, mode) = unsafe { (game_read(HELD_BACK_RVA), game_read(MODE_RVA)) };
+    let (held_back, mode) = (AUDIO.sounds_held_back.get(), AUDIO.sound_mode.get());
     // Converted: `rc2k_core::sound::senders::sound_place`.
     if let Some([esi, ecx, edi, ebp]) =
         rc2k_core::sound::senders::sound_place(held_back, mode, place)
     {
         let registers = [sound, volume, ecx, rate, esi, edi, ebp];
-        unsafe { send_command(&Queue::game(), PLAY_1, registers) };
+        send_command(PLAY_1, registers);
     }
 }

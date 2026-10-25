@@ -13,32 +13,33 @@
 //! one marker.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, rva};
 use crate::gfx::blit_bar::Bar;
 use crate::gfx::blit_bar_marker::blit_bar_marker;
+use crate::menu::state_store::MENU_STATE;
 use crate::service::state::{blink_on, edit_mode, menu_item, repair_flag};
+use crate::session::Dword;
 use crate::text::draw_text::Canvas;
 
 pub use rc2k_core::screens::setup_markers::{BAR_WIDTH, LEFT_X, RIGHT_X};
 
-pub const LOWER_LEFT_CHOSEN_RVA: usize = rva(0x75ACA8); // dword_75ACA8
-pub const LOWER_LEFT_INSTALLED_RVA: usize = rva(0x75ACAC); // dword_75ACAC
-pub const LOWER_RIGHT_CHOSEN_RVA: usize = rva(0x75ACB4); // dword_75ACB4
-pub const LOWER_RIGHT_INSTALLED_RVA: usize = rva(0x75ACB8); // dword_75ACB8
+pub const LOWER_LEFT_CHOSEN: &Dword = &MENU_STATE.driver_stats.setups[2].chosen;
+pub const LOWER_LEFT_INSTALLED: &Dword = &MENU_STATE.driver_stats.setups[2].installed;
+pub const LOWER_RIGHT_CHOSEN: &Dword = &MENU_STATE.driver_stats.setups[3].chosen;
+pub const LOWER_RIGHT_INSTALLED: &Dword = &MENU_STATE.driver_stats.setups[3].installed;
 
 /// One of the six functions.
 #[derive(Clone, Copy)]
 pub enum Marker {
     /// Always drawn, at the percentage in a variable (glyph 0x77).
-    Always { x: i32, percent_rva: usize },
+    Always { x: i32, percent: &'static Dword },
     /// Glyph 0x76 on a lower bar, at the chosen value. While its item is being edited it
     /// blinks. Otherwise it is drawn if the chosen value differs from the installed one, or
     /// if the item's flag in the repair flag table is 1.
     Lower {
         item: u32,
         x: i32,
-        chosen_rva: usize,
-        installed_rva: usize,
+        chosen: &'static Dword,
+        installed: &'static Dword,
     },
     /// Glyph 0x76 on an upper bar, at the percentage in a field of the player in edi.
     /// While its item is being edited it blinks.
@@ -81,7 +82,7 @@ pub unsafe fn draw_marker(
         item: menu_item(),
         blink_on: blink_on(),
     };
-    let read = |rva: usize| -> Result<i32, Refused> { Ok(unsafe { game_read(rva) }) };
+    let read = |cell: &Dword| -> Result<i32, Refused> { Ok(cell.get() as i32) };
     let (core, item): (M, u32) = match marker {
         Marker::Always { x, .. } => (M::Always { x }, 0),
         Marker::Lower { item, x, .. } => (M::Lower { item, x }, item),
@@ -89,8 +90,8 @@ pub unsafe fn draw_marker(
     };
     let percent = || -> Result<i32, Refused> {
         match marker {
-            Marker::Always { percent_rva, .. } => read(percent_rva),
-            Marker::Lower { chosen_rva, .. } => read(chosen_rva),
+            Marker::Always { percent, .. } => read(percent),
+            Marker::Lower { chosen, .. } => read(chosen),
             Marker::Upper { car_offset, .. } => {
                 if player == 0 {
                     return Err(
@@ -102,7 +103,7 @@ pub unsafe fn draw_marker(
         }
     };
     let installed = || match marker {
-        Marker::Lower { installed_rva, .. } => unsafe { game_read::<i32>(installed_rva) },
+        Marker::Lower { installed, .. } => installed.get() as i32,
         _ => 0,
     };
     let (plan, _) =

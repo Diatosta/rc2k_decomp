@@ -14,14 +14,14 @@
 //! instructions are `asm_reference` in the tests (2026-10-24).
 
 use crate::errors::{BadInput, Refused};
-use crate::hud::add_quad::QUAD_RVA;
-use crate::hud::store::game_read;
-use crate::scene::x87_mem::{fld, fstp};
+use crate::hud::store::{HUD, Hud};
+use crate::math::x87_float::ld;
+use crate::scene::x87_mem::fstp;
 
 pub use rc2k_core::hud::disc::ENTRIES;
 
-unsafe fn place(b: u32, k: u32, e: u32) {
-    x87_1(b as usize, k as usize, e as usize)
+unsafe fn place(h: &Hud, k: u32, e: u32) {
+    x87_1(h, k as usize, e as usize)
 }
 
 /// The Rust version (see the header): ring entry `entry` into the vertex at `vertex`.
@@ -30,8 +30,8 @@ pub unsafe fn disc_vertex(entry: u32, vertex: u32) -> Result<(), Refused> {
         return Err(BadInput("a disc entry past the ring").into());
     }
     unsafe {
-        place(crate::hud::store::base(), entry * 4, vertex);
-        let colour = (game_read::<u32>(QUAD_RVA) << 24) | 0xFF_FFFF;
+        place(&HUD, entry * 4, vertex);
+        let colour = (HUD.quad[0].get() << 24) | 0xFF_FFFF;
         ((vertex + 0x10) as *mut u32).write_unaligned(colour);
         ((vertex + 0x14) as *mut u32).write_unaligned(0);
     }
@@ -46,46 +46,45 @@ pub unsafe fn disc_vertex(entry: u32, vertex: u32) -> Result<(), Refused> {
 /// `[e + 0x1C] = ((((-[b + k + 0x914] * [b + 0x710]) * [b + 0x70C]) + [b + 0x6DC]) + [b + 0x718]) / [b + 0x6E0]`
 /// `[e + 0] = ([b + k + 0x848] * [b + 0x710]) + [b + 0x704]`
 /// `[e + 4] = (-[b + k + 0x88C] * [b + 0x710]) + [b + 0x708]`
-fn x87_1(b: usize, k: usize, e: usize) {
+fn x87_1(h: &Hud, k: usize, e: usize) {
     unsafe {
-        let b = b as *const u8;
         let e = e as *mut u8;
-        let t0 = fld(b, k + 0x8D0);
-        let t1 = fld(b, 0x710);
+        let t0 = ld(h.texture_ring_sines[k / 4].bits());
+        let t1 = ld(h.disc_size.bits());
         let t2 = t0 * t1;
-        let t3 = fld(b, 0x70C);
+        let t3 = ld(h.disc_texture_scale.bits());
         let t4 = t2 * t3;
-        let t5 = fld(b, 0x6DC);
+        let t5 = ld(h.texture_base.bits());
         let t6 = t4 + t5;
-        let t7 = fld(b, 0x714);
+        let t7 = ld(h.disc_texture_shift[0].bits());
         let t8 = t6 + t7;
-        let t9 = fld(b, 0x6E0);
+        let t9 = ld(h.texture_size.bits());
         let t10 = t8 / t9;
         fstp(e, 0x18, t10);
-        let t11 = fld(b, k + 0x914);
+        let t11 = ld(h.texture_ring_cosines[k / 4].bits());
         let t12 = -t11;
-        let t13 = fld(b, 0x710);
+        let t13 = ld(h.disc_size.bits());
         let t14 = t12 * t13;
-        let t15 = fld(b, 0x70C);
+        let t15 = ld(h.disc_texture_scale.bits());
         let t16 = t14 * t15;
-        let t17 = fld(b, 0x6DC);
+        let t17 = ld(h.texture_base.bits());
         let t18 = t16 + t17;
-        let t19 = fld(b, 0x718);
+        let t19 = ld(h.disc_texture_shift[1].bits());
         let t20 = t18 + t19;
-        let t21 = fld(b, 0x6E0);
+        let t21 = ld(h.texture_size.bits());
         let t22 = t20 / t21;
         fstp(e, 0x1C, t22);
-        let t23 = fld(b, k + 0x848);
-        let t24 = fld(b, 0x710);
+        let t23 = ld(h.ring_sines[k / 4].bits());
+        let t24 = ld(h.disc_size.bits());
         let t25 = t23 * t24;
-        let t26 = fld(b, 0x704);
+        let t26 = ld(h.disc_centre[0].bits());
         let t27 = t25 + t26;
         fstp(e, 0, t27);
-        let t28 = fld(b, k + 0x88C);
+        let t28 = ld(h.ring_cosines[k / 4].bits());
         let t29 = -t28;
-        let t30 = fld(b, 0x710);
+        let t30 = ld(h.disc_size.bits());
         let t31 = t29 * t30;
-        let t32 = fld(b, 0x708);
+        let t32 = ld(h.disc_centre[1].bits());
         let t33 = t31 + t32;
         fstp(e, 4, t33);
     }
@@ -129,7 +128,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_0(a[0], a[1], a[2]) },
-                plain: |a| x87_1(a[0], a[1], a[2]),
+                plain: |a| x87_1(unsafe { &*(a[0] as *const Hud) }, a[1], a[2]),
             },
             Block {
                 name: "disc_vertex line 25 idx k=4",
@@ -159,7 +158,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_0(a[0], a[1], a[2]) },
-                plain: |a| x87_1(a[0], a[1], a[2]),
+                plain: |a| x87_1(unsafe { &*(a[0] as *const Hud) }, a[1], a[2]),
             },
             Block {
                 name: "disc_vertex line 25 idx k=36",
@@ -189,7 +188,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_0(a[0], a[1], a[2]) },
-                plain: |a| x87_1(a[0], a[1], a[2]),
+                plain: |a| x87_1(unsafe { &*(a[0] as *const Hud) }, a[1], a[2]),
             },
         ]
     }

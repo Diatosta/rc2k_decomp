@@ -11,6 +11,7 @@
 //! Caller: `screens::draw_two_column_panel`.
 
 use crate::errors::Refused;
+use crate::menu::state_store::MENU_STATE;
 use crate::screens::service_boxes::{quad, rd, set};
 
 const ROW: usize = 0x7559EC; // dword_7559EC
@@ -28,7 +29,12 @@ pub unsafe fn draw_column_boxes() -> Result<(), Refused> {
         set(MARKER_Y, BOXES_Y);
         for _ in 0..ROWS {
             let chosen = rd(0x755525) == rd(ROW) && rd(0x7559A4) == 1;
-            for a in row_box(rd(MARKER_X), rd(MARKER_Y), rd(0x75AA90), chosen) {
+            for a in row_box(
+                rd(MARKER_X),
+                rd(MARKER_Y),
+                MENU_STATE.service_ui.box_colour_a.get(),
+                chosen,
+            ) {
                 quad(a.x, a.y, a.w, a.h, a.colour, a.see)?;
             }
             set(MARKER_Y, rd(MARKER_Y).wrapping_add(ROW_STEP));

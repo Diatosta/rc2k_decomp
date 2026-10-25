@@ -14,7 +14,7 @@ use crate::errors::Refused;
 use crate::framework::rva;
 use crate::hud::draw_view_strip::TEXTURE_RVA;
 use crate::hud::overlay_pass::shown_layout;
-use crate::hud::store::{game_read, game_write};
+use crate::store::{game_read, game_write};
 
 const OFF_RVA: usize = rva(0x5BEC94); // dword_5BEC94
 const BLOCKS_RVA: usize = rva(0x63DBB0); // g_viewBlocks

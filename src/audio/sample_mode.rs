@@ -19,8 +19,5 @@ pub unsafe fn sample_mode_of(mode: u32, sound: u32) -> Result<u32, Refused> {
     if sound >= SAMPLES {
         return Err(BadInput("a sound of 0x1CD or more").into());
     }
-    Ok(sample_mode(
-        mode,
-        Some(unsafe { sample(&World::game(), sound) }),
-    ))
+    Ok(sample_mode(mode, Some(unsafe { sample(sound) })))
 }

@@ -26,6 +26,7 @@ use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::menu::screen_loop::{
     Callee, Carried, Flow, List, Screen, Step, carousel, prepare_scene, quitting, read_at,
 };
+use crate::menu::state_store::MENU_STATE;
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
@@ -38,14 +39,14 @@ unsafe fn set_up_first(c: &mut Carried) -> Result<(), Refused> {
         c.arg = read_at(player.wrapping_add(0x30));
         game_write(rva(0x7554F0), c.arg);
         game_write(rva(0x7554EC), 0x1u32);
-        game_write(rva(0x75AA74), 0xDu32);
+        MENU_STATE.carousel.menu.set(0xDu32);
         carousel(c)?;
         c.arg = game_read(rva(0x7476DC));
         game_write(rva(0x755525), c.arg);
         c.arg = c.arg.wrapping_sub(1);
-        game_write(rva(0x75AA7C), c.arg);
+        MENU_STATE.carousel.front.set(c.arg);
         game_write(rva(0x7554EC), 0x0u32);
-        game_write(rva(0x75AA7C), 0x0u32);
+        MENU_STATE.carousel.front.set(0x0u32);
         game_write(rva(0x755990), 0x0u32);
         crate::menu::car_choice::find_player_car()?;
         game_write(rva(0x623FB0), 0x7u32);

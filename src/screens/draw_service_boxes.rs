@@ -8,7 +8,9 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::screens::service_boxes::{addr, at_esi, quad, rd, set};
+use crate::menu::lists_store::MENU_LISTS;
+use crate::menu::state_store::MENU_STATE;
+use crate::screens::service_boxes::{at_esi, quad, rd};
 
 /// The Rust version (see the header): the registers it leaves.
 #[allow(unused_assignments, clippy::needless_late_init)] // the translator's flags, one per `cmp`
@@ -18,37 +20,254 @@ pub unsafe fn draw_service_boxes() -> Result<(), Refused> {
     let mut value = 0u32;
     let mut flag = 0u32;
     let mut c: (u32, u32);
-    quad(0x0, 0x0, 0x320, 0x45, 0x11166A, rd(0x75AA94))?;
-    quad(0x0, 0x45, 0x43, 0x258, 0x11166A, rd(0x75AA94))?;
-    quad(0x2DE, 0x45, 0x42, 0x213, 0x11166A, rd(0x75AA94))?;
-    quad(0x43, 0x224, 0x11F, 0x34, 0x11166A, rd(0x75AA94))?;
-    quad(0x162, 0x224, 0x17C, 0x5, 0x11166A, rd(0x75AA94))?;
-    quad(0x162, 0x23C, 0x17C, 0x1C, 0x11166A, rd(0x75AA94))?;
-    quad(0x2A8, 0x229, 0x36, 0x13, 0x11166A, rd(0x75AA94))?;
-    quad(0x43, 0x5E, 0x29B, 0x3, 0x11166A, rd(0x75AA94))?;
-    quad(0x43, 0x7B, 0x14C, 0x3, 0x11166A, rd(0x75AA94))?;
-    quad(0x192, 0x7B, 0x14C, 0x3, 0x11166A, rd(0x75AA94))?;
-    quad(0x43, 0x98, 0x14C, 0x3, 0x11166A, rd(0x75AA94))?;
-    quad(0x192, 0x98, 0x14C, 0x3, 0x11166A, rd(0x75AA94))?;
-    quad(0x43, 0xB5, 0x14C, 0x3, 0x11166A, rd(0x75AA94))?;
-    quad(0x192, 0xB5, 0x14C, 0x3, 0x11166A, rd(0x75AA94))?;
-    quad(0x43, 0xD2, 0x14C, 0x3, 0x11166A, rd(0x75AA94))?;
-    quad(0x192, 0xD2, 0x14C, 0x3, 0x11166A, rd(0x75AA94))?;
-    quad(0x43, 0xEF, 0x14C, 0x3, 0x11166A, rd(0x75AA94))?;
-    quad(0x192, 0xEF, 0x14C, 0x3, 0x11166A, rd(0x75AA94))?;
-    quad(0x43, 0x10C, 0x14C, 0x3, 0x11166A, rd(0x75AA94))?;
-    quad(0x192, 0x10C, 0x14C, 0x3, 0x11166A, rd(0x75AA94))?;
-    quad(0x43, 0x15F, 0x29B, 0x3, 0x11166A, rd(0x75AA94))?;
-    quad(0x43, 0x17B, 0x29B, 0x3, 0x11166A, rd(0x75AA94))?;
-    quad(0x43, 0x1B3, 0x14C, 0x3, 0x11166A, rd(0x75AA94))?;
-    quad(0x192, 0x1B3, 0x14C, 0x3, 0x11166A, rd(0x75AA94))?;
-    quad(0x43, 0x1EB, 0x14C, 0x3, 0x11166A, rd(0x75AA94))?;
-    quad(0x192, 0x1EB, 0x14C, 0x3, 0x11166A, rd(0x75AA94))?;
-    quad(0x43, 0x207, 0x14C, 0x3, 0x11166A, rd(0x75AA94))?;
-    quad(0x192, 0x207, 0x14C, 0x3, 0x11166A, rd(0x75AA94))?;
-    quad(0x18F, 0x61, 0x3, 0xFE, 0x11166A, rd(0x75AA94))?;
-    quad(0x18F, 0x17E, 0x3, 0xA6, 0x11166A, rd(0x75AA94))?;
-    quad(0x42, 0x44, 0x29D, 0x1B, 0x4FCF, rd(0x75AA90))?;
+    quad(
+        0x0,
+        0x0,
+        0x320,
+        0x45,
+        0x11166A,
+        MENU_STATE.service_ui.fade_full.get(),
+    )?;
+    quad(
+        0x0,
+        0x45,
+        0x43,
+        0x258,
+        0x11166A,
+        MENU_STATE.service_ui.fade_full.get(),
+    )?;
+    quad(
+        0x2DE,
+        0x45,
+        0x42,
+        0x213,
+        0x11166A,
+        MENU_STATE.service_ui.fade_full.get(),
+    )?;
+    quad(
+        0x43,
+        0x224,
+        0x11F,
+        0x34,
+        0x11166A,
+        MENU_STATE.service_ui.fade_full.get(),
+    )?;
+    quad(
+        0x162,
+        0x224,
+        0x17C,
+        0x5,
+        0x11166A,
+        MENU_STATE.service_ui.fade_full.get(),
+    )?;
+    quad(
+        0x162,
+        0x23C,
+        0x17C,
+        0x1C,
+        0x11166A,
+        MENU_STATE.service_ui.fade_full.get(),
+    )?;
+    quad(
+        0x2A8,
+        0x229,
+        0x36,
+        0x13,
+        0x11166A,
+        MENU_STATE.service_ui.fade_full.get(),
+    )?;
+    quad(
+        0x43,
+        0x5E,
+        0x29B,
+        0x3,
+        0x11166A,
+        MENU_STATE.service_ui.fade_full.get(),
+    )?;
+    quad(
+        0x43,
+        0x7B,
+        0x14C,
+        0x3,
+        0x11166A,
+        MENU_STATE.service_ui.fade_full.get(),
+    )?;
+    quad(
+        0x192,
+        0x7B,
+        0x14C,
+        0x3,
+        0x11166A,
+        MENU_STATE.service_ui.fade_full.get(),
+    )?;
+    quad(
+        0x43,
+        0x98,
+        0x14C,
+        0x3,
+        0x11166A,
+        MENU_STATE.service_ui.fade_full.get(),
+    )?;
+    quad(
+        0x192,
+        0x98,
+        0x14C,
+        0x3,
+        0x11166A,
+        MENU_STATE.service_ui.fade_full.get(),
+    )?;
+    quad(
+        0x43,
+        0xB5,
+        0x14C,
+        0x3,
+        0x11166A,
+        MENU_STATE.service_ui.fade_full.get(),
+    )?;
+    quad(
+        0x192,
+        0xB5,
+        0x14C,
+        0x3,
+        0x11166A,
+        MENU_STATE.service_ui.fade_full.get(),
+    )?;
+    quad(
+        0x43,
+        0xD2,
+        0x14C,
+        0x3,
+        0x11166A,
+        MENU_STATE.service_ui.fade_full.get(),
+    )?;
+    quad(
+        0x192,
+        0xD2,
+        0x14C,
+        0x3,
+        0x11166A,
+        MENU_STATE.service_ui.fade_full.get(),
+    )?;
+    quad(
+        0x43,
+        0xEF,
+        0x14C,
+        0x3,
+        0x11166A,
+        MENU_STATE.service_ui.fade_full.get(),
+    )?;
+    quad(
+        0x192,
+        0xEF,
+        0x14C,
+        0x3,
+        0x11166A,
+        MENU_STATE.service_ui.fade_full.get(),
+    )?;
+    quad(
+        0x43,
+        0x10C,
+        0x14C,
+        0x3,
+        0x11166A,
+        MENU_STATE.service_ui.fade_full.get(),
+    )?;
+    quad(
+        0x192,
+        0x10C,
+        0x14C,
+        0x3,
+        0x11166A,
+        MENU_STATE.service_ui.fade_full.get(),
+    )?;
+    quad(
+        0x43,
+        0x15F,
+        0x29B,
+        0x3,
+        0x11166A,
+        MENU_STATE.service_ui.fade_full.get(),
+    )?;
+    quad(
+        0x43,
+        0x17B,
+        0x29B,
+        0x3,
+        0x11166A,
+        MENU_STATE.service_ui.fade_full.get(),
+    )?;
+    quad(
+        0x43,
+        0x1B3,
+        0x14C,
+        0x3,
+        0x11166A,
+        MENU_STATE.service_ui.fade_full.get(),
+    )?;
+    quad(
+        0x192,
+        0x1B3,
+        0x14C,
+        0x3,
+        0x11166A,
+        MENU_STATE.service_ui.fade_full.get(),
+    )?;
+    quad(
+        0x43,
+        0x1EB,
+        0x14C,
+        0x3,
+        0x11166A,
+        MENU_STATE.service_ui.fade_full.get(),
+    )?;
+    quad(
+        0x192,
+        0x1EB,
+        0x14C,
+        0x3,
+        0x11166A,
+        MENU_STATE.service_ui.fade_full.get(),
+    )?;
+    quad(
+        0x43,
+        0x207,
+        0x14C,
+        0x3,
+        0x11166A,
+        MENU_STATE.service_ui.fade_full.get(),
+    )?;
+    quad(
+        0x192,
+        0x207,
+        0x14C,
+        0x3,
+        0x11166A,
+        MENU_STATE.service_ui.fade_full.get(),
+    )?;
+    quad(
+        0x18F,
+        0x61,
+        0x3,
+        0xFE,
+        0x11166A,
+        MENU_STATE.service_ui.fade_full.get(),
+    )?;
+    quad(
+        0x18F,
+        0x17E,
+        0x3,
+        0xA6,
+        0x11166A,
+        MENU_STATE.service_ui.fade_full.get(),
+    )?;
+    quad(
+        0x42,
+        0x44,
+        0x29D,
+        0x1B,
+        0x4FCF,
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
     quad(0x42, 0x44, 0x29C, 0x1, 0x0, 0xFF)?;
     quad(0x42, 0x44, 0x1, 0x1A, 0x0, 0xFF)?;
     quad(0x2DE, 0x44, 0x1, 0x1B, 0x0, 0xFF)?;
@@ -58,7 +277,7 @@ pub unsafe fn draw_service_boxes() -> Result<(), Refused> {
         if c.0 != c.1 {
             break 'l494d19;
         }
-        c = (rd(0x75AB38), 0x1);
+        c = (MENU_STATE.menus.service_flag.get(), 0x1);
         if c.0 == c.1 {
             break 'l494d19;
         }
@@ -75,27 +294,62 @@ pub unsafe fn draw_service_boxes() -> Result<(), Refused> {
         quad(0x2DF, 0x43, 0x1, 0x1D, 0xFFFF00, 0xFF)?;
         quad(0x41, 0x5F, 0x29E, 0x1, 0xFFFF00, 0xFF)?;
     }
-    set(0x75AA98, 0x4FCF);
+    MENU_STATE.service_ui.box_colour_b.set(0x4FCF);
     value = 0x2;
-    flag = addr(0x759B6E).wrapping_add(value.wrapping_mul(4));
+    flag = (MENU_LISTS.inspection_flags_a[0].addr() as u32).wrapping_add(value.wrapping_mul(4));
     c = (at_esi(flag), 0x1);
     'l494d54: {
         if c.0 != c.1 {
             break 'l494d54;
         }
-        set(0x75AA98, 0x7F00);
-        flag = addr(0x759BC2).wrapping_add(value.wrapping_mul(4));
+        MENU_STATE.service_ui.box_colour_b.set(0x7F00);
+        flag = (MENU_LISTS.inspection_flags_b[0].addr() as u32).wrapping_add(value.wrapping_mul(4));
         c = (at_esi(flag), 0x1);
         if c.0 != c.1 {
             break 'l494d54;
         }
-        set(0x75AA98, 0x7F0000);
+        MENU_STATE.service_ui.box_colour_b.set(0x7F0000);
     }
-    quad(0x42, 0x60, 0xAA, 0x1C, rd(0x75AA98), rd(0x75AA90))?;
-    quad(0xEC, 0x60, 0xA4, 0x4, rd(0x75AA98), rd(0x75AA90))?;
-    quad(0x18C, 0x64, 0x4, 0x14, rd(0x75AA98), rd(0x75AA90))?;
-    quad(0xEC, 0x78, 0xA4, 0x4, rd(0x75AA98), rd(0x75AA90))?;
-    quad(0xEC, 0x64, 0xA0, 0x14, 0x1F1F1F, rd(0x75AA90))?;
+    quad(
+        0x42,
+        0x60,
+        0xAA,
+        0x1C,
+        MENU_STATE.service_ui.box_colour_b.get(),
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
+    quad(
+        0xEC,
+        0x60,
+        0xA4,
+        0x4,
+        MENU_STATE.service_ui.box_colour_b.get(),
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
+    quad(
+        0x18C,
+        0x64,
+        0x4,
+        0x14,
+        MENU_STATE.service_ui.box_colour_b.get(),
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
+    quad(
+        0xEC,
+        0x78,
+        0xA4,
+        0x4,
+        MENU_STATE.service_ui.box_colour_b.get(),
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
+    quad(
+        0xEC,
+        0x64,
+        0xA0,
+        0x14,
+        0x1F1F1F,
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
     quad(0x42, 0x60, 0x23, 0x1, 0x0, 0xFF)?;
     quad(0x42, 0x60, 0x1, 0x1B, 0x0, 0xFF)?;
     quad(0x65, 0x60, 0x1, 0x1C, 0x0, 0xFF)?;
@@ -113,7 +367,7 @@ pub unsafe fn draw_service_boxes() -> Result<(), Refused> {
         if c.0 != c.1 {
             break 'l495482;
         }
-        c = (rd(0x75AB38), 0x1);
+        c = (MENU_STATE.menus.service_flag.get(), 0x1);
         if c.0 == c.1 {
             break 'l495482;
         }
@@ -130,27 +384,62 @@ pub unsafe fn draw_service_boxes() -> Result<(), Refused> {
         quad(0x190, 0x5F, 0x1, 0x1E, 0xFFFF00, 0xFF)?;
         quad(0x41, 0x7C, 0x14F, 0x1, 0xFFFF00, 0xFF)?;
     }
-    set(0x75AA98, 0x4FCF);
+    MENU_STATE.service_ui.box_colour_b.set(0x4FCF);
     value = 0x3;
-    flag = addr(0x759B6E).wrapping_add(value.wrapping_mul(4));
+    flag = (MENU_LISTS.inspection_flags_a[0].addr() as u32).wrapping_add(value.wrapping_mul(4));
     c = (at_esi(flag), 0x1);
     'l4954bd: {
         if c.0 != c.1 {
             break 'l4954bd;
         }
-        set(0x75AA98, 0x7F00);
-        flag = addr(0x759BC2).wrapping_add(value.wrapping_mul(4));
+        MENU_STATE.service_ui.box_colour_b.set(0x7F00);
+        flag = (MENU_LISTS.inspection_flags_b[0].addr() as u32).wrapping_add(value.wrapping_mul(4));
         c = (at_esi(flag), 0x1);
         if c.0 != c.1 {
             break 'l4954bd;
         }
-        set(0x75AA98, 0x7F0000);
+        MENU_STATE.service_ui.box_colour_b.set(0x7F0000);
     }
-    quad(0x191, 0x60, 0xAA, 0x1C, rd(0x75AA98), rd(0x75AA90))?;
-    quad(0x23B, 0x60, 0xA4, 0x4, rd(0x75AA98), rd(0x75AA90))?;
-    quad(0x2DB, 0x64, 0x4, 0x14, rd(0x75AA98), rd(0x75AA90))?;
-    quad(0x23B, 0x78, 0xA4, 0x4, rd(0x75AA98), rd(0x75AA90))?;
-    quad(0x23B, 0x64, 0xA0, 0x14, 0x1F1F1F, rd(0x75AA90))?;
+    quad(
+        0x191,
+        0x60,
+        0xAA,
+        0x1C,
+        MENU_STATE.service_ui.box_colour_b.get(),
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
+    quad(
+        0x23B,
+        0x60,
+        0xA4,
+        0x4,
+        MENU_STATE.service_ui.box_colour_b.get(),
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
+    quad(
+        0x2DB,
+        0x64,
+        0x4,
+        0x14,
+        MENU_STATE.service_ui.box_colour_b.get(),
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
+    quad(
+        0x23B,
+        0x78,
+        0xA4,
+        0x4,
+        MENU_STATE.service_ui.box_colour_b.get(),
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
+    quad(
+        0x23B,
+        0x64,
+        0xA0,
+        0x14,
+        0x1F1F1F,
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
     quad(0x191, 0x60, 0x23, 0x1, 0x0, 0xFF)?;
     quad(0x191, 0x60, 0x1, 0x1B, 0x0, 0xFF)?;
     quad(0x1B4, 0x60, 0x1, 0x1C, 0x0, 0xFF)?;
@@ -168,7 +457,7 @@ pub unsafe fn draw_service_boxes() -> Result<(), Refused> {
         if c.0 != c.1 {
             break 'l495beb;
         }
-        c = (rd(0x75AB38), 0x1);
+        c = (MENU_STATE.menus.service_flag.get(), 0x1);
         if c.0 == c.1 {
             break 'l495beb;
         }
@@ -185,27 +474,62 @@ pub unsafe fn draw_service_boxes() -> Result<(), Refused> {
         quad(0x2DF, 0x5F, 0x1, 0x1E, 0xFFFF00, 0xFF)?;
         quad(0x190, 0x7C, 0x14F, 0x1, 0xFFFF00, 0xFF)?;
     }
-    set(0x75AA98, 0x4FCF);
+    MENU_STATE.service_ui.box_colour_b.set(0x4FCF);
     value = 0x4;
-    flag = addr(0x759B6E).wrapping_add(value.wrapping_mul(4));
+    flag = (MENU_LISTS.inspection_flags_a[0].addr() as u32).wrapping_add(value.wrapping_mul(4));
     c = (at_esi(flag), 0x1);
     'l495c26: {
         if c.0 != c.1 {
             break 'l495c26;
         }
-        set(0x75AA98, 0x7F00);
-        flag = addr(0x759BC2).wrapping_add(value.wrapping_mul(4));
+        MENU_STATE.service_ui.box_colour_b.set(0x7F00);
+        flag = (MENU_LISTS.inspection_flags_b[0].addr() as u32).wrapping_add(value.wrapping_mul(4));
         c = (at_esi(flag), 0x1);
         if c.0 != c.1 {
             break 'l495c26;
         }
-        set(0x75AA98, 0x7F0000);
+        MENU_STATE.service_ui.box_colour_b.set(0x7F0000);
     }
-    quad(0x42, 0x7D, 0xAA, 0x1C, rd(0x75AA98), rd(0x75AA90))?;
-    quad(0xEC, 0x7D, 0xA4, 0x4, rd(0x75AA98), rd(0x75AA90))?;
-    quad(0x18C, 0x81, 0x4, 0x14, rd(0x75AA98), rd(0x75AA90))?;
-    quad(0xEC, 0x95, 0xA4, 0x4, rd(0x75AA98), rd(0x75AA90))?;
-    quad(0xEC, 0x81, 0xA0, 0x14, 0x1F1F1F, rd(0x75AA90))?;
+    quad(
+        0x42,
+        0x7D,
+        0xAA,
+        0x1C,
+        MENU_STATE.service_ui.box_colour_b.get(),
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
+    quad(
+        0xEC,
+        0x7D,
+        0xA4,
+        0x4,
+        MENU_STATE.service_ui.box_colour_b.get(),
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
+    quad(
+        0x18C,
+        0x81,
+        0x4,
+        0x14,
+        MENU_STATE.service_ui.box_colour_b.get(),
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
+    quad(
+        0xEC,
+        0x95,
+        0xA4,
+        0x4,
+        MENU_STATE.service_ui.box_colour_b.get(),
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
+    quad(
+        0xEC,
+        0x81,
+        0xA0,
+        0x14,
+        0x1F1F1F,
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
     quad(0x42, 0x7D, 0x23, 0x1, 0x0, 0xFF)?;
     quad(0x42, 0x7D, 0x1, 0x1B, 0x0, 0xFF)?;
     quad(0x65, 0x7D, 0x1, 0x1C, 0x0, 0xFF)?;
@@ -223,7 +547,7 @@ pub unsafe fn draw_service_boxes() -> Result<(), Refused> {
         if c.0 != c.1 {
             break 'l496354;
         }
-        c = (rd(0x75AB38), 0x1);
+        c = (MENU_STATE.menus.service_flag.get(), 0x1);
         if c.0 == c.1 {
             break 'l496354;
         }
@@ -240,27 +564,62 @@ pub unsafe fn draw_service_boxes() -> Result<(), Refused> {
         quad(0x190, 0x7C, 0x1, 0x1E, 0xFFFF00, 0xFF)?;
         quad(0x41, 0x99, 0x14F, 0x1, 0xFFFF00, 0xFF)?;
     }
-    set(0x75AA98, 0x4FCF);
+    MENU_STATE.service_ui.box_colour_b.set(0x4FCF);
     value = 0x5;
-    flag = addr(0x759B6E).wrapping_add(value.wrapping_mul(4));
+    flag = (MENU_LISTS.inspection_flags_a[0].addr() as u32).wrapping_add(value.wrapping_mul(4));
     c = (at_esi(flag), 0x1);
     'l49638f: {
         if c.0 != c.1 {
             break 'l49638f;
         }
-        set(0x75AA98, 0x7F00);
-        flag = addr(0x759BC2).wrapping_add(value.wrapping_mul(4));
+        MENU_STATE.service_ui.box_colour_b.set(0x7F00);
+        flag = (MENU_LISTS.inspection_flags_b[0].addr() as u32).wrapping_add(value.wrapping_mul(4));
         c = (at_esi(flag), 0x1);
         if c.0 != c.1 {
             break 'l49638f;
         }
-        set(0x75AA98, 0x7F0000);
+        MENU_STATE.service_ui.box_colour_b.set(0x7F0000);
     }
-    quad(0x191, 0x7D, 0xAA, 0x1C, rd(0x75AA98), rd(0x75AA90))?;
-    quad(0x23B, 0x7D, 0xA4, 0x4, rd(0x75AA98), rd(0x75AA90))?;
-    quad(0x2DB, 0x81, 0x4, 0x14, rd(0x75AA98), rd(0x75AA90))?;
-    quad(0x23B, 0x95, 0xA4, 0x4, rd(0x75AA98), rd(0x75AA90))?;
-    quad(0x23B, 0x81, 0xA0, 0x14, 0x1F1F1F, rd(0x75AA90))?;
+    quad(
+        0x191,
+        0x7D,
+        0xAA,
+        0x1C,
+        MENU_STATE.service_ui.box_colour_b.get(),
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
+    quad(
+        0x23B,
+        0x7D,
+        0xA4,
+        0x4,
+        MENU_STATE.service_ui.box_colour_b.get(),
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
+    quad(
+        0x2DB,
+        0x81,
+        0x4,
+        0x14,
+        MENU_STATE.service_ui.box_colour_b.get(),
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
+    quad(
+        0x23B,
+        0x95,
+        0xA4,
+        0x4,
+        MENU_STATE.service_ui.box_colour_b.get(),
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
+    quad(
+        0x23B,
+        0x81,
+        0xA0,
+        0x14,
+        0x1F1F1F,
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
     quad(0x191, 0x7D, 0x23, 0x1, 0x0, 0xFF)?;
     quad(0x191, 0x7D, 0x1, 0x1B, 0x0, 0xFF)?;
     quad(0x1B4, 0x7D, 0x1, 0x1C, 0x0, 0xFF)?;
@@ -278,7 +637,7 @@ pub unsafe fn draw_service_boxes() -> Result<(), Refused> {
         if c.0 != c.1 {
             break 'l496abd;
         }
-        c = (rd(0x75AB38), 0x1);
+        c = (MENU_STATE.menus.service_flag.get(), 0x1);
         if c.0 == c.1 {
             break 'l496abd;
         }
@@ -295,27 +654,62 @@ pub unsafe fn draw_service_boxes() -> Result<(), Refused> {
         quad(0x2DF, 0x7C, 0x1, 0x1E, 0xFFFF00, 0xFF)?;
         quad(0x190, 0x99, 0x14F, 0x1, 0xFFFF00, 0xFF)?;
     }
-    set(0x75AA98, 0x4FCF);
+    MENU_STATE.service_ui.box_colour_b.set(0x4FCF);
     value = 0x6;
-    flag = addr(0x759B6E).wrapping_add(value.wrapping_mul(4));
+    flag = (MENU_LISTS.inspection_flags_a[0].addr() as u32).wrapping_add(value.wrapping_mul(4));
     c = (at_esi(flag), 0x1);
     'l496af8: {
         if c.0 != c.1 {
             break 'l496af8;
         }
-        set(0x75AA98, 0x7F00);
-        flag = addr(0x759BC2).wrapping_add(value.wrapping_mul(4));
+        MENU_STATE.service_ui.box_colour_b.set(0x7F00);
+        flag = (MENU_LISTS.inspection_flags_b[0].addr() as u32).wrapping_add(value.wrapping_mul(4));
         c = (at_esi(flag), 0x1);
         if c.0 != c.1 {
             break 'l496af8;
         }
-        set(0x75AA98, 0x7F0000);
+        MENU_STATE.service_ui.box_colour_b.set(0x7F0000);
     }
-    quad(0x42, 0x9A, 0xAA, 0x1C, rd(0x75AA98), rd(0x75AA90))?;
-    quad(0xEC, 0x9A, 0xA4, 0x4, rd(0x75AA98), rd(0x75AA90))?;
-    quad(0x18C, 0x9E, 0x4, 0x14, rd(0x75AA98), rd(0x75AA90))?;
-    quad(0xEC, 0xB2, 0xA4, 0x4, rd(0x75AA98), rd(0x75AA90))?;
-    quad(0xEC, 0x9E, 0xA0, 0x14, 0x1F1F1F, rd(0x75AA90))?;
+    quad(
+        0x42,
+        0x9A,
+        0xAA,
+        0x1C,
+        MENU_STATE.service_ui.box_colour_b.get(),
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
+    quad(
+        0xEC,
+        0x9A,
+        0xA4,
+        0x4,
+        MENU_STATE.service_ui.box_colour_b.get(),
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
+    quad(
+        0x18C,
+        0x9E,
+        0x4,
+        0x14,
+        MENU_STATE.service_ui.box_colour_b.get(),
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
+    quad(
+        0xEC,
+        0xB2,
+        0xA4,
+        0x4,
+        MENU_STATE.service_ui.box_colour_b.get(),
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
+    quad(
+        0xEC,
+        0x9E,
+        0xA0,
+        0x14,
+        0x1F1F1F,
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
     quad(0x42, 0x9A, 0x23, 0x1, 0x0, 0xFF)?;
     quad(0x42, 0x9A, 0x1, 0x1B, 0x0, 0xFF)?;
     quad(0x65, 0x9A, 0x1, 0x1C, 0x0, 0xFF)?;
@@ -333,7 +727,7 @@ pub unsafe fn draw_service_boxes() -> Result<(), Refused> {
         if c.0 != c.1 {
             break 'l497226;
         }
-        c = (rd(0x75AB38), 0x1);
+        c = (MENU_STATE.menus.service_flag.get(), 0x1);
         if c.0 == c.1 {
             break 'l497226;
         }
@@ -350,27 +744,62 @@ pub unsafe fn draw_service_boxes() -> Result<(), Refused> {
         quad(0x190, 0x99, 0x1, 0x1E, 0xFFFF00, 0xFF)?;
         quad(0x41, 0xB6, 0x14F, 0x1, 0xFFFF00, 0xFF)?;
     }
-    set(0x75AA98, 0x4FCF);
+    MENU_STATE.service_ui.box_colour_b.set(0x4FCF);
     value = 0x7;
-    flag = addr(0x759B6E).wrapping_add(value.wrapping_mul(4));
+    flag = (MENU_LISTS.inspection_flags_a[0].addr() as u32).wrapping_add(value.wrapping_mul(4));
     c = (at_esi(flag), 0x1);
     'l497261: {
         if c.0 != c.1 {
             break 'l497261;
         }
-        set(0x75AA98, 0x7F00);
-        flag = addr(0x759BC2).wrapping_add(value.wrapping_mul(4));
+        MENU_STATE.service_ui.box_colour_b.set(0x7F00);
+        flag = (MENU_LISTS.inspection_flags_b[0].addr() as u32).wrapping_add(value.wrapping_mul(4));
         c = (at_esi(flag), 0x1);
         if c.0 != c.1 {
             break 'l497261;
         }
-        set(0x75AA98, 0x7F0000);
+        MENU_STATE.service_ui.box_colour_b.set(0x7F0000);
     }
-    quad(0x191, 0x9A, 0xAA, 0x1C, rd(0x75AA98), rd(0x75AA90))?;
-    quad(0x23B, 0x9A, 0xA4, 0x4, rd(0x75AA98), rd(0x75AA90))?;
-    quad(0x2DB, 0x9E, 0x4, 0x14, rd(0x75AA98), rd(0x75AA90))?;
-    quad(0x23B, 0xB2, 0xA4, 0x4, rd(0x75AA98), rd(0x75AA90))?;
-    quad(0x23B, 0x9E, 0xA0, 0x14, 0x1F1F1F, rd(0x75AA90))?;
+    quad(
+        0x191,
+        0x9A,
+        0xAA,
+        0x1C,
+        MENU_STATE.service_ui.box_colour_b.get(),
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
+    quad(
+        0x23B,
+        0x9A,
+        0xA4,
+        0x4,
+        MENU_STATE.service_ui.box_colour_b.get(),
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
+    quad(
+        0x2DB,
+        0x9E,
+        0x4,
+        0x14,
+        MENU_STATE.service_ui.box_colour_b.get(),
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
+    quad(
+        0x23B,
+        0xB2,
+        0xA4,
+        0x4,
+        MENU_STATE.service_ui.box_colour_b.get(),
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
+    quad(
+        0x23B,
+        0x9E,
+        0xA0,
+        0x14,
+        0x1F1F1F,
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
     quad(0x191, 0x9A, 0x23, 0x1, 0x0, 0xFF)?;
     quad(0x191, 0x9A, 0x1, 0x1B, 0x0, 0xFF)?;
     quad(0x1B4, 0x9A, 0x1, 0x1C, 0x0, 0xFF)?;
@@ -388,7 +817,7 @@ pub unsafe fn draw_service_boxes() -> Result<(), Refused> {
         if c.0 != c.1 {
             break 'l49798f;
         }
-        c = (rd(0x75AB38), 0x1);
+        c = (MENU_STATE.menus.service_flag.get(), 0x1);
         if c.0 == c.1 {
             break 'l49798f;
         }
@@ -405,27 +834,62 @@ pub unsafe fn draw_service_boxes() -> Result<(), Refused> {
         quad(0x2DF, 0x99, 0x1, 0x1E, 0xFFFF00, 0xFF)?;
         quad(0x190, 0xB6, 0x14F, 0x1, 0xFFFF00, 0xFF)?;
     }
-    set(0x75AA98, 0x4FCF);
+    MENU_STATE.service_ui.box_colour_b.set(0x4FCF);
     value = 0x8;
-    flag = addr(0x759B6E).wrapping_add(value.wrapping_mul(4));
+    flag = (MENU_LISTS.inspection_flags_a[0].addr() as u32).wrapping_add(value.wrapping_mul(4));
     c = (at_esi(flag), 0x1);
     'l4979ca: {
         if c.0 != c.1 {
             break 'l4979ca;
         }
-        set(0x75AA98, 0x7F00);
-        flag = addr(0x759BC2).wrapping_add(value.wrapping_mul(4));
+        MENU_STATE.service_ui.box_colour_b.set(0x7F00);
+        flag = (MENU_LISTS.inspection_flags_b[0].addr() as u32).wrapping_add(value.wrapping_mul(4));
         c = (at_esi(flag), 0x1);
         if c.0 != c.1 {
             break 'l4979ca;
         }
-        set(0x75AA98, 0x7F0000);
+        MENU_STATE.service_ui.box_colour_b.set(0x7F0000);
     }
-    quad(0x42, 0xB7, 0xAA, 0x1C, rd(0x75AA98), rd(0x75AA90))?;
-    quad(0xEC, 0xB7, 0xA4, 0x4, rd(0x75AA98), rd(0x75AA90))?;
-    quad(0x18C, 0xBB, 0x4, 0x14, rd(0x75AA98), rd(0x75AA90))?;
-    quad(0xEC, 0xCF, 0xA4, 0x4, rd(0x75AA98), rd(0x75AA90))?;
-    quad(0xEC, 0xBB, 0xA0, 0x14, 0x1F1F1F, rd(0x75AA90))?;
+    quad(
+        0x42,
+        0xB7,
+        0xAA,
+        0x1C,
+        MENU_STATE.service_ui.box_colour_b.get(),
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
+    quad(
+        0xEC,
+        0xB7,
+        0xA4,
+        0x4,
+        MENU_STATE.service_ui.box_colour_b.get(),
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
+    quad(
+        0x18C,
+        0xBB,
+        0x4,
+        0x14,
+        MENU_STATE.service_ui.box_colour_b.get(),
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
+    quad(
+        0xEC,
+        0xCF,
+        0xA4,
+        0x4,
+        MENU_STATE.service_ui.box_colour_b.get(),
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
+    quad(
+        0xEC,
+        0xBB,
+        0xA0,
+        0x14,
+        0x1F1F1F,
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
     quad(0x42, 0xB7, 0x23, 0x1, 0x0, 0xFF)?;
     quad(0x42, 0xB7, 0x1, 0x1B, 0x0, 0xFF)?;
     quad(0x65, 0xB7, 0x1, 0x1C, 0x0, 0xFF)?;
@@ -443,7 +907,7 @@ pub unsafe fn draw_service_boxes() -> Result<(), Refused> {
         if c.0 != c.1 {
             break 'l4980f8;
         }
-        c = (rd(0x75AB38), 0x1);
+        c = (MENU_STATE.menus.service_flag.get(), 0x1);
         if c.0 == c.1 {
             break 'l4980f8;
         }
@@ -460,27 +924,62 @@ pub unsafe fn draw_service_boxes() -> Result<(), Refused> {
         quad(0x190, 0xB6, 0x1, 0x1E, 0xFFFF00, 0xFF)?;
         quad(0x41, 0xD3, 0x14F, 0x1, 0xFFFF00, 0xFF)?;
     }
-    set(0x75AA98, 0x4FCF);
+    MENU_STATE.service_ui.box_colour_b.set(0x4FCF);
     value = 0x9;
-    flag = addr(0x759B6E).wrapping_add(value.wrapping_mul(4));
+    flag = (MENU_LISTS.inspection_flags_a[0].addr() as u32).wrapping_add(value.wrapping_mul(4));
     c = (at_esi(flag), 0x1);
     'l498133: {
         if c.0 != c.1 {
             break 'l498133;
         }
-        set(0x75AA98, 0x7F00);
-        flag = addr(0x759BC2).wrapping_add(value.wrapping_mul(4));
+        MENU_STATE.service_ui.box_colour_b.set(0x7F00);
+        flag = (MENU_LISTS.inspection_flags_b[0].addr() as u32).wrapping_add(value.wrapping_mul(4));
         c = (at_esi(flag), 0x1);
         if c.0 != c.1 {
             break 'l498133;
         }
-        set(0x75AA98, 0x7F0000);
+        MENU_STATE.service_ui.box_colour_b.set(0x7F0000);
     }
-    quad(0x191, 0xB7, 0xAA, 0x1C, rd(0x75AA98), rd(0x75AA90))?;
-    quad(0x23B, 0xB7, 0xA4, 0x4, rd(0x75AA98), rd(0x75AA90))?;
-    quad(0x2DB, 0xBB, 0x4, 0x14, rd(0x75AA98), rd(0x75AA90))?;
-    quad(0x23B, 0xCF, 0xA4, 0x4, rd(0x75AA98), rd(0x75AA90))?;
-    quad(0x23B, 0xBB, 0xA0, 0x14, 0x1F1F1F, rd(0x75AA90))?;
+    quad(
+        0x191,
+        0xB7,
+        0xAA,
+        0x1C,
+        MENU_STATE.service_ui.box_colour_b.get(),
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
+    quad(
+        0x23B,
+        0xB7,
+        0xA4,
+        0x4,
+        MENU_STATE.service_ui.box_colour_b.get(),
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
+    quad(
+        0x2DB,
+        0xBB,
+        0x4,
+        0x14,
+        MENU_STATE.service_ui.box_colour_b.get(),
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
+    quad(
+        0x23B,
+        0xCF,
+        0xA4,
+        0x4,
+        MENU_STATE.service_ui.box_colour_b.get(),
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
+    quad(
+        0x23B,
+        0xBB,
+        0xA0,
+        0x14,
+        0x1F1F1F,
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
     quad(0x191, 0xB7, 0x23, 0x1, 0x0, 0xFF)?;
     quad(0x191, 0xB7, 0x1, 0x1B, 0x0, 0xFF)?;
     quad(0x1B4, 0xB7, 0x1, 0x1C, 0x0, 0xFF)?;
@@ -498,7 +997,7 @@ pub unsafe fn draw_service_boxes() -> Result<(), Refused> {
         if c.0 != c.1 {
             break 'l498861;
         }
-        c = (rd(0x75AB38), 0x1);
+        c = (MENU_STATE.menus.service_flag.get(), 0x1);
         if c.0 == c.1 {
             break 'l498861;
         }
@@ -515,27 +1014,62 @@ pub unsafe fn draw_service_boxes() -> Result<(), Refused> {
         quad(0x2DF, 0xB6, 0x1, 0x1E, 0xFFFF00, 0xFF)?;
         quad(0x190, 0xD3, 0x14F, 0x1, 0xFFFF00, 0xFF)?;
     }
-    set(0x75AA98, 0x4FCF);
+    MENU_STATE.service_ui.box_colour_b.set(0x4FCF);
     value = 0xA;
-    flag = addr(0x759B6E).wrapping_add(value.wrapping_mul(4));
+    flag = (MENU_LISTS.inspection_flags_a[0].addr() as u32).wrapping_add(value.wrapping_mul(4));
     c = (at_esi(flag), 0x1);
     'l49889c: {
         if c.0 != c.1 {
             break 'l49889c;
         }
-        set(0x75AA98, 0x7F00);
-        flag = addr(0x759BC2).wrapping_add(value.wrapping_mul(4));
+        MENU_STATE.service_ui.box_colour_b.set(0x7F00);
+        flag = (MENU_LISTS.inspection_flags_b[0].addr() as u32).wrapping_add(value.wrapping_mul(4));
         c = (at_esi(flag), 0x1);
         if c.0 != c.1 {
             break 'l49889c;
         }
-        set(0x75AA98, 0x7F0000);
+        MENU_STATE.service_ui.box_colour_b.set(0x7F0000);
     }
-    quad(0x42, 0xD4, 0xAA, 0x1C, rd(0x75AA98), rd(0x75AA90))?;
-    quad(0xEC, 0xD4, 0xA4, 0x4, rd(0x75AA98), rd(0x75AA90))?;
-    quad(0x18C, 0xD8, 0x4, 0x14, rd(0x75AA98), rd(0x75AA90))?;
-    quad(0xEC, 0xEC, 0xA4, 0x4, rd(0x75AA98), rd(0x75AA90))?;
-    quad(0xEC, 0xD8, 0xA0, 0x14, 0x1F1F1F, rd(0x75AA90))?;
+    quad(
+        0x42,
+        0xD4,
+        0xAA,
+        0x1C,
+        MENU_STATE.service_ui.box_colour_b.get(),
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
+    quad(
+        0xEC,
+        0xD4,
+        0xA4,
+        0x4,
+        MENU_STATE.service_ui.box_colour_b.get(),
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
+    quad(
+        0x18C,
+        0xD8,
+        0x4,
+        0x14,
+        MENU_STATE.service_ui.box_colour_b.get(),
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
+    quad(
+        0xEC,
+        0xEC,
+        0xA4,
+        0x4,
+        MENU_STATE.service_ui.box_colour_b.get(),
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
+    quad(
+        0xEC,
+        0xD8,
+        0xA0,
+        0x14,
+        0x1F1F1F,
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
     quad(0x42, 0xD4, 0x23, 0x1, 0x0, 0xFF)?;
     quad(0x42, 0xD4, 0x1, 0x1B, 0x0, 0xFF)?;
     quad(0x65, 0xD4, 0x1, 0x1C, 0x0, 0xFF)?;
@@ -553,7 +1087,7 @@ pub unsafe fn draw_service_boxes() -> Result<(), Refused> {
         if c.0 != c.1 {
             break 'l498fca;
         }
-        c = (rd(0x75AB38), 0x1);
+        c = (MENU_STATE.menus.service_flag.get(), 0x1);
         if c.0 == c.1 {
             break 'l498fca;
         }
@@ -570,27 +1104,62 @@ pub unsafe fn draw_service_boxes() -> Result<(), Refused> {
         quad(0x190, 0xD3, 0x1, 0x1E, 0xFFFF00, 0xFF)?;
         quad(0x41, 0xF0, 0x14F, 0x1, 0xFFFF00, 0xFF)?;
     }
-    set(0x75AA98, 0x4FCF);
+    MENU_STATE.service_ui.box_colour_b.set(0x4FCF);
     value = 0xB;
-    flag = addr(0x759B6E).wrapping_add(value.wrapping_mul(4));
+    flag = (MENU_LISTS.inspection_flags_a[0].addr() as u32).wrapping_add(value.wrapping_mul(4));
     c = (at_esi(flag), 0x1);
     'l499005: {
         if c.0 != c.1 {
             break 'l499005;
         }
-        set(0x75AA98, 0x7F00);
-        flag = addr(0x759BC2).wrapping_add(value.wrapping_mul(4));
+        MENU_STATE.service_ui.box_colour_b.set(0x7F00);
+        flag = (MENU_LISTS.inspection_flags_b[0].addr() as u32).wrapping_add(value.wrapping_mul(4));
         c = (at_esi(flag), 0x1);
         if c.0 != c.1 {
             break 'l499005;
         }
-        set(0x75AA98, 0x7F0000);
+        MENU_STATE.service_ui.box_colour_b.set(0x7F0000);
     }
-    quad(0x191, 0xD4, 0xAA, 0x1C, rd(0x75AA98), rd(0x75AA90))?;
-    quad(0x23B, 0xD4, 0xA4, 0x4, rd(0x75AA98), rd(0x75AA90))?;
-    quad(0x2DB, 0xD8, 0x4, 0x14, rd(0x75AA98), rd(0x75AA90))?;
-    quad(0x23B, 0xEC, 0xA4, 0x4, rd(0x75AA98), rd(0x75AA90))?;
-    quad(0x23B, 0xD8, 0xA0, 0x14, 0x1F1F1F, rd(0x75AA90))?;
+    quad(
+        0x191,
+        0xD4,
+        0xAA,
+        0x1C,
+        MENU_STATE.service_ui.box_colour_b.get(),
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
+    quad(
+        0x23B,
+        0xD4,
+        0xA4,
+        0x4,
+        MENU_STATE.service_ui.box_colour_b.get(),
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
+    quad(
+        0x2DB,
+        0xD8,
+        0x4,
+        0x14,
+        MENU_STATE.service_ui.box_colour_b.get(),
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
+    quad(
+        0x23B,
+        0xEC,
+        0xA4,
+        0x4,
+        MENU_STATE.service_ui.box_colour_b.get(),
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
+    quad(
+        0x23B,
+        0xD8,
+        0xA0,
+        0x14,
+        0x1F1F1F,
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
     quad(0x191, 0xD4, 0x23, 0x1, 0x0, 0xFF)?;
     quad(0x191, 0xD4, 0x1, 0x1B, 0x0, 0xFF)?;
     quad(0x1B4, 0xD4, 0x1, 0x1C, 0x0, 0xFF)?;
@@ -608,7 +1177,7 @@ pub unsafe fn draw_service_boxes() -> Result<(), Refused> {
         if c.0 != c.1 {
             break 'l499733;
         }
-        c = (rd(0x75AB38), 0x1);
+        c = (MENU_STATE.menus.service_flag.get(), 0x1);
         if c.0 == c.1 {
             break 'l499733;
         }
@@ -625,27 +1194,62 @@ pub unsafe fn draw_service_boxes() -> Result<(), Refused> {
         quad(0x2DF, 0xD3, 0x1, 0x1E, 0xFFFF00, 0xFF)?;
         quad(0x190, 0xF0, 0x14F, 0x1, 0xFFFF00, 0xFF)?;
     }
-    set(0x75AA98, 0x4FCF);
+    MENU_STATE.service_ui.box_colour_b.set(0x4FCF);
     value = 0xC;
-    flag = addr(0x759B6E).wrapping_add(value.wrapping_mul(4));
+    flag = (MENU_LISTS.inspection_flags_a[0].addr() as u32).wrapping_add(value.wrapping_mul(4));
     c = (at_esi(flag), 0x1);
     'l49976e: {
         if c.0 != c.1 {
             break 'l49976e;
         }
-        set(0x75AA98, 0x7F00);
-        flag = addr(0x759BC2).wrapping_add(value.wrapping_mul(4));
+        MENU_STATE.service_ui.box_colour_b.set(0x7F00);
+        flag = (MENU_LISTS.inspection_flags_b[0].addr() as u32).wrapping_add(value.wrapping_mul(4));
         c = (at_esi(flag), 0x1);
         if c.0 != c.1 {
             break 'l49976e;
         }
-        set(0x75AA98, 0x7F0000);
+        MENU_STATE.service_ui.box_colour_b.set(0x7F0000);
     }
-    quad(0x42, 0xF1, 0xAA, 0x1C, rd(0x75AA98), rd(0x75AA90))?;
-    quad(0xEC, 0xF1, 0xA4, 0x4, rd(0x75AA98), rd(0x75AA90))?;
-    quad(0x18C, 0xF5, 0x4, 0x14, rd(0x75AA98), rd(0x75AA90))?;
-    quad(0xEC, 0x109, 0xA4, 0x4, rd(0x75AA98), rd(0x75AA90))?;
-    quad(0xEC, 0xF5, 0xA0, 0x14, 0x1F1F1F, rd(0x75AA90))?;
+    quad(
+        0x42,
+        0xF1,
+        0xAA,
+        0x1C,
+        MENU_STATE.service_ui.box_colour_b.get(),
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
+    quad(
+        0xEC,
+        0xF1,
+        0xA4,
+        0x4,
+        MENU_STATE.service_ui.box_colour_b.get(),
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
+    quad(
+        0x18C,
+        0xF5,
+        0x4,
+        0x14,
+        MENU_STATE.service_ui.box_colour_b.get(),
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
+    quad(
+        0xEC,
+        0x109,
+        0xA4,
+        0x4,
+        MENU_STATE.service_ui.box_colour_b.get(),
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
+    quad(
+        0xEC,
+        0xF5,
+        0xA0,
+        0x14,
+        0x1F1F1F,
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
     quad(0x42, 0xF1, 0x23, 0x1, 0x0, 0xFF)?;
     quad(0x42, 0xF1, 0x1, 0x1B, 0x0, 0xFF)?;
     quad(0x65, 0xF1, 0x1, 0x1C, 0x0, 0xFF)?;
@@ -663,7 +1267,7 @@ pub unsafe fn draw_service_boxes() -> Result<(), Refused> {
         if c.0 != c.1 {
             break 'l499e9c;
         }
-        c = (rd(0x75AB38), 0x1);
+        c = (MENU_STATE.menus.service_flag.get(), 0x1);
         if c.0 == c.1 {
             break 'l499e9c;
         }
@@ -680,27 +1284,62 @@ pub unsafe fn draw_service_boxes() -> Result<(), Refused> {
         quad(0x190, 0xF0, 0x1, 0x1E, 0xFFFF00, 0xFF)?;
         quad(0x41, 0x10D, 0x14F, 0x1, 0xFFFF00, 0xFF)?;
     }
-    set(0x75AA98, 0x4FCF);
+    MENU_STATE.service_ui.box_colour_b.set(0x4FCF);
     value = 0xD;
-    flag = addr(0x759B6E).wrapping_add(value.wrapping_mul(4));
+    flag = (MENU_LISTS.inspection_flags_a[0].addr() as u32).wrapping_add(value.wrapping_mul(4));
     c = (at_esi(flag), 0x1);
     'l499ed7: {
         if c.0 != c.1 {
             break 'l499ed7;
         }
-        set(0x75AA98, 0x7F00);
-        flag = addr(0x759BC2).wrapping_add(value.wrapping_mul(4));
+        MENU_STATE.service_ui.box_colour_b.set(0x7F00);
+        flag = (MENU_LISTS.inspection_flags_b[0].addr() as u32).wrapping_add(value.wrapping_mul(4));
         c = (at_esi(flag), 0x1);
         if c.0 != c.1 {
             break 'l499ed7;
         }
-        set(0x75AA98, 0x7F0000);
+        MENU_STATE.service_ui.box_colour_b.set(0x7F0000);
     }
-    quad(0x191, 0xF1, 0xAA, 0x1C, rd(0x75AA98), rd(0x75AA90))?;
-    quad(0x23B, 0xF1, 0xA4, 0x4, rd(0x75AA98), rd(0x75AA90))?;
-    quad(0x2DB, 0xF5, 0x4, 0x14, rd(0x75AA98), rd(0x75AA90))?;
-    quad(0x23B, 0x109, 0xA4, 0x4, rd(0x75AA98), rd(0x75AA90))?;
-    quad(0x23B, 0xF5, 0xA0, 0x14, 0x1F1F1F, rd(0x75AA90))?;
+    quad(
+        0x191,
+        0xF1,
+        0xAA,
+        0x1C,
+        MENU_STATE.service_ui.box_colour_b.get(),
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
+    quad(
+        0x23B,
+        0xF1,
+        0xA4,
+        0x4,
+        MENU_STATE.service_ui.box_colour_b.get(),
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
+    quad(
+        0x2DB,
+        0xF5,
+        0x4,
+        0x14,
+        MENU_STATE.service_ui.box_colour_b.get(),
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
+    quad(
+        0x23B,
+        0x109,
+        0xA4,
+        0x4,
+        MENU_STATE.service_ui.box_colour_b.get(),
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
+    quad(
+        0x23B,
+        0xF5,
+        0xA0,
+        0x14,
+        0x1F1F1F,
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
     quad(0x191, 0xF1, 0x23, 0x1, 0x0, 0xFF)?;
     quad(0x191, 0xF1, 0x1, 0x1B, 0x0, 0xFF)?;
     quad(0x1B4, 0xF1, 0x1, 0x1C, 0x0, 0xFF)?;
@@ -718,7 +1357,7 @@ pub unsafe fn draw_service_boxes() -> Result<(), Refused> {
         if c.0 != c.1 {
             break 'l49a605;
         }
-        c = (rd(0x75AB38), 0x1);
+        c = (MENU_STATE.menus.service_flag.get(), 0x1);
         if c.0 == c.1 {
             break 'l49a605;
         }
@@ -735,38 +1374,150 @@ pub unsafe fn draw_service_boxes() -> Result<(), Refused> {
         quad(0x2DF, 0xF0, 0x1, 0x1E, 0xFFFF00, 0xFF)?;
         quad(0x190, 0x10D, 0x14F, 0x1, 0xFFFF00, 0xFF)?;
     }
-    set(0x75AA98, 0x4FCF);
+    MENU_STATE.service_ui.box_colour_b.set(0x4FCF);
     value = 0xE;
-    flag = addr(0x759B6E).wrapping_add(value.wrapping_mul(4));
+    flag = (MENU_LISTS.inspection_flags_a[0].addr() as u32).wrapping_add(value.wrapping_mul(4));
     c = (at_esi(flag), 0x1);
     'l49a640: {
         if c.0 != c.1 {
             break 'l49a640;
         }
-        set(0x75AA98, 0x7F00);
-        flag = addr(0x759BC2).wrapping_add(value.wrapping_mul(4));
+        MENU_STATE.service_ui.box_colour_b.set(0x7F00);
+        flag = (MENU_LISTS.inspection_flags_b[0].addr() as u32).wrapping_add(value.wrapping_mul(4));
         c = (at_esi(flag), 0x1);
         if c.0 != c.1 {
             break 'l49a640;
         }
-        set(0x75AA98, 0x7F0000);
+        MENU_STATE.service_ui.box_colour_b.set(0x7F0000);
     }
-    quad(0x42, 0x10E, 0xAA, 0x1F, rd(0x75AA98), rd(0x75AA90))?;
-    quad(0xEC, 0x10E, 0xA4, 0x4, rd(0x75AA98), rd(0x75AA90))?;
-    quad(0x18C, 0x10E, 0x4, 0x45, rd(0x75AA98), rd(0x75AA90))?;
-    quad(0xEC, 0x126, 0xA1, 0x7, rd(0x75AA98), rd(0x75AA90))?;
-    quad(0x42, 0x12C, 0x4, 0x27, rd(0x75AA98), rd(0x75AA90))?;
-    quad(0x42, 0x152, 0x14E, 0xE, rd(0x75AA98), rd(0x75AA90))?;
-    quad(0x84, 0x12D, 0x4, 0x25, rd(0x75AA98), rd(0x75AA90))?;
-    quad(0xC6, 0x12D, 0x4, 0x25, rd(0x75AA98), rd(0x75AA90))?;
-    quad(0x108, 0x12D, 0x4, 0x25, rd(0x75AA98), rd(0x75AA90))?;
-    quad(0x14A, 0x12D, 0x4, 0x25, rd(0x75AA98), rd(0x75AA90))?;
-    quad(0xEB, 0x111, 0xA2, 0x16, 0x1F1F1F, rd(0x75AA90))?;
-    quad(0x45, 0x12C, 0x40, 0x26, 0x1F1F1F, rd(0x75AA90))?;
-    quad(0x87, 0x12C, 0x40, 0x26, 0x1F1F1F, rd(0x75AA90))?;
-    quad(0xC9, 0x12C, 0x40, 0x26, 0x1F1F1F, rd(0x75AA90))?;
-    quad(0x10B, 0x12C, 0x40, 0x26, 0x1F1F1F, rd(0x75AA90))?;
-    quad(0x14D, 0x12C, 0x40, 0x26, 0x1F1F1F, rd(0x75AA90))?;
+    quad(
+        0x42,
+        0x10E,
+        0xAA,
+        0x1F,
+        MENU_STATE.service_ui.box_colour_b.get(),
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
+    quad(
+        0xEC,
+        0x10E,
+        0xA4,
+        0x4,
+        MENU_STATE.service_ui.box_colour_b.get(),
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
+    quad(
+        0x18C,
+        0x10E,
+        0x4,
+        0x45,
+        MENU_STATE.service_ui.box_colour_b.get(),
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
+    quad(
+        0xEC,
+        0x126,
+        0xA1,
+        0x7,
+        MENU_STATE.service_ui.box_colour_b.get(),
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
+    quad(
+        0x42,
+        0x12C,
+        0x4,
+        0x27,
+        MENU_STATE.service_ui.box_colour_b.get(),
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
+    quad(
+        0x42,
+        0x152,
+        0x14E,
+        0xE,
+        MENU_STATE.service_ui.box_colour_b.get(),
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
+    quad(
+        0x84,
+        0x12D,
+        0x4,
+        0x25,
+        MENU_STATE.service_ui.box_colour_b.get(),
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
+    quad(
+        0xC6,
+        0x12D,
+        0x4,
+        0x25,
+        MENU_STATE.service_ui.box_colour_b.get(),
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
+    quad(
+        0x108,
+        0x12D,
+        0x4,
+        0x25,
+        MENU_STATE.service_ui.box_colour_b.get(),
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
+    quad(
+        0x14A,
+        0x12D,
+        0x4,
+        0x25,
+        MENU_STATE.service_ui.box_colour_b.get(),
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
+    quad(
+        0xEB,
+        0x111,
+        0xA2,
+        0x16,
+        0x1F1F1F,
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
+    quad(
+        0x45,
+        0x12C,
+        0x40,
+        0x26,
+        0x1F1F1F,
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
+    quad(
+        0x87,
+        0x12C,
+        0x40,
+        0x26,
+        0x1F1F1F,
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
+    quad(
+        0xC9,
+        0x12C,
+        0x40,
+        0x26,
+        0x1F1F1F,
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
+    quad(
+        0x10B,
+        0x12C,
+        0x40,
+        0x26,
+        0x1F1F1F,
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
+    quad(
+        0x14D,
+        0x12C,
+        0x40,
+        0x26,
+        0x1F1F1F,
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
     quad(0x42, 0x10E, 0x23, 0x1, 0x0, 0xFF)?;
     quad(0x42, 0x10E, 0x1, 0x1B, 0x0, 0xFF)?;
     quad(0x65, 0x10E, 0x1, 0x1C, 0x0, 0xFF)?;
@@ -804,12 +1555,12 @@ pub unsafe fn draw_service_boxes() -> Result<(), Refused> {
         if c.0 != c.1 {
             break 'l49b612;
         }
-        c = (rd(0x75AA9C), 0x1);
+        c = (MENU_STATE.service_ui.box_shown.get(), 0x1);
         'l49b3d2: {
             if c.0 == c.1 {
                 break 'l49b3d2;
             }
-            c = (rd(0x75AB38), 0x1);
+            c = (MENU_STATE.menus.service_flag.get(), 0x1);
             if c.0 == c.1 {
                 break 'l49b612;
             }
@@ -827,40 +1578,166 @@ pub unsafe fn draw_service_boxes() -> Result<(), Refused> {
         quad(0x190, 0x10D, 0x1, 0x54, 0xFFFF00, 0xFF)?;
         quad(0x41, 0x160, 0x14F, 0x1, 0xFFFF00, 0xFF)?;
     }
-    set(0x75AA98, 0x4FCF);
+    MENU_STATE.service_ui.box_colour_b.set(0x4FCF);
     value = 0xF;
-    flag = addr(0x759B6E).wrapping_add(value.wrapping_mul(4));
+    flag = (MENU_LISTS.inspection_flags_a[0].addr() as u32).wrapping_add(value.wrapping_mul(4));
     c = (at_esi(flag), 0x1);
     'l49b64d: {
         if c.0 != c.1 {
             break 'l49b64d;
         }
-        set(0x75AA98, 0x7F00);
-        flag = addr(0x759BC2).wrapping_add(value.wrapping_mul(4));
+        MENU_STATE.service_ui.box_colour_b.set(0x7F00);
+        flag = (MENU_LISTS.inspection_flags_b[0].addr() as u32).wrapping_add(value.wrapping_mul(4));
         c = (at_esi(flag), 0x1);
         if c.0 != c.1 {
             break 'l49b64d;
         }
-        set(0x75AA98, 0x7F0000);
+        MENU_STATE.service_ui.box_colour_b.set(0x7F0000);
     }
-    quad(0x191, 0x10E, 0xAA, 0x1F, rd(0x75AA98), rd(0x75AA90))?;
-    quad(0x23B, 0x10E, 0xA4, 0x4, rd(0x75AA98), rd(0x75AA90))?;
-    quad(0x2DB, 0x10E, 0x4, 0x45, rd(0x75AA98), rd(0x75AA90))?;
-    quad(0x23B, 0x126, 0xA1, 0x7, rd(0x75AA98), rd(0x75AA90))?;
-    quad(0x191, 0x12C, 0x4, 0x27, rd(0x75AA98), rd(0x75AA90))?;
-    quad(0x191, 0x152, 0x14E, 0xE, rd(0x75AA98), rd(0x75AA90))?;
-    quad(0x1C8, 0x12D, 0x4, 0x25, rd(0x75AA98), rd(0x75AA90))?;
-    quad(0x1FF, 0x12D, 0x4, 0x25, rd(0x75AA98), rd(0x75AA90))?;
-    quad(0x236, 0x12D, 0x4, 0x25, rd(0x75AA98), rd(0x75AA90))?;
-    quad(0x26D, 0x12D, 0x4, 0x25, rd(0x75AA98), rd(0x75AA90))?;
-    quad(0x2A4, 0x12D, 0x4, 0x25, rd(0x75AA98), rd(0x75AA90))?;
-    quad(0x194, 0x12C, 0x35, 0x26, 0x1F1F1F, rd(0x75AA90))?;
-    quad(0x1CB, 0x12C, 0x35, 0x26, 0x1F1F1F, rd(0x75AA90))?;
-    quad(0x202, 0x12C, 0x35, 0x26, 0x1F1F1F, rd(0x75AA90))?;
-    quad(0x239, 0x12C, 0x35, 0x26, 0x1F1F1F, rd(0x75AA90))?;
-    quad(0x270, 0x12C, 0x35, 0x26, 0x1F1F1F, rd(0x75AA90))?;
-    quad(0x2A7, 0x12C, 0x35, 0x26, 0x1F1F1F, rd(0x75AA90))?;
-    quad(0x23A, 0x111, 0xA2, 0x1C, 0x1F1F1F, rd(0x75AA90))?;
+    quad(
+        0x191,
+        0x10E,
+        0xAA,
+        0x1F,
+        MENU_STATE.service_ui.box_colour_b.get(),
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
+    quad(
+        0x23B,
+        0x10E,
+        0xA4,
+        0x4,
+        MENU_STATE.service_ui.box_colour_b.get(),
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
+    quad(
+        0x2DB,
+        0x10E,
+        0x4,
+        0x45,
+        MENU_STATE.service_ui.box_colour_b.get(),
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
+    quad(
+        0x23B,
+        0x126,
+        0xA1,
+        0x7,
+        MENU_STATE.service_ui.box_colour_b.get(),
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
+    quad(
+        0x191,
+        0x12C,
+        0x4,
+        0x27,
+        MENU_STATE.service_ui.box_colour_b.get(),
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
+    quad(
+        0x191,
+        0x152,
+        0x14E,
+        0xE,
+        MENU_STATE.service_ui.box_colour_b.get(),
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
+    quad(
+        0x1C8,
+        0x12D,
+        0x4,
+        0x25,
+        MENU_STATE.service_ui.box_colour_b.get(),
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
+    quad(
+        0x1FF,
+        0x12D,
+        0x4,
+        0x25,
+        MENU_STATE.service_ui.box_colour_b.get(),
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
+    quad(
+        0x236,
+        0x12D,
+        0x4,
+        0x25,
+        MENU_STATE.service_ui.box_colour_b.get(),
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
+    quad(
+        0x26D,
+        0x12D,
+        0x4,
+        0x25,
+        MENU_STATE.service_ui.box_colour_b.get(),
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
+    quad(
+        0x2A4,
+        0x12D,
+        0x4,
+        0x25,
+        MENU_STATE.service_ui.box_colour_b.get(),
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
+    quad(
+        0x194,
+        0x12C,
+        0x35,
+        0x26,
+        0x1F1F1F,
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
+    quad(
+        0x1CB,
+        0x12C,
+        0x35,
+        0x26,
+        0x1F1F1F,
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
+    quad(
+        0x202,
+        0x12C,
+        0x35,
+        0x26,
+        0x1F1F1F,
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
+    quad(
+        0x239,
+        0x12C,
+        0x35,
+        0x26,
+        0x1F1F1F,
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
+    quad(
+        0x270,
+        0x12C,
+        0x35,
+        0x26,
+        0x1F1F1F,
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
+    quad(
+        0x2A7,
+        0x12C,
+        0x35,
+        0x26,
+        0x1F1F1F,
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
+    quad(
+        0x23A,
+        0x111,
+        0xA2,
+        0x1C,
+        0x1F1F1F,
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
     quad(0x191, 0x10E, 0x23, 0x1, 0x0, 0xFF)?;
     quad(0x191, 0x10E, 0x1, 0x1B, 0x0, 0xFF)?;
     quad(0x1B4, 0x10E, 0x1, 0x1C, 0x0, 0xFF)?;
@@ -902,12 +1779,12 @@ pub unsafe fn draw_service_boxes() -> Result<(), Refused> {
         if c.0 != c.1 {
             break 'l49c7c9;
         }
-        c = (rd(0x75AA9C), 0x1);
+        c = (MENU_STATE.service_ui.box_shown.get(), 0x1);
         'l49c589: {
             if c.0 == c.1 {
                 break 'l49c589;
             }
-            c = (rd(0x75AB38), 0x1);
+            c = (MENU_STATE.menus.service_flag.get(), 0x1);
             if c.0 == c.1 {
                 break 'l49c7c9;
             }
@@ -925,7 +1802,14 @@ pub unsafe fn draw_service_boxes() -> Result<(), Refused> {
         quad(0x2DF, 0x10D, 0x1, 0x54, 0xFFFF00, 0xFF)?;
         quad(0x190, 0x160, 0x14F, 0x1, 0xFFFF00, 0xFF)?;
     }
-    quad(0x42, 0x161, 0x29D, 0x1B, 0x4FCF, rd(0x75AA90))?;
+    quad(
+        0x42,
+        0x161,
+        0x29D,
+        0x1B,
+        0x4FCF,
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
     quad(0x42, 0x161, 0x29C, 0x1, 0x0, 0xFF)?;
     quad(0x42, 0x161, 0x1, 0x1A, 0x0, 0xFF)?;
     quad(0x2DE, 0x161, 0x1, 0x1B, 0x0, 0xFF)?;
@@ -935,7 +1819,7 @@ pub unsafe fn draw_service_boxes() -> Result<(), Refused> {
         if c.0 != c.1 {
             break 'l49cb99;
         }
-        c = (rd(0x75AB38), 0x1);
+        c = (MENU_STATE.menus.service_flag.get(), 0x1);
         if c.0 == c.1 {
             break 'l49cb99;
         }
@@ -952,27 +1836,62 @@ pub unsafe fn draw_service_boxes() -> Result<(), Refused> {
         quad(0x2DF, 0x160, 0x1, 0x1D, 0xFFFF00, 0xFF)?;
         quad(0x41, 0x17C, 0x29E, 0x1, 0xFFFF00, 0xFF)?;
     }
-    set(0x75AA98, 0x4FCF);
+    MENU_STATE.service_ui.box_colour_b.set(0x4FCF);
     value = 0x10;
-    flag = addr(0x759B6E).wrapping_add(value.wrapping_mul(4));
+    flag = (MENU_LISTS.inspection_flags_a[0].addr() as u32).wrapping_add(value.wrapping_mul(4));
     c = (at_esi(flag), 0x1);
     'l49cbd4: {
         if c.0 != c.1 {
             break 'l49cbd4;
         }
-        set(0x75AA98, 0x7F00);
-        flag = addr(0x759BC2).wrapping_add(value.wrapping_mul(4));
+        MENU_STATE.service_ui.box_colour_b.set(0x7F00);
+        flag = (MENU_LISTS.inspection_flags_b[0].addr() as u32).wrapping_add(value.wrapping_mul(4));
         c = (at_esi(flag), 0x1);
         if c.0 != c.1 {
             break 'l49cbd4;
         }
-        set(0x75AA98, 0x7F0000);
+        MENU_STATE.service_ui.box_colour_b.set(0x7F0000);
     }
-    quad(0x42, 0x17D, 0x14E, 0x1F, rd(0x75AA98), rd(0x75AA90))?;
-    quad(0x18C, 0x19C, 0x4, 0x13, rd(0x75AA98), rd(0x75AA90))?;
-    quad(0x42, 0x19C, 0x4, 0x13, rd(0x75AA98), rd(0x75AA90))?;
-    quad(0x42, 0x1AF, 0x14E, 0x5, rd(0x75AA98), rd(0x75AA90))?;
-    quad(0x46, 0x19C, 0x146, 0x13, 0x1F1F1F, rd(0x75AA90))?;
+    quad(
+        0x42,
+        0x17D,
+        0x14E,
+        0x1F,
+        MENU_STATE.service_ui.box_colour_b.get(),
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
+    quad(
+        0x18C,
+        0x19C,
+        0x4,
+        0x13,
+        MENU_STATE.service_ui.box_colour_b.get(),
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
+    quad(
+        0x42,
+        0x19C,
+        0x4,
+        0x13,
+        MENU_STATE.service_ui.box_colour_b.get(),
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
+    quad(
+        0x42,
+        0x1AF,
+        0x14E,
+        0x5,
+        MENU_STATE.service_ui.box_colour_b.get(),
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
+    quad(
+        0x46,
+        0x19C,
+        0x146,
+        0x13,
+        0x1F1F1F,
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
     quad(0x42, 0x17D, 0x23, 0x1, 0x0, 0xFF)?;
     quad(0x42, 0x17D, 0x1, 0x1B, 0x0, 0xFF)?;
     quad(0x65, 0x17D, 0x1, 0x1C, 0x0, 0xFF)?;
@@ -990,12 +1909,12 @@ pub unsafe fn draw_service_boxes() -> Result<(), Refused> {
         if c.0 != c.1 {
             break 'l49d309;
         }
-        c = (rd(0x75AA9C), 0x1);
+        c = (MENU_STATE.service_ui.box_shown.get(), 0x1);
         'l49d0c9: {
             if c.0 == c.1 {
                 break 'l49d0c9;
             }
-            c = (rd(0x75AB38), 0x1);
+            c = (MENU_STATE.menus.service_flag.get(), 0x1);
             if c.0 == c.1 {
                 break 'l49d309;
             }
@@ -1013,27 +1932,62 @@ pub unsafe fn draw_service_boxes() -> Result<(), Refused> {
         quad(0x190, 0x17C, 0x1, 0x39, 0xFFFF00, 0xFF)?;
         quad(0x41, 0x1B4, 0x14F, 0x1, 0xFFFF00, 0xFF)?;
     }
-    set(0x75AA98, 0x4FCF);
+    MENU_STATE.service_ui.box_colour_b.set(0x4FCF);
     value = 0x11;
-    flag = addr(0x759B6E).wrapping_add(value.wrapping_mul(4));
+    flag = (MENU_LISTS.inspection_flags_a[0].addr() as u32).wrapping_add(value.wrapping_mul(4));
     c = (at_esi(flag), 0x1);
     'l49d344: {
         if c.0 != c.1 {
             break 'l49d344;
         }
-        set(0x75AA98, 0x7F00);
-        flag = addr(0x759BC2).wrapping_add(value.wrapping_mul(4));
+        MENU_STATE.service_ui.box_colour_b.set(0x7F00);
+        flag = (MENU_LISTS.inspection_flags_b[0].addr() as u32).wrapping_add(value.wrapping_mul(4));
         c = (at_esi(flag), 0x1);
         if c.0 != c.1 {
             break 'l49d344;
         }
-        set(0x75AA98, 0x7F0000);
+        MENU_STATE.service_ui.box_colour_b.set(0x7F0000);
     }
-    quad(0x191, 0x17D, 0x14E, 0x1F, rd(0x75AA98), rd(0x75AA90))?;
-    quad(0x2DB, 0x19C, 0x4, 0x13, rd(0x75AA98), rd(0x75AA90))?;
-    quad(0x191, 0x19C, 0x4, 0x13, rd(0x75AA98), rd(0x75AA90))?;
-    quad(0x191, 0x1AF, 0x14E, 0x5, rd(0x75AA98), rd(0x75AA90))?;
-    quad(0x195, 0x19C, 0x146, 0x13, 0x1F1F1F, rd(0x75AA90))?;
+    quad(
+        0x191,
+        0x17D,
+        0x14E,
+        0x1F,
+        MENU_STATE.service_ui.box_colour_b.get(),
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
+    quad(
+        0x2DB,
+        0x19C,
+        0x4,
+        0x13,
+        MENU_STATE.service_ui.box_colour_b.get(),
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
+    quad(
+        0x191,
+        0x19C,
+        0x4,
+        0x13,
+        MENU_STATE.service_ui.box_colour_b.get(),
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
+    quad(
+        0x191,
+        0x1AF,
+        0x14E,
+        0x5,
+        MENU_STATE.service_ui.box_colour_b.get(),
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
+    quad(
+        0x195,
+        0x19C,
+        0x146,
+        0x13,
+        0x1F1F1F,
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
     quad(0x191, 0x17D, 0x23, 0x1, 0x0, 0xFF)?;
     quad(0x191, 0x17D, 0x1, 0x1B, 0x0, 0xFF)?;
     quad(0x1B4, 0x17D, 0x1, 0x1C, 0x0, 0xFF)?;
@@ -1051,12 +2005,12 @@ pub unsafe fn draw_service_boxes() -> Result<(), Refused> {
         if c.0 != c.1 {
             break 'l49da79;
         }
-        c = (rd(0x75AA9C), 0x1);
+        c = (MENU_STATE.service_ui.box_shown.get(), 0x1);
         'l49d839: {
             if c.0 == c.1 {
                 break 'l49d839;
             }
-            c = (rd(0x75AB38), 0x1);
+            c = (MENU_STATE.menus.service_flag.get(), 0x1);
             if c.0 == c.1 {
                 break 'l49da79;
             }
@@ -1074,27 +2028,62 @@ pub unsafe fn draw_service_boxes() -> Result<(), Refused> {
         quad(0x2DF, 0x17C, 0x1, 0x39, 0xFFFF00, 0xFF)?;
         quad(0x190, 0x1B4, 0x14F, 0x1, 0xFFFF00, 0xFF)?;
     }
-    set(0x75AA98, 0x4FCF);
+    MENU_STATE.service_ui.box_colour_b.set(0x4FCF);
     value = 0x12;
-    flag = addr(0x759B6E).wrapping_add(value.wrapping_mul(4));
+    flag = (MENU_LISTS.inspection_flags_a[0].addr() as u32).wrapping_add(value.wrapping_mul(4));
     c = (at_esi(flag), 0x1);
     'l49dab4: {
         if c.0 != c.1 {
             break 'l49dab4;
         }
-        set(0x75AA98, 0x7F00);
-        flag = addr(0x759BC2).wrapping_add(value.wrapping_mul(4));
+        MENU_STATE.service_ui.box_colour_b.set(0x7F00);
+        flag = (MENU_LISTS.inspection_flags_b[0].addr() as u32).wrapping_add(value.wrapping_mul(4));
         c = (at_esi(flag), 0x1);
         if c.0 != c.1 {
             break 'l49dab4;
         }
-        set(0x75AA98, 0x7F0000);
+        MENU_STATE.service_ui.box_colour_b.set(0x7F0000);
     }
-    quad(0x42, 0x1B5, 0x14E, 0x1F, rd(0x75AA98), rd(0x75AA90))?;
-    quad(0x18C, 0x1D4, 0x4, 0x13, rd(0x75AA98), rd(0x75AA90))?;
-    quad(0x42, 0x1D4, 0x4, 0x13, rd(0x75AA98), rd(0x75AA90))?;
-    quad(0x42, 0x1E7, 0x14E, 0x5, rd(0x75AA98), rd(0x75AA90))?;
-    quad(0x46, 0x1D4, 0x146, 0x13, 0x1F1F1F, rd(0x75AA90))?;
+    quad(
+        0x42,
+        0x1B5,
+        0x14E,
+        0x1F,
+        MENU_STATE.service_ui.box_colour_b.get(),
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
+    quad(
+        0x18C,
+        0x1D4,
+        0x4,
+        0x13,
+        MENU_STATE.service_ui.box_colour_b.get(),
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
+    quad(
+        0x42,
+        0x1D4,
+        0x4,
+        0x13,
+        MENU_STATE.service_ui.box_colour_b.get(),
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
+    quad(
+        0x42,
+        0x1E7,
+        0x14E,
+        0x5,
+        MENU_STATE.service_ui.box_colour_b.get(),
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
+    quad(
+        0x46,
+        0x1D4,
+        0x146,
+        0x13,
+        0x1F1F1F,
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
     quad(0x42, 0x1B5, 0x23, 0x1, 0x0, 0xFF)?;
     quad(0x42, 0x1B5, 0x1, 0x1B, 0x0, 0xFF)?;
     quad(0x65, 0x1B5, 0x1, 0x1C, 0x0, 0xFF)?;
@@ -1112,12 +2101,12 @@ pub unsafe fn draw_service_boxes() -> Result<(), Refused> {
         if c.0 != c.1 {
             break 'l49e1e9;
         }
-        c = (rd(0x75AA9C), 0x1);
+        c = (MENU_STATE.service_ui.box_shown.get(), 0x1);
         'l49dfa9: {
             if c.0 == c.1 {
                 break 'l49dfa9;
             }
-            c = (rd(0x75AB38), 0x1);
+            c = (MENU_STATE.menus.service_flag.get(), 0x1);
             if c.0 == c.1 {
                 break 'l49e1e9;
             }
@@ -1135,27 +2124,62 @@ pub unsafe fn draw_service_boxes() -> Result<(), Refused> {
         quad(0x190, 0x1B4, 0x1, 0x39, 0xFFFF00, 0xFF)?;
         quad(0x41, 0x1EC, 0x14F, 0x1, 0xFFFF00, 0xFF)?;
     }
-    set(0x75AA98, 0x4FCF);
+    MENU_STATE.service_ui.box_colour_b.set(0x4FCF);
     value = 0x13;
-    flag = addr(0x759B6E).wrapping_add(value.wrapping_mul(4));
+    flag = (MENU_LISTS.inspection_flags_a[0].addr() as u32).wrapping_add(value.wrapping_mul(4));
     c = (at_esi(flag), 0x1);
     'l49e224: {
         if c.0 != c.1 {
             break 'l49e224;
         }
-        set(0x75AA98, 0x7F00);
-        flag = addr(0x759BC2).wrapping_add(value.wrapping_mul(4));
+        MENU_STATE.service_ui.box_colour_b.set(0x7F00);
+        flag = (MENU_LISTS.inspection_flags_b[0].addr() as u32).wrapping_add(value.wrapping_mul(4));
         c = (at_esi(flag), 0x1);
         if c.0 != c.1 {
             break 'l49e224;
         }
-        set(0x75AA98, 0x7F0000);
+        MENU_STATE.service_ui.box_colour_b.set(0x7F0000);
     }
-    quad(0x191, 0x1B5, 0x14E, 0x1F, rd(0x75AA98), rd(0x75AA90))?;
-    quad(0x2DB, 0x1D4, 0x4, 0x13, rd(0x75AA98), rd(0x75AA90))?;
-    quad(0x191, 0x1D4, 0x4, 0x13, rd(0x75AA98), rd(0x75AA90))?;
-    quad(0x191, 0x1E7, 0x14E, 0x5, rd(0x75AA98), rd(0x75AA90))?;
-    quad(0x195, 0x1D4, 0x146, 0x13, 0x1F1F1F, rd(0x75AA90))?;
+    quad(
+        0x191,
+        0x1B5,
+        0x14E,
+        0x1F,
+        MENU_STATE.service_ui.box_colour_b.get(),
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
+    quad(
+        0x2DB,
+        0x1D4,
+        0x4,
+        0x13,
+        MENU_STATE.service_ui.box_colour_b.get(),
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
+    quad(
+        0x191,
+        0x1D4,
+        0x4,
+        0x13,
+        MENU_STATE.service_ui.box_colour_b.get(),
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
+    quad(
+        0x191,
+        0x1E7,
+        0x14E,
+        0x5,
+        MENU_STATE.service_ui.box_colour_b.get(),
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
+    quad(
+        0x195,
+        0x1D4,
+        0x146,
+        0x13,
+        0x1F1F1F,
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
     quad(0x191, 0x1B5, 0x23, 0x1, 0x0, 0xFF)?;
     quad(0x191, 0x1B5, 0x1, 0x1B, 0x0, 0xFF)?;
     quad(0x1B4, 0x1B5, 0x1, 0x1C, 0x0, 0xFF)?;
@@ -1173,12 +2197,12 @@ pub unsafe fn draw_service_boxes() -> Result<(), Refused> {
         if c.0 != c.1 {
             break 'l49e959;
         }
-        c = (rd(0x75AA9C), 0x1);
+        c = (MENU_STATE.service_ui.box_shown.get(), 0x1);
         'l49e719: {
             if c.0 == c.1 {
                 break 'l49e719;
             }
-            c = (rd(0x75AB38), 0x1);
+            c = (MENU_STATE.menus.service_flag.get(), 0x1);
             if c.0 == c.1 {
                 break 'l49e959;
             }
@@ -1196,7 +2220,14 @@ pub unsafe fn draw_service_boxes() -> Result<(), Refused> {
         quad(0x2DF, 0x1B4, 0x1, 0x39, 0xFFFF00, 0xFF)?;
         quad(0x190, 0x1EC, 0x14F, 0x1, 0xFFFF00, 0xFF)?;
     }
-    quad(0x42, 0x1ED, 0x14E, 0x1B, 0x4FCF, rd(0x75AA90))?;
+    quad(
+        0x42,
+        0x1ED,
+        0x14E,
+        0x1B,
+        0x4FCF,
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
     quad(0x42, 0x1ED, 0x14D, 0x1, 0x0, 0xFF)?;
     quad(0x42, 0x1ED, 0x1, 0x1A, 0x0, 0xFF)?;
     quad(0x18F, 0x1ED, 0x1, 0x1B, 0x0, 0xFF)?;
@@ -1206,7 +2237,7 @@ pub unsafe fn draw_service_boxes() -> Result<(), Refused> {
         if c.0 != c.1 {
             break 'l49ed29;
         }
-        c = (rd(0x75AB38), 0x1);
+        c = (MENU_STATE.menus.service_flag.get(), 0x1);
         if c.0 == c.1 {
             break 'l49ed29;
         }
@@ -1223,7 +2254,14 @@ pub unsafe fn draw_service_boxes() -> Result<(), Refused> {
         quad(0x190, 0x1EC, 0x1, 0x1D, 0xFFFF00, 0xFF)?;
         quad(0x41, 0x208, 0x14F, 0x1, 0xFFFF00, 0xFF)?;
     }
-    quad(0x191, 0x1ED, 0x14E, 0x1B, 0x4FCF, rd(0x75AA90))?;
+    quad(
+        0x191,
+        0x1ED,
+        0x14E,
+        0x1B,
+        0x4FCF,
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
     quad(0x191, 0x1ED, 0x14D, 0x1, 0x0, 0xFF)?;
     quad(0x191, 0x1ED, 0x1, 0x1A, 0x0, 0xFF)?;
     quad(0x2DE, 0x1ED, 0x1, 0x1B, 0x0, 0xFF)?;
@@ -1233,7 +2271,7 @@ pub unsafe fn draw_service_boxes() -> Result<(), Refused> {
         if c.0 != c.1 {
             break 'l49f0f9;
         }
-        c = (rd(0x75AB38), 0x1);
+        c = (MENU_STATE.menus.service_flag.get(), 0x1);
         if c.0 == c.1 {
             break 'l49f0f9;
         }
@@ -1250,7 +2288,14 @@ pub unsafe fn draw_service_boxes() -> Result<(), Refused> {
         quad(0x2DF, 0x1EC, 0x1, 0x1D, 0xFFFF00, 0xFF)?;
         quad(0x190, 0x208, 0x14F, 0x1, 0xFFFF00, 0xFF)?;
     }
-    quad(0x42, 0x209, 0x14E, 0x1B, 0x4FCF, rd(0x75AA90))?;
+    quad(
+        0x42,
+        0x209,
+        0x14E,
+        0x1B,
+        0x4FCF,
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
     quad(0x42, 0x209, 0x14D, 0x1, 0x0, 0xFF)?;
     quad(0x42, 0x209, 0x1, 0x1A, 0x0, 0xFF)?;
     quad(0x18F, 0x209, 0x1, 0x1B, 0x0, 0xFF)?;
@@ -1260,7 +2305,7 @@ pub unsafe fn draw_service_boxes() -> Result<(), Refused> {
         if c.0 != c.1 {
             break 'l49f4c9;
         }
-        c = (rd(0x75AB38), 0x1);
+        c = (MENU_STATE.menus.service_flag.get(), 0x1);
         if c.0 == c.1 {
             break 'l49f4c9;
         }
@@ -1277,7 +2322,14 @@ pub unsafe fn draw_service_boxes() -> Result<(), Refused> {
         quad(0x190, 0x208, 0x1, 0x1D, 0xFFFF00, 0xFF)?;
         quad(0x41, 0x224, 0x14F, 0x1, 0xFFFF00, 0xFF)?;
     }
-    quad(0x191, 0x209, 0x14E, 0x1B, 0x4FCF, rd(0x75AA90))?;
+    quad(
+        0x191,
+        0x209,
+        0x14E,
+        0x1B,
+        0x4FCF,
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
     quad(0x191, 0x209, 0x14D, 0x1, 0x0, 0xFF)?;
     quad(0x191, 0x209, 0x1, 0x1A, 0x0, 0xFF)?;
     quad(0x2DE, 0x209, 0x1, 0x1B, 0x0, 0xFF)?;
@@ -1287,7 +2339,7 @@ pub unsafe fn draw_service_boxes() -> Result<(), Refused> {
         if c.0 != c.1 {
             break 'l49f899;
         }
-        c = (rd(0x75AB38), 0x1);
+        c = (MENU_STATE.menus.service_flag.get(), 0x1);
         if c.0 == c.1 {
             break 'l49f899;
         }
@@ -1304,7 +2356,14 @@ pub unsafe fn draw_service_boxes() -> Result<(), Refused> {
         quad(0x2DF, 0x208, 0x1, 0x1D, 0xFFFF00, 0xFF)?;
         quad(0x190, 0x224, 0x14F, 0x1, 0xFFFF00, 0xFF)?;
     }
-    quad(0x161, 0x228, 0x148, 0x15, 0x1F1F1F, rd(0x75AA90))?;
+    quad(
+        0x161,
+        0x228,
+        0x148,
+        0x15,
+        0x1F1F1F,
+        MENU_STATE.service_ui.box_colour_a.get(),
+    )?;
     quad(0x161, 0x228, 0x147, 0x1, 0x0, 0xFF)?;
     quad(0x161, 0x228, 0x1, 0x14, 0x0, 0xFF)?;
     quad(0x2A8, 0x228, 0x1, 0x15, 0x0, 0xFF)?;
@@ -1314,7 +2373,7 @@ pub unsafe fn draw_service_boxes() -> Result<(), Refused> {
         if c.0 != c.1 {
             break 'l49fc69;
         }
-        c = (rd(0x75AB38), 0x1);
+        c = (MENU_STATE.menus.service_flag.get(), 0x1);
         if c.0 == c.1 {
             break 'l49fc69;
         }

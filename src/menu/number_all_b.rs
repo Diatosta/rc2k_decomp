@@ -9,16 +9,15 @@
 //! Callers: the event drivers. Refuses a table without its end entry or a player past 4 or missing,
 //! before anything.
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, rva};
+use crate::framework::game_read;
 use crate::menu::standings::*;
-
-const MODE_RVA: usize = rva(0x75AB40); // dword_75AB40
+use crate::menu::state_store::MENU_STATE;
 /// The Rust version (see the header); what it leaves in the registers as `Numbered`.
 pub unsafe fn number_all_b() -> Result<Numbered, Refused> {
     let mut last_number = 0;
     let mut last_player = None;
     let first: u32 = unsafe { game_read(TABLE_B_RVA) };
-    let grouped = unsafe { game_read::<u32>(MODE_RVA) } == 2;
+    let grouped = MENU_STATE.menus.class_mode.get() == 2;
     let all = entries(first, B_ENTRY)?;
     // Converted: `rc2k_core::menu::standings::{Numbering, number}`.
     use rc2k_core::menu::standings::{Numbering, number};

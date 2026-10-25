@@ -19,6 +19,8 @@ use crate::framework::{game_addr, rva};
 use rc2k_core::drive::shown_cars::{ShownCars, ShownSetup};
 
 /// The variables (IDA addresses), in the order the core uses them.
+/// Stands for `dword_52A910` (`NET.session`) in `VARIABLES`.
+const SESSION: usize = 0x52A910;
 const VARIABLES: [usize; 19] = [
     0x63DBA8, 0x63DBAC, 0x63DB94, 0x63DB98, 0x5C5CE0, 0x63DB88, 0x6238A4, 0x52A910, 0x63DBA0,
     0x63DBB0, 0x63DBB4, 0x641680, 0x641684, 0x641688, 0x64168C, 0x641690, 0x641694, 0x641698,
@@ -70,7 +72,11 @@ pub unsafe fn choose_at(v: &[u32]) -> Result<(), Refused> {
 fn game() -> Vec<u32> {
     VARIABLES
         .iter()
-        .map(|&x| game_addr(rva(x)) as u32)
+        .map(|&x| match x {
+            // `dword_52A910`: in the network's variables.
+            SESSION => crate::net::store::NET.session.addr() as u32,
+            _ => game_addr(rva(x)) as u32,
+        })
         .collect()
 }
 

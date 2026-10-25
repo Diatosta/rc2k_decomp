@@ -13,14 +13,10 @@
 //! Caller: `net::hosting`.
 
 use crate::errors::Refused;
-use crate::field;
 use crate::net::dplay::{OPEN, call};
 use crate::net::find_sessions::{posted_or_called, zeroed_description};
-use crate::net::lobby::{
-    APP_GUID, DPLAY, JOINED, JOINED_MOST, JOINED_NAME, JOINED_PASSWORD, MACHINE_NAME, MOST_PLAYERS,
-    SESSION_DESC, SESSION_OPEN, SESSION_PASSWORD, a, g, log, log_hex, movsb, p, zero,
-};
-use crate::net::types::DpSessionDesc;
+use crate::net::lobby::{a, log, log_hex, movsb, zero};
+use crate::net::store::NET;
 
 const HOST: usize = 0x5C2EDA; // "NET: Host"
 pub const OPENED: usize = 0x5C2EE4; // "NET: Open"
@@ -30,7 +26,7 @@ pub const OPEN_JOIN: u32 = 1; // DPOPEN_JOIN
 
 /// `Open(dword_5AB2AC, flags)`.
 pub unsafe fn open(flags: u32) -> u32 {
-    unsafe { call(DPLAY, OPEN, &[a(SESSION_DESC), flags]) }
+    unsafe { call(&NET.dplay, OPEN, &[NET.session_desc.addr() as u32, flags]) }
 }
 
 /// The code at 0x418C5A as the receiving thread calls it when it is posted.
@@ -41,22 +37,34 @@ pub extern "C" fn posted_open_host() -> u32 {
 /// The Rust version.
 pub fn host_session() -> Result<bool, Refused> {
     log(a(HOST), false, 2);
-    log(a(MACHINE_NAME), true, 2);
-    if g(DPLAY) == 0 {
+    log(NET.machine_name.addr() as u32, true, 2);
+    if NET.dplay.get() == 0 {
         return Ok(false);
     }
-    zero(a(JOINED), 0x10)?;
-    movsb(a(JOINED_NAME), a(MACHINE_NAME), 0x40);
-    p(JOINED_MOST, g(MOST_PLAYERS));
-    movsb(a(JOINED_PASSWORD), a(SESSION_PASSWORD), 0x10);
-    zeroed_description()?;
-    p(SESSION_DESC + 4, 0x44);
-    movsb(a(SESSION_DESC) + 0x18, a(APP_GUID), 0x10);
-    p(SESSION_DESC + 0x28, g(MOST_PLAYERS));
-    p(SESSION_DESC + 0x30, a(MACHINE_NAME));
+    zero(NET.joined.addr() as u32, 0x10)?;
     movsb(
-        a(SESSION_DESC) + field!(DpSessionDesc, user),
-        a(SESSION_PASSWORD),
+        NET.joined_name.addr() as u32,
+        NET.machine_name.addr() as u32,
+        0x40,
+    );
+    NET.joined_most.set(NET.most_players.get());
+    movsb(
+        NET.joined_password.addr() as u32,
+        NET.session_password.addr() as u32,
+        0x10,
+    );
+    zeroed_description()?;
+    NET.session_desc.flags.set(0x44);
+    movsb(
+        NET.session_desc.application.as_ptr() as u32,
+        NET.app_guid.addr() as u32,
+        0x10,
+    );
+    NET.session_desc.max_players.set(NET.most_players.get());
+    NET.session_desc.name.set(NET.machine_name.addr() as u32);
+    movsb(
+        NET.session_desc.user.as_ptr() as u32,
+        NET.session_password.addr() as u32,
         0x10,
     );
     finish(
@@ -81,7 +89,7 @@ pub fn finish(
     if result != 0 {
         return Ok(false);
     }
-    p(SESSION_OPEN, 1);
+    NET.session_open.set(1);
     if !crate::net::create_player::create_player()? || !then()? {
         return Ok(false);
     }

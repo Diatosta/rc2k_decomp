@@ -7,9 +7,9 @@
 //!      `lq -s 0x418481`)
 //! Six callers, those of `net::lock_received`. Refuses nothing.
 
-use crate::net::{MUTEX, g};
+use crate::net::store::NET;
 
 /// The Rust version.
 pub fn unlock_received() {
-    unsafe { windows_sys::Win32::System::Threading::ReleaseMutex(g(MUTEX) as _) };
+    unsafe { windows_sys::Win32::System::Threading::ReleaseMutex(NET.mutex.get() as _) };
 }

@@ -22,84 +22,15 @@
 
 use crate::errors::Refused;
 use crate::framework::{Regs, game_addr};
+use crate::net::store::NET;
+use crate::session::Dword;
 
 pub use crate::net::{a, g, p};
 
 // ---- game data (IDA addresses) ----
 
-pub const SESSION: usize = 0x52A910; // g_netSession: 1 while a network game runs
-pub const PLAYER: usize = 0x52A920; // g_netPlayer: this machine's player
-pub const PLAYERS: usize = 0x52AD98; // g_netPlayers
-pub const RECEIVED: usize = 0x52AD9C; // g_netReceived: 0x804C bytes a player
-pub const BLOCK: u32 = std::mem::size_of::<crate::net::types::NetPlayerBlock>() as u32;
-pub const MODE: usize = 0x52A908; // dword_52A908: 0 the settings, 1 host, 2 join, 3 lobby
-pub const SYNC: usize = 0x52A914; // byte_52A914: counted up at each lobby
-pub const SEQUENCE: usize = 0x52A915; // g_netSequence
-pub const FIRST_HOST: usize = 0x52A924; // dword_52A924: the first player not the host
-pub const OWN: usize = 0x52AD64; // byte_52AD64: this machine's player record, 16 bytes
-pub const OWN_TIME: usize = 0x52AD6C; // dword_52AD6C
-pub const OWN_TOTAL: usize = 0x52AD70; // dword_52AD70
-pub const ALL_RACED: usize = 0x52AD78; // dword_52AD78: every player is ready
-pub const RACE_OVER: usize = 0x52AD7C; // dword_52AD7C: every player has finished
-pub const BACK_FROM_RACE: usize = 0x52AD80; // dword_52AD80
-pub const RACING: usize = 0x52AD84; // dword_52AD84: the players are not listed again
-pub const SYNC_CLOCK: usize = 0x52AD88; // dword_52AD88
-pub const SYNC_FIRST: usize = 0x52AD8C; // dword_52AD8C: the sync table not cleared yet
-pub const SYNCED: usize = 0x52AD90; // byte_52AD90: 8 bytes, 1 a player answered
-pub const CLOCK_A: usize = 0x52A4C4; // dword_52A4C4: the players' last listing
-pub const RECEIVE_DONE: usize = 0x52A4B0; // g_netReceiveDone
-pub const CHAT: usize = 0x52A508; // byte_52A508: the chat's lines
-pub const CHAT_LINE: usize = 0x52A808; // byte_52A808: a line being cut
-pub const CHAT_TEXT: usize = 0x52A888; // word_52A888: "name> text"
-pub const CHAT_INPUT: usize = 0x52A4C8; // byte_52A4C8: what this player types
-pub const EDITED: usize = 0x52A4B8; // dword_52A4B8: the item edited (-1: none)
-pub const EDIT_TEXT: usize = 0x52A4B4; // dword_52A4B4: its text
-pub const EDIT_WIDTH: usize = 0x52A4BC; // dword_52A4BC: the widest it may be
-pub const EDIT_FONT: usize = 0x52A4C0; // dword_52A4C0: the font it is measured with
 pub const EDIT_SAVED: usize = 0x95EAF8; // byte_95EAF8: the text before editing, 64 bytes
 pub const NUMBER_TEXT: usize = 0x95E8F8; // byte_95E8F8: a number edited as text
-pub const MACHINE_NAME: usize = 0x52AB90; // g_machineName, 64 bytes
-pub const HOST_ADDRESS: usize = 0x52ABE4; // unk_52ABE4: the host's address (TCP/IP), 64 bytes
-pub const MOST_PLAYERS: usize = 0x52ABD0; // dword_52ABD0
-pub const SESSION_PASSWORD: usize = 0x52ABD4; // unk_52ABD4, 16 bytes
-pub const PLAYER_NAME: usize = 0x52AB70; // byte_52AB70, 0x20 bytes
-pub const PORT: usize = 0x52AC24; // dword_52AC24
-pub const CAR_ITEM: usize = 0x52AC28; // dword_52AC28: the car item can be chosen
-pub const STAGE_ITEM: usize = 0x52AC2C; // dword_52AC2C: the stage item can be chosen
-pub const SHOW_GAPS: usize = 0x52AC30; // dword_52AC30: times shown as gaps
-pub const CONNECTIONS: usize = 0x52AC34; // dword_52AC34: connections listed
-pub const CONNECTION_TABLE: usize = 0x52AC38; // dword_52AC38: 0x54 bytes each
-pub const ELEMENTS: usize = 0x52AC3C; // dword_52AC3C: address elements
-pub const ADDRESS: usize = 0x52AC40; // dword_52AC40: the compound address
-pub const ADDRESS_SIZE: usize = 0x52AC44; // bytes
-pub const ELEMENT_TABLE: usize = 0x52AC48; // unk_52AC48: 0x18 bytes each
-pub const SAVED_CONNECTION: usize = 0x52AC94; // unk_52AC94: its guid, 16 bytes
-pub const SAVED_NAME: usize = 0x52ACA4; // unk_52ACA4: its name, 64 bytes
-pub const POSTING: usize = 0x52ACE4; // g_netPosting
-pub const POSTED: usize = 0x52ACE8; // g_netPostedCall
-pub const POSTED_RESULT: usize = 0x52ACEC; // g_netPostedResult
-pub const POSTED_ANSWERED: usize = 0x52ACF0; // g_netPostedAnswered
-pub const SESSIONS: usize = 0x52ACF4; // dword_52ACF4: sessions listed
-pub const SESSION_TABLE: usize = 0x52ACF8; // dword_52ACF8: 0x68 bytes each
-pub const SESSION_OPEN: usize = 0x52ACFC; // dword_52ACFC
-pub const JOINED: usize = 0x52AD00; // unk_52AD00: the session's guid, 16 bytes
-pub const JOINED_NAME: usize = 0x52AD10; // unk_52AD10, 64 bytes
-pub const JOINED_MOST: usize = 0x52AD50; // dword_52AD50
-pub const JOINED_PASSWORD: usize = 0x52AD54; // unk_52AD54, 16 bytes
-pub const SORTED: usize = 0x56AFFC; // unk_56AFFC: the players sorted by time
-pub const SEND_BUFFER: usize = 0x52AA68; // g_netSendBuffer: 0x100 bytes
-pub const NET_MEMORY: usize = 0x52A928; // g_netMemory
-pub const PLAYER_ID: usize = 0x5AB270; // g_netPlayerId
-pub const SEND_TO: usize = 0x5AB274; // g_netSendTo: the group
-pub const DPLAY_2: usize = 0x5AB284; // dword_5AB284
-pub const DPLAY: usize = 0x5AB288; // g_dplay
-pub const LOBBY: usize = 0x5AB28C; // g_dplayLobby
-pub const LOBBY_LAUNCHED: usize = 0x5AB290; // g_lobbyLaunched
-pub const SETTINGS: usize = 0x5AB294; // dword_5AB294: the connection settings
-pub const SETTINGS_SIZE: usize = 0x5AB298; // dword_5AB298
-pub const DP_NAME: usize = 0x5AB29C; // dword_5AB29C: a DPNAME, 0x10 bytes
-pub const SESSION_DESC: usize = 0x5AB2AC; // dword_5AB2AC: a DPSESSIONDESC2, 0x50 bytes
-pub const APP_GUID: usize = 0x5AB300; // dword_5AB300: the game's guid
 pub const TEXT: usize = 0x93E430; // text: the game's text buffer
 pub const SPRITES: usize = 0x755581; // g_spriteTable
 pub const PALETTE: usize = 0x51E624; // palette: the measuring font
@@ -107,14 +38,9 @@ pub const FONT: usize = 0x51E6A4; // font
 
 // ---- the list screens' variables (`menu::list_*`) ----
 
-pub use crate::race::viewer::{CHOICE, CHOICE_BEFORE, FRAME_CLOCK, KEY_CLOCK, MOVE_CLOCK, gb, pb};
+pub use crate::race::viewer::{CHOICE, CHOICE_BEFORE, FRAME_CLOCK, KEY_CLOCK, MOVE_CLOCK};
 
 // ---- small pieces ----
-
-/// The address of a player's block of `g_netReceived`.
-pub fn block(player: u32) -> u32 {
-    a(RECEIVED).wrapping_add(player.wrapping_mul(BLOCK))
-}
 
 /// `rep movsb` of `n` bytes, forwards (addresses).
 pub fn movsb(to: u32, from: u32, n: u32) {
@@ -205,7 +131,10 @@ pub fn log_int_nl(value: u32, level: u8) {
 
 /// `memory::allocate` on the network's list (`g_netMemory`): the memory's address.
 pub fn net_allocate(bytes: u32) -> Result<u32, Refused> {
-    Ok(unsafe { crate::memory::allocate::allocate(a(NET_MEMORY) as *mut _, bytes) }? as u32)
+    Ok(
+        unsafe { crate::memory::allocate::allocate((NET.memory.as_ptr() as u32) as *mut _, bytes) }?
+            as u32,
+    )
 }
 
 /// `strings::copy_printable` (addresses).
@@ -305,13 +234,13 @@ pub const SESSION_LEN: u32 = std::mem::size_of::<crate::net::types::NetSession>(
 /// `jnb` the first fatal error, a null table the second.
 pub fn record_of(
     index: u32,
-    count: usize,
-    table: usize,
+    count: &Dword,
+    table: &Dword,
     len: u32,
     codes: [u32; 2],
 ) -> Result<u32, Refused> {
     // Converted: `rc2k_core::net::lists::record`.
-    rc2k_core::net::lists::record(index, g(count), || g(table), len, codes)
+    rc2k_core::net::lists::record(index, count.get(), || table.get(), len, codes)
         .map_err(|missing| fatal(missing.0).into())
 }
 
@@ -319,8 +248,8 @@ pub fn record_of(
 pub fn connection(index: u32) -> Result<u32, Refused> {
     record_of(
         index,
-        CONNECTIONS,
-        CONNECTION_TABLE,
+        &NET.connections,
+        &NET.connection_table,
         CONNECTION_LEN,
         [NO_CONNECTION, NO_CONNECTIONS],
     )
@@ -330,8 +259,8 @@ pub fn connection(index: u32) -> Result<u32, Refused> {
 pub fn session(index: u32) -> Result<u32, Refused> {
     record_of(
         index,
-        SESSIONS,
-        SESSION_TABLE,
+        &NET.sessions,
+        &NET.session_table,
         SESSION_LEN,
         [NO_SESSION, NO_SESSIONS],
     )

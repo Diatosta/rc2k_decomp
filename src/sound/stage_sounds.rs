@@ -34,7 +34,6 @@ const ONE_OFFS: [(usize, u32); 3] = [(0, 0x1AB), (1, 0x1AC), (2, 0x1AD)];
 /// The random sounds: the flag's index in `random` and the sound.
 const RANDOMS: [(usize, u32); 2] = [(0, 0x1AE), (1, 0x1AF)];
 /// g_mixRateSetting.
-const MIX_RATE: crate::audio::store::Slot = crate::audio::store::Slot::at(0x4F82D4);
 const ONE: u32 = 0x3F80_0000;
 const MINUS_ONE: u32 = 0xBF80_0000;
 
@@ -95,7 +94,7 @@ pub fn stage_sounds() -> Result<(), Refused> {
         let n = unsafe { crate::math::next_random::next_random() };
         // Converted: `rc2k_core::sound::stage::random`.
         let r =
-            rc2k_core::sound::stage::random(n, unsafe { crate::store::game_read::<u32>(MIX_RATE) });
+            rc2k_core::sound::stage::random(n, crate::audio::store::AUDIO.mix_rate_setting.get());
         // The scratch dword holds the last float.
         MACHINE.scratch.set(r.ahead.to_bits());
         play(

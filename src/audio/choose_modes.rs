@@ -19,35 +19,25 @@
 //! both logged. Callers: `audio::start`, the advanced audio screen (0x4707A3).
 //! Refuses a quality past `g_qualityModes` (the original reads past it).
 
-use crate::audio::store::Slot;
+use crate::audio::store::AUDIO;
 use crate::errors::Refused;
 use crate::framework::rva;
-use crate::store::{game_addr, game_read};
+use crate::store::game_addr;
 
-pub const OPTIONS_RVA: Slot = Slot::at(0x506C88); // g_audioOptions
-pub const QUALITY_MODES_RVA: Slot = Slot::at(0x4F8294); // g_qualityModes: 4 dwords
-pub const MENU_MODE_RVA: Slot = Slot::at(0x4F82C4); // g_menuSoundMode
-pub const RACE_MODE_RVA: Slot = Slot::at(0x4F82C8); // g_raceSoundMode
-const HAS_3D_RVA: Slot = Slot::at(0x506B46); // g_has3d (unaligned)
-const HAS_A3D2_RVA: Slot = Slot::at(0x506D5C); // g_hasA3d2
-const HAS_EAX_RVA: Slot = Slot::at(0x506C70); // g_hasEax
-const HW_3D_BUFFERS_RVA: Slot = Slot::at(0x506ACC); // g_soundCaps' free hardware 3D buffers
-const VOICE_MANAGER_ON_RVA: Slot = Slot::at(0x506C54); // g_voiceManagerOn
 const NEW_MODES_TEXT: usize = rva(0x4DA6BE); // "AUD: New modes"
 
 pub use rc2k_core::audio::modes::{AudioOptions, Facts};
 
 /// The machine's facts as the game holds them.
 pub fn game_facts() -> Facts {
-    unsafe {
-        Facts {
-            qualities: game_read(QUALITY_MODES_RVA),
-            has_3d: (game_addr(HAS_3D_RVA) as *const u32).read_unaligned(),
-            has_a3d2: game_read(HAS_A3D2_RVA),
-            has_eax: game_read(HAS_EAX_RVA),
-            hw_3d_buffers: game_read(HW_3D_BUFFERS_RVA),
-            voice_manager_on: game_read(VOICE_MANAGER_ON_RVA),
-        }
+    Facts {
+        qualities: AUDIO.quality_modes.each_ref().map(|d| d.get()),
+        has_3d: AUDIO.has_3d.get(),
+        has_a3d2: AUDIO.has_a3d2.get(),
+        has_eax: AUDIO.has_eax.get(),
+        // `g_soundCaps`' free hardware 3D buffers (+0x24).
+        hw_3d_buffers: AUDIO.sound_caps.get_u32(0x24),
+        voice_manager_on: AUDIO.voice_manager_on.get(),
     }
 }
 
@@ -79,12 +69,14 @@ pub fn choose_modes(
 
 /// On the game's variables, logging with `log`.
 pub fn in_game(log: Log) -> Result<(), Refused> {
-    unsafe {
-        let o = &mut *(game_addr(OPTIONS_RVA) as *mut AudioOptions);
-        let menu = &mut *(game_addr(MENU_MODE_RVA) as *mut u32);
-        let race = &mut *(game_addr(RACE_MODE_RVA) as *mut u32);
-        choose_modes(o, race, menu, &game_facts(), log)
-    }
+    // The options and the two modes are worked on in place, as the original does.
+    let mut o = AUDIO.audio_options.get();
+    let (mut race, mut menu) = (AUDIO.race_sound_mode.get(), AUDIO.menu_sound_mode.get());
+    let done = choose_modes(&mut o, &mut race, &mut menu, &game_facts(), log);
+    AUDIO.audio_options.set(o);
+    AUDIO.race_sound_mode.set(race);
+    AUDIO.menu_sound_mode.set(menu);
+    done
 }
 
 pub fn real_log(place: u32, eax: u32) {

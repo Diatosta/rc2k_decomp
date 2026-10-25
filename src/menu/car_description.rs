@@ -7,7 +7,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::game_read;
-use crate::scene::carousel_pictures::ENTRIES_RVA;
+use crate::menu::state_store::MENU_STATE;
 
 pub use rc2k_core::screens::car_pages::CarDescription;
 
@@ -20,7 +20,7 @@ const SHOWN_RVA: usize = crate::framework::rva(0x755990); // dword_755990
 /// The description of the entry shown (`dword_755990` through `dword_75A65C`).
 pub fn shown_description() -> Result<*mut CarDescription, Refused> {
     unsafe {
-        let table: u32 = game_read(ENTRIES_RVA);
+        let table: u32 = MENU_STATE.carousel.entries.get();
         let entry: u32 = game_read(SHOWN_RVA);
         if table == 0 || entry >= ENTRIES {
             return Err(BadInput("no carousel records, or an entry past them").into());

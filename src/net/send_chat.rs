@@ -12,7 +12,7 @@
 use crate::errors::Refused;
 use crate::net::add_chat_line::add_chat_line;
 use crate::net::dplay_send::dplay_send;
-use crate::net::lobby::{SEND_BUFFER, SEND_TO, a, g};
+use crate::net::store::NET;
 use crate::net::{lock_received::lock_received, unlock_received::unlock_received};
 use crate::strings::str_append::str_append;
 
@@ -21,9 +21,9 @@ pub fn send_chat(player: u32, message: *const u8) -> Result<(), Refused> {
     lock_received();
     add_chat_line(player, message)?;
     unlock_received();
-    let buffer = a(SEND_BUFFER);
+    let buffer = NET.send_buffer.addr() as u32;
     unsafe { (buffer as *mut u8).write(b'"') };
     let end = unsafe { str_append(message, (buffer + 1) as *mut u8) } as u32;
-    dplay_send(g(SEND_TO), 0, buffer, end.wrapping_sub(buffer));
+    dplay_send(NET.send_to.get(), 0, buffer, end.wrapping_sub(buffer));
     Ok(())
 }

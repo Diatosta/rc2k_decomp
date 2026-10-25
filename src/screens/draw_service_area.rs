@@ -32,6 +32,7 @@ use crate::framework::{game_read, game_write, rva};
 use crate::gfx::blit_bar::{Bar, blit_bar};
 use crate::gfx::blit_glyph::BlitCall;
 use crate::gfx::blit_marker_pair::sprite_table;
+use crate::menu::state_store::MENU_STATE;
 use crate::screens::draw_inspection_status::draw_inspection_status;
 use crate::screens::draw_repair_times::draw_repair_times;
 use crate::screens::draw_service_time::draw_service_time;
@@ -54,7 +55,6 @@ use rc2k_core::screens::service::{
 
 const CLEARED_RVA: usize = rva(0x6218AC); // dword_6218AC: set to 0 here, read nowhere known
 const WORK_RVA: usize = rva(0x7559EC); // dword_7559EC: a work variable
-const SETTING_RVA: usize = rva(0x75AC9C); // dword_75AC9C: the chosen tyre, 0 .. 5; its name is string 0x4B0 + this
 const SETTING_FIRST_STRING: u32 = rc2k_core::screens::service::TYRE_FIRST_STRING;
 
 /// The fonts' places.
@@ -136,7 +136,10 @@ pub unsafe fn draw_service_area(canvas: &mut dyn Canvas) -> Result<bool, Refused
             }
         }
 
-        let setting = game_read::<u32>(SETTING_RVA).wrapping_add(SETTING_FIRST_STRING);
+        let setting = MENU_STATE.driver_stats.setups[1]
+            .chosen
+            .get()
+            .wrapping_add(SETTING_FIRST_STRING);
         game_write(WORK_RVA, setting);
         let (x, y) = TYRE_AT;
         draw_string_by_id_at(setting, font_at(font_of(AreaFont::Small)), x, y, canvas)?;

@@ -13,12 +13,12 @@
 //! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
 //! are the original's.
 
-use crate::install::installer::{CHOICE, DRIVE_LETTERS, PATH_PROBLEM, TYPED, a, g, gb, p, pb, rb};
+use crate::install::installer::{CHOICE, PATH_PROBLEM, TYPED, g, gb, p, pb, rb};
 use rc2k_core::install::pages;
 
 /// `state` the list action's (ebx), `list` the page's.
 pub fn drive_page(state: u32, list: u32) {
-    let letters = a(DRIVE_LETTERS);
+    let letters = crate::install::store::DRIVE_ROWS.drive_rows.addr() as u32;
     if state == 0 {
         let letter = crate::strings::same_text::lower(gb(TYPED)); // g_lowerCase
         // Converted: `rc2k_core::install::pages` (`drive_highlight`, `chosen_drive`).

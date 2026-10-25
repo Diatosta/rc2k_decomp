@@ -33,20 +33,17 @@ use crate::errors::{BadInput, Refused};
 use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::menu::event_flow::Flow;
 use crate::menu::standings::*;
+use crate::race::state_store::RACE_STATE;
+use crate::session::Dword;
 use rc2k_core::menu::event_races::{self as races, PICKED, Step, Var};
 
 const GOES_ON_RVA: usize = rva(0x75592C); // dword_75592C
-const CHEAT_RVA: usize = rva(0x75ACF0); // dword_75ACF0
 const CHEATS_RVA: usize = rva(0x75870C); // g_cheats
 const KEPT_RVA: usize = rva(0x7554C8); // dword_7554C8
 const RESET_ONLY_RVA: usize = rva(0x755250); // dword_755250
 const SUMMARY_RVA: usize = rva(0x7556F4); // dword_7556F4
-const RACE_INFO_RVA: usize = rva(0x75ACD0); // dword_75ACD0, dword_75ACD4
 const MODE_RVA: usize = rva(0x755988); // dword_755988
 const CURRENT_RVA: usize = rva(0x75598C); // dword_75598C
-const RESULT_RVA: usize = rva(0x75B028); // dword_75B028
-const RESULT_2_RVA: usize = rva(0x75B098); // dword_75B098
-const RACE_KEPT_RVA: usize = rva(0x75ACE4); // dword_75ACE4
 
 /// The game for `rc2k_core::menu::event_races`: the variables at their addresses, the
 /// steps' Rust versions on the registers carried through (`g`), the race and the front end.
@@ -57,16 +54,26 @@ struct Game<'a> {
     pack: u32,
 }
 
+/// The variables that are in the physics block.
+fn cell(v: Var) -> Option<&'static Dword> {
+    Some(match v {
+        Var::CheatSwitch => &RACE_STATE.settings.direction,
+        Var::RaceKept => &RACE_STATE.settings.kept,
+        Var::Result => &RACE_STATE.results.results[0].result,
+        Var::Result2 => &RACE_STATE.results.results[1].result,
+        _ => return None,
+    })
+}
+
 fn address(v: Var) -> usize {
     match v {
         Var::GoesOn => GOES_ON_RVA,
-        Var::CheatSwitch => CHEAT_RVA,
         Var::Cheats => CHEATS_RVA,
         Var::Kept => KEPT_RVA,
-        Var::RaceKept => RACE_KEPT_RVA,
         Var::Current => CURRENT_RVA,
-        Var::Result => RESULT_RVA,
-        Var::Result2 => RESULT_2_RVA,
+        Var::CheatSwitch | Var::RaceKept | Var::Result | Var::Result2 => {
+            unreachable!("a variable of the physics block, `cell`")
+        }
     }
 }
 
@@ -74,11 +81,17 @@ impl races::EventRaces for Game<'_> {
     type Error = Refused;
 
     fn get(&mut self, v: Var) -> u32 {
-        unsafe { game_read(address(v)) }
+        match cell(v) {
+            Some(cell) => cell.get(),
+            None => unsafe { game_read(address(v)) },
+        }
     }
 
     fn set(&mut self, v: Var, value: u32) {
-        unsafe { game_write(address(v), value) };
+        match cell(v) {
+            Some(cell) => cell.set(value),
+            None => unsafe { game_write(address(v), value) },
+        }
     }
 
     fn step(&mut self, s: Step) -> Result<(), Refused> {
@@ -104,7 +117,7 @@ impl races::EventRaces for Game<'_> {
                 Step::RaceInfo => {
                     let (rec, pack) = (self.rec, self.pack);
                     g.c.arg = game_read(SUMMARY_RVA);
-                    game_write(RACE_INFO_RVA, g.c.arg);
+                    RACE_STATE.settings.rivals.set(g.c.arg);
                     g.c.arg = game_read(INDEX_RVA);
                     g.c.palette = game_read(SECTION_RVA);
                     g.record = pack;
@@ -112,9 +125,9 @@ impl races::EventRaces for Game<'_> {
                     g.c.palette = get(rec + 4).wrapping_mul(0x40);
                     g.c.measure_x = get(rec + 8);
                     g.c.clock = crate::records::trakpak_entry::loaded_pack_id();
-                    g.c.cars = game_addr(RACE_INFO_RVA) as u32;
+                    g.c.cars = RACE_STATE.settings.rivals.addr() as u32;
                     g.c.arg = get(pack + 0x34);
-                    game_write(RACE_INFO_RVA + 4, g.c.arg);
+                    RACE_STATE.settings.stage.set(g.c.arg);
                 }
                 Step::Race => {
                     g.c.palette = 1;

@@ -19,10 +19,11 @@
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_read, game_write, rva};
 use crate::input::take_key::take_key;
+use crate::menu::state_store::MENU_STATE;
 use crate::service::setup_values::{Change, Stepper, step};
 use crate::service::state::{
-    STATUS_RVA, TIME_BUDGET_RVA, chosen_repairs_time, current_player, flagged_item,
-    has_repair_time, leave_edit_mode, marks_ended,
+    TIME_BUDGET_RVA, chosen_repairs_time, current_player, flagged_item, has_repair_time,
+    leave_edit_mode, marks_ended,
 };
 use crate::service::update_repair_total::update_repair_total;
 use crate::service::{
@@ -32,7 +33,7 @@ use crate::service::{
     step_tyre_down, step_tyre_up, toggle_gear_ratio_change, toggle_ride_height_change,
     toggle_suspension_stiffness_change, toggle_tyre_change,
 };
-use crate::session::CLOCKS;
+use crate::session::{CLOCKS, Dword};
 
 pub const KEY_CONFIRM: u8 = 0x1C;
 
@@ -54,7 +55,7 @@ pub struct ChangePage {
     pub up: Stepper,
     pub change: Change,
     /// The chosen value as it was when the edit started.
-    pub entry_rva: usize,
+    pub entry: &'static Dword,
     /// Where the car has this value, for the pages that compare with it.
     pub car_offset: Option<u32>,
     /// The page's menu item (the self-tests highlight it).
@@ -75,7 +76,7 @@ pub const GEAR_RATIO: ChangePage = ChangePage {
     down: step_gear_ratio_down::STEPPER,
     up: step_gear_ratio_up::STEPPER,
     change: toggle_gear_ratio_change::CHANGE,
-    entry_rva: rva(0x75AC98), // dword_75AC98
+    entry: &MENU_STATE.driver_stats.setups[0].start,
     car_offset: None,
     item: 0xE,
 };
@@ -83,7 +84,7 @@ pub const TYRE: ChangePage = ChangePage {
     down: step_tyre_down::STEPPER,
     up: step_tyre_up::STEPPER,
     change: toggle_tyre_change::CHANGE,
-    entry_rva: rva(0x75ACA4), // dword_75ACA4
+    entry: &MENU_STATE.driver_stats.setups[1].start,
     car_offset: None,
     item: 0xF,
 };
@@ -91,7 +92,7 @@ pub const RIDE_HEIGHT: ChangePage = ChangePage {
     down: step_ride_height_down::STEPPER,
     up: step_ride_height_up::STEPPER,
     change: toggle_ride_height_change::CHANGE,
-    entry_rva: rva(0x75ACB0), // dword_75ACB0
+    entry: &MENU_STATE.driver_stats.setups[2].start,
     car_offset: Some(0x114),
     item: 0x12,
 };
@@ -99,7 +100,7 @@ pub const SUSPENSION_STIFFNESS: ChangePage = ChangePage {
     down: step_suspension_stiffness_down::STEPPER,
     up: step_suspension_stiffness_up::STEPPER,
     change: toggle_suspension_stiffness_change::CHANGE,
-    entry_rva: rva(0x75ACBC), // dword_75ACBC
+    entry: &MENU_STATE.driver_stats.setups[3].start,
     car_offset: Some(0x118),
     item: 0x13,
 };
@@ -170,9 +171,9 @@ pub unsafe fn change_page(page: ChangePage, confirm: bool) -> Result<(), Refused
         use crate::service::state::{flags, marks, store_flags, store_marks, time_of};
         let (mut f, mut m) = (flags(), marks());
         let v = rc2k_core::service::repairs::Value {
-            chosen: game_read(page.change.chosen_rva),
-            installed: game_read(page.change.installed_rva),
-            entry: game_read(page.entry_rva),
+            chosen: page.change.chosen.get(),
+            installed: page.change.installed.get(),
+            entry: page.entry.get(),
             in_car: installed_in_car.map(|value| value.read_unaligned()),
         };
         let c = rc2k_core::service::repairs::confirm_change(
@@ -186,11 +187,11 @@ pub unsafe fn change_page(page: ChangePage, confirm: bool) -> Result<(), Refused
         .map_err(|e| BadInput(e.0))?;
         store_flags(&f);
         store_marks(&m);
-        game_write(page.change.chosen_rva, c.chosen);
+        page.change.chosen.set(c.chosen);
         if let Some(status) = c.status {
-            game_write(STATUS_RVA, status);
+            MENU_STATE.service_ui.status.set(status);
         }
-        game_write(crate::service::state::REPAIR_TOTAL_RVA, c.total);
+        MENU_STATE.driver_stats.repair_time.set(c.total as u32);
         leave_edit_mode();
         Ok(())
     }

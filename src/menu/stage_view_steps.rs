@@ -30,6 +30,7 @@
 
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::menu::lists_store::MENU_LISTS;
 use crate::records::find_record::{find_record_in, has_section};
 use rc2k_core::menu::stage_screens;
 
@@ -41,10 +42,6 @@ const PAGES_RVA: usize = rva(0x755968); // dword_755968
 const PAGE_RVA: usize = rva(0x75596C); // dword_75596C
 const FIRST_RVA: usize = rva(0x755960); // dword_755960
 const VOLUME_RVA: usize = rva(0x755698); // dword_755698
-const STAGE_SPEECHES_RVA: usize = rva(0x75A37E); // off_75A37E
-const RALLY_SPEECHES_RVA: usize = rva(0x75A302); // off_75A302
-const WELCOME_RVA: usize = rva(0x75987E); // off_75987E
-const WELCOME_A8_RVA: usize = rva(0x759896); // off_759896
 const TITLE_BAR_RVA: usize = rva(0x731C54); // "files\g\graphics\screens\titlebar.p.."
 const RECORD: u32 = 0xA4;
 fn g(a: usize) -> u32 {
@@ -90,7 +87,7 @@ pub unsafe fn play_stage_speech() -> Result<(), Refused> {
     if championship() {
         // Converted: `rc2k_core::menu::stage_screens::stage_speech`.
         let at = stage_screens::stage_speech(get(record + 4), |n| {
-            g(STAGE_SPEECHES_RVA + 4 * n as usize)
+            get(MENU_LISTS.stage_speeches[0].addr() as u32 + 4 * n)
         })?;
         crate::sound::store::CAR_STREAM.on.set(1);
         crate::sound::store::CAR_STREAM.stream.set(at);
@@ -107,7 +104,7 @@ pub unsafe fn play_rally_speech() -> Result<(), Refused> {
     crate::input::take_key::take_key();
     if championship() {
         crate::sound::start_stream::start_stream(
-            g(RALLY_SPEECHES_RVA + 4 * section as usize),
+            get(MENU_LISTS.rally_speeches[0].addr() as u32 + 4 * section),
             g(VOLUME_RVA),
         );
     }
@@ -120,10 +117,10 @@ pub unsafe fn load_welcome_picture() -> Result<(), Refused> {
     let section = small_section()?;
     // Converted: `rc2k_core::menu::stage_screens::welcome`.
     let table = match stage_screens::welcome(g(MODE_RVA)) {
-        stage_screens::Welcome::Championship => WELCOME_RVA,
-        stage_screens::Welcome::Other => WELCOME_A8_RVA,
+        stage_screens::Welcome::Championship => MENU_LISTS.welcome_championship[0].addr(),
+        stage_screens::Welcome::Other => MENU_LISTS.welcome_other[0].addr(),
     };
-    let path = get(game_addr(table) as u32 + 4 * section);
+    let path = get(table as u32 + 4 * section);
     let title_bar = game_addr(TITLE_BAR_RVA) as *mut u8;
     if unsafe {
         crate::gfx::load_picture_with_overlay::load_picture_with_overlay(path as *mut u8, title_bar)

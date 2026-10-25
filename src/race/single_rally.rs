@@ -20,6 +20,8 @@
 
 use crate::errors::{FatalError, Refused};
 use crate::framework::{game_addr, rva};
+use crate::race::state_store::RACE_STATE;
+use crate::session::{Bytes, Dword, Float};
 
 /// A player's or a track's record: a game address.
 type Record = u32;
@@ -45,36 +47,46 @@ const CURRENT: usize = 0x75598C;
 /// dword_7587E8: the run's start argument (1: no loading picture after).
 const SWITCH: usize = 0x7587E8;
 /// dword_75ACD0: a copy of `SUMMARY`.
-const RACE_INFO: usize = 0x75ACD0;
+const RACE_INFO: &Dword = &RACE_STATE.settings.rivals;
 /// dword_75ACD4: the stage chosen.
-const STAGE: usize = 0x75ACD4;
+const STAGE: &Dword = &RACE_STATE.settings.stage;
 /// dword_75ACD8: the run's kind argument.
-const RACE_KIND: usize = 0x75ACD8;
+const RACE_KIND: &Dword = &RACE_STATE.settings.run_kind;
 /// dword_75ACDC: 1 when the race is not an event's and has more than one player.
-const NO_REPLAY: usize = 0x75ACDC;
+const NO_REPLAY: &Dword = &RACE_STATE.settings.no_replay;
 /// dword_75ACE0: 1, or 2 in the events' one-car modes.
-const RACE_MODE: usize = 0x75ACE0;
+const RACE_MODE: &Dword = &RACE_STATE.settings.race_mode;
 /// dword_75ACE4: a copy of `KEPT`, put back after the race.
-const RACE_KEPT: usize = 0x75ACE4;
+const RACE_KEPT: &Dword = &RACE_STATE.settings.kept;
 /// dword_75B028 / dword_75B098: the current / the first car's result (-1 none, -2 left).
-const RESULT: usize = 0x75B028;
-const RESULT_2: usize = 0x75B098;
+const RESULT: &Dword = &RACE_STATE.results.results[0].result;
+const RESULT_2: &Dword = &RACE_STATE.results.results[1].result;
 /// dword_75ACE8 / dword_75ACEC: the record's word at +8, of the current player / of player 1.
-const WORD_8: usize = 0x75ACE8;
-const WORD_8_FIRST: usize = 0x75ACEC;
+const WORD_8: &Dword = &RACE_STATE.settings.car_kind_current;
+const WORD_8_FIRST: &Dword = &RACE_STATE.settings.car_kind_first;
 /// dword_75AE24: the second set's word that mode 2 takes from +0x10.
-const MODE_WORD: usize = 0x75AE24;
+const MODE_WORD: &Dword = &RACE_STATE.settings.cars[0].view;
 /// The two blocks of 0x20 bytes copied from a record's +0x24C, the first car's / the current's.
-const BLOCK_FIRST: usize = 0x75B0DC;
-const BLOCK_CURRENT: usize = 0x75B06C;
+const BLOCK_FIRST: &Dword = &RACE_STATE.results.results[1].block[0];
+const BLOCK_CURRENT: &Dword = &RACE_STATE.results.results[0].block[0];
 /// The first car's five times (added, then divided by 10 into the record's +0xD8) and the
 /// word whose six times is added; the current car's.
-const TIMES_FIRST: [usize; 4] = [0x75AEFC, 0x75AF00, 0x75AF04, 0x75AF08];
-const EXTRA_FIRST: usize = 0x75AF0C;
-const TIMES_CURRENT: [usize; 4] = [0x75AD90, 0x75AD94, 0x75AD98, 0x75AD9C];
-const EXTRA_CURRENT: usize = 0x75ADA0;
+const TIMES_FIRST: [&Dword; 4] = [
+    &RACE_STATE.settings.cars[1].wear[10],
+    &RACE_STATE.settings.cars[1].wear[11],
+    &RACE_STATE.settings.cars[1].wear[12],
+    &RACE_STATE.settings.cars[1].wear[13],
+];
+const EXTRA_FIRST: &Dword = &RACE_STATE.settings.cars[1].wear[14];
+const TIMES_CURRENT: [&Dword; 4] = [
+    &RACE_STATE.settings.cars[0].wear[10],
+    &RACE_STATE.settings.cars[0].wear[11],
+    &RACE_STATE.settings.cars[0].wear[12],
+    &RACE_STATE.settings.cars[0].wear[13],
+];
+const EXTRA_CURRENT: &Dword = &RACE_STATE.settings.cars[0].wear[14];
 /// dword_75B00C: the current car's word that goes back to its record's +0x284.
-const BACK_284_CURRENT: usize = 0x75B00C;
+const BACK_284_CURRENT: &Dword = &RACE_STATE.results.hud_bits_current;
 
 /// The fatal error of a track number not in the list.
 const UNKNOWN_TRACK: FatalError = FatalError {
@@ -85,406 +97,377 @@ const UNKNOWN_TRACK: FatalError = FatalError {
 /// The car blocks a race leaves its result in: the result word, the time, one more word, the
 /// seconds (a float), and the 0x40 bytes of data.
 struct Outcome {
-    result: usize,
-    time: usize,
-    word: usize,
-    secs: usize,
-    data: usize,
+    result: &'static Dword,
+    time: &'static Dword,
+    word: &'static Dword,
+    secs: &'static Float,
+    data: &'static Bytes<0x40>,
 }
 const OUTCOME_FIRST: Outcome = Outcome {
-    result: RESULT_2,
-    time: 0x75B08C,
-    word: 0x75B090,
-    secs: 0x75B094,
-    data: 0x75B09C,
+    result: &RACE_STATE.results.results[1].result,
+    time: &RACE_STATE.results.results[1].time,
+    word: &RACE_STATE.results.results[1].word,
+    secs: &RACE_STATE.results.results[1].secs,
+    data: &RACE_STATE.results.results[1].data,
 };
 const OUTCOME_CURRENT: Outcome = Outcome {
-    result: RESULT,
-    time: 0x75B01C,
-    word: 0x75B020,
-    secs: 0x75B024,
-    data: 0x75B02C,
+    result: &RACE_STATE.results.results[0].result,
+    time: &RACE_STATE.results.results[0].time,
+    word: &RACE_STATE.results.results[0].word,
+    secs: &RACE_STATE.results.results[0].secs,
+    data: &RACE_STATE.results.results[0].data,
 };
 
 /// The track entry's two fields copied into the race variables (record offset, variable).
-const TRACK_TO_RACE: [(u32, usize); 2] = [(0x1C, 0x75ACF8), (0x20, 0x75ACFC)];
+const TRACK_TO_RACE: [(u32, &Dword); 2] = [
+    (0x1C, &RACE_STATE.settings.track_1c),
+    (0x20, &RACE_STATE.settings.track_20),
+];
 
 /// Five settings words copied to the race variables (from, to).
-const SETTINGS_TO_RACE: [(usize, usize); 5] = [
-    (0x755650, 0x75AD00),
-    (0x75565C, 0x75AD0C),
-    (0x755660, 0x75AD10),
-    (0x755664, 0x75AD14),
-    (0x755668, 0x75AD18),
+const SETTINGS_TO_RACE: [(usize, &Dword); 5] = [
+    (0x755650, &RACE_STATE.settings.setting_0),
+    (0x75565C, &RACE_STATE.settings.setting_1),
+    (0x755660, &RACE_STATE.settings.setting_2),
+    (0x755664, &RACE_STATE.settings.setting_3),
+    (0x755668, &RACE_STATE.settings.setting_4),
 ];
 
 /// Player 1's record, words (offset, variable), into the race's common variables.
-const PLAYER_1_WORDS: [(u32, usize); 19] = [
-    (0x2C, 0x75AF94),
-    (0x30, 0x75AF98),
-    (0x34, 0x75AF9C),
-    (0x38, 0x75AFA0),
-    (0x3C, 0x75AFA4),
-    (0x40, 0x75AFA8),
-    (0x44, 0x75AFAC),
-    (0x48, 0x75AFB0),
-    (0x50, 0x75AFB8),
-    (0x54, 0x75AFBC),
-    (0x58, 0x75AFC0),
-    (0x5C, 0x75AFC4),
-    (0x60, 0x75AFC8),
-    (0x64, 0x75AFCC),
-    (0x68, 0x75AFD0),
-    (0x6C, 0x75AFD4),
-    (0x70, 0x75AFD8),
-    (0x74, 0x75AFE0),
-    (0x78, 0x75AFE4),
-];
-
-/// Player 1's record, the 12 bytes at 0x1C .. 0x27 (offset, variable).
-const PLAYER_1_BYTES: [(u32, usize); 12] = [
-    (0x1C, 0x75AFE8),
-    (0x1D, 0x75AFE9),
-    (0x1E, 0x75AFEA),
-    (0x1F, 0x75AFEB),
-    (0x20, 0x75AFEC),
-    (0x21, 0x75AFED),
-    (0x22, 0x75AFEE),
-    (0x23, 0x75AFEF),
-    (0x24, 0x75AFF0),
-    (0x25, 0x75AFF1),
-    (0x26, 0x75AFF2),
-    (0x27, 0x75AFF3),
+const PLAYER_1_WORDS: [(u32, &Dword); 19] = [
+    (0x2C, &RACE_STATE.settings.cars[1].record_2c),
+    (0x30, &RACE_STATE.settings.cars[1].record_30),
+    (0x34, &RACE_STATE.settings.cars[1].record_34[0]),
+    (0x38, &RACE_STATE.settings.cars[1].record_34[1]),
+    (0x3C, &RACE_STATE.settings.cars[1].record_34[2]),
+    (0x40, &RACE_STATE.settings.cars[1].record_34[3]),
+    (0x44, &RACE_STATE.settings.cars[1].record_34[4]),
+    (0x48, &RACE_STATE.settings.cars[1].record_34[5]),
+    (0x50, &RACE_STATE.settings.cars[1].record_50[0]),
+    (0x54, &RACE_STATE.settings.cars[1].record_50[1]),
+    (0x58, &RACE_STATE.settings.cars[1].record_50[2]),
+    (0x5C, &RACE_STATE.settings.cars[1].record_50[3]),
+    (0x60, &RACE_STATE.settings.cars[1].record_50[4]),
+    (0x64, &RACE_STATE.settings.cars[1].record_50[5]),
+    (0x68, &RACE_STATE.settings.cars[1].record_50[6]),
+    (0x6C, &RACE_STATE.settings.cars[1].record_50[7]),
+    (0x70, &RACE_STATE.settings.cars[1].record_50[8]),
+    (0x74, &RACE_STATE.settings.cars[1].record_74),
+    (0x78, &RACE_STATE.settings.cars[1].record_78),
 ];
 
 /// Player 1's record into the first car's variables, before the 0x20 bytes at +0x24C.
-const FIRST_HEAD: [(u32, usize); 8] = [
-    (0x8, 0x75ACEC),
-    (0x10C, 0x75AE88),
-    (0x110, 0x75AE8C),
-    (0x114, 0x75AE90),
-    (0x118, 0x75AE94),
-    (0x11C, 0x75AE98),
-    (0x120, 0x75AE9C),
-    (0x288, 0x75B008),
+const FIRST_HEAD: [(u32, &Dword); 8] = [
+    (0x8, &RACE_STATE.settings.car_kind_first),
+    (0x10C, &RACE_STATE.settings.cars[1].tyre),
+    (0x110, &RACE_STATE.settings.cars[1].brake_balance),
+    (0x114, &RACE_STATE.settings.cars[1].ride_height),
+    (0x118, &RACE_STATE.settings.cars[1].suspension_stiffness),
+    (0x11C, &RACE_STATE.settings.cars[1].steering_sensitivity),
+    (0x120, &RACE_STATE.settings.cars[1].gear_ratio),
+    (0x288, &RACE_STATE.results.word_288_first),
 ];
 
 /// Player 1's record into the first car's variables, after them.
-const FIRST_TAIL: [(u32, usize); 65] = [
-    (0x278, 0x75B018),
-    (0xD4, 0x75AEA0),
-    (0xD8, 0x75AEA4),
-    (0xDC, 0x75AEA8),
-    (0xE0, 0x75AEAC),
-    (0xE4, 0x75AEB0),
-    (0xE8, 0x75AEB4),
-    (0xEC, 0x75AEB8),
-    (0xF0, 0x75AEBC),
-    (0xF4, 0x75AEC0),
-    (0xF8, 0x75AEC4),
-    (0xFC, 0x75AEC8),
-    (0x100, 0x75AECC),
-    (0x104, 0x75AEF8),
-    (0x108, 0x75AED0),
-    (0x158, 0x75AF64),
-    (0x15C, 0x75AF68),
-    (0x160, 0x75AF6C),
-    (0x168, 0x75AF74),
-    (0x164, 0x75AF78),
-    (0x170, 0x75AF80),
-    (0x16C, 0x75AF7C),
-    (0x174, 0x75AF84),
-    (0x178, 0x75AF70),
-    (0x284, 0x75B010),
-    (0x17C, 0x75AED4),
-    (0x180, 0x75AED8),
-    (0x184, 0x75AEDC),
-    (0x188, 0x75AEE0),
-    (0x18C, 0x75AEE4),
-    (0x190, 0x75AEE8),
-    (0x194, 0x75AEEC),
-    (0x198, 0x75AEF0),
-    (0x19C, 0x75AEF4),
-    (0x1A0, 0x75AEF8),
-    (0x1A4, 0x75AEFC),
-    (0x1A8, 0x75AF00),
-    (0x1AC, 0x75AF04),
-    (0x1B0, 0x75AF08),
-    (0x1B4, 0x75AF0C),
-    (0x1B8, 0x75AF10),
-    (0x1BC, 0x75AF14),
-    (0x1C0, 0x75AF18),
-    (0x1C4, 0x75AF1C),
-    (0x1C8, 0x75AF20),
-    (0x1CC, 0x75AF24),
-    (0x1D0, 0x75AF28),
-    (0x1D4, 0x75AF2C),
-    (0x1D8, 0x75AF30),
-    (0x1DC, 0x75AF34),
-    (0x1E0, 0x75AF38),
-    (0x1E4, 0x75AF3C),
-    (0x1E8, 0x75AF40),
-    (0x1EC, 0x75AF44),
-    (0x1F0, 0x75AF48),
-    (0x1F4, 0x75AF4C),
-    (0x1F8, 0x75AF50),
-    (0x1FC, 0x75AF54),
-    (0x200, 0x75AF58),
-    (0x204, 0x75AF5C),
-    (0x208, 0x75AF60),
-    (0x28, 0x75AF88),
-    (0x154, 0x75AF8C),
-    (0xC, 0x75AF90),
-    (0x10, 0x75AF90),
+const FIRST_TAIL: [(u32, &Dword); 65] = [
+    (0x278, &RACE_STATE.results.flags_first),
+    (0xD4, &RACE_STATE.settings.cars[1].damage[0]),
+    (0xD8, &RACE_STATE.settings.cars[1].damage[1]),
+    (0xDC, &RACE_STATE.settings.cars[1].damage[2]),
+    (0xE0, &RACE_STATE.settings.cars[1].damage[3]),
+    (0xE4, &RACE_STATE.settings.cars[1].damage[4]),
+    (0xE8, &RACE_STATE.settings.cars[1].damage[5]),
+    (0xEC, &RACE_STATE.settings.cars[1].damage[6]),
+    (0xF0, &RACE_STATE.settings.cars[1].damage[7]),
+    (0xF4, &RACE_STATE.settings.cars[1].damage[8]),
+    (0xF8, &RACE_STATE.settings.cars[1].damage[9]),
+    (0xFC, &RACE_STATE.settings.cars[1].damage[10]),
+    (0x100, &RACE_STATE.settings.cars[1].damage[11]),
+    (0x104, &RACE_STATE.settings.cars[1].wear[9]),
+    (0x108, &RACE_STATE.settings.cars[1].damage[12]),
+    (0x158, &RACE_STATE.settings.cars[1].map_area),
+    (0x15C, &RACE_STATE.settings.cars[1].rear_mirror),
+    (0x160, &RACE_STATE.settings.cars[1].rev_counter),
+    (0x168, &RACE_STATE.settings.cars[1].message_display),
+    (0x164, &RACE_STATE.settings.cars[1].car_info),
+    (0x170, &RACE_STATE.settings.cars[1].driver_info),
+    (0x16C, &RACE_STATE.settings.cars[1].progress_bar),
+    (0x174, &RACE_STATE.settings.cars[1].pace_notes),
+    (0x178, &RACE_STATE.settings.cars[1].metric_units),
+    (0x284, &RACE_STATE.results.hud_bits_first),
+    (0x17C, &RACE_STATE.settings.cars[1].wear[0]),
+    (0x180, &RACE_STATE.settings.cars[1].wear[1]),
+    (0x184, &RACE_STATE.settings.cars[1].wear[2]),
+    (0x188, &RACE_STATE.settings.cars[1].wear[3]),
+    (0x18C, &RACE_STATE.settings.cars[1].wear[4]),
+    (0x190, &RACE_STATE.settings.cars[1].wear[5]),
+    (0x194, &RACE_STATE.settings.cars[1].wear[6]),
+    (0x198, &RACE_STATE.settings.cars[1].wear[7]),
+    (0x19C, &RACE_STATE.settings.cars[1].wear[8]),
+    (0x1A0, &RACE_STATE.settings.cars[1].wear[9]),
+    (0x1A4, &RACE_STATE.settings.cars[1].wear[10]),
+    (0x1A8, &RACE_STATE.settings.cars[1].wear[11]),
+    (0x1AC, &RACE_STATE.settings.cars[1].wear[12]),
+    (0x1B0, &RACE_STATE.settings.cars[1].wear[13]),
+    (0x1B4, &RACE_STATE.settings.cars[1].wear[14]),
+    (0x1B8, &RACE_STATE.settings.cars[1].wear[15]),
+    (0x1BC, &RACE_STATE.settings.cars[1].wear[16]),
+    (0x1C0, &RACE_STATE.settings.cars[1].wear[17]),
+    (0x1C4, &RACE_STATE.settings.cars[1].wear[18]),
+    (0x1C8, &RACE_STATE.settings.cars[1].wear[19]),
+    (0x1CC, &RACE_STATE.settings.cars[1].wear[20]),
+    (0x1D0, &RACE_STATE.settings.cars[1].wear[21]),
+    (0x1D4, &RACE_STATE.settings.cars[1].wear[22]),
+    (0x1D8, &RACE_STATE.settings.cars[1].wear[23]),
+    (0x1DC, &RACE_STATE.settings.cars[1].wear[24]),
+    (0x1E0, &RACE_STATE.settings.cars[1].wear[25]),
+    (0x1E4, &RACE_STATE.settings.cars[1].wear[26]),
+    (0x1E8, &RACE_STATE.settings.cars[1].wear[27]),
+    (0x1EC, &RACE_STATE.settings.cars[1].wear[28]),
+    (0x1F0, &RACE_STATE.settings.cars[1].wear[29]),
+    (0x1F4, &RACE_STATE.settings.cars[1].wear[30]),
+    (0x1F8, &RACE_STATE.settings.cars[1].wear[31]),
+    (0x1FC, &RACE_STATE.settings.cars[1].wear[32]),
+    (0x200, &RACE_STATE.settings.cars[1].wear[33]),
+    (0x204, &RACE_STATE.settings.cars[1].wear[34]),
+    (0x208, &RACE_STATE.settings.cars[1].wear[35]),
+    (0x28, &RACE_STATE.settings.cars[1].race_number),
+    (0x154, &RACE_STATE.settings.cars[1].codriver_sex),
+    (0xC, &RACE_STATE.settings.cars[1].view),
+    (0x10, &RACE_STATE.settings.cars[1].view),
 ];
 
 /// The current player's record into the second set of variables, before the 0x20 bytes at +0x24C.
-const SECOND_HEAD: [(u32, usize); 8] = [
-    (0x8, 0x75ACE8),
-    (0x10C, 0x75AD1C),
-    (0x110, 0x75AD20),
-    (0x114, 0x75AD24),
-    (0x118, 0x75AD28),
-    (0x11C, 0x75AD2C),
-    (0x120, 0x75AD30),
-    (0x288, 0x75B004),
+const SECOND_HEAD: [(u32, &Dword); 8] = [
+    (0x8, &RACE_STATE.settings.car_kind_current),
+    (0x10C, &RACE_STATE.settings.cars[0].tyre),
+    (0x110, &RACE_STATE.settings.cars[0].brake_balance),
+    (0x114, &RACE_STATE.settings.cars[0].ride_height),
+    (0x118, &RACE_STATE.settings.cars[0].suspension_stiffness),
+    (0x11C, &RACE_STATE.settings.cars[0].steering_sensitivity),
+    (0x120, &RACE_STATE.settings.cars[0].gear_ratio),
+    (0x288, &RACE_STATE.results.word_288_current),
 ];
 
 /// The current player's record, after them.
-const SECOND_MID: [(u32, usize); 64] = [
-    (0x278, 0x75B014),
-    (0xD4, 0x75AD34),
-    (0xD8, 0x75AD38),
-    (0xDC, 0x75AD3C),
-    (0xE0, 0x75AD40),
-    (0xE4, 0x75AD44),
-    (0xE8, 0x75AD48),
-    (0xEC, 0x75AD4C),
-    (0xF0, 0x75AD50),
-    (0xF4, 0x75AD54),
-    (0xF8, 0x75AD58),
-    (0xFC, 0x75AD5C),
-    (0x100, 0x75AD60),
-    (0x104, 0x75AD8C),
-    (0x108, 0x75AD64),
-    (0x158, 0x75ADF8),
-    (0x15C, 0x75ADFC),
-    (0x160, 0x75AE00),
-    (0x168, 0x75AE08),
-    (0x164, 0x75AE0C),
-    (0x170, 0x75AE14),
-    (0x16C, 0x75AE10),
-    (0x174, 0x75AE18),
-    (0x178, 0x75AE04),
-    (0x284, 0x75B00C),
-    (0x17C, 0x75AD68),
-    (0x180, 0x75AD6C),
-    (0x184, 0x75AD70),
-    (0x188, 0x75AD74),
-    (0x18C, 0x75AD78),
-    (0x190, 0x75AD7C),
-    (0x194, 0x75AD80),
-    (0x198, 0x75AD84),
-    (0x19C, 0x75AD88),
-    (0x1A0, 0x75AD8C),
-    (0x1A4, 0x75AD90),
-    (0x1A8, 0x75AD94),
-    (0x1AC, 0x75AD98),
-    (0x1B0, 0x75AD9C),
-    (0x1B4, 0x75ADA0),
-    (0x1B8, 0x75ADA4),
-    (0x1BC, 0x75ADA8),
-    (0x1C0, 0x75ADAC),
-    (0x1C4, 0x75ADB0),
-    (0x1C8, 0x75ADB4),
-    (0x1CC, 0x75ADB8),
-    (0x1D0, 0x75ADBC),
-    (0x1D4, 0x75ADC0),
-    (0x1D8, 0x75ADC4),
-    (0x1DC, 0x75ADC8),
-    (0x1E0, 0x75ADCC),
-    (0x1E4, 0x75ADD0),
-    (0x1E8, 0x75ADD4),
-    (0x1EC, 0x75ADD8),
-    (0x1F0, 0x75ADDC),
-    (0x1F4, 0x75ADE0),
-    (0x1F8, 0x75ADE4),
-    (0x1FC, 0x75ADE8),
-    (0x200, 0x75ADEC),
-    (0x204, 0x75ADF0),
-    (0x208, 0x75ADF4),
-    (0x28, 0x75AE1C),
-    (0x154, 0x75AE20),
-    (0xC, 0x75AE24),
+const SECOND_MID: [(u32, &Dword); 64] = [
+    (0x278, &RACE_STATE.results.flags_current),
+    (0xD4, &RACE_STATE.settings.cars[0].damage[0]),
+    (0xD8, &RACE_STATE.settings.cars[0].damage[1]),
+    (0xDC, &RACE_STATE.settings.cars[0].damage[2]),
+    (0xE0, &RACE_STATE.settings.cars[0].damage[3]),
+    (0xE4, &RACE_STATE.settings.cars[0].damage[4]),
+    (0xE8, &RACE_STATE.settings.cars[0].damage[5]),
+    (0xEC, &RACE_STATE.settings.cars[0].damage[6]),
+    (0xF0, &RACE_STATE.settings.cars[0].damage[7]),
+    (0xF4, &RACE_STATE.settings.cars[0].damage[8]),
+    (0xF8, &RACE_STATE.settings.cars[0].damage[9]),
+    (0xFC, &RACE_STATE.settings.cars[0].damage[10]),
+    (0x100, &RACE_STATE.settings.cars[0].damage[11]),
+    (0x104, &RACE_STATE.settings.cars[0].wear[9]),
+    (0x108, &RACE_STATE.settings.cars[0].damage[12]),
+    (0x158, &RACE_STATE.settings.cars[0].map_area),
+    (0x15C, &RACE_STATE.settings.cars[0].rear_mirror),
+    (0x160, &RACE_STATE.settings.cars[0].rev_counter),
+    (0x168, &RACE_STATE.settings.cars[0].message_display),
+    (0x164, &RACE_STATE.settings.cars[0].car_info),
+    (0x170, &RACE_STATE.settings.cars[0].driver_info),
+    (0x16C, &RACE_STATE.settings.cars[0].progress_bar),
+    (0x174, &RACE_STATE.settings.cars[0].pace_notes),
+    (0x178, &RACE_STATE.settings.cars[0].metric_units),
+    (0x284, &RACE_STATE.results.hud_bits_current),
+    (0x17C, &RACE_STATE.settings.cars[0].wear[0]),
+    (0x180, &RACE_STATE.settings.cars[0].wear[1]),
+    (0x184, &RACE_STATE.settings.cars[0].wear[2]),
+    (0x188, &RACE_STATE.settings.cars[0].wear[3]),
+    (0x18C, &RACE_STATE.settings.cars[0].wear[4]),
+    (0x190, &RACE_STATE.settings.cars[0].wear[5]),
+    (0x194, &RACE_STATE.settings.cars[0].wear[6]),
+    (0x198, &RACE_STATE.settings.cars[0].wear[7]),
+    (0x19C, &RACE_STATE.settings.cars[0].wear[8]),
+    (0x1A0, &RACE_STATE.settings.cars[0].wear[9]),
+    (0x1A4, &RACE_STATE.settings.cars[0].wear[10]),
+    (0x1A8, &RACE_STATE.settings.cars[0].wear[11]),
+    (0x1AC, &RACE_STATE.settings.cars[0].wear[12]),
+    (0x1B0, &RACE_STATE.settings.cars[0].wear[13]),
+    (0x1B4, &RACE_STATE.settings.cars[0].wear[14]),
+    (0x1B8, &RACE_STATE.settings.cars[0].wear[15]),
+    (0x1BC, &RACE_STATE.settings.cars[0].wear[16]),
+    (0x1C0, &RACE_STATE.settings.cars[0].wear[17]),
+    (0x1C4, &RACE_STATE.settings.cars[0].wear[18]),
+    (0x1C8, &RACE_STATE.settings.cars[0].wear[19]),
+    (0x1CC, &RACE_STATE.settings.cars[0].wear[20]),
+    (0x1D0, &RACE_STATE.settings.cars[0].wear[21]),
+    (0x1D4, &RACE_STATE.settings.cars[0].wear[22]),
+    (0x1D8, &RACE_STATE.settings.cars[0].wear[23]),
+    (0x1DC, &RACE_STATE.settings.cars[0].wear[24]),
+    (0x1E0, &RACE_STATE.settings.cars[0].wear[25]),
+    (0x1E4, &RACE_STATE.settings.cars[0].wear[26]),
+    (0x1E8, &RACE_STATE.settings.cars[0].wear[27]),
+    (0x1EC, &RACE_STATE.settings.cars[0].wear[28]),
+    (0x1F0, &RACE_STATE.settings.cars[0].wear[29]),
+    (0x1F4, &RACE_STATE.settings.cars[0].wear[30]),
+    (0x1F8, &RACE_STATE.settings.cars[0].wear[31]),
+    (0x1FC, &RACE_STATE.settings.cars[0].wear[32]),
+    (0x200, &RACE_STATE.settings.cars[0].wear[33]),
+    (0x204, &RACE_STATE.settings.cars[0].wear[34]),
+    (0x208, &RACE_STATE.settings.cars[0].wear[35]),
+    (0x28, &RACE_STATE.settings.cars[0].race_number),
+    (0x154, &RACE_STATE.settings.cars[0].codriver_sex),
+    (0xC, &RACE_STATE.settings.cars[0].view),
 ];
 
 /// The current player's record, after the mode-2 word.
-const SECOND_TAIL: [(u32, usize); 19] = [
-    (0x2C, 0x75AE28),
-    (0x30, 0x75AE2C),
-    (0x34, 0x75AE30),
-    (0x38, 0x75AE34),
-    (0x3C, 0x75AE38),
-    (0x40, 0x75AE3C),
-    (0x44, 0x75AE40),
-    (0x48, 0x75AE44),
-    (0x50, 0x75AE4C),
-    (0x54, 0x75AE50),
-    (0x58, 0x75AE54),
-    (0x5C, 0x75AE58),
-    (0x60, 0x75AE5C),
-    (0x64, 0x75AE60),
-    (0x68, 0x75AE64),
-    (0x6C, 0x75AE68),
-    (0x70, 0x75AE6C),
-    (0x74, 0x75AE74),
-    (0x78, 0x75AE78),
-];
-
-/// The current player's record, the 12 bytes at 0x1C .. 0x27.
-const SECOND_BYTES: [(u32, usize); 12] = [
-    (0x1C, 0x75AE7C),
-    (0x1D, 0x75AE7D),
-    (0x1E, 0x75AE7E),
-    (0x1F, 0x75AE7F),
-    (0x20, 0x75AE80),
-    (0x21, 0x75AE81),
-    (0x22, 0x75AE82),
-    (0x23, 0x75AE83),
-    (0x24, 0x75AE84),
-    (0x25, 0x75AE85),
-    (0x26, 0x75AE86),
-    (0x27, 0x75AE87),
+const SECOND_TAIL: [(u32, &Dword); 19] = [
+    (0x2C, &RACE_STATE.settings.cars[0].record_2c),
+    (0x30, &RACE_STATE.settings.cars[0].record_30),
+    (0x34, &RACE_STATE.settings.cars[0].record_34[0]),
+    (0x38, &RACE_STATE.settings.cars[0].record_34[1]),
+    (0x3C, &RACE_STATE.settings.cars[0].record_34[2]),
+    (0x40, &RACE_STATE.settings.cars[0].record_34[3]),
+    (0x44, &RACE_STATE.settings.cars[0].record_34[4]),
+    (0x48, &RACE_STATE.settings.cars[0].record_34[5]),
+    (0x50, &RACE_STATE.settings.cars[0].record_50[0]),
+    (0x54, &RACE_STATE.settings.cars[0].record_50[1]),
+    (0x58, &RACE_STATE.settings.cars[0].record_50[2]),
+    (0x5C, &RACE_STATE.settings.cars[0].record_50[3]),
+    (0x60, &RACE_STATE.settings.cars[0].record_50[4]),
+    (0x64, &RACE_STATE.settings.cars[0].record_50[5]),
+    (0x68, &RACE_STATE.settings.cars[0].record_50[6]),
+    (0x6C, &RACE_STATE.settings.cars[0].record_50[7]),
+    (0x70, &RACE_STATE.settings.cars[0].record_50[8]),
+    (0x74, &RACE_STATE.settings.cars[0].record_74),
+    (0x78, &RACE_STATE.settings.cars[0].record_78),
 ];
 
 /// The first set of variables back into player 1's record (variable, offset), up to the total.
-const FIRST_BACK_A: [(usize, u32); 52] = [
-    (0x75B010, 0x284),
-    (0x75B018, 0x278),
-    (0x75AEA0, 0xD4),
-    (0x75AEA4, 0xD8),
-    (0x75AEA8, 0xDC),
-    (0x75AEAC, 0xE0),
-    (0x75AEB0, 0xE4),
-    (0x75AEB4, 0xE8),
-    (0x75AEB8, 0xEC),
-    (0x75AEBC, 0xF0),
-    (0x75AEC0, 0xF4),
-    (0x75AEC4, 0xF8),
-    (0x75AEC8, 0xFC),
-    (0x75AECC, 0x100),
-    (0x75AEF8, 0x104),
-    (0x75AED0, 0x108),
-    (0x75AED4, 0x17C),
-    (0x75AED8, 0x180),
-    (0x75AEDC, 0x184),
-    (0x75AEE0, 0x188),
-    (0x75AEE4, 0x18C),
-    (0x75AEE8, 0x190),
-    (0x75AEEC, 0x194),
-    (0x75AEF0, 0x198),
-    (0x75AEF4, 0x19C),
-    (0x75AEF8, 0x1A0),
-    (0x75AEFC, 0x1A4),
-    (0x75AF00, 0x1A8),
-    (0x75AF04, 0x1AC),
-    (0x75AF08, 0x1B0),
-    (0x75AF0C, 0x1B4),
-    (0x75AF10, 0x1B8),
-    (0x75AF14, 0x1BC),
-    (0x75AF18, 0x1C0),
-    (0x75AF1C, 0x1C4),
-    (0x75AF20, 0x1C8),
-    (0x75AF24, 0x1CC),
-    (0x75AF28, 0x1D0),
-    (0x75AF2C, 0x1D4),
-    (0x75AF30, 0x1D8),
-    (0x75AF34, 0x1DC),
-    (0x75AF38, 0x1E0),
-    (0x75AF3C, 0x1E4),
-    (0x75AF40, 0x1E8),
-    (0x75AF44, 0x1EC),
-    (0x75AF48, 0x1F0),
-    (0x75AF4C, 0x1F4),
-    (0x75AF50, 0x1F8),
-    (0x75AF54, 0x1FC),
-    (0x75AF58, 0x200),
-    (0x75AF5C, 0x204),
-    (0x75AF60, 0x208),
+const FIRST_BACK_A: [(&Dword, u32); 52] = [
+    (&RACE_STATE.results.hud_bits_first, 0x284),
+    (&RACE_STATE.results.flags_first, 0x278),
+    (&RACE_STATE.settings.cars[1].damage[0], 0xD4),
+    (&RACE_STATE.settings.cars[1].damage[1], 0xD8),
+    (&RACE_STATE.settings.cars[1].damage[2], 0xDC),
+    (&RACE_STATE.settings.cars[1].damage[3], 0xE0),
+    (&RACE_STATE.settings.cars[1].damage[4], 0xE4),
+    (&RACE_STATE.settings.cars[1].damage[5], 0xE8),
+    (&RACE_STATE.settings.cars[1].damage[6], 0xEC),
+    (&RACE_STATE.settings.cars[1].damage[7], 0xF0),
+    (&RACE_STATE.settings.cars[1].damage[8], 0xF4),
+    (&RACE_STATE.settings.cars[1].damage[9], 0xF8),
+    (&RACE_STATE.settings.cars[1].damage[10], 0xFC),
+    (&RACE_STATE.settings.cars[1].damage[11], 0x100),
+    (&RACE_STATE.settings.cars[1].wear[9], 0x104),
+    (&RACE_STATE.settings.cars[1].damage[12], 0x108),
+    (&RACE_STATE.settings.cars[1].wear[0], 0x17C),
+    (&RACE_STATE.settings.cars[1].wear[1], 0x180),
+    (&RACE_STATE.settings.cars[1].wear[2], 0x184),
+    (&RACE_STATE.settings.cars[1].wear[3], 0x188),
+    (&RACE_STATE.settings.cars[1].wear[4], 0x18C),
+    (&RACE_STATE.settings.cars[1].wear[5], 0x190),
+    (&RACE_STATE.settings.cars[1].wear[6], 0x194),
+    (&RACE_STATE.settings.cars[1].wear[7], 0x198),
+    (&RACE_STATE.settings.cars[1].wear[8], 0x19C),
+    (&RACE_STATE.settings.cars[1].wear[9], 0x1A0),
+    (&RACE_STATE.settings.cars[1].wear[10], 0x1A4),
+    (&RACE_STATE.settings.cars[1].wear[11], 0x1A8),
+    (&RACE_STATE.settings.cars[1].wear[12], 0x1AC),
+    (&RACE_STATE.settings.cars[1].wear[13], 0x1B0),
+    (&RACE_STATE.settings.cars[1].wear[14], 0x1B4),
+    (&RACE_STATE.settings.cars[1].wear[15], 0x1B8),
+    (&RACE_STATE.settings.cars[1].wear[16], 0x1BC),
+    (&RACE_STATE.settings.cars[1].wear[17], 0x1C0),
+    (&RACE_STATE.settings.cars[1].wear[18], 0x1C4),
+    (&RACE_STATE.settings.cars[1].wear[19], 0x1C8),
+    (&RACE_STATE.settings.cars[1].wear[20], 0x1CC),
+    (&RACE_STATE.settings.cars[1].wear[21], 0x1D0),
+    (&RACE_STATE.settings.cars[1].wear[22], 0x1D4),
+    (&RACE_STATE.settings.cars[1].wear[23], 0x1D8),
+    (&RACE_STATE.settings.cars[1].wear[24], 0x1DC),
+    (&RACE_STATE.settings.cars[1].wear[25], 0x1E0),
+    (&RACE_STATE.settings.cars[1].wear[26], 0x1E4),
+    (&RACE_STATE.settings.cars[1].wear[27], 0x1E8),
+    (&RACE_STATE.settings.cars[1].wear[28], 0x1EC),
+    (&RACE_STATE.settings.cars[1].wear[29], 0x1F0),
+    (&RACE_STATE.settings.cars[1].wear[30], 0x1F4),
+    (&RACE_STATE.settings.cars[1].wear[31], 0x1F8),
+    (&RACE_STATE.settings.cars[1].wear[32], 0x1FC),
+    (&RACE_STATE.settings.cars[1].wear[33], 0x200),
+    (&RACE_STATE.settings.cars[1].wear[34], 0x204),
+    (&RACE_STATE.settings.cars[1].wear[35], 0x208),
 ];
 
 /// The same, after the total.
-const FIRST_BACK_B: [(usize, u32); 6] = [
-    (0x75AF40, 0xF8),
-    (0x75AF60, 0x108),
-    (0x75AF4C, 0x100),
-    (0x75AF2C, 0xE8),
-    (0x75AF8C, 0x154),
-    (0x75AF90, 0xC),
+const FIRST_BACK_B: [(&Dword, u32); 6] = [
+    (&RACE_STATE.settings.cars[1].wear[27], 0xF8),
+    (&RACE_STATE.settings.cars[1].wear[35], 0x108),
+    (&RACE_STATE.settings.cars[1].wear[30], 0x100),
+    (&RACE_STATE.settings.cars[1].wear[22], 0xE8),
+    (&RACE_STATE.settings.cars[1].codriver_sex, 0x154),
+    (&RACE_STATE.settings.cars[1].view, 0xC),
 ];
 
 /// The second set back into the current player's record (variable, offset), up to the total.
-const SECOND_BACK_A: [(usize, u32); 50] = [
-    (0x75B014, 0x278),
-    (0x75AD34, 0xD4),
-    (0x75AD38, 0xD8),
-    (0x75AD3C, 0xDC),
-    (0x75AD40, 0xE0),
-    (0x75AD44, 0xE4),
-    (0x75AD48, 0xE8),
-    (0x75AD4C, 0xEC),
-    (0x75AD50, 0xF0),
-    (0x75AD54, 0xF4),
-    (0x75AD5C, 0xFC),
-    (0x75AD60, 0x100),
-    (0x75AD8C, 0x104),
-    (0x75AD64, 0x108),
-    (0x75AD68, 0x17C),
-    (0x75AD6C, 0x180),
-    (0x75AD70, 0x184),
-    (0x75AD74, 0x188),
-    (0x75AD78, 0x18C),
-    (0x75AD7C, 0x190),
-    (0x75AD80, 0x194),
-    (0x75AD84, 0x198),
-    (0x75AD88, 0x19C),
-    (0x75AD8C, 0x1A0),
-    (0x75AD90, 0x1A4),
-    (0x75AD94, 0x1A8),
-    (0x75AD98, 0x1AC),
-    (0x75AD9C, 0x1B0),
-    (0x75ADA0, 0x1B4),
-    (0x75ADA4, 0x1B8),
-    (0x75ADA8, 0x1BC),
-    (0x75ADAC, 0x1C0),
-    (0x75ADB0, 0x1C4),
-    (0x75ADB4, 0x1C8),
-    (0x75ADB8, 0x1CC),
-    (0x75ADBC, 0x1D0),
-    (0x75ADC0, 0x1D4),
-    (0x75ADC4, 0x1D8),
-    (0x75ADC8, 0x1DC),
-    (0x75ADCC, 0x1E0),
-    (0x75ADD0, 0x1E4),
-    (0x75ADD4, 0x1E8),
-    (0x75ADD8, 0x1EC),
-    (0x75ADDC, 0x1F0),
-    (0x75ADE0, 0x1F4),
-    (0x75ADE4, 0x1F8),
-    (0x75ADE8, 0x1FC),
-    (0x75ADEC, 0x200),
-    (0x75ADF0, 0x204),
-    (0x75ADF4, 0x208),
+const SECOND_BACK_A: [(&Dword, u32); 50] = [
+    (&RACE_STATE.results.flags_current, 0x278),
+    (&RACE_STATE.settings.cars[0].damage[0], 0xD4),
+    (&RACE_STATE.settings.cars[0].damage[1], 0xD8),
+    (&RACE_STATE.settings.cars[0].damage[2], 0xDC),
+    (&RACE_STATE.settings.cars[0].damage[3], 0xE0),
+    (&RACE_STATE.settings.cars[0].damage[4], 0xE4),
+    (&RACE_STATE.settings.cars[0].damage[5], 0xE8),
+    (&RACE_STATE.settings.cars[0].damage[6], 0xEC),
+    (&RACE_STATE.settings.cars[0].damage[7], 0xF0),
+    (&RACE_STATE.settings.cars[0].damage[8], 0xF4),
+    (&RACE_STATE.settings.cars[0].damage[10], 0xFC),
+    (&RACE_STATE.settings.cars[0].damage[11], 0x100),
+    (&RACE_STATE.settings.cars[0].wear[9], 0x104),
+    (&RACE_STATE.settings.cars[0].damage[12], 0x108),
+    (&RACE_STATE.settings.cars[0].wear[0], 0x17C),
+    (&RACE_STATE.settings.cars[0].wear[1], 0x180),
+    (&RACE_STATE.settings.cars[0].wear[2], 0x184),
+    (&RACE_STATE.settings.cars[0].wear[3], 0x188),
+    (&RACE_STATE.settings.cars[0].wear[4], 0x18C),
+    (&RACE_STATE.settings.cars[0].wear[5], 0x190),
+    (&RACE_STATE.settings.cars[0].wear[6], 0x194),
+    (&RACE_STATE.settings.cars[0].wear[7], 0x198),
+    (&RACE_STATE.settings.cars[0].wear[8], 0x19C),
+    (&RACE_STATE.settings.cars[0].wear[9], 0x1A0),
+    (&RACE_STATE.settings.cars[0].wear[10], 0x1A4),
+    (&RACE_STATE.settings.cars[0].wear[11], 0x1A8),
+    (&RACE_STATE.settings.cars[0].wear[12], 0x1AC),
+    (&RACE_STATE.settings.cars[0].wear[13], 0x1B0),
+    (&RACE_STATE.settings.cars[0].wear[14], 0x1B4),
+    (&RACE_STATE.settings.cars[0].wear[15], 0x1B8),
+    (&RACE_STATE.settings.cars[0].wear[16], 0x1BC),
+    (&RACE_STATE.settings.cars[0].wear[17], 0x1C0),
+    (&RACE_STATE.settings.cars[0].wear[18], 0x1C4),
+    (&RACE_STATE.settings.cars[0].wear[19], 0x1C8),
+    (&RACE_STATE.settings.cars[0].wear[20], 0x1CC),
+    (&RACE_STATE.settings.cars[0].wear[21], 0x1D0),
+    (&RACE_STATE.settings.cars[0].wear[22], 0x1D4),
+    (&RACE_STATE.settings.cars[0].wear[23], 0x1D8),
+    (&RACE_STATE.settings.cars[0].wear[24], 0x1DC),
+    (&RACE_STATE.settings.cars[0].wear[25], 0x1E0),
+    (&RACE_STATE.settings.cars[0].wear[26], 0x1E4),
+    (&RACE_STATE.settings.cars[0].wear[27], 0x1E8),
+    (&RACE_STATE.settings.cars[0].wear[28], 0x1EC),
+    (&RACE_STATE.settings.cars[0].wear[29], 0x1F0),
+    (&RACE_STATE.settings.cars[0].wear[30], 0x1F4),
+    (&RACE_STATE.settings.cars[0].wear[31], 0x1F8),
+    (&RACE_STATE.settings.cars[0].wear[32], 0x1FC),
+    (&RACE_STATE.settings.cars[0].wear[33], 0x200),
+    (&RACE_STATE.settings.cars[0].wear[34], 0x204),
+    (&RACE_STATE.settings.cars[0].wear[35], 0x208),
 ];
 
 /// The same, after the total.
-const SECOND_BACK_B: [(usize, u32); 6] = [
-    (0x75ADD4, 0xF8),
-    (0x75ADF4, 0x108),
-    (0x75ADE0, 0x100),
-    (0x75ADC0, 0xE8),
-    (0x75AE20, 0x154),
-    (0x75AE24, 0xC),
+const SECOND_BACK_B: [(&Dword, u32); 6] = [
+    (&RACE_STATE.settings.cars[0].wear[27], 0xF8),
+    (&RACE_STATE.settings.cars[0].wear[35], 0x108),
+    (&RACE_STATE.settings.cars[0].wear[30], 0x100),
+    (&RACE_STATE.settings.cars[0].wear[22], 0xE8),
+    (&RACE_STATE.settings.cars[0].codriver_sex, 0x154),
+    (&RACE_STATE.settings.cars[0].view, 0xC),
 ];
 
 fn mem(a: usize) -> *mut u32 {
@@ -516,28 +499,28 @@ pub unsafe fn player(n: u32) -> u32 {
 }
 
 /// Words of a record into game variables, in order.
-unsafe fn take_words(rec: Record, list: &[(u32, usize)]) {
+unsafe fn take_words(rec: Record, list: &[(u32, &Dword)]) {
     unsafe {
         for &(off, to) in list {
-            set_var(to, field(rec, off));
+            to.set(field(rec, off));
         }
     }
 }
 
-/// Bytes of a record into game variables, in order.
-unsafe fn take_bytes(rec: Record, list: &[(u32, usize)]) {
+/// The 12 bytes at a record's +0x1C .. +0x27 into a car's `keys`.
+unsafe fn take_keys(rec: Record, keys: &Bytes<12>) {
     unsafe {
-        for &(off, to) in list {
-            *(mem(to) as *mut u8) = *(rec.wrapping_add(off) as *const u8);
+        for k in 0..12 {
+            keys.set(k, *(rec.wrapping_add(0x1C + k as u32) as *const u8));
         }
     }
 }
 
 /// Game variables into words of a record, in order.
-unsafe fn give_words(rec: Record, list: &[(usize, u32)]) {
+unsafe fn give_words(rec: Record, list: &[(&Dword, u32)]) {
     unsafe {
         for &(from, off) in list {
-            set_field(rec, off, var(from));
+            set_field(rec, off, from.get());
         }
     }
 }
@@ -551,14 +534,13 @@ unsafe fn copy_bytes(from: u32, to: u32, len: u32) {
 /// times the extra word. The original divides with `div ebp` (edx 0, ebp 10), after a test
 /// of the dividend for 0 that skips the division, so its fatal error 0x80701010 is out of
 /// reach.
-unsafe fn total(times: [usize; 4], extra: usize) -> u32 {
-    unsafe {
-        let sum = var(times[0])
-            .wrapping_add(var(times[1]))
-            .wrapping_add(var(times[2]))
-            .wrapping_add(var(times[3]));
-        (sum / 10).wrapping_add(var(extra).wrapping_mul(6) / 10)
-    }
+fn total(times: [&Dword; 4], extra: &Dword) -> u32 {
+    let sum = times[0]
+        .get()
+        .wrapping_add(times[1].get())
+        .wrapping_add(times[2].get())
+        .wrapping_add(times[3].get());
+    (sum / 10).wrapping_add(extra.get().wrapping_mul(6) / 10)
 }
 
 /// A car's outcome into its record: a result of -1 or -2 puts the time (+0x88) at 0x36EE80
@@ -566,16 +548,16 @@ unsafe fn total(times: [usize; 4], extra: usize) -> u32 {
 /// rounded times 10 (+0x94) and 0x40 bytes of data (+0x20C).
 unsafe fn give_outcome(rec: Record, o: &Outcome) {
     unsafe {
-        let r = var(o.result);
+        let r = o.result.get();
         if r == -2i32 as u32 || r == -1i32 as u32 {
             set_field(rec, 0x88, 0x36EE80);
             set_field(rec, 0xD0, 6);
         } else {
-            set_field(rec, 0x88, var(o.time));
-            set_field(rec, 0x27C, var(o.word));
-            let secs = crate::math::x87::to_int(var(o.secs)) as u32;
+            set_field(rec, 0x88, o.time.get());
+            set_field(rec, 0x27C, o.word.get());
+            let secs = crate::math::x87::to_int(o.secs.bits()) as u32;
             set_field(rec, 0x94, secs.wrapping_mul(10));
-            copy_bytes(mem(o.data) as u32, rec.wrapping_add(0x20C), 0x40);
+            copy_bytes(o.data.addr() as u32, rec.wrapping_add(0x20C), 0x40);
         }
     }
 }
@@ -605,7 +587,7 @@ unsafe fn guarded(
 /// The last calls of the original (from 0x897 of the table): the kept word back, the tune.
 unsafe fn finish(step: &mut dyn FnMut(u32) -> Result<(), Refused>) -> Result<(), Refused> {
     unsafe {
-        set_var(KEPT, var(RACE_KEPT));
+        set_var(KEPT, RACE_KEPT.get());
         step(14) // sound::play_tune_3
     }
 }
@@ -620,20 +602,20 @@ unsafe fn single_rally(
         if kind == 3 {
             step(1)?; // race::copy_rally_times
         }
-        set_var(RACE_INFO, var(SUMMARY));
+        RACE_INFO.set(var(SUMMARY));
         set_var(SWITCH, start);
-        set_var(RACE_KIND, kind);
-        set_var(RESULT, 0);
-        set_var(RESULT_2, 0);
-        set_var(RACE_KEPT, 0);
-        set_var(RACE_MODE, 1);
+        RACE_KIND.set(kind);
+        RESULT.set(0);
+        RESULT_2.set(0);
+        RACE_KEPT.set(0);
+        RACE_MODE.set(1);
         step(2)?; // sound::stop_music
         step(3)?; // race::set_race_screen_mode
         step(4)?; // menu::show_loading_picture
         set_var(AFTER_LOADING_COPY, var(AFTER_LOADING));
 
         // The stage's entry in the track list.
-        let stage = var(STAGE);
+        let stage = STAGE.get();
         let mut entry = (game_addr(rva(TRAK_PAK_HEADER)) as u32).wrapping_add(0x34);
         while field(entry, 0x34) != stage {
             entry = entry.wrapping_add(0x40);
@@ -643,49 +625,49 @@ unsafe fn single_rally(
         }
         take_words(entry, &TRACK_TO_RACE);
         for &(from, to) in &SETTINGS_TO_RACE {
-            set_var(to, var(from));
+            to.set(var(from));
         }
         let first = player(1);
         take_words(first, &PLAYER_1_WORDS);
-        take_bytes(first, &PLAYER_1_BYTES);
+        take_keys(first, &RACE_STATE.settings.cars[1].keys);
 
         let one_car = matches!(var(EVENT_MODE), 5 | 4 | 0xF | 0xA);
         if one_car {
-            set_var(RACE_KEPT, var(KEPT));
-            set_var(RACE_MODE, 2);
+            RACE_KEPT.set(var(KEPT));
+            RACE_MODE.set(2);
             if field(first, 0xD0) != 1 {
-                set_var(RESULT_2, u32::MAX);
+                RESULT_2.set(u32::MAX);
             }
-            set_var(WORD_8_FIRST, field(first, 0x8));
+            WORD_8_FIRST.set(field(first, 0x8));
             take_words(first, &FIRST_HEAD);
-            copy_bytes(first.wrapping_add(0x24C), mem(BLOCK_FIRST) as u32, 0x20);
+            copy_bytes(first.wrapping_add(0x24C), BLOCK_FIRST.addr() as u32, 0x20);
             take_words(first, &FIRST_TAIL);
             set_var(CURRENT, 0);
         } else if field(player(var(CURRENT)), 0xD0) != 1 {
             // The current player's record is not in use: no race.
-            set_var(RESULT, u32::MAX);
+            RESULT.set(u32::MAX);
             return finish(step);
         }
 
         // The current player's record (player 0 after an event's one-car race).
         let rec = player(var(CURRENT));
-        set_var(WORD_8, field(rec, 0x8));
+        WORD_8.set(field(rec, 0x8));
         if field(rec, 0xD0) != 1 {
-            set_var(RESULT, u32::MAX);
+            RESULT.set(u32::MAX);
         }
         take_words(rec, &SECOND_HEAD);
-        copy_bytes(rec.wrapping_add(0x24C), mem(BLOCK_CURRENT) as u32, 0x20);
+        copy_bytes(rec.wrapping_add(0x24C), BLOCK_CURRENT.addr() as u32, 0x20);
         take_words(rec, &SECOND_MID);
-        if var(RACE_MODE) == 2 {
-            set_var(MODE_WORD, field(rec, 0x10));
+        if RACE_MODE.get() == 2 {
+            MODE_WORD.set(field(rec, 0x10));
         }
         take_words(rec, &SECOND_TAIL);
-        take_bytes(rec, &SECOND_BYTES);
+        take_keys(rec, &RACE_STATE.settings.cars[0].keys);
 
         // The race.
-        set_var(NO_REPLAY, 0);
+        NO_REPLAY.set(0);
         if !one_car && var(PLAYER_COUNT) != 1 {
-            set_var(NO_REPLAY, 1);
+            NO_REPLAY.set(1);
         }
         step(5)?; // race::set_up_race_sound_objects
         step(6)?; // sound::set_up_race_sounds
@@ -702,15 +684,15 @@ unsafe fn single_rally(
         if one_car {
             let first = player(1);
             give_words(first, &FIRST_BACK_A);
-            copy_bytes(mem(BLOCK_FIRST) as u32, first.wrapping_add(0x24C), 0x20);
+            copy_bytes(BLOCK_FIRST.addr() as u32, first.wrapping_add(0x24C), 0x20);
             set_field(first, 0xD8, total(TIMES_FIRST, EXTRA_FIRST));
             give_words(first, &FIRST_BACK_B);
             give_outcome(first, &OUTCOME_FIRST);
             set_var(CURRENT, 0);
         }
         let rec = player(var(CURRENT));
-        set_field(rec, 0x284, var(BACK_284_CURRENT));
-        copy_bytes(mem(BLOCK_CURRENT) as u32, rec.wrapping_add(0x24C), 0x20);
+        set_field(rec, 0x284, BACK_284_CURRENT.get());
+        copy_bytes(BLOCK_CURRENT.addr() as u32, rec.wrapping_add(0x24C), 0x20);
         give_words(rec, &SECOND_BACK_A);
         set_field(rec, 0xD8, total(TIMES_CURRENT, EXTRA_CURRENT));
         give_words(rec, &SECOND_BACK_B);
@@ -1978,13 +1960,13 @@ mod tests {
             }
         }
         for (a, len) in [
-            (BLOCK_FIRST, 0x20),
-            (BLOCK_CURRENT, 0x20),
-            (OUTCOME_FIRST.data, 0x40),
-            (OUTCOME_CURRENT.data, 0x40),
-            (PLAYERS, 16),
+            (BLOCK_FIRST.addr(), 0x20),
+            (BLOCK_CURRENT.addr(), 0x20),
+            (OUTCOME_FIRST.data.addr(), 0x40),
+            (OUTCOME_CURRENT.data.addr(), 0x40),
+            (game_addr(rva(PLAYERS)), 16),
         ] {
-            ranges.push((game_addr(rva(a)), len));
+            ranges.push((a, len));
         }
         for r in &records {
             ranges.push((r.as_ptr() as usize, RECORD_LEN));
@@ -2084,11 +2066,11 @@ mod tests {
                 }
                 match place {
                     1 => set_var(SUMMARY, self.rng.next()),
-                    3 => set_var(STAGE, c.stage),
+                    3 => STAGE.set(c.stage),
                     4 => set_var(AFTER_LOADING, self.rng.next()),
                     7 => {
                         // The race changes everything the results are copied from.
-                        let (kept, kept_2) = (var(RESULT), var(RESULT_2));
+                        let (kept, kept_2) = (RESULT.get(), RESULT_2.get());
                         for a in (0x75AD00..0x75B0FC).step_by(4) {
                             set_var(a, self.rng.next());
                         }
@@ -2103,21 +2085,21 @@ mod tests {
                                 _ => [(); 4].map(|_| self.rng.next()),
                             };
                             for (a, v) in times.iter().zip(v) {
-                                set_var(*a, v);
+                                a.set(v);
                             }
-                            set_var(extra, e);
+                            extra.set(e);
                         }
-                        set_var(RESULT, c.result.unwrap_or(kept));
-                        set_var(RESULT_2, c.result_2.unwrap_or(kept_2));
-                        set_var(OUTCOME_CURRENT.secs, c.secs);
-                        set_var(OUTCOME_FIRST.secs, c.secs_2);
+                        RESULT.set(c.result.unwrap_or(kept));
+                        RESULT_2.set(c.result_2.unwrap_or(kept_2));
+                        OUTCOME_CURRENT.secs.set_bits(c.secs);
+                        OUTCOME_FIRST.secs.set_bits(c.secs_2);
                     }
                     9 => {
                         if let Some(s) = c.switch_after {
                             set_var(SWITCH, s);
                         }
                     }
-                    13 => set_var(RACE_KEPT, self.rng.next()),
+                    13 => RACE_KEPT.set(self.rng.next()),
                     _ => {}
                 }
                 Ok(())
@@ -2318,10 +2300,8 @@ mod tests {
         // The game's variables as they were, put back at the end (other tests read them).
         let first = crate::moved::snapshot();
         // A first check that the stand-in memory is there.
-        unsafe {
-            set_var(RACE_INFO, 0x1234_5678);
-            assert_eq!(var(RACE_INFO), 0x1234_5678);
-        }
+        RACE_INFO.set(0x1234_5678);
+        assert_eq!(RACE_INFO.get(), 0x1234_5678);
         let (mut done, mut fatal, mut failed, mut missing, mut engine, mut early, mut results) =
             (0, 0, 0, 0, 0, 0, 0);
         let cases = cases();

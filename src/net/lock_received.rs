@@ -8,9 +8,11 @@
 //! Six callers (`net::copy_received`, `net::start_link`, `net::lobby_frame`,
 //! `net::send_chat`, `net::chat_line_locked`, `net::take_messages`). Refuses nothing.
 
-use crate::net::{MUTEX, g};
+use crate::net::store::NET;
 
 /// The Rust version.
 pub fn lock_received() {
-    unsafe { windows_sys::Win32::System::Threading::WaitForSingleObject(g(MUTEX) as _, u32::MAX) };
+    unsafe {
+        windows_sys::Win32::System::Threading::WaitForSingleObject(NET.mutex.get() as _, u32::MAX)
+    };
 }

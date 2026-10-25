@@ -77,6 +77,7 @@ pub mod set_lobby_value;
 pub mod shortcuts;
 pub mod show_backdrop;
 pub mod start_edit;
+pub mod store;
 pub mod uninstall;
 pub mod unregister_lobby;
 pub mod value_by_number;

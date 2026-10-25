@@ -15,7 +15,7 @@
 use crate::errors::Refused;
 use crate::net::destroy_connection::destroy_connection;
 use crate::net::dplay::{DELETE_PLAYER_FROM_GROUP, method};
-use crate::net::lobby::{DPLAY, OWN, SEND_TO, STAGE_ITEM, SYNC_FIRST, g, gb, p, pb};
+use crate::net::store::{NET, PlayerRecord};
 use rc2k_core::net::players::{A_PLAYER, System, made_host};
 
 /// The Rust version.
@@ -24,24 +24,26 @@ pub fn system_message(message: u32) -> Result<(), Refused> {
     let kind = get(message);
     // Converted: `rc2k_core::net::players` (`System`, `made_host`).
     match System::of(kind) {
-        System::Created => p(SYNC_FIRST, 1),
+        System::Created => NET.sync_first.set(1),
         System::Destroyed => {
-            p(SYNC_FIRST, 1);
+            NET.sync_first.set(1);
             if get(message + 4) == A_PLAYER {
                 unsafe {
                     method(
-                        g(DPLAY),
+                        NET.dplay.get(),
                         DELETE_PLAYER_FROM_GROUP,
-                        &[g(SEND_TO), get(message + 8)],
+                        &[NET.send_to.get(), get(message + 8)],
                     )
                 };
             }
         }
         System::SessionLost => destroy_connection()?,
         System::Host => {
-            pb(OWN, made_host(gb(OWN)));
-            p(SYNC_FIRST, 1);
-            p(STAGE_ITEM, 1);
+            NET.own
+                .head
+                .set(PlayerRecord::STATE, made_host(NET.own.state()));
+            NET.sync_first.set(1);
+            NET.stage_item.set(1);
         }
         System::Other => {}
     }

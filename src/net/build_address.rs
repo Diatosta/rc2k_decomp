@@ -17,65 +17,91 @@
 use crate::errors::Refused;
 use crate::net::add_address_element::add_address_element;
 use crate::net::dplay::{CREATE_COMPOUND_ADDRESS, call};
-use crate::net::lobby::{
-    ADDRESS, ADDRESS_SIZE, ELEMENT_TABLE, ELEMENTS, HOST_ADDRESS, LOBBY, PORT, POSTING, a,
-    connection, g, log, net_allocate, p,
-};
+use crate::net::lobby::{a, connection, log, net_allocate};
+use crate::net::store::NET;
 use crate::system::same_guid::same_guid;
 use rc2k_core::net::address::{self, Provider};
 
 const TEXT: usize = 0x5C2EBD; // "NET: DPCA"
-pub const IPX: usize = 0x5AB350; // DPSPGUID_IPX
-pub const TCPIP: usize = 0x5AB360; // DPSPGUID_TCPIP
-const SERVICE_PROVIDER: usize = 0x5AB3A0; // DPAID_ServiceProvider
-const INET: usize = 0x5AB3E0; // DPAID_INet
-const INET_PORT: usize = 0x5AB3F0; // DPAID_INetPort
 
 /// The Rust version.
 pub fn build_address(connection_number: u32) -> Result<bool, Refused> {
     log(a(TEXT), true, 2);
-    if g(LOBBY) == 0 {
+    if NET.lobby.get() == 0 {
         return Ok(false);
     }
     let guid = connection(connection_number)?.wrapping_add(0x40);
-    p(ELEMENTS, 0);
-    p(ADDRESS, 0);
-    p(ADDRESS_SIZE, 0);
-    p(POSTING, 0);
+    NET.elements.set(0);
+    NET.address.set(0);
+    NET.address_size.set(0);
+    NET.posting.set(0);
     // Converted: `rc2k_core::net::address` (`provider`, the elements' sizes, `has_port`,
     // `posts`, `address::BUFFER_TOO_SMALL`).
     let provider = address::provider(|which| -> Result<bool, Refused> {
         Ok(same_guid(
             guid,
-            a(if which == Provider::Ipx { IPX } else { TCPIP }),
+            (if which == Provider::Ipx {
+                &NET.sp_ipx
+            } else {
+                &NET.sp_tcpip
+            })
+            .addr() as u32,
         ))
     })?;
     match provider {
-        Provider::Ipx => add_address_element(a(SERVICE_PROVIDER), address::PROVIDER_SIZE, a(IPX)),
+        Provider::Ipx => add_address_element(
+            NET.aid_service_provider.addr() as u32,
+            address::PROVIDER_SIZE,
+            NET.sp_ipx.addr() as u32,
+        ),
         Provider::TcpIp => {
-            add_address_element(a(SERVICE_PROVIDER), address::PROVIDER_SIZE, a(TCPIP));
-            let length =
-                unsafe { crate::strings::text_length::text_length(a(HOST_ADDRESS) as *const u8) }?;
-            add_address_element(a(INET), address::host_address_size(length), a(HOST_ADDRESS));
-            if address::has_port(g(PORT)) {
-                add_address_element(a(INET_PORT), address::PORT_SIZE, a(PORT));
+            add_address_element(
+                NET.aid_service_provider.addr() as u32,
+                address::PROVIDER_SIZE,
+                NET.sp_tcpip.addr() as u32,
+            );
+            let length = unsafe {
+                crate::strings::text_length::text_length(
+                    (NET.host_address.addr() as u32) as *const u8,
+                )
+            }?;
+            add_address_element(
+                NET.aid_inet.addr() as u32,
+                address::host_address_size(length),
+                NET.host_address.addr() as u32,
+            );
+            if address::has_port(NET.port.get()) {
+                add_address_element(
+                    NET.aid_inet_port.addr() as u32,
+                    address::PORT_SIZE,
+                    NET.port.addr() as u32,
+                );
             }
         }
-        Provider::Other => add_address_element(a(SERVICE_PROVIDER), address::PROVIDER_SIZE, guid),
+        Provider::Other => add_address_element(
+            NET.aid_service_provider.addr() as u32,
+            address::PROVIDER_SIZE,
+            guid,
+        ),
     }
     if address::posts(provider) {
-        p(POSTING, 1);
+        NET.posting.set(1);
     }
     let make = |at: u32| unsafe {
         call(
-            LOBBY,
+            &NET.lobby,
             CREATE_COMPOUND_ADDRESS,
-            &[a(ELEMENT_TABLE), g(ELEMENTS), at, a(ADDRESS_SIZE)],
+            &[
+                NET.element_table.addr() as u32,
+                NET.elements.get(),
+                at,
+                NET.address_size.addr() as u32,
+            ],
         )
     };
     if make(0) != address::BUFFER_TOO_SMALL {
         return Ok(false);
     }
-    p(ADDRESS, net_allocate(g(ADDRESS_SIZE))?);
-    Ok(make(g(ADDRESS)) == 0)
+    NET.address.set(net_allocate(NET.address_size.get())?);
+    Ok(make(NET.address.get()) == 0)
 }

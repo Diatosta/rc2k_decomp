@@ -18,6 +18,18 @@ use crate::framework::{game_addr, rva};
 use crate::saves::rebuild_car_lists::rebuild_car_lists;
 use crate::settings::{TEXT_ROOM, TEXT_RVA};
 
+/// `unk_4F66DD`, `unk_4F66E1`, `unk_4F66E5` (-1 at start), `unk_4F66E9`: four dwords the
+/// options file keeps (here and in `saves::save_options`, by address); nothing else of the
+/// game reads them (a table of the developers' variables names the first). The fifth
+/// (0x4F66ED) is a gap. Split 2026-10-25 from sound's wheel surfaces after them.
+pub static KEPT: [crate::session::Dword; 5] = [
+    crate::session::Dword::new(0),
+    crate::session::Dword::new(0),
+    crate::session::Dword::new(0xFFFF_FFFF),
+    crate::session::Dword::new(0),
+    crate::session::Dword::new(0),
+];
+
 // ---- game data ----
 
 const PATH_RVA: usize = rva(0x5295D8); // "var\ral.dat"
@@ -163,6 +175,13 @@ pub unsafe fn load_game_options() -> Result<bool, Refused> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn kept_starts_as_the_games() {
+        let image = crate::moved::image_bytes(0x4F66DD, 20);
+        let mine = unsafe { std::slice::from_raw_parts(super::KEPT.as_ptr() as *const u8, 20) };
+        assert_eq!(mine, &image[..]);
+    }
+
     /// Every piece lies whole in one place: all in the image or all in one moved home.
     #[test]
     fn no_piece_is_split_by_a_move() {

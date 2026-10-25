@@ -20,8 +20,8 @@ pub fn begin_effects() -> Result<(), Refused> {
     if crate::sound::store::RACE_SOUNDS.count.get() != 0 {
         crate::input::start_effects::start_effects()?;
     }
-    crate::sound::store::SOUND_EFFECTS
-        .effects_last_time
+    crate::input::store::FORCE_FEEDBACK
+        .last_time
         .set(crate::system::tick_count::tick_count());
     Ok(())
 }

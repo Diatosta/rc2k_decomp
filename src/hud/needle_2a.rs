@@ -4,14 +4,25 @@
 //! Out: as `draw_needle` leaves them
 
 use crate::hud::dials::{From, Setup};
-use crate::hud::store::Slot;
 
 pub static SETUP: Setup = Setup {
     copies: &[
-        (From::Field(0x10), Slot::at(0x75C2E0), false),
-        (From::Var(Slot::at(0x75C2F0)), Slot::at(0x75C2A0), false),
-        (From::Var(Slot::at(0x75C2F4)), Slot::at(0x75C2A4), false),
-        (From::Var(Slot::at(0x75C2F8)), Slot::at(0x75C2A4), true),
-        (From::Var(Slot::at(0x75C2FC)), Slot::at(0x75C2B8), false),
+        (From::Field(0x10), |h| &h.needle_value, false),
+        (
+            From::Var(|h| &h.needle_2a[0]),
+            |h| &h.needle_centre[0],
+            false,
+        ),
+        (
+            From::Var(|h| &h.needle_2a[1]),
+            |h| &h.needle_centre[1],
+            false,
+        ),
+        (
+            From::Var(|h| &h.needle_2a[2]),
+            |h| &h.needle_centre[1],
+            true,
+        ),
+        (From::Var(|h| &h.needle_2a[3]), |h| &h.needle_size, false),
     ],
 };

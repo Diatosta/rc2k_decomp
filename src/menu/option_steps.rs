@@ -21,9 +21,10 @@
 //!
 //! The names of the texture and colour steps are readings of their variables.
 
-use crate::audio::store::Slot;
+use crate::audio::store::AUDIO;
 use crate::errors::Refused;
 use crate::framework::rva;
+use crate::race::state_store::RACE_STATE;
 use crate::store::{game_addr, game_read, game_write};
 
 // ---- the volume steps ----
@@ -58,7 +59,7 @@ pub fn volume_step(v: Volume) {
         game_write(v.value_rva, value);
         match v.then {
             Then::Music => {
-                crate::sound::store::SOUND_EFFECTS
+                crate::sound::store::SOUND_OPTIONS
                     .music_volume
                     .set(value as u32);
                 crate::sound::set_music_volume::set_music_volume(value as u32);
@@ -81,7 +82,6 @@ const MODE_RVA: usize = rva(0x4F50C8); // dword_4F50C8: the screen mode chosen
 const MODES_RVA: usize = rva(0x4F50E4); // dword_4F50E4: how many
 const MODE_CHANGED_RVA: usize = rva(0x755648); // dword_755648
 const TEXTURE_RVA: usize = rva(0x755664); // dword_755664
-const TEXTURE_COPY_RVA: usize = rva(0x75AD14); // dword_75AD14
 
 /// `menu::next_screen_mode`: the next screen mode chosen, the changed flag flipped.
 pub fn next_screen_mode() {
@@ -101,7 +101,7 @@ pub fn step_texture_setting(up: bool) {
         // Converted: `rc2k_core::menu::steps::texture`.
         let v = rc2k_core::menu::steps::texture(game_read(TEXTURE_RVA), up);
         game_write(TEXTURE_RVA, v);
-        game_write(TEXTURE_COPY_RVA, v);
+        RACE_STATE.settings.setting_3.set(v);
     }
 }
 
@@ -137,26 +137,27 @@ pub fn step_colour(c: Colour, up: bool) {
 
 // ---- the advanced audio page's choices ----
 
-/// (the work value, the choice, the applied) by `g_audioOptions`' fields.
-const AUDIO: [(usize, Slot, Slot); 6] = [
-    (0x75566C, Slot::at(0x506C8C), Slot::at(0x506CA4)), // quality
-    (0x755680, Slot::at(0x506C90), Slot::at(0x506CA8)), // channels
-    (0x75567C, Slot::at(0x506CA0), Slot::at(0x506CB8)), // Dolby
-    (0x755678, Slot::at(0x506C9C), Slot::at(0x506CB4)), // A3D
-    (0x755674, Slot::at(0x506C98), Slot::at(0x506CB0)), // EAX
-    (0x755670, Slot::at(0x506C94), Slot::at(0x506CAC)), // DS3D
+/// (the work value, its place among `g_audioOptions`' six choices and six applied).
+const CHOICES: [(usize, usize); 6] = [
+    (0x75566C, 0), // quality
+    (0x755680, 1), // channels
+    (0x75567C, 5), // Dolby
+    (0x755678, 4), // A3D
+    (0x755674, 3), // EAX
+    (0x755670, 2), // DS3D
 ];
 /// `menu::apply_audio_choices`: the registers it leaves (`popa`'s).
 pub unsafe fn apply_audio_choices() -> Result<(), Refused> {
     unsafe {
-        for (work, choice, _) in AUDIO {
-            crate::store::game_write(choice, game_read::<u32>(rva(work)));
+        for (work, n) in CHOICES {
+            let value = game_read::<u32>(rva(work));
+            AUDIO.audio_options.update(|o| o.choice[n] = value);
         }
         // `audio::choose_modes` with the game's log (the original's eax there, the last
         // value copied, is read by none of it).
         crate::audio::choose_modes::in_game(&mut crate::audio::choose_modes::real_log)?;
-        for (work, _, applied) in AUDIO {
-            game_write(rva(work), crate::store::game_read::<u32>(applied));
+        for (work, n) in CHOICES {
+            game_write(rva(work), AUDIO.audio_options.get().applied[n]);
         }
     }
     Ok(())

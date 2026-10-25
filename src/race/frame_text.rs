@@ -1,7 +1,7 @@
 //! The race frame's texts (`sub_4547AE`'s, IDA 2026-10-18): the frame rate and the credits
 //! that roll over the race (`dword_71C3E0`), also used by the credits' screen.
 
-use crate::audio::store::Slot;
+use crate::audio::store::AUDIO;
 use crate::errors::Refused;
 use crate::framework::rva;
 use crate::screens::font_at;
@@ -108,7 +108,7 @@ pub unsafe fn roll_credits(
         });
         game_write(rva(0x52984C), top);
         game_write(rva(0x529850), clock);
-        if !rolled_off(below, game_read(Slot::at(0x506990))) {
+        if !rolled_off(below, AUDIO.music_stream.get().playing) {
             return Ok(());
         }
         game_write(rva(0x529854), 1u32);

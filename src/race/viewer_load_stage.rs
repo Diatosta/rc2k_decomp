@@ -23,7 +23,9 @@
 
 use crate::errors::Refused;
 use crate::physics::flow::a;
+use crate::race::state_store::RACE_STATE;
 use crate::race::viewer::{OPEN, gb, get, put};
+use crate::session::Dword;
 
 const LOADED: usize = 0x5BECC0; // dword_5BECC0: the viewer's stage is loaded
 pub const FONTS_BUILT: usize = 0x5BECC4; // dword_5BECC4: the viewer built the fonts
@@ -31,12 +33,12 @@ const FONT_PALETTES: usize = 0x51DEB0; // g_fontPalettes
 const DOOR: usize = 0x719C8C; // byte_719C8C
 const DOOR_TEXT: usize = 0x4DB12C; // "doornr="
 /// (to, from): the header's settings.
-const SETTINGS: [(usize, usize); 5] = [
-    (0x75ACD8, 0x719B18),
-    (0x75ACE8, 0x719B24),
-    (0x75ACEC, 0x719B28),
-    (0x75AE20, 0x719B38),
-    (0x75AF8C, 0x719B3C),
+const SETTINGS: [(&Dword, usize); 5] = [
+    (&RACE_STATE.settings.run_kind, 0x719B18),
+    (&RACE_STATE.settings.car_kind_current, 0x719B24),
+    (&RACE_STATE.settings.car_kind_first, 0x719B28),
+    (&RACE_STATE.settings.cars[0].codriver_sex, 0x719B38),
+    (&RACE_STATE.settings.cars[1].codriver_sex, 0x719B3C),
 ];
 
 /// The Rust version (every register kept).
@@ -52,17 +54,20 @@ pub fn viewer_load_stage() -> Result<(), Refused> {
         }
         crate::menu::show_loading_picture::show_loading_picture()?;
         for (to, from) in SETTINGS {
-            put(to, get(from));
+            to.set(get(from));
         }
         // g_onePlayer (the sound module's) takes the header's setting too.
         crate::sound::store::RACE_SOUNDS
             .one_player
             .set(get(0x719B34));
-        put(0x75AE28, 0);
-        put(0x75AF94, 0);
-        put(0x75ACE0, crate::sound::store::RACE_SOUNDS.one_player.get());
+        RACE_STATE.settings.cars[0].record_2c.set(0);
+        RACE_STATE.settings.cars[1].record_2c.set(0);
+        RACE_STATE
+            .settings
+            .race_mode
+            .set(crate::sound::store::RACE_SOUNDS.one_player.get());
         let door = gb(DOOR) as u32;
-        put(0x75AE1C, door);
+        RACE_STATE.settings.cars[0].race_number.set(door);
         put(0x70FE94, door); // g_carBlockStore.gap_a28 + 0x80
         unsafe {
             crate::logfile::log_write::log_write(a(DOOR_TEXT) as *const u8, false, 1);

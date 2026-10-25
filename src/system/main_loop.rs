@@ -47,7 +47,7 @@ const VARS: [usize; 12] = [
     0x51B9CC, // dword_51B9CC
     0x51B9D0, // dword_51B9D0
     0x5189A8, // g_baseDirectory
-    0x5AB290, // dword_5AB290
+    0,        // dword_5AB290: `g_lobbyLaunched` (`net::store`)
 ];
 const ENTERING_RVA: usize = rva(0x4DAA80); // "Entering main loop..."
 const LEAVING_RVA: usize = rva(0x4DAA96); // "Leaving main loop..."
@@ -72,7 +72,8 @@ impl Vars {
         vars[2] = FLAGS.window_active.as_ptr();
         vars[3] = CLOCKS.key_ticks.as_ptr();
         vars[4] = FLAGS.f38c.as_ptr();
-        vars[5] = crate::sound::store::SOUND_EFFECTS.settings_applied.as_ptr();
+        vars[5] = crate::sound::store::SETTINGS_APPLIED.done.as_ptr();
+        vars[11] = crate::net::store::NET.lobby_launched.as_ptr();
         Self(vars)
     }
 

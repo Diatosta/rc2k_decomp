@@ -10,13 +10,13 @@
 
 use crate::net::create_group::join;
 use crate::net::dplay::{ENUM_GROUPS, call};
-use crate::net::lobby::DPLAY;
+use crate::net::store::NET;
 
 /// The Rust version.
 pub fn join_group() -> bool {
     let result = unsafe {
         call(
-            DPLAY,
+            &NET.dplay,
             ENUM_GROUPS,
             &[
                 0,

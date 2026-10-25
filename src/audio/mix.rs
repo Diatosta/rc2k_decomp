@@ -12,76 +12,61 @@
 //! `DSERR_BUFFERLOST` sets `g_soundBufferLost`. (A `GetStatus` at 0x40BE9D is in it but not
 //! reached.) One caller, the mixer's way of the turn.
 
-use crate::audio::fill_buffer::LOCKED_PARTS_RVA;
-use crate::audio::mixer::*;
-use crate::audio::voices::*;
+use crate::audio::store::AUDIO;
 use crate::errors::Refused;
-use crate::store::addr32 as a;
 
 const BUFFER_LOST: i32 = 0x8878_0096u32 as i32;
 
-#[derive(Clone, Copy)]
-pub struct Vars {
-    pub primary: u32,
-    pub size: u32,
-    pub most: u32,
-    pub play: u32,
-    pub write: u32,
-    pub parts: u32,
-    pub lost: u32,
-}
-
-impl Vars {
-    pub fn game() -> Self {
-        Self {
-            primary: a(PRIMARY_RVA),
-            size: a(PRIMARY_SIZE_RVA),
-            most: a(MIX_MOST_RVA),
-            play: a(PLAY_CURSOR_RVA),
-            write: a(WRITE_CURSOR_RVA),
-            parts: a(LOCKED_PARTS_RVA),
-            lost: a(BUFFER_LOST_RVA),
-        }
-    }
-}
-
 /// True for no failure.
-pub unsafe fn mix(v: &Vars) -> Result<bool, Refused> {
+pub fn mix() -> Result<bool, Refused> {
     unsafe {
-        let primary = read(v.primary);
+        let primary = AUDIO.primary_buffer.get();
         let failed = |r: i32| {
             if r == BUFFER_LOST {
-                write(v.lost, 1);
+                AUDIO.sound_buffer_lost.set(1);
             }
             false
         };
-        let old = read(v.play);
+        let old = AUDIO.play_cursor.get();
         let position: unsafe extern "system" fn(u32, u32, u32) -> i32 =
             std::mem::transmute(crate::audio::com::method(primary, 0x10));
-        let r = position(primary, v.play, 0);
+        let r = position(primary, AUDIO.play_cursor.addr() as u32, 0);
         if r != 0 {
             return Ok(failed(r));
         }
         // Converted: `rc2k_core::audio::streams::cursor_moved` and `round`.
         use rc2k_core::audio::streams::{cursor_moved, round};
-        let size = read(v.size);
-        let Some((bytes, write_at)) = cursor_moved(old, read(v.play), size, read(v.most)) else {
+        let size = AUDIO.primary_size.get();
+        let Some((bytes, write_at)) =
+            cursor_moved(old, AUDIO.play_cursor.get(), size, AUDIO.mix_most.get())
+        else {
             return Ok(true);
         };
         if let Some(at) = write_at {
-            write(v.write, at);
+            AUDIO.write_cursor.set(at);
         }
         crate::audio::mix_channels::mix_channels_in_game(bytes)?;
         let lock: unsafe extern "system" fn(u32, u32, u32, u32, u32, u32, u32, u32) -> i32 =
             std::mem::transmute(crate::audio::com::method(primary, 0x2C));
-        let p = v.parts;
-        let r = lock(primary, read(v.write), bytes, p, p + 4, p + 8, p + 12, 0);
+        let p = AUDIO.locked_parts[0].addr() as u32;
+        let r = lock(
+            primary,
+            AUDIO.write_cursor.get(),
+            bytes,
+            p,
+            p + 4,
+            p + 8,
+            p + 12,
+            0,
+        );
         if r != 0 {
             return Ok(failed(r));
         }
-        write(v.write, round(bytes.wrapping_add(read(v.write)), size));
+        AUDIO
+            .write_cursor
+            .set(round(bytes.wrapping_add(AUDIO.write_cursor.get()), size));
         crate::audio::write_mix::write_mix_in_game()?;
-        let [p1, n1, p2, n2] = (p as *const [u32; 4]).read_unaligned();
+        let [p1, n1, p2, n2] = AUDIO.locked_parts.each_ref().map(|d| d.get());
         let unlock: unsafe extern "system" fn(u32, u32, u32, u32, u32) -> i32 =
             std::mem::transmute(crate::audio::com::method(primary, 0x4C));
         let r = unlock(primary, p1, n1, p2, n2);

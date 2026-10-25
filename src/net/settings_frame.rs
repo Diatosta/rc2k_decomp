@@ -15,11 +15,9 @@ use crate::errors::Refused;
 use crate::net::draw_centred_item::draw_centred_item;
 use crate::net::draw_number_value::draw_number_value;
 use crate::net::draw_setting_value::draw_setting_value;
-use crate::net::lobby::{
-    HOST_ADDRESS, MACHINE_NAME, MOST_PLAYERS, PALETTE, SAVED_NAME, a, blit, copy_picture, g,
-    lock_surface,
-};
+use crate::net::lobby::{PALETTE, a, blit, copy_picture, lock_surface};
 use crate::net::setting_label::setting_label;
+use crate::net::store::NET;
 use crate::text::draw_text::GameCanvas;
 use crate::text::font::Font;
 use rc2k_core::net::screens;
@@ -33,10 +31,10 @@ pub fn settings_frame() -> Result<(), Refused> {
     copy_picture()?;
     let mut y = 0x92;
     for (item, (label, value, number)) in [
-        (0x163, a(SAVED_NAME), false),
-        (0x164, a(MACHINE_NAME), false),
-        (0x165, g(MOST_PLAYERS), true),
-        (0x166, a(HOST_ADDRESS), false),
+        (0x163, NET.saved_name.addr() as u32, false),
+        (0x164, NET.machine_name.addr() as u32, false),
+        (0x165, NET.most_players.get(), true),
+        (0x166, NET.host_address.addr() as u32, false),
     ]
     .into_iter()
     .enumerate()

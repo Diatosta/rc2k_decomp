@@ -34,8 +34,8 @@ fn view_bit(view: usize) -> bool {
 
 /// The quit answer `answer` put into the cars (0x444EB5 ..).
 fn put_answer(answer: u32) {
-    if g(0x52A910) != 0 {
-        let block = g(0x71B3B8 + 4 * g(0x52A920) as usize);
+    if crate::net::store::NET.session.get() != 0 {
+        let block = g(0x71B3B8 + 4 * crate::net::store::NET.player.get() as usize);
         unsafe { ((block + 0xB0) as *mut u32).write_unaligned(answer) };
         return;
     }
@@ -149,8 +149,8 @@ pub unsafe fn race_loop() -> Result<(), Refused> {
             continue;
         }
         // 0x444F0F: paused.
-        if g(0x52A910) != 0 {
-            let block = g(0x71B3B8 + 4 * g(0x52A920) as usize);
+        if crate::net::store::NET.session.get() != 0 {
+            let block = g(0x71B3B8 + 4 * crate::net::store::NET.player.get() as usize);
             unsafe { ((block + 0x468) as *mut u32).write_unaligned(0) };
         } else {
             unsafe { crate::drive::pause_until_key::pause_until_key() }?;

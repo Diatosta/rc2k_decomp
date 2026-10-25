@@ -25,13 +25,10 @@ use crate::install::runs_from_source::runs_from_source;
 
 // ---- game data ----
 
-const CLIO_FILE_RVA: usize = rva(0x529DB8); // "files\b\obj0570.ro3"
-const HAS_CLIO_RVA: usize = rva(0x529DB4); // g_hasClio
 const INSTALLER_DATA_RVA: usize = rva(0x51BEA1); // "files\d\gfx\install.bun"
 const BASE_B_RVA: usize = rva(0x5295B4); // unk_5295B4
 const B_BEFORE_RVA: usize = rva(0x95E8F8); // byte_95E8F8
 const B_AFTER_RVA: usize = rva(0x95E9F8); // byte_95E9F8
-const CAR_NAME_RVA: usize = rva(0x529F03); // "renault clio sport V6 (A7)"
 const CAR_NAME_LEN: usize = 0x1B;
 const STEP_RVA: usize = rva(0x51DD48); // off_51DD48
 const CLIO_STEP_RVA: usize = rva(0x41675B); // sub_41675B
@@ -40,10 +37,10 @@ const CLIO_STEP_RVA: usize = rva(0x41675B); // sub_41675B
 
 pub unsafe fn check_clio_disc(outside: &mut dyn Outside) -> Result<(), Refused> {
     unsafe {
-        if !outside.file_exists(game_addr(CLIO_FILE_RVA) as *const u8)? {
+        if !outside.file_exists(crate::install::store::INSTALL.clio_file.addr() as *const u8)? {
             return Ok(());
         }
-        game_write(HAS_CLIO_RVA, 1u32);
+        crate::install::store::INSTALL.has_clio.set(1);
         if game_read::<u32>(INSTALLING_RVA) == 1
             || outside.file_exists(game_addr(RECORD_RVA) as *const u8)?
             || runs_from_source(outside)?
@@ -74,7 +71,10 @@ pub unsafe fn check_clio_disc(outside: &mut dyn Outside) -> Result<(), Refused> 
             }
             .into());
         }
-        let name = std::slice::from_raw_parts_mut(game_addr(CAR_NAME_RVA) as *mut u8, CAR_NAME_LEN);
+        let name = std::slice::from_raw_parts_mut(
+            crate::install::store::INSTALL.clio_car_name.as_ptr(),
+            CAR_NAME_LEN,
+        );
         let Some(end) = name
             .iter()
             .position(|&c| c == b'(')

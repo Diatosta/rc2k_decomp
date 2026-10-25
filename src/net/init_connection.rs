@@ -11,7 +11,8 @@
 use crate::errors::Refused;
 use crate::net::build_address::build_address;
 use crate::net::dplay::{INITIALIZE_CONNECTION, call};
-use crate::net::lobby::{ADDRESS, DPLAY, a, g, log, log_hex, log_int_nl};
+use crate::net::lobby::{a, log, log_hex, log_int_nl};
+use crate::net::store::NET;
 
 const TEXT: usize = 0x5C2E80; // "NET: Init connection index"
 const INIT: usize = 0x5C2E9B; // "NET: Init"
@@ -20,10 +21,10 @@ const INIT: usize = 0x5C2E9B; // "NET: Init"
 pub fn init_connection(connection: u32) -> Result<bool, Refused> {
     log(a(TEXT), false, 2);
     log_int_nl(connection, 2);
-    if g(DPLAY) == 0 || !build_address(connection)? {
+    if NET.dplay.get() == 0 || !build_address(connection)? {
         return Ok(false);
     }
-    let result = unsafe { call(DPLAY, INITIALIZE_CONNECTION, &[g(ADDRESS), 0]) };
+    let result = unsafe { call(&NET.dplay, INITIALIZE_CONNECTION, &[NET.address.get(), 0]) };
     log(a(INIT), false, 2);
     log_hex(result, true);
     Ok(result == 0)

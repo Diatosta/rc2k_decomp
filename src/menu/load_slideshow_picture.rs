@@ -24,12 +24,12 @@ use crate::gfx::convert_picture::convert_picture_now;
 use crate::gfx::load_picture::load_picture;
 use crate::gfx::load_picture_with_overlay::load_picture_with_overlay;
 use crate::menu::car_buttons::PICTURE_RVA;
+use crate::menu::lists_store::MENU_LISTS;
 use crate::menu::load_car_background::shown_car;
 use crate::strings::text_length::text_length;
 
 // ---- game data ----
 
-const TEMPLATES_RVA: usize = rva(0x759B0E); // off_759B0E
 const TITLE_BAR_RVA: usize = rva(0x731C54); // "files\g\graphics\screens\titlebar.png"
 
 /// What it asks for.
@@ -51,7 +51,7 @@ pub unsafe fn load_slideshow_picture(
         // Converted: `rc2k_core::menu::slides` (`slideshow_car`, `search`, `pcx`).
         use rc2k_core::menu::slides;
         let car = slides::slideshow_car(shown_car()?)?;
-        let template: u32 = game_read(TEMPLATES_RVA + car as usize * 4);
+        let template = MENU_LISTS.slideshow_templates[car as usize].get();
         let start: u32 = game_read(PICTURE_RVA);
         let mut path = std::ptr::null_mut();
         slides::search(

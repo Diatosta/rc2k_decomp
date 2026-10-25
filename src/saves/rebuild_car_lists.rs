@@ -11,15 +11,17 @@
 //! 0x400 or more.
 
 use crate::errors::BadInput;
-use crate::framework::{game_read, game_write, rva};
+use crate::framework::{game_read, rva};
+use crate::menu::lists_store::MENU_LISTS;
+use crate::session::Dword;
 
 // ---- game data ----
 
 const TABLE_RVA: usize = rva(0x7564A0); // off_7564A0
 /// (the numbers, the pointers, how many entries each has)
-const LISTS: [(usize, usize, usize); 2] = [
-    (rva(0x755258), rva(0x75A042), 0x28), // unk_755258, off_75A042
-    (rva(0x7552F8), rva(0x75A12E), 0x14), // unk_7552F8, off_75A12E
+const LISTS: [(usize, &[Dword], usize); 2] = [
+    (rva(0x755258), &MENU_LISTS.cars_second, 0x28), // unk_755258, off_75A042
+    (rva(0x7552F8), &MENU_LISTS.shown_cars, 0x14),  // unk_7552F8, off_75A12E
 ];
 
 // ---- Rust version ----
@@ -39,7 +41,7 @@ pub unsafe fn rebuild_car_lists() -> Result<(), BadInput> {
         }
         for ((_, pointers, _), list) in LISTS.into_iter().zip(found) {
             for (n, v) in list.into_iter().enumerate() {
-                game_write(pointers + n * 4, v);
+                pointers[n].set(v);
             }
         }
         Ok(())

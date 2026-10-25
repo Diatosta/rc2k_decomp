@@ -7,13 +7,10 @@
 //! Callers: `sub_46F7AD` (`jz`), `sub_47F314` (`jnz`); `sound::step_car_stream` has it
 //! inlined.
 
-use crate::audio::store::Slot;
-use crate::store::game_read;
-
-const PLAYING_RVA: Slot = Slot::at(0x506960); // g_soundStream.playing
+use crate::audio::store::AUDIO;
 
 /// The Rust version: (zero, carry) as the original's `cmp` leaves them.
 pub fn stream_playing() -> (bool, bool) {
-    let playing: u32 = unsafe { game_read(PLAYING_RVA) };
+    let playing = AUDIO.sound_stream.get().playing;
     (playing == 1, playing < 1)
 }

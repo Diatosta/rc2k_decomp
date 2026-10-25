@@ -195,7 +195,6 @@ pub mod start_go_notice;
 pub mod start_skid_mark;
 pub mod stir_car_word;
 pub mod store;
-pub mod store_data;
 pub mod store_motion_length;
 pub mod sum_forces;
 pub mod surface_noise;

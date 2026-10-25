@@ -8,11 +8,16 @@
 //! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
 //! are the original's.
 
-use crate::install::installer::{Api, REG_DELETE_KEY, a};
+use crate::install::installer::{Api, REG_DELETE_KEY};
 
-const KEY_NAME: usize = 0x5AB419; // "SOFTWARE\Microsoft\DirectPlay\Applications\RC"
 const HKLM: u32 = 0x8000_0002;
 
 pub fn unregister_lobby(api: Api) {
-    api(REG_DELETE_KEY, &[HKLM, a(KEY_NAME)]);
+    api(
+        REG_DELETE_KEY,
+        &[
+            HKLM,
+            crate::install::store::LOBBY_KEYS.registry_key.addr() as u32,
+        ],
+    );
 }

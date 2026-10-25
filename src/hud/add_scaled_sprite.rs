@@ -9,12 +9,9 @@
 
 use crate::errors::Refused;
 use crate::hud::add_sprite::{put_corners, put_places};
-use crate::hud::store::Slot;
-use crate::hud::store::game_write;
+use crate::hud::store::HUD;
 use rc2k_core::hud::quads;
 use rc2k_core::math::extended::to_f64;
-
-const SCRATCH_RVA: Slot = Slot::at(0x75C060); // dword_75C060
 
 /// The Rust version (see the header), the scales as `f64`s (what the x87 holds at the
 /// game's double precision): the sprite at `rect` with its corner at `x`, `y` (ebx, ecx,
@@ -30,7 +27,7 @@ pub unsafe fn add_scaled_sprite_plain(
         let [_, _, w, h] = put_places(rect);
         let w = quads::scaled_size(w, scales[0]);
         let h = quads::scaled_size(h, scales[1]);
-        game_write(SCRATCH_RVA, h);
+        HUD.scratch.set(h);
         put_corners(x, y, w, h);
         crate::hud::add_quad::add_quad()
     }

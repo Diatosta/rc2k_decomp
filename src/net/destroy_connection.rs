@@ -13,18 +13,15 @@
 
 use crate::errors::Refused;
 use crate::logfile::log_write::log_write;
-use crate::net::{
-    ON, a, close_session, destroy_player, free_messages, g, p, release_dplay, release_lobby,
-};
+use crate::net::store::NET;
+use crate::net::{a, close_session, destroy_player, free_messages, release_dplay, release_lobby};
 
-/// dword_5AB288: DirectPlay's object (IDirectPlay), 0 without one.
-pub const DPLAY: usize = 0x5AB288;
 const TEXT: usize = 0x5C2EA5; // "NET: Destroy connection"
 
 /// The Rust version.
 pub fn destroy_connection() -> Result<(), Refused> {
-    if g(DPLAY) != 0 {
-        p(ON, 0);
+    if NET.dplay.get() != 0 {
+        NET.session.set(0);
         unsafe { log_write(a(TEXT) as *const u8, true, 2) };
         destroy_player::destroy_player();
         close_session::close_session();

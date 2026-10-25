@@ -22,16 +22,13 @@
 //! Refuses A3D (the chunk at 0x40CC88), and what the settings refuse, checked first.
 
 use crate::audio::buffer_settings::{a3d, set_buffer_frequency, set_buffer_pan, set_buffer_volume};
-use crate::audio::describe_wave_format::{WAVE_FORMAT_RVA, describe_wave_format};
-use crate::audio::store::Slot;
+use crate::audio::describe_wave_format::describe_wave_format;
+use crate::audio::store::AUDIO;
 use crate::audio::voices::*;
 use crate::errors::{BadInput, Refused};
 use crate::framework::rva;
 use crate::store::game_addr;
 
-pub const DIRECT_SOUND_RVA: Slot = Slot::at(0x506A88); // g_directSound
-pub const DESCRIPTION_RVA: Slot = Slot::at(0x506B1C); // g_bufferDescription
-const IID_3D_RVA: Slot = Slot::at(0x506A58); // g_iidSound3dBuffer
 const CREATE_FAILED_RVA: usize = rva(0x4DA6E4); // "AUD: 1-DSBCreate failed"
 const QUERY_FAILED_RVA: usize = rva(0x4DA6FC); // "AUD: 1-DSBQuery3D failed"
 pub const MODE_OWN_BUFFERS: u32 = 0x1_0000;
@@ -48,38 +45,18 @@ pub struct BufferDescription {
     pub format: u32,
 }
 
-/// Where its variables are.
-#[derive(Clone, Copy)]
-pub struct Vars {
-    pub mode: u32,
-    pub direct_sound: u32,
-    pub description: u32,
-    pub commit: u32,
-}
-
-impl Vars {
-    pub fn game() -> Self {
-        Self {
-            mode: game_addr(SOUND_MODE_RVA) as u32,
-            direct_sound: game_addr(DIRECT_SOUND_RVA) as u32,
-            description: game_addr(DESCRIPTION_RVA) as u32,
-            commit: game_addr(COMMIT_RVA) as u32,
-        }
-    }
-}
-
 /// True for the carry clear. `ebx`: the caller's, which the original leaves in ebx (or
 /// replaces, as below) when it calls the EAX parts: they read through it.
-pub unsafe fn make_buffer(at: u32, ebx: u32, vars: &Vars) -> Result<bool, Refused> {
+pub unsafe fn make_buffer(at: u32, ebx: u32) -> Result<bool, Refused> {
     unsafe {
         if a3d() {
             return Err(BadInput("A3D (the chunk at 0x40CC88)").into());
         }
-        let mode = read(vars.mode);
+        let mode = AUDIO.sound_mode.get();
         if mode & MODE_OWN_BUFFERS == 0 {
             return Ok(true);
         }
-        let ds = read(vars.direct_sound);
+        let ds = AUDIO.direct_sound.get();
         if ds == 0 {
             return Ok(false);
         }
@@ -107,16 +84,21 @@ pub unsafe fn make_buffer(at: u32, ebx: u32, vars: &Vars) -> Result<bool, Refuse
             describe_wave_format(v.format, v.frequency)?;
             // Converted: `rc2k_core::audio::voices::buffer_flags`.
             let flags = rc2k_core::audio::voices::buffer_flags(mode, v.flags);
-            (vars.description as *mut BufferDescription).write_unaligned(BufferDescription {
+            AUDIO.buffer_description.set(BufferDescription {
                 size: 0x14,
                 flags,
                 bytes: v.length,
                 reserved: 0,
-                format: game_addr(WAVE_FORMAT_RVA) as u32,
+                format: AUDIO.wave_format.addr() as u32,
             });
             let f: unsafe extern "system" fn(u32, u32, u32, u32) -> i32 =
                 std::mem::transmute(crate::audio::com::method(ds, 0x0C));
-            let r = f(ds, vars.description, &mut v.buffer as *mut u32 as u32, 0);
+            let r = f(
+                ds,
+                AUDIO.buffer_description.addr() as u32,
+                &mut v.buffer as *mut u32 as u32,
+                0,
+            );
             if r != 0 {
                 return Ok(log_failure(CREATE_FAILED_RVA, r));
             }
@@ -129,7 +111,7 @@ pub unsafe fn make_buffer(at: u32, ebx: u32, vars: &Vars) -> Result<bool, Refuse
                 std::mem::transmute(crate::audio::com::method(v.buffer, 0));
             let r = f(
                 v.buffer,
-                game_addr(IID_3D_RVA) as u32,
+                AUDIO.iid_sound_3d_buffer.addr() as u32,
                 &mut v.buffer_3d as *mut u32 as u32,
             );
             if r != 0 {
@@ -137,7 +119,7 @@ pub unsafe fn make_buffer(at: u32, ebx: u32, vars: &Vars) -> Result<bool, Refuse
             }
             crate::audio::buffer_settings::set_buffer_place(v)?;
             crate::audio::set_buffer_min_distance::set_buffer_min_distance(v)?;
-            write(vars.commit, 1);
+            AUDIO.commit_3d.set(1);
             if mode & MODE_HARDWARE_3D != 0 {
                 ebx = &mut v.buffer_3d as *mut u32 as u32;
                 crate::audio::open_voice_manager::open_voice_manager(ebx)?;

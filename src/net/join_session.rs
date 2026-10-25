@@ -14,10 +14,8 @@
 use crate::errors::Refused;
 use crate::field;
 use crate::net::host_session::{OPEN_JOIN, finish, open};
-use crate::net::lobby::{
-    DPLAY, JOINED, JOINED_MOST, JOINED_NAME, JOINED_PASSWORD, SESSION_DESC, a, g, log, log_int_nl,
-    movsb, p, session, zero,
-};
+use crate::net::lobby::{a, log, log_int_nl, movsb, session, zero};
+use crate::net::store::NET;
 use crate::net::types::NetSession;
 
 const JOIN: usize = 0x5C2F01; // "NET: Join session"
@@ -36,18 +34,29 @@ fn join_group() -> Result<bool, Refused> {
 pub fn join_session(number: u32) -> Result<bool, Refused> {
     log(a(JOIN), false, 2);
     log_int_nl(number, 1);
-    if g(DPLAY) == 0 {
+    if NET.dplay.get() == 0 {
         return Ok(false);
     }
     let record = session(number)?;
-    movsb(a(JOINED), record + field!(NetSession, instance), 0x10);
-    movsb(a(JOINED_NAME), record, 0x40);
-    p(JOINED_MOST, unsafe {
-        ((record + 0x50) as *const u32).read_unaligned()
-    });
-    movsb(a(JOINED_PASSWORD), record + field!(NetSession, user), 0x10);
-    zero(a(SESSION_DESC), 0x50)?;
-    p(SESSION_DESC, 0x50);
-    movsb(a(SESSION_DESC) + 8, a(JOINED), 0x10);
+    movsb(
+        NET.joined.addr() as u32,
+        record + field!(NetSession, instance),
+        0x10,
+    );
+    movsb(NET.joined_name.addr() as u32, record, 0x40);
+    NET.joined_most
+        .set(unsafe { ((record + 0x50) as *const u32).read_unaligned() });
+    movsb(
+        NET.joined_password.addr() as u32,
+        record + field!(NetSession, user),
+        0x10,
+    );
+    zero(NET.session_desc.addr() as u32, 0x50)?;
+    NET.session_desc.size.set(0x50);
+    movsb(
+        NET.session_desc.instance.as_ptr() as u32,
+        NET.joined.addr() as u32,
+        0x10,
+    );
     finish(posted_open_join, join_group, COMPLETE)
 }

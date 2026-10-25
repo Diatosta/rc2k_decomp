@@ -40,7 +40,9 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_read, rva};
+use crate::menu::lists_store::MENU_LISTS;
 use crate::menu::ranked_lookups::{find_ranked_entry, find_ranked_position, first_overall_time};
+use crate::menu::state_store::MENU_STATE;
 use crate::screens::best_scores::{record_at, section_there};
 use crate::strings::append_time::show_hours;
 use crate::text::draw_text::Canvas;
@@ -53,10 +55,8 @@ const FIRST_ROW_RVA: usize = rva(0x7556B8); // g_champFirstRow
 // g_firstPlayerTime
 // hundredths
 // dword_7559D4
-const ALT_TITLE_RVA: usize = rva(0x75AB20); // dword_75AB20
 const EVENT_MODE_RVA: usize = rva(0x7556D0); // g_eventMode
 const SECTION_RVA: usize = rva(0x75595C); // section
-const SECTION_NAMES_RVA: usize = rva(0x75A28A); // dword_75A28A
 fn g(a: usize) -> u32 {
     unsafe { game_read(a) }
 }
@@ -155,13 +155,16 @@ pub unsafe fn draw_results_page(page: &Page, canvas: &mut dyn Canvas) -> Result<
     unsafe {
         let heading = match page.heading {
             Heading::Titles(normal, alternative) => Drawn::Titles {
-                title: if g(ALT_TITLE_RVA) == 1 {
+                title: if MENU_STATE.menus.rally_done.get() == 1 {
                     alternative
                 } else {
                     normal
                 },
                 name: if g(EVENT_MODE_RVA) == 0x13 {
-                    g(SECTION_NAMES_RVA + 4 * g(SECTION_RVA) as usize)
+                    crate::screens::stage_panel::table_dword_at(
+                        MENU_LISTS.section_titles[0].addr(),
+                        g(SECTION_RVA),
+                    )
                 } else {
                     get(record_at(0) + 0x38)
                 },

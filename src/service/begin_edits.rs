@@ -12,10 +12,10 @@
 //! budgets around the boundary, edit mode 0 and 1, put back.
 
 use crate::errors::Refused;
-use crate::framework::{game_read, game_write, rva};
-use crate::service::state::{
-    EDIT_MODE_RVA, EDIT_PAGE_RVA, REPAIR_TOTAL_RVA, TIME_BUDGET_RVA, flagged_item, repair_flag,
-};
+use crate::framework::game_read;
+use crate::menu::state_store::MENU_STATE;
+use crate::service::state::{TIME_BUDGET_RVA, flagged_item, repair_flag};
+use crate::session::Dword;
 
 /// One page's own variables.
 #[derive(Clone, Copy)]
@@ -23,11 +23,11 @@ pub struct Edit {
     /// The page number written to `dword_75AAA0`.
     pub page: u32,
     /// The item's service time (`dword_75AB90` ..).
-    pub time_rva: usize,
+    pub time: &'static Dword,
     /// The chosen value, copied ...
-    pub chosen_rva: usize,
+    pub chosen: &'static Dword,
     /// ... to the value at the edit's start.
-    pub start_rva: usize,
+    pub start: &'static Dword,
 }
 
 /// The Rust version (see the header).
@@ -37,13 +37,16 @@ pub unsafe fn begin_edit(e: Edit) -> Result<(), Refused> {
         // Converted: `rc2k_core::service::repairs::may_edit`.
         if rc2k_core::service::repairs::may_edit(
             repair_flag(item),
-            game_read(REPAIR_TOTAL_RVA),
-            game_read(e.time_rva),
+            MENU_STATE.driver_stats.repair_time.get() as i32,
+            e.time.get() as i32,
             game_read(TIME_BUDGET_RVA),
         ) {
-            game_write(e.start_rva, game_read::<u32>(e.chosen_rva));
-            game_write(EDIT_MODE_RVA, game_read::<u32>(EDIT_MODE_RVA) ^ 1);
-            game_write(EDIT_PAGE_RVA, e.page);
+            e.start.set(e.chosen.get());
+            MENU_STATE
+                .service_ui
+                .box_shown
+                .set(MENU_STATE.service_ui.box_shown.get() ^ 1);
+            MENU_STATE.service_ui.box_page.set(e.page);
         }
     }
     Ok(())
@@ -51,25 +54,25 @@ pub unsafe fn begin_edit(e: Edit) -> Result<(), Refused> {
 
 pub const GEAR_RATIO: Edit = Edit {
     page: 1,
-    time_rva: rva(0x75AB90),
-    chosen_rva: rva(0x75AC90),
-    start_rva: rva(0x75AC98),
+    time: &MENU_STATE.driver_stats.repair_times[12],
+    chosen: &MENU_STATE.driver_stats.setups[0].chosen,
+    start: &MENU_STATE.driver_stats.setups[0].start,
 };
 pub const TYRE: Edit = Edit {
     page: 2,
-    time_rva: rva(0x75AB94),
-    chosen_rva: rva(0x75AC9C),
-    start_rva: rva(0x75ACA4),
+    time: &MENU_STATE.driver_stats.repair_times[13],
+    chosen: &MENU_STATE.driver_stats.setups[1].chosen,
+    start: &MENU_STATE.driver_stats.setups[1].start,
 };
 pub const RIDE_HEIGHT: Edit = Edit {
     page: 5,
-    time_rva: rva(0x75AB98),
-    chosen_rva: rva(0x75ACA8),
-    start_rva: rva(0x75ACB0),
+    time: &MENU_STATE.driver_stats.repair_times[14],
+    chosen: &MENU_STATE.driver_stats.setups[2].chosen,
+    start: &MENU_STATE.driver_stats.setups[2].start,
 };
 pub const SUSPENSION_STIFFNESS: Edit = Edit {
     page: 6,
-    time_rva: rva(0x75AB9C),
-    chosen_rva: rva(0x75ACB4),
-    start_rva: rva(0x75ACBC),
+    time: &MENU_STATE.driver_stats.repair_times[15],
+    chosen: &MENU_STATE.driver_stats.setups[3].chosen,
+    start: &MENU_STATE.driver_stats.setups[3].start,
 };

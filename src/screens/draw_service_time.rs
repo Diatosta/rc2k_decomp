@@ -15,7 +15,8 @@
 
 use crate::errors::Refused;
 use crate::framework::game_read;
-use crate::service::state::{REPAIR_TOTAL_RVA, TIME_BUDGET_RVA};
+use crate::menu::state_store::MENU_STATE;
+use crate::service::state::TIME_BUDGET_RVA;
 use crate::text::draw_text::Canvas;
 
 // ---- game data ----
@@ -34,7 +35,7 @@ pub unsafe fn draw_service_time(canvas: &mut dyn Canvas) -> Result<bool, Refused
         rc2k_core::screens::service::service_time(
             &mut crate::screens::game_screen::ServiceScreen::new(canvas),
             game_read(TIME_BUDGET_RVA),
-            game_read(REPAIR_TOTAL_RVA),
+            MENU_STATE.driver_stats.repair_time.get() as i32,
         )
     }
 }

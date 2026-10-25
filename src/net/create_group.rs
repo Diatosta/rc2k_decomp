@@ -11,19 +11,35 @@
 use crate::errors::Refused;
 use crate::net::create_player::dp_name;
 use crate::net::dplay::{ADD_PLAYER_TO_GROUP, CREATE_GROUP, call};
-use crate::net::lobby::{DP_NAME, DPLAY, PLAYER_ID, SEND_TO, a, g};
-
-pub const GROUP_NAME: usize = 0x5AB25C; // "susanivanovafanclub"
+use crate::net::store::NET;
 
 /// `AddPlayerToGroup(g_netSendTo, g_netPlayerId)`: whether it worked; shared with
 /// `net::join_group`.
 pub fn join() -> bool {
-    unsafe { call(DPLAY, ADD_PLAYER_TO_GROUP, &[g(SEND_TO), g(PLAYER_ID)]) == 0 }
+    unsafe {
+        call(
+            &NET.dplay,
+            ADD_PLAYER_TO_GROUP,
+            &[NET.send_to.get(), NET.player_id.get()],
+        ) == 0
+    }
 }
 
 /// The Rust version.
 pub fn create_group() -> Result<bool, Refused> {
-    dp_name(a(GROUP_NAME))?;
-    let result = unsafe { call(DPLAY, CREATE_GROUP, &[a(SEND_TO), a(DP_NAME), 0, 0, 0]) };
+    dp_name(NET.group_name.addr() as u32)?;
+    let result = unsafe {
+        call(
+            &NET.dplay,
+            CREATE_GROUP,
+            &[
+                NET.send_to.addr() as u32,
+                NET.dp_name.addr() as u32,
+                0,
+                0,
+                0,
+            ],
+        )
+    };
     Ok(result == 0 && join())
 }

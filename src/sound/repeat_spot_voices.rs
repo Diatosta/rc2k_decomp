@@ -21,7 +21,7 @@ use crate::errors::Refused;
 pub fn repeat_spot_voices() -> Result<(), Refused> {
     use crate::sound::spot_voices::{load_voices, store_voices};
     use rc2k_core::sound::spot_voices::{Repeats, repeat};
-    let table_of = crate::sound::store::SOUND_EFFECTS
+    let table_of = crate::sound::store::SPOT_PICKS
         .kind_repeats
         .each_ref()
         .map(|r| Repeats {

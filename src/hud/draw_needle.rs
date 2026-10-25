@@ -22,26 +22,12 @@
 use crate::errors::Refused;
 use crate::framework::rva;
 use crate::hud::batch::POLYGON_COUNT_RVA;
-use crate::hud::store::Slot;
-use crate::hud::store::read_f32 as f;
-use crate::hud::store::{game_addr, game_read, game_write};
+use crate::hud::store::HUD;
 use crate::math::x87;
 use crate::scene::matrix3::extended;
 use crate::scene::x87_mem::{fistp, fld};
+use crate::store::game_addr;
 
-const KIND_RVA: Slot = Slot::at(0x75BFAC); // dword_75BFAC
-const VALUE_RVA: Slot = Slot::at(0x75C2E0); // dword_75C2E0
-const SCRATCH_RVA: Slot = Slot::at(0x75C060); // dword_75C060
-const LEAST_RVA: Slot = Slot::at(0x75C018); // flt_75C018
-/// flt_75C2BC .. flt_75C2D4: base, base 2, split, scale, scale 2, most, most 2
-const K_RVA: Slot = Slot::at(0x75C2BC);
-const TURN_K_RVA: [Slot; 2] = [Slot::at(0x75C010), Slot::at(0x75C014)];
-const CORNERS_RVA: [Slot; 4] = [
-    Slot::at(0x75C2A8),
-    Slot::at(0x75C2AC),
-    Slot::at(0x75C2B0),
-    Slot::at(0x75C2B4),
-];
 const VERTICES_RVA: usize = rva(0x9605A0); // g_polygonVertices
 
 /// `fld v [; fsub less]; fdiv over; fadd plus; fmul k0; fmul k1; fistp`.
@@ -61,10 +47,10 @@ pub unsafe fn draw_needle() -> Result<(), Refused> {
     unsafe {
         use rc2k_core::hud::disc::{needle_corners, needle_edx, needle_turn};
         use rc2k_core::math::extended::to_f64;
-        let kind = game_read::<u32>(KIND_RVA) != 0;
-        let value = f32::from_bits(x87::from_int(game_read(VALUE_RVA)));
-        let t = needle_turn(value, kind, f(LEAST_RVA), |n| f(K_RVA + 4 * n));
-        let tk = TURN_K_RVA.map(|r| game_read::<u32>(r));
+        let kind = HUD.needle_kind.get() != 0;
+        let value = f32::from_bits(x87::from_int(HUD.needle_value.get() as i32));
+        let t = needle_turn(value, kind, HUD.least.get(), |n| HUD.needle_k[n].get());
+        let tk = [HUD.uv_scale_y.bits(), HUD.turn_k.bits()];
         // The rounding follows the x87's control word: the x87's.
         let turn = turn_of(
             t.value.to_bits(),
@@ -73,9 +59,9 @@ pub unsafe fn draw_needle() -> Result<(), Refused> {
             t.plus.to_bits(),
             tk,
         );
-        game_write(SCRATCH_RVA, turn);
+        HUD.scratch.set(turn);
         let angle = needle_edx(turn);
-        for (n, (x, y)) in needle_corners(CORNERS_RVA.map(|r| game_read::<u32>(r)))
+        for (n, (x, y)) in needle_corners(HUD.needle_corners.each_ref().map(|c| c.bits()))
             .into_iter()
             .enumerate()
         {
@@ -83,7 +69,7 @@ pub unsafe fn draw_needle() -> Result<(), Refused> {
             let point = [extended(y), extended(x)].map(to_f64);
             crate::hud::turned_vertex::turned_vertex(vertex, angle, point);
         }
-        game_write(POLYGON_COUNT_RVA, 4u32);
+        crate::store::game_write(POLYGON_COUNT_RVA, 4u32);
         crate::hud::add_polygon::add_polygon()
     }
 }

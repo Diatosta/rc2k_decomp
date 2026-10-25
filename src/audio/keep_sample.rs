@@ -8,9 +8,9 @@
 //! error 0x80E28021 cannot come), the data copied there and the voice's data pointed at it. One caller,
 //! command 3 (`sub_40AEB9`).
 
+use crate::audio::store::AUDIO;
 use crate::audio::voices::*;
 use crate::errors::Refused;
-use crate::store::game_addr;
 
 /// `allocate`: `length` bytes of the samples' memory.
 pub unsafe fn keep_sample(
@@ -28,7 +28,7 @@ pub unsafe fn keep_sample(
 }
 
 pub unsafe fn allocate_in_game(length: u32) -> Result<u32, Refused> {
-    let list = game_addr(SAMPLE_MEMORY_RVA) as *mut _;
+    let list = AUDIO.sample_memory.as_ptr();
     // The allocator reports a failure itself (0x80108571), so `sub_409DFB`'s own fatal
     // error 0x80E28021 cannot come.
     Ok(unsafe { crate::memory::allocate::allocate(list, length) }? as u32)

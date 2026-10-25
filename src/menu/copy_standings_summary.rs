@@ -11,16 +11,16 @@
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_read, rva};
 use crate::menu::standings::*;
+use crate::menu::state_store::MENU_STATE;
 
 const SUMMARY_RVA: usize = rva(0x7556F4); // dword_7556F4
-const MODE_RVA: usize = rva(0x75AB40); // dword_75AB40
 /// The Rust version (see the header): the registers it leaves.
 pub unsafe fn copy_standings_summary() -> Result<(), Refused> {
     let (summary, first): (u32, u32) = unsafe { (game_read(SUMMARY_RVA), game_read(TABLE_A_RVA)) };
     if summary == 0 || first == 0 {
         return Err(BadInput("no standings tables").into());
     }
-    let grouped = unsafe { game_read::<u32>(MODE_RVA) } == 2;
+    let grouped = MENU_STATE.menus.class_mode.get() == 2;
     let all = entries(first, A_ENTRY)?;
     // Converted: `rc2k_core::menu::standings::summary_rows`.
     let t = unsafe { table(first, A_ENTRY, all.len() as u32) };

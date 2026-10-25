@@ -52,8 +52,11 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::menu::lists_store::MENU_LISTS;
 use crate::menu::player::player_at;
 use crate::menu::standings::{bytes, table};
+use crate::race::state_store::RACE_STATE;
+use crate::session::{Dword, read_all, write_all};
 use rc2k_core::menu::{bests, standings};
 
 pub const LEVEL_RVA: usize = rva(0x7587EC); // dword_7587EC
@@ -77,9 +80,6 @@ const CHEATS_RVA: usize = rva(0x75870C); // g_cheats
 const KEPT_NAME_RVA: usize = rva(0x755884); // g_keptPlayerName
 const SLOT_RVA: usize = rva(0x7559EC); // dword_7559EC
 // hhmm
-const BEST_LINE_RVA: usize = rva(0x75B02C); // unk_75B02C
-const CARS_RVA: usize = rva(0x75A042); // off_75A042
-const SHOWN_LIST_RVA: usize = rva(0x75A12E); // off_75A12E
 const SHOWN_RVA: usize = rva(0x755990); // dword_755990
 const CARS_LEN: u32 = 0x28;
 const SHOWN_LIST_LEN: u32 = 0x30;
@@ -301,25 +301,25 @@ pub fn take_arcade_stage_best() -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::bests::best_line`.
     let first = course_times()?;
     let line = bests::best_line(&unsafe { ten_entries(first, TIME_LEN) });
-    unsafe { game_write(BEST_LINE_RVA, line) };
+    RACE_STATE.results.results[0].data.write(&line);
     Ok(())
 }
 
 /// The place of a list's end mark.
-fn end_of(list: usize, len: u32) -> Result<u32, Refused> {
+fn end_of(list: &[Dword], len: u32) -> Result<u32, Refused> {
     (0..len)
-        .find(|&k| g(list + 4 * k as usize) == u32::MAX)
+        .find(|&k| list[k as usize].get() == u32::MAX)
         .ok_or(BadInput("a list of cars without its end").into())
 }
 
 pub fn add_shown_car() -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::car_lists` (`entries`, `shown_car`).
     use rc2k_core::menu::car_lists::{entries, shown_car};
-    let list = |at: usize, len: u32| entries(len as usize, |k| g(at + 4 * k));
+    let list = |cells: &[Dword], len: u32| entries(len as usize, |k| cells[k].get());
     let shown = g(SHOWN_RVA);
-    let car = shown_car(&list(SHOWN_LIST_RVA, SHOWN_LIST_LEN)?, shown)?;
-    let end = list(CARS_RVA, CARS_LEN)?.len();
-    p(CARS_RVA + 4 * end, car);
+    let car = shown_car(&list(&MENU_LISTS.shown_cars, SHOWN_LIST_LEN)?, shown)?;
+    let end = list(&MENU_LISTS.cars_second, CARS_LEN)?.len();
+    MENU_LISTS.cars_second[end].set(car);
     Ok(())
 }
 
@@ -327,13 +327,13 @@ pub fn add_shown_car() -> Result<(), Refused> {
 /// (`saves::list_car_numbers`).
 pub fn remove_shown_car(then: &mut dyn FnMut() -> Result<(), Refused>) -> Result<(), Refused> {
     let shown = g(SHOWN_RVA);
-    let end = end_of(SHOWN_LIST_RVA, SHOWN_LIST_LEN)?;
+    let end = end_of(&MENU_LISTS.shown_cars, SHOWN_LIST_LEN)?;
     if shown >= end {
         return Err(BadInput("a shown car past the list").into());
     }
     // Converted: `rc2k_core::menu::standings::remove_at`.
-    let mut cars: [u32; SHOWN_LIST_LEN as usize] = unsafe { game_read(SHOWN_LIST_RVA) };
+    let mut cars: [u32; SHOWN_LIST_LEN as usize] = read_all(&MENU_LISTS.shown_cars);
     standings::remove_at(&mut cars, shown as usize, end as usize);
-    unsafe { game_write(SHOWN_LIST_RVA, cars) };
+    write_all(&MENU_LISTS.shown_cars, cars);
     then()
 }

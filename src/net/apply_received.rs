@@ -13,24 +13,23 @@
 //! and more than 16.
 
 use crate::errors::{BadInput, Refused};
-use crate::field;
+use crate::net::apply_message::apply_message;
 use crate::net::copy_received::{MOST_PLAYERS, copy_received};
-use crate::net::types::NetPlayerBlock;
-use crate::net::{PLAYERS, RECEIVED, RECEIVED_LEN, a, apply_message::apply_message, g};
+use crate::net::store::NET;
 
 /// The Rust version.
 pub fn apply_received() -> Result<(), Refused> {
-    let count = || g(PLAYERS);
+    let count = || NET.players.get();
     if count() == 0 || count() > MOST_PLAYERS {
         return Err(BadInput("no players, or more than the records' 16").into());
     }
     copy_received()?;
     let mut player = 0;
     loop {
-        let mut record = a(RECEIVED) + RECEIVED_LEN * player + field!(NetPlayerBlock, copied_count);
-        let mut left = unsafe { (record as *const u32).read_unaligned() };
+        let block = NET.player_block(player);
+        let mut left = block.copied_count.get();
         if left != 0 {
-            record += 4;
+            let mut record = block.copied.addr();
             loop {
                 apply_message(player, (record + 2) as *const u8);
                 record += 0x100;

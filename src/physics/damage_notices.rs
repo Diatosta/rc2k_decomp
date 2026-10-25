@@ -21,10 +21,8 @@ use crate::errors::Refused;
 use crate::math::x87::from_int;
 use crate::physics::flow::{g, p};
 use crate::physics::queue_notice::queue_notice;
+use crate::physics::store::DAMAGE;
 use rc2k_core::physics::damage_notices::{LEVELS, damage_notices as damage_notices_core};
-
-/// `flt_75B36C`: the threshold being compared.
-const LIMIT: crate::physics::store::vars::Slot = crate::physics::store::vars::Slot::at(0x75B36C); // flt_75B36C
 
 const LEVELS_AT: usize = 0x71A340; // unk_71A340: the levels
 const GAUGES_AT: usize = 0x71A284; // unk_71A284: the gauges
@@ -35,7 +33,7 @@ fn steps() -> Result<(), Refused> {
     let result = damage_notices_core(
         &mut levels,
         |k| f32::from_bits(g(GAUGES_AT + 4 * k)),
-        |t| p(LIMIT, from_int(t)),
+        |t| DAMAGE.scratch.set_bits(from_int(t)),
         |q| unsafe { queue_notice(q.notice, q.rank, g(GAUGES_AT + 4 * q.gauge)) },
     );
     for (k, &v) in levels.iter().enumerate() {

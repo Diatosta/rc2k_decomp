@@ -171,12 +171,6 @@ pub unsafe fn game_write<T: Copy>(place: impl Where, value: T) {
     }
 }
 
-/// The block's address for inline assembly: `[base + offset]` with `offset` IDA's address
-/// less `R::START`.
-pub fn base<R: Region>() -> u32 {
-    R::base() as u32
-}
-
 /// The block's first values against the image (a test helper).
 #[cfg(test)]
 pub fn first_values_are_the_games<R: Region>(store: &crate::moved::Place<impl Sized>) {

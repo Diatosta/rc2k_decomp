@@ -25,56 +25,47 @@
 //! carry (section 16). Caller: `net::start_link`.
 
 use crate::errors::Refused;
-use crate::field;
 use crate::net::lobby::{
-    ALL_RACED, BACK_FROM_RACE, CAR_ITEM, CHOICE, CLOCK_A, EDITED, FRAME_CLOCK, KEY_CLOCK,
-    MOVE_CLOCK, OWN, PLAYER, PLAYERS, RACING, SEND_BUFFER, SHOW_GAPS, STAGE_ITEM, SYNC, SYNC_CLOCK,
-    SYNC_FIRST, SYNCED, a, block, g, gb, list_key, other_key, p, pb, run_frame,
+    CHOICE, FRAME_CLOCK, KEY_CLOCK, MOVE_CLOCK, g, list_key, other_key, p, run_frame,
 };
-use crate::net::types::NetPlayerBlock;
+use crate::net::store::{NET, PlayerRecord};
 use crate::session::CLOCKS;
 use crate::session::FLAGS;
 
 /// The players' states and-ed together (those with bit 0x80 left out), starting from
 /// `bits`, as the original's al: over `count` players (at least one turn: `count` > 0).
 pub fn all_states(bits: u8, count: u32) -> u8 {
-    let state = |n: u32| gb_at(block(n) + field!(NetPlayerBlock, record.state));
+    let state = |n: u32| NET.player_block(n).record.state();
     // Converted: `rc2k_core::net::players::all_in_state`.
     rc2k_core::net::players::all_in_state(bits, count, state)
-}
-
-fn gb_at(at: u32) -> u8 {
-    unsafe { (at as *const u8).read() }
 }
 
 /// The sync with the other players (the host's): the table cleared the first time (this
 /// player answered), once a second message `kind` and the sync counter sent to each player
 /// that has not answered; true when all have. Shared with `net::race_wait`.
 pub fn sync(kind: u8) -> Result<bool, Refused> {
-    let first = g(SYNC_FIRST);
-    p(SYNC_FIRST, 0);
+    let first = NET.sync_first.get();
+    NET.sync_first.set(0);
     if first != 0 {
-        unsafe { std::ptr::write_bytes(a(SYNCED) as *mut u8, 0, 8) };
-        pb(SYNCED + g(PLAYER) as usize, 1);
+        unsafe { std::ptr::write_bytes((NET.synced.addr() as u32) as *mut u8, 0, 8) };
+        NET.set_synced(NET.player.get() as usize, 1);
     }
     let now = crate::system::tick_count::tick_count();
-    if (now.wrapping_sub(g(SYNC_CLOCK)).wrapping_sub(1000) as i32) >= 0 {
-        p(SYNC_CLOCK, now);
+    if (now.wrapping_sub(NET.sync_clock.get()).wrapping_sub(1000) as i32) >= 0 {
+        NET.sync_clock.set(now);
         // Counted up with `jb` at the end: at least one turn.
         let mut n = 0;
         loop {
-            if gb(SYNCED + n as usize) != 1 {
-                let id = unsafe {
-                    ((block(n) + field!(NetPlayerBlock, id)) as *const u32).read_unaligned()
-                };
+            if NET.synced(n as usize) != 1 {
+                let id = NET.player_block(n).id.get();
                 unsafe {
-                    (a(SEND_BUFFER) as *mut u16)
-                        .write_unaligned(kind as u16 | (gb(SYNC) as u16) << 8)
+                    ((NET.send_buffer.addr() as u32) as *mut u16)
+                        .write_unaligned(kind as u16 | (NET.sync.get() as u16) << 8)
                 };
-                crate::net::dplay_send::dplay_send(id, 0, a(SEND_BUFFER), 2);
+                crate::net::dplay_send::dplay_send(id, 0, NET.send_buffer.addr() as u32, 2);
             }
             n += 1;
-            if n >= g(PLAYERS) {
+            if n >= NET.players.get() {
                 break;
             }
         }
@@ -82,9 +73,9 @@ pub fn sync(kind: u8) -> Result<bool, Refused> {
     // The answers added up in a byte (again at least one turn).
     let (mut n, mut answered) = (0u32, 0u8);
     loop {
-        answered = answered.wrapping_add(gb(SYNCED + n as usize));
+        answered = answered.wrapping_add(NET.synced(n as usize));
         n += 1;
-        if n >= g(PLAYERS) {
+        if n >= NET.players.get() {
             break;
         }
     }
@@ -96,10 +87,10 @@ fn step_item(step: u32) {
     loop {
         p(CHOICE, g(CHOICE).wrapping_add(step));
         let c = g(CHOICE);
-        if c == 1 && g(CAR_ITEM) != 1 {
+        if c == 1 && NET.car_item.get() != 1 {
             continue;
         }
-        if c == 2 && g(STAGE_ITEM) != 1 {
+        if c == 2 && NET.stage_item.get() != 1 {
             continue;
         }
         break;
@@ -108,29 +99,29 @@ fn step_item(step: u32) {
 
 /// The Rust version: 1 when the race is on, -1 (`u32::MAX`) when the lobby was left.
 pub fn lobby_loop() -> Result<u32, Refused> {
-    p(PLAYERS, 0);
-    p(RACING, 0);
+    NET.players.set(0);
+    NET.racing.set(0);
     crate::net::show_background::show_background()?;
     let now = CLOCKS.key_ticks.get();
     p(MOVE_CLOCK, now);
     p(KEY_CLOCK, now);
-    p(EDITED, u32::MAX);
+    NET.edited.set(u32::MAX);
     p(CHOICE, 3);
     let tick = crate::system::tick_count::tick_count();
-    p(CLOCK_A, tick);
-    p(SYNC_CLOCK, tick);
-    p(SYNC_FIRST, 1);
-    pb(SYNC, gb(SYNC).wrapping_add(1));
-    p(CAR_ITEM, 1);
-    p(STAGE_ITEM, 1);
-    if gb(OWN) & 0x10 == 0 {
-        p(STAGE_ITEM, 0);
+    NET.clock_a.set(tick);
+    NET.sync_clock.set(tick);
+    NET.sync_first.set(1);
+    NET.sync.set(NET.sync.get().wrapping_add(1));
+    NET.car_item.set(1);
+    NET.stage_item.set(1);
+    if NET.own.state() & 0x10 == 0 {
+        NET.stage_item.set(0);
     }
     loop {
         run_frame(crate::net::lobby_frame::lobby_frame)?;
         let tick = crate::system::tick_count::tick_count();
-        if (tick.wrapping_sub(g(CLOCK_A)).wrapping_sub(1000) as i32) >= 0 {
-            p(CLOCK_A, tick);
+        if (tick.wrapping_sub(NET.clock_a.get()).wrapping_sub(1000) as i32) >= 0 {
+            NET.clock_a.set(tick);
             // The original's `jb` after it is never taken (`list_players_regs` loses
             // the carry, section 16).
             crate::net::list_players::list_players_regs()?;
@@ -138,13 +129,13 @@ pub fn lobby_loop() -> Result<u32, Refused> {
         p(FRAME_CLOCK, CLOCKS.key_ticks.get());
         let key = list_key()?;
         let mut moved = false;
-        if g(EDITED) != u32::MAX {
+        if NET.edited.get() != u32::MAX {
             crate::net::chat_key::chat_key(key)?;
         } else {
-            let ready = gb(OWN) & 1 != 0;
+            let ready = NET.own.state() & 1 != 0;
             if !ready && key == 0x69 {
                 step_item(u32::MAX);
-                if g(BACK_FROM_RACE) == 1 && (g(CHOICE) as i32) < 1 {
+                if NET.after_race.get() == 1 && (g(CHOICE) as i32) < 1 {
                     p(CHOICE, 1);
                 }
                 if (g(CHOICE) as i32) < 0 {
@@ -160,7 +151,9 @@ pub fn lobby_loop() -> Result<u32, Refused> {
             } else if key == 0x1C {
                 match g(CHOICE) {
                     0 => {
-                        pb(OWN, gb(OWN) & 0xF9 | 1);
+                        NET.own
+                            .head
+                            .set(PlayerRecord::STATE, NET.own.state() & 0xF9 | 1);
                         p(CHOICE, 3);
                         moved = true;
                     }
@@ -180,7 +173,7 @@ pub fn lobby_loop() -> Result<u32, Refused> {
                     _ => {}
                 }
             } else if key == 0x0F {
-                p(SHOW_GAPS, g(SHOW_GAPS) ^ 1);
+                NET.show_gaps.set(NET.show_gaps.get() ^ 1);
                 moved = true;
             } else if key == 1 {
                 p(CHOICE, u32::MAX);
@@ -192,15 +185,19 @@ pub fn lobby_loop() -> Result<u32, Refused> {
         if moved {
             p(MOVE_CLOCK, g(FRAME_CLOCK));
         }
-        if gb(OWN) & 0x10 != 0 && g(PLAYERS) >= 2 && all_states(1, g(PLAYERS)) == 1 && sync(b'@')? {
-            p(ALL_RACED, 1);
+        if NET.own.state() & 0x10 != 0
+            && NET.players.get() >= 2
+            && all_states(1, NET.players.get()) == 1
+            && sync(b'@')?
+        {
+            NET.all_raced.set(1);
         }
-        if g(ALL_RACED) == 1 {
+        if NET.all_raced.get() == 1 {
             p(CHOICE, 1);
             return Ok(g(CHOICE));
         }
-        if g(PLAYERS) >= 1 && all_states(4, g(PLAYERS)) == 4 {
-            p(BACK_FROM_RACE, 0);
+        if NET.players.get() >= 1 && all_states(4, NET.players.get()) == 4 {
+            NET.after_race.set(0);
         }
         if FLAGS.quitting.get() == 1 {
             break;

@@ -20,9 +20,8 @@
 use crate::errors::{BadInput, Refused};
 use crate::math::x87::from_int;
 use crate::sound::sample_duration::sample_duration;
-use crate::sound::sample_settings::{OWN, RECORDS, RECORDS_RVA, sample_settings};
+use crate::sound::sample_settings::{OWN, RECORDS, sample_settings};
 use crate::sound::spot_voices::{VOICE_COUNT, set, voice, vw};
-use crate::store::game_read;
 use rc2k_core::sound::spot_voices::{Played, REQUEST_FROM, end_time, going_on, played, time_up};
 
 // ---- Rust version ----
@@ -63,7 +62,9 @@ pub fn play_spot_voices(request: u32) -> Result<(), Refused> {
                 if sound >= RECORDS {
                     return Err(BadInput("a sound past the sample records").into());
                 }
-                let looping: u32 = unsafe { game_read(RECORDS_RVA + 0x40 * sound as usize + 0x14) };
+                let looping = crate::audio::store::SAMPLE_RECORDS.records[sound as usize]
+                    .get()
+                    .voice_kind;
                 put(0, going_on(unsafe { q.read_unaligned() }, looping));
             }
         }

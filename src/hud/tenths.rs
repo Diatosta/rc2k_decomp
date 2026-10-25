@@ -6,10 +6,8 @@
 //!
 //! Caller: `hud::draw_hud`.
 
-use crate::hud::store::Slot;
-use crate::hud::store::game_write;
+use crate::hud::store::HUD;
 
-const OUT_RVA: Slot = Slot::at(0x75C074); // dword_75C074 .. dword_75C088
 const FIELDS: [u32; 6] = [0x24, 0x2C, 0x20, 0x54, 0x58, 0x50];
 
 /// The Rust version (see the header): the record's six times in tenths.
@@ -17,5 +15,7 @@ pub unsafe fn tenths(record: u32) {
     // Converted: `rc2k_core::hud::tenths::tenths`.
     let times = FIELDS.map(|f| unsafe { ((record + f) as *const i32).read_unaligned() });
     let (tenths, _) = rc2k_core::hud::tenths::tenths(times);
-    unsafe { game_write(OUT_RVA, tenths) };
+    for (cell, v) in HUD.times.iter().zip(tenths) {
+        cell.set(v as u32);
+    }
 }

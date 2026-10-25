@@ -11,15 +11,14 @@
 //! with the work half done. Rust callers run its `entry` (`routes.rs`); the registers above are the
 //! original's, for reference.
 
-use crate::audio::store::Slot;
+use crate::audio::store::AUDIO;
 use crate::errors::Refused;
 use crate::framework::{log, rva};
 use crate::menu::screen_loop::{Carried, run_screen};
-use crate::store::{game_addr, game_read, game_write};
+use crate::store::{game_addr, game_write};
 
 // ---- game data ----
 
-const FROM_RVA: Slot = Slot::at(0x4F82D8); // dword_4F82D8
 const TO_RVA: usize = rva(0x755684); // dword_755684
 const STARTING_RVA: usize = rva(0x4DE67B); // "BEV: Starting GB_Front"
 const FINISHED_RVA: usize = rva(0x4DE692); // "BEV: Finished GB_Front"
@@ -31,7 +30,7 @@ const FINISHED_RVA: usize = rva(0x4DE692); // "BEV: Finished GB_Front"
 pub fn run_front_end() -> Result<(), Refused> {
     log("menu::run_front_end: the Rust version runs");
     unsafe {
-        game_write(TO_RVA, game_read::<u32>(FROM_RVA));
+        game_write(TO_RVA, AUDIO.master_volume.get());
         crate::menu::drop_missing_controllers::drop_missing_controllers()?;
         crate::gfx::build_fonts::build_fonts()?;
         // The films, with eax 0 (the game's start).

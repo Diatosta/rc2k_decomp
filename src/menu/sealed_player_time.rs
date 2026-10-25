@@ -10,11 +10,11 @@
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_read, game_write, rva};
 use crate::menu::standings::*;
+use crate::race::state_store::RACE_STATE;
 
 const CURRENT_RVA: usize = rva(0x75598C); // dword_75598C
 const SLOT_RVA: usize = rva(0x7559EC); // dword_7559EC
 const HHMM_RVA: usize = rva(0x7559F0); // hhmm
-const SEAL_BYTE_RVA: usize = rva(0x75ACD8); // dword_75ACD8
 /// The Rust version (see the header): `byte` the original's eax (its low byte sealed);
 /// the sealed block's two dwords (its eax, ebx) out.
 pub unsafe fn sealed_player_time(byte: u32) -> Result<[u32; 2], Refused> {
@@ -28,7 +28,7 @@ pub unsafe fn sealed_player_time(byte: u32) -> Result<[u32; 2], Refused> {
             get(p + 0x88),
             [
                 get(p + 8) as u8,
-                game_read::<u32>(SEAL_BYTE_RVA) as u8,
+                RACE_STATE.settings.run_kind.get() as u8,
                 byte as u8,
             ],
         )

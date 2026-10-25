@@ -11,7 +11,8 @@
 //! Refuses a list without its end within its room.
 
 use crate::errors::BadInput;
-use crate::framework::{game_addr, game_write, rva};
+use crate::framework::{game_addr, rva};
+use crate::menu::lists_store::MENU_LISTS;
 use crate::menu::remove_secret_cars::{FIRST, List, read_list};
 use rc2k_core::menu::car_lists::place_if_missing;
 
@@ -21,9 +22,9 @@ const CLIO_RVA: usize = rva(0x7574E0); // unk_7574E0
 /// The three lists, in the original's order, with the room each has before the next
 /// variable.
 const LISTS: [List; 3] = [
-    (rva(0x759DCA), 0x22), // off_759DCA
-    FIRST,                 // off_75A042
-    (rva(0x759E52), 0x3E), // off_759E52
+    (&MENU_LISTS.cars_first, 0x22),     // off_759DCA
+    FIRST,                              // off_75A042
+    (&MENU_LISTS.cars_with_clio, 0x3E), // off_759E52
 ];
 
 // ---- Rust version ----
@@ -35,11 +36,11 @@ pub unsafe fn add_clio_car() -> Result<(), BadInput> {
         // Converted: `rc2k_core::menu::car_lists::place_if_missing`.
         for list in LISTS {
             if let Some(n) = place_if_missing(&read_list(list)?, clio) {
-                ends.push(list.0 + n * 4);
+                ends.push(&list.0[n]);
             }
         }
         for end in ends {
-            game_write(end, clio);
+            end.set(clio);
         }
         Ok(())
     }

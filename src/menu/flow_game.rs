@@ -6,9 +6,13 @@
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::framework::{game_addr, rva};
 use crate::menu::event_flow::*;
+use crate::menu::lists_store::MENU_LISTS;
 use crate::menu::run_championship as champ;
 use crate::menu::screen_loop::Carried;
 use crate::menu::screen_loop::run_screen_carried;
+use crate::menu::state_store::MENU_STATE;
+use crate::race::state_store::RACE_STATE;
+use crate::session::Dword;
 use rc2k_core::menu::flow::{self, CarList, Hand, Picture, Reply, Var};
 
 pub const PICTURE_FRAME: usize = 0x46F3FA; // menu::picture_frame, handed to the frame
@@ -44,6 +48,8 @@ pub fn addr(a: usize) -> u32 {
 /// Where a variable is.
 enum Place {
     At(usize),
+    /// A variable of the physics block's.
+    Cell(&'static Dword),
     /// Player n's field (edi the player).
     Player(u32, u32),
     /// The found record's field.
@@ -53,7 +59,7 @@ enum Place {
 }
 
 fn place(v: Var) -> Place {
-    use Place::At;
+    use Place::{At, Cell};
     match v {
         Var::Answer => At(ANSWER),
         Var::PlayerCount => At(PLAYER_COUNT),
@@ -72,8 +78,8 @@ fn place(v: Var) -> Place {
         Var::Qualifies => At(crate::menu::time_trial_qualifies::QUALIFIES),
         Var::Entered => At(crate::menu::time_trial_qualifies::ANY_QUALIFIED),
         Var::ServiceDue => At(champ::SERVICE_DUE),
-        Var::RaceResult => At(RACE_RESULT),
-        Var::RaceResult2 => At(RACE_RESULT_2),
+        Var::RaceResult => Cell(&RACE_STATE.results.results[0].result),
+        Var::RaceResult2 => Cell(&RACE_STATE.results.results[1].result),
         Var::CarListKind => At(CAR_LIST_KIND),
         Var::Cheats => At(CHEATS),
         Var::Cleared(k) => At(CLEARED + 4 * k as usize),
@@ -83,7 +89,7 @@ fn place(v: Var) -> Place {
         Var::StagesDone => At(champ::STAGES_DONE),
         Var::ResetTimes => At(champ::RESET_TIMES),
         Var::Services => At(champ::SERVICES),
-        Var::ModeAB40 => At(champ::MODE_AB40),
+        Var::ModeAB40 => Cell(&MENU_STATE.menus.class_mode),
         Var::StartSection { a8: false } => At(champ::START_SECTION),
         Var::StartSection { a8: true } => At(champ::START_SECTION_A8),
         Var::ServiceTime => At(champ::SERVICE_TIME),
@@ -94,10 +100,10 @@ fn place(v: Var) -> Place {
         Var::GoesOn => At(champ::GOES_ON),
         Var::Section => At(SECTION),
         Var::Index => At(INDEX),
-        Var::RallyDone => At(champ::RALLY_DONE),
+        Var::RallyDone => Cell(&MENU_STATE.menus.rally_done),
         Var::WelcomeFigure => At(champ::WELCOME_FIGURE),
         Var::Welcomed => At(champ::WELCOMED),
-        Var::ReviewKind => At(champ::REVIEW_KIND),
+        Var::ReviewKind => Cell(&MENU_STATE.menus.review_kind),
         Var::Record(offset) => Place::Record(offset),
         Var::SpeechChannel => At(SPEECH_CHANNEL),
         Var::Quitting => Place::Quitting,
@@ -131,6 +137,7 @@ impl flow::Game for Game {
     fn get(&mut self, v: Var) -> u32 {
         match place(v) {
             Place::At(a) => get(a),
+            Place::Cell(cell) => cell.get(),
             Place::Player(n, offset) => dword(player(n) + offset),
             Place::Record(offset) => dword(self.f.record + offset),
             Place::Quitting => crate::session::FLAGS.quitting.get(),
@@ -140,6 +147,7 @@ impl flow::Game for Game {
     fn set(&mut self, v: Var, value: u32) {
         match place(v) {
             Place::At(a) => set(a, value),
+            Place::Cell(cell) => cell.set(value),
             Place::Player(n, offset) => {
                 self.f.record = player(n);
                 put(self.f.record + offset, value);
@@ -355,11 +363,11 @@ impl flow::Game for Game {
     fn hand(&mut self, h: Hand) -> Result<(), Refused> {
         match h {
             Hand::CarList(list) => {
-                self.f.c.cars = addr(match list {
-                    CarList::First => CARS_FIRST,
-                    CarList::Second => CARS_SECOND,
-                    CarList::Cheat => CARS_CHEAT,
-                })
+                self.f.c.cars = match list {
+                    CarList::First => MENU_LISTS.cars_first[0].addr(),
+                    CarList::Second => MENU_LISTS.cars_second[0].addr(),
+                    CarList::Cheat => MENU_LISTS.cheat_cars[0].addr(),
+                } as u32
             }
             Hand::CheatFlag(on) => self.f.c.carry = on,
             Hand::Kept(v) => self.f.c.arg = v,

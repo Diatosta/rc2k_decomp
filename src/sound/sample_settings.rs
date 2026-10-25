@@ -12,45 +12,38 @@
 //! Five callers (the race sounds' turn). Refuses a sample past the 0x1CD records (the
 //! original reads past them; not worked out).
 
-use crate::audio::store::SampleSlot;
+use crate::audio::store::SAMPLE_RECORDS;
+use crate::audio::voices::{SampleRecord, voice};
 use crate::errors::BadInput;
-use crate::store::game_addr;
 
 // ---- game data ----
 
-pub const RECORDS_RVA: SampleSlot = SampleSlot::at(0x50A7A4); // g_sampleRecords
 pub const RECORDS: u32 = 0x1CD;
-pub const RECORD_LEN: usize = 0x40;
 /// "The sample's own".
 pub const OWN: u32 = 0xFFFF_FF91;
-/// The record of sample `n`, or a refusal past the records.
-pub fn record(n: u32) -> Result<*const u32, BadInput> {
+/// A copy of the record of sample `n`, or a refusal past the records.
+pub fn record(n: u32) -> Result<SampleRecord, BadInput> {
     if n >= RECORDS {
         return Err(BadInput("a sample past the 0x1CD records"));
     }
-    Ok((game_addr(RECORDS_RVA) + n as usize * RECORD_LEN) as *const u32)
-}
-
-/// The dword at byte `at` of `p`.
-pub fn word(p: *const u32, at: usize) -> u32 {
-    unsafe { (p as *const u8).add(at).cast::<u32>().read_unaligned() }
+    Ok(SAMPLE_RECORDS.records[n as usize].get())
 }
 
 /// The rate as both leaves take it: -0x6F the record's +0x30, then -0x70 the buffer's
 /// +0x24; held to 100 .. 200000.
 /// The record's and its first voice's figures (`None`: no voice, not loaded).
-pub fn loaded(record: *const u32) -> Option<rc2k_core::audio::samples::Loaded> {
-    let voice = word(record, 8) as *const u32;
-    if voice.is_null() {
+pub fn loaded(record: &SampleRecord) -> Option<rc2k_core::audio::samples::Loaded> {
+    if record.first_voice == 0 {
         return None;
     }
+    let first = unsafe { voice(record.first_voice) };
     Some(rc2k_core::audio::samples::Loaded {
-        voice_kind: word(record, 0x14),
-        volume: word(record, 0x28),
-        frequency: word(record, 0x30),
-        own_frequency: word(voice, 0x24),
-        format: word(voice, 0x28),
-        frames: word(voice, 0x2C),
+        voice_kind: record.voice_kind,
+        volume: record.volume,
+        frequency: record.frequency,
+        own_frequency: first.own_frequency,
+        format: first.format,
+        frames: first.frames,
     })
 }
 
@@ -63,6 +56,6 @@ pub fn sample_settings(sample: u32, volume: u32, rate: u32) -> Result<(u32, u32)
     Ok(rc2k_core::audio::samples::settings(
         volume,
         rate,
-        loaded(record).as_ref(),
+        loaded(&record).as_ref(),
     ))
 }

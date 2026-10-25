@@ -15,18 +15,18 @@ use crate::errors::Refused;
 use crate::framework::{game_read, game_write, rva};
 use crate::menu::screen_loop::Carried;
 use crate::menu::standings::*;
+use crate::menu::state_store::MENU_STATE;
 use rc2k_core::menu::class_pages;
 
 const FLAG_RVA: usize = rva(0x755565); // dword_755565
 const COUNT_RVA: usize = rva(0x75597C); // dword_75597C
 const CLASSES_RVA: usize = rva(0x7558F8); // dword_7558F8
 const ANSWER_RVA: usize = rva(0x75524C); // g_yesNoAnswer
-const MODE_RVA: usize = rva(0x75AB40); // dword_75AB40
 // g_eventMode
 
 /// The first class (see the header).
 fn first_class() -> u32 {
-    class_pages::first_stage_class(unsafe { game_read(MODE_RVA) })
+    class_pages::first_stage_class(MENU_STATE.menus.class_mode.get())
 }
 
 /// The Rust version (see the header). `c` the carried values (registers the pages' screens are run with).

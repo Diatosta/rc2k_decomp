@@ -11,14 +11,14 @@
 //! anything) a level past 5.
 
 use crate::errors::Refused;
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
+use crate::menu::lists_store::MENU_LISTS;
 use crate::menu::screen_loop::{Carried, run_screen_carried};
 
 const WON_RVA: usize = rva(0x758768); // dword_758768: the place
 const LEVEL_RVA: usize = rva(0x7587EC); // dword_7587EC
 const RETRY_RVA: usize = rva(0x7587F4); // dword_7587F4
 const DONE_RVA: usize = rva(0x758800); // byte_758800: a level won before
-const SECRET_CARS_RVA: usize = rva(0x75A12E); // off_75A12E
 
 /// The Rust version. `c` the carried values the level end is entered with; the original
 /// keeps every register of the caller (`pusha` .. `popa`).
@@ -39,7 +39,7 @@ pub unsafe fn arcade_level_end(c: &Carried) -> Result<(), Refused> {
         r.arg = level;
         if first_win(game_read(DONE_RVA + level as usize)) {
             game_write(DONE_RVA + level as usize, 1u8);
-            r.cars = game_addr(SECRET_CARS_RVA) as u32;
+            r.cars = MENU_LISTS.shown_cars[0].addr() as u32;
             run_screen_carried(&crate::menu::car_specs_47af4c_loop::SCREEN, &mut r)?;
             crate::menu::arcade_steps::add_shown_car()?;
             crate::menu::arcade_steps::remove_shown_car(&mut || {

@@ -9,16 +9,10 @@
 //! `audio::make_buffer`. Refuses a room past the table's ten (the original reads past it).
 
 use crate::audio::property_sets::set_eax_room;
-use crate::audio::voices::{EAX_ROOM_RVA, EAX_RVA, read};
+use crate::audio::store::AUDIO;
 use crate::errors::Refused;
-use crate::store::game_addr;
 
 /// On the game's variables.
-pub unsafe fn in_game() -> Result<u32, Refused> {
-    unsafe {
-        set_eax_room(
-            read(game_addr(EAX_ROOM_RVA) as u32),
-            game_addr(EAX_RVA) as u32,
-        )
-    }
+pub fn in_game() -> Result<u32, Refused> {
+    set_eax_room(AUDIO.eax_room.get())
 }

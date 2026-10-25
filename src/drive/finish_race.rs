@@ -14,6 +14,7 @@ use crate::drive::race_parts::log_line;
 use crate::errors::Refused;
 use crate::framework::{game_addr, rva};
 use crate::physics::flow::{g, p};
+use crate::race::state_store::RACE_STATE;
 use rc2k_core::drive::finish_routine::{self, Set, Var};
 
 const B: usize = 0x70F3EC;
@@ -72,10 +73,13 @@ fn set_up() {
 /// registers this leaves are read by no caller (liveness: esi after the menus' calls has
 /// no read point).
 pub unsafe fn finish_race() -> Result<(), Refused> {
-    p(0x623850, g(0x64BB1C + 4 * g(0x75B0FC) as usize));
-    p(0x623858, g(0x75B104));
+    p(
+        0x623850,
+        g(0x64BB1C + 4 * RACE_STATE.results.stage_index.get() as usize),
+    );
+    p(0x623858, RACE_STATE.results.finish_kind.get());
     p(B + 0x24, g(0x623858));
-    p(B + 0xAA8, g(0x75B100));
+    p(B + 0xAA8, RACE_STATE.results.finish_player.get());
     log_line(0x4DDA52);
     log_line(0x4DDA69);
     log_text(0x4DDA80);

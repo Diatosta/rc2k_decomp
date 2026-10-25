@@ -14,7 +14,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::files::numbered_path::numbered_path_in_game;
 use crate::files::write_file::write_file;
-use crate::framework::{game_ptr, game_read};
+use crate::framework::game_ptr;
 use crate::service::pages::{
     BRAKE_BALANCE, GEAR_RATIO, RIDE_HEIGHT, STEERING_SENSITIVITY, SUSPENSION_STIFFNESS, TYRE,
 };
@@ -43,12 +43,12 @@ pub unsafe fn write_setup_slot(slot: u32) -> Result<bool, Refused> {
             packed_local_time(),
             &(slot_name(slot) as *const [u8; NAME_LEN]).read_unaligned(),
             [
-                game_read(TYRE.change.chosen_rva),
+                TYRE.change.chosen.get(),
                 in_car(BRAKE_BALANCE.car_offset),
-                game_read(RIDE_HEIGHT.change.chosen_rva),
-                game_read(SUSPENSION_STIFFNESS.change.chosen_rva),
+                RIDE_HEIGHT.change.chosen.get(),
+                SUSPENSION_STIFFNESS.change.chosen.get(),
                 in_car(STEERING_SENSITIVITY.car_offset),
-                game_read(GEAR_RATIO.change.chosen_rva),
+                GEAR_RATIO.change.chosen.get(),
             ],
         );
         copy_nonoverlapping(bytes.as_ptr(), file, bytes.len());

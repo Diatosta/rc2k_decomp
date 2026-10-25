@@ -13,9 +13,9 @@
 
 use crate::errors::Refused;
 use crate::net::lobby::{
-    CHOICE, CHOICE_BEFORE, CONNECTIONS, FRAME_CLOCK, KEY_CLOCK, MOVE_CLOCK, g, list_key, other_key,
-    p, run_frame,
+    CHOICE, CHOICE_BEFORE, FRAME_CLOCK, KEY_CLOCK, MOVE_CLOCK, g, list_key, other_key, p, run_frame,
 };
+use crate::net::store::NET;
 use crate::session::CLOCKS;
 use crate::session::FLAGS;
 use rc2k_core::net::screens::{self, ListKey};
@@ -45,7 +45,7 @@ pub fn choose_connection() -> Result<u32, Refused> {
         run_frame(crate::net::connections_frame::connections_frame)?;
         p(FRAME_CLOCK, CLOCKS.key_ticks.get());
         let key = list_key()?;
-        if list_move(key, g(CONNECTIONS)) {
+        if list_move(key, NET.connections.get()) {
             p(MOVE_CLOCK, g(FRAME_CLOCK));
         } else if ListKey::of(key) == ListKey::Enter {
             return Ok(g(CHOICE));

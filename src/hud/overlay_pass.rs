@@ -15,7 +15,7 @@
 
 use crate::errors::Refused;
 use crate::framework::rva;
-use crate::hud::store::{game_read, game_write};
+use crate::store::{game_read, game_write};
 
 const PLAYERS_RVA: usize = rva(0x6238A4); // dword_6238A4
 const PLAYERS_COPY_RVA: usize = rva(0x6D14F2); // dword_6D14F2

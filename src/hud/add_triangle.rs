@@ -7,7 +7,7 @@
 
 use crate::errors::Refused;
 use crate::hud::batch::POLYGON_COUNT_RVA;
-use crate::hud::store::game_write;
+use crate::store::game_write;
 
 /// The Rust version (see the header).
 pub unsafe fn add_triangle() -> Result<(), Refused> {

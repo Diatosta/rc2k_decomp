@@ -9,18 +9,9 @@
 //!
 //! Callers: `sub_4B6ECD`'s four (code at 0x4B6FFE ..). The turn is its Rust version.
 
-use crate::hud::add_quad::QUAD_RVA;
-use crate::hud::store::Slot;
-use crate::hud::store::read_f32 as f;
-use crate::hud::store::{game_read, game_write};
+use crate::hud::store::HUD;
 use crate::math::turn_float_point_xz::turn_float_point_xz_plain;
 use rc2k_core::hud::disc;
-
-const POINT_RVA: [Slot; 2] = [Slot::at(0x75BFF0), Slot::at(0x75BFF4)]; // dword_75BFF0, dword_75BFF4
-const UV_SHIFT_RVA: [Slot; 2] = [Slot::at(0x75C298), Slot::at(0x75C29C)];
-const UV_SCALE_RVA: Slot = Slot::at(0x75C00C); // flt_75C00C
-const SIZE_RVA: Slot = Slot::at(0x75C2B8); // dword_75C2B8
-const CENTRE_RVA: [Slot; 2] = [Slot::at(0x75C2A0), Slot::at(0x75C2A4)];
 
 /// The Rust version (see the header), the point as `f64`s (what the x87 holds at the
 /// game's double precision): the vertex at `vertex`, turned by `angle` (edx). The
@@ -30,20 +21,20 @@ const CENTRE_RVA: [Slot; 2] = [Slot::at(0x75C2A0), Slot::at(0x75C2A4)];
 pub unsafe fn turned_vertex(vertex: u32, angle: u32, point: [f64; 2]) {
     unsafe {
         let [y, x] = point.map(|v| v as f32);
-        game_write(POINT_RVA[1], y.to_bits());
-        game_write(POINT_RVA[0], x.to_bits());
+        HUD.point[1].set(y.to_bits());
+        HUD.point[0].set(x.to_bits());
         let put = |o: u32, v: f32| ((vertex + o) as *mut u32).write_unaligned(v.to_bits());
-        let scale = f(UV_SCALE_RVA);
-        put(0x18, disc::turned_texture(x, f(UV_SHIFT_RVA[0]), scale));
-        put(0x1C, disc::turned_texture(y, f(UV_SHIFT_RVA[1]), scale));
+        let scale = HUD.uv_scale_x.get();
+        put(0x18, disc::turned_texture(x, HUD.uv_shift[0].get(), scale));
+        put(0x1C, disc::turned_texture(y, HUD.uv_shift[1].get(), scale));
         let [tx, _, tz, _] = turn_float_point_xz_plain(x.to_bits(), 0, y.to_bits(), angle);
-        game_write(POINT_RVA[1], tz);
-        game_write(POINT_RVA[0], tx);
-        let size = f(SIZE_RVA);
+        HUD.point[1].set(tz);
+        HUD.point[0].set(tx);
+        let size = HUD.needle_size.get();
         let [tx, tz] = [tx, tz].map(f32::from_bits);
-        put(0, disc::turned_place(tx, size, f(CENTRE_RVA[0])));
-        put(4, disc::turned_place(tz, size, f(CENTRE_RVA[1])));
-        let colour = disc::white_under(game_read::<u32>(QUAD_RVA));
+        put(0, disc::turned_place(tx, size, HUD.needle_centre[0].get()));
+        put(4, disc::turned_place(tz, size, HUD.needle_centre[1].get()));
+        let colour = disc::white_under(HUD.quad[0].get());
         ((vertex + 0x10) as *mut u32).write_unaligned(colour);
         ((vertex + 0x14) as *mut u32).write_unaligned(0);
     }

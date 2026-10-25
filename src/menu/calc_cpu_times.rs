@@ -21,12 +21,26 @@
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::menu::standings::*;
+use crate::menu::state_store::MENU_STATE;
 
-use crate::menu::scale_stage_times::{TIMES_RVA, held_section, scaled};
+use crate::menu::scale_stage_times::{held_section, scaled};
 
 const TEXTS_RVA: [usize; 2] = [rva(0x4DE232), rva(0x4DE247)]; // aCalccputimesSt, aCalccputimesFi
-const LENGTH_RVA: [usize; 2] = [rva(0x75AAF8), rva(0x75AAFC)]; // dword_75AAF8, dword_75AAFC
-const COUNTS_RVA: usize = rva(0x75AB00); // dword_75AB00: drivers per class
+
+/// The class time `c` as the original reads it, `dword_75AAE8`[c]: with no bound, so that a
+/// class past the four reads on into the variables that follow.
+unsafe fn class_time_at(c: u32) -> u32 {
+    unsafe {
+        ((MENU_STATE.menus.class_times[0].addr() + 4 * c as usize) as *const u32).read_unaligned()
+    }
+}
+
+/// The drivers of class `c`, `dword_75AB00`[c], read the same way.
+unsafe fn class_count_at(c: u32) -> u32 {
+    unsafe {
+        ((MENU_STATE.menus.class_counts[0].addr() + 4 * c as usize) as *const u32).read_unaligned()
+    }
+}
 const CLASSES_RVA: usize = rva(0x7558F8); // dword_7558F8
 const GAP_RVA: usize = rva(0x7559F0); // hhmm
 const SPREAD_RVA: usize = rva(0x7559EC); // dword_7559EC
@@ -75,7 +89,7 @@ pub fn check(rec: u32) -> Result<(u32, Vec<u32>, u32), Refused> {
             0..4 => times[c as usize],
             4 => length,
             5 => length.wrapping_mul(100) / 0x96A,
-            _ => unsafe { game_read(TIMES_RVA + 4 * c as usize) },
+            _ => unsafe { class_time_at(c) },
         }
     };
     for c in 0..classes {
@@ -85,7 +99,7 @@ pub fn check(rec: u32) -> Result<(u32, Vec<u32>, u32), Refused> {
         if class_time(c) >> 1 == 0 {
             return Err(DIVIDE_BY_ZERO.into());
         }
-        if unsafe { game_read::<u32>(COUNTS_RVA + 4 * c as usize) } == 0 {
+        if unsafe { class_count_at(c) } == 0 {
             return Err(BadInput("a class's driver count of 0: the original divides by it").into());
         }
     }
@@ -100,11 +114,11 @@ pub unsafe fn calc_cpu_times() -> Result<(), Refused> {
     unsafe {
         log_write(game_addr(TEXTS_RVA[0]) as *const u8, true, 1);
         for (k, t) in [0x18, 0x1C, 0x20, 0x24].into_iter().enumerate() {
-            game_write(TIMES_RVA + 4 * k, get(rec + t));
+            MENU_STATE.menus.class_times[k].set(get(rec + t));
         }
         crate::menu::scale_stage_times::scale_stage_times(rec)?;
-        game_write(LENGTH_RVA[0], length);
-        game_write(LENGTH_RVA[1], length.wrapping_mul(100) / 0x96A);
+        MENU_STATE.menus.track_length[0].set(length);
+        MENU_STATE.menus.track_length[1].set(length.wrapping_mul(100) / 0x96A);
         // Converted: `rc2k_core::menu::event::{Spread, cpu_gap, cpu_time}`.
         use rc2k_core::menu::event::{Spread, cpu_gap, cpu_time};
         for c in 0..classes {
@@ -113,8 +127,8 @@ pub unsafe fn calc_cpu_times() -> Result<(), Refused> {
                 if get(d + 8) != c {
                     continue;
                 }
-                let time: u32 = game_read(TIMES_RVA + 4 * c as usize);
-                let count: u32 = game_read(COUNTS_RVA + 4 * c as usize);
+                let time = class_time_at(c);
+                let count = class_count_at(c);
                 let gap = cpu_gap(time, count);
                 game_write(GAP_RVA, gap);
                 let mut spread = Spread {

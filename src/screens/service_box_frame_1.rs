@@ -7,19 +7,20 @@
 //! `service_boxes`' translator.
 
 use crate::errors::Refused;
-use crate::screens::service_boxes::{quad, rd};
+use crate::menu::state_store::MENU_STATE;
+use crate::screens::service_boxes::quad;
 
 /// The Rust version (see the header): the registers it leaves.
 #[allow(unused_assignments, clippy::needless_late_init)] // the translator's flags, one per `cmp`
 pub unsafe fn service_box_frame_1() -> Result<(), Refused> {
     let mut c: (u32, u32);
-    c = (rd(0x75AA9C), 0x1);
+    c = (MENU_STATE.service_ui.box_shown.get(), 0x1);
     'l490e2c: {
         if c.0 != c.1 {
             break 'l490e2c;
         }
     }
-    c = (rd(0x75AC94), 0x0);
+    c = (MENU_STATE.driver_stats.setups[0].installed.get(), 0x0);
     'l491071: {
         if c.0 != c.1 {
             break 'l491071;
@@ -33,7 +34,7 @@ pub unsafe fn service_box_frame_1() -> Result<(), Refused> {
         quad(0x84, 0x12C, 0x1, 0x26, 0xFF8000, 0xFF)?;
         quad(0x45, 0x151, 0x3F, 0x1, 0xFF8000, 0xFF)?;
     }
-    c = (rd(0x75AC94), 0x1);
+    c = (MENU_STATE.driver_stats.setups[0].installed.get(), 0x1);
     'l4912b6: {
         if c.0 != c.1 {
             break 'l4912b6;
@@ -47,7 +48,7 @@ pub unsafe fn service_box_frame_1() -> Result<(), Refused> {
         quad(0xC6, 0x12C, 0x1, 0x26, 0xFF8000, 0xFF)?;
         quad(0x87, 0x151, 0x3F, 0x1, 0xFF8000, 0xFF)?;
     }
-    c = (rd(0x75AC94), 0x2);
+    c = (MENU_STATE.driver_stats.setups[0].installed.get(), 0x2);
     'l4914fb: {
         if c.0 != c.1 {
             break 'l4914fb;
@@ -61,7 +62,7 @@ pub unsafe fn service_box_frame_1() -> Result<(), Refused> {
         quad(0x108, 0x12C, 0x1, 0x26, 0xFF8000, 0xFF)?;
         quad(0xC9, 0x151, 0x3F, 0x1, 0xFF8000, 0xFF)?;
     }
-    c = (rd(0x75AC94), 0x3);
+    c = (MENU_STATE.driver_stats.setups[0].installed.get(), 0x3);
     'l491740: {
         if c.0 != c.1 {
             break 'l491740;
@@ -75,7 +76,7 @@ pub unsafe fn service_box_frame_1() -> Result<(), Refused> {
         quad(0x14A, 0x12C, 0x1, 0x26, 0xFF8000, 0xFF)?;
         quad(0x10B, 0x151, 0x3F, 0x1, 0xFF8000, 0xFF)?;
     }
-    c = (rd(0x75AC94), 0x4);
+    c = (MENU_STATE.driver_stats.setups[0].installed.get(), 0x4);
     'l491985: {
         if c.0 != c.1 {
             break 'l491985;

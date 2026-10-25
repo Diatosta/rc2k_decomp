@@ -7,6 +7,7 @@
 
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::framework::{game_addr, game_read, rva};
+use crate::menu::state_store::MENU_STATE;
 use rc2k_core::menu::standings::{self, Entries, NAME_LEN};
 
 pub const TABLE_A_RVA: usize = rva(0x7556EC); // dword_7556EC
@@ -280,12 +281,9 @@ pub fn sort_table_b(key: u32, down: bool) -> Result<(), BadInput> {
     Ok(())
 }
 
-pub const LIMITS_RVA: usize = rva(0x75ABD8); // dword_75ABD8: 14
-pub const PENALTIES_RVA: usize = rva(0x75AC48); // dword_75AC48: 14
-
 /// Whether the player's part `k` (an `INSPECTED` index) is at or past its limit (signed).
 pub fn past_limit(p: u32, k: u32) -> bool {
-    let limit: i32 = unsafe { game_read(LIMITS_RVA + 4 * k as usize) };
+    let limit = MENU_STATE.driver_stats.limits[k as usize].get() as i32;
     get(p + 0xD4 + 4 * k) as i32 >= limit
 }
 

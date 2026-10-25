@@ -8,7 +8,8 @@
 //! for the second. Caller: `net::find_connections`.
 
 use crate::errors::Refused;
-use crate::net::lobby::{CONNECTION_TABLE, CONNECTIONS, SESSION_TABLE, SESSIONS, net_allocate, p};
+use crate::net::lobby::net_allocate;
+use crate::net::store::NET;
 use rc2k_core::net::lists;
 
 /// The Rust version (`memory::allocate` refuses rather than come back with the carry, so
@@ -17,11 +18,11 @@ pub fn allocate_lists() -> Result<(), Refused> {
     // Converted: `rc2k_core::net::lists::TABLES`.
     for ((bytes, _code), table) in lists::TABLES
         .into_iter()
-        .zip([CONNECTION_TABLE, SESSION_TABLE])
+        .zip([&NET.connection_table, &NET.session_table])
     {
-        p(table, net_allocate(bytes)?);
+        table.set(net_allocate(bytes)?);
     }
-    p(CONNECTIONS, 0);
-    p(SESSIONS, 0);
+    NET.connections.set(0);
+    NET.sessions.set(0);
     Ok(())
 }

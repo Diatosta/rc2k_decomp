@@ -13,18 +13,12 @@
 //! nothing (no check of `g_dplay`: its caller makes it).
 
 use crate::net::dplay::{RECEIVE, method};
-use crate::net::lobby::{DPLAY, a, g, p};
+use crate::net::store::NET;
 
 /// The buffer's size.
 pub const ROOM: u32 = 0x100;
 /// DPRECEIVE_ALL.
 const RECEIVE_ALL: u32 = 1;
-/// dword_5AB278: the sender; unk_5AB27C: the addressee; dword_5AB280: the size;
-/// unk_52A968: the bytes, 0x100.
-pub const FROM: usize = 0x5AB278;
-const TO: usize = 0x5AB27C;
-const SIZE: usize = 0x5AB280;
-const DATA: usize = 0x52A968;
 
 /// A message taken (`size` 0: none).
 #[derive(Clone, Copy, Debug)]
@@ -36,20 +30,26 @@ pub struct Received {
 
 /// The Rust version.
 pub fn receive_message() -> Received {
-    p(SIZE, ROOM);
+    NET.received_size.set(ROOM);
     let result = unsafe {
         method(
-            g(DPLAY),
+            NET.dplay.get(),
             RECEIVE,
-            &[a(FROM), a(TO), RECEIVE_ALL, a(DATA), a(SIZE)],
+            &[
+                NET.received_from.addr() as u32,
+                NET.received_to.addr() as u32,
+                RECEIVE_ALL,
+                NET.receive_data.addr() as u32,
+                NET.received_size.addr() as u32,
+            ],
         )
     };
     if result != 0 {
-        p(SIZE, 0);
+        NET.received_size.set(0);
     }
     Received {
-        from: g(FROM),
-        bytes: a(DATA),
-        size: g(SIZE),
+        from: NET.received_from.get(),
+        bytes: (NET.receive_data.addr() as u32),
+        size: NET.received_size.get(),
     }
 }

@@ -9,14 +9,15 @@
 
 use crate::errors::Refused;
 use crate::net::draw_setting_value::draw_setting_value;
-use crate::net::lobby::{Cursor, EDITED, NUMBER_TEXT, TEXT, a, g};
+use crate::net::lobby::{Cursor, NUMBER_TEXT, TEXT, a};
+use crate::net::store::NET;
 use rc2k_core::net::screens::{self, Number};
 
 /// The Rust version: the number `number` for item `item` at `y`, as the text being typed,
 /// "nothing" or its digits; returns the next y (`draw_setting_value`'s).
 pub fn draw_number_value(number: u32, item: u32, y: u32) -> Result<u32, Refused> {
     // Converted: `rc2k_core::net::screens` (`number_value`, `Number`, `NOTHING`).
-    let shown = screens::number_value(item == g(EDITED), number);
+    let shown = screens::number_value(item == NET.edited.get(), number);
     let text = if shown == Number::Typed {
         a(NUMBER_TEXT)
     } else {

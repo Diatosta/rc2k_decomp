@@ -6,15 +6,13 @@
 //! repair flag if that was looked at; everything else preserved
 //! The conditions, the bars and how the screen was confirmed are in `setup_markers.rs`.
 
-use crate::screens::setup_markers::{
-    LOWER_RIGHT_CHOSEN_RVA, LOWER_RIGHT_INSTALLED_RVA, Marker, RIGHT_X,
-};
+use crate::screens::setup_markers::{LOWER_RIGHT_CHOSEN, LOWER_RIGHT_INSTALLED, Marker, RIGHT_X};
 
 // ---- Rust version: `setup_markers::draw_marker` with this ----
 
 pub const MARKER: Marker = Marker::Lower {
     item: 0x13,
     x: RIGHT_X,
-    chosen_rva: LOWER_RIGHT_CHOSEN_RVA,
-    installed_rva: LOWER_RIGHT_INSTALLED_RVA,
+    chosen: LOWER_RIGHT_CHOSEN,
+    installed: LOWER_RIGHT_INSTALLED,
 };

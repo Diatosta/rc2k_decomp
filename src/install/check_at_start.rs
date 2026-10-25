@@ -21,7 +21,6 @@
 //! main loop and `nop`ped out in this build).
 //! Refuses a scratch path that is not a text when the source cannot be put there.
 
-use crate::audio::store::Slot;
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::framework::rva;
 use crate::install::outside::Outside;
@@ -33,14 +32,12 @@ use crate::store::{game_addr, game_read, game_write};
 
 pub const INSTALLING_RVA: usize = rva(0x51B9E0); // g_installing
 pub const RECORD_RVA: usize = rva(0x5295C0); // "var\ral.zog"
-pub const NO_AUDIO_RVA: Slot = Slot::at(0x4F82B4); // g_noAudio
 const PROGRAM_RVA: usize = rva(0x51BE40); // "ral.exe" (in ".\ral.exe")
 const VERSION_RVA: usize = rva(0x4E0000); // "$VER: Rally 5.30 (4.8.2000)"
 const PATCH_TEXT_RVA: usize = rva(0xA8C054); // byte_A8C054
 /// off_51D728: the entry of the installer's script that the checks set up. +0x18 and
 /// +0x19 two bytes, +0x1A a string's id, +0x2A (`word_51D752`) 0xBD = the installer runs.
 pub const SCRIPT_ENTRY_RVA: usize = rva(0x51D728);
-const RUNNING_FROM_CD_RVA: usize = rva(0x529DB0); // g_runningFromCd
 const PATH_ROOM: usize = 0x100;
 
 /// What both checks write into the script's entry, but for the string's id.
@@ -127,7 +124,7 @@ pub unsafe fn check_at_start(outside: &mut dyn Outside, no_audio: *mut u32) -> R
             if !outside.set_directory(path) {
                 continue;
             }
-            game_write(RUNNING_FROM_CD_RVA, 1u32);
+            crate::install::store::INSTALL.running_from_cd.set(1);
             return Ok(());
         }
         outside.log(c"Update cannot find RC CD-ROM".as_ptr().cast());

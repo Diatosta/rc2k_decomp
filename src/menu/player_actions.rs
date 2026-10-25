@@ -24,6 +24,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::menu::screen_loop::Carried;
+use crate::menu::state_store::MENU_STATE;
 use rc2k_core::menu::player::Player;
 use rc2k_core::menu::steps;
 
@@ -31,7 +32,6 @@ const CURRENT_PLAYER_RVA: usize = rva(0x75598C); // g_currentPlayer
 const KEYS_RVA: usize = rva(0x7555B1); // unk_7555B1: 0x2C bytes
 const SCORES_PAGE_RVA: usize = rva(0x755240); // dword_755240
 const REPLAY_RANGE_RVA: usize = rva(0x755248); // dword_755248
-const CHOICE_RVA: usize = rva(0x75AB30); // dword_75AB30
 const CAPTION_RVA: usize = rva(0xA8BE54); // g_captionText
 
 fn g(a: usize) -> u32 {
@@ -127,8 +127,8 @@ pub fn next_replay_range() {
 
 /// eax as `append_string_by_id` leaves it, ebx past the NUL.
 pub fn toggle_caption_choice() -> (u32, u32) {
-    let choice = steps::flip(g(CHOICE_RVA));
-    p(CHOICE_RVA, choice);
+    let choice = steps::flip(MENU_STATE.menus.caption_choice.get());
+    MENU_STATE.menus.caption_choice.set(choice);
     let mut cursor = game_addr(CAPTION_RVA) as u32;
     let caption = rc2k_core::screens::page_values::stage_options_caption(choice);
     let eax = unsafe {

@@ -8,8 +8,7 @@
 //! Callers: the HUD's drawers (code at 0x4B1E42, 0x4B1E62, ...).
 
 use crate::errors::Refused;
-use crate::hud::add_quad::QUAD_RVA;
-use crate::hud::store::game_write;
+use crate::hud::store::HUD;
 use rc2k_core::hud::quads;
 
 /// The quad record's texture places from the rectangle at `s` (shared with
@@ -19,7 +18,7 @@ pub unsafe fn put_places(s: u32) -> [u32; 4] {
         let rect: [u32; 4] =
             std::array::from_fn(|n| ((s + 4 * n as u32) as *const u32).read_unaligned());
         for (n, v) in quads::sprite_places(rect) {
-            game_write(QUAD_RVA + 4 * n, v);
+            HUD.quad[n].set(v);
         }
         rect
     }
@@ -28,7 +27,7 @@ pub unsafe fn put_places(s: u32) -> [u32; 4] {
 /// The quad record's corners (see `quads::sprite_corners`).
 pub unsafe fn put_corners(x: u32, y: u32, w: u32, h: u32) {
     for (n, v) in quads::sprite_corners(x, y, w, h) {
-        unsafe { game_write(QUAD_RVA + 4 * n, v) };
+        HUD.quad[n].set(v);
     }
 }
 

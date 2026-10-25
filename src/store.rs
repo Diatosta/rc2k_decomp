@@ -200,11 +200,6 @@ pub fn game_addr(place: impl Where) -> usize {
     place.address()
 }
 
-/// The address of `place` as the game's 32-bit pointers hold it.
-pub fn addr32(place: impl Where) -> u32 {
-    place.address() as u32
-}
-
 /// Pointer to the game's memory at `place`.
 pub fn game_ptr<T>(place: impl Where) -> *mut T {
     place.address() as *mut T

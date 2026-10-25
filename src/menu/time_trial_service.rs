@@ -19,10 +19,10 @@
 use crate::errors::{BadInput, Refused};
 use crate::menu::event_flow::*;
 use crate::menu::screen_loop::run_screen_carried;
+use crate::menu::state_store::MENU_STATE;
 
 const SERVICE_TIME: usize = 0x75593C; // dword_75593C
 const GOES_ON: usize = 0x75592C; // dword_75592C
-const CLEARED: [usize; 2] = [0x75AC8C, 0x75AB38]; // dword_75AC8C, dword_75AB38
 const OUT: usize = 0x755978; // dword_755978
 const DUE: usize = 0x755938; // dword_755938
 
@@ -47,9 +47,9 @@ pub unsafe fn time_trial_service(f: &Flow) -> Result<(), Refused> {
             crate::menu::fade_in::fade_in()?;
             g.arg = passes::FADE_PAUSE;
             crate::system::sleep::sleep(g.arg);
-            set(CLEARED[0], 0);
+            MENU_STATE.driver_stats.repair_time.set(0);
             unsafe { crate::menu::driver_stats::driver_stats() }?;
-            set(CLEARED[1], 0);
+            MENU_STATE.menus.service_flag.set(0);
             unsafe { run_screen_carried(&crate::service::service_area_loop::SCREEN, &mut g) }?;
             if yes() {
                 break 'all;

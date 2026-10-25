@@ -22,8 +22,9 @@ use crate::input::key_to_char::has_layout;
 use crate::input::take_key::take_key;
 use crate::menu::handle_yes_no::{ASKING_RVA, LEAVING_RVA, handle_yes_no};
 use crate::menu::navigation::{Direction, move_highlight};
+use crate::menu::state_store::MENU_STATE;
 use crate::menu::update_blink::LAST_KEY_TIME_RVA;
-use crate::service::state::{EDIT_MODE_RVA, TIME_BUDGET_RVA};
+use crate::service::state::TIME_BUDGET_RVA;
 use crate::session::CLOCKS;
 
 // ---- game data ----
@@ -61,7 +62,9 @@ pub unsafe fn handle_keys(eax: u32) -> Result<Keys, Refused> {
         menu: None,
     };
     unsafe {
-        if keys::keys_off(game_read(EDIT_MODE_RVA), || game_read(KEYS_OFF_RVA)) {
+        if keys::keys_off(MENU_STATE.service_ui.box_shown.get(), || {
+            game_read(KEYS_OFF_RVA)
+        }) {
             return Ok(nothing);
         }
         if game_read::<u32>(ASKING_RVA) == 1 && !has_layout() {

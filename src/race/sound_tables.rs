@@ -4,6 +4,7 @@
 
 use crate::errors::Refused;
 use crate::framework::rva;
+use crate::race::state_store::RACE_STATE;
 use crate::store::game_addr;
 
 unsafe fn get(at: u32) -> u32 {
@@ -197,10 +198,6 @@ fn set_up_object(o: &crate::sound::store::SoundObject) {
     o.state.set(0);
 }
 
-fn rd(a: impl crate::store::At) -> u32 {
-    unsafe { crate::store::at_read(a) }
-}
-
 fn wr(a: impl crate::store::At, v: u32) {
     unsafe { crate::store::at_write(a, v) };
 }
@@ -216,8 +213,8 @@ fn wr(a: impl crate::store::At, v: u32) {
 /// table) or an object missing.
 pub fn set_up_race_sound_objects(v: &ObjectVars) -> Result<(), Refused> {
     unsafe {
-        let one = rd(0x52A910) == 1;
-        if one && rd(0x52A920) > 7 {
+        let one = crate::net::store::NET.session.get() == 1;
+        if one && crate::net::store::NET.player.get() > 7 {
             return Err(crate::errors::BadInput("a chosen car past the eight").into());
         }
         let objects: Vec<u32> = (0..8).map(|n| get(v.table + 4 * n)).collect();
@@ -229,9 +226,9 @@ pub fn set_up_race_sound_objects(v: &ObjectVars) -> Result<(), Refused> {
         use crate::sound::store::{RACE_SOUNDS, SoundObject};
         use rc2k_core::race::sound_objects::{object_mark, sound_objects, sound_players};
         prepare_sound_tables_plain(&TableVars::game());
-        let players = sound_players(rd(0x75ACE0));
+        let players = sound_players(RACE_STATE.settings.race_mode.get());
         RACE_SOUNDS.one_player.set(players);
-        let (count, arcade) = sound_objects(players, rd(0x75ACD8));
+        let (count, arcade) = sound_objects(players, RACE_STATE.settings.run_kind.get());
         if arcade {
             RACE_SOUNDS.mark_car_voices.set(1);
         }
@@ -239,21 +236,27 @@ pub fn set_up_race_sound_objects(v: &ObjectVars) -> Result<(), Refused> {
         RACE_SOUNDS.player_cars[0].set(0);
         RACE_SOUNDS.player_cars[1].set(1);
         if one {
-            RACE_SOUNDS.player_cars[0].set(rd(0x52A920));
-            RACE_SOUNDS.count.set(rd(0x52AD98));
+            RACE_SOUNDS.player_cars[0].set(crate::net::store::NET.player.get());
+            RACE_SOUNDS.count.set(crate::net::store::NET.players.get());
         }
         for (n, &o) in v.objects.iter().enumerate() {
             SoundObject::at(o).sound_offset.set(object_mark(n as u32));
         }
         let first = SoundObject::at(objects[RACE_SOUNDS.player_cars[0].get() as usize]);
         first.sound_offset.set(0);
-        first.kind.set(rd(0x75ACE8));
-        first.cue_queue.first.set(rd(0x75AE20));
+        first.kind.set(RACE_STATE.settings.car_kind_current.get());
+        first
+            .cue_queue
+            .first
+            .set(RACE_STATE.settings.cars[0].codriver_sex.get());
         if RACE_SOUNDS.one_player.get() != 1 {
             let second = SoundObject::at(objects[RACE_SOUNDS.player_cars[1].get() as usize]);
             second.sound_offset.set(1);
-            second.kind.set(rd(0x75ACEC));
-            second.cue_queue.first.set(rd(0x75AF8C));
+            second.kind.set(RACE_STATE.settings.car_kind_first.get());
+            second
+                .cue_queue
+                .first
+                .set(RACE_STATE.settings.cars[1].codriver_sex.get());
         }
         for &o in &objects {
             set_up_object(SoundObject::at(o));

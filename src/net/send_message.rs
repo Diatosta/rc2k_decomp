@@ -15,25 +15,29 @@
 
 use crate::errors::Refused;
 use crate::net::dplay_send::dplay_send;
-use crate::net::{a, g};
+use crate::net::store::NET;
 use rc2k_core::net::inbox;
-
-const SEQUENCE: usize = 0x52A915; // byte_52A915
-const BUFFER: usize = 0x52AA68; // byte_52AA68: 0x100 bytes
-const TO: usize = 0x5AB274; // dword_5AB274: whom to send to
 
 /// The Rust version.
 pub fn send_message(bytes: *const u8, count: u32) -> Result<(), Refused> {
     // Converted: `rc2k_core::net::inbox` (`next_sequence`, `outgoing`: a message too long
     // refused before anything is written).
     unsafe {
-        let seq = a(SEQUENCE) as *mut u8;
-        let byte = inbox::next_sequence(seq.read_volatile());
+        let byte = inbox::next_sequence(NET.sequence.get());
         let bytes = std::slice::from_raw_parts(bytes, count as usize);
         let message = inbox::outgoing(byte, bytes)?;
-        seq.write_volatile(byte);
-        std::ptr::copy(message.as_ptr(), a(BUFFER) as *mut u8, message.len());
+        NET.sequence.set(byte);
+        std::ptr::copy(
+            message.as_ptr(),
+            (NET.send_buffer.addr() as u32) as *mut u8,
+            message.len(),
+        );
     }
-    dplay_send(g(TO), 0, a(BUFFER), count + 1);
+    dplay_send(
+        NET.send_to.get(),
+        0,
+        NET.send_buffer.addr() as u32,
+        count + 1,
+    );
     Ok(())
 }

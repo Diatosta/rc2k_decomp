@@ -8,24 +8,15 @@
 //! keep their `used` marks: the turn's update frees them as it stops the voices.
 //! Refuses a playing list that does not end within 0x200 voices.
 
-use crate::audio::voices::*;
+use crate::audio::voices::{GamePool, lists, store_lists};
 use crate::errors::Refused;
 
 // ---- Rust version ----
 
-/// `playing`, `stopping`, `used`: where the two lists' heads and the count are.
-pub unsafe fn stop_all_voices(playing: u32, stopping: u32, used: u32) -> Result<(), Refused> {
+pub fn stop_all_voices() -> Result<(), Refused> {
     // Converted: `rc2k_core::audio::voices::stop_all`.
-    let w = World {
-        playing,
-        stopping,
-        channels_used: used,
-        ..World::game()
-    };
-    unsafe {
-        let mut l = lists(&w);
-        rc2k_core::audio::voices::stop_all(&mut GamePool::new(&w), &mut l)?;
-        store_lists(&w, &l);
-    }
+    let mut l = lists();
+    rc2k_core::audio::voices::stop_all(&mut GamePool, &mut l)?;
+    store_lists(&l);
     Ok(())
 }

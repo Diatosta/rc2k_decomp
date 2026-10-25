@@ -31,8 +31,6 @@ use crate::scene::upload_car_icon::{CarIcon, upload_car_icon};
 const TEXTURE_RVA: usize = rva(0x5D0DEC); // dword_5D0DEC: kind 0xC1's first texture
 const PLAYER_CAR_RVA: usize = rva(0x70F410); // dword_70F410
 const OTHER_CAR_RVA: usize = rva(0x7103F0); // dword_7103F0
-const ONE_CAR_RVA: usize = rva(0x52A910); // dword_52A910
-const WHICH_CAR_RVA: usize = rva(0x52A920); // dword_52A920
 const BLOCKS_RVA: usize = rva(0x71B3B8); // g_carBlocks
 const FIRSTS_RVA: usize = rva(0x5DCD9C); // dword_5DCD9C
 const SECONDS_RVA: usize = rva(0x5DCE2C); // dword_5DCE2C
@@ -53,8 +51,8 @@ pub unsafe fn load_hud_car_icons() -> Result<(), Refused> {
         if texture == u32::MAX {
             return Ok(());
         }
-        let player = if game_read::<u32>(ONE_CAR_RVA) != 0 {
-            let car = car_icons::one_car(game_read(WHICH_CAR_RVA))?;
+        let player = if crate::net::store::NET.session.get() != 0 {
+            let car = car_icons::one_car(crate::net::store::NET.player.get())?;
             let block: u32 = game_read(BLOCKS_RVA + car * 4);
             if block == 0 {
                 return Err(BadInput("a car without its block").into());

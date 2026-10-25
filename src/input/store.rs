@@ -23,10 +23,14 @@
 //! `point_devices_at_records` sets `input_devices` to where the records are now (the
 //! standalone's start-up calls it).
 //!
+//! `ForceFeedback` (IDA 0x518084 .. 0x5180F0): the force-feedback effects' clock, the race
+//! switch, the surfaces' effect kinds and the effects' constants (split from sound's block
+//! around it, 2026-10-25).
+//!
 //! Threads: the input thread polls and the game's thread reads, as the image's bytes were
 //! shared (atomic cells and volatile bytes).
 
-use crate::session::{Byte, Bytes, Dword};
+use crate::session::{Byte, Bytes, Dword, Float};
 
 // ---- first values, from the image (`store_data.rs`) ----
 
@@ -465,6 +469,74 @@ pub fn mouse_addr() -> usize {
     &MOUSE as *const Mouse as usize
 }
 
+/// The force-feedback effects' clock, surface kinds and constants (IDA 0x518084 .. 0x5180f0, the image's layout; phase 7, typed state).
+#[repr(C)]
+pub struct ForceFeedback {
+    /// `g_effectsLastTime`: the force-feedback effects' last clock.
+    pub last_time: Dword,
+    /// `g_effectsRate`: their rate.
+    pub rate: Dword,
+    /// `g_effectsSteps`: their steps.
+    pub steps: Dword,
+    /// `g_effectsRaceOn`: the effects run in a race.
+    pub race_on: Dword,
+    /// `0x518094`, `0x518098`: nothing reads or writes them.
+    pub _gap_94: [Dword; 2],
+    /// `g_surfaceEffectKinds` (`0x51809C`): a surface's effect kind, 16 of them.
+    pub surface_effect_kinds: [Dword; 16],
+    /// `flt_5180DC`: 10.0.
+    pub effect_ten: Float,
+    /// `flt_5180E0`: 162.97.
+    pub effect_angle_scale: Float,
+    /// `flt_5180E4`: 256.0.
+    pub effect_full: Float,
+    /// `0x5180E8`: nothing reads or writes it.
+    pub _gap_e8: Dword,
+    /// `flt_5180EC`: 0.1.
+    pub effect_tenth: Float,
+}
+
+pub static FORCE_FEEDBACK: ForceFeedback = ForceFeedback {
+    last_time: Dword::new(0),
+    rate: Dword::new(0),
+    steps: Dword::new(0),
+    race_on: Dword::new(0),
+    _gap_94: [Dword::new(0), Dword::new(0)],
+    surface_effect_kinds: [
+        Dword::new(0),
+        Dword::new(1),
+        Dword::new(2),
+        Dword::new(3),
+        Dword::new(6),
+        Dword::new(9),
+        Dword::new(4),
+        Dword::new(0xD),
+        Dword::new(0xC),
+        Dword::new(8),
+        Dword::new(0xA),
+        Dword::new(7),
+        Dword::new(0xB),
+        Dword::new(0),
+        Dword::new(0),
+        Dword::new(0),
+    ],
+    effect_ten: Float::from_bits(0x41200000),
+    effect_angle_scale: Float::from_bits(0x4322F983),
+    effect_full: Float::from_bits(0x43800000),
+    _gap_e8: Dword::new(0x42200000),
+    effect_tenth: Float::from_bits(0x3DCCCCCD),
+};
+
+impl ForceFeedback {
+    pub const START: usize = 0x518084;
+    pub const LEN: usize = 0x6c;
+
+    /// `moved::MOVED`'s home for `START`.
+    pub fn home() -> usize {
+        &FORCE_FEEDBACK as *const ForceFeedback as usize
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -528,5 +600,15 @@ mod tests {
         assert_eq!(offset_of!(Keyboard, plain), 0x4F806C - 0x4F7FD8);
         assert_eq!(offset_of!(Keyboard, axes_rest), 0x4F8270 - 0x4F7FD8);
         assert_eq!(MOUSE_LEN, 0x24);
+    }
+
+    #[test]
+    fn force_feedback_starts_as_the_games() {
+        assert_eq!(size_of::<ForceFeedback>(), ForceFeedback::LEN);
+        let image = crate::moved::image_bytes(ForceFeedback::START, ForceFeedback::LEN);
+        let mine = unsafe {
+            std::slice::from_raw_parts(ForceFeedback::home() as *const u8, ForceFeedback::LEN)
+        };
+        assert_eq!(mine, &image[..]);
     }
 }

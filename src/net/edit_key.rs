@@ -15,7 +15,8 @@
 
 use crate::bridge::{Raw, read_through};
 use crate::errors::Refused;
-use crate::net::lobby::{EDIT_FONT, EDIT_SAVED, EDIT_TEXT, EDIT_WIDTH, EDITED, a, g, movsb, p};
+use crate::net::lobby::{EDIT_SAVED, a, movsb};
+use crate::net::store::NET;
 use crate::text::draw_text::GameCanvas;
 use crate::text::measure_text::measure_text_at;
 use rc2k_core::net::editing::{self, EditKey};
@@ -28,15 +29,15 @@ fn set_byte(at: u32, v: u8) {
 pub fn edit_key(key: u8) -> Result<bool, Refused> {
     // Converted: `rc2k_core::net::editing` (`EditKey`, `last_char`, `takes`,
     // `end_for_char`, `too_wide`).
-    if g(EDITED) != editing::NOT_EDITING {
-        let text = g(EDIT_TEXT);
+    if NET.edited.get() != editing::NOT_EDITING {
+        let text = NET.edit_text.get();
         let words = unsafe { Raw::new(text as *const u8) };
         match EditKey::of(key) {
             EditKey::Escape => {
                 movsb(text, a(EDIT_SAVED), editing::TEXT_LEN as u32);
-                p(EDITED, editing::NOT_EDITING);
+                NET.edited.set(editing::NOT_EDITING);
             }
-            EditKey::Enter => p(EDITED, editing::NOT_EDITING),
+            EditKey::Enter => NET.edited.set(editing::NOT_EDITING),
             EditKey::Clear => unsafe {
                 std::ptr::write_bytes(text as *mut u8, 0, editing::TEXT_LEN)
             },
@@ -54,19 +55,19 @@ pub fn edit_key(key: u8) -> Result<bool, Refused> {
                     unsafe { ((text + at) as *mut u16).write_unaligned(typed as u16) };
                     let width = unsafe {
                         measure_text_at(
-                            g(EDIT_FONT) as *mut _,
+                            NET.edit_font.get() as *mut _,
                             text as *const u8,
                             at as i32,
                             &mut GameCanvas,
                         )
                     }?
                     .width;
-                    if editing::too_wide(width, g(EDIT_WIDTH)) {
+                    if editing::too_wide(width, NET.edit_width.get()) {
                         set_byte(text + at, 0);
                     }
                 }
             }
         }
     }
-    Ok(g(EDITED) == u32::MAX)
+    Ok(NET.edited.get() == u32::MAX)
 }

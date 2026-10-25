@@ -6,12 +6,13 @@
 //!      `net::lets_race`, sets both next)
 //! Caller: `net::lets_race`.
 
-use crate::net::lobby::p;
-use crate::net::set_hud_options::{HUD_BITS, own_block};
+use crate::net::set_hud_options::own_block;
+use crate::race::state_store::RACE_STATE;
 
 /// The Rust version.
 pub fn keep_hud_options() {
-    p(HUD_BITS, unsafe {
-        ((own_block() + 0x220) as *const u32).read_unaligned()
-    });
+    RACE_STATE
+        .results
+        .hud_bits_current
+        .set(unsafe { ((own_block() + 0x220) as *const u32).read_unaligned() });
 }

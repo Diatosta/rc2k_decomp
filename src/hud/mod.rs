@@ -51,6 +51,5 @@ pub mod overlay_states;
 pub mod set_batch_depth;
 pub mod set_batch_texture;
 pub mod store;
-pub mod store_data;
 pub mod tenths;
 pub mod turned_vertex;

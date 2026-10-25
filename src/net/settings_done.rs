@@ -9,7 +9,8 @@
 //! Caller: `net::settings_loop` (on entering it).
 
 use crate::errors::Refused;
-use crate::net::lobby::{SAVED_CONNECTION, SAVED_NAME, a, zero};
+use crate::net::lobby::zero;
+use crate::net::store::NET;
 
 /// The Rust version.
 pub fn settings_done() -> Result<(), Refused> {
@@ -21,8 +22,8 @@ pub fn settings_done() -> Result<(), Refused> {
     match saved {
         Some(n) => crate::net::keep_connection::keep_connection(n)?,
         None => {
-            zero(a(SAVED_CONNECTION), 0x10)?;
-            zero(a(SAVED_NAME), 0x40)?;
+            zero(NET.saved_connection.addr() as u32, 0x10)?;
+            zero(NET.saved_name.addr() as u32, 0x40)?;
         }
     }
     crate::net::stop::stop()

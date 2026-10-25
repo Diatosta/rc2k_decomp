@@ -11,14 +11,9 @@
 
 use crate::errors::Refused;
 use crate::hud::batch::{POLYGON_COUNT_RVA, POLYGON_RVA};
-use crate::hud::store::Slot;
-use crate::hud::store::{game_read, game_write};
+use crate::hud::store::HUD;
+use crate::store::game_write;
 use rc2k_core::hud::icons;
-
-pub const SIZE_RVA: [Slot; 2] = [Slot::at(0x75C064), Slot::at(0x75C068)]; // dword_75C064, dword_75C068
-pub const SCALE_RVA: Slot = Slot::at(0x75C06C); // dword_75C06C
-pub const SHIFT_RVA: Slot = Slot::at(0x75C070); // dword_75C070
-const SCRATCH_RVA: Slot = Slot::at(0x75C060); // dword_75C060
 
 /// The Rust version (see the header): the icon of the record's entry at `entry` (edi),
 /// `bottom` (ebx) its row.
@@ -30,19 +25,19 @@ pub unsafe fn draw_icon(record: u32, bottom: u32, entry: u32) -> Result<(), Refu
         if !icons::shown(get(0x84)) {
             return Ok(());
         }
-        let scale = f32::from_bits(game_read(SCALE_RVA));
+        let scale = HUD.icon_scale.get();
         let width = get(0x88);
-        game_write(SIZE_RVA[0], icons::scaled(width, scale));
+        HUD.icon_size[0].set(icons::scaled(width, scale));
         let drop = get(0x90);
-        game_write(SIZE_RVA[1], icons::scaled(drop, scale));
-        let i = icons::icon(width, get(0x8C), drop, scale, game_read(SHIFT_RVA), bottom);
+        HUD.icon_size[1].set(icons::scaled(drop, scale));
+        let i = icons::icon(width, get(0x8C), drop, scale, HUD.icon_shift.get(), bottom);
         for (n, u, v, x, y) in icons::corners(&i) {
             let at = POLYGON_RVA + 0x20 * n;
             game_write(at + 0x18, [u, v].map(|k| (k as i32 as f32).to_bits()));
             game_write(at, [x, y].map(|k| (k as i32 as f32).to_bits()));
             game_write(at + 0x10, [i.colour, 0]);
             // `fild` through `dword_75C060`: it keeps the last.
-            game_write(SCRATCH_RVA, y);
+            HUD.scratch.set(y);
         }
         game_write(POLYGON_COUNT_RVA, 4u32);
         crate::hud::add_polygon::add_polygon()

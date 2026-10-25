@@ -9,21 +9,30 @@
 //! Caller: `net::close_if_host`.
 
 use crate::net::dplay::{SET_SESSION_DESC, call};
-use crate::net::lobby::{DPLAY, OWN, SESSION_DESC, a, g, gb, log, log_hex, p};
+use crate::net::lobby::{a, log, log_hex};
+use crate::net::store::NET;
 
 const TEXT: usize = 0x5C2F26; // "NET: Disable new players"
 const CLOSED: u32 = 0x21; // DPSESSION_NEWPLAYERSDISABLED | DPSESSION_JOINDISABLED
 
 /// The Rust version.
 pub fn disable_new_players() {
-    if gb(OWN) & 0x10 == 0 {
+    if NET.own.state() & 0x10 == 0 {
         return;
     }
     log(a(TEXT), false, 2);
-    if g(DPLAY) == 0 {
+    if NET.dplay.get() == 0 {
         return;
     }
-    p(SESSION_DESC + 4, g(SESSION_DESC + 4) | CLOSED);
-    let result = unsafe { call(DPLAY, SET_SESSION_DESC, &[a(SESSION_DESC), 0]) };
+    NET.session_desc
+        .flags
+        .set(NET.session_desc.flags.get() | CLOSED);
+    let result = unsafe {
+        call(
+            &NET.dplay,
+            SET_SESSION_DESC,
+            &[NET.session_desc.addr() as u32, 0],
+        )
+    };
     log_hex(result, true);
 }

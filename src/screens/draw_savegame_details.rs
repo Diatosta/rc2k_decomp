@@ -33,11 +33,12 @@
 
 use crate::errors::Refused;
 use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::menu::lists_store::MENU_LISTS;
 use crate::records::find_record::find_record_in;
 use crate::saves::gather_savegame::CAR_LEN;
 use crate::saves::write_savegame_slot::FILE_RVA;
 use crate::screens::draw_stage_info::RECORD_TABLE_RVA;
-use crate::screens::stage_panel::{dword, table_dword};
+use crate::screens::stage_panel::{dword, table_dword_at};
 use crate::text::draw_text::Canvas;
 
 // ---- game data ----
@@ -55,7 +56,6 @@ const PREVIEW_RVAS: [usize; 7] = [
 ];
 const SAVED_CARS_PTR_RVA: usize = rva(0x75516C); // dword_75516C
 const PAYLOAD_OFFSET: usize = 0x30; // 0x51EBE4
-const SECTION_TITLES_RVA: usize = rva(0x75A28A); // dword_75A28A[section]: title string ids
 
 // ---- Rust version ----
 
@@ -79,7 +79,7 @@ pub unsafe fn draw_savegame_details(canvas: &mut dyn Canvas) -> Result<bool, Ref
         let title = Title {
             mode_13,
             section: if mode_13 {
-                table_dword(SECTION_TITLES_RVA, section)
+                table_dword_at(MENU_LISTS.section_titles[0].addr(), section)
             } else {
                 dword(find_record_in(table, 0, section) + 0x38)
             },

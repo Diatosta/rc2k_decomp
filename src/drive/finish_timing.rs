@@ -13,6 +13,7 @@
 
 use crate::math::x87::loaded;
 use crate::physics::flow::{c0, g, p};
+use crate::race::state_store::RACE_STATE;
 use crate::scene::x87_mem::{fild, fld, fstp};
 
 const T: usize = 0x64BB64;
@@ -69,13 +70,13 @@ pub fn timing_from(now: u32) {
     }
     p(0x64BB6C, 0);
     let late = !c0(g(T), g(0x64BB70));
-    if g(0x75B108) != 0 && late {
+    if RACE_STATE.results.finished.get() != 0 && late {
         p(0x64BB6C, 0x3F80_0000);
         if c0(g(T), g(0x64BB74)) {
             share(rc);
         }
     }
-    if late && g(0x75B108) != 0 {
+    if late && RACE_STATE.results.finished.get() != 0 {
         p(0x5C2F88, 1);
     }
 }

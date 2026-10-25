@@ -13,7 +13,9 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{game_addr, game_read, rva};
+use crate::framework::{game_read, rva};
+use crate::menu::lists_store::MENU_LISTS;
+use crate::menu::state_store::MENU_STATE;
 use crate::text::draw_text::Canvas;
 
 fn k(a: usize) -> u32 {
@@ -25,7 +27,7 @@ fn k(a: usize) -> u32 {
 pub unsafe fn draw_options_checklist(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     // Converted: `rc2k_core::screens::settings_pages::options_checklist`.
     unsafe {
-        let mut at = game_addr(rva(0x759C76)) as u32;
+        let mut at = MENU_LISTS.inspection_faults[0].addr() as u32;
         let mut ticks = Vec::new();
         while (at as *const u32).read_unaligned() != u32::MAX {
             ticks.push((at as *const u32).read_unaligned());
@@ -34,7 +36,7 @@ pub unsafe fn draw_options_checklist(canvas: &mut dyn Canvas) -> Result<(), Refu
         rc2k_core::screens::settings_pages::options_checklist(
             &mut crate::screens::game_screen::SettingsScreen::new(canvas),
             k(0x75598C),
-            k(0x75AC80) as i32,
+            MENU_STATE.driver_stats.score.get() as i32,
             &ticks,
         )
     }

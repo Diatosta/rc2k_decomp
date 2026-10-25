@@ -9,22 +9,21 @@
 //! Caller: DirectPlay, from `net::list_players` (`callback`, a `stdcall` Rust function).
 
 use crate::errors::Refused;
-use crate::field;
-use crate::net::lobby::{PLAYERS, block, copy_printable, g, p};
-use crate::net::types::NetPlayerBlock;
+use crate::net::lobby::copy_printable;
+use crate::net::store::NET;
 
 /// The Rust version: eax.
 pub fn player_found(args: &[u32]) -> Result<u32, Refused> {
     // Converted: `rc2k_core::net::lists::player_found`.
-    let Some(count) = rc2k_core::net::lists::player_found(g(PLAYERS)) else {
+    let Some(count) = rc2k_core::net::lists::player_found(NET.players.get()) else {
         return Ok(0);
     };
-    p(PLAYERS, count + 1);
-    let at = block(count);
-    unsafe { ((at + field!(NetPlayerBlock, id)) as *mut u32).write_unaligned(args[0]) };
+    NET.players.set(count + 1);
+    let player = NET.player_block(count);
+    player.id.set(args[0]);
     copy_printable(
         unsafe { ((args[2] + 8) as *const u32).read_unaligned() },
-        at,
+        player.name.addr() as u32,
         0x1F,
     )?;
     Ok(1)

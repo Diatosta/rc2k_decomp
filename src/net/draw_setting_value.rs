@@ -9,7 +9,8 @@
 //! Callers: `net::settings_frame`, `net::draw_number_value` (which goes on into it).
 
 use crate::errors::Refused;
-use crate::net::lobby::{Cursor, EDITED, FONT, TEXT, a, g};
+use crate::net::lobby::{Cursor, FONT, TEXT, a};
+use crate::net::store::NET;
 use crate::text::draw_text::GameCanvas;
 use crate::text::font::Font;
 use rc2k_core::net::screens::{self, Value};
@@ -20,23 +21,24 @@ use rc2k_core::net::screens::{self, Value};
 /// `draw_number_value`).
 pub fn draw_setting_value(text: u32, item: u32, y: u32) -> Result<u32, Refused> {
     // Converted: `rc2k_core::net::screens` (`text_value`, `Value`, `CARET`, `NOTHING`).
-    let shown =
-        match screens::text_value(item == g(EDITED), || unsafe { (text as *const u8).read() }) {
-            Value::Edited => {
-                let mut cursor = Cursor::text();
-                cursor.string(text);
-                cursor.string_id(screens::CARET);
-                cursor.nul();
-                a(TEXT)
-            }
-            Value::Nothing => {
-                let mut cursor = Cursor::text();
-                cursor.string_id(screens::NOTHING);
-                cursor.nul();
-                a(TEXT)
-            }
-            Value::AsIs => text,
-        };
+    let shown = match screens::text_value(item == NET.edited.get(), || unsafe {
+        (text as *const u8).read()
+    }) {
+        Value::Edited => {
+            let mut cursor = Cursor::text();
+            cursor.string(text);
+            cursor.string_id(screens::CARET);
+            cursor.nul();
+            a(TEXT)
+        }
+        Value::Nothing => {
+            let mut cursor = Cursor::text();
+            cursor.string_id(screens::NOTHING);
+            cursor.nul();
+            a(TEXT)
+        }
+        Value::AsIs => text,
+    };
     unsafe {
         crate::text::draw_text::draw_text_at(
             a(FONT) as *mut Font,

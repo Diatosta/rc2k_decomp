@@ -7,16 +7,14 @@
 //! `audio::start` (0x40A0D6) and `audio::free_voices`.
 
 use crate::audio::com::{self, RELEASE};
-use crate::audio::voices::*;
+use crate::audio::store::AUDIO;
 
 // ---- Rust version ----
 
-pub unsafe fn release_voice_manager(at: u32) {
-    unsafe {
-        let object = read(at);
-        if object != 0 {
-            com::call(object, RELEASE);
-            write(at, 0);
-        }
+pub fn release_voice_manager() {
+    let object = AUDIO.voice_manager.get();
+    if object != 0 {
+        unsafe { com::call(object, RELEASE) };
+        AUDIO.voice_manager.set(0);
     }
 }

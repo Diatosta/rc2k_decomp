@@ -19,18 +19,12 @@
 //! Caller: `net::start_link`.
 
 use crate::errors::Refused;
-use crate::field;
-use crate::net::lobby::{
-    CLOCK_A, FIRST_HOST, PLAYER, PLAYERS, RACING, SYNC_CLOCK, SYNC_FIRST, a, block, g, log, p,
-    run_frame,
-};
-use crate::net::types::NetPlayerBlock;
+use crate::net::lobby::{a, log, run_frame};
+use crate::net::store::NET;
+use crate::race::state_store::RACE_STATE;
 use rc2k_core::net::record;
 
 const TEXT: usize = 0x5C2E2A; // "NET: Lets rally"
-const SETTINGS: [(usize, u32); 2] = [(0x75ACE0, 1), (0x75ACD8, 0)];
-const CAR: usize = 0x75ACE8; // dword_75ACE8
-const COLOURS: usize = 0x75AE2C; // dword_75AE2C
 
 /// The Rust version: true when the original ends with the carry set (no player but the
 /// host, Escape, or the car not finished: the link ends).
@@ -38,20 +32,23 @@ pub fn lets_rally() -> Result<bool, Refused> {
     use crate::race::sound_tables;
     unsafe {
         log(a(TEXT), true, 2);
-        p(RACING, 1);
-        let own = block(g(PLAYER)) + field!(NetPlayerBlock, record);
-        for (x, v) in SETTINGS {
-            p(x, v);
-        }
+        NET.racing.set(1);
+        let own = &NET.player_block(NET.player.get()).record;
+        RACE_STATE.settings.race_mode.set(1);
+        RACE_STATE.settings.run_kind.set(0);
         // Converted: `rc2k_core::net::record` (`CAR`, `COLOURS`, `first_not_host`).
-        let byte = |at: u32| (at as *const u8).read();
-        p(CAR, byte(own + record::CAR as u32) as u32);
-        p(COLOURS, byte(own + record::COLOURS as u32) as u32);
-        let state = |n: u32| byte(block(n) + field!(NetPlayerBlock, record.state));
-        let Some(first) = record::first_not_host(g(PLAYERS), state) else {
+        RACE_STATE
+            .settings
+            .car_kind_current
+            .set(own.head.get(record::CAR) as u32);
+        RACE_STATE.settings.cars[0]
+            .record_30
+            .set(own.head.get(record::COLOURS) as u32);
+        let state = |n: u32| NET.player_block(n).record.state();
+        let Some(first) = record::first_not_host(NET.players.get(), state) else {
             return Ok(true);
         };
-        p(FIRST_HOST, first);
+        NET.first_host.set(first);
         crate::sound::stop_music::stop_music();
         crate::race::race_shell::set_race_screen_mode();
         crate::menu::show_loading_picture::show_loading_picture()?;
@@ -59,9 +56,9 @@ pub fn lets_rally() -> Result<bool, Refused> {
         crate::sound::set_up_race_sounds::set_up_race_sounds()?;
         crate::net::set_up_race::set_up_race()?;
         let tick = crate::system::tick_count::tick_count();
-        p(CLOCK_A, tick);
-        p(SYNC_CLOCK, tick);
-        p(SYNC_FIRST, 1);
+        NET.clock_a.set(tick);
+        NET.sync_clock.set(tick);
+        NET.sync_first.set(1);
         crate::net::list_players::list_players_regs()?;
         // The race's time and whether the car did not finish (the original's eax and ebx);
         // Escape leaves ebx 1.

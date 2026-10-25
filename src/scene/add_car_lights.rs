@@ -23,8 +23,6 @@ use crate::framework::{game_read, rva};
 const CARS_RVA: usize = rva(0x63DB90); // dword_63DB90
 const BLOCKS_RVA: usize = rva(0x71B3B8); // g_carBlocks
 const BLOCKS: u32 = 8;
-const ONE_CAR_RVA: usize = rva(0x52A910); // dword_52A910
-const THE_CAR_RVA: usize = rva(0x52A920); // dword_52A920
 const ALL_CARS_RVA: usize = rva(0x6238B8); // dword_6238B8
 const NEAR_CARS_RVA: usize = rva(0x63DB94); // dword_63DB94
 pub const DRAWN_CAR_RVA: usize = rva(0x639968); // dword_639968
@@ -39,10 +37,10 @@ struct GameCars;
 
 impl rc2k_core::scene::lamps::CarLights for GameCars {
     fn one_car(&self) -> bool {
-        unsafe { game_read::<u32>(ONE_CAR_RVA) != 0 }
+        crate::net::store::NET.session.get() != 0
     }
     fn the_car(&self) -> u32 {
-        unsafe { game_read(THE_CAR_RVA) }
+        crate::net::store::NET.player.get()
     }
     fn all_cars(&self) -> bool {
         unsafe { game_read::<u32>(ALL_CARS_RVA) == 1 }

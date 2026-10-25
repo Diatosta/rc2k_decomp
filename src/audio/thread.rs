@@ -19,96 +19,64 @@
 //! hands on the entry's. Neither is read there (ecx is a volume for action 1, which does not
 //! read it; edx reaches `close_all` only when nothing plays yet, where every action stops).
 
-use crate::audio::store::Slot;
-use crate::audio::voices::{read, write};
+use crate::audio::store::AUDIO;
 use crate::errors::Refused;
 use crate::framework::rva;
 use crate::session::FLAGS;
-use crate::store::addr32 as a;
 use crate::store::game_addr;
 
-const TURN_TICK_RVA: Slot = Slot::at(0x4F82B8); // g_audioTurnTick
 const START_TEXT: usize = rva(0x4DA5F2); // "AUDIOTDB:START"
 const QUIT_TEXT: usize = rva(0x4DA601); // "AUDIOTDB:QUIT"
 
-#[derive(Clone, Copy)]
-pub struct ThreadVars {
-    pub slot: u32,
-    pub no_audio: u32,
-    pub menu_mode: u32,
-    pub turn_tick: u32,
-    pub lost: u32,
-    pub quitting: u32,
-}
-
-impl ThreadVars {
-    pub fn game() -> Self {
-        use crate::audio::voices::*;
-        Self {
-            slot: crate::threading::thread_slot::slot(crate::threading::thread_slot::AUDIO) as u32,
-            no_audio: a(crate::sound::queue::NO_AUDIO_RVA),
-            menu_mode: a(crate::audio::choose_modes::MENU_MODE_RVA),
-            turn_tick: a(TURN_TICK_RVA),
-            lost: a(BUFFER_LOST_RVA),
-            quitting: FLAGS.quitting.addr() as u32,
-        }
-    }
-}
-
-/// Runs to the `ExitThread`, which does not come back.
-pub unsafe fn audio_thread(v: &ThreadVars) -> Result<(), Refused> {
+/// Runs to the `ExitThread`, which does not come back. `slot` is the thread's slot
+/// (`threading::thread_slot`), whose +0xC says it runs.
+pub unsafe fn audio_thread(slot: u32) -> Result<(), Refused> {
     use crate::audio::*;
     use crate::system::tick_count::tick_count;
     use crate::threading::set_priority::set_priority;
     use windows_sys::Win32::System::Com::{CoInitialize, CoUninitialize};
-    let splash = || unsafe { a3d::splash(game_addr(a3d::SPLASH_KEPT_RVA) as u32) };
     unsafe {
-        let running = (v.slot + 0xC) as *mut u8;
+        let running = (slot + 0xC) as *mut u8;
         let started = running.read() != 1
             && {
                 running.write(1);
                 sound_device::log_text(game_addr(START_TEXT) as u32, true);
                 CoInitialize(std::ptr::null());
-                read(v.no_audio) == 0
+                AUDIO.no_audio.get() == 0
             }
             && {
-                thread_parts::take_sample_buffer(&thread_parts::SampleBufferVars::game())?;
-                start::start(&start::StartVars::game())?
+                thread_parts::take_sample_buffer()?;
+                start::start()?
             };
         if started {
-            splash()?;
-            set_mode::set_mode(read(v.menu_mode), &set_mode::ModeVars::game())?;
+            a3d::splash()?;
+            set_mode::set_mode(AUDIO.menu_sound_mode.get())?;
             set_priority(0xF);
-            write(v.turn_tick, tick_count());
+            AUDIO.audio_turn_tick.set(tick_count());
             loop {
-                let last = read(v.turn_tick);
+                let last = AUDIO.audio_turn_tick.get();
                 let now = tick_count();
-                write(v.turn_tick, now);
+                AUDIO.audio_turn_tick.set(now);
                 // Converted: `rc2k_core::audio::device::turn_sleep`.
                 crate::system::sleep::sleep(rc2k_core::audio::device::turn_sleep(last, now));
                 // The turn's feeds (action 1, which reads nothing else).
-                stream_commands::stream_command(
-                    0,
-                    0,
-                    1,
-                    game_addr(stream::SOUND_STREAM_RVA) as u32,
-                )?;
-                stream_commands::music_command(0, 0, 0, 1, &stream_commands::MusicVars::game())?;
-                take_commands::take_commands(&take_commands::Vars::game())?;
-                update_voices::update_voices(&update_voices::Vars::game())?;
+                stream_commands::stream_command(0, 0, 1)?;
+                stream_commands::music_command(0, 0, 0, 1)?;
+                take_commands::take_commands()?;
+                update_voices::update_voices()?;
                 stray_voices::check();
-                if read(v.lost) != 0 {
-                    restore::restore_lost(&restore::RestoreVars::game())?;
+                if AUDIO.sound_buffer_lost.get() != 0 {
+                    restore::restore_lost()?;
                 }
-                if read(v.quitting) == 1 {
+                if FLAGS.quitting.get() == 1 {
                     break;
                 }
             }
         }
-        write(v.no_audio, 1);
+        AUDIO.no_audio.set(1);
         close_all::close_all()?;
-        thread_parts::free_sample_buffer(&thread_parts::SampleBufferVars::game())?;
-        splash()?;
+        thread_parts::free_sample_buffer()?;
+        a3d::splash()?;
         CoUninitialize();
         sound_device::log_text(game_addr(QUIT_TEXT) as u32, true);
         set_priority(0);

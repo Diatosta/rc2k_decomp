@@ -14,17 +14,12 @@
 //! its `entry` (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::BadInput;
-use crate::framework::{game_read, game_write, rva};
+use crate::framework::{game_read, rva};
+use crate::menu::state_store::MENU_STATE;
 
 // ---- game data ----
 
 const CLOCK_RVA: usize = rva(0x613830); // dword_613830
-const LAST_RVA: usize = rva(0x75AA84); // dword_75AA84
-const PASSED_RVA: usize = rva(0x75AA88); // dword_75AA88
-pub const DIRECTION_RVA: usize = rva(0x75A660); // dword_75A660
-pub const ANGLE_RVA: usize = rva(0x75AA80); // dword_75AA80
-pub const FRONT_RVA: usize = rva(0x75AA7C); // dword_75AA7C
-pub const COUNT_RVA: usize = rva(0x75AA78); // dword_75AA78
 
 // ---- Rust version ----
 
@@ -34,21 +29,21 @@ pub unsafe fn step_carousel() -> Result<(), BadInput> {
     use rc2k_core::menu::navigation::{Turn, passed, spin};
     unsafe {
         let clock: u32 = game_read(CLOCK_RVA);
-        let passed = passed(clock, game_read(LAST_RVA));
+        let passed = passed(clock, MENU_STATE.carousel.last_clock.get());
         let t = Turn {
-            count: game_read(COUNT_RVA),
-            value: game_read(FRONT_RVA),
-            way: game_read(DIRECTION_RVA),
-            step: game_read(ANGLE_RVA),
+            count: MENU_STATE.carousel.count.get() as i32,
+            value: MENU_STATE.carousel.front.get() as i32,
+            way: MENU_STATE.carousel.direction.get(),
+            step: MENU_STATE.carousel.angle.get(),
         };
         let turned = spin(t, passed)?;
-        game_write(LAST_RVA, clock);
-        game_write(PASSED_RVA, passed);
+        MENU_STATE.carousel.last_clock.set(clock);
+        MENU_STATE.carousel.passed.set(passed);
         if t.way != 0 {
-            game_write(ANGLE_RVA, turned.step);
-            game_write(DIRECTION_RVA, turned.way);
+            MENU_STATE.carousel.angle.set(turned.step);
+            MENU_STATE.carousel.direction.set(turned.way);
             if turned.value != t.value {
-                game_write(FRONT_RVA, turned.value);
+                MENU_STATE.carousel.front.set(turned.value as u32);
             }
         }
         Ok(())

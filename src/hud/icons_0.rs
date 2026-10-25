@@ -4,15 +4,12 @@
 //! Out: as the last `draw_icon` leaves them
 
 use crate::errors::Refused;
-use crate::hud::draw_icon::{SCALE_RVA, SHIFT_RVA, draw_icon};
-use crate::hud::store::Slot;
-use crate::hud::store::{game_read, game_write};
+use crate::hud::draw_icon::draw_icon;
+use crate::hud::store::HUD;
 
 /// The Rust version (see the header).
 pub unsafe fn icons_0(record: u32) -> Result<(), Refused> {
-    unsafe {
-        game_write(SHIFT_RVA, 0u32);
-        game_write(SCALE_RVA, game_read::<u32>(Slot::at(0x75C0B8)));
-        draw_icon(record, 0xC8, 0)
-    }
+    HUD.icon_shift.set(0);
+    HUD.icon_scale.set_bits(HUD.icon_scales[0].bits());
+    unsafe { draw_icon(record, 0xC8, 0) }
 }

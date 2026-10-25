@@ -4,13 +4,8 @@
 //! (out) with the time gone (`dword_75AB4C`, from `dword_75AB48`).
 
 use crate::errors::{BadInput, FatalError, Refused};
-use crate::framework::{game_read, game_write, rva};
+use crate::menu::state_store::MENU_STATE;
 
-pub const START_RVA: usize = rva(0x75AB48); // dword_75AB48
-pub const GONE_RVA: usize = rva(0x75AB4C); // dword_75AB4C
-pub const SEE_RVA: usize = rva(0x75AB50); // dword_75AB50
-pub const LENGTH_RVA: usize = rva(0x75AB44); // dword_75AB44
-pub const FULL_RVA: usize = rva(0x75AA94); // dword_75AA94
 // system::tick_count
 const DIVIDE_BY_ZERO: FatalError = FatalError {
     code: 0x80701010,
@@ -30,27 +25,39 @@ fn frame() -> Result<(), Refused> {
 pub unsafe fn fade(out: bool) -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::fades` (`too_short`, `first_see`, `step`, `over`).
     use rc2k_core::menu::fades::{self, Stop};
-    let length: u32 = unsafe { game_read(LENGTH_RVA) };
+    let length: u32 = MENU_STATE.menus.fade_length.get();
     if fades::too_short(length) {
         return Err(BadInput("a fade shorter than 100 ms: the original divides by 0").into());
     }
-    unsafe {
-        game_write(START_RVA, crate::system::tick_count::tick_count());
-        game_write(SEE_RVA, fades::first_see(out, game_read(FULL_RVA)));
+    {
+        MENU_STATE
+            .menus
+            .fade_start
+            .set(crate::system::tick_count::tick_count());
+        MENU_STATE
+            .menus
+            .fade_see
+            .set(fades::first_see(out, MENU_STATE.service_ui.fade_full.get()));
         frame()?;
         loop {
-            let gone = crate::system::tick_count::tick_count().wrapping_sub(game_read(START_RVA));
-            game_write(GONE_RVA, gone);
+            let gone = crate::system::tick_count::tick_count()
+                .wrapping_sub(MENU_STATE.menus.fade_start.get());
+            MENU_STATE.menus.fade_gone.set(gone);
             // The length and the full see-through read only where the original reads them.
             let made = if gone != 0 || out {
-                fades::step(gone, game_read(LENGTH_RVA), || game_read(FULL_RVA), out)
+                fades::step(
+                    gone,
+                    MENU_STATE.menus.fade_length.get(),
+                    || MENU_STATE.service_ui.fade_full.get(),
+                    out,
+                )
             } else {
                 Ok(None)
             };
             match made {
                 Ok(Some(s)) => {
                     if let Some(see) = s.see {
-                        game_write(SEE_RVA, see);
+                        MENU_STATE.menus.fade_see.set(see);
                     }
                 }
                 Ok(None) => {}
@@ -60,7 +67,10 @@ pub unsafe fn fade(out: bool) -> Result<(), Refused> {
                 }
             }
             frame()?;
-            if fades::over(game_read(GONE_RVA), game_read(LENGTH_RVA)) {
+            if fades::over(
+                MENU_STATE.menus.fade_gone.get(),
+                MENU_STATE.menus.fade_length.get(),
+            ) {
                 break;
             }
         }

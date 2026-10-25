@@ -10,7 +10,8 @@
 //! An item action (a reading: the main menu's "car specifications").
 
 use crate::errors::{FatalError, Refused};
-use crate::framework::{game_addr, game_read, rva};
+use crate::framework::{game_read, rva};
+use crate::menu::lists_store::MENU_LISTS;
 use crate::menu::screen_loop::{Carried, run_screen_carried};
 
 const KIND_RVA: usize = rva(0x755954); // dword_755954
@@ -30,11 +31,11 @@ pub unsafe fn show_car_specs(c: &Carried) -> Result<(), Refused> {
         }
         .into());
     };
-    r.cars = game_addr(rva(match list {
-        SpecsList::Events => 0x75A042,
-        SpecsList::Kind4 => 0x759CAE,
-        SpecsList::Kind5 => 0x759D16,
-    })) as u32;
+    r.cars = match list {
+        SpecsList::Events => MENU_LISTS.cars_second[0].addr(),
+        SpecsList::Kind4 => MENU_LISTS.cars_championship[0].addr(),
+        SpecsList::Kind5 => MENU_LISTS.cars_a8[0].addr(),
+    } as u32;
     if !choice {
         unsafe { run_screen_carried(&crate::menu::car_specs_47af4c_loop::SCREEN, &mut r) }?;
         return Ok(());

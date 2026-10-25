@@ -8,11 +8,12 @@
 //! Callers: `sub_48E093`, `sub_4A15E3`, `sub_4A8556`. Refuses a current player past 3 or missing,
 //! before anything.
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, game_write, rva};
+use crate::framework::{game_read, rva};
+use crate::menu::lists_store::MENU_LISTS;
 use crate::menu::standings::*;
+use crate::session::write_prefix;
 
 const CURRENT_RVA: usize = rva(0x75598C); // dword_75598C
-const FLAGS_RVA: usize = rva(0x759C76); // dword_759C76: 13
 /// The Rust version (see the header): the registers it leaves.
 pub unsafe fn inspection_faults() -> Result<(), Refused> {
     let n: u32 = unsafe { game_read(CURRENT_RVA) };
@@ -22,6 +23,6 @@ pub unsafe fn inspection_faults() -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::inspection::faults`.
     let p = player(n);
     let flags = rc2k_core::menu::inspection::faults(|k| past_limit(p, k as u32));
-    unsafe { game_write(FLAGS_RVA, flags) };
+    write_prefix(&MENU_LISTS.inspection_faults, &flags);
     Ok(())
 }

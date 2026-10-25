@@ -11,20 +11,16 @@
 //! thread. Refuses what `net::destroy_connection` refuses.
 
 use crate::errors::Refused;
-use crate::net::{ON, p};
+use crate::net::store::NET;
 use crate::session::FLAGS;
-
-const BUSY: usize = 0x52A918; // dword_52A918: the receiving thread is busy
-const ENDED: usize = 0x52A4B0; // dword_52A4B0: the receiving thread has ended
 
 /// The Rust version.
 pub fn stop() -> Result<(), Refused> {
-    let rd = |x: usize| unsafe { (crate::net::a(x) as *const u32).read_volatile() };
-    p(ON, 0);
-    while rd(BUSY) != 0 {
+    NET.session.set(0);
+    while NET.receiving.get() != 0 {
         unsafe { windows_sys::Win32::System::Threading::Sleep(1) };
         crate::platform::pump_messages_now();
-        if FLAGS.quitting.get() == 1 && rd(ENDED) == 1 {
+        if FLAGS.quitting.get() == 1 && NET.receive_done.get() == 1 {
             break;
         }
     }

@@ -19,50 +19,45 @@
 
 use crate::errors::Refused;
 use crate::logfile::log_write::log_write;
-use crate::net::EVENT;
-use crate::net::lobby::{
-    POSTED, POSTED_ANSWERED, POSTED_RESULT, POSTING, RECEIVE_DONE, SESSION, a, g, p,
-};
+use crate::net::lobby::a;
+use crate::net::store::NET;
 use crate::session::FLAGS;
-use std::sync::atomic::{AtomicU32, Ordering};
+use std::sync::atomic::Ordering;
 
 const START_TEXT: usize = 0x4DACD2; // "NETRXTDB:START"
 const QUIT_TEXT: usize = 0x4DACE1; // "NETRXTDB:QUIT"
-/// dword_52A918: the thread is busy with the messages.
-const RECEIVING: usize = 0x52A918;
 /// The wait for the event, in milliseconds.
 const WAIT: u32 = 1000;
 
 /// Runs to the `ExitThread`, which does not come back.
 pub fn receive_thread() -> Result<(), Refused> {
-    let get = |x: usize| unsafe { (a(x) as *const u32).read_volatile() };
     let running =
         (crate::threading::thread_slot::slot(crate::threading::thread_slot::NET) + 0xC) as *mut u8;
     unsafe {
         if running.read_volatile() != 1 {
             running.write_volatile(1);
             log_write(a(START_TEXT) as *const u8, true, 2);
-            if get(RECEIVE_DONE) == 0 {
+            if NET.receive_done.get() == 0 {
                 loop {
                     let (_, zero) =
-                        crate::threading::wait_for_object::wait_for_object(g(EVENT), WAIT).flags();
+                        crate::threading::wait_for_object::wait_for_object(NET.event.get(), WAIT)
+                            .flags();
                     if !zero {
-                        p(RECEIVING, 1);
-                        if get(SESSION) == 1 {
+                        NET.receiving.set(1);
+                        if NET.session.get() == 1 {
                             crate::net::take_messages::take_messages()?;
                         }
                     }
-                    p(RECEIVING, 0);
-                    if get(POSTING) == 1 {
-                        let posted =
-                            AtomicU32::from_ptr(a(POSTED) as *mut u32).swap(0, Ordering::SeqCst);
+                    NET.receiving.set(0);
+                    if NET.posting.get() == 1 {
+                        let posted = NET.posted_call.atomic().swap(0, Ordering::SeqCst);
                         if posted != 0 {
                             // Always a Rust version's address (`net::lobby_calls`).
                             let call = std::mem::transmute::<usize, extern "C" fn() -> u32>(
                                 posted as usize,
                             );
-                            p(POSTED_RESULT, call());
-                            p(POSTED_ANSWERED, 1);
+                            NET.posted_result.set(call());
+                            NET.posted_answered.set(1);
                         }
                     }
                     if FLAGS.quitting.get() == 1 {
@@ -71,7 +66,7 @@ pub fn receive_thread() -> Result<(), Refused> {
                 }
             }
         }
-        p(RECEIVE_DONE, 1);
+        NET.receive_done.set(1);
         log_write(a(QUIT_TEXT) as *const u8, true, 2);
         running.write_volatile(0);
         windows_sys::Win32::System::Threading::ExitThread(0)

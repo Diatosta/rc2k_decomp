@@ -3,10 +3,9 @@
 //! `dword_75ACDC` is 1 (a reading: the replay not to be had); see `race/replay_mode.rs`.
 
 use crate::errors::Refused;
-use crate::framework::{game_read, rva};
+use crate::framework::game_read;
 use crate::menu::screen_loop::Carried;
-
-pub const NO_REPLAY_RVA: usize = rva(0x75ACDC); // dword_75ACDC
+use crate::race::state_store::RACE_STATE;
 
 fn g(a: usize) -> u32 {
     unsafe { game_read(a) }
@@ -16,7 +15,7 @@ fn g(a: usize) -> u32 {
 /// (`dword_5BEC84` 1) `race::replay_mode_1`; else half a second's sleep and the menu's sound
 /// 8. `c` the carried values the item gets.
 pub unsafe fn replay_item_a(c: &Carried) -> Result<(), Refused> {
-    if g(NO_REPLAY_RVA) != 1 && g(crate::race::replay_mode::REPLAY_RVA) == 1 {
+    if RACE_STATE.settings.no_replay.get() != 1 && g(crate::race::replay_mode::REPLAY_RVA) == 1 {
         return unsafe { crate::race::replay_mode::replay_mode(c, 1) };
     }
     crate::system::sleep::sleep(500);
@@ -26,7 +25,7 @@ pub unsafe fn replay_item_a(c: &Carried) -> Result<(), Refused> {
 
 /// `menu::replay_item_b` (0x47052F): unless `dword_75ACDC` is 1, `race::replay_mode_3`.
 pub unsafe fn replay_item_b(c: &Carried) -> Result<(), Refused> {
-    if g(NO_REPLAY_RVA) != 1 {
+    if RACE_STATE.settings.no_replay.get() != 1 {
         unsafe { crate::race::replay_mode::replay_mode(c, 3) }?;
     }
     Ok(())

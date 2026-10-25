@@ -8,15 +8,15 @@
 //! No limit on the count. Caller: `net::build_address` (five times; three at most in one
 //! go).
 
-use crate::net::lobby::{ELEMENT_TABLE, ELEMENTS, a, g, p};
+use crate::net::store::NET;
 use rc2k_core::net::address;
 
 /// The Rust version.
 pub fn add_address_element(data_type: u32, size: u32, data: u32) {
     // Converted: `rc2k_core::net::address` (`element_at`, `element`).
-    let offset = address::element_at(g(ELEMENTS));
-    p(ELEMENTS, g(ELEMENTS).wrapping_add(1));
-    let at = a(ELEMENT_TABLE).wrapping_add(offset);
+    let offset = address::element_at(NET.elements.get());
+    NET.elements.set(NET.elements.get().wrapping_add(1));
+    let at = (NET.element_table.addr() as u32).wrapping_add(offset);
     let data_type = unsafe { (data_type as *const [u8; 16]).read_unaligned() };
     let bytes = address::element(&data_type, size, data);
     unsafe { std::ptr::copy(bytes.as_ptr(), at as *mut u8, bytes.len()) };

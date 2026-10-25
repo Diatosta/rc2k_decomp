@@ -25,7 +25,6 @@ use crate::saves::default_times::{WITH_CHECKPOINTS_RVA, to_the_log};
 
 // ---- game data ----
 
-const HAS_CLIO_RVA: usize = rva(0x529DB4); // g_hasClio
 const BEST_TIMES_LOADED_RVA: usize = rva(0x747614); // g_bestTimesLoaded
 const OPTIONS_LOADED_RVA: usize = rva(0x75557D); // g_optionsLoaded
 /// (from, to): two dwords, then the nine tables of `saves::allocate_best_times`.
@@ -61,7 +60,7 @@ pub unsafe fn set_up_front_end(stage: u32, x: u32) -> Result<(), Refused> {
         default_stage_times_alt,
     };
     unsafe {
-        if game_read::<u32>(HAS_CLIO_RVA) == 1 {
+        if crate::install::store::INSTALL.has_clio.get() == 1 {
             crate::menu::add_clio_car::add_clio_car()?;
         }
         crate::menu::link_player_names::link_player_names()?;

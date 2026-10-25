@@ -6,16 +6,16 @@
 //! Nothing for a negative volume; else it is kept in `g_masterVolume` and
 //! `audio::set_master_volume` called with it. One caller, `audio::take_commands`.
 
-use crate::audio::voices::*;
+use crate::audio::store::AUDIO;
 
 // ---- Rust version ----
 
-/// `master`: where the volume is kept; `set`: the master volume's setting.
-pub unsafe fn volume_command(volume: u32, master: u32, set: &mut dyn FnMut(u32)) {
+/// `set`: the master volume's setting.
+pub fn volume_command(volume: u32, set: &mut dyn FnMut(u32)) {
     // Converted: `rc2k_core::audio::levels::kept_master_volume`.
     let Some(volume) = rc2k_core::audio::levels::kept_master_volume(volume) else {
         return;
     };
-    unsafe { write(master, volume) };
+    AUDIO.master_volume.set(volume);
     set(volume);
 }

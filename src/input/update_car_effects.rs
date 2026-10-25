@@ -74,7 +74,7 @@ fn update_car_effects_with(
         return Err(BadInput("a surface number past the effect kinds' 16").into());
     }
     o.flag_ac.set(at(view, 0x248));
-    let effects = &crate::sound::store::SOUND_EFFECTS;
+    let effects = &crate::input::store::FORCE_FEEDBACK;
     let ten = effects.effect_ten.bits();
     o.effect_in[0].set(mul_to_int(at(view, 0x1A4), ten) as u32);
     o.effect_in[1].set(sub_mul_to_int(at(view, 0x1B8), at(view, 0x1AC), ten) as u32);

@@ -6,6 +6,7 @@ use crate::errors::{FatalError, Refused};
 use crate::framework::rva;
 use crate::gfx::block::{game_addr, game_read, game_write};
 use crate::gfx::picture_store::Slot as PicSlot;
+use crate::menu::lists_store::MENU_LISTS;
 use crate::screens::draw_stage_records::selection;
 
 pub const MODE_RVA: usize = rva(0x755700); // dword_755700: 2 a championship's, 3 a record's
@@ -18,7 +19,6 @@ const CHAMPIONSHIP_STAGE_RVA: usize = rva(0x7587F0); // dword_7587F0
 const RECORD_TABLE_RVA: usize = rva(0x735576); // g_recordTable
 const SECTION_RVA: usize = rva(0x75595C); // section
 const INDEX_RVA: usize = rva(0x755958); // index
-const PALETTES_RVA: usize = rva(0x7598AE); // off_7598AE: the map's overlays by the stage's +0x3C
 const MAP_PATH_RVA: usize = rva(0x73218B); // "files\g\graphics\screens\ukmap.png"
 const SCREEN_MODE_FLAGS_RVA: usize = rva(0x4F4934); // g_screenModeFlags
 const PICTURE_FLAGS_RVA: PicSlot = PicSlot::at(0x4F49CC); // g_pictureFlags
@@ -68,7 +68,8 @@ pub unsafe fn draw_stage_map() -> Result<(), Refused> {
                     .wrapping_add(game_read::<u32>(NUMBER_RVA).wrapping_mul(RECORD_SIZE))
             }
         };
-        let overlay = dword(game_addr(PALETTES_RVA) as u32 + dword(record + 0x3C).wrapping_mul(4));
+        let overlay =
+            dword(MENU_LISTS.map_overlays[0].addr() as u32 + dword(record + 0x3C).wrapping_mul(4));
         if load_picture_with_overlay(game_addr(MAP_PATH_RVA) as *mut u8, overlay as *mut u8)? {
             return Err(NO_MAP.into());
         }

@@ -13,19 +13,17 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::BadInput;
-use crate::framework::{game_read, game_write, rva};
+use crate::menu::state_store::MENU_STATE;
 use crate::service::state::current_player;
 
 // ---- game data ----
-
-const SKIP_RVA: usize = rva(0x75AAE0); // dword_75AAE0: 1 = leave the edit variables alone
 
 // ---- Rust version ----
 
 /// Refuses a missing player: the original reads through a null pointer.
 pub unsafe fn load_setup_values() -> Result<(), BadInput> {
     unsafe {
-        if game_read::<u32>(SKIP_RVA) == 1 {
+        if MENU_STATE.menus.skip_edit_values.get() == 1 {
             return Ok(());
         }
         let Some(player) = current_player() else {
@@ -37,17 +35,14 @@ pub unsafe fn load_setup_values() -> Result<(), BadInput> {
         let values = (player as *const rc2k_core::menu::player::Player)
             .read_unaligned()
             .setup_edit_values();
-        for (value, (first, second)) in values.into_iter().zip([
-            (0x75ACA0, 0x75AC9C),
-            (0x75AC94, 0x75AC90),
-            (0x75ACB8, 0x75ACB4),
-        ]) {
-            game_write(rva(first), value);
-            game_write(rva(second), value);
+        let setups = &MENU_STATE.driver_stats.setups;
+        for (value, item) in values.into_iter().zip([&setups[1], &setups[0], &setups[3]]) {
+            item.installed.set(value);
+            item.chosen.set(value);
         }
         // The original loads car +0x114 here and then stores this instead.
-        let kept: u32 = game_read(rva(0x75ACAC));
-        game_write(rva(0x75ACA8), kept);
+        let kept: u32 = MENU_STATE.driver_stats.setups[2].installed.get();
+        MENU_STATE.driver_stats.setups[2].chosen.set(kept);
         Ok(())
     }
 }

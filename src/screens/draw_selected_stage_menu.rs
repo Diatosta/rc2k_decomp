@@ -19,12 +19,11 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::game_write;
+use crate::race::state_store::RACE_STATE;
 use crate::screens::draw_stage_records::selection;
 use crate::screens::draw_time_trial_stage_info::GROUP_TITLES_RVA;
 use crate::screens::stage_panel::{
-    GROUP_COPY_RVA, build_second_heading, draw_records_for_group, draw_stage_body, dword,
-    menu_item_id, table_dword,
+    build_second_heading, draw_records_for_group, draw_stage_body, dword, menu_item_id, table_dword,
 };
 use crate::text::draw_text::Canvas;
 
@@ -59,7 +58,7 @@ pub unsafe fn draw_selected_stage_menu(canvas: &mut dyn Canvas) -> Result<bool, 
             );
         };
         (item_0 as *mut u32).write_unaligned(group_title);
-        game_write(GROUP_COPY_RVA, sel.group);
+        RACE_STATE.settings.direction.set(sel.group);
         (item_1 as *mut u32).write_unaligned(table_title);
 
         build_second_heading(sel.record)?;

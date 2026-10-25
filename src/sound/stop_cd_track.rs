@@ -23,8 +23,8 @@ pub struct CdVars {
 impl CdVars {
     pub fn game() -> Self {
         Self {
-            open: crate::sound::store::SOUND_EFFECTS.cd_audio_open.addr() as u32,
-            device: crate::sound::store::SOUND_EFFECTS.mci_id.addr() as u32,
+            open: crate::sound::store::CD_AUDIO.open.addr() as u32,
+            device: crate::sound::store::CD_AUDIO.mci_id.addr() as u32,
         }
     }
 }

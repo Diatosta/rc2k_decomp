@@ -27,6 +27,8 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_read, game_write, rva};
+use crate::menu::lists_store::MENU_LISTS;
+use crate::menu::state_store::MENU_STATE;
 
 // ---- game data ----
 
@@ -35,13 +37,11 @@ pub(crate) const SIZE_RVA: usize = rva(0x635038); // dword_635038
 pub(crate) const ANGLE_X_RVA: usize = rva(0x63503C); // dword_63503C
 pub(crate) const ANGLE_Y_RVA: usize = rva(0x635040); // dword_635040
 const CLEARED_RVA: usize = rva(0x623FB0); // dword_623FB0, dword_623FB4
-const SPACING_RVA: usize = rva(0x75A664); // dword_75A664, then y, z and the way forward
-pub(crate) const KINDS_RVA: usize = rva(0x75A674); // dword_75A674
 pub(crate) const ENTRIES: u32 = 0x100;
-pub(crate) const KIND_RVA: usize = rva(0x75A658); // dword_75A658
-pub(crate) const OWN_RVA: usize = rva(0x75950E); // unk_75950E
+/// The kinds' own places the original allows (`MENU_LISTS.own_places` holds 73: past them it
+/// reads the lists that follow in the image, as the original does).
 pub(crate) const OWN: u32 = 0x88;
-const ANGLE_RVA: usize = rva(0x75AA80); // g_carouselAngle
+const OWN_PLACES_IDA: usize = 0x75950E; // unk_75950E: `MENU_LISTS.own_places`, 12 bytes each
 pub(crate) const CLOCK_RVA: usize = rva(0x613830); // g_sceneClock
 pub(crate) const OBJECT_RVA: usize = rva(0x6214FC); // g_objectNumber
 // g_objectKinds
@@ -62,14 +62,31 @@ pub struct Settings {
 
 pub(crate) use crate::scene::find_object_of_kind::find_object_of_kind;
 
+/// A kind's own place: its size, y and angle (`own` below `OWN`; past the table's 73, what
+/// the image has after it, each address resolved to its home by `MOVED`).
+pub(crate) fn own_place(own: u32) -> [u32; 3] {
+    match MENU_LISTS.own_places.get(own as usize) {
+        Some(place) => [place.size.get(), place.y.get(), place.angle.get()],
+        None => {
+            let at = OWN_PLACES_IDA + 12 * own as usize;
+            [0, 4, 8].map(|k| unsafe { game_read::<u32>(rva(at + k)) })
+        }
+    }
+}
+
 /// Reads only.
 unsafe fn settings(entry: u32, row: u32) -> Result<Settings, BadInput> {
     unsafe {
         if entry >= ENTRIES {
             return Err(BadInput("a carousel entry past the table"));
         }
-        let [spacing, y, z, forward]: [u32; 4] = game_read(SPACING_RVA);
-        let turn: u32 = game_read(ANGLE_RVA);
+        let [spacing, y, z, forward] = [
+            MENU_STATE.carousel.spacing.get(),
+            MENU_STATE.carousel.y.get(),
+            MENU_STATE.carousel.z.get(),
+            MENU_STATE.carousel.forward.get(),
+        ];
+        let turn: u32 = MENU_STATE.carousel.angle.get();
         let high = |a: u32, b: u32| ((a as u64 * b as u64) >> 32) as u32;
         let x = high(spacing, !turn)
             .wrapping_add((spacing as i32).wrapping_mul(row.wrapping_sub(1) as i32) as u32);
@@ -84,7 +101,7 @@ unsafe fn settings(entry: u32, row: u32) -> Result<Settings, BadInput> {
             size: None,
             angle_x: 0,
             angle_y: ((clock as u16) << 3) as u32,
-            kind: game_read(KINDS_RVA + entry as usize * 4),
+            kind: MENU_STATE.carousel.kinds[entry as usize].get(),
             object: 0,
         };
         if set.kind as i32 > 0x258 {
@@ -92,7 +109,7 @@ unsafe fn settings(entry: u32, row: u32) -> Result<Settings, BadInput> {
             if own >= OWN {
                 return Err(BadInput("a kind past the records of the kinds' own places"));
             }
-            let [size, y, angle]: [u32; 3] = game_read(OWN_RVA + own as usize * 12);
+            let [size, y, angle] = own_place(own);
             set.size = Some(size);
             set.place[1] = y;
             set.angle_x = angle;
@@ -118,7 +135,7 @@ pub unsafe fn draw_carousel_entry(
         game_write(ANGLE_X_RVA, set.angle_x);
         game_write(ANGLE_Y_RVA, set.angle_y);
         game_write(CLEARED_RVA, [0u32; 2]);
-        game_write(KIND_RVA, set.kind);
+        MENU_STATE.carousel.kind.set(set.kind);
         game_write(OBJECT_RVA, set.object);
         draw()
     }

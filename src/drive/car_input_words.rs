@@ -33,11 +33,11 @@ pub unsafe fn car_input_words() -> Result<(), Refused> {
     for (k, v) in words.iter().enumerate() {
         p(WORDS + 4 * k, *v);
     }
-    if g(0x52A910) != 0 {
+    if crate::net::store::NET.session.get() != 0 {
         let block = (g(0x71B3B8 + 4 * car as usize) + 0xFD0) as *mut u32;
         for k in 0..4 {
             let at = unsafe { block.add(k) };
-            match replay_words(car, g(0x52A920)) {
+            match replay_words(car, crate::net::store::NET.player.get()) {
                 ReplayWords::FromBlock => p(WORDS + 4 * k, unsafe { at.read_unaligned() }),
                 ReplayWords::IntoBlock => unsafe { at.write_unaligned(g(WORDS + 4 * k)) },
             }

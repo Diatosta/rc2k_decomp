@@ -11,11 +11,9 @@
 
 use crate::errors::Refused;
 use crate::framework::rva;
-use crate::hud::draw_marker::RECTS_RVA;
-use crate::hud::store::Slot;
-use crate::hud::store::{game_addr, game_read};
+use crate::hud::store::HUD;
+use crate::store::game_read;
 
-const WIDTHS_RVA: Slot = Slot::at(0x75BF80); // dword_75BF80: 8
 pub const FLAT_RVA: usize = rva(0x6D1502); // dword_6D1502
 
 /// The row: `y`, or 0x20 higher with `dword_6D1502` 0.
@@ -51,11 +49,11 @@ pub unsafe fn signs_with(
         let places = get(start).wrapping_add(shift);
         for n in 0..signs::SIGNS as u32 {
             let v = get(first + 4 * n);
-            let Some(sign) = signs::sign(places, n, v, |k| game_read(WIDTHS_RVA + 4 * k as usize))
+            let Some(sign) = signs::sign(places, n, v, |k| HUD.sign_widths[k as usize].get())
             else {
                 continue;
             };
-            let rect = game_addr(RECTS_RVA) as u32 + sign.rectangle;
+            let rect = (HUD.rects.as_ptr() as u32).wrapping_add(sign.rectangle);
             crate::hud::add_sprite::add_sprite(sign.x, row_by(y, lift), rect)?;
         }
     }

@@ -7,12 +7,10 @@
 //! looked for on the two lists; one on neither is logged once ("audio: stray voice"), with
 //! what it holds, until it is quiet again.
 
-use crate::audio::voices::{
-    A3D_RVA, PLAYING_RVA, SOUND_MODE_RVA, STOPPING_RVA, VOICE_COUNT_RVA, VOICES, VOICES_RVA, Voice,
-    read, voice,
-};
+use crate::audio::store::AUDIO;
+use crate::audio::voices::{VOICES, Voice, voice};
 use crate::framework::log;
-use crate::store::addr32 as a;
+use crate::session::Dword;
 use std::collections::HashSet;
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicU32, Ordering};
@@ -24,11 +22,11 @@ static TURNS: AtomicU32 = AtomicU32::new(0);
 /// The strays already logged.
 static LOGGED: Mutex<Vec<u32>> = Mutex::new(Vec::new());
 
-/// A list's voices, from the head at `head` (at most the pool's count).
-unsafe fn list(head: u32) -> HashSet<u32> {
+/// A list's voices, from the head `head` holds (at most the pool's count).
+unsafe fn list(head: &Dword) -> HashSet<u32> {
     let mut out = HashSet::new();
     unsafe {
-        let mut at = read(head);
+        let mut at = head.get();
         while at != 0 && out.len() <= VOICES as usize && out.insert(at) {
             at = voice(at).next;
         }
@@ -42,16 +40,16 @@ pub fn check() {
         return;
     }
     unsafe {
-        if read(a(A3D_RVA)) == 1 || read(a(SOUND_MODE_RVA)) & 0x1_0000 == 0 {
+        if AUDIO.use_a3d.get() == 1 || AUDIO.sound_mode.get() & 0x1_0000 == 0 {
             return;
         }
-        let (playing, stopping) = (list(a(PLAYING_RVA)), list(a(STOPPING_RVA)));
+        let (playing, stopping) = (list(&AUDIO.playing_voices), list(&AUDIO.stopping_voices));
         let listed: HashSet<u32> = playing.union(&stopping).copied().collect();
-        let count = read(a(VOICE_COUNT_RVA)).min(VOICES);
+        let count = AUDIO.voice_count.get().min(VOICES);
         let size = std::mem::size_of::<Voice>() as u32;
         let mut strays = Vec::new();
         for n in 0..count {
-            let at = a(VOICES_RVA) + n * size;
+            let at = AUDIO.voices[0].addr() as u32 + n * size;
             let v = voice(at);
             if v.flags & 1 == 0 || v.buffer == 0 || listed.contains(&at) {
                 continue;

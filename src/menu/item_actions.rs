@@ -22,12 +22,11 @@
 use crate::errors::Refused;
 use crate::framework::{game_read, game_write, rva};
 use crate::menu::screen_loop::{Carried, run_screen};
+use crate::menu::state_store::MENU_STATE;
+use crate::race::state_store::RACE_STATE;
 
 const SAVE_PAGE_RVA: usize = rva(0x75523C); // dword_75523C: the save list's page
-const BOX_SWITCH_RVA: usize = rva(0x75AA9C); // dword_75AA9C: a service box shown
-const BOX_PAGE_RVA: usize = rva(0x75AAA0); // dword_75AAA0: its page
 const EVENT_TYPE_RVA: usize = rva(0x755954); // g_eventType
-const UNLOCKED_RVA: usize = rva(0x75ACCC); // dword_75ACCC: 1 lets a new simulation start
 const ARCADE_LEVEL_RVA: usize = rva(0x7587EC); // g_arcadeLevel
 const ARCADE_STAGE_RVA: usize = rva(0x7587F0); // g_arcadeStage
 
@@ -58,8 +57,11 @@ pub fn previous_save_page() {
 
 /// The steering (page 3) or brake (page 4) box.
 pub fn open_service_box(page: u32) {
-    p(BOX_SWITCH_RVA, g(BOX_SWITCH_RVA) ^ 1);
-    p(BOX_PAGE_RVA, page);
+    MENU_STATE
+        .service_ui
+        .box_shown
+        .set(MENU_STATE.service_ui.box_shown.get() ^ 1);
+    MENU_STATE.service_ui.box_page.set(page);
 }
 
 /// `menu::view_stage_details`: the stage information screen. `c` the carried values the
@@ -81,7 +83,7 @@ pub unsafe fn view_stage_details(c: &Carried) -> Result<(), Refused> {
 pub fn new_simulation_if_unlocked() -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::stage_screens::simulation_unlocked`.
     use rc2k_core::menu::stage_screens::{REFUSED_SLEEP, REFUSED_SOUND, simulation_unlocked};
-    if simulation_unlocked(g(UNLOCKED_RVA)) {
+    if simulation_unlocked(RACE_STATE.settings.a8_game.get()) {
         // (An item of the typed tables: it runs with no carried values, as the menus'
         // items do.)
         crate::menu::new_simulation_loop::run()?;

@@ -5,7 +5,8 @@
 //! services in `dword_755A0C`.
 
 use crate::errors::{FatalError, Refused};
-use crate::framework::{game_addr, game_read, rva};
+use crate::framework::{game_read, rva};
+use crate::menu::lists_store::MENU_LISTS;
 use crate::screens::best_scores::{record_at, section_there};
 use crate::screens::game_screen::GameScreen;
 use crate::text::draw_text::Canvas;
@@ -37,7 +38,8 @@ pub unsafe fn draw_itinerary(canvas: &mut dyn Canvas) -> Result<(), Refused> {
         }
         let first = record_at(0);
         let heading = if k(0x7556D0) == 0x13 {
-            ((game_addr(rva(0x75A28A)) as u32 + 4 * k(0x75595C)) as *const u32).read_unaligned()
+            ((MENU_LISTS.section_titles[0].addr() as u32 + 4 * k(0x75595C)) as *const u32)
+                .read_unaligned()
         } else {
             ((first + 0x38) as *const u32).read_unaligned()
         };

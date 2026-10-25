@@ -11,17 +11,9 @@
 //! stops. Each function begins `cmp g_useA3d, 1; jz` an A3D twin: refused.
 
 use crate::audio::buffer_settings::a3d;
-use crate::audio::store::Slot;
+use crate::audio::store::AUDIO;
 use crate::errors::{BadInput, Refused};
-use crate::store::addr32 as a;
 
-pub const SOUND_STREAM_RVA: Slot = Slot::at(0x506960); // g_soundStream
-pub const MUSIC_STREAM_RVA: Slot = Slot::at(0x506990); // g_musicStream
-pub const NEXT_TUNE_RVA: Slot = Slot::at(0x50698C); // g_nextTune
-pub const NO_MUSIC_RVA: Slot = Slot::at(0x5069BC); // g_noMusic
-pub const MUSIC_PATH_RVA: Slot = Slot::at(0x5069C0); // g_musicPath ";3files\music\00.wav"
-pub const HEADER_RVA: Slot = Slot::at(0x5069D8); // g_streamHeader
-pub const HEADER_MEMORY_RVA: Slot = Slot::at(0x5069DC); // g_streamHeaderMemory (a MemoryList)
 pub const HEADER_LEN: u32 = 0xC00;
 /// `GetCurrentPosition`, `Lock`, `Unlock` of a DirectSound buffer.
 pub const GET_POSITION: u32 = 0x10;
@@ -29,10 +21,6 @@ pub const LOCK: u32 = 0x2C;
 pub const UNLOCK: u32 = 0x4C;
 
 pub use rc2k_core::audio::streams::AudioStream;
-
-pub unsafe fn stream<'a>(at: u32) -> &'a mut AudioStream {
-    unsafe { &mut *(at as *mut AudioStream) }
-}
 
 pub fn not_a3d(twin: &'static str) -> Result<(), Refused> {
     if a3d() {
@@ -97,56 +85,29 @@ pub unsafe fn set_stream_volume(s: &AudioStream) -> Result<(), Refused> {
     Ok(())
 }
 
-/// Where `start_stream` keeps its things.
-#[derive(Clone, Copy)]
-pub struct StartVars {
-    pub direct_sound: u32,
-    pub header: u32,
-    pub header_memory: u32,
-}
-
-impl StartVars {
-    pub fn game() -> Self {
-        Self {
-            direct_sound: a(crate::audio::make_buffer::DIRECT_SOUND_RVA),
-            header: a(HEADER_RVA),
-            header_memory: a(HEADER_MEMORY_RVA),
-        }
-    }
-}
-
 /// `audio::start_stream`: the file at `path` opened and played. False for the carry (the
 /// player stopped).
-pub unsafe fn start_stream(
-    s: &mut AudioStream,
-    path: *const u8,
-    v: &StartVars,
-) -> Result<bool, Refused> {
-    use crate::audio::describe_wave_format::{WAVE_FORMAT_RVA, describe_wave_format};
-    use crate::audio::make_buffer::{BufferDescription, DESCRIPTION_RVA};
-    use crate::audio::samples::{SAMPLE_FILE_RVA, SampleFile};
-    use crate::audio::voices::{read, write};
-    use crate::store::game_addr;
+pub unsafe fn start_stream(s: &mut AudioStream, path: *const u8) -> Result<bool, Refused> {
+    use crate::audio::describe_wave_format::describe_wave_format;
+    use crate::audio::make_buffer::BufferDescription;
     not_a3d("A3D (0x40CF6B)")?;
     // Checked before anything is done: the volume it sets.
     let volume = volume_of(s.volume)?;
     unsafe {
         let failed = |s: &mut AudioStream| stop_stream(s).map(|_| false);
-        let ds = read(v.direct_sound);
+        let ds = AUDIO.direct_sound.get();
         if ds == 0 {
             return failed(s);
         }
-        let mut header = read(v.header);
+        let mut header = AUDIO.stream_header.get();
         if header == 0 {
-            header = crate::memory::allocate::allocate(
-                v.header_memory as *mut crate::memory::MemoryList,
-                HEADER_LEN,
-            )? as u32;
-            write(v.header, header);
+            header =
+                crate::memory::allocate::allocate(AUDIO.stream_header_memory.as_ptr(), HEADER_LEN)?
+                    as u32;
+            AUDIO.stream_header.set(header);
         }
         std::ptr::write_bytes(header as *mut u8, 0, HEADER_LEN as usize);
-        let file = game_addr(SAMPLE_FILE_RVA) as *mut SampleFile;
-        if !crate::audio::samples::read_sample(path, header, HEADER_LEN, file)? {
+        if !crate::audio::samples::read_sample(path, header, HEADER_LEN, &AUDIO.sample_file)? {
             return failed(s);
         }
         let Some(h) = crate::files::handle::open_by_mode(path, 0)? else {
@@ -154,20 +115,25 @@ pub unsafe fn start_stream(
         };
         s.file = h;
         s.open = 1;
-        let f = *file;
+        let f = AUDIO.sample_file.get();
         crate::files::handle::seek(h, f.data.wrapping_sub(header) as i32, 0);
         describe_wave_format(f.format, f.rate)?;
-        let description = game_addr(DESCRIPTION_RVA) as *mut BufferDescription;
-        description.write_unaligned(BufferDescription {
+        AUDIO.buffer_description.set(BufferDescription {
             size: 0x14,
             flags: 0x80,
             bytes: s.bytes,
             reserved: 0,
-            format: game_addr(WAVE_FORMAT_RVA) as u32,
+            format: AUDIO.wave_format.addr() as u32,
         });
         let create: unsafe extern "system" fn(u32, u32, u32, u32) -> i32 =
             std::mem::transmute(crate::audio::com::method(ds, 0x0C));
-        if create(ds, description as u32, &mut s.buffer as *mut u32 as u32, 0) != 0 {
+        if create(
+            ds,
+            AUDIO.buffer_description.addr() as u32,
+            &mut s.buffer as *mut u32 as u32,
+            0,
+        ) != 0
+        {
             return failed(s);
         }
         crate::audio::com::call1(s.buffer, crate::audio::buffer_settings::SET_VOLUME, volume);
@@ -185,10 +151,10 @@ pub unsafe fn start_stream(
 }
 
 /// `audio::feed_stream`: the bytes the play cursor moved over refilled, through the locked
-/// parts at `parts` (`g_lockedParts`). False for the carry (the player stopped).
-pub unsafe fn feed_stream(s: &mut AudioStream, parts: u32) -> Result<bool, Refused> {
-    use crate::audio::voices::read;
+/// parts (`g_lockedParts`). False for the carry (the player stopped).
+pub unsafe fn feed_stream(s: &mut AudioStream) -> Result<bool, Refused> {
     not_a3d("A3D (0x40D0C0)")?;
+    let parts = AUDIO.locked_parts[0].addr() as u32;
     unsafe {
         let failed = |s: &mut AudioStream| stop_stream(s).map(|_| false);
         if s.buffer == 0 {
@@ -224,9 +190,9 @@ pub unsafe fn feed_stream(s: &mut AudioStream, parts: u32) -> Result<bool, Refus
             return failed(s);
         }
         s.advance(moved);
-        fill_stream_part(s, read(parts), read(parts + 4));
-        fill_stream_part(s, read(parts + 8), read(parts + 12));
-        let [p1, n1, p2, n2] = (parts as *const [u32; 4]).read_unaligned();
+        let [p1, n1, p2, n2] = AUDIO.locked_parts.each_ref().map(|d| d.get());
+        fill_stream_part(s, p1, n1);
+        fill_stream_part(s, p2, n2);
         let unlock: unsafe extern "system" fn(u32, u32, u32, u32, u32) -> i32 =
             std::mem::transmute(crate::audio::com::method(b, UNLOCK));
         if unlock(b, p1, n1, p2, n2) != 0 {

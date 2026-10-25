@@ -8,17 +8,18 @@
 //! Callers: `net::start_link`, `net::settings_done`.
 
 use crate::errors::Refused;
-use crate::net::lobby::{CONNECTIONS, SAVED_CONNECTION, a, connection, g};
+use crate::net::lobby::connection;
+use crate::net::store::NET;
 use crate::system::same_guid::same_guid;
 use rc2k_core::net::lists;
 
 /// The Rust version.
 pub fn find_saved_connection() -> Result<Option<u32>, Refused> {
     // Converted: `rc2k_core::net::lists::find_listed`.
-    lists::find_listed(g(CONNECTIONS), |n| -> Result<bool, Refused> {
+    lists::find_listed(NET.connections.get(), |n| -> Result<bool, Refused> {
         Ok(same_guid(
             connection(n)?.wrapping_add(0x40),
-            a(SAVED_CONNECTION),
+            NET.saved_connection.addr() as u32,
         ))
     })
 }

@@ -10,12 +10,7 @@
 //! Lists without their end in 0x100 entries are refused. Caller: `net::choose_car`.
 
 use crate::errors::Refused;
-use crate::net::lobby::a;
-
-const SECRET: usize = 0x75A042; // off_75A042: the secret cars
-const WON: usize = 0x759F4A; // g_secretCars: the cars won
-const WITH: usize = 0x759E52; // off_759E52
-const WITHOUT: usize = 0x759DCA; // off_759DCA
+use crate::menu::lists_store::MENU_LISTS;
 
 fn get(at: u32) -> u32 {
     unsafe { (at as *const u32).read_unaligned() }
@@ -30,9 +25,11 @@ pub fn any_won(secret: u32, won: u32) -> Result<bool, Refused> {
 
 /// The Rust version.
 pub fn car_list() -> Result<u32, Refused> {
-    Ok(a(if any_won(a(SECRET), a(WON))? {
-        WITH
+    let secret = MENU_LISTS.cars_second[0].addr() as u32;
+    let won = MENU_LISTS.secret_cars[0].addr() as u32;
+    Ok(if any_won(secret, won)? {
+        MENU_LISTS.cars_with_clio[0].addr()
     } else {
-        WITHOUT
-    }))
+        MENU_LISTS.cars_first[0].addr()
+    } as u32)
 }

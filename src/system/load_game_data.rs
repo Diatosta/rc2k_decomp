@@ -32,6 +32,7 @@ use crate::errors::{BadInput, Refused};
 use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::menu::name_lists::{NAME_LEN, REPLAY_NAMES_RVA, SAVEGAME_NAMES_RVA};
 use crate::menu::remove_secret_cars::CHEATS_RVA;
+use crate::net::store::NET;
 use crate::strings::append_string_by_id::push_string;
 use crate::strings::copy_printable::copy_printable;
 use windows_sys::Win32::System::WindowsProgramming::GetUserNameA;
@@ -41,7 +42,6 @@ use windows_sys::Win32::System::WindowsProgramming::GetUserNameA;
 const RUNS_RVA: usize = rva(0x518BB0); // dword_518BB0
 const ALL_SECRET_CARS_RVA: usize = rva(0x758710); // g_allSecretCars
 const PLAYER_NAMES_RVA: usize = rva(0x755784); // byte_755784, four of 0x20 bytes
-const MACHINE_NAME_RVA: usize = rva(0x52AB90); // byte_52AB90
 const MACHINE_NAME_ROOM: usize = 0x40;
 const DRIVER_NAME_RVA: usize = rva(0x5BEC08); // dword_5BEC08
 const TYRE_CHANGE_RECORD_RVA: usize = rva(0x5BEC28); // g_tyreChangeRecord (hundredths)
@@ -85,13 +85,13 @@ pub enum Call {
 pub type Outside<'a> = &'a mut dyn FnMut(Call) -> Result<u32, Refused>;
 
 /// The string and what follows it, with a NUL, at `to`.
-unsafe fn default_name(to: usize, room: usize, id: u32, after: &[u8]) -> Result<(), BadInput> {
+unsafe fn default_name(to: *mut u8, room: usize, id: u32, after: &[u8]) -> Result<(), BadInput> {
     unsafe {
         let mut string = Vec::new();
         push_string(&mut string, id);
         let name = rc2k_core::system::game_data::default_name(&string, after, room)
             .ok_or(BadInput("a default name longer than its place"))?;
-        std::ptr::copy(name.as_ptr(), game_addr(to) as *mut u8, name.len());
+        std::ptr::copy(name.as_ptr(), to, name.len());
         Ok(())
     }
 }
@@ -143,15 +143,20 @@ pub unsafe fn load_game_data(outside: Outside) -> Result<(), Refused> {
                     continue;
                 }
             }
-            default_name(name, NAME_LEN, id, &[])?;
+            default_name(game_addr(name) as *mut u8, NAME_LEN, id, &[])?;
         }
 
-        if game_read::<u8>(MACHINE_NAME_RVA) == 0 {
-            let place = game_addr(MACHINE_NAME_RVA) as *mut u8;
+        if NET.machine_name.get(0) == 0 {
+            let place = NET.machine_name.as_ptr();
             outside(Call::ComputerName(place as u32))?;
             copy_printable(place, place, MACHINE_NAME_ROOM as u32)?;
-            if game_read::<u8>(MACHINE_NAME_RVA) == 0 {
-                default_name(MACHINE_NAME_RVA, MACHINE_NAME_ROOM, MACHINE_NAME_ID, &[])?;
+            if NET.machine_name.get(0) == 0 {
+                default_name(
+                    NET.machine_name.as_ptr(),
+                    MACHINE_NAME_ROOM,
+                    MACHINE_NAME_ID,
+                    &[],
+                )?;
             }
         }
 

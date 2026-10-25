@@ -13,11 +13,9 @@
 use crate::errors::Refused;
 use crate::framework::rva;
 use crate::hud::draw_stage_bar::*;
-use crate::hud::store::Slot;
+use crate::hud::store::HUD;
 
 const KINDS_2_RVA: usize = rva(0x6D170C); // dword_6D170C: 0x40
-const COLOUR_A_RVA: Slot = Slot::at(0x75BFA4); // dword_75BFA4
-const COLOUR_B_RVA: Slot = Slot::at(0x75BFA8); // dword_75BFA8
 
 /// The two players' bars `dy` lower (see the header).
 pub unsafe fn bars_with(record: u32, dy: u32) -> Result<(), Refused> {
@@ -25,7 +23,7 @@ pub unsafe fn bars_with(record: u32, dy: u32) -> Result<(), Refused> {
         bars(
             record,
             &[KINDS_RVA, KINDS_2_RVA],
-            &[COLOUR_A_RVA, COLOUR_B_RVA],
+            &[&HUD.bar_colours[0], &HUD.bar_colours[1]],
             dy,
         )
     }

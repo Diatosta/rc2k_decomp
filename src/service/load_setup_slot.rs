@@ -76,15 +76,15 @@ pub unsafe fn load_setup_slot() -> Result<(), Refused> {
         use rc2k_core::service::setups::{CONFIRM_ORDER, EditPage, SetupValues};
         let v = SetupValues::from_file(&game_read(SETUP_FILE_RVA));
         let in_car = |offset: u32| (player.wrapping_add(offset)) as *mut u32;
-        game_write(TYRE.change.chosen_rva, v.tyre);
+        TYRE.change.chosen.set(v.tyre);
         in_car(BRAKE_BALANCE.car_offset).write_unaligned(v.brake_balance);
-        game_write(RIDE_HEIGHT.change.chosen_rva, v.ride_height);
-        game_write(
-            SUSPENSION_STIFFNESS.change.chosen_rva,
-            v.suspension_stiffness,
-        );
+        RIDE_HEIGHT.change.chosen.set(v.ride_height);
+        SUSPENSION_STIFFNESS
+            .change
+            .chosen
+            .set(v.suspension_stiffness);
         in_car(STEERING_SENSITIVITY.car_offset).write_unaligned(v.steering_sensitivity);
-        game_write(GEAR_RATIO.change.chosen_rva, v.gear_ratio);
+        GEAR_RATIO.change.chosen.set(v.gear_ratio);
 
         // The original clears both tables again here, this time checking each entry for the
         // end mark before writing it. With the end marks in place that is the same thing.
@@ -99,9 +99,7 @@ pub unsafe fn load_setup_slot() -> Result<(), Refused> {
                 EditPage::RideHeight => (RIDE_HEIGHT, edit_ride_height),
                 _ => (SUSPENSION_STIFFNESS, edit_suspension_stiffness),
             };
-            if game_read::<u32>(change.change.chosen_rva)
-                != game_read::<u32>(change.change.installed_rva)
-            {
+            if change.change.chosen.get() != change.change.installed.get() {
                 game_write(MENU_ITEM_RVA, change.item);
                 edit(true)?;
             }

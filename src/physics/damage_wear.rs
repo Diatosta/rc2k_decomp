@@ -15,14 +15,16 @@
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
-#[allow(unused_imports)] // the generated body uses some of them
-use crate::math::x87::mul;
 use crate::math::x87_float::X;
+#[allow(unused_imports)] // the generated body uses some of them
+use crate::math::x87_float::{int, ld, st, to_int};
 #[allow(unused_imports)]
 use crate::math::x87_run::{abs_compare, compare_full};
 #[allow(unused_imports)]
 use crate::physics::flow::{a, g, hold_high, hold_low, p, table_lerp};
+use crate::physics::store::{DAMAGE, DamageModel};
 use crate::scene::x87_mem::{fild, fld, fstp};
+use crate::session::Cell32;
 
 #[allow(dead_code)]
 fn rd(x: u32) -> u32 {
@@ -32,183 +34,203 @@ fn rd(x: u32) -> u32 {
 /// The steps (generated from the disassembly by idiom; the flagged places by hand).
 pub fn steps() {
     let _ = X(1.0);
-    p(0x75B4A0, g(0x719FE4));
-    table_lerp(0x75B398, 0x75B4A8, 0x75B350, 0x75B45C);
+    DAMAGE.clock.set_bits(g(0x719FE4));
+    table_lerp(
+        &DAMAGE.flt_75b398,
+        &DAMAGE.lerp_tables[0],
+        &DAMAGE.gauge_low,
+        &DAMAGE.flt_75b45c,
+    );
     x87_1(
-        crate::physics::store::asm_base() as usize,
+        &DAMAGE,
         crate::race::store::asm_base() as usize,
-        0x35B584,
-        0x35B3B0,
+        &DAMAGE.wear_rates[3],
+        &DAMAGE.flt_75b3b0,
         0x31A284,
         0x31A284,
     );
-    hold_low(0x71A284, 0x75B350);
-    hold_high(0x71A284, 0x75B34C);
+    hold_low(0x71A284, &DAMAGE.gauge_low);
+    hold_high(0x71A284, &DAMAGE.gauge_top);
     x87_1(
-        crate::physics::store::asm_base() as usize,
+        &DAMAGE,
         crate::race::store::asm_base() as usize,
-        0x35B584,
-        0x35B3B0,
+        &DAMAGE.wear_rates[3],
+        &DAMAGE.flt_75b3b0,
         0x31A288,
         0x31A288,
     );
-    hold_low(0x71A288, 0x75B350);
-    hold_high(0x71A288, 0x75B34C);
+    hold_low(0x71A288, &DAMAGE.gauge_low);
+    hold_high(0x71A288, &DAMAGE.gauge_top);
     x87_2(
-        crate::physics::store::asm_base() as usize,
+        &DAMAGE,
         crate::race::store::asm_base() as usize,
-        0x35B588,
+        &DAMAGE.wear_rates[4],
         0x31A284,
         0x31A284,
     );
-    hold_low(0x71A284, 0x75B350);
-    hold_high(0x71A284, 0x75B34C);
+    hold_low(0x71A284, &DAMAGE.gauge_low);
+    hold_high(0x71A284, &DAMAGE.gauge_top);
     x87_2(
-        crate::physics::store::asm_base() as usize,
+        &DAMAGE,
         crate::race::store::asm_base() as usize,
-        0x35B588,
+        &DAMAGE.wear_rates[4],
         0x31A288,
         0x31A288,
     );
-    hold_low(0x71A288, 0x75B350);
-    hold_high(0x71A288, 0x75B34C);
+    hold_low(0x71A288, &DAMAGE.gauge_low);
+    hold_high(0x71A288, &DAMAGE.gauge_top);
     x87_1(
-        crate::physics::store::asm_base() as usize,
+        &DAMAGE,
         crate::race::store::asm_base() as usize,
-        0x35B58C,
-        0x35B3A8,
+        &DAMAGE.wear_rates[5],
+        &DAMAGE.flt_75b3a8,
         0x31A27C,
         0x31A27C,
     );
-    hold_low(0x71A27C, 0x75B350);
-    hold_high(0x71A27C, 0x75B34C);
+    hold_low(0x71A27C, &DAMAGE.gauge_low);
+    hold_high(0x71A27C, &DAMAGE.gauge_top);
     x87_1(
-        crate::physics::store::asm_base() as usize,
+        &DAMAGE,
         crate::race::store::asm_base() as usize,
-        0x35B58C,
-        0x35B3AC,
+        &DAMAGE.wear_rates[5],
+        &DAMAGE.flt_75b3ac,
         0x31A280,
         0x31A280,
     );
-    hold_low(0x71A280, 0x75B350);
-    hold_high(0x71A280, 0x75B34C);
+    hold_low(0x71A280, &DAMAGE.gauge_low);
+    hold_high(0x71A280, &DAMAGE.gauge_top);
     x87_2(
-        crate::physics::store::asm_base() as usize,
+        &DAMAGE,
         crate::race::store::asm_base() as usize,
-        0x35B590,
+        &DAMAGE.wear_rates[6],
         0x31A27C,
         0x31A27C,
     );
-    hold_low(0x71A27C, 0x75B350);
-    hold_high(0x71A27C, 0x75B34C);
+    hold_low(0x71A27C, &DAMAGE.gauge_low);
+    hold_high(0x71A27C, &DAMAGE.gauge_top);
     x87_2(
-        crate::physics::store::asm_base() as usize,
+        &DAMAGE,
         crate::race::store::asm_base() as usize,
-        0x35B590,
+        &DAMAGE.wear_rates[6],
         0x31A280,
         0x31A280,
     );
-    hold_low(0x71A280, 0x75B350);
-    hold_high(0x71A280, 0x75B34C);
+    hold_low(0x71A280, &DAMAGE.gauge_low);
+    hold_high(0x71A280, &DAMAGE.gauge_top);
     x87_1(
-        crate::physics::store::asm_base() as usize,
+        &DAMAGE,
         crate::race::store::asm_base() as usize,
-        0x35B594,
-        0x35B3B4,
+        &DAMAGE.wear_rates[7],
+        &DAMAGE.flt_75b3b4,
         0x31A278,
         0x31A278,
     );
-    hold_low(0x71A278, 0x75B350);
-    hold_high(0x71A278, 0x75B34C);
+    hold_low(0x71A278, &DAMAGE.gauge_low);
+    hold_high(0x71A278, &DAMAGE.gauge_top);
     x87_2(
-        crate::physics::store::asm_base() as usize,
+        &DAMAGE,
         crate::race::store::asm_base() as usize,
-        0x35B598,
+        &DAMAGE.wear_rates[8],
         0x31A278,
         0x31A278,
     );
-    hold_low(0x71A278, 0x75B350);
-    hold_high(0x71A278, 0x75B34C);
+    hold_low(0x71A278, &DAMAGE.gauge_low);
+    hold_high(0x71A278, &DAMAGE.gauge_top);
     x87_3(
-        crate::physics::store::asm_base() as usize,
+        &DAMAGE,
         crate::race::store::asm_base() as usize,
-        0x35B59C,
-        0x35B3B0,
+        &DAMAGE.wear_rates[9],
+        &DAMAGE.flt_75b3b0,
         0x31A278,
         0x31A278,
     );
-    hold_low(0x71A278, 0x75B350);
-    hold_high(0x71A278, 0x75B34C);
-    table_lerp(0x71A29C, 0x75B4B8, 0x75B350, 0x75B460);
-    x87_4(crate::physics::store::asm_base() as usize);
-    hold_low(0x75B464, 0x75B350);
+    hold_low(0x71A278, &DAMAGE.gauge_low);
+    hold_high(0x71A278, &DAMAGE.gauge_top);
+    table_lerp(
+        0x71A29C,
+        &DAMAGE.lerp_tables[1],
+        &DAMAGE.gauge_low,
+        &DAMAGE.flt_75b460,
+    );
+    x87_4(&DAMAGE);
+    hold_low(&DAMAGE.flt_75b464, &DAMAGE.gauge_low);
     x87_1(
-        crate::physics::store::asm_base() as usize,
+        &DAMAGE,
         crate::race::store::asm_base() as usize,
-        0x35B578,
-        0x35B464,
+        &DAMAGE.wear_rates[0],
+        &DAMAGE.flt_75b464,
         0x31A28C,
         0x31A28C,
     );
-    hold_low(0x71A28C, 0x75B350);
-    hold_high(0x71A28C, 0x75B34C);
+    hold_low(0x71A28C, &DAMAGE.gauge_low);
+    hold_high(0x71A28C, &DAMAGE.gauge_top);
     x87_2(
-        crate::physics::store::asm_base() as usize,
+        &DAMAGE,
         crate::race::store::asm_base() as usize,
-        0x35B57C,
+        &DAMAGE.wear_rates[1],
         0x31A28C,
         0x31A28C,
     );
-    hold_low(0x71A28C, 0x75B350);
-    hold_high(0x71A28C, 0x75B34C);
+    hold_low(0x71A28C, &DAMAGE.gauge_low);
+    hold_high(0x71A28C, &DAMAGE.gauge_top);
     x87_3(
-        crate::physics::store::asm_base() as usize,
+        &DAMAGE,
         crate::race::store::asm_base() as usize,
-        0x35B580,
-        0x35B39C,
+        &DAMAGE.wear_rates[2],
+        &DAMAGE.flt_75b39c,
         0x31A28C,
         0x31A28C,
     );
-    hold_low(0x71A28C, 0x75B350);
-    hold_high(0x71A28C, 0x75B34C);
-    table_lerp(0x71A430, 0x75B660, 0x75B350, 0x75B44C);
-    x87_5(
-        crate::physics::store::asm_base() as usize,
-        0x35B44C,
-        0x35B44C,
+    hold_low(0x71A28C, &DAMAGE.gauge_low);
+    hold_high(0x71A28C, &DAMAGE.gauge_top);
+    table_lerp(
+        0x71A430,
+        &DAMAGE.lerp_tables_b[2],
+        &DAMAGE.gauge_low,
+        &DAMAGE.flt_75b44c,
     );
-    table_lerp(0x71A430, 0x75B640, 0x75B350, 0x75B448);
-    x87_5(
-        crate::physics::store::asm_base() as usize,
-        0x35B448,
-        0x35B448,
+    x87_5(&DAMAGE.flt_75b44c, &DAMAGE.flt_75b44c);
+    table_lerp(
+        0x71A430,
+        &DAMAGE.lerp_tables_b[0],
+        &DAMAGE.gauge_low,
+        &DAMAGE.flt_75b448,
     );
-    table_lerp(0x71A434, 0x75B650, 0x75B350, 0x75B468);
-    x87_5(
-        crate::physics::store::asm_base() as usize,
-        0x35B468,
-        0x35B468,
+    x87_5(&DAMAGE.flt_75b448, &DAMAGE.flt_75b448);
+    table_lerp(
+        0x71A434,
+        &DAMAGE.lerp_tables_b[1],
+        &DAMAGE.gauge_low,
+        &DAMAGE.flt_75b468,
     );
-    table_lerp(0x75B3A0, 0x75B4D8, 0x75B350, 0x75B46C);
-    table_lerp(0x75B3A4, 0x75B4D8, 0x75B350, 0x75B470);
-    x87_6(crate::physics::store::asm_base() as usize);
+    x87_5(&DAMAGE.flt_75b468, &DAMAGE.flt_75b468);
+    table_lerp(
+        &DAMAGE.flt_75b3a0,
+        &DAMAGE.lerp_tables[3],
+        &DAMAGE.gauge_low,
+        &DAMAGE.flt_75b46c,
+    );
+    table_lerp(
+        &DAMAGE.flt_75b3a4,
+        &DAMAGE.lerp_tables[3],
+        &DAMAGE.gauge_low,
+        &DAMAGE.flt_75b470,
+    );
+    x87_6(&DAMAGE);
     // 0x4AC7C9: two figures of the table `dword_75B73C` (row `dword_75B3E8`, columns
     // from `dword_75B8C0` by `dword_75B3EC` & 0xF, then from `dword_75B8C4` by that
     // column, as the original), blended by `dword_75B3F0`, x `flt_75B8BC`.
-    let row = g(0x75B3E8) << 6;
-    let column = rd(a(0x75B8C0).wrapping_add((g(0x75B3EC) & 0xF).wrapping_mul(8)));
-    let first = a(0x75B73C)
+    let row = DAMAGE.dword_75b3e8.bits() << 6;
+    let column = rd((DAMAGE.dword_75b8c0.addr() as u32)
+        .wrapping_add((DAMAGE.dword_75b3ec.bits() & 0xF).wrapping_mul(8)));
+    let first = (DAMAGE.wear_table[0].addr() as u32)
         .wrapping_add(row)
         .wrapping_add(column.wrapping_mul(4));
-    let column = rd(a(0x75B8C4).wrapping_add(column.wrapping_mul(8)));
-    let second = a(0x75B73C)
+    let column = rd((DAMAGE.dword_75b8c4.addr() as u32).wrapping_add(column.wrapping_mul(8)));
+    let second = (DAMAGE.wear_table[0].addr() as u32)
         .wrapping_add(row)
         .wrapping_add(column.wrapping_mul(4));
-    x87_7(
-        first as usize,
-        crate::physics::store::asm_base() as usize,
-        second as usize,
-    );
+    x87_7(first as usize, &DAMAGE, second as usize);
 }
 
 // ---- the arithmetic that was x87 assembly ----
@@ -216,14 +238,13 @@ pub fn steps() {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + o4] = (([m + o0] * [m + o1]) * [m + 0x35B390]) + [rc + o3]`
-fn x87_1(m: usize, rc: usize, o0: usize, o1: usize, o3: usize, o4: usize) {
+fn x87_1(m: &DamageModel, rc: usize, o0: &impl Cell32, o1: &impl Cell32, o3: usize, o4: usize) {
     unsafe {
-        let m = m as *const u8;
         let rc = rc as *mut u8;
-        let t0 = fld(m, o0);
-        let t1 = fld(m, o1);
+        let t0 = ld(o0.bits());
+        let t1 = ld(o1.bits());
         let t2 = t0 * t1;
-        let t3 = fld(m, 0x35B390);
+        let t3 = ld(m.flt_75b390.bits());
         let t4 = t2 * t3;
         let t5 = fld(rc, o3);
         let t6 = t4 + t5;
@@ -234,12 +255,11 @@ fn x87_1(m: usize, rc: usize, o0: usize, o1: usize, o3: usize, o4: usize) {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + o3] = -([m + o0] * [m + 0x35B390]) + [rc + o2]`
-fn x87_2(m: usize, rc: usize, o0: usize, o2: usize, o3: usize) {
+fn x87_2(m: &DamageModel, rc: usize, o0: &impl Cell32, o2: usize, o3: usize) {
     unsafe {
-        let m = m as *const u8;
         let rc = rc as *mut u8;
-        let t0 = fld(m, o0);
-        let t1 = fld(m, 0x35B390);
+        let t0 = ld(o0.bits());
+        let t1 = ld(m.flt_75b390.bits());
         let t2 = t0 * t1;
         let t3 = -t2;
         let t4 = fld(rc, o2);
@@ -251,14 +271,13 @@ fn x87_2(m: usize, rc: usize, o0: usize, o2: usize, o3: usize) {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + o4] = -(([m + o0] * [m + o1]) * [m + 0x35B390]) + [rc + o3]`
-fn x87_3(m: usize, rc: usize, o0: usize, o1: usize, o3: usize, o4: usize) {
+fn x87_3(m: &DamageModel, rc: usize, o0: &impl Cell32, o1: &impl Cell32, o3: usize, o4: usize) {
     unsafe {
-        let m = m as *const u8;
         let rc = rc as *mut u8;
-        let t0 = fld(m, o0);
-        let t1 = fld(m, o1);
+        let t0 = ld(o0.bits());
+        let t1 = ld(o1.bits());
         let t2 = t0 * t1;
-        let t3 = fld(m, 0x35B390);
+        let t3 = ld(m.flt_75b390.bits());
         let t4 = t2 * t3;
         let t5 = -t4;
         let t6 = fld(rc, o3);
@@ -270,26 +289,20 @@ fn x87_3(m: usize, rc: usize, o0: usize, o1: usize, o3: usize, o4: usize) {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[m + 0x35B464] = [m + 0x35B398] - [m + 0x35B460]`
-fn x87_4(m: usize) {
-    unsafe {
-        let m = m as *mut u8;
-        let t0 = fld(m, 0x35B398);
-        let t1 = fld(m, 0x35B460);
-        let t2 = t0 - t1;
-        fstp(m, 0x35B464, t2);
-    }
+fn x87_4(m: &DamageModel) {
+    let t0 = ld(m.flt_75b398.bits());
+    let t1 = ld(m.flt_75b460.bits());
+    let t2 = t0 - t1;
+    m.flt_75b464.set_bits(st(t2));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[m + o1] = [m + o0] * [m + o0]`
-fn x87_5(m: usize, o0: usize, o1: usize) {
-    unsafe {
-        let m = m as *mut u8;
-        let t0 = fld(m, o0);
-        let t1 = t0 * t0;
-        fstp(m, o1, t1);
-    }
+fn x87_5(o0: &impl Cell32, o1: &impl Cell32) {
+    let t0 = ld(o0.bits());
+    let t1 = t0 * t0;
+    o1.set_bits(st(t1));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -297,61 +310,63 @@ fn x87_5(m: usize, o0: usize, o1: usize) {
 /// `[m + 0x35B454] = (((([m + 0x35B3E0] * [m + 0x35B39C]) * [m + 0x35B6F8]) * [m + 0x35B44C]) * [m + 0x35B468]) * [m + 0x35B3F4]`
 /// `[m + 0x35B450] = (([m + 0x35B3E0] * [m + 0x35B39C]) * [m + 0x35B6F8]) * [m + 0x35B3F4]`
 /// `[m + 0x35B458] = ((([m + 0x35B3E0] * [m + 0x35B39C]) * [m + 0x35B6F8]) * [m + 0x35B3F4]) * [m + 0x35B448]`
-fn x87_6(m: usize) {
-    unsafe {
-        let m = m as *mut u8;
-        let t0 = fld(m, 0x35B3E0);
-        let t1 = fld(m, 0x35B39C);
-        let t2 = t0 * t1;
-        let t3 = fld(m, 0x35B6F8);
-        let t4 = t2 * t3;
-        let t5 = fld(m, 0x35B44C);
-        let t6 = t4 * t5;
-        let t7 = fld(m, 0x35B468);
-        let t8 = t6 * t7;
-        let t9 = fld(m, 0x35B3F4);
-        let t10 = t8 * t9;
-        fstp(m, 0x35B454, t10);
-        let t11 = fld(m, 0x35B3E0);
-        let t12 = fld(m, 0x35B39C);
-        let t13 = t11 * t12;
-        let t14 = fld(m, 0x35B6F8);
-        let t15 = t13 * t14;
-        let t16 = fld(m, 0x35B3F4);
-        let t17 = t15 * t16;
-        fstp(m, 0x35B450, t17);
-        let t18 = fld(m, 0x35B448);
-        let t19 = t17 * t18;
-        fstp(m, 0x35B458, t19);
-    }
+fn x87_6(m: &DamageModel) {
+    let t0 = ld(m.flt_75b3e0.bits());
+    let t1 = ld(m.flt_75b39c.bits());
+    let t2 = t0 * t1;
+    let t3 = ld(m.figures[32].bits());
+    let t4 = t2 * t3;
+    let t5 = ld(m.flt_75b44c.bits());
+    let t6 = t4 * t5;
+    let t7 = ld(m.flt_75b468.bits());
+    let t8 = t6 * t7;
+    let t9 = ld(m.flt_75b3f4.bits());
+    let t10 = t8 * t9;
+    m.flt_75b454.set_bits(st(t10));
+    let t11 = ld(m.flt_75b3e0.bits());
+    let t12 = ld(m.flt_75b39c.bits());
+    let t13 = t11 * t12;
+    let t14 = ld(m.figures[32].bits());
+    let t15 = t13 * t14;
+    let t16 = ld(m.flt_75b3f4.bits());
+    let t17 = t15 * t16;
+    m.flt_75b450.set_bits(st(t17));
+    let t18 = ld(m.flt_75b448.bits());
+    let t19 = t17 * t18;
+    m.flt_75b458.set_bits(st(t19));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[m + 0x35B484] = ((int [f + 0] * (1 - [m + 0x35B3F0])) + (int [s + 0] * [m + 0x35B3F0])) * [m + 0x35B8BC]`
-fn x87_7(f: usize, m: usize, s: usize) {
+fn x87_7(f: usize, m: &DamageModel, s: usize) {
     unsafe {
         let f = f as *const u8;
-        let m = m as *mut u8;
         let s = s as *const u8;
         let t0 = fild(f, 0);
         let t1 = X(1.0);
-        let t2 = fld(m, 0x35B3F0);
+        let t2 = ld(m.dword_75b3f0.bits());
         let t3 = t1 - t2;
         let t4 = t0 * t3;
         let t5 = fild(s, 0);
-        let t6 = fld(m, 0x35B3F0);
+        let t6 = ld(m.dword_75b3f0.bits());
         let t7 = t5 * t6;
         let t8 = t4 + t7;
-        let t9 = fld(m, 0x35B8BC);
+        let t9 = ld(m.flt_75b8bc.bits());
         let t10 = t8 * t9;
-        fstp(m, 0x35B484, t10);
+        m.flt_75b484.set_bits(st(t10));
     }
 }
 
 #[cfg(test)]
 mod asm_reference {
     use super::*;
+
+    /// The damage model as the test's buffer holds it (the buffer's base plus the RVA of
+    /// 0x75B340).
+    fn dm(base: usize) -> &'static DamageModel {
+        unsafe { &*((base + 0x35B340) as *const DamageModel) }
+    }
     use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
 
     // The original's instructions, one function per run.
@@ -392,7 +407,16 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_0(a[0], a[1]) },
-                plain: |a| x87_1(a[0], a[1], 0x35B584, 0x35B3B0, 0x31A284, 0x31A284),
+                plain: |a| {
+                    x87_1(
+                        dm(a[0]),
+                        a[1],
+                        &dm(a[0]).wear_rates[3],
+                        &dm(a[0]).flt_75b3b0,
+                        0x31A284,
+                        0x31A284,
+                    )
+                },
             },
             Block {
                 name: "damage_wear line 47",
@@ -408,7 +432,16 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_1(a[0], a[1]) },
-                plain: |a| x87_1(a[0], a[1], 0x35B584, 0x35B3B0, 0x31A288, 0x31A288),
+                plain: |a| {
+                    x87_1(
+                        dm(a[0]),
+                        a[1],
+                        &dm(a[0]).wear_rates[3],
+                        &dm(a[0]).flt_75b3b0,
+                        0x31A288,
+                        0x31A288,
+                    )
+                },
             },
             Block {
                 name: "damage_wear line 58",
@@ -424,7 +457,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_2(a[0], a[1]) },
-                plain: |a| x87_2(a[0], a[1], 0x35B588, 0x31A284, 0x31A284),
+                plain: |a| x87_2(dm(a[0]), a[1], &dm(a[0]).wear_rates[4], 0x31A284, 0x31A284),
             },
             Block {
                 name: "damage_wear line 69",
@@ -440,7 +473,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_3(a[0], a[1]) },
-                plain: |a| x87_2(a[0], a[1], 0x35B588, 0x31A288, 0x31A288),
+                plain: |a| x87_2(dm(a[0]), a[1], &dm(a[0]).wear_rates[4], 0x31A288, 0x31A288),
             },
             Block {
                 name: "damage_wear line 80",
@@ -456,7 +489,16 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_4(a[0], a[1]) },
-                plain: |a| x87_1(a[0], a[1], 0x35B58C, 0x35B3A8, 0x31A27C, 0x31A27C),
+                plain: |a| {
+                    x87_1(
+                        dm(a[0]),
+                        a[1],
+                        &dm(a[0]).wear_rates[5],
+                        &dm(a[0]).flt_75b3a8,
+                        0x31A27C,
+                        0x31A27C,
+                    )
+                },
             },
             Block {
                 name: "damage_wear line 91",
@@ -472,7 +514,16 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_5(a[0], a[1]) },
-                plain: |a| x87_1(a[0], a[1], 0x35B58C, 0x35B3AC, 0x31A280, 0x31A280),
+                plain: |a| {
+                    x87_1(
+                        dm(a[0]),
+                        a[1],
+                        &dm(a[0]).wear_rates[5],
+                        &dm(a[0]).flt_75b3ac,
+                        0x31A280,
+                        0x31A280,
+                    )
+                },
             },
             Block {
                 name: "damage_wear line 102",
@@ -488,7 +539,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_6(a[0], a[1]) },
-                plain: |a| x87_2(a[0], a[1], 0x35B590, 0x31A27C, 0x31A27C),
+                plain: |a| x87_2(dm(a[0]), a[1], &dm(a[0]).wear_rates[6], 0x31A27C, 0x31A27C),
             },
             Block {
                 name: "damage_wear line 113",
@@ -504,7 +555,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_7(a[0], a[1]) },
-                plain: |a| x87_2(a[0], a[1], 0x35B590, 0x31A280, 0x31A280),
+                plain: |a| x87_2(dm(a[0]), a[1], &dm(a[0]).wear_rates[6], 0x31A280, 0x31A280),
             },
             Block {
                 name: "damage_wear line 124",
@@ -520,7 +571,16 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_8(a[0], a[1]) },
-                plain: |a| x87_1(a[0], a[1], 0x35B594, 0x35B3B4, 0x31A278, 0x31A278),
+                plain: |a| {
+                    x87_1(
+                        dm(a[0]),
+                        a[1],
+                        &dm(a[0]).wear_rates[7],
+                        &dm(a[0]).flt_75b3b4,
+                        0x31A278,
+                        0x31A278,
+                    )
+                },
             },
             Block {
                 name: "damage_wear line 135",
@@ -536,7 +596,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_9(a[0], a[1]) },
-                plain: |a| x87_2(a[0], a[1], 0x35B598, 0x31A278, 0x31A278),
+                plain: |a| x87_2(dm(a[0]), a[1], &dm(a[0]).wear_rates[8], 0x31A278, 0x31A278),
             },
             Block {
                 name: "damage_wear line 146",
@@ -552,7 +612,16 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_10(a[0], a[1]) },
-                plain: |a| x87_3(a[0], a[1], 0x35B59C, 0x35B3B0, 0x31A278, 0x31A278),
+                plain: |a| {
+                    x87_3(
+                        dm(a[0]),
+                        a[1],
+                        &dm(a[0]).wear_rates[9],
+                        &dm(a[0]).flt_75b3b0,
+                        0x31A278,
+                        0x31A278,
+                    )
+                },
             },
             Block {
                 name: "damage_wear line 159",
@@ -562,7 +631,7 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_11(a[0]) },
-                plain: |a| x87_4(a[0]),
+                plain: |a| x87_4(dm(a[0])),
             },
             Block {
                 name: "damage_wear line 166",
@@ -578,7 +647,16 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_12(a[0], a[1]) },
-                plain: |a| x87_1(a[0], a[1], 0x35B578, 0x35B464, 0x31A28C, 0x31A28C),
+                plain: |a| {
+                    x87_1(
+                        dm(a[0]),
+                        a[1],
+                        &dm(a[0]).wear_rates[0],
+                        &dm(a[0]).flt_75b464,
+                        0x31A28C,
+                        0x31A28C,
+                    )
+                },
             },
             Block {
                 name: "damage_wear line 177",
@@ -594,7 +672,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_13(a[0], a[1]) },
-                plain: |a| x87_2(a[0], a[1], 0x35B57C, 0x31A28C, 0x31A28C),
+                plain: |a| x87_2(dm(a[0]), a[1], &dm(a[0]).wear_rates[1], 0x31A28C, 0x31A28C),
             },
             Block {
                 name: "damage_wear line 188",
@@ -610,7 +688,16 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_14(a[0], a[1]) },
-                plain: |a| x87_3(a[0], a[1], 0x35B580, 0x35B39C, 0x31A28C, 0x31A28C),
+                plain: |a| {
+                    x87_3(
+                        dm(a[0]),
+                        a[1],
+                        &dm(a[0]).wear_rates[2],
+                        &dm(a[0]).flt_75b39c,
+                        0x31A28C,
+                        0x31A28C,
+                    )
+                },
             },
             Block {
                 name: "damage_wear line 201",
@@ -620,7 +707,7 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_15(a[0]) },
-                plain: |a| x87_5(a[0], 0x35B44C, 0x35B44C),
+                plain: |a| x87_5(&dm(a[0]).flt_75b44c, &dm(a[0]).flt_75b44c),
             },
             Block {
                 name: "damage_wear line 208",
@@ -630,7 +717,7 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_16(a[0]) },
-                plain: |a| x87_5(a[0], 0x35B448, 0x35B448),
+                plain: |a| x87_5(&dm(a[0]).flt_75b448, &dm(a[0]).flt_75b448),
             },
             Block {
                 name: "damage_wear line 215",
@@ -640,7 +727,7 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_17(a[0]) },
-                plain: |a| x87_5(a[0], 0x35B468, 0x35B468),
+                plain: |a| x87_5(&dm(a[0]).flt_75b468, &dm(a[0]).flt_75b468),
             },
             Block {
                 name: "damage_wear line 223",
@@ -658,7 +745,7 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_18(a[0]) },
-                plain: |a| x87_6(a[0]),
+                plain: |a| x87_6(dm(a[0])),
             },
             Block {
                 name: "damage_wear line 252",
@@ -678,7 +765,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_19(a[0], a[1], a[2]) },
-                plain: |a| x87_7(a[0], a[1], a[2]),
+                plain: |a| x87_7(a[0], dm(a[1]), a[2]),
             },
         ]
     }

@@ -14,18 +14,19 @@
 use crate::errors::Refused;
 use crate::framework::{game_read, game_write, rva};
 use crate::menu::screen_loop::{Callee, Carried, List, Screen, Step, carousel, screen_entry};
+use crate::menu::state_store::MENU_STATE;
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
 unsafe fn set_up_first(c: &mut Carried) -> Result<(), Refused> {
     unsafe {
         game_write(rva(0x7554EC), 0x1u32);
-        game_write(rva(0x75AA74), 0x6u32);
+        MENU_STATE.carousel.menu.set(0x6u32);
         carousel(c)?;
         c.arg = game_read(rva(0x7476A0));
         game_write(rva(0x755525), c.arg);
         c.arg = c.arg.wrapping_sub(1);
-        game_write(rva(0x75AA7C), c.arg);
+        MENU_STATE.carousel.front.set(c.arg);
     }
     Ok(())
 }

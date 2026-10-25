@@ -12,71 +12,70 @@
 //! Callers: `net::start_link`, `net::open_lobby`.
 
 use crate::errors::Refused;
-use crate::net::lobby::{OWN, OWN_TIME, OWN_TOTAL, PLAYER_NAME, a, copy_printable, g, p, pb};
+use crate::net::lobby::{copy_printable, g};
+use crate::net::store::NET;
+use crate::race::state_store::RACE_STATE;
+use crate::session::Dword;
 use rc2k_core::net::record;
 
-pub const STAGE: usize = 0x75ACD4; // dword_75ACD4: the stage chosen
-pub const DIRECTION: usize = 0x75ACF0; // dword_75ACF0
 const CAR: usize = 0x755A54; // g_player1.car_number
 const COLOURS: usize = 0x755A7C; // g_player1.field_30
 const RACE_NUMBER: usize = 0x755A74; // g_player1.race_number
 const NATIONALITY: usize = 0x755A50; // g_player1.nationality
 
 /// The settings copied: (to, from).
-const SETTINGS: [(usize, usize); 13] = [
-    (0x75AE20, 0x755BA0), // codriver_sex
-    (0x75AE1C, 0x755A74), // race_number
-    (0x75AE24, 0x755A58), // view
-    (0x75ADF8, 0x755BA4), // map_area
-    (0x75ADFC, 0x755BA8), // rear_mirror
-    (0x75AE00, 0x755BAC), // rev_counter
-    (0x75AE08, 0x755BB4), // message_display
-    (0x75AE0C, 0x755BB0), // car_info
-    (0x75AE14, 0x755BBC), // driver_info
-    (0x75AE10, 0x755BB8), // progress_bar
-    (0x75AE18, 0x755BC0), // pace_notes
-    (0x75AE04, 0x755BC4), // metric_units
-    (0x75AD2C, 0x755B68), // steering_sensitivity
+const SETTINGS: [(&Dword, usize); 13] = [
+    (&RACE_STATE.settings.cars[0].codriver_sex, 0x755BA0),
+    (&RACE_STATE.settings.cars[0].race_number, 0x755A74),
+    (&RACE_STATE.settings.cars[0].view, 0x755A58),
+    (&RACE_STATE.settings.cars[0].map_area, 0x755BA4),
+    (&RACE_STATE.settings.cars[0].rear_mirror, 0x755BA8),
+    (&RACE_STATE.settings.cars[0].rev_counter, 0x755BAC),
+    (&RACE_STATE.settings.cars[0].message_display, 0x755BB4),
+    (&RACE_STATE.settings.cars[0].car_info, 0x755BB0),
+    (&RACE_STATE.settings.cars[0].driver_info, 0x755BBC),
+    (&RACE_STATE.settings.cars[0].progress_bar, 0x755BB8),
+    (&RACE_STATE.settings.cars[0].pace_notes, 0x755BC0),
+    (&RACE_STATE.settings.cars[0].metric_units, 0x755BC4),
+    (&RACE_STATE.settings.cars[0].steering_sensitivity, 0x755B68),
 ];
 /// Copied after the HUD's bits: (to, from).
-const MORE: [(usize, usize); 5] = [
-    (0x75AD00, 0x755650),
-    (0x75AD0C, 0x75565C),
-    (0x75AD10, 0x755660),
-    (0x75AD14, 0x755664),
-    (0x75AD18, 0x755668),
+const MORE: [(&Dword, usize); 5] = [
+    (&RACE_STATE.settings.setting_0, 0x755650),
+    (&RACE_STATE.settings.setting_1, 0x75565C),
+    (&RACE_STATE.settings.setting_2, 0x755660),
+    (&RACE_STATE.settings.setting_3, 0x755664),
+    (&RACE_STATE.settings.setting_4, 0x755668),
 ];
-pub const HUD_BITS: usize = 0x75B00C; // dword_75B00C
-const LAST: usize = 0x75B108; // dword_75B108
 
 /// The Rust version.
 pub fn fill_own_player(name: u32) -> Result<(), Refused> {
-    copy_printable(name, a(PLAYER_NAME), 0x1F)?;
+    copy_printable(name, NET.player_name.addr() as u32, 0x1F)?;
     // Converted: `rc2k_core::net::record::own_record`.
     let own = record::own_record(
         g(CAR) as u8,
         g(COLOURS) as u8,
         g(NATIONALITY) as u8,
-        g(STAGE) as u8,
-        g(DIRECTION) as u8,
+        RACE_STATE.settings.stage.get() as u8,
+        RACE_STATE.settings.direction.get() as u8,
         g(RACE_NUMBER) as u8,
     );
     for (n, b) in own.into_iter().enumerate() {
-        pb(OWN + n, b);
+        NET.own.head.set(n, b);
     }
-    pb(
-        OWN + record::RANDOM,
+    NET.own.head.set(
+        record::RANDOM,
         unsafe { crate::math::next_random::next_random() } as u8,
     );
-    p(OWN_TIME, 0);
-    p(OWN_TOTAL, 0);
+    NET.own.race_time.set(0);
+    NET.own.total.set(0);
     for (to, from) in SETTINGS {
-        p(to, g(from));
+        to.set(g(from));
     }
-    p(HUD_BITS, u32::MAX);
+    RACE_STATE.results.hud_bits_current.set(u32::MAX);
     for (to, from) in MORE {
-        p(to, g(from));
+        to.set(g(from));
     }
-    p(LAST, 0);
+    RACE_STATE.results.finished.set(0);
     Ok(())
 }

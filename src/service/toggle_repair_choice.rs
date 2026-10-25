@@ -15,10 +15,9 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, game_write};
-use crate::service::state::{
-    EDIT_MODE_RVA, REPAIR_TOTAL_RVA, STATUS_RVA, TIME_BUDGET_RVA, flagged_item,
-};
+use crate::framework::game_read;
+use crate::menu::state_store::MENU_STATE;
+use crate::service::state::{TIME_BUDGET_RVA, flagged_item};
 use crate::service::state::{flags, marks, store_flags, store_marks, time_of};
 
 /// The Rust version (see the header).
@@ -33,10 +32,10 @@ pub unsafe fn toggle_repair_choice() -> Result<(), Refused> {
             .map_err(|e| BadInput(e.0))?;
     store_flags(&f);
     store_marks(&m);
-    unsafe {
-        game_write(STATUS_RVA, status);
-        game_write(EDIT_MODE_RVA, 0u32);
-        game_write(REPAIR_TOTAL_RVA, total);
+    {
+        MENU_STATE.service_ui.status.set(status);
+        MENU_STATE.service_ui.box_shown.set(0u32);
+        MENU_STATE.driver_stats.repair_time.set(total as u32);
     }
     Ok(())
 }

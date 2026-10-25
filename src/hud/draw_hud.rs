@@ -10,8 +10,8 @@
 
 use crate::errors::Refused;
 use crate::framework::rva;
-use crate::hud::batch::{BATCH_TEXTURE_RVA, INDEX_COUNT_RVA, VERTEX_COUNT_RVA};
-use crate::hud::store::{game_addr, game_write};
+use crate::hud::store::HUD;
+use crate::store::game_addr;
 
 pub const RECORD_RVA: usize = rva(0x6D13FE); // unk_6D13FE
 
@@ -23,9 +23,9 @@ pub unsafe fn draw_hud() -> Result<(), Refused> {
     use rc2k_core::hud::batch;
     unsafe {
         set_batch_depth::set_batch_depth();
-        game_write(BATCH_TEXTURE_RVA, batch::NO_TEXTURE);
-        game_write(VERTEX_COUNT_RVA, 0u32);
-        game_write(INDEX_COUNT_RVA, 0u32);
+        HUD.batch_texture.set(batch::NO_TEXTURE);
+        HUD.vertex_count.set(0);
+        HUD.index_count.set(0);
         let record = game_addr(RECORD_RVA) as u32;
         tenths::tenths(record);
         match batch::Layout::of(((record + 0xF4) as *const u32).read_unaligned()) {

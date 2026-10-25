@@ -457,7 +457,7 @@ unsafe fn start() {
             refused("install::check_clio_disc", e, &r);
         }
         rust("install::check_at_start");
-        let no_audio = crate::store::game_ptr(crate::install::check_at_start::NO_AUDIO_RVA);
+        let no_audio = crate::audio::store::AUDIO.no_audio.as_ptr();
         if let Err(e) = crate::install::check_at_start::check_at_start(&mut Outside, no_audio) {
             refused("install::check_at_start", e, &r);
         }

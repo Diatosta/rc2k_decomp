@@ -6,6 +6,7 @@
 use crate::errors::{FatalError, Refused};
 use crate::framework::{game_addr, game_ptr, game_read, rva};
 use crate::gfx::blit_marker_pair::{marker_calls, set_marker_position, sprite_table};
+use crate::menu::lists_store::MENU_LISTS;
 use crate::records::trakpak_entry::record_entry;
 use crate::screens::draw_stage_heading::heading_text;
 use crate::screens::draw_stage_records::draw_stage_records;
@@ -18,13 +19,11 @@ use std::ptr::copy_nonoverlapping;
 
 // ---- game data ----
 
-pub const DURATIONS_RVA: usize = rva(0x75A49A); // dword_75A49A[entry +8]: minutes
 pub const BEST_TIMES_PTR_RVA: usize = rva(0x7556D8); // dword_7556D8: 0x618-byte entries
 pub const GROUP_1_BEST_TIMES_PTR_RVA: usize = rva(0x7556E0); // dword_7556E0: same, for group 1
 // dword_7559EC: a work variable used all over the game
 // mmss: receives the finish time
 // dword_75ACD0[1]: copy of entry +0x34
-pub const GROUP_COPY_RVA: usize = rva(0x75ACF0); // dword_75ACF0: copy of the selected group
 pub const SECOND_HEADING_RVA: usize = rva(0xA8BD54); // byte_A8BD54: the 0x482 heading text
 pub const MENU_PTR_RVA: usize = rva(0x75558D); // dword_75558D: the current menu
 
@@ -39,7 +38,12 @@ pub unsafe fn dword(at: u32) -> u32 {
 
 /// Element `index` of a dword table in game memory.
 pub unsafe fn table_dword(table_rva: usize, index: u32) -> u32 {
-    unsafe { dword((game_addr(table_rva) as u32).wrapping_add(index.wrapping_mul(4))) }
+    unsafe { table_dword_at(game_addr(table_rva), index) }
+}
+
+/// The dword `index` of the table at `table` (an address; no bounds, as the original).
+pub unsafe fn table_dword_at(table: usize, index: u32) -> u32 {
+    unsafe { dword((table as u32).wrapping_add(index.wrapping_mul(4))) }
 }
 
 // ---- the shared parts ----
@@ -110,7 +114,11 @@ pub unsafe fn draw_stage_body_in(
             let entry = record_entry(record as *const u8)?;
             let f = |o: u32| dword(entry.wrapping_add(o));
             Ok(Entry {
-                duration: table_dword(DURATIONS_RVA, f(8)),
+                // `MENU_LISTS.durations` (dword_75A49A) has 37 entries; the original's index
+                // has no bound: each address resolved to its home by `MOVED`.
+                duration: crate::store::game_read::<u32>(crate::framework::rva(
+                    0x75A49A_usize.wrapping_add((f(8) as usize).wrapping_mul(4)),
+                )),
                 length: f(0x0C),
                 description: f(0x10),
                 weather: f(0x14),

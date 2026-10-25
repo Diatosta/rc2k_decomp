@@ -23,26 +23,23 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_read, game_write, rva};
+use crate::menu::state_store::MENU_STATE;
 use crate::scene::assign_kind_textures::assign_kind_textures;
 use crate::scene::carousel_pictures::update;
 use crate::scene::clear_depth_buffer::clear_depth_buffer;
 use crate::scene::draw_carousel_entry::{
-    ANGLE_Y_RVA, CLOCK_RVA, ENTRIES, KIND_RVA, KINDS_RVA, OBJECT_RVA, PLACE_RVA,
-    find_object_of_kind,
+    ANGLE_Y_RVA, CLOCK_RVA, ENTRIES, OBJECT_RVA, PLACE_RVA, find_object_of_kind,
 };
 use crate::scene::draw_menu_object::draw_menu_object_in_game;
 use crate::scene::load_slot_textures::load_slot_textures_in_game;
 use crate::scene::map_texture_places::map_texture_places;
+use crate::session::write_all;
 
 // ---- game data ----
 
 const PAGE_RVA: usize = rva(0x755998); // dword_755998
 const CAR_RVA: usize = rva(0x755990); // dword_755990: the entry shown
-const MENU_RVA: usize = rva(0x75AA74); // g_carouselMenu
-const COUNT_RVA: usize = rva(0x75AA78); // g_carouselCount
-const PICKED_RVA: usize = rva(0x75AAA8); // dword_75AAA8 .. dword_75AAB4
 const MODE_RVA: usize = rva(0x6365C4); // dword_6365C4
-const Z_RVA: usize = rva(0x75A66C); // dword_75A66C
 
 // ---- Rust version ----
 
@@ -63,11 +60,11 @@ pub fn picked(car: u32, count: u32) -> [u32; 4] {
 /// `sub_490238`.
 pub unsafe fn pick_pictures() -> Result<(), Refused> {
     unsafe {
-        if game_read::<u32>(MENU_RVA) != 0xB {
+        if MENU_STATE.carousel.menu.get() != 0xB {
             return Ok(());
         }
-        let entries = picked(game_read(CAR_RVA), game_read(COUNT_RVA));
-        game_write(PICKED_RVA, entries);
+        let entries = picked(game_read(CAR_RVA), MENU_STATE.carousel.count.get());
+        write_all(&MENU_STATE.carousel_pictures.wanted, entries);
         update(entries)?;
         Ok(())
     }
@@ -82,9 +79,9 @@ pub unsafe fn draw_shown_car(draw: &mut dyn FnMut() -> Result<(), Refused>) -> R
         }
         let clock: u32 = game_read(CLOCK_RVA);
         game_write(ANGLE_Y_RVA, (clock << 3) & 0xFFFF);
-        game_write(PLACE_RVA + 8, game_read::<u32>(Z_RVA));
-        let kind: u32 = game_read(KINDS_RVA + car as usize * 4);
-        game_write(KIND_RVA, kind);
+        game_write(PLACE_RVA + 8, MENU_STATE.carousel.z.get());
+        let kind = MENU_STATE.carousel.kinds[car as usize].get();
+        MENU_STATE.carousel.kind.set(kind);
         let object = find_object_of_kind(kind);
         game_write(OBJECT_RVA, object);
         draw()

@@ -11,29 +11,36 @@
 
 use crate::errors::Refused;
 use crate::net::dplay::{CREATE_PLAYER, call};
-use crate::net::lobby::{DP_NAME, DPLAY, OWN, PLAYER_ID, PLAYER_NAME, a, g, log, p, zero};
+use crate::net::lobby::{a, log, zero};
+use crate::net::store::NET;
 
 const TEXT: usize = 0x5C2F6E; // "NET: Create player"
-const EVENT: usize = 0x52AB68; // g_netEvent
 
 /// A DPNAME at `dword_5AB29C` made: zeroed, its size, the short name.
 pub fn dp_name(short_name: u32) -> Result<(), Refused> {
-    zero(a(DP_NAME), 0x10)?;
-    p(DP_NAME, 0x10);
-    p(DP_NAME + 8, short_name);
+    zero(NET.dp_name.addr() as u32, 0x10)?;
+    NET.dp_name.size.set(0x10);
+    NET.dp_name.short_name.set(short_name);
     Ok(())
 }
 
 /// The Rust version.
 pub fn create_player() -> Result<bool, Refused> {
     log(a(TEXT), false, 2);
-    log(a(PLAYER_NAME), true, 2);
-    dp_name(a(PLAYER_NAME))?;
+    log(NET.player_name.addr() as u32, true, 2);
+    dp_name(NET.player_name.addr() as u32)?;
     let result = unsafe {
         call(
-            DPLAY,
+            &NET.dplay,
             CREATE_PLAYER,
-            &[a(PLAYER_ID), a(DP_NAME), g(EVENT), a(OWN), 0x10, 0],
+            &[
+                NET.player_id.addr() as u32,
+                NET.dp_name.addr() as u32,
+                NET.event.get(),
+                NET.own.addr() as u32,
+                0x10,
+                0,
+            ],
         )
     };
     Ok(result == 0)

@@ -2,8 +2,7 @@
 //! typed (phase 7): each is a `#[repr(C)]` struct of atomic cells with the image's layout
 //! (the first values the image's, `tests::*_start_as_the_games`), one static a piece, and
 //! `moved::MOVED` points the image's addresses at it:
-//! - `Wheels` (IDA 0x4F66DD .. 0x4F66FD): the four dwords `var\ral.dat` keeps, the two wheel
-//!   surfaces the sound reads, the seal key of the race's record;
+//! - `WHEEL_SURFACES` (IDA 0x4F66F1 .. 0x4F66F9): the two wheel surfaces the sound reads;
 //! - `RaceClock` (0x5124E4 .. 0x512508): the race sounds' clock and constants;
 //! - `RaceSounds` (0x512A10 .. 0x514F90): the eight sound objects (`SoundObject`, 0x4A8 bytes
 //!   each, with the table of their addresses) and the cars the sound follows. The table
@@ -13,51 +12,22 @@
 //!   throttle sounds scale by, the wheel sounds across and along, the surface sound volume;
 //! - `StageSounds` (0x51655C .. 0x5168C0): the surface sound sets, the stage's one-off,
 //!   timed, loop and random sounds, and the spots shared with the sound side;
-//! - `SoundEffects` (0x517F40 .. 0x518120): the spot-voice picks, the sound kinds per spot,
-//!   the force-feedback effects' clock, the effect kinds and constants, the kept options
-//!   (`g_tuneTurn`, `g_musicVolume` ..) and the CD audio's state.
+//! - `SpotPicks` (0x517F40 .. 0x518080): the spot-voice picks and the sound kinds per spot;
+//!   `SettingsApplied` (0x518080); `SoundOptions` (0x5180F0 .. 0x518104): the kept options
+//!   (`g_tuneTurn`, `g_musicVolume` ..); `CdAudio` (0x518104 .. 0x518120). Between them in the
+//!   image, the force-feedback effects' state is `input::store::ForceFeedback`'s (split
+//!   2026-10-25).
 //!
 //! The sound commands go to the audio thread through `audio::store`'s queue; these are the
 //! game thread's.
 
 use crate::session::{Dword, Float, Word};
 
-/// The kept wheel options and the wheel surfaces (IDA 0x4F66DD .. 0x4F66FD, the image's
-/// layout; phase 7, typed state). The block starts on an odd address in the image: every
-/// field is four bytes from the start, so the static holds them aligned.
-#[repr(C)]
-pub struct Wheels {
-    /// `unk_4F66DD`, `unk_4F66E1`, `unk_4F66E5` (-1 at start), `unk_4F66E9`: the four
-    /// dwords `var\ral.dat` keeps (`saves::load_options`, by address); what they set is
-    /// not worked out.
-    pub kept: [Dword; 4],
-    /// `0x4F66ED`: nothing reads or writes it (a gap).
-    pub _gap_ed: Dword,
-    /// `g_wheelSurfaceA`, `g_wheelSurfaceB`: the surfaces of the wheels the first and
-    /// the second of a car's two sounds follow (`sound::surface_sounds`).
-    pub surface: [Dword; 2],
-    /// `dword_4F66F9`: the race record's seal key (the replay header's checksum;
-    /// `race::seal_stage_time` turns the first car's time by it).
-    pub seal_key: Dword,
-}
-
-/// The wheel options (`Wheels`); first values the image's.
-pub static WHEELS: Wheels = Wheels {
-    kept: [
-        Dword::new(0),
-        Dword::new(0),
-        Dword::new(0xFFFF_FFFF),
-        Dword::new(0),
-    ],
-    _gap_ed: Dword::new(0),
-    surface: [Dword::new(0), Dword::new(0)],
-    seal_key: Dword::new(0),
-};
-
-/// Where the wheel options are (`moved::MOVED`'s home for IDA 0x4F66DD).
-pub fn wheels_addr() -> usize {
-    &WHEELS as *const Wheels as usize
-}
+/// `g_wheelSurfaceA`, `g_wheelSurfaceB` (IDA 0x4F66F1, 0x4F66F5): the surfaces of the wheels
+/// the first and the second of a car's two sounds follow (`sound::surface_sounds`). Split
+/// 2026-10-25 from the dwords around them: the save file's four before
+/// (`saves::load_options::KEPT`), the race record's seal key after (`race::replay::SEAL_KEY`).
+pub static WHEEL_SURFACES: [Dword; 2] = [Dword::new(0), Dword::new(0)];
 
 /// One cue of a car's queue: eight dwords.
 #[repr(C)]
@@ -786,9 +756,9 @@ pub fn stage_sounds_addr() -> usize {
     &STAGE_SOUNDS as *const StageSounds as usize
 }
 
-/// The spot-voice picks, the sound kinds per spot, the force-feedback effects' state, the kept sound options and the CD audio's state (IDA 0x517F40 .. 0x518120, the image's layout; phase 7, typed state).
+/// The spot voices' pickers' work and the sound kinds per spot (IDA 0x517f40 .. 0x518080, the image's layout; phase 7, typed state).
 #[repr(C)]
-pub struct SoundEffects {
+pub struct SpotPicks {
     /// `g_spotPickPlaying`: the pickers' work (`sound::merge_spot_voices`): the playing voice (an address).
     pub pick_playing: Dword,
     /// `g_spotPickNearestDistance`: the nearest's distance.
@@ -809,58 +779,9 @@ pub struct SoundEffects {
     pub spot_work_b: Dword,
     /// `0x51805C`: nine dwords nothing ported reads or writes (1, 2, 3, 4, 5, 6, 9, 7, 8 at start).
     pub _gap_5c: [Dword; 9],
-    /// `dword_518080`: set once the kept sound settings are applied (`sound::apply_settings`, `sound::set_up_race_sounds`).
-    pub settings_applied: Dword,
-    /// `g_effectsLastTime`: the force-feedback effects' last clock.
-    pub effects_last_time: Dword,
-    /// `g_effectsRate`: their rate.
-    pub effects_rate: Dword,
-    /// `g_effectsSteps`: their steps.
-    pub effects_steps: Dword,
-    /// `g_effectsRaceOn`: the effects run in a race.
-    pub effects_race_on: Dword,
-    /// `0x518094`, `0x518098`: nothing reads or writes them.
-    pub _gap_94: [Dword; 2],
-    /// `g_surfaceEffectKinds` (`0x51809C`): a surface's effect kind, 16 of them.
-    pub surface_effect_kinds: [Dword; 16],
-    /// `flt_5180DC`: 10.0.
-    pub effect_ten: Float,
-    /// `flt_5180E0`: 162.97.
-    pub effect_angle_scale: Float,
-    /// `flt_5180E4`: 256.0.
-    pub effect_full: Float,
-    /// `0x5180E8`: nothing reads or writes it.
-    pub _gap_e8: Dword,
-    /// `flt_5180EC`: 0.1.
-    pub effect_tenth: Float,
-    /// `dword_5180F0`: kept in `var\ral.dat` (`saves::load_options`); what it sets is not worked out.
-    pub kept_f0: Dword,
-    /// `dword_5180F4`: the driver names switch (`menu::toggle_5180f4`), kept in `var\ral.dat`.
-    pub name_switch: Dword,
-    /// `g_tuneTurn`: which of tunes 10 .. 15 the next tune 0xA is (0 .. 5), kept.
-    pub tune_turn: Dword,
-    /// `g_musicVolume`, kept.
-    pub music_volume: Dword,
-    /// `dword_518100`: the race music's volume (the menu sets it with `g_musicVolume`; both go to the tunes), kept.
-    pub race_music_volume: Dword,
-    /// `dword_518104`: `nocdaudio` (`var\ral.cfg`).
-    pub no_cd_audio: Dword,
-    /// `g_cdAudioOpen`: the CD audio is open.
-    pub cd_audio_open: Dword,
-    /// `0x51810C`: nothing reads or writes it.
-    pub _gap_10c: Dword,
-    /// `g_cdTrack`.
-    pub cd_track: Dword,
-    /// `dword_518114` (a reading).
-    pub cd_work_114: Dword,
-    /// `mciId`: the CD audio device.
-    pub mci_id: Dword,
-    /// `dword_51811C` (a reading).
-    pub cd_work_11c: Dword,
 }
 
-/// The sound effects block (`SoundEffects`); first values the image's.
-pub static SOUND_EFFECTS: SoundEffects = SoundEffects {
+pub static SPOT_PICKS: SpotPicks = SpotPicks {
     pick_playing: Dword::new(0),
     pick_nearest_distance: Dword::new(0xFFFFFFFF),
     pick_nearest: Dword::new(0),
@@ -1031,52 +952,109 @@ pub static SOUND_EFFECTS: SoundEffects = SoundEffects {
         Dword::new(7),
         Dword::new(8),
     ],
-    settings_applied: Dword::new(0),
-    effects_last_time: Dword::new(0),
-    effects_rate: Dword::new(0),
-    effects_steps: Dword::new(0),
-    effects_race_on: Dword::new(0),
-    _gap_94: [Dword::new(0), Dword::new(0)],
-    surface_effect_kinds: [
-        Dword::new(0),
-        Dword::new(1),
-        Dword::new(2),
-        Dword::new(3),
-        Dword::new(6),
-        Dword::new(9),
-        Dword::new(4),
-        Dword::new(0xD),
-        Dword::new(0xC),
-        Dword::new(8),
-        Dword::new(0xA),
-        Dword::new(7),
-        Dword::new(0xB),
-        Dword::new(0),
-        Dword::new(0),
-        Dword::new(0),
-    ],
-    effect_ten: Float::from_bits(0x41200000),
-    effect_angle_scale: Float::from_bits(0x4322F983),
-    effect_full: Float::from_bits(0x43800000),
-    _gap_e8: Dword::new(0x42200000),
-    effect_tenth: Float::from_bits(0x3DCCCCCD),
+};
+
+impl SpotPicks {
+    pub const START: usize = 0x517f40;
+    pub const LEN: usize = 0x140;
+
+    /// `moved::MOVED`'s home for `START`.
+    pub fn home() -> usize {
+        &SPOT_PICKS as *const SpotPicks as usize
+    }
+}
+
+/// Set once the kept sound settings are applied (IDA 0x518080 .. 0x518084, the image's layout; phase 7, typed state).
+#[repr(C)]
+pub struct SettingsApplied {
+    /// `dword_518080`: set once the kept sound settings are applied (`sound::apply_settings`, `sound::set_up_race_sounds`).
+    pub done: Dword,
+}
+
+pub static SETTINGS_APPLIED: SettingsApplied = SettingsApplied {
+    done: Dword::new(0),
+};
+
+impl SettingsApplied {
+    pub const START: usize = 0x518080;
+    pub const LEN: usize = 0x4;
+
+    /// `moved::MOVED`'s home for `START`.
+    pub fn home() -> usize {
+        &SETTINGS_APPLIED as *const SettingsApplied as usize
+    }
+}
+
+/// The kept sound options (IDA 0x5180f0 .. 0x518104, the image's layout; phase 7, typed state).
+#[repr(C)]
+pub struct SoundOptions {
+    /// `dword_5180F0`: kept in `var\ral.dat` (`saves::load_options`); what it sets is not worked out.
+    pub kept_f0: Dword,
+    /// `dword_5180F4`: the driver names switch (`menu::toggle_5180f4`), kept in `var\ral.dat`.
+    pub name_switch: Dword,
+    /// `g_tuneTurn`: which of tunes 10 .. 15 the next tune 0xA is (0 .. 5), kept.
+    pub tune_turn: Dword,
+    /// `g_musicVolume`, kept.
+    pub music_volume: Dword,
+    /// `dword_518100`: the race music's volume (the menu sets it with `g_musicVolume`; both go to the tunes), kept.
+    pub race_music_volume: Dword,
+}
+
+pub static SOUND_OPTIONS: SoundOptions = SoundOptions {
     kept_f0: Dword::new(1),
     name_switch: Dword::new(0),
     tune_turn: Dword::new(0),
     music_volume: Dword::new(0x20),
     race_music_volume: Dword::new(0x20),
-    no_cd_audio: Dword::new(1),
-    cd_audio_open: Dword::new(0),
-    _gap_10c: Dword::new(0),
-    cd_track: Dword::new(0),
-    cd_work_114: Dword::new(0),
-    mci_id: Dword::new(0),
-    cd_work_11c: Dword::new(0),
 };
 
-/// Where the sound effects block is (`moved::MOVED`'s home for IDA 0x517F40).
-pub fn sound_effects_addr() -> usize {
-    &SOUND_EFFECTS as *const SoundEffects as usize
+impl SoundOptions {
+    pub const START: usize = 0x5180f0;
+    pub const LEN: usize = 0x14;
+
+    /// `moved::MOVED`'s home for `START`.
+    pub fn home() -> usize {
+        &SOUND_OPTIONS as *const SoundOptions as usize
+    }
+}
+
+/// The CD audio's state (IDA 0x518104 .. 0x518120, the image's layout; phase 7, typed state).
+#[repr(C)]
+pub struct CdAudio {
+    /// `dword_518104`: `nocdaudio` (`var\ral.cfg`).
+    pub no_cd_audio: Dword,
+    /// `g_cdAudioOpen`: the CD audio is open.
+    pub open: Dword,
+    /// `0x51810C`: nothing reads or writes it.
+    pub _gap_10c: Dword,
+    /// `g_cdTrack`.
+    pub track: Dword,
+    /// `dword_518114` (a reading).
+    pub work_114: Dword,
+    /// `mciId`: the CD audio device.
+    pub mci_id: Dword,
+    /// `dword_51811C` (a reading).
+    pub work_11c: Dword,
+}
+
+pub static CD_AUDIO: CdAudio = CdAudio {
+    no_cd_audio: Dword::new(1),
+    open: Dword::new(0),
+    _gap_10c: Dword::new(0),
+    track: Dword::new(0),
+    work_114: Dword::new(0),
+    mci_id: Dword::new(0),
+    work_11c: Dword::new(0),
+};
+
+impl CdAudio {
+    pub const START: usize = 0x518104;
+    pub const LEN: usize = 0x1c;
+
+    /// `moved::MOVED`'s home for `START`.
+    pub fn home() -> usize {
+        &CD_AUDIO as *const CdAudio as usize
+    }
 }
 
 // ---- single variables the game's thread keeps ----
@@ -1134,10 +1112,9 @@ mod tests {
     }
 
     #[test]
-    fn wheels_start_as_the_games() {
-        assert_eq!(size_of::<super::Wheels>(), 0x4F66FD - 0x4F66DD);
-        let image = crate::moved::image_bytes(0x4F66DD, 0x20);
-        let mine = unsafe { std::slice::from_raw_parts(wheels_addr() as *const u8, 0x20) };
+    fn wheel_surfaces_start_as_the_games() {
+        let image = crate::moved::image_bytes(0x4F66F1, 8);
+        let mine = unsafe { std::slice::from_raw_parts(WHEEL_SURFACES.as_ptr() as *const u8, 8) };
         assert_eq!(mine, &image[..]);
     }
 
@@ -1166,30 +1143,40 @@ mod tests {
     }
 
     #[test]
-    fn sound_effects_start_as_the_games() {
-        use core::mem::offset_of;
-        assert_eq!(size_of::<super::SoundEffects>(), 0x518120 - 0x517F40);
-        assert_eq!(offset_of!(SoundEffects, kind_sounds), 0x517F54 - 0x517F40);
-        assert_eq!(offset_of!(SoundEffects, kind_repeats), 0x517FAC - 0x517F40);
-        assert_eq!(offset_of!(SoundEffects, spot_work_a), 0x518054 - 0x517F40);
-        assert_eq!(
-            offset_of!(SoundEffects, settings_applied),
-            0x518080 - 0x517F40
-        );
-        assert_eq!(
-            offset_of!(SoundEffects, effects_race_on),
-            0x518090 - 0x517F40
-        );
-        assert_eq!(
-            offset_of!(SoundEffects, surface_effect_kinds),
-            0x51809C - 0x517F40
-        );
-        assert_eq!(offset_of!(SoundEffects, effect_tenth), 0x5180EC - 0x517F40);
-        assert_eq!(offset_of!(SoundEffects, tune_turn), 0x5180F8 - 0x517F40);
-        assert_eq!(offset_of!(SoundEffects, no_cd_audio), 0x518104 - 0x517F40);
-        assert_eq!(offset_of!(SoundEffects, mci_id), 0x518118 - 0x517F40);
-        let image = crate::moved::image_bytes(0x517F40, 0x1E0);
-        let mine = unsafe { std::slice::from_raw_parts(sound_effects_addr() as *const u8, 0x1E0) };
+    fn spot_picks_starts_as_the_games() {
+        assert_eq!(size_of::<SpotPicks>(), SpotPicks::LEN);
+        let image = crate::moved::image_bytes(SpotPicks::START, SpotPicks::LEN);
+        let mine =
+            unsafe { std::slice::from_raw_parts(SpotPicks::home() as *const u8, SpotPicks::LEN) };
+        assert_eq!(mine, &image[..]);
+    }
+
+    #[test]
+    fn settings_applied_starts_as_the_games() {
+        assert_eq!(size_of::<SettingsApplied>(), SettingsApplied::LEN);
+        let image = crate::moved::image_bytes(SettingsApplied::START, SettingsApplied::LEN);
+        let mine = unsafe {
+            std::slice::from_raw_parts(SettingsApplied::home() as *const u8, SettingsApplied::LEN)
+        };
+        assert_eq!(mine, &image[..]);
+    }
+
+    #[test]
+    fn sound_options_starts_as_the_games() {
+        assert_eq!(size_of::<SoundOptions>(), SoundOptions::LEN);
+        let image = crate::moved::image_bytes(SoundOptions::START, SoundOptions::LEN);
+        let mine = unsafe {
+            std::slice::from_raw_parts(SoundOptions::home() as *const u8, SoundOptions::LEN)
+        };
+        assert_eq!(mine, &image[..]);
+    }
+
+    #[test]
+    fn cd_audio_starts_as_the_games() {
+        assert_eq!(size_of::<CdAudio>(), CdAudio::LEN);
+        let image = crate::moved::image_bytes(CdAudio::START, CdAudio::LEN);
+        let mine =
+            unsafe { std::slice::from_raw_parts(CdAudio::home() as *const u8, CdAudio::LEN) };
         assert_eq!(mine, &image[..]);
     }
 

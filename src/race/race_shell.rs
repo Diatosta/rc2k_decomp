@@ -3,6 +3,7 @@
 
 use crate::framework::rva;
 use crate::input::store::DEVICES;
+use crate::race::state_store::RACE_STATE;
 use crate::store::{game_addr, game_read, game_write};
 
 /// Each car block's +0xB0 (dword_70F49C ..): the player absent.
@@ -70,7 +71,7 @@ pub const SEAL_RVA: usize = rva(0x5BECCC); // the dword after "RCIB"
 pub unsafe fn seal_stage_time() {
     // Converted: `rc2k_core::race::seal::seal_time`.
     unsafe {
-        let key = crate::sound::store::WHEELS.seal_key.get();
+        let key = crate::race::replay::SEAL_KEY.get();
         let sealed = rc2k_core::race::seal::seal_time(
             game_read(ABSENT_0_RVA),
             || game_read(TIME_0_RVA),
@@ -79,8 +80,6 @@ pub unsafe fn seal_stage_time() {
         (game_addr(SEAL_RVA) as *mut u32).write_unaligned(sealed);
     }
 }
-
-const LEAGUE_SOURCE_RVA: usize = rva(0x75ACD0); // dword_75ACD0: 10 records of 0x50, or 0
 const LEAGUE_A_RVA: usize = rva(0x60410C); // dword_60410C: 10 dwords
 const LEAGUE_B_RVA: usize = rva(0x604134); // unk_604134: 16 rows of 10 dwords (0x28)
 
@@ -92,7 +91,7 @@ pub unsafe fn copy_league_table() {
     // Converted: `rc2k_core::race::results::league`.
     use rc2k_core::race::results::league;
     unsafe {
-        let source: u32 = game_read(LEAGUE_SOURCE_RVA);
+        let source: u32 = RACE_STATE.settings.rivals.get();
         if source == 0 {
             return;
         }
@@ -102,8 +101,6 @@ pub unsafe fn copy_league_table() {
     }
 }
 
-const ONE_PLAYER_CHOICE_RVA: usize = rva(0x52A910); // dword_52A910
-const ONE_PLAYER_CAR_RVA: usize = rva(0x52A920); // dword_52A920
 const CAR_KINDS_RVA: usize = rva(0x623858); // g_raceCarKinds
 const SECOND_KIND_RVA: usize = rva(0x62385C); // dword_62385C
 const CAR_RECORDS_LIMIT_RVA: usize = rva(0x5C7980); // dword_5C7980: per kind (0xB0 apart)
@@ -155,8 +152,8 @@ pub unsafe fn set_start_states() -> Result<(), Refused> {
     // Converted: `rc2k_core::race::cars::{start_record, start_state_value, held_split,
     // settled_state}`.
     unsafe {
-        let one = game_read::<u32>(ONE_PLAYER_CHOICE_RVA) == 1;
-        let chosen: u32 = game_read(ONE_PLAYER_CAR_RVA);
+        let one = crate::net::store::NET.session.get() == 1;
+        let chosen: u32 = crate::net::store::NET.player.get();
         if one && chosen > 7 {
             return Err(BadInput("a chosen car past the eight").into());
         }
@@ -202,22 +199,26 @@ pub unsafe fn store_results_by_mode() {
     let get = |a: usize| -> u32 { unsafe { game_read(rva(a)) } };
     match get(0x62389C) {
         2 => {
-            put(0x75AFFC, get(0x70F478));
+            RACE_STATE.results.figure_ffc.set(get(0x70F478));
             let v = get(0x70FA40);
-            put(0x75B000, v);
+            RACE_STATE.results.figure_000.set(v);
             put(0x6051BC, v);
-            put(0x75B01C, get(0x70F474));
+            RACE_STATE.results.results[0].time.set(get(0x70F474));
         }
         0 => {
-            put(0x75B01C, get(0x70F474));
-            put(0x75B08C, get(0x710454));
+            RACE_STATE.results.results[0].time.set(get(0x70F474));
+            RACE_STATE.results.results[1].time.set(get(0x710454));
             let total = get(0x601C4C);
-            put(0x75B020, margin(total, get(0x70F474)));
-            put(0x75B090, margin(total, get(0x710454)));
+            RACE_STATE.results.results[0]
+                .word
+                .set(margin(total, get(0x70F474)));
+            RACE_STATE.results.results[1]
+                .word
+                .set(margin(total, get(0x710454)));
         }
         1 | 3 => {
-            put(0x75B01C, get(0x70F474));
-            put(0x75B08C, get(0x710454));
+            RACE_STATE.results.results[0].time.set(get(0x70F474));
+            RACE_STATE.results.results[1].time.set(get(0x710454));
         }
         _ => {}
     }

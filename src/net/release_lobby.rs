@@ -8,12 +8,12 @@
 //! Refuses nothing.
 
 use crate::net::dplay::{RELEASE, method};
-use crate::net::lobby::{LOBBY, g, p};
+use crate::net::store::NET;
 
 /// The Rust version.
 pub fn release_lobby() {
-    if g(LOBBY) != 0 {
-        unsafe { method(g(LOBBY), RELEASE, &[]) };
-        p(LOBBY, 0);
+    if NET.lobby.get() != 0 {
+        unsafe { method(NET.lobby.get(), RELEASE, &[]) };
+        NET.lobby.set(0);
     }
 }

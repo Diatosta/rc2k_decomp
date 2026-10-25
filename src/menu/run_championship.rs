@@ -54,21 +54,18 @@ use crate::menu::screen_loop::Carried;
 pub const STAGES_DONE: usize = 0x755950; // dword_755950
 pub const RESET_TIMES: usize = 0x755250; // dword_755250
 pub const SERVICES: usize = 0x755254; // dword_755254
-pub const MODE_AB40: usize = 0x75AB40; // dword_75AB40
 pub const START_SECTION: usize = 0x7554C0; // dword_7554C0 (the A8's dword_7554C4)
 pub const START_SECTION_A8: usize = 0x7554C4;
 pub const SERVICE_TIME: usize = 0x75593C; // dword_75593C
 pub const SERVICE_DUE: usize = 0x755938; // dword_755938
 pub const THE_END: usize = 0x755928; // dword_755928
 pub const GOES_ON: usize = 0x75592C; // dword_75592C
-pub const RALLY_DONE: usize = 0x75AB20; // dword_75AB20
 pub const WELCOME_FIGURE: usize = 0x755924; // dword_755924
 pub const WELCOMED: usize = 0x755934; // dword_755934
 pub const SERVICE_940: usize = 0x755940; // dword_755940
 pub const SERVICE_944: usize = 0x755944; // dword_755944
 pub const SERVICE_NEXT: usize = 0x75594C; // dword_75594C
 // dword_755920
-pub const REVIEW_KIND: usize = 0x75AAD8; // dword_75AAD8
 
 /// The two championships' driver: `a8` for `menu::run_a8_championship`'s differences.
 /// `c` the carried values of the caller; the original leaves every register as it got

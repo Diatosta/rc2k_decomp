@@ -7,18 +7,15 @@
 //!
 //! Callers: `sub_4B1CD0` (the HUD's end), `hud::add_polygon`.
 
-use crate::hud::batch::{INDEX_COUNT_RVA, VERTEX_COUNT_RVA};
-use crate::hud::store::{game_read, game_write};
+use crate::hud::store::HUD;
 
 /// The Rust version (see the header).
 // Converted: `rc2k_core::hud::batch::flush_due`
 pub fn flush_batch() {
-    unsafe {
-        if !rc2k_core::hud::batch::flush_due(game_read(INDEX_COUNT_RVA)) {
-            return;
-        }
-        crate::d3d::draw_hud_batch::draw_hud_batch();
-        game_write(VERTEX_COUNT_RVA, 0u32);
-        game_write(INDEX_COUNT_RVA, 0u32);
+    if !rc2k_core::hud::batch::flush_due(HUD.index_count.get()) {
+        return;
     }
+    crate::d3d::draw_hud_batch::draw_hud_batch();
+    HUD.vertex_count.set(0);
+    HUD.index_count.set(0);
 }

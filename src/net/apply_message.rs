@@ -20,7 +20,8 @@
 
 use crate::framework::{game_read, rva};
 use crate::logfile::{log_int::log_int, log_write::log_write};
-use crate::net::{PLAYER, STEP, a, g};
+use crate::net::store::NET;
+use crate::net::{STEP, a, g};
 use rc2k_core::net::race::{self, Arrival, Kind};
 
 /// g_carBlocks: the eight cars' blocks.
@@ -33,7 +34,7 @@ pub fn apply_message(player: u32, message: *const u8) {
     let rd = |at: u32| unsafe { (at as *const u32).read_unaligned() };
     let wr = |at: u32, v: u32| unsafe { (at as *mut u32).write_unaligned(v) };
     let message = message as u32;
-    log_int(g(PLAYER) as i32, false, 1);
+    log_int(NET.player.get() as i32, false, 1);
     log_int(g(STEP) as i32, false, 1);
     log_int(unsafe { (message as *const u8).read() } as i32, false, 1);
     unsafe { log_write(a(TEXT) as *const u8, false, 1) };

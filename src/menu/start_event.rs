@@ -13,7 +13,7 @@
 
 use crate::errors::Refused;
 use crate::menu::event_flow::*;
-use crate::menu::flow_game::addr;
+use crate::menu::lists_store::MENU_LISTS;
 use crate::menu::screen_loop::{Carried, run_screen_carried};
 use rc2k_core::menu::starters;
 
@@ -56,10 +56,10 @@ impl starters::Event for Game {
                 C::ResetDrivers => m::reset_drivers::reset_drivers()?,
                 C::ResetDriverCondition => m::reset_driver_condition::reset_driver_condition()?,
                 C::SelectCar(list) => {
-                    self.f.c.cars = addr(match list {
-                        starters::CarList::Championship => CARS_CHAMPIONSHIP,
-                        starters::CarList::A8 => CARS_A8,
-                    });
+                    self.f.c.cars = match list {
+                        starters::CarList::Championship => MENU_LISTS.cars_championship[0].addr(),
+                        starters::CarList::A8 => MENU_LISTS.cars_a8[0].addr(),
+                    } as u32;
                     run_screen_carried(&m::select_car_loop::SCREEN, &mut self.f.c)?
                 }
                 C::TakeShownCar => m::take_shown_car::take_shown_car(self.f.c.cars)?,

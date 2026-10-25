@@ -11,20 +11,17 @@
 
 use crate::errors::Refused;
 use crate::hud::batch::{POLYGON_COUNT_RVA, POLYGON_RVA};
-use crate::hud::store::Slot;
-use crate::hud::store::{game_read, game_write};
+use crate::hud::store::HUD;
+use crate::store::game_write;
 use rc2k_core::hud::quads;
-
-pub const QUAD_RVA: Slot = Slot::at(0x75BFB0); // dword_75BFB0 .. dword_75BFE4
-const SCALE_RVA: [Slot; 2] = [Slot::at(0x75C00C), Slot::at(0x75C010)]; // flt_75C00C, flt_75C010
 
 /// The Rust version (see the header). What the original leaves in the registers is read
 /// by none of its callers (register liveness, 2026-10-23).
 // Converted: `rc2k_core::hud::quads::quad_vertices`
 pub unsafe fn add_quad() -> Result<(), Refused> {
     unsafe {
-        let q: [u32; quads::RECORD] = game_read(QUAD_RVA);
-        let [a, b] = SCALE_RVA.map(|r| f32::from_bits(game_read(r)));
+        let q: [u32; quads::RECORD] = std::array::from_fn(|n| HUD.quad[n].get());
+        let (a, b) = (HUD.uv_scale_x.get(), HUD.uv_scale_y.get());
         let (vertices, _, _) = quads::quad_vertices(&q, a, b);
         for (n, v) in vertices.into_iter().enumerate() {
             let at = POLYGON_RVA + 0x20 * n;

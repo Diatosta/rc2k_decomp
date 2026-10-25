@@ -14,17 +14,18 @@
 //! piece of code (0x418A43, 0x418C5A, 0x418D77: Rust versions of them). It waits on
 //! another thread.
 
-use crate::net::lobby::{POSTED, POSTED_ANSWERED, POSTED_RESULT, POSTING, a, g};
+use crate::net::store::NET;
 use crate::session::FLAGS;
 use std::sync::atomic::{AtomicU32, Ordering};
 
 /// The Rust version.
 pub fn post_call(code: u32) -> u32 {
-    if g(POSTING) == 1 {
-        unsafe { (a(POSTED) as *mut u32).write_volatile(code) };
+    if NET.posting.get() == 1 {
+        unsafe { ((NET.posted_call.addr() as u32) as *mut u32).write_volatile(code) };
         loop {
-            let answered = unsafe { AtomicU32::from_ptr(a(POSTED_ANSWERED) as *mut u32) }
-                .swap(0, Ordering::SeqCst);
+            let answered =
+                unsafe { AtomicU32::from_ptr((NET.posted_answered.addr() as u32) as *mut u32) }
+                    .swap(0, Ordering::SeqCst);
             if answered != 0 {
                 break;
             }
@@ -35,5 +36,5 @@ pub fn post_call(code: u32) -> u32 {
             }
         }
     }
-    unsafe { (a(POSTED_RESULT) as *const u32).read_volatile() }
+    unsafe { ((NET.posted_result.addr() as u32) as *const u32).read_volatile() }
 }

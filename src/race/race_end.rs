@@ -4,6 +4,7 @@
 
 use crate::errors::Refused;
 use crate::framework::rva;
+use crate::race::state_store::RACE_STATE;
 use crate::store::{game_addr, game_read, game_write};
 
 /// The replay's car header (`dword_719B14` ..).
@@ -101,9 +102,7 @@ const VOICES_RVA: usize = rva(0x5168C0); // unk_5168C0: 0x48 records of 0x50
 pub fn command(number: u32, eax: u32) {
     let mut registers = [0; 7];
     registers[0] = eax;
-    unsafe {
-        crate::sound::queue::send_command(&crate::sound::queue::Queue::game(), number, registers)
-    };
+    crate::sound::queue::send_command(number, registers);
 }
 
 /// `sound::wait_for_commands`: the queue run out (its ends of turn read no register).
@@ -144,7 +143,7 @@ pub fn reset_race_sounds(v: &SoundVars) -> Result<(), Refused> {
             ((at + 0x14) as *mut u32).write_unaligned(0xFFFF_FFFE);
         }
         crate::sound::store::STAGE_SOUNDS.shared_count.set(0);
-        crate::sound::store::SOUND_EFFECTS.spot_work_a.set(0);
+        crate::sound::store::SPOT_PICKS.spot_work_a.set(0);
         crate::audio::store::ENVIRONMENT.set(0x3F80_0000u32);
         command(2, 3);
         crate::sound::store::RACE_CLOCK.started.set(0);
@@ -298,7 +297,7 @@ pub unsafe fn run_race(indent: u32) -> Result<(), Refused> {
     unsafe {
         game_write(rva(0x60101C), 1u32);
         (indent as *mut u32).write_unaligned(0);
-        if game_read::<u32>(rva(0x75AFF4)) == 0 && game_read::<u32>(rva(0x75ACD8)) == 2 {
+        if RACE_STATE.results.race_stage.get() == 0 && RACE_STATE.settings.run_kind.get() == 2 {
             game_write(rva(0x60519C), crate::math::next_random::next_random());
         }
         game_write(rva(0x621514), 0u32);

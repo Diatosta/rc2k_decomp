@@ -22,6 +22,7 @@
 
 use crate::errors::BadInput;
 use crate::framework::rva;
+use crate::race::state_store::RACE_STATE;
 use crate::sound::queue::START_3;
 use crate::store::game_addr;
 
@@ -37,7 +38,6 @@ const LAST_SET_RVA: usize = rva(0x5121EC); // unk_5121EC
 
 const FIRST_SAMPLE: usize = 0xED;
 const NAMES: usize = 95;
-const SAMPLE_LEN: usize = 0x40;
 const OBJECTS: u32 = 8;
 const KINDS: u32 = 0x20;
 
@@ -54,16 +54,11 @@ pub struct Places {
     pub replay: usize,
     /// off_512A10: eight sound objects.
     pub objects: usize,
-    /// unk_50A7A4: the sample records.
-    pub samples: usize,
 }
 
-/// The places in the image (the sample records, the audio's, are `SAMPLES_RVA`).
-const PLACES: [usize; 1] = [0x75B108];
-
 impl Places {
-    fn from(addresses: [usize; 7]) -> Self {
-        let [first, second, count, other_count, replay, objects, samples] = addresses;
+    fn from(addresses: [usize; 6]) -> Self {
+        let [first, second, count, other_count, replay, objects] = addresses;
         Self {
             first,
             second,
@@ -71,13 +66,12 @@ impl Places {
             other_count,
             replay,
             objects,
-            samples,
         }
     }
 
     pub fn game() -> Self {
         use crate::sound::store::RACE_SOUNDS as R;
-        let [replay] = PLACES.map(|at| game_addr(rva(at)));
+        let replay = RACE_STATE.results.finished.addr();
         Self::from([
             R.player_cars[0].addr(),
             R.player_cars[1].addr(),
@@ -85,7 +79,6 @@ impl Places {
             R.count.addr(),
             replay,
             R.table.as_ptr() as usize,
-            game_addr(crate::audio::voices::SAMPLES_RVA),
         ])
     }
 }
@@ -163,9 +156,9 @@ pub unsafe fn load_race_sounds(places: &Places, send: &mut dyn FnMut(u32)) -> Re
         let (of_first, of_second) = (lengths(ebx)?, lengths(edx)?);
         // Nothing has been written or sent up to here.
         for n in 0..NAMES {
-            let record = places.samples + (FIRST_SAMPLE + n * 2) * SAMPLE_LEN;
-            ((record + 0x0C) as *mut u32).write_unaligned(ebx as u32);
-            ((record + 0x4C) as *mut u32).write_unaligned(edx as u32);
+            let records = &crate::audio::store::SAMPLE_RECORDS.records;
+            records[FIRST_SAMPLE + n * 2].update(|r| r.data_key = ebx as u32);
+            records[FIRST_SAMPLE + n * 2 + 1].update(|r| r.data_key = edx as u32);
             ebx += of_first[n] as usize + 1;
             edx += of_second[n] as usize + 1;
         }

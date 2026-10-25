@@ -19,6 +19,7 @@ use crate::errors::{BadInput, Refused};
 use crate::framework::rva;
 use crate::physics::cells::get_list;
 use crate::physics::splits::{FIGURE, SPLIT, TIME, g, p};
+use crate::race::state_store::RACE_STATE;
 use rc2k_core::physics::splits::{LAST_COMPARED_SPLIT, compare_split};
 
 /// The Rust version. The registers the original leaves are read by none of its callers.
@@ -46,11 +47,11 @@ pub fn compare_split_times() -> Result<(), Refused> {
     {
         p(FIGURE + 4 * k, v);
     }
-    let a = |x: usize| crate::framework::game_addr(rva(x)) as u32;
+    let _a = |x: usize| crate::framework::game_addr(rva(x)) as u32;
     let car = g(0x71B3F8);
     let times = match car {
-        0 => a(0x75B02C),
-        1 => a(0x75B09C),
+        0 => RACE_STATE.results.results[0].data.addr() as u32,
+        1 => RACE_STATE.results.results[1].data.addr() as u32,
         _ => return Ok(()),
     };
     unsafe { ((times + 4 * g(SPLIT)) as *mut u32).write_unaligned(time) };

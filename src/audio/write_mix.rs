@@ -8,17 +8,16 @@
 //! inlined. Refuses sixteen bits with a right sample that clips (the original loops for
 //! ever there: section 16).
 
-use crate::audio::fill_buffer::LOCKED_PARTS_RVA;
 use crate::audio::mixer::*;
-use crate::audio::voices::SOUND_MODE_RVA;
+use crate::audio::store::AUDIO;
 use crate::errors::Refused;
-use crate::store::{game_addr, game_read};
+use crate::store::game_addr;
 
-pub unsafe fn write_mix_in_game() -> Result<(), Refused> {
+pub fn write_mix_in_game() -> Result<(), Refused> {
+    let parts = AUDIO.locked_parts.each_ref().map(|d| d.get());
     unsafe {
-        let parts = (game_addr(LOCKED_PARTS_RVA) as *const [u32; 4]).read_unaligned();
         write_mix(
-            game_read(SOUND_MODE_RVA),
+            AUDIO.sound_mode.get(),
             game_addr(MIX_BUFFER_RVA) as u32,
             parts,
         )

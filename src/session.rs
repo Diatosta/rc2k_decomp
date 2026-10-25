@@ -42,6 +42,36 @@ impl Dword {
     pub fn addr(&self) -> usize {
         self.as_ptr() as usize
     }
+
+    /// The bits, for the x87 model's loads (as `Float::bits`).
+    pub fn bits(&self) -> u32 {
+        self.get()
+    }
+
+    /// Stores the bits, for the x87 model's stores (as `Float::set_bits`).
+    pub fn set_bits(&self, bits: u32) {
+        self.set(bits)
+    }
+}
+
+/// The values of a run of dwords (a list or table of the game's, `[Dword; N]`).
+pub fn read_all<const N: usize>(cells: &[Dword; N]) -> [u32; N] {
+    std::array::from_fn(|k| cells[k].get())
+}
+
+/// Stores a run of dwords.
+pub fn write_all<const N: usize>(cells: &[Dword; N], values: [u32; N]) {
+    for (cell, value) in cells.iter().zip(values) {
+        cell.set(value);
+    }
+}
+
+/// Stores `values` into the first cells of a run of dwords (the rest keep their values).
+pub fn write_prefix(cells: &[Dword], values: &[u32]) {
+    assert!(values.len() <= cells.len());
+    for (cell, &value) in cells.iter().zip(values) {
+        cell.set(value);
+    }
 }
 
 /// One of the game's floats: an atomic cell holding its bits (phase 7, typed state).
@@ -71,6 +101,49 @@ impl Float {
     pub fn set_bits(&self, bits: u32) {
         self.0.store(bits, Relaxed)
     }
+
+    /// Its place, for code that is handed an address.
+    pub fn addr(&self) -> usize {
+        self.0.as_ptr() as usize
+    }
+}
+
+/// A 32-bit cell the x87 model loads and stores by its bits: a `Dword` or a `Float` (a
+/// parameter that may be either, the damage model's).
+pub trait Cell32 {
+    fn bits(&self) -> u32;
+    fn set_bits(&self, bits: u32);
+}
+
+impl Cell32 for Dword {
+    fn bits(&self) -> u32 {
+        self.get()
+    }
+    fn set_bits(&self, bits: u32) {
+        self.set(bits)
+    }
+}
+
+impl Cell32 for Float {
+    fn bits(&self) -> u32 {
+        self.bits()
+    }
+    fn set_bits(&self, bits: u32) {
+        self.set_bits(bits)
+    }
+}
+
+/// A cell named where a variable's IDA address is taken (`physics::flow::g`, `p`, `a`).
+impl crate::store::At for &Dword {
+    fn here(self) -> usize {
+        self.addr()
+    }
+}
+
+impl crate::store::At for &Float {
+    fn here(self) -> usize {
+        self.addr()
+    }
 }
 
 /// One of the game's words (16 bits): an atomic cell.
@@ -84,6 +157,14 @@ impl Word {
 
     pub fn get(&self) -> u16 {
         self.0.load(Relaxed)
+    }
+
+    pub fn set(&self, value: u16) {
+        self.0.store(value, Relaxed)
+    }
+
+    pub fn addr(&self) -> usize {
+        self.0.as_ptr() as usize
     }
 }
 
@@ -168,6 +249,77 @@ impl<const N: usize> Bytes<N> {
         for (i, &b) in value.iter().enumerate() {
             self.set(i, b);
         }
+    }
+}
+
+/// A dword at an address that is not a multiple of 4 (the audio block's `g_has3d`): plain
+/// unaligned volatile loads and stores, as the image's were.
+#[repr(transparent)]
+pub struct Loose(UnsafeCell<[u8; 4]>);
+
+// SAFETY: as the image's memory: raw access only, under the original's discipline.
+unsafe impl Sync for Loose {}
+
+impl Loose {
+    pub const fn new(value: u32) -> Self {
+        Self(UnsafeCell::new(value.to_le_bytes()))
+    }
+
+    pub fn get(&self) -> u32 {
+        unsafe { self.0.get().cast::<u32>().read_unaligned() }
+    }
+
+    pub fn set(&self, value: u32) {
+        unsafe { self.0.get().cast::<u32>().write_unaligned(value) }
+    }
+}
+
+/// A record the game keeps as a plain struct (a voice, a mixer channel, a stream player, a
+/// list of memory blocks, a caps record): copied out and in whole, or borrowed for the
+/// code that works on it as the core's struct. Raw access under the original's discipline
+/// (the audio thread's turn and the game thread's), as the image's bytes were shared.
+#[repr(transparent)]
+pub struct Shared<T>(UnsafeCell<T>);
+
+// SAFETY: as the image's memory: raw access only, under the original's discipline.
+unsafe impl<T> Sync for Shared<T> {}
+
+impl<T: Copy> Shared<T> {
+    pub const fn new(value: T) -> Self {
+        Self(UnsafeCell::new(value))
+    }
+
+    /// A copy of the record (a plain, possibly unaligned, volatile read).
+    pub fn get(&self) -> T {
+        unsafe { self.0.get().read_volatile() }
+    }
+
+    pub fn set(&self, value: T) {
+        unsafe { self.0.get().write_volatile(value) }
+    }
+
+    /// The record changed by `change` (read, changed, written back).
+    pub fn update(&self, change: impl FnOnce(&mut T)) {
+        let mut record = self.get();
+        change(&mut record);
+        self.set(record);
+    }
+}
+
+impl<T> Shared<T> {
+    pub fn as_ptr(&self) -> *mut T {
+        self.0.get()
+    }
+
+    pub fn addr(&self) -> usize {
+        self.as_ptr() as usize
+    }
+
+    /// The record as the core's struct, to work on in place. The caller keeps the original's
+    /// discipline: no other borrow of it lives at the same time.
+    #[allow(clippy::mut_from_ref)]
+    pub unsafe fn borrow(&self) -> &mut T {
+        unsafe { &mut *self.0.get() }
     }
 }
 
@@ -336,6 +488,22 @@ pub static CLOCKS: Clocks = Clocks {
 
 pub const CLOCKS_IDA: usize = 0x518998;
 pub const CLOCKS_LEN: usize = core::mem::size_of::<Clocks>();
+
+/// `N` bytes holding `runs` ((offset, bytes)) and zeros elsewhere.
+pub const fn with_runs<const N: usize>(runs: &[(usize, &[u8])]) -> [u8; N] {
+    let mut out = [0u8; N];
+    let mut r = 0;
+    while r < runs.len() {
+        let (at, bytes) = runs[r];
+        let mut i = 0;
+        while i < bytes.len() {
+            out[at + i] = bytes[i];
+            i += 1;
+        }
+        r += 1;
+    }
+    out
+}
 
 #[cfg(test)]
 mod tests {

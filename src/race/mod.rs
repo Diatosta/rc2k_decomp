@@ -73,6 +73,7 @@ pub mod stage_free;
 pub mod stage_loading;
 pub mod stage_prefs;
 pub mod start_place;
+pub mod state_store;
 pub mod store;
 pub mod store_data;
 pub mod throw_mud_texel;

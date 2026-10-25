@@ -17,6 +17,7 @@
 use crate::drive::race_parts::{input_update, race_frame, restart_clock};
 use crate::errors::{BadInput, Refused};
 use crate::physics::flow::{c0, g, p};
+use crate::race::state_store::RACE_STATE;
 use crate::scene::x87_mem::{fild, fistp, fld};
 
 const B: usize = 0x70F3EC;
@@ -51,7 +52,7 @@ pub unsafe fn finish_run() -> Result<(), Refused> {
         crate::sound::store::RACE_SOUNDS.objects[0].revs.set(0);
         input_update();
         unsafe { crate::drive::finish_timing::finish_timing() };
-        let n = g(0x75B108);
+        let n = RACE_STATE.results.finished.get();
         if n > 1 {
             return Err(BadInput("a finish length past the table's two").into());
         }

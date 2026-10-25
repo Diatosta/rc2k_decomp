@@ -26,13 +26,13 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_write, rva};
+use crate::framework::rva;
+use crate::race::state_store::RACE_STATE;
 use crate::screens::draw_selected_stage_menu::menu_titles;
 use crate::screens::draw_stage_records::selection;
 use crate::screens::draw_stage_records::{TIME_TRIAL_ROWS, draw_records_rows};
 use crate::screens::stage_panel::{
-    BEST_TIME_ENTRY_SIZE, GROUP_COPY_RVA, build_second_heading, draw_stage_body, dword,
-    menu_item_id,
+    BEST_TIME_ENTRY_SIZE, build_second_heading, draw_stage_body, dword, menu_item_id,
 };
 use crate::text::draw_text::Canvas;
 
@@ -59,7 +59,7 @@ pub unsafe fn draw_time_trial_stage_select(canvas: &mut dyn Canvas) -> Result<bo
             );
         };
         (item_0 as *mut u32).write_unaligned(group_title);
-        game_write(GROUP_COPY_RVA, sel.group);
+        RACE_STATE.settings.direction.set(sel.group);
         (item_1 as *mut u32).write_unaligned(table_title);
 
         let table: u32 = crate::framework::game_read(if sel.group == 1 {

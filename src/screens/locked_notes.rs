@@ -3,6 +3,7 @@
 
 use crate::errors::Refused;
 use crate::framework::{game_addr, game_read, rva};
+use crate::race::state_store::RACE_STATE;
 
 fn k(a: usize) -> u32 {
     unsafe { game_read(rva(a)) }
@@ -30,7 +31,7 @@ pub fn note_locked_item_3() -> Result<(), Refused> {
     show(rc2k_core::screens::locked::item_3(
         k(0x75870C),
         k(0x755525),
-        k(0x75ACCC),
+        RACE_STATE.settings.a8_game.get(),
     ))
 }
 

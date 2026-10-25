@@ -11,12 +11,9 @@
 //! samples a second. Five callers: `audio::make_buffer`, the stream's and the primary
 //! buffer's set-ups.
 
-use crate::audio::samples::{SAMPLE_BITS_FLAGS_RVA, SAMPLE_CHANNEL_FLAGS_RVA};
-use crate::audio::store::Slot;
+use crate::audio::store::AUDIO;
 use crate::errors::{FatalError, Refused};
-use crate::store::game_addr;
 
-pub const WAVE_FORMAT_RVA: Slot = Slot::at(0x506B30); // g_waveFormat
 pub const WAVE_FORMAT_LEN: usize = 0x12;
 
 #[repr(C, packed)]
@@ -38,8 +35,8 @@ pub fn wave_format(format: u32, frequency: u32) -> Result<WaveFormat, Refused> {
     use crate::audio::samples::flags;
     use rc2k_core::audio::samples::FormatError;
     // Converted: `rc2k_core::audio::samples::wave_format`.
-    let bits = flags(SAMPLE_BITS_FLAGS_RVA);
-    let channels = flags(SAMPLE_CHANNEL_FLAGS_RVA);
+    let bits = flags(&AUDIO.sample_bits_flags);
+    let channels = flags(&AUDIO.sample_channel_flags);
     match rc2k_core::audio::samples::wave_format(format, frequency, &bits, &channels) {
         Ok(w) => Ok(WaveFormat {
             tag: 1,
@@ -60,8 +57,8 @@ pub fn wave_format(format: u32, frequency: u32) -> Result<WaveFormat, Refused> {
     }
 }
 
-pub unsafe fn describe_wave_format(format: u32, frequency: u32) -> Result<(), Refused> {
+pub fn describe_wave_format(format: u32, frequency: u32) -> Result<(), Refused> {
     let f = wave_format(format, frequency)?;
-    unsafe { (game_addr(WAVE_FORMAT_RVA) as *mut WaveFormat).write_unaligned(f) };
+    AUDIO.wave_format.set(f);
     Ok(())
 }

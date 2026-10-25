@@ -17,9 +17,7 @@
 //! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
 //! are the original's.
 
-use crate::install::installer::{
-    DRIVE_COUNT, DRIVE_LETTERS, DRIVES, FIRST_DRIVE, a, g, game_api, p, wb, wd,
-};
+use crate::install::installer::{DRIVE_COUNT, DRIVES, FIRST_DRIVE, a, g, game_api, p, wb, wd};
 use rc2k_core::install::drives::{self, DriveMenu};
 
 const MENU_8: usize = 0x51D7F8; // off_51D7F8
@@ -48,7 +46,7 @@ pub fn list_drives() {
         }
     }
     p(DRIVE_COUNT, 0);
-    let mut ebx = a(DRIVE_LETTERS);
+    let mut ebx = crate::install::store::DRIVE_ROWS.drive_rows.addr() as u32;
     // 'a' .. 'y': the loop's `cmp ecx, 7Ah; jb` leaves 'z' out (the game's slip, section 16)
     for letter in drives::LISTED {
         let slot = drives + 8 * (letter - b'a') as u32;

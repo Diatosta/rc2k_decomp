@@ -8,9 +8,8 @@
 //!      for other items ebx = `dword_52ABD0`; no `pusha`
 //! Caller: `net::settings_loop`.
 
-use crate::net::lobby::{
-    CHOICE, Cursor, HOST_ADDRESS, MACHINE_NAME, MOST_PLAYERS, NUMBER_TEXT, PALETTE, a, g,
-};
+use crate::net::lobby::{CHOICE, Cursor, NUMBER_TEXT, PALETTE, a, g};
+use crate::net::store::NET;
 use rc2k_core::net::editing::{self, Setting};
 
 /// The Rust version. The registers the original leaves when an edit starts (eax the item,
@@ -19,11 +18,14 @@ pub fn begin_setting_edit() {
     // Converted: `rc2k_core::net::editing` (`Setting`, `WIDTH`).
     let item = g(CHOICE);
     let text = match Setting::of(item) {
-        Setting::Name => a(MACHINE_NAME),
-        Setting::HostAddress => a(HOST_ADDRESS),
+        Setting::Name => NET.machine_name.addr() as u32,
+        Setting::HostAddress => NET.host_address.addr() as u32,
         Setting::MostPlayers => {
             let mut cursor = Cursor(a(NUMBER_TEXT));
-            cursor.bytes(&crate::strings::format_u32::format_u32(g(MOST_PLAYERS), 0));
+            cursor.bytes(&crate::strings::format_u32::format_u32(
+                NET.most_players.get(),
+                0,
+            ));
             cursor.nul();
             a(NUMBER_TEXT)
         }

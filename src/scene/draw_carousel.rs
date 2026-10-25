@@ -12,15 +12,11 @@
 //! `scene::draw_main_menu_carousel`.
 
 use crate::errors::Refused;
-use crate::framework::{game_read, rva};
+use crate::menu::state_store::MENU_STATE;
 use crate::scene::draw_carousel_entry::draw_carousel_entry;
 use crate::scene::draw_menu_object::draw_menu_object_in_game;
 
 // ---- game data ----
-
-const COUNT_RVA: usize = rva(0x75AA78); // g_carouselCount
-const FRONT_RVA: usize = rva(0x75AA7C); // g_carouselFront
-const ANGLE_RVA: usize = rva(0x75AA80); // g_carouselAngle
 
 // ---- Rust version ----
 
@@ -33,12 +29,12 @@ pub unsafe fn draw_carousel(
     entry: &mut dyn FnMut(u32, u32) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
     use rc2k_core::scene::carousel::{Drawn, drawn};
-    unsafe {
-        let count: u32 = game_read(COUNT_RVA);
+    {
+        let count: u32 = MENU_STATE.carousel.count.get();
         match drawn(
             count,
-            || game_read(FRONT_RVA),
-            || game_read::<u32>(ANGLE_RVA) != 0,
+            || MENU_STATE.carousel.front.get(),
+            || MENU_STATE.carousel.angle.get() != 0,
         ) {
             Drawn::Nothing => Ok(()),
             Drawn::Lone => entry(0, lone_row),

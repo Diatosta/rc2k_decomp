@@ -3,6 +3,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::rva;
+use crate::menu::state_store::MENU_STATE;
 use crate::store::{game_addr, game_read, game_write};
 
 fn k(a: u32) -> u32 {
@@ -41,7 +42,7 @@ pub unsafe fn pick_player(n: u32) -> Result<(), Refused> {
 pub unsafe fn load_audio_settings() {
     // Converted: `rc2k_core::screens::page_values::audio_page`.
     let options: rc2k_core::audio::modes::AudioOptions =
-        unsafe { game_read(crate::audio::choose_modes::OPTIONS_RVA) };
+        crate::audio::store::AUDIO.audio_options.get();
     unsafe {
         game_write(
             rva(0x75566C),
@@ -123,7 +124,10 @@ pub unsafe fn stage_options_texts() -> Result<(), Refused> {
         set_item(items, 3, ((base + 0x38) as *const u32).read_unaligned());
         stage_line(0x481, record)?;
         let mut caption = Vec::new();
-        push_id(&mut caption, stage_options_caption(k(0x75AB30)));
+        push_id(
+            &mut caption,
+            stage_options_caption(MENU_STATE.menus.caption_choice.get()),
+        );
         caption.push(0);
         std::ptr::copy_nonoverlapping(
             caption.as_ptr(),

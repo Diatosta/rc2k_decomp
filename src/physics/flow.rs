@@ -35,7 +35,7 @@ pub fn c3(a: u32, b: u32) -> bool {
 
 /// `fld lim; fld v; fcompp; jnb skip; fld lim; fstp v`: v raised to lim when below it
 /// (or unordered).
-pub fn hold_low(v: usize, lim: usize) {
+pub fn hold_low(v: impl crate::store::At, lim: impl crate::store::At) {
     if c0(g(v), g(lim)) {
         p(v, x87::loaded(g(lim)));
     }
@@ -43,7 +43,7 @@ pub fn hold_low(v: usize, lim: usize) {
 
 /// `fld lim; fld v; fcompp; jb skip; fld lim; fstp v`: v lowered to lim unless below it
 /// (or unordered).
-pub fn hold_high(v: usize, lim: usize) {
+pub fn hold_high(v: impl crate::store::At, lim: impl crate::store::At) {
     if !c0(g(v), g(lim)) {
         p(v, x87::loaded(g(lim)));
     }
@@ -97,22 +97,31 @@ pub fn fill3(to: usize, v: u32) {
 /// `t` is (x0, y0, x1, y1); the value at `x` below x0 (or unordered) gives y0, below x1
 /// gives y0 + (x - x0) / (x1 - x0) x (y1 - y0) (y0 when x1 - x0, unrounded, equals the
 /// value at `zero`), else y1; into `out` (`fstp`).
-pub fn table_lerp(x: usize, t: usize, zero: usize, out: usize) {
-    if c0(g(x), g(t)) {
-        p(out, x87::loaded(g(t + 4)));
+pub fn table_lerp(
+    x: impl crate::store::At,
+    t: &[crate::session::Float; 4],
+    zero: impl crate::store::At,
+    out: impl crate::store::At,
+) {
+    if c0(g(x), t[0].bits()) {
+        p(out, x87::loaded(t[1].bits()));
         return;
     }
-    if !c0(g(x), g(t + 8)) {
-        p(out, x87::loaded(g(t + 0xC)));
+    if !c0(g(x), t[2].bits()) {
+        p(out, x87::loaded(t[3].bits()));
         return;
     }
     let mut status = 0u16;
-    x87_1(a(t) as usize, a(zero) as usize, (&raw mut status) as usize);
+    x87_1(
+        t.as_ptr() as usize,
+        a(zero) as usize,
+        (&raw mut status) as usize,
+    );
     if status & 0x4000 != 0 {
-        p(out, x87::loaded(g(t + 4)));
+        p(out, x87::loaded(t[1].bits()));
         return;
     }
-    x87_2(a(x) as usize, a(t) as usize, a(out) as usize);
+    x87_2(a(x) as usize, t.as_ptr() as usize, a(out) as usize);
 }
 
 // ---- the arithmetic that was x87 assembly ----

@@ -11,7 +11,7 @@
 //! menu), before anything. The menus and draw lists run its `entry` (`menu::table_calls`); the
 //! registers above are the original's, for reference.
 
-use crate::audio::store::Slot;
+use crate::audio::store::AUDIO;
 use crate::errors::Refused;
 use crate::framework::{game_read, rva};
 use crate::menu::disable_item::disable_item;
@@ -22,12 +22,7 @@ fn k(a: u32) -> u32 {
     unsafe { game_read(rva(a as usize)) }
 }
 
-/// (the switch, its item) and (the setting, its first string).
-const SWITCHES: [(Slot, u32); 3] = [
-    (Slot::at(0x506CBC), 4),
-    (Slot::at(0x506CC4), 5),
-    (Slot::at(0x506CC0), 6),
-];
+/// (the setting, its first string).
 const NAMES: [(u32, u32); 6] = [
     (0x75566C, 0x54B),
     (0x755680, 0x554),
@@ -41,8 +36,9 @@ const NAMES: [(u32, u32); 6] = [
 pub unsafe fn draw_sound_settings(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     // Converted: `rc2k_core::screens::settings_pages::{sound_items, sound}`.
     use crate::screens::game_screen::SettingsScreen;
-    let [a, b, c] =
-        SWITCHES.map(|(switch, _)| unsafe { crate::store::game_read::<u32>(switch) } == 1);
+    // The switches, by their items 4, 5 and 6: 3D, EAX and A3D2 there.
+    let options = AUDIO.audio_options.get();
+    let [a, b, c] = [options.has_3d, options.has_eax, options.has_a3d2].map(|switch| switch == 1);
     for (item, on) in rc2k_core::screens::settings_pages::sound_items(a, b, c) {
         if on {
             enable_item(item)?;

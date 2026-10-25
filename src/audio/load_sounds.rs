@@ -17,59 +17,36 @@
 //! Refuses, before anything is done: a list without its -1 within 0x1000 entries, or with
 //! a sound of 0x1CD or more; A3D.
 
+use crate::audio::store::{AUDIO, SAMPLE_RECORDS};
 use crate::audio::voices::*;
 use crate::errors::{BadInput, Refused};
 use crate::session::FLAGS;
-use crate::store::addr32 as a;
-use crate::store::game_addr;
-
-/// Its variables: the records, the voices in use, the mode, the quit switch.
-#[derive(Clone, Copy)]
-pub struct Vars {
-    pub samples: u32,
-    pub voice_count: u32,
-    pub mode: u32,
-    pub quitting: u32,
-}
-
-impl Vars {
-    pub fn game() -> Self {
-        Self {
-            samples: a(SAMPLES_RVA),
-            voice_count: a(VOICE_COUNT_RVA),
-            mode: a(SOUND_MODE_RVA),
-            quitting: FLAGS.quitting.addr() as u32,
-        }
-    }
-}
 
 /// The core's loader: each step the Rust version of the original's callee, with what it
 /// reads (the record, the voice, the shared voice or the mode; `make_buffer` the record as
 /// its ebx, which the EAX set-up reads through).
-struct GameLoader<'a> {
-    v: &'a Vars,
-}
+struct GameLoader;
 
-impl GameLoader<'_> {
+impl GameLoader {
+    /// The record's place, which the callees take for their ebx.
     fn record_at(&self, sound: u32) -> u32 {
-        self.v.samples + sound * 0x40
+        SAMPLE_RECORDS.records[sound as usize].addr() as u32
     }
 }
 
-impl rc2k_core::audio::load::Loader for GameLoader<'_> {
+impl rc2k_core::audio::load::Loader for GameLoader {
     type Error = Refused;
     fn record(&mut self, sound: u32) -> &mut SampleRecord {
-        unsafe { &mut *(self.record_at(sound) as *mut SampleRecord) }
+        unsafe { SAMPLE_RECORDS.records[sound as usize].borrow() }
     }
     fn full(&mut self) -> bool {
-        unsafe { read(self.v.voice_count) == VOICES }
+        AUDIO.voice_count.get() == VOICES
     }
     fn shared(&mut self, at: rc2k_core::audio::load::At) -> Result<u32, Refused> {
-        let count: u32 = unsafe { crate::store::game_read(VOICE_COUNT_RVA) };
+        let count = AUDIO.voice_count.get();
         Ok(unsafe {
             crate::audio::samples::find_shared_voice(
-                &*(self.record_at(at.sound) as *const SampleRecord),
-                game_addr(VOICES_RVA) as u32,
+                &SAMPLE_RECORDS.records[at.sound as usize].get(),
                 count.min(VOICES),
             )
         })
@@ -78,13 +55,13 @@ impl rc2k_core::audio::load::Loader for GameLoader<'_> {
         use crate::audio::{read_sample_of, samples};
         unsafe {
             read_sample_of::read_sample_of(
-                &*(self.record_at(at.sound) as *const SampleRecord),
+                &SAMPLE_RECORDS.records[at.sound as usize].get(),
                 &mut |p| samples::read_sample_in_game(p as *const u8),
             )
         }
     }
     fn new_voice(&mut self, _: rc2k_core::audio::load::At, _: u32) -> Result<u32, Refused> {
-        unsafe { crate::audio::new_voice::new_voice_in_game() }
+        crate::audio::new_voice::new_voice_in_game()
     }
     fn make_ready(
         &mut self,
@@ -96,13 +73,11 @@ impl rc2k_core::audio::load::Loader for GameLoader<'_> {
         let record = self.record_at(at.sound);
         unsafe {
             fill_voice::fill_voice_in_game(voice_at, record, shared)?;
-            let mode = sample_mode::sample_mode_of(read(self.v.mode), voice(voice_at).sound)?;
+            let mode = sample_mode::sample_mode_of(AUDIO.sound_mode.get(), voice(voice_at).sound)?;
             samples::prepare_sample(voice(voice_at), mode)?;
             keep_sample::keep_sample(voice(voice_at), &mut |n| keep_sample::allocate_in_game(n))?;
-            make_buffer::make_buffer(voice_at, record, &make_buffer::Vars::game())?;
-            let parts = game_addr(fill_buffer::LOCKED_PARTS_RVA) as u32;
-            let lost = game_addr(BUFFER_LOST_RVA) as u32;
-            fill_buffer::fill_buffer(voice(voice_at), parts, lost)?;
+            make_buffer::make_buffer(voice_at, record)?;
+            fill_buffer::fill_buffer(voice(voice_at))?;
         }
         Ok(())
     }
@@ -110,12 +85,12 @@ impl rc2k_core::audio::load::Loader for GameLoader<'_> {
         unsafe { crate::audio::voices::voice(voice).flags |= LOADED };
     }
     fn quitting(&mut self) -> bool {
-        unsafe { read(self.v.quitting) == 1 }
+        FLAGS.quitting.get() == 1
     }
 }
 
 /// Converted: `rc2k_core::audio::load` (`entries`, `load`).
-pub unsafe fn load_sounds(list: u32, v: &Vars) -> Result<(), Refused> {
+pub unsafe fn load_sounds(list: u32) -> Result<(), Refused> {
     if list == 0 {
         return Ok(());
     }
@@ -123,6 +98,6 @@ pub unsafe fn load_sounds(list: u32, v: &Vars) -> Result<(), Refused> {
         return Err(BadInput("A3D").into());
     }
     let entries = rc2k_core::audio::load::entries(|n| unsafe { read(list + n as u32 * 4) })?;
-    let mut l = GameLoader { v };
+    let mut l = GameLoader;
     rc2k_core::audio::load::load(&mut l, &entries)
 }

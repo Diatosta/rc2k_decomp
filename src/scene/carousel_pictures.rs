@@ -3,13 +3,11 @@
 //! `scene::choose_carousel_pictures` and `scene::update_carousel_pictures`.
 
 use crate::errors::BadInput;
-use crate::framework::{game_read, game_write, rva};
+use crate::framework::{game_read, game_write};
+use crate::menu::state_store::MENU_STATE;
 use crate::scene::textures::{KIND_SLOT_RVA, KIND_TEXTURE_RVA, SLOTS, WANTED_RVA};
+use crate::session::{read_all, write_all};
 
-pub const WANTED_PICTURES_RVA: usize = rva(0x75AAA8); // dword_75AAA8 .. dword_75AAB4
-pub const SHOWN_RVA: usize = rva(0x75AAB8); // dword_75AAB8 .. dword_75AAC4
-pub const HELD_RVA: usize = rva(0x75AAC8); // dword_75AAC8 .. dword_75AAD4
-pub const ENTRIES_RVA: usize = rva(0x75A65C); // dword_75A65C: the entries' records
 const KIND: usize = 0x2BC;
 pub const FIRST_TEXTURE_RVA: usize = KIND_TEXTURE_RVA + KIND * 4; // dword_5D15D8
 pub const FIRST_SLOT_RVA: usize = KIND_SLOT_RVA + KIND * 4; // dword_5D25D8
@@ -23,7 +21,7 @@ const ENTRIES: u32 = 0x100;
 /// 0x4903E3). Nothing is written before a refusal.
 pub unsafe fn update(entries: [u32; 4]) -> Result<(), BadInput> {
     unsafe {
-        let table: u32 = game_read(ENTRIES_RVA);
+        let table: u32 = MENU_STATE.carousel.entries.get();
         if table == 0 {
             return Err(BadInput("no carousel entries' records"));
         }
@@ -44,12 +42,15 @@ pub unsafe fn update(entries: [u32; 4]) -> Result<(), BadInput> {
             return Err(BadInput("the pictures' slots lie past the table"));
         }
         let first_texture: u32 = game_read(FIRST_TEXTURE_RVA);
-        game_write(SHOWN_RVA, wanted);
+        write_all(&MENU_STATE.carousel_pictures.shown, wanted);
 
         // Converted: `rc2k_core::scene::carousel::{keep_held, picture_textures}`.
-        let (wanted, held) = rc2k_core::scene::carousel::keep_held(wanted, game_read(HELD_RVA));
-        game_write(WANTED_PICTURES_RVA, wanted);
-        game_write(HELD_RVA, held);
+        let (wanted, held) = rc2k_core::scene::carousel::keep_held(
+            wanted,
+            read_all(&MENU_STATE.carousel_pictures.held),
+        );
+        write_all(&MENU_STATE.carousel_pictures.wanted, wanted);
+        write_all(&MENU_STATE.carousel_pictures.held, held);
         let textures = rc2k_core::scene::carousel::picture_textures(held, first_texture);
         game_write(WANTED_RVA + first_slot as usize * 4, textures);
         // What the original leaves in eax, ebx, ecx, esi and edi its callers' later calls

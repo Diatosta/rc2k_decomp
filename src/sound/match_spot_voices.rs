@@ -33,7 +33,7 @@ pub fn match_spot_voices() -> Result<(), Refused> {
             kind: spot.kind.get(),
         })
         .collect();
-    let kinds: [u32; MOST_KIND as usize + 1] = crate::sound::store::SOUND_EFFECTS
+    let kinds: [u32; MOST_KIND as usize + 1] = crate::sound::store::SPOT_PICKS
         .kind_sounds
         .each_ref()
         .map(|d| d.get());

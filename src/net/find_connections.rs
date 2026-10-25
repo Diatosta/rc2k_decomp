@@ -15,7 +15,8 @@
 
 use crate::errors::Refused;
 use crate::net::dplay::{ENUM_CONNECTIONS, call};
-use crate::net::lobby::{APP_GUID, CONNECTIONS, DPLAY, LOBBY_LAUNCHED, RECEIVE_DONE, a, g, log, p};
+use crate::net::lobby::{a, log};
+use crate::net::store::NET;
 use crate::net::{allocate_lists, create_dplay, open_lobby};
 
 const TEXT: usize = 0x5C2E5F; // "NET: Find connections"
@@ -24,23 +25,23 @@ const DIRECTPLAY_CONNECTIONS: u32 = 1; // DPCONNECTION_DIRECTPLAY
 /// The Rust version.
 pub fn find_connections() -> Result<bool, Refused> {
     log(a(TEXT), true, 2);
-    if g(RECEIVE_DONE) == 1 || !open_lobby::open_lobby()? {
+    if NET.receive_done.get() == 1 || !open_lobby::open_lobby()? {
         return Ok(false);
     }
-    if g(LOBBY_LAUNCHED) == 1 {
+    if NET.lobby_launched.get() == 1 {
         return Ok(true);
     }
     if !create_dplay::create_dplay() {
         return Ok(false);
     }
     allocate_lists::allocate_lists()?;
-    p(CONNECTIONS, 0);
+    NET.connections.set(0);
     let result = unsafe {
         call(
-            DPLAY,
+            &NET.dplay,
             ENUM_CONNECTIONS,
             &[
-                a(APP_GUID),
+                (NET.app_guid.addr() as u32),
                 crate::net::connection_found::callback as *const () as usize as u32,
                 0,
                 DIRECTPLAY_CONNECTIONS,
@@ -48,5 +49,5 @@ pub fn find_connections() -> Result<bool, Refused> {
         )
     };
     // `cmp dword_52AC34, 1`: the carry when none was listed.
-    Ok(result == 0 && g(CONNECTIONS) >= 1)
+    Ok(result == 0 && NET.connections.get() >= 1)
 }

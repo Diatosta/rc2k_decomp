@@ -9,11 +9,12 @@
 
 use crate::errors::Refused;
 use crate::net::connections_frame::list_frame;
-use crate::net::lobby::{SESSIONS, g, session};
+use crate::net::lobby::session;
+use crate::net::store::NET;
 
 /// The Rust version.
 pub fn sessions_frame() -> Result<(), Refused> {
     // Converted: `rc2k_core::net::screens::sessions_title`.
-    let title = rc2k_core::net::screens::sessions_title(g(SESSIONS));
-    list_frame(title, SESSIONS, session)
+    let title = rc2k_core::net::screens::sessions_title(NET.sessions.get());
+    list_frame(title, &NET.sessions, session)
 }

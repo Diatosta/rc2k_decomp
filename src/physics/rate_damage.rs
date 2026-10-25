@@ -28,71 +28,69 @@
 use crate::math::x87;
 use crate::math::x87_run::{compare_full, ext_times, mul3, one_less_products, ramp, square};
 use crate::physics::mirror::Mirror;
+use crate::physics::store::DAMAGE;
 use crate::scene::matrix3::rounded;
-
-const K: u32 = 0x75B388;
-const LOW: u32 = 0x75B350;
-const HIGH: u32 = 0x75B348;
-const ZERO: u32 = 0x75B34C;
-const CHANCE: u32 = 0x75B340;
-const RANDOM: u32 = 0x75B4A0;
-const SCRATCH: u32 = 0x75B36C;
+use crate::session::Float;
 
 /// The ramps in order: (destination, figure, table).
-const RAMPS_A: [(u32, u32, u32); 2] = [
-    (0x71A3D8, 0x71A27C, 0x75B4E8),
-    (0x71A3DC, 0x71A280, 0x75B4E8),
+const RAMPS_A: [(u32, u32, &[Float; 4]); 2] = [
+    (0x71A3D8, 0x71A27C, &DAMAGE.lerp_tables[4]),
+    (0x71A3DC, 0x71A280, &DAMAGE.lerp_tables[4]),
 ];
-const RAMPS_C: [(u32, u32, u32); 18] = [
-    (0x75B490, 0x71A2A0, 0x75B518),
-    (0x75B494, 0x71A2CC, 0x75B528),
-    (0x75B498, 0x71A2CC, 0x75B538),
-    (0x75B49C, 0x71A328, 0x75B548),
-    (0x75B404, 0x71A2E8, 0x75B558),
-    (0x75B408, 0x71A2EC, 0x75B558),
-    (0x75B40C, 0x71A2F0, 0x75B558),
-    (0x75B410, 0x71A2F4, 0x75B558),
-    (0x75B414, 0x71A2F8, 0x75B558),
-    (0x75B418, 0x71A2FC, 0x75B558),
-    (0x75B41C, 0x71A300, 0x75B558),
-    (0x75B420, 0x71A2E8, 0x75B558),
-    (0x75B424, 0x71A2EC, 0x75B568),
-    (0x75B428, 0x71A2F0, 0x75B568),
-    (0x75B42C, 0x71A2F4, 0x75B568),
-    (0x75B430, 0x71A2F8, 0x75B568),
-    (0x75B434, 0x71A2FC, 0x75B568),
-    (0x75B438, 0x71A300, 0x75B568),
+/// More ramps: (destination in the model, the car's figure, table).
+const RAMPS_C: [(&Float, u32, &[Float; 4]); 18] = [
+    (&DAMAGE.flt_75b490, 0x71A2A0, &DAMAGE.lerp_tables[7]),
+    (&DAMAGE.flt_75b494, 0x71A2CC, &DAMAGE.lerp_tables[8]),
+    (&DAMAGE.flt_75b498, 0x71A2CC, &DAMAGE.lerp_tables[9]),
+    (&DAMAGE.flt_75b49c, 0x71A328, &DAMAGE.lerp_tables[10]),
+    (&DAMAGE.flt_75b404, 0x71A2E8, &DAMAGE.lerp_tables[11]),
+    (&DAMAGE.flt_75b408, 0x71A2EC, &DAMAGE.lerp_tables[11]),
+    (&DAMAGE.flt_75b40c, 0x71A2F0, &DAMAGE.lerp_tables[11]),
+    (&DAMAGE.flt_75b410, 0x71A2F4, &DAMAGE.lerp_tables[11]),
+    (&DAMAGE.flt_75b414, 0x71A2F8, &DAMAGE.lerp_tables[11]),
+    (&DAMAGE.flt_75b418, 0x71A2FC, &DAMAGE.lerp_tables[11]),
+    (&DAMAGE.flt_75b41c, 0x71A300, &DAMAGE.lerp_tables[11]),
+    (&DAMAGE.flt_75b420, 0x71A2E8, &DAMAGE.lerp_tables[11]),
+    (&DAMAGE.flt_75b424, 0x71A2EC, &DAMAGE.lerp_tables[12]),
+    (&DAMAGE.flt_75b428, 0x71A2F0, &DAMAGE.lerp_tables[12]),
+    (&DAMAGE.flt_75b42c, 0x71A2F4, &DAMAGE.lerp_tables[12]),
+    (&DAMAGE.flt_75b430, 0x71A2F8, &DAMAGE.lerp_tables[12]),
+    (&DAMAGE.flt_75b434, 0x71A2FC, &DAMAGE.lerp_tables[12]),
+    (&DAMAGE.flt_75b438, 0x71A300, &DAMAGE.lerp_tables[12]),
 ];
 /// The failures that come and go: (flag, figure while set, figure while clear, turn).
-const FAILURES: [(u32, u32, u32, u32); 7] = [
-    (0x71A3E4, 0x75B420, 0x75B404, 4),
-    (0x71A3E8, 0x75B424, 0x75B408, 5),
-    (0x71A3EC, 0x75B428, 0x75B40C, 6),
-    (0x71A3F0, 0x75B42C, 0x75B410, 7),
-    (0x71A3F4, 0x75B430, 0x75B414, 8),
-    (0x71A3F8, 0x75B434, 0x75B418, 9),
-    (0x71A3FC, 0x75B438, 0x75B41C, 0xA),
+const FAILURES: [(u32, &Float, &Float, u32); 7] = [
+    (0x71A3E4, &DAMAGE.flt_75b420, &DAMAGE.flt_75b404, 0x4),
+    (0x71A3E8, &DAMAGE.flt_75b424, &DAMAGE.flt_75b408, 0x5),
+    (0x71A3EC, &DAMAGE.flt_75b428, &DAMAGE.flt_75b40c, 0x6),
+    (0x71A3F0, &DAMAGE.flt_75b42c, &DAMAGE.flt_75b410, 0x7),
+    (0x71A3F4, &DAMAGE.flt_75b430, &DAMAGE.flt_75b414, 0x8),
+    (0x71A3F8, &DAMAGE.flt_75b434, &DAMAGE.flt_75b418, 0x9),
+    (0x71A3FC, &DAMAGE.flt_75b438, &DAMAGE.flt_75b41c, 0xA),
 ];
 
 /// The Rust core on the variables `m` reaches (the
 /// exact one, for `physics::grade_or_reset` and `physics::rate_current_car`).
 pub unsafe fn rate_damage_at(m: &Mirror) {
     unsafe {
+        let d = &DAMAGE;
         let g = |v: u32| m.get(v);
         let less = |a: u32, b: u32| compare_full(a, b) & 0x100 != 0;
         let hold = |v: u32| {
-            if less(g(v), g(LOW)) {
-                m.put(v, x87::loaded(g(LOW)));
+            if less(g(v), d.gauge_low.bits()) {
+                m.put(v, x87::loaded(d.gauge_low.bits()));
             }
-            if !less(g(v), g(HIGH)) {
-                m.put(v, x87::loaded(g(HIGH)));
+            if !less(g(v), d.grade_high.bits()) {
+                m.put(v, x87::loaded(d.grade_high.bits()));
             }
         };
-        let k = g(K);
-        let mut e =
-            one_less_products(&[[g(0x71A290), k, g(0x75B694)], [g(0x71A294), k, g(0x75B698)]]);
-        if g(0x75B3E4) != 0 && !less(g(0x71A298), g(ZERO)) {
-            e = ext_times(e, g(0x75B5A0));
+        let k = d.grade_k.bits();
+        let mut e = one_less_products(&[
+            [g(0x71A290), k, d.figures[7].bits()],
+            [g(0x71A294), k, d.figures[8].bits()],
+        ]);
+        if d.flt_75b3e4.bits() != 0 && !less(g(0x71A298), d.gauge_top.bits()) {
+            e = ext_times(e, d.wear_rates[10].bits());
         }
         m.put(0x71A3CC, rounded(e));
         hold(0x71A3CC);
@@ -101,38 +99,42 @@ pub unsafe fn rate_damage_at(m: &Mirror) {
             (0x71A3D4, 0x71A288, 0x71A324),
         ] {
             let e = one_less_products(&[
-                [g(a), k, g(0x75B6A0)],
-                [g(b), k, g(0x75B69C)],
-                [g(0x71A278), k, g(0x75B6A4)],
-                [g(0x75B3F0), k, g(0x75B6A8)],
+                [g(a), k, d.figures[10].bits()],
+                [g(b), k, d.figures[9].bits()],
+                [g(0x71A278), k, d.figures[11].bits()],
+                [d.dword_75b3f0.bits(), k, d.figures[12].bits()],
             ]);
             m.put(out, rounded(e));
             hold(out);
         }
-        let ramp_into = |out: u32, x: u32, t: u32| {
-            let table = [g(t), g(t + 4), g(t + 8), g(t + 12)];
-            m.put(out, ramp(g(x), table, g(LOW)));
-        };
+        let table_of = |t: &[Float; 4]| [t[0].bits(), t[1].bits(), t[2].bits(), t[3].bits()];
         for (out, x, t) in RAMPS_A {
-            ramp_into(out, x, t);
+            m.put(out, ramp(g(x), table_of(t), d.gauge_low.bits()));
         }
-        for (out, x) in [(0x71A3D8, 0x75B440), (0x71A3DC, 0x75B444)] {
-            ramp_into(0x75B43C, x, 0x75B4F8);
-            m.put(out, mul3(g(0x75B43C), k, k, g(out)));
+        for (out, x) in [(0x71A3D8, &d.flt_75b440), (0x71A3DC, &d.flt_75b444)] {
+            d.flt_75b43c.set_bits(ramp(
+                x.bits(),
+                table_of(&d.lerp_tables[5]),
+                d.gauge_low.bits(),
+            ));
+            m.put(out, mul3(d.flt_75b43c.bits(), k, k, g(out)));
         }
-        ramp_into(0x71A3E0, 0x71A308, 0x75B508);
+        m.put(
+            0x71A3E0,
+            ramp(g(0x71A308), table_of(&d.lerp_tables[6]), d.gauge_low.bits()),
+        );
         m.put(0x71A3E0, square(g(0x71A3E0)));
         for (out, x, t) in RAMPS_C {
-            ramp_into(out, x, t);
+            out.set_bits(ramp(g(x), table_of(t), d.gauge_low.bits()));
         }
         // Chance: the figure times `flt_75B340` against the random's low word turned.
-        let chance = |figure: u32, turn: u32| {
-            let t = x87::mul_to_int(g(figure), g(CHANCE)) as u32;
-            m.put(SCRATCH, t);
-            let r = g(RANDOM).rotate_right(turn) & 0xFFFF;
+        let chance = |figure: &Float, turn: u32| {
+            let t = x87::mul_to_int(figure.bits(), d.chance_scale.bits()) as u32;
+            d.scratch.set_bits(t);
+            let r = d.clock.get().rotate_right(turn) & 0xFFFF;
             (r.wrapping_sub(t) as i32) < 0
         };
-        if g(0x71A400) == 0 && chance(0x75B49C, 0xD) {
+        if g(0x71A400) == 0 && chance(&d.flt_75b49c, 0xD) {
             m.put(0x71A400, 1);
         }
         for (flag, set, clear, turn) in FAILURES {
@@ -145,32 +147,32 @@ pub unsafe fn rate_damage_at(m: &Mirror) {
             }
         }
         m.put(0x71A404, 0);
-        if chance(0x75B490, 0xB) {
+        if chance(&d.flt_75b490, 0xB) {
             m.put(0x71A404, 1);
         }
-        if chance(0x75B494, 0x19) {
+        if chance(&d.flt_75b494, 0x19) {
             m.put(0x71A404, 1);
         }
         m.put(0x71A408, 0);
-        if chance(0x75B498, 0x12) {
+        if chance(&d.flt_75b498, 0x12) {
             m.put(0x71A408, 1);
         }
         m.put(0x71A2AC, 0);
         let mut bits = 0u32;
         for n in 0..9 {
-            if compare_full(g(0x71A2A8 + 4 * n), g(ZERO)) & 0x4000 != 0 {
+            if compare_full(g(0x71A2A8 + 4 * n), d.gauge_top.bits()) & 0x4000 != 0 {
                 bits |= 1 << n;
             }
         }
         m.put(0x71A40C, bits);
         let all_below = [0x71A290, 0x71A2A0, 0x71A2A4, 0x71A2CC, 0x71A2E8]
             .iter()
-            .all(|&v| less(g(v), g(ZERO)));
+            .all(|&v| less(g(v), d.gauge_top.bits()));
         if all_below {
             m.put(0x71A274, 0);
         } else {
             m.put(0x71A274, 1);
-            if !less(g(0x71A2E8), g(ZERO)) {
+            if !less(g(0x71A2E8), d.gauge_top.bits()) {
                 m.put(0x71A3CC, 0);
             }
         }

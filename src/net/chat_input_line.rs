@@ -7,7 +7,8 @@
 //! Caller: `net::lobby_frame`.
 
 use crate::errors::Refused;
-use crate::net::lobby::{Cursor, EDITED, TEXT, a, g};
+use crate::net::lobby::{Cursor, TEXT, a};
+use crate::net::store::NET;
 use crate::text::draw_text::GameCanvas;
 use crate::text::font::Font;
 
@@ -16,7 +17,7 @@ pub const CHAT_FONT: usize = 0x51E584; // stru_51E584
 /// The Rust version: the chat's input `text` for item `item` at `y` (x 0xA), with the caret
 /// while it is the item being edited; returns the next y (y + 0x1E, the original's ebp).
 pub fn chat_input_line(text: u32, item: u32, y: u32) -> Result<u32, Refused> {
-    let shown = if item == g(EDITED) {
+    let shown = if item == NET.edited.get() {
         let mut cursor = Cursor::text();
         cursor.string(text);
         cursor.string_id(4);

@@ -30,7 +30,6 @@ const BASE_A: usize = 0x5189A8; // g_baseDirectory
 const SOURCE_VAR: usize = 0x51BB8D; // g_installSource
 const RECORD_FLAG: usize = 0x51D72C; // dword_51D72C
 const UPDATING: usize = 0x51B9CC; // dword_51B9CC
-const FROM_CD: usize = 0x529DB0; // g_runningFromCd
 const UPDATE_PAGES: usize = 0x51D5D8; // off_51D5D8
 const NORMAL_PAGES: usize = 0x51D594; // off_51D594
 const FONT_BE: usize = 0x51E904; // stru_51E904
@@ -82,7 +81,7 @@ pub fn run_installer() -> Result<(), Refused> {
         };
         i::run_pages::run_pages(a(pages))?;
     }
-    if g(INSTALLING) == 1 && g(FROM_CD) == 1 && lock() {
+    if g(INSTALLING) == 1 && crate::install::store::INSTALL.running_from_cd.get() == 1 && lock() {
         copy_picture()?;
         draw_string(0xBE, a(FONT_BE), 0x1A9, 0x113)?;
         unlock();

@@ -12,7 +12,8 @@
 
 use crate::errors::Refused;
 use crate::field;
-use crate::net::lobby::{SESSIONS, a, copy_printable, g, log, log_hex, movsb, p, session};
+use crate::net::lobby::{a, copy_printable, log, log_hex, movsb, session};
+use crate::net::store::NET;
 use crate::net::types::{DpSessionDesc, NetSession};
 use rc2k_core::net::lists::{self, Found};
 
@@ -33,12 +34,13 @@ pub fn session_found(args: &[u32]) -> Result<u32, Refused> {
     }
     log(crate::net::lobby::game(NEWLINE), true, 2);
     // Converted: `rc2k_core::net::lists::session_found`.
-    let count = match lists::session_found(flags, desc != 0, || get(desc + 0x44), || g(SESSIONS)) {
-        Found::Stop => return Ok(0),
-        Found::Pass => return Ok(1),
-        Found::List(n) => n,
-    };
-    p(SESSIONS, count + 1);
+    let count =
+        match lists::session_found(flags, desc != 0, || get(desc + 0x44), || NET.sessions.get()) {
+            Found::Stop => return Ok(0),
+            Found::Pass => return Ok(1),
+            Found::List(n) => n,
+        };
+    NET.sessions.set(count + 1);
     let record = session(count)?;
     copy_printable(get(desc + 0x30), record, 0x40)?;
     movsb(

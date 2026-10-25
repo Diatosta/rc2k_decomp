@@ -5,10 +5,12 @@
 //! Out: nothing (every register kept, `pusha` .. `popa`)
 //! Caller: `net::start_link` (with the received messages' lock held).
 
-use crate::net::lobby::{CHAT, a};
+use crate::net::store::NET;
 
 /// The Rust version.
 pub fn clear_chat() {
     // Converted: `rc2k_core::net::chat::EMPTY`.
-    unsafe { (a(CHAT) as *mut [u8; 8]).write_unaligned(rc2k_core::net::chat::EMPTY) };
+    unsafe {
+        ((NET.chat.addr() as u32) as *mut [u8; 8]).write_unaligned(rc2k_core::net::chat::EMPTY)
+    };
 }

@@ -3,9 +3,9 @@
 //! each).
 
 use crate::audio::com;
+use crate::audio::store::AUDIO;
 use crate::audio::voices::*;
 use crate::errors::{BadInput, Refused};
-use crate::store::game_read;
 
 pub const SET_VOLUME: u32 = 0x3C;
 pub const SET_PAN: u32 = 0x40;
@@ -13,12 +13,12 @@ pub const SET_FREQUENCY: u32 = 0x44;
 pub const SET_POSITION: u32 = 0x4C;
 
 pub fn a3d() -> bool {
-    unsafe { game_read::<u32>(A3D_RVA) == 1 }
+    AUDIO.use_a3d.get() == 1
 }
 
 /// `g_volumeTable`'s entry `n`, for the core.
 pub fn volumes(n: u32) -> u32 {
-    unsafe { game_read(VOLUMES_RVA + n as usize * 4) }
+    AUDIO.volume_table[n as usize].get()
 }
 
 fn buffer(v: &Voice) -> Result<u32, Refused> {
@@ -42,7 +42,7 @@ pub unsafe fn set_buffer_volume(v: &Voice) -> Result<i32, Refused> {
 /// `SetPan`, nothing in 3D: a pan below 0 is `g_volumeTable[pan + 0x40]`, else
 /// `-g_volumeTable[0x40 - pan]`. Returns eax, or `None` where the original leaves eax.
 pub unsafe fn set_buffer_pan(v: &Voice) -> Result<Option<i32>, Refused> {
-    if unsafe { game_read::<u32>(SOUND_MODE_RVA) } & MODE_3D != 0 {
+    if AUDIO.sound_mode.get() & MODE_3D != 0 {
         return Ok(None);
     }
     if a3d() {

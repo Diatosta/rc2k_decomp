@@ -193,7 +193,7 @@ pub struct Screen {
     pub before_asking: &'static [Step],
     /// A variable that, when it is 1, keeps the question from being put although
     /// `dword_758806` is 1.
-    pub ask_unless: Option<usize>,
+    pub ask_unless: Option<fn() -> u32>,
     /// On a screen that does not ask: what runs first on leaving, before the highlight is
     /// saved (the mode menu calls `menu::go_back` there when `dword_758806` is 1).
     pub leaving: &'static [Step],
@@ -762,9 +762,7 @@ pub unsafe fn screen_loop(screen: &Screen, entry: &Carried) -> Result<String, Re
                     if let Some(on_refusal) = screen.confirm {
                         let asked = screen.always_asks
                             || (game_read::<u32>(LEAVING_RVA) == 1
-                                && !screen
-                                    .ask_unless
-                                    .is_some_and(|flag| game_read::<u32>(flag) == 1))
+                                && !screen.ask_unless.is_some_and(|flag| flag() == 1))
                             || screen
                                 .ask_also_if
                                 .is_some_and(|flag| game_read::<u32>(flag) == 1);

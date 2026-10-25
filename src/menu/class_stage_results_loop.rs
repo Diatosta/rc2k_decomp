@@ -13,22 +13,22 @@
 //! leaving is asked about, and a "no" sets the screen up again. One caller, `sub_4A1F7A`.
 
 use crate::errors::Refused;
-use crate::framework::{game_read, game_write, rva};
+use crate::framework::{game_write, rva};
 use crate::menu::run_draw_list::DRAW_LIST_RVA;
 use crate::menu::screen_loop::{Callee, Carried, FRAME_CALLBACK, List, Screen, Step};
+use crate::menu::state_store::MENU_STATE;
 
 // ---- game data ----
 
 const MENU_RVA: usize = rva(0x74FAE0); // off_74FAE0
 const FIRST_ITEM_STRING_RVA: usize = MENU_RVA + 4 + 0x14;
-const WHICH_TITLE_RVA: usize = rva(0x75AADC); // dword_75AADC
 const BACKGROUND_RVA: usize = rva(0x7324EE); // "files\g\graphics\screens\results1.png"
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
 unsafe fn set_first_item(c: &mut Carried) -> Result<(), Refused> {
     unsafe {
-        c.arg = if game_read::<u32>(WHICH_TITLE_RVA) == 1 {
+        c.arg = if MENU_STATE.menus.which_title.get() == 1 {
             0x138
         } else {
             0x139

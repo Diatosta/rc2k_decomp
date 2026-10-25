@@ -1,10 +1,10 @@
-use crate::sound::queue::{Queue, send_command};
+use crate::sound::queue::send_command;
 use crate::sound::wait_for_commands::{Game, wait_for_commands};
 use rc2k_core::sound::senders::Music;
 
 /// Command `command` queued with what the audio thread reads of it (eax, ebx, ecx, edx).
 pub fn send(command: u32, [eax, ebx, ecx, edx]: [u32; 4]) {
-    unsafe { send_command(&Queue::game(), command, [eax, ebx, ecx, edx, 0, 0, 0]) };
+    send_command(command, [eax, ebx, ecx, edx, 0, 0, 0]);
 }
 
 /// `send`, then `sound::wait_for_commands`.
@@ -22,9 +22,9 @@ pub fn music(m: Music) {
 pub fn play_tune(n: u32) {
     if let Some(m) = rc2k_core::sound::senders::tune_command(
         n,
-        crate::sound::store::SOUND_EFFECTS.music_volume.get(),
-        crate::sound::store::SOUND_EFFECTS.race_music_volume.get(),
-        crate::sound::store::SOUND_EFFECTS.name_switch.get() == 1,
+        crate::sound::store::SOUND_OPTIONS.music_volume.get(),
+        crate::sound::store::SOUND_OPTIONS.race_music_volume.get(),
+        crate::sound::store::SOUND_OPTIONS.name_switch.get() == 1,
     ) {
         music(m);
     }

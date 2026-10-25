@@ -19,13 +19,10 @@
 //! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::rva;
 use crate::input::devices::put;
 use crate::input::store::DEVICES;
-use crate::sound::store::{RACE_SOUNDS, SOUND_EFFECTS};
-use crate::store::{game_addr, game_read, game_write};
-
-const CONTROLS_RVA: [usize; 2] = [rva(0x75AE28), rva(0x75AF94)]; // dword_75AE28, dword_75AF94
+use crate::race::state_store::RACE_STATE;
+use crate::sound::store::RACE_SOUNDS;
 
 fn device(n: usize) -> u32 {
     DEVICES.input_devices[n].get()
@@ -44,19 +41,21 @@ pub unsafe fn device_command(command: u32) -> Result<(), Refused> {
         )?;
         for step in steps {
             match step {
-                EffectsOn(on) => SOUND_EFFECTS.effects_race_on.set(on as u32),
+                EffectsOn(on) => crate::input::store::FORCE_FEEDBACK.race_on.set(on as u32),
                 Release(n) => crate::input::release_device::release_device(device(n))?,
                 Acquire(n) => crate::input::acquire_device::acquire_device(device(n))?,
                 EndEffects => crate::input::end_effects::end_effects()?,
                 Tick => crate::input::input_tick::input_tick()?,
                 SetUp(n) => crate::input::set_up_device::set_up_device(
                     device(n),
-                    game_addr(CONTROLS_RVA[n]) as u32,
+                    RACE_STATE.settings.cars[n].record_2c.addr() as u32,
                 )?,
                 Reading(n, on) => put(device(n), 0x414, on as u32),
                 SecondApart => {
-                    if game_read::<u32>(CONTROLS_RVA[0]) == game_read::<u32>(CONTROLS_RVA[1]) {
-                        game_write(CONTROLS_RVA[1], 0u32);
+                    if RACE_STATE.settings.cars[0].record_2c.get()
+                        == RACE_STATE.settings.cars[1].record_2c.get()
+                    {
+                        RACE_STATE.settings.cars[1].record_2c.set(0);
                     }
                 }
                 Sleep(ms) => crate::system::sleep::sleep(ms),

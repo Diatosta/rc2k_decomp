@@ -18,12 +18,13 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_ptr, game_write, rva};
+use crate::framework::{game_ptr, rva};
+use crate::race::state_store::RACE_STATE;
 use crate::screens::draw_stage_records::selection;
 use crate::screens::font_at;
 use crate::screens::stage_panel::{
-    GROUP_COPY_RVA, SECOND_HEADING_RVA, TITLE_FONT, build_second_heading, draw_records_for_group,
-    draw_stage_body, dword, label, table_dword,
+    SECOND_HEADING_RVA, TITLE_FONT, build_second_heading, draw_records_for_group, draw_stage_body,
+    dword, label, table_dword,
 };
 use crate::text::draw_text::{Canvas, draw_text_at};
 
@@ -53,7 +54,7 @@ pub unsafe fn draw_time_trial_stage_info(canvas: &mut dyn Canvas) -> Result<bool
             TITLE_X,
             GROUP_TITLE_Y,
         )?;
-        game_write(GROUP_COPY_RVA, sel.group);
+        RACE_STATE.settings.direction.set(sel.group);
         label(
             canvas,
             dword(sel.table.wrapping_add(0x38)),

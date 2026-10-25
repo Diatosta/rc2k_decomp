@@ -12,19 +12,27 @@
 //! past 5 starts from 0, and after `RETRIES` plays in a row that stop at their first feed
 //! the music stops (the original: both for ever, the audio thread hung).
 
+use crate::audio::store::AUDIO;
 use crate::audio::stream::*;
 use crate::errors::Refused;
-use crate::store::addr32 as a;
-use crate::store::game_addr;
+use crate::session::Shared;
 
-fn playing(player: u32) -> bool {
-    unsafe { stream(player).playing == 1 }
+fn playing(player: &Shared<AudioStream>) -> bool {
+    player.get().playing == 1
 }
 
-/// The core's player: the game's stream player at `player`, `path` the file it starts.
+/// The core's player: one of the game's stream players, `path` the file it starts (an
+/// address).
 struct GamePlayer {
-    player: u32,
+    player: &'static Shared<AudioStream>,
     path: u32,
+}
+
+impl GamePlayer {
+    /// The player's record, to work on in place.
+    unsafe fn stream(&self) -> &'static mut AudioStream {
+        unsafe { self.player.borrow() }
+    }
 }
 
 impl rc2k_core::audio::streams::Player for GamePlayer {
@@ -33,26 +41,19 @@ impl rc2k_core::audio::streams::Player for GamePlayer {
         playing(self.player)
     }
     fn keep_volume(&mut self, volume: u32) {
-        unsafe { stream(self.player).volume = volume };
+        unsafe { self.stream().volume = volume };
     }
     fn start(&mut self) -> Result<bool, Refused> {
-        unsafe {
-            start_stream(
-                stream(self.player),
-                self.path as *const u8,
-                &StartVars::game(),
-            )
-        }
+        unsafe { start_stream(self.stream(), self.path as *const u8) }
     }
     fn feed(&mut self) -> Result<(), Refused> {
-        let parts = game_addr(crate::audio::fill_buffer::LOCKED_PARTS_RVA) as u32;
-        unsafe { feed_stream(stream(self.player), parts) }.map(|_| ())
+        unsafe { feed_stream(self.stream()) }.map(|_| ())
     }
     fn stop(&mut self) -> Result<(), Refused> {
-        unsafe { stop_stream(stream(self.player)) }
+        unsafe { stop_stream(self.stream()) }
     }
     fn apply_volume(&mut self) -> Result<(), Refused> {
-        unsafe { set_stream_volume(stream(self.player)) }
+        unsafe { set_stream_volume(self.stream()) }
     }
 }
 
@@ -74,59 +75,30 @@ impl rc2k_core::audio::streams::Tunes for GamePlayer {
 
 /// `audio::stream_command` on the player at `player`. Converted:
 /// `rc2k_core::audio::streams::stream_command`.
-pub fn stream_command(path: u32, volume: i32, action: u32, player: u32) -> Result<(), Refused> {
-    let mut p = GamePlayer { player, path };
+pub fn stream_command(path: u32, volume: i32, action: u32) -> Result<(), Refused> {
+    let mut p = GamePlayer {
+        player: &AUDIO.sound_stream,
+        path,
+    };
     rc2k_core::audio::streams::stream_command(&mut p, path != 0, volume, action)
-}
-
-/// Where `music_command` keeps its things.
-#[derive(Clone, Copy)]
-pub struct MusicVars {
-    pub player: u32,
-    pub next_tune: u32,
-    pub no_music: u32,
-    pub path: u32,
-    pub turn: u32,
-}
-
-impl MusicVars {
-    pub fn game() -> Self {
-        Self {
-            player: a(MUSIC_STREAM_RVA),
-            next_tune: a(NEXT_TUNE_RVA),
-            no_music: a(NO_MUSIC_RVA),
-            path: a(MUSIC_PATH_RVA),
-            turn: crate::sound::store::SOUND_EFFECTS.tune_turn.addr() as u32,
-        }
-    }
 }
 
 /// `audio::music_command`: `tune` with `next` to follow. Converted:
 /// `rc2k_core::audio::streams::music_command` (its calls do not read the three variables,
 /// which are stored once it is done).
-pub fn music_command(
-    tune: u32,
-    next: u32,
-    volume: i32,
-    action: u32,
-    v: &MusicVars,
-) -> Result<(), Refused> {
-    use crate::audio::voices::{read, write};
-    let mut m = unsafe {
-        rc2k_core::audio::streams::Music {
-            next_tune: read(v.next_tune),
-            no_music: read(v.no_music),
-            turn: read(v.turn),
-        }
+pub fn music_command(tune: u32, next: u32, volume: i32, action: u32) -> Result<(), Refused> {
+    let turn = &crate::sound::store::SOUND_OPTIONS.tune_turn;
+    let mut m = rc2k_core::audio::streams::Music {
+        next_tune: AUDIO.next_tune.get(),
+        no_music: AUDIO.no_music.get(),
+        turn: turn.get(),
     };
     let mut p = GamePlayer {
-        player: v.player,
-        path: v.path,
+        player: &AUDIO.music_stream,
+        path: AUDIO.music_path.addr() as u32,
     };
     let done = rc2k_core::audio::streams::music_command(&mut p, &mut m, tune, next, volume, action);
-    unsafe {
-        write(v.next_tune, m.next_tune);
-        write(v.turn, m.turn);
-    }
+    AUDIO.next_tune.set(m.next_tune);
+    turn.set(m.turn);
     done
 }

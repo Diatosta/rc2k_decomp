@@ -17,11 +17,9 @@
 
 use crate::errors::Refused;
 use crate::hud::batch::*;
-use crate::hud::store::Slot;
+use crate::hud::store::HUD;
 use crate::session::SCREEN;
 use crate::store::{game_addr, game_read, game_write};
-
-const VIRTUAL_RVA: [Slot; 2] = [Slot::at(0x75C02C), Slot::at(0x75C030)]; // flt_75C02C, flt_75C030
 
 /// The Rust version (see the header). What the original leaves in eax, ecx, esi and edi
 /// is read by none of its callers (register liveness, 2026-10-23).
@@ -32,16 +30,16 @@ pub unsafe fn add_polygon() -> Result<(), Refused> {
     use rc2k_core::hud::quads::screen_scaled;
     unsafe {
         let count: u32 = game_read(POLYGON_COUNT_RVA);
-        let texture: u32 = game_read(TEXTURE_RVA);
-        let vertices: u32 = game_read(VERTEX_COUNT_RVA);
+        let texture = HUD.texture.get();
+        let vertices = HUD.vertex_count.get();
         let flushes = if count == 0 || count > MOST_VERTICES {
             false
         } else {
-            batch::flushes(vertices, texture, game_read(BATCH_TEXTURE_RVA))
+            batch::flushes(vertices, texture, HUD.batch_texture.get())
         };
-        batch::check_polygon(count, vertices, game_read(INDEX_COUNT_RVA), flushes)?;
+        batch::check_polygon(count, vertices, HUD.index_count.get(), flushes)?;
         let [w, h]: [u32; 2] = [SCREEN.width.get(), SCREEN.height.get()];
-        let [kx, ky] = VIRTUAL_RVA.map(|r| f32::from_bits(game_read(r)));
+        let [kx, ky] = [HUD.virtual_screen[0].get(), HUD.virtual_screen[1].get()];
         let f = |r: usize| f32::from_bits(game_read(r));
         for n in 0..count as usize {
             let v = POLYGON_RVA + 0x20 * n;
@@ -51,23 +49,22 @@ pub unsafe fn add_polygon() -> Result<(), Refused> {
         if flushes {
             crate::hud::flush_batch::flush_batch();
             game_write(SHOWN_TEXTURE_RVA, texture);
-            game_write(BATCH_TEXTURE_RVA, texture);
+            HUD.batch_texture.set(texture);
             crate::hud::set_batch_texture::set_batch_texture()?;
         }
-        let vc: u32 = game_read(VERTEX_COUNT_RVA);
+        let vc = HUD.vertex_count.get();
         std::ptr::copy(
             game_addr(POLYGON_RVA) as *const u8,
-            (game_addr(VERTICES_RVA) as u32 + vc * 0x20) as *mut u8,
+            (HUD.vertices.as_ptr() as u32 + vc * 0x20) as *mut u8,
             (count * 0x20) as usize,
         );
-        let ic: u32 = game_read(INDEX_COUNT_RVA);
-        let at = game_addr(INDICES_RVA) as u32 + ic * 2;
+        let ic = HUD.index_count.get();
         let indices = batch::polygon_indices(vc, count);
         for (k, &i) in indices.iter().enumerate() {
-            ((at + 2 * k as u32) as *mut u16).write_unaligned(i);
+            HUD.indices[ic as usize + k].set(i);
         }
-        game_write(INDEX_COUNT_RVA, ic + indices.len() as u32);
-        game_write(VERTEX_COUNT_RVA, vc + count);
+        HUD.index_count.set(ic + indices.len() as u32);
+        HUD.vertex_count.set(vc + count);
     }
     Ok(())
 }

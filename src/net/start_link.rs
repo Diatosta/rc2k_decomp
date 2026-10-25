@@ -22,10 +22,8 @@
 //! does (section 16). Callers: 0x4AAAE1, 0x4AAAEC, `net::lobby_launched_game`.
 
 use crate::errors::Refused;
-use crate::net::lobby::{
-    ALL_RACED, BACK_FROM_RACE, LOBBY_LAUNCHED, MODE, OWN, RACE_OVER, SEQUENCE, SESSION, SYNC, gb,
-    log, pb,
-};
+use crate::net::lobby::log;
+use crate::net::store::PlayerRecord;
 
 const STARTING: usize = 0x5C2E04; // "NET: Starting link"
 const STOPPING: usize = 0x5C2E17; // "NET: Stopping link"
@@ -48,7 +46,7 @@ fn link() -> Result<Way, Refused> {
     if !find_connections::find_connections()? {
         return Ok(Way::Message(NO_CONNECTION));
     }
-    if g(LOBBY_LAUNCHED) == 1 {
+    if NET.lobby_launched.get() == 1 {
         return Ok(Way::On);
     }
     let connection = match find_saved_connection::find_saved_connection()? {
@@ -65,8 +63,10 @@ fn link() -> Result<Way, Refused> {
     if !connecting::connecting(connection)? {
         return Ok(Way::Message(NO_CONNECTION));
     }
-    if g(MODE) == 1 {
-        pb(OWN, gb(OWN) | 0x10);
+    if NET.mode.get() == 1 {
+        NET.own
+            .head
+            .set(PlayerRecord::STATE, NET.own.state() | 0x10);
         return Ok(if hosting::hosting()? {
             Way::On
         } else {
@@ -93,7 +93,7 @@ fn link() -> Result<Way, Refused> {
 pub fn start_link(mode: u32) -> Result<(), Refused> {
     use crate::net::*;
     log(a(STARTING), true, 2);
-    p(MODE, mode);
+    NET.mode.set(mode);
     take_player_settings::take_player_settings()?;
     fill_own_player::fill_own_player(a(PLAYER_NAMES))?;
     show_background::show_background()?;
@@ -101,16 +101,16 @@ pub fn start_link(mode: u32) -> Result<(), Refused> {
         Way::Message(n) => show_message::show_message(n)?,
         Way::End => {}
         Way::On => {
-            p(SESSION, 1);
+            NET.session.set(1);
             lock_received::lock_received();
             clear_chat::clear_chat();
             unlock_received::unlock_received();
-            pb(SYNC, 0);
-            pb(SEQUENCE, 0x80);
-            p(BACK_FROM_RACE, 0);
+            NET.sync.set(0);
+            NET.sequence.set(0x80);
+            NET.after_race.set(0);
             loop {
-                p(ALL_RACED, 0);
-                p(RACE_OVER, 0);
+                NET.all_raced.set(0);
+                NET.race_over.set(0);
                 crate::sound::play_tune_4::play_tune_4();
                 if (lobby_loop::lobby_loop()? as i32) < 0 {
                     break;

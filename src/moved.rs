@@ -330,7 +330,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::hud::store::START, // the HUD's variables, batch included
         len: crate::hud::store::LEN,
-        home: || crate::hud::store::STORE.addr(),
+        home: crate::hud::store::hud_addr,
     },
     Moved {
         ida: crate::gfx::decoder::START, // The picture decoders' and glyph builder's variables (decoded picture, palette, sheet table, PCX header and stream)
@@ -408,9 +408,34 @@ pub(crate) const MOVED: &[Moved] = &[
         home: || crate::gfx::upload::STORE.addr(),
     },
     Moved {
-        ida: crate::net::store::vars::START, // the network's variables
-        len: crate::net::store::vars::LEN,
-        home: crate::net::store::vars::base,
+        ida: crate::install::store::InstallVars::START, // InstallVars
+        len: crate::install::store::InstallVars::LEN,
+        home: crate::install::store::InstallVars::home,
+    },
+    Moved {
+        ida: crate::menu::build_notice::BuildNotice::START, // BuildNotice
+        len: crate::menu::build_notice::BuildNotice::LEN,
+        home: crate::menu::build_notice::BuildNotice::home,
+    },
+    Moved {
+        ida: crate::install::store::DriveRows::START, // DriveRows
+        len: crate::install::store::DriveRows::LEN,
+        home: crate::install::store::DriveRows::home,
+    },
+    Moved {
+        ida: crate::net::store::NetVars::START, // NetVars
+        len: crate::net::store::NetVars::LEN,
+        home: crate::net::store::NetVars::home,
+    },
+    Moved {
+        ida: crate::install::store::LobbyKeys::START, // LobbyKeys
+        len: crate::install::store::LobbyKeys::LEN,
+        home: crate::install::store::LobbyKeys::home,
+    },
+    Moved {
+        ida: crate::net::store::Button::START, // Button
+        len: crate::net::store::Button::LEN,
+        home: crate::net::store::Button::home,
     },
     Moved {
         ida: crate::gfx::typefaces::tables::START, // the fonts, the front end's tables
@@ -460,19 +485,19 @@ pub(crate) const MOVED: &[Moved] = &[
     },
     // audio: the audio thread's variables and the sample records (`audio::store`)
     Moved {
-        ida: crate::audio::store::state::START,
-        len: crate::audio::store::state::LEN,
-        home: crate::audio::store::state::base,
+        ida: crate::audio::store::STATE_IDA,
+        len: crate::audio::store::STATE_END - crate::audio::store::STATE_IDA,
+        home: crate::audio::store::state_addr,
     },
     Moved {
-        ida: crate::audio::store::samples::START,
-        len: crate::audio::store::samples::LEN,
-        home: crate::audio::store::samples::base,
+        ida: crate::audio::store::SAMPLES_IDA,
+        len: crate::audio::store::SAMPLES_END - crate::audio::store::SAMPLES_IDA,
+        home: crate::audio::store::sample_records_addr,
     },
     Moved {
-        ida: crate::audio::store::queue::START,
-        len: crate::audio::store::queue::LEN,
-        home: crate::audio::store::queue::base,
+        ida: crate::audio::store::QUEUE_IDA,
+        len: crate::audio::store::QUEUE_END - crate::audio::store::QUEUE_IDA,
+        home: crate::audio::store::commands_addr,
     },
     Moved {
         ida: 0x6D1DD4, // g_eaxEnvironment
@@ -481,9 +506,19 @@ pub(crate) const MOVED: &[Moved] = &[
     },
     // sound: the race sounds' clock, and the spot picks .. CD audio block (`sound::store`)
     Moved {
-        ida: 0x4F66DD, // the wheel options (`sound::store::Wheels`)
-        len: 0x20,
-        home: crate::sound::store::wheels_addr,
+        ida: 0x4F66DD, // the options file's four kept dwords and a gap (`saves::load_options::KEPT`)
+        len: 0x14,
+        home: || crate::saves::load_options::KEPT.as_ptr() as usize,
+    },
+    Moved {
+        ida: 0x4F66F1, // the wheel surfaces (`sound::store::WHEEL_SURFACES`)
+        len: 8,
+        home: || crate::sound::store::WHEEL_SURFACES.as_ptr() as usize,
+    },
+    Moved {
+        ida: 0x4F66F9, // the race record's seal key (`race::replay::SEAL_KEY`)
+        len: 4,
+        home: || crate::race::replay::SEAL_KEY.addr(),
     },
     Moved {
         ida: 0x512A10, // the race sounds' objects (`sound::store::RaceSounds`)
@@ -506,9 +541,29 @@ pub(crate) const MOVED: &[Moved] = &[
         home: crate::sound::store::stage_sounds_addr,
     },
     Moved {
-        ida: 0x517F40, // the sound effects block (`sound::store::SoundEffects`)
-        len: 0x1E0,
-        home: crate::sound::store::sound_effects_addr,
+        ida: crate::sound::store::SpotPicks::START, // The spot voices' pickers' work and the sound kinds per spot
+        len: crate::sound::store::SpotPicks::LEN,
+        home: crate::sound::store::SpotPicks::home,
+    },
+    Moved {
+        ida: crate::sound::store::SettingsApplied::START, // Set once the kept sound settings are applied
+        len: crate::sound::store::SettingsApplied::LEN,
+        home: crate::sound::store::SettingsApplied::home,
+    },
+    Moved {
+        ida: crate::input::store::ForceFeedback::START, // The force-feedback effects' clock, surface kinds and constants
+        len: crate::input::store::ForceFeedback::LEN,
+        home: crate::input::store::ForceFeedback::home,
+    },
+    Moved {
+        ida: crate::sound::store::SoundOptions::START, // The kept sound options
+        len: crate::sound::store::SoundOptions::LEN,
+        home: crate::sound::store::SoundOptions::home,
+    },
+    Moved {
+        ida: crate::sound::store::CdAudio::START, // The CD audio's state
+        len: crate::sound::store::CdAudio::LEN,
+        home: crate::sound::store::CdAudio::home,
     },
     // input: the keyboard file, devices, keyboard and mouse (`input::store`, typed)
     Moved {
@@ -847,11 +902,28 @@ pub(crate) const MOVED: &[Moved] = &[
         len: crate::race::store::OWN[6].1 - crate::race::store::OWN[6].0,
         home: || crate::race::store::home(crate::race::store::OWN[6].0),
     },
-    // physics: the car lists, race settings and damage model (`physics::store`)
+    // the menus' lists, the menus' working variables, the race's settings and results and
+    // the damage model (`menu::lists_store`, `menu::state_store`, `race::state_store`,
+    // `physics::store`, typed)
     Moved {
-        ida: crate::physics::store::vars::START,
-        len: crate::physics::store::vars::LEN,
-        home: crate::physics::store::vars::base,
+        ida: crate::menu::lists_store::START,
+        len: crate::menu::lists_store::END - crate::menu::lists_store::START,
+        home: crate::menu::lists_store::menu_lists_addr,
+    },
+    Moved {
+        ida: crate::menu::state_store::START,
+        len: crate::menu::state_store::END - crate::menu::state_store::START,
+        home: crate::menu::state_store::menu_state_addr,
+    },
+    Moved {
+        ida: crate::race::state_store::START,
+        len: crate::race::state_store::END - crate::race::state_store::START,
+        home: crate::race::state_store::race_state_addr,
+    },
+    Moved {
+        ida: crate::physics::store::START,
+        len: crate::physics::store::END - crate::physics::store::START,
+        home: crate::physics::store::damage_addr,
     },
     // marks: the whole of 0x764F40 .. 0x93CCC8 (`marks::store`)
     Moved {

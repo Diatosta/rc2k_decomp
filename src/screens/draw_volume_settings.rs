@@ -23,7 +23,7 @@ const VOLUMES_RVA: usize = rva(0x755684); // g_masterVolumeShown, then dword_755
 pub unsafe fn draw_volume_settings(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     // Converted: `rc2k_core::screens::settings_pages::volume`.
     unsafe {
-        let id = crate::sound::store::SOUND_EFFECTS
+        let id = crate::sound::store::SOUND_OPTIONS
             .name_switch
             .get()
             .wrapping_add(0x56D);

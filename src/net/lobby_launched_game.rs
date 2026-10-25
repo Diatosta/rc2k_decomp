@@ -8,11 +8,11 @@
 //! Caller: `system::main_loop` (whose Rust version calls this one).
 
 use crate::errors::Refused;
-use crate::net::lobby::{LOBBY_LAUNCHED, g};
+use crate::net::store::NET;
 
 /// The Rust version.
 pub fn lobby_launched_game() -> Result<(), Refused> {
-    if g(LOBBY_LAUNCHED) == 1 {
+    if NET.lobby_launched.get() == 1 {
         crate::scene::rebuild_front_end::rebuild_front_end()?;
         crate::net::start_link::start_link(3)?;
         unsafe {

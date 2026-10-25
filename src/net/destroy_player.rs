@@ -10,13 +10,13 @@
 //! Refuses nothing.
 
 use crate::net::dplay::{DESTROY_PLAYER, method};
-use crate::net::lobby::{DPLAY, PLAYER_ID, g, p};
+use crate::net::store::NET;
 
 /// The Rust version.
 pub fn destroy_player() {
-    let id = g(PLAYER_ID);
+    let id = NET.player_id.get();
     if id == 0 {
-        unsafe { method(g(DPLAY), DESTROY_PLAYER, &[id]) };
-        p(PLAYER_ID, 0);
+        unsafe { method(NET.dplay.get(), DESTROY_PLAYER, &[id]) };
+        NET.player_id.set(0);
     }
 }

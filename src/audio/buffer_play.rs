@@ -3,16 +3,15 @@
 //! (`audio/com.rs`).
 
 use crate::audio::buffer_settings::a3d;
+use crate::audio::store::AUDIO;
 use crate::audio::voices::*;
 use crate::errors::{BadInput, Refused};
-use crate::store::game_addr;
 
 pub const GET_STATUS: u32 = 0x24;
 pub const PLAY: u32 = 0x30;
 pub const SET_CURRENT_POSITION: u32 = 0x34;
 pub const STOP: u32 = 0x48;
 pub const COMMIT: u32 = 0x44;
-pub const LISTENER_3D_RVA: crate::audio::store::Slot = crate::audio::store::Slot::at(0x506A90); // g_soundListener
 
 /// `GetStatus`: the buffer plays.
 pub const PLAYING: u32 = 1;
@@ -46,8 +45,8 @@ pub unsafe fn rewind_buffer(v: &Voice) -> Result<i32, Refused> {
 }
 
 /// `Play` (+0x30) with 0, 0 and the looping flag for a looping voice (kind 1). Failing: the
-/// carry, and `DSERR_BUFFERLOST` sets the flag at `lost`. Returns eax and the carry.
-pub unsafe fn play_buffer(v: &Voice, lost: u32) -> Result<(i32, bool), Refused> {
+/// carry, and `DSERR_BUFFERLOST` sets the lost flag. Returns eax and the carry.
+pub unsafe fn play_buffer_in_game(v: &Voice) -> Result<(i32, bool), Refused> {
     let b = buffer(v, "A3D (`sub_40CEA0`)")?;
     // Converted: `rc2k_core::audio::buffers::{play_flags, lost}`.
     let flags = rc2k_core::audio::buffers::play_flags(v);
@@ -57,13 +56,9 @@ pub unsafe fn play_buffer(v: &Voice, lost: u32) -> Result<(i32, bool), Refused> 
         f(b, 0, 0, flags)
     };
     if r != 0 && rc2k_core::audio::buffers::lost(r) {
-        unsafe { write(lost, 1) };
+        AUDIO.sound_buffer_lost.set(1);
     }
     Ok((r, r != 0))
-}
-
-pub unsafe fn play_buffer_in_game(v: &Voice) -> Result<(i32, bool), Refused> {
-    unsafe { play_buffer(v, game_addr(BUFFER_LOST_RVA) as u32) }
 }
 
 /// `Stop` (+0x48).
@@ -72,9 +67,9 @@ pub unsafe fn stop_buffer(v: &Voice) -> Result<i32, Refused> {
     Ok(unsafe { crate::audio::com::call(b, STOP) })
 }
 
-/// The 3D listener's `CommitDeferredSettings` (+0x44); `listener`: where it is kept.
-pub unsafe fn commit_3d(listener: u32) -> Result<i32, Refused> {
-    let object = unsafe { read(listener) };
+/// The 3D listener's `CommitDeferredSettings` (+0x44).
+pub unsafe fn commit_3d() -> Result<i32, Refused> {
+    let object = AUDIO.sound_listener.get();
     if object == 0 {
         return Err(BadInput("no 3D listener").into());
     }

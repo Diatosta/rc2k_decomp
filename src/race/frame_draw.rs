@@ -1451,12 +1451,12 @@ unsafe fn car_lights_on_point() {
         let cars: u32 = game_read(CARS_RVA);
         let block = |n: u32| game_read::<u32>(CAR_BLOCKS_RVA + 4 * n as usize);
         let all = game_read::<u32>(rva(0x6238B8)) == 1;
-        let one = game_read::<u32>(rva(0x52A910)) != 0;
+        let one = crate::net::store::NET.session.get() != 0;
         for n in 0..cars {
             let lit = rc2k_core::race::lights::headlights_light(
                 n,
                 one,
-                || game_read(rva(0x52A920)),
+                || crate::net::store::NET.player.get(),
                 all,
                 || game_read(PLAYERS_RVA),
                 || game_read(MODE_RVA),

@@ -2,7 +2,7 @@
 //! quads (`scene::draw_tinted_quad`) laid out by long tables of the original's code.
 
 use crate::errors::Refused;
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 
 /// A variable by its address in IDA.
 pub fn rd(a: usize) -> u32 {
@@ -11,10 +11,6 @@ pub fn rd(a: usize) -> u32 {
 
 pub fn set(a: usize, v: u32) {
     unsafe { game_write(rva(a), v) };
-}
-
-pub fn addr(a: usize) -> u32 {
-    game_addr(rva(a)) as u32
 }
 
 /// The dword at `p` (the original's `[esi]`).

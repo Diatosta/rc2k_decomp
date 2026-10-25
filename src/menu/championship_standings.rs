@@ -13,10 +13,9 @@
 //! original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{game_read, game_write, rva};
+use crate::framework::{game_read, rva};
 use crate::menu::screen_loop::Carried;
-
-const FLAG_RVA: usize = rva(0x75AB34); // dword_75AB34
+use crate::menu::state_store::MENU_STATE;
 const EVENT_MODE_RVA: usize = rva(0x7556D0); // g_eventMode
 
 /// The Rust version (see the header). `c` the carried values (the registers the pages'
@@ -41,13 +40,13 @@ pub unsafe fn championship_standings(c: &Carried) -> Result<(), Refused> {
         if !a8 {
             crate::menu::number_all_b::number_all_b()?.carry_on(&mut g);
         }
-        game_write(FLAG_RVA, 1u32);
+        MENU_STATE.menus.standings_shown.set(1u32);
         if a8 {
             crate::menu::class_championship_pass::class_championship_pass(&g)?;
         } else {
             crate::menu::show_championship_standings::show_championship_standings(&g)?;
         }
-        game_write(FLAG_RVA, 0u32);
+        MENU_STATE.menus.standings_shown.set(0u32);
     }
     Ok(())
 }

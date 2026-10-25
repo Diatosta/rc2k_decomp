@@ -18,10 +18,12 @@
 
 use crate::errors::Refused;
 use crate::framework::{game_addr, game_read, rva};
+use crate::menu::lists_store::MENU_LISTS;
 use crate::records::find_record::find_record_in;
 use crate::screens::draw_stage_heading::draw_stage_heading;
 use crate::screens::stage_panel::{
-    BEST_TIMES_PTR_RVA, TITLE_FONT, draw_records_from, draw_stage_body, dword, label, table_dword,
+    BEST_TIMES_PTR_RVA, TITLE_FONT, draw_records_from, draw_stage_body, dword, label,
+    table_dword_at,
 };
 use crate::text::draw_text::Canvas;
 
@@ -31,7 +33,6 @@ pub const RECORD_TABLE_RVA: usize = rva(0x735576); // g_recordTable
 pub const INDEX_RVA: usize = rva(0x755958); // index: the stage in its section
 pub const SECTION_RVA: usize = rva(0x75595C); // section
 pub const MODE_RVA: usize = rva(0x7556D0); // dword_7556D0: 0x13 takes the title from the table
-const SECTION_TITLES_RVA: usize = rva(0x75A28A); // dword_75A28A[section]: title string ids
 
 pub const TITLE_X: i32 = 0x2EB;
 pub const TITLE_Y: i32 = 0x77;
@@ -56,7 +57,7 @@ pub unsafe fn event_title() -> u32 {
         let section: u32 = game_read(SECTION_RVA);
         let first = find_record_in(table, 0, section);
         if game_read::<u32>(MODE_RVA) == 0x13 {
-            table_dword(SECTION_TITLES_RVA, section)
+            table_dword_at(MENU_LISTS.section_titles[0].addr(), section)
         } else {
             dword(first.wrapping_add(0x38))
         }

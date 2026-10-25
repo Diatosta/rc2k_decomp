@@ -19,6 +19,6 @@ pub fn sample_duration(sample: u32, rate: u32) -> Result<u32, BadInput> {
     let record = record(sample)?;
     Ok(rc2k_core::audio::samples::duration_ms(
         rate,
-        loaded(record).as_ref(),
+        loaded(&record).as_ref(),
     )?)
 }

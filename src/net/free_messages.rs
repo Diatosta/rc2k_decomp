@@ -9,16 +9,18 @@
 //! `memory::free_list` refuses.
 
 use crate::errors::Refused;
-use crate::net::{a, p};
-
-const LIST: usize = 0x52A928; // stru_52A928
-const COUNTS: [usize; 4] = [0x52AC34, 0x52AC38, 0x52ACF4, 0x52ACF8];
+use crate::net::store::NET;
 
 /// The Rust version.
 pub fn free_messages() -> Result<(), Refused> {
-    unsafe { crate::memory::free_list::free_list(a(LIST) as *mut _) }?;
-    for at in COUNTS {
-        p(at, 0);
+    unsafe { crate::memory::free_list::free_list(NET.memory.as_ptr() as *mut _) }?;
+    for cell in [
+        &NET.connections,
+        &NET.connection_table,
+        &NET.sessions,
+        &NET.session_table,
+    ] {
+        cell.set(0);
     }
     Ok(())
 }

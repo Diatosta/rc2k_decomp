@@ -14,15 +14,13 @@
 
 use crate::errors::Refused;
 use crate::field;
-use crate::net::lobby::{
-    CONNECTIONS, a, connection, copy_printable, g, log, movsb, net_allocate, p,
-};
+use crate::net::lobby::{a, connection, copy_printable, log, movsb, net_allocate};
+use crate::net::store::NET;
 use crate::net::types::NetConnection;
 use crate::system::same_guid::same_guid;
 use rc2k_core::net::lists;
 
 const FOUND: usize = 0x5C2E75; // "NET: Found"
-const LEFT_OUT: [usize; 2] = [0x5AB370, 0x5AB380]; // unk_5AB370, unk_5AB380
 
 fn get(at: u32) -> u32 {
     unsafe { (at as *const u32).read_unaligned() }
@@ -36,17 +34,17 @@ pub fn connection_found(args: &[u32]) -> Result<u32, Refused> {
     log(short, true, 2);
     // Converted: `rc2k_core::net::lists` (`LEAVES_OUT_PROVIDERS`, `connection_listed`).
     if crate::strings::load_language::notice_kind() == lists::LEAVES_OUT_PROVIDERS
-        && LEFT_OUT
+        && [&NET.sp_serial, &NET.sp_modem]
             .into_iter()
-            .any(|left_out| same_guid(guid, a(left_out)))
+            .any(|left_out| same_guid(guid, left_out.addr() as u32))
     {
         return Ok(1);
     }
     let memory = net_allocate(size)?;
-    let Some(count) = lists::connection_listed(g(CONNECTIONS)) else {
+    let Some(count) = lists::connection_listed(NET.connections.get()) else {
         return Ok(0);
     };
-    p(CONNECTIONS, count + 1);
+    NET.connections.set(count + 1);
     let record = connection(count)?;
     unsafe { ((record + field!(NetConnection, data)) as *mut u32).write_unaligned(memory) };
     movsb(memory, data, size);

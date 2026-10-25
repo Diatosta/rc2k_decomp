@@ -27,6 +27,7 @@ use crate::framework::{game_addr, game_read, game_write, log, rva};
 use crate::menu::screen_loop::{
     Callee, Carried, Flow, List, Screen, Step, carousel, prepare_scene,
 };
+use crate::menu::state_store::MENU_STATE;
 use crate::menu::update_blink::update_blink;
 use crate::session::CLOCKS;
 
@@ -57,12 +58,12 @@ unsafe fn set_up_first(c: &mut Carried) -> Result<(), Refused> {
         game_write(rva(0x755A3C), 0u32);
         game_write(rva(0x7556A4), 0x6Fu32);
         game_write(rva(0x7554EC), 1u32);
-        game_write(rva(0x75AA74), 0u32);
+        MENU_STATE.carousel.menu.set(0u32);
         carousel(c)?;
         c.arg = game_read(SAVED_ITEM_RVA);
         game_write(rva(0x755525), c.arg);
         c.arg = c.arg.wrapping_sub(1);
-        game_write(rva(0x75AA7C), c.arg);
+        MENU_STATE.carousel.front.set(c.arg);
     }
     Ok(())
 }

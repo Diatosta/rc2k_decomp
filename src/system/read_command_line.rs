@@ -23,7 +23,7 @@
 //! `start` calls it directly (2026-10-23); the registers above are the original's, for
 //! reference.
 
-use crate::audio::store::Slot;
+use crate::audio::store::AUDIO;
 use crate::errors::BadInput;
 use crate::framework::rva;
 use crate::store::{game_addr, game_write};
@@ -44,7 +44,6 @@ const I_THIRD_RVA: usize = rva(0x51BA08); // dword_51BA08
 const I_FOURTH_RVA: usize = rva(0x51BA0C); // dword_51BA0C
 const IGNORE_SECONDARY_RVA: usize = rva(0x5AB954); // dword_5AB954
 const IGNORE_PRIMARY_RVA: usize = rva(0x5AB950); // dword_5AB950
-const NO_AUDIO_RVA: Slot = Slot::at(0x4F82B4); // g_noAudio
 const VERSION_RVA: usize = rva(0x4E0000); // "$VER: Rally 5.30 (4.8.2000)"
 const SECOND_TEXT_RVA: usize = rva(0x4E0077); // byte_4E0077
 const EXIT_PATH: usize = 0x401116;
@@ -95,7 +94,7 @@ pub unsafe fn read_command_line(line: *const u8) -> Result<Asked, BadInput> {
         for (on, place) in [
             (sw.u, game_addr(SWITCH_U_RVA)),
             (sw.installing, game_addr(INSTALLING_RVA)),
-            (sw.no_audio, game_addr(NO_AUDIO_RVA)),
+            (sw.no_audio, AUDIO.no_audio.addr()),
         ] {
             if on {
                 (place as *mut u32).write_unaligned(1);

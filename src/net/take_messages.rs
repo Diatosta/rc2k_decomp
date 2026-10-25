@@ -26,25 +26,15 @@
 use crate::errors::{BadInput, Refused};
 use crate::net::chat_line_locked::chat_line_locked;
 use crate::net::dplay_send::dplay_send;
-use crate::net::lobby::{
-    ALL_RACED, DPLAY, OWN, PLAYERS, RACE_OVER, RECEIVED, SYNC, SYNCED, a, g, gb, p, pb,
-};
 use crate::net::receive_message::receive_message;
+use crate::net::store::NET;
 use crate::net::store_received::store_received;
 use crate::net::system_message::system_message;
-use crate::net::{RECEIVED_LEN, lock_received::lock_received, unlock_received::unlock_received};
+use crate::net::{lock_received::lock_received, unlock_received::unlock_received};
 use rc2k_core::net::messages::{self, Kind};
 
 /// The players the blocks have room for.
 pub const MOST_PLAYERS: u32 = 16;
-/// dword_52A91C: the messages taken, counted.
-const TAKEN: usize = 0x52A91C;
-/// word_52A916: the race-sync answer sent (0x41 or 0x51, the round).
-const ANSWER: usize = 0x52A916;
-
-fn get(at: u32) -> u32 {
-    unsafe { (at as *const u32).read_volatile() }
-}
 
 fn get8(at: u32) -> u8 {
     unsafe { (at as *const u8).read_volatile() }
@@ -52,40 +42,40 @@ fn get8(at: u32) -> u8 {
 
 /// The Rust version.
 pub fn take_messages() -> Result<(), Refused> {
-    if g(PLAYERS) > MOST_PLAYERS {
+    if NET.players.get() > MOST_PLAYERS {
         return Err(BadInput("take_messages: more than 16 players").into());
     }
-    while g(DPLAY) != 0 {
+    while NET.dplay.get() != 0 {
         let m = receive_message();
         if m.size == 0 {
             break;
         }
-        p(TAKEN, g(TAKEN).wrapping_add(1));
+        NET.messages_taken
+            .set(NET.messages_taken.get().wrapping_add(1));
         if m.from == 0 {
             system_message(m.bytes)?;
             continue;
         }
         // The sender among the players (the first compared even with none).
-        let mut block = a(RECEIVED);
         let mut player = 0;
         let found = loop {
-            if m.from == get(block + 0x20) {
+            if m.from == NET.player_block(player).id.get() {
                 break true;
             }
-            block = block.wrapping_add(RECEIVED_LEN);
             player += 1;
-            if player >= g(PLAYERS) {
+            if player >= NET.players.get() {
                 break false;
             }
         };
         if !found {
             continue;
         }
+        let block = NET.player_block(player);
         let first = get8(m.bytes);
         // Converted: `rc2k_core::net::messages` (`Kind`, `this_round`, `answers_call`,
         // `notes_answer`, `answer`, `race_fits`).
-        let own_state = gb(OWN);
-        let round = || messages::this_round(m.size, || (get8(m.bytes + 1), gb(SYNC)));
+        let own_state = NET.own.state();
+        let round = || messages::this_round(m.size, || (get8(m.bytes + 1), NET.sync.get()));
         match Kind::of(first) {
             Kind::Chat => {
                 unsafe { (m.size.wrapping_add(m.bytes) as *mut u8).write_volatile(0) };
@@ -95,16 +85,21 @@ pub fn take_messages() -> Result<(), Refused> {
                 if !messages::answers_call(round(), own_state) {
                     continue;
                 }
-                let answer = messages::answer(reply, gb(SYNC));
-                unsafe { (a(ANSWER) as *mut u16).write_unaligned(answer) };
-                dplay_send(get(block + 0x20), 0, a(ANSWER), 2);
-                p(if ready { ALL_RACED } else { RACE_OVER }, 1);
+                let answer = messages::answer(reply, NET.sync.get());
+                NET.sync_answer.set(answer);
+                dplay_send(block.id.get(), 0, NET.sync_answer.addr() as u32, 2);
+                (if ready {
+                    &NET.all_raced
+                } else {
+                    &NET.race_over
+                })
+                .set(1);
             }
             Kind::Answer => {
                 if !messages::notes_answer(round(), own_state) {
                     continue;
                 }
-                pb(SYNCED + player as usize, 1);
+                NET.set_synced(player as usize, 1);
             }
             Kind::Race => {
                 let length = m.size.wrapping_sub(1);

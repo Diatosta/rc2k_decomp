@@ -12,8 +12,9 @@
 use crate::errors::Refused;
 use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::menu::standings::*;
+use crate::menu::state_store::MENU_STATE;
+use crate::session::{read_all, write_all};
 
-pub const TIMES_RVA: usize = rva(0x75AAE8); // dword_75AAE8 .. dword_75AAF4
 const KEPT_RVA: [usize; 2] = [rva(0x71C3D8), rva(0x71C3DC)]; // flt_71C3D8, flt_71C3DC
 const FACTORS_RVA: [usize; 2] = [rva(0x60463C), rva(0x604654)]; // flt_60463C, flt_604654: 6
 const TEXTS_RVA: [usize; 4] = [rva(0x4DDF93), rva(0x4DDFA4), rva(0x4DDFA8), rva(0x4DDFAC)];
@@ -37,11 +38,11 @@ pub unsafe fn scale_stage_times(record: u32) -> Result<(), Refused> {
     use crate::logfile::{log_float::log_float, log_int::log_int, log_write::log_write};
     let section = held_section();
     unsafe {
-        let times: [u32; 4] = game_read(TIMES_RVA);
+        let times: [u32; 4] = read_all(&MENU_STATE.menus.class_times);
         let (times, f) = scaled(times, section);
         game_write(KEPT_RVA[0], f[0]);
         game_write(KEPT_RVA[1], f[1]);
-        game_write(TIMES_RVA, times);
+        write_all(&MENU_STATE.menus.class_times, times);
         let text = |n: usize| game_addr(TEXTS_RVA[n]) as *const u8;
         log_write(text(0), false, 1);
         log_int(section as i32, false, 1);

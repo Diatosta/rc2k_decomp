@@ -15,30 +15,26 @@
 //! `net::list_players_regs`, `net::open_lobby`. DirectPlay's calls from Rust (`net::dplay`).
 
 use crate::errors::{BadInput, Refused};
-use crate::field;
 use crate::net::dplay::{ENUM_PLAYERS, GET_PLAYER_DATA, SET_PLAYER_DATA, call};
-use crate::net::lobby::{DPLAY, OWN, PLAYER, PLAYER_ID, PLAYERS, RACING, a, block, g, p};
 use crate::net::sort_players::swap_blocks;
-use crate::net::types::NetPlayerBlock;
+use crate::net::store::NET;
 use rc2k_core::net::players;
-
-const DATA_SIZE: usize = 0x52AD74; // dword_52AD74
-
-fn get(at: u32) -> u32 {
-    unsafe { (at as *const u32).read_unaligned() }
-}
 
 /// The Rust version.
 pub fn list_players() -> Result<bool, Refused> {
-    if g(DPLAY) == 0 {
+    if NET.dplay.get() == 0 {
         return Ok(false);
     }
     unsafe {
-        call(DPLAY, SET_PLAYER_DATA, &[g(PLAYER_ID), a(OWN), 0x10, 0]);
-        if g(RACING) != 1 {
-            p(PLAYERS, 0);
+        call(
+            &NET.dplay,
+            SET_PLAYER_DATA,
+            &[NET.player_id.get(), NET.own.addr() as u32, 0x10, 0],
+        );
+        if NET.racing.get() != 1 {
+            NET.players.set(0);
             let result = call(
-                DPLAY,
+                &NET.dplay,
                 ENUM_PLAYERS,
                 &[
                     0,
@@ -51,33 +47,37 @@ pub fn list_players() -> Result<bool, Refused> {
                 return Ok(false);
             }
         }
-        let players = g(PLAYERS);
+        let players = NET.players.get();
         if players > players::MOST {
             return Err(BadInput("more than eight players").into());
         }
         for n in 0..players {
-            p(DATA_SIZE, 0x10);
-            let at = block(n);
+            NET.data_size.set(0x10);
+            let player = NET.player_block(n);
             call(
-                DPLAY,
+                &NET.dplay,
                 GET_PLAYER_DATA,
                 &[
-                    get(at + field!(NetPlayerBlock, id)),
-                    at + field!(NetPlayerBlock, record),
-                    a(DATA_SIZE),
+                    player.id.get(),
+                    player.record.addr() as u32,
+                    (NET.data_size.addr() as u32),
                     0,
                 ],
             );
         }
         // Converted: `rc2k_core::net::players` (`bubble` by the ids, `find_own`).
-        let id = |n: u32| get(block(n) + field!(NetPlayerBlock, id));
-        players::bubble(players, |k| id(k) > id(k + 1), |k| swap_blocks(block(k)));
+        let id = |n: u32| NET.player_block(n).id.get();
+        players::bubble(
+            players,
+            |k| id(k) > id(k + 1),
+            |k| swap_blocks(NET.player_block(k), NET.player_block(k + 1)),
+        );
     }
-    match players::find_own(g(PLAYER_ID), g(PLAYERS), |n| {
-        get(block(n) + field!(NetPlayerBlock, id))
+    match players::find_own(NET.player_id.get(), NET.players.get(), |n| {
+        NET.player_block(n).id.get()
     }) {
         Ok(n) => {
-            p(PLAYER, n);
+            NET.player.set(n);
             Ok(true)
         }
         Err(_) => Ok(false),

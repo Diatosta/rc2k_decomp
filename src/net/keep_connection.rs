@@ -9,17 +9,18 @@
 
 use crate::errors::Refused;
 use crate::field;
-use crate::net::lobby::{SAVED_CONNECTION, SAVED_NAME, a, connection, movsb};
+use crate::net::lobby::{connection, movsb};
+use crate::net::store::NET;
 use crate::net::types::NetConnection;
 
 /// The Rust version.
 pub fn keep_connection(number: u32) -> Result<(), Refused> {
     let record = connection(number)?;
     movsb(
-        a(SAVED_CONNECTION),
+        NET.saved_connection.addr() as u32,
         record + field!(NetConnection, service_provider),
         0x10,
     );
-    movsb(a(SAVED_NAME), record, 0x40);
+    movsb(NET.saved_name.addr() as u32, record, 0x40);
     Ok(())
 }

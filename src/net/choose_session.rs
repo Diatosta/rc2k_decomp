@@ -17,9 +17,10 @@ use crate::errors::Refused;
 use crate::field;
 use crate::net::choose_connection::list_move;
 use crate::net::lobby::{
-    CHOICE, CHOICE_BEFORE, CLOCK_A, FRAME_CLOCK, JOINED, KEY_CLOCK, MOVE_CLOCK, POSTING, SESSIONS,
-    a, g, list_key, movsb, other_key, p, run_frame, session,
+    CHOICE, CHOICE_BEFORE, FRAME_CLOCK, KEY_CLOCK, MOVE_CLOCK, g, list_key, movsb, other_key, p,
+    run_frame, session,
 };
+use crate::net::store::NET;
 use crate::net::types::NetSession;
 use crate::session::CLOCKS;
 use crate::session::FLAGS;
@@ -29,29 +30,29 @@ use rc2k_core::net::screens::{self, ListKey};
 /// The sessions listed again (not posted), the highlight kept on the same one; false for
 /// a failed listing.
 fn refresh() -> Result<bool, Refused> {
-    let listed = g(SESSIONS);
+    let listed = NET.sessions.get();
     if listed != 0 {
         movsb(
-            a(JOINED),
+            NET.joined.addr() as u32,
             session(g(CHOICE))? + field!(NetSession, instance),
             0x10,
         );
     }
-    let posting = g(POSTING);
-    p(POSTING, 0);
+    let posting = NET.posting.get();
+    NET.posting.set(0);
     let found = crate::net::find_sessions::find_sessions()?;
-    p(POSTING, posting);
+    NET.posting.set(posting);
     if !found {
         return Ok(false);
     }
     let (mut choice, mut top) = (0, 0);
-    if listed != 0 && g(SESSIONS) != 0 {
+    if listed != 0 && NET.sessions.get() != 0 {
         let mut n = 0;
         loop {
-            if same_guid(session(n)?.wrapping_add(0x40), a(JOINED)) {
+            if same_guid(session(n)?.wrapping_add(0x40), NET.joined.addr() as u32) {
                 // Converted: `rc2k_core::net::screens` (`keeps_top`, `moved_top`).
                 choice = n;
-                top = if screens::keeps_top(g(SESSIONS)) {
+                top = if screens::keeps_top(NET.sessions.get()) {
                     screens::moved_top(n, g(CHOICE_BEFORE), g(CHOICE))
                 } else {
                     0
@@ -59,7 +60,7 @@ fn refresh() -> Result<bool, Refused> {
                 break;
             }
             n = n.wrapping_add(1);
-            if n == g(SESSIONS) {
+            if n == NET.sessions.get() {
                 break;
             }
         }
@@ -76,12 +77,12 @@ pub fn choose_session() -> Result<u32, Refused> {
     p(KEY_CLOCK, now);
     p(CHOICE, 0);
     p(CHOICE_BEFORE, 0);
-    p(CLOCK_A, crate::system::tick_count::tick_count());
+    NET.clock_a.set(crate::system::tick_count::tick_count());
     loop {
         run_frame(crate::net::sessions_frame::sessions_frame)?;
         let tick = crate::system::tick_count::tick_count();
-        if (tick.wrapping_sub(g(CLOCK_A)).wrapping_sub(1000) as i32) >= 0 {
-            p(CLOCK_A, tick);
+        if (tick.wrapping_sub(NET.clock_a.get()).wrapping_sub(1000) as i32) >= 0 {
+            NET.clock_a.set(tick);
             if !refresh()? {
                 p(CHOICE, 0xFFFF_FFFE);
                 return Ok(g(CHOICE));
@@ -89,8 +90,8 @@ pub fn choose_session() -> Result<u32, Refused> {
         }
         p(FRAME_CLOCK, CLOCKS.key_ticks.get());
         let key = list_key()?;
-        let any = g(SESSIONS) != 0;
-        if any && list_move(key, g(SESSIONS)) {
+        let any = NET.sessions.get() != 0;
+        if any && list_move(key, NET.sessions.get()) {
             p(MOVE_CLOCK, g(FRAME_CLOCK));
         } else if any && ListKey::of(key) == ListKey::Enter {
             return Ok(g(CHOICE));

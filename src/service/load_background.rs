@@ -15,9 +15,9 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_read, rva};
+use crate::menu::lists_store::MENU_LISTS;
 
 const CURRENT_PLAYER_RVA: usize = rva(0x75598C); // dword_75598C
-const PICTURES_RVA: usize = rva(0x75A52E); // off_75A52E: the service pictures' paths
 
 /// The Rust version (see the header). The conversion's carry (fatal error 0x80712435) is
 /// never set by `gfx::convert_picture`'s Rust version, which refuses instead.
@@ -32,7 +32,7 @@ pub unsafe fn load_background() -> Result<(), Refused> {
     })
     .map_err(BadInput::from)?;
     unsafe {
-        let path: u32 = game_read(PICTURES_RVA + 4 * car as usize);
+        let path = MENU_LISTS.service_pictures[car as usize].get();
         crate::gfx::load_picture::load_picture(path as *mut u8)?;
         crate::gfx::convert_picture::convert_picture_now()?;
     }

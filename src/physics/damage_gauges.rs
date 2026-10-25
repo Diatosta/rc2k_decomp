@@ -16,14 +16,17 @@
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
-#[allow(unused_imports)] // the generated body uses some of them
-use crate::math::x87::{loaded, mul};
+use crate::math::x87::loaded;
 use crate::math::x87_float::X;
+#[allow(unused_imports)] // the generated body uses some of them
+use crate::math::x87_float::{int, ld, st, to_int};
 #[allow(unused_imports)]
 use crate::math::x87_run::{abs_compare, compare_full};
 #[allow(unused_imports)]
 use crate::physics::flow::{a, c0, g, hold_high, hold_low, p, table_lerp};
+use crate::physics::store::{DAMAGE, DamageModel};
 use crate::scene::x87_mem::{fld, fstp};
+use crate::session::Cell32;
 
 /// `unk_71A2AC[gear]` (the gear -1 .. 7 as the original indexes it).
 fn gear_gauge(gear: u32) -> u32 {
@@ -34,1175 +37,1056 @@ fn gear_gauge(gear: u32) -> u32 {
 fn hold_at(at: u32) {
     let rd = || unsafe { (at as *const u32).read_unaligned() };
     let put = |v: u32| unsafe { (at as *mut u32).write_unaligned(v) };
-    if c0(rd(), g(0x75B350)) {
-        put(loaded(g(0x75B350)));
+    if c0(rd(), DAMAGE.gauge_low.bits()) {
+        put(loaded(DAMAGE.gauge_low.bits()));
     }
-    if !c0(rd(), g(0x75B34C)) {
-        put(loaded(g(0x75B34C)));
+    if !c0(rd(), DAMAGE.gauge_top.bits()) {
+        put(loaded(DAMAGE.gauge_top.bits()));
     }
 }
 
 /// The steps (generated from the disassembly by idiom; the indexed gauges by hand).
 pub fn steps() {
     x87_1(
-        crate::physics::store::asm_base() as usize,
         crate::race::store::asm_base() as usize,
-        0x35B5D0,
-        0x35B38C,
+        &DAMAGE.gauge_rates[0],
+        &DAMAGE.flt_75b38c,
         0x31A290,
         0x31A290,
     );
-    hold_low(0x71A290, 0x75B350);
-    hold_high(0x71A290, 0x75B34C);
+    hold_low(0x71A290, &DAMAGE.gauge_low);
+    hold_high(0x71A290, &DAMAGE.gauge_top);
     x87_1(
-        crate::physics::store::asm_base() as usize,
         crate::race::store::asm_base() as usize,
-        0x35B5D4,
-        0x35B38C,
+        &DAMAGE.gauge_rates[1],
+        &DAMAGE.flt_75b38c,
         0x31A294,
         0x31A294,
     );
-    hold_low(0x71A294, 0x75B350);
-    hold_high(0x71A294, 0x75B34C);
+    hold_low(0x71A294, &DAMAGE.gauge_low);
+    hold_high(0x71A294, &DAMAGE.gauge_top);
     x87_1(
-        crate::physics::store::asm_base() as usize,
         crate::race::store::asm_base() as usize,
-        0x35B5D8,
-        0x35B38C,
+        &DAMAGE.gauge_rates[2],
+        &DAMAGE.flt_75b38c,
         0x31A29C,
         0x31A29C,
     );
-    hold_low(0x71A29C, 0x75B350);
-    hold_high(0x71A29C, 0x75B34C);
+    hold_low(0x71A29C, &DAMAGE.gauge_low);
+    hold_high(0x71A29C, &DAMAGE.gauge_top);
     x87_1(
-        crate::physics::store::asm_base() as usize,
         crate::race::store::asm_base() as usize,
-        0x35B5DC,
-        0x35B38C,
+        &DAMAGE.gauge_rates[3],
+        &DAMAGE.flt_75b38c,
         0x31A2A0,
         0x31A2A0,
     );
-    hold_low(0x71A2A0, 0x75B350);
-    hold_high(0x71A2A0, 0x75B34C);
+    hold_low(0x71A2A0, &DAMAGE.gauge_low);
+    hold_high(0x71A2A0, &DAMAGE.gauge_top);
     x87_1(
-        crate::physics::store::asm_base() as usize,
         crate::race::store::asm_base() as usize,
-        0x35B5E0,
-        0x35B38C,
+        &DAMAGE.gauge_rates[4],
+        &DAMAGE.flt_75b38c,
         0x31A2A4,
         0x31A2A4,
     );
-    hold_low(0x71A2A4, 0x75B350);
-    hold_high(0x71A2A4, 0x75B34C);
+    hold_low(0x71A2A4, &DAMAGE.gauge_low);
+    hold_high(0x71A2A4, &DAMAGE.gauge_top);
     x87_1(
-        crate::physics::store::asm_base() as usize,
         crate::race::store::asm_base() as usize,
-        0x35B5E4,
-        0x35B38C,
+        &DAMAGE.gauge_rates[5],
+        &DAMAGE.flt_75b38c,
         0x31A2E8,
         0x31A2E8,
     );
-    hold_low(0x71A2E8, 0x75B350);
-    hold_high(0x71A2E8, 0x75B34C);
+    hold_low(0x71A2E8, &DAMAGE.gauge_low);
+    hold_high(0x71A2E8, &DAMAGE.gauge_top);
     x87_1(
-        crate::physics::store::asm_base() as usize,
         crate::race::store::asm_base() as usize,
-        0x35B5E8,
-        0x35B38C,
+        &DAMAGE.gauge_rates[6],
+        &DAMAGE.flt_75b38c,
         0x31A2EC,
         0x31A2EC,
     );
-    hold_low(0x71A2EC, 0x75B350);
-    hold_high(0x71A2EC, 0x75B34C);
+    hold_low(0x71A2EC, &DAMAGE.gauge_low);
+    hold_high(0x71A2EC, &DAMAGE.gauge_top);
     x87_1(
-        crate::physics::store::asm_base() as usize,
         crate::race::store::asm_base() as usize,
-        0x35B5E8,
-        0x35B38C,
+        &DAMAGE.gauge_rates[6],
+        &DAMAGE.flt_75b38c,
         0x31A2F0,
         0x31A2F0,
     );
-    hold_low(0x71A2F0, 0x75B350);
-    hold_high(0x71A2F0, 0x75B34C);
+    hold_low(0x71A2F0, &DAMAGE.gauge_low);
+    hold_high(0x71A2F0, &DAMAGE.gauge_top);
     x87_1(
-        crate::physics::store::asm_base() as usize,
         crate::race::store::asm_base() as usize,
-        0x35B5E8,
-        0x35B38C,
+        &DAMAGE.gauge_rates[6],
+        &DAMAGE.flt_75b38c,
         0x31A2F4,
         0x31A2F4,
     );
-    hold_low(0x71A2F4, 0x75B350);
-    hold_high(0x71A2F4, 0x75B34C);
+    hold_low(0x71A2F4, &DAMAGE.gauge_low);
+    hold_high(0x71A2F4, &DAMAGE.gauge_top);
     x87_1(
-        crate::physics::store::asm_base() as usize,
         crate::race::store::asm_base() as usize,
-        0x35B5E8,
-        0x35B38C,
+        &DAMAGE.gauge_rates[6],
+        &DAMAGE.flt_75b38c,
         0x31A2F8,
         0x31A2F8,
     );
-    hold_low(0x71A2F8, 0x75B350);
-    hold_high(0x71A2F8, 0x75B34C);
+    hold_low(0x71A2F8, &DAMAGE.gauge_low);
+    hold_high(0x71A2F8, &DAMAGE.gauge_top);
     x87_1(
-        crate::physics::store::asm_base() as usize,
         crate::race::store::asm_base() as usize,
-        0x35B5E8,
-        0x35B38C,
+        &DAMAGE.gauge_rates[6],
+        &DAMAGE.flt_75b38c,
         0x31A2FC,
         0x31A2FC,
     );
-    hold_low(0x71A2FC, 0x75B350);
-    hold_high(0x71A2FC, 0x75B34C);
+    hold_low(0x71A2FC, &DAMAGE.gauge_low);
+    hold_high(0x71A2FC, &DAMAGE.gauge_top);
     x87_1(
-        crate::physics::store::asm_base() as usize,
         crate::race::store::asm_base() as usize,
-        0x35B5E8,
-        0x35B38C,
+        &DAMAGE.gauge_rates[6],
+        &DAMAGE.flt_75b38c,
         0x31A300,
         0x31A300,
     );
-    hold_low(0x71A300, 0x75B350);
-    hold_high(0x71A300, 0x75B34C);
+    hold_low(0x71A300, &DAMAGE.gauge_low);
+    hold_high(0x71A300, &DAMAGE.gauge_top);
     x87_1(
-        crate::physics::store::asm_base() as usize,
         crate::race::store::asm_base() as usize,
-        0x35B5EC,
-        0x35B38C,
+        &DAMAGE.gauge_rates[7],
+        &DAMAGE.flt_75b38c,
         0x31A308,
         0x31A308,
     );
-    hold_low(0x71A308, 0x75B350);
-    hold_high(0x71A308, 0x75B34C);
+    hold_low(0x71A308, &DAMAGE.gauge_low);
+    hold_high(0x71A308, &DAMAGE.gauge_top);
     x87_1(
-        crate::physics::store::asm_base() as usize,
         crate::race::store::asm_base() as usize,
-        0x35B5F0,
-        0x35B38C,
+        &DAMAGE.gauge_rates[8],
+        &DAMAGE.flt_75b38c,
         0x31A30C,
         0x31A30C,
     );
-    hold_low(0x71A30C, 0x75B350);
-    hold_high(0x71A30C, 0x75B34C);
+    hold_low(0x71A30C, &DAMAGE.gauge_low);
+    hold_high(0x71A30C, &DAMAGE.gauge_top);
     x87_1(
-        crate::physics::store::asm_base() as usize,
         crate::race::store::asm_base() as usize,
-        0x35B5F0,
-        0x35B38C,
+        &DAMAGE.gauge_rates[8],
+        &DAMAGE.flt_75b38c,
         0x31A310,
         0x31A310,
     );
-    hold_low(0x71A310, 0x75B350);
-    hold_high(0x71A310, 0x75B34C);
+    hold_low(0x71A310, &DAMAGE.gauge_low);
+    hold_high(0x71A310, &DAMAGE.gauge_top);
     x87_1(
-        crate::physics::store::asm_base() as usize,
         crate::race::store::asm_base() as usize,
-        0x35B5F0,
-        0x35B38C,
+        &DAMAGE.gauge_rates[8],
+        &DAMAGE.flt_75b38c,
         0x31A314,
         0x31A314,
     );
-    hold_low(0x71A314, 0x75B350);
-    hold_high(0x71A314, 0x75B34C);
+    hold_low(0x71A314, &DAMAGE.gauge_low);
+    hold_high(0x71A314, &DAMAGE.gauge_top);
     x87_1(
-        crate::physics::store::asm_base() as usize,
         crate::race::store::asm_base() as usize,
-        0x35B5F0,
-        0x35B38C,
+        &DAMAGE.gauge_rates[8],
+        &DAMAGE.flt_75b38c,
         0x31A318,
         0x31A318,
     );
-    hold_low(0x71A318, 0x75B350);
-    hold_high(0x71A318, 0x75B34C);
+    hold_low(0x71A318, &DAMAGE.gauge_low);
+    hold_high(0x71A318, &DAMAGE.gauge_top);
     x87_2(
-        crate::physics::store::asm_base() as usize,
+        &DAMAGE,
         crate::race::store::asm_base() as usize,
-        0x35B5A4,
-        0x35B3C0,
-        0x35B398,
+        &DAMAGE.wear_rates[11],
+        &DAMAGE.flt_75b3c0,
+        &DAMAGE.flt_75b398,
         0x31A298,
         0x31A298,
     );
-    hold_low(0x71A298, 0x75B350);
-    hold_high(0x71A298, 0x75B34C);
-    let gear = g(0x75B3BC);
+    hold_low(0x71A298, &DAMAGE.gauge_low);
+    hold_high(0x71A298, &DAMAGE.gauge_top);
+    let gear = DAMAGE.dword_75b3bc.bits();
     let gauge = gear_gauge(gear);
     x87_3(
-        crate::physics::store::asm_base() as usize,
-        (a(0x75B5B0).wrapping_add(gear.wrapping_mul(4))) as usize,
+        &DAMAGE,
+        ((DAMAGE.flt_75b5b0.addr() as u32).wrapping_add(gear.wrapping_mul(4))) as usize,
         gauge as usize,
     );
     hold_at(gauge);
-    x87_4(
-        crate::physics::store::asm_base() as usize,
-        crate::race::store::asm_base() as usize,
-    );
-    hold_low(0x71A320, 0x75B350);
-    hold_high(0x71A320, 0x75B34C);
+    x87_4(&DAMAGE, crate::race::store::asm_base() as usize);
+    hold_low(0x71A320, &DAMAGE.gauge_low);
+    hold_high(0x71A320, &DAMAGE.gauge_top);
     x87_2(
-        crate::physics::store::asm_base() as usize,
+        &DAMAGE,
         crate::race::store::asm_base() as usize,
-        0x35B5F4,
-        0x35B43C,
-        0x35B3B0,
+        &DAMAGE.gauge_rates[9],
+        &DAMAGE.flt_75b43c,
+        &DAMAGE.flt_75b3b0,
         0x31A324,
         0x31A324,
     );
-    hold_low(0x71A324, 0x75B350);
-    hold_high(0x71A324, 0x75B34C);
+    hold_low(0x71A324, &DAMAGE.gauge_low);
+    hold_high(0x71A324, &DAMAGE.gauge_top);
     x87_5(
-        crate::physics::store::asm_base() as usize,
         crate::race::store::asm_base() as usize,
-        0x35B5F8,
-        0x35B3B4,
-        0x35B38C,
+        &DAMAGE.gauge_rates[10],
+        &DAMAGE.flt_75b3b4,
+        &DAMAGE.flt_75b38c,
         0x31A2E8,
         0x31A2E8,
     );
-    hold_low(0x71A2E8, 0x75B350);
-    hold_high(0x71A2E8, 0x75B34C);
+    hold_low(0x71A2E8, &DAMAGE.gauge_low);
+    hold_high(0x71A2E8, &DAMAGE.gauge_top);
     x87_5(
-        crate::physics::store::asm_base() as usize,
         crate::race::store::asm_base() as usize,
-        0x35B5FC,
-        0x35B3B4,
-        0x35B38C,
+        &DAMAGE.gauge_rates[11],
+        &DAMAGE.flt_75b3b4,
+        &DAMAGE.flt_75b38c,
         0x31A2EC,
         0x31A2EC,
     );
-    hold_low(0x71A2EC, 0x75B350);
-    hold_high(0x71A2EC, 0x75B34C);
+    hold_low(0x71A2EC, &DAMAGE.gauge_low);
+    hold_high(0x71A2EC, &DAMAGE.gauge_top);
     x87_5(
-        crate::physics::store::asm_base() as usize,
         crate::race::store::asm_base() as usize,
-        0x35B5FC,
-        0x35B3B4,
-        0x35B38C,
+        &DAMAGE.gauge_rates[11],
+        &DAMAGE.flt_75b3b4,
+        &DAMAGE.flt_75b38c,
         0x31A2F0,
         0x31A2F0,
     );
-    hold_low(0x71A2F0, 0x75B350);
-    hold_high(0x71A2F0, 0x75B34C);
+    hold_low(0x71A2F0, &DAMAGE.gauge_low);
+    hold_high(0x71A2F0, &DAMAGE.gauge_top);
     x87_5(
-        crate::physics::store::asm_base() as usize,
         crate::race::store::asm_base() as usize,
-        0x35B5FC,
-        0x35B3B4,
-        0x35B38C,
+        &DAMAGE.gauge_rates[11],
+        &DAMAGE.flt_75b3b4,
+        &DAMAGE.flt_75b38c,
         0x31A2F4,
         0x31A2F4,
     );
-    hold_low(0x71A2F4, 0x75B350);
-    hold_high(0x71A2F4, 0x75B34C);
+    hold_low(0x71A2F4, &DAMAGE.gauge_low);
+    hold_high(0x71A2F4, &DAMAGE.gauge_top);
     x87_5(
-        crate::physics::store::asm_base() as usize,
         crate::race::store::asm_base() as usize,
-        0x35B5FC,
-        0x35B3B4,
-        0x35B38C,
+        &DAMAGE.gauge_rates[11],
+        &DAMAGE.flt_75b3b4,
+        &DAMAGE.flt_75b38c,
         0x31A2F8,
         0x31A2F8,
     );
-    hold_low(0x71A2F8, 0x75B350);
-    hold_high(0x71A2F8, 0x75B34C);
+    hold_low(0x71A2F8, &DAMAGE.gauge_low);
+    hold_high(0x71A2F8, &DAMAGE.gauge_top);
     x87_5(
-        crate::physics::store::asm_base() as usize,
         crate::race::store::asm_base() as usize,
-        0x35B5FC,
-        0x35B3B4,
-        0x35B38C,
+        &DAMAGE.gauge_rates[11],
+        &DAMAGE.flt_75b3b4,
+        &DAMAGE.flt_75b38c,
         0x31A2FC,
         0x31A2FC,
     );
-    hold_low(0x71A2FC, 0x75B350);
-    hold_high(0x71A2FC, 0x75B34C);
+    hold_low(0x71A2FC, &DAMAGE.gauge_low);
+    hold_high(0x71A2FC, &DAMAGE.gauge_top);
     x87_5(
-        crate::physics::store::asm_base() as usize,
         crate::race::store::asm_base() as usize,
-        0x35B5FC,
-        0x35B3B4,
-        0x35B38C,
+        &DAMAGE.gauge_rates[11],
+        &DAMAGE.flt_75b3b4,
+        &DAMAGE.flt_75b38c,
         0x31A300,
         0x31A300,
     );
-    hold_low(0x71A300, 0x75B350);
-    hold_high(0x71A300, 0x75B34C);
-    x87_6(crate::physics::store::asm_base() as usize);
-    let part = g(0x75B3E4);
+    hold_low(0x71A300, &DAMAGE.gauge_low);
+    hold_high(0x71A300, &DAMAGE.gauge_top);
+    x87_6(&DAMAGE);
+    let part = DAMAGE.flt_75b3e4.bits();
     x87_7(
-        crate::physics::store::asm_base() as usize,
-        (a(0x75B630).wrapping_add(part.wrapping_mul(4))) as usize,
-        (a(0x75B638).wrapping_add(part.wrapping_mul(4))) as usize,
+        &DAMAGE,
+        ((DAMAGE.kind_table_a[0].addr() as u32).wrapping_add(part.wrapping_mul(4))) as usize,
+        ((DAMAGE.kind_table_b[0].addr() as u32).wrapping_add(part.wrapping_mul(4))) as usize,
     );
     x87_5(
-        crate::physics::store::asm_base() as usize,
         crate::race::store::asm_base() as usize,
-        0x35B46C,
-        0x35B488,
-        0x35B370,
+        &DAMAGE.flt_75b46c,
+        &DAMAGE.flt_75b488,
+        &DAMAGE.flt_75b370,
         0x31A32C,
         0x31A32C,
     );
-    hold_low(0x71A32C, 0x75B350);
-    hold_high(0x71A32C, 0x75B34C);
+    hold_low(0x71A32C, &DAMAGE.gauge_low);
+    hold_high(0x71A32C, &DAMAGE.gauge_top);
     x87_5(
-        crate::physics::store::asm_base() as usize,
         crate::race::store::asm_base() as usize,
-        0x35B46C,
-        0x35B488,
-        0x35B370,
+        &DAMAGE.flt_75b46c,
+        &DAMAGE.flt_75b488,
+        &DAMAGE.flt_75b370,
         0x31A330,
         0x31A330,
     );
-    hold_low(0x71A330, 0x75B350);
-    hold_high(0x71A330, 0x75B34C);
+    hold_low(0x71A330, &DAMAGE.gauge_low);
+    hold_high(0x71A330, &DAMAGE.gauge_top);
     x87_5(
-        crate::physics::store::asm_base() as usize,
         crate::race::store::asm_base() as usize,
-        0x35B470,
-        0x35B48C,
-        0x35B370,
+        &DAMAGE.flt_75b470,
+        &DAMAGE.flt_75b48c,
+        &DAMAGE.flt_75b370,
         0x31A334,
         0x31A334,
     );
-    hold_low(0x71A334, 0x75B350);
-    hold_high(0x71A334, 0x75B34C);
+    hold_low(0x71A334, &DAMAGE.gauge_low);
+    hold_high(0x71A334, &DAMAGE.gauge_top);
     x87_5(
-        crate::physics::store::asm_base() as usize,
         crate::race::store::asm_base() as usize,
-        0x35B470,
-        0x35B48C,
-        0x35B370,
+        &DAMAGE.flt_75b470,
+        &DAMAGE.flt_75b48c,
+        &DAMAGE.flt_75b370,
         0x31A338,
         0x31A338,
     );
-    hold_low(0x71A338, 0x75B350);
-    hold_high(0x71A338, 0x75B34C);
+    hold_low(0x71A338, &DAMAGE.gauge_low);
+    hold_high(0x71A338, &DAMAGE.gauge_top);
     x87_5(
-        crate::physics::store::asm_base() as usize,
         crate::race::store::asm_base() as usize,
-        0x35B45C,
-        0x35B604,
-        0x35B370,
+        &DAMAGE.flt_75b45c,
+        &DAMAGE.gauge_rates[13],
+        &DAMAGE.flt_75b370,
         0x31A290,
         0x31A290,
     );
-    hold_low(0x71A290, 0x75B350);
-    hold_high(0x71A290, 0x75B34C);
+    hold_low(0x71A290, &DAMAGE.gauge_low);
+    hold_high(0x71A290, &DAMAGE.gauge_top);
     x87_5(
-        crate::physics::store::asm_base() as usize,
         crate::race::store::asm_base() as usize,
-        0x35B45C,
-        0x35B600,
-        0x35B370,
+        &DAMAGE.flt_75b45c,
+        &DAMAGE.gauge_rates[12],
+        &DAMAGE.flt_75b370,
         0x31A29C,
         0x31A29C,
     );
-    hold_low(0x71A29C, 0x75B350);
-    hold_high(0x71A29C, 0x75B34C);
-    if compare_full(g(0x75B464), g(0x75B350)) & 0x100 == 0 {
-        x87_8(
-            crate::race::store::asm_base() as usize,
-            crate::physics::store::asm_base() as usize,
-        );
-        hold_low(0x71A290, 0x75B350);
-        hold_high(0x71A290, 0x75B34C);
+    hold_low(0x71A29C, &DAMAGE.gauge_low);
+    hold_high(0x71A29C, &DAMAGE.gauge_top);
+    if compare_full(DAMAGE.flt_75b464.bits(), DAMAGE.gauge_low.bits()) & 0x100 == 0 {
+        x87_8(crate::race::store::asm_base() as usize, &DAMAGE);
+        hold_low(0x71A290, &DAMAGE.gauge_low);
+        hold_high(0x71A290, &DAMAGE.gauge_top);
         x87_5(
-            crate::physics::store::asm_base() as usize,
             crate::race::store::asm_base() as usize,
-            0x35B464,
-            0x35B60C,
-            0x35B370,
+            &DAMAGE.flt_75b464,
+            &DAMAGE.gauge_rates[15],
+            &DAMAGE.flt_75b370,
             0x31A29C,
             0x31A29C,
         );
-        hold_low(0x71A29C, 0x75B350);
-        hold_high(0x71A29C, 0x75B34C);
+        hold_low(0x71A29C, &DAMAGE.gauge_low);
+        hold_high(0x71A29C, &DAMAGE.gauge_top);
     }
-    if g(0x75B3B8) == 0x1 {
+    if DAMAGE.dword_75b3b8.bits() == 0x1 {
         x87_9(
             crate::race::store::asm_base() as usize,
-            crate::physics::store::asm_base() as usize,
-            0x35B610,
+            &DAMAGE.gauge_rates[16],
         );
     }
-    if g(0x75B3B8) == 0xFFFFFFFF {
+    if DAMAGE.dword_75b3b8.bits() == 0xFFFFFFFF {
         x87_9(
             crate::race::store::asm_base() as usize,
-            crate::physics::store::asm_base() as usize,
-            0x35B614,
+            &DAMAGE.gauge_rates[17],
         );
     }
-    let gear = g(0x75B3BC);
-    if g(0x75B3B8) == 0x1 {
+    let gear = DAMAGE.dword_75b3bc.bits();
+    if DAMAGE.dword_75b3b8.bits() == 0x1 {
         let gauge = gear_gauge(gear);
-        x87_10(
-            gauge as usize,
-            crate::physics::store::asm_base() as usize,
-            0x35B618,
-        );
+        x87_10(gauge as usize, &DAMAGE.gauge_rates[18]);
     }
-    let gear = g(0x75B3BC);
-    if g(0x75B3B8) == 0xFFFFFFFF {
+    let gear = DAMAGE.dword_75b3bc.bits();
+    if DAMAGE.dword_75b3b8.bits() == 0xFFFFFFFF {
         let gauge = gear_gauge(gear);
-        x87_10(
-            gauge as usize,
-            crate::physics::store::asm_base() as usize,
-            0x35B61C,
-        );
+        x87_10(gauge as usize, &DAMAGE.gauge_rates[19]);
     }
     x87_5(
-        crate::physics::store::asm_base() as usize,
         crate::race::store::asm_base() as usize,
-        0x35B450,
-        0x35B670,
-        0x35B370,
+        &DAMAGE.flt_75b450,
+        &DAMAGE.flt_75b670,
+        &DAMAGE.flt_75b370,
         0x31A2D0,
         0x31A2D0,
     );
-    hold_low(0x71A2D0, 0x75B350);
-    hold_high(0x71A2D0, 0x75B34C);
+    hold_low(0x71A2D0, &DAMAGE.gauge_low);
+    hold_high(0x71A2D0, &DAMAGE.gauge_top);
     x87_5(
-        crate::physics::store::asm_base() as usize,
         crate::race::store::asm_base() as usize,
-        0x35B450,
-        0x35B670,
-        0x35B370,
+        &DAMAGE.flt_75b450,
+        &DAMAGE.flt_75b670,
+        &DAMAGE.flt_75b370,
         0x31A2D4,
         0x31A2D4,
     );
-    hold_low(0x71A2D4, 0x75B350);
-    hold_high(0x71A2D4, 0x75B34C);
+    hold_low(0x71A2D4, &DAMAGE.gauge_low);
+    hold_high(0x71A2D4, &DAMAGE.gauge_top);
     x87_5(
-        crate::physics::store::asm_base() as usize,
         crate::race::store::asm_base() as usize,
-        0x35B450,
-        0x35B670,
-        0x35B370,
+        &DAMAGE.flt_75b450,
+        &DAMAGE.flt_75b670,
+        &DAMAGE.flt_75b370,
         0x31A2D8,
         0x31A2D8,
     );
-    hold_low(0x71A2D8, 0x75B350);
-    hold_high(0x71A2D8, 0x75B34C);
+    hold_low(0x71A2D8, &DAMAGE.gauge_low);
+    hold_high(0x71A2D8, &DAMAGE.gauge_top);
     x87_5(
-        crate::physics::store::asm_base() as usize,
         crate::race::store::asm_base() as usize,
-        0x35B450,
-        0x35B670,
-        0x35B370,
+        &DAMAGE.flt_75b450,
+        &DAMAGE.flt_75b670,
+        &DAMAGE.flt_75b370,
         0x31A2DC,
         0x31A2DC,
     );
-    hold_low(0x71A2DC, 0x75B350);
-    hold_high(0x71A2DC, 0x75B34C);
+    hold_low(0x71A2DC, &DAMAGE.gauge_low);
+    hold_high(0x71A2DC, &DAMAGE.gauge_top);
     x87_5(
-        crate::physics::store::asm_base() as usize,
         crate::race::store::asm_base() as usize,
-        0x35B458,
-        0x35B678,
-        0x35B370,
+        &DAMAGE.flt_75b458,
+        &DAMAGE.figures[0],
+        &DAMAGE.flt_75b370,
         0x31A30C,
         0x31A30C,
     );
-    hold_low(0x71A30C, 0x75B350);
-    hold_high(0x71A30C, 0x75B34C);
+    hold_low(0x71A30C, &DAMAGE.gauge_low);
+    hold_high(0x71A30C, &DAMAGE.gauge_top);
     x87_5(
-        crate::physics::store::asm_base() as usize,
         crate::race::store::asm_base() as usize,
-        0x35B458,
-        0x35B678,
-        0x35B370,
+        &DAMAGE.flt_75b458,
+        &DAMAGE.figures[0],
+        &DAMAGE.flt_75b370,
         0x31A310,
         0x31A310,
     );
-    hold_low(0x71A310, 0x75B350);
-    hold_high(0x71A310, 0x75B34C);
+    hold_low(0x71A310, &DAMAGE.gauge_low);
+    hold_high(0x71A310, &DAMAGE.gauge_top);
     x87_5(
-        crate::physics::store::asm_base() as usize,
         crate::race::store::asm_base() as usize,
-        0x35B458,
-        0x35B678,
-        0x35B370,
+        &DAMAGE.flt_75b458,
+        &DAMAGE.figures[0],
+        &DAMAGE.flt_75b370,
         0x31A314,
         0x31A314,
     );
-    hold_low(0x71A314, 0x75B350);
-    hold_high(0x71A314, 0x75B34C);
+    hold_low(0x71A314, &DAMAGE.gauge_low);
+    hold_high(0x71A314, &DAMAGE.gauge_top);
     x87_5(
-        crate::physics::store::asm_base() as usize,
         crate::race::store::asm_base() as usize,
-        0x35B458,
-        0x35B678,
-        0x35B370,
+        &DAMAGE.flt_75b458,
+        &DAMAGE.figures[0],
+        &DAMAGE.flt_75b370,
         0x31A318,
         0x31A318,
     );
-    hold_low(0x71A318, 0x75B350);
-    hold_high(0x71A318, 0x75B34C);
+    hold_low(0x71A318, &DAMAGE.gauge_low);
+    hold_high(0x71A318, &DAMAGE.gauge_top);
     x87_5(
-        crate::physics::store::asm_base() as usize,
         crate::race::store::asm_base() as usize,
-        0x35B454,
-        0x35B67C,
-        0x35B370,
+        &DAMAGE.flt_75b454,
+        &DAMAGE.figures[1],
+        &DAMAGE.flt_75b370,
         0x31A2E0,
         0x31A2E0,
     );
-    hold_low(0x71A2E0, 0x75B350);
-    hold_high(0x71A2E0, 0x75B34C);
+    hold_low(0x71A2E0, &DAMAGE.gauge_low);
+    hold_high(0x71A2E0, &DAMAGE.gauge_top);
     x87_5(
-        crate::physics::store::asm_base() as usize,
         crate::race::store::asm_base() as usize,
-        0x35B454,
-        0x35B680,
-        0x35B370,
+        &DAMAGE.flt_75b454,
+        &DAMAGE.figures[2],
+        &DAMAGE.flt_75b370,
         0x31A308,
         0x31A308,
     );
-    hold_low(0x71A308, 0x75B350);
-    hold_high(0x71A308, 0x75B34C);
+    hold_low(0x71A308, &DAMAGE.gauge_low);
+    hold_high(0x71A308, &DAMAGE.gauge_top);
     x87_5(
-        crate::physics::store::asm_base() as usize,
         crate::race::store::asm_base() as usize,
-        0x35B454,
-        0x35B684,
-        0x35B370,
+        &DAMAGE.flt_75b454,
+        &DAMAGE.figures[3],
+        &DAMAGE.flt_75b370,
         0x31A290,
         0x31A290,
     );
-    hold_low(0x71A290, 0x75B350);
-    hold_high(0x71A290, 0x75B34C);
+    hold_low(0x71A290, &DAMAGE.gauge_low);
+    hold_high(0x71A290, &DAMAGE.gauge_top);
     x87_5(
-        crate::physics::store::asm_base() as usize,
         crate::race::store::asm_base() as usize,
-        0x35B454,
-        0x35B688,
-        0x35B370,
+        &DAMAGE.flt_75b454,
+        &DAMAGE.figures[4],
+        &DAMAGE.flt_75b370,
         0x31A294,
         0x31A294,
     );
-    hold_low(0x71A294, 0x75B350);
-    hold_high(0x71A294, 0x75B34C);
+    hold_low(0x71A294, &DAMAGE.gauge_low);
+    hold_high(0x71A294, &DAMAGE.gauge_top);
     x87_5(
-        crate::physics::store::asm_base() as usize,
         crate::race::store::asm_base() as usize,
-        0x35B454,
-        0x35B68C,
-        0x35B370,
+        &DAMAGE.flt_75b454,
+        &DAMAGE.figures[5],
+        &DAMAGE.flt_75b370,
         0x31A2A8,
         0x31A2A8,
     );
-    hold_low(0x71A2A8, 0x75B350);
-    hold_high(0x71A2A8, 0x75B34C);
+    hold_low(0x71A2A8, &DAMAGE.gauge_low);
+    hold_high(0x71A2A8, &DAMAGE.gauge_top);
     x87_5(
-        crate::physics::store::asm_base() as usize,
         crate::race::store::asm_base() as usize,
-        0x35B454,
-        0x35B68C,
-        0x35B370,
+        &DAMAGE.flt_75b454,
+        &DAMAGE.figures[5],
+        &DAMAGE.flt_75b370,
         0x31A2B0,
         0x31A2B0,
     );
-    hold_low(0x71A2B0, 0x75B350);
-    hold_high(0x71A2B0, 0x75B34C);
+    hold_low(0x71A2B0, &DAMAGE.gauge_low);
+    hold_high(0x71A2B0, &DAMAGE.gauge_top);
     x87_5(
-        crate::physics::store::asm_base() as usize,
         crate::race::store::asm_base() as usize,
-        0x35B454,
-        0x35B68C,
-        0x35B370,
+        &DAMAGE.flt_75b454,
+        &DAMAGE.figures[5],
+        &DAMAGE.flt_75b370,
         0x31A2B4,
         0x31A2B4,
     );
-    hold_low(0x71A2B4, 0x75B350);
-    hold_high(0x71A2B4, 0x75B34C);
+    hold_low(0x71A2B4, &DAMAGE.gauge_low);
+    hold_high(0x71A2B4, &DAMAGE.gauge_top);
     x87_5(
-        crate::physics::store::asm_base() as usize,
         crate::race::store::asm_base() as usize,
-        0x35B454,
-        0x35B68C,
-        0x35B370,
+        &DAMAGE.flt_75b454,
+        &DAMAGE.figures[5],
+        &DAMAGE.flt_75b370,
         0x31A2B8,
         0x31A2B8,
     );
-    hold_low(0x71A2B8, 0x75B350);
-    hold_high(0x71A2B8, 0x75B34C);
+    hold_low(0x71A2B8, &DAMAGE.gauge_low);
+    hold_high(0x71A2B8, &DAMAGE.gauge_top);
     x87_5(
-        crate::physics::store::asm_base() as usize,
         crate::race::store::asm_base() as usize,
-        0x35B454,
-        0x35B68C,
-        0x35B370,
+        &DAMAGE.flt_75b454,
+        &DAMAGE.figures[5],
+        &DAMAGE.flt_75b370,
         0x31A2BC,
         0x31A2BC,
     );
-    hold_low(0x71A2BC, 0x75B350);
-    hold_high(0x71A2BC, 0x75B34C);
+    hold_low(0x71A2BC, &DAMAGE.gauge_low);
+    hold_high(0x71A2BC, &DAMAGE.gauge_top);
     x87_5(
-        crate::physics::store::asm_base() as usize,
         crate::race::store::asm_base() as usize,
-        0x35B454,
-        0x35B68C,
-        0x35B370,
+        &DAMAGE.flt_75b454,
+        &DAMAGE.figures[5],
+        &DAMAGE.flt_75b370,
         0x31A2C0,
         0x31A2C0,
     );
-    hold_low(0x71A2C0, 0x75B350);
-    hold_high(0x71A2C0, 0x75B34C);
+    hold_low(0x71A2C0, &DAMAGE.gauge_low);
+    hold_high(0x71A2C0, &DAMAGE.gauge_top);
     x87_5(
-        crate::physics::store::asm_base() as usize,
         crate::race::store::asm_base() as usize,
-        0x35B454,
-        0x35B68C,
-        0x35B370,
+        &DAMAGE.flt_75b454,
+        &DAMAGE.figures[5],
+        &DAMAGE.flt_75b370,
         0x31A2C4,
         0x31A2C4,
     );
-    hold_low(0x71A2C4, 0x75B350);
-    hold_high(0x71A2C4, 0x75B34C);
+    hold_low(0x71A2C4, &DAMAGE.gauge_low);
+    hold_high(0x71A2C4, &DAMAGE.gauge_top);
     x87_5(
-        crate::physics::store::asm_base() as usize,
         crate::race::store::asm_base() as usize,
-        0x35B454,
-        0x35B68C,
-        0x35B370,
+        &DAMAGE.flt_75b454,
+        &DAMAGE.figures[5],
+        &DAMAGE.flt_75b370,
         0x31A2C8,
         0x31A2C8,
     );
-    hold_low(0x71A2C8, 0x75B350);
-    hold_high(0x71A2C8, 0x75B34C);
+    hold_low(0x71A2C8, &DAMAGE.gauge_low);
+    hold_high(0x71A2C8, &DAMAGE.gauge_top);
     x87_5(
-        crate::physics::store::asm_base() as usize,
         crate::race::store::asm_base() as usize,
-        0x35B454,
-        0x35B690,
-        0x35B370,
+        &DAMAGE.flt_75b454,
+        &DAMAGE.figures[6],
+        &DAMAGE.flt_75b370,
         0x31A2A4,
         0x31A2A4,
     );
-    hold_low(0x71A2A4, 0x75B350);
-    hold_high(0x71A2A4, 0x75B34C);
-    if compare_full(g(0x75B3C8), g(0x75B62C)) & 0x100 == 0 {
+    hold_low(0x71A2A4, &DAMAGE.gauge_low);
+    hold_high(0x71A2A4, &DAMAGE.gauge_top);
+    if compare_full(DAMAGE.flt_75b3c8.bits(), DAMAGE.gauge_rates[23].bits()) & 0x100 == 0 {
         x87_1(
-            crate::physics::store::asm_base() as usize,
             crate::race::store::asm_base() as usize,
-            0x35B3C8,
-            0x35B6AC,
+            &DAMAGE.flt_75b3c8,
+            &DAMAGE.figures[13],
             0x31A2E0,
             0x31A2E0,
         );
-        hold_low(0x71A2E0, 0x75B350);
-        hold_high(0x71A2E0, 0x75B34C);
+        hold_low(0x71A2E0, &DAMAGE.gauge_low);
+        hold_high(0x71A2E0, &DAMAGE.gauge_top);
     }
-    if compare_full(g(0x75B3C8), g(0x75B628)) & 0x100 == 0 {
-        x87_11(
-            crate::physics::store::asm_base() as usize,
-            crate::race::store::asm_base() as usize,
-        );
-        if g(0x75B3C4) == 0x1 {
+    if compare_full(DAMAGE.flt_75b3c8.bits(), DAMAGE.gauge_rates[22].bits()) & 0x100 == 0 {
+        x87_11(&DAMAGE, crate::race::store::asm_base() as usize);
+        if DAMAGE.dword_75b3c4.bits() == 0x1 {
             x87_1(
-                crate::physics::store::asm_base() as usize,
                 crate::race::store::asm_base() as usize,
-                0x35B3C8,
-                0x35B6D8,
+                &DAMAGE.flt_75b3c8,
+                &DAMAGE.figures[24],
                 0x31A2EC,
                 0x31A2EC,
             );
-            hold_low(0x71A2EC, 0x75B350);
-            hold_high(0x71A2EC, 0x75B34C);
+            hold_low(0x71A2EC, &DAMAGE.gauge_low);
+            hold_high(0x71A2EC, &DAMAGE.gauge_top);
         }
-        if g(0x75B3C4) == 0x2 {
+        if DAMAGE.dword_75b3c4.bits() == 0x2 {
             x87_1(
-                crate::physics::store::asm_base() as usize,
                 crate::race::store::asm_base() as usize,
-                0x35B3C8,
-                0x35B6D8,
+                &DAMAGE.flt_75b3c8,
+                &DAMAGE.figures[24],
                 0x31A2F0,
                 0x31A2F0,
             );
-            hold_low(0x71A2F0, 0x75B350);
-            hold_high(0x71A2F0, 0x75B34C);
+            hold_low(0x71A2F0, &DAMAGE.gauge_low);
+            hold_high(0x71A2F0, &DAMAGE.gauge_top);
         }
-        if g(0x75B3C4) == 0x3 {
+        if DAMAGE.dword_75b3c4.bits() == 0x3 {
             x87_1(
-                crate::physics::store::asm_base() as usize,
                 crate::race::store::asm_base() as usize,
-                0x35B3C8,
-                0x35B6D8,
+                &DAMAGE.flt_75b3c8,
+                &DAMAGE.figures[24],
                 0x31A2F4,
                 0x31A2F4,
             );
-            hold_low(0x71A2F4, 0x75B350);
-            hold_high(0x71A2F4, 0x75B34C);
+            hold_low(0x71A2F4, &DAMAGE.gauge_low);
+            hold_high(0x71A2F4, &DAMAGE.gauge_top);
         }
-        if g(0x75B3C4) == 0x4 {
+        if DAMAGE.dword_75b3c4.bits() == 0x4 {
             x87_1(
-                crate::physics::store::asm_base() as usize,
                 crate::race::store::asm_base() as usize,
-                0x35B3C8,
-                0x35B6D8,
+                &DAMAGE.flt_75b3c8,
+                &DAMAGE.figures[24],
                 0x31A2F8,
                 0x31A2F8,
             );
-            hold_low(0x71A2F8, 0x75B350);
-            hold_high(0x71A2F8, 0x75B34C);
+            hold_low(0x71A2F8, &DAMAGE.gauge_low);
+            hold_high(0x71A2F8, &DAMAGE.gauge_top);
         }
-        if g(0x75B3C4) == 0x1 {
+        if DAMAGE.dword_75b3c4.bits() == 0x1 {
             x87_1(
-                crate::physics::store::asm_base() as usize,
                 crate::race::store::asm_base() as usize,
-                0x35B3C8,
-                0x35B6DC,
+                &DAMAGE.flt_75b3c8,
+                &DAMAGE.figures[25],
                 0x31A2FC,
                 0x31A2FC,
             );
-            hold_low(0x71A2FC, 0x75B350);
-            hold_high(0x71A2FC, 0x75B34C);
+            hold_low(0x71A2FC, &DAMAGE.gauge_low);
+            hold_high(0x71A2FC, &DAMAGE.gauge_top);
         }
-        if g(0x75B3C4) == 0x2 {
+        if DAMAGE.dword_75b3c4.bits() == 0x2 {
             x87_1(
-                crate::physics::store::asm_base() as usize,
                 crate::race::store::asm_base() as usize,
-                0x35B3C8,
-                0x35B6DC,
+                &DAMAGE.flt_75b3c8,
+                &DAMAGE.figures[25],
                 0x31A2FC,
                 0x31A2FC,
             );
-            hold_low(0x71A2FC, 0x75B350);
-            hold_high(0x71A2FC, 0x75B34C);
+            hold_low(0x71A2FC, &DAMAGE.gauge_low);
+            hold_high(0x71A2FC, &DAMAGE.gauge_top);
         }
-        if g(0x75B3C4) == 0x3 {
+        if DAMAGE.dword_75b3c4.bits() == 0x3 {
             x87_1(
-                crate::physics::store::asm_base() as usize,
                 crate::race::store::asm_base() as usize,
-                0x35B3C8,
-                0x35B6DC,
+                &DAMAGE.flt_75b3c8,
+                &DAMAGE.figures[25],
                 0x31A300,
                 0x31A300,
             );
-            hold_low(0x71A300, 0x75B350);
-            hold_high(0x71A300, 0x75B34C);
+            hold_low(0x71A300, &DAMAGE.gauge_low);
+            hold_high(0x71A300, &DAMAGE.gauge_top);
         }
-        if g(0x75B3C4) == 0x4 {
+        if DAMAGE.dword_75b3c4.bits() == 0x4 {
             x87_1(
-                crate::physics::store::asm_base() as usize,
                 crate::race::store::asm_base() as usize,
-                0x35B3C8,
-                0x35B6DC,
+                &DAMAGE.flt_75b3c8,
+                &DAMAGE.figures[25],
                 0x31A300,
                 0x31A300,
             );
-            hold_low(0x71A300, 0x75B350);
-            hold_high(0x71A300, 0x75B34C);
+            hold_low(0x71A300, &DAMAGE.gauge_low);
+            hold_high(0x71A300, &DAMAGE.gauge_top);
         }
         x87_1(
-            crate::physics::store::asm_base() as usize,
             crate::race::store::asm_base() as usize,
-            0x35B3C8,
-            0x35B6D4,
+            &DAMAGE.flt_75b3c8,
+            &DAMAGE.figures[23],
             0x31A308,
             0x31A308,
         );
-        hold_low(0x71A308, 0x75B350);
-        hold_high(0x71A308, 0x75B34C);
+        hold_low(0x71A308, &DAMAGE.gauge_low);
+        hold_high(0x71A308, &DAMAGE.gauge_top);
         x87_1(
-            crate::physics::store::asm_base() as usize,
             crate::race::store::asm_base() as usize,
-            0x35B3C8,
-            0x35B6D0,
+            &DAMAGE.flt_75b3c8,
+            &DAMAGE.figures[22],
             0x31A2E8,
             0x31A2E8,
         );
-        hold_low(0x71A2E8, 0x75B350);
-        hold_high(0x71A2E8, 0x75B34C);
+        hold_low(0x71A2E8, &DAMAGE.gauge_low);
+        hold_high(0x71A2E8, &DAMAGE.gauge_top);
         x87_1(
-            crate::physics::store::asm_base() as usize,
             crate::race::store::asm_base() as usize,
-            0x35B3C8,
-            0x35B6BC,
+            &DAMAGE.flt_75b3c8,
+            &DAMAGE.figures[17],
             0x31A298,
             0x31A298,
         );
-        hold_low(0x71A298, 0x75B350);
-        hold_high(0x71A298, 0x75B34C);
+        hold_low(0x71A298, &DAMAGE.gauge_low);
+        hold_high(0x71A298, &DAMAGE.gauge_top);
         x87_1(
-            crate::physics::store::asm_base() as usize,
             crate::race::store::asm_base() as usize,
-            0x35B3C8,
-            0x35B6C0,
+            &DAMAGE.flt_75b3c8,
+            &DAMAGE.figures[18],
             0x31A2A0,
             0x31A2A0,
         );
-        hold_low(0x71A2A0, 0x75B350);
-        hold_high(0x71A2A0, 0x75B34C);
+        hold_low(0x71A2A0, &DAMAGE.gauge_low);
+        hold_high(0x71A2A0, &DAMAGE.gauge_top);
         x87_1(
-            crate::physics::store::asm_base() as usize,
             crate::race::store::asm_base() as usize,
-            0x35B3C8,
-            0x35B6C4,
+            &DAMAGE.flt_75b3c8,
+            &DAMAGE.figures[19],
             0x31A2A4,
             0x31A2A4,
         );
-        hold_low(0x71A2A4, 0x75B350);
-        hold_high(0x71A2A4, 0x75B34C);
+        hold_low(0x71A2A4, &DAMAGE.gauge_low);
+        hold_high(0x71A2A4, &DAMAGE.gauge_top);
         x87_1(
-            crate::physics::store::asm_base() as usize,
             crate::race::store::asm_base() as usize,
-            0x35B3C8,
-            0x35B6C8,
+            &DAMAGE.flt_75b3c8,
+            &DAMAGE.figures[20],
             0x31A2A8,
             0x31A2A8,
         );
-        hold_low(0x71A2A8, 0x75B350);
-        hold_high(0x71A2A8, 0x75B34C);
+        hold_low(0x71A2A8, &DAMAGE.gauge_low);
+        hold_high(0x71A2A8, &DAMAGE.gauge_top);
         x87_1(
-            crate::physics::store::asm_base() as usize,
             crate::race::store::asm_base() as usize,
-            0x35B3C8,
-            0x35B6C8,
+            &DAMAGE.flt_75b3c8,
+            &DAMAGE.figures[20],
             0x31A2AC,
             0x31A2AC,
         );
-        hold_low(0x71A2AC, 0x75B350);
-        hold_high(0x71A2AC, 0x75B34C);
+        hold_low(0x71A2AC, &DAMAGE.gauge_low);
+        hold_high(0x71A2AC, &DAMAGE.gauge_top);
         x87_1(
-            crate::physics::store::asm_base() as usize,
             crate::race::store::asm_base() as usize,
-            0x35B3C8,
-            0x35B6C8,
+            &DAMAGE.flt_75b3c8,
+            &DAMAGE.figures[20],
             0x31A2B0,
             0x31A2B0,
         );
-        hold_low(0x71A2B0, 0x75B350);
-        hold_high(0x71A2B0, 0x75B34C);
+        hold_low(0x71A2B0, &DAMAGE.gauge_low);
+        hold_high(0x71A2B0, &DAMAGE.gauge_top);
         x87_1(
-            crate::physics::store::asm_base() as usize,
             crate::race::store::asm_base() as usize,
-            0x35B3C8,
-            0x35B6C8,
+            &DAMAGE.flt_75b3c8,
+            &DAMAGE.figures[20],
             0x31A2B4,
             0x31A2B4,
         );
-        hold_low(0x71A2B4, 0x75B350);
-        hold_high(0x71A2B4, 0x75B34C);
+        hold_low(0x71A2B4, &DAMAGE.gauge_low);
+        hold_high(0x71A2B4, &DAMAGE.gauge_top);
         x87_1(
-            crate::physics::store::asm_base() as usize,
             crate::race::store::asm_base() as usize,
-            0x35B3C8,
-            0x35B6C8,
+            &DAMAGE.flt_75b3c8,
+            &DAMAGE.figures[20],
             0x31A2B8,
             0x31A2B8,
         );
-        hold_low(0x71A2B8, 0x75B350);
-        hold_high(0x71A2B8, 0x75B34C);
+        hold_low(0x71A2B8, &DAMAGE.gauge_low);
+        hold_high(0x71A2B8, &DAMAGE.gauge_top);
         x87_1(
-            crate::physics::store::asm_base() as usize,
             crate::race::store::asm_base() as usize,
-            0x35B3C8,
-            0x35B6C8,
+            &DAMAGE.flt_75b3c8,
+            &DAMAGE.figures[20],
             0x31A2BC,
             0x31A2BC,
         );
-        hold_low(0x71A2BC, 0x75B350);
-        hold_high(0x71A2BC, 0x75B34C);
+        hold_low(0x71A2BC, &DAMAGE.gauge_low);
+        hold_high(0x71A2BC, &DAMAGE.gauge_top);
         x87_1(
-            crate::physics::store::asm_base() as usize,
             crate::race::store::asm_base() as usize,
-            0x35B3C8,
-            0x35B6C8,
+            &DAMAGE.flt_75b3c8,
+            &DAMAGE.figures[20],
             0x31A2C0,
             0x31A2C0,
         );
-        hold_low(0x71A2C0, 0x75B350);
-        hold_high(0x71A2C0, 0x75B34C);
+        hold_low(0x71A2C0, &DAMAGE.gauge_low);
+        hold_high(0x71A2C0, &DAMAGE.gauge_top);
         x87_1(
-            crate::physics::store::asm_base() as usize,
             crate::race::store::asm_base() as usize,
-            0x35B3C8,
-            0x35B6C8,
+            &DAMAGE.flt_75b3c8,
+            &DAMAGE.figures[20],
             0x31A2C4,
             0x31A2C4,
         );
-        hold_low(0x71A2C4, 0x75B350);
-        hold_high(0x71A2C4, 0x75B34C);
+        hold_low(0x71A2C4, &DAMAGE.gauge_low);
+        hold_high(0x71A2C4, &DAMAGE.gauge_top);
         x87_1(
-            crate::physics::store::asm_base() as usize,
             crate::race::store::asm_base() as usize,
-            0x35B3C8,
-            0x35B6C8,
+            &DAMAGE.flt_75b3c8,
+            &DAMAGE.figures[20],
             0x31A2C8,
             0x31A2C8,
         );
-        hold_low(0x71A2C8, 0x75B350);
-        hold_high(0x71A2C8, 0x75B34C);
-        let gear = g(0x75B3BC);
+        hold_low(0x71A2C8, &DAMAGE.gauge_low);
+        hold_high(0x71A2C8, &DAMAGE.gauge_top);
+        let gear = DAMAGE.dword_75b3bc.bits();
         let gauge = gear_gauge(gear);
-        x87_12(crate::physics::store::asm_base() as usize, gauge as usize);
+        x87_12(&DAMAGE, gauge as usize);
         hold_at(gauge);
-        if g(0x75B3C4) == 0x1 {
+        if DAMAGE.dword_75b3c4.bits() == 0x1 {
             x87_1(
-                crate::physics::store::asm_base() as usize,
                 crate::race::store::asm_base() as usize,
-                0x35B3C8,
-                0x35B6E8,
+                &DAMAGE.flt_75b3c8,
+                &DAMAGE.figures[28],
                 0x31A2D0,
                 0x31A2D0,
             );
-            hold_low(0x71A2D0, 0x75B350);
-            hold_high(0x71A2D0, 0x75B34C);
+            hold_low(0x71A2D0, &DAMAGE.gauge_low);
+            hold_high(0x71A2D0, &DAMAGE.gauge_top);
         }
-        if g(0x75B3C4) == 0x2 {
+        if DAMAGE.dword_75b3c4.bits() == 0x2 {
             x87_1(
-                crate::physics::store::asm_base() as usize,
                 crate::race::store::asm_base() as usize,
-                0x35B3C8,
-                0x35B6E8,
+                &DAMAGE.flt_75b3c8,
+                &DAMAGE.figures[28],
                 0x31A2D4,
                 0x31A2D4,
             );
-            hold_low(0x71A2D4, 0x75B350);
-            hold_high(0x71A2D4, 0x75B34C);
+            hold_low(0x71A2D4, &DAMAGE.gauge_low);
+            hold_high(0x71A2D4, &DAMAGE.gauge_top);
         }
-        if g(0x75B3C4) == 0x3 {
+        if DAMAGE.dword_75b3c4.bits() == 0x3 {
             x87_1(
-                crate::physics::store::asm_base() as usize,
                 crate::race::store::asm_base() as usize,
-                0x35B3C8,
-                0x35B6E8,
+                &DAMAGE.flt_75b3c8,
+                &DAMAGE.figures[28],
                 0x31A2D8,
                 0x31A2D8,
             );
-            hold_low(0x71A2D8, 0x75B350);
-            hold_high(0x71A2D8, 0x75B34C);
+            hold_low(0x71A2D8, &DAMAGE.gauge_low);
+            hold_high(0x71A2D8, &DAMAGE.gauge_top);
         }
-        if g(0x75B3C4) == 0x4 {
+        if DAMAGE.dword_75b3c4.bits() == 0x4 {
             x87_1(
-                crate::physics::store::asm_base() as usize,
                 crate::race::store::asm_base() as usize,
-                0x35B3C8,
-                0x35B6E8,
+                &DAMAGE.flt_75b3c8,
+                &DAMAGE.figures[28],
                 0x31A2DC,
                 0x31A2DC,
             );
-            hold_low(0x71A2DC, 0x75B350);
-            hold_high(0x71A2DC, 0x75B34C);
+            hold_low(0x71A2DC, &DAMAGE.gauge_low);
+            hold_high(0x71A2DC, &DAMAGE.gauge_top);
         }
-        if g(0x75B3C4) == 0x1 {
+        if DAMAGE.dword_75b3c4.bits() == 0x1 {
             x87_1(
-                crate::physics::store::asm_base() as usize,
                 crate::race::store::asm_base() as usize,
-                0x35B3C8,
-                0x35B6F0,
+                &DAMAGE.flt_75b3c8,
+                &DAMAGE.figures[30],
                 0x31A30C,
                 0x31A30C,
             );
-            hold_low(0x71A30C, 0x75B350);
-            hold_high(0x71A30C, 0x75B34C);
+            hold_low(0x71A30C, &DAMAGE.gauge_low);
+            hold_high(0x71A30C, &DAMAGE.gauge_top);
         }
-        if g(0x75B3C4) == 0x2 {
+        if DAMAGE.dword_75b3c4.bits() == 0x2 {
             x87_1(
-                crate::physics::store::asm_base() as usize,
                 crate::race::store::asm_base() as usize,
-                0x35B3C8,
-                0x35B6F0,
+                &DAMAGE.flt_75b3c8,
+                &DAMAGE.figures[30],
                 0x31A310,
                 0x31A310,
             );
-            hold_low(0x71A310, 0x75B350);
-            hold_high(0x71A310, 0x75B34C);
+            hold_low(0x71A310, &DAMAGE.gauge_low);
+            hold_high(0x71A310, &DAMAGE.gauge_top);
         }
-        if g(0x75B3C4) == 0x3 {
+        if DAMAGE.dword_75b3c4.bits() == 0x3 {
             x87_1(
-                crate::physics::store::asm_base() as usize,
                 crate::race::store::asm_base() as usize,
-                0x35B3C8,
-                0x35B6F0,
+                &DAMAGE.flt_75b3c8,
+                &DAMAGE.figures[30],
                 0x31A314,
                 0x31A314,
             );
-            hold_low(0x71A314, 0x75B350);
-            hold_high(0x71A314, 0x75B34C);
+            hold_low(0x71A314, &DAMAGE.gauge_low);
+            hold_high(0x71A314, &DAMAGE.gauge_top);
         }
-        if g(0x75B3C4) == 0x4 {
+        if DAMAGE.dword_75b3c4.bits() == 0x4 {
             x87_1(
-                crate::physics::store::asm_base() as usize,
                 crate::race::store::asm_base() as usize,
-                0x35B3C8,
-                0x35B6F0,
+                &DAMAGE.flt_75b3c8,
+                &DAMAGE.figures[30],
                 0x31A318,
                 0x31A318,
             );
-            hold_low(0x71A318, 0x75B350);
-            hold_high(0x71A318, 0x75B34C);
+            hold_low(0x71A318, &DAMAGE.gauge_low);
+            hold_high(0x71A318, &DAMAGE.gauge_top);
         }
-        if g(0x75B3C4) == 0x1 {
+        if DAMAGE.dword_75b3c4.bits() == 0x1 {
             x87_1(
-                crate::physics::store::asm_base() as usize,
                 crate::race::store::asm_base() as usize,
-                0x35B3C8,
-                0x35B6E4,
+                &DAMAGE.flt_75b3c8,
+                &DAMAGE.figures[27],
                 0x31A29C,
                 0x31A29C,
             );
-            hold_low(0x71A29C, 0x75B350);
-            hold_high(0x71A29C, 0x75B34C);
+            hold_low(0x71A29C, &DAMAGE.gauge_low);
+            hold_high(0x71A29C, &DAMAGE.gauge_top);
         }
-        if g(0x75B3C4) == 0x2 {
+        if DAMAGE.dword_75b3c4.bits() == 0x2 {
             x87_1(
-                crate::physics::store::asm_base() as usize,
                 crate::race::store::asm_base() as usize,
-                0x35B3C8,
-                0x35B6E4,
+                &DAMAGE.flt_75b3c8,
+                &DAMAGE.figures[27],
                 0x31A29C,
                 0x31A29C,
             );
-            hold_low(0x71A29C, 0x75B350);
-            hold_high(0x71A29C, 0x75B34C);
+            hold_low(0x71A29C, &DAMAGE.gauge_low);
+            hold_high(0x71A29C, &DAMAGE.gauge_top);
         }
-        if g(0x75B3C4) == 0x1 {
+        if DAMAGE.dword_75b3c4.bits() == 0x1 {
             x87_1(
-                crate::physics::store::asm_base() as usize,
                 crate::race::store::asm_base() as usize,
-                0x35B3C8,
-                0x35B6E0,
+                &DAMAGE.flt_75b3c8,
+                &DAMAGE.figures[26],
                 0x31A290,
                 0x31A290,
             );
-            hold_low(0x71A290, 0x75B350);
-            hold_high(0x71A290, 0x75B34C);
+            hold_low(0x71A290, &DAMAGE.gauge_low);
+            hold_high(0x71A290, &DAMAGE.gauge_top);
         }
-        if g(0x75B3C4) == 0x2 {
+        if DAMAGE.dword_75b3c4.bits() == 0x2 {
             x87_1(
-                crate::physics::store::asm_base() as usize,
                 crate::race::store::asm_base() as usize,
-                0x35B3C8,
-                0x35B6E0,
+                &DAMAGE.flt_75b3c8,
+                &DAMAGE.figures[26],
                 0x31A290,
                 0x31A290,
             );
-            hold_low(0x71A290, 0x75B350);
-            hold_high(0x71A290, 0x75B34C);
+            hold_low(0x71A290, &DAMAGE.gauge_low);
+            hold_high(0x71A290, &DAMAGE.gauge_top);
         }
-        if g(0x75B3C4) == 0x1 {
+        if DAMAGE.dword_75b3c4.bits() == 0x1 {
             x87_1(
-                crate::physics::store::asm_base() as usize,
                 crate::race::store::asm_base() as usize,
-                0x35B3C8,
-                0x35B6EC,
+                &DAMAGE.flt_75b3c8,
+                &DAMAGE.figures[29],
                 0x31A320,
                 0x31A320,
             );
-            hold_low(0x71A320, 0x75B350);
-            hold_high(0x71A320, 0x75B34C);
+            hold_low(0x71A320, &DAMAGE.gauge_low);
+            hold_high(0x71A320, &DAMAGE.gauge_top);
         }
-        if g(0x75B3C4) == 0x2 {
+        if DAMAGE.dword_75b3c4.bits() == 0x2 {
             x87_1(
-                crate::physics::store::asm_base() as usize,
                 crate::race::store::asm_base() as usize,
-                0x35B3C8,
-                0x35B6EC,
+                &DAMAGE.flt_75b3c8,
+                &DAMAGE.figures[29],
                 0x31A320,
                 0x31A320,
             );
-            hold_low(0x71A320, 0x75B350);
-            hold_high(0x71A320, 0x75B34C);
+            hold_low(0x71A320, &DAMAGE.gauge_low);
+            hold_high(0x71A320, &DAMAGE.gauge_top);
         }
-        if g(0x75B3C4) == 0x3 {
+        if DAMAGE.dword_75b3c4.bits() == 0x3 {
             x87_1(
-                crate::physics::store::asm_base() as usize,
                 crate::race::store::asm_base() as usize,
-                0x35B3C8,
-                0x35B6EC,
+                &DAMAGE.flt_75b3c8,
+                &DAMAGE.figures[29],
                 0x31A324,
                 0x31A324,
             );
-            hold_low(0x71A324, 0x75B350);
-            hold_high(0x71A324, 0x75B34C);
+            hold_low(0x71A324, &DAMAGE.gauge_low);
+            hold_high(0x71A324, &DAMAGE.gauge_top);
         }
-        if g(0x75B3C4) == 0x4 {
+        if DAMAGE.dword_75b3c4.bits() == 0x4 {
             x87_1(
-                crate::physics::store::asm_base() as usize,
                 crate::race::store::asm_base() as usize,
-                0x35B3C8,
-                0x35B6EC,
+                &DAMAGE.flt_75b3c8,
+                &DAMAGE.figures[29],
                 0x31A324,
                 0x31A324,
             );
-            hold_low(0x71A324, 0x75B350);
-            hold_high(0x71A324, 0x75B34C);
+            hold_low(0x71A324, &DAMAGE.gauge_low);
+            hold_high(0x71A324, &DAMAGE.gauge_top);
         }
     }
     x87_5(
-        crate::physics::store::asm_base() as usize,
         crate::race::store::asm_base() as usize,
-        0x35B3CC,
-        0x35B6B0,
-        0x35B370,
+        &DAMAGE.wheel_loads[0],
+        &DAMAGE.figures[14],
+        &DAMAGE.flt_75b370,
         0x31A30C,
         0x31A30C,
     );
-    hold_low(0x71A30C, 0x75B350);
-    hold_high(0x71A30C, 0x75B34C);
+    hold_low(0x71A30C, &DAMAGE.gauge_low);
+    hold_high(0x71A30C, &DAMAGE.gauge_top);
     x87_5(
-        crate::physics::store::asm_base() as usize,
         crate::race::store::asm_base() as usize,
-        0x35B3D0,
-        0x35B6B0,
-        0x35B370,
+        &DAMAGE.wheel_loads[1],
+        &DAMAGE.figures[14],
+        &DAMAGE.flt_75b370,
         0x31A310,
         0x31A310,
     );
-    hold_low(0x71A310, 0x75B350);
-    hold_high(0x71A310, 0x75B34C);
+    hold_low(0x71A310, &DAMAGE.gauge_low);
+    hold_high(0x71A310, &DAMAGE.gauge_top);
     x87_5(
-        crate::physics::store::asm_base() as usize,
         crate::race::store::asm_base() as usize,
-        0x35B3D4,
-        0x35B6B0,
-        0x35B370,
+        &DAMAGE.wheel_loads[2],
+        &DAMAGE.figures[14],
+        &DAMAGE.flt_75b370,
         0x31A314,
         0x31A314,
     );
-    hold_low(0x71A314, 0x75B350);
-    hold_high(0x71A314, 0x75B34C);
+    hold_low(0x71A314, &DAMAGE.gauge_low);
+    hold_high(0x71A314, &DAMAGE.gauge_top);
     x87_5(
-        crate::physics::store::asm_base() as usize,
         crate::race::store::asm_base() as usize,
-        0x35B3D8,
-        0x35B6B0,
-        0x35B370,
+        &DAMAGE.wheel_loads[3],
+        &DAMAGE.figures[14],
+        &DAMAGE.flt_75b370,
         0x31A318,
         0x31A318,
     );
-    hold_low(0x71A318, 0x75B350);
-    hold_high(0x71A318, 0x75B34C);
+    hold_low(0x71A318, &DAMAGE.gauge_low);
+    hold_high(0x71A318, &DAMAGE.gauge_top);
     x87_5(
-        crate::physics::store::asm_base() as usize,
         crate::race::store::asm_base() as usize,
-        0x35B3DC,
-        0x35B6B4,
-        0x35B370,
+        &DAMAGE.flt_75b3dc,
+        &DAMAGE.figures[15],
+        &DAMAGE.flt_75b370,
         0x31A294,
         0x31A294,
     );
-    hold_low(0x71A294, 0x75B350);
-    hold_high(0x71A294, 0x75B34C);
+    hold_low(0x71A294, &DAMAGE.gauge_low);
+    hold_high(0x71A294, &DAMAGE.gauge_top);
     x87_5(
-        crate::physics::store::asm_base() as usize,
         crate::race::store::asm_base() as usize,
-        0x35B3DC,
-        0x35B6B8,
-        0x35B370,
+        &DAMAGE.flt_75b3dc,
+        &DAMAGE.figures[16],
+        &DAMAGE.flt_75b370,
         0x31A308,
         0x31A308,
     );
-    hold_low(0x71A308, 0x75B350);
-    hold_high(0x71A308, 0x75B34C);
-    x87_13(
-        crate::race::store::asm_base() as usize,
-        crate::physics::store::asm_base() as usize,
-    );
-    if g(0x75B3E4) == 0x0 {
+    hold_low(0x71A308, &DAMAGE.gauge_low);
+    hold_high(0x71A308, &DAMAGE.gauge_top);
+    x87_13(crate::race::store::asm_base() as usize, &DAMAGE);
+    if DAMAGE.flt_75b3e4.bits() == 0x0 {
         p(0x71A298, 0x0);
     }
     // retn
@@ -1213,12 +1097,11 @@ pub fn steps() {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + o3] = ([m + o0] * [m + o1]) + [rc + o2]`
-fn x87_1(m: usize, rc: usize, o0: usize, o1: usize, o2: usize, o3: usize) {
+fn x87_1(rc: usize, o0: &impl Cell32, o1: &impl Cell32, o2: usize, o3: usize) {
     unsafe {
-        let m = m as *const u8;
         let rc = rc as *mut u8;
-        let t0 = fld(m, o0);
-        let t1 = fld(m, o1);
+        let t0 = ld(o0.bits());
+        let t1 = ld(o1.bits());
         let t2 = t0 * t1;
         let t3 = fld(rc, o2);
         let t4 = t2 + t3;
@@ -1229,16 +1112,23 @@ fn x87_1(m: usize, rc: usize, o0: usize, o1: usize, o2: usize, o3: usize) {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + o5] = ((([m + o0] * [m + o1]) * [m + o2]) * [m + 0x35B38C]) + [rc + o4]`
-fn x87_2(m: usize, rc: usize, o0: usize, o1: usize, o2: usize, o4: usize, o5: usize) {
+fn x87_2(
+    m: &DamageModel,
+    rc: usize,
+    o0: &impl Cell32,
+    o1: &impl Cell32,
+    o2: &impl Cell32,
+    o4: usize,
+    o5: usize,
+) {
     unsafe {
-        let m = m as *const u8;
         let rc = rc as *mut u8;
-        let t0 = fld(m, o0);
-        let t1 = fld(m, o1);
+        let t0 = ld(o0.bits());
+        let t1 = ld(o1.bits());
         let t2 = t0 * t1;
-        let t3 = fld(m, o2);
+        let t3 = ld(o2.bits());
         let t4 = t2 * t3;
-        let t5 = fld(m, 0x35B38C);
+        let t5 = ld(m.flt_75b38c.bits());
         let t6 = t4 * t5;
         let t7 = fld(rc, o4);
         let t8 = t6 + t7;
@@ -1249,15 +1139,14 @@ fn x87_2(m: usize, rc: usize, o0: usize, o1: usize, o2: usize, o4: usize, o5: us
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[v + 0] = ((([m + 0x35B398] * [m + 0x35B5A8]) * [m + 0x35B370]) * [t + 0]) + [v + 0]`
-fn x87_3(m: usize, t: usize, v: usize) {
+fn x87_3(m: &DamageModel, t: usize, v: usize) {
     unsafe {
-        let m = m as *const u8;
         let t = t as *const u8;
         let v = v as *mut u8;
-        let t0 = fld(m, 0x35B398);
-        let t1 = fld(m, 0x35B5A8);
+        let t0 = ld(m.flt_75b398.bits());
+        let t1 = ld(m.wear_rates[12].bits());
         let t2 = t0 * t1;
-        let t3 = fld(m, 0x35B370);
+        let t3 = ld(m.flt_75b370.bits());
         let t4 = t2 * t3;
         let t5 = fld(t, 0);
         let t6 = t4 * t5;
@@ -1271,20 +1160,19 @@ fn x87_3(m: usize, t: usize, v: usize) {
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[m + 0x35B43C] = 1 - [m + 0x35B400]`
 /// `[rc + 0x31A320] = ((([m + 0x35B5F4] * [m + 0x35B400]) * [m + 0x35B3B0]) * [m + 0x35B38C]) + [rc + 0x31A320]`
-fn x87_4(m: usize, rc: usize) {
+fn x87_4(m: &DamageModel, rc: usize) {
     unsafe {
-        let m = m as *mut u8;
         let rc = rc as *mut u8;
         let t0 = X(1.0);
-        let t1 = fld(m, 0x35B400);
+        let t1 = ld(m.flt_75b400.bits());
         let t2 = t0 - t1;
-        fstp(m, 0x35B43C, t2);
-        let t3 = fld(m, 0x35B5F4);
-        let t4 = fld(m, 0x35B400);
+        m.flt_75b43c.set_bits(st(t2));
+        let t3 = ld(m.gauge_rates[9].bits());
+        let t4 = ld(m.flt_75b400.bits());
         let t5 = t3 * t4;
-        let t6 = fld(m, 0x35B3B0);
+        let t6 = ld(m.flt_75b3b0.bits());
         let t7 = t5 * t6;
-        let t8 = fld(m, 0x35B38C);
+        let t8 = ld(m.flt_75b38c.bits());
         let t9 = t7 * t8;
         let t10 = fld(rc, 0x31A320);
         let t11 = t9 + t10;
@@ -1295,14 +1183,13 @@ fn x87_4(m: usize, rc: usize) {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + o4] = (([m + o0] * [m + o1]) * [m + o2]) + [rc + o3]`
-fn x87_5(m: usize, rc: usize, o0: usize, o1: usize, o2: usize, o3: usize, o4: usize) {
+fn x87_5(rc: usize, o0: &impl Cell32, o1: &impl Cell32, o2: &impl Cell32, o3: usize, o4: usize) {
     unsafe {
-        let m = m as *const u8;
         let rc = rc as *mut u8;
-        let t0 = fld(m, o0);
-        let t1 = fld(m, o1);
+        let t0 = ld(o0.bits());
+        let t1 = ld(o1.bits());
         let t2 = t0 * t1;
-        let t3 = fld(m, o2);
+        let t3 = ld(o2.bits());
         let t4 = t2 * t3;
         let t5 = fld(rc, o3);
         let t6 = t4 + t5;
@@ -1314,54 +1201,49 @@ fn x87_5(m: usize, rc: usize, o0: usize, o1: usize, o2: usize, o3: usize, o4: us
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[m + 0x35B488] = (([m + 0x35B39C] / ([m + 0x35B484] * [m + 0x35B380])) * [m + 0x35B34C]) * [m + 0x35B3F4]`
 /// `[m + 0x35B48C] = (([m + 0x35B39C] / ([m + 0x35B484] * [m + 0x35B380])) * [m + 0x35B34C]) * [m + 0x35B3F4]`
-fn x87_6(m: usize) {
-    unsafe {
-        let m = m as *mut u8;
-        let t0 = fld(m, 0x35B39C);
-        let t1 = fld(m, 0x35B484);
-        let t2 = fld(m, 0x35B380);
-        let t3 = t1 * t2;
-        let t4 = t0 / t3;
-        let t5 = fld(m, 0x35B34C);
-        let t6 = t4 * t5;
-        let t7 = fld(m, 0x35B3F4);
-        let t8 = t6 * t7;
-        fstp(m, 0x35B488, t8);
-        fstp(m, 0x35B48C, t8);
-    }
+fn x87_6(m: &DamageModel) {
+    let t0 = ld(m.flt_75b39c.bits());
+    let t1 = ld(m.flt_75b484.bits());
+    let t2 = ld(m.flt_75b380.bits());
+    let t3 = t1 * t2;
+    let t4 = t0 / t3;
+    let t5 = ld(m.gauge_top.bits());
+    let t6 = t4 * t5;
+    let t7 = ld(m.flt_75b3f4.bits());
+    let t8 = t6 * t7;
+    m.flt_75b488.set_bits(st(t8));
+    m.flt_75b48c.set_bits(st(t8));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[m + 0x35B488] = [m + 0x35B488] * [t + 0]`
 /// `[m + 0x35B48C] = [m + 0x35B48C] * [u + 0]`
-fn x87_7(m: usize, t: usize, u: usize) {
+fn x87_7(m: &DamageModel, t: usize, u: usize) {
     unsafe {
-        let m = m as *mut u8;
         let t = t as *const u8;
         let u = u as *const u8;
-        let t0 = fld(m, 0x35B488);
+        let t0 = ld(m.flt_75b488.bits());
         let t1 = fld(t, 0);
         let t2 = t0 * t1;
-        fstp(m, 0x35B488, t2);
-        let t3 = fld(m, 0x35B48C);
+        m.flt_75b488.set_bits(st(t2));
+        let t3 = ld(m.flt_75b48c.bits());
         let t4 = fld(u, 0);
         let t5 = t3 * t4;
-        fstp(m, 0x35B48C, t5);
+        m.flt_75b48c.set_bits(st(t5));
     }
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x31A290] = (([rc + 0x31A28C] * [m + 0x35B608]) * [m + 0x35B370]) + [rc + 0x31A290]`
-fn x87_8(rc: usize, m: usize) {
+fn x87_8(rc: usize, m: &DamageModel) {
     unsafe {
         let rc = rc as *mut u8;
-        let m = m as *const u8;
         let t0 = fld(rc, 0x31A28C);
-        let t1 = fld(m, 0x35B608);
+        let t1 = ld(m.gauge_rates[14].bits());
         let t2 = t0 * t1;
-        let t3 = fld(m, 0x35B370);
+        let t3 = ld(m.flt_75b370.bits());
         let t4 = t2 * t3;
         let t5 = fld(rc, 0x31A290);
         let t6 = t4 + t5;
@@ -1372,12 +1254,11 @@ fn x87_8(rc: usize, m: usize) {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x31A2A0] = [rc + 0x31A2A0] + [m + o1]`
-fn x87_9(rc: usize, m: usize, o1: usize) {
+fn x87_9(rc: usize, o1: &impl Cell32) {
     unsafe {
         let rc = rc as *mut u8;
-        let m = m as *const u8;
         let t0 = fld(rc, 0x31A2A0);
-        let t1 = fld(m, o1);
+        let t1 = ld(o1.bits());
         let t2 = t0 + t1;
         fstp(rc, 0x31A2A0, t2);
     }
@@ -1386,12 +1267,11 @@ fn x87_9(rc: usize, m: usize, o1: usize) {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[v + 0] = [v + 0] + [m + o1]`
-fn x87_10(v: usize, m: usize, o1: usize) {
+fn x87_10(v: usize, o1: &impl Cell32) {
     unsafe {
         let v = v as *mut u8;
-        let m = m as *const u8;
         let t0 = fld(v, 0);
-        let t1 = fld(m, o1);
+        let t1 = ld(o1.bits());
         let t2 = t0 + t1;
         fstp(v, 0, t2);
     }
@@ -1400,26 +1280,24 @@ fn x87_10(v: usize, m: usize, o1: usize) {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[m + 0x35B3C8] = [m + 0x35B3C8] * [rc + 0x31C708]`
-fn x87_11(m: usize, rc: usize) {
+fn x87_11(m: &DamageModel, rc: usize) {
     unsafe {
-        let m = m as *mut u8;
         let rc = rc as *const u8;
-        let t0 = fld(m, 0x35B3C8);
+        let t0 = ld(m.flt_75b3c8.bits());
         let t1 = fld(rc, 0x31C708);
         let t2 = t0 * t1;
-        fstp(m, 0x35B3C8, t2);
+        m.flt_75b3c8.set_bits(st(t2));
     }
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[v + 0] = ([m + 0x35B3C8] * [m + 0x35B6CC]) + [v + 0]`
-fn x87_12(m: usize, v: usize) {
+fn x87_12(m: &DamageModel, v: usize) {
     unsafe {
-        let m = m as *const u8;
         let v = v as *mut u8;
-        let t0 = fld(m, 0x35B3C8);
-        let t1 = fld(m, 0x35B6CC);
+        let t0 = ld(m.flt_75b3c8.bits());
+        let t1 = ld(m.figures[21].bits());
         let t2 = t0 * t1;
         let t3 = fld(v, 0);
         let t4 = t2 + t3;
@@ -1438,10 +1316,9 @@ fn x87_12(m: usize, v: usize) {
 /// (a long formula: see the instructions in the tests' `asm_reference`)
 /// `[rc + 0x31A31C] = ((([rc + 0x31A30C] + [rc + 0x31A310]) + [rc + 0x31A314]) + [rc + 0x31A318]) * [m + 0x35B364]`
 /// `[rc + 0x31A430] = ((([rc + 0x31A420] + [rc + 0x31A424]) + [rc + 0x31A428]) + [rc + 0x31A42C]) * [m + 0x35B364]`
-fn x87_13(rc: usize, m: usize) {
+fn x87_13(rc: usize, m: &DamageModel) {
     unsafe {
         let rc = rc as *mut u8;
-        let m = m as *mut u8;
         let t0 = fld(rc, 0x31A2EC);
         let t1 = fld(rc, 0x31A2F0);
         let t2 = t0 + t1;
@@ -1453,31 +1330,31 @@ fn x87_13(rc: usize, m: usize) {
         let t8 = t6 + t7;
         let t9 = fld(rc, 0x31A2FC);
         let t10 = t8 + t9;
-        let t11 = fld(m, 0x35B344);
+        let t11 = ld(m.flt_75b344.bits());
         let t12 = t10 / t11;
         fstp(rc, 0x31A304, t12);
         let t13 = fld(rc, 0x31A320);
         let t14 = fld(rc, 0x31A324);
         let t15 = t13 + t14;
-        let t16 = fld(m, 0x35B360);
+        let t16 = ld(m.flt_75b360.bits());
         let t17 = t15 * t16;
         fstp(rc, 0x31A328, t17);
         let t18 = fld(rc, 0x31A32C);
         let t19 = fld(rc, 0x31A330);
         let t20 = t18 + t19;
-        let t21 = fld(m, 0x35B360);
+        let t21 = ld(m.flt_75b360.bits());
         let t22 = t20 * t21;
-        fstp(m, 0x35B440, t22);
+        m.flt_75b440.set_bits(st(t22));
         let t23 = fld(rc, 0x31A334);
         let t24 = fld(rc, 0x31A338);
         let t25 = t23 + t24;
-        let t26 = fld(m, 0x35B360);
+        let t26 = ld(m.flt_75b360.bits());
         let t27 = t25 * t26;
-        fstp(m, 0x35B444, t27);
-        let t28 = fld(m, 0x35B440);
-        let t29 = fld(m, 0x35B444);
+        m.flt_75b444.set_bits(st(t27));
+        let t28 = ld(m.flt_75b440.bits());
+        let t29 = ld(m.flt_75b444.bits());
         let t30 = t28 + t29;
-        let t31 = fld(m, 0x35B360);
+        let t31 = ld(m.flt_75b360.bits());
         let t32 = t30 * t31;
         fstp(rc, 0x31A33C, t32);
         let t33 = fld(rc, 0x31A2A8);
@@ -1495,11 +1372,11 @@ fn x87_13(rc: usize, m: usize) {
         let t45 = t43 + t44;
         let t46 = fld(rc, 0x31A2C8);
         let t47 = t45 + t46;
-        let t48 = fld(m, 0x35B360);
+        let t48 = ld(m.flt_75b360.bits());
         let t49 = t47 * t48;
-        let t50 = fld(m, 0x35B360);
+        let t50 = ld(m.flt_75b360.bits());
         let t51 = t49 * t50;
-        let t52 = fld(m, 0x35B360);
+        let t52 = ld(m.flt_75b360.bits());
         let t53 = t51 * t52;
         fstp(rc, 0x31A2CC, t53);
         let t54 = fld(rc, 0x31A2D0);
@@ -1521,7 +1398,7 @@ fn x87_13(rc: usize, m: usize) {
         let t70 = t68 + t69;
         let t71 = fld(rc, 0x31A2E0);
         let t72 = t70 + t71;
-        let t73 = fld(m, 0x35B368);
+        let t73 = ld(m.flt_75b368.bits());
         let t74 = t72 * t73;
         fstp(rc, 0x31A2E4, t74);
         let t75 = fld(rc, 0x31A30C);
@@ -1531,7 +1408,7 @@ fn x87_13(rc: usize, m: usize) {
         let t79 = t77 + t78;
         let t80 = fld(rc, 0x31A318);
         let t81 = t79 + t80;
-        let t82 = fld(m, 0x35B364);
+        let t82 = ld(m.flt_75b364.bits());
         let t83 = t81 * t82;
         fstp(rc, 0x31A31C, t83);
         let t84 = fld(rc, 0x31A420);
@@ -1541,7 +1418,7 @@ fn x87_13(rc: usize, m: usize) {
         let t88 = t86 + t87;
         let t89 = fld(rc, 0x31A42C);
         let t90 = t88 + t89;
-        let t91 = fld(m, 0x35B364);
+        let t91 = ld(m.flt_75b364.bits());
         let t92 = t90 * t91;
         fstp(rc, 0x31A430, t92);
     }
@@ -1550,6 +1427,12 @@ fn x87_13(rc: usize, m: usize) {
 #[cfg(test)]
 mod asm_reference {
     use super::*;
+
+    /// The damage model as the test's buffer holds it (the buffer's base plus the RVA of
+    /// 0x75B340).
+    fn dm(base: usize) -> &'static DamageModel {
+        unsafe { &*((base + 0x35B340) as *const DamageModel) }
+    }
     use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
 
     // The original's instructions, one function per run.
@@ -1681,7 +1564,15 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_0(a[0], a[1]) },
-                plain: |a| x87_1(a[0], a[1], 0x35B5D0, 0x35B38C, 0x31A290, 0x31A290),
+                plain: |a| {
+                    x87_1(
+                        a[1],
+                        &dm(a[0]).gauge_rates[0],
+                        &dm(a[0]).flt_75b38c,
+                        0x31A290,
+                        0x31A290,
+                    )
+                },
             },
             Block {
                 name: "damage_gauges line 55",
@@ -1697,7 +1588,15 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_1(a[0], a[1]) },
-                plain: |a| x87_1(a[0], a[1], 0x35B5D4, 0x35B38C, 0x31A294, 0x31A294),
+                plain: |a| {
+                    x87_1(
+                        a[1],
+                        &dm(a[0]).gauge_rates[1],
+                        &dm(a[0]).flt_75b38c,
+                        0x31A294,
+                        0x31A294,
+                    )
+                },
             },
             Block {
                 name: "damage_gauges line 65",
@@ -1713,7 +1612,15 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_2(a[0], a[1]) },
-                plain: |a| x87_1(a[0], a[1], 0x35B5D8, 0x35B38C, 0x31A29C, 0x31A29C),
+                plain: |a| {
+                    x87_1(
+                        a[1],
+                        &dm(a[0]).gauge_rates[2],
+                        &dm(a[0]).flt_75b38c,
+                        0x31A29C,
+                        0x31A29C,
+                    )
+                },
             },
             Block {
                 name: "damage_gauges line 75",
@@ -1729,7 +1636,15 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_3(a[0], a[1]) },
-                plain: |a| x87_1(a[0], a[1], 0x35B5DC, 0x35B38C, 0x31A2A0, 0x31A2A0),
+                plain: |a| {
+                    x87_1(
+                        a[1],
+                        &dm(a[0]).gauge_rates[3],
+                        &dm(a[0]).flt_75b38c,
+                        0x31A2A0,
+                        0x31A2A0,
+                    )
+                },
             },
             Block {
                 name: "damage_gauges line 85",
@@ -1745,7 +1660,15 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_4(a[0], a[1]) },
-                plain: |a| x87_1(a[0], a[1], 0x35B5E0, 0x35B38C, 0x31A2A4, 0x31A2A4),
+                plain: |a| {
+                    x87_1(
+                        a[1],
+                        &dm(a[0]).gauge_rates[4],
+                        &dm(a[0]).flt_75b38c,
+                        0x31A2A4,
+                        0x31A2A4,
+                    )
+                },
             },
             Block {
                 name: "damage_gauges line 95",
@@ -1761,7 +1684,15 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_5(a[0], a[1]) },
-                plain: |a| x87_1(a[0], a[1], 0x35B5E4, 0x35B38C, 0x31A2E8, 0x31A2E8),
+                plain: |a| {
+                    x87_1(
+                        a[1],
+                        &dm(a[0]).gauge_rates[5],
+                        &dm(a[0]).flt_75b38c,
+                        0x31A2E8,
+                        0x31A2E8,
+                    )
+                },
             },
             Block {
                 name: "damage_gauges line 105",
@@ -1777,7 +1708,15 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_6(a[0], a[1]) },
-                plain: |a| x87_1(a[0], a[1], 0x35B5E8, 0x35B38C, 0x31A2EC, 0x31A2EC),
+                plain: |a| {
+                    x87_1(
+                        a[1],
+                        &dm(a[0]).gauge_rates[6],
+                        &dm(a[0]).flt_75b38c,
+                        0x31A2EC,
+                        0x31A2EC,
+                    )
+                },
             },
             Block {
                 name: "damage_gauges line 115",
@@ -1793,7 +1732,15 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_7(a[0], a[1]) },
-                plain: |a| x87_1(a[0], a[1], 0x35B5E8, 0x35B38C, 0x31A2F0, 0x31A2F0),
+                plain: |a| {
+                    x87_1(
+                        a[1],
+                        &dm(a[0]).gauge_rates[6],
+                        &dm(a[0]).flt_75b38c,
+                        0x31A2F0,
+                        0x31A2F0,
+                    )
+                },
             },
             Block {
                 name: "damage_gauges line 125",
@@ -1809,7 +1756,15 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_8(a[0], a[1]) },
-                plain: |a| x87_1(a[0], a[1], 0x35B5E8, 0x35B38C, 0x31A2F4, 0x31A2F4),
+                plain: |a| {
+                    x87_1(
+                        a[1],
+                        &dm(a[0]).gauge_rates[6],
+                        &dm(a[0]).flt_75b38c,
+                        0x31A2F4,
+                        0x31A2F4,
+                    )
+                },
             },
             Block {
                 name: "damage_gauges line 135",
@@ -1825,7 +1780,15 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_9(a[0], a[1]) },
-                plain: |a| x87_1(a[0], a[1], 0x35B5E8, 0x35B38C, 0x31A2F8, 0x31A2F8),
+                plain: |a| {
+                    x87_1(
+                        a[1],
+                        &dm(a[0]).gauge_rates[6],
+                        &dm(a[0]).flt_75b38c,
+                        0x31A2F8,
+                        0x31A2F8,
+                    )
+                },
             },
             Block {
                 name: "damage_gauges line 145",
@@ -1841,7 +1804,15 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_10(a[0], a[1]) },
-                plain: |a| x87_1(a[0], a[1], 0x35B5E8, 0x35B38C, 0x31A2FC, 0x31A2FC),
+                plain: |a| {
+                    x87_1(
+                        a[1],
+                        &dm(a[0]).gauge_rates[6],
+                        &dm(a[0]).flt_75b38c,
+                        0x31A2FC,
+                        0x31A2FC,
+                    )
+                },
             },
             Block {
                 name: "damage_gauges line 155",
@@ -1857,7 +1828,15 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_11(a[0], a[1]) },
-                plain: |a| x87_1(a[0], a[1], 0x35B5E8, 0x35B38C, 0x31A300, 0x31A300),
+                plain: |a| {
+                    x87_1(
+                        a[1],
+                        &dm(a[0]).gauge_rates[6],
+                        &dm(a[0]).flt_75b38c,
+                        0x31A300,
+                        0x31A300,
+                    )
+                },
             },
             Block {
                 name: "damage_gauges line 165",
@@ -1873,7 +1852,15 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_12(a[0], a[1]) },
-                plain: |a| x87_1(a[0], a[1], 0x35B5EC, 0x35B38C, 0x31A308, 0x31A308),
+                plain: |a| {
+                    x87_1(
+                        a[1],
+                        &dm(a[0]).gauge_rates[7],
+                        &dm(a[0]).flt_75b38c,
+                        0x31A308,
+                        0x31A308,
+                    )
+                },
             },
             Block {
                 name: "damage_gauges line 175",
@@ -1889,7 +1876,15 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_13(a[0], a[1]) },
-                plain: |a| x87_1(a[0], a[1], 0x35B5F0, 0x35B38C, 0x31A30C, 0x31A30C),
+                plain: |a| {
+                    x87_1(
+                        a[1],
+                        &dm(a[0]).gauge_rates[8],
+                        &dm(a[0]).flt_75b38c,
+                        0x31A30C,
+                        0x31A30C,
+                    )
+                },
             },
             Block {
                 name: "damage_gauges line 185",
@@ -1905,7 +1900,15 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_14(a[0], a[1]) },
-                plain: |a| x87_1(a[0], a[1], 0x35B5F0, 0x35B38C, 0x31A310, 0x31A310),
+                plain: |a| {
+                    x87_1(
+                        a[1],
+                        &dm(a[0]).gauge_rates[8],
+                        &dm(a[0]).flt_75b38c,
+                        0x31A310,
+                        0x31A310,
+                    )
+                },
             },
             Block {
                 name: "damage_gauges line 195",
@@ -1921,7 +1924,15 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_15(a[0], a[1]) },
-                plain: |a| x87_1(a[0], a[1], 0x35B5F0, 0x35B38C, 0x31A314, 0x31A314),
+                plain: |a| {
+                    x87_1(
+                        a[1],
+                        &dm(a[0]).gauge_rates[8],
+                        &dm(a[0]).flt_75b38c,
+                        0x31A314,
+                        0x31A314,
+                    )
+                },
             },
             Block {
                 name: "damage_gauges line 205",
@@ -1937,7 +1948,15 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_16(a[0], a[1]) },
-                plain: |a| x87_1(a[0], a[1], 0x35B5F0, 0x35B38C, 0x31A318, 0x31A318),
+                plain: |a| {
+                    x87_1(
+                        a[1],
+                        &dm(a[0]).gauge_rates[8],
+                        &dm(a[0]).flt_75b38c,
+                        0x31A318,
+                        0x31A318,
+                    )
+                },
             },
             Block {
                 name: "damage_gauges line 215",
@@ -1958,7 +1977,17 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_17(a[0], a[1]) },
-                plain: |a| x87_2(a[0], a[1], 0x35B5A4, 0x35B3C0, 0x35B398, 0x31A298, 0x31A298),
+                plain: |a| {
+                    x87_2(
+                        dm(a[0]),
+                        a[1],
+                        &dm(a[0]).wear_rates[11],
+                        &dm(a[0]).flt_75b3c0,
+                        &dm(a[0]).flt_75b398,
+                        0x31A298,
+                        0x31A298,
+                    )
+                },
             },
             Block {
                 name: "damage_gauges line 229",
@@ -1978,7 +2007,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_18(a[0], a[1], a[2]) },
-                plain: |a| x87_3(a[0], a[1], a[2]),
+                plain: |a| x87_3(dm(a[0]), a[1], a[2]),
             },
             Block {
                 name: "damage_gauges line 239",
@@ -1999,7 +2028,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_19(a[0], a[1]) },
-                plain: |a| x87_4(a[0], a[1]),
+                plain: |a| x87_4(dm(a[0]), a[1]),
             },
             Block {
                 name: "damage_gauges line 254",
@@ -2020,7 +2049,17 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_20(a[0], a[1]) },
-                plain: |a| x87_2(a[0], a[1], 0x35B5F4, 0x35B43C, 0x35B3B0, 0x31A324, 0x31A324),
+                plain: |a| {
+                    x87_2(
+                        dm(a[0]),
+                        a[1],
+                        &dm(a[0]).gauge_rates[9],
+                        &dm(a[0]).flt_75b43c,
+                        &dm(a[0]).flt_75b3b0,
+                        0x31A324,
+                        0x31A324,
+                    )
+                },
             },
             Block {
                 name: "damage_gauges line 266",
@@ -2036,7 +2075,16 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_21(a[0], a[1]) },
-                plain: |a| x87_5(a[0], a[1], 0x35B5F8, 0x35B3B4, 0x35B38C, 0x31A2E8, 0x31A2E8),
+                plain: |a| {
+                    x87_5(
+                        a[1],
+                        &dm(a[0]).gauge_rates[10],
+                        &dm(a[0]).flt_75b3b4,
+                        &dm(a[0]).flt_75b38c,
+                        0x31A2E8,
+                        0x31A2E8,
+                    )
+                },
             },
             Block {
                 name: "damage_gauges line 277",
@@ -2052,7 +2100,16 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_22(a[0], a[1]) },
-                plain: |a| x87_5(a[0], a[1], 0x35B5FC, 0x35B3B4, 0x35B38C, 0x31A2EC, 0x31A2EC),
+                plain: |a| {
+                    x87_5(
+                        a[1],
+                        &dm(a[0]).gauge_rates[11],
+                        &dm(a[0]).flt_75b3b4,
+                        &dm(a[0]).flt_75b38c,
+                        0x31A2EC,
+                        0x31A2EC,
+                    )
+                },
             },
             Block {
                 name: "damage_gauges line 288",
@@ -2068,7 +2125,16 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_23(a[0], a[1]) },
-                plain: |a| x87_5(a[0], a[1], 0x35B5FC, 0x35B3B4, 0x35B38C, 0x31A2F0, 0x31A2F0),
+                plain: |a| {
+                    x87_5(
+                        a[1],
+                        &dm(a[0]).gauge_rates[11],
+                        &dm(a[0]).flt_75b3b4,
+                        &dm(a[0]).flt_75b38c,
+                        0x31A2F0,
+                        0x31A2F0,
+                    )
+                },
             },
             Block {
                 name: "damage_gauges line 299",
@@ -2084,7 +2150,16 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_24(a[0], a[1]) },
-                plain: |a| x87_5(a[0], a[1], 0x35B5FC, 0x35B3B4, 0x35B38C, 0x31A2F4, 0x31A2F4),
+                plain: |a| {
+                    x87_5(
+                        a[1],
+                        &dm(a[0]).gauge_rates[11],
+                        &dm(a[0]).flt_75b3b4,
+                        &dm(a[0]).flt_75b38c,
+                        0x31A2F4,
+                        0x31A2F4,
+                    )
+                },
             },
             Block {
                 name: "damage_gauges line 310",
@@ -2100,7 +2175,16 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_25(a[0], a[1]) },
-                plain: |a| x87_5(a[0], a[1], 0x35B5FC, 0x35B3B4, 0x35B38C, 0x31A2F8, 0x31A2F8),
+                plain: |a| {
+                    x87_5(
+                        a[1],
+                        &dm(a[0]).gauge_rates[11],
+                        &dm(a[0]).flt_75b3b4,
+                        &dm(a[0]).flt_75b38c,
+                        0x31A2F8,
+                        0x31A2F8,
+                    )
+                },
             },
             Block {
                 name: "damage_gauges line 321",
@@ -2116,7 +2200,16 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_26(a[0], a[1]) },
-                plain: |a| x87_5(a[0], a[1], 0x35B5FC, 0x35B3B4, 0x35B38C, 0x31A2FC, 0x31A2FC),
+                plain: |a| {
+                    x87_5(
+                        a[1],
+                        &dm(a[0]).gauge_rates[11],
+                        &dm(a[0]).flt_75b3b4,
+                        &dm(a[0]).flt_75b38c,
+                        0x31A2FC,
+                        0x31A2FC,
+                    )
+                },
             },
             Block {
                 name: "damage_gauges line 332",
@@ -2132,7 +2225,16 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_27(a[0], a[1]) },
-                plain: |a| x87_5(a[0], a[1], 0x35B5FC, 0x35B3B4, 0x35B38C, 0x31A300, 0x31A300),
+                plain: |a| {
+                    x87_5(
+                        a[1],
+                        &dm(a[0]).gauge_rates[11],
+                        &dm(a[0]).flt_75b3b4,
+                        &dm(a[0]).flt_75b38c,
+                        0x31A300,
+                        0x31A300,
+                    )
+                },
             },
             Block {
                 name: "damage_gauges line 343",
@@ -2148,7 +2250,7 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_28(a[0]) },
-                plain: |a| x87_6(a[0]),
+                plain: |a| x87_6(dm(a[0])),
             },
             Block {
                 name: "damage_gauges line 355",
@@ -2168,7 +2270,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_29(a[0], a[1], a[2]) },
-                plain: |a| x87_7(a[0], a[1], a[2]),
+                plain: |a| x87_7(dm(a[0]), a[1], a[2]),
             },
             Block {
                 name: "damage_gauges line 365",
@@ -2184,7 +2286,16 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_30(a[0], a[1]) },
-                plain: |a| x87_5(a[0], a[1], 0x35B46C, 0x35B488, 0x35B370, 0x31A32C, 0x31A32C),
+                plain: |a| {
+                    x87_5(
+                        a[1],
+                        &dm(a[0]).flt_75b46c,
+                        &dm(a[0]).flt_75b488,
+                        &dm(a[0]).flt_75b370,
+                        0x31A32C,
+                        0x31A32C,
+                    )
+                },
             },
             Block {
                 name: "damage_gauges line 376",
@@ -2200,7 +2311,16 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_31(a[0], a[1]) },
-                plain: |a| x87_5(a[0], a[1], 0x35B46C, 0x35B488, 0x35B370, 0x31A330, 0x31A330),
+                plain: |a| {
+                    x87_5(
+                        a[1],
+                        &dm(a[0]).flt_75b46c,
+                        &dm(a[0]).flt_75b488,
+                        &dm(a[0]).flt_75b370,
+                        0x31A330,
+                        0x31A330,
+                    )
+                },
             },
             Block {
                 name: "damage_gauges line 387",
@@ -2216,7 +2336,16 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_32(a[0], a[1]) },
-                plain: |a| x87_5(a[0], a[1], 0x35B470, 0x35B48C, 0x35B370, 0x31A334, 0x31A334),
+                plain: |a| {
+                    x87_5(
+                        a[1],
+                        &dm(a[0]).flt_75b470,
+                        &dm(a[0]).flt_75b48c,
+                        &dm(a[0]).flt_75b370,
+                        0x31A334,
+                        0x31A334,
+                    )
+                },
             },
             Block {
                 name: "damage_gauges line 398",
@@ -2232,7 +2361,16 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_33(a[0], a[1]) },
-                plain: |a| x87_5(a[0], a[1], 0x35B470, 0x35B48C, 0x35B370, 0x31A338, 0x31A338),
+                plain: |a| {
+                    x87_5(
+                        a[1],
+                        &dm(a[0]).flt_75b470,
+                        &dm(a[0]).flt_75b48c,
+                        &dm(a[0]).flt_75b370,
+                        0x31A338,
+                        0x31A338,
+                    )
+                },
             },
             Block {
                 name: "damage_gauges line 409",
@@ -2248,7 +2386,16 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_34(a[0], a[1]) },
-                plain: |a| x87_5(a[0], a[1], 0x35B45C, 0x35B604, 0x35B370, 0x31A290, 0x31A290),
+                plain: |a| {
+                    x87_5(
+                        a[1],
+                        &dm(a[0]).flt_75b45c,
+                        &dm(a[0]).gauge_rates[13],
+                        &dm(a[0]).flt_75b370,
+                        0x31A290,
+                        0x31A290,
+                    )
+                },
             },
             Block {
                 name: "damage_gauges line 420",
@@ -2264,7 +2411,16 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_35(a[0], a[1]) },
-                plain: |a| x87_5(a[0], a[1], 0x35B45C, 0x35B600, 0x35B370, 0x31A29C, 0x31A29C),
+                plain: |a| {
+                    x87_5(
+                        a[1],
+                        &dm(a[0]).flt_75b45c,
+                        &dm(a[0]).gauge_rates[12],
+                        &dm(a[0]).flt_75b370,
+                        0x31A29C,
+                        0x31A29C,
+                    )
+                },
             },
             Block {
                 name: "damage_gauges line 432",
@@ -2280,7 +2436,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_36(a[0], a[1]) },
-                plain: |a| x87_8(a[0], a[1]),
+                plain: |a| x87_8(a[0], dm(a[1])),
             },
             Block {
                 name: "damage_gauges line 443",
@@ -2296,7 +2452,16 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_37(a[0], a[1]) },
-                plain: |a| x87_5(a[0], a[1], 0x35B464, 0x35B60C, 0x35B370, 0x31A29C, 0x31A29C),
+                plain: |a| {
+                    x87_5(
+                        a[1],
+                        &dm(a[0]).flt_75b464,
+                        &dm(a[0]).gauge_rates[15],
+                        &dm(a[0]).flt_75b370,
+                        0x31A29C,
+                        0x31A29C,
+                    )
+                },
             },
             Block {
                 name: "damage_gauges line 456",
@@ -2312,7 +2477,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_38(a[0], a[1]) },
-                plain: |a| x87_9(a[0], a[1], 0x35B610),
+                plain: |a| x87_9(a[0], &dm(a[1]).gauge_rates[16]),
             },
             Block {
                 name: "damage_gauges line 465",
@@ -2328,7 +2493,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_39(a[0], a[1]) },
-                plain: |a| x87_9(a[0], a[1], 0x35B614),
+                plain: |a| x87_9(a[0], &dm(a[1]).gauge_rates[17]),
             },
             Block {
                 name: "damage_gauges line 476",
@@ -2344,7 +2509,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_40(a[0], a[1]) },
-                plain: |a| x87_10(a[0], a[1], 0x35B618),
+                plain: |a| x87_10(a[0], &dm(a[1]).gauge_rates[18]),
             },
             Block {
                 name: "damage_gauges line 486",
@@ -2360,7 +2525,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_41(a[0], a[1]) },
-                plain: |a| x87_10(a[0], a[1], 0x35B61C),
+                plain: |a| x87_10(a[0], &dm(a[1]).gauge_rates[19]),
             },
             Block {
                 name: "damage_gauges line 493",
@@ -2376,7 +2541,16 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_42(a[0], a[1]) },
-                plain: |a| x87_5(a[0], a[1], 0x35B450, 0x35B670, 0x35B370, 0x31A2D0, 0x31A2D0),
+                plain: |a| {
+                    x87_5(
+                        a[1],
+                        &dm(a[0]).flt_75b450,
+                        &dm(a[0]).flt_75b670,
+                        &dm(a[0]).flt_75b370,
+                        0x31A2D0,
+                        0x31A2D0,
+                    )
+                },
             },
             Block {
                 name: "damage_gauges line 504",
@@ -2392,7 +2566,16 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_43(a[0], a[1]) },
-                plain: |a| x87_5(a[0], a[1], 0x35B450, 0x35B670, 0x35B370, 0x31A2D4, 0x31A2D4),
+                plain: |a| {
+                    x87_5(
+                        a[1],
+                        &dm(a[0]).flt_75b450,
+                        &dm(a[0]).flt_75b670,
+                        &dm(a[0]).flt_75b370,
+                        0x31A2D4,
+                        0x31A2D4,
+                    )
+                },
             },
             Block {
                 name: "damage_gauges line 515",
@@ -2408,7 +2591,16 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_44(a[0], a[1]) },
-                plain: |a| x87_5(a[0], a[1], 0x35B450, 0x35B670, 0x35B370, 0x31A2D8, 0x31A2D8),
+                plain: |a| {
+                    x87_5(
+                        a[1],
+                        &dm(a[0]).flt_75b450,
+                        &dm(a[0]).flt_75b670,
+                        &dm(a[0]).flt_75b370,
+                        0x31A2D8,
+                        0x31A2D8,
+                    )
+                },
             },
             Block {
                 name: "damage_gauges line 526",
@@ -2424,7 +2616,16 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_45(a[0], a[1]) },
-                plain: |a| x87_5(a[0], a[1], 0x35B450, 0x35B670, 0x35B370, 0x31A2DC, 0x31A2DC),
+                plain: |a| {
+                    x87_5(
+                        a[1],
+                        &dm(a[0]).flt_75b450,
+                        &dm(a[0]).flt_75b670,
+                        &dm(a[0]).flt_75b370,
+                        0x31A2DC,
+                        0x31A2DC,
+                    )
+                },
             },
             Block {
                 name: "damage_gauges line 537",
@@ -2440,7 +2641,16 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_46(a[0], a[1]) },
-                plain: |a| x87_5(a[0], a[1], 0x35B458, 0x35B678, 0x35B370, 0x31A30C, 0x31A30C),
+                plain: |a| {
+                    x87_5(
+                        a[1],
+                        &dm(a[0]).flt_75b458,
+                        &dm(a[0]).figures[0],
+                        &dm(a[0]).flt_75b370,
+                        0x31A30C,
+                        0x31A30C,
+                    )
+                },
             },
             Block {
                 name: "damage_gauges line 548",
@@ -2456,7 +2666,16 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_47(a[0], a[1]) },
-                plain: |a| x87_5(a[0], a[1], 0x35B458, 0x35B678, 0x35B370, 0x31A310, 0x31A310),
+                plain: |a| {
+                    x87_5(
+                        a[1],
+                        &dm(a[0]).flt_75b458,
+                        &dm(a[0]).figures[0],
+                        &dm(a[0]).flt_75b370,
+                        0x31A310,
+                        0x31A310,
+                    )
+                },
             },
             Block {
                 name: "damage_gauges line 559",
@@ -2472,7 +2691,16 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_48(a[0], a[1]) },
-                plain: |a| x87_5(a[0], a[1], 0x35B458, 0x35B678, 0x35B370, 0x31A314, 0x31A314),
+                plain: |a| {
+                    x87_5(
+                        a[1],
+                        &dm(a[0]).flt_75b458,
+                        &dm(a[0]).figures[0],
+                        &dm(a[0]).flt_75b370,
+                        0x31A314,
+                        0x31A314,
+                    )
+                },
             },
             Block {
                 name: "damage_gauges line 570",
@@ -2488,7 +2716,16 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_49(a[0], a[1]) },
-                plain: |a| x87_5(a[0], a[1], 0x35B458, 0x35B678, 0x35B370, 0x31A318, 0x31A318),
+                plain: |a| {
+                    x87_5(
+                        a[1],
+                        &dm(a[0]).flt_75b458,
+                        &dm(a[0]).figures[0],
+                        &dm(a[0]).flt_75b370,
+                        0x31A318,
+                        0x31A318,
+                    )
+                },
             },
             Block {
                 name: "damage_gauges line 581",
@@ -2504,7 +2741,16 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_50(a[0], a[1]) },
-                plain: |a| x87_5(a[0], a[1], 0x35B454, 0x35B67C, 0x35B370, 0x31A2E0, 0x31A2E0),
+                plain: |a| {
+                    x87_5(
+                        a[1],
+                        &dm(a[0]).flt_75b454,
+                        &dm(a[0]).figures[1],
+                        &dm(a[0]).flt_75b370,
+                        0x31A2E0,
+                        0x31A2E0,
+                    )
+                },
             },
             Block {
                 name: "damage_gauges line 592",
@@ -2520,7 +2766,16 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_51(a[0], a[1]) },
-                plain: |a| x87_5(a[0], a[1], 0x35B454, 0x35B680, 0x35B370, 0x31A308, 0x31A308),
+                plain: |a| {
+                    x87_5(
+                        a[1],
+                        &dm(a[0]).flt_75b454,
+                        &dm(a[0]).figures[2],
+                        &dm(a[0]).flt_75b370,
+                        0x31A308,
+                        0x31A308,
+                    )
+                },
             },
             Block {
                 name: "damage_gauges line 603",
@@ -2536,7 +2791,16 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_52(a[0], a[1]) },
-                plain: |a| x87_5(a[0], a[1], 0x35B454, 0x35B684, 0x35B370, 0x31A290, 0x31A290),
+                plain: |a| {
+                    x87_5(
+                        a[1],
+                        &dm(a[0]).flt_75b454,
+                        &dm(a[0]).figures[3],
+                        &dm(a[0]).flt_75b370,
+                        0x31A290,
+                        0x31A290,
+                    )
+                },
             },
             Block {
                 name: "damage_gauges line 614",
@@ -2552,7 +2816,16 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_53(a[0], a[1]) },
-                plain: |a| x87_5(a[0], a[1], 0x35B454, 0x35B688, 0x35B370, 0x31A294, 0x31A294),
+                plain: |a| {
+                    x87_5(
+                        a[1],
+                        &dm(a[0]).flt_75b454,
+                        &dm(a[0]).figures[4],
+                        &dm(a[0]).flt_75b370,
+                        0x31A294,
+                        0x31A294,
+                    )
+                },
             },
             Block {
                 name: "damage_gauges line 625",
@@ -2568,7 +2841,16 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_54(a[0], a[1]) },
-                plain: |a| x87_5(a[0], a[1], 0x35B454, 0x35B68C, 0x35B370, 0x31A2A8, 0x31A2A8),
+                plain: |a| {
+                    x87_5(
+                        a[1],
+                        &dm(a[0]).flt_75b454,
+                        &dm(a[0]).figures[5],
+                        &dm(a[0]).flt_75b370,
+                        0x31A2A8,
+                        0x31A2A8,
+                    )
+                },
             },
             Block {
                 name: "damage_gauges line 636",
@@ -2584,7 +2866,16 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_55(a[0], a[1]) },
-                plain: |a| x87_5(a[0], a[1], 0x35B454, 0x35B68C, 0x35B370, 0x31A2B0, 0x31A2B0),
+                plain: |a| {
+                    x87_5(
+                        a[1],
+                        &dm(a[0]).flt_75b454,
+                        &dm(a[0]).figures[5],
+                        &dm(a[0]).flt_75b370,
+                        0x31A2B0,
+                        0x31A2B0,
+                    )
+                },
             },
             Block {
                 name: "damage_gauges line 647",
@@ -2600,7 +2891,16 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_56(a[0], a[1]) },
-                plain: |a| x87_5(a[0], a[1], 0x35B454, 0x35B68C, 0x35B370, 0x31A2B4, 0x31A2B4),
+                plain: |a| {
+                    x87_5(
+                        a[1],
+                        &dm(a[0]).flt_75b454,
+                        &dm(a[0]).figures[5],
+                        &dm(a[0]).flt_75b370,
+                        0x31A2B4,
+                        0x31A2B4,
+                    )
+                },
             },
             Block {
                 name: "damage_gauges line 658",
@@ -2616,7 +2916,16 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_57(a[0], a[1]) },
-                plain: |a| x87_5(a[0], a[1], 0x35B454, 0x35B68C, 0x35B370, 0x31A2B8, 0x31A2B8),
+                plain: |a| {
+                    x87_5(
+                        a[1],
+                        &dm(a[0]).flt_75b454,
+                        &dm(a[0]).figures[5],
+                        &dm(a[0]).flt_75b370,
+                        0x31A2B8,
+                        0x31A2B8,
+                    )
+                },
             },
             Block {
                 name: "damage_gauges line 669",
@@ -2632,7 +2941,16 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_58(a[0], a[1]) },
-                plain: |a| x87_5(a[0], a[1], 0x35B454, 0x35B68C, 0x35B370, 0x31A2BC, 0x31A2BC),
+                plain: |a| {
+                    x87_5(
+                        a[1],
+                        &dm(a[0]).flt_75b454,
+                        &dm(a[0]).figures[5],
+                        &dm(a[0]).flt_75b370,
+                        0x31A2BC,
+                        0x31A2BC,
+                    )
+                },
             },
             Block {
                 name: "damage_gauges line 680",
@@ -2648,7 +2966,16 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_59(a[0], a[1]) },
-                plain: |a| x87_5(a[0], a[1], 0x35B454, 0x35B68C, 0x35B370, 0x31A2C0, 0x31A2C0),
+                plain: |a| {
+                    x87_5(
+                        a[1],
+                        &dm(a[0]).flt_75b454,
+                        &dm(a[0]).figures[5],
+                        &dm(a[0]).flt_75b370,
+                        0x31A2C0,
+                        0x31A2C0,
+                    )
+                },
             },
             Block {
                 name: "damage_gauges line 691",
@@ -2664,7 +2991,16 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_60(a[0], a[1]) },
-                plain: |a| x87_5(a[0], a[1], 0x35B454, 0x35B68C, 0x35B370, 0x31A2C4, 0x31A2C4),
+                plain: |a| {
+                    x87_5(
+                        a[1],
+                        &dm(a[0]).flt_75b454,
+                        &dm(a[0]).figures[5],
+                        &dm(a[0]).flt_75b370,
+                        0x31A2C4,
+                        0x31A2C4,
+                    )
+                },
             },
             Block {
                 name: "damage_gauges line 702",
@@ -2680,7 +3016,16 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_61(a[0], a[1]) },
-                plain: |a| x87_5(a[0], a[1], 0x35B454, 0x35B68C, 0x35B370, 0x31A2C8, 0x31A2C8),
+                plain: |a| {
+                    x87_5(
+                        a[1],
+                        &dm(a[0]).flt_75b454,
+                        &dm(a[0]).figures[5],
+                        &dm(a[0]).flt_75b370,
+                        0x31A2C8,
+                        0x31A2C8,
+                    )
+                },
             },
             Block {
                 name: "damage_gauges line 713",
@@ -2696,7 +3041,16 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_62(a[0], a[1]) },
-                plain: |a| x87_5(a[0], a[1], 0x35B454, 0x35B690, 0x35B370, 0x31A2A4, 0x31A2A4),
+                plain: |a| {
+                    x87_5(
+                        a[1],
+                        &dm(a[0]).flt_75b454,
+                        &dm(a[0]).figures[6],
+                        &dm(a[0]).flt_75b370,
+                        0x31A2A4,
+                        0x31A2A4,
+                    )
+                },
             },
             Block {
                 name: "damage_gauges line 725",
@@ -2712,7 +3066,15 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_63(a[0], a[1]) },
-                plain: |a| x87_1(a[0], a[1], 0x35B3C8, 0x35B6AC, 0x31A2E0, 0x31A2E0),
+                plain: |a| {
+                    x87_1(
+                        a[1],
+                        &dm(a[0]).flt_75b3c8,
+                        &dm(a[0]).figures[13],
+                        0x31A2E0,
+                        0x31A2E0,
+                    )
+                },
             },
             Block {
                 name: "damage_gauges line 737",
@@ -2728,7 +3090,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_64(a[0], a[1]) },
-                plain: |a| x87_11(a[0], a[1]),
+                plain: |a| x87_11(dm(a[0]), a[1]),
             },
             Block {
                 name: "damage_gauges line 745",
@@ -2744,7 +3106,15 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_65(a[0], a[1]) },
-                plain: |a| x87_1(a[0], a[1], 0x35B3C8, 0x35B6D8, 0x31A2EC, 0x31A2EC),
+                plain: |a| {
+                    x87_1(
+                        a[1],
+                        &dm(a[0]).flt_75b3c8,
+                        &dm(a[0]).figures[24],
+                        0x31A2EC,
+                        0x31A2EC,
+                    )
+                },
             },
             Block {
                 name: "damage_gauges line 757",
@@ -2760,7 +3130,15 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_66(a[0], a[1]) },
-                plain: |a| x87_1(a[0], a[1], 0x35B3C8, 0x35B6D8, 0x31A2F0, 0x31A2F0),
+                plain: |a| {
+                    x87_1(
+                        a[1],
+                        &dm(a[0]).flt_75b3c8,
+                        &dm(a[0]).figures[24],
+                        0x31A2F0,
+                        0x31A2F0,
+                    )
+                },
             },
             Block {
                 name: "damage_gauges line 769",
@@ -2776,7 +3154,15 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_67(a[0], a[1]) },
-                plain: |a| x87_1(a[0], a[1], 0x35B3C8, 0x35B6D8, 0x31A2F4, 0x31A2F4),
+                plain: |a| {
+                    x87_1(
+                        a[1],
+                        &dm(a[0]).flt_75b3c8,
+                        &dm(a[0]).figures[24],
+                        0x31A2F4,
+                        0x31A2F4,
+                    )
+                },
             },
             Block {
                 name: "damage_gauges line 781",
@@ -2792,7 +3178,15 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_68(a[0], a[1]) },
-                plain: |a| x87_1(a[0], a[1], 0x35B3C8, 0x35B6D8, 0x31A2F8, 0x31A2F8),
+                plain: |a| {
+                    x87_1(
+                        a[1],
+                        &dm(a[0]).flt_75b3c8,
+                        &dm(a[0]).figures[24],
+                        0x31A2F8,
+                        0x31A2F8,
+                    )
+                },
             },
             Block {
                 name: "damage_gauges line 793",
@@ -2808,7 +3202,15 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_69(a[0], a[1]) },
-                plain: |a| x87_1(a[0], a[1], 0x35B3C8, 0x35B6DC, 0x31A2FC, 0x31A2FC),
+                plain: |a| {
+                    x87_1(
+                        a[1],
+                        &dm(a[0]).flt_75b3c8,
+                        &dm(a[0]).figures[25],
+                        0x31A2FC,
+                        0x31A2FC,
+                    )
+                },
             },
             Block {
                 name: "damage_gauges line 805",
@@ -2824,7 +3226,15 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_70(a[0], a[1]) },
-                plain: |a| x87_1(a[0], a[1], 0x35B3C8, 0x35B6DC, 0x31A2FC, 0x31A2FC),
+                plain: |a| {
+                    x87_1(
+                        a[1],
+                        &dm(a[0]).flt_75b3c8,
+                        &dm(a[0]).figures[25],
+                        0x31A2FC,
+                        0x31A2FC,
+                    )
+                },
             },
             Block {
                 name: "damage_gauges line 817",
@@ -2840,7 +3250,15 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_71(a[0], a[1]) },
-                plain: |a| x87_1(a[0], a[1], 0x35B3C8, 0x35B6DC, 0x31A300, 0x31A300),
+                plain: |a| {
+                    x87_1(
+                        a[1],
+                        &dm(a[0]).flt_75b3c8,
+                        &dm(a[0]).figures[25],
+                        0x31A300,
+                        0x31A300,
+                    )
+                },
             },
             Block {
                 name: "damage_gauges line 829",
@@ -2856,7 +3274,15 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_72(a[0], a[1]) },
-                plain: |a| x87_1(a[0], a[1], 0x35B3C8, 0x35B6DC, 0x31A300, 0x31A300),
+                plain: |a| {
+                    x87_1(
+                        a[1],
+                        &dm(a[0]).flt_75b3c8,
+                        &dm(a[0]).figures[25],
+                        0x31A300,
+                        0x31A300,
+                    )
+                },
             },
             Block {
                 name: "damage_gauges line 840",
@@ -2872,7 +3298,15 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_73(a[0], a[1]) },
-                plain: |a| x87_1(a[0], a[1], 0x35B3C8, 0x35B6D4, 0x31A308, 0x31A308),
+                plain: |a| {
+                    x87_1(
+                        a[1],
+                        &dm(a[0]).flt_75b3c8,
+                        &dm(a[0]).figures[23],
+                        0x31A308,
+                        0x31A308,
+                    )
+                },
             },
             Block {
                 name: "damage_gauges line 850",
@@ -2888,7 +3322,15 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_74(a[0], a[1]) },
-                plain: |a| x87_1(a[0], a[1], 0x35B3C8, 0x35B6D0, 0x31A2E8, 0x31A2E8),
+                plain: |a| {
+                    x87_1(
+                        a[1],
+                        &dm(a[0]).flt_75b3c8,
+                        &dm(a[0]).figures[22],
+                        0x31A2E8,
+                        0x31A2E8,
+                    )
+                },
             },
             Block {
                 name: "damage_gauges line 860",
@@ -2904,7 +3346,15 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_75(a[0], a[1]) },
-                plain: |a| x87_1(a[0], a[1], 0x35B3C8, 0x35B6BC, 0x31A298, 0x31A298),
+                plain: |a| {
+                    x87_1(
+                        a[1],
+                        &dm(a[0]).flt_75b3c8,
+                        &dm(a[0]).figures[17],
+                        0x31A298,
+                        0x31A298,
+                    )
+                },
             },
             Block {
                 name: "damage_gauges line 870",
@@ -2920,7 +3370,15 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_76(a[0], a[1]) },
-                plain: |a| x87_1(a[0], a[1], 0x35B3C8, 0x35B6C0, 0x31A2A0, 0x31A2A0),
+                plain: |a| {
+                    x87_1(
+                        a[1],
+                        &dm(a[0]).flt_75b3c8,
+                        &dm(a[0]).figures[18],
+                        0x31A2A0,
+                        0x31A2A0,
+                    )
+                },
             },
             Block {
                 name: "damage_gauges line 880",
@@ -2936,7 +3394,15 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_77(a[0], a[1]) },
-                plain: |a| x87_1(a[0], a[1], 0x35B3C8, 0x35B6C4, 0x31A2A4, 0x31A2A4),
+                plain: |a| {
+                    x87_1(
+                        a[1],
+                        &dm(a[0]).flt_75b3c8,
+                        &dm(a[0]).figures[19],
+                        0x31A2A4,
+                        0x31A2A4,
+                    )
+                },
             },
             Block {
                 name: "damage_gauges line 890",
@@ -2952,7 +3418,15 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_78(a[0], a[1]) },
-                plain: |a| x87_1(a[0], a[1], 0x35B3C8, 0x35B6C8, 0x31A2A8, 0x31A2A8),
+                plain: |a| {
+                    x87_1(
+                        a[1],
+                        &dm(a[0]).flt_75b3c8,
+                        &dm(a[0]).figures[20],
+                        0x31A2A8,
+                        0x31A2A8,
+                    )
+                },
             },
             Block {
                 name: "damage_gauges line 900",
@@ -2968,7 +3442,15 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_79(a[0], a[1]) },
-                plain: |a| x87_1(a[0], a[1], 0x35B3C8, 0x35B6C8, 0x31A2AC, 0x31A2AC),
+                plain: |a| {
+                    x87_1(
+                        a[1],
+                        &dm(a[0]).flt_75b3c8,
+                        &dm(a[0]).figures[20],
+                        0x31A2AC,
+                        0x31A2AC,
+                    )
+                },
             },
             Block {
                 name: "damage_gauges line 910",
@@ -2984,7 +3466,15 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_80(a[0], a[1]) },
-                plain: |a| x87_1(a[0], a[1], 0x35B3C8, 0x35B6C8, 0x31A2B0, 0x31A2B0),
+                plain: |a| {
+                    x87_1(
+                        a[1],
+                        &dm(a[0]).flt_75b3c8,
+                        &dm(a[0]).figures[20],
+                        0x31A2B0,
+                        0x31A2B0,
+                    )
+                },
             },
             Block {
                 name: "damage_gauges line 920",
@@ -3000,7 +3490,15 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_81(a[0], a[1]) },
-                plain: |a| x87_1(a[0], a[1], 0x35B3C8, 0x35B6C8, 0x31A2B4, 0x31A2B4),
+                plain: |a| {
+                    x87_1(
+                        a[1],
+                        &dm(a[0]).flt_75b3c8,
+                        &dm(a[0]).figures[20],
+                        0x31A2B4,
+                        0x31A2B4,
+                    )
+                },
             },
             Block {
                 name: "damage_gauges line 930",
@@ -3016,7 +3514,15 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_82(a[0], a[1]) },
-                plain: |a| x87_1(a[0], a[1], 0x35B3C8, 0x35B6C8, 0x31A2B8, 0x31A2B8),
+                plain: |a| {
+                    x87_1(
+                        a[1],
+                        &dm(a[0]).flt_75b3c8,
+                        &dm(a[0]).figures[20],
+                        0x31A2B8,
+                        0x31A2B8,
+                    )
+                },
             },
             Block {
                 name: "damage_gauges line 940",
@@ -3032,7 +3538,15 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_83(a[0], a[1]) },
-                plain: |a| x87_1(a[0], a[1], 0x35B3C8, 0x35B6C8, 0x31A2BC, 0x31A2BC),
+                plain: |a| {
+                    x87_1(
+                        a[1],
+                        &dm(a[0]).flt_75b3c8,
+                        &dm(a[0]).figures[20],
+                        0x31A2BC,
+                        0x31A2BC,
+                    )
+                },
             },
             Block {
                 name: "damage_gauges line 950",
@@ -3048,7 +3562,15 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_84(a[0], a[1]) },
-                plain: |a| x87_1(a[0], a[1], 0x35B3C8, 0x35B6C8, 0x31A2C0, 0x31A2C0),
+                plain: |a| {
+                    x87_1(
+                        a[1],
+                        &dm(a[0]).flt_75b3c8,
+                        &dm(a[0]).figures[20],
+                        0x31A2C0,
+                        0x31A2C0,
+                    )
+                },
             },
             Block {
                 name: "damage_gauges line 960",
@@ -3064,7 +3586,15 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_85(a[0], a[1]) },
-                plain: |a| x87_1(a[0], a[1], 0x35B3C8, 0x35B6C8, 0x31A2C4, 0x31A2C4),
+                plain: |a| {
+                    x87_1(
+                        a[1],
+                        &dm(a[0]).flt_75b3c8,
+                        &dm(a[0]).figures[20],
+                        0x31A2C4,
+                        0x31A2C4,
+                    )
+                },
             },
             Block {
                 name: "damage_gauges line 970",
@@ -3080,7 +3610,15 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_86(a[0], a[1]) },
-                plain: |a| x87_1(a[0], a[1], 0x35B3C8, 0x35B6C8, 0x31A2C8, 0x31A2C8),
+                plain: |a| {
+                    x87_1(
+                        a[1],
+                        &dm(a[0]).flt_75b3c8,
+                        &dm(a[0]).figures[20],
+                        0x31A2C8,
+                        0x31A2C8,
+                    )
+                },
             },
             Block {
                 name: "damage_gauges line 982",
@@ -3096,7 +3634,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_87(a[0], a[1]) },
-                plain: |a| x87_12(a[0], a[1]),
+                plain: |a| x87_12(dm(a[0]), a[1]),
             },
             Block {
                 name: "damage_gauges line 991",
@@ -3112,7 +3650,15 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_88(a[0], a[1]) },
-                plain: |a| x87_1(a[0], a[1], 0x35B3C8, 0x35B6E8, 0x31A2D0, 0x31A2D0),
+                plain: |a| {
+                    x87_1(
+                        a[1],
+                        &dm(a[0]).flt_75b3c8,
+                        &dm(a[0]).figures[28],
+                        0x31A2D0,
+                        0x31A2D0,
+                    )
+                },
             },
             Block {
                 name: "damage_gauges line 1003",
@@ -3128,7 +3674,15 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_89(a[0], a[1]) },
-                plain: |a| x87_1(a[0], a[1], 0x35B3C8, 0x35B6E8, 0x31A2D4, 0x31A2D4),
+                plain: |a| {
+                    x87_1(
+                        a[1],
+                        &dm(a[0]).flt_75b3c8,
+                        &dm(a[0]).figures[28],
+                        0x31A2D4,
+                        0x31A2D4,
+                    )
+                },
             },
             Block {
                 name: "damage_gauges line 1015",
@@ -3144,7 +3698,15 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_90(a[0], a[1]) },
-                plain: |a| x87_1(a[0], a[1], 0x35B3C8, 0x35B6E8, 0x31A2D8, 0x31A2D8),
+                plain: |a| {
+                    x87_1(
+                        a[1],
+                        &dm(a[0]).flt_75b3c8,
+                        &dm(a[0]).figures[28],
+                        0x31A2D8,
+                        0x31A2D8,
+                    )
+                },
             },
             Block {
                 name: "damage_gauges line 1027",
@@ -3160,7 +3722,15 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_91(a[0], a[1]) },
-                plain: |a| x87_1(a[0], a[1], 0x35B3C8, 0x35B6E8, 0x31A2DC, 0x31A2DC),
+                plain: |a| {
+                    x87_1(
+                        a[1],
+                        &dm(a[0]).flt_75b3c8,
+                        &dm(a[0]).figures[28],
+                        0x31A2DC,
+                        0x31A2DC,
+                    )
+                },
             },
             Block {
                 name: "damage_gauges line 1039",
@@ -3176,7 +3746,15 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_92(a[0], a[1]) },
-                plain: |a| x87_1(a[0], a[1], 0x35B3C8, 0x35B6F0, 0x31A30C, 0x31A30C),
+                plain: |a| {
+                    x87_1(
+                        a[1],
+                        &dm(a[0]).flt_75b3c8,
+                        &dm(a[0]).figures[30],
+                        0x31A30C,
+                        0x31A30C,
+                    )
+                },
             },
             Block {
                 name: "damage_gauges line 1051",
@@ -3192,7 +3770,15 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_93(a[0], a[1]) },
-                plain: |a| x87_1(a[0], a[1], 0x35B3C8, 0x35B6F0, 0x31A310, 0x31A310),
+                plain: |a| {
+                    x87_1(
+                        a[1],
+                        &dm(a[0]).flt_75b3c8,
+                        &dm(a[0]).figures[30],
+                        0x31A310,
+                        0x31A310,
+                    )
+                },
             },
             Block {
                 name: "damage_gauges line 1063",
@@ -3208,7 +3794,15 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_94(a[0], a[1]) },
-                plain: |a| x87_1(a[0], a[1], 0x35B3C8, 0x35B6F0, 0x31A314, 0x31A314),
+                plain: |a| {
+                    x87_1(
+                        a[1],
+                        &dm(a[0]).flt_75b3c8,
+                        &dm(a[0]).figures[30],
+                        0x31A314,
+                        0x31A314,
+                    )
+                },
             },
             Block {
                 name: "damage_gauges line 1075",
@@ -3224,7 +3818,15 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_95(a[0], a[1]) },
-                plain: |a| x87_1(a[0], a[1], 0x35B3C8, 0x35B6F0, 0x31A318, 0x31A318),
+                plain: |a| {
+                    x87_1(
+                        a[1],
+                        &dm(a[0]).flt_75b3c8,
+                        &dm(a[0]).figures[30],
+                        0x31A318,
+                        0x31A318,
+                    )
+                },
             },
             Block {
                 name: "damage_gauges line 1087",
@@ -3240,7 +3842,15 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_96(a[0], a[1]) },
-                plain: |a| x87_1(a[0], a[1], 0x35B3C8, 0x35B6E4, 0x31A29C, 0x31A29C),
+                plain: |a| {
+                    x87_1(
+                        a[1],
+                        &dm(a[0]).flt_75b3c8,
+                        &dm(a[0]).figures[27],
+                        0x31A29C,
+                        0x31A29C,
+                    )
+                },
             },
             Block {
                 name: "damage_gauges line 1099",
@@ -3256,7 +3866,15 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_97(a[0], a[1]) },
-                plain: |a| x87_1(a[0], a[1], 0x35B3C8, 0x35B6E4, 0x31A29C, 0x31A29C),
+                plain: |a| {
+                    x87_1(
+                        a[1],
+                        &dm(a[0]).flt_75b3c8,
+                        &dm(a[0]).figures[27],
+                        0x31A29C,
+                        0x31A29C,
+                    )
+                },
             },
             Block {
                 name: "damage_gauges line 1111",
@@ -3272,7 +3890,15 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_98(a[0], a[1]) },
-                plain: |a| x87_1(a[0], a[1], 0x35B3C8, 0x35B6E0, 0x31A290, 0x31A290),
+                plain: |a| {
+                    x87_1(
+                        a[1],
+                        &dm(a[0]).flt_75b3c8,
+                        &dm(a[0]).figures[26],
+                        0x31A290,
+                        0x31A290,
+                    )
+                },
             },
             Block {
                 name: "damage_gauges line 1123",
@@ -3288,7 +3914,15 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_99(a[0], a[1]) },
-                plain: |a| x87_1(a[0], a[1], 0x35B3C8, 0x35B6E0, 0x31A290, 0x31A290),
+                plain: |a| {
+                    x87_1(
+                        a[1],
+                        &dm(a[0]).flt_75b3c8,
+                        &dm(a[0]).figures[26],
+                        0x31A290,
+                        0x31A290,
+                    )
+                },
             },
             Block {
                 name: "damage_gauges line 1135",
@@ -3304,7 +3938,15 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_100(a[0], a[1]) },
-                plain: |a| x87_1(a[0], a[1], 0x35B3C8, 0x35B6EC, 0x31A320, 0x31A320),
+                plain: |a| {
+                    x87_1(
+                        a[1],
+                        &dm(a[0]).flt_75b3c8,
+                        &dm(a[0]).figures[29],
+                        0x31A320,
+                        0x31A320,
+                    )
+                },
             },
             Block {
                 name: "damage_gauges line 1147",
@@ -3320,7 +3962,15 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_101(a[0], a[1]) },
-                plain: |a| x87_1(a[0], a[1], 0x35B3C8, 0x35B6EC, 0x31A320, 0x31A320),
+                plain: |a| {
+                    x87_1(
+                        a[1],
+                        &dm(a[0]).flt_75b3c8,
+                        &dm(a[0]).figures[29],
+                        0x31A320,
+                        0x31A320,
+                    )
+                },
             },
             Block {
                 name: "damage_gauges line 1159",
@@ -3336,7 +3986,15 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_102(a[0], a[1]) },
-                plain: |a| x87_1(a[0], a[1], 0x35B3C8, 0x35B6EC, 0x31A324, 0x31A324),
+                plain: |a| {
+                    x87_1(
+                        a[1],
+                        &dm(a[0]).flt_75b3c8,
+                        &dm(a[0]).figures[29],
+                        0x31A324,
+                        0x31A324,
+                    )
+                },
             },
             Block {
                 name: "damage_gauges line 1171",
@@ -3352,7 +4010,15 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_103(a[0], a[1]) },
-                plain: |a| x87_1(a[0], a[1], 0x35B3C8, 0x35B6EC, 0x31A324, 0x31A324),
+                plain: |a| {
+                    x87_1(
+                        a[1],
+                        &dm(a[0]).flt_75b3c8,
+                        &dm(a[0]).figures[29],
+                        0x31A324,
+                        0x31A324,
+                    )
+                },
             },
             Block {
                 name: "damage_gauges line 1183",
@@ -3368,7 +4034,16 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_104(a[0], a[1]) },
-                plain: |a| x87_5(a[0], a[1], 0x35B3CC, 0x35B6B0, 0x35B370, 0x31A30C, 0x31A30C),
+                plain: |a| {
+                    x87_5(
+                        a[1],
+                        &dm(a[0]).wheel_loads[0],
+                        &dm(a[0]).figures[14],
+                        &dm(a[0]).flt_75b370,
+                        0x31A30C,
+                        0x31A30C,
+                    )
+                },
             },
             Block {
                 name: "damage_gauges line 1194",
@@ -3384,7 +4059,16 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_105(a[0], a[1]) },
-                plain: |a| x87_5(a[0], a[1], 0x35B3D0, 0x35B6B0, 0x35B370, 0x31A310, 0x31A310),
+                plain: |a| {
+                    x87_5(
+                        a[1],
+                        &dm(a[0]).wheel_loads[1],
+                        &dm(a[0]).figures[14],
+                        &dm(a[0]).flt_75b370,
+                        0x31A310,
+                        0x31A310,
+                    )
+                },
             },
             Block {
                 name: "damage_gauges line 1205",
@@ -3400,7 +4084,16 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_106(a[0], a[1]) },
-                plain: |a| x87_5(a[0], a[1], 0x35B3D4, 0x35B6B0, 0x35B370, 0x31A314, 0x31A314),
+                plain: |a| {
+                    x87_5(
+                        a[1],
+                        &dm(a[0]).wheel_loads[2],
+                        &dm(a[0]).figures[14],
+                        &dm(a[0]).flt_75b370,
+                        0x31A314,
+                        0x31A314,
+                    )
+                },
             },
             Block {
                 name: "damage_gauges line 1216",
@@ -3416,7 +4109,16 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_107(a[0], a[1]) },
-                plain: |a| x87_5(a[0], a[1], 0x35B3D8, 0x35B6B0, 0x35B370, 0x31A318, 0x31A318),
+                plain: |a| {
+                    x87_5(
+                        a[1],
+                        &dm(a[0]).wheel_loads[3],
+                        &dm(a[0]).figures[14],
+                        &dm(a[0]).flt_75b370,
+                        0x31A318,
+                        0x31A318,
+                    )
+                },
             },
             Block {
                 name: "damage_gauges line 1227",
@@ -3432,7 +4134,16 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_108(a[0], a[1]) },
-                plain: |a| x87_5(a[0], a[1], 0x35B3DC, 0x35B6B4, 0x35B370, 0x31A294, 0x31A294),
+                plain: |a| {
+                    x87_5(
+                        a[1],
+                        &dm(a[0]).flt_75b3dc,
+                        &dm(a[0]).figures[15],
+                        &dm(a[0]).flt_75b370,
+                        0x31A294,
+                        0x31A294,
+                    )
+                },
             },
             Block {
                 name: "damage_gauges line 1238",
@@ -3448,7 +4159,16 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_109(a[0], a[1]) },
-                plain: |a| x87_5(a[0], a[1], 0x35B3DC, 0x35B6B8, 0x35B370, 0x31A308, 0x31A308),
+                plain: |a| {
+                    x87_5(
+                        a[1],
+                        &dm(a[0]).flt_75b3dc,
+                        &dm(a[0]).figures[16],
+                        &dm(a[0]).flt_75b370,
+                        0x31A308,
+                        0x31A308,
+                    )
+                },
             },
             Block {
                 name: "damage_gauges line 1249",
@@ -3513,7 +4233,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_110(a[0], a[1]) },
-                plain: |a| x87_13(a[0], a[1]),
+                plain: |a| x87_13(a[0], dm(a[1])),
             },
         ]
     }

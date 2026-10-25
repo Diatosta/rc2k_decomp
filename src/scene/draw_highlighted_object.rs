@@ -25,12 +25,13 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_read, game_write, rva};
+use crate::menu::state_store::MENU_STATE;
 use crate::scene::assign_kind_textures::assign_kind_textures;
 use crate::scene::assign_menu_textures::assign_menu_textures;
 use crate::scene::clear_depth_buffer::clear_depth_buffer;
 use crate::scene::draw_carousel_entry::{
-    ANGLE_X_RVA, ANGLE_Y_RVA, CLOCK_RVA, ENTRIES, KIND_RVA, KINDS_RVA, OBJECT_RVA, OWN, OWN_RVA,
-    PLACE_RVA, SIZE_RVA, find_object_of_kind,
+    ANGLE_X_RVA, ANGLE_Y_RVA, CLOCK_RVA, ENTRIES, OBJECT_RVA, OWN, PLACE_RVA, SIZE_RVA,
+    find_object_of_kind, own_place,
 };
 use crate::scene::draw_menu_object::draw_menu_object_in_game;
 use crate::scene::load_slot_textures::load_slot_textures_in_game;
@@ -40,7 +41,6 @@ use crate::scene::map_texture_places::map_texture_places;
 
 const MODE_RVA: usize = rva(0x6365C4); // dword_6365C4
 const HIGHLIGHTED_RVA: usize = rva(0x755525); // dword_755525
-const Z_RVA: usize = rva(0x75A66C); // dword_75A66C
 
 // ---- Rust version ----
 
@@ -53,17 +53,17 @@ pub unsafe fn draw_highlighted(
         if item >= ENTRIES {
             return Err(BadInput("a highlighted item of 0 or past the carousel's kinds").into());
         }
-        let kind: u32 = game_read(KINDS_RVA + item as usize * 4);
+        let kind = MENU_STATE.carousel.kinds[item as usize].get();
         let own = (kind as i32 > 0x258).then(|| kind.wrapping_sub(0x259));
         if own.is_some_and(|own| own >= OWN) {
             return Err(BadInput("a kind past the records of the kinds' own places").into());
         }
         let clock: u32 = game_read(CLOCK_RVA);
         game_write(ANGLE_Y_RVA, (clock << 3) & 0xFFFF);
-        game_write(PLACE_RVA + 8, game_read::<u32>(Z_RVA));
+        game_write(PLACE_RVA + 8, MENU_STATE.carousel.z.get());
         game_write(PLACE_RVA, 0u32);
         if let Some(own) = own {
-            let [size, y, angle]: [u32; 3] = game_read(OWN_RVA + own as usize * 12);
+            let [size, y, angle] = own_place(own);
             game_write(SIZE_RVA, size);
             if y != u32::MAX {
                 game_write(PLACE_RVA + 4, y);
@@ -72,7 +72,7 @@ pub unsafe fn draw_highlighted(
                 game_write(ANGLE_X_RVA, angle);
             }
         }
-        game_write(KIND_RVA, kind);
+        MENU_STATE.carousel.kind.set(kind);
         let object = find_object_of_kind(kind);
         game_write(OBJECT_RVA, object);
         draw()

@@ -8,18 +8,19 @@
 //! Caller: `net::lets_rally`.
 
 use crate::errors::Refused;
-use crate::net::lobby::{
-    ALL_RACED, BACK_FROM_RACE, OWN, OWN_TIME, OWN_TOTAL, RACE_OVER, g, gb, p, pb,
-};
+use crate::net::store::{NET, PlayerRecord};
 
 /// The Rust version.
 pub fn race_over(time: u32) -> Result<(), Refused> {
-    p(ALL_RACED, 0);
-    p(RACE_OVER, 0);
-    p(OWN_TIME, time);
-    p(OWN_TOTAL, g(OWN_TOTAL).wrapping_add(time));
+    NET.all_raced.set(0);
+    NET.race_over.set(0);
+    NET.own.race_time.set(time);
+    NET.own.total.set(NET.own.total.get().wrapping_add(time));
     // Converted: `rc2k_core::net::players::raced`.
-    pb(OWN, rc2k_core::net::players::raced(gb(OWN)));
-    p(BACK_FROM_RACE, 1);
+    NET.own.head.set(
+        PlayerRecord::STATE,
+        rc2k_core::net::players::raced(NET.own.state()),
+    );
+    NET.after_race.set(1);
     crate::net::list_players::list_players_regs()
 }

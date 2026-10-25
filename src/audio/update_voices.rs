@@ -27,93 +27,61 @@
 //! that does not loop without its channel or buffer; a voice to stop without its buffer; a
 //! marked voice's volume or pan past the volume table.
 
-use crate::audio::store::Slot;
-use crate::audio::voices::*;
+use crate::audio::store::{AUDIO, ENVIRONMENT};
+use crate::audio::voices::{GamePool, voice};
 use crate::errors::{BadInput, Refused};
-use crate::store::addr32 as a;
-use crate::store::game_addr;
 
 const MODE_MIXER: u32 = 0x4_0000;
-const ENVIRONMENT_KEPT_RVA: Slot = Slot::at(0x506C80); // dword_506C80
-
-#[derive(Clone, Copy)]
-pub struct Vars {
-    pub a3d: u32,
-    pub mode: u32,
-    pub playing: u32,
-    pub stopping: u32,
-    pub used: u32,
-    pub commit: u32,
-    pub room_asked: u32,
-    pub room_set: u32,
-    pub environment_kept: u32,
-    pub environment: u32,
-}
-
-impl Vars {
-    pub fn game() -> Self {
-        Self {
-            a3d: a(A3D_RVA),
-            mode: a(SOUND_MODE_RVA),
-            playing: a(PLAYING_RVA),
-            stopping: a(STOPPING_RVA),
-            used: a(CHANNELS_USED_RVA),
-            commit: a(COMMIT_RVA),
-            room_asked: a(EAX_ROOM_RVA),
-            room_set: a(EAX_ROOM_SET_RVA),
-            environment_kept: a(ENVIRONMENT_KEPT_RVA),
-            environment: crate::audio::store::ENVIRONMENT.addr() as u32,
-        }
-    }
-}
 
 /// Converted: the own-buffers way is `rc2k_core::audio::voices::update_buffers`, each of
 /// its steps a callee here (esi the voice); the A3D and mixer ways stay the game's chunks.
-pub unsafe fn update_voices(v: &Vars) -> Result<(), Refused> {
+pub fn update_voices() -> Result<(), Refused> {
     use rc2k_core::audio::voices::{Lists, Room, Step, update_buffers};
-    unsafe {
-        if read(v.a3d) == 1 {
-            return Err(BadInput("A3D (the chunk at 0x40CB2A)").into());
+    if AUDIO.use_a3d.get() == 1 {
+        return Err(BadInput("A3D (the chunk at 0x40CB2A)").into());
+    }
+    let mode = AUDIO.sound_mode.get();
+    if mode & crate::audio::make_buffer::MODE_OWN_BUFFERS == 0 {
+        if mode & MODE_MIXER != 0 {
+            crate::audio::update_mixer_voices::update_mixer_voices_in_game()?;
         }
-        let mode = read(v.mode);
-        if mode & crate::audio::make_buffer::MODE_OWN_BUFFERS == 0 {
-            if mode & MODE_MIXER != 0 {
-                crate::audio::update_mixer_voices::update_mixer_voices_in_game()?;
-            }
-            return Ok(());
-        }
-        let mut l = Lists {
-            playing: read(v.playing),
-            stopping: read(v.stopping),
-            channels_used: read(v.used),
-            channel_count: 0,
-        };
-        let mut room = Room {
-            asked: read(v.room_asked),
-            set: read(v.room_set),
-            environment: read(v.environment),
-            kept: read(v.environment_kept),
-            commit: read(v.commit),
-        };
-        let store = |l: &Lists, room: &Room| {
-            write(v.playing, l.playing);
-            write(v.stopping, l.stopping);
-            write(v.used, l.channels_used);
-            write(v.room_set, room.set);
-            write(v.environment_kept, room.kept);
-            write(v.commit, room.commit);
-        };
-        let mut pool = GamePool::new(&World::game());
-        // No step reads what the update changes (the room's step reads the room asked).
-        let done = update_buffers::<_, Refused>(&mut pool, &mut l, mode, &mut room, |step| {
-            use crate::audio::{buffer_play as play, buffer_settings as set};
+        return Ok(());
+    }
+    let mut l = Lists {
+        playing: AUDIO.playing_voices.get(),
+        stopping: AUDIO.stopping_voices.get(),
+        channels_used: AUDIO.channels_used.get(),
+        channel_count: 0,
+    };
+    let mut room = Room {
+        asked: AUDIO.eax_room.get(),
+        set: AUDIO.eax_room_set.get(),
+        environment: ENVIRONMENT.get(),
+        kept: AUDIO.environment_kept.get(),
+        commit: AUDIO.commit_3d.get(),
+    };
+    let store = |l: &Lists, room: &Room| {
+        AUDIO.playing_voices.set(l.playing);
+        AUDIO.stopping_voices.set(l.stopping);
+        AUDIO.channels_used.set(l.channels_used);
+        AUDIO.eax_room_set.set(room.set);
+        AUDIO.environment_kept.set(room.kept);
+        AUDIO.commit_3d.set(room.commit);
+    };
+    let mut pool = GamePool;
+    // No step reads what the update changes (the room's step reads the room asked).
+    let done = update_buffers::<_, Refused>(&mut pool, &mut l, mode, &mut room, |step| {
+        use crate::audio::{buffer_play as play, buffer_settings as set};
+        unsafe {
             match step {
-                Step::IsPlaying(at) => return Ok(play::is_playing(voice(at))? & play::PLAYING != 0),
+                Step::IsPlaying(at) => {
+                    return Ok(play::is_playing(voice(at))? & play::PLAYING != 0);
+                }
                 Step::Room => {
                     crate::audio::set_eax_room::in_game()?;
                 }
                 Step::Commit => {
-                    play::commit_3d(game_addr(play::LISTENER_3D_RVA) as u32)?;
+                    play::commit_3d()?;
                 }
                 Step::Frequency(at) => {
                     set::set_buffer_frequency(voice(at))?;
@@ -137,9 +105,9 @@ pub unsafe fn update_voices(v: &Vars) -> Result<(), Refused> {
                     play::stop_buffer(voice(at))?;
                 }
             }
-            Ok(true)
-        });
-        store(&l, &room);
-        done
-    }
+        }
+        Ok(true)
+    });
+    store(&l, &room);
+    done
 }

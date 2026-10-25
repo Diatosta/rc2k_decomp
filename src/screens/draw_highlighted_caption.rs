@@ -19,6 +19,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_addr, game_read, rva};
+use crate::menu::state_store::MENU_STATE;
 use crate::menu::update_blink::LAST_KEY_TIME_RVA;
 use crate::service::state::MENU_ITEM_RVA;
 use crate::session::CLOCKS;
@@ -26,8 +27,6 @@ use crate::text::draw_string_by_id::string_text;
 use crate::text::draw_text::Canvas;
 
 // ---- game data ----
-
-const MENU_RVA: usize = rva(0x75AA74); // dword_75AA74
 /// The lists of string numbers, by menu.
 const LISTS: [usize; 7] = [
     0x758A12, 0x758A2A, 0x758A86, 0x758AA2, 0x758AB2, 0x758AC2, 0x758AE2,
@@ -43,7 +42,7 @@ pub unsafe fn draw_highlighted_caption(
     canvas: &mut dyn Canvas,
 ) -> Result<Option<bool>, Refused> {
     unsafe {
-        let menu: u32 = game_read(MENU_RVA);
+        let menu: u32 = MENU_STATE.carousel.menu.get();
         let Some(&list) = LISTS.get(menu as usize) else {
             return Ok(None);
         };

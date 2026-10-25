@@ -10,9 +10,9 @@
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_read, rva};
 use crate::menu::standings::*;
+use crate::menu::state_store::MENU_STATE;
 
 const CURRENT_RVA: usize = rva(0x75598C); // dword_75598C
-const SCORE_RVA: usize = rva(0x75AC80); // dword_75AC80
 /// The Rust version (see the header): the registers it leaves.
 pub unsafe fn set_player_entry_kind() -> Result<(), Refused> {
     let n: u32 = unsafe { game_read(CURRENT_RVA) };
@@ -20,7 +20,7 @@ pub unsafe fn set_player_entry_kind() -> Result<(), Refused> {
         return Err(BadInput("a current player past 3 or missing").into());
     }
     // Converted: `rc2k_core::menu::player::entry_kind`.
-    let score: i32 = unsafe { game_read(SCORE_RVA) };
+    let score: i32 = MENU_STATE.driver_stats.score.get() as i32;
     put(player(n) + 0xD0, rc2k_core::menu::player::entry_kind(score));
     Ok(())
 }

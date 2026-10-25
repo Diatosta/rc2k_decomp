@@ -8,8 +8,7 @@
 //! Caller: DirectPlay, from `net::join_group` (`callback`, a `stdcall` Rust function).
 
 use crate::errors::Refused;
-use crate::net::create_group::GROUP_NAME;
-use crate::net::lobby::{SEND_TO, a, p};
+use crate::net::store::NET;
 
 /// The Rust version: eax.
 pub fn group_found(args: &[u32]) -> Result<u32, Refused> {
@@ -18,12 +17,15 @@ pub fn group_found(args: &[u32]) -> Result<u32, Refused> {
     }
     let name = unsafe { ((args[2] + 8) as *const u32).read_unaligned() };
     let order = unsafe {
-        crate::strings::same_text::compare_texts(name as *const u8, a(GROUP_NAME) as *const u8)
+        crate::strings::same_text::compare_texts(
+            name as *const u8,
+            NET.group_name.addr() as *const u8,
+        )
     };
     if order != std::cmp::Ordering::Equal {
         return Ok(1);
     }
-    p(SEND_TO, args[0]);
+    NET.send_to.set(args[0]);
     Ok(0)
 }
 

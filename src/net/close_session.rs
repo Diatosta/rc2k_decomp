@@ -8,12 +8,12 @@
 //! nothing.
 
 use crate::net::dplay::{CLOSE, method};
-use crate::net::lobby::{DPLAY, SESSION_OPEN, g, p};
+use crate::net::store::NET;
 
 /// The Rust version.
 pub fn close_session() {
-    if g(SESSION_OPEN) == 1 {
-        p(SESSION_OPEN, 0);
-        unsafe { method(g(DPLAY), CLOSE, &[]) };
+    if NET.session_open.get() == 1 {
+        NET.session_open.set(0);
+        unsafe { method(NET.dplay.get(), CLOSE, &[]) };
     }
 }

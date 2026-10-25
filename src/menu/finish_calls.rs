@@ -1,18 +1,9 @@
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_read, game_write, rva};
+use crate::race::state_store::RACE_STATE;
+use crate::session::Dword;
 use rc2k_core::menu::finish::{self, Racer, Step, Var};
 
-const SET_UP_RVA: [usize; 5] = [
-    rva(0x75B100),
-    rva(0x75B104),
-    rva(0x75ACE8),
-    rva(0x75ACE4),
-    rva(0x75B0FC),
-];
-pub const ON_RVA: usize = rva(0x75B108); // dword_75B108
-
-const KEPT_RVA: usize = rva(0x75ACE4); // dword_75ACE4
-const LEADER_RVA: usize = rva(0x75ACCC); // dword_75ACCC
 const EVENT_MODE_RVA: usize = rva(0x7556D0); // g_eventMode
 
 /// The game for `rc2k_core::menu::finish`: the variables at their addresses, the finders'
@@ -23,19 +14,27 @@ pub struct Game {
     pub racer: u32,
 }
 
+/// The variables that are in the physics block.
+fn cell(v: Var) -> Option<&'static Dword> {
+    Some(match v {
+        Var::On => &RACE_STATE.results.finished,
+        Var::Kept => &RACE_STATE.settings.kept,
+        Var::Leader => &RACE_STATE.settings.a8_game,
+        Var::SetUpCar => &RACE_STATE.results.finish_player,
+        Var::SetUpDriver => &RACE_STATE.results.finish_kind,
+        Var::SetUpDriver2 => &RACE_STATE.settings.car_kind_current,
+        Var::SetUpSection => &RACE_STATE.results.stage_index,
+        _ => return None,
+    })
+}
+
 fn at(v: Var) -> usize {
     use crate::menu::standings::SECTION_RVA;
     match v {
-        Var::On => ON_RVA,
-        Var::Kept => KEPT_RVA,
-        Var::Leader => LEADER_RVA,
         Var::EventMode => EVENT_MODE_RVA,
         Var::Section => SECTION_RVA,
-        Var::SetUpCar => SET_UP_RVA[0],
-        Var::SetUpDriver => SET_UP_RVA[1],
-        Var::SetUpDriver2 => SET_UP_RVA[2],
-        Var::SetUpSection => SET_UP_RVA[4],
         Var::Racer(_) => unreachable!("the racer's fields are not at an address"),
+        _ => unreachable!("a variable of the physics block, `cell`"),
     }
 }
 
@@ -45,14 +44,20 @@ impl finish::Finish for Game {
     fn get(&mut self, v: Var) -> u32 {
         match v {
             Var::Racer(offset) => crate::menu::standings::get(self.racer + offset),
-            _ => unsafe { game_read(at(v)) },
+            _ => match cell(v) {
+                Some(cell) => cell.get(),
+                None => unsafe { game_read(at(v)) },
+            },
         }
     }
 
     fn set(&mut self, v: Var, value: u32) {
         match v {
             Var::Racer(offset) => crate::menu::standings::put(self.racer + offset, value),
-            _ => unsafe { game_write(at(v), value) },
+            _ => match cell(v) {
+                Some(cell) => cell.set(value),
+                None => unsafe { game_write(at(v), value) },
+            },
         }
     }
 

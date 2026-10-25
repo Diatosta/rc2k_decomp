@@ -25,7 +25,7 @@ use crate::errors::{BadInput, Refused};
 use crate::math::x87_float::X;
 use crate::math::x87_float::{ld, st, to_int};
 use crate::scene::x87_mem::{fld, mov};
-use crate::sound::store::{STAGE_SOUNDS, SURFACE_SOUNDS, SoundObject, WHEELS};
+use crate::sound::store::{STAGE_SOUNDS, SURFACE_SOUNDS, SoundObject, WHEEL_SURFACES};
 use rc2k_core::sound::surfaces;
 
 /// off_51639C: the sets (pairs of pointers, seven).
@@ -46,7 +46,7 @@ fn one(o: &SoundObject, request: u32, second: usize) -> Result<(), Refused> {
     if second == 0 {
         o.surface.set(surface);
     }
-    WHEELS.surface[second].set(surface);
+    WHEEL_SURFACES[second].set(surface);
     if surfaces::quieter(surface) {
         if second == 0 {
             x87_1(

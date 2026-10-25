@@ -18,19 +18,14 @@
 use crate::errors::Refused;
 use crate::framework::rva;
 use crate::hud::disc_vertex::disc_vertex;
-use crate::hud::store::Slot;
-use crate::hud::store::{game_addr, game_read, game_write};
+use crate::hud::store::HUD;
 use crate::math::x87;
 use crate::scene::x87_mem::{fistp, fld};
+use crate::store::game_read;
 use rc2k_core::hud::disc::SEGMENTS;
 
-const RING_RVA: [Slot; 2] = [Slot::at(0x75C188), Slot::at(0x75C1CC)]; // flt_75C188, flt_75C1CC
-const TEXTURE_RING_RVA: [Slot; 2] = [Slot::at(0x75C210), Slot::at(0x75C254)];
 const SINES_RVA: usize = rva(0xA23AE4); // g_sines
 const COSINES_RVA: usize = rva(0xA24AE4); // g_cosines
-const TURN_RVA: [Slot; 3] = [Slot::at(0x75C05C), Slot::at(0x75C028), Slot::at(0x75C024)];
-const SCRATCH_RVA: Slot = Slot::at(0x75C060); // dword_75C060
-const VERTICES_RVA: usize = rva(0x9605A0); // g_polygonVertices
 
 /// `fld a; fchs; fmul b; fmul c; fistp`.
 fn negated_times_times_to_int(a: u32, b: u32, c: u32) -> u32 {
@@ -46,20 +41,20 @@ pub unsafe fn draw_disc() -> Result<(), Refused> {
         use rc2k_core::hud::disc::{disc_triangle, ring_angles};
         // The texture's turn follows the x87's control word: the x87's.
         let t = negated_times_times_to_int(
-            game_read(TURN_RVA[0]),
-            game_read(TURN_RVA[1]),
-            game_read(TURN_RVA[2]),
+            HUD.disc_turn.bits(),
+            HUD.disc_turn_a.bits(),
+            HUD.disc_turn_b.bits(),
         );
         let table = |r: usize, a: u32| x87::loaded(game_read(r + 4 * a as usize));
         for (k, [a, b]) in ring_angles(t).into_iter().enumerate() {
-            let n = 4 * (k + 1);
-            game_write(RING_RVA[0] + n, table(SINES_RVA, a));
-            game_write(RING_RVA[1] + n, table(COSINES_RVA, a));
-            game_write(TEXTURE_RING_RVA[0] + n, table(SINES_RVA, b));
-            game_write(TEXTURE_RING_RVA[1] + n, table(COSINES_RVA, b));
+            let n = k + 1;
+            HUD.ring_sines[n].set_bits(table(SINES_RVA, a));
+            HUD.ring_cosines[n].set_bits(table(COSINES_RVA, a));
+            HUD.texture_ring_sines[n].set_bits(table(SINES_RVA, b));
+            HUD.texture_ring_cosines[n].set_bits(table(COSINES_RVA, b));
         }
-        game_write(SCRATCH_RVA, t);
-        let base = game_addr(VERTICES_RVA) as u32;
+        HUD.scratch.set(t);
+        let base = crate::store::game_addr(crate::hud::batch::POLYGON_RVA) as u32;
         for k in 0..SEGMENTS {
             for (n, e) in disc_triangle(k).into_iter().enumerate() {
                 disc_vertex(e, base + 0x20 * n as u32)?;

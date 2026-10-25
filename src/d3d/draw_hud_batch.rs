@@ -9,22 +9,19 @@
 //! Platform: the original always runs. In the standalone program the rasteriser draws
 //! each triangle (`platform_3d::draw_indexed_list`) and the result is 0.
 
-use crate::hud::store::{Slot, game_read, indices, vertices};
-
-const VERTEX_COUNT: Slot = Slot::at(0x764F24); // g_hudVertexCount
-const INDEX_COUNT: Slot = Slot::at(0x764F28); // g_hudIndexCount
+use crate::hud::store::{HUD, indices, vertices};
 
 /// Draws the HUD's batch. Its leftovers (eax 0, ecx, edx) are read by none of the
 /// original's callers (register liveness, 2026-10-23).
 pub fn draw_hud_batch() {
+    // The vertices and indices are the HUD block's (`hud::store`); the image's two
+    // pointers to them (`off_764F2C`, `off_764F30`) are no longer read.
     unsafe {
-        // The vertices and indices are the HUD block's (`hud::store`); the image's two
-        // pointers to them (`off_764F2C`, `off_764F30`) are no longer read.
         crate::platform_3d::draw_indexed_list(
             vertices() as u32,
-            game_read(VERTEX_COUNT),
+            HUD.vertex_count.get(),
             indices() as u32,
-            game_read(INDEX_COUNT),
+            HUD.index_count.get(),
         )
     };
 }

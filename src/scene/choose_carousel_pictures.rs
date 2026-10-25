@@ -9,14 +9,10 @@
 //! `scene::update_carousel_pictures`. One caller, `scene::draw_main_menu_objects`.
 
 use crate::errors::BadInput;
-use crate::framework::{game_read, rva};
+use crate::menu::state_store::MENU_STATE;
 use crate::scene::carousel_pictures::update;
 
 // ---- game data ----
-
-const MENU_RVA: usize = rva(0x75AA74); // g_carouselMenu
-const COUNT_RVA: usize = rva(0x75AA78); // g_carouselCount
-const FRONT_RVA: usize = rva(0x75AA7C); // g_carouselFront
 
 // ---- Rust version ----
 
@@ -24,9 +20,12 @@ pub unsafe fn choose_carousel_pictures() -> Result<(), BadInput> {
     // Converted: `rc2k_core::scene::carousel::{shows_pictures, visible_entries}`.
     use rc2k_core::scene::carousel::{shows_pictures, visible_entries};
     unsafe {
-        if !shows_pictures(game_read(MENU_RVA)) {
+        if !shows_pictures(MENU_STATE.carousel.menu.get()) {
             return Ok(());
         }
-        update(visible_entries(game_read(FRONT_RVA), game_read(COUNT_RVA)))
+        update(visible_entries(
+            MENU_STATE.carousel.front.get(),
+            MENU_STATE.carousel.count.get(),
+        ))
     }
 }

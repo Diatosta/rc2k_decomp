@@ -12,15 +12,14 @@
 //! Refuses A3D (the chunk at 0x40CDE8).
 
 use crate::audio::buffer_settings::a3d;
-use crate::audio::store::Slot;
+use crate::audio::store::AUDIO;
 use crate::audio::voices::*;
 use crate::errors::{BadInput, Refused};
 
-pub const LOCKED_PARTS_RVA: Slot = Slot::at(0x506A98); // g_lockedParts
-
-/// `parts`: the four dwords the parts go to; `lost`: the lost buffer's flag. True for the
-/// carry clear.
-pub unsafe fn fill_buffer(v: &Voice, parts: u32, lost: u32) -> Result<bool, Refused> {
+/// The voice's buffer filled; the lost buffer's flag is `g_soundBufferLost`, the parts go
+/// to `g_lockedParts`. True for the carry clear.
+pub unsafe fn fill_buffer(v: &Voice) -> Result<bool, Refused> {
+    let parts = AUDIO.locked_parts[0].addr() as u32;
     if a3d() {
         return Err(BadInput("A3D (the chunk at 0x40CDE8)").into());
     }
@@ -32,7 +31,7 @@ pub unsafe fn fill_buffer(v: &Voice, parts: u32, lost: u32) -> Result<bool, Refu
     unsafe {
         let failed = |r: i32| {
             if lost_memory(r) {
-                write(lost, 1);
+                AUDIO.sound_buffer_lost.set(1);
             }
             false
         };
@@ -51,7 +50,7 @@ pub unsafe fn fill_buffer(v: &Voice, parts: u32, lost: u32) -> Result<bool, Refu
         if r != 0 {
             return Ok(failed(r));
         }
-        let locked = (parts as *const [u32; 4]).read_unaligned();
+        let locked = AUDIO.locked_parts.each_ref().map(|d| d.get());
         let [p1, n1, p2, n2] = locked;
         let (first, second) = fill_copies(v.data, locked);
         for (from, to, bytes) in std::iter::once(first).chain(second) {

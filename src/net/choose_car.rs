@@ -10,7 +10,8 @@
 
 use crate::errors::Refused;
 use crate::menu::screen_loop::{Carried, run_screen};
-use crate::net::lobby::{OWN, g, p, pb};
+use crate::net::lobby::{g, p};
+use crate::net::store::{NET, PlayerRecord};
 
 const CLEARED: usize = 0x75598C; // dword_75598C
 pub const ESCAPED: usize = 0x755A3C; // dword_755A3C: the screen was left with Escape
@@ -33,8 +34,8 @@ pub fn choose_car() -> Result<(), Refused> {
     unsafe { run_screen(&crate::menu::select_car_loop::SCREEN, &entry) }?;
     if g(ESCAPED) != 1 {
         unsafe { crate::menu::take_shown_car::take_shown_car(cars) }?;
-        pb(OWN + 1, g(CAR) as u8);
-        pb(OWN + 2, g(COLOURS) as u8);
+        NET.own.head.set(PlayerRecord::CAR, g(CAR) as u8);
+        NET.own.head.set(PlayerRecord::COLOURS, g(COLOURS) as u8);
     }
     crate::net::show_background::show_background()?;
     Ok(())

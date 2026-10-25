@@ -32,7 +32,6 @@ const GAME_DIR: usize = 0x95E6F8; // byte_95E6F8: the game's folder, 0x100 bytes
 const INSTALLED: usize = 0x95E7F8; // byte_95E7F8: the installed folder, 0x100 bytes
 const OTHER_DIR: usize = 0x5295B5; // unk_5295B5
 const SOURCE: usize = 0x51BB8D; // g_installSource
-const FROM_CD: usize = 0x529DB0; // g_runningFromCd
 const COMMAND: usize = 0x518BA8; // dword_518BA8 the program's name, dword_518BAC its length
 // Texts.
 const DXSETUP: usize = 0x51BE54; // "redist\directx\dxsetup.exe"
@@ -68,7 +67,7 @@ impl Vars {
             other_dir: a(OTHER_DIR),
             program: crate::files::numbered_path::buffer() as u32, // byte_94E8B0: a program's name (0x100 bytes taken)
             source: a(SOURCE),
-            from_cd: a(FROM_CD),
+            from_cd: crate::install::store::INSTALL.running_from_cd.addr() as u32,
             command: a(COMMAND),
         }
     }

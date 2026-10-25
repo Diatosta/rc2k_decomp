@@ -83,7 +83,6 @@ pub const FONTS: usize = 0x51D4C4; // dword_51D4C4: the page's fonts
 pub const COLOURS: usize = 0x51D528; // byte_51D528: font by mark, 8 bytes a kind
 pub const TEXT: usize = 0x93E430; // text: the shared text buffer
 pub const SCRATCH: usize = 0x93E8B0; // g_pngInfo: 0x10000 bytes used as scratch
-pub const DRIVE_LETTERS: usize = 0x52A30F; // byte_52A30F: the drives' texts, 0x10 each
 // off_51DD48: the third page's action
 pub const LANGUAGE_COUNT: usize = 0x51BEEA; // g_languageCount
 // FindFileData

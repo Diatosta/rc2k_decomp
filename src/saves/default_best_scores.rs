@@ -17,14 +17,13 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_read, rva};
+use crate::menu::state_store::MENU_STATE;
 use crate::saves::default_times::{GameSource, to_nowhere};
 use rc2k_core::saves::defaults::{SCORE_TABLE_LEN, best_scores, write_best_scores};
 
 // ---- game data ----
 
 const TABLE_RVA: usize = rva(0x7556D4); // dword_7556D4
-const COUNTS_RVA: usize = rva(0x75AB00); // dword_75AB00[group]
-const FIRSTS_RVA: usize = rva(0x75AB10); // dword_75AB10[group]
 
 // ---- Rust version ----
 
@@ -35,8 +34,8 @@ pub unsafe fn default_best_scores() -> Result<(), Refused> {
         if table == 0 {
             return Err(BadInput("no table of best scores").into());
         }
-        let counts = std::array::from_fn(|g| game_read(COUNTS_RVA + g * 4));
-        let firsts = std::array::from_fn(|g| game_read(FIRSTS_RVA + g * 4));
+        let counts = std::array::from_fn(|g| MENU_STATE.menus.class_counts[g].get());
+        let firsts = std::array::from_fn(|g| MENU_STATE.menus.firsts[g].get());
         let entries = best_scores(
             &mut GameSource {
                 log: &mut to_nowhere,

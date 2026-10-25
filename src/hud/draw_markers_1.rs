@@ -10,17 +10,10 @@
 //! Caller: layout 1's drawer (0x4B2BF4); `hud::draw_markers_2` is its twin (rows 0x11F, 0x12C).
 
 use crate::errors::Refused;
-use crate::hud::add_quad::QUAD_RVA;
-use crate::hud::draw_marker::RECTS_RVA;
-use crate::hud::store::Slot;
-use crate::hud::store::{game_addr, game_read, game_write};
+use crate::hud::store::{HUD, rect_addr};
 use rc2k_core::hud::quads;
 use rc2k_core::math::extended::{from_f64, to_f64};
 
-const COLOURS_RVA: [Slot; 2] = [Slot::at(0x75BF50), Slot::at(0x75BF54)];
-const K_RVA: [Slot; 2] = [Slot::at(0x75C0A8), Slot::at(0x75C0AC)];
-const SCRATCH_RVA: Slot = Slot::at(0x75C060); // dword_75C060
-const UV_SCALE_RVA: Slot = Slot::at(0x75C00C); // flt_75C00C
 const RECT: u32 = 0x5C;
 
 /// `fild i; fdiv k`, kept extended (`quads::int_over`: exact at the game's double
@@ -39,25 +32,25 @@ pub fn taken_off(v: [u8; 10]) -> u32 {
 pub unsafe fn markers_with(record: u32, rows: [u32; 2]) -> Result<(), Refused> {
     unsafe {
         let get = |o: u32| ((record + o) as *const u32).read_unaligned();
-        let k: u32 = game_read(UV_SCALE_RVA);
+        let k = HUD.uv_scale_x.bits();
         for (n, field) in [0x6Cu32, 0x70].into_iter().enumerate() {
-            game_write(QUAD_RVA + 0x14, game_read::<u32>(COLOURS_RVA[n]));
+            HUD.quad[5].set(HUD.marker_colours[n].get());
             let f = f32::from_bits;
             let x = quads::marker_x(
                 f(get(field)),
                 f(get(0x68)),
-                f(game_read(K_RVA[0])),
-                f(game_read(K_RVA[1])),
+                HUD.marker_k[0].get(),
+                HUD.marker_k[1].get(),
             );
-            game_write(SCRATCH_RVA, x);
-            let rect = game_addr(RECTS_RVA) as u32 + RECT * 0x10;
-            game_write(SCRATCH_RVA, 0x78u32);
+            HUD.scratch.set(x);
+            let rect = rect_addr(RECT);
+            HUD.scratch.set(0x78u32);
             let st1 = int_over_80(0x78, k);
-            game_write(SCRATCH_RVA, 0x100u32);
+            HUD.scratch.set(0x100u32);
             let st0 = int_over_80(0x100, k);
             crate::hud::add_scaled_sprite::add_scaled_sprite(x, rows[n], rect, [st0, st1])?;
             // the two scales taken off into dword_75C060 (st(0), then st(1))
-            game_write(SCRATCH_RVA, taken_off(st1));
+            HUD.scratch.set(taken_off(st1));
         }
     }
     Ok(())

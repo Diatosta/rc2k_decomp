@@ -9,12 +9,13 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::screens::service_boxes::{quad, rd};
+use crate::menu::state_store::MENU_STATE;
+use crate::screens::service_boxes::quad;
 
 /// The Rust version: every register kept.
 pub unsafe fn draw_bottom_panel() -> Result<(), Refused> {
     // Converted: `rc2k_core::screens::panels::bottom_panel`.
-    for a in rc2k_core::screens::panels::bottom_panel(rd(0x75AA94)) {
+    for a in rc2k_core::screens::panels::bottom_panel(MENU_STATE.service_ui.fade_full.get()) {
         quad(a.x, a.y, a.w, a.h, a.colour, a.see)?;
     }
     Ok(())

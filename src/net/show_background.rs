@@ -12,7 +12,8 @@
 //! `net::choose_car`, `net::choose_stage`.
 
 use crate::errors::Refused;
-use crate::net::lobby::{MODE, SESSION, copy_picture, draw_string, g};
+use crate::net::lobby::{copy_picture, draw_string, g};
+use crate::net::store::NET;
 
 const SCREEN_MODE_FLAGS: usize = 0x4F4934; // g_screenModeFlags
 pub const TITLE_FONT: usize = 0x51E944; // stru_51E944
@@ -27,10 +28,10 @@ pub fn show_background() -> Result<(), Refused> {
         crate::gfx::block::game_write(crate::gfx::picture::FLAGS_RVA, g(SCREEN_MODE_FLAGS) & 0xFFF);
         crate::gfx::picture_as_surface::picture_as_surface()?;
     }
-    let title = if g(SESSION) == 1 {
+    let title = if NET.session.get() == 1 {
         0x15A
     } else {
-        match g(MODE) {
+        match NET.mode.get() {
             0 => 0x162,
             1 => 0x14B,
             _ => 0x14C,

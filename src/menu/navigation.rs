@@ -14,15 +14,12 @@
 use crate::errors::Refused;
 use crate::framework::{game_read, game_write, rva};
 use crate::menu::item_at::item_at;
+use crate::menu::state_store::MENU_STATE;
 use crate::service::state::MENU_ITEM_RVA;
 
 // ---- game data ----
 
 const TURNING_RVA: usize = rva(0x7554EC); // dword_7554EC: 1 = left and right turn the counter
-const TURN_COUNT_RVA: usize = rva(0x75AA78); // dword_75AA78
-const TURN_RVA: usize = rva(0x75AA7C); // dword_75AA7C
-const TURN_WAY_RVA: usize = rva(0x75A660); // dword_75A660: 1 after right, -1 after left
-const TURN_STEP_RVA: usize = rva(0x75AA80); // dword_75AA80: 0 after right, -1 after left
 const QUIET_RVA: usize = rva(0x7554D0); // dword_7554D0: 1 = left and right do not click
 
 unsafe fn dword(at: u32) -> u32 {
@@ -67,10 +64,10 @@ pub unsafe fn move_highlight(direction: Direction) -> Result<(), Refused> {
         let item = item_at(highlighted)?;
         let turned = (sideways && game_read::<u32>(TURNING_RVA) == 1).then(|| {
             let t = Turn {
-                count: game_read(TURN_COUNT_RVA),
-                value: game_read(TURN_RVA),
-                way: game_read(TURN_WAY_RVA),
-                step: game_read(TURN_STEP_RVA),
+                count: MENU_STATE.carousel.count.get() as i32,
+                value: MENU_STATE.carousel.front.get() as i32,
+                way: MENU_STATE.carousel.direction.get(),
+                step: MENU_STATE.carousel.angle.get(),
             };
             turn(t, direction == Direction::Right)
         });
@@ -84,9 +81,9 @@ pub unsafe fn move_highlight(direction: Direction) -> Result<(), Refused> {
             _ => None,
         };
         if let Some(t) = turned {
-            game_write(TURN_RVA, t.value);
-            game_write(TURN_WAY_RVA, t.way);
-            game_write(TURN_STEP_RVA, t.step);
+            MENU_STATE.carousel.front.set(t.value as u32);
+            MENU_STATE.carousel.direction.set(t.way);
+            MENU_STATE.carousel.angle.set(t.step);
         }
         if link(next) == Link::None {
             return Ok(());

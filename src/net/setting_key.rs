@@ -11,9 +11,8 @@
 //! Caller: `net::settings_loop`.
 
 use crate::errors::Refused;
-use crate::net::lobby::{
-    CHOICE, EDIT_SAVED, MACHINE_NAME, MOST_PLAYERS, NUMBER_TEXT, a, g, gb, movsb, p,
-};
+use crate::net::lobby::{CHOICE, EDIT_SAVED, NUMBER_TEXT, a, g, movsb};
+use crate::net::store::NET;
 use rc2k_core::net::chat;
 
 /// The Rust version: the key `key` for the setting being edited. The registers the
@@ -26,17 +25,17 @@ pub fn setting_key(key: u8) -> Result<(), Refused> {
     // Converted: `rc2k_core::net::chat` (`NAME`, `MOST_PLAYERS`, `most_players`).
     match g(CHOICE) {
         chat::NAME => {
-            if gb(MACHINE_NAME) == 0 {
-                movsb(a(MACHINE_NAME), a(EDIT_SAVED), 0x40);
+            if NET.machine_name.get(0) == 0 {
+                movsb(NET.machine_name.addr() as u32, a(EDIT_SAVED), 0x40);
             }
         }
         chat::MOST_PLAYERS => {
             let number =
                 unsafe { crate::settings::parse_number::parse_number(a(NUMBER_TEXT) as *const u8) };
-            p(
-                MOST_PLAYERS,
-                chat::most_players(number, crate::strings::load_language::notice_kind()),
-            );
+            NET.most_players.set(chat::most_players(
+                number,
+                crate::strings::load_language::notice_kind(),
+            ));
         }
         _ => {}
     }

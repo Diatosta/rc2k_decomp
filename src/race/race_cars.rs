@@ -6,6 +6,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::race::objects::{CAR_BLOCKS_RVA, CARS_RVA};
+use crate::race::state_store::RACE_STATE;
 
 /// The eight car blocks (fixed; `g_carBlocks` lists them), 0xFE0 apart.
 pub const BLOCK_0: usize = 0x70F3EC;
@@ -102,10 +103,7 @@ pub const STAGE_TOTAL_RVA: usize = rva(0x601C4C); // g_stageCarTotal
 pub const MOST_NUMBERS: usize = rc2k_core::race::stage::MOST_NUMBERS;
 /// dword_6043FC: the automatic set-ups, 0x10 bytes each (h, s, g5, g4 + 1).
 pub const SET_UPS_RVA: usize = rva(0x6043FC);
-pub const ALL_AUTO_RVA: usize = rva(0x52A910); // dword_52A910
-const BRAKES_RVA: [usize; 2] = [rva(0x75AD2C), rva(0x75AE98)]; // dword_75AD2C, dword_75AE98
 const BRAKE_SCALE_RVA: usize = rva(0x5C5E00); // flt_5C5E00, 2.56
-const MODE_1_VALUES_RVA: [usize; 2] = [rva(0x75B004), rva(0x75B008)]; // dword_75B004 / 8
 pub const PLAYERS_2_RVA: usize = rva(0x63DB98); // dword_63DB98
 /// "autosetup", "t", "off", "h", "(0-255)", "s", "(0-255)", "g", "(0-4)", "g", "(0-5)".
 const SET_UP_WORDS: [usize; 11] = [
@@ -212,9 +210,10 @@ pub unsafe fn auto_set_up_car(b: u32) -> Result<(), Refused> {
 unsafe fn brake_value(n: usize) -> u32 {
     // Converted: `rc2k_core::race::cars::held_brake` (the product the x87's).
     unsafe {
-        rc2k_core::race::cars::held_brake(game_read(BRAKES_RVA[n]), |v| {
-            crate::math::x87::int_times_to_int(v, game_read(BRAKE_SCALE_RVA)) as u32
-        })
+        rc2k_core::race::cars::held_brake(
+            RACE_STATE.settings.cars[n].steering_sensitivity.get() as i32,
+            |v| crate::math::x87::int_times_to_int(v, game_read(BRAKE_SCALE_RVA)) as u32,
+        )
     }
 }
 
@@ -228,8 +227,10 @@ pub unsafe fn set_up_mode_0_cars() -> Result<(), Refused> {
     unsafe {
         // Converted: `rc2k_core::race::cars::{every_car_set_up, held_brake}`.
         let cars: u32 = game_read(CARS_RVA);
-        let all =
-            rc2k_core::race::cars::every_car_set_up(game_read::<u32>(ALL_AUTO_RVA) != 0, cars)?;
+        let all = rc2k_core::race::cars::every_car_set_up(
+            crate::net::store::NET.session.get() != 0,
+            cars,
+        )?;
         reset_car_blocks();
         if !all {
             drop_absent_player();
@@ -257,8 +258,14 @@ pub unsafe fn set_up_mode_1_cars() {
         reset_car_blocks();
         drop_absent_player();
         set_player_car_kinds();
-        for (n, &from) in MODE_1_VALUES_RVA.iter().enumerate() {
-            game_write(block(n) + 0x88, game_read::<u32>(from));
+        for (n, from) in [
+            &RACE_STATE.results.word_288_current,
+            &RACE_STATE.results.word_288_first,
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            game_write(block(n) + 0x88, from.get());
         }
     }
 }

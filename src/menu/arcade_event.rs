@@ -1,8 +1,11 @@
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 use crate::menu::event_flow::Flow;
+use crate::menu::lists_store::MENU_LISTS;
 use crate::menu::player::player_at;
 use crate::menu::screen_loop::{Carried, run_screen_carried};
+use crate::race::state_store::RACE_STATE;
+use crate::session::Dword;
 use rc2k_core::menu::arcade_event::{self as arcade, Hand, Step, Var};
 
 fn g(a: usize) -> u32 {
@@ -23,6 +26,19 @@ struct Game {
     player0: u32,
 }
 
+/// The variables that are in the physics block.
+fn cell(v: Var) -> Option<&'static Dword> {
+    Some(match v {
+        Var::RaceStage => &RACE_STATE.results.race_stage,
+        Var::RaceLevel => &RACE_STATE.results.race_level,
+        Var::CheatSwitch => &RACE_STATE.settings.direction,
+        Var::RaceResult => &RACE_STATE.results.results[0].result,
+        Var::RaceFigureFFC => &RACE_STATE.results.figure_ffc,
+        Var::RaceFigure000 => &RACE_STATE.results.figure_000,
+        _ => return None,
+    })
+}
+
 fn address(v: Var) -> usize {
     match v {
         Var::Failed => 0x7587F4,
@@ -41,16 +57,16 @@ fn address(v: Var) -> usize {
         Var::Current => 0x75598C,
         Var::CarLeft => 0x758806,
         Var::Answer => 0x75524C,
-        Var::RaceStage => 0x75AFF4,
-        Var::RaceLevel => 0x75AFF8,
-        Var::CheatSwitch => 0x75ACF0,
         Var::Cheats => 0x75870C,
-        Var::RaceResult => 0x75B028,
-        Var::RaceFigureFFC => 0x75AFFC,
-        Var::RaceFigure000 => 0x75B000,
         Var::Qualifies => 0x755918,
         Var::Done => 0x755980,
         Var::Player0Entry => unreachable!("player 0's field is not at an address"),
+        Var::RaceStage
+        | Var::RaceLevel
+        | Var::CheatSwitch
+        | Var::RaceResult
+        | Var::RaceFigureFFC
+        | Var::RaceFigure000 => unreachable!("a variable of the physics block, `cell`"),
     }
 }
 
@@ -58,7 +74,10 @@ impl arcade::Arcade for Game {
     type Error = Refused;
 
     fn get(&mut self, v: Var) -> u32 {
-        g(address(v))
+        match cell(v) {
+            Some(cell) => cell.get(),
+            None => g(address(v)),
+        }
     }
 
     fn set(&mut self, v: Var, value: u32) {
@@ -67,7 +86,10 @@ impl arcade::Arcade for Game {
                 self.f.record = self.player0;
                 put(self.player0 + 0xD0, value);
             }
-            _ => p(address(v), value),
+            _ => match cell(v) {
+                Some(cell) => cell.set(value),
+                None => p(address(v), value),
+            },
         }
     }
 
@@ -80,7 +102,7 @@ impl arcade::Arcade for Game {
                 Step::ClearPlayers284 => m::clear_players_284::clear_players_284()?,
                 Step::ResetCars750724 => m::reset_cars_750724::reset_cars_750724()?,
                 Step::SecretCarList => {
-                    c.cars = game_addr(rva(0x75A042)) as u32;
+                    c.cars = MENU_LISTS.cars_second[0].addr() as u32;
                     m::cheat_car_list::carry_on(m::cheat_car_list::cheat_car_list(), c);
                 }
                 Step::SelectCarLoop => run_screen_carried(&m::select_car_loop::SCREEN, c)?,

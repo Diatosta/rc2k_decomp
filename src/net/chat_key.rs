@@ -8,7 +8,7 @@
 //! Caller: `net::lobby_loop`.
 
 use crate::errors::Refused;
-use crate::net::lobby::{CHAT_INPUT, PLAYER, a, g, gb, pb};
+use crate::net::store::NET;
 
 /// The Rust version: the key `key` for the chat message being typed; once it ends the
 /// editing, a message typed is sent and the input cleared. The registers the original
@@ -17,9 +17,12 @@ pub fn chat_key(key: u8) -> Result<(), Refused> {
     if !crate::net::edit_key::edit_key(key)? {
         return Ok(());
     }
-    if gb(CHAT_INPUT) != 0 {
-        crate::net::send_chat::send_chat(g(PLAYER), a(CHAT_INPUT) as *const u8)?;
-        pb(CHAT_INPUT, 0);
+    if NET.chat_input.get(0) != 0 {
+        crate::net::send_chat::send_chat(
+            NET.player.get(),
+            (NET.chat_input.addr() as u32) as *const u8,
+        )?;
+        NET.chat_input.set(0, 0);
     }
     Ok(())
 }

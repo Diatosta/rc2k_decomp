@@ -4,9 +4,8 @@
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_read, game_write, rva};
 use crate::menu::player::{PLAYERS, player_at};
-use crate::menu::step_carousel::{ANGLE_RVA, COUNT_RVA, DIRECTION_RVA, FRONT_RVA};
+use crate::menu::state_store::MENU_STATE;
 use crate::menu::take_shown_car::{CURRENT_PLAYER_RVA, SHOWN_CAR_RVA};
-use crate::scene::carousel_pictures::ENTRIES_RVA;
 
 pub const LAST_ENTRY_RVA: usize = rva(0x75649C); // dword_75649C: the entries' last index
 pub const CHOSEN_RVA: usize = rva(0x755561); // dword_755561: set to 0 by the turns
@@ -24,7 +23,7 @@ pub unsafe fn find_player_car() -> Result<(), Refused> {
             return Err(BadInput("a current player past the four").into());
         }
         let car = (*(p as *const crate::menu::player::Player)).car_number;
-        let list: u32 = game_read(ENTRIES_RVA);
+        let list: u32 = MENU_STATE.carousel.entries.get();
         let entry = |n: u32| ((list + 4 * n) as *const u32).read_unaligned();
         if list == 0 || entry(0) == u32::MAX {
             return Err(BadInput("no carousel entries").into());
@@ -43,7 +42,7 @@ pub unsafe fn find_player_car() -> Result<(), Refused> {
             }
         }
         let found = rc2k_core::menu::cars::find_car(&cars, car);
-        game_write(FRONT_RVA, found);
+        MENU_STATE.carousel.front.set(found);
         game_write(SHOWN_CAR_RVA, found);
     }
     Ok(())
@@ -62,19 +61,19 @@ unsafe fn turn(on: bool) {
         let c = turn_carousel(
             Carousel {
                 turn: Turn {
-                    count: game_read(COUNT_RVA),
-                    value: game_read(FRONT_RVA),
-                    way: game_read(DIRECTION_RVA),
-                    step: game_read(ANGLE_RVA),
+                    count: MENU_STATE.carousel.count.get() as i32,
+                    value: MENU_STATE.carousel.front.get() as i32,
+                    way: MENU_STATE.carousel.direction.get(),
+                    step: MENU_STATE.carousel.angle.get(),
                 },
                 shown: game_read(SHOWN_CAR_RVA),
                 last: game_read(LAST_ENTRY_RVA),
             },
             on,
         );
-        game_write(FRONT_RVA, c.turn.value);
-        game_write(DIRECTION_RVA, c.turn.way);
-        game_write(ANGLE_RVA, c.turn.step);
+        MENU_STATE.carousel.front.set(c.turn.value as u32);
+        MENU_STATE.carousel.direction.set(c.turn.way);
+        MENU_STATE.carousel.angle.set(c.turn.step);
         game_write(SHOWN_CAR_RVA, c.shown);
         game_write(CHOSEN_RVA, 0u32);
     }

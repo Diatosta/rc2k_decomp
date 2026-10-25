@@ -13,10 +13,9 @@
 //! original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{game_read, game_write, rva};
+use crate::framework::{game_read, rva};
 use crate::menu::screen_loop::Carried;
-
-const FLAG_RVA: usize = rva(0x75AADC); // dword_75AADC
+use crate::menu::state_store::MENU_STATE;
 const EVENT_MODE_RVA: usize = rva(0x7556D0); // g_eventMode
 
 /// The Rust version (see the header). `c` the carried values (the registers the pages'
@@ -24,7 +23,7 @@ const EVENT_MODE_RVA: usize = rva(0x7556D0); // g_eventMode
 pub unsafe fn rally_results(c: &Carried) -> Result<(), Refused> {
     let mut g = *c;
     unsafe {
-        game_write(FLAG_RVA, 1u32);
+        MENU_STATE.menus.which_title.set(1u32);
         crate::menu::standings_a_from_all::standings_a_from_all()?;
         // Converted: `rc2k_core::menu::results_pages::class_pages_only`.
         if !rc2k_core::menu::results_pages::class_pages_only(game_read(EVENT_MODE_RVA)) {
@@ -35,7 +34,7 @@ pub unsafe fn rally_results(c: &Carried) -> Result<(), Refused> {
         } else {
             crate::menu::class_rally_results_pass::class_rally_results_pass(&g)?;
         }
-        game_write(FLAG_RVA, 0u32);
+        MENU_STATE.menus.which_title.set(0u32);
     }
     Ok(())
 }

@@ -23,7 +23,6 @@ use crate::install::installer::{
 
 const UPDATING: usize = 0x51B9CC; // dword_51B9CC
 const FROM_COMMAND: usize = 0x51B9D0; // dword_51B9D0
-const SCRIPT: usize = 0x529DCC; // byte_529DCC (the Clio script)
 const FONT_BE: usize = 0x51E904; // stru_51E904
 
 /// `to` = `base` + name `index` of `table`, NUL-ended.
@@ -48,7 +47,7 @@ fn work() -> Result<Stop, Refused> {
     {
         return Ok(Stop::Straight);
     }
-    i::run_script::run_script(a(SCRIPT))?;
+    i::run_script::run_script(crate::install::store::INSTALL.clio_script.addr() as u32)?;
     if g(DIR_COUNT) != 0 {
         let mut n = 0;
         loop {
