@@ -30,13 +30,11 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::rva;
-use crate::input::store::DeviceSlot;
-use crate::math::x87::x87;
+use crate::input::store::DEVICES;
 use crate::session::MACHINE;
 use crate::store::{game_addr, game_write};
 use rc2k_core::race::tyre_change::{Gauge, Io, turn};
 
-const DEVICES: DeviceSlot = DeviceSlot::at(0x4F6EE8); // g_inputDevices
 const PLAYER: usize = 0x5BEBEC; // dword_5BEBEC
 const RECORD: usize = 0x5BEC28; // g_tyreChangeRecord
 const RECORD_NAME: usize = 0x5BEC08; // g_tyreChangeRecordName (30 bytes)
@@ -66,34 +64,13 @@ unsafe fn put(a: u32, v: u32) {
 
 /// 0x41C2C7 .. 0x41C320: the time of a press, from s = 0x10000 less the gauge.
 pub fn press_time(s: i32) -> i32 {
-    let f = FLOATS.map(g);
-    let v = [
-        f[1],
-        f[3],
-        s as u32,
-        f[2],
-        f[4],
-        f[0],
-        0x447A_0000,
-        0x4120_0000,
-    ];
-    let mut out = 0i32;
-    x87!(
-        "fld dword ptr [{v}]",
-        "fmul dword ptr [{v}+4]",
-        "fild dword ptr [{v}+8]",
-        "fmul dword ptr [{v}+12]",
-        "fsqrt",
-        "fadd dword ptr [{v}+16]",
-        "fyl2x",
-        "fdiv dword ptr [{v}+4]",
-        "fadd dword ptr [{v}+20]",
-        "fmul dword ptr [{v}+24]",
-        "fdiv dword ptr [{v}+28]",
-        "fistp dword ptr [{o}]";
-        v = v.as_ptr(), o = &raw mut out
-    );
-    out
+    use crate::math::x87_float::{X, int, ld, to_int};
+    let f = FLOATS.map(|a| ld(g(a)));
+    // `fyl2x` (libm's log2): the product and the sum are the x87's
+    let log = (int(s) * f[2]).sqrt() + f[4];
+    let r = f[1] * f[3] * X(log.0.log2());
+    let t = (r / f[3] + f[0]) * ld(0x447A_0000) / ld(0x4120_0000);
+    to_int(t)
 }
 
 /// The gauge's dealings with the game: the device's state written into it before each
@@ -154,7 +131,7 @@ pub fn tyre_change_gauge(start: bool, player: u32) -> Result<u32, Refused> {
     if player > 7 {
         return Err(BadInput("a tyre change player past 7").into());
     }
-    let d = g(DEVICES + 4 * player as usize);
+    let d = DEVICES.input_device(player as usize);
     if d == 0 {
         return Err(BadInput("a tyre change player without a device").into());
     }
@@ -174,4 +151,77 @@ pub fn tyre_change_gauge(start: bool, player: u32) -> Result<u32, Refused> {
     }
     MACHINE.scratch.set(result);
     Ok(result)
+}
+
+#[cfg(test)]
+mod asm_reference {
+    use super::*;
+    use crate::math::x87::x87;
+    use crate::race::asm_test::{Rng, Saved, at_each_control_word, lock};
+
+    // The original block, verbatim.
+    pub(super) fn press_time_asm(s: i32) -> i32 {
+        let f = FLOATS.map(g);
+        let v = [
+            f[1],
+            f[3],
+            s as u32,
+            f[2],
+            f[4],
+            f[0],
+            0x447A_0000,
+            0x4120_0000,
+        ];
+        let mut out = 0i32;
+        x87!(
+            "fld dword ptr [{v}]",
+            "fmul dword ptr [{v}+4]",
+            "fild dword ptr [{v}+8]",
+            "fmul dword ptr [{v}+12]",
+            "fsqrt",
+            "fadd dword ptr [{v}+16]",
+            "fyl2x",
+            "fdiv dword ptr [{v}+4]",
+            "fadd dword ptr [{v}+20]",
+            "fmul dword ptr [{v}+24]",
+            "fdiv dword ptr [{v}+28]",
+            "fistp dword ptr [{o}]";
+            v = v.as_ptr(), o = &raw mut out
+        );
+        out
+    }
+
+    /// With the game's own constants, over the whole range of the gauge, then with other
+    /// constants. `fyl2x` is libm's here: a result may differ by one where the x87's log2
+    /// and libm's disagree at the last bit and the sum falls on a whole number; counted.
+    #[test]
+    fn press_time_matches() {
+        let _l = lock();
+        let _saved = Saved::new(&FLOATS);
+        let mut r = Rng(31);
+        let mut off = 0;
+        let mut total = 0;
+        at_each_control_word(|| {
+            for n in 0..60000u32 {
+                if n >= 20000 {
+                    for a in FLOATS {
+                        p(a, r.float());
+                    }
+                }
+                let s = if n < 20000 {
+                    (n % 0x10000) as i32
+                } else {
+                    r.int()
+                };
+                let (want, got) = (press_time_asm(s), press_time(s));
+                total += 1;
+                if want != got {
+                    off += 1;
+                    assert!(n >= 20000 || want.abs_diff(got) <= 1, "{s}: {want} {got}");
+                }
+            }
+        });
+        eprintln!("press_time: {off} of {total} differ");
+        assert!(off * 1000 < total, "{off} of {total}");
+    }
 }

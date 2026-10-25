@@ -20,37 +20,22 @@
 //! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::physics::flow::x87_run;
-use crate::sound::store::ObjectsSlot;
-use crate::sound::turn_parts::{COUNT, OBJECTS};
-
-/// dword_514F80, dword_514F84: the nearest and the next of the computer's cars.
-const NEAREST: ObjectsSlot = ObjectsSlot::at(0x514F80);
-const NEXT: ObjectsSlot = ObjectsSlot::at(0x514F84);
-/// flt_514F88: the squared distance.
-const DISTANCE: ObjectsSlot = ObjectsSlot::at(0x514F88);
-
-fn g(x: impl crate::store::Ida) -> u32 {
-    unsafe { crate::store::ida_read(x) }
-}
-
-fn word(o: u32, at: u32) -> u32 {
-    unsafe { ((o + at) as *const u32).read_unaligned() }
-}
+use crate::math::x87_float::{ld, st};
+use crate::sound::store::{RACE_SOUNDS, SoundObject};
+use crate::sound::turn_parts::object;
 
 // ---- Rust version ----
 
 /// Every car's sounds for the turn: the players' each, of the computer's the two nearest
 /// the listener (each keeping its voice).
 pub fn car_sounds_all() -> Result<(), Refused> {
-    let count = g(COUNT);
+    let count = RACE_SOUNDS.count.get();
     if count == 0 {
         return Ok(());
     }
     if count > 8 {
         return Err(BadInput("a sound object count over 8").into());
     }
-    let object = |n: u32| g(OBJECTS + 4 * n as usize);
     if (0..count).any(|n| object(n) == 0) {
         return Err(BadInput("a null sound object").into());
     }
@@ -59,43 +44,90 @@ pub fn car_sounds_all() -> Result<(), Refused> {
     use rc2k_core::sound::turn::{NEAREST_MARK, NEXT_MARK, Nearest};
     let mut nearest = Nearest::default();
     for n in 0..count {
-        let o = object(n);
-        if word(o, 8) != 1 {
+        let o = unsafe { SoundObject::at(object(n)) };
+        if o.in_use.get() != 1 {
             continue;
         }
-        if word(o, 0) as i32 >= 0 {
+        if o.sound_offset.get() as i32 >= 0 {
             crate::sound::car_sounds::car_sounds(n)?;
             continue;
         }
-        x87_run!(
-                "fld dword ptr [{si} + 0x2C]",
-                "fmul dword ptr [{si} + 0x2C]",
-                "fld dword ptr [{si} + 0x30]",
-                "fmul dword ptr [{si} + 0x30]",
-                "fld dword ptr [{si} + 0x34]",
-                "fmul dword ptr [{si} + 0x34]",
-                ".byte 0xDE, 0xC1",
-                ".byte 0xDE, 0xC1",
-                "fstp dword ptr [{df} + 0x2578]";
-            si = o, df = crate::sound::store::objects::base()
-        );
-        nearest.consider(n, g(DISTANCE));
+        x87_1(o, &RACE_SOUNDS);
+        nearest.consider(n, RACE_SOUNDS.nearest_distance.bits());
     }
-    let (first, second) = nearest.kept(g(NEAREST), g(NEXT));
-    unsafe {
-        crate::store::game_write(NEAREST, first);
-        crate::store::game_write(NEXT, second);
-    }
-    for (which, mark) in [(NEAREST, NEAREST_MARK), (NEXT, NEXT_MARK)] {
-        let n = g(which);
+    let (first, second) = nearest.kept(RACE_SOUNDS.nearest.get(), RACE_SOUNDS.next.get());
+    RACE_SOUNDS.nearest.set(first);
+    RACE_SOUNDS.next.set(second);
+    for (which, mark) in [
+        (&RACE_SOUNDS.nearest, NEAREST_MARK),
+        (&RACE_SOUNDS.next, NEXT_MARK),
+    ] {
+        let n = which.get();
         if (n as i32) < 0 {
             continue;
         }
-        let o = object(n);
-        let kept = word(o, 0);
-        unsafe { (o as *mut u32).write_unaligned(mark) };
+        let o = unsafe { SoundObject::at(object(n)) };
+        let kept = o.sound_offset.get();
+        o.sound_offset.set(mark);
         crate::sound::car_sounds::car_sounds(n)?;
-        unsafe { (o as *mut u32).write_unaligned(kept) };
+        o.sound_offset.set(kept);
     }
     Ok(())
+}
+
+// ---- the arithmetic that was x87 assembly ----
+
+/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
+/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `nearest_distance = (place[0] * place[0]) + ((place[1] * place[1]) + (place[2] * place[2]))`
+fn x87_1(si: &SoundObject, df: &crate::sound::store::RaceSounds) {
+    let t0 = ld(si.place[0].bits());
+    let t1 = ld(si.place[0].bits());
+    let t2 = t0 * t1;
+    let t3 = ld(si.place[1].bits());
+    let t4 = ld(si.place[1].bits());
+    let t5 = t3 * t4;
+    let t6 = ld(si.place[2].bits());
+    let t7 = ld(si.place[2].bits());
+    let t8 = t6 * t7;
+    let t9 = t5 + t8;
+    let t10 = t2 + t9;
+    df.nearest_distance.set_bits(st(t10));
+}
+
+#[cfg(test)]
+mod asm_reference {
+    use super::*;
+    use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
+
+    // The original's instructions, one function per run.
+    reference!(ref_0(si, df) "fld dword ptr [{si} + 0x2C]", "fmul dword ptr [{si} + 0x2C]", "fld dword ptr [{si} + 0x30]", "fmul dword ptr [{si} + 0x30]", "fld dword ptr [{si} + 0x34]", "fmul dword ptr [{si} + 0x34]", ".byte 0xDE, 0xC1", ".byte 0xDE, 0xC1", "fstp dword ptr [{df} + 0x2578]");
+
+    fn blocks() -> Vec<Block> {
+        vec![Block {
+            name: "car_sounds_all line 70",
+            operands: vec![
+                Operand::Buffer {
+                    reads: &[(0x2C, In::F), (0x30, In::F), (0x34, In::F)],
+                    writes: &[],
+                },
+                Operand::Buffer {
+                    reads: &[],
+                    writes: &[(0x2578, Out::F)],
+                },
+            ],
+            ulps: 0,
+            reference: |a| unsafe { ref_0(a[0], a[1]) },
+            plain: |a| {
+                x87_1(unsafe { &*(a[0] as *const SoundObject) }, unsafe {
+                    &*(a[1] as *const crate::sound::store::RaceSounds)
+                })
+            },
+        }]
+    }
+
+    #[test]
+    fn x87_blocks_matches_the_assembly() {
+        sparse(&blocks(), 1200, 100);
+    }
 }

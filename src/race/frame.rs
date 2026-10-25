@@ -5,10 +5,9 @@
 use crate::audio::store::Slot;
 use crate::errors::Refused;
 use crate::framework::rva;
-use crate::input::store::DeviceSlot;
+use crate::input::store::DEVICES;
 use crate::net::store::vars::Slot as NetSlot;
 use crate::race::objects::CAR_BLOCKS_RVA;
-use crate::sound::store::EffectsSlot;
 use crate::store::{game_addr, game_read, game_write};
 
 const ONE_CHOSEN_RVA: NetSlot = NetSlot::at(0x52A910); // dword_52A910
@@ -93,31 +92,24 @@ pub unsafe fn store_view_car(n: usize) -> Result<(), Refused> {
     unsafe { with_view_car(n, || crate::drive::store_car::store_car()) }
 }
 
-const VIEW_MODE_RVA: DeviceSlot = DeviceSlot::at(0x4F6B79); // byte_4F6B79: the second view's keys (a reading)
-const NEXT_VIEW_KEY_RVA: DeviceSlot = DeviceSlot::at(0x4F6D17); // byte_4F6D17
-const SPLIT_KEY_RVA: DeviceSlot = DeviceSlot::at(0x4F6D18); // byte_4F6D18
-const DOWN_KEY_RVA: DeviceSlot = DeviceSlot::at(0x4F6D19); // byte_4F6D19
-const UP_KEY_RVA: DeviceSlot = DeviceSlot::at(0x4F6D1A); // byte_4F6D1A
-const SHARED_KEY_RVA: DeviceSlot = DeviceSlot::at(0x4F6D1B); // byte_4F6D1B
+// The race keys, by scan code in `g_keysPressed`; the second view's keys is `g_keysNow`'s 0x1D
+// (`byte_4F6B79`, a reading).
+const VIEW_MODE_KEY: usize = 0x1D;
+const NEXT_VIEW_KEY: usize = 0x3B; // byte_4F6D17
+const SPLIT_KEY: usize = 0x3C; // byte_4F6D18
+const DOWN_KEY: usize = 0x3D; // byte_4F6D19
+const UP_KEY: usize = 0x3E; // byte_4F6D1A
+const SHARED_KEY: usize = 0x3F; // byte_4F6D1B
 pub const SPLIT_RVA: usize = rva(0x6238A4); // dword_6238A4
 pub const MASTER_VOLUME_RVA: Slot = Slot::at(0x4F82D8); // g_masterVolume
-pub const MUSIC_VOLUME_RVA: EffectsSlot = EffectsSlot::at(0x518100); // dword_518100
 const OTHER_VOLUME_RVA: usize = rva(0x75568C); // dword_75568C (read by the music "up" step)
 pub const VIEW_BLOCKS: [usize; 2] = [rva(0x63DBB0), rva(0x63DBB4)]; // off_63DBB0, off_63DBB4
 const VIEW_COUNTERS_RVA: usize = rva(0x6138D4); // dword_6138D4[7]: by camera view
 /// The keys that flip a bit of the view block's +0x220 (`rc2k_core::race::keys::BIT_KEYS`
 /// by place): their key bytes, in the order tested.
-pub const BIT_KEYS: [DeviceSlot; 7] = [
-    DeviceSlot::at(0x4F6D34),
-    DeviceSlot::at(0x4F6D1E),
-    DeviceSlot::at(0x4F6D1D),
-    DeviceSlot::at(0x4F6D20),
-    DeviceSlot::at(0x4F6D1F),
-    DeviceSlot::at(0x4F6D1C),
-    DeviceSlot::at(0x4F6D33),
-];
-fn pressed(key: impl crate::store::Where) -> bool {
-    unsafe { crate::store::game_read::<u8>(key) != 0 }
+pub const BIT_KEYS: [usize; 7] = [0x58, 0x42, 0x41, 0x44, 0x43, 0x40, 0x57]; // 4F6D34, 4F6D1E, 4F6D1D, 4F6D20, 4F6D1F, 4F6D1C, 4F6D33
+fn pressed(key: usize) -> bool {
+    DEVICES.keys_pressed.get(key) != 0
 }
 
 /// `race::race_keys` (0x43A649): the race's view and sound keys (see its header). It
@@ -126,7 +118,7 @@ fn pressed(key: impl crate::store::Where) -> bool {
 pub unsafe fn race_keys() -> Result<(), Refused> {
     unsafe {
         crate::drive::choose_shown_cars::choose_shown_cars()?;
-        let second = pressed(VIEW_MODE_RVA);
+        let second = DEVICES.keys_now.get(VIEW_MODE_KEY) != 0;
         let view = game_read::<u32>(VIEW_BLOCKS[usize::from(second)]);
         // Converted: `rc2k_core::race::keys::{first_key, split_flip, volume_key,
         // volume_step, flip_bit}`.
@@ -136,12 +128,12 @@ pub unsafe fn race_keys() -> Result<(), Refused> {
         };
         let key = first_key(|k| {
             pressed(match k {
-                Key::NextView => NEXT_VIEW_KEY_RVA,
-                Key::Split => SPLIT_KEY_RVA,
-                Key::VolumeDown => DOWN_KEY_RVA,
-                Key::VolumeUp => UP_KEY_RVA,
+                Key::NextView => NEXT_VIEW_KEY,
+                Key::Split => SPLIT_KEY,
+                Key::VolumeDown => DOWN_KEY,
+                Key::VolumeUp => UP_KEY,
                 Key::Bit(n) => BIT_KEYS[n],
-                Key::Shared => SHARED_KEY_RVA,
+                Key::Shared => SHARED_KEY,
             })
         });
         // The view block's +0x220 with `bit` flipped; gives the counter.
@@ -176,10 +168,12 @@ pub unsafe fn race_keys() -> Result<(), Refused> {
                     let from: u32 = if up {
                         game_read(OTHER_VOLUME_RVA)
                     } else {
-                        game_read(MUSIC_VOLUME_RVA)
+                        crate::sound::store::SOUND_EFFECTS.race_music_volume.get()
                     };
                     let volume = volume_step(from, step);
-                    game_write(MUSIC_VOLUME_RVA, volume);
+                    crate::sound::store::SOUND_EFFECTS
+                        .race_music_volume
+                        .set(volume);
                     crate::sound::set_music_volume::set_music_volume(volume);
                 } else {
                     let volume = volume_step(game_read(MASTER_VOLUME_RVA), step);

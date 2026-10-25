@@ -27,13 +27,14 @@ use crate::math::x87::{loaded, mul};
 use crate::math::x87_run::neg_rounded;
 use crate::physics::contact_force::{RECORD, contact_force};
 use crate::physics::dot_product::dot_product;
-use crate::physics::flow::{a, copy3, fill3, g, hold_high, p, x87_run};
+use crate::physics::flow::{a, copy3, fill3, g, hold_high, p};
 use crate::physics::lowest_body_point::lowest_body_point;
 use crate::physics::place_sound_e5::place_sound_e5;
 use crate::physics::sound_cue_e5::sound_cue_e5;
 use crate::physics::touch_face::FACES;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
+use crate::scene::x87_mem::{fld, fstp};
 use rc2k_core::physics::contacts;
 
 /// Force record 21 (`g_forceRecords` + 0x2A0).
@@ -100,30 +101,13 @@ fn steps() -> Result<(), Refused> {
         0x6D31D0,
         neg_rounded(unsafe { dot_product(a(0x6D31C4), a(0x6D3078)) }),
     );
-    x87_run!(
-        "fld dword ptr [{rc} + 0x2D31D0]",
-        "fadd dword ptr [{rc} + 0x1C5D38]",
-        "fdiv dword ptr [{rc} + 0x1C5D3C]",
-        "fadd dword ptr [{rc} + 0x1C5D3C]",
-        "fmul dword ptr [{rc} + 0x213FC8]",
-        "fmul dword ptr [{rc} + 0x21388C]",
-        "fmul dword ptr [{rc} + 0x214294]",
-        "fmul dword ptr [{rc} + 0x214170]",
-        "fstp dword ptr [{rc} + 0x2D3100]";
-        rc = crate::race::store::asm_base()
-    );
+    x87_1(crate::race::store::asm_base() as usize);
     p(RECORD, a(FORCE));
     unsafe { contact_force() };
     unsafe { place_sound_e5() }?;
     copy3(0x6D3018, FORCE);
     fill3(FORCE + 0xC, 0);
-    x87_run!(
-        "fld dword ptr [{rc} + 0x31A0A0]",
-        "fadd dword ptr [{rc} + 0x1C5D60]",
-        "fdiv dword ptr [{rc} + 0x1C5D60]",
-        "fstp dword ptr [{rc} + 0x2D3014]";
-        rc = crate::race::store::asm_base()
-    );
+    x87_2(crate::race::store::asm_base() as usize);
     hold_high(0x6D3014, 0x5C5D38);
     p(0x71A160, mul(g(0x6D3014), g(0x71A160)));
     p(0x71AA10, g(0x6D310C));
@@ -133,4 +117,94 @@ fn steps() -> Result<(), Refused> {
 /// The Rust version. The registers it leaves are read by none of its callers.
 pub fn crash_contact() -> Result<(), Refused> {
     steps()
+}
+
+// ---- the arithmetic that was x87 assembly ----
+
+/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
+/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// (a long formula: see the instructions in the tests' `asm_reference`)
+fn x87_1(rc: usize) {
+    unsafe {
+        let rc = rc as *mut u8;
+        let t0 = fld(rc, 0x2D31D0);
+        let t1 = fld(rc, 0x1C5D38);
+        let t2 = t0 + t1;
+        let t3 = fld(rc, 0x1C5D3C);
+        let t4 = t2 / t3;
+        let t5 = fld(rc, 0x1C5D3C);
+        let t6 = t4 + t5;
+        let t7 = fld(rc, 0x213FC8);
+        let t8 = t6 * t7;
+        let t9 = fld(rc, 0x21388C);
+        let t10 = t8 * t9;
+        let t11 = fld(rc, 0x214294);
+        let t12 = t10 * t11;
+        let t13 = fld(rc, 0x214170);
+        let t14 = t12 * t13;
+        fstp(rc, 0x2D3100, t14);
+    }
+}
+
+/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
+/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `[rc + 0x2D3014] = ([rc + 0x31A0A0] + [rc + 0x1C5D60]) / [rc + 0x1C5D60]`
+fn x87_2(rc: usize) {
+    unsafe {
+        let rc = rc as *mut u8;
+        let t0 = fld(rc, 0x31A0A0);
+        let t1 = fld(rc, 0x1C5D60);
+        let t2 = t0 + t1;
+        let t3 = fld(rc, 0x1C5D60);
+        let t4 = t2 / t3;
+        fstp(rc, 0x2D3014, t4);
+    }
+}
+
+#[cfg(test)]
+mod asm_reference {
+    use super::*;
+    use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
+
+    // The original's instructions, one function per run.
+    reference!(ref_0(rc) "fld dword ptr [{rc} + 0x2D31D0]", "fadd dword ptr [{rc} + 0x1C5D38]", "fdiv dword ptr [{rc} + 0x1C5D3C]", "fadd dword ptr [{rc} + 0x1C5D3C]", "fmul dword ptr [{rc} + 0x213FC8]", "fmul dword ptr [{rc} + 0x21388C]", "fmul dword ptr [{rc} + 0x214294]", "fmul dword ptr [{rc} + 0x214170]", "fstp dword ptr [{rc} + 0x2D3100]");
+    reference!(ref_1(rc) "fld dword ptr [{rc} + 0x31A0A0]", "fadd dword ptr [{rc} + 0x1C5D60]", "fdiv dword ptr [{rc} + 0x1C5D60]", "fstp dword ptr [{rc} + 0x2D3014]");
+
+    fn blocks() -> Vec<Block> {
+        vec![
+            Block {
+                name: "crash_contact line 103",
+                operands: vec![Operand::Buffer {
+                    reads: &[
+                        (0x1C5D38, In::F),
+                        (0x1C5D3C, In::F),
+                        (0x21388C, In::F),
+                        (0x213FC8, In::F),
+                        (0x214170, In::F),
+                        (0x214294, In::F),
+                        (0x2D31D0, In::F),
+                    ],
+                    writes: &[(0x2D3100, Out::F)],
+                }],
+                ulps: 0,
+                reference: |a| unsafe { ref_0(a[0]) },
+                plain: |a| x87_1(a[0]),
+            },
+            Block {
+                name: "crash_contact line 120",
+                operands: vec![Operand::Buffer {
+                    reads: &[(0x1C5D60, In::F), (0x31A0A0, In::F)],
+                    writes: &[(0x2D3014, Out::F)],
+                }],
+                ulps: 0,
+                reference: |a| unsafe { ref_1(a[0]) },
+                plain: |a| x87_2(a[0]),
+            },
+        ]
+    }
+
+    #[test]
+    fn x87_blocks_matches_the_assembly() {
+        sparse(&blocks(), 1200, 100);
+    }
 }

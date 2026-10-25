@@ -1927,10 +1927,8 @@ mod tests {
     use super::*;
     use crate::errors::BadInput;
     use crate::framework::Regs;
-    use std::sync::Mutex;
 
     /// The tests share the game's memory.
-    static LOCK: Mutex<()> = Mutex::new(());
     /// The size of the stand-in for the game's image: every variable of the function is below.
     const IMAGE_LEN: usize = 0x400000;
     const RECORD_LEN: usize = 0x300;
@@ -2315,8 +2313,10 @@ mod tests {
     /// result, the order of the calls with the memory at each, and every byte left.
     #[test]
     fn plain_rust_equals_the_table() {
-        let _g = LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let _g = crate::store::test_lock();
         let mut w = world();
+        // The game's variables as they were, put back at the end (other tests read them).
+        let first = crate::moved::snapshot();
         // A first check that the stand-in memory is there.
         unsafe {
             set_var(RACE_INFO, 0x1234_5678);
@@ -2362,5 +2362,6 @@ mod tests {
                 && results > 10,
             "coverage: {done} {fatal} {failed} {missing} {engine} {early} {results}"
         );
+        crate::moved::restore(&first);
     }
 }

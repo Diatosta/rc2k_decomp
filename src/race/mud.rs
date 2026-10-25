@@ -53,17 +53,10 @@ pub unsafe fn raw_pixel(x: u32, y: u32) -> (u32, u32) {
     unsafe {
         let row = game_read::<u32>(PIXELS_RVA).wrapping_add(y.wrapping_mul(game_read(PITCH_RVA)));
         let pixel = if game_read::<u32>(BITS_RVA) == 0x10 {
-            // As the original: eax the row's address, then `mov ax` of the pixel. Written in
-            // assembly: the optimiser dropped the row's half from the same expression in
-            // Rust in one of two places (2026-10-16).
-            let mut eax = row;
-            core::arch::asm!(
-                "mov ax, word ptr [{at}]",
-                at = in(reg) row.wrapping_add(x.wrapping_mul(2)),
-                inout("eax") eax,
-                options(nostack, readonly, preserves_flags),
-            );
-            eax
+            // As the original: eax the row's address, then `mov ax` of the pixel: the
+            // upper half of the result is the row's address's.
+            let word = (row.wrapping_add(x.wrapping_mul(2)) as *const u16).read_unaligned();
+            (row & 0xFFFF_0000) | u32::from(word)
         } else {
             (row.wrapping_add(x.wrapping_mul(4)) as *const u32).read_unaligned()
         };
@@ -142,5 +135,49 @@ pub unsafe fn init_mud() -> Result<(), Refused> {
         load_mud()?;
         clear_mud_state();
         sample_mud_colours()
+    }
+}
+
+#[cfg(test)]
+mod asm_reference {
+
+    /// The original block: `mov ax, [at]` over eax = the row's address.
+    pub(super) unsafe fn mov_ax(row: u32, at: u32) -> u32 {
+        let mut eax = row;
+        unsafe {
+            core::arch::asm!(
+                "mov ax, word ptr [{at}]",
+                at = in(reg) at,
+                inout("eax") eax,
+                options(nostack, readonly, preserves_flags),
+            );
+        }
+        eax
+    }
+
+    fn mix(state: &mut u64) -> u32 {
+        *state = state
+            .wrapping_mul(6364136223846793005)
+            .wrapping_add(1442695040888963407);
+        (*state >> 32) as u32
+    }
+
+    #[test]
+    fn mov_ax_matches() {
+        let mut state = 7u64;
+        let buffer = vec![0u8; 4096];
+        let base = buffer.as_ptr() as u32;
+        let mut buffer = buffer;
+        for b in buffer.iter_mut() {
+            *b = mix(&mut state) as u8;
+        }
+        for _ in 0..5000 {
+            let at = base + mix(&mut state) % 4000;
+            let row = mix(&mut state);
+            let want = unsafe { mov_ax(row, at) };
+            let got =
+                (row & 0xFFFF_0000) | u32::from(unsafe { (at as *const u16).read_unaligned() });
+            assert_eq!(want, got);
+        }
     }
 }

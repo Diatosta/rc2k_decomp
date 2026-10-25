@@ -23,10 +23,6 @@ unsafe fn get(a: u32) -> u32 {
     unsafe { (a as *const u32).read_unaligned() }
 }
 
-unsafe fn put(a: u32, v: u32) {
-    unsafe { (a as *mut u32).write_unaligned(v) }
-}
-
 /// The Rust core on the variables at `v` (`VARIABLES`' order; a compare of floats only:
 /// the same at any precision).
 // Converted: `rc2k_core::physics::engine::shares_figures`.
@@ -37,13 +33,14 @@ pub unsafe fn share_at(v: &[u32]) -> Result<(), Refused> {
             return Err(BadInput("a null sound object").into());
         }
         let f = |a: u32| f32::from_bits(get(a));
-        if shares_figures(f(v[5]), f(o + 0xD0)) {
+        let so = crate::sound::store::SoundObject::at(o);
+        if shares_figures(f(v[5]), f32::from_bits(so.knock_in[3].get())) {
             for k in 0..4 {
-                put(o + 0xC4 + 4 * k, get(v[2 + k as usize]));
+                so.knock_in[k].set(get(v[2 + k]));
             }
         }
-        put(o + 0xD4, get(v[6]));
-        put(o + 0x10, 1);
+        so.knock_d4.set(get(v[6]));
+        so.new_revs.set(1);
         Ok(())
     }
 }
@@ -54,7 +51,7 @@ fn game() -> Vec<u32> {
         .map(|&x| game_addr(rva(x)) as u32)
         .collect();
     // The objects' table (`g_raceSoundObjects`) is the sound module's.
-    v[1] = crate::sound::store::OBJECT_TABLE.address() as u32;
+    v[1] = crate::sound::store::RACE_SOUNDS.table.as_ptr() as usize as u32;
     v
 }
 

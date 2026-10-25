@@ -17,14 +17,6 @@
 
 use crate::errors::Refused;
 use crate::session::FLAGS;
-use crate::sound::store::ClockSlot;
-
-/// dword_5124E4: 1 once the race's sounds are started.
-const STARTED: ClockSlot = ClockSlot::at(0x5124E4);
-
-fn g(x: impl crate::store::Ida) -> u32 {
-    unsafe { crate::store::ida_read(x) }
-}
 
 // ---- Rust version ----
 
@@ -35,7 +27,7 @@ pub fn race_turn() -> Result<(), Refused> {
         // ended as `start` ends it.
         crate::standalone::leave_from_race();
     }
-    if g(STARTED) != 1 {
+    if crate::sound::store::RACE_CLOCK.started.get() != 1 {
         return Ok(());
     }
     if crate::sound::turn_parts::step_clock() {

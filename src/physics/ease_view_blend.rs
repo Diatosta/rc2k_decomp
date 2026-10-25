@@ -13,8 +13,9 @@
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
+use crate::math::x87_float::X;
 use crate::physics::camera_view::{rd, record, share_done};
-use crate::physics::flow::x87_run;
+use crate::scene::x87_mem::{fistp, fld, fstp};
 
 /// The Rust version (the exact one, for `physics::update_camera`).
 pub unsafe fn ease_view_blend() {
@@ -24,26 +25,98 @@ pub unsafe fn ease_view_blend() {
     }
     share_done(esi);
     if (rd(esi + 0x58) as i32) < 0 {
-        x87_run!(
-            ".byte 0xD9, 0xE8", // fld1
-            "fsub dword ptr [{rc} + 0x205260]",
-            "fstp dword ptr [{rc} + 0x205260]";
-            rc = crate::race::store::asm_base()
-        );
+        x87_1(crate::race::store::asm_base() as usize);
     }
-    x87_run!(
-        "fld dword ptr [{rc} + 0x208B24]",
-        "fsub dword ptr [{rc} + 0x208B20]",
-        "fmul dword ptr [{rc} + 0x205260]",
-        "fadd dword ptr [{rc} + 0x208B20]",
-        "fstp dword ptr [{rc} + 0x31A6A0]",
-        "fld dword ptr [{rc} + 0x208B2C]",
-        "fsub dword ptr [{rc} + 0x208B28]",
-        "fmul dword ptr [{rc} + 0x205260]",
-        "fadd dword ptr [{rc} + 0x208B28]",
-        "fmul dword ptr [{rc} + 0x1C5D98]",
-        ".byte 0xD9, 0xE0", // fchs
-        "fistp dword ptr [{rc} + 0x208B38]";
-        rc = crate::race::store::asm_base()
-    );
+    x87_2(crate::race::store::asm_base() as usize);
+}
+
+// ---- the arithmetic that was x87 assembly ----
+
+/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
+/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `[rc + 0x205260] = 1 - [rc + 0x205260]`
+fn x87_1(rc: usize) {
+    unsafe {
+        let rc = rc as *mut u8;
+        let t0 = X(1.0);
+        let t1 = fld(rc, 0x205260);
+        let t2 = t0 - t1;
+        fstp(rc, 0x205260, t2);
+    }
+}
+
+/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
+/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `[rc + 0x31A6A0] = (([rc + 0x208B24] - [rc + 0x208B20]) * [rc + 0x205260]) + [rc + 0x208B20]`
+/// `int [rc + 0x208B38] = -(((([rc + 0x208B2C] - [rc + 0x208B28]) * [rc + 0x205260]) + [rc + 0x208B28]) * [rc + 0x1C5D98])`
+fn x87_2(rc: usize) {
+    unsafe {
+        let rc = rc as *mut u8;
+        let t0 = fld(rc, 0x208B24);
+        let t1 = fld(rc, 0x208B20);
+        let t2 = t0 - t1;
+        let t3 = fld(rc, 0x205260);
+        let t4 = t2 * t3;
+        let t5 = fld(rc, 0x208B20);
+        let t6 = t4 + t5;
+        fstp(rc, 0x31A6A0, t6);
+        let t7 = fld(rc, 0x208B2C);
+        let t8 = fld(rc, 0x208B28);
+        let t9 = t7 - t8;
+        let t10 = fld(rc, 0x205260);
+        let t11 = t9 * t10;
+        let t12 = fld(rc, 0x208B28);
+        let t13 = t11 + t12;
+        let t14 = fld(rc, 0x1C5D98);
+        let t15 = t13 * t14;
+        let t16 = -t15;
+        fistp(rc, 0x208B38, t16);
+    }
+}
+
+#[cfg(test)]
+mod asm_reference {
+    use super::*;
+    use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
+
+    // The original's instructions, one function per run.
+    reference!(ref_0(rc) ".byte 0xD9, 0xE8", "fsub dword ptr [{rc} + 0x205260]", "fstp dword ptr [{rc} + 0x205260]");
+    reference!(ref_1(rc) "fld dword ptr [{rc} + 0x208B24]", "fsub dword ptr [{rc} + 0x208B20]", "fmul dword ptr [{rc} + 0x205260]", "fadd dword ptr [{rc} + 0x208B20]", "fstp dword ptr [{rc} + 0x31A6A0]", "fld dword ptr [{rc} + 0x208B2C]", "fsub dword ptr [{rc} + 0x208B28]", "fmul dword ptr [{rc} + 0x205260]", "fadd dword ptr [{rc} + 0x208B28]", "fmul dword ptr [{rc} + 0x1C5D98]", ".byte 0xD9, 0xE0", "fistp dword ptr [{rc} + 0x208B38]");
+
+    fn blocks() -> Vec<Block> {
+        vec![
+            Block {
+                name: "ease_view_blend line 27",
+                operands: vec![Operand::Buffer {
+                    reads: &[(0x205260, In::F)],
+                    writes: &[(0x205260, Out::F)],
+                }],
+                ulps: 0,
+                reference: |a| unsafe { ref_0(a[0]) },
+                plain: |a| x87_1(a[0]),
+            },
+            Block {
+                name: "ease_view_blend line 34",
+                operands: vec![Operand::Buffer {
+                    reads: &[
+                        (0x1C5D98, In::F),
+                        (0x205260, In::F),
+                        (0x208B20, In::F),
+                        (0x208B24, In::F),
+                        (0x208B28, In::F),
+                        (0x208B2C, In::F),
+                    ],
+                    writes: &[(0x208B38, Out::I), (0x31A6A0, Out::F)],
+                }],
+                ulps: 0,
+                reference: |a| unsafe { ref_1(a[0]) },
+                plain: |a| x87_2(a[0]),
+            },
+        ]
+    }
+
+    #[test]
+    fn x87_blocks_matches_the_assembly() {
+        sparse(&blocks(), 1200, 100);
+    }
 }

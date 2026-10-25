@@ -24,6 +24,7 @@ use crate::math::normalise_vector::{VECTOR_RVA, normalise_vector};
 use crate::math::x87;
 use crate::scene::project_point::RECORDS_RVA;
 use crate::scene::reflect_vector::{NORMAL_RVA, VECTOR_RVA as MIRRORED_RVA, reflect_vector};
+use crate::scene::x87_mem::{fistp, fld, fstp};
 
 // ---- game data ----
 
@@ -40,40 +41,38 @@ const SCALE_B_RVA: usize = rva(0x5C5E2C); // flt_5C5E2C
 /// `fld a; fmul half; fadd half; fmul scale_a; fmul scale_b; fistp`.
 fn coordinate(a: u32, half: u32, scales: [u32; 2]) -> i32 {
     let (v, mut out) = ([a, half, scales[0], scales[1]], 0i32);
-    unsafe {
-        core::arch::asm!(
-            "fld dword ptr [{v}]",
-            "fmul dword ptr [{v} + 4]",
-            "fadd dword ptr [{v} + 4]",
-            "fmul dword ptr [{v} + 8]",
-            "fmul dword ptr [{v} + 12]",
-            "fistp dword ptr [{o}]",
-            v = in(reg) v.as_ptr(),
-            o = in(reg) &raw mut out,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-        );
-    }
+    unsafe { coordinate_at(v.as_ptr().cast(), (&raw mut out).cast()) };
     out
+}
+
+unsafe fn coordinate_at(v: *const u8, o: *mut u8) {
+    unsafe {
+        let t0 = fld(v, 0x0);
+        let t1 = fld(v, 0x4);
+        let t2 = t0 * t1;
+        let t3 = fld(v, 0x4);
+        let t4 = t2 + t3;
+        let t5 = fld(v, 0x8);
+        let t6 = t4 * t5;
+        let t7 = fld(v, 0xC);
+        let t8 = t6 * t7;
+        fistp(o, 0x0, t8);
+    }
 }
 
 /// `fld a; fchs; fstp`.
 fn negated(a: u32) -> u32 {
     let mut out = 0u32;
-    unsafe {
-        core::arch::asm!(
-            "fld dword ptr [{a}]",
-            "fchs",
-            "fstp dword ptr [{o}]",
-            a = in(reg) &raw const a,
-            o = in(reg) &raw mut out,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-        );
-    }
+    unsafe { negated_at((&raw const a).cast(), (&raw mut out).cast()) };
     out
+}
+
+unsafe fn negated_at(a: *const u8, o: *mut u8) {
+    unsafe {
+        let t0 = fld(a, 0x0);
+        let t1 = -t0;
+        fstp(o, 0x0, t1);
+    }
 }
 
 pub unsafe fn reflection_coordinates() -> Result<(), BadInput> {
@@ -113,5 +112,94 @@ pub unsafe fn reflection_coordinates() -> Result<(), BadInput> {
             ],
         );
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod asm_reference {
+    use super::*;
+    use crate::scene::asm_test::{Kind, differential};
+
+    /// The original's instructions for `coordinate`.
+    unsafe fn coordinate_at_ref(v: *mut u8, o: *mut u8) {
+        unsafe {
+            core::arch::asm!(
+                "fld dword ptr [{v}]",
+                "fmul dword ptr [{v} + 4]",
+                "fadd dword ptr [{v} + 4]",
+                "fmul dword ptr [{v} + 8]",
+                "fmul dword ptr [{v} + 12]",
+                "fistp dword ptr [{o}]",
+                v = in(reg) v,
+                o = in(reg) o,
+                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
+                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
+                options(nostack),
+            );
+        }
+    }
+
+    /// The original's instructions for `negated`.
+    unsafe fn negated_at_ref(a: *mut u8, o: *mut u8) {
+        unsafe {
+            core::arch::asm!(
+                "fld dword ptr [{a}]",
+                "fchs",
+                "fstp dword ptr [{o}]",
+                a = in(reg) a,
+                o = in(reg) o,
+                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
+                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
+                options(nostack),
+            );
+        }
+    }
+
+    #[test]
+    fn coordinate_matches_the_assembly() {
+        // dwords 0 .. 4 the four floats, 4 the whole number
+        differential::<5>(
+            "reflection_coordinates coordinate",
+            8000,
+            20,
+            [Kind::Exact; 5],
+            |rng, m| {
+                m[0] = rng.unit().to_bits();
+                m[1] = if rng.below(2) == 0 {
+                    0.5f32.to_bits()
+                } else {
+                    rng.fl()
+                };
+                m[2] = if rng.below(2) == 0 {
+                    65536.0f32.to_bits()
+                } else {
+                    rng.moderate()
+                };
+                m[3] = if rng.below(2) == 0 {
+                    256.0f32.to_bits()
+                } else {
+                    rng.moderate()
+                };
+                m[4] = 0xAAAA_AAAA;
+            },
+            |base| unsafe { coordinate_at_ref(base, base.add(16)) },
+            |base| unsafe { coordinate_at(base, base.add(16)) },
+        );
+    }
+
+    #[test]
+    fn negated_matches_the_assembly() {
+        differential::<2>(
+            "reflection_coordinates negated",
+            8000,
+            21,
+            [Kind::Exact; 2],
+            |rng, m| {
+                m[0] = rng.fl();
+                m[1] = 0xAAAA_AAAA;
+            },
+            |base| unsafe { negated_at_ref(base, base.add(4)) },
+            |base| unsafe { negated_at(base, base.add(4)) },
+        );
     }
 }

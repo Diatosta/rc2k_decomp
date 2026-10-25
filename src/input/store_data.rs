@@ -1,8 +1,5 @@
-//! The input module's variables' first values: the non-zero bytes of RAL.EXE's 0x4F07C8 .. 0x4F0BC8, 0x4F68D8 .. 0x4F7E18, 0x4F7FD8 .. 0x4F8294 and 0x5C6924 .. 0x5C6948.
-//! (generated from the image; each block's `first_values_are_the_games` test checks them while it exists).
-
-/// `(offset from 0X4F07C8, bytes)`, in order, apart.
-pub const LAYOUT_RUNS: &[(usize, &[u8])] = &[];
+//! The input module's variables' first values: the non-zero bytes of RAL.EXE's 0x4F68D8 .. 0x4F7E18 and 0x4F7FD8 .. 0x4F8294 (the keyboard file and the mouse start all zero).
+//! (generated from the image; `input::store`'s test checks the statics against the image).
 
 /// `(offset from 0X4F68D8, bytes)`, in order, apart.
 pub const DEVICES_RUNS: &[(usize, &[u8])] = &[
@@ -210,6 +207,3 @@ pub const KEYBOARD_RUNS: &[(usize, &[u8])] = &[
         &[0x21, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04],
     ),
 ];
-
-/// `(offset from 0X5C6924, bytes)`, in order, apart.
-pub const MOUSE_RUNS: &[(usize, &[u8])] = &[];

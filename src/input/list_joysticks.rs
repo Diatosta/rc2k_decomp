@@ -9,17 +9,19 @@
 //! Caller: `input::input_thread` (its start). The method DirectInput's own (in the
 //! standalone program Rust's, `input::di_objects`).
 
-use crate::input::di_harness::{DIRECT_INPUT_RVA, g, method, slot};
-use crate::input::store::DeviceSlot;
-
-const OFF_RVA: DeviceSlot = DeviceSlot::at(0x4F68DC); // dword_4F68DC: joysticks turned off
+use crate::input::di_harness::{method, slot};
+use crate::input::store::DEVICES;
 
 /// The Rust version.
 pub fn list_joysticks() {
-    if g(OFF_RVA) != 0 {
+    if DEVICES.no_joysticks.get() != 0 {
         return;
     }
     let found = crate::input::joystick_found::callback as unsafe extern "system" fn(u32, u32) -> u32
         as usize as u32;
-    method(g(DIRECT_INPUT_RVA), slot::ENUM_DEVICES, &[4, found, 0, 1]);
+    method(
+        DEVICES.direct_input.get(),
+        slot::ENUM_DEVICES,
+        &[4, found, 0, 1],
+    );
 }

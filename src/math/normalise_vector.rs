@@ -25,6 +25,7 @@
 
 use crate::errors::BadInput;
 use crate::framework::{game_read, game_write, rva};
+use crate::math::x87_float::{ONE, compare, ld, st};
 
 // ---- game data ----
 
@@ -42,6 +43,27 @@ const CHECKED_RVA: usize = rva(0x62400C); // dword_62400C
 const NOTHING: u32 = 0;
 
 // ---- Rust version ----
+
+/// The squares' sum as a float (`fld v0; fmul st, st; fld v1; fmul st, st; fld v2; fmul
+/// st, st; faddp; faddp; fstp`): `v0 v0 + (v1 v1 + v2 v2)` at double precision, stored
+/// as a float, rounded as the control word says.
+pub(crate) fn squares_sum(v: [u32; 3]) -> u32 {
+    let (a, b, c) = (
+        ld(v[0]) * ld(v[0]),
+        ld(v[1]) * ld(v[1]),
+        ld(v[2]) * ld(v[2]),
+    );
+    st(a + (b + c))
+}
+
+/// Each component times 1 over the length, the length being the product of the two
+/// roots kept unrounded (`fld root; fmul exponent_root; fld1; fdivrp`; then `fld v_k;
+/// fmul st, st(1); fstp`). Gives the three components as floats and the inverse as a
+/// float (the last `fstp`).
+pub(crate) fn scaled_by_inverse(v: [u32; 3], root: u32, exponent_root: u32) -> ([u32; 3], u32) {
+    let inverse = ONE / (ld(root) * ld(exponent_root));
+    (v.map(|k| st(ld(k) * inverse)), st(inverse))
+}
 
 /// Returns what the function leaves in eax, if it changes it.
 pub unsafe fn normalise_vector() -> Result<Option<u32>, BadInput> {
@@ -77,61 +99,19 @@ pub unsafe fn normalise(sse: bool) -> Result<Option<u32>, BadInput> {
             game_write(VECTOR_RVA, [w[0], w[1], w[2], w[3]]);
             return Ok(None);
         }
-        let mut sum = 0u32;
-        core::arch::asm!(
-            "fld dword ptr [{v}]",
-            ".byte 0xD8, 0xC8", // fmul st, st
-            "fld dword ptr [{v} + 4]",
-            ".byte 0xD8, 0xC8", // fmul st, st
-            "fld dword ptr [{v} + 8]",
-            ".byte 0xD8, 0xC8", // fmul st, st
-            ".byte 0xDE, 0xC1", // faddp st(1), st
-            ".byte 0xDE, 0xC1", // faddp st(1), st
-            "fstp dword ptr [{s}]",
-            v = in(reg) v.as_ptr(),
-            s = in(reg) &raw mut sum,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-        );
+        let sum = squares_sum([v[0], v[1], v[2]]);
         let root: u32 = game_read(ROOTS_RVA + ((sum >> 15) & 0xFF) as usize * 4);
         let exponent_root: u32 =
             game_read(EXPONENT_ROOTS_RVA + ((sum & 0x7F80_0000) >> 23) as usize * 4);
         // The product of two floats is exact in a double, as it is in the x87.
-        let length = f32::from_bits(root) as f64 * f32::from_bits(exponent_root) as f64;
-        let nothing = f32::from_bits(NOTHING) as f64;
-        if length
-            .partial_cmp(&nothing)
-            .is_none_or(|order| order.is_eq())
-        {
+        let length = ld(root) * ld(exponent_root);
+        if compare(length, ld(NOTHING)) & 0x4000 != 0 {
             return Err(BadInput("a vector of no length"));
         }
-        // The vector, the two roots, the length, 1 over it.
-        let mut w = [v[0], v[1], v[2], root, exponent_root, 0, 0];
-        core::arch::asm!(
-            "fld dword ptr [{w} + 12]",
-            "fmul dword ptr [{w} + 16]",
-            "fst dword ptr [{w} + 20]",
-            "fld1",
-            ".byte 0xDE, 0xF1", // fdivrp st(1), st
-            "fld dword ptr [{w}]",
-            ".byte 0xD8, 0xC9", // fmul st, st(1)
-            "fstp dword ptr [{w}]",
-            "fld dword ptr [{w} + 4]",
-            ".byte 0xD8, 0xC9", // fmul st, st(1)
-            "fstp dword ptr [{w} + 4]",
-            "fld dword ptr [{w} + 8]",
-            ".byte 0xD8, 0xC9", // fmul st, st(1)
-            "fstp dword ptr [{w} + 8]",
-            "fstp dword ptr [{w} + 24]",
-            w = in(reg) w.as_mut_ptr(),
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-        );
+        let (scaled, inverse) = scaled_by_inverse([v[0], v[1], v[2]], root, exponent_root);
         let unsigned_zero = |bits: u32| if bits == 0x8000_0000 { 0 } else { bits };
-        game_write(VECTOR_RVA, [w[0], w[1], w[2]].map(unsigned_zero));
-        game_write(CHECKED_RVA, w[6]);
+        game_write(VECTOR_RVA, scaled.map(unsigned_zero));
+        game_write(CHECKED_RVA, inverse);
         Ok(Some(sum))
     }
 }

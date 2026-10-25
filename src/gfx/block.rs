@@ -180,6 +180,7 @@ pub fn base<R: Region>() -> u32 {
 /// The block's first values against the image (a test helper).
 #[cfg(test)]
 pub fn first_values_are_the_games<R: Region>(store: &crate::moved::Place<impl Sized>) {
+    let _g = crate::store::test_lock();
     let len = R::END - R::START;
     // Read in place: a copy of a big block would not fit the test thread's stack.
     let first = unsafe { core::slice::from_raw_parts(store.ptr() as *const u8, len) };

@@ -7,13 +7,8 @@
 //! The MCI call is the platform's: in the standalone program nothing (no CD audio; in this build `dword_518108` never becomes
 //! 1: `sound::open_cd_audio`).
 
-use crate::sound::store::EffectsSlot;
-use crate::store::game_addr;
-
 // ---- game data ----
 
-const CD_OPEN_RVA: EffectsSlot = EffectsSlot::at(0x518108); // dword_518108: the CD audio is open
-const MCI_ID_RVA: EffectsSlot = EffectsSlot::at(0x518118); // mciId
 const MCI_STOP: u32 = 0x808;
 
 /// `mciSendCommandA(device, message, parameter 1, parameter 2)`.
@@ -28,8 +23,8 @@ pub struct CdVars {
 impl CdVars {
     pub fn game() -> Self {
         Self {
-            open: game_addr(CD_OPEN_RVA) as u32,
-            device: game_addr(MCI_ID_RVA) as u32,
+            open: crate::sound::store::SOUND_EFFECTS.cd_audio_open.addr() as u32,
+            device: crate::sound::store::SOUND_EFFECTS.mci_id.addr() as u32,
         }
     }
 }

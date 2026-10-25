@@ -20,40 +20,36 @@
 use crate::field;
 use crate::input::devices::{at, put};
 use crate::input::di_harness::{
-    CAPS_LEN, CAPS_RVA, CONTROLLER_COUNT_RVA, CONTROLLER_LEN, CONTROLLERS, CONTROLLERS_RVA,
-    DIRECT_INPUT_RVA, IID_DEVICE2_RVA, JOYSTICK_FORMAT_RVA, NEW_DEVICE_RVA, NEW_DEVICE2_RVA, a, g,
-    method, p, slot,
+    CAPS_LEN, CONTROLLER_LEN, CONTROLLERS, IID_DEVICE2_RVA, JOYSTICK_FORMAT_RVA, a, method, slot,
 };
-use crate::input::store::DeviceSlot;
+use crate::input::store::DEVICES;
 use crate::input::types::{Controller, DiDevCaps, DiDeviceInstance};
 use crate::session::MACHINE;
 
-pub const NO_FORCE_RVA: DeviceSlot = DeviceSlot::at(0x4F68F4); // dword_4F68F4: force feedback turned off
-
 /// Looks the joystick over and fills the entry: false at the first failure.
 fn look_over(instance: u32, entry: u32) -> bool {
-    let input = g(DIRECT_INPUT_RVA);
+    let input = DEVICES.direct_input.get();
     let ok = |hr: u32| hr == 0;
     if !ok(method(
         input,
         slot::CREATE_DEVICE,
         &[
             instance + field!(DiDeviceInstance, instance),
-            a(NEW_DEVICE_RVA),
+            DEVICES.new_joystick.addr() as u32,
             0,
         ],
     )) {
         return false;
     }
-    let device = g(NEW_DEVICE_RVA);
+    let device = DEVICES.new_joystick.get();
     if !ok(method(
         device,
         slot::QUERY,
-        &[a(IID_DEVICE2_RVA), a(NEW_DEVICE2_RVA)],
+        &[a(IID_DEVICE2_RVA), DEVICES.new_joystick2.addr() as u32],
     )) {
         return false;
     }
-    let device2 = g(NEW_DEVICE2_RVA);
+    let device2 = DEVICES.new_joystick2.get();
     if !ok(method(
         device2,
         slot::SET_DATA_FORMAT,
@@ -68,8 +64,12 @@ fn look_over(instance: u32, entry: u32) -> bool {
     )) {
         return false;
     }
-    p(CAPS_RVA, CAPS_LEN as u32);
-    if !ok(method(device2, slot::GET_CAPABILITIES, &[a(CAPS_RVA)])) {
+    DEVICES.joystick_caps.set_u32(0, CAPS_LEN as u32);
+    if !ok(method(
+        device2,
+        slot::GET_CAPABILITIES,
+        &[DEVICES.joystick_caps.addr() as u32],
+    )) {
         return false;
     }
     let found = crate::input::axis_found::callback as unsafe extern "system" fn(u32, u32) -> u32
@@ -85,7 +85,7 @@ fn look_over(instance: u32, entry: u32) -> bool {
     unsafe { std::ptr::copy(guid as *const u8, to as *mut u8, 16) };
     // Converted: `rc2k_core::input::joystick::{name_prefix, found}`.
     use rc2k_core::input::joystick::{NAME_ROOM, name_prefix};
-    let count = g(CONTROLLER_COUNT_RVA);
+    let count = DEVICES.controller_count.get();
     let name = name_prefix(count);
     let at_name = entry + field!(Controller, name);
     unsafe { std::ptr::copy(name.as_ptr(), at_name as *mut u8, name.len()) };
@@ -102,13 +102,13 @@ fn look_over(instance: u32, entry: u32) -> bool {
         )
     };
     KEEP_CASE.store(kept, Relaxed);
-    let caps = |offset: u32| g(CAPS_RVA + offset as usize);
+    let caps = |offset: u32| DEVICES.joystick_caps.get_u32(offset as usize);
     let f = rc2k_core::input::joystick::found(
         caps(field!(DiDevCaps, flags)),
         caps(field!(DiDevCaps, axes)),
         caps(field!(DiDevCaps, buttons)),
         caps(field!(DiDevCaps, hats)),
-        g(NO_FORCE_RVA),
+        DEVICES.no_force_feedback.get(),
     );
     put(entry, field!(Controller, caps_flags), f.caps_flags);
     put(entry, field!(Controller, axes), f.axes);
@@ -118,7 +118,7 @@ fn look_over(instance: u32, entry: u32) -> bool {
     if let Some(force) = f.force_feedback {
         put(entry, field!(Controller, force_feedback), force);
     }
-    p(CONTROLLER_COUNT_RVA, count.wrapping_add(1));
+    DEVICES.controller_count.set(count.wrapping_add(1));
     true
 }
 
@@ -129,17 +129,17 @@ pub unsafe extern "system" fn callback(instance: u32, context: u32) -> u32 {
 }
 
 pub fn joystick_found(instance: u32, _context: u32) -> u32 {
-    let count = g(CONTROLLER_COUNT_RVA);
+    let count = DEVICES.controller_count.get();
     if count >= CONTROLLERS {
         return 0;
     }
-    let entry = a(CONTROLLERS_RVA) + count * CONTROLLER_LEN;
+    let entry = DEVICES.controllers[0].addr() as u32 + count * CONTROLLER_LEN;
     look_over(instance, entry);
-    for at in [NEW_DEVICE2_RVA, NEW_DEVICE_RVA] {
-        let object = g(at);
+    for cell in [&DEVICES.new_joystick2, &DEVICES.new_joystick] {
+        let object = cell.get();
         if object != 0 {
             method(object, slot::RELEASE, &[]);
-            p(at, 0);
+            cell.set(0);
         }
     }
     1

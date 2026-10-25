@@ -31,14 +31,12 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::rva;
-use crate::input::store::DeviceSlot;
 use crate::menu::player::{Player, player_at};
 use crate::store::game_read;
 use crate::text::draw_text::Canvas;
 
 // ---- game data ----
 
-const CONTROLLERS_RVA: DeviceSlot = DeviceSlot::at(0x4F78E0); // g_controllerCount
 const PLAYER_RVA: usize = rva(0x75598C); // dword_75598C
 const TYPING_RVA: usize = rva(0x7556A8); // dword_7556A8
 // seconds
@@ -109,7 +107,7 @@ pub unsafe fn draw_player_page(layout: Layout, canvas: &mut dyn Canvas) -> Resul
         };
         let details = rc2k_core::screens::player_details::Details {
             controller_item: layout.controller_item,
-            controllers: game_read::<u32>(CONTROLLERS_RVA) != 0,
+            controllers: crate::input::store::DEVICES.controller_count.get() != 0,
             name: player.name,
             typing: game_read::<u32>(TYPING_RVA) != 0,
             blink: game_read(crate::screens::draw_name_cursor::BLINK_RVA),

@@ -1,0 +1,241 @@
+//! The differential tests of the marks' converted x87 blocks: each block's original assembly
+//! (kept in the file's `asm_reference`) and its plain Rust version run over the same random
+//! memory, at the default control word and at chop, and every place either one writes must
+//! hold the same bits afterwards.
+
+use crate::math::x87;
+use crate::math::x87_float as bh;
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum Kind {
+    F32,
+    I32,
+    F80,
+    Status,
+    U32,
+}
+pub use Kind::*;
+
+pub enum Op {
+    /// A base address: the bytes `lo .. hi` of its region are read and written at the
+    /// given offsets.
+    Base {
+        lo: usize,
+        hi: usize,
+        reads: &'static [(usize, Kind)],
+        writes: &'static [(usize, Kind)],
+    },
+    /// A register that adds to an address: one of these values.
+    Index(&'static [usize]),
+    /// A float (the bits of a random float) the block starts with on the x87 stack.
+    Float,
+}
+
+pub struct Spec {
+    pub operands: &'static [Op],
+    /// The block has `fsin` / `fcos` (libm's, one float ulp off at most).
+    pub sincos: bool,
+}
+
+struct Rng(u64);
+impl Rng {
+    fn next(&mut self) -> u64 {
+        self.0 ^= self.0 << 13;
+        self.0 ^= self.0 >> 7;
+        self.0 ^= self.0 << 17;
+        self.0
+    }
+    fn below(&mut self, n: u64) -> u64 {
+        self.next() % n
+    }
+    fn unit(&mut self) -> f64 {
+        (self.next() >> 11) as f64 / (1u64 << 53) as f64
+    }
+}
+
+fn random_float(r: &mut Rng, sincos: bool) -> f32 {
+    let sign = if r.below(2) == 0 { 1.0 } else { -1.0 };
+    let v = match r.below(12) {
+        0 => 0.0,
+        1 => (r.below(2001) as i64 - 1000) as f64,
+        2 => (r.below(2001) as i64 - 1000) as f64 / 2.0,
+        3 => 2f64.powf(r.unit() * 40.0 - 20.0),
+        4 => r.unit() * 1e-6,
+        5 if !sincos => r.unit() * 1e9,
+        6 => r.unit(),
+        7 => r.unit() * 6.3,
+        _ => r.unit() * 1000.0,
+    };
+    (sign * v) as f32
+}
+
+fn random_int(r: &mut Rng) -> i32 {
+    match r.below(6) {
+        0 => 0,
+        1 => r.below(65) as i32 - 32,
+        2 => r.next() as i32,
+        3 => r.below(0x2_0000) as i32 - 0x1_0000,
+        _ => r.below(4001) as i32 - 2000,
+    }
+}
+
+fn fill(buf: &mut [u8], lo: usize, reads: &[(usize, Kind)], r: &mut Rng, sincos: bool) {
+    buf.fill(0xAA);
+    for &(off, kind) in reads {
+        let at = off - lo;
+        match kind {
+            F32 => {
+                buf[at..at + 4].copy_from_slice(&random_float(r, sincos).to_bits().to_le_bytes())
+            }
+            I32 => buf[at..at + 4].copy_from_slice(&random_int(r).to_le_bytes()),
+            F80 => {
+                let f = f64::from(random_float(r, sincos)) * (1.0 + r.unit() * 1e-3);
+                buf[at..at + 10].copy_from_slice(&bh::f80(bh::X(f)));
+            }
+            Status | U32 => {}
+        }
+    }
+}
+
+/// A float the block leaves on the x87 stack, as bits (any NaN the same).
+pub fn canon(x: f64) -> u64 {
+    if x.is_nan() {
+        0x7FF8_0000_0000_0000
+    } else {
+        x.to_bits()
+    }
+}
+
+fn f32_nan(b: u32) -> bool {
+    b & 0x7F80_0000 == 0x7F80_0000 && b & 0x007F_FFFF != 0
+}
+
+fn same(kind: Kind, a: &[u8], b: &[u8], ulp: bool) -> bool {
+    match kind {
+        F32 => {
+            let (a, b) = (
+                u32::from_le_bytes(a.try_into().unwrap()),
+                u32::from_le_bytes(b.try_into().unwrap()),
+            );
+            if a == b || (f32_nan(a) && f32_nan(b)) {
+                return true;
+            }
+            // one float step, for libm's sine and cosine
+            ulp && a.abs_diff(b) <= 1 && (a >> 31) == (b >> 31) && !f32_nan(a) && !f32_nan(b)
+                || ulp && (a & 0x7FFF_FFFF) == 0 && (b & 0x7FFF_FFFF) == 0
+        }
+        I32 | U32 => a == b,
+        F80 => {
+            if a == b {
+                return true;
+            }
+            let nan = |v: &[u8]| {
+                let e = u16::from_le_bytes([v[8], v[9]]) & 0x7FFF;
+                let m = u64::from_le_bytes(v[..8].try_into().unwrap());
+                e == 0x7FFF && m << 1 != 0
+            };
+            nan(a) && nan(b)
+        }
+        Status => {
+            (u16::from_le_bytes(a.try_into().unwrap()) & 0x4500)
+                == (u16::from_le_bytes(b.try_into().unwrap()) & 0x4500)
+        }
+    }
+}
+
+const SIZE: fn(Kind) -> usize = |k| match k {
+    F32 | I32 | U32 => 4,
+    F80 => 10,
+    Status => 2,
+};
+
+/// Runs `reference` and `plain` (each given the operands: base addresses and indexes)
+/// over the same random memory, several thousand times at each of two control words.
+pub fn differential<R: PartialEq + std::fmt::Debug>(
+    spec: &Spec,
+    reference: impl Fn(&[usize]) -> R,
+    plain: impl Fn(&[usize]) -> R,
+) {
+    // The tests write the control word and the statics: one at a time, with every test of
+    // the statics (`store::test_lock`).
+    let _guard = crate::store::test_lock();
+    let mut rng = Rng(0x9E37_79B9_7F4A_7C15);
+    let mut failures = 0;
+    for cw in [0x027F, 0x0E7F] {
+        x87::set_control_word(cw);
+        for case in 0..3000 {
+            let mut refs: Vec<Vec<u8>> = Vec::new();
+            let mut values = Vec::new();
+            for op in spec.operands {
+                match op {
+                    Op::Base { lo, hi, reads, .. } => {
+                        let mut buf = vec![0u8; hi - lo];
+                        fill(&mut buf, *lo, reads, &mut rng, spec.sincos);
+                        refs.push(buf);
+                        values.push(0);
+                    }
+                    Op::Index(v) => {
+                        refs.push(Vec::new());
+                        values.push(v[rng.below(v.len() as u64) as usize]);
+                    }
+                    Op::Float => {
+                        refs.push(Vec::new());
+                        values.push(random_float(&mut rng, spec.sincos).to_bits() as usize);
+                    }
+                }
+            }
+            let mut pls = refs.clone();
+            let mut ref_vals = values.clone();
+            let mut pl_vals = values;
+            for (j, op) in spec.operands.iter().enumerate() {
+                if let Op::Base { lo, .. } = op {
+                    ref_vals[j] = (refs[j].as_ptr() as usize).wrapping_sub(*lo);
+                    pl_vals[j] = (pls[j].as_ptr() as usize).wrapping_sub(*lo);
+                }
+            }
+            let (got_ref, got_plain) = (reference(&ref_vals), plain(&pl_vals));
+            if got_ref != got_plain {
+                failures += 1;
+                if failures < 10 {
+                    eprintln!("case {case} cw {cw:#X}: returned {got_ref:?} and {got_plain:?}");
+                }
+            }
+            for (j, op) in spec.operands.iter().enumerate() {
+                let Op::Base { lo, writes, .. } = op else {
+                    continue;
+                };
+                let (a, b) = (&mut refs[j], &mut pls[j]);
+                for &(off, kind) in *writes {
+                    let (at, n) = (off - lo, SIZE(kind));
+                    if !same(kind, &a[at..at + n], &b[at..at + n], spec.sincos) {
+                        failures += 1;
+                        if failures < 10 {
+                            eprintln!(
+                                "case {case} cw {cw:#X} operand {j} +{off:#X} {kind:?}: reference {:02X?} plain {:02X?}",
+                                &a[at..at + n],
+                                &b[at..at + n]
+                            );
+                        }
+                    }
+                    // equal from here on, so that what is left is the unlisted bytes
+                    let copy = b[at..at + n].to_vec();
+                    a[at..at + n].copy_from_slice(&copy);
+                }
+                if a != b {
+                    failures += 1;
+                    if failures < 10 {
+                        let k = a.iter().zip(b.iter()).position(|(x, y)| x != y).unwrap();
+                        eprintln!(
+                            "case {case} cw {cw:#X} operand {j} +{:#X}: unlisted byte differs {:02X} {:02X}",
+                            lo + k,
+                            a[k],
+                            b[k]
+                        );
+                    }
+                }
+            }
+        }
+    }
+    x87::set_control_word(0x027F);
+    assert_eq!(failures, 0, "{failures} differences");
+}

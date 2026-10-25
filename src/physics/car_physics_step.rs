@@ -41,8 +41,9 @@
 use crate::errors::{BadInput, Refused};
 use crate::math::x87::loaded;
 use crate::physics as ph;
-use crate::physics::flow::{a, g, hold_high, hold_low, negate, p, x87_run};
+use crate::physics::flow::{a, g, hold_high, hold_low, negate, p};
 use crate::scene::matrix3::rounded;
+use crate::scene::x87_mem::{fld, fstp};
 
 /// The motion: moved, spun, levered, the inverse matrix, the angles.
 fn motion() {
@@ -180,16 +181,7 @@ pub fn steps() -> Result<(), Refused> {
         ph::count_down_notice::count_down_notice();
         ph::turn_wheel_angles::turn_wheel_angles();
     }
-    x87_run!(
-        "fld dword ptr [{rc} + 0x31A190]",
-        "fadd dword ptr [{rc} + 0x31A194]",
-        "fmul dword ptr [{rc} + 0x1C5E40]",
-        "fstp dword ptr [{rc} + 0x31A198]",
-        "fld dword ptr [{rc} + 0x31A174]",
-        "fsub dword ptr [{rc} + 0x214138]",
-        "fstp dword ptr [{rc} + 0x31A8E4]";
-        rc = crate::race::store::asm_base()
-    );
+    x87_1(crate::race::store::asm_base() as usize);
     unsafe { ph::store_motion_length::store_motion_length() };
     ph::damage_step::damage_step();
     ph::hit_part_checks::hit_part_checks()?;
@@ -222,4 +214,59 @@ pub unsafe fn car_physics_step() -> Result<(), Refused> {
         return Err(BadInput("a current car past 7 (dword_641680's room)").into());
     }
     steps()
+}
+
+// ---- the arithmetic that was x87 assembly ----
+
+/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
+/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `[rc + 0x31A198] = ([rc + 0x31A190] + [rc + 0x31A194]) * [rc + 0x1C5E40]`
+/// `[rc + 0x31A8E4] = [rc + 0x31A174] - [rc + 0x214138]`
+fn x87_1(rc: usize) {
+    unsafe {
+        let rc = rc as *mut u8;
+        let t0 = fld(rc, 0x31A190);
+        let t1 = fld(rc, 0x31A194);
+        let t2 = t0 + t1;
+        let t3 = fld(rc, 0x1C5E40);
+        let t4 = t2 * t3;
+        fstp(rc, 0x31A198, t4);
+        let t5 = fld(rc, 0x31A174);
+        let t6 = fld(rc, 0x214138);
+        let t7 = t5 - t6;
+        fstp(rc, 0x31A8E4, t7);
+    }
+}
+
+#[cfg(test)]
+mod asm_reference {
+    use super::*;
+    use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
+
+    // The original's instructions, one function per run.
+    reference!(ref_0(rc) "fld dword ptr [{rc} + 0x31A190]", "fadd dword ptr [{rc} + 0x31A194]", "fmul dword ptr [{rc} + 0x1C5E40]", "fstp dword ptr [{rc} + 0x31A198]", "fld dword ptr [{rc} + 0x31A174]", "fsub dword ptr [{rc} + 0x214138]", "fstp dword ptr [{rc} + 0x31A8E4]");
+
+    fn blocks() -> Vec<Block> {
+        vec![Block {
+            name: "car_physics_step line 183",
+            operands: vec![Operand::Buffer {
+                reads: &[
+                    (0x1C5E40, In::F),
+                    (0x214138, In::F),
+                    (0x31A174, In::F),
+                    (0x31A190, In::F),
+                    (0x31A194, In::F),
+                ],
+                writes: &[(0x31A198, Out::F), (0x31A8E4, Out::F)],
+            }],
+            ulps: 0,
+            reference: |a| unsafe { ref_0(a[0]) },
+            plain: |a| x87_1(a[0]),
+        }]
+    }
+
+    #[test]
+    fn x87_blocks_matches_the_assembly() {
+        sparse(&blocks(), 1200, 100);
+    }
 }

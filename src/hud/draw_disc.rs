@@ -21,6 +21,7 @@ use crate::hud::disc_vertex::disc_vertex;
 use crate::hud::store::Slot;
 use crate::hud::store::{game_addr, game_read, game_write};
 use crate::math::x87;
+use crate::scene::x87_mem::{fistp, fld};
 use rc2k_core::hud::disc::SEGMENTS;
 
 const RING_RVA: [Slot; 2] = [Slot::at(0x75C188), Slot::at(0x75C1CC)]; // flt_75C188, flt_75C1CC
@@ -34,10 +35,7 @@ const VERTICES_RVA: usize = rva(0x9605A0); // g_polygonVertices
 /// `fld a; fchs; fmul b; fmul c; fistp`.
 fn negated_times_times_to_int(a: u32, b: u32, c: u32) -> u32 {
     let (v, mut out) = ([a, b, c], 0u32);
-    unsafe {
-        core::arch::asm!("fld dword ptr [{v}]", "fchs", "fmul dword ptr [{v} + 4]", "fmul dword ptr [{v} + 8]", "fistp dword ptr [{o}]",
-            v = in(reg) v.as_ptr(), o = in(reg) &raw mut out, out("st(0)") _, options(nostack))
-    };
+    x87_1(v.as_ptr() as usize, (&raw mut out) as usize);
     out
 }
 
@@ -70,4 +68,56 @@ pub unsafe fn draw_disc() -> Result<(), Refused> {
         }
     }
     Ok(())
+}
+
+// ---- the arithmetic that was x87 assembly ----
+
+/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
+/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `int [o + 0] = (-[v + 0] * [v + 4]) * [v + 8]`
+fn x87_1(v: usize, o: usize) {
+    unsafe {
+        let v = v as *const u8;
+        let o = o as *mut u8;
+        let t0 = fld(v, 0);
+        let t1 = -t0;
+        let t2 = fld(v, 4);
+        let t3 = t1 * t2;
+        let t4 = fld(v, 8);
+        let t5 = t3 * t4;
+        fistp(o, 0, t5);
+    }
+}
+
+#[cfg(test)]
+mod asm_reference {
+    use super::*;
+    use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
+
+    // The original's instructions, one function per run.
+    reference!(ref_0(v, o) "fld dword ptr [{v}]", "fchs", "fmul dword ptr [{v} + 4]", "fmul dword ptr [{v} + 8]", "fistp dword ptr [{o}]");
+
+    fn blocks() -> Vec<Block> {
+        vec![Block {
+            name: "draw_disc line 38",
+            operands: vec![
+                Operand::Buffer {
+                    reads: &[(0, In::F), (4, In::F), (8, In::F)],
+                    writes: &[],
+                },
+                Operand::Buffer {
+                    reads: &[],
+                    writes: &[(0, Out::I)],
+                },
+            ],
+            ulps: 0,
+            reference: |a| unsafe { ref_0(a[0], a[1]) },
+            plain: |a| x87_1(a[0], a[1]),
+        }]
+    }
+
+    #[test]
+    fn x87_blocks_matches_the_assembly() {
+        sparse(&blocks(), 1200, 100);
+    }
 }

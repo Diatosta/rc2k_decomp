@@ -17,14 +17,14 @@
 
 use crate::errors::Refused;
 use crate::input::devices::{at, put};
-use crate::input::effects::{EFFECT_LEN, EFFECTS, HAS_EFFECTS, RACE_ON_RVA, REQUEST};
+use crate::input::effects::{EFFECT_LEN, EFFECTS, HAS_EFFECTS, REQUEST};
 
 /// Effect `effect` (0 .. 5) of the device at `record` told `what` (2 start, 3 set, 4
 /// stop) with the numbers `a` and `b`; "set" only while the race runs (`dword_518090`).
 /// Converted: `rc2k_core::input::effects::wanted` and `request`.
 pub fn set_effect(record: u32, effect: u32, what: u32, a: u32, b: u32) -> Result<(), Refused> {
     use rc2k_core::input::effects::{request, wanted};
-    let race_on: u32 = unsafe { crate::store::game_read(RACE_ON_RVA) };
+    let race_on: u32 = crate::sound::store::SOUND_EFFECTS.effects_race_on.get();
     if wanted(at(record, HAS_EFFECTS) == 1, race_on == 1, effect, what)? {
         put(
             record,

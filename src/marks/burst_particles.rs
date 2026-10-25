@@ -20,9 +20,7 @@ use crate::marks::blocks::{RING_FREE_RVA, RING_USED_RVA};
 use crate::marks::setup::SEED_RVA;
 use crate::marks::store::{Slot, game_read, game_write};
 use crate::math::x87;
-use crate::sound::store::StageSlot;
 
-const FLAG_RVA: StageSlot = StageSlot::at(0x5165E8); // dword_5165E8
 const RADIUS_RVA: Slot = Slot::at(0x93A5E4); // g_marksBurstRadius
 const KIND_RVA: Slot = Slot::at(0x93A5D4); // dword_93A5D4
 const NINE_RVA: Slot = Slot::at(0x93A5D0); // dword_93A5D0
@@ -78,7 +76,7 @@ pub unsafe fn burst_particles(record: u32) -> Result<(), Refused> {
                 return Err(BadInput("a null ring entry").into());
             }
         }
-        crate::store::game_write(FLAG_RVA, 1u32);
+        crate::sound::store::STAGE_SOUNDS.random[1].set(1);
         let s = next_seed();
         let r = s & 0xFFFF;
         let [m, c, k] = SCALE_RVA.map(|r| game_read::<u32>(r));

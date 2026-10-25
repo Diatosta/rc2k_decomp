@@ -14,11 +14,9 @@
 //! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::sound::store::ObjectsSlot;
-use crate::sound::turn_parts::{COUNT, OBJECTS};
+use crate::sound::store::RACE_SOUNDS;
+use crate::sound::turn_parts::object;
 
-/// dword_514F8C: 1 while the cars' voices are to be marked.
-const MARKING: ObjectsSlot = ObjectsSlot::at(0x514F8C);
 /// g_carBlocks: the cars' blocks.
 const CARS: usize = 0x71B3B8;
 
@@ -30,12 +28,12 @@ fn g(x: impl crate::store::Ida) -> u32 {
 
 /// The (object, car) pairs in use, or a refusal.
 fn pairs() -> Result<Vec<(u32, u32)>, BadInput> {
-    let count = g(COUNT);
+    let count = RACE_SOUNDS.count.get();
     if count == 0 || count > 8 {
         return Err(BadInput("a sound object count of 0 or over 8"));
     }
     let pairs: Vec<(u32, u32)> = (0..count as usize)
-        .map(|n| (g(OBJECTS + 4 * n), g(CARS + 4 * n)))
+        .map(|n| (object(n as u32), g(CARS + 4 * n)))
         .collect();
     if pairs.iter().any(|&(o, c)| o == 0 || c == 0) {
         return Err(BadInput("a null sound object or car"));
@@ -45,17 +43,17 @@ fn pairs() -> Result<Vec<(u32, u32)>, BadInput> {
 
 /// Converted: `rc2k_core::sound::cars::voice_mark`.
 pub fn mark_car_voices() -> Result<(), Refused> {
-    if g(MARKING) != 1 {
+    if RACE_SOUNDS.mark_car_voices.get() != 1 {
         return Ok(());
     }
     for (n, (object, car)) in pairs()?.into_iter().enumerate() {
         unsafe {
-            let o = object as *mut u32;
+            let o = crate::sound::store::SoundObject::at(object);
             let kind = ((car + 0x25C) as *const u32).read_unaligned();
             let (sounds, voice) = rc2k_core::sound::cars::voice_mark(n as u32, kind);
-            o.add(2).write_unaligned(sounds);
+            o.in_use.set(sounds);
             if let Some(voice) = voice {
-                o.write_unaligned(voice);
+                o.sound_offset.set(voice);
             }
         }
     }

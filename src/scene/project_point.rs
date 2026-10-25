@@ -22,15 +22,17 @@
 //! scene's points.
 //! One caller, `scene::project_polygon`.
 //!
-//! Converted 2026-10-21: the Rust version is `project_point_plain`, through
-//! `rc2k_core::scene::projection` (plain floats; the x87 version stays for the Rust callers in
-//! unconverted code); `record_offset` is the core's for both.
+//! `record_offset` is the core's (`rc2k_core::scene::projection`); the arithmetic is the
+//! x87's, in plain Rust over `X` (`math/x87_float.rs`), as the original's instructions
+//! are kept as `asm_reference` in the tests (2026-10-24).
 
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::framework::{game_ptr, game_read, game_write, rva};
 use crate::math::x87;
+use crate::math::x87_float::ONE;
 use crate::scene::draw_polygon::CHECKED_RVA;
 use crate::scene::polygon::{dword, put};
+use crate::scene::x87_mem::{fild, fld, fstp};
 
 // ---- game data ----
 
@@ -62,71 +64,108 @@ const TOO_HIGH: FatalError = FatalError {
 
 // ---- Rust version ----
 
-macro_rules! x87 {
-    ($($line:literal),+; $($name:ident = $value:expr),+) => {
-        unsafe {
-            core::arch::asm!(
-                $($line),+,
-                $($name = in(reg) $value),+,
-                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-                options(nostack),
-            )
-        }
-    };
-}
-
 /// `sub_44D110` as `project_point` uses it: the point's three whole numbers through the
 /// matrix, into the record's +0x10, +0x14, +0x18.
 pub(crate) unsafe fn rotate(point: *const i32, matrix: *const u32, record: *mut u32) {
-    x87!(
-        "fild dword ptr [{p} + 8]", "fild dword ptr [{p} + 4]", "fild dword ptr [{p}]",
-        "fld dword ptr [{m}]", "fmul st(0), st(1)",
-        "fld dword ptr [{m} + 0x10]", "fmul st(0), st(3)",
-        "fld dword ptr [{m} + 0x20]", "fmul st(0), st(5)",
-        "faddp st(1), st(0)", "faddp st(1), st(0)",
-        "fadd dword ptr [{m} + 0x30]", "fxch st(3)",
-        "fld dword ptr [{m} + 4]", "fmul st(0), st(2)",
-        "fld dword ptr [{m} + 0x14]", "fmul st(0), st(4)",
-        "fld dword ptr [{m} + 0x24]", "fmul st(0), st(3)",
-        "faddp st(1), st(0)", "faddp st(1), st(0)",
-        "fadd dword ptr [{m} + 0x34]", "fxch st(3)",
-        "fld dword ptr [{m} + 8]", "fmulp st(3), st(0)",
-        "fld dword ptr [{m} + 0x18]", "fmulp st(1), st(0)",
-        "fld dword ptr [{m} + 0x28]", "fmulp st(2), st(0)",
-        "faddp st(1), st(0)", "faddp st(1), st(0)",
-        "fadd dword ptr [{m} + 0x38]", "fxch st(2)",
-        "fstp dword ptr [{o} + 0x10]", "fstp dword ptr [{o} + 0x14]",
-        "fstp dword ptr [{o} + 0x18]";
-        p = point, m = matrix, o = record
-    );
+    unsafe { rotate_at(point.cast(), matrix.cast(), record.cast()) }
+}
+
+/// `fild` x3, the three rows' sums of products plus the place, `fstp dword` x3.
+unsafe fn rotate_at(p: *const u8, m: *const u8, o: *mut u8) {
+    unsafe {
+        let t0 = fild(p, 0x8);
+        let t1 = fild(p, 0x4);
+        let t2 = fild(p, 0x0);
+        let t3 = fld(m, 0x0);
+        let t4 = t3 * t2;
+        let t5 = fld(m, 0x10);
+        let t6 = t5 * t1;
+        let t7 = fld(m, 0x20);
+        let t8 = t7 * t0;
+        let t9 = t6 + t8;
+        let t10 = t4 + t9;
+        let t11 = fld(m, 0x30);
+        let t12 = t10 + t11;
+        let t13 = fld(m, 0x4);
+        let t14 = t13 * t2;
+        let t15 = fld(m, 0x14);
+        let t16 = t15 * t1;
+        let t17 = fld(m, 0x24);
+        let t18 = t17 * t0;
+        let t19 = t16 + t18;
+        let t20 = t14 + t19;
+        let t21 = fld(m, 0x34);
+        let t22 = t20 + t21;
+        let t23 = fld(m, 0x8);
+        let t24 = t2 * t23;
+        let t25 = fld(m, 0x18);
+        let t26 = t1 * t25;
+        let t27 = fld(m, 0x28);
+        let t28 = t0 * t27;
+        let t29 = t28 + t26;
+        let t30 = t24 + t29;
+        let t31 = fld(m, 0x38);
+        let t32 = t30 + t31;
+        fstp(o, 0x10, t12);
+        fstp(o, 0x14, t22);
+        fstp(o, 0x18, t32);
+    }
 }
 
 /// The record's place on the screen from its place in the view. `v`: the scale, the
 /// centre's x and y, and the whole number the flat depth is made from.
-/// (`.byte 0xDE, 0xF1` is the original's `fdivrp st(1), st`.)
 pub(crate) unsafe fn to_screen(record: *mut u32, v: &[u32; 4], flat: bool, checked: *mut u32) {
-    if flat {
-        x87!(
-            "fld dword ptr [{o} + 0x10]", "fld dword ptr [{o} + 0x14]",
-            "fld dword ptr [{o} + 0x18]",
-            "fstp dword ptr [{w}]", "fild dword ptr [{v} + 12]", "fld1", "faddp st(1), st(0)",
-            "fld dword ptr [{v}]", ".byte 0xDE, 0xF1",
-            "fmul st(1), st(0)", "fmulp st(2), st(0)", "fchs",
-            "fadd dword ptr [{v} + 8]", "fxch st(1)", "fadd dword ptr [{v} + 4]",
-            "fstp dword ptr [{o} + 0xC]", "fstp dword ptr [{o} + 0x1C]";
-            o = record, v = v.as_ptr(), w = checked
-        );
-    } else {
-        x87!(
-            "fld dword ptr [{o} + 0x10]", "fld dword ptr [{o} + 0x14]",
-            "fld dword ptr [{o} + 0x18]",
-            "fld dword ptr [{v}]", ".byte 0xDE, 0xF1",
-            "fmul st(1), st(0)", "fmulp st(2), st(0)", "fchs",
-            "fadd dword ptr [{v} + 8]", "fxch st(1)", "fadd dword ptr [{v} + 4]",
-            "fstp dword ptr [{o} + 0xC]", "fstp dword ptr [{o} + 0x1C]";
-            o = record, v = v.as_ptr()
-        );
+    unsafe {
+        if flat {
+            screen_flat(record.cast(), v.as_ptr().cast(), checked.cast());
+        } else {
+            screen_plain(record.cast(), v.as_ptr().cast());
+        }
+    }
+}
+
+/// With the flat depth: the depth goes to `checked`, and the one divided by is the whole
+/// number plus one.
+unsafe fn screen_flat(o: *mut u8, v: *const u8, w: *mut u8) {
+    unsafe {
+        let t0 = fld(o, 0x10);
+        let t1 = fld(o, 0x14);
+        let t2 = fld(o, 0x18);
+        fstp(w, 0x0, t2);
+        let t3 = fild(v, 0xC);
+        let t4 = ONE;
+        let t5 = t3 + t4;
+        let t6 = fld(v, 0x0);
+        let t7 = t6 / t5;
+        let t8 = t1 * t7;
+        let t9 = t0 * t7;
+        let t10 = -t8;
+        let t11 = fld(v, 0x8);
+        let t12 = t10 + t11;
+        let t13 = fld(v, 0x4);
+        let t14 = t9 + t13;
+        fstp(o, 0xC, t14);
+        fstp(o, 0x1C, t12);
+    }
+}
+
+/// The usual way: x = x' * (scale / depth) + centre x, y = centre y - y' * (the same).
+unsafe fn screen_plain(o: *mut u8, v: *const u8) {
+    unsafe {
+        let t0 = fld(o, 0x10);
+        let t1 = fld(o, 0x14);
+        let t2 = fld(o, 0x18);
+        let t3 = fld(v, 0x0);
+        let t4 = t3 / t2;
+        let t5 = t1 * t4;
+        let t6 = t0 * t4;
+        let t7 = -t5;
+        let t8 = fld(v, 0x8);
+        let t9 = t7 + t8;
+        let t10 = fld(v, 0x4);
+        let t11 = t6 + t10;
+        fstp(o, 0xC, t11);
+        fstp(o, 0x1C, t9);
     }
 }
 
@@ -219,5 +258,146 @@ pub unsafe fn project_point(point: u32) -> Result<Projected, Refused> {
             eax: point,
             ecx: Some(from),
         })
+    }
+}
+
+#[cfg(test)]
+mod asm_reference {
+    use super::*;
+    use crate::scene::asm_test::{Kind, differential};
+
+    /// The original's instructions for `rotate`.
+    unsafe fn rotate_at_ref(p: *mut u8, m: *mut u8, o: *mut u8) {
+        unsafe {
+            core::arch::asm!(
+                "fild dword ptr [{p} + 8]", "fild dword ptr [{p} + 4]", "fild dword ptr [{p}]",
+                "fld dword ptr [{m}]", "fmul st(0), st(1)",
+                "fld dword ptr [{m} + 0x10]", "fmul st(0), st(3)",
+                "fld dword ptr [{m} + 0x20]", "fmul st(0), st(5)",
+                "faddp st(1), st(0)", "faddp st(1), st(0)",
+                "fadd dword ptr [{m} + 0x30]", "fxch st(3)",
+                "fld dword ptr [{m} + 4]", "fmul st(0), st(2)",
+                "fld dword ptr [{m} + 0x14]", "fmul st(0), st(4)",
+                "fld dword ptr [{m} + 0x24]", "fmul st(0), st(3)",
+                "faddp st(1), st(0)", "faddp st(1), st(0)",
+                "fadd dword ptr [{m} + 0x34]", "fxch st(3)",
+                "fld dword ptr [{m} + 8]", "fmulp st(3), st(0)",
+                "fld dword ptr [{m} + 0x18]", "fmulp st(1), st(0)",
+                "fld dword ptr [{m} + 0x28]", "fmulp st(2), st(0)",
+                "faddp st(1), st(0)", "faddp st(1), st(0)",
+                "fadd dword ptr [{m} + 0x38]", "fxch st(2)",
+                "fstp dword ptr [{o} + 0x10]", "fstp dword ptr [{o} + 0x14]",
+                "fstp dword ptr [{o} + 0x18]",
+                p = in(reg) p,
+                m = in(reg) m,
+                o = in(reg) o,
+                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
+                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
+                options(nostack),
+            );
+        }
+    }
+
+    /// The original's instructions for `screen_flat`.
+    unsafe fn screen_flat_ref(o: *mut u8, v: *mut u8, w: *mut u8) {
+        unsafe {
+            core::arch::asm!(
+                "fld dword ptr [{o} + 0x10]", "fld dword ptr [{o} + 0x14]",
+                "fld dword ptr [{o} + 0x18]",
+                "fstp dword ptr [{w}]", "fild dword ptr [{v} + 12]", "fld1", "faddp st(1), st(0)",
+                "fld dword ptr [{v}]", ".byte 0xDE, 0xF1",
+                "fmul st(1), st(0)", "fmulp st(2), st(0)", "fchs",
+                "fadd dword ptr [{v} + 8]", "fxch st(1)", "fadd dword ptr [{v} + 4]",
+                "fstp dword ptr [{o} + 0xC]", "fstp dword ptr [{o} + 0x1C]",
+                o = in(reg) o,
+                v = in(reg) v,
+                w = in(reg) w,
+                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
+                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
+                options(nostack),
+            );
+        }
+    }
+
+    /// The original's instructions for `screen_plain`.
+    unsafe fn screen_plain_ref(o: *mut u8, v: *mut u8) {
+        unsafe {
+            core::arch::asm!(
+                "fld dword ptr [{o} + 0x10]", "fld dword ptr [{o} + 0x14]",
+                "fld dword ptr [{o} + 0x18]",
+                "fld dword ptr [{v}]", ".byte 0xDE, 0xF1",
+                "fmul st(1), st(0)", "fmulp st(2), st(0)", "fchs",
+                "fadd dword ptr [{v} + 8]", "fxch st(1)", "fadd dword ptr [{v} + 4]",
+                "fstp dword ptr [{o} + 0xC]", "fstp dword ptr [{o} + 0x1C]",
+                o = in(reg) o,
+                v = in(reg) v,
+                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
+                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
+                options(nostack),
+            );
+        }
+    }
+
+    #[test]
+    fn rotate_matches_the_assembly() {
+        // dwords 0 .. 3 the point, 4 .. 19 the matrix, 20 .. 28 the record
+        differential::<28>(
+            "project_point rotate",
+            8000,
+            13,
+            [Kind::Float; 28],
+            |rng, m| {
+                m.fill(0xAAAA_AAAA);
+                for d in m.iter_mut().take(3) {
+                    *d = rng.int();
+                }
+                let moderate = rng.below(2) == 0;
+                for d in m.iter_mut().skip(4).take(15) {
+                    *d = if moderate { rng.moderate() } else { rng.fl() };
+                }
+            },
+            |base| unsafe { rotate_at_ref(base, base.add(16), base.add(80)) },
+            |base| unsafe { rotate_at(base, base.add(16), base.add(80)) },
+        );
+    }
+
+    /// dwords 0 .. 4 the scale, centre x, centre y and whole number, 4 the checked word, 8 ..
+    /// 16 the record (+0x10 .. +0x18 the place in the view).
+    fn screen_fill(rng: &mut crate::scene::asm_test::Rng, m: &mut [u32; 16]) {
+        m.fill(0xAAAA_AAAA);
+        let moderate = rng.below(2) == 0;
+        for d in m.iter_mut().take(3) {
+            *d = if moderate { rng.moderate() } else { rng.fl() };
+        }
+        m[3] = rng.int();
+        for d in m.iter_mut().skip(12).take(3) {
+            *d = if moderate { rng.moderate() } else { rng.fl() };
+        }
+    }
+
+    #[test]
+    fn screen_flat_matches_the_assembly() {
+        differential::<16>(
+            "project_point flat",
+            8000,
+            14,
+            [Kind::Float; 16],
+            screen_fill,
+            |base| unsafe { screen_flat_ref(base.add(32), base, base.add(16)) },
+            |base| unsafe { screen_flat(base.add(32), base, base.add(16)) },
+        );
+    }
+
+    #[test]
+    fn screen_plain_matches_the_assembly() {
+        differential::<16>(
+            "project_point not flat",
+            8000,
+            15,
+            [Kind::Float; 16],
+            screen_fill,
+            |base| unsafe { screen_plain_ref(base.add(32), base) },
+            |base| unsafe { screen_plain(base.add(32), base) },
+        );
     }
 }

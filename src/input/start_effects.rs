@@ -10,11 +10,10 @@
 //! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::input::effects::{RECORD_1, RECORD_2};
 
 /// Both device records.
 pub fn records() -> [u32; 2] {
-    [RECORD_1, RECORD_2].map(|record| record.address() as u32)
+    crate::input::devices::record_addrs()
 }
 
 /// Both devices' effects started.

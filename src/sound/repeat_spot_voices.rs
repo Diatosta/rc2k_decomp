@@ -14,7 +14,6 @@
 //! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::sound::spot_voices::{MOST_KIND, REPEATS};
 
 // ---- Rust version ----
 
@@ -22,8 +21,14 @@ use crate::sound::spot_voices::{MOST_KIND, REPEATS};
 pub fn repeat_spot_voices() -> Result<(), Refused> {
     use crate::sound::spot_voices::{load_voices, store_voices};
     use rc2k_core::sound::spot_voices::{Repeats, repeat};
-    let records: [[u8; 8]; MOST_KIND as usize] = unsafe { crate::store::game_read(REPEATS) };
-    let table_of = records.map(Repeats::from_bytes);
+    let table_of = crate::sound::store::SOUND_EFFECTS
+        .kind_repeats
+        .each_ref()
+        .map(|r| Repeats {
+            most: r.most.get(),
+            least_delay: r.least_delay.get(),
+            most_delay: r.most_delay.get(),
+        });
     let mut voices = load_voices();
     repeat::<Refused>(&mut voices, &table_of, |_, range| {
         Ok(unsafe { crate::math::random_below::random_below(range) }?)

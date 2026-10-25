@@ -8,7 +8,6 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::rva;
-use crate::sound::store::WheelsSlot;
 use crate::store::{game_addr, game_write};
 
 pub const PLAIN_RVA: usize = rva(0x5BEC80); // dword_5BEC80: 1 = chunks written unpacked
@@ -67,7 +66,7 @@ pub unsafe fn seal_replay_header() -> Result<(), Refused> {
         let dwords: Vec<u32> = (1..0x40).map(|n| get(SEALED_RVA + 4 * n)).collect();
         let sum = seal_checksum(&dwords);
         set(SEALED_RVA, sum);
-        set(WheelsSlot::at(0x4F66F9), sum);
+        crate::sound::store::WHEELS.seal_key.set(sum);
         let key = [get(rva(0x4E052C)), get(rva(0x4E0530))];
         set(rva(0x4E052C), SEAL_KEY[0]);
         set(rva(0x4E0530), SEAL_KEY[1]);
@@ -294,7 +293,7 @@ pub unsafe fn open_replay() -> Result<(), Refused> {
         }
         set(
             rva(0x719B34),
-            crate::store::game_read::<u32>(crate::sound::store::ObjectsSlot::at(0x514F78)),
+            crate::sound::store::RACE_SOUNDS.one_player.get(),
         );
         set(rva(0x719B38), get(rva(0x75AE20)));
         set(rva(0x719B3C), get(rva(0x75AF8C)));

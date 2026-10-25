@@ -35,11 +35,9 @@ use crate::marks::store::{Slot, game_addr, game_read, game_write};
 use crate::math::x87;
 use crate::scene::matrix3::extended;
 use crate::scene::vector3::STATUS_RVA;
-use crate::sound::store::StageSlot;
 
 const TICKS_RVA: Slot = Slot::at(0x764FD0); // g_marksFrameTicks
 const STEPS_RVA: Slot = Slot::at(0x76513C); // dword_76513C
-const PUFF_FLAG_RVA: StageSlot = StageSlot::at(0x5165E4); // dword_5165E4
 const VIEW_RVA: usize = rva(0x5EA3CC); // flt_5EA3CC: the view's place at +0x30
 const INDEX_RVA: Slot = Slot::at(0x93A5E8); // dword_93A5E8
 const TRAIL_COLOURS_RVA: Slot = Slot::at(0x922B38); // dword_922B38: 298 dwords
@@ -303,7 +301,7 @@ pub unsafe fn run_particles() -> Result<(), Refused> {
         if game_read::<u32>(STEPS_RVA) & 7 != 0 {
             return Ok(());
         }
-        crate::store::game_write(PUFF_FLAG_RVA, 1u32);
+        crate::sound::store::STAGE_SOUNDS.random[0].set(1);
         let seed = || {
             let s = game_read::<u32>(SEED_RVA)
                 .wrapping_mul(0x9D)

@@ -43,9 +43,9 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::math::x87::from_int;
-use crate::physics::flow::x87_run;
+use crate::math::x87_float::{X, int, ld, st};
+use crate::scene::x87_mem::{fild, fld, mov};
 use crate::session::MACHINE;
-use crate::sound::turn_parts::CLOCK;
 use rc2k_core::sound::engine::{Left, Words, extrapolation, over_256, readings, state};
 
 /// off_514F90: the sound kinds, 36 pointers.
@@ -90,77 +90,279 @@ pub fn car_engine_state(o: u32) -> Result<u32, Refused> {
     }
     let kind = kind_of(o)?;
     let mut object = Object(o);
-    let clock = g(CLOCK);
+    let clock = crate::sound::store::RACE_CLOCK.last.get();
     let (bx, di) = (o, kind);
     // The revs extrapolated, worked out first: its `idiv` may trap.
     let revs = extrapolation(&object, clock, || g(HOLD)).map_err(BadInput::from)?;
     // The registers the core models (written before they are read).
     let mut left = Left::default();
     readings(&mut object, clock, revs, || g(HOLD), &mut left);
-    x87_run!(
-        "fild dword ptr [{bx} + 0x14]",
-        "fsub dword ptr [{di} + 0x4]",
-        "fmul dword ptr [{di} + 0xC]",
-        "fstp dword ptr [{bx} + 0x100]";
-        bx = bx, di = di
-    );
+    let so = unsafe { crate::sound::store::SoundObject::at(bx) };
+    x87_1(so, di as usize);
     object.set(0x104, over_256(from_int(object.get(0x18) as i32)));
-    x87_run!(
-        "fld dword ptr [{bx} + 0x1C]",
-        ".byte 0xD9, 0xE1",
-        "fmul dword ptr [{sf} + 0x18]",
-        "fstp dword ptr [{bx} + 0x108]";
-        bx = bx, sf = crate::sound::store::surface::base()
-    );
+    x87_2(so, &crate::sound::store::SURFACE_SOUNDS);
     let flags = || unsafe { (kind as *const u32).read_unaligned() };
     if let Some(low) = state(&mut object, flags, clock, &mut left) {
         MACHINE.scratch.set(low);
-        x87_run!(
-            "fild dword ptr [{t}]",
-            "mov dword ptr [{t}], 0x3C888889",
-            "fmul dword ptr [{t}]",
-            "mov dword ptr [{t}], 0x3F400000",
-            "fadd dword ptr [{t}]",
-            "fstp dword ptr [{bx} + 0x210]";
-            bx = bx, t = crate::session::MACHINE.scratch.addr()
-        );
+        x87_3(crate::session::MACHINE.scratch.addr(), so);
     }
-    x87_run!(
-    "fld dword ptr [{bx} + 0x134]",
-    "fld dword ptr [{bx} + 0x2C]",
-    "fmul dword ptr [{bx} + 0x2C]",
-    "fld dword ptr [{bx} + 0x30]",
-    "fmul dword ptr [{bx} + 0x30]",
-    "fld dword ptr [{bx} + 0x34]",
-    "fmul dword ptr [{bx} + 0x34]",
-    ".byte 0xDE, 0xC1",
-    ".byte 0xDE, 0xC1",
-    ".byte 0xD9, 0xFA",
-    "fst dword ptr [{bx} + 0x134]",
-    ".byte 0xDE, 0xE9",
-    "fmul dword ptr [{ck} + 8]",
-    "fstp dword ptr [{bx} + 0x138]";
-    bx = bx, ck = crate::sound::store::clock::base()
-    );
+    x87_4(so, &crate::sound::store::RACE_CLOCK);
     object.set(0x140, 0);
-    x87_run!(
-    "fld dword ptr [{bx} + 0x138]",
-    "fadd dword ptr [{ck} + 0x14]",
-    "fmul dword ptr [{ck} + 0x18]",
-    "fsub dword ptr [{bx} + 0x13C]",
-    "fmul dword ptr [{sf} + 0x8]",
-    "fadd dword ptr [{bx} + 0x13C]",
-    "fstp dword ptr [{bx} + 0x13C]";
-        bx = bx, ck = crate::sound::store::clock::base(), sf = crate::sound::store::surface::base()
+    x87_5(
+        so,
+        &crate::sound::store::RACE_CLOCK,
+        &crate::sound::store::SURFACE_SOUNDS,
     );
     object.set(0x140, 0x3F80_0000);
     if object.get(0x134) as i32 > 0x3F80_0000 {
-        x87_run!(
-            ".byte 0xD9, 0xE8",
-            "fdiv dword ptr [{bx} + 0x134]",
-            "fstp dword ptr [{bx} + 0x140]";
-            bx = bx
-        );
+        x87_6(so);
     }
     Ok(kind)
+}
+
+// ---- the arithmetic that was x87 assembly ----
+
+/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
+/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `[bx + 0x100] = (int [bx + 0x14] - [di + 4]) * [di + 0xC]`
+fn x87_1(bx: &crate::sound::store::SoundObject, di: usize) {
+    unsafe {
+        let di = di as *const u8;
+        let t0 = int(bx.revs.get() as i32);
+        let t1 = fld(di, 4);
+        let t2 = t0 - t1;
+        let t3 = fld(di, 0xC);
+        let t4 = t2 * t3;
+        bx.revs_input.set_bits(st(t4));
+    }
+}
+
+/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
+/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `[bx + 0x108] = |[bx + 0x1C]| * [sf + 0x18]`
+fn x87_2(bx: &crate::sound::store::SoundObject, sf: &crate::sound::store::SurfaceSounds) {
+    let t0 = ld(bx.speed.bits());
+    let t1 = t0.abs();
+    let t2 = ld(sf.speed_scale.bits());
+    let t3 = t1 * t2;
+    bx.speed_input.set_bits(st(t3));
+}
+
+/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
+/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `int [t + 0] = 0x3C888889`
+/// `int [t + 0] = 0x3F400000`
+/// `[bx + 0x210] = (int [t + 0] * [t + 0]) + [t + 0]`
+fn x87_3(t: usize, bx: &crate::sound::store::SoundObject) {
+    unsafe {
+        let t = t as *mut u8;
+        let t0 = fild(t, 0);
+        mov(t, 0, 0x3C888889);
+        let t1 = fld(t, 0);
+        let t2 = t0 * t1;
+        mov(t, 0, 0x3F400000);
+        let t3 = fld(t, 0);
+        let t4 = t2 + t3;
+        bx.gear_pitch.set_bits(st(t4));
+    }
+}
+
+/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
+/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `[bx + 0x134] = sqrt((([bx + 0x2C] * [bx + 0x2C]) + (([bx + 0x30] * [bx + 0x30]) + ([bx + 0x34] * [bx + 0x34]))))`
+/// `[bx + 0x138] = ([bx + 0x134] - sqrt((([bx + 0x2C] * [bx + 0x2C]) + (([bx + 0x30] * [bx + 0x30]) + ([bx + 0x34] * [bx + 0x34]))))) * turns_a_second`
+fn x87_4(bx: &crate::sound::store::SoundObject, ck: &crate::sound::store::RaceClock) {
+    let t0 = ld(bx.distance.bits());
+    let t1 = ld(bx.place[0].bits());
+    let t2 = ld(bx.place[0].bits());
+    let t3 = t1 * t2;
+    let t4 = ld(bx.place[1].bits());
+    let t5 = ld(bx.place[1].bits());
+    let t6 = t4 * t5;
+    let t7 = ld(bx.place[2].bits());
+    let t8 = ld(bx.place[2].bits());
+    let t9 = t7 * t8;
+    let t10 = t6 + t9;
+    let t11 = t3 + t10;
+    let t12 = t11.sqrt();
+    bx.distance.set_bits(st(t12));
+    let t13 = t0 - t12;
+    let t14 = ld(ck.turns_a_second.bits());
+    let t15 = t13 * t14;
+    bx.approach.set_bits(st(t15));
+}
+
+/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
+/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `[bx + 0x13C] = (((([bx + 0x138] + sound_speed) * over_sound_speed) - [bx + 0x13C]) * [sf + 8]) + [bx + 0x13C]`
+fn x87_5(
+    bx: &crate::sound::store::SoundObject,
+    ck: &crate::sound::store::RaceClock,
+    sf: &crate::sound::store::SurfaceSounds,
+) {
+    let t0 = ld(bx.approach.bits());
+    let t1 = ld(ck.sound_speed.bits());
+    let t2 = t0 + t1;
+    let t3 = ld(ck.over_sound_speed.bits());
+    let t4 = t2 * t3;
+    let t5 = ld(bx.pitch_factor.bits());
+    let t6 = t4 - t5;
+    let t7 = ld(sf.pitch_blend.bits());
+    let t8 = t6 * t7;
+    let t9 = ld(bx.pitch_factor.bits());
+    let t10 = t8 + t9;
+    bx.pitch_factor.set_bits(st(t10));
+}
+
+/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
+/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `[bx + 0x140] = 1 / [bx + 0x134]`
+fn x87_6(bx: &crate::sound::store::SoundObject) {
+    let t0 = X(1.0);
+    let t1 = ld(bx.distance.bits());
+    let t2 = t0 / t1;
+    bx.volume_factor.set_bits(st(t2));
+}
+
+#[cfg(test)]
+mod asm_reference {
+    use super::*;
+    use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
+
+    // The original's instructions, one function per run.
+    reference!(ref_0(bx, di) "fild dword ptr [{bx} + 0x14]", "fsub dword ptr [{di} + 0x4]", "fmul dword ptr [{di} + 0xC]", "fstp dword ptr [{bx} + 0x100]");
+    reference!(ref_1(bx, sf) "fld dword ptr [{bx} + 0x1C]", ".byte 0xD9, 0xE1", "fmul dword ptr [{sf} + 0x18]", "fstp dword ptr [{bx} + 0x108]");
+    reference!(ref_2(t, bx) "fild dword ptr [{t}]", "mov dword ptr [{t}], 0x3C888889", "fmul dword ptr [{t}]", "mov dword ptr [{t}], 0x3F400000", "fadd dword ptr [{t}]", "fstp dword ptr [{bx} + 0x210]");
+    reference!(ref_3(bx, ck) "fld dword ptr [{bx} + 0x134]", "fld dword ptr [{bx} + 0x2C]", "fmul dword ptr [{bx} + 0x2C]", "fld dword ptr [{bx} + 0x30]", "fmul dword ptr [{bx} + 0x30]", "fld dword ptr [{bx} + 0x34]", "fmul dword ptr [{bx} + 0x34]", ".byte 0xDE, 0xC1", ".byte 0xDE, 0xC1", ".byte 0xD9, 0xFA", "fst dword ptr [{bx} + 0x134]", ".byte 0xDE, 0xE9", "fmul dword ptr [{ck} + 8]", "fstp dword ptr [{bx} + 0x138]");
+    reference!(ref_4(bx, ck, sf) "fld dword ptr [{bx} + 0x138]", "fadd dword ptr [{ck} + 0x14]", "fmul dword ptr [{ck} + 0x18]", "fsub dword ptr [{bx} + 0x13C]", "fmul dword ptr [{sf} + 0x8]", "fadd dword ptr [{bx} + 0x13C]", "fstp dword ptr [{bx} + 0x13C]");
+    reference!(ref_5(bx) ".byte 0xD9, 0xE8", "fdiv dword ptr [{bx} + 0x134]", "fstp dword ptr [{bx} + 0x140]");
+
+    fn blocks() -> Vec<Block> {
+        vec![
+            Block {
+                name: "car_engine_state line 100",
+                operands: vec![
+                    Operand::Buffer {
+                        reads: &[(0x14, In::I)],
+                        writes: &[(0x100, Out::F)],
+                    },
+                    Operand::Buffer {
+                        reads: &[(4, In::F), (0xC, In::F)],
+                        writes: &[],
+                    },
+                ],
+                ulps: 0,
+                reference: |a| unsafe { ref_0(a[0], a[1]) },
+                plain: |a| {
+                    x87_1(
+                        unsafe { &*(a[0] as *const crate::sound::store::SoundObject) },
+                        a[1],
+                    )
+                },
+            },
+            Block {
+                name: "car_engine_state line 108",
+                operands: vec![
+                    Operand::Buffer {
+                        reads: &[(0x1C, In::F)],
+                        writes: &[(0x108, Out::F)],
+                    },
+                    Operand::Buffer {
+                        reads: &[(0x18, In::F)],
+                        writes: &[],
+                    },
+                ],
+                ulps: 0,
+                reference: |a| unsafe { ref_1(a[0], a[1]) },
+                plain: |a| {
+                    x87_2(
+                        unsafe { &*(a[0] as *const crate::sound::store::SoundObject) },
+                        unsafe { &*(a[1] as *const crate::sound::store::SurfaceSounds) },
+                    )
+                },
+            },
+            Block {
+                name: "car_engine_state line 118",
+                operands: vec![
+                    Operand::Buffer {
+                        reads: &[(0, In::F)],
+                        writes: &[(0, Out::I)],
+                    },
+                    Operand::Buffer {
+                        reads: &[],
+                        writes: &[(0x210, Out::F)],
+                    },
+                ],
+                ulps: 0,
+                reference: |a| unsafe { ref_2(a[0], a[1]) },
+                plain: |a| {
+                    x87_3(a[0], unsafe {
+                        &*(a[1] as *const crate::sound::store::SoundObject)
+                    })
+                },
+            },
+            Block {
+                name: "car_engine_state line 128",
+                operands: vec![
+                    Operand::Buffer {
+                        reads: &[(0x2C, In::F), (0x30, In::F), (0x34, In::F), (0x134, In::F)],
+                        writes: &[(0x134, Out::F), (0x138, Out::F)],
+                    },
+                    Operand::Buffer {
+                        reads: &[(8, In::F)],
+                        writes: &[],
+                    },
+                ],
+                ulps: 0,
+                reference: |a| unsafe { ref_3(a[0], a[1]) },
+                plain: |a| {
+                    x87_4(
+                        unsafe { &*(a[0] as *const crate::sound::store::SoundObject) },
+                        unsafe { &*(a[1] as *const crate::sound::store::RaceClock) },
+                    )
+                },
+            },
+            Block {
+                name: "car_engine_state line 146",
+                operands: vec![
+                    Operand::Buffer {
+                        reads: &[(0x138, In::F), (0x13C, In::F)],
+                        writes: &[(0x13C, Out::F)],
+                    },
+                    Operand::Buffer {
+                        reads: &[(0x14, In::F), (0x18, In::F)],
+                        writes: &[],
+                    },
+                    Operand::Buffer {
+                        reads: &[(8, In::F)],
+                        writes: &[],
+                    },
+                ],
+                ulps: 0,
+                reference: |a| unsafe { ref_4(a[0], a[1], a[2]) },
+                plain: |a| {
+                    x87_5(
+                        unsafe { &*(a[0] as *const crate::sound::store::SoundObject) },
+                        unsafe { &*(a[1] as *const crate::sound::store::RaceClock) },
+                        unsafe { &*(a[2] as *const crate::sound::store::SurfaceSounds) },
+                    )
+                },
+            },
+            Block {
+                name: "car_engine_state line 158",
+                operands: vec![Operand::Buffer {
+                    reads: &[(0x134, In::F)],
+                    writes: &[(0x140, Out::F)],
+                }],
+                ulps: 0,
+                reference: |a| unsafe { ref_5(a[0]) },
+                plain: |a| x87_6(unsafe { &*(a[0] as *const crate::sound::store::SoundObject) }),
+            },
+        ]
+    }
+
+    #[test]
+    fn x87_blocks_matches_the_assembly() {
+        sparse(&blocks(), 1200, 100);
+    }
 }

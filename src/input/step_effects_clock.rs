@@ -15,27 +15,14 @@
 //! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::sound::store::EffectsSlot;
-
-/// dword_518084 the last time, dword_518088 the rate, dword_51808C the steps counted.
-const LAST: EffectsSlot = EffectsSlot::at(0x518084);
-const RATE: EffectsSlot = EffectsSlot::at(0x518088);
-const STEPS: EffectsSlot = EffectsSlot::at(0x51808C);
-
-fn g(x: impl crate::store::Ida) -> u32 {
-    unsafe { crate::store::ida_read(x) }
-}
-
-fn p(x: impl crate::store::Ida, v: u32) {
-    unsafe { crate::store::ida_write(x, v) }
-}
 
 // ---- Rust version ----
 
 /// The force feedback's clock: once 40 ms have gone, the rate (a second over the gap,
 /// held to 1000 ms) kept and `input::update_effects`.
 pub fn step_effects_clock() -> Result<(), Refused> {
-    let last = g(LAST);
+    let effects = &crate::sound::store::SOUND_EFFECTS;
+    let last = effects.effects_last_time.get();
     let gap = crate::system::tick_count::tick_count().wrapping_sub(last);
     if (gap.wrapping_sub(0x28) as i32) < 0 {
         return Ok(());
@@ -45,9 +32,13 @@ pub fn step_effects_clock() -> Result<(), Refused> {
     if divisor == 0 {
         return Err(BadInput("a clock of 0: the original divides by it").into());
     }
-    p(LAST, now);
+    effects.effects_last_time.set(now);
     // `fild` / `fstp`: `as f32` at every precision.
-    p(RATE, ((1000 / divisor) as i32 as f32).to_bits());
-    p(STEPS, g(STEPS).wrapping_add(1));
+    effects
+        .effects_rate
+        .set(((1000 / divisor) as i32 as f32).to_bits());
+    effects
+        .effects_steps
+        .set(effects.effects_steps.get().wrapping_add(1));
     crate::input::update_effects::update_effects()
 }

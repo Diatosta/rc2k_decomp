@@ -24,10 +24,9 @@
 //! matrix, and normals without points (the original goes on from whatever eax and
 //! ecx hold).
 //!
-//! Converted 2026-10-21: the Rust version is `place_object_points_plain`, through
-//! `rc2k_core::scene::projection` (plain floats; the x87 version stays for the Rust callers in
-//! unconverted code, and the moved point stays the x87's, its rounding following the control
-//! word).
+//! The arithmetic (the moved point, the rotation, the normals) is the x87's, in plain Rust
+//! over `X` (`math/x87_float.rs`), rounding as the control word says; the original's
+//! instructions are `asm_reference` in the tests (2026-10-24).
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_addr, game_ptr, game_read, game_write, rva};
@@ -37,6 +36,7 @@ use crate::scene::project_point::{
     CENTRE_X_RVA, CENTRE_Y_RVA, FLAT_DEPTH_RVA, FLAT_RVA, NEAR, RECORDS_RVA, SCALE_RVA, rotate,
     to_screen,
 };
+use crate::scene::x87_mem::{fild, fistp, fld, fstp};
 
 // ---- game data ----
 
@@ -74,82 +74,77 @@ unsafe fn moved(from: usize, by: u32) {
             0,
             0,
         ];
-        core::arch::asm!(
-            "fld dword ptr [{w}]",
-            "fild dword ptr [{w} + 12]",
-            "fild dword ptr [{w} + 24]",
-            ".byte 0xD8, 0xE1", // fsub st, st(1)
-            ".byte 0xD8, 0xCA", // fmul st, st(2)
-            ".byte 0xDE, 0xC1", // faddp st(1), st
-            "fild dword ptr [{w} + 8]",
-            "fild dword ptr [{w} + 20]",
-            ".byte 0xD8, 0xE1", // fsub st, st(1)
-            ".byte 0xD8, 0xCB", // fmul st, st(3)
-            ".byte 0xDE, 0xC1", // faddp st(1), st
-            "fild dword ptr [{w} + 4]",
-            "fild dword ptr [{w} + 16]",
-            ".byte 0xD8, 0xE1", // fsub st, st(1)
-            ".byte 0xD8, 0xCC", // fmul st, st(4)
-            ".byte 0xDE, 0xC1", // faddp st(1), st
-            "fistp dword ptr [{w} + 28]",
-            "fistp dword ptr [{w} + 32]",
-            "fistp dword ptr [{w} + 36]",
-            "fstp dword ptr [{w} + 40]",
-            w = in(reg) w.as_mut_ptr(),
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-        );
+        moved_at(w.as_mut_ptr().cast());
         game_write(MOVED_RVA, [w[7], w[8], w[9]]);
         game_write(CHECKED_RVA, w[10]);
+    }
+}
+
+/// The block of `moved`: the fraction, the two points, the result (three whole numbers) and the
+/// fraction as it is stored.
+unsafe fn moved_at(w: *mut u8) {
+    unsafe {
+        let t0 = fld(w, 0x0);
+        let t1 = fild(w, 0xC);
+        let t2 = fild(w, 0x18);
+        let t3 = t2 - t1;
+        let t4 = t3 * t0;
+        let t5 = t1 + t4;
+        let t6 = fild(w, 0x8);
+        let t7 = fild(w, 0x14);
+        let t8 = t7 - t6;
+        let t9 = t8 * t0;
+        let t10 = t6 + t9;
+        let t11 = fild(w, 0x4);
+        let t12 = fild(w, 0x10);
+        let t13 = t12 - t11;
+        let t14 = t13 * t0;
+        let t15 = t11 + t14;
+        fistp(w, 0x1C, t15);
+        fistp(w, 0x20, t10);
+        fistp(w, 0x24, t5);
+        fstp(w, 0x28, t0);
     }
 }
 
 /// `sub_45C1E7`: a normal's three floats through the matrix's first three rows, into
 /// the record's +0x10, +0x14, +0x18.
 unsafe fn turn(normal: *const u32, matrix: *const u32, record: *mut u32) {
+    unsafe { turn_normal(normal.cast(), matrix.cast(), record.cast()) }
+}
+
+unsafe fn turn_normal(p: *const u8, m: *const u8, o: *mut u8) {
     unsafe {
-        core::arch::asm!(
-            "fld dword ptr [{p} + 8]",
-            "fld dword ptr [{p} + 4]",
-            "fld dword ptr [{p}]",
-            "fld dword ptr [{m}]",
-            "fmul st(0), st(1)",
-            "fld dword ptr [{m} + 0x10]",
-            "fmul st(0), st(3)",
-            "fld dword ptr [{m} + 0x20]",
-            "fmul st(0), st(5)",
-            "faddp st(1), st(0)",
-            "faddp st(1), st(0)",
-            "fxch st(3)",
-            "fld dword ptr [{m} + 4]",
-            "fmul st(0), st(2)",
-            "fld dword ptr [{m} + 0x14]",
-            "fmul st(0), st(4)",
-            "fld dword ptr [{m} + 0x24]",
-            "fmul st(0), st(3)",
-            "faddp st(1), st(0)",
-            "faddp st(1), st(0)",
-            "fxch st(3)",
-            "fld dword ptr [{m} + 8]",
-            "fmulp st(3), st(0)",
-            "fld dword ptr [{m} + 0x18]",
-            "fmulp st(1), st(0)",
-            "fld dword ptr [{m} + 0x28]",
-            "fmulp st(2), st(0)",
-            "faddp st(1), st(0)",
-            "faddp st(1), st(0)",
-            "fxch st(2)",
-            "fstp dword ptr [{o} + 0x10]",
-            "fstp dword ptr [{o} + 0x14]",
-            "fstp dword ptr [{o} + 0x18]",
-            p = in(reg) normal,
-            m = in(reg) matrix,
-            o = in(reg) record,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-        );
+        let t0 = fld(p, 0x8);
+        let t1 = fld(p, 0x4);
+        let t2 = fld(p, 0x0);
+        let t3 = fld(m, 0x0);
+        let t4 = t3 * t2;
+        let t5 = fld(m, 0x10);
+        let t6 = t5 * t1;
+        let t7 = fld(m, 0x20);
+        let t8 = t7 * t0;
+        let t9 = t6 + t8;
+        let t10 = t4 + t9;
+        let t11 = fld(m, 0x4);
+        let t12 = t11 * t2;
+        let t13 = fld(m, 0x14);
+        let t14 = t13 * t1;
+        let t15 = fld(m, 0x24);
+        let t16 = t15 * t0;
+        let t17 = t14 + t16;
+        let t18 = t12 + t17;
+        let t19 = fld(m, 0x8);
+        let t20 = t2 * t19;
+        let t21 = fld(m, 0x18);
+        let t22 = t1 * t21;
+        let t23 = fld(m, 0x28);
+        let t24 = t0 * t23;
+        let t25 = t24 + t22;
+        let t26 = t20 + t25;
+        fstp(o, 0x10, t10);
+        fstp(o, 0x14, t18);
+        fstp(o, 0x18, t26);
     }
 }
 
@@ -237,5 +232,142 @@ pub unsafe fn place_object_points() -> Result<(), Refused> {
             number = number.wrapping_add(1);
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod asm_reference {
+    use super::*;
+    use crate::scene::asm_test::{Kind, differential};
+
+    /// The original's instructions for `moved`.
+    unsafe fn moved_at_ref(w: *mut u8) {
+        unsafe {
+            core::arch::asm!(
+                "fld dword ptr [{w}]",
+                "fild dword ptr [{w} + 12]",
+                "fild dword ptr [{w} + 24]",
+                ".byte 0xD8, 0xE1", // fsub st, st(1)
+                ".byte 0xD8, 0xCA", // fmul st, st(2)
+                ".byte 0xDE, 0xC1", // faddp st(1), st
+                "fild dword ptr [{w} + 8]",
+                "fild dword ptr [{w} + 20]",
+                ".byte 0xD8, 0xE1", // fsub st, st(1)
+                ".byte 0xD8, 0xCB", // fmul st, st(3)
+                ".byte 0xDE, 0xC1", // faddp st(1), st
+                "fild dword ptr [{w} + 4]",
+                "fild dword ptr [{w} + 16]",
+                ".byte 0xD8, 0xE1", // fsub st, st(1)
+                ".byte 0xD8, 0xCC", // fmul st, st(4)
+                ".byte 0xDE, 0xC1", // faddp st(1), st
+                "fistp dword ptr [{w} + 28]",
+                "fistp dword ptr [{w} + 32]",
+                "fistp dword ptr [{w} + 36]",
+                "fstp dword ptr [{w} + 40]",
+                w = in(reg) w,
+                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
+                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
+                options(nostack),
+            );
+        }
+    }
+
+    /// The original's instructions for `turn`.
+    unsafe fn turn_normal_ref(p: *mut u8, m: *mut u8, o: *mut u8) {
+        unsafe {
+            core::arch::asm!(
+                "fld dword ptr [{p} + 8]",
+                "fld dword ptr [{p} + 4]",
+                "fld dword ptr [{p}]",
+                "fld dword ptr [{m}]",
+                "fmul st(0), st(1)",
+                "fld dword ptr [{m} + 0x10]",
+                "fmul st(0), st(3)",
+                "fld dword ptr [{m} + 0x20]",
+                "fmul st(0), st(5)",
+                "faddp st(1), st(0)",
+                "faddp st(1), st(0)",
+                "fxch st(3)",
+                "fld dword ptr [{m} + 4]",
+                "fmul st(0), st(2)",
+                "fld dword ptr [{m} + 0x14]",
+                "fmul st(0), st(4)",
+                "fld dword ptr [{m} + 0x24]",
+                "fmul st(0), st(3)",
+                "faddp st(1), st(0)",
+                "faddp st(1), st(0)",
+                "fxch st(3)",
+                "fld dword ptr [{m} + 8]",
+                "fmulp st(3), st(0)",
+                "fld dword ptr [{m} + 0x18]",
+                "fmulp st(1), st(0)",
+                "fld dword ptr [{m} + 0x28]",
+                "fmulp st(2), st(0)",
+                "faddp st(1), st(0)",
+                "faddp st(1), st(0)",
+                "fxch st(2)",
+                "fstp dword ptr [{o} + 0x10]",
+                "fstp dword ptr [{o} + 0x14]",
+                "fstp dword ptr [{o} + 0x18]",
+                p = in(reg) p,
+                m = in(reg) m,
+                o = in(reg) o,
+                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
+                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
+                options(nostack),
+            );
+        }
+    }
+
+    #[test]
+    fn moved_matches_the_assembly() {
+        // dword 0 the fraction, 1 .. 4 the point, 4 .. 7 the other, 7 .. 10 the whole numbers,
+        // 10 the fraction as stored
+        differential::<11>(
+            "place_object_points moved",
+            8000,
+            18,
+            [Kind::Exact; 11],
+            |rng, m| {
+                m.fill(0xAAAA_AAAA);
+                m[0] = match rng.below(3) {
+                    0 => rng.unit().to_bits(),
+                    1 => (rng.unit() * 2.0).to_bits(),
+                    _ => rng.fl(),
+                };
+                for d in m.iter_mut().skip(1).take(6) {
+                    *d = if rng.below(2) == 0 {
+                        rng.int()
+                    } else {
+                        rng.small() as u32
+                    };
+                }
+            },
+            |base| unsafe { moved_at_ref(base) },
+            |base| unsafe { moved_at(base) },
+        );
+    }
+
+    #[test]
+    fn turn_matches_the_assembly() {
+        // dwords 0 .. 3 the normal, 4 .. 19 the matrix, 20 .. 28 the record
+        differential::<28>(
+            "place_object_points turn",
+            8000,
+            19,
+            [Kind::Exact; 28],
+            |rng, m| {
+                m.fill(0xAAAA_AAAA);
+                let moderate = rng.below(2) == 0;
+                for d in m.iter_mut().take(3) {
+                    *d = if moderate { rng.moderate() } else { rng.fl() };
+                }
+                for d in m.iter_mut().skip(4).take(15) {
+                    *d = if moderate { rng.moderate() } else { rng.fl() };
+                }
+            },
+            |base| unsafe { turn_normal_ref(base, base.add(16), base.add(80)) },
+            |base| unsafe { turn_normal(base, base.add(16), base.add(80)) },
+        );
     }
 }

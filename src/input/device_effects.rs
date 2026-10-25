@@ -17,11 +17,9 @@
 use crate::errors::{BadInput, Refused};
 use crate::field;
 use crate::input::devices::{at, put};
-use crate::input::store::DeviceSlot;
+use crate::input::store::DEVICES;
 use crate::input::types::{ForceEffect, InputDevice};
-use crate::store::game_read;
 
-pub const CONTROLLERS_RVA: DeviceSlot = DeviceSlot::at(0x4F78E4); // dword_4F78E4: 16 entries of 0x50
 pub const CONTROLLERS: u32 = 16;
 const EFFECTS: u32 = 0x3C;
 const EFFECT_LEN: u32 = 0xA4;
@@ -32,7 +30,7 @@ pub fn controller(record: u32, offset: usize) -> Result<u32, Refused> {
     if n >= CONTROLLERS {
         return Err(BadInput("a controller number past the table's 16").into());
     }
-    Ok(unsafe { game_read(CONTROLLERS_RVA + 0x50 * n as usize + offset) })
+    Ok(DEVICES.controllers[n as usize].get_u32(offset))
 }
 
 /// The pending changes of the device `record`'s effects.

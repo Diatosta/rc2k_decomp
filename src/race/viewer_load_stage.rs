@@ -55,16 +55,12 @@ pub fn viewer_load_stage() -> Result<(), Refused> {
             put(to, get(from));
         }
         // g_onePlayer (the sound module's) takes the header's setting too.
-        put(
-            crate::sound::store::ObjectsSlot::at(0x514F78),
-            get(0x719B34),
-        );
+        crate::sound::store::RACE_SOUNDS
+            .one_player
+            .set(get(0x719B34));
         put(0x75AE28, 0);
         put(0x75AF94, 0);
-        put(
-            0x75ACE0,
-            get(crate::sound::store::ObjectsSlot::at(0x514F78)),
-        );
+        put(0x75ACE0, crate::sound::store::RACE_SOUNDS.one_player.get());
         let door = gb(DOOR) as u32;
         put(0x75AE1C, door);
         put(0x70FE94, door); // g_carBlockStore.gap_a28 + 0x80

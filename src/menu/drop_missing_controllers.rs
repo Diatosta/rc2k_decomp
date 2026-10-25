@@ -11,13 +11,11 @@
 //! reference.
 
 use crate::errors::BadInput;
-use crate::input::store::DeviceSlot;
+use crate::input::store::DEVICES;
 use crate::menu::player_names::cars;
-use crate::store::game_read;
 
 // ---- game data ----
 
-const CONTROLLERS_RVA: DeviceSlot = DeviceSlot::at(0x4F78E0); // dword_4F78E0
 const CAR_CONTROLLER: u32 = 0x2C;
 
 // ---- Rust version ----
@@ -25,7 +23,7 @@ const CAR_CONTROLLER: u32 = 0x2C;
 pub unsafe fn drop_missing_controllers() -> Result<(), BadInput> {
     unsafe {
         // Converted: `rc2k_core::menu::steps::kept_controller`.
-        let most: u32 = game_read(CONTROLLERS_RVA);
+        let most = DEVICES.controller_count.get();
         for car in cars()? {
             let controller = (car + CAR_CONTROLLER) as *mut u32;
             let c = controller.read_unaligned();

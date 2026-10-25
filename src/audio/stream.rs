@@ -13,7 +13,6 @@
 use crate::audio::buffer_settings::a3d;
 use crate::audio::store::Slot;
 use crate::errors::{BadInput, Refused};
-use crate::sound::store::EffectsSlot;
 use crate::store::addr32 as a;
 
 pub const SOUND_STREAM_RVA: Slot = Slot::at(0x506960); // g_soundStream
@@ -23,7 +22,6 @@ pub const NO_MUSIC_RVA: Slot = Slot::at(0x5069BC); // g_noMusic
 pub const MUSIC_PATH_RVA: Slot = Slot::at(0x5069C0); // g_musicPath ";3files\music\00.wav"
 pub const HEADER_RVA: Slot = Slot::at(0x5069D8); // g_streamHeader
 pub const HEADER_MEMORY_RVA: Slot = Slot::at(0x5069DC); // g_streamHeaderMemory (a MemoryList)
-pub const TUNE_TURN_RVA: EffectsSlot = EffectsSlot::at(0x5180F8); // g_tuneTurn
 pub const HEADER_LEN: u32 = 0xC00;
 /// `GetCurrentPosition`, `Lock`, `Unlock` of a DirectSound buffer.
 pub const GET_POSITION: u32 = 0x10;

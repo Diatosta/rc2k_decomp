@@ -35,7 +35,7 @@
 //! 0x41CDBC (5). Key 0x26 is in `KEYS` twice (0x1D, then 0x14 never reached; kept, section 16).
 
 use crate::errors::Refused;
-use crate::input::store::DeviceSlot;
+use crate::input::store::DEVICES;
 use crate::menu::event_flow::Flow;
 use crate::menu::screen_loop::Carried;
 use crate::physics::flow::a;
@@ -46,9 +46,6 @@ use crate::race::viewer::{
 };
 use crate::session::CLOCKS;
 use crate::session::FLAGS;
-
-const KEY_DOWN_A: DeviceSlot = DeviceSlot::at(0x4F6ADD); // byte_4F6ADD
-const KEY_DOWN_B: DeviceSlot = DeviceSlot::at(0x4F6AF8); // byte_4F6AF8
 
 /// (key, action) with editing on, in the original's order (0x26 twice: the first wins).
 pub const KEYS: [(u8, u32); 30] = [
@@ -188,7 +185,7 @@ fn view(r: &mut Flow) -> Result<(), Refused> {
             }
         }
         if get(WAIT_RELEASE) == 1 {
-            if gb(KEY_DOWN_A) == 0 && gb(KEY_DOWN_B) == 0 {
+            if DEVICES.keys_down.get(1) == 0 && DEVICES.keys_down.get(0x1C) == 0 {
                 put(WAIT_RELEASE, 0);
             }
             r.c.arg = 0;

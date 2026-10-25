@@ -12,18 +12,14 @@
 //! Refuses a missing keyboard layout (before the key is taken) and what `key_to_char` does.
 
 use crate::errors::BadInput;
-use crate::input::key_to_char::{
-    LAYOUT_A_RVA, LAYOUT_MODE_RVA, LAYOUT_RVA, has_layout, key_to_char,
-};
-use crate::input::store::KeyboardSlot;
+use crate::input::key_to_char::{has_layout, key_to_char};
+use crate::input::store::{KEYBOARD, KEYBOARD_FILE};
 use crate::input::take_key::take_key;
-use crate::store::{game_addr, game_read, game_write};
 use crate::strings::append_string_by_id::push_string;
 use crate::strings::text_from_ids::{TEXT_LEN, text};
 
 // ---- game data ----
 
-pub const KEY_GIVEN_RVA: KeyboardSlot = KeyboardSlot::at(0x4F7FD8); // dword_4F7FD8: 1 = the key comes in eax
 /// (string id, answer)
 use rc2k_core::input::keyboard::ANSWERS;
 pub const YES: u32 = 1;
@@ -38,14 +34,16 @@ pub unsafe fn answer_for_key(eax: u32) -> Result<u32, BadInput> {
         return Ok(0);
     }
     unsafe {
-        let own_layout = game_read::<u8>(LAYOUT_MODE_RVA) == 2;
-        let layout: u32 = game_read(LAYOUT_RVA);
+        let own_layout = KEYBOARD_FILE.mode.get() == 2;
+        let layout = KEYBOARD_FILE.layout.get();
         if own_layout {
-            game_write(LAYOUT_RVA, game_addr(LAYOUT_A_RVA) as u32);
+            KEYBOARD_FILE
+                .layout
+                .set(KEYBOARD_FILE.layouts[0].dead_keys.addr() as u32);
         }
         let character = key_to_char(eax);
         if own_layout {
-            game_write(LAYOUT_RVA, layout);
+            KEYBOARD_FILE.layout.set(layout);
         }
         let lower = crate::strings::same_text::lower(character? as u8); // g_lowerCase
         // Converted: `rc2k_core::input::keyboard::answer`; each string built at the text
@@ -71,7 +69,7 @@ pub unsafe fn yes_no_key(given: u32) -> Result<u32, BadInput> {
         return Err(BadInput("no keyboard layout"));
     }
     unsafe {
-        let eax = if game_read::<u32>(KEY_GIVEN_RVA) == 1 {
+        let eax = if KEYBOARD.yes_no_key_given.get() == 1 {
             given
         } else {
             take_key() as u32

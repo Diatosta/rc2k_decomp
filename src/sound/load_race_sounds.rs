@@ -76,15 +76,15 @@ impl Places {
     }
 
     pub fn game() -> Self {
-        use crate::sound::store::{OBJECT_TABLE, ObjectsSlot};
+        use crate::sound::store::RACE_SOUNDS as R;
         let [replay] = PLACES.map(|at| game_addr(rva(at)));
         Self::from([
-            ObjectsSlot::at(0x514F70).address(),
-            ObjectsSlot::at(0x514F74).address(),
-            ObjectsSlot::at(0x514F78).address(),
-            ObjectsSlot::at(0x514F7C).address(),
+            R.player_cars[0].addr(),
+            R.player_cars[1].addr(),
+            R.one_player.addr(),
+            R.count.addr(),
             replay,
-            OBJECT_TABLE.address(),
+            R.table.as_ptr() as usize,
             game_addr(crate::audio::voices::SAMPLES_RVA),
         ])
     }
@@ -124,7 +124,10 @@ pub unsafe fn load_race_sounds(places: &Places, send: &mut dyn FnMut(u32)) -> Re
             }
         };
         let (first, second) = (object(places.first)?, object(places.second)?);
-        let kind = |object: usize| match dword(object + 4) {
+        let kind = |object: usize| match crate::sound::store::SoundObject::at(object as u32)
+            .kind
+            .get()
+        {
             kind if kind < KINDS => Ok(kind as usize),
             _ => Err(BadInput("a car's kind past the table of sound sets")),
         };
@@ -146,7 +149,16 @@ pub unsafe fn load_race_sounds(places: &Places, send: &mut dyn FnMut(u32)) -> Re
             Voice::Male => game_addr(MALE_RVA),
             Voice::Female => game_addr(FEMALE_RVA),
         };
-        let (a, b) = voices(dword(first + 0x298), dword(second + 0x298));
+        let (a, b) = voices(
+            crate::sound::store::SoundObject::at(first as u32)
+                .cue_queue
+                .first
+                .get(),
+            crate::sound::store::SoundObject::at(second as u32)
+                .cue_queue
+                .first
+                .get(),
+        );
         let (mut ebx, mut edx) = (list(a), list(b));
         let (of_first, of_second) = (lengths(ebx)?, lengths(edx)?);
         // Nothing has been written or sent up to here.

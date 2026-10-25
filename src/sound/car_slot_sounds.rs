@@ -23,21 +23,21 @@ pub fn car_slot_sounds(o: u32, request: u32) -> Result<(), Refused> {
     if o == 0 || request == 0 {
         return Err(BadInput("no object or no request").into());
     }
-    let w = |at: u32| unsafe { ((o + at) as *const u32).read_unaligned() };
+    let so = unsafe { crate::sound::store::SoundObject::at(o) };
     // Converted: `rc2k_core::sound::engine` (`computers`, `placed_slots`).
-    if computers(w(0)) {
+    if computers(so.sound_offset.get()) {
         return Ok(());
     }
     let q = request as *mut u32;
-    let place = |from: u32| {
-        for k in 0..3 {
-            unsafe { q.add(3 + k as usize).write_unaligned(w(from + 4 * k)) };
+    let place = |from: &[crate::session::Float; 3]| {
+        for (k, f) in from.iter().enumerate() {
+            unsafe { q.add(3 + k).write_unaligned(f.bits()) };
         }
     };
-    place(0x2C);
-    for at in placed_slots(w(0xC) == 0) {
-        crate::sound::play_timed_slot::play_timed_slot(o + at, request)?;
+    place(&so.place);
+    for at in placed_slots(so.view_flag.get() == 0) {
+        crate::sound::play_timed_slot::play_timed_slot(so.slot_at(at).addr(), request)?;
     }
-    place(0x214);
-    crate::sound::play_timed_slot::play_timed_slot(o + 0x220, request)
+    place(&so.place_b);
+    crate::sound::play_timed_slot::play_timed_slot(so.slot_b.addr(), request)
 }

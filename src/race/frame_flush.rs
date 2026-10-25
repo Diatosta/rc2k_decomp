@@ -94,44 +94,16 @@ pub unsafe fn flush_batch(b: &Batch, textured: bool) -> Result<(), Refused> {
 
 /// `fild i; fadd/fsub one; fstp`.
 fn int_and_one(i: u32, add: bool) -> u32 {
-    let mut out = 0u32;
-    let v = [i, unsafe { game_read::<u32>(rva(0x5C5D38)) }];
-    unsafe {
-        if add {
-            core::arch::asm!(
-                "fild dword ptr [{v}]", "fadd dword ptr [{v} + 4]", "fstp dword ptr [{o}]",
-                v = in(reg) v.as_ptr(), o = in(reg) &raw mut out,
-                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-                options(nostack),
-            );
-        } else {
-            core::arch::asm!(
-                "fild dword ptr [{v}]", "fsub dword ptr [{v} + 4]", "fstp dword ptr [{o}]",
-                v = in(reg) v.as_ptr(), o = in(reg) &raw mut out,
-                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-                options(nostack),
-            );
-        }
-    }
-    out
+    use crate::math::x87_float::{int, ld, st};
+    let one = ld(unsafe { game_read::<u32>(rva(0x5C5D38)) });
+    let i = int(i as i32);
+    st(if add { i + one } else { i - one })
 }
 
 /// `fild i; fdiv a; fdiv b; fstp`.
 fn int_over_two(i: u32, a: u32, b: u32) -> u32 {
-    let (v, mut out) = ([i, a, b], 0u32);
-    unsafe {
-        core::arch::asm!(
-            "fild dword ptr [{v}]", "fdiv dword ptr [{v} + 4]", "fdiv dword ptr [{v} + 8]",
-            "fstp dword ptr [{o}]",
-            v = in(reg) v.as_ptr(), o = in(reg) &raw mut out,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-        );
-    }
-    out
+    use crate::math::x87_float::{int, ld, st};
+    st(int(i as i32) / ld(a) / ld(b))
 }
 
 /// `race::draw_view_backdrop` (0x4651E6): a quad over the view window (`dword_623FB0` ..,
@@ -178,4 +150,70 @@ pub unsafe fn draw_view_backdrop() {
     crate::scene::set_texture::set_texture(k(0x5D1DE8));
     crate::d3d::draw_fan_unclipped::draw_fan_unclipped();
     crate::scene::depth_buffer_on::depth_buffer(true);
+}
+
+#[cfg(test)]
+mod asm_reference {
+    use super::*;
+    use crate::race::asm_test::{Rng, Saved, at_each_control_word, lock, same};
+
+    // The original blocks, verbatim.
+    pub(super) fn int_and_one_asm(i: u32, add: bool) -> u32 {
+        let mut out = 0u32;
+        let v = [i, unsafe { game_read::<u32>(rva(0x5C5D38)) }];
+        unsafe {
+            if add {
+                core::arch::asm!(
+                    "fild dword ptr [{v}]", "fadd dword ptr [{v} + 4]", "fstp dword ptr [{o}]",
+                    v = in(reg) v.as_ptr(), o = in(reg) &raw mut out,
+                    out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
+                    out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
+                    options(nostack),
+                );
+            } else {
+                core::arch::asm!(
+                    "fild dword ptr [{v}]", "fsub dword ptr [{v} + 4]", "fstp dword ptr [{o}]",
+                    v = in(reg) v.as_ptr(), o = in(reg) &raw mut out,
+                    out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
+                    out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
+                    options(nostack),
+                );
+            }
+        }
+        out
+    }
+
+    pub(super) fn int_over_two_asm(i: u32, a: u32, b: u32) -> u32 {
+        let (v, mut out) = ([i, a, b], 0u32);
+        unsafe {
+            core::arch::asm!(
+                "fild dword ptr [{v}]", "fdiv dword ptr [{v} + 4]", "fdiv dword ptr [{v} + 8]",
+                "fstp dword ptr [{o}]",
+                v = in(reg) v.as_ptr(), o = in(reg) &raw mut out,
+                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
+                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
+                options(nostack),
+            );
+        }
+        out
+    }
+
+    #[test]
+    fn int_blocks_match() {
+        let _l = lock();
+        let _saved = Saved::new(&[0x5C5D38]);
+        let mut r = Rng(5);
+        at_each_control_word(|| {
+            for _ in 0..20000 {
+                unsafe { game_write(rva(0x5C5D38), r.float()) };
+                let (i, a, b) = (r.int() as u32, r.float(), r.float());
+                for add in [false, true] {
+                    let (want, got) = (int_and_one_asm(i, add), int_and_one(i, add));
+                    assert!(same(want, got), "{i} {add}: {want:#x} {got:#x}");
+                }
+                let (want, got) = (int_over_two_asm(i, a, b), int_over_two(i, a, b));
+                assert!(same(want, got), "{i} {a:#x} {b:#x}: {want:#x} {got:#x}");
+            }
+        });
+    }
 }

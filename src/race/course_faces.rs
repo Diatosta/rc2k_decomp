@@ -60,6 +60,7 @@ pub unsafe fn face_corners(face: u32) -> u32 {
 /// (its point +8 less the view's place, `flt_6062A4` .., dotted with its normal +0x18,
 /// +0x30, +0x38 above 0, or not a number; the original's x87 run), 0 outside a race.
 unsafe fn face_turned_to_view(face: u32, half: u32) -> u32 {
+    use crate::math::x87_float::{X, compare, int, ld};
     unsafe {
         if game_read::<u32>(rva(0x621480)) == 0 {
             return 0;
@@ -68,34 +69,16 @@ unsafe fn face_turned_to_view(face: u32, half: u32) -> u32 {
         let p = get(e + 8)
             .wrapping_mul(12)
             .wrapping_add(game_read(rva(0x5CCCC0)));
-        let status: u16;
-        core::arch::asm!(
-            "fild dword ptr [{p}]",
-            "fsub dword ptr [{rc} + 0x2062A4]",
-            "fld dword ptr [{e} + 0x18]",
-            ".byte 0xDE, 0xC9",
-            "fild dword ptr [{p} + 4]",
-            "fsub dword ptr [{rc} + 0x2062A8]",
-            "fld dword ptr [{e} + 0x30]",
-            ".byte 0xDE, 0xC9",
-            "fild dword ptr [{p} + 8]",
-            "fsub dword ptr [{rc} + 0x2062AC]",
-            "fld dword ptr [{e} + 0x38]",
-            ".byte 0xDE, 0xC9",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xD9, 0xEE",
-            ".byte 0xDE, 0xD9",
-            "fnstsw ax",
-            rc = in(reg) crate::race::store::asm_base(),
-            p = in(reg) p,
-            e = in(reg) e,
-            out("ax") status,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
+        let view = |a: usize| ld(game_read::<u32>(rva(a)));
+        let along = |at: u32, view_at: usize, normal: u32| {
+            (int(get(at) as i32) - view(view_at)) * ld(get(normal))
+        };
+        let (x, y, z) = (
+            along(p, 0x6062A4, e + 0x18),
+            along(p + 4, 0x6062A8, e + 0x30),
+            along(p + 8, 0x6062AC, e + 0x38),
         );
-        u32::from(status & 0x0100 != 0)
+        u32::from(compare(X(0.0), x + (y + z)) & 0x0100 != 0)
     }
 }
 
@@ -116,22 +99,8 @@ pub unsafe fn face_sides(face: u32) {
 
 /// `fild t; fmul f; fmul a; fmul b; fistp`.
 fn frame_of(t: u32, f: u32, a: u32, b: u32) -> u32 {
-    let (v, mut out) = ([t, f, a, b], 0u32);
-    unsafe {
-        core::arch::asm!(
-            "fild dword ptr [{v}]",
-            "fmul dword ptr [{v} + 4]",
-            "fmul dword ptr [{v} + 8]",
-            "fmul dword ptr [{v} + 12]",
-            "fistp dword ptr [{o}]",
-            v = in(reg) v.as_ptr(),
-            o = in(reg) &raw mut out,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-        );
-    }
-    out
+    use crate::math::x87_float::{int, ld, to_int};
+    to_int(int(t as i32) * ld(f) * ld(a) * ld(b)) as u32
 }
 
 /// `race::face_materials` (0x45265C): face `face`'s two triangles' textures: for each, its
@@ -607,84 +576,20 @@ pub unsafe fn draw_face() -> Result<(), Refused> {
 /// `flt_624088` over the depth, or over `dword_5CCD80` + 1 when `dword_60932C` is set,
 /// the depth then kept in `dword_62400C`; centre `flt_62409C`, `flt_6240A0`).
 unsafe fn halfway_vertex(a: u32, b: u32, v: u32) {
+    use crate::math::x87_float::{ld, st};
     use crate::math::x87_load::below_or_unordered;
     unsafe {
-        core::arch::asm!(
-            "fld dword ptr [{b} + 0x10]",
-            "fsub dword ptr [{a} + 0x10]",
-            "fmul dword ptr [{rc} + 0x1C5E40]",
-            "fadd dword ptr [{a} + 0x10]",
-            "fstp dword ptr [{v} + 0x10]",
-            "fld dword ptr [{b} + 0x14]",
-            "fsub dword ptr [{a} + 0x14]",
-            "fmul dword ptr [{rc} + 0x1C5E40]",
-            "fadd dword ptr [{a} + 0x14]",
-            "fstp dword ptr [{v} + 0x14]",
-            "fld dword ptr [{b} + 0x18]",
-            "fsub dword ptr [{a} + 0x18]",
-            "fmul dword ptr [{rc} + 0x1C5E40]",
-            "fadd dword ptr [{a} + 0x18]",
-            "fstp dword ptr [{v} + 0x18]",
-            rc = in(reg) crate::race::store::asm_base(),
-            a = in(reg) a,
-            b = in(reg) b,
-            v = in(reg) v,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-        );
+        let half = ld(game_read::<u32>(rva(0x5C5E40)));
+        for o in [0x10, 0x14, 0x18] {
+            let (from, to) = (ld(get(a + o)), ld(get(b + o)));
+            ((v + o) as *mut u32).write_unaligned(st((to - from) * half + from));
+        }
         ((v + 0xC) as *mut u32).write_unaligned(0);
         ((v + 0x1C) as *mut u32).write_unaligned(0);
         if below_or_unordered(get(v + 0x18), game_read(rva(0x5C5E18))) {
             return;
         }
-        if game_read::<u32>(rva(0x60932C)) != 0 {
-            core::arch::asm!(
-                "fld dword ptr [{v} + 0x10]",
-                "fld dword ptr [{v} + 0x14]",
-                "fld dword ptr [{v} + 0x18]",
-                "fstp dword ptr [{rc} + 0x22400C]",
-                "fild dword ptr [{rc} + 0x1CCD80]",
-                ".byte 0xD9, 0xE8",
-                ".byte 0xDE, 0xC1",
-                "fld dword ptr [{rc} + 0x224088]",
-                ".byte 0xDE, 0xF1",
-                ".byte 0xDC, 0xC9",
-                ".byte 0xDE, 0xCA",
-                ".byte 0xD9, 0xE0",
-                "fadd dword ptr [{rc} + 0x2240A0]",
-                ".byte 0xD9, 0xC9",
-                "fadd dword ptr [{rc} + 0x22409C]",
-                "fstp dword ptr [{v} + 0xC]",
-                "fstp dword ptr [{v} + 0x1C]",
-                rc = in(reg) crate::race::store::asm_base(),
-                v = in(reg) v,
-                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-                options(nostack),
-            );
-        } else {
-            core::arch::asm!(
-                "fld dword ptr [{v} + 0x10]",
-                "fld dword ptr [{v} + 0x14]",
-                "fld dword ptr [{v} + 0x18]",
-                "fld dword ptr [{rc} + 0x224088]",
-                ".byte 0xDE, 0xF1",
-                ".byte 0xDC, 0xC9",
-                ".byte 0xDE, 0xCA",
-                ".byte 0xD9, 0xE0",
-                "fadd dword ptr [{rc} + 0x2240A0]",
-                ".byte 0xD9, 0xC9",
-                "fadd dword ptr [{rc} + 0x22409C]",
-                "fstp dword ptr [{v} + 0xC]",
-                "fstp dword ptr [{v} + 0x1C]",
-                rc = in(reg) crate::race::store::asm_base(),
-                v = in(reg) v,
-                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-                options(nostack),
-            );
-        }
+        crate::race::skidmarks::project_vertex(v);
     }
 }
 
@@ -692,32 +597,13 @@ unsafe fn halfway_vertex(a: u32, b: u32, v: u32) {
 /// floats (+8 .. +0x14) (second + first) x `flt_5C5E40`, the bytes +0x20, +0x21, +0x18 ..
 /// +0x1A the halves of their sums (+0x1B left).
 unsafe fn halfway_entry(first: u32, second: u32, to: u32) {
+    use crate::math::x87_float::{ld, st};
     unsafe {
-        core::arch::asm!(
-            "fld dword ptr [{s} + 8]",
-            "fadd dword ptr [{f} + 8]",
-            "fmul dword ptr [{rc} + 0x1C5E40]",
-            "fstp dword ptr [{t} + 8]",
-            "fld dword ptr [{s} + 0xC]",
-            "fadd dword ptr [{f} + 0xC]",
-            "fmul dword ptr [{rc} + 0x1C5E40]",
-            "fstp dword ptr [{t} + 0xC]",
-            "fld dword ptr [{s} + 0x10]",
-            "fadd dword ptr [{f} + 0x10]",
-            "fmul dword ptr [{rc} + 0x1C5E40]",
-            "fstp dword ptr [{t} + 0x10]",
-            "fld dword ptr [{s} + 0x14]",
-            "fadd dword ptr [{f} + 0x14]",
-            "fmul dword ptr [{rc} + 0x1C5E40]",
-            "fstp dword ptr [{t} + 0x14]",
-            rc = in(reg) crate::race::store::asm_base(),
-            s = in(reg) second,
-            f = in(reg) first,
-            t = in(reg) to,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-        );
+        let half = ld(game_read::<u32>(rva(0x5C5E40)));
+        for o in [8, 0xC, 0x10, 0x14] {
+            let sum = ld(get(second + o)) + ld(get(first + o));
+            ((to + o) as *mut u32).write_unaligned(st(sum * half));
+        }
         for o in [0x20u32, 0x21, 0x18, 0x19, 0x1A] {
             let sum = ((second + o) as *const u8).read() as u32
                 + ((first + o) as *const u8).read() as u32;
@@ -969,5 +855,360 @@ pub unsafe fn draw_tinted_face(face: u32) -> Result<(), Refused> {
         let done = draw_course_face(face);
         game_write(rva(0x6240CC), colour);
         done
+    }
+}
+
+#[cfg(test)]
+mod asm_reference {
+    use super::*;
+    use crate::race::asm_test::{Rng, Saved, at_each_control_word, lock, same};
+
+    // The original functions, verbatim.
+    pub(super) unsafe fn face_turned_to_view_asm(face: u32, half: u32) -> u32 {
+        unsafe {
+            if game_read::<u32>(rva(0x621480)) == 0 {
+                return 0;
+            }
+            let e = face + half;
+            let p = get(e + 8)
+                .wrapping_mul(12)
+                .wrapping_add(game_read(rva(0x5CCCC0)));
+            let status: u16;
+            core::arch::asm!(
+                "fild dword ptr [{p}]",
+                "fsub dword ptr [{rc} + 0x2062A4]",
+                "fld dword ptr [{e} + 0x18]",
+                ".byte 0xDE, 0xC9",
+                "fild dword ptr [{p} + 4]",
+                "fsub dword ptr [{rc} + 0x2062A8]",
+                "fld dword ptr [{e} + 0x30]",
+                ".byte 0xDE, 0xC9",
+                "fild dword ptr [{p} + 8]",
+                "fsub dword ptr [{rc} + 0x2062AC]",
+                "fld dword ptr [{e} + 0x38]",
+                ".byte 0xDE, 0xC9",
+                ".byte 0xDE, 0xC1",
+                ".byte 0xDE, 0xC1",
+                ".byte 0xD9, 0xEE",
+                ".byte 0xDE, 0xD9",
+                "fnstsw ax",
+                rc = in(reg) crate::race::store::asm_base(),
+                p = in(reg) p,
+                e = in(reg) e,
+                out("ax") status,
+                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
+                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
+                options(nostack),
+            );
+            u32::from(status & 0x0100 != 0)
+        }
+    }
+
+    pub(super) fn frame_of_asm(t: u32, f: u32, a: u32, b: u32) -> u32 {
+        let (v, mut out) = ([t, f, a, b], 0u32);
+        unsafe {
+            core::arch::asm!(
+                "fild dword ptr [{v}]",
+                "fmul dword ptr [{v} + 4]",
+                "fmul dword ptr [{v} + 8]",
+                "fmul dword ptr [{v} + 12]",
+                "fistp dword ptr [{o}]",
+                v = in(reg) v.as_ptr(),
+                o = in(reg) &raw mut out,
+                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
+                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
+                options(nostack),
+            );
+        }
+        out
+    }
+
+    pub(super) unsafe fn halfway_vertex_asm(a: u32, b: u32, v: u32) {
+        use crate::math::x87_load::below_or_unordered;
+        unsafe {
+            core::arch::asm!(
+                "fld dword ptr [{b} + 0x10]",
+                "fsub dword ptr [{a} + 0x10]",
+                "fmul dword ptr [{rc} + 0x1C5E40]",
+                "fadd dword ptr [{a} + 0x10]",
+                "fstp dword ptr [{v} + 0x10]",
+                "fld dword ptr [{b} + 0x14]",
+                "fsub dword ptr [{a} + 0x14]",
+                "fmul dword ptr [{rc} + 0x1C5E40]",
+                "fadd dword ptr [{a} + 0x14]",
+                "fstp dword ptr [{v} + 0x14]",
+                "fld dword ptr [{b} + 0x18]",
+                "fsub dword ptr [{a} + 0x18]",
+                "fmul dword ptr [{rc} + 0x1C5E40]",
+                "fadd dword ptr [{a} + 0x18]",
+                "fstp dword ptr [{v} + 0x18]",
+                rc = in(reg) crate::race::store::asm_base(),
+                a = in(reg) a,
+                b = in(reg) b,
+                v = in(reg) v,
+                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
+                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
+                options(nostack),
+            );
+            ((v + 0xC) as *mut u32).write_unaligned(0);
+            ((v + 0x1C) as *mut u32).write_unaligned(0);
+            if below_or_unordered(get(v + 0x18), game_read(rva(0x5C5E18))) {
+                return;
+            }
+            if game_read::<u32>(rva(0x60932C)) != 0 {
+                core::arch::asm!(
+                    "fld dword ptr [{v} + 0x10]",
+                    "fld dword ptr [{v} + 0x14]",
+                    "fld dword ptr [{v} + 0x18]",
+                    "fstp dword ptr [{rc} + 0x22400C]",
+                    "fild dword ptr [{rc} + 0x1CCD80]",
+                    ".byte 0xD9, 0xE8",
+                    ".byte 0xDE, 0xC1",
+                    "fld dword ptr [{rc} + 0x224088]",
+                    ".byte 0xDE, 0xF1",
+                    ".byte 0xDC, 0xC9",
+                    ".byte 0xDE, 0xCA",
+                    ".byte 0xD9, 0xE0",
+                    "fadd dword ptr [{rc} + 0x2240A0]",
+                    ".byte 0xD9, 0xC9",
+                    "fadd dword ptr [{rc} + 0x22409C]",
+                    "fstp dword ptr [{v} + 0xC]",
+                    "fstp dword ptr [{v} + 0x1C]",
+                    rc = in(reg) crate::race::store::asm_base(),
+                    v = in(reg) v,
+                    out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
+                    out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
+                    options(nostack),
+                );
+            } else {
+                core::arch::asm!(
+                    "fld dword ptr [{v} + 0x10]",
+                    "fld dword ptr [{v} + 0x14]",
+                    "fld dword ptr [{v} + 0x18]",
+                    "fld dword ptr [{rc} + 0x224088]",
+                    ".byte 0xDE, 0xF1",
+                    ".byte 0xDC, 0xC9",
+                    ".byte 0xDE, 0xCA",
+                    ".byte 0xD9, 0xE0",
+                    "fadd dword ptr [{rc} + 0x2240A0]",
+                    ".byte 0xD9, 0xC9",
+                    "fadd dword ptr [{rc} + 0x22409C]",
+                    "fstp dword ptr [{v} + 0xC]",
+                    "fstp dword ptr [{v} + 0x1C]",
+                    rc = in(reg) crate::race::store::asm_base(),
+                    v = in(reg) v,
+                    out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
+                    out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
+                    options(nostack),
+                );
+            }
+        }
+    }
+
+    pub(super) unsafe fn halfway_entry_asm(first: u32, second: u32, to: u32) {
+        unsafe {
+            core::arch::asm!(
+                "fld dword ptr [{s} + 8]",
+                "fadd dword ptr [{f} + 8]",
+                "fmul dword ptr [{rc} + 0x1C5E40]",
+                "fstp dword ptr [{t} + 8]",
+                "fld dword ptr [{s} + 0xC]",
+                "fadd dword ptr [{f} + 0xC]",
+                "fmul dword ptr [{rc} + 0x1C5E40]",
+                "fstp dword ptr [{t} + 0xC]",
+                "fld dword ptr [{s} + 0x10]",
+                "fadd dword ptr [{f} + 0x10]",
+                "fmul dword ptr [{rc} + 0x1C5E40]",
+                "fstp dword ptr [{t} + 0x10]",
+                "fld dword ptr [{s} + 0x14]",
+                "fadd dword ptr [{f} + 0x14]",
+                "fmul dword ptr [{rc} + 0x1C5E40]",
+                "fstp dword ptr [{t} + 0x14]",
+                rc = in(reg) crate::race::store::asm_base(),
+                s = in(reg) second,
+                f = in(reg) first,
+                t = in(reg) to,
+                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
+                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
+                options(nostack),
+            );
+            for o in [0x20u32, 0x21, 0x18, 0x19, 0x1A] {
+                let sum = ((second + o) as *const u8).read() as u32
+                    + ((first + o) as *const u8).read() as u32;
+                ((to + o) as *mut u8).write((sum >> 1) as u8);
+            }
+        }
+    }
+
+    fn same_all(a: &[u32], b: &[u32], what: &str) {
+        for (k, (x, y)) in a.iter().zip(b).enumerate() {
+            assert!(
+                same(*x, *y),
+                "{what}: word {k}: {x:#x} {y:#x} in {a:x?} {b:x?}"
+            );
+        }
+    }
+
+    #[test]
+    fn face_turned_to_view_matches() {
+        let _l = lock();
+        let _saved = Saved::new(&[0x621480, 0x5CCCC0, 0x6062A4, 0x6062A8, 0x6062AC]);
+        let mut r = Rng(11);
+        let mut points = [0u32; 12];
+        let mut face = [0u32; 0x20];
+        at_each_control_word(|| {
+            for _ in 0..20000 {
+                unsafe {
+                    game_write(rva(0x621480), r.below(8));
+                    game_write(rva(0x5CCCC0), points.as_ptr() as u32);
+                    for a in [0x6062A4, 0x6062A8, 0x6062AC] {
+                        game_write(rva(a), r.float());
+                    }
+                }
+                for q in points.iter_mut() {
+                    *q = r.int() as u32;
+                }
+                for q in face.iter_mut() {
+                    *q = r.float();
+                }
+                let half = if r.below(2) == 0 { 0 } else { 4 };
+                face[(half + 8) / 4] = r.below(4);
+                let at = face.as_ptr() as u32;
+                let (want, got) = unsafe {
+                    (
+                        face_turned_to_view_asm(at, half as u32),
+                        face_turned_to_view(at, half as u32),
+                    )
+                };
+                assert_eq!(want, got, "{face:x?} {points:x?}");
+            }
+        });
+    }
+
+    #[test]
+    fn frame_of_matches() {
+        let _l = lock();
+        let mut r = Rng(12);
+        at_each_control_word(|| {
+            for _ in 0..20000 {
+                let (t, f, a, b) = (r.int() as u32, r.float(), r.float(), r.float());
+                assert_eq!(
+                    frame_of_asm(t, f, a, b),
+                    frame_of(t, f, a, b),
+                    "{t} {f:#x} {a:#x} {b:#x}"
+                );
+            }
+        });
+    }
+
+    fn vertex(r: &mut Rng) -> [u32; 8] {
+        let mut v = [0xAAAA_AAAAu32; 8];
+        for q in v.iter_mut().skip(4).take(3) {
+            *q = r.float();
+        }
+        v
+    }
+
+    #[test]
+    fn halfway_vertex_matches() {
+        let _l = lock();
+        let _saved = Saved::new(&[
+            0x62400C, 0x5CCD80, 0x624088, 0x6240A0, 0x62409C, 0x60932C, 0x5C5E40, 0x5C5E18,
+        ]);
+        let mut r = Rng(13);
+        at_each_control_word(|| {
+            for n in 0..20000 {
+                unsafe {
+                    game_write(rva(0x62400C), 0xAAAA_AAAAu32);
+                    game_write(rva(0x60932C), (n % 2) as u32);
+                    game_write(rva(0x5CCD80), r.int() as u32);
+                    game_write(rva(0x624088), r.float());
+                    game_write(rva(0x6240A0), r.float());
+                    game_write(rva(0x62409C), r.float());
+                    game_write(
+                        rva(0x5C5E40),
+                        if r.below(2) == 0 {
+                            0x3F00_0000
+                        } else {
+                            r.float()
+                        },
+                    );
+                    // mostly a depth the projection takes
+                    game_write(
+                        rva(0x5C5E18),
+                        if r.below(4) == 0 {
+                            r.float()
+                        } else {
+                            0x4580_0000
+                        },
+                    );
+                }
+                let (a, b) = (vertex(&mut r), vertex(&mut r));
+                let (mut v1, mut v2) = (vertex(&mut r), [0u32; 8]);
+                v2.copy_from_slice(&v1);
+                unsafe {
+                    halfway_vertex_asm(a.as_ptr() as u32, b.as_ptr() as u32, v1.as_mut_ptr() as u32)
+                };
+                let kept = unsafe { game_read::<u32>(rva(0x62400C)) };
+                unsafe { game_write(rva(0x62400C), 0xAAAA_AAAAu32) };
+                unsafe {
+                    halfway_vertex(a.as_ptr() as u32, b.as_ptr() as u32, v2.as_mut_ptr() as u32)
+                };
+                same_all(&v1, &v2, "vertex");
+                assert!(
+                    same(kept, unsafe { game_read::<u32>(rva(0x62400C)) }),
+                    "depth kept"
+                );
+            }
+        });
+    }
+
+    #[test]
+    fn halfway_entry_matches() {
+        let _l = lock();
+        let _saved = Saved::new(&[0x5C5E40]);
+        let mut r = Rng(14);
+        at_each_control_word(|| {
+            for _ in 0..20000 {
+                unsafe {
+                    game_write(
+                        rva(0x5C5E40),
+                        if r.below(2) == 0 {
+                            0x3F00_0000
+                        } else {
+                            r.float()
+                        },
+                    )
+                };
+                let entry = |r: &mut Rng| {
+                    let mut e = [0u32; 10];
+                    for (k, q) in e.iter_mut().enumerate() {
+                        *q = if (2..6).contains(&k) {
+                            r.float()
+                        } else {
+                            r.u32()
+                        };
+                    }
+                    e
+                };
+                let (f, s) = (entry(&mut r), entry(&mut r));
+                let mut t1 = [0xAAAA_AAAAu32; 10];
+                let mut t2 = t1;
+                unsafe {
+                    halfway_entry_asm(f.as_ptr() as u32, s.as_ptr() as u32, t1.as_mut_ptr() as u32)
+                };
+                unsafe {
+                    halfway_entry(f.as_ptr() as u32, s.as_ptr() as u32, t2.as_mut_ptr() as u32)
+                };
+                // the bytes compare as they are, the floats as floats
+                for k in 0..10 {
+                    if (2..6).contains(&k) {
+                        assert!(same(t1[k], t2[k]), "word {k}: {:#x} {:#x}", t1[k], t2[k]);
+                    } else {
+                        assert_eq!(t1[k], t2[k], "word {k}");
+                    }
+                }
+            }
+        });
     }
 }

@@ -6,10 +6,9 @@
 //! Out: every register kept
 //! Caller: `menu::release_controller`.
 
-use crate::input::input_tick::COMMAND_RVA;
-use crate::store::game_write;
+use crate::input::store::DEVICES;
 
 /// The Rust version (see the header).
 pub fn request_device_release() {
-    unsafe { game_write(COMMAND_RVA, 2u32) };
+    DEVICES.input_command.set(2); // g_inputCommand
 }

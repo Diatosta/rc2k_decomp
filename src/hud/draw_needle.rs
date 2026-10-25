@@ -27,6 +27,7 @@ use crate::hud::store::read_f32 as f;
 use crate::hud::store::{game_addr, game_read, game_write};
 use crate::math::x87;
 use crate::scene::matrix3::extended;
+use crate::scene::x87_mem::{fistp, fld};
 
 const KIND_RVA: Slot = Slot::at(0x75BFAC); // dword_75BFAC
 const VALUE_RVA: Slot = Slot::at(0x75C2E0); // dword_75C2E0
@@ -46,17 +47,11 @@ const VERTICES_RVA: usize = rva(0x9605A0); // g_polygonVertices
 /// `fld v [; fsub less]; fdiv over; fadd plus; fmul k0; fmul k1; fistp`.
 fn turn_of(v: u32, less: Option<u32>, over: u32, plus: u32, k: [u32; 2]) -> u32 {
     let (a, mut out) = ([v, less.unwrap_or(0), over, plus, k[0], k[1]], 0u32);
-    unsafe {
-        if less.is_some() {
-            core::arch::asm!("fld dword ptr [{a}]", "fsub dword ptr [{a} + 4]", "fdiv dword ptr [{a} + 8]",
-                "fadd dword ptr [{a} + 12]", "fmul dword ptr [{a} + 16]", "fmul dword ptr [{a} + 20]", "fistp dword ptr [{o}]",
-                a = in(reg) a.as_ptr(), o = in(reg) &raw mut out, out("st(0)") _, options(nostack))
-        } else {
-            core::arch::asm!("fld dword ptr [{a}]", "fdiv dword ptr [{a} + 8]",
-                "fadd dword ptr [{a} + 12]", "fmul dword ptr [{a} + 16]", "fmul dword ptr [{a} + 20]", "fistp dword ptr [{o}]",
-                a = in(reg) a.as_ptr(), o = in(reg) &raw mut out, out("st(0)") _, options(nostack))
-        }
-    };
+    if less.is_some() {
+        x87_1(a.as_ptr() as usize, (&raw mut out) as usize);
+    } else {
+        x87_2(a.as_ptr() as usize, (&raw mut out) as usize);
+    }
     out
 }
 
@@ -90,5 +85,114 @@ pub unsafe fn draw_needle() -> Result<(), Refused> {
         }
         game_write(POLYGON_COUNT_RVA, 4u32);
         crate::hud::add_polygon::add_polygon()
+    }
+}
+
+// ---- the arithmetic that was x87 assembly ----
+
+/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
+/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `int [o + 0] = (((([a + 0] - [a + 4]) / [a + 8]) + [a + 0xC]) * [a + 0x10]) * [a + 0x14]`
+fn x87_1(a: usize, o: usize) {
+    unsafe {
+        let a = a as *const u8;
+        let o = o as *mut u8;
+        let t0 = fld(a, 0);
+        let t1 = fld(a, 4);
+        let t2 = t0 - t1;
+        let t3 = fld(a, 8);
+        let t4 = t2 / t3;
+        let t5 = fld(a, 0xC);
+        let t6 = t4 + t5;
+        let t7 = fld(a, 0x10);
+        let t8 = t6 * t7;
+        let t9 = fld(a, 0x14);
+        let t10 = t8 * t9;
+        fistp(o, 0, t10);
+    }
+}
+
+/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
+/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `int [o + 0] = ((([a + 0] / [a + 8]) + [a + 0xC]) * [a + 0x10]) * [a + 0x14]`
+fn x87_2(a: usize, o: usize) {
+    unsafe {
+        let a = a as *const u8;
+        let o = o as *mut u8;
+        let t0 = fld(a, 0);
+        let t1 = fld(a, 8);
+        let t2 = t0 / t1;
+        let t3 = fld(a, 0xC);
+        let t4 = t2 + t3;
+        let t5 = fld(a, 0x10);
+        let t6 = t4 * t5;
+        let t7 = fld(a, 0x14);
+        let t8 = t6 * t7;
+        fistp(o, 0, t8);
+    }
+}
+
+#[cfg(test)]
+mod asm_reference {
+    use super::*;
+    use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
+
+    // The original's instructions, one function per run.
+    reference!(ref_0(a, o) "fld dword ptr [{a}]", "fsub dword ptr [{a} + 4]", "fdiv dword ptr [{a} + 8]", "fadd dword ptr [{a} + 12]", "fmul dword ptr [{a} + 16]", "fmul dword ptr [{a} + 20]", "fistp dword ptr [{o}]");
+    reference!(ref_1(a, o) "fld dword ptr [{a}]", "fdiv dword ptr [{a} + 8]", "fadd dword ptr [{a} + 12]", "fmul dword ptr [{a} + 16]", "fmul dword ptr [{a} + 20]", "fistp dword ptr [{o}]");
+
+    fn blocks() -> Vec<Block> {
+        vec![
+            Block {
+                name: "draw_needle line 51",
+                operands: vec![
+                    Operand::Buffer {
+                        reads: &[
+                            (0, In::F),
+                            (4, In::F),
+                            (8, In::F),
+                            (0xC, In::F),
+                            (0x10, In::F),
+                            (0x14, In::F),
+                        ],
+                        writes: &[],
+                    },
+                    Operand::Buffer {
+                        reads: &[],
+                        writes: &[(0, Out::I)],
+                    },
+                ],
+                ulps: 0,
+                reference: |a| unsafe { ref_0(a[0], a[1]) },
+                plain: |a| x87_1(a[0], a[1]),
+            },
+            Block {
+                name: "draw_needle line 55",
+                operands: vec![
+                    Operand::Buffer {
+                        reads: &[
+                            (0, In::F),
+                            (8, In::F),
+                            (0xC, In::F),
+                            (0x10, In::F),
+                            (0x14, In::F),
+                        ],
+                        writes: &[],
+                    },
+                    Operand::Buffer {
+                        reads: &[],
+                        writes: &[(0, Out::I)],
+                    },
+                ],
+                ulps: 0,
+                reference: |a| unsafe { ref_1(a[0], a[1]) },
+                plain: |a| x87_2(a[0], a[1]),
+            },
+        ]
+    }
+
+    #[test]
+    fn x87_blocks_matches_the_assembly() {
+        sparse(&blocks(), 1200, 100);
     }
 }

@@ -16,20 +16,28 @@
 
 use crate::drive::race_parts::{input_update, race_frame, restart_clock};
 use crate::errors::{BadInput, Refused};
-use crate::physics::flow::{a, c0, g, p, x87_run};
+use crate::physics::flow::{c0, g, p};
+use crate::scene::x87_mem::{fild, fistp, fld};
 
 const B: usize = 0x70F3EC;
+
+/// The car's lift: `dword_70F524` += `flt_64BB38` x `flt_5C5D98` (`fiadd`, `fistp`), over the
+/// race block at `rc`.
+fn lift_car(rc: usize) {
+    let rc = rc as *mut u8;
+    unsafe {
+        fistp(
+            rc,
+            0x30F524,
+            fld(rc, 0x24BB38) * fld(rc, 0x1C5D98) + fild(rc, 0x30F524),
+        )
+    }
+}
 
 /// The Rust version. The registers it leaves are read by no caller (liveness: esi after
 /// `drive::finish_race`'s call has no read point).
 pub unsafe fn finish_run() -> Result<(), Refused> {
-    x87_run!(
-        "fld dword ptr [{rc} + 0x24BB38]",
-        "fmul dword ptr [{rc} + 0x1C5D98]",
-        "fiadd dword ptr [{rc} + 0x30F524]",
-        "fistp dword ptr [{rc} + 0x30F524]";
-        rc = crate::race::store::asm_base()
-    );
+    lift_car(crate::race::store::asm_base() as usize);
     restart_clock();
     p(0x5CC3B4, g(0x613830));
     p(0x5CC3B0, g(0x613830));
@@ -40,7 +48,7 @@ pub unsafe fn finish_run() -> Result<(), Refused> {
     restart_clock();
     p(0x64BB60, g(0x613830));
     loop {
-        p(crate::sound::store::ObjectsSlot::at(0x512A44), 0);
+        crate::sound::store::RACE_SOUNDS.objects[0].revs.set(0);
         input_update();
         unsafe { crate::drive::finish_timing::finish_timing() };
         let n = g(0x75B108);
@@ -50,10 +58,8 @@ pub unsafe fn finish_run() -> Result<(), Refused> {
         if !c0(g(0x64BB64), g(0x64BB3C + 4 * n as usize)) {
             break;
         }
-        let key = |x: crate::input::store::DeviceSlot| unsafe { (a(x) as *const u8).read() } != 0;
-        if key(crate::input::store::DeviceSlot::at(0x4F6CDD))
-            || key(crate::input::store::DeviceSlot::at(0x4F6CF8))
-        {
+        let pressed = |key: usize| crate::input::store::DEVICES.keys_pressed.get(key) != 0;
+        if pressed(1) || pressed(0x1C) {
             break;
         }
         p(B + 0x684, 6);
@@ -66,4 +72,32 @@ pub unsafe fn finish_run() -> Result<(), Refused> {
         race_frame()?;
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod asm_reference {
+    use super::*;
+    use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
+
+    // The original's instructions.
+    reference!(ref_lift(rc)
+        "fld dword ptr [{rc} + 0x24BB38]",
+        "fmul dword ptr [{rc} + 0x1C5D98]",
+        "fiadd dword ptr [{rc} + 0x30F524]",
+        "fistp dword ptr [{rc} + 0x30F524]");
+
+    #[test]
+    fn finish_run_matches_the_assembly() {
+        let blocks = vec![Block {
+            name: "finish_run lift",
+            operands: vec![Operand::Buffer {
+                reads: &[(0x24BB38, In::F), (0x1C5D98, In::F), (0x30F524, In::I)],
+                writes: &[(0x30F524, Out::I)],
+            }],
+            ulps: 0,
+            reference: |a| unsafe { ref_lift(a[0]) },
+            plain: |a| lift_car(a[0]),
+        }];
+        sparse(&blocks, 4000, 204);
+    }
 }

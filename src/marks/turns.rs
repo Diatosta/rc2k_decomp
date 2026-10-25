@@ -4,7 +4,6 @@
 use crate::framework::rva;
 use crate::marks::store::{Slot, game_addr, game_read, game_write};
 use crate::math::x87;
-use crate::math::x87::x87;
 
 /// The 2 x 2 turn: `flt_82E396`, `flt_82E39A`, `flt_82E3A2`, `flt_82E3A6`.
 pub const TURN_RVA: [Slot; 4] = [
@@ -84,16 +83,13 @@ pub fn smooth_pair(n: u32, a: u32, b: u32) -> (u32, u32) {
 pub unsafe fn turn_pair(inputs: [[u8; 10]; 2]) -> [[u8; 10]; 2] {
     let mut out = [[0u8; 10]; 2];
     let m = game_addr(TURN_RVA[0]) as u32;
-    x87!(
-        "fld tbyte ptr [{i} + 10]", "fld tbyte ptr [{i}]",
-        ".byte 0xD9, 0xC1", ".byte 0xD9, 0xC1",
-        "fmul dword ptr [{m} + 0x10]", ".byte 0xD9, 0xC9", "fmul dword ptr [{m} + 0xC]",
-        ".byte 0xDE, 0xC1", ".byte 0xD9, 0xCA",
-        "fmul dword ptr [{m}]", ".byte 0xD9, 0xC9", "fmul dword ptr [{m} + 4]",
-        ".byte 0xDE, 0xC1", ".byte 0xD9, 0xC9",
-        "fstp tbyte ptr [{o}]", "fstp tbyte ptr [{o} + 10]";
-        i = inputs.as_ptr(), m = m, o = out.as_mut_ptr()
-    );
+    unsafe {
+        turn_pair_x87(
+            inputs.as_ptr() as usize,
+            m as usize,
+            out.as_mut_ptr() as usize,
+        )
+    };
     out
 }
 
@@ -104,22 +100,26 @@ pub const PAIR_SCALES_RVA: Slot = Slot::at(0x89C9FC);
 /// `fld tbyte; fmul; fistp` for st(0) then st(1): their whole-number scalings.
 fn scaled_ints(inputs: &[[u8; 10]; 2], k: *const u32) -> (i32, i32) {
     let mut v = [0i32; 2];
-    x87!(
-        "fld tbyte ptr [{i} + 10]", "fld tbyte ptr [{i}]",
-        "fmul dword ptr [{k}]", "fistp dword ptr [{v}]",
-        "fmul dword ptr [{k} + 4]", "fistp dword ptr [{v} + 4]";
-        i = inputs.as_ptr(), k = k, v = v.as_mut_ptr()
-    );
+    unsafe {
+        scaled_ints_x87(
+            inputs.as_ptr() as usize,
+            k as usize,
+            v.as_mut_ptr() as usize,
+        )
+    };
     (v[0], v[1])
 }
 
 /// `fild v; fdiv k; fstp tbyte`.
 fn int_over_80(v: i32, k: *const u32) -> [u8; 10] {
     let mut out = [0u8; 10];
-    x87!(
-        "fild dword ptr [{v}]", "fdiv dword ptr [{k}]", "fstp tbyte ptr [{o}]";
-        v = &v, k = k, o = out.as_mut_ptr()
-    );
+    unsafe {
+        int_over_80_x87(
+            (&raw const v) as usize,
+            k as usize,
+            out.as_mut_ptr() as usize,
+        )
+    };
     out
 }
 
@@ -134,3 +134,215 @@ pub unsafe fn clamp_pair(inputs: [[u8; 10]; 2]) -> [[u8; 10]; 2] {
     unsafe { [int_over_80(b, k.add(3)), int_over_80(a, k.add(2))] }
 }
 // ---- the converted versions (`rc2k_core::marks::turns`) ----
+
+use crate::marks::plain::{ld, ld80, ldi, st80, sti};
+use crate::math::x87_float as bh;
+
+/// `turn_pair`'s x87 block as plain Rust on the x87 model (16 instructions), same order and memory places.
+unsafe fn turn_pair_x87(i: usize, m: usize, o: usize) {
+    unsafe {
+        let t0 = bh::from_f80(ld80(i, 0xA));
+        let t1 = bh::from_f80(ld80(i, 0));
+        let t2 = t1 * ld(m, 0x10);
+        let t3 = t0 * ld(m, 0xC);
+        let t4 = t2 + t3;
+        let t5 = t0 * ld(m, 0);
+        let t6 = t1 * ld(m, 0x4);
+        let t7 = t5 + t6;
+        st80(o, 0, t4);
+        st80(o, 0xA, t7);
+    }
+}
+
+/// `scaled_ints`'s x87 block as plain Rust on the x87 model (6 instructions), same order and memory places.
+unsafe fn scaled_ints_x87(i: usize, k: usize, v: usize) {
+    unsafe {
+        let t0 = bh::from_f80(ld80(i, 0xA));
+        let t1 = bh::from_f80(ld80(i, 0));
+        let t2 = t1 * ld(k, 0);
+        sti(v, 0, t2);
+        let t3 = t0 * ld(k, 0x4);
+        sti(v, 0x4, t3);
+    }
+}
+
+/// `int_over_80`'s x87 block as plain Rust on the x87 model (3 instructions), same order and memory places.
+unsafe fn int_over_80_x87(v: usize, k: usize, o: usize) {
+    unsafe {
+        let t0 = ldi(v, 0);
+        let t1 = t0 / ld(k, 0);
+        st80(o, 0, t1);
+    }
+}
+
+#[cfg(test)]
+mod asm_reference {
+    //! The original assembly blocks, kept verbatim as the reference the plain versions are tested against.
+
+    pub(super) unsafe fn turn_pair_x87(i: usize, m: usize, o: usize) {
+        unsafe {
+            core::arch::asm!(
+                    "fld tbyte ptr [{i} + 10]",
+            "fld tbyte ptr [{i}]",
+            ".byte 0xD9, 0xC1",
+            ".byte 0xD9, 0xC1",
+            "fmul dword ptr [{m} + 0x10]",
+            ".byte 0xD9, 0xC9",
+            "fmul dword ptr [{m} + 0xC]",
+            ".byte 0xDE, 0xC1",
+            ".byte 0xD9, 0xCA",
+            "fmul dword ptr [{m}]",
+            ".byte 0xD9, 0xC9",
+            "fmul dword ptr [{m} + 4]",
+            ".byte 0xDE, 0xC1",
+            ".byte 0xD9, 0xC9",
+            "fstp tbyte ptr [{o}]",
+            "fstp tbyte ptr [{o} + 10]",
+            i = in(reg) i,
+            m = in(reg) m,
+            o = in(reg) o,
+            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
+            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
+            options(nostack),
+            )
+        }
+    }
+
+    pub(super) unsafe fn scaled_ints_x87(i: usize, k: usize, v: usize) {
+        unsafe {
+            core::arch::asm!(
+                    "fld tbyte ptr [{i} + 10]",
+            "fld tbyte ptr [{i}]",
+            "fmul dword ptr [{k}]",
+            "fistp dword ptr [{v}]",
+            "fmul dword ptr [{k} + 4]",
+            "fistp dword ptr [{v} + 4]",
+            i = in(reg) i,
+            k = in(reg) k,
+            v = in(reg) v,
+            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
+            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
+            options(nostack),
+            )
+        }
+    }
+
+    pub(super) unsafe fn int_over_80_x87(v: usize, k: usize, o: usize) {
+        unsafe {
+            core::arch::asm!(
+                    "fild dword ptr [{v}]",
+            "fdiv dword ptr [{k}]",
+            "fstp tbyte ptr [{o}]",
+            v = in(reg) v,
+            k = in(reg) k,
+            o = in(reg) o,
+            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
+            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
+            options(nostack),
+            )
+        }
+    }
+}
+
+#[cfg(test)]
+mod asm_differential {
+    use super::asm_reference as reference;
+    use crate::marks::asm_test::Kind::*;
+    use crate::marks::asm_test::{Op, Spec, differential};
+
+    #[test]
+    fn turn_pair_x87_matches() {
+        const SPEC: Spec = Spec {
+            operands: &[
+                Op::Base {
+                    lo: 0x0,
+                    hi: 0x14,
+                    reads: &[(0x0, F80), (0xA, F80)],
+                    writes: &[],
+                },
+                Op::Base {
+                    lo: 0x0,
+                    hi: 0x14,
+                    reads: &[(0x0, F32), (0x4, F32), (0xC, F32), (0x10, F32)],
+                    writes: &[],
+                },
+                Op::Base {
+                    lo: 0x0,
+                    hi: 0x14,
+                    reads: &[],
+                    writes: &[(0x0, F80), (0xA, F80)],
+                },
+            ],
+            sincos: false,
+        };
+        differential(
+            &SPEC,
+            |b| unsafe { reference::turn_pair_x87(b[0], b[1], b[2]) },
+            |b| unsafe { super::turn_pair_x87(b[0], b[1], b[2]) },
+        );
+    }
+
+    #[test]
+    fn scaled_ints_x87_matches() {
+        const SPEC: Spec = Spec {
+            operands: &[
+                Op::Base {
+                    lo: 0x0,
+                    hi: 0x14,
+                    reads: &[(0x0, F80), (0xA, F80)],
+                    writes: &[],
+                },
+                Op::Base {
+                    lo: 0x0,
+                    hi: 0x8,
+                    reads: &[(0x0, F32), (0x4, F32)],
+                    writes: &[],
+                },
+                Op::Base {
+                    lo: 0x0,
+                    hi: 0x8,
+                    reads: &[],
+                    writes: &[(0x0, I32), (0x4, I32)],
+                },
+            ],
+            sincos: false,
+        };
+        differential(
+            &SPEC,
+            |b| unsafe { reference::scaled_ints_x87(b[0], b[1], b[2]) },
+            |b| unsafe { super::scaled_ints_x87(b[0], b[1], b[2]) },
+        );
+    }
+
+    #[test]
+    fn int_over_80_x87_matches() {
+        const SPEC: Spec = Spec {
+            operands: &[
+                Op::Base {
+                    lo: 0x0,
+                    hi: 0x4,
+                    reads: &[(0x0, I32)],
+                    writes: &[],
+                },
+                Op::Base {
+                    lo: 0x0,
+                    hi: 0x4,
+                    reads: &[(0x0, F32)],
+                    writes: &[],
+                },
+                Op::Base {
+                    lo: 0x0,
+                    hi: 0xA,
+                    reads: &[],
+                    writes: &[(0x0, F80)],
+                },
+            ],
+            sincos: false,
+        };
+        differential(
+            &SPEC,
+            |b| unsafe { reference::int_over_80_x87(b[0], b[1], b[2]) },
+            |b| unsafe { super::int_over_80_x87(b[0], b[1], b[2]) },
+        );
+    }
+}

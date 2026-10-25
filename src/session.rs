@@ -9,7 +9,8 @@
 //! variable to its neighbour reads the same neighbour (the vendor text of the processor,
 //! three dwords; the surface format, six dwords; the Windows version record).
 
-use std::sync::atomic::{AtomicU32, Ordering::Relaxed};
+use std::cell::UnsafeCell;
+use std::sync::atomic::{AtomicU8, AtomicU16, AtomicU32, Ordering::Relaxed};
 
 /// One of the game's dwords: an atomic cell the game's threads read and write.
 #[repr(transparent)]
@@ -40,6 +41,133 @@ impl Dword {
 
     pub fn addr(&self) -> usize {
         self.as_ptr() as usize
+    }
+}
+
+/// One of the game's floats: an atomic cell holding its bits (phase 7, typed state).
+#[repr(transparent)]
+pub struct Float(AtomicU32);
+
+impl Float {
+    /// From the float's bits (the image's first values are bits).
+    pub const fn from_bits(bits: u32) -> Self {
+        Self(AtomicU32::new(bits))
+    }
+
+    pub fn get(&self) -> f32 {
+        f32::from_bits(self.0.load(Relaxed))
+    }
+
+    pub fn set(&self, value: f32) {
+        self.0.store(value.to_bits(), Relaxed)
+    }
+
+    /// The bits, for the x87 model's loads (`x87_float::ld`).
+    pub fn bits(&self) -> u32 {
+        self.0.load(Relaxed)
+    }
+
+    /// Stores the bits, for the x87 model's stores (`x87_float::st`).
+    pub fn set_bits(&self, bits: u32) {
+        self.0.store(bits, Relaxed)
+    }
+}
+
+/// One of the game's words (16 bits): an atomic cell.
+#[repr(transparent)]
+pub struct Word(AtomicU16);
+
+impl Word {
+    pub const fn new(value: u16) -> Self {
+        Self(AtomicU16::new(value))
+    }
+
+    pub fn get(&self) -> u16 {
+        self.0.load(Relaxed)
+    }
+}
+
+/// One of the game's bytes: an atomic cell (phase 7, typed state).
+#[repr(transparent)]
+pub struct Byte(AtomicU8);
+
+impl Byte {
+    pub const fn new(value: u8) -> Self {
+        Self(AtomicU8::new(value))
+    }
+
+    pub fn get(&self) -> u8 {
+        self.0.load(Relaxed)
+    }
+
+    pub fn set(&self, value: u8) {
+        self.0.store(value, Relaxed)
+    }
+}
+
+/// A buffer of the game's bytes (a table, a record handed on by address): plain volatile
+/// loads and stores, as the image's bytes were shared between the game's threads.
+#[repr(transparent)]
+pub struct Bytes<const N: usize>(UnsafeCell<[u8; N]>);
+
+// SAFETY: as the image's memory: raw access only, under the original's discipline.
+unsafe impl<const N: usize> Sync for Bytes<N> {}
+
+impl<const N: usize> Bytes<N> {
+    pub const fn new(value: [u8; N]) -> Self {
+        Self(UnsafeCell::new(value))
+    }
+
+    pub fn as_ptr(&self) -> *mut u8 {
+        self.0.get().cast()
+    }
+
+    pub fn addr(&self) -> usize {
+        self.as_ptr() as usize
+    }
+
+    pub fn get(&self, index: usize) -> u8 {
+        assert!(index < N);
+        unsafe { self.as_ptr().add(index).read_volatile() }
+    }
+
+    pub fn set(&self, index: usize, value: u8) {
+        assert!(index < N);
+        unsafe { self.as_ptr().add(index).write_volatile(value) }
+    }
+
+    /// The byte at `index` as an atomic (an `xchg` on a key).
+    pub fn atomic(&self, index: usize) -> &AtomicU8 {
+        assert!(index < N);
+        unsafe { AtomicU8::from_ptr(self.as_ptr().add(index)) }
+    }
+
+    /// The little-endian dword at byte `offset` (any alignment, as the game's records are
+    /// read).
+    pub fn get_u32(&self, offset: usize) -> u32 {
+        assert!(offset + 4 <= N);
+        unsafe { self.as_ptr().add(offset).cast::<u32>().read_unaligned() }
+    }
+
+    pub fn set_u32(&self, offset: usize, value: u32) {
+        assert!(offset + 4 <= N);
+        unsafe {
+            self.as_ptr()
+                .add(offset)
+                .cast::<u32>()
+                .write_unaligned(value)
+        }
+    }
+
+    /// All of it.
+    pub fn read(&self) -> [u8; N] {
+        std::array::from_fn(|i| self.get(i))
+    }
+
+    pub fn write(&self, value: &[u8; N]) {
+        for (i, &b) in value.iter().enumerate() {
+            self.set(i, b);
+        }
     }
 }
 

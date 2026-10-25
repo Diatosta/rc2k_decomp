@@ -4,7 +4,6 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::rva;
-use crate::input::store::DeviceSlot;
 use crate::session::SCREEN;
 use crate::store::{game_addr, game_read, game_write};
 
@@ -263,8 +262,7 @@ pub unsafe fn forget_view_textures() -> Result<(), Refused> {
             Forget::Extra(n) => (k([0x6D1830u32, 0x6D1834][n]), [0x5D1E58, 0x5D1E5C][n]),
         };
         let mirror = mirror_on(k(0x6415E0), k(0x6415E8));
-        let uploaded =
-            ((crate::store::game_addr(DeviceSlot::at(0x4F6B74))) as *const u8).read() != 0;
+        let uploaded = crate::input::store::DEVICES.keys_now.get(0x18) != 0; // byte_4F6B74
         let mut slots: Vec<u32> = FORGET_ORDER
             .iter()
             .map(|&(f, _)| source(f))
@@ -400,18 +398,8 @@ pub unsafe fn draw_own_car() -> Result<(), Refused> {
 
 /// `fild i; fdiv a; fmul b; fstp`.
 fn int_over_times(i: u32, a: u32, b: u32) -> u32 {
-    let (v, mut out) = ([i, a, b], 0u32);
-    unsafe {
-        core::arch::asm!(
-            "fild dword ptr [{v}]", "fdiv dword ptr [{v} + 4]", "fmul dword ptr [{v} + 8]",
-            "fstp dword ptr [{o}]",
-            v = in(reg) v.as_ptr(), o = in(reg) &raw mut out,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-        );
-    }
-    out
+    use crate::math::x87_float::{int, ld, st};
+    st(int(i as i32) / ld(a) * ld(b))
 }
 
 /// `race::run_view_marks` (0x456336): with the marks on (`dword_621890`): which views' marks
@@ -487,5 +475,40 @@ pub unsafe fn run_view_marks() -> Result<(), Refused> {
 pub fn clear_viewport_unless_held() {
     if unsafe { crate::store::game_read::<u32>(rva(0x624238)) } == 0 {
         crate::platform_3d::clear_viewport();
+    }
+}
+
+#[cfg(test)]
+mod asm_reference {
+    use super::*;
+    use crate::race::asm_test::{Rng, at_each_control_word, lock, same};
+
+    /// The original block.
+    fn int_over_times_asm(i: u32, a: u32, b: u32) -> u32 {
+        let (v, mut out) = ([i, a, b], 0u32);
+        unsafe {
+            core::arch::asm!(
+                "fild dword ptr [{v}]", "fdiv dword ptr [{v} + 4]", "fmul dword ptr [{v} + 8]",
+                "fstp dword ptr [{o}]",
+                v = in(reg) v.as_ptr(), o = in(reg) &raw mut out,
+                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
+                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
+                options(nostack),
+            );
+        }
+        out
+    }
+
+    #[test]
+    fn int_over_times_matches() {
+        let _l = lock();
+        let mut r = Rng(1);
+        at_each_control_word(|| {
+            for _ in 0..20000 {
+                let (i, a, b) = (r.int() as u32, r.float(), r.float());
+                let (want, got) = (int_over_times_asm(i, a, b), int_over_times(i, a, b));
+                assert!(same(want, got), "{i} {a:#x} {b:#x}: {want:#x} {got:#x}");
+            }
+        });
     }
 }

@@ -7,16 +7,12 @@
 //! other flags of the original's `test al, al` (sign, parity) are not reproduced; carry and
 //! zero are.
 
-use crate::input::store::DeviceSlot;
-use crate::store::game_ptr;
+use crate::input::store::DEVICES;
 use std::sync::atomic::{AtomicU8, Ordering};
 
-// ---- game data ----
-
-pub const PENDING_KEY_RVA: DeviceSlot = DeviceSlot::at(0x4F6ADC); // byte_4F6ADC
-
+/// `byte_4F6ADC`: the first byte of `g_keysDown`.
 pub fn pending_key() -> &'static AtomicU8 {
-    unsafe { AtomicU8::from_ptr(game_ptr(PENDING_KEY_RVA)) }
+    DEVICES.keys_down.atomic(0)
 }
 
 // ---- Rust version ----

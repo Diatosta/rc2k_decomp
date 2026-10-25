@@ -20,90 +20,39 @@ unsafe fn put(a: u32, v: u32) {
 
 /// `fild i; fadd f; fstp tbyte`: a whole number plus a float in the x87's 80 bits.
 fn int_plus_float_80(i: u32, f: u32) -> [u8; 10] {
-    let (v, mut out) = ([i, f], [0u8; 10]);
-    unsafe {
-        core::arch::asm!(
-            "fild dword ptr [{v}]",
-            "fadd dword ptr [{v} + 4]",
-            "fstp tbyte ptr [{o}]",
-            v = in(reg) v.as_ptr(),
-            o = in(reg) out.as_mut_ptr(),
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-        );
-    }
-    out
+    use crate::math::x87_float::{f80, int, ld};
+    f80(int(i as i32) + ld(f))
 }
 
 /// `fild i; fstp tbyte`.
 pub fn int_80(i: u32) -> [u8; 10] {
-    let (v, mut out) = ([i], [0u8; 10]);
-    unsafe {
-        core::arch::asm!(
-            "fild dword ptr [{v}]",
-            "fstp tbyte ptr [{o}]",
-            v = in(reg) v.as_ptr(),
-            o = in(reg) out.as_mut_ptr(),
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-        );
-    }
-    out
+    crate::math::x87_float::f80(crate::math::x87_float::int(i as i32))
 }
 
 /// `fld tbyte; fstp dword`.
 fn float_of_80(t: [u8; 10]) -> u32 {
-    let mut out = 0u32;
-    unsafe {
-        core::arch::asm!(
-            "fld tbyte ptr [{t}]",
-            "fstp dword ptr [{o}]",
-            t = in(reg) t.as_ptr(),
-            o = in(reg) &raw mut out,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-        );
-    }
-    out
+    crate::math::x87_float::st(crate::math::x87_float::from_f80(t))
 }
 
 /// The projection of a turned vertex record (`v` +0x10 x, +0x14 y, +0x18 depth, floats)
-/// onto the screen (+0xC, +0x1C), as the original's run (`.byte 0xDE, 0xF1` its `fdivrp
-/// st(1), st`): flat (`dword_60932C`) by `dword_5CCD80` + 1, else by the depth.
-unsafe fn project_vertex(v: u32) {
+/// onto the screen (+0xC, +0x1C): flat (`dword_60932C`) by `dword_5CCD80` + 1, else by the
+/// depth (the original's `fdivrp st(1), st` is `dword_624088` over that). x is
+/// x times that scale plus `dword_62409C`, y is `dword_6240A0` less y times it. When flat,
+/// the depth is also stored at `dword_62400C`.
+pub(crate) unsafe fn project_vertex(v: u32) {
+    use crate::math::x87_float::{ONE, int, ld, st};
     unsafe {
-        if game_read::<u32>(rva(0x60932C)) != 0 {
-            core::arch::asm!(
-                "fld dword ptr [{v} + 0x10]", "fld dword ptr [{v} + 0x14]", "fld dword ptr [{v} + 0x18]",
-                "fstp dword ptr [{rc} + 0x22400C]", "fild dword ptr [{rc} + 0x1CCD80]", "fld1",
-                ".byte 0xDE, 0xC1",
-                "fld dword ptr [{rc} + 0x224088]", ".byte 0xDE, 0xF1",
-                ".byte 0xDC, 0xC9", ".byte 0xDE, 0xCA", "fchs",
-                "fadd dword ptr [{rc} + 0x2240A0]", ".byte 0xD9, 0xC9", "fadd dword ptr [{rc} + 0x22409C]",
-                "fstp dword ptr [{v} + 0xC]", "fstp dword ptr [{v} + 0x1C]",
-                rc = in(reg) crate::race::store::asm_base(),
-                v = in(reg) v,
-                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-                options(nostack),
-            );
+        let (x, y, z) = (ld(get(v + 0x10)), ld(get(v + 0x14)), ld(get(v + 0x18)));
+        let centre = |a: usize| ld(game_read::<u32>(rva(a)));
+        let reach = centre(0x624088);
+        let scale = if game_read::<u32>(rva(0x60932C)) != 0 {
+            game_write(rva(0x62400C), st(z));
+            reach / (int(game_read::<u32>(rva(0x5CCD80)) as i32) + ONE)
         } else {
-            core::arch::asm!(
-                "fld dword ptr [{v} + 0x10]", "fld dword ptr [{v} + 0x14]", "fld dword ptr [{v} + 0x18]",
-                "fld dword ptr [{rc} + 0x224088]", ".byte 0xDE, 0xF1",
-                ".byte 0xDC, 0xC9", ".byte 0xDE, 0xCA", "fchs",
-                "fadd dword ptr [{rc} + 0x2240A0]", ".byte 0xD9, 0xC9", "fadd dword ptr [{rc} + 0x22409C]",
-                "fstp dword ptr [{v} + 0xC]", "fstp dword ptr [{v} + 0x1C]",
-                rc = in(reg) crate::race::store::asm_base(),
-                v = in(reg) v,
-                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-                options(nostack),
-            );
-        }
+            reach / z
+        };
+        put(v + 0xC, st(x * scale + centre(0x62409C)));
+        put(v + 0x1C, st(-(y * scale) + centre(0x6240A0)));
     }
 }
 
@@ -226,5 +175,164 @@ pub unsafe fn draw_skidmarks_if_on() -> Result<(), Refused> {
             return Ok(());
         }
         draw_skidmarks()
+    }
+}
+
+#[cfg(test)]
+mod asm_reference {
+    use super::*;
+    use crate::math::x87_float::{X, f80};
+    use crate::race::asm_test::{Rng, Saved, at_each_control_word, lock};
+
+    /// The original blocks, verbatim.
+    fn int_plus_float_80_asm(i: u32, f: u32) -> [u8; 10] {
+        let (v, mut out) = ([i, f], [0u8; 10]);
+        unsafe {
+            core::arch::asm!(
+                "fild dword ptr [{v}]",
+                "fadd dword ptr [{v} + 4]",
+                "fstp tbyte ptr [{o}]",
+                v = in(reg) v.as_ptr(),
+                o = in(reg) out.as_mut_ptr(),
+                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
+                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
+                options(nostack),
+            );
+        }
+        out
+    }
+
+    fn int_80_asm(i: u32) -> [u8; 10] {
+        let (v, mut out) = ([i], [0u8; 10]);
+        unsafe {
+            core::arch::asm!(
+                "fild dword ptr [{v}]",
+                "fstp tbyte ptr [{o}]",
+                v = in(reg) v.as_ptr(),
+                o = in(reg) out.as_mut_ptr(),
+                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
+                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
+                options(nostack),
+            );
+        }
+        out
+    }
+
+    fn float_of_80_asm(t: [u8; 10]) -> u32 {
+        let mut out = 0u32;
+        unsafe {
+            core::arch::asm!(
+                "fld tbyte ptr [{t}]",
+                "fstp dword ptr [{o}]",
+                t = in(reg) t.as_ptr(),
+                o = in(reg) &raw mut out,
+                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
+                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
+                options(nostack),
+            );
+        }
+        out
+    }
+
+    unsafe fn project_vertex_asm(v: u32, flat: bool) {
+        unsafe {
+            if flat {
+                core::arch::asm!(
+                    "fld dword ptr [{v} + 0x10]", "fld dword ptr [{v} + 0x14]", "fld dword ptr [{v} + 0x18]",
+                    "fstp dword ptr [{rc} + 0x22400C]", "fild dword ptr [{rc} + 0x1CCD80]", "fld1",
+                    ".byte 0xDE, 0xC1",
+                    "fld dword ptr [{rc} + 0x224088]", ".byte 0xDE, 0xF1",
+                    ".byte 0xDC, 0xC9", ".byte 0xDE, 0xCA", "fchs",
+                    "fadd dword ptr [{rc} + 0x2240A0]", ".byte 0xD9, 0xC9", "fadd dword ptr [{rc} + 0x22409C]",
+                    "fstp dword ptr [{v} + 0xC]", "fstp dword ptr [{v} + 0x1C]",
+                    rc = in(reg) crate::race::store::asm_base(),
+                    v = in(reg) v,
+                    out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
+                    out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
+                    options(nostack),
+                );
+            } else {
+                core::arch::asm!(
+                    "fld dword ptr [{v} + 0x10]", "fld dword ptr [{v} + 0x14]", "fld dword ptr [{v} + 0x18]",
+                    "fld dword ptr [{rc} + 0x224088]", ".byte 0xDE, 0xF1",
+                    ".byte 0xDC, 0xC9", ".byte 0xDE, 0xCA", "fchs",
+                    "fadd dword ptr [{rc} + 0x2240A0]", ".byte 0xD9, 0xC9", "fadd dword ptr [{rc} + 0x22409C]",
+                    "fstp dword ptr [{v} + 0xC]", "fstp dword ptr [{v} + 0x1C]",
+                    rc = in(reg) crate::race::store::asm_base(),
+                    v = in(reg) v,
+                    out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
+                    out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
+                    options(nostack),
+                );
+            }
+        }
+    }
+
+    fn same_bits(a: u32, b: u32) -> bool {
+        crate::race::asm_test::same(a, b)
+    }
+
+    #[test]
+    fn conversions_match() {
+        let _l = lock();
+        let mut r = Rng(3);
+        at_each_control_word(|| {
+            for _ in 0..20000 {
+                let (i, f) = (r.int() as u32, r.float());
+                assert_eq!(
+                    int_plus_float_80(i, f),
+                    int_plus_float_80_asm(i, f),
+                    "{i} {f:#x}"
+                );
+                assert_eq!(int_80(i), int_80_asm(i), "{i}");
+                let v = if r.below(2) == 0 {
+                    f64::from(r.int())
+                } else {
+                    f64::from(f32::from_bits(r.float())) * f64::from(f32::from_bits(r.float()))
+                };
+                let t = f80(X(v));
+                let (want, got) = (float_of_80_asm(t), float_of_80(t));
+                assert!(same_bits(want, got), "{v}: {want:#x} {got:#x}");
+            }
+        });
+    }
+
+    #[test]
+    fn project_vertex_matches() {
+        let _l = lock();
+        let _saved = Saved::new(&[0x62400C, 0x5CCD80, 0x624088, 0x6240A0, 0x62409C, 0x60932C]);
+        let mut r = Rng(4);
+        at_each_control_word(|| {
+            for n in 0..20000 {
+                let flat = n % 2 == 0;
+                unsafe {
+                    game_write(rva(0x60932C), flat as u32);
+                    game_write(rva(0x5CCD80), r.int() as u32);
+                    game_write(rva(0x624088), r.float());
+                    game_write(rva(0x6240A0), r.float());
+                    game_write(rva(0x62409C), r.float());
+                    game_write(rva(0x62400C), 0xAAAA_AAAAu32);
+                }
+                let mut a = [0xAAAA_AAAAu32; 8];
+                for q in a.iter_mut().skip(4).take(3) {
+                    *q = r.float();
+                }
+                let mut b = a;
+                unsafe { project_vertex_asm(a.as_mut_ptr() as u32, flat) };
+                let kept = unsafe { game_read::<u32>(rva(0x62400C)) };
+                unsafe { game_write(rva(0x62400C), 0xAAAA_AAAAu32) };
+                unsafe { project_vertex(b.as_mut_ptr() as u32) };
+                let now = unsafe { game_read::<u32>(rva(0x62400C)) };
+                for k in 0..8 {
+                    assert!(
+                        same_bits(a[k], b[k]),
+                        "flat {flat} word {k}: {:#x} {:#x} from {a:x?}",
+                        a[k],
+                        b[k]
+                    );
+                }
+                assert!(same_bits(kept, now), "depth store {kept:#x} {now:#x}");
+            }
+        });
     }
 }

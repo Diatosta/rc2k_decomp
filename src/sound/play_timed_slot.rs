@@ -20,7 +20,6 @@
 use crate::errors::{BadInput, Refused};
 use crate::sound::sample_duration::sample_duration;
 use crate::sound::sample_settings::sample_settings;
-use crate::sound::turn_parts::CLOCK;
 
 // ---- Rust version ----
 
@@ -40,7 +39,7 @@ pub fn play_timed_slot(slot: u32, request: u32) -> Result<(), Refused> {
         volume: w[4],
         rate: w[5],
     };
-    let clock: u32 = unsafe { crate::store::game_read(CLOCK) };
+    let clock = crate::sound::store::RACE_CLOCK.last.get();
     let turn = slot_turn(&mut s, clock, sample_settings, sample_duration)?;
     unsafe { slot.write_unaligned([s.sound, s.start, s.playing, s.ends, s.volume, s.rate]) };
     match turn {

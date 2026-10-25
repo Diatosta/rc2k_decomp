@@ -25,12 +25,9 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::input::request_device_release::request_device_release;
-use crate::input::request_device_setup::{DEVICES_RVA, request_device_setup};
-use crate::input::store::DeviceSlot;
+use crate::input::request_device_setup::request_device_setup;
+use crate::input::store::DEVICES;
 use crate::menu::player_settings::current;
-use crate::store::game_read;
-
-pub const COUNT_RVA: DeviceSlot = DeviceSlot::at(0x4F78E0); // dword_4F78E0: the listed controllers
 
 fn f(p: u32, o: u32) -> u32 {
     unsafe { (p.wrapping_add(o) as *const u32).read_unaligned() }
@@ -45,13 +42,13 @@ fn player() -> Result<u32, Refused> {
 }
 
 fn count() -> u32 {
-    unsafe { game_read(COUNT_RVA) }
+    DEVICES.controller_count.get()
 }
 
 /// Whether the set-up would ask for the device; refused without a record to ask with.
 fn would_apply(controller: u32) -> Result<bool, Refused> {
     let applies = rc2k_core::menu::steps::listed(controller, count());
-    if applies && unsafe { game_read::<u32>(DEVICES_RVA) } == 0 {
+    if applies && DEVICES.input_devices[0].get() == 0 {
         return Err(BadInput("no first input device record").into());
     }
     Ok(applies)

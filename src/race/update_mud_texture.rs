@@ -22,10 +22,11 @@
 
 use crate::errors::Refused;
 use crate::framework::{game_addr, game_read, game_write, rva};
-use crate::physics::flow::{c0, x87_run};
+use crate::physics::flow::c0;
 use crate::race::muddy_texel::texture_and_mud;
 use crate::race::splash_mud::{LAST_SPLASHED, SPLASHED_RVA, splash_mud};
 use crate::race::throw_mud_texel::{LAST_THROWN, THROWN_RVA, throw_mud_texel};
+use crate::scene::x87_mem::{fild, fistp, fld, fstp};
 
 const FIRST_SLOT_RVA: usize = rva(0x5D1EE8); // g_kindFirstSlots[0x100]
 const FIRST_TEXTURE_RVA: usize = rva(0x5D0EE8); // g_kindFirstTextures[0x100]
@@ -37,14 +38,26 @@ const THROWS_RVA: usize = rva(0x623920); // dword_623920
 const SPLASHES_RVA: usize = rva(0x623924); // dword_623924
 const ZERO_RVA: usize = rva(0x5C5D90); // flt_5C5D90: 0.0
 
+/// `fld dword [f]; fistp dword [t]`.
+fn round_units(f: usize, t: usize) {
+    unsafe { fistp(t as *mut u8, 0, fld(f as *const u8, 0)) }
+}
+
+/// `fld dword [a]; fisub dword [u]; fstp dword [a]`.
+fn subtract_units(a: usize, u: usize) {
+    unsafe {
+        fstp(
+            a as *mut u8,
+            0,
+            fld(a as *const u8, 0) - fild(u as *const u8, 0),
+        )
+    }
+}
+
 /// `fld [from]; fistp [to]`, then `fld zero; fld [to]; fcompp` and, with C0, `fld zero;
 /// fstp [to]`: the units of a float count, negatives 0 (as the original, by bits).
 fn whole_units(from: usize, to: usize) -> i32 {
-    x87_run!(
-        "fld dword ptr [{f}]",
-        "fistp dword ptr [{t}]";
-        f = game_addr(from), t = game_addr(to)
-    );
+    round_units(game_addr(from), game_addr(to));
     let zero: u32 = unsafe { game_read(ZERO_RVA) };
     if c0(unsafe { game_read(to) }, zero) {
         unsafe { game_write(to, zero) };
@@ -54,12 +67,7 @@ fn whole_units(from: usize, to: usize) -> i32 {
 
 /// `fld [at]; fisub [units]; fstp [at]`.
 fn take_units(at: usize, units: usize) {
-    x87_run!(
-        "fld dword ptr [{a}]",
-        "fisub dword ptr [{u}]",
-        "fstp dword ptr [{a}]";
-        a = game_addr(at), u = game_addr(units)
-    );
+    subtract_units(game_addr(at), game_addr(units));
 }
 
 /// The Rust version (see the header).
@@ -125,5 +133,57 @@ pub unsafe fn update_mud_texture() -> Result<(), Refused> {
         }
         crate::d3d::unlock_texture::unlock_texture(game_read(LOCKED_RVA))?;
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod asm_reference {
+    use super::*;
+    use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
+
+    // The original's instructions.
+    reference!(ref_round(f, t) "fld dword ptr [{f}]", "fistp dword ptr [{t}]");
+    reference!(ref_subtract(a, u)
+        "fld dword ptr [{a}]",
+        "fisub dword ptr [{u}]",
+        "fstp dword ptr [{a}]");
+
+    #[test]
+    fn mud_texture_matches_the_assembly() {
+        let blocks = vec![
+            Block {
+                name: "whole_units",
+                operands: vec![
+                    Operand::Buffer {
+                        reads: &[(0, In::F)],
+                        writes: &[],
+                    },
+                    Operand::Buffer {
+                        reads: &[],
+                        writes: &[(0, Out::I)],
+                    },
+                ],
+                ulps: 0,
+                reference: |a| unsafe { ref_round(a[0], a[1]) },
+                plain: |a| round_units(a[0], a[1]),
+            },
+            Block {
+                name: "take_units",
+                operands: vec![
+                    Operand::Buffer {
+                        reads: &[(0, In::F)],
+                        writes: &[(0, Out::F)],
+                    },
+                    Operand::Buffer {
+                        reads: &[(0, In::I)],
+                        writes: &[],
+                    },
+                ],
+                ulps: 0,
+                reference: |a| unsafe { ref_subtract(a[0], a[1]) },
+                plain: |a| subtract_units(a[0], a[1]),
+            },
+        ];
+        sparse(&blocks, 5000, 207);
     }
 }

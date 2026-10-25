@@ -32,10 +32,9 @@ use crate::field;
 use crate::framework::rva;
 use crate::input::devices::{at, put};
 use crate::input::di_harness::{
-    CONTROLLER_COUNT_RVA, DIRECT_INPUT_RVA, DWORD_PROP_RVA, IID_DEVICE2_RVA, JOYSTICK_FORMAT_RVA,
-    NEW_DEVICE2_RVA, RANGE_PROP_RVA, a, entry_of, fatal, g, method, p, slot,
+    IID_DEVICE2_RVA, JOYSTICK_FORMAT_RVA, a, entry_of, fatal, method, slot,
 };
-use crate::input::store::DeviceSlot;
+use crate::input::store::DEVICES;
 use crate::input::types::{
     Controller as C, DiPropDword as W, DiPropHeader, DiPropRange as R, InputDevice as D,
 };
@@ -46,12 +45,6 @@ use rc2k_core::input::acquire::{
 };
 use std::mem::size_of;
 
-const KIND_RVA: DeviceSlot = DeviceSlot::at(0x4F68E0); // dword_4F68E0: the configuration's kind
-const CODE_RVA: DeviceSlot = DeviceSlot::at(0x4F68E4); // dword_4F68E4: its axes' code
-const DEAD_RVA: DeviceSlot = DeviceSlot::at(0x4F68E8); // dword_4F68E8: its dead zone
-const END_RVA: DeviceSlot = DeviceSlot::at(0x4F68EC); // dword_4F68EC: its end zone
-const FLAG_RVA: DeviceSlot = DeviceSlot::at(0x4F68F0); // dword_4F68F0: its +0x1C
-const STRENGTH_RVA: DeviceSlot = DeviceSlot::at(0x4F68F8); // dword_4F68F8: its strength
 // dword_4F68DC .. dword_4F68F8
 
 const JOY_RVA: usize = rva(0x4DA580); // aJoy "JOY:"
@@ -92,12 +85,12 @@ fn settings(record: u32, entry: u32) {
     ];
     let [k, code, strength, dead, end, pick] = fields.map(|f| at(record, f));
     let config = Config {
-        kind: g(KIND_RVA),
-        axis_code: g(CODE_RVA),
-        dead_zone: g(DEAD_RVA),
-        end_zone: g(END_RVA),
-        axis_pick: g(FLAG_RVA),
-        strength: g(STRENGTH_RVA),
+        kind: DEVICES.joy_mode.get(),
+        axis_code: DEVICES.joy_code.get(),
+        dead_zone: DEVICES.joy_dead_zone.get(),
+        end_zone: DEVICES.joy_end_zone.get(),
+        axis_pick: DEVICES.alt_axes_code.get(),
+        strength: DEVICES.ff_gain.get(),
     };
     let s = settings(
         Settings {
@@ -153,7 +146,7 @@ fn properties(record: u32) {
         field!(R, header.object),
         field!(R, header.how),
     );
-    let range = a(RANGE_PROP_RVA);
+    let range = DEVICES.range_property.addr() as u32;
     put(range, field!(R, header.size), size_of::<R>() as u32);
     put(range, field!(R, header.header_size), header);
     put(range, object, 0);
@@ -173,7 +166,7 @@ fn properties(record: u32) {
         put(range, object, axis(record, 0));
         set(DIPROP_RANGE, range);
     }
-    let dword = a(DWORD_PROP_RVA);
+    let dword = DEVICES.dword_property.addr() as u32;
     let start = |data: Option<u32>| {
         put(dword, field!(W, header.size), size_of::<W>() as u32);
         put(dword, field!(W, header.header_size), header);
@@ -214,7 +207,7 @@ pub fn acquire_device(record: u32) -> Result<(), Refused> {
     let entry = entry_of(record);
     match acquire(
         at(record, field!(D, controller)),
-        g(CONTROLLER_COUNT_RVA),
+        DEVICES.controller_count.get(),
         || at(entry, field!(C, attached)),
         || at(record, field!(D, device)),
     ) {
@@ -224,7 +217,7 @@ pub fn acquire_device(record: u32) -> Result<(), Refused> {
     }
     settings(record, entry);
     let hr = method(
-        g(DIRECT_INPUT_RVA),
+        DEVICES.direct_input.get(),
         slot::CREATE_DEVICE,
         &[
             entry + field!(C, instance),
@@ -239,14 +232,14 @@ pub fn acquire_device(record: u32) -> Result<(), Refused> {
     if method(
         device,
         slot::QUERY,
-        &[a(IID_DEVICE2_RVA), a(NEW_DEVICE2_RVA)],
+        &[a(IID_DEVICE2_RVA), DEVICES.new_joystick2.addr() as u32],
     ) != 0
     {
         return Err(fatal(0x8023_8318).into());
     }
     method(device, slot::RELEASE, &[]);
-    put(record, field!(D, device), g(NEW_DEVICE2_RVA));
-    p(NEW_DEVICE2_RVA, 0);
+    put(record, field!(D, device), DEVICES.new_joystick2.get());
+    DEVICES.new_joystick2.set(0);
     let device = at(record, field!(D, device));
     if method(device, slot::SET_DATA_FORMAT, &[a(JOYSTICK_FORMAT_RVA)]) != 0 {
         return Err(fatal(0x8023_8312).into());

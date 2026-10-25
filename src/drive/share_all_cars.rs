@@ -21,13 +21,11 @@ use crate::drive::share_car_state::share_car_state;
 use crate::errors::{BadInput, Refused};
 use crate::framework::rva;
 use crate::race::mud::car_file_number;
-use crate::sound::store::ObjectsSlot;
 use crate::store::{game_read, game_write};
 use rc2k_core::drive::sharing;
 
 const BLOCKS_RVA: usize = rva(0x71B3B8); // g_carBlocks
 const RECORDS_RVA: usize = rva(0x71B3D8); // g_carRecords (was off_71B3D8)
-const SOUNDS_RVA: ObjectsSlot = ObjectsSlot::at(0x512A10); // g_raceSoundObjects
 const CURRENT_RVA: usize = rva(0x71B3F8); // g_currentCar
 const SHOWN_RVA: usize = rva(0x5C5688); // dword_5C5688
 const LEAD_FILE_RVA: usize = rva(0x70F410); // dword_70F410
@@ -37,7 +35,7 @@ fn cars() -> [(u32, u32, u32); 8] {
         (
             game_read(BLOCKS_RVA + 4 * n),
             game_read(RECORDS_RVA + 4 * n),
-            game_read(SOUNDS_RVA + 4 * n),
+            crate::sound::store::RACE_SOUNDS.table[n].get(),
         )
     })
 }

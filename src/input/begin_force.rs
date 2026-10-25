@@ -19,9 +19,8 @@ use crate::errors::Refused;
 use crate::field;
 use crate::framework::rva;
 use crate::input::devices::{at, put};
-use crate::input::di_harness::{
-    DWORD_PROP_RVA, EFFECT_LEN, EFFECTS_AT, a, entry_of, fatal, method, slot,
-};
+use crate::input::di_harness::{EFFECT_LEN, EFFECTS_AT, entry_of, fatal, method, slot};
+use crate::input::store::DEVICES;
 use crate::input::types::{Controller, DiPropDword, DiPropHeader, InputDevice};
 use crate::store::game_addr;
 use rc2k_core::input::acquire::gain;
@@ -33,7 +32,7 @@ const DIPROP_AUTOCENTER: u32 = 9;
 
 /// The `DIPROPDWORD` for the whole device with `data`: its address.
 pub fn dword_property(data: u32) -> u32 {
-    let prop = a(DWORD_PROP_RVA);
+    let prop = DEVICES.dword_property.addr() as u32;
     put(
         prop,
         field!(DiPropDword, header.size),

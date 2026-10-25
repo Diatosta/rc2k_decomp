@@ -9,7 +9,9 @@
 //! checkpoint's (`dword_9ED808`) into `dword_614D00`; CF when the angle is not below the
 //! checkpoint's less a quarter turn (by the sign).
 //!
-//! The x87 runs (with the integer steps between) are the original's instructions.
+//! The x87 runs (with the integer steps between) are the arithmetic of the original's
+//! instructions, in plain Rust over `X` (`math/x87_float.rs`); the instructions are
+//! `asm_reference` in the tests.
 //!
 //! In:  nothing
 //! Out: CF; eax, ebx, ecx, esi as left; no other flag read (the caller `jnb`s)
@@ -23,6 +25,7 @@
 
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::framework::{game_read, game_write, rva};
+use crate::scene::x87_mem::{fild, fistp, fld, fstp, mov};
 use rc2k_core::physics::progress;
 use std::cmp::Ordering;
 
@@ -36,28 +39,26 @@ fn p(x: usize, v: u32) {
 
 /// 0x4416EC .. 0x441727: the distance to the point at `point`.
 unsafe fn distance(point: u32) {
+    distance_at(crate::race::store::asm_base() as usize, point as usize);
+}
+
+/// The distance over the race core at `rc` and the point at `s`: the whole-number gaps
+/// (+0x239824 and +0x23982C less the point's x and z; the last one is left in the scratch
+/// dword +0x22400C), their squares added, `fsqrt`, x `flt_5C5DA0`, into +0x214D04.
+fn distance_at(rc: usize, s: usize) {
     unsafe {
-        core::arch::asm!(
-            "mov eax, [{s}]",
-            "sub eax, [{rc} + 0x239824]",
-            "mov [{rc} + 0x22400C], eax",
-            "fild dword ptr [{rc} + 0x22400C]",
-            ".byte 0xD8, 0xC8", // fmul st, st
-            "mov eax, [{s} + 8]",
-            "sub eax, [{rc} + 0x23982C]",
-            "mov [{rc} + 0x22400C], eax",
-            "fild dword ptr [{rc} + 0x22400C]",
-            ".byte 0xD8, 0xC8",
-            ".byte 0xDE, 0xC1", // faddp st(1), st
-            ".byte 0xD9, 0xFA", // fsqrt
-            "fmul dword ptr [{rc} + 0x1C5DA0]",
-            "fstp dword ptr [{rc} + 0x214D04]",
-            rc = in(reg) crate::race::store::asm_base(),
-            s = in(reg) point,
-            out("eax") _,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
+        let (rc, s) = (rc as *mut u8, s as *const u8);
+        let word = |p: *const u8| p.cast::<i32>().read_unaligned();
+        let dx = word(s).wrapping_sub(word(rc.add(0x239824)));
+        mov(rc, 0x22400C, dx as u32);
+        let first = fild(rc, 0x22400C);
+        let dz = word(s.add(8)).wrapping_sub(word(rc.add(0x23982C)));
+        mov(rc, 0x22400C, dz as u32);
+        let second = fild(rc, 0x22400C);
+        fstp(
+            rc,
+            0x214D04,
+            (first * first + second * second).sqrt() * fld(rc, 0x1C5DA0),
         );
     }
 }
@@ -65,30 +66,26 @@ unsafe fn distance(point: u32) {
 /// 0x441770 .. 0x4417AD: the angle from the point at `point` to the car, into
 /// `dword_62400C` (`fistp`, then the low 16 bits).
 unsafe fn angle(point: u32) {
+    angle_at(crate::race::store::asm_base() as usize, point as usize);
+}
+
+/// The angle over the race core at `rc` and the point at `s`: the gaps (the car's x and z less
+/// the point's, through the scratch dword +0x22400C), `fpatan`, over pi, x `flt_5C5E40` x
+/// `flt_5C5D98`, `fistp` into the scratch, its low 16 bits.
+fn angle_at(rc: usize, s: usize) {
     unsafe {
-        core::arch::asm!(
-            "mov eax, [{rc} + 0x239824]",
-            "sub eax, [{s}]",
-            "mov [{rc} + 0x22400C], eax",
-            "fild dword ptr [{rc} + 0x22400C]",
-            "mov eax, [{rc} + 0x23982C]",
-            "sub eax, [{s} + 8]",
-            "mov [{rc} + 0x22400C], eax",
-            "fild dword ptr [{rc} + 0x22400C]",
-            ".byte 0xD9, 0xF3", // fpatan
-            ".byte 0xD9, 0xEB", // fldpi
-            ".byte 0xDE, 0xF9", // fdivp st(1), st
-            "fmul dword ptr [{rc} + 0x1C5E40]",
-            "fmul dword ptr [{rc} + 0x1C5D98]",
-            "fistp dword ptr [{rc} + 0x22400C]",
-            "and dword ptr [{rc} + 0x22400C], 0xFFFF",
-            rc = in(reg) crate::race::store::asm_base(),
-            s = in(reg) point,
-            out("eax") _,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-        );
+        let (rc, s) = (rc as *mut u8, s as *const u8);
+        let word = |p: *const u8| p.cast::<i32>().read_unaligned();
+        let dx = word(rc.add(0x239824)).wrapping_sub(word(s));
+        mov(rc, 0x22400C, dx as u32);
+        let y = fild(rc, 0x22400C);
+        let dz = word(rc.add(0x23982C)).wrapping_sub(word(s.add(8)));
+        mov(rc, 0x22400C, dz as u32);
+        let x = fild(rc, 0x22400C);
+        let turns = y.atan2_over_pi(x) * fld(rc, 0x1C5E40) * fld(rc, 0x1C5D98);
+        fistp(rc, 0x22400C, turns);
+        let low = rc.add(0x22400C).cast::<u32>();
+        low.write_unaligned(low.read_unaligned() & 0xFFFF);
     }
 }
 
@@ -139,4 +136,89 @@ pub unsafe fn passed_split_point() -> Result<bool, Refused> {
     p(0x614D00, heading);
     let (carry, _) = progress::passed_point(eax, heading);
     Ok(carry)
+}
+
+#[cfg(test)]
+mod asm_reference {
+    use super::*;
+    use crate::scene::asm_test::{Block, In, Operand, Out, reference_eax, sparse};
+
+    reference_eax!(distance_ref(rc, s)
+        "mov eax, [{s}]",
+        "sub eax, [{rc} + 0x239824]",
+        "mov [{rc} + 0x22400C], eax",
+        "fild dword ptr [{rc} + 0x22400C]",
+        ".byte 0xD8, 0xC8",
+        "mov eax, [{s} + 8]",
+        "sub eax, [{rc} + 0x23982C]",
+        "mov [{rc} + 0x22400C], eax",
+        "fild dword ptr [{rc} + 0x22400C]",
+        ".byte 0xD8, 0xC8",
+        ".byte 0xDE, 0xC1",
+        ".byte 0xD9, 0xFA",
+        "fmul dword ptr [{rc} + 0x1C5DA0]",
+        "fstp dword ptr [{rc} + 0x214D04]"
+    );
+
+    reference_eax!(angle_ref(rc, s)
+        "mov eax, [{rc} + 0x239824]",
+        "sub eax, [{s}]",
+        "mov [{rc} + 0x22400C], eax",
+        "fild dword ptr [{rc} + 0x22400C]",
+        "mov eax, [{rc} + 0x23982C]",
+        "sub eax, [{s} + 8]",
+        "mov [{rc} + 0x22400C], eax",
+        "fild dword ptr [{rc} + 0x22400C]",
+        ".byte 0xD9, 0xF3",
+        ".byte 0xD9, 0xEB",
+        ".byte 0xDE, 0xF9",
+        "fmul dword ptr [{rc} + 0x1C5E40]",
+        "fmul dword ptr [{rc} + 0x1C5D98]",
+        "fistp dword ptr [{rc} + 0x22400C]",
+        "and dword ptr [{rc} + 0x22400C], 0xFFFF"
+    );
+
+    #[test]
+    fn distance_and_angle_match_the_assembly() {
+        let blocks = vec![
+            Block {
+                name: "passed_split_point distance",
+                operands: vec![
+                    Operand::Buffer {
+                        reads: &[(0x239824, In::I), (0x23982C, In::I), (0x1C5DA0, In::F)],
+                        writes: &[(0x22400C, Out::I), (0x214D04, Out::F)],
+                    },
+                    Operand::Buffer {
+                        reads: &[(0, In::I), (8, In::I)],
+                        writes: &[],
+                    },
+                ],
+                ulps: 0,
+                reference: |a| unsafe { distance_ref(a[0], a[1]) },
+                plain: |a| distance_at(a[0], a[1]),
+            },
+            Block {
+                name: "passed_split_point angle",
+                operands: vec![
+                    Operand::Buffer {
+                        reads: &[
+                            (0x239824, In::I),
+                            (0x23982C, In::I),
+                            (0x1C5E40, In::F),
+                            (0x1C5D98, In::F),
+                        ],
+                        writes: &[(0x22400C, Out::I)],
+                    },
+                    Operand::Buffer {
+                        reads: &[(0, In::I), (8, In::I)],
+                        writes: &[],
+                    },
+                ],
+                ulps: 0,
+                reference: |a| unsafe { angle_ref(a[0], a[1]) },
+                plain: |a| angle_at(a[0], a[1]),
+            },
+        ];
+        sparse(&blocks, 6000, 202);
+    }
 }

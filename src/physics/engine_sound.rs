@@ -6,7 +6,9 @@
 //! `sar`), held to 2000 ..= 12000 (by the sign); then `physics::car_sound_state` and
 //! `physics::gear_change_sound`.
 //!
-//! The x87 runs are the original's instructions over the game's variables (from IDA).
+//! The x87 run is the arithmetic of the original's instructions over the game's variables
+//! (from IDA), in plain Rust over `X` (`math/x87_float.rs`); the instructions are
+//! `asm_reference` in the tests.
 //!
 //! In:  nothing
 //! Out: eax the gap's step, edi the sound object (`gear_change_sound`); no flags read
@@ -21,6 +23,7 @@ use crate::math::x87_run::ext_to_int;
 use crate::physics::car_sound_state::car_sound_state;
 use crate::physics::gear_change_sound::gear_change_sound;
 use crate::scene::matrix3::extended;
+use crate::scene::x87_mem::{fistp, fld, fstp};
 use rc2k_core::physics::engine::ease_revs;
 use rc2k_core::physics::x87::hold_low;
 
@@ -32,35 +35,29 @@ fn p(x: usize, v: u32) {
     unsafe { game_write(rva(x), v) }
 }
 
-/// 0x43DC72 .. 0x43DCC6, as the original (its `test` / `jz` in the block).
+/// 0x43DC72 .. 0x43DCC6: the speed figures (the original's `test` / `jz` is the `if`).
 unsafe fn run() {
+    run_at(crate::race::store::asm_base() as usize);
+}
+
+/// The run over the race core's variables at `rc` (the dwords at their offsets from the base):
+/// +0x31AEE0 the speed x `flt_5C5D00`; +0x31AA88 that (x `flt_5C5E08` with bit 8 of
+/// +0x31A1F8) as a whole number; +0x31A26C the length of the motion (+0x31A170 ..) x
+/// `flt_5C5D00`, the squares added as the original adds them (z, then x and y).
+fn run_at(rc: usize) {
     unsafe {
-        core::arch::asm!(
-            "fld dword ptr [{rc} + 0x31A184]",
-            "fmul dword ptr [{rc} + 0x1C5D00]",
-            "fstp dword ptr [{rc} + 0x31AEE0]",
-            "fld dword ptr [{rc} + 0x31AEE0]",
-            "test dword ptr [{rc} + 0x31A1F8], 0x100",
-            "jz 2f",
-            "fmul dword ptr [{rc} + 0x1C5E08]",
-            "2:",
-            "fistp dword ptr [{rc} + 0x31AA88]",
-            "fld dword ptr [{rc} + 0x31A178]",
-            ".byte 0xD8, 0xC8", // fmul st, st
-            "fld dword ptr [{rc} + 0x31A170]",
-            ".byte 0xD8, 0xC8",
-            "fld dword ptr [{rc} + 0x31A174]",
-            ".byte 0xD8, 0xC8",
-            ".byte 0xDE, 0xC1", // faddp st(1), st
-            ".byte 0xDE, 0xC1",
-            ".byte 0xD9, 0xFA", // fsqrt
-            "fmul dword ptr [{rc} + 0x1C5D00]",
-            "fstp dword ptr [{rc} + 0x31A26C]",
-            rc = in(reg) crate::race::store::asm_base(),
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-        );
+        let rc = rc as *mut u8;
+        fstp(rc, 0x31AEE0, fld(rc, 0x31A184) * fld(rc, 0x1C5D00));
+        let speed = fld(rc, 0x31AEE0);
+        let scaled = if rc.add(0x31A1F8).cast::<u32>().read_unaligned() & 0x100 != 0 {
+            speed * fld(rc, 0x1C5E08)
+        } else {
+            speed
+        };
+        fistp(rc, 0x31AA88, scaled);
+        let (z, x, y) = (fld(rc, 0x31A178), fld(rc, 0x31A170), fld(rc, 0x31A174));
+        let sum = z * z + (x * x + y * y);
+        fstp(rc, 0x31A26C, sum.sqrt() * fld(rc, 0x1C5D00));
     }
 }
 
@@ -68,7 +65,7 @@ unsafe fn run() {
 // Converted: `rc2k_core::physics::engine::ease_revs` and `x87::hold_low` (the speed figures
 // and the rounding stay x87).
 pub unsafe fn engine_sound() -> Result<(), Refused> {
-    let o = g(crate::sound::store::ObjectsSlot::at(0x512A10) + 4 * (g(0x71B3F8) & 7) as usize);
+    let o = crate::sound::store::RACE_SOUNDS.table[(g(0x71B3F8) & 7) as usize].get();
     if o == 0 {
         return Err(crate::errors::BadInput("a null sound object").into());
     }
@@ -85,4 +82,56 @@ pub unsafe fn engine_sound() -> Result<(), Refused> {
     p(0x71A1BC, revs);
     unsafe { car_sound_state() }?;
     unsafe { gear_change_sound() }
+}
+
+#[cfg(test)]
+mod asm_reference {
+    use super::*;
+    use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
+
+    reference!(ref_0(rc)
+        "fld dword ptr [{rc} + 0x31A184]",
+        "fmul dword ptr [{rc} + 0x1C5D00]",
+        "fstp dword ptr [{rc} + 0x31AEE0]",
+        "fld dword ptr [{rc} + 0x31AEE0]",
+        "test dword ptr [{rc} + 0x31A1F8], 0x100",
+        "jz 2f",
+        "fmul dword ptr [{rc} + 0x1C5E08]",
+        "2:",
+        "fistp dword ptr [{rc} + 0x31AA88]",
+        "fld dword ptr [{rc} + 0x31A178]",
+        ".byte 0xD8, 0xC8",
+        "fld dword ptr [{rc} + 0x31A170]",
+        ".byte 0xD8, 0xC8",
+        "fld dword ptr [{rc} + 0x31A174]",
+        ".byte 0xD8, 0xC8",
+        ".byte 0xDE, 0xC1",
+        ".byte 0xDE, 0xC1",
+        ".byte 0xD9, 0xFA",
+        "fmul dword ptr [{rc} + 0x1C5D00]",
+        "fstp dword ptr [{rc} + 0x31A26C]"
+    );
+
+    #[test]
+    fn run_matches_the_assembly() {
+        let blocks = vec![Block {
+            name: "engine_sound run",
+            operands: vec![Operand::Buffer {
+                reads: &[
+                    (0x31A184, In::F),
+                    (0x1C5D00, In::F),
+                    (0x1C5E08, In::F),
+                    (0x31A1F8, In::I),
+                    (0x31A178, In::F),
+                    (0x31A170, In::F),
+                    (0x31A174, In::F),
+                ],
+                writes: &[(0x31AEE0, Out::F), (0x31AA88, Out::I), (0x31A26C, Out::F)],
+            }],
+            ulps: 0,
+            reference: |a| unsafe { ref_0(a[0]) },
+            plain: |a| run_at(a[0]),
+        }];
+        sparse(&blocks, 4000, 200);
+    }
 }

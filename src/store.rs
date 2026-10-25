@@ -298,6 +298,7 @@ macro_rules! block {
 
                 #[test]
                 fn first_values_are_the_games() {
+                    let _g = $crate::store::test_lock();
                     // Read in place: a copy of the block would not fit the test thread's stack.
                     let all = unsafe { &(&(*STORE.ptr()).0)[..] };
                     let image = $crate::moved::image_bytes(START, LEN);
@@ -309,4 +310,12 @@ macro_rules! block {
             }
         }
     };
+}
+
+/// The lock every test holds that writes the game's statics (and restores them), or reads
+/// their first values: tests run in parallel threads.
+#[cfg(test)]
+pub fn test_lock() -> std::sync::MutexGuard<'static, ()> {
+    static LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+    LOCK.lock().unwrap_or_else(|e| e.into_inner())
 }

@@ -96,7 +96,7 @@ impl MusicVars {
             next_tune: a(NEXT_TUNE_RVA),
             no_music: a(NO_MUSIC_RVA),
             path: a(MUSIC_PATH_RVA),
-            turn: a(TUNE_TURN_RVA),
+            turn: crate::sound::store::SOUND_EFFECTS.tune_turn.addr() as u32,
         }
     }
 }

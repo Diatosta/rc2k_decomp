@@ -24,10 +24,11 @@ use crate::errors::Refused;
 use crate::math::turn_float_point_xz::turn_float_point_xz;
 use crate::math::x87::mul;
 use crate::physics::contact_force::{RECORD, contact_force};
-use crate::physics::flow::{a, copy3, g, p, x87_run};
+use crate::physics::flow::{a, copy3, g, p};
 use crate::physics::scene_point_hits_car::SCENE_POINTS;
 use crate::physics::touch_face::FACES;
 use crate::physics::wall_contacts::WALL_RECORD;
+use crate::scene::x87_mem::{fild, fistp, fld};
 use rc2k_core::physics::walls;
 
 fn rd(x: u32) -> u32 {
@@ -49,15 +50,7 @@ pub fn edge_normal(first: u32, second: u32) -> [u32; 4] {
     let dx = g(0x6141B4).wrapping_sub(g(0x6141AC));
     let dz = g(0x6141B8).wrapping_sub(g(0x6141B0));
     let d = [dx, dz];
-    x87_run!(
-        "fild dword ptr [{d}]",
-        "fild dword ptr [{d} + 4]",
-        ".byte 0xD9, 0xF3", // fpatan
-        "fmul dword ptr [{rc} + 0x1C5DD4]",
-        "fmul dword ptr [{rc} + 0x1C5D98]",
-        "fistp dword ptr [{rc} + 0x22400C]";
-        d = d.as_ptr(), rc = crate::race::store::asm_base()
-    );
+    x87_1(d.as_ptr() as usize, crate::race::store::asm_base() as usize);
     p(0x62400C, g(0x62400C) & 0xFFFF);
     let heading = (g(0x62400C) << 16).wrapping_add(0x4000_0000);
     p(0x6141C8, heading);
@@ -97,4 +90,57 @@ pub fn steps() -> Result<(), Refused> {
     unsafe { contact_force() };
     unsafe { crate::physics::place_sound_e1::place_sound_e1() }?;
     Ok(())
+}
+
+// ---- the arithmetic that was x87 assembly ----
+
+/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
+/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `int [rc + 0x22400C] = (atan2(int [d + 0], int [d + 4]) * [rc + 0x1C5DD4]) * [rc + 0x1C5D98]`
+fn x87_1(d: usize, rc: usize) {
+    unsafe {
+        let d = d as *const u8;
+        let rc = rc as *mut u8;
+        let t0 = fild(d, 0);
+        let t1 = fild(d, 4);
+        let t2 = t0.atan2(t1);
+        let t3 = fld(rc, 0x1C5DD4);
+        let t4 = t2 * t3;
+        let t5 = fld(rc, 0x1C5D98);
+        let t6 = t4 * t5;
+        fistp(rc, 0x22400C, t6);
+    }
+}
+
+#[cfg(test)]
+mod asm_reference {
+    use super::*;
+    use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
+
+    // The original's instructions, one function per run.
+    reference!(ref_0(d, rc) "fild dword ptr [{d}]", "fild dword ptr [{d} + 4]", ".byte 0xD9, 0xF3", "fmul dword ptr [{rc} + 0x1C5DD4]", "fmul dword ptr [{rc} + 0x1C5D98]", "fistp dword ptr [{rc} + 0x22400C]");
+
+    fn blocks() -> Vec<Block> {
+        vec![Block {
+            name: "wall_edge_contact line 52",
+            operands: vec![
+                Operand::Buffer {
+                    reads: &[(0, In::I), (4, In::I)],
+                    writes: &[],
+                },
+                Operand::Buffer {
+                    reads: &[(0x1C5D98, In::F), (0x1C5DD4, In::F)],
+                    writes: &[(0x22400C, Out::I)],
+                },
+            ],
+            ulps: 0,
+            reference: |a| unsafe { ref_0(a[0], a[1]) },
+            plain: |a| x87_1(a[0], a[1]),
+        }]
+    }
+
+    #[test]
+    fn x87_blocks_matches_the_assembly() {
+        sparse(&blocks(), 1200, 100);
+    }
 }

@@ -72,7 +72,7 @@ impl Vars {
         vars[2] = FLAGS.window_active.as_ptr();
         vars[3] = CLOCKS.key_ticks.as_ptr();
         vars[4] = FLAGS.f38c.as_ptr();
-        vars[5] = crate::sound::store::EffectsSlot::at(0x518080).address() as *mut u32;
+        vars[5] = crate::sound::store::SOUND_EFFECTS.settings_applied.as_ptr();
         Self(vars)
     }
 

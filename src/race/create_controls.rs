@@ -6,11 +6,8 @@
 //!
 //! One caller, `race::load_stage`.
 
-use crate::input::store::DeviceSlot;
-use crate::store::game_write;
-
-const CONTROLS_RVA: DeviceSlot = DeviceSlot::at(0x4F7DE4); // dword_4F7DE4
+use crate::input::store::DEVICES;
 
 pub fn create_controls() {
-    unsafe { game_write(CONTROLS_RVA, 3u32) };
+    DEVICES.input_command.set(3); // g_inputCommand
 }

@@ -1,376 +1,204 @@
 //! More x87 helpers (see `math/x87.rs`), kept apart so that work on the race's loading does not
 //! edit the shared file.
+//!
+//! Plain Rust since phase 6 (2026-10-24): what the x87 holds on its stack is an `X` (an
+//! `f64` that rounds as the control word says, `x87_float.rs`), what it stores as a dword
+//! float `st`, `fild` is `int`, `fistp` / `fist` `to_int`. The order of the operations is
+//! the original's. The assembly versions are the reference the tests compare with
+//! (`x87_reference_c.rs`).
 
-#[allow(unused_imports)] // used as helpers are added
-use crate::math::x87::x87;
+use crate::math::x87_float::{X, compare, f80, from_f80, int, ld, st, to_int};
 
-/// `fild a; fimul b; fdiv c; fistp`: a whole number times a whole number over a float,
-/// rounded once at the end as the x87 is set to round.
+/// `(a * b) / c`, rounded once at the end as the x87 is set to round
+/// (`fild a; fimul b; fdiv c; fistp`): a whole number times a whole number over a float.
 pub fn int_times_int_over_to_int(a: i32, b: i32, c: u32) -> i32 {
-    let (v, mut out) = ([a as u32, b as u32, c], 0i32);
-    x87!(
-        "fild dword ptr [{v}]",
-        "fimul dword ptr [{v} + 4]",
-        "fdiv dword ptr [{v} + 8]",
-        "fistp dword ptr [{o}]";
-        v = v.as_ptr(), o = &raw mut out
-    );
-    out
+    to_int(int(a) * int(b) / ld(c))
 }
 
-/// `fld a; fabs; fistp`: the size of a float as a whole number.
+/// `|a|` as a whole number (`fld a; fabs; fistp`): the size of a float.
 pub fn abs_to_int(a: u32) -> i32 {
-    let (v, mut out) = ([a], 0i32);
-    x87!(
-        "fld dword ptr [{v}]",
-        "fabs",
-        "fistp dword ptr [{o}]";
-        v = v.as_ptr(), o = &raw mut out
-    );
-    out
+    to_int(ld(a).abs())
 }
 
-/// `fld a; fadd b; fistp`: the sum of two floats as a whole number.
+/// `a + b` as a whole number (`fld a; fadd b; fistp`): the sum of two floats.
 pub fn add_to_int(a: u32, b: u32) -> i32 {
-    let (v, mut out) = ([a, b], 0i32);
-    x87!(
-        "fld dword ptr [{v}]",
-        "fadd dword ptr [{v} + 4]",
-        "fistp dword ptr [{o}]";
-        v = v.as_ptr(), o = &raw mut out
-    );
-    out
+    to_int(ld(a) + ld(b))
 }
 
-/// `fld a; fmul st, st; fld b; fmul st, st; faddp; fsqrt; fstp`: the length of two floats
-/// at right angles.
+/// `sqrt(a a + b b)` as a float (`fld a; fmul st, st; fld b; fmul st, st; faddp; fsqrt;
+/// fstp`): the length of two floats at right angles.
 pub fn float_hypot(a: u32, b: u32) -> u32 {
-    let (v, mut out) = ([a, b], 0u32);
-    x87!(
-        "fld dword ptr [{v}]",
-        "fmul st, st",
-        "fld dword ptr [{v} + 4]",
-        "fmul st, st",
-        "faddp st(1), st",
-        "fsqrt",
-        "fstp dword ptr [{o}]";
-        v = v.as_ptr(), o = &raw mut out
-    );
-    out
+    let a2 = ld(a) * ld(a);
+    let b2 = ld(b) * ld(b);
+    st((a2 + b2).sqrt())
 }
 
-/// `fld a; fcomp b; fnstsw ax`, C0: a below b, or one is no number (`shr ah, 1; jb`).
+/// C0 of `fld a; fcomp b; fnstsw ax` (`shr ah, 1; jb`): a below b, or one is no number.
 pub fn below_or_unordered(a: u32, b: u32) -> bool {
-    let v = [a, b];
-    let status: u16;
-    unsafe {
-        core::arch::asm!(
-            "fld dword ptr [{v}]",
-            "fcomp dword ptr [{v} + 4]",
-            "fnstsw ax",
-            v = in(reg) v.as_ptr(),
-            out("ax") status,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-        );
-    }
-    status & 0x0100 != 0
+    compare(ld(a), ld(b)) & 0x0100 != 0
 }
 
-/// `fld a; fmul h; fabs; fsub k; fcomp b; fnstsw ax`, C0: |a h| - k below b (kept in the
-/// x87's precision), or one is no number.
+/// C0 of `fld a; fmul h; fabs; fsub k; fcomp b`: |a h| - k below b (kept at the x87's
+/// precision), or one is no number.
 pub fn scaled_abs_less_below(a: u32, h: u32, k: u32, b: u32) -> bool {
-    let v = [a, h, k, b];
-    let status: u16;
+    let x = (ld(a) * ld(h)).abs() - ld(k);
+    compare(x, ld(b)) & 0x0100 != 0
+}
+
+/// The point (three whole numbers) through `matrix` (16 floats; the 12 used are the
+/// columns' at 0, 4, 8 / 0x10, 0x14, 0x18 / 0x20, 0x24, 0x28 and the translation at 0x30,
+/// 0x34, 0x38), as the original adds them: m0 x + (m4 y + m8 z) and so on, then the
+/// translation. Left at double precision.
+unsafe fn rotated(point: *const i32, matrix: *const u32) -> [X; 3] {
     unsafe {
-        core::arch::asm!(
-            "fld dword ptr [{v}]",
-            "fmul dword ptr [{v} + 4]",
-            "fabs",
-            "fsub dword ptr [{v} + 8]",
-            "fcomp dword ptr [{v} + 12]",
-            "fnstsw ax",
-            v = in(reg) v.as_ptr(),
-            out("ax") status,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
+        let (x, y, z) = (
+            int(point.read_unaligned()),
+            int(point.add(1).read_unaligned()),
+            int(point.add(2).read_unaligned()),
         );
+        let m = |i: usize| ld(matrix.add(i).read_unaligned());
+        let s0 = m(0) * x + (m(4) * y + m(8) * z) + m(12);
+        let s1 = m(1) * x + (m(5) * y + m(9) * z) + m(13);
+        let s2 = x * m(2) + (y * m(6) + z * m(10)) + m(14);
+        [s0, s1, s2]
     }
-    status & 0x0100 != 0
 }
 
 /// `scene::project_point::rotate` with its third store a `fistp`: the point (three whole
 /// numbers) through `matrix`, x and y stored as floats at `out[0]`, `out[1]`, z rounded
 /// into `out[2]` from the x87's precision (`sub_4573FA`).
 pub unsafe fn rotate_rounding_z(point: *const i32, matrix: *const u32, out: *mut u32) {
-    x87!(
-        "fild dword ptr [{p} + 8]", "fild dword ptr [{p} + 4]", "fild dword ptr [{p}]",
-        "fld dword ptr [{m}]", "fmul st(0), st(1)",
-        "fld dword ptr [{m} + 0x10]", "fmul st(0), st(3)",
-        "fld dword ptr [{m} + 0x20]", "fmul st(0), st(5)",
-        "faddp st(1), st(0)", "faddp st(1), st(0)",
-        "fadd dword ptr [{m} + 0x30]", "fxch st(3)",
-        "fld dword ptr [{m} + 4]", "fmul st(0), st(2)",
-        "fld dword ptr [{m} + 0x14]", "fmul st(0), st(4)",
-        "fld dword ptr [{m} + 0x24]", "fmul st(0), st(3)",
-        "faddp st(1), st(0)", "faddp st(1), st(0)",
-        "fadd dword ptr [{m} + 0x34]", "fxch st(3)",
-        "fld dword ptr [{m} + 8]", "fmulp st(3), st(0)",
-        "fld dword ptr [{m} + 0x18]", "fmulp st(1), st(0)",
-        "fld dword ptr [{m} + 0x28]", "fmulp st(2), st(0)",
-        "faddp st(1), st(0)", "faddp st(1), st(0)",
-        "fadd dword ptr [{m} + 0x38]", "fxch st(2)",
-        "fstp dword ptr [{o}]", "fstp dword ptr [{o} + 4]",
-        "fistp dword ptr [{o} + 8]";
-        p = point, m = matrix, o = out
-    );
-}
-
-/// `fild a; fmul st, st; fild b; fmul st, st; faddp; fstp`: the sum of two whole numbers'
-/// squares, as a float.
-pub fn int_square_sum(a: i32, b: i32) -> u32 {
-    let (v, mut out) = ([a as u32, b as u32], 0u32);
-    x87!(
-        "fild dword ptr [{v}]",
-        "fmul st, st",
-        "fild dword ptr [{v} + 4]",
-        "fmul st, st",
-        "faddp st(1), st",
-        "fstp dword ptr [{o}]";
-        v = v.as_ptr(), o = &raw mut out
-    );
-    out
-}
-
-/// `fld a; fmul st, st; fld b; fmul st, st; faddp; fstp`: the sum of two floats' squares.
-pub fn float_square_sum(a: u32, b: u32) -> u32 {
-    let (v, mut out) = ([a, b], 0u32);
-    x87!(
-        "fld dword ptr [{v}]",
-        "fmul st, st",
-        "fld dword ptr [{v} + 4]",
-        "fmul st, st",
-        "faddp st(1), st",
-        "fstp dword ptr [{o}]";
-        v = v.as_ptr(), o = &raw mut out
-    );
-    out
-}
-
-/// `fld a; fmul b; fmul c; fstp`: three floats' product, rounded once.
-pub fn product3(a: u32, b: u32, c: u32) -> u32 {
-    let (v, mut out) = ([a, b, c], 0u32);
-    x87!(
-        "fld dword ptr [{v}]",
-        "fmul dword ptr [{v} + 4]",
-        "fmul dword ptr [{v} + 8]",
-        "fstp dword ptr [{o}]";
-        v = v.as_ptr(), o = &raw mut out
-    );
-    out
-}
-
-/// `fild a; fdiv b; fstp`: a whole number over a float.
-pub fn int_over_float(a: i32, b: u32) -> u32 {
-    let (v, mut out) = ([a as u32, b], 0u32);
-    x87!(
-        "fild dword ptr [{v}]",
-        "fdiv dword ptr [{v} + 4]",
-        "fstp dword ptr [{o}]";
-        v = v.as_ptr(), o = &raw mut out
-    );
-    out
-}
-
-/// `fild a; fadd b; fmul c; fstp`: (a whole number plus a float) times a float.
-pub fn int_plus_times(a: i32, b: u32, c: u32) -> u32 {
-    let (v, mut out) = ([a as u32, b, c], 0u32);
-    x87!(
-        "fild dword ptr [{v}]",
-        "fadd dword ptr [{v} + 4]",
-        "fmul dword ptr [{v} + 8]",
-        "fstp dword ptr [{o}]";
-        v = v.as_ptr(), o = &raw mut out
-    );
-    out
-}
-
-/// `fld a; fabs; fcomp k; fnstsw ax`, C0: |a| below k, or one is no number.
-pub fn abs_below_or_unordered(a: u32, k: u32) -> bool {
-    let v = [a, k];
-    let status: u16;
     unsafe {
-        core::arch::asm!(
-            "fld dword ptr [{v}]",
-            "fabs",
-            "fcomp dword ptr [{v} + 4]",
-            "fnstsw ax",
-            v = in(reg) v.as_ptr(),
-            out("ax") status,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-        );
+        let s = rotated(point, matrix);
+        out.write_unaligned(st(s[0]));
+        out.add(1).write_unaligned(st(s[1]));
+        out.add(2).write_unaligned(to_int(s[2]) as u32);
     }
-    status & 0x0100 != 0
+}
+
+/// `a a + b b` of two whole numbers, as a float (`fild a; fmul st, st; fild b; fmul st,
+/// st; faddp; fstp`).
+pub fn int_square_sum(a: i32, b: i32) -> u32 {
+    let (a, b) = (int(a), int(b));
+    st(a * a + b * b)
+}
+
+/// `a a + b b` of two floats (`fld a; fmul st, st; fld b; fmul st, st; faddp; fstp`).
+pub fn float_square_sum(a: u32, b: u32) -> u32 {
+    let a2 = ld(a) * ld(a);
+    let b2 = ld(b) * ld(b);
+    st(a2 + b2)
+}
+
+/// `a b c`, rounded once (`fld a; fmul b; fmul c; fstp`).
+pub fn product3(a: u32, b: u32, c: u32) -> u32 {
+    st(ld(a) * ld(b) * ld(c))
+}
+
+/// A whole number over a float (`fild a; fdiv b; fstp`).
+pub fn int_over_float(a: i32, b: u32) -> u32 {
+    st(int(a) / ld(b))
+}
+
+/// `(a + b) c`, a whole number plus a float, times a float (`fild a; fadd b; fmul c;
+/// fstp`).
+pub fn int_plus_times(a: i32, b: u32, c: u32) -> u32 {
+    st((int(a) + ld(b)) * ld(c))
+}
+
+/// C0 of `fld a; fabs; fcomp k`: |a| below k, or one is no number.
+pub fn abs_below_or_unordered(a: u32, k: u32) -> bool {
+    compare(ld(a).abs(), ld(k)) & 0x0100 != 0
 }
 
 /// `scene::project_point::rotate` with all three stores `fistp`: the point (three whole
 /// numbers) through `matrix`, each part rounded from the x87's precision into `out`.
 pub unsafe fn rotate_rounding(point: *const i32, matrix: *const u32, out: *mut u32) {
-    x87!(
-        "fild dword ptr [{p} + 8]", "fild dword ptr [{p} + 4]", "fild dword ptr [{p}]",
-        "fld dword ptr [{m}]", "fmul st(0), st(1)",
-        "fld dword ptr [{m} + 0x10]", "fmul st(0), st(3)",
-        "fld dword ptr [{m} + 0x20]", "fmul st(0), st(5)",
-        "faddp st(1), st(0)", "faddp st(1), st(0)",
-        "fadd dword ptr [{m} + 0x30]", "fxch st(3)",
-        "fld dword ptr [{m} + 4]", "fmul st(0), st(2)",
-        "fld dword ptr [{m} + 0x14]", "fmul st(0), st(4)",
-        "fld dword ptr [{m} + 0x24]", "fmul st(0), st(3)",
-        "faddp st(1), st(0)", "faddp st(1), st(0)",
-        "fadd dword ptr [{m} + 0x34]", "fxch st(3)",
-        "fld dword ptr [{m} + 8]", "fmulp st(3), st(0)",
-        "fld dword ptr [{m} + 0x18]", "fmulp st(1), st(0)",
-        "fld dword ptr [{m} + 0x28]", "fmulp st(2), st(0)",
-        "faddp st(1), st(0)", "faddp st(1), st(0)",
-        "fadd dword ptr [{m} + 0x38]", "fxch st(2)",
-        "fistp dword ptr [{o}]", "fistp dword ptr [{o} + 4]",
-        "fistp dword ptr [{o} + 8]";
-        p = point, m = matrix, o = out
-    );
-}
-
-/// `fild a; fmul st, st; fild b; fmul st, st; faddp; fmul k` (`times` times) `; fistp`.
-pub fn int_square_sum_scaled_to_int(a: i32, b: i32, k: u32, times: u32) -> u32 {
-    let (v, mut out) = ([a as u32, b as u32, k], 0u32);
-    if times == 2 {
-        x87!(
-            "fild dword ptr [{v}]", "fmul st, st", "fild dword ptr [{v} + 4]", "fmul st, st",
-            "faddp st(1), st", "fmul dword ptr [{v} + 8]", "fmul dword ptr [{v} + 8]",
-            "fistp dword ptr [{o}]";
-            v = v.as_ptr(), o = &raw mut out
-        );
-    } else {
-        x87!(
-            "fild dword ptr [{v}]", "fmul st, st", "fild dword ptr [{v} + 4]", "fmul st, st",
-            "faddp st(1), st", "fmul dword ptr [{v} + 8]",
-            "fistp dword ptr [{o}]";
-            v = v.as_ptr(), o = &raw mut out
-        );
+    unsafe {
+        let s = rotated(point, matrix);
+        out.write_unaligned(to_int(s[0]) as u32);
+        out.add(1).write_unaligned(to_int(s[1]) as u32);
+        out.add(2).write_unaligned(to_int(s[2]) as u32);
     }
-    out
 }
 
-/// `fild i; fdiv a; fdiv a; fdiv b; fmul v; fmul c; fsub m; fmul h; fadd m; fstp`: the
-/// camera's roll eased towards a target (`sub_4386A4`), rounded once.
+/// `(a a + b b) k` (`times` = 1) or `(a a + b b) k k` (`times` = 2) as a whole number
+/// (`fild a; fmul st, st; fild b; fmul st, st; faddp; fmul k; [fmul k;] fistp`).
+pub fn int_square_sum_scaled_to_int(a: i32, b: i32, k: u32, times: u32) -> u32 {
+    let (a, b) = (int(a), int(b));
+    let mut x = (a * a + b * b) * ld(k);
+    if times == 2 {
+        x *= ld(k);
+    }
+    to_int(x) as u32
+}
+
+/// The camera's roll eased towards a target (`sub_4386A4`), rounded once at the end:
+/// `((((i / a / a / b) v c) - m) h) + m`.
 pub fn eased_roll(i: i32, a: u32, b: u32, v: u32, c: u32, m: u32, h: u32) -> u32 {
-    let (x, mut out) = ([i as u32, a, b, v, c, m, h], 0u32);
-    x87!(
-        "fild dword ptr [{x}]",
-        "fdiv dword ptr [{x} + 4]",
-        "fdiv dword ptr [{x} + 4]",
-        "fdiv dword ptr [{x} + 8]",
-        "fmul dword ptr [{x} + 12]",
-        "fmul dword ptr [{x} + 16]",
-        "fsub dword ptr [{x} + 20]",
-        "fmul dword ptr [{x} + 24]",
-        "fadd dword ptr [{x} + 20]",
-        "fstp dword ptr [{o}]";
-        x = x.as_ptr(), o = &raw mut out
-    );
-    out
+    let mut x = int(i);
+    x /= ld(a);
+    x /= ld(a);
+    x /= ld(b);
+    x *= ld(v);
+    x *= ld(c);
+    x -= ld(m);
+    x *= ld(h);
+    x += ld(m);
+    st(x)
 }
 
-/// `fld a; fmul b; fmul c; fmul d; fistp`: four floats' product as a whole number.
+/// `a b c d` as a whole number (`fld a; fmul b; fmul c; fmul d; fistp`).
 pub fn product4_to_int(a: u32, b: u32, c: u32, d: u32) -> u32 {
-    let (x, mut out) = ([a, b, c, d], 0u32);
-    x87!(
-        "fld dword ptr [{x}]",
-        "fmul dword ptr [{x} + 4]",
-        "fmul dword ptr [{x} + 8]",
-        "fmul dword ptr [{x} + 12]",
-        "fistp dword ptr [{o}]";
-        x = x.as_ptr(), o = &raw mut out
-    );
-    out
+    to_int(ld(a) * ld(b) * ld(c) * ld(d)) as u32
 }
 
-/// The sun's direction in `sub_455540`: `fild a; fchs; fadd k; fmul s; fsincos; fild b;
-/// fmul s; fsincos; fmul st(2), st; fmulp st(3), st; fxch st(1)`, then each of the three
-/// times `m` and stored: cos a cos b, sin b, sin a cos b (each x `m`).
+/// The sun's direction in `sub_455540`: with `p = (k - a) s` and `q = b s`, cos p cos q,
+/// sin q and sin p cos q, each times `m` and stored as a float.
 pub fn sun_direction(a: i32, k: u32, s: u32, b: i32, m: u32) -> [u32; 3] {
-    let (v, mut out) = ([a as u32, k, s, b as u32, m], [0u32; 3]);
-    x87!(
-        "fild dword ptr [{v}]", "fchs", "fadd dword ptr [{v} + 4]", "fmul dword ptr [{v} + 8]",
-        "fsincos",
-        "fild dword ptr [{v} + 12]", "fmul dword ptr [{v} + 8]", "fsincos",
-        "fmul st(2), st(0)", "fmulp st(3), st(0)", "fxch st(1)",
-        "fmul dword ptr [{v} + 16]", "fstp dword ptr [{o}]",
-        "fmul dword ptr [{v} + 16]", "fstp dword ptr [{o} + 4]",
-        "fmul dword ptr [{v} + 16]", "fstp dword ptr [{o} + 8]";
-        v = v.as_ptr(), o = out.as_mut_ptr()
-    );
-    out
+    let p = (-int(a) + ld(k)) * ld(s);
+    let q = int(b) * ld(s);
+    let (sin_p, cos_p) = p.sin_cos();
+    let (sin_q, cos_q) = q.sin_cos();
+    let cos_cos = cos_p * cos_q;
+    let sin_cos = sin_p * cos_q;
+    [st(cos_cos * ld(m)), st(sin_q * ld(m)), st(sin_cos * ld(m))]
 }
 
 /// A float as the x87's 80 bits (`fld dword; fstp tbyte`).
 pub fn to_tbyte(a: u32) -> [u8; 10] {
-    let (v, mut out) = ([a], [0u8; 10]);
-    x87!("fld dword ptr [{v}]", "fstp tbyte ptr [{o}]"; v = v.as_ptr(), o = out.as_mut_ptr());
-    out
+    f80(ld(a))
 }
 
 /// 80 bits rounded to a whole number as the x87 is set to round (`fld tbyte; fistp`).
 pub fn tbyte_to_int(a: [u8; 10]) -> u32 {
-    let mut out = 0u32;
-    x87!("fld tbyte ptr [{v}]", "fistp dword ptr [{o}]"; v = a.as_ptr(), o = &raw mut out);
-    out
+    to_int(from_f80(a)) as u32
 }
 
-/// A point of whole numbers onto the screen as in `sub_455540` (the original's
-/// instructions; `.byte 0xDE, 0xF1` its `fdivrp st(1), st`): `v` = x, y, z, the flat
-/// depth, the scale, the centre's y and x. Flat: z dropped (into `scratch`) for the flat
-/// depth + 1. Gives x as a float and rounded, y as a float and rounded.
+/// A point of whole numbers onto the screen as in `sub_455540`: `v` = x, y, z, the flat
+/// depth, the scale, the centre's y and x. Flat: z dropped (into `scratch`, as a float)
+/// and the scale over the flat depth + 1; else the scale over z. Gives x as a float and
+/// rounded, y as a float and rounded (each `x r + cx` and `cy - y r`, r the ratio).
 pub unsafe fn sun_on_screen(v: &[u32; 7], flat: bool, scratch: *mut u32) -> [u32; 4] {
-    let mut out = [0u32; 4];
-    if flat {
-        x87!(
-            "fild dword ptr [{v}]", "fild dword ptr [{v} + 4]", "fild dword ptr [{v} + 8]",
-            "fstp dword ptr [{w}]", "fild dword ptr [{v} + 12]", "fld1", "faddp st(1), st(0)",
-            "fld dword ptr [{v} + 16]", ".byte 0xDE, 0xF1",
-            "fmul st(1), st(0)", "fmulp st(2), st(0)", "fchs",
-            "fadd dword ptr [{v} + 20]", "fxch st(1)", "fadd dword ptr [{v} + 24]",
-            "fst dword ptr [{o}]", "fistp dword ptr [{o} + 4]",
-            "fst dword ptr [{o} + 8]", "fistp dword ptr [{o} + 12]";
-            v = v.as_ptr(), w = scratch, o = out.as_mut_ptr()
-        );
+    let (x, y, z) = (int(v[0] as i32), int(v[1] as i32), int(v[2] as i32));
+    let ratio = if flat {
+        unsafe { scratch.write_unaligned(st(z)) };
+        ld(v[4]) / (int(v[3] as i32) + X(1.0))
     } else {
-        x87!(
-            "fild dword ptr [{v}]", "fild dword ptr [{v} + 4]", "fild dword ptr [{v} + 8]",
-            "fld dword ptr [{v} + 16]", ".byte 0xDE, 0xF1",
-            "fmul st(1), st(0)", "fmulp st(2), st(0)", "fchs",
-            "fadd dword ptr [{v} + 20]", "fxch st(1)", "fadd dword ptr [{v} + 24]",
-            "fst dword ptr [{o}]", "fistp dword ptr [{o} + 4]",
-            "fst dword ptr [{o} + 8]", "fistp dword ptr [{o} + 12]";
-            v = v.as_ptr(), o = out.as_mut_ptr()
-        );
-    }
-    out
+        ld(v[4]) / z
+    };
+    let sx = x * ratio + ld(v[6]);
+    let sy = -(y * ratio) + ld(v[5]);
+    [st(sx), to_int(sx) as u32, st(sy), to_int(sy) as u32]
 }
 
-/// `fld x; fsub cx; fmul st, st; fld y; fsub cy; fmul st, st; faddp; fsqrt; fmul h; fsub k;
-/// fchs; fistp`: k less half the distance from the centre, rounded.
+/// `k` less half the distance from the centre, rounded, as a whole number: `-(sqrt((x -
+/// cx)^2 + (y - cy)^2) h - k)` (`fistp`).
 pub fn sun_size(x: u32, cx: u32, y: u32, cy: u32, h: u32, k: u32) -> u32 {
-    let (v, mut out) = ([x, cx, y, cy, h, k], 0u32);
-    x87!(
-        "fld dword ptr [{v}]", "fsub dword ptr [{v} + 4]", "fmul st(0), st(0)",
-        "fld dword ptr [{v} + 8]", "fsub dword ptr [{v} + 12]", "fmul st(0), st(0)",
-        "faddp st(1), st(0)", "fsqrt", "fmul dword ptr [{v} + 16]",
-        "fsub dword ptr [{v} + 20]", "fchs", "fistp dword ptr [{o}]";
-        v = v.as_ptr(), o = &raw mut out
-    );
-    out
+    let dx = ld(x) - ld(cx);
+    let dx2 = dx * dx;
+    let dy = ld(y) - ld(cy);
+    let dy2 = dy * dy;
+    let d = (dx2 + dy2).sqrt() * ld(h) - ld(k);
+    to_int(-d) as u32
 }

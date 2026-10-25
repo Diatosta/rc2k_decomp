@@ -15,7 +15,6 @@ use crate::framework::rva;
 use crate::math::x87_run::{ext_times, ints_diff_80};
 use crate::scene::matrix3::rounded;
 use crate::scene::rotate_point::rotate_point;
-use crate::sound::store::ObjectsSlot;
 use crate::store::game_addr;
 
 fn g(x: impl crate::store::At) -> u32 {
@@ -23,14 +22,9 @@ fn g(x: impl crate::store::At) -> u32 {
 }
 
 const VIEW_TURN: usize = 0x5EA24C; // g_viewTurnMatrix
-const OBJECTS: ObjectsSlot = ObjectsSlot::at(0x512A10); // g_raceSoundObjects
-
-unsafe fn put(a: u32, v: u32) {
-    unsafe { (a as *mut u32).write_unaligned(v) }
-}
 
 fn object() -> u32 {
-    g(OBJECTS + 4 * (g(0x71B3F8) & 7) as usize)
+    crate::sound::store::RACE_SOUNDS.table[(g(0x71B3F8) & 7) as usize].get()
 }
 
 /// The exact x87 version (for `physics::sound_on_bit`).
@@ -39,8 +33,9 @@ pub unsafe fn place_car_sound() -> Result<(), Refused> {
     if o == 0 {
         return Err(BadInput("a null sound object").into());
     }
+    let so = unsafe { crate::sound::store::SoundObject::at(o) };
     unsafe {
-        put(o + 0x224, 1);
+        so.slot_b.start.set(1);
         let d = |a: usize, b: usize| ints_diff_80(g(a) as i32, g(b) as i32);
         let p = [
             d(0x71A10C, 0x71A67C),
@@ -50,9 +45,9 @@ pub unsafe fn place_car_sound() -> Result<(), Refused> {
         let out = rotate_point(game_addr(rva(VIEW_TURN)) as u32, p);
         let k = g(0x5C5DA0);
         for (n, e) in out.iter().enumerate() {
-            put(o + 0x214 + 4 * n as u32, rounded(ext_times(*e, k)));
+            so.place_b[n].set_bits(rounded(ext_times(*e, k)));
         }
-        put(o + 0x10, 1);
+        so.new_revs.set(1);
     }
     Ok(())
 }

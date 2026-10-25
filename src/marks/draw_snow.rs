@@ -15,7 +15,7 @@
 //! In:  nothing (`dword_8D21A4`)
 //! Out: nothing (its caller reads no register after it)
 //!
-//! Caller: `marks::run_snow` (0x4C2A8F). The x87 blocks are the original's instructions
+//! Caller: `marks::run_snow` (0x4C2A8F). The x87 blocks are plain Rust on the x87 model (`math::x87_float`), in the original's order,
 //! over the game's variables. Refuses, before anything (a dry pass, its scratch put back),
 //! more than 0x800 flakes, null marks settings with a flake, a curve index past the 4095
 //! entries and a fade index past the 17.
@@ -61,146 +61,22 @@ unsafe fn table(r: Slot, k: u32) -> u32 {
 
 /// The original's 0x4C2EF0 .. 0x4C2F79: the place (ebx, eax, ecx as `fild`ed) turned.
 unsafe fn turn(v: &[u32; 3]) {
-    unsafe {
-        core::arch::asm!(
-            "fild dword ptr [{v}]",
-            "fild dword ptr [{v} + 4]",
-            "fild dword ptr [{v} + 8]",
-            ".byte 0xD9, 0xC1",
-            "fmul dword ptr [{mk} + 0x16D2E0]",
-            ".byte 0xD9, 0xC3",
-            "fmul dword ptr [{mk} + 0x16D2EC]",
-            ".byte 0xD9, 0xC2",
-            "fmul dword ptr [{mk} + 0x16D2F8]",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            "fiadd dword ptr [{mk} + 0x16D2C8]",
-            "fstp dword ptr [{mk} + 0x16D394]",
-            ".byte 0xD9, 0xC1",
-            "fmul dword ptr [{mk} + 0x16D2E4]",
-            ".byte 0xD9, 0xC3",
-            "fmul dword ptr [{mk} + 0x16D2F0]",
-            ".byte 0xD9, 0xC2",
-            "fmul dword ptr [{mk} + 0x16D2FC]",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            "fiadd dword ptr [{mk} + 0x16D2CC]",
-            "fstp dword ptr [{mk} + 0x16D398]",
-            ".byte 0xD9, 0xC9",
-            "fmul dword ptr [{mk} + 0x16D2E8]",
-            ".byte 0xD9, 0xCA",
-            "fmul dword ptr [{mk} + 0x16D2F4]",
-            ".byte 0xD9, 0xC9",
-            "fmul dword ptr [{mk} + 0x16D300]",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            "fiadd dword ptr [{mk} + 0x16D2D0]",
-            "fist dword ptr [{mk} + 0x16D2B4]",
-            "fstp dword ptr [{mk} + 0x16D39C]",
-            mk = in(reg) crate::marks::store::base(),
-            v = in(reg) v.as_ptr(),
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-        )
-    }
+    unsafe { turn_x87(crate::marks::store::base() as usize, v.as_ptr() as usize) }
 }
 
 /// The original's 0x4C2F9C .. 0x4C3038: the light's dot and its fade index.
 unsafe fn fade() {
-    unsafe {
-        core::arch::asm!(
-            "fld dword ptr [{mk} + 0x16D394]",
-            "fsub dword ptr [{mk} + 0x1764F0]",
-            "fst dword ptr [{mk} + 0x176508]",
-            ".byte 0xD8, 0xC8",
-            "fld dword ptr [{mk} + 0x16D398]",
-            "fsub dword ptr [{mk} + 0x1764F4]",
-            "fst dword ptr [{mk} + 0x17650C]",
-            ".byte 0xD8, 0xC8",
-            "fld dword ptr [{mk} + 0x16D39C]",
-            "fsub dword ptr [{mk} + 0x1764F8]",
-            "fst dword ptr [{mk} + 0x176510]",
-            ".byte 0xD8, 0xC8",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xD9, 0xFA",
-            "fdivr dword ptr [{mk} + 0x22C]",
-            ".byte 0xD9, 0xC0",
-            "fmul dword ptr [{mk} + 0x176508]",
-            "fst dword ptr [{mk} + 0x176514]",
-            "fmul dword ptr [{mk} + 0x1764FC]",
-            ".byte 0xD9, 0xC1",
-            "fmul dword ptr [{mk} + 0x17650C]",
-            "fst dword ptr [{mk} + 0x176518]",
-            "fmul dword ptr [{mk} + 0x176500]",
-            ".byte 0xD9, 0xCA",
-            "fmul dword ptr [{mk} + 0x176510]",
-            "fst dword ptr [{mk} + 0x17651C]",
-            "fmul dword ptr [{mk} + 0x176504]",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            "fst dword ptr [{mk} + 0x176588]",
-            ".byte 0xD8, 0xC8",
-            "fmul dword ptr [{mk} + 0x24C]",
-            "fistp dword ptr [{mk} + 0x176520]",
-            mk = in(reg) crate::marks::store::base(),
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-        )
-    }
+    unsafe { fade_x87(crate::marks::store::base() as usize) }
 }
 
 /// The original's 0x4C305B .. 0x4C30EE: the projected square, its depth and u.
 unsafe fn square(i: u32) {
     unsafe {
-        core::arch::asm!(
-            "fld dword ptr [{mk} + 0x16D39C]",
-            "fdivr dword ptr [{rc} + 0x224088]",
-            "fst dword ptr [{mk} + 0x16D2B4]",
-            "fld dword ptr [{mk} + 0x16D398]",
-            ".byte 0xD8, 0xC9",
-            ".byte 0xD9, 0xC9",
-            "fmul dword ptr [{mk} + 0x16D394]",
-            ".byte 0xD9, 0xC9",
-            ".byte 0xD9, 0xE0",
-            "fadd dword ptr [{rc} + 0x2240A0]",
-            "fstp dword ptr [{bf} + 0x5605A4]",
-            "fadd dword ptr [{rc} + 0x22409C]",
-            "fstp dword ptr [{bf} + 0x5605A0]",
-            "fld dword ptr [{mk} + 0x176608]",
-            "fmul dword ptr [{mk} + 0x16D2B4]",
-            "fld dword ptr [{bf} + 0x5605A0]",
-            ".byte 0xD8, 0xC1",
-            "fst dword ptr [{bf} + 0x5605C0]",
-            "fst dword ptr [{bf} + 0x5605E0]",
-            ".byte 0xD8, 0xE1",
-            "fstp dword ptr [{bf} + 0x560600]",
-            "fld dword ptr [{bf} + 0x5605A4]",
-            "fst dword ptr [{bf} + 0x5605C4]",
-            ".byte 0xDE, 0xC1",
-            "fst dword ptr [{bf} + 0x5605E4]",
-            "fstp dword ptr [{bf} + 0x560604]",
-            "fld dword ptr [{mk} + 0x16D39C]",
-            "fmul dword ptr [{mk} + 0x16D2B8]",
-            "fst dword ptr [{bf} + 0x5605A8]",
-            "fst dword ptr [{bf} + 0x5605C8]",
-            "fst dword ptr [{bf} + 0x5605E8]",
-            "fstp dword ptr [{bf} + 0x560608]",
-            "fld dword ptr [{mk} + {i} + 0x16B0C0]",
-            "fst dword ptr [{bf} + 0x5605B8]",
-            "fst dword ptr [{bf} + 0x560618]",
-            "fadd dword ptr [{mk} + 0x17660C]",
-            "fst dword ptr [{bf} + 0x5605D8]",
-            "fstp dword ptr [{bf} + 0x5605F8]",
-            rc = in(reg) crate::race::store::asm_base(),
-            bf = in(reg) crate::race::store::buffers_asm_base(),
-            mk = in(reg) crate::marks::store::base(),
-            i = in(reg) i,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
+        square_x87(
+            crate::race::store::asm_base() as usize,
+            crate::race::store::buffers_asm_base() as usize,
+            crate::marks::store::base() as usize,
+            i as usize,
         )
     }
 }
@@ -305,4 +181,420 @@ pub unsafe fn draw_snow() -> Result<(), Refused> {
         }
     }
     Ok(())
+}
+
+use crate::marks::plain::{ld, ldi, st, sti};
+
+/// `turn`'s x87 block as plain Rust on the x87 model (34 instructions), same order and memory places.
+unsafe fn turn_x87(mk: usize, v: usize) {
+    unsafe {
+        let t0 = ldi(v, 0);
+        let t1 = ldi(v, 0x4);
+        let t2 = ldi(v, 0x8);
+        let t3 = t1 * ld(mk, 0x16D2E0);
+        let t4 = t0 * ld(mk, 0x16D2EC);
+        let t5 = t2 * ld(mk, 0x16D2F8);
+        let t6 = t4 + t5;
+        let t7 = t3 + t6;
+        let t8 = t7 + ldi(mk, 0x16D2C8);
+        st(mk, 0x16D394, t8);
+        let t9 = t1 * ld(mk, 0x16D2E4);
+        let t10 = t0 * ld(mk, 0x16D2F0);
+        let t11 = t2 * ld(mk, 0x16D2FC);
+        let t12 = t10 + t11;
+        let t13 = t9 + t12;
+        let t14 = t13 + ldi(mk, 0x16D2CC);
+        st(mk, 0x16D398, t14);
+        let t15 = t1 * ld(mk, 0x16D2E8);
+        let t16 = t0 * ld(mk, 0x16D2F4);
+        let t17 = t2 * ld(mk, 0x16D300);
+        let t18 = t16 + t17;
+        let t19 = t15 + t18;
+        let t20 = t19 + ldi(mk, 0x16D2D0);
+        sti(mk, 0x16D2B4, t20);
+        st(mk, 0x16D39C, t20);
+    }
+}
+
+/// `fade`'s x87 block as plain Rust on the x87 model (34 instructions), same order and memory places.
+unsafe fn fade_x87(mk: usize) {
+    unsafe {
+        let t0 = ld(mk, 0x16D394);
+        let t1 = t0 - ld(mk, 0x1764F0);
+        st(mk, 0x176508, t1);
+        let t2 = t1 * t1;
+        let t3 = ld(mk, 0x16D398);
+        let t4 = t3 - ld(mk, 0x1764F4);
+        st(mk, 0x17650C, t4);
+        let t5 = t4 * t4;
+        let t6 = ld(mk, 0x16D39C);
+        let t7 = t6 - ld(mk, 0x1764F8);
+        st(mk, 0x176510, t7);
+        let t8 = t7 * t7;
+        let t9 = t5 + t8;
+        let t10 = t2 + t9;
+        let t11 = t10.sqrt();
+        let t12 = ld(mk, 0x22C) / t11;
+        let t13 = t12 * ld(mk, 0x176508);
+        st(mk, 0x176514, t13);
+        let t14 = t13 * ld(mk, 0x1764FC);
+        let t15 = t12 * ld(mk, 0x17650C);
+        st(mk, 0x176518, t15);
+        let t16 = t15 * ld(mk, 0x176500);
+        let t17 = t12 * ld(mk, 0x176510);
+        st(mk, 0x17651C, t17);
+        let t18 = t17 * ld(mk, 0x176504);
+        let t19 = t14 + t18;
+        let t20 = t16 + t19;
+        st(mk, 0x176588, t20);
+        let t21 = t20 * t20;
+        let t22 = t21 * ld(mk, 0x24C);
+        sti(mk, 0x176520, t22);
+    }
+}
+
+/// `square`'s x87 block as plain Rust on the x87 model (38 instructions), same order and memory places.
+unsafe fn square_x87(rc: usize, bf: usize, mk: usize, i: usize) {
+    unsafe {
+        let t0 = ld(mk, 0x16D39C);
+        let t1 = ld(rc, 0x224088) / t0;
+        st(mk, 0x16D2B4, t1);
+        let t2 = ld(mk, 0x16D398);
+        let t3 = t2 * t1;
+        let t4 = t1 * ld(mk, 0x16D394);
+        let t5 = -t3;
+        let t6 = t5 + ld(rc, 0x2240A0);
+        st(bf, 0x5605A4, t6);
+        let t7 = t4 + ld(rc, 0x22409C);
+        st(bf, 0x5605A0, t7);
+        let t8 = ld(mk, 0x176608);
+        let t9 = t8 * ld(mk, 0x16D2B4);
+        let t10 = ld(bf, 0x5605A0);
+        let t11 = t10 + t9;
+        st(bf, 0x5605C0, t11);
+        st(bf, 0x5605E0, t11);
+        let t12 = t11 - t9;
+        st(bf, 0x560600, t12);
+        let t13 = ld(bf, 0x5605A4);
+        st(bf, 0x5605C4, t13);
+        let t14 = t9 + t13;
+        st(bf, 0x5605E4, t14);
+        st(bf, 0x560604, t14);
+        let t15 = ld(mk, 0x16D39C);
+        let t16 = t15 * ld(mk, 0x16D2B8);
+        st(bf, 0x5605A8, t16);
+        st(bf, 0x5605C8, t16);
+        st(bf, 0x5605E8, t16);
+        st(bf, 0x560608, t16);
+        let t17 = ld(mk, i.wrapping_add(0x16B0C0));
+        st(bf, 0x5605B8, t17);
+        st(bf, 0x560618, t17);
+        let t18 = t17 + ld(mk, 0x17660C);
+        st(bf, 0x5605D8, t18);
+        st(bf, 0x5605F8, t18);
+    }
+}
+
+#[cfg(test)]
+mod asm_reference {
+    //! The original assembly blocks, kept verbatim as the reference the plain versions are tested against.
+
+    pub(super) unsafe fn turn_x87(mk: usize, v: usize) {
+        unsafe {
+            core::arch::asm!(
+                    "fild dword ptr [{v}]",
+            "fild dword ptr [{v} + 4]",
+            "fild dword ptr [{v} + 8]",
+            ".byte 0xD9, 0xC1",
+            "fmul dword ptr [{mk} + 0x16D2E0]",
+            ".byte 0xD9, 0xC3",
+            "fmul dword ptr [{mk} + 0x16D2EC]",
+            ".byte 0xD9, 0xC2",
+            "fmul dword ptr [{mk} + 0x16D2F8]",
+            ".byte 0xDE, 0xC1",
+            ".byte 0xDE, 0xC1",
+            "fiadd dword ptr [{mk} + 0x16D2C8]",
+            "fstp dword ptr [{mk} + 0x16D394]",
+            ".byte 0xD9, 0xC1",
+            "fmul dword ptr [{mk} + 0x16D2E4]",
+            ".byte 0xD9, 0xC3",
+            "fmul dword ptr [{mk} + 0x16D2F0]",
+            ".byte 0xD9, 0xC2",
+            "fmul dword ptr [{mk} + 0x16D2FC]",
+            ".byte 0xDE, 0xC1",
+            ".byte 0xDE, 0xC1",
+            "fiadd dword ptr [{mk} + 0x16D2CC]",
+            "fstp dword ptr [{mk} + 0x16D398]",
+            ".byte 0xD9, 0xC9",
+            "fmul dword ptr [{mk} + 0x16D2E8]",
+            ".byte 0xD9, 0xCA",
+            "fmul dword ptr [{mk} + 0x16D2F4]",
+            ".byte 0xD9, 0xC9",
+            "fmul dword ptr [{mk} + 0x16D300]",
+            ".byte 0xDE, 0xC1",
+            ".byte 0xDE, 0xC1",
+            "fiadd dword ptr [{mk} + 0x16D2D0]",
+            "fist dword ptr [{mk} + 0x16D2B4]",
+            "fstp dword ptr [{mk} + 0x16D39C]",
+            mk = in(reg) mk,
+            v = in(reg) v,
+            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
+            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
+            options(nostack),
+            )
+        }
+    }
+
+    pub(super) unsafe fn fade_x87(mk: usize) {
+        unsafe {
+            core::arch::asm!(
+                    "fld dword ptr [{mk} + 0x16D394]",
+            "fsub dword ptr [{mk} + 0x1764F0]",
+            "fst dword ptr [{mk} + 0x176508]",
+            ".byte 0xD8, 0xC8",
+            "fld dword ptr [{mk} + 0x16D398]",
+            "fsub dword ptr [{mk} + 0x1764F4]",
+            "fst dword ptr [{mk} + 0x17650C]",
+            ".byte 0xD8, 0xC8",
+            "fld dword ptr [{mk} + 0x16D39C]",
+            "fsub dword ptr [{mk} + 0x1764F8]",
+            "fst dword ptr [{mk} + 0x176510]",
+            ".byte 0xD8, 0xC8",
+            ".byte 0xDE, 0xC1",
+            ".byte 0xDE, 0xC1",
+            ".byte 0xD9, 0xFA",
+            "fdivr dword ptr [{mk} + 0x22C]",
+            ".byte 0xD9, 0xC0",
+            "fmul dword ptr [{mk} + 0x176508]",
+            "fst dword ptr [{mk} + 0x176514]",
+            "fmul dword ptr [{mk} + 0x1764FC]",
+            ".byte 0xD9, 0xC1",
+            "fmul dword ptr [{mk} + 0x17650C]",
+            "fst dword ptr [{mk} + 0x176518]",
+            "fmul dword ptr [{mk} + 0x176500]",
+            ".byte 0xD9, 0xCA",
+            "fmul dword ptr [{mk} + 0x176510]",
+            "fst dword ptr [{mk} + 0x17651C]",
+            "fmul dword ptr [{mk} + 0x176504]",
+            ".byte 0xDE, 0xC1",
+            ".byte 0xDE, 0xC1",
+            "fst dword ptr [{mk} + 0x176588]",
+            ".byte 0xD8, 0xC8",
+            "fmul dword ptr [{mk} + 0x24C]",
+            "fistp dword ptr [{mk} + 0x176520]",
+            mk = in(reg) mk,
+            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
+            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
+            options(nostack),
+            )
+        }
+    }
+
+    pub(super) unsafe fn square_x87(rc: usize, bf: usize, mk: usize, i: usize) {
+        unsafe {
+            core::arch::asm!(
+                    "fld dword ptr [{mk} + 0x16D39C]",
+            "fdivr dword ptr [{rc} + 0x224088]",
+            "fst dword ptr [{mk} + 0x16D2B4]",
+            "fld dword ptr [{mk} + 0x16D398]",
+            ".byte 0xD8, 0xC9",
+            ".byte 0xD9, 0xC9",
+            "fmul dword ptr [{mk} + 0x16D394]",
+            ".byte 0xD9, 0xC9",
+            ".byte 0xD9, 0xE0",
+            "fadd dword ptr [{rc} + 0x2240A0]",
+            "fstp dword ptr [{bf} + 0x5605A4]",
+            "fadd dword ptr [{rc} + 0x22409C]",
+            "fstp dword ptr [{bf} + 0x5605A0]",
+            "fld dword ptr [{mk} + 0x176608]",
+            "fmul dword ptr [{mk} + 0x16D2B4]",
+            "fld dword ptr [{bf} + 0x5605A0]",
+            ".byte 0xD8, 0xC1",
+            "fst dword ptr [{bf} + 0x5605C0]",
+            "fst dword ptr [{bf} + 0x5605E0]",
+            ".byte 0xD8, 0xE1",
+            "fstp dword ptr [{bf} + 0x560600]",
+            "fld dword ptr [{bf} + 0x5605A4]",
+            "fst dword ptr [{bf} + 0x5605C4]",
+            ".byte 0xDE, 0xC1",
+            "fst dword ptr [{bf} + 0x5605E4]",
+            "fstp dword ptr [{bf} + 0x560604]",
+            "fld dword ptr [{mk} + 0x16D39C]",
+            "fmul dword ptr [{mk} + 0x16D2B8]",
+            "fst dword ptr [{bf} + 0x5605A8]",
+            "fst dword ptr [{bf} + 0x5605C8]",
+            "fst dword ptr [{bf} + 0x5605E8]",
+            "fstp dword ptr [{bf} + 0x560608]",
+            "fld dword ptr [{mk} + {i} + 0x16B0C0]",
+            "fst dword ptr [{bf} + 0x5605B8]",
+            "fst dword ptr [{bf} + 0x560618]",
+            "fadd dword ptr [{mk} + 0x17660C]",
+            "fst dword ptr [{bf} + 0x5605D8]",
+            "fstp dword ptr [{bf} + 0x5605F8]",
+            rc = in(reg) rc,
+            bf = in(reg) bf,
+            mk = in(reg) mk,
+            i = in(reg) i,
+            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
+            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
+            options(nostack),
+            )
+        }
+    }
+}
+
+#[cfg(test)]
+mod asm_differential {
+    use super::asm_reference as reference;
+    use crate::marks::asm_test::Kind::*;
+    use crate::marks::asm_test::{Op, Spec, differential};
+
+    #[test]
+    fn turn_x87_matches() {
+        const SPEC: Spec = Spec {
+            operands: &[
+                Op::Base {
+                    lo: 0x16D2B4,
+                    hi: 0x16D3A0,
+                    reads: &[
+                        (0x16D2C8, I32),
+                        (0x16D2CC, I32),
+                        (0x16D2D0, I32),
+                        (0x16D2E0, F32),
+                        (0x16D2E4, F32),
+                        (0x16D2E8, F32),
+                        (0x16D2EC, F32),
+                        (0x16D2F0, F32),
+                        (0x16D2F4, F32),
+                        (0x16D2F8, F32),
+                        (0x16D2FC, F32),
+                        (0x16D300, F32),
+                    ],
+                    writes: &[
+                        (0x16D2B4, I32),
+                        (0x16D394, F32),
+                        (0x16D398, F32),
+                        (0x16D39C, F32),
+                    ],
+                },
+                Op::Base {
+                    lo: 0x0,
+                    hi: 0xC,
+                    reads: &[(0x0, I32), (0x4, I32), (0x8, I32)],
+                    writes: &[],
+                },
+            ],
+            sincos: false,
+        };
+        differential(
+            &SPEC,
+            |b| unsafe { reference::turn_x87(b[0], b[1]) },
+            |b| unsafe { super::turn_x87(b[0], b[1]) },
+        );
+    }
+
+    #[test]
+    fn fade_x87_matches() {
+        const SPEC: Spec = Spec {
+            operands: &[Op::Base {
+                lo: 0x22C,
+                hi: 0x17658C,
+                reads: &[
+                    (0x22C, F32),
+                    (0x24C, F32),
+                    (0x16D394, F32),
+                    (0x16D398, F32),
+                    (0x16D39C, F32),
+                    (0x1764F0, F32),
+                    (0x1764F4, F32),
+                    (0x1764F8, F32),
+                    (0x1764FC, F32),
+                    (0x176500, F32),
+                    (0x176504, F32),
+                    (0x176508, F32),
+                    (0x17650C, F32),
+                    (0x176510, F32),
+                ],
+                writes: &[
+                    (0x176508, F32),
+                    (0x17650C, F32),
+                    (0x176510, F32),
+                    (0x176514, F32),
+                    (0x176518, F32),
+                    (0x17651C, F32),
+                    (0x176520, I32),
+                    (0x176588, F32),
+                ],
+            }],
+            sincos: false,
+        };
+        differential(
+            &SPEC,
+            |b| unsafe { reference::fade_x87(b[0]) },
+            |b| unsafe { super::fade_x87(b[0]) },
+        );
+    }
+
+    #[test]
+    fn square_x87_matches() {
+        const SPEC: Spec = Spec {
+            operands: &[
+                Op::Base {
+                    lo: 0x224088,
+                    hi: 0x2240A4,
+                    reads: &[(0x224088, F32), (0x22409C, F32), (0x2240A0, F32)],
+                    writes: &[],
+                },
+                Op::Base {
+                    lo: 0x5605A0,
+                    hi: 0x56061C,
+                    reads: &[(0x5605A0, F32), (0x5605A4, F32)],
+                    writes: &[
+                        (0x5605A0, F32),
+                        (0x5605A4, F32),
+                        (0x5605A8, F32),
+                        (0x5605B8, F32),
+                        (0x5605C0, F32),
+                        (0x5605C4, F32),
+                        (0x5605C8, F32),
+                        (0x5605D8, F32),
+                        (0x5605E0, F32),
+                        (0x5605E4, F32),
+                        (0x5605E8, F32),
+                        (0x5605F8, F32),
+                        (0x560600, F32),
+                        (0x560604, F32),
+                        (0x560608, F32),
+                        (0x560618, F32),
+                    ],
+                },
+                Op::Base {
+                    lo: 0x16B0C0,
+                    hi: 0x176610,
+                    reads: &[
+                        (0x16B0C0, F32),
+                        (0x16B0C4, F32),
+                        (0x16B0C8, F32),
+                        (0x16B250, F32),
+                        (0x16D2B4, F32),
+                        (0x16D2B8, F32),
+                        (0x16D394, F32),
+                        (0x16D398, F32),
+                        (0x16D39C, F32),
+                        (0x16F0BC, F32),
+                        (0x176608, F32),
+                        (0x17660C, F32),
+                    ],
+                    writes: &[(0x16D2B4, F32)],
+                },
+                Op::Index(&[0, 4, 8, 400, 16380]),
+            ],
+            sincos: false,
+        };
+        differential(
+            &SPEC,
+            |b| unsafe { reference::square_x87(b[0], b[1], b[2], b[3]) },
+            |b| unsafe { super::square_x87(b[0], b[1], b[2], b[3]) },
+        );
+    }
 }

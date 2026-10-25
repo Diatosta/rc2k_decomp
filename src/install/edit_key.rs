@@ -22,15 +22,11 @@
 
 use crate::bridge::{Raw, read_through};
 use crate::errors::Refused;
-use crate::input::store::LayoutSlot;
+use crate::input::store::KEYBOARD_FILE;
 use crate::install::installer::{
-    COLOURS, FONTS, SCRIPT_PATH, a, append_string_by_id, g, measure_text, rb, rd, rw, wb,
+    COLOURS, FONTS, SCRIPT_PATH, a, append_string_by_id, measure_text, rb, rd, rw, wb,
 };
 use rc2k_core::install::edits::{self, EDITING, EditKey};
-
-const LAYOUT_MODE: LayoutSlot = LayoutSlot::at(0x4F07D2); // byte_4F07D2
-const LAYOUT: LayoutSlot = LayoutSlot::at(0x4F07D4); // g_keyboardLayout
-const OTHER_LAYOUT: LayoutSlot = LayoutSlot::at(0x4F07F8); // dword_4F07F8
 
 /// The font of an edit record's kind.
 pub fn edit_font(record: u32) -> u32 {
@@ -100,14 +96,16 @@ pub fn edit_key(key: u32, item: u32) -> Result<(u32, bool), Refused> {
             }
             EditKey::Arrow => return Ok((key, true)),
             EditKey::Other => {
-                let swap = rb(a(LAYOUT_MODE)) == 2;
-                let kept = g(LAYOUT);
+                let swap = KEYBOARD_FILE.mode.get() == 2;
+                let kept = KEYBOARD_FILE.layout.get();
                 if swap {
-                    crate::install::installer::p(LAYOUT, a(OTHER_LAYOUT));
+                    KEYBOARD_FILE
+                        .layout
+                        .set(KEYBOARD_FILE.layouts[0].dead_keys.addr() as u32);
                 }
                 let out = unsafe { crate::input::key_to_char::key_to_char(key) };
                 if swap {
-                    crate::install::installer::p(LAYOUT, kept);
+                    KEYBOARD_FILE.layout.set(kept);
                 }
                 out? as u8
             }

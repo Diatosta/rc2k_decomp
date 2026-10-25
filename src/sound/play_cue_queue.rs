@@ -23,9 +23,6 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::sound::sample_duration::sample_duration;
-use crate::sound::turn_parts::CLOCK;
-
-const QUEUE: u32 = 0x298;
 
 // ---- Rust version ----
 
@@ -37,10 +34,11 @@ pub fn play_cue_queue(o: u32) -> Result<(), Refused> {
     if o == 0 {
         return Err(BadInput("a null sound object").into());
     }
-    let in_use = unsafe { ((o + 8) as *const u32).read_unaligned() } == 1;
-    let q = (o + QUEUE) as *mut [u32; 0x84];
+    let so = unsafe { crate::sound::store::SoundObject::at(o) };
+    let in_use = so.in_use.get() == 1;
+    let q = &so.cue_queue as *const crate::sound::store::CueQueue as usize as *mut [u32; 0x84];
     let mut queue = CueQueue::from_words(&unsafe { q.read_unaligned() });
-    let clock: u32 = unsafe { crate::store::game_read(CLOCK) };
+    let clock = crate::sound::store::RACE_CLOCK.last.get();
     if !in_use {
         return Ok(());
     }

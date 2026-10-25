@@ -15,17 +15,13 @@
 use crate::errors::Refused;
 use rc2k_core::physics::listed_cars::{QUEUE_OFFSET, cue_object};
 
-fn g(x: impl crate::store::At) -> u32 {
-    unsafe { crate::store::at_read(x) }
-}
-
 /// `cue` queued first for the car `which` (0 or 1: a player's), if it sounds.
 // Converted: `rc2k_core::physics::listed_cars::cue_object`.
 pub fn cue_car_sound(which: u32, cue: u32) -> Result<(), Refused> {
     let Some(o) = cue_object(
         which,
-        |which| g(crate::sound::store::ObjectsSlot::at(0x514F70) + 4 * which as usize),
-        |car| g(crate::sound::store::ObjectsSlot::at(0x512A10) + 4 * car as usize),
+        |which| crate::sound::store::RACE_SOUNDS.player_cars[which as usize].get(),
+        |car| crate::sound::store::RACE_SOUNDS.table[car as usize].get(),
         |o| unsafe { ((o + 8) as *const u32).read_unaligned() },
     )?
     else {

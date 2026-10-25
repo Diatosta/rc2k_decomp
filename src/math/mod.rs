@@ -10,5 +10,12 @@ pub mod turn_point_xz_ebx;
 pub mod turn_point_xz_ecx;
 pub mod turn_scratch_xz;
 pub mod x87;
+pub(crate) mod x87_float;
 pub mod x87_load;
+#[cfg(test)]
+mod x87_reference_a;
+#[cfg(test)]
+mod x87_reference_b;
+#[cfg(test)]
+mod x87_reference_c;
 pub mod x87_run;

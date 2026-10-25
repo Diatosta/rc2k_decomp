@@ -10,7 +10,7 @@
 //! In:  nothing
 //! Out: nothing (its caller reads no register after it)
 //!
-//! Caller: `sub_4BC0B1` (0x4BC0BF). The x87 run is the original's instructions over the
+//! Caller: `sub_4BC0B1` (0x4BC0BF). The x87 run is plain Rust on the x87 model (`math::x87_float`), in the original's order, over the
 //! game's variables.
 
 use crate::framework::rva;
@@ -37,9 +37,92 @@ const STATES: [(u32, u32); 8] = [
 
 /// The original's 0x4BBE62 .. 0x4BBF1A: the axes scaled.
 unsafe fn axes() {
+    unsafe { axes_x87(crate::marks::store::base() as usize) }
+}
+
+/// The Rust version (see the header).
+pub unsafe fn hexagons_setup() {
+    use crate::scene::set_render_state::set_render_state;
     unsafe {
-        core::arch::asm!(
-            "fld dword ptr [{mk} + 0xAFCDA]",
+        axes();
+        crate::scene::depth_buffer_on::depth_buffer(true);
+        crate::scene::set_texture::set_texture(game_read(TEXTURE_RVA));
+        for (value, state) in STATES {
+            set_render_state(value, state);
+        }
+        for n in 0..6 {
+            game_write(SCRATCH_RVA, 0x100u32);
+            game_write(VERTICES_RVA + 0x20 * n + 0xC, x87::int_to_float(0x100));
+        }
+        for n in 0..6 {
+            game_write(VERTICES_RVA + 0x20 * n + 0x10, 0xFFFF_FFFFu32);
+            game_write(VERTICES_RVA + 0x20 * n + 0x14, 0xFF00_0000u32);
+        }
+        let side: u32 = game_read(SIDE_RVA);
+        for (n, (u, v)) in [(0, 0), (side, 0), (side, side), (0, side)]
+            .into_iter()
+            .enumerate()
+        {
+            game_write(VERTICES_RVA + 0x20 * n + 0x18, u);
+            game_write(VERTICES_RVA + 0x20 * n + 0x1C, v);
+        }
+        game_write(COUNT_RVA, 6u32);
+        game_write(INVERSE_RVA, x87::reciprocal(game_read(DEPTH_OF_RVA)));
+    }
+}
+
+use crate::marks::plain::{ld, st};
+
+/// `axes`'s x87 block as plain Rust on the x87 model (36 instructions), same order and memory places.
+unsafe fn axes_x87(mk: usize) {
+    unsafe {
+        let t0 = ld(mk, 0xAFCDA);
+        let t1 = t0 * ld(mk, 0xAFC82);
+        st(mk, 0xAFD2E, t1);
+        let t2 = ld(mk, 0xAFCDE);
+        let t3 = t2 * ld(mk, 0xAFC82);
+        st(mk, 0xAFD32, t3);
+        let t4 = ld(mk, 0xAFCE2);
+        let t5 = t4 * ld(mk, 0xAFC82);
+        st(mk, 0xAFD36, t5);
+        let t6 = ld(mk, 0xAFCE6);
+        let t7 = t6 * ld(mk, 0xAFC82);
+        st(mk, 0xAFD3A, t7);
+        let t8 = ld(mk, 0xAFCEA);
+        let t9 = t8 * ld(mk, 0xAFC82);
+        st(mk, 0xAFD3E, t9);
+        let t10 = ld(mk, 0xAFCEE);
+        let t11 = t10 * ld(mk, 0xAFC82);
+        st(mk, 0xAFD42, t11);
+        let t12 = ld(mk, 0xAFD2E);
+        let t13 = t12 * ld(mk, 0xC9346);
+        st(mk, 0xAFD46, t13);
+        let t14 = ld(mk, 0xAFD32);
+        let t15 = t14 * ld(mk, 0xC934A);
+        st(mk, 0xAFD4A, t15);
+        let t16 = ld(mk, 0xAFD36);
+        let t17 = t16 * ld(mk, 0xC934E);
+        st(mk, 0xAFD4E, t17);
+        let t18 = ld(mk, 0xAFD3A);
+        let t19 = t18 * ld(mk, 0xC9352);
+        st(mk, 0xAFD52, t19);
+        let t20 = ld(mk, 0xAFD3E);
+        let t21 = t20 * ld(mk, 0xC9356);
+        st(mk, 0xAFD56, t21);
+        let t22 = ld(mk, 0xAFD42);
+        let t23 = t22 * ld(mk, 0xC935A);
+        st(mk, 0xAFD5A, t23);
+    }
+}
+
+#[cfg(test)]
+mod asm_reference {
+    //! The original assembly blocks, kept verbatim as the reference the plain versions are tested against.
+
+    pub(super) unsafe fn axes_x87(mk: usize) {
+        unsafe {
+            core::arch::asm!(
+                    "fld dword ptr [{mk} + 0xAFCDA]",
             "fmul dword ptr [{mk} + 0xAFC82]",
             "fstp dword ptr [{mk} + 0xAFD2E]",
             "fld dword ptr [{mk} + 0xAFCDE]",
@@ -75,41 +158,69 @@ unsafe fn axes() {
             "fld dword ptr [{mk} + 0xAFD42]",
             "fmul dword ptr [{mk} + 0xC935A]",
             "fstp dword ptr [{mk} + 0xAFD5A]",
-            mk = in(reg) crate::marks::store::base(),
+            mk = in(reg) mk,
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
             options(nostack),
-        )
+            )
+        }
     }
 }
 
-/// The Rust version (see the header).
-pub unsafe fn hexagons_setup() {
-    use crate::scene::set_render_state::set_render_state;
-    unsafe {
-        axes();
-        crate::scene::depth_buffer_on::depth_buffer(true);
-        crate::scene::set_texture::set_texture(game_read(TEXTURE_RVA));
-        for (value, state) in STATES {
-            set_render_state(value, state);
-        }
-        for n in 0..6 {
-            game_write(SCRATCH_RVA, 0x100u32);
-            game_write(VERTICES_RVA + 0x20 * n + 0xC, x87::int_to_float(0x100));
-        }
-        for n in 0..6 {
-            game_write(VERTICES_RVA + 0x20 * n + 0x10, 0xFFFF_FFFFu32);
-            game_write(VERTICES_RVA + 0x20 * n + 0x14, 0xFF00_0000u32);
-        }
-        let side: u32 = game_read(SIDE_RVA);
-        for (n, (u, v)) in [(0, 0), (side, 0), (side, side), (0, side)]
-            .into_iter()
-            .enumerate()
-        {
-            game_write(VERTICES_RVA + 0x20 * n + 0x18, u);
-            game_write(VERTICES_RVA + 0x20 * n + 0x1C, v);
-        }
-        game_write(COUNT_RVA, 6u32);
-        game_write(INVERSE_RVA, x87::reciprocal(game_read(DEPTH_OF_RVA)));
+#[cfg(test)]
+mod asm_differential {
+    use super::asm_reference as reference;
+    use crate::marks::asm_test::Kind::*;
+    use crate::marks::asm_test::{Op, Spec, differential};
+
+    #[test]
+    fn axes_x87_matches() {
+        const SPEC: Spec = Spec {
+            operands: &[Op::Base {
+                lo: 0xAFC82,
+                hi: 0xC935E,
+                reads: &[
+                    (0xAFC82, F32),
+                    (0xAFCDA, F32),
+                    (0xAFCDE, F32),
+                    (0xAFCE2, F32),
+                    (0xAFCE6, F32),
+                    (0xAFCEA, F32),
+                    (0xAFCEE, F32),
+                    (0xAFD2E, F32),
+                    (0xAFD32, F32),
+                    (0xAFD36, F32),
+                    (0xAFD3A, F32),
+                    (0xAFD3E, F32),
+                    (0xAFD42, F32),
+                    (0xC9346, F32),
+                    (0xC934A, F32),
+                    (0xC934E, F32),
+                    (0xC9352, F32),
+                    (0xC9356, F32),
+                    (0xC935A, F32),
+                ],
+                writes: &[
+                    (0xAFD2E, F32),
+                    (0xAFD32, F32),
+                    (0xAFD36, F32),
+                    (0xAFD3A, F32),
+                    (0xAFD3E, F32),
+                    (0xAFD42, F32),
+                    (0xAFD46, F32),
+                    (0xAFD4A, F32),
+                    (0xAFD4E, F32),
+                    (0xAFD52, F32),
+                    (0xAFD56, F32),
+                    (0xAFD5A, F32),
+                ],
+            }],
+            sincos: false,
+        };
+        differential(
+            &SPEC,
+            |b| unsafe { reference::axes_x87(b[0]) },
+            |b| unsafe { super::axes_x87(b[0]) },
+        );
     }
 }

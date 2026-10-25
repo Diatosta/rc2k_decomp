@@ -21,7 +21,7 @@ use crate::drive::race_parts::{
     input_update, players_all_out, race_frame, race_keys, restart_clock, tyre_change,
 };
 use crate::errors::Refused;
-use crate::physics::flow::{a, g, p};
+use crate::physics::flow::{g, p};
 use crate::session::FLAGS;
 
 const B: usize = 0x70F3EC;
@@ -84,14 +84,14 @@ pub unsafe fn race_loop() -> Result<(), Refused> {
                     crate::framework::log("drive::race_loop: the credits race ends: rolled off");
                     return Ok(());
                 }
-                let (or, pressed) = unsafe { crate::drive::any_key_down::any_key_down() };
+                let (or, _) = unsafe { crate::drive::any_key_down::any_key_down() };
                 if or != 0 {
                     // Which keys (`g_keysPressed`, by scan code), and the window's own state
                     // of them (`g_keysDown`), for the credits race that ends at once after
                     // the intro (the owner, 2026-10-24).
-                    let keys = |at: u32| {
-                        (0..0x80u32)
-                            .filter(|n| unsafe { ((at + n) as *const u8).read() } != 0)
+                    let keys = |table: &crate::session::Bytes<0x80>| {
+                        (0..0x80usize)
+                            .filter(|&n| table.get(n) != 0)
                             .map(|n| format!("{n:#x}"))
                             .collect::<Vec<_>>()
                             .join(" ")
@@ -99,16 +99,14 @@ pub unsafe fn race_loop() -> Result<(), Refused> {
                     crate::framework::log(&format!(
                         "drive::race_loop: the credits race ends: keys pressed [{}], down [{}], \
                          frame {}",
-                        keys(pressed),
-                        keys(a(crate::input::store::DeviceSlot::at(0x4F6ADC))),
+                        keys(&crate::input::store::DEVICES.keys_pressed),
+                        keys(&crate::input::store::DEVICES.keys_down),
                         g(0x613830)
                     ));
                     return Ok(());
                 }
             }
-            if unsafe { (a(crate::input::store::DeviceSlot::at(0x4F6CDD)) as *const u8).read() }
-                != 0
-            {
+            if crate::input::store::DEVICES.keys_pressed.get(1) != 0 {
                 let answer = unsafe { crate::drive::quit_question::quit_question() }?;
                 if answer == 0 {
                     break false;

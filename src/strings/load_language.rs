@@ -41,11 +41,10 @@ use crate::errors::{BadInput, FatalError, Refused};
 use crate::files::read_first_match::read_first_match;
 use crate::framework::rva;
 use crate::gfx::decoder::Slot as DecSlot;
-use crate::input::key_to_char::{LAYOUT_A_RVA, LAYOUT_RVA};
-use crate::input::store::KeyboardSlot;
+use crate::input::store::{KEYBOARD, KEYBOARD_FILE};
 use crate::moved::Place;
 use crate::session::MACHINE;
-use crate::store::{game_addr, game_read, game_write};
+use crate::store::{game_addr, game_write};
 use crate::strings::append_string_by_id::push_string;
 use crate::strings::same_text::set_case_table;
 use crate::strings::string_table::{LEXICON_ROOM, lexicon, use_lexicon};
@@ -56,7 +55,6 @@ use windows_sys::Win32::Globalization::GetSystemDefaultLCID;
 
 // ---- game data ----
 
-const BUILT_IN_LAYOUT_RVA: KeyboardSlot = KeyboardSlot::at(0x4F7FDC); // unk_4F7FDC
 /// `aFilesLocaleLoc` (0x4E075C), `aFilesLocaleKim` (0x4E0784).
 const LOCALE_FILES: &[u8] = b"files\\%locale\\*.loc\0";
 const KEYBOARD_FILES: &[u8] = b"files\\%locale\\*.kim\0";
@@ -97,9 +95,9 @@ pub static PLAIN_LETTERS: Place<[u8; 256]> = Place::new([
     0x61, 0x61, 0x61, 0x61, 0x61, 0x61, 0x61, 0x63, 0x65, 0x65, 0x65, 0x65, 0x69, 0x69, 0x69, 0x69,
     0x64, 0x6E, 0x6F, 0x6F, 0x6F, 0x6F, 0x6F, 0xF7, 0x6F, 0x75, 0x75, 0x75, 0x75, 0x79, 0x74, 0x79,
 ]);
-/// dword_4F07C8: the `.kim` file, 0x400 bytes. +0 "KEYB", +8 a kind, +9 and +0xA two modes,
-/// +0xB the layout's number, +0xC the layout chosen (written here), +0x30 the layouts.
-const KEYBOARD_RVA: usize = rva(0x4F07C8);
+/// `KEYBOARD_FILE` (dword_4F07C8): the `.kim` file, 0x400 bytes. +0 "KEYB", +8 a kind, +9
+/// and +0xA two modes, +0xB the layout's number, +0xC the layout chosen (written here),
+/// +0x30 the layouts.
 const KEYBOARD_LEN: usize = 0x400;
 /// Each car's copy of the units, at its +0x178.
 const CAR_UNITS: [usize; 4] = [rva(0x755BC4), rva(0x755E50), rva(0x7560DC), rva(0x756368)];
@@ -157,9 +155,11 @@ pub unsafe fn load_language(
     unsafe {
         compile()?;
         use_lexicon();
-        game_write(LAYOUT_RVA, game_addr(BUILT_IN_LAYOUT_RVA) as u32);
-        game_write(KEYBOARD_RVA + 9, 1u8);
-        game_write(KEYBOARD_RVA + 0xA, 1u8);
+        KEYBOARD_FILE
+            .layout
+            .set(KEYBOARD.built_in_layout.dead_keys.addr() as u32);
+        KEYBOARD_FILE.built_in.set(1);
+        KEYBOARD_FILE.mode.set(1);
 
         let locale = LOCALE.ptr().cast::<u8>();
         if read_first_match(LOCALE_FILES.as_ptr(), locale, LOCALE_LEN as u32, 0)?.is_none() {
@@ -175,22 +175,30 @@ pub unsafe fn load_language(
             game_write(car, units);
         }
 
-        let keyboard = game_addr(KEYBOARD_RVA) as *mut u8;
+        let keyboard = KEYBOARD_FILE.magic.as_ptr();
         if read_first_match(KEYBOARD_FILES.as_ptr(), keyboard, KEYBOARD_LEN as u32, 0)?.is_some() {
-            if &game_read::<[u8; 4]>(KEYBOARD_RVA) != b"KEYB" {
+            if &KEYBOARD_FILE.magic.read() != b"KEYB" {
                 return Err(fatal(0x80E3_83A2, ""));
             }
-            let layouts = game_addr(LAYOUT_A_RVA) as u32;
-            for n in 0..10 {
-                let offset: u32 = game_read(LAYOUT_A_RVA + n * 4);
-                if offset != 0 {
-                    game_write(LAYOUT_A_RVA + n * 4, offset.wrapping_add(layouts));
+            let layouts = KEYBOARD_FILE.layouts[0].dead_keys.addr() as u32;
+            for layout in &KEYBOARD_FILE.layouts {
+                for table in [
+                    &layout.dead_keys,
+                    &layout.plain,
+                    &layout.shifted,
+                    &layout.alt_gr,
+                    &layout.key_names,
+                ] {
+                    let offset = table.get();
+                    if offset != 0 {
+                        table.set(offset.wrapping_add(layouts));
+                    }
                 }
             }
-            let chosen = game_read::<u8>(KEYBOARD_RVA + 0xB) as u32 * 0x14;
+            let chosen = KEYBOARD_FILE.chosen.get() as u32 * 0x14;
             let layout = layouts.wrapping_add(chosen);
-            game_write(LAYOUT_RVA, layout);
-            if game_read::<u8>(KEYBOARD_RVA + 8) == 0x0C {
+            KEYBOARD_FILE.layout.set(layout);
+            if KEYBOARD_FILE.kind.get() == 0x0C {
                 let fourth = ((layout + 0x10) as *const u32).read_unaligned() as *mut u8;
                 if fourth.is_null() {
                     return Err(BadInput("a keyboard of kind 0x0C without its fourth table").into());
@@ -206,7 +214,7 @@ pub unsafe fn load_language(
         // `sub_403462`
         if MACHINE.keyboard_type.get() == 2 {
             std::ptr::copy(game_addr(NEC_KEYBOARD_RVA) as *const u8, keyboard, 0x30);
-            game_write(LAYOUT_RVA, game_addr(NEC_LAYOUT_RVA) as u32);
+            KEYBOARD_FILE.layout.set(game_addr(NEC_LAYOUT_RVA) as u32);
             game_write(NEC_MARK_RVA, 0x61u32);
         }
 

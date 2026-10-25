@@ -3,24 +3,21 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::rva;
-use crate::sound::store::ClockSlot;
-use crate::sound::store::ObjectsSlot;
-use crate::store::{game_read, game_write};
+use crate::store::game_read;
 
-pub const OBJECTS_RVA: ObjectsSlot = ObjectsSlot::at(0x512A10); // off_512A10
 pub const CARS_RVA: usize = rva(0x63DB90); // dword_63DB90: the cars in the race
-pub const COUNT_RVA: ObjectsSlot = ObjectsSlot::at(0x514F7C); // dword_514F7C: the sound objects in use
-pub const STARTED_RVA: ClockSlot = ClockSlot::at(0x5124E4); // dword_5124E4: 1 once started
 pub const REPLAY_RVA: usize = rva(0x71C3E0); // dword_71C3E0
 const OBJECTS: u32 = 8;
 const MOST_CARS: u32 = 0x1_0000;
 
 pub fn object(n: u32) -> u32 {
-    unsafe { game_read(OBJECTS_RVA + 4 * (n & 7) as usize) }
+    crate::sound::store::RACE_SOUNDS.table[(n & 7) as usize].get()
 }
 
 unsafe fn wake(n: u32) {
-    unsafe { ((object(n) + 8) as *mut u32).write_unaligned(1) };
+    unsafe { crate::sound::store::SoundObject::at(object(n)) }
+        .in_use
+        .set(1);
 }
 
 pub fn objects_there() -> bool {
@@ -36,16 +33,16 @@ pub fn start_race_sounds() -> Result<(), Refused> {
     }
     unsafe {
         crate::sound::race_clock::start_race_clock(crate::system::tick_count::tick_count());
-        let count: u32 = game_read(COUNT_RVA);
+        let count: u32 = crate::sound::store::RACE_SOUNDS.count.get();
         if count != 0 {
             let count = count.clamp(1, OBJECTS);
-            game_write(COUNT_RVA, count);
+            crate::sound::store::RACE_SOUNDS.count.set(count);
             for n in 0..count {
                 wake(n);
             }
         }
         crate::sound::let_sounds_play::let_sounds_play();
-        game_write(STARTED_RVA, 1u32);
+        crate::sound::store::RACE_CLOCK.started.set(1);
     }
     Ok(())
 }

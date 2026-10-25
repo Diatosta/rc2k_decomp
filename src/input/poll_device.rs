@@ -21,12 +21,12 @@
 
 use crate::errors::Refused;
 use crate::field;
-use crate::input::devices::{STATE_LEN, STATE_RVA, at, com_call, put};
+use crate::input::devices::{STATE_LEN, at, com_call, joy_state, put};
+use crate::input::store::DEVICES;
 use crate::input::types::InputDevice;
-use crate::store::{game_addr, game_read};
 
 fn state(n: u32) -> u32 {
-    unsafe { game_read(STATE_RVA + 4 * n as usize) }
+    DEVICES.device_state[n as usize].get()
 }
 
 /// The device `record` polled (see the header).
@@ -42,7 +42,7 @@ pub unsafe fn poll_device(record: u32) -> Result<(), Refused> {
         com_call(
             device,
             0x24,
-            &[STATE_LEN as u32, game_addr(STATE_RVA) as u32],
+            &[STATE_LEN as u32, DEVICES.device_state[0].addr() as u32],
         )
     };
     // The `rep movsd` of a failed read moves esi on by 0x50 as well: what follows reads
@@ -53,7 +53,7 @@ pub unsafe fn poll_device(record: u32) -> Result<(), Refused> {
         unsafe {
             std::ptr::copy(
                 record as *const u8,
-                game_addr(STATE_RVA) as *mut u8,
+                DEVICES.device_state[0].as_ptr().cast::<u8>(),
                 STATE_LEN,
             );
         }
@@ -69,7 +69,7 @@ pub unsafe fn poll_device(record: u32) -> Result<(), Refused> {
     put(record, field!(InputDevice, axes), x);
     put(record, field!(InputDevice, axes) + 4, y);
     put(record, field!(InputDevice, axes) + 8, z);
-    let buttons = poll_buttons(&unsafe { game_read(STATE_RVA + 0x30) });
+    let buttons = poll_buttons(&joy_state()[0x30..].try_into().unwrap());
     put(record, field!(InputDevice, buttons), buttons);
     Ok(())
 }

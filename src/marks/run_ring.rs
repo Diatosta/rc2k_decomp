@@ -19,7 +19,7 @@
 //! Out: nothing (its one caller reads no register after it)
 //!
 //! Caller: `marks::run_frame` (0x4D163B, after `run_ribbons`' set-up). The longer x87 runs
-//! are the original's instructions over the entries and the game's variables. Refuses,
+//! are plain Rust on the x87 model (`math::x87_float`), in the original's order, over the entries and the game's variables. Refuses,
 //! before anything, null settings, a null entry or link on the way, a null object where one
 //! is read, and the draws' own refusals for an entry that may be drawn.
 
@@ -56,264 +56,45 @@ fn k(place: Slot) -> u32 {
 /// The original's 0x4CE9AF .. 0x4CEA40 (and 0x4CEC77 ..): the place less the object's (`[p + 0x30]` ..) into `flt_935718` .., turned by the object's matrix (`m`), |x| and |z| `fistp`ed into `dword_935680` / `dword_935684`.
 unsafe fn box_(e: u32, p: u32, m: u32) {
     unsafe {
-        core::arch::asm!(
-            "fld dword ptr [{e} + 0x10]",
-            "fsub dword ptr [{p} + 0x30]",
-            "fstp dword ptr [{mk} + 0x1D07D8]",
-            "fld dword ptr [{e} + 0x14]",
-            "fsub dword ptr [{p} + 0x34]",
-            "fstp dword ptr [{mk} + 0x1D07DC]",
-            "fld dword ptr [{e} + 0x18]",
-            "fsub dword ptr [{p} + 0x38]",
-            "fstp dword ptr [{mk} + 0x1D07E0]",
-            "fld dword ptr [{mk} + 0x1D07E0]",
-            "fld dword ptr [{mk} + 0x1D07DC]",
-            "fld dword ptr [{mk} + 0x1D07D8]",
-            "fld dword ptr [{m} + 0x0]",
-            ".byte 0xD8, 0xC9",
-            "fld dword ptr [{m} + 0x10]",
-            ".byte 0xD8, 0xCB",
-            "fld dword ptr [{m} + 0x20]",
-            ".byte 0xD8, 0xCD",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xD9, 0xCB",
-            "fld dword ptr [{m} + 0x4]",
-            ".byte 0xD8, 0xCA",
-            "fld dword ptr [{m} + 0x14]",
-            ".byte 0xD8, 0xCC",
-            "fld dword ptr [{m} + 0x24]",
-            ".byte 0xD8, 0xCB",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xD9, 0xCB",
-            "fld dword ptr [{m} + 0x8]",
-            ".byte 0xDE, 0xCB",
-            "fld dword ptr [{m} + 0x18]",
-            ".byte 0xDE, 0xC9",
-            "fld dword ptr [{m} + 0x28]",
-            ".byte 0xDE, 0xCA",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xD9, 0xCA",
-            ".byte 0xD9, 0xE1",
-            "fistp dword ptr [{mk} + 0x1D0740]",
-            ".byte 0xDD, 0xC0",
-            ".byte 0xD9, 0xF7",
-            ".byte 0xD9, 0xE1",
-            "fistp dword ptr [{mk} + 0x1D0744]",
-            mk = in(reg) crate::marks::store::base(),
-            e = in(reg) e,
-            p = in(reg) p,
-            m = in(reg) m,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
+        box_x87(
+            crate::marks::store::base() as usize,
+            e as usize,
+            p as usize,
+            m as usize,
         )
     }
 }
 
 /// The original's 0x4CEA5E .. 0x4CEAD4 (and 0x4CED26 ..): that way made one long (`flt_76516C` over its length), dotted with the object's +0x4C .. into `flt_9356B4`.
 unsafe fn facing(o: u32) {
-    unsafe {
-        core::arch::asm!(
-            "fld dword ptr [{mk} + 0x1D07D8]",
-            ".byte 0xD8, 0xC8",
-            "fld dword ptr [{mk} + 0x1D07DC]",
-            ".byte 0xD8, 0xC8",
-            "fld dword ptr [{mk} + 0x1D07E0]",
-            ".byte 0xD8, 0xC8",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xD9, 0xFA",
-            "fdivr dword ptr [{mk} + 0x22C]",
-            "fld dword ptr [{mk} + 0x1D07D8]",
-            ".byte 0xD8, 0xC9",
-            "fstp dword ptr [{mk} + 0x1D07D8]",
-            "fld dword ptr [{mk} + 0x1D07DC]",
-            ".byte 0xD8, 0xC9",
-            "fstp dword ptr [{mk} + 0x1D07DC]",
-            "fld dword ptr [{mk} + 0x1D07E0]",
-            ".byte 0xDE, 0xC9",
-            "fstp dword ptr [{mk} + 0x1D07E0]",
-            "fld dword ptr [{mk} + 0x1D07D8]",
-            "fmul dword ptr [{o} + 0x4C]",
-            "fld dword ptr [{mk} + 0x1D07DC]",
-            "fmul dword ptr [{o} + 0x50]",
-            "fld dword ptr [{mk} + 0x1D07E0]",
-            "fmul dword ptr [{o} + 0x54]",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            "fstp dword ptr [{mk} + 0x1D0774]",
-            mk = in(reg) crate::marks::store::base(),
-            o = in(reg) o,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-        )
-    }
+    unsafe { facing_x87(crate::marks::store::base() as usize, o as usize) }
 }
 
 /// The original's 0x4CEF8A .. 0x4CEFDA: the place less the object's into `flt_935718` .., its length (kept, 80 bits, at `l`) less `flt_93A526` into `flt_9356BC`.
 unsafe fn pull_length(e: u32, p: u32, l: u32) {
     unsafe {
-        core::arch::asm!(
-            "fld dword ptr [{e} + 0x10]",
-            "fsub dword ptr [{p} + 0x30]",
-            "fstp dword ptr [{mk} + 0x1D07D8]",
-            "fld dword ptr [{e} + 0x14]",
-            "fsub dword ptr [{p} + 0x34]",
-            "fstp dword ptr [{mk} + 0x1D07DC]",
-            "fld dword ptr [{e} + 0x18]",
-            "fsub dword ptr [{p} + 0x38]",
-            "fstp dword ptr [{mk} + 0x1D07E0]",
-            "fld dword ptr [{mk} + 0x1D07D8]",
-            ".byte 0xD8, 0xC8",
-            "fld dword ptr [{mk} + 0x1D07DC]",
-            ".byte 0xD8, 0xC8",
-            "fld dword ptr [{mk} + 0x1D07E0]",
-            ".byte 0xD8, 0xC8",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xD9, 0xFA",
-            ".byte 0xD9, 0xC0",
-            "fsub dword ptr [{mk} + 0x1D55E6]",
-            "fstp dword ptr [{mk} + 0x1D077C]",
-            "fstp tbyte ptr [{l}]",
-            mk = in(reg) crate::marks::store::base(),
-            e = in(reg) e,
-            p = in(reg) p,
-            l = in(reg) l,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
+        pull_length_x87(
+            crate::marks::store::base() as usize,
+            e as usize,
+            p as usize,
+            l as usize,
         )
     }
 }
 
 /// The original's 0x4CEFEC .. 0x4CF07F: the way made one long by the kept length, the object's +0x4C .. over its +0x88, minus their dot into `flt_9356B4`.
 unsafe fn pull_facing(o: u32, l: u32) {
-    unsafe {
-        core::arch::asm!(
-            "fld tbyte ptr [{l}]",
-            "fdivr dword ptr [{mk} + 0x22C]",
-            "fld dword ptr [{mk} + 0x1D07D8]",
-            ".byte 0xD8, 0xC9",
-            "fstp dword ptr [{mk} + 0x1D07D8]",
-            "fld dword ptr [{mk} + 0x1D07DC]",
-            ".byte 0xD8, 0xC9",
-            "fstp dword ptr [{mk} + 0x1D07DC]",
-            "fld dword ptr [{mk} + 0x1D07E0]",
-            ".byte 0xDE, 0xC9",
-            "fstp dword ptr [{mk} + 0x1D07E0]",
-            "fild dword ptr [{o} + 0x88]",
-            "fdivr dword ptr [{mk} + 0x22C]",
-            "fld dword ptr [{o} + 0x4C]",
-            ".byte 0xD8, 0xC9",
-            "fstp dword ptr [{mk} + 0x1D07E4]",
-            "fld dword ptr [{o} + 0x50]",
-            ".byte 0xD8, 0xC9",
-            "fstp dword ptr [{mk} + 0x1D07E8]",
-            "fld dword ptr [{o} + 0x54]",
-            ".byte 0xDE, 0xC9",
-            "fstp dword ptr [{mk} + 0x1D07EC]",
-            "fld dword ptr [{mk} + 0x1D07D8]",
-            "fmul dword ptr [{mk} + 0x1D07E4]",
-            "fld dword ptr [{mk} + 0x1D07DC]",
-            "fmul dword ptr [{mk} + 0x1D07E8]",
-            "fld dword ptr [{mk} + 0x1D07E0]",
-            "fmul dword ptr [{mk} + 0x1D07EC]",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xD9, 0xE0",
-            "fstp dword ptr [{mk} + 0x1D0774]",
-            mk = in(reg) crate::marks::store::base(),
-            o = in(reg) o,
-            l = in(reg) l,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-        )
-    }
+    unsafe { pull_facing_x87(crate::marks::store::base() as usize, o as usize, l as usize) }
 }
 
 /// The original's 0x4CF08B .. 0x4CF0D8: the entry's +0x64 pulled toward `flt_7651DC` (`fist` into `dword_9356C0`).
 unsafe fn pull_strength(e: u32, o: u32) {
-    unsafe {
-        core::arch::asm!(
-            "fild dword ptr [{o} + 0x88]",
-            "fmul dword ptr [{mk} + 0x1D55EA]",
-            "fadd dword ptr [{mk} + 0x22C]",
-            "fdivr dword ptr [{mk} + 0x22C]",
-            "fsubr dword ptr [{mk} + 0x22C]",
-            "fstp dword ptr [{mk} + 0x1D0780]",
-            "fld dword ptr [{mk} + 0x29C]",
-            "fsub dword ptr [{e} + 0x64]",
-            "fld dword ptr [{mk} + 0x1D55EE]",
-            "fmul dword ptr [{mk} + 0x1D0780]",
-            ".byte 0xDE, 0xC9",
-            "fimul dword ptr [{mk} + 0x90]",
-            "fadd dword ptr [{e} + 0x64]",
-            "fist dword ptr [{mk} + 0x1D0780]",
-            "fstp dword ptr [{e} + 0x64]",
-            mk = in(reg) crate::marks::store::base(),
-            e = in(reg) e,
-            o = in(reg) o,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-        )
-    }
+    unsafe { pull_strength_x87(crate::marks::store::base() as usize, e as usize, o as usize) }
 }
 
 /// The original's 0x4CF65C .. 0x4CF6B7 (and 0x4CF7C4 ..): the place turned by the object's matrix (`m`), |x| and |z| into `dword_935680` / `dword_935684`.
 unsafe fn box_place(e: u32, m: u32) {
-    unsafe {
-        core::arch::asm!(
-            "fld dword ptr [{e} + 0x18]",
-            "fld dword ptr [{e} + 0x14]",
-            "fld dword ptr [{e} + 0x10]",
-            "fld dword ptr [{m} + 0x0]",
-            ".byte 0xD8, 0xC9",
-            "fld dword ptr [{m} + 0x10]",
-            ".byte 0xD8, 0xCB",
-            "fld dword ptr [{m} + 0x20]",
-            ".byte 0xD8, 0xCD",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xD9, 0xCB",
-            "fld dword ptr [{m} + 0x4]",
-            ".byte 0xD8, 0xCA",
-            "fld dword ptr [{m} + 0x14]",
-            ".byte 0xD8, 0xCC",
-            "fld dword ptr [{m} + 0x24]",
-            ".byte 0xD8, 0xCB",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xD9, 0xCB",
-            "fld dword ptr [{m} + 0x8]",
-            ".byte 0xDE, 0xCB",
-            "fld dword ptr [{m} + 0x18]",
-            ".byte 0xDE, 0xC9",
-            "fld dword ptr [{m} + 0x28]",
-            ".byte 0xDE, 0xCA",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xD9, 0xCA",
-            ".byte 0xD9, 0xE1",
-            "fistp dword ptr [{mk} + 0x1D0740]",
-            ".byte 0xDD, 0xC0",
-            ".byte 0xD9, 0xF7",
-            ".byte 0xD9, 0xE1",
-            "fistp dword ptr [{mk} + 0x1D0744]",
-            mk = in(reg) crate::marks::store::base(),
-            e = in(reg) e,
-            m = in(reg) m,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-        )
-    }
+    unsafe { box_place_x87(crate::marks::store::base() as usize, e as usize, m as usize) }
 }
 
 /// The kinds' constants: (the y gain, the three dampings, the size's rate).
@@ -766,4 +547,746 @@ pub unsafe fn run_ring() -> Result<(), Refused> {
         }
     }
     Ok(())
+}
+
+use crate::marks::plain::{ld, ld80, ldi, st, st80, sti};
+use crate::math::x87_float as bh;
+
+/// `box_`'s x87 block as plain Rust on the x87 model (45 instructions), same order and memory places.
+unsafe fn box_x87(mk: usize, e: usize, p: usize, m: usize) {
+    unsafe {
+        let t0 = ld(e, 0x10);
+        let t1 = t0 - ld(p, 0x30);
+        st(mk, 0x1D07D8, t1);
+        let t2 = ld(e, 0x14);
+        let t3 = t2 - ld(p, 0x34);
+        st(mk, 0x1D07DC, t3);
+        let t4 = ld(e, 0x18);
+        let t5 = t4 - ld(p, 0x38);
+        st(mk, 0x1D07E0, t5);
+        let t6 = ld(mk, 0x1D07E0);
+        let t7 = ld(mk, 0x1D07DC);
+        let t8 = ld(mk, 0x1D07D8);
+        let t9 = ld(m, 0);
+        let t10 = t9 * t8;
+        let t11 = ld(m, 0x10);
+        let t12 = t11 * t7;
+        let t13 = ld(m, 0x20);
+        let t14 = t13 * t6;
+        let t15 = t12 + t14;
+        let t16 = t10 + t15;
+        let t17 = ld(m, 0x4);
+        let t18 = t17 * t8;
+        let t19 = ld(m, 0x14);
+        let t20 = t19 * t7;
+        let t21 = ld(m, 0x24);
+        let t22 = t21 * t6;
+        let t23 = t20 + t22;
+        let _t24 = t18 + t23;
+        let t25 = ld(m, 0x8);
+        let t26 = t8 * t25;
+        let t27 = ld(m, 0x18);
+        let t28 = t7 * t27;
+        let t29 = ld(m, 0x28);
+        let t30 = t6 * t29;
+        let t31 = t30 + t28;
+        let t32 = t26 + t31;
+        let t33 = t16.abs();
+        sti(mk, 0x1D0740, t33);
+        let t34 = t32.abs();
+        sti(mk, 0x1D0744, t34);
+    }
+}
+
+/// `facing`'s x87 block as plain Rust on the x87 model (28 instructions), same order and memory places.
+unsafe fn facing_x87(mk: usize, o: usize) {
+    unsafe {
+        let t0 = ld(mk, 0x1D07D8);
+        let t1 = t0 * t0;
+        let t2 = ld(mk, 0x1D07DC);
+        let t3 = t2 * t2;
+        let t4 = ld(mk, 0x1D07E0);
+        let t5 = t4 * t4;
+        let t6 = t3 + t5;
+        let t7 = t1 + t6;
+        let t8 = t7.sqrt();
+        let t9 = ld(mk, 0x22C) / t8;
+        let t10 = ld(mk, 0x1D07D8);
+        let t11 = t10 * t9;
+        st(mk, 0x1D07D8, t11);
+        let t12 = ld(mk, 0x1D07DC);
+        let t13 = t12 * t9;
+        st(mk, 0x1D07DC, t13);
+        let t14 = ld(mk, 0x1D07E0);
+        let t15 = t9 * t14;
+        st(mk, 0x1D07E0, t15);
+        let t16 = ld(mk, 0x1D07D8);
+        let t17 = t16 * ld(o, 0x4C);
+        let t18 = ld(mk, 0x1D07DC);
+        let t19 = t18 * ld(o, 0x50);
+        let t20 = ld(mk, 0x1D07E0);
+        let t21 = t20 * ld(o, 0x54);
+        let t22 = t19 + t21;
+        let t23 = t17 + t22;
+        st(mk, 0x1D0774, t23);
+    }
+}
+
+/// `pull_length`'s x87 block as plain Rust on the x87 model (22 instructions), same order and memory places.
+unsafe fn pull_length_x87(mk: usize, e: usize, p: usize, l: usize) {
+    unsafe {
+        let t0 = ld(e, 0x10);
+        let t1 = t0 - ld(p, 0x30);
+        st(mk, 0x1D07D8, t1);
+        let t2 = ld(e, 0x14);
+        let t3 = t2 - ld(p, 0x34);
+        st(mk, 0x1D07DC, t3);
+        let t4 = ld(e, 0x18);
+        let t5 = t4 - ld(p, 0x38);
+        st(mk, 0x1D07E0, t5);
+        let t6 = ld(mk, 0x1D07D8);
+        let t7 = t6 * t6;
+        let t8 = ld(mk, 0x1D07DC);
+        let t9 = t8 * t8;
+        let t10 = ld(mk, 0x1D07E0);
+        let t11 = t10 * t10;
+        let t12 = t9 + t11;
+        let t13 = t7 + t12;
+        let t14 = t13.sqrt();
+        let t15 = t14 - ld(mk, 0x1D55E6);
+        st(mk, 0x1D077C, t15);
+        st80(l, 0, t14);
+    }
+}
+
+/// `pull_facing`'s x87 block as plain Rust on the x87 model (32 instructions), same order and memory places.
+unsafe fn pull_facing_x87(mk: usize, o: usize, l: usize) {
+    unsafe {
+        let t0 = bh::from_f80(ld80(l, 0));
+        let t1 = ld(mk, 0x22C) / t0;
+        let t2 = ld(mk, 0x1D07D8);
+        let t3 = t2 * t1;
+        st(mk, 0x1D07D8, t3);
+        let t4 = ld(mk, 0x1D07DC);
+        let t5 = t4 * t1;
+        st(mk, 0x1D07DC, t5);
+        let t6 = ld(mk, 0x1D07E0);
+        let t7 = t1 * t6;
+        st(mk, 0x1D07E0, t7);
+        let t8 = ldi(o, 0x88);
+        let t9 = ld(mk, 0x22C) / t8;
+        let t10 = ld(o, 0x4C);
+        let t11 = t10 * t9;
+        st(mk, 0x1D07E4, t11);
+        let t12 = ld(o, 0x50);
+        let t13 = t12 * t9;
+        st(mk, 0x1D07E8, t13);
+        let t14 = ld(o, 0x54);
+        let t15 = t9 * t14;
+        st(mk, 0x1D07EC, t15);
+        let t16 = ld(mk, 0x1D07D8);
+        let t17 = t16 * ld(mk, 0x1D07E4);
+        let t18 = ld(mk, 0x1D07DC);
+        let t19 = t18 * ld(mk, 0x1D07E8);
+        let t20 = ld(mk, 0x1D07E0);
+        let t21 = t20 * ld(mk, 0x1D07EC);
+        let t22 = t19 + t21;
+        let t23 = t17 + t22;
+        let t24 = -t23;
+        st(mk, 0x1D0774, t24);
+    }
+}
+
+/// `pull_strength`'s x87 block as plain Rust on the x87 model (15 instructions), same order and memory places.
+unsafe fn pull_strength_x87(mk: usize, e: usize, o: usize) {
+    unsafe {
+        let t0 = ldi(o, 0x88);
+        let t1 = t0 * ld(mk, 0x1D55EA);
+        let t2 = t1 + ld(mk, 0x22C);
+        let t3 = ld(mk, 0x22C) / t2;
+        let t4 = ld(mk, 0x22C) - t3;
+        st(mk, 0x1D0780, t4);
+        let t5 = ld(mk, 0x29C);
+        let t6 = t5 - ld(e, 0x64);
+        let t7 = ld(mk, 0x1D55EE);
+        let t8 = t7 * ld(mk, 0x1D0780);
+        let t9 = t6 * t8;
+        let t10 = t9 * ldi(mk, 0x90);
+        let t11 = t10 + ld(e, 0x64);
+        sti(mk, 0x1D0780, t11);
+        st(e, 0x64, t11);
+    }
+}
+
+/// `box_place`'s x87 block as plain Rust on the x87 model (36 instructions), same order and memory places.
+unsafe fn box_place_x87(mk: usize, e: usize, m: usize) {
+    unsafe {
+        let t0 = ld(e, 0x18);
+        let t1 = ld(e, 0x14);
+        let t2 = ld(e, 0x10);
+        let t3 = ld(m, 0);
+        let t4 = t3 * t2;
+        let t5 = ld(m, 0x10);
+        let t6 = t5 * t1;
+        let t7 = ld(m, 0x20);
+        let t8 = t7 * t0;
+        let t9 = t6 + t8;
+        let t10 = t4 + t9;
+        let t11 = ld(m, 0x4);
+        let t12 = t11 * t2;
+        let t13 = ld(m, 0x14);
+        let t14 = t13 * t1;
+        let t15 = ld(m, 0x24);
+        let t16 = t15 * t0;
+        let t17 = t14 + t16;
+        let _t18 = t12 + t17;
+        let t19 = ld(m, 0x8);
+        let t20 = t2 * t19;
+        let t21 = ld(m, 0x18);
+        let t22 = t1 * t21;
+        let t23 = ld(m, 0x28);
+        let t24 = t0 * t23;
+        let t25 = t24 + t22;
+        let t26 = t20 + t25;
+        let t27 = t10.abs();
+        sti(mk, 0x1D0740, t27);
+        let t28 = t26.abs();
+        sti(mk, 0x1D0744, t28);
+    }
+}
+
+#[cfg(test)]
+mod asm_reference {
+    //! The original assembly blocks, kept verbatim as the reference the plain versions are tested against.
+
+    pub(super) unsafe fn box_x87(mk: usize, e: usize, p: usize, m: usize) {
+        unsafe {
+            core::arch::asm!(
+                    "fld dword ptr [{e} + 0x10]",
+            "fsub dword ptr [{p} + 0x30]",
+            "fstp dword ptr [{mk} + 0x1D07D8]",
+            "fld dword ptr [{e} + 0x14]",
+            "fsub dword ptr [{p} + 0x34]",
+            "fstp dword ptr [{mk} + 0x1D07DC]",
+            "fld dword ptr [{e} + 0x18]",
+            "fsub dword ptr [{p} + 0x38]",
+            "fstp dword ptr [{mk} + 0x1D07E0]",
+            "fld dword ptr [{mk} + 0x1D07E0]",
+            "fld dword ptr [{mk} + 0x1D07DC]",
+            "fld dword ptr [{mk} + 0x1D07D8]",
+            "fld dword ptr [{m} + 0x0]",
+            ".byte 0xD8, 0xC9",
+            "fld dword ptr [{m} + 0x10]",
+            ".byte 0xD8, 0xCB",
+            "fld dword ptr [{m} + 0x20]",
+            ".byte 0xD8, 0xCD",
+            ".byte 0xDE, 0xC1",
+            ".byte 0xDE, 0xC1",
+            ".byte 0xD9, 0xCB",
+            "fld dword ptr [{m} + 0x4]",
+            ".byte 0xD8, 0xCA",
+            "fld dword ptr [{m} + 0x14]",
+            ".byte 0xD8, 0xCC",
+            "fld dword ptr [{m} + 0x24]",
+            ".byte 0xD8, 0xCB",
+            ".byte 0xDE, 0xC1",
+            ".byte 0xDE, 0xC1",
+            ".byte 0xD9, 0xCB",
+            "fld dword ptr [{m} + 0x8]",
+            ".byte 0xDE, 0xCB",
+            "fld dword ptr [{m} + 0x18]",
+            ".byte 0xDE, 0xC9",
+            "fld dword ptr [{m} + 0x28]",
+            ".byte 0xDE, 0xCA",
+            ".byte 0xDE, 0xC1",
+            ".byte 0xDE, 0xC1",
+            ".byte 0xD9, 0xCA",
+            ".byte 0xD9, 0xE1",
+            "fistp dword ptr [{mk} + 0x1D0740]",
+            ".byte 0xDD, 0xC0",
+            ".byte 0xD9, 0xF7",
+            ".byte 0xD9, 0xE1",
+            "fistp dword ptr [{mk} + 0x1D0744]",
+            mk = in(reg) mk,
+            e = in(reg) e,
+            p = in(reg) p,
+            m = in(reg) m,
+            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
+            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
+            options(nostack),
+            )
+        }
+    }
+
+    pub(super) unsafe fn facing_x87(mk: usize, o: usize) {
+        unsafe {
+            core::arch::asm!(
+                    "fld dword ptr [{mk} + 0x1D07D8]",
+            ".byte 0xD8, 0xC8",
+            "fld dword ptr [{mk} + 0x1D07DC]",
+            ".byte 0xD8, 0xC8",
+            "fld dword ptr [{mk} + 0x1D07E0]",
+            ".byte 0xD8, 0xC8",
+            ".byte 0xDE, 0xC1",
+            ".byte 0xDE, 0xC1",
+            ".byte 0xD9, 0xFA",
+            "fdivr dword ptr [{mk} + 0x22C]",
+            "fld dword ptr [{mk} + 0x1D07D8]",
+            ".byte 0xD8, 0xC9",
+            "fstp dword ptr [{mk} + 0x1D07D8]",
+            "fld dword ptr [{mk} + 0x1D07DC]",
+            ".byte 0xD8, 0xC9",
+            "fstp dword ptr [{mk} + 0x1D07DC]",
+            "fld dword ptr [{mk} + 0x1D07E0]",
+            ".byte 0xDE, 0xC9",
+            "fstp dword ptr [{mk} + 0x1D07E0]",
+            "fld dword ptr [{mk} + 0x1D07D8]",
+            "fmul dword ptr [{o} + 0x4C]",
+            "fld dword ptr [{mk} + 0x1D07DC]",
+            "fmul dword ptr [{o} + 0x50]",
+            "fld dword ptr [{mk} + 0x1D07E0]",
+            "fmul dword ptr [{o} + 0x54]",
+            ".byte 0xDE, 0xC1",
+            ".byte 0xDE, 0xC1",
+            "fstp dword ptr [{mk} + 0x1D0774]",
+            mk = in(reg) mk,
+            o = in(reg) o,
+            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
+            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
+            options(nostack),
+            )
+        }
+    }
+
+    pub(super) unsafe fn pull_length_x87(mk: usize, e: usize, p: usize, l: usize) {
+        unsafe {
+            core::arch::asm!(
+                    "fld dword ptr [{e} + 0x10]",
+            "fsub dword ptr [{p} + 0x30]",
+            "fstp dword ptr [{mk} + 0x1D07D8]",
+            "fld dword ptr [{e} + 0x14]",
+            "fsub dword ptr [{p} + 0x34]",
+            "fstp dword ptr [{mk} + 0x1D07DC]",
+            "fld dword ptr [{e} + 0x18]",
+            "fsub dword ptr [{p} + 0x38]",
+            "fstp dword ptr [{mk} + 0x1D07E0]",
+            "fld dword ptr [{mk} + 0x1D07D8]",
+            ".byte 0xD8, 0xC8",
+            "fld dword ptr [{mk} + 0x1D07DC]",
+            ".byte 0xD8, 0xC8",
+            "fld dword ptr [{mk} + 0x1D07E0]",
+            ".byte 0xD8, 0xC8",
+            ".byte 0xDE, 0xC1",
+            ".byte 0xDE, 0xC1",
+            ".byte 0xD9, 0xFA",
+            ".byte 0xD9, 0xC0",
+            "fsub dword ptr [{mk} + 0x1D55E6]",
+            "fstp dword ptr [{mk} + 0x1D077C]",
+            "fstp tbyte ptr [{l}]",
+            mk = in(reg) mk,
+            e = in(reg) e,
+            p = in(reg) p,
+            l = in(reg) l,
+            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
+            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
+            options(nostack),
+            )
+        }
+    }
+
+    pub(super) unsafe fn pull_facing_x87(mk: usize, o: usize, l: usize) {
+        unsafe {
+            core::arch::asm!(
+                    "fld tbyte ptr [{l}]",
+            "fdivr dword ptr [{mk} + 0x22C]",
+            "fld dword ptr [{mk} + 0x1D07D8]",
+            ".byte 0xD8, 0xC9",
+            "fstp dword ptr [{mk} + 0x1D07D8]",
+            "fld dword ptr [{mk} + 0x1D07DC]",
+            ".byte 0xD8, 0xC9",
+            "fstp dword ptr [{mk} + 0x1D07DC]",
+            "fld dword ptr [{mk} + 0x1D07E0]",
+            ".byte 0xDE, 0xC9",
+            "fstp dword ptr [{mk} + 0x1D07E0]",
+            "fild dword ptr [{o} + 0x88]",
+            "fdivr dword ptr [{mk} + 0x22C]",
+            "fld dword ptr [{o} + 0x4C]",
+            ".byte 0xD8, 0xC9",
+            "fstp dword ptr [{mk} + 0x1D07E4]",
+            "fld dword ptr [{o} + 0x50]",
+            ".byte 0xD8, 0xC9",
+            "fstp dword ptr [{mk} + 0x1D07E8]",
+            "fld dword ptr [{o} + 0x54]",
+            ".byte 0xDE, 0xC9",
+            "fstp dword ptr [{mk} + 0x1D07EC]",
+            "fld dword ptr [{mk} + 0x1D07D8]",
+            "fmul dword ptr [{mk} + 0x1D07E4]",
+            "fld dword ptr [{mk} + 0x1D07DC]",
+            "fmul dword ptr [{mk} + 0x1D07E8]",
+            "fld dword ptr [{mk} + 0x1D07E0]",
+            "fmul dword ptr [{mk} + 0x1D07EC]",
+            ".byte 0xDE, 0xC1",
+            ".byte 0xDE, 0xC1",
+            ".byte 0xD9, 0xE0",
+            "fstp dword ptr [{mk} + 0x1D0774]",
+            mk = in(reg) mk,
+            o = in(reg) o,
+            l = in(reg) l,
+            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
+            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
+            options(nostack),
+            )
+        }
+    }
+
+    pub(super) unsafe fn pull_strength_x87(mk: usize, e: usize, o: usize) {
+        unsafe {
+            core::arch::asm!(
+                    "fild dword ptr [{o} + 0x88]",
+            "fmul dword ptr [{mk} + 0x1D55EA]",
+            "fadd dword ptr [{mk} + 0x22C]",
+            "fdivr dword ptr [{mk} + 0x22C]",
+            "fsubr dword ptr [{mk} + 0x22C]",
+            "fstp dword ptr [{mk} + 0x1D0780]",
+            "fld dword ptr [{mk} + 0x29C]",
+            "fsub dword ptr [{e} + 0x64]",
+            "fld dword ptr [{mk} + 0x1D55EE]",
+            "fmul dword ptr [{mk} + 0x1D0780]",
+            ".byte 0xDE, 0xC9",
+            "fimul dword ptr [{mk} + 0x90]",
+            "fadd dword ptr [{e} + 0x64]",
+            "fist dword ptr [{mk} + 0x1D0780]",
+            "fstp dword ptr [{e} + 0x64]",
+            mk = in(reg) mk,
+            e = in(reg) e,
+            o = in(reg) o,
+            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
+            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
+            options(nostack),
+            )
+        }
+    }
+
+    pub(super) unsafe fn box_place_x87(mk: usize, e: usize, m: usize) {
+        unsafe {
+            core::arch::asm!(
+                    "fld dword ptr [{e} + 0x18]",
+            "fld dword ptr [{e} + 0x14]",
+            "fld dword ptr [{e} + 0x10]",
+            "fld dword ptr [{m} + 0x0]",
+            ".byte 0xD8, 0xC9",
+            "fld dword ptr [{m} + 0x10]",
+            ".byte 0xD8, 0xCB",
+            "fld dword ptr [{m} + 0x20]",
+            ".byte 0xD8, 0xCD",
+            ".byte 0xDE, 0xC1",
+            ".byte 0xDE, 0xC1",
+            ".byte 0xD9, 0xCB",
+            "fld dword ptr [{m} + 0x4]",
+            ".byte 0xD8, 0xCA",
+            "fld dword ptr [{m} + 0x14]",
+            ".byte 0xD8, 0xCC",
+            "fld dword ptr [{m} + 0x24]",
+            ".byte 0xD8, 0xCB",
+            ".byte 0xDE, 0xC1",
+            ".byte 0xDE, 0xC1",
+            ".byte 0xD9, 0xCB",
+            "fld dword ptr [{m} + 0x8]",
+            ".byte 0xDE, 0xCB",
+            "fld dword ptr [{m} + 0x18]",
+            ".byte 0xDE, 0xC9",
+            "fld dword ptr [{m} + 0x28]",
+            ".byte 0xDE, 0xCA",
+            ".byte 0xDE, 0xC1",
+            ".byte 0xDE, 0xC1",
+            ".byte 0xD9, 0xCA",
+            ".byte 0xD9, 0xE1",
+            "fistp dword ptr [{mk} + 0x1D0740]",
+            ".byte 0xDD, 0xC0",
+            ".byte 0xD9, 0xF7",
+            ".byte 0xD9, 0xE1",
+            "fistp dword ptr [{mk} + 0x1D0744]",
+            mk = in(reg) mk,
+            e = in(reg) e,
+            m = in(reg) m,
+            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
+            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
+            options(nostack),
+            )
+        }
+    }
+}
+
+#[cfg(test)]
+mod asm_differential {
+    use super::asm_reference as reference;
+    use crate::marks::asm_test::Kind::*;
+    use crate::marks::asm_test::{Op, Spec, differential};
+
+    #[test]
+    fn box_x87_matches() {
+        const SPEC: Spec = Spec {
+            operands: &[
+                Op::Base {
+                    lo: 0x1D0740,
+                    hi: 0x1D07E4,
+                    reads: &[(0x1D07D8, F32), (0x1D07DC, F32), (0x1D07E0, F32)],
+                    writes: &[
+                        (0x1D0740, I32),
+                        (0x1D0744, I32),
+                        (0x1D07D8, F32),
+                        (0x1D07DC, F32),
+                        (0x1D07E0, F32),
+                    ],
+                },
+                Op::Base {
+                    lo: 0x10,
+                    hi: 0x1C,
+                    reads: &[(0x10, F32), (0x14, F32), (0x18, F32)],
+                    writes: &[],
+                },
+                Op::Base {
+                    lo: 0x30,
+                    hi: 0x3C,
+                    reads: &[(0x30, F32), (0x34, F32), (0x38, F32)],
+                    writes: &[],
+                },
+                Op::Base {
+                    lo: 0x0,
+                    hi: 0x2C,
+                    reads: &[
+                        (0x0, F32),
+                        (0x4, F32),
+                        (0x8, F32),
+                        (0x10, F32),
+                        (0x14, F32),
+                        (0x18, F32),
+                        (0x20, F32),
+                        (0x24, F32),
+                        (0x28, F32),
+                    ],
+                    writes: &[],
+                },
+            ],
+            sincos: false,
+        };
+        differential(
+            &SPEC,
+            |b| unsafe { reference::box_x87(b[0], b[1], b[2], b[3]) },
+            |b| unsafe { super::box_x87(b[0], b[1], b[2], b[3]) },
+        );
+    }
+
+    #[test]
+    fn facing_x87_matches() {
+        const SPEC: Spec = Spec {
+            operands: &[
+                Op::Base {
+                    lo: 0x22C,
+                    hi: 0x1D07E4,
+                    reads: &[
+                        (0x22C, F32),
+                        (0x1D07D8, F32),
+                        (0x1D07DC, F32),
+                        (0x1D07E0, F32),
+                    ],
+                    writes: &[
+                        (0x1D0774, F32),
+                        (0x1D07D8, F32),
+                        (0x1D07DC, F32),
+                        (0x1D07E0, F32),
+                    ],
+                },
+                Op::Base {
+                    lo: 0x4C,
+                    hi: 0x58,
+                    reads: &[(0x4C, F32), (0x50, F32), (0x54, F32)],
+                    writes: &[],
+                },
+            ],
+            sincos: false,
+        };
+        differential(
+            &SPEC,
+            |b| unsafe { reference::facing_x87(b[0], b[1]) },
+            |b| unsafe { super::facing_x87(b[0], b[1]) },
+        );
+    }
+
+    #[test]
+    fn pull_length_x87_matches() {
+        const SPEC: Spec = Spec {
+            operands: &[
+                Op::Base {
+                    lo: 0x1D077C,
+                    hi: 0x1D55EA,
+                    reads: &[
+                        (0x1D07D8, F32),
+                        (0x1D07DC, F32),
+                        (0x1D07E0, F32),
+                        (0x1D55E6, F32),
+                    ],
+                    writes: &[
+                        (0x1D077C, F32),
+                        (0x1D07D8, F32),
+                        (0x1D07DC, F32),
+                        (0x1D07E0, F32),
+                    ],
+                },
+                Op::Base {
+                    lo: 0x10,
+                    hi: 0x1C,
+                    reads: &[(0x10, F32), (0x14, F32), (0x18, F32)],
+                    writes: &[],
+                },
+                Op::Base {
+                    lo: 0x30,
+                    hi: 0x3C,
+                    reads: &[(0x30, F32), (0x34, F32), (0x38, F32)],
+                    writes: &[],
+                },
+                Op::Base {
+                    lo: 0x0,
+                    hi: 0xA,
+                    reads: &[],
+                    writes: &[(0x0, F80)],
+                },
+            ],
+            sincos: false,
+        };
+        differential(
+            &SPEC,
+            |b| unsafe { reference::pull_length_x87(b[0], b[1], b[2], b[3]) },
+            |b| unsafe { super::pull_length_x87(b[0], b[1], b[2], b[3]) },
+        );
+    }
+
+    #[test]
+    fn pull_facing_x87_matches() {
+        const SPEC: Spec = Spec {
+            operands: &[
+                Op::Base {
+                    lo: 0x22C,
+                    hi: 0x1D07F0,
+                    reads: &[
+                        (0x22C, F32),
+                        (0x1D07D8, F32),
+                        (0x1D07DC, F32),
+                        (0x1D07E0, F32),
+                        (0x1D07E4, F32),
+                        (0x1D07E8, F32),
+                        (0x1D07EC, F32),
+                    ],
+                    writes: &[
+                        (0x1D0774, F32),
+                        (0x1D07D8, F32),
+                        (0x1D07DC, F32),
+                        (0x1D07E0, F32),
+                        (0x1D07E4, F32),
+                        (0x1D07E8, F32),
+                        (0x1D07EC, F32),
+                    ],
+                },
+                Op::Base {
+                    lo: 0x4C,
+                    hi: 0x8C,
+                    reads: &[(0x4C, F32), (0x50, F32), (0x54, F32), (0x88, I32)],
+                    writes: &[],
+                },
+                Op::Base {
+                    lo: 0x0,
+                    hi: 0xA,
+                    reads: &[(0x0, F80)],
+                    writes: &[],
+                },
+            ],
+            sincos: false,
+        };
+        differential(
+            &SPEC,
+            |b| unsafe { reference::pull_facing_x87(b[0], b[1], b[2]) },
+            |b| unsafe { super::pull_facing_x87(b[0], b[1], b[2]) },
+        );
+    }
+
+    #[test]
+    fn pull_strength_x87_matches() {
+        const SPEC: Spec = Spec {
+            operands: &[
+                Op::Base {
+                    lo: 0x90,
+                    hi: 0x1D55F2,
+                    reads: &[
+                        (0x90, I32),
+                        (0x22C, F32),
+                        (0x29C, F32),
+                        (0x1D0780, F32),
+                        (0x1D55EA, F32),
+                        (0x1D55EE, F32),
+                    ],
+                    writes: &[(0x1D0780, F32), (0x1D0780, I32)],
+                },
+                Op::Base {
+                    lo: 0x64,
+                    hi: 0x68,
+                    reads: &[(0x64, F32)],
+                    writes: &[(0x64, F32)],
+                },
+                Op::Base {
+                    lo: 0x88,
+                    hi: 0x8C,
+                    reads: &[(0x88, I32)],
+                    writes: &[],
+                },
+            ],
+            sincos: false,
+        };
+        differential(
+            &SPEC,
+            |b| unsafe { reference::pull_strength_x87(b[0], b[1], b[2]) },
+            |b| unsafe { super::pull_strength_x87(b[0], b[1], b[2]) },
+        );
+    }
+
+    #[test]
+    fn box_place_x87_matches() {
+        const SPEC: Spec = Spec {
+            operands: &[
+                Op::Base {
+                    lo: 0x1D0740,
+                    hi: 0x1D0748,
+                    reads: &[],
+                    writes: &[(0x1D0740, I32), (0x1D0744, I32)],
+                },
+                Op::Base {
+                    lo: 0x10,
+                    hi: 0x1C,
+                    reads: &[(0x10, F32), (0x14, F32), (0x18, F32)],
+                    writes: &[],
+                },
+                Op::Base {
+                    lo: 0x0,
+                    hi: 0x2C,
+                    reads: &[
+                        (0x0, F32),
+                        (0x4, F32),
+                        (0x8, F32),
+                        (0x10, F32),
+                        (0x14, F32),
+                        (0x18, F32),
+                        (0x20, F32),
+                        (0x24, F32),
+                        (0x28, F32),
+                    ],
+                    writes: &[],
+                },
+            ],
+            sincos: false,
+        };
+        differential(
+            &SPEC,
+            |b| unsafe { reference::box_place_x87(b[0], b[1], b[2]) },
+            |b| unsafe { super::box_place_x87(b[0], b[1], b[2]) },
+        );
+    }
 }

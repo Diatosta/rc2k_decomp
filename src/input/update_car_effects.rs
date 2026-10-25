@@ -31,42 +31,24 @@
 //! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::input::devices::{at, put};
-use crate::math::x87::{mul_to_int, x87};
-use crate::sound::store::EffectsSlot;
+use crate::input::devices::at;
+use crate::math::x87::mul_to_int;
+use crate::math::x87_float::{ld, st, to_int};
 
-const TEN: EffectsSlot = EffectsSlot::at(0x5180DC); // flt_5180DC: 10.0
-const ANGLE_SCALE: EffectsSlot = EffectsSlot::at(0x5180E0); // flt_5180E0: 162.97
-const FULL: EffectsSlot = EffectsSlot::at(0x5180E4); // flt_5180E4: 256.0
-const TENTH: EffectsSlot = EffectsSlot::at(0x5180EC); // flt_5180EC: 0.1
 /// dword_51809C: a surface's effect kind, 16 entries.
-const KINDS: EffectsSlot = EffectsSlot::at(0x51809C);
 const KIND_COUNT: u32 = 16;
-
-fn k(x: impl crate::store::Ida) -> u32 {
-    unsafe { crate::store::ida_read(x) }
-}
 
 /// `fld a; fsub b; fmul c; fistp`.
 fn sub_mul_to_int(a: u32, b: u32, c: u32) -> i32 {
-    let (v, mut out) = ([a, b, c], 0i32);
-    x87!("fld dword ptr [{v}]", "fsub dword ptr [{v} + 4]", "fmul dword ptr [{v} + 8]",
-        "fistp dword ptr [{o}]";
-        v = v.as_ptr(), o = &raw mut out);
-    out
+    to_int((ld(a) - ld(b)) * ld(c))
 }
 
 /// `fld y; fld x; fpatan; fst angle; fabs; fmul s; fsubr full; fmul d; fmul tenth;
 /// fistp`: (the angle's bits, the knock).
 fn knock(y: u32, x: u32, s: u32, full: u32, d: u32, tenth: u32) -> (u32, i32) {
-    let v = [y, x, s, full, d, tenth];
-    let mut out = [0u32; 2];
-    x87!("fld dword ptr [{v}]", "fld dword ptr [{v} + 4]", "fpatan",
-        "fst dword ptr [{o}]", "fabs", "fmul dword ptr [{v} + 8]",
-        "fsubr dword ptr [{v} + 12]", "fmul dword ptr [{v} + 16]",
-        "fmul dword ptr [{v} + 20]", "fistp dword ptr [{o} + 4]";
-        v = v.as_ptr(), o = out.as_mut_ptr());
-    (out[0], out[1] as i32)
+    let angle = ld(y).atan2(ld(x));
+    let knock = (ld(full) - angle.abs() * ld(s)) * ld(d) * ld(tenth);
+    (st(angle), to_int(knock))
 }
 
 /// The original's ecx and edx, which carry the numbers from one request to the next.
@@ -86,45 +68,43 @@ fn update_car_effects_with(
     scratch: u32,
 ) -> Result<(), Refused> {
     let r = &mut Last::default();
-    let surface = at(object, 0x294);
+    let o = unsafe { crate::sound::store::SoundObject::at(object) };
+    let surface = o.surface.get();
     if surface >= KIND_COUNT {
         return Err(BadInput("a surface number past the effect kinds' 16").into());
     }
-    put(object, 0xAC, at(view, 0x248));
-    let ten = k(TEN);
-    put(object, 0xB0, mul_to_int(at(view, 0x1A4), ten) as u32);
-    put(
-        object,
-        0xB4,
-        sub_mul_to_int(at(view, 0x1B8), at(view, 0x1AC), ten) as u32,
-    );
-    put(object, 0xB8, mul_to_int(at(view, 0x1A4), ten) as u32);
-    put(object, 0xBC, mul_to_int(at(view, 0x1AC), ten) as u32);
-    if at(object, 0xD0) & 0x7FFF_FFFF != 0 && at(object, 0xC4) & 0x7FFF_FFFF != 0 {
+    o.flag_ac.set(at(view, 0x248));
+    let effects = &crate::sound::store::SOUND_EFFECTS;
+    let ten = effects.effect_ten.bits();
+    o.effect_in[0].set(mul_to_int(at(view, 0x1A4), ten) as u32);
+    o.effect_in[1].set(sub_mul_to_int(at(view, 0x1B8), at(view, 0x1AC), ten) as u32);
+    o.effect_in[2].set(mul_to_int(at(view, 0x1A4), ten) as u32);
+    o.effect_in[3].set(mul_to_int(at(view, 0x1AC), ten) as u32);
+    if o.knock_in[3].get() & 0x7FFF_FFFF != 0 && o.knock_in[0].get() & 0x7FFF_FFFF != 0 {
         let (angle, force) = knock(
-            at(object, 0xCC),
-            at(object, 0xC4),
-            k(ANGLE_SCALE),
-            k(FULL),
-            at(object, 0xD0),
-            k(TENTH),
+            o.knock_in[2].get(),
+            o.knock_in[0].get(),
+            effects.effect_angle_scale.bits(),
+            effects.effect_full.bits(),
+            o.knock_in[3].get(),
+            effects.effect_tenth.bits(),
         );
         unsafe { (scratch as *mut u32).write_volatile(angle) };
-        put(object, 0xC0, force as u32);
+        o.knock.set(force as u32);
     } else {
-        put(object, 0xC0, 0);
+        o.knock.set(0);
     }
-    for o in [0xC4, 0xC8, 0xCC, 0xD0] {
-        put(object, o, 0);
+    for d in &o.knock_in {
+        d.set(0);
     }
-    r.ecx = k(KINDS + 4 * surface as usize);
-    r.edx = at(object, 0x284);
+    r.ecx = effects.surface_effect_kinds[surface as usize].get();
+    r.edx = o.sum_a.get();
     if (r.edx as i32) < 0 {
         r.edx = r.edx.wrapping_neg();
     }
     if r.edx <= 5 {
         r.ecx = 0;
-        let s = at(object, 0x14);
+        let s = o.revs.get();
         r.edx = s.wrapping_mul(s) >> 19;
     }
     if r.edx > 0x100 {
@@ -135,7 +115,7 @@ fn update_car_effects_with(
         r.edx = edx;
         crate::input::set_effect::set_effect(device, eax, 3, ecx, edx)
     };
-    let d8 = || at(object, 0xD8);
+    let d8 = || o.effect_d8.get();
     let (ecx, edx) = (r.ecx, r.edx);
     set(r, 1, ecx, edx)?;
     let mut to_703 = false;
@@ -154,19 +134,19 @@ fn update_car_effects_with(
         }
         _ => {
             set(r, 4, 0, d8())?;
-            if at(object, 0xAC) != 0 {
-                put(object, 0x278, 1);
+            if o.flag_ac.get() != 0 {
+                o.landed.set(1);
                 set(r, 0, 0, d8())?;
                 set(r, 1, 0, 0x100)?;
                 set(r, 4, 0, d8())?;
                 to_703 = true;
-            } else if at(object, 0x278) == 1 {
-                put(object, 0x278, 0);
+            } else if o.landed.get() == 1 {
+                o.landed.set(0);
                 set(r, 0, 0x100, d8())?;
                 let edx = r.edx;
                 set(r, 2, 0x100, edx)?;
             } else {
-                let mut a = (at(object, 0xB0) << 1).wrapping_add(at(object, 0xB4)) << 1;
+                let mut a = (o.effect_in[0].get() << 1).wrapping_add(o.effect_in[1].get()) << 1;
                 if (a as i32) < 0 {
                     a = a.wrapping_neg();
                 }
@@ -181,10 +161,10 @@ fn update_car_effects_with(
     }
     if !to_703 {
         // loc_40F67C: the knock.
-        r.ecx = at(object, 0xC0);
+        r.ecx = o.knock.get();
         let mut counted = false;
-        if r.ecx != 0 && at(object, 0xAC) == 0 {
-            if at(object, 0xDC) == 0 {
+        if r.ecx != 0 && o.flag_ac.get() == 0 {
+            if o.knock_count.get() == 0 {
                 let ecx = if (r.ecx as i32) < 0 {
                     0xFFFF_FF00
                 } else {
@@ -192,23 +172,23 @@ fn update_car_effects_with(
                 };
                 let edx = r.edx;
                 set(r, 3, ecx, edx)?;
-                put(object, 0xDC, at(object, 0xDC).wrapping_add(1));
+                o.knock_count.set(o.knock_count.get().wrapping_add(1));
                 counted = true;
             } else {
-                put(object, 0xC0, 0);
+                o.knock.set(0);
             }
         }
-        if !counted && at(object, 0xDC) != 0 {
-            put(object, 0xDC, at(object, 0xDC).wrapping_add(1));
-            if at(object, 0xDC) >= 4 {
-                put(object, 0xDC, 0);
+        if !counted && o.knock_count.get() != 0 {
+            o.knock_count.set(o.knock_count.get().wrapping_add(1));
+            if o.knock_count.get() >= 4 {
+                o.knock_count.set(0);
             }
         }
     }
     // loc_40F703: the change of +0xBC.
-    let now = at(object, 0xBC);
-    let before = at(object, 0x27C);
-    put(object, 0x27C, now);
+    let now = o.effect_in[3].get();
+    let before = o.last_effect_bc.get();
+    o.last_effect_bc.set(now);
     let change = (now.wrapping_sub(before) as i32).clamp(-0x200, 0x200) >> 1;
     let edx = r.edx;
     set(r, 5, change as u32, edx)
@@ -224,4 +204,104 @@ pub fn update_car_effects(view: u32, object: u32, device: u32) -> Result<(), Ref
         device,
         crate::session::MACHINE.scratch.addr() as u32,
     )
+}
+
+#[cfg(test)]
+mod asm_reference {
+    use super::*;
+    use crate::scene::asm_test::{Kind, differential};
+
+    /// `fld a; fsub b; fmul c; fistp`, the original's instructions over `v` (3 dwords) and
+    /// the result at dword 3.
+    unsafe fn ref_sub_mul(p: *mut u8) {
+        unsafe {
+            core::arch::asm!(
+                "fld dword ptr [{v}]",
+                "fsub dword ptr [{v} + 4]",
+                "fmul dword ptr [{v} + 8]",
+                "fistp dword ptr [{o}]",
+                v = in(reg) p,
+                o = in(reg) p.add(12),
+                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
+                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
+                options(nostack),
+            );
+        }
+    }
+
+    /// The knock's instructions over `v` (6 dwords), the angle at dword 6, the knock at 7.
+    unsafe fn ref_knock(p: *mut u8) {
+        unsafe {
+            core::arch::asm!(
+                "fld dword ptr [{v}]",
+                "fld dword ptr [{v} + 4]",
+                "fpatan",
+                "fst dword ptr [{o}]",
+                "fabs",
+                "fmul dword ptr [{v} + 8]",
+                "fsubr dword ptr [{v} + 12]",
+                "fmul dword ptr [{v} + 16]",
+                "fmul dword ptr [{v} + 20]",
+                "fistp dword ptr [{o} + 4]",
+                v = in(reg) p,
+                o = in(reg) p.add(24),
+                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
+                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
+                options(nostack),
+            );
+        }
+    }
+
+    #[test]
+    fn sub_mul_to_int_matches_the_assembly() {
+        differential(
+            "sub_mul_to_int",
+            6000,
+            209,
+            [Kind::Exact; 4],
+            |rng, m| {
+                for d in &mut m[..3] {
+                    *d = if rng.below(2) == 0 {
+                        rng.moderate()
+                    } else {
+                        rng.fl()
+                    };
+                }
+                m[3] = 0xAAAA_AAAA;
+            },
+            |p| unsafe { ref_sub_mul(p) },
+            |p| unsafe {
+                let m = p.cast::<u32>();
+                m.add(3)
+                    .write(sub_mul_to_int(m.read(), m.add(1).read(), m.add(2).read()) as u32);
+            },
+        );
+    }
+
+    #[test]
+    fn knock_matches_the_assembly() {
+        let mut kinds = [Kind::Exact; 8];
+        kinds[6] = Kind::Ulp1;
+        differential(
+            "knock",
+            6000,
+            210,
+            kinds,
+            |rng, m| {
+                for d in &mut m[..6] {
+                    *d = rng.moderate();
+                }
+                m[6] = 0xAAAA_AAAA;
+                m[7] = 0xAAAA_AAAA;
+            },
+            |p| unsafe { ref_knock(p) },
+            |p| unsafe {
+                let m = p.cast::<u32>();
+                let v: Vec<u32> = (0..6).map(|k| m.add(k).read()).collect();
+                let (angle, force) = knock(v[0], v[1], v[2], v[3], v[4], v[5]);
+                m.add(6).write(angle);
+                m.add(7).write(force as u32);
+            },
+        );
+    }
 }

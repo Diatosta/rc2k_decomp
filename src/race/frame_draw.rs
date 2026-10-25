@@ -7,8 +7,6 @@ use crate::race::frame::VIEW_BLOCKS;
 use crate::race::objects::{CAR_BLOCKS_RVA, CARS_RVA};
 use crate::session::MACHINE;
 use crate::session::SCREEN;
-use crate::sound::store::ObjectsSlot;
-use crate::sound::store::StageSlot;
 use crate::store::{game_read, game_write};
 
 unsafe fn get(a: u32) -> u32 {
@@ -151,8 +149,6 @@ pub unsafe fn fetch_view_value() -> Result<(), Refused> {
 
 pub const SPOT_COUNT_RVA: usize = rva(0x6D1DC4); // dword_6D1DC4: the spots made this frame
 pub const SPOTS_RVA: usize = rva(0x6D1AF4); // unk_6D1AF4: 36 spots of 0x14 bytes
-pub const SHARED_COUNT_RVA: StageSlot = StageSlot::at(0x5165EC); // dword_5165EC
-pub const SHARED_SPOTS_RVA: StageSlot = StageSlot::at(0x5165F0); // unk_5165F0: 36 of 0x14 (to 0x5168C0)
 /// `race::share_sound_spots` (0x45C7B9): `dword_5165EC` = `dword_6D1DC4`, and that many
 /// 0x14-byte spots copied from 0x6D1AF4 to 0x5165F0 (read by the sound side,
 /// `sub_40E642`). (It leaves ecx 0, esi and edi past the spots: its one caller,
@@ -163,9 +159,9 @@ pub unsafe fn share_sound_spots() -> Result<(), Refused> {
         // Converted: `rc2k_core::race::view::shared_spot_bytes`.
         let n: u32 = game_read(SPOT_COUNT_RVA);
         let bytes = rc2k_core::race::view::shared_spot_bytes(n)?;
-        game_write(SHARED_COUNT_RVA, n);
+        crate::sound::store::STAGE_SOUNDS.shared_count.set(n);
         let from = crate::framework::game_addr(SPOTS_RVA) as u32;
-        let to = crate::store::game_addr(SHARED_SPOTS_RVA) as u32;
+        let to = crate::sound::store::STAGE_SOUNDS.shared_spots.as_ptr() as usize as u32;
         std::ptr::copy(from as *const u8, to as *mut u8, bytes as usize);
         Ok(())
     }
@@ -310,7 +306,6 @@ pub unsafe fn panel_values_plain() {
     }
 }
 
-const SOUND_OBJECTS_RVA: ObjectsSlot = ObjectsSlot::at(0x512A10); // g_raceSoundObjects: 8 pointers
 const SHOWN_RVA: usize = rva(0x641680); // dword_641680[8]: each car's view (-1 not shown)
 
 /// `race::wake_part_sounds` (0x45D1EA): for each race car (car 0 at least: the loop tests
@@ -331,7 +326,7 @@ pub unsafe fn wake_part_sounds() -> Result<(), Refused> {
         let mut plan = Vec::new();
         for car in 0..cars {
             let b: u32 = game_read(CAR_BLOCKS_RVA + 4 * car as usize);
-            let o: u32 = game_read(SOUND_OBJECTS_RVA + 4 * (car & 7) as usize);
+            let o: u32 = crate::sound::store::RACE_SOUNDS.table[(car & 7) as usize].get();
             let mut wake = false;
             for slot in 0..6 {
                 if b == 0 {
@@ -360,8 +355,9 @@ pub unsafe fn wake_part_sounds() -> Result<(), Refused> {
                 }
             }
             if wake {
-                plan.push(o + 0x264);
-                plan.push(o + 0x10);
+                let object = crate::sound::store::SoundObject::at(o);
+                plan.push(object.slot_c.start.addr() as u32);
+                plan.push(object.new_revs.addr() as u32);
             }
         }
         for at in plan {

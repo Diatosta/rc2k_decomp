@@ -17,9 +17,10 @@
 
 use crate::errors::Refused;
 use crate::math::x87_run::{abs_compare, ext_times};
-use crate::physics::flow::{a, g, p, x87_run};
+use crate::physics::flow::{a, g, p};
 use crate::scene::matrix3::extended;
 use crate::scene::rotate_point::rotate_point;
+use crate::scene::x87_mem::{fld, fld80, fstp};
 
 /// Whether the corner is inside (`flt_6D3BC8` .. written either way).
 pub fn corner_inside() -> bool {
@@ -27,11 +28,10 @@ pub fn corner_inside() -> bool {
     let corner = [0x6D3BD4, 0x6D3BD8, 0x6D3BDC].map(|x| ext_times(extended(g(x)), k));
     let turned = unsafe { rotate_point(a(0x6D3C40), corner) };
     for (n, e) in turned.iter().enumerate() {
-        x87_run!(
-            "fld tbyte ptr [{e}]",
-            "fdiv dword ptr [{rc} + 0x1C5D98]",
-            "fstp dword ptr [{o}]";
-            e = e.as_ptr(), o = a(0x6D3BC8 + 4 * n), rc = crate::race::store::asm_base()
+        x87_1(
+            e.as_ptr() as usize,
+            crate::race::store::asm_base() as usize,
+            a(0x6D3BC8 + 4 * n) as usize,
         );
     }
     (0..3).all(|n| abs_compare(g(0x6D3BC8 + 4 * n), g(0x6D3BBC + 4 * n)) & 0x100 != 0)
@@ -47,4 +47,58 @@ pub unsafe fn corner_hits_car(block: u32) -> Result<(), Refused> {
     unsafe { crate::physics::restore_saved_car::restore_saved_car() }?;
     unsafe { crate::physics::bump_cars::bump_cars(block) }?;
     Ok(())
+}
+
+// ---- the arithmetic that was x87 assembly ----
+
+/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
+/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `[o + 0] = ext [e + 0] / [rc + 0x1C5D98]`
+fn x87_1(e: usize, rc: usize, o: usize) {
+    unsafe {
+        let e = e as *const u8;
+        let rc = rc as *const u8;
+        let o = o as *mut u8;
+        let t0 = fld80(e, 0);
+        let t1 = fld(rc, 0x1C5D98);
+        let t2 = t0 / t1;
+        fstp(o, 0, t2);
+    }
+}
+
+#[cfg(test)]
+mod asm_reference {
+    use super::*;
+    use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
+
+    // The original's instructions, one function per run.
+    reference!(ref_0(e, rc, o) "fld tbyte ptr [{e}]", "fdiv dword ptr [{rc} + 0x1C5D98]", "fstp dword ptr [{o}]");
+
+    fn blocks() -> Vec<Block> {
+        vec![Block {
+            name: "corner_hits_car line 30",
+            operands: vec![
+                Operand::Buffer {
+                    reads: &[(0, In::T)],
+                    writes: &[],
+                },
+                Operand::Buffer {
+                    reads: &[(0x1C5D98, In::F)],
+                    writes: &[],
+                },
+                Operand::Buffer {
+                    reads: &[],
+                    writes: &[(0, Out::F)],
+                },
+            ],
+            ulps: 0,
+            reference: |a| unsafe { ref_0(a[0], a[1], a[2]) },
+            plain: |a| x87_1(a[0], a[1], a[2]),
+        }]
+    }
+
+    #[test]
+    fn x87_blocks_matches_the_assembly() {
+        sparse(&blocks(), 1200, 100);
+    }
 }

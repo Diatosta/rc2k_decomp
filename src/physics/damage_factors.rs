@@ -22,11 +22,13 @@
 
 #[allow(unused_imports)] // the generated body uses some of them
 use crate::math::x87::mul;
+use crate::math::x87_float::{X, compare};
 #[allow(unused_imports)]
 use crate::math::x87_run::{abs_compare, compare_full};
 use crate::physics::damage_model::ONE;
 #[allow(unused_imports)]
-use crate::physics::flow::{a, g, hold_high, hold_low, p, table_lerp, x87_run};
+use crate::physics::flow::{a, g, hold_high, hold_low, p, table_lerp};
+use crate::scene::x87_mem::{fild, fld, fnstsw, fstp};
 
 #[allow(dead_code)]
 fn rd(x: u32) -> u32 {
@@ -35,261 +37,155 @@ fn rd(x: u32) -> u32 {
 
 /// The steps (generated from the disassembly by idiom; the flagged places by hand).
 pub fn steps() {
-    let _ = ONE;
-    x87_run!(
-        "fild dword ptr [{rc} + 0x31A008]", // fild    dword ptr unk_71A008
-        "fdiv dword ptr [{m} + 0x35B35C]", // fdiv    flt_75B35C
-        "fstp dword ptr [{m} + 0x35B3F8]", // fstp    flt_75B3F8
-        "fild dword ptr [{rc} + 0x31A00C]", // fild    dword ptr unk_71A00C
-        "fdiv dword ptr [{m} + 0x35B35C]", // fdiv    flt_75B35C
-        "fstp dword ptr [{m} + 0x35B3FC]", // fstp    flt_75B3FC
-        "fild dword ptr [{rc} + 0x319FF8]", // fild    dword ptr unk_719FF8
-        "fdiv dword ptr [{m} + 0x35B35C]", // fdiv    flt_75B35C
-        "fstp dword ptr [{m} + 0x35B400]";
-        // fstp    flt_75B400
-        m = crate::physics::store::asm_base(), rc = crate::race::store::asm_base()
+    let _ = X(1.0);
+    x87_1(
+        crate::race::store::asm_base() as usize,
+        crate::physics::store::asm_base() as usize,
     );
     table_lerp(0x71A30C, 0x75B4C8, 0x75B350, 0x75B474);
-    x87_run!(
-        "fld dword ptr [{m} + 0x35B3FC]", // fld     flt_75B3FC
-        "fmul dword ptr [{m} + 0x35B34C]", // fmul    flt_75B34C
-        "fsub dword ptr [{m} + 0x35B474]", // fsub    flt_75B474
-        "fstp dword ptr [{rc} + 0x31A420]";
-        // fstp    dword ptr unk_71A420
-        m = crate::physics::store::asm_base(), rc = crate::race::store::asm_base()
+    x87_2(
+        crate::physics::store::asm_base() as usize,
+        crate::race::store::asm_base() as usize,
+        0x35B474,
+        0x31A420,
     );
     hold_low(0x71A420, 0x75B350);
     hold_high(0x71A420, 0x75B34C);
-    x87_run!(
-        "fld dword ptr [{m} + 0x35B3F8]", // fld     flt_75B3F8
-        "fmul dword ptr [{m} + 0x35B34C]", // fmul    flt_75B34C
-        "fstp dword ptr [{rc} + 0x31A410]";
-        // fstp    dword ptr unk_71A410
-        m = crate::physics::store::asm_base(), rc = crate::race::store::asm_base()
+    x87_3(
+        crate::physics::store::asm_base() as usize,
+        crate::race::store::asm_base() as usize,
+        0x31A410,
     );
     if compare_full(g(0x71A30C), g(0x75B34C)) & 0x4000 != 0 {
-        x87_run!(
-            "fld dword ptr [{m} + 0x35B34C]", // fld     flt_75B34C
-            "fstp dword ptr [{rc} + 0x31A420]", // fstp    dword ptr unk_71A420
-            "fld dword ptr [{m} + 0x35B350]", // fld     flt_75B350
-            "fstp dword ptr [{rc} + 0x31A410]";
-            // fstp    dword ptr unk_71A410
-            m = crate::physics::store::asm_base(), rc = crate::race::store::asm_base()
+        x87_4(
+            crate::physics::store::asm_base() as usize,
+            crate::race::store::asm_base() as usize,
+            0x31A420,
+            0x31A410,
         );
     }
     table_lerp(0x71A310, 0x75B4C8, 0x75B350, 0x75B478);
-    x87_run!(
-        "fld dword ptr [{m} + 0x35B3FC]", // fld     flt_75B3FC
-        "fmul dword ptr [{m} + 0x35B34C]", // fmul    flt_75B34C
-        "fsub dword ptr [{m} + 0x35B478]", // fsub    flt_75B478
-        "fstp dword ptr [{rc} + 0x31A424]";
-        // fstp    dword ptr unk_71A424
-        m = crate::physics::store::asm_base(), rc = crate::race::store::asm_base()
+    x87_2(
+        crate::physics::store::asm_base() as usize,
+        crate::race::store::asm_base() as usize,
+        0x35B478,
+        0x31A424,
     );
     hold_low(0x71A424, 0x75B350);
     hold_high(0x71A424, 0x75B34C);
-    x87_run!(
-        "fld dword ptr [{m} + 0x35B3F8]", // fld     flt_75B3F8
-        "fmul dword ptr [{m} + 0x35B34C]", // fmul    flt_75B34C
-        "fstp dword ptr [{rc} + 0x31A414]";
-        // fstp    dword ptr unk_71A414
-        m = crate::physics::store::asm_base(), rc = crate::race::store::asm_base()
+    x87_3(
+        crate::physics::store::asm_base() as usize,
+        crate::race::store::asm_base() as usize,
+        0x31A414,
     );
     if compare_full(g(0x71A310), g(0x75B34C)) & 0x4000 != 0 {
-        x87_run!(
-            "fld dword ptr [{m} + 0x35B34C]", // fld     flt_75B34C
-            "fstp dword ptr [{rc} + 0x31A424]", // fstp    dword ptr unk_71A424
-            "fld dword ptr [{m} + 0x35B350]", // fld     flt_75B350
-            "fstp dword ptr [{rc} + 0x31A414]";
-            // fstp    dword ptr unk_71A414
-            m = crate::physics::store::asm_base(), rc = crate::race::store::asm_base()
+        x87_4(
+            crate::physics::store::asm_base() as usize,
+            crate::race::store::asm_base() as usize,
+            0x31A424,
+            0x31A414,
         );
     }
     table_lerp(0x71A314, 0x75B4C8, 0x75B350, 0x75B47C);
-    x87_run!(
-        "fld dword ptr [{m} + 0x35B3FC]", // fld     flt_75B3FC
-        "fmul dword ptr [{m} + 0x35B34C]", // fmul    flt_75B34C
-        "fsub dword ptr [{m} + 0x35B47C]", // fsub    flt_75B47C
-        "fstp dword ptr [{rc} + 0x31A428]";
-        // fstp    dword ptr unk_71A428
-        m = crate::physics::store::asm_base(), rc = crate::race::store::asm_base()
+    x87_2(
+        crate::physics::store::asm_base() as usize,
+        crate::race::store::asm_base() as usize,
+        0x35B47C,
+        0x31A428,
     );
     hold_low(0x71A428, 0x75B350);
     hold_high(0x71A428, 0x75B34C);
-    x87_run!(
-        "fld dword ptr [{m} + 0x35B3F8]", // fld     flt_75B3F8
-        "fmul dword ptr [{m} + 0x35B34C]", // fmul    flt_75B34C
-        "fstp dword ptr [{rc} + 0x31A418]";
-        // fstp    dword ptr unk_71A418
-        m = crate::physics::store::asm_base(), rc = crate::race::store::asm_base()
+    x87_3(
+        crate::physics::store::asm_base() as usize,
+        crate::race::store::asm_base() as usize,
+        0x31A418,
     );
     if compare_full(g(0x71A314), g(0x75B34C)) & 0x4000 != 0 {
-        x87_run!(
-            "fld dword ptr [{m} + 0x35B34C]", // fld     flt_75B34C
-            "fstp dword ptr [{rc} + 0x31A428]", // fstp    dword ptr unk_71A428
-            "fld dword ptr [{m} + 0x35B350]", // fld     flt_75B350
-            "fstp dword ptr [{rc} + 0x31A418]";
-            // fstp    dword ptr unk_71A418
-            m = crate::physics::store::asm_base(), rc = crate::race::store::asm_base()
+        x87_4(
+            crate::physics::store::asm_base() as usize,
+            crate::race::store::asm_base() as usize,
+            0x31A428,
+            0x31A418,
         );
     }
     table_lerp(0x71A318, 0x75B4C8, 0x75B350, 0x75B480);
-    x87_run!(
-        "fld dword ptr [{m} + 0x35B3FC]", // fld     flt_75B3FC
-        "fmul dword ptr [{m} + 0x35B34C]", // fmul    flt_75B34C
-        "fsub dword ptr [{m} + 0x35B480]", // fsub    flt_75B480
-        "fstp dword ptr [{rc} + 0x31A42C]";
-        // fstp    dword ptr unk_71A42C
-        m = crate::physics::store::asm_base(), rc = crate::race::store::asm_base()
+    x87_2(
+        crate::physics::store::asm_base() as usize,
+        crate::race::store::asm_base() as usize,
+        0x35B480,
+        0x31A42C,
     );
     hold_low(0x71A42C, 0x75B350);
     hold_high(0x71A42C, 0x75B34C);
-    x87_run!(
-        "fld dword ptr [{m} + 0x35B3F8]", // fld     flt_75B3F8
-        "fmul dword ptr [{m} + 0x35B34C]", // fmul    flt_75B34C
-        "fstp dword ptr [{rc} + 0x31A41C]";
-        // fstp    dword ptr unk_71A41C
-        m = crate::physics::store::asm_base(), rc = crate::race::store::asm_base()
+    x87_3(
+        crate::physics::store::asm_base() as usize,
+        crate::race::store::asm_base() as usize,
+        0x31A41C,
     );
     if compare_full(g(0x71A318), g(0x75B34C)) & 0x4000 != 0 {
-        x87_run!(
-            "fld dword ptr [{m} + 0x35B34C]", // fld     flt_75B34C
-            "fstp dword ptr [{rc} + 0x31A42C]", // fstp    dword ptr unk_71A42C
-            "fld dword ptr [{m} + 0x35B350]", // fld     flt_75B350
-            "fstp dword ptr [{rc} + 0x31A41C]";
-            // fstp    dword ptr unk_71A41C
-            m = crate::physics::store::asm_base(), rc = crate::race::store::asm_base()
+        x87_4(
+            crate::physics::store::asm_base() as usize,
+            crate::race::store::asm_base() as usize,
+            0x31A42C,
+            0x31A41C,
         );
     }
-    x87_run!(
-        "fld dword ptr [{rc} + 0x31A410]", // fld     dword ptr unk_71A410
-        "fadd dword ptr [{rc} + 0x31A414]", // fadd    dword ptr unk_71A414
-        "fadd dword ptr [{rc} + 0x31A418]", // fadd    dword ptr unk_71A418
-        "fadd dword ptr [{rc} + 0x31A41C]", // fadd    dword ptr unk_71A41C
-        "fmul dword ptr [{m} + 0x35B364]", // fmul    flt_75B364
-        "fstp dword ptr [{rc} + 0x31A434]", // fstp    dword ptr unk_71A434
-        "fld dword ptr [{rc} + 0x31A420]", // fld     dword ptr unk_71A420
-        "fadd dword ptr [{rc} + 0x31A424]", // fadd    dword ptr unk_71A424
-        "fadd dword ptr [{rc} + 0x31A428]", // fadd    dword ptr unk_71A428
-        "fadd dword ptr [{rc} + 0x31A42C]", // fadd    dword ptr unk_71A42C
-        "fmul dword ptr [{m} + 0x35B364]", // fmul    flt_75B364
-        "fstp dword ptr [{rc} + 0x31A430]", // fstp    dword ptr unk_71A430
-        "fld dword ptr [{rc} + 0x31A018]", // fld     dword ptr g_carDriveKind
-        "fstp dword ptr [{m} + 0x35B3E4]", // fstp    flt_75B3E4
-        "fld dword ptr [{rc} + 0x31A1B0]", // fld     dword ptr g_carEngineSpeed
-        ".byte 0xD9, 0xE1", // fabs
-        "fstp dword ptr [{m} + 0x35B36C]";
-        // fstp    flt_75B36C
-        m = crate::physics::store::asm_base(), rc = crate::race::store::asm_base()
+    x87_5(
+        crate::race::store::asm_base() as usize,
+        crate::physics::store::asm_base() as usize,
     );
     hold_high(0x75B36C, 0x71A1B4);
-    x87_run!(
-        "fld dword ptr [{m} + 0x35B36C]", // fld     flt_75B36C
-        "fdiv dword ptr [{rc} + 0x31A1B4]", // fdiv    dword ptr unk_71A1B4
-        "fmul dword ptr [{m} + 0x35B34C]", // fmul    flt_75B34C
-        "fstp dword ptr [{m} + 0x35B398]", // fstp    flt_75B398
-        "fld dword ptr [{rc} + 0x31A184]", // fld     dword ptr g_carSpeed
-        ".byte 0xD9, 0xE1", // fabs
-        "fstp dword ptr [{m} + 0x35B36C]";
-        // fstp    flt_75B36C
-        m = crate::physics::store::asm_base(), rc = crate::race::store::asm_base()
+    x87_6(
+        crate::physics::store::asm_base() as usize,
+        crate::race::store::asm_base() as usize,
     );
     hold_high(0x75B36C, 0x75B378);
-    x87_run!(
-        "fld dword ptr [{m} + 0x35B36C]", // fld     flt_75B36C
-        "fdiv dword ptr [{m} + 0x35B378]", // fdiv    flt_75B378
-        "fmul dword ptr [{m} + 0x35B34C]", // fmul    flt_75B34C
-        "fstp dword ptr [{m} + 0x35B39C]", // fstp    flt_75B39C
-        "fld dword ptr [{rc} + 0x31A930]", // fld     dword ptr unk_71A930
-        "fstp dword ptr [{m} + 0x35B3E0]", // fstp    flt_75B3E0
-        "fld dword ptr [{rc} + 0x31A184]", // fld     dword ptr g_carSpeed
-        "fsub dword ptr [{rc} + 0x31A190]", // fsub    dword ptr g_carDriveSpeed
-        ".byte 0xD9, 0xE1", // fabs
-        "fstp dword ptr [{m} + 0x35B36C]";
-        // fstp    flt_75B36C
-        m = crate::physics::store::asm_base(), rc = crate::race::store::asm_base()
+    x87_7(
+        crate::physics::store::asm_base() as usize,
+        crate::race::store::asm_base() as usize,
     );
     hold_high(0x75B36C, 0x75B378);
-    x87_run!(
-        "fld dword ptr [{m} + 0x35B36C]", // fld     flt_75B36C
-        "fdiv dword ptr [{m} + 0x35B378]", // fdiv    flt_75B378
-        "fstp dword ptr [{m} + 0x35B3A0]", // fstp    flt_75B3A0
-        "fld dword ptr [{rc} + 0x31A184]", // fld     dword ptr g_carSpeed
-        "fsub dword ptr [{rc} + 0x31A194]", // fsub    dword ptr g_carDriveSpeed2
-        ".byte 0xD9, 0xE1", // fabs
-        "fstp dword ptr [{m} + 0x35B36C]";
-        // fstp    flt_75B36C
-        m = crate::physics::store::asm_base(), rc = crate::race::store::asm_base()
+    x87_8(
+        crate::physics::store::asm_base() as usize,
+        crate::race::store::asm_base() as usize,
     );
     hold_high(0x75B36C, 0x75B378);
-    x87_run!(
-        "fld dword ptr [{m} + 0x35B36C]", // fld     flt_75B36C
-        "fdiv dword ptr [{m} + 0x35B378]", // fdiv    flt_75B378
-        "fstp dword ptr [{m} + 0x35B3A4]", // fstp    flt_75B3A4
-        "fld dword ptr [{rc} + 0x31A190]", // fld     dword ptr g_carDriveSpeed
-        "fsub dword ptr [{rc} + 0x31A184]", // fsub    dword ptr g_carSpeed
-        "fmul dword ptr [{m} + 0x35B6F4]", // fmul    flt_75B6F4
-        "fadd dword ptr [{rc} + 0x31A190]", // fadd    dword ptr g_carDriveSpeed
-        ".byte 0xD9, 0xE1", // fabs
-        "fstp dword ptr [{m} + 0x35B36C]";
-        // fstp    flt_75B36C
-        m = crate::physics::store::asm_base(), rc = crate::race::store::asm_base()
+    x87_9(
+        crate::physics::store::asm_base() as usize,
+        crate::race::store::asm_base() as usize,
+        0x35B3A4,
+        0x31A190,
+        0x31A190,
     );
     hold_high(0x75B36C, 0x75B378);
-    x87_run!(
-        "fld dword ptr [{m} + 0x35B36C]", // fld     flt_75B36C
-        "fdiv dword ptr [{m} + 0x35B378]", // fdiv    flt_75B378
-        "fstp dword ptr [{m} + 0x35B3A8]", // fstp    flt_75B3A8
-        "fld dword ptr [{rc} + 0x31A194]", // fld     dword ptr g_carDriveSpeed2
-        "fsub dword ptr [{rc} + 0x31A184]", // fsub    dword ptr g_carSpeed
-        "fmul dword ptr [{m} + 0x35B6F4]", // fmul    flt_75B6F4
-        "fadd dword ptr [{rc} + 0x31A194]", // fadd    dword ptr g_carDriveSpeed2
-        ".byte 0xD9, 0xE1", // fabs
-        "fstp dword ptr [{m} + 0x35B36C]";
-        // fstp    flt_75B36C
-        m = crate::physics::store::asm_base(), rc = crate::race::store::asm_base()
+    x87_9(
+        crate::physics::store::asm_base() as usize,
+        crate::race::store::asm_base() as usize,
+        0x35B3A8,
+        0x31A194,
+        0x31A194,
     );
     hold_high(0x75B36C, 0x75B378);
-    x87_run!(
-        "fld dword ptr [{m} + 0x35B36C]", // fld     flt_75B36C
-        "fdiv dword ptr [{m} + 0x35B378]", // fdiv    flt_75B378
-        "fstp dword ptr [{m} + 0x35B3AC]", // fstp    flt_75B3AC
-        ".byte 0xD9, 0xEE", // fldz
-        "fstp dword ptr [{m} + 0x35B3F4]"; // fstp    flt_75B3F4
-        m = crate::physics::store::asm_base()
-    );
+    x87_10(crate::physics::store::asm_base() as usize);
     if g(0x71A22C) == 0x0 {
-        x87_run!(
-            ".byte 0xD9, 0xE8", // fld1
-            "fstp dword ptr [{m} + 0x35B3F4]"; // fstp    flt_75B3F4
-            m = crate::physics::store::asm_base()
-        );
+        x87_11(crate::physics::store::asm_base() as usize);
     }
-    x87_run!(
-        ".byte 0xD9, 0xEE", // fldz
-        "fstp dword ptr [{m} + 0x35B3B0]"; // fstp    flt_75B3B0
-        m = crate::physics::store::asm_base()
-    );
+    x87_12(crate::physics::store::asm_base() as usize, 0x35B3B0);
     if abs_compare(g(0x71A184), g(0x75B348)) & 0x100 == 0
         && (g(0x71A614).wrapping_sub(0x10) as i32) >= 0
     {
-        x87_run!(
-            "fild dword ptr [{rc} + 0x31A614]", // fild    dword ptr unk_71A614
-            "fdiv dword ptr [{m} + 0x35B35C]", // fdiv    flt_75B35C
-            "fstp dword ptr [{m} + 0x35B3B0]";
-            // fstp    flt_75B3B0
-            m = crate::physics::store::asm_base(), rc = crate::race::store::asm_base()
+        x87_13(
+            crate::race::store::asm_base() as usize,
+            crate::physics::store::asm_base() as usize,
         );
     }
     // 0x4ABCAA: 1 when the engine's speed is above the limit times `flt_75B37C`.
     p(0x75B3C0, 0);
     let mut status = 0u16;
-    x87_run!(
-        "fld dword ptr [{rc} + 0x31A1B4]", // fld     dword ptr unk_71A1B4
-        "fmul dword ptr [{m} + 0x35B37C]", // fmul    flt_75B37C
-        "fcomp dword ptr [{rc} + 0x31A1B0]", // fcomp   dword ptr g_carEngineSpeed
-        "fnstsw word ptr [{s}]";
-        m = crate::physics::store::asm_base(), s = &raw mut status, rc = crate::race::store::asm_base()
+    x87_14(
+        crate::race::store::asm_base() as usize,
+        crate::physics::store::asm_base() as usize,
+        (&raw mut status) as usize,
     );
     if status & 0x100 != 0 {
         p(0x75B3C0, ONE);
@@ -299,11 +195,7 @@ pub fn steps() {
     p(0x75B3E8, g(0x71A004));
     let mode = g(0x71A908);
     p(0x75B3EC, mode);
-    x87_run!(
-        ".byte 0xD9, 0xEE", // fldz
-        "fstp dword ptr [{m} + 0x35B3B4]"; // fstp    flt_75B3B4
-        m = crate::physics::store::asm_base()
-    );
+    x87_12(crate::physics::store::asm_base() as usize, 0x35B3B4);
     if mode == 5 {
         p(0x75B3B4, ONE);
     }
@@ -319,65 +211,869 @@ pub fn steps() {
         }
     }
     p(0x75B3C4, hit);
-    x87_run!(
-        "fld dword ptr [{rc} + 0x31A208]", // fld     dword ptr unk_71A208
-        "fmul dword ptr [{rc} + 0x31A208]", // fmul    dword ptr unk_71A208
-        "fdiv dword ptr [{m} + 0x35B394]", // fdiv    flt_75B394
-        "fdiv dword ptr [{m} + 0x35B378]", // fdiv    flt_75B378
-        "fstp dword ptr [{m} + 0x35B3C8]", // fstp    flt_75B3C8
-        "fld dword ptr [{rc} + 0x31A180]", // fld     dword ptr unk_71A180
-        ".byte 0xD9, 0xE0", // fchs
-        "fsub dword ptr [{m} + 0x35B624]", // fsub    flt_75B624
-        "fstp dword ptr [{m} + 0x35B36C]";
-        // fstp    flt_75B36C
-        m = crate::physics::store::asm_base(), rc = crate::race::store::asm_base()
+    x87_15(
+        crate::race::store::asm_base() as usize,
+        crate::physics::store::asm_base() as usize,
     );
     hold_low(0x75B36C, 0x75B350);
     hold_high(0x75B36C, 0x75B354);
-    x87_run!(
-        "fld dword ptr [{m} + 0x35B36C]", // fld     flt_75B36C
-        ".byte 0xD8, 0xC8", // fmul    st, st
-        "fmul dword ptr [{m} + 0x35B620]", // fmul    flt_75B620
-        "fstp dword ptr [{m} + 0x35B36C]"; // fstp    flt_75B36C
-        m = crate::physics::store::asm_base()
-    );
+    x87_16(crate::physics::store::asm_base() as usize);
     for k in 0..4usize {
         p(0x75B3CC + 4 * k, 0);
         if g(0x71A5E8 + 4 * k) == 0 && g(0x71A5D8 + 4 * k) != 0 {
             p(0x75B3CC + 4 * k, mul(g(0x71A5D8 + 4 * k), g(0x75B36C)));
         }
     }
-    x87_run!(
-        "fld dword ptr [{m} + 0x35B3CC]", // fld     dword_75B3CC
-        "fadd dword ptr [{m} + 0x35B3D0]", // fadd    flt_75B3D0
-        "fadd dword ptr [{m} + 0x35B3D4]", // fadd    flt_75B3D4
-        "fadd dword ptr [{m} + 0x35B3D8]", // fadd    flt_75B3D8
-        "fmul dword ptr [{m} + 0x35B364]", // fmul    flt_75B364
-        "fstp dword ptr [{m} + 0x35B3DC]", // fstp    flt_75B3DC
-        "fld dword ptr [{m} + 0x35B3DC]", // fld     flt_75B3DC
-        "fmul dword ptr [{m} + 0x35B360]", // fmul    flt_75B360
-        "fstp dword ptr [{m} + 0x35B36C]", // fstp    flt_75B36C
-        "fld dword ptr [{m} + 0x35B3CC]", // fld     dword_75B3CC
-        "fmul dword ptr [{m} + 0x35B360]", // fmul    flt_75B360
-        "fadd dword ptr [{m} + 0x35B36C]", // fadd    flt_75B36C
-        "fstp dword ptr [{m} + 0x35B3CC]", // fstp    dword_75B3CC
-        "fld dword ptr [{m} + 0x35B3D0]", // fld     flt_75B3D0
-        "fmul dword ptr [{m} + 0x35B360]", // fmul    flt_75B360
-        "fadd dword ptr [{m} + 0x35B36C]", // fadd    flt_75B36C
-        "fstp dword ptr [{m} + 0x35B3D0]", // fstp    flt_75B3D0
-        "fld dword ptr [{m} + 0x35B3D4]", // fld     flt_75B3D4
-        "fmul dword ptr [{m} + 0x35B360]", // fmul    flt_75B360
-        "fadd dword ptr [{m} + 0x35B36C]", // fadd    flt_75B36C
-        "fstp dword ptr [{m} + 0x35B3D4]", // fstp    flt_75B3D4
-        "fld dword ptr [{m} + 0x35B3D8]", // fld     flt_75B3D8
-        "fmul dword ptr [{m} + 0x35B360]", // fmul    flt_75B360
-        "fadd dword ptr [{m} + 0x35B36C]", // fadd    flt_75B36C
-        "fstp dword ptr [{m} + 0x35B3D8]"; // fstp    flt_75B3D8
-        m = crate::physics::store::asm_base()
-    );
+    x87_17(crate::physics::store::asm_base() as usize);
     if g(0x75B3C8) != 0x0 && g(0x71A438) != 0x0 {
         p(0x75B3C8, 0x0);
         p(0x71A438, 0x64);
     }
     // retn
+}
+
+// ---- the arithmetic that was x87 assembly ----
+
+/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
+/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `[m + 0x35B3F8] = int [rc + 0x31A008] / [m + 0x35B35C]`
+/// `[m + 0x35B3FC] = int [rc + 0x31A00C] / [m + 0x35B35C]`
+/// `[m + 0x35B400] = int [rc + 0x319FF8] / [m + 0x35B35C]`
+fn x87_1(rc: usize, m: usize) {
+    unsafe {
+        let rc = rc as *const u8;
+        let m = m as *mut u8;
+        let t0 = fild(rc, 0x31A008);
+        let t1 = fld(m, 0x35B35C);
+        let t2 = t0 / t1;
+        fstp(m, 0x35B3F8, t2);
+        let t3 = fild(rc, 0x31A00C);
+        let t4 = fld(m, 0x35B35C);
+        let t5 = t3 / t4;
+        fstp(m, 0x35B3FC, t5);
+        let t6 = fild(rc, 0x319FF8);
+        let t7 = fld(m, 0x35B35C);
+        let t8 = t6 / t7;
+        fstp(m, 0x35B400, t8);
+    }
+}
+
+/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
+/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `[rc + o3] = ([m + 0x35B3FC] * [m + 0x35B34C]) - [m + o2]`
+fn x87_2(m: usize, rc: usize, o2: usize, o3: usize) {
+    unsafe {
+        let m = m as *const u8;
+        let rc = rc as *mut u8;
+        let t0 = fld(m, 0x35B3FC);
+        let t1 = fld(m, 0x35B34C);
+        let t2 = t0 * t1;
+        let t3 = fld(m, o2);
+        let t4 = t2 - t3;
+        fstp(rc, o3, t4);
+    }
+}
+
+/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
+/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `[rc + o2] = [m + 0x35B3F8] * [m + 0x35B34C]`
+fn x87_3(m: usize, rc: usize, o2: usize) {
+    unsafe {
+        let m = m as *const u8;
+        let rc = rc as *mut u8;
+        let t0 = fld(m, 0x35B3F8);
+        let t1 = fld(m, 0x35B34C);
+        let t2 = t0 * t1;
+        fstp(rc, o2, t2);
+    }
+}
+
+/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
+/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `[rc + o1] = [m + 0x35B34C]`
+/// `[rc + o3] = [m + 0x35B350]`
+fn x87_4(m: usize, rc: usize, o1: usize, o3: usize) {
+    unsafe {
+        let m = m as *const u8;
+        let rc = rc as *mut u8;
+        let t0 = fld(m, 0x35B34C);
+        fstp(rc, o1, t0);
+        let t1 = fld(m, 0x35B350);
+        fstp(rc, o3, t1);
+    }
+}
+
+/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
+/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `[rc + 0x31A434] = ((([rc + 0x31A410] + [rc + 0x31A414]) + [rc + 0x31A418]) + [rc + 0x31A41C]) * [m + 0x35B364]`
+/// `[rc + 0x31A430] = ((([rc + 0x31A420] + [rc + 0x31A424]) + [rc + 0x31A428]) + [rc + 0x31A42C]) * [m + 0x35B364]`
+/// `[m + 0x35B3E4] = [rc + 0x31A018]`
+/// `[m + 0x35B36C] = |[rc + 0x31A1B0]|`
+fn x87_5(rc: usize, m: usize) {
+    unsafe {
+        let rc = rc as *mut u8;
+        let m = m as *mut u8;
+        let t0 = fld(rc, 0x31A410);
+        let t1 = fld(rc, 0x31A414);
+        let t2 = t0 + t1;
+        let t3 = fld(rc, 0x31A418);
+        let t4 = t2 + t3;
+        let t5 = fld(rc, 0x31A41C);
+        let t6 = t4 + t5;
+        let t7 = fld(m, 0x35B364);
+        let t8 = t6 * t7;
+        fstp(rc, 0x31A434, t8);
+        let t9 = fld(rc, 0x31A420);
+        let t10 = fld(rc, 0x31A424);
+        let t11 = t9 + t10;
+        let t12 = fld(rc, 0x31A428);
+        let t13 = t11 + t12;
+        let t14 = fld(rc, 0x31A42C);
+        let t15 = t13 + t14;
+        let t16 = fld(m, 0x35B364);
+        let t17 = t15 * t16;
+        fstp(rc, 0x31A430, t17);
+        let t18 = fld(rc, 0x31A018);
+        fstp(m, 0x35B3E4, t18);
+        let t19 = fld(rc, 0x31A1B0);
+        let t20 = t19.abs();
+        fstp(m, 0x35B36C, t20);
+    }
+}
+
+/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
+/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `[m + 0x35B398] = ([m + 0x35B36C] / [rc + 0x31A1B4]) * [m + 0x35B34C]`
+/// `[m + 0x35B36C] = |[rc + 0x31A184]|`
+fn x87_6(m: usize, rc: usize) {
+    unsafe {
+        let m = m as *mut u8;
+        let rc = rc as *const u8;
+        let t0 = fld(m, 0x35B36C);
+        let t1 = fld(rc, 0x31A1B4);
+        let t2 = t0 / t1;
+        let t3 = fld(m, 0x35B34C);
+        let t4 = t2 * t3;
+        fstp(m, 0x35B398, t4);
+        let t5 = fld(rc, 0x31A184);
+        let t6 = t5.abs();
+        fstp(m, 0x35B36C, t6);
+    }
+}
+
+/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
+/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `[m + 0x35B39C] = ([m + 0x35B36C] / [m + 0x35B378]) * [m + 0x35B34C]`
+/// `[m + 0x35B3E0] = [rc + 0x31A930]`
+/// `[m + 0x35B36C] = |([rc + 0x31A184] - [rc + 0x31A190])|`
+fn x87_7(m: usize, rc: usize) {
+    unsafe {
+        let m = m as *mut u8;
+        let rc = rc as *const u8;
+        let t0 = fld(m, 0x35B36C);
+        let t1 = fld(m, 0x35B378);
+        let t2 = t0 / t1;
+        let t3 = fld(m, 0x35B34C);
+        let t4 = t2 * t3;
+        fstp(m, 0x35B39C, t4);
+        let t5 = fld(rc, 0x31A930);
+        fstp(m, 0x35B3E0, t5);
+        let t6 = fld(rc, 0x31A184);
+        let t7 = fld(rc, 0x31A190);
+        let t8 = t6 - t7;
+        let t9 = t8.abs();
+        fstp(m, 0x35B36C, t9);
+    }
+}
+
+/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
+/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `[m + 0x35B3A0] = [m + 0x35B36C] / [m + 0x35B378]`
+/// `[m + 0x35B36C] = |([rc + 0x31A184] - [rc + 0x31A194])|`
+fn x87_8(m: usize, rc: usize) {
+    unsafe {
+        let m = m as *mut u8;
+        let rc = rc as *const u8;
+        let t0 = fld(m, 0x35B36C);
+        let t1 = fld(m, 0x35B378);
+        let t2 = t0 / t1;
+        fstp(m, 0x35B3A0, t2);
+        let t3 = fld(rc, 0x31A184);
+        let t4 = fld(rc, 0x31A194);
+        let t5 = t3 - t4;
+        let t6 = t5.abs();
+        fstp(m, 0x35B36C, t6);
+    }
+}
+
+/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
+/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `[m + o2] = [m + 0x35B36C] / [m + 0x35B378]`
+/// `[m + 0x35B36C] = |((([rc + o3] - [rc + 0x31A184]) * [m + 0x35B6F4]) + [rc + o6])|`
+fn x87_9(m: usize, rc: usize, o2: usize, o3: usize, o6: usize) {
+    unsafe {
+        let m = m as *mut u8;
+        let rc = rc as *const u8;
+        let t0 = fld(m, 0x35B36C);
+        let t1 = fld(m, 0x35B378);
+        let t2 = t0 / t1;
+        fstp(m, o2, t2);
+        let t3 = fld(rc, o3);
+        let t4 = fld(rc, 0x31A184);
+        let t5 = t3 - t4;
+        let t6 = fld(m, 0x35B6F4);
+        let t7 = t5 * t6;
+        let t8 = fld(rc, o6);
+        let t9 = t7 + t8;
+        let t10 = t9.abs();
+        fstp(m, 0x35B36C, t10);
+    }
+}
+
+/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
+/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `[m + 0x35B3AC] = [m + 0x35B36C] / [m + 0x35B378]`
+/// `[m + 0x35B3F4] = 0`
+fn x87_10(m: usize) {
+    unsafe {
+        let m = m as *mut u8;
+        let t0 = fld(m, 0x35B36C);
+        let t1 = fld(m, 0x35B378);
+        let t2 = t0 / t1;
+        fstp(m, 0x35B3AC, t2);
+        let t3 = X(0.0);
+        fstp(m, 0x35B3F4, t3);
+    }
+}
+
+/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
+/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `[m + 0x35B3F4] = 1`
+fn x87_11(m: usize) {
+    unsafe {
+        let m = m as *mut u8;
+        let t0 = X(1.0);
+        fstp(m, 0x35B3F4, t0);
+    }
+}
+
+/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
+/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `[m + o0] = 0`
+fn x87_12(m: usize, o0: usize) {
+    unsafe {
+        let m = m as *mut u8;
+        let t0 = X(0.0);
+        fstp(m, o0, t0);
+    }
+}
+
+/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
+/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `[m + 0x35B3B0] = int [rc + 0x31A614] / [m + 0x35B35C]`
+fn x87_13(rc: usize, m: usize) {
+    unsafe {
+        let rc = rc as *const u8;
+        let m = m as *mut u8;
+        let t0 = fild(rc, 0x31A614);
+        let t1 = fld(m, 0x35B35C);
+        let t2 = t0 / t1;
+        fstp(m, 0x35B3B0, t2);
+    }
+}
+
+/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
+/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `status [s + 0] = status`
+fn x87_14(rc: usize, m: usize, s: usize) {
+    unsafe {
+        let rc = rc as *const u8;
+        let m = m as *const u8;
+        let s = s as *mut u8;
+        let t0 = fld(rc, 0x31A1B4);
+        let t1 = fld(m, 0x35B37C);
+        let t2 = t0 * t1;
+        let t3 = fld(rc, 0x31A1B0);
+        let t4 = compare(t2, t3);
+        fnstsw(s, 0, t4);
+    }
+}
+
+/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
+/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `[m + 0x35B3C8] = (([rc + 0x31A208] * [rc + 0x31A208]) / [m + 0x35B394]) / [m + 0x35B378]`
+/// `[m + 0x35B36C] = -[rc + 0x31A180] - [m + 0x35B624]`
+fn x87_15(rc: usize, m: usize) {
+    unsafe {
+        let rc = rc as *const u8;
+        let m = m as *mut u8;
+        let t0 = fld(rc, 0x31A208);
+        let t1 = fld(rc, 0x31A208);
+        let t2 = t0 * t1;
+        let t3 = fld(m, 0x35B394);
+        let t4 = t2 / t3;
+        let t5 = fld(m, 0x35B378);
+        let t6 = t4 / t5;
+        fstp(m, 0x35B3C8, t6);
+        let t7 = fld(rc, 0x31A180);
+        let t8 = -t7;
+        let t9 = fld(m, 0x35B624);
+        let t10 = t8 - t9;
+        fstp(m, 0x35B36C, t10);
+    }
+}
+
+/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
+/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `[m + 0x35B36C] = ([m + 0x35B36C] * [m + 0x35B36C]) * [m + 0x35B620]`
+fn x87_16(m: usize) {
+    unsafe {
+        let m = m as *mut u8;
+        let t0 = fld(m, 0x35B36C);
+        let t1 = t0 * t0;
+        let t2 = fld(m, 0x35B620);
+        let t3 = t1 * t2;
+        fstp(m, 0x35B36C, t3);
+    }
+}
+
+/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
+/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `[m + 0x35B3DC] = ((([m + 0x35B3CC] + [m + 0x35B3D0]) + [m + 0x35B3D4]) + [m + 0x35B3D8]) * [m + 0x35B364]`
+/// `[m + 0x35B36C] = [m + 0x35B3DC] * [m + 0x35B360]`
+/// `[m + 0x35B3CC] = ([m + 0x35B3CC] * [m + 0x35B360]) + [m + 0x35B36C]`
+/// `[m + 0x35B3D0] = ([m + 0x35B3D0] * [m + 0x35B360]) + [m + 0x35B36C]`
+/// `[m + 0x35B3D4] = ([m + 0x35B3D4] * [m + 0x35B360]) + [m + 0x35B36C]`
+/// `[m + 0x35B3D8] = ([m + 0x35B3D8] * [m + 0x35B360]) + [m + 0x35B36C]`
+fn x87_17(m: usize) {
+    unsafe {
+        let m = m as *mut u8;
+        let t0 = fld(m, 0x35B3CC);
+        let t1 = fld(m, 0x35B3D0);
+        let t2 = t0 + t1;
+        let t3 = fld(m, 0x35B3D4);
+        let t4 = t2 + t3;
+        let t5 = fld(m, 0x35B3D8);
+        let t6 = t4 + t5;
+        let t7 = fld(m, 0x35B364);
+        let t8 = t6 * t7;
+        fstp(m, 0x35B3DC, t8);
+        let t9 = fld(m, 0x35B3DC);
+        let t10 = fld(m, 0x35B360);
+        let t11 = t9 * t10;
+        fstp(m, 0x35B36C, t11);
+        let t12 = fld(m, 0x35B3CC);
+        let t13 = fld(m, 0x35B360);
+        let t14 = t12 * t13;
+        let t15 = fld(m, 0x35B36C);
+        let t16 = t14 + t15;
+        fstp(m, 0x35B3CC, t16);
+        let t17 = fld(m, 0x35B3D0);
+        let t18 = fld(m, 0x35B360);
+        let t19 = t17 * t18;
+        let t20 = fld(m, 0x35B36C);
+        let t21 = t19 + t20;
+        fstp(m, 0x35B3D0, t21);
+        let t22 = fld(m, 0x35B3D4);
+        let t23 = fld(m, 0x35B360);
+        let t24 = t22 * t23;
+        let t25 = fld(m, 0x35B36C);
+        let t26 = t24 + t25;
+        fstp(m, 0x35B3D4, t26);
+        let t27 = fld(m, 0x35B3D8);
+        let t28 = fld(m, 0x35B360);
+        let t29 = t27 * t28;
+        let t30 = fld(m, 0x35B36C);
+        let t31 = t29 + t30;
+        fstp(m, 0x35B3D8, t31);
+    }
+}
+
+#[cfg(test)]
+mod asm_reference {
+    use super::*;
+    use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
+
+    // The original's instructions, one function per run.
+    reference!(ref_0(rc, m) "fild dword ptr [{rc} + 0x31A008]", "fdiv dword ptr [{m} + 0x35B35C]", "fstp dword ptr [{m} + 0x35B3F8]", "fild dword ptr [{rc} + 0x31A00C]", "fdiv dword ptr [{m} + 0x35B35C]", "fstp dword ptr [{m} + 0x35B3FC]", "fild dword ptr [{rc} + 0x319FF8]", "fdiv dword ptr [{m} + 0x35B35C]", "fstp dword ptr [{m} + 0x35B400]");
+    reference!(ref_1(m, rc) "fld dword ptr [{m} + 0x35B3FC]", "fmul dword ptr [{m} + 0x35B34C]", "fsub dword ptr [{m} + 0x35B474]", "fstp dword ptr [{rc} + 0x31A420]");
+    reference!(ref_2(m, rc) "fld dword ptr [{m} + 0x35B3F8]", "fmul dword ptr [{m} + 0x35B34C]", "fstp dword ptr [{rc} + 0x31A410]");
+    reference!(ref_3(m, rc) "fld dword ptr [{m} + 0x35B34C]", "fstp dword ptr [{rc} + 0x31A420]", "fld dword ptr [{m} + 0x35B350]", "fstp dword ptr [{rc} + 0x31A410]");
+    reference!(ref_4(m, rc) "fld dword ptr [{m} + 0x35B3FC]", "fmul dword ptr [{m} + 0x35B34C]", "fsub dword ptr [{m} + 0x35B478]", "fstp dword ptr [{rc} + 0x31A424]");
+    reference!(ref_5(m, rc) "fld dword ptr [{m} + 0x35B3F8]", "fmul dword ptr [{m} + 0x35B34C]", "fstp dword ptr [{rc} + 0x31A414]");
+    reference!(ref_6(m, rc) "fld dword ptr [{m} + 0x35B34C]", "fstp dword ptr [{rc} + 0x31A424]", "fld dword ptr [{m} + 0x35B350]", "fstp dword ptr [{rc} + 0x31A414]");
+    reference!(ref_7(m, rc) "fld dword ptr [{m} + 0x35B3FC]", "fmul dword ptr [{m} + 0x35B34C]", "fsub dword ptr [{m} + 0x35B47C]", "fstp dword ptr [{rc} + 0x31A428]");
+    reference!(ref_8(m, rc) "fld dword ptr [{m} + 0x35B3F8]", "fmul dword ptr [{m} + 0x35B34C]", "fstp dword ptr [{rc} + 0x31A418]");
+    reference!(ref_9(m, rc) "fld dword ptr [{m} + 0x35B34C]", "fstp dword ptr [{rc} + 0x31A428]", "fld dword ptr [{m} + 0x35B350]", "fstp dword ptr [{rc} + 0x31A418]");
+    reference!(ref_10(m, rc) "fld dword ptr [{m} + 0x35B3FC]", "fmul dword ptr [{m} + 0x35B34C]", "fsub dword ptr [{m} + 0x35B480]", "fstp dword ptr [{rc} + 0x31A42C]");
+    reference!(ref_11(m, rc) "fld dword ptr [{m} + 0x35B3F8]", "fmul dword ptr [{m} + 0x35B34C]", "fstp dword ptr [{rc} + 0x31A41C]");
+    reference!(ref_12(m, rc) "fld dword ptr [{m} + 0x35B34C]", "fstp dword ptr [{rc} + 0x31A42C]", "fld dword ptr [{m} + 0x35B350]", "fstp dword ptr [{rc} + 0x31A41C]");
+    reference!(ref_13(rc, m) "fld dword ptr [{rc} + 0x31A410]", "fadd dword ptr [{rc} + 0x31A414]", "fadd dword ptr [{rc} + 0x31A418]", "fadd dword ptr [{rc} + 0x31A41C]", "fmul dword ptr [{m} + 0x35B364]", "fstp dword ptr [{rc} + 0x31A434]", "fld dword ptr [{rc} + 0x31A420]", "fadd dword ptr [{rc} + 0x31A424]", "fadd dword ptr [{rc} + 0x31A428]", "fadd dword ptr [{rc} + 0x31A42C]", "fmul dword ptr [{m} + 0x35B364]", "fstp dword ptr [{rc} + 0x31A430]", "fld dword ptr [{rc} + 0x31A018]", "fstp dword ptr [{m} + 0x35B3E4]", "fld dword ptr [{rc} + 0x31A1B0]", ".byte 0xD9, 0xE1", "fstp dword ptr [{m} + 0x35B36C]");
+    reference!(ref_14(m, rc) "fld dword ptr [{m} + 0x35B36C]", "fdiv dword ptr [{rc} + 0x31A1B4]", "fmul dword ptr [{m} + 0x35B34C]", "fstp dword ptr [{m} + 0x35B398]", "fld dword ptr [{rc} + 0x31A184]", ".byte 0xD9, 0xE1", "fstp dword ptr [{m} + 0x35B36C]");
+    reference!(ref_15(m, rc) "fld dword ptr [{m} + 0x35B36C]", "fdiv dword ptr [{m} + 0x35B378]", "fmul dword ptr [{m} + 0x35B34C]", "fstp dword ptr [{m} + 0x35B39C]", "fld dword ptr [{rc} + 0x31A930]", "fstp dword ptr [{m} + 0x35B3E0]", "fld dword ptr [{rc} + 0x31A184]", "fsub dword ptr [{rc} + 0x31A190]", ".byte 0xD9, 0xE1", "fstp dword ptr [{m} + 0x35B36C]");
+    reference!(ref_16(m, rc) "fld dword ptr [{m} + 0x35B36C]", "fdiv dword ptr [{m} + 0x35B378]", "fstp dword ptr [{m} + 0x35B3A0]", "fld dword ptr [{rc} + 0x31A184]", "fsub dword ptr [{rc} + 0x31A194]", ".byte 0xD9, 0xE1", "fstp dword ptr [{m} + 0x35B36C]");
+    reference!(ref_17(m, rc) "fld dword ptr [{m} + 0x35B36C]", "fdiv dword ptr [{m} + 0x35B378]", "fstp dword ptr [{m} + 0x35B3A4]", "fld dword ptr [{rc} + 0x31A190]", "fsub dword ptr [{rc} + 0x31A184]", "fmul dword ptr [{m} + 0x35B6F4]", "fadd dword ptr [{rc} + 0x31A190]", ".byte 0xD9, 0xE1", "fstp dword ptr [{m} + 0x35B36C]");
+    reference!(ref_18(m, rc) "fld dword ptr [{m} + 0x35B36C]", "fdiv dword ptr [{m} + 0x35B378]", "fstp dword ptr [{m} + 0x35B3A8]", "fld dword ptr [{rc} + 0x31A194]", "fsub dword ptr [{rc} + 0x31A184]", "fmul dword ptr [{m} + 0x35B6F4]", "fadd dword ptr [{rc} + 0x31A194]", ".byte 0xD9, 0xE1", "fstp dword ptr [{m} + 0x35B36C]");
+    reference!(ref_19(m) "fld dword ptr [{m} + 0x35B36C]", "fdiv dword ptr [{m} + 0x35B378]", "fstp dword ptr [{m} + 0x35B3AC]", ".byte 0xD9, 0xEE", "fstp dword ptr [{m} + 0x35B3F4]");
+    reference!(ref_20(m) ".byte 0xD9, 0xE8", "fstp dword ptr [{m} + 0x35B3F4]");
+    reference!(ref_21(m) ".byte 0xD9, 0xEE", "fstp dword ptr [{m} + 0x35B3B0]");
+    reference!(ref_22(rc, m) "fild dword ptr [{rc} + 0x31A614]", "fdiv dword ptr [{m} + 0x35B35C]", "fstp dword ptr [{m} + 0x35B3B0]");
+    reference!(ref_23(rc, m, s) "fld dword ptr [{rc} + 0x31A1B4]", "fmul dword ptr [{m} + 0x35B37C]", "fcomp dword ptr [{rc} + 0x31A1B0]", "fnstsw word ptr [{s}]");
+    reference!(ref_24(m) ".byte 0xD9, 0xEE", "fstp dword ptr [{m} + 0x35B3B4]");
+    reference!(ref_25(rc, m) "fld dword ptr [{rc} + 0x31A208]", "fmul dword ptr [{rc} + 0x31A208]", "fdiv dword ptr [{m} + 0x35B394]", "fdiv dword ptr [{m} + 0x35B378]", "fstp dword ptr [{m} + 0x35B3C8]", "fld dword ptr [{rc} + 0x31A180]", ".byte 0xD9, 0xE0", "fsub dword ptr [{m} + 0x35B624]", "fstp dword ptr [{m} + 0x35B36C]");
+    reference!(ref_26(m) "fld dword ptr [{m} + 0x35B36C]", ".byte 0xD8, 0xC8", "fmul dword ptr [{m} + 0x35B620]", "fstp dword ptr [{m} + 0x35B36C]");
+    reference!(ref_27(m) "fld dword ptr [{m} + 0x35B3CC]", "fadd dword ptr [{m} + 0x35B3D0]", "fadd dword ptr [{m} + 0x35B3D4]", "fadd dword ptr [{m} + 0x35B3D8]", "fmul dword ptr [{m} + 0x35B364]", "fstp dword ptr [{m} + 0x35B3DC]", "fld dword ptr [{m} + 0x35B3DC]", "fmul dword ptr [{m} + 0x35B360]", "fstp dword ptr [{m} + 0x35B36C]", "fld dword ptr [{m} + 0x35B3CC]", "fmul dword ptr [{m} + 0x35B360]", "fadd dword ptr [{m} + 0x35B36C]", "fstp dword ptr [{m} + 0x35B3CC]", "fld dword ptr [{m} + 0x35B3D0]", "fmul dword ptr [{m} + 0x35B360]", "fadd dword ptr [{m} + 0x35B36C]", "fstp dword ptr [{m} + 0x35B3D0]", "fld dword ptr [{m} + 0x35B3D4]", "fmul dword ptr [{m} + 0x35B360]", "fadd dword ptr [{m} + 0x35B36C]", "fstp dword ptr [{m} + 0x35B3D4]", "fld dword ptr [{m} + 0x35B3D8]", "fmul dword ptr [{m} + 0x35B360]", "fadd dword ptr [{m} + 0x35B36C]", "fstp dword ptr [{m} + 0x35B3D8]");
+
+    fn blocks() -> Vec<Block> {
+        vec![
+            Block {
+                name: "damage_factors line 39",
+                operands: vec![
+                    Operand::Buffer {
+                        reads: &[(0x319FF8, In::I), (0x31A008, In::I), (0x31A00C, In::I)],
+                        writes: &[],
+                    },
+                    Operand::Buffer {
+                        reads: &[(0x35B35C, In::F)],
+                        writes: &[(0x35B3F8, Out::F), (0x35B3FC, Out::F), (0x35B400, Out::F)],
+                    },
+                ],
+                ulps: 0,
+                reference: |a| unsafe { ref_0(a[0], a[1]) },
+                plain: |a| x87_1(a[0], a[1]),
+            },
+            Block {
+                name: "damage_factors line 53",
+                operands: vec![
+                    Operand::Buffer {
+                        reads: &[(0x35B34C, In::F), (0x35B3FC, In::F), (0x35B474, In::F)],
+                        writes: &[],
+                    },
+                    Operand::Buffer {
+                        reads: &[],
+                        writes: &[(0x31A420, Out::F)],
+                    },
+                ],
+                ulps: 0,
+                reference: |a| unsafe { ref_1(a[0], a[1]) },
+                plain: |a| x87_2(a[0], a[1], 0x35B474, 0x31A420),
+            },
+            Block {
+                name: "damage_factors line 63",
+                operands: vec![
+                    Operand::Buffer {
+                        reads: &[(0x35B34C, In::F), (0x35B3F8, In::F)],
+                        writes: &[],
+                    },
+                    Operand::Buffer {
+                        reads: &[],
+                        writes: &[(0x31A410, Out::F)],
+                    },
+                ],
+                ulps: 0,
+                reference: |a| unsafe { ref_2(a[0], a[1]) },
+                plain: |a| x87_3(a[0], a[1], 0x31A410),
+            },
+            Block {
+                name: "damage_factors line 71",
+                operands: vec![
+                    Operand::Buffer {
+                        reads: &[(0x35B34C, In::F), (0x35B350, In::F)],
+                        writes: &[],
+                    },
+                    Operand::Buffer {
+                        reads: &[],
+                        writes: &[(0x31A410, Out::F), (0x31A420, Out::F)],
+                    },
+                ],
+                ulps: 0,
+                reference: |a| unsafe { ref_3(a[0], a[1]) },
+                plain: |a| x87_4(a[0], a[1], 0x31A420, 0x31A410),
+            },
+            Block {
+                name: "damage_factors line 81",
+                operands: vec![
+                    Operand::Buffer {
+                        reads: &[(0x35B34C, In::F), (0x35B3FC, In::F), (0x35B478, In::F)],
+                        writes: &[],
+                    },
+                    Operand::Buffer {
+                        reads: &[],
+                        writes: &[(0x31A424, Out::F)],
+                    },
+                ],
+                ulps: 0,
+                reference: |a| unsafe { ref_4(a[0], a[1]) },
+                plain: |a| x87_2(a[0], a[1], 0x35B478, 0x31A424),
+            },
+            Block {
+                name: "damage_factors line 91",
+                operands: vec![
+                    Operand::Buffer {
+                        reads: &[(0x35B34C, In::F), (0x35B3F8, In::F)],
+                        writes: &[],
+                    },
+                    Operand::Buffer {
+                        reads: &[],
+                        writes: &[(0x31A414, Out::F)],
+                    },
+                ],
+                ulps: 0,
+                reference: |a| unsafe { ref_5(a[0], a[1]) },
+                plain: |a| x87_3(a[0], a[1], 0x31A414),
+            },
+            Block {
+                name: "damage_factors line 99",
+                operands: vec![
+                    Operand::Buffer {
+                        reads: &[(0x35B34C, In::F), (0x35B350, In::F)],
+                        writes: &[],
+                    },
+                    Operand::Buffer {
+                        reads: &[],
+                        writes: &[(0x31A414, Out::F), (0x31A424, Out::F)],
+                    },
+                ],
+                ulps: 0,
+                reference: |a| unsafe { ref_6(a[0], a[1]) },
+                plain: |a| x87_4(a[0], a[1], 0x31A424, 0x31A414),
+            },
+            Block {
+                name: "damage_factors line 109",
+                operands: vec![
+                    Operand::Buffer {
+                        reads: &[(0x35B34C, In::F), (0x35B3FC, In::F), (0x35B47C, In::F)],
+                        writes: &[],
+                    },
+                    Operand::Buffer {
+                        reads: &[],
+                        writes: &[(0x31A428, Out::F)],
+                    },
+                ],
+                ulps: 0,
+                reference: |a| unsafe { ref_7(a[0], a[1]) },
+                plain: |a| x87_2(a[0], a[1], 0x35B47C, 0x31A428),
+            },
+            Block {
+                name: "damage_factors line 119",
+                operands: vec![
+                    Operand::Buffer {
+                        reads: &[(0x35B34C, In::F), (0x35B3F8, In::F)],
+                        writes: &[],
+                    },
+                    Operand::Buffer {
+                        reads: &[],
+                        writes: &[(0x31A418, Out::F)],
+                    },
+                ],
+                ulps: 0,
+                reference: |a| unsafe { ref_8(a[0], a[1]) },
+                plain: |a| x87_3(a[0], a[1], 0x31A418),
+            },
+            Block {
+                name: "damage_factors line 127",
+                operands: vec![
+                    Operand::Buffer {
+                        reads: &[(0x35B34C, In::F), (0x35B350, In::F)],
+                        writes: &[],
+                    },
+                    Operand::Buffer {
+                        reads: &[],
+                        writes: &[(0x31A418, Out::F), (0x31A428, Out::F)],
+                    },
+                ],
+                ulps: 0,
+                reference: |a| unsafe { ref_9(a[0], a[1]) },
+                plain: |a| x87_4(a[0], a[1], 0x31A428, 0x31A418),
+            },
+            Block {
+                name: "damage_factors line 137",
+                operands: vec![
+                    Operand::Buffer {
+                        reads: &[(0x35B34C, In::F), (0x35B3FC, In::F), (0x35B480, In::F)],
+                        writes: &[],
+                    },
+                    Operand::Buffer {
+                        reads: &[],
+                        writes: &[(0x31A42C, Out::F)],
+                    },
+                ],
+                ulps: 0,
+                reference: |a| unsafe { ref_10(a[0], a[1]) },
+                plain: |a| x87_2(a[0], a[1], 0x35B480, 0x31A42C),
+            },
+            Block {
+                name: "damage_factors line 147",
+                operands: vec![
+                    Operand::Buffer {
+                        reads: &[(0x35B34C, In::F), (0x35B3F8, In::F)],
+                        writes: &[],
+                    },
+                    Operand::Buffer {
+                        reads: &[],
+                        writes: &[(0x31A41C, Out::F)],
+                    },
+                ],
+                ulps: 0,
+                reference: |a| unsafe { ref_11(a[0], a[1]) },
+                plain: |a| x87_3(a[0], a[1], 0x31A41C),
+            },
+            Block {
+                name: "damage_factors line 155",
+                operands: vec![
+                    Operand::Buffer {
+                        reads: &[(0x35B34C, In::F), (0x35B350, In::F)],
+                        writes: &[],
+                    },
+                    Operand::Buffer {
+                        reads: &[],
+                        writes: &[(0x31A41C, Out::F), (0x31A42C, Out::F)],
+                    },
+                ],
+                ulps: 0,
+                reference: |a| unsafe { ref_12(a[0], a[1]) },
+                plain: |a| x87_4(a[0], a[1], 0x31A42C, 0x31A41C),
+            },
+            Block {
+                name: "damage_factors line 164",
+                operands: vec![
+                    Operand::Buffer {
+                        reads: &[
+                            (0x31A018, In::F),
+                            (0x31A1B0, In::F),
+                            (0x31A410, In::F),
+                            (0x31A414, In::F),
+                            (0x31A418, In::F),
+                            (0x31A41C, In::F),
+                            (0x31A420, In::F),
+                            (0x31A424, In::F),
+                            (0x31A428, In::F),
+                            (0x31A42C, In::F),
+                        ],
+                        writes: &[(0x31A430, Out::F), (0x31A434, Out::F)],
+                    },
+                    Operand::Buffer {
+                        reads: &[(0x35B364, In::F)],
+                        writes: &[(0x35B36C, Out::F), (0x35B3E4, Out::F)],
+                    },
+                ],
+                ulps: 0,
+                reference: |a| unsafe { ref_13(a[0], a[1]) },
+                plain: |a| x87_5(a[0], a[1]),
+            },
+            Block {
+                name: "damage_factors line 186",
+                operands: vec![
+                    Operand::Buffer {
+                        reads: &[(0x35B34C, In::F), (0x35B36C, In::F)],
+                        writes: &[(0x35B36C, Out::F), (0x35B398, Out::F)],
+                    },
+                    Operand::Buffer {
+                        reads: &[(0x31A184, In::F), (0x31A1B4, In::F)],
+                        writes: &[],
+                    },
+                ],
+                ulps: 0,
+                reference: |a| unsafe { ref_14(a[0], a[1]) },
+                plain: |a| x87_6(a[0], a[1]),
+            },
+            Block {
+                name: "damage_factors line 198",
+                operands: vec![
+                    Operand::Buffer {
+                        reads: &[(0x35B34C, In::F), (0x35B36C, In::F), (0x35B378, In::F)],
+                        writes: &[(0x35B36C, Out::F), (0x35B39C, Out::F), (0x35B3E0, Out::F)],
+                    },
+                    Operand::Buffer {
+                        reads: &[(0x31A184, In::F), (0x31A190, In::F), (0x31A930, In::F)],
+                        writes: &[],
+                    },
+                ],
+                ulps: 0,
+                reference: |a| unsafe { ref_15(a[0], a[1]) },
+                plain: |a| x87_7(a[0], a[1]),
+            },
+            Block {
+                name: "damage_factors line 213",
+                operands: vec![
+                    Operand::Buffer {
+                        reads: &[(0x35B36C, In::F), (0x35B378, In::F)],
+                        writes: &[(0x35B36C, Out::F), (0x35B3A0, Out::F)],
+                    },
+                    Operand::Buffer {
+                        reads: &[(0x31A184, In::F), (0x31A194, In::F)],
+                        writes: &[],
+                    },
+                ],
+                ulps: 0,
+                reference: |a| unsafe { ref_16(a[0], a[1]) },
+                plain: |a| x87_8(a[0], a[1]),
+            },
+            Block {
+                name: "damage_factors line 225",
+                operands: vec![
+                    Operand::Buffer {
+                        reads: &[(0x35B36C, In::F), (0x35B378, In::F), (0x35B6F4, In::F)],
+                        writes: &[(0x35B36C, Out::F), (0x35B3A4, Out::F)],
+                    },
+                    Operand::Buffer {
+                        reads: &[(0x31A184, In::F), (0x31A190, In::F)],
+                        writes: &[],
+                    },
+                ],
+                ulps: 0,
+                reference: |a| unsafe { ref_17(a[0], a[1]) },
+                plain: |a| x87_9(a[0], a[1], 0x35B3A4, 0x31A190, 0x31A190),
+            },
+            Block {
+                name: "damage_factors line 239",
+                operands: vec![
+                    Operand::Buffer {
+                        reads: &[(0x35B36C, In::F), (0x35B378, In::F), (0x35B6F4, In::F)],
+                        writes: &[(0x35B36C, Out::F), (0x35B3A8, Out::F)],
+                    },
+                    Operand::Buffer {
+                        reads: &[(0x31A184, In::F), (0x31A194, In::F)],
+                        writes: &[],
+                    },
+                ],
+                ulps: 0,
+                reference: |a| unsafe { ref_18(a[0], a[1]) },
+                plain: |a| x87_9(a[0], a[1], 0x35B3A8, 0x31A194, 0x31A194),
+            },
+            Block {
+                name: "damage_factors line 253",
+                operands: vec![Operand::Buffer {
+                    reads: &[(0x35B36C, In::F), (0x35B378, In::F)],
+                    writes: &[(0x35B3AC, Out::F), (0x35B3F4, Out::F)],
+                }],
+                ulps: 0,
+                reference: |a| unsafe { ref_19(a[0]) },
+                plain: |a| x87_10(a[0]),
+            },
+            Block {
+                name: "damage_factors line 262",
+                operands: vec![Operand::Buffer {
+                    reads: &[],
+                    writes: &[(0x35B3F4, Out::F)],
+                }],
+                ulps: 0,
+                reference: |a| unsafe { ref_20(a[0]) },
+                plain: |a| x87_11(a[0]),
+            },
+            Block {
+                name: "damage_factors line 268",
+                operands: vec![Operand::Buffer {
+                    reads: &[],
+                    writes: &[(0x35B3B0, Out::F)],
+                }],
+                ulps: 0,
+                reference: |a| unsafe { ref_21(a[0]) },
+                plain: |a| x87_12(a[0], 0x35B3B0),
+            },
+            Block {
+                name: "damage_factors line 276",
+                operands: vec![
+                    Operand::Buffer {
+                        reads: &[(0x31A614, In::I)],
+                        writes: &[],
+                    },
+                    Operand::Buffer {
+                        reads: &[(0x35B35C, In::F)],
+                        writes: &[(0x35B3B0, Out::F)],
+                    },
+                ],
+                ulps: 0,
+                reference: |a| unsafe { ref_22(a[0], a[1]) },
+                plain: |a| x87_13(a[0], a[1]),
+            },
+            Block {
+                name: "damage_factors line 287",
+                operands: vec![
+                    Operand::Buffer {
+                        reads: &[(0x31A1B0, In::F), (0x31A1B4, In::F)],
+                        writes: &[],
+                    },
+                    Operand::Buffer {
+                        reads: &[(0x35B37C, In::F)],
+                        writes: &[],
+                    },
+                    Operand::Buffer {
+                        reads: &[],
+                        writes: &[(0, Out::H)],
+                    },
+                ],
+                ulps: 0,
+                reference: |a| unsafe { ref_23(a[0], a[1], a[2]) },
+                plain: |a| x87_14(a[0], a[1], a[2]),
+            },
+            Block {
+                name: "damage_factors line 302",
+                operands: vec![Operand::Buffer {
+                    reads: &[],
+                    writes: &[(0x35B3B4, Out::F)],
+                }],
+                ulps: 0,
+                reference: |a| unsafe { ref_24(a[0]) },
+                plain: |a| x87_12(a[0], 0x35B3B4),
+            },
+            Block {
+                name: "damage_factors line 322",
+                operands: vec![
+                    Operand::Buffer {
+                        reads: &[(0x31A180, In::F), (0x31A208, In::F)],
+                        writes: &[],
+                    },
+                    Operand::Buffer {
+                        reads: &[(0x35B378, In::F), (0x35B394, In::F), (0x35B624, In::F)],
+                        writes: &[(0x35B36C, Out::F), (0x35B3C8, Out::F)],
+                    },
+                ],
+                ulps: 0,
+                reference: |a| unsafe { ref_25(a[0], a[1]) },
+                plain: |a| x87_15(a[0], a[1]),
+            },
+            Block {
+                name: "damage_factors line 337",
+                operands: vec![Operand::Buffer {
+                    reads: &[(0x35B36C, In::F), (0x35B620, In::F)],
+                    writes: &[(0x35B36C, Out::F)],
+                }],
+                ulps: 0,
+                reference: |a| unsafe { ref_26(a[0]) },
+                plain: |a| x87_16(a[0]),
+            },
+            Block {
+                name: "damage_factors line 350",
+                operands: vec![Operand::Buffer {
+                    reads: &[
+                        (0x35B360, In::F),
+                        (0x35B364, In::F),
+                        (0x35B36C, In::F),
+                        (0x35B3CC, In::F),
+                        (0x35B3D0, In::F),
+                        (0x35B3D4, In::F),
+                        (0x35B3D8, In::F),
+                        (0x35B3DC, In::F),
+                    ],
+                    writes: &[
+                        (0x35B36C, Out::F),
+                        (0x35B3CC, Out::F),
+                        (0x35B3D0, Out::F),
+                        (0x35B3D4, Out::F),
+                        (0x35B3D8, Out::F),
+                        (0x35B3DC, Out::F),
+                    ],
+                }],
+                ulps: 0,
+                reference: |a| unsafe { ref_27(a[0]) },
+                plain: |a| x87_17(a[0]),
+            },
+        ]
+    }
+
+    #[test]
+    fn x87_blocks_matches_the_assembly() {
+        sparse(&blocks(), 1200, 100);
+    }
 }

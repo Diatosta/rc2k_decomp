@@ -13,18 +13,14 @@
 
 use crate::errors::Refused;
 use crate::framework::rva;
-use crate::sound::store::ClockSlot;
-use crate::sound::store::ObjectsSlot;
 use crate::store::game_addr;
 
 /// unk_5124BC: the request the turn's sounds go with.
 pub const REQUEST: usize = 0x5124BC;
-/// dword_5124E8: the time of the sounds' last turn (`sound/race_clock.rs`).
-pub const CLOCK: ClockSlot = ClockSlot::at(0x5124E8);
-/// g_raceSoundObjects: eight pointers.
-pub const OBJECTS: ObjectsSlot = ObjectsSlot::at(0x512A10);
-/// dword_514F7C: the sound objects in use.
-pub const COUNT: ObjectsSlot = ObjectsSlot::at(0x514F7C);
+/// Object `n`'s address (`g_raceSoundObjects[n]`); `n` is under 8 (every caller checks).
+pub fn object(n: u32) -> u32 {
+    crate::sound::store::RACE_SOUNDS.table[n as usize].get()
+}
 
 /// The request's address.
 pub fn request() -> u32 {

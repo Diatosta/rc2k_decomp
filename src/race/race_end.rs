@@ -4,10 +4,6 @@
 
 use crate::errors::Refused;
 use crate::framework::rva;
-use crate::sound::store::ClockSlot;
-use crate::sound::store::EffectsSlot;
-use crate::sound::store::ObjectsSlot;
-use crate::sound::store::StageSlot;
 use crate::store::{game_addr, game_read, game_write};
 
 /// The replay's car header (`dword_719B14` ..).
@@ -59,56 +55,45 @@ pub unsafe fn record_replay_header() {
     }
 }
 
-const SOUND_OBJECTS_RVA: ObjectsSlot = ObjectsSlot::at(0x512A10); // g_raceSoundObjects: 8 pointers
-/// Each object's dwords set: (offset, value).
-const OBJECT_VALUES: [(u32, u32); 32] = [
-    (0x150, 0),
-    (0x154, 0),
-    (0x168, 0),
-    (0x16C, 0),
-    (0x180, 0),
-    (0x184, 0),
-    (0x198, 0),
-    (0x19C, 0),
-    (0x264, 0),
-    (0x268, 0),
-    (0x1B0, 0),
-    (0x1B4, 0),
-    (0x224, 0),
-    (0x228, 0),
-    (0x1C8, 0),
-    (0x1CC, 0),
-    (0x1E0, 0),
-    (0x1E4, 0),
-    (0x1FC, 0),
-    (0x200, 0),
-    (0x238, 0xFFFF_FFFE),
-    (0x24C, 0xFFFF_FFFE),
-    (0x2A4, 0),
-    (0x29C, 0xFFFF_FFFF),
-    (0x8, 0),
-    (0x14, 0),
-    (0x18, 0),
-    (0x1C, 0),
-    (0x44, 0),
-    (0x58, 0),
-    (0x6C, 0),
-    (0x80, 0),
-];
+/// An object's variables reset for a race: the six timed slots' start and playing flags
+/// and the other slots', the hit and cue sounds none (-2), the cue queue's place none,
+/// the object not in use, the revs, throttle, speed and the wheels' first shares 0.
+fn reset_object(o: &crate::sound::store::SoundObject) {
+    for slot in o.slots.iter().chain([&o.gear_slot, &o.slot_b, &o.slot_c]) {
+        slot.start.set(0);
+        slot.playing.set(0);
+    }
+    o.hit_sound.set(0xFFFF_FFFE);
+    o.cue_sound.set(0xFFFF_FFFE);
+    o.cue_queue.count.set(0);
+    o.cue_queue.place.set(0xFFFF_FFFF);
+    o.in_use.set(0);
+    o.revs.set(0);
+    o.throttle.set(0);
+    o.speed.set(0.0);
+    for voice in &o.voices {
+        voice.share_a.set(0.0);
+    }
+}
 /// dword_51659C .. dword_5165E8: set 0.
-const CLEARED: [StageSlot; 11] = [
-    StageSlot::at(0x51659C),
-    StageSlot::at(0x5165A0),
-    StageSlot::at(0x5165A4),
-    StageSlot::at(0x5165A8),
-    StageSlot::at(0x5165C8),
-    StageSlot::at(0x5165D0),
-    StageSlot::at(0x5165D4),
-    StageSlot::at(0x5165BC),
-    StageSlot::at(0x5165C0),
-    StageSlot::at(0x5165E4),
-    StageSlot::at(0x5165E8),
-];
+fn clear_stage_flags() {
+    let s = &crate::sound::store::STAGE_SOUNDS;
+    for flag in [
+        &s.once[0],
+        &s.once[1],
+        &s.once[2],
+        &s.timed_arm,
+        &s.timed_waiting,
+        &s.timed_slot.start,
+        &s.timed_slot.playing,
+        &s.loop_volume_a,
+        &s.loop_volume_b,
+        &s.random[0],
+        &s.random[1],
+    ] {
+        flag.set(0);
+    }
+}
 const VOICES_RVA: usize = rva(0x5168C0); // unk_5168C0: 0x48 records of 0x50
 
 /// A sound command whose only register the audio thread reads is eax (the others go
@@ -149,24 +134,20 @@ pub fn reset_race_sounds(v: &SoundVars) -> Result<(), Refused> {
         crate::sound::hold_sounds_back::hold_sounds_back();
         crate::sound::race_clock::start_race_clock(crate::system::tick_count::tick_count());
         for &o in &objects {
-            for (off, v) in OBJECT_VALUES {
-                ((o + off) as *mut u32).write_unaligned(v);
-            }
+            reset_object(crate::sound::store::SoundObject::at(o));
         }
-        for a in CLEARED {
-            crate::store::game_write(a, 0u32);
-        }
+        clear_stage_flags();
         let first = v.voices;
         for k in 0..0x48u32 {
             let at = first + 0x50 * k;
             (at as *mut u32).write_unaligned(0x1888_FFFF);
             ((at + 0x14) as *mut u32).write_unaligned(0xFFFF_FFFE);
         }
-        game_write(StageSlot::at(0x5165EC), 0u32);
-        game_write(EffectsSlot::at(0x518054), 0u32);
+        crate::sound::store::STAGE_SOUNDS.shared_count.set(0);
+        crate::sound::store::SOUND_EFFECTS.spot_work_a.set(0);
         crate::audio::store::ENVIRONMENT.set(0x3F80_0000u32);
         command(2, 3);
-        game_write(ClockSlot::at(0x5124E4), 0u32);
+        crate::sound::store::RACE_CLOCK.started.set(0);
     }
     Ok(())
 }
@@ -181,7 +162,7 @@ pub struct SoundVars {
 impl SoundVars {
     pub fn game() -> Self {
         Self {
-            objects: game_addr(SOUND_OBJECTS_RVA) as u32,
+            objects: crate::sound::store::RACE_SOUNDS.table.as_ptr() as usize as u32,
             voices: game_addr(VOICES_RVA) as u32,
         }
     }

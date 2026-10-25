@@ -14,12 +14,17 @@
 //! - +0x4DC .. +0x4E8 its four readings (steering, brake, throttle, the bits), which
 //!   `drive::device_axes` reads.
 
-use crate::input::store::DeviceSlot;
-use crate::store::game_read;
+use crate::input::store::DEVICES;
 
-pub const RECORDS: [DeviceSlot; 2] = [DeviceSlot::at(0x4F6EF0), DeviceSlot::at(0x4F73E8)];
-pub const KEYS_DOWN_RVA: DeviceSlot = DeviceSlot::at(0x4F6ADC); // g_keysDown: a byte a key, 0x80 down
-pub const STATE_RVA: DeviceSlot = DeviceSlot::at(0x4F6A28); // dword_4F6A28: the device's state, 0x50 bytes
+/// The two records' places (`g_inputRecord1`, `g_inputRecord2`).
+pub fn record_addrs() -> [u32; 2] {
+    DEVICES
+        .records
+        .each_ref()
+        .map(|record| record.addr() as u32)
+}
+
+/// The device's state (`g_deviceState`), 0x50 bytes.
 pub const STATE_LEN: usize = 0x50;
 
 /// A dword of the record at `record`.
@@ -40,11 +45,15 @@ pub fn record_bytes(record: u32) -> rc2k_core::input::devices::Record {
 
 /// The key table and the device's state, for the core.
 pub fn key_table() -> rc2k_core::input::devices::KeyTable {
-    unsafe { game_read(KEYS_DOWN_RVA) }
+    DEVICES.key_table()
 }
 
 pub fn joy_state() -> rc2k_core::input::devices::State {
-    unsafe { game_read(STATE_RVA) }
+    let mut state = [0u8; STATE_LEN];
+    for (n, dword) in DEVICES.device_state.iter().enumerate() {
+        state[4 * n..4 * n + 4].copy_from_slice(&dword.get().to_le_bytes());
+    }
+    state
 }
 
 /// A method of a COM object (DirectInput's device): the function in slot `slot` (a byte

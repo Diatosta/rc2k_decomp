@@ -13,12 +13,9 @@
 use crate::errors::BadInput;
 use crate::field;
 use crate::input::devices::put;
-use crate::input::input_tick::COMMAND_RVA;
-use crate::input::store::DeviceSlot;
+use crate::input::store::DEVICES;
 use crate::input::types::InputDevice;
-use crate::store::{game_read, game_write};
 
-pub const DEVICES_RVA: DeviceSlot = DeviceSlot::at(0x4F6EE8); // g_inputDevices
 /// The Rust version (see the header).
 pub unsafe fn request_device_setup(
     controller: u32,
@@ -27,7 +24,7 @@ pub unsafe fn request_device_setup(
     edx: u32,
     ebp: u32,
 ) -> Result<(), BadInput> {
-    let record = unsafe { game_read::<u32>(DEVICES_RVA) };
+    let record = DEVICES.input_devices[0].get();
     if record == 0 {
         return Err(BadInput("no first input device record"));
     }
@@ -40,6 +37,6 @@ pub unsafe fn request_device_setup(
     put(record, field!(InputDevice, strength), s.strength);
     put(record, field!(InputDevice, dead_zone), s.dead_zone);
     put(record, field!(InputDevice, end_zone), s.end_zone);
-    unsafe { game_write(COMMAND_RVA, 1u32) };
+    DEVICES.input_command.set(1);
     Ok(())
 }

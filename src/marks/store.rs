@@ -10,8 +10,8 @@
 //! is such an address (`Slot::at(0x814724)`), checked against the block when it is written.
 //! `game_read` / `game_write` / `game_addr` here take a `Slot` or, as the framework's, an
 //! RVA of the image: a name the marks keep for a variable of the block cannot reach the
-//! image's old, unchanging copy, because it is not a `usize`. Inline assembly reaches the
-//! block through `base()`: `[{mk} + offset]` with `offset` IDA's address less `START`.
+//! image's old, unchanging copy, because it is not a `usize`. The x87 blocks (`marks::plain`)
+//! reach the block through `base()`: `mk + offset` with `offset` IDA's address less `START`.
 //!
 //! Threads: the marks run on the game's thread alone, as the image's bytes did.
 
@@ -148,7 +148,7 @@ pub unsafe fn game_write<T: Copy>(place: impl Where, value: T) {
     }
 }
 
-/// The block's address for inline assembly (`mk`): `[mk + offset]` with `offset` IDA's
+/// The block's address for the x87 blocks (`mk`): `mk + offset` with `offset` IDA's
 /// address less `START` (0x764F40) is the variable.
 pub fn base() -> u32 {
     STORE.addr() as u32

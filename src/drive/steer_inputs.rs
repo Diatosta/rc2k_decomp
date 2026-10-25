@@ -16,7 +16,19 @@
 //!
 //! Callers: `drive::car_controls`, `sub_460835`, `sub_460B2F`.
 
-use crate::physics::flow::{c0, g, p, x87_run};
+use crate::physics::flow::{c0, g, p};
+use crate::scene::x87_mem::{fild, fistp, fld};
+
+/// `fild dword [rc + from]; fmul dword [rc + by]; fistp dword [rc + to]` over the race
+/// block at `rc`.
+fn scale(rc: usize, from: usize, by: usize, to: usize) {
+    let rc = rc as *mut u8;
+    unsafe { fistp(rc, to, fild(rc, from) * fld(rc, by)) }
+}
+
+fn base() -> usize {
+    crate::race::store::asm_base() as usize
+}
 
 const WORD: usize = 0x613890;
 const LEFT: u32 = 0xE000_0000;
@@ -29,12 +41,7 @@ fn sign(v: u32) -> bool {
 /// The key step: 0xA00000 x `flt_614C0C`, through `dword_62400C`.
 fn key_step() -> u32 {
     p(0x62400C, 0xA0_0000);
-    x87_run!(
-        "fild dword ptr [{rc} + 0x22400C]",
-        "fmul dword ptr [{rc} + 0x214C0C]",
-        "fistp dword ptr [{rc} + 0x22400C]";
-        rc = crate::race::store::asm_base()
-    );
+    scale(base(), 0x22400C, 0x214C0C, 0x22400C);
     g(0x62400C)
 }
 
@@ -86,12 +93,7 @@ pub unsafe fn steer_inputs() {
         p(0x71A61C, 0);
         let product = i64::from(g(WORD) as i32) * i64::from(RIGHT as i32);
         p(0x62400C, (product >> 8) as u32);
-        x87_run!(
-            "fild dword ptr [{rc} + 0x22400C]",
-            "fmul dword ptr [{rc} + 0x214C08]",
-            "fistp dword ptr [{rc} + 0x22400C]";
-            rc = crate::race::store::asm_base()
-        );
+        scale(base(), 0x22400C, 0x214C08, 0x22400C);
         if sign(g(0x62400C).wrapping_sub(LEFT)) {
             p(0x62400C, LEFT);
         }
@@ -103,12 +105,7 @@ pub unsafe fn steer_inputs() {
     }
     // 0x439F7D: the trim.
     p(0x62400C, RIGHT);
-    x87_run!(
-        "fild dword ptr [{rc} + 0x22400C]",
-        "fmul dword ptr [{rc} + 0x31A3E0]",
-        "fistp dword ptr [{rc} + 0x31A1E0]";
-        rc = crate::race::store::asm_base()
-    );
+    scale(base(), 0x22400C, 0x31A3E0, 0x31A1E0);
     if g(0x719FE8) & 0x10 != 0 {
         p(0x71A1E0, g(0x71A1E0).wrapping_neg());
     }
@@ -118,5 +115,65 @@ pub unsafe fn steer_inputs() {
     if !c0(g(0x71A308), g(0x5C5D14)) {
         p(0x71A624, 0);
         p(0x71A628, 0);
+    }
+}
+
+#[cfg(test)]
+mod asm_reference {
+    use super::*;
+    use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
+
+    // The original's instructions, one function per run.
+    reference!(ref_key(rc)
+        "fild dword ptr [{rc} + 0x22400C]",
+        "fmul dword ptr [{rc} + 0x214C0C]",
+        "fistp dword ptr [{rc} + 0x22400C]");
+    reference!(ref_device(rc)
+        "fild dword ptr [{rc} + 0x22400C]",
+        "fmul dword ptr [{rc} + 0x214C08]",
+        "fistp dword ptr [{rc} + 0x22400C]");
+    reference!(ref_trim(rc)
+        "fild dword ptr [{rc} + 0x22400C]",
+        "fmul dword ptr [{rc} + 0x31A3E0]",
+        "fistp dword ptr [{rc} + 0x31A1E0]");
+
+    fn blocks() -> Vec<Block> {
+        vec![
+            Block {
+                name: "steer_inputs key step",
+                operands: vec![Operand::Buffer {
+                    reads: &[(0x22400C, In::I), (0x214C0C, In::F)],
+                    writes: &[(0x22400C, Out::I)],
+                }],
+                ulps: 0,
+                reference: |a| unsafe { ref_key(a[0]) },
+                plain: |a| scale(a[0], 0x22400C, 0x214C0C, 0x22400C),
+            },
+            Block {
+                name: "steer_inputs device",
+                operands: vec![Operand::Buffer {
+                    reads: &[(0x22400C, In::I), (0x214C08, In::F)],
+                    writes: &[(0x22400C, Out::I)],
+                }],
+                ulps: 0,
+                reference: |a| unsafe { ref_device(a[0]) },
+                plain: |a| scale(a[0], 0x22400C, 0x214C08, 0x22400C),
+            },
+            Block {
+                name: "steer_inputs trim",
+                operands: vec![Operand::Buffer {
+                    reads: &[(0x22400C, In::I), (0x31A3E0, In::F)],
+                    writes: &[(0x31A1E0, Out::I)],
+                }],
+                ulps: 0,
+                reference: |a| unsafe { ref_trim(a[0]) },
+                plain: |a| scale(a[0], 0x22400C, 0x31A3E0, 0x31A1E0),
+            },
+        ]
+    }
+
+    #[test]
+    fn steer_inputs_matches_the_assembly() {
+        sparse(&blocks(), 4000, 203);
     }
 }

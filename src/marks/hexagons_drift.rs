@@ -11,7 +11,7 @@
 //! In:  nothing (`g_marksSettings`)
 //! Out: nothing (its caller reads no register after it)
 //!
-//! Caller: `sub_4BC0B1` (0x4BC0BA). The x87 runs are the original's instructions over the
+//! Caller: `sub_4BC0B1` (0x4BC0BA). The x87 runs are plain Rust on the x87 model (`math::x87_float`), in the original's order, over the
 //! game's variables (the three values it keeps on the x87 stack across the two calls kept
 //! as 80 bits); the calls their Rust versions. Refuses null settings, before anything.
 
@@ -37,94 +37,17 @@ unsafe fn get(a: u32) -> u32 {
 
 /// The original's 0x4BCC3D .. 0x4BCD03: the view's move (the settings' +0x26AC .. less the kept `flt_8161D6` .., times `flt_764FE0`) into `flt_8161EE` .., less the last move into `flt_8161FA` .., plus the last move times `flt_82E326` ...
 unsafe fn view_moved(s: u32) {
-    unsafe {
-        core::arch::asm!(
-            "fld dword ptr [{s} + 0x26AC]",
-            "fsub dword ptr [{mk} + 0xB1296]",
-            "fmul dword ptr [{mk} + 0xA0]",
-            "fld dword ptr [{s} + 0x26B0]",
-            "fsub dword ptr [{mk} + 0xB129A]",
-            "fmul dword ptr [{mk} + 0xA0]",
-            "fld dword ptr [{s} + 0x26B4]",
-            "fsub dword ptr [{mk} + 0xB129E]",
-            "fmul dword ptr [{mk} + 0xA0]",
-            "fstp dword ptr [{mk} + 0xB12B6]",
-            "fstp dword ptr [{mk} + 0xB12B2]",
-            "fstp dword ptr [{mk} + 0xB12AE]",
-            "fld dword ptr [{mk} + 0xB12AE]",
-            "fsub dword ptr [{mk} + 0xB12A2]",
-            "fld dword ptr [{mk} + 0xB12B2]",
-            "fsub dword ptr [{mk} + 0xB12A6]",
-            "fld dword ptr [{mk} + 0xB12B6]",
-            "fsub dword ptr [{mk} + 0xB12AA]",
-            "fstp dword ptr [{mk} + 0xB12C2]",
-            "fstp dword ptr [{mk} + 0xB12BE]",
-            "fstp dword ptr [{mk} + 0xB12BA]",
-            "fld dword ptr [{mk} + 0xB12A2]",
-            "fmul dword ptr [{mk} + 0xC93E6]",
-            "fadd dword ptr [{mk} + 0xB12BA]",
-            "fstp dword ptr [{mk} + 0xB12BA]",
-            "fld dword ptr [{mk} + 0xB12A6]",
-            "fmul dword ptr [{mk} + 0xC93EA]",
-            "fadd dword ptr [{mk} + 0xB12BE]",
-            "fstp dword ptr [{mk} + 0xB12BE]",
-            "fld dword ptr [{mk} + 0xB12AA]",
-            "fmul dword ptr [{mk} + 0xC93EE]",
-            "fadd dword ptr [{mk} + 0xB12C2]",
-            "fstp dword ptr [{mk} + 0xB12C2]",
-            mk = in(reg) crate::marks::store::base(),
-            s = in(reg) s,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-        )
-    }
+    unsafe { view_moved_x87(crate::marks::store::base() as usize, s as usize) }
 }
 
 /// The original's 0x4BCD69 .. 0x4BCDCD: that move turned by the adjugate at m (`[esp]` temporaries at t), the three kept 80 bits at l.
 unsafe fn drift_turned(m: u32, t: u32, l: u32) {
     unsafe {
-        core::arch::asm!(
-            "fld dword ptr [{mk} + 0xB12C2]",
-            "fld dword ptr [{mk} + 0xB12BE]",
-            "fld dword ptr [{mk} + 0xB12BA]",
-            ".byte 0xD9, 0xC0",
-            "fmul dword ptr [{m} + 0x0]",
-            ".byte 0xD9, 0xC2",
-            "fmul dword ptr [{m} + 0x4]",
-            ".byte 0xD9, 0xC4",
-            "fmul dword ptr [{m} + 0x8]",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            "fstp dword ptr [{t} + 0x0]",
-            ".byte 0xD9, 0xC0",
-            "fmul dword ptr [{m} + 0xC]",
-            ".byte 0xD9, 0xC2",
-            "fmul dword ptr [{m} + 0x10]",
-            ".byte 0xD9, 0xC4",
-            "fmul dword ptr [{m} + 0x14]",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            "fstp dword ptr [{t} + 0x4]",
-            "fmul dword ptr [{m} + 0x18]",
-            ".byte 0xD9, 0xC9",
-            "fmul dword ptr [{m} + 0x1C]",
-            ".byte 0xD9, 0xCA",
-            "fmul dword ptr [{m} + 0x20]",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            "fld dword ptr [{t} + 0x4]",
-            "fld dword ptr [{t} + 0x0]",
-            "fstp tbyte ptr [{l}]",
-            "fstp tbyte ptr [{l} + 10]",
-            "fstp tbyte ptr [{l} + 20]",
-            mk = in(reg) crate::marks::store::base(),
-            m = in(reg) m,
-            t = in(reg) t,
-            l = in(reg) l,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
+        drift_turned_x87(
+            crate::marks::store::base() as usize,
+            m as usize,
+            t as usize,
+            l as usize,
         )
     }
 }
@@ -132,81 +55,18 @@ unsafe fn drift_turned(m: u32, t: u32, l: u32) {
 /// The original's 0x4BCDE6 .. 0x4BCE6A: the three (from l) turned back by the matrix at m, negated, into `flt_81621E` .. and times `flt_82E336` .. into `flt_811BDF` ...
 unsafe fn drift_back(m: u32, t: u32, l: u32) {
     unsafe {
-        core::arch::asm!(
-            "fld tbyte ptr [{l} + 20]",
-            "fld tbyte ptr [{l} + 10]",
-            "fld tbyte ptr [{l}]",
-            ".byte 0xD9, 0xC0",
-            "fmul dword ptr [{m} + 0x0]",
-            ".byte 0xD9, 0xC2",
-            "fmul dword ptr [{m} + 0x4]",
-            ".byte 0xD9, 0xC4",
-            "fmul dword ptr [{m} + 0x8]",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            "fstp dword ptr [{t} + 0x0]",
-            ".byte 0xD9, 0xC0",
-            "fmul dword ptr [{m} + 0xC]",
-            ".byte 0xD9, 0xC2",
-            "fmul dword ptr [{m} + 0x10]",
-            ".byte 0xD9, 0xC4",
-            "fmul dword ptr [{m} + 0x14]",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            "fstp dword ptr [{t} + 0x4]",
-            "fmul dword ptr [{m} + 0x18]",
-            ".byte 0xD9, 0xC9",
-            "fmul dword ptr [{m} + 0x1C]",
-            ".byte 0xD9, 0xCA",
-            "fmul dword ptr [{m} + 0x20]",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            "fld dword ptr [{t} + 0x4]",
-            "fld dword ptr [{t} + 0x0]",
-            ".byte 0xD9, 0xE0",
-            "fst dword ptr [{mk} + 0xB12DE]",
-            "fmul dword ptr [{mk} + 0xC93F6]",
-            "fstp dword ptr [{mk} + 0xACC9F]",
-            "fst dword ptr [{mk} + 0xB12E2]",
-            "fmul dword ptr [{mk} + 0xC93FA]",
-            "fstp dword ptr [{mk} + 0xACCA3]",
-            "fst dword ptr [{mk} + 0xB12E6]",
-            "fmul dword ptr [{mk} + 0xC93FE]",
-            "fstp dword ptr [{mk} + 0xACCA7]",
-            mk = in(reg) crate::marks::store::base(),
-            m = in(reg) m,
-            t = in(reg) t,
-            l = in(reg) l,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
+        drift_back_x87(
+            crate::marks::store::base() as usize,
+            m as usize,
+            t as usize,
+            l as usize,
         )
     }
 }
 
 /// The original's 0x4BCE6A .. 0x4BCEB2: the view's move kept in `flt_8161E2` ...
 unsafe fn move_kept(s: u32) {
-    unsafe {
-        core::arch::asm!(
-            "fld dword ptr [{s} + 0x26AC]",
-            "fsub dword ptr [{mk} + 0xB1296]",
-            "fmul dword ptr [{mk} + 0xA0]",
-            "fld dword ptr [{s} + 0x26B0]",
-            "fsub dword ptr [{mk} + 0xB129A]",
-            "fmul dword ptr [{mk} + 0xA0]",
-            "fld dword ptr [{s} + 0x26B4]",
-            "fsub dword ptr [{mk} + 0xB129E]",
-            "fmul dword ptr [{mk} + 0xA0]",
-            "fstp dword ptr [{mk} + 0xB12AA]",
-            "fstp dword ptr [{mk} + 0xB12A6]",
-            "fstp dword ptr [{mk} + 0xB12A2]",
-            mk = in(reg) crate::marks::store::base(),
-            s = in(reg) s,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-        )
-    }
+    unsafe { move_kept_x87(crate::marks::store::base() as usize, s as usize) }
 }
 
 /// The Rust version (see the header).
@@ -257,4 +117,494 @@ pub unsafe fn hexagons_drift() -> Result<(), Refused> {
         }
     }
     Ok(())
+}
+
+use crate::marks::plain::{ld, ld80, st, st80};
+use crate::math::x87_float as bh;
+
+/// `view_moved`'s x87 block as plain Rust on the x87 model (33 instructions), same order and memory places.
+unsafe fn view_moved_x87(mk: usize, s: usize) {
+    unsafe {
+        let t0 = ld(s, 0x26AC);
+        let t1 = t0 - ld(mk, 0xB1296);
+        let t2 = t1 * ld(mk, 0xA0);
+        let t3 = ld(s, 0x26B0);
+        let t4 = t3 - ld(mk, 0xB129A);
+        let t5 = t4 * ld(mk, 0xA0);
+        let t6 = ld(s, 0x26B4);
+        let t7 = t6 - ld(mk, 0xB129E);
+        let t8 = t7 * ld(mk, 0xA0);
+        st(mk, 0xB12B6, t8);
+        st(mk, 0xB12B2, t5);
+        st(mk, 0xB12AE, t2);
+        let t9 = ld(mk, 0xB12AE);
+        let t10 = t9 - ld(mk, 0xB12A2);
+        let t11 = ld(mk, 0xB12B2);
+        let t12 = t11 - ld(mk, 0xB12A6);
+        let t13 = ld(mk, 0xB12B6);
+        let t14 = t13 - ld(mk, 0xB12AA);
+        st(mk, 0xB12C2, t14);
+        st(mk, 0xB12BE, t12);
+        st(mk, 0xB12BA, t10);
+        let t15 = ld(mk, 0xB12A2);
+        let t16 = t15 * ld(mk, 0xC93E6);
+        let t17 = t16 + ld(mk, 0xB12BA);
+        st(mk, 0xB12BA, t17);
+        let t18 = ld(mk, 0xB12A6);
+        let t19 = t18 * ld(mk, 0xC93EA);
+        let t20 = t19 + ld(mk, 0xB12BE);
+        st(mk, 0xB12BE, t20);
+        let t21 = ld(mk, 0xB12AA);
+        let t22 = t21 * ld(mk, 0xC93EE);
+        let t23 = t22 + ld(mk, 0xB12C2);
+        st(mk, 0xB12C2, t23);
+    }
+}
+
+/// `drift_turned`'s x87 block as plain Rust on the x87 model (33 instructions), same order and memory places.
+unsafe fn drift_turned_x87(mk: usize, m: usize, t: usize, l: usize) {
+    unsafe {
+        let t0 = ld(mk, 0xB12C2);
+        let t1 = ld(mk, 0xB12BE);
+        let t2 = ld(mk, 0xB12BA);
+        let t3 = t2 * ld(m, 0);
+        let t4 = t1 * ld(m, 0x4);
+        let t5 = t0 * ld(m, 0x8);
+        let t6 = t4 + t5;
+        let t7 = t3 + t6;
+        st(t, 0, t7);
+        let t8 = t2 * ld(m, 0xC);
+        let t9 = t1 * ld(m, 0x10);
+        let t10 = t0 * ld(m, 0x14);
+        let t11 = t9 + t10;
+        let t12 = t8 + t11;
+        st(t, 0x4, t12);
+        let t13 = t2 * ld(m, 0x18);
+        let t14 = t1 * ld(m, 0x1C);
+        let t15 = t0 * ld(m, 0x20);
+        let t16 = t13 + t15;
+        let t17 = t14 + t16;
+        let t18 = ld(t, 0x4);
+        let t19 = ld(t, 0);
+        st80(l, 0, t19);
+        st80(l, 0xA, t18);
+        st80(l, 0x14, t17);
+    }
+}
+
+/// `drift_back`'s x87 block as plain Rust on the x87 model (40 instructions), same order and memory places.
+unsafe fn drift_back_x87(mk: usize, m: usize, t: usize, l: usize) {
+    unsafe {
+        let t0 = bh::from_f80(ld80(l, 0x14));
+        let t1 = bh::from_f80(ld80(l, 0xA));
+        let t2 = bh::from_f80(ld80(l, 0));
+        let t3 = t2 * ld(m, 0);
+        let t4 = t1 * ld(m, 0x4);
+        let t5 = t0 * ld(m, 0x8);
+        let t6 = t4 + t5;
+        let t7 = t3 + t6;
+        st(t, 0, t7);
+        let t8 = t2 * ld(m, 0xC);
+        let t9 = t1 * ld(m, 0x10);
+        let t10 = t0 * ld(m, 0x14);
+        let t11 = t9 + t10;
+        let t12 = t8 + t11;
+        st(t, 0x4, t12);
+        let t13 = t2 * ld(m, 0x18);
+        let t14 = t1 * ld(m, 0x1C);
+        let t15 = t0 * ld(m, 0x20);
+        let t16 = t13 + t15;
+        let t17 = t14 + t16;
+        let t18 = ld(t, 0x4);
+        let t19 = ld(t, 0);
+        let t20 = -t19;
+        st(mk, 0xB12DE, t20);
+        let t21 = t20 * ld(mk, 0xC93F6);
+        st(mk, 0xACC9F, t21);
+        st(mk, 0xB12E2, t18);
+        let t22 = t18 * ld(mk, 0xC93FA);
+        st(mk, 0xACCA3, t22);
+        st(mk, 0xB12E6, t17);
+        let t23 = t17 * ld(mk, 0xC93FE);
+        st(mk, 0xACCA7, t23);
+    }
+}
+
+/// `move_kept`'s x87 block as plain Rust on the x87 model (12 instructions), same order and memory places.
+unsafe fn move_kept_x87(mk: usize, s: usize) {
+    unsafe {
+        let t0 = ld(s, 0x26AC);
+        let t1 = t0 - ld(mk, 0xB1296);
+        let t2 = t1 * ld(mk, 0xA0);
+        let t3 = ld(s, 0x26B0);
+        let t4 = t3 - ld(mk, 0xB129A);
+        let t5 = t4 * ld(mk, 0xA0);
+        let t6 = ld(s, 0x26B4);
+        let t7 = t6 - ld(mk, 0xB129E);
+        let t8 = t7 * ld(mk, 0xA0);
+        st(mk, 0xB12AA, t8);
+        st(mk, 0xB12A6, t5);
+        st(mk, 0xB12A2, t2);
+    }
+}
+
+#[cfg(test)]
+mod asm_reference {
+    //! The original assembly blocks, kept verbatim as the reference the plain versions are tested against.
+
+    pub(super) unsafe fn view_moved_x87(mk: usize, s: usize) {
+        unsafe {
+            core::arch::asm!(
+                    "fld dword ptr [{s} + 0x26AC]",
+            "fsub dword ptr [{mk} + 0xB1296]",
+            "fmul dword ptr [{mk} + 0xA0]",
+            "fld dword ptr [{s} + 0x26B0]",
+            "fsub dword ptr [{mk} + 0xB129A]",
+            "fmul dword ptr [{mk} + 0xA0]",
+            "fld dword ptr [{s} + 0x26B4]",
+            "fsub dword ptr [{mk} + 0xB129E]",
+            "fmul dword ptr [{mk} + 0xA0]",
+            "fstp dword ptr [{mk} + 0xB12B6]",
+            "fstp dword ptr [{mk} + 0xB12B2]",
+            "fstp dword ptr [{mk} + 0xB12AE]",
+            "fld dword ptr [{mk} + 0xB12AE]",
+            "fsub dword ptr [{mk} + 0xB12A2]",
+            "fld dword ptr [{mk} + 0xB12B2]",
+            "fsub dword ptr [{mk} + 0xB12A6]",
+            "fld dword ptr [{mk} + 0xB12B6]",
+            "fsub dword ptr [{mk} + 0xB12AA]",
+            "fstp dword ptr [{mk} + 0xB12C2]",
+            "fstp dword ptr [{mk} + 0xB12BE]",
+            "fstp dword ptr [{mk} + 0xB12BA]",
+            "fld dword ptr [{mk} + 0xB12A2]",
+            "fmul dword ptr [{mk} + 0xC93E6]",
+            "fadd dword ptr [{mk} + 0xB12BA]",
+            "fstp dword ptr [{mk} + 0xB12BA]",
+            "fld dword ptr [{mk} + 0xB12A6]",
+            "fmul dword ptr [{mk} + 0xC93EA]",
+            "fadd dword ptr [{mk} + 0xB12BE]",
+            "fstp dword ptr [{mk} + 0xB12BE]",
+            "fld dword ptr [{mk} + 0xB12AA]",
+            "fmul dword ptr [{mk} + 0xC93EE]",
+            "fadd dword ptr [{mk} + 0xB12C2]",
+            "fstp dword ptr [{mk} + 0xB12C2]",
+            mk = in(reg) mk,
+            s = in(reg) s,
+            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
+            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
+            options(nostack),
+            )
+        }
+    }
+
+    pub(super) unsafe fn drift_turned_x87(mk: usize, m: usize, t: usize, l: usize) {
+        unsafe {
+            core::arch::asm!(
+                    "fld dword ptr [{mk} + 0xB12C2]",
+            "fld dword ptr [{mk} + 0xB12BE]",
+            "fld dword ptr [{mk} + 0xB12BA]",
+            ".byte 0xD9, 0xC0",
+            "fmul dword ptr [{m} + 0x0]",
+            ".byte 0xD9, 0xC2",
+            "fmul dword ptr [{m} + 0x4]",
+            ".byte 0xD9, 0xC4",
+            "fmul dword ptr [{m} + 0x8]",
+            ".byte 0xDE, 0xC1",
+            ".byte 0xDE, 0xC1",
+            "fstp dword ptr [{t} + 0x0]",
+            ".byte 0xD9, 0xC0",
+            "fmul dword ptr [{m} + 0xC]",
+            ".byte 0xD9, 0xC2",
+            "fmul dword ptr [{m} + 0x10]",
+            ".byte 0xD9, 0xC4",
+            "fmul dword ptr [{m} + 0x14]",
+            ".byte 0xDE, 0xC1",
+            ".byte 0xDE, 0xC1",
+            "fstp dword ptr [{t} + 0x4]",
+            "fmul dword ptr [{m} + 0x18]",
+            ".byte 0xD9, 0xC9",
+            "fmul dword ptr [{m} + 0x1C]",
+            ".byte 0xD9, 0xCA",
+            "fmul dword ptr [{m} + 0x20]",
+            ".byte 0xDE, 0xC1",
+            ".byte 0xDE, 0xC1",
+            "fld dword ptr [{t} + 0x4]",
+            "fld dword ptr [{t} + 0x0]",
+            "fstp tbyte ptr [{l}]",
+            "fstp tbyte ptr [{l} + 10]",
+            "fstp tbyte ptr [{l} + 20]",
+            mk = in(reg) mk,
+            m = in(reg) m,
+            t = in(reg) t,
+            l = in(reg) l,
+            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
+            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
+            options(nostack),
+            )
+        }
+    }
+
+    pub(super) unsafe fn drift_back_x87(mk: usize, m: usize, t: usize, l: usize) {
+        unsafe {
+            core::arch::asm!(
+                    "fld tbyte ptr [{l} + 20]",
+            "fld tbyte ptr [{l} + 10]",
+            "fld tbyte ptr [{l}]",
+            ".byte 0xD9, 0xC0",
+            "fmul dword ptr [{m} + 0x0]",
+            ".byte 0xD9, 0xC2",
+            "fmul dword ptr [{m} + 0x4]",
+            ".byte 0xD9, 0xC4",
+            "fmul dword ptr [{m} + 0x8]",
+            ".byte 0xDE, 0xC1",
+            ".byte 0xDE, 0xC1",
+            "fstp dword ptr [{t} + 0x0]",
+            ".byte 0xD9, 0xC0",
+            "fmul dword ptr [{m} + 0xC]",
+            ".byte 0xD9, 0xC2",
+            "fmul dword ptr [{m} + 0x10]",
+            ".byte 0xD9, 0xC4",
+            "fmul dword ptr [{m} + 0x14]",
+            ".byte 0xDE, 0xC1",
+            ".byte 0xDE, 0xC1",
+            "fstp dword ptr [{t} + 0x4]",
+            "fmul dword ptr [{m} + 0x18]",
+            ".byte 0xD9, 0xC9",
+            "fmul dword ptr [{m} + 0x1C]",
+            ".byte 0xD9, 0xCA",
+            "fmul dword ptr [{m} + 0x20]",
+            ".byte 0xDE, 0xC1",
+            ".byte 0xDE, 0xC1",
+            "fld dword ptr [{t} + 0x4]",
+            "fld dword ptr [{t} + 0x0]",
+            ".byte 0xD9, 0xE0",
+            "fst dword ptr [{mk} + 0xB12DE]",
+            "fmul dword ptr [{mk} + 0xC93F6]",
+            "fstp dword ptr [{mk} + 0xACC9F]",
+            "fst dword ptr [{mk} + 0xB12E2]",
+            "fmul dword ptr [{mk} + 0xC93FA]",
+            "fstp dword ptr [{mk} + 0xACCA3]",
+            "fst dword ptr [{mk} + 0xB12E6]",
+            "fmul dword ptr [{mk} + 0xC93FE]",
+            "fstp dword ptr [{mk} + 0xACCA7]",
+            mk = in(reg) mk,
+            m = in(reg) m,
+            t = in(reg) t,
+            l = in(reg) l,
+            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
+            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
+            options(nostack),
+            )
+        }
+    }
+
+    pub(super) unsafe fn move_kept_x87(mk: usize, s: usize) {
+        unsafe {
+            core::arch::asm!(
+                    "fld dword ptr [{s} + 0x26AC]",
+            "fsub dword ptr [{mk} + 0xB1296]",
+            "fmul dword ptr [{mk} + 0xA0]",
+            "fld dword ptr [{s} + 0x26B0]",
+            "fsub dword ptr [{mk} + 0xB129A]",
+            "fmul dword ptr [{mk} + 0xA0]",
+            "fld dword ptr [{s} + 0x26B4]",
+            "fsub dword ptr [{mk} + 0xB129E]",
+            "fmul dword ptr [{mk} + 0xA0]",
+            "fstp dword ptr [{mk} + 0xB12AA]",
+            "fstp dword ptr [{mk} + 0xB12A6]",
+            "fstp dword ptr [{mk} + 0xB12A2]",
+            mk = in(reg) mk,
+            s = in(reg) s,
+            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
+            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
+            options(nostack),
+            )
+        }
+    }
+}
+
+#[cfg(test)]
+mod asm_differential {
+    use super::asm_reference as reference;
+    use crate::marks::asm_test::Kind::*;
+    use crate::marks::asm_test::{Op, Spec, differential};
+
+    #[test]
+    fn view_moved_x87_matches() {
+        const SPEC: Spec = Spec {
+            operands: &[
+                Op::Base {
+                    lo: 0xA0,
+                    hi: 0xC93F2,
+                    reads: &[
+                        (0xA0, F32),
+                        (0xB1296, F32),
+                        (0xB129A, F32),
+                        (0xB129E, F32),
+                        (0xB12A2, F32),
+                        (0xB12A6, F32),
+                        (0xB12AA, F32),
+                        (0xB12AE, F32),
+                        (0xB12B2, F32),
+                        (0xB12B6, F32),
+                        (0xB12BA, F32),
+                        (0xB12BE, F32),
+                        (0xB12C2, F32),
+                        (0xC93E6, F32),
+                        (0xC93EA, F32),
+                        (0xC93EE, F32),
+                    ],
+                    writes: &[
+                        (0xB12AE, F32),
+                        (0xB12B2, F32),
+                        (0xB12B6, F32),
+                        (0xB12BA, F32),
+                        (0xB12BE, F32),
+                        (0xB12C2, F32),
+                    ],
+                },
+                Op::Base {
+                    lo: 0x26AC,
+                    hi: 0x26B8,
+                    reads: &[(0x26AC, F32), (0x26B0, F32), (0x26B4, F32)],
+                    writes: &[],
+                },
+            ],
+            sincos: false,
+        };
+        differential(
+            &SPEC,
+            |b| unsafe { reference::view_moved_x87(b[0], b[1]) },
+            |b| unsafe { super::view_moved_x87(b[0], b[1]) },
+        );
+    }
+
+    #[test]
+    fn drift_turned_x87_matches() {
+        const SPEC: Spec = Spec {
+            operands: &[
+                Op::Base {
+                    lo: 0xB12BA,
+                    hi: 0xB12C6,
+                    reads: &[(0xB12BA, F32), (0xB12BE, F32), (0xB12C2, F32)],
+                    writes: &[],
+                },
+                Op::Base {
+                    lo: 0x0,
+                    hi: 0x24,
+                    reads: &[
+                        (0x0, F32),
+                        (0x4, F32),
+                        (0x8, F32),
+                        (0xC, F32),
+                        (0x10, F32),
+                        (0x14, F32),
+                        (0x18, F32),
+                        (0x1C, F32),
+                        (0x20, F32),
+                    ],
+                    writes: &[],
+                },
+                Op::Base {
+                    lo: 0x0,
+                    hi: 0x8,
+                    reads: &[(0x0, F32), (0x4, F32)],
+                    writes: &[(0x0, F32), (0x4, F32)],
+                },
+                Op::Base {
+                    lo: 0x0,
+                    hi: 0x1E,
+                    reads: &[],
+                    writes: &[(0x0, F80), (0xA, F80), (0x14, F80)],
+                },
+            ],
+            sincos: false,
+        };
+        differential(
+            &SPEC,
+            |b| unsafe { reference::drift_turned_x87(b[0], b[1], b[2], b[3]) },
+            |b| unsafe { super::drift_turned_x87(b[0], b[1], b[2], b[3]) },
+        );
+    }
+
+    #[test]
+    fn drift_back_x87_matches() {
+        const SPEC: Spec = Spec {
+            operands: &[
+                Op::Base {
+                    lo: 0xACC9F,
+                    hi: 0xC9402,
+                    reads: &[(0xC93F6, F32), (0xC93FA, F32), (0xC93FE, F32)],
+                    writes: &[
+                        (0xACC9F, F32),
+                        (0xACCA3, F32),
+                        (0xACCA7, F32),
+                        (0xB12DE, F32),
+                        (0xB12E2, F32),
+                        (0xB12E6, F32),
+                    ],
+                },
+                Op::Base {
+                    lo: 0x0,
+                    hi: 0x24,
+                    reads: &[
+                        (0x0, F32),
+                        (0x4, F32),
+                        (0x8, F32),
+                        (0xC, F32),
+                        (0x10, F32),
+                        (0x14, F32),
+                        (0x18, F32),
+                        (0x1C, F32),
+                        (0x20, F32),
+                    ],
+                    writes: &[],
+                },
+                Op::Base {
+                    lo: 0x0,
+                    hi: 0x8,
+                    reads: &[(0x0, F32), (0x4, F32)],
+                    writes: &[(0x0, F32), (0x4, F32)],
+                },
+                Op::Base {
+                    lo: 0x0,
+                    hi: 0x1E,
+                    reads: &[(0x0, F80), (0xA, F80), (0x14, F80)],
+                    writes: &[],
+                },
+            ],
+            sincos: false,
+        };
+        differential(
+            &SPEC,
+            |b| unsafe { reference::drift_back_x87(b[0], b[1], b[2], b[3]) },
+            |b| unsafe { super::drift_back_x87(b[0], b[1], b[2], b[3]) },
+        );
+    }
+
+    #[test]
+    fn move_kept_x87_matches() {
+        const SPEC: Spec = Spec {
+            operands: &[
+                Op::Base {
+                    lo: 0xA0,
+                    hi: 0xB12AE,
+                    reads: &[(0xA0, F32), (0xB1296, F32), (0xB129A, F32), (0xB129E, F32)],
+                    writes: &[(0xB12A2, F32), (0xB12A6, F32), (0xB12AA, F32)],
+                },
+                Op::Base {
+                    lo: 0x26AC,
+                    hi: 0x26B8,
+                    reads: &[(0x26AC, F32), (0x26B0, F32), (0x26B4, F32)],
+                    writes: &[],
+                },
+            ],
+            sincos: false,
+        };
+        differential(
+            &SPEC,
+            |b| unsafe { reference::move_kept_x87(b[0], b[1]) },
+            |b| unsafe { super::move_kept_x87(b[0], b[1]) },
+        );
+    }
 }

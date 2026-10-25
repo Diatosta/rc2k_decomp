@@ -8,11 +8,8 @@
 
 use crate::errors::Refused;
 use crate::physics::listed_car_flags::set_flag;
-use crate::sound::store::StageSlot;
-
-const FLAG: StageSlot = StageSlot::at(0x51659C); // dword_51659C
 
 /// The Rust version.
 pub unsafe fn set_flag_51659c() -> Result<(), Refused> {
-    unsafe { set_flag(FLAG) }
+    unsafe { set_flag(&crate::sound::store::STAGE_SOUNDS.once[0]) }
 }

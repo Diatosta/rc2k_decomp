@@ -32,7 +32,7 @@ pub unsafe fn set_flag_at(current: u32, table: u32, flag: u32) -> Result<(), Ref
 }
 
 /// On the game's variables.
-pub unsafe fn set_flag(flag_ida: impl crate::store::At) -> Result<(), Refused> {
+pub unsafe fn set_flag(flag: &crate::session::Dword) -> Result<(), Refused> {
     let a = |x: usize| game_addr(crate::framework::rva(x)) as u32;
-    unsafe { set_flag_at(a(CURRENT_CAR), a(TABLE), flag_ida.here() as u32) }
+    unsafe { set_flag_at(a(CURRENT_CAR), a(TABLE), flag.addr() as u32) }
 }

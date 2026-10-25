@@ -7,18 +7,14 @@
 //! Six callers: the CD audio's functions (0x40F8BB .. 0x40FDB9) and `system::main_loop`
 //! (0x415439).
 
-use crate::sound::store::EffectsSlot;
-use crate::store::game_addr;
-
 // ---- game data ----
 
-const TRACK_RVA: EffectsSlot = EffectsSlot::at(0x518110); // dword_518110
 const STOPS: u32 = 5;
 
 // ---- Rust version ----
 
 pub fn stop_cd_audio() {
-    unsafe { (game_addr(TRACK_RVA) as *mut u32).write_unaligned(0) };
+    crate::sound::store::SOUND_EFFECTS.cd_track.set(0);
     for _ in 0..STOPS {
         crate::sound::stop_cd_track::stop_cd_track_in_game();
     }

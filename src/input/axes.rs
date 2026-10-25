@@ -4,13 +4,7 @@
 //! `dword_4F6A28` and as they were at `unk_4F8270`; the device's record (`dword_4F78E4` +
 //! 0x50 x `unk_4F6EF0`) +0x14 the axes it has.
 
-use crate::input::store::DeviceSlot;
-use crate::input::store::KeyboardSlot;
-use crate::store::game_addr;
-
-fn k(a: impl crate::store::At) -> u32 {
-    unsafe { crate::store::at_read(a) }
-}
+use crate::input::store::{DEVICES, KEYBOARD};
 
 /// `input::device_state` (0x408A49): device esi's four values: (ecx, edx, eax, ebx) =
 /// (+0x2C, +0x30, +0x34, +0x38).
@@ -22,7 +16,7 @@ pub unsafe fn device_state(device: u32) -> [u32; 4] {
 
 /// `input::first_device_state` (0x409391): `device_state` of `g_inputDevices`.
 pub unsafe fn first_device_state() -> [u32; 4] {
-    unsafe { device_state(k(crate::input::store::DeviceSlot::at(0x4F6EE8))) }
+    unsafe { device_state(DEVICES.input_devices[0].get()) }
 }
 
 /// What `input::axis_moved` leaves: the carry (none), eax.
@@ -37,19 +31,19 @@ pub struct Moved {
 /// +0x10 when the way was up; carry when none (eax the last difference).
 pub unsafe fn axis_moved(eax: u32) -> Moved {
     unsafe {
-        let now = game_addr(DeviceSlot::at(0x4F6A28)) as *const u32;
-        let rest = game_addr(KeyboardSlot::at(0x4F8270)) as *mut u32;
+        let now: [u32; 6] = std::array::from_fn(|n| DEVICES.device_state[n].get());
         if eax == 0 {
             crate::system::sleep::sleep(250);
-            std::ptr::copy(now, rest, 6);
+            for (rest, now) in KEYBOARD.axes_rest.iter().zip(now) {
+                rest.set(now);
+            }
             return Moved { carry: true, eax };
         }
         // Converted: `rc2k_core::input::devices::axis_moved`.
-        let device = k(crate::input::store::DeviceSlot::at(0x4F6EF0)).wrapping_mul(0x50);
-        let axes = ((game_addr(DeviceSlot::at(0x4F78E4)) as u32).wrapping_add(device) + 0x14)
-            as *const u32;
-        let now = (now as *const [u32; 6]).read_unaligned();
-        let rest = (rest as *const [u32; 6]).read_unaligned();
+        let device = DEVICES.records[0].get_u32(0).wrapping_mul(0x50);
+        let axes =
+            ((DEVICES.controllers[0].addr() as u32).wrapping_add(device) + 0x14) as *const u32;
+        let rest: [u32; 6] = std::array::from_fn(|n| KEYBOARD.axes_rest[n].get());
         match rc2k_core::input::devices::axis_moved(&now, &rest, axes.read_unaligned()) {
             Ok(axis) => Moved {
                 carry: false,

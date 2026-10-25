@@ -12,28 +12,22 @@
 //! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::sound::store::ObjectsSlot;
-use crate::sound::turn_parts::{COUNT, OBJECTS};
-
-/// dword_514F70, dword_514F74: the two players' cars; dword_514F78: 1 with one player.
-const FIRST: ObjectsSlot = ObjectsSlot::at(0x514F70);
-const SECOND: ObjectsSlot = ObjectsSlot::at(0x514F74);
-const ONE_PLAYER: ObjectsSlot = ObjectsSlot::at(0x514F78);
-
-fn g(x: impl crate::store::Ida) -> u32 {
-    unsafe { crate::store::ida_read(x) }
-}
+use crate::sound::store::RACE_SOUNDS;
+use crate::sound::turn_parts::object;
 
 // ---- Rust version ----
 
 /// The players' cars' cue queues played.
 pub fn play_cue_queues() -> Result<(), Refused> {
-    if g(COUNT) == 0 {
+    if RACE_SOUNDS.count.get() == 0 {
         return Ok(());
     }
     // Converted: `rc2k_core::sound::turn::cue_cars`.
-    let cars = rc2k_core::sound::turn::cue_cars(g(FIRST), || g(SECOND), g(ONE_PLAYER));
-    let object = |n: u32| g(OBJECTS + 4 * n as usize);
+    let cars = rc2k_core::sound::turn::cue_cars(
+        RACE_SOUNDS.player_cars[0].get(),
+        || RACE_SOUNDS.player_cars[1].get(),
+        RACE_SOUNDS.one_player.get(),
+    );
     if cars.iter().any(|&n| n > 7 || object(n) == 0) {
         return Err(BadInput("a player's car past 7 or without a sound object").into());
     }

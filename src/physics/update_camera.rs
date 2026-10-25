@@ -34,9 +34,10 @@
 
 use crate::errors::Refused;
 use crate::physics::camera_view::{rd, record};
-use crate::physics::flow::{a, g, hold_high, hold_low, p, x87_run};
+use crate::physics::flow::{a, g, hold_high, hold_low, p};
 use crate::physics::touch_face::FACES;
 use crate::scene::matrix3::rounded;
+use crate::scene::x87_mem::{fild, fistp, fld, fstp};
 use rc2k_core::physics::camera_view;
 
 const MODE: usize = 0x71A65C;
@@ -61,43 +62,11 @@ fn fixed_camera(second: bool) {
     let d = |k: usize| g(0x71A10C + 4 * k).wrapping_sub(g(0x71A67C + 4 * k));
     let (dx, dy, dz) = (d(0), d(1), d(2));
     let v = [dx, dz, dy];
-    x87_run!(
-        "fild dword ptr [{v}]",
-        "fild dword ptr [{v} + 4]",
-        ".byte 0xD9, 0xF3", // fpatan
-        "fmul dword ptr [{rc} + 0x1C5D98]",
-        "fmul dword ptr [{rc} + 0x1C5E28]",
-        "fmul dword ptr [{rc} + 0x1C5DD4]",
-        "fistp dword ptr [{rc} + 0x31A688]",
-        "fild dword ptr [{v} + 8]",
-        "fild dword ptr [{v}]",
-        ".byte 0xD8, 0xC8", // fmul st, st
-        "fild dword ptr [{v} + 4]",
-        ".byte 0xD8, 0xC8",
-        ".byte 0xDE, 0xC1", // faddp st(1), st
-        ".byte 0xD9, 0xFA", // fsqrt
-        ".byte 0xD9, 0xF3", // fpatan
-        "fmul dword ptr [{rc} + 0x1C5D98]",
-        "fmul dword ptr [{rc} + 0x1C5E28]",
-        "fmul dword ptr [{rc} + 0x1C5DD4]",
-        "fistp dword ptr [{rc} + 0x31A690]";
-        v = v.as_ptr(), rc = crate::race::store::asm_base()
-    );
+    x87_1(v.as_ptr() as usize, crate::race::store::asm_base() as usize);
     p(0x71A688, g(0x71A688) << 4);
     p(0x71A690, (g(0x71A690) << 4).wrapping_neg());
     let w = [dx, dy, dz];
-    x87_run!(
-        "fild dword ptr [{v}]",
-        "fdiv dword ptr [{rc} + 0x1C5D98]",
-        "fstp dword ptr [{rc} + 0x2062D8]",
-        "fild dword ptr [{v} + 4]",
-        "fdiv dword ptr [{rc} + 0x1C5D98]",
-        "fstp dword ptr [{rc} + 0x2062DC]",
-        "fild dword ptr [{v} + 8]",
-        "fdiv dword ptr [{rc} + 0x1C5D98]",
-        "fstp dword ptr [{rc} + 0x2062E0]";
-        v = w.as_ptr(), rc = crate::race::store::asm_base()
-    );
+    x87_2(w.as_ptr() as usize, crate::race::store::asm_base() as usize);
     p(0x62400C, dz);
     p(
         0x60631C,
@@ -106,13 +75,7 @@ fn fixed_camera(second: bool) {
     p(0x71A6A0, g(0x608B1C));
     if rd(record() + 0x50) != 0 {
         p(0x71A6A0, 0x180);
-        x87_run!(
-            "fild dword ptr [{rc} + 0x31A6A0]",
-            "fmul dword ptr [{rc} + 0x20631C]",
-            "fdiv dword ptr [{rc} + 0x1C5D48]",
-            "fstp dword ptr [{rc} + 0x31A6A0]";
-            rc = crate::race::store::asm_base()
-        );
+        x87_3(crate::race::store::asm_base() as usize);
         hold_low(0x71A6A0, 0x5C5D68);
     }
     for x in [0x71A68C, 0x71A694, 0x71A698, 0x71A69C] {
@@ -130,34 +93,7 @@ pub fn steps() -> Result<(), Refused> {
     }
     let car = g(0x719FFC);
     let light = car.wrapping_mul(0x134).wrapping_add(a(LIGHTS));
-    x87_run!(
-        "fild dword ptr [{d}]",
-        "fmul dword ptr [{rc} + 0x1C5DA0]",
-        "fstp dword ptr [{rc} + 0x2065C8]",
-        "fild dword ptr [{d} + 0x4]",
-        "fmul dword ptr [{rc} + 0x1C5DA0]",
-        "fsub dword ptr [{rc} + 0x213FC0]",
-        "fstp dword ptr [{rc} + 0x2065CC]",
-        "fild dword ptr [{d} + 0x8]",
-        "fmul dword ptr [{rc} + 0x1C5DA0]",
-        "fstp dword ptr [{rc} + 0x2065D0]",
-        "fild dword ptr [{d} + 0x10]",
-        "fmul dword ptr [{rc} + 0x1C5DA0]",
-        "fstp dword ptr [{rc} + 0x206624]",
-        "fild dword ptr [{d} + 0x14]",
-        "fmul dword ptr [{rc} + 0x1C5DA0]",
-        "fsub dword ptr [{rc} + 0x213FC0]",
-        "fstp dword ptr [{rc} + 0x206628]",
-        "fild dword ptr [{d} + 0x18]",
-        "fmul dword ptr [{rc} + 0x1C5DA0]",
-        "fstp dword ptr [{rc} + 0x20662C]",
-        "fld dword ptr [{d} + 0x24]",
-        "fstp dword ptr [{rc} + 0x206570]",
-        "fild dword ptr [{d} + 0x20]",
-        "fmul dword ptr [{rc} + 0x1C5DA0]",
-        "fstp dword ptr [{rc} + 0x206574]";
-        d = light, rc = crate::race::store::asm_base()
-    );
+    x87_4(light as usize, crate::race::store::asm_base() as usize);
     p(0x606630, rd(light + 0xC));
     p(0x606630, rd(light + 0x1C));
     if !camera_view::keeps_light_figure(car, || g(0x5C5AC0 + 4 * car as usize)) {
@@ -187,13 +123,7 @@ pub fn steps() -> Result<(), Refused> {
                 p(MODE, after);
             }
         } else {
-            x87_run!(
-                "fild dword ptr [{rc} + 0x319FE0]",
-                "fisub dword ptr [{rc} + 0x31A668]",
-                "fidiv dword ptr [{rc} + 0x31A670]",
-                "fstp dword ptr [{rc} + 0x31A674]";
-                rc = crate::race::store::asm_base()
-            );
+            x87_5(crate::race::store::asm_base() as usize);
             hold_high(0x71A674, 0x5C5D38);
             hold_low(0x71A674, 0x5C5D90);
         }
@@ -202,24 +132,7 @@ pub fn steps() -> Result<(), Refused> {
     camera_view::check_modes(mode, before)?;
     unsafe { crate::physics::take_view_a::take_view_a(g(0x606320 + 4 * mode as usize)) };
     unsafe { crate::physics::take_view_b::take_view_b(g(0x606320 + 4 * before as usize)) };
-    x87_run!(
-        "fild dword ptr [{rc} + 0x208B70]",
-        "fisub dword ptr [{rc} + 0x208B64]",
-        "fmul dword ptr [{rc} + 0x31A674]",
-        "fiadd dword ptr [{rc} + 0x208B64]",
-        "fistp dword ptr [{rc} + 0x208B58]",
-        "fild dword ptr [{rc} + 0x208B68]",
-        "fisub dword ptr [{rc} + 0x208B5C]",
-        "fmul dword ptr [{rc} + 0x31A674]",
-        "fiadd dword ptr [{rc} + 0x208B5C]",
-        "fistp dword ptr [{rc} + 0x208B50]",
-        "fild dword ptr [{rc} + 0x208B6C]",
-        "fisub dword ptr [{rc} + 0x208B60]",
-        "fmul dword ptr [{rc} + 0x31A674]",
-        "fiadd dword ptr [{rc} + 0x208B60]",
-        "fistp dword ptr [{rc} + 0x208B54]";
-        rc = crate::race::store::asm_base()
-    );
+    x87_6(crate::race::store::asm_base() as usize);
     // The offsets and turns: (to, from b, from a) each a + (b - a) x share, x 65536.
     for (to, x, y) in [
         (0x608B30usize, 0x608BB0usize, 0x608B98usize),
@@ -232,14 +145,11 @@ pub fn steps() -> Result<(), Refused> {
         (0x71A698, 0x608BD8, 0x608BCC),
         (0x71A69C, 0x608BDC, 0x608BD0),
     ] {
-        x87_run!(
-            "fld dword ptr [{x}]",
-            "fsub dword ptr [{y}]",
-            "fmul dword ptr [{rc} + 0x31A674]",
-            "fadd dword ptr [{y}]",
-            "fmul dword ptr [{rc} + 0x1C5D98]",
-            "fistp dword ptr [{t}]";
-            x = a(x), y = a(y), t = a(to), rc = crate::race::store::asm_base()
+        x87_7(
+            a(x) as usize,
+            a(y) as usize,
+            crate::race::store::asm_base() as usize,
+            a(to) as usize,
         );
     }
     for x in [0x71A694, 0x71A698, 0x71A69C] {
@@ -254,28 +164,417 @@ pub fn steps() -> Result<(), Refused> {
     ] {
         p(to, g(from));
     }
-    x87_run!(
-        "fild dword ptr [{rc} + 0x208BF0]",
-        "fstp dword ptr [{rc} + 0x31A6A0]";
-        rc = crate::race::store::asm_base()
-    );
+    x87_8(crate::race::store::asm_base() as usize);
     hold_low(0x71A6A0, 0x6062D0);
     unsafe { crate::physics::ease_view_angles::ease_view_angles() };
     unsafe { crate::physics::ease_view_blend::ease_view_blend() };
     crate::physics::camera_avoid_ground::steps()?;
-    x87_run!(
-        "fild dword ptr [{rc} + 0x208B30]",
-        ".byte 0xD8, 0xC8", // fmul st, st
-        "fild dword ptr [{rc} + 0x208B34]",
-        ".byte 0xD8, 0xC8",
-        "fild dword ptr [{rc} + 0x208B38]",
-        ".byte 0xD8, 0xC8",
-        ".byte 0xDE, 0xC1", // faddp st(1), st
-        ".byte 0xDE, 0xC1",
-        ".byte 0xD9, 0xFA", // fsqrt
-        "fistp dword ptr [{rc} + 0x1CCD80]";
-        rc = crate::race::store::asm_base()
-    );
+    x87_9(crate::race::store::asm_base() as usize);
     p(0x5CCD40, g(0x6062BC));
     Ok(())
+}
+
+// ---- the arithmetic that was x87 assembly ----
+
+/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
+/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `int [rc + 0x31A688] = ((atan2(int [v + 0], int [v + 4]) * [rc + 0x1C5D98]) * [rc + 0x1C5E28]) * [rc + 0x1C5DD4]`
+/// (a long formula: see the instructions in the tests' `asm_reference`)
+fn x87_1(v: usize, rc: usize) {
+    unsafe {
+        let v = v as *const u8;
+        let rc = rc as *mut u8;
+        let t0 = fild(v, 0);
+        let t1 = fild(v, 4);
+        let t2 = t0.atan2(t1);
+        let t3 = fld(rc, 0x1C5D98);
+        let t4 = t2 * t3;
+        let t5 = fld(rc, 0x1C5E28);
+        let t6 = t4 * t5;
+        let t7 = fld(rc, 0x1C5DD4);
+        let t8 = t6 * t7;
+        fistp(rc, 0x31A688, t8);
+        let t9 = fild(v, 8);
+        let t10 = fild(v, 0);
+        let t11 = t10 * t10;
+        let t12 = fild(v, 4);
+        let t13 = t12 * t12;
+        let t14 = t11 + t13;
+        let t15 = t14.sqrt();
+        let t16 = t9.atan2(t15);
+        let t17 = fld(rc, 0x1C5D98);
+        let t18 = t16 * t17;
+        let t19 = fld(rc, 0x1C5E28);
+        let t20 = t18 * t19;
+        let t21 = fld(rc, 0x1C5DD4);
+        let t22 = t20 * t21;
+        fistp(rc, 0x31A690, t22);
+    }
+}
+
+/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
+/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `[rc + 0x2062D8] = int [v + 0] / [rc + 0x1C5D98]`
+/// `[rc + 0x2062DC] = int [v + 4] / [rc + 0x1C5D98]`
+/// `[rc + 0x2062E0] = int [v + 8] / [rc + 0x1C5D98]`
+fn x87_2(v: usize, rc: usize) {
+    unsafe {
+        let v = v as *const u8;
+        let rc = rc as *mut u8;
+        let t0 = fild(v, 0);
+        let t1 = fld(rc, 0x1C5D98);
+        let t2 = t0 / t1;
+        fstp(rc, 0x2062D8, t2);
+        let t3 = fild(v, 4);
+        let t4 = fld(rc, 0x1C5D98);
+        let t5 = t3 / t4;
+        fstp(rc, 0x2062DC, t5);
+        let t6 = fild(v, 8);
+        let t7 = fld(rc, 0x1C5D98);
+        let t8 = t6 / t7;
+        fstp(rc, 0x2062E0, t8);
+    }
+}
+
+/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
+/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `[rc + 0x31A6A0] = (int [rc + 0x31A6A0] * [rc + 0x20631C]) / [rc + 0x1C5D48]`
+fn x87_3(rc: usize) {
+    unsafe {
+        let rc = rc as *mut u8;
+        let t0 = fild(rc, 0x31A6A0);
+        let t1 = fld(rc, 0x20631C);
+        let t2 = t0 * t1;
+        let t3 = fld(rc, 0x1C5D48);
+        let t4 = t2 / t3;
+        fstp(rc, 0x31A6A0, t4);
+    }
+}
+
+/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
+/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `[rc + 0x2065C8] = int [d + 0] * [rc + 0x1C5DA0]`
+/// `[rc + 0x2065CC] = (int [d + 4] * [rc + 0x1C5DA0]) - [rc + 0x213FC0]`
+/// `[rc + 0x2065D0] = int [d + 8] * [rc + 0x1C5DA0]`
+/// `[rc + 0x206624] = int [d + 0x10] * [rc + 0x1C5DA0]`
+/// `[rc + 0x206628] = (int [d + 0x14] * [rc + 0x1C5DA0]) - [rc + 0x213FC0]`
+/// `[rc + 0x20662C] = int [d + 0x18] * [rc + 0x1C5DA0]`
+/// `[rc + 0x206570] = [d + 0x24]`
+/// `[rc + 0x206574] = int [d + 0x20] * [rc + 0x1C5DA0]`
+fn x87_4(d: usize, rc: usize) {
+    unsafe {
+        let d = d as *const u8;
+        let rc = rc as *mut u8;
+        let t0 = fild(d, 0);
+        let t1 = fld(rc, 0x1C5DA0);
+        let t2 = t0 * t1;
+        fstp(rc, 0x2065C8, t2);
+        let t3 = fild(d, 4);
+        let t4 = fld(rc, 0x1C5DA0);
+        let t5 = t3 * t4;
+        let t6 = fld(rc, 0x213FC0);
+        let t7 = t5 - t6;
+        fstp(rc, 0x2065CC, t7);
+        let t8 = fild(d, 8);
+        let t9 = fld(rc, 0x1C5DA0);
+        let t10 = t8 * t9;
+        fstp(rc, 0x2065D0, t10);
+        let t11 = fild(d, 0x10);
+        let t12 = fld(rc, 0x1C5DA0);
+        let t13 = t11 * t12;
+        fstp(rc, 0x206624, t13);
+        let t14 = fild(d, 0x14);
+        let t15 = fld(rc, 0x1C5DA0);
+        let t16 = t14 * t15;
+        let t17 = fld(rc, 0x213FC0);
+        let t18 = t16 - t17;
+        fstp(rc, 0x206628, t18);
+        let t19 = fild(d, 0x18);
+        let t20 = fld(rc, 0x1C5DA0);
+        let t21 = t19 * t20;
+        fstp(rc, 0x20662C, t21);
+        let t22 = fld(d, 0x24);
+        fstp(rc, 0x206570, t22);
+        let t23 = fild(d, 0x20);
+        let t24 = fld(rc, 0x1C5DA0);
+        let t25 = t23 * t24;
+        fstp(rc, 0x206574, t25);
+    }
+}
+
+/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
+/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `[rc + 0x31A674] = (int [rc + 0x319FE0] - int [rc + 0x31A668]) / int [rc + 0x31A670]`
+fn x87_5(rc: usize) {
+    unsafe {
+        let rc = rc as *mut u8;
+        let t0 = fild(rc, 0x319FE0);
+        let t1 = fild(rc, 0x31A668);
+        let t2 = t0 - t1;
+        let t3 = fild(rc, 0x31A670);
+        let t4 = t2 / t3;
+        fstp(rc, 0x31A674, t4);
+    }
+}
+
+/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
+/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `int [rc + 0x208B58] = ((int [rc + 0x208B70] - int [rc + 0x208B64]) * [rc + 0x31A674]) + int [rc + 0x208B64]`
+/// `int [rc + 0x208B50] = ((int [rc + 0x208B68] - int [rc + 0x208B5C]) * [rc + 0x31A674]) + int [rc + 0x208B5C]`
+/// `int [rc + 0x208B54] = ((int [rc + 0x208B6C] - int [rc + 0x208B60]) * [rc + 0x31A674]) + int [rc + 0x208B60]`
+fn x87_6(rc: usize) {
+    unsafe {
+        let rc = rc as *mut u8;
+        let t0 = fild(rc, 0x208B70);
+        let t1 = fild(rc, 0x208B64);
+        let t2 = t0 - t1;
+        let t3 = fld(rc, 0x31A674);
+        let t4 = t2 * t3;
+        let t5 = fild(rc, 0x208B64);
+        let t6 = t4 + t5;
+        fistp(rc, 0x208B58, t6);
+        let t7 = fild(rc, 0x208B68);
+        let t8 = fild(rc, 0x208B5C);
+        let t9 = t7 - t8;
+        let t10 = fld(rc, 0x31A674);
+        let t11 = t9 * t10;
+        let t12 = fild(rc, 0x208B5C);
+        let t13 = t11 + t12;
+        fistp(rc, 0x208B50, t13);
+        let t14 = fild(rc, 0x208B6C);
+        let t15 = fild(rc, 0x208B60);
+        let t16 = t14 - t15;
+        let t17 = fld(rc, 0x31A674);
+        let t18 = t16 * t17;
+        let t19 = fild(rc, 0x208B60);
+        let t20 = t18 + t19;
+        fistp(rc, 0x208B54, t20);
+    }
+}
+
+/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
+/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `int [t + 0] = ((([x + 0] - [y + 0]) * [rc + 0x31A674]) + [y + 0]) * [rc + 0x1C5D98]`
+fn x87_7(x: usize, y: usize, rc: usize, t: usize) {
+    unsafe {
+        let x = x as *const u8;
+        let y = y as *const u8;
+        let rc = rc as *const u8;
+        let t = t as *mut u8;
+        let t0 = fld(x, 0);
+        let t1 = fld(y, 0);
+        let t2 = t0 - t1;
+        let t3 = fld(rc, 0x31A674);
+        let t4 = t2 * t3;
+        let t5 = fld(y, 0);
+        let t6 = t4 + t5;
+        let t7 = fld(rc, 0x1C5D98);
+        let t8 = t6 * t7;
+        fistp(t, 0, t8);
+    }
+}
+
+/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
+/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `[rc + 0x31A6A0] = int [rc + 0x208BF0]`
+fn x87_8(rc: usize) {
+    unsafe {
+        let rc = rc as *mut u8;
+        let t0 = fild(rc, 0x208BF0);
+        fstp(rc, 0x31A6A0, t0);
+    }
+}
+
+/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
+/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// (a long formula: see the instructions in the tests' `asm_reference`)
+fn x87_9(rc: usize) {
+    unsafe {
+        let rc = rc as *mut u8;
+        let t0 = fild(rc, 0x208B30);
+        let t1 = t0 * t0;
+        let t2 = fild(rc, 0x208B34);
+        let t3 = t2 * t2;
+        let t4 = fild(rc, 0x208B38);
+        let t5 = t4 * t4;
+        let t6 = t3 + t5;
+        let t7 = t1 + t6;
+        let t8 = t7.sqrt();
+        fistp(rc, 0x1CCD80, t8);
+    }
+}
+
+#[cfg(test)]
+mod asm_reference {
+    use super::*;
+    use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
+
+    // The original's instructions, one function per run.
+    reference!(ref_0(v, rc) "fild dword ptr [{v}]", "fild dword ptr [{v} + 4]", ".byte 0xD9, 0xF3", "fmul dword ptr [{rc} + 0x1C5D98]", "fmul dword ptr [{rc} + 0x1C5E28]", "fmul dword ptr [{rc} + 0x1C5DD4]", "fistp dword ptr [{rc} + 0x31A688]", "fild dword ptr [{v} + 8]", "fild dword ptr [{v}]", ".byte 0xD8, 0xC8", "fild dword ptr [{v} + 4]", ".byte 0xD8, 0xC8", ".byte 0xDE, 0xC1", ".byte 0xD9, 0xFA", ".byte 0xD9, 0xF3", "fmul dword ptr [{rc} + 0x1C5D98]", "fmul dword ptr [{rc} + 0x1C5E28]", "fmul dword ptr [{rc} + 0x1C5DD4]", "fistp dword ptr [{rc} + 0x31A690]");
+    reference!(ref_1(v, rc) "fild dword ptr [{v}]", "fdiv dword ptr [{rc} + 0x1C5D98]", "fstp dword ptr [{rc} + 0x2062D8]", "fild dword ptr [{v} + 4]", "fdiv dword ptr [{rc} + 0x1C5D98]", "fstp dword ptr [{rc} + 0x2062DC]", "fild dword ptr [{v} + 8]", "fdiv dword ptr [{rc} + 0x1C5D98]", "fstp dword ptr [{rc} + 0x2062E0]");
+    reference!(ref_2(rc) "fild dword ptr [{rc} + 0x31A6A0]", "fmul dword ptr [{rc} + 0x20631C]", "fdiv dword ptr [{rc} + 0x1C5D48]", "fstp dword ptr [{rc} + 0x31A6A0]");
+    reference!(ref_3(d, rc) "fild dword ptr [{d}]", "fmul dword ptr [{rc} + 0x1C5DA0]", "fstp dword ptr [{rc} + 0x2065C8]", "fild dword ptr [{d} + 0x4]", "fmul dword ptr [{rc} + 0x1C5DA0]", "fsub dword ptr [{rc} + 0x213FC0]", "fstp dword ptr [{rc} + 0x2065CC]", "fild dword ptr [{d} + 0x8]", "fmul dword ptr [{rc} + 0x1C5DA0]", "fstp dword ptr [{rc} + 0x2065D0]", "fild dword ptr [{d} + 0x10]", "fmul dword ptr [{rc} + 0x1C5DA0]", "fstp dword ptr [{rc} + 0x206624]", "fild dword ptr [{d} + 0x14]", "fmul dword ptr [{rc} + 0x1C5DA0]", "fsub dword ptr [{rc} + 0x213FC0]", "fstp dword ptr [{rc} + 0x206628]", "fild dword ptr [{d} + 0x18]", "fmul dword ptr [{rc} + 0x1C5DA0]", "fstp dword ptr [{rc} + 0x20662C]", "fld dword ptr [{d} + 0x24]", "fstp dword ptr [{rc} + 0x206570]", "fild dword ptr [{d} + 0x20]", "fmul dword ptr [{rc} + 0x1C5DA0]", "fstp dword ptr [{rc} + 0x206574]");
+    reference!(ref_4(rc) "fild dword ptr [{rc} + 0x319FE0]", "fisub dword ptr [{rc} + 0x31A668]", "fidiv dword ptr [{rc} + 0x31A670]", "fstp dword ptr [{rc} + 0x31A674]");
+    reference!(ref_5(rc) "fild dword ptr [{rc} + 0x208B70]", "fisub dword ptr [{rc} + 0x208B64]", "fmul dword ptr [{rc} + 0x31A674]", "fiadd dword ptr [{rc} + 0x208B64]", "fistp dword ptr [{rc} + 0x208B58]", "fild dword ptr [{rc} + 0x208B68]", "fisub dword ptr [{rc} + 0x208B5C]", "fmul dword ptr [{rc} + 0x31A674]", "fiadd dword ptr [{rc} + 0x208B5C]", "fistp dword ptr [{rc} + 0x208B50]", "fild dword ptr [{rc} + 0x208B6C]", "fisub dword ptr [{rc} + 0x208B60]", "fmul dword ptr [{rc} + 0x31A674]", "fiadd dword ptr [{rc} + 0x208B60]", "fistp dword ptr [{rc} + 0x208B54]");
+    reference!(ref_6(x, y, rc, t) "fld dword ptr [{x}]", "fsub dword ptr [{y}]", "fmul dword ptr [{rc} + 0x31A674]", "fadd dword ptr [{y}]", "fmul dword ptr [{rc} + 0x1C5D98]", "fistp dword ptr [{t}]");
+    reference!(ref_7(rc) "fild dword ptr [{rc} + 0x208BF0]", "fstp dword ptr [{rc} + 0x31A6A0]");
+    reference!(ref_8(rc) "fild dword ptr [{rc} + 0x208B30]", ".byte 0xD8, 0xC8", "fild dword ptr [{rc} + 0x208B34]", ".byte 0xD8, 0xC8", "fild dword ptr [{rc} + 0x208B38]", ".byte 0xD8, 0xC8", ".byte 0xDE, 0xC1", ".byte 0xDE, 0xC1", ".byte 0xD9, 0xFA", "fistp dword ptr [{rc} + 0x1CCD80]");
+
+    fn blocks() -> Vec<Block> {
+        vec![
+            Block {
+                name: "update_camera line 64",
+                operands: vec![
+                    Operand::Buffer {
+                        reads: &[(0, In::I), (4, In::I), (8, In::I)],
+                        writes: &[],
+                    },
+                    Operand::Buffer {
+                        reads: &[(0x1C5D98, In::F), (0x1C5DD4, In::F), (0x1C5E28, In::F)],
+                        writes: &[(0x31A688, Out::I), (0x31A690, Out::I)],
+                    },
+                ],
+                ulps: 0,
+                reference: |a| unsafe { ref_0(a[0], a[1]) },
+                plain: |a| x87_1(a[0], a[1]),
+            },
+            Block {
+                name: "update_camera line 89",
+                operands: vec![
+                    Operand::Buffer {
+                        reads: &[(0, In::I), (4, In::I), (8, In::I)],
+                        writes: &[],
+                    },
+                    Operand::Buffer {
+                        reads: &[(0x1C5D98, In::F)],
+                        writes: &[(0x2062D8, Out::F), (0x2062DC, Out::F), (0x2062E0, Out::F)],
+                    },
+                ],
+                ulps: 0,
+                reference: |a| unsafe { ref_1(a[0], a[1]) },
+                plain: |a| x87_2(a[0], a[1]),
+            },
+            Block {
+                name: "update_camera line 109",
+                operands: vec![Operand::Buffer {
+                    reads: &[(0x1C5D48, In::F), (0x20631C, In::F), (0x31A6A0, In::I)],
+                    writes: &[(0x31A6A0, Out::F)],
+                }],
+                ulps: 0,
+                reference: |a| unsafe { ref_2(a[0]) },
+                plain: |a| x87_3(a[0]),
+            },
+            Block {
+                name: "update_camera line 133",
+                operands: vec![
+                    Operand::Buffer {
+                        reads: &[
+                            (0, In::I),
+                            (4, In::I),
+                            (8, In::I),
+                            (0x10, In::I),
+                            (0x14, In::I),
+                            (0x18, In::I),
+                            (0x20, In::I),
+                            (0x24, In::F),
+                        ],
+                        writes: &[],
+                    },
+                    Operand::Buffer {
+                        reads: &[(0x1C5DA0, In::F), (0x213FC0, In::F)],
+                        writes: &[
+                            (0x206570, Out::F),
+                            (0x206574, Out::F),
+                            (0x2065C8, Out::F),
+                            (0x2065CC, Out::F),
+                            (0x2065D0, Out::F),
+                            (0x206624, Out::F),
+                            (0x206628, Out::F),
+                            (0x20662C, Out::F),
+                        ],
+                    },
+                ],
+                ulps: 0,
+                reference: |a| unsafe { ref_3(a[0], a[1]) },
+                plain: |a| x87_4(a[0], a[1]),
+            },
+            Block {
+                name: "update_camera line 190",
+                operands: vec![Operand::Buffer {
+                    reads: &[(0x319FE0, In::I), (0x31A668, In::I), (0x31A670, In::I)],
+                    writes: &[(0x31A674, Out::F)],
+                }],
+                ulps: 0,
+                reference: |a| unsafe { ref_4(a[0]) },
+                plain: |a| x87_5(a[0]),
+            },
+            Block {
+                name: "update_camera line 205",
+                operands: vec![Operand::Buffer {
+                    reads: &[
+                        (0x208B5C, In::I),
+                        (0x208B60, In::I),
+                        (0x208B64, In::I),
+                        (0x208B68, In::I),
+                        (0x208B6C, In::I),
+                        (0x208B70, In::I),
+                        (0x31A674, In::F),
+                    ],
+                    writes: &[(0x208B50, Out::I), (0x208B54, Out::I), (0x208B58, Out::I)],
+                }],
+                ulps: 0,
+                reference: |a| unsafe { ref_5(a[0]) },
+                plain: |a| x87_6(a[0]),
+            },
+            Block {
+                name: "update_camera line 235",
+                operands: vec![
+                    Operand::Buffer {
+                        reads: &[(0, In::F)],
+                        writes: &[],
+                    },
+                    Operand::Buffer {
+                        reads: &[(0, In::F)],
+                        writes: &[],
+                    },
+                    Operand::Buffer {
+                        reads: &[(0x1C5D98, In::F), (0x31A674, In::F)],
+                        writes: &[],
+                    },
+                    Operand::Buffer {
+                        reads: &[],
+                        writes: &[(0, Out::I)],
+                    },
+                ],
+                ulps: 0,
+                reference: |a| unsafe { ref_6(a[0], a[1], a[2], a[3]) },
+                plain: |a| x87_7(a[0], a[1], a[2], a[3]),
+            },
+            Block {
+                name: "update_camera line 257",
+                operands: vec![Operand::Buffer {
+                    reads: &[(0x208BF0, In::I)],
+                    writes: &[(0x31A6A0, Out::F)],
+                }],
+                ulps: 0,
+                reference: |a| unsafe { ref_7(a[0]) },
+                plain: |a| x87_8(a[0]),
+            },
+            Block {
+                name: "update_camera line 266",
+                operands: vec![Operand::Buffer {
+                    reads: &[(0x208B30, In::I), (0x208B34, In::I), (0x208B38, In::I)],
+                    writes: &[(0x1CCD80, Out::I)],
+                }],
+                ulps: 0,
+                reference: |a| unsafe { ref_8(a[0]) },
+                plain: |a| x87_9(a[0]),
+            },
+        ]
+    }
+
+    #[test]
+    fn x87_blocks_matches_the_assembly() {
+        sparse(&blocks(), 1200, 100);
+    }
 }

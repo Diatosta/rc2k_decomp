@@ -23,20 +23,12 @@
 use crate::errors::Refused;
 use crate::input::devices::at;
 use crate::input::effects::HAS_EFFECTS;
-use crate::input::store::DeviceSlot;
+use crate::input::store::DEVICES;
 use crate::physics::flow::a;
-use crate::sound::store::ObjectsSlot;
+use crate::sound::store::RACE_SOUNDS;
 
-/// g_playerCarA, g_playerCarB, g_onePlayer, g_raceSoundObjectCount (four dwords).
-const CARS: ObjectsSlot = ObjectsSlot::at(0x514F70);
-/// g_inputDevices: the two records' addresses.
-const DEVICES: DeviceSlot = DeviceSlot::at(0x4F6EE8);
 /// g_viewBlocks: the two views' blocks.
 const VIEWS: usize = 0x63DBB0;
-/// g_raceSoundObjects: eight sound objects.
-const OBJECTS: ObjectsSlot = ObjectsSlot::at(0x512A10);
-/// dword_4F68FC: 1 when both devices are player A's.
-const TWO_DEVICES: DeviceSlot = DeviceSlot::at(0x4F68FC);
 
 /// Where the variables are (the game's or a test's).
 #[derive(Clone, Copy)]
@@ -51,11 +43,12 @@ pub struct Vars {
 impl Vars {
     pub fn game() -> Self {
         Self {
-            cars: a(CARS),
-            devices: a(DEVICES),
+            // g_playerCarA, g_playerCarB, g_onePlayer, g_raceSoundObjectCount (four dwords).
+            cars: RACE_SOUNDS.player_cars.as_ptr() as usize as u32,
+            devices: DEVICES.input_devices[0].addr() as u32,
             views: a(VIEWS),
-            objects: a(OBJECTS),
-            two_devices: a(TWO_DEVICES),
+            objects: RACE_SOUNDS.table.as_ptr() as usize as u32,
+            two_devices: DEVICES.two_devices_one_player.addr() as u32,
         }
     }
 }

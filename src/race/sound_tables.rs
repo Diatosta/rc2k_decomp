@@ -4,7 +4,6 @@
 
 use crate::errors::Refused;
 use crate::framework::rva;
-use crate::sound::store::ClockSlot;
 use crate::store::game_addr;
 
 unsafe fn get(at: u32) -> u32 {
@@ -75,7 +74,7 @@ pub struct TableVars {
 impl TableVars {
     pub fn game() -> Self {
         Self {
-            done: crate::sound::store::SurfaceSlot::at(0x516358).address() as u32,
+            done: crate::sound::store::SURFACE_SOUNDS.tables_done.addr() as u32,
             records: game_addr(rva(0x514F90)) as u32,
             sines: game_addr(rva(0x516258)) as u32,
             scratch: crate::session::MACHINE.scratch.addr() as u32,
@@ -124,7 +123,7 @@ pub fn restart_race_sounds() -> Result<(), Refused> {
     wait_for_commands();
     reset_race_sounds(&SoundVars::game())?;
     crate::sound::let_sounds_play::let_sounds_play();
-    unsafe { crate::store::game_write(ClockSlot::at(0x5124E4), 1u32) };
+    crate::sound::store::RACE_CLOCK.started.set(1);
     Ok(())
 }
 
@@ -152,42 +151,51 @@ pub struct ObjectVars {
 impl ObjectVars {
     pub fn game() -> Self {
         Self {
-            table: crate::sound::store::OBJECT_TABLE.address() as u32,
-            objects: std::array::from_fn(|k| {
-                (crate::sound::store::FIRST_OBJECT + crate::sound::store::OBJECT_LEN * k).address()
-                    as u32
-            }),
+            table: crate::sound::store::RACE_SOUNDS.table.as_ptr() as usize as u32,
+            objects: std::array::from_fn(|k| crate::sound::store::RACE_SOUNDS.objects[k].addr()),
         }
     }
 }
 
-/// The fields each object's set-up clears (0) or sets (1): (offset, value).
-const OBJECT_FIELDS: [(u32, u32); 24] = [
-    (0x10, 0),
-    (0x8, 0),
-    (0xC, 1),
-    (0x14, 0),
-    (0x18, 0),
-    (0x1C, 0),
-    (0x20, 0),
-    (0x94, 0),
-    (0x98, 0),
-    (0x9C, 0),
-    (0xA0, 0),
-    (0xA4, 0),
-    (0xA8, 0),
-    (0x24, 1),
-    (0xF0, 0),
-    (0xF4, 0),
-    (0x84, 0),
-    (0xC0, 0),
-    (0xDC, 0),
-    (0xAC, 0),
-    (0x278, 0),
-    (0x27C, 0),
-    (0x280, 0),
-    (0x10C, 0),
-];
+/// An object's set-up: the 0x68 bytes from +0x2C (the place, the motion and the four
+/// wheel records) and 24 fields cleared (0) or set (1).
+fn set_up_object(o: &crate::sound::store::SoundObject) {
+    for f in o.place.iter().chain(&o.motion) {
+        f.set(0.0);
+    }
+    for v in &o.voices {
+        v.share_a.set(0.0);
+        v._gap_4.set(0);
+        v.share_b.set(0.0);
+        v.share_c.set(0.0);
+        v.surface.set(0);
+    }
+    o.new_revs.set(0);
+    o.in_use.set(0);
+    o.view_flag.set(1);
+    o.revs.set(0);
+    o.throttle.set(0);
+    o.speed.set(0.0);
+    o.gear_event.set(0);
+    for d in o
+        .reading_times
+        .iter()
+        .chain(&o.reading_revs)
+        .chain(&o.cleared_a4)
+    {
+        d.set(0);
+    }
+    o.no_gear.set(1);
+    o.gear_notice.set(0);
+    o.countdown.set(0);
+    o.knock.set(0);
+    o.knock_count.set(0);
+    o.flag_ac.set(0);
+    o.landed.set(0);
+    o.last_effect_bc.set(0);
+    o.cleared_280.set(0);
+    o.state.set(0);
+}
 
 fn rd(a: impl crate::store::At) -> u32 {
     unsafe { crate::store::at_read(a) }
@@ -218,39 +226,37 @@ pub fn set_up_race_sound_objects(v: &ObjectVars) -> Result<(), Refused> {
         }
         // Converted: `rc2k_core::race::sound_objects::{sound_players, sound_objects,
         // object_mark}`; the tables through `prepare_sound_tables_plain`.
+        use crate::sound::store::{RACE_SOUNDS, SoundObject};
         use rc2k_core::race::sound_objects::{object_mark, sound_objects, sound_players};
         prepare_sound_tables_plain(&TableVars::game());
         let players = sound_players(rd(0x75ACE0));
-        wr(crate::sound::store::ObjectsSlot::at(0x514F78), players);
+        RACE_SOUNDS.one_player.set(players);
         let (count, arcade) = sound_objects(players, rd(0x75ACD8));
         if arcade {
-            wr(crate::sound::store::ObjectsSlot::at(0x514F8C), 1);
+            RACE_SOUNDS.mark_car_voices.set(1);
         }
-        wr(crate::sound::store::ObjectsSlot::at(0x514F7C), count);
-        wr(crate::sound::store::ObjectsSlot::at(0x514F70), 0);
-        wr(crate::sound::store::ObjectsSlot::at(0x514F74), 1);
+        RACE_SOUNDS.count.set(count);
+        RACE_SOUNDS.player_cars[0].set(0);
+        RACE_SOUNDS.player_cars[1].set(1);
         if one {
-            wr(crate::sound::store::ObjectsSlot::at(0x514F70), rd(0x52A920));
-            wr(crate::sound::store::ObjectsSlot::at(0x514F7C), rd(0x52AD98));
+            RACE_SOUNDS.player_cars[0].set(rd(0x52A920));
+            RACE_SOUNDS.count.set(rd(0x52AD98));
         }
         for (n, &o) in v.objects.iter().enumerate() {
-            put(o, object_mark(n as u32));
+            SoundObject::at(o).sound_offset.set(object_mark(n as u32));
         }
-        let first = objects[rd(crate::sound::store::ObjectsSlot::at(0x514F70)) as usize];
-        put(first, 0);
-        put(first + 4, rd(0x75ACE8));
-        put(first + 0x298, rd(0x75AE20));
-        if rd(crate::sound::store::ObjectsSlot::at(0x514F78)) != 1 {
-            let second = objects[rd(crate::sound::store::ObjectsSlot::at(0x514F74)) as usize];
-            put(second, 1);
-            put(second + 4, rd(0x75ACEC));
-            put(second + 0x298, rd(0x75AF8C));
+        let first = SoundObject::at(objects[RACE_SOUNDS.player_cars[0].get() as usize]);
+        first.sound_offset.set(0);
+        first.kind.set(rd(0x75ACE8));
+        first.cue_queue.first.set(rd(0x75AE20));
+        if RACE_SOUNDS.one_player.get() != 1 {
+            let second = SoundObject::at(objects[RACE_SOUNDS.player_cars[1].get() as usize]);
+            second.sound_offset.set(1);
+            second.kind.set(rd(0x75ACEC));
+            second.cue_queue.first.set(rd(0x75AF8C));
         }
         for &o in &objects {
-            std::ptr::write_bytes((o + 0x2C) as *mut u8, 0, 0x68);
-            for &(off, val) in &OBJECT_FIELDS {
-                put(o + off, val);
-            }
+            set_up_object(SoundObject::at(o));
         }
         wr(0x5BEBE8, 0);
         restart_race_sounds()?;
@@ -262,12 +268,9 @@ pub fn set_up_race_sound_objects(v: &ObjectVars) -> Result<(), Refused> {
 /// `dword_514F7C`, `dword_514F8C` 0. Every register kept.
 pub fn clear_race_sound_objects() -> Result<(), Refused> {
     silence_race_sounds()?;
-    for a in [
-        crate::sound::store::ObjectsSlot::at(0x514F78),
-        crate::sound::store::ObjectsSlot::at(0x514F7C),
-        crate::sound::store::ObjectsSlot::at(0x514F8C),
-    ] {
-        wr(a, 0);
+    let sounds = &crate::sound::store::RACE_SOUNDS;
+    for d in [&sounds.one_player, &sounds.count, &sounds.mark_car_voices] {
+        d.set(0);
     }
     Ok(())
 }

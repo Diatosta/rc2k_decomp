@@ -45,7 +45,7 @@ pub unsafe fn sound_cue_e5() -> Result<(), Refused> {
         sound_cue_e5_at(
             g(0x71B3F8),
             g(0x641680),
-            crate::sound::store::ObjectsSlot::at(0x512A10).address() as u32,
+            crate::sound::store::RACE_SOUNDS.table.as_ptr() as usize as u32,
         )
     }
 }

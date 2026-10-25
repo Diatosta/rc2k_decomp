@@ -16,8 +16,9 @@
 //! above are the original's, for reference.
 
 use crate::math::x87::loaded;
-use crate::math::x87_run::compare_80;
-use crate::physics::flow::{c0, x87_run};
+use crate::math::x87_float::{compare, ld};
+use crate::physics::flow::c0;
+use crate::scene::x87_mem::{fld, fld80, fstp, fstp80};
 
 /// The work block's dwords (0x71C384 .. 0x71C3D7 in the image until 2026-10-24: the
 /// function's own; `sound::merge_spot_voices` wrote the ends and read the point).
@@ -32,6 +33,38 @@ const ONE: u32 = 0x3F80_0000;
 
 // ---- Rust version ----
 
+/// The differences (A - O, B - O and A - B in x and z) into the work block `w`, and the
+/// 80-bit dot (A - O).(A - B) less (B - O).(A - B) into `top`, the dot (A - O).(A - B)
+/// into `below` (`fstp tbyte`).
+fn differences(w: *mut u8, top: *mut u8, below: *mut u8) {
+    unsafe {
+        fstp(w, 0x34, fld(w, 0x00) - fld(w, 0x18));
+        fstp(w, 0x38, fld(w, 0x08) - fld(w, 0x20));
+        fstp(w, 0x3C, fld(w, 0x0C) - fld(w, 0x18));
+        fstp(w, 0x40, fld(w, 0x14) - fld(w, 0x20));
+        fstp(w, 0x4C, fld(w, 0x34) - fld(w, 0x3C));
+        fstp(w, 0x50, fld(w, 0x38) - fld(w, 0x40));
+        let dot = fld(w, 0x34) * fld(w, 0x4C) + fld(w, 0x38) * fld(w, 0x50);
+        let other = fld(w, 0x3C) * fld(w, 0x4C) + fld(w, 0x40) * fld(w, 0x50);
+        fstp80(top, 0, dot - other);
+        fstp80(below, 0, dot);
+    }
+}
+
+/// t = `below` / `top` into the work block (`fdivp`).
+fn ratio(w: *mut u8, top: *const u8, below: *const u8) {
+    unsafe { fstp(w, 0x30, fld80(below, 0) / fld80(top, 0)) }
+}
+
+/// The point (A + (B - A) t in x, y and z) into the work block.
+fn point(w: *mut u8) {
+    unsafe {
+        for (b, a, out) in [(0x0C, 0x00, 0x24), (0x10, 0x04, 0x28), (0x14, 0x08, 0x2C)] {
+            fstp(w, out, (fld(w, b) - fld(w, a)) * fld(w, 0x30) + fld(w, a));
+        }
+    }
+}
+
 /// Exactly as the original (the x87 at its precision): the sound code's calls by place,
 /// whose own comparisons stay exact until `sound` is converted.
 pub fn nearest_on_segment(a: [u32; 3], b: [u32; 3], o: [u32; 3]) -> [u32; 3] {
@@ -42,7 +75,35 @@ pub fn nearest_on_segment(a: [u32; 3], b: [u32; 3], o: [u32; 3]) -> [u32; 3] {
     block[3..6].copy_from_slice(&b);
     block[6..9].copy_from_slice(&o);
     let (mut top, mut below) = ([0u8; 10], [0u8; 10]);
-    x87_run!(
+    differences(
+        block.as_mut_ptr().cast(),
+        top.as_mut_ptr(),
+        below.as_mut_ptr(),
+    );
+    // fcom flt_71C3C8; C3: equal (or unordered).
+    if compare(unsafe { fld80(top.as_ptr(), 0) }, ld(SEGMENT_ZERO)) & 0x4000 != 0 {
+        block[T] = 0;
+    } else {
+        ratio(block.as_mut_ptr().cast(), top.as_ptr(), below.as_ptr());
+        // `hold_low` / `hold_high` (`physics::flow`) on the block: t held to 0 .. 1.
+        if c0(block[T], ZERO) {
+            block[T] = loaded(ZERO);
+        }
+        if !c0(block[T], ONE) {
+            block[T] = loaded(ONE);
+        }
+    }
+    point(block.as_mut_ptr().cast());
+    [block[9], block[10], block[11]]
+}
+
+#[cfg(test)]
+mod asm_reference {
+    use super::*;
+    use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
+
+    // The original's instructions.
+    reference!(ref_differences(w, t, u)
         "fld dword ptr [{w} + 0x00]",
         "fsub dword ptr [{w} + 0x18]",
         "fstp dword ptr [{w} + 0x34]",
@@ -73,29 +134,13 @@ pub fn nearest_on_segment(a: [u32; 3], b: [u32; 3], o: [u32; 3]) -> [u32; 3] {
         ".byte 0xDE, 0xC1",
         ".byte 0xD8, 0xE9",
         "fstp tbyte ptr [{t}]",
-        "fstp tbyte ptr [{u}]";
-        w = block.as_mut_ptr(), t = top.as_mut_ptr(), u = below.as_mut_ptr()
-    );
-    // fcom flt_71C3C8; C3: equal (or unordered).
-    if compare_80(top, SEGMENT_ZERO) & 0x4000 != 0 {
-        block[T] = 0;
-    } else {
-        x87_run!(
-            "fld tbyte ptr [{u}]",
-            "fld tbyte ptr [{t}]",
-            ".byte 0xDE, 0xF9",
-            "fstp dword ptr [{w} + 0x30]";
-            w = block.as_mut_ptr(), t = top.as_ptr(), u = below.as_ptr()
-        );
-        // `hold_low` / `hold_high` (`physics::flow`) on the block: t held to 0 .. 1.
-        if c0(block[T], ZERO) {
-            block[T] = loaded(ZERO);
-        }
-        if !c0(block[T], ONE) {
-            block[T] = loaded(ONE);
-        }
-    }
-    x87_run!(
+        "fstp tbyte ptr [{u}]");
+    reference!(ref_ratio(w, t, u)
+        "fld tbyte ptr [{u}]",
+        "fld tbyte ptr [{t}]",
+        ".byte 0xDE, 0xF9",
+        "fstp dword ptr [{w} + 0x30]");
+    reference!(ref_point(w)
         "fld dword ptr [{w} + 0x0C]",
         "fsub dword ptr [{w} + 0x00]",
         "fmul dword ptr [{w} + 0x30]",
@@ -110,10 +155,89 @@ pub fn nearest_on_segment(a: [u32; 3], b: [u32; 3], o: [u32; 3]) -> [u32; 3] {
         "fsub dword ptr [{w} + 0x08]",
         "fmul dword ptr [{w} + 0x30]",
         "fadd dword ptr [{w} + 0x08]",
-        "fstp dword ptr [{w} + 0x2C]";
-        w = block.as_mut_ptr()
-    );
-    [block[9], block[10], block[11]]
+        "fstp dword ptr [{w} + 0x2C]");
+
+    fn blocks() -> Vec<Block> {
+        vec![
+            Block {
+                name: "nearest_on_segment differences",
+                operands: vec![
+                    Operand::Buffer {
+                        reads: &[
+                            (0x00, In::F),
+                            (0x08, In::F),
+                            (0x0C, In::F),
+                            (0x14, In::F),
+                            (0x18, In::F),
+                            (0x20, In::F),
+                        ],
+                        writes: &[
+                            (0x34, Out::F),
+                            (0x38, Out::F),
+                            (0x3C, Out::F),
+                            (0x40, Out::F),
+                            (0x4C, Out::F),
+                            (0x50, Out::F),
+                        ],
+                    },
+                    Operand::Buffer {
+                        reads: &[],
+                        writes: &[(0, Out::T)],
+                    },
+                    Operand::Buffer {
+                        reads: &[],
+                        writes: &[(0, Out::T)],
+                    },
+                ],
+                ulps: 0,
+                reference: |a| unsafe { ref_differences(a[0], a[1], a[2]) },
+                plain: |a| differences(a[0] as *mut u8, a[1] as *mut u8, a[2] as *mut u8),
+            },
+            Block {
+                name: "nearest_on_segment ratio",
+                operands: vec![
+                    Operand::Buffer {
+                        reads: &[],
+                        writes: &[(0x30, Out::F)],
+                    },
+                    Operand::Buffer {
+                        reads: &[(0, In::T)],
+                        writes: &[],
+                    },
+                    Operand::Buffer {
+                        reads: &[(0, In::T)],
+                        writes: &[],
+                    },
+                ],
+                ulps: 0,
+                reference: |a| unsafe { ref_ratio(a[0], a[1], a[2]) },
+                plain: |a| ratio(a[0] as *mut u8, a[1] as *const u8, a[2] as *const u8),
+            },
+            Block {
+                name: "nearest_on_segment point",
+                operands: vec![Operand::Buffer {
+                    reads: &[
+                        (0x00, In::F),
+                        (0x04, In::F),
+                        (0x08, In::F),
+                        (0x0C, In::F),
+                        (0x10, In::F),
+                        (0x14, In::F),
+                        (0x30, In::F),
+                    ],
+                    writes: &[(0x24, Out::F), (0x28, Out::F), (0x2C, Out::F)],
+                }],
+                ulps: 0,
+                reference: |a| unsafe { ref_point(a[0]) },
+                plain: |a| point(a[0] as *mut u8),
+            },
+        ]
+    }
+
+    #[test]
+    fn nearest_on_segment_matches_the_assembly() {
+        sparse(&blocks(), 5000, 208);
+    }
 }
 
 #[cfg(test)]

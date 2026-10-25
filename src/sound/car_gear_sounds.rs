@@ -24,7 +24,8 @@ pub fn car_gear_sounds(o: u32, request: u32) -> Result<(), Refused> {
     if o == 0 || request == 0 {
         return Err(BadInput("no object or no request").into());
     }
-    if unsafe { ((o + 0x10C) as *const u32).read_unaligned() } == 3 {
+    let so = unsafe { crate::sound::store::SoundObject::at(o) };
+    if so.state.get() == 3 {
         return Ok(());
     }
     // Converted: `rc2k_core::sound::engine::{place_behind, gear_pitch}` (exact at every
@@ -32,20 +33,20 @@ pub fn car_gear_sounds(o: u32, request: u32) -> Result<(), Refused> {
     use rc2k_core::sound::engine::{gear_pitch, place_behind};
     let float = |at: u32| unsafe { (at as *const f32).read_unaligned() };
     let place = place_behind(
-        [0x2C, 0x30, 0x34].map(|n| float(o + n)),
-        [0x38, 0x3C, 0x40].map(|n| float(o + n)),
+        so.place.each_ref().map(|f| f.get()),
+        so.motion.each_ref().map(|f| f.get()),
     );
     for (n, v) in place.into_iter().enumerate() {
         unsafe { ((request + 0xC + 4 * n as u32) as *mut f32).write_unaligned(v) };
     }
-    for at in [0x1C4, 0x1DC] {
-        crate::sound::play_timed_slot::play_timed_slot(o + at, request)?;
+    for slot in &so.slots[5..] {
+        crate::sound::play_timed_slot::play_timed_slot(slot.addr(), request)?;
     }
     let factor = (request + 0x20) as *mut u32;
     let kept = unsafe { factor.read_unaligned() };
-    let pitch = gear_pitch(float(request + 0x20), float(o + 0x210));
+    let pitch = gear_pitch(float(request + 0x20), so.gear_pitch.get());
     unsafe { (factor as *mut f32).write_unaligned(pitch) };
-    crate::sound::play_timed_slot::play_timed_slot(o + 0x1F8, request)?;
+    crate::sound::play_timed_slot::play_timed_slot(so.gear_slot.addr(), request)?;
     unsafe { factor.write_unaligned(kept) };
     Ok(())
 }

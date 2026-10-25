@@ -7,7 +7,9 @@
 //! `flt_623FBC`, and past `flt_614100` the motion and its copy scaled down to it
 //! (`physics::scale_vector`, the factor then in `dword_62400C`).
 //!
-//! The x87 runs are the original's instructions over the game's variables (from IDA).
+//! The x87 compares are the arithmetic of the original's instructions over the game's
+//! variables (from IDA), in plain Rust over `X` (`math/x87_float.rs`); the instructions are
+//! `asm_reference` in the tests.
 //!
 //! In:  nothing
 //! Out: ecx the last part's exponent bits, esi +0x198 (+0x1A4 after a scaling); no
@@ -18,9 +20,11 @@
 use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::logfile::log_float::log_float;
 use crate::logfile::log_write::log_write;
+use crate::math::x87_float::compare;
 use crate::physics::scale_vector::scale_vector;
 use crate::physics::vector_length::vector_length;
 use crate::scene::matrix3::rounded;
+use crate::scene::x87_mem::{fld, fstp};
 use std::cmp::Ordering;
 
 fn g(x: usize) -> u32 {
@@ -34,39 +38,25 @@ fn p(x: usize, v: u32) {
 /// The value at `v` held to ±(the limit at `l`), as the original: `fld l; fld v;
 /// fcompp`, the limit negated in place for the second compare and put back.
 unsafe fn hold(v: u32, l: u32) {
+    hold_at(v as usize, l as usize);
+}
+
+/// `hold` over the dwords at `v` and `l`: `v` becomes the limit unless it is below it (or no
+/// number); the limit is stored negated, `v` becomes that unless it is not below it, and the
+/// limit is stored negated again.
+fn hold_at(v: usize, l: usize) {
     unsafe {
-        core::arch::asm!(
-            "fld dword ptr [{l}]",
-            "fld dword ptr [{v}]",
-            ".byte 0xDE, 0xD9", // fcompp
-            "fnstsw ax",
-            "shr ah, 1",
-            "jb 2f",
-            "fld dword ptr [{l}]",
-            "fstp dword ptr [{v}]",
-            "2:",
-            "fld dword ptr [{l}]",
-            ".byte 0xD9, 0xE0", // fchs
-            "fstp dword ptr [{l}]",
-            "fld dword ptr [{l}]",
-            "fld dword ptr [{v}]",
-            ".byte 0xDE, 0xD9",
-            "fnstsw ax",
-            "shr ah, 1",
-            "jnb 3f",
-            "fld dword ptr [{l}]",
-            "fstp dword ptr [{v}]",
-            "3:",
-            "fld dword ptr [{l}]",
-            ".byte 0xD9, 0xE0",
-            "fstp dword ptr [{l}]",
-            v = in(reg) v,
-            l = in(reg) l,
-            out("eax") _,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-        );
+        let (v, l) = (v as *mut u8, l as *mut u8);
+        let limit = fld(l, 0);
+        if compare(fld(v, 0), limit) & 0x100 == 0 {
+            fstp(v, 0, limit);
+        }
+        fstp(l, 0, -fld(l, 0));
+        let negated = fld(l, 0);
+        if compare(fld(v, 0), negated) & 0x100 != 0 {
+            fstp(v, 0, negated);
+        }
+        fstp(l, 0, -fld(l, 0));
     }
 }
 
@@ -117,5 +107,59 @@ pub unsafe fn limit_motion() {
             scale_vector(a(0x71A17C), factor);
             p(0x62400C, rounded(factor));
         }
+    }
+}
+
+#[cfg(test)]
+mod asm_reference {
+    use super::*;
+    use crate::scene::asm_test::{Block, In, Operand, Out, reference_eax, sparse};
+
+    reference_eax!(ref_0(v, l)
+        "fld dword ptr [{l}]",
+        "fld dword ptr [{v}]",
+        ".byte 0xDE, 0xD9",
+        "fnstsw ax",
+        "shr ah, 1",
+        "jb 2f",
+        "fld dword ptr [{l}]",
+        "fstp dword ptr [{v}]",
+        "2:",
+        "fld dword ptr [{l}]",
+        ".byte 0xD9, 0xE0",
+        "fstp dword ptr [{l}]",
+        "fld dword ptr [{l}]",
+        "fld dword ptr [{v}]",
+        ".byte 0xDE, 0xD9",
+        "fnstsw ax",
+        "shr ah, 1",
+        "jnb 3f",
+        "fld dword ptr [{l}]",
+        "fstp dword ptr [{v}]",
+        "3:",
+        "fld dword ptr [{l}]",
+        ".byte 0xD9, 0xE0",
+        "fstp dword ptr [{l}]"
+    );
+
+    #[test]
+    fn hold_matches_the_assembly() {
+        let blocks = vec![Block {
+            name: "limit_motion hold",
+            operands: vec![
+                Operand::Buffer {
+                    reads: &[(0, In::F)],
+                    writes: &[(0, Out::F)],
+                },
+                Operand::Buffer {
+                    reads: &[(0, In::F)],
+                    writes: &[(0, Out::F)],
+                },
+            ],
+            ulps: 0,
+            reference: |a| unsafe { ref_0(a[0], a[1]) },
+            plain: |a| hold_at(a[0], a[1]),
+        }];
+        sparse(&blocks, 6000, 201);
     }
 }

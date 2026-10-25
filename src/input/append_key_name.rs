@@ -10,8 +10,7 @@
 //! Refuses no layout, or a layout without its table of names.
 
 use crate::errors::{BadInput, Refused};
-use crate::input::key_to_char::LAYOUT_RVA;
-use crate::store::game_read;
+use crate::input::store::KEYBOARD_FILE;
 use crate::strings::append_string_by_id::append_string_by_id;
 use crate::strings::hex_append::hex_append;
 use std::slice::from_raw_parts;
@@ -22,7 +21,7 @@ use std::slice::from_raw_parts;
 pub unsafe fn append_key_name(key: u32) -> Result<(Vec<u8>, u32), Refused> {
     let key = key & 0x7F;
     unsafe {
-        let layout: u32 = game_read(LAYOUT_RVA);
+        let layout: u32 = KEYBOARD_FILE.layout.get();
         if layout == 0 {
             return Err(BadInput("no keyboard layout").into());
         }

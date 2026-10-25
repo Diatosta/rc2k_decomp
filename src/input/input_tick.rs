@@ -15,31 +15,27 @@
 
 use crate::errors::Refused;
 use crate::field;
-use crate::input::devices::{RECORDS, at, put};
-use crate::input::store::DeviceSlot;
+use crate::input::devices::{at, put, record_addrs};
+use crate::input::store::DEVICES;
 use crate::input::types::InputDevice;
-use crate::store::{game_addr, game_read};
-
-pub const COMMAND_RVA: DeviceSlot = DeviceSlot::at(0x4F7DE4); // g_inputCommand
-const TWO_DEVICES_RVA: DeviceSlot = DeviceSlot::at(0x4F68FC); // dword_4F68FC
 
 /// A tick of the devices (see the header).
 pub unsafe fn input_tick() -> Result<(), Refused> {
-    let command = unsafe {
-        let at = game_addr(COMMAND_RVA) as *const std::sync::atomic::AtomicU32;
-        (*at).swap(0, std::sync::atomic::Ordering::SeqCst)
-    };
+    let command = DEVICES
+        .input_command
+        .atomic()
+        .swap(0, std::sync::atomic::Ordering::SeqCst);
     if command != 0 {
         return unsafe { crate::input::device_command::device_command(command) };
     }
-    let records = RECORDS.map(|rva| game_addr(rva) as u32);
+    let records = record_addrs();
     for record in records {
         unsafe {
             crate::input::read_device::read_device(record)?;
             crate::input::device_effects::device_effects(record)?;
         }
     }
-    if unsafe { game_read::<u32>(TWO_DEVICES_RVA) } != 0 {
+    if DEVICES.two_devices_one_player.get() != 0 {
         // Converted: `rc2k_core::input::devices::merge_readings`.
         let [first, second] = records;
         let mut a = [0x4DC, 0x4E0, 0x4E4, field!(InputDevice, bits)].map(|o| at(first, o));

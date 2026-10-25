@@ -57,7 +57,7 @@ fn game() -> (Vec<u32>, [u32; 3]) {
         [
             g(CURRENT_CAR),
             g(TABLE),
-            crate::sound::store::StageSlot::at(0x5165A4).address() as u32,
+            crate::sound::store::STAGE_SOUNDS.once[2].addr() as u32,
         ],
     )
 }

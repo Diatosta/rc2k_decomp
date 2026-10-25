@@ -17,7 +17,8 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::math::x87::from_int;
-use crate::physics::flow::x87_run;
+use crate::math::x87_float::ld;
+use crate::scene::x87_mem::fstp;
 use crate::sound::sample_settings::{OWN, record, sample_settings};
 use rc2k_core::sound::surfaces;
 
@@ -49,13 +50,60 @@ pub fn surface_sound(o: u32, set: u32, request: u32) -> Result<(), Refused> {
     unsafe { q.write_unaligned(sound) };
     let (_, rate) = sample_settings(sound, OWN, OWN)?;
     unsafe { q.add(1).write_unaligned(from_int(rate as i32)) };
-    x87_run!(
-        "fld dword ptr [{sf} + 0x40]",
-        "fstp dword ptr [{si} + 0x8]";
-        si = request, sf = crate::sound::store::surface::base()
-    );
+    x87_1(&crate::sound::store::SURFACE_SOUNDS, request as usize);
     for k in 0..3 {
         unsafe { q.add(3 + k).write_unaligned(w(0x2C + 4 * k as u32)) };
     }
     crate::sound::turn_parts::placed(request)
+}
+
+// ---- the arithmetic that was x87 assembly ----
+
+/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
+/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `[si + 8] = [sf + 0x40]`
+fn x87_1(sf: &crate::sound::store::SurfaceSounds, si: usize) {
+    unsafe {
+        let si = si as *mut u8;
+        let t0 = ld(sf.volume.bits());
+        fstp(si, 8, t0);
+    }
+}
+
+#[cfg(test)]
+mod asm_reference {
+    use super::*;
+    use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
+
+    // The original's instructions, one function per run.
+    reference!(ref_0(sf, si) "fld dword ptr [{sf} + 0x40]", "fstp dword ptr [{si} + 0x8]");
+
+    fn blocks() -> Vec<Block> {
+        vec![Block {
+            name: "surface_sound line 52",
+            operands: vec![
+                Operand::Buffer {
+                    reads: &[(0x40, In::F)],
+                    writes: &[],
+                },
+                Operand::Buffer {
+                    reads: &[],
+                    writes: &[(8, Out::F)],
+                },
+            ],
+            ulps: 0,
+            reference: |a| unsafe { ref_0(a[0], a[1]) },
+            plain: |a| {
+                x87_1(
+                    unsafe { &*(a[0] as *const crate::sound::store::SurfaceSounds) },
+                    a[1],
+                )
+            },
+        }]
+    }
+
+    #[test]
+    fn x87_blocks_matches_the_assembly() {
+        sparse(&blocks(), 1200, 100);
+    }
 }

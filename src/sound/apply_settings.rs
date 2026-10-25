@@ -11,12 +11,10 @@
 
 use crate::audio::store::Slot;
 use crate::framework::rva;
-use crate::sound::store::EffectsSlot;
 use crate::store::{game_addr, game_read, game_write};
 
 // ---- game data ----
 
-const APPLIED_RVA: EffectsSlot = EffectsSlot::at(0x518080); // dword_518080
 const CLEARED_RVA: Slot = Slot::at(0x506C84); // dword_506C84
 const FIRST_RVA: Slot = Slot::at(0x4F82C4); // dword_4F82C4
 const THIRD_RVA: usize = rva(0x511AE4); // unk_511AE4
@@ -44,7 +42,9 @@ pub fn apply_settings() -> Result<(), crate::errors::Refused> {
     // Converted: `rc2k_core::sound::set_up::menus`.
     use rc2k_core::sound::set_up::{MENUS, menus};
     unsafe {
-        game_write(APPLIED_RVA, MENUS);
+        crate::sound::store::SOUND_EFFECTS
+            .settings_applied
+            .set(MENUS);
         let steps = menus(
             game_read(FIRST_RVA),
             game_addr(THIRD_RVA) as u32,

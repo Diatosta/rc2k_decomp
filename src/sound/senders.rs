@@ -13,11 +13,6 @@ pub fn send_and_wait(command: u32, registers: [u32; 4]) {
     wait_for_commands(&mut Game([0; 7]));
 }
 
-/// For the senders: a game variable's value.
-pub fn variable(at: impl crate::store::Ida) -> u32 {
-    unsafe { crate::store::ida_read(at) }
-}
-
 /// Command 0xB (converted: `rc2k_core::sound::senders::Music`), sent and waited for.
 pub fn music(m: Music) {
     send_and_wait(0xB, [m.tune, m.then, m.volume, m.action]);
@@ -27,9 +22,9 @@ pub fn music(m: Music) {
 pub fn play_tune(n: u32) {
     if let Some(m) = rc2k_core::sound::senders::tune_command(
         n,
-        variable(crate::sound::store::EffectsSlot::at(0x5180FC)),
-        variable(crate::sound::store::EffectsSlot::at(0x518100)),
-        variable(crate::sound::store::EffectsSlot::at(0x5180F4)) == 1,
+        crate::sound::store::SOUND_EFFECTS.music_volume.get(),
+        crate::sound::store::SOUND_EFFECTS.race_music_volume.get(),
+        crate::sound::store::SOUND_EFFECTS.name_switch.get() == 1,
     ) {
         music(m);
     }

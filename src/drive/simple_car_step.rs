@@ -13,7 +13,7 @@
 //! Caller: `drive::race_tick`. Refuses what its calls refuse.
 
 use crate::errors::Refused;
-use crate::physics::flow::{a, g, p};
+use crate::physics::flow::{g, p};
 use rc2k_core::drive::roaming::{roam_distance, roam_turn};
 
 const B: usize = 0x70F3EC; // g_carBlockStore
@@ -35,7 +35,7 @@ pub unsafe fn simple_car_step() -> Result<(), Refused> {
     let distance = roam_distance(
         g(B + 0x638),
         g(B + 0x63C),
-        unsafe { (a(crate::input::store::DeviceSlot::at(0x4F6B79)) as *const u8).read() } != 0,
+        crate::input::store::DEVICES.keys_now.get(0x1D) != 0, // byte_4F6B79
     );
     let [x, _, z, _] = unsafe {
         crate::math::turn_point_xz::turn_point_xz(0, keys as i32, distance as i32, g(B + 0x9C0))

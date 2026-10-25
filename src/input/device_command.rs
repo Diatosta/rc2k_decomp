@@ -21,19 +21,14 @@
 use crate::errors::Refused;
 use crate::framework::rva;
 use crate::input::devices::put;
-use crate::input::store::DeviceSlot;
-use crate::sound::store::EffectsSlot;
-use crate::sound::store::ObjectsSlot;
+use crate::input::store::DEVICES;
+use crate::sound::store::{RACE_SOUNDS, SOUND_EFFECTS};
 use crate::store::{game_addr, game_read, game_write};
 
-pub const DEVICES_RVA: DeviceSlot = DeviceSlot::at(0x4F6EE8); // g_inputDevices: the two records
-const EFFECTS_ON_RVA: EffectsSlot = EffectsSlot::at(0x518090); // dword_518090
 const CONTROLS_RVA: [usize; 2] = [rva(0x75AE28), rva(0x75AF94)]; // dword_75AE28, dword_75AF94
-const TWO_DEVICES_RVA: DeviceSlot = DeviceSlot::at(0x4F68FC); // dword_4F68FC
-const ONE_PLAYER_RVA: ObjectsSlot = ObjectsSlot::at(0x514F78); // g_onePlayer
 
 fn device(n: usize) -> u32 {
-    unsafe { game_read(DEVICES_RVA + 4 * n) }
+    DEVICES.input_devices[n].get()
 }
 
 /// The command `command` (its low byte the command, the next the device; see the header).
@@ -44,12 +39,12 @@ pub unsafe fn device_command(command: u32) -> Result<(), Refused> {
         let steps = command_steps(
             command as u8,
             (command >> 8) as u8,
-            game_read(TWO_DEVICES_RVA),
-            game_read(ONE_PLAYER_RVA),
+            DEVICES.two_devices_one_player.get(),
+            RACE_SOUNDS.one_player.get(),
         )?;
         for step in steps {
             match step {
-                EffectsOn(on) => game_write(EFFECTS_ON_RVA, on as u32),
+                EffectsOn(on) => SOUND_EFFECTS.effects_race_on.set(on as u32),
                 Release(n) => crate::input::release_device::release_device(device(n))?,
                 Acquire(n) => crate::input::acquire_device::acquire_device(device(n))?,
                 EndEffects => crate::input::end_effects::end_effects()?,

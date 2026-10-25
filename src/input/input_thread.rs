@@ -22,21 +22,15 @@
 
 use crate::errors::Refused;
 use crate::framework::rva;
-use crate::input::devices::RECORDS;
-use crate::input::store::DeviceSlot;
+use crate::input::devices::record_addrs;
+use crate::input::store::DEVICES;
 use crate::session::CLOCKS;
 use crate::session::FLAGS;
-use crate::store::{game_addr, game_write};
+use crate::store::game_addr;
 
 const START_TEXT_RVA: usize = rva(0x4DA4B2); // "INPUTTDB:START"
 const QUIT_TEXT_RVA: usize = rva(0x4DA4C1); // "INPUTTDB:QUIT"
-const DIRECT_INPUT_RVA: DeviceSlot = DeviceSlot::at(0x4F6904); // dword_4F6904
-const LAST_TICK_RVA: DeviceSlot = DeviceSlot::at(0x4F68D8); // dword_4F68D8
 const TICK_MS: u32 = 20;
-
-fn g(a: impl crate::store::Where) -> u32 {
-    unsafe { crate::store::game_read(a) }
-}
 
 /// "INPUTTDB:.." to the game's log (level 2, a line).
 fn log(text: usize) {
@@ -57,19 +51,19 @@ pub unsafe fn input_thread() -> Result<(), Refused> {
         // DirectInput made (in Rust, on SDL's joysticks); the keyboard and the mouse are
         // SDL's events: nothing to make for them.
         let input = crate::input::di_objects::create_input();
-        unsafe { game_write(DIRECT_INPUT_RVA, input) };
+        DEVICES.direct_input.set(input);
         if input == 0 {
             break 'work;
         }
         crate::input::list_joysticks::list_joysticks();
         set_priority(2);
         let mut last = crate::system::tick_count::tick_count();
-        unsafe { game_write(LAST_TICK_RVA, last) };
+        DEVICES.last_tick.set(last);
         loop {
             let mut gone;
             loop {
                 crate::system::sleep::sleep(5);
-                last = g(LAST_TICK_RVA);
+                last = DEVICES.last_tick.get();
                 gone = crate::system::tick_count::tick_count().wrapping_sub(last);
                 if gone >= TICK_MS {
                     break;
@@ -83,7 +77,7 @@ pub unsafe fn input_thread() -> Result<(), Refused> {
                     break;
                 }
             }
-            unsafe { game_write(LAST_TICK_RVA, last) };
+            DEVICES.last_tick.set(last);
             unsafe { crate::input::input_tick::input_tick_in_game() }?;
             if FLAGS.window_focused.get() != 1 {
                 crate::system::sleep::sleep(1000);
@@ -93,13 +87,13 @@ pub unsafe fn input_thread() -> Result<(), Refused> {
             }
         }
     }
-    for record in RECORDS {
-        unsafe { crate::input::release_device::release_device_in_game(game_addr(record) as u32) }?;
+    for record in record_addrs() {
+        unsafe { crate::input::release_device::release_device_in_game(record) }?;
     }
-    let input = g(DIRECT_INPUT_RVA);
+    let input = DEVICES.direct_input.get();
     if input != 0 {
         crate::input::di_harness::method(input, crate::input::di_harness::slot::RELEASE, &[]);
-        unsafe { game_write(DIRECT_INPUT_RVA, 0u32) };
+        DEVICES.direct_input.set(0);
     }
     log(QUIT_TEXT_RVA);
     set_priority(0);

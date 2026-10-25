@@ -32,17 +32,7 @@ const LIFE: i32 = 0xFA0;
 /// `fld k; fsub z`, kept extended.
 fn less(k: u32, z: u32) -> [u8; 10] {
     let (v, mut out) = ([k, z], [0u8; 10]);
-    unsafe {
-        core::arch::asm!(
-            "fld dword ptr [{v}]",
-            "fsub dword ptr [{v} + 4]",
-            "fstp tbyte ptr [{o}]",
-            v = in(reg) v.as_ptr(),
-            o = in(reg) out.as_mut_ptr(),
-            out("st(0)") _,
-            options(nostack),
-        )
-    };
+    unsafe { less_x87(v.as_ptr() as usize, out.as_mut_ptr() as usize) };
     out
 }
 
@@ -93,5 +83,69 @@ unsafe fn run() {
             crate::marks::draw_square::draw_square(e, colour, values);
         }
         crate::scene::depth_buffer_on::depth_buffer(true);
+    }
+}
+
+use crate::marks::plain::{ld, st80};
+
+/// `less`'s x87 block as plain Rust on the x87 model (3 instructions), same order and memory places.
+unsafe fn less_x87(v: usize, o: usize) {
+    unsafe {
+        let t0 = ld(v, 0);
+        let t1 = t0 - ld(v, 0x4);
+        st80(o, 0, t1);
+    }
+}
+
+#[cfg(test)]
+mod asm_reference {
+    //! The original assembly blocks, kept verbatim as the reference the plain versions are tested against.
+
+    pub(super) unsafe fn less_x87(v: usize, o: usize) {
+        unsafe {
+            core::arch::asm!(
+                    "fld dword ptr [{v}]",
+            "fsub dword ptr [{v} + 4]",
+            "fstp tbyte ptr [{o}]",
+            v = in(reg) v,
+            o = in(reg) o,
+            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
+            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
+            options(nostack),
+            )
+        }
+    }
+}
+
+#[cfg(test)]
+mod asm_differential {
+    use super::asm_reference as reference;
+    use crate::marks::asm_test::Kind::*;
+    use crate::marks::asm_test::{Op, Spec, differential};
+
+    #[test]
+    fn less_x87_matches() {
+        const SPEC: Spec = Spec {
+            operands: &[
+                Op::Base {
+                    lo: 0x0,
+                    hi: 0x8,
+                    reads: &[(0x0, F32), (0x4, F32)],
+                    writes: &[],
+                },
+                Op::Base {
+                    lo: 0x0,
+                    hi: 0xA,
+                    reads: &[],
+                    writes: &[(0x0, F80)],
+                },
+            ],
+            sincos: false,
+        };
+        differential(
+            &SPEC,
+            |b| unsafe { reference::less_x87(b[0], b[1]) },
+            |b| unsafe { super::less_x87(b[0], b[1]) },
+        );
     }
 }

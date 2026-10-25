@@ -5,7 +5,6 @@
 
 use crate::errors::Refused;
 use crate::framework::rva;
-use crate::input::store::DeviceSlot;
 
 fn k(a: impl crate::store::At) -> u32 {
     unsafe { crate::store::at_read(a) }
@@ -93,10 +92,8 @@ pub unsafe fn learn_axis() -> Result<(), Refused> {
             if !m.carry {
                 let (byte, found) = l::pedal(control);
                 field(byte).write(m.eax as u8);
-                w(
-                    crate::input::store::DeviceSlot::at(0x4F6F08),
-                    ((player + 0x38) as *const u32).read_unaligned(),
-                );
+                crate::input::store::DEVICES.records[0]
+                    .set_u32(0x18, ((player + 0x38) as *const u32).read_unaligned());
                 w(FOUND, found);
                 w(LEARNING, 0);
                 take = false;
@@ -127,7 +124,7 @@ pub unsafe fn controller_page_refuses() -> Result<u32, Refused> {
             return Err(crate::errors::BadInput("no current player record").into());
         }
         let device = ((player + 0x2C) as *const u32).read_unaligned();
-        if device != 0 && k(crate::input::store::DeviceSlot::at(0x4F6EE8)) == 0 {
+        if device != 0 && crate::input::store::DEVICES.input_devices[0].get() == 0 {
             return Err(crate::errors::BadInput("no input device").into());
         }
         Ok(player)
@@ -158,7 +155,7 @@ pub unsafe fn draw_controller_page(
         if device == 0 {
             return controller_page(&mut screen, None);
         }
-        let record = crate::store::game_addr(DeviceSlot::at(0x4F78E4)) as u32
+        let record = crate::input::store::DEVICES.controllers[0].addr() as u32
             + device.wrapping_sub(1).wrapping_mul(0x50);
         let [stick_x, _, _, buttons] = crate::input::axes::first_device_state();
         let c = Controller {

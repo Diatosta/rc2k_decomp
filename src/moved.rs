@@ -481,55 +481,55 @@ pub(crate) const MOVED: &[Moved] = &[
     },
     // sound: the race sounds' clock, and the spot picks .. CD audio block (`sound::store`)
     Moved {
-        ida: crate::sound::store::wheels::START,
-        len: crate::sound::store::wheels::LEN,
-        home: crate::sound::store::wheels::base,
+        ida: 0x4F66DD, // the wheel options (`sound::store::Wheels`)
+        len: 0x20,
+        home: crate::sound::store::wheels_addr,
     },
     Moved {
-        ida: crate::sound::store::objects::START,
-        len: crate::sound::store::objects::LEN,
-        home: crate::sound::store::objects::base,
+        ida: 0x512A10, // the race sounds' objects (`sound::store::RaceSounds`)
+        len: 0x2580,
+        home: crate::sound::store::race_sounds_addr,
     },
     Moved {
-        ida: crate::sound::store::clock::START,
-        len: crate::sound::store::clock::LEN,
-        home: crate::sound::store::clock::base,
+        ida: 0x5124E4, // the race sounds' clock (`sound::store::RaceClock`)
+        len: 0x24,
+        home: crate::sound::store::race_clock_addr,
     },
     Moved {
-        ida: crate::sound::store::surface::START,
-        len: crate::sound::store::surface::LEN,
-        home: crate::sound::store::surface::base,
+        ida: 0x516358, // the surface sounds' constants (`sound::store::SurfaceSounds`)
+        len: 0x44,
+        home: crate::sound::store::surface_sounds_addr,
     },
     Moved {
-        ida: crate::sound::store::stage::START,
-        len: crate::sound::store::stage::LEN,
-        home: crate::sound::store::stage::base,
+        ida: 0x51655C, // the stage sounds (`sound::store::StageSounds`)
+        len: 0x364,
+        home: crate::sound::store::stage_sounds_addr,
     },
     Moved {
-        ida: crate::sound::store::effects::START,
-        len: crate::sound::store::effects::LEN,
-        home: crate::sound::store::effects::base,
+        ida: 0x517F40, // the sound effects block (`sound::store::SoundEffects`)
+        len: 0x1E0,
+        home: crate::sound::store::sound_effects_addr,
     },
-    // input: the layout, devices, keyboard and mouse blocks (`input::store`)
+    // input: the keyboard file, devices, keyboard and mouse (`input::store`, typed)
     Moved {
-        ida: crate::input::store::layout::START,
-        len: crate::input::store::layout::LEN,
-        home: crate::input::store::layout::base,
-    },
-    Moved {
-        ida: crate::input::store::devices::START,
-        len: crate::input::store::devices::LEN,
-        home: crate::input::store::devices::base,
+        ida: crate::input::store::KEYBOARD_FILE_IDA,
+        len: crate::input::store::KEYBOARD_FILE_LEN,
+        home: crate::input::store::keyboard_file_addr,
     },
     Moved {
-        ida: crate::input::store::keyboard::START,
-        len: crate::input::store::keyboard::LEN,
-        home: crate::input::store::keyboard::base,
+        ida: crate::input::store::DEVICES_IDA,
+        len: crate::input::store::DEVICES_LEN,
+        home: crate::input::store::devices_addr,
     },
     Moved {
-        ida: crate::input::store::mouse::START,
-        len: crate::input::store::mouse::LEN,
-        home: crate::input::store::mouse::base,
+        ida: crate::input::store::KEYBOARD_IDA,
+        len: crate::input::store::KEYBOARD_LEN,
+        home: crate::input::store::keyboard_addr,
+    },
+    Moved {
+        ida: crate::input::store::MOUSE_IDA,
+        len: crate::input::store::MOUSE_LEN,
+        home: crate::input::store::mouse_addr,
     },
     Moved {
         ida: 0x511B0C, // g_nextMenuSoundTime
@@ -900,6 +900,27 @@ fn sorted() -> &'static [(usize, usize, usize)] {
         v.sort_unstable();
         v
     })
+}
+
+/// Every moved range's bytes, for a test that writes the game's variables and has to put
+/// them back (`restore`); hold `store::test_lock` around both.
+#[cfg(test)]
+pub fn snapshot() -> Vec<(usize, Vec<u8>)> {
+    sorted()
+        .iter()
+        .map(|&(start, end, home)| {
+            let bytes = unsafe { std::slice::from_raw_parts(home as *const u8, end - start) };
+            (home, bytes.to_vec())
+        })
+        .collect()
+}
+
+/// The bytes `snapshot` took, put back.
+#[cfg(test)]
+pub fn restore(snap: &[(usize, Vec<u8>)]) {
+    for (home, bytes) in snap {
+        unsafe { std::ptr::copy_nonoverlapping(bytes.as_ptr(), *home as *mut u8, bytes.len()) };
+    }
 }
 
 /// The new home of the byte at `rva` if it has left the image (`framework::game_addr`'s

@@ -6,6 +6,8 @@ pub mod add_drift_particle;
 pub mod add_mark_slot;
 pub mod adjugate3;
 pub mod aim_vector;
+#[cfg(test)]
+mod asm_test;
 pub mod begin_quads;
 pub mod bend_points;
 pub mod blend_corner;
@@ -81,6 +83,7 @@ pub mod place_graded_points;
 pub mod place_spline;
 pub mod place_view;
 pub mod place_view_2;
+pub mod plain;
 pub mod pong;
 pub mod pong_ball_hits;
 pub mod pong_bat_back;

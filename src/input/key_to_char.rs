@@ -16,25 +16,17 @@
 //! null); lists without an end within 256 entries.
 
 use crate::errors::BadInput;
-use crate::input::store::DeviceSlot;
-use crate::input::store::KeyboardSlot;
-use crate::input::store::LayoutSlot;
-use crate::store::{game_addr, game_read, game_write};
+use crate::input::store::{DEVICES, KEYBOARD, KEYBOARD_FILE};
 
 // ---- game data ----
 
-pub const LAYOUT_MODE_RVA: LayoutSlot = LayoutSlot::at(0x4F07D2); // byte_4F07D2
-pub const LAYOUT_RVA: LayoutSlot = LayoutSlot::at(0x4F07D4); // dword_4F07D4: the current layout block
-pub const LAYOUT_A_RVA: LayoutSlot = LayoutSlot::at(0x4F07F8); // dword_4F07F8
-const LAYOUT_B_RVA: LayoutSlot = LayoutSlot::at(0x4F080C); // unk_4F080C
-pub const DEAD_KEY_RVA: DeviceSlot = DeviceSlot::at(0x4F6AD0); // byte_4F6AD0
-// The key-down table starts at the pending key, 0x4F6ADC, and is indexed by scan code.
-pub const LEFT_SHIFT_RVA: DeviceSlot = DeviceSlot::at(0x4F6B06); // byte_4F6B06 (key 0x2A)
-pub const RIGHT_SHIFT_RVA: DeviceSlot = DeviceSlot::at(0x4F6B12); // byte_4F6B12 (key 0x36)
-pub const ALT_RVA: DeviceSlot = DeviceSlot::at(0x4F6B14); // byte_4F6B14 (key 0x38)
-pub const ALT_GR_RVA: DeviceSlot = DeviceSlot::at(0x4F6B40); // byte_4F6B40
-const SILENT_KEYS_RVA: KeyboardSlot = KeyboardSlot::at(0x4F7FF0); // dword_4F7FF0: one bit per key
-const COMPOSE_RVA: KeyboardSlot = KeyboardSlot::at(0x4F8000); // unk_4F8000
+// The key-down table (`g_keysDown`) is indexed by scan code: left shift 0x2A
+// (`byte_4F6B06`), right shift 0x36 (`byte_4F6B12`), Alt 0x38 (`byte_4F6B14`), AltGr 0x64
+// (`byte_4F6B40`).
+const LEFT_SHIFT: usize = 0x2A;
+const RIGHT_SHIFT: usize = 0x36;
+const ALT: usize = 0x38;
+const ALT_GR: usize = 0x64;
 
 use crate::bridge::Raw;
 
@@ -42,13 +34,13 @@ unsafe fn dword(addr: u32) -> u32 {
     unsafe { (addr as *const u32).read_unaligned() }
 }
 
-fn down(rva: impl crate::store::Where) -> bool {
-    unsafe { crate::store::game_read::<u8>(rva) != 0 }
+fn down(key: usize) -> bool {
+    DEVICES.keys_down.get(key) != 0
 }
 
 /// True if a keyboard layout is set.
 pub fn has_layout() -> bool {
-    unsafe { game_read::<u32>(LAYOUT_RVA) != 0 }
+    KEYBOARD_FILE.layout.get() != 0
 }
 
 // ---- Rust version ----
@@ -64,16 +56,16 @@ pub unsafe fn key_to_char(eax: u32) -> Result<u32, BadInput> {
     // the switch and the pending key stored.
     unsafe {
         let switched = keyboard::switch(
-            game_read(LAYOUT_MODE_RVA),
-            down(ALT_RVA),
-            down(ALT_GR_RVA),
-            down(LEFT_SHIFT_RVA),
-            down(RIGHT_SHIFT_RVA),
+            KEYBOARD_FILE.mode.get(),
+            down(ALT),
+            down(ALT_GR),
+            down(LEFT_SHIFT),
+            down(RIGHT_SHIFT),
         );
         let layout: u32 = match switched {
-            Some(Switch::First) => game_addr(LAYOUT_A_RVA) as u32,
-            Some(Switch::Second) => game_addr(LAYOUT_B_RVA) as u32,
-            None => game_read(LAYOUT_RVA),
+            Some(Switch::First) => KEYBOARD_FILE.layouts[0].dead_keys.addr() as u32,
+            Some(Switch::Second) => KEYBOARD_FILE.layouts[1].dead_keys.addr() as u32,
+            None => KEYBOARD_FILE.layout.get(),
         };
         if layout == 0 {
             return Err(BadInput("no keyboard layout"));
@@ -97,17 +89,17 @@ pub unsafe fn key_to_char(eax: u32) -> Result<u32, BadInput> {
                 shifted: as_bytes(&tables[2]),
                 alt_gr: as_bytes(&tables[3]),
             },
-            &Raw::new(game_addr(COMPOSE_RVA) as *const u8),
-            &Raw::new(game_addr(SILENT_KEYS_RVA) as *const u8),
-            down(LEFT_SHIFT_RVA) || down(RIGHT_SHIFT_RVA),
-            down(ALT_GR_RVA),
-            game_read(DEAD_KEY_RVA),
+            &Raw::new(KEYBOARD.compose.as_ptr()),
+            &Raw::new(KEYBOARD.silent_keys[0].as_ptr().cast::<u8>()),
+            down(LEFT_SHIFT) || down(RIGHT_SHIFT),
+            down(ALT_GR),
+            DEVICES.dead_key.get(),
         )?;
         if switched.is_some() {
-            game_write(LAYOUT_RVA, layout);
+            KEYBOARD_FILE.layout.set(layout);
         }
         if let Some(pending) = typed.pending {
-            game_write(DEAD_KEY_RVA, pending);
+            DEVICES.dead_key.set(pending);
         }
         Ok(typed.eax)
     }

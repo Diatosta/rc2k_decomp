@@ -24,7 +24,6 @@
 use crate::audio::store::Slot;
 use crate::errors::Refused;
 use crate::framework::rva;
-use crate::sound::store::EffectsSlot;
 use crate::store::{game_addr, game_read, game_write};
 
 // ---- the volume steps ----
@@ -44,7 +43,6 @@ pub struct Volume {
     pub then: Then,
 }
 
-const MUSIC_RVA: EffectsSlot = EffectsSlot::at(0x5180FC); // g_musicVolume
 const SOUNDS_VOLUME_RVA: usize = rva(0x7554E8); // dword_7554E8
 const SPEECH_PATH_RVA: usize = rva(0x50962F); // ";3files\%speech\rally\st1.wav"
 pub const MUSIC_LEVEL_RVA: usize = rva(0x755688); // dword_755688
@@ -60,7 +58,9 @@ pub fn volume_step(v: Volume) {
         game_write(v.value_rva, value);
         match v.then {
             Then::Music => {
-                game_write(MUSIC_RVA, value as u32);
+                crate::sound::store::SOUND_EFFECTS
+                    .music_volume
+                    .set(value as u32);
                 crate::sound::set_music_volume::set_music_volume(value as u32);
             }
             Then::Speech => crate::sound::start_stream::start_stream(

@@ -40,7 +40,7 @@ impl CountPlaces {
             count: g(0x71A064),
             current: g(CURRENT_CAR),
             listed: g(TABLE),
-            flag: crate::sound::store::StageSlot::at(0x5165A0).address() as u32,
+            flag: crate::sound::store::STAGE_SOUNDS.once[1].addr() as u32,
         }
     }
 }

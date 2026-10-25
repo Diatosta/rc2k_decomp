@@ -27,12 +27,12 @@ pub fn car_hit_sound(o: u32, request: u32) -> Result<(), Refused> {
     if o == 0 || request == 0 {
         return Err(BadInput("no object or no request").into());
     }
-    let w = |at: u32| unsafe { ((o + at) as *const u32).read_unaligned() };
+    let so = unsafe { crate::sound::store::SoundObject::at(o) };
     let q = request as *mut u32;
-    let mut waiting = w(WAITING);
+    let mut waiting = so.hit_sound.get();
     let taken = one_off(
         &mut waiting,
-        w(WAITING + 4),
+        so.hit_volume.get(),
         LEAST,
         STOP_QUIET,
         |sound| record(sound).map(|_| ()),
@@ -42,10 +42,8 @@ pub fn car_hit_sound(o: u32, request: u32) -> Result<(), Refused> {
     if turn == OneOff::Nothing {
         return Ok(());
     }
-    unsafe {
-        ((o + WAITING) as *mut u32).write_unaligned(waiting);
-        q.write_unaligned(sound);
-    }
+    so.hit_sound.set(waiting);
+    unsafe { q.write_unaligned(sound) };
     match turn {
         OneOff::Nothing | OneOff::Quiet { .. } => Ok(()),
         OneOff::Stop { .. } => crate::sound::turn_parts::stop(request),
@@ -53,9 +51,8 @@ pub fn car_hit_sound(o: u32, request: u32) -> Result<(), Refused> {
             unsafe {
                 q.add(2).write_unaligned(from_int(volume as i32));
                 q.add(1).write_unaligned(from_int(rate as i32));
-                for k in 0..3 {
-                    q.add(3 + k as usize)
-                        .write_unaligned(w(WAITING + 8 + 4 * k));
+                for k in 0..3usize {
+                    q.add(3 + k).write_unaligned(so.hit_place[k].bits());
                 }
             }
             crate::sound::turn_parts::placed(request)
@@ -63,7 +60,5 @@ pub fn car_hit_sound(o: u32, request: u32) -> Result<(), Refused> {
     }
 }
 
-/// The sound object's waiting sound (its volume after it, its place after that).
-const WAITING: u32 = 0x238;
 const LEAST: u32 = 4;
 const STOP_QUIET: bool = false;

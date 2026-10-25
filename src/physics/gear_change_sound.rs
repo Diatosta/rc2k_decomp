@@ -17,10 +17,6 @@ unsafe fn at(a: u32) -> u32 {
     unsafe { (a as *const u32).read_unaligned() }
 }
 
-unsafe fn put(a: u32, v: u32) {
-    unsafe { (a as *mut u32).write_unaligned(v) }
-}
-
 /// The Rust version on the car number, the object table and the word at these places.
 // Converted: `rc2k_core::physics::gearbox::gear_change`.
 pub unsafe fn gear_change_sound_at(current: u32, table: u32, word: u32) -> Result<(), Refused> {
@@ -30,12 +26,12 @@ pub unsafe fn gear_change_sound_at(current: u32, table: u32, word: u32) -> Resul
             if object == 0 {
                 return Err(BadInput("a null sound object").into());
             }
-            let flag = match change {
-                GearChange::Up => 0x180,
-                GearChange::Down => 0x198,
-            };
-            put(object + flag, 1);
-            put(object + 0x10, 1);
+            let o = crate::sound::store::SoundObject::at(object);
+            match change {
+                GearChange::Up => o.slots[2].start.set(1),
+                GearChange::Down => o.slots[3].start.set(1),
+            }
+            o.new_revs.set(1);
         }
         Ok(())
     }
@@ -47,7 +43,7 @@ pub unsafe fn gear_change_sound() -> Result<(), Refused> {
     unsafe {
         gear_change_sound_at(
             g(0x71B3F8),
-            crate::sound::store::ObjectsSlot::at(0x512A10).address() as u32,
+            crate::sound::store::RACE_SOUNDS.table.as_ptr() as usize as u32,
             g(0x71A210),
         )
     }

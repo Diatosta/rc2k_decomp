@@ -13,15 +13,15 @@
 //! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::input::effects::LAST_TIME;
-use crate::sound::turn_parts::COUNT;
 
 /// The effects started with sound objects in use (`g_raceSoundObjectCount`), and the
 /// effects' clock set.
 pub fn begin_effects() -> Result<(), Refused> {
-    if unsafe { crate::store::game_read::<u32>(COUNT) } != 0 {
+    if crate::sound::store::RACE_SOUNDS.count.get() != 0 {
         crate::input::start_effects::start_effects()?;
     }
-    unsafe { crate::store::game_write(LAST_TIME, crate::system::tick_count::tick_count()) };
+    crate::sound::store::SOUND_EFFECTS
+        .effects_last_time
+        .set(crate::system::tick_count::tick_count());
     Ok(())
 }

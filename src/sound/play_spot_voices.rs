@@ -22,7 +22,6 @@ use crate::math::x87::from_int;
 use crate::sound::sample_duration::sample_duration;
 use crate::sound::sample_settings::{OWN, RECORDS, RECORDS_RVA, sample_settings};
 use crate::sound::spot_voices::{VOICE_COUNT, set, voice, vw};
-use crate::sound::turn_parts::CLOCK;
 use crate::store::game_read;
 use rc2k_core::sound::spot_voices::{Played, REQUEST_FROM, end_time, going_on, played, time_up};
 
@@ -35,7 +34,7 @@ pub fn play_spot_voices(request: u32) -> Result<(), Refused> {
     }
     let q = request as *mut u32;
     let put = |n: usize, v: u32| unsafe { q.add(n).write_unaligned(v) };
-    let clock: u32 = unsafe { crate::store::game_read(CLOCK) };
+    let clock = crate::sound::store::RACE_CLOCK.last.get();
     for n in 0..VOICE_COUNT {
         let v = voice(n);
         if vw(v, 4) != 1 {

@@ -29,7 +29,7 @@ use crate::gfx::front::Slot as FrontSlot;
 use crate::gfx::locked::Slot as LockSlot;
 use crate::gfx::modes::Slot as ModeSlot;
 use crate::gfx::set_clip::set_clip;
-use crate::input::store::DeviceSlot;
+use crate::input::store::DEVICES;
 use crate::session::FLAGS;
 use crate::session::SCREEN as GAME_SCREEN;
 use crate::store::{game_addr, game_ptr, game_read, game_write};
@@ -40,7 +40,6 @@ use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
 
 // ---- game data ----
 
-const PENDING_KEY_RVA: DeviceSlot = DeviceSlot::at(0x4F6ADC); // byte_4F6ADC
 const MENU_MODE_RVA: usize = rva(0x4F4944); // dword_4F4944
 const RACE_MODE_RVA: usize = rva(0x4F4948); // dword_4F4948
 const MODE_FLAGS_RVA: usize = rva(0x4F4934); // g_screenModeFlags
@@ -104,12 +103,12 @@ fn pump() {
                 // The key-down table starts at the pending key and is indexed by the
                 // game's key code (0xFF down, as `sar al, 7` leaves it); a key that goes
                 // down, or repeats, is the pending key, as the key thread makes it.
-                let state = (game_addr(PENDING_KEY_RVA) as *mut u8).add(key as usize);
                 if event.key.down {
-                    state.write_volatile(0xFF);
-                    game_write(PENDING_KEY_RVA, key);
+                    DEVICES.set_key_state(key, 0xFF);
+                    crate::input::take_key::pending_key()
+                        .store(key, std::sync::atomic::Ordering::SeqCst);
                 } else {
-                    state.write_volatile(0);
+                    DEVICES.set_key_state(key, 0);
                 }
             }
         }

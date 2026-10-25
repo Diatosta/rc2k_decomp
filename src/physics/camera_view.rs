@@ -7,7 +7,8 @@
 //! `view_test_floats` (`rc2k_core::physics::camera_view`). What the variables are (the
 //! camera's mode, place, turns, a view's figures) is a reading.
 
-use crate::physics::flow::{g, p, x87_run};
+use crate::physics::flow::{g, p};
+use crate::scene::x87_mem::{fild, fstp};
 
 /// `off_606320`: the camera modes' records (0x34).
 pub const MODES: usize = 0x606320;
@@ -32,11 +33,55 @@ pub fn share_done(record: u32) -> u32 {
         eax = rd(record + 0x3C);
     }
     p(0x62400C, eax);
-    x87_run!(
-        "fild dword ptr [{rc} + 0x22400C]",
-        "fidiv dword ptr [{s} + 0x3C]",
-        "fstp dword ptr [{rc} + 0x205260]";
-        s = record, rc = crate::race::store::asm_base()
-    );
+    x87_1(crate::race::store::asm_base() as usize, record as usize);
     eax
+}
+
+// ---- the arithmetic that was x87 assembly ----
+
+/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
+/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `[rc + 0x205260] = int [rc + 0x22400C] / int [s + 0x3C]`
+fn x87_1(rc: usize, s: usize) {
+    unsafe {
+        let rc = rc as *mut u8;
+        let s = s as *const u8;
+        let t0 = fild(rc, 0x22400C);
+        let t1 = fild(s, 0x3C);
+        let t2 = t0 / t1;
+        fstp(rc, 0x205260, t2);
+    }
+}
+
+#[cfg(test)]
+mod asm_reference {
+    use super::*;
+    use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
+
+    // The original's instructions, one function per run.
+    reference!(ref_0(rc, s) "fild dword ptr [{rc} + 0x22400C]", "fidiv dword ptr [{s} + 0x3C]", "fstp dword ptr [{rc} + 0x205260]");
+
+    fn blocks() -> Vec<Block> {
+        vec![Block {
+            name: "camera_view line 35",
+            operands: vec![
+                Operand::Buffer {
+                    reads: &[(0x22400C, In::I)],
+                    writes: &[(0x205260, Out::F)],
+                },
+                Operand::Buffer {
+                    reads: &[(0x3C, In::I)],
+                    writes: &[],
+                },
+            ],
+            ulps: 0,
+            reference: |a| unsafe { ref_0(a[0], a[1]) },
+            plain: |a| x87_1(a[0], a[1]),
+        }]
+    }
+
+    #[test]
+    fn x87_blocks_matches_the_assembly() {
+        sparse(&blocks(), 1200, 100);
+    }
 }

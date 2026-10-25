@@ -342,23 +342,16 @@ pub unsafe fn draw_car(car: u32) -> Result<(), Refused> {
 }
 
 /// `sub_4616AA`'s nearness: `dword_71BA08` = (`dword_6415A4` - 0xA0000) / 0x140000 held to 0 ..
-/// 1 (`flt_5C5D90`, `flt_5C5D38`), `g_shine` (and `dword_5CCE78`) times 1 less it; the
-/// original's x87 run (`dword_62400C` left 0x140000).
+/// 1 (`flt_5C5D90`, `flt_5C5D38`), `g_shine` (and `dword_5CCE78`) times 1 less it (`dword_62400C`
+/// left 0x140000).
 unsafe fn nearness() {
+    use crate::math::x87_float::{ONE, int, ld, st, to_int};
     use crate::math::x87_load::below_or_unordered;
     unsafe {
         game_write(rva(0x62400C), 0xA_0000u32);
-        core::arch::asm!(
-            "fild dword ptr [{rc} + 0x2415A4]",
-            "fisub dword ptr [{rc} + 0x22400C]",
-            "mov dword ptr [{rc} + 0x22400C], 0x140000",
-            "fidiv dword ptr [{rc} + 0x22400C]",
-            "fstp dword ptr [{rc} + 0x31BA08]",
-            rc = in(reg) crate::race::store::asm_base(),
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-        );
+        let depth = int(game_read::<u32>(rva(0x6415A4)) as i32);
+        game_write(rva(0x62400C), 0x14_0000u32);
+        game_write(rva(0x71BA08), st((depth - int(0xA_0000)) / int(0x14_0000)));
         let near: u32 = game_read(rva(0x71BA08));
         // `fld zero; fld near; fcompp`: near below 0 (or no number) -> 0.
         if below_or_unordered(near, game_read(rva(0x5C5D90))) {
@@ -368,35 +361,22 @@ unsafe fn nearness() {
         if !below_or_unordered(near, game_read(rva(0x5C5D38))) {
             game_write(rva(0x71BA08), game_read::<u32>(rva(0x5C5D38)));
         }
-        core::arch::asm!(
-            ".byte 0xD9, 0xE8",
-            "fsub dword ptr [{rc} + 0x31BA08]",
-            "fimul dword ptr [{rc} + 0x1CCE74]",
-            "fist dword ptr [{rc} + 0x1CCE78]",
-            "fistp dword ptr [{rc} + 0x1CCE74]",
-            rc = in(reg) crate::race::store::asm_base(),
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-        );
+        let shine =
+            (ONE - ld(game_read(rva(0x71BA08)))) * int(game_read::<u32>(rva(0x5CCE74)) as i32);
+        let whole = to_int(shine);
+        game_write(rva(0x5CCE78), whole);
+        game_write(rva(0x5CCE74), whole);
     }
 }
 
 /// `sub_4616AA`'s size: 0x90 (into `dword_62400C`) times `dword_71BA08`, rounded (left in
 /// `dword_62400C`).
 unsafe fn near_size() -> u32 {
+    use crate::math::x87_float::{int, ld, to_int};
     unsafe {
-        game_write(rva(0x62400C), 0x90u32);
-        core::arch::asm!(
-            "fild dword ptr [{rc} + 0x22400C]",
-            "fmul dword ptr [{rc} + 0x31BA08]",
-            "fistp dword ptr [{rc} + 0x22400C]",
-            rc = in(reg) crate::race::store::asm_base(),
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-        );
-        game_read(rva(0x62400C))
+        let size = to_int(int(0x90) * ld(game_read(rva(0x71BA08))));
+        game_write(rva(0x62400C), size);
+        size as u32
     }
 }
 
@@ -475,5 +455,126 @@ pub unsafe fn draw_car_entry(entry: u32) -> Result<(), Refused> {
             game_read::<u32>(rva(0x641594)).wrapping_add(1),
         );
         draw_car_shined(car)
+    }
+}
+
+#[cfg(test)]
+mod asm_reference {
+    use super::*;
+    use crate::race::asm_test::{Rng, Saved, at_each_control_word, lock};
+
+    // The original blocks, verbatim (with the clamps between them).
+    pub(super) unsafe fn nearness_asm() {
+        use crate::math::x87_load::below_or_unordered;
+        unsafe {
+            game_write(rva(0x62400C), 0xA_0000u32);
+            core::arch::asm!(
+                "fild dword ptr [{rc} + 0x2415A4]",
+                "fisub dword ptr [{rc} + 0x22400C]",
+                "mov dword ptr [{rc} + 0x22400C], 0x140000",
+                "fidiv dword ptr [{rc} + 0x22400C]",
+                "fstp dword ptr [{rc} + 0x31BA08]",
+                rc = in(reg) crate::race::store::asm_base(),
+                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
+                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
+                options(nostack),
+            );
+            let near: u32 = game_read(rva(0x71BA08));
+            // `fld zero; fld near; fcompp`: near below 0 (or no number) -> 0.
+            if below_or_unordered(near, game_read(rva(0x5C5D90))) {
+                game_write(rva(0x71BA08), game_read::<u32>(rva(0x5C5D90)));
+            }
+            let near: u32 = game_read(rva(0x71BA08));
+            if !below_or_unordered(near, game_read(rva(0x5C5D38))) {
+                game_write(rva(0x71BA08), game_read::<u32>(rva(0x5C5D38)));
+            }
+            core::arch::asm!(
+                ".byte 0xD9, 0xE8",
+                "fsub dword ptr [{rc} + 0x31BA08]",
+                "fimul dword ptr [{rc} + 0x1CCE74]",
+                "fist dword ptr [{rc} + 0x1CCE78]",
+                "fistp dword ptr [{rc} + 0x1CCE74]",
+                rc = in(reg) crate::race::store::asm_base(),
+                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
+                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
+                options(nostack),
+            );
+        }
+    }
+
+    /// `sub_4616AA`'s size: 0x90 (into `dword_62400C`) times `dword_71BA08`, rounded (left in
+    /// `dword_62400C`).
+    pub(super) unsafe fn near_size_asm() -> u32 {
+        unsafe {
+            game_write(rva(0x62400C), 0x90u32);
+            core::arch::asm!(
+                "fild dword ptr [{rc} + 0x22400C]",
+                "fmul dword ptr [{rc} + 0x31BA08]",
+                "fistp dword ptr [{rc} + 0x22400C]",
+                rc = in(reg) crate::race::store::asm_base(),
+                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
+                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
+                options(nostack),
+            );
+            game_read(rva(0x62400C))
+        }
+    }
+
+    const PLACES: [usize; 8] = [
+        0x62400C, 0x6415A4, 0x71BA08, 0x5CCE78, 0x5CCE74, 0x5C5D90, 0x5C5D38, 0x6415A4,
+    ];
+
+    fn state() -> Vec<u32> {
+        PLACES
+            .iter()
+            .map(|&a| unsafe { game_read(rva(a)) })
+            .collect()
+    }
+
+    fn fill(r: &mut Rng) {
+        unsafe {
+            game_write(rva(0x62400C), 0xAAAA_AAAAu32);
+            // the depth is a whole number around the view's reach
+            game_write(rva(0x6415A4), (r.int() as u32) & 0x3F_FFFF);
+            game_write(rva(0x71BA08), r.float());
+            game_write(rva(0x5CCE78), 0xAAAA_AAAAu32);
+            game_write(rva(0x5CCE74), r.int() as u32);
+            game_write(rva(0x5C5D90), if r.below(4) == 0 { r.float() } else { 0 });
+            game_write(
+                rva(0x5C5D38),
+                if r.below(4) == 0 {
+                    r.float()
+                } else {
+                    0x3F80_0000
+                },
+            );
+        }
+    }
+
+    #[test]
+    fn nearness_and_size_match() {
+        let _l = lock();
+        let _saved = Saved::new(&PLACES);
+        let mut r = Rng(6);
+        at_each_control_word(|| {
+            for _ in 0..20000 {
+                let seed = r.0;
+                fill(&mut r);
+                let before = state();
+                unsafe { nearness_asm() };
+                let want = state();
+                let size_want = unsafe { near_size_asm() };
+                let want_size_place = state();
+                // again with the plain versions
+                r.0 = seed;
+                fill(&mut r);
+                assert_eq!(state(), before);
+                unsafe { nearness() };
+                assert_eq!(state(), want, "nearness from {before:x?}");
+                let size_got = unsafe { near_size() };
+                assert_eq!(size_got, size_want, "size from {before:x?}");
+                assert_eq!(state(), want_size_place);
+            }
+        });
     }
 }

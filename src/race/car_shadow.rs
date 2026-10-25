@@ -30,21 +30,20 @@ unsafe fn put(a: u32, v: u32) {
 
 /// `fldpi; fadd st, st; fadd v; fstp`: 2 pi plus a float.
 fn two_pi_plus(v: u32) -> u32 {
-    let (x, mut out) = ([v], 0u32);
-    unsafe {
-        core::arch::asm!(
-            "fldpi",
-            ".byte 0xD8, 0xC0",
-            "fadd dword ptr [{x}]",
-            "fstp dword ptr [{o}]",
-            x = in(reg) x.as_ptr(),
-            o = in(reg) &raw mut out,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-        );
-    }
-    out
+    use crate::math::x87::{Rounding, rounding};
+    use crate::math::x87_float::{X, ld, st};
+    // 2 x `fldpi`'s 64-bit pi plus v, rounded once: the f64 pi's double, plus what the
+    // 64-bit pi has above it (565 units of 2^-62, one less rounding down or chop).
+    let low = match rounding() {
+        Rounding::Down | Rounding::Chop => 564.0,
+        _ => 565.0,
+    } * 2f64.powi(-62)
+        * 2.0;
+    let (hi, v) = (2.0 * std::f64::consts::PI, ld(v).0);
+    let sum = hi + v;
+    let back = sum - hi;
+    let error = (hi - (sum - back)) + (v - back);
+    st(X(sum) + X(error + low))
 }
 
 /// `race::shadow_angles` (0x4581F3): the farthest point (`dword_643ABC`) swapped into the
@@ -126,6 +125,22 @@ pub unsafe fn shadow_hull() -> Result<(), Refused> {
     }
 }
 
+/// The circle's texture place of corner `k` of `n` into the work entry `e` (+0x10, +0x14):
+/// cos and sin of 2 pi k / n times `radius` plus `radius`, rounded to whole numbers, over
+/// `unit`.
+unsafe fn circle_place(e: u32, k: u32, n: u32, radius: u32, unit: u32) {
+    use crate::math::x87_float::{int, ld, st, to_int};
+    unsafe {
+        let angle = (int(k as i32) / int(n as i32)).times_pi();
+        let (sin, cos) = (angle + angle).sin_cos();
+        let (radius, unit) = (ld(radius), ld(unit));
+        let across = to_int(cos * radius + radius);
+        let down = to_int(sin * radius + radius);
+        put(e + 0x10, st(int(across) / unit));
+        put(e + 0x14, st(int(down) / unit));
+    }
+}
+
 /// `race::shadow_polygon` (0x45787F): the hull's points as new scene points (after the
 /// scene's, from `g_scenePointCount` + 0x10: x and z the record's, y `dword_641AA0`) and as
 /// the polygon's work entries (+0 the point, +0x18 white, +0x21 `dword_609328` / 2, +0x10 /
@@ -155,33 +170,7 @@ pub unsafe fn shadow_polygon() -> Result<(), Refused> {
             put(e + 0x18, 0x00FF_FFFF);
             ((e + 0x21) as *mut u8).write((game_read::<u32>(rva(0x609328)) >> 1) as u8);
             game_write(SCRATCH_RVA, k);
-            let v = [k, n, game_read(rva(0x641994)), game_read(rva(0x641998))];
-            core::arch::asm!(
-                "fild dword ptr [{v}]",
-                "fild dword ptr [{v} + 4]",
-                ".byte 0xDE, 0xF9",
-                "fldpi",
-                ".byte 0xDE, 0xC9",
-                ".byte 0xD8, 0xC0",
-                "fsincos",
-                "fmul dword ptr [{v} + 8]",
-                "fadd dword ptr [{v} + 8]",
-                "fistp dword ptr [{e} + 0x10]",
-                "fmul dword ptr [{v} + 8]",
-                "fadd dword ptr [{v} + 8]",
-                "fistp dword ptr [{e} + 0x14]",
-                "fild dword ptr [{e} + 0x10]",
-                "fdiv dword ptr [{v} + 12]",
-                "fstp dword ptr [{e} + 0x10]",
-                "fild dword ptr [{e} + 0x14]",
-                "fdiv dword ptr [{v} + 12]",
-                "fstp dword ptr [{e} + 0x14]",
-                v = in(reg) v.as_ptr(),
-                e = in(reg) e,
-                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-                options(nostack),
-            );
+            circle_place(e, k, n, game_read(rva(0x641994)), game_read(rva(0x641998)));
         }
         Ok(())
     }
@@ -206,33 +195,50 @@ unsafe fn inside_edge(n: u32) -> bool {
         let p = scene_point(n);
         game_write(rva(0x639824), get(p));
         game_write(rva(0x63982C), get(p + 8));
-        let status: u16;
-        core::arch::asm!(
-            "fild dword ptr [{rc} + 0x239824]",
-            "fild dword ptr [{rc} + 0x241948]",
-            ".byte 0xDE, 0xE9",
-            "fild dword ptr [{rc} + 0x241954]",
-            "fild dword ptr [{rc} + 0x24194C]",
-            ".byte 0xDE, 0xE9",
-            ".byte 0xDE, 0xC9",
-            "fild dword ptr [{rc} + 0x23982C]",
-            "fild dword ptr [{rc} + 0x24194C]",
-            ".byte 0xDE, 0xE9",
-            "fild dword ptr [{rc} + 0x241950]",
-            "fild dword ptr [{rc} + 0x241948]",
-            ".byte 0xDE, 0xE9",
-            ".byte 0xDE, 0xC9",
-            ".byte 0xDE, 0xE9",
-            ".byte 0xD9, 0xEE",
-            ".byte 0xDE, 0xD9",
-            "fnstsw ax",
-            rc = in(reg) crate::race::store::asm_base(),
-            out("ax") status,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-        );
-        status & 0x0100 != 0
+        use crate::math::x87_float::{X, compare, int};
+        let word = |a: usize| int(game_read::<u32>(rva(a)) as i32);
+        let first = (word(0x639824) - word(0x641948)) * (word(0x641954) - word(0x64194C));
+        let second = (word(0x63982C) - word(0x64194C)) * (word(0x641950) - word(0x641948));
+        // `fldz; fcompp`: above 0, or not a number (C0)
+        compare(X(0.0), first - second) & 0x0100 != 0
+    }
+}
+
+/// `sub_457CA8`'s arithmetic: the share of the edge's crossing (-(`dword_641978` x
+/// `dword_641984` - `dword_641980` x `dword_64197C`) over the difference of the two cross
+/// products, rounded to a float into `flt_639810` and used as read back), the crossing's
+/// place (x and z whole numbers into `dword_623F88` / `dword_623F90`) and the entry's
+/// texture floats (`flt_623FA8`, `flt_623FAC`) and two bytes (`dword_62419C`, `dword_6241AC`)
+/// shared the same way between the scene points `pa`, `pb` and the entries `ea`, `eb`;
+/// `dword_62400C` is left with the share's bits.
+unsafe fn crossing_block(pa: u32, pb: u32, ea: u32, eb: u32) {
+    use crate::math::x87_float::{int, ld, st, to_int};
+    unsafe {
+        let word = |a: usize| int(game_read::<u32>(rva(a)) as i32);
+        let first = word(0x641984) * word(0x641978) - word(0x641980) * word(0x64197C);
+        let second = word(0x64198C) * word(0x641978) - word(0x641988) * word(0x64197C);
+        let share = st(-(first / (second - first)));
+        game_write(rva(0x639810), share);
+        let share = ld(share);
+        // a + (b - a) x share
+        let whole = |a: u32, b: u32| {
+            to_int(int(get(a) as i32) + (int(get(b) as i32) - int(get(a) as i32)) * share)
+        };
+        game_write(rva(0x623F88), whole(pa, pb) as u32);
+        game_write(rva(0x623F90), whole(pa + 8, pb + 8) as u32);
+        let float = |a: u32, b: u32| st(ld(get(a)) + (ld(get(b)) - ld(get(a))) * share);
+        game_write(rva(0x623FA8), float(ea + 0x10, eb + 0x10));
+        game_write(rva(0x623FAC), float(ea + 0x14, eb + 0x14));
+        let byte = |a: u32, b: u32| {
+            let (a, b) = (
+                int(((a) as *const u8).read().into()),
+                int(((b) as *const u8).read().into()),
+            );
+            to_int(a + (b - a) * share) as u32
+        };
+        game_write(rva(0x62419C), byte(ea + 0x21, eb + 0x21));
+        game_write(rva(0x6241AC), byte(ea + 0x20, eb + 0x20));
+        game_write(rva(0x62400C), st(share));
     }
 }
 
@@ -261,85 +267,7 @@ unsafe fn edge_crossing(ea: u32, eb: u32, ed: u32) {
         w(0x641984, rd(0x641968).wrapping_sub(rd(0x641970)));
         w(0x641988, rd(0x64195C).wrapping_sub(rd(0x641960)));
         w(0x64198C, rd(0x64196C).wrapping_sub(rd(0x641970)));
-        core::arch::asm!(
-            "fild dword ptr [{rc} + 0x241978]",
-            "fild dword ptr [{rc} + 0x24197C]",
-            "fild dword ptr [{rc} + 0x241980]",
-            "fild dword ptr [{rc} + 0x241984]",
-            ".byte 0xD8, 0xCB",
-            ".byte 0xD9, 0xC9",
-            ".byte 0xD8, 0xCA",
-            ".byte 0xDE, 0xE9",
-            "fild dword ptr [{rc} + 0x241988]",
-            "fild dword ptr [{rc} + 0x24198C]",
-            ".byte 0xD8, 0xCC",
-            ".byte 0xD9, 0xC9",
-            ".byte 0xD8, 0xCB",
-            ".byte 0xDE, 0xE9",
-            ".byte 0xD8, 0xE1",
-            ".byte 0xDE, 0xF9",
-            ".byte 0xD9, 0xE0",
-            "fstp dword ptr [{rc} + 0x239810]",
-            "fstp dword ptr [{rc} + 0x22400C]",
-            "fstp dword ptr [{rc} + 0x22400C]",
-            "fld dword ptr [{rc} + 0x239810]",
-            "fild dword ptr [{pa}]",
-            "fild dword ptr [{pb}]",
-            ".byte 0xD8, 0xE1",
-            ".byte 0xD8, 0xCA",
-            ".byte 0xDE, 0xC1",
-            "fistp dword ptr [{rc} + 0x223F88]",
-            "fild dword ptr [{pa} + 8]",
-            "fild dword ptr [{pb} + 8]",
-            ".byte 0xD8, 0xE1",
-            ".byte 0xD8, 0xCA",
-            ".byte 0xDE, 0xC1",
-            "fistp dword ptr [{rc} + 0x223F90]",
-            "fld dword ptr [{ea} + 0x10]",
-            "fld dword ptr [{eb} + 0x10]",
-            ".byte 0xD8, 0xE1",
-            ".byte 0xD8, 0xCA",
-            ".byte 0xDE, 0xC1",
-            "fstp dword ptr [{rc} + 0x223FA8]",
-            "fld dword ptr [{ea} + 0x14]",
-            "fld dword ptr [{eb} + 0x14]",
-            ".byte 0xD8, 0xE1",
-            ".byte 0xD8, 0xCA",
-            ".byte 0xDE, 0xC1",
-            "fstp dword ptr [{rc} + 0x223FAC]",
-            "xor eax, eax",
-            "mov al, byte ptr [{ea} + 0x21]",
-            "mov dword ptr [{rc} + 0x22400C], eax",
-            "fild dword ptr [{rc} + 0x22400C]",
-            "mov al, byte ptr [{eb} + 0x21]",
-            "mov dword ptr [{rc} + 0x22400C], eax",
-            "fild dword ptr [{rc} + 0x22400C]",
-            ".byte 0xD8, 0xE1",
-            ".byte 0xD8, 0xCA",
-            ".byte 0xDE, 0xC1",
-            "fistp dword ptr [{rc} + 0x22419C]",
-            "xor eax, eax",
-            "mov al, byte ptr [{ea} + 0x20]",
-            "mov dword ptr [{rc} + 0x22400C], eax",
-            "fild dword ptr [{rc} + 0x22400C]",
-            "mov al, byte ptr [{eb} + 0x20]",
-            "mov dword ptr [{rc} + 0x22400C], eax",
-            "fild dword ptr [{rc} + 0x22400C]",
-            ".byte 0xD8, 0xE1",
-            ".byte 0xD8, 0xCA",
-            ".byte 0xDE, 0xC1",
-            "fistp dword ptr [{rc} + 0x2241AC]",
-            "fstp dword ptr [{rc} + 0x22400C]",
-            rc = in(reg) crate::race::store::asm_base(),
-            pa = in(reg) pa,
-            pb = in(reg) pb,
-            ea = in(reg) ea,
-            eb = in(reg) eb,
-            out("eax") _,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-        );
+        crossing_block(pa, pb, ea, eb);
         let n = rd(0x641990);
         let p = scene_point(n);
         put(p, rd(0x623F88));
@@ -588,19 +516,29 @@ pub unsafe fn shadow_faces() -> Result<(), Refused> {
 
 /// `fld tbyte; fstp dword`: 80 bits as a float.
 fn tbyte_to_float(t: [u8; 10]) -> u32 {
-    let mut out = 0u32;
+    crate::math::x87_float::st(crate::math::x87_float::from_f80(t))
+}
+
+/// The sun's slant from `sun` and `turn` (the angles as 128ths of a half turn): `flt_643AC4`
+/// = cos(turn) x cot(sun), `flt_643AC8` = sin(turn) x cot(sun); `dword_62400C` is left 0x80.
+unsafe fn sun_slant(sun: u32, turn: u32) {
+    use crate::math::x87_float::{int, st};
     unsafe {
-        core::arch::asm!(
-            "fld tbyte ptr [{t}]",
-            "fstp dword ptr [{o}]",
-            t = in(reg) t.as_ptr(),
-            o = in(reg) &raw mut out,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-        );
+        let cot = {
+            let (sin, cos) = (int(sun as i32) / int(0x80)).times_pi().sin_cos();
+            cos / sin
+        };
+        let (sin, cos) = (int(turn as i32) / int(0x80)).times_pi().sin_cos();
+        game_write(rva(0x643AC4), st(cos * cot));
+        game_write(rva(0x643AC8), st(cot * sin));
+        game_write(rva(0x62400C), 0x80u32);
     }
-    out
+}
+
+/// `fld x; fld z; fpatan; fstp`: the angle of the corner at `at` (x at +0, z at +8).
+unsafe fn angle_of(at: u32) -> u32 {
+    use crate::math::x87_float::{ld, st};
+    unsafe { st(ld(get(at)).atan2(ld(get(at + 8)))) }
 }
 
 /// `race::shadow_points` (0x458078): the shadow's points: the ground under the work car
@@ -638,38 +576,7 @@ pub unsafe fn shadow_points() -> Result<(), Refused> {
         let turn = game_read::<u32>(rva(0x609338))
             .wrapping_neg()
             .wrapping_sub(0x40);
-        let v = [sun, 0x80u32, turn];
-        core::arch::asm!(
-            "mov eax, dword ptr [{v}]",
-            "mov dword ptr [{rc} + 0x22400C], eax",
-            "fild dword ptr [{rc} + 0x22400C]",
-            "mov dword ptr [{rc} + 0x22400C], 0x80",
-            "fild dword ptr [{rc} + 0x22400C]",
-            ".byte 0xDE, 0xF9",
-            "fldpi",
-            ".byte 0xDE, 0xC9",
-            "fsincos",
-            ".byte 0xDE, 0xF1",
-            "mov eax, dword ptr [{v} + 8]",
-            "mov dword ptr [{rc} + 0x22400C], eax",
-            "fild dword ptr [{rc} + 0x22400C]",
-            "mov dword ptr [{rc} + 0x22400C], 0x80",
-            "fild dword ptr [{rc} + 0x22400C]",
-            ".byte 0xDE, 0xF9",
-            "fldpi",
-            ".byte 0xDE, 0xC9",
-            "fsincos",
-            ".byte 0xD8, 0xCA",
-            "fstp dword ptr [{rc} + 0x243AC4]",
-            ".byte 0xDE, 0xC9",
-            "fstp dword ptr [{rc} + 0x243AC8]",
-            rc = in(reg) crate::race::store::asm_base(),
-            v = in(reg) v.as_ptr(),
-            out("eax") _,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-        );
+        sun_slant(sun, turn);
         let (sx, sz) = (
             game_read::<u32>(rva(0x643AC4)),
             game_read::<u32>(rva(0x643AC8)),
@@ -691,18 +598,7 @@ pub unsafe fn shadow_points() -> Result<(), Refused> {
             put(at, x);
             let z = lifted(y, lift, sz, z);
             put(at + 8, z);
-            let mut angle = 0u32;
-            core::arch::asm!(
-                "fld dword ptr [{a}]",
-                "fld dword ptr [{a} + 8]",
-                "fpatan",
-                "fstp dword ptr [{o}]",
-                a = in(reg) at,
-                o = in(reg) &raw mut angle,
-                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-                options(nostack),
-            );
+            let angle = angle_of(at);
             put(at + 0xC, angle);
             let length = crate::math::x87_load::float_hypot(x, z);
             put(at + 0x10, length);
@@ -728,22 +624,8 @@ pub unsafe fn shadow_points() -> Result<(), Refused> {
 /// `fld y; fadd lift; fmul slant; fadd base; fstp`: a corner moved along the sun's slant,
 /// rounded once.
 fn lifted(y: u32, lift: u32, slant: u32, base: u32) -> u32 {
-    let (v, mut out) = ([y, lift, slant, base], 0u32);
-    unsafe {
-        core::arch::asm!(
-            "fld dword ptr [{v}]",
-            "fadd dword ptr [{v} + 4]",
-            "fmul dword ptr [{v} + 8]",
-            "fadd dword ptr [{v} + 12]",
-            "fstp dword ptr [{o}]",
-            v = in(reg) v.as_ptr(),
-            o = in(reg) &raw mut out,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-        );
-    }
-    out
+    use crate::math::x87_float::{ld, st};
+    st((ld(y) + ld(lift)) * ld(slant) + ld(base))
 }
 
 /// `race::cast_car_shadow` (0x4575C1): with three corners or more, the shadow's points, their
@@ -812,5 +694,507 @@ pub unsafe fn cast_car_shadows() -> Result<(), Refused> {
         }
         crate::scene::depth_test_on::depth_test_on();
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod asm_reference {
+    use super::*;
+
+    // The original blocks, verbatim.
+    pub(super) fn two_pi_plus_asm(v: u32) -> u32 {
+        let (x, mut out) = ([v], 0u32);
+        unsafe {
+            core::arch::asm!(
+                "fldpi",
+                ".byte 0xD8, 0xC0",
+                "fadd dword ptr [{x}]",
+                "fstp dword ptr [{o}]",
+                x = in(reg) x.as_ptr(),
+                o = in(reg) &raw mut out,
+                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
+                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
+                options(nostack),
+            );
+        }
+        out
+    }
+
+    pub(super) fn tbyte_to_float_asm(t: [u8; 10]) -> u32 {
+        let mut out = 0u32;
+        unsafe {
+            core::arch::asm!(
+                "fld tbyte ptr [{t}]",
+                "fstp dword ptr [{o}]",
+                t = in(reg) t.as_ptr(),
+                o = in(reg) &raw mut out,
+                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
+                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
+                options(nostack),
+            );
+        }
+        out
+    }
+
+    pub(super) fn lifted_asm(y: u32, lift: u32, slant: u32, base: u32) -> u32 {
+        let (v, mut out) = ([y, lift, slant, base], 0u32);
+        unsafe {
+            core::arch::asm!(
+                "fld dword ptr [{v}]",
+                "fadd dword ptr [{v} + 4]",
+                "fmul dword ptr [{v} + 8]",
+                "fadd dword ptr [{v} + 12]",
+                "fstp dword ptr [{o}]",
+                v = in(reg) v.as_ptr(),
+                o = in(reg) &raw mut out,
+                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
+                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
+                options(nostack),
+            );
+        }
+        out
+    }
+
+    pub(super) unsafe fn circle_place_asm(e: u32, k: u32, n: u32, radius: u32, unit: u32) {
+        let v = [k, n, radius, unit];
+        unsafe {
+            core::arch::asm!(
+                "fild dword ptr [{v}]",
+                "fild dword ptr [{v} + 4]",
+                ".byte 0xDE, 0xF9",
+                "fldpi",
+                ".byte 0xDE, 0xC9",
+                ".byte 0xD8, 0xC0",
+                "fsincos",
+                "fmul dword ptr [{v} + 8]",
+                "fadd dword ptr [{v} + 8]",
+                "fistp dword ptr [{e} + 0x10]",
+                "fmul dword ptr [{v} + 8]",
+                "fadd dword ptr [{v} + 8]",
+                "fistp dword ptr [{e} + 0x14]",
+                "fild dword ptr [{e} + 0x10]",
+                "fdiv dword ptr [{v} + 12]",
+                "fstp dword ptr [{e} + 0x10]",
+                "fild dword ptr [{e} + 0x14]",
+                "fdiv dword ptr [{v} + 12]",
+                "fstp dword ptr [{e} + 0x14]",
+                v = in(reg) v.as_ptr(),
+                e = in(reg) e,
+                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
+                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
+                options(nostack),
+            );
+        }
+    }
+
+    pub(super) unsafe fn inside_edge_asm(n: u32) -> bool {
+        unsafe {
+            let p = scene_point(n);
+            game_write(rva(0x639824), get(p));
+            game_write(rva(0x63982C), get(p + 8));
+            let status: u16;
+            core::arch::asm!(
+                "fild dword ptr [{rc} + 0x239824]",
+                "fild dword ptr [{rc} + 0x241948]",
+                ".byte 0xDE, 0xE9",
+                "fild dword ptr [{rc} + 0x241954]",
+                "fild dword ptr [{rc} + 0x24194C]",
+                ".byte 0xDE, 0xE9",
+                ".byte 0xDE, 0xC9",
+                "fild dword ptr [{rc} + 0x23982C]",
+                "fild dword ptr [{rc} + 0x24194C]",
+                ".byte 0xDE, 0xE9",
+                "fild dword ptr [{rc} + 0x241950]",
+                "fild dword ptr [{rc} + 0x241948]",
+                ".byte 0xDE, 0xE9",
+                ".byte 0xDE, 0xC9",
+                ".byte 0xDE, 0xE9",
+                ".byte 0xD9, 0xEE",
+                ".byte 0xDE, 0xD9",
+                "fnstsw ax",
+                rc = in(reg) crate::race::store::asm_base(),
+                out("ax") status,
+                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
+                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
+                options(nostack),
+            );
+            status & 0x0100 != 0
+        }
+    }
+
+    pub(super) unsafe fn crossing_block_asm(pa: u32, pb: u32, ea: u32, eb: u32) {
+        unsafe {
+            core::arch::asm!(
+                "fild dword ptr [{rc} + 0x241978]",
+                "fild dword ptr [{rc} + 0x24197C]",
+                "fild dword ptr [{rc} + 0x241980]",
+                "fild dword ptr [{rc} + 0x241984]",
+                ".byte 0xD8, 0xCB",
+                ".byte 0xD9, 0xC9",
+                ".byte 0xD8, 0xCA",
+                ".byte 0xDE, 0xE9",
+                "fild dword ptr [{rc} + 0x241988]",
+                "fild dword ptr [{rc} + 0x24198C]",
+                ".byte 0xD8, 0xCC",
+                ".byte 0xD9, 0xC9",
+                ".byte 0xD8, 0xCB",
+                ".byte 0xDE, 0xE9",
+                ".byte 0xD8, 0xE1",
+                ".byte 0xDE, 0xF9",
+                ".byte 0xD9, 0xE0",
+                "fstp dword ptr [{rc} + 0x239810]",
+                "fstp dword ptr [{rc} + 0x22400C]",
+                "fstp dword ptr [{rc} + 0x22400C]",
+                "fld dword ptr [{rc} + 0x239810]",
+                "fild dword ptr [{pa}]",
+                "fild dword ptr [{pb}]",
+                ".byte 0xD8, 0xE1",
+                ".byte 0xD8, 0xCA",
+                ".byte 0xDE, 0xC1",
+                "fistp dword ptr [{rc} + 0x223F88]",
+                "fild dword ptr [{pa} + 8]",
+                "fild dword ptr [{pb} + 8]",
+                ".byte 0xD8, 0xE1",
+                ".byte 0xD8, 0xCA",
+                ".byte 0xDE, 0xC1",
+                "fistp dword ptr [{rc} + 0x223F90]",
+                "fld dword ptr [{ea} + 0x10]",
+                "fld dword ptr [{eb} + 0x10]",
+                ".byte 0xD8, 0xE1",
+                ".byte 0xD8, 0xCA",
+                ".byte 0xDE, 0xC1",
+                "fstp dword ptr [{rc} + 0x223FA8]",
+                "fld dword ptr [{ea} + 0x14]",
+                "fld dword ptr [{eb} + 0x14]",
+                ".byte 0xD8, 0xE1",
+                ".byte 0xD8, 0xCA",
+                ".byte 0xDE, 0xC1",
+                "fstp dword ptr [{rc} + 0x223FAC]",
+                "xor eax, eax",
+                "mov al, byte ptr [{ea} + 0x21]",
+                "mov dword ptr [{rc} + 0x22400C], eax",
+                "fild dword ptr [{rc} + 0x22400C]",
+                "mov al, byte ptr [{eb} + 0x21]",
+                "mov dword ptr [{rc} + 0x22400C], eax",
+                "fild dword ptr [{rc} + 0x22400C]",
+                ".byte 0xD8, 0xE1",
+                ".byte 0xD8, 0xCA",
+                ".byte 0xDE, 0xC1",
+                "fistp dword ptr [{rc} + 0x22419C]",
+                "xor eax, eax",
+                "mov al, byte ptr [{ea} + 0x20]",
+                "mov dword ptr [{rc} + 0x22400C], eax",
+                "fild dword ptr [{rc} + 0x22400C]",
+                "mov al, byte ptr [{eb} + 0x20]",
+                "mov dword ptr [{rc} + 0x22400C], eax",
+                "fild dword ptr [{rc} + 0x22400C]",
+                ".byte 0xD8, 0xE1",
+                ".byte 0xD8, 0xCA",
+                ".byte 0xDE, 0xC1",
+                "fistp dword ptr [{rc} + 0x2241AC]",
+                "fstp dword ptr [{rc} + 0x22400C]",
+                rc = in(reg) crate::race::store::asm_base(),
+                pa = in(reg) pa,
+                pb = in(reg) pb,
+                ea = in(reg) ea,
+                eb = in(reg) eb,
+                out("eax") _,
+                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
+                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
+                options(nostack),
+            );
+        }
+    }
+
+    pub(super) unsafe fn sun_slant_asm(sun: u32, turn: u32) {
+        unsafe {
+            let v = [sun, 0x80u32, turn];
+            core::arch::asm!(
+                "mov eax, dword ptr [{v}]",
+                "mov dword ptr [{rc} + 0x22400C], eax",
+                "fild dword ptr [{rc} + 0x22400C]",
+                "mov dword ptr [{rc} + 0x22400C], 0x80",
+                "fild dword ptr [{rc} + 0x22400C]",
+                ".byte 0xDE, 0xF9",
+                "fldpi",
+                ".byte 0xDE, 0xC9",
+                "fsincos",
+                ".byte 0xDE, 0xF1",
+                "mov eax, dword ptr [{v} + 8]",
+                "mov dword ptr [{rc} + 0x22400C], eax",
+                "fild dword ptr [{rc} + 0x22400C]",
+                "mov dword ptr [{rc} + 0x22400C], 0x80",
+                "fild dword ptr [{rc} + 0x22400C]",
+                ".byte 0xDE, 0xF9",
+                "fldpi",
+                ".byte 0xDE, 0xC9",
+                "fsincos",
+                ".byte 0xD8, 0xCA",
+                "fstp dword ptr [{rc} + 0x243AC4]",
+                ".byte 0xDE, 0xC9",
+                "fstp dword ptr [{rc} + 0x243AC8]",
+                rc = in(reg) crate::race::store::asm_base(),
+                v = in(reg) v.as_ptr(),
+                out("eax") _,
+                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
+                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
+                options(nostack),
+            );
+        }
+    }
+
+    pub(super) unsafe fn angle_asm(at: u32) -> u32 {
+        unsafe {
+            let mut angle = 0u32;
+            core::arch::asm!(
+                "fld dword ptr [{a}]",
+                "fld dword ptr [{a} + 8]",
+                "fpatan",
+                "fstp dword ptr [{o}]",
+                a = in(reg) at,
+                o = in(reg) &raw mut angle,
+                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
+                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
+                options(nostack),
+            );
+            angle
+        }
+    }
+
+    use crate::race::asm_test::{Rng, Saved, at_each_control_word, lock, same, within_ulps};
+
+    #[test]
+    fn two_pi_plus_matches() {
+        let _l = lock();
+        let mut r = Rng(21);
+        at_each_control_word(|| {
+            for n in 0..40000 {
+                let v = if n % 2 == 0 {
+                    // the angles it is used for: below 0, above -2 pi
+                    (-(f64::from(r.u32()) / 4294967296.0 * std::f64::consts::TAU) as f32).to_bits()
+                } else {
+                    r.float()
+                };
+                let (want, got) = (two_pi_plus_asm(v), two_pi_plus(v));
+                assert!(same(want, got), "{v:#x}: {want:#x} {got:#x}");
+            }
+        });
+    }
+
+    #[test]
+    fn float_blocks_match() {
+        let _l = lock();
+        let mut r = Rng(22);
+        at_each_control_word(|| {
+            for _ in 0..20000 {
+                let t = crate::math::x87_float::f80(crate::math::x87_float::X(
+                    f64::from(f32::from_bits(r.float())) * f64::from(f32::from_bits(r.float())),
+                ));
+                let (want, got) = (tbyte_to_float_asm(t), tbyte_to_float(t));
+                assert!(same(want, got), "{t:x?}: {want:#x} {got:#x}");
+                let (y, l, sl, b) = (r.float(), r.float(), r.float(), r.float());
+                let (want, got) = (lifted_asm(y, l, sl, b), lifted(y, l, sl, b));
+                assert!(
+                    same(want, got),
+                    "{y:#x} {l:#x} {sl:#x} {b:#x}: {want:#x} {got:#x}"
+                );
+            }
+        });
+    }
+
+    #[test]
+    fn circle_place_matches() {
+        let _l = lock();
+        let mut r = Rng(23);
+        let mut worst = 0;
+        at_each_control_word(|| {
+            for _ in 0..20000 {
+                let n = 3 + r.below(0x3E);
+                let k = r.below(n);
+                let radius = r.float();
+                let unit = r.float();
+                let (mut a, mut b) = ([0xAAAA_AAAAu32; 8], [0xAAAA_AAAAu32; 8]);
+                unsafe {
+                    circle_place_asm(a.as_mut_ptr() as u32, k, n, radius, unit);
+                    circle_place(b.as_mut_ptr() as u32, k, n, radius, unit);
+                }
+                for w in [4, 5] {
+                    assert!(
+                        same(a[w], b[w]),
+                        "{k}/{n} {radius:#x} {unit:#x}: {:#x} {:#x}",
+                        a[w],
+                        b[w]
+                    );
+                    worst = worst.max(a[w].abs_diff(b[w]));
+                }
+                assert_eq!(a[..4], b[..4]);
+                assert_eq!(a[6..], b[6..]);
+            }
+        });
+        eprintln!("circle_place: worst difference {worst} ulps");
+    }
+
+    #[test]
+    fn inside_edge_matches() {
+        let _l = lock();
+        let places = [
+            0x639824, 0x63982C, 0x641948, 0x64194C, 0x641950, 0x641954, 0x5CCCC0,
+        ];
+        let _saved = Saved::new(&places);
+        let mut r = Rng(24);
+        let mut points = [0u32; 12];
+        let (mut yes, mut no) = (0, 0);
+        at_each_control_word(|| {
+            for _ in 0..20000 {
+                for q in points.iter_mut() {
+                    *q = r.int() as u32;
+                }
+                unsafe {
+                    game_write(rva(0x5CCCC0), points.as_ptr() as u32);
+                    for a in &places[2..6] {
+                        game_write(rva(*a), r.int() as u32);
+                    }
+                    game_write(rva(0x639824), 0xAAAA_AAAAu32);
+                    game_write(rva(0x63982C), 0xAAAA_AAAAu32);
+                }
+                let n = r.below(4);
+                let want = unsafe { inside_edge_asm(n) };
+                let seen = unsafe {
+                    (
+                        game_read::<u32>(rva(0x639824)),
+                        game_read::<u32>(rva(0x63982C)),
+                    )
+                };
+                unsafe {
+                    game_write(rva(0x639824), 0xAAAA_AAAAu32);
+                    game_write(rva(0x63982C), 0xAAAA_AAAAu32);
+                }
+                let got = unsafe { inside_edge(n) };
+                assert_eq!(want, got, "{points:x?} {n}");
+                assert_eq!(seen, unsafe {
+                    (
+                        game_read::<u32>(rva(0x639824)),
+                        game_read::<u32>(rva(0x63982C)),
+                    )
+                });
+                if want { yes += 1 } else { no += 1 }
+            }
+        });
+        assert!(yes > 1000 && no > 1000, "{yes} {no}");
+    }
+
+    #[test]
+    fn crossing_block_matches() {
+        let _l = lock();
+        let places = [
+            0x62400C, 0x641978, 0x64197C, 0x641980, 0x641984, 0x641988, 0x64198C, 0x639810,
+            0x623F88, 0x623F90, 0x623FA8, 0x623FAC, 0x62419C, 0x6241AC,
+        ];
+        let _saved = Saved::new(&places);
+        let mut r = Rng(25);
+        at_each_control_word(|| {
+            for _ in 0..20000 {
+                let small = r.below(2) == 0;
+                for a in &places[1..7] {
+                    let v = if small {
+                        r.below(200) as i32 - 100
+                    } else {
+                        r.int()
+                    };
+                    unsafe { game_write(rva(*a), v as u32) };
+                }
+                let point = |r: &mut Rng| [r.int() as u32, r.u32(), r.int() as u32];
+                let (pa, pb) = (point(&mut r), point(&mut r));
+                let entry = |r: &mut Rng| {
+                    let mut e = [0u32; 10];
+                    for (k, q) in e.iter_mut().enumerate() {
+                        *q = if (4..6).contains(&k) {
+                            r.float()
+                        } else {
+                            r.u32()
+                        };
+                    }
+                    e
+                };
+                let (ea, eb) = (entry(&mut r), entry(&mut r));
+                let args = (
+                    pa.as_ptr() as u32,
+                    pb.as_ptr() as u32,
+                    ea.as_ptr() as u32,
+                    eb.as_ptr() as u32,
+                );
+                let read = || places.map(|a| unsafe { game_read::<u32>(rva(a)) });
+                for a in &places[7..] {
+                    unsafe { game_write(rva(*a), 0xAAAA_AAAAu32) };
+                }
+                unsafe { crossing_block_asm(args.0, args.1, args.2, args.3) };
+                let want = read();
+                for a in &places[7..] {
+                    unsafe { game_write(rva(*a), 0xAAAA_AAAAu32) };
+                }
+                unsafe { game_write(rva(0x62400C), 0xAAAA_AAAAu32) };
+                unsafe { crossing_block(args.0, args.1, args.2, args.3) };
+                let got = read();
+                for k in 0..places.len() {
+                    assert!(
+                        same(want[k], got[k]),
+                        "place {:#x}: {:#x} {:#x} (inputs {:x?})",
+                        places[k],
+                        want[k],
+                        got[k],
+                        &want[1..7]
+                    );
+                }
+            }
+        });
+    }
+
+    #[test]
+    fn sun_slant_and_angle_match() {
+        let _l = lock();
+        let _saved = Saved::new(&[0x62400C, 0x643AC4, 0x643AC8]);
+        let mut r = Rng(26);
+        let mut worst = 0;
+        at_each_control_word(|| {
+            for _ in 0..20000 {
+                let sun = 0x10 + r.below(0x400);
+                let turn = (r.below(0x800) as i32 - 0x400) as u32;
+                // At a multiple of a quarter turn (sun 0x40, ...) the sine or the cosine is
+                // about 1e-16: the x87 reduces by a 66-bit pi, libm exactly, so those few
+                // digits differ (flt_643AC4 and flt_643AC8 are then about 1e-17 or 1e16 in
+                // the original, whatever the processor). Left out here, reported.
+                if sun.is_multiple_of(64) || turn.is_multiple_of(64) {
+                    continue;
+                }
+                unsafe { sun_slant_asm(sun, turn) };
+                let want =
+                    unsafe { [0x62400C, 0x643AC4, 0x643AC8].map(|a| game_read::<u32>(rva(a))) };
+                unsafe {
+                    for a in [0x62400C, 0x643AC4, 0x643AC8] {
+                        game_write(rva(a), 0xAAAA_AAAAu32);
+                    }
+                    sun_slant(sun, turn);
+                }
+                let got =
+                    unsafe { [0x62400C, 0x643AC4, 0x643AC8].map(|a| game_read::<u32>(rva(a))) };
+                assert_eq!(want[0], got[0]);
+                for k in 1..3 {
+                    assert!(
+                        within_ulps(want[k], got[k], 1),
+                        "{sun:#x} {turn:#x}: {:#x} {:#x}",
+                        want[k],
+                        got[k]
+                    );
+                    worst = worst.max(want[k].abs_diff(got[k]));
+                }
+                // the angle
+                let at = [r.float(), r.float(), r.float()];
+                let (want, got) =
+                    unsafe { (angle_asm(at.as_ptr() as u32), angle_of(at.as_ptr() as u32)) };
+                assert!(within_ulps(want, got, 1), "{at:x?}: {want:#x} {got:#x}");
+                worst = worst.max(want.abs_diff(got));
+            }
+        });
+        eprintln!("sun_slant, angle_of: worst difference {worst} ulps");
     }
 }

@@ -3,32 +3,22 @@
 //! milliseconds, `dword_5124F4` the turns counted. `sound::start_race_clock` (0x40F1E9)
 //! sets it going and `sound::step_race_clock` (0x40F20E) says whether a turn is due.
 
-use crate::sound::store::ClockSlot;
-use crate::store::{game_read, game_write};
-
-pub const LAST_RVA: ClockSlot = ClockSlot::at(0x5124E8); // dword_5124E8
-pub const RATE_RVA: ClockSlot = ClockSlot::at(0x5124EC); // dword_5124EC
-pub const STEP_RVA: ClockSlot = ClockSlot::at(0x5124F0); // dword_5124F0
-pub const TURNS_RVA: ClockSlot = ClockSlot::at(0x5124F4); // dword_5124F4
+use crate::sound::store::RACE_CLOCK as C;
 
 fn load() -> rc2k_core::sound::clock::RaceClock {
-    unsafe {
-        rc2k_core::sound::clock::RaceClock {
-            last: game_read(LAST_RVA),
-            turns_a_second: f32::from_bits(game_read(RATE_RVA)),
-            step: game_read(STEP_RVA),
-            turns: game_read(TURNS_RVA),
-        }
+    rc2k_core::sound::clock::RaceClock {
+        last: C.last.get(),
+        turns_a_second: C.turns_a_second.get(),
+        step: C.step.get(),
+        turns: C.turns.get(),
     }
 }
 
 fn store(c: &rc2k_core::sound::clock::RaceClock) {
-    unsafe {
-        game_write(LAST_RVA, c.last);
-        game_write(RATE_RVA, c.turns_a_second.to_bits());
-        game_write(STEP_RVA, c.step);
-        game_write(TURNS_RVA, c.turns);
-    }
+    C.last.set(c.last);
+    C.turns_a_second.set(c.turns_a_second);
+    C.step.set(c.step);
+    C.turns.set(c.turns);
 }
 
 /// `sound::start_race_clock` (0x40F1E9). Converted: `rc2k_core::sound::clock`.

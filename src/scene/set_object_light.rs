@@ -24,7 +24,7 @@
 
 use crate::errors::Refused;
 use crate::framework::rva;
-use crate::input::store::DeviceSlot;
+use crate::input::store::DEVICES;
 use crate::scene::add_car_light::add_car_light;
 use crate::scene::add_car_lights::{DRAWN_CAR_RVA, add_car_lights};
 use crate::scene::add_point_lights::{LIGHT_COLOUR_RVA, LIT_PLACE_RVA, add_point_lights};
@@ -37,7 +37,6 @@ use crate::store::{game_read, game_write};
 const ADDED_RVA: usize = rva(0x635068); // dword_635068
 const KIND_RVA: usize = rva(0x62DAF4); // g_lightKind
 const STRENGTH_RVA: usize = rva(0x635090); // g_lightStrength
-const KEY_RVA: DeviceSlot = DeviceSlot::at(0x4F6B74); // byte_4F6B74
 const PLACE_RVA: usize = rva(0x63501C); // dword_63501C, dword_635020, dword_635024
 const BASE_RVA: usize = rva(0x635054); // dword_635054
 const THIS_CAR_RVA: usize = rva(0x60627C); // dword_60627C
@@ -52,18 +51,19 @@ pub unsafe fn set_object_light(
     unsafe {
         use rc2k_core::scene::lamps::{ObjectLight, WHITE, object_light};
         game_write(ADDED_RVA, 0u32);
-        let (clear_strength, own_car) =
-            match object_light(game_read(KIND_RVA), || game_read::<u8>(KEY_RVA) != 0) {
-                ObjectLight::White => {
-                    game_write(ADDED_RVA, WHITE);
-                    return Ok(());
-                }
-                ObjectLight::Gathered {
-                    clear_strength,
-                    own_car,
-                } => (clear_strength, own_car),
-                ObjectLight::Nothing => return Ok(()),
-            };
+        let (clear_strength, own_car) = match object_light(game_read(KIND_RVA), || {
+            DEVICES.keys_now.get(0x18) != 0 // byte_4F6B74
+        }) {
+            ObjectLight::White => {
+                game_write(ADDED_RVA, WHITE);
+                return Ok(());
+            }
+            ObjectLight::Gathered {
+                clear_strength,
+                own_car,
+            } => (clear_strength, own_car),
+            ObjectLight::Nothing => return Ok(()),
+        };
         if clear_strength {
             game_write(STRENGTH_RVA, 0u32);
         }

@@ -17,21 +17,18 @@ use crate::drive::race_parts::{
     input_update, race_frame, race_keys, stop_race_sounds, take_key, wake_car_sounds,
 };
 use crate::errors::Refused;
-use crate::input::store::DeviceSlot;
-use crate::physics::flow::{a, g, p};
+use crate::input::store::DEVICES;
+use crate::physics::flow::{g, p};
 use crate::session::FLAGS;
 use rc2k_core::drive::race_ticks;
 
 const B: usize = 0x70F3EC;
-const KEYS: DeviceSlot = DeviceSlot::at(0x4F6CDC); // g_keysPressed
 
 /// Whether a key ends the pause: any of 1 .. 0x7F but 0x1D, 0x38, 0x0F, 0x3B .. 0x44, 0x57.
 fn any_ending_key() -> u32 {
     (1..0x80usize)
         .filter(|&k| race_ticks::ends_pause(k))
-        .fold(0u32, |o, k| {
-            o | unsafe { (a(KEYS + k) as *const u8).read() } as u32
-        })
+        .fold(0u32, |o, k| o | DEVICES.keys_pressed.get(k) as u32)
 }
 
 /// The Rust version.
