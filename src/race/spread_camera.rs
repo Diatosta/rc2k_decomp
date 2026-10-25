@@ -13,7 +13,8 @@
 //! is written.
 
 use crate::errors::Refused;
-use crate::race::viewer::{BLOCK, BLOCKS, get};
+use crate::race::replay_file_store::REPLAY_FILE;
+use crate::race::viewer_state_store::REPLAY_VIEW;
 
 /// The Rust version: `byte` the changed camera byte's address, `old` its old value. What
 /// the original leaves (dl, eax, ecx) its callers do not read: `viewer_action` and the
@@ -21,7 +22,10 @@ use crate::race::viewer::{BLOCK, BLOCKS, get};
 pub unsafe fn spread_camera(byte: u32, old: u8) -> Result<(), Refused> {
     let at = |n: u32| (byte.wrapping_add(n.wrapping_mul(8))) as *mut u8;
     let dl = unsafe { (byte as *const u8).read() };
-    let count = get(BLOCKS).wrapping_sub(get(BLOCK));
+    let count = REPLAY_FILE
+        .index_block_count
+        .get()
+        .wrapping_sub(REPLAY_VIEW.replay_block.get());
     // Converted: `rc2k_core::race::viewer::spread` (how far it goes, first).
     let s = rc2k_core::race::viewer::spread(count, old, |n| unsafe { at(n).read() })?;
     for n in 1..=s.taken {

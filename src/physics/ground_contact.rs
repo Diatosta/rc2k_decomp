@@ -24,11 +24,11 @@
 
 use crate::errors::Refused;
 use crate::physics::car_store::CAR;
-use crate::physics::contact_force::{RECORD, contact_force};
+use crate::physics::contact_force::contact_force;
 use crate::physics::contact_store::CONTACT_WORK;
 use crate::physics::crash_contact::{point_number, sign, take_contact};
 use crate::physics::feel_ground::feel_ground;
-use crate::physics::flow::{copy_cells, p};
+use crate::physics::flow::copy_cells;
 use crate::physics::lowest_body_point::lowest_body_point;
 use crate::physics::place_sound_e1::place_sound_e1;
 use crate::physics::restore_saved_car::restore_saved_car;
@@ -50,7 +50,9 @@ fn steps() -> Result<(), Refused> {
     CAR.contact_point[2].set_bits(CAR.probe_point_z[n].bits());
     take_contact(n);
     CONTACT_WORK.contact_slide_limit.set_bits(0);
-    p(RECORD, PHYSICS.contacts[2].force[0].addr() as u32);
+    PHYSICS
+        .contact_record
+        .set(PHYSICS.contacts[2].force[0].addr() as u32);
     unsafe { contact_force() };
     unsafe { place_sound_e1() }?;
     if let Some(hit) = rc2k_core::physics::walls::raised_hit(

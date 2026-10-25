@@ -17,9 +17,9 @@
 use crate::errors::Refused;
 use crate::math::x87_run::compare_80;
 use crate::physics::car_store::CAR;
-use crate::physics::contact_force::{RECORD, contact_force};
+use crate::physics::contact_force::contact_force;
 use crate::physics::contact_store::CONTACT_WORK;
-use crate::physics::flow::{a, copy_cells, fill_cells, negate, p};
+use crate::physics::flow::{a, copy_cells, fill_cells, negate};
 use crate::physics::tables_store::PHYSICS;
 use crate::physics::vector_length::vector_length;
 use crate::race::norms::normalise_work_vector;
@@ -48,7 +48,7 @@ pub fn steps() -> Result<(), Refused> {
     copy_cells(&CONTACT_WORK.contact_turn_speed, &CAR.spin);
     fill_cells(&CONTACT_WORK.contact_point, 0);
     CONTACT_WORK.contact_slide_limit.set_bits(0);
-    p(RECORD, a(&PHYSICS.contacts[4].force[0]));
+    PHYSICS.contact_record.set(a(&PHYSICS.contacts[4].force[0]));
     unsafe { contact_force() };
     unsafe { crate::physics::place_sound_e1::place_sound_e1() }?;
     PHYSICS.wall_heading.set(u32::MAX);

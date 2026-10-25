@@ -3,22 +3,14 @@
 //! runs; its angles kept in a second table at esi.
 
 use crate::errors::{BadInput, Refused};
-use crate::marks::masks::{RUN_COUNT_RVA, RUNS_RVA};
+use crate::marks::mask_constants::MASK_CONSTANTS;
+use crate::marks::mask_vars::MASKS;
 use crate::marks::spans::{span_quad, spans_fit, triangle_rows};
-use crate::marks::store::{Slot, game_addr, game_read, game_write};
-use crate::math::x87;
 
-pub const CORNERS_RVA: Slot = Slot::at(0x82E422); // g_marksRingCorners: the corner table in use
-const SCALES_RVA: Slot = Slot::at(0x89C9B0); // flt_89C9B0, flt_89C9B4, flt_89C9B8
-/// The ring's floats: 0x833D82 the two angles' ends .. 0x833DAE the step.
-const ENDS_RVA: Slot = Slot::at(0x833D82); // flt_833D82, flt_833D86
-const HALF_RVA: Slot = Slot::at(0x833D8E); // flt_833D8E
-const MIDDLE_RVA: Slot = Slot::at(0x833D8A); // flt_833D8A
-const ANGLES_RVA: Slot = Slot::at(0x833D92); // flt_833D92, flt_833D96
-const TURNS_RVA: Slot = Slot::at(0x833D9A); // flt_833D9A .. flt_833DA6
-pub const QUAD_RVA: Slot = Slot::at(0x833D5E); // g_marksRingQuad
-const ANGLE_RVA: Slot = Slot::at(0x833DAA); // dword_833DAA
-const STEP_RVA: Slot = Slot::at(0x833DAE); // flt_833DAE
+use crate::math::x87;
+use crate::session::{read_bits, write_bits};
+
+/// The ring's floats are `MASKS.ring_*` (0x833D82 the two angles' ends .. 0x833DAE the step).
 pub const MOST_QUADS: u32 = 0x80;
 const ENTRY: u32 = 0x18;
 
@@ -44,18 +36,18 @@ unsafe fn quad(corners: u32, k: u32) -> [u32; 8] {
 /// (section 16), and that spanned (`span_quad`). `s` the shape.
 unsafe fn span_ring_quad(s: u32, k: u32) -> Result<(), Refused> {
     unsafe {
-        let [a1, a2]: [u32; 2] = game_read(ANGLES_RVA);
+        let [a1, a2]: [u32; 2] = read_bits(&MASKS.ring_angles);
         let turns = [
             x87::sine(a1),
             x87::cosine(a1, true),
             x87::sine(a2),
             x87::cosine(a2, true),
         ];
-        game_write(TURNS_RVA, turns);
+        write_bits(&MASKS.ring_turns, turns);
         let (r1, r2, cx, cy) = (get(s + 0x1C), get(s + 0x20), get(s + 0xC), get(s + 0x10));
         let [s1, c1, s2, c2] = turns;
-        game_write(
-            QUAD_RVA,
+        write_bits(
+            &MASKS.ring_quad,
             [
                 x87::mul_add(r1, s1, cx),
                 x87::mul_add(r1, c1, cy),
@@ -67,9 +59,9 @@ unsafe fn span_ring_quad(s: u32, k: u32) -> Result<(), Refused> {
                 x87::mul_add(r2, c1, cy),
             ],
         );
-        let corners: u32 = game_read(CORNERS_RVA);
-        game_write(QUAD_RVA, quad(corners, k));
-        span_quad(game_addr(QUAD_RVA) as u32)?;
+        let corners: u32 = MASKS.ring_corners.get();
+        write_bits(&MASKS.ring_quad, quad(corners, k));
+        span_quad(MASKS.ring_quad.as_ptr() as u32)?;
     }
     Ok(())
 }
@@ -88,7 +80,7 @@ pub unsafe fn span_ring(s: u32, angles: u32) -> Result<(), Refused> {
         if n <= 0 || n > MOST_QUADS as i32 {
             return Err(BadInput("a ring of no quads or more than 0x80").into());
         }
-        let corners: u32 = game_read(CORNERS_RVA);
+        let corners: u32 = MASKS.ring_corners.get();
         let mut rows = Some(0u32);
         for k in 0..n as u32 {
             let q = quad(corners, k);
@@ -103,28 +95,25 @@ pub unsafe fn span_ring(s: u32, angles: u32) -> Result<(), Refused> {
             }
         }
         spans_fit(2 * n as u32, rows)?;
-        game_write(
-            RUN_COUNT_RVA,
-            game_read::<u32>(RUN_COUNT_RVA).wrapping_add(1),
-        );
-        put(s + 8, game_read(RUNS_RVA));
-        let scales: [u32; 3] = game_read(SCALES_RVA);
+        MASKS.run_count.set(MASKS.run_count.get().wrapping_add(1));
+        put(s + 8, MASKS.runs.get());
+        let scales: [u32; 3] = read_bits(&MASK_CONSTANTS.ring_scales);
         let ends = [
             x87::mul(get(s + 0x14), scales[0]),
             x87::mul(get(s + 0x18), scales[1]),
         ];
-        game_write(ENDS_RVA, ends);
+        write_bits(&MASKS.ring_ends, ends);
         let (half, middle) = x87::half_and_middle(ends[1], ends[0], scales[2]);
-        game_write(HALF_RVA, half);
-        game_write(MIDDLE_RVA, middle);
+        MASKS.ring_half.set_bits(half);
+        MASKS.ring_middle.set_bits(middle);
         let mut angle = 0u32;
-        game_write(ANGLE_RVA, angle);
+        MASKS.ring_angle.set(angle);
         let step = x87::pi_over(n);
-        game_write(STEP_RVA, step);
+        MASKS.ring_step.set_bits(step);
         for k in 0..n as u32 {
             let a1 = x87::less_cosine(angle, None, half, middle);
             let a2 = x87::less_cosine(angle, Some(step), half, middle);
-            game_write(ANGLES_RVA, [a1, a2]);
+            write_bits(&MASKS.ring_angles, [a1, a2]);
             for (o, a) in [(0, a1), (8, a2)] {
                 put(table + o + 4, x87::cosine(a, false));
                 put(table + o, x87::sine(a));
@@ -134,7 +123,7 @@ pub unsafe fn span_ring(s: u32, angles: u32) -> Result<(), Refused> {
             table += 8;
             span_ring_quad(s, k)?;
             angle = x87::add(angle, step);
-            game_write(ANGLE_RVA, angle);
+            MASKS.ring_angle.set(angle);
         }
     }
     Ok(())

@@ -2,21 +2,14 @@
 //! three rows scaled to set lengths, and two cosine-eased steps.
 
 use crate::framework::rva;
-use crate::marks::store::{Slot, game_addr, game_read, game_write};
+use crate::marks::mask_constants::MASK_CONSTANTS;
+use crate::marks::mask_vars::MASKS;
+use crate::marks::store::game_write;
 use crate::math::x87;
 
 /// The 2 x 2 turn: `flt_82E396`, `flt_82E39A`, `flt_82E3A2`, `flt_82E3A6`.
-pub const TURN_RVA: [Slot; 4] = [
-    Slot::at(0x82E396),
-    Slot::at(0x82E39A),
-    Slot::at(0x82E3A2),
-    Slot::at(0x82E3A6),
-];
+// (`MASKS.turn`'s elements 0, 1, 3 and 4, in a 3 x 3 matrix.)
 /// The three rows' lengths for `scale_rows3`.
-const LENGTHS_RVA: Slot = Slot::at(0x89CA24); // flt_89CA24 .. flt_89CA2C
-const EASE_RVA: Slot = Slot::at(0x89C9C0); // flt_89C9C0
-const STEPS_RVA: [Slot; 2] = [Slot::at(0x89C9C4), Slot::at(0x89C9C8)]; // dword_89C9C4, dword_89C9C8
-const SCRATCH_RVA: Slot = Slot::at(0x764F40); // dword_764F40
 const SCRATCH_2_RVA: usize = rva(0x71C880); // dword_71C880
 
 unsafe fn get(at: u32) -> u32 {
@@ -34,10 +27,10 @@ pub unsafe fn set_line_turn(line: u32, back: bool) {
         } else {
             x87::negated_sub(get(line + 0x10), get(line + 4))
         };
-        game_write(TURN_RVA[0], dx);
-        game_write(TURN_RVA[2], dy);
-        game_write(TURN_RVA[1], x87::negated(dy));
-        game_write(TURN_RVA[3], x87::loaded(dx));
+        MASKS.turn[0].set_bits(dx);
+        MASKS.turn[3].set_bits(dy);
+        MASKS.turn[1].set_bits(x87::negated(dy));
+        MASKS.turn[4].set_bits(x87::loaded(dx));
     }
 }
 
@@ -48,7 +41,7 @@ pub unsafe fn scale_rows3(rows: u32) {
         for n in 0..3 {
             x87::scale_row(
                 (rows + 12 * n) as *mut u32,
-                game_read(LENGTHS_RVA + 4 * n as usize),
+                MASK_CONSTANTS.row_lengths[n as usize].bits(),
             );
         }
     }
@@ -60,16 +53,16 @@ pub unsafe fn scale_rows3(rows: u32) {
 /// `dword_764F40` and `dword_71C880` left holding a.
 pub unsafe fn smooth_steps(n: u32, a: u32, b: u32) -> (u32, u32) {
     unsafe {
-        game_write(SCRATCH_RVA, a);
+        crate::marks::shape_points::SHAPE_INPUTS.scratch.set(a);
         game_write(SCRATCH_2_RVA, a);
     }
     smooth_pair(n, a, b)
 }
 /// `smooth_steps`' two results (ecx, ebx) from step n, a and b, writing nothing.
 pub fn smooth_pair(n: u32, a: u32, b: u32) -> (u32, u32) {
-    unsafe {
-        let t = x87::sub_mul(b, a, game_read(EASE_RVA));
-        let steps: [i32; 2] = STEPS_RVA.map(|r| game_read(r));
+    {
+        let t = x87::sub_mul(b, a, MASK_CONSTANTS.ease.bits());
+        let steps: [i32; 2] = MASK_CONSTANTS.steps.each_ref().map(|c| c.get() as i32);
         (
             x87::cosine_step(steps[0], n.wrapping_add(1) as i32, t, a),
             x87::cosine_step(steps[1], n as i32, t, a),
@@ -82,7 +75,7 @@ pub fn smooth_pair(n: u32, a: u32, b: u32) -> (u32, u32) {
 /// and `faddp`s). Every register kept.
 pub unsafe fn turn_pair(inputs: [[u8; 10]; 2]) -> [[u8; 10]; 2] {
     let mut out = [[0u8; 10]; 2];
-    let m = game_addr(TURN_RVA[0]) as u32;
+    let m = MASKS.turn.as_ptr() as u32;
     unsafe {
         turn_pair_x87(
             inputs.as_ptr() as usize,
@@ -92,10 +85,6 @@ pub unsafe fn turn_pair(inputs: [[u8; 10]; 2]) -> [[u8; 10]; 2] {
     };
     out
 }
-
-/// `clamp_pair`'s four scales: `flt_89C9FC`, `flt_89CA00` (in), `flt_89CA04`, `flt_89CA08`
-/// (out).
-pub const PAIR_SCALES_RVA: Slot = Slot::at(0x89C9FC);
 
 /// `fld tbyte; fmul; fistp` for st(0) then st(1): their whole-number scalings.
 fn scaled_ints(inputs: &[[u8; 10]; 2], k: *const u32) -> (i32, i32) {
@@ -127,7 +116,7 @@ fn int_over_80(v: i32, k: *const u32) -> [u8; 10] {
 /// `flt_89CA00` (a); a held to 0 .. 0xFFFF and b to 0 .. 0x7FFF; then st(1) a over
 /// `flt_89CA04` and st(0) b over `flt_89CA08`, unrounded.
 pub unsafe fn clamp_pair(inputs: [[u8; 10]; 2]) -> [[u8; 10]; 2] {
-    let k = game_addr(PAIR_SCALES_RVA) as *const u32;
+    let k = MASK_CONSTANTS.pair_scales.as_ptr() as *const u32;
     let (b, a) = scaled_ints(&inputs, k);
     let b = b.clamp(0, 0x7FFF);
     let a = a.clamp(0, 0xFFFF);

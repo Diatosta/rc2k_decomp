@@ -18,16 +18,13 @@
 use crate::errors::{BadInput, Refused};
 use crate::framework::rva;
 use crate::marks::clip_quad::{clip_quad, draw_fan};
-use crate::marks::store::{Slot, game_addr, game_read, game_write};
+use crate::marks::frame_state::DRAW_WORK;
+use crate::marks::store::{game_addr, game_read, game_write};
 use crate::math::x87;
 use crate::scene::draw_store::DRAW;
 use crate::scene::matrix3::rounded;
+use crate::session::Float;
 
-const PLACE_RVA: Slot = Slot::at(0x8EB8D5); // flt_8EB8D5 .. flt_8EB8DD
-const NEAR_RVA: Slot = Slot::at(0x8EB961); // dword_8EB961
-const UV_RVA: Slot = Slot::at(0x93A21A); // flt_93A21A .. flt_93A236
-const HALF_RVA: Slot = Slot::at(0x8EB8BD); // dword_8EB8BD .. dword_8EB8C9
-const Z_K_RVA: Slot = Slot::at(0x8EB96D); // flt_8EB96D
 const VERTICES_RVA: usize = rva(0x9605A0); // g_polygonVertices: TLVertex[4]
 const SINES_RVA: usize = rva(0xA23AE4); // g_sines
 const COSINES_RVA: usize = rva(0xA24AE4); // g_cosines: 0x1000 entries
@@ -47,15 +44,15 @@ pub unsafe fn draw_turned_sprite(
     unsafe {
         let [a, b, c] = place.map(rounded);
         // clip_quad's refusal (no settings) before anything is written.
-        if (c as i32) > game_read::<i32>(NEAR_RVA)
+        if (c as i32) > DRAW_WORK.near.bits() as i32
             && crate::marks::setup::SETTINGS.pointer.get() == 0
         {
             return Err(BadInput("no marks settings").into());
         }
         for (n, v) in [a, b, c].into_iter().enumerate() {
-            game_write(PLACE_RVA + 4 * n, v);
+            DRAW_WORK.turned[n].set_bits(v);
         }
-        if (c as i32) <= game_read::<i32>(NEAR_RVA) {
+        if (c as i32) <= DRAW_WORK.near.bits() as i32 {
             return Ok(());
         }
         let colour = colour | 0xFF_FFFF;
@@ -63,7 +60,7 @@ pub unsafe fn draw_turned_sprite(
             DRAW.view_scale.bits(),
             DRAW.view_centre[0].bits(),
             DRAW.view_centre[1].bits(),
-            game_read(Z_K_RVA),
+            DRAW_WORK.z_k.bits(),
         ];
         let sin = game_read(SINES_RVA + 4 * angle as usize);
         let cos = game_read(COSINES_RVA + 4 * angle as usize);
@@ -71,14 +68,14 @@ pub unsafe fn draw_turned_sprite(
         for n in 0..4 {
             let v = VERTICES_RVA + 0x20 * n;
             game_write(v + 0x10, colour);
-            game_write(v + 0x18, x87::loaded(game_read(UV_RVA + 8 * n)));
-            game_write(v + 0x1C, x87::loaded(game_read(UV_RVA + 8 * n + 4)));
+            game_write(v + 0x18, x87::loaded(SPRITE_UV.uv[2 * n].bits()));
+            game_write(v + 0x1C, x87::loaded(SPRITE_UV.uv[2 * n + 1].bits()));
             game_write(v + 8, sq[1]);
             game_write(v, sq[10 + n]);
             game_write(v + 4, sq[6 + n]);
         }
         for (n, v) in sq[2..6].iter().enumerate() {
-            game_write(HALF_RVA + 4 * n, *v);
+            DRAW_WORK.sprite_half[n].set_bits(*v);
         }
         if clip_quad(game_addr(VERTICES_RVA) as u32)? {
             return Ok(());
@@ -87,4 +84,57 @@ pub unsafe fn draw_turned_sprite(
         DRAW.polygon_vertex_count.set_bits(4u32);
     }
     Ok(())
+}
+
+/// The turned sprite's texture places (IDA 0x93A21A .. 0x93A23A, the image's layout; phase 7, typed state).
+#[repr(C)]
+pub struct SpriteUv {
+    /// 0x93A21A: `flt_93A21A` .. `flt_93A236`: four (u, v) pairs, one per corner
+    pub uv: [Float; 8],
+}
+
+/// SpriteUv's first values.
+pub static SPRITE_UV: SpriteUv = SpriteUv {
+    uv: [
+        Float::from_bits(0x0),
+        Float::from_bits(0x0),
+        Float::from_bits(0x3F7FF972),
+        Float::from_bits(0x0),
+        Float::from_bits(0x3F7FF972),
+        Float::from_bits(0x3F7FF972),
+        Float::from_bits(0x0),
+        Float::from_bits(0x3F7FF972),
+    ],
+};
+
+impl SpriteUv {
+    pub const START: usize = 0x93A21A;
+    pub const LEN: usize = 0x20;
+    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
+    pub fn home() -> usize {
+        &SPRITE_UV as *const SpriteUv as usize
+    }
+}
+
+#[cfg(test)]
+mod sprite_uv_tests {
+    use super::*;
+    use core::mem::offset_of;
+
+    fn bytes<T>(v: &T) -> Vec<u8> {
+        let p = v as *const T as *const u8;
+        (0..size_of::<T>())
+            .map(|i| unsafe { p.add(i).read() })
+            .collect()
+    }
+
+    #[test]
+    fn sprite_uv_starts_as_the_games() {
+        assert_eq!(size_of::<SpriteUv>(), SpriteUv::LEN);
+        assert!(
+            bytes(&SPRITE_UV) == crate::moved::image_bytes(SpriteUv::START, SpriteUv::LEN),
+            "SPRITE_UV starts differently from the image"
+        );
+        assert_eq!(offset_of!(SpriteUv, uv), 0x93A21A - SpriteUv::START);
+    }
 }

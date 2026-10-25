@@ -36,9 +36,6 @@ use crate::scene::object_store::OBJECT_WORK;
 
 // ---- game data ----
 
-// Still named by `draw_car_object` and `draw_highlighted_object`.
-pub(crate) const PLACE_RVA: usize = rva(0x63501C); // dword_63501C, dword_635020, dword_635024
-pub(crate) const ANGLE_Y_RVA: usize = rva(0x635040); // dword_635040
 pub(crate) const ENTRIES: u32 = 0x100;
 /// The kinds' own places the original allows (`MENU_LISTS.own_places` holds 73: past them it
 /// reads the lists that follow in the image, as the original does).

@@ -14,41 +14,39 @@
 //! versions. Refuses null settings and `squares_step`'s refusals.
 
 use crate::errors::{BadInput, Refused};
+use crate::marks::hexagon_state::HEXAGON_STATE;
+use crate::marks::hexagon_vars::HEX;
 use crate::marks::squares_step::squares_step;
-use crate::marks::store::{Slot, Where, game_addr, game_read};
+use crate::marks::tuning::MARKS_KIND_FLOATS;
 use crate::math::x87;
+use crate::math::x87_float as bh;
 use crate::scene::cross_product3::cross_product3;
 use crate::scene::vector3::normalise_vector3;
-
-const AXES: [Slot; 3] = [Slot::at(0x89CF1A), Slot::at(0x89CF26), Slot::at(0x89CF32)];
-const RATE_RVA: Slot = Slot::at(0x89CA34); // flt_89CA34
-const PLACE_RVA: Slot = Slot::at(0x8161A2); // flt_8161A2
-const FACING_RVA: Slot = Slot::at(0x814718); // flt_814718
-const SHARE_RVA: Slot = Slot::at(0x8BC1AA); // flt_8BC1AA
-const RUNNING_RVA: Slot = Slot::at(0x7652A0); // dword_7652A0
-
-fn addr(r: impl Where) -> u32 {
-    game_addr(r) as u32
-}
+use crate::session::address_of;
 
 /// The original's 0x4BF615 .. 0x4BF6AB: the rate (`flt_89CA34`), the place and the first axis from the settings, its length over `flt_8BC1A2` into `flt_89CEEE`.
 unsafe fn frame_axes(s: u32) {
-    unsafe { frame_axes_x87(crate::marks::store::base() as usize, s as usize) }
+    unsafe { frame_axes_x87(s as usize, &SQUARE_TIMING, &SQUARE_TABLES, &SQUARE_STATE) }
 }
 
 /// The original's 0x4BF6B8 .. 0x4BF718: the second axis, its length over `flt_8BC1A6` into `flt_89CEF2`.
 unsafe fn frame_up(s: u32) {
-    unsafe { frame_up_x87(crate::marks::store::base() as usize, s as usize) }
+    unsafe { frame_up_x87(s as usize, &SQUARE_TABLES, &SQUARE_STATE) }
 }
 
 /// The original's 0x4BF769 .. 0x4BF78D: the place as floats into `flt_8161A2` ...
 unsafe fn frame_place(s: u32) {
-    unsafe { frame_place_x87(crate::marks::store::base() as usize, s as usize) }
+    unsafe { frame_place_x87(crate::marks::hexagon_vars::HexagonVars::base(), s as usize) }
 }
 
 /// The original's 0x4BF7A4 .. 0x4BF7BE: the place's way dotted with the third axis into `flt_814718`.
 unsafe fn frame_facing() {
-    unsafe { frame_facing_x87(crate::marks::store::base() as usize) }
+    unsafe {
+        frame_facing_x87(
+            crate::marks::hexagon_vars::HexagonVars::base(),
+            &SQUARE_TABLES,
+        )
+    }
 }
 
 /// The Rust version (see the header).
@@ -59,7 +57,7 @@ pub unsafe fn squares_frame() -> Result<(), Refused> {
             return Err(BadInput("no marks settings").into());
         }
         frame_axes(s);
-        let [a0, a1, a2] = AXES.map(addr);
+        let [a0, a1, a2] = [0, 1, 2].map(|n| address_of(&SQUARE_TABLES.axes[n]) as u32);
         normalise_vector3(a0);
         frame_up(s);
         normalise_vector3(a1);
@@ -68,13 +66,13 @@ pub unsafe fn squares_frame() -> Result<(), Refused> {
         cross_product3(a0, a2, a1)?;
         crate::marks::scale_axes::scale_axes();
         frame_place(s);
-        normalise_vector3(addr(PLACE_RVA));
+        normalise_vector3(HEX.place.as_ptr() as u32);
         frame_facing();
-        if game_read::<u32>(FACING_RVA) & 0x8000_0000 == 0 {
+        if HEXAGON_STATE.facing.bits() & 0x8000_0000 == 0 {
             return Ok(());
         }
         crate::marks::run_pong::run_pong()?;
-        if x87::mul_to_int(game_read(RATE_RVA), game_read(SHARE_RVA)) == 0 {
+        if x87::mul_to_int(SQUARE_TIMING.rate.bits(), SQUARE_STATE.share.bits()) == 0 {
             return Ok(());
         }
         crate::marks::run_squares::run_squares();
@@ -82,7 +80,7 @@ pub unsafe fn squares_frame() -> Result<(), Refused> {
         if ((s + 0x2744) as *const u32).read_unaligned() == 0 {
             return Ok(());
         }
-        if game_read::<u32>(RUNNING_RVA) == 0 {
+        if MARKS_KIND_FLOATS.running.bits() == 0 {
             return Ok(());
         }
         squares_step()?;
@@ -91,92 +89,95 @@ pub unsafe fn squares_frame() -> Result<(), Refused> {
 }
 
 use crate::marks::plain::{ld, ldi, st};
+use crate::marks::squares_store::{
+    SQUARE_STATE, SQUARE_TABLES, SQUARE_TIMING, SquareState, SquareTables, SquareTiming,
+};
 
 /// `frame_axes`'s x87 block as plain Rust on the x87 model (29 instructions), same order and memory places.
-unsafe fn frame_axes_x87(mk: usize, s: usize) {
+unsafe fn frame_axes_x87(s: usize, sti: &SquareTiming, sq: &SquareTables, ss: &SquareState) {
     unsafe {
         let t0 = ldi(s, 0x2740);
-        let t1 = t0 * ld(mk, 0x15725E);
-        st(mk, 0x137AF4, t1);
+        let t1 = t0 * bh::ld(ss.rate_share.bits());
+        sti.rate.set_bits(bh::st(t1));
         let t2 = ldi(s, 0x2720);
         let t3 = ldi(s, 0x2724);
         let t4 = ldi(s, 0x2728);
-        st(mk, 0x137FBE, t4);
-        st(mk, 0x137FBA, t3);
-        st(mk, 0x137FB6, t2);
+        sq.place[2].set_bits(bh::st(t4));
+        sq.place[1].set_bits(bh::st(t3));
+        sq.place[0].set_bits(bh::st(t2));
         let t5 = ldi(s, 0x272C);
         let t6 = t5 - ldi(s, 0x2720);
-        st(mk, 0x137FDA, t6);
+        sq.axes[0][0].set_bits(bh::st(t6));
         let t7 = ldi(s, 0x2730);
         let t8 = t7 - ldi(s, 0x2724);
-        st(mk, 0x137FDE, t8);
+        sq.axes[0][1].set_bits(bh::st(t8));
         let t9 = ldi(s, 0x2734);
         let t10 = t9 - ldi(s, 0x2728);
-        st(mk, 0x137FE2, t10);
-        let t11 = ld(mk, 0x137FDA);
+        sq.axes[0][2].set_bits(bh::st(t10));
+        let t11 = bh::ld(sq.axes[0][0].bits());
         let t12 = t11 * t11;
-        let t13 = ld(mk, 0x137FDE);
+        let t13 = bh::ld(sq.axes[0][1].bits());
         let t14 = t13 * t13;
-        let t15 = ld(mk, 0x137FE2);
+        let t15 = bh::ld(sq.axes[0][2].bits());
         let t16 = t15 * t15;
         let t17 = t14 + t16;
         let t18 = t12 + t17;
         let t19 = t18.sqrt();
-        let t20 = t19 / ld(mk, 0x157262);
-        st(mk, 0x137FAE, t20);
+        let t20 = t19 / bh::ld(ss.length_divisors[0].bits());
+        sq.lengths[0].set_bits(bh::st(t20));
     }
 }
 
 /// `frame_up`'s x87 block as plain Rust on the x87 model (20 instructions), same order and memory places.
-unsafe fn frame_up_x87(mk: usize, s: usize) {
+unsafe fn frame_up_x87(s: usize, sq: &SquareTables, ss: &SquareState) {
     unsafe {
         let t0 = ldi(s, 0x2708);
         let t1 = t0 - ldi(s, 0x2720);
-        st(mk, 0x137FE6, t1);
+        sq.axes[1][0].set_bits(bh::st(t1));
         let t2 = ldi(s, 0x270C);
         let t3 = t2 - ldi(s, 0x2724);
-        st(mk, 0x137FEA, t3);
+        sq.axes[1][1].set_bits(bh::st(t3));
         let t4 = ldi(s, 0x2710);
         let t5 = t4 - ldi(s, 0x2728);
-        st(mk, 0x137FEE, t5);
-        let t6 = ld(mk, 0x137FE6);
+        sq.axes[1][2].set_bits(bh::st(t5));
+        let t6 = bh::ld(sq.axes[1][0].bits());
         let t7 = t6 * t6;
-        let t8 = ld(mk, 0x137FEA);
+        let t8 = bh::ld(sq.axes[1][1].bits());
         let t9 = t8 * t8;
-        let t10 = ld(mk, 0x137FEE);
+        let t10 = bh::ld(sq.axes[1][2].bits());
         let t11 = t10 * t10;
         let t12 = t9 + t11;
         let t13 = t7 + t12;
         let t14 = t13.sqrt();
-        let t15 = t14 / ld(mk, 0x157266);
-        st(mk, 0x137FB2, t15);
+        let t15 = t14 / bh::ld(ss.length_divisors[1].bits());
+        sq.lengths[1].set_bits(bh::st(t15));
     }
 }
 
 /// `frame_place`'s x87 block as plain Rust on the x87 model (6 instructions), same order and memory places.
-unsafe fn frame_place_x87(mk: usize, s: usize) {
+unsafe fn frame_place_x87(hx: usize, s: usize) {
     unsafe {
         let t0 = ldi(s, 0x2720);
-        st(mk, 0xB1262, t0);
+        st(hx, 0xB1262, t0);
         let t1 = ldi(s, 0x2724);
-        st(mk, 0xB1266, t1);
+        st(hx, 0xB1266, t1);
         let t2 = ldi(s, 0x2728);
-        st(mk, 0xB126A, t2);
+        st(hx, 0xB126A, t2);
     }
 }
 
 /// `frame_facing`'s x87 block as plain Rust on the x87 model (9 instructions), same order and memory places.
-unsafe fn frame_facing_x87(mk: usize) {
+unsafe fn frame_facing_x87(hx: usize, sq: &SquareTables) {
     unsafe {
-        let t0 = ld(mk, 0xB1262);
-        let t1 = t0 * ld(mk, 0x137FF2);
-        let t2 = ld(mk, 0xB1266);
-        let t3 = t2 * ld(mk, 0x137FF6);
-        let t4 = ld(mk, 0xB126A);
-        let t5 = t4 * ld(mk, 0x137FFA);
+        let t0 = ld(hx, 0xB1262);
+        let t1 = t0 * bh::ld(sq.axes[2][0].bits());
+        let t2 = ld(hx, 0xB1266);
+        let t3 = t2 * bh::ld(sq.axes[2][1].bits());
+        let t4 = ld(hx, 0xB126A);
+        let t5 = t4 * bh::ld(sq.axes[2][2].bits());
         let t6 = t3 + t5;
         let t7 = t1 + t6;
-        st(mk, 0xAF7D8, t7);
+        HEXAGON_STATE.facing.set_bits(bh::st(t7));
     }
 }
 
@@ -300,15 +301,19 @@ mod asm_reference {
 mod asm_differential {
     use super::asm_reference as reference;
     use crate::marks::asm_test::Kind::*;
+    use crate::marks::asm_test::with_copy;
     use crate::marks::asm_test::{Op, Spec, differential};
+    use crate::marks::hexagon_state::{HEXAGON_STATE, HexagonState};
+    use crate::marks::squares_store::{SquareState, SquareTables, SquareTiming};
+    use crate::marks::typed_sync::{overlay, with_overlays};
 
     #[test]
     fn frame_axes_x87_matches() {
         const SPEC: Spec = Spec {
             operands: &[
                 Op::Base {
-                    lo: 0x137AF4,
-                    hi: 0x157266,
+                    lo: 0x137AF0,
+                    hi: 0x157326,
                     reads: &[
                         (0x137FDA, F32),
                         (0x137FDE, F32),
@@ -347,7 +352,15 @@ mod asm_differential {
         differential(
             &SPEC,
             |b| unsafe { reference::frame_axes_x87(b[0], b[1]) },
-            |b| unsafe { super::frame_axes_x87(b[0], b[1]) },
+            |b| {
+                with_copy::<SquareTiming, _>(b[0], SquareTiming::START, |sti| {
+                    with_copy::<SquareTables, _>(b[0], SquareTables::START, |sq| {
+                        with_copy::<SquareState, _>(b[0], SquareState::START, |ss| unsafe {
+                            super::frame_axes_x87(b[1], sti, sq, ss)
+                        })
+                    })
+                })
+            },
         );
     }
 
@@ -356,8 +369,8 @@ mod asm_differential {
         const SPEC: Spec = Spec {
             operands: &[
                 Op::Base {
-                    lo: 0x137FB2,
-                    hi: 0x15726A,
+                    lo: 0x137B8A,
+                    hi: 0x157326,
                     reads: &[
                         (0x137FE6, F32),
                         (0x137FEA, F32),
@@ -390,7 +403,13 @@ mod asm_differential {
         differential(
             &SPEC,
             |b| unsafe { reference::frame_up_x87(b[0], b[1]) },
-            |b| unsafe { super::frame_up_x87(b[0], b[1]) },
+            |b| {
+                with_copy::<SquareTables, _>(b[0], SquareTables::START, |sq| {
+                    with_copy::<SquareState, _>(b[0], SquareState::START, |ss| unsafe {
+                        super::frame_up_x87(b[1], sq, ss)
+                    })
+                })
+            },
         );
     }
 
@@ -424,8 +443,8 @@ mod asm_differential {
     fn frame_facing_x87_matches() {
         const SPEC: Spec = Spec {
             operands: &[Op::Base {
-                lo: 0xAF7D8,
-                hi: 0x137FFE,
+                lo: 0xAF7D0,
+                hi: 0x13822A,
                 reads: &[
                     (0xB1262, F32),
                     (0xB1266, F32),
@@ -441,7 +460,17 @@ mod asm_differential {
         differential(
             &SPEC,
             |b| unsafe { reference::frame_facing_x87(b[0]) },
-            |b| unsafe { super::frame_facing_x87(b[0]) },
+            |b| {
+                with_overlays(
+                    b[0],
+                    &[overlay(&HEXAGON_STATE, HexagonState::START)],
+                    || {
+                        with_copy::<SquareTables, _>(b[0], SquareTables::START, |sq| unsafe {
+                            super::frame_facing_x87(b[0], sq)
+                        })
+                    },
+                )
+            },
         );
     }
 }

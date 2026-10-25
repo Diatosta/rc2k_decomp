@@ -9,8 +9,6 @@
 
 use crate::framework::{game_read, game_write, rva};
 
-// Still named by `split_by_mode` (`RACE_VARS.run_kind`).
-pub const MODE: usize = 0x62389C; // dword_62389C
 pub const COUNT: usize = 0x601830; // g_splitColourCount
 
 /// `g_car + 0x140 + 4 split`: the splits run to 0x3F, past the sixteen figures of

@@ -15,11 +15,10 @@
 use crate::errors::{BadInput, Refused};
 use crate::marks::bend_points::bend_points;
 use crate::marks::splines::{
-    CHOSEN_RVA, MOST_POINTS, transform_int_points_from, turn_record, turnable_record, write_point,
+    MOST_POINTS, SPLINE_HEAD, SPLINE_KINDS, transform_int_points_from, turn_record,
+    turnable_record, write_point,
 };
-use crate::marks::store::{Slot, game_read};
 
-const SWITCH_RVA: Slot = Slot::at(0x7695CA); // dword_7695CA
 const POINTERS: u32 = 0x454;
 const COORDS: u32 = 0x654;
 /// Per grade: its start's and count's offsets and its turn's.
@@ -46,8 +45,7 @@ unsafe fn refusal(s: u32) -> Result<(), Refused> {
             }
             turnable_record(s, turns)?;
         }
-        if game_read::<u32>(SWITCH_RVA) != game_read::<u32>(CHOSEN_RVA)
-            && get(s + 0x30) >= MOST_POINTS
+        if SPLINE_HEAD.switch.get() != SPLINE_KINDS.chosen[0].get() && get(s + 0x30) >= MOST_POINTS
         {
             return Err(BadInput("a spline point number of 0x80 or more").into());
         }

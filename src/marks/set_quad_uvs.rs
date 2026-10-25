@@ -10,10 +10,11 @@
 //! One caller, `sub_4CFB49` (the marks' frame).
 
 use crate::framework::rva;
-use crate::marks::store::{Slot, game_read, game_write};
+use crate::marks::blocks::CORNER_SLOPES;
+use crate::marks::store::game_write;
 
-const SETS_RVA: Slot = Slot::at(0x920738); // dword_920738: sets of four texture places
-const SET: u32 = 0xC60;
+/// The record of `g_marksCornerSlopes` whose eight values are the set (0xC60 bytes on).
+const SET_RECORD: usize = 0xC60 / 0x24;
 const VERTICES_RVA: usize = rva(0x9605B8); // flt_9605B8: the first vertex's u, v
 const VERTEX: usize = 0x20;
 
@@ -22,8 +23,8 @@ pub unsafe fn set_quad_uvs() {
     unsafe {
         crate::scene::depth_test_off::depth_test_off();
         for n in 0..4 {
-            let from = SETS_RVA + SET as usize + 8 * n;
-            let uv: [u32; 2] = [game_read(from), game_read(from + 4)];
+            let values = &CORNER_SLOPES.slopes[SET_RECORD].values;
+            let uv: [u32; 2] = [values[2 * n].bits(), values[2 * n + 1].bits()];
             game_write(VERTICES_RVA + VERTEX * n, uv);
         }
     }

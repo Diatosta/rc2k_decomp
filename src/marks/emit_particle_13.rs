@@ -20,25 +20,12 @@
 use crate::errors::{BadInput, Refused};
 use crate::marks::emitters::*;
 use crate::marks::setup::CLOCK;
-use crate::marks::store::{Slot, game_read, game_write};
+use crate::marks::splines::SPLINE_HEAD;
+use crate::marks::tuning::MARKS_FLOATS;
 use crate::math::x87;
+use crate::session::{Dword, Float, read_first};
 
-const POINTS_RVA: Slot = Slot::at(0x769312); // flt_769312: 3 floats by the car's model
 const MODELS: u32 = 34;
-const SCALE_RVA: Slot = Slot::at(0x7651D4); // flt_7651D4
-const DROP_RVA: Slot = Slot::at(0x7651E4); // flt_7651E4
-const LIFT_RVA: Slot = Slot::at(0x93A462);
-const STRENGTH_RVA: Slot = Slot::at(0x9356C0); // dword_9356C0
-const STRENGTH_K_RVA: Slot = Slot::at(0x93A466);
-/// flt_93A46A, flt_93A46E, flt_93A472: the motion's factors (x, y, z).
-const MOTION_K: [Slot; 3] = [Slot::at(0x93A46A), Slot::at(0x93A46E), Slot::at(0x93A472)];
-const DRIFT_RANDOM_RVA: Slot = Slot::at(0x93A476);
-const DRIFT_K_RVA: Slot = Slot::at(0x765214); // flt_765214
-const SPIN_RANDOM_RVA: Slot = Slot::at(0x93A47A);
-const LIFE_SCALE_RVA: Slot = Slot::at(0x7651A4); // flt_7651A4
-const FADE_K_RVA: Slot = Slot::at(0x7651A0); // dword_7651A0
-/// flt_93A47E, flt_93A482, flt_93A486: the size's factor, base and scale.
-const SIZE_K: [Slot; 3] = [Slot::at(0x93A47E), Slot::at(0x93A482), Slot::at(0x93A486)];
 const LOOK: u32 = 0x3F;
 const LIFE: u32 = 0xFA;
 
@@ -50,7 +37,7 @@ unsafe fn refusal(object: u32) -> Option<&'static str> {
         }
         // The ring full: nothing more is read.
         next_entry()?;
-        let car: u32 = game_read(OBJECT_RVA);
+        let car: u32 = EMITTER.car.get();
         if car == 0 || at(car + 0x24) == 0 {
             return Some("a null g_marksCar or matrix");
         }
@@ -73,33 +60,37 @@ pub unsafe fn emit_particle_13(object: u32) -> Result<(), Refused> {
         let model = at(object + 4) as usize;
         let e = take_entry(at(object + 0x1C) & 0xFF_FFFF, 0xD);
         let put = |o: u32, v: u32| ((e + o) as *mut u32).write_unaligned(v);
-        let car: u32 = game_read(OBJECT_RVA);
+        let car: u32 = EMITTER.car.get();
         let m = at(car + 0x24);
-        let t: [u32; 3] = game_read(POINTS_RVA + 12 * model);
+        let t: [u32; 3] = read_first(&SPLINE_HEAD.points[3 * model..]);
         let [x, y, y_less, z] = x87::turned_place_less(
             t,
-            game_read(SCALE_RVA),
-            game_read(DROP_RVA),
-            game_read(LIFT_RVA),
+            MARKS_FLOATS.plus_65_536.bits(),
+            MARKS_FLOATS.seven_hundred.bits(),
+            KIND13_SET.lift.bits(),
             m,
         );
         put(0x10, x);
         put(0x14, y);
         put(0x28, y_less);
         put(0x18, z);
-        let one: u32 = game_read(ONE_RVA);
-        let s = x87::one_less_inverse(at(object + 8), game_read(STRENGTH_K_RVA), one);
-        game_write(STRENGTH_RVA, s);
+        let one: u32 = MARKS_FLOATS.one.bits();
+        let s = x87::one_less_inverse(at(object + 8), KIND13_SET.strength_k.bits(), one);
+        RING_WORK.whole.set(s);
         let motion: [u32; 3] = std::array::from_fn(|k| {
-            x87::mul2(at(m + 0x20 + 4 * k as u32), s, game_read(MOTION_K[k]))
+            x87::mul2(
+                at(m + 0x20 + 4 * k as u32),
+                s,
+                KIND13_SET.motion_k[k].bits(),
+            )
         });
         put(0x2C, motion[0]);
         put(0x30, motion[1]);
         put(0x34, motion[2]);
-        let r = (next_c5(DRIFT_RANDOM_RVA) & 0xFFFF) as i32;
+        let r = (next_c5(&KIND13_SET.drift_random) & 0xFFFF) as i32;
         let moved = x87::drifted(
             r,
-            game_read(DRIFT_K_RVA),
+            MARKS_FLOATS.over_65536.bits(),
             motion,
             CLOCK.frame_ticks.get() as i32,
             [x, y, z],
@@ -107,21 +98,103 @@ pub unsafe fn emit_particle_13(object: u32) -> Result<(), Refused> {
         put(0x10, moved[0]);
         put(0x14, moved[1]);
         put(0x18, moved[2]);
-        let r = next_c5(SPIN_RANDOM_RVA);
+        let r = next_c5(&KIND13_SET.spin_random);
         put(0x54, (r & 0x3F).wrapping_sub(0x20));
         put(0x50, r.rotate_right(6) & 0xFFF);
         put(0x58, LOOK);
         put(0x84, LIFE);
         put(
             0x78,
-            x87::times_over_int(s, game_read(LIFE_SCALE_RVA), LIFE as i32),
+            x87::times_over_int(s, MARKS_FLOATS.two_fifty_seven.bits(), LIFE as i32),
         );
-        put(0x74, x87::mul(s, game_read(FADE_K_RVA)));
+        put(0x74, x87::mul(s, MARKS_FLOATS.two_fifty_six.bits()));
         put(0x68, car);
-        let size = x87::times_plus_to_int(game_read(SIZE_K[0]), s, game_read(SIZE_K[1]));
+        let size =
+            x87::times_plus_to_int(KIND13_SET.size_k[0].bits(), s, KIND13_SET.size_k[1].bits());
         put(0x70, size as u32);
         put(0x6C, at(car + 0x88));
-        put(0x60, x87::int_times(size, game_read(SIZE_K[2])));
+        put(0x60, x87::int_times(size, KIND13_SET.size_k[2].bits()));
     }
     Ok(())
+}
+
+/// Kind 0xD's emitter variables (`emit_particle_13`) (IDA 0x93A462 .. 0x93A48A, the image's layout; phase 7, typed state).
+#[repr(C)]
+pub struct Kind13Set {
+    /// 0x93A462: `flt_93A462`: the place's lift
+    pub lift: Float,
+    /// 0x93A466: `flt_93A466`: the strength's factor
+    pub strength_k: Float,
+    /// 0x93A46A: `flt_93A46A` .. `flt_93A472`: the motion's factors (x, y, z)
+    pub motion_k: [Float; 3],
+    /// 0x93A476: `dword_93A476`: the drift's random
+    pub drift_random: Dword,
+    /// 0x93A47A: `dword_93A47A`: the spin's random
+    pub spin_random: Dword,
+    /// 0x93A47E: `flt_93A47E`, `flt_93A482`, `flt_93A486`: the size's factor, base and scale
+    pub size_k: [Float; 3],
+}
+
+/// Kind13Set's first values.
+pub static KIND13_SET: Kind13Set = Kind13Set {
+    lift: Float::from_bits(0x47800000),
+    strength_k: Float::from_bits(0x38D1B717),
+    motion_k: [
+        Float::from_bits(0xC5000000),
+        Float::from_bits(0xC5000000),
+        Float::from_bits(0xC5000000),
+    ],
+    drift_random: Dword::new(0x0),
+    spin_random: Dword::new(0x0),
+    size_k: [
+        Float::from_bits(0x47800000),
+        Float::from_bits(0x45000000),
+        Float::from_bits(0x3E4CCCCD),
+    ],
+};
+
+impl Kind13Set {
+    pub const START: usize = 0x93A462;
+    pub const LEN: usize = 0x28;
+    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
+    pub fn home() -> usize {
+        &KIND13_SET as *const Kind13Set as usize
+    }
+}
+
+#[cfg(test)]
+mod kind13_set_tests {
+    use super::*;
+    use core::mem::offset_of;
+
+    fn bytes<T>(v: &T) -> Vec<u8> {
+        let p = v as *const T as *const u8;
+        (0..size_of::<T>())
+            .map(|i| unsafe { p.add(i).read() })
+            .collect()
+    }
+
+    #[test]
+    fn kind13_set_starts_as_the_games() {
+        assert_eq!(size_of::<Kind13Set>(), Kind13Set::LEN);
+        assert!(
+            bytes(&KIND13_SET) == crate::moved::image_bytes(Kind13Set::START, Kind13Set::LEN),
+            "KIND13_SET starts differently from the image"
+        );
+        assert_eq!(offset_of!(Kind13Set, lift), 0x93A462 - Kind13Set::START);
+        assert_eq!(
+            offset_of!(Kind13Set, strength_k),
+            0x93A466 - Kind13Set::START
+        );
+        assert_eq!(offset_of!(Kind13Set, motion_k), 0x93A46A - Kind13Set::START);
+        assert_eq!(
+            offset_of!(Kind13Set, drift_random),
+            0x93A476 - Kind13Set::START
+        );
+        assert_eq!(
+            offset_of!(Kind13Set, spin_random),
+            0x93A47A - Kind13Set::START
+        );
+        assert_eq!(offset_of!(Kind13Set, size_k), 0x93A47E - Kind13Set::START);
+    }
 }

@@ -29,12 +29,12 @@ use crate::physics::car_store::CAR;
 use crate::physics::contact_force::contact_force;
 use crate::physics::contact_store::CONTACT_WORK;
 use crate::physics::dot_product::dot_product;
-use crate::physics::flow::{g, hold_high, p};
+use crate::physics::flow::{hold_high, p};
 use crate::physics::lowest_body_point::lowest_body_point;
 use crate::physics::place_sound_e5::place_sound_e5;
 use crate::physics::sound_cue_e5::sound_cue_e5;
 use crate::physics::tables_store::PHYSICS;
-use crate::physics::touch_face::FACES;
+use crate::race::course_store::COURSE;
 use crate::race::numbers_store::NUMBERS;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
@@ -62,7 +62,7 @@ pub fn sign(v: u32) -> bool {
 /// `dword_6D3090` ...
 pub fn take_contact(n: usize) {
     copy3(&CONTACT_WORK.contact_car_speed, &CAR.velocity);
-    let face = (CAR.probe_point_face[n].get() << 6).wrapping_add(g(FACES));
+    let face = (CAR.probe_point_face[n].get() << 6).wrapping_add(COURSE.course_faces.get());
     let parts = contacts::normal_offsets(CONTACT_WORK.probe_face_flip[n].get());
     for (k, o) in parts.iter().enumerate() {
         let v = unsafe { ((face + o) as *const u32).read_unaligned() };

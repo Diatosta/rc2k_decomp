@@ -22,7 +22,7 @@ pub unsafe fn place_sound_e5() -> Result<(), Refused> {
         return Ok(());
     }
     let o = object()?;
-    let b = unsafe { band_value_plain(TWIN) };
+    let b = band_value_plain(TWIN);
     unsafe { cue_plain(o, SECOND, SOUND_E5, b, None) };
     Ok(())
 }

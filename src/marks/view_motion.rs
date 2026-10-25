@@ -13,16 +13,13 @@
 //!
 //! the x87 version stays for the Rust callers in unconverted code).
 
+use crate::marks::frame_state::{DRAW_FRAME, DRAW_WORK, VIEW_VARS};
 use crate::marks::setup::CLOCK;
-use crate::marks::store::{Slot, game_read, game_write};
 use crate::math::x87;
 use crate::race::matrices_store::MATRICES;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
 use crate::scene::vector3::{dot_product3, normalise_vector3};
-const LAST_RVA: Slot = Slot::at(0x91FFBE); // flt_91FFBE .. flt_91FFC6
-const STEP_RVA: Slot = Slot::at(0x8EB951); // flt_8EB951 .. flt_8EB959
-const FACING_RVA: Slot = Slot::at(0x8F397D); // flt_8F397D
 
 /// The Rust version (see the header).
 pub unsafe fn view_motion() {
@@ -36,21 +33,23 @@ pub unsafe fn view_motion() {
         let zero = [extended(0); 3];
         let place = rotate_point(m, zero);
         for k in 0..3 {
-            let step = x87::ext_less(place[k], game_read(LAST_RVA + 4 * k));
-            game_write(STEP_RVA + 4 * k, step);
+            let step = x87::ext_less(place[k], DRAW_FRAME.last[k].bits());
+            DRAW_WORK.step[k].set_bits(step);
             local[3 + k] = step;
         }
         let at = local.as_mut_ptr() as u32;
         normalise_vector3(at + 12);
-        game_write(FACING_RVA, rounded(dot_product3(at, at + 12)));
+        VIEW_VARS
+            .facing
+            .set_bits(rounded(dot_product3(at, at + 12)));
         let place = rotate_point(m, zero);
         for (k, p) in place.iter().enumerate() {
-            game_write(LAST_RVA + 4 * k, rounded(*p));
+            DRAW_FRAME.last[k].set_bits(rounded(*p));
         }
         let ticks: i32 = CLOCK.frame_ticks.get() as i32;
         for k in 0..3 {
-            let a = STEP_RVA + 4 * k;
-            game_write(a, x87::over_int(game_read(a), ticks));
+            let a = &DRAW_WORK.step[k];
+            a.set_bits(x87::over_int(a.bits(), ticks));
         }
     }
 }

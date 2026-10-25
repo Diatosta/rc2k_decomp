@@ -18,19 +18,19 @@
 //! `play_from_here`).
 
 use crate::errors::Refused;
-use crate::race::viewer::{
-    BLOCK, BLOCKS, FRAME, MARK_IN, MARK_OUT, PLAY_END, PLAY_FROM_HERE, STOPPED, get, put,
-};
+use crate::race::replay_file_store::REPLAY_FILE;
+use crate::race::viewer::{MARK_IN, MARK_OUT, get};
+use crate::race::viewer_state_store::REPLAY_VIEW;
 use rc2k_core::race::viewer_flow::Play;
 
 /// The shared tail (0x41E231): from block `play.from`, frame `play.frame`, to block
 /// `play.end`. The start read's carry is not looked at.
 pub fn play_tail(play: Play) -> Result<(), Refused> {
-    put(PLAY_END, play.end);
-    put(STOPPED, 0);
+    REPLAY_VIEW.play_end.set(play.end);
+    REPLAY_FILE.viewer_stopped.set(0);
     unsafe { crate::drive::read_replay_frame::read_replay_frame(play.from, play.frame) }?;
     crate::race::play_replay_range::play_replay_range()?;
-    put(PLAY_FROM_HERE, 0);
+    REPLAY_VIEW.play_from_here.set(0);
     Ok(())
 }
 
@@ -47,8 +47,8 @@ pub fn play_marked() -> Result<(), Refused> {
 pub fn play_from_here() -> Result<(), Refused> {
     // Converted: `rc2k_core::race::viewer_flow::play_from_here`.
     play_tail(rc2k_core::race::viewer_flow::play_from_here(
-        get(BLOCK),
-        get(FRAME),
-        get(BLOCKS),
+        REPLAY_VIEW.replay_block.get(),
+        REPLAY_VIEW.replay_frame.get(),
+        REPLAY_FILE.index_block_count.get(),
     ))
 }

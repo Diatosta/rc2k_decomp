@@ -37,7 +37,6 @@ use crate::physics::camera_store::CAMERA_WORK;
 use crate::physics::camera_view::{rd, record};
 use crate::physics::car_store::CAR;
 use crate::physics::flow::{a, g, hold_high, hold_low};
-use crate::physics::touch_face::FACES;
 use crate::race::course_store::COURSE;
 use crate::race::frame_store::FRAME_WORK;
 use crate::race::kind_store::KIND_TABLES;
@@ -57,10 +56,10 @@ fn fixed_camera(second: bool) {
         (0xA06A10, 0xA10AE4)
     };
     let face = g(replay + 4 * g(nearest + 4 * CAR.checkpoint.get() as usize) as usize);
-    let face = (face << 6).wrapping_add(g(FACES));
+    let face = (face << 6).wrapping_add(COURSE.course_faces.get());
     let point = rd(face + 4)
         .wrapping_mul(12)
-        .wrapping_add(g(crate::physics::scene_point_hits_car::SCENE_POINTS));
+        .wrapping_add(COURSE.scene_points.get());
     for k in 0..3 {
         CAR.camera_position[k as usize].set(rd(point + 4 * k));
     }

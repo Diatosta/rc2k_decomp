@@ -15,28 +15,28 @@
 use crate::errors::{BadInput, Refused};
 use crate::framework::rva;
 use crate::gfx::picture_store::PICTURE;
-use crate::marks::store::{Slot, game_addr, game_read, game_write};
+use crate::marks::kind_values::MARKS_KIND;
+use crate::marks::mask_store::{GROUND_NAMES, KIND_PICTURES, MASK_BLOCKS, PICTURE_COPY};
+use crate::marks::store::game_read;
+use crate::memory::MemoryList;
 use crate::scene::kind_texture_store::KIND_TEXTURES;
+use crate::session::Dword;
 
-const GROUND_RVA: Slot = Slot::at(0x934CC8); // g_marksGround: which of the names
-const NAMES_RVA: Slot = Slot::at(0x934CD0); // "files\m\snow1.pcx" and five more
 const NAMES: i32 = 6;
-const GROUND_PATH_RVA: Slot = Slot::at(0x934CCC); // g_marksGroundPath
 /// The blocks: bytes, their list, where the pointer goes.
-const BLOCKS: [(u32, Slot, Slot); 3] = [
-    (0x2_0000, Slot::at(0x934D76), Slot::at(0x934DB6)), // g_marksMaskBlock
-    (0x2_0000, Slot::at(0x934DBA), Slot::at(0x934DFA)), // g_marksBMaskBlock
-    (0x8_0000, Slot::at(0x934E29), Slot::at(0x934E69)), // g_marksPictureCopy
-];
-const COPY_LIST_RVA: Slot = BLOCKS[2].1;
-const COPY_RVA: Slot = BLOCKS[2].2;
-const NUMBERS_RVA: Slot = Slot::at(0x934EA8); // g_marksKindPictureNumbers: 0x22 dwords
+fn blocks() -> [(u32, *mut MemoryList, &'static Dword); 3] {
+    [
+        (0x2_0000, MASK_BLOCKS.list_a.as_ptr(), &MASK_BLOCKS.mask), // g_marksMaskBlock
+        (0x2_0000, MASK_BLOCKS.list_b.as_ptr(), &MASK_BLOCKS.bmask), // g_marksBMaskBlock
+        (0x8_0000, PICTURE_COPY.list.as_ptr(), &PICTURE_COPY.copy), // g_marksPictureCopy
+    ]
+}
 const MOST_KIND: i32 = 0x21;
-const MASK_PATH_RVA: Slot = Slot::at(0x934E6D); // "files\m\mask00.pcx"
-const BMASK_PATH_RVA: Slot = Slot::at(0x934E80); // "files\m\bmask00.pcx"
-/// The three paths' digits ("files\m\bdata00.pcx" the third's, not read here).
-const DIGITS_RVA: [Slot; 3] = [Slot::at(0x934E79), Slot::at(0x934E8D), Slot::at(0x934EA1)];
-const DONE_RVA: Slot = Slot::at(0x934D6E); // dword_934D6E: -1 at the end
+/// The mask paths in `PICTURE_COPY.paths`: "files\m\mask00.pcx" and "files\m\bmask00.pcx"
+/// (the third, "files\m\bdata00.pcx", is not read here), and where their two digits are.
+const MASK_PATH_AT: usize = 0;
+const BMASK_PATH_AT: usize = 0x13;
+const DIGITS_AT: [usize; 3] = [0xC, 0x20, 0x34];
 const SURFACE_WIDTH_RVA: usize = rva(0x4F49A0); // g_surface.width
 const MOST_WIDTH: u32 = 0x100;
 const COPIED: u32 = 0x8000; // dwords
@@ -87,22 +87,22 @@ pub unsafe fn lock(slot: u32, lock: bool) -> Result<(), Refused> {
 
 /// A mask read, copied to the 0x80000 block, the ground read, and the block `to` made
 /// and drawn at rows 0x80 .. 0xFD.
-unsafe fn mask(path: Slot, to: Slot, width: u32) -> Result<(), Refused> {
+unsafe fn mask(path: usize, to: &Dword, width: u32) -> Result<(), Refused> {
     unsafe {
-        read(game_addr(path) as u32)?;
+        read((PICTURE_COPY.paths.addr() + path) as u32)?;
         std::ptr::copy(
             PICTURE.buffer.get() as *const u8,
-            game_read::<u32>(COPY_RVA) as *mut u8,
+            PICTURE_COPY.copy.get() as *mut u8,
             4 * COPIED as usize,
         );
-        read(game_read(GROUND_PATH_RVA))?;
+        read(GROUND_NAMES.ground_path.get())?;
         for y in 0..ROWS {
             for x in 0..width.max(1) {
                 let n = (y << 8).wrapping_add(x);
-                let copy: u32 = game_read(COPY_RVA);
+                let copy: u32 = PICTURE_COPY.copy.get();
                 let mask = ((copy + 4 * n) as *const u32).read_unaligned();
                 let pixel = (mask << 8) & 0xFF00_0000 | 0xFF_FFFF;
-                let block: u32 = game_read(to);
+                let block: u32 = to.get();
                 ((block + 4 * n) as *mut u32).write_unaligned(pixel);
                 put_pixel(pixel, x, y + 0x80)?;
             }
@@ -119,20 +119,20 @@ unsafe fn mask(path: Slot, to: Slot, width: u32) -> Result<(), Refused> {
 /// block's list freed, `dword_934D6E` -1.
 pub unsafe fn load_mask_pictures() -> Result<(), Refused> {
     unsafe {
-        let ground: i32 = game_read(GROUND_RVA);
+        let ground: i32 = GROUND_NAMES.ground.get() as i32;
         if ground >= NAMES {
             return Err(BadInput("a ground past the six names").into());
         }
-        let mut name = game_addr(NAMES_RVA) as u32;
+        let mut name = GROUND_NAMES.names.addr() as u32;
         for _ in 0..ground.max(0) {
             while *(name as *const u8) != 0 {
                 name += 1;
             }
             name += 1;
         }
-        game_write(GROUND_PATH_RVA, name);
-        for (bytes, list, to) in BLOCKS {
-            game_write(to, crate::marks::blocks::take(list, bytes)?);
+        GROUND_NAMES.ground_path.set(name);
+        for (bytes, list, to) in blocks() {
+            to.set(crate::memory::allocate::allocate(list, bytes)? as u32);
         }
         lock(KIND_TEXTURES.kind_first_textures[202].bits(), true)?;
         let width: u32 = game_read(SURFACE_WIDTH_RVA);
@@ -140,26 +140,25 @@ pub unsafe fn load_mask_pictures() -> Result<(), Refused> {
             lock(KIND_TEXTURES.kind_first_textures[202].bits(), false)?;
             return Err(BadInput("a mask surface wider than 256").into());
         }
-        let kind = (game_read::<u32>(crate::marks::kind_values::KIND_RVA) as i32)
-            .clamp(0, MOST_KIND) as u32;
-        let number: u32 = game_read(NUMBERS_RVA + 4 * kind as usize);
+        let kind = (MARKS_KIND.kind.bits() as i32).clamp(0, MOST_KIND) as u32;
+        let number: u32 = KIND_PICTURES.numbers[kind as usize].get();
         let digits = [
             ((number / 10) as u8).wrapping_add(b'0'),
             (number % 10) as u8 + b'0',
         ];
-        for d in DIGITS_RVA {
-            game_write(d, digits);
+        for d in DIGITS_AT {
+            PICTURE_COPY.paths.set(d, digits[0]);
+            PICTURE_COPY.paths.set(d + 1, digits[1]);
         }
-        mask(MASK_PATH_RVA, BLOCKS[0].2, width)?;
-        mask(BMASK_PATH_RVA, BLOCKS[1].2, width)?;
+        let [(_, _, mask_block), (_, _, bmask_block), _] = blocks();
+        mask(MASK_PATH_AT, mask_block, width)?;
+        mask(BMASK_PATH_AT, bmask_block, width)?;
         lock(KIND_TEXTURES.kind_first_textures[202].bits(), false)?;
         crate::scene::forget_slot_texture::forget_slot_texture(
             KIND_TEXTURES.kind_first_slots[202].bits(),
         )?;
-        crate::memory::free_list::free_list(
-            game_addr(COPY_LIST_RVA) as *mut crate::memory::MemoryList
-        )?;
-        game_write(DONE_RVA, u32::MAX);
+        crate::memory::free_list::free_list(PICTURE_COPY.list.as_ptr())?;
+        MASK_BLOCKS.seen.set(u32::MAX);
     }
     Ok(())
 }

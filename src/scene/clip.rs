@@ -29,7 +29,7 @@ use crate::scene::clip_asm::{
 };
 use crate::scene::draw_store::DRAW;
 use crate::scene::polygon::{ENTRIES, ENTRIES_RVA, ENTRY_LEN, LIST_RVA, dword, listed, put};
-use crate::scene::project_point::{CENTRE_Y_RVA, RECORD_LEN, to_screen};
+use crate::scene::project_point::{RECORD_LEN, to_screen};
 
 // ---- game data ----
 
@@ -121,7 +121,7 @@ unsafe fn cut(edge: Edge, a: usize, b: usize, mask: u32) -> Result<u32, BadInput
                 let v = [
                     DRAW.view_scale.bits(),
                     DRAW.view_centre[0].bits(),
-                    game_read(CENTRE_Y_RVA),
+                    DRAW.view_centre[1].bits(),
                     COURSE.flat_depth.bits(),
                 ];
                 let flat = STAGE_PREFS.flat_depth.bits() != 0;

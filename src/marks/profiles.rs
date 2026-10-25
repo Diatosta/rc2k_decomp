@@ -5,27 +5,25 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::rva;
-use crate::marks::store::{Slot, from_ida, game_addr, game_read, game_write};
+use crate::marks::blocks::MARK_CORNERS;
+use crate::marks::frame_state::{DRAW_FRAME, DRAW_WORK};
 use crate::math::x87;
 use crate::race::course_lists_store::COURSE_LISTS;
+use crate::session::Dword;
 
-pub const RINGS_RVA: Slot = Slot::at(0x8DD061); // dword_8DD061, dword_8DD461, then dword_8DD861
-pub const DONE_RVA: Slot = Slot::at(0x91FF3E); // dword_91FF3E: 0, or where to go on
 pub const RESUME_RVA: usize = rva(0x4C3EA6); // loc_4C3EA6
-const RAMPS_RVA: Slot = Slot::at(0x9152F6); // off_9152F6: 3 tables
-const SINES_RVA: Slot = Slot::at(0x915302); // off_915302: 8 tables
-const CURVES_RVA: Slot = Slot::at(0x915322); // off_915322: 2 tables
-const RAMP_STEPS_RVA: Slot = Slot::at(0x91FF42); // flt_91FF42, 256.0
-const CURVE_STEPS_RVA: Slot = Slot::at(0x91FF46); // flt_91FF46, 256.0
-/// The profiles' work, `flt_8EB871` .. `flt_8EB899`.
-pub const WORK_RVA: Slot = Slot::at(0x8EB871);
 pub const COURSE_CORNERS: u32 = 0x1C_2000;
 pub const CORNERS_LEN: usize = 0x8000;
 
 /// A table the image holds by IDA's address (the pointer lists at 0x9152F6): where it is
-/// in the marks' block.
+/// in `PROFILE_TABLES`. Stops the program for an address outside them.
 fn ida_table(ida: u32) -> u32 {
-    from_ida(ida as usize) as u32
+    let (start, len) = (ProfileTables::START, ProfileTables::LEN);
+    assert!(
+        (start..start + len).contains(&(ida as usize)),
+        "a pointer of the marks' data names {ida:#x}, outside the profile tables"
+    );
+    (PROFILE_TABLES.tables.as_ptr() as usize + (ida as usize - start)) as u32
 }
 
 unsafe fn get(at: u32) -> u32 {
@@ -36,8 +34,9 @@ unsafe fn put(at: u32, v: u32) {
     unsafe { (at as *mut u32).write_unaligned(v) };
 }
 
-unsafe fn work(n: usize, v: u32) {
-    unsafe { game_write(WORK_RVA + 4 * n, v) };
+/// The profiles' work, `flt_8EB871` .. `flt_8EB899`.
+fn work(n: usize, v: u32) {
+    DRAW_WORK.profile_work[n].set_bits(v);
 }
 
 /// A table's second half: each the next less this (whole numbers, so the last reads the
@@ -59,9 +58,12 @@ unsafe fn differences(table: u32) {
 unsafe fn make_tables() {
     unsafe {
         for k in 0..3 {
-            let t = ida_table(game_read(RAMPS_RVA + 4 * k));
-            let step =
-                x87::int_less_int_over(get(t + 4) as i32, get(t) as i32, game_read(RAMP_STEPS_RVA));
+            let t = ida_table(PROFILE_LISTS.ramps[k].get());
+            let step = x87::int_less_int_over(
+                get(t + 4) as i32,
+                get(t) as i32,
+                DRAW_FRAME.profile_steps[0].bits(),
+            );
             work(2, step);
             let mut v = x87::from_int(get(t) as i32);
             work(0, v);
@@ -73,7 +75,7 @@ unsafe fn make_tables() {
             differences(t);
         }
         for k in 0..8 {
-            let t = ida_table(game_read(SINES_RVA + 4 * k));
+            let t = ida_table(PROFILE_LISTS.sines[k].get());
             let p = [0, 1, 2, 3].map(|i| x87::loaded(get(t + 4 * i)));
             for (i, &v) in p.iter().enumerate() {
                 work(3 + i, v);
@@ -87,10 +89,10 @@ unsafe fn make_tables() {
             differences(t);
         }
         for k in 0..2 {
-            let t = ida_table(game_read(CURVES_RVA + 4 * k));
+            let t = ida_table(PROFILE_LISTS.curves[k].get());
             let mut x = x87::loaded(get(t));
             work(7, x);
-            let step = x87::sub_div(get(t + 4), get(t), game_read(CURVE_STEPS_RVA));
+            let step = x87::sub_div(get(t + 4), get(t), DRAW_FRAME.profile_steps[1].bits());
             work(8, step);
             let (scale, top) = (x87::loaded(get(t + 8)), x87::loaded(get(t + 12)));
             work(9, scale);
@@ -117,25 +119,199 @@ unsafe fn make_tables() {
 /// `resume` (the original jumps to it). `resume` is `loc_4C3EA6`.
 pub unsafe fn make_profiles(resume: u32) -> Result<(), Refused> {
     unsafe {
-        let done: u32 = game_read(DONE_RVA);
+        let done: u32 = DRAW_FRAME.profiles_done.get();
         if done != 0 && done != resume {
             return Err(BadInput("the profiles' mark is neither 0 nor loc_4C3EA6").into());
         }
-        let rings = game_addr(RINGS_RVA) as u32;
-        put(rings + 0x800, 0);
+        PROFILE_RINGS.zero.set(0);
         for n in 0..0x100u32 {
-            put(rings + 4 * n, n.wrapping_sub(1) & 0xFF);
-            put(rings + 0x400 + 4 * n, (n + 1) & 0xFF);
+            PROFILE_RINGS.before[n as usize].set(n.wrapping_sub(1) & 0xFF);
+            PROFILE_RINGS.after[n as usize].set((n + 1) & 0xFF);
         }
         if done == 0 {
             make_tables();
-            game_write(DONE_RVA, resume);
+            DRAW_FRAME.profiles_done.set(resume);
         }
         let from = COURSE_LISTS.course_info.bits().wrapping_add(COURSE_CORNERS);
-        let to = game_addr(crate::marks::blocks::CORNERS_RVA) as u32;
+        let to = MARK_CORNERS.corners.as_ptr() as u32;
         std::ptr::copy(from as *const u8, to as *mut u8, CORNERS_LEN);
         crate::marks::blocks::allocate_links()?;
         crate::marks::blocks::reset_settings_blocks();
     }
     Ok(())
+}
+
+/// The profiles' rings of indexes (IDA 0x8DD061 .. 0x8DD865, the image's layout; phase 7, typed state).
+#[repr(C)]
+pub struct ProfileRings {
+    /// 0x8DD061: `g_marksRingBefore`: each of the 0x100 indexes' one before it (`marks::make_profiles`).
+    pub before: [Dword; 256],
+    /// 0x8DD461: `g_marksRingAfter`: each index's one after it.
+    pub after: [Dword; 256],
+    /// 0x8DD861: `dword_8DD861`: 0 (`marks::make_profiles` writes it).
+    pub zero: Dword,
+}
+
+pub static PROFILE_RINGS: ProfileRings = ProfileRings {
+    before: [const { Dword::new(0x0) }; 256],
+    after: [const { Dword::new(0x0) }; 256],
+    zero: Dword::new(0x0),
+};
+
+impl ProfileRings {
+    pub const START: usize = 0x8DD061;
+    pub const LEN: usize = 0x804;
+    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
+    pub fn home() -> usize {
+        &PROFILE_RINGS as *const ProfileRings as usize
+    }
+}
+
+/// The profile tables' address lists (IDA 0x9152F6 .. 0x91532A, the image's layout; phase 7, typed state).
+#[repr(C)]
+pub struct ProfileLists {
+    /// 0x9152F6: `off_9152F6` (`g_marksRampTables`): the three ramp tables' addresses (IDA addresses in the image; `moved::RAW_KEPT` keeps them so).
+    pub ramps: [Dword; 3],
+    /// 0x915302: `off_915302` (`g_marksSineTables`): the eight sine tables' addresses.
+    pub sines: [Dword; 8],
+    /// 0x915322: `off_915322` (`g_marksCurveTables`): the two curve tables' addresses.
+    pub curves: [Dword; 2],
+}
+
+pub static PROFILE_LISTS: ProfileLists = ProfileLists {
+    ramps: [
+        Dword::new(0x8E506D),
+        Dword::new(0x8E686D),
+        Dword::new(0x8E706D),
+    ],
+    sines: [
+        Dword::new(0x8E786D),
+        Dword::new(0x8E806D),
+        Dword::new(0x8E886D),
+        Dword::new(0x8E906D),
+        Dword::new(0x8E986D),
+        Dword::new(0x8EA06D),
+        Dword::new(0x8EA86D),
+        Dword::new(0x8EB06D),
+    ],
+    curves: [Dword::new(0x8E586D), Dword::new(0x8E606D)],
+};
+
+impl ProfileLists {
+    pub const START: usize = 0x9152F6;
+    pub const LEN: usize = 0x34;
+    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
+    pub fn home() -> usize {
+        &PROFILE_LISTS as *const ProfileLists as usize
+    }
+}
+
+/// One profile table: 0x100 whole numbers and then their 0x100 differences (the first
+/// dwords hold the table's inputs until `marks::make_profiles` makes it).
+pub type ProfileTable = [Dword; 0x200];
+
+/// A profile table with the given first values (index, value).
+const fn table(first: &[(usize, u32)]) -> ProfileTable {
+    let mut t = [const { Dword::new(0) }; 0x200];
+    let mut k = 0;
+    while k < first.len() {
+        t[first[k].0] = Dword::new(first[k].1);
+        k += 1;
+    }
+    t
+}
+
+/// The profile tables (13 of 0x800 bytes: three ramps, two curves, eight sines, in this order of memory) (IDA 0x8E506D .. 0x8EB86D, the image's layout; phase 7, typed state).
+#[repr(C)]
+pub struct ProfileTables {
+    /// 0x8E506D: ramp 0, curve 0, curve 1, ramp 1, ramp 2, then sines 0 .. 7: the tables `ProfileLists` names.
+    pub tables: [ProfileTable; 13],
+}
+
+pub static PROFILE_TABLES: ProfileTables = ProfileTables {
+    tables: [
+        table(&[]),
+        table(&[(0, 0xC0000000), (2, 0x469C4000), (3, 0x48435000)]),
+        table(&[(1, 0x3F000000), (2, 0xC87DE800)]),
+        table(&[(0, 0xFF)]),
+        table(&[(0, 0x7F)]),
+        table(&[(2, 0x466A6000), (3, 0x3BC90FDB)]),
+        table(&[(2, 0x48212200), (3, 0x3BC90FDB)]),
+        table(&[(2, 0x4851F600), (3, 0x3BC90FDB)]),
+        table(&[(2, 0x48816500), (3, 0x3BC90FDB)]),
+        table(&[(2, 0x4899CF00), (3, 0x3BC90FDB)]),
+        table(&[(2, 0x48B23900), (3, 0x3BC90FDB)]),
+        table(&[(2, 0x48CAA300), (3, 0x3BC90FDB)]),
+        table(&[(2, 0x48E30D00), (3, 0x3BC90FDB)]),
+    ],
+};
+
+impl ProfileTables {
+    pub const START: usize = 0x8E506D;
+    pub const LEN: usize = 0x6800;
+    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
+    pub fn home() -> usize {
+        &PROFILE_TABLES as *const ProfileTables as usize
+    }
+}
+
+#[cfg(test)]
+mod typed_tests {
+    use super::*;
+    use core::mem::{offset_of, size_of};
+
+    #[test]
+    fn profile_rings_starts_as_the_games() {
+        assert_eq!(size_of::<ProfileRings>(), ProfileRings::LEN);
+        let image = crate::moved::image_bytes(ProfileRings::START, ProfileRings::LEN);
+        let mine = unsafe {
+            std::slice::from_raw_parts(ProfileRings::home() as *const u8, ProfileRings::LEN)
+        };
+        assert!(
+            mine == &image[..],
+            "PROFILE_RINGS starts differently from the image"
+        );
+        assert_eq!(
+            offset_of!(ProfileRings, after),
+            0x8DD461 - ProfileRings::START
+        );
+        assert_eq!(
+            offset_of!(ProfileRings, zero),
+            0x8DD861 - ProfileRings::START
+        );
+    }
+
+    #[test]
+    fn profile_lists_starts_as_the_games() {
+        assert_eq!(size_of::<ProfileLists>(), ProfileLists::LEN);
+        let image = crate::moved::image_bytes(ProfileLists::START, ProfileLists::LEN);
+        let mine = unsafe {
+            std::slice::from_raw_parts(ProfileLists::home() as *const u8, ProfileLists::LEN)
+        };
+        assert!(
+            mine == &image[..],
+            "PROFILE_LISTS starts differently from the image"
+        );
+        assert_eq!(
+            offset_of!(ProfileLists, sines),
+            0x915302 - ProfileLists::START
+        );
+        assert_eq!(
+            offset_of!(ProfileLists, curves),
+            0x915322 - ProfileLists::START
+        );
+    }
+
+    #[test]
+    fn profile_tables_starts_as_the_games() {
+        assert_eq!(size_of::<ProfileTables>(), ProfileTables::LEN);
+        let image = crate::moved::image_bytes(ProfileTables::START, ProfileTables::LEN);
+        let mine = unsafe {
+            std::slice::from_raw_parts(ProfileTables::home() as *const u8, ProfileTables::LEN)
+        };
+        assert!(
+            mine == &image[..],
+            "PROFILE_TABLES starts differently from the image"
+        );
+    }
 }

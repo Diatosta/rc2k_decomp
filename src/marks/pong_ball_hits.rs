@@ -13,7 +13,7 @@
 //! the x87 version stays for the Rust callers in unconverted code).
 
 use crate::marks::pong::{self, PONG, PONG_RULES, PongRules, PongState};
-use crate::marks::store::{Slot, game_read};
+use crate::marks::tuning::MARKS_FLOATS;
 use crate::math::x87;
 
 /// The original's 0x4B8105 .. 0x4B8189: the centres and their difference.
@@ -23,10 +23,8 @@ fn centres() {
 
 /// The original's 0x4B81A4 .. 0x4B81FE: the difference made one long, scaled.
 fn new_way() {
-    new_way_x87(&PONG, &PONG_RULES, unsafe { game_read(LENGTH_RVA) })
+    new_way_x87(&PONG, &PONG_RULES, MARKS_FLOATS.one.bits())
 }
-
-const LENGTH_RVA: Slot = Slot::at(0x76516C); // flt_76516C
 
 /// The Rust version (see the header).
 pub fn pong_ball_hits() {

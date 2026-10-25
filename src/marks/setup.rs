@@ -5,7 +5,8 @@
 use crate::errors::{BadInput, Refused};
 use crate::framework::rva;
 use crate::marks::snow::{SNOW, SNOW_CURVE, SNOW_LIGHT, SNOW_TABLES, SNOW_VARS};
-use crate::marks::store::{Slot, game_addr, game_read, game_write};
+use crate::marks::store::{game_addr, game_read, game_write};
+use crate::marks::tuning::MARKS_FLOATS;
 use crate::math::x87;
 use crate::physics::tables_store::PHYSICS;
 use crate::session::{Bytes, Dword, Float};
@@ -67,9 +68,6 @@ pub const SEED_RVA: usize = rva(0x71C8CC); // g_marksSeed
 const WAVE_DONE_TARGET_RVA: usize = rva(0x4C4EA0); // nullsub_23
 pub const WAVE_LEVELS: u32 = 0x11;
 pub const SINES: u32 = 0x140;
-const FIRST_RECIPROCAL_RVA: Slot = Slot::at(0x93CC10); // flt_93CC10
-const RECIPROCAL_SCALE_RVA: Slot = Slot::at(0x7651BC); // flt_7651BC
-const TICKS_SCALE_RVA: Slot = Slot::at(0x93CC14); // flt_93CC14
 
 /// A test buffer standing for the marks' block at `mk` (IDA 0x764F40): the clock in it.
 #[cfg(test)]
@@ -152,7 +150,7 @@ pub unsafe fn tick_clock() {
             }
             c.frame_ticks.set(0);
             c.reciprocal
-                .set_bits(x87::loaded(game_read(FIRST_RECIPROCAL_RVA)));
+                .set_bits(x87::loaded(CLOCK_K.first_reciprocal.bits()));
             return;
         }
         c.now.set(clock);
@@ -169,11 +167,11 @@ pub unsafe fn tick_clock() {
         c.quarter.set(ticks >> 2);
         c.sixteenth.set(ticks >> 4);
         let (reciprocal, scaled) =
-            x87::reciprocal_int_and_times(ticks as i32, game_read(RECIPROCAL_SCALE_RVA));
+            x87::reciprocal_int_and_times(ticks as i32, MARKS_FLOATS.quarter.bits());
         c.reciprocal.set_bits(reciprocal);
         c.reciprocal_scaled.set_bits(scaled);
         c.ticks_scaled
-            .set_bits(x87::mul(ticks, game_read(TICKS_SCALE_RVA)));
+            .set_bits(x87::mul(ticks, CLOCK_K.ticks_scale.bits()));
     }
 }
 
@@ -309,6 +307,57 @@ impl MarksSettings {
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
         &SETTINGS as *const MarksSettings as usize
+    }
+}
+
+/// The marks' clock constants (IDA 0x93CC10 .. 0x93CC18, the image's layout; phase 7, typed state).
+#[repr(C)]
+pub struct ClockK {
+    /// 0x93CC10: `flt_93CC10`: the reciprocal the first tick starts with
+    pub first_reciprocal: Float,
+    /// 0x93CC14: `flt_93CC14`: the ticks' scale
+    pub ticks_scale: Float,
+}
+
+/// ClockK's first values.
+pub static CLOCK_K: ClockK = ClockK {
+    first_reciprocal: Float::from_bits(0x358637BD),
+    ticks_scale: Float::from_bits(0x3DCCCCCD),
+};
+
+impl ClockK {
+    pub const START: usize = 0x93CC10;
+    pub const LEN: usize = 0x8;
+    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
+    pub fn home() -> usize {
+        &CLOCK_K as *const ClockK as usize
+    }
+}
+
+#[cfg(test)]
+mod clock_k_tests {
+    use super::*;
+    use core::mem::offset_of;
+
+    fn bytes<T>(v: &T) -> Vec<u8> {
+        let p = v as *const T as *const u8;
+        (0..size_of::<T>())
+            .map(|i| unsafe { p.add(i).read() })
+            .collect()
+    }
+
+    #[test]
+    fn clock_k_starts_as_the_games() {
+        assert_eq!(size_of::<ClockK>(), ClockK::LEN);
+        assert!(
+            bytes(&CLOCK_K) == crate::moved::image_bytes(ClockK::START, ClockK::LEN),
+            "CLOCK_K starts differently from the image"
+        );
+        assert_eq!(
+            offset_of!(ClockK, first_reciprocal),
+            0x93CC10 - ClockK::START
+        );
+        assert_eq!(offset_of!(ClockK, ticks_scale), 0x93CC14 - ClockK::START);
     }
 }
 

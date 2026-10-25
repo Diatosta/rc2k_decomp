@@ -13,14 +13,11 @@
 //! Callers: the ring's update (code at 0x4D03E7, 0x4D04BE, 0x4D05AC).
 
 use crate::framework::rva;
-use crate::marks::store::{Slot, game_read, game_write};
+use crate::marks::frame_state::DRAW_WORK;
+use crate::marks::store::game_write;
 use crate::math::x87;
 use crate::race::matrices_store::MATRICES;
 use crate::scene::draw_store::DRAW;
-const TURNED_RVA: Slot = Slot::at(0x8EB8D5); // flt_8EB8D5 .. flt_8EB8DD
-const NEAR_RVA: Slot = Slot::at(0x8EB961); // dword_8EB961
-const HALF_RVA: Slot = Slot::at(0x8EB8B5); // dword_8EB8B5, dword_8EB8B9
-const Z_K_RVA: Slot = Slot::at(0x8EB96D); // flt_8EB96D
 const VERTICES_RVA: usize = rva(0x9605A0); // g_polygonVertices: TLVertex[4]
 
 /// The Rust version (see the header): `colour` (ecx), `size` (edx).
@@ -28,17 +25,17 @@ pub unsafe fn draw_particle(place: [[u8; 10]; 3], colour: u32, size: u32) {
     unsafe {
         let turned = x87::column_turn(&place, MATRICES.view_matrix[0].addr() as u32);
         for (n, v) in turned.into_iter().enumerate() {
-            game_write(TURNED_RVA + 4 * n, v);
+            DRAW_WORK.turned[n].set_bits(v);
         }
         let [a, b, c] = turned;
-        if (c as i32) <= game_read::<i32>(NEAR_RVA) {
+        if (c as i32) <= DRAW_WORK.near.bits() as i32 {
             return;
         }
         let k = [
             DRAW.view_scale.bits(),
             DRAW.view_centre[0].bits(),
             DRAW.view_centre[1].bits(),
-            game_read(Z_K_RVA),
+            DRAW_WORK.z_k.bits(),
         ];
         let sq = x87::particle_square(a, b, c, k, size as i32);
         for n in 0..4 {
@@ -48,8 +45,8 @@ pub unsafe fn draw_particle(place: [[u8; 10]; 3], colour: u32, size: u32) {
             game_write(v, sq[6 + n]);
             game_write(v + 4, sq[2 + n]);
         }
-        game_write(HALF_RVA, sq[0]);
-        game_write(HALF_RVA + 4, sq[0]);
+        DRAW_WORK.half[0].set_bits(sq[0]);
+        DRAW_WORK.half[1].set_bits(sq[0]);
         crate::marks::clip_quad::draw_fan();
     }
 }

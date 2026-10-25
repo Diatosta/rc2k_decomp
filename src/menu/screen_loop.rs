@@ -69,8 +69,8 @@ use crate::menu::update_blink::update_blink;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::matrices_store::MATRICES;
 use crate::session::CLOCKS;
-use crate::session::Dword;
 use crate::session::FLAGS;
+use crate::session::{Dword, Float};
 
 // ---- game code the loop calls itself ----
 
@@ -104,7 +104,7 @@ pub enum Step {
     Call(Callee),
     /// Writes a game variable.
     Write(Cell, u32),
-    WriteF32(Cell, f32),
+    WriteF32(fn() -> &'static Float, f32),
     /// Sets what the next call is handed (the original's eax).
     Arg(u32),
     /// The same with the address of something in the game (a path, say).
@@ -525,7 +525,7 @@ unsafe fn run(steps: &[Step], c: &mut Carried) -> Result<Flow, Refused> {
                 },
                 Step::Call(function) => function.run(c)?,
                 Step::Write(variable, value) => variable().set(value),
-                Step::WriteF32(variable, value) => variable().set(value.to_bits()),
+                Step::WriteF32(variable, value) => variable().set(value),
                 Step::Arg(value) => c.arg = value,
                 Step::ArgAddr(what) => c.arg = what() as u32,
                 Step::CallOrFatal(function, code) => call_or_fatal(function, code, c)?,

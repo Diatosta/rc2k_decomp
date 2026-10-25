@@ -26,10 +26,6 @@ use crate::scene::matrix3::rounded;
 use crate::scene::x87_mem::{fild, fistp, fld, fstp};
 use rc2k_core::physics::contacts;
 
-/// `dword_6D3624`: the kind of contact being looked at (`CONTACT_WORK.contact_kind`; the
-/// address stays for `touch_face`).
-pub const KIND: usize = 0x6D3624;
-
 /// The Rust version: whether the point at `point` of the object at `object` is inside.
 // Converted: `rc2k_core::physics::contacts::{point_part, inside_box, kind_hits}` (the x87
 // steps stay).

@@ -19,33 +19,32 @@
 //! `screens::run_frame` (eax, from `race::replay_viewer`).
 
 use crate::errors::Refused;
-use crate::physics::flow::{a, g, p};
+use crate::physics::flow::g;
 use crate::race::replay_file_store::REPLAY_FILE;
-use crate::race::viewer::{
-    AT_END, BLOCK, BLOCKS, FRAME, MARK_IN, MARK_OUT, MENU, SNAPSHOT, STOPPED, gb,
-};
+use crate::race::viewer::{MARK_IN, MARK_OUT};
 use crate::race::viewer_screen_store::VIEWER_PANEL;
+use crate::race::viewer_state_store::REPLAY_VIEW;
 use crate::session::Dword;
 
 /// The Rust version: whether the frame was lost (the carry the original leaves; it
 /// keeps the other registers).
 pub fn viewer_frame() -> Result<bool, Refused> {
-    if g(AT_END) == 1 {
+    if REPLAY_FILE.replay_at_end.get() == 1 {
         crate::gfx::clear_back_surface::clear_back_surface()?;
     }
     // `d3d::begin_scene` cannot fail (its carry is clear).
     crate::platform_3d::begin_layer();
-    if g(AT_END) != 1 {
+    if REPLAY_FILE.replay_at_end.get() != 1 {
         crate::drive::replay_frame_marks::replay_frame_marks();
         crate::race::show_replay_still::show_replay_still()?;
     }
-    if g(SNAPSHOT) == 1 {
-        p(SNAPSHOT, 0);
+    if REPLAY_VIEW.snapshot_asked.get() == 1 {
+        REPLAY_VIEW.snapshot_asked.set(0);
         // `d3d::end_scene` cannot fail either.
         crate::platform_3d::end_layer();
         crate::race::viewer_snapshot::viewer_snapshot()?;
     } else {
-        if g(STOPPED) == 1 {
+        if REPLAY_FILE.viewer_stopped.get() == 1 {
             stopped()?;
         }
         crate::platform_3d::end_layer();
@@ -62,8 +61,8 @@ fn stopped() -> Result<(), Refused> {
     for (value, state) in LIST_STATES {
         crate::d3d::set_render_state::set_render_state(value, state);
     }
-    let menu = a(MENU);
-    let items = gb(MENU + 1);
+    let menu = REPLAY_VIEW.viewer_list[0].addr() as u32;
+    let items = unsafe { ((menu + 1) as *const u8).read() };
     let mut item = menu + 0x18;
     // The original counts ecx up to the byte at +1 after each item, from 0: a count of 0
     // goes round 256 times.
@@ -76,14 +75,19 @@ fn stopped() -> Result<(), Refused> {
     };
     let v = &VIEWER_PANEL;
     quad(&v.frame_picture_rect[0], &v.bar_frame_rect[0], 0xFF_FFFF)?;
-    let blocks = g(BLOCKS);
+    let blocks = REPLAY_FILE.index_block_count.get();
     if blocks != 0 {
         let (w, x) = (
             VIEWER_PANEL.bar_rect[2].get(),
             VIEWER_PANEL.bar_rect[0].get(),
         );
-        let [first, second, here] =
-            bar_places((g(MARK_IN), g(MARK_OUT)), g(BLOCK), g(FRAME), w, blocks)?;
+        let [first, second, here] = bar_places(
+            (g(MARK_IN), g(MARK_OUT)),
+            REPLAY_VIEW.replay_block.get(),
+            REPLAY_VIEW.replay_frame.get(),
+            w,
+            blocks,
+        )?;
         quad(&v.button_body_rect[0], &v.bar_rect[0], 0xFF00)?;
         VIEWER_PANEL.mark_rect[0].set(mark_x(first.0, x));
         quad(&v.mark_picture_rect[0], &v.mark_rect[0], 0xFF_FFFF)?;

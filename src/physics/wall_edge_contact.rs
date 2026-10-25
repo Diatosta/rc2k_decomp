@@ -24,11 +24,10 @@ use crate::errors::Refused;
 use crate::math::turn_float_point_xz::turn_float_point_xz;
 use crate::math::x87::mul;
 use crate::physics::car_store::CAR;
-use crate::physics::contact_force::{RECORD, contact_force};
+use crate::physics::contact_force::contact_force;
 use crate::physics::contact_store::CONTACT_WORK;
-use crate::physics::flow::{a, copy_cells, g, p};
+use crate::physics::flow::{a, copy_cells};
 use crate::physics::tables_store::PHYSICS;
-use crate::physics::touch_face::FACES;
 use crate::race::course_store::COURSE;
 use crate::race::numbers_store::NUMBERS;
 use crate::scene::draw_store::DRAW;
@@ -80,8 +79,8 @@ pub fn edge_normal(first: u32, second: u32) -> [u32; 4] {
 /// callers.
 // Converted: `rc2k_core::physics::walls::shared_edge` (the edge's heading stays x87).
 pub fn steps() -> Result<(), Refused> {
-    let wall = (CONTACT_WORK.wall_face_before.get() << 6).wrapping_add(g(FACES));
-    let face = (CONTACT_WORK.wall_face_now.get() << 6).wrapping_add(g(FACES));
+    let wall = (CONTACT_WORK.wall_face_before.get() << 6).wrapping_add(COURSE.course_faces.get());
+    let face = (CONTACT_WORK.wall_face_now.get() << 6).wrapping_add(COURSE.course_faces.get());
     let corners = [rd(face + 4), rd(face + 8), rd(face + 0xC), rd(face + 0x10)];
     let (shared, to, from) = walls::shared_edge(|j| rd(wall + 4 + 4 * j as u32), corners);
     if !shared {
@@ -104,7 +103,7 @@ pub fn steps() -> Result<(), Refused> {
         NUMBERS.tenth.bits(),
     ));
     CONTACT_WORK.contact_slide_limit.set_bits(0);
-    p(RECORD, a(&PHYSICS.contacts[4].force[0]));
+    PHYSICS.contact_record.set(a(&PHYSICS.contacts[4].force[0]));
     unsafe { contact_force() };
     unsafe { crate::physics::place_sound_e1::place_sound_e1() }?;
     Ok(())

@@ -6,16 +6,13 @@
 //!
 //! Caller: `sub_4C1148`.
 
-use crate::marks::store::{Slot, game_write};
+use crate::marks::tilt_shape::SHAPE_TILT;
 use crate::marks::view_vectors::KEPT;
 
 /// The Rust version (see the header).
 pub fn copy_first_point() {
-    for (n, to) in [Slot::at(0x811BDF), Slot::at(0x811BE3), Slot::at(0x811BE7)]
-        .into_iter()
-        .enumerate()
-    {
-        unsafe { game_write(to, KEPT.vector[n].bits()) };
+    for (n, to) in SHAPE_TILT.point.iter().enumerate() {
+        to.set_bits(KEPT.vector[n].bits());
     }
-    unsafe { game_write(Slot::at(0x811BCF), KEPT.length.get()) };
+    SHAPE_TILT.length.set(KEPT.length.get());
 }

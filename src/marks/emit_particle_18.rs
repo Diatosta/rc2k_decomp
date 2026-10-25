@@ -18,17 +18,11 @@
 use crate::errors::{BadInput, Refused};
 use crate::marks::emitters::*;
 use crate::marks::jitter_point::jitter_point;
-use crate::marks::store::{Slot, game_read, game_write};
+use crate::marks::surface_store::SURFACE;
+use crate::marks::tuning::MARKS_FLOATS;
 use crate::math::x87;
 use crate::scene::matrix3::{extended, rounded};
 
-const COUNT_RVA: Slot = Slot::at(0x9356C0); // dword_9356C0
-const SIZE_K_RVA: Slot = Slot::at(0x7651D0); // flt_7651D0
-/// flt_93546A, flt_93546E, flt_935472: the motion (x, y, z).
-const MOTION_RVA: [Slot; 3] = [Slot::at(0x93546A), Slot::at(0x93546E), Slot::at(0x935472)];
-const SPREAD_RVA: Slot = Slot::at(0x765198); // flt_765198
-const DROP_RVA: Slot = Slot::at(0x7651DC); // flt_7651DC
-const LIFE_SCALE_RVA: Slot = Slot::at(0x7651A4); // flt_7651A4
 const LIFE: u32 = 0x12C;
 const ONE: u32 = 0x3F80_0000; // fld1
 
@@ -36,8 +30,8 @@ const ONE: u32 = 0x3F80_0000; // fld1
 unsafe fn count(record: u32) -> (i32, i32) {
     unsafe {
         let n = ((at(record + 0x20) >> 6) << 2) as i32;
-        let (size, k) = (at(record + 0x38), game_read::<u32>(SIZE_K_RVA));
-        let under = x87::times_compare(size, k, game_read(ONE_RVA)) & 0x700 == 0x100;
+        let (size, k) = (at(record + 0x38), MARKS_FLOATS.over_32.bits());
+        let under = x87::times_compare(size, k, MARKS_FLOATS.one.bits()) & 0x700 == 0x100;
         let count = if under {
             x87::times_int_to_int(size, k, n)
         } else {
@@ -56,7 +50,7 @@ unsafe fn made(record: u32) -> u32 {
         } else {
             count.max(0) as u32
         };
-        wanted.min(MOST_TAKEN.saturating_sub(game_read(RING_COUNT_RVA)))
+        wanted.min(MOST_TAKEN.saturating_sub(RING_WORK.count.get()))
     }
 }
 
@@ -70,10 +64,10 @@ pub unsafe fn emit_particle_18(record: u32, object: u32) -> Result<(), Refused> 
             return Err(BadInput("a null object").into());
         }
         let flags = at(record + 0x20);
-        game_write(FLAGS_RVA, flags);
+        SURFACE.wheel_flags.set(flags);
         let (count, n) = count(record);
-        game_write(COUNT_RVA, n);
-        game_write(COUNT_RVA, count);
+        RING_WORK.whole.set(n as u32);
+        RING_WORK.whole.set(count as u32);
         let mut left = count;
         let mut tag_from = object;
         loop {
@@ -84,21 +78,32 @@ pub unsafe fn emit_particle_18(record: u32, object: u32) -> Result<(), Refused> 
             let e = take_entry(at(tag_from + 0x1C) & 0xFF_FFFF, 0x12);
             tag_from = e;
             let put = |o: u32, v: u32| ((e + o) as *mut u32).write_unaligned(v);
-            let m = MOTION_RVA.map(|r| extended(game_read::<u32>(r)));
-            let (moved, _) = jitter_point([extended(game_read(SPREAD_RVA)), m[2], m[1], m[0]]);
+            let m = EMITTER.motion.each_ref().map(|r| extended(r.bits()));
+            let (moved, _) = jitter_point([
+                extended(MARKS_FLOATS.hundred_twenty_eight.bits()),
+                m[2],
+                m[1],
+                m[0],
+            ]);
             put(0x34, rounded(moved[0]));
             put(0x30, rounded(moved[1]) & 0x7FFF_FFFF);
             put(0x2C, rounded(moved[2]));
             put(0x10, x87::loaded(at(record + 0x3C)));
             put(0x14, x87::loaded(at(record + 0x40)));
-            put(0x28, x87::sub(at(record + 0x40), game_read(DROP_RVA)));
+            put(
+                0x28,
+                x87::sub(at(record + 0x40), MARKS_FLOATS.two_pow_16.bits()),
+            );
             put(0x18, x87::loaded(at(record + 0x44)));
             for o in [0x1C, 0x20, 0x24] {
                 put(o, 0);
             }
             put(0x84, LIFE);
-            put(0x68, game_read(OBJECT_RVA));
-            put(0x78, x87::over_int(game_read(LIFE_SCALE_RVA), LIFE as i32));
+            put(0x68, EMITTER.car.get());
+            put(
+                0x78,
+                x87::over_int(MARKS_FLOATS.two_fifty_seven.bits(), LIFE as i32),
+            );
         }
     }
     Ok(())

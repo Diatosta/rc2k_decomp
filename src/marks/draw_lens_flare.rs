@@ -16,17 +16,11 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::marks::draw_flare_part::draw_flare_part;
-use crate::marks::store::{Slot, game_addr, game_read, game_write};
+use crate::marks::frame_state::{DRAW_FRAME, FLARE_PARTS, FLARE_SCALES};
 use crate::math::x87;
 use crate::scene::draw_store::DRAW;
+use crate::session::address_of;
 
-const WAY_RVA: [Slot; 2] = [Slot::at(0x91FFDA), Slot::at(0x91FFDE)]; // flt_91FFDA, flt_91FFDE
-const UNIT_RVA: Slot = Slot::at(0x92051E); // flt_92051E .. flt_920526
-const LENGTH_RVA: Slot = Slot::at(0x91FFD6); // flt_91FFD6
-const FADE: [Slot; 2] = [Slot::at(0x9206D2), Slot::at(0x9206D6)]; // flt_9206D2, flt_9206D6
-const SIZE_K_RVA: Slot = Slot::at(0x9206DA); // flt_9206DA
-const CORNER_RVA: Slot = Slot::at(0x92052A); // dword_92052A: 0x11
-const SIZE_RVA: Slot = Slot::at(0x9205B2); // dword_9205B2: 0x11
 const PARTS: u32 = 0x11;
 
 unsafe fn get(a: u32) -> u32 {
@@ -40,33 +34,38 @@ pub unsafe fn draw_lens_flare() -> Result<(), Refused> {
         if settings == 0 {
             return Err(BadInput("no marks settings").into());
         }
-        if (0..PARTS).any(|k| game_read::<u32>(CORNER_RVA + 4 * k as usize) >= 0x100) {
+        if FLARE_PARTS.corner.iter().any(|c| c.get() >= 0x100) {
             return Err(BadInput("a flare corner past g_marksCorners").into());
         }
         let [cx, cy] = [DRAW.view_centre[0].bits(), DRAW.view_centre[1].bits()];
         let dx = x87::sub(get(settings + 0x2758), cx);
         let dy = x87::sub(get(settings + 0x275C), cy) ^ 0x8000_0000;
-        game_write(WAY_RVA[0], dx);
-        game_write(WAY_RVA[1], dy);
-        game_write(UNIT_RVA, x87::loaded(dx));
-        game_write(UNIT_RVA + 4, x87::loaded(dy));
-        game_write(UNIT_RVA + 8, 0u32);
-        crate::scene::vector3::normalise_vector3(game_addr(UNIT_RVA) as u32);
+        DRAW_FRAME.flare_way[0].set_bits(dx);
+        DRAW_FRAME.flare_way[1].set_bits(dy);
+        FLARE_PARTS.unit[0].set_bits(x87::loaded(dx));
+        FLARE_PARTS.unit[1].set_bits(x87::loaded(dy));
+        FLARE_PARTS.unit[2].set_bits(0);
+        crate::scene::vector3::normalise_vector3(address_of(&FLARE_PARTS.unit) as u32);
         let length = crate::math::x87_load::float_hypot(dx, dy);
-        game_write(LENGTH_RVA, length);
-        let alpha = x87::times_subr_to_int(length, game_read(FADE[0]), game_read(FADE[1])).max(0);
+        DRAW_FRAME.flare_length.set_bits(length);
+        let alpha = x87::times_subr_to_int(
+            length,
+            FLARE_SCALES.fade[0].bits(),
+            FLARE_SCALES.fade[1].bits(),
+        )
+        .max(0);
         let product = u64::from(get(settings + 0x2754)) * u64::from(alpha as u32);
         let alpha = (product as u32) >> 8;
-        let size_k: u32 = game_read(SIZE_K_RVA);
+        let size_k: u32 = FLARE_SCALES.size_k.bits();
         for k in (0..PARTS as usize).rev() {
             let level: u32 = crate::marks::waves::WAVE_LEVELS.levels[k].get();
             let y = x87::times_plus_80(dy, level, cy, false);
             let x = x87::times_plus_80(dx, level, cx, true);
             draw_flare_part(
-                game_read(CORNER_RVA + 4 * k),
+                FLARE_PARTS.corner[k].get(),
                 0,
                 alpha,
-                x87::int_times_to_int(game_read(SIZE_RVA + 4 * k), size_k) as u32,
+                x87::int_times_to_int(FLARE_PARTS.size[k].get() as i32, size_k) as u32,
                 0xFF_FFFF,
                 [x, y],
             )?;

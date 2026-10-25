@@ -10,14 +10,14 @@
 //!
 //! the x87 version stays for the Rust callers in unconverted code).
 
-use crate::marks::splines::FILE_RVA;
-use crate::marks::store::game_read;
+use crate::marks::splines::SPLINE_HEAD;
 use crate::math::x87;
 
 /// The Rust version (see the header): the three values (x, y, z).
 pub unsafe fn blend_points(a: u32, b: u32, c: u32, entry: u8) -> [[u8; 10]; 3] {
-    let at = FILE_RVA + 12 * entry as usize;
-    let k: [u32; 3] = unsafe { [game_read(at + 8), game_read(at + 4), game_read(at)] };
+    let at = 12 * entry as usize;
+    let file = &SPLINE_HEAD.file;
+    let k: [u32; 3] = [file.get_u32(at + 8), file.get_u32(at + 4), file.get_u32(at)];
     let p = |r: u32, c: u32| unsafe { ((r + 4 * c) as *const i32).read_unaligned() };
     std::array::from_fn(|n| {
         let n = n as u32;

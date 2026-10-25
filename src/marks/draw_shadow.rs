@@ -21,7 +21,13 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::rva;
-use crate::marks::store::{Slot, Where, game_addr, game_read, game_write};
+use crate::marks::blocks::MARK_CORNERS;
+use crate::marks::frame_state::DRAW_WORK;
+use crate::marks::kind_store::{
+    CONSTS_1, CONSTS_2, EXTRA_2, EXTRAS_1, KindConsts, QUAD_1, QUAD_2, QuadWork,
+};
+use crate::marks::store::game_write;
+use crate::marks::surface_store::SURFACE;
 use crate::math::{x87, x87_run};
 use crate::race::matrices_store::MATRICES;
 use crate::race::numbers_store::NUMBERS;
@@ -29,159 +35,51 @@ use crate::scene::cross_product3::cross_product3;
 use crate::scene::matrix3::{Axis, extended, rounded, turn_matrix3, turnable};
 use crate::scene::rotate_point::rotate_point;
 use crate::scene::vector3::normalise_vector3;
+use crate::session::Float;
 
-const MARK_CORNERS_RVA: Slot = Slot::at(0x8EB971); // g_marksCorners
-const UV_K_RVA: Slot = Slot::at(0x8EB969); // flt_8EB969
-const TINT_RVA: Slot = Slot::at(0x939BA6); // dword_939BA6
-const Z_K_RVA: Slot = Slot::at(0x8EB96D); // flt_8EB96D
 const VERTICES_RVA: usize = rva(0x9605A0); // g_polygonVertices
 
-/// A shadow's variables (the second, `sub_4C74DA`'s, 0xD1C lower, its constants 0xD08 lower)
-/// and its x87 blocks.
-pub struct Shadow {
-    corner: Slot,
-    sides: [Slot; 2],
-    side: [Slot; 3],
-    matrix: Slot,
-    split: Slot,
-    /// (factor, base) below the split, (factor, base) above it.
-    lines: [(Slot, Slot); 2],
-    way: Slot,
-    corners: Slot,
-    lifts: Slot,
+/// A shadow's variables (the typed statics of `marks::kind_store`: the second shadow's,
+/// `sub_4C74DA`'s, are set 1's, the first's set 2's) and its x87 blocks.
+pub struct Shadow<'a> {
+    pub quad: &'a QuadWork,
+    pub consts: &'a KindConsts,
+    /// The quad is lifted along it (`flt_934B78`, set 1's `flt_933E70`).
+    pub up: &'a Float,
     /// The settings' field the angle comes from.
-    field: u32,
-    light_turned: unsafe fn(u32, u32),
-    second_turned: unsafe fn(u32, u32),
-    corners_block: unsafe fn(),
-    corners_in: unsafe fn(),
-    projected: unsafe fn(),
+    pub field: u32,
 }
 
 /// `draw_shadow`'s.
-pub const FIRST: Shadow = Shadow {
-    corner: Slot::at(0x933F64),
-    sides: [Slot::at(0x933F1C), Slot::at(0x933F28)],
-    side: [Slot::at(0x933F40), Slot::at(0x933F4C), Slot::at(0x933F58)],
-    matrix: Slot::at(0x933EEC),
-    split: Slot::at(0x933F78),
-    lines: [
-        (Slot::at(0x933F74), Slot::at(0x933F70)),
-        (Slot::at(0x933F84), Slot::at(0x933F80)),
-    ],
-    way: Slot::at(0x933F8C),
-    corners: Slot::at(0x933F98),
-    lifts: Slot::at(0x934BC0),
+pub static FIRST: Shadow<'static> = Shadow {
+    quad: &QUAD_2,
+    consts: &CONSTS_2,
+    up: &EXTRA_2.extra,
     field: 0x26A4,
-    light_turned,
-    second_turned,
-    corners_block: corners,
-    corners_in,
-    projected,
 };
 
 /// `sub_4C74DA`'s.
-pub const SECOND: Shadow = Shadow {
-    corner: Slot::at(0x933248),
-    sides: [Slot::at(0x933200), Slot::at(0x93320C)],
-    side: [Slot::at(0x933224), Slot::at(0x933230), Slot::at(0x93323C)],
-    matrix: Slot::at(0x9331D0),
-    split: Slot::at(0x93325C),
-    lines: [
-        (Slot::at(0x933258), Slot::at(0x933254)),
-        (Slot::at(0x933268), Slot::at(0x933264)),
-    ],
-    way: Slot::at(0x933270),
-    corners: Slot::at(0x93327C),
-    lifts: Slot::at(0x933EC0),
+pub static SECOND: Shadow<'static> = Shadow {
+    quad: &QUAD_1,
+    consts: &CONSTS_1,
+    up: &EXTRAS_1.extra,
     field: 0x26A0,
-    light_turned: light_turned_2,
-    second_turned: second_turned_2,
-    corners_block: corners_2,
-    corners_in: corners_in_2,
-    projected: projected_2,
 };
 
 /// Each vertex's texture place: the corner entry's word offsets (u, v).
 const UV_WORDS: [(u32, u32); 4] = [(0xC, 0xE), (8, 0xA), (0, 2), (4, 6)];
 const STATES: [(u32, u32); 5] = [(4, 0x15), (5, 0x13), (6, 0x14), (0, 0x1C), (1, 0x1B)];
 
-fn addr(r: impl Where) -> u32 {
-    game_addr(r) as u32
-}
-
-/// The original's 0x4C82B4 .. 0x4C8324: `flt_934BB4` .. turned by the matrix at m (`[esp]` temporaries at t) into `flt_933EE0` ...
-unsafe fn light_turned(m: u32, t: u32) {
-    unsafe { light_turned_x87(crate::marks::store::base() as usize, m as usize, t as usize) }
-}
-
-/// The original's 0x4C838A .. 0x4C83FA: `flt_933EE0` .. turned by the matrix at m into `dword_933F4C` ...
-unsafe fn second_turned(m: u32, t: u32) {
-    unsafe { second_turned_x87(crate::marks::store::base() as usize, m as usize, t as usize) }
-}
-
-/// The original's 0x4C8428 .. 0x4C86E6: the two sides scaled, the quad's four corners about `flt_933ED0` .., lifted along the up (`flt_934B78`), the way between two corners into `flt_933F8C` ...
-unsafe fn corners() {
-    unsafe { corners_x87(crate::marks::store::base() as usize) }
-}
-
-/// The original's 0x4C86F1 .. 0x4C87FF: that way times `flt_933F88`, taken off every corner.
-unsafe fn corners_in() {
-    unsafe { corners_in_x87(crate::marks::store::base() as usize) }
-}
-
-/// The original's 0x4C8A4A .. 0x4C8B1A: the four corners projected.
-unsafe fn projected() {
-    unsafe {
-        projected_x87(
-            crate::race::store::asm_base() as usize,
-            crate::marks::store::base() as usize,
-        )
-    }
-}
-
-/// The twin's (0x4C7680 ..): as `light_turned`, on the second shadow's variables.
-unsafe fn light_turned_2(m: u32, t: u32) {
-    unsafe { light_turned_2_x87(crate::marks::store::base() as usize, m as usize, t as usize) }
-}
-
-/// The twin's: as `second_turned`.
-unsafe fn second_turned_2(m: u32, t: u32) {
-    unsafe { second_turned_2_x87(crate::marks::store::base() as usize, m as usize, t as usize) }
-}
-
-/// The twin's: as `corners`.
-unsafe fn corners_2() {
-    unsafe { corners_2_x87(crate::marks::store::base() as usize) }
-}
-
-/// The twin's: as `corners_in`.
-unsafe fn corners_in_2() {
-    unsafe { corners_in_2_x87(crate::marks::store::base() as usize) }
-}
-
-/// The twin's: as `projected`.
-unsafe fn projected_2() {
-    unsafe {
-        projected_2_x87(
-            crate::race::store::asm_base() as usize,
-            crate::marks::store::base() as usize,
-        )
-    }
-}
-
 /// The z turn's angle (see the header), 80 bits.
 unsafe fn angle(sh: &Shadow) -> [u8; 10] {
     unsafe {
         let settings: u32 = crate::marks::setup::SETTINGS.pointer.get();
-        let split: u32 = game_read(sh.split);
+        let split: u32 = sh.quad.low.bits();
         let v = ((settings + sh.field) as *const u32).read_unaligned();
         if (split as i32) <= v as i32 {
-            let (k, c) = sh.lines[1];
-            x87::less_times_plus_negated_80(v, split, game_read(k), game_read(c))
+            x87::less_times_plus_negated_80(v, split, sh.quad.slope.bits(), sh.quad.middle.bits())
         } else {
-            let (k, c) = sh.lines[0];
-            x87::times_plus_negated_80(v, game_read(k), game_read(c))
+            x87::times_plus_negated_80(v, sh.quad.step.bits(), sh.quad.start.bits())
         }
     }
 }
@@ -191,10 +89,10 @@ pub unsafe fn draw_shadow() -> Result<(), Refused> {
     unsafe { draw_shadow_with(&FIRST, true) }
 }
 
-impl Shadow {
-    /// The corner's variable (-1: no shadow).
-    pub fn corner(&self) -> Slot {
-        self.corner
+impl Shadow<'_> {
+    /// The corner (-1: no shadow).
+    pub fn corner(&self) -> u32 {
+        self.quad.corner.get()
     }
 
     /// The angle's refusal, if any (for a caller that checks before drawing).
@@ -207,7 +105,8 @@ impl Shadow {
 pub unsafe fn draw_shadow_with(sh: &Shadow, depth: bool) -> Result<(), Refused> {
     use crate::scene::set_render_state::set_render_state;
     unsafe {
-        let corner: u32 = game_read(sh.corner);
+        let q = sh.quad;
+        let corner: u32 = q.corner.get();
         if corner == 0xFFFF_FFFF {
             return Ok(());
         }
@@ -227,13 +126,12 @@ pub unsafe fn draw_shadow_with(sh: &Shadow, depth: bool) -> Result<(), Refused> 
         for (value, state) in STATES {
             set_render_state(value, state);
         }
-        for (n, from) in sh.sides.into_iter().enumerate() {
-            let v: [u32; 3] = game_read(from);
-            for (k, x) in v.into_iter().enumerate() {
-                game_write(sh.side[n] + 4 * k, x);
+        for n in 0..2 {
+            for k in 0..3 {
+                q.frame[n][k].set_bits(q.sides[n][k].bits());
             }
         }
-        let [s0, s1, s2] = sh.side.map(addr);
+        let [s0, s1, s2] = [0, 1, 2].map(|n| q.frame[n][0].addr() as u32);
         normalise_vector3(s0);
         normalise_vector3(s1);
         cross_product3(s0, s1, s2)?;
@@ -241,39 +139,37 @@ pub unsafe fn draw_shadow_with(sh: &Shadow, depth: bool) -> Result<(), Refused> 
         normalise_vector3(s1);
         normalise_vector3(s2);
         let a = angle(sh);
-        let m = addr(sh.matrix);
+        let m = q.matrix[0].addr() as u32;
         turn_matrix3(Axis::Z, m, a)?;
-        (sh.light_turned)(m, t);
-        for (n, side) in sh.side.into_iter().enumerate() {
-            let v: [u32; 3] = game_read(side);
-            for (k, x) in v.into_iter().enumerate() {
-                ((m + 4 * n as u32 + 0xC * k as u32) as *mut u32).write_unaligned(x);
+        light_turned_x87(sh, m as usize, t as usize);
+        for n in 0..3 {
+            for k in 0..3 {
+                q.matrix[n + 3 * k].set_bits(q.frame[n][k].bits());
             }
         }
-        (sh.second_turned)(m, t);
+        second_turned_x87(sh, m as usize, t as usize);
         cross_product3(s2, s1, s0)?;
         cross_product3(s2, s0, s1)?;
-        (sh.corners_block)();
-        normalise_vector3(addr(sh.way));
-        (sh.corners_in)();
+        corners_x87(sh);
+        normalise_vector3(q.way[0].addr() as u32);
+        corners_in_x87(sh);
         let view = MATRICES.listener_matrix[0].addr() as u32;
         for n in 0..4 {
-            let c = sh.corners + 12 * n;
-            let p: [u32; 3] = game_read(c);
+            let p: [u32; 3] = std::array::from_fn(|k| q.corners[n][k].bits());
             let turned = rotate_point(view, p.map(extended));
             for (k, v) in turned.into_iter().enumerate() {
-                game_write(c + 4 * k, rounded(v));
+                q.corners[n][k].set_bits(rounded(v));
             }
         }
-        let at = addr(MARK_CORNERS_RVA) + corner * 0x80;
-        let word = |off: u32| ((at + off) as *const u16).read_unaligned() as u32;
-        let uv_k: u32 = game_read(UV_K_RVA);
+        let entry = &MARK_CORNERS.corners[corner as usize]; // under 0x100, checked before
+        let word = |off: u32| u32::from(entry.words[off as usize / 2].get());
+        let uv_k: u32 = DRAW_WORK.uv_k.bits();
         for (n, (u, v)) in UV_WORDS.into_iter().enumerate() {
             let vertex = VERTICES_RVA + 0x20 * n;
             game_write(vertex + 0x18, x87::int_times(word(u) as i32, uv_k));
             game_write(vertex + 0x1C, x87::int_times(word(v) as i32, uv_k));
         }
-        let mut c = game_read::<u32>(TINT_RVA) | 0xFF00_0000;
+        let mut c = SURFACE.lives_by_level[8].get() | 0xFF00_0000;
         let half = |shift: u32| ((!(c >> shift) & 0xFF) >> 1) << shift;
         let (r, gr, bl) = (half(16), half(8), half(0));
         c = c.wrapping_add(r).wrapping_add(gr).wrapping_add(bl);
@@ -281,18 +177,17 @@ pub unsafe fn draw_shadow_with(sh: &Shadow, depth: bool) -> Result<(), Refused> 
             game_write(VERTICES_RVA + 0x20 * n + 0x10, c);
         }
         for n in 0..4 {
-            if game_read::<i32>(sh.corners + 12 * n + 8) <= (NUMBERS.k4096_a.bits() as i32) {
+            if (q.corners[n][2].bits() as i32) <= (NUMBERS.k4096_a.bits() as i32) {
                 return Ok(());
             }
         }
-        (sh.projected)();
-        let z_k: u32 = game_read(Z_K_RVA);
+        projected_x87(crate::race::store::asm_base() as usize, sh);
+        let z_k: u32 = DRAW_WORK.z_k.bits();
         for n in 0..4 {
-            let c = sh.corners + 12 * n;
             let vertex = VERTICES_RVA + 0x20 * n;
-            game_write(vertex, game_read::<u32>(c));
-            game_write(vertex + 4, game_read::<u32>(c + 4));
-            let depth = x87_run::sub_mul(game_read(c + 8), game_read(sh.lifts + 4 * n), z_k);
+            game_write(vertex, q.corners[n][0].bits());
+            game_write(vertex + 4, q.corners[n][1].bits());
+            let depth = x87_run::sub_mul(q.corners[n][2].bits(), sh.consts.lifts[n].bits(), z_k);
             game_write(vertex + 8, depth);
         }
         crate::marks::clip_quad::draw_fan();
@@ -301,13 +196,14 @@ pub unsafe fn draw_shadow_with(sh: &Shadow, depth: bool) -> Result<(), Refused> 
 }
 
 use crate::marks::plain::{ld, st};
+use crate::math::x87_float as bh;
 
-/// `light_turned`'s x87 block as plain Rust on the x87 model (33 instructions), same order and memory places.
-unsafe fn light_turned_x87(mk: usize, m: usize, t: usize) {
+/// `light_turned`'s x87 block as plain Rust on the x87 model (33 instructions), same order and memory places, on either shadow's variables.
+unsafe fn light_turned_x87(s: &Shadow, m: usize, t: usize) {
     unsafe {
-        let t0 = ld(mk, 0x1CFC74);
-        let t1 = ld(mk, 0x1CFC78);
-        let t2 = ld(mk, 0x1CFC7C);
+        let t0 = bh::ld(s.consts.light[0].bits());
+        let t1 = bh::ld(s.consts.light[1].bits());
+        let t2 = bh::ld(s.consts.light[2].bits());
         let t3 = t2 * ld(m, 0);
         let t4 = t1 * ld(m, 0x4);
         let t5 = t0 * ld(m, 0x8);
@@ -327,18 +223,18 @@ unsafe fn light_turned_x87(mk: usize, m: usize, t: usize) {
         let t17 = t14 + t16;
         let t18 = ld(t, 0x4);
         let t19 = ld(t, 0);
-        st(mk, 0x1CEFA0, t19);
-        st(mk, 0x1CEFA4, t18);
-        st(mk, 0x1CEFA8, t17);
+        s.quad.light_turned[0].set_bits(bh::st(t19));
+        s.quad.light_turned[1].set_bits(bh::st(t18));
+        s.quad.light_turned[2].set_bits(bh::st(t17));
     }
 }
 
-/// `second_turned`'s x87 block as plain Rust on the x87 model (33 instructions), same order and memory places.
-unsafe fn second_turned_x87(mk: usize, m: usize, t: usize) {
+/// `second_turned`'s x87 block as plain Rust on the x87 model (33 instructions), same order and memory places, on either shadow's variables.
+unsafe fn second_turned_x87(s: &Shadow, m: usize, t: usize) {
     unsafe {
-        let t0 = ld(mk, 0x1CEFA8);
-        let t1 = ld(mk, 0x1CEFA4);
-        let t2 = ld(mk, 0x1CEFA0);
+        let t0 = bh::ld(s.quad.light_turned[2].bits());
+        let t1 = bh::ld(s.quad.light_turned[1].bits());
+        let t2 = bh::ld(s.quad.light_turned[0].bits());
         let t3 = t2 * ld(m, 0);
         let t4 = t1 * ld(m, 0x4);
         let t5 = t0 * ld(m, 0x8);
@@ -358,503 +254,221 @@ unsafe fn second_turned_x87(mk: usize, m: usize, t: usize) {
         let t17 = t14 + t16;
         let t18 = ld(t, 0x4);
         let t19 = ld(t, 0);
-        st(mk, 0x1CF00C, t19);
-        st(mk, 0x1CF010, t18);
-        st(mk, 0x1CF014, t17);
+        s.quad.frame[1][0].set_bits(bh::st(t19));
+        s.quad.frame[1][1].set_bits(bh::st(t18));
+        s.quad.frame[1][2].set_bits(bh::st(t17));
     }
 }
 
-/// `corners`'s x87 block as plain Rust on the x87 model (117 instructions), same order and memory places.
-unsafe fn corners_x87(mk: usize) {
-    unsafe {
-        let t0 = ld(mk, 0x1CF000);
-        let t1 = t0 * ld(mk, 0x1CF028);
-        st(mk, 0x1CF000, t1);
-        let t2 = ld(mk, 0x1CF004);
-        let t3 = t2 * ld(mk, 0x1CF028);
-        st(mk, 0x1CF004, t3);
-        let t4 = ld(mk, 0x1CF008);
-        let t5 = t4 * ld(mk, 0x1CF028);
-        st(mk, 0x1CF008, t5);
-        let t6 = ld(mk, 0x1CF00C);
-        let t7 = t6 * ld(mk, 0x1CF02C);
-        st(mk, 0x1CF00C, t7);
-        let t8 = ld(mk, 0x1CF010);
-        let t9 = t8 * ld(mk, 0x1CF02C);
-        st(mk, 0x1CF010, t9);
-        let t10 = ld(mk, 0x1CF014);
-        let t11 = t10 * ld(mk, 0x1CF02C);
-        st(mk, 0x1CF014, t11);
-        let t12 = ld(mk, 0x1CEF90);
-        let t13 = t12 - ld(mk, 0x1CF000);
-        st(mk, 0x1CF058, t13);
-        let t14 = ld(mk, 0x1CEF94);
-        let t15 = t14 - ld(mk, 0x1CF004);
-        st(mk, 0x1CF05C, t15);
-        let t16 = ld(mk, 0x1CEF98);
-        let t17 = t16 - ld(mk, 0x1CF008);
-        st(mk, 0x1CF060, t17);
-        let t18 = ld(mk, 0x1CEF90);
-        let t19 = t18 + ld(mk, 0x1CF000);
-        st(mk, 0x1CF064, t19);
-        let t20 = ld(mk, 0x1CEF94);
-        let t21 = t20 + ld(mk, 0x1CF004);
-        st(mk, 0x1CF068, t21);
-        let t22 = ld(mk, 0x1CEF98);
-        let t23 = t22 + ld(mk, 0x1CF008);
-        st(mk, 0x1CF06C, t23);
-        let t24 = ld(mk, 0x1CEF90);
-        let t25 = t24 + ld(mk, 0x1CF000);
-        let t26 = t25 + ld(mk, 0x1CF00C);
-        st(mk, 0x1CF070, t26);
-        let t27 = ld(mk, 0x1CEF94);
-        let t28 = t27 + ld(mk, 0x1CF004);
-        let t29 = t28 + ld(mk, 0x1CF010);
-        st(mk, 0x1CF074, t29);
-        let t30 = ld(mk, 0x1CEF98);
-        let t31 = t30 + ld(mk, 0x1CF008);
-        let t32 = t31 + ld(mk, 0x1CF014);
-        st(mk, 0x1CF078, t32);
-        let t33 = ld(mk, 0x1CEF90);
-        let t34 = t33 - ld(mk, 0x1CF000);
-        let t35 = t34 + ld(mk, 0x1CF00C);
-        st(mk, 0x1CF07C, t35);
-        let t36 = ld(mk, 0x1CEF94);
-        let t37 = t36 - ld(mk, 0x1CF004);
-        let t38 = t37 + ld(mk, 0x1CF010);
-        st(mk, 0x1CF080, t38);
-        let t39 = ld(mk, 0x1CEF98);
-        let t40 = t39 - ld(mk, 0x1CF008);
-        let t41 = t40 + ld(mk, 0x1CF014);
-        st(mk, 0x1CF084, t41);
-        let t42 = ld(mk, 0x1CEFB0);
-        let t43 = t42 * ld(mk, 0x1CFC38);
-        let t44 = t43 + ld(mk, 0x1CF058);
-        st(mk, 0x1CF058, t44);
-        let t45 = ld(mk, 0x1CEFBC);
-        let t46 = t45 * ld(mk, 0x1CFC38);
-        let t47 = t46 + ld(mk, 0x1CF05C);
-        st(mk, 0x1CF05C, t47);
-        let t48 = ld(mk, 0x1CEFC8);
-        let t49 = t48 * ld(mk, 0x1CFC38);
-        let t50 = t49 + ld(mk, 0x1CF060);
-        st(mk, 0x1CF060, t50);
-        let t51 = ld(mk, 0x1CEFB0);
-        let t52 = t51 * ld(mk, 0x1CFC38);
-        let t53 = t52 + ld(mk, 0x1CF064);
-        st(mk, 0x1CF064, t53);
-        let t54 = ld(mk, 0x1CEFBC);
-        let t55 = t54 * ld(mk, 0x1CFC38);
-        let t56 = t55 + ld(mk, 0x1CF068);
-        st(mk, 0x1CF068, t56);
-        let t57 = ld(mk, 0x1CEFC8);
-        let t58 = t57 * ld(mk, 0x1CFC38);
-        let t59 = t58 + ld(mk, 0x1CF06C);
-        st(mk, 0x1CF06C, t59);
-        let t60 = ld(mk, 0x1CEFB0);
-        let t61 = t60 * ld(mk, 0x1CFC38);
-        let t62 = t61 + ld(mk, 0x1CF070);
-        st(mk, 0x1CF070, t62);
-        let t63 = ld(mk, 0x1CEFBC);
-        let t64 = t63 * ld(mk, 0x1CFC38);
-        let t65 = t64 + ld(mk, 0x1CF074);
-        st(mk, 0x1CF074, t65);
-        let t66 = ld(mk, 0x1CEFC8);
-        let t67 = t66 * ld(mk, 0x1CFC38);
-        let t68 = t67 + ld(mk, 0x1CF078);
-        st(mk, 0x1CF078, t68);
-        let t69 = ld(mk, 0x1CEFB0);
-        let t70 = t69 * ld(mk, 0x1CFC38);
-        let t71 = t70 + ld(mk, 0x1CF07C);
-        st(mk, 0x1CF07C, t71);
-        let t72 = ld(mk, 0x1CEFBC);
-        let t73 = t72 * ld(mk, 0x1CFC38);
-        let t74 = t73 + ld(mk, 0x1CF080);
-        st(mk, 0x1CF080, t74);
-        let t75 = ld(mk, 0x1CEFC8);
-        let t76 = t75 * ld(mk, 0x1CFC38);
-        let t77 = t76 + ld(mk, 0x1CF084);
-        st(mk, 0x1CF084, t77);
-        let t78 = ld(mk, 0x1CF070);
-        let t79 = t78 - ld(mk, 0x1CF064);
-        st(mk, 0x1CF04C, t79);
-        let t80 = ld(mk, 0x1CF074);
-        let t81 = t80 - ld(mk, 0x1CF068);
-        st(mk, 0x1CF050, t81);
-        let t82 = ld(mk, 0x1CF078);
-        let t83 = t82 - ld(mk, 0x1CF06C);
-        st(mk, 0x1CF054, t83);
-    }
+/// `corners`'s x87 block as plain Rust on the x87 model (117 instructions), same order and memory places, on either shadow's variables.
+fn corners_x87(s: &Shadow) {
+    let t0 = bh::ld(s.quad.frame[0][0].bits());
+    let t1 = t0 * bh::ld(s.quad.ratio.bits());
+    s.quad.frame[0][0].set_bits(bh::st(t1));
+    let t2 = bh::ld(s.quad.frame[0][1].bits());
+    let t3 = t2 * bh::ld(s.quad.ratio.bits());
+    s.quad.frame[0][1].set_bits(bh::st(t3));
+    let t4 = bh::ld(s.quad.frame[0][2].bits());
+    let t5 = t4 * bh::ld(s.quad.ratio.bits());
+    s.quad.frame[0][2].set_bits(bh::st(t5));
+    let t6 = bh::ld(s.quad.frame[1][0].bits());
+    let t7 = t6 * bh::ld(s.quad.size.bits());
+    s.quad.frame[1][0].set_bits(bh::st(t7));
+    let t8 = bh::ld(s.quad.frame[1][1].bits());
+    let t9 = t8 * bh::ld(s.quad.size.bits());
+    s.quad.frame[1][1].set_bits(bh::st(t9));
+    let t10 = bh::ld(s.quad.frame[1][2].bits());
+    let t11 = t10 * bh::ld(s.quad.size.bits());
+    s.quad.frame[1][2].set_bits(bh::st(t11));
+    let t12 = bh::ld(s.quad.place[0].bits());
+    let t13 = t12 - bh::ld(s.quad.frame[0][0].bits());
+    s.quad.corners[0][0].set_bits(bh::st(t13));
+    let t14 = bh::ld(s.quad.place[1].bits());
+    let t15 = t14 - bh::ld(s.quad.frame[0][1].bits());
+    s.quad.corners[0][1].set_bits(bh::st(t15));
+    let t16 = bh::ld(s.quad.place[2].bits());
+    let t17 = t16 - bh::ld(s.quad.frame[0][2].bits());
+    s.quad.corners[0][2].set_bits(bh::st(t17));
+    let t18 = bh::ld(s.quad.place[0].bits());
+    let t19 = t18 + bh::ld(s.quad.frame[0][0].bits());
+    s.quad.corners[1][0].set_bits(bh::st(t19));
+    let t20 = bh::ld(s.quad.place[1].bits());
+    let t21 = t20 + bh::ld(s.quad.frame[0][1].bits());
+    s.quad.corners[1][1].set_bits(bh::st(t21));
+    let t22 = bh::ld(s.quad.place[2].bits());
+    let t23 = t22 + bh::ld(s.quad.frame[0][2].bits());
+    s.quad.corners[1][2].set_bits(bh::st(t23));
+    let t24 = bh::ld(s.quad.place[0].bits());
+    let t25 = t24 + bh::ld(s.quad.frame[0][0].bits());
+    let t26 = t25 + bh::ld(s.quad.frame[1][0].bits());
+    s.quad.corners[2][0].set_bits(bh::st(t26));
+    let t27 = bh::ld(s.quad.place[1].bits());
+    let t28 = t27 + bh::ld(s.quad.frame[0][1].bits());
+    let t29 = t28 + bh::ld(s.quad.frame[1][1].bits());
+    s.quad.corners[2][1].set_bits(bh::st(t29));
+    let t30 = bh::ld(s.quad.place[2].bits());
+    let t31 = t30 + bh::ld(s.quad.frame[0][2].bits());
+    let t32 = t31 + bh::ld(s.quad.frame[1][2].bits());
+    s.quad.corners[2][2].set_bits(bh::st(t32));
+    let t33 = bh::ld(s.quad.place[0].bits());
+    let t34 = t33 - bh::ld(s.quad.frame[0][0].bits());
+    let t35 = t34 + bh::ld(s.quad.frame[1][0].bits());
+    s.quad.corners[3][0].set_bits(bh::st(t35));
+    let t36 = bh::ld(s.quad.place[1].bits());
+    let t37 = t36 - bh::ld(s.quad.frame[0][1].bits());
+    let t38 = t37 + bh::ld(s.quad.frame[1][1].bits());
+    s.quad.corners[3][1].set_bits(bh::st(t38));
+    let t39 = bh::ld(s.quad.place[2].bits());
+    let t40 = t39 - bh::ld(s.quad.frame[0][2].bits());
+    let t41 = t40 + bh::ld(s.quad.frame[1][2].bits());
+    s.quad.corners[3][2].set_bits(bh::st(t41));
+    let t42 = bh::ld(s.quad.matrix[1].bits());
+    let t43 = t42 * bh::ld(s.up.bits());
+    let t44 = t43 + bh::ld(s.quad.corners[0][0].bits());
+    s.quad.corners[0][0].set_bits(bh::st(t44));
+    let t45 = bh::ld(s.quad.matrix[4].bits());
+    let t46 = t45 * bh::ld(s.up.bits());
+    let t47 = t46 + bh::ld(s.quad.corners[0][1].bits());
+    s.quad.corners[0][1].set_bits(bh::st(t47));
+    let t48 = bh::ld(s.quad.matrix[7].bits());
+    let t49 = t48 * bh::ld(s.up.bits());
+    let t50 = t49 + bh::ld(s.quad.corners[0][2].bits());
+    s.quad.corners[0][2].set_bits(bh::st(t50));
+    let t51 = bh::ld(s.quad.matrix[1].bits());
+    let t52 = t51 * bh::ld(s.up.bits());
+    let t53 = t52 + bh::ld(s.quad.corners[1][0].bits());
+    s.quad.corners[1][0].set_bits(bh::st(t53));
+    let t54 = bh::ld(s.quad.matrix[4].bits());
+    let t55 = t54 * bh::ld(s.up.bits());
+    let t56 = t55 + bh::ld(s.quad.corners[1][1].bits());
+    s.quad.corners[1][1].set_bits(bh::st(t56));
+    let t57 = bh::ld(s.quad.matrix[7].bits());
+    let t58 = t57 * bh::ld(s.up.bits());
+    let t59 = t58 + bh::ld(s.quad.corners[1][2].bits());
+    s.quad.corners[1][2].set_bits(bh::st(t59));
+    let t60 = bh::ld(s.quad.matrix[1].bits());
+    let t61 = t60 * bh::ld(s.up.bits());
+    let t62 = t61 + bh::ld(s.quad.corners[2][0].bits());
+    s.quad.corners[2][0].set_bits(bh::st(t62));
+    let t63 = bh::ld(s.quad.matrix[4].bits());
+    let t64 = t63 * bh::ld(s.up.bits());
+    let t65 = t64 + bh::ld(s.quad.corners[2][1].bits());
+    s.quad.corners[2][1].set_bits(bh::st(t65));
+    let t66 = bh::ld(s.quad.matrix[7].bits());
+    let t67 = t66 * bh::ld(s.up.bits());
+    let t68 = t67 + bh::ld(s.quad.corners[2][2].bits());
+    s.quad.corners[2][2].set_bits(bh::st(t68));
+    let t69 = bh::ld(s.quad.matrix[1].bits());
+    let t70 = t69 * bh::ld(s.up.bits());
+    let t71 = t70 + bh::ld(s.quad.corners[3][0].bits());
+    s.quad.corners[3][0].set_bits(bh::st(t71));
+    let t72 = bh::ld(s.quad.matrix[4].bits());
+    let t73 = t72 * bh::ld(s.up.bits());
+    let t74 = t73 + bh::ld(s.quad.corners[3][1].bits());
+    s.quad.corners[3][1].set_bits(bh::st(t74));
+    let t75 = bh::ld(s.quad.matrix[7].bits());
+    let t76 = t75 * bh::ld(s.up.bits());
+    let t77 = t76 + bh::ld(s.quad.corners[3][2].bits());
+    s.quad.corners[3][2].set_bits(bh::st(t77));
+    let t78 = bh::ld(s.quad.corners[2][0].bits());
+    let t79 = t78 - bh::ld(s.quad.corners[1][0].bits());
+    s.quad.way[0].set_bits(bh::st(t79));
+    let t80 = bh::ld(s.quad.corners[2][1].bits());
+    let t81 = t80 - bh::ld(s.quad.corners[1][1].bits());
+    s.quad.way[1].set_bits(bh::st(t81));
+    let t82 = bh::ld(s.quad.corners[2][2].bits());
+    let t83 = t82 - bh::ld(s.quad.corners[1][2].bits());
+    s.quad.way[2].set_bits(bh::st(t83));
 }
 
-/// `corners_in`'s x87 block as plain Rust on the x87 model (45 instructions), same order and memory places.
-unsafe fn corners_in_x87(mk: usize) {
-    unsafe {
-        let t0 = ld(mk, 0x1CF04C);
-        let t1 = t0 * ld(mk, 0x1CF048);
-        st(mk, 0x1CF04C, t1);
-        let t2 = ld(mk, 0x1CF050);
-        let t3 = t2 * ld(mk, 0x1CF048);
-        st(mk, 0x1CF050, t3);
-        let t4 = ld(mk, 0x1CF054);
-        let t5 = t4 * ld(mk, 0x1CF048);
-        st(mk, 0x1CF054, t5);
-        let t6 = ld(mk, 0x1CF058);
-        let t7 = t6 - ld(mk, 0x1CF04C);
-        st(mk, 0x1CF058, t7);
-        let t8 = ld(mk, 0x1CF05C);
-        let t9 = t8 - ld(mk, 0x1CF050);
-        st(mk, 0x1CF05C, t9);
-        let t10 = ld(mk, 0x1CF060);
-        let t11 = t10 - ld(mk, 0x1CF054);
-        st(mk, 0x1CF060, t11);
-        let t12 = ld(mk, 0x1CF064);
-        let t13 = t12 - ld(mk, 0x1CF04C);
-        st(mk, 0x1CF064, t13);
-        let t14 = ld(mk, 0x1CF068);
-        let t15 = t14 - ld(mk, 0x1CF050);
-        st(mk, 0x1CF068, t15);
-        let t16 = ld(mk, 0x1CF06C);
-        let t17 = t16 - ld(mk, 0x1CF054);
-        st(mk, 0x1CF06C, t17);
-        let t18 = ld(mk, 0x1CF070);
-        let t19 = t18 - ld(mk, 0x1CF04C);
-        st(mk, 0x1CF070, t19);
-        let t20 = ld(mk, 0x1CF074);
-        let t21 = t20 - ld(mk, 0x1CF050);
-        st(mk, 0x1CF074, t21);
-        let t22 = ld(mk, 0x1CF078);
-        let t23 = t22 - ld(mk, 0x1CF054);
-        st(mk, 0x1CF078, t23);
-        let t24 = ld(mk, 0x1CF07C);
-        let t25 = t24 - ld(mk, 0x1CF04C);
-        st(mk, 0x1CF07C, t25);
-        let t26 = ld(mk, 0x1CF080);
-        let t27 = t26 - ld(mk, 0x1CF050);
-        st(mk, 0x1CF080, t27);
-        let t28 = ld(mk, 0x1CF084);
-        let t29 = t28 - ld(mk, 0x1CF054);
-        st(mk, 0x1CF084, t29);
-    }
+/// `corners_in`'s x87 block as plain Rust on the x87 model (45 instructions), same order and memory places, on either shadow's variables.
+fn corners_in_x87(s: &Shadow) {
+    let t0 = bh::ld(s.quad.way[0].bits());
+    let t1 = t0 * bh::ld(s.quad.spread.bits());
+    s.quad.way[0].set_bits(bh::st(t1));
+    let t2 = bh::ld(s.quad.way[1].bits());
+    let t3 = t2 * bh::ld(s.quad.spread.bits());
+    s.quad.way[1].set_bits(bh::st(t3));
+    let t4 = bh::ld(s.quad.way[2].bits());
+    let t5 = t4 * bh::ld(s.quad.spread.bits());
+    s.quad.way[2].set_bits(bh::st(t5));
+    let t6 = bh::ld(s.quad.corners[0][0].bits());
+    let t7 = t6 - bh::ld(s.quad.way[0].bits());
+    s.quad.corners[0][0].set_bits(bh::st(t7));
+    let t8 = bh::ld(s.quad.corners[0][1].bits());
+    let t9 = t8 - bh::ld(s.quad.way[1].bits());
+    s.quad.corners[0][1].set_bits(bh::st(t9));
+    let t10 = bh::ld(s.quad.corners[0][2].bits());
+    let t11 = t10 - bh::ld(s.quad.way[2].bits());
+    s.quad.corners[0][2].set_bits(bh::st(t11));
+    let t12 = bh::ld(s.quad.corners[1][0].bits());
+    let t13 = t12 - bh::ld(s.quad.way[0].bits());
+    s.quad.corners[1][0].set_bits(bh::st(t13));
+    let t14 = bh::ld(s.quad.corners[1][1].bits());
+    let t15 = t14 - bh::ld(s.quad.way[1].bits());
+    s.quad.corners[1][1].set_bits(bh::st(t15));
+    let t16 = bh::ld(s.quad.corners[1][2].bits());
+    let t17 = t16 - bh::ld(s.quad.way[2].bits());
+    s.quad.corners[1][2].set_bits(bh::st(t17));
+    let t18 = bh::ld(s.quad.corners[2][0].bits());
+    let t19 = t18 - bh::ld(s.quad.way[0].bits());
+    s.quad.corners[2][0].set_bits(bh::st(t19));
+    let t20 = bh::ld(s.quad.corners[2][1].bits());
+    let t21 = t20 - bh::ld(s.quad.way[1].bits());
+    s.quad.corners[2][1].set_bits(bh::st(t21));
+    let t22 = bh::ld(s.quad.corners[2][2].bits());
+    let t23 = t22 - bh::ld(s.quad.way[2].bits());
+    s.quad.corners[2][2].set_bits(bh::st(t23));
+    let t24 = bh::ld(s.quad.corners[3][0].bits());
+    let t25 = t24 - bh::ld(s.quad.way[0].bits());
+    s.quad.corners[3][0].set_bits(bh::st(t25));
+    let t26 = bh::ld(s.quad.corners[3][1].bits());
+    let t27 = t26 - bh::ld(s.quad.way[1].bits());
+    s.quad.corners[3][1].set_bits(bh::st(t27));
+    let t28 = bh::ld(s.quad.corners[3][2].bits());
+    let t29 = t28 - bh::ld(s.quad.way[2].bits());
+    s.quad.corners[3][2].set_bits(bh::st(t29));
 }
 
-/// `projected`'s x87 block as plain Rust on the x87 model (40 instructions), same order and memory places.
-unsafe fn projected_x87(rc: usize, mk: usize) {
+/// `projected`'s x87 block as plain Rust on the x87 model (40 instructions), same order and memory places, on either shadow's variables.
+unsafe fn projected_x87(rc: usize, s: &Shadow) {
     unsafe {
         let t0 = ld(rc, 0x224088);
-        let t1 = t0 / ld(mk, 0x1CF060);
-        let t2 = t1 * ld(mk, 0x1CF058);
+        let t1 = t0 / bh::ld(s.quad.corners[0][2].bits());
+        let t2 = t1 * bh::ld(s.quad.corners[0][0].bits());
         let t3 = t2 + ld(rc, 0x22409C);
-        st(mk, 0x1CF058, t3);
-        let t4 = t1 * ld(mk, 0x1CF05C);
+        s.quad.corners[0][0].set_bits(bh::st(t3));
+        let t4 = t1 * bh::ld(s.quad.corners[0][1].bits());
         let t5 = -t4;
         let t6 = t5 + ld(rc, 0x2240A0);
-        st(mk, 0x1CF05C, t6);
+        s.quad.corners[0][1].set_bits(bh::st(t6));
         let t7 = ld(rc, 0x224088);
-        let t8 = t7 / ld(mk, 0x1CF06C);
-        let t9 = t8 * ld(mk, 0x1CF064);
+        let t8 = t7 / bh::ld(s.quad.corners[1][2].bits());
+        let t9 = t8 * bh::ld(s.quad.corners[1][0].bits());
         let t10 = t9 + ld(rc, 0x22409C);
-        st(mk, 0x1CF064, t10);
-        let t11 = t8 * ld(mk, 0x1CF068);
+        s.quad.corners[1][0].set_bits(bh::st(t10));
+        let t11 = t8 * bh::ld(s.quad.corners[1][1].bits());
         let t12 = -t11;
         let t13 = t12 + ld(rc, 0x2240A0);
-        st(mk, 0x1CF068, t13);
+        s.quad.corners[1][1].set_bits(bh::st(t13));
         let t14 = ld(rc, 0x224088);
-        let t15 = t14 / ld(mk, 0x1CF078);
-        let t16 = t15 * ld(mk, 0x1CF070);
+        let t15 = t14 / bh::ld(s.quad.corners[2][2].bits());
+        let t16 = t15 * bh::ld(s.quad.corners[2][0].bits());
         let t17 = t16 + ld(rc, 0x22409C);
-        st(mk, 0x1CF070, t17);
-        let t18 = t15 * ld(mk, 0x1CF074);
+        s.quad.corners[2][0].set_bits(bh::st(t17));
+        let t18 = t15 * bh::ld(s.quad.corners[2][1].bits());
         let t19 = -t18;
         let t20 = t19 + ld(rc, 0x2240A0);
-        st(mk, 0x1CF074, t20);
+        s.quad.corners[2][1].set_bits(bh::st(t20));
         let t21 = ld(rc, 0x224088);
-        let t22 = t21 / ld(mk, 0x1CF084);
-        let t23 = t22 * ld(mk, 0x1CF07C);
+        let t22 = t21 / bh::ld(s.quad.corners[3][2].bits());
+        let t23 = t22 * bh::ld(s.quad.corners[3][0].bits());
         let t24 = t23 + ld(rc, 0x22409C);
-        st(mk, 0x1CF07C, t24);
-        let t25 = t22 * ld(mk, 0x1CF080);
+        s.quad.corners[3][0].set_bits(bh::st(t24));
+        let t25 = t22 * bh::ld(s.quad.corners[3][1].bits());
         let t26 = -t25;
         let t27 = t26 + ld(rc, 0x2240A0);
-        st(mk, 0x1CF080, t27);
-    }
-}
-
-/// `light_turned_2`'s x87 block as plain Rust on the x87 model (33 instructions), same order and memory places.
-unsafe fn light_turned_2_x87(mk: usize, m: usize, t: usize) {
-    unsafe {
-        let t0 = ld(mk, 0x1CEF74);
-        let t1 = ld(mk, 0x1CEF78);
-        let t2 = ld(mk, 0x1CEF7C);
-        let t3 = t2 * ld(m, 0);
-        let t4 = t1 * ld(m, 0x4);
-        let t5 = t0 * ld(m, 0x8);
-        let t6 = t4 + t5;
-        let t7 = t3 + t6;
-        st(t, 0, t7);
-        let t8 = t2 * ld(m, 0xC);
-        let t9 = t1 * ld(m, 0x10);
-        let t10 = t0 * ld(m, 0x14);
-        let t11 = t9 + t10;
-        let t12 = t8 + t11;
-        st(t, 0x4, t12);
-        let t13 = t2 * ld(m, 0x18);
-        let t14 = t1 * ld(m, 0x1C);
-        let t15 = t0 * ld(m, 0x20);
-        let t16 = t13 + t15;
-        let t17 = t14 + t16;
-        let t18 = ld(t, 0x4);
-        let t19 = ld(t, 0);
-        st(mk, 0x1CE284, t19);
-        st(mk, 0x1CE288, t18);
-        st(mk, 0x1CE28C, t17);
-    }
-}
-
-/// `second_turned_2`'s x87 block as plain Rust on the x87 model (33 instructions), same order and memory places.
-unsafe fn second_turned_2_x87(mk: usize, m: usize, t: usize) {
-    unsafe {
-        let t0 = ld(mk, 0x1CE28C);
-        let t1 = ld(mk, 0x1CE288);
-        let t2 = ld(mk, 0x1CE284);
-        let t3 = t2 * ld(m, 0);
-        let t4 = t1 * ld(m, 0x4);
-        let t5 = t0 * ld(m, 0x8);
-        let t6 = t4 + t5;
-        let t7 = t3 + t6;
-        st(t, 0, t7);
-        let t8 = t2 * ld(m, 0xC);
-        let t9 = t1 * ld(m, 0x10);
-        let t10 = t0 * ld(m, 0x14);
-        let t11 = t9 + t10;
-        let t12 = t8 + t11;
-        st(t, 0x4, t12);
-        let t13 = t2 * ld(m, 0x18);
-        let t14 = t1 * ld(m, 0x1C);
-        let t15 = t0 * ld(m, 0x20);
-        let t16 = t13 + t15;
-        let t17 = t14 + t16;
-        let t18 = ld(t, 0x4);
-        let t19 = ld(t, 0);
-        st(mk, 0x1CE2F0, t19);
-        st(mk, 0x1CE2F4, t18);
-        st(mk, 0x1CE2F8, t17);
-    }
-}
-
-/// `corners_2`'s x87 block as plain Rust on the x87 model (117 instructions), same order and memory places.
-unsafe fn corners_2_x87(mk: usize) {
-    unsafe {
-        let t0 = ld(mk, 0x1CE2E4);
-        let t1 = t0 * ld(mk, 0x1CE30C);
-        st(mk, 0x1CE2E4, t1);
-        let t2 = ld(mk, 0x1CE2E8);
-        let t3 = t2 * ld(mk, 0x1CE30C);
-        st(mk, 0x1CE2E8, t3);
-        let t4 = ld(mk, 0x1CE2EC);
-        let t5 = t4 * ld(mk, 0x1CE30C);
-        st(mk, 0x1CE2EC, t5);
-        let t6 = ld(mk, 0x1CE2F0);
-        let t7 = t6 * ld(mk, 0x1CE310);
-        st(mk, 0x1CE2F0, t7);
-        let t8 = ld(mk, 0x1CE2F4);
-        let t9 = t8 * ld(mk, 0x1CE310);
-        st(mk, 0x1CE2F4, t9);
-        let t10 = ld(mk, 0x1CE2F8);
-        let t11 = t10 * ld(mk, 0x1CE310);
-        st(mk, 0x1CE2F8, t11);
-        let t12 = ld(mk, 0x1CE274);
-        let t13 = t12 - ld(mk, 0x1CE2E4);
-        st(mk, 0x1CE33C, t13);
-        let t14 = ld(mk, 0x1CE278);
-        let t15 = t14 - ld(mk, 0x1CE2E8);
-        st(mk, 0x1CE340, t15);
-        let t16 = ld(mk, 0x1CE27C);
-        let t17 = t16 - ld(mk, 0x1CE2EC);
-        st(mk, 0x1CE344, t17);
-        let t18 = ld(mk, 0x1CE274);
-        let t19 = t18 + ld(mk, 0x1CE2E4);
-        st(mk, 0x1CE348, t19);
-        let t20 = ld(mk, 0x1CE278);
-        let t21 = t20 + ld(mk, 0x1CE2E8);
-        st(mk, 0x1CE34C, t21);
-        let t22 = ld(mk, 0x1CE27C);
-        let t23 = t22 + ld(mk, 0x1CE2EC);
-        st(mk, 0x1CE350, t23);
-        let t24 = ld(mk, 0x1CE274);
-        let t25 = t24 + ld(mk, 0x1CE2E4);
-        let t26 = t25 + ld(mk, 0x1CE2F0);
-        st(mk, 0x1CE354, t26);
-        let t27 = ld(mk, 0x1CE278);
-        let t28 = t27 + ld(mk, 0x1CE2E8);
-        let t29 = t28 + ld(mk, 0x1CE2F4);
-        st(mk, 0x1CE358, t29);
-        let t30 = ld(mk, 0x1CE27C);
-        let t31 = t30 + ld(mk, 0x1CE2EC);
-        let t32 = t31 + ld(mk, 0x1CE2F8);
-        st(mk, 0x1CE35C, t32);
-        let t33 = ld(mk, 0x1CE274);
-        let t34 = t33 - ld(mk, 0x1CE2E4);
-        let t35 = t34 + ld(mk, 0x1CE2F0);
-        st(mk, 0x1CE360, t35);
-        let t36 = ld(mk, 0x1CE278);
-        let t37 = t36 - ld(mk, 0x1CE2E8);
-        let t38 = t37 + ld(mk, 0x1CE2F4);
-        st(mk, 0x1CE364, t38);
-        let t39 = ld(mk, 0x1CE27C);
-        let t40 = t39 - ld(mk, 0x1CE2EC);
-        let t41 = t40 + ld(mk, 0x1CE2F8);
-        st(mk, 0x1CE368, t41);
-        let t42 = ld(mk, 0x1CE294);
-        let t43 = t42 * ld(mk, 0x1CEF30);
-        let t44 = t43 + ld(mk, 0x1CE33C);
-        st(mk, 0x1CE33C, t44);
-        let t45 = ld(mk, 0x1CE2A0);
-        let t46 = t45 * ld(mk, 0x1CEF30);
-        let t47 = t46 + ld(mk, 0x1CE340);
-        st(mk, 0x1CE340, t47);
-        let t48 = ld(mk, 0x1CE2AC);
-        let t49 = t48 * ld(mk, 0x1CEF30);
-        let t50 = t49 + ld(mk, 0x1CE344);
-        st(mk, 0x1CE344, t50);
-        let t51 = ld(mk, 0x1CE294);
-        let t52 = t51 * ld(mk, 0x1CEF30);
-        let t53 = t52 + ld(mk, 0x1CE348);
-        st(mk, 0x1CE348, t53);
-        let t54 = ld(mk, 0x1CE2A0);
-        let t55 = t54 * ld(mk, 0x1CEF30);
-        let t56 = t55 + ld(mk, 0x1CE34C);
-        st(mk, 0x1CE34C, t56);
-        let t57 = ld(mk, 0x1CE2AC);
-        let t58 = t57 * ld(mk, 0x1CEF30);
-        let t59 = t58 + ld(mk, 0x1CE350);
-        st(mk, 0x1CE350, t59);
-        let t60 = ld(mk, 0x1CE294);
-        let t61 = t60 * ld(mk, 0x1CEF30);
-        let t62 = t61 + ld(mk, 0x1CE354);
-        st(mk, 0x1CE354, t62);
-        let t63 = ld(mk, 0x1CE2A0);
-        let t64 = t63 * ld(mk, 0x1CEF30);
-        let t65 = t64 + ld(mk, 0x1CE358);
-        st(mk, 0x1CE358, t65);
-        let t66 = ld(mk, 0x1CE2AC);
-        let t67 = t66 * ld(mk, 0x1CEF30);
-        let t68 = t67 + ld(mk, 0x1CE35C);
-        st(mk, 0x1CE35C, t68);
-        let t69 = ld(mk, 0x1CE294);
-        let t70 = t69 * ld(mk, 0x1CEF30);
-        let t71 = t70 + ld(mk, 0x1CE360);
-        st(mk, 0x1CE360, t71);
-        let t72 = ld(mk, 0x1CE2A0);
-        let t73 = t72 * ld(mk, 0x1CEF30);
-        let t74 = t73 + ld(mk, 0x1CE364);
-        st(mk, 0x1CE364, t74);
-        let t75 = ld(mk, 0x1CE2AC);
-        let t76 = t75 * ld(mk, 0x1CEF30);
-        let t77 = t76 + ld(mk, 0x1CE368);
-        st(mk, 0x1CE368, t77);
-        let t78 = ld(mk, 0x1CE354);
-        let t79 = t78 - ld(mk, 0x1CE348);
-        st(mk, 0x1CE330, t79);
-        let t80 = ld(mk, 0x1CE358);
-        let t81 = t80 - ld(mk, 0x1CE34C);
-        st(mk, 0x1CE334, t81);
-        let t82 = ld(mk, 0x1CE35C);
-        let t83 = t82 - ld(mk, 0x1CE350);
-        st(mk, 0x1CE338, t83);
-    }
-}
-
-/// `corners_in_2`'s x87 block as plain Rust on the x87 model (45 instructions), same order and memory places.
-unsafe fn corners_in_2_x87(mk: usize) {
-    unsafe {
-        let t0 = ld(mk, 0x1CE330);
-        let t1 = t0 * ld(mk, 0x1CE32C);
-        st(mk, 0x1CE330, t1);
-        let t2 = ld(mk, 0x1CE334);
-        let t3 = t2 * ld(mk, 0x1CE32C);
-        st(mk, 0x1CE334, t3);
-        let t4 = ld(mk, 0x1CE338);
-        let t5 = t4 * ld(mk, 0x1CE32C);
-        st(mk, 0x1CE338, t5);
-        let t6 = ld(mk, 0x1CE33C);
-        let t7 = t6 - ld(mk, 0x1CE330);
-        st(mk, 0x1CE33C, t7);
-        let t8 = ld(mk, 0x1CE340);
-        let t9 = t8 - ld(mk, 0x1CE334);
-        st(mk, 0x1CE340, t9);
-        let t10 = ld(mk, 0x1CE344);
-        let t11 = t10 - ld(mk, 0x1CE338);
-        st(mk, 0x1CE344, t11);
-        let t12 = ld(mk, 0x1CE348);
-        let t13 = t12 - ld(mk, 0x1CE330);
-        st(mk, 0x1CE348, t13);
-        let t14 = ld(mk, 0x1CE34C);
-        let t15 = t14 - ld(mk, 0x1CE334);
-        st(mk, 0x1CE34C, t15);
-        let t16 = ld(mk, 0x1CE350);
-        let t17 = t16 - ld(mk, 0x1CE338);
-        st(mk, 0x1CE350, t17);
-        let t18 = ld(mk, 0x1CE354);
-        let t19 = t18 - ld(mk, 0x1CE330);
-        st(mk, 0x1CE354, t19);
-        let t20 = ld(mk, 0x1CE358);
-        let t21 = t20 - ld(mk, 0x1CE334);
-        st(mk, 0x1CE358, t21);
-        let t22 = ld(mk, 0x1CE35C);
-        let t23 = t22 - ld(mk, 0x1CE338);
-        st(mk, 0x1CE35C, t23);
-        let t24 = ld(mk, 0x1CE360);
-        let t25 = t24 - ld(mk, 0x1CE330);
-        st(mk, 0x1CE360, t25);
-        let t26 = ld(mk, 0x1CE364);
-        let t27 = t26 - ld(mk, 0x1CE334);
-        st(mk, 0x1CE364, t27);
-        let t28 = ld(mk, 0x1CE368);
-        let t29 = t28 - ld(mk, 0x1CE338);
-        st(mk, 0x1CE368, t29);
-    }
-}
-
-/// `projected_2`'s x87 block as plain Rust on the x87 model (40 instructions), same order and memory places.
-unsafe fn projected_2_x87(rc: usize, mk: usize) {
-    unsafe {
-        let t0 = ld(rc, 0x224088);
-        let t1 = t0 / ld(mk, 0x1CE344);
-        let t2 = t1 * ld(mk, 0x1CE33C);
-        let t3 = t2 + ld(rc, 0x22409C);
-        st(mk, 0x1CE33C, t3);
-        let t4 = t1 * ld(mk, 0x1CE340);
-        let t5 = -t4;
-        let t6 = t5 + ld(rc, 0x2240A0);
-        st(mk, 0x1CE340, t6);
-        let t7 = ld(rc, 0x224088);
-        let t8 = t7 / ld(mk, 0x1CE350);
-        let t9 = t8 * ld(mk, 0x1CE348);
-        let t10 = t9 + ld(rc, 0x22409C);
-        st(mk, 0x1CE348, t10);
-        let t11 = t8 * ld(mk, 0x1CE34C);
-        let t12 = -t11;
-        let t13 = t12 + ld(rc, 0x2240A0);
-        st(mk, 0x1CE34C, t13);
-        let t14 = ld(rc, 0x224088);
-        let t15 = t14 / ld(mk, 0x1CE35C);
-        let t16 = t15 * ld(mk, 0x1CE354);
-        let t17 = t16 + ld(rc, 0x22409C);
-        st(mk, 0x1CE354, t17);
-        let t18 = t15 * ld(mk, 0x1CE358);
-        let t19 = -t18;
-        let t20 = t19 + ld(rc, 0x2240A0);
-        st(mk, 0x1CE358, t20);
-        let t21 = ld(rc, 0x224088);
-        let t22 = t21 / ld(mk, 0x1CE368);
-        let t23 = t22 * ld(mk, 0x1CE360);
-        let t24 = t23 + ld(rc, 0x22409C);
-        st(mk, 0x1CE360, t24);
-        let t25 = t22 * ld(mk, 0x1CE364);
-        let t26 = -t25;
-        let t27 = t26 + ld(rc, 0x2240A0);
-        st(mk, 0x1CE364, t27);
+        s.quad.corners[3][1].set_bits(bh::st(t27));
     }
 }
 
@@ -1521,7 +1135,34 @@ mod asm_reference {
 
 #[cfg(test)]
 mod asm_differential {
+    use super::Shadow;
     use super::asm_reference as reference;
+    use crate::marks::asm_test::with_copy;
+    use crate::marks::kind_store::{KindConsts, QuadWork};
+    use crate::session::Float;
+
+    /// A shadow's variables: the quad, the constants and the up (IDA addresses).
+    #[derive(Clone, Copy)]
+    struct Layout(usize, usize, usize, u32);
+    const SET_1: Layout = Layout(0x9331B4, 0x933E7C, 0x933E70, 0x26A0);
+    const SET_2: Layout = Layout(0x933ED0, 0x934B7C, 0x934B78, 0x26A4);
+
+    /// `f` on copies of a shadow's variables in the test buffer standing for the marks'
+    /// block at `mk`, put back afterwards.
+    fn with_shadow<R>(mk: usize, l: Layout, f: impl FnOnce(&Shadow) -> R) -> R {
+        with_copy::<QuadWork, R>(mk, l.0, |quad| {
+            with_copy::<KindConsts, R>(mk, l.1, |consts| {
+                with_copy::<Float, R>(mk, l.2, |up| {
+                    f(&Shadow {
+                        quad,
+                        consts,
+                        up,
+                        field: l.3,
+                    })
+                })
+            })
+        })
+    }
     use crate::marks::asm_test::Kind::*;
     use crate::marks::asm_test::{Op, Spec, differential};
 
@@ -1530,8 +1171,8 @@ mod asm_differential {
         const SPEC: Spec = Spec {
             operands: &[
                 Op::Base {
-                    lo: 0x1CEFA0,
-                    hi: 0x1CFC80,
+                    lo: 0x1CEF90,
+                    hi: 0x1CFC90,
                     reads: &[(0x1CFC74, F32), (0x1CFC78, F32), (0x1CFC7C, F32)],
                     writes: &[(0x1CEFA0, F32), (0x1CEFA4, F32), (0x1CEFA8, F32)],
                 },
@@ -1563,7 +1204,7 @@ mod asm_differential {
         differential(
             &SPEC,
             |b| unsafe { reference::light_turned_x87(b[0], b[1], b[2]) },
-            |b| unsafe { super::light_turned_x87(b[0], b[1], b[2]) },
+            |b| unsafe { with_shadow(b[0], SET_2, |s| super::light_turned_x87(s, b[1], b[2])) },
         );
     }
 
@@ -1572,8 +1213,8 @@ mod asm_differential {
         const SPEC: Spec = Spec {
             operands: &[
                 Op::Base {
-                    lo: 0x1CEFA0,
-                    hi: 0x1CF018,
+                    lo: 0x1CEF90,
+                    hi: 0x1CFC90,
                     reads: &[(0x1CEFA0, F32), (0x1CEFA4, F32), (0x1CEFA8, F32)],
                     writes: &[(0x1CF00C, F32), (0x1CF010, F32), (0x1CF014, F32)],
                 },
@@ -1605,7 +1246,7 @@ mod asm_differential {
         differential(
             &SPEC,
             |b| unsafe { reference::second_turned_x87(b[0], b[1], b[2]) },
-            |b| unsafe { super::second_turned_x87(b[0], b[1], b[2]) },
+            |b| unsafe { with_shadow(b[0], SET_2, |s| super::second_turned_x87(s, b[1], b[2])) },
         );
     }
 
@@ -1614,7 +1255,7 @@ mod asm_differential {
         const SPEC: Spec = Spec {
             operands: &[Op::Base {
                 lo: 0x1CEF90,
-                hi: 0x1CFC3C,
+                hi: 0x1CFC90,
                 reads: &[
                     (0x1CEF90, F32),
                     (0x1CEF94, F32),
@@ -1673,7 +1314,7 @@ mod asm_differential {
         differential(
             &SPEC,
             |b| unsafe { reference::corners_x87(b[0]) },
-            |b| unsafe { super::corners_x87(b[0]) },
+            |b| with_shadow(b[0], SET_2, super::corners_x87),
         );
     }
 
@@ -1681,8 +1322,8 @@ mod asm_differential {
     fn corners_in_x87_matches() {
         const SPEC: Spec = Spec {
             operands: &[Op::Base {
-                lo: 0x1CF048,
-                hi: 0x1CF088,
+                lo: 0x1CEF90,
+                hi: 0x1CFC90,
                 reads: &[
                     (0x1CF048, F32),
                     (0x1CF04C, F32),
@@ -1724,7 +1365,7 @@ mod asm_differential {
         differential(
             &SPEC,
             |b| unsafe { reference::corners_in_x87(b[0]) },
-            |b| unsafe { super::corners_in_x87(b[0]) },
+            |b| with_shadow(b[0], SET_2, super::corners_in_x87),
         );
     }
 
@@ -1739,8 +1380,8 @@ mod asm_differential {
                     writes: &[],
                 },
                 Op::Base {
-                    lo: 0x1CF058,
-                    hi: 0x1CF088,
+                    lo: 0x1CEF90,
+                    hi: 0x1CFC90,
                     reads: &[
                         (0x1CF058, F32),
                         (0x1CF05C, F32),
@@ -1772,7 +1413,7 @@ mod asm_differential {
         differential(
             &SPEC,
             |b| unsafe { reference::projected_x87(b[0], b[1]) },
-            |b| unsafe { super::projected_x87(b[0], b[1]) },
+            |b| unsafe { with_shadow(b[1], SET_2, |s| super::projected_x87(b[0], s)) },
         );
     }
 
@@ -1781,8 +1422,8 @@ mod asm_differential {
         const SPEC: Spec = Spec {
             operands: &[
                 Op::Base {
-                    lo: 0x1CE284,
-                    hi: 0x1CEF80,
+                    lo: 0x1CE274,
+                    hi: 0x1CEF90,
                     reads: &[(0x1CEF74, F32), (0x1CEF78, F32), (0x1CEF7C, F32)],
                     writes: &[(0x1CE284, F32), (0x1CE288, F32), (0x1CE28C, F32)],
                 },
@@ -1814,7 +1455,7 @@ mod asm_differential {
         differential(
             &SPEC,
             |b| unsafe { reference::light_turned_2_x87(b[0], b[1], b[2]) },
-            |b| unsafe { super::light_turned_2_x87(b[0], b[1], b[2]) },
+            |b| unsafe { with_shadow(b[0], SET_1, |s| super::light_turned_x87(s, b[1], b[2])) },
         );
     }
 
@@ -1823,8 +1464,8 @@ mod asm_differential {
         const SPEC: Spec = Spec {
             operands: &[
                 Op::Base {
-                    lo: 0x1CE284,
-                    hi: 0x1CE2FC,
+                    lo: 0x1CE274,
+                    hi: 0x1CEF90,
                     reads: &[(0x1CE284, F32), (0x1CE288, F32), (0x1CE28C, F32)],
                     writes: &[(0x1CE2F0, F32), (0x1CE2F4, F32), (0x1CE2F8, F32)],
                 },
@@ -1856,7 +1497,7 @@ mod asm_differential {
         differential(
             &SPEC,
             |b| unsafe { reference::second_turned_2_x87(b[0], b[1], b[2]) },
-            |b| unsafe { super::second_turned_2_x87(b[0], b[1], b[2]) },
+            |b| unsafe { with_shadow(b[0], SET_1, |s| super::second_turned_x87(s, b[1], b[2])) },
         );
     }
 
@@ -1865,7 +1506,7 @@ mod asm_differential {
         const SPEC: Spec = Spec {
             operands: &[Op::Base {
                 lo: 0x1CE274,
-                hi: 0x1CEF34,
+                hi: 0x1CEF90,
                 reads: &[
                     (0x1CE274, F32),
                     (0x1CE278, F32),
@@ -1924,7 +1565,7 @@ mod asm_differential {
         differential(
             &SPEC,
             |b| unsafe { reference::corners_2_x87(b[0]) },
-            |b| unsafe { super::corners_2_x87(b[0]) },
+            |b| with_shadow(b[0], SET_1, super::corners_x87),
         );
     }
 
@@ -1932,8 +1573,8 @@ mod asm_differential {
     fn corners_in_2_x87_matches() {
         const SPEC: Spec = Spec {
             operands: &[Op::Base {
-                lo: 0x1CE32C,
-                hi: 0x1CE36C,
+                lo: 0x1CE274,
+                hi: 0x1CEF90,
                 reads: &[
                     (0x1CE32C, F32),
                     (0x1CE330, F32),
@@ -1975,7 +1616,7 @@ mod asm_differential {
         differential(
             &SPEC,
             |b| unsafe { reference::corners_in_2_x87(b[0]) },
-            |b| unsafe { super::corners_in_2_x87(b[0]) },
+            |b| with_shadow(b[0], SET_1, super::corners_in_x87),
         );
     }
 
@@ -1990,8 +1631,8 @@ mod asm_differential {
                     writes: &[],
                 },
                 Op::Base {
-                    lo: 0x1CE33C,
-                    hi: 0x1CE36C,
+                    lo: 0x1CE274,
+                    hi: 0x1CEF90,
                     reads: &[
                         (0x1CE33C, F32),
                         (0x1CE340, F32),
@@ -2023,7 +1664,7 @@ mod asm_differential {
         differential(
             &SPEC,
             |b| unsafe { reference::projected_2_x87(b[0], b[1]) },
-            |b| unsafe { super::projected_2_x87(b[0], b[1]) },
+            |b| unsafe { with_shadow(b[1], SET_1, |s| super::projected_x87(b[0], s)) },
         );
     }
 }

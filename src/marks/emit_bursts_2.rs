@@ -10,30 +10,60 @@
 //! scratch ones. Caller: `marks::emit_wheel_particles`' kind 3. Refuses as `emit_bursts`.
 
 use crate::errors::Refused;
-use crate::marks::emit_bursts::{BurstSet, FIRST, Half, emit_bursts_with};
-use crate::marks::store::Slot;
+use crate::marks::emit_bursts::BurstTuning;
+use crate::marks::emit_bursts::{BurstSet, HALVES, emit_bursts_with};
+use crate::session::{Dword, Float};
 
 /// `emit_bursts_2`'s: `emit_bursts`' with its own factors and randoms.
-pub const SECOND: BurstSet = BurstSet {
-    halves: [
-        Half {
-            rate_random: Slot::at(0x93A3FA),
-            count_random: Slot::at(0x93A3FE),
-            entry_random: Slot::at(0x93A402),
-            ..FIRST.halves[0]
-        },
-        Half {
-            rate_random: Slot::at(0x93A40E),
-            count_random: Slot::at(0x93A412),
-            entry_random: Slot::at(0x93A416),
-            ..FIRST.halves[1]
-        },
-    ],
-    strength_k: Slot::at(0x93A3F6),
-    blend_k: [Slot::at(0x93A406), Slot::at(0x93A40A)],
+pub static SECOND: BurstSet = BurstSet {
+    halves: HALVES,
+    tuning: &SECOND_TUNING,
 };
 
 /// The Rust version (see the header).
 pub unsafe fn emit_bursts_2(wheel: u32, object: u32) -> Result<(), Refused> {
     unsafe { emit_bursts_with(&SECOND, wheel, object) }
+}
+
+/// `emit_bursts_2`'s factors and randoms (IDA 0x93A3F6 .. 0x93A41A).
+pub static SECOND_TUNING: BurstTuning = BurstTuning {
+    strength_k: Float::from_bits(0xBE800000),
+    first: [Dword::new(0x0), Dword::new(0x0), Dword::new(0x0)],
+    blend_k: [Float::from_bits(0xBE800000), Float::from_bits(0xBE800000)],
+    second: [Dword::new(0x0), Dword::new(0x0), Dword::new(0x0)],
+};
+
+/// Marker for `moved::MOVED`: SECOND_TUNING's place in the image.
+pub struct SecondTuning;
+
+impl SecondTuning {
+    pub const START: usize = 0x93A3F6;
+    pub const LEN: usize = BurstTuning::LEN;
+
+    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
+    pub fn home() -> usize {
+        &SECOND_TUNING as *const BurstTuning as usize
+    }
+}
+
+#[cfg(test)]
+mod second_tuning_tests {
+    use super::*;
+
+    fn bytes<T>(v: &T) -> Vec<u8> {
+        let p = v as *const T as *const u8;
+        (0..size_of::<T>())
+            .map(|i| unsafe { p.add(i).read() })
+            .collect()
+    }
+
+    #[test]
+    fn second_tuning_starts_as_the_games() {
+        assert_eq!(size_of::<BurstTuning>(), BurstTuning::LEN);
+        assert!(
+            bytes(&SECOND_TUNING)
+                == crate::moved::image_bytes(SecondTuning::START, BurstTuning::LEN),
+            "SECOND_TUNING starts differently from the image"
+        );
+    }
 }

@@ -3,14 +3,13 @@
 //! `scene::choose_carousel_pictures` and `scene::update_carousel_pictures`.
 
 use crate::errors::BadInput;
-use crate::framework::{game_read, game_write};
+use crate::framework::game_write;
 use crate::menu::state_store::MENU_STATE;
-use crate::scene::textures::{KIND_SLOT_RVA, KIND_TEXTURE_RVA, SLOTS, WANTED_RVA};
+use crate::scene::kind_texture_store::KIND_TEXTURES;
+use crate::scene::textures::{SLOTS, WANTED_RVA};
 use crate::session::{read_all, write_all};
 
 const KIND: usize = 0x2BC;
-pub const FIRST_TEXTURE_RVA: usize = KIND_TEXTURE_RVA + KIND * 4; // dword_5D15D8
-pub const FIRST_SLOT_RVA: usize = KIND_SLOT_RVA + KIND * 4; // dword_5D25D8
 const ENTRIES: u32 = 0x100;
 
 /// `scene::update_carousel_pictures` (0x49029C) for the four entries given: each
@@ -37,11 +36,11 @@ pub unsafe fn update(entries: [u32; 4]) -> Result<(), BadInput> {
             }
             wanted[n] = (record as *const u32).read_unaligned();
         }
-        let first_slot: u32 = game_read(FIRST_SLOT_RVA);
+        let first_slot: u32 = KIND_TEXTURES.kind_first_slots[KIND].get();
         if first_slot.checked_add(32).is_none_or(|end| end > SLOTS) {
             return Err(BadInput("the pictures' slots lie past the table"));
         }
-        let first_texture: u32 = game_read(FIRST_TEXTURE_RVA);
+        let first_texture: u32 = KIND_TEXTURES.kind_first_textures[KIND].get();
         write_all(&MENU_STATE.carousel_pictures.shown, wanted);
 
         // Converted: `rc2k_core::scene::carousel::{keep_held, picture_textures}`.

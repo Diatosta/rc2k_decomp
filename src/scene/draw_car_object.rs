@@ -22,7 +22,6 @@
 //! (`menu::table_routes`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::game_write;
 use crate::menu::event_store::EVENT_STATE;
 use crate::menu::state_store::MENU_STATE;
 use crate::physics::tables_store::PHYSICS;
@@ -30,11 +29,12 @@ use crate::race::switches_store::FRAME_SWITCHES;
 use crate::scene::assign_kind_textures::assign_kind_textures;
 use crate::scene::carousel_pictures::update;
 use crate::scene::clear_depth_buffer::clear_depth_buffer;
-use crate::scene::draw_carousel_entry::{ANGLE_Y_RVA, ENTRIES, PLACE_RVA, find_object_of_kind};
+use crate::scene::draw_carousel_entry::{ENTRIES, find_object_of_kind};
 use crate::scene::draw_menu_object::draw_menu_object_in_game;
 use crate::scene::light_store::LIGHT_STATE;
 use crate::scene::load_slot_textures::load_slot_textures_in_game;
 use crate::scene::map_texture_places::map_texture_places;
+use crate::scene::object_store::OBJECT_WORK;
 use crate::session::write_all;
 
 // ---- game data ----
@@ -76,8 +76,8 @@ pub unsafe fn draw_shown_car(draw: &mut dyn FnMut() -> Result<(), Refused>) -> R
             return Err(BadInput("a car shown past the carousel's kinds").into());
         }
         let clock: u32 = PHYSICS.scene_clock.bits();
-        game_write(ANGLE_Y_RVA, (clock << 3) & 0xFFFF);
-        game_write(PLACE_RVA + 8, MENU_STATE.carousel.z.get());
+        OBJECT_WORK.angles[1].set((clock << 3) & 0xFFFF);
+        OBJECT_WORK.place[2].set(MENU_STATE.carousel.z.get());
         let kind = MENU_STATE.carousel.kinds[car as usize].get();
         MENU_STATE.carousel.kind.set(kind);
         let object = find_object_of_kind(kind);

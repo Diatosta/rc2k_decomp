@@ -39,11 +39,9 @@ use crate::input::store::DEVICES;
 use crate::install::vars::INSTALLER_PAGES;
 use crate::menu::event_flow::Flow;
 use crate::menu::screen_loop::Carried;
-use crate::physics::flow::a;
-use crate::race::viewer::{
-    CAMERA_EDIT, DEVELOPER_KEYS, EDITING, ESCAPES, HOLD_REVS, KEYS_IGNORED, LAST_RACE,
-    LAST_RACE_VIEWED, MENU, MODE, ONLY_SHOWN, SLOT, SOUND, STOPPED, WAIT_RELEASE, get, put,
-};
+use crate::race::replay_file_store::REPLAY_FILE;
+use crate::race::viewer::{CAMERA_EDIT, DEVELOPER_KEYS, LAST_RACE, get, put};
+use crate::race::viewer_state_store::REPLAY_VIEW;
 use crate::session::CLOCKS;
 use crate::session::FLAGS;
 
@@ -103,21 +101,21 @@ pub fn replay_viewer(c: &Carried, mode: u32) -> Result<(), Refused> {
     // The end (0x41D436).
     step(16, r)?;
     step(17, r)?;
-    put(STOPPED, 0);
-    put(HOLD_REVS, 0);
+    REPLAY_FILE.viewer_stopped.set(0);
+    REPLAY_FILE.hold_car_revs.set(0);
     Ok(())
 }
 
 /// Up to the end.
 fn view(r: &mut Flow) -> Result<(), Refused> {
-    put(MODE, r.c.arg);
-    put(SLOT, r.c.palette);
-    put(HOLD_REVS, 1);
-    put(ONLY_SHOWN, 0);
+    REPLAY_FILE.viewer_mode.set(r.c.arg);
+    REPLAY_FILE.viewer_slot.set(r.c.palette);
+    REPLAY_FILE.hold_car_revs.set(1);
+    REPLAY_VIEW.viewer_only_shown.set(0);
     match r.c.arg {
         1 => {
-            put(SLOT, LAST_RACE);
-            put(STOPPED, 1);
+            REPLAY_FILE.viewer_slot.set(LAST_RACE);
+            REPLAY_FILE.viewer_stopped.set(1);
         }
         2 | 3 => {
             let save = r.c.arg == 3;
@@ -126,33 +124,35 @@ fn view(r: &mut Flow) -> Result<(), Refused> {
             if r.c.arg == u32::MAX {
                 return Ok(());
             }
-            put(SLOT, r.c.arg);
+            REPLAY_FILE.viewer_slot.set(r.c.arg);
             if save {
                 step(2, r)?;
                 return Ok(());
             }
-            put(STOPPED, 1);
+            REPLAY_FILE.viewer_stopped.set(1);
         }
         4 | 5 => {
-            put(KEYS_IGNORED, (r.c.arg == 5) as u32);
-            put(ONLY_SHOWN, 1);
-            put(STOPPED, 0);
-            put(SLOT, get(SLOT).wrapping_add(100));
+            REPLAY_VIEW.viewer_keys_ignored.set((r.c.arg == 5) as u32);
+            REPLAY_VIEW.viewer_only_shown.set(1);
+            REPLAY_FILE.viewer_stopped.set(0);
+            REPLAY_FILE
+                .viewer_slot
+                .set(REPLAY_FILE.viewer_slot.get().wrapping_add(100));
         }
         _ => return Ok(()),
     }
-    r.c.palette = get(SLOT);
+    r.c.palette = REPLAY_FILE.viewer_slot.get();
     step(3, r)?;
     if r.c.carry {
         return Ok(());
     }
     put(CAMERA_EDIT, 0);
-    r.c.arg = (get(SLOT) == LAST_RACE) as u32;
-    put(LAST_RACE_VIEWED, r.c.arg);
+    r.c.arg = (REPLAY_FILE.viewer_slot.get() == LAST_RACE) as u32;
+    REPLAY_VIEW.last_race_viewed.set(r.c.arg);
     step(4, r)?;
     step(5, r)?;
-    r.record = a(MENU);
-    put(SOUND, 0);
+    r.record = REPLAY_VIEW.viewer_list[0].addr() as u32;
+    REPLAY_FILE.viewer_sound.set(0);
     INSTALLER_PAGES.list_answer.set(1);
     INSTALLER_PAGES.list_leave.set(0);
     r.c.arg = CLOCKS.key_ticks.get();
@@ -161,7 +161,7 @@ fn view(r: &mut Flow) -> Result<(), Refused> {
     INSTALLER_PAGES.choice.set(6);
     step(6, r)?;
     step(7, r)?;
-    if get(ONLY_SHOWN) == 1 {
+    if REPLAY_VIEW.viewer_only_shown.get() == 1 {
         r.c.palette = 6;
         step(8, r)?;
         return Ok(());
@@ -176,35 +176,37 @@ fn view(r: &mut Flow) -> Result<(), Refused> {
         if FLAGS.quitting.get() == 1 {
             return Ok(());
         }
-        if get(ONLY_SHOWN) == 1 {
-            if get(STOPPED) == 1 {
+        if REPLAY_VIEW.viewer_only_shown.get() == 1 {
+            if REPLAY_FILE.viewer_stopped.get() == 1 {
                 return Ok(());
             }
-            if get(KEYS_IGNORED) == 1 {
+            if REPLAY_VIEW.viewer_keys_ignored.get() == 1 {
                 r.c.arg = 0;
             }
         }
-        if get(WAIT_RELEASE) == 1 {
+        if REPLAY_VIEW.wait_key_release.get() == 1 {
             if DEVICES.keys_down.get(1) == 0 && DEVICES.keys_down.get(0x1C) == 0 {
-                put(WAIT_RELEASE, 0);
+                REPLAY_VIEW.wait_key_release.set(0);
             }
             r.c.arg = 0;
         }
         if r.c.arg as u8 == 1 {
-            put(WAIT_RELEASE, 1);
-            put(ESCAPES, get(ESCAPES).wrapping_add(1));
-            if get(ESCAPES) == 2 {
+            REPLAY_VIEW.wait_key_release.set(1);
+            REPLAY_VIEW
+                .escape_count
+                .set(REPLAY_VIEW.escape_count.get().wrapping_add(1));
+            if REPLAY_VIEW.escape_count.get() == 2 {
                 return Ok(());
             }
             r.c.arg = 0;
         }
         if r.c.arg as u8 != 0 {
-            put(ESCAPES, 0);
+            REPLAY_VIEW.escape_count.set(0);
         }
-        if get(STOPPED) != 1 {
+        if REPLAY_FILE.viewer_stopped.get() != 1 {
             step(11, r)?;
             if r.c.carry || r.c.arg as u8 != 0 {
-                put(STOPPED, 1);
+                REPLAY_FILE.viewer_stopped.set(1);
             }
             continue;
         }
@@ -226,8 +228,8 @@ fn view(r: &mut Flow) -> Result<(), Refused> {
             mark(r, key)?;
         }
         // The menu sound asked for (0x41D41C).
-        r.c.arg = get(SOUND);
-        put(SOUND, 0);
+        r.c.arg = REPLAY_FILE.viewer_sound.get();
+        REPLAY_FILE.viewer_sound.set(0);
         step(15, r)?;
         if INSTALLER_PAGES.list_leave.get() == 1 {
             return Ok(());
@@ -278,7 +280,7 @@ fn stopped_key(r: &mut Flow, key: u8) -> Result<Next, Refused> {
     {
         return Ok(Next::Action(action));
     }
-    if get(EDITING) == 0 {
+    if REPLAY_FILE.viewer_editing.get() == 0 {
         return Ok(Next::Sound);
     }
     Ok(KEYS

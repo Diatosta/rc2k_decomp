@@ -10,27 +10,87 @@
 //!
 //! the x87 version stays for the Rust callers in unconverted code).
 
-use crate::marks::store::{Slot, game_read, game_write};
 use crate::math::x87;
-
-const TILT_RVA: Slot = Slot::at(0x811BC3); // g_marksShapeTilt
-const SINE_RVA: Slot = Slot::at(0x811BC7); // flt_811BC7
-const COSINE_RVA: Slot = Slot::at(0x811BCB); // flt_811BCB
-const POINT_RVA: Slot = Slot::at(0x811BDF); // flt_811BDF .. flt_811BE7
-const UNIT_RVA: Slot = Slot::at(0x811BD3); // unk_811BD3
-const LENGTH_RVA: Slot = Slot::at(0x811BCF); // dword_811BCF
+use crate::session::{Dword, Float, read_bits, write_bits};
 
 /// The Rust version (see the header).
 pub unsafe fn tilt_shape() {
-    unsafe {
-        let (s, c) = x87::sine_and_cosine(game_read(TILT_RVA));
-        game_write(COSINE_RVA, c);
-        game_write(SINE_RVA, s);
-        let (y, z) = x87::turn_yz(game_read(POINT_RVA + 4), game_read(POINT_RVA + 8), s, c);
-        game_write(POINT_RVA + 4, y);
-        game_write(POINT_RVA + 8, z);
-        let (unit, length) = x87::unit_and_length(game_read(POINT_RVA));
-        game_write(LENGTH_RVA, length);
-        game_write(UNIT_RVA, unit);
+    let t = &SHAPE_TILT;
+    let (s, c) = x87::sine_and_cosine(t.tilt.bits());
+    t.cosine.set_bits(c);
+    t.sine.set_bits(s);
+    let (y, z) = x87::turn_yz(t.point[1].bits(), t.point[2].bits(), s, c);
+    t.point[1].set_bits(y);
+    t.point[2].set_bits(z);
+    let (unit, length) = x87::unit_and_length(read_bits(&t.point));
+    t.length.set_bits(length);
+    write_bits(&t.unit, unit);
+}
+
+/// The shape tilt and the first view point (`marks::tilt_shape`, `marks::copy_first_point`, `marks::edges`) (IDA 0x811BC3 .. 0x811BEB, the image's layout; phase 7, typed state).
+#[repr(C)]
+pub struct ShapeTilt {
+    /// 0x811BC3: `g_marksShapeTilt`: the kind's float times 0.0175.
+    pub tilt: Float,
+    /// 0x811BC7: `flt_811BC7`: the sine of the tilt.
+    pub sine: Float,
+    /// 0x811BCB: `flt_811BCB`: the cosine of the tilt.
+    pub cosine: Float,
+    /// 0x811BCF: `dword_811BCF`: the point's length.
+    pub length: Dword,
+    /// 0x811BD3: `unk_811BD3` ..: the point made of length 1.
+    pub unit: [Float; 3],
+    /// 0x811BDF: `flt_811BDF` .. `flt_811BE7`: the first kept view point (copied by `marks::copy_first_point`, turned by the tilt, then also set to 0 by `marks::hexagons_drift` and moved by the drift).
+    pub point: [Float; 3],
+}
+
+pub static SHAPE_TILT: ShapeTilt = ShapeTilt {
+    tilt: Float::from_bits(0x0),
+    sine: Float::from_bits(0x0),
+    cosine: Float::from_bits(0x0),
+    length: Dword::new(0x0),
+    unit: [
+        Float::from_bits(0x0),
+        Float::from_bits(0x3F800000),
+        Float::from_bits(0x0),
+    ],
+    point: [
+        Float::from_bits(0x0),
+        Float::from_bits(0x0),
+        Float::from_bits(0x3F800000),
+    ],
+};
+
+impl ShapeTilt {
+    pub const START: usize = 0x811BC3;
+    pub const LEN: usize = 0x28;
+    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
+    pub fn home() -> usize {
+        &SHAPE_TILT as *const ShapeTilt as usize
+    }
+}
+
+#[cfg(test)]
+mod shape_tilt_tests {
+    use super::*;
+
+    #[test]
+    fn shape_tilt_starts_as_the_games() {
+        use core::mem::offset_of;
+        assert_eq!(size_of::<ShapeTilt>(), ShapeTilt::LEN);
+        let p = &SHAPE_TILT as *const ShapeTilt as *const u8;
+        let ours: Vec<u8> = (0..size_of::<ShapeTilt>())
+            .map(|i| unsafe { p.add(i).read() })
+            .collect();
+        assert!(
+            ours == crate::moved::image_bytes(ShapeTilt::START, ShapeTilt::LEN),
+            "SHAPE_TILT starts differently from the image"
+        );
+        assert_eq!(offset_of!(ShapeTilt, tilt), 0x811BC3 - ShapeTilt::START);
+        assert_eq!(offset_of!(ShapeTilt, sine), 0x811BC7 - ShapeTilt::START);
+        assert_eq!(offset_of!(ShapeTilt, cosine), 0x811BCB - ShapeTilt::START);
+        assert_eq!(offset_of!(ShapeTilt, length), 0x811BCF - ShapeTilt::START);
+        assert_eq!(offset_of!(ShapeTilt, unit), 0x811BD3 - ShapeTilt::START);
+        assert_eq!(offset_of!(ShapeTilt, point), 0x811BDF - ShapeTilt::START);
     }
 }

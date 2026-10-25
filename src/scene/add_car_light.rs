@@ -23,10 +23,9 @@
 //! Refuses when there is no block.
 
 use crate::errors::BadInput;
-use crate::framework::{game_read, game_write, rva};
+use crate::framework::{game_read, rva};
 use crate::race::numbers_store::NUMBERS;
-use crate::scene::add_point_lights::LIGHT_COLOUR_RVA;
-use crate::scene::draw_polygon::CHECKED_RVA;
+use crate::scene::draw_store::DRAW;
 use crate::scene::light_store::LIGHT_STATE;
 use crate::scene::light_work_store::LIGHT_WORK;
 use crate::scene::polygon::dword;
@@ -163,19 +162,16 @@ pub unsafe fn add_car_light(car: usize) -> Result<(), BadInput> {
         let ahead = squares(z.wrapping_sub(0x20_0000), x.wrapping_add(x), factor, true);
         let cone = held(0x100i32.wrapping_sub((ahead >> 2) as i32));
         // Worked out and not used; its rounding is what `dword_62400C` is left with.
-        game_write(
-            CHECKED_RVA,
-            squares(z.wrapping_sub(0x10_0000), x, factor, false),
-        );
+        DRAW.scratch
+            .set(squares(z.wrapping_sub(0x10_0000), x, factor, false));
         let height = if (y as i32) < 0 { y.wrapping_neg() } else { y };
         let level = held((0x10_0000u32.wrapping_sub(height) as i32) >> 12);
         let amount = (level.wrapping_mul(cone * 2) >> 8).wrapping_mul(dword(car + STRENGTH)) >> 8;
         let colour: u32 = game_read(TABLE_RVA + held(amount as i32) as usize * 4);
         let mmx = MACHINE.has_mmx.get() != 0;
-        game_write(
-            LIGHT_COLOUR_RVA,
-            plus(colour, LIGHT_WORK.light_colour.bits(), mmx),
-        );
+        LIGHT_WORK
+            .light_colour
+            .set(plus(colour, LIGHT_WORK.light_colour.bits(), mmx));
         Ok(())
     }
 }

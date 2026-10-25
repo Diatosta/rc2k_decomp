@@ -9,28 +9,20 @@
 //! more (the table's 256 entries; its writer masks it with 0xFF).
 
 use crate::errors::Refused;
-use crate::marks::store::{Slot, game_read, game_write};
-
-const INDEX_RVA: Slot = Slot::at(0x84460C); // dword_84460C
-const TABLE_RVA: Slot = Slot::at(0x844610); // dword_844610: 256 entries
-/// (the flag, the shape): `dword_844604` / `g_marksShapesA`, `dword_844608` /
-/// `g_marksShapesB`.
-const PAIRS: [(Slot, Slot); 2] = [
-    (Slot::at(0x844604), Slot::at(0x82FC56)),
-    (Slot::at(0x844608), Slot::at(0x82FC7A)),
-];
+use crate::marks::mask_picks::PICKS;
+use crate::marks::mask_vars::MASKS;
 
 /// The Rust version (see the header).
 // Converted: `rc2k_core::marks::steps::{shape_entry, pick_shapes}`
 pub unsafe fn pick_shapes() -> Result<(), Refused> {
     use rc2k_core::marks::steps;
-    unsafe {
-        let index = steps::shape_entry(game_read(INDEX_RVA))?;
-        for (flag, shape) in PAIRS {
-            let picked = steps::pick_shapes(game_read(TABLE_RVA + 4 * index));
-            game_write(flag, picked.flag);
-            game_write(shape, picked.shapes);
-        }
+    let index = steps::shape_entry(PICKS.index.get())?;
+    // (the flag, the shape): `dword_844604` / `g_marksShapesA`, `dword_844608` /
+    // `g_marksShapesB`.
+    for n in 0..2 {
+        let picked = steps::pick_shapes(PICKS.table[index].get() as i32);
+        PICKS.flags[n].set(picked.flag);
+        MASKS.shapes[n].step.set(picked.shapes);
     }
     Ok(())
 }

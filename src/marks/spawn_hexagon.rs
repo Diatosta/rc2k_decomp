@@ -11,19 +11,18 @@
 //! compared exactly as before (the earlier version stays for the Rust callers in
 //! unconverted code).
 
-use crate::marks::expire_hexagons::{ITEM_LEN, ITEMS, ITEMS_RVA};
-use crate::marks::store::{Slot, game_addr, game_read, game_write};
+use crate::marks::expire_hexagons::{ITEM_LEN, ITEMS};
+use crate::marks::hexagon_state::HEXAGON_WORK;
+use crate::marks::hexagon_vars::HEX;
 use crate::math::x87;
-
-pub const CURSOR_RVA: Slot = Slot::at(0x81517E); // dword_81517E: an offset into the items
 const WINDOW: u32 = 32;
 
 /// The Rust version (see the header).
 pub unsafe fn spawn_hexagon(x: u32, z: u32, kind: u32) {
     unsafe {
-        let base = game_addr(ITEMS_RVA) as u32;
+        let base = HEX.items.addr() as u32;
         let end = ITEMS * ITEM_LEN;
-        let mut at = game_read::<u32>(CURSOR_RVA);
+        let mut at = HEXAGON_WORK.cursor.bits();
         for _ in 0..WINDOW {
             let e = base.wrapping_add(at);
             if (e as *const u32).read_unaligned() == 0 {
@@ -39,7 +38,7 @@ pub unsafe fn spawn_hexagon(x: u32, z: u32, kind: u32) {
                 if at == end {
                     at = 0;
                 }
-                game_write(CURSOR_RVA, at);
+                HEXAGON_WORK.cursor.set_bits(at);
                 return;
             }
             at += ITEM_LEN;
@@ -47,6 +46,6 @@ pub unsafe fn spawn_hexagon(x: u32, z: u32, kind: u32) {
                 at = 0;
             }
         }
-        game_write(CURSOR_RVA, at);
+        HEXAGON_WORK.cursor.set_bits(at);
     }
 }

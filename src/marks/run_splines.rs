@@ -14,16 +14,11 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::marks::place_spline::place_spline;
-use crate::marks::setup::CLOCK;
-use crate::marks::setup::SEED_RVA;
-use crate::marks::splines::{MADE_RVA, PLACE_RVA};
-use crate::marks::store::{Slot, game_read, game_write};
+use crate::marks::setup::{CLOCK, SEED_RVA};
+use crate::marks::splines::{SPLINE_CONSTANTS, SPLINE_HEAD, SPLINE_WORK};
+use crate::marks::store::{game_read, game_write};
 use crate::math::x87;
 
-const ANGLE_RVA: Slot = Slot::at(0x7695B6); // flt_7695B6
-const WAVE_RVA: Slot = Slot::at(0x7695BA); // flt_7695BA
-/// flt_788F0D, flt_788F11, flt_788F15.
-const WAVE_K: [Slot; 3] = [Slot::at(0x788F0D), Slot::at(0x788F11), Slot::at(0x788F15)];
 const MOST_SPLINES: i32 = 8;
 
 unsafe fn get(a: u32) -> u32 {
@@ -37,7 +32,7 @@ unsafe fn put(a: u32, v: u32) {
 /// The made counter's step (see the header).
 unsafe fn step_made(settings: u32, half: u32) {
     unsafe {
-        let mut m: i32 = game_read(MADE_RVA);
+        let mut m = SPLINE_HEAD.made.get() as i32;
         let h = half as i32;
         if get(settings + 0x2700) != 0 {
             put(settings + 0x26FC, 0);
@@ -71,7 +66,7 @@ unsafe fn step_made(settings: u32, half: u32) {
                 }
             }
         }
-        game_write(MADE_RVA, m);
+        SPLINE_HEAD.made.set(m as u32);
     }
 }
 
@@ -81,7 +76,7 @@ pub unsafe fn run_splines() -> Result<(), Refused> {
     if settings == 0 {
         return Err(BadInput("no marks settings").into());
     }
-    let places: i32 = unsafe { game_read(PLACE_RVA) };
+    let places = SPLINE_WORK.place.get() as i32;
     if places > MOST_SPLINES {
         return Err(BadInput("more than 8 splines").into());
     }
@@ -91,16 +86,16 @@ pub unsafe fn run_splines() -> Result<(), Refused> {
             .wrapping_mul(0x9D)
             .wrapping_add(0x47);
         game_write(SEED_RVA, s);
-        let k = WAVE_K.map(|r| game_read::<u32>(r));
+        let k = SPLINE_CONSTANTS.wave_k.each_ref().map(|f| f.bits());
         let (angle, wave) = x87::angle_and_wave(
-            game_read(ANGLE_RVA),
+            SPLINE_HEAD.angle.bits(),
             (s & 0xFF).wrapping_sub(0x80) as i32,
             k[0],
             k[1],
             k[2],
         );
-        game_write(ANGLE_RVA, angle);
-        game_write(WAVE_RVA, wave);
+        SPLINE_HEAD.angle.set_bits(angle);
+        SPLINE_HEAD.wave.set_bits(wave);
         for n in (0..places.max(0) as u32).rev() {
             place_spline(n)?;
         }

@@ -12,27 +12,66 @@
 //!
 //! the x87 version stays for the Rust callers in unconverted code).
 
-use crate::marks::store::{Slot, game_read, game_write};
+use crate::marks::tuning::MARKS_FLOATS;
 use crate::math::x87;
 use crate::scene::matrix3::{extended, rounded};
-
-const RANDOM_RVA: Slot = Slot::at(0x923004); // g_marksSpreadRandom
-const SCALE_RVA: Slot = Slot::at(0x76521C); // dbl_76521C
+use crate::session::Dword;
 
 /// The Rust version (see the header): the three out and eax.
 pub unsafe fn spread_point(inputs: [[u8; 10]; 4]) -> ([[u8; 10]; 3], u32) {
     let [spread, b, c, d] = inputs.map(rounded);
-    unsafe {
-        let first = game_read::<u32>(RANDOM_RVA)
-            .wrapping_mul(0x9D)
-            .wrapping_add(0x47);
-        let second = first.rotate_right(12);
-        let third = second.rotate_right(12);
-        game_write(RANDOM_RVA, third);
-        let k: u64 = game_read(SCALE_RVA);
-        let d = x87::grown(third as i32, k, d, spread);
-        let c = x87::grown(second as i32, k, c, spread);
-        let b = x87::grown(first as i32, k, b, spread);
-        ([extended(b), extended(c), extended(d)], third)
+
+    let first = SPREAD_RANDOM
+        .random
+        .get()
+        .wrapping_mul(0x9D)
+        .wrapping_add(0x47);
+    let second = first.rotate_right(12);
+    let third = second.rotate_right(12);
+    SPREAD_RANDOM.random.set(third);
+    let k = MARKS_FLOATS.spread_scale.get_u32(0) as u64
+        | (MARKS_FLOATS.spread_scale.get_u32(4) as u64) << 32;
+    let d = x87::grown(third as i32, k, d, spread);
+    let c = x87::grown(second as i32, k, c, spread);
+    let b = x87::grown(first as i32, k, b, spread);
+    ([extended(b), extended(c), extended(d)], third)
+}
+
+/// The spread point's random (IDA 0x923004 .. 0x923008, the image's layout; phase 7, typed state).
+#[repr(C)]
+pub struct SpreadRandom {
+    /// 0x923004: `g_marksSpreadRandom`: the random (times 0x9D plus 0x47) of `marks::spread_point`.
+    pub random: Dword,
+}
+
+pub static SPREAD_RANDOM: SpreadRandom = SpreadRandom {
+    random: Dword::new(0x0),
+};
+
+impl SpreadRandom {
+    pub const START: usize = 0x923004;
+    pub const LEN: usize = 0x4;
+    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
+    pub fn home() -> usize {
+        &SPREAD_RANDOM as *const SpreadRandom as usize
+    }
+}
+
+#[cfg(test)]
+mod typed_tests {
+    use super::*;
+    use core::mem::size_of;
+
+    #[test]
+    fn spread_random_starts_as_the_games() {
+        assert_eq!(size_of::<SpreadRandom>(), SpreadRandom::LEN);
+        let image = crate::moved::image_bytes(SpreadRandom::START, SpreadRandom::LEN);
+        let mine = unsafe {
+            std::slice::from_raw_parts(SpreadRandom::home() as *const u8, SpreadRandom::LEN)
+        };
+        assert!(
+            mine == &image[..],
+            "SPREAD_RANDOM starts differently from the image"
+        );
     }
 }

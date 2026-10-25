@@ -21,19 +21,66 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::rva;
-use crate::marks::emitters::{RING_COUNT_RVA, RING_CURSOR_RVA};
+use crate::marks::ring_store::RING_WORK;
+use crate::marks::run_ring::{RING_KINDS, RingKinds};
 use crate::marks::setup::{CLOCK, MarksClock};
-use crate::marks::store::{Slot, game_read, game_write};
+use crate::marks::store::game_write;
+use crate::marks::surface_store::SURFACE;
+use crate::marks::tuning::MARKS_KIND_FLOATS;
 use crate::math::x87;
 use crate::scene::fog_at::fog_at;
+use crate::session::Dword;
 
 const STREAK: u32 = 0x12;
-const LAST_RVA: Slot = Slot::at(0x8EB8E1); // dword_8EB8E1 .. dword_8EB8E9
-const PLACE_RVA: Slot = Slot::at(0x8EB8D5); // flt_8EB8D5 .. flt_8EB8DD
 const SPECULAR_RVA: usize = rva(0x9605B4); // the first vertex's specular
-const INDEX_RVA: Slot = Slot::at(0x9356C0); // dword_9356C0
-const OTHER_RVA: Slot = Slot::at(0x765238); // dword_765238
-const COLOURS: [(Slot, i32); 2] = [(Slot::at(0x939DB2), 257), (Slot::at(0x939BB2), 128)];
+/// The colour table used while `MARKS_KIND_FLOATS.other` is 0: 257 colours (past `SURFACE`'s
+/// 128: the table `SURFACE.colours` is the one in use while it is not).
+#[repr(C)]
+pub struct Colours257 {
+    /// 0x939DB2 .. 0x93A1B6: the 257 colours
+    pub colours: [Dword; 257],
+}
+
+/// The 257 colours as the image has them: 0x00FFFF00 + 2 i for the first 128, then 0x00FFFFFF.
+pub static COLOURS_257: Colours257 = Colours257 {
+    colours: {
+        let mut colours = [const { Dword::new(0) }; 257];
+        let mut i = 0;
+        while i < 257 {
+            colours[i] = Dword::new(if i < 128 {
+                0x00FF_FF00 + 2 * i as u32
+            } else {
+                0x00FF_FFFF
+            });
+            i += 1;
+        }
+        colours
+    },
+};
+
+impl Colours257 {
+    pub const START: usize = 0x939DB2;
+    pub const LEN: usize = 0x404;
+    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
+    pub fn home() -> usize {
+        &COLOURS_257 as *const Colours257 as usize
+    }
+}
+
+#[cfg(test)]
+mod colours_tests {
+    use super::*;
+
+    #[test]
+    fn colours_start_as_the_games() {
+        assert_eq!(size_of::<Colours257>(), Colours257::LEN);
+        let p = &COLOURS_257 as *const Colours257 as *const u8;
+        let own: Vec<u8> = (0..Colours257::LEN)
+            .map(|i| unsafe { p.add(i).read() })
+            .collect();
+        assert!(own == crate::moved::image_bytes(Colours257::START, Colours257::LEN));
+    }
+}
 
 unsafe fn get(a: u32) -> u32 {
     unsafe { (a as *const u32).read_unaligned() }
@@ -48,16 +95,16 @@ unsafe fn first_frame(e: u32) {
     unsafe {
         first_frame_x87(
             crate::race::store::asm_base() as usize,
-            crate::marks::store::base() as usize,
             e as usize,
             &CLOCK,
+            &RING_KINDS as *const RingKinds as usize,
         )
     }
 }
 
 /// The original's 0x4CF94D .. 0x4CF98C: the place moved by the motion, the motion's y by `flt_93A572`.
 unsafe fn move_(e: u32) {
-    unsafe { move_x87(crate::marks::store::base() as usize, e as usize, &CLOCK) }
+    unsafe { move_x87(e as usize, &CLOCK, &RING_KINDS as *const RingKinds as usize) }
 }
 
 /// The original's 0x4CF9A6 .. 0x4CFA2D: the place turned by the view into `flt_8EB8D5` ...
@@ -65,15 +112,29 @@ unsafe fn turn_place(e: u32) {
     unsafe {
         turn_place_x87(
             crate::race::store::asm_base() as usize,
-            crate::marks::store::base() as usize,
             e as usize,
+            &DRAW_WORK,
         )
     }
 }
 
-/// The colour table in use and its size.
-unsafe fn colours() -> (Slot, i32) {
-    unsafe { COLOURS[(game_read::<u32>(OTHER_RVA) != 0) as usize] }
+/// The size of the colour table in use: 128 colours (`SURFACE.colours`) while
+/// `MARKS_KIND_FLOATS.other` is not 0, else the 257 at 0x939DB2.
+unsafe fn colour_count() -> i32 {
+    if MARKS_KIND_FLOATS.other.bits() != 0 {
+        128
+    } else {
+        257
+    }
+}
+
+/// The colour `i` of the table in use (`i` below `colour_count`).
+fn colour_at(i: usize) -> u32 {
+    if MARKS_KIND_FLOATS.other.bits() != 0 {
+        SURFACE.colours[i].get()
+    } else {
+        COLOURS_257.colours[i].get()
+    }
 }
 
 /// Why it refuses, if it does: the walk as the original makes it, nothing written.
@@ -84,8 +145,8 @@ unsafe fn refusal() -> Option<&'static str> {
             return Some("no marks settings");
         }
         let ticks: u32 = CLOCK.frame_ticks.get();
-        let mut e: u32 = game_read(RING_CURSOR_RVA);
-        let count = game_read::<u32>(RING_COUNT_RVA) as i32;
+        let mut e: u32 = RING_WORK.cursor.get();
+        let count = RING_WORK.count.get() as i32;
         if count > 0 && (e == 0 || get(e) == 0) {
             return Some("a null ring entry");
         }
@@ -100,7 +161,7 @@ unsafe fn refusal() -> Option<&'static str> {
                         return Some("the fog table is not there");
                     }
                     let i = x87::int_times_to_int(life.wrapping_sub(ticks) as i32, get(e + 0x78));
-                    if !(0..colours().1).contains(&i) {
+                    if !(0..colour_count()).contains(&i) {
                         return Some("a streak's colour index past its table");
                     }
                 }
@@ -127,20 +188,20 @@ unsafe fn streak(e: u32) -> Result<bool, Refused> {
             first_frame(e);
         }
         move_on(e);
-        game_write(LAST_RVA, get(e + 0x1C));
-        game_write(LAST_RVA + 4, get(e + 0x20));
-        game_write(LAST_RVA + 8, get(e + 0x24));
+        DRAW_WORK.second[0].set_bits(get(e + 0x1C));
+        DRAW_WORK.second[1].set_bits(get(e + 0x20));
+        DRAW_WORK.second[2].set_bits(get(e + 0x24));
         turn_place(e);
         let s: u32 = crate::marks::setup::SETTINGS.pointer.get();
         if get(s + 0xC) != 0 || get(s + 0x10) == 1 {
-            put(e + 0x1C, game_read(PLACE_RVA));
-            put(e + 0x20, game_read(PLACE_RVA + 4));
-            put(e + 0x24, game_read(PLACE_RVA + 8));
+            put(e + 0x1C, DRAW_WORK.turned[0].bits());
+            put(e + 0x20, DRAW_WORK.turned[1].bits());
+            put(e + 0x24, DRAW_WORK.turned[2].bits());
         }
         game_write(SPECULAR_RVA, fog_at(get(e + 0x24))?);
         let i = x87::int_times_to_int(get(e + 0x84) as i32, get(e + 0x78));
-        game_write(INDEX_RVA, i);
-        let colour = game_read::<u32>(colours().0 + 4 * i as usize);
+        RING_WORK.whole.set(i as u32);
+        let colour = colour_at(i as usize);
         crate::marks::draw_ribbon::draw_ribbon(0x20, i as u32, 0x800, colour)?;
     }
     Ok(false)
@@ -156,8 +217,8 @@ pub unsafe fn run_ribbons() -> Result<(), Refused> {
         return Err(BadInput(why).into());
     }
     unsafe {
-        let mut e: u32 = game_read(RING_CURSOR_RVA);
-        let mut counter = game_read::<u32>(RING_COUNT_RVA) as i32;
+        let mut e: u32 = RING_WORK.cursor.get();
+        let mut counter = RING_WORK.count.get() as i32;
         loop {
             counter = counter.wrapping_sub(1);
             if counter < 0 {
@@ -166,17 +227,14 @@ pub unsafe fn run_ribbons() -> Result<(), Refused> {
             let next = get(e + 4);
             let settings: u32 = crate::marks::setup::SETTINGS.pointer.get();
             if get(settings + 0x60) != 0 && get(e + 0xC) == STREAK && streak(e)? {
-                game_write(
-                    RING_COUNT_RVA,
-                    game_read::<u32>(RING_COUNT_RVA).wrapping_sub(1),
-                );
-                if e == game_read::<u32>(RING_CURSOR_RVA) {
-                    game_write(RING_CURSOR_RVA, get(e + 4));
+                RING_WORK.count.set(RING_WORK.count.get().wrapping_sub(1));
+                if e == RING_WORK.cursor.get() {
+                    RING_WORK.cursor.set(get(e + 4));
                 } else {
                     let (before, after) = (get(e), get(e + 4));
                     put(before + 4, after);
                     put(after, before);
-                    let cursor: u32 = game_read(RING_CURSOR_RVA);
+                    let cursor: u32 = RING_WORK.cursor.get();
                     let last = get(cursor);
                     put(cursor, e);
                     put(last + 4, e);
@@ -190,10 +248,13 @@ pub unsafe fn run_ribbons() -> Result<(), Refused> {
     Ok(())
 }
 
+use crate::marks::frame_state::{DRAW_WORK, DrawWork};
 use crate::marks::plain::{ld, st};
+use crate::math::x87_float as bh;
 
 /// `first_frame`'s x87 block as plain Rust on the x87 model (52 instructions), same order and memory places.
-unsafe fn first_frame_x87(rc: usize, mk: usize, e: usize, c: &MarksClock) {
+/// `rk` the ring kinds' constants (`RingKinds`).
+unsafe fn first_frame_x87(rc: usize, e: usize, c: &MarksClock, rk: usize) {
     unsafe {
         let t0 = ld(e, 0x18);
         let t1 = ld(e, 0x14);
@@ -240,7 +301,7 @@ unsafe fn first_frame_x87(rc: usize, mk: usize, e: usize, c: &MarksClock) {
         let t37 = t36 * crate::math::x87_float::int(c.frame_ticks.get() as i32);
         let t38 = t37 + ld(e, 0x18);
         st(e, 0x18, t38);
-        let t39 = ld(mk, 0x1D562E);
+        let t39 = ld(rk, 0x94);
         let t40 = t39 * crate::math::x87_float::int(c.frame_ticks.get() as i32);
         let t41 = t40 + ld(e, 0x30);
         st(e, 0x30, t41);
@@ -248,7 +309,7 @@ unsafe fn first_frame_x87(rc: usize, mk: usize, e: usize, c: &MarksClock) {
 }
 
 /// `move_`'s x87 block as plain Rust on the x87 model (16 instructions), same order and memory places.
-unsafe fn move_x87(mk: usize, e: usize, c: &MarksClock) {
+unsafe fn move_x87(e: usize, c: &MarksClock, rk: usize) {
     unsafe {
         let t0 = ld(e, 0x2C);
         let t1 = t0 * crate::math::x87_float::int(c.frame_ticks.get() as i32);
@@ -262,7 +323,7 @@ unsafe fn move_x87(mk: usize, e: usize, c: &MarksClock) {
         let t7 = t6 * crate::math::x87_float::int(c.frame_ticks.get() as i32);
         let t8 = t7 + ld(e, 0x18);
         st(e, 0x18, t8);
-        let t9 = ld(mk, 0x1D5632);
+        let t9 = ld(rk, 0x98);
         let t10 = t9 * crate::math::x87_float::int(c.frame_ticks.get() as i32);
         let t11 = t10 + ld(e, 0x30);
         st(e, 0x30, t11);
@@ -270,7 +331,7 @@ unsafe fn move_x87(mk: usize, e: usize, c: &MarksClock) {
 }
 
 /// `turn_place`'s x87 block as plain Rust on the x87 model (36 instructions), same order and memory places.
-unsafe fn turn_place_x87(rc: usize, mk: usize, e: usize) {
+unsafe fn turn_place_x87(rc: usize, e: usize, dw: &DrawWork) {
     unsafe {
         let t0 = ld(e, 0x18);
         let t1 = ld(e, 0x14);
@@ -302,9 +363,9 @@ unsafe fn turn_place_x87(rc: usize, mk: usize, e: usize) {
         let t27 = t26 + t24;
         let t28 = t22 + t27;
         let t29 = t28 + ld(rc, 0x1EA304);
-        st(mk, 0x186995, t11);
-        st(mk, 0x186999, t20);
-        st(mk, 0x18699D, t29);
+        dw.turned[0].set_bits(bh::st(t11));
+        dw.turned[1].set_bits(bh::st(t20));
+        dw.turned[2].set_bits(bh::st(t29));
     }
 }
 
@@ -312,7 +373,7 @@ unsafe fn turn_place_x87(rc: usize, mk: usize, e: usize) {
 mod asm_reference {
     //! The original assembly blocks, kept verbatim as the reference the plain versions are tested against.
 
-    pub(super) unsafe fn first_frame_x87(rc: usize, mk: usize, e: usize) {
+    pub(super) unsafe fn first_frame_x87(rc: usize, mk: usize, e: usize, rk: usize) {
         unsafe {
             core::arch::asm!(
                     "fld dword ptr [{e} + 0x18]",
@@ -363,13 +424,14 @@ mod asm_reference {
             "fimul dword ptr [{mk} + 0x90]",
             "fadd dword ptr [{e} + 0x18]",
             "fstp dword ptr [{e} + 0x18]",
-            "fld dword ptr [{mk} + 0x1D562E]",
+            "fld dword ptr [{rk} + 0x94]",
             "fimul dword ptr [{mk} + 0x90]",
             "fadd dword ptr [{e} + 0x30]",
             "fstp dword ptr [{e} + 0x30]",
             rc = in(reg) rc,
             mk = in(reg) mk,
             e = in(reg) e,
+            rk = in(reg) rk,
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
             options(nostack),
@@ -377,7 +439,7 @@ mod asm_reference {
         }
     }
 
-    pub(super) unsafe fn move_x87(mk: usize, e: usize) {
+    pub(super) unsafe fn move_x87(mk: usize, e: usize, rk: usize) {
         unsafe {
             core::arch::asm!(
                     "fld dword ptr [{e} + 0x2C]",
@@ -392,12 +454,13 @@ mod asm_reference {
             "fimul dword ptr [{mk} + 0x90]",
             "fadd dword ptr [{e} + 0x18]",
             "fstp dword ptr [{e} + 0x18]",
-            "fld dword ptr [{mk} + 0x1D5632]",
+            "fld dword ptr [{rk} + 0x98]",
             "fimul dword ptr [{mk} + 0x90]",
             "fadd dword ptr [{e} + 0x30]",
             "fstp dword ptr [{e} + 0x30]",
             mk = in(reg) mk,
             e = in(reg) e,
+            rk = in(reg) rk,
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
             options(nostack),
@@ -459,7 +522,9 @@ mod asm_reference {
 mod asm_differential {
     use super::asm_reference as reference;
     use crate::marks::asm_test::Kind::*;
+    use crate::marks::asm_test::with_copy;
     use crate::marks::asm_test::{Op, Spec, differential};
+    use crate::marks::frame_state::DrawWork;
 
     #[test]
     fn first_frame_x87_matches() {
@@ -486,8 +551,8 @@ mod asm_differential {
                 },
                 Op::Base {
                     lo: 0x90,
-                    hi: 0x1D5632,
-                    reads: &[(0x90, I32), (0x1D562E, F32)],
+                    hi: 0x94,
+                    reads: &[(0x90, I32)],
                     writes: &[],
                 },
                 Op::Base {
@@ -511,14 +576,20 @@ mod asm_differential {
                         (0x30, F32),
                     ],
                 },
+                Op::Base {
+                    lo: 0x94,
+                    hi: 0x98,
+                    reads: &[(0x94, F32)],
+                    writes: &[],
+                },
             ],
             sincos: false,
         };
         differential(
             &SPEC,
-            |b| unsafe { reference::first_frame_x87(b[0], b[1], b[2]) },
+            |b| unsafe { reference::first_frame_x87(b[0], b[1], b[2], b[3]) },
             |b| unsafe {
-                super::first_frame_x87(b[0], b[1], b[2], crate::marks::setup::clock_at(b[1]))
+                super::first_frame_x87(b[0], b[2], crate::marks::setup::clock_at(b[1]), b[3])
             },
         );
     }
@@ -529,8 +600,8 @@ mod asm_differential {
             operands: &[
                 Op::Base {
                     lo: 0x90,
-                    hi: 0x1D5636,
-                    reads: &[(0x90, I32), (0x1D5632, F32)],
+                    hi: 0x94,
+                    reads: &[(0x90, I32)],
                     writes: &[],
                 },
                 Op::Base {
@@ -546,13 +617,19 @@ mod asm_differential {
                     ],
                     writes: &[(0x10, F32), (0x14, F32), (0x18, F32), (0x30, F32)],
                 },
+                Op::Base {
+                    lo: 0x98,
+                    hi: 0x9C,
+                    reads: &[(0x98, F32)],
+                    writes: &[],
+                },
             ],
             sincos: false,
         };
         differential(
             &SPEC,
-            |b| unsafe { reference::move_x87(b[0], b[1]) },
-            |b| unsafe { super::move_x87(b[0], b[1], crate::marks::setup::clock_at(b[0])) },
+            |b| unsafe { reference::move_x87(b[0], b[1], b[2]) },
+            |b| unsafe { super::move_x87(b[1], crate::marks::setup::clock_at(b[0]), b[2]) },
         );
     }
 
@@ -580,8 +657,8 @@ mod asm_differential {
                     writes: &[],
                 },
                 Op::Base {
-                    lo: 0x186995,
-                    hi: 0x1869A1,
+                    lo: 0x186931,
+                    hi: 0x186A31,
                     reads: &[],
                     writes: &[(0x186995, F32), (0x186999, F32), (0x18699D, F32)],
                 },
@@ -597,7 +674,11 @@ mod asm_differential {
         differential(
             &SPEC,
             |b| unsafe { reference::turn_place_x87(b[0], b[1], b[2]) },
-            |b| unsafe { super::turn_place_x87(b[0], b[1], b[2]) },
+            |b| {
+                with_copy::<DrawWork, _>(b[1], DrawWork::START, |dw| unsafe {
+                    super::turn_place_x87(b[0], b[2], dw)
+                })
+            },
         );
     }
 }

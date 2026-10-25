@@ -17,7 +17,7 @@ use crate::errors::Refused;
 use crate::input::store::DEVICES;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::numbers_store::NUMBERS;
-use crate::race::viewer::{BLOCK, PLAY_END, get};
+use crate::race::viewer_state_store::REPLAY_VIEW;
 
 const TEXTS: [&std::ffi::CStr; 4] = [
     c"dpg replay",
@@ -41,9 +41,9 @@ pub fn play_movie_loop() -> Result<(), Refused> {
     unsafe { crate::race::stage_prefs::init_skidmarks() };
     log_text(TEXTS[0], false);
     log_text(TEXTS[1], false);
-    log_number(get(BLOCK));
+    log_number(REPLAY_VIEW.replay_block.get());
     log_text(TEXTS[2], false);
-    log_number(get(PLAY_END));
+    log_number(REPLAY_VIEW.play_end.get());
     NUMBERS.replay_mode.set(2); // dword_5C5CE0
     race_parts::restart_clock();
     PHYSICS.race_clock_base.set(PHYSICS.scene_clock.get());
@@ -54,7 +54,7 @@ pub fn play_movie_loop() -> Result<(), Refused> {
         }
         unsafe { crate::drive::race_step::race_step() }?;
         race_parts::race_frame()?;
-        if get(BLOCK) == get(PLAY_END) {
+        if REPLAY_VIEW.replay_block.get() == REPLAY_VIEW.play_end.get() {
             break;
         }
     }

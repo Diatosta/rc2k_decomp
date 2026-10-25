@@ -10,7 +10,7 @@
 //! run time (0 in the file); the tests set them.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, game_write, rva};
+use crate::framework::{game_read, rva};
 use crate::math::x87;
 use crate::physics::car_store::CAR;
 use crate::physics::gear_bit::gear_bit;
@@ -20,15 +20,8 @@ use crate::physics::gearing::{
 use crate::physics::tables_store::PHYSICS;
 use std::cmp::Ordering;
 
-/// `dword_62400C` (`DRAW.scratch`): its address stays for `auto_gearbox` and `manual_gearbox`.
-pub const SCRATCH: usize = 0x62400C;
-
 pub fn g(x: usize) -> u32 {
     unsafe { game_read(rva(x)) }
-}
-
-pub fn p(x: usize, v: u32) {
-    unsafe { game_write(rva(x), v) }
 }
 
 /// C0 of comparing `a` with `b`: below, or unordered.

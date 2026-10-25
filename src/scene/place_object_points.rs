@@ -29,17 +29,16 @@
 //! instructions are `asm_reference` in the tests (2026-10-24).
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_ptr, game_read, rva};
+use crate::framework::{game_read, rva};
 use crate::race::course_lists_store::COURSE_LISTS;
 use crate::race::course_store::COURSE;
 use crate::race::matrices_store::MATRICES;
 use crate::race::prefs_store::STAGE_PREFS;
 use crate::race::switches_store::FRAME_SWITCHES;
 use crate::race::vars_store::RACE_VARS;
-use crate::scene::draw_polygon::CHECKED_RVA;
 use crate::scene::draw_store::DRAW;
 use crate::scene::polygon::{dword, put};
-use crate::scene::project_point::{CENTRE_Y_RVA, NEAR, rotate, to_screen};
+use crate::scene::project_point::{NEAR, rotate, to_screen};
 use crate::scene::x87_mem::{fild, fistp, fld, fstp};
 
 // ---- game data ----
@@ -217,11 +216,11 @@ pub unsafe fn place_object_points() -> Result<(), Refused> {
                 let v = [
                     DRAW.view_scale.bits(),
                     DRAW.view_centre[0].bits(),
-                    game_read(CENTRE_Y_RVA),
+                    DRAW.view_centre[1].bits(),
                     COURSE.flat_depth.bits(),
                 ];
                 let flat = STAGE_PREFS.flat_depth.bits() != 0;
-                to_screen(record as *mut u32, &v, flat, game_ptr(CHECKED_RVA));
+                to_screen(record as *mut u32, &v, flat, DRAW.scratch.as_ptr());
             }
             from = from.wrapping_add(12);
             number = number.wrapping_add(1);

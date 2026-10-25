@@ -10,18 +10,6 @@
 use crate::race::work_store::RACE_WORK;
 use rc2k_core::drive::replay_frames::{StartPiece, start_layout};
 
-const B: usize = 0x70F3EC; // g_carBlockStore (four blocks of 0xFE0)
-
-/// Where a piece of the starting state is, as IDA's address (`drive::load_replay_cars`
-/// still takes this; it should take `piece_addr`, and this go).
-pub fn piece_at(piece: StartPiece) -> usize {
-    match piece {
-        StartPiece::Car(k) => B + 0xFE0 * k as usize,
-        StartPiece::RaceSlots => 0x71BAC8, // g_raceSlots
-        StartPiece::Extra => 0x71BF84,     // unk_71BF84
-    }
-}
-
 /// Where a piece of the starting state is now (an address).
 pub fn piece_addr(piece: StartPiece) -> usize {
     match piece {

@@ -21,18 +21,13 @@ use crate::errors::{BadInput, Refused};
 use crate::marks::emitters::*;
 use crate::marks::jitter_point::jitter_point;
 use crate::marks::setup::CLOCK;
-use crate::marks::store::{Slot, game_read, game_write};
+use crate::marks::surface_store::SURFACE;
+use crate::marks::tuning::MARKS_FLOATS;
 use crate::math::x87;
 use crate::scene::matrix3::{extended, rounded};
+use crate::session::{Bytes, Dword, Float};
 
-const LEVEL_RVA: Slot = Slot::at(0x93A1CE); // dword_93A1CE
-const MOTION_RVA: Slot = Slot::at(0x93A1C2); // dword_93A1C2 .. dword_93A1CA
-const POINT_RVA: Slot = Slot::at(0x93A1B6); // flt_93A1B6 .. flt_93A1BE
-const SIZE_RVA: Slot = Slot::at(0x9356C0); // dword_9356C0
-const LIVES_RVA: Slot = Slot::at(0x939B86); // dword_939B86: by the level
 const LEVELS: u32 = 9;
-const LIFE_SCALE_RVA: Slot = Slot::at(0x7651A4); // flt_7651A4
-const FADE_RVA: Slot = Slot::at(0x76519C); // dword_76519C
 
 /// One twin's variables.
 pub struct TwinSet {
@@ -40,27 +35,15 @@ pub struct TwinSet {
     /// The car's field holding the level.
     pub level_at: u32,
     pub flags: u32,
-    pub chance_random: Slot,
-    pub lift: Slot,
-    /// The second row's factors (z, y, x: +0x18, +0x14, +0x10), then the spread.
-    pub row_k: [Slot; 3],
-    pub spread: Slot,
-    /// The motion's factors (x, y, z).
-    pub motion_k: [Slot; 3],
-    pub spin_random: Slot,
+    pub tuning: &'static TwinTuning,
 }
 
 /// `emit_particle_19`'s.
-pub const NINETEENTH: TwinSet = TwinSet {
+pub static NINETEENTH: TwinSet = TwinSet {
     kind: 0x13,
     level_at: 0x4C0,
     flags: 0x3E,
-    chance_random: Slot::at(0x93A48A),
-    lift: Slot::at(0x93A48E),
-    row_k: [Slot::at(0x93A492), Slot::at(0x93A496), Slot::at(0x93A49A)],
-    spread: Slot::at(0x93A49E),
-    motion_k: [Slot::at(0x93A4A2), Slot::at(0x93A4A6), Slot::at(0x93A4AA)],
-    spin_random: Slot::at(0x93A4AE),
+    tuning: &NINETEENTH_TUNING,
 };
 
 /// Whether an entry is to be made (the chance and a free entry), worked out without
@@ -68,7 +51,10 @@ pub const NINETEENTH: TwinSet = TwinSet {
 unsafe fn makes(set: &TwinSet, object: u32) -> bool {
     unsafe {
         let level = at(object + set.level_at) as i32;
-        let r = game_read::<u32>(set.chance_random)
+        let r = set
+            .tuning
+            .chance_random
+            .get()
             .wrapping_mul(0xC5)
             .wrapping_add(0x5D);
         ((r.rotate_right(16) & 7) as i32) < level && next_entry().is_some()
@@ -84,7 +70,7 @@ pub unsafe fn refusal(set: &TwinSet, object: u32) -> Option<&'static str> {
         if !makes(set, object) {
             return None;
         }
-        let car: u32 = game_read(OBJECT_RVA);
+        let car: u32 = EMITTER.car.get();
         if car == 0 || at(car + 0x24) == 0 {
             return Some("a null g_marksCar or matrix");
         }
@@ -107,22 +93,26 @@ pub unsafe fn emit_twin(set: &TwinSet, object: u32) -> Result<(), Refused> {
             return Err(BadInput(why).into());
         }
         let level = at(object + set.level_at);
-        game_write(LEVEL_RVA, level);
-        let r = next_c5(set.chance_random);
+        TWIN_STATE.level.set(level);
+        let r = next_c5(&set.tuning.chance_random);
         if (r.rotate_right(16) & 7) as i32 >= level as i32 {
             return Ok(());
         }
-        game_write(FLAGS_RVA, set.flags);
+        SURFACE.wheel_flags.set(set.flags);
         let motion = [at(object + 0x4C), at(object + 0x50), at(object + 0x54)];
-        game_write(MOTION_RVA, motion);
+        crate::session::write_bits(&TWIN_STATE.motion, motion);
         if next_entry().is_none() {
             return Ok(());
         }
         let e = take_entry(at(object + 0x1C) & 0xFF_FFFF, set.kind);
         let put = |o: u32, v: u32| ((e + o) as *mut u32).write_unaligned(v);
-        let car: u32 = game_read(OBJECT_RVA);
+        let car: u32 = EMITTER.car.get();
         let m = at(car + 0x24);
-        let [x, y, y_less, z] = x87::turned_place(game_read(POINT_RVA), game_read(set.lift), m);
+        let [x, y, y_less, z] = x87::turned_place(
+            crate::session::read_bits(&TWIN_STATE.point),
+            set.tuning.lift.bits(),
+            m,
+        );
         put(0x10, x);
         put(0x14, y);
         put(0x28, y_less);
@@ -130,10 +120,10 @@ pub unsafe fn emit_twin(set: &TwinSet, object: u32) -> Result<(), Refused> {
         let row = [0x18u32, 0x14, 0x10]
             .map(|o| at(m + o))
             .into_iter()
-            .zip(set.row_k)
-            .map(|(a, k)| x87::mul_80(a, game_read(k)))
+            .zip(set.tuning.row_k.iter())
+            .map(|(a, k)| x87::mul_80(a, k.bits()))
             .collect::<Vec<_>>();
-        let (moved, _) = jitter_point([extended(game_read(set.spread)), row[2], row[1], row[0]]);
+        let (moved, _) = jitter_point([extended(set.tuning.spread.bits()), row[2], row[1], row[0]]);
         let step: u32 = CLOCK.reciprocal.bits();
         for n in 0..3 {
             put(
@@ -141,23 +131,184 @@ pub unsafe fn emit_twin(set: &TwinSet, object: u32) -> Result<(), Refused> {
                 x87::product_plus(
                     motion[n],
                     step,
-                    game_read(set.motion_k[n]),
+                    set.tuning.motion_k[n].bits(),
                     rounded(moved[n]),
                 ),
             );
         }
-        let r = next_c5(set.spin_random);
+        let r = next_c5(&set.tuning.spin_random);
         put(0x54, (r & 0x3F).wrapping_sub(0x20));
         put(0x50, r.rotate_right(6) & 0xFFF);
         put(0x58, set.flags & 0x3F);
         let size = (r.rotate_right(0x14) & 0x4000) + 0x4000;
-        game_write(SIZE_RVA, size);
+        RING_WORK.whole.set(size);
         put(0x60, x87::from_int(size as i32));
-        let life: u32 = game_read(LIVES_RVA + 4 * level as usize);
+        let life: u32 = SURFACE.lives_by_level[level as usize].get();
         put(0x84, life);
-        put(0x78, x87::over_int(game_read(LIFE_SCALE_RVA), life as i32));
-        put(0x74, game_read(FADE_RVA));
+        put(
+            0x78,
+            x87::over_int(MARKS_FLOATS.two_fifty_seven.bits(), life as i32),
+        );
+        put(0x74, MARKS_FLOATS.two_fifty_five.bits());
         put(0x68, car);
     }
     Ok(())
+}
+
+/// The twin car emitters' shared work (`emit_particle_19`, `emit_particle_22`) (IDA 0x93A1B6 .. 0x93A1D6, the image's layout; phase 7, typed state).
+#[repr(C)]
+pub struct TwinState {
+    /// 0x93A1B6: `flt_93A1B6` .. `flt_93A1BE`: the point the entry's place starts at (turned and placed by the car's matrix)
+    pub point: [Float; 3],
+    /// 0x93A1C2: `dword_93A1C2` .. `dword_93A1CA`: the car's +0x4C .. +0x54, kept
+    pub motion: [Dword; 3],
+    /// 0x93A1CE: `dword_93A1CE`: the car's level (its +0x4C0 or +0x4C4)
+    pub level: Dword,
+    /// 0x93A1D2: Not named: 4 bytes (a gap, or unreferenced data)
+    pub _gap_93a1d2: Bytes<4>,
+}
+
+/// TwinState's first values.
+pub static TWIN_STATE: TwinState = TwinState {
+    point: [
+        Float::from_bits(0x0),
+        Float::from_bits(0x46000000),
+        Float::from_bits(0x47C56800),
+    ],
+    motion: [Dword::new(0x0), Dword::new(0x0), Dword::new(0x0)],
+    level: Dword::new(0x0),
+    _gap_93a1d2: Bytes::new([0x0A, 0xD7, 0xA3, 0x3B]),
+};
+
+impl TwinState {
+    pub const START: usize = 0x93A1B6;
+    pub const LEN: usize = 0x20;
+    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
+    pub fn home() -> usize {
+        &TWIN_STATE as *const TwinState as usize
+    }
+}
+
+#[cfg(test)]
+mod twin_state_tests {
+    use super::*;
+    use core::mem::offset_of;
+
+    fn bytes<T>(v: &T) -> Vec<u8> {
+        let p = v as *const T as *const u8;
+        (0..size_of::<T>())
+            .map(|i| unsafe { p.add(i).read() })
+            .collect()
+    }
+
+    #[test]
+    fn twin_state_starts_as_the_games() {
+        assert_eq!(size_of::<TwinState>(), TwinState::LEN);
+        assert!(
+            bytes(&TWIN_STATE) == crate::moved::image_bytes(TwinState::START, TwinState::LEN),
+            "TWIN_STATE starts differently from the image"
+        );
+        assert_eq!(offset_of!(TwinState, point), 0x93A1B6 - TwinState::START);
+        assert_eq!(offset_of!(TwinState, motion), 0x93A1C2 - TwinState::START);
+        assert_eq!(offset_of!(TwinState, level), 0x93A1CE - TwinState::START);
+    }
+}
+
+/// One twin car emitter's variables (`emit_particle_19`'s at 0x93A48A, `emit_particle_22`'s at 0x93A4B2) (IDA 0x93A48A .. 0x93A4B2, the image's layout; phase 7, typed state).
+#[repr(C)]
+pub struct TwinTuning {
+    /// 0x93A48A: the chance's random
+    pub chance_random: Dword,
+    /// 0x93A48E: the place's lift
+    pub lift: Float,
+    /// 0x93A492: the second row's factors (z, y, x)
+    pub row_k: [Float; 3],
+    /// 0x93A49E: the spread `jitter_point` takes
+    pub spread: Float,
+    /// 0x93A4A2: the motion's factors (x, y, z)
+    pub motion_k: [Float; 3],
+    /// 0x93A4AE: the spin's random
+    pub spin_random: Dword,
+}
+
+/// One twin car emitter's variables (`emit_particle_19`'s at 0x93A48A, `emit_particle_22`'s at 0x93A4B2) (IDA 0x93A48A .. 0x93A4B2).
+pub static NINETEENTH_TUNING: TwinTuning = TwinTuning {
+    chance_random: Dword::new(0x0),
+    lift: Float::from_bits(0x47800000),
+    row_k: [
+        Float::from_bits(0x43800000),
+        Float::from_bits(0x43800000),
+        Float::from_bits(0x43800000),
+    ],
+    spread: Float::from_bits(0x43000000),
+    motion_k: [
+        Float::from_bits(0x3F4CCCCD),
+        Float::from_bits(0x3F4CCCCD),
+        Float::from_bits(0x3F4CCCCD),
+    ],
+    spin_random: Dword::new(0x0),
+};
+
+impl TwinTuning {
+    pub const LEN: usize = 0x28;
+}
+
+/// Marker for `moved::MOVED`: NINETEENTH_TUNING's place in the image.
+pub struct NineteenthTuning;
+
+impl NineteenthTuning {
+    pub const START: usize = 0x93A48A;
+    pub const LEN: usize = TwinTuning::LEN;
+
+    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
+    pub fn home() -> usize {
+        &NINETEENTH_TUNING as *const TwinTuning as usize
+    }
+}
+
+#[cfg(test)]
+mod nineteenth_tuning_tests {
+    use super::*;
+    use core::mem::offset_of;
+
+    fn bytes<T>(v: &T) -> Vec<u8> {
+        let p = v as *const T as *const u8;
+        (0..size_of::<T>())
+            .map(|i| unsafe { p.add(i).read() })
+            .collect()
+    }
+
+    #[test]
+    fn nineteenth_tuning_starts_as_the_games() {
+        assert_eq!(size_of::<TwinTuning>(), TwinTuning::LEN);
+        assert!(
+            bytes(&NINETEENTH_TUNING)
+                == crate::moved::image_bytes(NineteenthTuning::START, TwinTuning::LEN),
+            "NINETEENTH_TUNING starts differently from the image"
+        );
+        assert_eq!(
+            offset_of!(TwinTuning, chance_random),
+            0x93A48A - NineteenthTuning::START
+        );
+        assert_eq!(
+            offset_of!(TwinTuning, lift),
+            0x93A48E - NineteenthTuning::START
+        );
+        assert_eq!(
+            offset_of!(TwinTuning, row_k),
+            0x93A492 - NineteenthTuning::START
+        );
+        assert_eq!(
+            offset_of!(TwinTuning, spread),
+            0x93A49E - NineteenthTuning::START
+        );
+        assert_eq!(
+            offset_of!(TwinTuning, motion_k),
+            0x93A4A2 - NineteenthTuning::START
+        );
+        assert_eq!(
+            offset_of!(TwinTuning, spin_random),
+            0x93A4AE - NineteenthTuning::START
+        );
+    }
 }

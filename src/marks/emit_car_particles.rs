@@ -21,29 +21,12 @@ use crate::errors::{BadInput, Refused};
 use crate::marks::emit_body_particles::emit_body_particles;
 use crate::marks::emit_wheel_particles::emit_wheel_particles;
 use crate::marks::emitters::*;
-use crate::marks::store::{Slot, game_read, game_write};
+use crate::marks::tuning::MARKS_FLOATS;
 use crate::math::x87;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
+use crate::session::{read_bits, write_bits};
 
-/// flt_9354EE .. flt_935506: the places' factors and bases.
-const K: [Slot; 7] = [
-    Slot::at(0x9354EE),
-    Slot::at(0x9354F2),
-    Slot::at(0x9354F6),
-    Slot::at(0x9354FA),
-    Slot::at(0x9354FE),
-    Slot::at(0x935502),
-    Slot::at(0x935506),
-];
-const LOOKS_RVA: [Slot; 2] = [Slot::at(0x935476), Slot::at(0x93547A)];
-const SIZE_K_RVA: Slot = Slot::at(0x765158); // flt_765158
-const WHICH_RVA: Slot = Slot::at(0x935416); // dword_935416
-/// flt_93545E .. flt_935466 and flt_93543A .. flt_935442: the emitters' side factors.
-const SIDE_A_RVA: Slot = Slot::at(0x93545E);
-const SIDE_B_RVA: Slot = Slot::at(0x93543A);
-/// flt_93550A .. flt_93551E: the side factors for the body record.
-const BODY_SIDES_RVA: Slot = Slot::at(0x93550A);
 /// The wheel records, then the body's.
 const RECORDS: [u32; 5] = [0xD4, 0x11C, 0x164, 0x1AC, 0x1F4];
 /// Writes a float at an address.
@@ -57,7 +40,7 @@ pub unsafe fn emit_car_particles(o: u32) -> Result<(), Refused> {
         return Err(BadInput("a null car object or matrix").into());
     }
     unsafe {
-        let k = K.map(|r| game_read::<u32>(r));
+        let k = read_bits(&EMITTER.place_k);
         let z1 = x87::int_times(at(o + 0xC) as i32, k[0]);
         put(o + 0x118, z1);
         put(o + 0x160, z1);
@@ -73,11 +56,12 @@ pub unsafe fn emit_car_particles(o: u32) -> Result<(), Refused> {
         for a in [0x15C, 0x1EC, 0x114, 0x1A4] {
             put(o + a, y);
         }
-        game_write(LOOKS_RVA[0], x87::to_int(at(o + 0x110) & 0x7FFF_FFFF));
-        game_write(
-            LOOKS_RVA[1],
-            x87::abs_sum_times_to_int(at(o + 0x118), at(o + 0x1A8), game_read(SIZE_K_RVA)),
-        );
+        EMITTER.looks[0].set(x87::to_int(at(o + 0x110) & 0x7FFF_FFFF) as u32);
+        EMITTER.looks[1].set(x87::abs_sum_times_to_int(
+            at(o + 0x118),
+            at(o + 0x1A8),
+            MARKS_FLOATS.half.bits(),
+        ) as u32);
         let m = at(o + 0x24);
         for p in [0x110, 0x158, 0x1A0, 0x1E8] {
             let turned = rotate_point(
@@ -94,19 +78,18 @@ pub unsafe fn emit_car_particles(o: u32) -> Result<(), Refused> {
         }
         for (n, &r) in RECORDS[..4].iter().enumerate() {
             if n == 2 {
-                game_write(SIDE_A_RVA, [at(m), at(m + 4), at(m + 8)]);
-                game_write(
-                    SIDE_B_RVA,
+                write_bits(&EMITTER.side_a, [at(m), at(m + 4), at(m + 8)]);
+                write_bits(
+                    &EMITTER.side_b,
                     [0x20, 0x24, 0x28].map(|f| at(m + f) ^ 0x8000_0000),
                 );
             }
-            game_write(WHICH_RVA, n as u32);
+            EMITTER.record.set(n as u32);
             emit_wheel_particles(o + r, o)?;
         }
-        let sides: [u32; 6] =
-            std::array::from_fn(|n| x87::loaded(game_read(BODY_SIDES_RVA + 4 * n)));
-        game_write(SIDE_A_RVA, [sides[0], sides[1], sides[2]]);
-        game_write(SIDE_B_RVA, [sides[3], sides[4], sides[5]]);
+        let sides: [u32; 6] = std::array::from_fn(|n| x87::loaded(EMITTER.body_k[n].bits()));
+        write_bits(&EMITTER.side_a, [sides[0], sides[1], sides[2]]);
+        write_bits(&EMITTER.side_b, [sides[3], sides[4], sides[5]]);
         emit_body_particles(o + RECORDS[4], o)?;
     }
     Ok(())

@@ -21,39 +21,44 @@
 use crate::errors::{BadInput, Refused};
 use crate::marks::emitters::*;
 use crate::marks::jitter_point::jitter_point;
-use crate::marks::store::{Slot, game_read, game_write};
 use crate::math::x87;
 use crate::scene::matrix3::{extended, rounded};
+use crate::session::{Dword, Float};
 
-const STRENGTH_RVA: Slot = Slot::at(0x93555E); // g_marksStrength
-const SIGN_RVA: Slot = Slot::at(0x935432); // g_marksSign: -1 or 1
-const SIDE_BIT_RVA: Slot = Slot::at(0x935416); // dword_935416: bit 0 the side
 /// One emitter's variables (kind 5's and kind 0xB's code is the same but for these).
 pub struct JitterSet {
     pub kind: u32,
     /// Whether the rounded |speed| must be over 1 (kind 0xB) or the speed not 0 (kind 5).
     pub over_one: bool,
-    pub place_random: Slot,
+    pub place_random: &'static Dword,
     /// The motion's factors (x, y, z); `lift` the y's.
-    pub motion_k: [Slot; 3],
-    pub lift: Slot,
-    pub spread: Slot,
+    pub motion_k: [&'static Float; 3],
+    pub lift: &'static Float,
+    pub spread: &'static Float,
     /// The third row's factors (z, y, x).
-    pub roll_k: [Slot; 3],
-    pub spin: Slot,
+    pub roll_k: [&'static Float; 3],
+    pub spin: &'static Float,
     pub life: u32,
 }
 
 /// Kind 5's (`dword_93A23A`, `flt_93A23E` .. `flt_93A25E`).
-pub const FIFTH: JitterSet = JitterSet {
+pub static FIFTH: JitterSet = JitterSet {
     kind: 5,
     over_one: false,
-    place_random: Slot::at(0x93A23A),
-    motion_k: [Slot::at(0x93A23E), Slot::at(0x93A242), Slot::at(0x93A24A)],
-    lift: Slot::at(0x93A246),
-    spread: Slot::at(0x93A24E),
-    roll_k: [Slot::at(0x93A252), Slot::at(0x93A256), Slot::at(0x93A25A)],
-    spin: Slot::at(0x93A25E),
+    place_random: &KIND5_SET.place_random,
+    motion_k: [
+        &KIND5_SET.motion_x,
+        &KIND5_SET.motion_y,
+        &KIND5_SET.motion_z,
+    ],
+    lift: &KIND5_SET.lift,
+    spread: &KIND5_SET.spread,
+    roll_k: [
+        &KIND5_SET.roll_k[0],
+        &KIND5_SET.roll_k[1],
+        &KIND5_SET.roll_k[2],
+    ],
+    spin: &KIND5_SET.spin,
     life: 0x1388,
 };
 
@@ -71,7 +76,7 @@ pub unsafe fn refusal(set: &JitterSet, wheel: u32, object: u32) -> Option<&'stat
         }
         // The ring full: nothing more is read.
         next_entry()?;
-        let car: u32 = game_read(OBJECT_RVA);
+        let car: u32 = EMITTER.car.get();
         if car == 0 || at(car + 0x24) == 0 {
             return Some("a null car object or matrix");
         }
@@ -105,24 +110,25 @@ pub unsafe fn emit_particle_5_with(
             return Err(BadInput(why).into());
         }
         let strength = x87::loaded(at(wheel + 0x18)) & 0x7FFF_FFFF;
-        game_write(STRENGTH_RVA, strength);
+        EMITTER.strength.set_bits(strength);
         if !emits(set, wheel) || next_entry().is_none() {
             return Ok(());
         }
         let e = take_entry(at(object + 0x1C) & 0xFF_FFFF, set.kind);
         let put = |o: u32, v: u32| ((e + o) as *mut u32).write_unaligned(v);
-        let (sign, strength) = if game_read::<u32>(SIDE_BIT_RVA) & 1 == 0 {
+        let (sign, strength) = if EMITTER.record.get() & 1 == 0 {
             (-1i32, x87::sub(strength, at(wheel + 0x10)))
         } else {
             (1, x87::add(strength, at(wheel + 0x10)))
         };
-        game_write(SIGN_RVA, sign);
-        game_write(STRENGTH_RVA, strength);
-        let car: u32 = game_read(OBJECT_RVA);
+        EMITTER.sign.set(sign as u32);
+        EMITTER.strength.set_bits(strength);
+        let car: u32 = EMITTER.car.get();
         let m = at(car + 0x24);
         let r = next_c5(set.place_random);
         let (a, b) = (((r & 0x3FFF) as i32) - 0x2000, (r & 0x3FFF) as i32);
-        game_write(SIDES_RVA, [a, b]);
+        EMITTER.sides[0].set(a as u32);
+        EMITTER.sides[1].set(b as u32);
         let place: [u32; 3] = std::array::from_fn(|k| {
             let k = 4 * k as u32;
             x87::pair_sum_less(
@@ -139,32 +145,28 @@ pub unsafe fn emit_particle_5_with(
         put(0x14, place[1]);
         put(0x10, place[0]);
         let motion: [[u8; 10]; 3] = std::array::from_fn(|k| {
-            let lift = (k == 1).then(|| game_read::<u32>(set.lift));
+            let lift = (k == 1).then(|| set.lift.bits());
             x87::times_int_plus_times_80(
                 at(m + 4 * k as u32),
-                game_read(set.motion_k[k]),
+                set.motion_k[k].bits(),
                 sign,
                 lift,
                 strength,
             )
         });
-        let (moved, last) = jitter_point([
-            extended(game_read(set.spread)),
-            motion[2],
-            motion[1],
-            motion[0],
-        ]);
+        let (moved, last) =
+            jitter_point([extended(set.spread.bits()), motion[2], motion[1], motion[0]]);
         let speed = at(wheel + 0x18);
         for (n, o) in [0x34u32, 0x30, 0x2C].into_iter().enumerate() {
             let row = at(m + 0x28 - 4 * n as u32);
             put(
                 o,
-                x87::product_plus(row, game_read(set.roll_k[n]), speed, rounded(moved[n])),
+                x87::product_plus(row, set.roll_k[n].bits(), speed, rounded(moved[n])),
             );
         }
         put(
             0x54,
-            x87::float_times_int_to_int(game_read(set.spin), sign) as u32,
+            x87::float_times_int_to_int(set.spin.bits(), sign) as u32,
         );
         put(0x58, at(wheel + 0x20) & 0x3F);
         put(0x60, ((last >> 2) & 0xFFF) + 0x7800);
@@ -173,4 +175,83 @@ pub unsafe fn emit_particle_5_with(
         put(0x68, car);
     }
     Ok(())
+}
+
+/// Kind 5's emitter variables (`emit_particle_5::FIFTH`) (IDA 0x93A23A .. 0x93A262, the image's layout; phase 7, typed state).
+#[repr(C)]
+pub struct Kind5Set {
+    /// 0x93A23A: `dword_93A23A`: the place's random
+    pub place_random: Dword,
+    /// 0x93A23E: `flt_93A23E`: the motion's x factor
+    pub motion_x: Float,
+    /// 0x93A242: `flt_93A242`: the motion's y factor
+    pub motion_y: Float,
+    /// 0x93A246: `flt_93A246`: added to the motion's y
+    pub lift: Float,
+    /// 0x93A24A: `flt_93A24A`: the motion's z factor
+    pub motion_z: Float,
+    /// 0x93A24E: `flt_93A24E`: the spread `jitter_point` takes
+    pub spread: Float,
+    /// 0x93A252: `flt_93A252` .. `flt_93A25A`: the third row's factors (z, y, x)
+    pub roll_k: [Float; 3],
+    /// 0x93A25E: `flt_93A25E`: the spin's factor
+    pub spin: Float,
+}
+
+/// Kind5Set's first values.
+pub static KIND5_SET: Kind5Set = Kind5Set {
+    place_random: Dword::new(0x0),
+    motion_x: Float::from_bits(0x41200000),
+    motion_y: Float::from_bits(0x41200000),
+    lift: Float::from_bits(0x41700000),
+    motion_z: Float::from_bits(0x41200000),
+    spread: Float::from_bits(0x42DC0000),
+    roll_k: [
+        Float::from_bits(0xC1400000),
+        Float::from_bits(0xC1400000),
+        Float::from_bits(0xC1400000),
+    ],
+    spin: Float::from_bits(0xC2800000),
+};
+
+impl Kind5Set {
+    pub const START: usize = 0x93A23A;
+    pub const LEN: usize = 0x28;
+    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
+    pub fn home() -> usize {
+        &KIND5_SET as *const Kind5Set as usize
+    }
+}
+
+#[cfg(test)]
+mod kind5_set_tests {
+    use super::*;
+    use core::mem::offset_of;
+
+    fn bytes<T>(v: &T) -> Vec<u8> {
+        let p = v as *const T as *const u8;
+        (0..size_of::<T>())
+            .map(|i| unsafe { p.add(i).read() })
+            .collect()
+    }
+
+    #[test]
+    fn kind5_set_starts_as_the_games() {
+        assert_eq!(size_of::<Kind5Set>(), Kind5Set::LEN);
+        assert!(
+            bytes(&KIND5_SET) == crate::moved::image_bytes(Kind5Set::START, Kind5Set::LEN),
+            "KIND5_SET starts differently from the image"
+        );
+        assert_eq!(
+            offset_of!(Kind5Set, place_random),
+            0x93A23A - Kind5Set::START
+        );
+        assert_eq!(offset_of!(Kind5Set, motion_x), 0x93A23E - Kind5Set::START);
+        assert_eq!(offset_of!(Kind5Set, motion_y), 0x93A242 - Kind5Set::START);
+        assert_eq!(offset_of!(Kind5Set, lift), 0x93A246 - Kind5Set::START);
+        assert_eq!(offset_of!(Kind5Set, motion_z), 0x93A24A - Kind5Set::START);
+        assert_eq!(offset_of!(Kind5Set, spread), 0x93A24E - Kind5Set::START);
+        assert_eq!(offset_of!(Kind5Set, roll_k), 0x93A252 - Kind5Set::START);
+        assert_eq!(offset_of!(Kind5Set, spin), 0x93A25E - Kind5Set::START);
+    }
 }

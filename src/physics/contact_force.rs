@@ -45,9 +45,6 @@ use crate::scene::view_matrix::cross_product;
 use crate::scene::x87_mem::{fild, fld, fnstsw, fstp, fstp80};
 use crate::session::Float;
 
-/// `dword_614B40`: the record the force goes to.
-pub const RECORD: usize = 0x614B40;
-
 /// `scene::cross_product` with the original's ebx, ecx, edx.
 fn cross(ebx: &Float, ecx: &Float, edx: &Float) {
     unsafe { cross_product(ebx.addr(), ecx.addr(), edx.addr()) };

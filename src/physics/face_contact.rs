@@ -32,12 +32,13 @@ use crate::errors::Refused;
 use crate::math::x87::int_hypot;
 use crate::math::x87_run::compare_80;
 use crate::physics::car_store::CAR;
-use crate::physics::contact_force::{RECORD, contact_force};
+use crate::physics::contact_force::contact_force;
 use crate::physics::contact_store::CONTACT_WORK;
-use crate::physics::flow::{a, copy_cells, fill_cells, g, negate, p};
+use crate::physics::flow::{a, copy_cells, fill_cells, g, negate};
 use crate::physics::tables_store::PHYSICS;
-use crate::physics::touch_face::{FACES, touch_face};
+use crate::physics::touch_face::touch_face;
 use crate::physics::vector_length::vector_length;
+use crate::race::course_store::COURSE;
 use crate::race::norms::normalise_work_vector;
 use crate::race::numbers_store::NUMBERS;
 use crate::race::scratch_store::FRAME_SCRATCH;
@@ -65,7 +66,7 @@ fn touch() -> Result<(), Refused> {
 // Converted: `rc2k_core::physics::face_contacts` (the x87 steps stay).
 pub fn steps(number: u32) -> Result<(), Refused> {
     CONTACT_WORK.face_number.set(number);
-    let face = (number << 6).wrapping_add(g(FACES));
+    let face = (number << 6).wrapping_add(COURSE.course_faces.get());
     if unsafe { crate::scene::kind_hidden_at::kind_hidden_at(face) } {
         return Ok(());
     }
@@ -155,7 +156,9 @@ pub fn steps(number: u32) -> Result<(), Refused> {
     );
     CONTACT_WORK.contact_point[1].set_bits(0);
     CONTACT_WORK.contact_slide_limit.set_bits(0);
-    p(RECORD, (PHYSICS.contacts.as_ptr() as usize) as u32);
+    PHYSICS
+        .contact_record
+        .set((PHYSICS.contacts.as_ptr() as usize) as u32);
     unsafe { contact_force() };
     Ok(())
 }

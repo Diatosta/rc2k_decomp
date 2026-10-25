@@ -16,27 +16,21 @@
 //! particle or ring (an entry to take), before anything.
 
 use crate::errors::{BadInput, Refused};
-use crate::marks::blocks::{RING_FREE_RVA, RING_USED_RVA};
+use crate::marks::blocks::RING_POOL;
+use crate::marks::frame_state::DRAW_WORK;
 use crate::marks::jitter_point::jitter_point;
+use crate::marks::run_particles::PARTICLE_TUNING;
 use crate::marks::setup::SEED_RVA;
-use crate::marks::store::{Slot, game_read, game_write};
+use crate::marks::store::{game_read, game_write};
 use crate::math::x87;
 use crate::race::matrices_store::MATRICES;
 use crate::scene::matrix3::{extended, rounded};
 
 const FULL: u32 = 0xFFF;
 const COUNT: u32 = 8;
-const RADIUS_RVA: Slot = Slot::at(0x93A5E4); // g_marksBurstRadius
-const RANDOM_K: [Slot; 2] = [Slot::at(0x8EB969), Slot::at(0x93C648)];
-/// Per axis (place offset, last offset, motion offset, its two factors).
-const AXES: [(u32, u32, u32, Slot, Slot); 3] = [
-    (0xC, 0x18, 0x28, Slot::at(0x93C64C), Slot::at(0x93C650)),
-    (0x10, 0x1C, 0x2C, Slot::at(0x93C654), Slot::at(0x93C658)),
-    (0x14, 0x20, 0x34, Slot::at(0x93C65C), Slot::at(0x93C660)),
-];
-const SPREAD_RVA: Slot = Slot::at(0x93C664); // flt_93C664
-const SIZE_K: [Slot; 2] = [Slot::at(0x93C668), Slot::at(0x93C66C)];
-const LIFE_K_RVA: Slot = Slot::at(0x93C670); // flt_93C670
+/// Per axis (place offset, last offset, motion offset); its two factors are
+/// `PARTICLE_TUNING.trail_axes[2 n]` and `[2 n + 1]`.
+const AXES: [(u32, u32, u32); 3] = [(0xC, 0x18, 0x28), (0x10, 0x1C, 0x2C), (0x14, 0x20, 0x34)];
 const LIFE: u32 = 300;
 
 unsafe fn get(a: u32) -> u32 {
@@ -46,13 +40,13 @@ unsafe fn get(a: u32) -> u32 {
 /// The entries it takes, from `g_marksRingFree` along +0.
 unsafe fn entries_taken() -> Vec<u32> {
     unsafe {
-        let used: u32 = game_read(RING_USED_RVA);
+        let used: u32 = RING_POOL.used.get();
         let n = if used <= FULL {
             (FULL - used).min(COUNT)
         } else {
             COUNT
         };
-        let mut e: u32 = game_read(RING_FREE_RVA);
+        let mut e: u32 = RING_POOL.free.get();
         let mut out = Vec::new();
         for _ in 0..n {
             if e == 0 {
@@ -68,51 +62,51 @@ unsafe fn entries_taken() -> Vec<u32> {
 /// The Rust version (see the header): `p` the particle it trails (esi).
 pub unsafe fn trail_particles(p: u32) -> Result<(), Refused> {
     unsafe {
-        if game_read::<u32>(RING_USED_RVA) != FULL {
+        if RING_POOL.used.get() != FULL {
             if p == 0 {
                 return Err(BadInput("a null particle").into());
             }
-            if game_read::<u32>(RING_FREE_RVA) == 0 || entries_taken().contains(&0) {
+            if RING_POOL.free.get() == 0 || entries_taken().contains(&0) {
                 return Err(BadInput("a null particle ring entry").into());
             }
         }
         for _ in 0..COUNT {
-            let used: u32 = game_read(RING_USED_RVA);
+            let used: u32 = RING_POOL.used.get();
             if used == FULL {
                 continue;
             }
-            let e = get(game_read(RING_FREE_RVA));
-            game_write(RING_FREE_RVA, e);
-            game_write(RING_USED_RVA, used.wrapping_add(1));
+            let e = get(RING_POOL.free.get());
+            RING_POOL.free.set(e);
+            RING_POOL.used.set(used.wrapping_add(1));
             let put = |o: u32, v: u32| ((e + o) as *mut u32).write_unaligned(v);
             put(8, 4);
             let s = game_read::<u32>(SEED_RVA)
                 .wrapping_mul(0x9D)
                 .wrapping_add(0x47);
             game_write(SEED_RVA, s);
-            let [k1, k2] = RANDOM_K.map(|r| game_read::<u32>(r));
-            game_write(
-                RADIUS_RVA,
-                x87::int_times_times((s & 0xFFFF) as i32, k1, k2),
-            );
-            let radius: u32 = game_read(RADIUS_RVA);
-            for (place, last, _, _, _) in AXES {
+            let k1 = DRAW_WORK.uv_k.bits();
+            let k2 = PARTICLE_TUNING.trail_random_k.bits();
+            RING_POOL
+                .burst_radius
+                .set_bits(x87::int_times_times((s & 0xFFFF) as i32, k1, k2));
+            let radius: u32 = RING_POOL.burst_radius.bits();
+            for (place, last, _) in AXES {
                 put(place, x87::toward(get(p + place), get(p + last), radius));
             }
-            for (place, last, motion, k, m) in AXES {
+            for (n, (place, last, motion)) in AXES.into_iter().enumerate() {
                 put(
                     motion,
                     x87::diff_times_plus_times(
                         get(p + last),
                         get(p + place),
-                        game_read(k),
+                        PARTICLE_TUNING.trail_axes[2 * n].bits(),
                         get(p + motion),
-                        game_read(m),
+                        PARTICLE_TUNING.trail_axes[2 * n + 1].bits(),
                     ),
                 );
             }
             let (moved, _) = jitter_point([
-                extended(game_read(SPREAD_RVA)),
+                extended(PARTICLE_TUNING.trail_spread.bits()),
                 extended(get(e + 0x34)),
                 extended(get(e + 0x2C)),
                 extended(get(e + 0x28)),
@@ -120,11 +114,14 @@ pub unsafe fn trail_particles(p: u32) -> Result<(), Refused> {
             put(0x34, rounded(moved[0]));
             put(0x2C, rounded(moved[1]));
             put(0x28, rounded(moved[2]));
-            let [a, b] = SIZE_K.map(|r| game_read::<u32>(r));
+            let [a, b] = PARTICLE_TUNING.trail_size_k.each_ref().map(|f| f.bits());
             put(0x38, x87::times_plus_to_int(a, get(p + 0x2C), b) as u32);
             put(0x3C, 0xFF00_0000);
             put(0x44, LIFE);
-            put(0x40, x87::over_int(game_read(LIFE_K_RVA), LIFE as i32));
+            put(
+                0x40,
+                x87::over_int(PARTICLE_TUNING.trail_life_k.bits(), LIFE as i32),
+            );
             put(0x24, x87::loaded(MATRICES.view_place[13].bits()));
         }
     }

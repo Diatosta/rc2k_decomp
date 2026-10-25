@@ -471,10 +471,11 @@ pub struct Car {
     pub probe_point_z: [Float; 64],
     /// +0xdf0 (0x71ADC8): face found last under each probe point.
     pub probe_point_face: [Dword; 64],
-    /// +0xef0 (0x71AEC8): last ground faces under the camera and its sides.
-    pub camera_ground_faces: [Dword; 3],
-    /// +0xefc (0x71AED4): not named.
-    pub unknown_efc: [Dword; 3],
+    /// +0xef0 (0x71AEC8): last ground faces under the camera and its sides (five saved by
+    /// `physics::camera_avoid_ground`).
+    pub camera_ground_faces: [Dword; 5],
+    /// +0xf04 (0x71AEDC): not named.
+    pub unknown_f04: Dword,
     /// +0xf08 (0x71AEE0): speed scaled (engine sound).
     pub engine_speed_scaled: Float,
     /// +0xf0c (0x71AEE4): not named.

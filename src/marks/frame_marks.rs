@@ -13,22 +13,18 @@
 //! its steps' refusals (all it may write is put back first).
 
 use crate::errors::{BadInput, Refused};
+use crate::marks::run_frame::FRAME_K;
 use crate::marks::setup::CLOCK;
-use crate::marks::store::{Slot, game_read, game_write};
+use crate::marks::tuning::{MARKS_FRAME, MARKS_KIND_FLOATS};
 use crate::marks::{morph_object_points, scale_vectors_by, view_frame};
 use crate::math::x87;
-
-const LAST_RVA: Slot = Slot::at(0x765110); // dword_765110
-const FRAME_CYCLES_RVA: Slot = Slot::at(0x765114); // dword_765114
-const SHARE_RVA: Slot = Slot::at(0x765128); // flt_765128
-const SHARE_K_RVA: Slot = Slot::at(0x93C8C0); // flt_93C8C0
+use crate::session::Dword;
 /// (the settings' field, the copy).
-const COPIES: [(u32, Slot); 3] = [
-    (0x50, Slot::at(0x76523C)),
-    (0x4C, Slot::at(0x765238)),
-    (0x10, Slot::at(0x7652A0)),
+static COPIES: [(u32, &Dword); 3] = [
+    (0x50, &MARKS_KIND_FLOATS.fading),
+    (0x4C, &MARKS_KIND_FLOATS.other),
+    (0x10, &MARKS_KIND_FLOATS.running),
 ];
-const STEPS_RVA: Slot = Slot::at(0x76513C); // dword_76513C
 
 fn rdtsc() -> (u32, u32) {
     let t = unsafe { core::arch::x86::_rdtsc() };
@@ -44,25 +40,27 @@ pub unsafe fn frame_marks() -> Result<(), Refused> {
     unsafe {
         let (start, _) = rdtsc();
         let (now, _) = rdtsc();
-        let last: u32 = game_read(LAST_RVA);
-        game_write(LAST_RVA, now);
-        game_write(FRAME_CYCLES_RVA, now.wrapping_sub(last));
-        for (from, to) in COPIES {
-            game_write(to, ((settings + from) as *const u32).read_unaligned());
+        let last: u32 = MARKS_FRAME.last_count.bits();
+        MARKS_FRAME.last_count.set_bits(now);
+        MARKS_FRAME.frame_cycles.set_bits(now.wrapping_sub(last));
+        for &(from, to) in &COPIES {
+            to.set(((settings + from) as *const u32).read_unaligned());
         }
         CLOCK.settings_copies[0].set(((settings + 0x18) as *const u32).read_unaligned());
         scale_vectors_by::scale_vectors_by();
         morph_object_points::morph_object_points()?;
         view_frame::view_frame()?;
         ((settings + 0x18) as *mut u32).write_unaligned(0);
-        game_write(STEPS_RVA, game_read::<u32>(STEPS_RVA).wrapping_add(1));
+        MARKS_FRAME
+            .steps
+            .set(MARKS_FRAME.steps.get().wrapping_add(1));
         let (end, _) = rdtsc();
         let share = x87::int_over_int_times(
             end.wrapping_sub(start) as i32,
-            game_read(FRAME_CYCLES_RVA),
-            game_read(SHARE_K_RVA),
+            MARKS_FRAME.frame_cycles.bits() as i32,
+            FRAME_K.share_k.bits(),
         );
-        game_write(SHARE_RVA, share);
+        MARKS_FRAME.step_share.set_bits(share);
     }
     Ok(())
 }

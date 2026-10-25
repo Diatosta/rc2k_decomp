@@ -4,7 +4,6 @@
 //! cosine out (`fsincos`), where `scene::set_turn_x` and `_y` look sixteen bits up in
 //! tables; the first two write the same matrices as those.
 
-use crate::framework::rva;
 use crate::math::x87;
 use crate::race::course_lists_store::COURSE_LISTS;
 use crate::race::matrices_store::MATRICES;
@@ -13,9 +12,6 @@ use crate::race::view_vars_store::VIEW_VARS;
 use crate::scene::draw_store::DRAW;
 use crate::scene::matrix;
 use crate::session::Float;
-
-// Still named by `race::stage_prefs::get_mat_crash`.
-pub const TURN_Z_RVA: usize = rva(0x5EA00C); // flt_5EA00C
 
 /// Which of the three turnings.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

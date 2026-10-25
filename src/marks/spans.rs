@@ -6,28 +6,16 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::rva;
-use crate::marks::masks::{CURSOR_RVA, RUNS_RVA, WORK_RVA};
-use crate::marks::store::{Slot, game_addr, game_read, game_write};
+use crate::marks::mask_constants::MASK_CONSTANTS;
+use crate::marks::mask_vars::MASKS;
+use crate::marks::store::game_write;
 use crate::math::x87;
+use crate::session::{read_bits, write_bits};
 
-/// The edge pair `span_edges` works from: y0, y1, the left and right x at y0, at y1.
-pub const EDGE_RVA: Slot = Slot::at(0x82FD16); // dword_82FD16 .. dword_82FD2A
-const HEIGHT_RVA: Slot = Slot::at(0x82FCEE); // flt_82FCEE
-const ROW_INT_RVA: Slot = Slot::at(0x82FCF2); // dword_82FCF2
-const ROW_RVA: Slot = Slot::at(0x82FCF6); // flt_82FCF6
-const SLOPES_RVA: Slot = Slot::at(0x82FCFA); // flt_82FCFA, flt_82FCFE
-const XS_RVA: Slot = Slot::at(0x82FD02); // flt_82FD02, flt_82FD06
-const SPLIT_RVA: Slot = Slot::at(0x82FD0A); // flt_82FD0A
-const ONES_RVA: Slot = Slot::at(0x89C9A4); // flt_89C9A4 .. flt_89C9AC
+/// The edge pair `span_edges` works from (`MASKS.edge`): y0, y1, the left and right x at y0, at y1.
 const SCRATCH_RVA: usize = rva(0x71C880); // dword_71C880
-/// The control words: the one the triangle came with, then its own (later the compares'
-/// status words).
-pub const WORDS_RVA: Slot = Slot::at(0x82FCE6); // word_82FCE6, word_82FCE8
-pub const TRIANGLE_RVA: Slot = Slot::at(0x833D2E); // dword_833D2E: the sorted corners
-pub const QUAD_TRIANGLE_RVA: Slot = Slot::at(0x833D46); // dword_833D46: a quad's triangle
-pub const SPANS_TOTAL_RVA: Slot = Slot::at(0x82E342); // dword_82E342
-const RUNS_START: Slot = Slot::at(0x831D2E);
-const RUNS_END: Slot = Slot::at(0x833D2E);
+/// The control words (`MASKS.control_word`, `MASKS.status_word`): the one the triangle came
+/// with, then its own (later the compares' status words).
 const WORK_LEN: u32 = 0x80000;
 const MOST_ROWS: u32 = 0x1000;
 
@@ -38,7 +26,7 @@ unsafe fn put(at: u32, v: u32) {
 /// The rows the edge pair's loop runs (its check: the row rounded below y1 rounded, the
 /// row counting up by `flt_89C9AC`), or `None` past `MOST_ROWS`.
 pub fn edge_rows(edge: &[u32; 6]) -> Option<u32> {
-    let one: u32 = unsafe { game_read(ONES_RVA + 8) };
+    let one: u32 = MASK_CONSTANTS.ones[2].bits();
     let mut row = x87::round_float(edge[0]);
     let end = x87::to_int(edge[1]);
     let mut rows = 0;
@@ -57,7 +45,7 @@ pub fn edge_rows(edge: &[u32; 6]) -> Option<u32> {
 
 /// Refuses rows that would run past the work block (or away), from `cursor`.
 unsafe fn room(cursor: u32, rows: Option<u32>) -> Result<(), Refused> {
-    let work: u32 = unsafe { game_read(WORK_RVA) };
+    let work: u32 = MASKS.work.get();
     match rows {
         Some(n)
             if cursor >= work && cursor as u64 + 8 * n as u64 <= work as u64 + WORK_LEN as u64 =>
@@ -78,21 +66,21 @@ unsafe fn room(cursor: u32, rows: Option<u32>) -> Result<(), Refused> {
 pub unsafe fn span_edges(to: u32) -> Result<u32, Refused> {
     let mut to = to;
     unsafe {
-        let e: [u32; 6] = game_read(EDGE_RVA);
+        let e: [u32; 6] = read_bits(&MASKS.edge);
         room(to, edge_rows(&e))?;
         let [y0, y1, xa0, xb0, xa1, xb1] = e;
-        let ones: [u32; 3] = game_read(ONES_RVA);
+        let ones: [u32; 3] = read_bits(&MASK_CONSTANTS.ones);
         let height = x87::sub(y1, y0);
-        game_write(HEIGHT_RVA, height);
+        MASKS.height.set_bits(height);
         let slopes = [
             x87::sub_div(xa1, xa0, height),
             x87::sub_div(xb1, xb0, height),
         ];
-        game_write(SLOPES_RVA, slopes);
+        write_bits(&MASKS.slopes, slopes);
         let (n, mut xa) = x87::frac_step(y0, ones[0], slopes[0], xa0);
-        game_write(ROW_INT_RVA, n);
+        MASKS.row_int.set(n as u32);
         let (n, mut xb) = x87::frac_step(y0, ones[1], slopes[1], xb0);
-        game_write(ROW_INT_RVA, n);
+        MASKS.row_int.set(n as u32);
         let mut row = x87::round_float(y0);
         loop {
             let r = x87::to_int(row);
@@ -107,7 +95,7 @@ pub unsafe fn span_edges(to: u32) -> Result<u32, Refused> {
             let mut b = x87::loaded(xb);
             xb = x87::add(xb, slopes[1]);
             let status = x87::compare_status(a, b);
-            game_write(WORDS_RVA + 2, status);
+            MASKS.status_word.set(status);
             if status == 0 {
                 (a, b) = (b, a);
             }
@@ -116,8 +104,8 @@ pub unsafe fn span_edges(to: u32) -> Result<u32, Refused> {
             put(to + 4, x87::float_less_int_to_int(b, left) as u32);
             to += 8;
         }
-        game_write(ROW_RVA, row);
-        game_write(XS_RVA, [xa, xb]);
+        MASKS.row.set_bits(row);
+        write_bits(&MASKS.xs, [xa, xb]);
     }
     Ok(to)
 }
@@ -171,13 +159,13 @@ pub fn triangle_rows(corners: [u32; 6]) -> Option<u32> {
 /// Refuses `triangles` runs or `rows` spans (`None`: away) past their room.
 pub unsafe fn spans_fit(triangles: u32, rows: Option<u32>) -> Result<(), Refused> {
     unsafe {
-        let runs: u32 = game_read(RUNS_RVA);
-        let start = game_addr(RUNS_START) as u32;
-        let end = game_addr(RUNS_END) as u32;
+        let runs: u32 = MASKS.runs.get();
+        let start = MASKS.run_table.addr() as u32;
+        let end = start + 0x2000;
         if runs < start || runs as u64 + 16 * triangles as u64 > end as u64 {
             return Err(BadInput("mask runs past their table").into());
         }
-        room(game_read(CURSOR_RVA), rows)
+        room(MASKS.cursor.get(), rows)
     }
 }
 
@@ -196,8 +184,8 @@ pub unsafe fn span_triangle(at: u32) -> Result<(), Refused> {
         let (t, status) = sorted((at as *const [u32; 6]).read_unaligned());
         let y0 = t[1];
         let (halves, split) = halves(&t);
-        let runs: u32 = game_read(RUNS_RVA);
-        let cursor: u32 = game_read(CURSOR_RVA);
+        let runs: u32 = MASKS.runs.get();
+        let cursor: u32 = MASKS.cursor.get();
         let rows = match (edge_rows(&halves[0]), edge_rows(&halves[1])) {
             (Some(a), Some(b)) => Some(a + b),
             _ => None,
@@ -208,27 +196,27 @@ pub unsafe fn span_triangle(at: u32) -> Result<(), Refused> {
             return Err(e);
         }
         // The sort's compares write their status over the own word (`fstsw`).
-        game_write(WORDS_RVA, [came, status]);
-        game_write(TRIANGLE_RVA, t);
-        game_write(RUNS_RVA, runs + 16);
+        MASKS.control_word.set(came);
+        MASKS.status_word.set(status);
+        write_bits(&MASKS.triangle, t);
+        MASKS.runs.set(runs + 16);
         put(runs, cursor);
         let mut to = cursor;
-        game_write(SPLIT_RVA, split);
+        MASKS.split.set_bits(split);
         for half in halves {
-            game_write(EDGE_RVA, half);
+            write_bits(&MASKS.edge, half);
             to = span_edges(to)?;
         }
-        game_write(CURSOR_RVA, to);
+        MASKS.cursor.set(to);
         let count = (to - cursor) >> 3;
         // Through `dword_71C880`, as the original's `fistp`.
         let first = x87::to_int(y0) as u32;
         game_write(SCRATCH_RVA, first);
         put(runs + 4, first);
         put(runs + 8, count);
-        game_write(
-            SPANS_TOTAL_RVA,
-            game_read::<u32>(SPANS_TOTAL_RVA).wrapping_add(count),
-        );
+        MASKS
+            .spans_total
+            .set(MASKS.spans_total.get().wrapping_add(count));
         x87::set_control_word(came);
     }
     Ok(())
@@ -246,8 +234,8 @@ pub unsafe fn span_quad(at: u32) -> Result<(), Refused> {
                 t[2 * k] = q[2 * c];
                 t[2 * k + 1] = q[2 * c + 1];
             }
-            game_write(QUAD_TRIANGLE_RVA, t);
-            span_triangle(game_addr(QUAD_TRIANGLE_RVA) as u32)?;
+            write_bits(&MASKS.quad_triangle, t);
+            span_triangle(MASKS.quad_triangle.as_ptr() as u32)?;
         }
     }
     Ok(())

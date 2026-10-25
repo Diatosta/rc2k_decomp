@@ -12,9 +12,9 @@
 //! Caller: `sub_436790` (0x4367D4). Refuses what `set_flag_5165a0` refuses.
 
 use crate::errors::Refused;
-use crate::framework::{game_addr, rva};
 use crate::physics::car_store::CAR;
-use crate::physics::listed_car_flags::{TABLE, set_flag_at};
+use crate::physics::listed_car_flags::set_flag_at;
+use crate::race::frame_store::FRAME_WORK;
 use rc2k_core::physics::start::{CarStart, StartCount};
 
 unsafe fn at(a: u32) -> u32 {
@@ -34,13 +34,12 @@ pub struct CountPlaces {
 
 impl CountPlaces {
     pub fn game() -> Self {
-        let g = |a: usize| game_addr(rva(a)) as u32;
         Self {
             stop: CAR.finish_flag.addr() as u32,
             timer: (CAR.run_ticks.addr() as u32),
             count: (CAR.time_left.addr() as u32),
             current: crate::race::work_store::RACE_WORK.current_car.addr() as u32,
-            listed: g(TABLE),
+            listed: FRAME_WORK.listed_car_sounds[0].addr() as u32,
             flag: crate::sound::store::STAGE_SOUNDS.once[1].addr() as u32,
         }
     }

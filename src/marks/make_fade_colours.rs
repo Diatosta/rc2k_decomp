@@ -9,16 +9,15 @@
 //! One caller, `sub_4C25F6`.
 
 use crate::marks::snow::SNOW_LIGHT;
-use crate::marks::store::{Slot, game_read};
+use crate::marks::tuning::MARKS_FLOATS;
 use crate::math::x87;
 use crate::race::frame_store::FRAME_WORK;
 const FADES: usize = 0x11;
-const GROWTH_RVA: Slot = Slot::at(0x7651C4); // flt_7651C4
 
 /// The Rust version (see the header).
 pub unsafe fn make_fade_colours() {
     let l = &SNOW_LIGHT;
-    unsafe {
+    {
         let colour: u32 = FRAME_WORK.view_light.bits();
         let inverses = [
             ((colour >> 16) & 0xFF) ^ 0xFF,
@@ -40,7 +39,8 @@ pub unsafe fn make_fade_colours() {
             let fade =
                 (0xFF00_0000 | r << 16 | gr << 8 | b).wrapping_add(FRAME_WORK.view_light.bits());
             l.fade_colours[n].set(fade);
-            l.fade_step.set_bits(x87::add(step, game_read(GROWTH_RVA)));
+            l.fade_step
+                .set_bits(x87::add(step, MARKS_FLOATS.sixteenth.bits()));
         }
     }
 }

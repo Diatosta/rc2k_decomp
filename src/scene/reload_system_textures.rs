@@ -26,12 +26,13 @@ use crate::framework::rva;
 use crate::gfx::texture_pixels::GRADING;
 use crate::logfile::log_write::log_write;
 use crate::race::prefs_store::STAGE_PREFS;
+use crate::scene::kind_texture_store::KIND_TEXTURES;
 use crate::scene::load_changed_texture_picture::{
     TEXTURES, WANTED_PICTURES_RVA, load_changed_texture_picture_in_game,
 };
 use crate::scene::load_hud_car_icons::load_hud_car_icons;
 use crate::scene::step_loading_bar::step_loading_bar;
-use crate::scene::textures::{KIND_TEXTURE_RVA, KINDS};
+use crate::scene::textures::KINDS;
 use crate::store::{game_read, game_write};
 use rc2k_core::scene::pictures::{kind_picture, read_size};
 
@@ -62,7 +63,7 @@ pub unsafe fn reload_system_textures() -> Result<(), Refused> {
         if textures == 0 || textures > TEXTURES {
             return Err(BadInput("no system textures, or more than the table has").into());
         }
-        let first = |kind: u32| game_read::<u32>(KIND_TEXTURE_RVA + kind as usize * 4);
+        let first = |kind: u32| KIND_TEXTURES.kind_first_textures[kind as usize].get();
         if (0..KINDS).any(|kind| first(kind) != u32::MAX && first(kind) >= TEXTURES) {
             return Err(BadInput("a kind's first texture past the pictures' table").into());
         }

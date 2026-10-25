@@ -29,7 +29,7 @@ use crate::physics::camera_store::CAMERA_WORK;
 use crate::physics::camera_view::{rd, record};
 use crate::physics::car_store::CAR;
 use crate::physics::flow::g;
-use crate::physics::touch_face::FACES;
+use crate::race::course_store::COURSE;
 use crate::race::tables_store::RACE_TABLES;
 use crate::scene::draw_store::DRAW;
 use crate::session::Dword;
@@ -44,10 +44,10 @@ fn face_checkpoint(back: u32) -> bool {
     let Some(checkpoint) = camera_ground::back_checkpoint(CAR.checkpoint.get(), back) else {
         return false;
     };
-    let face = (g(0x9E3738 + 4 * checkpoint as usize) << 6).wrapping_add(g(FACES));
+    let face = (g(0x9E3738 + 4 * checkpoint as usize) << 6).wrapping_add(COURSE.course_faces.get());
     let point = rd(face + 4)
         .wrapping_mul(12)
-        .wrapping_add(g(crate::physics::scene_point_hits_car::SCENE_POINTS));
+        .wrapping_add(COURSE.scene_points.get());
     let first = CAR.position[0].get().wrapping_sub(rd(point));
     let second = CAR.position[2].get().wrapping_sub(rd(point + 8));
     let angle = unsafe { crate::scene::angle_between::angle_of(first, second) };
@@ -55,16 +55,10 @@ fn face_checkpoint(back: u32) -> bool {
     true
 }
 
-/// The five dwords from 0x71AEC8 the loop below saves: the three ground faces and the
-/// two dwords after them (`unknown_efc`, a read past the typed field).
+/// The five ground faces from 0x71AEC8 the loop below saves.
 fn ground_faces() -> [&'static Dword; 5] {
-    [
-        &CAR.camera_ground_faces[0],
-        &CAR.camera_ground_faces[1],
-        &CAR.camera_ground_faces[2],
-        &CAR.unknown_efc[0],
-        &CAR.unknown_efc[1],
-    ]
+    let f = &CAR.camera_ground_faces;
+    [&f[0], &f[1], &f[2], &f[3], &f[4]]
 }
 
 /// The turn back toward the kept heading (0x43919D ..).

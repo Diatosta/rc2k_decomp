@@ -13,7 +13,6 @@ use crate::race::vars_store::RACE_VARS;
 use crate::scene::kind_texture_store::KIND_TEXTURES;
 use crate::store::game_addr;
 
-pub const MUD_RVA: crate::race::store::vars::Slot = crate::race::store::vars::Slot::at(0x623D50); // dword_623D50
 pub const MUD_LEN: u32 = 0x1_0000;
 pub const MUD_PATH_RVA: usize = rva(0x6238F4); // "files\b\mudfile.0xx"
 pub const MUD_PATH_DIGITS_RVA: usize = rva(0x623905);

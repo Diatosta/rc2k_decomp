@@ -21,10 +21,9 @@ use crate::files::handle;
 use crate::physics::flow::a;
 use crate::race::replay_file_store::REPLAY_FILE;
 use crate::race::replay_path::replay_path;
-use crate::race::viewer::{
-    BLOCK, BLOCK_CURSOR, BLOCK_DATA, BLOCKS, CAMERAS, CAR_HEADER, FRAME, HANDLE, HEADER, INDEX,
-    MARK_IN, MARK_OUT, OPEN, get, put,
-};
+use crate::race::replay_work_store::REPLAY_WORK;
+use crate::race::viewer::{BLOCK_CURSOR, BLOCK_DATA, CAMERAS, HEADER, MARK_IN, MARK_OUT, get, put};
+use crate::race::viewer_state_store::REPLAY_VIEW;
 
 use rc2k_core::race::viewer_flow::{HEADER_LEN, INDEX_LEN};
 
@@ -66,26 +65,34 @@ pub fn open_viewed_replay(slot: u32) -> Result<bool, Refused> {
     let Some(file) = (unsafe { handle::open_by_mode(path as _, 0)? }) else {
         return failed();
     };
-    put(HANDLE, file);
-    put(OPEN, 1);
-    put(BLOCK, 0);
-    put(FRAME, 0);
+    REPLAY_FILE.replay_handle.set(file);
+    REPLAY_FILE.replay_open.set(1);
+    REPLAY_VIEW.replay_block.set(0);
+    REPLAY_VIEW.replay_frame.set(0);
     // A buffer read whole; whether the read is good (`read_good`).
     let read = |buffer: usize, len: u32| -> bool {
-        let (n, ok) = unsafe { handle::read(get(HANDLE), a(buffer) as *mut u8, len) };
-        read_good(!ok, n, len, get(buffer), buffer == HEADER)
+        let (n, ok) =
+            unsafe { handle::read(REPLAY_FILE.replay_handle.get(), buffer as *mut u8, len) };
+        let first = unsafe { (buffer as *const u32).read_unaligned() };
+        read_good(!ok, n, len, first, buffer == a(HEADER) as usize)
     };
-    if !read(HEADER, HEADER_LEN) || !version_good(get(HEADER + 8)) {
+    if !read(a(HEADER) as usize, HEADER_LEN) || !version_good(get(HEADER + 8)) {
         return failed();
     }
     // The index is the file's last 0x3850 bytes.
-    let at = unsafe { handle::seek(get(HANDLE), INDEX_LEN.wrapping_neg() as i32, 2) };
-    if at.is_none() || !read(INDEX, INDEX_LEN) {
+    let at = unsafe {
+        handle::seek(
+            REPLAY_FILE.replay_handle.get(),
+            INDEX_LEN.wrapping_neg() as i32,
+            2,
+        )
+    };
+    if at.is_none() || !read(REPLAY_FILE.index_magic.addr(), INDEX_LEN) {
         return failed();
     }
-    match index_blocks(get(BLOCKS)) {
+    match index_blocks(REPLAY_FILE.index_block_count.get()) {
         Blocks::Bad => return failed(),
-        Blocks::Held(n) => put(BLOCKS, n),
+        Blocks::Held(n) => REPLAY_FILE.index_block_count.set(n),
         Blocks::Kept => {}
     }
     let mut block = 0u32;
@@ -93,13 +100,17 @@ pub fn open_viewed_replay(slot: u32) -> Result<bool, Refused> {
         if unsafe { crate::drive::read_replay_frame_0::read_replay_frame_0(block) }? {
             return failed();
         }
-        crate::race::viewer::move_dwords(CAMERAS + 8 * block as usize, BLOCK_DATA, CAMERA_DWORDS);
+        crate::race::viewer::move_dwords(
+            a(CAMERAS) as usize + 8 * block as usize,
+            a(BLOCK_DATA) as usize,
+            CAMERA_DWORDS,
+        );
         block += 1;
-        if block == get(BLOCKS) {
+        if block == REPLAY_FILE.index_block_count.get() {
             break;
         }
     }
-    let (mark_in, mark_out) = opened_marks(get(BLOCKS));
+    let (mark_in, mark_out) = opened_marks(REPLAY_FILE.index_block_count.get());
     put(MARK_IN, mark_in);
     put(MARK_OUT, mark_out);
     put(BLOCK_CURSOR, a(BLOCK_DATA));
@@ -112,7 +123,7 @@ pub fn open_viewed_replay(slot: u32) -> Result<bool, Refused> {
                 .header
                 .as_ptr()
                 .wrapping_add(0x30) as *const u8, // unk_528534
-            a(CAR_HEADER) as *mut u8,
+            REPLAY_WORK.header_stage.addr() as u32 as *mut u8,
             CAR_HEADER_LEN,
         )
     };

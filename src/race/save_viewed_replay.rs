@@ -21,10 +21,10 @@
 use crate::errors::Refused;
 use crate::files::handle;
 use crate::physics::flow::a;
+use crate::race::replay_file_store::REPLAY_FILE;
 use crate::race::replay_path::{LAST_RACE, replay_path};
 use crate::race::viewer::{
-    BLOCK_DATA, BLOCKS, CAMERAS, INDEX, PLACES, TABLE_LEN, UNDO_BLOCKS, UNDO_PLACES, get,
-    move_dwords, put,
+    BLOCK_DATA, CAMERAS, TABLE_LEN, UNDO_BLOCKS, UNDO_PLACES, get, move_dwords, put,
 };
 use crate::race::viewer_state_store::REPLAY_VIEW;
 
@@ -48,7 +48,7 @@ fn save(slot: u32) -> Result<bool, Refused> {
         BLOCK_LEN, CAMERA_DWORDS, HEADER_LEN, INDEX_HEAD_LEN, NAME_LEN, SAVED_HEADER, has_blocks,
         name_offset, next_offset,
     };
-    if !has_blocks(get(BLOCKS)) {
+    if !has_blocks(REPLAY_FILE.index_block_count.get()) {
         return Ok(false);
     }
     unsafe {
@@ -91,13 +91,21 @@ fn save(slot: u32) -> Result<bool, Refused> {
         }
         let mut block = 0u32;
         loop {
-            handle::seek(get(FROM), get(PLACES + 8 * block as usize) as i32, 0);
+            handle::seek(
+                get(FROM),
+                crate::race::replay::block_place(2 * block as usize) as i32,
+                0,
+            );
             crate::drive::read_packed::read_packed(
                 get(FROM),
                 a(BLOCK_DATA),
-                get(PLACES + 8 * block as usize + 4),
+                crate::race::replay::block_place(2 * block as usize + 1),
             )?;
-            move_dwords(BLOCK_DATA, CAMERAS + 8 * block as usize, CAMERA_DWORDS);
+            move_dwords(
+                a(BLOCK_DATA) as usize,
+                a(CAMERAS) as usize + 8 * block as usize,
+                CAMERA_DWORDS,
+            );
             put(
                 UNDO_PLACES + 8 * block as usize,
                 REPLAY_VIEW.file_offset.get(),
@@ -113,11 +121,12 @@ fn save(slot: u32) -> Result<bool, Refused> {
                 .file_offset
                 .set(next_offset(REPLAY_VIEW.file_offset.get(), written));
             block += 1;
-            if block == get(BLOCKS) {
+            if block == REPLAY_FILE.index_block_count.get() {
                 break;
             }
         }
-        let done = write(a(INDEX), INDEX_HEAD_LEN) && write(a(UNDO_PLACES), TABLE_LEN as u32);
+        let done = write(REPLAY_FILE.index_magic.addr() as u32, INDEX_HEAD_LEN)
+            && write(a(UNDO_PLACES), TABLE_LEN as u32);
         close();
         Ok(done)
     }

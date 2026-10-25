@@ -19,10 +19,9 @@ pub struct RaceVars {
     pub kept_scale: Dword,
     /// +0x10 (0x6235F8): the race's tick count (`drive::race_tick`).
     pub race_ticks: Dword,
-    /// +0x14 (0x6235FC): the two players' tyres (`settings.cars[n].tyre`); the car's gravel texture switch.
-    pub car_tyres: [Dword; 2],
-    /// +0x1c (0x623604): not named.
-    pub unknown_1c: [Dword; 6],
+    /// +0x14 (0x6235FC): each car's tyres (the players' `settings.cars[n].tyre`); the car's gravel
+    /// texture switch (`scene::load_texture_picture` reads eight).
+    pub car_tyres: [Dword; 8],
     /// +0x34 (0x62361C): (`scene::list_object_faces`).
     pub face_mark: Dword,
     /// +0x38 (0x623620): `g_faceNumber` ("objfaced").

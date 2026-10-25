@@ -14,14 +14,15 @@
 //! game's variables.
 
 use crate::framework::rva;
-use crate::marks::store::{Slot, game_read, game_write};
+use crate::marks::hexagon_state::HEXAGON_WORK;
+use crate::marks::hexagon_vars::HEX;
+use crate::marks::store::{game_read, game_write};
 use crate::math::x87;
+use crate::math::x87_float as bh;
 use crate::scene::draw_store::DRAW;
 
 const TEXTURE_RVA: usize = rva(0x5D5A24); // dword_5D5A24
 const VERTICES_RVA: usize = rva(0x9605A0); // g_polygonVertices
-const SIDE_RVA: Slot = Slot::at(0x82E2A2); // dword_82E2A2
-const INVERSE_RVA: Slot = Slot::at(0x814C02); // flt_814C02
 const STATES: [(u32, u32); 8] = [
     (1, 0x11),
     (1, 0x12),
@@ -35,7 +36,7 @@ const STATES: [(u32, u32); 8] = [
 
 /// The original's 0x4BBE62 .. 0x4BBF1A: the axes scaled.
 unsafe fn axes() {
-    unsafe { axes_x87(crate::marks::store::base() as usize) }
+    unsafe { axes_x87(crate::marks::hexagon_vars::HexagonVars::base()) }
 }
 
 /// The Rust version (see the header).
@@ -56,7 +57,7 @@ pub unsafe fn hexagons_setup() {
             game_write(VERTICES_RVA + 0x20 * n + 0x10, 0xFFFF_FFFFu32);
             game_write(VERTICES_RVA + 0x20 * n + 0x14, 0xFF00_0000u32);
         }
-        let side: u32 = game_read(SIDE_RVA);
+        let side: u32 = HEX.side.get();
         for (n, (u, v)) in [(0, 0), (side, 0), (side, side), (0, side)]
             .into_iter()
             .enumerate()
@@ -65,51 +66,53 @@ pub unsafe fn hexagons_setup() {
             game_write(VERTICES_RVA + 0x20 * n + 0x1C, v);
         }
         DRAW.polygon_vertex_count.set_bits(6u32);
-        game_write(INVERSE_RVA, x87::reciprocal(DRAW.farthest.bits()));
+        HEXAGON_WORK
+            .inverse
+            .set_bits(x87::reciprocal(DRAW.farthest.bits()));
     }
 }
 
-use crate::marks::plain::{ld, st};
+use crate::marks::plain::ld;
 
 /// `axes`'s x87 block as plain Rust on the x87 model (36 instructions), same order and memory places.
-unsafe fn axes_x87(mk: usize) {
+unsafe fn axes_x87(hx: usize) {
     unsafe {
-        let t0 = ld(mk, 0xAFCDA);
-        let t1 = t0 * ld(mk, 0xAFC82);
-        st(mk, 0xAFD2E, t1);
-        let t2 = ld(mk, 0xAFCDE);
-        let t3 = t2 * ld(mk, 0xAFC82);
-        st(mk, 0xAFD32, t3);
-        let t4 = ld(mk, 0xAFCE2);
-        let t5 = t4 * ld(mk, 0xAFC82);
-        st(mk, 0xAFD36, t5);
-        let t6 = ld(mk, 0xAFCE6);
-        let t7 = t6 * ld(mk, 0xAFC82);
-        st(mk, 0xAFD3A, t7);
-        let t8 = ld(mk, 0xAFCEA);
-        let t9 = t8 * ld(mk, 0xAFC82);
-        st(mk, 0xAFD3E, t9);
-        let t10 = ld(mk, 0xAFCEE);
-        let t11 = t10 * ld(mk, 0xAFC82);
-        st(mk, 0xAFD42, t11);
-        let t12 = ld(mk, 0xAFD2E);
-        let t13 = t12 * ld(mk, 0xC9346);
-        st(mk, 0xAFD46, t13);
-        let t14 = ld(mk, 0xAFD32);
-        let t15 = t14 * ld(mk, 0xC934A);
-        st(mk, 0xAFD4A, t15);
-        let t16 = ld(mk, 0xAFD36);
-        let t17 = t16 * ld(mk, 0xC934E);
-        st(mk, 0xAFD4E, t17);
-        let t18 = ld(mk, 0xAFD3A);
-        let t19 = t18 * ld(mk, 0xC9352);
-        st(mk, 0xAFD52, t19);
-        let t20 = ld(mk, 0xAFD3E);
-        let t21 = t20 * ld(mk, 0xC9356);
-        st(mk, 0xAFD56, t21);
-        let t22 = ld(mk, 0xAFD42);
-        let t23 = t22 * ld(mk, 0xC935A);
-        st(mk, 0xAFD5A, t23);
+        let t0 = bh::ld(HEXAGON_WORK.axes[0].bits());
+        let t1 = t0 * bh::ld(HEXAGON_WORK.radii[0].bits());
+        HEXAGON_WORK.setup_axes[0].set_bits(bh::st(t1));
+        let t2 = bh::ld(HEXAGON_WORK.axes[1].bits());
+        let t3 = t2 * bh::ld(HEXAGON_WORK.radii[0].bits());
+        HEXAGON_WORK.setup_axes[1].set_bits(bh::st(t3));
+        let t4 = bh::ld(HEXAGON_WORK.axes[2].bits());
+        let t5 = t4 * bh::ld(HEXAGON_WORK.radii[0].bits());
+        HEXAGON_WORK.setup_axes[2].set_bits(bh::st(t5));
+        let t6 = bh::ld(HEXAGON_WORK.axes[3].bits());
+        let t7 = t6 * bh::ld(HEXAGON_WORK.radii[0].bits());
+        HEXAGON_WORK.setup_axes[3].set_bits(bh::st(t7));
+        let t8 = bh::ld(HEXAGON_WORK.axes[4].bits());
+        let t9 = t8 * bh::ld(HEXAGON_WORK.radii[0].bits());
+        HEXAGON_WORK.setup_axes[4].set_bits(bh::st(t9));
+        let t10 = bh::ld(HEXAGON_WORK.axes[5].bits());
+        let t11 = t10 * bh::ld(HEXAGON_WORK.radii[0].bits());
+        HEXAGON_WORK.setup_axes[5].set_bits(bh::st(t11));
+        let t12 = bh::ld(HEXAGON_WORK.setup_axes[0].bits());
+        let t13 = t12 * ld(hx, 0xC9346);
+        HEXAGON_WORK.setup_axes[6].set_bits(bh::st(t13));
+        let t14 = bh::ld(HEXAGON_WORK.setup_axes[1].bits());
+        let t15 = t14 * ld(hx, 0xC934A);
+        HEXAGON_WORK.setup_axes[7].set_bits(bh::st(t15));
+        let t16 = bh::ld(HEXAGON_WORK.setup_axes[2].bits());
+        let t17 = t16 * ld(hx, 0xC934E);
+        HEXAGON_WORK.setup_axes[8].set_bits(bh::st(t17));
+        let t18 = bh::ld(HEXAGON_WORK.setup_axes[3].bits());
+        let t19 = t18 * ld(hx, 0xC9352);
+        HEXAGON_WORK.setup_axes[9].set_bits(bh::st(t19));
+        let t20 = bh::ld(HEXAGON_WORK.setup_axes[4].bits());
+        let t21 = t20 * ld(hx, 0xC9356);
+        HEXAGON_WORK.setup_axes[10].set_bits(bh::st(t21));
+        let t22 = bh::ld(HEXAGON_WORK.setup_axes[5].bits());
+        let t23 = t22 * ld(hx, 0xC935A);
+        HEXAGON_WORK.setup_axes[11].set_bits(bh::st(t23));
     }
 }
 
@@ -170,12 +173,14 @@ mod asm_differential {
     use super::asm_reference as reference;
     use crate::marks::asm_test::Kind::*;
     use crate::marks::asm_test::{Op, Spec, differential};
+    use crate::marks::hexagon_state::{HEXAGON_WORK, HexagonWork};
+    use crate::marks::typed_sync::{overlay, with_overlays};
 
     #[test]
     fn axes_x87_matches() {
         const SPEC: Spec = Spec {
             operands: &[Op::Base {
-                lo: 0xAFC82,
+                lo: 0xAF832,
                 hi: 0xC935E,
                 reads: &[
                     (0xAFC82, F32),
@@ -218,7 +223,13 @@ mod asm_differential {
         differential(
             &SPEC,
             |b| unsafe { reference::axes_x87(b[0]) },
-            |b| unsafe { super::axes_x87(b[0]) },
+            |b| {
+                with_overlays(
+                    b[0],
+                    &[overlay(&HEXAGON_WORK, HexagonWork::START)],
+                    || unsafe { super::axes_x87(b[0]) },
+                )
+            },
         );
     }
 }

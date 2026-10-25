@@ -12,10 +12,6 @@ use crate::scene::draw_store::DRAW;
 use crate::scene::object_store::OBJECT_WORK;
 use crate::scene::project_point::rotate;
 
-// TURN_X_RVA, TURN_Y_RVA, LIT_RVA: still named by `race::stage_prefs::get_mat_crash`.
-pub const TURN_X_RVA: usize = rva(0x5E9F8C); // flt_5E9F8C
-pub const TURN_Y_RVA: usize = rva(0x5E9FCC); // flt_5E9FCC
-pub const LIT_RVA: usize = rva(0x5EA14C); // flt_5EA14C
 pub const SINES_RVA: usize = rva(0xA23AE4); // flt_A23AE4, 0x1000 floats
 pub const COSINES_RVA: usize = rva(0xA24AE4); // dword_A24AE4
 

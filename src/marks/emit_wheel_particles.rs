@@ -16,22 +16,21 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::marks::emitters::*;
-use crate::marks::store::{Slot, game_read, game_write};
+use crate::marks::ring_store::RING_WORK;
+use crate::marks::tuning::MARKS_FLOATS;
 use crate::marks::{
     emit_bursts, emit_bursts_2, emit_kind_1, emit_particle_5, emit_particle_6, emit_particle_11,
     emit_particle_18,
 };
 use crate::math::x87;
 
-const CHANCE_RVA: Slot = Slot::at(0x9356C0); // dword_9356C0
-const CHANCE_K_RVA: Slot = Slot::at(0x7651DC); // flt_7651DC
-const CHANCE_RANDOM_RVA: Slot = Slot::at(0x935522); // dword_935522
-
 /// The chance and the random it would be met by, worked out without writing.
 unsafe fn chance(wheel: u32) -> (i32, u32) {
     unsafe {
-        let chance = x87::mul_to_int(at(wheel + 0x34), game_read(CHANCE_K_RVA));
-        let r = game_read::<u32>(CHANCE_RANDOM_RVA)
+        let chance = x87::mul_to_int(at(wheel + 0x34), MARKS_FLOATS.two_pow_16.bits());
+        let r = EMITTER
+            .wheel_random
+            .get()
             .wrapping_mul(0xC5)
             .wrapping_add(0x5D);
         (chance, r)
@@ -80,8 +79,8 @@ pub unsafe fn emit_wheel_particles(wheel: u32, object: u32) -> Result<(), Refuse
     }
     unsafe {
         let (chance, _) = chance(wheel);
-        game_write(CHANCE_RVA, chance);
-        let r = next_c5(CHANCE_RANDOM_RVA);
+        RING_WORK.whole.set(chance as u32);
+        let r = next_c5(&EMITTER.wheel_random);
         if copies(chance, r) {
             let surface = [at(wheel + 0x28), at(wheel + 0x2C), at(wheel + 0x30)];
             for (n, v) in surface.iter().enumerate() {

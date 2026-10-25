@@ -24,8 +24,14 @@ use crate::physics::probe_ground::probe_ground_at;
 pub unsafe fn probe_and_keep_at(g: &Ground) -> Result<(), Refused> {
     unsafe {
         probe_ground_at(g)?;
-        for k in 0..0xC0u32 {
-            g.put(0x6D2C14 + 4 * k, g.get(0x6D1E14 + 4 * k));
+        for k in 0..64 {
+            CONTACT_WORK.saved_probe_x[k].set(CONTACT_WORK.probe_x[k].get());
+        }
+        for k in 0..64 {
+            CONTACT_WORK.saved_probe_y[k].set(CONTACT_WORK.probe_y[k].get());
+        }
+        for k in 0..64 {
+            CONTACT_WORK.saved_probe_z[k].set(CONTACT_WORK.probe_z[k].get());
         }
         for k in 0..0x40 {
             CONTACT_WORK.saved_probe_faces[k].set(CAR.probe_point_face[k].get());

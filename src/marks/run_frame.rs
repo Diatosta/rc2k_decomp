@@ -13,15 +13,14 @@
 //! Caller: the race's frame (0x456464 ..). Its calls the Rust versions, in the order above.
 
 use crate::errors::Refused;
-use crate::marks::store::{Slot, game_read, game_write};
+use crate::marks::tuning::MARKS_FRAME;
 use crate::math::x87;
-
-const FRAME_CYCLES_RVA: Slot = Slot::at(0x765114); // dword_765114
-/// (where the share goes, its factor): the draw, the ring, the whole.
-const SHARES: [(Slot, Slot); 3] = [
-    (Slot::at(0x765134), Slot::at(0x93C8C4)),
-    (Slot::at(0x76511C), Slot::at(0x93C8C8)),
-    (Slot::at(0x765120), Slot::at(0x93C8CC)),
+use crate::session::Float;
+/// Where the share goes (its factor is `FRAME_K.times`): the draw, the ring, the whole.
+static SHARES: [&Float; 3] = [
+    &MARKS_FRAME.draw_share,
+    &MARKS_FRAME.ring_share,
+    &MARKS_FRAME.whole_share,
 ];
 const STATES: [(u32, u32); 6] = [
     (4, 0x15),
@@ -36,15 +35,14 @@ fn rdtsc() -> u32 {
     unsafe { core::arch::x86::_rdtsc() as u32 }
 }
 
-unsafe fn share(at: usize, start: u32) {
-    unsafe {
-        let (to, k) = SHARES[at];
-        let took = rdtsc().wrapping_sub(start) as i32;
-        game_write(
-            to,
-            x87::int_over_int_times(took, game_read(FRAME_CYCLES_RVA), game_read(k)),
-        );
-    }
+fn share(at: usize, start: u32) {
+    let to = SHARES[at];
+    let took = rdtsc().wrapping_sub(start) as i32;
+    to.set_bits(x87::int_over_int_times(
+        took,
+        MARKS_FRAME.frame_cycles.bits() as i32,
+        FRAME_K.times[at].bits(),
+    ));
 }
 
 /// The Rust version (see the header).
@@ -78,4 +76,56 @@ pub unsafe fn run_frame() -> Result<(), Refused> {
         crate::scene::depth_test_on::depth_test_on();
     }
     Ok(())
+}
+
+/// The frame's time constants (IDA 0x93C8C0 .. 0x93C8D0, the image's layout; phase 7, typed state).
+#[repr(C)]
+pub struct FrameK {
+    /// 0x93C8C0: `flt_93C8C0`: the marks' share factor (`frame_marks`)
+    pub share_k: Float,
+    /// 0x93C8C4: `flt_93C8C4`, `flt_93C8C8`, `flt_93C8CC`: the frame's time factors (`run_frame`)
+    pub times: [Float; 3],
+}
+
+/// FrameK's first values.
+pub static FRAME_K: FrameK = FrameK {
+    share_k: Float::from_bits(0x42C80000),
+    times: [
+        Float::from_bits(0x42C80000),
+        Float::from_bits(0x42C80000),
+        Float::from_bits(0x42C80000),
+    ],
+};
+
+impl FrameK {
+    pub const START: usize = 0x93C8C0;
+    pub const LEN: usize = 0x10;
+    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
+    pub fn home() -> usize {
+        &FRAME_K as *const FrameK as usize
+    }
+}
+
+#[cfg(test)]
+mod frame_k_tests {
+    use super::*;
+    use core::mem::offset_of;
+
+    fn bytes<T>(v: &T) -> Vec<u8> {
+        let p = v as *const T as *const u8;
+        (0..size_of::<T>())
+            .map(|i| unsafe { p.add(i).read() })
+            .collect()
+    }
+
+    #[test]
+    fn frame_k_starts_as_the_games() {
+        assert_eq!(size_of::<FrameK>(), FrameK::LEN);
+        assert!(
+            bytes(&FRAME_K) == crate::moved::image_bytes(FrameK::START, FrameK::LEN),
+            "FRAME_K starts differently from the image"
+        );
+        assert_eq!(offset_of!(FrameK, share_k), 0x93C8C0 - FrameK::START);
+        assert_eq!(offset_of!(FrameK, times), 0x93C8C4 - FrameK::START);
+    }
 }

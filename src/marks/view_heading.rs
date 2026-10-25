@@ -10,28 +10,25 @@
 //!
 //! the x87 version stays for the Rust callers in unconverted code).
 
-use crate::marks::store::{Slot, game_addr, game_read, game_write};
+use crate::marks::frame_state::{DRAW_FRAME, VIEW_VARS};
 use crate::math::x87;
 use crate::race::matrices_store::MATRICES;
 use crate::scene::matrix3::rounded;
 use crate::scene::vector3::angle_between_vectors;
-
-const LEVEL_RVA: Slot = Slot::at(0x91FF7E); // flt_91FF7E: three floats
-const OTHER_RVA: Slot = Slot::at(0x91FF8A); // flt_91FF8A: three floats
-const HEADING_RVA: Slot = Slot::at(0x8F3975); // g_marksViewHeading
+use crate::session::{address_of, write_bits};
 
 /// The Rust version (see the header).
 pub unsafe fn view_heading() {
     unsafe {
         let x = x87::loaded(MATRICES.view_place[2].bits());
         let z = x87::loaded(MATRICES.view_place[10].bits());
-        game_write(LEVEL_RVA, [x, 0, z]);
-        let level = game_addr(LEVEL_RVA) as u32;
-        let other = game_addr(OTHER_RVA) as u32;
+        write_bits(&DRAW_FRAME.level, [x, 0, z]);
+        let level = address_of(&DRAW_FRAME.level) as u32;
+        let other = address_of(&DRAW_FRAME.other) as u32;
         let mut heading = rounded(angle_between_vectors(level, other));
-        if game_read::<u32>(LEVEL_RVA) & 0x8000_0000 == 0 {
+        if DRAW_FRAME.level[0].bits() & 0x8000_0000 == 0 {
             heading = x87::two_pi_less(heading);
         }
-        game_write(HEADING_RVA, heading);
+        VIEW_VARS.heading.set_bits(heading);
     }
 }

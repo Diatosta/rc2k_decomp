@@ -4,36 +4,40 @@
 
 use crate::errors::Refused;
 use crate::framework::rva;
-use crate::marks::store::{Slot, game_addr, game_read, game_write};
+use crate::marks::frame_state::DRAW_WORK;
+use crate::marks::store::{game_addr, game_write};
 use crate::math::x87;
+use crate::memory::MemoryList;
+use crate::session::write_bits;
+use crate::session::{Bytes, Dword, Float, Shared, Word};
 
-pub const PLACES_LIST_RVA: Slot = Slot::at(0x8DB570); // stru_8DB570
-pub const PLACES_RVA: Slot = Slot::at(0x8DB5B0); // g_marksPlaces
 pub const PLACES_LEN: u32 = 0x7024;
-const PLACE_START_RVA: Slot = Slot::at(0x8DB5B4); // flt_8DB5B4 .. flt_8DB5BC
-pub const RING_LIST_RVA: Slot = Slot::at(0x93A580); // stru_93A580
-pub const RING_RVA: Slot = Slot::at(0x93A5C8); // g_marksRing
-pub const RING_FREE_RVA: Slot = Slot::at(0x93A5C0); // g_marksRingFree
-pub const RING_USED_RVA: Slot = Slot::at(0x93A5EC); // g_marksRingUsed
 pub const RING_LEN: u32 = 0x4C000;
 pub const RING_ENTRY: u32 = rc2k_core::marks::rings::RING_ENTRY;
-pub const LINKS_LIST_RVA: Slot = Slot::at(0x9206F0); // stru_9206F0
-pub const LINKS_RVA: Slot = Slot::at(0x920730); // g_marksLinks
 pub const LINKS_LEN: u32 = 0x71020;
-pub const CORNERS_RVA: Slot = Slot::at(0x8EB971); // g_marksCorners: 0x100 of 0x80, words
 pub const CORNERS: u32 = 0x100;
-const CORNER_SCALE_RVA: Slot = Slot::at(0x8EB969); // flt_8EB969, 1 / 65536
 /// Where the corners' eight values are made (two dwords each at +0, +0x20, +0x40, +0x60).
 pub const CORNER_WORK_RVA: usize = rva(0x9605B8);
-pub const CORNER_SIDES_RVA: Slot = Slot::at(0x8EB8B5); // dword_8EB8B5, dword_8EB8B9
-pub const SLOPES_RVA: Slot = Slot::at(0x920734); // g_marksCornerSlopes: 0x100 of 0x24
 pub const SETTINGS_BLOCKS: u32 = 8;
 pub const SETTINGS_BLOCK: u32 = 0x4C8;
-const SETTINGS_START_RVA: Slot = Slot::at(0x9354C6); // flt_9354C6 .. flt_9354DA
+
+/// A memory list at a plain address (one of a typed variable block).
+#[derive(Clone, Copy)]
+pub struct Address(pub usize);
+
+impl crate::marks::store::Where for Address {
+    fn address(self) -> usize {
+        self.0
+    }
+}
 
 /// `bytes` bytes on the list at `list` (`memory::allocate`).
-pub unsafe fn take(list: Slot, bytes: u32) -> Result<u32, Refused> {
-    let list = game_addr(list) as *mut crate::memory::MemoryList;
+pub unsafe fn take(list: impl crate::marks::store::Where, bytes: u32) -> Result<u32, Refused> {
+    unsafe { take_from(game_addr(list) as *mut MemoryList, bytes) }
+}
+
+/// `bytes` bytes on `list` (`memory::allocate`).
+pub unsafe fn take_from(list: *mut MemoryList, bytes: u32) -> Result<u32, Refused> {
     Ok(unsafe { crate::memory::allocate::allocate(list, bytes) }? as u32)
 }
 
@@ -41,10 +45,10 @@ pub unsafe fn take(list: Slot, bytes: u32) -> Result<u32, Refused> {
 /// `g_marksPlaces`, its first three floats `flt_8DB5B4` ...
 pub unsafe fn allocate_places() -> Result<(), Refused> {
     unsafe {
-        let block = take(PLACES_LIST_RVA, PLACES_LEN)?;
-        game_write(PLACES_RVA, block);
+        let block = take_from(PLACES_BLOCK.list.as_ptr(), PLACES_LEN)?;
+        PLACES_BLOCK.places.set(block);
         for n in 0..3 {
-            let v = x87::loaded(game_read(PLACE_START_RVA + 4 * n));
+            let v = x87::loaded(PLACES_BLOCK.start[n].bits());
             ((block + 4 * n as u32) as *mut u32).write_unaligned(v);
         }
     }
@@ -56,10 +60,10 @@ pub unsafe fn allocate_places() -> Result<(), Refused> {
 /// 0x4C made a ring (+0 the one before, +4 the one after).
 pub unsafe fn allocate_ring() -> Result<(), Refused> {
     unsafe {
-        let block = take(RING_LIST_RVA, RING_LEN)?;
-        game_write(RING_RVA, block);
-        game_write(RING_FREE_RVA, block);
-        game_write(RING_USED_RVA, 0u32);
+        let block = take(Address(RING_POOL.list[0].as_ptr() as usize), RING_LEN)?;
+        RING_POOL.ring.set(block);
+        RING_POOL.free.set(block);
+        RING_POOL.used.set(0u32);
         // Converted: `rc2k_core::marks::rings::ring_links`.
         for (n, links) in rc2k_core::marks::rings::ring_links(block).enumerate() {
             let e = block.wrapping_add(n as u32 * RING_ENTRY) as *mut [u32; 2];
@@ -74,8 +78,8 @@ pub unsafe fn allocate_ring() -> Result<(), Refused> {
 /// (round), then `marks::scale_corners`.
 pub unsafe fn allocate_links() -> Result<(), Refused> {
     unsafe {
-        let block = take(LINKS_LIST_RVA, LINKS_LEN)?;
-        game_write(LINKS_RVA, block);
+        let block = take_from(MARK_LINKS.list.as_ptr(), LINKS_LEN)?;
+        MARK_LINKS.links.set(block);
         ((block + 0x7100C) as *mut u32).write_unaligned(0);
         // Converted: `rc2k_core::marks::rings::link_tables`.
         let (before, after) = rc2k_core::marks::rings::link_tables();
@@ -95,10 +99,10 @@ const CORNER_PAIRS: [u32; 4] = [0, 4, 0xC, 8];
 /// |+4 - +0| (sixteen-bit differences; `dword_8EB8B5`, `dword_8EB8B9`).
 pub unsafe fn scale_corners() {
     unsafe {
-        let scale: u32 = game_read(CORNER_SCALE_RVA);
+        let scale: u32 = DRAW_WORK.uv_k.bits();
         for n in (0..CORNERS).rev() {
-            let record = game_addr(CORNERS_RVA) as u32 + 0x80 * n;
-            let word = |o: u32| ((record + o) as *const u16).read_unaligned();
+            let record = &MARK_CORNERS.corners[n as usize];
+            let word = |o: u32| record.words[o as usize / 2].get();
             let mut values = [0u32; 8];
             for (k, &o) in CORNER_PAIRS.iter().enumerate() {
                 for h in 0..2 {
@@ -112,10 +116,12 @@ pub unsafe fn scale_corners() {
                 (if (d as i16) < 0 { d.wrapping_neg() } else { d }) as u32
             };
             let (across, along) = (side(4, 0), side(0xA, 2));
-            game_write(CORNER_SIDES_RVA, [across, along]);
-            let slope = SLOPES_RVA + (n * 0x24) as usize;
-            game_write(slope, x87::int_ratio(along as i32, across as i32));
-            game_write(slope + 4, values);
+            write_bits(&DRAW_WORK.half, [across, along]);
+            let slope = &CORNER_SLOPES.slopes[n as usize];
+            slope
+                .slope
+                .set_bits(x87::int_ratio(along as i32, across as i32));
+            write_bits(&slope.values, values);
         }
     }
 }
@@ -130,7 +136,8 @@ pub unsafe fn reset_settings_blocks() {
             let block = settings.wrapping_add(0x60 + n * SETTINGS_BLOCK);
             let at = |o: u32| (block + o) as *mut u32;
             for k in 0..6u32 {
-                let v = x87::loaded(game_read(SETTINGS_START_RVA + 4 * k as usize));
+                let v =
+                    x87::loaded(crate::marks::emitters::EMITTER.settings_start[k as usize].bits());
                 at(0x4C + 4 * k).write_unaligned(v);
             }
             let last: [u32; 3] = [0x58, 0x5C, 0x60].map(|o| at(o).read_unaligned());
@@ -141,5 +148,315 @@ pub unsafe fn reset_settings_blocks() {
             }
             at(0x30).write_unaligned(8);
         }
+    }
+}
+
+/// The places' list, block and first floats (IDA 0x8DB570 .. 0x8DB5C0, the image's layout; phase 7, typed state).
+#[repr(C)]
+pub struct PlacesBlock {
+    /// 0x8DB570: `stru_8DB570` (`g_marksPlacesList`): the list the places' block is taken on (16 bytes).
+    pub list: Shared<MemoryList>,
+    /// 0x8DB580: Not named: 48 bytes (a gap, or unreferenced data).
+    pub _gap_8db580: Bytes<48>,
+    /// 0x8DB5B0: `g_marksPlaces`: the places' block (0x7024 bytes), once taken.
+    pub places: Dword,
+    /// 0x8DB5B4: `flt_8DB5B4` .. `flt_8DB5BC`: the places' block's first three floats (`marks::allocate_places`).
+    pub start: [Float; 3],
+}
+
+pub static PLACES_BLOCK: PlacesBlock = PlacesBlock {
+    list: Shared::new(MemoryList {
+        head: 0x0,
+        total: 0x0,
+        cursor: 0x0,
+        remaining: 0x0,
+    }),
+    _gap_8db580: Bytes::new([0; 48]),
+    places: Dword::new(0x0),
+    start: [
+        Float::from_bits(0x0),
+        Float::from_bits(0xC8800000),
+        Float::from_bits(0x499C3E80),
+    ],
+};
+
+impl PlacesBlock {
+    pub const START: usize = 0x8DB570;
+    pub const LEN: usize = 0x50;
+    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
+    pub fn home() -> usize {
+        &PLACES_BLOCK as *const PlacesBlock as usize
+    }
+}
+
+/// The links' list and block (IDA 0x9206F0 .. 0x920734, the image's layout; phase 7, typed state).
+#[repr(C)]
+pub struct MarkLinks {
+    /// 0x9206F0: `stru_9206F0` (`g_marksLinksList`): the list the links' block is taken on (16 bytes).
+    pub list: Shared<MemoryList>,
+    /// 0x920700: Not named: 48 bytes (a gap, or unreferenced data).
+    pub _gap_920700: Bytes<48>,
+    /// 0x920730: `g_marksLinks`: the links' block (0x71020 bytes), once taken.
+    pub links: Dword,
+}
+
+pub static MARK_LINKS: MarkLinks = MarkLinks {
+    list: Shared::new(MemoryList {
+        head: 0x0,
+        total: 0x0,
+        cursor: 0x0,
+        remaining: 0x0,
+    }),
+    _gap_920700: Bytes::new([0; 48]),
+    links: Dword::new(0x0),
+};
+
+impl MarkLinks {
+    pub const START: usize = 0x9206F0;
+    pub const LEN: usize = 0x44;
+    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
+    pub fn home() -> usize {
+        &MARK_LINKS as *const MarkLinks as usize
+    }
+}
+
+/// A corner's slope record (0x24 bytes): the slope of its sides and its eight scaled values
+/// (`marks::scale_corners`; `marks::draw_cell_sprite` scales a sprite by the slope, and
+/// `marks::set_quad_uvs` reads record 0x58's eight values as four texture places).
+#[repr(C)]
+pub struct Slope {
+    /// +0: |+0xA - +2| over |+4 - +0| of the corner record, as a float.
+    pub slope: Float,
+    /// +4: the corner's four word pairs times `DrawWork::uv_k`.
+    pub values: [Float; 8],
+}
+
+impl Slope {
+    #[cfg(test)]
+    pub const LEN: usize = 0x24;
+    pub const fn new() -> Self {
+        Slope {
+            slope: Float::from_bits(0),
+            values: [const { Float::from_bits(0) }; 8],
+        }
+    }
+}
+
+/// The corners' slopes (`g_marksCornerSlopes`: 0x100 records of 0x24 bytes) (IDA 0x920734 .. 0x922B34, the image's layout; phase 7, typed state).
+#[repr(C)]
+pub struct CornerSlopes {
+    /// 0x920734: `g_marksCornerSlopes`: one record for each corner record.
+    pub slopes: [Slope; 0x100],
+}
+
+pub static CORNER_SLOPES: CornerSlopes = CornerSlopes {
+    slopes: [const { Slope::new() }; 0x100],
+};
+
+impl CornerSlopes {
+    pub const START: usize = 0x920734;
+    pub const LEN: usize = 0x2400;
+    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
+    pub fn home() -> usize {
+        &CORNER_SLOPES as *const CornerSlopes as usize
+    }
+}
+
+/// A corner record of `g_marksCorners` (0x80 bytes of 16-bit words: four (u, v) pairs of a
+/// cell's texture places, and what `marks::scale_corners` scales).
+#[repr(C)]
+pub struct Corner {
+    pub words: [Word; 0x40],
+}
+
+impl Corner {
+    #[cfg(test)]
+    pub const LEN: usize = 0x80;
+    pub const fn new() -> Self {
+        Corner {
+            words: [const { Word::new(0) }; 0x40],
+        }
+    }
+}
+
+/// The marks' corner table (`g_marksCorners`: 0x100 records of 0x80 bytes) (IDA 0x8EB971 .. 0x8F3971, the image's layout; phase 7, typed state).
+#[repr(C)]
+pub struct MarkCorners {
+    /// 0x8EB971: `g_marksCorners`: the corner records (the course's 0x8000 bytes of `markinfo` are copied here; `marks::scale_corners`).
+    pub corners: [Corner; 0x100],
+}
+
+pub static MARK_CORNERS: MarkCorners = MarkCorners {
+    corners: [const { Corner::new() }; 0x100],
+};
+
+impl MarkCorners {
+    pub const START: usize = 0x8EB971;
+    pub const LEN: usize = 0x8000;
+    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
+    pub fn home() -> usize {
+        &MARK_CORNERS as *const MarkCorners as usize
+    }
+}
+
+/// The particle ring's pool and the burst code's scratch (IDA 0x93A580 .. 0x93A5F0, the image's layout; phase 7, typed state).
+#[repr(C)]
+pub struct RingPool {
+    /// 0x93A580: `stru_93A580` (`g_marksRingList`): a `memory::List` (head, total, cursor, remaining)
+    pub list: [Dword; 4],
+    /// 0x93A590: Not named: 48 bytes (a gap, or unreferenced data)
+    pub _gap_93a590: Bytes<48>,
+    /// 0x93A5C0: `g_marksRingFree`: the first entry of the ring in use
+    pub free: Dword,
+    /// 0x93A5C4: Not named: 4 bytes (a gap, or unreferenced data)
+    pub _gap_93a5c4: Bytes<4>,
+    /// 0x93A5C8: `g_marksRing`: the block taken for the ring
+    pub ring: Dword,
+    /// 0x93A5CC: Not named: 4 bytes (a gap, or unreferenced data)
+    pub _gap_93a5cc: Bytes<4>,
+    /// 0x93A5D0: `dword_93A5D0`: a burst particle's +8 (kind plus 8 bits)
+    pub nine: Dword,
+    /// 0x93A5D4: `dword_93A5D4`: a burst particle's kind times 0x400
+    pub kind: Dword,
+    /// 0x93A5D8: Not named: 12 bytes (a gap, or unreferenced data)
+    pub _gap_93a5d8: Bytes<12>,
+    /// 0x93A5E4: `g_marksBurstRadius`: the burst's radius (`flt_93A5E4`)
+    pub burst_radius: Float,
+    /// 0x93A5E8: `dword_93A5E8`: the colour index of the particle being drawn
+    pub index: Dword,
+    /// 0x93A5EC: `g_marksRingUsed`: the entries taken
+    pub used: Dword,
+}
+
+/// RingPool's first values.
+pub static RING_POOL: RingPool = RingPool {
+    list: [
+        Dword::new(0x0),
+        Dword::new(0x0),
+        Dword::new(0x0),
+        Dword::new(0x0),
+    ],
+    _gap_93a590: Bytes::new([0; 48]),
+    free: Dword::new(0x0),
+    _gap_93a5c4: Bytes::new([0; 4]),
+    ring: Dword::new(0x0),
+    _gap_93a5cc: Bytes::new([0; 4]),
+    nine: Dword::new(0x0),
+    kind: Dword::new(0x0),
+    _gap_93a5d8: Bytes::new([
+        0x0D, 0x00, 0x80, 0x39, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    ]),
+    burst_radius: Float::from_bits(0x0),
+    index: Dword::new(0x0),
+    used: Dword::new(0x0),
+};
+
+impl RingPool {
+    pub const START: usize = 0x93A580;
+    pub const LEN: usize = 0x70;
+    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
+    pub fn home() -> usize {
+        &RING_POOL as *const RingPool as usize
+    }
+}
+
+#[cfg(test)]
+mod typed_tests {
+    use super::*;
+    use core::mem::{offset_of, size_of};
+
+    #[test]
+    fn places_block_starts_as_the_games() {
+        assert_eq!(size_of::<PlacesBlock>(), PlacesBlock::LEN);
+        let image = crate::moved::image_bytes(PlacesBlock::START, PlacesBlock::LEN);
+        let mine = unsafe {
+            std::slice::from_raw_parts(PlacesBlock::home() as *const u8, PlacesBlock::LEN)
+        };
+        assert!(
+            mine == &image[..],
+            "PLACES_BLOCK starts differently from the image"
+        );
+        assert_eq!(
+            offset_of!(PlacesBlock, places),
+            0x8DB5B0 - PlacesBlock::START
+        );
+        assert_eq!(
+            offset_of!(PlacesBlock, start),
+            0x8DB5B4 - PlacesBlock::START
+        );
+    }
+
+    #[test]
+    fn mark_links_starts_as_the_games() {
+        assert_eq!(size_of::<MarkLinks>(), MarkLinks::LEN);
+        let image = crate::moved::image_bytes(MarkLinks::START, MarkLinks::LEN);
+        let mine =
+            unsafe { std::slice::from_raw_parts(MarkLinks::home() as *const u8, MarkLinks::LEN) };
+        assert!(
+            mine == &image[..],
+            "MARK_LINKS starts differently from the image"
+        );
+        assert_eq!(offset_of!(MarkLinks, links), 0x920730 - MarkLinks::START);
+    }
+
+    #[test]
+    fn corner_slopes_starts_as_the_games() {
+        assert_eq!(size_of::<CornerSlopes>(), CornerSlopes::LEN);
+        let image = crate::moved::image_bytes(CornerSlopes::START, CornerSlopes::LEN);
+        let mine = unsafe {
+            std::slice::from_raw_parts(CornerSlopes::home() as *const u8, CornerSlopes::LEN)
+        };
+        assert!(
+            mine == &image[..],
+            "CORNER_SLOPES starts differently from the image"
+        );
+        assert_eq!(size_of::<Slope>(), Slope::LEN);
+    }
+
+    #[test]
+    fn mark_corners_starts_as_the_games() {
+        assert_eq!(size_of::<MarkCorners>(), MarkCorners::LEN);
+        let image = crate::moved::image_bytes(MarkCorners::START, MarkCorners::LEN);
+        let mine = unsafe {
+            std::slice::from_raw_parts(MarkCorners::home() as *const u8, MarkCorners::LEN)
+        };
+        assert!(
+            mine == &image[..],
+            "MARK_CORNERS starts differently from the image"
+        );
+        assert_eq!(size_of::<Corner>(), Corner::LEN);
+    }
+}
+
+#[cfg(test)]
+mod ring_pool_tests {
+    use super::*;
+    use core::mem::offset_of;
+
+    fn bytes<T>(v: &T) -> Vec<u8> {
+        let p = v as *const T as *const u8;
+        (0..size_of::<T>())
+            .map(|i| unsafe { p.add(i).read() })
+            .collect()
+    }
+
+    #[test]
+    fn ring_pool_starts_as_the_games() {
+        assert_eq!(size_of::<RingPool>(), RingPool::LEN);
+        assert!(
+            bytes(&RING_POOL) == crate::moved::image_bytes(RingPool::START, RingPool::LEN),
+            "RING_POOL starts differently from the image"
+        );
+        assert_eq!(offset_of!(RingPool, list), 0x93A580 - RingPool::START);
+        assert_eq!(offset_of!(RingPool, free), 0x93A5C0 - RingPool::START);
+        assert_eq!(offset_of!(RingPool, ring), 0x93A5C8 - RingPool::START);
+        assert_eq!(offset_of!(RingPool, nine), 0x93A5D0 - RingPool::START);
+        assert_eq!(offset_of!(RingPool, kind), 0x93A5D4 - RingPool::START);
+        assert_eq!(
+            offset_of!(RingPool, burst_radius),
+            0x93A5E4 - RingPool::START
+        );
+        assert_eq!(offset_of!(RingPool, index), 0x93A5E8 - RingPool::START);
+        assert_eq!(offset_of!(RingPool, used), 0x93A5EC - RingPool::START);
     }
 }

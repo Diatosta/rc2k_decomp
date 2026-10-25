@@ -33,7 +33,6 @@ use crate::logfile::log_write::log_write;
 use crate::race::vars_store::RACE_VARS;
 use crate::scene::kind_texture_store::KIND_TEXTURES;
 use crate::scene::texture_needs::{LEVEL_SIZES_RVA, SYSTEM_LEVELS_RVA, TEXTURES, VIDEO_LEVELS_RVA};
-use crate::scene::textures::{KIND_SLOT_RVA, KIND_TEXTURE_RVA};
 
 // ---- game data ----
 
@@ -85,12 +84,12 @@ impl rc2k_core::scene::textures::TextureMemory for GameMemory {
         KIND_TEXTURES.textures_asked_other.set(asked[1]);
     }
     fn set_first_slot(&mut self, texture: u32, slot: u32) {
-        unsafe { game_write(KIND_SLOT_RVA + texture as usize * 4, slot) }
+        KIND_TEXTURES.kind_first_slots[texture as usize].set(slot)
     }
     fn set_first_texture(&mut self, texture: u32, first: u32) {
         unsafe {
             game_write(TEXTURE_OF_RVA + first as usize * 4, texture);
-            game_write(KIND_TEXTURE_RVA + texture as usize * 4, first);
+            KIND_TEXTURES.kind_first_textures[texture as usize].set(first);
         }
     }
 }

@@ -11,7 +11,8 @@
 //! a first slot past the table.
 
 use crate::errors::BadInput;
-use crate::scene::textures::{KIND_SLOT_RVA, KIND_TEXTURE_RVA, KINDS, SLOTS, WANTED_RVA, slice};
+use crate::scene::kind_texture_store::KIND_TEXTURES;
+use crate::scene::textures::{SLOTS, WANTED_RVA, cells_mut, slice};
 
 // ---- Rust version ----
 
@@ -21,8 +22,8 @@ pub unsafe fn assign_kind_textures() -> Result<(), BadInput> {
     // Converted: `rc2k_core::scene::textures::assign_kind_textures`.
     unsafe {
         rc2k_core::scene::textures::assign_kind_textures(
-            slice(KIND_SLOT_RVA, KINDS),
-            slice(KIND_TEXTURE_RVA, KINDS),
+            cells_mut(&KIND_TEXTURES.kind_first_slots),
+            cells_mut(&KIND_TEXTURES.kind_first_textures),
             slice(WANTED_RVA, SLOTS),
         )?;
         Ok(())

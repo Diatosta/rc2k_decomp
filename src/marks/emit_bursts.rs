@@ -20,86 +20,77 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::marks::emitters::*;
-use crate::marks::store::{Slot, game_read, game_write};
+use crate::marks::surface_store::SURFACE;
+use crate::marks::tuning::{MARKS_FLOATS, MARKS_FRAME};
 use crate::math::x87;
 use crate::scene::matrix3::{extended, rounded};
+use crate::session::{Dword, Float, read_bits, write_bits};
 
-const FLAGS2_RVA: Slot = Slot::at(0x939BAA); // g_marksWheelFlags2: the wheel's +0x24 kept
-const DIRECTION_RVA: Slot = Slot::at(0x935688); // flt_935688 .. flt_935690
-const SCRATCH_RVA: Slot = Slot::at(0x765138); // dword_765138
-const PICK_RVA: Slot = Slot::at(0x9356C0); // dword_9356C0
-const RATE_SCALE_RVA: Slot = Slot::at(0x765190); // flt_765190
-const HALF_K_RVA: Slot = Slot::at(0x76514C); // flt_76514C
-const SPREAD_RVA: Slot = Slot::at(0x765158); // flt_765158
-const TURN_K_RVA: Slot = Slot::at(0x765150); // flt_765150
-const FADE_K_RVA: Slot = Slot::at(0x765214); // flt_765214
-const LOOKS_RVA: [Slot; 2] = [Slot::at(0x935476), Slot::at(0x93547A)];
 const LIFE: u32 = 0x7D0;
 
 /// One half's variables.
 pub struct Half {
     pub kind: u32,
-    pub strength: Slot,
-    pub rate_random: Slot,
-    pub count_random: Slot,
-    pub entry_random: Slot,
+    pub strength: &'static Float,
     /// The direction's factors (x, y, z) and whether |s| is scaled by `flt_765158` in y.
-    pub factors: [Slot; 3],
+    pub factors: [&'static Float; 3],
     pub scaled: bool,
     /// The size's mask and base, the side's factors.
     pub size: (u32, u32),
-    pub sides: [Slot; 3],
+    pub sides: [&'static Float; 3],
 }
 
-/// One function's variables: its two halves, the strength's factor, the blend's two.
+/// One function's variables: its two halves and the typed factors and randoms.
 pub struct BurstSet {
     pub halves: [Half; 2],
-    pub strength_k: Slot,
-    pub blend_k: [Slot; 2],
+    pub tuning: &'static BurstTuning,
 }
 
+/// The two halves' variables (`emit_bursts_2`'s are the same but for its tuning).
+pub const HALVES: [Half; 2] = [
+    Half {
+        kind: 0x11,
+        strength: &RING_WORK.strength[0],
+        factors: [&EMITTER.side_a[0], &EMITTER.side_a[1], &EMITTER.side_a[2]],
+        scaled: false,
+        size: (0x7FF, 0x400),
+        sides: [&EMITTER.side_b[0], &EMITTER.side_b[1], &EMITTER.side_b[2]],
+    },
+    Half {
+        kind: 0x10,
+        strength: &RING_WORK.strength[1],
+        factors: [&EMITTER.side_b[0], &EMITTER.side_b[1], &EMITTER.side_b[2]],
+        scaled: true,
+        size: (0x3FF, 0x600),
+        sides: [&EMITTER.side_a[0], &EMITTER.side_a[1], &EMITTER.side_a[2]],
+    },
+];
+
 /// `emit_bursts`'.
-pub const FIRST: BurstSet = BurstSet {
-    halves: [
-        Half {
-            kind: 0x11,
-            strength: Slot::at(0x935694),
-            rate_random: Slot::at(0x93A3D6),
-            count_random: Slot::at(0x93A3DA),
-            entry_random: Slot::at(0x93A3DE),
-            factors: [Slot::at(0x93545E), Slot::at(0x935462), Slot::at(0x935466)],
-            scaled: false,
-            size: (0x7FF, 0x400),
-            sides: [Slot::at(0x93543A), Slot::at(0x93543E), Slot::at(0x935442)],
-        },
-        Half {
-            kind: 0x10,
-            strength: Slot::at(0x935698),
-            rate_random: Slot::at(0x93A3EA),
-            count_random: Slot::at(0x93A3EE),
-            entry_random: Slot::at(0x93A3F2),
-            factors: [Slot::at(0x93543A), Slot::at(0x93543E), Slot::at(0x935442)],
-            scaled: true,
-            size: (0x3FF, 0x600),
-            sides: [Slot::at(0x93545E), Slot::at(0x935462), Slot::at(0x935466)],
-        },
-    ],
-    strength_k: Slot::at(0x93A3D2),
-    blend_k: [Slot::at(0x93A3E2), Slot::at(0x93A3E6)],
+pub static FIRST: BurstSet = BurstSet {
+    halves: HALVES,
+    tuning: &FIRST_TUNING,
 };
+
+impl BurstTuning {
+    /// The half's (`n` 0 or 1) rate, count and entry randoms.
+    pub fn randoms(&self, n: usize) -> &[Dword; 3] {
+        if n == 0 { &self.first } else { &self.second }
+    }
+}
 
 /// The half's strength and rate (`n` 0 or 1), from the wheel.
 unsafe fn strength(set: &BurstSet, n: usize, wheel: u32) -> (u32, i32) {
     unsafe {
-        let scale: u32 = game_read(RATE_SCALE_RVA);
+        let scale: u32 = MARKS_FLOATS.thirty_two.bits();
         if n == 0 {
-            x87::times_kept_abs_to_int(at(wheel + 0x10), game_read(set.strength_k), scale)
+            x87::times_kept_abs_to_int(at(wheel + 0x10), set.tuning.strength_k.bits(), scale)
         } else {
             x87::blend_kept_abs_to_int(
                 at(wheel + 0xC),
                 at(wheel + 0x18),
-                game_read(set.blend_k[0]),
-                game_read(set.blend_k[1]),
+                set.tuning.blend_k[0].bits(),
+                set.tuning.blend_k[1].bits(),
                 scale,
             )
         }
@@ -114,15 +105,16 @@ unsafe fn counts(set: &BurstSet, wheel: u32) -> [u32; 2] {
             return [0; 2];
         }
         std::array::from_fn(|n| {
-            let h = &set.halves[n];
             let (_, rate) = strength(set, n, wheel);
-            let r = game_read::<u32>(h.rate_random)
+            let r = set.tuning.randoms(n)[0]
+                .get()
                 .wrapping_mul(0xC5)
                 .wrapping_add(0x5D);
             if (r.rotate_right(16) & 0xFF) as i32 >= rate {
                 return 0;
             }
-            let c = game_read::<u32>(h.count_random)
+            let c = set.tuning.randoms(n)[1]
+                .get()
                 .wrapping_mul(0xC5)
                 .wrapping_add(0x5D);
             (c & 0xFFF) % ((flags2 >> 6) << 2)
@@ -140,7 +132,7 @@ pub unsafe fn refusal(set: &BurstSet, wheel: u32, object: u32) -> Option<&'stati
             return None;
         }
         let [a, b] = counts(set, wheel);
-        let car: u32 = game_read(OBJECT_RVA);
+        let car: u32 = EMITTER.car.get();
         if a + b > 0 && (object == 0 || car == 0 || at(car + 0x24) == 0) {
             return Some("a null object, car or matrix");
         }
@@ -160,42 +152,42 @@ pub unsafe fn emit_bursts_with(set: &BurstSet, wheel: u32, object: u32) -> Resul
             return Err(BadInput(why).into());
         }
         let flags2 = at(wheel + 0x24);
-        game_write(FLAGS2_RVA, flags2);
+        SURFACE.wheel_flags2.set(flags2);
         if flags2 >> 6 == 0 {
             return Ok(());
         }
         for (n, h) in set.halves.iter().enumerate() {
             let (s, rate) = strength(set, n, wheel);
-            game_write(h.strength, s);
-            game_write(PICK_RVA, rate);
-            let r = next_c5(h.rate_random);
+            h.strength.set_bits(s);
+            RING_WORK.whole.set(rate as u32);
+            let r = next_c5(&set.tuning.randoms(n)[0]);
             if (r.rotate_right(16) & 0xFF) as i32 >= rate {
                 continue;
             }
-            let car: u32 = game_read(OBJECT_RVA);
-            let k: u32 = game_read(HALF_K_RVA);
-            let s: u32 = game_read(h.strength);
-            let scale = h.scaled.then(|| game_read::<u32>(SPREAD_RVA));
+            let car: u32 = EMITTER.car.get();
+            let k: u32 = MARKS_FLOATS.minus_65_536.bits();
+            let s: u32 = h.strength.bits();
+            let scale = h.scaled.then(|| MARKS_FLOATS.half.bits());
             let direction = [
-                x87::mul2(game_read(h.factors[0]), s, k),
-                x87::times_less_abs_times(game_read(h.factors[1]), s, scale, k),
-                x87::mul2(game_read(h.factors[2]), s, k),
+                x87::mul2(h.factors[0].bits(), s, k),
+                x87::times_less_abs_times(h.factors[1].bits(), s, scale, k),
+                x87::mul2(h.factors[2].bits(), s, k),
             ];
-            game_write(DIRECTION_RVA, direction);
-            let count = (next_c5(h.count_random) & 0xFFF) % ((flags2 >> 6) << 2);
+            write_bits(&RING_WORK.direction, direction);
+            let count = (next_c5(&set.tuning.randoms(n)[1]) & 0xFFF) % ((flags2 >> 6) << 2);
             for _ in 0..count {
                 // The ring full (0x3FE taken): the original leaves by 0x4CD741 / 0x4CDC6E,
                 // whose stack slip crashed the game (section 16). Fixed 2026-10-23: the
                 // bursts end there, the caller's registers kept, as `lea esp, [esp+8]`
                 // would leave them.
-                if game_read::<u32>(RING_COUNT_RVA) == MOST_TAKEN {
+                if RING_WORK.count.get() == MOST_TAKEN {
                     return Ok(());
                 }
                 let e = take_entry(at(object + 0x1C) & 0xFF_FFFF, h.kind);
                 let put = |o: u32, v: u32| ((e + o) as *mut u32).write_unaligned(v);
-                let d: [u32; 3] = game_read(DIRECTION_RVA);
+                let d = read_bits(&RING_WORK.direction);
                 let (out, _) = crate::marks::spread_point::spread_point([
-                    extended(game_read(SPREAD_RVA)),
+                    extended(MARKS_FLOATS.half.bits()),
                     extended(d[2]),
                     extended(d[1]),
                     extended(d[0]),
@@ -203,12 +195,12 @@ pub unsafe fn emit_bursts_with(set: &BurstSet, wheel: u32, object: u32) -> Resul
                 put(0x34, rounded(out[0]));
                 put(0x30, rounded(out[1]));
                 put(0x2C, rounded(out[2]));
-                let r = next_c5(h.entry_random);
+                let r = next_c5(&set.tuning.randoms(n)[2]);
                 let size = (r.rotate_right(8) & h.size.0) + h.size.1;
-                game_write(SCRATCH_RVA, size);
+                MARKS_FRAME.emit_side.set_bits(size);
                 put(0x60, x87::from_int(size as i32));
                 put(0x58, ((flags2 & 0x3F) << 4) + (r.rotate_right(17) & 3));
-                let tk: u32 = game_read(TURN_K_RVA);
+                let tk: u32 = MARKS_FLOATS.minus_eighth.bits();
                 put(0x40, x87::mul(at(car + 0x54), tk));
                 put(0x3C, x87::mul(at(car + 0x50), tk));
                 put(0x38, x87::mul(at(car + 0x4C), tk));
@@ -217,13 +209,13 @@ pub unsafe fn emit_bursts_with(set: &BurstSet, wheel: u32, object: u32) -> Resul
                 }
                 let m = at(car + 0x24);
                 let side = (r.rotate_right(8) & 0x3FFF).wrapping_sub(0x2000);
-                game_write(SCRATCH_RVA, side);
+                MARKS_FRAME.emit_side.set_bits(side);
                 let place: [u32; 3] = std::array::from_fn(|k| {
                     let k4 = 4 * k as u32;
                     x87::less_plus_int_times(
                         at(wheel + 0x3C + k4),
                         at(m + 0x30 + k4),
-                        game_read(h.sides[k]),
+                        h.sides[k].bits(),
                         side as i32,
                     )
                 });
@@ -232,17 +224,97 @@ pub unsafe fn emit_bursts_with(set: &BurstSet, wheel: u32, object: u32) -> Resul
                 put(0x28, place[1]);
                 put(0x18, place[2]);
                 let pick = r & 0x7_FFFF;
-                game_write(PICK_RVA, pick);
+                RING_WORK.whole.set(pick);
                 put(
                     0x5C,
-                    x87::int_times_plus(pick as i32, game_read(FADE_K_RVA), game_read(ONE_RVA)),
+                    x87::int_times_plus(
+                        pick as i32,
+                        MARKS_FLOATS.over_65536.bits(),
+                        MARKS_FLOATS.one.bits(),
+                    ),
                 );
                 put(0x84, LIFE);
-                put(0x7C, game_read(LOOKS_RVA[0]));
-                put(0x80, game_read(LOOKS_RVA[1]));
+                put(0x7C, EMITTER.looks[0].get());
+                put(0x80, EMITTER.looks[1].get());
                 put(0x68, car);
             }
         }
     }
     Ok(())
+}
+
+/// One burst emitter's factors and randoms (`emit_bursts`' at 0x93A3D2, `emit_bursts_2`'s at 0x93A3F6) (IDA 0x93A3D2 .. 0x93A3F6, the image's layout; phase 7, typed state).
+#[repr(C)]
+pub struct BurstTuning {
+    /// 0x93A3D2: the strength's factor
+    pub strength_k: Float,
+    /// 0x93A3D6: the first half's rate, count and entry randoms
+    pub first: [Dword; 3],
+    /// 0x93A3E2: the blend's two factors
+    pub blend_k: [Float; 2],
+    /// 0x93A3EA: the second half's rate, count and entry randoms
+    pub second: [Dword; 3],
+}
+
+/// One burst emitter's factors and randoms (`emit_bursts`' at 0x93A3D2, `emit_bursts_2`'s at 0x93A3F6) (IDA 0x93A3D2 .. 0x93A3F6).
+pub static FIRST_TUNING: BurstTuning = BurstTuning {
+    strength_k: Float::from_bits(0xBE800000),
+    first: [Dword::new(0x0), Dword::new(0x0), Dword::new(0x0)],
+    blend_k: [Float::from_bits(0xBE800000), Float::from_bits(0xBD4CCCCD)],
+    second: [Dword::new(0x0), Dword::new(0x0), Dword::new(0x0)],
+};
+
+impl BurstTuning {
+    pub const LEN: usize = 0x24;
+}
+
+/// Marker for `moved::MOVED`: FIRST_TUNING's place in the image.
+pub struct FirstTuning;
+
+impl FirstTuning {
+    pub const START: usize = 0x93A3D2;
+    pub const LEN: usize = BurstTuning::LEN;
+
+    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
+    pub fn home() -> usize {
+        &FIRST_TUNING as *const BurstTuning as usize
+    }
+}
+
+#[cfg(test)]
+mod first_tuning_tests {
+    use super::*;
+    use core::mem::offset_of;
+
+    fn bytes<T>(v: &T) -> Vec<u8> {
+        let p = v as *const T as *const u8;
+        (0..size_of::<T>())
+            .map(|i| unsafe { p.add(i).read() })
+            .collect()
+    }
+
+    #[test]
+    fn first_tuning_starts_as_the_games() {
+        assert_eq!(size_of::<BurstTuning>(), BurstTuning::LEN);
+        assert!(
+            bytes(&FIRST_TUNING) == crate::moved::image_bytes(FirstTuning::START, BurstTuning::LEN),
+            "FIRST_TUNING starts differently from the image"
+        );
+        assert_eq!(
+            offset_of!(BurstTuning, strength_k),
+            0x93A3D2 - FirstTuning::START
+        );
+        assert_eq!(
+            offset_of!(BurstTuning, first),
+            0x93A3D6 - FirstTuning::START
+        );
+        assert_eq!(
+            offset_of!(BurstTuning, blend_k),
+            0x93A3E2 - FirstTuning::START
+        );
+        assert_eq!(
+            offset_of!(BurstTuning, second),
+            0x93A3EA - FirstTuning::START
+        );
+    }
 }

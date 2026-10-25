@@ -13,8 +13,6 @@
 //! Eight callers.
 
 use crate::errors::Refused;
-use crate::framework::game_read;
-use crate::scene::draw_polygon::SWITCH_B_RVA;
 use crate::scene::draw_store::DRAW;
 use crate::scene::polygon::{dword, listed, put};
 use crate::session::MACHINE;
@@ -31,7 +29,7 @@ pub unsafe fn scale_texture_coordinates() -> Result<(), Refused> {
             return Ok(());
         }
         let entries = listed()?;
-        let switches: [u32; 2] = [DRAW.polygon_sides[0].bits(), game_read(SWITCH_B_RVA)];
+        let switches: [u32; 2] = [DRAW.polygon_sides[0].bits(), DRAW.polygon_sides[1].bits()];
         for &entry in &entries {
             for (pair, switch) in switches.into_iter().enumerate() {
                 if switch == 0 {

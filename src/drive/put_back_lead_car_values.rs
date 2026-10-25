@@ -8,11 +8,10 @@
 //! Caller: `drive::share_all_cars` (0x456484), last.
 
 use crate::drive::lead_car_values::pairs;
-use crate::framework::{game_read, rva};
 
 /// The Rust version.
 pub fn put_back_lead_car_values() {
     for (field, place) in pairs() {
-        field.set(unsafe { game_read(rva(place)) });
+        field.set(place.get());
     }
 }

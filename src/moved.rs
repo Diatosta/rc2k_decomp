@@ -1210,6 +1210,126 @@ pub(crate) const MOVED: &[Moved] = &[
         home: crate::marks::store::home_of::<{ crate::marks::store::SEGS[16].0 }>,
     },
     Moved {
+        ida: crate::marks::store::SEGS[17].0,
+        len: crate::marks::store::SEGS[17].1 - crate::marks::store::SEGS[17].0,
+        home: crate::marks::store::home_of::<{ crate::marks::store::SEGS[17].0 }>,
+    },
+    Moved {
+        ida: crate::marks::store::SEGS[18].0,
+        len: crate::marks::store::SEGS[18].1 - crate::marks::store::SEGS[18].0,
+        home: crate::marks::store::home_of::<{ crate::marks::store::SEGS[18].0 }>,
+    },
+    Moved {
+        ida: crate::marks::store::SEGS[19].0,
+        len: crate::marks::store::SEGS[19].1 - crate::marks::store::SEGS[19].0,
+        home: crate::marks::store::home_of::<{ crate::marks::store::SEGS[19].0 }>,
+    },
+    Moved {
+        ida: crate::marks::store::SEGS[20].0,
+        len: crate::marks::store::SEGS[20].1 - crate::marks::store::SEGS[20].0,
+        home: crate::marks::store::home_of::<{ crate::marks::store::SEGS[20].0 }>,
+    },
+    Moved {
+        ida: crate::marks::store::SEGS[21].0,
+        len: crate::marks::store::SEGS[21].1 - crate::marks::store::SEGS[21].0,
+        home: crate::marks::store::home_of::<{ crate::marks::store::SEGS[21].0 }>,
+    },
+    Moved {
+        ida: crate::marks::store::SEGS[22].0,
+        len: crate::marks::store::SEGS[22].1 - crate::marks::store::SEGS[22].0,
+        home: crate::marks::store::home_of::<{ crate::marks::store::SEGS[22].0 }>,
+    },
+    Moved {
+        ida: crate::marks::store::SEGS[23].0,
+        len: crate::marks::store::SEGS[23].1 - crate::marks::store::SEGS[23].0,
+        home: crate::marks::store::home_of::<{ crate::marks::store::SEGS[23].0 }>,
+    },
+    Moved {
+        ida: crate::marks::store::SEGS[24].0,
+        len: crate::marks::store::SEGS[24].1 - crate::marks::store::SEGS[24].0,
+        home: crate::marks::store::home_of::<{ crate::marks::store::SEGS[24].0 }>,
+    },
+    Moved {
+        ida: crate::marks::store::SEGS[25].0,
+        len: crate::marks::store::SEGS[25].1 - crate::marks::store::SEGS[25].0,
+        home: crate::marks::store::home_of::<{ crate::marks::store::SEGS[25].0 }>,
+    },
+    Moved {
+        ida: crate::marks::store::SEGS[26].0,
+        len: crate::marks::store::SEGS[26].1 - crate::marks::store::SEGS[26].0,
+        home: crate::marks::store::home_of::<{ crate::marks::store::SEGS[26].0 }>,
+    },
+    Moved {
+        ida: crate::marks::store::SEGS[27].0,
+        len: crate::marks::store::SEGS[27].1 - crate::marks::store::SEGS[27].0,
+        home: crate::marks::store::home_of::<{ crate::marks::store::SEGS[27].0 }>,
+    },
+    Moved {
+        ida: crate::marks::store::SEGS[28].0,
+        len: crate::marks::store::SEGS[28].1 - crate::marks::store::SEGS[28].0,
+        home: crate::marks::store::home_of::<{ crate::marks::store::SEGS[28].0 }>,
+    },
+    Moved {
+        ida: crate::marks::store::SEGS[29].0,
+        len: crate::marks::store::SEGS[29].1 - crate::marks::store::SEGS[29].0,
+        home: crate::marks::store::home_of::<{ crate::marks::store::SEGS[29].0 }>,
+    },
+    Moved {
+        ida: crate::marks::store::SEGS[30].0,
+        len: crate::marks::store::SEGS[30].1 - crate::marks::store::SEGS[30].0,
+        home: crate::marks::store::home_of::<{ crate::marks::store::SEGS[30].0 }>,
+    },
+    Moved {
+        ida: crate::marks::store::SEGS[31].0,
+        len: crate::marks::store::SEGS[31].1 - crate::marks::store::SEGS[31].0,
+        home: crate::marks::store::home_of::<{ crate::marks::store::SEGS[31].0 }>,
+    },
+    Moved {
+        ida: crate::marks::store::SEGS[32].0,
+        len: crate::marks::store::SEGS[32].1 - crate::marks::store::SEGS[32].0,
+        home: crate::marks::store::home_of::<{ crate::marks::store::SEGS[32].0 }>,
+    },
+    Moved {
+        ida: crate::marks::store::SEGS[33].0,
+        len: crate::marks::store::SEGS[33].1 - crate::marks::store::SEGS[33].0,
+        home: crate::marks::store::home_of::<{ crate::marks::store::SEGS[33].0 }>,
+    },
+    Moved {
+        ida: crate::marks::store::SEGS[34].0,
+        len: crate::marks::store::SEGS[34].1 - crate::marks::store::SEGS[34].0,
+        home: crate::marks::store::home_of::<{ crate::marks::store::SEGS[34].0 }>,
+    },
+    Moved {
+        ida: crate::marks::store::SEGS[35].0,
+        len: crate::marks::store::SEGS[35].1 - crate::marks::store::SEGS[35].0,
+        home: crate::marks::store::home_of::<{ crate::marks::store::SEGS[35].0 }>,
+    },
+    Moved {
+        ida: crate::marks::store::SEGS[36].0,
+        len: crate::marks::store::SEGS[36].1 - crate::marks::store::SEGS[36].0,
+        home: crate::marks::store::home_of::<{ crate::marks::store::SEGS[36].0 }>,
+    },
+    Moved {
+        ida: crate::marks::store::SEGS[37].0,
+        len: crate::marks::store::SEGS[37].1 - crate::marks::store::SEGS[37].0,
+        home: crate::marks::store::home_of::<{ crate::marks::store::SEGS[37].0 }>,
+    },
+    Moved {
+        ida: crate::marks::store::SEGS[38].0,
+        len: crate::marks::store::SEGS[38].1 - crate::marks::store::SEGS[38].0,
+        home: crate::marks::store::home_of::<{ crate::marks::store::SEGS[38].0 }>,
+    },
+    Moved {
+        ida: crate::marks::store::SEGS[39].0,
+        len: crate::marks::store::SEGS[39].1 - crate::marks::store::SEGS[39].0,
+        home: crate::marks::store::home_of::<{ crate::marks::store::SEGS[39].0 }>,
+    },
+    Moved {
+        ida: crate::marks::shape_points::ShapeInputs::START,
+        len: crate::marks::shape_points::ShapeInputs::LEN,
+        home: crate::marks::shape_points::ShapeInputs::home,
+    },
+    Moved {
         ida: crate::marks::view_vectors::ViewSources::START,
         len: crate::marks::view_vectors::ViewSources::LEN,
         home: crate::marks::view_vectors::ViewSources::home,
@@ -1218,6 +1338,21 @@ pub(crate) const MOVED: &[Moved] = &[
         ida: crate::marks::setup::MarksClock::START,
         len: crate::marks::setup::MarksClock::LEN,
         home: crate::marks::setup::MarksClock::home,
+    },
+    Moved {
+        ida: crate::marks::tuning::MarksFrame::START,
+        len: crate::marks::tuning::MarksFrame::LEN,
+        home: crate::marks::tuning::MarksFrame::home,
+    },
+    Moved {
+        ida: crate::marks::tuning::MarksFloats::START,
+        len: crate::marks::tuning::MarksFloats::LEN,
+        home: crate::marks::tuning::MarksFloats::home,
+    },
+    Moved {
+        ida: crate::marks::tuning::MarksKindFloats::START,
+        len: crate::marks::tuning::MarksKindFloats::LEN,
+        home: crate::marks::tuning::MarksKindFloats::home,
     },
     Moved {
         ida: crate::marks::setup::MarksSettings::START,
@@ -1240,9 +1375,124 @@ pub(crate) const MOVED: &[Moved] = &[
         home: crate::marks::pong::PongRules::home,
     },
     Moved {
+        ida: crate::marks::kind_values::MarksKind::START,
+        len: crate::marks::kind_values::MarksKind::LEN,
+        home: crate::marks::kind_values::MarksKind::home,
+    },
+    Moved {
         ida: crate::marks::view_vectors::KeptView::START,
         len: crate::marks::view_vectors::KeptView::LEN,
         home: crate::marks::view_vectors::KeptView::home,
+    },
+    Moved {
+        ida: crate::marks::splines::SplineHead::START,
+        len: crate::marks::splines::SplineHead::LEN,
+        home: crate::marks::splines::SplineHead::home,
+    },
+    Moved {
+        ida: crate::marks::splines::SplineWork::START,
+        len: crate::marks::splines::SplineWork::LEN,
+        home: crate::marks::splines::SplineWork::home,
+    },
+    Moved {
+        ida: crate::marks::splines::SplineTables::START,
+        len: crate::marks::splines::SplineTables::LEN,
+        home: crate::marks::splines::SplineTables::home,
+    },
+    Moved {
+        ida: crate::marks::splines::SplineKinds::START,
+        len: crate::marks::splines::SplineKinds::LEN,
+        home: crate::marks::splines::SplineKinds::home,
+    },
+    Moved {
+        ida: crate::marks::splines::SplinePath::START,
+        len: crate::marks::splines::SplinePath::LEN,
+        home: crate::marks::splines::SplinePath::home,
+    },
+    Moved {
+        ida: crate::marks::splines::SplineConstants::START,
+        len: crate::marks::splines::SplineConstants::LEN,
+        home: crate::marks::splines::SplineConstants::home,
+    },
+    Moved {
+        ida: crate::marks::edges::EdgeMask::START,
+        len: crate::marks::edges::EdgeMask::LEN,
+        home: crate::marks::edges::EdgeMask::home,
+    },
+    Moved {
+        ida: crate::marks::tilt_shape::ShapeTilt::START,
+        len: crate::marks::tilt_shape::ShapeTilt::LEN,
+        home: crate::marks::tilt_shape::ShapeTilt::home,
+    },
+    Moved {
+        ida: crate::marks::edges::KindBoxes::START,
+        len: crate::marks::edges::KindBoxes::LEN,
+        home: crate::marks::edges::KindBoxes::home,
+    },
+    Moved {
+        ida: crate::marks::hexagon_state::HexagonState::START,
+        len: crate::marks::hexagon_state::HexagonState::LEN,
+        home: crate::marks::hexagon_state::HexagonState::home,
+    },
+    Moved {
+        ida: crate::marks::hexagon_state::HexagonWork::START,
+        len: crate::marks::hexagon_state::HexagonWork::LEN,
+        home: crate::marks::hexagon_state::HexagonWork::home,
+    },
+    Moved {
+        ida: crate::marks::hexagon_vars::HexagonVars::START,
+        len: crate::marks::hexagon_vars::HexagonVars::LEN,
+        home: crate::marks::hexagon_vars::HexagonVars::home,
+    },
+    Moved {
+        ida: crate::marks::mask_vars::MaskVars::START,
+        len: crate::marks::mask_vars::MaskVars::LEN,
+        home: crate::marks::mask_vars::MaskVars::home,
+    },
+    Moved {
+        ida: crate::marks::mask_picks::MaskPicks::START,
+        len: crate::marks::mask_picks::MaskPicks::LEN,
+        home: crate::marks::mask_picks::MaskPicks::home,
+    },
+    Moved {
+        ida: crate::marks::shape_work::ShapeWork::START,
+        len: crate::marks::shape_work::ShapeWork::LEN,
+        home: crate::marks::shape_work::ShapeWork::home,
+    },
+    Moved {
+        ida: crate::marks::shape_points::ShapeSetTuning::START,
+        len: crate::marks::shape_points::ShapeSetTuning::LEN,
+        home: crate::marks::shape_points::ShapeSetTuning::home,
+    },
+    Moved {
+        ida: crate::marks::mask_constants::MaskConstants::START,
+        len: crate::marks::mask_constants::MaskConstants::LEN,
+        home: crate::marks::mask_constants::MaskConstants::home,
+    },
+    Moved {
+        ida: crate::marks::squares_store::SquareTiming::START,
+        len: crate::marks::squares_store::SquareTiming::LEN,
+        home: crate::marks::squares_store::SquareTiming::home,
+    },
+    Moved {
+        ida: crate::marks::squares_store::SquareTables::START,
+        len: crate::marks::squares_store::SquareTables::LEN,
+        home: crate::marks::squares_store::SquareTables::home,
+    },
+    Moved {
+        ida: crate::marks::squares_store::SquareItems::START,
+        len: crate::marks::squares_store::SquareItems::LEN,
+        home: crate::marks::squares_store::SquareItems::home,
+    },
+    Moved {
+        ida: crate::marks::squares_store::SquareState::START,
+        len: crate::marks::squares_store::SquareState::LEN,
+        home: crate::marks::squares_store::SquareState::home,
+    },
+    Moved {
+        ida: crate::marks::edges::EdgeSettings::START,
+        len: crate::marks::edges::EdgeSettings::LEN,
+        home: crate::marks::edges::EdgeSettings::home,
     },
     Moved {
         ida: crate::marks::rain::RainState::START,
@@ -1280,9 +1530,54 @@ pub(crate) const MOVED: &[Moved] = &[
         home: crate::marks::snow::SnowLight::home,
     },
     Moved {
+        ida: crate::marks::blocks::PlacesBlock::START,
+        len: crate::marks::blocks::PlacesBlock::LEN,
+        home: crate::marks::blocks::PlacesBlock::home,
+    },
+    Moved {
+        ida: crate::marks::profiles::ProfileRings::START,
+        len: crate::marks::profiles::ProfileRings::LEN,
+        home: crate::marks::profiles::ProfileRings::home,
+    },
+    Moved {
+        ida: crate::marks::profiles::ProfileTables::START,
+        len: crate::marks::profiles::ProfileTables::LEN,
+        home: crate::marks::profiles::ProfileTables::home,
+    },
+    Moved {
+        ida: crate::marks::frame_state::DrawWork::START,
+        len: crate::marks::frame_state::DrawWork::LEN,
+        home: crate::marks::frame_state::DrawWork::home,
+    },
+    Moved {
+        ida: crate::marks::blocks::MarkCorners::START,
+        len: crate::marks::blocks::MarkCorners::LEN,
+        home: crate::marks::blocks::MarkCorners::home,
+    },
+    Moved {
+        ida: crate::marks::frame_state::ViewVars::START,
+        len: crate::marks::frame_state::ViewVars::LEN,
+        home: crate::marks::frame_state::ViewVars::home,
+    },
+    Moved {
+        ida: crate::marks::profiles::ProfileLists::START,
+        len: crate::marks::profiles::ProfileLists::LEN,
+        home: crate::marks::profiles::ProfileLists::home,
+    },
+    Moved {
+        ida: crate::marks::frame_state::DrawFrame::START,
+        len: crate::marks::frame_state::DrawFrame::LEN,
+        home: crate::marks::frame_state::DrawFrame::home,
+    },
+    Moved {
         ida: crate::marks::waves::MarksSines::START,
         len: crate::marks::waves::MarksSines::LEN,
         home: crate::marks::waves::MarksSines::home,
+    },
+    Moved {
+        ida: crate::marks::frame_state::FlareParts::START,
+        len: crate::marks::frame_state::FlareParts::LEN,
+        home: crate::marks::frame_state::FlareParts::home,
     },
     Moved {
         ida: crate::marks::waves::WaveLevels::START,
@@ -1295,6 +1590,101 @@ pub(crate) const MOVED: &[Moved] = &[
         home: crate::marks::waves::WaveState::home,
     },
     Moved {
+        ida: crate::marks::frame_state::FlareScales::START,
+        len: crate::marks::frame_state::FlareScales::LEN,
+        home: crate::marks::frame_state::FlareScales::home,
+    },
+    Moved {
+        ida: crate::marks::blocks::MarkLinks::START,
+        len: crate::marks::blocks::MarkLinks::LEN,
+        home: crate::marks::blocks::MarkLinks::home,
+    },
+    Moved {
+        ida: crate::marks::blocks::CornerSlopes::START,
+        len: crate::marks::blocks::CornerSlopes::LEN,
+        home: crate::marks::blocks::CornerSlopes::home,
+    },
+    Moved {
+        ida: crate::marks::run_particles::TrailColours::START,
+        len: crate::marks::run_particles::TrailColours::LEN,
+        home: crate::marks::run_particles::TrailColours::home,
+    },
+    Moved {
+        ida: crate::marks::spread_point::SpreadRandom::START,
+        len: crate::marks::spread_point::SpreadRandom::LEN,
+        home: crate::marks::spread_point::SpreadRandom::home,
+    },
+    Moved {
+        ida: crate::marks::kind_store::Quad1::START,
+        len: crate::marks::kind_store::Quad1::LEN,
+        home: crate::marks::kind_store::Quad1::home,
+    },
+    Moved {
+        ida: crate::marks::kind_store::Tables1::START,
+        len: crate::marks::kind_store::Tables1::LEN,
+        home: crate::marks::kind_store::Tables1::home,
+    },
+    Moved {
+        ida: crate::marks::kind_store::KindExtras1::START,
+        len: crate::marks::kind_store::KindExtras1::LEN,
+        home: crate::marks::kind_store::KindExtras1::home,
+    },
+    Moved {
+        ida: crate::marks::kind_store::Consts1::START,
+        len: crate::marks::kind_store::Consts1::LEN,
+        home: crate::marks::kind_store::Consts1::home,
+    },
+    Moved {
+        ida: crate::marks::kind_store::Quad2::START,
+        len: crate::marks::kind_store::Quad2::LEN,
+        home: crate::marks::kind_store::Quad2::home,
+    },
+    Moved {
+        ida: crate::marks::kind_store::Tables2::START,
+        len: crate::marks::kind_store::Tables2::LEN,
+        home: crate::marks::kind_store::Tables2::home,
+    },
+    Moved {
+        ida: crate::marks::kind_store::KindExtra2::START,
+        len: crate::marks::kind_store::KindExtra2::LEN,
+        home: crate::marks::kind_store::KindExtra2::home,
+    },
+    Moved {
+        ida: crate::marks::kind_store::Consts2::START,
+        len: crate::marks::kind_store::Consts2::LEN,
+        home: crate::marks::kind_store::Consts2::home,
+    },
+    Moved {
+        ida: crate::marks::kind_store::Quad3::START,
+        len: crate::marks::kind_store::Quad3::LEN,
+        home: crate::marks::kind_store::Quad3::home,
+    },
+    Moved {
+        ida: crate::marks::mask_store::GroundNames::START,
+        len: crate::marks::mask_store::GroundNames::LEN,
+        home: crate::marks::mask_store::GroundNames::home,
+    },
+    Moved {
+        ida: crate::marks::mask_store::MaskBlocks::START,
+        len: crate::marks::mask_store::MaskBlocks::LEN,
+        home: crate::marks::mask_store::MaskBlocks::home,
+    },
+    Moved {
+        ida: crate::marks::mask_store::PictureCopy::START,
+        len: crate::marks::mask_store::PictureCopy::LEN,
+        home: crate::marks::mask_store::PictureCopy::home,
+    },
+    Moved {
+        ida: crate::marks::mask_store::KindPictures::START,
+        len: crate::marks::mask_store::KindPictures::LEN,
+        home: crate::marks::mask_store::KindPictures::home,
+    },
+    Moved {
+        ida: crate::marks::draw_plane::PlaneTuning::START,
+        len: crate::marks::draw_plane::PlaneTuning::LEN,
+        home: crate::marks::draw_plane::PlaneTuning::home,
+    },
+    Moved {
         ida: crate::marks::mark_slots::MarkSlots::START,
         len: crate::marks::mark_slots::MarkSlots::LEN,
         home: crate::marks::mark_slots::MarkSlots::home,
@@ -1303,6 +1693,151 @@ pub(crate) const MOVED: &[Moved] = &[
         ida: crate::marks::mark_slots::SlotTuning::START,
         len: crate::marks::mark_slots::SlotTuning::LEN,
         home: crate::marks::mark_slots::SlotTuning::home,
+    },
+    Moved {
+        ida: crate::marks::emitters::EmitterVars::START,
+        len: crate::marks::emitters::EmitterVars::LEN,
+        home: crate::marks::emitters::EmitterVars::home,
+    },
+    Moved {
+        ida: crate::marks::ring_store::RingWork::START,
+        len: crate::marks::ring_store::RingWork::LEN,
+        home: crate::marks::ring_store::RingWork::home,
+    },
+    Moved {
+        ida: crate::marks::ring_store::PictureNames::START,
+        len: crate::marks::ring_store::PictureNames::LEN,
+        home: crate::marks::ring_store::PictureNames::home,
+    },
+    Moved {
+        ida: crate::marks::surface_store::SurfaceTables::START,
+        len: crate::marks::surface_store::SurfaceTables::LEN,
+        home: crate::marks::surface_store::SurfaceTables::home,
+    },
+    Moved {
+        ida: crate::marks::run_ribbons::Colours257::START,
+        len: crate::marks::run_ribbons::Colours257::LEN,
+        home: crate::marks::run_ribbons::Colours257::home,
+    },
+    Moved {
+        ida: crate::marks::emit_particle_19::TwinState::START,
+        len: crate::marks::emit_particle_19::TwinState::LEN,
+        home: crate::marks::emit_particle_19::TwinState::home,
+    },
+    Moved {
+        ida: crate::marks::emit_kind_1::Kind1Choice::START,
+        len: crate::marks::emit_kind_1::Kind1Choice::LEN,
+        home: crate::marks::emit_kind_1::Kind1Choice::home,
+    },
+    Moved {
+        ida: crate::marks::set_up_surface::MaskList::START,
+        len: crate::marks::set_up_surface::MaskList::LEN,
+        home: crate::marks::set_up_surface::MaskList::home,
+    },
+    Moved {
+        ida: crate::marks::draw_turned_sprite::SpriteUv::START,
+        len: crate::marks::draw_turned_sprite::SpriteUv::LEN,
+        home: crate::marks::draw_turned_sprite::SpriteUv::home,
+    },
+    Moved {
+        ida: crate::marks::emit_particle_5::Kind5Set::START,
+        len: crate::marks::emit_particle_5::Kind5Set::LEN,
+        home: crate::marks::emit_particle_5::Kind5Set::home,
+    },
+    Moved {
+        ida: crate::marks::emit_particle_11::Kind11Set::START,
+        len: crate::marks::emit_particle_11::Kind11Set::LEN,
+        home: crate::marks::emit_particle_11::Kind11Set::home,
+    },
+    Moved {
+        ida: crate::marks::emit_particle_21::Kind21Set::START,
+        len: crate::marks::emit_particle_21::Kind21Set::LEN,
+        home: crate::marks::emit_particle_21::Kind21Set::home,
+    },
+    Moved {
+        ida: crate::marks::emit_kind_1::Kind1Set::START,
+        len: crate::marks::emit_kind_1::Kind1Set::LEN,
+        home: crate::marks::emit_kind_1::Kind1Set::home,
+    },
+    Moved {
+        ida: crate::marks::emit_bursts::FirstTuning::START,
+        len: crate::marks::emit_bursts::FirstTuning::LEN,
+        home: crate::marks::emit_bursts::FirstTuning::home,
+    },
+    Moved {
+        ida: crate::marks::emit_bursts_2::SecondTuning::START,
+        len: crate::marks::emit_bursts_2::SecondTuning::LEN,
+        home: crate::marks::emit_bursts_2::SecondTuning::home,
+    },
+    Moved {
+        ida: crate::marks::emit_particle_6::Kind6Set::START,
+        len: crate::marks::emit_particle_6::Kind6Set::LEN,
+        home: crate::marks::emit_particle_6::Kind6Set::home,
+    },
+    Moved {
+        ida: crate::marks::emit_particle_13::Kind13Set::START,
+        len: crate::marks::emit_particle_13::Kind13Set::LEN,
+        home: crate::marks::emit_particle_13::Kind13Set::home,
+    },
+    Moved {
+        ida: crate::marks::emit_particle_19::NineteenthTuning::START,
+        len: crate::marks::emit_particle_19::NineteenthTuning::LEN,
+        home: crate::marks::emit_particle_19::NineteenthTuning::home,
+    },
+    Moved {
+        ida: crate::marks::emit_particle_22::TwentySecondTuning::START,
+        len: crate::marks::emit_particle_22::TwentySecondTuning::LEN,
+        home: crate::marks::emit_particle_22::TwentySecondTuning::home,
+    },
+    Moved {
+        ida: crate::marks::run_ring::RingKinds::START,
+        len: crate::marks::run_ring::RingKinds::LEN,
+        home: crate::marks::run_ring::RingKinds::home,
+    },
+    Moved {
+        ida: crate::marks::blocks::RingPool::START,
+        len: crate::marks::blocks::RingPool::LEN,
+        home: crate::marks::blocks::RingPool::home,
+    },
+    Moved {
+        ida: crate::marks::run_particles::PuffWork::START,
+        len: crate::marks::run_particles::PuffWork::LEN,
+        home: crate::marks::run_particles::PuffWork::home,
+    },
+    Moved {
+        ida: crate::marks::run_particles::BurstColours::START,
+        len: crate::marks::run_particles::BurstColours::LEN,
+        home: crate::marks::run_particles::BurstColours::home,
+    },
+    Moved {
+        ida: crate::marks::run_particles::ParticleTuning::START,
+        len: crate::marks::run_particles::ParticleTuning::LEN,
+        home: crate::marks::run_particles::ParticleTuning::home,
+    },
+    Moved {
+        ida: crate::marks::blend_corner::BlendWork::START,
+        len: crate::marks::blend_corner::BlendWork::LEN,
+        home: crate::marks::blend_corner::BlendWork::home,
+    },
+    Moved {
+        ida: crate::marks::morph_object_points::MorphWork::START,
+        len: crate::marks::morph_object_points::MorphWork::LEN,
+        home: crate::marks::morph_object_points::MorphWork::home,
+    },
+    Moved {
+        ida: crate::marks::lines::LinesWork::START,
+        len: crate::marks::lines::LinesWork::LEN,
+        home: crate::marks::lines::LinesWork::home,
+    },
+    Moved {
+        ida: crate::marks::run_frame::FrameK::START,
+        len: crate::marks::run_frame::FrameK::LEN,
+        home: crate::marks::run_frame::FrameK::home,
+    },
+    Moved {
+        ida: crate::marks::setup::ClockK::START,
+        len: crate::marks::setup::ClockK::LEN,
+        home: crate::marks::setup::ClockK::home,
     },
     Moved {
         ida: crate::marks::clip::GlowState::START,
@@ -1388,8 +1923,8 @@ pub fn home_of_rva(rva: usize) -> Option<usize> {
 
 /// The moved ranges (by IDA address) whose readers take the image's pointers in them as IDA
 /// addresses on purpose: the thread slots (`threading::start_slot_thread`) and the marks'
-/// profile ramps (`marks::store::from_ida`).
-const RAW_KEPT: [usize; 2] = [0x5184F4, crate::marks::store::segment_start(0x9152F6)];
+/// profile ramps (`marks::profiles::ProfileLists`).
+const RAW_KEPT: [usize; 2] = [0x5184F4, crate::marks::profiles::ProfileLists::START];
 
 fn moved_home(ida: usize) -> Option<(usize, usize)> {
     MOVED

@@ -14,32 +14,27 @@
 use crate::errors::{BadInput, Refused};
 use crate::marks::emit_wheel_particles::{Table, emit};
 use crate::marks::emitters::*;
-use crate::marks::store::{Slot, game_read, game_write};
+use crate::marks::ring_store::RING_WORK;
+use crate::marks::tuning::MARKS_FLOATS;
 use crate::math::x87;
-
-const SIZE_K_RVA: Slot = Slot::at(0x765174); // flt_765174
-const WHICH_RVA: Slot = Slot::at(0x935416); // dword_935416: the record's number
-const CHANCE_RVA: Slot = Slot::at(0x9356C0); // dword_9356C0
-const CHANCE_K_RVA: Slot = Slot::at(0x7651DC); // flt_7651DC
-const CHANCE_RANDOM_RVA: Slot = Slot::at(0x935526); // dword_935526
 const PACE: u32 = 0x386A0;
 
 /// The first part (see the header), written.
 unsafe fn prepare(record: u32, object: u32) {
     unsafe {
-        let size = x87::int_times_to_int(at(object + 0x90) as i32, game_read(SIZE_K_RVA));
+        let size = x87::int_times_to_int(at(object + 0x90) as i32, MARKS_FLOATS.three.bits());
         ((object + 0x90) as *mut i32).write_unaligned(size);
         ((record + 4) as *mut u32).write_unaligned(at(record + 4).wrapping_add(PACE));
-        game_write(WHICH_RVA, 2u32);
+        EMITTER.record.set(2);
         let flip = at(record) ^ 1;
         (record as *mut u32).write_unaligned(flip);
         if flip & 1 == 0 {
-            game_write(WHICH_RVA, 3u32);
+            EMITTER.record.set(3);
         }
         ((record + 0xC) as *mut u32).write_unaligned(0);
-        let chance = x87::mul_to_int(at(record + 0x34), game_read(CHANCE_K_RVA));
-        game_write(CHANCE_RVA, chance);
-        let r = next_c5(CHANCE_RANDOM_RVA);
+        let chance = x87::mul_to_int(at(record + 0x34), MARKS_FLOATS.two_pow_16.bits());
+        RING_WORK.whole.set(chance as u32);
+        let r = next_c5(&EMITTER.body_random);
         if ((r & 0xFFFF) as i32) < chance {
             let surface = [at(record + 0x28), at(record + 0x2C), at(record + 0x30)];
             for (n, v) in surface.iter().enumerate() {

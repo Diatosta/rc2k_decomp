@@ -24,9 +24,12 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::rva;
+use crate::marks::blocks::MARK_CORNERS;
+use crate::marks::frame_state::DRAW_WORK;
 use crate::marks::mark_slots::{SLOTS, TUNING};
 use crate::marks::setup::CLOCK;
-use crate::marks::store::{Slot, game_addr, game_read, game_write};
+use crate::marks::splines::SPLINE_HEAD;
+use crate::marks::store::game_write;
 use crate::math::x87;
 use crate::race::matrices_store::MATRICES;
 use crate::race::numbers_store::NUMBERS;
@@ -34,10 +37,6 @@ use crate::scene::draw_store::DRAW;
 use crate::scene::kind_texture_store::KIND_TEXTURES;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
-const POINTS_RVA: Slot = Slot::at(0x769312); // flt_769312: 12 bytes each
-const CORNERS_RVA: Slot = Slot::at(0x8EB971); // g_marksCorners
-const UV_K_RVA: Slot = Slot::at(0x8EB969); // flt_8EB969
-const Z_K_RVA: Slot = Slot::at(0x8EB96D); // flt_8EB96D
 const VERTICES_RVA: usize = rva(0x9605A0); // g_polygonVertices: TLVertex[4]
 /// Each vertex's texture place: the corner entry's word offsets (u, v).
 const UV_WORDS: [(u32, u32); 4] = [(0xC, 0xE), (8, 0xA), (0, 2), (4, 6)];
@@ -82,7 +81,8 @@ pub unsafe fn draw_mark_slots() -> Result<(), Refused> {
             }
             s.life
                 .set(s.life.get().wrapping_sub(CLOCK.frame_ticks.get()));
-            let p = (game_addr(POINTS_RVA) as u32).wrapping_add(s.point.get().wrapping_mul(12));
+            let p =
+                (SPLINE_HEAD.points[0].addr() as u32).wrapping_add(s.point.get().wrapping_mul(12));
             let [a, b, c] = [get(p) ^ 0x8000_0000, get(p + 4), get(p + 8)];
             let k4 = TUNING.place_k.each_ref().map(|f| f.bits());
             let z = x87::mul(c, k4[0]);
@@ -100,9 +100,9 @@ pub unsafe fn draw_mark_slots() -> Result<(), Refused> {
                 .wrapping_mul(0xC5)
                 .wrapping_add(0x5D);
             TUNING.draw_random.set(r);
-            let corner = game_addr(CORNERS_RVA) as u32 + ((r & 7) + 0x50) * 0x80;
-            let word = |off: u32| ((corner + off) as *const u16).read_unaligned() as u32;
-            let uv_k: u32 = game_read(UV_K_RVA);
+            let corner = &MARK_CORNERS.corners[((r & 7) + 0x50) as usize];
+            let word = |off: u32| u32::from(corner.words[off as usize / 2].get());
+            let uv_k: u32 = DRAW_WORK.uv_k.bits();
             for (n, (u, v)) in UV_WORDS.into_iter().enumerate() {
                 let vertex = VERTICES_RVA + 0x20 * n;
                 game_write(vertex + 0x18, x87::int_times(word(u) as i32, uv_k));
@@ -132,7 +132,7 @@ pub unsafe fn draw_mark_slots() -> Result<(), Refused> {
                 (x87::add(px, half), x87::add(py, half)),
                 (x87::sub(px, half), x87::add(py, half)),
             ];
-            let depth = x87::mul(x, game_read(Z_K_RVA));
+            let depth = x87::mul(x, DRAW_WORK.z_k.bits());
             let rhw = x87::reciprocal_times(x, TUNING.rhw_k.bits());
             for (n, (vx, vy)) in corners.into_iter().enumerate() {
                 let vertex = VERTICES_RVA + 0x20 * n;

@@ -11,8 +11,10 @@
 //! (everything put back).
 
 use crate::errors::Refused;
+use crate::physics::flow::a;
+use crate::race::replay_file_store::REPLAY_FILE;
 use crate::race::viewer::{
-    BLOCKS, CAMERAS, PLACES, TABLE_LEN, UNDO_BLOCKS, UNDO_CAMERAS, UNDO_PLACES, get, put, table,
+    CAMERAS, TABLE_LEN, UNDO_BLOCKS, UNDO_CAMERAS, UNDO_PLACES, get, put, table,
 };
 
 /// The Rust version. What the original leaves its one caller, `viewer_action` (which
@@ -23,12 +25,18 @@ pub fn undo_edit() -> Result<(), Refused> {
     let Some(count) = undo_count(get(UNDO_BLOCKS)) else {
         return Ok(());
     };
-    put(BLOCKS, count);
+    REPLAY_FILE.index_block_count.set(count);
     let n = TABLE_LEN / 4;
     unsafe {
         copy_tables(
-            (table(PLACES, n), table(CAMERAS, n)),
-            (table(UNDO_PLACES, n), table(UNDO_CAMERAS, n)),
+            (
+                table(REPLAY_FILE.block_places[0].addr(), n),
+                table(a(CAMERAS) as usize, n),
+            ),
+            (
+                table(a(UNDO_PLACES) as usize, n),
+                table(a(UNDO_CAMERAS) as usize, n),
+            ),
         );
     }
     put(UNDO_BLOCKS, 0);

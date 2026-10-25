@@ -11,17 +11,17 @@
 //! unconverted code).
 
 use crate::marks::spawn_square::spawn_square;
-use crate::marks::store::{Slot, game_read, game_write};
-
-const RANDOM_RVA: Slot = Slot::at(0x8BC256); // dword_8BC256
+use crate::marks::squares_store::SQUARE_STATE;
 
 /// The Rust version (see the header).
 pub unsafe fn pick_square() {
     unsafe {
-        let s = game_read::<u32>(RANDOM_RVA)
+        let s = SQUARE_STATE
+            .pick_random
+            .get()
             .wrapping_mul(0xC5)
             .wrapping_add(0x5D);
-        game_write(RANDOM_RVA, s);
+        SQUARE_STATE.pick_random.set(s);
         spawn_square(s & 0x7FF, (s >> 11) & 0x3FF, (s >> 21) & 7);
     }
 }

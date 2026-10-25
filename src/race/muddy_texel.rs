@@ -16,7 +16,6 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::rva;
-use crate::race::mud::MUD_RVA;
 use crate::race::mud_texel::mud_texel;
 use crate::race::put_mud_texel::put_mud_texel;
 use crate::race::tint_to_mud_colour::tint_to_mud_colour;
@@ -39,7 +38,7 @@ pub fn texture_and_mud() -> Result<(u32, u32), Refused> {
     if n > rc2k_core::race::mud::MOST_TEXTURE {
         return Err(BadInput("a mud texture past 3 (the map would be read past its end)").into());
     }
-    let mud: u32 = unsafe { game_read(MUD_RVA) };
+    let mud: u32 = RACE_VARS.mud.get();
     if mud == 0 {
         return Err(BadInput("no mud").into());
     }

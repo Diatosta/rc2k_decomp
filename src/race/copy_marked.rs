@@ -12,9 +12,10 @@
 //! outside the tables).
 
 use crate::errors::Refused;
+use crate::physics::flow::a;
+use crate::race::replay_file_store::REPLAY_FILE;
 use crate::race::viewer::{
-    CAMERAS, CLIP_BLOCKS, CLIP_CAMERAS, CLIP_PLACES, MARK_IN, MARK_OUT, PLACES, get, move_dwords,
-    put,
+    CAMERAS, CLIP_BLOCKS, CLIP_CAMERAS, CLIP_PLACES, MARK_IN, MARK_OUT, get, move_dwords, put,
 };
 
 /// The Rust version: the count copied (edx), none when the marks are not in order. Of
@@ -27,7 +28,15 @@ pub fn copy_marked() -> Result<Option<u32>, Refused> {
     };
     put(CLIP_BLOCKS, blocks);
     let dwords = 2 * blocks as usize;
-    move_dwords(CLIP_PLACES, PLACES + 8 * first as usize, dwords);
-    move_dwords(CLIP_CAMERAS, CAMERAS + 8 * first as usize, dwords);
+    move_dwords(
+        a(CLIP_PLACES) as usize,
+        REPLAY_FILE.block_places[0].addr() + 8 * first as usize,
+        dwords,
+    );
+    move_dwords(
+        a(CLIP_CAMERAS) as usize,
+        a(CAMERAS) as usize + 8 * first as usize,
+        dwords,
+    );
     Ok(Some(blocks))
 }

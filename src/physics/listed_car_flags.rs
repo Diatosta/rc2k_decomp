@@ -15,9 +15,6 @@ use crate::physics::cells::{get, put};
 use crate::race::frame_store::FRAME_WORK;
 use rc2k_core::physics::listed_cars::listed_entry;
 
-/// Still named by `count_down_start` and `start_go_notice`.
-pub const TABLE: usize = 0x641680; // dword_641680
-
 /// The Rust version: the current car at `current`, the table at `table`, the flag at
 /// `flag`.
 // Converted: `rc2k_core::physics::listed_cars::listed_entry`.

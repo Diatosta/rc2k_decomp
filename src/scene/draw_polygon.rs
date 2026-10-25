@@ -63,12 +63,10 @@ pub const ENTRY_LEN: usize = 0x44;
 pub const ENTRIES: u32 = 0x80;
 pub const LIST_RVA: usize = rva(0x977710); // dword_977710
 pub const MOST: u32 = 0x100;
-pub const SWITCH_B_RVA: usize = rva(0x6240E4); // dword_6240E4
 const OTHER_TEXTURE_OF_RVA: usize = rva(0x5D3AE8); // dword_5D3AE8
 const TEXTURES_LOADED_RVA: usize = rva(0x5DC970); // dword_5DC970
 const FADE_TEXTURE: u32 = 0xC0;
 const MATERIALS_RVA: usize = rva(0x979F30); // unk_979F30
-pub const CHECKED_RVA: usize = rva(0x62400C); // dword_62400C
 
 // ---- what the modes do ----
 

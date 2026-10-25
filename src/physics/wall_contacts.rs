@@ -24,12 +24,11 @@
 use crate::errors::Refused;
 use crate::physics::car_store::CAR;
 use crate::physics::contact_store::CONTACT_WORK;
-use crate::physics::flow::g;
-use crate::physics::touch_face::FACES;
+use crate::race::course_store::COURSE;
 use rc2k_core::physics::walls;
 
 fn word(face: u32) -> u32 {
-    let at = (face << 6).wrapping_add(g(FACES)) + 2;
+    let at = (face << 6).wrapping_add(COURSE.course_faces.get()) + 2;
     unsafe { (at as *const u16).read_unaligned() as u32 }
 }
 

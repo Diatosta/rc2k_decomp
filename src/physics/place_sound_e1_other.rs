@@ -26,7 +26,7 @@ pub unsafe fn place_sound_e1_other() -> Result<(), Refused> {
         return Ok(());
     }
     let scratch = RACE_SOUND_SPOTS.band_scratch.get();
-    let b = unsafe { band_value_plain(TWIN) };
+    let b = band_value_plain(TWIN);
     if b == 0 {
         return Ok(());
     }

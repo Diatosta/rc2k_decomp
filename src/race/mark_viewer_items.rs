@@ -12,26 +12,26 @@
 //!
 //! Callers: `race::replay_viewer` (two).
 
-use crate::race::viewer::{
-    BLOCK, BLOCKS, CAMERAS, CLIP_BLOCKS, LAST_RACE_VIEWED, MARK_IN, MARK_OUT, ONE_PLAYER,
-    UNDO_BLOCKS, gb, get,
-};
+use crate::race::replay_file_store::REPLAY_FILE;
+use crate::race::replay_work_store::REPLAY_WORK;
+use crate::race::viewer::{CAMERAS, CLIP_BLOCKS, MARK_IN, MARK_OUT, UNDO_BLOCKS, gb, get};
+use crate::race::viewer_state_store::REPLAY_VIEW;
 
 /// The Rust version.
 pub unsafe fn mark_viewer_items(list: u32) {
     // Converted: `rc2k_core::race::viewer::item_marks`.
     unsafe { crate::menu::list_clear_marks::list_clear_marks(list) };
-    let block = get(BLOCK);
+    let block = REPLAY_VIEW.replay_block.get();
     let state = rc2k_core::race::viewer::ViewerState {
-        last_race: get(LAST_RACE_VIEWED) == 1,
+        last_race: REPLAY_VIEW.last_race_viewed.get() == 1,
         block,
-        blocks: get(BLOCKS),
+        blocks: REPLAY_FILE.index_block_count.get(),
         mark_in: get(MARK_IN),
         mark_out: get(MARK_OUT),
         clip_blocks: get(CLIP_BLOCKS),
         undo_blocks: get(UNDO_BLOCKS),
         camera: gb((CAMERAS + 5).wrapping_add(block.wrapping_mul(8) as usize)),
-        one_player: get(ONE_PLAYER) == 1,
+        one_player: REPLAY_WORK.header_one_player.get() == 1,
     };
     for (item, bit) in rc2k_core::race::viewer::item_marks(&state) {
         let at = (list + 0x18 + 0x10 * item) as *mut u8;

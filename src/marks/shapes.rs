@@ -6,23 +6,70 @@
 use crate::errors::{BadInput, Refused};
 use crate::framework::rva;
 use crate::gfx::hexagon_batch::HEXAGON_BATCH;
-use crate::marks::store::{Slot, game_addr, game_read, game_write};
+use crate::marks::hexagon_state::HEXAGON_WORK;
+use crate::marks::hexagon_vars::HEX;
+use crate::marks::tuning::MARKS_FLOATS;
 use crate::math::x87;
+use crate::session::{Dword, Float};
+
+/// One variable of a kind's tables: a typed cell.
+pub enum Var {
+    Dword(&'static Dword),
+    Float(&'static Float),
+}
+
+impl Var {
+    fn bits(&self) -> u32 {
+        match self {
+            Var::Dword(d) => d.get(),
+            Var::Float(f) => f.bits(),
+        }
+    }
+
+    fn set_bits(&self, v: u32) {
+        match self {
+            Var::Dword(d) => d.set(v),
+            Var::Float(f) => f.set_bits(v),
+        }
+    }
+
+    fn addr(&self) -> usize {
+        match self {
+            Var::Dword(d) => d.addr(),
+            Var::Float(f) => f.addr(),
+        }
+    }
+}
+
+/// A table of the shape tables: typed (its first cell's address).
+#[derive(Clone, Copy)]
+pub enum Table {
+    Typed(fn() -> usize),
+}
+
+impl Table {
+    fn addr(self) -> usize {
+        match self {
+            Table::Typed(first) => first(),
+        }
+    }
+}
 
 /// One kind's tables.
 pub struct Shapes {
-    pub done: Slot,
+    pub done: Var,
     pub resume: usize,
-    pub items: Slot,
+    /// The items' address.
+    pub items: fn() -> usize,
     pub item_len: u32,
-    pub curve: Slot,
-    pub curve_a: Slot,
-    pub curve_b: Slot,
-    pub radii: Slot,
-    pub points: Slot,
+    pub curve: Table,
+    pub curve_a: Var,
+    pub curve_b: Var,
+    pub radii: Table,
+    pub points: Table,
     pub sides: u32,
-    pub step_c: Slot,
-    pub step_d: Slot,
+    pub step_c: Var,
+    pub step_d: Var,
 }
 
 pub const ITEMS: u32 = 0x800;
@@ -30,59 +77,115 @@ const CURVE: u32 = 0x100;
 const RADII: u32 = 8;
 
 /// `sub_4BAA55`'s.
-pub const HEXAGONS: Shapes = Shapes {
-    done: Slot::at(0x82E23E),  // g_marksHexagonsDone
-    resume: rva(0x4BAAC5),     // loc_4BAAC5
-    items: Slot::at(0x81623E), // g_marksHexagonItems
+pub static HEXAGONS: Shapes = Shapes {
+    done: Var::Dword(&HEX.done), // g_marksHexagonsDone
+    resume: rva(0x4BAAC5),       // loc_4BAAC5
+    items: || HEX.items.addr(),  // g_marksHexagonItems
     item_len: 0x30,
-    curve: Slot::at(0x8147C2),   // g_marksHexagonCurve
-    curve_a: Slot::at(0x82E25A), // flt_82E25A
-    curve_b: Slot::at(0x82E25E), // flt_82E25E
-    radii: Slot::at(0x814BC2),   // flt_814BC2
-    points: Slot::at(0x814F3E),  // g_marksHexagonPoints
+    curve: Table::Typed(|| HEXAGON_WORK.curve[0].addr()), // g_marksHexagonCurve
+    curve_a: Var::Float(&HEX.curve_a),                    // flt_82E25A
+    curve_b: Var::Float(&HEX.curve_b),                    // flt_82E25E
+    radii: Table::Typed(|| HEXAGON_WORK.radii[0].addr()), // flt_814BC2
+    points: Table::Typed(|| HEXAGON_WORK.points[0].addr()), // g_marksHexagonPoints
     sides: 6,
-    step_c: Slot::at(0x82E262), // dword_82E262
-    step_d: Slot::at(0x82E266), // flt_82E266
+    step_c: Var::Dword(&HEX.step_c), // dword_82E262
+    step_d: Var::Float(&HEX.step_d), // flt_82E266
 };
 
-/// `sub_4BF529`'s.
-pub const SQUARES: Shapes = Shapes {
-    done: Slot::at(0x8BC18A),  // g_marksSquaresDone
-    resume: rva(0x4BF545),     // loc_4BF545
-    items: Slot::at(0x89E18A), // g_marksSquareItems
-    item_len: 0x3C,
-    curve: Slot::at(0x89CACA),   // g_marksSquareCurve
-    curve_a: Slot::at(0x8BC18E), // flt_8BC18E
-    curve_b: Slot::at(0x8BC192), // flt_8BC192
-    radii: Slot::at(0x89CECA),   // flt_89CECA
-    points: Slot::at(0x89CFE6),  // g_marksSquarePoints
-    sides: 4,
-    step_c: Slot::at(0x8BC196), // dword_8BC196
-    step_d: Slot::at(0x8BC19A), // flt_8BC19A
-};
+/// Where `sub_4BF529` goes on once done: `loc_4BF545`.
+pub const SQUARES_RESUME: usize = rva(0x4BF545);
+
+/// The squares' side of `Shapes` (`sub_4BF529`'s): the same steps over the squares' typed
+/// variables (`marks::squares_store`), four points to a circle.
+mod squares {
+    use super::{CURVE, RADII};
+    use crate::errors::{BadInput, Refused};
+    use crate::marks::squares_store::{SQUARE_ITEMS, SQUARE_STATE, SQUARE_TABLES};
+    use crate::math::x87;
+    use crate::session::{address_of, write_bits};
+
+    pub const SIDES: usize = 4;
+
+    /// The once-only mark: refuses one neither 0 nor `resume`; true when not yet done.
+    pub fn first(resume: u32) -> Result<bool, Refused> {
+        use rc2k_core::marks::waves::{Mark, mark};
+        match mark(SQUARE_STATE.done.get(), resume) {
+            Mark::Elsewhere => {
+                Err(BadInput("a shapes' mark neither 0 nor where it goes on").into())
+            }
+            m => Ok(m == Mark::ToMake),
+        }
+    }
+
+    /// The items cleared.
+    fn clear_items() {
+        for item in &SQUARE_ITEMS.items {
+            item.live.set(0);
+        }
+    }
+
+    /// The items cleared, the curve, the circles (plain floats: `rc2k_core::marks::shapes`).
+    pub fn make_plain() {
+        use rc2k_core::marks::shapes as core;
+        clear_items();
+        let f = |bits: u32| f32::from_bits(bits);
+        let curve = core::curve(
+            f(SQUARE_STATE.curve_ends[0].bits()),
+            f(SQUARE_STATE.curve_ends[1].bits()),
+        );
+        write_bits(&SQUARE_TABLES.curve, curve.map(f32::to_bits));
+        let (c, d): (i32, f32) = (
+            SQUARE_STATE.steps.get() as i32,
+            f(SQUARE_STATE.step_angle.bits()),
+        );
+        for n in 0..RADII as usize {
+            let r = f(SQUARE_TABLES.radii[n].bits());
+            for (k, [x, y]) in core::circle(r, SIDES as u32, c, d).into_iter().enumerate() {
+                SQUARE_TABLES.points[n][k][0].set_bits(x.to_bits());
+                SQUARE_TABLES.points[n][k][1].set_bits(y.to_bits());
+            }
+        }
+    }
+
+    /// The items cleared, the curve, the circles.
+    pub unsafe fn make() {
+        clear_items();
+        let (a, b) = (
+            SQUARE_STATE.curve_ends[0].bits(),
+            SQUARE_STATE.curve_ends[1].bits(),
+        );
+        for n in 0..CURVE as usize {
+            let i = 8 * n as i32;
+            SQUARE_TABLES.curve[n].set_bits(x87::circle_curve(i, a, b, i < 0x400));
+        }
+        for n in 0..RADII as usize {
+            unsafe {
+                x87::circle_points(
+                    SQUARE_TABLES.radii[n].addr() as *const u32,
+                    address_of(&SQUARE_TABLES.points[n]) as *mut u32,
+                    SIDES as u32,
+                    SQUARE_STATE.steps.as_ptr() as *const i32,
+                    SQUARE_STATE.step_angle.addr() as *const u32,
+                );
+            }
+        }
+    }
+}
 
 /// The four floats `set_up_hexagons` scales once, by one or two factors each.
-const SCALED: [(Slot, &[Slot]); 4] = [
-    (Slot::at(0x816192), &[Slot::at(0x82E242)]),
-    (Slot::at(0x816196), &[Slot::at(0x82E246)]),
-    (
-        Slot::at(0x81619A),
-        &[Slot::at(0x82E24A), Slot::at(0x82E24E)],
-    ),
-    (
-        Slot::at(0x81619E),
-        &[Slot::at(0x82E252), Slot::at(0x82E256)],
-    ),
+static SCALED: [(&Float, &[&Float]); 4] = [
+    (&HEX.scale[0], &[&HEX.factors[0]]),
+    (&HEX.scale[1], &[&HEX.factors[1]]),
+    (&HEX.scale[2], &[&HEX.factors[2], &HEX.factors[3]]),
+    (&HEX.scale[3], &[&HEX.factors[4], &HEX.factors[5]]),
 ];
 const FANS: u32 = 0x40;
-const FAN_VALUE_RVA: Slot = Slot::at(0x7651A0); // dword_7651A0
-const CLEARED_RVA: Slot = Slot::at(0x8161AE); // dword_8161AE .. dword_8161BA
 
 impl Shapes {
     /// The once-only mark: refuses one neither 0 nor `resume`; true when not yet done.
     unsafe fn first(&self, resume: u32) -> Result<bool, Refused> {
         use rc2k_core::marks::waves::{Mark, mark};
-        match mark(unsafe { game_read(self.done) }, resume) {
+        match mark(self.done.bits(), resume) {
             Mark::Elsewhere => {
                 Err(BadInput("a shapes' mark neither 0 nor where it goes on").into())
             }
@@ -94,16 +197,17 @@ impl Shapes {
     unsafe fn make_plain(&self) {
         use rc2k_core::marks::shapes as core;
         unsafe {
-            let items = game_addr(self.items) as u32;
+            let items = (self.items)() as u32;
             for n in 0..ITEMS {
                 ((items + n * self.item_len) as *mut u32).write_unaligned(0);
             }
-            let f = |r: Slot| f32::from_bits(game_read(r));
-            let curve = core::curve(f(self.curve_a), f(self.curve_b));
-            game_write(self.curve, curve.map(f32::to_bits));
-            let (c, d): (i32, f32) = (game_read(self.step_c), f(self.step_d));
-            let radii = game_addr(self.radii) as u32;
-            let points = game_addr(self.points) as u32;
+            let f = |r: &Var| f32::from_bits(r.bits());
+            let curve = core::curve(f(&self.curve_a), f(&self.curve_b));
+            ((self.curve.addr()) as *mut [u32; CURVE as usize])
+                .write_unaligned(curve.map(f32::to_bits));
+            let (c, d): (i32, f32) = (self.step_c.bits() as i32, f(&self.step_d));
+            let radii = self.radii.addr() as u32;
+            let points = self.points.addr() as u32;
             for n in 0..RADII {
                 let r = f32::from_bits(((radii + 4 * n) as *const u32).read_unaligned());
                 let to = points + 12 * self.sides * n;
@@ -119,27 +223,25 @@ impl Shapes {
     /// The items cleared, the curve, the circles.
     unsafe fn make(&self) {
         unsafe {
-            let items = game_addr(self.items) as u32;
+            let items = (self.items)() as u32;
             for n in 0..ITEMS {
                 ((items + n * self.item_len) as *mut u32).write_unaligned(0);
             }
-            let (a, b): (u32, u32) = (game_read(self.curve_a), game_read(self.curve_b));
+            let (a, b): (u32, u32) = (self.curve_a.bits(), self.curve_b.bits());
             for n in 0..CURVE {
                 let i = 8 * n as i32;
-                game_write(
-                    self.curve + 4 * n as usize,
-                    x87::circle_curve(i, a, b, i < 0x400),
-                );
+                ((self.curve.addr() + 4 * n as usize) as *mut u32)
+                    .write_unaligned(x87::circle_curve(i, a, b, i < 0x400));
             }
-            let radii = game_addr(self.radii) as u32;
-            let points = game_addr(self.points) as u32;
+            let radii = self.radii.addr() as u32;
+            let points = self.points.addr() as u32;
             for n in 0..RADII {
                 x87::circle_points(
                     (radii + 4 * n) as *const u32,
                     (points + 12 * self.sides * n) as *mut u32,
                     self.sides,
-                    game_addr(self.step_c) as *const i32,
-                    game_addr(self.step_d) as *const u32,
+                    self.step_c.addr() as *const i32,
+                    self.step_d.addr() as *const u32,
                 );
             }
         }
@@ -154,21 +256,21 @@ impl Shapes {
 unsafe fn hexagons_with(resume: u32, plain: bool) -> Result<(), Refused> {
     unsafe {
         if HEXAGONS.first(resume)? {
-            for (to, by) in SCALED {
-                let v: u32 = game_read(to);
+            for (to, by) in SCALED.iter() {
+                let v: u32 = to.bits();
                 let v = if plain {
-                    let by: Vec<f32> = by.iter().map(|&b| f32::from_bits(game_read(b))).collect();
+                    let by: Vec<f32> = by.iter().map(|b| f32::from_bits(b.bits())).collect();
                     rc2k_core::marks::shapes::scaled(f32::from_bits(v), &by).to_bits()
                 } else {
                     match by {
-                        [b] => x87::mul(v, game_read(*b)),
-                        [b, c] => x87::mul2(v, game_read(*b), game_read(*c)),
+                        [b] => x87::mul(v, b.bits()),
+                        [b, c] => x87::mul2(v, b.bits(), c.bits()),
                         _ => unreachable!(),
                     }
                 };
-                game_write(to, v);
+                to.set_bits(v);
             }
-            game_write(HEXAGONS.done, resume);
+            HEXAGONS.done.set_bits(resume);
         }
         if plain {
             HEXAGONS.make_plain();
@@ -185,7 +287,7 @@ unsafe fn hexagons_with(resume: u32, plain: bool) -> Result<(), Refused> {
             }
         }
         let mut at = HEXAGON_BATCH.records.addr() as u32;
-        let value: u32 = game_read(FAN_VALUE_RVA);
+        let value: u32 = MARKS_FLOATS.two_fifty_six.bits();
         for _ in 0..FANS {
             for part in 0..6 {
                 let p = at + 0x20 * part;
@@ -195,7 +297,10 @@ unsafe fn hexagons_with(resume: u32, plain: bool) -> Result<(), Refused> {
             }
             at += 0xC0;
         }
-        game_write(CLEARED_RVA, [0u32; 4]);
+        HEX.started.set(0);
+        HEX.moved.set(0);
+        HEX.spare[0].set(0);
+        HEX.spare[1].set(0);
     }
     Ok(())
 }
@@ -210,13 +315,13 @@ pub unsafe fn set_up_hexagons(resume: u32) -> Result<(), Refused> {
 /// (4 points); then `marks::reset_pong`. Refuses a mark neither 0 nor `resume`.
 unsafe fn squares_with(resume: u32, plain: bool) -> Result<(), Refused> {
     unsafe {
-        if SQUARES.first(resume)? {
-            game_write(SQUARES.done, resume);
+        if squares::first(resume)? {
+            crate::marks::squares_store::SQUARE_STATE.done.set(resume);
         }
         if plain {
-            SQUARES.make_plain();
+            squares::make_plain();
         } else {
-            SQUARES.make();
+            squares::make();
         }
         crate::marks::splines::reset_pong();
     }

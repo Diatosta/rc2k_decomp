@@ -17,7 +17,6 @@
 //! Refuses more than 0x100 lamps and lamps without the scene's points.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::rva;
 use crate::physics::ground_store::GROUND_WORK;
 use crate::race::course_store::COURSE;
 use crate::race::level_grid_store::LEVEL_GRID;
@@ -29,7 +28,6 @@ use crate::session::MACHINE;
 
 // ---- game data ----
 const MOST: u32 = 0x100;
-pub const LIGHT_COLOUR_RVA: usize = rva(0x62DAC4); // g_lightColour
 
 // ---- Rust version ----
 

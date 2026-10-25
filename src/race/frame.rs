@@ -4,7 +4,6 @@
 
 use crate::audio::store::AUDIO;
 use crate::errors::Refused;
-use crate::framework::rva;
 use crate::input::store::DEVICES;
 use crate::menu::option_work_store::OPTION_WORK;
 use crate::physics::tables_store::PHYSICS;
@@ -54,11 +53,8 @@ pub unsafe fn set_both_counters(value: u32) {
     }
 }
 
-/// The view cars' numbers: `dword_63DBA8`, `dword_63DBAC`, `dword_63DBA0`.
-pub const VIEW_CARS: [usize; 3] = [rva(0x63DBA8), rva(0x63DBAC), rva(0x63DBA0)];
-
 /// The view car `n`'s number: `dword_63DBA8`, `dword_63DBAC`, `dword_63DBA0`.
-fn view_car(n: usize) -> &'static crate::session::Dword {
+pub fn view_car(n: usize) -> &'static crate::session::Dword {
     match n {
         0 => &RACE_VIEW.view_cars[0],
         1 => &RACE_VIEW.view_cars[1],
@@ -105,7 +101,6 @@ const SPLIT_KEY: usize = 0x3C; // byte_4F6D18
 const DOWN_KEY: usize = 0x3D; // byte_4F6D19
 const UP_KEY: usize = 0x3E; // byte_4F6D1A
 const SHARED_KEY: usize = 0x3F; // byte_4F6D1B
-pub const VIEW_BLOCKS: [usize; 2] = [rva(0x63DBB0), rva(0x63DBB4)]; // off_63DBB0, off_63DBB4
 /// The keys that flip a bit of the view block's +0x220 (`rc2k_core::race::keys::BIT_KEYS`
 /// by place): their key bytes, in the order tested.
 pub const BIT_KEYS: [usize; 7] = [0x58, 0x42, 0x41, 0x44, 0x43, 0x40, 0x57]; // 4F6D34, 4F6D1E, 4F6D1D, 4F6D20, 4F6D1F, 4F6D1C, 4F6D33

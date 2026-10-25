@@ -11,28 +11,26 @@
 
 use crate::errors::Refused;
 use crate::marks::expire_squares::expire_squares;
+use crate::marks::hexagon_state::HEXAGON_STATE;
+use crate::marks::hexagon_vars::HEX;
+use crate::marks::mask_picks::PICKS;
 use crate::marks::pick_shapes::pick_shapes;
-use crate::marks::store::{Slot, game_read, game_write};
-
-const CLEARED_RVA: Slot = Slot::at(0x81623A); // dword_81623A
-const CLOCK_RVA: Slot = Slot::at(0x814714); // dword_814714
-const LATEST_RVA: Slot = Slot::at(0x84460C); // dword_84460C
 
 /// The Rust version (see the header).
 // Converted: `rc2k_core::marks::steps::{steps, next_step}`
 pub unsafe fn squares_step() -> Result<(), Refused> {
     use rc2k_core::marks::steps;
     unsafe {
-        game_write(CLEARED_RVA, 0u32);
-        let clock: u32 = game_read(CLOCK_RVA);
-        let n = steps::steps(game_read(LATEST_RVA), clock);
-        game_write(LATEST_RVA, clock);
+        HEX.squares_cleared.set(0);
+        let clock: u32 = HEXAGON_STATE.clock.bits();
+        let n = steps::steps(PICKS.index.get(), clock);
+        PICKS.index.set(clock);
         for _ in 0..n {
             pick_shapes()?;
             expire_squares();
-            game_write(LATEST_RVA, steps::next_step(game_read(LATEST_RVA)));
+            PICKS.index.set(steps::next_step(PICKS.index.get()));
         }
-        game_write(CLOCK_RVA, game_read::<u32>(LATEST_RVA));
+        HEXAGON_STATE.clock.set_bits(PICKS.index.get());
     }
     Ok(())
 }

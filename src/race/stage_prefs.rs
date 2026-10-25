@@ -6,6 +6,7 @@ use crate::errors::Refused;
 use crate::framework::{game_addr, game_write, rva};
 use crate::physics::camera_store::CAMERA_WORK;
 use crate::physics::car_store::CAR;
+use crate::race::matrices_store::MATRICES;
 use crate::race::prefs_store::STAGE_PREFS;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::work_store::RACE_WORK;
@@ -149,8 +150,7 @@ pub unsafe fn load_lights_data() -> Result<(), Refused> {
 /// `dword_71A9A0`, each >> 16) kept at `dword_63503C` .., the x, y and z turns made of
 /// them, Z x X into the lit matrix, that x Y into `dword_71A08C`.
 pub unsafe fn get_mat_crash() {
-    use crate::scene::matrix::{self, LIT_RVA, TURN_X_RVA, TURN_Y_RVA};
-    use crate::scene::view_matrix::TURN_Z_RVA;
+    use crate::scene::matrix;
     unsafe {
         // Converted: `rc2k_core::race::stage_objects::crash_turns` (the matrices the
         // scene's).
@@ -163,8 +163,15 @@ pub unsafe fn get_mat_crash() {
         matrix::set_turn_x(turns[0]);
         matrix::set_turn_y(turns[1]);
         matrix::set_turn_z_16(turns[2]);
-        let a = |r: usize| game_addr(r);
-        matrix::multiply_matrices(a(TURN_Z_RVA), a(TURN_X_RVA), a(LIT_RVA));
-        matrix::multiply_matrices(a(LIT_RVA), a(TURN_Y_RVA), CAR.crash_matrix[0].addr());
+        matrix::multiply_matrices(
+            MATRICES.turn_z_matrix[0].addr(),
+            MATRICES.turn_x_matrix[0].addr(),
+            MATRICES.lit_matrix[0].addr(),
+        );
+        matrix::multiply_matrices(
+            MATRICES.lit_matrix[0].addr(),
+            MATRICES.turn_y_matrix[0].addr(),
+            CAR.crash_matrix[0].addr(),
+        );
     }
 }

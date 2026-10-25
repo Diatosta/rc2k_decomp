@@ -34,7 +34,7 @@ pub unsafe fn place_sound_object() -> Result<(), Refused> {
         |n| RACE_SOUND_SPOTS.object_kind_sounds[n as usize].get(),
     )?;
     let scratch = RACE_SOUND_SPOTS.band_scratch.get();
-    let b = unsafe { band_value_plain(TWIN) };
+    let b = band_value_plain(TWIN);
     if b == 0 {
         return Ok(());
     }

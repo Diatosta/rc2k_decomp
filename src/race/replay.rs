@@ -208,6 +208,16 @@ pub unsafe fn write_replay_chunk(
     }
 }
 
+/// The replay index's dword `k` (`lDistanceToMove` ..: offset and size a block). A block
+/// count past the index's 1800 (a broken file) reads on past it, as the original does.
+pub fn block_place(k: usize) -> u32 {
+    let places = &REPLAY_FILE.block_places;
+    places.get(k).map_or_else(
+        || unsafe { (places[0].addr().wrapping_add(4 * k) as *const u32).read_unaligned() },
+        |c| c.get(),
+    )
+}
+
 /// `race::write_replay_block` (0x41E9A3): the block (`dword_9613A4`, 0x2810 bytes) written
 /// as a chunk; its offset and size (negative when packed) into the index; the file's
 /// length on; the block count on. A failed write or the index full (0x708 blocks) closes

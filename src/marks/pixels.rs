@@ -5,23 +5,18 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::rva;
+use crate::marks::mask_constants::MASK_CONSTANTS;
+use crate::marks::mask_picks::PICKS;
+use crate::marks::mask_vars::MASKS;
 use crate::marks::setup::SEED_RVA;
-use crate::marks::store::{Slot, game_addr, game_read, game_write};
-use crate::marks::turns::{TURN_RVA, scale_rows3, set_line_turn, turn_pair};
+use crate::marks::store::{game_read, game_write};
+use crate::marks::turns::{scale_rows3, set_line_turn, turn_pair};
 use crate::math::x87;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::vector3::STATUS_RVA;
+use crate::session::{read_bits, write_bits};
 
-pub const PIXEL_RVA: Slot = Slot::at(0x833DB2); // g_marksPixel: x, then y (dword_833DB6)
-pub const WORK_RVA: Slot = Slot::at(0x82E3D2); // dword_82E3D2, dword_82E3D6: the pixel worked on
-const SLOPE_RVA: Slot = Slot::at(0x82E3C6); // flt_82E3C6, flt_82E3CA
-const ENDS_RVA: Slot = Slot::at(0x82E40A); // flt_82E40A .. flt_82E41A: the line's ends turned
-const LINES_RVA: Slot = Slot::at(0x82E3DA); // g_marksLines: 0x3DA, 0x3DE .. 0x3FE, 0x402
 const SHAKE_RVA: usize = rva(0x71C870); // flt_71C870, 1 / 65536
-pub const TABLE_RVA: Slot = Slot::at(0x8445D2); // g_marksPixelTable: rows of 0x400
-const ROW_RVA: Slot = Slot::at(0x8445E2); // flt_8445E2
-const ROW_ADD_RVA: Slot = Slot::at(0x89C9BC); // flt_89C9BC
-const ROW_LESS_RVA: Slot = Slot::at(0x8445DA); // flt_8445DA
 
 unsafe fn get(at: u32) -> u32 {
     unsafe { (at as *const u32).read_unaligned() }
@@ -32,7 +27,8 @@ unsafe fn get(at: u32) -> u32 {
 struct Half {
     line: u32,
     other: u32,
-    constants: [Slot; 3],
+    /// Which of `MaskConstants::pixel_constants` it takes: its three from there on.
+    constants: usize,
     bytes: u32,
 }
 
@@ -40,13 +36,13 @@ const HALVES: [Half; 2] = [
     Half {
         line: 0,
         other: 0x18,
-        constants: [Slot::at(0x89CA0C), Slot::at(0x89CA10), Slot::at(0x89CA14)],
+        constants: 0,
         bytes: 2,
     },
     Half {
         line: 0x18,
         other: 0,
-        constants: [Slot::at(0x89CA18), Slot::at(0x89CA1C), Slot::at(0x89CA20)],
+        constants: 3,
         bytes: 0,
     },
 ];
@@ -64,14 +60,14 @@ fn next_seed(s: u32) -> u32 {
 /// (`set_line_turn_back`), rounded with the line's start added, the low bytes kept.
 pub unsafe fn map_pixel(row: u32, x: u32) {
     unsafe {
-        let lines = game_addr(LINES_RVA) as u32;
+        let lines = MASKS.lines.as_ptr() as u32;
         let f = |o: u32| get(lines + o);
-        game_write(PIXEL_RVA, x);
-        let pixel: [u32; 2] = game_read(PIXEL_RVA);
-        let turn = game_addr(TURN_RVA[0]) as u32;
+        MASKS.pixel[0].set(x);
+        let pixel: [u32; 2] = read_bits(&MASKS.pixel);
+        let turn = MASKS.turn.as_ptr() as u32;
         let shake: u32 = game_read(SHAKE_RVA);
         for half in HALVES {
-            game_write(WORK_RVA, pixel);
+            write_bits(&MASKS.work_pixel, pixel);
             crate::scene::matrix3::identity_matrix3(turn);
             set_line_turn(lines + half.line, false);
             scale_rows3(turn);
@@ -91,36 +87,44 @@ pub unsafe fn map_pixel(row: u32, x: u32) {
             );
             // 0x82E40A, _40E, then _416, _41A (0x82E412 is left).
             let ends = [rounded(a[1]), rounded(a[0]), rounded(b[1]), rounded(b[0])];
-            game_write(ENDS_RVA, [ends[0], ends[1]]);
-            game_write(ENDS_RVA + 0xC, [ends[2], ends[3]]);
+            MASKS.ends[0].set_bits(ends[0]);
+            MASKS.ends[1].set_bits(ends[1]);
+            MASKS.ends[3].set_bits(ends[2]);
+            MASKS.ends[4].set_bits(ends[3]);
             let (px, py) = (rounded(p[1]), rounded(p[0]));
-            game_write(WORK_RVA, [px, py]);
+            write_bits(&MASKS.work_pixel, [px, py]);
             let mut span = x87::sub(ends[2], ends[0]);
             let rise = x87::div(x87::sub(ends[3], ends[1]), span);
-            game_write(SLOPE_RVA, [span, rise]);
+            write_bits(&MASKS.slope, [span, rise]);
             let negative = span & 0x8000_0000 != 0;
             if negative {
                 span ^= 0x8000_0000;
-                game_write(SLOPE_RVA, span);
+                MASKS.slope[0].set_bits(span);
             }
             let status = x87::sub_compare(px, ends[0], negative, span);
             game_write(STATUS_RVA, status as u32);
             let mut seed = next_seed(game_read(SEED_RVA));
-            let (mut r, mut c) = (seed & 0x3FFF, game_read::<u32>(half.constants[0]));
+            let (mut r, mut c) = (
+                seed & 0x3FFF,
+                MASK_CONSTANTS.pixel_constants[half.constants].bits(),
+            );
             if status != 0x100 {
                 seed = next_seed(seed);
-                (r, c) = (seed & 0xFFFF, game_read(half.constants[1]));
+                (r, c) = (
+                    seed & 0xFFFF,
+                    MASK_CONSTANTS.pixel_constants[half.constants + 1].bits(),
+                );
             }
             game_write(SEED_RVA, seed);
-            let k: u32 = game_read(half.constants[2]);
+            let k: u32 = MASK_CONSTANTS.pixel_constants[half.constants + 2].bits();
             let y = x87::random_step(r as i32, [shake, c, px, ends[0], rise, ends[1], k]);
-            game_write(WORK_RVA + 4, y);
+            MASKS.work_pixel[1].set(y);
             set_line_turn(lines + half.line, true);
             scale_rows3(turn);
             let q = turn_pair([extended(y), extended(px)]);
             let (qx, qy) = (rounded(q[1]), rounded(q[0]));
             let out = [x87::add_to_int(qx, lx), x87::add_to_int(qy, ly)];
-            game_write(WORK_RVA, out);
+            write_bits(&MASKS.work_pixel, out.map(|v| v as u32));
             let at = row.wrapping_add(x.wrapping_mul(4)).wrapping_add(half.bytes);
             *(at as *mut u8) = out[0] as u8;
             *((at + 1) as *mut u8) = out[1] as u8;
@@ -159,27 +163,24 @@ pub unsafe fn map_shape_rows(entries: u32, index: u32) -> Result<(), Refused> {
         rows_fit(entries, index)?;
         let e = entries.wrapping_add(index.wrapping_mul(16));
         let (spans, row, count) = (get(e), get(e + 4), get(e + 8));
-        game_write(PIXEL_RVA + 4, row);
-        let table: u32 = game_read(TABLE_RVA);
+        MASKS.pixel[1].set(row);
+        let table: u32 = MASKS.pixel_table.get();
         let mut at = row.wrapping_mul(0x400).wrapping_add(table);
         for i in 0..(count as i32).max(0) as u32 {
             let (x, len) = (
                 get(spans.wrapping_add(8 * i)),
                 get(spans.wrapping_add(8 * i + 4)),
             );
-            let y: u32 = game_read(PIXEL_RVA + 4);
-            game_write(
-                ROW_RVA,
-                x87::int_plus_less_squared(
-                    y as i32,
-                    game_read(ROW_ADD_RVA),
-                    game_read(ROW_LESS_RVA),
-                ),
-            );
+            let y: u32 = MASKS.pixel[1].get();
+            MASKS.row_distance.set_bits(x87::int_plus_less_squared(
+                y as i32,
+                MASK_CONSTANTS.row_add.bits(),
+                MASKS.middle[1].bits(),
+            ));
             for n in 0..(len as i32).max(0) as u32 {
                 map_pixel(at, x.wrapping_add(n));
             }
-            game_write(PIXEL_RVA + 4, y.wrapping_add(1));
+            MASKS.pixel[1].set(y.wrapping_add(1));
             at = at.wrapping_add(0x400);
         }
     }
@@ -195,16 +196,13 @@ pub unsafe fn map_shape(shapes: u32, shape: u32) -> Result<(), Refused> {
         let first = shape.wrapping_add(shape);
         rows_fit(entries, first)?;
         rows_fit(entries, first.wrapping_add(1))?;
-        game_write(crate::marks::masks::VALUE_RVA, shape);
+        MASKS.mask_value.set(shape);
         map_shape_rows(entries, first)?;
         map_shape_rows(entries, first.wrapping_add(1))?;
     }
     Ok(())
 }
 
-const MAPPED_RVA: [Slot; 3] = [Slot::at(0x844E10), Slot::at(0x844E18), Slot::at(0x844E1C)]; // shapes, table, corners
-const CORNER_TABLE_RVA: Slot = Slot::at(0x8445E6); // dword_8445E6
-const MIDDLE_RVA: Slot = Slot::at(0x8445D6); // flt_8445D6, flt_8445DA
 /// Where each line-pair float comes from in a corner entry pair.
 const LINE_FROM: [(u32, u32); 8] = [
     (0, 0),
@@ -235,21 +233,21 @@ pub unsafe fn map_shapes(shapes: u32, table: u32, corners: u32) -> Result<(), Re
         }
         let came = x87::control_word();
         x87::set_control_word((came & 0xF3FF) | 0xC00);
-        game_write(MAPPED_RVA[0], shapes);
-        game_write(MAPPED_RVA[1], table);
-        game_write(MAPPED_RVA[2], corners);
+        PICKS.shapes.set(shapes);
+        PICKS.table_in_use.set(table);
+        PICKS.corners.set(corners);
         std::ptr::write_bytes(table as *mut u8, 0, 0x2_0000);
-        game_write(TABLE_RVA, game_read::<u32>(MAPPED_RVA[1]));
-        let corners: u32 = game_read(MAPPED_RVA[2]);
-        game_write(CORNER_TABLE_RVA, corners);
-        game_write(
-            MIDDLE_RVA,
+        MASKS.pixel_table.set(PICKS.table_in_use.get());
+        let corners: u32 = PICKS.corners.get();
+        MASKS.pixel_corners.set(corners);
+        write_bits(
+            &MASKS.middle,
             [
                 x87::loaded(get(shapes + 0xC)),
                 x87::loaded(get(shapes + 0x10)),
             ],
         );
-        let lines = game_addr(LINES_RVA) as u32;
+        let lines = MASKS.lines.as_ptr() as u32;
         for k in 0..count as u32 {
             let e = corners.wrapping_add(k * 0x18);
             for (to, from) in LINE_FROM {

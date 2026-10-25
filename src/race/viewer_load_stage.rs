@@ -27,7 +27,7 @@ use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::replay_file_store::REPLAY_FILE;
 use crate::race::replay_work_store::REPLAY_WORK;
 use crate::race::state_store::RACE_STATE;
-use crate::race::viewer::{OPEN, gb, get};
+use crate::race::viewer::gb;
 use crate::session::Dword;
 
 const DOOR: usize = 0x719C8C; // byte_719C8C
@@ -58,7 +58,7 @@ fn settings() -> [(&'static Dword, &'static Dword); 5] {
 /// The Rust version (every register kept).
 pub fn viewer_load_stage() -> Result<(), Refused> {
     use crate::race::{race_end, race_shell, sound_tables, stage_free, stage_loading};
-    if get(OPEN) == 1 {
+    if REPLAY_FILE.replay_open.get() == 1 {
         unsafe {
             stage_free::render3d_tidy()?;
             stage_free::objects_tidy()?;

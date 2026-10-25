@@ -6,9 +6,11 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::rva;
-use crate::marks::store::{Slot, game_addr, game_read, game_write};
+use crate::marks::kind_values::MARKS_KIND;
+use crate::marks::store::game_read;
 use crate::math::x87;
 use crate::race::course_lists_store::COURSE_LISTS;
+use crate::session::{Bytes, Dword, Float, read_bits};
 
 pub const SPLINE_LEN: u32 = 0xE90;
 /// The most points a record holds.
@@ -22,35 +24,11 @@ const CENTRE: u32 = 0xC54;
 const GRADES: u32 = 0xC90;
 // dword_768700
 // dword_7687D0
-pub const FOUND_RVA: Slot = Slot::at(0x7695B2); // g_marksSplineFaces: faces of the kind found
-/// The four tables of 8 records (`g_marksSplinesA` .. `D`).
-pub const TABLES: [Slot; 4] = [
-    Slot::at(0x76B9B2),
-    Slot::at(0x772E32),
-    Slot::at(0x77A2B2),
-    Slot::at(0x781732),
-];
-pub const OBJECT_RVA: Slot = Slot::at(0x76A202); // g_marksSplineObject
-pub const PLACE_RVA: Slot = Slot::at(0x76A206); // g_marksSplinePlace: the next of 8
-pub const OFFSET_RVA: Slot = Slot::at(0x76A20A); // g_marksSplineOffset: the place times 0xE90
-/// Each table's face kind (`sub_4B96CD` sets them by `g_marksKind`).
-pub const KINDS_RVA: Slot = Slot::at(0x788BB6); // g_marksSplineKinds
-/// Each table's +0x24, +0x2C, +0x28 (in that order).
-pub const ANGLES_RVA: Slot = Slot::at(0x788F39); // g_marksSplineAngles
-/// Added to the third table's highest point for its +0x44.
-pub const SHIFT_RVA: Slot = Slot::at(0x7695BE); // g_marksSplineShift
-/// `bound_spline_points`' two vectors: the one the angle is measured from, and the size.
-pub const UP_RVA: Slot = Slot::at(0x76A216); // g_marksSplineUp
-pub const SIZE_RVA: Slot = Slot::at(0x76A222); // g_marksSplineSize
-/// `turn_spline_points`' matrices: the three turns, then X x Y, then all three.
-pub const TURN_X_RVA: Slot = Slot::at(0x76A28E); // g_marksTurnX
-pub const TURN_Y_RVA: Slot = Slot::at(0x76A2BE); // g_marksTurnY
-pub const TURN_Z_RVA: Slot = Slot::at(0x76A2EE); // g_marksTurnZ
-pub const TURN_XY_RVA: Slot = Slot::at(0x76A22E); // g_marksTurnXY
-pub const TURN_RVA: Slot = Slot::at(0x76A25E); // g_marksTurn
-/// `order_spline_points`' work: the ids, then the points.
-pub const ORDERED_IDS_RVA: Slot = Slot::at(0x76A31E); // g_marksOrderedIds
-pub const ORDERED_COORDS_RVA: Slot = Slot::at(0x76A51E); // g_marksOrderedCoords
+
+/// A cell's address, as the game's routines are handed it.
+fn at<T>(cell: &T) -> u32 {
+    crate::session::address_of(cell) as u32
+}
 
 unsafe fn get(at: u32) -> u32 {
     unsafe { (at as *const u32).read_unaligned() }
@@ -199,11 +177,13 @@ pub unsafe fn gather_spline_points(s: u32, object: u32, kind: u32) -> Result<(),
             return Err(BadInput("an object's faces past g_faces").into());
         }
         put(s + COUNT, 0);
-        game_write(FOUND_RVA, 0u32);
+        SPLINE_HEAD.found.set_bits(0u32);
         for f in first..first + faces {
             let face: u32 = game_read(FACES_RVA + 4 * f as usize);
             if (*((face + 7) as *const u8) & 0x1F) as u32 == kind {
-                game_write(FOUND_RVA, game_read::<u32>(FOUND_RVA).wrapping_add(1));
+                SPLINE_HEAD
+                    .found
+                    .set(SPLINE_HEAD.found.get().wrapping_add(1));
                 add_face_points(s, face)?;
             }
         }
@@ -245,11 +225,18 @@ pub unsafe fn transform(from: u32, to: u32, count: u32, matrix: u32) -> Result<(
 
 /// The X x Y x Z products of `turn_spline_points` and `turn_record`.
 unsafe fn multiply_turns() {
-    let at = |r: Slot| game_addr(r) as u32;
     unsafe {
         for (a, b, out) in [
-            (TURN_X_RVA, TURN_Y_RVA, TURN_XY_RVA),
-            (TURN_XY_RVA, TURN_Z_RVA, TURN_RVA),
+            (
+                &SPLINE_WORK.turn_x[0],
+                &SPLINE_WORK.turn_y[0],
+                &SPLINE_WORK.turn_xy[0],
+            ),
+            (
+                &SPLINE_WORK.turn_xy[0],
+                &SPLINE_WORK.turn_z[0],
+                &SPLINE_WORK.turn[0],
+            ),
         ] {
             multiply(at(a), at(b), at(out));
         }
@@ -268,11 +255,10 @@ pub unsafe fn turn_spline_points(s: u32) -> Result<(), Refused> {
         for a in &angles {
             turnable(a)?;
         }
-        let at = |r: Slot| game_addr(r) as u32;
         for ((axis, to), angle) in [
-            (Axis::X, TURN_X_RVA),
-            (Axis::Y, TURN_Y_RVA),
-            (Axis::Z, TURN_Z_RVA),
+            (Axis::X, &SPLINE_WORK.turn_x[0]),
+            (Axis::Y, &SPLINE_WORK.turn_y[0]),
+            (Axis::Z, &SPLINE_WORK.turn_z[0]),
         ]
         .into_iter()
         .zip(angles)
@@ -280,7 +266,12 @@ pub unsafe fn turn_spline_points(s: u32) -> Result<(), Refused> {
             turn_matrix3(axis, at(to), angle)?;
         }
         multiply_turns();
-        transform(s + COORDS, s + COORDS, get(s + COUNT), at(TURN_RVA))?;
+        transform(
+            s + COORDS,
+            s + COORDS,
+            get(s + COUNT),
+            at(&SPLINE_WORK.turn[0]),
+        )?;
     }
     Ok(())
 }
@@ -322,11 +313,10 @@ pub unsafe fn turnable_record(s: u32, offsets: [u32; 3]) -> Result<(), Refused> 
 pub unsafe fn turn_record(s: u32, offsets: [u32; 3]) -> Result<(), Refused> {
     use crate::scene::matrix3::{Axis, extended, turn_matrix3};
     unsafe {
-        let at = |r: Slot| game_addr(r) as u32;
         for ((axis, to), o) in [
-            (Axis::X, TURN_X_RVA),
-            (Axis::Y, TURN_Y_RVA),
-            (Axis::Z, TURN_Z_RVA),
+            (Axis::X, &SPLINE_WORK.turn_x[0]),
+            (Axis::Y, &SPLINE_WORK.turn_y[0]),
+            (Axis::Z, &SPLINE_WORK.turn_z[0]),
         ]
         .into_iter()
         .zip(offsets)
@@ -341,8 +331,14 @@ pub unsafe fn turn_record(s: u32, offsets: [u32; 3]) -> Result<(), Refused> {
 /// `count` points from `from` turned by `g_marksTurn` into `g_marksOrderedCoords`
 /// (`scene::transform_int_points`).
 pub unsafe fn transform_int_points_from(from: u32, count: u32) -> Result<(), Refused> {
-    let at = |r: Slot| game_addr(r) as u32;
-    unsafe { transform(from, at(ORDERED_COORDS_RVA), count, at(TURN_RVA)) }
+    unsafe {
+        transform(
+            from,
+            at(&SPLINE_WORK.ordered_coords[0]),
+            count,
+            at(&SPLINE_WORK.turn[0]),
+        )
+    }
 }
 
 /// Ordered point `k` plus record `s`'s +0xC54 .. written through the record's pointer
@@ -350,7 +346,7 @@ pub unsafe fn transform_int_points_from(from: u32, count: u32) -> Result<(), Ref
 pub unsafe fn write_point(s: u32, k: u32, pointer: u32) {
     unsafe {
         let to = get(s + IDS + 4 * pointer);
-        let from = game_addr(ORDERED_COORDS_RVA) as u32 + 12 * k;
+        let from = SPLINE_WORK.ordered_coords[0].addr() as u32 + 12 * k;
         for c in 0..3 {
             put(
                 to + 4 * c,
@@ -373,8 +369,8 @@ pub unsafe fn order_spline_points(s: u32) -> Result<(), Refused> {
             return Err(BadInput("a spline of a negative count: the moves would run away").into());
         }
         let (ids_at, coords_at) = (
-            game_addr(ORDERED_IDS_RVA) as u32,
-            game_addr(ORDERED_COORDS_RVA) as u32,
+            SPLINE_WORK.ordered_ids[0].addr() as u32,
+            SPLINE_WORK.ordered_coords[0].addr() as u32,
         );
         // What the moves back read: the ordered tables' first `n`, those not placed as
         // they were.
@@ -410,8 +406,8 @@ pub unsafe fn bound_spline_points(s: u32) -> Result<(), Refused> {
         let n = count(s)?;
         let b = rc2k_core::marks::splines::bounds(&triples(s + COORDS, n));
         let size = b.size;
-        let up = game_addr(UP_RVA) as u32;
-        let size_at = game_addr(SIZE_RVA) as u32;
+        let up = SPLINE_WORK.up[0].addr() as u32;
+        let size_at = SPLINE_WORK.size[0].addr() as u32;
         put(size_at + 4, x87::from_int(size[1]));
         put(size_at + 8, x87::from_int(size[2]));
         for (c, &m) in b.middle.iter().enumerate() {
@@ -437,7 +433,7 @@ unsafe fn spline_checks(object: u32) -> Result<(), Refused> {
             return Err(BadInput("an object's faces past g_faces").into());
         }
         for n in 0..12 {
-            crate::scene::matrix3::turnable(&negated(game_read(ANGLES_RVA + 4 * n)))?;
+            crate::scene::matrix3::turnable(&negated(SPLINE_CONSTANTS.angles[n].bits()))?;
         }
     }
     Ok(())
@@ -453,8 +449,8 @@ unsafe fn spline_checks(object: u32) -> Result<(), Refused> {
 /// `g_faces`, an angle `fsincos` cannot take, before writing anything else.
 pub unsafe fn make_spline(object: u32) -> Result<(), Refused> {
     unsafe {
-        game_write(OBJECT_RVA, object);
-        let place = game_read::<u32>(PLACE_RVA) as i32;
+        SPLINE_WORK.object.set_bits(object);
+        let place = SPLINE_WORK.place.bits() as i32;
         if place >= 8 {
             return Ok(());
         }
@@ -463,11 +459,11 @@ pub unsafe fn make_spline(object: u32) -> Result<(), Refused> {
         }
         spline_checks(object)?;
         let offset = place as u32 * SPLINE_LEN;
-        game_write(OFFSET_RVA, offset);
-        let table = |t: usize| game_addr(TABLES[t]) as u32;
+        SPLINE_WORK.offset.set_bits(offset);
+        let table = |t: usize| SPLINE_TABLES.table(t) as u32;
         for t in 0..4 {
             let record = table(t) + offset;
-            gather_spline_points(record, object, game_read(KINDS_RVA + 4 * t))?;
+            gather_spline_points(record, object, SPLINE_KINDS.chosen[1 + t].bits())?;
             bound_spline_points(record)?;
             if t == 1 || t == 2 {
                 for o in [CENTRE, CENTRE + 4, CENTRE + 8, 0x20] {
@@ -478,7 +474,7 @@ pub unsafe fn make_spline(object: u32) -> Result<(), Refused> {
             for (k, o) in [0x24u32, 0x2C, 0x28].into_iter().enumerate() {
                 put(
                     record + o,
-                    x87::loaded(game_read(ANGLES_RVA + 4 * (3 * t + k))),
+                    x87::loaded(SPLINE_CONSTANTS.angles[3 * t + k].bits()),
                 );
             }
             turn_spline_points(record)?;
@@ -490,7 +486,7 @@ pub unsafe fn make_spline(object: u32) -> Result<(), Refused> {
                 find_spline_ends(record)?;
             }
             if t == 2 {
-                let shift: [u32; 3] = game_read(SHIFT_RVA);
+                let shift: [u32; 3] = read_bits(&SPLINE_HEAD.shift);
                 let p = record
                     .wrapping_add(COORDS)
                     .wrapping_add(get(record + 0x30).wrapping_mul(12));
@@ -502,21 +498,13 @@ pub unsafe fn make_spline(object: u32) -> Result<(), Refused> {
                 }
             }
         }
-        game_write(PLACE_RVA, place as u32 + 1);
+        SPLINE_WORK.place.set_bits(place as u32 + 1);
     }
     Ok(())
 }
-
-pub const LOADED_RVA: Slot = Slot::at(0x788EF6); // g_marksSplinesLoaded: 0, or where to go on
 pub const RESUME_RVA: usize = rva(0x4B9706); // loc_4B9706
-const PATH_RVA: Slot = Slot::at(0x788EFA); // "files\m\spline.dat"
-pub const FILE_RVA: Slot = Slot::at(0x7695D2); // g_marksSplineFile
 pub const FILE_LEN: u32 = 0xC00;
-/// The five values by kind (`dword_788BC6` .. `dword_788DE6`, 0x22 each) and where they go.
-const BY_KIND_RVA: Slot = Slot::at(0x788BC6);
-pub const CHOSEN_RVA: Slot = Slot::at(0x788BB2); // dword_788BB2, then `g_marksSplineKinds`
 const KINDS: u32 = 0x22;
-pub const MADE_RVA: Slot = Slot::at(0x7695CE); // dword_7695CE
 /// The settings' objects: a count at +0x26B8, then the objects.
 const OBJECTS_AT: u32 = 0x26B8;
 const MOST_OBJECTS: u32 = (0x2708 - 0x26BC) / 4;
@@ -530,11 +518,11 @@ const MOST_OBJECTS: u32 = (0x2708 - 0x26BC) / 4;
 /// writing anything.
 pub unsafe fn load_splines(resume: u32) -> Result<(), Refused> {
     unsafe {
-        let loaded: u32 = game_read(LOADED_RVA);
+        let loaded: u32 = SPLINE_KINDS.loaded.bits();
         if loaded != 0 && loaded != resume {
             return Err(BadInput("the splines' mark is neither 0 nor loc_4B9706").into());
         }
-        let kind: u32 = game_read(crate::marks::kind_values::KIND_RVA);
+        let kind: u32 = MARKS_KIND.kind.bits();
         if kind >= KINDS {
             return Err(BadInput("a marks' kind of 0x22 or more").into());
         }
@@ -552,23 +540,1045 @@ pub unsafe fn load_splines(resume: u32) -> Result<(), Refused> {
             spline_checks(o)?;
         }
         if loaded == 0 {
-            let file = game_addr(FILE_RVA) as u32;
+            let file = SPLINE_HEAD.file.addr() as u32;
             crate::files::read_whole_file::read_whole_file(
-                game_addr(PATH_RVA) as *const u8,
+                SPLINE_PATH.path.addr() as *const u8,
                 file as *mut u8,
                 FILE_LEN,
             )?;
-            game_write(LOADED_RVA, resume);
+            SPLINE_KINDS.loaded.set_bits(resume);
         }
         for n in 0..5 {
-            let v: u32 = game_read(BY_KIND_RVA + 4 * (n * KINDS + kind) as usize);
-            game_write(CHOSEN_RVA + 4 * n as usize, v);
+            let v = SPLINE_KINDS.by_kind[(n * KINDS + kind) as usize].bits();
+            SPLINE_KINDS.chosen[n as usize].set(v);
         }
-        game_write(PLACE_RVA, 0u32);
+        SPLINE_WORK.place.set_bits(0u32);
         for o in objects {
             make_spline(o)?;
         }
-        game_write(MADE_RVA, 0u32);
+        SPLINE_HEAD.made.set_bits(0u32);
     }
     Ok(())
+}
+
+/// The car models' tables and the splines' head: the points and looks by car model (`marks::emit_particle_13`, `marks::draw_mark_slots`, `marks::cars_particles`), then the spline variables the looks table runs into (the original reads two dwords past it) and the spline file (IDA 0x769312 .. 0x76A1D2, the image's layout; phase 7, typed state).
+#[repr(C)]
+pub struct SplineHead {
+    /// 0x769312: `g_marksPoints`: three floats by car model (34 models), a mark slot's point is an index into it (12 bytes each).
+    pub points: [Float; 102],
+    /// 0x7694AA: `dword_7694AA`, `dword_7694B2` ..: the looks by the car's model (two dwords 8 bytes apart, 33 pairs; models 32 and 33 read past the end: `found`, `wave`).
+    pub looks: [Dword; 66],
+    /// 0x7695B2: `g_marksSplineFaces`: how many faces of the kind `gather_spline_points` found.
+    pub found: Dword,
+    /// 0x7695B6: `flt_7695B6`: the wave's angle (`marks::run_splines`).
+    pub angle: Float,
+    /// 0x7695BA: `flt_7695BA`: the wave (`marks::run_splines`).
+    pub wave: Float,
+    /// 0x7695BE: `g_marksSplineShift`: added to the third table's highest point for its +0x44.
+    pub shift: [Dword; 3],
+    /// 0x7695CA: `dword_7695CA`: 0 or 1, which of the two graded records is being placed.
+    pub switch: Dword,
+    /// 0x7695CE: `g_marksSplinesMade`: the splines' fade-in counter, 0 .. 0xFF.
+    pub made: Dword,
+    /// 0x7695D2: `g_marksSplineFile`: `files\m\spline.dat` (0xC00 bytes at most): 12 bytes an entry, the blend weights.
+    pub file: Bytes<3072>,
+}
+
+pub static SPLINE_HEAD: SplineHead = SplineHead {
+    points: [
+        Float::from_bits(0x4501619A),
+        Float::from_bits(0x4384CCCD),
+        Float::from_bits(0xC40F2000),
+        Float::from_bits(0x45007333),
+        Float::from_bits(0x4387B333),
+        Float::from_bits(0xC3E2B333),
+        Float::from_bits(0x45077800),
+        Float::from_bits(0x4365E666),
+        Float::from_bits(0xC3E7C000),
+        Float::from_bits(0x450B8333),
+        Float::from_bits(0x4384F333),
+        Float::from_bits(0x43EC4000),
+        Float::from_bits(0x4509C000),
+        Float::from_bits(0x4389C000),
+        Float::from_bits(0x43D5C000),
+        Float::from_bits(0x44FB899A),
+        Float::from_bits(0x43363333),
+        Float::from_bits(0xC3F30CCD),
+        Float::from_bits(0x45054E66),
+        Float::from_bits(0x43940000),
+        Float::from_bits(0x43EE4000),
+        Float::from_bits(0x45150666),
+        Float::from_bits(0x436C4CCD),
+        Float::from_bits(0xC408CCCD),
+        Float::from_bits(0x45088666),
+        Float::from_bits(0x432D8000),
+        Float::from_bits(0xC3CDE666),
+        Float::from_bits(0x4509819A),
+        Float::from_bits(0x437C0000),
+        Float::from_bits(0x43C60CCD),
+        Float::from_bits(0x4518CE66),
+        Float::from_bits(0x4381E666),
+        Float::from_bits(0xC3E57333),
+        Float::from_bits(0x44FC7333),
+        Float::from_bits(0x43703333),
+        Float::from_bits(0xC4007333),
+        Float::from_bits(0x45050000),
+        Float::from_bits(0x4368CCCD),
+        Float::from_bits(0x43EE4000),
+        Float::from_bits(0x44EA5000),
+        Float::from_bits(0x4374199A),
+        Float::from_bits(0x43C4199A),
+        Float::from_bits(0x44FEB99A),
+        Float::from_bits(0x434B999A),
+        Float::from_bits(0xC406ACCD),
+        Float::from_bits(0x450C3333),
+        Float::from_bits(0x4383D99A),
+        Float::from_bits(0xC406A666),
+        Float::from_bits(0x4512719A),
+        Float::from_bits(0x439F8CCD),
+        Float::from_bits(0xC3FAC000),
+        Float::from_bits(0x450574CD),
+        Float::from_bits(0x435C0000),
+        Float::from_bits(0xC3CF0000),
+        Float::from_bits(0x44F3699A),
+        Float::from_bits(0x43AA2666),
+        Float::from_bits(0xC4091333),
+        Float::from_bits(0x44FDB000),
+        Float::from_bits(0x435C0000),
+        Float::from_bits(0xC3E30CCD),
+        Float::from_bits(0x450BE99A),
+        Float::from_bits(0x4395A666),
+        Float::from_bits(0xC384599A),
+        Float::from_bits(0x44FD1000),
+        Float::from_bits(0x43608000),
+        Float::from_bits(0x43CAD99A),
+        Float::from_bits(0x4513D4CD),
+        Float::from_bits(0x436C199A),
+        Float::from_bits(0xC4078CCD),
+        Float::from_bits(0x44E74000),
+        Float::from_bits(0x43AF0000),
+        Float::from_bits(0xC3C80000),
+        Float::from_bits(0x4500C000),
+        Float::from_bits(0x438C0000),
+        Float::from_bits(0x43F00000),
+        Float::from_bits(0x45048000),
+        Float::from_bits(0x43820000),
+        Float::from_bits(0xC4020000),
+        Float::from_bits(0x448C0000),
+        Float::from_bits(0x43340000),
+        Float::from_bits(0x0),
+        Float::from_bits(0x448C0000),
+        Float::from_bits(0x448C0000),
+        Float::from_bits(0x0),
+        Float::from_bits(0x446D8000),
+        Float::from_bits(0x44C80000),
+        Float::from_bits(0xC3960000),
+        Float::from_bits(0x44480000),
+        Float::from_bits(0x447A0000),
+        Float::from_bits(0xC3960000),
+        Float::from_bits(0x451C4000),
+        Float::from_bits(0x437A0000),
+        Float::from_bits(0x0),
+        Float::from_bits(0x44B54000),
+        Float::from_bits(0x452F0000),
+        Float::from_bits(0x80000000),
+        Float::from_bits(0x44B54000),
+        Float::from_bits(0x452F0000),
+        Float::from_bits(0x80000000),
+        Float::from_bits(0x44F12000),
+        Float::from_bits(0x43998000),
+        Float::from_bits(0xC32E0000),
+    ],
+    looks: [
+        Dword::new(0xD800),
+        Dword::new(0x14000),
+        Dword::new(0xD800),
+        Dword::new(0x14000),
+        Dword::new(0xD800),
+        Dword::new(0x14000),
+        Dword::new(0xD800),
+        Dword::new(0x14000),
+        Dword::new(0xD800),
+        Dword::new(0x14000),
+        Dword::new(0xD800),
+        Dword::new(0x14000),
+        Dword::new(0xD800),
+        Dword::new(0x14000),
+        Dword::new(0xD800),
+        Dword::new(0x14000),
+        Dword::new(0xD800),
+        Dword::new(0x14000),
+        Dword::new(0xD800),
+        Dword::new(0x14000),
+        Dword::new(0xD800),
+        Dword::new(0x14000),
+        Dword::new(0xD800),
+        Dword::new(0x14000),
+        Dword::new(0xD800),
+        Dword::new(0x14000),
+        Dword::new(0xD800),
+        Dword::new(0x14000),
+        Dword::new(0xD800),
+        Dword::new(0x14000),
+        Dword::new(0xD800),
+        Dword::new(0x14000),
+        Dword::new(0xD800),
+        Dword::new(0x14000),
+        Dword::new(0xD800),
+        Dword::new(0x14000),
+        Dword::new(0xD800),
+        Dword::new(0x14000),
+        Dword::new(0xD800),
+        Dword::new(0x14000),
+        Dword::new(0xD800),
+        Dword::new(0x14000),
+        Dword::new(0xD800),
+        Dword::new(0x14000),
+        Dword::new(0xD800),
+        Dword::new(0x14000),
+        Dword::new(0xD800),
+        Dword::new(0x14000),
+        Dword::new(0xD800),
+        Dword::new(0x14000),
+        Dword::new(0xD800),
+        Dword::new(0x14000),
+        Dword::new(0xD800),
+        Dword::new(0x14000),
+        Dword::new(0xD800),
+        Dword::new(0x14000),
+        Dword::new(0xD800),
+        Dword::new(0x14000),
+        Dword::new(0xD800),
+        Dword::new(0x14000),
+        Dword::new(0xD800),
+        Dword::new(0x14000),
+        Dword::new(0xD800),
+        Dword::new(0x14000),
+        Dword::new(0xD800),
+        Dword::new(0x14000),
+    ],
+    found: Dword::new(0x0),
+    angle: Float::from_bits(0x0),
+    wave: Float::from_bits(0x0),
+    shift: [Dword::new(0x4000), Dword::new(0xFFFF8000), Dword::new(0x0)],
+    switch: Dword::new(0x0),
+    made: Dword::new(0x0),
+    file: Bytes::new([0; 3072]),
+};
+
+impl SplineHead {
+    pub const START: usize = 0x769312;
+    pub const LEN: usize = 0xEC0;
+    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
+    pub fn home() -> usize {
+        &SPLINE_HEAD as *const SplineHead as usize
+    }
+}
+
+#[cfg(test)]
+mod spline_head_tests {
+    use super::*;
+
+    #[test]
+    fn spline_head_starts_as_the_games() {
+        use core::mem::offset_of;
+        assert_eq!(size_of::<SplineHead>(), SplineHead::LEN);
+        let p = &SPLINE_HEAD as *const SplineHead as *const u8;
+        let ours: Vec<u8> = (0..size_of::<SplineHead>())
+            .map(|i| unsafe { p.add(i).read() })
+            .collect();
+        assert!(
+            ours == crate::moved::image_bytes(SplineHead::START, SplineHead::LEN),
+            "SPLINE_HEAD starts differently from the image"
+        );
+        assert_eq!(offset_of!(SplineHead, points), 0x769312 - SplineHead::START);
+        assert_eq!(offset_of!(SplineHead, looks), 0x7694AA - SplineHead::START);
+        assert_eq!(offset_of!(SplineHead, found), 0x7695B2 - SplineHead::START);
+        assert_eq!(offset_of!(SplineHead, angle), 0x7695B6 - SplineHead::START);
+        assert_eq!(offset_of!(SplineHead, wave), 0x7695BA - SplineHead::START);
+        assert_eq!(offset_of!(SplineHead, shift), 0x7695BE - SplineHead::START);
+        assert_eq!(offset_of!(SplineHead, switch), 0x7695CA - SplineHead::START);
+        assert_eq!(offset_of!(SplineHead, made), 0x7695CE - SplineHead::START);
+        assert_eq!(offset_of!(SplineHead, file), 0x7695D2 - SplineHead::START);
+    }
+}
+
+/// The splines' work places (`marks::bend_points`, `marks::splines`, `marks::place_spline`) (IDA 0x76A1D2 .. 0x76B9B2, the image's layout; phase 7, typed state).
+#[repr(C)]
+pub struct SplineWork {
+    /// 0x76A1D2: `dword_76A1D2` ..: four points of three whole numbers: A, B, C and D (`marks::bend_points`).
+    pub bend: [Dword; 12],
+    /// 0x76A202: `g_marksSplineObject`: the object being made.
+    pub object: Dword,
+    /// 0x76A206: `g_marksSplinePlace`: the next of 8 places.
+    pub place: Dword,
+    /// 0x76A20A: `g_marksSplineOffset`: the place times 0xE90.
+    pub offset: Dword,
+    /// 0x76A20E: Not named: 8 bytes (a gap, or unreferenced data).
+    pub _gap_76a20e: Bytes<8>,
+    /// 0x76A216: `g_marksSplineUp`: the vector the angle is measured from.
+    pub up: [Float; 3],
+    /// 0x76A222: `g_marksSplineSize`: the points' size, as floats.
+    pub size: [Float; 3],
+    /// 0x76A22E: `g_marksTurnXY`: the X turn times the Y turn (a matrix of 12 floats).
+    pub turn_xy: [Float; 12],
+    /// 0x76A25E: `g_marksTurn`: all three turns.
+    pub turn: [Float; 12],
+    /// 0x76A28E: `g_marksTurnX`.
+    pub turn_x: [Float; 12],
+    /// 0x76A2BE: `g_marksTurnY`.
+    pub turn_y: [Float; 12],
+    /// 0x76A2EE: `g_marksTurnZ`.
+    pub turn_z: [Float; 12],
+    /// 0x76A31E: `g_marksOrderedIds`: `order_spline_points`' work, one id a point (at most 0x80 points).
+    pub ordered_ids: [Dword; 128],
+    /// 0x76A51E: `g_marksOrderedCoords`: the ordered points, three whole numbers each.
+    pub ordered_coords: [Dword; 384],
+    /// 0x76AB1E: Not named: 3732 bytes (a gap, or unreferenced data).
+    pub _gap_76ab1e: Bytes<3732>,
+}
+
+pub static SPLINE_WORK: SplineWork = SplineWork {
+    bend: [const { Dword::new(0x0) }; 12],
+    object: Dword::new(0x0),
+    place: Dword::new(0x0),
+    offset: Dword::new(0x0),
+    _gap_76a20e: Bytes::new([0; 8]),
+    up: [
+        Float::from_bits(0x0),
+        Float::from_bits(0x0),
+        Float::from_bits(0x3F800000),
+    ],
+    size: [
+        Float::from_bits(0x0),
+        Float::from_bits(0x0),
+        Float::from_bits(0x0),
+    ],
+    turn_xy: [const { Float::from_bits(0x0) }; 12],
+    turn: [const { Float::from_bits(0x0) }; 12],
+    turn_x: [const { Float::from_bits(0x0) }; 12],
+    turn_y: [const { Float::from_bits(0x0) }; 12],
+    turn_z: [const { Float::from_bits(0x0) }; 12],
+    ordered_ids: [const { Dword::new(0x0) }; 128],
+    ordered_coords: [const { Dword::new(0x0) }; 384],
+    _gap_76ab1e: Bytes::new(crate::session::with_runs::<3732>(&[(
+        0x3C,
+        &[
+            0xC0, 0xE0, 0xFF, 0xFF, 0x00, 0x80, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0xE0, 0x2E,
+            0x00, 0x00, 0x00, 0x80, 0xFF, 0xFF,
+        ],
+    )])),
+};
+
+impl SplineWork {
+    pub const START: usize = 0x76A1D2;
+    pub const LEN: usize = 0x17E0;
+    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
+    pub fn home() -> usize {
+        &SPLINE_WORK as *const SplineWork as usize
+    }
+}
+
+#[cfg(test)]
+mod spline_work_tests {
+    use super::*;
+
+    #[test]
+    fn spline_work_starts_as_the_games() {
+        use core::mem::offset_of;
+        assert_eq!(size_of::<SplineWork>(), SplineWork::LEN);
+        let p = &SPLINE_WORK as *const SplineWork as *const u8;
+        let ours: Vec<u8> = (0..size_of::<SplineWork>())
+            .map(|i| unsafe { p.add(i).read() })
+            .collect();
+        assert!(
+            ours == crate::moved::image_bytes(SplineWork::START, SplineWork::LEN),
+            "SPLINE_WORK starts differently from the image"
+        );
+        assert_eq!(offset_of!(SplineWork, bend), 0x76A1D2 - SplineWork::START);
+        assert_eq!(offset_of!(SplineWork, object), 0x76A202 - SplineWork::START);
+        assert_eq!(offset_of!(SplineWork, place), 0x76A206 - SplineWork::START);
+        assert_eq!(offset_of!(SplineWork, offset), 0x76A20A - SplineWork::START);
+        assert_eq!(offset_of!(SplineWork, up), 0x76A216 - SplineWork::START);
+        assert_eq!(offset_of!(SplineWork, size), 0x76A222 - SplineWork::START);
+        assert_eq!(
+            offset_of!(SplineWork, turn_xy),
+            0x76A22E - SplineWork::START
+        );
+        assert_eq!(offset_of!(SplineWork, turn), 0x76A25E - SplineWork::START);
+        assert_eq!(offset_of!(SplineWork, turn_x), 0x76A28E - SplineWork::START);
+        assert_eq!(offset_of!(SplineWork, turn_y), 0x76A2BE - SplineWork::START);
+        assert_eq!(offset_of!(SplineWork, turn_z), 0x76A2EE - SplineWork::START);
+        assert_eq!(
+            offset_of!(SplineWork, ordered_ids),
+            0x76A31E - SplineWork::START
+        );
+        assert_eq!(
+            offset_of!(SplineWork, ordered_coords),
+            0x76A51E - SplineWork::START
+        );
+    }
+}
+
+/// The four tables of eight spline records of 0xE90 bytes (`marks::splines`) (IDA 0x76B9B2 .. 0x788BB2, the image's layout; phase 7, typed state).
+#[repr(C)]
+pub struct SplineTables {
+    /// 0x76B9B2: `g_marksSplinesA`: eight `MarkSpline` records.
+    pub a: Bytes<29824>,
+    /// 0x772E32: `g_marksSplinesB`.
+    pub b: Bytes<29824>,
+    /// 0x77A2B2: `g_marksSplinesC`.
+    pub c: Bytes<29824>,
+    /// 0x781732: `g_marksSplinesD`.
+    pub d: Bytes<29824>,
+}
+
+pub static SPLINE_TABLES: SplineTables = SplineTables {
+    a: Bytes::new(crate::session::with_runs::<29824>(&[
+        (
+            0x38,
+            &[
+                0xC0, 0xE0, 0xFF, 0xFF, 0x00, 0x80, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0xE0, 0x2E,
+                0x00, 0x00, 0x00, 0x80, 0xFF, 0xFF,
+            ],
+        ),
+        (
+            0xEC8,
+            &[
+                0xC0, 0xE0, 0xFF, 0xFF, 0x00, 0x80, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0xE0, 0x2E,
+                0x00, 0x00, 0x00, 0x80, 0xFF, 0xFF,
+            ],
+        ),
+        (
+            0x1D58,
+            &[
+                0xC0, 0xE0, 0xFF, 0xFF, 0x00, 0x80, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0xE0, 0x2E,
+                0x00, 0x00, 0x00, 0x80, 0xFF, 0xFF,
+            ],
+        ),
+        (
+            0x2BE8,
+            &[
+                0xC0, 0xE0, 0xFF, 0xFF, 0x00, 0x80, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0xE0, 0x2E,
+                0x00, 0x00, 0x00, 0x80, 0xFF, 0xFF,
+            ],
+        ),
+        (
+            0x3A78,
+            &[
+                0xC0, 0xE0, 0xFF, 0xFF, 0x00, 0x80, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0xE0, 0x2E,
+                0x00, 0x00, 0x00, 0x80, 0xFF, 0xFF,
+            ],
+        ),
+        (
+            0x4908,
+            &[
+                0xC0, 0xE0, 0xFF, 0xFF, 0x00, 0x80, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0xE0, 0x2E,
+                0x00, 0x00, 0x00, 0x80, 0xFF, 0xFF,
+            ],
+        ),
+        (
+            0x5798,
+            &[
+                0xC0, 0xE0, 0xFF, 0xFF, 0x00, 0x80, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0xE0, 0x2E,
+                0x00, 0x00, 0x00, 0x80, 0xFF, 0xFF,
+            ],
+        ),
+        (
+            0x6628,
+            &[
+                0xC0, 0xE0, 0xFF, 0xFF, 0x00, 0x80, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0xE0, 0x2E,
+                0x00, 0x00, 0x00, 0x80, 0xFF, 0xFF,
+            ],
+        ),
+    ])),
+    b: Bytes::new(crate::session::with_runs::<29824>(&[
+        (
+            0x38,
+            &[
+                0xC0, 0xE0, 0xFF, 0xFF, 0x00, 0x80, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0xE0, 0x2E,
+                0x00, 0x00, 0x00, 0x80, 0xFF, 0xFF,
+            ],
+        ),
+        (
+            0xEC8,
+            &[
+                0xC0, 0xE0, 0xFF, 0xFF, 0x00, 0x80, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0xE0, 0x2E,
+                0x00, 0x00, 0x00, 0x80, 0xFF, 0xFF,
+            ],
+        ),
+        (
+            0x1D58,
+            &[
+                0xC0, 0xE0, 0xFF, 0xFF, 0x00, 0x80, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0xE0, 0x2E,
+                0x00, 0x00, 0x00, 0x80, 0xFF, 0xFF,
+            ],
+        ),
+        (
+            0x2BE8,
+            &[
+                0xC0, 0xE0, 0xFF, 0xFF, 0x00, 0x80, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0xE0, 0x2E,
+                0x00, 0x00, 0x00, 0x80, 0xFF, 0xFF,
+            ],
+        ),
+        (
+            0x3A78,
+            &[
+                0xC0, 0xE0, 0xFF, 0xFF, 0x00, 0x80, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0xE0, 0x2E,
+                0x00, 0x00, 0x00, 0x80, 0xFF, 0xFF,
+            ],
+        ),
+        (
+            0x4908,
+            &[
+                0xC0, 0xE0, 0xFF, 0xFF, 0x00, 0x80, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0xE0, 0x2E,
+                0x00, 0x00, 0x00, 0x80, 0xFF, 0xFF,
+            ],
+        ),
+        (
+            0x5798,
+            &[
+                0xC0, 0xE0, 0xFF, 0xFF, 0x00, 0x80, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0xE0, 0x2E,
+                0x00, 0x00, 0x00, 0x80, 0xFF, 0xFF,
+            ],
+        ),
+        (
+            0x6628,
+            &[
+                0xC0, 0xE0, 0xFF, 0xFF, 0x00, 0x80, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0xE0, 0x2E,
+                0x00, 0x00, 0x00, 0x80, 0xFF, 0xFF,
+            ],
+        ),
+    ])),
+    c: Bytes::new(crate::session::with_runs::<29824>(&[
+        (
+            0x38,
+            &[
+                0xC0, 0xE0, 0xFF, 0xFF, 0x00, 0x80, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0xE0, 0x2E,
+                0x00, 0x00, 0x00, 0x80, 0xFF, 0xFF,
+            ],
+        ),
+        (
+            0xEC8,
+            &[
+                0xC0, 0xE0, 0xFF, 0xFF, 0x00, 0x80, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0xE0, 0x2E,
+                0x00, 0x00, 0x00, 0x80, 0xFF, 0xFF,
+            ],
+        ),
+        (
+            0x1D58,
+            &[
+                0xC0, 0xE0, 0xFF, 0xFF, 0x00, 0x80, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0xE0, 0x2E,
+                0x00, 0x00, 0x00, 0x80, 0xFF, 0xFF,
+            ],
+        ),
+        (
+            0x2BE8,
+            &[
+                0xC0, 0xE0, 0xFF, 0xFF, 0x00, 0x80, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0xE0, 0x2E,
+                0x00, 0x00, 0x00, 0x80, 0xFF, 0xFF,
+            ],
+        ),
+        (
+            0x3A78,
+            &[
+                0xC0, 0xE0, 0xFF, 0xFF, 0x00, 0x80, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0xE0, 0x2E,
+                0x00, 0x00, 0x00, 0x80, 0xFF, 0xFF,
+            ],
+        ),
+        (
+            0x4908,
+            &[
+                0xC0, 0xE0, 0xFF, 0xFF, 0x00, 0x80, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0xE0, 0x2E,
+                0x00, 0x00, 0x00, 0x80, 0xFF, 0xFF,
+            ],
+        ),
+        (
+            0x5798,
+            &[
+                0xC0, 0xE0, 0xFF, 0xFF, 0x00, 0x80, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0xE0, 0x2E,
+                0x00, 0x00, 0x00, 0x80, 0xFF, 0xFF,
+            ],
+        ),
+        (
+            0x6628,
+            &[
+                0xC0, 0xE0, 0xFF, 0xFF, 0x00, 0x80, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0xE0, 0x2E,
+                0x00, 0x00, 0x00, 0x80, 0xFF, 0xFF,
+            ],
+        ),
+    ])),
+    d: Bytes::new(crate::session::with_runs::<29824>(&[
+        (
+            0x38,
+            &[
+                0xC0, 0xE0, 0xFF, 0xFF, 0x00, 0x80, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0xE0, 0x2E,
+                0x00, 0x00, 0x00, 0x80, 0xFF, 0xFF,
+            ],
+        ),
+        (
+            0xEC8,
+            &[
+                0xC0, 0xE0, 0xFF, 0xFF, 0x00, 0x80, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0xE0, 0x2E,
+                0x00, 0x00, 0x00, 0x80, 0xFF, 0xFF,
+            ],
+        ),
+        (
+            0x1D58,
+            &[
+                0xC0, 0xE0, 0xFF, 0xFF, 0x00, 0x80, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0xE0, 0x2E,
+                0x00, 0x00, 0x00, 0x80, 0xFF, 0xFF,
+            ],
+        ),
+        (
+            0x2BE8,
+            &[
+                0xC0, 0xE0, 0xFF, 0xFF, 0x00, 0x80, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0xE0, 0x2E,
+                0x00, 0x00, 0x00, 0x80, 0xFF, 0xFF,
+            ],
+        ),
+        (
+            0x3A78,
+            &[
+                0xC0, 0xE0, 0xFF, 0xFF, 0x00, 0x80, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0xE0, 0x2E,
+                0x00, 0x00, 0x00, 0x80, 0xFF, 0xFF,
+            ],
+        ),
+        (
+            0x4908,
+            &[
+                0xC0, 0xE0, 0xFF, 0xFF, 0x00, 0x80, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0xE0, 0x2E,
+                0x00, 0x00, 0x00, 0x80, 0xFF, 0xFF,
+            ],
+        ),
+        (
+            0x5798,
+            &[
+                0xC0, 0xE0, 0xFF, 0xFF, 0x00, 0x80, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0xE0, 0x2E,
+                0x00, 0x00, 0x00, 0x80, 0xFF, 0xFF,
+            ],
+        ),
+        (
+            0x6628,
+            &[
+                0xC0, 0xE0, 0xFF, 0xFF, 0x00, 0x80, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0xE0, 0x2E,
+                0x00, 0x00, 0x00, 0x80, 0xFF, 0xFF,
+            ],
+        ),
+    ])),
+};
+
+impl SplineTables {
+    pub const START: usize = 0x76B9B2;
+    pub const LEN: usize = 0x1D200;
+    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
+    pub fn home() -> usize {
+        &SPLINE_TABLES as *const SplineTables as usize
+    }
+}
+
+#[cfg(test)]
+mod spline_tables_tests {
+    use super::*;
+
+    #[test]
+    fn spline_tables_starts_as_the_games() {
+        use core::mem::offset_of;
+        assert_eq!(size_of::<SplineTables>(), SplineTables::LEN);
+        let p = &SPLINE_TABLES as *const SplineTables as *const u8;
+        let ours: Vec<u8> = (0..size_of::<SplineTables>())
+            .map(|i| unsafe { p.add(i).read() })
+            .collect();
+        assert!(
+            ours == crate::moved::image_bytes(SplineTables::START, SplineTables::LEN),
+            "SPLINE_TABLES starts differently from the image"
+        );
+        assert_eq!(offset_of!(SplineTables, a), 0x76B9B2 - SplineTables::START);
+        assert_eq!(offset_of!(SplineTables, b), 0x772E32 - SplineTables::START);
+        assert_eq!(offset_of!(SplineTables, c), 0x77A2B2 - SplineTables::START);
+        assert_eq!(offset_of!(SplineTables, d), 0x781732 - SplineTables::START);
+    }
+}
+
+/// The splines' values by kind (`marks::splines`) (IDA 0x788BB2 .. 0x788EFA, the image's layout; phase 7, typed state).
+#[repr(C)]
+pub struct SplineKinds {
+    /// 0x788BB2: `g_marksSplineChosen`, then `g_marksSplineKinds` (four): the five values of `g_marksKind`.
+    pub chosen: [Dword; 5],
+    /// 0x788BC6: `dword_788BC6` .. `dword_788DE6`: five tables of 0x22 values by kind.
+    pub by_kind: [Dword; 170],
+    /// 0x788E6E: Not named: 136 bytes (a gap, or unreferenced data).
+    pub _gap_788e6e: Bytes<136>,
+    /// 0x788EF6: `g_marksSplinesLoaded`: 0, or where to go on.
+    pub loaded: Dword,
+}
+
+pub static SPLINE_KINDS: SplineKinds = SplineKinds {
+    chosen: [
+        Dword::new(0x0),
+        Dword::new(0x13),
+        Dword::new(0x19),
+        Dword::new(0x18),
+        Dword::new(0x1C),
+    ],
+    by_kind: [
+        Dword::new(0x0),
+        Dword::new(0x0),
+        Dword::new(0x0),
+        Dword::new(0x0),
+        Dword::new(0x0),
+        Dword::new(0x0),
+        Dword::new(0x0),
+        Dword::new(0x0),
+        Dword::new(0x0),
+        Dword::new(0x0),
+        Dword::new(0x1),
+        Dword::new(0x0),
+        Dword::new(0x1),
+        Dword::new(0x0),
+        Dword::new(0x0),
+        Dword::new(0x0),
+        Dword::new(0x0),
+        Dword::new(0x0),
+        Dword::new(0x0),
+        Dword::new(0x0),
+        Dword::new(0x0),
+        Dword::new(0x0),
+        Dword::new(0x1),
+        Dword::new(0x0),
+        Dword::new(0x0),
+        Dword::new(0x0),
+        Dword::new(0x0),
+        Dword::new(0x0),
+        Dword::new(0x0),
+        Dword::new(0x0),
+        Dword::new(0x0),
+        Dword::new(0x0),
+        Dword::new(0x0),
+        Dword::new(0x0),
+        Dword::new(0x13),
+        Dword::new(0x13),
+        Dword::new(0xC),
+        Dword::new(0x12),
+        Dword::new(0x13),
+        Dword::new(0x13),
+        Dword::new(0x15),
+        Dword::new(0x10),
+        Dword::new(0x4),
+        Dword::new(0x15),
+        Dword::new(0x10),
+        Dword::new(0xE),
+        Dword::new(0x13),
+        Dword::new(0x1C),
+        Dword::new(0x13),
+        Dword::new(0x15),
+        Dword::new(0x11),
+        Dword::new(0xE),
+        Dword::new(0xA),
+        Dword::new(0xB),
+        Dword::new(0x11),
+        Dword::new(0x16),
+        Dword::new(0x10),
+        Dword::new(0xE),
+        Dword::new(0x15),
+        Dword::new(0xFFFFFFFF),
+        Dword::new(0xFFFFFFFF),
+        Dword::new(0xFFFFFFFF),
+        Dword::new(0xFFFFFFFF),
+        Dword::new(0xFFFFFFFF),
+        Dword::new(0xFFFFFFFF),
+        Dword::new(0xFFFFFFFF),
+        Dword::new(0xFFFFFFFF),
+        Dword::new(0x13),
+        Dword::new(0x18),
+        Dword::new(0x18),
+        Dword::new(0x1A),
+        Dword::new(0x19),
+        Dword::new(0x1C),
+        Dword::new(0x18),
+        Dword::new(0x1B),
+        Dword::new(0x1C),
+        Dword::new(0x18),
+        Dword::new(0x1A),
+        Dword::new(0x19),
+        Dword::new(0x19),
+        Dword::new(0x1A),
+        Dword::new(0x12),
+        Dword::new(0x18),
+        Dword::new(0x18),
+        Dword::new(0x1A),
+        Dword::new(0x12),
+        Dword::new(0xD),
+        Dword::new(0xE),
+        Dword::new(0x14),
+        Dword::new(0x19),
+        Dword::new(0x1C),
+        Dword::new(0x11),
+        Dword::new(0x1B),
+        Dword::new(0xFFFFFFFF),
+        Dword::new(0xFFFFFFFF),
+        Dword::new(0xFFFFFFFF),
+        Dword::new(0xFFFFFFFF),
+        Dword::new(0xFFFFFFFF),
+        Dword::new(0xFFFFFFFF),
+        Dword::new(0xFFFFFFFF),
+        Dword::new(0xFFFFFFFF),
+        Dword::new(0x18),
+        Dword::new(0x19),
+        Dword::new(0x19),
+        Dword::new(0x1B),
+        Dword::new(0x1A),
+        Dword::new(0x1B),
+        Dword::new(0x19),
+        Dword::new(0x1A),
+        Dword::new(0x1B),
+        Dword::new(0x19),
+        Dword::new(0x19),
+        Dword::new(0x18),
+        Dword::new(0x1A),
+        Dword::new(0x19),
+        Dword::new(0x11),
+        Dword::new(0x19),
+        Dword::new(0x19),
+        Dword::new(0x19),
+        Dword::new(0x11),
+        Dword::new(0xE),
+        Dword::new(0xF),
+        Dword::new(0x15),
+        Dword::new(0x1A),
+        Dword::new(0x1B),
+        Dword::new(0x12),
+        Dword::new(0x1A),
+        Dword::new(0xFFFFFFFF),
+        Dword::new(0xFFFFFFFF),
+        Dword::new(0xFFFFFFFF),
+        Dword::new(0xFFFFFFFF),
+        Dword::new(0xFFFFFFFF),
+        Dword::new(0xFFFFFFFF),
+        Dword::new(0xFFFFFFFF),
+        Dword::new(0xFFFFFFFF),
+        Dword::new(0x19),
+        Dword::new(0x1C),
+        Dword::new(0x1C),
+        Dword::new(0x1C),
+        Dword::new(0x1B),
+        Dword::new(0x1F),
+        Dword::new(0x1C),
+        Dword::new(0x1C),
+        Dword::new(0x1F),
+        Dword::new(0x1B),
+        Dword::new(0x1B),
+        Dword::new(0x1A),
+        Dword::new(0x1B),
+        Dword::new(0x1B),
+        Dword::new(0x8),
+        Dword::new(0x1A),
+        Dword::new(0x1B),
+        Dword::new(0x1C),
+        Dword::new(0x1C),
+        Dword::new(0x1B),
+        Dword::new(0x1A),
+        Dword::new(0x17),
+        Dword::new(0x1C),
+        Dword::new(0x1F),
+        Dword::new(0x14),
+        Dword::new(0x1C),
+        Dword::new(0xFFFFFFFF),
+        Dword::new(0xFFFFFFFF),
+        Dword::new(0xFFFFFFFF),
+        Dword::new(0xFFFFFFFF),
+        Dword::new(0xFFFFFFFF),
+        Dword::new(0xFFFFFFFF),
+        Dword::new(0xFFFFFFFF),
+        Dword::new(0xFFFFFFFF),
+        Dword::new(0x1C),
+    ],
+    _gap_788e6e: Bytes::new([
+        0xCD, 0xCC, 0x4C, 0x3F, 0xCD, 0xCC, 0x4C, 0x3F, 0xCD, 0xCC, 0x4C, 0x3F, 0xCD, 0xCC, 0x4C,
+        0x3F, 0xCD, 0xCC, 0x4C, 0x3F, 0xCD, 0xCC, 0x4C, 0x3F, 0xCD, 0xCC, 0x4C, 0x3F, 0xCD, 0xCC,
+        0x4C, 0x3F, 0xCD, 0xCC, 0x4C, 0x3F, 0xCD, 0xCC, 0x4C, 0x3F, 0xCD, 0xCC, 0x4C, 0x3F, 0xCD,
+        0xCC, 0x4C, 0x3F, 0xCD, 0xCC, 0x4C, 0x3F, 0xCD, 0xCC, 0x4C, 0x3F, 0xCD, 0xCC, 0x4C, 0x3F,
+        0xCD, 0xCC, 0x4C, 0x3F, 0xCD, 0xCC, 0x4C, 0x3F, 0xCD, 0xCC, 0x4C, 0x3F, 0xCD, 0xCC, 0x4C,
+        0x3F, 0xCD, 0xCC, 0x4C, 0x3F, 0xCD, 0xCC, 0x4C, 0x3F, 0xCD, 0xCC, 0x4C, 0x3F, 0xCD, 0xCC,
+        0x4C, 0x3F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xCD, 0xCC, 0x4C,
+        0x3F,
+    ]),
+    loaded: Dword::new(0x0),
+};
+
+impl SplineKinds {
+    pub const START: usize = 0x788BB2;
+    pub const LEN: usize = 0x348;
+    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
+    pub fn home() -> usize {
+        &SPLINE_KINDS as *const SplineKinds as usize
+    }
+}
+
+#[cfg(test)]
+mod spline_kinds_tests {
+    use super::*;
+
+    #[test]
+    fn spline_kinds_starts_as_the_games() {
+        use core::mem::offset_of;
+        assert_eq!(size_of::<SplineKinds>(), SplineKinds::LEN);
+        let p = &SPLINE_KINDS as *const SplineKinds as *const u8;
+        let ours: Vec<u8> = (0..size_of::<SplineKinds>())
+            .map(|i| unsafe { p.add(i).read() })
+            .collect();
+        assert!(
+            ours == crate::moved::image_bytes(SplineKinds::START, SplineKinds::LEN),
+            "SPLINE_KINDS starts differently from the image"
+        );
+        assert_eq!(
+            offset_of!(SplineKinds, chosen),
+            0x788BB2 - SplineKinds::START
+        );
+        assert_eq!(
+            offset_of!(SplineKinds, by_kind),
+            0x788BC6 - SplineKinds::START
+        );
+        assert_eq!(
+            offset_of!(SplineKinds, loaded),
+            0x788EF6 - SplineKinds::START
+        );
+    }
+}
+
+/// The splines' file name (`marks::splines`) (IDA 0x788EFA .. 0x788F0D, the image's layout; phase 7, typed state).
+#[repr(C)]
+pub struct SplinePath {
+    /// 0x788EFA: `files\m\spline.dat`, the file's name.
+    pub path: Bytes<19>,
+}
+
+pub static SPLINE_PATH: SplinePath = SplinePath {
+    path: Bytes::new([
+        0x66, 0x69, 0x6C, 0x65, 0x73, 0x5C, 0x6D, 0x5C, 0x73, 0x70, 0x6C, 0x69, 0x6E, 0x65, 0x2E,
+        0x64, 0x61, 0x74, 0x00,
+    ]),
+};
+
+impl SplinePath {
+    pub const START: usize = 0x788EFA;
+    pub const LEN: usize = 0x13;
+    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
+    pub fn home() -> usize {
+        &SPLINE_PATH as *const SplinePath as usize
+    }
+}
+
+#[cfg(test)]
+mod spline_path_tests {
+    use super::*;
+
+    #[test]
+    fn spline_path_starts_as_the_games() {
+        use core::mem::offset_of;
+        assert_eq!(size_of::<SplinePath>(), SplinePath::LEN);
+        let p = &SPLINE_PATH as *const SplinePath as *const u8;
+        let ours: Vec<u8> = (0..size_of::<SplinePath>())
+            .map(|i| unsafe { p.add(i).read() })
+            .collect();
+        assert!(
+            ours == crate::moved::image_bytes(SplinePath::START, SplinePath::LEN),
+            "SPLINE_PATH starts differently from the image"
+        );
+        assert_eq!(offset_of!(SplinePath, path), 0x788EFA - SplinePath::START);
+    }
+}
+
+/// The splines' constants (`marks::run_splines`, `marks::place_spline`, `marks::splines`) (IDA 0x788F0D .. 0x788F69, the image's layout; phase 7, typed state).
+#[repr(C)]
+pub struct SplineConstants {
+    /// 0x788F0D: `flt_788F0D`, `flt_788F11`, `flt_788F15`: the wave's constants.
+    pub wave_k: [Float; 3],
+    /// 0x788F19: `flt_788F19` .. `flt_788F35`: `place_spline`'s factors and limits.
+    pub place_k: [Float; 8],
+    /// 0x788F39: `g_marksSplineAngles`: each table's +0x24, +0x2C, +0x28 (four times three).
+    pub angles: [Float; 12],
+}
+
+pub static SPLINE_CONSTANTS: SplineConstants = SplineConstants {
+    wave_k: [
+        Float::from_bits(0x43000000),
+        Float::from_bits(0x3E4CCCCD),
+        Float::from_bits(0x3F800000),
+    ],
+    place_k: [
+        Float::from_bits(0x3F4CCCCD),
+        Float::from_bits(0x3ECCCCCD),
+        Float::from_bits(0x0),
+        Float::from_bits(0x3F19999A),
+        Float::from_bits(0x3DCCCCCD),
+        Float::from_bits(0x0),
+        Float::from_bits(0x3F19999A),
+        Float::from_bits(0x3DCCCCCD),
+    ],
+    angles: [const { Float::from_bits(0x0) }; 12],
+};
+
+impl SplineConstants {
+    pub const START: usize = 0x788F0D;
+    pub const LEN: usize = 0x5C;
+    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
+    pub fn home() -> usize {
+        &SPLINE_CONSTANTS as *const SplineConstants as usize
+    }
+}
+
+#[cfg(test)]
+mod spline_constants_tests {
+    use super::*;
+
+    #[test]
+    fn spline_constants_starts_as_the_games() {
+        use core::mem::offset_of;
+        assert_eq!(size_of::<SplineConstants>(), SplineConstants::LEN);
+        let p = &SPLINE_CONSTANTS as *const SplineConstants as *const u8;
+        let ours: Vec<u8> = (0..size_of::<SplineConstants>())
+            .map(|i| unsafe { p.add(i).read() })
+            .collect();
+        assert!(
+            ours == crate::moved::image_bytes(SplineConstants::START, SplineConstants::LEN),
+            "SPLINE_CONSTANTS starts differently from the image"
+        );
+        assert_eq!(
+            offset_of!(SplineConstants, wave_k),
+            0x788F0D - SplineConstants::START
+        );
+        assert_eq!(
+            offset_of!(SplineConstants, place_k),
+            0x788F19 - SplineConstants::START
+        );
+        assert_eq!(
+            offset_of!(SplineConstants, angles),
+            0x788F39 - SplineConstants::START
+        );
+    }
+}
+
+impl SplineTables {
+    /// The address of table `t` (A .. D) of eight records.
+    pub fn table(&self, t: usize) -> usize {
+        [self.a.addr(), self.b.addr(), self.c.addr(), self.d.addr()][t]
+    }
+}
+
+impl SplineHead {
+    /// Dword `i` of the looks table, read as the original reads it: model 32 and 33 of the
+    /// cars (34 models, pairs 8 bytes apart) run two and three dwords past the table's end
+    /// into `found`, `angle` and `wave` (`notes/bugs.md`).
+    pub fn look(&self, i: usize) -> u32 {
+        assert!(i < 69, "the looks table is read at most up to `wave`");
+        unsafe {
+            let first = (self as *const Self as *const u8)
+                .add(core::mem::offset_of!(Self, looks))
+                .cast::<Dword>();
+            (*first.add(i)).get()
+        }
+    }
 }

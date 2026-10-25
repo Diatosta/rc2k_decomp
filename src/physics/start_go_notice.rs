@@ -12,7 +12,8 @@
 use crate::errors::Refused;
 use crate::framework::{game_addr, rva};
 use crate::physics::car_store::CAR;
-use crate::physics::listed_car_flags::{TABLE, set_flag_at};
+use crate::physics::listed_car_flags::set_flag_at;
+use crate::race::frame_store::FRAME_WORK;
 use crate::race::work_store::RACE_WORK;
 use rc2k_core::physics::progress::{GO_NOTICE, GoFacts};
 
@@ -64,7 +65,7 @@ fn game() -> (Vec<u32>, [u32; 3]) {
         ],
         [
             RACE_WORK.current_car.addr() as u32,
-            g(TABLE),
+            FRAME_WORK.listed_car_sounds[0].addr() as u32,
             crate::sound::store::STAGE_SOUNDS.once[2].addr() as u32,
         ],
     )

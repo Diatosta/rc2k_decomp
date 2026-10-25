@@ -17,14 +17,11 @@
 use crate::errors::{BadInput, Refused};
 use crate::framework::rva;
 use crate::marks::clip_quad::{clip_quad, draw_fan};
-use crate::marks::store::{Slot, game_addr, game_read, game_write};
+use crate::marks::store::{game_addr, game_write};
+use crate::marks::surface_store::SURFACE;
 use crate::scene::draw_store::DRAW;
 
-const HALF_RVA: Slot = Slot::at(0x8EB8B5); // dword_8EB8B5
-const DEPTHS_RVA: [Slot; 2] = [Slot::at(0x8EB8DD), Slot::at(0x8EB8E9)];
-const NEAR_RVA: Slot = Slot::at(0x8EB961); // dword_8EB961
 const VERTICES_RVA: usize = rva(0x9605A0); // g_polygonVertices
-const CELLS_RVA: Slot = Slot::at(0x935766); // g_marksCellPlaces: 0x41 of 16 bytes
 const CELLS: u32 = 0x41;
 
 /// The original's 0x4C5EF7 .. 0x4C60E9: the two projected and the ribbon's corners.
@@ -33,7 +30,8 @@ unsafe fn ribbon() {
         ribbon_x87(
             crate::race::store::asm_base() as usize,
             crate::race::store::buffers_asm_base() as usize,
-            crate::marks::store::base() as usize,
+            &DRAW_WORK,
+            &VIEW_VARS,
         )
     }
 }
@@ -48,13 +46,13 @@ pub unsafe fn draw_ribbon(cell: u32, alpha: u32, width: u32, colour: u32) -> Res
         if crate::marks::setup::SETTINGS.pointer.get() == 0 {
             return Err(BadInput("no marks settings").into());
         }
-        game_write(HALF_RVA, width >> 1);
+        DRAW_WORK.half[0].set_bits(width >> 1);
         let colour = (alpha << 24) | colour;
         for n in 0..4 {
             game_write(VERTICES_RVA + 0x20 * n + 0x10, colour);
         }
         let at = cell << 4;
-        let place = |n: usize| game_read::<u32>(CELLS_RVA + at as usize + 4 * n);
+        let place = |n: usize| SURFACE.places.get_u32(at as usize + 4 * n);
         let [u0, v0, u1, v1] = [place(0), place(1), place(2), place(3)];
         for (n, (u, v)) in [(u0, v0), (u1, v0), (u1, v1), (u0, v1)]
             .into_iter()
@@ -63,8 +61,8 @@ pub unsafe fn draw_ribbon(cell: u32, alpha: u32, width: u32, colour: u32) -> Res
             game_write(VERTICES_RVA + 0x20 * n + 0x18, u);
             game_write(VERTICES_RVA + 0x20 * n + 0x1C, v);
         }
-        for r in DEPTHS_RVA {
-            if game_read::<i32>(r) <= game_read::<i32>(NEAR_RVA) {
+        for depth in [DRAW_WORK.turned[2].bits(), DRAW_WORK.second[2].bits()] {
+            if depth as i32 <= DRAW_WORK.near.bits() as i32 {
                 return Ok(());
             }
         }
@@ -78,99 +76,100 @@ pub unsafe fn draw_ribbon(cell: u32, alpha: u32, width: u32, colour: u32) -> Res
     Ok(())
 }
 
-use crate::marks::plain::{ld, ldi, st};
+use crate::marks::frame_state::{DRAW_WORK, DrawWork, VIEW_VARS, ViewVars};
+use crate::marks::plain::{ld, st};
 use crate::math::x87_float as bh;
 
 /// `ribbon`'s x87 block as plain Rust on the x87 model (93 instructions), same order and memory places.
-unsafe fn ribbon_x87(rc: usize, bf: usize, mk: usize) {
+unsafe fn ribbon_x87(rc: usize, bf: usize, dw: &DrawWork, vv: &ViewVars) {
     unsafe {
         let t0 = ld(rc, 0x224088);
-        let t1 = t0 / ld(mk, 0x18699D);
-        let t2 = t1 * ld(mk, 0x186995);
-        let t3 = t1 * ld(mk, 0x186999);
+        let t1 = t0 / bh::ld(dw.turned[2].bits());
+        let t2 = t1 * bh::ld(dw.turned[0].bits());
+        let t3 = t1 * bh::ld(dw.turned[1].bits());
         let t4 = -t3;
         let t5 = t4 + ld(rc, 0x2240A0);
-        st(mk, 0x186999, t5);
+        dw.turned[1].set_bits(bh::st(t5));
         let t6 = t2 + ld(rc, 0x22409C);
-        st(mk, 0x186995, t6);
-        st(mk, 0x18698D, t1);
+        dw.turned[0].set_bits(bh::st(t6));
+        dw.ends_scale[0].set_bits(bh::st(t1));
         let t7 = ld(rc, 0x224088);
-        let t8 = t7 / ld(mk, 0x1869A9);
-        let t9 = t8 * ld(mk, 0x1869A1);
-        let t10 = t8 * ld(mk, 0x1869A5);
+        let t8 = t7 / bh::ld(dw.second[2].bits());
+        let t9 = t8 * bh::ld(dw.second[0].bits());
+        let t10 = t8 * bh::ld(dw.second[1].bits());
         let t11 = -t10;
         let t12 = t11 + ld(rc, 0x2240A0);
-        st(mk, 0x1869A5, t12);
+        dw.second[1].set_bits(bh::st(t12));
         let t13 = t9 + ld(rc, 0x22409C);
-        st(mk, 0x1869A1, t13);
-        st(mk, 0x186991, t8);
-        let t14 = ld(mk, 0x1869A1);
-        let t15 = t14 - ld(mk, 0x186995);
-        st(mk, 0x18EA45, t15);
-        let t16 = ld(mk, 0x1869A5);
-        let t17 = t16 - ld(mk, 0x186999);
-        st(mk, 0x18EA49, t17);
-        let t18 = ld(mk, 0x18EA45);
+        dw.second[0].set_bits(bh::st(t13));
+        dw.ends_scale[1].set_bits(bh::st(t8));
+        let t14 = bh::ld(dw.second[0].bits());
+        let t15 = t14 - bh::ld(dw.turned[0].bits());
+        vv.ribbon_way[0].set_bits(bh::st(t15));
+        let t16 = bh::ld(dw.second[1].bits());
+        let t17 = t16 - bh::ld(dw.turned[1].bits());
+        vv.ribbon_way[1].set_bits(bh::st(t17));
+        let t18 = bh::ld(vv.ribbon_way[0].bits());
         let t19 = t18 * t18;
-        let t20 = ld(mk, 0x18EA49);
+        let t20 = bh::ld(vv.ribbon_way[1].bits());
         let t21 = t20 * t20;
         let t22 = t19 + t21;
         let t23 = t22.sqrt();
         let t24 = bh::ONE;
         let t25 = t24 / t23;
-        let t26 = ld(mk, 0x18EA45);
-        let t27 = ld(mk, 0x18EA49);
+        let t26 = bh::ld(vv.ribbon_way[0].bits());
+        let t27 = bh::ld(vv.ribbon_way[1].bits());
         let t28 = t27 * t25;
-        st(mk, 0x18EA45, t28);
+        vv.ribbon_way[0].set_bits(bh::st(t28));
         let t29 = t25 * t26;
         let t30 = -t29;
-        st(mk, 0x18EA49, t30);
-        let t31 = ld(mk, 0x18EA45);
-        let t32 = t31 * ldi(mk, 0x186975);
-        let t33 = t32 * ld(mk, 0x18698D);
-        st(mk, 0x18EA51, t33);
-        let t34 = ld(mk, 0x18EA49);
-        let t35 = t34 * ldi(mk, 0x186975);
-        let t36 = t35 * ld(mk, 0x18698D);
-        st(mk, 0x18EA55, t36);
-        let t37 = ld(mk, 0x18EA45);
-        let t38 = t37 * ldi(mk, 0x186975);
-        let t39 = t38 * ld(mk, 0x186991);
-        st(mk, 0x18EA5D, t39);
-        let t40 = ld(mk, 0x18EA49);
-        let t41 = t40 * ldi(mk, 0x186975);
-        let t42 = t41 * ld(mk, 0x186991);
-        st(mk, 0x18EA61, t42);
-        let t43 = ld(mk, 0x186995);
-        let t44 = t43 - ld(mk, 0x18EA51);
+        vv.ribbon_way[1].set_bits(bh::st(t30));
+        let t31 = bh::ld(vv.ribbon_way[0].bits());
+        let t32 = t31 * bh::int(dw.half[0].bits() as i32);
+        let t33 = t32 * bh::ld(dw.ends_scale[0].bits());
+        vv.ribbon_sides[0].set_bits(bh::st(t33));
+        let t34 = bh::ld(vv.ribbon_way[1].bits());
+        let t35 = t34 * bh::int(dw.half[0].bits() as i32);
+        let t36 = t35 * bh::ld(dw.ends_scale[0].bits());
+        vv.ribbon_sides[1].set_bits(bh::st(t36));
+        let t37 = bh::ld(vv.ribbon_way[0].bits());
+        let t38 = t37 * bh::int(dw.half[0].bits() as i32);
+        let t39 = t38 * bh::ld(dw.ends_scale[1].bits());
+        vv.ribbon_sides_2[0].set_bits(bh::st(t39));
+        let t40 = bh::ld(vv.ribbon_way[1].bits());
+        let t41 = t40 * bh::int(dw.half[0].bits() as i32);
+        let t42 = t41 * bh::ld(dw.ends_scale[1].bits());
+        vv.ribbon_sides_2[1].set_bits(bh::st(t42));
+        let t43 = bh::ld(dw.turned[0].bits());
+        let t44 = t43 - bh::ld(vv.ribbon_sides[0].bits());
         st(bf, 0x5605A0, t44);
-        let t45 = ld(mk, 0x186999);
-        let t46 = t45 - ld(mk, 0x18EA55);
+        let t45 = bh::ld(dw.turned[1].bits());
+        let t46 = t45 - bh::ld(vv.ribbon_sides[1].bits());
         st(bf, 0x5605A4, t46);
-        let t47 = ld(mk, 0x186995);
-        let t48 = t47 + ld(mk, 0x18EA51);
+        let t47 = bh::ld(dw.turned[0].bits());
+        let t48 = t47 + bh::ld(vv.ribbon_sides[0].bits());
         st(bf, 0x5605C0, t48);
-        let t49 = ld(mk, 0x186999);
-        let t50 = t49 + ld(mk, 0x18EA55);
+        let t49 = bh::ld(dw.turned[1].bits());
+        let t50 = t49 + bh::ld(vv.ribbon_sides[1].bits());
         st(bf, 0x5605C4, t50);
-        let t51 = ld(mk, 0x1869A1);
-        let t52 = t51 + ld(mk, 0x18EA5D);
+        let t51 = bh::ld(dw.second[0].bits());
+        let t52 = t51 + bh::ld(vv.ribbon_sides_2[0].bits());
         st(bf, 0x5605E0, t52);
-        let t53 = ld(mk, 0x1869A5);
-        let t54 = t53 + ld(mk, 0x18EA61);
+        let t53 = bh::ld(dw.second[1].bits());
+        let t54 = t53 + bh::ld(vv.ribbon_sides_2[1].bits());
         st(bf, 0x5605E4, t54);
-        let t55 = ld(mk, 0x1869A1);
-        let t56 = t55 - ld(mk, 0x18EA5D);
+        let t55 = bh::ld(dw.second[0].bits());
+        let t56 = t55 - bh::ld(vv.ribbon_sides_2[0].bits());
         st(bf, 0x560600, t56);
-        let t57 = ld(mk, 0x1869A5);
-        let t58 = t57 - ld(mk, 0x18EA61);
+        let t57 = bh::ld(dw.second[1].bits());
+        let t58 = t57 - bh::ld(vv.ribbon_sides_2[1].bits());
         st(bf, 0x560604, t58);
-        let t59 = ld(mk, 0x18699D);
-        let t60 = t59 * ld(mk, 0x186A2D);
+        let t59 = bh::ld(dw.turned[2].bits());
+        let t60 = t59 * bh::ld(dw.z_k.bits());
         st(bf, 0x5605A8, t60);
         st(bf, 0x5605C8, t60);
-        let t61 = ld(mk, 0x1869A9);
-        let t62 = t61 * ld(mk, 0x186A2D);
+        let t61 = bh::ld(dw.second[2].bits());
+        let t62 = t61 * bh::ld(dw.z_k.bits());
         st(bf, 0x5605E8, t62);
         st(bf, 0x560608, t62);
     }
@@ -291,7 +290,9 @@ mod asm_reference {
 mod asm_differential {
     use super::asm_reference as reference;
     use crate::marks::asm_test::Kind::*;
+    use crate::marks::asm_test::with_copy;
     use crate::marks::asm_test::{Op, Spec, differential};
+    use crate::marks::frame_state::{DrawWork, ViewVars};
 
     #[test]
     fn ribbon_x87_matches() {
@@ -323,8 +324,8 @@ mod asm_differential {
                     ],
                 },
                 Op::Base {
-                    lo: 0x186975,
-                    hi: 0x18EA65,
+                    lo: 0x186931,
+                    hi: 0x18EA8D,
                     reads: &[
                         (0x186975, I32),
                         (0x18698D, F32),
@@ -364,7 +365,13 @@ mod asm_differential {
         differential(
             &SPEC,
             |b| unsafe { reference::ribbon_x87(b[0], b[1], b[2]) },
-            |b| unsafe { super::ribbon_x87(b[0], b[1], b[2]) },
+            |b| {
+                with_copy::<DrawWork, _>(b[2], DrawWork::START, |dw| {
+                    with_copy::<ViewVars, _>(b[2], ViewVars::START, |vv| unsafe {
+                        super::ribbon_x87(b[0], b[1], dw, vv)
+                    })
+                })
+            },
         );
     }
 }

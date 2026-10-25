@@ -21,7 +21,8 @@ use crate::physics::flow::{g, p};
 use crate::race::frame_store::FRAME_WORK;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
-use crate::race::viewer::{BLOCK, BLOCK_DATA, FRAME};
+use crate::race::viewer::BLOCK_DATA;
+use crate::race::viewer_state_store::REPLAY_VIEW;
 use crate::race::work_store::RACE_WORK;
 
 const STILL: usize = 0x601024; // dword_601024
@@ -51,12 +52,12 @@ pub fn show_replay_still() -> Result<(), Refused> {
         load_frame();
         load_replay_cars::load_replay_cars();
         replay_cameras::replay_cameras()?;
-        for step in 0..g(FRAME) {
+        for step in 0..g(&REPLAY_VIEW.replay_frame) {
             p(STEP_FRAME, step);
-            p(STEP_BLOCK, g(BLOCK));
+            p(STEP_BLOCK, REPLAY_VIEW.replay_block.get());
             crate::race::step_replay_cars::step_replay_cars()?;
         }
-        if g(FRAME) == 0 {
+        if REPLAY_VIEW.replay_frame.get() == 0 {
             p(STEP_FIRST, 1);
             crate::race::step_replay_cars::step_replay_cars()?;
             p(STEP_FIRST, 0);

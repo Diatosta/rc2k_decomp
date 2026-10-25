@@ -117,7 +117,7 @@ pub unsafe fn scroll_map() -> Result<(), Refused> {
 /// caller, `race::draw_race_scene`, reads no register it leaves.
 pub unsafe fn scroll_maps() -> Result<(), Refused> {
     // Converted: `rc2k_core::race::map::scrolled_views`.
-    use crate::race::frame::{VIEW_CARS, load_view_car, store_view_car};
+    use crate::race::frame::{load_view_car, store_view_car, view_car};
     unsafe {
         let third_only = crate::net::store::NET.session.get() != 0;
         // The player count is read only without the third view.
@@ -126,7 +126,7 @@ pub unsafe fn scroll_maps() -> Result<(), Refused> {
             if third_only { 0 } else { RACE_VIEW.views.get() },
         );
         for &v in views {
-            let car = game_read::<u32>(VIEW_CARS[v]) & 7;
+            let car = view_car(v).get() & 7;
             if RACE_WORK.car_block(car as usize) == 0 {
                 return Err(BadInput("a view car without its block").into());
             }

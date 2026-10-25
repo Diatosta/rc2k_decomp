@@ -6,10 +6,10 @@
 //!
 //! Caller: `race::viewer_action` (actions 0x25 .. 0x28).
 
-use crate::race::viewer::{PICTURES_STARTED, RECORDING, put};
+use crate::race::viewer_screen_store::VIEWER_PANEL;
 
 /// The Rust version.
 pub fn stop_frame_pictures() {
-    put(RECORDING, 0);
-    put(PICTURES_STARTED, 0);
+    VIEWER_PANEL.replay_recording.set(0);
+    VIEWER_PANEL.pictures_started.set(0);
 }

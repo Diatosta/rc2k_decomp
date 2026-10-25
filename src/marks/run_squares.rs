@@ -13,20 +13,18 @@
 //! Caller: `sub_4BF60F` (0x4BF7E9). The spawning is its Rust version.
 
 use crate::framework::rva;
-use crate::marks::expire_squares::{ITEM_LEN, ITEMS, ITEMS_RVA};
+use crate::marks::edges::EDGE_MASK;
 use crate::marks::setup::CLOCK;
 use crate::marks::squares_spawn::squares_spawn;
-use crate::marks::store::{Slot, game_addr, game_read, game_write};
+use crate::marks::squares_store::{SQUARE_ITEMS, SQUARE_STATE};
+use crate::marks::store::game_write;
+use crate::marks::tuning::MARKS_KIND_FLOATS;
 use crate::math::x87;
 use crate::race::frame_store::FRAME_WORK;
 use crate::scene::matrix3::extended;
+use crate::session::{address_of, read_bits};
 
 const VERTICES_RVA: usize = rva(0x9605A0); // g_polygonVertices
-const PLACES_RVA: Slot = Slot::at(0x8BC222); // dword_8BC222 .. dword_8BC22E
-const RUNNING_RVA: Slot = Slot::at(0x7652A0); // dword_7652A0
-const EDGE_RVA: Slot = Slot::at(0x809BC3); // g_marksEdgeMask
-const FADE_RVA: Slot = Slot::at(0x8BC232); // dword_8BC232
-const FAR_RVA: Slot = Slot::at(0x8BC236); // flt_8BC236
 const LIFE: i32 = 0xFA0;
 
 /// `fld k; fsub z`, kept extended.
@@ -46,41 +44,43 @@ pub unsafe fn run_squares() {
 unsafe fn run() {
     unsafe {
         crate::marks::squares_setup::squares_setup();
-        let [a, b, c, d]: [u32; 4] = game_read(PLACES_RVA);
+        let [a, b, c, d]: [u32; 4] = read_bits(&SQUARE_STATE.run_places);
         for (n, (u, v)) in [(a, b), (c, b), (c, d), (a, d)].into_iter().enumerate() {
             game_write(VERTICES_RVA + 0x20 * n + 0x18, u);
             game_write(VERTICES_RVA + 0x20 * n + 0x1C, v);
         }
-        if game_read::<u32>(RUNNING_RVA) != 0 {
+        if MARKS_KIND_FLOATS.running.bits() != 0 {
             squares_spawn();
         }
-        let base = game_addr(ITEMS_RVA) as u32;
-        for n in 0..ITEMS {
-            let e = base + n * ITEM_LEN;
-            let get = |o: u32| ((e + o) as *const u32).read_unaligned();
-            if get(0) != 1 {
+        for item in &SQUARE_ITEMS.items {
+            if item.live.get() != 1 {
                 continue;
             }
-            if game_read::<u32>(RUNNING_RVA) != 0 {
-                let age = get(8).wrapping_add(CLOCK.frame_ticks.get());
-                ((e + 8) as *mut u32).write_unaligned(age);
+            if MARKS_KIND_FLOATS.running.bits() != 0 {
+                let age = item.age.get().wrapping_add(CLOCK.frame_ticks.get());
+                item.age.set(age);
                 if age as i32 >= LIFE {
-                    (e as *mut u32).write_unaligned(0);
+                    item.live.set(0);
                     continue;
                 }
             }
-            let x = x87::to_int(get(0x20)) as u32;
-            let z = x87::to_int(get(0x24)) as u32;
+            let x = x87::to_int(item.place[0].bits()) as u32;
+            let z = x87::to_int(item.place[1].bits()) as u32;
             let column = (x >> 3) & 0xFF;
             let cell = (((z >> 3) & 0x7F) << 8) + column;
-            if game_read::<u8>(EDGE_RVA + cell as usize) != 0 {
-                (e as *mut u32).write_unaligned(0);
+            if EDGE_MASK.mask.get(cell as usize) != 0 {
+                item.live.set(0);
                 continue;
             }
-            let alpha = x87::int_over_int_to_int(get(8) as i32, game_read(FADE_RVA)) as u32;
+            let alpha =
+                x87::int_over_int_to_int(item.age.get() as i32, SQUARE_STATE.fade.get() as i32)
+                    as u32;
             let colour = ((!alpha) << 24) | (FRAME_WORK.view_light.bits() & 0xFF_FFFF);
-            let values = [less(game_read(FAR_RVA), get(0x24)), extended(get(0x20))];
-            crate::marks::draw_square::draw_square(e, colour, values);
+            let values = [
+                less(SQUARE_STATE.far.bits(), item.place[1].bits()),
+                extended(item.place[0].bits()),
+            ];
+            crate::marks::draw_square::draw_square(address_of(item) as u32, colour, values);
         }
         crate::scene::depth_buffer_on::depth_buffer(true);
     }

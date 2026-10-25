@@ -16,11 +16,12 @@
 //! game's variables.
 
 use crate::framework::rva;
-use crate::marks::store::{Slot, game_addr, game_read, game_write};
+use crate::marks::squares_store::SQUARE_STATE;
+use crate::marks::store::{game_addr, game_write};
+use crate::marks::tuning::{MARKS_KIND_FLOATS, MarksKindFloats};
+use crate::session::read_bits;
 
 const VERTICES_RVA: usize = rva(0x9605A0); // g_polygonVertices
-const PLACES_RVA: Slot = Slot::at(0x8BC1AE); // dword_8BC1AE .. dword_8BC1BA
-const CORNERS_RVA: Slot = Slot::at(0x89CF92); // flt_89CF92 .. flt_89CFBE: four of 12
 const FAR_ENOUGH: i32 = 0x4580_0000; // 4096.0
 
 /// The original's 0x4BF845 .. 0x4BF88D: the item's texture shift added to the places.
@@ -30,7 +31,7 @@ unsafe fn shifted_places(s: u32, p: u32) {
 
 /// The original's 0x4BF88E .. 0x4BF9AA on the two values: the corners.
 unsafe fn corners(v: &[[u8; 10]; 2]) {
-    unsafe { corners_x87(crate::marks::store::base() as usize, v.as_ptr() as usize) }
+    unsafe { corners_x87(v.as_ptr() as usize, &SQUARE_TABLES) }
 }
 
 /// The original's 0x4BF9BA .. 0x4BFAD6: the corners projected, their depth.
@@ -38,8 +39,9 @@ unsafe fn projected(p: u32) {
     unsafe {
         projected_x87(
             crate::race::store::asm_base() as usize,
-            crate::marks::store::base() as usize,
             p as usize,
+            &MARKS_KIND_FLOATS,
+            &SQUARE_TABLES,
         )
     }
 }
@@ -48,14 +50,14 @@ unsafe fn projected(p: u32) {
 pub unsafe fn draw_square(item: u32, colour: u32, shares: [[u8; 10]; 2]) {
     unsafe {
         let vertices = game_addr(VERTICES_RVA) as u32;
-        let [a, pb, c, d]: [u32; 4] = game_read(PLACES_RVA);
+        let [a, pb, c, d]: [u32; 4] = read_bits(&SQUARE_STATE.places);
         for (n, (u, v)) in [(a, pb), (c, pb), (c, d), (a, d)].into_iter().enumerate() {
             game_write(VERTICES_RVA + 0x20 * n + 0x18, u);
             game_write(VERTICES_RVA + 0x20 * n + 0x1C, v);
         }
         shifted_places(item, vertices);
         corners(&shares);
-        if game_read::<i32>(CORNERS_RVA + 8) <= FAR_ENOUGH {
+        if SQUARE_TABLES.corners[0][2].bits() as i32 <= FAR_ENOUGH {
             return;
         }
         projected(vertices);
@@ -67,6 +69,7 @@ pub unsafe fn draw_square(item: u32, colour: u32, shares: [[u8; 10]; 2]) {
 }
 
 use crate::marks::plain::{ld, ld80, st};
+use crate::marks::squares_store::{SQUARE_TABLES, SquareTables};
 use crate::math::x87_float as bh;
 
 /// `shifted_places`'s x87 block as plain Rust on the x87 model (24 instructions), same order and memory places.
@@ -100,115 +103,115 @@ unsafe fn shifted_places_x87(s: usize, p: usize) {
 }
 
 /// `corners`'s x87 block as plain Rust on the x87 model (56 instructions), same order and memory places.
-unsafe fn corners_x87(mk: usize, v: usize) {
+unsafe fn corners_x87(v: usize, sq: &SquareTables) {
     unsafe {
         let t0 = bh::from_f80(ld80(v, 0xA));
         let t1 = bh::from_f80(ld80(v, 0));
-        let t2 = t1 * ld(mk, 0x137FB2);
-        let t3 = t0 * ld(mk, 0x137FAE);
-        let t4 = t3 * ld(mk, 0x137FDA);
-        let t5 = t2 * ld(mk, 0x137FE6);
+        let t2 = t1 * bh::ld(sq.lengths[1].bits());
+        let t3 = t0 * bh::ld(sq.lengths[0].bits());
+        let t4 = t3 * bh::ld(sq.axes[0][0].bits());
+        let t5 = t2 * bh::ld(sq.axes[1][0].bits());
         let t6 = t4 + t5;
-        let t7 = t6 + ld(mk, 0x137FB6);
-        st(mk, 0x138052, t7);
-        let t8 = t3 * ld(mk, 0x137FDE);
-        let t9 = t2 * ld(mk, 0x137FEA);
+        let t7 = t6 + bh::ld(sq.place[0].bits());
+        sq.corners[0][0].set_bits(bh::st(t7));
+        let t8 = t3 * bh::ld(sq.axes[0][1].bits());
+        let t9 = t2 * bh::ld(sq.axes[1][1].bits());
         let t10 = t8 + t9;
-        let t11 = t10 + ld(mk, 0x137FBA);
-        st(mk, 0x138056, t11);
-        let t12 = t2 * ld(mk, 0x137FEE);
-        let t13 = t3 * ld(mk, 0x137FE2);
+        let t11 = t10 + bh::ld(sq.place[1].bits());
+        sq.corners[0][1].set_bits(bh::st(t11));
+        let t12 = t2 * bh::ld(sq.axes[1][2].bits());
+        let t13 = t3 * bh::ld(sq.axes[0][2].bits());
         let t14 = t12 + t13;
-        let t15 = t14 + ld(mk, 0x137FBE);
-        st(mk, 0x13805A, t15);
-        let t16 = ld(mk, 0x138052);
-        let t17 = t16 - ld(mk, 0x138016);
-        let t18 = t17 - ld(mk, 0x138022);
-        st(mk, 0x138052, t18);
-        let t19 = t18 + ld(mk, 0x13800A);
-        st(mk, 0x13805E, t19);
-        let t20 = t19 + ld(mk, 0x137FFE);
-        st(mk, 0x13806A, t20);
-        let t21 = t20 - ld(mk, 0x13800A);
-        st(mk, 0x138076, t21);
-        let t22 = ld(mk, 0x138056);
-        let t23 = t22 - ld(mk, 0x13801A);
-        let t24 = t23 - ld(mk, 0x138026);
-        st(mk, 0x138056, t24);
-        let t25 = t24 + ld(mk, 0x13800E);
-        st(mk, 0x138062, t25);
-        let t26 = t25 + ld(mk, 0x138002);
-        st(mk, 0x13806E, t26);
-        let t27 = t26 - ld(mk, 0x13800E);
-        st(mk, 0x13807A, t27);
-        let t28 = ld(mk, 0x13805A);
-        let t29 = t28 - ld(mk, 0x13801E);
-        let t30 = t29 - ld(mk, 0x13802A);
-        st(mk, 0x13805A, t30);
-        let t31 = t30 + ld(mk, 0x138012);
-        st(mk, 0x138066, t31);
-        let t32 = t31 + ld(mk, 0x138006);
-        st(mk, 0x138072, t32);
-        let t33 = t32 - ld(mk, 0x138012);
-        st(mk, 0x13807E, t33);
+        let t15 = t14 + bh::ld(sq.place[2].bits());
+        sq.corners[0][2].set_bits(bh::st(t15));
+        let t16 = bh::ld(sq.corners[0][0].bits());
+        let t17 = t16 - bh::ld(sq.half_axes[0][0].bits());
+        let t18 = t17 - bh::ld(sq.half_axes[1][0].bits());
+        sq.corners[0][0].set_bits(bh::st(t18));
+        let t19 = t18 + bh::ld(sq.scaled_by_radius[1][0].bits());
+        sq.corners[1][0].set_bits(bh::st(t19));
+        let t20 = t19 + bh::ld(sq.scaled_by_radius[0][0].bits());
+        sq.corners[2][0].set_bits(bh::st(t20));
+        let t21 = t20 - bh::ld(sq.scaled_by_radius[1][0].bits());
+        sq.corners[3][0].set_bits(bh::st(t21));
+        let t22 = bh::ld(sq.corners[0][1].bits());
+        let t23 = t22 - bh::ld(sq.half_axes[0][1].bits());
+        let t24 = t23 - bh::ld(sq.half_axes[1][1].bits());
+        sq.corners[0][1].set_bits(bh::st(t24));
+        let t25 = t24 + bh::ld(sq.scaled_by_radius[1][1].bits());
+        sq.corners[1][1].set_bits(bh::st(t25));
+        let t26 = t25 + bh::ld(sq.scaled_by_radius[0][1].bits());
+        sq.corners[2][1].set_bits(bh::st(t26));
+        let t27 = t26 - bh::ld(sq.scaled_by_radius[1][1].bits());
+        sq.corners[3][1].set_bits(bh::st(t27));
+        let t28 = bh::ld(sq.corners[0][2].bits());
+        let t29 = t28 - bh::ld(sq.half_axes[0][2].bits());
+        let t30 = t29 - bh::ld(sq.half_axes[1][2].bits());
+        sq.corners[0][2].set_bits(bh::st(t30));
+        let t31 = t30 + bh::ld(sq.scaled_by_radius[1][2].bits());
+        sq.corners[1][2].set_bits(bh::st(t31));
+        let t32 = t31 + bh::ld(sq.scaled_by_radius[0][2].bits());
+        sq.corners[2][2].set_bits(bh::st(t32));
+        let t33 = t32 - bh::ld(sq.scaled_by_radius[1][2].bits());
+        sq.corners[3][2].set_bits(bh::st(t33));
     }
 }
 
 /// `projected`'s x87 block as plain Rust on the x87 model (64 instructions), same order and memory places.
-unsafe fn projected_x87(rc: usize, mk: usize, p: usize) {
+unsafe fn projected_x87(rc: usize, p: usize, k: &MarksKindFloats, sq: &SquareTables) {
     unsafe {
         let t0 = ld(rc, 0x224088);
-        let t1 = t0 / ld(mk, 0x13807E);
+        let t1 = t0 / bh::ld(sq.corners[3][2].bits());
         let t2 = ld(rc, 0x224088);
-        let t3 = t2 / ld(mk, 0x138072);
+        let t3 = t2 / bh::ld(sq.corners[2][2].bits());
         let t4 = ld(rc, 0x224088);
-        let t5 = t4 / ld(mk, 0x138066);
+        let t5 = t4 / bh::ld(sq.corners[1][2].bits());
         let t6 = ld(rc, 0x224088);
-        let t7 = t6 / ld(mk, 0x13805A);
-        let t8 = ld(mk, 0x138056);
+        let t7 = t6 / bh::ld(sq.corners[0][2].bits());
+        let t8 = bh::ld(sq.corners[0][1].bits());
         let t9 = t8 * t7;
-        let t10 = t7 * ld(mk, 0x138052);
+        let t10 = t7 * bh::ld(sq.corners[0][0].bits());
         let t11 = -t9;
         let t12 = t11 + ld(rc, 0x2240A0);
         st(p, 0x4, t12);
         let t13 = t10 + ld(rc, 0x22409C);
         st(p, 0, t13);
-        let t14 = ld(mk, 0x138062);
+        let t14 = bh::ld(sq.corners[1][1].bits());
         let t15 = t14 * t5;
-        let t16 = t5 * ld(mk, 0x13805E);
+        let t16 = t5 * bh::ld(sq.corners[1][0].bits());
         let t17 = -t15;
         let t18 = t17 + ld(rc, 0x2240A0);
         st(p, 0x24, t18);
         let t19 = t16 + ld(rc, 0x22409C);
         st(p, 0x20, t19);
-        let t20 = ld(mk, 0x13806E);
+        let t20 = bh::ld(sq.corners[2][1].bits());
         let t21 = t20 * t3;
-        let t22 = t3 * ld(mk, 0x13806A);
+        let t22 = t3 * bh::ld(sq.corners[2][0].bits());
         let t23 = -t21;
         let t24 = t23 + ld(rc, 0x2240A0);
         st(p, 0x44, t24);
         let t25 = t22 + ld(rc, 0x22409C);
         st(p, 0x40, t25);
-        let t26 = ld(mk, 0x13807A);
+        let t26 = bh::ld(sq.corners[3][1].bits());
         let t27 = t26 * t1;
-        let t28 = t1 * ld(mk, 0x138076);
+        let t28 = t1 * bh::ld(sq.corners[3][0].bits());
         let t29 = -t27;
         let t30 = t29 + ld(rc, 0x2240A0);
         st(p, 0x64, t30);
         let t31 = t28 + ld(rc, 0x22409C);
         st(p, 0x60, t31);
-        let t32 = ld(mk, 0x13805A);
-        let t33 = t32 + ld(mk, 0x35C);
-        let t34 = t33 * ld(mk, 0x137FAA);
-        let t35 = ld(mk, 0x138066);
-        let t36 = t35 + ld(mk, 0x35C);
-        let t37 = t36 * ld(mk, 0x137FAA);
-        let t38 = ld(mk, 0x138072);
-        let t39 = t38 + ld(mk, 0x35C);
-        let t40 = t39 * ld(mk, 0x137FAA);
-        let t41 = ld(mk, 0x13807E);
-        let t42 = t41 + ld(mk, 0x35C);
-        let t43 = t42 * ld(mk, 0x137FAA);
+        let t32 = bh::ld(sq.corners[0][2].bits());
+        let t33 = t32 + bh::ld(k.kind_float.bits());
+        let t34 = t33 * bh::ld(sq.inverse.bits());
+        let t35 = bh::ld(sq.corners[1][2].bits());
+        let t36 = t35 + bh::ld(k.kind_float.bits());
+        let t37 = t36 * bh::ld(sq.inverse.bits());
+        let t38 = bh::ld(sq.corners[2][2].bits());
+        let t39 = t38 + bh::ld(k.kind_float.bits());
+        let t40 = t39 * bh::ld(sq.inverse.bits());
+        let t41 = bh::ld(sq.corners[3][2].bits());
+        let t42 = t41 + bh::ld(k.kind_float.bits());
+        let t43 = t42 * bh::ld(sq.inverse.bits());
         st(p, 0x68, t43);
         st(p, 0x48, t40);
         st(p, 0x28, t37);
@@ -406,7 +409,10 @@ mod asm_reference {
 mod asm_differential {
     use super::asm_reference as reference;
     use crate::marks::asm_test::Kind::*;
+    use crate::marks::asm_test::with_copy;
     use crate::marks::asm_test::{Op, Spec, differential};
+    use crate::marks::squares_store::SquareTables;
+    use crate::marks::tuning::MarksKindFloats;
 
     #[test]
     fn shifted_places_x87_matches() {
@@ -457,8 +463,8 @@ mod asm_differential {
         const SPEC: Spec = Spec {
             operands: &[
                 Op::Base {
-                    lo: 0x137FAE,
-                    hi: 0x138082,
+                    lo: 0x137B8A,
+                    hi: 0x13822A,
                     reads: &[
                         (0x137FAE, F32),
                         (0x137FB2, F32),
@@ -514,7 +520,11 @@ mod asm_differential {
         differential(
             &SPEC,
             |b| unsafe { reference::corners_x87(b[0], b[1]) },
-            |b| unsafe { super::corners_x87(b[0], b[1]) },
+            |b| {
+                with_copy::<SquareTables, _>(b[0], SquareTables::START, |sq| unsafe {
+                    super::corners_x87(b[1], sq)
+                })
+            },
         );
     }
 
@@ -529,8 +539,8 @@ mod asm_differential {
                     writes: &[],
                 },
                 Op::Base {
-                    lo: 0x35C,
-                    hi: 0x138082,
+                    lo: 0x2F8,
+                    hi: 0x13822A,
                     reads: &[
                         (0x35C, F32),
                         (0x137FAA, F32),
@@ -574,7 +584,13 @@ mod asm_differential {
         differential(
             &SPEC,
             |b| unsafe { reference::projected_x87(b[0], b[1], b[2]) },
-            |b| unsafe { super::projected_x87(b[0], b[1], b[2]) },
+            |b| {
+                with_copy::<MarksKindFloats, _>(b[1], MarksKindFloats::START, |k| {
+                    with_copy::<SquareTables, _>(b[1], SquareTables::START, |sq| unsafe {
+                        super::projected_x87(b[0], b[2], k, sq)
+                    })
+                })
+            },
         );
     }
 }

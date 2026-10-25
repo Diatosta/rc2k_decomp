@@ -12,16 +12,20 @@
 
 use crate::errors::Refused;
 use crate::physics::flow::a;
-use crate::race::viewer::{
-    BLOCK, BLOCKS, CAMERA_EDIT, CAMERA_NAMES, FIRST_CAR, ONE_PLAYER, get, put,
-};
+use crate::race::replay_file_store::REPLAY_FILE;
+use crate::race::replay_work_store::REPLAY_WORK;
+use crate::race::viewer::{CAMERA_EDIT, CAMERA_NAMES, get, put};
+use crate::race::viewer_state_store::REPLAY_VIEW;
 
 /// `edit_camera_1` / `_2` (eax the block shown is left; its caller, `viewer_action`,
 /// keeps every register).
 pub fn edit_camera(camera: u32) {
     // Converted: `rc2k_core::race::viewer_flow::edits_camera`.
     crate::race::keep_undo::keep_undo();
-    if rc2k_core::race::viewer_flow::edits_camera(get(BLOCK), get(BLOCKS)) {
+    if rc2k_core::race::viewer_flow::edits_camera(
+        REPLAY_VIEW.replay_block.get(),
+        REPLAY_FILE.index_block_count.get(),
+    ) {
         put(CAMERA_EDIT, camera);
     }
 }
@@ -33,8 +37,8 @@ fn name_of(camera: u8) -> u16 {
 /// `next_camera` (`step` 1) and `previous_camera` (-1). What they leave their caller,
 /// `viewer_action` (which keeps every register), does not read.
 pub unsafe fn step_camera(step: i8) -> Result<(), Refused> {
-    let block = get(BLOCK);
-    if block == get(BLOCKS) {
+    let block = REPLAY_VIEW.replay_block.get();
+    if block == REPLAY_FILE.index_block_count.get() {
         return Ok(());
     }
     let byte = a(0x963BB3)
@@ -44,7 +48,10 @@ pub unsafe fn step_camera(step: i8) -> Result<(), Refused> {
     let old = unsafe { at.read() };
     // Converted: `rc2k_core::race::viewer::{every_camera, step_camera}`.
     use rc2k_core::race::viewer::{camera_skipped, every_camera, step_camera};
-    let every = every_camera(get(ONE_PLAYER) == 1, get(FIRST_CAR));
+    let every = every_camera(
+        REPLAY_WORK.header_one_player.get() == 1,
+        REPLAY_WORK.header_kind_0.get(),
+    );
     let dl = step_camera(old, step > 0, every, |n| camera_skipped(name_of(n)))?;
     unsafe { at.write(dl) };
     let spread = unsafe { crate::race::spread_camera::spread_camera(byte, old) };

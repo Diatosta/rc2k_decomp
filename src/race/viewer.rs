@@ -14,34 +14,7 @@ use crate::physics::flow::{a, g, p};
 
 // ---- the replay being viewed ----
 
-pub const OPEN: usize = 0x5BEC88; // dword_5BEC88: `h` is the replay's file
-pub const HANDLE: usize = 0x5BEC8C; // h
-pub const AT_END: usize = 0x5BEC90; // dword_5BEC90: the last frame was reached
-pub const HOLD_REVS: usize = 0x5BEC94; // g_holdCarRevs
-pub const STOPPED: usize = 0x5BEC98; // dword_5BEC98: 1 = not playing
-pub const MODE: usize = 0x5BEC9C; // dword_5BEC9C: the viewer's eax
-pub const SLOT: usize = 0x5BECA0; // dword_5BECA0: the replay (222 the last race's)
-pub const SOUND: usize = 0x5BECA4; // dword_5BECA4: the menu sound to play
-pub const EDITING: usize = 0x5BECA8; // dword_5BECA8: the editing keys work
-pub const INDEX: usize = 0x5BECC8; // "RCIB": the index, 0x3850 bytes
-pub const BLOCKS: usize = 0x5BECD0; // dword_5BECD0: blocks in the replay
-pub const PLACES: usize = 0x5BECD8; // lDistanceToMove: (offset, size) a block
 pub const LAST_RACE: u32 = 0xDE; // the slot of `var\tmprpl` as it is
-pub const BLOCK: usize = 0x5C2530; // dword_5C2530: the block shown
-pub const FRAME: usize = 0x5C2534; // dword_5C2534: its frame, 0 .. 99
-pub const PLAY_END: usize = 0x5C2538; // dword_5C2538: playing stops before this block
-pub const PLAY_FROM_HERE: usize = 0x5C253C; // dword_5C253C
-pub const SNAPSHOT: usize = 0x5C2540; // dword_5C2540: a picture of the next frame asked
-pub const LAST_RACE_VIEWED: usize = 0x5C2544; // dword_5C2544: the slot is 222
-pub const ONLY_SHOWN: usize = 0x5C2548; // dword_5C2548: modes 4 and 5
-pub const KEYS_IGNORED: usize = 0x5C254C; // dword_5C254C: mode 5
-pub const KEY_AFTER_PLAY: usize = 0x5C2550; // dword_5C2550
-pub const WAIT_RELEASE: usize = 0x5C2554; // dword_5C2554: keys held after playing
-pub const ESCAPES: usize = 0x5C2558; // dword_5C2558: Escape twice leaves
-pub const MENU: usize = 0x5C255C; // unk_5C255C: the viewer's list (items at +0x18)
-pub const RECORDING: usize = 0x5C2CCC; // g_replayRecording: the frames saved as pictures
-pub const PICTURES_STARTED: usize = 0x5C2CD4; // dword_5C2CD4
-pub const PICTURES_STARTED_2: usize = 0x5C2CD0; // dword_5C2CD0
 pub const DEVELOPER_KEYS: usize = 0x5C2CEB; // dword_5C2CEB
 pub const PICTURE_RATE: usize = 0x5C2CEF; // dword_5C2CEF: pictures a second, 1 .. 100
 pub const PICTURE_TIME: usize = 0x5C2CF3; // dword_5C2CF3: ms a picture
@@ -63,9 +36,6 @@ pub const CLIP_BLOCKS: Buffer = Buffer::at(0x96E484); // dword_96E484: blocks on
 pub const CLIP_PLACES: usize = 0x96E488; // unk_96E488
 pub const CLIP_CAMERAS: usize = 0x971CC8; // unk_971CC8
 pub const HEADER: usize = 0x528504; // dword_528504: the file's header, 0x430
-pub const CAR_HEADER: usize = 0x719B14; // dword_719B14: 0x400 bytes
-pub const ONE_PLAYER: usize = 0x719B34; // dword_719B34 (the header's)
-pub const FIRST_CAR: usize = 0x719B24; // dword_719B24 (the header's)
 
 // ---- the list menu (`menu::list_*`) ----
 
@@ -73,23 +43,23 @@ pub fn gb(x: impl crate::store::At) -> u8 {
     unsafe { (a(x) as *const u8).read() }
 }
 
-/// `rep movsd` of `dwords` from `from` to `to` (IDA addresses), forwards.
+/// `rep movsd` of `dwords` from `from` to `to` (absolute addresses), forwards.
 pub fn move_dwords(to: usize, from: usize, dwords: usize) {
     unsafe {
-        let (to, from) = (a(to) as *mut u32, a(from) as *const u32);
+        let (to, from) = (to as *mut u32, from as *const u32);
         for n in 0..dwords {
             to.add(n).write_unaligned(from.add(n).read_unaligned());
         }
     }
 }
 
-/// A table of `dwords` dwords at IDA address `x` (dword-aligned there, so here too) as a
-/// slice, for the core.
+/// A table of `dwords` dwords at the absolute address `at` (dword-aligned) as a slice, for
+/// the core.
 ///
 /// # Safety
 /// No other reference to the table may be alive while the slice is.
-pub unsafe fn table(x: usize, dwords: usize) -> &'static mut [u32] {
-    let at = a(x) as *mut u32;
+pub unsafe fn table(at: usize, dwords: usize) -> &'static mut [u32] {
+    let at = at as *mut u32;
     debug_assert!(at.is_aligned());
     unsafe { std::slice::from_raw_parts_mut(at, dwords) }
 }

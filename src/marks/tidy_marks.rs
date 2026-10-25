@@ -17,8 +17,9 @@
 //! that holds blocks (`free_list`'s refusal).
 
 use crate::errors::{BadInput, Refused};
-use crate::marks::lines::TAKEN_RVA;
-use crate::marks::store::{Slot, game_addr, game_read};
+use crate::marks::blocks::{MARK_LINKS, PLACES_BLOCK, RING_POOL};
+use crate::marks::mask_store::MASK_BLOCKS;
+use crate::marks::morph_object_points::MORPH_WORK;
 use crate::memory::free_list::free_list;
 use crate::memory::{MemoryList, own_heap};
 
@@ -26,14 +27,16 @@ const CAR_LEN: u32 = 0x4C8;
 const CAR_PART: u32 = 0x29C; // `sub_4D06F3`'s ebp: the car's +0x29C
 const MOST_CARS: i32 = 8;
 /// The six lists, in the order freed.
-const LISTS_RVA: [Slot; 6] = [
-    Slot::at(0x93A580), // g_marksRingList
-    Slot::at(0x935620), // stru_935620
-    Slot::at(0x934DBA), // g_marksBMaskList
-    Slot::at(0x934D76), // stru_934D76
-    Slot::at(0x8DB570), // g_marksPlacesList
-    Slot::at(0x9206F0), // g_marksLinksList
-];
+fn lists() -> [u32; 6] {
+    [
+        RING_POOL.list[0].addr() as u32, // g_marksRingList
+        crate::marks::ring_store::RING_WORK.list.addr() as u32, // stru_935620
+        MASK_BLOCKS.list_b.addr() as u32, // g_marksBMaskList
+        MASK_BLOCKS.list_a.addr() as u32, // stru_934D76
+        PLACES_BLOCK.list.addr() as u32, // g_marksPlacesList
+        MARK_LINKS.list.addr() as u32,   // g_marksLinksList
+    ]
+}
 /// Each car's list, worked out without writing (none for a count past the refusals).
 unsafe fn car_lists(settings: u32) -> Vec<u32> {
     unsafe {
@@ -48,7 +51,7 @@ unsafe fn car_lists(settings: u32) -> Vec<u32> {
 unsafe fn all_lists(settings: u32) -> Vec<u32> {
     unsafe {
         let mut r = car_lists(settings);
-        r.extend(LISTS_RVA.map(|a| game_addr(a) as u32));
+        r.extend(lists());
         r
     }
 }
@@ -76,10 +79,10 @@ pub unsafe fn tidy_marks() -> Result<(), Refused> {
         for n in 0..count as u32 {
             let car = settings + n * CAR_LEN + CAR_PART;
             free_list((car + 0x4C) as *mut MemoryList)?;
-            ((car + 0x8C) as *mut u32).write_unaligned(game_read(TAKEN_RVA));
+            ((car + 0x8C) as *mut u32).write_unaligned(MORPH_WORK.taken.get());
         }
-        for a in LISTS_RVA {
-            free_list(game_addr(a) as *mut MemoryList)?;
+        for a in lists() {
+            free_list(a as *mut MemoryList)?;
         }
     }
     Ok(())

@@ -16,21 +16,16 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::marks::emitters::next_c5;
+use crate::marks::mask_constants::MASK_CONSTANTS;
+use crate::marks::mask_picks::PICKS;
+use crate::marks::mask_vars::MASKS;
 use crate::marks::pick_shapes::pick_shapes;
 use crate::marks::setup::CLOCK;
 use crate::marks::shape_points::turn_all_shapes;
-use crate::marks::store::{Slot, game_read, game_write};
+
 use crate::math::x87;
 use crate::physics::tables_store::PHYSICS;
-const NEXT_RVA: Slot = Slot::at(0x844E30); // dword_844E30
-const TIME_RANDOM_RVA: Slot = Slot::at(0x89C994); // dword_89C994
-const MOVE_RANDOM_RVA: Slot = Slot::at(0x89C998); // dword_89C998
-const MASKS_RVA: Slot = Slot::at(0x844E34); // dword_844E34: 9 masks
-const MASKS: u32 = 9;
-const MOVING_RVA: Slot = Slot::at(0x844E2C); // dword_844E2C
-const INDEX_RVA: Slot = Slot::at(0x84460C); // dword_84460C
-const COUNT_RVA: Slot = Slot::at(0x82E38A); // dword_82E38A
-const RATE_RVA: [Slot; 2] = [Slot::at(0x89C99C), Slot::at(0x89C9A0)];
+const MASK_COUNT: u32 = 9;
 
 /// The Rust version (see the header).
 pub unsafe fn run_shapes() -> Result<(), Refused> {
@@ -43,42 +38,41 @@ pub unsafe fn run_shapes() -> Result<(), Refused> {
         pick_shapes()?;
         turn_all_shapes()?;
         let clock: u32 = PHYSICS.scene_clock.bits();
-        if clock as i32 >= game_read::<i32>(NEXT_RVA) {
-            let r = next_c5(TIME_RANDOM_RVA);
-            game_write(
-                NEXT_RVA,
-                (r & 0xFF).wrapping_add(PHYSICS.scene_clock.bits()),
-            );
+        if clock as i32 >= PICKS.next.get() as i32 {
+            let r = next_c5(&MASK_CONSTANTS.time_random);
+            PICKS
+                .next
+                .set((r & 0xFF).wrapping_add(PHYSICS.scene_clock.bits()));
             let mask = get(0x2748);
-            if mask >= MASKS {
+            if mask >= MASK_COUNT {
                 return Err(BadInput("a mask number past dword_844E34's 9").into());
             }
-            let moving = next_c5(MOVE_RANDOM_RVA)
+            let moving = next_c5(&MASK_CONSTANTS.move_random)
                 .rotate_right(16)
                 .wrapping_add(clock)
-                & game_read::<u32>(MASKS_RVA + 4 * mask as usize);
-            game_write(MOVING_RVA, 1u32);
+                & PICKS.masks[mask as usize].get();
+            PICKS.moving.set(1);
             if moving == 0 {
-                game_write(MOVING_RVA, 0u32);
+                PICKS.moving.set(0);
                 return Ok(());
             }
         }
-        if game_read::<u32>(MOVING_RVA) == 0 {
+        if PICKS.moving.get() == 0 {
             return Ok(());
         }
         let rate = if get(0x274C) == 1 {
-            (game_read::<u32>(INDEX_RVA) >> 3 != 0).then_some(RATE_RVA[0])
+            (PICKS.index.get() >> 3 != 0).then_some(&MASK_CONSTANTS.rates[0])
         } else {
-            Some(RATE_RVA[1])
+            Some(&MASK_CONSTANTS.rates[1])
         };
         if let Some(rate) = rate {
             let count = x87::int_times_plus_int_to_int(
                 CLOCK.frame_ticks.get() as i32,
-                game_read(rate),
-                game_read(COUNT_RVA),
+                rate.bits(),
+                MASKS.count.get() as i32,
             );
-            game_write(COUNT_RVA, count);
-            game_write(INDEX_RVA, (count as u32 >> 16) & 0xFF);
+            MASKS.count.set(count as u32);
+            PICKS.index.set((count as u32 >> 16) & 0xFF);
         }
         pick_shapes()?;
     }

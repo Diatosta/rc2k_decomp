@@ -17,14 +17,14 @@
 use crate::errors::{BadInput, Refused};
 use crate::marks::blend_corner::blend_corner;
 use crate::marks::lines::measure_lines;
-use crate::marks::store::{Slot, game_read, game_write};
+use crate::marks::store::game_read;
 use crate::race::course_lists_store::COURSE_LISTS;
 use crate::scene::objects::{FIRST_POINT_RVA, POINT_COUNTS_RVA, SLOTS};
+use crate::session::{Bytes, Dword};
 
 const CAR_LEN: u32 = 0x4C8;
 const BLOCK: u32 = 0x29C;
 const MOST_CARS: i32 = 8;
-const KEPT_RVA: Slot = Slot::at(0x93C6D4); // dword_93C6D4 .. dword_93C6F0
 
 unsafe fn get(a: u32) -> u32 {
     unsafe { (a as *const u32).read_unaligned() }
@@ -115,7 +115,7 @@ pub unsafe fn morph_object_points() -> Result<(), Refused> {
             for k in 0..8 {
                 let v = get(b + 0x90 + 4 * k);
                 put(b + 0xB0 + 4 * k, v);
-                game_write(KEPT_RVA + 4 * k as usize, v);
+                MORPH_WORK.kept[k as usize].set(v);
             }
             let (a, c, n) = points(b);
             let base = get(b + 0x8C);
@@ -129,4 +129,64 @@ pub unsafe fn morph_object_points() -> Result<(), Refused> {
         measure_lines()?;
     }
     Ok(())
+}
+
+/// The object morph's work (IDA 0x93C6CC .. 0x93C6F4, the image's layout; phase 7, typed state).
+#[repr(C)]
+pub struct MorphWork {
+    /// 0x93C6CC: `g_marksTaken`: the block last taken for a settings block's points (`lines::set_up_blocks`)
+    pub taken: Dword,
+    /// 0x93C6D0: Not named: 4 bytes (a gap, or unreferenced data)
+    pub _gap_93c6d0: Bytes<4>,
+    /// 0x93C6D4: `dword_93C6D4` .. `dword_93C6F0`: the factors kept
+    pub kept: [Dword; 8],
+}
+
+/// MorphWork's first values.
+pub static MORPH_WORK: MorphWork = MorphWork {
+    taken: Dword::new(0x0),
+    _gap_93c6d0: Bytes::new([0; 4]),
+    kept: [
+        Dword::new(0x0),
+        Dword::new(0x0),
+        Dword::new(0x0),
+        Dword::new(0x0),
+        Dword::new(0x0),
+        Dword::new(0x0),
+        Dword::new(0x0),
+        Dword::new(0x0),
+    ],
+};
+
+impl MorphWork {
+    pub const START: usize = 0x93C6CC;
+    pub const LEN: usize = 0x28;
+    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
+    pub fn home() -> usize {
+        &MORPH_WORK as *const MorphWork as usize
+    }
+}
+
+#[cfg(test)]
+mod morph_work_tests {
+    use super::*;
+    use core::mem::offset_of;
+
+    fn bytes<T>(v: &T) -> Vec<u8> {
+        let p = v as *const T as *const u8;
+        (0..size_of::<T>())
+            .map(|i| unsafe { p.add(i).read() })
+            .collect()
+    }
+
+    #[test]
+    fn morph_work_starts_as_the_games() {
+        assert_eq!(size_of::<MorphWork>(), MorphWork::LEN);
+        assert!(
+            bytes(&MORPH_WORK) == crate::moved::image_bytes(MorphWork::START, MorphWork::LEN),
+            "MORPH_WORK starts differently from the image"
+        );
+        assert_eq!(offset_of!(MorphWork, taken), 0x93C6CC - MorphWork::START);
+        assert_eq!(offset_of!(MorphWork, kept), 0x93C6D4 - MorphWork::START);
+    }
 }

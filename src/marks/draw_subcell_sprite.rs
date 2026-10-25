@@ -20,16 +20,13 @@
 use crate::errors::{BadInput, Refused};
 use crate::framework::rva;
 use crate::marks::clip_quad::{clip_quad, draw_fan};
-use crate::marks::store::{Slot, game_addr, game_read, game_write};
+use crate::marks::ring_store::{RING_WORK, RingWork};
+use crate::marks::store::{game_addr, game_write};
+use crate::marks::surface_store::SURFACE;
 use crate::scene::draw_store::DRAW;
 use crate::scene::fog_at::fog_at;
 
-const DEPTH_RVA: Slot = Slot::at(0x8EB8DD); // flt_8EB8DD
-const WHOLE_RVA: Slot = Slot::at(0x9356C0); // dword_9356C0
-const NEAR_RVA: Slot = Slot::at(0x8EB961); // dword_8EB961
-const HALF_RVA: Slot = Slot::at(0x8EB8B5); // dword_8EB8B5
 const VERTICES_RVA: usize = rva(0x9605A0); // g_polygonVertices
-const SUBCELLS_RVA: Slot = Slot::at(0x935B66); // g_marksSubcellPlaces: 0x410 of 16 bytes
 const SUBCELLS: u32 = 0x410;
 
 /// The original's 0x4CBF47 .. 0x4CBFCB: the place turned by the view.
@@ -37,8 +34,9 @@ unsafe fn turn(p: &[[u8; 10]; 3]) {
     unsafe {
         turn_x87(
             crate::race::store::asm_base() as usize,
-            crate::marks::store::base() as usize,
             p.as_ptr() as usize,
+            &RING_WORK,
+            &DRAW_WORK,
         )
     }
 }
@@ -50,7 +48,7 @@ unsafe fn square() {
         square_x87(
             crate::race::store::asm_base() as usize,
             crate::race::store::buffers_asm_base() as usize,
-            crate::marks::store::base() as usize,
+            &DRAW_WORK,
         )
     }
 }
@@ -75,18 +73,18 @@ pub unsafe fn draw_subcell_sprite(
             return Err(BadInput("no marks settings").into());
         }
         turn(&place);
-        if game_read::<i32>(DEPTH_RVA) <= game_read::<i32>(NEAR_RVA) {
+        if DRAW_WORK.turned[2].bits() as i32 <= DRAW_WORK.near.bits() as i32 {
             return Ok(());
         }
-        let fog = fog_at(game_read(WHOLE_RVA))?;
+        let fog = fog_at(RING_WORK.whole.get())?;
         let colour = ((entry + 0x90) as *const u32).read_unaligned() | 0xFF00_0000;
         for n in 0..4 {
             game_write(VERTICES_RVA + 0x20 * n + 0x14, fog);
             game_write(VERTICES_RVA + 0x20 * n + 0x10, colour);
         }
-        game_write(HALF_RVA, size);
+        DRAW_WORK.half[0].set_bits(size);
         let at = subcell << 4;
-        let place = |n: usize| game_read::<u32>(SUBCELLS_RVA + at as usize + 4 * n);
+        let place = |n: usize| SURFACE.word(0x400 + at as usize + 4 * n);
         let [u0, v0, u1, v1] = [place(0), place(1), place(2), place(3)];
         for (n, (u, v)) in [(u0, v0), (u1, v0), (u1, v1), (u0, v1)]
             .into_iter()
@@ -105,11 +103,12 @@ pub unsafe fn draw_subcell_sprite(
     Ok(())
 }
 
-use crate::marks::plain::{ld, ld80, st, sti};
+use crate::marks::frame_state::{DRAW_WORK, DrawWork};
+use crate::marks::plain::{ld, ld80, st};
 use crate::math::x87_float as bh;
 
 /// `turn`'s x87 block as plain Rust on the x87 model (37 instructions), same order and memory places.
-unsafe fn turn_x87(rc: usize, mk: usize, p: usize) {
+unsafe fn turn_x87(rc: usize, p: usize, w: &RingWork, dw: &DrawWork) {
     unsafe {
         let t0 = bh::from_f80(ld80(p, 0x14));
         let t1 = bh::from_f80(ld80(p, 0xA));
@@ -141,48 +140,48 @@ unsafe fn turn_x87(rc: usize, mk: usize, p: usize) {
         let t27 = t26 + t24;
         let t28 = t22 + t27;
         let t29 = t28 + ld(rc, 0x1EA304);
-        st(mk, 0x186995, t11);
-        st(mk, 0x186999, t20);
-        sti(mk, 0x1D0780, t29);
-        st(mk, 0x18699D, t29);
+        dw.turned[0].set_bits(bh::st(t11));
+        dw.turned[1].set_bits(bh::st(t20));
+        w.whole.set_bits(bh::to_int(t29) as u32);
+        dw.turned[2].set_bits(bh::st(t29));
     }
 }
 
 /// `square`'s x87 block as plain Rust on the x87 model (41 instructions), same order and memory places.
-unsafe fn square_x87(rc: usize, bf: usize, mk: usize) {
+unsafe fn square_x87(rc: usize, bf: usize, dw: &DrawWork) {
     unsafe {
         let t0 = ld(rc, 0x224088);
-        let t1 = t0 / ld(mk, 0x18699D);
-        let t2 = ld(mk, 0x18699D);
-        let t3 = t2 * ld(mk, 0x186A2D);
+        let t1 = t0 / bh::ld(dw.turned[2].bits());
+        let t2 = bh::ld(dw.turned[2].bits());
+        let t3 = t2 * bh::ld(dw.z_k.bits());
         st(bf, 0x5605A8, t3);
         st(bf, 0x5605C8, t3);
         st(bf, 0x5605E8, t3);
         st(bf, 0x560608, t3);
-        let t4 = ld(mk, 0x186975);
+        let t4 = bh::ld(dw.half[0].bits());
         let t5 = t4 * t1;
-        st(mk, 0x186975, t5);
-        st(mk, 0x186979, t5);
-        let t6 = t1 * ld(mk, 0x186995);
-        let t7 = t1 * ld(mk, 0x186999);
+        dw.half[0].set_bits(bh::st(t5));
+        dw.half[1].set_bits(bh::st(t5));
+        let t6 = t1 * bh::ld(dw.turned[0].bits());
+        let t7 = t1 * bh::ld(dw.turned[1].bits());
         let t8 = -t7;
         let t9 = t8 + ld(rc, 0x2240A0);
-        let t10 = t9 - ld(mk, 0x186979);
+        let t10 = t9 - bh::ld(dw.half[1].bits());
         st(bf, 0x5605A4, t10);
-        let t11 = t9 - ld(mk, 0x186979);
+        let t11 = t9 - bh::ld(dw.half[1].bits());
         st(bf, 0x5605C4, t11);
-        let t12 = t9 + ld(mk, 0x186979);
+        let t12 = t9 + bh::ld(dw.half[1].bits());
         st(bf, 0x5605E4, t12);
-        let t13 = t9 + ld(mk, 0x186979);
+        let t13 = t9 + bh::ld(dw.half[1].bits());
         st(bf, 0x560604, t13);
         let t14 = t6 + ld(rc, 0x22409C);
-        let t15 = t14 - ld(mk, 0x186975);
+        let t15 = t14 - bh::ld(dw.half[0].bits());
         st(bf, 0x5605A0, t15);
-        let t16 = t14 + ld(mk, 0x186975);
+        let t16 = t14 + bh::ld(dw.half[0].bits());
         st(bf, 0x5605C0, t16);
-        let t17 = t14 + ld(mk, 0x186975);
+        let t17 = t14 + bh::ld(dw.half[0].bits());
         st(bf, 0x5605E0, t17);
-        let t18 = t14 - ld(mk, 0x186975);
+        let t18 = t14 - bh::ld(dw.half[0].bits());
         st(bf, 0x560600, t18);
     }
 }
@@ -300,7 +299,9 @@ mod asm_reference {
 mod asm_differential {
     use super::asm_reference as reference;
     use crate::marks::asm_test::Kind::*;
-    use crate::marks::asm_test::{Op, Spec, differential};
+    use crate::marks::asm_test::{Op, Spec, differential, with_copy};
+    use crate::marks::frame_state::DrawWork;
+    use crate::marks::ring_store::RingWork;
 
     #[test]
     fn turn_x87_matches() {
@@ -326,8 +327,8 @@ mod asm_differential {
                     writes: &[],
                 },
                 Op::Base {
-                    lo: 0x186995,
-                    hi: 0x1D0784,
+                    lo: 0x186931,
+                    hi: 0x1D0826,
                     reads: &[],
                     writes: &[
                         (0x186995, F32),
@@ -348,7 +349,13 @@ mod asm_differential {
         differential(
             &SPEC,
             |b| unsafe { reference::turn_x87(b[0], b[1], b[2]) },
-            |b| unsafe { super::turn_x87(b[0], b[1], b[2]) },
+            |b| {
+                with_copy(b[1], RingWork::START, |w| {
+                    with_copy::<DrawWork, _>(b[1], DrawWork::START, |dw| unsafe {
+                        super::turn_x87(b[0], b[2], w, dw)
+                    })
+                })
+            },
         );
     }
 
@@ -382,7 +389,7 @@ mod asm_differential {
                     ],
                 },
                 Op::Base {
-                    lo: 0x186975,
+                    lo: 0x186931,
                     hi: 0x186A31,
                     reads: &[
                         (0x186975, F32),
@@ -400,7 +407,11 @@ mod asm_differential {
         differential(
             &SPEC,
             |b| unsafe { reference::square_x87(b[0], b[1], b[2]) },
-            |b| unsafe { super::square_x87(b[0], b[1], b[2]) },
+            |b| {
+                with_copy::<DrawWork, _>(b[2], DrawWork::START, |dw| unsafe {
+                    super::square_x87(b[0], b[1], dw)
+                })
+            },
         );
     }
 }

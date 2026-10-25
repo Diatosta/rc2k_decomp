@@ -15,28 +15,19 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::marks::place_graded_points::place_graded_points;
-use crate::marks::splines::{OFFSET_RVA, SPLINE_LEN, TABLES, place_shape_points as place_shape};
-use crate::marks::store::{Slot, game_addr, game_read, game_write};
+use crate::marks::splines::{
+    SPLINE_CONSTANTS, SPLINE_HEAD, SPLINE_LEN, SPLINE_TABLES, SPLINE_WORK,
+    place_shape_points as place_shape,
+};
+use crate::marks::store::game_write;
 use crate::math::x87;
 use crate::scene::vector3::STATUS_RVA;
 
 const SPLINES: u32 = 8;
-const SWITCH_RVA: Slot = Slot::at(0x7695CA); // dword_7695CA
-/// flt_788F19 .. flt_788F35.
-const K: [Slot; 8] = [
-    Slot::at(0x788F19),
-    Slot::at(0x788F1D),
-    Slot::at(0x788F21),
-    Slot::at(0x788F25),
-    Slot::at(0x788F29),
-    Slot::at(0x788F2D),
-    Slot::at(0x788F31),
-    Slot::at(0x788F35),
-];
 
 /// The four records of spline `n`: A, B, C, D.
 fn records(n: u32) -> [u32; 4] {
-    TABLES.map(|t| game_addr(t) as u32 + n * SPLINE_LEN)
+    [0, 1, 2, 3].map(|t| SPLINE_TABLES.table(t) as u32 + n * SPLINE_LEN)
 }
 
 unsafe fn get(a: u32) -> u32 {
@@ -64,8 +55,8 @@ pub unsafe fn place_spline(n: u32) -> Result<(), Refused> {
         return Err(BadInput("a spline number of 8 or more").into());
     }
     unsafe {
-        let k = K.map(|r| game_read::<u32>(r));
-        game_write(OFFSET_RVA, n * SPLINE_LEN);
+        let k = SPLINE_CONSTANTS.place_k.each_ref().map(|f| f.bits());
+        SPLINE_WORK.offset.set(n * SPLINE_LEN);
         let [a, b, c, d] = records(n);
         let (abc, dsize) = sizes(get(settings + 0x26DC), k[0], k[1]);
         for r in [a, b, c] {
@@ -79,13 +70,13 @@ pub unsafe fn place_spline(n: u32) -> Result<(), Refused> {
         game_write(STATUS_RVA, status as u32);
         let f = if status == 0x100 { k[4] } else { k[3] };
         put(b + 0x2C, x87::mul(get(b + 0x24), f));
-        game_write(SWITCH_RVA, 0u32);
+        SPLINE_HEAD.switch.set(0);
         place_graded_points(b)?;
         let status = x87::compare_status(get(c + 0x24), k[5]);
         game_write(STATUS_RVA, status as u32);
         let f = if status == 0 { k[7] } else { k[6] };
         put(c + 0x2C, x87::mul(get(c + 0x24), f));
-        game_write(SWITCH_RVA, 1u32);
+        SPLINE_HEAD.switch.set(1);
         place_graded_points(c)?;
     }
     Ok(())

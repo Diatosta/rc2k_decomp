@@ -48,17 +48,17 @@ pub unsafe fn draw_view_scene() -> Result<(), Refused> {
         gather_lamps()?;
         lamps_wanted()?;
         race_sound_tick()?; // 0x16
-        sort_entries(SORT_COUNT_RVA, SORT_ENTRIES)?;
-        draw_entries(SORT_COUNT_RVA, SORT_ENTRIES)?;
+        sort_entries(&RACE_VIEW.sort_entry_count, SORT_ENTRIES)?;
+        draw_entries(&RACE_VIEW.sort_entry_count, SORT_ENTRIES)?;
         draw_race_slots()?;
         race_sound_tick()?; // 0x17
         crate::race::car_shadow::cast_car_shadows()?;
         crate::race::skidmarks::draw_skidmarks_if_on()?;
         car_lights()?;
         race_sound_tick()?; // 0x18
-        sort_entries(DEPTH_COUNT_RVA, DEPTH_ENTRIES)?;
+        sort_entries(&RACE_VIEW.depth_entry_count, DEPTH_ENTRIES)?;
         race_sound_tick()?; // 0x19
-        draw_entries(DEPTH_COUNT_RVA, DEPTH_ENTRIES)?;
+        draw_entries(&RACE_VIEW.depth_entry_count, DEPTH_ENTRIES)?;
         race_sound_tick()?; // 0x1A
         crate::race::flush_draw_batch::flush_draw_batch()?;
         store_view_value()

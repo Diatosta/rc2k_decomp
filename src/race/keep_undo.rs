@@ -7,19 +7,25 @@
 //!
 //! Callers: `race::viewer_action` (six places), `race::edit_camera_1`, `edit_camera_2`.
 
-use crate::race::viewer::{
-    BLOCKS, CAMERAS, PLACES, TABLE_LEN, UNDO_BLOCKS, UNDO_CAMERAS, UNDO_PLACES, get, put, table,
-};
+use crate::physics::flow::a;
+use crate::race::replay_file_store::REPLAY_FILE;
+use crate::race::viewer::{CAMERAS, TABLE_LEN, UNDO_BLOCKS, UNDO_CAMERAS, UNDO_PLACES, put, table};
 
 /// The Rust version.
 pub fn keep_undo() {
     // Converted: `rc2k_core::race::viewer_flow::copy_tables`.
-    put(UNDO_BLOCKS, get(BLOCKS));
+    put(UNDO_BLOCKS, REPLAY_FILE.index_block_count.get());
     let n = TABLE_LEN / 4;
     unsafe {
         rc2k_core::race::viewer_flow::copy_tables(
-            (table(UNDO_PLACES, n), table(UNDO_CAMERAS, n)),
-            (table(PLACES, n), table(CAMERAS, n)),
+            (
+                table(a(UNDO_PLACES) as usize, n),
+                table(a(UNDO_CAMERAS) as usize, n),
+            ),
+            (
+                table(REPLAY_FILE.block_places[0].addr(), n),
+                table(a(CAMERAS) as usize, n),
+            ),
         );
     }
 }

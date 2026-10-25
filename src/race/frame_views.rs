@@ -68,12 +68,15 @@ pub unsafe fn mirror_view_window() -> Result<(), Refused> {
             RACE_VIEW.drawn_view.get(),
             ((crate::store::game_addr(rva(0x6D1502))) as *const u32).read_unaligned() == 0,
         );
-        // g_mirrorPlaces: 8 bytes an entry, entries 0 .. 11 or so: past the field (it holds
-        // the first entry, the rest is not named), so read by address.
+        // g_mirrorPlaces: 12 entries of two dwords; an entry past them reads on, as the
+        // original.
+        let places = &FRAME_WORK.mirror_places;
         let at = |word: usize| {
-            ((FRAME_WORK.mirror_places[0].addr().wrapping_add(4 * word))
-                .wrapping_add((n as usize).wrapping_mul(8)) as *const u32)
-                .read_unaligned()
+            let k = (n as usize).wrapping_mul(2).wrapping_add(word);
+            places.get(k).map_or_else(
+                || (places[0].addr().wrapping_add(4 * k) as *const u32).read_unaligned(),
+                |c| c.get(),
+            )
         };
         let Some(Window {
             x,
@@ -125,8 +128,8 @@ pub unsafe fn draw_flat_triangle() {
 
 /// The marks' shadow refusals (`marks::draw_shadow`'s first and second shadows), checked
 /// before anything.
-fn shadow_refuses(sh: &crate::marks::draw_shadow::Shadow) -> Result<(), Refused> {
-    let corner = unsafe { crate::marks::store::game_read::<u32>(sh.corner()) };
+fn shadow_refuses(sh: &crate::marks::draw_shadow::Shadow<'_>) -> Result<(), Refused> {
+    let corner = sh.corner();
     if corner == u32::MAX {
         return Ok(());
     }

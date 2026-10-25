@@ -16,30 +16,24 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::rva;
-use crate::marks::store::{Slot, game_addr, game_read, game_write};
+use crate::marks::blocks::MARK_CORNERS;
+use crate::marks::frame_state::{DRAW_FRAME, VIEW_VARS};
+use crate::marks::store::game_write;
+use crate::marks::tuning::MARKS_FRAME;
 use crate::math::x87;
 use crate::race::course_lists_store::COURSE_LISTS;
 use crate::race::matrices_store::MATRICES;
 use crate::scene::draw_switches_store::DRAW_SWITCHES;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
-/// (the point, where it goes turned).
-const POINTS: [(Slot, Slot); 3] = [
-    (Slot::at(0x91FF4A), Slot::at(0x8F39A9)),
-    (Slot::at(0x91FF56), Slot::at(0x8F39B5)),
-    (Slot::at(0x91FF62), Slot::at(0x8F39C1)),
-];
+use crate::session::{Float, read_bits};
 const CORNERS_FROM: u32 = 0x1C_2000;
-const CORNERS_RVA: Slot = Slot::at(0x8EB971); // g_marksCorners
 const CORNERS_LEN: u32 = 0x8000;
-const LAST_SOURCE_RVA: Slot = Slot::at(0x91FF6E); // dword_91FF6E
-const STEP_RVA: Slot = Slot::at(0x8F3979); // dword_8F3979: of 8
 const SOUND_RVA: [usize; 2] = [rva(0x71C8E2), rva(0x71C8E6)];
-const CLEARED_RVA: Slot = Slot::at(0x8F3981); // dword_8F3981
-const FRAME_CYCLES_RVA: Slot = Slot::at(0x765114); // dword_765114
-const TIMES: [(Slot, Slot); 2] = [
-    (Slot::at(0x91FF9A), Slot::at(0x765124)),
-    (Slot::at(0x91FF9E), Slot::at(0x765118)),
+/// (the time kept, where it goes).
+static TIMES: [(&Float, &Float); 2] = [
+    (&DRAW_FRAME.times[0], &MARKS_FRAME.quads_share),
+    (&DRAW_FRAME.times[1], &MARKS_FRAME.empty_share),
 ];
 
 fn rdtsc() -> u32 {
@@ -56,43 +50,41 @@ pub unsafe fn draw_frame() -> Result<(), Refused> {
             return Err(BadInput("no course info (g_courseInfo 0)").into());
         }
         let m = MATRICES.view_place[0].addr() as u32;
-        for (from, to) in POINTS {
-            let p: [u32; 3] = game_read(from);
+        for n in 0..3 {
+            let p: [u32; 3] = read_bits(&DRAW_FRAME.points[n]);
             let turned = rotate_point(m, [extended(p[2]), extended(p[1]), extended(p[0])]);
             for (k, v) in turned.iter().enumerate() {
-                game_write(to + 4 * k, rounded(*v));
+                VIEW_VARS.turned_points[n][k].set_bits(rounded(*v));
             }
         }
         std::ptr::copy(
             (info + CORNERS_FROM) as *const u8,
-            game_addr(CORNERS_RVA) as *mut u8,
+            MARK_CORNERS.corners.as_ptr() as *mut u8,
             CORNERS_LEN as usize,
         );
         let source: u32 = DRAW_SWITCHES.marks_source.bits();
-        if source != game_read::<u32>(LAST_SOURCE_RVA) {
-            game_write(STEP_RVA, game_read::<u32>(STEP_RVA).wrapping_add(1) & 7);
+        if source != DRAW_FRAME.last_source.get() {
+            VIEW_VARS.step.set(VIEW_VARS.step.get().wrapping_add(1) & 7);
         }
-        game_write(LAST_SOURCE_RVA, source);
+        DRAW_FRAME.last_source.set(source);
         game_write(SOUND_RVA[0], source);
         game_write(SOUND_RVA[1], 0u32);
-        game_write(CLEARED_RVA, 0u32);
+        VIEW_VARS.cleared.set(0);
         cars_particles::cars_particles()?;
         view_heading::view_heading();
         view_motion::view_motion();
         let start = rdtsc();
         begin_quads::begin_quads();
-        let frame: i32 = game_read(FRAME_CYCLES_RVA);
+        let frame = MARKS_FRAME.frame_cycles.bits() as i32;
         let took = rdtsc().wrapping_sub(start) as i32;
-        game_write(
-            TIMES[0].1,
-            x87::int_over_int_times(took, frame, game_read(TIMES[0].0)),
-        );
+        TIMES[0]
+            .1
+            .set_bits(x87::int_over_int_times(took, frame, TIMES[0].0.bits()));
         let start = rdtsc();
         let took = rdtsc().wrapping_sub(start) as i32;
-        game_write(
-            TIMES[1].1,
-            x87::int_over_int_times(took, frame, game_read(TIMES[1].0)),
-        );
+        TIMES[1]
+            .1
+            .set_bits(x87::int_over_int_times(took, frame, TIMES[1].0.bits()));
         crate::scene::depth_test_on::depth_test_on();
     }
     Ok(())

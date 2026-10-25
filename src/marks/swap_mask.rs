@@ -16,13 +16,10 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::rva;
-use crate::marks::store::{Slot, game_read, game_write};
+use crate::marks::mask_store::MASK_BLOCKS;
+use crate::marks::store::game_read;
 use crate::scene::kind_texture_store::KIND_TEXTURES;
 
-const SEEN_RVA: Slot = Slot::at(0x934D6E); // dword_934D6E
-const CHOSEN_RVA: Slot = Slot::at(0x934D72); // dword_934D72
-const MASK_RVA: Slot = Slot::at(0x934DB6); // g_marksMaskBlock
-const BMASK_RVA: Slot = Slot::at(0x934DFA); // g_marksBMaskBlock
 const WIDTH_RVA: usize = rva(0x4F49A0); // g_surface.width
 
 /// The Rust version (see the header): the lock and unlock (`d3d::lock_texture`,
@@ -37,15 +34,16 @@ pub unsafe fn swap_mask() -> Result<(), Refused> {
             return Err(BadInput("no marks settings").into());
         }
         let switch = ((s + 0x2704) as *const u32).read_unaligned();
-        let Some(second) = masks::swapped(switch, game_read(SEEN_RVA)) else {
+        let Some(second) = masks::swapped(switch, MASK_BLOCKS.seen.get()) else {
             return Ok(());
         };
-        let kept: [u32; 2] = [game_read(SEEN_RVA), game_read(CHOSEN_RVA)];
-        game_write(SEEN_RVA, switch);
-        game_write(
-            CHOSEN_RVA,
-            game_read::<u32>(if second { BMASK_RVA } else { MASK_RVA }),
-        );
+        let kept: [u32; 2] = [MASK_BLOCKS.seen.get(), MASK_BLOCKS.chosen.get()];
+        MASK_BLOCKS.seen.set(switch);
+        MASK_BLOCKS.chosen.set(if second {
+            MASK_BLOCKS.bmask.get()
+        } else {
+            MASK_BLOCKS.mask.get()
+        });
         lock(KIND_TEXTURES.kind_first_textures[202].bits(), true)?;
         // The width is the locked texture's (`g_surface` while it is locked), not the
         // screen's: checked here (2026-10-18: checked before the lock, it refused every
@@ -54,12 +52,12 @@ pub unsafe fn swap_mask() -> Result<(), Refused> {
         let width: u32 = game_read(WIDTH_RVA);
         if let Err(e) = masks::check_width(width) {
             lock(KIND_TEXTURES.kind_first_textures[202].bits(), false)?;
-            game_write(SEEN_RVA, kept[0]);
-            game_write(CHOSEN_RVA, kept[1]);
+            MASK_BLOCKS.seen.set(kept[0]);
+            MASK_BLOCKS.chosen.set(kept[1]);
             return Err(e.into());
         }
         for (row, col, at) in masks::texture_pixels(width) {
-            let chosen: u32 = game_read(CHOSEN_RVA);
+            let chosen: u32 = MASK_BLOCKS.chosen.get();
             let pixel = ((chosen + 4 * at) as *const u32).read_unaligned();
             put_pixel(pixel, col, row + masks::TEXTURE_ROW_AT)?;
         }

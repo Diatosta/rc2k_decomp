@@ -42,12 +42,10 @@
 //! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; the
 //! registers above are the original's, for reference.
 
-use crate::framework::rva;
 use crate::menu::draw_lists_store::DRAW_LISTS;
 use crate::menu::flow_store::SCREEN_FLOW;
 use crate::menu::menus_store::MENUS;
 use crate::menu::screen_items_store::{SCREEN_ITEMS, slot};
-use crate::menu::screen_loop::raw;
 use crate::menu::screen_loop::{Callee, FRAME_CALLBACK, List, Screen, Step};
 use crate::menu::state_store::MENU_STATE;
 use crate::scene::draw_store::DRAW;
@@ -103,10 +101,8 @@ pub const SCREEN: Screen = Screen {
         Step::Call(Callee::PrepareScene),
         Step::Write(|| &DRAW.clip_edges[2], 0), // dword_6241DC
         Step::Write(|| &DRAW.clip_edges[3], 800), // dword_6241E0
-        // DRAW.clip_screen[2]: `WriteF32` takes a `Dword` cell, not a `Float`.
-        Step::WriteF32(|| raw(rva(0x6241EC)), 0.0), // flt_6241EC
-        // DRAW.clip_screen[3]
-        Step::WriteF32(|| raw(rva(0x6241F0)), 800.0), // flt_6241F0
+        Step::WriteF32(|| &DRAW.clip_screen[2], 0.0), // flt_6241EC
+        Step::WriteF32(|| &DRAW.clip_screen[3], 800.0), // flt_6241F0
         Step::Call(Callee::PlayTune9),
     ],
     after_lists: &[],

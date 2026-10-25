@@ -11,7 +11,6 @@ use crate::physics::tables_store::PHYSICS;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::course_lists_store::COURSE_LISTS;
 use crate::race::course_store::COURSE;
-use crate::race::frame::VIEW_BLOCKS;
 use crate::race::frame_store::FRAME_WORK;
 use crate::race::kind_store::KIND_TABLES;
 use crate::race::level_grid_store::LEVEL_GRID;
@@ -100,9 +99,9 @@ pub unsafe fn panel_players() {
         }
         game_write(PANEL_FIELDS[2], u32::MAX);
         game_write(PANEL_FIELDS[3], u32::MAX);
-        let a = get(game_read::<u32>(VIEW_BLOCKS[0]) + 0xFA4);
+        let a = get(RACE_VIEW.view_blocks[0].get() + 0xFA4);
         game_write(PANEL_FIELDS[0], a);
-        let b = get(game_read::<u32>(VIEW_BLOCKS[1]) + 0xFA4);
+        let b = get(RACE_VIEW.view_blocks[1].get() + 0xFA4);
         game_write(PANEL_FIELDS[1], b);
     }
 }
@@ -134,14 +133,12 @@ pub unsafe fn lamps_wanted() -> Result<(), Refused> {
 }
 
 /// The view block `dword_63DB9C` names (`off_63DBB0[]`); refuses an index past the two.
-unsafe fn drawn_view() -> Result<u32, Refused> {
-    unsafe {
-        let n: u32 = RACE_VIEW.drawn_view.bits();
-        if n > 1 {
-            return Err(BadInput("a view past the two").into());
-        }
-        Ok(game_read(VIEW_BLOCKS[n as usize]))
+fn drawn_view() -> Result<u32, Refused> {
+    let n: u32 = RACE_VIEW.drawn_view.bits();
+    if n > 1 {
+        return Err(BadInput("a view past the two").into());
     }
+    Ok(RACE_VIEW.view_blocks[n as usize].get())
 }
 
 /// `race::store_view_value` (0x455528): the drawn view's block +0xFB8 = `dword_6415C4`.
@@ -315,9 +312,9 @@ unsafe fn panel_half(b: u32, first: bool) {
 // Converted: `rc2k_core::race::panel::{shown_whole, travelled, distance_shown}`.
 pub unsafe fn panel_values_plain() {
     unsafe {
-        let a: u32 = game_read(VIEW_BLOCKS[0]);
+        let a: u32 = RACE_VIEW.view_blocks[0].get();
         panel_half(a, true);
-        let b: u32 = game_read(VIEW_BLOCKS[1]);
+        let b: u32 = RACE_VIEW.view_blocks[1].get();
         panel_half(b, false);
     }
 }
@@ -398,7 +395,7 @@ pub unsafe fn panel_neighbours() -> Result<(), Refused> {
         if RACE_VARS.run_kind.bits() != 2 {
             return Ok(());
         }
-        let a: u32 = game_read(VIEW_BLOCKS[0]);
+        let a: u32 = RACE_VIEW.view_blocks[0].get();
         let place = get(a + 0x654);
         let table = |base: u32| get(g(base).wrapping_add(place.wrapping_mul(4)));
         // The place indexes unchecked, as the original does (`number_before_first` is
@@ -459,7 +456,7 @@ pub unsafe fn panel_motion_plain() {
             NUMBERS.k65536.get(),
         );
         for (view, out) in PANEL_MOTION {
-            let b = game_read::<u32>(VIEW_BLOCKS[view]);
+            let b = RACE_VIEW.view_blocks[view].get();
             put(
                 g(out),
                 motion(Car::at(b).map_picture_place[0].bits() as i32, half, small).to_bits(),
@@ -492,7 +489,7 @@ pub unsafe fn panel_marks() {
             put(g(a), 0);
         }
         for (view, base, marks) in [(0, 0x6D14B2, 0x6D14A2), (1, 0x6D14C6, 0x6D14B6)] {
-            let b: u32 = game_read(VIEW_BLOCKS[view]);
+            let b: u32 = RACE_VIEW.view_blocks[view].get();
             let offset = Car::at(b).car_event_position.bits();
             let count = Car::at(b).car_event_count.bits();
             let m = rc2k_core::race::frame::view_marks(offset, count, |k| get(b + 0xF78 + 4 * k));
@@ -549,7 +546,11 @@ pub unsafe fn both_countdown_lights() {
             (0, 0, &RACE_OVERLAY.forget_flag_0),
             (1, 0x10, &RACE_OVERLAY.forget_flag_1),
         ] {
-            countdown_lights(fields, game_read(VIEW_BLOCKS[view]), flag.addr() as u32);
+            countdown_lights(
+                fields,
+                RACE_VIEW.view_blocks[view].get(),
+                flag.addr() as u32,
+            );
         }
     }
 }
@@ -567,8 +568,8 @@ pub fn colour_buffers() -> [u32; 2] {
 pub unsafe fn check_split_colours() -> Result<(), Refused> {
     unsafe {
         let fill: u32 = game_read(MARK_COUNT_RVA);
-        for view in VIEW_BLOCKS {
-            let n = get(game_read::<u32>(view) + 0x90);
+        for view in &RACE_VIEW.view_blocks {
+            let n = get(view.get() + 0x90);
             rc2k_core::race::frame::check_split_colours(fill, n)?;
         }
         Ok(())
@@ -581,8 +582,8 @@ pub unsafe fn check_split_colours() -> Result<(), Refused> {
 pub unsafe fn both_split_colours() -> Result<(), Refused> {
     unsafe {
         check_split_colours()?;
-        for (view, buffer) in VIEW_BLOCKS.iter().zip(colour_buffers()) {
-            split_colours(game_read(*view), buffer, game_read(MARK_COUNT_RVA))?;
+        for (view, buffer) in RACE_VIEW.view_blocks.iter().zip(colour_buffers()) {
+            split_colours(view.get(), buffer, game_read(MARK_COUNT_RVA))?;
         }
         Ok(())
     }
@@ -594,7 +595,7 @@ unsafe fn check_panel_neighbours() -> Result<(), Refused> {
         if RACE_VARS.run_kind.bits() != 2 {
             return Ok(());
         }
-        let place = get(game_read::<u32>(VIEW_BLOCKS[0]) + 0x654);
+        let place = get(RACE_VIEW.view_blocks[0].get() + 0x654);
         for base in [CAR_BY_PLACE, CAR_BY_PLACE + 4] {
             let car = get(g(base).wrapping_add(place.wrapping_mul(4)));
             if car > 7 || crate::race::work_store::RACE_WORK.car_block(car as usize) == 0 {
@@ -643,8 +644,6 @@ pub fn hold_to_limit(eax: u32) -> u32 {
     rc2k_core::race::frame::hold_to_limit(eax, RACE_WORK.patch_settings[0].bits())
 }
 
-// Kept for `race::draw_view_scene`, which hands it to `sort_entries` / `draw_entries`.
-pub const SORT_COUNT_RVA: usize = rva(0x63DC50); // dword_63DC50
 // dword_9DB730: 0x1000 of 8 bytes
 pub const SORT_MAX: u32 = 0x1000;
 
@@ -814,8 +813,6 @@ pub unsafe fn face_depth(ebx: u32) -> Result<(), Refused> {
     }
 }
 
-// Kept for `race::draw_view_scene` (as `SORT_COUNT_RVA`).
-pub const DEPTH_COUNT_RVA: usize = rva(0x63DC4C); // dword_63DC4C
 // dword_9D3730: 0x1000 of 8 bytes
 
 /// `race::add_depth_entry` (0x454D2A): `face_depth` of face ebx, then entry
@@ -1255,11 +1252,11 @@ pub unsafe fn gather_lamps() -> Result<(), Refused> {
 /// entries by their first dword, the largest first) from its first entry to its last.
 /// Refuses (before anything) a sort that would go past the
 /// list.
-pub unsafe fn sort_entries(count: usize, entries: u32) -> Result<(), Refused> {
+pub unsafe fn sort_entries(count: &crate::session::Dword, entries: u32) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::quick_sort::quick_sort` (through `sort_records`).
     use rc2k_core::race::quick_sort::Order;
     unsafe {
-        let n: u32 = game_read(count);
+        let n: u32 = count.get();
         if n < 2 {
             return Ok(());
         }
@@ -1928,7 +1925,7 @@ pub unsafe fn camera_view() {
             return;
         }
         let place: [u32; 3] = if GROUND_WORK.view_mirrored.get() == 0 {
-            game_write(rva(0x606294), car(0x6C8));
+            VIEW_VARS.view_scale.set_bits(car(0x6C8));
             for (from, to) in [
                 (0x6B0u32, 0usize),
                 (0x6B8, 1),
@@ -2776,9 +2773,9 @@ pub unsafe fn draw_list_entry(at: u32, ebx: u32) -> Result<(), Refused> {
 /// `race::draw_sorted_entries` (0x454EAB) / `race::draw_depth_entries` (0x454E84): each
 /// entry of the list (`count` its count, `entries` its 8-byte entries) by
 /// `draw_list_entry`. Refuses (before anything) what `draw_list_entry` would for any.
-pub unsafe fn draw_entries(count: usize, entries: u32) -> Result<(), Refused> {
+pub unsafe fn draw_entries(count: &crate::session::Dword, entries: u32) -> Result<(), Refused> {
     unsafe {
-        let n: u32 = game_read(count);
+        let n: u32 = count.get();
         let list = g(entries);
         if (0..n).any(|k| get(list + 8 * k + 4) & 0x7FFF_FFFF >= 0x400_0000) {
             return Err(BadInput("a list entry of 0x4000000 or more").into());

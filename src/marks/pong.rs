@@ -6,7 +6,6 @@
 //! digits' 4 x 5 patterns `unk_768704` (0x14 each).
 
 use crate::framework::rva;
-use crate::marks::store::{Slot, game_read};
 use crate::session::{Bytes, Dword, Float};
 
 /// The pong game over the race: the box scratch, the ball, the bat, the score (IDA 0x768658 .. 0x7687DC, the image's layout; phase 7, typed state).
@@ -228,7 +227,6 @@ pub fn rules_at(mk: usize) -> PongRules {
 }
 
 pub const SHOWN_RVA: usize = rva(0x641678); // dword_641678
-const LENGTH_RVA: Slot = Slot::at(0x76516C); // flt_76516C
 
 /// `fld a; fadd b; fcomp c; fstsw ax; and eax, 700h`.
 pub fn sum_compare(a: u32, b: u32, c: u32) -> u32 {
@@ -309,7 +307,7 @@ pub fn rules() -> rc2k_core::marks::pong::Rules {
         centre: r.centre.each_ref().map(Float::get),
         nudge: r.nudge.get(),
         way_scale: pair(&r.way_scale),
-        length: f32::from_bits(unsafe { game_read(LENGTH_RVA) }),
+        length: f32::from_bits(MARKS_FLOATS.one.bits()),
         walls: r.walls.each_ref().map(Float::get),
         start: r.start.each_ref().map(Float::bits),
     }
@@ -346,6 +344,7 @@ pub fn overlap() -> (bool, u32) {
 }
 
 use crate::marks::plain::{ld, st16};
+use crate::marks::tuning::MARKS_FLOATS;
 use crate::math::x87_float as bh;
 
 /// `sum_compare`'s x87 block as plain Rust on the x87 model (4 instructions), same order and memory places.

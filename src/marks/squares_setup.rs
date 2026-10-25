@@ -11,13 +11,13 @@
 //! Caller: `sub_4BFFEC` (0x4C000F).
 
 use crate::framework::rva;
-use crate::marks::store::{Slot, game_read, game_write};
+use crate::marks::squares_store::{SQUARE_STATE, SQUARE_TABLES};
+use crate::marks::store::game_write;
 use crate::math::x87;
 use crate::scene::draw_store::DRAW;
 use crate::scene::kind_texture_store::KIND_TEXTURES;
+use crate::session::read_bits;
 const VERTICES_RVA: usize = rva(0x9605A0); // g_polygonVertices
-const PLACES_RVA: Slot = Slot::at(0x8BC212); // dword_8BC212 .. dword_8BC21E
-const INVERSE_RVA: Slot = Slot::at(0x89CEEA); // flt_89CEEA
 const STATES: [(u32, u32); 7] = [
     (2, 0x11),
     (2, 0x12),
@@ -30,7 +30,7 @@ const STATES: [(u32, u32); 7] = [
 
 /// The Rust version (see the header).
 pub unsafe fn squares_setup() {
-    unsafe { setup_with(game_read(PLACES_RVA)) }
+    unsafe { setup_with(read_bits(&SQUARE_STATE.setup_places)) }
 }
 
 /// The set-up with the texture places `places` (`marks::pong_setup` has its own).
@@ -56,6 +56,8 @@ pub unsafe fn setup_with(places: [u32; 4]) {
             game_write(VERTICES_RVA + 0x20 * n + 0x1C, v);
         }
         DRAW.polygon_vertex_count.set_bits(4u32);
-        game_write(INVERSE_RVA, x87::reciprocal(DRAW.farthest.bits()));
+        SQUARE_TABLES
+            .inverse
+            .set_bits(x87::reciprocal(DRAW.farthest.bits()));
     }
 }

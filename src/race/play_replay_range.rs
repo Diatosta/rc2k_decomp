@@ -12,27 +12,29 @@
 //! Caller: `race::play_marked`.
 
 use crate::errors::Refused;
-use crate::race::viewer::{
-    BLOCK, BLOCKS, FRAME, KEY_AFTER_PLAY, RECORDING, STOPPED, WAIT_RELEASE, get, put,
-};
+use crate::race::replay_file_store::REPLAY_FILE;
+use crate::race::viewer_screen_store::VIEWER_PANEL;
+use crate::race::viewer_state_store::REPLAY_VIEW;
 
 /// The Rust version (every register kept).
 pub fn play_replay_range() -> Result<(), Refused> {
     use crate::race::race_end;
     crate::drive::replay_frame_marks::replay_frame_marks();
-    if get(RECORDING) != 1 {
+    if VIEWER_PANEL.replay_recording.get() != 1 {
         crate::race::sounds::start_race_sounds()?;
     }
     crate::race::play_movie::play_movie()?;
     race_end::reset_race_sounds(&race_end::SoundVars::game())?;
     // The key taken: al, the rest of eax cleared (`and eax, 0FFh`).
     let key = crate::input::take_key::take_key() as u32 & 0xFF;
-    put(KEY_AFTER_PLAY, key);
-    put(WAIT_RELEASE, 1);
-    if get(BLOCKS) <= get(BLOCK) {
-        put(BLOCK, get(BLOCKS));
-        put(FRAME, 0);
+    REPLAY_VIEW.key_after_play.set(key);
+    REPLAY_VIEW.wait_key_release.set(1);
+    if REPLAY_FILE.index_block_count.get() <= REPLAY_VIEW.replay_block.get() {
+        REPLAY_VIEW
+            .replay_block
+            .set(REPLAY_FILE.index_block_count.get());
+        REPLAY_VIEW.replay_frame.set(0);
     }
-    put(STOPPED, 1);
+    REPLAY_FILE.viewer_stopped.set(1);
     Ok(())
 }

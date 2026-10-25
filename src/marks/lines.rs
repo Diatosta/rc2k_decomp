@@ -4,23 +4,16 @@
 //! apart) by the face's kind, and then made shares of what they were.
 
 use crate::errors::Refused;
-use crate::marks::store::{Slot, game_read, game_write};
+use crate::marks::morph_object_points::MORPH_WORK;
+use crate::marks::store::game_read;
+use crate::marks::tuning::MARKS_FLOATS;
 use crate::math::x87;
 use crate::race::course_lists_store::COURSE_LISTS;
 use crate::scene::objects::{
     FACE_COUNTS_RVA, FACES, FACES_RVA, FIRST_FACE_RVA, FIRST_POINT_RVA, POINT_COUNTS_RVA,
 };
+use crate::session::{Bytes, Dword, Float};
 use rc2k_core::marks::lines as core;
-
-/// The last line's x, y, z differences (`dword_93C870` .. `dword_93C878`).
-pub const DIFFERENCE_RVA: Slot = Slot::at(0x93C870);
-pub const CURRENT_RVA: Slot = Slot::at(0x93C8A8); // dword_93C8A8: the block being measured
-pub const EVERY_RVA: Slot = Slot::at(0x93C8B4); // dword_93C8B4: measure every block
-pub const SHARES_RVA: Slot = Slot::at(0x93C8B8); // dword_93C8B8: make the shares
-pub const ANY_RVA: Slot = Slot::at(0x93C8BC); // dword_93C8BC: a marked block measured
-const HUNDRED_RVA: Slot = Slot::at(0x7651E8); // flt_7651E8, 100.0
-pub const TAKEN_RVA: Slot = Slot::at(0x93C6CC); // g_marksTaken: the last block taken
-const BLOCK_START_RVA: Slot = Slot::at(0x93C738); // g_marksBlockStart: eight floats
 
 unsafe fn get(at: u32) -> u32 {
     unsafe { (at as *const u32).read_unaligned() }
@@ -56,7 +49,9 @@ unsafe fn lines_with(from: u32, to: u32, sum: u32, length: fn([i32; 3], i32) -> 
             let p = points.wrapping_add(a.wrapping_mul(12));
             let q = points.wrapping_add(b.wrapping_mul(12));
             let d = core::difference([0, 4, 8].map(|o| get(p + o)), [0, 4, 8].map(|o| get(q + o)));
-            game_write(DIFFERENCE_RVA, d);
+            for (cell, v) in LINES_WORK.difference.iter().zip(d) {
+                cell.set(v);
+            }
             put(sum, length(d.map(|v| v as i32), get(sum) as i32) as u32);
             n += 1;
         }
@@ -143,9 +138,9 @@ unsafe fn measured(settings: u32, every: bool) -> Result<Vec<(u32, u32, u32, u32
 pub unsafe fn measure_lines() -> Result<(), Refused> {
     unsafe {
         let settings: u32 = crate::marks::setup::SETTINGS.pointer.get();
-        let every = game_read::<u32>(EVERY_RVA) == 1;
+        let every = LINES_WORK.every.get() == 1;
         let blocks = measured(settings, every)?;
-        game_write(ANY_RVA, 0u32);
+        LINES_WORK.any.set(0u32);
         let count = get(settings + 0x5C) as i32;
         let mut todo = blocks.into_iter().peekable();
         for k in (0..count.max(0) as u32).rev() {
@@ -157,9 +152,9 @@ pub unsafe fn measure_lines() -> Result<(), Refused> {
             }
             todo.next();
             if !every {
-                game_write(ANY_RVA, 1u32);
+                LINES_WORK.any.set(1u32);
             }
-            game_write(CURRENT_RVA, block);
+            LINES_WORK.current.set(block);
             for o in (0x1C..=0x30).step_by(4) {
                 put(block + o, 0);
             }
@@ -182,8 +177,8 @@ pub unsafe fn measure_lines() -> Result<(), Refused> {
                 measure_slot_lines(from, to, block);
                 measure_kind_lines(from, to, block);
             }
-            if game_read::<u32>(SHARES_RVA) == 1 {
-                let hundred: u32 = game_read(HUNDRED_RVA);
+            if LINES_WORK.shares.get() == 1 {
+                let hundred: u32 = MARKS_FLOATS.hundred.bits();
                 let share = |at: u32, of: u32| {
                     put(
                         at,
@@ -220,8 +215,8 @@ pub unsafe fn measure_starting_sums() -> Result<(), Refused> {
     unsafe {
         let settings: u32 = crate::marks::setup::SETTINGS.pointer.get();
         measured(settings, true)?;
-        game_write(EVERY_RVA, 1u32);
-        game_write(SHARES_RVA, 0u32);
+        LINES_WORK.every.set(1u32);
+        LINES_WORK.shares.set(0u32);
         measure_lines()?;
         let settings: u32 = crate::marks::setup::SETTINGS.pointer.get();
         let count = get(settings + 0x5C) as i32;
@@ -240,8 +235,8 @@ pub unsafe fn measure_starting_sums() -> Result<(), Refused> {
                 }
             }
         }
-        game_write(EVERY_RVA, 0u32);
-        game_write(SHARES_RVA, 1u32);
+        LINES_WORK.every.set(0u32);
+        LINES_WORK.shares.set(1u32);
         Ok(())
     }
 }
@@ -293,14 +288,122 @@ pub unsafe fn set_up_blocks() -> Result<(), Refused> {
                 (block + 0x4C) as *mut crate::memory::MemoryList,
                 points.wrapping_mul(12),
             )? as u32;
-            game_write(TAKEN_RVA, taken);
+            MORPH_WORK.taken.set(taken);
             put(block + 0x8C, taken);
             copy_block_points(block)?;
             for n in 0..8 {
-                let v = x87::loaded(game_read(BLOCK_START_RVA + 4 * n));
+                let v = x87::loaded(LINES_WORK.block_start[n].bits());
                 put(block + 0x90 + 4 * n as u32, v);
             }
         }
     }
     Ok(())
+}
+
+/// The block lines' work (`lines`) (IDA 0x93C738 .. 0x93C8C0, the image's layout; phase 7, typed state).
+#[repr(C)]
+pub struct LinesWork {
+    /// 0x93C738: `g_marksBlockStart`: the eight values a block's +0x90 .. starts with
+    pub block_start: [Float; 8],
+    /// 0x93C758: `flt_93C73C` .. `flt_93C794`, `dword_93C7F0` .. `flt_93C810`: read only by code in no function (no ported code reads them)
+    pub _gap_93c758: Bytes<280>,
+    /// 0x93C870: `dword_93C870` .. `dword_93C878`: the last line's x, y, z differences
+    pub difference: [Dword; 3],
+    /// 0x93C87C: Not named: 44 bytes (a gap, or unreferenced data)
+    pub _gap_93c87c: Bytes<44>,
+    /// 0x93C8A8: `g_marksMeasuredBlock`: the block being measured
+    pub current: Dword,
+    /// 0x93C8AC: Not named: 8 bytes (a gap, or unreferenced data)
+    pub _gap_93c8ac: Bytes<8>,
+    /// 0x93C8B4: `g_marksMeasureEvery`: measure every block
+    pub every: Dword,
+    /// 0x93C8B8: `g_marksMakeShares`: make the shares
+    pub shares: Dword,
+    /// 0x93C8BC: `g_marksAnyMeasured`: a marked block was measured
+    pub any: Dword,
+}
+
+/// LinesWork's first values.
+pub static LINES_WORK: LinesWork = LinesWork {
+    block_start: [
+        Float::from_bits(0x3F800000),
+        Float::from_bits(0x3F800000),
+        Float::from_bits(0x3F800000),
+        Float::from_bits(0x3F800000),
+        Float::from_bits(0x0),
+        Float::from_bits(0x0),
+        Float::from_bits(0x0),
+        Float::from_bits(0x0),
+    ],
+    _gap_93c758: Bytes::new([
+        0x0A, 0xD7, 0x23, 0xBC, 0x0A, 0xD7, 0x23, 0xBC, 0x0A, 0xD7, 0x23, 0xBC, 0x0A, 0xD7, 0x23,
+        0xBC, 0x0A, 0xD7, 0x23, 0x3C, 0x0A, 0xD7, 0x23, 0x3C, 0x0A, 0xD7, 0x23, 0x3C, 0x0A, 0xD7,
+        0x23, 0x3C, 0x0A, 0xD7, 0x23, 0x3C, 0x0A, 0xD7, 0x23, 0x3C, 0x0A, 0xD7, 0x23, 0x3C, 0x0A,
+        0xD7, 0x23, 0x3C, 0x0A, 0xD7, 0x23, 0xBC, 0x0A, 0xD7, 0x23, 0xBC, 0x0A, 0xD7, 0x23, 0xBC,
+        0x0A, 0xD7, 0x23, 0xBC, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x47, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x43,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x42, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    ]),
+    difference: [Dword::new(0x0), Dword::new(0x0), Dword::new(0x0)],
+    _gap_93c87c: Bytes::new([0; 44]),
+    current: Dword::new(0x0),
+    _gap_93c8ac: Bytes::new([0; 8]),
+    every: Dword::new(0x0),
+    shares: Dword::new(0x0),
+    any: Dword::new(0x0),
+};
+
+impl LinesWork {
+    pub const START: usize = 0x93C738;
+    pub const LEN: usize = 0x188;
+    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
+    pub fn home() -> usize {
+        &LINES_WORK as *const LinesWork as usize
+    }
+}
+
+#[cfg(test)]
+mod lines_work_tests {
+    use super::*;
+    use std::mem::offset_of;
+
+    fn bytes<T>(v: &T) -> Vec<u8> {
+        let p = v as *const T as *const u8;
+        (0..size_of::<T>())
+            .map(|i| unsafe { p.add(i).read() })
+            .collect()
+    }
+
+    #[test]
+    fn lines_work_starts_as_the_games() {
+        assert_eq!(size_of::<LinesWork>(), LinesWork::LEN);
+        assert!(
+            bytes(&LINES_WORK) == crate::moved::image_bytes(LinesWork::START, LinesWork::LEN),
+            "LINES_WORK starts differently from the image"
+        );
+        assert_eq!(
+            offset_of!(LinesWork, block_start),
+            0x93C738 - LinesWork::START
+        );
+        assert_eq!(
+            offset_of!(LinesWork, difference),
+            0x93C870 - LinesWork::START
+        );
+        assert_eq!(offset_of!(LinesWork, current), 0x93C8A8 - LinesWork::START);
+        assert_eq!(offset_of!(LinesWork, every), 0x93C8B4 - LinesWork::START);
+        assert_eq!(offset_of!(LinesWork, shares), 0x93C8B8 - LinesWork::START);
+        assert_eq!(offset_of!(LinesWork, any), 0x93C8BC - LinesWork::START);
+    }
 }

@@ -16,11 +16,12 @@
 use crate::errors::Refused;
 use crate::install::vars::INSTALLER_PAGES;
 use crate::physics::flow::g;
-use crate::race::viewer::{BLOCK, CAMERA_EDIT, CAMERAS, gb};
+use crate::race::viewer::{CAMERA_EDIT, CAMERAS, gb};
 use crate::race::viewer_screen_store::VIEWER_PANEL;
+use crate::race::viewer_state_store::REPLAY_VIEW;
 
 fn camera_byte(byte: usize) -> u32 {
-    gb((CAMERAS + byte).wrapping_add(8 * g(BLOCK) as usize)) as u32
+    gb((CAMERAS + byte).wrapping_add(8 * REPLAY_VIEW.replay_block.get() as usize)) as u32
 }
 
 /// The Rust version. `item` the list item (the original's esi), `index` its number

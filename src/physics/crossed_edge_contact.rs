@@ -26,17 +26,13 @@ use crate::math::x87::mul;
 use crate::physics::car_store::CAR;
 use crate::physics::contact_force::contact_force;
 use crate::physics::contact_store::CONTACT_WORK;
-use crate::physics::flow::{g, p};
-use crate::physics::scene_point_hits_car::SCENE_POINTS;
+use crate::physics::flow::p;
 use crate::physics::tables_store::PHYSICS;
-use crate::physics::touch_face::FACES;
 use crate::physics::wall_edge_contact::edge_normal;
+use crate::race::course_store::COURSE;
 use crate::race::numbers_store::NUMBERS;
 use crate::session::Float;
 use rc2k_core::physics::walls;
-
-/// `dword_6D3B84`: the probe point that crossed an edge (-1 for none).
-pub const CROSSED: usize = 0x6D3B84;
 
 /// Three floats copied as bits, in order.
 fn copy3(to: &[Float], from: &[Float]) {
@@ -81,11 +77,11 @@ pub fn steps() -> Result<(), Refused> {
     figures[2].set(CONTACT_WORK.probe_x[k].get());
     figures[3].set(CONTACT_WORK.probe_z[k].get());
     figures[4].set(CONTACT_WORK.saved_probe_faces[k].get());
-    let face = (CONTACT_WORK.crossed_figures[4].get() << 6).wrapping_add(g(FACES));
+    let face = (CONTACT_WORK.crossed_figures[4].get() << 6).wrapping_add(COURSE.course_faces.get());
     for j in 0..4u32 {
         let point = rd(face + 4 + 4 * j)
             .wrapping_mul(12)
-            .wrapping_add(g(SCENE_POINTS));
+            .wrapping_add(COURSE.scene_points.get());
         CONTACT_WORK.crossed_corners[2 * j as usize].set(rd(point));
         CONTACT_WORK.crossed_corners[2 * j as usize + 1].set(rd(point + 8));
     }

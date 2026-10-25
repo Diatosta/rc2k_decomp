@@ -9,15 +9,14 @@
 //! texture (`dword_5D1448`). Two callers. Refuses a slot past the table.
 
 use crate::errors::BadInput;
-use crate::framework::{game_read, game_write};
+use crate::framework::game_write;
 use crate::menu::lists_store::MENU_LISTS;
-use crate::scene::textures::{KIND_SLOT_RVA, KIND_TEXTURE_RVA, WANTED_RVA};
+use crate::scene::kind_texture_store::KIND_TEXTURES;
+use crate::scene::textures::WANTED_RVA;
 use crate::session::read_all;
 
 // ---- game data ----
 const KIND: usize = 0x258;
-const FIRST_TEXTURE_RVA: usize = KIND_TEXTURE_RVA + KIND * 4; // dword_5D1448
-const FIRST_SLOT_RVA: usize = KIND_SLOT_RVA + KIND * 4; // dword_5D2448
 
 // ---- Rust version ----
 
@@ -26,8 +25,8 @@ pub unsafe fn assign_menu_textures() -> Result<(), BadInput> {
     unsafe {
         let wanted = rc2k_core::scene::textures::menu_textures(
             read_all(&MENU_LISTS.carousel_textures),
-            game_read(FIRST_SLOT_RVA),
-            game_read(FIRST_TEXTURE_RVA),
+            KIND_TEXTURES.kind_first_slots[KIND].get(),
+            KIND_TEXTURES.kind_first_textures[KIND].get(),
         )?;
         for (slot, texture) in wanted {
             game_write(WANTED_RVA + slot as usize * 4, texture);

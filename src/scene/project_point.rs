@@ -27,14 +27,13 @@
 //! are kept as `asm_reference` in the tests (2026-10-24).
 
 use crate::errors::{BadInput, FatalError, Refused};
-use crate::framework::{game_ptr, game_read, rva};
+use crate::framework::{game_read, rva};
 use crate::math::x87;
 use crate::math::x87_float::ONE;
 use crate::race::course_lists_store::COURSE_LISTS;
 use crate::race::course_store::COURSE;
 use crate::race::matrices_store::MATRICES;
 use crate::race::prefs_store::STAGE_PREFS;
-use crate::scene::draw_polygon::CHECKED_RVA;
 use crate::scene::draw_store::DRAW;
 use crate::scene::light_store::LIGHT_STATE;
 use crate::scene::polygon::{dword, put};
@@ -44,7 +43,6 @@ use crate::scene::x87_mem::{fild, fld, fstp};
 
 pub const RECORD_LEN: usize = 0x20;
 pub const OBJECT_POINTS_RVA: usize = rva(0x5CD680); // dword_5CD680
-pub const CENTRE_Y_RVA: usize = rva(0x6240A0); // flt_6240A0
 /// `flt_5C5E18`: a point nearer than this is not put on the screen.
 pub const NEAR: f32 = 4096.0;
 /// `flt_5C5E1C`.
@@ -220,7 +218,7 @@ pub(crate) unsafe fn make_scene_record(point: u32, record: u32) -> Result<u32, B
                 COURSE.flat_depth.bits(),
             ];
             let flat = STAGE_PREFS.flat_depth.bits() != 0;
-            to_screen(record as *mut u32, &v, flat, game_ptr(CHECKED_RVA));
+            to_screen(record as *mut u32, &v, flat, DRAW.scratch.as_ptr());
         }
         if LIGHT_STATE.draw_mode.bits() == 1 {
             put(at + 0x18, x87::sub(dword(at + 0x18), LOWERED_BY.to_bits()));

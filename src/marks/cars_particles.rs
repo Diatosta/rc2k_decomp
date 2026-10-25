@@ -25,28 +25,20 @@
 use crate::errors::{BadInput, Refused};
 use crate::marks::emit_car_particles::emit_car_particles;
 use crate::marks::emitters::*;
-use crate::marks::store::{Slot, game_read, game_write};
+use crate::marks::splines::SPLINE_HEAD;
+use crate::marks::tuning::MARKS_FLOATS;
 use crate::marks::{emit_particle_13, emit_particle_19, emit_particle_22};
 use crate::math::x87;
 use crate::scene::adjugate_matrix::adjugate_matrix;
+use crate::session::{read_bits, write_bits};
 
 const CAR_LEN: u32 = 0x4C8;
 const MOST_CARS: u32 = 8;
-const TAG_K_RVA: Slot = Slot::at(0x9354DE); // dword_9354DE
-const MEAN_K_RVA: Slot = Slot::at(0x7651BC); // flt_7651BC
-/// flt_9354E2, flt_9354E6, flt_9354EA: the rate's factor, base and scale.
-const RATE_K: [Slot; 3] = [Slot::at(0x9354E2), Slot::at(0x9354E6), Slot::at(0x9354EA)];
-const UP_RVA: Slot = Slot::at(0x935446); // flt_935446 .. flt_93544E
-const ACROSS_RVA: Slot = Slot::at(0x935452); // flt_935452 .. flt_93545A
-const SIDE_B_RVA: Slot = Slot::at(0x93543A); // flt_93543A .. flt_935442
-const SIDE_A_RVA: Slot = Slot::at(0x93545E); // flt_93545E .. flt_935466
-/// dword_7694AA, dword_7694B2: the looks by the car's model (8 bytes apart, 33 pairs to
-/// 0x7695B2). The cars have 34 models: model 32's second dword is `g_marksSplineFaces`,
-/// model 33 (the Clio's) reads `g_marksSplineFaces` and `flt_7695BA`, as the original
-/// does (`notes/bugs.md`); all within the marks block.
-const LOOKS_TABLE_RVA: Slot = Slot::at(0x7694AA);
+// The looks by the car's model are `SPLINE_HEAD.looks` (dword_7694AA, dword_7694B2: 8 bytes
+// apart, 33 pairs to 0x7695B2). The cars have 34 models: model 32's second dword is
+// `g_marksSplineFaces`, model 33 (the Clio's) reads `g_marksSplineFaces` and `flt_7695BA`,
+// as the original does (`notes/bugs.md`): `SplineHead::look` reads past the table's end.
 const MODELS: u32 = 34;
-const LOOKS_RVA: [Slot; 2] = [Slot::at(0x935476), Slot::at(0x93547A)];
 
 unsafe fn put(a: u32, v: u32) {
     unsafe { (a as *mut u32).write_unaligned(v) }
@@ -96,12 +88,11 @@ pub unsafe fn cars_particles() -> Result<(), Refused> {
     let count = unsafe { cars(settings) }.len() as u32;
     unsafe {
         for n in (0..count).rev() {
-            game_write(
-                TAG_RVA,
-                x87::int_times_int_to_int(n as i32, game_read(TAG_K_RVA)),
-            );
+            EMITTER
+                .tag
+                .set(x87::int_times_int_to_int(n as i32, EMITTER.tag_k.get() as i32) as u32);
             let car = settings + 0x60 + n * CAR_LEN;
-            game_write(OBJECT_RVA, car);
+            EMITTER.car.set(car);
             let m = at(car + 0x24);
             adjugate_matrix(m, car + 0x94);
             for (to, from) in [(0x7C, 0x70), (0x70, 0x64), (0x64, 0x58)] {
@@ -117,7 +108,7 @@ pub unsafe fn cars_particles() -> Result<(), Refused> {
                     x87::sub(at(m + 0x30 + k4), at(car + 0x40 + k4)),
                 );
             }
-            let mean_k: u32 = game_read(MEAN_K_RVA);
+            let mean_k: u32 = MARKS_FLOATS.quarter.bits();
             for k in 0..3 {
                 let k4 = 4 * k;
                 put(
@@ -134,8 +125,8 @@ pub unsafe fn cars_particles() -> Result<(), Refused> {
             put(car + 0x40, at(m + 0x30));
             put(car + 0x44, at(m + 0x34));
             put(car + 0x48, at(m + 0x38));
-            let [k1, k2, k3] = RATE_K.map(|r| game_read::<u32>(r));
-            let one: u32 = game_read(ONE_RVA);
+            let [k1, k2, k3] = read_bits(&EMITTER.rate_k);
+            let one: u32 = MARKS_FLOATS.one.bits();
             let (length, rate) = x87::length_and_rate(
                 [at(car + 0x4C), at(car + 0x50), at(car + 0x54)],
                 k1,
@@ -151,31 +142,25 @@ pub unsafe fn cars_particles() -> Result<(), Refused> {
                 }
             }
             let w = at(car + 0x28);
-            let up: [u32; 3] = game_read(UP_RVA);
+            let up = read_bits(&EMITTER.up);
             let across = [
                 x87::product_difference(up[1], at(w + 8), up[2], at(w + 4)),
                 x87::product_difference(up[2], at(w), up[0], at(w + 8)),
                 x87::product_difference(up[0], at(w + 4), up[1], at(w)),
             ];
             let across = x87::normalised3(across, one);
-            game_write(ACROSS_RVA, across);
+            write_bits(&EMITTER.across, across);
             let b = x87::crossed_turned(across, w, m);
-            game_write(SIDE_B_RVA, b);
+            write_bits(&EMITTER.side_b, b);
             let a = [
                 x87::product_difference(b[1], across[2], b[2], across[1]),
                 x87::product_difference(b[2], across[0], b[0], across[2]),
                 x87::product_difference(b[0], across[1], b[1], across[0]),
             ];
-            game_write(SIDE_A_RVA, a);
+            write_bits(&EMITTER.side_a, a);
             let model = at(car + 4);
-            game_write(
-                LOOKS_RVA[0],
-                game_read::<u32>(LOOKS_TABLE_RVA + 8 * model as usize),
-            );
-            game_write(
-                LOOKS_RVA[1],
-                game_read::<u32>(LOOKS_TABLE_RVA + 8 + 8 * model as usize),
-            );
+            EMITTER.looks[0].set(SPLINE_HEAD.look(2 * model as usize));
+            EMITTER.looks[1].set(SPLINE_HEAD.look(2 * model as usize + 2));
             if at(car + 0x30) != 0 {
                 put(car + 0x30, at(car + 0x30).wrapping_sub(1));
             } else {

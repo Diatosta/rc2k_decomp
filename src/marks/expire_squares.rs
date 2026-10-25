@@ -9,39 +9,32 @@
 //!
 //! Caller: `marks::squares_step` (0x4C0682).
 
-use crate::marks::store::{Slot, game_addr, game_read, game_write};
+use crate::marks::hexagon_state::HEXAGON_STATE;
+use crate::marks::mask_vars::MASKS;
+use crate::marks::squares_store::SQUARE_ITEMS;
 
-pub const ITEMS_RVA: Slot = Slot::at(0x89E18A); // g_marksSquareItems
 pub const ITEMS: u32 = 0x800;
 pub const ITEM_LEN: u32 = 0x3C;
-const SHAPES_RVA: [Slot; 2] = [Slot::at(0x82FC56), Slot::at(0x82FC7A)]; // g_marksShapesA / B
-const PLACE_RVA: [Slot; 2] = [Slot::at(0x81471C), Slot::at(0x814720)]; // dword_81471C, dword_814720
-const RUNS_RVA: Slot = Slot::at(0x833D7E); // g_marksMaskRunCount
-const MASKS_RVA: [Slot; 2] = [Slot::at(0x833DC2), Slot::at(0x83BDC2)]; // g_marksMaskA / B
 
 /// The Rust version (see the header).
 // Converted: `rc2k_core::marks::expiry::{cell, square_ends}`
 pub unsafe fn expire_squares() {
     use rc2k_core::marks::expiry;
-    unsafe {
-        let al = game_read::<u32>(SHAPES_RVA[0]) as u8;
-        let base = game_addr(ITEMS_RVA) as u32;
-        for n in 0..ITEMS {
-            let e = base + n * ITEM_LEN;
-            if (e as *const u32).read_unaligned() != 1 {
-                continue;
-            }
-            let f = |o: u32| f32::from_bits(((e + o) as *const u32).read_unaligned());
-            let c = expiry::cell(f(0x20), f(0x24));
-            game_write(PLACE_RVA[1], c.z);
-            game_write(PLACE_RVA[0], c.x);
-            if expiry::square_ends(
-                al,
-                || game_read(RUNS_RVA),
-                |n| game_read(MASKS_RVA[n] + c.at as usize),
-            ) {
-                (e as *mut u32).write_unaligned(0);
-            }
+
+    let al = MASKS.shapes[0].step.get() as u8;
+    for item in &SQUARE_ITEMS.items {
+        if item.live.get() != 1 {
+            continue;
+        }
+        let c = expiry::cell(item.place[0].get(), item.place[1].get());
+        HEXAGON_STATE.cell[1].set(c.z as u32);
+        HEXAGON_STATE.cell[0].set(c.x as u32);
+        if expiry::square_ends(
+            al,
+            || MASKS.run_count.get() as i32,
+            |n| [&MASKS.mask_a, &MASKS.mask_b][n].get(c.at as usize),
+        ) {
+            item.live.set(0);
         }
     }
 }

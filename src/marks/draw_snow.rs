@@ -26,13 +26,13 @@ use crate::marks::clip_quad::{clip_quad, draw_fan};
 use crate::marks::snow::{
     SNOW, SNOW_CURVE, SNOW_LIGHT, SNOW_TABLES, SNOW_VARS, SnowLight, SnowState, SnowTables,
 };
-use crate::marks::store::{Slot, game_addr, game_read, game_write};
+use crate::marks::store::{game_addr, game_write};
+use crate::marks::tuning::{MARKS_FLOATS, MARKS_KIND_FLOATS, MarksFloats};
 use crate::scene::draw_store::DRAW;
 use crate::service::harness::{Region, capture, restore};
 
 const MOST: i32 = 0x800;
 const CURVE: u32 = 4095;
-const FADING_RVA: Slot = Slot::at(0x76523C); // dword_76523C
 const FADES: u32 = 17;
 const VERTICES_RVA: usize = rva(0x9605A0); // g_polygonVertices
 /// What the x87 blocks write: flt_8D22D4 .. flt_8D22DC, dword_8D21F4, flt_8DB448 ..
@@ -53,7 +53,7 @@ unsafe fn turn(v: &[u32; 3]) {
 
 /// The original's 0x4C2F9C .. 0x4C3038: the light's dot and its fade index.
 unsafe fn fade() {
-    unsafe { fade_x87(crate::marks::store::base() as usize, &SNOW, &SNOW_LIGHT) }
+    unsafe { fade_x87(&SNOW, &SNOW_LIGHT, &MARKS_FLOATS) }
 }
 
 /// The original's 0x4C305B .. 0x4C30EE: the projected square, its depth and u.
@@ -117,7 +117,7 @@ unsafe fn refusal() -> Option<&'static str> {
                 break;
             }
             turn(&[ebx, eax, ecx]);
-            if SNOW.depth.get() as i32 > 0x1_0000 && game_read::<u32>(FADING_RVA) != 0 {
+            if SNOW.depth.get() as i32 > 0x1_0000 && MARKS_KIND_FLOATS.fading.bits() != 0 {
                 fade();
                 let i = SNOW_LIGHT.fade_index.get();
                 if SNOW_LIGHT.dot.bits() as i32 >= 0 && i >= FADES {
@@ -146,7 +146,7 @@ pub unsafe fn draw_snow() -> Result<(), Refused> {
             let ([eax, ebx, ecx], _, _) = place(k);
             turn(&[ebx, eax, ecx]);
             if SNOW.depth.get() as i32 > 0x1_0000 {
-                if game_read::<u32>(FADING_RVA) != 0 {
+                if MARKS_KIND_FLOATS.fading.bits() != 0 {
                     fade();
                     let mut index = SNOW_LIGHT.fade_index.get();
                     if (SNOW_LIGHT.dot.bits() as i32) < 0 {
@@ -211,8 +211,8 @@ unsafe fn turn_x87(v: usize, s: &SnowState) {
 }
 
 /// `fade`'s x87 block as plain Rust on the x87 model (34 instructions), same order and memory places.
-unsafe fn fade_x87(mk: usize, s: &SnowState, l: &SnowLight) {
-    unsafe {
+unsafe fn fade_x87(s: &SnowState, l: &SnowLight, f: &MarksFloats) {
+    {
         let t0 = bh::ld(s.turned[0].bits());
         let t1 = t0 - bh::ld(l.light_place[0].bits());
         l.fade_delta[0].set_bits(bh::st(t1));
@@ -228,7 +228,7 @@ unsafe fn fade_x87(mk: usize, s: &SnowState, l: &SnowLight) {
         let t9 = t5 + t8;
         let t10 = t2 + t9;
         let t11 = t10.sqrt();
-        let t12 = ld(mk, 0x22C) / t11;
+        let t12 = bh::ld(f.one.bits()) / t11;
         let t13 = t12 * bh::ld(l.fade_delta[0].bits());
         l.fade_unit[0].set_bits(bh::st(t13));
         let t14 = t13 * bh::ld(l.light_way[0].bits());
@@ -242,7 +242,7 @@ unsafe fn fade_x87(mk: usize, s: &SnowState, l: &SnowLight) {
         let t20 = t16 + t19;
         l.dot.set_bits(bh::st(t20));
         let t21 = t20 * t20;
-        let t22 = t21 * ld(mk, 0x24C);
+        let t22 = t21 * bh::ld(f.sixteen.bits());
         l.fade_index.set(bh::to_int(t22) as u32);
     }
 }
@@ -444,6 +444,7 @@ mod asm_differential {
     use crate::marks::asm_test::with_copy;
     use crate::marks::asm_test::{Op, Spec, differential};
     use crate::marks::snow::{SnowLight, SnowState, SnowTables};
+    use crate::marks::tuning::MarksFloats;
 
     #[test]
     fn turn_x87_matches() {
@@ -497,7 +498,7 @@ mod asm_differential {
     fn fade_x87_matches() {
         const SPEC: Spec = Spec {
             operands: &[Op::Base {
-                lo: 0x22C,
+                lo: 0x200,
                 hi: 0x176618,
                 reads: &[
                     (0x22C, F32),
@@ -533,8 +534,10 @@ mod asm_differential {
             |b| unsafe { reference::fade_x87(b[0]) },
             |b| {
                 with_copy(b[0], SnowState::START, |s| {
-                    with_copy(b[0], SnowLight::START, |l| unsafe {
-                        super::fade_x87(b[0], s, l)
+                    with_copy(b[0], SnowLight::START, |l| {
+                        with_copy(b[0], MarksFloats::START, |f| unsafe {
+                            super::fade_x87(s, l, f)
+                        })
                     })
                 })
             },

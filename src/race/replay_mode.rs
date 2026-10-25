@@ -3,11 +3,8 @@
 //! `race::replay_viewer` (0x41CF0C) with eax the mode.
 
 use crate::errors::Refused;
-use crate::framework::rva;
 use crate::menu::screen_loop::Carried;
 use crate::race::replay_file_store::REPLAY_FILE;
-
-pub const REPLAY_RVA: usize = rva(0x5BEC84); // dword_5BEC84: a replay there
 
 /// One start in `mode` (the original's eax): the viewer, when there is a replay. `c` the
 /// carried values the item gets. (The original leaves eax `mode` with a replay, else keeps

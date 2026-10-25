@@ -92,9 +92,13 @@ pub unsafe fn load_texture_picture(number: u32, texture: u32, call: &mut dyn FnM
             call(Call::Text(c"carnum".as_ptr().cast()));
             call(Call::Number(car));
             call(Call::Text(c"grav".as_ptr().cast()));
-            // Eight cars' gravel switches: `car_tyres` and the six unnamed dwords after it.
-            let gravel =
-                ((RACE_VARS.car_tyres[0].addr() + car as usize * 4) as *const u32).read_unaligned();
+            // Eight cars' gravel switches; a car past them (the race's cars are at most
+            // eight) reads on, as the original.
+            let tyres = &RACE_VARS.car_tyres;
+            let gravel = tyres.get(car as usize).map_or_else(
+                || ((tyres[0].addr() + car as usize * 4) as *const u32).read_unaligned(),
+                |c| c.get(),
+            );
             call(Call::Number(gravel));
             if takes_gravel(gravel) && call(Call::Exists(FOLDERS[GRAVEL].0)) {
                 gravel_chosen = true;

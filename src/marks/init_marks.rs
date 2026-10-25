@@ -13,22 +13,20 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::marks::clip::CLIP;
+use crate::marks::kind_values::MARKS_KIND;
 use crate::marks::setup::CLOCK;
-use crate::marks::store::{Slot, game_addr, game_read, game_write};
+use crate::marks::store::{game_addr, game_write};
+use crate::marks::tuning::{MARKS_FLOATS, MARKS_FRAME, MARKS_KIND_FLOATS};
 use crate::math::x87;
 use crate::session::SCREEN;
 
 const KIND_AT: u32 = 0x26A8; // the settings' kind
 const LIVE_AT: u32 = 0x18; // the settings' dword set to 1
-const CLEARED_RVA: Slot = Slot::at(0x76513C); // dword_76513C
-const LESS_RVA: Slot = Slot::at(0x76516C); // flt_76516C
-const KIND_FLOATS_RVA: Slot = Slot::at(0x765240); // g_marksKindFloatTable: 0x17 floats by kind
 /// The table's entries; the kinds go to 0x21 (the other kinds' tables have 0x22).
 const KIND_FLOATS: u32 = 0x17;
 const KINDS: u32 = rc2k_core::marks::kind_values::KINDS;
 /// 18240.0, the value of most of the table's kinds: the kinds past it get it (section 16).
 const KIND_FLOAT_PAST: u32 = 0x468E_8000;
-const KIND_FLOAT_RVA: Slot = Slot::at(0x76529C); // flt_76529C
 
 /// The Rust version (see the header): `settings` the settings (the original's esi), `seed`
 /// the seed (eax). The steps (`nullsub_1` before each, `nullsub_26` for step 7: nothing).
@@ -63,24 +61,24 @@ pub unsafe fn init_marks(settings: u32, seed: u32) -> Result<(), Refused> {
             r.set(1);
         }
         setup::tick_clock();
-        game_write(CLEARED_RVA, 0u32);
-        let less: u32 = game_read(LESS_RVA);
+        MARKS_FRAME.steps.set_bits(0u32);
+        let less: u32 = MARKS_FLOATS.one.bits();
         for (n, side) in [&SCREEN.width, &SCREEN.height].into_iter().enumerate() {
             let half = side.get() >> 1;
             // The screen's middle x, it less `flt_76516C`, the same for y.
             CLIP.edges[2 * n].set_bits(x87::from_int(half as i32));
             CLIP.edges[2 * n + 1].set_bits(x87::int_less(half as i32, less));
         }
-        let kind: u32 = game_read(crate::marks::kind_values::KIND_RVA);
+        let kind: u32 = MARKS_KIND.kind.bits();
         // Fixed (section 16, 2026-10-23): the original reads past the table for kinds
         // 0x17 .. 0x21 (the next variables: `g_marksKindFloat` itself, a 0/1 flag, 9, ..),
         // so those cars' marks lose their depth bias.
         let float = if kind < KIND_FLOATS {
-            game_read(KIND_FLOATS_RVA + 4 * kind as usize)
+            MARKS_KIND_FLOATS.kind_floats[kind as usize].bits()
         } else {
             KIND_FLOAT_PAST
         };
-        game_write(KIND_FLOAT_RVA, float);
+        MARKS_KIND_FLOATS.kind_float.set_bits(float);
     }
     Ok(())
 }

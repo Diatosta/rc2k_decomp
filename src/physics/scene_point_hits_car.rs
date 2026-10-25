@@ -13,10 +13,6 @@ use crate::physics::point_hits_car::point_hits_car;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::course_store::COURSE;
 
-/// `g_scenePoints` (`COURSE.scene_points`): the pointer to the scene's points (three whole
-/// numbers each); the address stays for the callers not yet typed.
-pub const SCENE_POINTS: usize = 0x5CCCC0;
-
 /// The Rust version: (inside, ebx, esi).
 pub unsafe fn scene_point_hits_car(record: u32, object: u32) -> (bool, u32, u32) {
     let number = unsafe { ((record + 4) as *const u32).read_unaligned() };

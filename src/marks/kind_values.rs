@@ -4,182 +4,168 @@
 //! of 0x22 three-float entries.
 
 use crate::errors::{BadInput, Refused};
-use crate::marks::store::{Slot, game_read, game_write};
+use crate::marks::kind_store::{
+    CONSTS_1, CONSTS_2, EXTRA_2, EXTRAS_1, KindConsts, QUAD_1, QUAD_2, QuadWork, TABLES_1, TABLES_2,
+};
 use crate::math::x87;
+use crate::session::{Dword, Float};
 
-pub const KIND_RVA: Slot = Slot::at(0x769232); // g_marksKind
 pub const KINDS: u32 = 0x22;
 
-/// One set's addresses (RVAs), in the order the code uses them.
-pub struct KindTables {
-    /// Tables of 0x22 dwords: `count` (copied), `size`, `divisor`, `low`, `high`, `start`,
-    /// `middle`, `end`, `spread`, `extra`.
-    pub tables: [Slot; 10],
+/// One set's variables, in the order the code uses them (the typed statics of
+/// `marks::kind_store`).
+pub struct KindSet {
     /// Tables of 0x22 three-float entries: `to`, `from`, `copied`.
-    pub triples: [Slot; 3],
-    /// Constants: 0x7C, 0x80 .. 0xB0 after the set's base (14 floats).
-    pub constants: [Slot; 14],
-    /// Out: `count`, `size`, `ratio`, `high`, `low` (in that order of writing), `start`,
-    /// `step`, `middle`, `slope`, `spread`, `extra`.
-    pub outs: [Slot; 11],
-    /// Out: the place's three floats (z, y, x as written), then the copied three, a 0,
-    /// and the two differences.
-    pub place: [Slot; 3],
-    pub copied: Slot,
+    pub triples: [&'static [[Float; 3]; KINDS as usize]; 3],
+    /// Tables of 0x22 floats: `size`, `divisor`, `low`, `high`, `start`, `middle`, `end`,
+    /// `spread`, `extra`.
+    pub values: [&'static [Float; KINDS as usize]; 9],
+    /// The table of 0x22 dwords: `count`.
+    pub count: &'static [Dword; KINDS as usize],
+    /// The constants.
+    pub consts: &'static KindConsts,
+    /// The quad the values are put in.
+    pub quad: &'static QuadWork,
+    /// Out: `extra`.
+    pub extra: &'static Float,
     /// `divisor` copied here too (the first set only).
-    pub divisor_copy: Option<Slot>,
+    pub divisor_copy: Option<&'static Dword>,
 }
 
-pub const FIRST: KindTables = KindTables {
-    tables: [
-        Slot::at(0x933B40),
-        Slot::at(0x9339A8),
-        Slot::at(0x933A30),
-        Slot::at(0x933DE8),
-        Slot::at(0x933D60),
-        Slot::at(0x933BC8),
-        Slot::at(0x933C50),
-        Slot::at(0x933CD8),
-        Slot::at(0x933AB8),
-        Slot::at(0x933920),
+pub static FIRST: KindSet = KindSet {
+    triples: [&TABLES_1.to, &TABLES_1.from, &TABLES_1.copied],
+    values: [
+        &TABLES_1.size,
+        &TABLES_1.divisor,
+        &TABLES_1.low,
+        &TABLES_1.high,
+        &TABLES_1.start,
+        &TABLES_1.middle,
+        &TABLES_1.end,
+        &TABLES_1.spread,
+        &TABLES_1.extra,
     ],
-    triples: [Slot::at(0x933788), Slot::at(0x9335F0), Slot::at(0x933458)],
-    constants: [
-        Slot::at(0x933E7C),
-        Slot::at(0x933E80),
-        Slot::at(0x933E84),
-        Slot::at(0x933E88),
-        Slot::at(0x933E8C),
-        Slot::at(0x933E90),
-        Slot::at(0x933E94),
-        Slot::at(0x933E98),
-        Slot::at(0x933E9C),
-        Slot::at(0x933EA0),
-        Slot::at(0x933EA4),
-        Slot::at(0x933EA8),
-        Slot::at(0x933EAC),
-        Slot::at(0x933EB0),
-    ],
-    outs: [
-        Slot::at(0x933248),
-        Slot::at(0x933250),
-        Slot::at(0x93324C),
-        Slot::at(0x93325C),
-        Slot::at(0x933260),
-        Slot::at(0x933254),
-        Slot::at(0x933258),
-        Slot::at(0x933264),
-        Slot::at(0x933268),
-        Slot::at(0x93326C),
-        Slot::at(0x933E70),
-    ],
-    place: [Slot::at(0x9331B4), Slot::at(0x9331B8), Slot::at(0x9331BC)],
-    copied: Slot::at(0x933200),
-    divisor_copy: Some(Slot::at(0x933E74)),
+    count: &TABLES_1.count,
+    consts: &CONSTS_1,
+    quad: &QUAD_1,
+    extra: &EXTRAS_1.extra,
+    divisor_copy: Some(&EXTRAS_1.divisor_copy),
 };
 
-pub const SECOND: KindTables = KindTables {
-    tables: [
-        Slot::at(0x934848),
-        Slot::at(0x9346B0),
-        Slot::at(0x934738),
-        Slot::at(0x934AF0),
-        Slot::at(0x934A68),
-        Slot::at(0x9348D0),
-        Slot::at(0x934958),
-        Slot::at(0x9349E0),
-        Slot::at(0x9347C0),
-        Slot::at(0x934628),
+pub static SECOND: KindSet = KindSet {
+    triples: [&TABLES_2.to, &TABLES_2.from, &TABLES_2.copied],
+    values: [
+        &TABLES_2.size,
+        &TABLES_2.divisor,
+        &TABLES_2.low,
+        &TABLES_2.high,
+        &TABLES_2.start,
+        &TABLES_2.middle,
+        &TABLES_2.end,
+        &TABLES_2.spread,
+        &TABLES_2.extra,
     ],
-    triples: [Slot::at(0x934490), Slot::at(0x9342F8), Slot::at(0x934160)],
-    constants: [
-        Slot::at(0x934B7C),
-        Slot::at(0x934B80),
-        Slot::at(0x934B84),
-        Slot::at(0x934B88),
-        Slot::at(0x934B8C),
-        Slot::at(0x934B90),
-        Slot::at(0x934B94),
-        Slot::at(0x934B98),
-        Slot::at(0x934B9C),
-        Slot::at(0x934BA0),
-        Slot::at(0x934BA4),
-        Slot::at(0x934BA8),
-        Slot::at(0x934BAC),
-        Slot::at(0x934BB0),
-    ],
-    outs: [
-        Slot::at(0x933F64),
-        Slot::at(0x933F6C),
-        Slot::at(0x933F68),
-        Slot::at(0x933F78),
-        Slot::at(0x933F7C),
-        Slot::at(0x933F70),
-        Slot::at(0x933F74),
-        Slot::at(0x933F80),
-        Slot::at(0x933F84),
-        Slot::at(0x933F88),
-        Slot::at(0x934B78),
-    ],
-    place: [Slot::at(0x933ED0), Slot::at(0x933ED4), Slot::at(0x933ED8)],
-    copied: Slot::at(0x933F1C),
+    count: &TABLES_2.count,
+    consts: &CONSTS_2,
+    quad: &QUAD_2,
+    extra: &EXTRA_2.extra,
     divisor_copy: None,
 };
 
 /// The kind's values of one set. Refuses a kind past the tables (0x22).
-pub unsafe fn set_kind_values(k: &KindTables) -> Result<(), Refused> {
-    unsafe {
-        let kind: u32 = game_read(KIND_RVA);
-        if kind >= KINDS {
-            return Err(BadInput("the marks' kind is past the tables (0x22)").into());
-        }
-        let t = |n: usize| -> u32 { game_read(k.tables[n] + 4 * kind as usize) };
-        let c = |n: usize| -> u32 { game_read(k.constants[n]) };
-        let put = |n: usize, v: u32| game_write(k.outs[n], v);
-        let [
-            count,
-            size,
-            divisor,
-            low,
-            high,
-            start,
-            middle,
-            end,
-            spread,
-            extra,
-        ] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(t);
-        put(0, count);
-        let (scaled, ratio) = x87::mul_and_div(size, c(0), divisor);
-        put(1, scaled);
-        put(2, ratio);
-        put(3, low);
-        put(4, high);
-        put(5, x87::mul(start, c(1)));
-        put(6, x87::sub_div_mul(middle, start, low, c(2)));
-        put(7, x87::mul(middle, c(3)));
-        put(8, x87::diff_ratio_mul(end, middle, high, low, c(4)));
-        put(9, x87::mul(spread, c(5)));
-        put(10, x87::mul(extra, c(6)));
-        if let Some(copy) = k.divisor_copy {
-            game_write(copy, divisor);
-        }
-        let row = kind as usize * 12;
-        let triple = |n: usize, part: usize| -> u32 { game_read(k.triples[n] + row + 4 * part) };
-        let lerp = |part: usize, less: Option<u32>| {
-            x87::lerp_scaled_less(
-                triple(0, part),
-                triple(1, part),
-                c(7 + 2 * part),
-                c(8 + 2 * part),
-                less,
-            )
-        };
-        game_write(k.place[0], lerp(2, None));
-        game_write(k.place[1], lerp(1, Some(c(13))));
-        game_write(k.place[2], lerp(0, None));
-        game_write(k.copied, [triple(2, 0), triple(2, 1), triple(2, 2), 0]);
-        game_write(k.copied + 16, x87::sub(triple(0, 1), triple(1, 1)));
-        game_write(k.copied + 20, x87::negated_sub(triple(0, 0), triple(1, 0)));
+pub unsafe fn set_kind_values(k: &KindSet) -> Result<(), Refused> {
+    let kind: u32 = MARKS_KIND.kind.bits();
+    if kind >= KINDS {
+        return Err(BadInput("the marks' kind is past the tables (0x22)").into());
     }
+    let n = kind as usize;
+    let q = k.quad;
+    let c = k.consts;
+    let [size, divisor, low, high, start, middle, end, spread, extra] =
+        k.values.map(|table| table[n].bits());
+    let count = k.count[n].get();
+    q.corner.set(count);
+    let (scaled, ratio) = x87::mul_and_div(size, c.size_k.bits(), divisor);
+    q.size.set_bits(scaled);
+    q.ratio.set_bits(ratio);
+    q.low.set_bits(low);
+    q.high.set_bits(high);
+    q.start.set_bits(x87::mul(start, c.start_k.bits()));
+    q.step
+        .set_bits(x87::sub_div_mul(middle, start, low, c.step_k.bits()));
+    q.middle.set_bits(x87::mul(middle, c.middle_k.bits()));
+    q.slope.set_bits(x87::diff_ratio_mul(
+        end,
+        middle,
+        high,
+        low,
+        c.slope_k.bits(),
+    ));
+    q.spread.set_bits(x87::mul(spread, c.spread_k.bits()));
+    k.extra.set_bits(x87::mul(extra, c.extra_k.bits()));
+    if let Some(copy) = k.divisor_copy {
+        copy.set(divisor);
+    }
+    let triple = |t: usize, part: usize| k.triples[t][n][part].bits();
+    let lerp = |part: usize, less: Option<u32>| {
+        x87::lerp_scaled_less(
+            triple(0, part),
+            triple(1, part),
+            c.place_k[2 * part].bits(),
+            c.place_k[2 * part + 1].bits(),
+            less,
+        )
+    };
+    q.place[0].set_bits(lerp(2, None));
+    q.place[1].set_bits(lerp(1, Some(c.place_less.bits())));
+    q.place[2].set_bits(lerp(0, None));
+    // The first side is the kind's `copied` triple; the second side's first float is the 0
+    // that goes with it (the original wrote the four as one), then the two differences.
+    q.sides[0][0].set_bits(triple(2, 0));
+    q.sides[0][1].set_bits(triple(2, 1));
+    q.sides[0][2].set_bits(triple(2, 2));
+    q.sides[1][0].set_bits(0);
+    q.sides[1][1].set_bits(x87::sub(triple(0, 1), triple(1, 1)));
+    q.sides[1][2].set_bits(x87::negated_sub(triple(0, 0), triple(1, 0)));
     Ok(())
+}
+
+/// The marks' kind (`marks::kind_values`) (IDA 0x769232 .. 0x769236, the image's layout; phase 7, typed state).
+#[repr(C)]
+pub struct MarksKind {
+    /// 0x769232: `g_marksKind`: the kind of the marks (the surface / weather: 0 .. 0x21), set at `marks::init_marks`.
+    pub kind: Dword,
+}
+
+pub static MARKS_KIND: MarksKind = MarksKind {
+    kind: Dword::new(0x0),
+};
+
+impl MarksKind {
+    pub const START: usize = 0x769232;
+    pub const LEN: usize = 0x4;
+    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
+    pub fn home() -> usize {
+        &MARKS_KIND as *const MarksKind as usize
+    }
+}
+
+#[cfg(test)]
+mod marks_kind_tests {
+    use super::*;
+
+    #[test]
+    fn marks_kind_starts_as_the_games() {
+        use core::mem::offset_of;
+        assert_eq!(size_of::<MarksKind>(), MarksKind::LEN);
+        let p = &MARKS_KIND as *const MarksKind as *const u8;
+        let ours: Vec<u8> = (0..size_of::<MarksKind>())
+            .map(|i| unsafe { p.add(i).read() })
+            .collect();
+        assert!(
+            ours == crate::moved::image_bytes(MarksKind::START, MarksKind::LEN),
+            "MARKS_KIND starts differently from the image"
+        );
+        assert_eq!(offset_of!(MarksKind, kind), 0x769232 - MarksKind::START);
+    }
 }

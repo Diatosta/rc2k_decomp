@@ -13,21 +13,19 @@
 //! compared exactly as before (the earlier version stays for the Rust callers in
 //! unconverted code).
 
-use crate::marks::expire_squares::{ITEM_LEN, ITEMS, ITEMS_RVA};
-use crate::marks::store::{Slot, game_addr, game_read, game_write};
+use crate::marks::expire_squares::{ITEM_LEN, ITEMS};
+use crate::marks::squares_store::{SQUARE_ITEMS, SQUARE_STATE, SQUARE_TABLES};
 use crate::math::x87;
 use crate::physics::tables_store::PHYSICS;
 
-pub const CURSOR_RVA: Slot = Slot::at(0x89D166); // dword_89D166: an offset into the items
-const SIZE_K: [Slot; 3] = [Slot::at(0x8BC23A), Slot::at(0x8BC23E), Slot::at(0x8BC242)];
 const WINDOW: u32 = 32;
 
 /// The Rust version (see the header): ecx as it leaves it.
 pub unsafe fn spawn_square(x: u32, z: u32, kind: u32) -> u32 {
     unsafe {
-        let base = game_addr(ITEMS_RVA) as u32;
+        let base = crate::session::address_of(&SQUARE_ITEMS.items) as u32;
         let end = ITEMS * ITEM_LEN;
-        let mut at = game_read::<u32>(CURSOR_RVA);
+        let mut at = SQUARE_TABLES.cursor.get();
         let step = |at: &mut u32| {
             *at += ITEM_LEN;
             if *at == end {
@@ -44,21 +42,25 @@ pub unsafe fn spawn_square(x: u32, z: u32, kind: u32) -> u32 {
                 let k = kind & 7;
                 put(
                     0xC,
-                    x87::int_times_plus(k as i32, game_read(SIZE_K[0]), game_read(SIZE_K[1])),
+                    x87::int_times_plus(
+                        k as i32,
+                        SQUARE_STATE.size_k[0].bits(),
+                        SQUARE_STATE.size_k[1].bits(),
+                    ),
                 );
-                put(0x10, x87::loaded(game_read(SIZE_K[2])));
+                put(0x10, x87::loaded(SQUARE_STATE.size_k[2].bits()));
                 for o in [0x28, 0x2C, 0x38, 0x14, 0x18, 0x1C, 0x30, 0x34] {
                     put(o, 0);
                 }
                 put(4, PHYSICS.scene_clock.bits());
                 put(8, 0);
                 step(&mut at);
-                game_write(CURSOR_RVA, at);
+                SQUARE_TABLES.cursor.set(at);
                 return k;
             }
             step(&mut at);
         }
-        game_write(CURSOR_RVA, at);
+        SQUARE_TABLES.cursor.set(at);
         kind
     }
 }

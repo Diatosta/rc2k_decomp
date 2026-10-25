@@ -39,13 +39,3 @@ pub(crate) unsafe fn st80(base: usize, off: usize, x: X) {
 pub(crate) unsafe fn st16(base: usize, off: usize, status: u16) {
     unsafe { (base.wrapping_add(off) as *mut u16).write_unaligned(status) };
 }
-
-/// `mov reg, dword ptr [base + off]`.
-pub(crate) unsafe fn rd(base: usize, off: usize) -> u32 {
-    unsafe { (base.wrapping_add(off) as *const u32).read_unaligned() }
-}
-
-/// `mov dword ptr [base + off], reg`.
-pub(crate) unsafe fn wr(base: usize, off: usize, v: u32) {
-    unsafe { (base.wrapping_add(off) as *mut u32).write_unaligned(v) };
-}

@@ -14,14 +14,11 @@
 //! game's variables; the picks their Rust versions (under the same rounding).
 
 use crate::marks::pick_square::pick_square;
-use crate::marks::store::{Slot, game_read, game_write};
+use crate::marks::store::{game_read, game_write};
+use crate::marks::tilt_shape::SHAPE_TILT;
 use crate::math::x87;
 use crate::scene::vector3::STATUS_RVA;
 
-const FRAMES_RVA: Slot = Slot::at(0x89CA30); // dword_89CA30
-const RATE_RVA: Slot = Slot::at(0x89CA38); // flt_89CA38
-const SHARE_K_RVA: Slot = Slot::at(0x8BC24E); // flt_8BC24E
-const RANDOM_RVA: Slot = Slot::at(0x8BC252); // dword_8BC252
 const MOST: i32 = 0x80;
 
 /// The original's 0x4C053C .. 0x4C059D: the rate, compared (`fstsw` into `g_fpuStatus`).
@@ -29,8 +26,9 @@ unsafe fn rate() {
     unsafe {
         rate_x87(
             crate::race::store::asm_base() as usize,
-            crate::marks::store::base() as usize,
             &KEPT,
+            &SQUARE_TIMING,
+            &SQUARE_STATE,
         )
     }
 }
@@ -38,22 +36,26 @@ unsafe fn rate() {
 /// The Rust version (see the header).
 pub unsafe fn squares_spawn() {
     unsafe {
-        game_write(FRAMES_RVA, game_read::<u32>(FRAMES_RVA).wrapping_add(1));
+        SQUARE_TIMING
+            .frames
+            .set(SQUARE_TIMING.frames.get().wrapping_add(1));
         let old = x87::set_chop();
         rate();
         let status = game_read::<u32>(STATUS_RVA) & 0x700;
         game_write(STATUS_RVA, status);
         if status != 0x100 {
-            let v: u32 = game_read(RATE_RVA);
+            let v: u32 = SQUARE_TIMING.spawn_rate.bits();
             let n = x87::to_int(v).min(MOST);
             for _ in 0..n.max(0) {
                 pick_square();
             }
-            let share = x87::fraction_times_to_int(v, game_read(SHARE_K_RVA));
-            let s = game_read::<u32>(RANDOM_RVA)
+            let share = x87::fraction_times_to_int(v, SQUARE_STATE.share_k.bits());
+            let s = SQUARE_STATE
+                .spawn_random
+                .get()
                 .wrapping_mul(0xC5)
                 .wrapping_add(0x5D);
-            game_write(RANDOM_RVA, s);
+            SQUARE_STATE.spawn_random.set(s);
             if ((s >> 8) & 0xFFFF) as i32 <= share {
                 pick_square();
             }
@@ -62,30 +64,35 @@ pub unsafe fn squares_spawn() {
     }
 }
 
-use crate::marks::plain::{ld, st, st16};
+use crate::marks::plain::st16;
+use crate::marks::squares_store::{SQUARE_STATE, SQUARE_TIMING, SquareState, SquareTiming};
 use crate::marks::view_vectors::{KEPT, KeptView};
 use crate::math::x87_float as bh;
 
 /// `rate`'s x87 block as plain Rust on the x87 model (20 instructions), same order and memory places.
-unsafe fn rate_x87(rc: usize, mk: usize, kv: &KeptView) {
+unsafe fn rate_x87(rc: usize, kv: &KeptView, sti: &SquareTiming, ss: &SquareState) {
     unsafe {
         let t0 = bh::ld(kv.first_angle.bits());
-        let t1 = t0 + ld(mk, 0xACC83);
+        let t1 = t0 + bh::ld(SHAPE_TILT.tilt.bits());
         let t2 = t1.sin();
-        let t3 = t2 * ld(mk, 0x137AF4);
-        st(mk, 0x137AF8, t3);
-        let t4 = ld(mk, 0x137AF4);
-        let t5 = t4 * ld(mk, 0xACCA7);
+        let t3 = t2 * bh::ld(sti.rate.bits());
+        sti.spawn_rate.set_bits(bh::st(t3));
+        let t4 = bh::ld(sti.rate.bits());
+        let t5 = t4 * bh::ld(SHAPE_TILT.point[2].bits());
         let t6 = -t5;
         let t7 = bh::ld(kv.first_angle.bits());
-        let t8 = t7 + ld(mk, 0xACC83);
+        let t8 = t7 + bh::ld(SHAPE_TILT.tilt.bits());
         let t9 = t8.cos();
         let t10 = t6 * t9;
-        let t11 = t10 * ld(mk, 0x157306);
-        let t12 = t11 + ld(mk, 0x137AF8);
-        st(mk, 0x137AF8, t12);
-        let t13 = ld(mk, 0x137AF8);
-        st16(rc, 0x31C814, bh::compare(t13, ld(mk, 0x15730A)));
+        let t11 = t10 * bh::ld(ss.rate_constants[0].bits());
+        let t12 = t11 + bh::ld(sti.spawn_rate.bits());
+        sti.spawn_rate.set_bits(bh::st(t12));
+        let t13 = bh::ld(sti.spawn_rate.bits());
+        st16(
+            rc,
+            0x31C814,
+            bh::compare(t13, bh::ld(ss.rate_constants[1].bits())),
+        );
     }
 }
 
@@ -129,9 +136,13 @@ mod asm_reference {
 #[cfg(test)]
 mod asm_differential {
     use super::asm_reference as reference;
+
     use crate::marks::asm_test::Kind::*;
     use crate::marks::asm_test::with_copy;
     use crate::marks::asm_test::{Op, Spec, differential};
+    use crate::marks::squares_store::{SquareState, SquareTiming};
+    use crate::marks::tilt_shape::{SHAPE_TILT, ShapeTilt};
+    use crate::marks::typed_sync::{overlay, with_overlays};
     use crate::marks::view_vectors::KeptView;
 
     #[test]
@@ -146,7 +157,7 @@ mod asm_differential {
                 },
                 Op::Base {
                     lo: 0x42F6,
-                    hi: 0x15730E,
+                    hi: 0x15732C,
                     reads: &[
                         (0x42FE, F32),
                         (0xACC83, F32),
@@ -165,8 +176,16 @@ mod asm_differential {
             &SPEC,
             |b| unsafe { reference::rate_x87(b[0], b[1]) },
             |b| {
-                with_copy(b[1], KeptView::START, |kv| unsafe {
-                    super::rate_x87(b[0], b[1], kv)
+                with_copy(b[1], KeptView::START, |kv| {
+                    with_copy::<SquareTiming, _>(b[1], SquareTiming::START, |sti| {
+                        with_copy::<SquareState, _>(b[1], SquareState::START, |ss| {
+                            with_overlays(
+                                b[1],
+                                &[overlay(&SHAPE_TILT, ShapeTilt::START)],
+                                || unsafe { super::rate_x87(b[0], kv, sti, ss) },
+                            )
+                        })
+                    })
                 })
             },
         );

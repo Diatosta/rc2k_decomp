@@ -18,20 +18,14 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::rva;
+use crate::marks::blocks::MARK_CORNERS;
 use crate::marks::clip_quad::{clip_quad, draw_fan};
-use crate::marks::store::{Slot, game_addr, game_read, game_write};
+use crate::marks::frame_state::{DRAW_WORK, FLARE_SCALES, VIEW_VARS};
+use crate::marks::store::{game_addr, game_read, game_write};
 use crate::math::x87;
 use crate::scene::matrix3::rounded;
 
-const SCALE: [Slot; 2] = [Slot::at(0x9206DE), Slot::at(0x9206E2)]; // flt_9206DE, flt_9206E2
-const SIDE_RVA: [Slot; 2] = [Slot::at(0x8EB941), Slot::at(0x8EB945)]; // flt_8EB941, flt_8EB945
-const SIZE_RVA: [Slot; 2] = [Slot::at(0x8EB8B5), Slot::at(0x8EB8B9)]; // dword_8EB8B5, dword_8EB8B9
-const CORNERS_RVA: Slot = Slot::at(0x8EB971); // g_marksCorners: 0x100 of 0x80 bytes
 const CORNERS: u32 = 0x100;
-const UV_K_RVA: Slot = Slot::at(0x8EB969); // flt_8EB969
-const NEAR_RVA: Slot = Slot::at(0x8EB961); // dword_8EB961
-const Z_K_RVA: Slot = Slot::at(0x8EB96D); // flt_8EB96D
-const DRAWN_RVA: Slot = Slot::at(0x8F3981); // dword_8F3981
 const VERTICES_RVA: usize = rva(0x9605A0); // g_polygonVertices: TLVertex[4], a fifth's x, y
 const SINES_RVA: usize = rva(0xA23AE4); // g_sines
 const COSINES_RVA: usize = rva(0xA24AE4); // g_cosines
@@ -62,15 +56,15 @@ pub unsafe fn draw_flare_part(
             return Err(BadInput("no marks settings").into());
         }
         for n in 0..2 {
-            game_write(SIDE_RVA[n], x87::loaded(game_read(SCALE[n])));
+            DRAW_WORK.sides[n].set_bits(x87::loaded(FLARE_SCALES.scale[n].bits()));
         }
         let colour = (alpha << 24) | colour;
         for n in 0..4 {
             game_write(VERTICES_RVA + 0x20 * n + 0x10, colour);
         }
-        let entry = game_addr(CORNERS_RVA) as u32 + corner * 0x80;
-        let word = |off: u32| ((entry + off) as *const u16).read_unaligned() as u32;
-        let uv_k: u32 = game_read(UV_K_RVA);
+        let entry = &MARK_CORNERS.corners[corner as usize];
+        let word = |off: u32| u32::from(entry.words[off as usize / 2].get());
+        let uv_k: u32 = DRAW_WORK.uv_k.bits();
         for (n, (u, v)) in UV_WORDS.into_iter().enumerate() {
             let vertex = VERTICES_RVA + 0x20 * n;
             game_write(vertex + 0x18, x87::int_times(word(u) as i32, uv_k));
@@ -84,13 +78,13 @@ pub unsafe fn draw_flare_part(
         let ratio = x87::int_over_int(along as i32, across as i32);
         let width = x87::int_to_float(size as i32);
         let height = x87::int_times(size as i32, ratio);
-        game_write(SIZE_RVA[0], width);
-        game_write(SIZE_RVA[1], height);
+        DRAW_WORK.half[0].set_bits(width);
+        DRAW_WORK.half[1].set_bits(height);
         let turn = angle >> 20;
-        let sw = x87::mul(width, game_read(SIDE_RVA[0]));
-        let sh = x87::mul(height, game_read(SIDE_RVA[1]));
-        game_write(SIDE_RVA[0], sw);
-        game_write(SIDE_RVA[1], sh);
+        let sw = x87::mul(width, DRAW_WORK.sides[0].bits());
+        let sh = x87::mul(height, DRAW_WORK.sides[1].bits());
+        DRAW_WORK.sides[0].set_bits(sw);
+        DRAW_WORK.sides[1].set_bits(sh);
         let corners = [
             (x87::sub(0, sw), x87::sub(0, sh)),
             (x87::sub(width, sw), x87::sub(0, sh)),
@@ -99,7 +93,7 @@ pub unsafe fn draw_flare_part(
         ];
         let sin: u32 = game_read(SINES_RVA + 4 * turn as usize);
         let cos: u32 = game_read(COSINES_RVA + 4 * turn as usize);
-        let depth = x87::mul(game_read(NEAR_RVA), game_read(Z_K_RVA));
+        let depth = x87::mul(DRAW_WORK.near.bits(), DRAW_WORK.z_k.bits());
         for (n, (x, y)) in corners.into_iter().enumerate() {
             let vertex = VERTICES_RVA + 0x20 * n;
             let [tx, ty] = x87::turn_about(x, y, sin, cos, cx, cy);
@@ -107,7 +101,9 @@ pub unsafe fn draw_flare_part(
             game_write(vertex + 4, ty);
             game_write(vertex + 8, depth);
         }
-        game_write(DRAWN_RVA, game_read::<u32>(DRAWN_RVA).wrapping_add(1));
+        VIEW_VARS
+            .cleared
+            .set(VIEW_VARS.cleared.get().wrapping_add(1));
         if clip_quad(game_addr(VERTICES_RVA) as u32)? {
             return Ok(());
         }

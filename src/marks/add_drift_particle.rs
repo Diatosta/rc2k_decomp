@@ -12,30 +12,29 @@
 //! ring (an entry to take), before anything.
 
 use crate::errors::{BadInput, Refused};
-use crate::marks::blocks::{RING_FREE_RVA, RING_USED_RVA};
-use crate::marks::store::{Slot, game_read, game_write};
+use crate::marks::blocks::RING_POOL;
+use crate::marks::run_particles::PARTICLE_TUNING;
 use crate::math::x87;
 use crate::race::matrices_store::MATRICES;
 use crate::scene::matrix3::rounded;
 
 const FULL: u32 = 0xFFF;
-const LOWER_RVA: Slot = Slot::at(0x93C644); // flt_93C644
 const LIFE: u32 = 0xC350;
 
 /// The Rust version (see the header).
 pub unsafe fn add_drift_particle(kind: u32, v: [[u8; 10]; 6]) -> Result<(), Refused> {
     unsafe {
-        let used: u32 = game_read(RING_USED_RVA);
+        let used: u32 = RING_POOL.used.get();
         if used == FULL {
             return Ok(());
         }
-        let free: u32 = game_read(RING_FREE_RVA);
+        let free: u32 = RING_POOL.free.get();
         if free == 0 || (free as *const u32).read_unaligned() == 0 {
             return Err(BadInput("a null particle ring entry").into());
         }
         let e = (free as *const u32).read_unaligned();
-        game_write(RING_FREE_RVA, e);
-        game_write(RING_USED_RVA, used.wrapping_add(1));
+        RING_POOL.free.set(e);
+        RING_POOL.used.set(used.wrapping_add(1));
         let put = |o: u32, x: u32| ((e + o) as *mut u32).write_unaligned(x);
         put(8, kind);
         put(0x34, rounded(v[0]));
@@ -44,7 +43,7 @@ pub unsafe fn add_drift_particle(kind: u32, v: [[u8; 10]; 6]) -> Result<(), Refu
         put(0x14, rounded(v[3]));
         put(0x20, rounded(v[3]));
         put(0x10, rounded(v[4]));
-        put(0x1C, x87::ext_sub(v[4], game_read(LOWER_RVA)));
+        put(0x1C, x87::ext_sub(v[4], PARTICLE_TUNING.drift_lower.bits()));
         put(0xC, rounded(v[5]));
         put(0x18, rounded(v[5]));
         put(0x38, 0x8000);

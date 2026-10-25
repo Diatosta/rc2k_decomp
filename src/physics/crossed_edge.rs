@@ -17,13 +17,12 @@
 use crate::errors::Refused;
 use crate::physics::car_store::CAR;
 use crate::physics::contact_store::CONTACT_WORK;
-use crate::physics::crossed_edge_contact::{CROSSED, check_probe};
-use crate::physics::flow::g;
+use crate::physics::crossed_edge_contact::check_probe;
 
 /// The steps, not guarded (the probe checked before).
 // Converted: `rc2k_core::physics::walls::{NONE_CROSSED, raised_hit}`.
 pub fn steps() -> Result<(), Refused> {
-    let n = g(CROSSED);
+    let n = CONTACT_WORK.crossed_probe.get();
     if n == rc2k_core::physics::walls::NONE_CROSSED {
         return Ok(());
     }
@@ -46,7 +45,7 @@ pub fn steps() -> Result<(), Refused> {
 
 /// The probe checked (-1 is none).
 pub fn check() -> Result<(), Refused> {
-    if g(CROSSED) == rc2k_core::physics::walls::NONE_CROSSED {
+    if CONTACT_WORK.crossed_probe.get() == rc2k_core::physics::walls::NONE_CROSSED {
         return Ok(());
     }
     check_probe()

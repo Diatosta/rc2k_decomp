@@ -7,8 +7,7 @@
 //!
 //! Callers: `sub_460049`, `sub_46062E` (twice).
 
-use crate::drive::save_replay_cars::piece_at;
-use crate::physics::flow::a;
+use crate::drive::save_replay_cars::piece_addr;
 use rc2k_core::drive::replay_frames::start_layout;
 
 /// The Rust version.
@@ -17,7 +16,7 @@ pub fn load_replay_cars() {
     for (piece, offset, n) in start_layout() {
         let (state, place) = (
             crate::race::blocks_store::block_addr(8) as u32 + 4 * offset as u32,
-            a(piece_at(piece)),
+            piece_addr(piece) as u32,
         );
         unsafe { std::ptr::copy(state as *const u32, place as *mut u32, n) };
     }

@@ -30,10 +30,6 @@ use crate::physics::flow::{a, c0, g, p};
 use crate::physics::place_sound_object::place_sound_object;
 use rc2k_core::drive::lit_faces::{LIST_ROOM, Touch, fall_mark, lucky, touch};
 
-/// `g_courseFaces`: the pointer to the course's faces (still named by other files).
-pub const FACES: usize = 0x5CCCBC;
-const KIND: usize = crate::physics::point_hits_car::KIND;
-
 fn put(at: u32, v: u32) {
     unsafe { (at as *mut u8).write(v as u8) };
 }
@@ -71,7 +67,7 @@ pub unsafe fn touch_face() -> Result<(), Refused> {
     ];
     (|| -> Result<(), crate::errors::Refused> {
         p(&CONTACT_WORK.lit_faces[count as usize], number);
-        let kind = g(KIND);
+        let kind = CONTACT_WORK.contact_kind.get();
         match touch(kind) {
             Touch::MarkIfFast => {
                 if c0(CAR.speed.bits(), NUMBERS.eight.bits()) {
