@@ -14,8 +14,8 @@ const MAX_3D_TEXT: &std::ffi::CStr = c" max3d: all/static/stream (free)\t"; // "
 const CLOSE_TEXT: &std::ffi::CStr = c"AUD: close sound"; // "AUD: close sound"
 
 /// A text to the log at the audio's level (2), with a line's end or not.
-pub fn log_text(text: u32, end: bool) {
-    crate::logfile::log_write::log_at(text, end, 2);
+pub fn log_text(text: &std::ffi::CStr, end: bool) {
+    crate::logfile::write_line::log_text(text.to_bytes(), end, 2);
 }
 
 /// A number to the log at level 2 as eight hex digits, with a line's end or not.
@@ -121,7 +121,7 @@ pub fn read_caps() -> Result<bool, Refused> {
                         CapsText::MaxHardware => MAX_HW_TEXT,
                         CapsText::Max3d => MAX_3D_TEXT,
                     };
-                    log_text(crate::pointers::game_address(at.as_ptr()), false)
+                    log_text(at, false)
                 }
                 CapsLog::Hex(n) => log_hex(field(n), false),
                 CapsLog::Int(n) => log_number(field(n), false),
@@ -151,7 +151,7 @@ pub fn close_sound() -> Result<(), Refused> {
     {
         let ds = AUDIO.direct_sound.get();
         if ds != 0 {
-            log_text(crate::pointers::game_address(CLOSE_TEXT.as_ptr()), true);
+            log_text(CLOSE_TEXT, true);
             crate::platform_sound::set_cooperative_level(ds, MACHINE.window.get(), 1);
             crate::platform_sound::release(AUDIO.direct_sound.get());
             AUDIO.direct_sound.set(0);
@@ -188,15 +188,12 @@ impl rc2k_core::audio::device::Opening for Open<'_> {
         AUDIO.sound_mode.set(mode);
     }
     fn log_open(&mut self, guid: u32) -> Result<(), Refused> {
-        log_text(crate::pointers::game_address(OPEN_TEXT.as_ptr()), false);
+        log_text(OPEN_TEXT, false);
         log_hex(guid, true);
         Ok(())
     }
     fn log_failed(&mut self, code: u32) -> Result<(), Refused> {
-        log_text(
-            crate::pointers::game_address(OPEN_FAILED_TEXT.as_ptr()),
-            false,
-        );
+        log_text(OPEN_FAILED_TEXT, false);
         log_hex(code, true);
         Ok(())
     }

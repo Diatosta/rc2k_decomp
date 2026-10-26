@@ -1,28 +1,27 @@
 //! The game's own mixer (the Dolby mode's way, `g_soundMode` bit 0x40000; IDA 2026-10-14):
 //! the voices' channels mixed into a work buffer of left and right dwords
-//! (`g_mixBuffer`, 0x952AF8, 0x3C00 bytes up to `g_soundCommands`), then clipped into the
-//! primary buffer's format. The standalone program will mix this way.
+//! (`g_mixBuffer`, 0x952AF8, 0x3C00 bytes up to `g_soundCommands`; `MIX`, Rust's since
+//! phase 12), then clipped into the primary buffer's format. The standalone program will
+//! mix this way.
 
 use crate::audio::voices::*;
 use crate::errors::{BadInput, Refused};
-use crate::pointers::GamePtr;
 
 pub const MIX_BUFFER_LEN: u32 = 0x3C00;
 
+/// The mixing buffer (`g_mixBuffer`): a turn's left and right dwords, from `mix_channels`
+/// to `write_mix`.
+static MIX: std::sync::Mutex<[i32; MIX_BUFFER_LEN as usize / 4]> =
+    std::sync::Mutex::new([0; MIX_BUFFER_LEN as usize / 4]);
+
 /// `audio::mix_channels` (`sub_40BECC`): `bytes` of the primary buffer's worth, `>> shift`
-/// frames, of every used channel (`count` from `channels`) added into `mix` (zeroed
+/// frames, of every used channel (`count` from `channels`) added into `MIX` (zeroed
 /// first, two dwords a frame: the sample times the channel's left and its right volume).
 /// A channel's 32.32 position steps by its step after each frame; at its length a looping
 /// channel (kind 1) goes back to 0 (the fraction kept), any other is no longer used and
 /// stops there. Positions are stored back. Refuses no channels, no frames with a channel
 /// used (both counts run 2^32 times in the original), more frames than the buffer holds.
-pub fn mix_channels(
-    bytes: u32,
-    shift: u32,
-    mix: u32,
-    channels: u32,
-    count: u32,
-) -> Result<(), Refused> {
+pub fn mix_channels(bytes: u32, shift: u32, channels: u32, count: u32) -> Result<(), Refused> {
     use rc2k_core::audio::mixer::Channel;
     // Channel ids (place + 1) on from the first's.
     let at = |n: u32| channels.wrapping_add(n);
@@ -83,8 +82,9 @@ pub fn mix_channels(
         return Err(e.into());
     }
     mixed?;
-    let out: Vec<u8> = buffer.iter().flat_map(|d| d.to_le_bytes()).collect();
-    GamePtr::new(mix).write_bytes(&out, "the mix buffer")?;
+    MIX.lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .copy_from_slice(&buffer);
     for (n, core) in cores.iter().enumerate() {
         // Only the channels that played: the original stores no others.
         let c = channel(at(n as u32));
@@ -98,45 +98,28 @@ pub fn mix_channels(
 }
 
 /// `audio::write_mix` (`sub_40C03A`, with `sub_40C087`, `sub_40C0E0`, `sub_40C153`): the
-/// mix, from `mix` on, clipped into the two locked parts (`parts`: pointer and bytes,
-/// twice; the second used if its pointer is not 0) in the primary buffer's format: eight
+/// mix clipped into the two locked parts of buffer `primary` (`parts`: `platform_sound::
+/// lock`'s; the second used if it has a place) in the primary buffer's format: eight
 /// bits (mode bit 0x10) mono (0x100: left + right `>> 15`, held to -0x80 .. 0x7F, + 0x80),
 /// eight bits stereo (each `>> 14`, the same), else sixteen bits stereo (each `>> 14`,
 /// held to -0x8000 .. 0x7FFF). Refuses sixteen bits with a right sample that clips: the
 /// original's clamp there goes back to the left sample's store and reads the same right
 /// sample again, for ever.
-pub unsafe fn write_mix(mode: u32, mix: u32, parts: [u32; 4]) -> Result<(), Refused> {
-    // Converted: `rc2k_core::audio::mixer`; here the parts as slices of the locked buffer.
-    let size = rc2k_core::audio::mixer::frame_bytes(mode) as u32;
-    // The locked parts checked (the buffers' bytes are regions while they live).
-    crate::race::trap::span(parts[0], (parts[1] / size * size) as usize, "a locked part")?;
-    if parts[2] != 0 {
-        crate::race::trap::span(parts[2], (parts[3] / size * size) as usize, "a locked part")?;
-    }
-    let mut slices: Vec<&mut [u8]> = vec![unsafe {
-        std::slice::from_raw_parts_mut(
-            crate::pointers::host(parts[0]),
-            (parts[1] / size * size) as usize,
-        )
-    }];
-    if parts[2] != 0 {
-        slices.push(unsafe {
-            std::slice::from_raw_parts_mut(
-                crate::pointers::host(parts[2]),
-                (parts[3] / size * size) as usize,
-            )
-        });
-    }
-    let buffer: Vec<i32> = GamePtr::new(mix)
-        .read_bytes(MIX_BUFFER_LEN as usize, "the mix buffer")?
-        .as_chunks::<4>()
-        .0
-        .iter()
-        .map(|d| i32::from_le_bytes(*d))
-        .collect();
-    Ok(rc2k_core::audio::mixer::write_mix(
-        mode,
-        &buffer,
-        &mut slices,
-    )?)
+pub fn write_mix(mode: u32, primary: u32, parts: [u32; 4]) -> Result<(), Refused> {
+    // Converted: `rc2k_core::audio::mixer`; here the parts as slices of the locked buffer,
+    // whole frames of each.
+    let size = rc2k_core::audio::mixer::frame_bytes(mode);
+    let mix = *MIX.lock().unwrap_or_else(|e| e.into_inner());
+    let written = crate::platform_sound::with_parts(primary, parts, |first, second| {
+        let whole = |p: &mut [u8]| p.len() / size * size;
+        let n = whole(first);
+        let mut slices: Vec<&mut [u8]> = vec![&mut first[..n]];
+        if parts[2] != 0 {
+            let n = whole(second);
+            slices.push(&mut second[..n]);
+        }
+        rc2k_core::audio::mixer::write_mix(mode, &mix, &mut slices)
+    })
+    .map_err(|_| BadInput("a locked part that is not the buffer's"))?;
+    Ok(written?)
 }

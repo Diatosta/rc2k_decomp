@@ -42,17 +42,25 @@ pub fn fill_buffer(v: &Voice) -> Result<bool, Refused> {
         for (cell, part) in AUDIO.locked_parts.iter().zip(locked) {
             cell.set(part);
         }
-        // The copies from the data's start (an id: `audio::sample_data`).
+        // The copies from the data's start (an id: `audio::sample_data`) into the parts.
         let (first, second) = fill_copies(0, locked);
-        for (from, to, bytes) in std::iter::once(first).chain(second) {
-            let part = crate::audio::sample_data::with_data(v.data, |data| {
-                data.get(from as usize..(from + bytes) as usize)
-                    .map(<[u8]>::to_vec)
-                    .ok_or(crate::errors::BadInput("a voice's sound past its memory"))
-            })??;
-            crate::pointers::GamePtr::new(to)
-                .write_bytes(&part, "a voice's sound into its buffer")?;
-        }
+        let copies: Vec<Vec<u8>> = std::iter::once(first)
+            .chain(second)
+            .map(|(from, _, bytes)| {
+                crate::audio::sample_data::with_data(v.data, |data| {
+                    data.get(from as usize..(from + bytes) as usize)
+                        .map(<[u8]>::to_vec)
+                        .ok_or(crate::errors::BadInput("a voice's sound past its memory"))
+                })?
+            })
+            .collect::<Result<_, _>>()?;
+        ds::with_parts(v.buffer, locked, |a, b| {
+            a.copy_from_slice(&copies[0]);
+            if let Some(c) = copies.get(1) {
+                b.copy_from_slice(c);
+            }
+        })
+        .map_err(|_| crate::errors::BadInput("a locked part that is not the buffer's"))?;
         let r = ds::unlock(v.buffer, locked);
         if r != 0 {
             return Ok(failed(r));

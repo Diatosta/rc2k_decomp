@@ -44,7 +44,7 @@ impl rc2k_core::audio::streams::Player for GamePlayer {
         unsafe { self.stream().volume = volume };
     }
     fn start(&mut self) -> Result<bool, Refused> {
-        unsafe { start_stream(self.stream(), crate::pointers::host(self.path) as *const u8) }
+        unsafe { start_stream(self.stream(), crate::pointers::GamePtr::new(self.path)) }
     }
     fn feed(&mut self) -> Result<(), Refused> {
         unsafe { feed_stream(self.stream()) }.map(|_| ())
@@ -67,8 +67,8 @@ impl rc2k_core::audio::streams::Tunes for GamePlayer {
         }
     }
     fn exists(&mut self) -> Result<bool, Refused> {
-        Ok(crate::files::file_exists::file_exists(
-            crate::pointers::host(self.path) as *const u8,
+        Ok(crate::files::file_exists::file_exists_at(
+            crate::pointers::GamePtr::new(self.path),
         )?)
     }
     fn gave_up(&mut self, tune: u32) {

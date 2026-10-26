@@ -15,7 +15,6 @@ pub mod keep_sample;
 pub mod load_sounds;
 pub mod make_buffer;
 pub mod mix;
-pub mod mix_buffer;
 pub mod mix_channels;
 pub mod mixer;
 pub mod mixer_set_up;

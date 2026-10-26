@@ -37,7 +37,7 @@ pub fn set_primary_format(mode: u32, rate: u32) -> Result<bool, Refused> {
 /// dword at 0x506B42 is not; else, or failing, logged and `release_sound_listener`. False
 /// for the carry.
 pub fn open_listener(has_fpu: u32) -> Result<bool, Refused> {
-    crate::audio::sound_device::log_text(crate::pointers::game_address(OPEN_TEXT.as_ptr()), true);
+    crate::audio::sound_device::log_text(OPEN_TEXT, true);
     // Converted: `rc2k_core::audio::device::listener_refused`.
     let code = match rc2k_core::audio::device::listener_refused(has_fpu, || AUDIO.no_listener.get())
     {
@@ -56,10 +56,7 @@ pub fn open_listener(has_fpu: u32) -> Result<bool, Refused> {
             }
         }
     };
-    crate::audio::sound_device::log_text(
-        crate::pointers::game_address(FAILED_TEXT.as_ptr()),
-        false,
-    );
+    crate::audio::sound_device::log_text(FAILED_TEXT, false);
     crate::audio::sound_device::log_hex(code, true);
     crate::audio::sound_device::release_listener();
     Ok(false)

@@ -39,9 +39,8 @@ pub fn game_facts() -> Facts {
     }
 }
 
-/// The log calls: (0 text / 2 hex8 / 3 hex8 with a line's end, eax), as
-/// `choose_modes::real_log`'s places.
-pub type Log<'a> = &'a mut dyn FnMut(u32, u32);
+/// The log calls: the text, the menu mode (hex8), the race mode (hex8 with a line's end).
+pub type Log<'a> = &'a mut dyn FnMut(rc2k_core::audio::modes::Logged);
 
 /// Converted: `rc2k_core::audio::modes::choose_modes`.
 pub fn choose_modes(
@@ -51,17 +50,8 @@ pub fn choose_modes(
     f: &Facts,
     log: Log,
 ) -> Result<(), Refused> {
-    use rc2k_core::audio::modes::Logged;
     Ok(rc2k_core::audio::modes::choose_modes(
-        o,
-        race,
-        menu,
-        f,
-        |l| match l {
-            Logged::NewModes => log(0, crate::pointers::game_address(NEW_MODES_TEXT.as_ptr())),
-            Logged::Menu(m) => log(2, m),
-            Logged::Race(m) => log(3, m),
-        },
+        o, race, menu, f, log,
     )?)
 }
 
@@ -77,11 +67,12 @@ pub fn in_game(log: Log) -> Result<(), Refused> {
     done
 }
 
-pub fn real_log(place: u32, eax: u32) {
+pub fn real_log(l: rc2k_core::audio::modes::Logged) {
     use crate::audio::sound_device::{log_hex, log_text};
-    match place {
-        0 => log_text(eax, false),
-        2 => log_hex(eax, false),
-        _ => log_hex(eax, true),
+    use rc2k_core::audio::modes::Logged;
+    match l {
+        Logged::NewModes => log_text(NEW_MODES_TEXT, false),
+        Logged::Menu(m) => log_hex(m, false),
+        Logged::Race(m) => log_hex(m, true),
     }
 }

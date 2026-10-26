@@ -1066,11 +1066,6 @@ pub(crate) const MOVED: &[Moved] = &[
         home: crate::files::scratch::Scratch::home,
     },
     Moved {
-        ida: crate::audio::mix_buffer::MixBuffer::START,
-        len: crate::audio::mix_buffer::MixBuffer::LEN,
-        home: crate::audio::mix_buffer::MixBuffer::home,
-    },
-    Moved {
         ida: crate::gfx::screen_state::ScreenMode::START,
         len: crate::gfx::screen_state::ScreenMode::LEN,
         home: crate::gfx::screen_state::ScreenMode::home,

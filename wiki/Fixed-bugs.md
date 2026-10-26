@@ -194,3 +194,30 @@ block's +0xB0.
   from the original's code (the converted functions do what it does).
 - **Fix**: the film loop clears the players' "out" fields before the demonstration, as
   the original's other way into it does.
+
+---
+
+## No music in races with the Dolby mode, and the Dolby mode's quieter, harsher effects
+
+*Original*: `audio::mix` (0x40BDC5), `audio::write_mix` (0x40C03A), `audio::mix_channels`
+(0x40BECC).
+*Fixed*: 2026-10-26.
+
+- **What**: in the Dolby mode (sound mode bit 0x40000) the game mixes the effects itself
+  and writes the result straight into DirectSound's primary buffer. A program that writes
+  the primary buffer shuts out the secondary buffers, and the music is one. The game's
+  mixer also leaves 12 dB of headroom: at full volume a sample is scaled by 0x1000 / 2^14,
+  a quarter, while the other modes play the effects at full level. And it resamples
+  each sound by taking the frame its position is in, with no blending between frames, so
+  the 22050 Hz effects played at 44100 Hz, often pitch-shifted, gain false high tones.
+- **In game**: with Dolby chosen in the advanced audio options, races have no music, and
+  the effects are clearly quieter than in the other modes, with a harsh edge.
+- **Seen**: yes, by the owner without the DLL (2026-10-13: no music); the level difference
+  heard in the converted game (2026-10-26) and read from the code.
+- **Fix**: the standalone's sound output (`platform_sound`) plays the primary buffer and
+  the secondary buffers together, so the music is heard in the Dolby mode; the secondary
+  buffers play at a quarter (`SECONDARY_GAIN`, -12 dB), the level of the game's own mixer,
+  so every mode sounds alike and the music keeps the same balance with the effects. The
+  game's mixer blends each frame with the next by the position's fraction, as DirectSound
+  resamples (`rc2k_core::audio::mixer`); seen by the owner (2026-10-26: a harsh edge, the
+  output's timing measured clean).

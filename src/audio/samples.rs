@@ -36,19 +36,19 @@ const _: () = assert!(std::mem::size_of::<SampleFile>() == 0x20);
 
 /// Reads and parses a sample file into `buffer`: true for the carry clear (a sample was
 /// found). The data's id goes in `out`.
-pub unsafe fn read_sample(
-    path: *const u8,
+pub fn read_sample(
+    path: GamePtr,
     buffer: crate::audio::sample_data::Buffer,
     size: u32,
     out: &Shared<SampleFile>,
 ) -> Result<bool, Refused> {
     use crate::audio::sample_data as data;
+    // SAFETY: `out` is one of the audio thread's records, borrowed only here.
     unsafe {
         let f = out.borrow();
         f.channels = 1;
         f.rate = 0x5622;
         f.bits = 16;
-        let path = GamePtr::new(crate::pointers::game_address(path));
         let read = data::with_buffer(buffer, |b| {
             let into = b.get_mut(..size as usize).ok_or(crate::errors::BadInput(
                 "a sample buffer smaller than its size",
@@ -103,15 +103,13 @@ pub fn flags(table: &[Dword; 4]) -> rc2k_core::audio::samples::Flags {
 }
 
 /// The game's: the work buffer and `g_sampleFile`.
-pub unsafe fn read_sample_in_game(path: *const u8) -> Result<bool, Refused> {
-    unsafe {
-        read_sample(
-            path,
-            crate::audio::sample_data::Buffer::Work,
-            AUDIO.sample_buffer_size.get(),
-            &AUDIO.sample_file,
-        )
-    }
+pub fn read_sample_in_game(path: GamePtr) -> Result<bool, Refused> {
+    read_sample(
+        path,
+        crate::audio::sample_data::Buffer::Work,
+        AUDIO.sample_buffer_size.get(),
+        &AUDIO.sample_file,
+    )
 }
 
 /// The voice of `count` from `voices` whose `data_key` is the record's (0: none).

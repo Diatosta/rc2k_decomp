@@ -26,7 +26,7 @@ pub fn set_mode(mode: u32) -> Result<bool, Refused> {
     use crate::audio::mixer_set_up::{close_way, open_way};
     use crate::audio::sound_device as sd;
     let caps = &AUDIO.sound_caps;
-    sd::log_text(crate::pointers::game_address(SAM_TEXT.as_ptr()), false);
+    sd::log_text(SAM_TEXT, false);
     sd::log_hex(mode, true);
     // Fixed (section 16, 2026-10-20): the streams stopped with action 0; the original
     // hands on whatever edx holds (normally the thread's 1, a feed), so the music
@@ -50,10 +50,10 @@ pub fn set_mode(mode: u32) -> Result<bool, Refused> {
         crate::system::sleep::sleep(1000);
         crate::audio::thread_parts::play_primary();
         AUDIO.opened_sound_mode.set(AUDIO.sound_mode.get());
-        sd::log_text(crate::pointers::game_address(OK_TEXT.as_ptr()), true);
+        sd::log_text(OK_TEXT, true);
     } else {
         AUDIO.opened_sound_mode.set(0);
-        sd::log_text(crate::pointers::game_address(FAIL_TEXT.as_ptr()), true);
+        sd::log_text(FAIL_TEXT, true);
     }
     crate::system::restore_window::restore_window();
     Ok(ok)

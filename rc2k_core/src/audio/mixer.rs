@@ -2,6 +2,10 @@
 //! and `audio::write_mix` 0x40C03A): the playing channels mixed into a work buffer of left
 //! and right `i32`s, then clipped into the sound buffer's format. The standalone mixes
 //! this way.
+//!
+//! One change from the original (owner, 2026-10-26): a channel's frame is blended with the
+//! next by the position's fraction, as DirectSound resamples; the original took the frame
+//! the position is in, whose steps gave the Dolby mode's effects a harsh edge.
 
 use crate::Invalid;
 
@@ -57,8 +61,27 @@ fn sample(format: u32, position: u32, byte: &dyn Fn(u32) -> u8) -> (i32, i32) {
     }
 }
 
+/// The channel's frame blended with the next by its position's fraction (`a + (b - a) *
+/// fraction / 2^32`, which stays between the two).
+fn blended(c: &Channel, byte: &dyn Fn(u32) -> u8) -> (i32, i32) {
+    let (l0, r0) = sample(c.format, c.position, byte);
+    if c.fraction == 0 {
+        return (l0, r0);
+    }
+    let next = match c.position.wrapping_add(1) {
+        n if n < c.length => n,
+        _ if c.kind == LOOPING => 0,
+        _ => c.position,
+    };
+    let (l1, r1) = sample(c.format, next, byte);
+    let mix = |a: i32, b: i32| a + ((i64::from(b - a) * i64::from(c.fraction)) >> 32) as i32;
+    (mix(l0, l1), mix(r0, r1))
+}
+
 /// `frames` frames of every playing channel added into `mix` (zeroed first, left and right
-/// a frame); `data(n, offset)` is a byte of channel `n`'s sample data. After each frame a
+/// a frame); `data(n, offset)` is a byte of channel `n`'s sample data. A frame is blended
+/// with the next (the first for a looping channel at its end, itself for any other) by the
+/// fraction. After each frame a
 /// channel's position steps; at its length a looping channel goes back to 0 (the fraction
 /// kept), any other stops playing. Refused (before anything): no channels or no frames
 /// with one playing (the original's counts then run 2^32 times), more frames than `mix`
@@ -90,7 +113,7 @@ pub fn mix_channels(
         }
         let byte = |at: u32| data(n, at);
         for out in mix.as_chunks_mut::<2>().0 {
-            let (l, r) = sample(c.format, c.position, &byte);
+            let (l, r) = blended(c, &byte);
             out[0] = out[0].wrapping_add(l.wrapping_mul(c.left));
             out[1] = out[1].wrapping_add(r.wrapping_mul(c.right));
             let (fraction, carry) = c.fraction.overflowing_add(c.step_fraction);
@@ -212,5 +235,30 @@ mod tests {
         let mut c = [0u8; 4];
         assert!(write_mix(0, &[0, 0x4000 * 0x9000], &mut [&mut c]).is_err());
         assert!(mix_channels(1, &mut [], &|_, _| 0, &mut [0; 2]).is_err());
+    }
+
+    #[test]
+    fn blends_between_frames() {
+        // Sixteen bits mono, 100 then 200, a half step: 100, 150, 200, then the end (not
+        // looping) held at 200; looping, the end blends back towards the first.
+        let data = [100i16, 200].map(i16::to_le_bytes).concat();
+        let byte = |_: usize, at: u32| data[at as usize];
+        let channel = |kind| Channel {
+            used: 1,
+            format: MONO,
+            length: 2,
+            kind,
+            step_fraction: 0x8000_0000,
+            left: 1,
+            right: 1,
+            ..Channel::default()
+        };
+        let mut c = [channel(0)];
+        let mut mix = [0i32; 8];
+        mix_channels(4, &mut c, &byte, &mut mix).unwrap();
+        assert_eq!(mix, [100, 100, 150, 150, 200, 200, 200, 200]);
+        let mut c = [channel(LOOPING)];
+        mix_channels(4, &mut c, &byte, &mut mix).unwrap();
+        assert_eq!(mix, [100, 100, 150, 150, 200, 200, 150, 150]);
     }
 }

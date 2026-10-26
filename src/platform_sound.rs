@@ -10,7 +10,10 @@
 //! bits, mono or stereo) at its frequency, with its volume and pan, into 44100 Hz 16-bit
 //! stereo; the primary buffer too, which in the Dolby mode is where the game's own mixer
 //! writes, so the music (a secondary buffer) is heard there as well (section 16's Dolby
-//! bug does not happen here). The primary buffer's volume is the whole output's.
+//! bug does not happen here). The primary buffer's volume is the whole output's. The
+//! secondary buffers play at `SECONDARY_GAIN` (owner, 2026-10-26): the game's own mixer
+//! leaves 12 dB of headroom, so the effects of the Dolby mode were 12 dB below the other
+//! modes'; every mode, and the music beside the Dolby mode's effects, now sounds alike.
 //! 3D placing (2026-10-19; before, the 3D calls did nothing and every placed sound played
 //! as near): a buffer's 3D interface keeps its place, its least and greatest distances and
 //! its mode; the listener stays where the game leaves it (at the origin, facing +z: the
@@ -67,28 +70,13 @@ pub struct DeviceCaps {
     pub primary_buffers: u32,
 }
 
-/// A buffer's bytes, a region while they live (the game's code writes them by address once
-/// locked: `pointers`); shared by a buffer and its duplicates.
-struct SoundData {
-    /// The bytes a region while they live. (Declared first: fields drop in order, and the region must go before the memory does.)
-    _lent: crate::pointers::Lent,
-    bytes: Vec<u8>,
-}
+/// A buffer's bytes, shared by a buffer and its duplicates; written while locked through
+/// `with_parts` (phase 12: no longer by address).
+type SoundData = Mutex<Vec<u8>>;
 
-impl SoundData {
-    fn new(bytes: Vec<u8>) -> Self {
-        Self {
-            _lent: crate::pointers::Lent::new(&bytes),
-            bytes,
-        }
-    }
-}
-
-impl std::ops::Deref for SoundData {
-    type Target = Vec<u8>;
-    fn deref(&self) -> &Vec<u8> {
-        &self.bytes
-    }
+/// A buffer's bytes, a poisoned lock taken as it is.
+fn bytes_of(data: &SoundData) -> std::sync::MutexGuard<'_, Vec<u8>> {
+    data.lock().unwrap_or_else(|e| e.into_inner())
 }
 
 struct Buffer {
@@ -323,7 +311,7 @@ pub fn create_sound_buffer(flags: u32, bytes: u32, format: Option<Format>) -> u3
         let id = new_object(
             s,
             Kind::Buffer(Buffer {
-                data: Arc::new(SoundData::new(vec![
+                data: Arc::new(Mutex::new(vec![
                     if format.bits == 8 { 0x80 } else { 0 };
                     room.max(4)
                 ])),
@@ -415,7 +403,8 @@ pub fn status(id: u32) -> Result<u32, i32> {
     })
 }
 
-/// `Lock`: the two parts (game address, bytes) of `bytes` from `offset` round the buffer
+/// `Lock`: the two parts (place in the buffer + 1, 0 for none; bytes) of `bytes` from
+/// `offset` round the buffer, written through `with_parts`
 /// (flag 1: from the play cursor; 2: the whole buffer).
 pub fn lock(id: u32, offset: u32, bytes: u32, flags: u32) -> Result<[u32; 4], i32> {
     with(|s| {
@@ -432,13 +421,38 @@ pub fn lock(id: u32, offset: u32, bytes: u32, flags: u32) -> Result<[u32; 4], i3
             offset % size
         };
         let first = bytes.min(size - offset);
-        let base = crate::pointers::game_address(b.data.as_ptr());
         Ok([
-            base + offset,
+            offset + 1,
             first,
-            if bytes > first { base } else { 0 },
+            if bytes > first { 1 } else { 0 },
             bytes - first,
         ])
+    })
+}
+
+/// `f` on the bytes of the parts `lock` gave (`parts`: the first's place + 1 and bytes, the
+/// second's; a place 0 is no part, given as empty). `E_INVALIDARG` for no such buffer or
+/// parts that are not the buffer's.
+pub fn with_parts<R>(
+    id: u32,
+    parts: [u32; 4],
+    f: impl FnOnce(&mut [u8], &mut [u8]) -> R,
+) -> Result<R, i32> {
+    with(|s| {
+        let b = buffer(s, id).ok_or(E_INVALIDARG)?;
+        let mut data = bytes_of(&b.data);
+        let [p1, n1, p2, n2] = parts;
+        let first_at = p1.checked_sub(1).ok_or(E_INVALIDARG)? as usize;
+        // The second part is the buffer's start, before the first.
+        let (head, tail) = data.split_at_mut_checked(first_at).ok_or(E_INVALIDARG)?;
+        let first = tail.get_mut(..n1 as usize).ok_or(E_INVALIDARG)?;
+        let second = match p2 {
+            0 => &mut [][..],
+            _ => head
+                .get_mut(p2 as usize - 1..(p2 - 1 + n2) as usize)
+                .ok_or(E_INVALIDARG)?,
+        };
+        Ok(f(first, second))
     })
 }
 
@@ -470,13 +484,14 @@ pub fn set_format(id: u32, f: Format) -> i32 {
             // Silence in the new format: the 8-bit one's 0x80 bytes read as 16-bit are
             // -32640, a jump to near full scale (the clicks at the opening, 2026-10-15).
             let silence = if f.bits == 8 { 0x80 } else { 0 };
-            // The buffer is lent to the game (its region): filled as the game's memory.
-            crate::pointers::GamePtr::new(crate::pointers::game_address(b.data.as_ptr()))
-                .fill(silence, b.data.len(), "a sound buffer")
-                .unwrap_or_else(|e| crate::fatal::raise::end("platform_sound::set_format", e));
+            bytes_of(&b.data).fill(silence);
             b.format = f;
             b.bytes = primary_bytes(&f);
             b.position = 0.0;
+            crate::framework::log(&format!(
+                "platform_sound: the primary buffer's format: {} Hz, {} bits, {} channels",
+                f.rate, f.bits, f.channels
+            ));
             OK
         }
         _ => E_INVALIDARG,
@@ -533,6 +548,10 @@ fn gain(centibels: i32) -> f32 {
     10f32.powf(centibels.clamp(-10000, 0) as f32 / 2000.0)
 }
 
+/// The secondary buffers' gain: a quarter (-12 dB), the level the game's own mixer gives
+/// its channels at full volume (`volume * volume_factor` at most 0x1000, `>> 14`).
+const SECONDARY_GAIN: f32 = 0.25;
+
 /// One buffer added into `out` (stereo frames at `OUT_RATE`), its position moved on.
 fn mix_into(b: &mut Buffer, master: f32, rolloff: f32, out: &mut [f32]) {
     let f = b.format;
@@ -550,7 +569,8 @@ fn mix_into(b: &mut Buffer, master: f32, rolloff: f32, out: &mut [f32]) {
         None if b.pan < 0 => (g, g * gain(b.pan)),
         None => (g * gain(-b.pan), g),
     };
-    let data: &[u8] = &b.data;
+    let data = bytes_of(&b.data);
+    let data: &[u8] = &data;
     let sample = |at: usize| -> f32 {
         if f.bits == 8 {
             (data[at] as f32 - 128.0) / 128.0
@@ -627,8 +647,13 @@ extern "C" fn feed(_: *mut core::ffi::c_void, stream: *mut SDL_AudioStream, want
                 && b.playing
             {
                 // The primary buffer's own volume is the master's; its data is not
-                // scaled twice.
-                let m = if b.flags & PRIMARY != 0 { 1.0 } else { master };
+                // scaled twice (nor given the secondary buffers' headroom, which the game's
+                // mixer has written into it already).
+                let m = if b.flags & PRIMARY != 0 {
+                    1.0
+                } else {
+                    master * SECONDARY_GAIN
+                };
                 if focused || b.flags & (GLOBAL_FOCUS | STICKY_FOCUS) != 0 {
                     mix_into(b, m, rolloff, &mut out);
                 } else {

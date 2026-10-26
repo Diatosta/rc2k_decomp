@@ -14,8 +14,15 @@ use crate::errors::BadInput;
 // ---- Rust version ----
 
 pub fn file_exists(path: *const u8) -> Result<bool, BadInput> {
+    file_exists_at(crate::pointers::GamePtr::new(
+        crate::pointers::game_address(path),
+    ))
+}
+
+/// `file_exists` on a checked address.
+pub fn file_exists_at(path: crate::pointers::GamePtr) -> Result<bool, BadInput> {
     Ok(rc2k_core::files::io::file_exists(
         &mut crate::files::handle::GameFiles::new(),
-        crate::pointers::GamePtr::new(crate::pointers::game_address(path)),
+        path,
     )?)
 }

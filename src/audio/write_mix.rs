@@ -14,11 +14,5 @@ use crate::errors::Refused;
 
 pub fn write_mix_in_game() -> Result<(), Refused> {
     let parts = AUDIO.locked_parts.each_ref().map(|d| d.get());
-    unsafe {
-        write_mix(
-            AUDIO.sound_mode.get(),
-            crate::audio::mix_buffer::MIX_BUFFER.samples.addr(),
-            parts,
-        )
-    }
+    write_mix(AUDIO.sound_mode.get(), AUDIO.primary_buffer.get(), parts)
 }
