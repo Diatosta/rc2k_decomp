@@ -40,11 +40,11 @@ impl GearPlaces {
 }
 
 unsafe fn at(a: u32) -> u32 {
-    unsafe { (a as *const u32).read_unaligned() }
+    crate::pointers::read_or_end::<u32>(a, "physics::gearing's operand")
 }
 
 unsafe fn put(a: u32, v: u32) {
-    unsafe { (a as *mut u32).write_unaligned(v) }
+    crate::pointers::write_or_end::<u32>(a, v, "physics::gearing's operand")
 }
 
 /// The gear (None for neutral) and its ratio; refused outside the ratio table (-1 ..= 7).

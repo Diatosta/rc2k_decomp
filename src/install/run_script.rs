@@ -18,7 +18,6 @@
 //! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
 //! are the original's.
 
-use crate::bridge::Raw;
 use crate::errors::{BadInput, Refused};
 use crate::install::installer::{fatal, media_mode, rb, wb};
 use crate::install::vars::INSTALLER_PATHS;
@@ -81,7 +80,8 @@ pub fn run_script(script: u32) -> Result<(), Refused> {
                 if !script::skipped(n, media) {
                     continue;
                 }
-                let words = unsafe { Raw::new(cursor as *const u8) };
+                let words =
+                    crate::pointers::GamePtr::new(cursor).bytes("the installer's script")?;
                 let past = script::skip(&words, 0, &mut guard)?;
                 cursor = cursor.wrapping_add(past as u32);
             }

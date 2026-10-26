@@ -37,31 +37,27 @@ const ONE: u32 = 0x3F80_0000;
 /// 80-bit dot (A - O).(A - B) less (B - O).(A - B) into `top`, the dot (A - O).(A - B)
 /// into `below` (`fstp tbyte`).
 fn differences(w: *mut u8, top: *mut u8, below: *mut u8) {
-    unsafe {
-        fstp(w, 0x34, fld(w, 0x00) - fld(w, 0x18));
-        fstp(w, 0x38, fld(w, 0x08) - fld(w, 0x20));
-        fstp(w, 0x3C, fld(w, 0x0C) - fld(w, 0x18));
-        fstp(w, 0x40, fld(w, 0x14) - fld(w, 0x20));
-        fstp(w, 0x4C, fld(w, 0x34) - fld(w, 0x3C));
-        fstp(w, 0x50, fld(w, 0x38) - fld(w, 0x40));
-        let dot = fld(w, 0x34) * fld(w, 0x4C) + fld(w, 0x38) * fld(w, 0x50);
-        let other = fld(w, 0x3C) * fld(w, 0x4C) + fld(w, 0x40) * fld(w, 0x50);
-        fstp80(top, 0, dot - other);
-        fstp80(below, 0, dot);
-    }
+    fstp(w, 0x34, fld(w, 0x00) - fld(w, 0x18));
+    fstp(w, 0x38, fld(w, 0x08) - fld(w, 0x20));
+    fstp(w, 0x3C, fld(w, 0x0C) - fld(w, 0x18));
+    fstp(w, 0x40, fld(w, 0x14) - fld(w, 0x20));
+    fstp(w, 0x4C, fld(w, 0x34) - fld(w, 0x3C));
+    fstp(w, 0x50, fld(w, 0x38) - fld(w, 0x40));
+    let dot = fld(w, 0x34) * fld(w, 0x4C) + fld(w, 0x38) * fld(w, 0x50);
+    let other = fld(w, 0x3C) * fld(w, 0x4C) + fld(w, 0x40) * fld(w, 0x50);
+    fstp80(top, 0, dot - other);
+    fstp80(below, 0, dot);
 }
 
 /// t = `below` / `top` into the work block (`fdivp`).
 fn ratio(w: *mut u8, top: *const u8, below: *const u8) {
-    unsafe { fstp(w, 0x30, fld80(below, 0) / fld80(top, 0)) }
+    fstp(w, 0x30, fld80(below, 0) / fld80(top, 0))
 }
 
 /// The point (A + (B - A) t in x, y and z) into the work block.
 fn point(w: *mut u8) {
-    unsafe {
-        for (b, a, out) in [(0x0C, 0x00, 0x24), (0x10, 0x04, 0x28), (0x14, 0x08, 0x2C)] {
-            fstp(w, out, (fld(w, b) - fld(w, a)) * fld(w, 0x30) + fld(w, a));
-        }
+    for (b, a, out) in [(0x0C, 0x00, 0x24), (0x10, 0x04, 0x28), (0x14, 0x08, 0x2C)] {
+        fstp(w, out, (fld(w, b) - fld(w, a)) * fld(w, 0x30) + fld(w, a));
     }
 }
 
@@ -81,7 +77,7 @@ pub fn nearest_on_segment(a: [u32; 3], b: [u32; 3], o: [u32; 3]) -> [u32; 3] {
         below.as_mut_ptr(),
     );
     // fcom flt_71C3C8; C3: equal (or unordered).
-    if compare(unsafe { fld80(top.as_ptr(), 0) }, ld(SEGMENT_ZERO)) & 0x4000 != 0 {
+    if compare(fld80(top.as_ptr(), 0), ld(SEGMENT_ZERO)) & 0x4000 != 0 {
         block[T] = 0;
     } else {
         ratio(block.as_mut_ptr().cast(), top.as_ptr(), below.as_ptr());

@@ -379,6 +379,8 @@ unsafe fn enumerate(this: u32, callback: u32, context: u32, kind: u32) -> u32 {
     let callback: EnumPlayersCallback = unsafe { std::mem::transmute(callback as usize) };
     for (id, name) in list {
         let name = CString::new(name).unwrap_or_default();
+        // Lent to the callback, which reads it as the game's memory.
+        let _lent = crate::pointers::Lent::new(name.as_bytes_with_nul());
         let dpname = dp_name(&name);
         if unsafe { callback(id, kind, &dpname as *const DpName as u32, 0, context) } == 0 {
             break;
@@ -480,6 +482,8 @@ unsafe extern "system" fn enum_sessions(
             continue;
         }
         let name = CString::new(d.name.clone()).unwrap_or_default();
+        // Lent to the callback, which reads it as the game's memory.
+        let _lent = crate::pointers::Lent::new(name.as_bytes_with_nul());
         let desc = session_desc(&d, &name);
         if unsafe { callback(&desc as *const DpSessionDesc as u32, time_at, 0, context) } == 0 {
             return DP_OK;
@@ -621,6 +625,8 @@ unsafe extern "system" fn enum_connections(
         return DPERR_INVALIDPARAMS;
     }
     let address = compound(&[(DPAID_SERVICEPROVIDER, DPSPGUID_TCPIP.to_vec())]);
+    // Lent to the callback, which reads it as the game's memory.
+    let _lent = crate::pointers::Lent::new(&address);
     let name = c"Internet TCP/IP Connection For DirectPlay";
     let dpname = dp_name(name);
     let callback: EnumConnectionsCallback = unsafe { std::mem::transmute(callback as usize) };

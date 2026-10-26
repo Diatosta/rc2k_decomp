@@ -18,7 +18,11 @@ pub unsafe fn clear_records(at: u32, count: u32) -> Result<(), Refused> {
     let count = record_count(count, "a record count of 0 or above 0x100")?;
     for k in 0..count {
         for d in 0..CLEARED_DWORDS {
-            unsafe { ((at + 0x20 * k + 4 * d) as *mut u32).write_unaligned(0) };
+            crate::pointers::write_or_end::<u32>(
+                at + 0x20 * k + 4 * d,
+                0,
+                "physics::clear_records's operand",
+            );
         }
     }
     Ok(())

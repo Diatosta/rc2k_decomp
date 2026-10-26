@@ -18,7 +18,6 @@
 //! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; the
 //! registers above are the original's, for reference.
 
-use crate::bridge::Raw;
 use crate::errors::Refused;
 use crate::gfx::blit_glyph::{BlitCall, blit_glyph_on_surface};
 use crate::pointers::{GameBytes, GamePtr};
@@ -106,10 +105,10 @@ pub unsafe fn run_core<T>(
     font: &Font,
     text: *const u8,
     canvas: &mut dyn Canvas,
-    f: impl FnOnce(&Raw, &GameBytes, &mut Adapt) -> Result<T, AdaptError>,
+    f: impl FnOnce(&GameBytes, &GameBytes, &mut Adapt) -> Result<T, AdaptError>,
 ) -> Result<T, Refused> {
     let glyphs = GamePtr::new(font.glyph_table).bytes("a font's glyph table")?;
-    let words = unsafe { Raw::new(text) };
+    let words = GamePtr::new(text as u32).bytes("a text")?;
     match f(&words, &glyphs, &mut Adapt(canvas)) {
         Ok(value) => Ok(value),
         Err(AdaptError::Refused(e)) => Err(e),

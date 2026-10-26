@@ -29,17 +29,15 @@ pub trait Outside {
     /// `files::current_directory` (0x4030D1): the current directory with a `\` after it,
     /// written at `to`; whether it could be had.
     unsafe fn current_directory(&mut self, to: *mut u8) -> Result<bool, BadInput> {
-        unsafe {
-            let Some(mut directory) = current_directory()? else {
-                return Ok(false);
-            };
-            if !matches!(directory.last(), Some(b'\\' | b'/')) {
-                directory.push(b'\\');
-            }
-            directory.push(0);
-            std::ptr::copy(directory.as_ptr(), to, directory.len());
-            Ok(true)
+        let Some(mut directory) = current_directory()? else {
+            return Ok(false);
+        };
+        if !matches!(directory.last(), Some(b'\\' | b'/')) {
+            directory.push(b'\\');
         }
+        directory.push(0);
+        crate::pointers::GamePtr::new(to as u32).write_bytes(&directory, "a folder")?;
+        Ok(true)
     }
 }
 

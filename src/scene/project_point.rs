@@ -66,44 +66,42 @@ pub(crate) unsafe fn rotate(point: *const i32, matrix: *const u32, record: *mut 
 
 /// `fild` x3, the three rows' sums of products plus the place, `fstp dword` x3.
 unsafe fn rotate_at(p: *const u8, m: *const u8, o: *mut u8) {
-    unsafe {
-        let t0 = fild(p, 0x8);
-        let t1 = fild(p, 0x4);
-        let t2 = fild(p, 0x0);
-        let t3 = fld(m, 0x0);
-        let t4 = t3 * t2;
-        let t5 = fld(m, 0x10);
-        let t6 = t5 * t1;
-        let t7 = fld(m, 0x20);
-        let t8 = t7 * t0;
-        let t9 = t6 + t8;
-        let t10 = t4 + t9;
-        let t11 = fld(m, 0x30);
-        let t12 = t10 + t11;
-        let t13 = fld(m, 0x4);
-        let t14 = t13 * t2;
-        let t15 = fld(m, 0x14);
-        let t16 = t15 * t1;
-        let t17 = fld(m, 0x24);
-        let t18 = t17 * t0;
-        let t19 = t16 + t18;
-        let t20 = t14 + t19;
-        let t21 = fld(m, 0x34);
-        let t22 = t20 + t21;
-        let t23 = fld(m, 0x8);
-        let t24 = t2 * t23;
-        let t25 = fld(m, 0x18);
-        let t26 = t1 * t25;
-        let t27 = fld(m, 0x28);
-        let t28 = t0 * t27;
-        let t29 = t28 + t26;
-        let t30 = t24 + t29;
-        let t31 = fld(m, 0x38);
-        let t32 = t30 + t31;
-        fstp(o, 0x10, t12);
-        fstp(o, 0x14, t22);
-        fstp(o, 0x18, t32);
-    }
+    let t0 = fild(p, 0x8);
+    let t1 = fild(p, 0x4);
+    let t2 = fild(p, 0x0);
+    let t3 = fld(m, 0x0);
+    let t4 = t3 * t2;
+    let t5 = fld(m, 0x10);
+    let t6 = t5 * t1;
+    let t7 = fld(m, 0x20);
+    let t8 = t7 * t0;
+    let t9 = t6 + t8;
+    let t10 = t4 + t9;
+    let t11 = fld(m, 0x30);
+    let t12 = t10 + t11;
+    let t13 = fld(m, 0x4);
+    let t14 = t13 * t2;
+    let t15 = fld(m, 0x14);
+    let t16 = t15 * t1;
+    let t17 = fld(m, 0x24);
+    let t18 = t17 * t0;
+    let t19 = t16 + t18;
+    let t20 = t14 + t19;
+    let t21 = fld(m, 0x34);
+    let t22 = t20 + t21;
+    let t23 = fld(m, 0x8);
+    let t24 = t2 * t23;
+    let t25 = fld(m, 0x18);
+    let t26 = t1 * t25;
+    let t27 = fld(m, 0x28);
+    let t28 = t0 * t27;
+    let t29 = t28 + t26;
+    let t30 = t24 + t29;
+    let t31 = fld(m, 0x38);
+    let t32 = t30 + t31;
+    fstp(o, 0x10, t12);
+    fstp(o, 0x14, t22);
+    fstp(o, 0x18, t32);
 }
 
 /// The record's place on the screen from its place in the view. `v`: the scale, the
@@ -121,46 +119,42 @@ pub(crate) unsafe fn to_screen(record: *mut u32, v: &[u32; 4], flat: bool, check
 /// With the flat depth: the depth goes to `checked`, and the one divided by is the whole
 /// number plus one.
 unsafe fn screen_flat(o: *mut u8, v: *const u8, w: *mut u8) {
-    unsafe {
-        let t0 = fld(o, 0x10);
-        let t1 = fld(o, 0x14);
-        let t2 = fld(o, 0x18);
-        fstp(w, 0x0, t2);
-        let t3 = fild(v, 0xC);
-        let t4 = ONE;
-        let t5 = t3 + t4;
-        let t6 = fld(v, 0x0);
-        let t7 = t6 / t5;
-        let t8 = t1 * t7;
-        let t9 = t0 * t7;
-        let t10 = -t8;
-        let t11 = fld(v, 0x8);
-        let t12 = t10 + t11;
-        let t13 = fld(v, 0x4);
-        let t14 = t9 + t13;
-        fstp(o, 0xC, t14);
-        fstp(o, 0x1C, t12);
-    }
+    let t0 = fld(o, 0x10);
+    let t1 = fld(o, 0x14);
+    let t2 = fld(o, 0x18);
+    fstp(w, 0x0, t2);
+    let t3 = fild(v, 0xC);
+    let t4 = ONE;
+    let t5 = t3 + t4;
+    let t6 = fld(v, 0x0);
+    let t7 = t6 / t5;
+    let t8 = t1 * t7;
+    let t9 = t0 * t7;
+    let t10 = -t8;
+    let t11 = fld(v, 0x8);
+    let t12 = t10 + t11;
+    let t13 = fld(v, 0x4);
+    let t14 = t9 + t13;
+    fstp(o, 0xC, t14);
+    fstp(o, 0x1C, t12);
 }
 
 /// The usual way: x = x' * (scale / depth) + centre x, y = centre y - y' * (the same).
 unsafe fn screen_plain(o: *mut u8, v: *const u8) {
-    unsafe {
-        let t0 = fld(o, 0x10);
-        let t1 = fld(o, 0x14);
-        let t2 = fld(o, 0x18);
-        let t3 = fld(v, 0x0);
-        let t4 = t3 / t2;
-        let t5 = t1 * t4;
-        let t6 = t0 * t4;
-        let t7 = -t5;
-        let t8 = fld(v, 0x8);
-        let t9 = t7 + t8;
-        let t10 = fld(v, 0x4);
-        let t11 = t6 + t10;
-        fstp(o, 0xC, t11);
-        fstp(o, 0x1C, t9);
-    }
+    let t0 = fld(o, 0x10);
+    let t1 = fld(o, 0x14);
+    let t2 = fld(o, 0x18);
+    let t3 = fld(v, 0x0);
+    let t4 = t3 / t2;
+    let t5 = t1 * t4;
+    let t6 = t0 * t4;
+    let t7 = -t5;
+    let t8 = fld(v, 0x8);
+    let t9 = t7 + t8;
+    let t10 = fld(v, 0x4);
+    let t11 = t6 + t10;
+    fstp(o, 0xC, t11);
+    fstp(o, 0x1C, t9);
 }
 
 /// The offset of a point's record, or the fatal error for a number too high.

@@ -26,11 +26,11 @@ fn below(a: u32, b: u32) -> bool {
 }
 
 unsafe fn at(a: u32) -> u32 {
-    unsafe { (a as *const u32).read_unaligned() }
+    crate::pointers::read_or_end::<u32>(a, "physics::cap_drive_speed's operand")
 }
 
 unsafe fn put(a: u32, v: u32) {
-    unsafe { (a as *mut u32).write_unaligned(v) }
+    crate::pointers::write_or_end::<u32>(a, v, "physics::cap_drive_speed's operand")
 }
 
 /// The places: the allowance, the speed, the scratch, the drive speed.

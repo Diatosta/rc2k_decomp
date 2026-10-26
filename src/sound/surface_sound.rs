@@ -76,11 +76,8 @@ pub fn surface_sound(o: u32, set: u32, request: u32) -> Result<(), Refused> {
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[si + 8] = [sf + 0x40]`
 fn x87_1(sf: &crate::sound::store::SurfaceSounds, si: usize) {
-    unsafe {
-        let si = si as *mut u8;
-        let t0 = ld(sf.volume.bits());
-        fstp(si, 8, t0);
-    }
+    let t0 = ld(sf.volume.bits());
+    fstp(si, 8, t0);
 }
 
 #[cfg(test)]

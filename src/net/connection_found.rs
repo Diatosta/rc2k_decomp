@@ -24,8 +24,7 @@ use rc2k_core::net::lists;
 
 /// A dword of the callback's argument (memory Rust owns: DirectPlay's name record).
 fn get(at: u32) -> u32 {
-    // SAFETY: the callback's argument, a record of Rust's own.
-    unsafe { (at as usize as *const u32).read_unaligned() }
+    crate::pointers::read_or_end(at, "DirectPlay's name record")
 }
 
 /// The Rust version: eax.

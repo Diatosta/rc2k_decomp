@@ -96,21 +96,18 @@ pub unsafe fn point_hits_car(point: u32, object: u32) -> Result<bool, Refused> {
 /// `[rc + 0x2D3B7C] = int [rc + 0x2D3B50] / [rc + 0x1C5D98]`
 /// `[rc + 0x2D3B80] = int [rc + 0x2D3B54] / [rc + 0x1C5D98]`
 fn x87_1(rc: usize) {
-    unsafe {
-        let rc = rc as *mut u8;
-        let t0 = fild(rc, 0x2D3B4C);
-        let t1 = fld(rc, 0x1C5D98);
-        let t2 = t0 / t1;
-        fstp(rc, 0x2D3B78, t2);
-        let t3 = fild(rc, 0x2D3B50);
-        let t4 = fld(rc, 0x1C5D98);
-        let t5 = t3 / t4;
-        fstp(rc, 0x2D3B7C, t5);
-        let t6 = fild(rc, 0x2D3B54);
-        let t7 = fld(rc, 0x1C5D98);
-        let t8 = t6 / t7;
-        fstp(rc, 0x2D3B80, t8);
-    }
+    let t0 = fild(rc, 0x2D3B4C);
+    let t1 = fld(rc, 0x1C5D98);
+    let t2 = t0 / t1;
+    fstp(rc, 0x2D3B78, t2);
+    let t3 = fild(rc, 0x2D3B50);
+    let t4 = fld(rc, 0x1C5D98);
+    let t5 = t3 / t4;
+    fstp(rc, 0x2D3B7C, t5);
+    let t6 = fild(rc, 0x2D3B54);
+    let t7 = fld(rc, 0x1C5D98);
+    let t8 = t6 / t7;
+    fstp(rc, 0x2D3B80, t8);
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -119,21 +116,18 @@ fn x87_1(rc: usize) {
 /// `int [rc + 0x2D3094] = [rc + 0x2D3B5C] * [rc + 0x1C5D98]`
 /// `int [rc + 0x2D3098] = [rc + 0x2D3B60] * [rc + 0x1C5D98]`
 fn x87_2(rc: usize) {
-    unsafe {
-        let rc = rc as *mut u8;
-        let t0 = fld(rc, 0x2D3B58);
-        let t1 = fld(rc, 0x1C5D98);
-        let t2 = t0 * t1;
-        fistp(rc, 0x2D3090, t2);
-        let t3 = fld(rc, 0x2D3B5C);
-        let t4 = fld(rc, 0x1C5D98);
-        let t5 = t3 * t4;
-        fistp(rc, 0x2D3094, t5);
-        let t6 = fld(rc, 0x2D3B60);
-        let t7 = fld(rc, 0x1C5D98);
-        let t8 = t6 * t7;
-        fistp(rc, 0x2D3098, t8);
-    }
+    let t0 = fld(rc, 0x2D3B58);
+    let t1 = fld(rc, 0x1C5D98);
+    let t2 = t0 * t1;
+    fistp(rc, 0x2D3090, t2);
+    let t3 = fld(rc, 0x2D3B5C);
+    let t4 = fld(rc, 0x1C5D98);
+    let t5 = t3 * t4;
+    fistp(rc, 0x2D3094, t5);
+    let t6 = fld(rc, 0x2D3B60);
+    let t7 = fld(rc, 0x1C5D98);
+    let t8 = t6 * t7;
+    fistp(rc, 0x2D3098, t8);
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -142,19 +136,16 @@ fn x87_2(rc: usize) {
 /// `[rc + 0x31A200] = 0`
 /// `[rc + 0x31A204] = int [rc + 0x2D3098] / [rc + 0x1C5D98]`
 fn x87_3(rc: usize) {
-    unsafe {
-        let rc = rc as *mut u8;
-        let t0 = fild(rc, 0x2D3090);
-        let t1 = fld(rc, 0x1C5D98);
-        let t2 = t0 / t1;
-        fstp(rc, 0x31A1FC, t2);
-        let t3 = X(0.0);
-        fstp(rc, 0x31A200, t3);
-        let t4 = fild(rc, 0x2D3098);
-        let t5 = fld(rc, 0x1C5D98);
-        let t6 = t4 / t5;
-        fstp(rc, 0x31A204, t6);
-    }
+    let t0 = fild(rc, 0x2D3090);
+    let t1 = fld(rc, 0x1C5D98);
+    let t2 = t0 / t1;
+    fstp(rc, 0x31A1FC, t2);
+    let t3 = X(0.0);
+    fstp(rc, 0x31A200, t3);
+    let t4 = fild(rc, 0x2D3098);
+    let t5 = fld(rc, 0x1C5D98);
+    let t6 = t4 / t5;
+    fstp(rc, 0x31A204, t6);
 }
 
 #[cfg(test)]

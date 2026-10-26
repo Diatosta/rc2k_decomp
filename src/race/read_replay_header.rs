@@ -42,7 +42,7 @@ const TITLE: &std::ffi::CStr = c"READREPLAYHEADER"; // "READREPLAYHEADER"
 
 /// `log_write_l1` (with a line break for the title) of a text.
 fn log_text(text: u32, newline: bool) {
-    unsafe { crate::logfile::log_write::log_write(text as *const u8, newline, 1) }
+    crate::logfile::log_write::log_at(text, newline, 1)
 }
 
 /// The Rust version. Reads no register and keeps every one (liveness), so its only

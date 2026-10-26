@@ -50,44 +50,42 @@ unsafe fn turned(from: [u32; 3], matrix: *const u32) -> [u32; 3] {
 }
 
 unsafe fn turned_at(w: *mut u8, m: *const u8) {
-    unsafe {
-        let t0 = fild(w, 0x8);
-        let t1 = fild(w, 0x4);
-        let t2 = fild(w, 0x0);
-        let t3 = fld(m, 0x0);
-        let t4 = t3 * t2;
-        let t5 = fld(m, 0x10);
-        let t6 = t5 * t1;
-        let t7 = fld(m, 0x20);
-        let t8 = t7 * t0;
-        let t9 = t6 + t8;
-        let t10 = t4 + t9;
-        let t11 = fld(m, 0x30);
-        let t12 = t10 + t11;
-        let t13 = fld(m, 0x4);
-        let t14 = t13 * t2;
-        let t15 = fld(m, 0x14);
-        let t16 = t15 * t1;
-        let t17 = fld(m, 0x24);
-        let t18 = t17 * t0;
-        let t19 = t16 + t18;
-        let t20 = t14 + t19;
-        let t21 = fld(m, 0x34);
-        let t22 = t20 + t21;
-        let t23 = fld(m, 0x8);
-        let t24 = t2 * t23;
-        let t25 = fld(m, 0x18);
-        let t26 = t1 * t25;
-        let t27 = fld(m, 0x28);
-        let t28 = t0 * t27;
-        let t29 = t28 + t26;
-        let t30 = t24 + t29;
-        let t31 = fld(m, 0x38);
-        let t32 = t30 + t31;
-        fistp(w, 0xC, t12);
-        fistp(w, 0x10, t22);
-        fistp(w, 0x14, t32);
-    }
+    let t0 = fild(w, 0x8);
+    let t1 = fild(w, 0x4);
+    let t2 = fild(w, 0x0);
+    let t3 = fld(m, 0x0);
+    let t4 = t3 * t2;
+    let t5 = fld(m, 0x10);
+    let t6 = t5 * t1;
+    let t7 = fld(m, 0x20);
+    let t8 = t7 * t0;
+    let t9 = t6 + t8;
+    let t10 = t4 + t9;
+    let t11 = fld(m, 0x30);
+    let t12 = t10 + t11;
+    let t13 = fld(m, 0x4);
+    let t14 = t13 * t2;
+    let t15 = fld(m, 0x14);
+    let t16 = t15 * t1;
+    let t17 = fld(m, 0x24);
+    let t18 = t17 * t0;
+    let t19 = t16 + t18;
+    let t20 = t14 + t19;
+    let t21 = fld(m, 0x34);
+    let t22 = t20 + t21;
+    let t23 = fld(m, 0x8);
+    let t24 = t2 * t23;
+    let t25 = fld(m, 0x18);
+    let t26 = t1 * t25;
+    let t27 = fld(m, 0x28);
+    let t28 = t0 * t27;
+    let t29 = t28 + t26;
+    let t30 = t24 + t29;
+    let t31 = fld(m, 0x38);
+    let t32 = t30 + t31;
+    fistp(w, 0xC, t12);
+    fistp(w, 0x10, t22);
+    fistp(w, 0x14, t32);
 }
 
 /// `fild a; fmul st, st; fild b; fmul st, st; faddp; fmul k` (once or twice) `; fistp`.
@@ -105,32 +103,28 @@ fn squares(a: u32, b: u32, factor: u32, twice: bool) -> u32 {
 
 /// Twice the factor.
 unsafe fn squares_twice(v: *const u8, o: *mut u8) {
-    unsafe {
-        let t0 = fild(v, 0x0);
-        let t1 = t0 * t0;
-        let t2 = fild(v, 0x4);
-        let t3 = t2 * t2;
-        let t4 = t1 + t3;
-        let t5 = fld(v, 0x8);
-        let t6 = t4 * t5;
-        let t7 = fld(v, 0x8);
-        let t8 = t6 * t7;
-        fistp(o, 0x0, t8);
-    }
+    let t0 = fild(v, 0x0);
+    let t1 = t0 * t0;
+    let t2 = fild(v, 0x4);
+    let t3 = t2 * t2;
+    let t4 = t1 + t3;
+    let t5 = fld(v, 0x8);
+    let t6 = t4 * t5;
+    let t7 = fld(v, 0x8);
+    let t8 = t6 * t7;
+    fistp(o, 0x0, t8);
 }
 
 /// Once the factor.
 unsafe fn squares_once(v: *const u8, o: *mut u8) {
-    unsafe {
-        let t0 = fild(v, 0x0);
-        let t1 = t0 * t0;
-        let t2 = fild(v, 0x4);
-        let t3 = t2 * t2;
-        let t4 = t1 + t3;
-        let t5 = fld(v, 0x8);
-        let t6 = t4 * t5;
-        fistp(o, 0x0, t6);
-    }
+    let t0 = fild(v, 0x0);
+    let t1 = t0 * t0;
+    let t2 = fild(v, 0x4);
+    let t3 = t2 * t2;
+    let t4 = t1 + t3;
+    let t5 = fld(v, 0x8);
+    let t6 = t4 * t5;
+    fistp(o, 0x0, t6);
 }
 
 /// `cmp eax, 0; jns; eax = 0` and `cmp eax, 0FFh; js; eax = 0FFh`.

@@ -257,7 +257,7 @@ fn cut(_r: &mut Carried) -> Result<(), Refused> {
             2 * rest as usize,
         )?;
         let end = table + 8 * (first + rest) as usize;
-        unsafe { std::ptr::write_bytes(end as *mut u8, 0, 8 * count as usize) };
+        crate::pointers::GamePtr::new(end as u32).fill(0, 8 * count as usize, "the marks table")?;
     }
     crate::race::reset_marks::reset_marks()
 }

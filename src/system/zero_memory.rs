@@ -21,6 +21,6 @@ pub unsafe fn zero_memory(block: *mut u8, length: u32) -> Result<(), BadInput> {
     if block.is_null() {
         return Err(BadInput("no block to zero"));
     }
-    unsafe { std::ptr::write_bytes(block, 0, length as usize) };
+    crate::pointers::GamePtr::new(block as u32).fill(0, length as usize, "memory to zero")?;
     Ok(())
 }

@@ -39,18 +39,16 @@ fn coordinate(a: u32, half: u32, scales: [u32; 2]) -> i32 {
 }
 
 unsafe fn coordinate_at(v: *const u8, o: *mut u8) {
-    unsafe {
-        let t0 = fld(v, 0x0);
-        let t1 = fld(v, 0x4);
-        let t2 = t0 * t1;
-        let t3 = fld(v, 0x4);
-        let t4 = t2 + t3;
-        let t5 = fld(v, 0x8);
-        let t6 = t4 * t5;
-        let t7 = fld(v, 0xC);
-        let t8 = t6 * t7;
-        fistp(o, 0x0, t8);
-    }
+    let t0 = fld(v, 0x0);
+    let t1 = fld(v, 0x4);
+    let t2 = t0 * t1;
+    let t3 = fld(v, 0x4);
+    let t4 = t2 + t3;
+    let t5 = fld(v, 0x8);
+    let t6 = t4 * t5;
+    let t7 = fld(v, 0xC);
+    let t8 = t6 * t7;
+    fistp(o, 0x0, t8);
 }
 
 /// `fld a; fchs; fstp`.
@@ -61,11 +59,9 @@ fn negated(a: u32) -> u32 {
 }
 
 unsafe fn negated_at(a: *const u8, o: *mut u8) {
-    unsafe {
-        let t0 = fld(a, 0x0);
-        let t1 = -t0;
-        fstp(o, 0x0, t1);
-    }
+    let t0 = fld(a, 0x0);
+    let t1 = -t0;
+    fstp(o, 0x0, t1);
 }
 
 pub unsafe fn reflection_coordinates() -> Result<(), BadInput> {

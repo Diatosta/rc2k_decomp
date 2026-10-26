@@ -184,17 +184,14 @@ pub fn steps(number: u32) -> Result<(), Refused> {
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `int [rc + 0x2D3B70] = (atan2(int [rc + 0x2D3B4C], int [rc + 0x2D3B54]) * [rc + 0x1C5E2C]) * [rc + 0x1C5DD4]`
 fn x87_1(rc: usize) {
-    unsafe {
-        let rc = rc as *mut u8;
-        let t0 = fild(rc, 0x2D3B4C);
-        let t1 = fild(rc, 0x2D3B54);
-        let t2 = t0.atan2(t1);
-        let t3 = fld(rc, 0x1C5E2C);
-        let t4 = t2 * t3;
-        let t5 = fld(rc, 0x1C5DD4);
-        let t6 = t4 * t5;
-        fistp(rc, 0x2D3B70, t6);
-    }
+    let t0 = fild(rc, 0x2D3B4C);
+    let t1 = fild(rc, 0x2D3B54);
+    let t2 = t0.atan2(t1);
+    let t3 = fld(rc, 0x1C5E2C);
+    let t4 = t2 * t3;
+    let t5 = fld(rc, 0x1C5DD4);
+    let t6 = t4 * t5;
+    fistp(rc, 0x2D3B70, t6);
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -204,33 +201,30 @@ fn x87_1(rc: usize) {
 /// `[rc + 0x2D3B5C] = int [rc + 0x2D3094] / [rc + 0x1C5D98]`
 /// `[rc + 0x2D3B60] = int [rc + 0x2D3098] / [rc + 0x1C5D98]`
 fn x87_2(rc: usize) {
-    unsafe {
-        let rc = rc as *mut u8;
-        let t0 = fld(rc, 0x31A170);
-        let t1 = t0 * t0;
-        let t2 = fld(rc, 0x31A178);
-        let t3 = t2 * t2;
-        let t4 = fld(rc, 0x31A174);
-        let t5 = t4 * t4;
-        let t6 = t3 + t5;
-        let t7 = t1 + t6;
-        let t8 = t7.sqrt();
-        let t9 = fld(rc, 0x1C5D98);
-        let t10 = t8 * t9;
-        fistp(rc, 0x2D3B74, t10);
-        let t11 = fild(rc, 0x2D3090);
-        let t12 = fld(rc, 0x1C5D98);
-        let t13 = t11 / t12;
-        fstp(rc, 0x2D3B58, t13);
-        let t14 = fild(rc, 0x2D3094);
-        let t15 = fld(rc, 0x1C5D98);
-        let t16 = t14 / t15;
-        fstp(rc, 0x2D3B5C, t16);
-        let t17 = fild(rc, 0x2D3098);
-        let t18 = fld(rc, 0x1C5D98);
-        let t19 = t17 / t18;
-        fstp(rc, 0x2D3B60, t19);
-    }
+    let t0 = fld(rc, 0x31A170);
+    let t1 = t0 * t0;
+    let t2 = fld(rc, 0x31A178);
+    let t3 = t2 * t2;
+    let t4 = fld(rc, 0x31A174);
+    let t5 = t4 * t4;
+    let t6 = t3 + t5;
+    let t7 = t1 + t6;
+    let t8 = t7.sqrt();
+    let t9 = fld(rc, 0x1C5D98);
+    let t10 = t8 * t9;
+    fistp(rc, 0x2D3B74, t10);
+    let t11 = fild(rc, 0x2D3090);
+    let t12 = fld(rc, 0x1C5D98);
+    let t13 = t11 / t12;
+    fstp(rc, 0x2D3B58, t13);
+    let t14 = fild(rc, 0x2D3094);
+    let t15 = fld(rc, 0x1C5D98);
+    let t16 = t14 / t15;
+    fstp(rc, 0x2D3B5C, t16);
+    let t17 = fild(rc, 0x2D3098);
+    let t18 = fld(rc, 0x1C5D98);
+    let t19 = t17 / t18;
+    fstp(rc, 0x2D3B60, t19);
 }
 
 #[cfg(test)]

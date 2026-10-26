@@ -27,7 +27,10 @@ use rc2k_core::physics::damage_notices::{LEVELS, damage_notices as damage_notice
 /// `unk_71A284` .. `unk_71A33C`: the gauges, dwords from `CAR.brake_heat` on (the store
 /// types only the first two).
 fn gauge(k: usize) -> u32 {
-    unsafe { ((CAR.brake_heat[0].addr() + 4 * k) as *const u32).read_unaligned() }
+    crate::pointers::read_or_end::<u32>(
+        (CAR.brake_heat[0].addr() + 4 * k) as u32,
+        "physics::damage_notices's operand",
+    )
 }
 
 // Converted: `rc2k_core::physics::damage_notices::damage_notices`.

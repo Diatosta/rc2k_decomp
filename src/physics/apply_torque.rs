@@ -23,11 +23,11 @@ use crate::scene::view_matrix::cross_product;
 pub const SPIN_OFFSET: u32 = 0x184;
 
 unsafe fn at(a: u32) -> u32 {
-    unsafe { (a as *const u32).read_unaligned() }
+    crate::pointers::read_or_end::<u32>(a, "physics::apply_torque's operand")
 }
 
 unsafe fn put(a: u32, v: u32) {
-    unsafe { (a as *mut u32).write_unaligned(v) }
+    crate::pointers::write_or_end::<u32>(a, v, "physics::apply_torque's operand")
 }
 
 /// The Rust core: the record at `rec`, the car at `car`, the work vector at `work`, the

@@ -21,12 +21,3 @@ impl rc2k_core::strings::bytes::Bytes for Raw {
         Some(unsafe { self.0.wrapping_add(at).read() })
     }
 }
-
-/// A core result whose only failure is a read past the end, from `Raw` memory that never
-/// has one.
-pub fn read_through<T>(result: Result<T, rc2k_core::Invalid>) -> T {
-    match result {
-        Ok(value) => value,
-        Err(e) => unreachable!("a read of raw game memory refused: {}", e.0),
-    }
-}

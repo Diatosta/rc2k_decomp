@@ -93,7 +93,8 @@ pub unsafe fn store_in(buffer: Buffer, bytes: &[u8]) -> Result<(), Refused> {
     if bytes.len() > room {
         return Err(BadInput("a text past its buffer").into());
     }
-    unsafe { std::ptr::copy_nonoverlapping(bytes.as_ptr(), buffer_at(buffer), bytes.len()) };
+    crate::pointers::GamePtr::new(buffer_at(buffer) as u32)
+        .write_bytes(bytes, "a shared text buffer")?;
     Ok(())
 }
 

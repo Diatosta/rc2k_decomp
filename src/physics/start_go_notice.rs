@@ -18,11 +18,11 @@ use crate::race::work_store::RACE_WORK;
 use rc2k_core::physics::progress::{GO_NOTICE, GoFacts};
 
 unsafe fn at(a: u32) -> u32 {
-    unsafe { (a as *const u32).read_unaligned() }
+    crate::pointers::read_or_end::<u32>(a, "physics::start_go_notice's operand")
 }
 
 unsafe fn put(a: u32, v: u32) {
-    unsafe { (a as *mut u32).write_unaligned(v) }
+    crate::pointers::write_or_end::<u32>(a, v, "physics::start_go_notice's operand")
 }
 
 /// The core: `v` the variables' addresses, then the twin's current, listed and flag.

@@ -62,22 +62,18 @@ fn copies() -> [&'static dyn Cell32; 11] {
 /// `[rc + 0x208BB4] = [s + 8] + [rc + 0x23763C]`
 /// `[rc + 0x208BB8] = [s + 0xC] + [rc + 0x237640]`
 fn x87_1(s: usize, rc: usize) {
-    unsafe {
-        let s = s as *const u8;
-        let rc = rc as *mut u8;
-        let t0 = fld(s, 4);
-        let t1 = fld(rc, 0x237638);
-        let t2 = t0 + t1;
-        fstp(rc, 0x208BB0, t2);
-        let t3 = fld(s, 8);
-        let t4 = fld(rc, 0x23763C);
-        let t5 = t3 + t4;
-        fstp(rc, 0x208BB4, t5);
-        let t6 = fld(s, 0xC);
-        let t7 = fld(rc, 0x237640);
-        let t8 = t6 + t7;
-        fstp(rc, 0x208BB8, t8);
-    }
+    let t0 = fld(s, 4);
+    let t1 = fld(rc, 0x237638);
+    let t2 = t0 + t1;
+    fstp(rc, 0x208BB0, t2);
+    let t3 = fld(s, 8);
+    let t4 = fld(rc, 0x23763C);
+    let t5 = t3 + t4;
+    fstp(rc, 0x208BB4, t5);
+    let t6 = fld(s, 0xC);
+    let t7 = fld(rc, 0x237640);
+    let t8 = t6 + t7;
+    fstp(rc, 0x208BB8, t8);
 }
 
 #[cfg(test)]

@@ -17,8 +17,12 @@ use crate::math::x87;
 /// (unconverted).
 pub unsafe fn adjugate_matrix(matrix: u32, out: u32) {
     use rc2k_core::scene::matrices::COFACTORS;
-    let get = |o: u32| unsafe { ((matrix + o) as *const u32).read_unaligned() };
-    let put = |o: u32, v: u32| unsafe { ((out + o) as *mut u32).write_unaligned(v) };
+    let get = |o: u32| {
+        crate::pointers::read_or_end::<u32>(matrix + o, "scene::adjugate_matrix's operand")
+    };
+    let put = |o: u32, v: u32| {
+        crate::pointers::write_or_end::<u32>(out + o, v, "scene::adjugate_matrix's operand")
+    };
     for (to, [a, b, c, d]) in COFACTORS {
         put(to, x87::product_difference(get(a), get(b), get(c), get(d)));
     }

@@ -21,33 +21,31 @@ use crate::session::MACHINE;
 /// 2 pi.
 fn turn(ty: &TyreChange, e: usize, d: usize, v: usize, t: usize) {
     let (e, d, v, t) = (e as *mut u8, d as *mut u8, v as *mut u8, t as *mut u8);
-    unsafe {
-        let angle = fild(e, 0x4EC) * ld(ty.gauge_unit.bits()) * fld(t, 0);
-        let (sin, cos) = angle.sin_cos();
-        ty.turn_cos.set_bits(st(cos));
-        ty.turn_sin.set_bits(st(sin));
-        ty.half_h_sin
-            .set_bits(st(fld(d, 0xC) * ld(ty.turn_sin.bits())));
-        ty.neg_half_h_cos
-            .set_bits(st(-(fld(d, 0xC) * ld(ty.turn_cos.bits()))));
-        ty.half_w_cos
-            .set_bits(st(fld(d, 0x8) * ld(ty.turn_cos.bits())));
-        ty.half_w_sin
-            .set_bits(st(fld(d, 0x8) * ld(ty.turn_sin.bits())));
-        let (wheel_x, wheel_y) = (int(ty.wheel[0].get() as i32), int(ty.wheel[1].get() as i32));
-        let x = -ld(ty.half_w_cos.bits()) + fld(d, 0) + wheel_x;
-        fstp(v, 0x40, x);
-        fstp(v, 0, x + ld(ty.half_h_sin.bits()));
-        let x = ld(ty.half_w_cos.bits()) + fld(d, 0) + wheel_x;
-        fstp(v, 0x60, x);
-        fstp(v, 0x20, x + ld(ty.half_h_sin.bits()));
-        let y = -ld(ty.half_w_sin.bits()) + fld(d, 0x4) + wheel_y;
-        fstp(v, 0x44, y);
-        fstp(v, 0x4, y + ld(ty.neg_half_h_cos.bits()));
-        let y = ld(ty.half_w_sin.bits()) + fld(d, 0x4) + wheel_y;
-        fstp(v, 0x64, y);
-        fstp(v, 0x24, y + ld(ty.neg_half_h_cos.bits()));
-    }
+    let angle = fild(e, 0x4EC) * ld(ty.gauge_unit.bits()) * fld(t, 0);
+    let (sin, cos) = angle.sin_cos();
+    ty.turn_cos.set_bits(st(cos));
+    ty.turn_sin.set_bits(st(sin));
+    ty.half_h_sin
+        .set_bits(st(fld(d, 0xC) * ld(ty.turn_sin.bits())));
+    ty.neg_half_h_cos
+        .set_bits(st(-(fld(d, 0xC) * ld(ty.turn_cos.bits()))));
+    ty.half_w_cos
+        .set_bits(st(fld(d, 0x8) * ld(ty.turn_cos.bits())));
+    ty.half_w_sin
+        .set_bits(st(fld(d, 0x8) * ld(ty.turn_sin.bits())));
+    let (wheel_x, wheel_y) = (int(ty.wheel[0].get() as i32), int(ty.wheel[1].get() as i32));
+    let x = -ld(ty.half_w_cos.bits()) + fld(d, 0) + wheel_x;
+    fstp(v, 0x40, x);
+    fstp(v, 0, x + ld(ty.half_h_sin.bits()));
+    let x = ld(ty.half_w_cos.bits()) + fld(d, 0) + wheel_x;
+    fstp(v, 0x60, x);
+    fstp(v, 0x20, x + ld(ty.half_h_sin.bits()));
+    let y = -ld(ty.half_w_sin.bits()) + fld(d, 0x4) + wheel_y;
+    fstp(v, 0x44, y);
+    fstp(v, 0x4, y + ld(ty.neg_half_h_cos.bits()));
+    let y = ld(ty.half_w_sin.bits()) + fld(d, 0x4) + wheel_y;
+    fstp(v, 0x64, y);
+    fstp(v, 0x24, y + ld(ty.neg_half_h_cos.bits()));
 }
 
 /// The Rust version: the texture rectangle at `uv` (eax), the screen rectangle at `rect`
@@ -177,6 +175,25 @@ mod asm_reference {
         let (mut d_a, mut d_b) = (vec![0u8; 32], vec![0u8; 32]);
         let (mut v_a, mut v_b) = (vec![0u8; 0x90], vec![0u8; 0x90]);
         let (mut t_a, mut t_b) = (vec![0u8; 16], vec![0u8; 16]);
+        // Lent while the runs read them as game memory.
+        let as_bytes = |ty: &TyreChange| unsafe {
+            std::slice::from_raw_parts(
+                ty as *const TyreChange as *const u8,
+                size_of::<TyreChange>(),
+            )
+        };
+        let _lent = [
+            crate::pointers::Lent::new(as_bytes(&ty_a)),
+            crate::pointers::Lent::new(as_bytes(&ty_b)),
+            crate::pointers::Lent::new(&e_a),
+            crate::pointers::Lent::new(&e_b),
+            crate::pointers::Lent::new(&d_a),
+            crate::pointers::Lent::new(&d_b),
+            crate::pointers::Lent::new(&v_a),
+            crate::pointers::Lent::new(&v_b),
+            crate::pointers::Lent::new(&t_a),
+            crate::pointers::Lent::new(&t_b),
+        ];
         let mut checked = 0u64;
         for &cw in &crate::scene::asm_test::CONTROL_WORDS {
             set_control_word(cw);

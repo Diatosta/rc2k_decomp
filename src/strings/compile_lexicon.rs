@@ -199,7 +199,8 @@ pub unsafe fn compile_lexicon() -> Result<(), Refused> {
         let empty = &mut *EMPTY_MESSAGE.ptr();
         empty[1] = empty[1].wrapping_add(compiled.empty_messages);
         empty[3] = compiled.index_size;
-        std::ptr::copy(compiled.table.as_ptr(), lexicon(), compiled.table.len());
+        crate::pointers::GamePtr::new(lexicon() as u32)
+            .write_bytes(&compiled.table, "the lexicon's memory")?;
         use_lexicon();
 
         if level() as i32 >= 3 {

@@ -15,11 +15,11 @@ use crate::race::numbers_store::NUMBERS;
 use rc2k_core::physics::motion::stop_timers;
 
 unsafe fn at(a: u32) -> u32 {
-    unsafe { (a as *const u32).read_unaligned() }
+    crate::pointers::read_or_end::<u32>(a, "physics::count_stop_timers's operand")
 }
 
 unsafe fn put(a: u32, v: u32) {
-    unsafe { (a as *mut u32).write_unaligned(v) }
+    crate::pointers::write_or_end::<u32>(a, v, "physics::count_stop_timers's operand")
 }
 
 /// The core on the variables' addresses (a compare of floats only: the same at any

@@ -45,11 +45,11 @@ impl SettlePlaces {
 }
 
 unsafe fn at(a: u32) -> u32 {
-    unsafe { (a as *const u32).read_unaligned() }
+    crate::pointers::read_or_end::<u32>(a, "physics::settle_drive_speeds's operand")
 }
 
 unsafe fn put(a: u32, v: u32) {
-    unsafe { (a as *mut u32).write_unaligned(v) }
+    crate::pointers::write_or_end::<u32>(a, v, "physics::settle_drive_speeds's operand")
 }
 
 /// One speed at `v` toward 0 by the step at `step`.

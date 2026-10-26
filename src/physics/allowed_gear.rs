@@ -16,7 +16,7 @@ use crate::physics::gear_bit::bits_at;
 use crate::race::numbers_store::NUMBERS;
 
 unsafe fn at(a: u32) -> u32 {
-    unsafe { (a as *const u32).read_unaligned() }
+    crate::pointers::read_or_end::<u32>(a, "physics::allowed_gear's operand")
 }
 
 /// The Rust version on the word +0x2B8, the word +0x3F4 and the gear bits at these places.

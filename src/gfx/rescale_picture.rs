@@ -123,6 +123,7 @@ pub unsafe fn rescale_picture() -> Result<(), Refused> {
         // The count was checked above.
         let _ = fill_row_table(copy, from_width << 2, from_height);
         let mut out = to;
+        let window = crate::pointers::Window::new();
         let work = rc2k_core::gfx::picture::rescale(
             &rc2k_core::gfx::picture::Sizes {
                 from_width,
@@ -130,7 +131,9 @@ pub unsafe fn rescale_picture() -> Result<(), Refused> {
                 width,
                 height,
             },
-            &|row, byte| (row_address(row).wrapping_add(byte) as *const u8).read(),
+            &|row, byte| {
+                window.read_or_end(row_address(row).wrapping_add(byte), "a picture's pixel")
+            },
             &mut |parts| {
                 std::ptr::copy_nonoverlapping(parts.as_ptr(), out, 3);
                 out = out.add(4);

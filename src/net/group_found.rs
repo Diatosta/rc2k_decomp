@@ -15,7 +15,7 @@ pub fn group_found(args: &[u32]) -> Result<u32, Refused> {
     if args[1] != 0 {
         return Ok(1);
     }
-    let name = unsafe { ((args[2] + 8) as *const u32).read_unaligned() };
+    let name = crate::pointers::read_or_end::<u32>(args[2] + 8, "net::group_found's operand");
     let order = crate::strings::same_text::compare_texts(
         name as *const u8,
         NET.group_name.addr() as *const u8,

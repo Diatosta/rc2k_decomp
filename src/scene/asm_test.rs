@@ -230,7 +230,7 @@ pub fn differential<const N: usize>(
 /// Writes the float with these bits, as an 80-bit value, `at` bytes into the image.
 pub fn put_t80<const N: usize>(m: &mut [u32; N], at: usize, bits: u32) {
     use crate::math::x87_float::ld;
-    unsafe { crate::scene::x87_mem::fstp80(m.as_mut_ptr().cast(), at, ld(bits)) }
+    crate::scene::x87_mem::fstp80(m.as_mut_ptr().cast(), at, ld(bits))
 }
 // ---- the sparse tests: blocks that touch a few places of a large memory ----
 
@@ -357,6 +357,12 @@ pub fn sparse(blocks: &[Block], cases: u32, seed: u64) {
                     }
                 }
             }
+            // The buffers lent while the block runs: its operands are checked as game memory.
+            let _lent: Vec<crate::pointers::Lent> = buffers
+                .iter()
+                .filter(|b| !b.is_empty())
+                .map(|b| crate::pointers::Lent::new(b))
+                .collect();
             // the places written, as (operand, offset, kind)
             let mut places: Vec<(usize, usize, Out)> = Vec::new();
             for (n, o) in block.operands.iter().enumerate() {

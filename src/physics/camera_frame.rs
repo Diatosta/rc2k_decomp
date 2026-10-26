@@ -57,32 +57,26 @@ pub fn camera_frame() -> Result<(), Refused> {
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x23763C] = [rc + 0x31A8E4] * [rc + 0x214098]`
 fn x87_1(rc: usize) {
-    unsafe {
-        let rc = rc as *mut u8;
-        let t0 = fld(rc, 0x31A8E4);
-        let t1 = fld(rc, 0x214098);
-        let t2 = t0 * t1;
-        fstp(rc, 0x23763C, t2);
-    }
+    let t0 = fld(rc, 0x31A8E4);
+    let t1 = fld(rc, 0x214098);
+    let t2 = t0 * t1;
+    fstp(rc, 0x23763C, t2);
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x237644] = (((int [rc + 0x22400C] / [rc + 0x1C5D98]) / [rc + 0x1C5E28]) * [rc + 0x1C5D40]) * [rc + 0x23763C]`
 fn x87_2(rc: usize) {
-    unsafe {
-        let rc = rc as *mut u8;
-        let t0 = fild(rc, 0x22400C);
-        let t1 = fld(rc, 0x1C5D98);
-        let t2 = t0 / t1;
-        let t3 = fld(rc, 0x1C5E28);
-        let t4 = t2 / t3;
-        let t5 = fld(rc, 0x1C5D40);
-        let t6 = t4 * t5;
-        let t7 = fld(rc, 0x23763C);
-        let t8 = t6 * t7;
-        fstp(rc, 0x237644, t8);
-    }
+    let t0 = fild(rc, 0x22400C);
+    let t1 = fld(rc, 0x1C5D98);
+    let t2 = t0 / t1;
+    let t3 = fld(rc, 0x1C5E28);
+    let t4 = t2 / t3;
+    let t5 = fld(rc, 0x1C5D40);
+    let t6 = t4 * t5;
+    let t7 = fld(rc, 0x23763C);
+    let t8 = t6 * t7;
+    fstp(rc, 0x237644, t8);
 }
 
 #[cfg(test)]

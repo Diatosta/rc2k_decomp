@@ -34,18 +34,16 @@ use crate::session::{Dword, Float};
 
 /// `fld dword [f]; fistp dword [t]`.
 fn round_units(f: usize, t: usize) {
-    unsafe { fistp(t as *mut u8, 0, fld(f as *const u8, 0)) }
+    fistp(t as *mut u8, 0, fld(f as *const u8, 0))
 }
 
 /// `fld dword [a]; fisub dword [u]; fstp dword [a]`.
 fn subtract_units(a: usize, u: usize) {
-    unsafe {
-        fstp(
-            a as *mut u8,
-            0,
-            fld(a as *const u8, 0) - fild(u as *const u8, 0),
-        )
-    }
+    fstp(
+        a as *mut u8,
+        0,
+        fld(a as *const u8, 0) - fild(u as *const u8, 0),
+    )
 }
 
 /// `fld [from]; fistp [to]`, then `fld zero; fld [to]; fcompp` and, with C0, `fld zero;

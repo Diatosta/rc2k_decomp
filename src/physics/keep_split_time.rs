@@ -35,7 +35,7 @@ impl SplitPlaces {
 }
 
 unsafe fn at(a: u32) -> u32 {
-    unsafe { (a as *const u32).read_unaligned() }
+    crate::pointers::read_or_end::<u32>(a, "physics::keep_split_time's operand")
 }
 
 /// The Rust version on the variables at `p`.

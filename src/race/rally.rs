@@ -137,12 +137,10 @@ pub fn copy_rally_times() -> Result<(), Refused> {
 
 /// The log calls in the game.
 fn log_part(place: u32, value: u32) -> Result<(), Refused> {
-    use crate::logfile::{log_int::log_int, log_write::log_write};
-    unsafe {
-        match place {
-            WRITE | WRITE_NL => log_write(value as *const u8, place == WRITE_NL, 1),
-            _ => log_int(value as i32, place == INT_NL, 1),
-        }
+    use crate::logfile::log_int::log_int;
+    match place {
+        WRITE | WRITE_NL => crate::logfile::log_write::log_at(value, place == WRITE_NL, 1),
+        _ => log_int(value as i32, place == INT_NL, 1),
     }
     Ok(())
 }

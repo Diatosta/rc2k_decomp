@@ -57,14 +57,10 @@ pub unsafe fn ease_view_turn() {
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `int [rc + 0x22400C] = int [rc + 0x22400C] * [s + 0]`
 fn x87_1(rc: usize, s: usize) {
-    unsafe {
-        let rc = rc as *mut u8;
-        let s = s as *const u8;
-        let t0 = fild(rc, 0x22400C);
-        let t1 = fld(s, 0);
-        let t2 = t0 * t1;
-        fistp(rc, 0x22400C, t2);
-    }
+    let t0 = fild(rc, 0x22400C);
+    let t1 = fld(s, 0);
+    let t2 = t0 * t1;
+    fistp(rc, 0x22400C, t2);
 }
 
 #[cfg(test)]

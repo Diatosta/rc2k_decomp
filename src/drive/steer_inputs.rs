@@ -27,8 +27,7 @@ use crate::session::Dword;
 /// `fild dword [rc + from]; fmul dword [rc + by]; fistp dword [rc + to]` over the race
 /// block at `rc`.
 fn scale(rc: usize, from: usize, by: usize, to: usize) {
-    let rc = rc as *mut u8;
-    unsafe { fistp(rc, to, fild(rc, from) * fld(rc, by)) }
+    fistp(rc, to, fild(rc, from) * fld(rc, by))
 }
 
 fn base() -> usize {

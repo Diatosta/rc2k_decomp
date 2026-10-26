@@ -32,22 +32,20 @@ pub unsafe fn light_dot() -> i32 {
 
 /// `fld; fmul; fld; fmul; fld; fmul; faddp; faddp; fmul; fistp` over the seven floats at `v`.
 unsafe fn dot(v: *const u8, o: *mut u8) {
-    unsafe {
-        let t0 = fld(v, 0x0);
-        let t1 = fld(v, 0xC);
-        let t2 = t0 * t1;
-        let t3 = fld(v, 0x4);
-        let t4 = fld(v, 0x10);
-        let t5 = t3 * t4;
-        let t6 = fld(v, 0x8);
-        let t7 = fld(v, 0x14);
-        let t8 = t6 * t7;
-        let t9 = t5 + t8;
-        let t10 = t2 + t9;
-        let t11 = fld(v, 0x18);
-        let t12 = t10 * t11;
-        fistp(o, 0x0, t12);
-    }
+    let t0 = fld(v, 0x0);
+    let t1 = fld(v, 0xC);
+    let t2 = t0 * t1;
+    let t3 = fld(v, 0x4);
+    let t4 = fld(v, 0x10);
+    let t5 = t3 * t4;
+    let t6 = fld(v, 0x8);
+    let t7 = fld(v, 0x14);
+    let t8 = t6 * t7;
+    let t9 = t5 + t8;
+    let t10 = t2 + t9;
+    let t11 = fld(v, 0x18);
+    let t12 = t10 * t11;
+    fistp(o, 0x0, t12);
 }
 
 #[cfg(test)]

@@ -274,50 +274,36 @@ pub unsafe fn drive_wheels_step() -> Result<(), Refused> {
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[t + 0] = -(|[v + 0]| - [rc + 0x1C5D38])`
 fn x87_1(v: usize, rc: usize, t: usize) {
-    unsafe {
-        let v = v as *const u8;
-        let rc = rc as *const u8;
-        let t = t as *mut u8;
-        let t0 = fld(v, 0);
-        let t1 = t0.abs();
-        let t2 = fld(rc, 0x1C5D38);
-        let t3 = t1 - t2;
-        let t4 = -t3;
-        fstp(t, 0, t4);
-    }
+    let t0 = fld(v, 0);
+    let t1 = t0.abs();
+    let t2 = fld(rc, 0x1C5D38);
+    let t3 = t1 - t2;
+    let t4 = -t3;
+    fstp(t, 0, t4);
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `status [s + 0] = status`
 fn x87_2(v: usize, s: usize) {
-    unsafe {
-        let v = v as *const u8;
-        let s = s as *mut u8;
-        let t0 = fld(v, 4);
-        let t1 = t0.abs();
-        let t2 = fld(v, 0);
-        let t3 = t2.abs();
-        let t4 = compare(t3, t1);
-        fnstsw(s, 0, t4);
-    }
+    let t0 = fld(v, 4);
+    let t1 = t0.abs();
+    let t2 = fld(v, 0);
+    let t3 = t2.abs();
+    let t4 = compare(t3, t1);
+    fnstsw(s, 0, t4);
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[r + 0] = ([d + 0] - [rc + 0x31A184]) / [rc + 0x214BA8]`
 fn x87_3(d: usize, rc: usize, r: usize) {
-    unsafe {
-        let d = d as *const u8;
-        let rc = rc as *const u8;
-        let r = r as *mut u8;
-        let t0 = fld(d, 0);
-        let t1 = fld(rc, 0x31A184);
-        let t2 = t0 - t1;
-        let t3 = fld(rc, 0x214BA8);
-        let t4 = t2 / t3;
-        fstp(r, 0, t4);
-    }
+    let t0 = fld(d, 0);
+    let t1 = fld(rc, 0x31A184);
+    let t2 = t0 - t1;
+    let t3 = fld(rc, 0x214BA8);
+    let t4 = t2 / t3;
+    fstp(r, 0, t4);
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -326,60 +312,45 @@ fn x87_3(d: usize, rc: usize, r: usize) {
 /// `[f1 + 0] = ([s + 0] / [rc + 0x21388C]) * [rc + 0x1C5E40]`
 /// `[f2 + 0] = ([s + 0] / [rc + 0x21388C]) * [rc + 0x1C5E40]`
 fn x87_4(d: usize, rc: usize, s: usize, f1: usize, f2: usize) {
-    unsafe {
-        let d = d as *mut u8;
-        let rc = rc as *const u8;
-        let s = s as *const u8;
-        let f1 = f1 as *mut u8;
-        let f2 = f2 as *mut u8;
-        let t0 = fld(d, 0);
-        let t1 = fld(rc, 0x214BA8);
-        let t2 = fld(rc, 0x1C5D38);
-        let t3 = t1 - t2;
-        let t4 = fld(s, 0);
-        let t5 = t3 * t4;
-        let t6 = t0 - t5;
-        fstp(d, 0, t6);
-        let t7 = fld(s, 0);
-        let t8 = fld(rc, 0x21388C);
-        let t9 = t7 / t8;
-        let t10 = fld(rc, 0x1C5E40);
-        let t11 = t9 * t10;
-        fstp(f1, 0, t11);
-        fstp(f2, 0, t11);
-    }
+    let t0 = fld(d, 0);
+    let t1 = fld(rc, 0x214BA8);
+    let t2 = fld(rc, 0x1C5D38);
+    let t3 = t1 - t2;
+    let t4 = fld(s, 0);
+    let t5 = t3 * t4;
+    let t6 = t0 - t5;
+    fstp(d, 0, t6);
+    let t7 = fld(s, 0);
+    let t8 = fld(rc, 0x21388C);
+    let t9 = t7 / t8;
+    let t10 = fld(rc, 0x1C5E40);
+    let t11 = t9 * t10;
+    fstp(f1, 0, t11);
+    fstp(f2, 0, t11);
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[r + 0] = |(([d + 0] - [rc + 0x31A184]) / [rc + 0x214BA8])|`
 fn x87_5(d: usize, rc: usize, r: usize) {
-    unsafe {
-        let d = d as *const u8;
-        let rc = rc as *const u8;
-        let r = r as *mut u8;
-        let t0 = fld(d, 0);
-        let t1 = fld(rc, 0x31A184);
-        let t2 = t0 - t1;
-        let t3 = fld(rc, 0x214BA8);
-        let t4 = t2 / t3;
-        let t5 = t4.abs();
-        fstp(r, 0, t5);
-    }
+    let t0 = fld(d, 0);
+    let t1 = fld(rc, 0x31A184);
+    let t2 = t0 - t1;
+    let t3 = fld(rc, 0x214BA8);
+    let t4 = t2 / t3;
+    let t5 = t4.abs();
+    fstp(r, 0, t5);
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x2140B8] = ([rc + 0x2140B4] + [rc + 0x2140B4]) - [rc + 0x1C5D38]`
 fn x87_6(rc: usize) {
-    unsafe {
-        let rc = rc as *mut u8;
-        let t0 = fld(rc, 0x2140B4);
-        let t1 = t0 + t0;
-        let t2 = fld(rc, 0x1C5D38);
-        let t3 = t1 - t2;
-        fstp(rc, 0x2140B8, t3);
-    }
+    let t0 = fld(rc, 0x2140B4);
+    let t1 = t0 + t0;
+    let t2 = fld(rc, 0x1C5D38);
+    let t3 = t1 - t2;
+    fstp(rc, 0x2140B8, t3);
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -388,54 +359,51 @@ fn x87_6(rc: usize) {
 /// (a long formula: see the instructions in the tests' `asm_reference`)
 /// (a long formula: see the instructions in the tests' `asm_reference`)
 fn x87_7(rc: usize, e: usize) {
-    unsafe {
-        let rc = rc as *mut u8;
-        let t0 = fld(rc, e + 0x214298);
-        let t1 = fld(rc, 0x214774);
-        let t2 = t0 * t1;
-        let t3 = fld(rc, e + 0x21429C);
-        let t4 = fld(rc, 0x214794);
-        let t5 = t3 * t4;
-        let t6 = t2 + t5;
-        let t7 = -t6;
-        let t8 = fld(rc, 0x21388C);
-        let t9 = t7 * t8;
-        let t10 = fld(rc, 0x214170);
-        let t11 = t9 * t10;
-        let t12 = fld(rc, 0x31A3D8);
-        let t13 = t11 * t12;
-        fstp(rc, 0x214248, t13);
-        let t14 = fld(rc, e + 0x2142A0);
-        let t15 = fld(rc, 0x2147B4);
-        let t16 = t14 * t15;
-        let t17 = fld(rc, e + 0x2142A4);
-        let t18 = fld(rc, 0x2147D4);
-        let t19 = t17 * t18;
-        let t20 = t16 + t19;
-        let t21 = -t20;
-        let t22 = fld(rc, 0x21388C);
-        let t23 = t21 * t22;
-        let t24 = fld(rc, 0x214170);
-        let t25 = t23 * t24;
-        let t26 = fld(rc, 0x31A3DC);
-        let t27 = t25 * t26;
-        fstp(rc, 0x21424C, t27);
-        let t28 = fld(rc, 0x214284);
-        let t29 = fld(rc, 0x214288);
-        let t30 = t28 + t29;
-        let t31 = fld(rc, 0x21428C);
-        let t32 = t30 + t31;
-        let t33 = fld(rc, 0x214290);
-        let t34 = t32 + t33;
-        let t35 = fld(rc, 0x214774);
-        let t36 = t34 * t35;
-        let t37 = -t36;
-        let t38 = fld(rc, 0x21388C);
-        let t39 = t37 * t38;
-        let t40 = fld(rc, 0x214170);
-        let t41 = t39 * t40;
-        fstp(rc, 0x21423C, t41);
-    }
+    let t0 = fld(rc, e + 0x214298);
+    let t1 = fld(rc, 0x214774);
+    let t2 = t0 * t1;
+    let t3 = fld(rc, e + 0x21429C);
+    let t4 = fld(rc, 0x214794);
+    let t5 = t3 * t4;
+    let t6 = t2 + t5;
+    let t7 = -t6;
+    let t8 = fld(rc, 0x21388C);
+    let t9 = t7 * t8;
+    let t10 = fld(rc, 0x214170);
+    let t11 = t9 * t10;
+    let t12 = fld(rc, 0x31A3D8);
+    let t13 = t11 * t12;
+    fstp(rc, 0x214248, t13);
+    let t14 = fld(rc, e + 0x2142A0);
+    let t15 = fld(rc, 0x2147B4);
+    let t16 = t14 * t15;
+    let t17 = fld(rc, e + 0x2142A4);
+    let t18 = fld(rc, 0x2147D4);
+    let t19 = t17 * t18;
+    let t20 = t16 + t19;
+    let t21 = -t20;
+    let t22 = fld(rc, 0x21388C);
+    let t23 = t21 * t22;
+    let t24 = fld(rc, 0x214170);
+    let t25 = t23 * t24;
+    let t26 = fld(rc, 0x31A3DC);
+    let t27 = t25 * t26;
+    fstp(rc, 0x21424C, t27);
+    let t28 = fld(rc, 0x214284);
+    let t29 = fld(rc, 0x214288);
+    let t30 = t28 + t29;
+    let t31 = fld(rc, 0x21428C);
+    let t32 = t30 + t31;
+    let t33 = fld(rc, 0x214290);
+    let t34 = t32 + t33;
+    let t35 = fld(rc, 0x214774);
+    let t36 = t34 * t35;
+    let t37 = -t36;
+    let t38 = fld(rc, 0x21388C);
+    let t39 = t37 * t38;
+    let t40 = fld(rc, 0x214170);
+    let t41 = t39 * t40;
+    fstp(rc, 0x21423C, t41);
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -443,24 +411,21 @@ fn x87_7(rc: usize, e: usize) {
 /// `[rc + 0x214240] = ((int [rc + 0x22400C] / [rc + 0x1C5E2C]) * |([rc + 0x31A17C] * [rc + 0x214268])|) * [rc + 0x214170]`
 /// `[rc + 0x22400C] = [rc + 0x21423C] * [rc + 0x213EC4]`
 fn x87_8(rc: usize) {
-    unsafe {
-        let rc = rc as *mut u8;
-        let t0 = fild(rc, 0x22400C);
-        let t1 = fld(rc, 0x1C5E2C);
-        let t2 = t0 / t1;
-        let t3 = fld(rc, 0x31A17C);
-        let t4 = fld(rc, 0x214268);
-        let t5 = t3 * t4;
-        let t6 = t5.abs();
-        let t7 = t2 * t6;
-        let t8 = fld(rc, 0x214170);
-        let t9 = t7 * t8;
-        fstp(rc, 0x214240, t9);
-        let t10 = fld(rc, 0x21423C);
-        let t11 = fld(rc, 0x213EC4);
-        let t12 = t10 * t11;
-        fstp(rc, 0x22400C, t12);
-    }
+    let t0 = fild(rc, 0x22400C);
+    let t1 = fld(rc, 0x1C5E2C);
+    let t2 = t0 / t1;
+    let t3 = fld(rc, 0x31A17C);
+    let t4 = fld(rc, 0x214268);
+    let t5 = t3 * t4;
+    let t6 = t5.abs();
+    let t7 = t2 * t6;
+    let t8 = fld(rc, 0x214170);
+    let t9 = t7 * t8;
+    fstp(rc, 0x214240, t9);
+    let t10 = fld(rc, 0x21423C);
+    let t11 = fld(rc, 0x213EC4);
+    let t12 = t10 * t11;
+    fstp(rc, 0x22400C, t12);
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -468,132 +433,113 @@ fn x87_8(rc: usize) {
 /// `[rc + 0x31A190] = ((([rc + 0x214750] * [rc + 0x1C5E40]) * [rc + 0x21388C]) * [rc + 0x214BA8]) + [rc + 0x31A190]`
 /// `[rc + 0x31A194] = ((([rc + 0x214750] * [rc + 0x1C5E40]) * [rc + 0x21388C]) * [rc + 0x214BA8]) + [rc + 0x31A194]`
 fn x87_9(rc: usize) {
-    unsafe {
-        let rc = rc as *mut u8;
-        let t0 = fld(rc, 0x214750);
-        let t1 = fld(rc, 0x1C5E40);
-        let t2 = t0 * t1;
-        let t3 = fld(rc, 0x21388C);
-        let t4 = t2 * t3;
-        let t5 = fld(rc, 0x214BA8);
-        let t6 = t4 * t5;
-        let t7 = fld(rc, 0x31A190);
-        let t8 = t6 + t7;
-        fstp(rc, 0x31A190, t8);
-        let t9 = fld(rc, 0x214750);
-        let t10 = fld(rc, 0x1C5E40);
-        let t11 = t9 * t10;
-        let t12 = fld(rc, 0x21388C);
-        let t13 = t11 * t12;
-        let t14 = fld(rc, 0x214BA8);
-        let t15 = t13 * t14;
-        let t16 = fld(rc, 0x31A194);
-        let t17 = t15 + t16;
-        fstp(rc, 0x31A194, t17);
-    }
+    let t0 = fld(rc, 0x214750);
+    let t1 = fld(rc, 0x1C5E40);
+    let t2 = t0 * t1;
+    let t3 = fld(rc, 0x21388C);
+    let t4 = t2 * t3;
+    let t5 = fld(rc, 0x214BA8);
+    let t6 = t4 * t5;
+    let t7 = fld(rc, 0x31A190);
+    let t8 = t6 + t7;
+    fstp(rc, 0x31A190, t8);
+    let t9 = fld(rc, 0x214750);
+    let t10 = fld(rc, 0x1C5E40);
+    let t11 = t9 * t10;
+    let t12 = fld(rc, 0x21388C);
+    let t13 = t11 * t12;
+    let t14 = fld(rc, 0x214BA8);
+    let t15 = t13 * t14;
+    let t16 = fld(rc, 0x31A194);
+    let t17 = t15 + t16;
+    fstp(rc, 0x31A194, t17);
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x31A190] = (([rc + 0x214750] * [rc + 0x21388C]) * [rc + 0x214BA8]) + [rc + 0x31A190]`
 fn x87_10(rc: usize) {
-    unsafe {
-        let rc = rc as *mut u8;
-        let t0 = fld(rc, 0x214750);
-        let t1 = fld(rc, 0x21388C);
-        let t2 = t0 * t1;
-        let t3 = fld(rc, 0x214BA8);
-        let t4 = t2 * t3;
-        let t5 = fld(rc, 0x31A190);
-        let t6 = t4 + t5;
-        fstp(rc, 0x31A190, t6);
-    }
+    let t0 = fld(rc, 0x214750);
+    let t1 = fld(rc, 0x21388C);
+    let t2 = t0 * t1;
+    let t3 = fld(rc, 0x214BA8);
+    let t4 = t2 * t3;
+    let t5 = fld(rc, 0x31A190);
+    let t6 = t4 + t5;
+    fstp(rc, 0x31A190, t6);
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// (a long formula: see the instructions in the tests' `asm_reference`)
 fn x87_11(rc: usize) {
-    unsafe {
-        let rc = rc as *mut u8;
-        let t0 = X(1.0);
-        let t1 = fld(rc, 0x214BF0);
-        let t2 = t0 - t1;
-        let t3 = fld(rc, 0x214BB0);
-        let t4 = t2 * t3;
-        let t5 = fild(rc, 0x31A614);
-        let t6 = t4 * t5;
-        let t7 = fld(rc, 0x1C5E2C);
-        let t8 = t6 / t7;
-        let t9 = fld(rc, 0x21388C);
-        let t10 = t8 * t9;
-        let t11 = fld(rc, 0x31A3D0);
-        let t12 = t10 * t11;
-        let t13 = fld(rc, 0x214BA8);
-        let t14 = t12 * t13;
-        fstp(rc, 0x21422C, t14);
-    }
+    let t0 = X(1.0);
+    let t1 = fld(rc, 0x214BF0);
+    let t2 = t0 - t1;
+    let t3 = fld(rc, 0x214BB0);
+    let t4 = t2 * t3;
+    let t5 = fild(rc, 0x31A614);
+    let t6 = t4 * t5;
+    let t7 = fld(rc, 0x1C5E2C);
+    let t8 = t6 / t7;
+    let t9 = fld(rc, 0x21388C);
+    let t10 = t8 * t9;
+    let t11 = fld(rc, 0x31A3D0);
+    let t12 = t10 * t11;
+    let t13 = fld(rc, 0x214BA8);
+    let t14 = t12 * t13;
+    fstp(rc, 0x21422C, t14);
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// (a long formula: see the instructions in the tests' `asm_reference`)
 fn x87_12(rc: usize) {
-    unsafe {
-        let rc = rc as *mut u8;
-        let t0 = fld(rc, 0x214BF0);
-        let t1 = fld(rc, 0x214BB0);
-        let t2 = t0 * t1;
-        let t3 = fild(rc, 0x31A614);
-        let t4 = t2 * t3;
-        let t5 = fld(rc, 0x1C5E2C);
-        let t6 = t4 / t5;
-        let t7 = fld(rc, 0x21388C);
-        let t8 = t6 * t7;
-        let t9 = fld(rc, 0x31A3D4);
-        let t10 = t8 * t9;
-        let t11 = fld(rc, 0x214BA8);
-        let t12 = t10 * t11;
-        fstp(rc, 0x21422C, t12);
-    }
+    let t0 = fld(rc, 0x214BF0);
+    let t1 = fld(rc, 0x214BB0);
+    let t2 = t0 * t1;
+    let t3 = fild(rc, 0x31A614);
+    let t4 = t2 * t3;
+    let t5 = fld(rc, 0x1C5E2C);
+    let t6 = t4 / t5;
+    let t7 = fld(rc, 0x21388C);
+    let t8 = t6 * t7;
+    let t9 = fld(rc, 0x31A3D4);
+    let t10 = t8 * t9;
+    let t11 = fld(rc, 0x214BA8);
+    let t12 = t10 * t11;
+    fstp(rc, 0x21422C, t12);
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x21422C] = (((([rc + 0x214BAC] * int [rc + 0x31A618]) / [rc + 0x1C5E2C]) * [rc + 0x21388C]) * [rc + 0x214BA8]) * [rc + 0x214170]`
 fn x87_13(rc: usize) {
-    unsafe {
-        let rc = rc as *mut u8;
-        let t0 = fld(rc, 0x214BAC);
-        let t1 = fild(rc, 0x31A618);
-        let t2 = t0 * t1;
-        let t3 = fld(rc, 0x1C5E2C);
-        let t4 = t2 / t3;
-        let t5 = fld(rc, 0x21388C);
-        let t6 = t4 * t5;
-        let t7 = fld(rc, 0x214BA8);
-        let t8 = t6 * t7;
-        let t9 = fld(rc, 0x214170);
-        let t10 = t8 * t9;
-        fstp(rc, 0x21422C, t10);
-    }
+    let t0 = fld(rc, 0x214BAC);
+    let t1 = fild(rc, 0x31A618);
+    let t2 = t0 * t1;
+    let t3 = fld(rc, 0x1C5E2C);
+    let t4 = t2 / t3;
+    let t5 = fld(rc, 0x21388C);
+    let t6 = t4 * t5;
+    let t7 = fld(rc, 0x214BA8);
+    let t8 = t6 * t7;
+    let t9 = fld(rc, 0x214170);
+    let t10 = t8 * t9;
+    fstp(rc, 0x21422C, t10);
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `status [s + 0] = status`
 fn x87_14(v: usize, s: usize) {
-    unsafe {
-        let v = v as *const u8;
-        let s = s as *mut u8;
-        let t0 = fld(v, 0);
-        let t1 = fld(v, 4);
-        let t2 = t0 + t1;
-        let t3 = t2.abs();
-        let t4 = fld(v, 8);
-        let t5 = compare(t3, t4);
-        fnstsw(s, 0, t5);
-    }
+    let t0 = fld(v, 0);
+    let t1 = fld(v, 4);
+    let t2 = t0 + t1;
+    let t3 = t2.abs();
+    let t4 = fld(v, 8);
+    let t5 = compare(t3, t4);
+    fnstsw(s, 0, t5);
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -601,19 +547,16 @@ fn x87_14(v: usize, s: usize) {
 /// `[rc + 0x214238] = |([rc + 0x31A194] - [rc + 0x31A184])|`
 /// `[rc + 0x214234] = |([rc + 0x31A190] - [rc + 0x31A184])|`
 fn x87_15(rc: usize) {
-    unsafe {
-        let rc = rc as *mut u8;
-        let t0 = fld(rc, 0x31A194);
-        let t1 = fld(rc, 0x31A184);
-        let t2 = t0 - t1;
-        let t3 = t2.abs();
-        fstp(rc, 0x214238, t3);
-        let t4 = fld(rc, 0x31A190);
-        let t5 = fld(rc, 0x31A184);
-        let t6 = t4 - t5;
-        let t7 = t6.abs();
-        fstp(rc, 0x214234, t7);
-    }
+    let t0 = fld(rc, 0x31A194);
+    let t1 = fld(rc, 0x31A184);
+    let t2 = t0 - t1;
+    let t3 = t2.abs();
+    fstp(rc, 0x214238, t3);
+    let t4 = fld(rc, 0x31A190);
+    let t5 = fld(rc, 0x31A184);
+    let t6 = t4 - t5;
+    let t7 = t6.abs();
+    fstp(rc, 0x214234, t7);
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -622,21 +565,18 @@ fn x87_15(rc: usize) {
 /// `[rc + 0x214248] = [rc + 0x214248] * [rc + 0x2140B4]`
 /// `[rc + 0x21424C] = [rc + 0x21424C] * [rc + 0x2140B4]`
 fn x87_16(rc: usize) {
-    unsafe {
-        let rc = rc as *mut u8;
-        let t0 = fld(rc, 0x214244);
-        let t1 = fld(rc, 0x2140B0);
-        let t2 = t0 * t1;
-        fstp(rc, 0x214244, t2);
-        let t3 = fld(rc, 0x214248);
-        let t4 = fld(rc, 0x2140B4);
-        let t5 = t3 * t4;
-        fstp(rc, 0x214248, t5);
-        let t6 = fld(rc, 0x21424C);
-        let t7 = fld(rc, 0x2140B4);
-        let t8 = t6 * t7;
-        fstp(rc, 0x21424C, t8);
-    }
+    let t0 = fld(rc, 0x214244);
+    let t1 = fld(rc, 0x2140B0);
+    let t2 = t0 * t1;
+    fstp(rc, 0x214244, t2);
+    let t3 = fld(rc, 0x214248);
+    let t4 = fld(rc, 0x2140B4);
+    let t5 = t3 * t4;
+    fstp(rc, 0x214248, t5);
+    let t6 = fld(rc, 0x21424C);
+    let t7 = fld(rc, 0x2140B4);
+    let t8 = t6 * t7;
+    fstp(rc, 0x21424C, t8);
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -647,21 +587,18 @@ fn x87_16(rc: usize) {
 /// `[rc + 0x214910] = (([rc + 0x22400C] - [rc + 0x31A17C]) / [rc + 0x21388C]) * [rc + 0x1C5DA4]`
 /// `[rc + 0x214930] = (([rc + 0x22400C] - [rc + 0x31A17C]) / [rc + 0x21388C]) * [rc + 0x1C5DA4]`
 fn x87_17(rc: usize) {
-    unsafe {
-        let rc = rc as *mut u8;
-        let t0 = fld(rc, 0x22400C);
-        let t1 = fld(rc, 0x31A17C);
-        let t2 = t0 - t1;
-        fstp(rc, 0x214250, t2);
-        let t3 = fld(rc, 0x21388C);
-        let t4 = t2 / t3;
-        let t5 = fld(rc, 0x1C5DA4);
-        let t6 = t4 * t5;
-        fstp(rc, 0x2148D0, t6);
-        fstp(rc, 0x2148F0, t6);
-        fstp(rc, 0x214910, t6);
-        fstp(rc, 0x214930, t6);
-    }
+    let t0 = fld(rc, 0x22400C);
+    let t1 = fld(rc, 0x31A17C);
+    let t2 = t0 - t1;
+    fstp(rc, 0x214250, t2);
+    let t3 = fld(rc, 0x21388C);
+    let t4 = t2 / t3;
+    let t5 = fld(rc, 0x1C5DA4);
+    let t6 = t4 * t5;
+    fstp(rc, 0x2148D0, t6);
+    fstp(rc, 0x2148F0, t6);
+    fstp(rc, 0x214910, t6);
+    fstp(rc, 0x214930, t6);
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -669,38 +606,32 @@ fn x87_17(rc: usize) {
 /// `[rc + 0x214254] = ((|[rc + 0x214250]| - [rc + 0x214264]) * [rc + 0x213ED0]) + [rc + 0x214264]`
 /// `[rc + 0x2141D4] = |([rc + 0x214254] / [rc + 0x214250])| * [rc + 0x214BFC]`
 fn x87_18(rc: usize) {
-    unsafe {
-        let rc = rc as *mut u8;
-        let t0 = fld(rc, 0x214250);
-        let t1 = t0.abs();
-        let t2 = fld(rc, 0x214264);
-        let t3 = t1 - t2;
-        let t4 = fld(rc, 0x213ED0);
-        let t5 = t3 * t4;
-        let t6 = fld(rc, 0x214264);
-        let t7 = t5 + t6;
-        fstp(rc, 0x214254, t7);
-        let t8 = fld(rc, 0x214254);
-        let t9 = fld(rc, 0x214250);
-        let t10 = t8 / t9;
-        let t11 = t10.abs();
-        let t12 = fld(rc, 0x214BFC);
-        let t13 = t11 * t12;
-        fstp(rc, 0x2141D4, t13);
-    }
+    let t0 = fld(rc, 0x214250);
+    let t1 = t0.abs();
+    let t2 = fld(rc, 0x214264);
+    let t3 = t1 - t2;
+    let t4 = fld(rc, 0x213ED0);
+    let t5 = t3 * t4;
+    let t6 = fld(rc, 0x214264);
+    let t7 = t5 + t6;
+    fstp(rc, 0x214254, t7);
+    let t8 = fld(rc, 0x214254);
+    let t9 = fld(rc, 0x214250);
+    let t10 = t8 / t9;
+    let t11 = t10.abs();
+    let t12 = fld(rc, 0x214BFC);
+    let t13 = t11 * t12;
+    fstp(rc, 0x2141D4, t13);
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x2141D8] = [rc + 0x214BFC] * [rc + 0x213ED4]`
 fn x87_19(rc: usize) {
-    unsafe {
-        let rc = rc as *mut u8;
-        let t0 = fld(rc, 0x214BFC);
-        let t1 = fld(rc, 0x213ED4);
-        let t2 = t0 * t1;
-        fstp(rc, 0x2141D8, t2);
-    }
+    let t0 = fld(rc, 0x214BFC);
+    let t1 = fld(rc, 0x213ED4);
+    let t2 = t0 * t1;
+    fstp(rc, 0x2141D8, t2);
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -708,20 +639,16 @@ fn x87_19(rc: usize) {
 /// `[rc + 0x22400C] = sqrt((([rc + 0x31A17C] * [rc + 0x31A17C]) + ([rc + 0x31A184] * [rc + 0x31A184])))`
 /// `status [s + 0] = status`
 fn x87_20(rc: usize, s: usize) {
-    unsafe {
-        let rc = rc as *mut u8;
-        let s = s as *mut u8;
-        let t0 = fld(rc, 0x31A17C);
-        let t1 = t0 * t0;
-        let t2 = fld(rc, 0x31A184);
-        let t3 = t2 * t2;
-        let t4 = t1 + t3;
-        let t5 = t4.sqrt();
-        fstp(rc, 0x22400C, t5);
-        let t6 = fld(rc, 0x214764);
-        let t7 = compare(t5, t6);
-        fnstsw(s, 0, t7);
-    }
+    let t0 = fld(rc, 0x31A17C);
+    let t1 = t0 * t0;
+    let t2 = fld(rc, 0x31A184);
+    let t3 = t2 * t2;
+    let t4 = t1 + t3;
+    let t5 = t4.sqrt();
+    fstp(rc, 0x22400C, t5);
+    let t6 = fld(rc, 0x214764);
+    let t7 = compare(t5, t6);
+    fnstsw(s, 0, t7);
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -729,23 +656,20 @@ fn x87_20(rc: usize, s: usize) {
 /// `[rc + 0x2148B0] = -(([rc + 0x214760] / [rc + 0x22400C]) * [rc + 0x31A17C])`
 /// `[rc + 0x2148B8] = -(([rc + 0x214760] / [rc + 0x22400C]) * [rc + 0x31A184])`
 fn x87_21(rc: usize) {
-    unsafe {
-        let rc = rc as *mut u8;
-        let t0 = fld(rc, 0x214760);
-        let t1 = fld(rc, 0x22400C);
-        let t2 = t0 / t1;
-        let t3 = fld(rc, 0x31A17C);
-        let t4 = t2 * t3;
-        let t5 = -t4;
-        fstp(rc, 0x2148B0, t5);
-        let t6 = fld(rc, 0x214760);
-        let t7 = fld(rc, 0x22400C);
-        let t8 = t6 / t7;
-        let t9 = fld(rc, 0x31A184);
-        let t10 = t8 * t9;
-        let t11 = -t10;
-        fstp(rc, 0x2148B8, t11);
-    }
+    let t0 = fld(rc, 0x214760);
+    let t1 = fld(rc, 0x22400C);
+    let t2 = t0 / t1;
+    let t3 = fld(rc, 0x31A17C);
+    let t4 = t2 * t3;
+    let t5 = -t4;
+    fstp(rc, 0x2148B0, t5);
+    let t6 = fld(rc, 0x214760);
+    let t7 = fld(rc, 0x22400C);
+    let t8 = t6 / t7;
+    let t9 = fld(rc, 0x31A184);
+    let t10 = t8 * t9;
+    let t11 = -t10;
+    fstp(rc, 0x2148B8, t11);
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -755,33 +679,30 @@ fn x87_21(rc: usize) {
 /// `[rc + 0x214910] = ([rc + 0x2149F0] * [rc + 0x1C5E40]) + [rc + 0x214910]`
 /// `[rc + 0x214930] = ([rc + 0x2149F0] * [rc + 0x1C5E40]) + [rc + 0x214930]`
 fn x87_22(rc: usize) {
-    unsafe {
-        let rc = rc as *mut u8;
-        let t0 = fld(rc, 0x2149D0);
-        let t1 = fld(rc, 0x1C5E40);
-        let t2 = t0 * t1;
-        let t3 = fld(rc, 0x2148D0);
-        let t4 = t2 + t3;
-        fstp(rc, 0x2148D0, t4);
-        let t5 = fld(rc, 0x2149D0);
-        let t6 = fld(rc, 0x1C5E40);
-        let t7 = t5 * t6;
-        let t8 = fld(rc, 0x2148F0);
-        let t9 = t7 + t8;
-        fstp(rc, 0x2148F0, t9);
-        let t10 = fld(rc, 0x2149F0);
-        let t11 = fld(rc, 0x1C5E40);
-        let t12 = t10 * t11;
-        let t13 = fld(rc, 0x214910);
-        let t14 = t12 + t13;
-        fstp(rc, 0x214910, t14);
-        let t15 = fld(rc, 0x2149F0);
-        let t16 = fld(rc, 0x1C5E40);
-        let t17 = t15 * t16;
-        let t18 = fld(rc, 0x214930);
-        let t19 = t17 + t18;
-        fstp(rc, 0x214930, t19);
-    }
+    let t0 = fld(rc, 0x2149D0);
+    let t1 = fld(rc, 0x1C5E40);
+    let t2 = t0 * t1;
+    let t3 = fld(rc, 0x2148D0);
+    let t4 = t2 + t3;
+    fstp(rc, 0x2148D0, t4);
+    let t5 = fld(rc, 0x2149D0);
+    let t6 = fld(rc, 0x1C5E40);
+    let t7 = t5 * t6;
+    let t8 = fld(rc, 0x2148F0);
+    let t9 = t7 + t8;
+    fstp(rc, 0x2148F0, t9);
+    let t10 = fld(rc, 0x2149F0);
+    let t11 = fld(rc, 0x1C5E40);
+    let t12 = t10 * t11;
+    let t13 = fld(rc, 0x214910);
+    let t14 = t12 + t13;
+    fstp(rc, 0x214910, t14);
+    let t15 = fld(rc, 0x2149F0);
+    let t16 = fld(rc, 0x1C5E40);
+    let t17 = t15 * t16;
+    let t18 = fld(rc, 0x214930);
+    let t19 = t17 + t18;
+    fstp(rc, 0x214930, t19);
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -789,31 +710,25 @@ fn x87_22(rc: usize) {
 /// `[rc + 0x31A158] = [rc + 0x31A190] - [rc + 0x31A184]`
 /// `[rc + 0x22401C] = |([rc + 0x31A190] - [rc + 0x31A184])| - [rc + 0x213EDC]`
 fn x87_23(rc: usize) {
-    unsafe {
-        let rc = rc as *mut u8;
-        let t0 = fld(rc, 0x31A190);
-        let t1 = fld(rc, 0x31A184);
-        let t2 = t0 - t1;
-        fstp(rc, 0x31A158, t2);
-        let t3 = t2.abs();
-        let t4 = fld(rc, 0x213EDC);
-        let t5 = t3 - t4;
-        fstp(rc, 0x22401C, t5);
-    }
+    let t0 = fld(rc, 0x31A190);
+    let t1 = fld(rc, 0x31A184);
+    let t2 = t0 - t1;
+    fstp(rc, 0x31A158, t2);
+    let t3 = t2.abs();
+    let t4 = fld(rc, 0x213EDC);
+    let t5 = t3 - t4;
+    fstp(rc, 0x22401C, t5);
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x224020] = |[rc + 0x31A17C]| - [rc + 0x213ED8]`
 fn x87_24(rc: usize) {
-    unsafe {
-        let rc = rc as *mut u8;
-        let t0 = fld(rc, 0x31A17C);
-        let t1 = t0.abs();
-        let t2 = fld(rc, 0x213ED8);
-        let t3 = t1 - t2;
-        fstp(rc, 0x224020, t3);
-    }
+    let t0 = fld(rc, 0x31A17C);
+    let t1 = t0.abs();
+    let t2 = fld(rc, 0x213ED8);
+    let t3 = t1 - t2;
+    fstp(rc, 0x224020, t3);
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -825,43 +740,40 @@ fn x87_24(rc: usize) {
 /// `[rc + 0x22401C] = |([rc + 0x31A194] - [rc + 0x31A184])|`
 /// `[rc + 0x31AF1C] = sqrt((([rc + 0x22401C] * [rc + 0x22401C]) + ([rc + 0x224020] * [rc + 0x224020])))`
 fn x87_25(rc: usize) {
-    unsafe {
-        let rc = rc as *mut u8;
-        let t0 = fld(rc, 0x22401C);
-        let t1 = t0 * t0;
-        let t2 = fld(rc, 0x224020);
-        let t3 = t2 * t2;
-        let t4 = t1 + t3;
-        let t5 = t4.sqrt();
-        fstp(rc, 0x31A260, t5);
-        let t6 = fld(rc, 0x31A17C);
-        let t7 = t6.abs();
-        fstp(rc, 0x224020, t7);
-        let t8 = fld(rc, 0x31A190);
-        let t9 = fld(rc, 0x31A184);
-        let t10 = t8 - t9;
-        let t11 = t10.abs();
-        fstp(rc, 0x22401C, t11);
-        let t12 = fld(rc, 0x22401C);
-        let t13 = t12 * t12;
-        let t14 = fld(rc, 0x224020);
-        let t15 = t14 * t14;
-        let t16 = t13 + t15;
-        let t17 = t16.sqrt();
-        fstp(rc, 0x31AF18, t17);
-        let t18 = fld(rc, 0x31A194);
-        let t19 = fld(rc, 0x31A184);
-        let t20 = t18 - t19;
-        let t21 = t20.abs();
-        fstp(rc, 0x22401C, t21);
-        let t22 = fld(rc, 0x22401C);
-        let t23 = t22 * t22;
-        let t24 = fld(rc, 0x224020);
-        let t25 = t24 * t24;
-        let t26 = t23 + t25;
-        let t27 = t26.sqrt();
-        fstp(rc, 0x31AF1C, t27);
-    }
+    let t0 = fld(rc, 0x22401C);
+    let t1 = t0 * t0;
+    let t2 = fld(rc, 0x224020);
+    let t3 = t2 * t2;
+    let t4 = t1 + t3;
+    let t5 = t4.sqrt();
+    fstp(rc, 0x31A260, t5);
+    let t6 = fld(rc, 0x31A17C);
+    let t7 = t6.abs();
+    fstp(rc, 0x224020, t7);
+    let t8 = fld(rc, 0x31A190);
+    let t9 = fld(rc, 0x31A184);
+    let t10 = t8 - t9;
+    let t11 = t10.abs();
+    fstp(rc, 0x22401C, t11);
+    let t12 = fld(rc, 0x22401C);
+    let t13 = t12 * t12;
+    let t14 = fld(rc, 0x224020);
+    let t15 = t14 * t14;
+    let t16 = t13 + t15;
+    let t17 = t16.sqrt();
+    fstp(rc, 0x31AF18, t17);
+    let t18 = fld(rc, 0x31A194);
+    let t19 = fld(rc, 0x31A184);
+    let t20 = t18 - t19;
+    let t21 = t20.abs();
+    fstp(rc, 0x22401C, t21);
+    let t22 = fld(rc, 0x22401C);
+    let t23 = t22 * t22;
+    let t24 = fld(rc, 0x224020);
+    let t25 = t24 * t24;
+    let t26 = t23 + t25;
+    let t27 = t26.sqrt();
+    fstp(rc, 0x31AF1C, t27);
 }
 
 #[cfg(test)]

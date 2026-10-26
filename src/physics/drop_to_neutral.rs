@@ -14,11 +14,11 @@ use crate::physics::tables_store::PHYSICS;
 use rc2k_core::physics::gearing::drops_to_neutral;
 
 unsafe fn at(a: u32) -> u32 {
-    unsafe { (a as *const u32).read_unaligned() }
+    crate::pointers::read_or_end::<u32>(a, "physics::drop_to_neutral's operand")
 }
 
 unsafe fn put(a: u32, v: u32) {
-    unsafe { (a as *mut u32).write_unaligned(v) }
+    crate::pointers::write_or_end::<u32>(a, v, "physics::drop_to_neutral's operand")
 }
 
 /// The Rust core on the variables at `v` (in `VARIABLES`' order; a compare of floats

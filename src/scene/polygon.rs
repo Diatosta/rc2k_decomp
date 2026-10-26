@@ -41,11 +41,11 @@ pub fn materials_addr() -> usize {
 }
 
 pub unsafe fn dword(at: usize) -> u32 {
-    unsafe { (at as *const u32).read_unaligned() }
+    crate::pointers::read_or_end::<u32>((at) as u32, "scene::polygon's operand")
 }
 
 pub unsafe fn put(at: usize, value: u32) {
-    unsafe { (at as *mut u32).write_unaligned(value) }
+    crate::pointers::write_or_end::<u32>((at) as u32, value, "scene::polygon's operand")
 }
 
 /// The polygon's entries in the list's order, as addresses. Refuses what the originals

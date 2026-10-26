@@ -66,15 +66,10 @@ pub unsafe fn corner_hits_car(block: u32) -> Result<(), Refused> {
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[o + 0] = ext [e + 0] / [rc + 0x1C5D98]`
 fn x87_1(e: usize, rc: usize, o: usize) {
-    unsafe {
-        let e = e as *const u8;
-        let rc = rc as *const u8;
-        let o = o as *mut u8;
-        let t0 = fld80(e, 0);
-        let t1 = fld(rc, 0x1C5D98);
-        let t2 = t0 / t1;
-        fstp(o, 0, t2);
-    }
+    let t0 = fld80(e, 0);
+    let t1 = fld(rc, 0x1C5D98);
+    let t2 = t0 / t1;
+    fstp(o, 0, t2);
 }
 
 #[cfg(test)]

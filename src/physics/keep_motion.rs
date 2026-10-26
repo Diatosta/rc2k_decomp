@@ -11,7 +11,11 @@ use crate::physics::tables_store::PHYSICS;
 
 unsafe fn core(v: &[u32]) {
     for k in 0..3 {
-        unsafe { (v[k + 3] as *mut u32).write_unaligned((v[k] as *const u32).read_unaligned()) };
+        crate::pointers::write_or_end::<u32>(
+            v[k + 3],
+            crate::pointers::read_or_end::<u32>(v[k], "physics::keep_motion's operand"),
+            "physics::keep_motion's operand",
+        );
     }
 }
 

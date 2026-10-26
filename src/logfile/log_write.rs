@@ -31,6 +31,15 @@ pub unsafe fn log_write(text: *const u8, newline: bool, level: u8) {
     log_text(text.to_bytes(), newline, level);
 }
 
+/// The NUL-terminated text at `at` (the game's memory, checked: `files::cstring`) logged
+/// as `log_write`; a text outside its region ends the program (`fatal::raise::end`).
+pub fn log_at(at: u32, newline: bool, level: u8) {
+    match crate::files::cstring(crate::pointers::GamePtr::new(at), "a text to log") {
+        Ok(text) => log_text(&text, newline, level),
+        Err(e) => crate::fatal::raise::end("logfile::log_write", e),
+    }
+}
+
 /// `logfile::log_newline_l1` (0x4013DE): an empty line at level 1 (the empty text is the
 /// end of the log's path literal); every register kept (`pusha` .. `popa`).
 pub fn log_newline_l1() {

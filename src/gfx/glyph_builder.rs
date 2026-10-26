@@ -9,23 +9,38 @@ pub use rc2k_core::gfx::glyphs::{
     backdrop_of, direct_pixel_size, table_of,
 };
 
-/// A sheet's pixels where the row table leads, as the original reads them.
-pub struct RowTable;
+/// A sheet's pixels where the row table leads, as the original reads them (checked, through
+/// a window on the sheet's block).
+#[derive(Default)]
+pub struct RowTable(crate::pointers::Window);
+
+impl RowTable {
+    pub fn new() -> Self {
+        Self::default()
+    }
+}
 
 impl SheetPixels for RowTable {
     fn byte(&self, x: u32, y: u32) -> u8 {
-        unsafe { (row_address(y).wrapping_add(x) as *const u8).read() }
+        self.0
+            .read_or_end(row_address(y).wrapping_add(x), "a sheet's pixel")
     }
     fn set_byte(&mut self, x: u32, y: u32, value: u8) {
-        unsafe { (row_address(y).wrapping_add(x) as *mut u8).write(value) }
+        self.0
+            .write_or_end(row_address(y).wrapping_add(x), value, "a sheet's pixel")
     }
     fn dword(&self, x: u32, y: u32) -> u32 {
-        unsafe { (row_address(y).wrapping_add(x.wrapping_mul(4)) as *const u32).read_unaligned() }
+        self.0.read_or_end(
+            row_address(y).wrapping_add(x.wrapping_mul(4)),
+            "a sheet's pixel",
+        )
     }
     fn set_dword(&mut self, x: u32, y: u32, value: u32) {
-        unsafe {
-            (row_address(y).wrapping_add(x.wrapping_mul(4)) as *mut u32).write_unaligned(value)
-        }
+        self.0.write_or_end(
+            row_address(y).wrapping_add(x.wrapping_mul(4)),
+            value,
+            "a sheet's pixel",
+        )
     }
 }
 

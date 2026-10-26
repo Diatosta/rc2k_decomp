@@ -10,7 +10,6 @@
 //! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
 //! are the original's.
 
-use crate::bridge::Raw;
 use crate::errors::Refused;
 use crate::install::installer::wb;
 use rc2k_core::install::script;
@@ -20,7 +19,7 @@ use rc2k_core::install::script;
 pub fn script_name(cursor: u32, to: u32) -> Result<(u32, u32), Refused> {
     // Converted: `rc2k_core::install::script::script_name` (read whole, then written; a
     // name with no end is refused before anything is written).
-    let words = unsafe { Raw::new(cursor as *const u8) };
+    let words = crate::pointers::GamePtr::new(cursor).bytes("the installer's script")?;
     let (name, _) = script::script_name(&words)?;
     let mut at = to;
     for &c in &name {

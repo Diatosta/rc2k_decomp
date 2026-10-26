@@ -75,42 +75,34 @@ pub fn draw_needle() -> Result<(), Refused> {
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `int [o + 0] = (((([a + 0] - [a + 4]) / [a + 8]) + [a + 0xC]) * [a + 0x10]) * [a + 0x14]`
 fn x87_1(a: usize, o: usize) {
-    unsafe {
-        let a = a as *const u8;
-        let o = o as *mut u8;
-        let t0 = fld(a, 0);
-        let t1 = fld(a, 4);
-        let t2 = t0 - t1;
-        let t3 = fld(a, 8);
-        let t4 = t2 / t3;
-        let t5 = fld(a, 0xC);
-        let t6 = t4 + t5;
-        let t7 = fld(a, 0x10);
-        let t8 = t6 * t7;
-        let t9 = fld(a, 0x14);
-        let t10 = t8 * t9;
-        fistp(o, 0, t10);
-    }
+    let t0 = fld(a, 0);
+    let t1 = fld(a, 4);
+    let t2 = t0 - t1;
+    let t3 = fld(a, 8);
+    let t4 = t2 / t3;
+    let t5 = fld(a, 0xC);
+    let t6 = t4 + t5;
+    let t7 = fld(a, 0x10);
+    let t8 = t6 * t7;
+    let t9 = fld(a, 0x14);
+    let t10 = t8 * t9;
+    fistp(o, 0, t10);
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `int [o + 0] = ((([a + 0] / [a + 8]) + [a + 0xC]) * [a + 0x10]) * [a + 0x14]`
 fn x87_2(a: usize, o: usize) {
-    unsafe {
-        let a = a as *const u8;
-        let o = o as *mut u8;
-        let t0 = fld(a, 0);
-        let t1 = fld(a, 8);
-        let t2 = t0 / t1;
-        let t3 = fld(a, 0xC);
-        let t4 = t2 + t3;
-        let t5 = fld(a, 0x10);
-        let t6 = t4 * t5;
-        let t7 = fld(a, 0x14);
-        let t8 = t6 * t7;
-        fistp(o, 0, t8);
-    }
+    let t0 = fld(a, 0);
+    let t1 = fld(a, 8);
+    let t2 = t0 / t1;
+    let t3 = fld(a, 0xC);
+    let t4 = t2 + t3;
+    let t5 = fld(a, 0x10);
+    let t6 = t4 * t5;
+    let t7 = fld(a, 0x14);
+    let t8 = t6 * t7;
+    fistp(o, 0, t8);
 }
 
 #[cfg(test)]

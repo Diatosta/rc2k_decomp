@@ -29,11 +29,13 @@ pub fn home() -> usize {
 }
 
 /// The address the table holds for a row.
-pub unsafe fn row_address(row: u32) -> u32 {
-    unsafe {
-        (ROW_TABLE.as_ptr() as *const u32)
-            .add(row as usize)
-            .read_unaligned()
+pub fn row_address(row: u32) -> u32 {
+    match ROW_TABLE.get(row as usize) {
+        Some(cell) => cell.get(),
+        None => crate::fatal::raise::end(
+            "gfx::row_address",
+            BadInput("a row past the row table's 602"),
+        ),
     }
 }
 

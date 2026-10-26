@@ -104,7 +104,10 @@ fn point() -> Result<(u32, u32, u32), Refused> {
         return Err(BadInput("no course faces or points").into());
     }
     let f = (face << 6).wrapping_add(COURSE.course_faces.get());
-    let index = unsafe { ((f + 4) as *const u32).read_unaligned() };
+    let index = crate::pointers::read_or_end::<u32>(
+        (f + 4) as u32,
+        "physics::passed_split_point's operand",
+    );
     Ok((
         cp,
         index,

@@ -29,7 +29,7 @@ pub unsafe fn draw_frame_rate(canvas: &mut dyn Canvas) -> Result<(), Refused> {
         }
         let t = text();
         let bytes = fps_text(rate);
-        std::ptr::copy_nonoverlapping(bytes.as_ptr(), t, bytes.len());
+        crate::pointers::GamePtr::new(t as u32).write_bytes(&bytes, "the frame rate's text")?;
         draw_text_at(
             font_at(crate::gfx::fonts_store::FONTS.menu_fonts[3].addr()),
             t,

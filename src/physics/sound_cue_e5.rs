@@ -15,11 +15,11 @@ use crate::race::work_store::RACE_WORK;
 use rc2k_core::physics::listed_cars::{CUE_E5, cue_e5_object};
 
 unsafe fn at(a: u32) -> u32 {
-    unsafe { (a as *const u32).read_unaligned() }
+    crate::pointers::read_or_end::<u32>(a, "physics::sound_cue_e5's operand")
 }
 
 unsafe fn put(a: u32, v: u32) {
-    unsafe { (a as *mut u32).write_unaligned(v) }
+    crate::pointers::write_or_end::<u32>(a, v, "physics::sound_cue_e5's operand")
 }
 
 /// The core: the car number, the listed table, the sound objects at these places.

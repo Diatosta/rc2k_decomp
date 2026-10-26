@@ -98,65 +98,59 @@ pub unsafe fn turn_matrix3(axis: Axis, at: u32, angle: [u8; 10]) -> Result<(), R
 /// `fld tbyte; fsincos; fld1; fstp ..; fldz; fst ..` for the turn about x: the identity's
 /// row and column of x, the cosine on the diagonal, the sine and minus the sine across.
 unsafe fn turn_x(a: *const u8, m: *mut u8) {
-    unsafe {
-        let t0 = fld80(a, 0x0);
-        let t1 = t0.sin();
-        let t2 = t0.cos();
-        let t3 = ONE;
-        fstp(m, 0x0, t3);
-        let t4 = X(0.0);
-        fstp(m, 0x4, t4);
-        fstp(m, 0x8, t4);
-        fstp(m, 0xC, t4);
-        fstp(m, 0x18, t4);
-        fstp(m, 0x10, t2);
-        fstp(m, 0x20, t2);
-        fstp(m, 0x14, t1);
-        let t5 = -t1;
-        fstp(m, 0x1C, t5);
-    }
+    let t0 = fld80(a, 0x0);
+    let t1 = t0.sin();
+    let t2 = t0.cos();
+    let t3 = ONE;
+    fstp(m, 0x0, t3);
+    let t4 = X(0.0);
+    fstp(m, 0x4, t4);
+    fstp(m, 0x8, t4);
+    fstp(m, 0xC, t4);
+    fstp(m, 0x18, t4);
+    fstp(m, 0x10, t2);
+    fstp(m, 0x20, t2);
+    fstp(m, 0x14, t1);
+    let t5 = -t1;
+    fstp(m, 0x1C, t5);
 }
 
 /// The turn about y (see `turn_x`).
 unsafe fn turn_y(a: *const u8, m: *mut u8) {
-    unsafe {
-        let t0 = fld80(a, 0x0);
-        let t1 = t0.sin();
-        let t2 = t0.cos();
-        let t3 = ONE;
-        fstp(m, 0x10, t3);
-        let t4 = X(0.0);
-        fstp(m, 0x4, t4);
-        fstp(m, 0xC, t4);
-        fstp(m, 0x14, t4);
-        fstp(m, 0x1C, t4);
-        fstp(m, 0x0, t2);
-        fstp(m, 0x20, t2);
-        fstp(m, 0x8, t1);
-        let t5 = -t1;
-        fstp(m, 0x18, t5);
-    }
+    let t0 = fld80(a, 0x0);
+    let t1 = t0.sin();
+    let t2 = t0.cos();
+    let t3 = ONE;
+    fstp(m, 0x10, t3);
+    let t4 = X(0.0);
+    fstp(m, 0x4, t4);
+    fstp(m, 0xC, t4);
+    fstp(m, 0x14, t4);
+    fstp(m, 0x1C, t4);
+    fstp(m, 0x0, t2);
+    fstp(m, 0x20, t2);
+    fstp(m, 0x8, t1);
+    let t5 = -t1;
+    fstp(m, 0x18, t5);
 }
 
 /// The turn about z (see `turn_x`).
 unsafe fn turn_z(a: *const u8, m: *mut u8) {
-    unsafe {
-        let t0 = fld80(a, 0x0);
-        let t1 = t0.sin();
-        let t2 = t0.cos();
-        let t3 = ONE;
-        fstp(m, 0x20, t3);
-        let t4 = X(0.0);
-        fstp(m, 0x8, t4);
-        fstp(m, 0x14, t4);
-        fstp(m, 0x18, t4);
-        fstp(m, 0x1C, t4);
-        fstp(m, 0x0, t2);
-        fstp(m, 0x10, t2);
-        fstp(m, 0x4, t1);
-        let t5 = -t1;
-        fstp(m, 0xC, t5);
-    }
+    let t0 = fld80(a, 0x0);
+    let t1 = t0.sin();
+    let t2 = t0.cos();
+    let t3 = ONE;
+    fstp(m, 0x20, t3);
+    let t4 = X(0.0);
+    fstp(m, 0x8, t4);
+    fstp(m, 0x14, t4);
+    fstp(m, 0x18, t4);
+    fstp(m, 0x1C, t4);
+    fstp(m, 0x0, t2);
+    fstp(m, 0x10, t2);
+    fstp(m, 0x4, t1);
+    let t5 = -t1;
+    fstp(m, 0xC, t5);
 }
 
 /// A float made an 80-bit value (`fld dword; fstp tbyte`).

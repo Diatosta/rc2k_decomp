@@ -19,44 +19,42 @@ pub unsafe fn rotate_point(m: u32, p: [[u8; 10]; 3]) -> [[u8; 10]; 3] {
 
 /// `fld tbyte` x3, the three rows' sums of products plus the place, `fstp tbyte` x3.
 unsafe fn rotate(p: *const u8, m: *const u8, o: *mut u8) {
-    unsafe {
-        let t0 = fld80(p, 0x14);
-        let t1 = fld80(p, 0xA);
-        let t2 = fld80(p, 0x0);
-        let t3 = fld(m, 0x0);
-        let t4 = t3 * t2;
-        let t5 = fld(m, 0x10);
-        let t6 = t5 * t1;
-        let t7 = fld(m, 0x20);
-        let t8 = t7 * t0;
-        let t9 = t6 + t8;
-        let t10 = t4 + t9;
-        let t11 = fld(m, 0x30);
-        let t12 = t10 + t11;
-        let t13 = fld(m, 0x4);
-        let t14 = t13 * t2;
-        let t15 = fld(m, 0x14);
-        let t16 = t15 * t1;
-        let t17 = fld(m, 0x24);
-        let t18 = t17 * t0;
-        let t19 = t16 + t18;
-        let t20 = t14 + t19;
-        let t21 = fld(m, 0x34);
-        let t22 = t20 + t21;
-        let t23 = fld(m, 0x8);
-        let t24 = t2 * t23;
-        let t25 = fld(m, 0x18);
-        let t26 = t1 * t25;
-        let t27 = fld(m, 0x28);
-        let t28 = t0 * t27;
-        let t29 = t28 + t26;
-        let t30 = t24 + t29;
-        let t31 = fld(m, 0x38);
-        let t32 = t30 + t31;
-        fstp80(o, 0x0, t12);
-        fstp80(o, 0xA, t22);
-        fstp80(o, 0x14, t32);
-    }
+    let t0 = fld80(p, 0x14);
+    let t1 = fld80(p, 0xA);
+    let t2 = fld80(p, 0x0);
+    let t3 = fld(m, 0x0);
+    let t4 = t3 * t2;
+    let t5 = fld(m, 0x10);
+    let t6 = t5 * t1;
+    let t7 = fld(m, 0x20);
+    let t8 = t7 * t0;
+    let t9 = t6 + t8;
+    let t10 = t4 + t9;
+    let t11 = fld(m, 0x30);
+    let t12 = t10 + t11;
+    let t13 = fld(m, 0x4);
+    let t14 = t13 * t2;
+    let t15 = fld(m, 0x14);
+    let t16 = t15 * t1;
+    let t17 = fld(m, 0x24);
+    let t18 = t17 * t0;
+    let t19 = t16 + t18;
+    let t20 = t14 + t19;
+    let t21 = fld(m, 0x34);
+    let t22 = t20 + t21;
+    let t23 = fld(m, 0x8);
+    let t24 = t2 * t23;
+    let t25 = fld(m, 0x18);
+    let t26 = t1 * t25;
+    let t27 = fld(m, 0x28);
+    let t28 = t0 * t27;
+    let t29 = t28 + t26;
+    let t30 = t24 + t29;
+    let t31 = fld(m, 0x38);
+    let t32 = t30 + t31;
+    fstp80(o, 0x0, t12);
+    fstp80(o, 0xA, t22);
+    fstp80(o, 0x14, t32);
 }
 
 #[cfg(test)]

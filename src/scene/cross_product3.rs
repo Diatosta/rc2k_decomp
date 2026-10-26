@@ -25,11 +25,9 @@ pub unsafe fn cross_product3(a: u32, b: u32, out: u32) -> Result<(), Refused> {
 
 /// The three products-differences, each stored as made (`fld; fmul; fld; fmul; fsubp; fstp`).
 unsafe fn cross(a: *const u8, b: *const u8, o: *mut u8) {
-    unsafe {
-        fstp(o, 0, fld(a, 4) * fld(b, 8) - fld(a, 8) * fld(b, 4));
-        fstp(o, 4, fld(a, 8) * fld(b, 0) - fld(a, 0) * fld(b, 8));
-        fstp(o, 8, fld(a, 0) * fld(b, 4) - fld(a, 4) * fld(b, 0));
-    }
+    fstp(o, 0, fld(a, 4) * fld(b, 8) - fld(a, 8) * fld(b, 4));
+    fstp(o, 4, fld(a, 8) * fld(b, 0) - fld(a, 0) * fld(b, 8));
+    fstp(o, 8, fld(a, 0) * fld(b, 4) - fld(a, 4) * fld(b, 0));
 }
 
 #[cfg(test)]

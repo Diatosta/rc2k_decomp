@@ -60,7 +60,11 @@ impl rc2k_core::audio::streams::Player for GamePlayer {
 impl rc2k_core::audio::streams::Tunes for GamePlayer {
     fn name(&mut self, n: u32) {
         let d = crate::strings::format_u32::format_u32(n, 0x12);
-        unsafe { std::ptr::copy_nonoverlapping(d.as_ptr(), (self.path + 0xE) as *mut u8, d.len()) };
+        if let Err(e) =
+            crate::pointers::GamePtr::new(self.path + 0xE).write_bytes(&d, "a tune's path")
+        {
+            crate::fatal::raise::end("audio::stream_commands", e);
+        }
     }
     fn exists(&mut self) -> Result<bool, Refused> {
         Ok(crate::files::file_exists::file_exists(

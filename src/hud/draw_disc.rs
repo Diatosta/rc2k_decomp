@@ -70,17 +70,13 @@ pub fn draw_disc() -> Result<(), Refused> {
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `int [o + 0] = (-[v + 0] * [v + 4]) * [v + 8]`
 fn x87_1(v: usize, o: usize) {
-    unsafe {
-        let v = v as *const u8;
-        let o = o as *mut u8;
-        let t0 = fld(v, 0);
-        let t1 = -t0;
-        let t2 = fld(v, 4);
-        let t3 = t1 * t2;
-        let t4 = fld(v, 8);
-        let t5 = t3 * t4;
-        fistp(o, 0, t5);
-    }
+    let t0 = fld(v, 0);
+    let t1 = -t0;
+    let t2 = fld(v, 4);
+    let t3 = t1 * t2;
+    let t4 = fld(v, 8);
+    let t5 = t3 * t4;
+    fistp(o, 0, t5);
 }
 
 #[cfg(test)]

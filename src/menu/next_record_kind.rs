@@ -9,7 +9,6 @@
 //! Refuses a section or index past 63 or a section the table does not hold, before anything. Rust
 //! callers run its `entry` (`routes.rs`); the registers above are the original's, for reference.
 
-use crate::bridge::Raw;
 use crate::errors::Refused;
 use crate::menu::draw_work_store::DRAW_WORK;
 use crate::menu::event_store::EVENT_STATE;
@@ -20,7 +19,8 @@ pub unsafe fn next_record_kind() -> Result<u32, Refused> {
     let section: u32 = { EVENT_STATE.section.get() };
     let index: u32 = { EVENT_STATE.index.get() };
     let table =
-        unsafe { Raw::new(crate::records::stages_store::STAGE_TABLES.championship() as *const u8) };
+        crate::pointers::GamePtr::new(crate::records::stages_store::STAGE_TABLES.championship())
+            .bytes("the championship's stage table")?;
     // Converted: `rc2k_core::menu::record_kinds::next_record_kind`.
     let kind = rc2k_core::menu::record_kinds::next_record_kind(&table, section, index)?;
     DRAW_WORK.figure.set(kind);

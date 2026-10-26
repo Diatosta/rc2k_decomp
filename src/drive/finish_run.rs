@@ -27,14 +27,11 @@ use crate::scene::x87_mem::{fild, fistp, fld};
 /// The car's lift: `dword_70F524` += `flt_64BB38` x `flt_5C5D98` (`fiadd`, `fistp`), over the
 /// race block at `rc`.
 fn lift_car(rc: usize) {
-    let rc = rc as *mut u8;
-    unsafe {
-        fistp(
-            rc,
-            0x30F524,
-            fld(rc, 0x24BB38) * fld(rc, 0x1C5D98) + fild(rc, 0x30F524),
-        )
-    }
+    fistp(
+        rc,
+        0x30F524,
+        fld(rc, 0x24BB38) * fld(rc, 0x1C5D98) + fild(rc, 0x30F524),
+    )
 }
 
 /// The Rust version. The registers it leaves are read by no caller (liveness: esi after

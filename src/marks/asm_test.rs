@@ -239,6 +239,13 @@ pub fn differential<R: PartialEq + std::fmt::Debug>(
                     pl_vals[j] = (pls[j].as_ptr() as usize).wrapping_sub(*lo);
                 }
             }
+            // The buffers lent while the versions run: their operands are checked as game memory.
+            let _lent: Vec<crate::pointers::Lent> = refs
+                .iter()
+                .chain(pls.iter())
+                .filter(|b| !b.is_empty())
+                .map(|b| crate::pointers::Lent::new(b))
+                .collect();
             let (got_ref, got_plain) = (reference(&ref_vals), plain(&pl_vals));
             if got_ref != got_plain {
                 failures += 1;

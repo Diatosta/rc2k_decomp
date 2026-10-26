@@ -13,8 +13,15 @@ use crate::math::x87::{set_chop, set_control};
 use crate::math::x87_float::{ONE, X, compare, f80, from_f80, int, ld, st, to_int};
 
 /// The length of three floats, `sqrt(v0 v0 + (v1 v1 + v2 v2))`, as an 80-bit value (not
+/// `bytes` bytes at `p` checked to lie in one region (the program ends otherwise).
+fn span<T>(p: *const T, bytes: usize) {
+    crate::pointers::check_or_end(p as usize as u32, bytes, "a math helper's operand");
+}
+
 /// rounded to a float).
 pub unsafe fn length_80(v: *const u32) -> [u8; 10] {
+    span(v, 12);
+
     unsafe {
         let a = ld(v.read_unaligned());
         let b = ld(v.add(1).read_unaligned());
@@ -26,6 +33,8 @@ pub unsafe fn length_80(v: *const u32) -> [u8; 10] {
 
 /// The three floats at `v` each times the 80-bit `s` and stored as floats.
 pub unsafe fn scale_by_80(v: *mut u32, s: [u8; 10]) {
+    span(v, 12);
+
     unsafe {
         let s = from_f80(s);
         for k in 0..3 {
@@ -314,6 +323,9 @@ pub fn neg_product2_plus(a: u32, b: u32, c: u32, d: u32) -> u32 {
 /// stored as a float and held to -limit ..= limit (`fpatan`: libm's `atan2` within 2 ulp
 /// of the instruction's). A compare that finds the values unordered counts as "below".
 pub unsafe fn clamped_asin_80(x: [u8; 10], s: *mut u32, l: *mut u32) -> [u8; 10] {
+    span(s, 4);
+    span(l, 4);
+
     unsafe {
         let x = from_f80(x);
         let limit = ld(l.read_unaligned());

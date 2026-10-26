@@ -152,15 +152,10 @@ pub unsafe fn place_camera() {
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `ext [o + 0] = int [v + 0] / [rc + 0x1C5D98]`
 fn x87_1(v: usize, rc: usize, o: usize) {
-    unsafe {
-        let v = v as *const u8;
-        let rc = rc as *const u8;
-        let o = o as *mut u8;
-        let t0 = fild(v, 0);
-        let t1 = fld(rc, 0x1C5D98);
-        let t2 = t0 / t1;
-        fstp80(o, 0, t2);
-    }
+    let t0 = fild(v, 0);
+    let t1 = fld(rc, 0x1C5D98);
+    let t2 = t0 / t1;
+    fstp80(o, 0, t2);
 }
 
 #[cfg(test)]

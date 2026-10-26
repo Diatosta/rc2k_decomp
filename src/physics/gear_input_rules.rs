@@ -23,11 +23,11 @@ use crate::race::vars_store::RACE_VARS;
 use rc2k_core::physics::gearbox::{GearCar, GearInputs};
 
 unsafe fn get(v: &[u32], k: usize) -> u32 {
-    unsafe { (v[k] as *const u32).read_unaligned() }
+    crate::pointers::read_or_end::<u32>(v[k], "physics::gear_input_rules's operand")
 }
 
 unsafe fn put(v: &[u32], k: usize, x: u32) {
-    unsafe { (v[k] as *mut u32).write_unaligned(x) }
+    crate::pointers::write_or_end::<u32>(v[k], x, "physics::gear_input_rules's operand")
 }
 
 /// The Rust version on the variables at `v`; what the rules change is written back. The

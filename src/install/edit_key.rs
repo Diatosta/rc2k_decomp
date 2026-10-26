@@ -20,7 +20,6 @@
 //! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
 //! are the original's.
 
-use crate::bridge::{Raw, read_through};
 use crate::errors::Refused;
 use crate::input::store::KEYBOARD_FILE;
 use crate::install::installer::{append_string_by_id, measure_text, rb, rd, rw, wb};
@@ -78,8 +77,8 @@ pub fn edit_key(key: u32, item: u32) -> Result<(u32, bool), Refused> {
             }
             EditKey::Enter => {
                 wb(record, rb(record) & !EDITING);
-                let words = unsafe { Raw::new(text as *const u8) };
-                let (blank, _) = read_through(edits::blank(&words));
+                let words = crate::pointers::GamePtr::new(text).bytes("an edited text")?;
+                let (blank, _) = edits::blank(&words)?;
                 if blank {
                     clear(text, most);
                     append_string_by_id(rw(record + 2) as u32, text);

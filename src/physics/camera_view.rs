@@ -19,7 +19,7 @@ pub fn record() -> u32 {
 }
 
 pub fn rd(x: u32) -> u32 {
-    unsafe { (x as *const u32).read_unaligned() }
+    crate::pointers::read_or_end(x, "a car block's field")
 }
 
 /// The share done (0x438498 .. 0x4384BD): eax as left (the time held).
@@ -45,14 +45,10 @@ pub fn share_done(record: u32) -> u32 {
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x205260] = int [rc + 0x22400C] / int [s + 0x3C]`
 fn x87_1(rc: usize, s: usize) {
-    unsafe {
-        let rc = rc as *mut u8;
-        let s = s as *const u8;
-        let t0 = fild(rc, 0x22400C);
-        let t1 = fild(s, 0x3C);
-        let t2 = t0 / t1;
-        fstp(rc, 0x205260, t2);
-    }
+    let t0 = fild(rc, 0x22400C);
+    let t1 = fild(s, 0x3C);
+    let t2 = t0 / t1;
+    fstp(rc, 0x205260, t2);
 }
 
 #[cfg(test)]

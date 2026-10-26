@@ -29,7 +29,7 @@ use crate::session::Cell32;
 
 #[allow(dead_code)]
 fn rd(x: u32) -> u32 {
-    unsafe { (x as *const u32).read_unaligned() }
+    crate::pointers::read_or_end(x, "a car block's field")
 }
 
 /// The steps (generated from the disassembly by idiom; the flagged places by hand).
@@ -240,51 +240,42 @@ pub fn steps() {
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + o4] = (([m + o0] * [m + o1]) * [m + 0x35B390]) + [rc + o3]`
 fn x87_1(m: &DamageModel, rc: usize, o0: &impl Cell32, o1: &impl Cell32, o3: usize, o4: usize) {
-    unsafe {
-        let rc = rc as *mut u8;
-        let t0 = ld(o0.bits());
-        let t1 = ld(o1.bits());
-        let t2 = t0 * t1;
-        let t3 = ld(m.flt_75b390.bits());
-        let t4 = t2 * t3;
-        let t5 = fld(rc, o3);
-        let t6 = t4 + t5;
-        fstp(rc, o4, t6);
-    }
+    let t0 = ld(o0.bits());
+    let t1 = ld(o1.bits());
+    let t2 = t0 * t1;
+    let t3 = ld(m.flt_75b390.bits());
+    let t4 = t2 * t3;
+    let t5 = fld(rc, o3);
+    let t6 = t4 + t5;
+    fstp(rc, o4, t6);
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + o3] = -([m + o0] * [m + 0x35B390]) + [rc + o2]`
 fn x87_2(m: &DamageModel, rc: usize, o0: &impl Cell32, o2: usize, o3: usize) {
-    unsafe {
-        let rc = rc as *mut u8;
-        let t0 = ld(o0.bits());
-        let t1 = ld(m.flt_75b390.bits());
-        let t2 = t0 * t1;
-        let t3 = -t2;
-        let t4 = fld(rc, o2);
-        let t5 = t3 + t4;
-        fstp(rc, o3, t5);
-    }
+    let t0 = ld(o0.bits());
+    let t1 = ld(m.flt_75b390.bits());
+    let t2 = t0 * t1;
+    let t3 = -t2;
+    let t4 = fld(rc, o2);
+    let t5 = t3 + t4;
+    fstp(rc, o3, t5);
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + o4] = -(([m + o0] * [m + o1]) * [m + 0x35B390]) + [rc + o3]`
 fn x87_3(m: &DamageModel, rc: usize, o0: &impl Cell32, o1: &impl Cell32, o3: usize, o4: usize) {
-    unsafe {
-        let rc = rc as *mut u8;
-        let t0 = ld(o0.bits());
-        let t1 = ld(o1.bits());
-        let t2 = t0 * t1;
-        let t3 = ld(m.flt_75b390.bits());
-        let t4 = t2 * t3;
-        let t5 = -t4;
-        let t6 = fld(rc, o3);
-        let t7 = t5 + t6;
-        fstp(rc, o4, t7);
-    }
+    let t0 = ld(o0.bits());
+    let t1 = ld(o1.bits());
+    let t2 = t0 * t1;
+    let t3 = ld(m.flt_75b390.bits());
+    let t4 = t2 * t3;
+    let t5 = -t4;
+    let t6 = fld(rc, o3);
+    let t7 = t5 + t6;
+    fstp(rc, o4, t7);
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -341,22 +332,18 @@ fn x87_6(m: &DamageModel) {
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[m + 0x35B484] = ((int [f + 0] * (1 - [m + 0x35B3F0])) + (int [s + 0] * [m + 0x35B3F0])) * [m + 0x35B8BC]`
 fn x87_7(f: usize, m: &DamageModel, s: usize) {
-    unsafe {
-        let f = f as *const u8;
-        let s = s as *const u8;
-        let t0 = fild(f, 0);
-        let t1 = X(1.0);
-        let t2 = ld(m.dword_75b3f0.bits());
-        let t3 = t1 - t2;
-        let t4 = t0 * t3;
-        let t5 = fild(s, 0);
-        let t6 = ld(m.dword_75b3f0.bits());
-        let t7 = t5 * t6;
-        let t8 = t4 + t7;
-        let t9 = ld(m.flt_75b8bc.bits());
-        let t10 = t8 * t9;
-        m.flt_75b484.set_bits(st(t10));
-    }
+    let t0 = fild(f, 0);
+    let t1 = X(1.0);
+    let t2 = ld(m.dword_75b3f0.bits());
+    let t3 = t1 - t2;
+    let t4 = t0 * t3;
+    let t5 = fild(s, 0);
+    let t6 = ld(m.dword_75b3f0.bits());
+    let t7 = t5 * t6;
+    let t8 = t4 + t7;
+    let t9 = ld(m.flt_75b8bc.bits());
+    let t10 = t8 * t9;
+    m.flt_75b484.set_bits(st(t10));
 }
 
 #[cfg(test)]

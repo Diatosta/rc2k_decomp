@@ -47,7 +47,7 @@ pub unsafe fn allocate(list: *mut MemoryList, bytes: u32) -> Result<*mut u8, Ref
             }
             .into());
         }
-        crate::pointers::register(block as u32, whole);
+        crate::pointers::register_system_block(block as u32, whole);
         let at = GamePtr::new(list as u32);
         let mut l = at.read::<MemoryList>("a memory list")?;
         let header = l.add(block as u32, bytes);

@@ -13,7 +13,6 @@ use crate::strings::append_string_by_id::append_string_by_id;
 use crate::strings::text_from_ids::{TEXT_LEN, text};
 use crate::text::draw_text::{Canvas, Outcome, draw_text};
 use crate::text::font::Font;
-use std::ptr::copy_nonoverlapping;
 use std::slice::from_raw_parts;
 
 // ---- Rust version ----
@@ -43,7 +42,7 @@ pub unsafe fn draw_string_by_id(
 ) -> Result<Outcome, Refused> {
     unsafe {
         let bytes = string_text(id)?;
-        copy_nonoverlapping(bytes.as_ptr(), buffer, bytes.len());
+        crate::pointers::GamePtr::new(buffer as u32).write_bytes(&bytes, "the text buffer")?;
         draw_text(font, buffer, x, y, canvas)
     }
 }

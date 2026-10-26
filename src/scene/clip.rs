@@ -90,9 +90,11 @@ unsafe fn cut(edge: Edge, a: usize, b: usize, mask: u32) -> Result<u32, BadInput
             let from = GamePtr::new(dword(entry + 4))
                 .read_bytes(RECORD_LEN, "a polygon's point record")?;
             std::ptr::copy_nonoverlapping(from.as_ptr(), base.add(record_at), RECORD_LEN);
-            std::ptr::copy_nonoverlapping(entry as *const u8, base.add(entry_at), ENTRY_LEN);
+            let whole = GamePtr::new(entry as u32).read_bytes(ENTRY_LEN, "a polygon's entry")?;
+            std::ptr::copy_nonoverlapping(whole.as_ptr(), base.add(entry_at), ENTRY_LEN);
             for (k, at) in BYTES.into_iter().enumerate() {
-                w[bytes_at / 4 + k] = ((entry + at) as *const u8).read() as u32;
+                w[bytes_at / 4 + k] =
+                    u32::from(GamePtr::new((entry + at) as u32).read::<u8>("a polygon's entry")?);
             }
         }
         let out_1 = crate::session::read_bits(&DRAW.clip_work);

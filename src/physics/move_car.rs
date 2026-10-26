@@ -14,11 +14,11 @@ use crate::race::numbers_store::NUMBERS;
 use crate::scene::draw_store::DRAW;
 
 unsafe fn get(v: &[u32], k: usize) -> u32 {
-    unsafe { (v[k] as *const u32).read_unaligned() }
+    crate::pointers::read_or_end::<u32>(v[k], "physics::move_car's operand")
 }
 
 unsafe fn put(v: &[u32], k: usize, x: u32) {
-    unsafe { (v[k] as *mut u32).write_unaligned(x) }
+    crate::pointers::write_or_end::<u32>(v[k], x, "physics::move_car's operand")
 }
 
 /// The Rust core on the variables at `v`: the last move.

@@ -49,41 +49,32 @@ pub unsafe fn camera_height_bias() {
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x22400C] = [rc + 0x20631C] / [rc + 0x206290]`
 fn x87_1(rc: usize) {
-    unsafe {
-        let rc = rc as *mut u8;
-        let t0 = fld(rc, 0x20631C);
-        let t1 = fld(rc, 0x206290);
-        let t2 = t0 / t1;
-        fstp(rc, 0x22400C, t2);
-    }
+    let t0 = fld(rc, 0x20631C);
+    let t1 = fld(rc, 0x206290);
+    let t2 = t0 / t1;
+    fstp(rc, 0x22400C, t2);
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x22400C] = 1 - [rc + 0x22400C]`
 fn x87_2(rc: usize) {
-    unsafe {
-        let rc = rc as *mut u8;
-        let t0 = X(1.0);
-        let t1 = fld(rc, 0x22400C);
-        let t2 = t0 - t1;
-        fstp(rc, 0x22400C, t2);
-    }
+    let t0 = X(1.0);
+    let t1 = fld(rc, 0x22400C);
+    let t2 = t0 - t1;
+    fstp(rc, 0x22400C, t2);
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `int [rc + 0x22400C] = ([rc + 0x22400C] * [rc + 0x1C5D98]) * [rc + 0x20628C]`
 fn x87_3(rc: usize) {
-    unsafe {
-        let rc = rc as *mut u8;
-        let t0 = fld(rc, 0x22400C);
-        let t1 = fld(rc, 0x1C5D98);
-        let t2 = t0 * t1;
-        let t3 = fld(rc, 0x20628C);
-        let t4 = t2 * t3;
-        fistp(rc, 0x22400C, t4);
-    }
+    let t0 = fld(rc, 0x22400C);
+    let t1 = fld(rc, 0x1C5D98);
+    let t2 = t0 * t1;
+    let t3 = fld(rc, 0x20628C);
+    let t4 = t2 * t3;
+    fistp(rc, 0x22400C, t4);
 }
 
 #[cfg(test)]

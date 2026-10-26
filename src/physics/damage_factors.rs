@@ -36,7 +36,7 @@ use crate::session::Cell32;
 
 #[allow(dead_code)]
 fn rd(x: u32) -> u32 {
-    unsafe { (x as *const u32).read_unaligned() }
+    crate::pointers::read_or_end(x, "a car block's field")
 }
 
 /// The steps (generated from the disassembly by idiom; the flagged places by hand).
@@ -227,49 +227,40 @@ pub fn steps() {
 /// `[m + 0x35B3FC] = int [rc + 0x31A00C] / [m + 0x35B35C]`
 /// `[m + 0x35B400] = int [rc + 0x319FF8] / [m + 0x35B35C]`
 fn x87_1(rc: usize, m: &DamageModel) {
-    unsafe {
-        let rc = rc as *const u8;
-        let t0 = fild(rc, 0x31A008);
-        let t1 = ld(m.flt_75b35c.bits());
-        let t2 = t0 / t1;
-        m.flt_75b3f8.set_bits(st(t2));
-        let t3 = fild(rc, 0x31A00C);
-        let t4 = ld(m.flt_75b35c.bits());
-        let t5 = t3 / t4;
-        m.flt_75b3fc.set_bits(st(t5));
-        let t6 = fild(rc, 0x319FF8);
-        let t7 = ld(m.flt_75b35c.bits());
-        let t8 = t6 / t7;
-        m.flt_75b400.set_bits(st(t8));
-    }
+    let t0 = fild(rc, 0x31A008);
+    let t1 = ld(m.flt_75b35c.bits());
+    let t2 = t0 / t1;
+    m.flt_75b3f8.set_bits(st(t2));
+    let t3 = fild(rc, 0x31A00C);
+    let t4 = ld(m.flt_75b35c.bits());
+    let t5 = t3 / t4;
+    m.flt_75b3fc.set_bits(st(t5));
+    let t6 = fild(rc, 0x319FF8);
+    let t7 = ld(m.flt_75b35c.bits());
+    let t8 = t6 / t7;
+    m.flt_75b400.set_bits(st(t8));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + o3] = ([m + 0x35B3FC] * [m + 0x35B34C]) - [m + o2]`
 fn x87_2(m: &DamageModel, rc: usize, o2: &impl Cell32, o3: usize) {
-    unsafe {
-        let rc = rc as *mut u8;
-        let t0 = ld(m.flt_75b3fc.bits());
-        let t1 = ld(m.gauge_top.bits());
-        let t2 = t0 * t1;
-        let t3 = ld(o2.bits());
-        let t4 = t2 - t3;
-        fstp(rc, o3, t4);
-    }
+    let t0 = ld(m.flt_75b3fc.bits());
+    let t1 = ld(m.gauge_top.bits());
+    let t2 = t0 * t1;
+    let t3 = ld(o2.bits());
+    let t4 = t2 - t3;
+    fstp(rc, o3, t4);
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + o2] = [m + 0x35B3F8] * [m + 0x35B34C]`
 fn x87_3(m: &DamageModel, rc: usize, o2: usize) {
-    unsafe {
-        let rc = rc as *mut u8;
-        let t0 = ld(m.flt_75b3f8.bits());
-        let t1 = ld(m.gauge_top.bits());
-        let t2 = t0 * t1;
-        fstp(rc, o2, t2);
-    }
+    let t0 = ld(m.flt_75b3f8.bits());
+    let t1 = ld(m.gauge_top.bits());
+    let t2 = t0 * t1;
+    fstp(rc, o2, t2);
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -277,13 +268,10 @@ fn x87_3(m: &DamageModel, rc: usize, o2: usize) {
 /// `[rc + o1] = [m + 0x35B34C]`
 /// `[rc + o3] = [m + 0x35B350]`
 fn x87_4(m: &DamageModel, rc: usize, o1: usize, o3: usize) {
-    unsafe {
-        let rc = rc as *mut u8;
-        let t0 = ld(m.gauge_top.bits());
-        fstp(rc, o1, t0);
-        let t1 = ld(m.gauge_low.bits());
-        fstp(rc, o3, t1);
-    }
+    let t0 = ld(m.gauge_top.bits());
+    fstp(rc, o1, t0);
+    let t1 = ld(m.gauge_low.bits());
+    fstp(rc, o3, t1);
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -293,34 +281,31 @@ fn x87_4(m: &DamageModel, rc: usize, o1: usize, o3: usize) {
 /// `[m + 0x35B3E4] = [rc + 0x31A018]`
 /// `[m + 0x35B36C] = |[rc + 0x31A1B0]|`
 fn x87_5(rc: usize, m: &DamageModel) {
-    unsafe {
-        let rc = rc as *mut u8;
-        let t0 = fld(rc, 0x31A410);
-        let t1 = fld(rc, 0x31A414);
-        let t2 = t0 + t1;
-        let t3 = fld(rc, 0x31A418);
-        let t4 = t2 + t3;
-        let t5 = fld(rc, 0x31A41C);
-        let t6 = t4 + t5;
-        let t7 = ld(m.flt_75b364.bits());
-        let t8 = t6 * t7;
-        fstp(rc, 0x31A434, t8);
-        let t9 = fld(rc, 0x31A420);
-        let t10 = fld(rc, 0x31A424);
-        let t11 = t9 + t10;
-        let t12 = fld(rc, 0x31A428);
-        let t13 = t11 + t12;
-        let t14 = fld(rc, 0x31A42C);
-        let t15 = t13 + t14;
-        let t16 = ld(m.flt_75b364.bits());
-        let t17 = t15 * t16;
-        fstp(rc, 0x31A430, t17);
-        let t18 = fld(rc, 0x31A018);
-        m.flt_75b3e4.set_bits(st(t18));
-        let t19 = fld(rc, 0x31A1B0);
-        let t20 = t19.abs();
-        m.scratch.set_bits(st(t20));
-    }
+    let t0 = fld(rc, 0x31A410);
+    let t1 = fld(rc, 0x31A414);
+    let t2 = t0 + t1;
+    let t3 = fld(rc, 0x31A418);
+    let t4 = t2 + t3;
+    let t5 = fld(rc, 0x31A41C);
+    let t6 = t4 + t5;
+    let t7 = ld(m.flt_75b364.bits());
+    let t8 = t6 * t7;
+    fstp(rc, 0x31A434, t8);
+    let t9 = fld(rc, 0x31A420);
+    let t10 = fld(rc, 0x31A424);
+    let t11 = t9 + t10;
+    let t12 = fld(rc, 0x31A428);
+    let t13 = t11 + t12;
+    let t14 = fld(rc, 0x31A42C);
+    let t15 = t13 + t14;
+    let t16 = ld(m.flt_75b364.bits());
+    let t17 = t15 * t16;
+    fstp(rc, 0x31A430, t17);
+    let t18 = fld(rc, 0x31A018);
+    m.flt_75b3e4.set_bits(st(t18));
+    let t19 = fld(rc, 0x31A1B0);
+    let t20 = t19.abs();
+    m.scratch.set_bits(st(t20));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -328,18 +313,15 @@ fn x87_5(rc: usize, m: &DamageModel) {
 /// `[m + 0x35B398] = ([m + 0x35B36C] / [rc + 0x31A1B4]) * [m + 0x35B34C]`
 /// `[m + 0x35B36C] = |[rc + 0x31A184]|`
 fn x87_6(m: &DamageModel, rc: usize) {
-    unsafe {
-        let rc = rc as *const u8;
-        let t0 = ld(m.scratch.bits());
-        let t1 = fld(rc, 0x31A1B4);
-        let t2 = t0 / t1;
-        let t3 = ld(m.gauge_top.bits());
-        let t4 = t2 * t3;
-        m.flt_75b398.set_bits(st(t4));
-        let t5 = fld(rc, 0x31A184);
-        let t6 = t5.abs();
-        m.scratch.set_bits(st(t6));
-    }
+    let t0 = ld(m.scratch.bits());
+    let t1 = fld(rc, 0x31A1B4);
+    let t2 = t0 / t1;
+    let t3 = ld(m.gauge_top.bits());
+    let t4 = t2 * t3;
+    m.flt_75b398.set_bits(st(t4));
+    let t5 = fld(rc, 0x31A184);
+    let t6 = t5.abs();
+    m.scratch.set_bits(st(t6));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -348,22 +330,19 @@ fn x87_6(m: &DamageModel, rc: usize) {
 /// `[m + 0x35B3E0] = [rc + 0x31A930]`
 /// `[m + 0x35B36C] = |([rc + 0x31A184] - [rc + 0x31A190])|`
 fn x87_7(m: &DamageModel, rc: usize) {
-    unsafe {
-        let rc = rc as *const u8;
-        let t0 = ld(m.scratch.bits());
-        let t1 = ld(m.flt_75b378.bits());
-        let t2 = t0 / t1;
-        let t3 = ld(m.gauge_top.bits());
-        let t4 = t2 * t3;
-        m.flt_75b39c.set_bits(st(t4));
-        let t5 = fld(rc, 0x31A930);
-        m.flt_75b3e0.set_bits(st(t5));
-        let t6 = fld(rc, 0x31A184);
-        let t7 = fld(rc, 0x31A190);
-        let t8 = t6 - t7;
-        let t9 = t8.abs();
-        m.scratch.set_bits(st(t9));
-    }
+    let t0 = ld(m.scratch.bits());
+    let t1 = ld(m.flt_75b378.bits());
+    let t2 = t0 / t1;
+    let t3 = ld(m.gauge_top.bits());
+    let t4 = t2 * t3;
+    m.flt_75b39c.set_bits(st(t4));
+    let t5 = fld(rc, 0x31A930);
+    m.flt_75b3e0.set_bits(st(t5));
+    let t6 = fld(rc, 0x31A184);
+    let t7 = fld(rc, 0x31A190);
+    let t8 = t6 - t7;
+    let t9 = t8.abs();
+    m.scratch.set_bits(st(t9));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -371,18 +350,15 @@ fn x87_7(m: &DamageModel, rc: usize) {
 /// `[m + 0x35B3A0] = [m + 0x35B36C] / [m + 0x35B378]`
 /// `[m + 0x35B36C] = |([rc + 0x31A184] - [rc + 0x31A194])|`
 fn x87_8(m: &DamageModel, rc: usize) {
-    unsafe {
-        let rc = rc as *const u8;
-        let t0 = ld(m.scratch.bits());
-        let t1 = ld(m.flt_75b378.bits());
-        let t2 = t0 / t1;
-        m.flt_75b3a0.set_bits(st(t2));
-        let t3 = fld(rc, 0x31A184);
-        let t4 = fld(rc, 0x31A194);
-        let t5 = t3 - t4;
-        let t6 = t5.abs();
-        m.scratch.set_bits(st(t6));
-    }
+    let t0 = ld(m.scratch.bits());
+    let t1 = ld(m.flt_75b378.bits());
+    let t2 = t0 / t1;
+    m.flt_75b3a0.set_bits(st(t2));
+    let t3 = fld(rc, 0x31A184);
+    let t4 = fld(rc, 0x31A194);
+    let t5 = t3 - t4;
+    let t6 = t5.abs();
+    m.scratch.set_bits(st(t6));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -390,22 +366,19 @@ fn x87_8(m: &DamageModel, rc: usize) {
 /// `[m + o2] = [m + 0x35B36C] / [m + 0x35B378]`
 /// `[m + 0x35B36C] = |((([rc + o3] - [rc + 0x31A184]) * [m + 0x35B6F4]) + [rc + o6])|`
 fn x87_9(m: &DamageModel, rc: usize, o2: &impl Cell32, o3: usize, o6: usize) {
-    unsafe {
-        let rc = rc as *const u8;
-        let t0 = ld(m.scratch.bits());
-        let t1 = ld(m.flt_75b378.bits());
-        let t2 = t0 / t1;
-        o2.set_bits(st(t2));
-        let t3 = fld(rc, o3);
-        let t4 = fld(rc, 0x31A184);
-        let t5 = t3 - t4;
-        let t6 = ld(m.figures[31].bits());
-        let t7 = t5 * t6;
-        let t8 = fld(rc, o6);
-        let t9 = t7 + t8;
-        let t10 = t9.abs();
-        m.scratch.set_bits(st(t10));
-    }
+    let t0 = ld(m.scratch.bits());
+    let t1 = ld(m.flt_75b378.bits());
+    let t2 = t0 / t1;
+    o2.set_bits(st(t2));
+    let t3 = fld(rc, o3);
+    let t4 = fld(rc, 0x31A184);
+    let t5 = t3 - t4;
+    let t6 = ld(m.figures[31].bits());
+    let t7 = t5 * t6;
+    let t8 = fld(rc, o6);
+    let t9 = t7 + t8;
+    let t10 = t9.abs();
+    m.scratch.set_bits(st(t10));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -441,29 +414,22 @@ fn x87_12(o0: &impl Cell32) {
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[m + 0x35B3B0] = int [rc + 0x31A614] / [m + 0x35B35C]`
 fn x87_13(rc: usize, m: &DamageModel) {
-    unsafe {
-        let rc = rc as *const u8;
-        let t0 = fild(rc, 0x31A614);
-        let t1 = ld(m.flt_75b35c.bits());
-        let t2 = t0 / t1;
-        m.flt_75b3b0.set_bits(st(t2));
-    }
+    let t0 = fild(rc, 0x31A614);
+    let t1 = ld(m.flt_75b35c.bits());
+    let t2 = t0 / t1;
+    m.flt_75b3b0.set_bits(st(t2));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `status [s + 0] = status`
 fn x87_14(rc: usize, m: &DamageModel, s: usize) {
-    unsafe {
-        let rc = rc as *const u8;
-        let s = s as *mut u8;
-        let t0 = fld(rc, 0x31A1B4);
-        let t1 = ld(m.flt_75b37c.bits());
-        let t2 = t0 * t1;
-        let t3 = fld(rc, 0x31A1B0);
-        let t4 = compare(t2, t3);
-        fnstsw(s, 0, t4);
-    }
+    let t0 = fld(rc, 0x31A1B4);
+    let t1 = ld(m.flt_75b37c.bits());
+    let t2 = t0 * t1;
+    let t3 = fld(rc, 0x31A1B0);
+    let t4 = compare(t2, t3);
+    fnstsw(s, 0, t4);
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -471,22 +437,19 @@ fn x87_14(rc: usize, m: &DamageModel, s: usize) {
 /// `[m + 0x35B3C8] = (([rc + 0x31A208] * [rc + 0x31A208]) / [m + 0x35B394]) / [m + 0x35B378]`
 /// `[m + 0x35B36C] = -[rc + 0x31A180] - [m + 0x35B624]`
 fn x87_15(rc: usize, m: &DamageModel) {
-    unsafe {
-        let rc = rc as *const u8;
-        let t0 = fld(rc, 0x31A208);
-        let t1 = fld(rc, 0x31A208);
-        let t2 = t0 * t1;
-        let t3 = ld(m.flt_75b394.bits());
-        let t4 = t2 / t3;
-        let t5 = ld(m.flt_75b378.bits());
-        let t6 = t4 / t5;
-        m.flt_75b3c8.set_bits(st(t6));
-        let t7 = fld(rc, 0x31A180);
-        let t8 = -t7;
-        let t9 = ld(m.gauge_rates[21].bits());
-        let t10 = t8 - t9;
-        m.scratch.set_bits(st(t10));
-    }
+    let t0 = fld(rc, 0x31A208);
+    let t1 = fld(rc, 0x31A208);
+    let t2 = t0 * t1;
+    let t3 = ld(m.flt_75b394.bits());
+    let t4 = t2 / t3;
+    let t5 = ld(m.flt_75b378.bits());
+    let t6 = t4 / t5;
+    m.flt_75b3c8.set_bits(st(t6));
+    let t7 = fld(rc, 0x31A180);
+    let t8 = -t7;
+    let t9 = ld(m.gauge_rates[21].bits());
+    let t10 = t8 - t9;
+    m.scratch.set_bits(st(t10));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'

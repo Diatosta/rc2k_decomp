@@ -16,7 +16,9 @@ use rc2k_core::physics::car_events::listed_event;
 /// The core: the table at `table`, the queue at `q`.
 // Converted: `rc2k_core::physics::car_events::listed_event`.
 pub unsafe fn queue_listed_event_at(table: u32, q: &QueuePlaces, ebx: u32) -> Result<(), Refused> {
-    let entry = |n: u32| unsafe { ((table + 4 * n) as *const u32).read_unaligned() };
+    let entry = |n: u32| {
+        crate::pointers::read_or_end::<u32>(table + 4 * n, "physics::queue_listed_event's operand")
+    };
     let Some((event, queued)) = listed_event(ebx, entry) else {
         return Ok(());
     };

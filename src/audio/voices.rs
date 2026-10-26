@@ -20,7 +20,7 @@ pub use rc2k_core::audio::voices::{LOADED, MODE_3D, MixerChannel, SampleRecord, 
 
 /// A dword at an address (the pointer a record or a COM call holds).
 pub unsafe fn read(at: u32) -> u32 {
-    unsafe { (at as *const u32).read_unaligned() }
+    crate::pointers::read_or_end::<u32>(at, "audio::voices's operand")
 }
 
 pub unsafe fn voice<'a>(at: u32) -> &'a mut Voice {

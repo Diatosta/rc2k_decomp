@@ -57,6 +57,7 @@ pub unsafe fn rescale_to_surface(surface: *const u32) -> Result<(), Refused> {
         let mut out = field(PIXELS) as *mut u8;
         let (width_pixels, gap) = (width, field(ROW_GAP) as usize);
         let mut column = 0u32;
+        let window = crate::pointers::Window::new();
         let work = rc2k_core::gfx::picture::rescale(
             &rc2k_core::gfx::picture::Sizes {
                 from_width,
@@ -64,7 +65,9 @@ pub unsafe fn rescale_to_surface(surface: *const u32) -> Result<(), Refused> {
                 width,
                 height,
             },
-            &|row, byte| (row_address(row).wrapping_add(byte) as *const u8).read(),
+            &|row, byte| {
+                window.read_or_end(row_address(row).wrapping_add(byte), "a picture's pixel")
+            },
             &mut |parts| {
                 for (part, &byte) in parts.iter().enumerate() {
                     RESCALE.components.set(part, byte);

@@ -22,38 +22,28 @@ use crate::scene::x87_mem::{fild, fld, fstp};
 /// `flt_64BB64` = the clock less the start (`dword_62400C`) over `flt_5C5D18`, over the race
 /// block at `rc`.
 fn time(rc: usize) {
-    let rc = rc as *mut u8;
-    unsafe { fstp(rc, 0x24BB64, fild(rc, 0x22400C) / fld(rc, 0x1C5D18)) }
+    fstp(rc, 0x24BB64, fild(rc, 0x22400C) / fld(rc, 0x1C5D18))
 }
 
 /// The eased time between the two limits: t less ((t - a) / (b - a))^2 x ((b - a) x half).
 fn eased_middle(rc: usize) {
-    let rc = rc as *mut u8;
-    unsafe {
-        let q = (fld(rc, 0x24BB64) - fld(rc, 0x24BB44)) / (fld(rc, 0x24BB48) - fld(rc, 0x24BB44));
-        let square = q * q;
-        let span = (fld(rc, 0x24BB48) - fld(rc, 0x24BB44)) * fld(rc, 0x1C5E40);
-        let product = square * span;
-        fstp(rc, 0x24BB68, -product + fld(rc, 0x24BB64));
-    }
+    let q = (fld(rc, 0x24BB64) - fld(rc, 0x24BB44)) / (fld(rc, 0x24BB48) - fld(rc, 0x24BB44));
+    let square = q * q;
+    let span = (fld(rc, 0x24BB48) - fld(rc, 0x24BB44)) * fld(rc, 0x1C5E40);
+    let product = square * span;
+    fstp(rc, 0x24BB68, -product + fld(rc, 0x24BB64));
 }
 
 /// The eased time past the second limit: a + (b - a) x half.
 fn eased_end(rc: usize) {
-    let rc = rc as *mut u8;
-    unsafe {
-        let span = (fld(rc, 0x24BB48) - fld(rc, 0x24BB44)) * fld(rc, 0x1C5E40);
-        fstp(rc, 0x24BB68, span + fld(rc, 0x24BB44));
-    }
+    let span = (fld(rc, 0x24BB48) - fld(rc, 0x24BB44)) * fld(rc, 0x1C5E40);
+    fstp(rc, 0x24BB68, span + fld(rc, 0x24BB44));
 }
 
 /// The share between the last two limits: (t - c) / (d - c).
 fn share(rc: usize) {
-    let rc = rc as *mut u8;
-    unsafe {
-        let q = (fld(rc, 0x24BB64) - fld(rc, 0x24BB70)) / (fld(rc, 0x24BB74) - fld(rc, 0x24BB70));
-        fstp(rc, 0x24BB6C, q);
-    }
+    let q = (fld(rc, 0x24BB64) - fld(rc, 0x24BB70)) / (fld(rc, 0x24BB74) - fld(rc, 0x24BB70));
+    fstp(rc, 0x24BB6C, q);
 }
 
 /// The core from the clock's reading `now` (already in `g_sceneClock`).

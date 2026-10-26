@@ -16,28 +16,26 @@ pub unsafe fn normalise_vector3(v: u32) {
 }
 
 unsafe fn normalise(v: *mut u8) {
-    unsafe {
-        let t0 = fld(v, 0x0);
-        let t1 = t0 * t0;
-        let t2 = fld(v, 0x4);
-        let t3 = t2 * t2;
-        let t4 = fld(v, 0x8);
-        let t5 = t4 * t4;
-        let t6 = t3 + t5;
-        let t7 = t1 + t6;
-        let t8 = t7.sqrt();
-        let t9 = ONE;
-        let t10 = t9 / t8;
-        let t11 = fld(v, 0x0);
-        let t12 = t11 * t10;
-        let t13 = fld(v, 0x4);
-        let t14 = t13 * t10;
-        let t15 = fld(v, 0x8);
-        let t16 = t15 * t10;
-        fstp(v, 0x8, t16);
-        fstp(v, 0x4, t14);
-        fstp(v, 0x0, t12);
-    }
+    let t0 = fld(v, 0x0);
+    let t1 = t0 * t0;
+    let t2 = fld(v, 0x4);
+    let t3 = t2 * t2;
+    let t4 = fld(v, 0x8);
+    let t5 = t4 * t4;
+    let t6 = t3 + t5;
+    let t7 = t1 + t6;
+    let t8 = t7.sqrt();
+    let t9 = ONE;
+    let t10 = t9 / t8;
+    let t11 = fld(v, 0x0);
+    let t12 = t11 * t10;
+    let t13 = fld(v, 0x4);
+    let t14 = t13 * t10;
+    let t15 = fld(v, 0x8);
+    let t16 = t15 * t10;
+    fstp(v, 0x8, t16);
+    fstp(v, 0x4, t14);
+    fstp(v, 0x0, t12);
 }
 
 /// `scene::dot_product3` (0x46553C): esi . edi, x x' + (y y' + z z'), unrounded. Every
@@ -49,31 +47,31 @@ pub unsafe fn dot_product3(a: u32, b: u32) -> [u8; 10] {
 }
 
 unsafe fn dot(a: *const u8, b: *const u8, o: *mut u8) {
-    unsafe {
-        let t0 = fld(a, 0x0);
-        let t1 = fld(b, 0x0);
-        let t2 = t0 * t1;
-        let t3 = fld(a, 0x4);
-        let t4 = fld(b, 0x4);
-        let t5 = t3 * t4;
-        let t6 = fld(a, 0x8);
-        let t7 = fld(b, 0x8);
-        let t8 = t6 * t7;
-        let t9 = t5 + t8;
-        let t10 = t2 + t9;
-        fstp80(o, 0x0, t10);
-    }
+    let t0 = fld(a, 0x0);
+    let t1 = fld(b, 0x0);
+    let t2 = t0 * t1;
+    let t3 = fld(a, 0x4);
+    let t4 = fld(b, 0x4);
+    let t5 = t3 * t4;
+    let t6 = fld(a, 0x8);
+    let t7 = fld(b, 0x8);
+    let t8 = t6 * t7;
+    let t9 = t5 + t8;
+    let t10 = t2 + t9;
+    fstp80(o, 0x0, t10);
 }
 
 /// `n` floats at `at` (the game's memory, unaligned).
 pub unsafe fn read_floats<const N: usize>(at: u32) -> [f32; N] {
-    std::array::from_fn(|n| unsafe { ((at + 4 * n as u32) as *const f32).read_unaligned() })
+    std::array::from_fn(|n| {
+        crate::pointers::read_or_end::<f32>(at + 4 * n as u32, "scene::vector3's operand")
+    })
 }
 
 /// The floats written at `at`.
 pub unsafe fn write_floats(at: u32, v: &[f32]) {
     for (n, x) in v.iter().enumerate() {
-        unsafe { ((at + 4 * n as u32) as *mut f32).write_unaligned(*x) };
+        crate::pointers::write_or_end::<f32>(at + 4 * n as u32, *x, "scene::vector3's operand");
     }
 }
 
@@ -91,13 +89,11 @@ fn cosine_against(a: u32, b: u32) -> u32 {
 }
 
 unsafe fn cosine(a: *const u8, b: *const u8, s: *mut u8) {
-    unsafe {
-        let t0 = fld(a, 0x0);
-        let t1 = t0.cos();
-        let t2 = fld(b, 0x0);
-        let t3 = compare(t1, t2);
-        fnstsw(s, 0x0, t3); // status word C3 C2 C0 (TOP not modelled)
-    }
+    let t0 = fld(a, 0x0);
+    let t1 = t0.cos();
+    let t2 = fld(b, 0x0);
+    let t3 = compare(t1, t2);
+    fnstsw(s, 0x0, t3); // status word C3 C2 C0 (TOP not modelled)
 }
 
 /// `scene::angle_between_vectors` (0x4658CF): the vectors at edi and esi normalised in

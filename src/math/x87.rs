@@ -26,6 +26,12 @@ pub(crate) use x87;
 use super::x87_float as bh;
 
 /// A float read from game memory (possibly unaligned), as the x87 holds it once loaded.
+/// `bytes` bytes at `p` checked to lie in one region (the program ends otherwise): what a
+/// helper below reads and writes, checked before it starts.
+fn span<T>(p: *const T, bytes: usize) {
+    crate::pointers::check_or_end(p as usize as u32, bytes, "a math helper's operand");
+}
+
 unsafe fn load(p: *const u32, index: usize) -> bh::X {
     bh::ld(unsafe { p.add(index).read_unaligned() })
 }
@@ -97,6 +103,10 @@ pub fn rcpss_times(a: u32, b: u32) -> u32 {
 /// A row of one matrix times a column of another: `a[0] b[0] + (a[1] b[4] + a[2] b[8])`,
 /// the last two products added first, stored to `out`.
 pub unsafe fn row_times_column(a: *const u32, b: *const u32, out: *mut u32) {
+    span(a, 12);
+    span(b, 36);
+    span(out, 4);
+
     let p1 = unsafe { load(a, 0) * load(b, 0) };
     let p2 = unsafe { load(a, 1) * load(b, 4) };
     let p3 = unsafe { load(a, 2) * load(b, 8) };
@@ -105,6 +115,9 @@ pub unsafe fn row_times_column(a: *const u32, b: *const u32, out: *mut u32) {
 
 /// `out = a + out`.
 pub unsafe fn add_into(a: *const u32, out: *mut u32) {
+    span(a, 4);
+    span(out, 4);
+
     let sum = unsafe { load(a, 0) + load(out, 0) };
     unsafe { out.write_unaligned(bh::st(sum)) };
 }
@@ -138,6 +151,8 @@ pub fn negated_product_difference(a: u32, b: u32, c: u32, d: u32) -> u32 {
 
 /// The length of three floats: `sqrt(v0 v0 + (v1 v1 + v2 v2))`.
 pub unsafe fn length(v: *const u32) -> u32 {
+    span(v, 12);
+
     let (x, y, z) = unsafe { (load(v, 0), load(v, 1), load(v, 2)) };
     bh::st((x * x + (y * y + z * z)).sqrt())
 }
@@ -217,6 +232,8 @@ pub fn mul_div_div_to_int(a: u32, b: u32, c: u32, d: u32) -> i32 {
 /// root (not rounded to a float first) and stored back; then the root is stored. Returns
 /// the root's bits and whether it compared equal.
 pub unsafe fn normalise_in_place(v: *mut u32, zero: u32) -> (u32, bool) {
+    span(v, 12);
+
     let (x, y, z) = unsafe { (load(v, 0), load(v, 1), load(v, 2)) };
     let root = (x * x + (y * y + z * z)).sqrt();
     let zero = bh::ld(zero);
@@ -253,6 +270,11 @@ pub fn int_div_div_doubled(a: i32, b: u32, c: u32) -> u32 {
 /// `math::turn_scratch_xz`'s turn: x' = x cos + z sin, z' = z cos - x sin, each rounded
 /// once, written back over x and z.
 pub unsafe fn turn_in_place(sine: *const u32, cosine: *const u32, x: *mut u32, z: *mut u32) {
+    span(sine, 4);
+    span(cosine, 4);
+    span(x, 4);
+    span(z, 4);
+
     let (s, c) = unsafe { (load(sine, 0), load(cosine, 0)) };
     let (xv, zv) = unsafe { (load(x, 0), load(z, 0)) };
     let new_x = xv * c + zv * s;
@@ -301,6 +323,8 @@ pub fn int_div_less(a: i32, b: u32, c: u32) -> u32 {
 /// `count` sines of an angle that starts at 0 and grows by `step` each time (the angle kept
 /// as a double, never rounded to a float), stored one dword each from `out`.
 pub unsafe fn sine_table(step: u32, out: *mut u32, count: u32) {
+    span(out, 4 * count as usize);
+
     let step = bh::ld(step);
     let mut angle = bh::X(0.0);
     for i in 0..count as usize {
@@ -362,6 +386,8 @@ pub fn int_times_plus(a: i32, b: u32, c: u32) -> u32 {
 /// number less the running sum, rounded to a whole number and stored back, and the sum
 /// grown by the step (both kept as doubles).
 pub unsafe fn ramp_down(values: *mut i32, count: u32, last: i32, first: i32, by: i32) {
+    span(values, 4 * count as usize);
+
     let step = (bh::int(last) - bh::int(first)) / bh::int(by);
     let mut sum = bh::X(0.0);
     for i in 0..count as usize {
@@ -489,6 +515,10 @@ pub fn set_control_word(w: u16) {
 /// `row_times_column` for 3 x 3 matrices: `b`'s column read 12 bytes apart.
 /// `row_times_column` for 3 x 3 matrices: `b`'s column read 12 bytes apart.
 pub unsafe fn row_times_column_3(a: *const u32, b: *const u32, out: *mut u32) {
+    span(a, 12);
+    span(b, 28);
+    span(out, 4);
+
     let p1 = unsafe { load(a, 0) * load(b, 0) };
     let p2 = unsafe { load(a, 1) * load(b, 3) };
     let p3 = unsafe { load(a, 2) * load(b, 6) };
@@ -499,6 +529,10 @@ pub unsafe fn row_times_column_3(a: *const u32, b: *const u32, out: *mut u32) {
 /// x m3 + (y m4 + z m5) rounded to whole numbers at `out` and `out + 4`, and
 /// y m7 + (x m6 + z m8) at `out + 8` (the original's order). `out` may be `p`.
 pub unsafe fn turn_int_point(p: *const i32, m: *const u32, out: *mut i32) {
+    span(p, 12);
+    span(m, 36);
+    span(out, 12);
+
     unsafe {
         let (x, y, z) = (
             bh::int(p.read_unaligned()),
@@ -570,6 +604,8 @@ pub fn cosine_step(c: i32, m: i32, t: u32, a: u32) -> u32 {
 /// Three floats at `row` each times `c` over their length: the root of
 /// `x x + (y y + z z)`, `c / root`, then each times that, rounded once and stored in turn.
 pub unsafe fn scale_row(row: *mut u32, c: u32) {
+    span(row, 12);
+
     let (x, y, z) = unsafe { (load(row, 0), load(row, 1), load(row, 2)) };
     let k = bh::ld(c) / (x * x + (y * y + z * z)).sqrt();
     unsafe {
@@ -735,6 +771,8 @@ pub fn int_plus_less_squared(y: i32, a: u32, b: u32) -> u32 {
 /// place, then each of the twelve times a / b (kept unrounded) rounded to a whole number in
 /// place.
 pub unsafe fn scale_record(r: *mut u32, a: u32, b: u32) {
+    span(r, 48);
+
     unsafe {
         for i in [3, 9] {
             r.add(i).write(bh::st(-bh::ld(r.add(i).read())));

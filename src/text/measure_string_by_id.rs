@@ -14,7 +14,6 @@ use crate::text::draw_string_by_id::string_text;
 use crate::text::draw_text::Canvas;
 use crate::text::font::Font;
 use crate::text::measure_text::{Measured, measure_text};
-use std::ptr::copy_nonoverlapping;
 
 // ---- Rust version ----
 
@@ -29,7 +28,7 @@ pub unsafe fn measure_string_by_id(
 ) -> Result<Measured, Refused> {
     unsafe {
         let bytes = string_text(id)?;
-        copy_nonoverlapping(bytes.as_ptr(), buffer, bytes.len());
+        crate::pointers::GamePtr::new(buffer as u32).write_bytes(&bytes, "the text buffer")?;
         measure_text(font, buffer, x, canvas)
     }
 }

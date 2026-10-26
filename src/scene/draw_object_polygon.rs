@@ -89,21 +89,21 @@ pub unsafe fn draw_object_polygon(
             .set_bits(GROUND_WORK.split_polygon_count.bits().wrapping_add(1));
         let entries = crate::scene::polygon::entries_addr();
         let kept = crate::scene::polygon::entries_addr() + 64 * ENTRY_LEN;
-        std::ptr::copy(
-            entries as *const u8,
-            kept as *mut u8,
+        crate::pointers::GamePtr::new(entries as u32).copy_to(
+            crate::pointers::GamePtr::new(kept as u32),
             count as usize * ENTRY_LEN,
-        );
+            "the polygon's entries",
+        )?;
         DRAW.polygon_vertex_count.set_bits(3u32);
         step(Step::Draw)?;
         DRAW.polygon_vertex_count.set_bits(count);
         for triangle in fan(count) {
             for (to, from) in triangle.into_iter().enumerate() {
-                std::ptr::copy(
-                    (kept + from * ENTRY_LEN) as *const u8,
-                    (entries + to * ENTRY_LEN) as *mut u8,
+                crate::pointers::GamePtr::new((kept + from * ENTRY_LEN) as u32).copy_to(
+                    crate::pointers::GamePtr::new((entries + to * ENTRY_LEN) as u32),
                     ENTRY_LEN,
-                );
+                    "the polygon's entries",
+                )?;
             }
             DRAW.polygon_vertex_count.set_bits(3u32);
             step(Step::Draw)?;

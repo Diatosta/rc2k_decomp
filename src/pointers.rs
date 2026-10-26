@@ -26,6 +26,15 @@ use std::sync::RwLock;
 /// The blocks taken from the system: start -> length.
 static BLOCKS: RwLock<BTreeMap<u32, u32>> = RwLock::new(BTreeMap::new());
 
+/// A block taken from the system with `VirtualAlloc`: its region is what the system commits,
+/// the bytes asked for rounded up to whole pages. The original's reads a few bytes past its
+/// block's end land there and always answered (`gfx::rescale_picture`'s last column, up to
+/// 3 bytes past its copy; `notes/bugs.md`).
+pub fn register_system_block(start: u32, len: u32) {
+    const PAGE: u32 = 0x1000;
+    register(start, len.div_ceil(PAGE).saturating_mul(PAGE));
+}
+
 /// A block taken from the system (`len` bytes from `start`, header included).
 pub fn register(start: u32, len: u32) {
     if let Ok(mut blocks) = BLOCKS.write() {
@@ -38,20 +47,66 @@ pub fn unregister(start: u32) {
     if let Ok(mut blocks) = BLOCKS.write() {
         blocks.remove(&start);
     }
+    // Every thread's cached regions are stale now.
+    GENERATION.fetch_add(1, std::sync::atomic::Ordering::Release);
+}
+
+/// Bumped when a block is given back: the threads' caches are then emptied.
+static GENERATION: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+
+/// The exact regions (blocks, moved stores) a thread found last, with the generation they
+/// were found in, and the thread's stack.
+struct Cache {
+    generation: u32,
+    regions: [(u32, u32); 4],
+    next: usize,
+    stack: Option<(u32, u32)>,
+}
+
+thread_local! {
+    static CACHE: std::cell::RefCell<Cache> = const {
+        std::cell::RefCell::new(Cache { generation: u32::MAX, regions: [(0, 0); 4], next: 0, stack: None })
+    };
+}
+
+/// Whether `len` bytes from `addr` lie in one region, as `region_of` finds them, through the
+/// thread's cache: a recent block or store, the stack, then the lookups.
+fn inside(addr: u32, len: usize) -> bool {
+    let Some(end) = addr.checked_add(len as u32) else {
+        return false;
+    };
+    let fits = |(start, top): (u32, u32)| addr >= start && end <= top;
+    CACHE.with(|cache| {
+        let mut cache = cache.borrow_mut();
+        let generation = GENERATION.load(std::sync::atomic::Ordering::Acquire);
+        if cache.generation != generation {
+            cache.generation = generation;
+            cache.regions = [(0, 0); 4];
+        }
+        if cache.regions.iter().any(|&r| fits(r)) {
+            return true;
+        }
+        let stack = *cache.stack.get_or_insert_with(stack);
+        if (stack.0..stack.1).contains(&addr) {
+            return fits(stack);
+        }
+        if let Some(region) = exact_region(addr) {
+            let next = cache.next;
+            cache.regions[next] = region;
+            cache.next = (next + 1) % 4;
+            return fits(region);
+        }
+        own_sections()
+            .iter()
+            .copied()
+            .find(|&(s, t)| (s..t).contains(&addr))
+            .is_some_and(fits)
+    })
 }
 
 /// The region `addr` lies in: its first byte and the byte past its end.
 pub fn region_of(addr: u32) -> Option<(u32, u32)> {
-    let block = BLOCKS.read().ok().and_then(|blocks| {
-        let (&start, &len) = blocks.range(..=addr).next_back()?;
-        let end = start.checked_add(len)?;
-        (addr < end).then_some((start, end))
-    });
-    block
-        .or_else(|| {
-            let (start, end) = crate::moved::home_range(addr as usize)?;
-            Some((start as u32, end as u32))
-        })
+    exact_region(addr)
         .or_else(|| {
             own_sections()
                 .iter()
@@ -62,6 +117,19 @@ pub fn region_of(addr: u32) -> Option<(u32, u32)> {
             let (low, high) = stack();
             (low..high).contains(&addr).then_some((low, high))
         })
+}
+
+/// The block or moved store `addr` lies in.
+fn exact_region(addr: u32) -> Option<(u32, u32)> {
+    let block = BLOCKS.read().ok().and_then(|blocks| {
+        let (&start, &len) = blocks.range(..=addr).next_back()?;
+        let end = start.checked_add(len)?;
+        (addr < end).then_some((start, end))
+    });
+    block.or_else(|| {
+        let (start, end) = crate::moved::home_range(addr as usize)?;
+        Some((start as u32, end as u32))
+    })
 }
 
 /// The program's own image sections (statics, constants): first byte and byte past the end.
@@ -210,9 +278,10 @@ impl GamePtr {
 
     /// Whether `len` bytes from the address lie in one region.
     fn check(self, len: usize, what: &str) -> Result<(), BadInput> {
-        match region_of(self.0) {
-            Some((_, end)) if (end - self.0) as usize >= len => Ok(()),
-            _ => Err(outside(self.0, len, what)),
+        if inside(self.0, len) {
+            Ok(())
+        } else {
+            Err(outside(self.0, len, what))
         }
     }
 }
@@ -245,6 +314,74 @@ impl rc2k_core::strings::bytes::Bytes for GameBytes {
         // SAFETY: `at` is inside the region (checked against its length).
         (at < self.len)
             .then(|| unsafe { (self.start as usize as *const u8).add(at).read_volatile() })
+    }
+}
+
+/// `len` bytes from `addr` checked to lie in one region; outside, the program ends naming
+/// them (`fatal::raise::end`). For hot paths (the x87 runs' operands).
+pub fn check_or_end(addr: u32, len: usize, what: &str) {
+    if !inside(addr, len) {
+        crate::fatal::raise::end(what, outside(addr, len, what))
+    }
+}
+
+/// A checked read where the caller has no way to carry a refusal (generated step code, a
+/// core's closure): outside its region the program ends naming it (`fatal::raise::end`).
+pub fn read_or_end<T: Copy>(addr: u32, what: &str) -> T {
+    GamePtr::new(addr)
+        .read(what)
+        .unwrap_or_else(|e| crate::fatal::raise::end(what, e))
+}
+
+/// A checked write, as `read_or_end`.
+pub fn write_or_end<T: Copy>(addr: u32, value: T, what: &str) {
+    if let Err(e) = GamePtr::new(addr).write(value, what) {
+        crate::fatal::raise::end(what, e)
+    }
+}
+
+/// The last region a run of reads found, kept for the next (a picture read per pixel): a
+/// read inside it costs a compare, one outside looks its region up again. Keep a window for
+/// one pass only: a block can be given back between passes.
+#[derive(Default)]
+pub struct Window(std::cell::Cell<(u32, u32)>);
+
+impl Window {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    fn check(&self, addr: u32, len: usize, what: &str) -> Result<(), BadInput> {
+        let end = addr.checked_add(len as u32);
+        let (start, top) = self.0.get();
+        if addr >= start && end.is_some_and(|end| end <= top) {
+            return Ok(());
+        }
+        match region_of(addr) {
+            Some((start, top)) if end.is_some_and(|end| end <= top) => {
+                self.0.set((start, top));
+                Ok(())
+            }
+            _ => Err(outside(addr, len, what)),
+        }
+    }
+
+    /// A checked read; outside its region the program ends (`fatal::raise::end`).
+    pub fn read_or_end<T: Copy>(&self, addr: u32, what: &str) -> T {
+        if let Err(e) = self.check(addr, size_of::<T>(), what) {
+            crate::fatal::raise::end(what, e)
+        }
+        // SAFETY: the bytes lie in one live region (checked above).
+        unsafe { (addr as usize as *const T).read_unaligned() }
+    }
+
+    /// A checked write, as `read_or_end`.
+    pub fn write_or_end<T: Copy>(&self, addr: u32, value: T, what: &str) {
+        if let Err(e) = self.check(addr, size_of::<T>(), what) {
+            crate::fatal::raise::end(what, e)
+        }
+        // SAFETY: the bytes lie in one live region (checked above).
+        unsafe { (addr as usize as *mut T).write_unaligned(value) }
     }
 }
 
@@ -298,6 +435,22 @@ mod tests {
     fn moved_stores_are_regions() {
         let font = crate::gfx::typefaces::FONTS.objects[0].addr() as u32;
         assert!(GamePtr::new(font).read::<[u8; 0x20]>("test").is_ok());
+    }
+
+    #[test]
+    fn a_window_keeps_its_region() {
+        let block = Box::new([5u8; 32]);
+        let _lent = Lent::new(&block[..]);
+        let start = block.as_ptr() as u32;
+        let window = Window::new();
+        assert_eq!(window.read_or_end::<u8>(start, "test"), 5);
+        assert_eq!(window.0.get(), (start, start + 32));
+        window.write_or_end(start + 28, 0x0102_0304u32, "test");
+        assert_eq!(block[28], 4);
+        assert!(
+            window.check(start + 29, 4, "test").is_err(),
+            "runs past the end"
+        );
     }
 
     #[test]

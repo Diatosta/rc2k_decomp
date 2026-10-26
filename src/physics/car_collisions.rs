@@ -30,7 +30,7 @@ use crate::race::work_store::RACE_WORK;
 use crate::scene::matrix::{multiply_matrices, set_place};
 
 fn rd(x: u32) -> u32 {
-    unsafe { (x as *const u32).read_unaligned() }
+    crate::pointers::read_or_end(x, "a car block's field")
 }
 
 /// The cars looked at: `g_raceCars`, at least one (the loop runs once).

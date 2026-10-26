@@ -47,11 +47,11 @@ use crate::scene::view_matrix::{square_matrix, unit_vector};
 pub const SLOT_LEN: u32 = 0x78;
 
 unsafe fn at(p: u32) -> u32 {
-    unsafe { (p as *const u32).read_unaligned() }
+    crate::pointers::read_or_end::<u32>(p, "physics::move_slot's operand")
 }
 
 unsafe fn put(p: u32, v: u32) {
-    unsafe { (p as *mut u32).write_unaligned(v) }
+    crate::pointers::write_or_end::<u32>(p, v, "physics::move_slot's operand")
 }
 
 unsafe fn copy(from: u32, to: u32, n: u32) {

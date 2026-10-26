@@ -266,19 +266,16 @@ pub unsafe fn car_physics_step() -> Result<(), Refused> {
 /// `[rc + 0x31A198] = ([rc + 0x31A190] + [rc + 0x31A194]) * [rc + 0x1C5E40]`
 /// `[rc + 0x31A8E4] = [rc + 0x31A174] - [rc + 0x214138]`
 fn x87_1(rc: usize) {
-    unsafe {
-        let rc = rc as *mut u8;
-        let t0 = fld(rc, 0x31A190);
-        let t1 = fld(rc, 0x31A194);
-        let t2 = t0 + t1;
-        let t3 = fld(rc, 0x1C5E40);
-        let t4 = t2 * t3;
-        fstp(rc, 0x31A198, t4);
-        let t5 = fld(rc, 0x31A174);
-        let t6 = fld(rc, 0x214138);
-        let t7 = t5 - t6;
-        fstp(rc, 0x31A8E4, t7);
-    }
+    let t0 = fld(rc, 0x31A190);
+    let t1 = fld(rc, 0x31A194);
+    let t2 = t0 + t1;
+    let t3 = fld(rc, 0x1C5E40);
+    let t4 = t2 * t3;
+    fstp(rc, 0x31A198, t4);
+    let t5 = fld(rc, 0x31A174);
+    let t6 = fld(rc, 0x214138);
+    let t7 = t5 - t6;
+    fstp(rc, 0x31A8E4, t7);
 }
 
 #[cfg(test)]

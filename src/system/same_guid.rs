@@ -16,6 +16,10 @@
 /// The Rust version: whether the GUIDs at the two addresses are the same.
 pub fn same_guid(a: u32, b: u32) -> bool {
     // Converted: `rc2k_core::system::machine::same_guid`.
-    let at = |base: u32| move |k: u32| unsafe { ((base + 4 * k) as *const u32).read_unaligned() };
+    let at = |base: u32| {
+        move |k: u32| {
+            crate::pointers::read_or_end::<u32>(base + 4 * k, "system::same_guid's operand")
+        }
+    };
     rc2k_core::system::machine::same_guid(at(a), at(b))
 }

@@ -22,7 +22,7 @@ pub fn player_found(args: &[u32]) -> Result<u32, Refused> {
     let player = NET.player_block(count);
     player.id.set(args[0]);
     copy_printable(
-        unsafe { ((args[2] + 8) as *const u32).read_unaligned() },
+        crate::pointers::read_or_end::<u32>(args[2] + 8, "net::player_found's operand"),
         player.name.addr() as u32,
         0x1F,
     )?;

@@ -44,12 +44,11 @@ pub fn movsb(to: u32, from: u32, n: u32) -> Result<(), Refused> {
     Ok(())
 }
 
-/// `rep movsb` from memory Rust owns (what DirectPlay's callbacks hand over: a GUID, a
-/// connection's data), to the game's memory (checked).
+/// `rep movsb` from what DirectPlay's callbacks hand over (a GUID, a connection's data:
+/// Rust's statics or buffers lent for the callback) to the game's memory; both checked.
 pub fn movsb_from_rust(to: u32, from: u32, n: u32) -> Result<(), Refused> {
-    // SAFETY: `from` is the callback's argument, `n` bytes of Rust's own memory.
-    let bytes = unsafe { std::slice::from_raw_parts(from as usize as *const u8, n as usize) };
-    GamePtr::new(to).write_bytes(bytes, "a network record's bytes")?;
+    let bytes = GamePtr::new(from).read_bytes(n as usize, "a network callback's bytes")?;
+    GamePtr::new(to).write_bytes(&bytes, "a network record's bytes")?;
     Ok(())
 }
 
@@ -75,17 +74,11 @@ impl Cursor {
 
     /// `strings::append_string_by_id`: the string `id`.
     pub fn string_id(&mut self, id: u32) {
-        let mut out = self.0 as *mut u8;
-        crate::menu::event_flow::refuse_here(
-            unsafe {
-                crate::strings::append_string_by_id::append_string_by_id(id, &mut |from, n| {
-                    std::ptr::copy_nonoverlapping(from, out, n);
-                    out = out.add(n);
-                })
-            },
-            "net::lobby: a string",
-        );
-        self.0 = out as u32;
+        let mut text = Vec::new();
+        let written = crate::strings::append_string_by_id::push_string(&mut text, id)
+            .and_then(|()| GamePtr::new(self.0).write_bytes(&text, "a text line"));
+        crate::menu::event_flow::refuse_here(written, "net::lobby: a string");
+        self.0 = self.0.wrapping_add(text.len() as u32);
     }
 
     /// The bytes written at the cursor (`format_u32`'s, `append_time`'s).
@@ -121,7 +114,7 @@ pub fn blit(glyph: u32, x: u32, y: u32, palette: u32) -> Result<u32, Refused> {
 
 /// `logfile::log_write_l<level>[_nl]` on the text at the address `text`.
 pub fn log(text: u32, newline: bool, level: u8) {
-    unsafe { crate::logfile::log_write::log_write(text as *const u8, newline, level) };
+    crate::logfile::log_write::log_at(text, newline, level);
 }
 
 /// `logfile::log_hex8_l2[_nl]`.
@@ -152,7 +145,7 @@ pub fn copy_printable(text: u32, to: u32, room: u32) -> Result<(), Refused> {
 
 /// `system::zero_memory` (an address).
 pub fn zero(at: u32, length: u32) -> Result<(), Refused> {
-    unsafe { crate::system::zero_memory::zero_memory(at as *mut u8, length) }?;
+    GamePtr::new(at).fill(0, length as usize, "memory to zero")?;
     Ok(())
 }
 

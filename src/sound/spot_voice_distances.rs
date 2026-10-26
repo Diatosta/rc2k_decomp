@@ -52,61 +52,52 @@ pub fn spot_voice_distances() -> Result<(), crate::errors::BadInput> {
 /// `[bx + 0x40] = sqrt((([bx + 8] * [bx + 8]) + (([bx + 0xC] * [bx + 0xC]) + ([bx + 0x10] * [bx + 0x10]))))`
 /// `[bx + 0x44] = ([bx + 0x40] - sqrt((([bx + 8] * [bx + 8]) + (([bx + 0xC] * [bx + 0xC]) + ([bx + 0x10] * [bx + 0x10]))))) * turns_a_second`
 fn x87_1(bx: usize, ck: &crate::sound::store::RaceClock) {
-    unsafe {
-        let bx = bx as *mut u8;
-        let t0 = fld(bx, 0x40);
-        let t1 = fld(bx, 8);
-        let t2 = fld(bx, 8);
-        let t3 = t1 * t2;
-        let t4 = fld(bx, 0xC);
-        let t5 = fld(bx, 0xC);
-        let t6 = t4 * t5;
-        let t7 = fld(bx, 0x10);
-        let t8 = fld(bx, 0x10);
-        let t9 = t7 * t8;
-        let t10 = t6 + t9;
-        let t11 = t3 + t10;
-        let t12 = t11.sqrt();
-        fstp(bx, 0x40, t12);
-        let t13 = t0 - t12;
-        let t14 = ld(ck.turns_a_second.bits());
-        let t15 = t13 * t14;
-        fstp(bx, 0x44, t15);
-    }
+    let t0 = fld(bx, 0x40);
+    let t1 = fld(bx, 8);
+    let t2 = fld(bx, 8);
+    let t3 = t1 * t2;
+    let t4 = fld(bx, 0xC);
+    let t5 = fld(bx, 0xC);
+    let t6 = t4 * t5;
+    let t7 = fld(bx, 0x10);
+    let t8 = fld(bx, 0x10);
+    let t9 = t7 * t8;
+    let t10 = t6 + t9;
+    let t11 = t3 + t10;
+    let t12 = t11.sqrt();
+    fstp(bx, 0x40, t12);
+    let t13 = t0 - t12;
+    let t14 = ld(ck.turns_a_second.bits());
+    let t15 = t13 * t14;
+    fstp(bx, 0x44, t15);
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[bx + 0x48] = (((([bx + 0x44] + sound_speed) * over_sound_speed) - [bx + 0x48]) * [sf + 8]) + [bx + 0x48]`
 fn x87_2(bx: usize, ck: &crate::sound::store::RaceClock, sf: &crate::sound::store::SurfaceSounds) {
-    unsafe {
-        let bx = bx as *mut u8;
-        let t0 = fld(bx, 0x44);
-        let t1 = ld(ck.sound_speed.bits());
-        let t2 = t0 + t1;
-        let t3 = ld(ck.over_sound_speed.bits());
-        let t4 = t2 * t3;
-        let t5 = fld(bx, 0x48);
-        let t6 = t4 - t5;
-        let t7 = ld(sf.pitch_blend.bits());
-        let t8 = t6 * t7;
-        let t9 = fld(bx, 0x48);
-        let t10 = t8 + t9;
-        fstp(bx, 0x48, t10);
-    }
+    let t0 = fld(bx, 0x44);
+    let t1 = ld(ck.sound_speed.bits());
+    let t2 = t0 + t1;
+    let t3 = ld(ck.over_sound_speed.bits());
+    let t4 = t2 * t3;
+    let t5 = fld(bx, 0x48);
+    let t6 = t4 - t5;
+    let t7 = ld(sf.pitch_blend.bits());
+    let t8 = t6 * t7;
+    let t9 = fld(bx, 0x48);
+    let t10 = t8 + t9;
+    fstp(bx, 0x48, t10);
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[bx + 0x4C] = 1 / [bx + 0x40]`
 fn x87_3(bx: usize) {
-    unsafe {
-        let bx = bx as *mut u8;
-        let t0 = X(1.0);
-        let t1 = fld(bx, 0x40);
-        let t2 = t0 / t1;
-        fstp(bx, 0x4C, t2);
-    }
+    let t0 = X(1.0);
+    let t1 = fld(bx, 0x40);
+    let t2 = t0 / t1;
+    fstp(bx, 0x4C, t2);
 }
 
 #[cfg(test)]

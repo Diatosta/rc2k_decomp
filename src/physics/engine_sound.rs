@@ -41,20 +41,18 @@ unsafe fn run() {
 /// +0x31A1F8) as a whole number; +0x31A26C the length of the motion (+0x31A170 ..) x
 /// `flt_5C5D00`, the squares added as the original adds them (z, then x and y).
 fn run_at(rc: usize) {
-    unsafe {
-        let rc = rc as *mut u8;
-        fstp(rc, 0x31AEE0, fld(rc, 0x31A184) * fld(rc, 0x1C5D00));
-        let speed = fld(rc, 0x31AEE0);
-        let scaled = if rc.add(0x31A1F8).cast::<u32>().read_unaligned() & 0x100 != 0 {
-            speed * fld(rc, 0x1C5E08)
-        } else {
-            speed
-        };
-        fistp(rc, 0x31AA88, scaled);
-        let (z, x, y) = (fld(rc, 0x31A178), fld(rc, 0x31A170), fld(rc, 0x31A174));
-        let sum = z * z + (x * x + y * y);
-        fstp(rc, 0x31A26C, sum.sqrt() * fld(rc, 0x1C5D00));
-    }
+    fstp(rc, 0x31AEE0, fld(rc, 0x31A184) * fld(rc, 0x1C5D00));
+    let speed = fld(rc, 0x31AEE0);
+    let flags: u32 = crate::pointers::read_or_end(rc as u32 + 0x31A1F8, "the car's flags");
+    let scaled = if flags & 0x100 != 0 {
+        speed * fld(rc, 0x1C5E08)
+    } else {
+        speed
+    };
+    fistp(rc, 0x31AA88, scaled);
+    let (z, x, y) = (fld(rc, 0x31A178), fld(rc, 0x31A170), fld(rc, 0x31A174));
+    let sum = z * z + (x * x + y * y);
+    fstp(rc, 0x31A26C, sum.sqrt() * fld(rc, 0x1C5D00));
 }
 
 /// The Rust version.

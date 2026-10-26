@@ -17,7 +17,7 @@ pub const SET_COOPERATIVE_LEVEL: u32 = 0x18;
 
 /// A text to the log at the audio's level (2), with a line's end or not.
 pub fn log_text(text: u32, end: bool) {
-    unsafe { crate::logfile::log_write::log_write(text as *const u8, end, 2) };
+    crate::logfile::log_write::log_at(text, end, 2);
 }
 
 /// A number to the log at level 2 as eight hex digits, with a line's end or not.
@@ -32,7 +32,7 @@ pub fn log_number(value: u32, end: bool) {
 
 /// A text to the log at level 1 with a line's end.
 pub fn log_text_1(text: u32) {
-    unsafe { crate::logfile::log_write::log_write(text as *const u8, true, 1) };
+    crate::logfile::log_write::log_at(text, true, 1);
 }
 
 /// The primary buffer stopped.

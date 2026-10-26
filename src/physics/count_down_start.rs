@@ -18,7 +18,7 @@ use crate::race::frame_store::FRAME_WORK;
 use rc2k_core::physics::start::{CarStart, StartCount};
 
 unsafe fn at(a: u32) -> u32 {
-    unsafe { (a as *const u32).read_unaligned() }
+    crate::pointers::read_or_end::<u32>(a, "physics::count_down_start's operand")
 }
 
 /// Where the variables are: +0xA8, the timer, the count; the twin's three.

@@ -56,35 +56,32 @@ pub unsafe fn free_rev() {
 /// `[rc + 0x31A1B0] = (([rc + 0x214750] * [rc + 0x21388C]) / [rc + 0x2140C0]) + [rc + 0x31A1B0]`
 /// `[rc + 0x22400C] = ([rc + 0x31A1B0] * [rc + 0x213FD8]) + [rc + 0x213FD4]`
 fn x87_1(rc: usize) {
-    unsafe {
-        let rc = rc as *mut u8;
-        let t0 = fld(rc, 0x214740);
-        let t1 = fld(rc, 0x1CB968);
-        let t2 = t0 * t1;
-        let t3 = fld(rc, 0x2140C0);
-        let t4 = t2 / t3;
-        let t5 = fld(rc, 0x1C5E34);
-        let t6 = t4 / t5;
-        let t7 = fild(rc, 0x31A610);
-        let t8 = t6 * t7;
-        let t9 = fld(rc, 0x1C5E2C);
-        let t10 = t8 / t9;
-        fstp(rc, 0x214750, t10);
-        let t11 = fld(rc, 0x214750);
-        let t12 = fld(rc, 0x21388C);
-        let t13 = t11 * t12;
-        let t14 = fld(rc, 0x2140C0);
-        let t15 = t13 / t14;
-        let t16 = fld(rc, 0x31A1B0);
-        let t17 = t15 + t16;
-        fstp(rc, 0x31A1B0, t17);
-        let t18 = fld(rc, 0x31A1B0);
-        let t19 = fld(rc, 0x213FD8);
-        let t20 = t18 * t19;
-        let t21 = fld(rc, 0x213FD4);
-        let t22 = t20 + t21;
-        fstp(rc, 0x22400C, t22);
-    }
+    let t0 = fld(rc, 0x214740);
+    let t1 = fld(rc, 0x1CB968);
+    let t2 = t0 * t1;
+    let t3 = fld(rc, 0x2140C0);
+    let t4 = t2 / t3;
+    let t5 = fld(rc, 0x1C5E34);
+    let t6 = t4 / t5;
+    let t7 = fild(rc, 0x31A610);
+    let t8 = t6 * t7;
+    let t9 = fld(rc, 0x1C5E2C);
+    let t10 = t8 / t9;
+    fstp(rc, 0x214750, t10);
+    let t11 = fld(rc, 0x214750);
+    let t12 = fld(rc, 0x21388C);
+    let t13 = t11 * t12;
+    let t14 = fld(rc, 0x2140C0);
+    let t15 = t13 / t14;
+    let t16 = fld(rc, 0x31A1B0);
+    let t17 = t15 + t16;
+    fstp(rc, 0x31A1B0, t17);
+    let t18 = fld(rc, 0x31A1B0);
+    let t19 = fld(rc, 0x213FD8);
+    let t20 = t18 * t19;
+    let t21 = fld(rc, 0x213FD4);
+    let t22 = t20 + t21;
+    fstp(rc, 0x22400C, t22);
 }
 
 #[cfg(test)]

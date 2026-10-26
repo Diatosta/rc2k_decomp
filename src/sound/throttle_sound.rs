@@ -81,16 +81,12 @@ pub fn throttle_sound(o: u32, kind: u32, request: u32) -> Result<(), Refused> {
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[si + o3] = (input * [bp + o1]) + [bp + o2]`
 fn x87_1(input: &crate::session::Float, bp: usize, si: usize, o1: usize, o2: usize, o3: usize) {
-    unsafe {
-        let bp = bp as *const u8;
-        let si = si as *mut u8;
-        let t0 = ld(input.bits());
-        let t1 = fld(bp, o1);
-        let t2 = t0 * t1;
-        let t3 = fld(bp, o2);
-        let t4 = t2 + t3;
-        fstp(si, o3, t4);
-    }
+    let t0 = ld(input.bits());
+    let t1 = fld(bp, o1);
+    let t2 = t0 * t1;
+    let t3 = fld(bp, o2);
+    let t4 = t2 + t3;
+    fstp(si, o3, t4);
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -102,18 +98,14 @@ fn x87_2(
     sf: &crate::sound::store::SurfaceSounds,
     si: usize,
 ) {
-    unsafe {
-        let bp = bp as *const u8;
-        let si = si as *mut u8;
-        let t0 = ld(bx.throttle_input.bits());
-        let t1 = fld(bp, 0x24);
-        let t2 = t0 * t1;
-        let t3 = fld(bp, 0x1C);
-        let t4 = t2 + t3;
-        let t5 = ld(sf.revs_gain.bits());
-        let t6 = t4 * t5;
-        fstp(si, 8, t6);
-    }
+    let t0 = ld(bx.throttle_input.bits());
+    let t1 = fld(bp, 0x24);
+    let t2 = t0 * t1;
+    let t3 = fld(bp, 0x1C);
+    let t4 = t2 + t3;
+    let t5 = ld(sf.revs_gain.bits());
+    let t6 = t4 * t5;
+    fstp(si, 8, t6);
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -122,21 +114,18 @@ fn x87_2(
 /// `[si + 0x10] = [bx + 0x30] - [bx + 0x3C]`
 /// `[si + 0x14] = [bx + 0x34] - [bx + 0x40]`
 fn x87_3(bx: &crate::sound::store::SoundObject, si: usize) {
-    unsafe {
-        let si = si as *mut u8;
-        let t0 = ld(bx.place[0].bits());
-        let t1 = ld(bx.motion[0].bits());
-        let t2 = t0 - t1;
-        fstp(si, 0xC, t2);
-        let t3 = ld(bx.place[1].bits());
-        let t4 = ld(bx.motion[1].bits());
-        let t5 = t3 - t4;
-        fstp(si, 0x10, t5);
-        let t6 = ld(bx.place[2].bits());
-        let t7 = ld(bx.motion[2].bits());
-        let t8 = t6 - t7;
-        fstp(si, 0x14, t8);
-    }
+    let t0 = ld(bx.place[0].bits());
+    let t1 = ld(bx.motion[0].bits());
+    let t2 = t0 - t1;
+    fstp(si, 0xC, t2);
+    let t3 = ld(bx.place[1].bits());
+    let t4 = ld(bx.motion[1].bits());
+    let t5 = t3 - t4;
+    fstp(si, 0x10, t5);
+    let t6 = ld(bx.place[2].bits());
+    let t7 = ld(bx.motion[2].bits());
+    let t8 = t6 - t7;
+    fstp(si, 0x14, t8);
 }
 
 #[cfg(test)]

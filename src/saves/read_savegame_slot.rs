@@ -32,7 +32,8 @@ pub unsafe fn read_savegame_slot(slot: u32) -> Result<bool, Refused> {
         let block = std::slice::from_raw_parts(SAVE_GAMES.file.as_ptr(), 0x30);
         match kept::slot_name(block, kept::SAVEGAME, kept::SAVEGAME_VERSION) {
             Some(name) if read.ok => {
-                std::ptr::copy(name.as_ptr(), slot_name(slot), NAME_LEN);
+                crate::pointers::GamePtr::new(slot_name(slot) as u32)
+                    .write_bytes(&name[..NAME_LEN], "a savegame slot's name")?;
                 Ok(true)
             }
             _ => Ok(false),

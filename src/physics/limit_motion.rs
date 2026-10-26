@@ -39,19 +39,17 @@ unsafe fn hold(v: u32, l: u32) {
 /// number); the limit is stored negated, `v` becomes that unless it is not below it, and the
 /// limit is stored negated again.
 fn hold_at(v: usize, l: usize) {
-    unsafe {
-        let (v, l) = (v as *mut u8, l as *mut u8);
-        let limit = fld(l, 0);
-        if compare(fld(v, 0), limit) & 0x100 == 0 {
-            fstp(v, 0, limit);
-        }
-        fstp(l, 0, -fld(l, 0));
-        let negated = fld(l, 0);
-        if compare(fld(v, 0), negated) & 0x100 != 0 {
-            fstp(v, 0, negated);
-        }
-        fstp(l, 0, -fld(l, 0));
+    let (v, l) = (v as *mut u8, l as *mut u8);
+    let limit = fld(l, 0);
+    if compare(fld(v, 0), limit) & 0x100 == 0 {
+        fstp(v, 0, limit);
     }
+    fstp(l, 0, -fld(l, 0));
+    let negated = fld(l, 0);
+    if compare(fld(v, 0), negated) & 0x100 != 0 {
+        fstp(v, 0, negated);
+    }
+    fstp(l, 0, -fld(l, 0));
 }
 
 /// The Rust version (the exact one, for `physics::car_physics_step` and

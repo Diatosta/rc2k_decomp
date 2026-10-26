@@ -117,42 +117,30 @@ pub fn play_placed_sound_in_game(request: u32) -> Result<(), BadInput> {
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `int [o + 0] = ([v + 0] * [v + 4]) * [v + 8]`
 fn x87_1(v: usize, o: usize) {
-    unsafe {
-        let v = v as *const u8;
-        let o = o as *mut u8;
-        let t0 = fld(v, 0);
-        let t1 = fld(v, 4);
-        let t2 = t0 * t1;
-        let t3 = fld(v, 8);
-        let t4 = t2 * t3;
-        fistp(o, 0, t4);
-    }
+    let t0 = fld(v, 0);
+    let t1 = fld(v, 4);
+    let t2 = t0 * t1;
+    let t3 = fld(v, 8);
+    let t4 = t2 * t3;
+    fistp(o, 0, t4);
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `int [o + 0] = [v + 0] * [v + 4]`
 fn x87_2(v: usize, o: usize) {
-    unsafe {
-        let v = v as *const u8;
-        let o = o as *mut u8;
-        let t0 = fld(v, 0);
-        let t1 = fld(v, 4);
-        let t2 = t0 * t1;
-        fistp(o, 0, t2);
-    }
+    let t0 = fld(v, 0);
+    let t1 = fld(v, 4);
+    let t2 = t0 * t1;
+    fistp(o, 0, t2);
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `int [o + 0] = [a + 0]`
 fn x87_3(a: usize, o: usize) {
-    unsafe {
-        let a = a as *const u8;
-        let o = o as *mut u8;
-        let t0 = fld(a, 0);
-        fistp(o, 0, t0);
-    }
+    let t0 = fld(a, 0);
+    fistp(o, 0, t0);
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -160,20 +148,16 @@ fn x87_3(a: usize, o: usize) {
 /// `[o + 0] = atan2([v + 0], [v + 4])`
 /// `int [o + 4] = [v + 0xC] - (|atan2([v + 0], [v + 4])| * [v + 8])`
 fn x87_4(v: usize, o: usize) {
-    unsafe {
-        let v = v as *const u8;
-        let o = o as *mut u8;
-        let t0 = fld(v, 0);
-        let t1 = fld(v, 4);
-        let t2 = t0.atan2(t1);
-        fstp(o, 0, t2);
-        let t3 = t2.abs();
-        let t4 = fld(v, 8);
-        let t5 = t3 * t4;
-        let t6 = fld(v, 0xC);
-        let t7 = t6 - t5;
-        fistp(o, 4, t7);
-    }
+    let t0 = fld(v, 0);
+    let t1 = fld(v, 4);
+    let t2 = t0.atan2(t1);
+    fstp(o, 0, t2);
+    let t3 = t2.abs();
+    let t4 = fld(v, 8);
+    let t5 = t3 * t4;
+    let t6 = fld(v, 0xC);
+    let t7 = t6 - t5;
+    fistp(o, 4, t7);
 }
 
 #[cfg(test)]

@@ -175,15 +175,12 @@ pub fn car_engine_state(o: u32) -> Result<u32, Refused> {
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[bx + 0x100] = (int [bx + 0x14] - [di + 4]) * [di + 0xC]`
 fn x87_1(bx: &crate::sound::store::SoundObject, di: usize) {
-    unsafe {
-        let di = di as *const u8;
-        let t0 = int(bx.revs.get() as i32);
-        let t1 = fld(di, 4);
-        let t2 = t0 - t1;
-        let t3 = fld(di, 0xC);
-        let t4 = t2 * t3;
-        bx.revs_input.set_bits(st(t4));
-    }
+    let t0 = int(bx.revs.get() as i32);
+    let t1 = fld(di, 4);
+    let t2 = t0 - t1;
+    let t3 = fld(di, 0xC);
+    let t4 = t2 * t3;
+    bx.revs_input.set_bits(st(t4));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -203,17 +200,14 @@ fn x87_2(bx: &crate::sound::store::SoundObject, sf: &crate::sound::store::Surfac
 /// `int [t + 0] = 0x3F400000`
 /// `[bx + 0x210] = (int [t + 0] * [t + 0]) + [t + 0]`
 fn x87_3(t: usize, bx: &crate::sound::store::SoundObject) {
-    unsafe {
-        let t = t as *mut u8;
-        let t0 = fild(t, 0);
-        mov(t, 0, 0x3C888889);
-        let t1 = fld(t, 0);
-        let t2 = t0 * t1;
-        mov(t, 0, 0x3F400000);
-        let t3 = fld(t, 0);
-        let t4 = t2 + t3;
-        bx.gear_pitch.set_bits(st(t4));
-    }
+    let t0 = fild(t, 0);
+    mov(t, 0, 0x3C888889);
+    let t1 = fld(t, 0);
+    let t2 = t0 * t1;
+    mov(t, 0, 0x3F400000);
+    let t3 = fld(t, 0);
+    let t4 = t2 + t3;
+    bx.gear_pitch.set_bits(st(t4));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'

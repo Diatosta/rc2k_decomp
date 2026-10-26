@@ -45,11 +45,19 @@ pub fn scaled_abs_less_below(a: u32, h: u32, k: u32, b: u32) -> bool {
     compare(x, ld(b)) & 0x0100 != 0
 }
 
+/// `bytes` bytes at `p` checked to lie in one region (the program ends otherwise).
+fn span<T>(p: *const T, bytes: usize) {
+    crate::pointers::check_or_end(p as usize as u32, bytes, "a math helper's operand");
+}
+
 /// The point (three whole numbers) through `matrix` (16 floats; the 12 used are the
 /// columns' at 0, 4, 8 / 0x10, 0x14, 0x18 / 0x20, 0x24, 0x28 and the translation at 0x30,
 /// 0x34, 0x38), as the original adds them: m0 x + (m4 y + m8 z) and so on, then the
 /// translation. Left at double precision.
 unsafe fn rotated(point: *const i32, matrix: *const u32) -> [X; 3] {
+    span(point, 12);
+    span(matrix, 60);
+
     unsafe {
         let (x, y, z) = (
             int(point.read_unaligned()),
@@ -68,6 +76,8 @@ unsafe fn rotated(point: *const i32, matrix: *const u32) -> [X; 3] {
 /// numbers) through `matrix`, x and y stored as floats at `out[0]`, `out[1]`, z rounded
 /// into `out[2]` from the x87's precision (`sub_4573FA`).
 pub unsafe fn rotate_rounding_z(point: *const i32, matrix: *const u32, out: *mut u32) {
+    span(out, 12);
+
     unsafe {
         let s = rotated(point, matrix);
         out.write_unaligned(st(s[0]));
@@ -114,6 +124,8 @@ pub fn abs_below_or_unordered(a: u32, k: u32) -> bool {
 /// `scene::project_point::rotate` with all three stores `fistp`: the point (three whole
 /// numbers) through `matrix`, each part rounded from the x87's precision into `out`.
 pub unsafe fn rotate_rounding(point: *const i32, matrix: *const u32, out: *mut u32) {
+    span(out, 12);
+
     unsafe {
         let s = rotated(point, matrix);
         out.write_unaligned(to_int(s[0]) as u32);
@@ -180,6 +192,8 @@ pub fn tbyte_to_int(a: [u8; 10]) -> u32 {
 /// and the scale over the flat depth + 1; else the scale over z. Gives x as a float and
 /// rounded, y as a float and rounded (each `x r + cx` and `cy - y r`, r the ratio).
 pub unsafe fn sun_on_screen(v: &[u32; 7], flat: bool, scratch: *mut u32) -> [u32; 4] {
+    span(scratch, 4);
+
     let (x, y, z) = (int(v[0] as i32), int(v[1] as i32), int(v[2] as i32));
     let ratio = if flat {
         unsafe { scratch.write_unaligned(st(z)) };

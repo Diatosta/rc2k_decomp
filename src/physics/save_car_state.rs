@@ -15,7 +15,7 @@ use crate::physics::restore_saved_car::SavedCar;
 use rc2k_core::physics::saved_car::{CarState, save_count};
 
 unsafe fn at(a: u32) -> u32 {
-    unsafe { (a as *const u32).read_unaligned() }
+    crate::pointers::read_or_end::<u32>(a, "physics::save_car_state's operand")
 }
 
 /// The pieces at these places, `n` faces.
@@ -40,7 +40,11 @@ pub unsafe fn write_state(s: &CarState, place: u32, matrix: u32, list: u32) {
 
 unsafe fn put_dwords(to: u32, v: &[u32]) {
     for (k, x) in v.iter().enumerate() {
-        unsafe { ((to + 4 * k as u32) as *mut u32).write_unaligned(*x) };
+        crate::pointers::write_or_end::<u32>(
+            to + 4 * k as u32,
+            *x,
+            "physics::save_car_state's operand",
+        );
     }
 }
 

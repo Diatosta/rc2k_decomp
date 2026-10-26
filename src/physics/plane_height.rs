@@ -39,7 +39,7 @@ impl Plane {
 }
 
 unsafe fn at(a: u32) -> u32 {
-    unsafe { (a as *const u32).read_unaligned() }
+    crate::pointers::read_or_end::<u32>(a, "physics::plane_height's operand")
 }
 
 /// The Rust core on the variables at `p`.

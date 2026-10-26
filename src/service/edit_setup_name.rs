@@ -47,13 +47,12 @@ const MEASURING_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fon
 
 /// Writes the cursor and a NUL after the name's `len` characters.
 unsafe fn put_cursor(name: *mut u8) -> Result<(), BadInput> {
-    unsafe {
-        let mut tail = Vec::new();
-        push_string(&mut tail, CURSOR_STRING)?;
-        tail.push(0);
-        let len = LOOP_FLAGS.text_length.get() as i32;
-        std::ptr::copy_nonoverlapping(tail.as_ptr(), name.offset(len as isize), tail.len());
-    }
+    let mut tail = Vec::new();
+    push_string(&mut tail, CURSOR_STRING)?;
+    tail.push(0);
+    let len = LOOP_FLAGS.text_length.get() as i32;
+    crate::pointers::GamePtr::new((name as u32).wrapping_add(len as u32))
+        .write_bytes(&tail, "the setup name")?;
     Ok(())
 }
 

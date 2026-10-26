@@ -65,28 +65,26 @@ fn quad_tail_math(s: usize, v: usize, sc: usize, t: usize, rc: usize) {
         t as *mut u8,
         rc as *mut u8,
     );
-    unsafe {
-        let k = fld(rc, 0x1C2C64);
-        let left = fild(s, 0) * k;
-        fstp(v, 0x18, left);
-        fstp(v, 0x58, left);
-        let right = (fild(s, 0) + fild(s, 8)) * fld(rc, 0x1C2C64);
-        fstp(v, 0x38, right);
-        fstp(v, 0x78, right);
-        let top = fild(s, 4) * fld(rc, 0x1C2C64);
-        fstp(v, 0x1C, top);
-        fstp(v, 0x3C, top);
-        let bottom = (fild(s, 4) + fild(s, 0xC)) * fld(rc, 0x1C2C64);
-        fstp(v, 0x5C, bottom);
-        fstp(v, 0x7C, bottom);
-        fstp(t, 0, fild(sc, 0) * fld(rc, 0x1C2C68));
-        for off in [0, 0x20, 0x40, 0x60] {
-            fstp(v, off, fld(v, off) * fld(t, 0));
-        }
-        fstp(t, 0, fild(sc, 4) * fld(rc, 0x1C2C6C));
-        for off in [4, 0x24, 0x44, 0x64] {
-            fstp(v, off, fld(v, off) * fld(t, 0));
-        }
+    let k = fld(rc, 0x1C2C64);
+    let left = fild(s, 0) * k;
+    fstp(v, 0x18, left);
+    fstp(v, 0x58, left);
+    let right = (fild(s, 0) + fild(s, 8)) * fld(rc, 0x1C2C64);
+    fstp(v, 0x38, right);
+    fstp(v, 0x78, right);
+    let top = fild(s, 4) * fld(rc, 0x1C2C64);
+    fstp(v, 0x1C, top);
+    fstp(v, 0x3C, top);
+    let bottom = (fild(s, 4) + fild(s, 0xC)) * fld(rc, 0x1C2C64);
+    fstp(v, 0x5C, bottom);
+    fstp(v, 0x7C, bottom);
+    fstp(t, 0, fild(sc, 0) * fld(rc, 0x1C2C68));
+    for off in [0, 0x20, 0x40, 0x60] {
+        fstp(v, off, fld(v, off) * fld(t, 0));
+    }
+    fstp(t, 0, fild(sc, 4) * fld(rc, 0x1C2C6C));
+    for off in [4, 0x24, 0x44, 0x64] {
+        fstp(v, off, fld(v, off) * fld(t, 0));
     }
 }
 

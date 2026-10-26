@@ -13,24 +13,20 @@ use crate::scene::x87_mem::{fld, fstp};
 /// `dword_606748`, `606730`, `606734` from the eased time, the share and the lines'
 /// constants, over the race block at `rc` (the dwords at RVA offsets).
 fn lines(rc: usize) {
-    let rc = rc as *mut u8;
-    unsafe {
-        fstp(rc, 0x206748, fld(rc, 0x24BB68) * fld(rc, 0x24BB4C));
-        let a = fld(rc, 0x24BB68) * fld(rc, 0x24BB5C) + fld(rc, 0x24BB54);
-        let b = fld(rc, 0x24BB6C) * fld(rc, 0x24BB7C);
-        fstp(rc, 0x206730, a + b);
-        fstp(
-            rc,
-            0x206734,
-            fld(rc, 0x24BB68) * fld(rc, 0x24BB58) + fld(rc, 0x24BB50),
-        );
-    }
+    fstp(rc, 0x206748, fld(rc, 0x24BB68) * fld(rc, 0x24BB4C));
+    let a = fld(rc, 0x24BB68) * fld(rc, 0x24BB5C) + fld(rc, 0x24BB54);
+    let b = fld(rc, 0x24BB6C) * fld(rc, 0x24BB7C);
+    fstp(rc, 0x206730, a + b);
+    fstp(
+        rc,
+        0x206734,
+        fld(rc, 0x24BB68) * fld(rc, 0x24BB58) + fld(rc, 0x24BB50),
+    );
 }
 
 /// `dword_606744` from the share and its constant.
 fn last_line(rc: usize) {
-    let rc = rc as *mut u8;
-    unsafe { fstp(rc, 0x206744, fld(rc, 0x24BB6C) * fld(rc, 0x24BB78)) }
+    fstp(rc, 0x206744, fld(rc, 0x24BB6C) * fld(rc, 0x24BB78))
 }
 
 /// The Rust version (the exact one, for `drive::finish_run`).

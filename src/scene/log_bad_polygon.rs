@@ -119,7 +119,7 @@ fn log(kind: u32, value: u32) {
     use crate::logfile::{log_float::log_float, log_hex8::log_hex8, log_int::log_int};
     unsafe {
         match kind {
-            WRITE => log_write(value as *const u8, false, 1),
+            WRITE => crate::logfile::log_write::log_at(value, false, 1),
             HEX8 => log_hex8(value, false, 1),
             FLOAT => log_float(f32::from_bits(value), 2, false, 1),
             INT => log_int(value as i32, false, 1),

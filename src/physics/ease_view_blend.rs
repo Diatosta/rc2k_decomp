@@ -36,13 +36,10 @@ pub unsafe fn ease_view_blend() {
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x205260] = 1 - [rc + 0x205260]`
 fn x87_1(rc: usize) {
-    unsafe {
-        let rc = rc as *mut u8;
-        let t0 = X(1.0);
-        let t1 = fld(rc, 0x205260);
-        let t2 = t0 - t1;
-        fstp(rc, 0x205260, t2);
-    }
+    let t0 = X(1.0);
+    let t1 = fld(rc, 0x205260);
+    let t2 = t0 - t1;
+    fstp(rc, 0x205260, t2);
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -50,28 +47,25 @@ fn x87_1(rc: usize) {
 /// `[rc + 0x31A6A0] = (([rc + 0x208B24] - [rc + 0x208B20]) * [rc + 0x205260]) + [rc + 0x208B20]`
 /// `int [rc + 0x208B38] = -(((([rc + 0x208B2C] - [rc + 0x208B28]) * [rc + 0x205260]) + [rc + 0x208B28]) * [rc + 0x1C5D98])`
 fn x87_2(rc: usize) {
-    unsafe {
-        let rc = rc as *mut u8;
-        let t0 = fld(rc, 0x208B24);
-        let t1 = fld(rc, 0x208B20);
-        let t2 = t0 - t1;
-        let t3 = fld(rc, 0x205260);
-        let t4 = t2 * t3;
-        let t5 = fld(rc, 0x208B20);
-        let t6 = t4 + t5;
-        fstp(rc, 0x31A6A0, t6);
-        let t7 = fld(rc, 0x208B2C);
-        let t8 = fld(rc, 0x208B28);
-        let t9 = t7 - t8;
-        let t10 = fld(rc, 0x205260);
-        let t11 = t9 * t10;
-        let t12 = fld(rc, 0x208B28);
-        let t13 = t11 + t12;
-        let t14 = fld(rc, 0x1C5D98);
-        let t15 = t13 * t14;
-        let t16 = -t15;
-        fistp(rc, 0x208B38, t16);
-    }
+    let t0 = fld(rc, 0x208B24);
+    let t1 = fld(rc, 0x208B20);
+    let t2 = t0 - t1;
+    let t3 = fld(rc, 0x205260);
+    let t4 = t2 * t3;
+    let t5 = fld(rc, 0x208B20);
+    let t6 = t4 + t5;
+    fstp(rc, 0x31A6A0, t6);
+    let t7 = fld(rc, 0x208B2C);
+    let t8 = fld(rc, 0x208B28);
+    let t9 = t7 - t8;
+    let t10 = fld(rc, 0x205260);
+    let t11 = t9 * t10;
+    let t12 = fld(rc, 0x208B28);
+    let t13 = t11 + t12;
+    let t14 = fld(rc, 0x1C5D98);
+    let t15 = t13 * t14;
+    let t16 = -t15;
+    fistp(rc, 0x208B38, t16);
 }
 
 #[cfg(test)]

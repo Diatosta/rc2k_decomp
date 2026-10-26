@@ -32,7 +32,7 @@ use crate::scene::x87_mem::{fld, fstp};
 use crate::session::Dword;
 
 unsafe fn get(a: u32) -> u32 {
-    unsafe { (a as *const u32).read_unaligned() }
+    crate::pointers::read_or_end::<u32>(a, "physics::car_sound_state's operand")
 }
 
 /// 0x45CB02 .. 0x45CB88 (the shares into the voices), the integer steps between in Rust.
@@ -118,15 +118,12 @@ pub unsafe fn car_sound_state() -> Result<(), Refused> {
 /// `[rc + 0x31A264] = [rc + 0x31A260] / [rc + 0x213EE0]`
 /// `[rc + 0x31A268] = 1`
 fn x87_1(rc: usize) {
-    unsafe {
-        let rc = rc as *mut u8;
-        let t0 = fld(rc, 0x31A260);
-        let t1 = fld(rc, 0x213EE0);
-        let t2 = t0 / t1;
-        fstp(rc, 0x31A264, t2);
-        let t3 = X(1.0);
-        fstp(rc, 0x31A268, t3);
-    }
+    let t0 = fld(rc, 0x31A260);
+    let t1 = fld(rc, 0x213EE0);
+    let t2 = t0 / t1;
+    fstp(rc, 0x31A264, t2);
+    let t3 = X(1.0);
+    fstp(rc, 0x31A268, t3);
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -144,26 +141,23 @@ fn x87_1(rc: usize) {
 /// `[o + 0x6C] = [rc + 0x31A26C]`
 /// `[o + 0x80] = [rc + 0x31A26C]`
 fn x87_2(rc: usize, o: &crate::sound::store::SoundObject) {
-    unsafe {
-        let rc = rc as *const u8;
-        let t0 = fld(rc, 0x31A268);
-        o.voices[0].share_b.set_bits(st(t0));
-        o.voices[1].share_b.set_bits(st(t0));
-        o.voices[2].share_b.set_bits(st(t0));
-        o.voices[3].share_b.set_bits(st(t0));
-        let t1 = fld(rc, 0x31A264);
-        let t2 = fld(rc, 0x1C5E2C);
-        let t3 = t1 * t2;
-        o.voices[0].share_c.set_bits(st(t3));
-        o.voices[1].share_c.set_bits(st(t3));
-        o.voices[2].share_c.set_bits(st(t3));
-        o.voices[3].share_c.set_bits(st(t3));
-        let t4 = fld(rc, 0x31A26C);
-        o.voices[0].share_a.set_bits(st(t4));
-        o.voices[1].share_a.set_bits(st(t4));
-        o.voices[2].share_a.set_bits(st(t4));
-        o.voices[3].share_a.set_bits(st(t4));
-    }
+    let t0 = fld(rc, 0x31A268);
+    o.voices[0].share_b.set_bits(st(t0));
+    o.voices[1].share_b.set_bits(st(t0));
+    o.voices[2].share_b.set_bits(st(t0));
+    o.voices[3].share_b.set_bits(st(t0));
+    let t1 = fld(rc, 0x31A264);
+    let t2 = fld(rc, 0x1C5E2C);
+    let t3 = t1 * t2;
+    o.voices[0].share_c.set_bits(st(t3));
+    o.voices[1].share_c.set_bits(st(t3));
+    o.voices[2].share_c.set_bits(st(t3));
+    o.voices[3].share_c.set_bits(st(t3));
+    let t4 = fld(rc, 0x31A26C);
+    o.voices[0].share_a.set_bits(st(t4));
+    o.voices[1].share_a.set_bits(st(t4));
+    o.voices[2].share_a.set_bits(st(t4));
+    o.voices[3].share_a.set_bits(st(t4));
 }
 
 #[cfg(test)]

@@ -24,7 +24,7 @@ use crate::session::Dword;
 use rc2k_core::physics::sound_places::{PLAY, PLAYING, Slot};
 
 pub unsafe fn put(a: u32, v: u32) {
-    unsafe { (a as *mut u32).write_unaligned(v) }
+    crate::pointers::write_or_end::<u32>(a, v, "physics::car_sounds's operand")
 }
 
 /// Whether car `car` (a number) is listed; refused past 7.
@@ -121,30 +121,22 @@ fn offset_part(offset: u32, car: u32, listener: u32) -> [u8; 10] {
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `ext [o + 0] = int [v + 0] - int [v + 4]`
 fn x87_1(v: usize, o: usize) {
-    unsafe {
-        let v = v as *const u8;
-        let o = o as *mut u8;
-        let t0 = fild(v, 0);
-        let t1 = fild(v, 4);
-        let t2 = t0 - t1;
-        fstp80(o, 0, t2);
-    }
+    let t0 = fild(v, 0);
+    let t1 = fild(v, 4);
+    let t2 = t0 - t1;
+    fstp80(o, 0, t2);
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `ext [o + 0] = (int [v + 0] + int [v + 4]) - int [v + 8]`
 fn x87_2(v: usize, o: usize) {
-    unsafe {
-        let v = v as *const u8;
-        let o = o as *mut u8;
-        let t0 = fild(v, 0);
-        let t1 = fild(v, 4);
-        let t2 = t0 + t1;
-        let t3 = fild(v, 8);
-        let t4 = t2 - t3;
-        fstp80(o, 0, t4);
-    }
+    let t0 = fild(v, 0);
+    let t1 = fild(v, 4);
+    let t2 = t0 + t1;
+    let t3 = fild(v, 8);
+    let t4 = t2 - t3;
+    fstp80(o, 0, t4);
 }
 
 #[cfg(test)]

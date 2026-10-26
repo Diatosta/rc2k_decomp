@@ -168,17 +168,11 @@ pub fn append_byte(cursor: u32, b: u8) -> u32 {
 
 /// `strings::append_string_by_id`: string `id` appended at `cursor`; the cursor past it.
 pub fn append_string_by_id(id: u32, cursor: u32) -> u32 {
-    let mut out = cursor as *mut u8;
-    crate::menu::event_flow::refuse_here(
-        unsafe {
-            crate::strings::append_string_by_id::append_string_by_id(id, &mut |from, n| {
-                std::ptr::copy(from, out, n);
-                out = out.add(n);
-            })
-        },
-        "install::installer: a string",
-    );
-    out as u32
+    let mut text = Vec::new();
+    let written = crate::strings::append_string_by_id::push_string(&mut text, id)
+        .and_then(|()| crate::pointers::GamePtr::new(cursor).write_bytes(&text, "a text"));
+    crate::menu::event_flow::refuse_here(written, "install::installer: a string");
+    cursor.wrapping_add(text.len() as u32)
 }
 
 // ---- the game's other functions the installer calls ----

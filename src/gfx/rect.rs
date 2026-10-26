@@ -68,7 +68,7 @@ unsafe fn put(p: u32, bits: u32, colour: u32, palette: u32) {
 }
 
 fn rect_at(rect: u32) -> [i32; 4] {
-    std::array::from_fn(|n| unsafe { ((rect + 4 * n as u32) as *const i32).read_unaligned() })
+    std::array::from_fn(|n| crate::pointers::read_or_end(rect + 4 * n as u32, "a rectangle"))
 }
 
 /// `gfx::fill_rect` (0x406869): rectangle ebx (x, y, width, height) filled, clipped. As the

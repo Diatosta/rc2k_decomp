@@ -1458,6 +1458,14 @@ fn comparisons_with_nan() {
     });
 }
 
+/// A test buffer lent while the helpers read it as game memory.
+fn lend<T>(v: &[T]) -> crate::pointers::Lent {
+    // SAFETY: the same memory seen as bytes, for the registry only.
+    crate::pointers::Lent::new(unsafe {
+        std::slice::from_raw_parts(v.as_ptr().cast::<u8>(), std::mem::size_of_val(v))
+    })
+}
+
 #[test]
 fn trigonometry() {
     each_mode(4, &MODES, |g| {
@@ -1476,7 +1484,9 @@ fn trigonometry() {
         let step = g.fa();
         let count = g.count(40);
         let mut r = vec![0xAAAA_AAAAu32; 41];
+        let _lent_r = lend(&r);
         let mut p = r.clone();
+        let _lent_p = lend(&p);
         unsafe {
             sine_table(step, r.as_mut_ptr(), count);
             plain::sine_table(step, p.as_mut_ptr(), count);
@@ -1492,7 +1502,9 @@ fn trigonometry() {
         let (c, d) = (g.nz() % 1000, g.fa());
         let count = 1 + g.count(11);
         let mut r = vec![0xAAAA_AAAAu32; 40];
+        let _lent_r = lend(&r);
         let mut p = r.clone();
+        let _lent_p = lend(&p);
         unsafe {
             circle_points(&radius, r.as_mut_ptr(), count, &c, &d);
             plain::circle_points(&radius, p.as_mut_ptr(), count, &c, &d);
@@ -1513,15 +1525,19 @@ fn pointer_functions() {
         let a = [g.f(), g.f(), g.f()];
         // a matrix's worth of floats (9) for the strided ones
         let m: Vec<u32> = (0..9).map(|_| g.f()).collect();
+        let _lent_m = lend(&m);
         // `row_times_column` reads b + 0x10 and b + 0x20: a 12-dword matrix
         let b: Vec<u32> = (0..12).map(|_| g.f()).collect();
+        let _lent_b = lend(&b);
         let (mut r, mut p) = (vec![0xAAAA_AAAAu32], vec![0xAAAA_AAAAu32]);
+        let _lent = (lend(&r), lend(&p));
         unsafe {
             row_times_column(a.as_ptr(), b.as_ptr(), r.as_mut_ptr());
             plain::row_times_column(a.as_ptr(), b.as_ptr(), p.as_mut_ptr());
         }
         compare("row_times_column", EXACT, r, p, format!("{a:x?} {b:x?}"));
         let (mut r, mut p) = (vec![0xAAAA_AAAAu32], vec![0xAAAA_AAAAu32]);
+        let _lent = (lend(&r), lend(&p));
         unsafe {
             row_times_column_3(a.as_ptr(), m.as_ptr(), r.as_mut_ptr());
             plain::row_times_column_3(a.as_ptr(), m.as_ptr(), p.as_mut_ptr());
@@ -1530,6 +1546,7 @@ fn pointer_functions() {
 
         let (x, start) = (g.f(), g.f());
         let (mut r, mut p) = (vec![start], vec![start]);
+        let _lent = (lend(&r), lend(&p));
         unsafe {
             add_into(&x, r.as_mut_ptr());
             plain::add_into(&x, p.as_mut_ptr());
@@ -1591,6 +1608,7 @@ fn pointer_functions() {
         let values: Vec<i32> = (0..16).map(|_| g.i()).collect();
         let (last, first, by) = (g.i(), g.i(), g.nz());
         let (mut r, mut p) = (values.clone(), values.clone());
+        let _lent = (lend(&r), lend(&p));
         unsafe {
             ramp_down(r.as_mut_ptr(), count, last, first, by);
             plain::ramp_down(p.as_mut_ptr(), count, last, first, by);
@@ -1610,7 +1628,9 @@ fn pointer_functions_to_int() {
     each_mode(8, &MODES, |g| {
         let pt = [g.i(), g.i(), g.i()];
         let mat: Vec<u32> = (0..9).map(|_| g.f()).collect();
+        let _lent_mat = lend(&mat);
         let (mut r, mut p) = (vec![0x5555_5555i32; 3], vec![0x5555_5555i32; 3]);
+        let _lent = (lend(&r), lend(&p));
         unsafe {
             turn_int_point(pt.as_ptr(), mat.as_ptr(), r.as_mut_ptr());
             plain::turn_int_point(pt.as_ptr(), mat.as_ptr(), p.as_mut_ptr());

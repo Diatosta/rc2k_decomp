@@ -78,14 +78,11 @@ pub fn surface_sounds(o: u32, request: u32) -> Result<(), Refused> {
 /// `int [t + 0] = 0x3E800000`
 /// `[sf + 0x40] = [sf + 0x40] * [t + 0]`
 fn x87_1(sf: &crate::sound::store::SurfaceSounds, t: usize) {
-    unsafe {
-        let t = t as *mut u8;
-        let t0 = ld(sf.volume.bits());
-        mov(t, 0, 0x3E800000);
-        let t1 = fld(t, 0);
-        let t2 = t0 * t1;
-        sf.volume.set_bits(st(t2));
-    }
+    let t0 = ld(sf.volume.bits());
+    mov(t, 0, 0x3E800000);
+    let t1 = fld(t, 0);
+    let t2 = t0 * t1;
+    sf.volume.set_bits(st(t2));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -93,14 +90,11 @@ fn x87_1(sf: &crate::sound::store::SurfaceSounds, t: usize) {
 /// `int [t + 0] = 0x3DCCCCCD`
 /// `[sf + 0x40] = [sf + 0x40] * [t + 0]`
 fn x87_2(sf: &crate::sound::store::SurfaceSounds, t: usize) {
-    unsafe {
-        let t = t as *mut u8;
-        let t0 = ld(sf.volume.bits());
-        mov(t, 0, 0x3DCCCCCD);
-        let t1 = fld(t, 0);
-        let t2 = t0 * t1;
-        sf.volume.set_bits(st(t2));
-    }
+    let t0 = ld(sf.volume.bits());
+    mov(t, 0, 0x3DCCCCCD);
+    let t1 = fld(t, 0);
+    let t2 = t0 * t1;
+    sf.volume.set_bits(st(t2));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'

@@ -39,16 +39,12 @@ pub unsafe fn ease_view_angles() {
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `int [rc + 0x22400C] = ([s + 0] * [rc + 0x205260]) * [rc + 0x1C5D98]`
 fn x87_1(s: usize, rc: usize) {
-    unsafe {
-        let s = s as *const u8;
-        let rc = rc as *mut u8;
-        let t0 = fld(s, 0);
-        let t1 = fld(rc, 0x205260);
-        let t2 = t0 * t1;
-        let t3 = fld(rc, 0x1C5D98);
-        let t4 = t2 * t3;
-        fistp(rc, 0x22400C, t4);
-    }
+    let t0 = fld(s, 0);
+    let t1 = fld(rc, 0x205260);
+    let t2 = t0 * t1;
+    let t3 = fld(rc, 0x1C5D98);
+    let t4 = t2 * t3;
+    fistp(rc, 0x22400C, t4);
 }
 
 #[cfg(test)]

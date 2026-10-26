@@ -127,18 +127,14 @@ pub fn steps() -> Result<(), Refused> {
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `int [rc + 0x22400C] = (atan2(int [d + 0], int [d + 4]) * [rc + 0x1C5DD4]) * [rc + 0x1C5D98]`
 fn x87_1(d: usize, rc: usize) {
-    unsafe {
-        let d = d as *const u8;
-        let rc = rc as *mut u8;
-        let t0 = fild(d, 0);
-        let t1 = fild(d, 4);
-        let t2 = t0.atan2(t1);
-        let t3 = fld(rc, 0x1C5DD4);
-        let t4 = t2 * t3;
-        let t5 = fld(rc, 0x1C5D98);
-        let t6 = t4 * t5;
-        fistp(rc, 0x22400C, t6);
-    }
+    let t0 = fild(d, 0);
+    let t1 = fild(d, 4);
+    let t2 = t0.atan2(t1);
+    let t3 = fld(rc, 0x1C5DD4);
+    let t4 = t2 * t3;
+    let t5 = fld(rc, 0x1C5D98);
+    let t6 = t4 * t5;
+    fistp(rc, 0x22400C, t6);
 }
 
 #[cfg(test)]

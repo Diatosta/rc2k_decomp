@@ -8,7 +8,6 @@
 //! (`byte_519101`) and after the next `.` within 254 characters a third (`byte_519100`).
 //! What is not there keeps its value. One caller, `sub_411239`.
 
-use crate::bridge::Raw;
 use crate::errors::BadInput;
 use crate::session::{Byte, Bytes, Dword, with_runs};
 use crate::settings::read_text::read_text;
@@ -19,30 +18,32 @@ use rc2k_core::install::config;
 
 // ---- Rust version ----
 
-pub unsafe fn read_sku(path: *const u8) -> Result<(), BadInput> {
-    unsafe {
-        let Some((text, _)) = read_text(path)? else {
-            return Ok(());
-        };
-        // Converted: `rc2k_core::install::config::read_sku` (the key as its constant).
-        let Some(sku) = config::read_sku(&Raw::new(text), &case_table())? else {
-            return Ok(());
-        };
-        if sku.oem {
-            SKU.oem.set(1u32);
-        }
-        if sku.dvd {
-            SKU.dvd.set(1u32);
-        }
-        SKU.number.set(sku.number);
-        if let Some(second) = sku.second {
-            SKU.second.set(second);
-        }
-        if let Some(third) = sku.third {
-            SKU.third.set(third);
-        }
-        Ok(())
+pub fn read_sku(path: *const u8) -> Result<(), BadInput> {
+    let Some((text, _)) = read_text(path)? else {
+        return Ok(());
+    };
+    // Converted: `rc2k_core::install::config::read_sku` (the key as its constant).
+    let Some(sku) = config::read_sku(
+        &crate::pointers::GamePtr::new(text as u32).bytes("the install record")?,
+        &case_table(),
+    )?
+    else {
+        return Ok(());
+    };
+    if sku.oem {
+        SKU.oem.set(1u32);
     }
+    if sku.dvd {
+        SKU.dvd.set(1u32);
+    }
+    SKU.number.set(sku.number);
+    if let Some(second) = sku.second {
+        SKU.second.set(second);
+    }
+    if let Some(third) = sku.third {
+        SKU.third.set(third);
+    }
+    Ok(())
 }
 
 /// The edition's markers (`install::read_sku`) (IDA 0x5190F4 .. 0x519118, the image's layout).

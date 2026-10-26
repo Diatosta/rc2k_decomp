@@ -120,7 +120,7 @@ const SET_UP_WORDS: [&std::ffi::CStr; 11] = [
 /// The log's calls (`log_write_l1`, `log_write_l1_nl`, `log_int_l1`, `log_int_l1_nl`,
 /// `log_newline_l1`), each inside `pusha`.
 fn text(at: u32, newline: bool) {
-    unsafe { crate::logfile::log_write::log_write(at as *const u8, newline, 1) };
+    crate::logfile::log_write::log_at(at, newline, 1);
 }
 
 fn number(value: u32, newline: bool) {

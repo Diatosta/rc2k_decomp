@@ -53,9 +53,17 @@ pub unsafe fn refused_in(name: &str, reason: impl Into<Refused>, r: &Regs) {
 /// method, the installer's script): `refused_in` with no registers to report. A fatal error
 /// raised this way that comes back (a code without the fatal bit) ends the program too.
 pub fn end(name: &str, reason: impl Into<Refused>) -> ! {
-    unsafe { refused_in(name, reason, &Regs::default()) };
-    crate::standalone::finish(
-        &format!("{name}: a fatal error came back from its report"),
-        1,
-    )
+    // A test sees the refusal as its own failure, not the whole run's end.
+    #[cfg(test)]
+    {
+        panic!("{name}: refused: {:?}", reason.into())
+    }
+    #[cfg(not(test))]
+    {
+        unsafe { refused_in(name, reason, &Regs::default()) };
+        crate::standalone::finish(
+            &format!("{name}: a fatal error came back from its report"),
+            1,
+        )
+    }
 }

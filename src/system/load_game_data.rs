@@ -84,31 +84,28 @@ pub type Outside<'a> = &'a mut dyn FnMut(Call) -> Result<u32, Refused>;
 
 /// The string and what follows it, with a NUL, at `to`.
 unsafe fn default_name(to: *mut u8, room: usize, id: u32, after: &[u8]) -> Result<(), BadInput> {
-    unsafe {
-        let mut string = Vec::new();
-        push_string(&mut string, id)?;
-        let name = rc2k_core::system::game_data::default_name(&string, after, room)
-            .ok_or(BadInput("a default name longer than its place"))?;
-        std::ptr::copy(name.as_ptr(), to, name.len());
-        Ok(())
-    }
+    let mut string = Vec::new();
+    push_string(&mut string, id)?;
+    let name = rc2k_core::system::game_data::default_name(&string, after, room)
+        .ok_or(BadInput("a default name longer than its place"))?;
+    crate::pointers::GamePtr::new(to as u32).write_bytes(&name, "a default name")?;
+    Ok(())
 }
 
 /// A list of 100 names: every empty one becomes the string and the slot's number.
 unsafe fn number_empty_names<const N: usize>(names: &Bytes<N>, id: u32) -> Result<(), BadInput> {
-    unsafe {
-        for slot in 0..SLOTS {
-            let name = slot as usize * NAME_LEN;
-            if names.get(name) == 0 {
-                let mut string = Vec::new();
-                push_string(&mut string, id)?;
-                let bytes = rc2k_core::system::game_data::slot_name(&string, slot, NAME_LEN)
-                    .ok_or(BadInput("a default name longer than its place"))?;
-                std::ptr::copy(bytes.as_ptr(), names.as_ptr().add(name), bytes.len());
-            }
+    for slot in 0..SLOTS {
+        let name = slot as usize * NAME_LEN;
+        if names.get(name) == 0 {
+            let mut string = Vec::new();
+            push_string(&mut string, id)?;
+            let bytes = rc2k_core::system::game_data::slot_name(&string, slot, NAME_LEN)
+                .ok_or(BadInput("a default name longer than its place"))?;
+            crate::pointers::GamePtr::new((names.as_ptr() as u32).wrapping_add(name as u32))
+                .write_bytes(&bytes, "a default slot name")?;
         }
-        Ok(())
     }
+    Ok(())
 }
 
 pub unsafe fn load_game_data(outside: Outside) -> Result<(), Refused> {

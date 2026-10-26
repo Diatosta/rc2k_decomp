@@ -152,40 +152,34 @@ pub fn crash_contact() -> Result<(), Refused> {
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// (a long formula: see the instructions in the tests' `asm_reference`)
 fn x87_1(rc: usize) {
-    unsafe {
-        let rc = rc as *mut u8;
-        let t0 = fld(rc, 0x2D31D0);
-        let t1 = fld(rc, 0x1C5D38);
-        let t2 = t0 + t1;
-        let t3 = fld(rc, 0x1C5D3C);
-        let t4 = t2 / t3;
-        let t5 = fld(rc, 0x1C5D3C);
-        let t6 = t4 + t5;
-        let t7 = fld(rc, 0x213FC8);
-        let t8 = t6 * t7;
-        let t9 = fld(rc, 0x21388C);
-        let t10 = t8 * t9;
-        let t11 = fld(rc, 0x214294);
-        let t12 = t10 * t11;
-        let t13 = fld(rc, 0x214170);
-        let t14 = t12 * t13;
-        fstp(rc, 0x2D3100, t14);
-    }
+    let t0 = fld(rc, 0x2D31D0);
+    let t1 = fld(rc, 0x1C5D38);
+    let t2 = t0 + t1;
+    let t3 = fld(rc, 0x1C5D3C);
+    let t4 = t2 / t3;
+    let t5 = fld(rc, 0x1C5D3C);
+    let t6 = t4 + t5;
+    let t7 = fld(rc, 0x213FC8);
+    let t8 = t6 * t7;
+    let t9 = fld(rc, 0x21388C);
+    let t10 = t8 * t9;
+    let t11 = fld(rc, 0x214294);
+    let t12 = t10 * t11;
+    let t13 = fld(rc, 0x214170);
+    let t14 = t12 * t13;
+    fstp(rc, 0x2D3100, t14);
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x2D3014] = ([rc + 0x31A0A0] + [rc + 0x1C5D60]) / [rc + 0x1C5D60]`
 fn x87_2(rc: usize) {
-    unsafe {
-        let rc = rc as *mut u8;
-        let t0 = fld(rc, 0x31A0A0);
-        let t1 = fld(rc, 0x1C5D60);
-        let t2 = t0 + t1;
-        let t3 = fld(rc, 0x1C5D60);
-        let t4 = t2 / t3;
-        fstp(rc, 0x2D3014, t4);
-    }
+    let t0 = fld(rc, 0x31A0A0);
+    let t1 = fld(rc, 0x1C5D60);
+    let t2 = t0 + t1;
+    let t3 = fld(rc, 0x1C5D60);
+    let t4 = t2 / t3;
+    fstp(rc, 0x2D3014, t4);
 }
 
 #[cfg(test)]

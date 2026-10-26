@@ -74,13 +74,26 @@ fn rd(at: u32) -> u32 {
 /// `files::set_current_directory` (0x403105): whether it worked.
 fn set_cd(path: u32) -> bool {
     use windows_sys::Win32::System::Environment::SetCurrentDirectoryA;
-    unsafe { SetCurrentDirectoryA(path as *const u8) != 0 }
+    let path = checked_text(path, "a folder to go to");
+    // SAFETY: a NUL-ended copy.
+    unsafe { SetCurrentDirectoryA(path.as_ptr()) != 0 }
+}
+
+/// The NUL-ended text at `at`, checked (`files::cstring`), with its NUL; one outside its
+/// region ends the program.
+fn checked_text(at: u32, what: &str) -> Vec<u8> {
+    let mut text = crate::files::cstring(GamePtr::new(at), what)
+        .unwrap_or_else(|e| crate::fatal::raise::end("install::run_after_exit", e));
+    text.push(0);
+    text
 }
 
 /// `system::run_program` (0x410ADC, ebx 1: not waited for): the standalone's own start
 /// (`install/shortcuts.rs`).
 fn run(command: u32) {
-    let command = unsafe { crate::install::shortcuts::c_path(command as *const u8) };
+    let command = checked_text(command, "a command to run");
+    // SAFETY: a NUL-ended copy.
+    let command = unsafe { crate::install::shortcuts::c_path(command.as_ptr()) };
     crate::install::shortcuts::run_program(&command);
 }
 

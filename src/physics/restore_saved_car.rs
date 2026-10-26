@@ -49,7 +49,7 @@ impl SavedCar {
     }
 
     unsafe fn at(a: u32) -> u32 {
-        unsafe { (a as *const u32).read_unaligned() }
+        crate::pointers::read_or_end::<u32>(a, "physics::restore_saved_car's operand")
     }
 }
 

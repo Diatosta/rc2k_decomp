@@ -45,11 +45,11 @@ pub unsafe fn set_fine_turn(axis: Axis, angle: u32) {
 }
 
 unsafe fn float(at: usize) -> u32 {
-    unsafe { (at as *const u32).read_unaligned() }
+    crate::pointers::read_or_end::<u32>((at) as u32, "scene::view_matrix's operand")
 }
 
 unsafe fn put(at: usize, value: u32) {
-    unsafe { (at as *mut u32).write_unaligned(value) }
+    crate::pointers::write_or_end::<u32>((at) as u32, value, "scene::view_matrix's operand")
 }
 
 /// `scene::unit_vector` (0x420EF8): three floats made one long, into `out`; all 0 when

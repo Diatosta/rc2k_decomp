@@ -174,11 +174,11 @@ pub trait Outside: submit_polygon::Outside {
 }
 
 unsafe fn dword(at: usize) -> u32 {
-    unsafe { (at as *const u32).read_unaligned() }
+    crate::pointers::read_or_end::<u32>((at) as u32, "scene::draw_polygon's operand")
 }
 
 unsafe fn put(at: usize, value: u32) {
-    unsafe { (at as *mut u32).write_unaligned(value) }
+    crate::pointers::write_or_end::<u32>((at) as u32, value, "scene::draw_polygon's operand")
 }
 
 /// The three low bytes of `a` each times the same byte of `b`, over 256.

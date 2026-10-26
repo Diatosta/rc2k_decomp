@@ -20,7 +20,7 @@ use crate::race::vars_store::RACE_VARS;
 use rc2k_core::physics::line_places;
 
 unsafe fn at(a: u32) -> u32 {
-    unsafe { (a as *const u32).read_unaligned() }
+    crate::pointers::read_or_end::<u32>(a, "physics::reset_point_blocked's operand")
 }
 
 /// The Rust core: the candidate and count read at `candidate`, `count`; `block` the car

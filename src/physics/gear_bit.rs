@@ -18,7 +18,10 @@ use rc2k_core::physics::gearbox::GearBits;
 
 /// The gear bits in the dword at `bits`.
 pub unsafe fn bits_at(bits: u32) -> GearBits {
-    GearBits(unsafe { (bits as *const u32).read_unaligned() })
+    GearBits(crate::pointers::read_or_end::<u32>(
+        bits,
+        "physics::gear_bit's operand",
+    ))
 }
 
 /// The Rust version on the dword at `bits`.

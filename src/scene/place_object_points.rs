@@ -81,28 +81,26 @@ fn moved(from: usize, by: u32) -> Result<(), BadInput> {
 /// The block of `moved`: the fraction, the two points, the result (three whole numbers) and the
 /// fraction as it is stored.
 unsafe fn moved_at(w: *mut u8) {
-    unsafe {
-        let t0 = fld(w, 0x0);
-        let t1 = fild(w, 0xC);
-        let t2 = fild(w, 0x18);
-        let t3 = t2 - t1;
-        let t4 = t3 * t0;
-        let t5 = t1 + t4;
-        let t6 = fild(w, 0x8);
-        let t7 = fild(w, 0x14);
-        let t8 = t7 - t6;
-        let t9 = t8 * t0;
-        let t10 = t6 + t9;
-        let t11 = fild(w, 0x4);
-        let t12 = fild(w, 0x10);
-        let t13 = t12 - t11;
-        let t14 = t13 * t0;
-        let t15 = t11 + t14;
-        fistp(w, 0x1C, t15);
-        fistp(w, 0x20, t10);
-        fistp(w, 0x24, t5);
-        fstp(w, 0x28, t0);
-    }
+    let t0 = fld(w, 0x0);
+    let t1 = fild(w, 0xC);
+    let t2 = fild(w, 0x18);
+    let t3 = t2 - t1;
+    let t4 = t3 * t0;
+    let t5 = t1 + t4;
+    let t6 = fild(w, 0x8);
+    let t7 = fild(w, 0x14);
+    let t8 = t7 - t6;
+    let t9 = t8 * t0;
+    let t10 = t6 + t9;
+    let t11 = fild(w, 0x4);
+    let t12 = fild(w, 0x10);
+    let t13 = t12 - t11;
+    let t14 = t13 * t0;
+    let t15 = t11 + t14;
+    fistp(w, 0x1C, t15);
+    fistp(w, 0x20, t10);
+    fistp(w, 0x24, t5);
+    fstp(w, 0x28, t0);
 }
 
 /// `sub_45C1E7`: a normal's three floats through the matrix's first three rows, into
@@ -112,38 +110,36 @@ unsafe fn turn(normal: *const u32, matrix: *const u32, record: *mut u32) {
 }
 
 unsafe fn turn_normal(p: *const u8, m: *const u8, o: *mut u8) {
-    unsafe {
-        let t0 = fld(p, 0x8);
-        let t1 = fld(p, 0x4);
-        let t2 = fld(p, 0x0);
-        let t3 = fld(m, 0x0);
-        let t4 = t3 * t2;
-        let t5 = fld(m, 0x10);
-        let t6 = t5 * t1;
-        let t7 = fld(m, 0x20);
-        let t8 = t7 * t0;
-        let t9 = t6 + t8;
-        let t10 = t4 + t9;
-        let t11 = fld(m, 0x4);
-        let t12 = t11 * t2;
-        let t13 = fld(m, 0x14);
-        let t14 = t13 * t1;
-        let t15 = fld(m, 0x24);
-        let t16 = t15 * t0;
-        let t17 = t14 + t16;
-        let t18 = t12 + t17;
-        let t19 = fld(m, 0x8);
-        let t20 = t2 * t19;
-        let t21 = fld(m, 0x18);
-        let t22 = t1 * t21;
-        let t23 = fld(m, 0x28);
-        let t24 = t0 * t23;
-        let t25 = t24 + t22;
-        let t26 = t20 + t25;
-        fstp(o, 0x10, t10);
-        fstp(o, 0x14, t18);
-        fstp(o, 0x18, t26);
-    }
+    let t0 = fld(p, 0x8);
+    let t1 = fld(p, 0x4);
+    let t2 = fld(p, 0x0);
+    let t3 = fld(m, 0x0);
+    let t4 = t3 * t2;
+    let t5 = fld(m, 0x10);
+    let t6 = t5 * t1;
+    let t7 = fld(m, 0x20);
+    let t8 = t7 * t0;
+    let t9 = t6 + t8;
+    let t10 = t4 + t9;
+    let t11 = fld(m, 0x4);
+    let t12 = t11 * t2;
+    let t13 = fld(m, 0x14);
+    let t14 = t13 * t1;
+    let t15 = fld(m, 0x24);
+    let t16 = t15 * t0;
+    let t17 = t14 + t16;
+    let t18 = t12 + t17;
+    let t19 = fld(m, 0x8);
+    let t20 = t2 * t19;
+    let t21 = fld(m, 0x18);
+    let t22 = t1 * t21;
+    let t23 = fld(m, 0x28);
+    let t24 = t0 * t23;
+    let t25 = t24 + t22;
+    let t26 = t20 + t25;
+    fstp(o, 0x10, t10);
+    fstp(o, 0x14, t18);
+    fstp(o, 0x18, t26);
 }
 
 /// What the object is made of, read and checked.

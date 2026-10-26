@@ -260,7 +260,7 @@ unsafe fn read_alpha_sheet(template: *const u8) -> Result<(), Refused> {
                 backdrop: 0,
                 transparent: 0,
                 convert: &mut convert,
-                pixels: &mut RowTable,
+                pixels: &mut RowTable::new(),
                 soften: false,
             };
             if sheet.width == 0 {
@@ -350,7 +350,7 @@ pub unsafe fn build_glyphs(template: *const u8, list: *mut MemoryList) -> Result
                 backdrop: 0,
                 transparent: 0,
                 convert: &mut convert,
-                pixels: &mut RowTable,
+                pixels: &mut RowTable::new(),
                 soften: flags & WITH_ALPHA != 0 && SHEET.alpha_loaded.get() != 1,
             };
             if sheet.width == 0 {

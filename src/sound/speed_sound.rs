@@ -80,16 +80,12 @@ fn x87_1(
     o2: usize,
     o3: usize,
 ) {
-    unsafe {
-        let bp = bp as *const u8;
-        let si = si as *mut u8;
-        let t0 = ld(bx.speed_input.bits());
-        let t1 = fld(bp, o1);
-        let t2 = t0 * t1;
-        let t3 = fld(bp, o2);
-        let t4 = t2 + t3;
-        fstp(si, o3, t4);
-    }
+    let t0 = ld(bx.speed_input.bits());
+    let t1 = fld(bp, o1);
+    let t2 = t0 * t1;
+    let t3 = fld(bp, o2);
+    let t4 = t2 + t3;
+    fstp(si, o3, t4);
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -101,18 +97,14 @@ fn x87_2(
     sf: &crate::sound::store::SurfaceSounds,
     si: usize,
 ) {
-    unsafe {
-        let bp = bp as *const u8;
-        let si = si as *mut u8;
-        let t0 = ld(bx.speed_input.bits());
-        let t1 = fld(bp, 0x24);
-        let t2 = t0 * t1;
-        let t3 = fld(bp, 0x1C);
-        let t4 = t2 + t3;
-        let t5 = ld(sf.speed_gain.bits());
-        let t6 = t4 * t5;
-        fstp(si, 8, t6);
-    }
+    let t0 = ld(bx.speed_input.bits());
+    let t1 = fld(bp, 0x24);
+    let t2 = t0 * t1;
+    let t3 = fld(bp, 0x1C);
+    let t4 = t2 + t3;
+    let t5 = ld(sf.speed_gain.bits());
+    let t6 = t4 * t5;
+    fstp(si, 8, t6);
 }
 
 #[cfg(test)]
