@@ -219,5 +219,5 @@ block's +0xB0.
   buffers play at a quarter (`SECONDARY_GAIN`, -12 dB), the level of the game's own mixer,
   so every mode sounds alike and the music keeps the same balance with the effects. The
   game's mixer blends each frame with the next by the position's fraction, as DirectSound
-  resamples (`rc2k_core::audio::mixer`); seen by the owner (2026-10-26: a harsh edge, the
-  output's timing measured clean).
+  resamples (`rc2k_core::audio::mixer`). The harsh edge heard by the owner in the
+  original game too (2026-10-26), and gone with the blending.

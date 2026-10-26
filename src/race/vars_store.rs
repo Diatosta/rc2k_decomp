@@ -79,7 +79,7 @@ pub struct RaceVars {
     pub split: Dword,
     /// +0x2c0 (0x6238A8): `settings.setting_0` .. `4` ([1] the shine and the front end's set-up, [4] all cars' lights).
     pub settings_words: [Dword; 5],
-    /// +0x2d4 (0x6238BC): `g_rivals` (`settings.rivals`).
+    /// +0x2d4 (0x6238BC): `g_rivals` (`settings.rivals`: the standings summary's block id).
     pub rivals: Dword,
     /// +0x2d8 (0x6238C0): `settings.no_replay`.
     pub no_replay: Dword,

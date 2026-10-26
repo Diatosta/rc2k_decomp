@@ -9,13 +9,14 @@
 //! Callers: `sub_4A2B75` and two of the game's. Refuses a null entry, record or name, before
 //! anything.
 use crate::errors::{BadInput, Refused};
+use crate::memory::blocks::Place;
 use crate::menu::standings::*;
 
 /// `e` the entry (edi in the original), `p` the player's record (esi), `index` the
 /// player's index (ebx).
-pub fn copy_standing_entry(e: u32, p: u32, index: u32) -> Result<(), Refused> {
-    if e == 0 || p == 0 || get(p + 0x18)? == 0 {
-        return Err(BadInput("a null entry, record or name").into());
+pub fn copy_standing_entry(e: Place, p: u32, index: u32) -> Result<(), Refused> {
+    if p == 0 || get(p + 0x18)? == 0 {
+        return Err(BadInput("a null record or name").into());
     }
     // Converted: `rc2k_core::menu::standings::fill_a`.
     use rc2k_core::menu::standings::{PlayerA, fill_a};
@@ -32,6 +33,6 @@ pub fn copy_standing_entry(e: u32, p: u32, index: u32) -> Result<(), Refused> {
         entered: get(p + 0xD0)?,
     };
     // The entry's bytes as far as it is written (to +0x50).
-    fill_a(&mut table(e, 0x50, 1)?, 0, &source);
+    with_table(e, 0x50, 1, |t| fill_a(t, 0, &source))?;
     Ok(())
 }

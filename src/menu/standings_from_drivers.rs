@@ -7,15 +7,16 @@
 //! drivers than its 200 entries, a name past the entry, before anything.
 
 use crate::errors::{BadInput, Refused};
+use crate::memory::blocks::Place;
 use crate::menu::standings::*;
 
 /// The Rust version (see the header): the registers it leaves.
 pub fn standings_from_drivers() -> Result<(), Refused> {
-    let first: u32 = TABLE_A_RVA.get();
-    let drivers = entries(crate::menu::drivers_store::DRIVERS.first(), DRIVER)?;
-    if first == 0 || drivers.len() > 200 {
+    let first = TABLE_A_RVA.get();
+    let drivers = game_entries(crate::menu::drivers_store::DRIVERS.first(), DRIVER)?;
+    let (Some(first), true) = (first, drivers.len() <= 200) else {
         return Err(BadInput("no standings table, or more drivers than it holds").into());
-    }
+    };
     let mut texts = Vec::new();
     for &d in &drivers {
         let id: u32 = crate::menu::drivers_store::name_string(get(d)?);
@@ -31,9 +32,10 @@ pub fn standings_from_drivers() -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::standings::fill_a_from_driver`.
     let count = drivers.len() as u32;
     let all = table(drivers[0], DRIVER, count)?;
-    let mut t = table(first, A_ENTRY, count)?;
-    for (n, (id, text)) in texts.into_iter().enumerate() {
-        rc2k_core::menu::standings::fill_a_from_driver(&mut t, n, &all, n, id, &text);
-    }
+    with_table(Place::Owned(first), A_ENTRY, count, |t| {
+        for (n, (id, text)) in texts.into_iter().enumerate() {
+            rc2k_core::menu::standings::fill_a_from_driver(t, n, &all, n, id, &text);
+        }
+    })?;
     Ok(())
 }

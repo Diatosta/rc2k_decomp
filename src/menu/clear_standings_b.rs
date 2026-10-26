@@ -8,14 +8,17 @@
 //! anything.
 
 use crate::errors::Refused;
+use crate::memory::blocks::Place;
 use crate::menu::standings::*;
 
 /// The Rust version (see the header): the registers it leaves.
 pub fn clear_standings_b() -> Result<(), Refused> {
-    let first: u32 = TABLE_B_RVA.get();
+    let first = Place::Owned(TABLE_B_RVA.need("no standings table")?);
     let all = entries(first, B_ENTRY)?;
     // Converted: `rc2k_core::menu::standings::B_FIGURE`, stored in each entry.
     use rc2k_core::menu::standings::B_FIGURE;
-    table(first, B_ENTRY, all.len() as u32)?.store_all(&[(B_FIGURE, 0)]);
+    with_table(first, B_ENTRY, all.len() as u32, |t| {
+        t.store_all(&[(B_FIGURE, 0)])
+    })?;
     Ok(())
 }

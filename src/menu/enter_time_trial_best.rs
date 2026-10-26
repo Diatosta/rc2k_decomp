@@ -50,6 +50,6 @@ pub fn enter_time_trial_best() -> Result<(), Refused> {
         seal: Some(bests::Seal { cheats, sealed }),
         line: Some(bytes(p + 0x20C)?),
     };
-    bests::enter_tenth(&mut crate::menu::rank_time_trial_best::stage_list()?, &best);
+    crate::menu::rank_time_trial_best::with_stage_list(|list| bests::enter_tenth(list, &best))?;
     crate::menu::rank_time_trial_best::rank_time_trial_best()
 }

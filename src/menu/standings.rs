@@ -6,6 +6,7 @@
 //! (`g_players`, four pointers).
 
 use crate::errors::{BadInput, FatalError, Refused};
+use crate::memory::blocks::{At, BlockVar, Place};
 use crate::menu::champ_store::CHAMP_VIEW;
 use crate::menu::draw_work_store::DRAW_WORK;
 use crate::menu::event_store::EVENT_STATE;
@@ -15,8 +16,8 @@ use crate::menu::state_store::MENU_STATE;
 use crate::session::Dword;
 use rc2k_core::menu::standings::{self, Entries, NAME_LEN};
 
-pub const TABLE_A_RVA: &Dword = &CHAMP_VIEW.ranked_times; // dword_7556EC
-pub const TABLE_B_RVA: &Dword = &CHAMP_VIEW.champ_history; // dword_7556F0
+pub const TABLE_A_RVA: &BlockVar = &CHAMP_VIEW.ranked_times; // dword_7556EC
+pub const TABLE_B_RVA: &BlockVar = &CHAMP_VIEW.champ_history; // dword_7556F0
 pub const A_ENTRY: u32 = 0x9C;
 pub const B_ENTRY: u32 = 0x78;
 pub const DRIVER: u32 = 0x94;
@@ -43,6 +44,11 @@ pub fn put(p: u32, v: u32) -> Result<(), crate::errors::BadInput> {
     crate::pointers::GamePtr::new(p).write(v, "a game value")
 }
 
+/// The dword at a place (a table's, or the game's).
+pub fn get_at(p: Place) -> Result<u32, BadInput> {
+    p.read("a table's value")
+}
+
 /// Player `n`'s record.
 pub fn player(n: u32) -> u32 {
     PLAYER_TABLE.pointers[n as usize].get()
@@ -51,12 +57,12 @@ pub fn player(n: u32) -> u32 {
 /// The entries from `first` on, `size` apart, as the original's `do .. while` walks them
 /// (the first always, then each while its first dword is not -1); refused when no end
 /// entry comes within `MOST_ENTRIES`.
-pub fn entries(first: u32, size: u32) -> Result<Vec<u32>, BadInput> {
+pub fn entries(first: Place, size: u32) -> Result<Vec<Place>, BadInput> {
     let mut out = vec![first];
     let mut e = first;
     loop {
-        e = e.wrapping_add(size);
-        if get(e)? == 0xFFFF_FFFF {
+        e = e.add(size);
+        if get_at(e)? == 0xFFFF_FFFF {
             return Ok(out);
         }
         if out.len() as u32 >= MOST_ENTRIES {
@@ -66,12 +72,18 @@ pub fn entries(first: u32, size: u32) -> Result<Vec<u32>, BadInput> {
     }
 }
 
+/// `entries` over a table of the game's memory (the drivers): their addresses.
+pub fn game_entries(first: u32, size: u32) -> Result<Vec<u32>, BadInput> {
+    let count = entries(Place::Game(first), size)?.len() as u32;
+    Ok((0..count).map(|n| first.wrapping_add(n * size)).collect())
+}
+
 /// The original's search for the first player (`find1stplayer`): from `from` (edi) on, the
 /// entries of `group` (ebx) (`ANY_GROUP`: any entry whose group is not 0) whose player (+4) is not 0;
 /// ecx counts the group's computer drivers before it, edx its figure, edi the entry. None:
 /// the fatal error `code` with `message`.
 pub fn first_player(
-    from: u32,
+    from: Place,
     group: u32,
     size: u32,
     group_at: u32,
@@ -81,13 +93,10 @@ pub fn first_player(
 ) -> Result<Found, Refused> {
     // Converted: `rc2k_core::menu::standings::first_player`, over the entries walked.
     let walked = entries(from, size)?;
-    let bytes = table_bytes(from, walked.len() as u32 * size)?;
-    let t = Entries {
-        bytes,
-        size: size as usize,
-    };
-    match rc2k_core::menu::standings::first_player(&t, group, group_at as usize, figure_at as usize)
-    {
+    let found = with_table(from, size, walked.len() as u32, |t| {
+        rc2k_core::menu::standings::first_player(t, group, group_at as usize, figure_at as usize)
+    })?;
+    match found {
         Some(f) => Ok(Found {
             computers: f.computers,
             figure: f.figure,
@@ -104,7 +113,7 @@ pub fn first_player(
 pub struct Found {
     pub computers: u32,
     pub figure: u32,
-    pub entry: u32,
+    pub entry: Place,
 }
 
 impl Found {
@@ -122,6 +131,22 @@ pub fn table_bytes<'a>(first: u32, len: u32) -> Result<&'a mut [u8], BadInput> {
     crate::menu::event_flow::game_slice(first, len, "a standings table")
 }
 
+/// `f` on `count` entries of `size` bytes from `first`, for the core; refused when they do
+/// not lie in its block.
+pub fn with_table<R>(
+    first: Place,
+    size: u32,
+    count: u32,
+    f: impl FnOnce(&mut Entries) -> R,
+) -> Result<R, BadInput> {
+    first.with_bytes((count * size) as usize, "a standings table", |bytes| {
+        f(&mut Entries {
+            bytes,
+            size: size as usize,
+        })
+    })
+}
+
 /// `count` entries of `size` bytes from `first`, for the core; refused when they do not lie
 /// in one block of the game's memory.
 pub fn table<'a>(first: u32, size: u32, count: u32) -> Result<Entries<'a>, BadInput> {
@@ -134,7 +159,7 @@ pub fn table<'a>(first: u32, size: u32, count: u32) -> Result<Entries<'a>, BadIn
 /// The drivers (`g_drivers`) as the core's table, as far as `entries` walks them.
 pub fn driver_table<'a>() -> Result<Entries<'a>, BadInput> {
     let first = crate::menu::drivers_store::DRIVERS.first();
-    let all = entries(first, DRIVER)?;
+    let all = game_entries(first, DRIVER)?;
     table(first, DRIVER, all.len() as u32)
 }
 
@@ -163,7 +188,6 @@ pub fn with_kept_name<R>(f: impl FnOnce(&mut [u8; NAME_LEN]) -> R) -> R {
 pub const PLAYER_COUNT_RVA: &Dword = &EVENT_STATE.player_count; // dword_755984
 pub const SECTION_RVA: &Dword = &EVENT_STATE.section; // section
 pub const INDEX_RVA: &Dword = &EVENT_STATE.index; // index
-pub const EVENTS_RVA: &Dword = &CHAMP_VIEW.stage_best_times; // dword_7556D8: 0x618 an event
 
 /// The players `0 .. dword_755984` (the original's `do .. while`): refused at 0, past 4 or
 /// with one missing.
@@ -179,7 +203,7 @@ pub fn counted_players() -> Result<Vec<u32>, BadInput> {
 
 /// The current record's event (`g_recordTable`, `section`, `index`; its +0x3C) in
 /// `dword_7556D8`'s table, refused past the table's sections.
-pub fn current_event() -> Result<u32, BadInput> {
+pub fn current_event() -> Result<At, BadInput> {
     let table = crate::records::stages_store::STAGE_TABLES.championship();
     let section: u32 = EVENT_STATE.section.get();
     let index: u32 = EVENT_STATE.index.get();
@@ -190,39 +214,31 @@ pub fn current_event() -> Result<u32, BadInput> {
         return Err(BadInput("a record past the table"));
     }
     let record = crate::records::find_record::find_record_in(table, index as i32, section)?;
-    let events: u32 = CHAMP_VIEW.stage_best_times.get();
-    if events == 0 {
-        return Err(BadInput("no events table"));
-    }
-    Ok(events.wrapping_add(get(record + 0x3C)?.wrapping_mul(0x618)))
+    let events = CHAMP_VIEW.stage_best_times.need("no events table")?;
+    Ok(events.add(get(record + 0x3C)?.wrapping_mul(0x618)))
 }
 
-pub const BEST_SCORES_RVA: &Dword = &CHAMP_VIEW.best_scores; // dword_7556D4: five groups of ten, 0x3C each
+pub const BEST_SCORES_RVA: &BlockVar = &CHAMP_VIEW.best_scores; // dword_7556D4: five groups of ten, 0x3C each
 const SORTED: u32 = standings::SORTED as u32;
 
 /// Standings table A's first 0xB4 entries sorted by the signed dword at `key` (the
 /// original's exchange sort: an entry later or equal moves up; `dword_7559B4` /
 /// `dword_7559B8` its counters). Refused without a table.
 pub fn sort_table_a(key: u32) -> Result<(), BadInput> {
-    let first: u32 = CHAMP_VIEW.ranked_times.get();
-    if first == 0 {
-        return Err(BadInput("no standings table"));
-    }
+    let first = CHAMP_VIEW.ranked_times.need("no standings table")?;
     // Converted: `rc2k_core::menu::standings::exchange_sort`.
-    let mut t = Entries {
-        bytes: table_bytes(first, SORTED * A_ENTRY)?,
-        size: A_ENTRY as usize,
-    };
-    with_kept_name(|kept| {
-        standings::exchange_sort(
-            &mut t,
-            key as usize,
-            false,
-            &standings::A_FIELDS,
-            standings::A_NAME,
-            kept,
-        )
-    });
+    with_table(Place::Owned(first), A_ENTRY, SORTED, |t| {
+        with_kept_name(|kept| {
+            standings::exchange_sort(
+                t,
+                key as usize,
+                false,
+                &standings::A_FIELDS,
+                standings::A_NAME,
+                kept,
+            )
+        })
+    })?;
 
     DRAW_WORK.work_b4.set(SORTED - 1);
     DRAW_WORK.work_b8.set(SORTED);
@@ -242,10 +258,10 @@ pub fn enter_best(group: Option<u32>, score_at: u32) -> Result<(), BadInput> {
     }
     let p = player(n);
     let group = group.unwrap_or(get(p + 0x90)?);
-    let table: u32 = CHAMP_VIEW.best_scores.get();
-    if table == 0 || group >= 5 || get(p + 0x18)? == 0 {
+    let table = CHAMP_VIEW.best_scores.get();
+    let (Some(table), true, false) = (table, group < 5, get(p + 0x18)? == 0) else {
         return Err(BadInput("no best-score table, a group past 4 or no name"));
-    }
+    };
     // Converted: `rc2k_core::menu::standings::enter_best`.
     let name_at = get(p + 0x18)?;
     let best = standings::Best {
@@ -257,11 +273,9 @@ pub fn enter_best(group: Option<u32>, score_at: u32) -> Result<(), BadInput> {
         name_at,
         name: bytes(name_at)?,
     };
-    let mut ten = Entries {
-        bytes: table_bytes(table + group * 0x258, 0x258)?,
-        size: 0x3C,
-    };
-    with_kept_name(|kept| standings::enter_best(&mut ten, &best, kept));
+    with_table(Place::Owned(table.add(group * 0x258)), 0x3C, 10, |ten| {
+        with_kept_name(|kept| standings::enter_best(ten, &best, kept))
+    })?;
     Ok(())
 }
 
@@ -269,25 +283,20 @@ pub fn enter_best(group: Option<u32>, score_at: u32) -> Result<(), BadInput> {
 /// `sort_table_a`: going up (a later entry not above an earlier one moves up) or, with
 /// `down`, going down (a later entry not below one moves up). Refused without a table.
 pub fn sort_table_b(key: u32, down: bool) -> Result<(), BadInput> {
-    let first: u32 = CHAMP_VIEW.champ_history.get();
-    if first == 0 {
-        return Err(BadInput("no standings table"));
-    }
+    let first = CHAMP_VIEW.champ_history.need("no standings table")?;
     // Converted: `rc2k_core::menu::standings::exchange_sort`.
-    let mut t = Entries {
-        bytes: table_bytes(first, SORTED * B_ENTRY)?,
-        size: B_ENTRY as usize,
-    };
-    with_kept_name(|kept| {
-        standings::exchange_sort(
-            &mut t,
-            key as usize,
-            down,
-            &standings::b_fields(),
-            standings::B_NAME,
-            kept,
-        )
-    });
+    with_table(Place::Owned(first), B_ENTRY, SORTED, |t| {
+        with_kept_name(|kept| {
+            standings::exchange_sort(
+                t,
+                key as usize,
+                down,
+                &standings::b_fields(),
+                standings::B_NAME,
+                kept,
+            )
+        })
+    })?;
 
     DRAW_WORK.work_b4.set(SORTED - 1);
     DRAW_WORK.work_b8.set(SORTED);
@@ -304,12 +313,12 @@ pub fn past_limit(p: u32, k: u32) -> Result<bool, BadInput> {
 /// What the numbering functions (`number_all_a`, `number_all_b`, `number_standings_a`,
 /// `number_standings_b`) leave in the registers, which their callers' later calls may read:
 /// the last number given (ecx), the last numbered player as (index, record) when there was
-/// one (eax, esi; else they are kept), the end of the table (edi).
+/// one (eax, esi; else they are kept). (The original's edi, the table's end, is read by no
+/// later call: not kept since the tables are blocks, phase 12.)
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Numbered {
     pub last_number: u32,
     pub last_player: Option<(u32, u32)>,
-    pub end: u32,
 }
 
 impl Numbered {

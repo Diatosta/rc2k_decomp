@@ -1,24 +1,27 @@
 //! The best times, out of RAL.EXE's image (phase 7, typed): the six rallies' tables (IDA
 //! 0x742C98 .. 0x7475D0, `RallyTimes`), then the memory the nine other tables are taken
 //! on, the two switches and where each table is (0x7475D0 .. 0x747660, `BestTimes`:
-//! `saves::allocate_best_times`, `load_best_times`, `free_best_times`).
+//! `saves::allocate_best_times`, `load_best_times`, `free_best_times`). Since phase 12 the
+//! nine tables are Rust's own blocks (`memory::blocks`): each pair holds a block's id, not
+//! an address, as do their copies in `menu::champ_store::CHAMP_VIEW`.
 //! `#[repr(C)]`, the image's layout (all zero in it); `moved::MOVED` points the range at it.
 //! `allocate_best_times` walks the switches and the pairs as one run of dwords from
 //! `allocated` (`vars()`).
 
 use crate::session::{Bytes, Dword};
 
-/// Where one table is: its address and its size in bytes.
+/// Where one table is: its block (`memory::blocks`; the game held its address) and its
+/// size in bytes.
 #[repr(C)]
 pub struct TablePlace {
-    pub address: Dword,
+    pub block: crate::memory::blocks::BlockVar,
     pub size: Dword,
 }
 
 impl TablePlace {
     const fn new() -> Self {
         Self {
-            address: Dword::new(0),
+            block: crate::memory::blocks::BlockVar::new(),
             size: Dword::new(0),
         }
     }

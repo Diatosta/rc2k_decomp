@@ -26,6 +26,7 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
+use crate::memory::blocks::Place;
 use crate::menu::champ_store::CHAMP_VIEW;
 use crate::menu::event_flow::Fault;
 use crate::menu::event_store::EVENT_STATE;
@@ -37,17 +38,17 @@ use crate::text::draw_text::Canvas;
 // glyph
 // dword_7559B0
 /// Each row's entry and place, and the place left after the last.
-type Rows = (Vec<(u32, u32)>, Option<u32>);
+type Rows = (Vec<(Place, u32)>, Option<u32>);
 
 /// The rows to draw, worked out before anything is drawn.
 fn rows() -> Result<Rows, Refused> {
     // Converted: `rc2k_core::screens::results_pages::class_rows`.
-    let list = CHAMP_VIEW.ranked_times.get();
-    let at = |n: u32| list.wrapping_add(n.wrapping_mul(ENTRY_LEN));
+    let list = Place::Owned(CHAMP_VIEW.ranked_times.need("no ranked list")?);
+    let at = |n: u32| list.add(n.wrapping_mul(ENTRY_LEN));
     let f = Fault::default();
     let found = rc2k_core::screens::results_pages::class_rows(
-        |n| f.get(at(n) + 0x1C),
-        |n| f.get(at(n)) == u32::MAX,
+        |n| f.get_at(at(n).add(0x1C)),
+        |n| f.get_at(at(n)) == u32::MAX,
         EVENT_STATE.class.get(),
         CHAMP_VIEW.count.get(),
     );
@@ -62,7 +63,8 @@ fn rows() -> Result<Rows, Refused> {
 /// The Rust version.
 pub fn draw_class_ranking(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     let (rows, last_place) = rows()?;
-    let first_time = find_class_time(CHAMP_VIEW.ranked_times.get(), EVENT_STATE.class.get(), true)?;
+    let list = Place::Owned(CHAMP_VIEW.ranked_times.need("no ranked list")?);
+    let first_time = find_class_time(list, EVENT_STATE.class.get(), true)?;
     // Converted: `rc2k_core::screens::results_pages::class_ranking` (the rows found here).
     use rc2k_core::screens::results_pages::{Name, RankedRow, class_ranking};
     let player = CHAMP_VIEW.ranked_player.get();
@@ -70,18 +72,18 @@ pub fn draw_class_ranking(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     let rows: Vec<RankedRow<u32>> = rows
         .iter()
         .map(|&(e, place)| {
-            let kind = f.get(e + 4);
+            let kind = f.get_at(e.add(4));
             RankedRow {
                 place,
                 mine: kind != 0 && kind == player,
                 name: if kind == 0 {
-                    Name::String(f.get(e + 0xC))
+                    Name::String(f.get_at(e.add(0xC)))
                 } else {
-                    Name::Text(f.get(e + 0xC))
+                    Name::Text(f.get_at(e.add(0xC)))
                 },
-                time: f.get(e + 0x18),
-                nation: f.get(e + 8),
-                car: f.get(e + 0x10),
+                time: f.get_at(e.add(0x18)),
+                nation: f.get_at(e.add(8)),
+                car: f.get_at(e.add(0x10)),
             }
         })
         .collect();

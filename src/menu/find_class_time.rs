@@ -9,27 +9,28 @@
 //! end in 0x400 entries.
 
 use crate::errors::BadInput;
+use crate::memory::blocks::Place;
 
 pub const ENTRY_LEN: u32 = 0x9C;
 const LIMIT: u32 = 0x400;
 
-fn get(a: u32) -> Result<u32, crate::errors::BadInput> {
-    crate::pointers::GamePtr::new(a).read::<u32>("a game value")
+fn get(a: Place) -> Result<u32, crate::errors::BadInput> {
+    a.read("a ranked entry's value")
 }
 
 /// The entry the original stops at.
-pub fn class_entry(list: u32, class: u32) -> Result<u32, BadInput> {
+pub fn class_entry(list: Place, class: u32) -> Result<Place, BadInput> {
     // Converted: `rc2k_core::menu::standings::search` (the end mark's entry when none).
     use rc2k_core::menu::standings::{Found, search};
-    let at = |n: u32| list.wrapping_add(n.wrapping_mul(ENTRY_LEN));
+    let at = |n: u32| list.add(n.wrapping_mul(ENTRY_LEN));
     let mut last = 0;
     let fault = crate::menu::event_flow::Fault::default();
     let found = search(
         |n| {
             last = n;
-            fault.get(at(n))
+            fault.get_at(at(n))
         },
-        |n| fault.get(at(n) + 0x1C) == class,
+        |n| fault.get_at(at(n).add(0x1C)) == class,
         LIMIT,
     );
     fault.check()?;
@@ -41,7 +42,7 @@ pub fn class_entry(list: u32, class: u32) -> Result<u32, BadInput> {
 }
 
 /// The Rust version (see the header).
-pub fn find_class_time(list: u32, class: u32, second: bool) -> Result<u32, BadInput> {
+pub fn find_class_time(list: Place, class: u32, second: bool) -> Result<u32, BadInput> {
     let e = class_entry(list, class)?;
-    get(e + if second { 0x18 } else { 0x14 })
+    get(e.add(if second { 0x18 } else { 0x14 }))
 }

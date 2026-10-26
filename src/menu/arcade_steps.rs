@@ -51,6 +51,7 @@
 //! in 0x28 (0x30 for `off_75A12E`) entries, a shown car past the list.
 
 use crate::errors::{BadInput, Refused};
+use crate::memory::blocks::{At, Place};
 use crate::menu::arcade_store::ARCADE_GAME;
 use crate::menu::champ_store::CHAMP_VIEW;
 use crate::menu::cheats_store::CHEAT_VARS;
@@ -89,27 +90,27 @@ fn stage_record() -> Result<u32, Refused> {
 }
 
 /// The course's ten best times (the first).
-fn course_times() -> Result<u32, Refused> {
+fn course_times() -> Result<At, Refused> {
     let course = get(stage_record()? + 0x3C)?;
     if course > 0x40 {
         return Err(BadInput("a course past the best times").into());
     }
-    match CHAMP_VIEW.course_best_times.get() {
-        0 => Err(BadInput("no best times").into()),
-        b => Ok(b.wrapping_add(course * 0x618)),
-    }
+    Ok(CHAMP_VIEW
+        .course_best_times
+        .need("no best times")?
+        .add(course * 0x618))
 }
 
 /// The level's ten best scores (the first).
-fn level_scores() -> Result<u32, Refused> {
+fn level_scores() -> Result<At, Refused> {
     let level = ARCADE_GAME.level.get();
     if level > 5 {
         return Err(BadInput("an arcade level past 5").into());
     }
-    match CHAMP_VIEW.level_best_scores.get() {
-        0 => Err(BadInput("no best scores").into()),
-        b => Ok(b + level * 0x320),
-    }
+    Ok(CHAMP_VIEW
+        .level_best_scores
+        .need("no best scores")?
+        .add(level * 0x320))
 }
 
 fn current() -> Result<(u32, u32), Refused> {
@@ -146,29 +147,34 @@ pub fn keep_arcade_stage_best(record: u32) -> Result<(), Refused> {
 }
 
 pub fn check_arcade_level_score() -> Result<(), Refused> {
-    let tenth = level_scores()? + 0x2D0;
+    let tenth = level_scores()?.add(0x2D0);
     // Converted: `rc2k_core::menu::bests::makes_score`.
-    if bests::makes_score(RESULT_FIGURES.totals[0].get(), get(tenth + 0x14)?) {
+    let best = tenth.add(0x14).read::<u32>("a best score")?;
+    if bests::makes_score(RESULT_FIGURES.totals[0].get(), best) {
         EVENT_STATE.time_qualifies.set(1);
     }
     Ok(())
 }
 
 pub fn check_arcade_stage_time() -> Result<(), Refused> {
-    let tenth = course_times()? + 0x57C;
+    let tenth = course_times()?.add(0x57C);
     let (_, player) = current()?;
     let time = get(player + 0x88)?;
     EVENT_STATE.player_time.set(time);
     // Converted: `rc2k_core::menu::bests::makes_time`.
-    if bests::makes_time(time, get(tenth + 0x14)?) {
+    if bests::makes_time(time, tenth.add(0x14).read::<u32>("a best time")?) {
         EVENT_STATE.time_qualifies.set(1);
     }
     Ok(())
 }
 
-/// The ten entries from `first`, `len` bytes each.
-fn ten_entries<'a>(first: u32, len: u32) -> Result<standings::Entries<'a>, BadInput> {
-    table(first, len, 10)
+/// `f` on the ten entries from `first`, `len` bytes each.
+fn with_ten<R>(
+    first: At,
+    len: u32,
+    f: impl FnOnce(&mut standings::Entries) -> R,
+) -> Result<R, BadInput> {
+    crate::menu::standings::with_table(Place::Owned(first), len, 10, f)
 }
 
 /// The player's new entry (player 1): +0x1C, +8, +0xC, +0x10 and the name from its
@@ -214,9 +220,10 @@ pub fn enter_arcade_stage_time() -> Result<(), Refused> {
         Some(seal),
         Some(bytes(player + 0x20C)?),
     )?;
-    let mut ten = ten_entries(first, TIME_LEN)?;
-    bests::enter_tenth(&mut ten, &best);
-    with_kept_name(|kept| standings::sort_arcade_times(&mut ten, kept));
+    with_ten(first, TIME_LEN, |ten| {
+        bests::enter_tenth(ten, &best);
+        with_kept_name(|kept| standings::sort_arcade_times(ten, kept));
+    })?;
     Ok(())
 }
 
@@ -230,9 +237,10 @@ pub fn enter_arcade_level_score() -> Result<(), Refused> {
     // `rc2k_core::menu::standings::sort_arcade_scores`.
     let score = (if n == 1 { SCORE_1 } else { SCORE }).get();
     let best = new_best(player, score, None, None)?;
-    let mut ten = ten_entries(first, SCORE_LEN)?;
-    bests::enter_tenth(&mut ten, &best);
-    with_kept_name(|kept| standings::sort_arcade_scores(&mut ten, kept));
+    with_ten(first, SCORE_LEN, |ten| {
+        bests::enter_tenth(ten, &best);
+        with_kept_name(|kept| standings::sort_arcade_scores(ten, kept));
+    })?;
     Ok(())
 }
 
@@ -258,21 +266,21 @@ pub fn score_arcade_stage() -> Result<(), Refused> {
 pub fn clear_arcade_score_marks() -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::bests::clear_marks`.
     let first = level_scores()?;
-    bests::clear_marks(&mut ten_entries(first, SCORE_LEN)?);
+    with_ten(first, SCORE_LEN, bests::clear_marks)?;
     Ok(())
 }
 
 pub fn clear_arcade_time_marks() -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::bests::clear_marks`.
     let first = course_times()?;
-    bests::clear_marks(&mut ten_entries(first, TIME_LEN)?);
+    with_ten(first, TIME_LEN, bests::clear_marks)?;
     Ok(())
 }
 
 pub fn take_arcade_stage_best() -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::bests::best_line`.
     let first = course_times()?;
-    let line = bests::best_line(&ten_entries(first, TIME_LEN)?);
+    let line = with_ten(first, TIME_LEN, |ten| bests::best_line(ten))?;
     RACE_STATE.results.results[0].data.write(&line);
     Ok(())
 }

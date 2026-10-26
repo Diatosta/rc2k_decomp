@@ -110,15 +110,15 @@ pub fn read_record(at: u32) -> Result<Record, BadInput> {
 }
 
 /// Writes what a function of the time tables worked out: its blocks into `tables` (the
-/// function's own, then the rallies'; address and length), and the work variables.
-pub fn apply(filled: &Filled, tables: &[(u32, usize)]) -> Result<(), BadInput> {
+/// function's own, then the rallies'; place and length), and the work variables.
+pub fn apply(
+    filled: &Filled,
+    tables: &[(crate::memory::blocks::Place, usize)],
+) -> Result<(), BadInput> {
     {
         for block in &filled.blocks {
             let (at, len) = tables[block.table];
-            let table = GamePtr::new(at);
-            let mut bytes = table.read_bytes(len, "a table of times")?;
-            block.write(&mut bytes);
-            table.write_bytes(&bytes, "a table of times")?;
+            at.with_bytes(len, "a table of times", |bytes| block.write(bytes))?;
         }
         DRAW_WORK.seconds.set(filled.seconds);
         if let Some(sum) = filled.sum {

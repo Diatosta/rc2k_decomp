@@ -13,11 +13,12 @@
 //! entries, a name past the entry, a player count of 0 or past 4, a player missing or without a
 //! name, before anything.
 use crate::errors::{BadInput, Refused};
+use crate::memory::blocks::Place;
 use crate::menu::standings::*;
 
 /// Each group's (0 .. 3) players, in order, into the table's entries from the group's slot
 /// down (`player_to_standing_b`, ebx the player's index).
-fn players_by_group(first: u32, size: u32, firsts: [usize; 4]) -> Result<(), Refused> {
+fn players_by_group(first: Place, size: u32, firsts: [usize; 4]) -> Result<(), Refused> {
     let players = counted_players()?;
     let groups: Vec<u32> = players
         .iter()
@@ -27,7 +28,7 @@ fn players_by_group(first: u32, size: u32, firsts: [usize; 4]) -> Result<(), Ref
     for (n, e) in rc2k_core::menu::standings::by_group(&groups, firsts) {
         {
             crate::menu::player_to_standing_b::player_to_standing_b(
-                first + size * e as u32,
+                first.add(size * e as u32),
                 players[n],
                 n as u32,
             )
@@ -38,11 +39,12 @@ fn players_by_group(first: u32, size: u32, firsts: [usize; 4]) -> Result<(), Ref
 
 /// The Rust version (see the header): the registers it leaves.
 pub fn standings_b_from_all() -> Result<(), Refused> {
-    let first: u32 = TABLE_B_RVA.get();
-    let drivers = entries(crate::menu::drivers_store::DRIVERS.first(), DRIVER)?;
-    if first == 0 || drivers.len() > 200 {
+    let first = TABLE_B_RVA.get();
+    let drivers = game_entries(crate::menu::drivers_store::DRIVERS.first(), DRIVER)?;
+    let (Some(first), true) = (first, drivers.len() <= 200) else {
         return Err(BadInput("no standings table, or more drivers than it holds").into());
-    }
+    };
+    let first = Place::Owned(first);
     let players = counted_players()?;
     if any_unnamed(&players)? {
         return Err(BadInput("a player without a name").into());
@@ -62,10 +64,11 @@ pub fn standings_b_from_all() -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::standings::fill_b_from_driver`.
     let count = drivers.len() as u32;
     let all = table(drivers[0], DRIVER, count)?;
-    let mut t = table(first, B_ENTRY, count)?;
-    for (n, text) in texts.into_iter().enumerate() {
-        rc2k_core::menu::standings::fill_b_from_driver(&mut t, n, &all, n, &text);
-    }
+    with_table(first, B_ENTRY, count, |t| {
+        for (n, text) in texts.into_iter().enumerate() {
+            rc2k_core::menu::standings::fill_b_from_driver(t, n, &all, n, &text);
+        }
+    })?;
     use rc2k_core::menu::standings::B_GROUP_FIRSTS;
     players_by_group(first, B_ENTRY, B_GROUP_FIRSTS)?;
     Ok(())

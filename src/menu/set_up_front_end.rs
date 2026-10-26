@@ -20,20 +20,20 @@
 //! original's, for reference.
 
 use crate::errors::Refused;
+use crate::memory::blocks::BlockVar;
 use crate::menu::champ_store::CHAMP_VIEW;
 use crate::menu::draw_work_store::DRAW_WORK;
 use crate::menu::loop_store::LOOP_FLAGS;
 use crate::menu::option_work_store::OPTION_WORK;
 use crate::saves::best_times_store::BEST_TIMES;
 use crate::saves::default_times::to_the_log;
-use crate::session::Dword;
 use crate::sound::store::SOUND_OPTIONS;
 
 // ---- game data ----
 
 /// Where each of the nine tables of `saves::allocate_best_times` (`BEST_TIMES.tables`:
 /// `dword_747618`, `dword_747620` .. `dword_747658`, in order) is copied to.
-const COPIES: [fn() -> &'static Dword; 9] = [
+const COPIES: [fn() -> &'static BlockVar; 9] = [
     || &CHAMP_VIEW.summary,
     || &CHAMP_VIEW.best_scores,
     || &CHAMP_VIEW.stage_best_times,
@@ -92,7 +92,7 @@ pub unsafe fn set_up_front_end(stage: u32, x: u32) -> Result<(), Refused> {
             crate::records::stages_store::STAGE_TABLES.championship(),
         )?;
         for (table, to) in BEST_TIMES.tables.iter().zip(COPIES) {
-            to().set(table.address.get());
+            to().set(table.block.id());
         }
         if BEST_TIMES.loaded.get() != 1 {
             DRAW_WORK.work_0c.set(0u32);

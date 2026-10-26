@@ -11,7 +11,5 @@ use crate::errors::Refused;
 
 pub fn clear_time_trial_marks() -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::bests::clear_marks`.
-    let mut list = crate::menu::rank_time_trial_best::stage_list()?;
-    rc2k_core::menu::bests::clear_marks(&mut list);
-    Ok(())
+    crate::menu::rank_time_trial_best::with_stage_list(rc2k_core::menu::bests::clear_marks)
 }

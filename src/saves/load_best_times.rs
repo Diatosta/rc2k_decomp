@@ -70,7 +70,14 @@ pub fn load_game_best_times() -> Result<bool, Refused> {
     }
     for table in READ {
         let place = &BEST_TIMES.tables[table];
-        if !read_or_close(file, GamePtr::new(place.address.get()), place.size.get())? {
+        // Read as the original reads: exactly the table's size, or the file closed.
+        let table = place.block.need("a table of best times not taken")?;
+        let size = place.size.get();
+        let (got, ok) = table.with_bytes(size as usize, "a table of best times", |b| {
+            crate::files::handle::read_slice(file, b)
+        })?;
+        if !ok || got != size {
+            close(file);
             return Ok(false);
         }
     }

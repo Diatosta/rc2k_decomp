@@ -4,6 +4,7 @@
 //! `moved::MOVED` points the range at it. The tables' addresses are the game's allocations
 //! (`saves::allocate_best_times`). (Split 2026-10-25 from the front end's block `menu::store`.)
 
+use crate::memory::blocks::BlockVar;
 use crate::session::{Bytes, Dword, with_runs};
 
 /// The rows, the key clock and the tables' addresses (IDA 0x7556B4 .. 0x755784).
@@ -26,23 +27,23 @@ pub struct ChampView {
     /// `g_eventMode`: The event's mode: 2, 3 or 0x13.
     pub event_mode: Dword,
     /// `g_bestScores`: The best scores' table (five groups of ten, 0x3C each).
-    pub best_scores: Dword,
+    pub best_scores: BlockVar,
     /// `g_stageBestTimes`: The stages' best times (0x618 an event).
-    pub stage_best_times: Dword,
+    pub stage_best_times: BlockVar,
     /// `g_levelBestScores`: The arcade levels' best scores.
-    pub level_best_scores: Dword,
+    pub level_best_scores: BlockVar,
     /// `g_courseBestTimes`: The courses' best times (group 1's pointer for the stage pages).
-    pub course_best_times: Dword,
+    pub course_best_times: BlockVar,
     /// `g_stageBestTimesAlt`: The other group's stage times.
-    pub stage_best_times_alt: Dword,
+    pub stage_best_times_alt: BlockVar,
     /// `g_timeTrialBestTimes`: The time trial's best times.
-    pub time_trial_best_times: Dword,
+    pub time_trial_best_times: BlockVar,
     /// `g_rankedTimes`: The ranked times (`menu::standings`).
-    pub ranked_times: Dword,
+    pub ranked_times: BlockVar,
     /// `g_champHistory`: The championship's history table.
-    pub champ_history: Dword,
+    pub champ_history: BlockVar,
     /// `dword_7556F4`: The standings summary (`menu::copy_standings_summary`).
-    pub summary: Dword,
+    pub summary: BlockVar,
     /// `dword_7556F8`: A stage page switch (`menu::toggle_7556f8`).
     pub switch_f8: Dword,
     /// `dword_7556FC`: A stage page switch (`menu::toggle_7556fc`).
@@ -63,15 +64,15 @@ pub static CHAMP_VIEW: ChampView = ChampView {
     cursor_time: Dword::new(0x0),
     _gap_7556cc: Bytes::new(with_runs::<4>(&[(0x0, &[0x01])])),
     event_mode: Dword::new(0x2),
-    best_scores: Dword::new(0x0),
-    stage_best_times: Dword::new(0x0),
-    level_best_scores: Dword::new(0x0),
-    course_best_times: Dword::new(0x0),
-    stage_best_times_alt: Dword::new(0x0),
-    time_trial_best_times: Dword::new(0x0),
-    ranked_times: Dword::new(0x0),
-    champ_history: Dword::new(0x0),
-    summary: Dword::new(0x0),
+    best_scores: BlockVar::new(),
+    stage_best_times: BlockVar::new(),
+    level_best_scores: BlockVar::new(),
+    course_best_times: BlockVar::new(),
+    stage_best_times_alt: BlockVar::new(),
+    time_trial_best_times: BlockVar::new(),
+    ranked_times: BlockVar::new(),
+    champ_history: BlockVar::new(),
+    summary: BlockVar::new(),
     switch_f8: Dword::new(0x1),
     switch_fc: Dword::new(0x1),
     stage_mode: Dword::new(0x1),

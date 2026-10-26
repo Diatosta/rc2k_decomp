@@ -10,10 +10,11 @@
 //! fatal error as the original.
 
 use crate::errors::Refused;
+use crate::memory::blocks::Place;
 use crate::menu::standings::*;
 
 /// The first player of `group` (ebx) in the table from `from` (edi).
-pub fn first_player_b(from: u32, group: u32) -> Result<Found, Refused> {
+pub fn first_player_b(from: Place, group: u32) -> Result<Found, Refused> {
     first_player(
         from,
         group,

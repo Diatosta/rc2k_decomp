@@ -1,4 +1,5 @@
 use crate::errors::{BadInput, Refused};
+use crate::memory::blocks::Place;
 use crate::menu::champ_store::CHAMP_VIEW;
 use crate::menu::event_flow::Fault;
 use crate::race::state_store::RACE_STATE;
@@ -7,10 +8,9 @@ use rc2k_core::menu::finish::{self, Racer, Step, Var};
 
 /// The game for `rc2k_core::menu::finish`: the variables at their addresses, the finders'
 /// Rust versions, the steps their Rust versions. `racer` is the record (the original's
-/// edi) the racer fields are read and written through.
-#[derive(Default)]
+/// edi) the racer fields are read and written through: a player's, or a standings entry.
 pub struct Game {
-    pub racer: u32,
+    pub racer: Place,
     /// A refused read or write of the core's variables (checked at each step and at the end).
     fault: Fault,
 }
@@ -18,7 +18,10 @@ pub struct Game {
 impl Game {
     /// Runs a flow on a new game; a refused read or write of its variables ends it.
     pub fn run(flow: impl FnOnce(&mut Game) -> Result<(), Refused>) -> Result<(), Refused> {
-        let mut game = Game::default();
+        let mut game = Game {
+            racer: Place::Game(0),
+            fault: Fault::default(),
+        };
         let done = flow(&mut game);
         game.fault.check()?;
         done
@@ -46,7 +49,7 @@ impl finish::Finish for Game {
 
     fn get(&mut self, v: Var) -> u32 {
         match v {
-            Var::Racer(offset) => self.fault.get(self.racer + offset),
+            Var::Racer(offset) => self.fault.get_at(self.racer.add(offset)),
             _ => match cell(v) {
                 Some(cell) => cell.get(),
                 None => unreachable!("the racer's fields are not at an address"),
@@ -56,7 +59,7 @@ impl finish::Finish for Game {
 
     fn set(&mut self, v: Var, value: u32) {
         match v {
-            Var::Racer(offset) => self.fault.put(self.racer + offset, value),
+            Var::Racer(offset) => self.fault.put_at(self.racer.add(offset), value),
             _ => match cell(v) {
                 Some(cell) => cell.set(value),
                 None => unreachable!("the racer's fields are not at an address"),
@@ -65,7 +68,7 @@ impl finish::Finish for Game {
     }
 
     fn find_leader(&mut self, group_b: bool) -> Result<Option<u32>, Refused> {
-        let table = CHAMP_VIEW.champ_history.get();
+        let table = Place::Owned(CHAMP_VIEW.champ_history.need("no championship history")?);
         let found = if group_b {
             crate::menu::first_player_b::first_player_b(table, 0)?
         } else {
@@ -77,7 +80,7 @@ impl finish::Finish for Game {
 
     fn find_done(&mut self) -> Result<Option<u32>, Refused> {
         let found = crate::menu::find_section_player::find_section_player()?;
-        self.racer = found.record;
+        self.racer = Place::Game(found.record);
         Ok((found.index != u32::MAX).then_some(found.index))
     }
 
@@ -88,9 +91,9 @@ impl finish::Finish for Game {
                 if player(n) == 0 {
                     return Err(BadInput("the leader's ecx past the players").into());
                 }
-                self.racer = player(n);
+                self.racer = Place::Game(player(n));
             }
-            Racer::Done(n) => self.racer = player(n),
+            Racer::Done(n) => self.racer = Place::Game(player(n)),
         }
         Ok(())
     }

@@ -106,7 +106,8 @@ impl races::EventRaces for Game<'_> {
                 }
                 Step::RaceInfo => {
                     let (rec, pack) = (self.rec, self.pack);
-                    g.c.arg = CHAMP_VIEW.summary.get();
+                    // The summary's block id (the race reads it: `RACE_STATE.settings.rivals`).
+                    g.c.arg = CHAMP_VIEW.summary.id();
                     RACE_STATE.settings.rivals.set(g.c.arg);
                     g.c.arg = INDEX_RVA.get();
                     g.c.palette = SECTION_RVA.get();
@@ -184,7 +185,7 @@ impl races::EventRaces for Game<'_> {
 /// The Rust version (see the header). `f` the registers carried in and out (what it
 /// leaves is the last step's).
 pub fn run_event_races(f: &mut Flow) -> Result<(), Refused> {
-    let drivers = entries(crate::menu::drivers_store::DRIVERS.first(), DRIVER)?;
+    let drivers = game_entries(crate::menu::drivers_store::DRIVERS.first(), DRIVER)?;
     let fault = Fault::default();
     let few_running = drivers.len() < PICKED as usize
         || drivers[..PICKED as usize]

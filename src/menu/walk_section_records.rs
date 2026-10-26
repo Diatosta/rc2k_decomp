@@ -28,7 +28,7 @@ fn record_at(index: u32) -> Result<u32, crate::errors::BadInput> {
 fn walk() -> Result<Vec<(u32, Step)>, Refused> {
     current_event()?;
     counted_players()?;
-    entries(crate::menu::drivers_store::DRIVERS.first(), DRIVER)?;
+    game_entries(crate::menu::drivers_store::DRIVERS.first(), DRIVER)?;
     let index: u32 = INDEX_RVA.get();
     // Converted: `rc2k_core::menu::section_walk::walk`.
     let fault = Fault::default();

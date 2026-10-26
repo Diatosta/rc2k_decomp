@@ -25,6 +25,7 @@
 //! original's, for reference.
 
 use crate::errors::{BadInput, Refused};
+use crate::memory::blocks::Place;
 use crate::menu::champ_store::CHAMP_VIEW;
 use crate::menu::event_flow::Fault;
 use crate::menu::ranked_lookups::find_champ_position;
@@ -35,10 +36,7 @@ use crate::text::draw_text::Canvas;
 // g_champRowEnd
 /// The Rust version.
 pub fn draw_championship_standings(canvas: &mut dyn Canvas) -> Result<(), Refused> {
-    let history = CHAMP_VIEW.champ_history.get();
-    if history == 0 {
-        return Err(BadInput("no championship history").into());
-    }
+    let history = Place::Owned(CHAMP_VIEW.champ_history.need("no championship history")?);
     if !section_there()? {
         return Err(BadInput("a section past the record table").into());
     }
@@ -56,20 +54,20 @@ pub fn draw_championship_standings(canvas: &mut dyn Canvas) -> Result<(), Refuse
     // Converted: `rc2k_core::screens::results_pages::championship_standings` (the rows found here).
     use rc2k_core::screens::results_pages::{StandingRow, championship_standings};
     let f = Fault::default();
-    let rows: Vec<StandingRow<u32>> = rows
+    let rows: Vec<StandingRow<Place>> = rows
         .into_iter()
         .map(|e| StandingRow {
-            player: (f.get(e + 4) as i32) > 0,
-            position: f.get(e + 0x70),
-            name: e + 0x14,
-            points: std::array::from_fn(|k| f.get(e + 0x38 + 4 * k as u32)),
-            nation: f.get(e + 8),
-            car: f.get(e + 0xC),
+            player: (f.get_at(e.add(4)) as i32) > 0,
+            position: f.get_at(e.add(0x70)),
+            name: e.add(0x14),
+            points: std::array::from_fn(|k| f.get_at(e.add(0x38 + 4 * k as u32))),
+            nation: f.get_at(e.add(8)),
+            car: f.get_at(e.add(0xC)),
         })
         .collect();
     f.check()?;
     championship_standings(
-        &mut crate::screens::game_screen::GameScreen::new(canvas),
+        &mut crate::screens::game_screen::GameScreen::<_, _, Place>::new(canvas),
         first_row,
         CHAMP_VIEW.event_mode.get() == 0x13,
         &rows,

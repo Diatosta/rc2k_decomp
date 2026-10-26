@@ -1,6 +1,7 @@
 //! The time trial stage results page (`sub_48E740`; stream A, part F1, 2026-10-18).
 
 use crate::errors::{BadInput, Refused};
+use crate::memory::blocks::{At, BlockVar, Place};
 use crate::menu::captions_store::CAPTIONS;
 use crate::menu::champ_store::CHAMP_VIEW;
 use crate::menu::loop_store::LOOP_FLAGS;
@@ -26,26 +27,43 @@ fn records() -> Result<(u32, u32), BadInput> {
     ))
 }
 
-/// Whether the end mark comes within the ten rows (n = 1 .. 10 entries on).
-fn ends_within_ten(first: u32) -> Result<bool, BadInput> {
-    for n in 1..=10u32 {
-        if get(first.wrapping_add(0x9C * n))? == u32::MAX {
-            return Ok(true);
-        }
-    }
-    Ok(false)
-}
-
-/// The times table: `off_7354FE[dword_7556F8 (+ 2 when dword_7556FC is 1)]` points at the
-/// pointer to it.
-fn times_table() -> Result<u32, BadInput> {
+/// The times table: `off_7354FE[dword_7556F8 (+ 2 when dword_7556FC is 1)]` names the
+/// variable that holds it (the list's four: `g_stageBestTimes`, `g_courseBestTimes`,
+/// `dword_7556E8`, `g_stageBestTimesAlt`); its block, or None. Refuses a list entry that
+/// names none of them.
+fn times_table() -> Result<Option<At>, BadInput> {
     let mut at = crate::records::stages_store::STAGE_TABLES.result_tables_addr()
         + 4 * CHAMP_VIEW.switch_f8.get();
     if CHAMP_VIEW.switch_fc.get() == 1 {
         at += 8;
     }
     let p = get(at)?;
-    if p == 0 { Ok(0) } else { get(p) }
+    if p == 0 {
+        return Ok(None);
+    }
+    let v = &CHAMP_VIEW;
+    let held = [
+        &v.stage_best_times,
+        &v.course_best_times,
+        &v.time_trial_best_times,
+        &v.stage_best_times_alt,
+    ]
+    .into_iter()
+    .find(|b| crate::pointers::game_address(*b as *const BlockVar) == p)
+    .ok_or(BadInput(
+        "a times table list entry that names no best times variable",
+    ))?;
+    Ok(held.get())
+}
+
+/// Whether the end mark comes within the ten rows (n = 1 .. 10 entries on).
+fn ends_within_ten(first: At) -> Result<bool, BadInput> {
+    for n in 1..=10u32 {
+        if first.add(0x9C * n).read::<u32>("a best time")? == u32::MAX {
+            return Ok(true);
+        }
+    }
+    Ok(false)
 }
 
 /// `screens::draw_stage_results` (0x48E740): the time trial stage's results: the current
@@ -65,9 +83,10 @@ fn times_table() -> Result<u32, BadInput> {
 pub fn draw_stage_results(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     let menu = LOOP_FLAGS.menu.get();
     let (base, record) = records()?;
-    if menu == 0 || base == 0 || times_table()? == 0 {
+    let table = times_table()?;
+    let Some(table) = table.filter(|_| menu != 0 && base != 0) else {
         return Err(BadInput("no current menu, stage records or times table").into());
-    }
+    };
     let both_off = (CHAMP_VIEW.switch_f8.get() ^ 1) & (CHAMP_VIEW.switch_fc.get() ^ 1);
     let fastest = if both_off == 1 {
         crate::records::find_stage_record::find_stage_record(
@@ -90,7 +109,7 @@ pub fn draw_stage_results(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     if stage.len() > 0x100 {
         return Err(BadInput("a stage line past its buffer").into());
     }
-    let first = times_table()?.wrapping_add(get(record + 0x3C)?.wrapping_mul(0x618));
+    let first = table.add(get(record + 0x3C)?.wrapping_mul(0x618));
     if ends_within_ten(first)? {
         return Err(BadInput(
             "a times table ending within the ten rows: the original returns through a wrong stack",
@@ -130,10 +149,10 @@ pub fn draw_stage_results(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     use rc2k_core::screens::stage_results::{Entry, Fastest, stage_results};
     let fault = crate::menu::event_flow::Fault::default();
     let rows = std::array::from_fn(|n| {
-        let entry = first.wrapping_add(0x9C * n as u32);
-        let f = |o: u32| fault.get(entry + o);
+        let entry = Place::Owned(first.add(0x9C * n as u32));
+        let f = |o: u32| fault.get_at(entry.add(o));
         Entry {
-            name: entry + 0x20,
+            name: entry.add(0x20),
             nation: f(8),
             car: f(0x10),
             time: f(0x14),
@@ -149,7 +168,7 @@ pub fn draw_stage_results(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     speed.pop();
     let fastest = Fastest {
         nation: get(fastest + nation)?,
-        name: fastest + name,
+        name: Place::Game(fastest + name),
         car: get(fastest + car)?,
         palette: if both_off == 1 {
             CAPTIONS.shown_group.get()
@@ -171,7 +190,7 @@ pub fn draw_stage_results(canvas: &mut dyn Canvas) -> Result<(), Refused> {
         }))
     };
     let drawn = stage_results(
-        &mut crate::screens::game_screen::GameScreen::new(canvas),
+        &mut crate::screens::game_screen::GameScreen::<_, _, Place>::new(canvas),
         MENU_STATE.menus.caption_choice.get() == 1,
         crate::strings::append_time::show_hours(),
         &rows,

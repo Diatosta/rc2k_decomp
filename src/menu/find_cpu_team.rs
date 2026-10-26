@@ -14,7 +14,7 @@ use crate::menu::standings::*;
 /// The Rust version (see the header): the registers it leaves.
 pub fn find_cpu_team(team: u32) -> Result<u32, Refused> {
     let first = crate::menu::drivers_store::DRIVERS.first();
-    let all = entries(first, DRIVER)?;
+    let all = game_entries(first, DRIVER)?;
     // Converted: `rc2k_core::menu::standings::find_team`.
     let drivers = table(first, DRIVER, all.len() as u32)?;
     if let Some(n) = rc2k_core::menu::standings::find_team(&drivers, team) {

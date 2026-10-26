@@ -25,7 +25,8 @@ pub fn enter_record_entry() -> Result<(), Refused> {
         return Err(BadInput("a current player past 3, missing or without a name").into());
     }
     let p = player(n);
-    let slot = (event - { EVENTS_RVA.get() }) / 0x618;
+    // The event's place in the table (`current_event`'s, in `CHAMP_VIEW.stage_best_times`'s block).
+    let slot = event.offset / 0x618;
     DRAW_WORK.figure.set(slot);
     let cheats = CHEAT_VARS.cheats.get();
     let sealed = crate::menu::sealed_player_time::sealed_player_time(slot)?;
@@ -44,10 +45,7 @@ pub fn enter_record_entry() -> Result<(), Refused> {
         seal: Some(bests::Seal { cheats, sealed }),
         line: None,
     };
-    bests::enter_tenth(
-        &mut crate::menu::rank_record_entry::event_list(event)?,
-        &best,
-    );
+    crate::menu::rank_record_entry::with_event_list(event, |list| bests::enter_tenth(list, &best))?;
     crate::menu::rank_record_entry::rank_entries(event)?;
     Ok(())
 }

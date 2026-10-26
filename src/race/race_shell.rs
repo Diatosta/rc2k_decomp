@@ -94,14 +94,23 @@ pub fn copy_league_table() -> Result<(), BadInput> {
     // Converted: `rc2k_core::race::results::league`.
     use rc2k_core::race::results::league;
     {
-        let source: u32 = RACE_STATE.settings.rivals.get();
-        if source == 0 {
+        // The standings summary's block (`settings.rivals` holds its id).
+        let Some(source) = crate::memory::blocks::BlockVar::of(&RACE_STATE.settings.rivals) else {
             return Ok(());
+        };
+        let failed = std::cell::Cell::new(None);
+        let l = league(|n, off| {
+            source
+                .add(0x50 * n as u32 + off)
+                .read::<u32>("the league records")
+                .unwrap_or_else(|e| {
+                    failed.set(failed.get().or(Some(e)));
+                    0
+                })
+        });
+        if let Some(e) = failed.get() {
+            return Err(e);
         }
-        let trap = Trap::new();
-        let l =
-            league(|n, off| trap.read::<u32>(source + 0x50 * n as u32 + off, "the league records"));
-        trap.finish()?;
         crate::session::write_bits(&crate::race::league_store::LEAGUE.names, l.firsts);
         for (k, row) in l.rows.iter().enumerate() {
             crate::session::write_first(

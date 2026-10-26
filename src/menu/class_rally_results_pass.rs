@@ -12,6 +12,7 @@
 //! 0x100), before anything; what the steps refuse.
 
 use crate::errors::Refused;
+use crate::memory::blocks::Place;
 use crate::menu::event_flow::Fault;
 use crate::menu::event_store::EVENT_STATE;
 use crate::menu::loop_store::LOOP_FLAGS;
@@ -35,15 +36,15 @@ pub unsafe fn class_rally_results_pass(c: &Carried) -> Result<(), Refused> {
         let first = first_class();
         // Converted: `rc2k_core::menu::class_pages` (`classes`, `has_player`).
         let classes = class_pages::classes(first, EVENT_STATE.classes.get())?;
-        let table: u32 = TABLE_A_RVA.get();
+        let table = Place::Owned(TABLE_A_RVA.need("no standings table")?);
         let all = entries(table, A_ENTRY)?;
         for class in classes {
             LOOP_FLAGS.ended_b.set(0u32);
             let fault = Fault::default();
             let has_player = class_pages::has_player(
                 all.len(),
-                |n| fault.get(all[n] + 0x1C),
-                |n| fault.get(all[n] + 4),
+                |n| fault.get_at(all[n].add(0x1C)),
+                |n| fault.get_at(all[n].add(4)),
                 class,
             );
             fault.check()?;

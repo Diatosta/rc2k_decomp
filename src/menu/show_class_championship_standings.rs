@@ -29,7 +29,10 @@ pub unsafe fn show_class_championship_standings(class: u32, c: &Carried) -> Resu
         };
         c.arg = DRAW_WORK.seconds.get(); // seconds
         EVENT_STATE.class.set(class);
-        let found = crate::menu::first_player_b::first_player_b(TABLE_B_RVA.get(), class)?;
+        let found = crate::menu::first_player_b::first_player_b(
+            crate::memory::blocks::Place::Owned(TABLE_B_RVA.need("no standings table")?),
+            class,
+        )?;
         found.carry_on(&mut c);
         // Converted: `rc2k_core::menu::results_pages::held_figure`.
         let count = held_figure(Page::ClassChampionship, found.figure);

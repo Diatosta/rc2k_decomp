@@ -26,7 +26,10 @@ pub unsafe fn show_overall_rally_results(c: &Carried) -> Result<(), Refused> {
             palette: ANY_GROUP,
             ..*c
         };
-        let found = crate::menu::first_player_a::first_player_a(TABLE_A_RVA.get(), ANY_GROUP)?;
+        let found = crate::menu::first_player_a::first_player_a(
+            crate::memory::blocks::Place::Owned(TABLE_A_RVA.need("no standings table")?),
+            ANY_GROUP,
+        )?;
         found.carry_on(&mut c);
         // Converted: `rc2k_core::menu::results_pages::held_figure`.
         let count = held_figure(Page::OverallRally, found.figure);

@@ -6,7 +6,7 @@
 //! Caller: `sub_4A0E60`. The entries are their Rust versions. Refuses a player count of 0 or past
 //! 4, a missing player, no table, and what an entry refuses, before anything.
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::menu::event_store::EVENT_STATE;
 use crate::menu::screen_loop::{Carried, run_screen};
 use crate::menu::standings::*;
@@ -19,19 +19,19 @@ use crate::menu::standings::*;
 pub unsafe fn best_overall_scores(c: &Carried) -> Result<(), Refused> {
     unsafe {
         let players = counted_players()?;
-        let table: u32 = BEST_SCORES_RVA.get();
-        if table == 0 {
-            return Err(BadInput("no best-score table").into());
-        }
+        let table = BEST_SCORES_RVA.need("no best-score table")?;
         let mut g = *c;
         EVENT_STATE.any_time_qualified.set(0u32);
         for (n, &p) in players.iter().enumerate() {
             EVENT_STATE.current_player.set(n as u32);
             g.arg = get(p + 0xCC)?;
             g.palette = 4 * 0x258 + 0x21C;
-            g.cars = table + g.palette;
+            // The tenth entry (the original leaves it in esi, which the screen's lists set
+            // before anything reads it).
+            let tenth = table.add(g.palette);
             // Converted: `rc2k_core::menu::bests::makes_score`.
-            if rc2k_core::menu::bests::makes_score(g.arg, get(g.cars + 0x38)?) {
+            let score = tenth.add(0x38).read::<u32>("a best score")?;
+            if rc2k_core::menu::bests::makes_score(g.arg, score) {
                 enter_best(Some(4), 0xCC)?;
                 EVENT_STATE.any_time_qualified.set(1u32);
             }

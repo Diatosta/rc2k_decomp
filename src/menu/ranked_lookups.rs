@@ -25,6 +25,7 @@
 //! runs 0x400 entries without the end mark.
 
 use crate::errors::{BadInput, FatalError, Refused};
+use crate::memory::blocks::Place;
 
 pub const ENTRY_LEN: u32 = 0x9C;
 const LIMIT: u32 = 0x400;
@@ -47,30 +48,30 @@ const NO_CLASS: FatalError = FatalError {
     message: "Seriously buggered",
 };
 
-fn get(at: u32) -> Result<u32, crate::errors::BadInput> {
-    crate::pointers::GamePtr::new(at).read::<u32>("a game value")
+fn get(at: Place) -> Result<u32, crate::errors::BadInput> {
+    at.read("a ranked entry's value")
 }
 
 /// From `e` on, the first entry `wanted` takes; at the end mark `none`.
 fn search(
-    e: u32,
-    wanted: impl Fn(u32) -> Result<bool, BadInput>,
+    e: Place,
+    wanted: impl Fn(Place) -> Result<bool, BadInput>,
     none: FatalError,
-) -> Result<u32, Refused> {
+) -> Result<Place, Refused> {
     search_by(e, ENTRY_LEN, wanted, none)
 }
 
 /// `search` in entries of `len` bytes (converted: `rc2k_core::menu::standings::search`).
 fn search_by(
-    e: u32,
+    e: Place,
     len: u32,
-    wanted: impl Fn(u32) -> Result<bool, BadInput>,
+    wanted: impl Fn(Place) -> Result<bool, BadInput>,
     none: FatalError,
-) -> Result<u32, Refused> {
+) -> Result<Place, Refused> {
     use rc2k_core::menu::standings::{Found, search};
-    let at = |n: u32| e.wrapping_add(n.wrapping_mul(len));
+    let at = |n: u32| e.add(n.wrapping_mul(len));
     let fault = crate::menu::event_flow::Fault::default();
-    let found = search(|n| fault.get(at(n)), |n| fault.ok(wanted(at(n))), LIMIT);
+    let found = search(|n| fault.get_at(at(n)), |n| fault.ok(wanted(at(n))), LIMIT);
     fault.check()?;
     match found {
         Found::At(n) => Ok(at(n)),
@@ -80,35 +81,35 @@ fn search_by(
 }
 
 /// `find_ranked_entry`'s Rust version: the entry of `class` at `position`.
-pub fn find_ranked_entry(list: u32, position: u32, class: u32) -> Result<u32, Refused> {
+pub fn find_ranked_entry(list: Place, position: u32, class: u32) -> Result<Place, Refused> {
     search(
         list,
-        |e| Ok(get(e + 0x1C)? == class && get(e + 0x44)? == position),
+        |e| Ok(get(e.add(0x1C))? == class && get(e.add(0x44))? == position),
         NOT_FOUND_LOGGED,
     )
 }
 
 /// `find_ranked_position`'s Rust version: the entry at `position`.
-pub fn find_ranked_position(list: u32, position: u32) -> Result<u32, Refused> {
-    search(list, |e| Ok(get(e + 0x44)? == position), NOT_FOUND)
+pub fn find_ranked_position(list: Place, position: u32) -> Result<Place, Refused> {
+    search(list, |e| Ok(get(e.add(0x44))? == position), NOT_FOUND)
 }
 
 /// `find_champ_position`'s Rust version: the history's entry at `position`.
-pub fn find_champ_position(list: u32, position: u32) -> Result<u32, Refused> {
+pub fn find_champ_position(list: Place, position: u32) -> Result<Place, Refused> {
     search_by(
         list,
         CHAMP_ENTRY_LEN,
-        |e| Ok(get(e + 0x70)? == position),
+        |e| Ok(get(e.add(0x70))? == position),
         NOT_IN_CHAMP,
     )
 }
 
 /// `first_overall_time`'s Rust version: the time (`rally` the +0x18, else the +0x14).
-pub fn first_overall_time(list: u32, kind: u32, rally: bool) -> Result<u32, Refused> {
+pub fn first_overall_time(list: Place, kind: u32, rally: bool) -> Result<u32, Refused> {
     let e = if kind == 2 {
-        search(list, |e| Ok(get(e + 0x1C)? != 0), NO_CLASS)?
+        search(list, |e| Ok(get(e.add(0x1C))? != 0), NO_CLASS)?
     } else {
         list
     };
-    Ok(get(e + if rally { 0x18 } else { 0x14 })?)
+    Ok(get(e.add(if rally { 0x18 } else { 0x14 }))?)
 }

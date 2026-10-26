@@ -16,6 +16,7 @@
 //! 0x100, a section past 5, a player past 4 or missing, before anything; a driver not found is the
 //! search's fatal error, before anything.
 use crate::errors::{BadInput, Refused};
+use crate::memory::blocks::Place;
 use crate::menu::draw_work_store::DRAW_WORK;
 use crate::menu::event_flow::Fault;
 use crate::menu::event_store::EVENT_STATE;
@@ -29,10 +30,10 @@ enum Owner {
     Player(u32),
 }
 
-fn owner(e: u32) -> Result<Owner, Refused> {
-    match get(e + 4)? {
+fn owner(e: Place) -> Result<Owner, Refused> {
+    match get_at(e.add(4))? {
         0 => {
-            let driver = crate::menu::find_cpu_team::find_cpu_team(get(e)?)?;
+            let driver = crate::menu::find_cpu_team::find_cpu_team(get_at(e)?)?;
             Ok(Owner::Driver(driver))
         }
         n if n <= 4 && player(n - 1) != 0 => Ok(Owner::Player(player(n - 1))),
@@ -45,13 +46,14 @@ pub unsafe fn award_stage_points() -> Result<(), Refused> {
     unsafe {
         let classes: u32 = EVENT_STATE.classes.get();
         let section: u32 = SECTION_RVA.get();
-        let table: u32 = TABLE_B_RVA.get();
-        if table == 0 || classes == 0 || classes > 0x100 || section > 5 {
+        let table = TABLE_B_RVA.get();
+        let (Some(table), true) = (table, classes != 0 && classes <= 0x100 && section <= 5) else {
             return Err(BadInput(
                 "no table, a class count of 0 or past 0x100, or a section past 5",
             )
             .into());
-        }
+        };
+        let table = Place::Owned(table);
         let all = entries(table, B_ENTRY)?;
         let mut owners = Vec::with_capacity(all.len());
         for &e in &all {
@@ -65,7 +67,7 @@ pub unsafe fn award_stage_points() -> Result<(), Refused> {
             DRAW_WORK.seconds.set(points.0);
             for (&e, o) in all.iter().zip(&owners) {
                 EVENT_STATE.class.set(class);
-                if get(e + 0x10)? != class {
+                if get_at(e.add(0x10))? != class {
                     continue;
                 }
                 crate::logfile::log_write::log_write(
@@ -73,22 +75,25 @@ pub unsafe fn award_stage_points() -> Result<(), Refused> {
                     false,
                     1,
                 );
-                crate::logfile::log_int::log_int(get(e + 0x74)? as i32, true, 1);
+                crate::logfile::log_int::log_int(get_at(e.add(0x74))? as i32, true, 1);
                 let given = points.take();
                 DRAW_WORK.seconds.set(points.0);
                 let (keeps, field) = match *o {
                     Owner::Driver(d) => (get(d + 0x24)? == 1, d + 0x78 + at),
                     Owner::Player(p) => (get(p + 0xD0)? == 1, p + 0x98 + at),
                 };
-                put(e + 0x54 + at, kept(given, keeps))?;
+                e.add(0x54 + at)
+                    .write(kept(given, keeps), "a standings entry")?;
                 put(field, kept(given, keeps))?;
             }
         }
         for (&e, o) in all.iter().zip(&owners) {
             let fault = Fault::default();
-            let total = total(std::array::from_fn(|k| fault.get(e + 0x54 + 4 * k as u32)));
+            let total = total(std::array::from_fn(|k| {
+                fault.get_at(e.add(0x54 + 4 * k as u32))
+            }));
             fault.check()?;
-            put(e + 0x6C, total)?;
+            e.add(0x6C).write(total, "a standings entry")?;
             match *o {
                 Owner::Driver(d) => put(d + 0x90, total)?,
                 Owner::Player(p) => put(p + 0xB0, total)?,

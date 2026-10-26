@@ -36,15 +36,121 @@ pub trait GameWork: Copy {
     fn cell(self) -> &'static Dword;
 }
 
-pub struct GameScreen<'a, F, W> {
+/// A text a screen draws: where the game keeps it (an address, `u32`), or a place that may
+/// be in an owned block (`Place`: the best times' names, phase 12).
+pub trait GameText: Copy {
+    /// Drawn in `font` at x, y.
+    fn draw(
+        self,
+        font: *mut Font,
+        x: i32,
+        y: i32,
+        canvas: &mut dyn Canvas,
+    ) -> Result<Drawn, Refused>;
+    /// A buffer of the game's.
+    fn of_buffer(at: u32) -> Self;
+    /// Measured in `font` from x: its widest line's width and its line count.
+    fn measure(
+        self,
+        font: *mut Font,
+        x: i32,
+        canvas: &mut dyn Canvas,
+    ) -> Result<(u32, u32), Refused>;
+}
+
+impl GameText for u32 {
+    fn draw(
+        self,
+        font: *mut Font,
+        x: i32,
+        y: i32,
+        canvas: &mut dyn Canvas,
+    ) -> Result<Drawn, Refused> {
+        let out = draw_text_at(font, crate::pointers::host(self) as *const u8, x, y, canvas)?;
+        Ok(Drawn {
+            y: out.y,
+            after: crate::pointers::game_address(out.text),
+            too_wide: out.too_wide,
+        })
+    }
+
+    fn of_buffer(at: u32) -> Self {
+        at
+    }
+
+    fn measure(
+        self,
+        font: *mut Font,
+        x: i32,
+        canvas: &mut dyn Canvas,
+    ) -> Result<(u32, u32), Refused> {
+        let m = crate::text::measure_text::measure_text_at(
+            font,
+            crate::pointers::host(self) as *const u8,
+            x,
+            canvas,
+        )?;
+        Ok((m.width, m.lines))
+    }
+}
+
+impl GameText for crate::memory::blocks::Place {
+    fn draw(
+        self,
+        font: *mut Font,
+        x: i32,
+        y: i32,
+        canvas: &mut dyn Canvas,
+    ) -> Result<Drawn, Refused> {
+        use crate::memory::blocks::Place;
+        match self {
+            Place::Game(at) => at.draw(font, x, y, canvas),
+            Place::Owned(at) => {
+                let mut text = at.cstring("a text to draw")?;
+                text.push(0);
+                let out = crate::text::draw_text::draw_bytes_at(font, &text, x, y, canvas)?;
+                Ok(Drawn {
+                    y: out.y,
+                    // Where the text after it starts, in its block (no caller of a block's
+                    // text reads it: the names' draws keep only the y).
+                    after: at.add(out.next as u32).offset,
+                    too_wide: out.too_wide,
+                })
+            }
+        }
+    }
+
+    fn of_buffer(at: u32) -> Self {
+        crate::memory::blocks::Place::Game(at)
+    }
+
+    fn measure(
+        self,
+        font: *mut Font,
+        x: i32,
+        canvas: &mut dyn Canvas,
+    ) -> Result<(u32, u32), Refused> {
+        use crate::memory::blocks::Place;
+        match self {
+            Place::Game(at) => at.measure(font, x, canvas),
+            Place::Owned(at) => {
+                let mut text = at.cstring("a text to measure")?;
+                text.push(0);
+                crate::text::measure_text::measure_bytes_at(font, &text, x, canvas)
+            }
+        }
+    }
+}
+
+pub struct GameScreen<'a, F, W, T = u32> {
     pub canvas: &'a mut dyn Canvas,
     /// The menu's first item (the menus' screen: `rc2k_core::screens::menus::MenuScreen`).
     pub menu_items: u32,
     sprites: u32,
-    family: PhantomData<(F, W)>,
+    family: PhantomData<(F, W, T)>,
 }
 
-impl<'a, F, W> GameScreen<'a, F, W> {
+impl<'a, F, W, T> GameScreen<'a, F, W, T> {
     pub fn new(canvas: &'a mut dyn Canvas) -> Self {
         Self {
             canvas,
@@ -98,27 +204,14 @@ pub fn store_in(buffer: Buffer, bytes: &[u8]) -> Result<(), Refused> {
     Ok(())
 }
 
-impl<F: GameFont, W: GameWork> Screen for GameScreen<'_, F, W> {
+impl<F: GameFont, W: GameWork, T: GameText> Screen for GameScreen<'_, F, W, T> {
     type Font = F;
-    type Text = u32;
+    type Text = T;
     type Work = W;
     type Error = Refused;
 
-    fn text(&mut self, font: F, text: u32, x: i32, y: i32) -> Result<Drawn, Refused> {
-        let out = {
-            draw_text_at(
-                font_of(font),
-                crate::pointers::host(text) as *const u8,
-                x,
-                y,
-                self.canvas,
-            )
-        }?;
-        Ok(Drawn {
-            y: out.y,
-            after: crate::pointers::game_address(out.text),
-            too_wide: out.too_wide,
-        })
+    fn text(&mut self, font: F, text: T, x: i32, y: i32) -> Result<Drawn, Refused> {
+        text.draw(font_of(font), x, y, self.canvas)
     }
 
     fn store(&mut self, buffer: Buffer, bytes: &[u8]) -> Result<(), Refused> {
@@ -126,7 +219,12 @@ impl<F: GameFont, W: GameWork> Screen for GameScreen<'_, F, W> {
     }
 
     fn draw(&mut self, font: F, buffer: Buffer, x: i32, y: i32) -> Result<Drawn, Refused> {
-        self.text(font, crate::pointers::game_address(buffer_at(buffer)), x, y)
+        self.text(
+            font,
+            T::of_buffer(crate::pointers::game_address(buffer_at(buffer))),
+            x,
+            y,
+        )
     }
 
     fn draw_time(&mut self, font: F, buffer: Buffer, right: i32, y: i32) -> Result<(), Refused> {
@@ -235,16 +333,8 @@ impl<F: GameFont, W: GameWork> Screen for GameScreen<'_, F, W> {
         Ok((m.width, m.lines))
     }
 
-    fn measure(&mut self, font: F, text: u32, x: i32) -> Result<(u32, u32), Refused> {
-        let m = {
-            crate::text::measure_text::measure_text_at(
-                font_of(font),
-                crate::pointers::host(text) as *const u8,
-                x,
-                self.canvas,
-            )
-        }?;
-        Ok((m.width, m.lines))
+    fn measure(&mut self, font: F, text: T, x: i32) -> Result<(u32, u32), Refused> {
+        text.measure(font_of(font), x, self.canvas)
     }
 
     fn spaced(&mut self, font: F, bytes: &[u8], x: i32, y: i32) -> Result<(), Refused> {

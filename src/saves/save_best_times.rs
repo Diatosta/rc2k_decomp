@@ -47,12 +47,10 @@ pub fn in_game() -> Result<bool, Refused> {
     write_from(file, scratch, HEAD_LEN, "the best times file's head")?;
     for table in WRITTEN {
         let place = &BEST_TIMES.tables[table];
-        write_from(
-            file,
-            GamePtr::new(place.address.get()),
-            place.size.get(),
-            "a table of best times",
-        )?;
+        let table = place.block.need("a table of best times not taken")?;
+        table.with_bytes(place.size.get() as usize, "a table of best times", |b| {
+            crate::files::handle::write_slice(file, b)
+        })?;
     }
     close(file);
     Ok(true)

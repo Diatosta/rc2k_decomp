@@ -5,6 +5,7 @@
 //! rounds' points, below 0 none, +0x6C the total, +0x70 the position).
 
 use crate::errors::{FatalError, Refused};
+use crate::memory::blocks::Place;
 use crate::menu::champ_store::CHAMP_VIEW;
 use crate::menu::event_flow::Fault;
 use crate::menu::event_store::EVENT_STATE;
@@ -18,14 +19,14 @@ const NOT_FOUND: FatalError = FatalError {
 /// `screens::find_history_entry` (0x4A256C): from entry edi on, the first of class ebx and
 /// position eax (the entry edi points at itself is looked at before the end test); none
 /// before an entry of -1 is fatal error 0x8070A7FA.
-pub fn find_history_entry(entry: u32, class: u32, position: u32) -> Result<u32, Refused> {
+pub fn find_history_entry(entry: Place, class: u32, position: u32) -> Result<Place, Refused> {
     // Converted: `rc2k_core::screens::championship_table::find_history`.
     use rc2k_core::screens::championship_table::{HISTORY_ENTRY_LEN, find_history};
-    let at = |n: u32| entry.wrapping_add(n.wrapping_mul(HISTORY_ENTRY_LEN));
+    let at = |n: u32| entry.add(n.wrapping_mul(HISTORY_ENTRY_LEN));
     let f = Fault::default();
     let found = find_history(
-        |n| f.get(at(n)),
-        |n| (f.get(at(n) + 0x10), f.get(at(n) + 0x70)),
+        |n| f.get_at(at(n)),
+        |n| (f.get_at(at(n).add(0x10)), f.get_at(at(n).add(0x70))),
         class,
         position,
     );
@@ -43,10 +44,7 @@ pub fn find_history_entry(entry: u32, class: u32, position: u32) -> Result<u32, 
 /// Every register kept. Refuses (before anything) no history table; a position not in it is
 /// the original's fatal error.
 pub fn draw_championship_table(canvas: &mut dyn Canvas) -> Result<(), Refused> {
-    let table = CHAMP_VIEW.champ_history.get();
-    if table == 0 {
-        return Err(crate::errors::BadInput("no championship history").into());
-    }
+    let table = Place::Owned(CHAMP_VIEW.champ_history.need("no championship history")?);
     // Converted: `rc2k_core::screens::championship_table`; the ten entries looked up
     // first (a position not in the history is the original's fatal error, raised
     // before the rows rather than after those before it).
@@ -56,13 +54,13 @@ pub fn draw_championship_table(canvas: &mut dyn Canvas) -> Result<(), Refused> {
         let e = find_history_entry(table, class, first.wrapping_add(n))?;
         let f = Fault::default();
         rows.push(rc2k_core::screens::championship_table::Row {
-            mine: (f.get(e + 4) as i32) > 0,
-            nation: f.get(e + 8),
-            car: f.get(e + 0xC),
-            name: e + 0x14,
-            points: std::array::from_fn(|r| f.get(e + 0x54 + 4 * r as u32) as i32),
-            total: f.get(e + 0x6C),
-            position: f.get(e + 0x70),
+            mine: (f.get_at(e.add(4)) as i32) > 0,
+            nation: f.get_at(e.add(8)),
+            car: f.get_at(e.add(0xC)),
+            name: e.add(0x14),
+            points: std::array::from_fn(|r| f.get_at(e.add(0x54 + 4 * r as u32)) as i32),
+            total: f.get_at(e.add(0x6C)),
+            position: f.get_at(e.add(0x70)),
         });
         f.check()?;
     }
@@ -71,6 +69,7 @@ pub fn draw_championship_table(canvas: &mut dyn Canvas) -> Result<(), Refused> {
         &mut crate::screens::game_screen::GameScreen::<
             rc2k_core::screens::championship_table::Font,
             rc2k_core::screens::championship_table::Work,
+            Place,
         >::new(canvas),
         first,
         CHAMP_VIEW.event_mode.get() == 0x13,

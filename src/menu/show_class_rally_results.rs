@@ -27,7 +27,10 @@ pub unsafe fn show_class_rally_results(class: u32, c: &Carried) -> Result<(), Re
         };
         c.arg = DRAW_WORK.seconds.get(); // seconds
         EVENT_STATE.class.set(class);
-        let found = crate::menu::first_player_a::first_player_a(TABLE_A_RVA.get(), class)?;
+        let found = crate::menu::first_player_a::first_player_a(
+            crate::memory::blocks::Place::Owned(TABLE_A_RVA.need("no standings table")?),
+            class,
+        )?;
         found.carry_on(&mut c);
         // Converted: `rc2k_core::menu::results_pages::held_figure`.
         let a8 = CHAMP_VIEW.event_mode.get() == rc2k_core::menu::results_pages::A8;

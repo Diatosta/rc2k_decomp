@@ -69,7 +69,7 @@ pub fn check(rec: u32) -> Result<(u32, Vec<u32>, u32), Refused> {
     if classes == 0 || classes > 0x100 {
         return Err(BadInput("a class count of 0 or past 0x100").into());
     }
-    let drivers = entries(crate::menu::drivers_store::DRIVERS.first(), DRIVER)?;
+    let drivers = game_entries(crate::menu::drivers_store::DRIVERS.first(), DRIVER)?;
     let times = [
         get(rec + 0x18)?,
         get(rec + 0x1C)?,

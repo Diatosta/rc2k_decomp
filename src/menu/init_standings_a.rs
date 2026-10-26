@@ -5,21 +5,18 @@
 //! Out: every register kept (`pusha` .. `popa`)
 //!
 //! Callers: `sub_4A2B75` and two of the game's. Refuses a null table, before anything.
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::menu::standings::*;
 
 /// The Rust version (see the header): the registers it leaves.
 pub fn init_standings_a() -> Result<(), Refused> {
-    let first: u32 = TABLE_A_RVA.get();
-    if first == 0 {
-        return Err(BadInput("no standings table").into());
-    }
+    let first = TABLE_A_RVA.need("no standings table")?;
     // Converted: `rc2k_core::menu::standings::EMPTY_A`.
     use rc2k_core::menu::standings::{EMPTY_A, ROOM};
     for n in 0..ROOM {
-        let e = first + A_ENTRY * n;
+        let e = first.add(A_ENTRY * n);
         for (k, v) in EMPTY_A.into_iter().enumerate() {
-            put(e + 4 * k as u32, v)?;
+            e.add(4 * k as u32).write(v, "a standings entry")?;
         }
     }
     Ok(())

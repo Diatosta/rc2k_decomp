@@ -39,6 +39,7 @@
 //! line buffer, and what the look-ups refuse.
 
 use crate::errors::{BadInput, Refused};
+use crate::memory::blocks::Place;
 use crate::menu::champ_store::CHAMP_VIEW;
 use crate::menu::event_store::EVENT_STATE;
 use crate::menu::lists_store::MENU_LISTS;
@@ -112,9 +113,10 @@ pub const OVERALL_STAGE: Page = Page {
 /// The Rust version of one page.
 pub fn draw_results_page(page: &Page, canvas: &mut dyn Canvas) -> Result<(), Refused> {
     let (list, class) = (CHAMP_VIEW.ranked_times.get(), EVENT_STATE.class.get());
-    if list == 0 {
+    let Some(list) = list else {
         return Err(BadInput("no ranked list").into());
-    }
+    };
+    let list = Place::Owned(list);
     if !section_there()? {
         return Err(BadInput("a section past the record table").into());
     }
@@ -168,26 +170,26 @@ pub fn draw_results_page(page: &Page, canvas: &mut dyn Canvas) -> Result<(), Ref
             }
         };
         let f = crate::menu::event_flow::Fault::default();
-        let rows: Vec<Row<u32>> = rows
+        let rows: Vec<Row<Place>> = rows
             .into_iter()
             .map(|e| {
-                let player = (f.get(e + 4) as i32) > 0;
+                let player = (f.get_at(e.add(4)) as i32) > 0;
                 let check = if player { page.check.1 } else { page.check.0 };
                 Row {
                     player,
-                    position: f.get(e + 0x44),
-                    name: e + 0x20,
-                    finished: f.get(e + 0x4C) == 1,
-                    not_timed: f.get(e + check) == NONE,
-                    time: f.get(e + page.time),
-                    nation: f.get(e + 8),
-                    car: f.get(e + 0x10),
+                    position: f.get_at(e.add(0x44)),
+                    name: e.add(0x20),
+                    finished: f.get_at(e.add(0x4C)) == 1,
+                    not_timed: f.get_at(e.add(check)) == NONE,
+                    time: f.get_at(e.add(page.time)),
+                    nation: f.get_at(e.add(8)),
+                    car: f.get_at(e.add(0x10)),
                 }
             })
             .collect();
         f.check()?;
         results_page(
-            &mut crate::screens::game_screen::GameScreen::new(canvas),
+            &mut crate::screens::game_screen::GameScreen::<_, _, Place>::new(canvas),
             heading,
             first,
             first_row,

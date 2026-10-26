@@ -215,14 +215,12 @@ impl flow::Game for Game {
                 C::AwardOverallPoints => {
                     let awarded = m::award_overall_points::award_overall_points()?;
                     awarded.carry_on(&mut self.f.c);
-                    self.f.record = awarded.end;
                 }
                 C::ClearStandingsB => m::clear_standings_b::clear_standings_b()?,
                 C::SortBByScore => m::sort_standings_b_by_score::sort_standings_b_by_score()?,
                 C::NumberAllB => {
                     let numbered = m::number_all_b::number_all_b()?;
                     numbered.carry_on(&mut self.f.c);
-                    self.f.record = numbered.end;
                 }
                 C::ShowChampionshipStandings => {
                     m::show_championship_standings::show_championship_standings(&self.f.c)?
@@ -238,7 +236,6 @@ impl flow::Game for Game {
                 C::NumberAllA => {
                     let numbered = m::number_all_a::number_all_a()?;
                     numbered.carry_on(&mut self.f.c);
-                    self.f.record = numbered.end;
                 }
                 C::ShowOverallRallyResults => {
                     m::show_overall_rally_results::show_overall_rally_results(&self.f.c)?

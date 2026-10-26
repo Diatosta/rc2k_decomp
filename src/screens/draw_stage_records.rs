@@ -16,6 +16,7 @@
 //! index. That only works because those sprites do not use a palette; it is reproduced as is.
 
 use crate::errors::{BadInput, Refused};
+use crate::memory::blocks::Place;
 use crate::menu::event_store::EVENT_STATE;
 use crate::screens::stage_panel::PanelScreen;
 use crate::strings::append_time::show_hours;
@@ -103,14 +104,14 @@ pub const TIME_TRIAL_ROWS: Rows = Rows {
 
 /// Returns the carry flag of the last `draw_text`. Refuses a missing record table and what
 /// the speed formatter refuses; the fatal errors are the blitter's.
-pub fn draw_stage_records(entry: u32, canvas: &mut dyn Canvas) -> Result<bool, Refused> {
+pub fn draw_stage_records(entry: Place, canvas: &mut dyn Canvas) -> Result<bool, Refused> {
     draw_records_rows(entry, &STAGE_ROWS, canvas)
 }
 
 /// `draw_stage_records` with the top-speed row's places given. Converted:
 /// `rc2k_core::screens::stage_panel::records`.
 pub fn draw_records_rows(
-    entry: u32,
+    entry: Place,
     rows: &Rows,
     canvas: &mut dyn Canvas,
 ) -> Result<bool, Refused> {
@@ -123,16 +124,18 @@ pub fn draw_records_rows(
             );
         };
         let f = crate::menu::event_flow::Fault::default();
-        let at = |base: u32, o: u32| f.get(base.wrapping_add(o));
+        let at = |base: Place, o: u32| f.get_at(base.add(o));
         let best = Holder {
             nation: at(entry, 8),
-            name: entry.wrapping_add(0x20),
+            name: entry.add(0x20),
             car: at(entry, 0x10),
             figure: at(entry, 0x14),
         };
+        // The stage record is the game's.
+        let record = Place::Game(record);
         let top = Holder {
             nation: at(record, rows.nationality),
-            name: record.wrapping_add(rows.name),
+            name: record.add(rows.name),
             car: at(record, rows.car),
             figure: at(record, rows.speed),
         };

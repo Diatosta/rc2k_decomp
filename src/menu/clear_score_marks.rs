@@ -6,7 +6,8 @@
 //!
 //! Callers: the event drivers. Refuses a null table, before anything.
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
+use crate::memory::blocks::Place;
 use crate::menu::champ_store::CHAMP_VIEW;
 use crate::menu::standings::*;
 
@@ -14,11 +15,10 @@ const ENTRIES: u32 = 50;
 
 /// The Rust version (see the header): the registers it leaves.
 pub fn clear_score_marks() -> Result<(), Refused> {
-    let first: u32 = CHAMP_VIEW.best_scores.get();
-    if first == 0 {
-        return Err(BadInput("no best-score table").into());
-    }
+    let first = CHAMP_VIEW.best_scores.need("no best-score table")?;
     // Converted: `rc2k_core::menu::standings::BEST_MARKS`, stored in each entry.
-    table(first, 0x3C, ENTRIES)?.store_all(&rc2k_core::menu::standings::BEST_MARKS);
+    with_table(Place::Owned(first), 0x3C, ENTRIES, |t| {
+        t.store_all(&rc2k_core::menu::standings::BEST_MARKS)
+    })?;
     Ok(())
 }

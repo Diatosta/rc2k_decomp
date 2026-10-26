@@ -13,9 +13,8 @@
 //! Refuses a missing table and a name that does not fit.
 //! Converted: `rc2k_core::saves::defaults::class_times`.
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::menu::champ_store::CHAMP_VIEW;
-use crate::pointers::GamePtr;
 use crate::saves::default_times::{GameSource, to_nowhere};
 use rc2k_core::saves::defaults::{CLASS_TABLE_LEN, class_times, write_class_times};
 
@@ -24,16 +23,12 @@ use rc2k_core::saves::defaults::{CLASS_TABLE_LEN, class_times, write_class_times
 // ---- Rust version ----
 
 pub fn default_class_times() -> Result<(), Refused> {
-    let table: u32 = CHAMP_VIEW.level_best_scores.get();
-    if table == 0 {
-        return Err(BadInput("no table").into());
-    }
+    let table = CHAMP_VIEW.level_best_scores.need("no table")?;
     let entries = class_times(&mut GameSource {
         log: &mut to_nowhere,
     })?;
-    let at = GamePtr::new(table);
-    let mut bytes = at.read_bytes(CLASS_TABLE_LEN, "the class times' table")?;
-    write_class_times(&mut bytes, &entries);
-    at.write_bytes(&bytes, "the class times' table")?;
+    table.with_bytes(CLASS_TABLE_LEN, "the class times' table", |bytes| {
+        write_class_times(bytes, &entries)
+    })?;
     Ok(())
 }

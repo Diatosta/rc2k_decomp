@@ -13,6 +13,8 @@ use crate::menu::standings::*;
 pub fn clear_record_entries() -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::bests::clear_marks`.
     let event = current_event()?;
-    rc2k_core::menu::bests::clear_marks(&mut crate::menu::rank_record_entry::event_list(event)?);
+    crate::menu::rank_record_entry::with_event_list(event, |list| {
+        rc2k_core::menu::bests::clear_marks(list)
+    })?;
     Ok(())
 }

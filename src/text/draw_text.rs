@@ -71,7 +71,7 @@ pub struct Outcome {
 }
 
 /// A canvas of this crate as the core's.
-pub struct Adapt<'a>(&'a mut dyn Canvas);
+pub struct Adapt<'a>(pub &'a mut dyn Canvas);
 
 pub enum AdaptError {
     Refused(Refused),
@@ -142,6 +142,35 @@ pub fn draw_text(
         })
     }?;
     Ok(outcome(text, out))
+}
+
+/// `draw_text_at` on a text of Rust's own (an owned block's, `memory::blocks`; ended by a
+/// NUL in it, or by its end, which the core refuses as a text that does not end). Gives
+/// the core's outcome: `next` is where the text after it starts, in `text`.
+pub fn draw_bytes_at(
+    font: *mut Font,
+    text: &[u8],
+    x: i32,
+    y: i32,
+    canvas: &mut dyn Canvas,
+) -> Result<rc2k_core::text::Outcome, Refused> {
+    let at = GamePtr::new(crate::pointers::game_address(font));
+    let before = at.read::<Font>("a font")?;
+    let mut copy = before;
+    let glyphs = GamePtr::new(copy.glyph_table).bytes("a font's glyph table")?;
+    let out = match rc2k_core::text::draw(&mut copy, text, &glyphs, x, y, &mut Adapt(canvas)) {
+        Ok(out) => out,
+        Err(AdaptError::Refused(e)) => return Err(e),
+        Err(AdaptError::Invalid) => {
+            return Err(
+                crate::errors::BadInput("a read past a text or a font's glyph table").into(),
+            );
+        }
+    };
+    if copy != before && canvas.keeps_font_changes() {
+        at.write(copy, "a font")?;
+    }
+    Ok(out)
 }
 
 /// `draw_text` with a font object in game memory, for Rust callers. The object is only

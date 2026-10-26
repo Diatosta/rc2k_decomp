@@ -15,10 +15,9 @@
 //! driver past the 180, and a name that does not fit.
 //! Converted: `rc2k_core::saves::defaults::best_scores`.
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::menu::champ_store::CHAMP_VIEW;
 use crate::menu::state_store::MENU_STATE;
-use crate::pointers::GamePtr;
 use crate::saves::default_times::{GameSource, to_nowhere};
 use rc2k_core::saves::defaults::{SCORE_TABLE_LEN, best_scores, write_best_scores};
 
@@ -27,10 +26,7 @@ use rc2k_core::saves::defaults::{SCORE_TABLE_LEN, best_scores, write_best_scores
 // ---- Rust version ----
 
 pub fn default_best_scores() -> Result<(), Refused> {
-    let table: u32 = CHAMP_VIEW.best_scores.get();
-    if table == 0 {
-        return Err(BadInput("no table of best scores").into());
-    }
+    let table = CHAMP_VIEW.best_scores.need("no table of best scores")?;
     let counts = std::array::from_fn(|g| MENU_STATE.menus.class_counts[g].get());
     let firsts = std::array::from_fn(|g| MENU_STATE.menus.firsts[g].get());
     let entries = best_scores(
@@ -40,9 +36,8 @@ pub fn default_best_scores() -> Result<(), Refused> {
         counts,
         firsts,
     )?;
-    let at = GamePtr::new(table);
-    let mut bytes = at.read_bytes(SCORE_TABLE_LEN, "the best scores' table")?;
-    write_best_scores(&mut bytes, &entries);
-    at.write_bytes(&bytes, "the best scores' table")?;
+    table.with_bytes(SCORE_TABLE_LEN, "the best scores' table", |bytes| {
+        write_best_scores(bytes, &entries)
+    })?;
     Ok(())
 }

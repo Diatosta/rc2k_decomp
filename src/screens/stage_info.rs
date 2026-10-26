@@ -4,6 +4,7 @@
 //! shares, the weather, the description, the stage's number, and the best and fastest.
 
 use crate::errors::{BadInput, Refused};
+use crate::memory::blocks::{At, Place};
 use crate::menu::arcade_store::ARCADE_GAME;
 use crate::menu::champ_store::CHAMP_VIEW;
 use crate::text::draw_text::Canvas;
@@ -27,7 +28,7 @@ pub fn stage_record() -> u32 {
 /// The fastest's flag sprite gets `dword_7587EC` as its palette (ebx as the original loads
 /// it). The speed is formatted before anything is drawn (its refusals first). Every
 /// register kept.
-pub fn draw_stage_best_and_fastest(times: u32, canvas: &mut dyn Canvas) -> Result<(), Refused> {
+pub fn draw_stage_best_and_fastest(times: At, canvas: &mut dyn Canvas) -> Result<(), Refused> {
     use rc2k_core::screens::stage_panel::{CarRow, Holder};
     {
         let record = stage_record();
@@ -36,15 +37,16 @@ pub fn draw_stage_best_and_fastest(times: u32, canvas: &mut dyn Canvas) -> Resul
         }
         let units = crate::strings::units::units();
         crate::strings::append_speed::append_speed(get(record + 0x30)?, true, units)?;
+        let times_value = |o: u32| times.add(o).read::<u32>("a best time");
         let best = Holder {
-            nation: get(times + 8)?,
-            name: times + 0x20,
-            car: get(times + 0x10)?,
-            figure: get(times + 0x14)?,
+            nation: times_value(8)?,
+            name: Place::Owned(times.add(0x20)),
+            car: times_value(0x10)?,
+            figure: times_value(0x14)?,
         };
         let top = Holder {
             nation: get(record + 0x74)?,
-            name: record + 0x54,
+            name: Place::Game(record + 0x54),
             car: get(record + 0x78)?,
             figure: get(record + 0x30)?,
         };
@@ -72,9 +74,9 @@ pub unsafe fn draw_rally_stage_info(canvas: &mut dyn Canvas) -> Result<(), Refus
     use crate::screens::best_scores::{RALLY_STAGE_TIMES, draw_times_heading};
     unsafe {
         let record = stage_record();
-        if record == 0 || CHAMP_VIEW.course_best_times.get() == 0 {
+        let (false, Some(course_times)) = (record == 0, CHAMP_VIEW.course_best_times.get()) else {
             return Err(BadInput("no stage record or times table").into());
-        }
+        };
         draw_times_heading(&RALLY_STAGE_TIMES, canvas)?;
         // the two headings in `stru_51E564` here (the other stage pages: `stru_51E5C4`)
         crate::screens::stage_panel::draw_stage_body_in(
@@ -84,10 +86,7 @@ pub unsafe fn draw_rally_stage_info(canvas: &mut dyn Canvas) -> Result<(), Refus
             crate::gfx::typefaces::fonts::TIME,
             canvas,
         )?;
-        let times = CHAMP_VIEW
-            .course_best_times
-            .get()
-            .wrapping_add(get(record + 0x3C)?.wrapping_mul(0x618));
+        let times = course_times.add(get(record + 0x3C)?.wrapping_mul(0x618));
         draw_stage_best_and_fastest(times, canvas)
     }
 }

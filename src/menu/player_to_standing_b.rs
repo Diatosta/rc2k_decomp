@@ -8,14 +8,15 @@
 //!
 //! Caller: `sub_4A44A0` (three times). Refuses a null entry, record or name, before anything.
 use crate::errors::{BadInput, Refused};
+use crate::memory::blocks::Place;
 use crate::menu::event_flow::Fault;
 use crate::menu::standings::*;
 
 /// `e` the entry (edi in the original), `p` the player's record (esi), `index` the
 /// player's index (ebx).
-pub fn player_to_standing_b(e: u32, p: u32, index: u32) -> Result<(), Refused> {
-    if e == 0 || p == 0 || get(p + 0x18)? == 0 {
-        return Err(BadInput("a null entry, record or name").into());
+pub fn player_to_standing_b(e: Place, p: u32, index: u32) -> Result<(), Refused> {
+    if p == 0 || get(p + 0x18)? == 0 {
+        return Err(BadInput("a null record or name").into());
     }
     // Converted: `rc2k_core::menu::standings::fill_b`.
     use rc2k_core::menu::standings::{PlayerB, fill_b};
@@ -32,6 +33,6 @@ pub fn player_to_standing_b(e: u32, p: u32, index: u32) -> Result<(), Refused> {
     };
     fault.check()?;
     // The entry's bytes as far as it is written (to +0x70).
-    fill_b(&mut table(e, 0x70, 1)?, 0, &source);
+    with_table(e, 0x70, 1, |t| fill_b(t, 0, &source))?;
     Ok(())
 }

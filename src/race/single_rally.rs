@@ -39,8 +39,9 @@ type Record = u32;
 // next entry would start.
 /// g_players (0x75647C): the players' records, 4 bytes each.
 const PLAYERS: &Dword = &PLAYER_TABLE.pointers[0];
-/// dword_7556F4: the standings summary, copied to `RACE_INFO`.
-const SUMMARY: &Dword = &CHAMP_VIEW.summary;
+/// dword_7556F4: the standings summary (its block, `memory::blocks`), copied to
+/// `RACE_INFO`.
+const SUMMARY: &crate::memory::blocks::BlockVar = &CHAMP_VIEW.summary;
 /// dword_7558DC, copied to dword_5C2FD0 after the loading picture.
 const AFTER_LOADING: &Dword = &EVENT_STATE.sparks_mode;
 /// dword_7554C8: kept over the race (`RACE_KEPT`).
@@ -53,7 +54,8 @@ const EVENT_MODE: &Dword = &EVENT_STATE.event_kind;
 const CURRENT: &Dword = &EVENT_STATE.current_player;
 /// dword_7587E8: the run's start argument (1: no loading picture after).
 const SWITCH: &Dword = &ARCADE_GAME.scene_let_go;
-/// dword_75ACD0: a copy of `SUMMARY`.
+/// dword_75ACD0: a copy of `SUMMARY` (the summary's block id, as the race reads it:
+/// `race::copy_league_table`, `physics::fill_rival_table`).
 const RACE_INFO: &Dword = &RACE_STATE.settings.rivals;
 /// dword_75ACD4: the stage chosen.
 const STAGE: &Dword = &RACE_STATE.settings.stage;
@@ -632,7 +634,7 @@ unsafe fn single_rally(
         if kind == 3 {
             step(1)?; // race::copy_rally_times
         }
-        RACE_INFO.set(var(SUMMARY));
+        RACE_INFO.set(SUMMARY.id());
         set_var(SWITCH, start);
         RACE_KIND.set(kind);
         RESULT.set(0);
@@ -2143,7 +2145,7 @@ mod tests {
                     return Err(BadInput("injected").into());
                 }
                 match place {
-                    1 => set_var(SUMMARY, self.rng.next()),
+                    1 => SUMMARY.set(self.rng.next()),
                     3 => STAGE.set(c.stage),
                     4 => set_var(AFTER_LOADING, self.rng.next()),
                     7 => {

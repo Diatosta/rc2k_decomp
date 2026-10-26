@@ -6,6 +6,7 @@
 //! registers the originals hand from call to call in a `Flow`.
 
 use crate::errors::BadInput;
+use crate::memory::blocks::{At, BlockVar};
 use crate::menu::captions_store::CAPTIONS;
 use crate::menu::champ_store::CHAMP_VIEW;
 use crate::menu::cheats_store::CHEAT_VARS;
@@ -64,6 +65,15 @@ impl Fault {
 
     pub fn put(&self, p: u32, v: u32) {
         self.ok(put(p, v));
+    }
+
+    /// The dword at a place (a table's, or the game's).
+    pub fn get_at(&self, p: crate::memory::blocks::Place) -> u32 {
+        self.ok(p.read("a table's value"))
+    }
+
+    pub fn put_at(&self, p: crate::memory::blocks::Place, v: u32) {
+        self.ok(p.write(v, "a table's value"));
     }
 
     pub fn check(&self) -> Result<(), BadInput> {
@@ -166,8 +176,8 @@ const KINDS: u32 = 4;
 pub const STAGE_RECORD: u32 = 0xA4;
 /// The stages' best times: `dword_7556E4` (kind 1) or `dword_7556E8`, 0x618 a stage (its
 /// +0x3C), ten entries of 0x9C each.
-pub const TIMES_ONE: &Dword = &CHAMP_VIEW.stage_best_times_alt; // dword_7556E4
-pub const TIMES_OTHER: &Dword = &CHAMP_VIEW.time_trial_best_times; // dword_7556E8
+pub const TIMES_ONE: &BlockVar = &CHAMP_VIEW.stage_best_times_alt; // dword_7556E4
+pub const TIMES_OTHER: &BlockVar = &CHAMP_VIEW.time_trial_best_times; // dword_7556E8
 pub const TIMES_LEN: u32 = 0x618;
 pub const TIME_ENTRY: u32 = 0x9C;
 
@@ -192,17 +202,15 @@ pub fn stage_record() -> Result<u32, BadInput> {
 
 /// The chosen stage's best times (ten entries); refused as `stage_record`, or with no
 /// table.
-pub fn stage_times() -> Result<u32, BadInput> {
+pub fn stage_times() -> Result<At, BadInput> {
     let record = stage_record()?;
-    let base = get(if get(STAGE_KIND) == 1 {
+    let base = if get(STAGE_KIND) == 1 {
         TIMES_ONE
     } else {
         TIMES_OTHER
-    });
-    if base == 0 {
-        return Err(BadInput("no best times table"));
     }
-    Ok(base.wrapping_add(dword(record + 0x3C)?.wrapping_mul(TIMES_LEN)))
+    .need("no best times table")?;
+    Ok(base.add(dword(record + 0x3C)?.wrapping_mul(TIMES_LEN)))
 }
 
 // ---- the registers the flows carry ----

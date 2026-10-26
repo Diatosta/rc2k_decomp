@@ -139,18 +139,28 @@ pub unsafe fn draw_stage_body_in(
 }
 
 /// The panel's screen for `rc2k_core::screens::stage_panel`.
-pub type PanelScreen<'a> =
-    GameScreen<'a, rc2k_core::screens::stage_panel::Font, rc2k_core::screens::stage_panel::Work>;
+/// Its texts are places: the best times' names are in the tables' blocks.
+pub type PanelScreen<'a> = GameScreen<
+    'a,
+    rc2k_core::screens::stage_panel::Font,
+    rc2k_core::screens::stage_panel::Work,
+    crate::memory::blocks::Place,
+>;
 
 /// The record rows, with the stage's best-time entry taken from the table at `table`.
 /// Returns the carry flag.
 pub fn draw_records_from(
-    table: u32,
+    table: Option<crate::memory::blocks::At>,
     record: u32,
     canvas: &mut dyn Canvas,
 ) -> Result<bool, Refused> {
+    // The original reads near 0 without a table.
+    let table = table.ok_or(crate::errors::BadInput("no best times table"))?;
     let entry = dword(record.wrapping_add(0x3C))?.wrapping_mul(BEST_TIME_ENTRY_SIZE);
-    draw_stage_records(table.wrapping_add(entry), canvas)
+    draw_stage_records(
+        crate::memory::blocks::Place::Owned(table.add(entry)),
+        canvas,
+    )
 }
 
 /// The record rows as the two "selected stage" panels draw them: from the group 1 table when
@@ -161,14 +171,15 @@ pub fn draw_records_for_group(
     record: u32,
     canvas: &mut dyn Canvas,
 ) -> Result<bool, Refused> {
-    let mut table: u32 = CHAMP_VIEW.course_best_times.get();
-    if table == 0 {
+    if CHAMP_VIEW.course_best_times.get().is_none() {
         return Ok(false);
     }
-    if group != 1 {
-        table = CHAMP_VIEW.stage_best_times.get();
-    }
-    if table == 0 {
+    let table = if group != 1 {
+        CHAMP_VIEW.stage_best_times.get()
+    } else {
+        CHAMP_VIEW.course_best_times.get()
+    };
+    if table.is_none() {
         return Ok(false);
     }
     draw_records_from(table, record, canvas)
