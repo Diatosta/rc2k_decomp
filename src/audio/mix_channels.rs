@@ -15,7 +15,8 @@ pub fn mix_channels_in_game(bytes: u32) -> Result<(), Refused> {
         bytes,
         AUDIO.mix_shift.get(),
         crate::audio::mix_buffer::MIX_BUFFER.samples.addr(),
-        AUDIO.channels[0].addr(),
+        // The first channel's id.
+        1,
         AUDIO.channel_count.get(),
     )
 }

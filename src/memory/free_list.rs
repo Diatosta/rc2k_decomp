@@ -35,6 +35,11 @@ pub fn free_list(list: *mut MemoryList) -> Result<(), BadInput> {
     // Converted: `rc2k_core::memory` (`Figures::given_back`, `List::emptied`).
     with_figures(|f| f.given_back(l.total));
     if block == 0 {
+        // Only Rust's memory counted on it (`count_owned`): its total emptied too.
+        if l.total != 0 {
+            l.emptied();
+            at.write(l, "a memory list")?;
+        }
         return Ok(());
     }
     let mut block = l.emptied();

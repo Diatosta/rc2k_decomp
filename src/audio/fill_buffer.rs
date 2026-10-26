@@ -42,13 +42,16 @@ pub fn fill_buffer(v: &Voice) -> Result<bool, Refused> {
         for (cell, part) in AUDIO.locked_parts.iter().zip(locked) {
             cell.set(part);
         }
-        let (first, second) = fill_copies(v.data, locked);
+        // The copies from the data's start (an id: `audio::sample_data`).
+        let (first, second) = fill_copies(0, locked);
         for (from, to, bytes) in std::iter::once(first).chain(second) {
-            crate::pointers::GamePtr::new(from).copy_to(
-                crate::pointers::GamePtr::new(to),
-                bytes as usize,
-                "a voice's sound into its buffer",
-            )?;
+            let part = crate::audio::sample_data::with_data(v.data, |data| {
+                data.get(from as usize..(from + bytes) as usize)
+                    .map(<[u8]>::to_vec)
+                    .ok_or(crate::errors::BadInput("a voice's sound past its memory"))
+            })??;
+            crate::pointers::GamePtr::new(to)
+                .write_bytes(&part, "a voice's sound into its buffer")?;
         }
         let r = ds::unlock(v.buffer, locked);
         if r != 0 {

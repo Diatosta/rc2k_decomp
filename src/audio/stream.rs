@@ -13,7 +13,6 @@
 use crate::audio::buffer_settings::a3d;
 use crate::audio::store::AUDIO;
 use crate::errors::{BadInput, Refused};
-use crate::pointers::GamePtr;
 
 pub const HEADER_LEN: u32 = 0xC00;
 
@@ -103,16 +102,21 @@ pub unsafe fn start_stream(s: &mut AudioStream, path: *const u8) -> Result<bool,
         if ds == 0 {
             return failed(s);
         }
-        let mut header = AUDIO.stream_header.get();
-        if header == 0 {
-            header = crate::pointers::game_address(crate::memory::allocate::allocate(
-                AUDIO.stream_header_memory.as_ptr(),
-                HEADER_LEN,
-            )?);
-            AUDIO.stream_header.set(header);
+        // The header's buffer: Rust's (`audio::sample_data`), taken once and counted as the
+        // game's block was (`g_streamHeader` 1 once it is there, no address).
+        use crate::audio::sample_data::{self as data, Buffer};
+        if AUDIO.stream_header.get() == 0 {
+            data::take(Buffer::Header, HEADER_LEN);
+            crate::memory::count_owned(&AUDIO.stream_header_memory, HEADER_LEN);
+            AUDIO.stream_header.set(1);
         }
-        GamePtr::new(header).fill(0, HEADER_LEN as usize, "the stream header")?;
-        if !crate::audio::samples::read_sample(path, header, HEADER_LEN, &AUDIO.sample_file)? {
+        data::with_buffer(Buffer::Header, |b| b[..HEADER_LEN as usize].fill(0));
+        if !crate::audio::samples::read_sample(
+            path,
+            Buffer::Header,
+            HEADER_LEN,
+            &AUDIO.sample_file,
+        )? {
             return failed(s);
         }
         let Some(h) = crate::files::handle::open_by_mode(path, 0)? else {
@@ -121,7 +125,7 @@ pub unsafe fn start_stream(s: &mut AudioStream, path: *const u8) -> Result<bool,
         s.file = h;
         s.open = 1;
         let f = AUDIO.sample_file.get();
-        crate::files::handle::seek(h, f.data.wrapping_sub(header) as i32, 0);
+        crate::files::handle::seek(h, data::offset(f.data)? as i32, 0);
         describe_wave_format(f.format, f.rate)?;
         AUDIO.buffer_description.set(BufferDescription {
             size: 0x14,

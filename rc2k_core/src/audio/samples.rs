@@ -274,6 +274,22 @@ pub trait SampleData {
     fn set(&mut self, at: u32, value: u8) -> bool;
 }
 
+/// A borrowed slice (sized, so it can be `&mut dyn SampleData`): memory the caller owns.
+impl SampleData for &mut [u8] {
+    fn get(&self, at: u32) -> Option<u8> {
+        (**self).get(at as usize).copied()
+    }
+    fn set(&mut self, at: u32, value: u8) -> bool {
+        match (**self).get_mut(at as usize) {
+            Some(b) => {
+                *b = value;
+                true
+            }
+            None => false,
+        }
+    }
+}
+
 impl SampleData for Vec<u8> {
     fn get(&self, at: u32) -> Option<u8> {
         self.as_slice().get(at as usize).copied()

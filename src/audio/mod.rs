@@ -30,6 +30,7 @@ pub mod release_eax;
 pub mod release_voice;
 pub mod release_voice_manager;
 pub mod restore;
+pub mod sample_data;
 pub mod sample_mode;
 pub mod samples;
 pub mod set_buffer_min_distance;

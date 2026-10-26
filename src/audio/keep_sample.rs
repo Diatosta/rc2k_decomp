@@ -6,33 +6,18 @@
 //! Only for a voice with data, a length and a `data_key`: `length` bytes from the samples'
 //! memory (`sub_409DFB`, inlined: `memory::allocate` on `g_sampleMemory`; its fatal
 //! error 0x80E28021 cannot come), the data copied there and the voice's data pointed at it. One caller,
-//! command 3 (`sub_40AEB9`).
+//! command 3 (`sub_40AEB9`). Since phase 12 the copy is Rust's (`audio::sample_data::keep`,
+//! counted on `g_sampleMemory` as the block was) and the voice's data its id.
 
 use crate::audio::store::AUDIO;
 use crate::audio::voices::*;
 use crate::errors::Refused;
-use crate::pointers::GamePtr;
 
-/// `allocate`: `length` bytes of the samples' memory.
-pub fn keep_sample(
-    v: &mut Voice,
-    allocate: &mut dyn FnMut(u32) -> Result<u32, Refused>,
-) -> Result<(), Refused> {
+pub fn keep_sample(v: &mut Voice) -> Result<(), Refused> {
     // Converted: `rc2k_core::audio::buffers::keeps_sample`.
     if !rc2k_core::audio::buffers::keeps_sample(v) {
         return Ok(());
     }
-    let to = allocate(v.length)?;
-    GamePtr::new(v.data).copy_to(GamePtr::new(to), v.length as usize, "a voice's sample")?;
-    v.data = to;
+    v.data = crate::audio::sample_data::keep(v.data, v.length, &AUDIO.sample_memory)?;
     Ok(())
-}
-
-pub fn allocate_in_game(length: u32) -> Result<u32, Refused> {
-    let list = AUDIO.sample_memory.as_ptr();
-    // The allocator reports a failure itself (0x80108571), so `sub_409DFB`'s own fatal
-    // error 0x80E28021 cannot come.
-    Ok(crate::pointers::game_address({
-        crate::memory::allocate::allocate(list, length)
-    }?))
 }

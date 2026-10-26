@@ -43,6 +43,25 @@ pub mod state {
     pub static HEAP_CURSOR: AtomicU32 = AtomicU32::new(0);
 }
 
+/// `bytes` of Rust's memory counted on `list` as `allocate` counts a block it takes (the
+/// list's total, the figures), for a user whose blocks are Rust's own (phase 12); the
+/// list's `free_list` gives them back. The list holds no block of the game's for them.
+pub fn count_owned(list: &crate::session::Shared<MemoryList>, bytes: u32) {
+    list.update(|l| l.total = l.total.wrapping_add(bytes));
+    with_figures(|f| f.taken(bytes));
+}
+
+/// The figures now (tests put them back).
+#[cfg(test)]
+pub fn figures() -> rc2k_core::memory::Figures {
+    use std::sync::atomic::Ordering::Relaxed;
+    rc2k_core::memory::Figures {
+        most_held: state::MOST_HELD.load(Relaxed),
+        held: state::HELD.load(Relaxed),
+        turnover: state::TURNOVER.load(Relaxed),
+    }
+}
+
 /// `altmemenable` now (`dword_4E0584`).
 pub fn own_heap() -> u32 {
     state::OWN_HEAP.load(std::sync::atomic::Ordering::Relaxed)
@@ -79,6 +98,7 @@ mod tests {
 
     #[test]
     fn variables_start_as_the_games() {
+        let _lock = crate::store::test_lock();
         let d = image_bytes(0x4E0578, 28);
         let word = |n: usize| u32::from_le_bytes(d[n * 4..n * 4 + 4].try_into().unwrap());
         for (n, v) in [

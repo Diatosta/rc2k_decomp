@@ -6,7 +6,6 @@
 use crate::audio::voices::*;
 use crate::errors::{BadInput, Refused};
 use crate::pointers::GamePtr;
-use rc2k_core::strings::bytes::Bytes as _;
 
 pub const MIX_BUFFER_LEN: u32 = 0x3C00;
 
@@ -25,8 +24,8 @@ pub fn mix_channels(
     count: u32,
 ) -> Result<(), Refused> {
     use rc2k_core::audio::mixer::Channel;
-    let size = std::mem::size_of::<MixerChannel>() as u32;
-    let at = |n: u32| channels.wrapping_add(n.wrapping_mul(size));
+    // Channel ids (place + 1) on from the first's.
+    let at = |n: u32| channels.wrapping_add(n);
     // Converted: `rc2k_core::audio::mixer`; here the channels loaded and stored, the data read
     // where the channels point.
     let mut loaded: Vec<(Channel, u32)> = (0..count)
@@ -50,31 +49,36 @@ pub fn mix_channels(
     let data: Vec<u32> = loaded.iter().map(|(_, d)| *d).collect();
     let mut cores: Vec<Channel> = loaded.drain(..).map(|(c, _)| c).collect();
     // The mix buffer worked on as a vector of its dwords (the core zeroes it first), written
-    // back whole; a channel's sample data resolved when the channel is first read.
+    // back whole.
     let mut buffer = vec![0i32; MIX_BUFFER_LEN as usize / 4];
-    let samples: Vec<std::cell::OnceCell<Result<crate::pointers::GameBytes, BadInput>>> =
-        data.iter().map(|_| std::cell::OnceCell::new()).collect();
+    // A channel's sample data (an id: `audio::sample_data`) found when the channel is first
+    // read, all of it readable while the mix runs.
     let failed = std::cell::Cell::new(None);
-    let byte = |n: usize, offset: u32| {
-        let bytes = samples[n]
-            .get_or_init(|| GamePtr::new(data[n]).bytes("a channel's sample data"))
-            .as_ref()
-            .map_err(|e| *e)
-            .and_then(|b| {
-                b.byte(offset as usize)
-                    .ok_or(BadInput("a channel read past its sample data"))
-            });
-        bytes.unwrap_or_else(|e| {
-            failed.set(failed.get().or(Some(e)));
-            0
-        })
-    };
-    let mixed = rc2k_core::audio::mixer::mix_channels(
-        bytes >> (shift & 0x1F),
-        &mut cores,
-        &byte,
-        &mut buffer,
-    );
+    let mixed = crate::audio::sample_data::with_view(|view| {
+        let samples: Vec<std::cell::OnceCell<Result<&[u8], BadInput>>> =
+            data.iter().map(|_| std::cell::OnceCell::new()).collect();
+        let byte = |n: usize, offset: u32| {
+            let bytes = samples[n]
+                .get_or_init(|| view.bytes(data[n]))
+                .as_ref()
+                .map_err(|e| *e)
+                .and_then(|b| {
+                    b.get(offset as usize)
+                        .copied()
+                        .ok_or(BadInput("a channel read past its sample data"))
+                });
+            bytes.unwrap_or_else(|e| {
+                failed.set(failed.get().or(Some(e)));
+                0
+            })
+        };
+        rc2k_core::audio::mixer::mix_channels(
+            bytes >> (shift & 0x1F),
+            &mut cores,
+            &byte,
+            &mut buffer,
+        )
+    });
     if let Some(e) = failed.get() {
         return Err(e.into());
     }

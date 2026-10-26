@@ -9,14 +9,17 @@ pub fn take_sample_buffer() -> Result<(), Refused> {
     // Converted: `rc2k_core::audio::levels::sample_buffer_size`.
     let size = rc2k_core::audio::levels::sample_buffer_size(AUDIO.sample_buffer_kb.get());
     AUDIO.sample_buffer_size.set(size);
-    let b = crate::memory::allocate::allocate(AUDIO.sample_buffer_memory.as_ptr(), size)?;
-    AUDIO.sample_buffer.set(crate::pointers::game_address(b));
+    // Rust's memory (`audio::sample_data`), counted as the game's block was;
+    // `g_sampleBuffer` is no longer an address (it stays 0).
+    crate::audio::sample_data::take(crate::audio::sample_data::Buffer::Work, size);
+    crate::memory::count_owned(&AUDIO.sample_buffer_memory, size);
     Ok(())
 }
 
 /// `audio::free_sample_buffer`: its list freed, size and buffer 0.
 pub fn free_sample_buffer() -> Result<(), Refused> {
     crate::memory::free_list::free_list(AUDIO.sample_buffer_memory.as_ptr())?;
+    crate::audio::sample_data::free(crate::audio::sample_data::Buffer::Work);
     AUDIO.sample_buffer_size.set(0);
     AUDIO.sample_buffer.set(0);
     Ok(())

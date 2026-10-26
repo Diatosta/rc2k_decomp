@@ -38,3 +38,14 @@ pub fn read_file(
     to.write_bytes(&into, "a file's buffer")?;
     Ok(result)
 }
+
+/// `read_file` into Rust's memory: `into` holds what the file's bytes do not reach over,
+/// as the game's buffer did. Refuses what `resolve_path` refuses.
+pub fn read_file_into(path: GamePtr, into: &mut [u8], offset: u32) -> Result<ReadResult, BadInput> {
+    Ok(rc2k_core::files::io::read_file(
+        &mut GameFiles::new(),
+        path,
+        into,
+        offset,
+    )?)
+}

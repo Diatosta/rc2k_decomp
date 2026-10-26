@@ -29,6 +29,13 @@ impl<const N: usize> Bytes for [u8; N] {
     }
 }
 
+/// A borrowed slice (sized, so it can be `&dyn Bytes`).
+impl Bytes for &[u8] {
+    fn byte(&self, at: usize) -> Option<u8> {
+        self.get(at).copied()
+    }
+}
+
 impl Bytes for Vec<u8> {
     fn byte(&self, at: usize) -> Option<u8> {
         self.get(at).copied()

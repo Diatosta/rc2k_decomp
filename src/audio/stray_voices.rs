@@ -8,7 +8,7 @@
 //! what it holds, until it is quiet again.
 
 use crate::audio::store::AUDIO;
-use crate::audio::voices::{VOICES, Voice, voice};
+use crate::audio::voices::{VOICES, voice};
 use crate::framework::log;
 use crate::session::Dword;
 use std::collections::HashSet;
@@ -43,10 +43,9 @@ pub fn check() {
     let (playing, stopping) = (list(&AUDIO.playing_voices), list(&AUDIO.stopping_voices));
     let listed: HashSet<u32> = playing.union(&stopping).copied().collect();
     let count = AUDIO.voice_count.get().min(VOICES);
-    let size = std::mem::size_of::<Voice>() as u32;
     let mut strays = Vec::new();
     for n in 0..count {
-        let at = AUDIO.voices[0].addr() + n * size;
+        let at = crate::audio::voices::voice_id(n);
         let v = voice(at);
         if v.flags & 1 == 0 || v.buffer == 0 || listed.contains(&at) {
             continue;

@@ -10,6 +10,10 @@
 //! stopping list (`g_stoppingVoices`, 0x4F8344) for the next turn to stop. What a command
 //! changes in a voice is marked in its `dirty` bits for the turn to carry out: 1 volume,
 //! 2 pan, 4 frequency, 8 place, 0x10 play, 0x20 restart.
+//!
+//! Since phase 12 a voice or a channel is named by its id, its place + 1 (the original's
+//! pointers: `first_voice`, `source`, `next_copy`, `next`, a channel's `voice`, the lists),
+//! never by an address.
 
 use crate::audio::store::{AUDIO, SAMPLE_RECORDS};
 
@@ -23,23 +27,37 @@ pub fn read(at: u32) -> u32 {
     crate::pointers::read_or_end::<u32>(at, "audio::voices's operand")
 }
 
-/// A record of `T` at `at`, once the address is known to hold one (inside one region,
-/// aligned); the program ends with the address otherwise.
-fn record_at<'a, T>(at: u32, what: &str) -> &'a mut T {
-    crate::pointers::check_or_end(at, size_of::<T>(), what);
-    if !(at as usize).is_multiple_of(align_of::<T>()) {
-        crate::fatal::raise::end(
-            "audio::voices",
-            crate::errors::BadInput("a record at an address out of line"),
-        );
+/// An id's place in a pool of `len`: ids are the place + 1 (phase 12: no addresses; 0 is
+/// none, as a null pointer was). 0, or one past the pool, ends the program.
+fn place_of(id: u32, len: usize, what: &'static str) -> usize {
+    match (id as usize).checked_sub(1) {
+        Some(n) if n < len => n,
+        _ => crate::fatal::raise::end("audio::voices", crate::errors::BadInput(what)),
     }
-    // Safety: `at` .. `at + size_of::<T>()` lies in one live region and is aligned; the
-    // records are the audio thread's (its lock held), as the original's are.
-    unsafe { &mut *(crate::pointers::host(at) as *mut T) }
 }
 
-pub fn voice<'a>(at: u32) -> &'a mut Voice {
-    record_at(at, "a voice")
+/// The voice of id `id` (its place in `g_voices` + 1).
+pub fn voice<'a>(id: u32) -> &'a mut Voice {
+    let n = place_of(id, AUDIO.voices.len(), "a voice id past the pool");
+    // SAFETY: the audio thread's records (its lock held), one borrowed at a time, as the
+    // original's are.
+    unsafe { AUDIO.voices[n].borrow() }
+}
+
+/// The id of the voice at place `n`.
+pub fn voice_id(n: u32) -> u32 {
+    n + 1
+}
+
+/// The mixer channel of id `id` (its place in `g_channels` + 1).
+pub fn channel<'a>(id: u32) -> &'a mut MixerChannel {
+    let n = place_of(
+        id,
+        AUDIO.channels.len(),
+        "a mixer channel id past the channels",
+    );
+    // SAFETY: as `voice`.
+    unsafe { AUDIO.channels[n].borrow() }
 }
 
 /// The sample record of sound `number` (the original indexes the table unchecked; a
@@ -51,14 +69,11 @@ pub fn sample<'a>(number: u32) -> &'a mut SampleRecord {
             crate::errors::BadInput("a sound number past the sample records"),
         );
     };
-    record_at(crate::pointers::game_address(r.as_ptr()), "a sample record")
+    // SAFETY: as `voice`.
+    unsafe { r.borrow() }
 }
 
-pub fn channel<'a>(at: u32) -> &'a mut MixerChannel {
-    record_at(at, "a mixer channel")
-}
-
-/// The core's `Pool` over the game's memory: voices and channels by their addresses.
+/// The core's `Pool` over the stores: voices and channels by their ids (place + 1).
 pub struct GamePool;
 
 impl rc2k_core::audio::voices::Pool for GamePool {
@@ -69,7 +84,7 @@ impl rc2k_core::audio::voices::Pool for GamePool {
         channel(at)
     }
     fn channel_at(&self, n: u32) -> u32 {
-        AUDIO.channels[0].addr() + n * std::mem::size_of::<MixerChannel>() as u32
+        n + 1
     }
     fn record(&mut self, n: u32) -> &mut SampleRecord {
         sample(n)
@@ -91,4 +106,26 @@ pub fn store_lists(l: &rc2k_core::audio::voices::Lists) {
     AUDIO.playing_voices.set(l.playing);
     AUDIO.stopping_voices.set(l.stopping);
     AUDIO.channels_used.set(l.channels_used);
+}
+
+#[cfg(test)]
+mod id_tests {
+    /// The voices and channels are named by ids since phase 12: no pointer of the image's
+    /// may point into them (it would be taken for an id).
+    #[test]
+    fn no_pointer_of_the_image_points_at_a_voice_or_a_channel() {
+        let voices = 0x4F834C..0x4F834C + 0x200 * 0x70;
+        let channels = 0x506354..0x506354 + 16 * 0x58;
+        for &place in crate::relocations::PLACES.iter() {
+            let target = u32::from_le_bytes(
+                crate::moved::image_bytes(place as usize, 4)
+                    .try_into()
+                    .unwrap(),
+            ) as usize;
+            assert!(
+                !voices.contains(&target) && !channels.contains(&target),
+                "{place:#x} points at {target:#x}"
+            );
+        }
+    }
 }

@@ -27,7 +27,9 @@ pub fn free_voices() -> Result<(), Refused> {
         crate::audio::release_voice_manager::release_voice_manager();
         // The voices by their places, as the original steps over them.
         for n in 0..count as usize {
-            crate::audio::release_voice::release_voice_in_game(AUDIO.voices[n].addr())
+            crate::audio::release_voice::release_voice_in_game(crate::audio::voices::voice_id(
+                n as u32,
+            ))
         }
         AUDIO.voice_count.set(0);
     }
@@ -41,5 +43,7 @@ pub fn free_voices() -> Result<(), Refused> {
     AUDIO.playing_voices.set(0);
     AUDIO.stopping_voices.set(0);
     crate::memory::free_list::free_list(AUDIO.sample_memory.as_ptr())?;
+    // The kept samples with it (and every data id: no voice is left).
+    crate::audio::sample_data::forget_all();
     Ok(())
 }
