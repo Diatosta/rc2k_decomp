@@ -56,6 +56,13 @@ pub static LINE_BUF: Place<[u8; LINE_BUF_LEN]> = Place::new([0; LINE_BUF_LEN]);
 /// disposition and share, as the image holds them (`tests::modes_are_the_games`).
 const MODE_ACCESS: u32 = 0x4000_0000;
 const MODE_DISPOSITION: u32 = 4;
+#[cfg_attr(
+    not(windows),
+    allow(
+        dead_code,
+        reason = "Windows' own sharing; the table's value, which the tests check"
+    )
+)]
 const MODE_SHARE: u32 = 0;
 
 /// "var\logfile.txt" (`aVarLogfileTxt`, 0x4E00A8); starts with "var\": `resolve_path`
@@ -76,7 +83,6 @@ fn line_buf() -> *mut u8 {
 /// Some(bytes written) if the write was reached; None if open or seek failed.
 fn append_to_file(path: &'static [u8], data: &[u8]) -> Option<u32> {
     use std::io::{Seek, SeekFrom, Write};
-    use std::os::windows::fs::OpenOptionsExt;
     // open_by_mode stores resolve_path's result
     crate::files::state::LAST_FILE_PATH.store(
         crate::pointers::game_address(path.as_ptr()),
@@ -85,15 +91,16 @@ fn append_to_file(path: &'static [u8], data: &[u8]) -> Option<u32> {
     // Mode 4 (`MODE_*`): write access, no sharing, open or create (std's `create`;
     // `write` only lets std accept it, the access is the table's).
     const _: () = assert!(MODE_DISPOSITION == 4);
-    let name = crate::files::ansi_text(&path[..path.len() - 1]);
-    let mut file = std::fs::OpenOptions::new()
-        .access_mode(MODE_ACCESS)
-        .share_mode(MODE_SHARE)
-        .attributes(0x80)
-        .write(true)
-        .create(true)
-        .open(name)
-        .ok()?; // the original does not close: the path stays set
+    const _: () = assert!(MODE_ACCESS == 0x4000_0000); // GENERIC_WRITE
+    let name = crate::files::host_path(&path[..path.len() - 1]);
+    let mut options = std::fs::OpenOptions::new();
+    options.write(true).create(true);
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::OpenOptionsExt;
+        options.share_mode(MODE_SHARE).attributes(0x80);
+    }
+    let mut file = options.open(name).ok()?; // the original does not close: the path stays set
     let result = match file.seek(SeekFrom::End(0)) {
         // The bytes written; a failed write counts what it wrote, nothing.
         Ok(_) => Some(file.write(data).unwrap_or(0) as u32),

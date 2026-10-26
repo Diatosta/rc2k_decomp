@@ -75,7 +75,7 @@ fn rd(at: u32) -> u32 {
 fn set_cd(path: u32) -> bool {
     let path = checked_text(path, "a folder to go to");
     let path = path.strip_suffix(&[0]).unwrap_or(&path);
-    std::env::set_current_dir(crate::files::ansi_text(path)).is_ok()
+    std::env::set_current_dir(crate::files::host_path(path)).is_ok()
 }
 
 /// The NUL-ended text at `at`, checked (`files::cstring`), with its NUL; one outside its

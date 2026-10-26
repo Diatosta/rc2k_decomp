@@ -712,7 +712,9 @@ pub fn play_film(path: u32) -> bool {
         });
     let name = match found {
         Ok((text, there)) => {
-            let name = crate::files::ansi_text(&text);
+            let name = crate::files::host_path(&text)
+                .to_string_lossy()
+                .into_owned();
             if !there {
                 log(&format!("gfx::play_film: {name} is not there"));
             }

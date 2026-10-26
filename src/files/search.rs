@@ -138,6 +138,8 @@ mod tests {
     #[test]
     fn a_folder_is_searched_in_order_with_folders_passed_over() {
         let _lock = crate::store::test_lock();
+        // SAFETY: the record's place, written by this module only (put back at the end).
+        let kept = unsafe { super::FIND_DATA.ptr().read() };
         let dir = std::env::temp_dir().join(format!("rc2k_search_{}", std::process::id()));
         std::fs::create_dir_all(dir.join("sub.pcx")).unwrap();
         for name in ["b.PCX", "a.pcx", "c.txt", "7.pcx"] {
@@ -160,6 +162,8 @@ mod tests {
         none.extend(b"x");
         assert!(!super::first(&none, 0));
         super::close();
+        // SAFETY: as above.
+        unsafe { super::FIND_DATA.ptr().write(kept) };
         std::fs::remove_dir_all(dir).unwrap();
     }
 }

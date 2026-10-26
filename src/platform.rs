@@ -463,6 +463,7 @@ static SHOW: RawHook = RawHook::new("gfx::show_frame", rva(0x4057D1));
 // ---- where the time goes: the main thread and the rasteriser's sampled every millisecond ----
 
 /// Where the sampled threads were, by address, since the last report.
+#[cfg(windows)]
 static SAMPLES: std::sync::Mutex<Option<std::collections::HashMap<usize, u32>>> =
     std::sync::Mutex::new(None);
 
@@ -470,21 +471,37 @@ static SAMPLES: std::sync::Mutex<Option<std::collections::HashMap<usize, u32>>> 
 static SHOW_MICROS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 
 /// The threads the sampler looks at: the main one and the rasteriser's.
+#[cfg(windows)]
 static SAMPLED: std::sync::Mutex<Vec<u32>> = std::sync::Mutex::new(Vec::new());
 
 /// The rasteriser's threads (rayon's pool), each noted for the sampler when it starts.
 pub fn start_threads() {
     let _ = rayon::ThreadPoolBuilder::new()
         .start_handler(|_| {
-            // SAFETY: no arguments; the calling thread's id.
-            let id = unsafe { windows_sys::Win32::System::Threading::GetCurrentThreadId() };
-            SAMPLED.lock().unwrap().push(id);
+            // The sampler's ids are the system's own (it opens the threads by them).
+            #[cfg(windows)]
+            SAMPLED
+                .lock()
+                .unwrap()
+                // SAFETY: no arguments; the calling thread's id.
+                .push(unsafe { windows_sys::Win32::System::Threading::GetCurrentThreadId() });
         })
         .build_global();
 }
 
+/// No sampler off Windows (it stops threads through Win32).
+#[cfg(not(windows))]
+fn start_sampler() {}
+
+/// No samples off Windows.
+#[cfg(not(windows))]
+fn hot_places() -> String {
+    String::new()
+}
+
 /// Starts the sampler, once (from the main thread): a thread of its own stops each sampled
 /// thread every millisecond, notes its instruction pointer and lets it go on.
+#[cfg(windows)]
 fn start_sampler() {
     use std::sync::Once;
     use windows_sys::Win32::System::Diagnostics::Debug::{CONTEXT, GetThreadContext};
@@ -545,6 +562,7 @@ fn start_sampler() {
 
 /// The samples since the last report, as a line of the hottest places: the program's
 /// (`rc2k+offset`, for `llvm-symbolizer`), the game's (its IDA address) or a DLL's.
+#[cfg(windows)]
 fn hot_places() -> String {
     use windows_sys::Win32::System::LibraryLoader::{
         GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS, GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
@@ -693,18 +711,28 @@ fn show_frame(screen: &Screen) -> Result<(), &'static str> {
     }
     // SAFETY: SDL's surface of a live window, until the next call on the window.
     let s = unsafe { &*surface };
-    if s.format != SDL_PIXELFORMAT_XRGB8888 || s.pixels.is_null() || s.pitch <= 0 {
-        return Err("the window's surface is not 32 bits of red, green, blue");
+    if s.pixels.is_null() || s.pitch <= 0 {
+        return Err("the window's surface has no pixels");
     }
     let rows = screen.height.min(s.h as usize);
     let columns = screen.width.min(s.w as usize);
-    // SAFETY: the surface's `h` rows of `pitch` bytes (SDL's surface), written only here.
-    let to_all = unsafe {
-        std::slice::from_raw_parts_mut(s.pixels as *mut u8, s.pitch as usize * s.h as usize)
+    // The frame as XRGB8888: into the surface when it is that (Windows'), else into a
+    // buffer SDL converts into the surface's format (Wayland's, X11's: the same colours).
+    let direct = s.format == SDL_PIXELFORMAT_XRGB8888;
+    let mut buffer = Vec::new();
+    let (to_all, pitch) = if direct {
+        // SAFETY: the surface's `h` rows of `pitch` bytes (SDL's surface), written only here.
+        let all = unsafe {
+            std::slice::from_raw_parts_mut(s.pixels as *mut u8, s.pitch as usize * s.h as usize)
+        };
+        (all, s.pitch as usize)
+    } else {
+        buffer.resize(columns * 4 * rows, 0u8);
+        (&mut buffer[..], columns * 4)
     };
     let bytes = (screen.bits / 8) as usize;
     for y in 0..rows {
-        let to = &mut to_all[y * s.pitch as usize..][..columns * 4];
+        let to = &mut to_all[y * pitch..][..columns * 4];
         let from = &screen.pixels[y * screen.width * bytes..][..columns * bytes];
         if bytes == 4 {
             to.copy_from_slice(from);
@@ -724,6 +752,24 @@ fn show_frame(screen: &Screen) -> Result<(), &'static str> {
                 | blue >> 2;
             to.copy_from_slice(&p.to_le_bytes());
         }
+    }
+    // SAFETY: `buffer` holds `rows` rows of `pitch` bytes; the surface's pixels are its
+    // `h` rows of `pitch` bytes, at least `rows` of `columns` pixels.
+    if !direct
+        && !unsafe {
+            SDL_ConvertPixels(
+                columns as i32,
+                rows as i32,
+                SDL_PIXELFORMAT_XRGB8888,
+                buffer.as_ptr().cast(),
+                pitch as i32,
+                s.format,
+                s.pixels,
+                s.pitch,
+            )
+        }
+    {
+        return Err("SDL cannot put the frame in the window's surface's format");
     }
     // SAFETY: as above.
     unsafe { SDL_UpdateWindowSurface(window) };
@@ -814,6 +860,7 @@ pub static HOOKS: &[&dyn GameHook] = &[
 ];
 
 /// A file of ours next to the log (the current folder can change: the installer).
+#[cfg(windows)]
 pub fn beside_log(name: &str) -> std::path::PathBuf {
     match crate::framework::LOG_PATH.get().and_then(|p| p.parent()) {
         Some(folder) => folder.join(name),

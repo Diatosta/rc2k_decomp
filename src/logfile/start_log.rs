@@ -63,7 +63,7 @@ pub unsafe fn start_log() -> Result<(), BadInput> {
             return Ok(());
         }
         crate::logfile::date_text::date_text()?;
-        let _ = std::fs::remove_file(crate::files::ansi_text(&LOG_PATH[..LOG_PATH.len() - 1]));
+        let _ = std::fs::remove_file(crate::files::host_path(&LOG_PATH[..LOG_PATH.len() - 1]));
         // Converted: `rc2k_core::files::log::head`; the values gathered (the date text,
         // the memory and the drive's numbers left in game memory as the original leaves
         // them), then each message logged as the original's call.

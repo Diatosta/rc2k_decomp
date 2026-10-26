@@ -27,8 +27,10 @@ use crate::registry::ALL;
 use crate::session::MACHINE;
 use std::path::Path;
 use std::sync::OnceLock;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::Ordering;
+#[cfg(windows)]
 use windows_sys::Win32::Foundation::EXCEPTION_ACCESS_VIOLATION;
+#[cfg(windows)]
 use windows_sys::Win32::System::Diagnostics::Debug::{
     AddVectoredExceptionHandler, EXCEPTION_POINTERS,
 };
@@ -154,8 +156,10 @@ fn install_and_lock(image: &Image) -> Result<(), String> {
 
 // ---- what the faults catch ----
 
-static FILTER: AtomicUsize = AtomicUsize::new(0);
+#[cfg(windows)]
+static FILTER: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
 
+#[cfg(windows)]
 /// The module a host address is in, and the address relative to its base
 /// ("rc2k.exe+0x1234").
 fn in_module(address: usize) -> Option<String> {
@@ -188,19 +192,40 @@ fn in_module(address: usize) -> Option<String> {
     }
 }
 
+#[cfg(unix)]
+/// The module a host address is in, and the address relative to its base ("rc2k+0x1234").
+fn in_module(address: usize) -> Option<String> {
+    // SAFETY: `address` is only looked up; the record's name is the loader's, live while
+    // the module is loaded.
+    unsafe {
+        let mut found: libc::Dl_info = std::mem::zeroed();
+        if libc::dladdr(std::ptr::with_exposed_provenance(address), &mut found) == 0
+            || found.dli_fname.is_null()
+        {
+            return None;
+        }
+        let path = std::ffi::CStr::from_ptr(found.dli_fname).to_string_lossy();
+        let file = path.rsplit('/').next().unwrap_or(&path).to_string();
+        Some(format!(
+            "{file}+{:#x}",
+            address - found.dli_fbase.expose_provenance()
+        ))
+    }
+}
+
 /// The return addresses into this program found on the stack from `esp` (at most 24), for
-/// `llvm-symbolizer` with the program's PDB.
+/// `llvm-symbolizer` with the program's PDB (or its symbols on Unix).
 fn stack_returns(esp: usize) -> String {
     let own = in_module((stack_returns as *const ()).expose_provenance())
         .map(|m| m.split('+').next().unwrap_or("").to_string());
     let mut out = Vec::new();
     // 2 KB of stack: well inside it at any fault the game code can reach.
-    for k in 0..512usize {
-        let at = esp + 4 * k;
+    const WORD: usize = size_of::<usize>();
+    for k in 0..2048 / WORD {
+        let at = esp + WORD * k;
         // SAFETY: the faulting thread's stack, 2 KB from its stack pointer: committed (the
         // game's code runs well inside it), and that thread is stopped in the handler.
-        let value =
-            unsafe { std::ptr::with_exposed_provenance::<u32>(at).read_unaligned() } as usize;
+        let value = unsafe { std::ptr::with_exposed_provenance::<usize>(at).read_unaligned() };
         if let (Some(m), Some(own)) = (in_module(value), own.as_ref())
             && m.starts_with(own.as_str())
         {
@@ -291,81 +316,127 @@ pub fn answers(at: usize) -> bool {
     SDL_DOES.iter().any(|w| w.0 == at) || LONE_RETN.contains(&at)
 }
 
+/// A fault reported and the program ended: `host` the faulting instruction, `data` the
+/// address it read or wrote (`write`), `sp` the thread's stack pointer (host addresses).
+/// Shared by the systems' handlers.
+fn report_fault(host: usize, data: usize, write: bool, sp: usize) -> ! {
+    // The system's numbers are host addresses: `ida`, `in_code` and `place` take game ones,
+    // `in_module` and `stack_returns` host ones.
+    let game = |n: usize| crate::pointers::game_of(n) as usize;
+    let address = game(host);
+    let verb = if write { "writing" } else { "reading" };
+    // A call or jump into the game's image faults at the address it went to.
+    if ida(address).is_none() {
+        // Rust reading the game's code, which the standalone does not have (step B's audit)
+        let read = game(data);
+        if !write && in_code(read) {
+            log(&format!(
+                "standalone: Rust read RAL.EXE's code bytes at {:#x}, which the program does not have; return addresses on the stack: {}",
+                ida(read).unwrap_or(0),
+                stack_returns(sp)
+            ));
+        } else if let Some(at) = ida(read) {
+            log(&format!(
+                "standalone: Rust {} the game's variable at {at:#x}, which has no home in Rust (phase 5: not moved); return addresses on the stack: {}",
+                if write { "wrote" } else { "read" },
+                stack_returns(sp)
+            ));
+        }
+        log(&format!(
+            "standalone: the fault is in {}; return addresses on the stack: {}",
+            in_module(host).unwrap_or_else(|| "no module".into()),
+            stack_returns(sp)
+        ));
+        finish(
+            &format!(
+                "access violation at {address:#x} ({}), {verb} address {data:#x}",
+                place(address)
+            ),
+            1,
+        );
+    }
+    // Nothing of Rust's runs code at the game's addresses (2026-10-24: every call by
+    // address goes to its Rust version): a jump there is a slip, and names the place.
+    // SAFETY: the faulting thread's stack pointer's slot: committed, and that thread is
+    // stopped in the handler.
+    let from = unsafe { std::ptr::with_exposed_provenance::<usize>(sp).read_unaligned() };
+    let from = match ida(game(from)) {
+        Some(from) => format!("{from:#x}"),
+        None => in_module(from).unwrap_or_else(|| format!("{from:#x}")),
+    };
+    finish(
+        &format!(
+            "Rust jumped into the game's code at {} (no code of RAL.EXE runs), from {from}; return addresses on the stack: {}",
+            place(address),
+            stack_returns(sp)
+        ),
+        1,
+    );
+}
+
+#[cfg(windows)]
 /// # Safety
 /// The system's vectored handler: `info` and the records it points at are the system's,
 /// live during the call.
 unsafe extern "system" fn on_exception(info: *mut EXCEPTION_POINTERS) -> i32 {
     const CONTINUE_SEARCH: i32 = 0;
-    // SAFETY: `info`'s records as the system hands them (the function's contract); the
-    // stack pointer's slot is the faulting thread's, committed.
+    // SAFETY: `info`'s records as the system hands them (the function's contract).
     unsafe {
         let record = &*(*info).ExceptionRecord;
-        let context = &mut *(*info).ContextRecord;
-        // The system's numbers are host addresses: `ida`, `in_code` and `place` take game
-        // ones, `in_module` and `stack_returns` host ones.
-        let host = record.ExceptionAddress.expose_provenance();
-        let game = |n: usize| crate::pointers::game_of(n) as usize;
-        let address = game(host);
+        let context = &*(*info).ContextRecord;
         if record.ExceptionCode != EXCEPTION_ACCESS_VIOLATION {
             return CONTINUE_SEARCH;
         }
-        // A call or jump into the game's image faults at the address it went to.
-        let ran_into_game = ida(address).is_some() && crate::arch::ip(context) == host;
-        if !ran_into_game {
-            // Rust reading the game's code, which the standalone does not have (step B's audit)
-            let read = game(record.ExceptionInformation[1]);
-            if record.ExceptionInformation[0] == 0 && in_code(read) {
-                log(&format!(
-                    "standalone: Rust read RAL.EXE's code bytes at {:#x}, which the program does not have; return addresses on the stack: {}",
-                    ida(read).unwrap_or(0),
-                    stack_returns(crate::arch::sp(context))
-                ));
-            } else if let Some(at) = ida(read) {
-                log(&format!(
-                    "standalone: Rust {} the game's variable at {at:#x}, which has no home in Rust (phase 5: not moved); return addresses on the stack: {}",
-                    if record.ExceptionInformation[0] == 0 {
-                        "read"
-                    } else {
-                        "wrote"
-                    },
-                    stack_returns(crate::arch::sp(context))
-                ));
-            }
-            log(&format!(
-                "standalone: the fault is in {}; return addresses on the stack: {}",
-                in_module(host).unwrap_or_else(|| "no module".into()),
-                stack_returns(crate::arch::sp(context))
-            ));
-            finish(
-                &format!(
-                    "access violation at {address:#x} ({}), {} address {:#x}",
-                    place(address),
-                    if record.ExceptionInformation[0] == 0 {
-                        "reading"
-                    } else {
-                        "writing"
-                    },
-                    record.ExceptionInformation[1]
-                ),
-                1,
-            );
+        report_fault(
+            record.ExceptionAddress.expose_provenance(),
+            record.ExceptionInformation[1],
+            record.ExceptionInformation[0] != 0,
+            crate::arch::sp(context),
+        )
+    }
+}
+
+/// # Safety
+/// The system's signal handler (SA_SIGINFO): `info` and `context` are the system's, live
+/// during the call.
+#[cfg(unix)]
+unsafe extern "C" fn on_signal(
+    _signal: libc::c_int,
+    info: *mut libc::siginfo_t,
+    context: *mut libc::c_void,
+) {
+    // SAFETY: the records as the system hands them (the function's contract).
+    unsafe {
+        let data = (*info).si_addr().expose_provenance();
+        let regs = &(*context.cast::<libc::ucontext_t>()).uc_mcontext.gregs;
+        #[cfg(target_arch = "x86_64")]
+        let (ip, sp) = (libc::REG_RIP, libc::REG_RSP);
+        #[cfg(target_arch = "x86")]
+        let (ip, sp) = (libc::REG_EIP, libc::REG_ESP);
+        // The page fault's error code: bit 1 for a write.
+        let write = regs[libc::REG_ERR as usize] & 2 != 0;
+        report_fault(
+            regs[ip as usize] as usize,
+            data,
+            write,
+            regs[sp as usize] as usize,
+        )
+    }
+}
+
+/// The fault reporter installed for SIGSEGV and SIGBUS (on the thread's alternate stack,
+/// which std gives its threads, so a stack overflow is reported too).
+#[cfg(unix)]
+fn install_fault_reporter() {
+    // SAFETY: a handler of the system's signature, for the program's life.
+    unsafe {
+        let mut action: libc::sigaction = std::mem::zeroed();
+        action.sa_sigaction = on_signal as *const () as usize;
+        action.sa_flags = libc::SA_SIGINFO | libc::SA_ONSTACK;
+        libc::sigemptyset(&mut action.sa_mask);
+        for signal in [libc::SIGSEGV, libc::SIGBUS] {
+            libc::sigaction(signal, &action, std::ptr::null_mut());
         }
-        // Nothing of Rust's runs code at the game's addresses (2026-10-24: every call by
-        // address goes to its Rust version): a jump there is a slip, and names the place.
-        let from = std::ptr::with_exposed_provenance::<u32>(crate::arch::sp(context))
-            .read_unaligned() as usize;
-        let from = match ida(game(from)) {
-            Some(from) => format!("{from:#x}"),
-            None => in_module(from).unwrap_or_else(|| format!("{from:#x}")),
-        };
-        finish(
-            &format!(
-                "Rust jumped into the game's code at {} (no code of RAL.EXE runs), from {from}; return addresses on the stack: {}",
-                place(address),
-                stack_returns(crate::arch::sp(context))
-            ),
-            1,
-        );
     }
 }
 
@@ -462,8 +533,9 @@ unsafe fn start() {
             ]
         };
         for &folder in folders {
-            if !Path::new(folder).is_dir() {
-                match std::fs::create_dir_all(folder) {
+            let at = crate::files::host_path(folder.as_bytes());
+            if !at.is_dir() {
+                match std::fs::create_dir_all(&at) {
                     Ok(()) => log(&format!("standalone: made the folder {folder}")),
                     Err(e) => log(&format!(
                         "standalone: the folder {folder} cannot be made: {e}"
@@ -635,10 +707,15 @@ pub fn run(log_file: &Path, frames: u32) -> ! {
     if let Err(why) = install_and_lock(image) {
         finish(&why, 2);
     }
-    // SAFETY: `on_exception` is a handler of the system's signature, for the program's
-    // life.
-    let handler = unsafe { AddVectoredExceptionHandler(1, Some(on_exception)) };
-    FILTER.store(handler.expose_provenance(), Ordering::SeqCst);
+    #[cfg(unix)]
+    install_fault_reporter();
+    #[cfg(windows)]
+    {
+        // SAFETY: `on_exception` is a handler of the system's signature, for the
+        // program's life.
+        let handler = unsafe { AddVectoredExceptionHandler(1, Some(on_exception)) };
+        FILTER.store(handler.expose_provenance(), Ordering::SeqCst);
+    }
     // The audio thread runs (its Rust version), on DirectSound over SDL
     // (`platform_sound`).
     // SAFETY: once, here, on the main thread.

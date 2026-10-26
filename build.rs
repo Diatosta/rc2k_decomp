@@ -3,8 +3,13 @@
 // `third_party/ffmpeg` (neither in git). Their DLLs are copied next to what is built (the
 // program and the test binaries in `deps`): Windows, and Wine running the tests, look for
 // a program's DLLs in its own folder, not on the build's search path.
+// On Unix the system's SDL3 and FFmpeg are linked (`libSDL3`, `libavcodec`,
+// `libavutil`): nothing to fetch or copy.
 fn main() {
     println!("cargo:rerun-if-changed=build.rs");
+    if std::env::var("CARGO_CFG_TARGET_OS").as_deref() != Ok("windows") {
+        return;
+    }
     let dir = std::env::var("CARGO_MANIFEST_DIR").unwrap();
     // 32 or 64 bits: SDL's folder for it, and FFmpeg's (`tools/build_ffmpeg.sh x64`).
     let (sdl, ffmpeg) = match std::env::var("CARGO_CFG_TARGET_ARCH").as_deref() {

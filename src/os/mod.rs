@@ -2,12 +2,16 @@
 //! `notes/conversion.md`): the clock, the local time, the command line, the current folder,
 //! message boxes. Nothing here is Windows-only; the game's texts go in and out as
 //! Windows-1252 bytes, as the Win32 `A` functions took them. The system's own facts (its
-//! version, names, drives, memory) are each system's file: `windows.rs`.
+//! version, names, drives, memory) are each system's file: `windows.rs`, `unix.rs`.
 
 #[cfg(windows)]
 mod windows;
 #[cfg(windows)]
 pub use windows::*;
+#[cfg(unix)]
+mod unix;
+#[cfg(unix)]
+pub use unix::*;
 
 use std::sync::OnceLock;
 use std::time::Instant;

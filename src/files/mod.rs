@@ -85,8 +85,59 @@ pub fn cstring(
 
 /// A path in the game's bytes (no NUL) as a `PathBuf`: the one place a game path becomes
 /// the system's.
+#[cfg(windows)]
 pub fn host_path(path: &[u8]) -> std::path::PathBuf {
     std::path::PathBuf::from(ansi_text(path))
+}
+
+/// A path in the game's bytes (no NUL) as a `PathBuf`: the one place a game path becomes
+/// the system's. On Unix (phase 11) as Windows read it: `\` a separator as `/` is, a drive
+/// letter (`c:`) the root, and each name found in its folder without regard to case (the
+/// game's files are named in any case); a name that is not there (a file to be made) is
+/// kept as written.
+#[cfg(unix)]
+pub fn host_path(path: &[u8]) -> std::path::PathBuf {
+    use std::path::{Path, PathBuf};
+    let text = ansi_text(path).replace('\\', "/");
+    let bytes = text.as_bytes();
+    let text = if bytes.len() >= 2 && bytes[0].is_ascii_alphabetic() && bytes[1] == b':' {
+        format!("/{}", text[2..].trim_start_matches('/'))
+    } else {
+        text
+    };
+    let mut at = if text.starts_with('/') {
+        PathBuf::from("/")
+    } else {
+        PathBuf::new()
+    };
+    let found_in = |folder: &Path, name: &str| -> Option<std::ffi::OsString> {
+        let folder = if folder.as_os_str().is_empty() {
+            Path::new(".")
+        } else {
+            folder
+        };
+        std::fs::read_dir(folder).ok()?.flatten().find_map(|e| {
+            let n = e.file_name();
+            n.to_str()
+                .is_some_and(|n| n.to_lowercase() == name.to_lowercase())
+                .then_some(n)
+        })
+    };
+    for name in text.split('/').filter(|n| !n.is_empty()) {
+        let exact = at.join(name);
+        if name == "." || name == ".." || exact.symlink_metadata().is_ok() {
+            at = exact;
+            continue;
+        }
+        at = match found_in(&at, name) {
+            Some(real) => at.join(real),
+            None => exact,
+        };
+    }
+    if text.ends_with('/') {
+        at.push("");
+    }
+    at
 }
 
 /// The NUL-terminated path at `at` (the game's ANSI bytes) as a `PathBuf`.
@@ -107,6 +158,28 @@ mod ansi_tests {
         assert_eq!(super::ansi_text(&[0x80, 0xE7, 0xE3, 0x9C]), "€çãœ");
         assert_eq!(super::ansi_bytes("€çãœ"), [0x80, 0xE7, 0xE3, 0x9C]);
         assert_eq!(super::ansi_bytes("a\u{3B1}"), b"a?");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn host_paths_are_found_without_regard_to_case() {
+        let dir = std::env::temp_dir().join(format!("rc2k_paths_{}", std::process::id()));
+        std::fs::create_dir_all(dir.join("Files/B")).unwrap();
+        std::fs::write(dir.join("Files/B/TX1822.PCX"), b"x").unwrap();
+        let game = |p: &str| super::ansi_bytes(&format!("{}\\{p}", dir.display()));
+        assert_eq!(
+            super::host_path(&game("files\\b\\tx1822.pcx")),
+            dir.join("Files/B/TX1822.PCX")
+        );
+        assert_eq!(
+            super::host_path(&game("files\\new.txt")),
+            dir.join("Files/new.txt")
+        );
+        assert_eq!(
+            super::host_path(b"c:\\tmp"),
+            std::path::PathBuf::from("/tmp")
+        );
+        std::fs::remove_dir_all(dir).unwrap();
     }
 }
 
@@ -164,6 +237,8 @@ mod tests {
 
     #[test]
     fn state_starts_as_the_games() {
+        // `files::search`'s test writes the search record.
+        let _lock = crate::store::test_lock();
         let word = |ida| u32::from_le_bytes(image_bytes(ida, 4).try_into().unwrap());
         assert_eq!(word(0x4F52B0), LAST_FILE_PATH.load(Relaxed));
         assert_eq!(word(0x4E05A4), FIND_HANDLE.load(Relaxed));

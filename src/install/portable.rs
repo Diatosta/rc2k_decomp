@@ -28,7 +28,7 @@ pub const FILE: &str = "var\\install.cfg";
 /// `var\ral.zog` nor `var\install.cfg`. The main loop then enters the installer (owner,
 /// 2026-10-20: the folder in place of a CD).
 pub fn is_source_folder() -> bool {
-    let here = |p: &str| std::path::Path::new(p).exists();
+    let here = |p: &str| crate::files::host_path(p.as_bytes()).exists();
     here("files\\d\\gfx\\jade.bun") && !here("var\\ral.zog") && !here(FILE)
 }
 /// The original's key, the one kept (the lobby's is not).
@@ -89,7 +89,8 @@ pub struct Portable;
 
 impl Registry for Portable {
     fn open(&mut self, name: u32, key: u32) -> u32 {
-        if text(name).eq_ignore_ascii_case(KEY) && std::path::Path::new(FILE).exists() {
+        if text(name).eq_ignore_ascii_case(KEY) && crate::files::host_path(FILE.as_bytes()).exists()
+        {
             put(key, KEPT);
             0
         } else {
@@ -103,7 +104,8 @@ impl Registry for Portable {
         }
         let (value, value_kind) = match text(name).as_slice() {
             b"status" => {
-                let record = std::fs::read_to_string(FILE).unwrap_or_default();
+                let record = std::fs::read_to_string(crate::files::host_path(FILE.as_bytes()))
+                    .unwrap_or_default();
                 match parse_status(&record) {
                     Some(status) => (vec![status], REG_BINARY),
                     None => return ERROR_FILE_NOT_FOUND,
@@ -140,12 +142,14 @@ static PENDING: Mutex<(Option<u8>, Option<Vec<u8>>)> = Mutex::new((None, None));
 /// The record written for the status given, in the folder given (else the current one), if
 /// that folder has a `var\` (an installation's).
 fn write_record(status: u8, folder: Option<Vec<u8>>) {
-    let folder = match folder.filter(|f| !f.is_empty()) {
-        Some(f) => String::from_utf8_lossy(&f).into_owned(),
-        None => String::new(),
-    };
-    let base = std::path::Path::new(&folder);
-    let var = base.join("var");
+    let folder = folder.filter(|f| !f.is_empty()).unwrap_or_default();
+    let mut var = folder.clone();
+    if !var.is_empty() && !var.ends_with(b"\\") {
+        var.push(b'\\');
+    }
+    var.extend(b"var");
+    let var = crate::files::host_path(&var);
+    let folder = crate::files::ansi_text(&folder);
     let what = if var.is_dir() {
         match std::fs::write(var.join("install.cfg"), record_text(status)) {
             Ok(()) => "written".to_string(),
